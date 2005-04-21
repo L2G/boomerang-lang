@@ -13,7 +13,7 @@ the previous version.]
 GNU make    Should already be installed on most systems these days
 
 ocaml       http://caml.inria.fr/ocaml/distrib.html.  
-            OCaml 3.07 is needed for the Focal visualizer.  3.06 should work 
+            OCaml 3.07 or later is needed for the Focal visualizer.  3.06 should work  
             for the core system.
 
             QUICK START ON OSX:
