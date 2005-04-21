@@ -127,7 +127,7 @@ PLUGINS_SOURCES = $(PERVASIVES_PLUGIN_SOURCE:%=pervasives/%) \
 		  $(ICALENDAR_PLUGIN_SOURCE:%=iCalendar/%) \
 		  $(PALM_PLUGIN_SOURCE:%=palm/%) \
 		  $(PALMDATEBOOK_PLUGIN_SOURCE:%=palmdatebook/%) \
-		  $(ADDRESSBOOK_PLUGIN_SOURCE:%addressbook/%)
+		  $(ADDRESSBOOK_PLUGIN_SOURCE:%=addressbook/%)
 
 ##################
 # COMMON SOURCES #
