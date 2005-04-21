@@ -13,6 +13,7 @@ Major issues:
     - no more research on lenses right now!
     - performance tuning
     - (eventually, replace types backend with sheaves automata to support inter, diff)
+* Rewrite visualizers in Swing or as Emacs front-ends :-)
 * Simple(!) user interface
 * Unison integration
 * Many demos
