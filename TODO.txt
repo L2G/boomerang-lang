@@ -1,5 +1,6 @@
 PENDING DONE
 * Add ICal, ICalendar and PalmDatebook
+   - Requires dealing correctly with alignment
    -[this is done right? (AS or BCP confirm?)]
 
 BUILD
