@@ -110,6 +110,8 @@ PALM_PLUGIN_SOURCE = palm.ml
 
 PALMDATEBOOK_PLUGIN_SOURCE = palmdatebook.ml
 
+ADDRESSBOOK_PLUGIN_SOURCE = addressbook_plugin.ml
+
 PLUGINS_SOURCES = $(PERVASIVES_PLUGIN_SOURCE:%=pervasives/%) \
 		  $(EXPERIMENTAL_PLUGIN_SOURCE:%=experimental/%) \
 		  $(ALIGN_PLUGIN_SOURCE:%=align/%) \
@@ -124,7 +126,8 @@ PLUGINS_SOURCES = $(PERVASIVES_PLUGIN_SOURCE:%=pervasives/%) \
 		  $(SAFARI_PLUGIN_SOURCE:%=safari/%) \
 		  $(ICALENDAR_PLUGIN_SOURCE:%=iCalendar/%) \
 		  $(PALM_PLUGIN_SOURCE:%=palm/%) \
-		  $(PALMDATEBOOK_PLUGIN_SOURCE:%=palmdatebook/%) 
+		  $(PALMDATEBOOK_PLUGIN_SOURCE:%=palmdatebook/%) \
+		  $(ADDRESSBOOK_PLUGIN_SOURCE:%addressbook/%)
 
 ##################
 # COMMON SOURCES #
