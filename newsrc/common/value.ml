@@ -146,6 +146,6 @@ let memoize v =
 	 end))
 
 (* library *)
-(* the library  is a ref to a qn -> t * sort Map *)
+(* the library is a ref to a qn -> t * sort Map *)
 let library : ((t * Syntax.sort) QNMap.t ref) = ref (QNMap.empty)
 let register q v s = library := (QNMap.add q (v,s) (!library))
