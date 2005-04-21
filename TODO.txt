@@ -12,7 +12,7 @@ Major issues:
 * Finishing Focal compiler (Nate)
     - no more research on lenses right now!
     - performance tuning
-    - (eventually, replace backend with sheaves)
+    - (eventually, replace types backend with sheaves automata to support inter, diff)
 * Simple(!) user interface
 * Unison integration
 * Many demos
