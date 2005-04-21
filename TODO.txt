@@ -13,8 +13,6 @@ BUILD
 TIDYING
 * Add interfaces everywhere
 * Remove remote execution stuff
-* rewrite Focal typechecker
-* change "let foo = ... do foo" into "let foo = ... in ..."
 
 FEATURES
 * push synchronization down to atomic or equally changed
