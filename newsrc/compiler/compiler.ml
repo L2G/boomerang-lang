@@ -14,48 +14,81 @@
    - rewriting multi-param functions to lambdas 
    - rewriting let-defs to simple no-param binders
 *)
-  
-(* expressions *)    
-(* compile_exp :: env -> Syntax.exp -> Value.t *)
-let rec compile_exp ev = function 
-    Syntax.EVar(i,q) -> 
+
+                   (* opens *)   (* mapping from qns to values *)  
+type compile_env = Value.qn list * Value.env
+let empty = ([], Value.empty)
+let get_ev cev = let (_,ev) = cev in ev
+let put_ev cev ev = let (os,_) = cev in (os,ev)
+					  
+let lookup cev q : (Value.rtv option) =
+  let (os,ev) = cev in
+  let rec lookup_aux os q2 =     
+    match Value.lookup ev q2 with
+      |	None ->
+	  begin match os with
+	    | []       -> None
+	    | o::orest -> lookup_aux orest (Value.dot (Some o) q) (* N.B., use q, not q2 here *)		  
+	  end
+      | Some r -> Some r
+  in
+    lookup_aux os q
+let lookup_qid cev qx = lookup cev (Value.qn_of_qid qx)
+let lookup_id cev x = lookup cev ([], Value.n_of_id x)  
+
+let update cev q r = put_ev cev (Value.update (get_ev cev) q r)
+let update_id cev x r = update cev (Value.qn_of_id x) r
+let overwrite cev q r = put_ev cev (Value.overwrite(get_ev cev) q r)
+let overwrite_id cev x r = overwrite cev (Value.qn_of_id x) r
+
+let opens cev qs = let (os,ev) = cev in (qs@os,ev)
+
+(* expressions *)
+(* compile_exp :: compile_env -> Syntax.exp -> Value.rtv *)
+let rec compile_exp cev e0 : Value.rtv = match e0 with
+  | Syntax.EVar(i,q) -> 
       begin
-        match (Value.lookup_qid ev q) with
-	  | Some v -> v
+        match (lookup_qid cev q) with
+	  | Some r -> r
 	  | None -> raise (Error.Run_error(("Unbound variable " 
-				      ^ (Pretty.string_of_qid q)
-				      ^ "."), i))
+					    ^ (Pretty.string_of_qid q)
+					    ^ "."), i))
       end
 	
   | Syntax.EFun(i,xs,so,e) ->
       begin
-	match xs with 
-	  | [p]   -> 
-	      Value.F((fun v -> compile_exp 
-			 (Value.update ev (Value.qn_of_id (Syntax.id_of_param p)) v) 
-			 e))
-		
-	      | _     -> assert false
+	match xs,so with 
+	  | [p], Some s  -> 
+	      let ps = Syntax.sort_of_param p in
+	      let f (v:Value.t) : Value.t =  
+		let fcev = update_id cev (Syntax.id_of_param p) (ps,v) in
+		  Value.t_of_rtv (compile_exp fcev e)
+	      in
+	      let fs = Syntax.SArrow(i,ps,s) in
+		(fs, Value.F(f))
+	  | _     -> raise (Error.Run_error(("Bogus function"), i))
       end
 	
   | Syntax.EApp(i,e1,e2) ->
       begin
-	match (compile_exp ev e1) with 	  
-	    Value.F(f) -> f (compile_exp ev e2)
+	match Value.t_of_rtv (compile_exp cev e1) with 	  
+	    Value.F(f) -> 
+	      let r = compile_exp cev e2 in
+		(Value.sort_of_rtv r, f (Value.t_of_rtv r))
 	  | _   -> raise (Error.Run_error("Left-hand side of application is not a function.", i))
       end
 
-  | Syntax.ELet(i,bs,e) -> compile_exp (compile_bindings ev None bs) e
+  | Syntax.ELet(i,bs,e) -> compile_exp (compile_bindings cev None bs) e
       
-  | Syntax.EName(i,id) -> Value.N (Syntax.name_of_id id)
+  | Syntax.EName(i,id) -> (Syntax.SName(i), Value.N (Syntax.name_of_id id))
 
-  | Syntax.EType(i,t) -> Value.T (compile_typeexp ev t)
+  | Syntax.EType(i,t) -> (Syntax.SType(i), Value.T (compile_typeexp cev t))
 
-  | Syntax.EView(i,ks) -> Value.V (compile_viewbinds ev ks)
-
+  | Syntax.EView(i,ks) -> (Syntax.SView(i), Value.V (compile_viewbinds cev ks))
+      
 (* types *)
-(* compile_exp :: env -> Syntax.typeexp -> Type.t *)
-and compile_typeexp ev = 
+(* compile_exp :: compile_env -> Syntax.typeexp -> Type.t *)
+and compile_typeexp cev = 
   let 
       type2cstate = function 
 	| Syntax.TExp(_,Syntax.EVar(i,q)) -> (Value.qn_of_qid q,[],[])
@@ -67,7 +100,7 @@ and compile_typeexp ev =
 	
     | Syntax.TName(i,e,t)    ->
 	let n =
-	  match (compile_exp ev e) with
+	  match Value.t_of_rtv (compile_exp cev e) with
 	      Value.N n -> n
 	    | _     -> raise (Error.Run_error("Name expected.", i))
 	in
@@ -80,10 +113,10 @@ and compile_typeexp ev =
 	Type.Star(List.map Syntax.name_of_id xl, type2cstate t)
 
     | Syntax.TCat(i,ts)      -> 
-	Type.Cat(List.map(compile_typeexp ev) ts) 
+	Type.Cat(List.map(compile_typeexp cev) ts) 
 	  
     | Syntax.TUnion(i,ts)    -> 
-	Type.Union(List.map(compile_typeexp ev) ts) 
+	Type.Union(List.map(compile_typeexp cev) ts) 
 	  
     | Syntax.TDiff(i,t1,t2)  -> 
 	raise(Error.Run_error(("Diff not implemented."), i))
@@ -93,7 +126,7 @@ and compile_typeexp ev =
 	  
     | Syntax.TExp(i,e) ->
 	begin
-	  match (compile_exp ev e) with
+	  match Value.t_of_rtv (compile_exp cev e) with
 	    | Value.T t -> t
 	    | _     -> raise (Error.Run_error("Type expected.",i))
 	end
@@ -105,11 +138,11 @@ and compile_viewbinds ev = function
       
   | (i,ne,ve)::rest ->
       let n =
-	match compile_exp ev ne with
+	match Value.t_of_rtv (compile_exp ev ne) with
 	  | Value.N n -> n
 	  | _ -> raise (Error.Run_error("Expected a name.", i))
       in
-      let v = match compile_exp ev ve with
+      let v = match Value.t_of_rtv (compile_exp ev ve) with
 	| Value.V v -> v
 	| _ -> raise (Error.Run_error("Expected a view.", i))
       in
@@ -120,41 +153,47 @@ and compile_viewbinds ev = function
 	  | None   -> V.set vrest n (Some v)
 	      
 (* bindings *)
-and compile_bindings ev mo bs = 
-  let ms = match mo with None -> "" | Some m -> Pretty.string_of_qn m in
+and compile_bindings cev mo bs = 
   (* add all the bindings in a recursion group to the environment *)
-  let bev = 
+  let bev : compile_env = 
     List.fold_left 
       (fun bev (Syntax.BDef(_,f,_,_,_)) -> 
-	 Value.update bev (Value.dot_id mo f) Value.dummy) 
-      ev 
+	 update bev (Value.dot_id mo f) Value.dummy_rtv) 
+      cev 
       bs 
   in
   (* and backpatch... *)
   let _ = List.map
     (fun bi -> match bi with
        | (Syntax.BDef(i,f,[],so,e)) ->
-	   Value.overwrite bev (Value.dot_id mo f) (Value.memoize (compile_exp bev e))
+	   let r = compile_exp bev e in
+	   let s = Value.sort_of_rtv r in
+	   let v = Value.t_of_rtv r in	     
+	     overwrite bev (Value.dot_id mo f) (s, Value.memoize v)
        | (Syntax.BDef(i,f,_,so,e)) -> assert false)
     bs
   in    
     bev
       
 (* type bindings *)
-let compile_typebindings ev mo ts =   
+let compile_typebindings cev mo ts =   
   (* add to environment and backpatch *)
   let tev = 
     List.fold_left 
-      (fun tev (x,_,_) -> Value.update_id tev (Value.dot_id mo x) Value.dummy) 
-      ev 
+      (fun tev (x,_,_) -> update_id tev (Value.dot_id mo x) Value.dummy_rtv) 
+      cev 
       ts 
   in
     List.fold_left 
-      (fun ev ti -> 
+      (fun cev ti -> 
 	 match ti with
-	   | (x,[],t) -> Value.overwrite_id ev (Value.dot_id mo x) (Value.T(compile_typeexp ev t))
+	   | (x,[],t) -> 
+	       overwrite_id 
+		 tev 
+		 (Value.dot_id mo x) 
+		 (Syntax.SType(Info.bogus),Value.T(compile_typeexp tev t))
 	   | (x,_,t)  -> assert false)
-      ev
+      cev
       ts
       
 (* declarations *)
@@ -163,16 +202,16 @@ let rec compile_decl ev mo = function
   | Syntax.DType(_,ts)  -> compile_typebindings ev mo ts
   | Syntax.DMod(i,n,ds) -> compile_module_aux ev n ds
 
-and compile_module_aux ev m ds =
+and compile_module_aux cev m ds =
   let qnm = Value.qn_of_id m in
-    List.fold_left (fun ev di -> compile_decl (Value.open_qns ev [qnm]) (Some qnm) di) ev ds
+    List.fold_left (fun ev di -> compile_decl (opens cev [qnm]) (Some qnm) di) cev ds
       
 (* modules *)
 let compile_module = function
   | Syntax.MDef(i,m,nctx,ds) ->
       let init_ev = 
-	Value.open_qns
-	  Value.empty 
+	opens 
+	  (put_ev empty (Value.get_library ()))
 	  (Value.qn_of_id m::(List.map Value.qn_of_qid nctx)) 
       in
 	compile_module_aux 

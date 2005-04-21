@@ -51,55 +51,42 @@ type t =
 (* dummy value, used during initialization of environments
    for recursive definitions *)
 let dummy = N("_")
+let dummy_rtv = Syntax.SName(Info.bogus), dummy
   
-(* an environment is a pair of a naming context and a map from qns 'a refs *)
-type 'a env = qn list * (('a ref) QNMap.t)
+(* an environment is a pair of a naming context and a map from qns to run-time values *)
+type rtv = Syntax.sort * t
+type env = (rtv ref) QNMap.t
+
+let t_of_rtv (s,v) = v
+let sort_of_rtv (s,v) = s
     
 (* the empty environment *)
-let empty = ([], QNMap.empty)
+let empty : env = QNMap.empty
   
 (* produce env[q:=v]; yields the SAME env *)
-let overwrite e q v = 
-  let (os,m) = e in
-    try 
-      (QNMap.find q m):=v; 
-      (os,m)
-    with Not_found ->
-      (os,QNMap.add q (ref v) m)
-	
-let overwrite_id e x v = overwrite e ([],n_of_id x) v 
+let overwrite e q r = 
+  try 
+    (QNMap.find q e):=r; 
+    e
+  with Not_found ->
+    QNMap.add q (ref r) e
+
+let overwrite_id e x r = overwrite e ([],n_of_id x) r
   
 (* produce env[q->v]; yields a NEW env *)
-let update e q v = 
-  let (os,m) = e in
-  let r = ref v in
-    (os,QNMap.add q r m)
-      
-let update_id ev x v = update ev ([],n_of_id x) v
+let update e q r = QNMap.add q (ref r) e     
+let update_id ev x r = update ev ([],n_of_id x) r
   
 (* lookup in an enviroment *)
 let lookup e q =
-  let (os,m) = e in
-  let rec lookup_aux os q2 =     
-    try 
-      Some !(QNMap.find q2 m)
-    with Not_found -> 
-      begin
-	match os with
-	  | []       -> None
-	  | o::orest -> lookup_aux orest (dot (Some o) q) (* use q, not q2 here *)
-      end
-  in
-    lookup_aux os q
+  try Some !(QNMap.find q e)
+  with Not_found -> None
 let lookup_qid env q = lookup env (qn_of_qid q)
 let lookup_id env x = lookup env ([], n_of_id x)
   
-let open_qns (os,m) qs = (qs@os,m)
+let fold = QNMap.fold
 
 (* memoization infrastructure *)
-(* ----------------------------------------------------------------------- *)
-(* Memoization infrastructure *)
-
 type thist = t (* HACK! *)
 
 module H =
@@ -146,6 +133,5 @@ let memoize v =
 	 end))
 
 (* library *)
-(* the library is a ref to a qn -> t * sort Map *)
-let library : ((t * Syntax.sort) QNMap.t ref) = ref (QNMap.empty)
-let register q v s = library := (QNMap.add q (v,s) (!library))
+let library = ref empty
+let get_library () = !library

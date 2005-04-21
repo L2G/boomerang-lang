@@ -10,7 +10,7 @@
 
 exception Syntax_error of string * Info.t
 exception Parse_error of string * Info.t
-exception Type_error of string * Info.t
+exception Sort_error of string * Info.t
 exception Run_error of string * Info.t
 
 (* helper function for constructing a Focal type error *)

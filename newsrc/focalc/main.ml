@@ -8,6 +8,6 @@ let _ =
   let _ = debug_err ("AST1:\n\n" ^ (Pretty.string_of_modl ast1)) in
   let ast2 = Checker.sc_modl ast1 in
   let _ = debug_err ("\nAST2:\n\n" ^ (Pretty.string_of_modl ast2)) in
-  let e = Compiler.compile_module ast2 in
+  let e = Compiler.get_ev (Compiler.compile_module ast2) in
   let _ = debug_err ("\n\nRESULT: " ^ (Pretty.string_of_env e) ^ "\n") in
     ()

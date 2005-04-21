@@ -178,14 +178,16 @@ let rec string_of_value = function
 
 (* random helpers *)
 and string_of_env ev = 
-  let (_,m) = ev in
-    curlybraces 
-      (Value.QNMap.fold 
-	 (fun q v acc -> 
+  curlybraces 
+    (Value.fold 
+       (fun q r acc -> 
+	  let (s,v) = !r in
 	    (concat "" [ string_of_qn q
 		       ; "->"
-		       ; string_of_value !v
+		       ; string_of_value v
+		       ; ":"
+		       ; string_of_sort s
 		       ; if (acc = "") then "" else ", "
 		       ; acc]))
-	 m
-	 "")
+       ev
+       "")

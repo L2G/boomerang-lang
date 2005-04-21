@@ -9,8 +9,7 @@
 (****************************************************************)
 
 open Syntax
-open Error
-   
+
 (* the checker performs the following tasks:
    - simple sort checking
    - annotates decls with their computed sorts, for easy 
@@ -19,20 +18,35 @@ open Error
      for easy compilation to Type.t *)
   
 (* sort checking environments *)
-(* - the main environment is a Value.env (i.e., a map from qn -> Syntax.sort)
-   - we also need to track variables that may be used recursively
-     the (Value.qn list) tracks those variables that may NOT be used 
-     recursively 
-*)
-type sc_env = (Value.qn list) * (Syntax.sort Value.env)
+type sc_env = Value.qn list * Value.qn list * Value.env
 
-(* helper functions for environments, maniplate lists of recursive variables *)
-let update ev q s = let (cs,e) = ev in (cs, Value.update e q s)
-let update_id ev x s = update ev (Value.qn_of_id x) s
-let update_param ev p = update_id ev (id_of_param p) (sort_of_param p)
-let add q ev = let (cs,e) = ev in (q::cs,e)
-let add_id x ev = add (Value.qn_of_id x) ev
-let clear ev = let (_,e) = ev in ([],e)
+let empty = ([],[],Value.empty)
+let get_ev sev = let (_,_,ev) = sev in ev
+let put_ev sev ev = let (rs,os,_) = sev in (rs,os,ev)
+
+let lookup (sev:sc_env) q : (sort option) = 
+  let (_,os,ev) = sev in
+  let rec lookup_aux os q2 =     
+    match Value.lookup ev q2 with
+      |	None ->
+	  begin match os with
+	    | []       -> None
+	    | o::orest -> lookup_aux orest (Value.dot (Some o) q) (* N.B., use q, not q2 here *)		  
+	  end
+      | Some r -> Some (Value.sort_of_rtv r)
+  in
+    lookup_aux os q
+let lookup_qid sev qx = lookup sev (Value.qn_of_qid qx)
+let lookup_id sev x = lookup sev ([], Value.n_of_id x)  
+
+let update sev q s = put_ev sev (Value.update (get_ev sev) q (s, Value.dummy))
+let update_id sev x s = update sev (Value.qn_of_id x) s
+let update_param (sev:sc_env) p = update_id sev (id_of_param p) (sort_of_param p)
+let add_rs q sev = let (rs,os,ev) = sev in (q::rs,os,ev)
+let add_rs_id x sev = add_rs (Value.qn_of_id x) sev
+let add_os qs sev = let (rs,os,ev) = sev in (rs,qs@os,ev)
+let clear sev = let (_,os,ev) = sev in ([],os,ev)
+let rec_ok sev q = let (rs,_,_) = sev in not (List.mem q rs)
 				   
 (* convert a list of parameters ps and a sort s to arrow sort (ps -> s) *)
 let sort_of_param_list i ps s = 
@@ -48,15 +62,15 @@ let rec expect_sort es s i =
     | (SArrow(_,es1,es2),SArrow(_,s1,s2)) ->
 	let _ = expect_sort es1 s1 i in
   	let _ = expect_sort es2 s2 i in
-	  s1
+ 	  s1
     | _ -> 
-	raise (Type_error ("The expression at "
+	raise (Error.Sort_error ("The expression at "
 			   ^ (Pretty.string_of_info i)
 			   ^ " has sort: "
 			   ^ (Pretty.string_of_sort s)
 			   ^ ", but is used with sort: "
 			   ^ (Pretty.string_of_sort es),i))
-
+	  
 (* poor man's gensym - 
    - used for type variables only
    - assumes that user type variables don't start with _ we should either 
@@ -73,20 +87,20 @@ let fresh_var () =
     	  
 (* sort check expressions *)
 (* returns a triple: a sort, a list of new type declarations, and a new expression *)
-let rec sc_exp ev e0 = match e0 with
-    EVar(i,qi) ->
+let rec sc_exp (sev:sc_env) e0 = match e0 with
+    EVar(i,qx) ->
       begin
-	let (cs,e) = ev in
-	  match (List.mem (Value.qn_of_qid qi) cs), (Value.lookup_qid e qi) with
-	    | (false, Some s) -> s, [], e0
-	    | (true, Some s)  -> 
-		raise (Type_error("Non-contractive use of:"
-				  ^(Pretty.string_of_qid qi)
+	let q = Value.qn_of_qid qx in
+	  match (rec_ok sev q, lookup sev q) with
+	    | (true, Some s) -> s, [], e0
+	    | (false, Some _)  -> 
+		raise (Error.Sort_error("Non-contractive use of:"
+				  ^(Pretty.string_of_qid qx)
 				  ^ " at "
 				  ^(Pretty.string_of_info i),i))		
 	    | (_, None) ->
-		raise (Type_error("Unbound variable: "
-				  ^(Pretty.string_of_qid qi)
+		raise (Error.Sort_error("Unbound variable: "
+				  ^(Pretty.string_of_qid qx)
 				  ^ " at "
 				  ^(Pretty.string_of_info i),i))
       end
@@ -95,8 +109,8 @@ let rec sc_exp ev e0 = match e0 with
       
   | EFun(i,[p],so,e) ->
       (* plain ol' lambdas *)      
-      let eev = clear (update_param ev p) in (* under a lambda, all vars may be used recursively *)
-      let es,new_tds,new_e = sc_exp eev e in
+      let esev = clear (update_param sev p) in (* under a lambda, all vars may be used recursively *)
+      let es,new_tds,new_e = sc_exp esev e in
       let _ = match so with
 	| None -> es
  	| Some s -> expect_sort s es i
@@ -105,40 +119,40 @@ let rec sc_exp ev e0 = match e0 with
 
   | EFun(i,(p1::p2::ps),so,e) ->
       (* rewrite multi-argument functions to plain ol' lambdas *)
-      let fev = update_param ev p1 in
+      let fev = update_param sev p1 in
       let body_sort,new_tds,body_exp = sc_exp fev (EFun(i,p2::ps,so,e)) in
 	SArrow(i, sort_of_param p1, body_sort), new_tds, EFun(i,[p1],Some body_sort, body_exp)
 	  
   | EApp(i,e1,e2) ->
       (* check that e1 has a function sort and that t2 has the correct param type *)
-      let e1s,new_tds1,new_e1 = sc_exp ev e1 in
+      let e1s,new_tds1,new_e1 = sc_exp sev e1 in
 	begin
 	  match e1s with
 	    | SArrow(_,sa1,sa2) ->
-		let e2s,new_tds2,new_e2 = sc_exp ev e2 in
+		let e2s,new_tds2,new_e2 = sc_exp sev e2 in
 		let _ = expect_sort sa1 e2s i in
 		  sa2,(new_tds1@new_tds2),EApp(i,new_e1,new_e2)
 	    | _ ->
-		raise (Type_error("Expected an arrow sort at "
+		raise (Error.Sort_error("Expected an arrow sort at "
 				  ^ (Pretty.string_of_info i)
 				  ^ ", found "
 				  ^ (Pretty.string_of_sort e1s), i))
 	end
 
   | ELet(i,bs,e) ->
-      let bev,new_tds1,new_bs = sc_bindings ev None bs in
+      let bev,new_tds1,new_bs = sc_bindings sev None bs in
       let es,new_tds2,new_e = sc_exp bev e in
 	es, (new_tds1 @ new_tds2), ELet(i,new_bs,new_e)
 	  
   | EName(i,id) -> SName(i), [], e0
 	  
   | EType(i,t) ->
-      let ts,new_tds,new_t = sc_typeexp ev t in
+      let ts,new_tds,new_t = sc_typeexp sev t in
       let _ = expect_sort (SType(i)) ts in
 	ts,new_tds,EType(i,new_t)
 
   | EView(i,ks) ->
-      let new_tds,new_ks = sc_viewbinds i ev ks in
+      let new_tds,new_ks = sc_viewbinds i sev ks in
 	SView(i),new_tds,EView(i,new_ks)
 
 (* sort checks a type expression *)
@@ -148,7 +162,7 @@ and sc_typeexp ev t =
     match t with
       | TExp(i, EVar(_,q)) -> [], t
       | _ ->
-	  let i = Syntax.info_of_typeexp t in
+	  let i = info_of_typeexp t in
 	  let x = fresh_var () in
 	  let xid = (i,x) in
 	  let qid = qid_of_id xid in
@@ -243,12 +257,12 @@ and sc_bindings ev mo bs =
   (* collect sorts for bindings that may be used recursively *)
   let bev =
     List.fold_left
-      (fun (bev:sc_env) (BDef(i,f,xs,so,e)) ->
+      (fun bev (BDef(i,f,xs,so,e)) ->
 	 match so with
 	     (* bindings used recursively must give their return sort *)
 	   | Some s -> 
 	       let qnf = Value.dot_id mo f in
-		 add qnf (update bev qnf (sort_of_param_list i xs s))
+		 add_rs qnf (update bev qnf (sort_of_param_list i xs s))
 	   | None   -> bev)
       ev
       bs
@@ -277,7 +291,7 @@ and sc_bindings ev mo bs =
     List.fold_right
       (fun bi (ev_rest,tds_rest,binds_rest) ->
 	 let (q,s),new_tds,new_binding = sc_binding ev_rest bi in
-	 let new_ev = add q (update ev_rest q s) in
+	 let new_ev = add_rs q (update ev_rest q s) in
 	   new_ev, (new_tds@tds_rest), (new_binding::binds_rest))
       bs
       (bev, [], [])
@@ -294,7 +308,7 @@ let sc_typebindings i ev mo tbs =
   (* collect all the (possibly recursive) type defns *)
   let tev = 
     List.fold_left
-      (fun tev (x,xs,_) -> add_id x (update_id tev x (arrow_of_xs xs i)))
+      (fun tev (x,xs,_) -> add_rs_id x (update_id tev x (arrow_of_xs xs i)))
       ev
       tbs
   in    
@@ -309,11 +323,11 @@ let sc_typebindings i ev mo tbs =
 	  let ps = 
 	    List.map 
 	      (fun xi -> 
-		 let i = Syntax.get_info_id xi in
-		   PDef(i, xi, SType(Syntax.get_info_id xi)))
+		 let i = get_info_id xi in
+		   PDef(i, xi, SType(get_info_id xi)))
 	      xs 
 	  in
-	  let i = Syntax.info_of_typeexp t in
+	  let i = info_of_typeexp t in
 	    sc_typebinding ev (x,[],TExp(i, (EFun(i, ps, Some (SType(i)), EType(i,t)))))					       	    
   in
   let new_tbs = List.fold_right (fun tbi new_tbs -> (sc_typebinding tev tbi)@new_tbs) tbs []
@@ -321,20 +335,20 @@ let sc_typebindings i ev mo tbs =
     tev,new_tbs
       
 (* type check a single declaration *)
-let rec sc_decl ev m = function
+let rec sc_decl sev m = function
   | DLet(i,bs) ->
-      let bev, new_tds, new_bs = sc_bindings ev (Some m) bs in	
+      let bev, new_tds, new_bs = sc_bindings sev (Some m) bs in	
 	clear bev, new_tds, DLet(i,new_bs)
 	  
   | DType(i,tbs) ->
-      let tev,new_tbs = sc_typebindings i ev (Some m) tbs in
+      let tev,new_tbs = sc_typebindings i sev (Some m) tbs in
 	clear tev, [], DType(i,new_tbs)
 	  
   | DMod(i,n,ds) ->
       let nqn = Value.qn_of_id n in	
-	clear ev, [], DMod(i, n, 
+	clear sev, [], DMod(i, n, 
 			   sc_modl_aux 
-			     (Value.open_qns ev [nqn]) 
+			     (add_os [nqn] sev) 
 			     i 
 			     (Value.dot (Some m) nqn) 
 			     ds)
@@ -360,5 +374,5 @@ and sc_modl_aux ev i m ds =
 let sc_modl = function
   | MDef(i,m,o,ds) -> 
       let mqn = Value.qn_of_id m in
-      let initenv = ([], Value.open_qns Value.empty (mqn::(List.map Value.qn_of_qid o))) in
-        MDef(i,m,o,sc_modl_aux initenv i mqn ds)
+      let sev = add_os (mqn::(List.map Value.qn_of_qid o)) (put_ev empty (Value.get_library ())) in
+	MDef(i,m,o,sc_modl_aux sev i mqn ds)
