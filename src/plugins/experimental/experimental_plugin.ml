@@ -305,25 +305,106 @@ let index k =
   lensOfArg r
 let _ = register ("index", T(Arrow (Name, Lens)), index_arg)
 
-(* HACKS for concat *)
-let first_list_empty = (fun v -> 
-			  let vl = V.list_from_structure v in
-			    (List.length vl = 2) 
-			    && (V.list_from_structure (List.hd vl) = []))
+(* CONCATENATIONS *)
+(* explode *)
+let explode =
+  let rec tree_of_string = function
+      "" -> []
+    | s -> 
+	let sh = String.sub s 0 1 and st = String.sub s 1 (String.length s - 1) in
+	(V.new_value sh)::(tree_of_string st)
+  and string_of_tree = function
+      [] -> ""
+    | a::q -> 
+	if( Name.Set.cardinal (V.dom a)) <> 1 then
+	  error [`String "experimental_plugin.explode (put) : expecting exactly one child :";
+		  `View a
+		];
+	let ch = Name.Set.choose (V.dom a) in
+	if String.length ch <> 1 then
+	  error [`String "experimental_plugin.explode (put) : expecting child with a one-char name";
+		  `View a
+		];
+	ch^(string_of_tree q)
+  in
+  { get =
+    (fun c ->
+      if( Name.Set.cardinal (V.dom c)) <> 1 then
+	error [`String "experimental_plugin.explode (get) : expecting exactly one child :";
+		`View c];
+      let k = Name.Set.choose (V.dom c) in
+      (* here is the string we have to 'explode' *)
+      V.structure_from_list (tree_of_string k)
+      );
+    put = 
+    (fun a _ -> V.new_value (string_of_tree (V.list_from_structure a)))
+  }
 
-let first_list_empty_lib = Sc first_list_empty
-let _ = register ("first_list_empty", T(Schema), first_list_empty_lib)
+(* explode library interface *)  
+let explode_lib = 
+  L ( explode)
+    
+(* explode - unit tests *)
+let explode_unit_tests = 
+  [ test_get_eq [] "{\"\"}" "[]";
+    test_get_eq [] "{youpi}" "[y o u p i]";
+    test_get_eq [] "{\"youpi blam\"}" "[y o u p i {\" \"} b l a m]";
+    test_put_eq [] "[y o u p i {\" \"} b l a m]" None "{\"youpi blam\"}";
+    test_put_eq [] "[y o u p i]" None "{youpi}";
+    test_put_eq [] "[]" None "{\"\"}"
+  ] 
 
-let first_char_space = (fun v -> V.equal (V.head v) (V.new_value " "))
-let first_char_space_lib = Sc first_char_space
-let _ = register ("first_char_space", T(Schema), first_char_space_lib)
+let _ = register_and_test ("explode", T Lens, explode_lib) explode_unit_tests
 
-let concat_lib = Compiler.compile_focal 
-  "let rec concat = 
-     acond first_list_empty first_char_space
-	(fork {\"*h\"} (map (rename \"*nil\" \" \")) (map (focus \"*h\" {\"*t\"=[]})))
-	(xfork {\"*h\"} {\"*h\", x} (hoist \"*h\"; rename \"*t\" x) id;
-	 xfork {x,\"*t\"} {\"*t\"} (rename x \"*h\"; concat; plunge \"*t\") id)
-   in concat"
-let concat = lensOfArg concat_lib
-let _ = register ("concat", T(Lens), concat_lib)
+(* implode *)
+(* NB implode is precisely the converse lens of explode, the only reason I did not
+  write it this way { get c : explode.put c c ; put a, _: explode.get a } is for
+  the error outputs to remain consistent *)
+let implode =
+  let rec tree_of_string = function
+      "" -> []
+    | s -> 
+	let sh = String.sub s 0 1 and st = String.sub s 1 (String.length s - 1) in
+	(V.new_value sh)::(tree_of_string st)
+  and string_of_tree = function
+      [] -> ""
+    | a::q -> 
+	if( Name.Set.cardinal (V.dom a)) <> 1 then
+	  error [`String "experimental_plugin.implode (get) : expecting exactly one child :";
+		  `View a
+		];
+	let ch = Name.Set.choose (V.dom a) in
+	if String.length ch <> 1 then
+	  error [`String "experimental_plugin.implode (get) : expecting child with a one-char name";
+		  `View a
+		];
+	ch^(string_of_tree q)
+  in
+  { put =
+    (fun a _ ->
+      if( Name.Set.cardinal (V.dom a)) <> 1 then
+	error [`String "experimental_plugin.implode (put) : expecting exactly one child :";
+		`View a];
+      let k = Name.Set.choose (V.dom a) in
+      (* here is the string we have to 'explode' *)
+      V.structure_from_list (tree_of_string k)
+      );
+    get = 
+    (fun c -> V.new_value (string_of_tree (V.list_from_structure c)))
+  }
+
+(* implode library interface *)  
+let implode_lib = 
+  L ( implode)
+    
+(* implode - unit tests *)
+let implode_unit_tests = 
+  [ test_put_eq [] "{\"\"}" None "[]";
+    test_put_eq [] "{youpi}" None "[y o u p i]";
+    test_put_eq [] "{\"youpi blam\"}" None  "[y o u p i {\" \"} b l a m]";
+    test_get_eq [] "[y o u p i {\" \"} b l a m]" "{\"youpi blam\"}";
+    test_get_eq [] "[y o u p i]" "{youpi}";
+    test_get_eq [] "[]" "{\"\"}"
+  ] 
+
+let _ = register_and_test ("implode", T Lens, implode_lib) implode_unit_tests
