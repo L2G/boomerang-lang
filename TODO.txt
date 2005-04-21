@@ -1,14 +1,12 @@
-IMMEDIATE
-* 'make clean' in src directory tries to redo 'configure'!
-* We should throw away all this 'configure' stuff anyway and call out to
-  tidy as an external program
-
 PENDING DONE
 * Add ICal, ICalendar and PalmDatebook
    - this is done right? (AS or BCP confirm?)
 
 BUILD
 * make clean should remove the silly ._d directories
+* 'make clean' in src directory tries to redo 'configure'!
+* We should throw away all this 'configure' stuff anyway and call out to
+  tidy as an external program
 
 TIDYING
 * Add interfaces everywhere
