@@ -1,0 +1,74 @@
+Claire	DENIELOU	Claire DENIELOU	Maman	claire.denielou@laposte.net																																
+Alan		Alan		AMEMD@aol.com																																
+Benjamin C.	Pierce	Benjamin C. Pierce		bcpierce@saul.cis.upenn.edu																																
+Alain	Camanes	Alain Camanes		alain.camanes@crans.org																																
+J H Eric	Yang	J H Eric Yang		jheric@seas.upenn.edu																																
+"""Benjamin C."	"Pierce"""	"""Benjamin C. Pierce"""		bcpierce@cis.upenn.edu																																
+"""Renaud.Danflous"""		"""Renaud.Danflous"""		Renaud.Danflous@crans.org																																
+Yves-Pol	DENIELOU	Yves-Pol DENIELOU		yves-pol.denielou@laposte.net																																
+Gilbert	Chiquello	Gilbert Chiquello	Papa	gilbert.chiquello@laposte.net																																
+Stephanie	Weirich	Stephanie Weirich		sweirich@cis.upenn.edu																																
+				a.denielou@semitag.fr																																
+				jerome.vouillon@pps.jussieu.fr																																
+Malo	DENIELOU	Malo DENIELOU		denielou@seas.upenn.edu							10 rue Pompery		Bourg-les-Valence		26500	FRANCE					19104						http://www.valatar.fr.st									
+				denielou@home.seas.upenn.edu																																
+Jerome	Vouillon	Jerome Vouillon		vouillon@pps.jussieu.fr																																
+				denielou@saul.upenn.edu																																
+PIERRE-MALO	DENIELO	PIERRE-MALO DENIELO		denielou@saul.cis.upenn.edu																																
+Elas Ortiz	Ruada	Elas Ortiz Ruada		Elas_Ortiz_Ruada@Dell.com																																
+Markus	Mottl	Markus Mottl		markus@oefai.at																																
+Emmanuelle	Poulet-Georges	Emmanuelle Poulet-Georges		Emmanuelle.POULET-GEORGES@alpes.banquepopulaire.fr																																
+Chamontin		Chamontin		echamontin@noos.fr																																
+		Prix Littéraire		prixlitt@listes.ens-cachan.fr																																
+		Hubert Comon		comon@lsv.ens-cachan.fr																																
+		Dorothée BAUD		dbaud@netcourrier.com																																
+		Julien BIANCIOTTO		julien.bianciotto@polytechnique.fr																																
+				harmony@lists.seas.upenn.edu																																
+Jessica		Jessica		jpanneq3@seas.upenn.edu																																
+				totaltrack@ups.com																																
+Nate	Foster	Nate Foster		jnfoster@saul.cis.upenn.edu																																
+Dimitrios	Vytiniotis	Dimitrios Vytiniotis		dimitriv@cis.upenn.edu																																
+Nate	Foster	Nate Foster		jnfoster@cis.upenn.edu																																
+Nate	Foster	Nate Foster		jnfoster@seas.upenn.edu																																
+"""Easton, Daniele"	"T."""	"""Easton, Daniele T."""		DEaston@ReedSmith.com																																
+Brice	Laurent	Brice Laurent		brice.laurent@ensmp.fr																																
+		Brice Laurent		brice.laurent@ensmp.fr																																
+michel	rolland	michel rolland		rolland.vaillant@notaires.fr																																
+Emmanuèle	Grosicki	Emmanuèle Grosicki		egrosicki@yahoo.com																																
+				camanes@crans.org																																
+"""Geoffrey A."	"Washburn"""	"""Geoffrey A. Washburn"""		geoffw@seas.upenn.edu																																
+"""cecile.aguergaray@tiscali.fr"""		"""cecile.aguergaray@tiscali.fr"""		cecile.aguergaray@tiscali.fr																																
+				icfp04@lists.seas.upenn.edu																																
+Julien	Angeli	Julien Angeli		angeli@clipper.ens.fr																																
+samuel	bozonnet	samuel bozonnet		samuel.bozonnet@ensmp.fr																																
+Brice	LAURENT	Brice LAURENT		laurentpilonchery@yahoo.fr																																
+				ludovic.benoit@supelec.fr																																
+				tabareau.nicolas@voila.fr																																
+ALAN	SCHMITT	ALAN SCHMITT		schmitta@saul.cis.upenn.edu																																
+Alan	Schmitt	Alan Schmitt		alan.schmitt@polytechnique.org																																
+				bdoratotaj@wistar.upenn.edu																																
+Marie	Sebban	Marie Sebban		ms2731@columbia.edu																																
+Sports.fr		Sports.fr		friend@news.sports.fr																																
+Carine	Schupp	Carine Schupp		carine.sc@wanadoo.fr																																
+				denielou@cis.upenn.edu																																
+				pierre-malo.denielou@seas.upenn.edu																																
+Olaf	Doschke	Olaf Doschke		Olaf.Doschke@t-online.de																																
+"""'icfp04-organizers@lists.seas.upenn.edu'"""		"""'icfp04-organizers@lists.seas.upenn.edu'"""		icfp04-organizers@lists.seas.upenn.edu																																
+Tom	Murphy	Tom Murphy		tom7@cs.cmu.edu																																
+John	Dethridge	John Dethridge		johndethridge@gmail.com																																
+Tapani	Utriainen	Tapani Utriainen		tapani@cs.chalmers.se																																
+John	Regehr	John Regehr		regehr@cs.utah.edu																																
+Jamie		Jamie		maceywj@island.net																																
+"""Fisher,"	"Hesky"""	"""Fisher, Hesky"""		Hesky.Fisher@jhuapl.edu																																
+Steve	Zdancewic	Steve Zdancewic		stevez@cis.upenn.edu																																
+"""haiku.issa"""		"""haiku.issa"""		haiku.issa@laposte.net																																
+				icfp04-participants@lists.seas.upenn.edu																																
+Mark	Wotton	Mark Wotton		mwotton@optushome.com.au																																
+Martin	Tampe	Martin Tampe		martin@tampe.cc																																
+"""Tomas G."	"Rokicki"""	"""Tomas G. Rokicki"""		rokicki@CS.Stanford.EDU																																
+Tomasz	Zielonka	Tomasz Zielonka		t.zielonka@zodiac.mimuw.edu.pl																																
+Stephen	Crane	Stephen Crane		scrane@cornerkitchenpeddler.com																																
+Sergio	Garcia	Sergio Garcia		sergio.garcia@imag.fr																																
+Nikodemus	Siivola	Nikodemus Siivola		tsiivola@cc.hut.fi																																
+"""Siivola, Mikko -- Mikko"	"Siivola"""	"""Siivola, Mikko -- Mikko Siivola"""		mvms@cc.hut.fi																																
+John	Dounis	John Dounis		gdounis17@hotmail.com																																

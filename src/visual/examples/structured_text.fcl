@@ -1,0 +1,17 @@
+let map_head l = fork {*h} (map l) id
+
+let act p = 
+  acond isEmptyList isEmptyList
+   id
+   (acond (child *t (child *h (child *h p))) (child *h (child *t (minus all isEmptyList)))
+     (filter {*h *t} [];
+	rename *h *x;
+	hoist_nonunique *t {*h *t *};
+	xfork {*x *h} {*h} (rename *h *t;rename *x *h;add * {};plunge *h) id )
+     (map_head (plunge *h;add * {};add *t [])))
+
+ let structured_text p = 
+  let rec aux = wmap < *t -> aux > ; act (not p) in
+  aux
+
+ do structured_text allcaps

@@ -1,0 +1,52 @@
+<xcard> 
+
+  <vcard>
+     <n>Parcel 104</n>
+     <note>
+       2700 Mission College Blvd. Santa Clara, CA 95054
+       near corner of mission college blvd and great america parkway
+       best restaurant near Sun
+       Phone: (408)970-6104
+       Fax: (408)970-6190
+       Email: info@parcel104.com
+     </note>
+  </vcard>
+
+  <vcard>
+     <n><family>Doering</family><given>Elizabeth</given></n>
+     <note>
+        215 545 1668 h
+        215 869 8440 m
+        e.doering@att.net
+     </note>
+  </vcard>
+
+  <vcard>
+    <n>
+      <given></given>
+      <family>*City Cab</family>
+    </n>
+    <tel-work>(215) 492-6500</tel-work>
+  </vcard>
+
+  <vcard>
+    <n>
+      <family>Pierce</family>
+      <given>Benjamin C.</given>
+    </n>
+    <tel-home>215 732-4684</tel-home>
+    <note>
+      cell: 215 833 9310
+    </note>
+  </vcard>
+
+  <vcard>
+    <n>
+      <family>*Anderson</family>
+      <given>Penny</given>
+    </n>
+    <tel-cell>267 980 6152</tel-cell>
+    <tel-work>610 330-5416</tel-work>
+  </vcard>
+
+</xcard>

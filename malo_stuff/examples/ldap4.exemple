@@ -1,0 +1,68 @@
+version:3
+dn::toto
+x: toto
+
+
+dn: cn=Claire DENIELOU,mail=claire.denielou@laposte.net
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+objectclass: mozillaAbPersonObsolete
+givenName: Claire
+sn: DENIELOU
+cn: Claire DENIELOU
+xmozillanickname: Maman
+mail: claire.denielou@laposte.net
+modifytimestamp: 0Z
+
+
+dn: cn=Alan,mail=AMEMD@aol.com
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+objectclass: mozillaAbPersonObsolete
+givenName: Alan
+cn: Alan
+mail: AMEMD@aol.com
+mozilla_AimScreenName: AMEMD
+modifytimestamp: 0Z
+
+dn: cn="Benjamin C. Pierce",mail=bcpierce@cis.upenn.edu
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+objectclass: mozillaAbPersonObsolete
+givenName: "Benjamin C.
+sn: Pierce"
+cn: "Benjamin C. Pierce"
+mail: bcpierce@cis.upenn.edu
+modifytimestamp: 0Z
+
+dn: cn=Malo DENIELOU,mail=denielou@seas.upenn.edu
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+objectclass: mozillaAbPersonObsolete
+givenName: Malo
+sn: DENIELOU
+cn: Malo DENIELOU
+mail: denielou@seas.upenn.edu
+modifytimestamp: 0Z
+mobile: +33671731817
+homePostalAddress: 10 rue Pompery
+mozillaHomeLocalityName: Bourg-les-Valence
+mozillaHomePostalCode: 26500
+mozillaHomeCountryName: FRANCE
+postalAddress: Walnut St
+l: Philadelphia
+st: PA
+postalCode: 19104
+c: USA
+title: Intern
+ou: CIS
+o: UPenn
+homeurl: http://www.valatar.fr.st

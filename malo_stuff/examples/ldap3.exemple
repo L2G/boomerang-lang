@@ -1,0 +1,29 @@
+version:1
+dn:cn=Barbara Jensen, ou=Product Development, dc=airius
+cn: Malo
+objectclass:top
+objectclass:person
+objectclass:organizationalPerson
+cn:Barbara Jensen
+cn:Barbara J Jensen
+cn:Babs Jensen
+sn:Jensen
+uid:bjensen
+telephonenumber:+1 408 555 1212
+description:Babs is a big sailing fan, and travels extensively in sea
+ rch of perfect sailing conditions.
+title:Product Manager, Rod and Reel Division
+
+dn: cn=Bjorn Jensen, ou=Accounting, dc=airius
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+cn: Bjorn Jensen
+sn: Jensen
+telephonenumber: +1 408 555 1212
+
+dn::truc
+telephone: 0393883
+
+
+

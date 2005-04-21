@@ -1,0 +1,8 @@
+
+##
+## variables set by configure
+##
+
+OCAML_VERSION = @OCAML_VERSION@
+OCAML_GEQ_308  = @OCAML_GEQ_308@
+WITH_TIDY     = @WITH_TIDY@

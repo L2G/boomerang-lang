@@ -1,0 +1,46 @@
+let filter p d = fork p id (const {} d)
+let focus n d = filter {n} d;hoist n
+let hd d = focus *h {*t=d}
+let tl d = focus *t {*h=d}
+let prune n d = fork {n} (const {} {n=d}) id
+
+let remove_atomic = fork {*} (const {} {*}) id
+
+let hoist_hd p = 
+	hoist_nonunique *h p;
+	remove_atomic;
+	hoist_nonunique *t (neg p)
+
+let link =
+        hoist ** ;
+	hd [];
+	hoist_nonunique a {** add_date href} ;
+	rename ** name;
+	rename href url;
+	prune add_date { "01/01/1970"} ;
+	wmap < name -> (hd [];hoist PCDATA) >
+
+let rec folder =
+	hoist **;
+	hoist_hd {h3};
+	fork {h3} id (hoist_hd {dl});
+	remove_atomic;
+	rename h3 name;
+	rename dl contents;
+	wmap <name -> (hoist **; hd []; hoist PCDATA)
+	      contents -> (hoist **; list_map item)>
+and item = 
+	wmap <dd -> folder 
+		dt -> link > ;
+	rename_if_present dd "folder";
+	rename_if_present dt "link"
+
+and bookmarks =
+	hoist html;
+	hoist **;
+	tl {head = {**=[{title={**=[{PCDATA= Bookmarks}]}}]}};
+	hd [];
+	hoist body;
+	folder
+
+do bookmarks

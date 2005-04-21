@@ -1,0 +1,94 @@
+HARMONY INSTALLATION INSTRUCTIONS
+---------------------------------
+
+BUILDING HARMONY
+
+To install harmony, you'll need the following packages.  They are
+specified here in the order in which they should be installed.
+
+[Note: If you get tangled up and need to start this process again,
+make sure that, at each step, you first do 'make uninstall' to remove
+the previous version.]
+
+GNU make    Should already be installed on most systems these days
+
+ocaml       http://caml.inria.fr/ocaml/distrib.html.  
+            OCaml 3.07 is needed for the Focal visualizer.  3.06 should work 
+            for the core system.
+
+            QUICK START ON OSX:
+              sudo fink install ocaml
+
+lablgtk2    It is required by the lens visualizer (not the synchronizer).
+	    http://wwwfun.kurims.kyoto-u.ac.jp/soft/olabl/lablgtk.html
+	    Versions >= 2.2 are working.
+	    To install it properly you may need some Pango, Gnome and
+	    Glade libraries.
+	    
+	    QUICK START
+	    ./configure; make world; make opt; sudo make install; make clean
+
+findlib     versions from 0.8.1 to 1.0.4 has been tested.
+	    findlib can be downloaded from
+            http://www.ocaml-programming.de/packages/
+
+            QUICK START:
+              ./configure; make all opt; sudo make install; make clean
+
+pcre        Phil Hazel's PCRE library, version >= 4.1.  
+	    Tested with 4.2 and 4.5.
+            http://www.pcre.org
+            (PCRE is a common package, so it might already be installed on
+            your system.  On OSX, 'fink install pcre' might work, but be 
+            careful that it gets you a recent enough version!  Otherwise...) 
+
+            QUICK START: 
+              ./configure; make; sudo make install
+
+pcre-ocaml  http://www.ai.univie.ac.at/~markus/home/ocaml_sources.html.  Get
+            5.02 or later (tested with 5.09).
+
+            QUICK START FOR OSX: 
+                make STATIC=1; sudo make install STATIC=1
+
+ocamlnet    http://www.ocaml-programming.de/packages/
+            Tested with version from 0.95 to 0.98.
+            
+            QUICK START: 
+               cd src; ./configure; make all opt; sudo make install
+
+            IMPORTANT: there is a bug in versions <=0.95.
+            In src/netstring/nethtml.ml, line 130, change
+              ... `Elements["dl"; "dd"] ..
+            to
+              ... `Elements["dt"; "dd"] ..
+            before compiling.
+            HARMONY WILL ONLY WORK WITH THIS FIX!
+
+pxp         Tested with version 1.1.5.
+            http://www.ocaml-programming.de/packages/
+
+            QUICK START: 
+                ./configure; make all opt; sudo make install
+
+tidylib	    This is a common package that may be already in your
+	    system. The headers tidy.h and tidyenum.h are especially
+	    required.
+	    http://tidy.sourceforge.net/
+	    There are RPMs, debs for the major Linux distributions.
+
+	    QUICK START:
+		sudo fink install tidy
+		cd build/gmake; make; sudo make install
+
+
+That's it!  Only 9 dependencies!
+
+Now, simply type 'make', follow any instructions you see, and you should
+end up with a harmony binary and the lens programming environment visual.
+
+
+[To add:
+   - running regression tests
+   - how to run harmony from Unison
+]

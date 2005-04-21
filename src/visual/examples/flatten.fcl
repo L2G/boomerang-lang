@@ -1,0 +1,26 @@
+let mapName p l = fork p (map l) id
+let removeAtomic = prune * {*={}}
+
+let rec removeAllAtomics = 
+    (removeAtomic; mapName {*t} removeAllAtomics)
+
+let fixUp = 
+  acond yieldsSingleton isSingleton
+    (ccond (hasChild *h)
+      (add *t {})
+      (hoist *t))
+    (ccond (hasChild *h)
+      (id)
+      (hoist *t)) 
+
+let rec derivedFlatten = 
+  removeAllAtomics;
+  acond isEmpty isEmpty
+    (id)
+    (mapName {*t} derivedFlatten;
+     join *h *t; 
+     map fixUp
+    )
+
+do derivedFlatten
+

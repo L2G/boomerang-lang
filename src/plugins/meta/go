@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -x
+
+## todo: semantics of delete, replace, backup
+alias hm='../../src/harmony -backup=false -replace -paranoid=false'
+
+rm -f simple.* *.harmony
+cp -f ../ical/simple.calendar .
+hm simple.calendar
+
+## first, save the abstract view to a file with '.meta' as extension
+hm simple.calendar | tail +2 > simple.meta
+hm simple.calendar simple.meta
+
+## then, modify the meta file directly
+perl -i -pe 's/jonm/stse/g' simple.meta && cat simple.meta
+
+## finally, synchronize them
+hm simple.calendar simple.meta
+cat simple.calendar

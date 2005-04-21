@@ -1,0 +1,29 @@
+IMMEDIATE
+* 'make clean' in src directory tries to redo 'configure'!
+* We should throw away all this 'configure' stuff anyway and call out to
+  tidy as an external program
+
+PENDING DONE
+* Add ICal, ICalendar and PalmDatebook
+   - this is done right? (AS or BCP confirm?)
+
+BUILD
+* make clean should remove the silly ._d directories
+
+TIDYING
+* Add interfaces everywhere
+* Remove remote execution stuff
+* rewrite Focal typechecker
+* change "let foo = ... do foo" into "let foo = ... in ..."
+
+FEATURES
+* push synchronization down to atomic or equally changed
+   -  more generally, tidy the sync
+* memoize equality checks
+* find or write external palm to XML parser and writer
+* find or write external iCalendar to XML parser and writer
+* Add Safari plugin
+* Add the tests for plugins
+
+USER INTERFACE
+* Improve printing

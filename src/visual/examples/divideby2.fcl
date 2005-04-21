@@ -1,0 +1,64 @@
+let plunge_nonunique n p = xfork p {n} (plunge n) id
+
+let rec rotate_inv =
+ acond (union (child *t (equalDom {*})) isEmptyList) (union (child *t (equalDom {*})) isEmptyList)
+  id
+  (wmap <*t -> rotate_inv>;
+   rename *h *x;
+   hoist_nonunique * {};
+   hoist_nonunique *t {*h * *t};
+   xfork {*x *t *} {*t}
+    (rename *x *h;
+     plunge *t)
+    (add * {}))
+
+let rec rotate =
+  acond (union (child *t (equalDom {*})) isEmptyList) (union (child *t (equalDom {*}))
+ isEmptyList)
+   id
+   (rename *h *x;
+    hoist_nonunique * {};
+    hoist_nonunique *t {*h * *t};
+    xfork {*x *t *} {*t}
+     (rename *x *h;
+      plunge *t)
+     (add * {});
+    wmap < *t -> rotate >)
+
+let fixr =
+ wmap < *l -> rotate_inv >;
+ fork {*l *r}
+  (hoist_nonunique *l {* *h *t};
+   rename *t *l;
+   rename *r *t;
+   plunge_nonunique *r {* *h *t})
+  id;
+ xfork {* *h *l} {*l}
+  (rename *l *t;
+   plunge *l)
+  id
+let fixl =
+ rename *l *t;
+ xfork {*h *t *} {*l}
+   (plunge *l)
+   id
+
+let fix =
+ acond (child *t isEmptyList) (inter (child *r isEmptyList) (child *l (child *t isEmptyList)))
+  (plunge *l ; add *r [])
+  (acond isEmptyList (inter (child *l isEmptyList) (child *r isEmptyList))
+   (plunge *l; add *r [])
+   (wmap < *t -> (hoist_nonunique *t {*l *r};fixl) >;
+    hoist_nonunique *t {*l *r};fixr)
+  )
+
+let rec split =
+ wmap < *t -> (wmap < *t -> split > ) >;
+ fix
+
+let rec list_to_balanced =
+ acond (union isEmptyList (child *t isEmptyList)) (union isEmptyList (child *t isEmptyList))
+  id
+  (split;map list_to_balanced)
+  
+do split
