@@ -1,6 +1,6 @@
 PENDING DONE
 * Add ICal, ICalendar and PalmDatebook
-   [- this is done right? (AS or BCP confirm?)]
+   -[this is done right? (AS or BCP confirm?)]
 
 BUILD
 * make clean should remove the silly ._d directories
