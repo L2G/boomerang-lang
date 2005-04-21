@@ -1,0 +1,44 @@
+<addressbook><entry note="C'est mon binome">
+<name>
+   <first>Stephane</first>
+   <last>Breteau</last>
+  </name>
+  <tel>
+   <home>5960</home>
+  </tel>
+  <birthday>
+   <day>11</day>
+   <month>March</month>
+   <year>1982</year>
+  </birthday>
+  <address>New-York</address>
+  <email>vincent.breteau@polytechnique.fr</email>
+ </entry>
+ 
+ <entry>
+  <name>
+   <first>Christine</first>
+   <last>Nguyen</last>
+   <others>
+    <oname>Tine</oname>
+   </others>
+  </name>
+  <tel>
+   <home>5148</home>
+   <mobile>1001#</mobile>
+  </tel>
+  <birthday>
+   <day>12</day>
+   <month>July</month>
+   <year>1982</year>
+  </birthday>
+  <address>Karlsruhe</address>
+  <email>
+   <pref>christine.nguyen@polytechnique.org</pref>
+   <others>
+    <oemail>cmoitine@hotmail.com</oemail>
+    <oemail>tine@gmail.com</oemail>
+   </others>
+  </email>
+ </entry>
+</addressbook>
