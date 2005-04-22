@@ -33,21 +33,22 @@ type env
 val dummy : t
 val dummy_rtv : rtv
   
-
 val t_of_rtv : rtv -> t
 val sort_of_rtv : rtv -> Syntax.sort 
+
+val load : qn -> unit
     
 val empty : env 
 val overwrite : env -> qn -> rtv -> env
 val overwrite_id : env -> Syntax.id -> rtv -> env
 val update : env -> qn -> rtv -> env
 val update_id : env -> Syntax.id -> rtv -> env
-val lookup : env -> qn -> rtv option
-val lookup_qid : env -> Syntax.qid -> rtv option
-val lookup_id : env -> Syntax.id -> rtv option
+val lookup : env -> qn -> env * rtv option
+val lookup_qid : env -> Syntax.qid -> env * rtv option
+val lookup_id : env -> Syntax.id -> env * rtv option
   
 val fold : (qn -> rtv ref -> 'a -> 'a) -> env -> 'a -> 'a
 val memoize : t -> t
 
 val get_library : unit -> env 
-val pre_register_native : string -> t -> string -> unit
+val register_native : string -> t -> string -> unit

@@ -15,51 +15,43 @@
    - rewriting let-defs to simple no-param binders
 *)
 
-(* a compile environment is a list of open modules paired with the actual enviroment *)
+(* a compile environment is just a naming context and the actual
+   compile enviroment *)
 type compile_env = Value.qn list * Value.env
- 
 let empty = ([], Value.empty)
 let get_ev cev = let (_,ev) = cev in ev
+let get_ctx cev = let (os,_) = cev in os					  
 let put_ev cev ev = let (os,_) = cev in (os,ev)
-					  
-let lookup cev q : (Value.rtv option) =
-  let (os,ev) = cev in
-  let rec lookup_aux os q2 =     
-    match Value.lookup ev q2 with
-      |	None ->
-	  begin match os with
-	    | []       -> None
-	    | o::orest -> 
-		(* N.B., use q, not q2 here *)		  
-		lookup_aux orest (Value.dot (Some o) q) 
-	  end
-      | Some r -> Some r
-  in
-    lookup_aux os q
+let lookup cev q = 
+  match Value.lookup (get_ev cev) q with
+    | Some r -> Some (Value.t_of_rtv r)
+    | None -> begin
+	match Value.lookup_in_ctx (!library) (get_ctx cev) q with
+	  | None -> None
+	  | Some r -> Some (Value.t_of_rtv r)
+      end	
+let update cev q r = put_ev cev (Value.update (get_ev cev) q r)
+let overwrite cev q r = put_ev cev (Value.overwrite(get_ev cev) q r)
+  
 let lookup_qid cev qx = lookup cev (Value.qn_of_qid qx)
 let lookup_id cev x = lookup cev ([], Value.n_of_id x)  
-
-let update cev q r = put_ev cev (Value.update (get_ev cev) q r)
 let update_id cev x r = update cev (Value.qn_of_id x) r
-let overwrite cev q r = put_ev cev (Value.overwrite(get_ev cev) q r)
 let overwrite_id cev x r = overwrite cev (Value.qn_of_id x) r
-
+  
 let open_qns cev qs = let (os,ev) = cev in (qs@os,ev)
 
 (* a few global definitions *)
-let id_exp = let i = Info.bogus in
-  Syntax.EVar(i,([(i,"Pervasives")],(i,"id")))
-					    					     
+let id_exp = let i = Info.bogus in Syntax.EVar(i,([(i,"Pervasives")],(i,"id")))
+				     
 (* expressions *)
 (* compile_exp :: compile_env -> Syntax.exp -> Value.rtv *)
 let rec compile_exp cev e0 = match e0 with
   | Syntax.EVar(i,q) -> 
-      begin
-        match (lookup_qid cev q) with
-	  | Some r -> r
-	  | None -> raise (Error.Run_error(("Unbound variable " 
-					    ^ (Pretty.string_of_qid q)
-					    ^ "."), i))
+      begin match (lookup_qid cev q) with
+	| Some v -> v
+	| None -> raise (Error.Run_error(("Unbound variable " 
+					  ^ (Pretty.string_of_qid q)
+					  ^ "."), i))
       end
 	
   | Syntax.EFun(i,xs,so,e) ->
@@ -101,7 +93,7 @@ let rec compile_exp cev e0 = match e0 with
 	  | _   -> raise (Error.Run_error("Left-hand side of application is not a function.", i))
       end
 
-  | Syntax.ELet(i,bs,e) -> compile_exp (compile_bindings cev None bs) e
+  | Syntax.ELet(i,bs,e) -> compile_exp (compile_bindings cev bs) e
       
   | Syntax.EName(i,id) -> (Syntax.SName(i), Value.N (Syntax.name_of_id id))
 
@@ -177,12 +169,12 @@ and compile_viewbinds ev bs = match bs with
 	      
 (* bindings *)
 (* compile_bindings :: compile_env -> qn option -> Syntax.BDef list ->  compile_env *)
-and compile_bindings cev mo bs = 
+and compile_bindings cev bs = 
   (* add all the bindings in a recursion group to the environment *)
-  let bev : compile_env = 
+  let bev = 
     List.fold_left 
       (fun bev (Syntax.BDef(_,f,_,_,_)) -> 
-	 update bev (Value.dot_id mo f) Value.dummy_rtv) 
+	 update bev f Value.dummy_rtv) 
       cev 
       bs 
   in
@@ -193,7 +185,7 @@ and compile_bindings cev mo bs =
 	   let r = compile_exp bev e in
 	   let s = Value.sort_of_rtv r in
 	   let v = Value.t_of_rtv r in	     	   
-	     overwrite bev (Value.dot_id mo f) (s, Value.memoize v)
+	     overwrite bev f (s, Value.memoize v)
        | (Syntax.BDef(i,f,_,so,e)) -> assert false)
     bs
   in    
@@ -201,48 +193,38 @@ and compile_bindings cev mo bs =
       
 (* type bindings *)
 (* compile_typebindings :: compile_env * Value.qn option -> Syntax.typebinding list -> compile_env *)
-let compile_typebindings cev mo ts =   
+let compile_typebindings cev ts =   
   (* add to environment and backpatch *)
   let tev = 
     List.fold_left 
-      (fun tev (x,_,_) -> update tev (Value.dot_id mo x) Value.dummy_rtv) 
+      (fun tev (x,_,_) -> update tev x Value.dummy_rtv) 
       cev 
       ts 
   in
     List.fold_left 
       (fun cev ti -> 
 	 match ti with
-	   | (x,[],t) -> 
-	       overwrite 
-		 tev 
-		 (Value.dot_id mo x) 
-		 (Syntax.SType(Info.bogus),Value.T(compile_typeexp tev t))
+	   | (x,[],t) -> overwrite tev x (Syntax.SType(Info.bogus),Value.T(compile_typeexp tev t))
 	   | (x,_,t)  -> assert false)
       cev
       ts
       
 (* declarations *)
 (* compile_decl :: compile_env -> Value.qn option -> Syntax.decl -> compile_env *)
-let rec compile_decl ev mo = function
-  | Syntax.DLet(_,bs)   -> compile_bindings ev mo bs
-  | Syntax.DType(_,ts)  -> compile_typebindings ev mo ts
+let rec compile_decl ev = function
+  | Syntax.DLet(_,bs)   -> compile_bindings ev bs
+  | Syntax.DType(_,ts)  -> compile_typebindings ev ts
   | Syntax.DMod(i,n,ds) -> compile_module_aux ev n ds
 
 (* modules *)
 (* compile_module_aux :: compile_env -> Value.qn -> Syntax.decl list -> compile_env *)
-and compile_module_aux cev m ds =
-  let qnm = Value.qn_of_id m in
-    List.fold_left (fun cev di -> compile_decl (open_qns cev [qnm]) (Some qnm) di) cev ds
-      
+and compile_module_aux cev ds =
+  List.fold_left (fun cev di -> compile_decl cev di) cev ds
+    
 (* compile_module :: Syntax.modl -> compile_env *)
-let compile_module = function
-  | Syntax.MDef(i,m,nctx,ds) ->
-      let init_ev = 
-	open_qns 
-	  (put_ev empty (Value.get_library ()))
-	  (Value.qn_of_id m::(List.map Value.qn_of_qid nctx)) 
-      in
-	compile_module_aux 
-	  init_ev
-	  m 
-	  ds
+let compile_module ev = function
+  | Syntax.MDef(i,m,nctx,ds) ->      
+      (compile_module_aux 
+	 (open_qns empty (List.map Value.qn_of_id nctx))
+	 ds)
+	

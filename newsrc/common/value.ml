@@ -40,6 +40,12 @@ module EMap =
     end)
 module QNMap = EMap.Map
 module QNSet = EMap.KeySet
+module NSet = Set.Make(
+  struct
+    type t = n
+    let compare = compare
+  end)
+
 let fold = QNMap.fold
   
 type t = 
@@ -56,7 +62,7 @@ let dummy_rtv = Syntax.SName(Info.bogus), dummy
   
 (* an environment is a pair of a naming context and a map from qns to run-time values *)
 type rtv = Syntax.sort * t
-type env = (rtv ref) QNMap.t
+type env = (rtd ref) QNMap.t
 
 (* some coercions *)
 let t_of_rtv (s,v) = v
@@ -67,19 +73,19 @@ let empty : env = QNMap.empty
 
 (* registry of values *)
 let library = ref empty
-let pre_library = ref empty
-let search_path = ref "/home/nate/shared/harmony4/newsrc/plugins/" 
-let loaded = ref []
+let search_path = ref "/home/nate/shared/harmony4/newsrc/plugins/" (* FIXME!!! *)
+let loaded = ref NSet.empty
+let loading = ref NSet.empty
 let get_library () = !library
-      
-(* produce env[q:=v]; yields the SAME env *)
+  
+(* produce env[q:=v]; yields the SAME env if q already there *)
 let overwrite e q r = 
   try 
     (QNMap.find q e):=r; 
     e
   with Not_found ->
     QNMap.add q (ref r) e      
-
+      
 (* produce env[q->v]; yields a NEW env *)
 let update e q r = QNMap.add q (ref r) e     
   
@@ -91,46 +97,54 @@ let lookup_id env x = lookup env ([], n_of_id x)
   
 (* get the filename that a module is stored at *)
 (* FIXME: simple for now, assumes everything is in the single search path; will generalize later *)
-let get_filename q = 
-  match q with
-      ([],_) -> assert false
-    | (n::_,_) -> (!search_path) ^ (String.uncapitalize (string_of_n)) ^ ".fcl"
+let get_module_prefix q = 
+  match q with 
+    | ([],_) -> assert false
+    | (n::_,_) -> n
 	
+let get_filename n = (!search_path) ^ (String.uncapitalize (string_of_n n)) ^ ".fcl"
+
 (* lookup in an enviroment *)
-let lookup e q =
-  let is_loaded q = 
-    match q with 
-      | ([],_)   -> true
-      | (n::_,_) -> List.mem (!loaded) n
-  in	        
-    try Some !(QNMap.find q e)
-    with Not_found -> 
-      begin
-	if (is_loaded q) then None
-	else 
-	  (* get the filename to load *)
-	  let fn = get_filename q in
-	    (* FIXME: need to add circular check *)
-	    try 
-	      (* FIXME: check that module name is right *)
-	      (* FIXME: don't overwrite library *)
-	      (* FIXME: pull in pre_registered natively compiled *)
-	      let fchan = open_in fn in
-	      let lex = Lexing.from_channel fchan in
-	      let ast = Parser.modl Lexer.token lexbuf in
-	      let ast = Checker.sc_modl ast in
-	      let new_lib = Compiler.get_ev (Compiler.compile_module ast) in
-	      let _ = library := new_lib in
-		lookup (get_library ()) q
-	    with Sys_error -> None
-      end
+let lookup ev q = Some !(QNMap.find q e) with Not_found -> None
+  
+(* load a module, if needed *)
+let load q = 
+  let n = get_module_prefix q in
+    if (not (Set.mem (!loaded) n)) then
+      begin 
+	let fn = get_filename n in
+	let _ = if (not(Sys.file_exists fn)) then 
+	  raise (Error.Sort_error(("Module " ^ (Pretty.string_of_qn q) ^ " does not exist"), Info.bogus))
+	in
+	let _ = loading := (NSet.add n) in
+	let _ = prerr_string "[loading " ^ fn ^ "]" in
+	let lex = Lexing.from_channel (open_in fn) in
+	let ast = Parser.modl Lexer.token lexbuf in
+	let _ = close_in fn in
+	let ast = Checker.sc_module n ast in 
+	let _ = Compiler.compile_module ast in
+	let _ = loading := (NSet.remove n) in
+	let _ = loaded := (NSet.add n) in
+      end	
+	()
+        
+(* lookup in a naming context *)
+let lookup_in_ctx ev nctx q = 
+  let rec lookup_in_ctx_aux os q2 =     
+    match lookup ev q2 with
+      | Some rtv -> Some rtv
+      | None -> match os with 
+	  | []       -> None
+	  | o::orest -> lookup_in_ctx_aux orest (dot (Some o) q) 
+  in
+    lookup_in_ctx_aux ev os q
       
-let pre_register_native qs nv ss = 
+let register_native qs nv ss = 
   let q = qn_of_qid (qid_of_string qs) in
   let s = sort_of_string ss in
   let _ = overwrite (!pre_library) q (s,nv) in
     ()  
-
+      
 (*** REGISTRY ***)
 (* parse various bits of syntax *)
 let sort_of_string s = 
