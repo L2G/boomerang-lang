@@ -408,3 +408,26 @@ let implode_unit_tests =
   ] 
 
 let _ = register_and_test ("implode", T Lens, implode_lib) implode_unit_tests
+
+(* HACKS for concat *)
+let first_list_empty = (fun v -> 
+			  let vl = V.list_from_structure v in
+			    (List.length vl = 2) 
+			    && (V.list_from_structure (List.hd vl) = []))
+
+let first_list_empty_lib = Sc first_list_empty
+let _ = register ("first_list_empty", T(Schema), first_list_empty_lib)
+
+let first_char_space = (fun v -> V.equal (V.head v) (V.new_value " "))
+let first_char_space_lib = Sc first_char_space
+let _ = register ("first_char_space", T(Schema), first_char_space_lib)
+
+let concat_lib = Compiler.compile_focal 
+  "let rec concat = 
+     acond first_list_empty first_char_space
+	(fork {\"*h\"} (map (rename \"*nil\" \" \")) (map (focus \"*h\" {\"*t\"=[]})))
+	(xfork {\"*h\"} {\"*h\", x} (hoist \"*h\"; rename \"*t\" x) id;
+	 xfork {x,\"*t\"} {\"*t\"} (rename x \"*h\"; concat; plunge \"*t\") id)
+   in concat"
+let concat = lensOfArg concat_lib
+let _ = register ("concat", T(Lens), concat_lib)
