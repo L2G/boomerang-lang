@@ -45,7 +45,11 @@ let overwrite cev q r = put_ev cev (Value.overwrite(get_ev cev) q r)
 let overwrite_id cev x r = overwrite cev (Value.qn_of_id x) r
 
 let open_qns cev qs = let (os,ev) = cev in (qs@os,ev)
-					     
+
+(* a few global definitions *)
+let id_exp = let i = Info.bogus in
+  Syntax.EVar(i,([(i,"Pervasives")],(i,"id")))
+					    					     
 (* expressions *)
 (* compile_exp :: compile_env -> Syntax.exp -> Value.rtv *)
 let rec compile_exp cev e0 = match e0 with
@@ -72,6 +76,22 @@ let rec compile_exp cev e0 = match e0 with
 	  | _     -> raise (Error.Run_error(("Bogus function"), i))
       end
 	
+  | Syntax.EMap(i,ms) ->
+      let s = Syntax.SArrow(i, Syntax.SName(i), Syntax.SLens(i)) in
+      let f = List.fold_left 
+	(fun f (x,l) -> 
+	   (fun v -> 
+	      match v with
+		| Value.N n -> if (n = (Value.n_of_id x)) then
+		    Value.t_of_rtv (compile_exp cev l)
+		  else 
+		    f v
+		| _ -> raise (Error.Run_error(("Not a name"), i)))) 
+	(fun _ -> Value.t_of_rtv (compile_exp cev id_exp)) 
+	ms
+      in
+	(s, Value.F(f))
+
   | Syntax.EApp(i,e1,e2) ->
       begin
 	match Value.t_of_rtv (compile_exp cev e1) with 	  

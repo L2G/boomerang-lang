@@ -30,6 +30,7 @@ type param = PDef of i * id * sort
 type exp = 
     EVar of i * qid
   | EFun of i * param list * sort option * exp 
+  | EMap of i * (id * exp) list
   | EApp of i * exp * exp
   | ELet of i * binding list * exp
   | EName of i * id
@@ -86,6 +87,7 @@ let info_of_exp = function
   | EApp(i,_,_) -> i
   | EVar(i,_) -> i
   | EName(i,_) -> i
+  | EMap(i,_) -> i
   | EView(i,_) -> i
   | EType(i,_) -> i
 

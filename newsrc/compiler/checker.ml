@@ -122,7 +122,19 @@ let rec sc_exp (sev:sc_env) e0 = match e0 with
       let fev = update_param sev p1 in
       let body_sort,new_tds,body_exp = sc_exp fev (EFun(i,p2::ps,so,e)) in
 	SArrow(i, sort_of_param p1, body_sort), new_tds, EFun(i,[p1],Some body_sort, body_exp)
-	  
+
+  | EMap(i,ms) ->
+      let new_tds,new_ms = List.fold_right
+	(fun (x,l) (new_tds1,new_ms1) ->
+	   (* check that l has sort SLens *)
+	   let ls,new_tds2,new_l = sc_exp sev l in
+	   let _ = expect_sort (SLens(i)) ls in
+	     (new_tds2 @ new_tds1), (x, new_l)::new_ms1)
+	ms
+	([],[])
+      in
+	(SArrow(i, SName(i), SLens(i)), new_tds, EMap(i, new_ms))
+
   | EApp(i,e1,e2) ->
       (* check that e1 has a function sort and that t2 has the correct param type *)
       let e1s,new_tds1,new_e1 = sc_exp sev e1 in
@@ -152,7 +164,18 @@ let rec sc_exp (sev:sc_env) e0 = match e0 with
 	ts,new_tds,EType(i,new_t)
 
   | EView(i,ks) ->
-      let new_tds,new_ks = sc_viewbinds i sev ks in
+      let new_tds, new_ks = List.fold_right
+	(fun (i,n,v) (new_tds1,new_ks1) ->
+	   (* check that n has sort SName *)
+	   let ns,new_tds2,new_n = sc_exp sev n in
+	   let _ = expect_sort (SName(i)) ns in
+	     (* check that n has sort SView *)
+	   let vs,new_tds3,new_v = sc_exp sev v in
+	   let _ = expect_sort (SView(i)) vs in
+	     (new_tds2 @ new_tds3 @ new_tds1), (i,new_n, new_v)::new_ks1)
+	ks
+	([],[])
+      in
 	SView(i),new_tds,EView(i,new_ks)
 
 (* sort checks a type expression *)
@@ -235,21 +258,6 @@ and sc_typeexp ev t =
 	  let es, new_tds,new_e = sc_exp ev e in
 	    es,new_tds,TExp(i,new_e)
 
-
-(* sort check view bindings *)
-(* returns new_tds and new bindings *)
-and sc_viewbinds i ev ks =
-  List.fold_right
-    (fun (i,n,v) (new_tds1,new_ks1) ->
-       (* check that n has sort SName *)
-       let ns,new_tds2,new_n = sc_exp ev n in
-       let _ = expect_sort (SName(i)) ns in
-	 (* check that n has sort SView *)
-       let vs,new_tds3,new_v = sc_exp ev v in
-       let _ = expect_sort (SView(i)) vs in
-	 (new_tds2 @ new_tds3 @ new_tds1), (i,new_n, new_v)::new_ks1)
-    ks
-    ([],[])
 	    
 (* we re-write bindings as we check them, annotating with sorts for easy compilation later 
    also turn parameters into functions *)

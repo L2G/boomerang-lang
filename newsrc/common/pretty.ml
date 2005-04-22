@@ -62,6 +62,13 @@ let rec string_of_exp = function
 			       ^ " -> "
 			       ^ (string_of_exp e))
   | Syntax.EApp(_,e1,e2)    -> (string_of_exp e1) ^ " " ^ (string_of_exp e2)
+  | Syntax.EMap(_,ms)       -> 
+      curlybraces (concat "" 
+		     (List.map (fun (x,e) -> 
+				  concat ", " [string_of_id x
+					      ;"->"
+					      ; string_of_exp e]) ms))
+	
   | Syntax.ELet(i,bs,e)     -> ("let " 
 				^ (string_of_bindings bs)
 				^ " in "

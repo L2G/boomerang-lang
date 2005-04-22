@@ -23,7 +23,7 @@ let error t info = let (l,c1),(_,c2) = info in
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
 %token <Info.t> LET IN FUN AND MODULE END OPEN TYPE
-%token <Info.t> LENS VIEW TYPE MAP NAME ARROW
+%token <Info.t> LENS VIEW TYPE NAME ARROW
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKTICK
 %token <Info.t> EMPTY STAR BANG QMARK BAR MINUS AMP 
@@ -68,10 +68,9 @@ sort:
   | asort ARROW sort                          { SArrow ($2,$1,$3) }
   | asort                                     { $1 }
 
-      asort:
+asort:
   | LENS                                      { SLens($1) }
   | VIEW                                      { SView($1) }
-/*  | MAP                                       { SMap($1) } */
   | NAME                                      { SName($1) } 
   | LPAREN sort RPAREN                        { $2 }
 
@@ -107,6 +106,18 @@ aexp:
   | LANGLE typeexp RANGLE                     { EType($1,$2) }
   | LPAREN exp RPAREN                         { $2 }
   | STRING                                    { let (i,_) = $1 in EName(i,$1) }                            
+  | LBRACE map_list LBRACE                    { EMap($1, $2) }
+
+map:
+  | IDENT_or_STRING ARROW aexp                { ($1,$3) }
+
+map_list:
+  |                                           { [] }
+  | map COMMA non_empty_map_list              { $1::$3 }
+
+non_empty_map_list:
+  | map                                       { [$1] }
+  | map COMMA non_empty_map_list              { $1::$3 }
                                                  
 /*** views ***/
 viewexp:
@@ -123,13 +134,13 @@ non_empty_viewelt_list:
 
 viewelt:
   | IDENT_or_STRING                           { let (i,_) = $1 in (i, EName(i,$1), emptyView i) }
-  | IDENT_or_STRING ARROW innerview           { ($2, EName(get_info_id $1, $1), $3) }
-  | BACKTICK exp BACKTICK ARROW innerview     { ($1, $2, $5) }
+  | IDENT_or_STRING EQUAL innerview           { ($2, EName(get_info_id $1, $1), $3) }
+  | BACKTICK exp BACKTICK EQUAL innerview     { ($1, $2, $5) }
 
 innerview:
   | IDENT_or_STRING                           { let (i,x) = $1 in EView(i,[(i,EName(i,$1), emptyView i)]) }
   | viewexp                                   { $1 }
-  | BACKTICK exp                              { $2 }
+  | BACKTICK exp BACKTICK                     { $2 }
   
 /*** types ***/
 typeexp:
