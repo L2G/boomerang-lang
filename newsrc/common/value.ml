@@ -85,6 +85,7 @@ let lookup_qid env q = lookup env (qn_of_qid q)
 let lookup_id env x = lookup env ([], n_of_id x)
   
 let fold = QNMap.fold
+let domain = QNMap.domain
 
 (* memoization infrastructure *)
 type thist = t (* HACK! *)

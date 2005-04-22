@@ -167,8 +167,6 @@ let rec string_of_type = function
   | Type.Union(ts)  -> braces (concat " | " (List.map string_of_type ts))
 
 (* values *)
-let keys_of_env e = Value.QNSet.fold (fun q acc -> (string_of_qn q)::acc) (Value.QNMap.domain e) []
-
 let rec string_of_value = function
     Value.N(n) -> n
   | Value.L(l) -> "<lens>"
