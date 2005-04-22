@@ -37,7 +37,7 @@ rule token = parse
 | blank		{ token lexbuf }
 | "let"         { LET (info lexbuf) }
 | "in"          { IN (info lexbuf) }
-| "function"    { FUNCTION (info lexbuf) }
+| "fun"         { FUN (info lexbuf) }
 | "and"         { AND (info lexbuf) }
 | "module"      { MODULE (info lexbuf) }
 | "end"         { END (info lexbuf) }
@@ -47,7 +47,6 @@ rule token = parse
 | "lens"        { LENS (info lexbuf) }
 | "view"        { VIEW (info lexbuf) }
 | "name"        { NAME (info lexbuf) }
-| "map"         { MAP (info lexbuf) }
 | "\""		{ STRING ((info lexbuf), (string lexbuf)) }
 | "="		{ EQUAL (info lexbuf) }
 | "{"		{ LBRACE (info lexbuf) }

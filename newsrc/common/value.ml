@@ -40,6 +40,7 @@ module EMap =
     end)
 module QNMap = EMap.Map
 module QNSet = EMap.KeySet
+let fold = QNMap.fold
   
 type t = 
     N of Name.t                 (* names *)
@@ -57,39 +58,92 @@ let dummy_rtv = Syntax.SName(Info.bogus), dummy
 type rtv = Syntax.sort * t
 type env = (rtv ref) QNMap.t
 
+(* some coercions *)
 let t_of_rtv (s,v) = v
 let sort_of_rtv (s,v) = s
-    
+  
 (* the empty environment *)
 let empty : env = QNMap.empty
-  
+
+(* registry of values *)
+let library = ref empty
+let pre_library = ref empty
+let search_path = ref "/home/nate/shared/harmony4/newsrc/plugins/" 
+let loaded = ref []
+let get_library () = !library
+      
 (* produce env[q:=v]; yields the SAME env *)
 let overwrite e q r = 
   try 
     (QNMap.find q e):=r; 
     e
   with Not_found ->
-    QNMap.add q (ref r) e
+    QNMap.add q (ref r) e      
 
-let overwrite_id e x r = overwrite e ([],n_of_id x) r
-  
 (* produce env[q->v]; yields a NEW env *)
 let update e q r = QNMap.add q (ref r) e     
-let update_id ev x r = update ev ([],n_of_id x) r
   
-(* lookup in an enviroment *)
-let lookup e q =
-  try Some !(QNMap.find q e)
-  with Not_found -> None
+(* helpers *)
+let overwrite_id e x r = overwrite e ([],n_of_id x) r
+let update_id ev x r = update ev ([],n_of_id x) r
 let lookup_qid env q = lookup env (qn_of_qid q)
 let lookup_id env x = lookup env ([], n_of_id x)
   
-let fold = QNMap.fold
-let domain = QNMap.domain
+(* get the filename that a module is stored at *)
+(* FIXME: simple for now, assumes everything is in the single search path; will generalize later *)
+let get_filename q = 
+  match q with
+      ([],_) -> assert false
+    | (n::_,_) -> (!search_path) ^ (String.uncapitalize (string_of_n)) ^ ".fcl"
+	
+(* lookup in an enviroment *)
+let lookup e q =
+  let is_loaded q = 
+    match q with 
+      | ([],_)   -> true
+      | (n::_,_) -> List.mem (!loaded) n
+  in	        
+    try Some !(QNMap.find q e)
+    with Not_found -> 
+      begin
+	if (is_loaded q) then None
+	else 
+	  (* get the filename to load *)
+	  let fn = get_filename q in
+	    (* FIXME: need to add circular check *)
+	    try 
+	      (* FIXME: check that module name is right *)
+	      (* FIXME: don't overwrite library *)
+	      (* FIXME: pull in pre_registered natively compiled *)
+	      let fchan = open_in fn in
+	      let lex = Lexing.from_channel fchan in
+	      let ast = Parser.modl Lexer.token lexbuf in
+	      let ast = Checker.sc_modl ast in
+	      let new_lib = Compiler.get_ev (Compiler.compile_module ast) in
+	      let _ = library := new_lib in
+		lookup (get_library ()) q
+	    with Sys_error -> None
+      end
+      
+let pre_register_native qs nv ss = 
+  let q = qn_of_qid (qid_of_string qs) in
+  let s = sort_of_string ss in
+  let _ = overwrite (!pre_library) q (s,nv) in
+    ()  
 
-(* memoization infrastructure *)
+(*** REGISTRY ***)
+(* parse various bits of syntax *)
+let sort_of_string s = 
+  let lexbuf = Lexing.from_string s in
+    Parser.sort Lexer.token lexbuf 
+
+let qid_of_string s = 
+  let lexbuf = Lexing.from_string s in
+    Parser.qid Lexer.token lexbuf 
+
+ 
+(* MEMOIZATION *)
 type thist = t (* HACK! *)
-
 module H =
   Hashtbl.Make(
     struct
@@ -132,7 +186,3 @@ let memoize v =
 	     H.add memotable x fx;
 	     fx
 	 end))
-
-(* library *)
-let library = ref empty
-let get_library () = !library

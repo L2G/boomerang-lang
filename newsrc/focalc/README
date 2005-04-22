@@ -1,6 +1,0 @@
-A textual front-end to the Focal compiler. 
-
-Run with 
-    focalc [options]
-or
-    focalc -help for a list of options

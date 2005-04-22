@@ -1,4 +1,12 @@
-/* parser.mly - Focal parser generator */
+/************************************************************/
+/* The Harmony Project                                      */
+/* harmony@lists.seas.upenn.edu                             */
+/*                                                          */
+/* parser.mly - Focal parser generator                      */
+/*                                                          */
+/* $Id: parser.mly,v 1.1 2005/04/11 18:24:56 jnfoster Exp $ */
+/*                                                          */
+/************************************************************/
 
 %{
 
@@ -14,20 +22,23 @@ let error t info = let (l,c1),(_,c2) = info in
 
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
-%token <Info.t> LET IN FUNCTION AND MODULE END OPEN TYPE
-%token <Info.t> LENS VIEW TYPE MAP NAME ARROW
+%token <Info.t> LET IN FUN AND MODULE END OPEN TYPE
+%token <Info.t> LENS VIEW TYPE NAME ARROW
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKTICK
 %token <Info.t> EMPTY STAR BANG QMARK BAR MINUS AMP 
 
-%start modl 
+%start modl sort qid
 %type <Syntax.modl> modl
+%type <Syntax.sort> sort
+%type <Syntax.qid> qid
 
 %%
 
-/*** DECLARATIONS ***/
+/*** declarations ***/
 modl:
-  | MODULE IDENT EQUAL open_decls IN decls       { MDef($1,$2,$4,$6) }
+  | MODULE IDENT EQUAL decls EOF               { MDef($1,$2,[],$4) }
+  | MODULE IDENT EQUAL open_decls IN decls EOF { MDef($1,$2,$4,$6) }
 
 open_decls:
   |                                            { [] }
@@ -53,7 +64,7 @@ typebinding_list:
   | typebinding_list AND typebinding          { $1@[$3] }
   | typebinding                               { [$1] }
 
-/*** SORTS ***/
+/*** sorts ***/
 
 sort:
   | asort ARROW sort                          { SArrow ($2,$1,$3) }
@@ -62,7 +73,6 @@ sort:
 asort:
   | LENS                                      { SLens($1) }
   | VIEW                                      { SView($1) }
-  | MAP                                       { SMap($1) }
   | NAME                                      { SName($1) } 
   | LPAREN sort RPAREN                        { $2 }
 
@@ -78,10 +88,10 @@ param:
   | IDENT COLON asort                         { PDef($2,$1,$3) }
   | LPAREN IDENT COLON sort RPAREN            { PDef($1,$2,$4) }
 
-/*** EXPRESSIONS ***/
+/*** expressions ***/
 exp: 
   | LET binding_list IN exp                      { ELet($1,$2,$4) }
-  | FUNCTION param param_list opt_sort ARROW exp { EFun($1,$2::$3,$4,$6) }
+  | FUN param param_list opt_sort ARROW exp      { EFun($1,$2::$3,$4,$6) }
   | composeexp                                   { $1 }
 
 composeexp:
@@ -89,7 +99,7 @@ composeexp:
   | appexp                                    { $1 } 
 
 appexp:
-  | appexp aexp                               { EApp(get_info_exp $1,$1,$2) }
+  | appexp aexp                               { EApp(info_of_exp $1,$1,$2) }
   | aexp                                      { $1 }
 
 aexp:
@@ -98,8 +108,20 @@ aexp:
   | LANGLE typeexp RANGLE                     { EType($1,$2) }
   | LPAREN exp RPAREN                         { $2 }
   | STRING                                    { let (i,_) = $1 in EName(i,$1) }                            
+  | LBRACE map_list LBRACE                    { EMap($1, $2) }
+
+map:
+  | IDENT_or_STRING ARROW aexp                { ($1,$3) }
+
+map_list:
+  |                                           { [] }
+  | map COMMA non_empty_map_list              { $1::$3 }
+
+non_empty_map_list:
+  | map                                       { [$1] }
+  | map COMMA non_empty_map_list              { $1::$3 }
                                                  
-/*** VIEWS ***/
+/*** views ***/
 viewexp:
   | LBRACE viewelt_list RBRACE                { EView($1,$2) }
   | LBRACK viewelt_list RBRACK                { list_view (EView($1,$2)) }
@@ -114,15 +136,15 @@ non_empty_viewelt_list:
 
 viewelt:
   | IDENT_or_STRING                           { let (i,_) = $1 in (i, EName(i,$1), emptyView i) }
-  | IDENT_or_STRING ARROW innerview           { ($2, EName(get_info_id $1, $1), $3) }
-  | BACKTICK exp ARROW innerview              { ($1, $2, $4) }
+  | IDENT_or_STRING EQUAL innerview           { ($2, EName(get_info_id $1, $1), $3) }
+  | BACKTICK exp BACKTICK EQUAL innerview     { ($1, $2, $5) }
 
 innerview:
   | IDENT_or_STRING                           { let (i,x) = $1 in EView(i,[(i,EName(i,$1), emptyView i)]) }
   | viewexp                                   { $1 }
-  | BACKTICK exp                              { $2 }
+  | BACKTICK exp BACKTICK                     { $2 }
   
-/*** TYPES ***/
+/*** types ***/
 typeexp:
   | typeexp BAR ctypeexp                      { TUnion($2,[$1;$3]) }
   | typeexp AMP ctypeexp                      { TInter($2,$1,$3) }
@@ -138,10 +160,11 @@ atypeexp:
   | LBRACE typeelt_list RBRACE                { TCat($1,$2) }
   | LBRACK typeelt_list RBRACK                { list_type (TCat($1,$2)) }
   | IDENT_or_STRING ARROW innertype           { let (i,_) = $1 in TName($2,EName(i,$1),$3) } 
-  | BACKTICK exp ARROW innertype              { TName($1,$2,$4) } 
-  | STAR except_list_opt range ARROW innertype{ TWild($1,$2,$3,$5) }
+  | BACKTICK exp BACKTICK ARROW innertype     { TName($1,$2,$5) } 
+  | STAR except_list_opt ARROW innertype      { TStar($1,$2,$4) }
+  | BANG except_list_opt ARROW innertype      { TBang($1,$2,$4) }
   | LPAREN typeexp RPAREN                     { $2 } 
-  | BACKTICK exp                              { let i = get_info_exp $2 in TExp(i, $2) }
+  | BACKTICK exp BACKTICK                     { let i = info_of_exp $2 in TExp(i, $2) }
 
 typeelt_list:
   |                                           { [] }
@@ -164,8 +187,6 @@ valuetype:
   | IDENT_or_STRING                           { let i = get_info_id $1 in TName(i,EName(i,$1),emptyViewType i) }
 
 /* stub productions */
-range:       
-  |                                           { (-1,-1) }
 
 except_list_opt :
   |                                           { [] }
@@ -175,8 +196,7 @@ except_list:
   |                                           { [] }               
   | IDENT_or_STRING except_list               { $1::$2 }
 
-/*** IDENTIFIERS ***/
-
+/*** identifiers ***/
 qid:
   | IDENT                                     { ([],$1) }
   | qid DOT IDENT                             { let l,i = $1 in (l@[i],$3) }

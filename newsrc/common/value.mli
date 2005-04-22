@@ -50,3 +50,4 @@ val fold : (qn -> rtv ref -> 'a -> 'a) -> env -> 'a -> 'a
 val memoize : t -> t
 
 val get_library : unit -> env 
+val pre_register_native : string -> t -> string -> unit
