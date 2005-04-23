@@ -8,9 +8,21 @@
 (*                                                                  *)
 (********************************************************************)
 
+(* backpatch hack *)
+let compile_file_impl = ref (fun _ _ -> ())
+
 (* names, qualified names *)
 type n = string
 type qn = n list * n
+
+let string_of_qn (qs,n) = 
+  let concat sep list = 
+    if (list = []) then "" 
+    else List.fold_right 
+      (fun h t -> if (t = sep) then h else (h ^ sep ^ t))
+      list sep
+  in
+    concat "." (qs@[n])
 
 (* useful coercions *)
 let n_of_id (_,n) = n
@@ -19,13 +31,8 @@ let qn_of_n n = ([],n)
 let qn_of_id x = qn_of_n (n_of_id x)  
   
 (* "dot" two qualified names *)
-let dot qno qn2 = match qno with 
-    None -> qn2 
-  | Some (qs1,n1) -> 
-      let (qs2,n2) = qn2 in 
-	(qs1@[n1]@qs2, n2) 
-
-let dot_id mo x = dot mo (qn_of_id x)
+let dot (qs1,n1) (qs2, n2) = (qs1@[n1]@qs2, n2)   
+let dot_id m x = dot m (qn_of_id x)
 
 module EMap = 
   Mapplus.Make(
@@ -62,7 +69,7 @@ let dummy_rtv = Syntax.SName(Info.bogus), dummy
   
 (* an environment is a pair of a naming context and a map from qns to run-time values *)
 type rtv = Syntax.sort * t
-type env = (rtd ref) QNMap.t
+type env = (rtv ref) QNMap.t
 
 (* some coercions *)
 let t_of_rtv (s,v) = v
@@ -92,8 +99,6 @@ let update e q r = QNMap.add q (ref r) e
 (* helpers *)
 let overwrite_id e x r = overwrite e ([],n_of_id x) r
 let update_id ev x r = update ev ([],n_of_id x) r
-let lookup_qid env q = lookup env (qn_of_qid q)
-let lookup_id env x = lookup env ([], n_of_id x)
   
 (* get the filename that a module is stored at *)
 (* FIXME: simple for now, assumes everything is in the single search path; will generalize later *)
@@ -102,59 +107,59 @@ let get_module_prefix q =
     | ([],_) -> assert false
     | (n::_,_) -> n
 	
-let get_filename n = (!search_path) ^ (String.uncapitalize (string_of_n n)) ^ ".fcl"
-
+let get_filename n = (!search_path) ^ (String.uncapitalize n) ^ ".fcl"
+  
 (* lookup in an enviroment *)
-let lookup ev q = Some !(QNMap.find q e) with Not_found -> None
+let lookup ev q = try Some !(QNMap.find q ev) with Not_found -> None
+let lookup_qid env q = lookup env (qn_of_qid q)
+let lookup_id env x = lookup env ([], n_of_id x)
   
 (* load a module, if needed *)
 let load q = 
   let n = get_module_prefix q in
-    if (not (Set.mem (!loaded) n)) then
+    if (not (NSet.mem n (!loaded))) then
       begin 
 	let fn = get_filename n in
 	let _ = if (not(Sys.file_exists fn)) then 
-	  raise (Error.Sort_error(("Module " ^ (Pretty.string_of_qn q) ^ " does not exist"), Info.bogus))
+	  raise (Error.Sort_error(("Module " ^ (string_of_qn q) ^ " does not exist"), Info.bogus))
 	in
-	let _ = loading := (NSet.add n) in
-	let _ = prerr_string "[loading " ^ fn ^ "]" in
-	let lex = Lexing.from_channel (open_in fn) in
-	let ast = Parser.modl Lexer.token lexbuf in
-	let _ = close_in fn in
-	let ast = Checker.sc_module n ast in 
-	let _ = Compiler.compile_module ast in
-	let _ = loading := (NSet.remove n) in
-	let _ = loaded := (NSet.add n) in
+	let _ = loading := (NSet.add n (!loading)) in
+	let _ = prerr_string ("[loading " ^ fn ^ "]") in
+	let _ = (!compile_file_impl) fn n in
+	let _ = loading := (NSet.remove n (!loading)) in
+	  loaded := (NSet.add n (!loaded)) 
       end	
-	()
+    else
+      ()
         
 (* lookup in a naming context *)
 let lookup_in_ctx ev nctx q = 
   let rec lookup_in_ctx_aux os q2 =     
     match lookup ev q2 with
       | Some rtv -> Some rtv
-      | None -> match os with 
+      | None -> match nctx with 
 	  | []       -> None
-	  | o::orest -> lookup_in_ctx_aux orest (dot (Some o) q) 
+	  | o::orest -> lookup_in_ctx_aux orest (dot o q) 
   in
-    lookup_in_ctx_aux ev os q
+    lookup_in_ctx_aux nctx q
+
+let register q s v = library := (overwrite (!library) q (s,v))
       
-let register_native qs nv ss = 
+let register_native qs ss v = 
+  let sort_of_string s = 
+    let lexbuf = Lexing.from_string s in
+      Parser.sort Lexer.token lexbuf 
+  in	
+  let qid_of_string s = 
+    let lexbuf = Lexing.from_string s in
+      Parser.qid Lexer.token lexbuf 
+  in
   let q = qn_of_qid (qid_of_string qs) in
   let s = sort_of_string ss in
-  let _ = overwrite (!pre_library) q (s,nv) in
-    ()  
+    register q s v
       
-(*** REGISTRY ***)
-(* parse various bits of syntax *)
-let sort_of_string s = 
-  let lexbuf = Lexing.from_string s in
-    Parser.sort Lexer.token lexbuf 
-
-let qid_of_string s = 
-  let lexbuf = Lexing.from_string s in
-    Parser.qid Lexer.token lexbuf 
-
+let register_env ev m = QNMap.iter (fun q r -> let (s,v) = !r in register (dot m q) s v) ev  
+       
  
 (* MEMOIZATION *)
 type thist = t (* HACK! *)
