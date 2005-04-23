@@ -9,20 +9,18 @@
 (********************************************************************)
 
 (* backpatch hack *)
-let compile_file_impl = ref (fun _ _ -> ())
+let compile_file_impl = ref (fun _ -> ())
 
 (* names, qualified names *)
 type n = string
 type qn = n list * n
 
-let string_of_qn (qs,n) = 
-  let concat sep list = 
-    if (list = []) then "" 
-    else List.fold_right 
-      (fun h t -> if (t = sep) then h else (h ^ sep ^ t))
-      list sep
-  in
-    concat "." (qs@[n])
+let concat sep list = 
+  if (list = []) then "" 
+  else List.fold_right 
+    (fun h t -> if (t = sep) then h else (h ^ sep ^ t))
+    list sep    
+let string_of_qn (qs,n) = concat "." (qs@[n])
 
 (* useful coercions *)
 let n_of_id (_,n) = n
@@ -79,8 +77,8 @@ let sort_of_rtv (s,v) = s
 let empty : env = QNMap.empty
 
 (* registry of values *)
-let library = ref empty
-let search_path = ref "/home/nate/shared/harmony4/newsrc/plugins/" (* FIXME!!! *)
+let library : env ref = ref empty
+let search_path = ref "/Users/nate/shared/harmony4/newsrc/plugins/" (* FIXME!!! *)
 let loaded = ref NSet.empty
 let loading = ref NSet.empty
 let get_library () = !library
@@ -104,8 +102,8 @@ let update_id ev x r = update ev ([],n_of_id x) r
 (* FIXME: simple for now, assumes everything is in the single search path; will generalize later *)
 let get_module_prefix q = 
   match q with 
-    | ([],_) -> assert false
-    | (n::_,_) -> n
+    | ([],_) -> None
+    | (n::_,_) -> Some n
 	
 let get_filename n = (!search_path) ^ (String.uncapitalize n) ^ ".fcl"
   
@@ -115,45 +113,66 @@ let lookup_qid env q = lookup env (qn_of_qid q)
 let lookup_id env x = lookup env ([], n_of_id x)
   
 (* load a module, if needed *)
-let load q = 
-  let n = get_module_prefix q in
-    if (not (NSet.mem n (!loaded))) then
-      begin 
-	let fn = get_filename n in
-	let _ = if (not(Sys.file_exists fn)) then 
-	  raise (Error.Sort_error(("Module " ^ (string_of_qn q) ^ " does not exist"), Info.bogus))
-	in
-	let _ = loading := (NSet.add n (!loading)) in
-	let _ = prerr_string ("[loading " ^ fn ^ "]") in
-	let _ = (!compile_file_impl) fn n in
-	let _ = loading := (NSet.remove n (!loading)) in
-	  loaded := (NSet.add n (!loaded)) 
-      end	
-    else
-      ()
-        
+let string_of_env ev = 
+  let string_of_value = function
+      N(n) -> n
+    | L(l) -> "<lens>"
+    | T(t) -> "<type>"
+    | V(t) -> "<view>"      
+    | F(f) -> "<fun>"
+  in
+    (fold 
+       (fun q r acc -> 
+	  let (s,v) = !r in
+	    (concat "" [ string_of_qn q
+		       ; "->"
+		       ; string_of_value v
+		       ; if (acc = "") then "" else ", "
+		       ; acc])))
+       ev
+       ""
+let load q = match get_module_prefix q with 
+  | None -> ()
+  | Some n -> 
+      let isloaded = NSet.mem n (!loaded) in
+      let isloading = NSet.mem n (!loading) in
+      let fn = get_filename n in
+	if (NSet.mem n (!loaded)) or (not(Sys.file_exists fn)) then () 
+	else if (NSet.mem n (!loading)) then 
+	  raise (Error.Sort_error(("Circular module references " ^ n), Info.bogus))
+	else 
+	  begin
+	    loading := (NSet.add n (!loading));
+	    prerr_string ("[ loading " ^ fn ^ " ]\n");
+	    (!compile_file_impl) fn;
+	    loading := (NSet.remove n (!loading));
+	    loaded := (NSet.add n (!loaded)) 
+	  end
+
 (* lookup in a naming context *)
-let lookup_in_ctx ev nctx q = 
-  let rec lookup_in_ctx_aux os q2 =     
-    match lookup ev q2 with
-      | Some rtv -> Some rtv
-      | None -> match nctx with 
-	  | []       -> None
-	  | o::orest -> lookup_in_ctx_aux orest (dot o q) 
+let lookup_in_ctx nctx q = 
+  let rec lookup_in_ctx_aux os q2 =         
+    let _ = load q2 in
+      match lookup (!library) q2 with	  
+	| Some rtv -> Some rtv
+	| None -> 
+	    match nctx with 
+	      | []       -> None
+	      | o::orest -> lookup_in_ctx_aux orest (dot o q) 
   in
     lookup_in_ctx_aux nctx q
-
+      
 let register q s v = library := (overwrite (!library) q (s,v))
       
 let register_native qs ss v = 
-  let sort_of_string s = 
-    let lexbuf = Lexing.from_string s in
-      Parser.sort Lexer.token lexbuf 
-  in	
   let qid_of_string s = 
     let lexbuf = Lexing.from_string s in
       Parser.qid Lexer.token lexbuf 
   in
+  let sort_of_string s = 
+    let lexbuf = Lexing.from_string s in
+      Parser.sort Lexer.token lexbuf 
+  in	
   let q = qn_of_qid (qid_of_string qs) in
   let s = sort_of_string ss in
     register q s v

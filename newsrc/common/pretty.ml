@@ -131,7 +131,7 @@ and string_of_decl = function
   | Syntax.DMod(_,i,ds) -> concat "" 
       (["module "
        ; string_of_id i
-       ; " =\nn"]
+       ; " =\n"]
        @ (List.map (fun di -> (string_of_decl di) ^ "\n") ds))
 
 let string_of_modl (Syntax.MDef(_,id,qs,ds)) = 
@@ -187,7 +187,8 @@ and string_of_env ev =
     (Value.fold 
        (fun q r acc -> 
 	  let (s,v) = !r in
-	    (concat "" [ string_of_qn q
+	    (concat "" [ "\n\t"
+		       ; string_of_qn q
 		       ; "->"
 		       ; string_of_value v
 		       ; ":"
@@ -196,3 +197,4 @@ and string_of_env ev =
 		       ; acc]))
        ev
        "")
+    

@@ -25,7 +25,7 @@ let lookup cev q =
   match Value.lookup (get_ev cev) q with
     | Some r -> Some r
     | None -> begin
-	match Value.lookup_in_ctx (Value.get_library ()) (get_ctx cev) q with
+	match Value.lookup_in_ctx (get_ctx cev) q with
 	  | None -> None
 	  | Some r -> Some r
       end	
@@ -169,15 +169,11 @@ and compile_viewbinds ev bs = match bs with
 	  | None   -> V.set vrest n (Some v)
 	      
 (* bindings *)
-(* compile_bindings :: compile_env -> qn option -> Syntax.BDef list ->  compile_env *)
+(* compile_bindings :: compile_env -> Syntax.BDef list ->  compile_env *)
 and compile_bindings cev bs = 
   (* add all the bindings in a recursion group to the environment *)
   let bev = 
-    List.fold_left 
-      (fun bev (Syntax.BDef(_,f,_,_,_)) -> 
-	 update_id bev f Value.dummy_rtv) 
-      cev 
-      bs 
+    List.fold_left (fun bev (Syntax.BDef(_,f,_,_,_)) -> update_id bev f Value.dummy_rtv) cev bs 
   in
   (* and backpatch... *)
   let _ = List.map
@@ -185,56 +181,83 @@ and compile_bindings cev bs =
        | Syntax.BDef(i,f,[],so,e) ->
 	   let r = compile_exp bev e in
 	   let s = Value.sort_of_rtv r in
-	   let v = Value.t_of_rtv r in	     	   
-	     overwrite_id bev f (s, Value.memoize v)
+	   let v = Value.memoize (Value.t_of_rtv r) in
+	     overwrite_id bev f (s,v)
        | Syntax.BDef(i,_,_,_,_) -> raise (Error.Run_error("Ill-formed let binding", i)))
     bs
   in    
     bev
       
 (* type bindings *)
-(* compile_typebindings :: compile_env * Value.qn option -> Syntax.typebinding list -> compile_env *)
+(* compile_typebindings :: compile_env -> Syntax.typebinding list -> compile_env *)
 let compile_typebindings cev ts =   
   (* add to environment and backpatch *)
   let tev = 
-    List.fold_left 
-      (fun tev (x,_,_) -> update_id tev x Value.dummy_rtv) 
-      cev 
-      ts 
+    List.fold_left (fun tev (x,_,_) -> update_id tev x Value.dummy_rtv) cev ts 
   in
     List.fold_left 
-      (fun cev ti -> 
-	 match ti with
-	   | (x,[],t) -> overwrite_id tev x (Syntax.SType(Info.bogus),Value.T(compile_typeexp tev t))
-	   | (x,_,t)  -> assert false)
+      (fun cev ti -> match ti with
+	 | (x,[],t) -> overwrite_id tev x (Syntax.SType(Info.bogus),Value.T(compile_typeexp tev t))
+	 | (x,_,t)  -> assert false)
       cev
       ts
       
 (* declarations *)
-(* compile_decl :: compile_env -> Value.qn option -> Syntax.decl -> compile_env *)
-let rec compile_decl ev = function
-  | Syntax.DLet(_,bs)   -> compile_bindings ev bs
-  | Syntax.DType(_,ts)  -> compile_typebindings ev ts
-  | Syntax.DMod(i,n,ds) -> compile_module_aux ev ds
-
+(* compile_decl :: compile_env -> Syntax.decl -> compile_env *)
+let rec compile_decl ev qm = function
+  | Syntax.DLet(_,bs)   -> 
+      let bcev = compile_bindings ev bs in
+      let _    = 
+	List.map 
+	  (fun bi -> 
+	     let bn = Value.qn_of_id (Syntax.id_of_binding bi) in
+	     let bv = Value.lookup (get_ev bcev) bn in
+	       match bv with 
+		 | None -> assert false 
+		 | Some (s,v) -> Value.register (Value.dot qm bn) s v)
+	  bs
+      in
+	bcev
+ 
+  | Syntax.DType(_,ts)  -> 
+      let tcev = compile_typebindings ev ts in
+      let _ = List.map
+	(fun ti ->
+	   let tn = Value.qn_of_id (Syntax.id_of_typebinding ti) in
+	   let tv = Value.lookup (get_ev tcev) tn in
+	     match tv with
+	       | None -> assert false
+	       | Some (s,v) -> Value.register (Value.dot qm tn) s v)
+	ts
+      in
+	tcev
+  | Syntax.DMod(i,n,ds) -> compile_module_aux ev (Value.dot qm (Value.qn_of_id n)) ds
+      
 (* modules *)
-(* compile_module_aux :: compile_env -> Value.qn -> Syntax.decl list -> compile_env *)
-and compile_module_aux cev ds =
-  List.fold_left (fun cev di -> compile_decl cev di) cev ds
-    
-(* compile_module :: Syntax.modl -> compile_env *)
-let compile_module = function
-  | Syntax.MDef(i,m,nctx,ds) ->      
-      let cev = open_qns empty (List.map Value.qn_of_qid nctx) in
-      let cev = compile_module_aux cev ds in
-	Value.register_env (get_ev cev) (Value.qn_of_id m)
-	
-let compile_file fn n = 
+(* compile_module_aux :: compile_env -> Syntax.decl list -> compile_env *)
+and compile_module_aux cev qm ds =
+  List.fold_left (fun cev di -> compile_decl cev qm di) cev ds 
+  
+(* compile_module :: Syntax.modl -> unit *)
+let compile_module (Syntax.MDef(i,m,nctx,ds)) = 
+  let cev = open_qns empty (List.map Value.qn_of_qid nctx) in
+  let _ = compile_module_aux cev (Value.qn_of_id m) ds in 
+    ()
+	  
+(* compile_file :: string -> unit *)
+let compile_file fn = 
+  (* FIXME: do this check here 
+     let _ = 
+     if (mn <> fn) then 
+     raise (Error.Sort_error(("Module " 
+     ^ (Pretty.string_of_n mn) 
+     ^ " must appear in a file called " 
+     ^ (Pretty.string_of_n mn) ^ ".fcl"), i))
+     in *)     
   let fchan = open_in fn in
   let lex = Lexing.from_channel fchan in
   let ast = Parser.modl Lexer.token lex in
-  let _ = close_in fchan in
-  let ast = Checker.sc_module n ast in 
+  let ast = Checker.sc_module ast in 
     compile_module ast 
     
 let _ = Value.compile_file_impl := compile_file

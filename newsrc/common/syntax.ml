@@ -56,6 +56,7 @@ and viewbind = (i * exp * exp)
 (* bindings *)
 and binding = BDef of i * id * param list * sort option * exp
 
+
 type typebinding = (id * id list * typeexp)
 
 (* declarations *)
@@ -78,7 +79,9 @@ let qid_of_string i s = qid_of_id (i,s)
 (* accessor functions *)
 let get_info_id = function (i,_) -> i
 let get_info_qid = function (_,id) -> get_info_id id
-let name_of_id = snd
+let name_of_id (_,x) = x
+let id_of_binding (BDef(_,x,_,_,_)) = x
+let id_of_typebinding (x,_,_) = x
 
 (* read off info fields *)
 let info_of_exp = function
