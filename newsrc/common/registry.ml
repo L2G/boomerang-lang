@@ -10,9 +10,16 @@
 
 open Pretty
 
-(* backpatch hack *)
-let compile_file_impl = ref (fun _ -> ())
+(* REGISTRY VALUES *)
+type rv = Syntax.sort * Value.t
+let dummy_rv = Syntax.SName(Info.bogus), Value.dummy
+let make_rv s v = (s,v)
+let value_of_rv (s,v) = v
+let sort_of_rv (s,v) = s
 
+
+(* ENVIRONMENTS *)
+(* Maps whose keys are Syntax.qids *)
 module EMap = 
   Mapplus.Make(
     struct
@@ -22,48 +29,70 @@ module EMap =
     end)
 module QidMap = EMap.Map
 module QidSet = EMap.KeySet
+
+type env = (rv ref) QidMap.t
+let empty : env = QidMap.empty
+
+(* produce env[q->v]; yields a NEW env *)
+let update oev get_ev put_ev q r = put_ev oev (QidMap.add q (ref r) (get_ev oev))
+  
+(* produce env[q:=v]; yields the SAME env *)
+let overwrite oev get_ev put_ev q r = 
+  try 
+    (QidMap.find q (get_ev oev)):=r; 
+    oev 
+  with Not_found ->
+    raise (Error.Run_error("Tried to overwrite a non-existent mapping"))
+
+let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found -> None
+
+(* env pretty printer *)
+let string_of_env ev = 
+  Pretty.curlybraces 
+    (QidMap.fold (fun q r acc -> 
+	     let (s,v) = !r in
+	       (Pretty.concat "" [ "\n\t"
+				 ; Syntax.string_of_qid q
+				 ; " -> "
+				 ; Value.string_of_t v
+				 ; " : "
+				 ; Syntax.string_of_sort s
+				 ; if (acc = "") then "" else ", "
+				 ; acc]))
+       ev
+       "")
+
+(* LIBRARY *)
+(* Sets whose elements are Syntax.ids *)
 module IdSet = Set.Make(
   struct
     type t = Syntax.id
     let compare = Syntax.id_compare
   end)
-
-let fold = QidMap.fold
-
-(* run-time values, environments *)
-type rtv = Syntax.sort * Value.t
-let dummy_rtv = Syntax.SName(Info.bogus), Value.dummy
   
-type env = (rtv ref) QidMap.t
-
-(* the empty environment *)
-let empty : env = QidMap.empty
-    
-(* some coercions *)
-let value_of_rtv (s,v) = v
-let sort_of_rtv (s,v) = s
-
-(* registry of values *)
+(* the library's state *)
 let library : env ref = ref empty
-let search_path = ref "/Users/nate/shared/harmony4/newsrc/plugins/" (* FIXME!!! *)
 let loaded = ref IdSet.empty
 let loading = ref IdSet.empty
+let search_path = ref "/Users/nate/shared/harmony4/newsrc/plugins/"
+
 let get_library () = !library
-  
-(* produce env[q:=v]; yields the SAME env if q already there *)
-let overwrite e q r = 
-  try 
-    (QidMap.find q e):=r; 
-    e
-  with Not_found ->
-    QidMap.add q (ref r) e      
+
+let register q r = library := (QidMap.add q (ref r) (!library))
       
-(* produce env[q->v]; yields a NEW env *)
-let update e q r = QidMap.add q (ref r) e     
-  
-(* helpers *)
-let overwrite_id e x r = overwrite e (Syntax.qid_of_id x) r
-let update_id ev x r = update ev (Syntax.qid_of_id x) r
+let register_native qs ss v = 
+  let qid_of_string s = 
+    let lexbuf = Lexing.from_string s in
+      Parser.qid Lexer.token lexbuf 
+  in
+  let sort_of_string s = 
+    let lexbuf = Lexing.from_string s in
+      Parser.sort Lexer.token lexbuf 
+  in	
+  let q = qid_of_string qs in
+  let s = sort_of_string ss in
+    register q (s,v)
+
   
 (* get the filename that a module is stored at *)
 (* FIXME: simple for now, assumes everything is in the single search path; will generalize later *)
@@ -74,11 +103,9 @@ let get_module_prefix q =
 	
 let get_filename n = (!search_path) ^ (String.uncapitalize n) ^ ".fcl"
   
-(* lookup in an enviroment *)
-let lookup ev q = try Some !(QidMap.find q ev) with Not_found -> None
-let lookup_id env x = lookup env ([], x)
-  
-(* load a module, if needed *)
+(* load modules dynamically *)
+(* backpatch hack *)
+let compile_file_impl = ref (fun _ -> ())  
 let load q = match get_module_prefix q with 
   | None -> ()
   | Some n -> 
@@ -99,49 +126,23 @@ let load q = match get_module_prefix q with
 	  end
 
 (* lookup in a naming context *)
-let lookup_in_ctx nctx q = 
-  let rec lookup_in_ctx_aux os q2 =         
+let lookup_library2 nctx q = 
+  let rec lookup_library_aux os q2 =         
     let _ = load q2 in
-      match lookup (!library) q2 with	  
-	| Some rtv -> Some rtv
+      match lookup (!library) (fun x -> x) q2 with	  
+	| Some r -> Some r
 	| None -> 
 	    match nctx with 
 	      | []       -> None
-	      | o::orest -> lookup_in_ctx_aux orest (Syntax.dot o q) 
+	      | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
   in
-    lookup_in_ctx_aux nctx q
-      
-let register q s v = library := (overwrite (!library) q (s,v))
-      
-let register_native qs ss v = 
-  let qid_of_string s = 
-    let lexbuf = Lexing.from_string s in
-      Parser.qid Lexer.token lexbuf 
-  in
-  let sort_of_string s = 
-    let lexbuf = Lexing.from_string s in
-      Parser.sort Lexer.token lexbuf 
-  in	
-  let q = qid_of_string qs in
-  let s = sort_of_string ss in
-    register q s v
-      
-let register_env ev m = QidMap.iter (fun q r -> let (s,v) = !r in register (Syntax.dot m q) s v) ev  
+    lookup_library_aux nctx q
 
+let lookup_library oev ev_of_oev ctx_of_oev q = 
+  let ev = ev_of_oev oev in
+    match lookup ev (fun x -> x) q with
+      | Some r -> Some r
+      | None -> lookup_library2 (ctx_of_oev oev) q
 
-(* pretty printer *)
-and string_of_env ev = 
-  Pretty.curlybraces 
-    (fold (fun q r acc -> 
-	     let (s,v) = !r in
-	       (Pretty.concat "" [ "\n\t"
-				 ; Syntax.string_of_qid q
-				 ; "->"
-				 ; Value.string_of_t v
-				 ; ":"
-				 ; Syntax.string_of_sort s
-				 ; if (acc = "") then "" else ", "
-				 ; acc]))
-       ev
-       "")
-    
+      
+      

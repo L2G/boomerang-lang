@@ -15,7 +15,7 @@ type pos = int * int
 type t = pos * pos
 
 (* pretty printer *)
-let string_of_info ((l1,c1),(l2,c2)) = 
+let string_of_t ((l1,c1),(l2,c2)) = 
   Printf.sprintf "line %d, char %d, to line %d, char %d " l1 c1 l2 c2
 
 (* dummy info *)
