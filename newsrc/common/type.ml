@@ -7,9 +7,11 @@
 (* $Id: type.ml,v 1.1 2005/04/11 18:24:48 jnfoster Exp $ *)
 (*                                                     *)
 (*******************************************************)
+
+open Pretty
     
 (* TYPES *)
-type state = string list * string (* \<equiv> Value.qn *)
+type state = Syntax.qid
 type cstate = state * (state list) * (state list)
 
 type t =
@@ -19,6 +21,32 @@ type t =
   | Bang of (string list) * cstate            
   | Cat of t list 
   | Union of t list 
+
+(* types *)
+let string_of_cstate (x,is,ds) = 
+  concat ""
+    (Syntax.string_of_qid x::
+       if (is = [] && ds = []) then []
+       else
+	 [ "&"; curlybraces (concat " " (List.map Syntax.string_of_qid is))
+	 ; "-"; curlybraces (concat " " (List.map Syntax.string_of_qid ds))
+	 ])
+let rec string_of_type = function
+  | Empty -> "empty"
+  | Name(n,cx) -> concat "" [n; curlybraces (string_of_cstate cx)]
+  | Bang(f,cx)  ->
+      concat ""
+    	[ "!"
+    	; braces (concat " " f)
+    	; curlybraces (string_of_cstate cx)]
+  | Star(f,cx)  ->
+	concat ""
+    	  [ "*"
+    	  ; braces (concat " " f)
+    	  ; curlybraces (string_of_cstate cx)]
+  | Cat(cs)   -> concat "." (List.map string_of_type cs)
+  | Union(ts)  -> braces (concat " | " (List.map string_of_type ts))
+
 
 (* (\* helper: map f everywhere on a type - not currently used *\) *)
 (* let rec map_typ f t =  *)

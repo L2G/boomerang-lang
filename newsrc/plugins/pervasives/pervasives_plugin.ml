@@ -37,7 +37,7 @@ let id = Lens.native
   (fun c -> c) 
   (fun a co -> a)
 let id_lib = Value.L id
-let _ = Value.register_native "Native.id" "lens" id_lib
+let _ = Registry.register_native "Native.id" "lens" id_lib
 
 (* (\* id - library interface  *\) *)
 (* let id_lib = L id *)

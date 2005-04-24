@@ -16,26 +16,25 @@
 *)
 
 (* a compilation environment is just a naming context and a Value.env *)
-type compile_env = Value.qn list * Value.env
-let empty = ([], Value.empty)
+type compile_env = Syntax.qid list * Registry.env
+let empty = ([], Registry.empty)
 let get_ev cev = let (_,ev) = cev in ev
 let get_ctx cev = let (os,_) = cev in os					  
 let put_ev cev ev = let (os,_) = cev in (os,ev)
 let lookup cev q = 
-  match Value.lookup (get_ev cev) q with
+  match Registry.lookup (get_ev cev) q with
     | Some r -> Some r
     | None -> begin
-	match Value.lookup_in_ctx (get_ctx cev) q with
+	match Registry.lookup_in_ctx (get_ctx cev) q with
 	  | None -> None
 	  | Some r -> Some r
       end	
-let update cev q r = put_ev cev (Value.update (get_ev cev) q r)
-let overwrite cev q r = put_ev cev (Value.overwrite(get_ev cev) q r)
+let update cev q r = put_ev cev (Registry.update (get_ev cev) q r)
+let overwrite cev q r = put_ev cev (Registry.overwrite(get_ev cev) q r)
   
-let lookup_qid cev qx = lookup cev (Value.qn_of_qid qx)
-let lookup_id cev x = lookup cev ([], Value.n_of_id x)  
-let update_id cev x r = update cev (Value.qn_of_id x) r
-let overwrite_id cev x r = overwrite cev (Value.qn_of_id x) r
+let lookup_id cev x = lookup cev (Syntax.qid_of_id x)  
+let update_id cev x r = update cev (Syntax.qid_of_id x) r
+let overwrite_id cev x r = overwrite cev (Syntax.qid_of_id x) r
   
 let open_qns cev qs = let (os,ev) = cev in (qs@os,ev)
 
@@ -44,24 +43,24 @@ let id_exp = let i = Info.bogus in Syntax.EVar(i,([(i,"Pervasives")],(i,"id")))
 				     
 (* expressions *)
 (* compile_exp :: compile_env -> Syntax.exp -> Value.rtv *)
-let rec compile_exp cev e0 : Value.rtv = match e0 with
+let rec compile_exp cev e0 = match e0 with
   | Syntax.EVar(i,q) -> 
-      begin match (lookup_qid cev q) with
+      begin match (lookup cev q) with
 	| Some r -> r
 	| None -> raise (Error.Run_error(("Unbound variable " 
-					  ^ (Pretty.string_of_qid q)
+					  ^ (Syntax.string_of_qid q)
 					  ^ "."), i))
       end
 	
   | Syntax.EFun(i,xs,so,e) ->
-      let r : Value.rtv = 
+      let r =
 	begin
 	  match xs, so with 
 	    | [p], Some s  -> 
 		let ps = Syntax.sort_of_param p in
 		let f v = 
 		  let fcev = update_id cev (Syntax.id_of_param p) (ps,v) in
-		    Value.t_of_rtv (compile_exp fcev e)
+		    Registry.value_of_rtv (compile_exp fcev e)
 		in
 		let fs = Syntax.SArrow(i,ps,s) in
 		  (fs, Value.F(f))
@@ -75,22 +74,22 @@ let rec compile_exp cev e0 : Value.rtv = match e0 with
 	(fun f (x,l) -> 
 	   (fun v -> 
 	      match v with
-		| Value.N n -> if (n = (Value.n_of_id x)) then
-		    Value.t_of_rtv (compile_exp cev l)
+		| Value.N n -> if (Syntax.string_of_id x) = n then
+		    Registry.value_of_rtv (compile_exp cev l)
 		  else 
 		    f v
 		| _ -> raise (Error.Run_error(("Not a name"), i)))) 
-	(fun _ -> Value.t_of_rtv (compile_exp cev id_exp)) 
+	(fun _ -> Registry.value_of_rtv (compile_exp cev id_exp)) 
 	ms
       in
 	(s, Value.F(f))
 
   | Syntax.EApp(i,e1,e2) ->
       begin
-	match Value.t_of_rtv (compile_exp cev e1) with 	  
+	match Registry.value_of_rtv (compile_exp cev e1) with 	  
 	    Value.F(f) -> 
 	      let r = compile_exp cev e2 in
-		(Value.sort_of_rtv r, f (Value.t_of_rtv r))
+		(Registry.sort_of_rtv r, f (Registry.value_of_rtv r))
 	  | _   -> raise (Error.Run_error("Left-hand side of application is not a function.", i))
       end
 
@@ -107,16 +106,15 @@ let rec compile_exp cev e0 : Value.rtv = match e0 with
 and compile_typeexp cev = 
   let 
       type2cstate = function 
-	| Syntax.TExp(_,Syntax.EVar(i,q)) -> (Value.qn_of_qid q,[],[])
-	| t -> raise (Error.Run_error(("Unflattened type "
-				 ^ Pretty.string_of_typeexp t),
-				Syntax.info_of_typeexp t))
+	| Syntax.TExp(_,Syntax.EVar(i,q)) -> (q,[],[])
+	| t -> raise (Error.Run_error(("Unflattened type " ^ Syntax.string_of_typeexp t),
+				      Syntax.info_of_typeexp t))
   in function
     | Syntax.TEmpty(i)       -> Type.Empty
 	
     | Syntax.TName(i,e,t)    ->
 	let n =
-	  match Value.t_of_rtv (compile_exp cev e) with
+	  match Registry.value_of_rtv (compile_exp cev e) with
 	      Value.N n -> n
 	    | _     -> raise (Error.Run_error("Name expected.", i))
 	in
@@ -142,7 +140,7 @@ and compile_typeexp cev =
 	  
     | Syntax.TExp(i,e) ->
 	begin
-	  match Value.t_of_rtv (compile_exp cev e) with
+	  match Registry.value_of_rtv (compile_exp cev e) with
 	    | Value.T t -> t
 	    | _     -> raise (Error.Run_error("Type expected.",i))
 	end
@@ -154,11 +152,11 @@ and compile_viewbinds ev bs = match bs with
       
   | (i,ne,ve)::rest ->
       let n =
-	match Value.t_of_rtv (compile_exp ev ne) with
+	match Registry.value_of_rtv (compile_exp ev ne) with
 	  | Value.N n -> n
 	  | _ -> raise (Error.Run_error("Expected a name.", i))
       in
-      let v = match Value.t_of_rtv (compile_exp ev ve) with
+      let v = match Registry.value_of_rtv (compile_exp ev ve) with
 	| Value.V v -> v
 	| _ -> raise (Error.Run_error("Expected a view.", i))
       in
@@ -173,15 +171,15 @@ and compile_viewbinds ev bs = match bs with
 and compile_bindings cev bs = 
   (* add all the bindings in a recursion group to the environment *)
   let bev = 
-    List.fold_left (fun bev (Syntax.BDef(_,f,_,_,_)) -> update_id bev f Value.dummy_rtv) cev bs 
+    List.fold_left (fun bev (Syntax.BDef(_,f,_,_,_)) -> update_id bev f Registry.dummy_rtv) cev bs 
   in
   (* and backpatch... *)
   let _ = List.map
     (fun bi -> match bi with
        | Syntax.BDef(i,f,[],so,e) ->
 	   let r = compile_exp bev e in
-	   let s = Value.sort_of_rtv r in
-	   let v = Value.memoize (Value.t_of_rtv r) in
+	   let s = Registry.sort_of_rtv r in
+	   let v = Value.memoize (Registry.value_of_rtv r) in
 	     overwrite_id bev f (s,v)
        | Syntax.BDef(i,_,_,_,_) -> raise (Error.Run_error("Ill-formed let binding", i)))
     bs
@@ -193,7 +191,7 @@ and compile_bindings cev bs =
 let compile_typebindings cev ts =   
   (* add to environment and backpatch *)
   let tev = 
-    List.fold_left (fun tev (x,_,_) -> update_id tev x Value.dummy_rtv) cev ts 
+    List.fold_left (fun tev (x,_,_) -> update_id tev x Registry.dummy_rtv) cev ts 
   in
     List.fold_left 
       (fun cev ti -> match ti with
@@ -210,11 +208,11 @@ let rec compile_decl ev qm = function
       let _    = 
 	List.map 
 	  (fun bi -> 
-	     let bn = Value.qn_of_id (Syntax.id_of_binding bi) in
-	     let bv = Value.lookup (get_ev bcev) bn in
+	     let bn = Syntax.qid_of_id (Syntax.id_of_binding bi) in
+	     let bv = Registry.lookup (get_ev bcev) bn in
 	       match bv with 
 		 | None -> assert false 
-		 | Some (s,v) -> Value.register (Value.dot qm bn) s v)
+		 | Some (s,v) -> Registry.register (Syntax.dot qm bn) s v)
 	  bs
       in
 	bcev
@@ -223,15 +221,15 @@ let rec compile_decl ev qm = function
       let tcev = compile_typebindings ev ts in
       let _ = List.map
 	(fun ti ->
-	   let tn = Value.qn_of_id (Syntax.id_of_typebinding ti) in
-	   let tv = Value.lookup (get_ev tcev) tn in
+	   let tn = Syntax.qid_of_id (Syntax.id_of_typebinding ti) in
+	   let tv = Registry.lookup (get_ev tcev) tn in
 	     match tv with
 	       | None -> assert false
-	       | Some (s,v) -> Value.register (Value.dot qm tn) s v)
+	       | Some (s,v) -> Registry.register (Syntax.dot qm tn) s v)
 	ts
       in
 	tcev
-  | Syntax.DMod(i,n,ds) -> compile_module_aux ev (Value.dot qm (Value.qn_of_id n)) ds
+  | Syntax.DMod(i,n,ds) -> compile_module_aux ev (Syntax.dot qm (Syntax.qid_of_id n)) ds
       
 (* modules *)
 (* compile_module_aux :: compile_env -> Syntax.decl list -> compile_env *)
@@ -240,8 +238,8 @@ and compile_module_aux cev qm ds =
   
 (* compile_module :: Syntax.modl -> unit *)
 let compile_module (Syntax.MDef(i,m,nctx,ds)) = 
-  let cev = open_qns empty (List.map Value.qn_of_qid nctx) in
-  let _ = compile_module_aux cev (Value.qn_of_id m) ds in 
+  let cev = open_qns empty nctx in
+  let _ = compile_module_aux cev (Syntax.qid_of_id m) ds in 
     ()
 	  
 (* compile_file :: string -> unit *)
@@ -260,4 +258,4 @@ let compile_file fn =
   let ast = Checker.sc_module ast in 
     compile_module ast 
     
-let _ = Value.compile_file_impl := compile_file
+let _ = Registry.compile_file_impl := compile_file

@@ -8,11 +8,30 @@
 (*                                                              *)
 (****************************************************************)
 
+open Pretty
+
 (* identifiers *)
 type i = Info.t
 type id = i * string
 type qid = id list * id
 
+(* functions on identifiers *)
+(* equality: ignore parsing Info.t *)
+let id_compare (_,x1) (_,x2) = compare x1 x2
+let qid_compare (qs1,x1) (qs2,x2) = 
+  let rec ids_compare xs1 xs2 = match xs1,xs2 with
+    | [],[] -> 0
+    | _,[]  -> 1
+    | [],_  -> -1
+    | (x1::t1),(x2::t2) -> 
+	let hd_compare = id_compare x1 x2 in
+	  if (hd_compare <> 0) then hd_compare 
+	  else ids_compare t1 t2
+  in
+    ids_compare (x1::qs1) (x2::qs2)
+
+let dot (qs1,x1) (qs2,x2) = (qs1@[x1]@qs2,x2)
+      
 (* abstract syntax *)
 
 (* sorts *)
@@ -113,5 +132,114 @@ let sort_of_param = function PDef(_,_,s) -> s
 let list_view ve = ve (* FIXME: actually do this *)
 let list_type vt = vt
 
+(* pretty printing stuff *)
+(* identifiers *)
+let string_of_id (_,i) = i
+let string_of_qid (q,i) = concat "." (List.map string_of_id q@[string_of_id i])
 
+(* sorts *)
+let rec string_of_sort = function
+    SName(_)        -> "name"
+  | SLens(_)        -> "lens"
+  | SType(_)        -> "type"
+  | SView(_)        -> "view"
+  | SArrow(_,s1,s2) -> braces (string_of_sort s1 
+				      ^ "->" 
+				      ^ string_of_sort s2)
+
+(* params *)
+let string_of_param (PDef(_,i,s)) = braces(string_of_id i ^ ":" ^ string_of_sort s)
+
+(* expressions *)
+let rec string_of_exp = function 
+    EVar(_,q)       -> string_of_qid q
+  | EFun(_,ps,so,e) -> ("fun " 
+			       ^ (concat " " (List.map string_of_param ps))
+			       ^ (match so with 
+				    | None -> "" 
+				    | Some s -> " : " ^ string_of_sort s)
+			       ^ " -> "
+			       ^ (string_of_exp e))
+  | EApp(_,e1,e2)    -> (string_of_exp e1) ^ " " ^ (string_of_exp e2)
+  | EMap(_,ms)       -> 
+      curlybraces (concat "" 
+		     (List.map (fun (x,e) -> 
+				  concat ", " [string_of_id x
+					      ;"->"
+					      ; string_of_exp e]) ms))
+	
+  | ELet(i,bs,e)     -> ("let " 
+				^ (string_of_bindings bs)
+				^ " in "
+				^ (string_of_exp e))
+  | EName(_,i)       -> string_of_id i
+  | EType(_,t)       -> string_of_typeexp t
+  | EView(_,vbs)     -> curlybraces (concat ", " 
+					      (List.map (fun (_,n,v) -> 
+							   (string_of_exp n) 
+							   ^ "=" 
+							   ^ (string_of_exp v))
+						 vbs))
+
+and string_of_typeexp = function 
+  | TEmpty(_)     -> "empty"
+  | TName(_,n,t) -> concat "" [string_of_exp n; curlybraces (string_of_typeexp t)]
+  | TBang(_,f,t)  ->
+      concat ""
+    	[ "!"
+     	; braces (concat " " (List.map string_of_id f))
+    	; curlybraces (string_of_typeexp t)]
+  | TStar(_,f,t)  ->
+      begin
+	match f,t with
+	    [], TEmpty(_) -> "{}"
+	  | _             ->
+	      concat ""
+    		[ "*"
+    		; braces (concat " " (List.map string_of_id f))
+    		; curlybraces (string_of_typeexp t)]
+      end
+  | TCat(_,cs) -> concat "." (List.map string_of_typeexp cs)
+  | TUnion(_,ts) -> braces (concat " | " (List.map string_of_typeexp ts))
+  | TDiff(_,t1,t2) -> concat " - " (List.map string_of_typeexp [t1;t2])
+  | TInter(_,t1,t2) -> concat " & " (List.map string_of_typeexp [t1;t2])
+  | TExp(_,e)     -> string_of_exp e
+
+and string_of_binding (BDef(_,x,ps,so,e)) = 
+  concat ""
+    [string_of_id x
+    ; concat " " (" " :: (List.map string_of_param ps))
+    ; (match so with 
+	 | None -> ""
+	 | Some s -> (" : " ^ string_of_sort s))
+    ; " = "
+    ; string_of_exp e]
+and string_of_bindings bs = concat " and " (List.map string_of_binding bs)
+
+and string_of_typebinding (x,xs,t) = 
+  concat ""
+    [ string_of_id x
+    ; concat ", " (List.map string_of_id xs)
+    ; string_of_typeexp t]
+
+and string_of_typebindings ts = concat " and " (List.map string_of_typebinding ts)
+
+and string_of_decl = function
+  | DLet(i,bs) -> "let " ^ (string_of_bindings bs)			
+  | DType(i,ts) -> "type " ^ (string_of_typebindings ts)
+  | DMod(_,i,ds) -> concat "" 
+      (["module "
+       ; string_of_id i
+       ; " =\n"]
+       @ (List.map (fun di -> (string_of_decl di) ^ "\n") ds))
+
+let string_of_modl (MDef(_,id,qs,ds)) = 
+  concat ""
+    (["module "
+     ; string_of_id id
+     ; " =\n"
+     ; (match qs with
+	  | [] -> ""
+	  | _  -> ("\nopen " ^ (concat "\n" (List.map string_of_qid qs)) ^ "\nin"))
+     ] @ (List.map (fun di -> (string_of_decl di) ^ "\n") ds))
 
