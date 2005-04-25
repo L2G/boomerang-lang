@@ -36,11 +36,11 @@ val trap_errors_in : ('a -> 'b) -> 'a -> 'b
 val probe2 : string -> (string -> V.t -> stackframe list -> unit)
   -> (string -> V.t -> V.t option -> stackframe list -> unit) -> t
 
+val memoize_lens : t -> t
+(* Speed improvement of a lens *)
+
 (* (\* ------------------------------------------------------------------------- *\) *)
 (* (\** {2 Recursion support} *\) *)
-
-(* val memoize : t -> t *)
-(* (\** Speed improvement of a lens *\)   *)
 
 (* val named : ?hashtable:((string, t) Hashtbl.t) -> string -> t *)
 (* (\** Recursive lens definition  *\) *)

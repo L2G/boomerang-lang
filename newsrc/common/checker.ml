@@ -414,6 +414,6 @@ and sc_modl_aux sev i ds =
       
 let sc_module = function MDef(i,m,o,ds) ->   
   let mqn = Syntax.qid_of_id m in
-  let sev = set_ctx empty o in
+  let sev = set_ctx empty (o@[Syntax.qid_of_string i "Native"]) in
   let _,new_ds,_ = sc_modl_aux sev i ds in
     MDef(i,m,o,new_ds)

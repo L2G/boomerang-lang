@@ -1,6 +1,11 @@
-(* (\*********************************\) *)
-(* (\* PERVASIVES_PLUGIN             *\) *)
-(* (\*********************************\) *)
+open Value
+open Lens
+open Registry
+open Error
+
+(*********************************)
+(* PERVASIVES_PLUGIN             *)
+(*********************************)
 
 (* (\*************\) *)
 (* (\* DEBUGGING *\) *)
@@ -33,14 +38,11 @@
 
 (*** ID ***)
 (* id - native interface *)
-let id = Lens.native 
+let id = native 
   (fun c -> c) 
   (fun a co -> a)
-let id_lib = Value.L id
-let _ = Registry.register_native "Native.id" "lens" id_lib
-
-(* (\* id - library interface  *\) *)
-(* let id_lib = L id *)
+let id_lib = L id
+let _ = register_native "Native.id" "lens" id_lib
 
 (* (\* id - unit tests *\) *)
 (* let id_unit_tests = *)
@@ -52,25 +54,28 @@ let _ = Registry.register_native "Native.id" "lens" id_lib
 (* let _ = register_and_test ("id", T Lens, id_lib)  *)
 (* 	  id_unit_tests *)
 	  
-(* (\*** CONST ***\) *)
-(* (\* const - native interface *\) *)
-(* let const v d = *)
-(*   { get = (fun c -> v); *)
-(*     put = (fun a co -> *)
-(* 	     if V.equal a v then *)
-(* 	       match co with *)
-(* 		   None -> d *)
-(* 		 | Some(c) -> c *)
-(* 	     else error [`String "Pervasives_plugin.const(put): abstract view"; *)
-(* 			 `View a; *)
-(* 			 `String "is not equal to"; `View (v)]) } *)
-    
-(* (\* const - library interface *\) *)
-(* let const_lib = F (function *)
-(* 		       V v -> F (function  *)
-(* 				     V d -> L (const v d) *)
-(* 				   | _ -> focal_type_error "const") *)
-(* 		     | _ -> focal_type_error" const") *)
+(*** CONST ***)
+(* const - native interface *)
+let const v d = native 
+  (fun c -> v)
+  (fun a co ->
+     if V.equal a v then
+       match co with
+	   None -> d
+	 | Some(c) -> c
+     else error [`String "Native.const(put): abstract view";
+		 `View a;
+		 `String "is not equal to"; `View (v)])
+  
+(* const - library interface *)
+let const_lib = 
+  F (function 
+       | V v -> F (function 
+		     | V d -> L (const v d)
+		     | _   -> focal_type_error "const")
+       | _ -> focal_type_error" const")
+
+let _ = register_native "Native.const" "view -> view -> lens" const_lib
 		  
 (* (\* const - unit tests *\) *)
 (* let const_unit_tests =  *)
@@ -86,24 +91,26 @@ let _ = Registry.register_native "Native.id" "lens" id_lib
 (* 	  ("const", T (Arrow (View, Arrow (View, Lens))), const_lib) *)
 (* 	  const_unit_tests *)
 	  
-(* (\*** COMPOSE2 ***\) *)
-(* (\* compose2 - native interface *\) *)
-(* let compose2 l1 l2 =  *)
-(*   let l1 = memoize l1 in *)
-(*   { get = (fun c -> (l2.get (l1.get c))); *)
-(*     put = (fun a co ->  *)
-(* 	     match co with *)
-(* 		 None -> l1.put (l2.put a None) None *)
-(* 	       | Some c -> l1.put (l2.put a (Some (l1.get c))) co)} *)
+(*** COMPOSE2 ***)
+(* compose2 - native interface *)
+let compose2 l1 l2 =
+  let l1 = memoize_lens l1 in
+    { get = (fun c -> (l2.get (l1.get c)));
+      put = (fun a co ->
+	       match co with
+		   None -> l1.put (l2.put a None) None
+		 | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}
 
-(* (\* compose2 - library interface *\) *)
-(* let compose2_lib =  *)
-(*   F (function *)
-(* 	 L l1 -> F (function *)
-(* 			L l2 -> L (compose2 l1 l2) *)
-(* 		      | _ -> focal_type_error "compose2") *)
-(*        | _ -> focal_type_error "compose2") *)
+(* compose2 - library interface *)
+let compose2_lib =
+  F (function
+	 L l1 -> F (function
+			L l2 -> L (compose2 l1 l2)
+		      | _ -> focal_type_error "compose2")
+       | _ -> focal_type_error "compose2")
     
+let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
+
 (* (\* compose2 - unit tests *\) *)
 (* let compose2_unit_tests =  *)
 (*   let const_ab = L (const a b) in *)

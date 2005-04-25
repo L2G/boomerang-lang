@@ -94,6 +94,40 @@ let tracepoint s l =
 	(fun a co -> with_frame (PutFrame(s, a, co)) (fun () -> l.put a co))
     }
 
+(* memoization stuff *)
+module H =
+  Hashtbl.Make(
+    struct
+      type t = V.t
+      let equal = (==)                                (* Use physical equality test *)
+      let hash o = Hashtbl.hash (Obj.magic o : int)   (* Hash on physical addr *)
+    end)
+
+let memoize_lens l = 
+  let memotable = H.create 1 in	
+    (* We use memo information in both directions -- to
+       short-circuit a get when we see it for the second time, and
+       also to avoid computing the put when we can see what its
+       result must be from the GetPut law *)
+    native 
+      (fun c -> 
+	 try
+	   H.find memotable c
+	 with Not_found -> begin
+	   let a = get l c in
+	     H.add memotable c a;
+	     a
+	 end)
+      (fun a co -> 
+	 match co with
+	     None -> put l a None
+	   | Some c ->
+	       try
+		 let a' = H.find memotable c in
+		   if a' == a then c else put l a co
+	       with Not_found -> put l a co)
+      
+
 (* (\* ----------------------------------------------------------------------- *\) *)
 (* (\* Recursive lenses *\) *)
 

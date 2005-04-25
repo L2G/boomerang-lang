@@ -261,7 +261,7 @@ and compile_module_aux cev ds =
   
 (* compile_module :: Syntax.modl -> unit *)
 let compile_module (Syntax.MDef(i,m,nctx,ds)) = 
-  let cev = set_ctx empty nctx in
+  let cev = set_ctx empty (nctx@[Syntax.qid_of_string i "Native"]) in
   let new_cev,_ = compile_module_aux cev ds in 
     Registry.register_env (get_ev new_cev) (Syntax.qid_of_id m) 
       

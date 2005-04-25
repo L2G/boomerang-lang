@@ -24,7 +24,7 @@ module EMap =
   Mapplus.Make(
     struct
       type t = Syntax.qid
-      let compare = Syntax.qi1d_compare
+      let compare = Syntax.qid_compare
       let to_string = Syntax.string_of_qid 
     end)
 module QidMap = EMap.Map
@@ -144,7 +144,7 @@ let lookup_library2 nctx q =
       match lookup (!library) (fun x -> x) q2 with	  
 	| Some r -> Some r
 	| None -> 
-	    match nctx with 
+	    match os with 
 	      | []       -> None
 	      | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
   in

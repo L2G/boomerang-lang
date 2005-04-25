@@ -42,32 +42,12 @@ let memoize v =
       N _ -> v
     | T _ -> v
     | V _ -> v
-    | L l -> let memotable = H.create 1 in	
-	(* We use memo information in both directions -- to
-	   short-circuit a get when we see it for the second time, and
-	   also to avoid computing the put when we can see what its
-	   result must be from the GetPut law *)
-	L (Lens.native (fun c -> 
-		       try
-			 H.find memotable (V(c))
-		       with Not_found -> begin
-			 let a = Lens.get l c in
-			   H.add memotable (V(c)) a;
-			   a
-		       end)
-	  (fun a co -> 
-	     match co with
-		 None -> Lens.put l a None
-	       | Some c ->
-		   try
-		     let a' = H.find memotable (V(c)) in
-		       if a' == a then c else Lens.put l a co
-		   with Not_found -> Lens.put l a co))
+    | L l -> L (Lens.memoize_lens l) 
     | F f -> F (let memotable = H.create 1 in
-	(fun x -> try
-	   H.find memotable x
-	 with Not_found -> begin 
-	   let fx = f x in
-	     H.add memotable x fx;
-	     fx
-	 end))
+		  (fun x -> try
+		     H.find memotable x
+		   with Not_found -> begin 
+		     let fx = f x in
+		       H.add memotable x fx;
+		       fx
+		   end))
