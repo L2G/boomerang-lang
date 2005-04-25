@@ -21,8 +21,7 @@ BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
 # LIB #
 #######
 
-UBASE_LIB_SOURCES = safelist.ml uprintf_new.ml uprintf.ml util.ml \
-                    uarg.ml prefs.ml trace.ml
+UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 
 ###########
 # PLUGINS #

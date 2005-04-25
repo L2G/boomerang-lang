@@ -29,18 +29,14 @@ val get_all_encodings : unit -> encoding_key list
 val get_encoding : encoding_key -> encoding
 (** [get_encoding k] gets the encoding associated with [k]. *)
 
-val get_reader : encoding_key -> V.reader
+val get_reader : encoding_key -> string -> V.t option
 (** [get_reader k] gets the reader associated with [k]. *)
 
-val get_writer : encoding_key -> V.writer
+val get_writer : encoding_key -> V.t -> string
 (** [get_writer k] gets the writer associated with [k]. *)
 
 val get_description : encoding_key -> string
 (** [get_description k] gets the description associated with [k]. *)
-
-val get_base_type : encoding_key -> type_desc
-(** [get_plugin_type k] gets the most concrete view type of instances
-    of [k] *)
 
 val print_description : encoding_key -> unit
 (** [print_description k] prints a description associated with [k]. *)

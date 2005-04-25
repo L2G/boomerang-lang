@@ -8,10 +8,6 @@ type encoding = {
   encoding_test: encoding_test;      (** id function *)
   reader: string -> V.t option;      (** reads data in the given encoding *)
   writer: V.t -> string;             (** writes data to the given encoding *)
-  base_type: type_desc;              (** the most concrete view type of
-                                         instances of this encoding.  the
-                                         reader/writer pair translates between this
-                                         view type and this encoding. *)
 }
 
 (* An encoding-keyed map. *)
@@ -47,6 +43,5 @@ let get_all_encodings () =
 let get_reader ekey = (get_encoding ekey).reader
 let get_writer ekey = (get_encoding ekey).writer
 let get_description ekey = (get_encoding ekey).description
-let get_base_type ekey = (get_encoding ekey).base_type
 let print_description ekey = print_endline ((get_description ekey) ^ " (" ^ ekey ^ ")")
 (*let string_of_encoding_key (ekey:encoding_key) = ekey*)
