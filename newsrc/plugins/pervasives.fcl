@@ -28,7 +28,7 @@ let hd (d:view) = focus "*h" { "*t" = d }
 
 let tl (d:view) = focus "*t" { "*h" = d }
 
-let list_map (l:lens) : lens = wmap { "*h" -> id, "*t" -> (list_map l) }
+let list_map (l:lens) : lens = wmap { "*h" -> l, "*t" -> (list_map l) }
 
 end
 
