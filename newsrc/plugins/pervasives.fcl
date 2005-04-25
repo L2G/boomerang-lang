@@ -1,0 +1,66 @@
+module Pervasives = 
+module Derived =  
+  
+let fork (p:view) = xfork p p
+
+let mapp (p:view) (l:lens) = fork p (map l) id 
+
+let filter (p:view) (d:view) = fork p id (const {} d)
+
+let prune (n:name) (d:view) = fork {n} (const {} {n=d}) id
+
+let add (n:name) (v:view) = xfork {} {n} (const v {} ; plunge n) id
+
+let focus (n:name) (d:view) = filter {n} d ; hoist n
+
+let hoist_nonunique (n:name) (p:view) = xfork {n} p (hoist n) id 
+
+let rename (m:name) (n:name) = xfork {m} {n} (hoist m;plunge n) id
+
+let rename_if_present (m:name) (n:name) = id 
+(* (\*  *)
+(*    acond (hasChild m) (hasChild n) *)
+(*    (rename m n) *)
+(*    id *)
+(* *\) *)
+
+let hd (d:view) = focus "*h" {"*t"=d}
+let tl (d:view) = focus "*t" {"*h"=d}
+(* let list_map (l:lens) = wmap { "*h" -> l, "*t" -> (list_map l) } *)
+
+end
+
+(*
+    "(* simple list filter. its PUT direction is not the same as list_filter, *)
+     (*  below. Its GET direction is fine, and we use it as f_21 in the       *)
+     (* instance of cond below                                                *)
+
+     let old_list_filter D E =
+       let rec l =
+       ccond (isCons E (isListOf (union D E)))
+         (tl {error}; l)
+         (wmap < *t -> l >)
+       in l
+
+    let append v =
+       let rec l =
+         acond isEmptyList (isCons all (isEmptyList))
+           (const v {})
+           (wmap <*t -> l>)
+       in l
+
+     let list_filter D E default_D =
+       let rec l =
+         cond (isListOf E) (isEmptyList) (isCons D (isListOf D))
+            (old_list_filter E D)
+            (append [default_D])
+            (const [] [])
+            (inner_filter)
+       and inner_filter =
+         ccond (isCons E (isList_at_least_one D))
+         (tl {error}; inner_filter)
+         (wmap < *t -> l>)
+       in l
+
+     do list_filter"
+*)

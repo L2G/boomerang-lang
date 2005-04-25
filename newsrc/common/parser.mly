@@ -107,8 +107,7 @@ aexp:
   | viewexp                                   { $1 }
   | LANGLE typeexp RANGLE                     { EType($1,$2) }
   | LPAREN exp RPAREN                         { $2 }
-  | STRING                                    { let (i,_) = $1 in EName(i,$1) }                            
-  | LBRACE map_list LBRACE                    { EMap($1, $2) }
+  | STRING                                    { let (i,_) = $1 in EName(i,$1) }                       | LBRACE map_list LBRACE                    { EMap($1, $2) }
 
 map:
   | IDENT_or_STRING ARROW aexp                { ($1,$3) }
