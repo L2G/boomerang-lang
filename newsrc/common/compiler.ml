@@ -62,7 +62,7 @@ let rec compile_exp cev e0 = match e0 with
       end
 	
   | Syntax.EMap(i,ms) ->
-      let id_exp = Syntax.EVar(i,Syntax.qid_of_string i "Pervasives.id") in	    
+      let id_exp = Syntax.EVar(i, Registry.qid_of_string "Pervasives.id") in	    
       let s = Syntax.SArrow(i, Syntax.SName(i), Syntax.SLens(i)) in
       let f = List.fold_left 
 	(fun f (x,l) -> 
@@ -261,7 +261,7 @@ and compile_module_aux cev ds =
   
 (* compile_module :: Syntax.modl -> unit *)
 let compile_module (Syntax.MDef(i,m,nctx,ds)) = 
-  let cev = set_ctx empty (nctx@[Syntax.qid_of_string i "Native"]) in
+  let cev = set_ctx empty (nctx@Registry.pre_ctx) in
   let new_cev,_ = compile_module_aux cev ds in 
     Registry.register_env (get_ev new_cev) (Syntax.qid_of_id m) 
       

@@ -24,6 +24,8 @@ val lookup : 'a -> ('a -> env) -> Syntax.qid -> rv option
 val string_of_env : env -> string
 
 (* library *)
+val qid_of_string : string -> Syntax.qid 
+val pre_ctx : Syntax.qid list
 val get_library : unit -> env 
 val register_env : env -> Syntax.qid -> unit
 val register_native : string -> string -> Value.t -> unit

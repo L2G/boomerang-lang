@@ -17,7 +17,6 @@ let make_rv s v = (s,v)
 let value_of_rv (s,v) = v
 let sort_of_rv (s,v) = s
 
-
 (* ENVIRONMENTS *)
 (* Maps whose keys are Syntax.qids *)
 module EMap = 
@@ -71,11 +70,15 @@ module IdSet = Set.Make(
   end)
   
 (* the library's state *)
+let qid_of_string s =     
+  let lexbuf = Lexing.from_string s in
+    Parser.qid Lexer.token lexbuf 
+
+let pre_ctx = List.map qid_of_string ["Pervasives.Native"; "Pervasives.Derived"]
+
 let library : env ref = ref empty
 let loaded = ref IdSet.empty
-let loading = ref IdSet.empty
-let search_path = ref ["/Users/nate/shared/harmony4/newsrc/plugins/"
-		      ;"/Users/nate/shared/harmony4/newsrc/plugins2/"]
+let search_path = ref ["/Users/nate/shared/harmony4/newsrc/plugins/"]
 
 let get_library () = !library
 
@@ -83,10 +86,6 @@ let register q r = library := (QidMap.add q (ref r) (!library))
 let register_env ev m = QidMap.iter (fun q r -> register (Syntax.dot m q) !r) ev
   
 let register_native qs ss v = 
-  let qid_of_string s = 
-    let lexbuf = Lexing.from_string s in
-      Parser.qid Lexer.token lexbuf 
-  in
   let sort_of_string s = 
     let lexbuf = Lexing.from_string s in
       Parser.sort Lexer.token lexbuf 
@@ -118,35 +117,29 @@ let compile_file_impl = ref (fun _ _ -> ())
 let load q = match get_module_prefix q with 
   | None -> ()
   | Some n -> 
-      let isloaded = IdSet.mem n (!loaded) in
-      let isloading = IdSet.mem n (!loading) in
       let ns = Syntax.string_of_id n in
       let fno = find_filename ns in	
-	if (IdSet.mem n (!loaded)) then ()
-	else if (IdSet.mem n (!loading)) then 
-	  raise (Error.Sort_error(("Circular module references " ^ ns), Info.bogus))
+	if (IdSet.mem n (!loaded)) then ()	  
 	else 
 	  begin
 	    match fno with 
 	      | None -> ()
 	      | Some fn ->
-		  loading := (IdSet.add n (!loading));
 		  prerr_string ("[ loading " ^ fn ^ " ]\n");
-		  (!compile_file_impl) fn n;
-		  loading := (IdSet.remove n (!loading));
-		  loaded := (IdSet.add n (!loaded)) 
+		  loaded := (IdSet.add n (!loaded)); 
+		  (!compile_file_impl) fn n
 	  end
 
 (* lookup in a naming context *)
 let lookup_library2 nctx q = 
-  let rec lookup_library_aux os q2 =         
+  let rec lookup_library_aux os q2 =       
+    let sq = Syntax.string_of_qid in
     let _ = load q2 in
-      match lookup (!library) (fun x -> x) q2 with	  
+      match lookup (!library) (fun x -> x) q2 with
 	| Some r -> Some r
-	| None -> 
-	    match os with 
-	      | []       -> None
-	      | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
+	| None -> match os with 
+	    | []       -> None
+	    | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
   in
     lookup_library_aux nctx q
 

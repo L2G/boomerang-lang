@@ -1,48 +1,60 @@
-open Value
+(**************)
+(* PERVASIVES *)
+(**************)
+
 open Lens
 open Registry
+open Value
+open Syntax
 open Error
 
-(*********************************)
-(* PERVASIVES_PLUGIN             *)
-(*********************************)
+(* (\* common abbreviations used in unit tests *\) *)
+(* let a = Compiler.compile_view "{a={}}" *)
+(* let b = Compiler.compile_view "{b={}}" *)
+(* let empty = Compiler.compile_view "{}"  *)
+(* let va = V a *)
+(* let vb = V b *)
+(* let ve = V empty *)
 
-(* (\*************\) *)
-(* (\* DEBUGGING *\) *)
-(* (\*************\) *)
+(*************)
+(* DEBUGGING *)
+(*************)
 
-(* (\* these must come first because the Compiler automtically inserts *)
-(*    tracepoints for recursive Focal lens expressions (and hence, it'd *)
-(*    better be defined) *\) *)
+(* these must come first because the Compiler automtically inserts
+   tracepoints for recursive Focal lens expressions (and hence, it'd
+   better be defined) *)
 
-(* (\* the native implementations of both debugging lenses live in Lens.t *\) *)
+(* the native implementations of both debugging lenses live in Lens.t *)
 
 (* (\* PROBE *\) *)
 (* let ref_get_probe = ref (fun _ _ _ -> ()) *)
 (* let ref_put_probe = ref (fun _ _ _ _ ->()) *)
-(* let _ = register ("probe",T (Arrow (Name,Lens)),  *)
+(* let _ = register ("Pervasives.Native.probe",T (Arrow (Name,Lens)),  *)
 (* 		  F (function N n -> L (Lens.probe2 n (!ref_get_probe) (!ref_put_probe)) *)
 (* 		       | _ -> focal_type_error "probe")) *)
-  
-(* (\* TRACEPOINT *\) *)
-(* let tracepoint_lib =  *)
-(*   F (function N n -> F (function L l -> L (Lens.tracepoint n l) *)
-(* 			  | _ -> focal_type_error "tracepoint") *)
-(*        | _ -> focal_type_error "tracepoint") *)
+
+(* TRACEPOINT *)
+let tracepoint_lib = 
+  F(function 
+      | N n -> F(function 
+		   | L l -> L (Lens.tracepoint n l)
+		   | _ -> focal_type_error "Pervasives.Native.tracepoint")
+      | _ -> focal_type_error "Pervasives.Native.tracepoint")
     
-(* let _ = register ("tracepoint",T (Arrow (Name,Arrow (Lens,Lens))), tracepoint_lib) *)
- 	  
-(* (\******************\) *)
-(* (\* Generic Lenses *\) *)
-(* (\******************\) *)
+let _ = register_native "Pervasives.Native.tracepoint" "name -> lens -> lens" tracepoint_lib
+	  
+(******************)
+(* Generic Lenses *)
+(******************)
 
 (*** ID ***)
 (* id - native interface *)
-let id = native 
-  (fun c -> c) 
-  (fun a co -> a)
+let id =
+  { get = (fun c -> c);
+    put = (fun a co -> a)}
+
+(* id - library interface  *)
 let id_lib = L id
-let _ = register_native "Native.id" "lens" id_lib
 
 (* (\* id - unit tests *\) *)
 (* let id_unit_tests = *)
@@ -50,32 +62,28 @@ let _ = register_native "Native.id" "lens" id_lib
 (*   ; test_put_eq []  "{}" None (\*=*\) "{}" *)
 (*   ; test_put_eq [] "{a=b}" (Some "{}") (\*=*\) "{a=b}" *)
 (*   ] *)
-      
-(* let _ = register_and_test ("id", T Lens, id_lib)  *)
-(* 	  id_unit_tests *)
+
+let _ = register_native "Pervasives.Native.id" "lens" id_lib
 	  
 (*** CONST ***)
 (* const - native interface *)
-let const v d = native 
-  (fun c -> v)
-  (fun a co ->
-     if V.equal a v then
-       match co with
-	   None -> d
-	 | Some(c) -> c
-     else error [`String "Native.const(put): abstract view";
-		 `View a;
-		 `String "is not equal to"; `View (v)])
-  
+let const v d =
+  { get = (fun c -> v);
+    put = (fun a co ->
+	     if V.equal a v then
+	       match co with
+		 | None -> d
+		 | Some(c) -> c
+	     else error [`String "Pervasives.Native.const(put): abstract view";
+			 `View a;
+			 `String "is not equal to"; `View (v)]) }
+    
 (* const - library interface *)
-let const_lib = 
-  F (function 
-       | V v -> F (function 
-		     | V d -> L (const v d)
-		     | _   -> focal_type_error "const")
-       | _ -> focal_type_error" const")
-
-let _ = register_native "Native.const" "view -> view -> lens" const_lib
+let const_lib = F (function
+		     | V v -> F (function 
+				   | V d -> L (const v d)
+				   | _ -> focal_type_error "Pervasives.Native.const")
+		     | _ -> focal_type_error "Pervasives.Native.const")
 		  
 (* (\* const - unit tests *\) *)
 (* let const_unit_tests =  *)
@@ -86,31 +94,27 @@ let _ = register_native "Native.const" "view -> view -> lens" const_lib
 (*     ; test_put_fail [va;vb] "{b={}}" (Some "{}") *)
 (*     ; test_put_fail [va;vb] "{b={}}" None *)
 (*     ] *)
-      
-(* let _ = register_and_test  *)
-(* 	  ("const", T (Arrow (View, Arrow (View, Lens))), const_lib) *)
-(* 	  const_unit_tests *)
+
+let _ = register_native "Pervasives.Native.const" "view -> view -> lens" const_lib
 	  
 (*** COMPOSE2 ***)
 (* compose2 - native interface *)
-let compose2 l1 l2 =
+let compose2 l1 l2 = 
   let l1 = memoize_lens l1 in
     { get = (fun c -> (l2.get (l1.get c)));
-      put = (fun a co ->
+      put = (fun a co -> 
 	       match co with
-		   None -> l1.put (l2.put a None) None
+		 | None -> l1.put (l2.put a None) None
 		 | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}
-
+      
 (* compose2 - library interface *)
-let compose2_lib =
+let compose2_lib = 
   F (function
-	 L l1 -> F (function
-			L l2 -> L (compose2 l1 l2)
-		      | _ -> focal_type_error "compose2")
-       | _ -> focal_type_error "compose2")
+       | L l1 -> F (function
+		      | L l2 -> L (compose2 l1 l2)
+		      | _ -> focal_type_error "Pervasives.Native.compose2")
+       | _ -> focal_type_error "Pervasives.Native.compose2")
     
-let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
-
 (* (\* compose2 - unit tests *\) *)
 (* let compose2_unit_tests =  *)
 (*   let const_ab = L (const a b) in *)
@@ -123,55 +127,48 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*     ; test_put_eq [const_ab;const_ba] "{b={}}" None (\*=*\) "{b={}}" *)
 (*     ; test_put_eq [const_ab;const_ba] "{b={}}" (Some "{}") (\*=*\) "{}" *)
 (*     ] *)
-      
-(* let _ = register_and_test  *)
-(* 	  ("compose2", T (Arrow (Lens,Arrow (Lens, Lens))), compose2_lib) *)
-(* 	  compose2_unit_tests *)
 
-(* (\********************\) *)
-(* (\* Lenses for trees *\) *)
-(* (\********************\) *)
-(* (\*** MAP ***\) *)
-(* (\* map - native interface *\) *)
-(* (\* map can be implemented in terms of wmap, but it delays evaluation, *)
-(*    of the sub-lens which is bad for memoization and causes too  *)
-(*    much consing... *\) *)
-(* let map ?(log=false) l =  *)
-(*   { get = (fun c -> *)
-(* 	     let binds = *)
-(* 	       V.fold *)
-(* 		 (fun k ck bindacc -> *)
-(* 		    let ck' = (l.get ck) in *)
-(* 		    ((k,Some ck')::bindacc)) *)
-(* 		 c [] in *)
-(* 	     V.create_star binds); *)
-(*     put = *)
-(*       (fun a co -> *)
-(*          let c = match co with None -> V.empty | Some c -> c in *)
-(*  	 let cbinds = *)
-(* 	   V.fold *)
-(* 	     (fun k vk bindacc -> *)
-(* (\* *)
-(*               if log && (Prefs.read Config.progress) then begin *)
-(*                 V.format_msg [`Name k]; *)
-(*                 Format.print_flush () *)
-(*               end; *)
-(*  *\) *)
-(* 		(k, *)
-(* 		 ( match (V.get c k),(V.get a k) with *)
-(* 		     | Some ck, Some ak -> Some ((l.put ak (Some ck))) *)
-(* 		     | Some ck, None -> None *)
-(* 		     | None, Some ak -> Some ((l.put ak None)) *)
-(* 		     | _ -> assert false))::bindacc) *)
-(*   	     a [] in *)
-(* 	 V.create_star cbinds)} *)
+let _ = register_native "Pervasives.Native.compose2" "lens -> lens -> lens" compose2_lib
 
-(* (\* map - library interface *\) *)
-(* let map_lib =  *)
-(*   F (function *)
-(* 	 L l -> L (map l) *)
-(*        | _ -> focal_type_error "map") *)
-
+(********************)
+(* Lenses for trees *)
+(********************)
+(*** MAP ***)
+(* map - native interface *)
+(* map can be implemented in terms of wmap, but it delays evaluation,
+   of the sub-lens which is bad for memoization and causes too 
+   much consing... *)
+let map l = 
+  { get = (fun c ->
+	     let binds =
+	       V.fold
+		 (fun k ck bindacc ->
+		    let ck' = (l.get ck) in
+		    ((k,Some ck')::bindacc))
+		 c [] in
+	     V.create_star binds);
+    put =
+      (fun a co ->
+         let c = match co with None -> V.empty | Some c -> c in
+ 	 let cbinds =
+	   V.fold
+	     (fun k vk bindacc ->
+		(k,
+		 begin match (V.get c k),(V.get a k) with
+		   | Some ck, Some ak -> Some ((l.put ak (Some ck)))
+		   | Some ck, None -> None
+		   | None, Some ak -> Some ((l.put ak None))
+		   | _ -> assert false 
+		 end)::bindacc)
+  	     a [] in
+	   V.create_star cbinds)}
+    
+(* map - library interface *)
+let map_lib = 
+  F (function
+       | L l -> L (map l)
+       | _ -> focal_type_error "Pervasives.Native.map")
+    
 (* (\* map - unit_tests *\) *)
 (* let map_unit_tests =  *)
 (*   let const_ab = L (const a b) in *)
@@ -181,55 +178,48 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*     ; test_put_eq [const_ab] "{x={a={}} y={a={}}}" (Some "{y=[1 2 3]}") (\*=*\) "{x={b={}} y=[1 2 3]}" *)
 (*     ] *)
 
-(* let _ = register_and_test  *)
-(* 	  ("map", *)
-(* 	   T (Arrow (Lens,Lens)), *)
-(* 	   map_lib) *)
-(* 	  map_unit_tests *)
+let _ = register_native "Pervasives.Native.map" "lens -> lens" map_lib
 	  
-(* (\*** WMAP ***\) *)
-(* (\* wmap - native interface *\) *)
-(* let wmap ?(log=false) l0 = *)
-(*   let l = *)
-(*     let memo = Hashtbl.create 11 in *)
-(*     (fun k -> *)
-(*        try Hashtbl.find memo k with *)
-(* 	 | Not_found -> let res = l0 k in Hashtbl.add memo k res; res) *)
-(*   in *)
-(*   { get = (fun c -> *)
-(* 	     let binds = *)
-(* 	       V.fold *)
-(* 		 (fun k ck bindacc -> *)
-(* 		    let ck' = ((l k).get ck) in *)
-(* 		    ((k,Some ck')::bindacc)) *)
-(* 		 c [] in *)
-(* 	     V.create_star binds); *)
-(*     put = *)
-(*       (fun a co -> *)
-(* 	 let c = match co with None -> V.empty | Some c -> c in *)
-(*  	 let cbinds = *)
-(* 	   V.fold *)
-(* 	     (fun k vk bindacc -> *)
-(* (\*              if log && (Prefs.read Config.progress) then begin *)
-(*                 V.format_msg [`Name k]; *)
-(*                 Format.print_flush () *)
-(*               end; *)
-(*  *\) *)
-(* 		(k, *)
-(* 		 ( match (V.get c k),(V.get a k) with *)
-(* 		     | Some ck, Some ak -> Some (((l k).put ak (Some ck))) *)
-(* 		     | Some ck, None -> None *)
-(* 		     | None, Some ak -> Some (((l k).put ak None)) *)
-(* 		     | _ -> assert false))::bindacc) *)
-(*   	     a [] in *)
-(* 	 V.create_star cbinds)} *)
-
-(* (\* wmap - library interface *\) *)
-(* let wmap_lib =  *)
-(*   F (function *)
-(* 	 M m -> L (wmap m) *)
-(*        | _ -> focal_type_error "wmap") *)
-
+(*** WMAP ***)
+(* wmap - native interface *)
+let wmap (l0 : Value.t -> Value.t) : Lens.t = 
+  let l =
+    let memo = Hashtbl.create 11 in
+      (fun k -> try Hashtbl.find memo k with
+	   Not_found -> 
+	     let res = match l0 (N k) with L l -> l | _ -> focal_type_error "Pervasives.Native.wmap" in 
+	       Hashtbl.add memo k res; res)
+  in
+    { get = (fun c ->
+	       let binds =
+		 V.fold
+		   (fun k ck bindacc ->
+		      let ck' = ((l k).get ck) in
+			((k,Some ck')::bindacc))
+		   c [] in
+		 V.create_star binds);
+      put =
+	(fun a co ->
+	   let c = match co with None -> V.empty | Some c -> c in
+ 	   let cbinds =
+	     V.fold
+	       (fun k vk bindacc ->
+		  (k,
+		   begin match (V.get c k),(V.get a k) with
+		     | Some ck, Some ak -> Some ((l k).put ak (Some ck))
+		     | Some ck, None -> None
+		     | None, Some ak -> Some ((l k).put ak None)
+		     | _ -> assert false
+		   end)::bindacc)
+  	       a [] in
+	     V.create_star cbinds)}
+      
+(* wmap - library interface *)
+let wmap_lib = 
+  F (function
+       | F m -> L (wmap m)
+       | _ -> focal_type_error "wmap")
+    
 (* (\* wmap - unit tests *\) *)
 (* let wmap_unit_tests =  *)
 (*   let m = M (fun n -> if n = "y" then const a b else id) in *)
@@ -243,54 +233,57 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*     ; test_put_eq [m] "{y={a={}} z={c={}}}" (Some "{x={} y=[1 2 3]}") (\*=*\) "{y=[1 2 3] z={c={}}}" *)
 (*     ] *)
       
-(* let _ = register_and_test  *)
-(* 	  ("wmap", T (Arrow (Maparg,Lens)),wmap_lib)  *)
-(* 	  wmap_unit_tests *)
+let _ = register_native "Pervasives.Native.wmap" "(name -> lens) -> lens" wmap_lib
+  
+(* XFORK *)
+(* xfork - native interface *)
+let xfork pcv pav l1 l2 =
+  (* FIXME: check that pcv and pca have height <= 1? *)
+  let dom_pcv = V.dom pcv in
+  let dom_pav = V.dom pav in
+  let pc = fun n -> Name.Set.mem n dom_pcv in
+  let pa = fun n -> Name.Set.mem n dom_pav in
+  { get = 
+      (fun c ->
+	 let c1,c2 = V.split pc c in
+	 let a1 = l1.get c1 in
+	 let a2 = l2.get c2 in
+	   if not(Name.Set.for_all pa (V.dom a1)) then
+	     error [`String "Pervasives.Native.xfork(get): l1 yielded a child not ";
+         	    `String "satisfying pa"; 
+		    `View a1];
+	   if not(Name.Set.for_all (fun k -> not (pa k)) (V.dom a2)) then
+	     error [`String "Pervasives.Native.xfork(get): l2 yielded a child satisfying pa";
+		    `View a2];
+	   V.concat a1 a2);
+    put = (fun a co -> 
+	     let co1,co2 =
+	       match co with None -> None,None
+		 | Some c -> let c1,c2 = V.split pc c in (Some c1,Some c2) in
+	     let a1, a2 = V.split pa a in
+	     let c1' = l1.put a1 co1 in
+	     let c2' = l2.put a2 co2 in
+	       if not(Name.Set.for_all pc (V.dom c1')) then
+		 error [`String "Pervasives.Native.xfork(put): l1 yielded a child ";
+			`String "not satisfying pc"; 
+			`View c1'];
+	       if not(Name.Set.for_all (fun k -> not (pc k)) (V.dom c2')) then
+		 error [`String "Pervasives.Native.xfork(put): l2 yielded a child ";
+			`String "satisfying pc"; 
+			`View c2'];
+	       V.concat c1' c2')}
 
-(* (\* XFORK *\) *)
-(* (\* xfork - native interface *\) *)
-(* let xfork pc pa l1 l2 = *)
-(*   { get =  *)
-(*       (fun c -> *)
-(* 	 let c1,c2 = V.split pc c in *)
-(* 	 let a1 = l1.get c1 in *)
-(* 	 let a2 = l2.get c2 in *)
-(* 	   if not(Name.Set.for_all pa (V.dom a1)) then *)
-(* 	     error [`String "Pervasives_plugin.xfork(get): l1 yielded a child not "; *)
-(*          	    `String "satisfying pa";  *)
-(* 		    `View a1]; *)
-(* 	   if not(Name.Set.for_all (fun k -> not (pa k)) (V.dom a2)) then *)
-(* 	     error [`String "Pervasives_plugin.xfork(get): l2 yielded a child satisfying pa"; *)
-(* 		    `View a2]; *)
-(* 	   V.concat a1 a2); *)
-(*     put = (fun a co ->  *)
-(* 	     let co1,co2 = *)
-(* 	       match co with None -> None,None *)
-(* 		 | Some c -> let c1,c2 = V.split pc c in (Some c1,Some c2) in *)
-(* 	     let a1, a2 = V.split pa a in *)
-(* 	     let c1' = l1.put a1 co1 in *)
-(* 	     let c2' = l2.put a2 co2 in *)
-(* 	       if not(Name.Set.for_all pc (V.dom c1')) then *)
-(* 		 error [`String "Pervasives_plugin.xfork(put): l1 yielded a child "; *)
-(* 			`String "not satisfying pc";  *)
-(* 			`View c1']; *)
-(* 	       if not(Name.Set.for_all (fun k -> not (pc k)) (V.dom c2')) then *)
-(* 		 error [`String "Pervasives_plugin.xfork(put): l2 yielded a child "; *)
-(* 			`String "satisfying pc";  *)
-(* 			`View c2']; *)
-(* 	       V.concat c1' c2')} *)
-
-(* (\* xfork - library interface *\) *)
-(* let xfork_lib =  *)
-(*   F(function P pc -> F ( *)
-(*       function P pa -> F ( *)
-(* 	function L l1 -> F ( *)
-(* 	  function L l2 -> L (xfork pc pa l1 l2) *)
-(* 	    | _ -> focal_type_error "xfork") *)
-(* 	  | _ -> focal_type_error "xfork") *)
-(* 	| _ -> focal_type_error "xfork") *)
-(*       | _ -> focal_type_error "xfork") *)
-
+(* xfork - library interface *)
+let xfork_lib = 
+  F(function V pcv -> F (
+      function V pav -> F (
+	function L l1 -> F (
+	  function L l2 -> L (xfork pcv pav l1 l2)
+	    | _ -> focal_type_error "Pervasives.Native.xfork")
+	  | _ -> focal_type_error "Pervasives.Native.xfork")
+	| _ -> focal_type_error "Pervasives.Native.xfork")
+      | _ -> focal_type_error "Pervasives.Native.xfork")
+    
 (* (\* xfork - unit tests *\) *)
 (* let xfork_unit_tests =  *)
 (*   let pc = P (Prd.s "x") in *)
@@ -310,40 +303,33 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*     ; test_put_fail [pc;pa;const_ax;const_ba] "{a={}}" None *)
 (*     ] *)
       
-(* let _ = register_and_test *)
-(* 	  ("xfork", *)
-(* 	   T (Arrow (Predicate, *)
-(* 		     Arrow (Predicate, *)
-(* 			    Arrow (Lens, *)
-(* 				   Arrow (Lens,Lens))))), *)
-(* 	   xfork_lib) *)
-(* 	  xfork_unit_tests *)
+let _ = register_native "Pervasives.Native.xfork" "view -> view -> lens -> lens -> lens" xfork_lib
 	  
-(* (\* HOIST *\) *)
-(* (\* hoist - native interface *\) *)
-(* let hoist k= *)
-(*   { get =  *)
-(*       (fun c -> *)
-(* 	 if (Name.Set.cardinal (V.dom c)) <> 1 then *)
-(* 	   error [`String "Pervasives_plugin.hoist: expecting exactly one child (named "; *)
-(* 		  `Name k;  *)
-(* 		  `String ")";  *)
-(* 		  `View c]; *)
-(* 	 if (Name.Set.choose (V.dom c)) <> k then *)
-(* 	       error [`String "Pervasives_plugin.hoist: child should be named ";  *)
-(* 		      `Name k;  *)
-(* 		      `View c]; *)
-(* 	 V.get_required c k); *)
-(*     put =  *)
-(*       (fun a _ ->  *)
-(* 	 V.set V.empty k (Some a)) } *)
+(* HOIST *)
+(* hoist - native interface *)
+let hoist k=
+  { get = 
+      (fun c ->
+	 if (Name.Set.cardinal (V.dom c)) <> 1 then
+	   error [`String "Pervasives.Native.hoist: expecting exactly one child (named ";
+		  `Name k; 
+		  `String ")"; 
+		  `View c];
+	 if (Name.Set.choose (V.dom c)) <> k then
+	       error [`String "Pervasives.Native.hoist: child should be named "; 
+		      `Name k; 
+		      `View c];
+	 V.get_required c k);
+    put = 
+      (fun a _ -> 
+	 V.set V.empty k (Some a)) }
 
-(* (\* hoist - library interface *\) *)
-(* let hoist_lib =  *)
-(*   F (function  *)
-(* 	 N k -> L (hoist k) *)
-(*        | _ -> focal_type_error "hoist") *)
-
+(* hoist - library interface *)
+let hoist_lib = 
+  F (function 
+       |  N k -> L (hoist k)
+       | _ -> focal_type_error "Pervasives.Native.hoist")
+    
 (* (\* hoist - unit tests *\) *)
 (* let hoist_unit_tests =  *)
 (*   [ test_get_eq [N "n"] "{n={a={}}}" (\*=*\) "{a={}}" *)
@@ -353,32 +339,27 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_get_fail [N "n"] (\*=*\) "{a={}}" *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
-(* 	  ("hoist",  *)
-(* 	   T (Arrow (Name,Lens)),  *)
-(* 	   hoist_lib) *)
-(* 	  hoist_unit_tests *)
+let _ = register_native "Pervasives.Native.hoist" "name -> lens" hoist_lib
 
-(* (\* PLUNGE *\) *)
-(* (\* plunge - native interface *\) *)
-(* let plunge k = *)
-(*   { get =  *)
-(*       (fun c -> V.set V.empty k (Some c)); *)
-(*     put = (fun a _ ->  *)
-(* 	     if (Name.Set.cardinal (V.dom a)) <> 1 then *)
-(* 	       error [`String "Pervasives_plugin.plunge(put): expecting exactly one child";  *)
-(* 		      `View a]; *)
-(* 	     if (Name.Set.choose (V.dom a)) <> k then *)
-(* 	       error [`String "Pervasives_plugin.plunge(put): child should be named "; *)
-(* 		      `Name k; `View a]; *)
-(* 	     V.get_required a k)} *)
-
-(* (\* plunge - library interface *\) *)
-(* let plunge_lib =  *)
-(*   F (function *)
-(* 	 N k -> L (plunge k) *)
-(*        | _ -> focal_type_error "plunge") *)
-
+(* PLUNGE *)
+(* plunge - native interface *)
+let plunge k =
+  { get = (fun c -> V.set V.empty k (Some c));
+    put = (fun a _ -> 
+	     if (Name.Set.cardinal (V.dom a)) <> 1 then
+	       error [`String "Pervasives.Native.plunge(put): expecting exactly one child"; 
+		      `View a];
+	     if (Name.Set.choose (V.dom a)) <> k then
+	       error [`String "Pervasives.Native.plunge(put): child should be named ";
+		      `Name k; `View a];
+	     V.get_required a k)}
+    
+(* plunge - library interface *)
+let plunge_lib = 
+  F (function
+       | N k -> L (plunge k)
+       | _ -> focal_type_error "Pervasives.Native.plunge")
+    
 (* (\* plunge - unit tests *\) *)
 (* let plunge_unit_tests =  *)
 (*   [ test_get_eq [N "n"]"{a={}}" (\*=*\) "{n={a={}}}" *)
@@ -390,54 +371,49 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_put_fail [N "n"] "{a={}}" (Some "{}") *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
-(* 	  ("plunge",  *)
-(* 	   T (Arrow (Name,Lens)),  *)
-(* 	   plunge_lib) *)
-(* 	  plunge_unit_tests *)
+let _ = register_native "Pervasives.Native.plunge" "name -> lens" plunge_lib
 	  
-(* (\******************\) *)
-(* (\* Copy and Merge *\) *)
-(* (\******************\) *)
+(******************)
+(* Copy and Merge *)
+(******************)
+(* COPY *)
+(* copy - native interface *)
+let copy m n =
+  { get = 
+      (fun c -> 
+	 let child =
+	   try V.get_required c m
+	   with V.Illformed(_,_) -> 
+	     error [`String "PervasivesNative.copy(get): expecting one child named ";
+		    `Name m; 
+		    `String ")"; 
+		    `View c] in
+	   V.set c n (Some child)) ;
+    put = 
+      (fun a _ -> 
+	 if (try V.equal (V.get_required a m) (V.get_required a n)
+	     with V.Illformed(_,_) -> 
+	       error [`String "Pervasives.Native.copy(put): expecting two children named ";
+		      `Name m; 
+		      `String "and";
+		      `Name n; 
+		      `View a])
+	 then V.set a n None
+	 else 
+	   error [`String "Pervasives.Native.copy(put): expecting two equal children named ";
+		  `Name m; 
+		  `String " and ";
+		  `Name n;
+		  `View a]) }
 
-(* (\* COPY *\) *)
-(* (\* copy - native interface *\) *)
-(* let copy m n = *)
-(*   { get =  *)
-(*       (fun c ->  *)
-(* 	 let child = *)
-(* 	   try V.get_required c m *)
-(* 	   with V.Illformed(_,_) ->  *)
-(* 	     error [`String "Pervasives_plugin.copy: expecting one child named "; *)
-(* 		    `Name m;  *)
-(* 		    `String ")";  *)
-(* 		    `View c] in *)
-(* 	   V.set c n (Some child)) ; *)
-(*     put =  *)
-(*       (fun a _ ->  *)
-(* 	 if (try V.equal (V.get_required a m) (V.get_required a n) *)
-(* 	     with V.Illformed(_,_) ->  *)
-(* 	       error [`String "Pervasives_plugin.copy: expecting two children named "; *)
-(* 		      `Name m;  *)
-(* 		      `String "and"; *)
-(* 		      `Name n;  *)
-(* 		      `View a]) *)
-(* 	 then V.set a n None *)
-(* 	 else  *)
-(* 	   error [`String "Pervasives_plugin.copy: expecting two equal children named "; *)
-(* 		  `Name m;  *)
-(* 		  `String " and "; *)
-(* 		  `Name n; *)
-(* 		  `View a]) } *)
-
-(* (\* copy - library interface *\) *)
-(* let copy_lib = *)
-(*   F (function  *)
-(* 	 N m -> F (function  *)
-(* 		       N n -> L (copy m n) *)
-(* 		     | _ -> focal_type_error "copy") *)
-(*        | _ -> focal_type_error "copy") *)
-
+(* copy - library interface *)
+let copy_lib =
+  F (function 
+       | N m -> F (function 
+		     | N n -> L (copy m n)
+		     | _ -> focal_type_error "Pervasives.Native.copy")
+       | _ -> focal_type_error "Pervasives.Native.copy")
+    
 (* (\* copy - unit tests *\) *)
 (* let copy_unit_tests =  *)
 (*   [ test_get_eq [N "x";N "y"] "{x={a={}}}" (\*=*\) "{x={a={}} y={a={}}}" *)
@@ -449,46 +425,42 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_put_fail  [N "x"; N "y"] "{x={a={}} y={b={}}}" None *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
-(* 	  ("copy", *)
-(* 	   T (Arrow (Name, Arrow (Name, Lens))), *)
-(* 	   copy_lib) *)
-(* 	  copy_unit_tests *)
+let _ = register_native "Pervasives.Native.copy" "name -> name -> lens" copy_lib
 
-(* (\* MERGE *\) *)
-(* (\* merge - native interface *\) *)
-(* let merge m n = *)
-(*   { get = (fun c -> V.set c n None) ; *)
-(*     put =  *)
-(*       (fun a -> *)
-(* 	 function *)
-(* 	   | None ->  *)
-(* 	       (try V.set a n (Some (V.get_required a m)) *)
-(* 		with V.Illformed(_,_) ->  *)
-(* 		  error *)
-(* 		  [`String "Pervasives_plugin.merge(put): expecting a child named "; *)
-(* 		   `Name m]) *)
-(* 	   | Some c -> *)
-(* 	       let cmo,cno = (V.get c m), (V.get c n) in *)
-(* 	       let eqCmCn =  *)
-(* 		 match cmo,cno with *)
-(* 		   | None, None -> true *)
-(* 		   | None, Some _ -> false *)
-(* 		   | Some _, None -> false *)
-(* 		   | Some cm, Some cn -> V.equal cm cn *)
-(* 	       in *)
-(* 		 if (eqCmCn)  *)
-(* 		 then V.set a n (V.get a m) *)
-(* 		 else V.set a n cno) *)
-(*   } *)
+(* MERGE *)
+(* merge - native interface *)
+let merge m n =
+  { get = (fun c -> V.set c n None) ;
+    put = 
+      (fun a ->
+	 function
+	   | None -> 
+	       (try V.set a n (Some (V.get_required a m))
+		with V.Illformed(_,_) -> 
+		  error
+		  [`String "Pervasives.Native.merge(put): expecting a child named ";
+		   `Name m])
+	   | Some c ->
+	       let cmo,cno = (V.get c m), (V.get c n) in
+	       let eqCmCn = 
+		 match cmo,cno with
+		   | None, None -> true
+		   | None, Some _ -> false
+		   | Some _, None -> false
+		   | Some cm, Some cn -> V.equal cm cn
+	       in
+		 if (eqCmCn) 
+		 then V.set a n (V.get a m)
+		 else V.set a n cno)
+  }
 
-(* (\* merge - library interface *\) *)
-(* let merge_lib = *)
-(*   F (function  *)
-(* 	 N m -> F (function  *)
-(* 		       N n -> L (merge m n) *)
-(* 		     | _ -> focal_type_error "merge") *)
-(*        | _ -> focal_type_error "merge") *)
+(* merge - library interface *)
+let merge_lib =
+  F (function 
+       | N m -> F (function 
+		     | N n -> L (merge m n)
+		     | _ -> focal_type_error "Pervasives.Native.merge")
+       | _ -> focal_type_error "Pervasives.Native.merge")
     
 (* (\* merge - unit tests *\) *)
 (* let merge_unit_tests =    *)
@@ -500,26 +472,22 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_put_fail [N "x"; N "y"] "{}" None *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
-(* 	  ("merge", *)
-(* 	   T (Arrow (Name, Arrow (Name, Lens))), *)
-(* 	   merge_lib) *)
-(* 	  merge_unit_tests *)
+let _ = register_native "Pervasives.Native.merge" "name -> name -> lens" merge_lib
 
-(* (\****************\) *)
-(* (\* Conditionals *\) *)
-(* (\****************\) *)
+(****************)
+(* Conditionals *)
+(****************)
 
-(* (\* OMEGA *\)  *)
-(* (\* omega - native interface *\) *)
-(* (\* always throws an exception - useful for writing f21 and f12 arguments *)
-(*  * to cond -- will always produce MISSING *\) *)
-(* let omega =  *)
-(*   { get = (fun c -> error [`String "Pervasives_plugin.error(get)"]); *)
-(*     put = (fun a co -> error [`String "Pervasives_plugin.error(out)"])} *)
+(* OMEGA *) 
+(* omega - native interface *)
+(* always throws an exception - useful for writing f21 and f12 arguments
+ * to cond -- will always produce MISSING *)
+let omega = 
+  { get = (fun c -> error [`String "Pervasives.Native.omega(get)"]);
+    put = (fun a co -> error [`String "Pervasives.Native.omega(put)"])}
 
-(* (\* error - library interface *\) *)
-(* let omega_lib = L omega *)
+(* error - library interface *)
+let omega_lib = L omega
 
 (* (\* error - unit tests *\) *)
 (* let omega_unit_tests =  *)
@@ -527,63 +495,63 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_put_fail [] "{}" None *)
 (*   ] *)
     
-(* let _ = register_and_test ("omega", T (Lens), omega_lib) omega_unit_tests *)
+let _ = register_native "Pervasives.Native.omega" "lens" omega_lib
 	    
 (* (\* COND *\) *)
 (* (\* cond - native interface *\) *)
-(* let cond c a1 a2 l21 l12 lt lf = *)
-(*   let catchfail l cv = *)
-(*     try Some (l.get cv) *)
-(*     with _ -> None in *)
-(*   { get = (fun cv -> *)
-(* 	     if c cv then lt.get cv  *)
-(* 	     else lf.get cv); *)
-(*     put = (fun a co ->  *)
-(* 	     if a1 a then *)
-(* 	       if a2 a then *)
-(* 		 match co with  *)
-(* 		   | None -> lf.put a co *)
-(* 		   | Some cv ->  *)
-(* 		       if c cv  *)
-(* 		       then lt.put a co *)
-(* 		       else lf.put a co *)
-(* 	       else  *)
-(* 		 match co with  *)
-(* 		   | None -> lt.put a co *)
-(* 		   | Some cv ->  *)
-(* 		       if c cv *)
-(* 		       then lt.put a co *)
-(* 		       else lt.put a (catchfail l21 cv) *)
-(* 	     else *)
-(* 	       if a2 a then *)
-(* 		 match co with  *)
-(* 		   | None -> lf.put a co *)
-(* 		   | Some cv ->  *)
-(* 		       if c cv *)
-(* 		       then lf.put a (catchfail l12 cv) *)
-(* 		       else lf.put a co *)
-(* 	       else error [ *)
-(* 		 `String "cond (put): the abstract view does not satisfy a1 or a2:"; *)
-(* 		 `View a ] *)
-(* 	  )}   *)
+(* let cond c a1 a2 f21 f12 lt lf = *)
+(* (\*   let catchfail l cv = *\) *)
+(* (\*     try Some (l.get cv) *\) *)
+(* (\*     with _ -> None in *\) *)
+(*     { get = (fun cv -> *)
+(* 	       if c cv then lt.get cv  *)
+(* 	       else lf.get cv); *)
+(*       put = (fun a co ->  *)
+(* 	       if a1 a then *)
+(* 		 if a2 a then *)
+(* 		   match co with  *)
+(* 		     | None -> lf.put a co *)
+(* 		     | Some cv ->  *)
+(* 			 if c cv  *)
+(* 			 then lt.put a co *)
+(* 			 else lf.put a co *)
+(* 		 else  *)
+(* 		   match co with  *)
+(* 		     | None -> lt.put a co *)
+(* 		     | Some cv ->  *)
+(* 			 if c cv *)
+(* 			 then lt.put a co *)
+(* 			 else lt.put a (Some (f21 cv)) *)
+(* 	       else *)
+(* 		 if a2 a then *)
+(* 		   match co with  *)
+(* 		     | None -> lf.put a co *)
+(* 		     | Some cv ->  *)
+(* 			 if c cv *)
+(* 			 then lf.put a (Some (f21 cv)) *)
+(* 			 else lf.put a co *)
+(* 		 else error [ *)
+(* 		   `String "Pervasives.Native.cond (put): the abstract view does not satisfy a1 or a2:"; *)
+(* 		   `View a ] *)
+(* 	    )}   *)
 
 (* (\* cond - library interface *\) *)
 (* let cond_lib =  *)
-(*   F (function Sc c -> F ( *)
-(*        function Sc a1 -> F ( *)
-(* 	 function Sc a2 -> F ( *)
-(* 	   function L l21 -> F ( *)
-(* 	     function L l12 -> F ( *)
+(*   F (function T c -> F ( *)
+(*        function T a1 -> F ( *)
+(* 	 function T a2 -> F ( *)
+(* 	   function F f21 -> F ( *)
+(* 	     function F f12 -> F ( *)
 (* 	       function L lt -> F ( *)
-(* 		 function L lf -> L (cond c a1 a2 l21 l12 lt lf) *)
-(* 		   | _ -> focal_type_error "cond") *)
-(* 		 | _ -> focal_type_error "cond") *)
-(* 	       | _ -> focal_type_error "cond") *)
-(* 	     | _ -> focal_type_error "cond") *)
-(* 	   | _ -> focal_type_error "cond") *)
-(* 	 | _ -> focal_type_error "cond") *)
-(*        | _ -> focal_type_error "cond") *)
-
+(* 		 function L lf -> L (cond c a1 a2 f21 f12 lt lf) *)
+(* 		   | _ -> focal_type_error "Pervasives.Native.cond") *)
+(* 		 | _ -> focal_type_error "Pervasives.Native.cond") *)
+(* 	       | _ -> focal_type_error "Pervasives.Native.cond") *)
+(* 	     | _ -> focal_type_error "Pervasives.Native.cond") *)
+(* 	   | _ -> focal_type_error "Pervasives.Native.cond") *)
+(* 	 | _ -> focal_type_error "Pervasives.Native.cond") *)
+(*        | _ -> focal_type_error "Pervasives.Native.cond") *)
+    
 (* (\* cond - unit tests *\) *)
 (* let cond_unit_tests =  *)
 (*   let const_aa = L (const a a) in *)
@@ -599,19 +567,10 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*     ; test_put_fail [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb]"{}" None *)
 (*     ] (\* should add tests that stress the conversion functions f21 and f22, overlap in a1, a2*\) *)
 
-(* let _ =  *)
-(*   register_and_test  *)
-(*     ("cond", *)
-(*      T (Arrow (Schema,  *)
-(* 	       Arrow (Schema,  *)
-(* 		      Arrow (Schema,  *)
-(* 			     Arrow (Lens,  *)
-(* 				    Arrow (Lens,  *)
-(* 					   Arrow (Lens,  *)
-(* 						  Arrow  *)
-(* 						    (Lens,Lens)))))))), *)
-(*      cond_lib) *)
-(*     cond_unit_tests *)
+(* let _ = register_native  *)
+(*   "Pervasives.Native.cond"  *)
+(*   "type -> type -> type -> (view -> view) -> (view -> view) -> lens -> lens -> lens" *)
+(*   cond_lib *)
     
 (* (\* ACOND *\) *)
 (* (\* acond - library interface *\) *)
@@ -684,48 +643,48 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (* 	   ccond_lib) *)
 (* 	  ccond_unit_tests *)
 	  
-(* (\*************\) *)
-(* (\* DATABASES *\) *)
-(* (\*************\) *)
+(*************)
+(* DATABASES *)
+(*************)
 
-(* (\* PIVOT *\) *)
-(* (\* pivot - native interface *\) *)
-(* let pivot k = *)
-(*   { get =  *)
-(*       (fun c -> *)
-(* 	 let ck = *)
-(* 	   try V.get_required c k *)
-(* 	   with V.Illformed(_,_) ->  *)
-(* 	     error [`String "pivot: the following view should have "; *)
-(* 		    `String "exactly one child named ";  *)
-(* 		    `Name k;  *)
-(* 		    `View c] in *)
-(* 	 let ckv = V.get_value ck in *)
-(* 	   V.set V.empty ckv (Some (V.set c k None))); *)
-(*     put =  *)
-(*       (fun a _ -> *)
-(* 	 if (Name.Set.cardinal (V.dom a)) <> 1 then *)
-(* 	   error [`String "pivot: the following view should have "; *)
-(* 		  `String "exactly one child";  *)
-(* 		  `View a] *)
-(* 	 else *)
-(* 	   let ak = Name.Set.choose (V.dom a) in *)
-(* 	   let w = try V.get_required a ak with Not_found -> assert false in *)
-(* 	     if V.get w k <> None then *)
-(* 	       error [`String "Pivot: child "; *)
-(* 		      `Name k; *)
-(* 		      `String "of this view should not exist: ";  *)
-(* 		      `View w] *)
-(* 	     else *)
-(* 	       V.set w k (Some (V.new_value ak)) *)
-(*       )}  *)
+(* PIVOT *)
+(* pivot - native interface *)
+let pivot k =
+  { get = 
+      (fun c ->
+	 let ck =
+	   try V.get_required c k
+	   with V.Illformed(_,_) -> 
+	     error [`String "Pervasives.Native.pivot(get): the following view should have ";
+		    `String "exactly one child named "; 
+		    `Name k; 
+		    `View c] in
+	 let ckv = V.get_value ck in
+	   V.set V.empty ckv (Some (V.set c k None)));
+    put = 
+      (fun a _ ->
+	 if (Name.Set.cardinal (V.dom a)) <> 1 then
+	   error [`String "Pervasives.Native.pivot(get): the following view should have ";
+		  `String "exactly one child"; 
+		  `View a]
+	 else
+	   let ak = Name.Set.choose (V.dom a) in
+	   let w = try V.get_required a ak with Not_found -> assert false in
+	     if V.get w k <> None then
+	       error [`String "Pervasives.Native.pivot(put): child ";
+		      `Name k;
+		      `String "of this view should not exist: "; 
+		      `View w]
+	     else
+	       V.set w k (Some (V.new_value ak))
+      )} 
 
-(* (\* pivot - library interface *\) *)
-(* let pivot_lib =  *)
-(*   F (function *)
-(* 	 N k -> L (pivot k) *)
-(*        | _ -> focal_type_error "pivot") *)
-
+(* pivot - library interface *)
+let pivot_lib = 
+  F (function
+       | N k -> L (pivot k)
+       | _ -> focal_type_error "Pervasives.Native.pivot")
+    
 (* (\* pivot - unit tests *\) *)
 (* let pivot_unit_tests =  *)
 (*   [ test_get_eq [N "k"] "{k={x={}} a=[1] b=[2]}" (\*=*\) "{x={a=[1] b=[2]}}" *)
@@ -735,90 +694,88 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_put_fail [N "k"] "{x={k=[0] a=[1]}}" None *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
-(* 	  ("pivot",  *)
-(* 	   T (Arrow (Name, Lens)),  *)
-(* 	   pivot_lib)  *)
-(* 	  pivot_unit_tests *)
-	  
-(* (\* JOIN *\) *)
-(* (\* Dan Spoonhower's outer join *\) *)
-(* (\* disclaimer: written down very quickly and directly.  trying to get *)
-(*    it correct so using lots of lets and explicit match statements for *)
-(*    readability.  let's clean it up later -nate *)
-(* *\) *)
-(* (\* join - native interface *\) *)
-(* let join m1 m2 =  *)
-(*   { get =  *)
-(*       (fun c -> *)
-(* 	 try *)
-(* 	   let rec compute_join b1 b2 acc =  *)
-(* 	     let bo =  *)
-(* 	       if (not (V.is_empty b1)) then (Some b1) *)
-(* 	       else if (not (V.is_empty b2)) then (Some b2) *)
-(* 	       else None  *)
-(* 	     in *)
-(* 	       match bo with *)
-(* 		 | None -> acc *)
-(* 		 | Some b ->  *)
-(* 		     let k = Name.Set.choose (V.dom b) in *)
-(* 		     let b1', b2' = (V.set b1 k None, V.set b2 k None) in *)
-(* 		     let tk1, tk2 = (V.get b1 k, V.get b2 k) in *)
-(* 		     let tk =  *)
-(* 		       match tk1, tk2 with *)
-(* 			 | None, None       -> assert false			      *)
-(* 			 | Some t1, None    -> V.set V.empty m1 (Some t1) *)
-(* 			 | None, Some t2    -> V.set V.empty m2 (Some t2) *)
-(* 			 | Some t1, Some t2 -> V.set (V.set V.empty m2 (Some t2)) m1 (Some t1) *)
-(* 		     in *)
-(* 		       compute_join b1' b2' (V.set acc k (Some tk)) *)
-(* 	   in *)
-(* 	   let tm1, tm2 = (V.get_required c m1, V.get_required c m2) in	  *)
-(* 	     compute_join tm1 tm2 V.empty *)
-(* 	 with V.Illformed(_,_) -> *)
-(* 	   error [`String "Pervasives_plugin.join(get): expected view with children: ";  *)
-(* 		  `Name m1;  *)
-(* 		  `String " and ";  *)
-(* 		  `Name m2] *)
-(*       ); *)
-(*     put =  *)
-(*       (fun a co -> *)
-(* 	 let init = V.set (V.set V.empty m2 (Some V.empty)) m1 (Some V.empty) in *)
-(* 	 let rec compute_unjoin b acc = *)
-(* 	   if (V.is_empty b) then acc *)
-(* 	   else *)
-(* 	     try *)
-(* 	       let k = Name.Set.choose (V.dom b) in *)
-(* 	       let tk = V.get_required b k in *)
-(* 	       let b' = (V.set b k None) in *)
-(* 	       let cm1,cm2 = (V.get_required acc m1,V.get_required acc m2) in *)
-(* 	       let acc' =  *)
-(* 		 match (V.get tk m1, V.get tk m2) with *)
-(* 		   | None, None       ->  *)
-(* 		       error [`String "Pervasives_plugin.join(put): illformed abstract view"] *)
-(* 		   | Some t1, None    ->  *)
-(* 		       V.set acc m1 (Some (V.set cm1 k (Some t1))) *)
-(* 		   | None, Some t2    ->  *)
-(* 		       V.set acc m2 (Some (V.set cm2 k (Some t2))) *)
-(* 		   | Some t1, Some t2 ->  *)
-(* 		       V.set  *)
-(* 			 (V.set acc m2 (Some (V.set cm2 k (Some t2))))  *)
-(* 			 m1 (Some (V.set cm1 k (Some t1))) *)
-(* 	       in *)
-(* 		 compute_unjoin b' acc' *)
-(* 	     with Not_found -> *)
-(* 	       error [`String "Pervasives_plugin.join(put): the impossible happened"] in *)
-(* 	   compute_unjoin a init  *)
-(*       ) *)
-(*   } *)
+let _ = register_native "Pervasives.Native.pivot" "name -> lens" pivot_lib
+  
+(* JOIN *)
+(* Dan Spoonhower's outer join *)
+(* disclaimer: written down very quickly and directly.  trying to get
+   it correct so using lots of lets and explicit match statements for
+   readability.  let's clean it up later -nate
+*)
+(* join - native interface *)
+let join m1 m2 = 
+  { get = 
+      (fun c ->
+	 try
+	   let rec compute_join b1 b2 acc = 
+	     let bo = 
+	       if (not (V.is_empty b1)) then (Some b1)
+	       else if (not (V.is_empty b2)) then (Some b2)
+	       else None 
+	     in
+	       match bo with
+		 | None -> acc
+		 | Some b -> 
+		     let k = Name.Set.choose (V.dom b) in
+		     let b1', b2' = (V.set b1 k None, V.set b2 k None) in
+		     let tk1, tk2 = (V.get b1 k, V.get b2 k) in
+		     let tk = 
+		       match tk1, tk2 with
+			 | None, None       -> assert false			     
+			 | Some t1, None    -> V.set V.empty m1 (Some t1)
+			 | None, Some t2    -> V.set V.empty m2 (Some t2)
+			 | Some t1, Some t2 -> V.set (V.set V.empty m2 (Some t2)) m1 (Some t1)
+		     in
+		       compute_join b1' b2' (V.set acc k (Some tk))
+	   in
+	   let tm1, tm2 = (V.get_required c m1, V.get_required c m2) in	 
+	     compute_join tm1 tm2 V.empty
+	 with V.Illformed(_,_) ->
+	   error [`String "Pervasives.Native.join(get): expected view with children: "; 
+		  `Name m1; 
+		  `String " and "; 
+		  `Name m2]
+      );
+    put = 
+      (fun a co ->
+	 let init = V.set (V.set V.empty m2 (Some V.empty)) m1 (Some V.empty) in
+	 let rec compute_unjoin b acc =
+	   if (V.is_empty b) then acc
+	   else
+	     try
+	       let k = Name.Set.choose (V.dom b) in
+	       let tk = V.get_required b k in
+	       let b' = (V.set b k None) in
+	       let cm1,cm2 = (V.get_required acc m1,V.get_required acc m2) in
+	       let acc' = 
+		 match (V.get tk m1, V.get tk m2) with
+		   | None, None       -> 
+		       error [`String "Pervasives.Native.join(put): illformed abstract view"]
+		   | Some t1, None    -> 
+		       V.set acc m1 (Some (V.set cm1 k (Some t1)))
+		   | None, Some t2    -> 
+		       V.set acc m2 (Some (V.set cm2 k (Some t2)))
+		   | Some t1, Some t2 -> 
+		       V.set 
+			 (V.set acc m2 (Some (V.set cm2 k (Some t2)))) 
+			 m1 (Some (V.set cm1 k (Some t1)))
+	       in
+		 compute_unjoin b' acc'
+	     with Not_found ->
+	       error [`String "Pervasives.Native.join(put): the impossible happened"] in
+	   compute_unjoin a init 
+      )
+  }
 
-(* (\* join - library interface *\) *)
-(* let join_lib =  *)
-(*   F (function N n1 ->  *)
-(*        F (function N n2 -> L (join n1 n2) *)
-(* 	    | _ -> focal_type_error "join") *)
-(*        | _ -> focal_type_error "join") *)
-
+(* join - library interface *)
+let join_lib = 
+  F (function 
+       | N n1 -> 
+	   F (function 
+		| N n2 -> L (join n1 n2)
+		| _ -> focal_type_error "Pervasives.Native.join")
+       | _ -> focal_type_error "Pervasives.Native.join")
+    
 (* (\* join - unit tests *\) *)
 (* let join_unit_tests =  *)
 (*   [ test_get_eq [N "x";N "y"] "{x={} y={}}" (\*=*\) "{}"  *)
@@ -831,85 +788,79 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_get_fail [N "x";N "y"] "{x=[]}" *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
-(* 	  ("join",  *)
-(* 	   T (Arrow (Name, Arrow (Name,Lens))),  *)
-(* 	   join_lib) *)
-(* 	  join_unit_tests *)
+let _ = register_native "Pervasives.Native.join" "name -> name -> lens" join_lib
 
-(* (\* FLATTEN *\) *)
-(* (\* flatten - native interface *\) *)
-(* let flatten =    *)
-(*   let rec get = function  *)
-(*       c ->  *)
-(* 	if V.is_empty_list c then V.empty_list *)
-(* 	else  *)
-(* 	  (\* Error handling in case of ill-formed list *\) *)
-(* 	  let head = V.get_required c V.head_tag in  *)
-(* 	  let c' = V.get_required c V.tail_tag in *)
-(* 	    (\* List of labels pointing toward trees *\) *)
-(* 	    if Name.Set.cardinal (V.dom head) = 1 then  *)
-(* 	      let c_list = V.to_list head in *)
-(* 	      let (k,d) = Safelist.hd c_list in *)
-(* 	      let a_rec = get c' in		 *)
-(* 	      let a = if (V.is_empty_list a_rec) then V.empty else a_rec in (\* removes spurious *nil labels in output *\) *)
-(* 	      let childk = V.get a k in *)
-(* 		begin *)
-(* 		  match childk with *)
-(* 		      None ->  *)
-(* 			V.set a k (Some (V.cons d V.empty_list)) *)
-(* 		    | Some s ->  *)
-(* 			let a' = V.set a k None in *)
-(* 			  V.set a' k (Some (V.cons d s)) *)
-(* 		end  *)
-(* 	    else error [`String "Pervasives_plugin.flatten(get): expected a view with exactly one child: ";  *)
-(* 			`View head] *)
-(*   in *)
-(*   let listify v = *)
-(*     let v_list = V.to_list v in *)
-(*     let listifystep (k,child) = *)
-(*       List.map (function x -> (k,x)) (V.list_from_structure child) *)
-(* 	(\* *)
-(* 	  | _ -> error [`String "flatten: expected a view with exactly one child: "; `View t] *)
-(* 	*\) *)
-(*     in *)
-(*       Safelist.map (function (k,x) ->  *)
-(* 		      V.set V.empty k (Some x))  *)
-(* 	(Safelist.flatten (Safelist.map listifystep v_list)) in *)
-(*   let rec put a = function *)
-(*       None -> V.structure_from_list (listify a) *)
-(*     | Some c ->  *)
-(* 	if V.is_empty_list c then V.structure_from_list (listify a) *)
-(* 	else  *)
-(* 	  let head = V.get_required c V.head_tag in *)
-(* 	  (\* Error handling in case of ill-formed list *\) *)
-(* 	  let c' = V.get_required c V.tail_tag in *)
-(* 	    (\* List of labels pointing toward trees *\) *)
-(* 	    if Name.Set.cardinal (V.dom head) = 1 then  *)
-(* 	      let c_list = V.to_list head in *)
-(* 	      let (k,d) = Safelist.hd c_list in *)
-(* 		match V.get a k with *)
-(* 		    None -> put a (Some c') *)
-(* 		  | Some ds ->  *)
-(* 		      (\* Error handling in case of ill-formed list *\) *)
-(* 		      let d' = V.get_required ds V.head_tag in  *)
-(* 		      let s = V.get_required ds V.tail_tag in *)
-(* 			if V.is_empty_list s then *)
-(* 			  V.cons  *)
-(* 			    (V.from_list [k,d'])  *)
-(* 			    (put (V.set a k None) (Some c')) *)
-(* 			else  *)
-(* 			  V.cons  *)
-(* 			    (V.from_list [k,d'])  *)
-(* 			    (put (V.set (V.set a k None) k (Some s)) (Some c')) *)
-(* 	    else error [`String "Pervasives_plugin.flatten(put): expected a view with exactly one child: ";  *)
-(* 			`View head] *)
-(*   in *)
-(*     {get = get ; *)
-(*      put = put } *)
-
-(* (\* flatten - library interface *\) *)
-(* let flatten_lib =  L flatten *)
+(* FLATTEN *)
+(* flatten - native interface *)
+let flatten =   
+  let rec get = function 
+      c -> 
+	if V.is_empty_list c then V.empty_list
+	else 
+	  (* Error handling in case of ill-formed list *)
+	  let head = V.get_required c V.head_tag in 
+	  let c' = V.get_required c V.tail_tag in
+	    (* List of labels pointing toward trees *)
+	    if Name.Set.cardinal (V.dom head) = 1 then 
+	      let c_list = V.to_list head in
+	      let (k,d) = Safelist.hd c_list in
+	      let a_rec = get c' in		
+		(* removes spurious *nil labels in output *)
+	      let a = if (V.is_empty_list a_rec) then V.empty else a_rec in 
+	      let childk = V.get a k in
+		begin
+		  match childk with
+		      None -> 
+			V.set a k (Some (V.cons d V.empty_list))
+		    | Some s -> 
+			let a' = V.set a k None in
+			  V.set a' k (Some (V.cons d s))
+		end 
+	    else error [`String "Pervasives.Native.flatten(get): expected a view with exactly one child: "; 
+			`View head]
+  in
+  let listify v =
+    let v_list = V.to_list v in
+    let listifystep (k,child) =
+      List.map (function x -> (k,x)) (V.list_from_structure child)
+    in
+      Safelist.map (function (k,x) -> 
+		      V.set V.empty k (Some x)) 
+	(Safelist.flatten (Safelist.map listifystep v_list)) in
+  let rec put a = function
+      None -> V.structure_from_list (listify a)
+    | Some c -> 
+	if V.is_empty_list c then V.structure_from_list (listify a)
+	else 
+	  let head = V.get_required c V.head_tag in
+	    (* Error handling in case of ill-formed list *)
+	  let c' = V.get_required c V.tail_tag in
+	    (* List of labels pointing toward trees *)
+	    if Name.Set.cardinal (V.dom head) = 1 then 
+	      let c_list = V.to_list head in
+	      let (k,d) = Safelist.hd c_list in
+		match V.get a k with
+		    None -> put a (Some c')
+		  | Some ds -> 
+		      (* Error handling in case of ill-formed list *)
+		      let d' = V.get_required ds V.head_tag in 
+		      let s = V.get_required ds V.tail_tag in
+			if V.is_empty_list s then
+			  V.cons 
+			    (V.from_list [k,d']) 
+			    (put (V.set a k None) (Some c'))
+			else 
+			  V.cons 
+			    (V.from_list [k,d']) 
+			    (put (V.set (V.set a k None) k (Some s)) (Some c'))
+	    else error [`String "Pervasives.Native.flatten(put): expected a view with exactly one child: "; 
+			`View head]
+  in
+    {get = get ;
+     put = put }
+      
+(* flatten - library interface *)
+let flatten_lib =  L flatten
 
 (* (\* flatten - unit tests *\) *)
 (* let flatten_unit_tests =  *)
@@ -923,19 +874,8 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (*   ; test_put_fail [] "{a=[{}]}" (Some "[{a={} b={}}]") *)
 (*     (\* ; test_put_fail [] "{}" (Some "[{a={}} {b={}}]") -- succeeds but should fail? *\) *)
 (*   ]  *)
-(*     (\* I don't see a way to write a unit test that checks the behavior *)
-(*        of listify. Is listify meant to be deterministic? It certainly *)
-(*        IS deterministic (OCaml and the implementation of V will pick *)
-(*        an order), but at this level, the order that elements are *)
-(*        picked from the bush and inserted into the list is unspecified, *)
-(*        correct? This makes it difficult to test uses of flatten that *)
-(*        call listify w/o defining some equality up-to order in list *\) *)
 
-(* let _ = register_and_test  *)
-(* 	  ("flatten",  *)
-(* 	   T (Lens),  *)
-(* 	   flatten_lib)  *)
-(* 	  flatten_unit_tests *)
+let _ = register_native "Pervasives.Native.flatten" "lens" flatten_lib
 
 (* (\***********************\) *)
 (* (\* DERIVED TREE LENSES *\) *)
@@ -1337,17 +1277,3 @@ let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 (* let _ = register_and_test *)
 (* 	  ("list_filter", T(Arrow(Schema,Arrow(Schema, Arrow(View, Lens)))), list_filter_lib) *)
 (* 	  list_filter_unit_tests *)
-
-(* (\**************\) *)
-(* (\* PREDICATES *\) *)
-(* (\**************\) *)
-(* (\* NEG *\) *)
-(* (\*   : complements a set of names *\) *)
-(* (\* neg - native interface *\) *)
-(* let neg p = Prd.neg p *)
-
-(* (\* neg - library interface *\) *)
-(* let neg_lib = F (function P p -> P (neg p) *)
-(* 		   | _ -> focal_type_error "neg") *)
-		
-(* let _ = register ("neg",T (Arrow (Predicate,Predicate)), neg_lib) *)

@@ -29,18 +29,14 @@ let qid_compare (qs1,x1) (qs2,x2) =
 	  if (hd_compare <> 0) then hd_compare 
 	  else ids_compare t1 t2
   in
-    ids_compare (x1::qs1) (x2::qs2)
-
-(* utility functions *)
-let qid_of_id id = [],id
-let qid_of_string i s = qid_of_id (i,s)
+    ids_compare (qs1@[x1]) (qs2@[x2])
+  
 (* utility functions *)
 let qid_of_id id = [],id
 let id_of_string i s = (i,s)
-let qid_of_string i s = qid_of_id (id_of_string i s)
 
-let dot (qs1,x1) (qs2,x2) = (qs1@[x1]@qs2,x2)
-      
+let dot (qs1,x1) (qs2,x2) = (qs1@[x1]@qs2,x2)     
+
 (* abstract syntax *)
 
 (* sorts *)
