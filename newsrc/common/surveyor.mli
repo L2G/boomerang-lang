@@ -10,8 +10,8 @@ type encoding_test = string -> string option -> bool
 type encoding = {
   description: string;          (** "long" description *)
   encoding_test: encoding_test; (** id function *)
-  from_string: string -> V.t option; (** reads data in the given encoding *)
-  to_string: V.t -> string;     (** writes data to the given encoding *)
+  reader: string -> V.t option; (** reads data in the given encoding *)
+  writer: V.t -> string;     (** writes data to the given encoding *)
 }
 
 val register_encoding : encoding_key -> encoding -> unit

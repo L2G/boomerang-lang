@@ -6,10 +6,8 @@ type encoding_test = filename -> contents option -> bool
 type encoding = {
   description: string;               (** "long" description *)
   encoding_test: encoding_test;      (** id function *)
-  reader: V.reader;                  (** reads data in the given encoding *)
-  writer: V.writer;                  (** writes data to the given encoding *)
-  from_string: string -> V.t option; (** reads data in the given encoding *)
-  to_string: V.t -> string;          (** writes data to the given encoding *)
+  reader: string -> V.t option;      (** reads data in the given encoding *)
+  writer: V.t -> string;             (** writes data to the given encoding *)
   base_type: type_desc;              (** the most concrete view type of
                                          instances of this encoding.  the
                                          reader/writer pair translates between this
@@ -48,8 +46,6 @@ let get_all_encodings () =
   EncodingMap.fold (fun ekey _ acc -> ekey :: acc) !emap []
 let get_reader ekey = (get_encoding ekey).reader
 let get_writer ekey = (get_encoding ekey).writer
-let get_from_string ekey = (get_encoding ekey).from_string
-let get_to_string ekey = (get_encoding ekey).to_string
 let get_description ekey = (get_encoding ekey).description
 let get_base_type ekey = (get_encoding ekey).base_type
 let print_description ekey = print_endline ((get_description ekey) ^ " (" ^ ekey ^ ")")
