@@ -49,9 +49,12 @@ let get replica lens_string output =
   in
   (* apply it to get the abstract view *)
   let av = 
-    match cv with
+    try match cv with
       Some cview -> Lens.get lens cview 
-    | None -> failwith (Printf.sprintf "The replica file %s is missing or empty" replica) in
+    | None -> failwith (Printf.sprintf "The replica file %s is missing or empty" replica) 
+    with V.Error(e) -> V.format_msg e; failwith "Error in get function"
+  in
+    
   (* we're gonna have to output it *)
   let (o, viewer_ek) = parse_replica output in
   (* get back the viewer *)

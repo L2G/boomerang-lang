@@ -62,7 +62,7 @@ let rec compile_exp cev e0 = match e0 with
       end
 	
   | Syntax.EMap(i,ms) ->
-      let id_exp = Syntax.EVar(i, Registry.parse_qid "Pervasives.id") in	    
+      let id_exp = Syntax.EVar(i, Registry.parse_qid "Pervasives.Native.id") in	    
       let s = Syntax.SArrow(i, Syntax.SName(i), Syntax.SLens(i)) in
       let f = List.fold_left 
 	(fun f (x,l) -> 
