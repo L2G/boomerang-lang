@@ -70,15 +70,14 @@ module IdSet = Set.Make(
   end)
   
 (* the library's state *)
-let qid_of_string s =     
+let parse_qid s =     
   let lexbuf = Lexing.from_string s in
     Parser.qid Lexer.token lexbuf 
 
-let pre_ctx = List.map qid_of_string ["Pervasives.Native"; "Pervasives.Derived"]
+let pre_ctx = List.map parse_qid ["Pervasives.Native"; "Pervasives.Derived"]
 
 let library : env ref = ref empty
 let loaded = ref IdSet.empty
-let search_path = ref ["/Users/nate/shared/harmony4/newsrc/plugins/"]
 
 let get_library () = !library
 
@@ -90,7 +89,7 @@ let register_native qs ss v =
     let lexbuf = Lexing.from_string s in
       Parser.sort Lexer.token lexbuf 
   in	
-  let q = qid_of_string qs in
+  let q = parse_qid qs in
   let s = sort_of_string ss in
     register q (s,v)
   
@@ -109,7 +108,7 @@ let find_filename n =
 	  if (Sys.file_exists full_fn) then Some full_fn
 	  else loop drest
   in
-    loop (!search_path)
+    loop (Prefs.read Config.paths)
       
 (* load modules dynamically *)
 (* backpatch hack *)
@@ -149,5 +148,7 @@ let lookup_library oev ev_of_oev ctx_of_oev q =
       | Some r -> Some r
       | None -> lookup_library2 (ctx_of_oev oev) q
 
-      
-      
+let lookup_lens q = match lookup (!library) (fun x -> x) q with 
+  | None -> None
+  | Some r -> 
+      match value_of_rv r with Value.L l -> Some l | _ -> None

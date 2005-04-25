@@ -5,34 +5,13 @@ let failwith s = prerr_endline s; exit 1
 let get_ekey f = function
     Some ekey ->
       (try let _ = Surveyor.get_encoding ekey in ekey with
-	Not_found -> prerr_endline ("unknown encoding key " ^ ekey); exit 1)
-  | None ->
+	   Not_found -> prerr_endline ("unknown encoding key " ^ ekey); exit 1)
+  | None -> 
       (* We shall be able to pass some contents instead of None *)
       (match (Surveyor.find_encodings f None) with
-	[ek] -> ek
-      |	[] -> failwith (Printf.sprintf "No encoding found for this file : %s." f)
-	    (* if there's more than one possible encoding, we ask the user *)
-	    (* we could also fail, we should perhaps have a -ask argument on the cmd line ? *)
-      |	l -> (print_string ("Too much choices for "^f^", you have to specify the encoding between the following :\n");
-	      (* presents all the possible formats to the user *)
-	      let i = ref 0 in List.iter (fun s -> i:=!i+1; Printf.printf "%d. %s\n" !i s) l;
-	      let b = String.create 255 in
-	      (* and keep asking, as long as the choice isn't correct *)
-	      (** TODO : put an extra choice "other" ? *)
-	      let rec ask () =
-		print_string "-?"; flush stdout;
-		try(
-		  let choice = read_int () in
-		  if (choice >= 1 && choice <= List.length l) then
-		    List.nth l (choice-1)
-		  else
-		    ask ()
-		      ) 
-		with Failure "int_of_string" -> ask ()
-	      in
-	      ask ()
-		)
-	    )
+	 | [ek] -> ek
+	 | _    -> 
+	     failwith (Printf.sprintf "No unique encoding found for this file : %s." f))
 	
 let parse_replica r =
   try 
@@ -56,7 +35,7 @@ let synchronize o a b = (o,a,b)
 (* ========== *)	
 (* GET / SHOW *)
 (* ========== *)	
-let get replica lens output =
+let get replica lens_string output =
   (* look if there is also an encoding specification *)
   let (r, reader_ek) = parse_replica replica in
   (* get the encoding key *)
@@ -64,7 +43,10 @@ let get replica lens output =
   (* apply the reader, get the concrete view *)
   let cv = get_view_from_file (Surveyor.get_reader ekey) r in
   (* now we'll get the lens *)
-  let lens = Native.id in
+  let lens = match (Registry.lookup_lens (Registry.parse_qid lens_string)) with 
+      Some l -> l
+    | None -> failwith (Printf.sprintf "Lens %s not found" lens_string)
+  in
   (* apply it to get the abstract view *)
   let av = 
     match cv with
@@ -77,12 +59,12 @@ let get replica lens output =
   (* apply it to get a string *)
   let written = (Surveyor.get_writer okey) av in
   (* and do the output *)
-  view_to_file written o
+    view_to_file written o
     
 (* ========== *)	
 (*     PUT    *)
 (* ========== *)	
-let put abstract concrete lens output =
+let put abstract concrete lens_string output =
   (* look if there is also an encoding specification *)
   let (a, reader_ek) = parse_replica abstract in
   (* get the encoding key of the abstract*)
@@ -94,7 +76,10 @@ let put abstract concrete lens output =
   let ckey = get_ekey c reader_ek in
   let cv = get_view_from_file (Surveyor.get_reader ckey) c in
   (* now we'll get the lens *)
-  let lens = Native.id in
+  let lens = match (Registry.lookup_lens (Registry.parse_qid lens_string)) with 
+      Some l -> l
+    | None -> failwith (Printf.sprintf "Lens %s not found" lens_string)
+  in
   (* apply it to put the abstract view into the concrete view*)
   let newcv = 
     match av with
