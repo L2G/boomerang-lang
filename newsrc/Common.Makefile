@@ -9,19 +9,19 @@ all: native-code
 tags:
 	etags $(SOURCES)
 
-#########################
-# BASE/COMPILER SOURCES #
-#########################
-
-BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml xml.ml \
-               pretty.ml info.ml error.ml syntax.ml parser.mly lexer.mll type.ml value.ml registry.ml \
-               checker.ml compiler.ml
-
 #######
 # LIB #
 #######
 
 UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
+
+#########################
+# BASE/COMPILER SOURCES #
+#########################
+
+BASE_SOURCES = config.ml misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml xml.ml \
+               pretty.ml info.ml error.ml syntax.ml parser.mly lexer.mll type.ml value.ml registry.ml \
+               checker.ml compiler.ml
 
 ###########
 # PLUGINS #
@@ -36,7 +36,7 @@ PLUGINS_SOURCES = $(NATIVE_PLUGIN_SOURCES:%=native/%)
 ##################
 
 COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/lib/ubase/%) \
-		 $(BASE_SOURCES:%=$(SRC)/common/%) \
+		 $(BASE_SOURCES:%=$(SRC)/%) \
 		 $(PLUGINS_SOURCES:%=$(SRC)/plugins/%)
 
 include $(SRC)/OCamlMakefile

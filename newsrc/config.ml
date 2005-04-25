@@ -43,8 +43,8 @@ let _ = Prefs.alias lensr1 "l1"
 let lensr2 = Prefs.createString "lensr2" "" "*the lens for the second replica" ""
 let _ = Prefs.alias lensr2 "l2"
 
-let path = Prefs.createStringList "path" "*the path to the lenses" ""
-let _ = Prefs.alias path "p"
+let paths = Prefs.createStringList "paths" "*the paths to the lenses" ""
+let _ = Prefs.alias paths "p"
 
 let schema = Prefs.createString "schema" "" "*the schema for the synchronization" ""
 let _ = Prefs.alias schema "s"
