@@ -1,6 +1,6 @@
 module Pervasives = 
 module Derived =  
-  
+
 let fork (p:view) = xfork p p
 
 let mapp (p:view) (l:lens) = fork p (map l) id 
@@ -24,9 +24,11 @@ let rename_if_present (m:name) (n:name) = id
 (*    id *)
 (* *\) *)
 
-let hd (d:view) = focus "*h" {"*t"=d}
-let tl (d:view) = focus "*t" {"*h"=d}
-(* let list_map (l:lens) = wmap { "*h" -> l, "*t" -> (list_map l) } *)
+let hd (d:view) = focus "*h" { "*t" = d }
+
+let tl (d:view) = focus "*t" { "*h" = d }
+
+let list_map (l:lens) : lens = wmap { "*h" -> id, "*t" -> (list_map l) }
 
 end
 

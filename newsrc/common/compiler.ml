@@ -269,12 +269,7 @@ let compile_module (Syntax.MDef(i,m,nctx,ds)) =
 let compile_file fn n = 
   let fchan = open_in fn in
   let lex = Lexing.from_channel fchan in
-  let ast = 
-    try Parser.modl Lexer.token lex with 
-	(Error.Parse_error(s,i)) -> 
-	  prerr_string ("Parse Error at: " ^ Info.string_of_t i);
-	  raise (Error.Parse_error(s,i))
-  in
+  let ast = Parser.modl Lexer.token lex in 
   (* check that module is in correct file *)
   let m = Syntax.id_of_modl ast in
   let _ = if (Syntax.id_equal m n) then 

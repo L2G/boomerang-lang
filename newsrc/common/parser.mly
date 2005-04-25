@@ -107,14 +107,11 @@ aexp:
   | viewexp                                   { $1 }
   | LANGLE typeexp RANGLE                     { EType($1,$2) }
   | LPAREN exp RPAREN                         { $2 }
-  | STRING                                    { let (i,_) = $1 in EName(i,$1) }                       | LBRACE map_list LBRACE                    { EMap($1, $2) }
+  | STRING                                    { let (i,_) = $1 in EName(i,$1) } 
+  | LBRACE non_empty_map_list RBRACE          { EMap($1, $2) }
 
 map:
   | IDENT_or_STRING ARROW aexp                { ($1,$3) }
-
-map_list:
-  |                                           { [] }
-  | map COMMA non_empty_map_list              { $1::$3 }
 
 non_empty_map_list:
   | map                                       { [$1] }
