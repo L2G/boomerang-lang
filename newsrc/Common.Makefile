@@ -13,7 +13,7 @@ tags:
 # BASE/COMPILER SOURCES #
 #########################
 
-BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
+BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml xml.ml \
                pretty.ml info.ml error.ml syntax.ml parser.mly lexer.mll type.ml value.ml registry.ml \
                checker.ml compiler.ml
 

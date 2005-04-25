@@ -6,7 +6,7 @@ type encoding_test = filename -> contents option -> bool
 type encoding = {
   description: string;               (** "long" description *)
   encoding_test: encoding_test;      (** id function *)
-  reader: string -> V.t option;      (** reads data in the given encoding *)
+  reader: string -> V.t;             (** reads data in the given encoding *)
   writer: V.t -> string;             (** writes data to the given encoding *)
 }
 
