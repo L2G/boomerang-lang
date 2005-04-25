@@ -24,7 +24,7 @@ module EMap =
   Mapplus.Make(
     struct
       type t = Syntax.qid
-      let compare = Syntax.qid_compare
+      let compare = Syntax.qi1d_compare
       let to_string = Syntax.string_of_qid 
     end)
 module QidMap = EMap.Map
@@ -74,12 +74,14 @@ module IdSet = Set.Make(
 let library : env ref = ref empty
 let loaded = ref IdSet.empty
 let loading = ref IdSet.empty
-let search_path = ref "/Users/nate/shared/harmony4/newsrc/plugins/"
+let search_path = ref ["/Users/nate/shared/harmony4/newsrc/plugins/"
+		      ;"/Users/nate/shared/harmony4/newsrc/plugins2/"]
 
 let get_library () = !library
 
 let register q r = library := (QidMap.add q (ref r) (!library))
-      
+let register_env ev m = QidMap.iter (fun q r -> register (Syntax.dot m q) !r) ev
+  
 let register_native qs ss v = 
   let qid_of_string s = 
     let lexbuf = Lexing.from_string s in
@@ -92,37 +94,47 @@ let register_native qs ss v =
   let q = qid_of_string qs in
   let s = sort_of_string ss in
     register q (s,v)
-
   
 (* get the filename that a module is stored at *)
-(* FIXME: simple for now, assumes everything is in the single search path; will generalize later *)
 let get_module_prefix q = 
   match q with 
     | ([],_) -> None
     | (n::_,_) -> Some n
 	
-let get_filename n = (!search_path) ^ (String.uncapitalize n) ^ ".fcl"
-  
+let find_filename n = 
+  let fn = (String.uncapitalize n) ^ ".fcl" in
+  let rec loop ds = match ds with
+    | []    -> None
+    | d::drest -> 
+	let full_fn = d ^ fn in
+	  if (Sys.file_exists full_fn) then Some full_fn
+	  else loop drest
+  in
+    loop (!search_path)
+      
 (* load modules dynamically *)
 (* backpatch hack *)
-let compile_file_impl = ref (fun _ -> ())  
+let compile_file_impl = ref (fun _ _ -> ())  
 let load q = match get_module_prefix q with 
   | None -> ()
   | Some n -> 
       let isloaded = IdSet.mem n (!loaded) in
       let isloading = IdSet.mem n (!loading) in
       let ns = Syntax.string_of_id n in
-      let fn = get_filename ns in
-	if (IdSet.mem n (!loaded)) or (not(Sys.file_exists fn)) then () 
+      let fno = find_filename ns in	
+	if (IdSet.mem n (!loaded)) then ()
 	else if (IdSet.mem n (!loading)) then 
 	  raise (Error.Sort_error(("Circular module references " ^ ns), Info.bogus))
 	else 
 	  begin
-	    loading := (IdSet.add n (!loading));
-	    prerr_string ("[ loading " ^ fn ^ " ]\n");
-	    (!compile_file_impl) fn;
-	    loading := (IdSet.remove n (!loading));
-	    loaded := (IdSet.add n (!loaded)) 
+	    match fno with 
+	      | None -> ()
+	      | Some fn ->
+		  loading := (IdSet.add n (!loading));
+		  prerr_string ("[ loading " ^ fn ^ " ]\n");
+		  (!compile_file_impl) fn n;
+		  loading := (IdSet.remove n (!loading));
+		  loaded := (IdSet.add n (!loaded)) 
 	  end
 
 (* lookup in a naming context *)

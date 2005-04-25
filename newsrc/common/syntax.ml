@@ -18,6 +18,7 @@ type qid = id list * id
 (* functions on identifiers *)
 (* equality: ignore parsing Info.t *)
 let id_compare (_,x1) (_,x2) = compare x1 x2
+let id_equal i1 i2 = (compare i1 i2 = 0)
 let qid_compare (qs1,x1) (qs2,x2) = 
   let rec ids_compare xs1 xs2 = match xs1,xs2 with
     | [],[] -> 0
@@ -29,6 +30,14 @@ let qid_compare (qs1,x1) (qs2,x2) =
 	  else ids_compare t1 t2
   in
     ids_compare (x1::qs1) (x2::qs2)
+
+(* utility functions *)
+let qid_of_id id = [],id
+let qid_of_string i s = qid_of_id (i,s)
+(* utility functions *)
+let qid_of_id id = [],id
+let id_of_string i s = (i,s)
+let qid_of_string i s = qid_of_id (id_of_string i s)
 
 let dot (qs1,x1) (qs2,x2) = (qs1@[x1]@qs2,x2)
       
@@ -90,14 +99,10 @@ type modl = MDef of i * id * qid list * decl list
 (* simple constants *)
 let emptyView i = EView(i,[])
 let emptyViewType i = TStar(i,[],TEmpty i)
-
-(* utility functions *)
-let qid_of_id id = [],id
-let qid_of_string i s = qid_of_id (i,s)
   
 (* accessor functions *)
-let get_info_id = function (i,_) -> i
-let get_info_qid = function (_,id) -> get_info_id id
+let info_of_id = function (i,_) -> i
+let info_of_qid = function (_,id) -> info_of_id id
 let name_of_id (_,x) = x
 let id_of_binding (BDef(_,x,_,_,_)) = x
 let id_of_typebinding (x,_,_) = x
@@ -232,6 +237,9 @@ and string_of_decl = function
        ; string_of_id i
        ; " =\n"]
        @ (List.map (fun di -> (string_of_decl di) ^ "\n") ds))
+
+let id_of_modl (MDef(_,m,_,_)) = m
+let info_of_modl (MDef(i,_,_,_)) = i
 
 let string_of_modl (MDef(_,id,qs,ds)) = 
   concat ""

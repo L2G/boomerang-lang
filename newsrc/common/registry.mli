@@ -25,9 +25,9 @@ val string_of_env : env -> string
 
 (* library *)
 val get_library : unit -> env 
-val register : Syntax.qid -> rv -> unit
+val register_env : env -> Syntax.qid -> unit
 val register_native : string -> string -> Value.t -> unit
 val lookup_library : 'a -> ('a -> env) -> ('a -> Syntax.qid list) -> Syntax.qid -> rv option
   
 (* backpatch hack *)
-val compile_file_impl : (string -> unit) ref
+val compile_file_impl : (string -> Syntax.id -> unit) ref

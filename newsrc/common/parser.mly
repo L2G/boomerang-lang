@@ -136,7 +136,7 @@ non_empty_viewelt_list:
 
 viewelt:
   | IDENT_or_STRING                           { let (i,_) = $1 in (i, EName(i,$1), emptyView i) }
-  | IDENT_or_STRING EQUAL innerview           { ($2, EName(get_info_id $1, $1), $3) }
+  | IDENT_or_STRING EQUAL innerview           { ($2, EName(info_of_id $1, $1), $3) }
   | BACKTICK exp BACKTICK EQUAL innerview     { ($1, $2, $5) }
 
 innerview:
@@ -177,14 +177,14 @@ non_empty_typeelt_list:
 typeelt:
   | valuetype                                 { $1 }
   | BACKTICK exp ARROW innertype              { TName($1, $2, $4) }
-  | IDENT_or_STRING ARROW innertype           { let i = get_info_id $1 in TName($2, EName(i,$1), $3) }
+  | IDENT_or_STRING ARROW innertype           { let i = info_of_id $1 in TName($2, EName(i,$1), $3) }
 
 innertype: 
   | valuetype                                 { $1 }
   | atypeexp                                  { $1 } 
 
 valuetype:
-  | IDENT_or_STRING                           { let i = get_info_id $1 in TName(i,EName(i,$1),emptyViewType i) }
+  | IDENT_or_STRING                           { let i = info_of_id $1 in TName(i,EName(i,$1),emptyViewType i) }
 
 /* stub productions */
 
