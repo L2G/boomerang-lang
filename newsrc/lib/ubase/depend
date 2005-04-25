@@ -1,3 +1,5 @@
+config.cmo: prefs.cmi 
+config.cmx: prefs.cmx 
 prefs.cmo: safelist.cmi uarg.cmi util.cmi prefs.cmi 
 prefs.cmx: safelist.cmx uarg.cmx util.cmx prefs.cmi 
 rx.cmo: rx.cmi 
