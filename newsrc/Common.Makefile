@@ -1,3 +1,13 @@
+#####################################################################
+# The Harmony Project                                              #
+# harmony@lists.seas.upenn.edu                                     #
+#                                                                  #
+# Common.Makefile - source dependencies: included in Makefiles     #
+#                                                                  #
+# $Id$ #
+#                                                                  #
+#####################################################################
+
 OCAMLMAKEFILE = $(SRC)/OCamlMakefile
 
 OCAMLC = ocamlfind ocamlc -dtypes -package "pxp,pxp-engine,pxp-lex-iso88591,netstring,unix,str" 

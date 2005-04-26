@@ -1,3 +1,13 @@
+#####################################################################
+# The Harmony Project                                              #
+# harmony@lists.seas.upenn.edu                                     #
+#                                                                  #
+# Makefile - main Makefile for harmony                             #
+#                                                                  #
+# $Id$ #
+#                                                                  #
+#####################################################################
+
 SRC = $(shell pwd)
 
 RESULT = harmony

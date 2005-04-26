@@ -4,7 +4,7 @@
 (*                                                              *)
 (* compiler.ml - the actual compiler                            *)
 (*                                                              *)
-(* $Id: compiler.ml,v 1.4 2005/04/21 03:27:42 jnfoster Exp $    *)
+(* $Id$    *)
 (*                                                              *)
 (****************************************************************)
 
@@ -14,6 +14,8 @@
    - rewriting multi-param functions to lambdas 
    - rewriting let-defs and type-defs to simple no-param binders
 *)
+
+let (@) = Safelist.append 
 
 (* a compilation environment: a naming context and a Registry.env *)
 type compile_env = Syntax.qid list * Registry.env
@@ -64,7 +66,7 @@ let rec compile_exp cev e0 = match e0 with
   | Syntax.EMap(i,ms) ->
       let id_exp = Syntax.EVar(i, Registry.parse_qid "Pervasives.Native.id") in	    
       let s = Syntax.SArrow(i, Syntax.SName(i), Syntax.SLens(i)) in
-      let f = List.fold_left 
+      let f = Safelist.fold_left 
 	(fun f (x,l) -> 
 	   (fun v -> 
 	      match v with
@@ -129,16 +131,16 @@ and compile_typeexp cev =
 	  Type.Name(n, type2cstate t)
 	    
     | Syntax.TBang(i,xl,t)   -> 
-	Type.Bang(List.map Syntax.name_of_id xl, type2cstate t)
+	Type.Bang(Safelist.map Syntax.name_of_id xl, type2cstate t)
 	  
     | Syntax.TStar(i,xl,t)   -> 
-	Type.Star(List.map Syntax.name_of_id xl, type2cstate t)
+	Type.Star(Safelist.map Syntax.name_of_id xl, type2cstate t)
 
     | Syntax.TCat(i,ts)      -> 
-	Type.Cat(List.map(compile_typeexp cev) ts) 
+	Type.Cat(Safelist.map(compile_typeexp cev) ts) 
 	  
     | Syntax.TUnion(i,ts)    -> 
-	Type.Union(List.map(compile_typeexp cev) ts) 
+	Type.Union(Safelist.map(compile_typeexp cev) ts) 
 	  
     | Syntax.TDiff(i,t1,t2)  -> 
 	raise(Error.Run_error("Untranslated diff at " ^ Info.string_of_t i))
@@ -180,16 +182,16 @@ and compile_viewbinds ev bs = match bs with
 (* compile_bindings :: compile_env -> Syntax.BDef list ->  compile_env * qid list *)
 and compile_bindings cev bs = 
   (* add all the bindings in a recursion group to the environment *)
-  let bev,names = 
-    List.fold_left 
+  let bev,names_rev = 
+    Safelist.fold_left 
       (fun (bev,names) (Syntax.BDef(_,f,_,_,_)) -> 
 	 let qf = Syntax.qid_of_id f in
-	   update bev qf Registry.dummy_rv,names@[qf])
+	   update bev qf Registry.dummy_rv, qf::names)
       (cev,[]) 
       bs 
   in
   (* and backpatch... *)
-  let _ = List.map
+  let _ = Safelist.map
     (fun bi -> match bi with
        | Syntax.BDef(i,f,[],so,e) ->
 	   let r = compile_exp bev e in
@@ -199,21 +201,21 @@ and compile_bindings cev bs =
        | Syntax.BDef(i,_,_,_,_) -> raise (Error.Run_error("Unflattened let binding at " ^ Info.string_of_t i)))
     bs
   in    
-    bev,names
+    (bev, Safelist.rev names_rev)
       
 (* type bindings *)
 (* compile_typebindings :: compile_env -> Syntax.typebinding list -> compile_env *)
 let compile_typebindings cev ts =   
   (* add to environment and backpatch *)
   let tev,names = 
-    List.fold_left 
+    Safelist.fold_left 
       (fun (tev,names) (x,_,_) -> 
 	 let qx = Syntax.qid_of_id x in
-	   update tev (Syntax.qid_of_id x) Registry.dummy_rv, names@[qx])
+	   update tev (Syntax.qid_of_id x) Registry.dummy_rv, qx::names)
       (cev,[]) 
       ts 
   in
-  let _ = List.map
+  let _ = Safelist.map
     (fun ti -> match ti with
        | (x,[],t) -> 
 	   overwrite 
@@ -225,7 +227,7 @@ let compile_typebindings cev ts =
 				  ^ Info.string_of_t (Syntax.info_of_id x))))
     ts
   in
-    tev, names
+    (tev, Safelist.rev names)
       
 (* declarations *)
 (* compile_decl :: compile_env -> Syntax.decl -> compile_env * qid list*)
@@ -235,7 +237,8 @@ let rec compile_decl cev = function
   | Syntax.DMod(i,n,ds) -> 
       let nq = Syntax.qid_of_id n in
       let new_cev, names = compile_module_aux cev ds in
-	List.fold_left 
+      let new_cev, names_rev = 
+	Safelist.fold_left 
 	  (fun (cev,names) q -> 
 	     match Registry.lookup new_cev get_ev q with
 		 None -> 
@@ -244,15 +247,16 @@ let rec compile_decl cev = function
 	       | Some r -> 
 		   let nq_dot_q = Syntax.dot nq q in
 		     (Registry.update cev get_ev set_ev nq_dot_q r,
-		      names@[nq_dot_q]))
+		      nq_dot_q::names))
 	  (cev,[])
 	  names
-
+      in
+	(new_cev, Safelist.rev names_rev)
 		   
 (* modules *)
 (* compile_module_aux :: compile_env -> Syntax.decl list -> compile_env *)
 and compile_module_aux cev ds =
-  List.fold_left 
+  Safelist.fold_left 
     (fun (cev,names) di -> 
        let new_cev,new_names = compile_decl cev di in
 	 new_cev, names@new_names)

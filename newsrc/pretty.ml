@@ -17,7 +17,7 @@ let concat sep list =
   if (list = []) 
   then "" 
   else
-    List.fold_right 
+    Safelist.fold_right 
       (fun h t -> if (t = sep) then h else (h ^ sep ^ t))
       list
       sep

@@ -4,7 +4,7 @@
 (*                                                              *)
 (* checker.ml - simple sort checker used in the Focal compiler  *)
 (*                                                              *)
-(* $Id: checker.ml,v 1.4 2005/04/20 19:25:02 jnfoster Exp $     *)
+(* $Id$     *)
 (*                                                              *)
 (****************************************************************)
 
@@ -21,6 +21,8 @@ open Syntax
    - rewrites let-defs and type-defs with arguments into simple
      binders and introduces functions to handle the arguments
 *)
+
+let (@) = Safelist.append (* use a stack-safe append *)
   
 (** sort checking environments **)
 (* comprise:                       
@@ -54,7 +56,7 @@ let update sev q s =
 let add_rec_var q sev = let (rs,os,ev) = sev in (q::rs,os,ev)
 
 (* check if a recursive use of a variable is OK *)
-let rec_var_ok sev q = let (rs,_,_) = sev in not (List.mem q rs)
+let rec_var_ok sev q = let (rs,_,_) = sev in not (Safelist.mem q rs)
 
 (* clear the list of recursive variables (e.g., when we go under a lambda) *)
 let clear_rec_vars sev = let (_,os,ev) = sev in ([],os,ev)
@@ -64,7 +66,7 @@ let update_param sev p = update sev (qid_of_id (id_of_param p)) (sort_of_param p
 
 (* convert a list of parameters ps and a sort s to arrow sort (ps -> s) *)
 let sort_of_param_list i ps s = 
-  List.fold_right (fun p ts -> SArrow(i,sort_of_param p,ts))  ps s
+  Safelist.fold_right (fun p ts -> SArrow(i,sort_of_param p,ts))  ps s
     
 (* check that s matches expected sort es. Print a nice error message if not *)
 let rec expect_sort es s i = 
@@ -147,7 +149,7 @@ let rec sc_exp sev e0 = match e0 with
   | EMap(i,ms) ->
       (* finite maps from names to lenses: just check that each lens
 	 expression has the right sort *)
-      let new_tds,new_ms,new_sev = List.fold_right
+      let new_tds,new_ms,new_sev = Safelist.fold_right
 	(fun (x,l) (new_tds1,new_ms1,sev) ->
 	   (* under a lambda, all vars may be used recursively *)
 	   let esev = clear_rec_vars (sev) in
@@ -196,7 +198,7 @@ let rec sc_exp sev e0 = match e0 with
 
   | EView(i,ks) ->
       (* views: check that dom is SNames, range SViews *)
-      let new_tds, new_ks = List.fold_right
+      let new_tds, new_ks = Safelist.fold_right
 	(fun (i,n,v) (new_tds1,new_ks1) ->
  	   (* check that n has sort SName *)
 	   let ns,new_tds2,new_n = sc_exp sev n in
@@ -251,7 +253,7 @@ and sc_typeexp ev t =
 	      
       | TCat(i,ts) ->
 	  let new_tds, new_ts =
-	    List.fold_left
+	    Safelist.fold_left
 	      (fun (new_tds1, new_ts) ti ->
 		 let tis,new_tds2, new_ti = sc_typeexp ev ti in
 		 let _ = expect_sort (SType(i)) tis i in
@@ -263,7 +265,7 @@ and sc_typeexp ev t =
 	      
       | TUnion(i,ts) ->
 	  let new_tds, new_ts =
-	    List.fold_left
+	    Safelist.fold_left
 	      (fun (new_tds1, new_ts) ti ->
 		 let tis,new_tds2, new_ti = sc_typeexp ev ti in
 		 let _ = expect_sort (SType(i)) tis i in
@@ -296,7 +298,7 @@ and sc_bindings sev bs =
      used recursively *)
   (* also returns a list of bindings checked *)
   let bev =
-    List.fold_left
+    Safelist.fold_left
       (fun bev (BDef(i,f,xs,so,e)) ->
 	 let fq = qid_of_id f in
 	   match so with
@@ -318,37 +320,39 @@ and sc_bindings sev bs =
 	  in
 	    ((Syntax.qid_of_id f,es),
 	     new_tds,
-	     BDef(i,f,[],Some es,new_e), 
-	     f) 
+	     BDef(i,f,[],Some es,new_e))
 	      
       (* rewrite bindings with parameters to plain ol' lambdas *)
       | BDef(i,f,ps,so,e) -> sc_binding ev (BDef(i,f,[],None,(EFun(i,ps,so,e))))
   in
-    List.fold_left
+  let (new_sev, new_tds, new_bs_rev, names_rev) = 
+    Safelist.fold_left
       (fun (sev_rest,tds_rest,binds_rest,names_rest) bi ->
-	 let (q,s),new_tds,new_binding,f = sc_binding sev_rest bi in
+	 let (q,s),new_tds,new_bi = sc_binding sev_rest bi in
 	 let new_sev = add_rec_var q (update sev_rest q s) in
-	   new_sev, tds_rest@new_tds, binds_rest@[new_binding], names_rest@[q])
+	   new_sev, tds_rest@new_tds, new_bi::binds_rest, q::names_rest)
       (bev, [], [], [])
       bs
+  in
+    (new_sev, new_tds, Safelist.rev new_bs_rev, Safelist.rev names_rev)
       
 (* type check all type defn's mutually, assume that each param has sort SType *)
 let sc_typebindings i ev tbs =
   (* helper for constructing arrow sorts *)
   let arrow_of_xs xs i =
-    List.fold_right
+    Safelist.fold_right
       (fun _ s -> SArrow(i,SType(i), s))
       xs
       (SType(i))
   in
   (* collect an environment that records the sorts of all the type defns *)
-  let tev,new_names = 
-    List.fold_left
+  let tev,names_rev = 
+    Safelist.fold_left
       (fun (tev,names) (x,xs,_) -> 
 	 let xq = qid_of_id x in 
-	   add_rec_var xq (update tev xq (arrow_of_xs xs i)), names@[xq])
-	(ev,[])
-	tbs
+	   add_rec_var xq (update tev xq (arrow_of_xs xs i)), xq::names)
+      (ev,[])
+      tbs
   in    
   (* helper for checking a single binding *)
   let rec sc_typebinding ev tb =
@@ -356,19 +360,20 @@ let sc_typebindings i ev tbs =
       | (x,[],t) ->
 	  let ts,new_tds,new_t = sc_typeexp ev t in	    
 	  let _ = expect_sort (SType(i)) ts i in
-	    new_tds @ [(x,[],new_t)]
+	    (x,[],new_t)::new_tds 
       | (x,xs,t) ->
 	  let ps = 
-	    List.map (fun xi -> let i = info_of_id xi in PDef(i,xi,SType(i))) xs 
+	    Safelist.map (fun xi -> let i = info_of_id xi in PDef(i,xi,SType(i))) xs 
 	  in
 	  let i = info_of_typeexp t in
 	  let new_t = TExp(i, EFun(i, ps, Some (SType(i)), EType(i,t))) in
 	    sc_typebinding ev (x,[],new_t)
   in
   let new_tbs = 
-    List.fold_left (fun new_tbs tbi -> new_tbs@(sc_typebinding tev tbi)) [] tbs
+    (* FIXME: DV says this is inscrutable! Make this clearer *)
+    Safelist.fold_left (fun new_tbs tbi -> new_tbs@(Safelist.rev (sc_typebinding tev tbi))) [] tbs
   in
-    tev,new_tbs,new_names
+    tev, new_tbs, Safelist.rev names_rev
       
 (* type check a single declaration *)
 let rec sc_decl sev = function
@@ -383,7 +388,7 @@ let rec sc_decl sev = function
   | DMod(i,n,ds) ->
       let nq = Syntax.qid_of_id n in	
       let new_sev, new_ds, names = sc_modl_aux sev i ds in	
-      let new_sev = List.fold_left 
+      let new_sev = Safelist.fold_left 
 	(fun sev q -> 
 	   (* patch up the environment with correct names for the rest of _this_ module *)
 	   match Registry.lookup new_sev get_ev q with
@@ -397,20 +402,19 @@ let rec sc_decl sev = function
 	clear_rec_vars new_sev, [], DMod(i, n, new_ds), names
 	  
 (* type check a module *)
-and sc_modl_aux sev i ds =
-  let new_sev,new_ds,new_names = 
-    List.fold_left
+and sc_modl_aux sev i ds : sc_env * Syntax.decl list * Syntax.qid list =
+  let new_sev,new_ds_rev,names = 
+    Safelist.fold_left
       (fun (new_sev,ds,names) di ->
 	 let new_sev, new_tds, new_di, new_names = sc_decl new_sev di in
-	 let new_decls = 
-	   if new_tds = [] then ds@[new_di]
-	   else ds@(DType(i,new_tds)::[new_di]) 
-	 in
-	   (new_sev, new_decls, names@new_names))
+	   (new_sev, 
+	    (if new_tds = [] then (new_di::ds)
+	     else (new_di::(DType(i,new_tds))::ds)),
+	    names@ new_names))
       (sev,[],[])
-    ds
+      ds
   in
-    new_sev, new_ds, new_names
+    new_sev, Safelist.rev new_ds_rev, names
       
 let sc_module = function MDef(i,m,o,ds) ->   
   let mqn = Syntax.qid_of_id m in

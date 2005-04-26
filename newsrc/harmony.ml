@@ -1,7 +1,7 @@
 open Config
   
 let failwith s = prerr_endline s; exit 1
-    
+  
 let get_ekey f = function
     Some ekey ->
       (try let _ = Surveyor.get_encoding ekey in ekey with

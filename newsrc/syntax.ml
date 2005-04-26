@@ -10,6 +10,9 @@
 
 open Pretty
 
+
+let ( @ ) = Safelist.append  (* redefine @ to use stack-safe append *)
+
 (* identifiers *)
 type i = Info.t
 type id = i * string
@@ -35,7 +38,7 @@ let qid_compare (qs1,x1) (qs2,x2) =
 let qid_of_id id = [],id
 let id_of_string i s = (i,s)
 
-let dot (qs1,x1) (qs2,x2) = (qs1@[x1]@qs2,x2)     
+let dot (qs1,x1) (qs2,x2) = (qs1@(x1::qs2),x2)
 
 (* abstract syntax *)
 
@@ -136,7 +139,7 @@ let list_type vt = vt
 (* pretty printing stuff *)
 (* identifiers *)
 let string_of_id (_,i) = i
-let string_of_qid (q,i) = concat "." (List.map string_of_id q@[string_of_id i])
+let string_of_qid (q,i) = concat "." (Safelist.map string_of_id q@[string_of_id i])
 
 (* sorts *)
 let rec string_of_sort = function
@@ -155,7 +158,7 @@ let string_of_param (PDef(_,i,s)) = braces(string_of_id i ^ ":" ^ string_of_sort
 let rec string_of_exp = function 
     EVar(_,q)       -> string_of_qid q
   | EFun(_,ps,so,e) -> ("fun " 
-			       ^ (concat " " (List.map string_of_param ps))
+			       ^ (concat " " (Safelist.map string_of_param ps))
 			       ^ (match so with 
 				    | None -> "" 
 				    | Some s -> " : " ^ string_of_sort s)
@@ -164,7 +167,7 @@ let rec string_of_exp = function
   | EApp(_,e1,e2)    -> (string_of_exp e1) ^ " " ^ (string_of_exp e2)
   | EMap(_,ms)       -> 
       curlybraces (concat "" 
-		     (List.map (fun (x,e) -> 
+		     (Safelist.map (fun (x,e) -> 
 				  concat ", " [string_of_id x
 					      ;"->"
 					      ; string_of_exp e]) ms))
@@ -176,7 +179,7 @@ let rec string_of_exp = function
   | EName(_,i)       -> string_of_id i
   | EType(_,t)       -> string_of_typeexp t
   | EView(_,vbs)     -> curlybraces (concat ", " 
-					      (List.map (fun (_,n,v) -> 
+					      (Safelist.map (fun (_,n,v) -> 
 							   (string_of_exp n) 
 							   ^ "=" 
 							   ^ (string_of_exp v))
@@ -188,7 +191,7 @@ and string_of_typeexp = function
   | TBang(_,f,t)  ->
       concat ""
     	[ "!"
-     	; braces (concat " " (List.map string_of_id f))
+     	; braces (concat " " (Safelist.map string_of_id f))
     	; curlybraces (string_of_typeexp t)]
   | TStar(_,f,t)  ->
       begin
@@ -197,33 +200,33 @@ and string_of_typeexp = function
 	  | _             ->
 	      concat ""
     		[ "*"
-    		; braces (concat " " (List.map string_of_id f))
+    		; braces (concat " " (Safelist.map string_of_id f))
     		; curlybraces (string_of_typeexp t)]
       end
-  | TCat(_,cs) -> concat "." (List.map string_of_typeexp cs)
-  | TUnion(_,ts) -> braces (concat " | " (List.map string_of_typeexp ts))
-  | TDiff(_,t1,t2) -> concat " - " (List.map string_of_typeexp [t1;t2])
-  | TInter(_,t1,t2) -> concat " & " (List.map string_of_typeexp [t1;t2])
+  | TCat(_,cs) -> concat "." (Safelist.map string_of_typeexp cs)
+  | TUnion(_,ts) -> braces (concat " | " (Safelist.map string_of_typeexp ts))
+  | TDiff(_,t1,t2) -> concat " - " (Safelist.map string_of_typeexp [t1;t2])
+  | TInter(_,t1,t2) -> concat " & " (Safelist.map string_of_typeexp [t1;t2])
   | TExp(_,e)     -> string_of_exp e
 
 and string_of_binding (BDef(_,x,ps,so,e)) = 
   concat ""
     [string_of_id x
-    ; concat " " (" " :: (List.map string_of_param ps))
+    ; concat " " (" " :: (Safelist.map string_of_param ps))
     ; (match so with 
 	 | None -> ""
 	 | Some s -> (" : " ^ string_of_sort s))
     ; " = "
     ; string_of_exp e]
-and string_of_bindings bs = concat " and " (List.map string_of_binding bs)
+and string_of_bindings bs = concat " and " (Safelist.map string_of_binding bs)
 
 and string_of_typebinding (x,xs,t) = 
   concat ""
     [ string_of_id x
-    ; concat ", " (List.map string_of_id xs)
+    ; concat ", " (Safelist.map string_of_id xs)
     ; string_of_typeexp t]
 
-and string_of_typebindings ts = concat " and " (List.map string_of_typebinding ts)
+and string_of_typebindings ts = concat " and " (Safelist.map string_of_typebinding ts)
 
 and string_of_decl = function
   | DLet(i,bs) -> "let " ^ (string_of_bindings bs)			
@@ -232,7 +235,7 @@ and string_of_decl = function
       (["module "
        ; string_of_id i
        ; " =\n"]
-       @ (List.map (fun di -> (string_of_decl di) ^ "\n") ds))
+       @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
 
 let id_of_modl (MDef(_,m,_,_)) = m
 let info_of_modl (MDef(i,_,_,_)) = i
@@ -244,6 +247,6 @@ let string_of_modl (MDef(_,id,qs,ds)) =
      ; " =\n"
      ; (match qs with
 	  | [] -> ""
-	  | _  -> ("\nopen " ^ (concat "\n" (List.map string_of_qid qs)) ^ "\nin"))
-     ] @ (List.map (fun di -> (string_of_decl di) ^ "\n") ds))
+	  | _  -> ("\nopen " ^ (concat "\n" (Safelist.map string_of_qid qs)) ^ "\nin"))
+     ] @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
 
