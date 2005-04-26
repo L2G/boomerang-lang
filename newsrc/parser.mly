@@ -4,7 +4,7 @@
 /*                                                          */
 /* parser.mly - Focal parser generator                      */
 /*                                                          */
-/* $Id: parser.mly,v 1.1 2005/04/11 18:24:56 jnfoster Exp $ */
+/* $Id$ */
 /*                                                          */
 /************************************************************/
 
@@ -133,6 +133,7 @@ non_empty_viewelt_list:
 viewelt:
   | IDENT_or_STRING                           { let (i,_) = $1 in (i, EName(i,$1), emptyView i) }
   | IDENT_or_STRING EQUAL innerview           { ($2, EName(info_of_id $1, $1), $3) }
+  | BACKTICK exp BACKTICK                     { ($1, $2, emptyView $1) }
   | BACKTICK exp BACKTICK EQUAL innerview     { ($1, $2, $5) }
 
 innerview:

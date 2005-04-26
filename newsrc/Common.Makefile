@@ -13,6 +13,7 @@ OCAMLMAKEFILE = $(SRC)/OCamlMakefile
 OCAMLC = ocamlfind ocamlc -dtypes -package "pxp,pxp-engine,pxp-lex-iso88591,netstring,unix,str" 
 OCAMLOPT = ocamlfind ocamlopt -dtypes -package "pxp,pxp-engine,pxp-lex-iso88591,netstring,unix,str" 
 OCAMLMKTOP = ocamlfind ocamlmktop -dtypes -package "pxp,pxp-engine,pxp-lex-iso88591,netstring,unix,str" 
+OCAMLYACC = ocamlyacc -v 
 
 all: native-code
 
