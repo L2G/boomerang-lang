@@ -29,9 +29,18 @@ open Error
 (* (\* PROBE *\) *)
 (* let ref_get_probe = ref (fun _ _ _ -> ()) *)
 (* let ref_put_probe = ref (fun _ _ _ _ ->()) *)
-(* let _ = register ("Pervasives.Native.probe",T (Arrow (Name,Lens)),  *)
+(* let _ = register ("Pervasives.Native.probe",T (Arrow (Name,Lens)), *)
 (* 		  F (function N n -> L (Lens.probe2 n (!ref_get_probe) (!ref_put_probe)) *)
 (* 		       | _ -> focal_type_error "probe")) *)
+
+(* PROBE *)
+let probe_lib = 
+  F(function 
+      | N n -> L (Lens.probe n)
+      | _ -> focal_type_error "Pervasives.Native.probe")
+    
+let _ = register_native "Pervasives.Native.probe" "name -> lens" probe_lib
+	  
 
 (* TRACEPOINT *)
 let tracepoint_lib = 
@@ -290,6 +299,7 @@ let xfork_lib =
 (*   let pa = P (Prd.s "a") in *)
 (*   let const_ax = L (const a (Compiler.compile_view "{x={}}")) in *)
 (*   let const_ba = L (const b a) in *)
+
 (*     [ test_get_eq [pc;pa;const_ax;const_ba] "{x={} y={}}" (\*=*\) "{a={} b={}}" *)
 (*     ; test_get_eq [pc;pa;const_ax;const_ba] "{x={}}" (\*=*\) "{a={} b={}}" *)
 (*     ; test_get_eq [pc;pa;const_ax;id_lib] "{x={} y={}}" (\*=*\) "{a={} y={}}" *)

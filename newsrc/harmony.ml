@@ -42,6 +42,7 @@ let get replica lens_string output =
   let ekey = get_ekey r reader_ek in
   (* apply the reader, get the concrete view *)
   let cv = get_view_from_file (Surveyor.get_reader ekey) r in
+(*  let _ = V.format_option cv ; print_endline "" in *)
   (* now we'll get the lens *)
   let lens = match (Registry.lookup_lens (Registry.parse_qid lens_string)) with 
       Some l -> l
@@ -54,7 +55,7 @@ let get replica lens_string output =
     | None -> failwith (Printf.sprintf "The replica file %s is missing or empty" replica) 
     with V.Error(e) -> V.format_msg e; failwith "Error in get function"
   in
-    
+(*  let _= V.format av; print_endline "" in *)
   (* we're gonna have to output it *)
   let (o, viewer_ek) = parse_replica output in
   (* get back the viewer *)

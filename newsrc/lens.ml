@@ -76,6 +76,9 @@ let probe msg =
       Format.printf "@,@]";
       a) }
 
+
+
+
 let probe2 name callget callput =
   { get = (fun c -> callget name c (Misc.dynamic_lookup stack);
       c);
