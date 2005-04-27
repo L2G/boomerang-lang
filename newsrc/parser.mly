@@ -12,6 +12,9 @@
 
 open Error
 open Syntax
+open Info
+
+let (@) = Safelist.append
 
 let error t info = let (l,c1),(_,c2) = info in
   let s = Printf.sprintf "%d:%d-%d" l c1 c2 in
@@ -37,172 +40,301 @@ let error t info = let (l,c1),(_,c2) = info in
 
 /*** declarations ***/
 modl:
-  | MODULE IDENT EQUAL decls EOF               { MDef($1,$2,[],$4) }
-  | MODULE IDENT EQUAL open_decls IN decls EOF { MDef($1,$2,$4,$6) }
-
+  | MODULE IDENT EQUAL decls EOF               
+      { let i = merge_inc $1 $5 in 
+	  MDef(i,$2,[],$4) 
+      }
+  | MODULE IDENT EQUAL open_decls IN decls EOF 
+      { let i = merge_inc $1 $7 in 
+	  MDef(i,$2,$4,$6) 
+      }
+      
 open_decls:
-  |                                            { [] }
-  | OPEN qid open_decls                        { $2::$3 }
+  |   { [] }
+  | OPEN qid open_decls                        
+      { $2::$3 }
 
 decls:
-  |                                           { [] }
-  | LET binding_list decls                    { (DLet($1,$2))::$3 }
-  | TYPE typebinding_list decls               { (DType($1,$2))::$3 }
-  | MODULE IDENT EQUAL decls END decls        { (DMod($1,$2,$4))::$6 }
-
+  |   { [] }
+  | LET binding_list decls                    
+      { let i = merge_inc $1 (info_of_bindings $1 $2) in 
+	  (DLet(i,$2))::$3 
+      }
+  | TYPE typebinding_list decls               
+      { let i = merge_inc $1 (info_of_typebindings $1 $2) in 
+	  (DType($1,$2))::$3 
+      }
+  | MODULE IDENT EQUAL decls END decls        
+      { let i = merge_inc $1 $5 in 
+	  (DMod($1,$2,$4))::$6 
+      }
+      
 binding_list:
-  | binding_list AND binding                  { $1@[$3] }
-  | binding                                   { [$1] }
-
+  | binding_list AND binding                  
+      { $1@[$3] }
+  | binding                                   
+      {  [$1] }
+      
 binding:    
-  | IDENT param_list opt_sort EQUAL exp       { BDef($4,$1,$2,$3,$5) }
-
+  | IDENT param_list opt_sort EQUAL exp       
+      { let i = merge_inc (info_of_id $1) (info_of_exp $5) in 
+	  BDef(i,$1,$2,$3,$5) 
+      }
+      
 typebinding:
-  | IDENT IDENT_list EQUAL typeexp            { ($1, $2, $4) }
+  | IDENT IDENT_list EQUAL typeexp            
+      { ($1, $2, $4) }
 
 typebinding_list:
-  | typebinding_list AND typebinding          { $1@[$3] }
-  | typebinding                               { [$1] }
+  | typebinding_list AND typebinding 
+      { $1@[$3] }
+  | typebinding 
+      { [$1] }
 
 /*** sorts ***/
 
 sort:
-  | asort ARROW sort                          { SArrow ($2,$1,$3) }
-  | asort                                     { $1 }
+  | asort ARROW sort                          
+      { let i = merge_inc (info_of_sort $1) (info_of_sort $3) in 
+	  SArrow (i,$1,$3) 
+      }
+  | asort                                     
+      { $1 }
 
 asort:
-  | LENS                                      { SLens($1) }
-  | VIEW                                      { SView($1) }
-  | NAME                                      { SName($1) } 
-  | LPAREN sort RPAREN                        { $2 }
+  | LENS                                      
+      { SLens($1) }
+  | VIEW                                      
+      { SView($1) }
+  | NAME                                      
+      { SName($1) } 
+  | TYPE
+      { SType($1) }
+  | LPAREN sort RPAREN                        
+      { $2 }
 
 opt_sort:
-  |                                           { None }
-  | COLON asort                               { Some $2 }
+  |   { None }
+  | COLON asort                               
+      { Some $2 }
 
 param_list:
-  |                                           { [] }
-  | param param_list                          { $1::$2 }
+  |   { [] }
+  | param param_list                          
+      { $1::$2 }
 
 param:
-  | IDENT COLON asort                         { PDef($2,$1,$3) }
-  | LPAREN IDENT COLON sort RPAREN            { PDef($1,$2,$4) }
+  | IDENT COLON asort                         
+      { let i = merge_inc (info_of_id $1) (info_of_sort $3) in 
+	  PDef(i,$1,$3) 
+      }
+  | LPAREN IDENT COLON sort RPAREN 
+      { let i = merge_inc (info_of_id $2) (info_of_sort $4) in 
+	  PDef($1,$2,$4) }
 
 /*** expressions ***/
 exp: 
-  | LET binding_list IN exp                      { ELet($1,$2,$4) }
-  | FUN param param_list opt_sort ARROW exp      { EFun($1,$2::$3,$4,$6) }
-  | composeexp                                   { $1 }
+  | LET binding_list IN exp                      
+      { ELet($1,$2,$4) }
+  | FUN param param_list opt_sort ARROW exp      
+      { EFun($1,$2::$3,$4,$6) }
+  | composeexp                                   
+      { $1 }
 
 composeexp:
-  | composeexp SEMI appexp                    { let cid = ([],($2, "compose2")) in EApp($2,EApp($2,EVar($2,cid),$1),$3) }
-  | appexp                                    { $1 } 
+  | composeexp SEMI appexp                    
+      { let cid = ([],($2, "compose2")) in 
+	  EApp($2,EApp($2,EVar($2,cid),$1),$3) 
+      }
+  | appexp                                    
+      { $1 } 
 
 appexp:
-  | appexp aexp                               { EApp(info_of_exp $1,$1,$2) }
-  | aexp                                      { $1 }
+  | appexp aexp                               
+      { EApp(info_of_exp $1,$1,$2) }
+  | aexp                                      
+      { $1 }
 
 aexp:
-  | qid                                       { let (_,(i,_)) = $1 in EVar(i,$1) }
-  | viewexp                                   { $1 }
-  | LANGLE typeexp RANGLE                     { EType($1,$2) }
-  | LPAREN exp RPAREN                         { $2 }
-  | STRING                                    { let (i,_) = $1 in EName(i,$1) } 
-  | LBRACE non_empty_map_list RBRACE          { EMap($1, $2) }
+  | name                                      
+      { let (i,_) = $1 in 
+	  EName(i,$1) 
+      } 
+  | qid                                       
+      { let (_,(i,_)) = $1 in 
+	  EVar(i,$1) 
+      }
+  | viewexp                                   
+      { $1 }
+  | LANGLE typeexp RANGLE                     
+      { EType($1,$2) }
+  | LPAREN exp RPAREN                         
+      { $2 }
+  | LBRACE map_list RBRACE                    
+      { EMap($1, $2) }
 
 map:
-  | IDENT_or_STRING ARROW aexp                { ($1,$3) }
+  | exp_core ARROW exp                        
+      { ($1,$3) }
 
-non_empty_map_list:
-  | map                                       { [$1] }
-  | map COMMA non_empty_map_list              { $1::$3 }
+map_list:
+  | map                                       
+      { [$1] }
+  | map COMMA map_list                        
+      { $1::$3 }
+
+/* subset of expressions: just identifiers, names, applications */
+exp_core:
+  | exp_core aexp_core                        
+      { EApp(info_of_exp $1,$1,$2) }
+  | aexp_core                                 
+      { $1 }
+
+aexp_core:
+  | name                                      
+      { let (i,_) = $1 in 
+	  EName(i,$1) 
+      } 
+  | aexp_core_but_name                        
+      { $1 }
+
+aexp_core_but_name:  
+  | qid                                       
+      { let (_,(i,_)) = $1 in 
+	  EVar(i,$1) 
+      }
+  | LPAREN exp_core RPAREN                    
+      { $2 }
                                                  
 /*** views ***/
 viewexp:
-  | LBRACE viewelt_list RBRACE                { EView($1,$2) }
-  | LBRACK viewelt_list RBRACK                { list_view (EView($1,$2)) }
+  | LBRACE viewelt_list RBRACE                
+      { EView($1,$2, false) }
+  | LBRACK viewelt_list RBRACK                
+      { (EView($1,$2, true)) }
   
 viewelt_list:
-  |                                           { [] }
-  | non_empty_viewelt_list                    { $1 }
+  |   { [] }
+  | non_empty_viewelt_list                    
+      { $1 }
 
 non_empty_viewelt_list:
-  | viewelt                                   { [$1] }
-  | viewelt COMMA non_empty_viewelt_list      { $1::$3 }
+  | viewelt                                   
+      { [$1] }
+  | viewelt COMMA non_empty_viewelt_list      
+      { $1::$3 }
 
 viewelt:
-  | IDENT_or_STRING                           { let (i,_) = $1 in (i, EName(i,$1), emptyView i) }
-  | IDENT_or_STRING EQUAL innerview           { ($2, EName(info_of_id $1, $1), $3) }
-  | BACKTICK exp BACKTICK                     { ($1, $2, emptyView $1) }
-  | BACKTICK exp BACKTICK EQUAL innerview     { ($1, $2, $5) }
+  | exp_core                                  
+      { let i = info_of_exp $1 in 
+	  (i, $1, emptyView i) 
+      }
+  | exp_core EQUAL innerview                  
+      { let i = info_of_exp $1 in 
+	  (i, $1, $3) 
+      }
 
 innerview:
-  | IDENT_or_STRING                           { let (i,x) = $1 in EView(i,[(i,EName(i,$1), emptyView i)]) }
-  | viewexp                                   { $1 }
-  | BACKTICK exp BACKTICK                     { $2 }
+  | viewexp                                   
+      { $1 }
+  | aexp_core_but_name                        
+      { $1 }
+  | name                                      
+      { let (i,x) = $1 in 
+	  EView(i,[(i,EName(i,$1), emptyView i)], false) 
+      }
   
 /*** types ***/
 typeexp:
-  | typeexp BAR ctypeexp                      { TUnion($2,[$1;$3]) }
-  | typeexp AMP ctypeexp                      { TInter($2,$1,$3) }
-  | typeexp MINUS ctypeexp                    { TDiff($2,$1,$3) }
-  | ctypeexp                                  { $1 }
+  | typeexp BAR ctypeexp                      
+      { TUnion($2,[$1;$3]) }
+  | typeexp AMP ctypeexp                      
+      { TInter($2,$1,$3) }
+  | typeexp MINUS ctypeexp                    
+      { TDiff($2,$1,$3) }
+  | ctypeexp                                  
+      { $1 }
 
 ctypeexp:
-  | atypeexp COMMA ctypeexp                   { TCat($2, [$1;$3]) }
-  | atypeexp                                  { $1 }
+  | atypeexp COMMA ctypeexp                   
+      { TCat($2, [$1;$3]) }
+  | atypeexp                                  
+      { $1 }
 
 atypeexp:
-  | EMPTY                                     { TEmpty($1) } 
-  | LBRACE typeelt_list RBRACE                { TCat($1,$2) }
-  | LBRACK typeelt_list RBRACK                { list_type (TCat($1,$2)) }
-  | IDENT_or_STRING ARROW innertype           { let (i,_) = $1 in TName($2,EName(i,$1),$3) } 
-  | BACKTICK exp BACKTICK ARROW innertype     { TName($1,$2,$5) } 
-  | STAR except_list_opt ARROW innertype      { TStar($1,$2,$4) }
-  | BANG except_list_opt ARROW innertype      { TBang($1,$2,$4) }
-  | LPAREN typeexp RPAREN                     { $2 } 
-  | BACKTICK exp BACKTICK                     { let i = info_of_exp $2 in TExp(i, $2) }
+  | EMPTY                                     
+      { TEmpty($1) } 
+  | aexp_core LBRACE innertype RBRACE         
+      { let i = info_of_exp $1 in 
+	  TName(i,$1,$3) 
+      } 
+  | STAR excepts_opt LBRACE innertype RBRACE  
+      { TStar($1,$2,$4) }
+  | BANG excepts_opt LBRACE innertype RBRACE  
+      { TBang($1,$2,$4) }
+  | LPAREN typeexp RPAREN                     
+      { $2 } 
+  | LBRACE typeelt_list RBRACE                
+      { TCat($1,$2) }
+  | LBRACK typeelt_list RBRACK                
+      { list_type (TCat($1,$2)) }  
 
 typeelt_list:
-  |                                           { [] }
-  | non_empty_typeelt_list                    { $1 }
+  |   { [] }
+  | non_empty_typeelt_list                    
+      { $1 }
 
 non_empty_typeelt_list:
-  | typeelt                                   { [$1] }
-  | typeelt COMMA non_empty_typeelt_list      { $1::$3 }
+  | typeelt                                   
+      { [$1] }
+  | typeelt COMMA non_empty_typeelt_list      
+      { $1::$3 }
 
 typeelt:
-  | valuetype                                 { $1 }
-  | BACKTICK exp ARROW innertype              { TName($1, $2, $4) }
-  | IDENT_or_STRING ARROW innertype           { let i = info_of_id $1 in TName($2, EName(i,$1), $3) }
-
+  | aexp_core_but_name                        
+      { let i = info_of_exp $1 in 
+	  TExp(i,$1) 
+      }
+  | exp_core EQUAL innertype 
+      { let i = info_of_exp $1 in 
+	  TName(i, $1, $3)
+      }
+  | name    
+      { let i = info_of_id $1 in 
+	  TName(i,EName(i,$1),emptyViewType i) 
+      }
+      
 innertype: 
-  | valuetype                                 { $1 }
-  | atypeexp                                  { $1 } 
+  | exp_core
+      { let i = info_of_exp $1 in 
+	  TExp(i,$1) 
+      }
+  | atypeexp  
+      { $1 } 
 
-valuetype:
-  | IDENT_or_STRING                           { let i = info_of_id $1 in TName(i,EName(i,$1),emptyViewType i) }
-
-/* stub productions */
-
-except_list_opt :
-  |                                           { [] }
-  | MINUS except_list                         { $2 }
+excepts_opt :
+  |   { [] }
+  | LPAREN except_list RPAREN                 
+      { $2 }
 
 except_list:
-  |                                           { [] }               
-  | IDENT_or_STRING except_list               { $1::$2 }
+  |   { [] }
+  | exp_core COMMA except_list                
+      { $1::$3 }
+
 
 /*** identifiers ***/
 qid:
-  | IDENT                                     { ([],$1) }
-  | qid DOT IDENT                             { let l,i = $1 in (l@[i],$3) }
+  | IDENT                                     
+      { qid_of_id $1 }
+  | qid DOT IDENT                             
+      { dot $1 (qid_of_id $3) }
 
 IDENT_list:
-  |                                           { [] }
-  | IDENT IDENT_list                          { $1::$2 }
+  |   { [] }
+  | IDENT IDENT_list                          
+      { $1::$2 }
 
-IDENT_or_STRING:
-  | IDENT                                     { let (i,x) = $1 in (i,x) }
-  | STRING                                    { let (i,x) = $1 in (i,x) }
-  
+name:
+  | STRING                                    
+      { $1 }

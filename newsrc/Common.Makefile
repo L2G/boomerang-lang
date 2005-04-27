@@ -30,17 +30,19 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 # BASE/COMPILER SOURCES #
 #########################
 
-BASE_SOURCES = config.ml misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml xml.ml \
-               pretty.ml info.ml error.ml syntax.ml parser.mly lexer.mll type.ml value.ml registry.ml \
+BASE_SOURCES = config.ml misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
+               pretty.ml info.ml error.ml \
+               syntax.ml parser.mly lexer.mll \
+               type.ml value.ml registry.ml \
                checker.ml compiler.ml
+
+VIEWER_SOURCES = xml.ml
 
 ###########
 # PLUGINS #
 ###########
 
-NATIVE_PLUGIN_SOURCES = native.ml
-
-PLUGINS_SOURCES = $(NATIVE_PLUGIN_SOURCES:%=native/%)
+PLUGIN_SOURCES = native.ml
 
 ##################
 # COMMON SOURCES #
@@ -48,6 +50,7 @@ PLUGINS_SOURCES = $(NATIVE_PLUGIN_SOURCES:%=native/%)
 
 COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/lib/ubase/%) \
 		 $(BASE_SOURCES:%=$(SRC)/%) \
-		 $(PLUGINS_SOURCES:%=$(SRC)/plugins/%)
+		 $(VIEWER_SOURCES:%=$(SRC)/lib/viewers/%) \
+		 $(PLUGIN_SOURCES:%=$(SRC)/lib/native/%)
 
 include $(SRC)/OCamlMakefile

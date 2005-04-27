@@ -64,19 +64,27 @@ let rec compile_exp cev e0 = match e0 with
       end
 	
   | Syntax.EMap(i,ms) ->
+      let name_error i = raise (Error.Run_error("Name expected in domain of finite map at " 
+						^ Info.string_of_t i))
+      in
       let id_exp = Syntax.EVar(i, Registry.parse_qid "Pervasives.Native.id") in	    
       let s = Syntax.SArrow(i, Syntax.SName(i), Syntax.SLens(i)) in
       let f = Safelist.fold_left 
 	(fun f (x,l) -> 
 	   (fun v -> 
 	      match v with
-		| Value.N n -> if (Syntax.string_of_id x) = n then
-		    Registry.value_of_rv (compile_exp cev l)
-		  else 
-		    f v
-		| _ -> 
-		    raise (Error.Run_error("Name expected in domain of finite map at " 
-					   ^ Info.string_of_t i))))
+		| Value.N n -> begin 
+		    (* FIX LATER: should memoize this inner compilation *)
+		    let v2 = Registry.value_of_rv (compile_exp cev x) in
+		      match v2 with
+			| Value.N n2 -> 		    
+			    if (Syntax.id_equal n n2) then
+			      Registry.value_of_rv (compile_exp cev l)
+			    else 
+			      f v
+			| _ -> name_error i
+		  end
+		| _ -> name_error i))	
 	(fun _ -> Registry.value_of_rv (compile_exp cev id_exp))
 	ms
       in
@@ -94,6 +102,8 @@ let rec compile_exp cev e0 = match e0 with
 		  Registry.make_rv rs (f (Registry.value_of_rv rv2))		    
 	    | _   -> 
 		raise (Error.Run_error("Function expected in left-hand side of application at " 
+				       ^ Syntax.string_of_exp e1 ^ " " ^ Syntax.string_of_exp e2 
+				       ^ " --> " ^ Registry.string_of_rv rv1
 				       ^ Info.string_of_t i))
       end
 	
@@ -107,56 +117,61 @@ let rec compile_exp cev e0 = match e0 with
   | Syntax.EType(i,t) -> 
       Registry.make_rv (Syntax.SType(i)) (Value.T (compile_typeexp cev t))
       
-  | Syntax.EView(i,ks) -> 
-      Registry.make_rv (Syntax.SView(i)) (Value.V (compile_viewbinds cev ks))
+  | Syntax.EView(i,ks,is_list) -> 
+      Registry.make_rv (Syntax.SView(i)) (Value.V (compile_viewbinds cev ks is_list))
       
 (* types *)
 (* compile_exp :: compile_env -> Syntax.typeexp -> Type.t *)
-and compile_typeexp cev = 
+and compile_typeexp cev t = 
   let type2cstate = function 
     | Syntax.TExp(_,Syntax.EVar(i,q)) -> (q,[],[])
     | t -> raise (Error.Run_error("Unflattened type: " 
 				  ^ Syntax.string_of_typeexp t 
 				  ^ " at "
 				  ^ Info.string_of_t (Syntax.info_of_typeexp t)))
-  in function
-    | Syntax.TEmpty(i)       -> Type.Empty
-	
-    | Syntax.TName(i,e,t)    ->
-	let n = match Registry.value_of_rv (compile_exp cev e) with
-	  | Value.N n -> n
-	  | _     -> 
-	      raise (Error.Run_error("Name expected at " ^ Info.string_of_t i))
-	in
-	  Type.Name(n, type2cstate t)
+  in let nexp2string e = match Registry.value_of_rv (compile_exp cev e) with
+    | Value.N n -> n
+    | _   -> raise(Error.Run_error("Name expected at " ^ Info.string_of_t (Syntax.info_of_exp e)))
+  in
+  let _ = prerr_string ("COMPILING: " ^ (Syntax.string_of_typeexp t) ^ " in " ^ Registry.string_of_env (get_ev cev) ^ "\n\n") in
+    match t with
+      | Syntax.TEmpty(i)       -> Type.Empty
+	  
+      | Syntax.TName(i,e,t)    ->
+	  let n = match Registry.value_of_rv (compile_exp cev e) with
+	    | Value.N n -> n
+	    | _     -> 
+		raise (Error.Run_error("Name expected at " ^ Info.string_of_t i))
+	  in
+	    Type.Name(n, type2cstate t)
+	      
+      | Syntax.TBang(i,xl,t)   -> 
+	  Type.Bang(Safelist.map nexp2string xl, type2cstate t)
 	    
-    | Syntax.TBang(i,xl,t)   -> 
-	Type.Bang(Safelist.map Syntax.name_of_id xl, type2cstate t)
-	  
-    | Syntax.TStar(i,xl,t)   -> 
-	Type.Star(Safelist.map Syntax.name_of_id xl, type2cstate t)
-
-    | Syntax.TCat(i,ts)      -> 
-	Type.Cat(Safelist.map(compile_typeexp cev) ts) 
-	  
-    | Syntax.TUnion(i,ts)    -> 
-	Type.Union(Safelist.map(compile_typeexp cev) ts) 
-	  
-    | Syntax.TDiff(i,t1,t2)  -> 
-	raise(Error.Run_error("Untranslated diff at " ^ Info.string_of_t i))
-	  
-    | Syntax.TInter(i,t1,t2) -> 
-	raise(Error.Run_error("Untranslated inter at " ^ Info.string_of_t i))
-	  
-    | Syntax.TExp(i,e) ->
-	begin match Registry.value_of_rv (compile_exp cev e) with
-	  | Value.T t -> t
-	  | _     -> raise (Error.Run_error("Type expected at " ^ Info.string_of_t i))
-	end
-	  
+      | Syntax.TStar(i,xl,t)   -> 
+	  Type.Star(Safelist.map nexp2string xl, type2cstate t)
+	    
+      | Syntax.TCat(i,ts)      -> 
+	  Type.Cat(Safelist.map(compile_typeexp cev) ts) 
+	    
+      | Syntax.TUnion(i,ts)    -> 
+	  Type.Union(Safelist.map(compile_typeexp cev) ts) 
+	    
+      | Syntax.TDiff(i,t1,t2)  -> 
+	  raise(Error.Run_error("Untranslated diff at " ^ Info.string_of_t i))
+	    
+      | Syntax.TInter(i,t1,t2) -> 
+	  raise(Error.Run_error("Untranslated inter at " ^ Info.string_of_t i))
+	    
+      | Syntax.TExp(i,e) -> 
+	  begin match Registry.value_of_rv (compile_exp cev e) with
+	    | Value.T t -> t
+	    | _     -> raise (Error.Run_error("Type expected at " ^ Info.string_of_t i))
+	  end
+	    
 (* views *)
-(* compile_viewbinds :: env -> (Info.t * Syntax.exp * Syntax.exp) list -> V.t *)
-and compile_viewbinds ev bs = match bs with
+(* compile_viewbinds :: env -> (Info.t * Syntax.exp * Syntax.exp) list -> bool -> V.t *)
+and compile_viewbinds ev bs is_list = match bs with
   | [] -> V.empty
       
   | (i,ne,ve)::rest ->
@@ -171,13 +186,15 @@ and compile_viewbinds ev bs = match bs with
 	| _ -> 
 	    raise (Error.Run_error("Expected a view at " ^ Info.string_of_t i))
       in
-      let vrest = compile_viewbinds ev rest in	
-	match (V.get vrest n) with
-	    (* simple sanity check *)
-	  | Some _ -> 
-	      raise (Error.Run_error("Repeated name in view at " ^ Info.string_of_t i))
-	  | None   -> V.set vrest n (Some v)
-	      
+      let vrest = compile_viewbinds ev rest is_list in	
+	if (is_list) then 
+	  V.cons (V.set (V.empty) n (Some v)) vrest
+	else
+	  match (V.get vrest n) with	      
+	    | Some _ -> (* simple sanity check *)
+		raise (Error.Run_error("Repeated name in view at " ^ Info.string_of_t i))
+	    | None   -> V.set vrest n (Some v)	      
+
 (* bindings *)
 (* compile_bindings :: compile_env -> Syntax.BDef list ->  compile_env * qid list *)
 and compile_bindings cev bs = 
@@ -206,6 +223,7 @@ and compile_bindings cev bs =
 (* type bindings *)
 (* compile_typebindings :: compile_env -> Syntax.typebinding list -> compile_env *)
 let compile_typebindings cev ts =   
+  let _ = prerr_string ("TYPEBINDINGS: " ^ (Syntax.string_of_typebindings ts) ^ "\n") in
   (* add to environment and backpatch *)
   let tev,names = 
     Safelist.fold_left 
@@ -272,9 +290,13 @@ let compile_module (Syntax.MDef(i,m,nctx,ds)) =
 (* compile_file :: string -> unit *)
 let compile_file fn n = 
   let fchan = open_in fn in
-  let lex = Lexing.from_channel fchan in
-  let ast = Parser.modl Lexer.token lex in 
-  (* check that module is in correct file *)
+  let lexbuf = Lexing.from_channel fchan in
+  let ast = 
+    try Parser.modl Lexer.token lexbuf  
+    with Parsing.Parse_error -> 
+      raise (Error.Run_error ("Parse error at: " ^ Info.string_of_t (Lexer.info lexbuf)))
+  in 
+    (* check that module is in correct file *)
   let m = Syntax.id_of_modl ast in
   let _ = if (Syntax.id_equal m n) then 
     raise (Error.Sort_error(("Module " 

@@ -21,6 +21,7 @@ val empty : env
 val update : 'a -> ('a -> env) -> ('a -> env -> 'a) -> Syntax.qid -> rv -> 'a
 val overwrite : 'a -> ('a -> env) -> ('a -> env -> 'a) -> Syntax.qid -> rv -> 'a
 val lookup : 'a -> ('a -> env) -> Syntax.qid -> rv option
+val string_of_rv : rv -> string
 val string_of_env : env -> string
 
 (* library *)

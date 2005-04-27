@@ -46,20 +46,24 @@ let overwrite oev get_ev put_ev q r =
 let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found -> None
 
 (* env pretty printer *)
+let string_of_rv rv = 
+  let (s,v) = rv in
+    Pretty.concat "" [ Value.string_of_t v
+		     ; ":"
+		     ; Syntax.string_of_sort s]
+
 let string_of_env ev = 
   Pretty.curlybraces 
     (QidMap.fold (fun q r acc -> 
-	     let (s,v) = !r in
-	       (Pretty.concat "" [ "\n\t"
-				 ; Syntax.string_of_qid q
-				 ; " -> "
-				 ; Value.string_of_t v
-				 ; " : "
-				 ; Syntax.string_of_sort s
-				 ; if (acc = "") then "" else ", "
-				 ; acc]))
-       ev
-       "")
+		    Pretty.concat ""
+		      [ "\n\t"
+		      ; Syntax.string_of_qid q
+		      ; " -> "
+		      ; string_of_rv (!r)
+		      ; if (acc = "") then "" else ", "
+		      ; acc]) 
+       ev "")
+
 
 (* LIBRARY *)
 (* Sets whose elements are Syntax.ids *)

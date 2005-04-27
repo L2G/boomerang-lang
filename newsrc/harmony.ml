@@ -164,7 +164,7 @@ let put abstract concrete lens_string output =
   
     
 let main () =
-  let usage = " Usage \n" in
+  let usage = " usage: harmony [cmd] [options] \n" in
   (* retrieves the value of a -option, fails if argument is missing on the cmd ine *)
   let p pref = 
     match Prefs.read pref with 

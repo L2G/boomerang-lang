@@ -118,7 +118,8 @@ let rec sc_exp sev e0 = match e0 with
 	      raise (Error.Sort_error("Unbound variable: "
 				      ^(Syntax.string_of_qid q)
 				      ^ " at "
-				      ^(Info.string_of_t i),i))
+				      ^(Info.string_of_t i)
+				      ,i))
       end
 	
   | EFun(i,[],_,_) -> raise (Error.Run_error("Zero argument function at " 
@@ -196,7 +197,7 @@ let rec sc_exp sev e0 = match e0 with
       let _ = expect_sort (SType(i)) ts in
 	ts,new_tds,EType(i,new_t)
 
-  | EView(i,ks) ->
+  | EView(i,ks,is_list) ->
       (* views: check that dom is SNames, range SViews *)
       let new_tds, new_ks = Safelist.fold_right
 	(fun (i,n,v) (new_tds1,new_ks1) ->
@@ -210,7 +211,7 @@ let rec sc_exp sev e0 = match e0 with
 	ks
 	([],[])
       in
-	SView(i),new_tds,EView(i,new_ks)
+	SView(i),new_tds,EView(i,new_ks, is_list)
 	  
 (** type expressions **)
 (* returns its sort, new_tds, and a new type expression *)
@@ -252,7 +253,7 @@ and sc_typeexp ev t =
 	    SType(i), (new_tds1 @ new_tds2), TStar(i,excl,xt)
 	      
       | TCat(i,ts) ->
-	  let new_tds, new_ts =
+	  let new_tds, new_ts_rev =
 	    Safelist.fold_left
 	      (fun (new_tds1, new_ts) ti ->
 		 let tis,new_tds2, new_ti = sc_typeexp ev ti in
@@ -261,7 +262,7 @@ and sc_typeexp ev t =
 	      ([],[])
 	      ts	      
 	  in
-	    SType(i), new_tds, TCat(i,new_ts)
+	    SType(i), new_tds, TCat(i,Safelist.rev new_ts_rev)
 	      
       | TUnion(i,ts) ->
 	  let new_tds, new_ts =
@@ -346,32 +347,39 @@ let sc_typebindings i ev tbs =
       (SType(i))
   in
   (* collect an environment that records the sorts of all the type defns *)
-  let tev,names_rev = 
+  let tev,(tsorts_rev : Syntax.sort list),names_rev = 
     Safelist.fold_left
-      (fun (tev,names) (x,xs,_) -> 
+      (fun (tev,sorts,names) (x,xs,_) -> 
 	 let xq = qid_of_id x in 
-	   add_rec_var xq (update tev xq (arrow_of_xs xs i)), xq::names)
-      (ev,[])
+	 let xsort = arrow_of_xs xs i in
+	   add_rec_var xq (update tev xq xsort), xsort::sorts, xq::names)
+      (ev,[],[])
       tbs
   in    
+  (* type bindings, annotated with their sorts *)
+  let annot_tbs = Safelist.combine (Safelist.rev tsorts_rev) tbs in
+    
   (* helper for checking a single binding *)
-  let rec sc_typebinding ev tb =
-    match tb with
-      | (x,[],t) ->
+  let rec sc_typebinding ev annot_tb =
+    match annot_tb with
+      | xsort, (x,[],t) ->
 	  let ts,new_tds,new_t = sc_typeexp ev t in	    
-	  let _ = expect_sort (SType(i)) ts i in
-	    (x,[],new_t)::new_tds 
-      | (x,xs,t) ->
+	  let _ = expect_sort xsort ts i in
+	    new_tds@[(x,[],new_t)] (* FIXME: replace append *)
+      | xsort, (x,xs,t) ->
 	  let ps = 
 	    Safelist.map (fun xi -> let i = info_of_id xi in PDef(i,xi,SType(i))) xs 
 	  in
 	  let i = info_of_typeexp t in
 	  let new_t = TExp(i, EFun(i, ps, Some (SType(i)), EType(i,t))) in
-	    sc_typebinding ev (x,[],new_t)
+	    sc_typebinding ev (xsort,(x,[],new_t))
   in
   let new_tbs = 
     (* FIXME: DV says this is inscrutable! Make this clearer *)
-    Safelist.fold_left (fun new_tbs tbi -> new_tbs@(Safelist.rev (sc_typebinding tev tbi))) [] tbs
+    Safelist.fold_left 
+      (fun new_tbs annot_tbi -> new_tbs@(sc_typebinding tev annot_tbi))
+      [] 
+      annot_tbs
   in
     tev, new_tbs, Safelist.rev names_rev
       
