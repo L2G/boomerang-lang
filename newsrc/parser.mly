@@ -20,6 +20,10 @@ let error t info = let (l,c1),(_,c2) = info in
   let s = Printf.sprintf "%d:%d-%d" l c1 c2 in
     if t = "" then raise (Error.Parse_error (s,info))
     else raise (Error.Parse_error (s^ ": " ^ t,info))
+
+(* constants *)
+let compose2_qid i = ([(i,"Pervasives"); (i,"Native")], (i, "compose2"))
+let list_qid i = ([(i,"Pervasives")], (i, "List"))
       
 %}
 
@@ -143,8 +147,9 @@ exp:
 
 composeexp:
   | composeexp SEMI appexp                    
-      { let cid = ([],($2, "compose2")) in 
-	  EApp($2,EApp($2,EVar($2,cid),$1),$3) 
+      { let i = merge_inc (info_of_exp $1) (info_of_exp $3) in
+	let c2_qid = compose2_qid i in
+	  EApp(i,EApp(i,EVar(i,c2_qid),$1),$3)
       }
   | appexp                                    
       { $1 } 
@@ -248,10 +253,10 @@ innerview:
 typeexp:
   | typeexp BAR ctypeexp                      
       { TUnion($2,[$1;$3]) }
-  | typeexp AMP ctypeexp                      
-      { TInter($2,$1,$3) }
-  | typeexp MINUS ctypeexp                    
-      { TDiff($2,$1,$3) }
+/*   | typeexp AMP ctypeexp   */
+/*       { TInter($2,$1,$3) } */
+/*   | typeexp MINUS ctypeexp */
+/*       { TDiff($2,$1,$3) }  */
   | ctypeexp                                  
       { $1 }
 
@@ -275,10 +280,14 @@ atypeexp:
   | LPAREN typeexp RPAREN                     
       { $2 } 
   | LBRACE typeelt_list RBRACE                
-      { TCat($1,$2) }
+      { let i = merge_inc $1 $3 in 
+	  TCat(i,$2) }
   | LBRACK typeelt_list RBRACK                
-      { list_type (TCat($1,$2)) }  
-
+      { let i = merge_inc $1 $3 in
+	let l_qid = list_qid i in
+	  TExp(i, EApp(i, EVar(i, l_qid), EType(i, (TCat(i,$2)))))
+      }  
+      
 typeelt_list:
   |   { [] }
   | non_empty_typeelt_list                    

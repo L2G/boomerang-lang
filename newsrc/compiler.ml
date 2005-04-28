@@ -114,60 +114,37 @@ let rec compile_exp cev e0 = match e0 with
   | Syntax.EName(i,id) -> 
       Registry.make_rv (Syntax.SName(i)) (Value.N (Syntax.name_of_id id))
 
-  | Syntax.EType(i,t) -> 
-      Registry.make_rv (Syntax.SType(i)) (Value.T (compile_typeexp cev t))
+  | Syntax.EType(i,t) -> compile_typeexp cev t
       
   | Syntax.EView(i,ks,is_list) -> 
       Registry.make_rv (Syntax.SView(i)) (Value.V (compile_viewbinds cev ks is_list))
       
 (* types *)
-(* compile_exp :: compile_env -> Syntax.typeexp -> Type.t *)
+(* compile_exp :: compile_env -> Syntax.typeexp -> Value.t *)
+(* why a value? it can be a function :) *)
 and compile_typeexp cev t = 
-  let type2cstate = function 
-    | Syntax.TExp(_,Syntax.EVar(i,q)) -> (q,[],[])
-    | t -> raise (Error.Run_error("Unflattened type: " 
-				  ^ Syntax.string_of_typeexp t 
-				  ^ " at "
-				  ^ Info.string_of_t (Syntax.info_of_typeexp t)))
-  in let nexp2string e = match Registry.value_of_rv (compile_exp cev e) with
+  let nexp2name e = match Registry.value_of_rv (compile_exp cev e) with
     | Value.N n -> n
     | _   -> raise(Error.Run_error("Name expected at " ^ Info.string_of_t (Syntax.info_of_exp e)))
   in
-  let _ = prerr_string ("COMPILING: " ^ (Syntax.string_of_typeexp t) ^ " in " ^ Registry.string_of_env (get_ev cev) ^ "\n\n") in
+  let texp2type e = match Registry.value_of_rv(compile_typeexp cev e) with
+    | Value.T t -> t
+    | _   -> raise(Error.Run_error("Type expected at " ^ Info.string_of_t (Syntax.info_of_typeexp e)))
+  in    
     match t with
-      | Syntax.TEmpty(i)       -> Type.Empty
-	  
-      | Syntax.TName(i,e,t)    ->
-	  let n = match Registry.value_of_rv (compile_exp cev e) with
-	    | Value.N n -> n
-	    | _     -> 
-		raise (Error.Run_error("Name expected at " ^ Info.string_of_t i))
-	  in
-	    Type.Name(n, type2cstate t)
-	      
-      | Syntax.TBang(i,xl,t)   -> 
-	  Type.Bang(Safelist.map nexp2string xl, type2cstate t)
-	    
-      | Syntax.TStar(i,xl,t)   -> 
-	  Type.Star(Safelist.map nexp2string xl, type2cstate t)
-	    
-      | Syntax.TCat(i,ts)      -> 
-	  Type.Cat(Safelist.map(compile_typeexp cev) ts) 
-	    
-      | Syntax.TUnion(i,ts)    -> 
-	  Type.Union(Safelist.map(compile_typeexp cev) ts) 
-	    
-      | Syntax.TDiff(i,t1,t2)  -> 
-	  raise(Error.Run_error("Untranslated diff at " ^ Info.string_of_t i))
-	    
-      | Syntax.TInter(i,t1,t2) -> 
-	  raise(Error.Run_error("Untranslated inter at " ^ Info.string_of_t i))
-	    
-      | Syntax.TExp(i,e) -> 
-	  begin match Registry.value_of_rv (compile_exp cev e) with
-	    | Value.T t -> t
-	    | _     -> raise (Error.Run_error("Type expected at " ^ Info.string_of_t i))
-	  end
+      | Syntax.TEmpty(i)     -> 
+	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Empty))
+      | Syntax.TName(i,n,e)  -> 
+	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Name(nexp2name n, texp2type e)))
+      | Syntax.TBang(i,xl,e) -> 
+	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Bang(Safelist.map nexp2name xl, texp2type e)))
+      | Syntax.TStar(i,xl,e) -> 
+	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Star(Safelist.map  nexp2name xl, texp2type e)))
+      | Syntax.TCat(i,ts)    -> 
+	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Cat(Safelist.map texp2type ts)))    
+      | Syntax.TUnion(i,ts)  -> 
+	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Union(Safelist.map texp2type ts)))
+      | Syntax.TExp(i,e)     -> compile_exp cev e
 	    
 (* views *)
 (* compile_viewbinds :: env -> (Info.t * Syntax.exp * Syntax.exp) list -> bool -> V.t *)
@@ -223,7 +200,6 @@ and compile_bindings cev bs =
 (* type bindings *)
 (* compile_typebindings :: compile_env -> Syntax.typebinding list -> compile_env *)
 let compile_typebindings cev ts =   
-  let _ = prerr_string ("TYPEBINDINGS: " ^ (Syntax.string_of_typebindings ts) ^ "\n") in
   (* add to environment and backpatch *)
   let tev,names = 
     Safelist.fold_left 
@@ -239,7 +215,7 @@ let compile_typebindings cev ts =
 	   overwrite 
 	     tev
 	     (Syntax.qid_of_id x) 
-	     (Registry.make_rv (Syntax.SType(Info.bogus)) (Value.T(compile_typeexp tev t)))
+	     (compile_typeexp tev t)
        | (x,_,t)  -> 
 	   raise (Error.Run_error("Unflattened type definition at " 
 				  ^ Info.string_of_t (Syntax.info_of_id x))))
@@ -306,6 +282,8 @@ let compile_file fn n =
 			    Syntax.info_of_modl ast))
   in  
   let ast = Checker.sc_module ast in 
-    compile_module ast 
+  let _ = compile_module ast in
+  let _ = prerr_string (Registry.string_of_env (Registry.get_library ())) in
+    ()
       
 let _ = Registry.compile_file_impl := compile_file

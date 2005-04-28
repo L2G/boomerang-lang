@@ -507,63 +507,140 @@ let omega_lib = L omega
     
 let _ = register_native "Pervasives.Native.omega" "lens" omega_lib
 	    
-(* (\* COND *\) *)
-(* (\* cond - native interface *\) *)
-(* let cond c a1 a2 f21 f12 lt lf = *)
-(* (\*   let catchfail l cv = *\) *)
-(* (\*     try Some (l.get cv) *\) *)
-(* (\*     with _ -> None in *\) *)
-(*     { get = (fun cv -> *)
-(* 	       if c cv then lt.get cv  *)
-(* 	       else lf.get cv); *)
-(*       put = (fun a co ->  *)
-(* 	       if a1 a then *)
-(* 		 if a2 a then *)
-(* 		   match co with  *)
-(* 		     | None -> lf.put a co *)
-(* 		     | Some cv ->  *)
-(* 			 if c cv  *)
-(* 			 then lt.put a co *)
-(* 			 else lf.put a co *)
-(* 		 else  *)
-(* 		   match co with  *)
-(* 		     | None -> lt.put a co *)
-(* 		     | Some cv ->  *)
-(* 			 if c cv *)
-(* 			 then lt.put a co *)
-(* 			 else lt.put a (Some (f21 cv)) *)
-(* 	       else *)
-(* 		 if a2 a then *)
-(* 		   match co with  *)
-(* 		     | None -> lf.put a co *)
-(* 		     | Some cv ->  *)
-(* 			 if c cv *)
-(* 			 then lf.put a (Some (f21 cv)) *)
-(* 			 else lf.put a co *)
-(* 		 else error [ *)
-(* 		   `String "Pervasives.Native.cond (put): the abstract view does not satisfy a1 or a2:"; *)
-(* 		   `View a ] *)
-(* 	    )}   *)
+(* COND *)
+(* cond - native interface *)
+let cond_impl c a1 a2 f21o f12o lt lf =
+  { get = 
+      (fun cv ->
+	 if Type.member c cv then lt.get cv
+	 else lf.get cv);
+    put = 
+      (fun a co ->
+	 if Type.member a1 a then
+	   if Type.member a2 a then
+	     match co with
+	       | None -> lf.put a co
+	       | Some cv ->
+		   if Type.member c cv
+		   then lt.put a co
+		   else lf.put a co
+	   else
+	     match co with
+	       | None -> lt.put a co
+	       | Some cv ->
+		   if Type.member c cv
+		   then lt.put a co
+		   else lt.put a (match f21o with 
+				    | Some l -> (Some (l.get cv))
+				    | None   -> None)
+	 else
+	   if Type.member a2 a then
+	     match co with
+	       | None -> lf.put a co
+	       | Some cv ->
+		   if Type.member c cv
+		   then lf.put a (match f12o with 
+				    | Some l -> (Some (l.get cv))
+				    | None   -> None)
+		   else lf.put a co
+	   else error [
+	     `String "Pervasives.Native.cond (put): the abstract view does not satisfy a1 or a2:";
+	     `View a ]
+      )}
 
-(* (\* cond - library interface *\) *)
-(* let cond_lib =  *)
-(*   F (function T c -> F ( *)
-(*        function T a1 -> F ( *)
-(* 	 function T a2 -> F ( *)
-(* 	   function F f21 -> F ( *)
-(* 	     function F f12 -> F ( *)
-(* 	       function L lt -> F ( *)
-(* 		 function L lf -> L (cond c a1 a2 f21 f12 lt lf) *)
-(* 		   | _ -> focal_type_error "Pervasives.Native.cond") *)
-(* 		 | _ -> focal_type_error "Pervasives.Native.cond") *)
-(* 	       | _ -> focal_type_error "Pervasives.Native.cond") *)
-(* 	     | _ -> focal_type_error "Pervasives.Native.cond") *)
-(* 	   | _ -> focal_type_error "Pervasives.Native.cond") *)
-(* 	 | _ -> focal_type_error "Pervasives.Native.cond") *)
-(*        | _ -> focal_type_error "Pervasives.Native.cond") *)
+let cond_ff c a1 a2 f21 f12 lt lf = cond_impl c a1 a2 (Some f21) (Some f12) lt lf 
+let cond = cond_ff 
+let cond_ww c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf 
+let cond_fw c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
+let cond_wf c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
+
+(* cond - library interface *)
+let cond_lib =
+  F (function T c -> F (
+       function T a1 -> F (
+	 function T a2 -> F (
+	   function L f21 -> F (
+	     function L f12 -> F (
+	       function L lt -> F (
+		 function L lf -> L (cond c a1 a2 f21 f12 lt lf)
+		   | _ -> focal_type_error "Pervasives.Native.cond")
+		 | _ -> focal_type_error "Pervasives.Native.cond")
+	       | _ -> focal_type_error "Pervasives.Native.cond")
+	     | _ -> focal_type_error "Pervasives.Native.cond")
+	   | _ -> focal_type_error "Pervasives.Native.cond")
+	 | _ -> focal_type_error "Pervasives.Native.cond")
+       | _ -> focal_type_error "Pervasives.Native.cond")
+
+let _ = register_native
+  "Pervasives.Native.cond"
+  "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
+  cond_lib
+
+let _ = register_native
+  "Pervasives.Native.cond_ff"
+  "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
+  cond_lib
+
+(* cond_ww - library interface *)
+let cond_ww_lib =
+  F (function T c -> F (
+       function T a1 -> F (
+	 function T a2 -> F (
+	   function L lt -> F (
+	     function L lf -> L (cond_ww c a1 a2 lt lf)
+	       | _ -> focal_type_error "Pervasives.Native.cond")
+	     | _ -> focal_type_error "Pervasives.Native.cond")
+	   | _ -> focal_type_error "Pervasives.Native.cond")
+	 | _ -> focal_type_error "Pervasives.Native.cond")
+       | _ -> focal_type_error "Pervasives.Native.cond")
+
+let _ = register_native
+  "Pervasives.Native.cond_ww"
+  "type -> type -> type -> lens -> lens -> lens"
+  cond_ww_lib
+
+(* cond_fw - library interface *)
+let cond_fw_lib =
+  F (function T c -> F (
+       function T a1 -> F (
+	 function T a2 -> F (
+	   function L f21 -> F(
+	     function L lt -> F (
+	       function L lf -> L (cond_fw c a1 a2 f21 lt lf)
+		 | _ -> focal_type_error "Pervasives.Native.cond")
+	       | _ -> focal_type_error "Pervasives.Native.cond")
+	     | _ -> focal_type_error "Pervasives.Native.cond")
+	   | _ -> focal_type_error "Pervasives.Native.cond")
+	 | _ -> focal_type_error "Pervasives.Native.cond")
+       | _ -> focal_type_error "Pervasives.Native.cond")
+    
+let _ = register_native
+  "Pervasives.Native.cond_fw"
+  "type -> type -> type -> lens -> lens -> lens -> lens"
+  cond_fw_lib
+
+(* cond_fw - library interface *)
+let cond_wf_lib =
+  F (function T c -> F (
+       function T a1 -> F (
+	 function T a2 -> F (
+	   function L f12 -> F(
+	     function L lt -> F (
+	       function L lf -> L (cond_wf c a1 a2 f12 lt lf)
+		 | _ -> focal_type_error "Pervasives.Native.cond")
+	       | _ -> focal_type_error "Pervasives.Native.cond")
+	     | _ -> focal_type_error "Pervasives.Native.cond")
+	   | _ -> focal_type_error "Pervasives.Native.cond")
+	 | _ -> focal_type_error "Pervasives.Native.cond")
+       | _ -> focal_type_error "Pervasives.Native.cond")
+    
+let _ = register_native
+  "Pervasives.Native.cond_wf"
+  "type -> type -> type -> lens -> lens -> lens -> lens"
+  cond_wf_lib
     
 (* (\* cond - unit tests *\) *)
-(* let cond_unit_tests =  *)
+(* let cond_unit_tests = *)
 (*   let const_aa = L (const a a) in *)
 (*   let const_bb = L (const b b) in *)
 (*   let sc_a = Sc (equalDom a) in *)
@@ -577,28 +654,41 @@ let _ = register_native "Pervasives.Native.omega" "lens" omega_lib
 (*     ; test_put_fail [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb]"{}" None *)
 (*     ] (\* should add tests that stress the conversion functions f21 and f22, overlap in a1, a2*\) *)
 
-(* let _ = register_native  *)
-(*   "Pervasives.Native.cond"  *)
-(*   "type -> type -> type -> (view -> view) -> (view -> view) -> lens -> lens -> lens" *)
-(*   cond_lib *)
     
-(* (\* ACOND *\) *)
-(* (\* acond - library interface *\) *)
-(* let acond_lib =  *)
-(*   Compiler.compile_focal      *)
-(*      "let acond pc pa =  *)
-(*        cond pc pa (not pa) *)
-(*          omega omega *)
-(*      do acond" *)
+(* ACOND *)
+let acond c a lt lf =
+  { get = 
+      (fun cv ->
+	 if Type.member c cv then lt.get cv
+	 else lf.get cv);
+    put = 
+      (fun a co ->
+	 if Type.member a a then	   
+	   match co with
+	     | None -> lf.put a co
+	     | Some cv ->
+		 if Type.member c cv
+		 then lt.put a co
+		 else lf.put a None
+	   else
+	     match co with
+	       | None -> lt.put a co
+	       | Some cv ->
+		   if Type.member c cv
+		   then lt.put a None
+		   else lt.put a co 
+      )}
 
-(* (\* acond - native interface *\) *)
-(* let acond c a lt lf=  *)
-(*   let r = acond_lib in *)
-(*   let r = (funOfArg r) (Sc c) in *)
-(*   let r = (funOfArg r) (Sc a) in *)
-(*   let r = (funOfArg r) (L lt) in *)
-(*   let r = (funOfArg r) (L lf) in *)
-(*     lensOfArg r *)
+(* acond - library interface *)
+let acond_lib =
+  F (function T c -> F (
+       function T a -> F (
+	 function L lt -> F (
+	   function L lf -> L (acond c a lt lf)
+	     | _ -> focal_type_error "Pervasives.Native.cond")
+	   | _ -> focal_type_error "Pervasives.Native.cond")
+	 | _ -> focal_type_error "Pervasives.Native.cond")
+       | _ -> focal_type_error "Pervasives.Native.cond")
 
 (* (\* acond - unit tests *\) *)
 (* let acond_unit_tests = *)
@@ -612,27 +702,7 @@ let _ = register_native "Pervasives.Native.omega" "lens" omega_lib
 (*     ; test_put_eq [sc_a;sc_b;const_ba;const_ab] "{b={}}" (Some "{a=[1]}") (\*=*\) "{a=[1]}" *)
 (*     ] *)
 	
-(* let _ = register_and_test *)
-(* 	  ("acond", *)
-(* 	   T (Arrow (Schema, Arrow (Schema, *)
-(* 				    Arrow (Lens, Arrow (Lens,Lens))))), *)
-(* 	   acond_lib) *)
-(* 	  acond_unit_tests *)
-	  
-(* (\* CCOND *\) *)
-(* (\* ccond - library interface *\) *)
-(* let ccond_lib = Compiler.compile_focal  *)
-(* 	      "let ccond pc lt lf = *)
-(*                 cond pc all all id id lt lf *)
-(*                do ccond" *)
-
-(* (\* ccond - native interface *\) *)
-(* let ccond c lt lf = *)
-(*   let r = ccond_lib in *)
-(*   let r = (funOfArg r) (Sc c) in *)
-(*   let r = (funOfArg r) (L lt) in *)
-(*   let r = (funOfArg r) (L lf) in *)
-(*     lensOfArg r *)
+let _ = register_native "Pervasives.Native.acond" "type -> type -> lens -> lens -> lens" acond_lib
 
 (* (\* ccond - unit tests *\) *)
 (* let ccond_unit_tests =  *)
@@ -646,13 +716,7 @@ let _ = register_native "Pervasives.Native.omega" "lens" omega_lib
 (*     ; test_put_eq [sc_a;lt;lf] "{b={}}" (Some "{a=[3]}") (\*=*\) "{a=[3]}" *)
 (*     ; test_put_fail [sc_a;lt;lf] "{a={}}" None *)
 (*     ] *)
-      
-(* let _ = register_and_test  *)
-(* 	  ("ccond", *)
-(* 	   T (Arrow (Schema, Arrow (Lens, Arrow (Lens,Lens)))), *)
-(* 	   ccond_lib) *)
-(* 	  ccond_unit_tests *)
-	  
+      	  
 (*************)
 (* DATABASES *)
 (*************)

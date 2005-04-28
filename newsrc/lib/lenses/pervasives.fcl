@@ -1,8 +1,10 @@
 module Pervasives = 
-module Derived =  
 
-(* type List T = { "*h" = T, "*t" = List T } *)
+(* common schemas *)
+type List T = { "*h" = T, "*t" = List T } 
+type Any = empty (* FIXME *)
 
+(* derived lenses *)
 let fork (p:view) = xfork p p
 
 let mapp (p:view) (l:lens) = fork p (map l) id 
@@ -19,12 +21,10 @@ let hoist_nonunique (n:name) (p:view) = xfork {n} p (hoist n) id
 
 let rename (m:name) (n:name) = xfork {m} {n} (hoist m;plunge n) id
 
-let rename_if_present (m:name) (n:name) = id 
-(* (\*  *)
-(*    acond (hasChild m) (hasChild n) *)
-(*    (rename m n) *)
-(*    id *)
-(* *\) *)
+let rename_if_present (m:name) (n:name) = 
+    acond <m{Any},*{Any}> <n{Any},*{Any}>
+      (rename m n)
+      id
 
 let hd (d:view) = focus "*h" { "*t" = d }
 
@@ -32,7 +32,7 @@ let tl (d:view) = focus "*t" { "*h" = d }
 
 let list_map (l:lens) : lens = wmap { "*h" -> l, "*t" -> (list_map l) }
 
-end
+let ccond (c:type) (lt:lens) (lf:lens) = cond c Any Any id id lt lf
 
 (*
     "(* simple list filter. its PUT direction is not the same as list_filter, *)

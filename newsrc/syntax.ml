@@ -72,8 +72,8 @@ and typeexp =
   | TStar of i * exp list * typeexp
   | TCat of i * typeexp list 
   | TUnion of i * typeexp list
-  | TDiff of i * typeexp * typeexp
-  | TInter of i * typeexp * typeexp
+      (* | TDiff of i * typeexp * typeexp *)
+      (* | TInter of i * typeexp * typeexp *)
   | TExp of i * exp 
       
 and viewbind = (i * exp * exp)
@@ -120,8 +120,8 @@ let info_of_typeexp = function
   | TExp(i,_) -> i
   | TStar(i,_,_) -> i
   | TBang(i,_,_) -> i
-  | TInter(i,_,_) -> i
-  | TDiff(i,_,_) -> i
+(*  | TInter(i,_,_) -> i *)
+(*  | TDiff(i,_,_) -> i *)
   | TName(i,_,_) -> i
   | TCat(i,_) -> i
   | TUnion(i,_t) -> i
@@ -140,9 +140,6 @@ let info_of_typebindings i ts = info_of_list info_of_typebinding i ts
 (* read off pieces of parameters *)
 let id_of_param = function PDef(_,x,_) -> x
 let sort_of_param = function PDef(_,_,s) -> s
-
-(* convert a view, type to a list view and list type *)
-let list_type vt = vt
 
 (* pretty printing stuff *)
 (* identifiers *)
@@ -215,8 +212,8 @@ and string_of_typeexp = function
       end
   | TCat(_,cs) -> concat "," (Safelist.map string_of_typeexp cs)
   | TUnion(_,ts) -> braces (concat " | " (Safelist.map string_of_typeexp ts))
-  | TDiff(_,t1,t2) -> concat " - " (Safelist.map string_of_typeexp [t1;t2])
-  | TInter(_,t1,t2) -> concat " & " (Safelist.map string_of_typeexp [t1;t2])
+(*  | TDiff(_,t1,t2) -> concat " - " (Safelist.map string_of_typeexp [t1;t2]) *)
+(*  | TInter(_,t1,t2) -> concat " & " (Safelist.map string_of_typeexp [t1;t2]) *)
   | TExp(_,e)     -> string_of_exp e
 
 and string_of_binding (BDef(_,x,ps,so,e)) = 

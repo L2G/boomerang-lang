@@ -58,7 +58,7 @@ let string_of_env ev =
 		    Pretty.concat ""
 		      [ "\n\t"
 		      ; Syntax.string_of_qid q
-		      ; " -> "
+		      ; " = "
 		      ; string_of_rv (!r)
 		      ; if (acc = "") then "" else ", "
 		      ; acc]) 
@@ -78,7 +78,7 @@ let parse_qid s =
   let lexbuf = Lexing.from_string s in
     Parser.qid Lexer.token lexbuf 
 
-let pre_ctx = List.map parse_qid ["Pervasives.Native"; "Pervasives.Derived"]
+let pre_ctx = List.map parse_qid ["Pervasives.Native"; "Pervasives"]
 
 let library : env ref = ref empty
 let loaded = ref IdSet.empty

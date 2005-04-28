@@ -11,42 +11,34 @@
 open Pretty
     
 (* TYPES *)
-type state = Syntax.qid
-type cstate = state * (state list) * (state list)
-
 type t =
     Empty 
-  | Name of string * cstate 
-  | Star of (string list) * cstate      
-  | Bang of (string list) * cstate            
+  | Var of string
+  | Name of string * t
+  | Star of (string list) * t
+  | Bang of (string list) * t
   | Cat of t list 
   | Union of t list 
 
 (* types *)
-let string_of_cstate (x,is,ds) = 
-  concat ""
-    (Syntax.string_of_qid x::
-       if (is = [] && ds = []) then []
-       else
-	 [ "&"; curlybraces (concat " " (List.map Syntax.string_of_qid is))
-	 ; "-"; curlybraces (concat " " (List.map Syntax.string_of_qid ds))
-	 ])
 let rec string_of_type = function
   | Empty -> "empty"
-  | Name(n,cx) -> concat "" [n; curlybraces (string_of_cstate cx)]
-  | Bang(f,cx)  ->
+  | Var x -> x
+  | Name(n,t) -> concat "" [n; curlybraces (string_of_type t)]
+  | Bang(f,t)  ->
       concat ""
     	[ "!"
     	; braces (concat " " f)
-    	; curlybraces (string_of_cstate cx)]
-  | Star(f,cx)  ->
+    	; curlybraces (string_of_type t)]
+  | Star(f,t)  ->
 	concat ""
     	  [ "*"
     	  ; braces (concat " " f)
-    	  ; curlybraces (string_of_cstate cx)]
+    	  ; curlybraces (string_of_type t)]
   | Cat(cs)   -> concat "." (List.map string_of_type cs)
   | Union(ts)  -> braces (concat " | " (List.map string_of_type ts))
 
+let member t v = true
 
 (* (\* helper: map f everywhere on a type - not currently used *\) *)
 (* let rec map_typ f t =  *)
