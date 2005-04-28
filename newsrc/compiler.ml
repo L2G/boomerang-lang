@@ -121,7 +121,6 @@ let rec compile_exp cev e0 = match e0 with
       
 (* types *)
 (* compile_exp :: compile_env -> Syntax.typeexp -> Value.t *)
-(* why a value? it can be a function :) *)
 and compile_typeexp cev t = 
   let nexp2name e = match Registry.value_of_rv (compile_exp cev e) with
     | Value.N n -> n
@@ -144,8 +143,17 @@ and compile_typeexp cev t =
 	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Cat(Safelist.map texp2type ts)))    
       | Syntax.TUnion(i,ts)  -> 
 	  Registry.make_rv (Syntax.SType(i)) (Value.T (Type.Union(Safelist.map texp2type ts)))
-      | Syntax.TExp(i,e)     -> compile_exp cev e
-	    
+      | Syntax.TExp(i,e)     -> 
+	  match e with 
+	    | Syntax.EFun(_) -> compile_exp cev e
+	    | _ -> 
+		Registry.make_rv 
+		  (Syntax.SType(i)) (* FIXME: this sort is BOGUS *) 
+		  (Value.T (Type.Thunk (fun () -> 
+					  match Registry.value_of_rv (compile_exp cev e) with
+					    | Value.T t -> t
+					    | _ -> raise (Error.Run_error("Type expected at : " ^ Info.string_of_t (Syntax.info_of_exp e))))))
+			      
 (* views *)
 (* compile_viewbinds :: env -> (Info.t * Syntax.exp * Syntax.exp) list -> bool -> V.t *)
 and compile_viewbinds ev bs is_list = match bs with

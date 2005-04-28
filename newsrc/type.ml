@@ -1,19 +1,19 @@
-(*******************************************************)
-(* The Harmony Project                                 *)
-(* harmony@lists.seas.upenn.edu                        *)
-(*                                                     *)
-(* type.ml - representation and functions on types     *)
-(*                                                     *)
+(*********************************************************)
+(* The Harmony Project                                   *)
+(* harmony@lists.seas.upenn.edu                          *)
+(*                                                       *)
+(* type.ml - representation and functions on types       *)
+(*                                                       *)
 (* $Id: type.ml,v 1.1 2005/04/11 18:24:48 jnfoster Exp $ *)
-(*                                                     *)
-(*******************************************************)
+(*                                                       *)
+(*********************************************************)
 
 open Pretty
     
 (* TYPES *)
 type t =
     Empty 
-  | Var of string
+  | Thunk of (unit -> t)
   | Name of string * t
   | Star of (string list) * t
   | Bang of (string list) * t
@@ -23,7 +23,7 @@ type t =
 (* types *)
 let rec string_of_type = function
   | Empty -> "empty"
-  | Var x -> x
+  | Thunk f -> "<thunk'd type>"
   | Name(n,t) -> concat "" [n; curlybraces (string_of_type t)]
   | Bang(f,t)  ->
       concat ""
@@ -38,7 +38,8 @@ let rec string_of_type = function
   | Cat(cs)   -> concat "." (List.map string_of_type cs)
   | Union(ts)  -> braces (concat " | " (List.map string_of_type ts))
 
-let member t v = true
+let member t v = assert false
+let project t k = assert false
 
 (* (\* helper: map f everywhere on a type - not currently used *\) *)
 (* let rec map_typ f t =  *)
