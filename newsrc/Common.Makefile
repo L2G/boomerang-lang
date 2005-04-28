@@ -53,4 +53,6 @@ COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/lib/ubase/%) \
 		 $(VIEWER_SOURCES:%=$(SRC)/lib/viewers/%) \
 		 $(PLUGIN_SOURCES:%=$(SRC)/lib/native/%)
 
+TRASH = parser.output
+
 include $(SRC)/OCamlMakefile
