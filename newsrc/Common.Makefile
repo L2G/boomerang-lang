@@ -36,7 +36,7 @@ BASE_SOURCES = config.ml misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
                type.ml value.ml registry.ml \
                checker.ml compiler.ml
 
-VIEWER_SOURCES = xml.ml
+VIEWER_SOURCES = meta.ml xml.ml
 
 ###########
 # PLUGINS #

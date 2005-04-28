@@ -35,10 +35,11 @@ let list_qid i = ([(i,"Pervasives")], (i, "List"))
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKTICK
 %token <Info.t> EMPTY STAR BANG QMARK BAR MINUS AMP 
 
-%start modl sort qid
+%start modl sort qid ext_view
 %type <Syntax.modl> modl
 %type <Syntax.sort> sort
 %type <Syntax.qid> qid
+%type <V.t> ext_view
 
 %%
 
@@ -248,8 +249,57 @@ innerview:
       { let (i,x) = $1 in 
 	  EView(i,[(i,EName(i,$1), emptyView i)], false) 
       }
+
+/*** EXTERNAL view parser */
+ext_view: 
+  | LBRACE ext_viewelt_list RBRACE
+      { Safelist.fold_right (fun v vacc -> V.concat vacc v) $2 V.empty }
+  | LBRACK ext_viewelt_list RBRACK                
+      { Safelist.fold_right (fun v vacc -> V.cons v vacc) $2 V.empty }
   
-/*** types ***/
+ext_viewelt_list:
+  |   { [] }
+  | ext_non_empty_viewelt_list                    
+      { $1 }
+
+ext_non_empty_viewelt_list:
+  | ext_viewelt                                   
+      { [$1] }
+  | ext_viewelt COMMA ext_non_empty_viewelt_list      
+      { $1::$3 }
+
+ext_viewelt:
+  | IDENT
+      { let n = string_of_id $1 in
+	  V.set V.empty n (Some V.empty)
+      }
+  | STRING
+      { let n = string_of_id $1 in
+	  V.set V.empty ("\"" ^ n ^ "\"") (Some V.empty)
+      }
+  | IDENT EQUAL ext_innerview                  
+      { let n = string_of_id $1 in
+	  V.set V.empty n (Some $3)
+      }
+  | STRING EQUAL ext_innerview 
+      {
+	let n = string_of_id $1 in
+	  V.set V.empty ("\"" ^ n ^ "\"") (Some $3)
+      }
+
+ext_innerview:
+  | ext_view                                   
+      { $1 }
+  | IDENT 
+      { let n = string_of_id $1 in 
+	  V.set V.empty n (Some V.empty)	  
+      }
+  | STRING                                      
+      { let n = string_of_id $1 in 
+	  V.set V.empty ("\"" ^ n ^ "\"") (Some V.empty)	  
+      }
+  
+/*** TYPES ***/
 typeexp:
   | typeexp BAR ctypeexp                      
       { TUnion($2,[$1;$3]) }

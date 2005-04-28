@@ -291,7 +291,7 @@ let compile_file fn n =
   in  
   let ast = Checker.sc_module ast in 
   let _ = compile_module ast in
-  let _ = prerr_string (Registry.string_of_env (Registry.get_library ())) in
+  (* let _ = prerr_string (Registry.string_of_env (Registry.get_library ())) in *)
     ()
       
 let _ = Registry.compile_file_impl := compile_file

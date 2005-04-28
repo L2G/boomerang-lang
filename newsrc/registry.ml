@@ -108,18 +108,19 @@ let find_filename n =
   let rec loop ds = match ds with
     | []    -> None
     | d::drest -> 
-	let full_fn = d ^ fn in
+	let full_fn = d ^ (if d.[String.length d - 1] = '/' then "" else "/") ^ fn in
 	  if (Sys.file_exists full_fn) then Some full_fn
 	  else loop drest
   in
-    loop (Prefs.read Config.paths)
+  let includes = Prefs.read Config.paths in
+    loop (includes)
       
 (* load modules dynamically *)
 (* backpatch hack *)
 let compile_file_impl = ref (fun _ _ -> ())  
 let load q = match get_module_prefix q with 
   | None -> ()
-  | Some n -> 
+  | Some n ->       
       let ns = Syntax.string_of_id n in
       let fno = find_filename ns in	
 	if (IdSet.mem n (!loaded)) then ()	  

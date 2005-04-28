@@ -35,29 +35,29 @@ let synchronize o a b = (o,a,b)
 (* ========== *)	
 (* GET / SHOW *)
 (* ========== *)	
-let get replica lens_string output =
+let get lens_qid concrete_file output_file =
   (* look if there is also an encoding specification *)
-  let (r, reader_ek) = parse_replica replica in
+  let (r, reader_ek) = parse_replica concrete_file in
   (* get the encoding key *)
   let ekey = get_ekey r reader_ek in
   (* apply the reader, get the concrete view *)
   let cv = get_view_from_file (Surveyor.get_reader ekey) r in
-(*  let _ = V.format_option cv ; print_endline "" in *)
+  (* let _ = V.format_option cv ; print_newline "" in *)
   (* now we'll get the lens *)
-  let lens = match (Registry.lookup_lens (Registry.parse_qid lens_string)) with 
+  let lens = match (Registry.lookup_lens (Registry.parse_qid lens_qid)) with 
       Some l -> l
-    | None -> failwith (Printf.sprintf "Lens %s not found" lens_string)
+    | None -> failwith (Printf.sprintf "lens %s not found" lens_qid)
   in
   (* apply it to get the abstract view *)
   let av = 
     try match cv with
-      Some cview -> Lens.get lens cview 
-    | None -> failwith (Printf.sprintf "The replica file %s is missing or empty" replica) 
+      |	Some cview -> Lens.get lens cview 
+      | None -> failwith (Printf.sprintf "Concrete view file %s is missing." concrete_file) 
     with V.Error(e) -> V.format_msg e; failwith "Error in get function"
   in
 (*  let _= V.format av; print_endline "" in *)
   (* we're gonna have to output it *)
-  let (o, viewer_ek) = parse_replica output in
+  let (o, viewer_ek) = parse_replica output_file in
   (* get back the viewer *)
   let okey = get_ekey o viewer_ek in
   (* apply it to get a string *)
@@ -162,9 +162,12 @@ let put abstract concrete lens_string output =
 (*   let s = (Surveyor.get_writer okey) newr2cv in *)
 (*   view_to_file s o *)
   
+let usageMsg = 
+  "usage: harmony get -lens l -concrete cf -output of [options]\n"
+  ^ "       harmony put -lens l -abstract af -concrete cf -output of [options]\n"
+  ^ "options:"
     
 let main () =
-  let usage = " usage: harmony [cmd] [options] \n" in
   (* retrieves the value of a -option, fails if argument is missing on the cmd ine *)
   let p pref = 
     match Prefs.read pref with 
@@ -175,13 +178,13 @@ let main () =
         )    
     | s -> s in
   (* we parse the command line *)
-  Prefs.parseCmdLine usage;
+  Prefs.parseCmdLine usageMsg;
   (* and check the anonymous arg to see what's next *)
   match Prefs.read Config.rest with
     ["get"] | ["show"]-> 
-	get (p replica) (p lens) (p output)
+	get (p lens) (p concrete) (p output)
   | ["put"] ->
-	put (p abstract) (p concrete) (p lens) (p output)
+	put (p lens) (p abstract) (p concrete) (p output)
   | ["sync"] ->
       assert false
 (*	sync 
@@ -190,9 +193,9 @@ let main () =
 	  (p lensar) (p lensr1) (p lensr2)
 	  (p newarchive) (p newreplica1) (p newreplica2)
 *)
-  | [ss] -> failwith( Printf.sprintf "Unknown command : %s \n %s" ss usage)
-  | [] -> failwith usage
-  |  _ -> failwith(Printf.sprintf "Only one command at a time :\n %s" usage)
+  | [ss] -> failwith(Printf.sprintf "Unknown command : %s \n%s" ss (Prefs.printUsage usageMsg; ""))
+  | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
+  |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
 	
 
 let _ = 
