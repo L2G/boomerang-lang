@@ -1,72 +1,14 @@
-HARMONY SUMMER 2005 PLANS
-
-Initial assignment:
-  1) read harmony papers
-  2) write address book lens from talk (together)
-  3) get Safari working again
-
-Major issues: 
-  - finding more easy demos
-  - getting the implementation really going
-
-* Finishing Focal compiler (Nate)
-    - no more research on lenses right now!
-    - performance tuning
-    - (eventually, replace types backend with sheaves automata to support inter, diff)
-* Rewrite visualizers in Swing or as Emacs front-ends :-)
-* Simple(!) user interface
-* Unison integration
-* Many demos
-    - easy ones: bookmarks (first); bibtex (XML only!); 
-      simple structured text?; iTunes? generic HTML/XML? bibtex?
-        - simple XML file formats
-        - no alignment issues
-        - no fancy lens primitives
-        - modest amounts of data
-    - hard ones: 
-        - calendar (make alignment into a lens!) 
-          check out IETF Calendaring and Scheduling Working Group!
-          redo alignment stuff as lenses
-          reimplement in Focal
-          however: very probably better not to deal with non-XML data at all!
-                   (conversion to and from XML should be an external process, and
-                    Harmony itself should not help)
-          GROUP calendar demo
-        - address book (vcard-ish)
-            - maybe including sync'ing with cell phones
-        - but make sure these don't get on the critical path!
-    - maybe some of the driver scripts should be written in Perl/Python
-* Packaging and configuration
-    - delete ./configure stuff
-    - remove graphical stuff from makefile defaults
-    - delete optometrist and related crust
-    - no backups
-* Documentation
-    - documentation of lenses should be generated from source code (both ocaml
-      and focal)
-
-__________________________________________________________________________
-
-IMMEDIATE
-* 'make clean' in src directory tries to redo 'configure'!
-* We should throw away all this 'configure' stuff anyway and call out to
-  tidy as an external program
-* renaming: hoist becomes hoist_unique
-
-PENDING DONE
-* Add ICal, ICalendar and PalmDatebook
-   - Requires dealing correctly with alignment
-   -[this is done right? (AS or BCP confirm?)]
-
-BUILD
-* make clean should remove the silly ._d directories
-* 'make clean' in src directory tries to redo 'configure'!
-* We should throw away all this 'configure' stuff anyway and call out to
-  tidy as an external program
+LATER
+* get calendar lenses (ICal, ICalendar and PalmDatebook) working again
+   - deal correctly with alignment (via lenses)
+   - move iCalendar handling into a separate program
+   - use pilotlink for datebook handling
 
 TIDYING
-* Add interfaces everywhere
-* Remove remote execution stuff
+* make clean should remove the silly ._d directories from OCamlMakefile
+* Add interface files with camldoc documentation for EVERY MODULE
+* renaming: hoist becomes hoist_unique
+* Rename *h etc to something else
 
 FEATURES
 * push synchronization down to atomic or equally changed
@@ -80,35 +22,62 @@ FEATURES
 USER INTERFACE
 * Improve printing
 
-______________________________________________________________________
-OTHER PROJECTS / IDEAS
+VISUALIZER
+* need to show output even in conflict cases
 
-check on funding possibilities for Harmony Eclipse plug-in 
-
-* Check "Set-Oriented Transformers," Srivastava, DBPL 2001
-
-* Write down ideas from work with Martin at POPL
-
-* Visualizer needs to show output even in conflict cases
-
-* Would be really cool if even the inputs would be (re-)prettyprinted
-  during typing
-
-* Another list encoding idea: translate list to set, noting position inside data
-
-      List of a b c  ==>  { a = 1  b = 2  c = 3 }
-
+SYNCHRONIZATION
 * Delete/delete conflicts should maybe be removed
 
-* The n[] concrete syntax is horrible -- use n{} or n() or even just n X
+THINGS TO THINK ABOUT LATER
+* check on funding possibilities for Harmony Eclipse plug-in 
+* Check "Set-Oriented Transformers," Srivastava, DBPL 2001
+* Write down ideas from work with Martin at POPL
+* Another list encoding idea: translate list to set, noting position inside data
+      List of a b c  ==>  { a = 1  b = 2  c = 3 }
+* Contact Doug Terry and Make Dahlin (UT Austin) and check out their current
+  related research.  
 
-* Could . in concrete syntax be replaced by <empty>?
+______________________________________________________________________________
+HARMONY SUMMER 2005 PLANS
+=========================
 
-* Rename *h etc to something else??
+Major issues: 
+  - finding more easy demos
+  - getting the implementation really going
 
-* Can *T be defined as X where
-
-     X = {} | !T . X     ?
-
-Contact Doug Terry and Make Dahlin (UT Austin) and check out their current
-related research.  
+Major topics:  
+  * Finishing Focal compiler (Nate)
+      - no more research on lenses right now!
+      - performance tuning
+      - (eventually, replace types backend with sheaves automata to support inter, diff)
+  * Rewrite visualizers in Swing or as Emacs front-ends :-)
+  * Simple(!) user interface
+  * Unison integration
+  * Many demos
+      - easy ones: bookmarks (first); bibtex (XML only!); 
+        simple structured text?; iTunes? generic HTML/XML? bibtex?
+          - simple XML file formats
+          - no alignment issues
+          - no fancy lens primitives
+          - modest amounts of data
+      - hard ones: 
+          - calendar (make alignment into a lens!) 
+            check out IETF Calendaring and Scheduling Working Group!
+            redo alignment stuff as lenses
+            reimplement in Focal
+            however: very probably better not to deal with non-XML data at all!
+                     (conversion to and from XML should be an external process, and
+                      Harmony itself should not help)
+            GROUP calendar demo
+          - address book (vcard-ish)
+              - maybe including sync'ing with cell phones
+          - but make sure these don't get on the critical path!
+      - maybe some of the driver scripts should be written in Perl/Python
+  * Packaging and configuration
+      - delete ./configure stuff
+      - remove graphical stuff from makefile defaults
+      - delete optometrist and related crust
+      - no backups
+  * Documentation
+      - documentation of lenses should be generated from source code (both ocaml
+        and focal)
