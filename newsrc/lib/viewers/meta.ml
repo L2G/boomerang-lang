@@ -1,12 +1,12 @@
 (* meta.ml - meta (abstract value) *)
 
 let reader s =
-  try 
-    let lexbuf = Lexing.from_string s in    
+  let lexbuf = Lexing.from_string s in        
+    try 
       (Parser.ext_view Lexer.token lexbuf) 
-  with
-      _ -> assert false (* FIXME: put a meaningful error message here *)
-	
+    with Parsing.Parse_error -> 
+      raise (Error.Run_error ("Parse error at: " ^ Info.string_of_t (Lexer.info lexbuf)))
+      
 let writer v =
   let out,flush = Format.get_formatter_output_functions () in
   let buf = Buffer.create 64 in
