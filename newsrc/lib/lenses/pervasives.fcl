@@ -1,10 +1,8 @@
 module Pervasives = 
 
 (* common schemas *)
-module Type = 
-  type List T = { "*h" = T, "*t" = List T } 
-  type Any = *{Any}
-end
+type List T = { "*h" = T, "*t" =(List T) } 
+type Any = *{Any}
 
 (* derived lenses *)
 let fork (p:view) = xfork p p
@@ -23,50 +21,19 @@ let hoist_nonunique (n:name) (p:view) = xfork {n} p (hoist n) id
 
 let rename (m:name) (n:name) = xfork {m} {n} (hoist m;plunge n) id
 
-let rename_if_present (m:name) (n:name) = 
-    acond <m{Type.Any},*{Type.Any}> <n{Type.Any},*{Type.Any}>
-      (rename m n)
-      id
-
 let hd (d:view) = focus "*h" { "*t" = d }
 
 let tl (d:view) = focus "*t" { "*h" = d }
 
 let list_map (l:lens) : lens = wmap { "*h" -> l, "*t" -> (list_map l) }
 
-let ccond (c:type) (lt:lens) (lf:lens) = cond c Type.Any Type.Any id id lt lf
+let acond (c:type) (a:type) (lt:lens) (lf:lens) = cond_ww c a <~a> lt lf
 
-(*
-    "(* simple list filter. its PUT direction is not the same as list_filter, *)
-     (*  below. Its GET direction is fine, and we use it as f_21 in the       *)
-     (* instance of cond below                                                *)
+let ccond (c:type) (lt:lens) (lf:lens) = cond c Any Any id id lt lf
 
-     let old_list_filter D E =
-       let rec l =
-       ccond (isCons E (isListOf (union D E)))
-         (tl {error}; l)
-         (wmap < *t -> l >)
-       in l
+let rename_if_present (m:name) (n:name) = 
+    acond <m{Any},*{Any}> <n{Any},*{Any}>
+      (rename m n)
+      id
 
-    let append v =
-       let rec l =
-         acond isEmptyList (isCons all (isEmptyList))
-           (const v {})
-           (wmap <*t -> l>)
-       in l
-
-     let list_filter D E default_D =
-       let rec l =
-         cond (isListOf E) (isEmptyList) (isCons D (isListOf D))
-            (old_list_filter E D)
-            (append [default_D])
-            (const [] [])
-            (inner_filter)
-       and inner_filter =
-         ccond (isCons E (isList_at_least_one D))
-         (tl {error}; inner_filter)
-         (wmap < *t -> l>)
-       in l
-
-     do list_filter"
-*)
+end

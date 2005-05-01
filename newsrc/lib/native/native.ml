@@ -653,43 +653,7 @@ let _ = register_native
 (*     ; test_put_eq [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb] "{a={}}" (Some "{b=[1]}") (\*=*\) "{a={}}" *)
 (*     ; test_put_fail [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb]"{}" None *)
 (*     ] (\* should add tests that stress the conversion functions f21 and f22, overlap in a1, a2*\) *)
-
     
-(* ACOND *)
-let acond c a lt lf =
-  { get = 
-      (fun cv ->
-	 if Type.member c cv then lt.get cv
-	 else lf.get cv);
-    put = 
-      (fun a co ->
-	 if Type.member a a then	   
-	   match co with
-	     | None -> lf.put a co
-	     | Some cv ->
-		 if Type.member c cv
-		 then lt.put a co
-		 else lf.put a None
-	   else
-	     match co with
-	       | None -> lt.put a co
-	       | Some cv ->
-		   if Type.member c cv
-		   then lt.put a None
-		   else lt.put a co 
-      )}
-
-(* acond - library interface *)
-let acond_lib =
-  F (function T c -> F (
-       function T a -> F (
-	 function L lt -> F (
-	   function L lf -> L (acond c a lt lf)
-	     | _ -> focal_type_error "Pervasives.Native.cond")
-	   | _ -> focal_type_error "Pervasives.Native.cond")
-	 | _ -> focal_type_error "Pervasives.Native.cond")
-       | _ -> focal_type_error "Pervasives.Native.cond")
-
 (* (\* acond - unit tests *\) *)
 (* let acond_unit_tests = *)
 (*   let sc_a = Sc (equalDom a) in *)
@@ -702,8 +666,6 @@ let acond_lib =
 (*     ; test_put_eq [sc_a;sc_b;const_ba;const_ab] "{b={}}" (Some "{a=[1]}") (\*=*\) "{a=[1]}" *)
 (*     ] *)
 	
-let _ = register_native "Pervasives.Native.acond" "type -> type -> lens -> lens -> lens" acond_lib
-
 (* (\* ccond - unit tests *\) *)
 (* let ccond_unit_tests =  *)
 (*   let sc_a = Sc (equalDom a) in *)

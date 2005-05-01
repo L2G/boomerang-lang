@@ -26,3 +26,4 @@ let enclose p1 s p2 = p1 ^ s ^ p2
 let braces s = enclose "(" s ")"
 let brackets s = enclose "[" s "]" 
 let curlybraces s = enclose "{" s "}" 
+let sprintf = Printf.sprintf

@@ -10,7 +10,6 @@
 
 (* registry values *)
 type rv 
-val dummy_rv : rv
 val make_rv : Syntax.sort -> Value.t -> rv
 val value_of_rv : rv -> Value.t
 val sort_of_rv : rv -> Syntax.sort

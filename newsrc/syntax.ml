@@ -10,7 +10,6 @@
 
 open Pretty
 
-
 let ( @ ) = Safelist.append  (* redefine @ to use stack-safe append *)
 
 (* identifiers *)
@@ -49,6 +48,7 @@ type sort =
   | SType of i 
   | SView of i  
   | SArrow of i * sort * sort
+  | STOper of i * sort * sort
 
 (* parameters *)
 type param = PDef of i * id * sort
@@ -57,7 +57,7 @@ type param = PDef of i * id * sort
 type exp = 
     EVar of i * qid
   | EFun of i * param list * sort option * exp 
-  | EMap of i * (exp * exp) list
+  | EMap of i * (i * exp * exp) list
   | EApp of i * exp * exp
   | ELet of i * binding list * exp
   | EName of i * id
@@ -65,16 +65,18 @@ type exp =
   | EView of i * viewbind list * bool
 
 (* types *)
-and typeexp = 
+and typeexp = TT of ptypeexp | NT of ptypeexp 
+
+and ptypeexp = 
     TEmpty of i
-  | TName of i * exp * typeexp 
-  | TBang of i * exp list * typeexp
-  | TStar of i * exp list * typeexp
-  | TCat of i * typeexp list 
-  | TUnion of i * typeexp list
-      (* | TDiff of i * typeexp * typeexp *)
-      (* | TInter of i * typeexp * typeexp *)
-  | TExp of i * exp 
+  | TVar of i * qid
+  | TApp of i * ptypeexp * ptypeexp
+  | TFun of i * id list * ptypeexp (* only used internally *)
+  | TName of i * exp * ptypeexp 
+  | TBang of i * exp list * ptypeexp
+  | TStar of i * exp list * ptypeexp
+  | TCat of i * ptypeexp list 
+  | TUnion of i * ptypeexp list
       
 and viewbind = (i * exp * exp)
 
@@ -94,7 +96,7 @@ type modl = MDef of i * id * qid list * decl list
 
 (* simple constants *)
 let emptyView i = EView(i,[],false)
-let emptyViewType i = TStar(i,[],TEmpty i)
+let emptyViewType i = TStar(i,[], (TEmpty(i)))
   
 (* accessor functions *)
 let name_of_id (_,x) = x
@@ -115,22 +117,28 @@ let info_of_exp = function
   | EView(i,_,_) -> i
   | EType(i,_) -> i
 
-let info_of_typeexp = function
+let info_of_ptypeexp = function
     TEmpty(i) -> i
-  | TExp(i,_) -> i
+  | TFun(i,_,_) -> i
+  | TApp(i,_,_) -> i
+  | TVar(i,_)   -> i
   | TStar(i,_,_) -> i
   | TBang(i,_,_) -> i
-(*  | TInter(i,_,_) -> i *)
-(*  | TDiff(i,_,_) -> i *)
   | TName(i,_,_) -> i
   | TCat(i,_) -> i
   | TUnion(i,_t) -> i
+
+let info_of_typeexp = function
+    TT pt -> info_of_ptypeexp pt
+  | NT pt -> info_of_ptypeexp pt
+
 let info_of_sort = function
     SName(i)      -> i 
   | SLens(i)      -> i 
   | SType(i)      -> i 
   | SView(i)      -> i 
   | SArrow(i,_,_) -> i
+  | STOper(i,_,_) -> i
 
 let info_of_binding (BDef(i,_,_,_,_)) = i
 let info_of_typebinding (x,_,t) = Info.merge_inc (info_of_id x) (info_of_typeexp t)
@@ -152,9 +160,8 @@ let rec string_of_sort = function
   | SLens(_)        -> "lens"
   | SType(_)        -> "type"
   | SView(_)        -> "view"
-  | SArrow(_,s1,s2) -> braces (string_of_sort s1 
-				      ^ "->" 
-				      ^ string_of_sort s2)
+  | SArrow(_,s1,s2) -> sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
+  | STOper(_,s1,s2) -> sprintf "(%s => %s)" (string_of_sort s1) (string_of_sort s2)
 
 (* params *)
 let string_of_param (PDef(_,i,s)) = braces(string_of_id i ^ ":" ^ string_of_sort s)
@@ -172,10 +179,10 @@ let rec string_of_exp = function
   | EApp(_,e1,e2)    -> (string_of_exp e1) ^ " " ^ (string_of_exp e2)
   | EMap(_,ms)       -> 
       curlybraces (concat "" 
-		     (Safelist.map (fun (x,e) -> 
-				      concat ", " [string_of_exp x
+		     (Safelist.map (fun (_,e1,e2) -> 
+				      concat ", " [string_of_exp e1
 						  ;"->"
-						  ; string_of_exp e]) ms))
+						  ; string_of_exp e2]) ms))
 	
   | ELet(i,bs,e)     -> ("let " 
 				^ (string_of_bindings bs)
@@ -192,29 +199,28 @@ let rec string_of_exp = function
 			    ^ (string_of_exp v))
 	      vbs))
 
-and string_of_typeexp = function 
+and string_of_typeexp = function
+  | TT pt -> string_of_ptypeexp pt
+  | NT pt -> concat "" ["~"; "("; string_of_ptypeexp pt ;")"]
+
+and string_of_ptypeexp = function 
   | TEmpty(_)     -> "empty"
-  | TName(_,n,t) -> concat "" [string_of_exp n; curlybraces (string_of_typeexp t)]
-  | TBang(_,f,t)  ->
+  | TVar(_,q)     -> string_of_qid q
+  | TFun(_,xs,pt)   -> sprintf "\\%s => %s" (concat "," (List.map string_of_id xs)) (string_of_ptypeexp pt)
+  | TApp(_,pt1,pt2) -> concat "" ["("; string_of_ptypeexp pt1; " "; string_of_ptypeexp pt2; ")"]
+  | TName(_,n,pt) -> concat "" [string_of_exp n; curlybraces (string_of_ptypeexp pt)]
+  | TBang(_,f,pt)  ->
       concat ""
     	[ "!"
      	; braces (concat " " (Safelist.map string_of_exp f))
-    	; curlybraces (string_of_typeexp t)]
-  | TStar(_,f,t)  ->
-      begin
-	match f,t with
-	    [], TEmpty(_) -> "{}"
-	  | _             ->
-	      concat ""
-    		[ "*"
-    		; braces (concat " " (Safelist.map string_of_exp f))
-    		; curlybraces (string_of_typeexp t)]
-      end
-  | TCat(_,cs) -> concat "," (Safelist.map string_of_typeexp cs)
-  | TUnion(_,ts) -> braces (concat " | " (Safelist.map string_of_typeexp ts))
-(*  | TDiff(_,t1,t2) -> concat " - " (Safelist.map string_of_typeexp [t1;t2]) *)
-(*  | TInter(_,t1,t2) -> concat " & " (Safelist.map string_of_typeexp [t1;t2]) *)
-  | TExp(_,e)     -> string_of_exp e
+    	; curlybraces (string_of_ptypeexp pt)]
+  | TStar(_,f,pt)  ->
+      concat ""
+    	[ "*"
+    	; braces (concat " " (Safelist.map string_of_exp f))
+    	; curlybraces (string_of_ptypeexp pt)]
+  | TCat(_,cs) -> concat "," (Safelist.map string_of_ptypeexp cs)
+  | TUnion(_,us) -> braces (concat " | " (Safelist.map string_of_ptypeexp us))
 
 and string_of_binding (BDef(_,x,ps,so,e)) = 
   concat ""

@@ -64,12 +64,8 @@ rule token = parse
 | "empty"       { EMPTY(info lexbuf) }
 | "*"           { STAR (info lexbuf) } 
 | '!'           { BANG (info lexbuf) }
-| '?'           { QMARK (info lexbuf) }
 | '|'           { BAR (info lexbuf) }
-| '-'           { MINUS (info lexbuf) }
-| '&'           { AMP (info lexbuf) }
-| '`'           { BACKTICK (info lexbuf) }
-
+| '~'           { TILDE (info lexbuf) }
 (* generic stuff *)
 | idchar	{ let i = (info lexbuf) in IDENT (i, (lexeme lexbuf)) }
 | newline       { newline lexbuf; token lexbuf }

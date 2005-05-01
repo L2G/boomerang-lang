@@ -19,14 +19,24 @@ type t =
 let rec string_of_t = function
     N(n) -> n
   | L(l) -> "<lens>"
-  | T(t) -> Type.string_of_type t
+  | T(t) -> Type.string_of_t t
   | V(t) -> "<view>"      
   | F(f) -> "<fun>"
+      
+(* dummy value generator *)
+let rec dummy = function
+    Syntax.SName(_) -> N "_"
+  | Syntax.SLens(_) -> L (Lens.native (fun _ -> assert false) (fun _ _ -> assert false))
+  | Syntax.SType(_) -> T (Type.TT(Type.Empty))
+  | Syntax.SView(_) -> V (V.empty)
+  | Syntax.SArrow(_,_,rs) -> F (fun _ -> dummy rs)
+  | Syntax.STOper(_,_,rs) -> T (Type.TT(Type.Fun (fun _ -> dummy_ptype rs)))
 
-(* dummy value, used during initialization of environments
-   for recursive definitions *)
-let dummy = N("_")
-   
+and dummy_ptype = function
+    Syntax.STOper(_,_,rs) -> Type.Fun (fun _ -> dummy_ptype rs)
+  | Syntax.SType(_)       -> Type.Empty
+  | _                     -> assert false
+      
 (* MEMOIZATION *)
 type thist = t (* HACK! *)
 module H =

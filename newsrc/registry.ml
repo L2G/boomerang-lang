@@ -12,7 +12,6 @@ open Pretty
 
 (* REGISTRY VALUES *)
 type rv = Syntax.sort * Value.t
-let dummy_rv = Syntax.SName(Info.bogus), Value.dummy
 let make_rv s v = (s,v)
 let value_of_rv (s,v) = v
 let sort_of_rv (s,v) = s
@@ -35,13 +34,15 @@ let empty : env = QidMap.empty
 (* produce env[q->v]; yields a NEW env *)
 let update oev get_ev put_ev q r = put_ev oev (QidMap.add q (ref r) (get_ev oev))
   
-(* produce env[q:=v]; yields the SAME env *)
+(* produce env[q:=v]; yields the SAME env 
+   unless q is not in env; then it uses update to give a NEW env
+*)
 let overwrite oev get_ev put_ev q r = 
   try 
     (QidMap.find q (get_ev oev)):=r; 
     oev 
   with Not_found ->
-    raise (Error.Run_error("Tried to overwrite a non-existent mapping"))
+    update oev get_ev put_ev q r
 
 let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found -> None
 

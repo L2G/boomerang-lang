@@ -11,32 +11,41 @@
 open Pretty
     
 (* TYPES *)
-type t =
+type t = TT of pt | NT of pt 
+and pt = 
     Empty 
-  | Thunk of (unit -> t)
-  | Name of string * t
-  | Star of (string list) * t
-  | Bang of (string list) * t
-  | Cat of t list 
-  | Union of t list 
+  | Var of string 
+  | App of pt * pt 
+  | Fun of (pt -> pt)
+  | Name of string * pt
+  | Star of (string list) * pt
+  | Bang of (string list) * pt
+  | Cat of pt list 
+  | Union of pt list 
 
 (* types *)
-let rec string_of_type = function
+let rec string_of_t = function 
+    TT pt -> string_of_pt pt
+  | NT pt -> concat "" ["~"; "(" ; string_of_pt pt ; ")"]
+
+and string_of_pt = function
   | Empty -> "empty"
-  | Thunk f -> "<thunk'd type>"
-  | Name(n,t) -> concat "" [n; curlybraces (string_of_type t)]
-  | Bang(f,t)  ->
+  | Var x -> x
+  | App(pt1,pt2) -> concat "" [string_of_pt pt1; " "; string_of_pt pt2]
+  | Fun f -> "<type fun>"
+  | Name(n,pt) -> concat "" [n; curlybraces (string_of_pt pt)]
+  | Bang(f,pt)  ->
       concat ""
     	[ "!"
     	; braces (concat " " f)
-    	; curlybraces (string_of_type t)]
-  | Star(f,t)  ->
+    	; curlybraces (string_of_pt pt)]
+  | Star(f,pt)  ->
 	concat ""
     	  [ "*"
     	  ; braces (concat " " f)
-    	  ; curlybraces (string_of_type t)]
-  | Cat(cs)   -> concat "." (List.map string_of_type cs)
-  | Union(ts)  -> braces (concat " | " (List.map string_of_type ts))
+    	  ; curlybraces (string_of_pt pt)]
+  | Cat(cs)   -> concat "." (List.map string_of_pt cs)
+  | Union(ts)  -> braces (concat " | " (List.map string_of_pt ts))
 
 let member t v = assert false
 let project t k = assert false
