@@ -107,10 +107,23 @@ let rec compile_exp cev e0 = match e0 with
 	
   | EFun(i,[],_,_) -> run_error (sprintf "Zero argument function at %s"
 				   (Info.string_of_t i))
-  | EFun(i,[p],Some ret_sort,e) ->
+  | EFun(i,[p],rso,e) ->
       (* fully-annotated, simple lambda *)
       let param_sort = sort_of_param p in
       let param_id = id_of_param p in
+	
+      (* compile the body in a dummy environment to check it *)
+      let dummy_cev = clear_rec_vars
+	(update cev
+	   (qid_of_id param_id)
+	   (make_rv param_sort (Value.dummy param_sort)))
+      in
+      let body_rv = compile_exp dummy_cev e in 
+      let ret_sort = match rso with 
+	  None -> sort_of_rv body_rv
+	| Some s -> expect_sort s (sort_of_rv body_rv) (info_of_exp e)
+      in
+      (* the actual implementation of f *)
       let f_impl v =
 	let fcev = clear_rec_vars 
 	  (update cev
@@ -122,20 +135,6 @@ let rec compile_exp cev e0 = match e0 with
       let fun_sort = SArrow(i,param_sort, ret_sort) in
       let fun_value = Value.F(f_impl) in
 	make_rv fun_sort fun_value
-  | EFun(i,[p],None,e) ->
-      (* un-annotated, simple lambda *)
-      (* have to compute the sort, then pass to the above case *) 
-      let param_sort = sort_of_param p in
-      let param_id = id_of_param p in
-      let dummy_cev = clear_rec_vars
-	(update cev
-	   (qid_of_id param_id)
-	   (make_rv param_sort (Value.dummy param_sort)))
-      in
-	(* compile in dummy environment to check it *)
-      let body_rv = compile_exp dummy_cev e in 
-      let ret_sort = sort_of_rv body_rv in
-	compile_exp cev (EFun(i,[p],Some ret_sort,e))
   | EFun(i,p1::p2::ps,so,e) ->
       (* multi-parameter function; rewrite to simple lambda *)
       let body = EFun(i,p2::ps,so,e) in
@@ -254,14 +253,7 @@ and compile_ptypeexp cev t = match t with
 	match (rec_var_ok cev q, lookup cev q) with
 	    (true, Some rv) -> 
 	      let tsort = sort_of_rv rv in
-	      let tval = match value_of_rv rv with
-		  Value.T (Type.TT pt) -> pt 
-		| _ -> run_error
-		    (sprintf "Type variable %s at %s does not denote a positive type [%s]"
-		       (string_of_qid q)
-		       (Info.string_of_t i)
-		       (Registry.string_of_rv rv))
-	      in
+	      let tval = Type.Var (q,(get_ctx cev)) in
 		tsort, tval
 		  
 	  | (false, Some _)  -> 
@@ -274,6 +266,19 @@ and compile_ptypeexp cev t = match t with
 			   (string_of_qid q)
 			   (Info.string_of_t i))
       end
+  | TApp(i,pt1,pt2) ->
+      begin
+	match compile_ptypeexp cev pt1 with
+	  | STOper(_,ps,rs), pt1_val ->
+	      let pt2_sort, pt2_val = compile_ptypeexp cev pt2 in
+	      let _ = expect_sort (SType(i)) pt2_sort (info_of_ptypeexp pt2) in
+		rs, Type.App(pt1_val, pt2_val)
+	  | _ -> run_error 
+	      (sprintf 
+		 "Type operator expected at left-hand side of type application at %s"
+		 (Info.string_of_t i))
+      end
+
   | TFun(i,xs,pt) -> 
       begin
 	match xs with 
@@ -305,37 +310,25 @@ and compile_ptypeexp cev t = match t with
 	      let tbody = TFun(i, xrest, pt) in
                 compile_ptypeexp cev (TFun(i,[x],tbody))
       end	  
-  | TApp(i,pt1,pt2) ->
-      begin
-	match compile_ptypeexp cev pt1 with
-	  | STOper(_,ps,rs), Type.Fun f ->
-	      let pt2_sort, pt2_val = compile_ptypeexp cev pt2 in
-	      let _ = expect_sort (SType(i)) pt2_sort (info_of_ptypeexp pt2) in
-		rs, (f pt2_val)
-	  | _ -> run_error 
-	      (sprintf 
-		 "Type operator expected at left-hand side of type application at %s"
-		 (Info.string_of_t i))
-      end
         
   | TName(i,e,pt) ->      
       let n = compile_exp_name cev e in	
-      let pt_sort, t_val = compile_ptypeexp cev pt in
+      let pt_sort, t_val = compile_ptypeexp (clear_rec_vars cev) pt in
       let _ = expect_sort (SType(i)) pt_sort (info_of_ptypeexp pt) in
 	SType(i), (Type.Name(n,t_val))
 	  
   | TBang(i,excl,pt) ->
       let excl_ns = List.map (compile_exp_name cev) excl in
-      let pt_sort, t_val = compile_ptypeexp cev pt in
+      let pt_sort, t_val = compile_ptypeexp (clear_rec_vars cev) pt in
       let _ = expect_sort (SType(i)) pt_sort (info_of_ptypeexp pt) in
 	SType(i), (Type.Bang(excl_ns,t_val))
 	  
   | TStar(i,excl,pt) ->
       let excl_ns = List.map (compile_exp_name cev) excl in
-      let pt_sort, t_val = compile_ptypeexp cev pt in
+      let pt_sort, t_val = compile_ptypeexp (clear_rec_vars cev) pt in
       let _ = expect_sort (SType(i)) pt_sort (info_of_ptypeexp pt) in
 	SType(i), (Type.Star(excl_ns,t_val))
-	      
+	  
   | TCat(i,pts) ->
       let pt_vals =
 	Safelist.map
@@ -461,8 +454,12 @@ let compile_typebindings cev tbs =
       
 (* type check a single declaration *)
 let rec compile_decl cev = function
-  | DLet(i,bs) -> compile_bindings cev bs
-  | DType(i,tbs) -> compile_typebindings cev tbs
+  | DLet(i,bs) -> 
+      let new_cev, names = compile_bindings cev bs in
+	clear_rec_vars new_cev, names
+  | DType(i,tbs) ->      
+      let new_cev, names = compile_typebindings cev tbs in
+	clear_rec_vars new_cev, names	  
   | DMod(i,n,ds) ->
       let nq = qid_of_id n in	
       let mcev, names = compile_module_aux cev ds in	
@@ -479,7 +476,7 @@ let rec compile_decl cev = function
 	  (cev,[])
 	  names
       in
-	new_cev, Safelist.rev names_rev
+	clear_rec_vars new_cev, Safelist.rev names_rev
 	  
 (* type check a module *)
 and compile_module_aux cev ds =

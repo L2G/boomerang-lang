@@ -14,7 +14,7 @@ open Pretty
 type t = TT of pt | NT of pt 
 and pt = 
     Empty 
-  | Var of string 
+  | Var of Syntax.qid * Syntax.qid list (* FIXME: include a naming context here too ? *) 
   | App of pt * pt 
   | Fun of (pt -> pt)
   | Name of string * pt
@@ -30,7 +30,7 @@ let rec string_of_t = function
 
 and string_of_pt = function
   | Empty -> "empty"
-  | Var x -> x
+  | Var (x,_) -> Syntax.string_of_qid x
   | App(pt1,pt2) -> concat "" [string_of_pt pt1; " "; string_of_pt pt2]
   | Fun f -> "<type fun>"
   | Name(n,pt) -> concat "" [n; curlybraces (string_of_pt pt)]
