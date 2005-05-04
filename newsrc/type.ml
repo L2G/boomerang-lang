@@ -50,182 +50,171 @@ and string_of_pt = function
 let member t v = assert false
 let project t k = assert false
 
-(* (\* helper: map f everywhere on a type - not currently used *\) *)
-(* let rec map_typ f t =  *)
-(*   match t with *)
-(*       TCat(i,cs)   -> f (TCat(i,(List.map (map_typ f) cs))) *)
-(*     | TUnion(i,us) -> f (TCat(i,(List.map (map_typ f) us))) *)
-(*     | _         -> f t *)
-
-(* (\* a (somewhat arbitrary) order on types: used in t2nf *\) *)
-(* let rec cmp_typ t1 t2 =  *)
-(*   let eq = 0 in    (\* symbolic comparisons *\) *)
-(*   let lt = -1 in *)
-(*   let gt = 1 in *)
-
-(*   (\* helper for comparing lists of things in dictionary order *\) *)
-(*   let rec cmp_lex l1 l2 cmp_f =  *)
-(*     let rec cmp_aux l1 l2 tie =  *)
-(*       match (l1,l2) with *)
-(* 	  ([],[])           -> tie *)
-(* 	| (_,[])            -> gt *)
-(* 	| ([],_)            -> lt *)
-(* 	| (h1::t1),(h2::t2) -> *)
-(* 	    if (tie = eq) then cmp_aux t1 t2 (cmp_f h1 h2) *)
-(* 	    else cmp_aux t1 t2 tie *)
-(*     in *)
-(*       cmp_aux l1 l2 eq *)
-(*   in *)
-(*     match t1,t2 with *)
-(*       (\* TName *\) *)
-(*       | TEmpty(_),_                 -> lt *)
-(*       | _,TEmpty(_)                 -> gt *)
-(*       | TName(n1,_,_),TName(n2,_,_) -> compare n1 n2 *)
-(*       | TName(_,_,_),_              -> lt *)
-
-(*       (\* TBang *\) *)
-(*       | TBang(_,_,_),TName(_,_,_)   -> gt *)
-(*       | TBang(_,f1,_),TBang(_,f2,_)   -> cmp_lex f2 f1 compare *)
-(*       | TBang(_,_,_),_               -> lt *)
-
-(*       (\* TStar *\) *)
-(*       | TStar(_,_,_),TName(_,_,_)    -> gt *)
-(*       | TStar(_,_,_),TBang(_,_,_)     -> gt *)
-(*       | TStar(_,f1,_),TStar(_,f2,_)   -> cmp_lex f2 f1 compare *)
-(*       | TStar(_,_,_),_               -> lt *)
+(* a (somewhat arbitrary) order on types: used in t2nf *)
+let eq = 0     (* symbolic comparisons *)
+let lt = -1
+let gt = 1
+  
+(* helper for comparing lists of things in dictionary order *)
+let rec cmp_lex l1 l2 cmp_f =
+  let rec cmp_lex_aux l1 l2 tie =
+    match (l1,l2) with
+	([],[])           -> tie
+      | (_,[])            -> gt
+      | ([],_)            -> lt
+      | (h1::t1),(h2::t2) ->
+	  if (tie = eq) then cmp_lex_aux t1 t2 (cmp_f h1 h2)
+	  else cmp_lex_aux t1 t2 tie
+  in
+    cmp_lex_aux l1 l2 eq
+  
+let rec cmp_ptyp eval t1 t2 =
+  match t1,t2 with      
+      (* Fun *)
+      Fun(_),Fun(_)         -> eq
+    | Fun(_),_              -> lt
+    | _,Fun(_)              -> gt
 	
-(*       (\* TCat *\) *)
-(*       | TCat(_,_),TName(_,_,_)      -> gt *)
-(*       | TCat(_,_),TBang(_,_,_)       -> gt  *)
-(*       | TCat(_,_),TStar(_,_,_)       -> gt *)
-(*       | TCat(_,cs1),TCat(_,cs2)     -> cmp_lex cs1 cs2 cmp_typ  *)
-(*       | TCat(_,_),_                 -> lt *)
-	  
-(*       (\* TUnion *\) *)
-(*       | TUnion(_,_),TName(_,_,_)    -> gt *)
-(*       | TUnion(_,_),TBang(_,_,_)     -> gt *)
-(*       | TUnion(_,_),TStar(_,_,_)     -> gt *)
-(*       | TUnion(_,_),TCat(_,_)       -> gt *)
-(*       | TUnion(_,us1),TUnion(_,us2) -> cmp_lex us1 us2 cmp_typ  *)
-
-(* (\* sort a type list *\) *)
-(* let sort_tl tl = List.sort cmp_typ tl  *)
-	  
-(* (\* sort a type *\) *)
-(* let rec sort_typ t = match t with *)
-(*   | TCat(i,ts)   -> TCat (i,sort_tl (List.map sort_typ ts)) *)
-(*   | TUnion(i,us) -> TUnion (i,sort_tl (List.map sort_typ us)) *)
-(*   | _         -> t *)
-
-(* (\*** UTILITIES ***\) *)
-
-(* (\* t2nf: convert a type to normal form *\) *)
-(* (\* returns the new type and a list of new bindings *\) *)
-(* let rec t2nf t delta = match t with  *)
-(*   | TEmpty(_)     -> (t,[]) *)
-(*   | TBang(_,_,_)   -> (t,[]) *)
-(*   | TStar(_,_,_)   -> (t,[]) (\* should maybe think about normalizing empty TStars as TEmptyViews *\) *)
-(*   | TName(_,_,_)  -> (t,[]) *)
-
-(*   (\* unions: *)
-(*      - recursively normalize *)
-(*      - lift nested unions *)
-(*      - remove TEmpty from unions *)
-(*   *\) *)
-(*   | TUnion(i,us)  ->        *)
-(*       let (usnf,newbinds) =  *)
-(* 	List.fold_left  *)
-(* 	  (fun (usnf,newbinds) ui ->  *)
-(* 	     let (uinf,uibinds) = t2nf ui (delta @ newbinds )in *)
-(* 	       (uinf::usnf, uibinds @ newbinds)) *)
-(* 	  ([],[]) *)
-(* 	  us *)
-(*       in *)
-(*       let lift_us =  *)
-(* 	(List.fold_left  *)
-(* 	   (fun acc h -> *)
-(* 	      match h with  *)
-(* 		| TEmpty(_)    -> acc    (\* skip TEmpty bits of unions *\) *)
-(* 		| TUnion(i,us) -> us@acc (\* lift nested unions *\) *)
-(* 		| _            -> h::acc) *)
-(* 	   [] *)
-(* 	   usnf)  *)
-(*       in  *)
-(*       let tres =  *)
-(* 	(match lift_us with	   *)
-(* 	   | []              -> TEmpty(i) *)
-(* 	   | [(TCat (_,[]))] -> TEmpty(i) *)
-(* 	   | _               -> sort_typ (TUnion(i,lift_us))) *)
-(*       in  *)
-(* 	(tres, newbinds) *)
-	  
-(*   (\* TCat: *)
-(*      - recursively normalize cs *)
-(*      - lift nested cats in cs  *)
-(*      - distribute nested unions over cats *)
-(*      - sort result *)
-(*      - if a name is repeated, then TEmpty *)
-(*   *\) *)
-(*   | TCat(i,cs)    ->  *)
-(*       let (csnf,newbinds) =  *)
-(* 	List.fold_left  *)
-(* 	  (fun (csnf,newbinds) ci ->  *)
-(* 	     let (cinf,cibinds) = t2nf ci (delta @ newbinds) in *)
-(* 	       (cinf::csnf, (cibinds @ newbinds))) *)
-(* 	  ([],[]) *)
-(* 	  cs *)
-(*       in *)
+    (* | Var(x,xctx),Var(y,yctx) -> SHORT CIRCUIT SAME VARIABLE, SAME CONTEXT? *)
+    | Var(x,_),_              -> cmp_ptyp eval (eval t1) t2
+    | _,Var(x,_)              -> cmp_ptyp eval t1 (eval t2)
 	
-(*       (\* temporarily represent the lifted union of cats as a list of lists *\) *)
-(*       let lift_us_rep =  *)
-(* 	List.fold_left *)
-(* 	  (fun acc h -> *)
-(* 	     (\* helper functions for readability *\) *)
-(* 	     let prepend s a = List.map (fun x -> sort_tl (s::x)) a in *)
-(* 	     let concat cs a = List.map (fun x -> sort_tl (x @ cs)) a in *)
-(* 	       match h with *)
-(* 		 | TCat(_,cs)   -> concat cs acc (\* lift nested cats *\) *)
-(* 		 | TUnion(_,us) ->  *)
-(* 		     (\* distribute unions, lift deep-nested cats *\) *)
-(* 		     List.flatten  *)
-(* 		       (List.map  *)
-(* 			  (fun u -> match u with *)
-(* 			     | TCat(_,cs) -> concat cs acc *)
-(* 			     | _          -> prepend u acc) us) *)
-(* 		 | _         -> prepend h acc) *)
-(* 	  [[]] *)
-(* 	  csnf *)
-(*       in *)
-(*       let check_repeats t =  *)
-(* 	let rec cr_aux cs info acc =  *)
-(* 	  match cs with *)
-(* 	    | []                                            ->  *)
-(* 		TCat (info,(List.rev acc)) *)
-(* 	    | TName(n,_,_)::TName(m,_,_)::rest when (n = m) ->  *)
-(* 		TEmpty(info) *)
-(* 	    | TStar(i,f,x)::TStar(_,_,y)::rest when (x=y)     -> *)
-(* 		cr_aux ((TStar(i,f,x))::rest) info acc *)
-(* 	    | TStar(_,_,_)::TStar(i,_,_)::rest                -> *)
-(* 		raise (Error.Type_error("repeated wildcard ~ in type", i)) *)
-(* 	    | h::t                                          ->  *)
-(* 		cr_aux t info (h::acc)  *)
-(* 	in *)
-(* 	  match t with *)
-(* 	      TCat(i,cs) -> cr_aux cs i [] *)
-(* 	    | t          -> t *)
-(*       in *)
-(*       let tres =  *)
-(* 	match lift_us_rep with	     *)
-(* 	  | [[]]              -> TEmpty(i) (\* recognize some empty types *\) *)
-(* 	  | [[TEmpty(_)]]     -> TEmpty(i) *)
-(* 	  | [[(TCat (_,[]))]] -> TEmpty(i) *)
-(* 	  | [[t]]             -> check_repeats t *)
-(* 	  | [cs]              -> check_repeats (TCat (i,cs)) *)
-(* 	  | _                 ->  *)
-(* 	      TUnion (i, List.map (fun x -> check_repeats (TCat (i,x))) lift_us_rep) *)
-(*       in *)
-(* 	(tres,newbinds) *)
+    (* App *)
+    | App(pt1,pt2),_         -> cmp_ptyp eval (eval pt1) t2
+    | _,App(pt1,pt2)         -> cmp_ptyp eval t1 (eval pt2)
+	
+    (* Empty *)
+    | Empty,Empty           -> eq
+    | Empty,_               -> lt
+    | _,Empty               -> gt
+	
+    (* Name *)
+    | Name(n1,_),Name(n2,_) -> compare n1 n2
+    | Name(_,_),_           -> lt
+    | _,Name(_,_)           -> gt
+	
+    (* Bang *)
+    | Bang(f1,_),Bang(f2,_) -> cmp_lex (Safelist.sort compare f1) (Safelist.sort compare f2) compare
+    | Bang(_,_),_           -> lt
+    | _,Bang(_,_)           -> gt
+	
+    (* Star *)
+    | Star(f1,_),Star(f2,_) -> cmp_lex (Safelist.sort compare f1) (Safelist.sort compare f2) compare
+    | Star(_,_),_           -> lt
+    | _,Star(_,_)           -> gt
+	
+    (* Cat *)
+    | Cat(cs1),Cat(cs2)    -> cmp_lex (Safelist.sort (cmp_ptyp eval) cs1) (Safelist.sort (cmp_ptyp eval) cs2) (cmp_ptyp eval)
+    | Cat(_),_             -> lt
+    | _,Cat(_)             -> gt
+	
+    (* Union *)           
+    | Union(us1),Union(us2) -> cmp_lex (Safelist.sort (cmp_ptyp eval) us1) (Safelist.sort (cmp_ptyp eval) us2) (cmp_ptyp eval)
+
+let cmp_typ eval t1 t2 = match t1,t2 with
+    NT(_),TT(_)      -> lt
+  | TT(_), NT(_)     -> gt	
+  | NT(pt1),NT(pt2)  -> cmp_ptyp eval pt1 pt2
+  | TT(pt1), TT(pt2) -> cmp_ptyp eval pt1 pt2	  
+      
+(* sort a type list *)
+let sort_ptyp eval pt = pt (* STUB *)
+let sort_ptyp_list eval tl = Safelist.sort (cmp_ptyp eval) tl
 	  
+(*** UTILITIES ***)
+
+(* pt2nf/t2nf: convert a (pre)type to normal form *)
+let rec pt2nf eval pt = match pt with      
+  | Empty      -> pt
+  | Fun(_)     -> pt
+  | Var(_,_)   -> pt2nf eval (eval pt)
+
+  | App(_,_)   -> pt2nf eval (eval pt)
+  | Name(n,pt1) -> Name(n, pt2nf eval pt1)
+  | Bang(es,pt1)-> Bang(Safelist.sort compare es, pt2nf eval pt1)
+  | Star(es,pt1)-> Star(Safelist.sort compare es, pt2nf eval pt1)
+      
+  (* unions:
+     - recursively normalize
+     - lift nested unions
+     - remove obviously Empty types from unions
+  *)
+  | Union(us)  ->
+      let us_nf = Safelist.map (pt2nf eval) us in
+      let lifted_us = Safelist.fold_left
+	(fun acc hpt ->
+	   match hpt with
+	       Empty     -> acc    (* skip TEmpty bits of unions *)
+	     | Union(us) -> us@acc (* lift nested unions *)
+	     | _         -> hpt::acc)
+	[]
+	us_nf
+      in
+	begin
+	  match lifted_us with
+	    | []           -> Empty
+	    | [(Cat [])]   -> Empty
+	    | [(Union [])] -> Empty
+	    | _            -> sort_ptyp eval (Union(lifted_us))
+	end
+	  
+  (* TCat:
+     - recursively normalize cs
+     - lift nested cats in cs
+     - distribute nested unions over cats
+     - sort result
+     - if a name is repeated, then TEmpty
+  *)
+  | Cat(cs)    ->
+      let cs_nf = Safelist.map (pt2nf eval) cs in	
+	
+      (* temporarily represent the lifted union of cats as a list of lists *)
+      let lift_us_rep = Safelist.fold_left
+	(fun acc h ->
+	   (* helper functions for readability *)
+	   let prepend s a = List.map (fun x -> sort_ptyp_list eval (s::x)) a in
+	   let concat cs a = List.map (fun x -> sort_ptyp_list eval (x @ cs)) a in
+	     match h with
+	       | Cat(cs)   -> concat cs acc (* lift nested cats *)
+	       | Union(us) ->
+		   (* distribute unions, lift deep-nested cats *)
+		   Safelist.flatten
+		     (Safelist.map
+			(fun u -> match u with
+			   | Cat(cs) -> concat cs acc			     
+			   | _          -> prepend u acc) us)
+	       | _         -> prepend h acc)
+	[[]]
+	cs_nf
+      in
+      let check_repeats t =
+	let rec cr_aux cs acc =
+	  (* this used to be more complicated; keeping the structure for now *)
+	  match cs with
+	    | []                                       -> Cat (Safelist.rev acc)
+	    | Name(n,_)::Name(m,_)::rest when (n = m)  -> Empty
+	    | h::t                                     -> cr_aux t (h::acc)
+	in
+	  match t with
+	      Cat(cs) -> cr_aux cs []
+	    | t       -> t
+		
+      in		  
+	begin
+	  match lift_us_rep with
+	    | [[]]          -> Empty (* recognize some obviously empty types *)
+	    | [[Empty]]     -> Empty
+	    | [[(Cat [])]]  -> Empty
+	    | [[t]]         -> check_repeats t
+	    | [cs]          -> check_repeats (Cat cs)
+	    | _             -> Union (Safelist.map (fun x -> check_repeats (Cat x)) lift_us_rep)
+	end
+
+
+let rec t2nf eval t = match t with
+      NT pt -> NT (pt2nf eval pt)
+    | TT pt -> TT (pt2nf eval pt)
+	    
 (* let normalize_ctx delta =    *)
 (*   let delta1,newbinds =  *)
 (*     (List.fold_left  *)
