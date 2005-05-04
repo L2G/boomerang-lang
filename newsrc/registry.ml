@@ -109,7 +109,7 @@ let paths = Prefs.createStringList
   "search path for .fcl sources"
   "Focal modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources."
 let _ = Prefs.alias paths "I"
-
+  
 let find_filename n = 
   let fn = (String.uncapitalize n) ^ ".fcl" in
   let rec loop ds = match ds with
@@ -119,7 +119,7 @@ let find_filename n =
 	  if (Sys.file_exists full_fn) then Some full_fn
 	  else loop drest
   in
-  let includes = Prefs.read Config.paths in
+  let includes = Prefs.read paths in
     loop (includes)
       
 (* load modules dynamically *)
