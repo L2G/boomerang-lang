@@ -11,7 +11,7 @@ let get_ekey f = function
       (match (Surveyor.find_encodings f None) with
 	 | [ek] -> ek
 	 | _    -> 
-	     failwith (Printf.sprintf "No unique encoding found for this file : %s." f))
+	     failwith (Printf.sprintf "No unique encoding found for file '%s'" f))
 	
 let parse_replica r =
   try 
@@ -68,7 +68,7 @@ let get lens_qid concrete_file output_file =
 (* ========== *)	
 (*     PUT    *)
 (* ========== *)	
-let put abstract concrete lens_string output =
+let put lens_string abstract concrete output =
   (* look if there is also an encoding specification *)
   let (a, reader_ek) = parse_replica abstract in
   (* get the encoding key of the abstract*)
@@ -168,7 +168,7 @@ let put abstract concrete lens_string output =
 (* get and put options *)
 let lens = Prefs.createString 
   "lens" 
-  "Pervasives.Native.id"
+  ""
   "lens to use for get and put"
   "the fully-qualified name of the lens to use in get and put modes"
 let _ = Prefs.alias lens "l"
@@ -240,8 +240,9 @@ let main () =
     match Prefs.read pref with 
       "" ->  
 	let names = Prefs.name pref in 
-	failwith (Printf.sprintf "missing argument %s" 
+	failwith (Printf.sprintf "argument '%s' required for 'harmony %s'" 
 		    (Safelist.nth names (Safelist.length names - 1))
+                    (Safelist.nth (Prefs.read rest) 0)
         )    
     | s -> s in
   (* we parse the command line *)

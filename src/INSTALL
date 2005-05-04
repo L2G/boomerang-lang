@@ -19,16 +19,7 @@ ocaml       http://caml.inria.fr/ocaml/distrib.html.
             QUICK START ON OSX:
               sudo fink install ocaml
 
-lablgtk2    It is required by the lens visualizer (not the synchronizer).
-	    http://wwwfun.kurims.kyoto-u.ac.jp/soft/olabl/lablgtk.html
-	    Versions >= 2.2 are working.
-	    To install it properly you may need some Pango, Gnome and
-	    Glade libraries.
-	    
-	    QUICK START
-	    ./configure; make world; make opt; sudo make install; make clean
-
-findlib     versions from 0.8.1 to 1.0.4 has been tested.
+findlib     versions from 0.8.1 to 1.0.4 have been tested.
 	    findlib can be downloaded from
             http://www.ocaml-programming.de/packages/
 
@@ -38,15 +29,17 @@ findlib     versions from 0.8.1 to 1.0.4 has been tested.
 pcre        Phil Hazel's PCRE library, version >= 4.1.  
 	    Tested with 4.2 and 4.5.
             http://www.pcre.org
-            (PCRE is a common package, so it might already be installed on
-            your system.  On OSX, 'fink install pcre' might work, but be 
-            careful that it gets you a recent enough version!  Otherwise...) 
+
+            OSX QUICK START:
+              fink install pcre
+            and then set (in Makefile.conf)
+                export INCDIRS := /sw/include
 
             QUICK START: 
               ./configure; make; sudo make install
 
-pcre-ocaml  http://www.ai.univie.ac.at/~markus/home/ocaml_sources.html.  Get
-            5.02 or later (tested with 5.09).
+pcre-ocaml  http://www.ocaml.info/home/ocaml_sources.html
+            Get version 5.02 or later (tested with 5.09).
 
             QUICK START FOR OSX: 
                 make STATIC=1; sudo make install STATIC=1
@@ -57,19 +50,28 @@ ocamlnet    http://www.ocaml-programming.de/packages/
             QUICK START: 
                cd src; ./configure; make all opt; sudo make install
 
-            IMPORTANT: there is a bug in versions <=0.95.
-            In src/netstring/nethtml.ml, line 130, change
-              ... `Elements["dl"; "dd"] ..
-            to
-              ... `Elements["dt"; "dd"] ..
-            before compiling.
-            HARMONY WILL ONLY WORK WITH THIS FIX!
-
 pxp         Tested with version 1.1.5.
             http://www.ocaml-programming.de/packages/
 
             QUICK START: 
                 ./configure; make all opt; sudo make install
+
+That's it!  Only 6 dependencies!
+
+Now, simply type 'make' and you should end up with a harmony binary.
+
+
+----------------------------------------
+OTHER DEPENDENCIES FOR CERTAIN NON-CRITICAL PARTS OF THE HARMONY DISTRIBUTION
+
+lablgtk2    It is required by the lens visualizer (not the synchronizer).
+	    http://wwwfun.kurims.kyoto-u.ac.jp/soft/olabl/lablgtk.html
+	    Versions >= 2.2 are working.
+	    To install it properly you may need some Pango, Gnome and
+	    Glade libraries.
+	    
+	    QUICK START
+	    ./configure; make world; make opt; sudo make install; make clean
 
 tidylib	    This is a common package that may be already in your
 	    system. The headers tidy.h and tidyenum.h are especially
@@ -82,13 +84,3 @@ tidylib	    This is a common package that may be already in your
 		cd build/gmake; make; sudo make install
 
 
-That's it!  Only 9 dependencies!
-
-Now, simply type 'make', follow any instructions you see, and you should
-end up with a harmony binary and the lens programming environment visual.
-
-
-[To add:
-   - running regression tests
-   - how to run harmony from Unison
-]
