@@ -104,6 +104,12 @@ let get_module_prefix q =
     | ([],_) -> None
     | (n::_,_) -> Some n
 	
+let paths = Prefs.createStringList 
+  "include" 
+  "search path for .fcl sources"
+  "Focal modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources."
+let _ = Prefs.alias paths "I"
+
 let find_filename n = 
   let fn = (String.uncapitalize n) ^ ".fcl" in
   let rec loop ds = match ds with
