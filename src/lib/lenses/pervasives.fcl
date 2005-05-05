@@ -4,6 +4,28 @@ module Pervasives =
 type List T = { "*h" = T, "*t" =(List T) } 
 type Any = *{Any}
 
+(* re-exported native lenses *)
+let probe : (name -> lens) = probe_native
+let tracepoint : (name -> lens -> lens) = tracepoint_native
+let id : lens = id_native
+let const : (view -> view -> lens) = const_native
+let compose2 : (lens -> lens -> lens) = compose2_native
+let map : (lens -> lens) = map_native
+let wmap : ((name -> lens) -> lens) = wmap_native
+let xfork : (view -> view -> lens -> lens -> lens) = xfork_native
+let hoist : (name -> lens) = hoist_native
+let plunge : (name -> lens) = plunge_native 
+let copy : (name -> name -> lens) = copy_native
+let merge : (name -> name -> lens) = merge_native
+let cond_ff : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = cond_ff_native
+let cond : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = cond_ff
+let cond_ww : (type -> type -> type -> lens -> lens -> lens) = cond_ww_native
+let cond_fw : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_fw_native
+let cond_wf : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_wf_native
+let pivot : (name -> lens) = pivot_native 
+let join : (name -> name -> lens) = join_native
+let flatten : lens = flatten_native
+
 (* derived lenses *)
 let fork (p:view) = xfork p p
 
