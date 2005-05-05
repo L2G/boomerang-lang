@@ -200,8 +200,8 @@ aexp_core_but_name:
                                                  
 /*** VIEWS ***/
 viewexp:
-  | LBRACE viewelt_list RBRACE               { EView($1,$2, false) }
-  | LBRACK viewelt_list RBRACK               { EView($1,$2, true) }
+  | LBRACE viewelt_list RBRACE               { EView(merge_inc $1 $3, $2) }
+  | LBRACK listelt_list RBRACK               { EListView(merge_inc $1 $3, $2) }
   
 viewelt_list:
   |                                          { [] }
@@ -219,12 +219,23 @@ viewelt:
 						 (i, $1, $3) 
 					     }
 
+listelt_list:
+  |                                          { [] }
+  | non_empty_listelt_list                   { $1 }
+
+non_empty_listelt_list:
+  | listwelt                                  { [$1] }
+  | listelt COMMA non_empty_listelt_list     { $1::$3 }
+
+listelt:
+  | exp_core                                 { let i = info_of_exp $1 in (i, $1, emptyView i) }
+  | innerview                                { let i = info_of_exp $1 in (i, $1, $3) }
+
 innerview:
   | viewexp                                  { $1 }
   | aexp_core_but_name                       { $1 }
   | name                                     { let (i,x) = $1 in 
-						 EView(i,[(i,EName(i,$1), emptyView i)], false) 
-					     }      
+					       EView(i,[(i,EName(i,$1), emptyView i)], false)}
 
 /*** TYPES ***/
 typeexp:
@@ -253,8 +264,7 @@ atypeexp:
   | LBRACK typeelt_list RBRACK               { let i = merge_inc $1 $3 in
 					       let list = TVar(i, list_qid i) in
 					       let t = TCat(i,$2) in
-						 TApp(i,list, t)
-					     }  
+					       TApp(i,list, t) }  
       
 innertype: 
   | exp_core                                 { e2te $1 } 
