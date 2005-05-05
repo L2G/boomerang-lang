@@ -5,6 +5,7 @@ catch errors and print them sensibly (including parsability)
 output to stdout option and input from stdin
 fix 'make test' in /src so that it actually runs all tests
 copy src/INSTALL and such
+Compiler.runerror should call failAt (and must therefore take some extra info)
 
 TIDYING
 * make clean should remove the silly ._d directories from OCamlMakefile

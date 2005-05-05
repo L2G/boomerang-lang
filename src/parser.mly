@@ -201,7 +201,7 @@ aexp_core_but_name:
 /*** VIEWS ***/
 viewexp:
   | LBRACE viewelt_list RBRACE               { EView($1,$2, false) }
-  | LBRACK viewelt_list RBRACK               { (EView($1,$2, true)) }
+  | LBRACK viewelt_list RBRACK               { EView($1,$2, true) }
   
 viewelt_list:
   |                                          { [] }

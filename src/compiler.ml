@@ -8,6 +8,10 @@
 
 open Syntax
 
+let failAt fn lexbuf mesg =
+  Printf.eprintf "File \"%s\", %s:\n%s\n" fn (Info.string_of_t (Lexer.info lexbuf)) mesg;
+  exit 1
+
 let (@) = Safelist.append (* use a stack-safe append *)
   
 (* compilation environments comprise:                       
@@ -498,8 +502,7 @@ let compile_file fn n =
   let ast = 
     try Parser.modl Lexer.token lexbuf  
     with Parsing.Parse_error -> 
-      Printf.eprintf "File \"%s\", %s:\nSyntax error\n" fn (Info.string_of_t (Lexer.info lexbuf));
-      exit 1 
+      failAt fn lexbuf "Syntax error"
   in 
     (* check that module is in correct file *)
   let m = Syntax.id_of_modl ast in
