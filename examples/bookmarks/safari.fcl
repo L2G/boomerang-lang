@@ -1,0 +1,88 @@
+module Safari =
+
+let l = id
+
+(*
+
+(* fork/map helpers *)
+let idFork p l = fork p l id
+let idXFork pc pa l = xfork pc pa l id
+
+(* note: mapName takes a predicate, but it *must* contain 
+   a single name when we have variables in views, we should 
+   change it so that it takes a name instead 
+*)
+let mapName p l = idFork p (map l)
+ 
+(* list helpers *)
+let addAtomic = add * {}
+let addEmptyTail = add *t {}; mapName {*t} (addAtomic)
+let listifyHd = addAtomic; addEmptyTail
+
+let rec groupby2 =
+  acond isEmptyList isEmptyList
+        (id)
+        (rename *h x1;
+         rename * a1;
+         hoist_nonunique *t {*t *h *};
+         acond (equalDom {x1 a1 *}) singListSingList
+                (idXFork {*} {*t} (plunge *t);
+                 rename x1 *h;
+                 rename a1 *;
+                 plunge *h;
+                 listifyHd
+                )
+                (
+                 mapName {*h} (plunge *h);
+                 hoist_nonunique *h {*h};
+                 idXFork {* *h} {x2} (plunge x2);
+                 mapName {x2} (addEmptyTail);
+                 xfork { x1 x2 a1} {*h *}
+                       (rename x1 *h;
+                        rename x2 *t;
+                        rename a1 *;
+                         plunge *h;
+                         addAtomic
+                       )
+                       (mapName {*t} groupby2)
+                )
+
+        )
+
+let rec plist_object_lens =
+ wmap < dict -> dict_lens 
+	array -> array_lens 
+	string -> leaf_lens >
+
+and array_lens =
+ hoist "";
+ list_map plist_object_lens
+
+and dict_lens =
+ hoist "";
+ groupby2;
+ list_map (keypair_lens)
+
+and keypair_lens =
+ wmap < *h -> (hoist key;leaf_lens)
+	*t -> (wmap <*h -> plist_object_lens >) >
+
+and leaf_lens =
+ hoist "";
+ acond (isEmptyList) (inter (child *t isEmptyList) (child *h (child PCDATA (hasChild BLANK))))
+  (const [{PCDATA=BLANK}] {})
+  id;
+ hd [];
+ hoist PCDATA
+
+let plist_lens =
+ hoist "";
+ hd [];
+ hoist plist;
+ focus "" {};
+ hd [];
+ plist_object_lens
+
+do plist_lens
+
+*)
