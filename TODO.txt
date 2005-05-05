@@ -3,10 +3,10 @@ THINGS TO DO
 IMMEDIATE
 catch errors and print them sensibly (including parsability)
 output to stdout option and input from stdin
-
+fix 'make test' in /src so that it actually runs all tests
+copy src/INSTALL and such
 
 TIDYING
-* move /src out of the way, move /newsrc in place, and copy src/INSTALL and such
 * make clean should remove the silly ._d directories from OCamlMakefile
 * Add interface files with camldoc documentation for EVERY MODULE
 * renaming: hoist becomes hoist_unique

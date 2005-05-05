@@ -2,10 +2,10 @@
 # The Harmony Project                                              #
 # harmony@lists.seas.upenn.edu                                     #
 #                                                                  #
-# Makefile - main Makefile for harmony                             #
+# Makefile - main Makefile for harmony sources                     #
 ####################################################################
 
-# $Id$ 
+
 
 SRC = $(shell pwd)
 
@@ -15,3 +15,4 @@ OCAMLLDFLAGS = -linkpkg
 
 include $(SRC)/Common.Makefile
 
+test: all

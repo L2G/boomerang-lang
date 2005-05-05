@@ -2,9 +2,9 @@
 
 TOP = ../..
 
-HARMONYSRC = $(TOP)/newsrc
+HARMONYSRC = $(TOP)/src
 
-LENSLIB = $(TOP)/newsrc/lib/lenses
+LENSLIB = $(TOP)/src/lib/lenses
 LENSPATH = -I $(LENSLIB) -I .
 
 HARMONY = $(HARMONYSRC)/harmony $(LENSPATH)
