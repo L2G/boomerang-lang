@@ -1,7 +1,7 @@
-module Pervasives = 
+module Prelude = 
 
 (* common schemas *)
-type List T = { "*h" = T, "*t" =(List T) } 
+type List T = { "*h" = T, "*t" =(List T) }
 type Any = *{Any}
 
 (* re-exported native lenses *)

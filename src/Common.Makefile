@@ -41,7 +41,7 @@ VIEWER_SOURCES = meta.ml xml.ml
 # PLUGINS #
 ###########
 
-PLUGIN_SOURCES = native.ml
+PLUGIN_SOURCES = prelude.ml
 
 ##################
 # COMMON SOURCES #

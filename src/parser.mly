@@ -22,8 +22,8 @@ let error t info = let (l,c1),(_,c2) = info in
     else raise (Error.Parse_error (s^ ": " ^ t,info))
 
 (* constants *)
-let compose2_qid i = ([(i,"Pervasives"); (i,"Native")], (i, "compose2"))
-let list_qid i = ([(i,"Pervasives")], (i, "List"))
+let compose2_qid i = ([(i,"Prelude")], (i, "compose2_native"))
+let list_qid i = ([(i,"Prelude")], (i, "List"))
 
 (* rewrite exp_cores w/o ENames to typeexps *)
 let rec e2te e = match e with

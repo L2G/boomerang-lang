@@ -79,7 +79,7 @@ let parse_qid s =
   let lexbuf = Lexing.from_string s in
     Parser.qid Lexer.token lexbuf 
 
-let pre_ctx = List.map parse_qid ["Pervasives.Native"; "Pervasives"]
+let pre_ctx = List.map parse_qid ["Prelude"]
 
 let library : env ref = ref empty
 let loaded = ref IdSet.empty

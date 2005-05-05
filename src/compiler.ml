@@ -8,6 +8,9 @@
 
 open Syntax
 
+(* HACK *)
+let debug _ = ()
+
 let failAt fn lexbuf mesg =
   Printf.eprintf "File \"%s\", %s:\n%s\n" fn (Info.string_of_t (Lexer.info lexbuf)) mesg;
   exit 1
@@ -144,7 +147,7 @@ let rec compile_exp cev e0 = match e0 with
 	compile_exp cev (EFun(i,[p1],None,body))
 	  
   | EMap(i,ms) ->
-      let id_exp = EVar(i, Registry.parse_qid "Pervasives.Native.id") in	    
+      let id_exp = EVar(i, Registry.parse_qid "Prelude.id_native") in	    
       let map_sort = SArrow(i, SName(i), SLens(i)) in
       (* check that each element of ms is a name * lens pair *)
       let _ = Safelist.map
@@ -378,7 +381,7 @@ and compile_ptypeexp cev t = match t with
 
 	    	
 and compile_bindings cev bs = 
-  let _ = prerr_string (sprintf "compiling bindings %s\n" (string_of_bindings bs)) in
+  let _ = debug (sprintf "compiling bindings %s\n" (string_of_bindings bs)) in
   (* collect up a compile_env that includes recursive bindings *)
   let bcev =
     Safelist.fold_left
@@ -394,7 +397,7 @@ and compile_bindings cev bs =
       cev
       bs
   in
-  let rec compile_binding cev bi =   let _ = prerr_string (sprintf "compiling binding %s\n" (string_of_binding bi)) in match bi with
+  let rec compile_binding cev bi =   let _ = debug (sprintf "compiling binding %s\n" (string_of_binding bi)) in match bi with
       Syntax.BDef(i,f,[],so,e) -> 
 	let f_qid = qid_of_id f in
 	let r = compile_exp cev e in
@@ -407,7 +410,7 @@ and compile_bindings cev bs =
 	  (f_qid, overwrite bcev f_qid (Registry.make_rv r_sort v))
     | Syntax.BDef(i,f,ps,so,e) -> 
 	let new_e = EFun(i,ps,so,e) in
-	let _ = prerr_string (sprintf "rewriting binding to %s\n" (string_of_exp new_e)) in
+	let _ = debug (sprintf "rewriting binding to %s\n" (string_of_exp new_e)) in
 	  (* rewrite bindings with parameters to plain ol' lambdas *)
 	  compile_binding cev (Syntax.BDef(i,f,[],None,new_e))
   in
@@ -469,7 +472,7 @@ let compile_typebindings cev tbs =
       
 (* type check a single declaration *)
 let rec compile_decl cev di = 
-  let _ = prerr_string (sprintf "compiling decl %s\n" (string_of_decl di)) in
+  let _ = debug (sprintf "compiling decl %s\n" (string_of_decl di)) in
   match di with
   | DLet(i,bs) -> 
       let new_cev, names = compile_bindings cev bs in
@@ -529,7 +532,7 @@ let compile_file fn n =
 			    Syntax.info_of_modl ast))
   in  
   let _ = compile_module ast in
-(*  let _ = if false then prerr_string (Registry.string_of_env (Registry.get_library ())) in *)
+  let _ = debug (Registry.string_of_env (Registry.get_library ())) in
     ()
       
 let _ = Registry.compile_file_impl := compile_file
