@@ -4,7 +4,7 @@
 (*                                                                             *)
 (* info.ml - common definitions for reporting locations of errors             *)
 (*                                                                             *)
-(* $Id: info.ml,v 1.2 2005/04/11 18:24:46 jnfoster Exp $ *)
+(* $Id$ *)
 (*                                                                             *)
 (*******************************************************************************)
 
