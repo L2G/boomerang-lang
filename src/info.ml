@@ -16,7 +16,9 @@ type t = pos * pos
 
 (* pretty printer *)
 let string_of_t ((l1,c1),(l2,c2)) = 
-  Printf.sprintf "line %d, char %d, to line %d, char %d " l1 c1 l2 c2
+  if l2=l2
+    then Printf.sprintf "line %d, characters %d-%d" l1 c1 c2
+    else Printf.sprintf "line %d, character %d, to line %d, character %d" l1 c1 l2 c2
 
 (* dummy info *)
 let bogus = ((0,0),(0,0))

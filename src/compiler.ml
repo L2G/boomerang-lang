@@ -3,10 +3,8 @@
 (* harmony@lists.seas.upenn.edu                                 *)
 (*                                                              *)
 (* compiler.ml - Focal interpreter                              *)
-(*                                                              *)
-(* $Id$           *)
-(*                                                              *)
 (****************************************************************)
+(* $Id$ *)
 
 open Syntax
 
@@ -500,7 +498,8 @@ let compile_file fn n =
   let ast = 
     try Parser.modl Lexer.token lexbuf  
     with Parsing.Parse_error -> 
-      raise (Error.Run_error ("Parse error at: " ^ Info.string_of_t (Lexer.info lexbuf)))
+      Printf.eprintf "File \"%s\", %s:\nSyntax error\n" fn (Info.string_of_t (Lexer.info lexbuf));
+      exit 1 
   in 
     (* check that module is in correct file *)
   let m = Syntax.id_of_modl ast in
