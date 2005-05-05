@@ -52,12 +52,8 @@ let rec e2te e = match e with
 
 /*** MODULES ***/
 modl:
-  | MODULE IDENT EQUAL decls END EOF          { let i = merge_inc $1 $6 in 
-						  MDef(i,$2,[],$4) 
-					      } 
-  | MODULE IDENT EQUAL opens IN decls END EOF { let i = merge_inc $1 $7 in 
-						  MDef(i,$2,$4,$6) 
-					      }
+  | MODULE IDENT EQUAL opens decls EOF        { let i = merge_inc $1 $6 in 
+						  MDef(i,$2,$4,$5) }
       
 opens:
   |                                          { [] }
