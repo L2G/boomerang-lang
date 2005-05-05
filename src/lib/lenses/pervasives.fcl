@@ -27,13 +27,12 @@ let tl (d:view) = focus "*t" { "*h" = d }
 
 let list_map (l:lens) : lens = wmap { "*h" -> l, "*t" -> (list_map l) }
 
-let acond (c:type) (a:type) (lt:lens) (lf:lens) = cond_ww c a <~a> lt lf
+let acond (c:type) (a:type) (lt:lens) (lf:lens) = cond_ww c a <~a> lt lf 
 
 let ccond (c:type) (lt:lens) (lf:lens) = cond c Any Any id id lt lf
-
+  
 let rename_if_present (m:name) (n:name) = 
-    acond <m{Any},*{Any}> <n{Any},*{Any}>
-      (rename m n)
-      id
-
+  acond <m{Any},*{Any}> <n{Any},*{Any}>
+    (rename m n)
+    id
 

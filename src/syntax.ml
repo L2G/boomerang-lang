@@ -62,7 +62,8 @@ type exp =
   | ELet of i * binding list * exp
   | EName of i * id
   | EType of i * typeexp
-  | EView of i * viewbind list * bool
+  | EView of i * (i * exp * exp) list 
+  | EListView of i * (i * exp) list 
 
 (* types *)
 and typeexp = TT of ptypeexp | NT of ptypeexp 
@@ -78,8 +79,6 @@ and ptypeexp =
   | TCat of i * ptypeexp list 
   | TUnion of i * ptypeexp list
       
-and viewbind = (i * exp * exp)
-
 (* bindings *)
 and binding = BDef of i * id * param list * sort option * exp
 
@@ -95,7 +94,7 @@ type decl =
 type modl = MDef of i * id * qid list * decl list
 
 (* simple constants *)
-let emptyView i = EView(i,[],false)
+let emptyView i = EView(i,[])
 let emptyViewType i = TStar(i,[], (TEmpty(i)))
   
 (* accessor functions *)
@@ -114,7 +113,8 @@ let info_of_exp = function
   | EVar(i,_) -> i
   | EName(i,_) -> i
   | EMap(i,_) -> i
-  | EView(i,_,_) -> i
+  | EView(i,_) -> i
+  | EListView(i,_) -> i
   | EType(i,_) -> i
 
 let info_of_ptypeexp = function
@@ -190,14 +190,16 @@ let rec string_of_exp = function
 				^ (string_of_exp e))
   | EName(_,i)       -> string_of_id i
   | EType(_,t)       -> string_of_typeexp t
-  | EView(_,vbs,isList) -> 
-      (if isList then brackets else curlybraces) 
+  | EView(_,vbs) -> 
+      curlybraces
 	(concat ", " 
 	   (Safelist.map (fun (_,n,v) -> 
 			    (string_of_exp n) 
 			    ^ "=" 
 			    ^ (string_of_exp v))
 	      vbs))
+  | EListView(_,vs) ->
+      brackets (concat ", " (Safelist.map (fun (_,v) -> (string_of_exp v)) vs))
 
 and string_of_typeexp = function
   | TT pt -> string_of_ptypeexp pt

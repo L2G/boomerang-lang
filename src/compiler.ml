@@ -150,10 +150,10 @@ let rec compile_exp cev e0 = match e0 with
       let _ = Safelist.map
 	(fun (i,n,l) ->
 	   let n_sort = sort_of_rv (compile_exp cev n) in 
-	   let l_sort = sort_of_rv (compile_exp (clear_rec_vars cev) l) in	   
+	   let l_sort = sort_of_rv (compile_exp cev l) in (*(clear_rec_vars cev) l) in*)
 	   let _ = expect_sort (SName(i)) n_sort i in
 	   let _ = expect_sort (SLens(i)) l_sort i in
-	     ())	
+	     ())
 	ms
       in 
       (* maps are implemented as functions from names -> lenses *)
@@ -210,11 +210,34 @@ let rec compile_exp cev e0 = match e0 with
       let _ = expect_sort (SType(i)) (sort_of_rv trv) (info_of_typeexp t) in
 	trv
 	  
-  | EView(i,ks,is_list) ->
-      make_rv 
-	(SView(i))
-	(Value.V (compile_viewbinds cev ks is_list))
+  | EView(i,ks) ->
+      let rec compile_viewbinds cev ks = match ks with
+	  []               -> V.empty
+	| (i,ne,ve)::krest ->
+	    let n = compile_exp_name cev ne in
+	    let v = compile_exp_view cev ve in
+	    let vrest = compile_viewbinds cev krest in	
+	      match (V.get vrest n) with	      
+		  None   -> V.set vrest n (Some v)	      		
+		| Some _ -> run_error 
+		    (sprintf "Repeated name in view at %s" (Info.string_of_t i))
+      in		      
+	make_rv 
+	  (SView(i))
+	  (Value.V (compile_viewbinds cev ks))
 
+  | EListView(i,vs) ->
+      let rec compile_listbinds cev vs = match vs with
+	  [] -> V.empty_list
+	| (i,vi)::vrest -> 
+	    let v = compile_exp_view cev vi in
+	    let lrest = compile_listbinds cev vrest in
+	      V.cons v lrest
+      in
+	make_rv
+	  (SView(i))
+	  (Value. V (compile_listbinds cev vs))
+		
 (* HELPERS *)
 and compile_exp_name cev e = 
   let e_rv = compile_exp cev e in
@@ -353,21 +376,9 @@ and compile_ptypeexp cev t = match t with
       in
 	SType(i), Type.Union(pt_vals)
 
-and compile_viewbinds cev ks is_list = match ks with
-  | []               -> V.empty
-  | (i,ne,ve)::krest ->
-      let n = compile_exp_name cev ne in
-      let v = compile_exp_view cev ve in
-      let vrest = compile_viewbinds cev krest is_list in	
-	if (is_list) then 
-	  V.cons (V.set (V.empty) n (Some v)) vrest
-	else
-	  match (V.get vrest n) with	      
-	    | None   -> V.set vrest n (Some v)	      		
-	    | Some _ -> run_error 
-		(sprintf "Repeated name in view at %s" (Info.string_of_t i))
-	    	  
+	    	
 and compile_bindings cev bs = 
+  let _ = prerr_string (sprintf "compiling bindings %s\n" (string_of_bindings bs)) in
   (* collect up a compile_env that includes recursive bindings *)
   let bcev =
     Safelist.fold_left
@@ -383,7 +394,7 @@ and compile_bindings cev bs =
       cev
       bs
   in
-  let rec compile_binding cev = function      
+  let rec compile_binding cev bi =   let _ = prerr_string (sprintf "compiling binding %s\n" (string_of_binding bi)) in match bi with
       Syntax.BDef(i,f,[],so,e) -> 
 	let f_qid = qid_of_id f in
 	let r = compile_exp cev e in
@@ -395,8 +406,10 @@ and compile_bindings cev bs =
 	let v = Value.memoize (Registry.value_of_rv r) in
 	  (f_qid, overwrite bcev f_qid (Registry.make_rv r_sort v))
     | Syntax.BDef(i,f,ps,so,e) -> 
-	(* rewrite bindings with parameters to plain ol' lambdas *)
-	compile_binding cev (Syntax.BDef(i,f,[],None,(EFun(i,ps,so,e))))
+	let new_e = EFun(i,ps,so,e) in
+	let _ = prerr_string (sprintf "rewriting binding to %s\n" (string_of_exp new_e)) in
+	  (* rewrite bindings with parameters to plain ol' lambdas *)
+	  compile_binding cev (Syntax.BDef(i,f,[],None,new_e))
   in
   let bcev,names_rev = Safelist.fold_left 
     (fun (bcev,names_rev) bi ->  
@@ -406,7 +419,7 @@ and compile_bindings cev bs =
     bs
   in
     bcev, Safelist.rev names_rev
-	   
+      
 (* type check all type defn's mutually, assume that each param has sort SType *)
 let compile_typebindings cev tbs =
   (* helper for constructing arrow sorts *)
@@ -455,7 +468,9 @@ let compile_typebindings cev tbs =
     tcev, Safelist.rev names_rev
       
 (* type check a single declaration *)
-let rec compile_decl cev = function
+let rec compile_decl cev di = 
+  let _ = prerr_string (sprintf "compiling decl %s\n" (string_of_decl di)) in
+  match di with
   | DLet(i,bs) -> 
       let new_cev, names = compile_bindings cev bs in
 	clear_rec_vars new_cev, names
