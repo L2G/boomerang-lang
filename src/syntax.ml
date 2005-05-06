@@ -176,7 +176,7 @@ let rec string_of_exp = function
 				    | Some s -> " : " ^ string_of_sort s)
 			       ^ " -> "
 			       ^ (string_of_exp e))
-  | EApp(_,e1,e2)    -> (string_of_exp e1) ^ " " ^ (string_of_exp e2)
+  | EApp(_,e1,e2)    -> braces (string_of_exp e1) ^ " " ^ (string_of_exp e2)
   | EMap(_,ms)       -> 
       curlybraces (concat "" 
 		     (Safelist.map (fun (_,e1,e2) -> 
@@ -254,9 +254,9 @@ and string_of_decl = function
        @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
 
 let id_of_modl (MDef(_,m,_,_)) = m
-let info_of_modl (MDef(i,_,_,_)) = i
+let info_of_module (MDef(i,_,_,_)) = i
 
-let string_of_modl (MDef(_,id,qs,ds)) = 
+let string_of_module (MDef(_,id,qs,ds)) = 
   concat ""
     (["module "
      ; string_of_id id

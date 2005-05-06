@@ -9,6 +9,10 @@ let lexeme = LE.lexeme
 let linestart = ref 0
 let lineno = ref 1
 
+let reset () = 
+  linestart := 0; 
+  lineno := 1
+
 let newline lexbuf : unit = 
   linestart := LE.lexeme_start lexbuf;
   incr lineno
@@ -23,8 +27,7 @@ let error lexbuf s =
   let t = lexeme lexbuf in
   let s = Printf.sprintf "%d:%d-%d: %s" l1 c1 c2 s in
   if t = "" then raise (Syntax_error (s,((l1,c1),(l2,c2))))
-  else raise (Syntax_error (s^ ": " ^ t,((l1,c1),(l2,c2))))
- 
+  else raise (Syntax_error (s^ ": " ^ t,((l1,c1),(l2,c2)))) 
 }
 
 let blank = [' ' '\t']+

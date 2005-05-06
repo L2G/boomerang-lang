@@ -11,10 +11,13 @@ open Syntax
 (* HACK *)
 let debug _ = ()
 
-let failAt fn lexbuf mesg =
-  Printf.eprintf "File \"%s\", %s:\n%s\n" fn (Info.string_of_t (Lexer.info lexbuf)) mesg;
+let file_name = ref "" 
+let failAt i mesg =
+  Printf.eprintf "File \"%s\", %s:\n%s\n" (!file_name) (Info.string_of_t i) mesg;
   exit 1
 
+
+    
 let (@) = Safelist.append (* use a stack-safe append *)
   
 (* compilation environments comprise:                       
@@ -68,7 +71,6 @@ let sort_of_param_list i ps s =
   
 (* helper function for printing run errors *) 
 let sprintf = Printf.sprintf  
-let run_error error_string = raise (Error.Run_error error_string)
   
 (* check that s matches expected sort es. Print an error message if not *)
 let rec expect_sort es s i = 
@@ -86,11 +88,7 @@ let rec expect_sort es s i =
   	let _ = expect_sort es2 s2 i in
  	  s1
     | _ -> 
-	run_error (sprintf 
-		     "The expression at %s has sort %s but is used with sort %s"
-		     (Info.string_of_t i)
-		     (string_of_sort s)		     
-		     (string_of_sort es))
+	failAt i (sprintf "Sort %s found; expected %s"	(string_of_sort s) (string_of_sort es))
 
 (* EXPRESSIONS *)
 let rec compile_exp cev e0 = match e0 with
@@ -100,18 +98,16 @@ let rec compile_exp cev e0 = match e0 with
 	match (rec_var_ok cev q, lookup cev q) with
 	  | (true, Some rv) -> rv
 	  | (false, Some _)  -> 
-	      run_error (sprintf 
-			   "Variable %s may not be used recursively at %s"
-			   (string_of_qid q)			
-			   (Info.string_of_t i))
+	      failAt i (sprintf 
+			     "Variable %s may not be used recursively."
+			     (string_of_qid q))
 	  | (_, None) ->
-	      run_error (sprintf "Unbound variable %s at %s"
-			   (string_of_qid q)
-			   (Info.string_of_t i))
+	      failAt i (sprintf "Unbound variable %s"
+			  (string_of_qid q))
       end
 	
-  | EFun(i,[],_,_) -> run_error (sprintf "Zero argument function at %s"
-				   (Info.string_of_t i))
+  | EFun(i,[],_,_) -> failAt i (sprintf "Zero argument function")
+      
   | EFun(i,[p],rso,e) ->
       (* fully-annotated, simple lambda *)
       let param_sort = sort_of_param p in
@@ -174,11 +170,10 @@ let rec compile_exp cev e0 = match e0 with
 			     else
 			       f v
 			 | _ -> 
-			     run_error (sprintf 
-					  "Name expected in map at %s" 
-					  (Info.string_of_t i))
+			     failAt i "Name expected in map"
+			       
 		   end
-	       | _ -> run_error (sprintf "Argument to map is not a name"))
+	       | _ -> failAt i "Argument to map is not a name")
 	(fun _ -> value_of_rv (compile_exp cev id_exp))
 	ms
       in
@@ -191,12 +186,11 @@ let rec compile_exp cev e0 = match e0 with
 	  match value_of_rv rv1, sort_of_rv rv1 with
 	    | Value.F f, SArrow(_,ps,rs) ->
 		let rv2 = compile_exp cev e2 in
-		let _ = expect_sort ps (sort_of_rv rv2) (info_of_exp e2) in
+		let _ = expect_sort ps (sort_of_rv rv2) (info_of_exp e2) in 
 		  make_rv rs (f (value_of_rv rv2))
-	    | _ -> 
-		run_error 
-		  "Function expected at left-hand side of application at %s"
-		  (Info.string_of_t i)
+	    | _ -> failAt i (sprintf 
+			       "Function expected at left-hand side of application %s, found %s"
+			       (string_of_exp e0) (string_of_sort (sort_of_rv rv1)))
       end		  
 
   | ELet(i,bs,e) ->
@@ -222,8 +216,7 @@ let rec compile_exp cev e0 = match e0 with
 	    let vrest = compile_viewbinds cev krest in	
 	      match (V.get vrest n) with	      
 		  None   -> V.set vrest n (Some v)	      		
-		| Some _ -> run_error 
-		    (sprintf "Repeated name in view at %s" (Info.string_of_t i))
+		| Some _ -> failAt i "Repeated name in view"
       in		      
 	make_rv 
 	  (SView(i))
@@ -243,26 +236,22 @@ let rec compile_exp cev e0 = match e0 with
 		
 (* HELPERS *)
 and compile_exp_name cev e = 
+  let i = info_of_exp e in
   let e_rv = compile_exp cev e in
   let e_sort = sort_of_rv e_rv in
   let e_value = value_of_rv e_rv in
     match e_sort, e_value with 
       | SName(_), Value.N n -> n
-      | _   -> run_error 
-	  (sprintf "Name expected at %s, found %s"
-	     (Info.string_of_t (Syntax.info_of_exp e))
-	     (string_of_sort e_sort))
+      | _   -> failAt i (sprintf "name expected, found %s" (string_of_sort e_sort))
 
 and compile_exp_view cev e = 
+  let i = info_of_exp e in    
   let e_rv = compile_exp cev e in
   let e_sort = sort_of_rv e_rv in
   let e_value = value_of_rv e_rv in
     match e_sort, e_value with 
       | SView(_), Value.V v -> v
-      | _   -> run_error 
-	  (sprintf "View expected at %s, found %s"
-	     (Info.string_of_t (Syntax.info_of_exp e))
-	     (string_of_sort e_sort))
+      | _   -> failAt i (sprintf "view expected, found %s" (string_of_sort e_sort))
 	    
 (* TYPE EXPRESSIONS *)
 and compile_typeexp cev t = match t with
@@ -285,14 +274,10 @@ and compile_ptypeexp cev t = match t with
 		tsort, tval
 		  
 	  | (false, Some _)  -> 
-	      run_error (sprintf 
-			   "Type variable %s may not be used recursively at %s"
-			   (string_of_qid q)			
-			   (Info.string_of_t i))
-	  | (_, None) ->
-	      run_error (sprintf "Unbound type variable %s at %s"
-			   (string_of_qid q)
-			   (Info.string_of_t i))
+	      failAt i (sprintf "Type variable %s may not be used recursively."
+			  (string_of_qid q))
+	  | (_, None) -> failAt i (sprintf "Unbound type variable %s."
+				     (string_of_qid q))
       end
   | TApp(i,pt1,pt2) ->
       begin
@@ -301,18 +286,13 @@ and compile_ptypeexp cev t = match t with
 	      let pt2_sort, pt2_val = compile_ptypeexp cev pt2 in
 	      let _ = expect_sort (SType(i)) pt2_sort (info_of_ptypeexp pt2) in
 		rs, Type.App(pt1_val, pt2_val)
-	  | _ -> run_error 
-	      (sprintf 
-		 "Type operator expected at left-hand side of type application at %s"
-		 (Info.string_of_t i))
+	  | _ -> failAt i "Type operator expected at left-hand side of type application"
       end
 
   | TFun(i,xs,pt) -> 
       begin
 	match xs with 
-	    [] -> run_error (sprintf 
-			       "Zero-argument type function at %s"
-			       (Info.string_of_t i))
+	    [] -> failAt i "Zero-argument type function."
 	  | [x] ->
 	      let tsort = SType(i) in
 	      let x_qid = qid_of_id x in
@@ -487,7 +467,7 @@ let rec compile_decl cev di =
 	Safelist.fold_left 
 	  (fun (cev, names) q -> 
 	     match Registry.lookup mcev get_ev q with
-		 None -> run_error
+		 None -> failAt i 
 		   (sprintf "The impossible happened! A just-compiled declaration, %s, is missing"
 		      (string_of_qid q))
 	       | Some rv ->
@@ -515,24 +495,28 @@ let compile_module (Syntax.MDef(i,m,nctx,ds)) =
       
 (* compile_file :: string -> unit *)
 let compile_file fn n = 
+  let old_file_name = !file_name in
+  let _ = file_name := fn in
   let fchan = open_in fn in
   let lexbuf = Lexing.from_channel fchan in
+  let _ = Lexer.reset () in
   let ast = 
     try Parser.modl Lexer.token lexbuf  
     with Parsing.Parse_error -> 
-      failAt fn lexbuf "Syntax error"
+      failAt (Lexer.info lexbuf) "Syntax error"
   in 
     (* check that module is in correct file *)
-  let m = Syntax.id_of_modl ast in
-  let _ = if (Syntax.id_equal m n) then 
-    raise (Error.Sort_error(("Module " 
-			     ^ (Syntax.string_of_id m) 
-			     ^ " must appear in a file named " 
-			     ^ (Syntax.string_of_id m) ^ ".fcl"), 
-			    Syntax.info_of_modl ast))
+  let m = id_of_modl ast in
+  let n_str = string_of_id n in
+  let m_str = string_of_id m in
+  let _ = if (n_str <> m_str) then 
+    failAt (info_of_module ast) 
+      (sprintf "Module %s must appear in a file named %s.fcl"
+	 m_str (String.uncapitalize m_str))
   in  
   let _ = compile_module ast in
   let _ = debug (Registry.string_of_env (Registry.get_library ())) in
+  let _ = file_name := old_file_name in
     ()
       
 let _ = Registry.compile_file_impl := compile_file

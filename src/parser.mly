@@ -24,6 +24,8 @@ let error t info = let (l,c1),(_,c2) = info in
 (* constants *)
 let compose2_qid i = ([(i,"Prelude")], (i, "compose2_native"))
 let list_qid i = ([(i,"Prelude")], (i, "List"))
+let nil_qid i = ([(i,"Prelude")], (i, "Nil"))
+let cons_qid i = ([(i,"Prelude")], (i, "Cons"))
 
 (* rewrite exp_cores w/o ENames to typeexps *)
 let rec e2te e = match e with
@@ -238,6 +240,8 @@ innerview:
 /*** TYPES ***/
 typeexp:
   | ptypeexp                                 { TT $1 }
+  | exp_core                                 { TT (e2te $1) }
+  | TILDE ptypeexp                           { NT $2 }
   | TILDE exp_core                           { NT (e2te $2) }
 
 ptypeexp:
@@ -259,14 +263,26 @@ atypeexp:
   | LBRACE typeelt_list RBRACE               { let i = merge_inc $1 $3 in 
 						 TCat(i,$2) 
 					     }
-  | LBRACK innertype RBRACK                  { let i = merge_inc $1 $3 in
-					       let list = TVar(i, list_qid i) in
-					       	 TApp(i,list, $2) 
-					     }  
+  | LBRACK innertype_list RBRACK             { let i = merge_inc $1 $3 in
+					       let nil = TVar(i, nil_qid i) in
+					       let cons = TVar(i, cons_qid i) in
+						 Safelist.fold_right
+						   (fun ti acc -> TApp(i, TApp(i, cons, ti), acc))
+						   $2
+						   nil
+					     }
       
 innertype: 
   | exp_core                                 { e2te $1 } 
   | atypeexp                                 { $1 } 
+
+innertype_list:
+  |                                          { [] }
+  | innertype COMMA non_empty_innertype_list { $1::$3 }
+
+non_empty_innertype_list:
+  | innertype                                { [$1] }
+  | innertype COMMA non_empty_innertype_list { $1::$3 }
 
 typeelt_list:
   |                                          { [] }

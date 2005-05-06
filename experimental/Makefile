@@ -13,5 +13,4 @@
 all: test
 
 test:
-	make -C template test
-
+	make -C bookmarks test

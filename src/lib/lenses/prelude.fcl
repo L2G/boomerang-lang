@@ -1,60 +1,80 @@
 module Prelude = 
 
-(* common schemas *)
+(* schemas *)
+type Nil = { "*nil" = {}} 
+type Cons H T = { "*h" = H, "*t" = T }
 type List T = { "*h" = T, "*t" =(List T) }
 type Any = *{Any}
 
 (* re-exported native lenses *)
 let probe : (name -> lens) = probe_native
+
 let tracepoint : (name -> lens -> lens) = tracepoint_native
+
 let id : lens = id_native
+
 let const : (view -> view -> lens) = const_native
+
 let compose2 : (lens -> lens -> lens) = compose2_native
+
 let map : (lens -> lens) = map_native
+
 let wmap : ((name -> lens) -> lens) = wmap_native
+
 let xfork : (view -> view -> lens -> lens -> lens) = xfork_native
+
 let hoist : (name -> lens) = hoist_native
+
 let plunge : (name -> lens) = plunge_native 
+
 let copy : (name -> name -> lens) = copy_native
+
 let merge : (name -> name -> lens) = merge_native
+
 let cond_ff : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = cond_ff_native
+
 let cond : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = cond_ff
+
 let cond_ww : (type -> type -> type -> lens -> lens -> lens) = cond_ww_native
+
 let cond_fw : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_fw_native
+
 let cond_wf : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_wf_native
+
 let pivot : (name -> lens) = pivot_native 
+
 let join : (name -> name -> lens) = join_native
+
 let flatten : lens = flatten_native
 
 (* derived lenses *)
-let fork (p:view) = xfork p p
+let fork (p:view) (l1:lens) (l2:lens) : lens = xfork p p l1 l2
 
-let mapp (p:view) (l:lens) = fork p (map l) id 
+let mapp (p:view) (l:lens) : lens = fork p (map l) id 
 
-let filter (p:view) (d:view) = fork p id (const {} d)
+let filter (p:view) (d:view) : lens = fork p id (const {} d)
 
-let prune (n:name) (d:view) = fork {n} (const {} {n=d}) id
+let prune (n:name) (d:view) : lens = fork {n} (const {} {n=d}) id
 
-let add (n:name) (v:view) = xfork {} {n} (const v {} ; plunge n) id
+let add (n:name) (v:view) : lens = xfork {} {n} (const v {} ; plunge n) id
 
-let focus (n:name) (d:view) = filter {n} d ; hoist n
+let focus (n:name) (d:view) : lens = filter {n} d ; hoist n
 
-let hoist_nonunique (n:name) (p:view) = xfork {n} p (hoist n) id 
+let hoist_nonunique (n:name) (p:view) : lens = xfork {n} p (hoist n) id 
 
-let rename (m:name) (n:name) = xfork {m} {n} (hoist m;plunge n) id
+let rename (m:name) (n:name) : lens = xfork {m} {n} (hoist m;plunge n) id
 
-let hd (d:view) = focus "*h" { "*t" = d }
+let hd (d:view) : lens = focus "*h" { "*t" = d }
 
-let tl (d:view) = focus "*t" { "*h" = d }
+let tl (d:view) : lens = focus "*h" { "*h" = d }
 
 let list_map (l:lens) : lens = wmap { "*h" -> l, "*t" -> (list_map l) }
 
-let acond (c:type) (a:type) (lt:lens) (lf:lens) = cond_ww c a <~a> lt lf 
+let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
 
-let ccond (c:type) (lt:lens) (lf:lens) = cond c Any Any id id lt lf
-  
-let rename_if_present (m:name) (n:name) = 
+let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+
+let rename_if_present (m:name) (n:name) : lens = 
   acond <m{Any},*{Any}> <n{Any},*{Any}>
     (rename m n)
     id
-
