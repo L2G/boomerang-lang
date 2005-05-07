@@ -6,6 +6,7 @@ output to stdout option and input from stdin
 fix 'make test' in /src so that it actually runs all tests
 copy src/INSTALL and such
 Compiler.runerror should call failAt (and must therefore take some extra info)
+why, again, do fork and friends take views, not types?
 
 TIDYING
 * make clean should remove the silly ._d directories from OCamlMakefile

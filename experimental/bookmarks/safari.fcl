@@ -1,69 +1,66 @@
 module Safari =
 
-(* fork/map helpers *)
-let idFork (p:type) (l:lens) = fork p l id
-let idXFork (pc:type) (pa:type) (l:lens) = xfork pc pa l id
-
 (* note: mapName takes a predicate, but it *must* contain 
    a single name when we have variables in views; we should 
-   change it so that it takes a name instead 
-*)
-let mapName (p:type) (l:lens) = idFork p (map l)
+   change it so that it takes a name instead *)
+let mapName (p:view) (l:lens) = fork p (map l) id
  
 (* list helpers *)
 let addAtomic = add "*" {}
 let addEmptyTail = add "*t" {}; mapName {"*t"} (addAtomic)
 let listifyHd = addAtomic; addEmptyTail
 
-let groupby2 =
+(* Schemas *)
+let isEmptyList = < {"*nil"} >
+
+let foo = < {"x1" = Any, "a1" = Any, "*" = Any} >
+
+let SingletonList (X:type) = < {"*h"=X, "*t"=[]} >
+let SingListSingList = SingletonList (SingletonList Any)
+
+let groupby2 : lens =
   acond isEmptyList isEmptyList
         id
-        (rename "*h" x1;
-         rename "*" a1;
-         hoist_nonunique "*t" {"*t" "*h" "*"};
-         acond (equalDom {x1 a1 "*"}) singListSingList
-                (idXFork {"*"} {"*t"} (plunge "*t");
-                 rename x1 "*h";
-                 rename a1 "*";
-                 plunge "*h";
-                 listifyHd
-                )
-                (
-                 mapName {"*h"} (plunge "*h");
-                 hoist_nonunique "*h" {"*h"};
-                 idXFork {"*" "*h"} {x2} (plunge x2);
-                 mapName {x2} (addEmptyTail);
-                 xfork { x1 x2 a1} {"*h" "*"}
-                       (rename x1 "*h";
-                        rename x2 "*t";
-                        rename a1 "*";
-                         plunge "*h";
-                         addAtomic
-                       )
-                       (mapName {"*t"} groupby2)
-                )
+        (rename "*h" "x1";
+         rename "*" "a1";
+         hoist_nonunique "*t" {"*t", "*h", "*"};
+         acond foo SingListSingList
+               (xfork {"*"} {"*t"} (plunge "*t") id;
+                rename "x1" "*h";
+                rename "a1" "*";
+                plunge "*h";
+                listifyHd)
+               (mapName {"*h"} (plunge "*h");
+                hoist_nonunique "*h" {"*h"};
+                xfork {"*", "*h"} {"x2"} (plunge "x2") id;
+                mapName {"x2"} (addEmptyTail);
+                xfork {"x1", "x2", "a1"} {"*h", "*"}
+                      (rename "x1" "*h";
+                       rename "x2" "*t";
+                       rename "a1" "*";
+                        plunge "*h";
+                        addAtomic)
+                      (mapName {"*t"} groupby2)))
 
-        )
+let plist_object_lens : lens =
+  wmap { "dict" -> dict_lens,
+         "array" -> array_lens,
+         "string" -> leaf_lens }
 
-let plist_object_lens =
-  wmap { dict -> dict_lens,
-         array -> array_lens,
-         string -> leaf_lens }
-
-and array_lens =
+and array_lens : lens =
   hoist "";
   list_map plist_object_lens
 
-and dict_lens =
+and dict_lens : lens =
   hoist "";
   groupby2;
   list_map (keypair_lens)
 
-and keypair_lens =
+and keypair_lens : lens =
   wmap { "*h" -> hoist key;leaf_lens, 
          "*t" -> wmap {"*h" -> plist_object_lens } }
 
-and leaf_lens =
+and leaf_lens : lens =
   hoist "";
   acond (isEmptyList) (inter (child "*t" isEmptyList) 
                              (child "*h" (child "PCDATA" (hasChild "BLANK"))))

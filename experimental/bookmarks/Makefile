@@ -1,3 +1,5 @@
+all: buildandtest
+
 include ../Common.mk
 
 test: testget 
