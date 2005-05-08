@@ -37,12 +37,12 @@ and string_of_pt = function
   | Bang(f,pt)  ->
       concat ""
     	[ "!"
-    	; braces (concat " " f)
+    	; if f = [] then "" else braces (concat " " f)
     	; curlybraces (string_of_pt pt)]
   | Star(f,pt)  ->
 	concat ""
     	  [ "*"
-    	  ; braces (concat " " f)
+    	  ; if f = [] then "" else braces (concat " " f)
     	  ; curlybraces (string_of_pt pt)]
   | Cat(cs)   -> concat "." (List.map string_of_pt cs)
   | Union(ts)  -> braces (concat " | " (List.map string_of_pt ts))

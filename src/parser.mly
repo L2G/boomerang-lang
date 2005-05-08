@@ -41,7 +41,7 @@ let rec e2te e = match e with
 %token <Info.t> LET IN FUN AND MODULE END OPEN TYPE
 %token <Info.t> LENS VIEW TYPE NAME ARROW
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
-%token <Info.t> SEMI COMMA DOT EQUAL COLON
+%token <Info.t> SEMI COMMA DOT EQUAL COLON MINUS
 %token <Info.t> EMPTY STAR BANG BAR TILDE 
 
 %start modl sort qid ext_view
@@ -243,7 +243,6 @@ typeexp:
   | exp_core                                 { TT (e2te $1) }
   | TILDE ptypeexp                           { NT $2 }
   | TILDE exp_core                           { NT (e2te $2) }
-
 ptypeexp:
   | ptypeexp BAR ctypeexp                    { TUnion($2,[$1;$3]) }
   | ctypeexp                                 { $1 }
@@ -254,15 +253,11 @@ ctypeexp:
 
 atypeexp:
   | EMPTY                                    { TEmpty($1) } 
-  | exp_core LBRACE innertype RBRACE         { let i = info_of_exp $1 in 
-						 TName(i,$1,$3) 
-					     }  
+  | exp_core LBRACE innertype RBRACE         { let i = info_of_exp $1 in TName(i,$1,$3) }  
   | STAR excepts_opt LBRACE innertype RBRACE { TStar($1,$2,$4) }
   | BANG excepts_opt LBRACE innertype RBRACE { TBang($1,$2,$4) }
   | LPAREN ptypeexp RPAREN                   { $2 } 
-  | LBRACE typeelt_list RBRACE               { let i = merge_inc $1 $3 in 
-						 TCat(i,$2) 
-					     }
+  | LBRACE typeelt_list RBRACE               { let i = merge_inc $1 $3 in TCat(i,$2) }
   | LBRACK innertype_list RBRACK             { let i = merge_inc $1 $3 in
 					       let nil = TVar(i, nil_qid i) in
 					       let cons = TVar(i, cons_qid i) in
@@ -273,7 +268,7 @@ atypeexp:
 					     }
       
 innertype: 
-  | exp_core                                 { e2te $1 } 
+  | exp_core                                { e2te $1 }
   | atypeexp                                 { $1 } 
 
 innertype_list:

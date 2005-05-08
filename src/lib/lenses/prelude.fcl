@@ -1,9 +1,14 @@
 module Prelude = 
 
+(* names *)
+let hd_tag : name = "*h"
+let tl_tag : name = "*t"
+let nil_tag : name = "*nil"
+
 (* schemas *)
-type Nil = { "*nil" = {}} 
-type Cons H T = { "*h" = H, "*t" = T }
-type List T = { "*h" = T, "*t" =(List T) }
+type Nil = { nil_tag = {}} 
+type Cons H T = { hd_tag = H, tl_tag = T }
+type List T = { hd_tag = T, tl_tag = (List T) } | { nil_tag = {}}
 type Any = *{Any}
 
 (* re-exported native lenses *)
@@ -48,7 +53,7 @@ let join : (name -> name -> lens) = join_native
 let flatten : lens = flatten_native
 
 (* derived lenses *)
-let fork (p:view) (l1:lens) (l2:lens) : lens = xfork p p l1 l2
+let fork (p:view) : (lens -> lens -> lens) = xfork p p
 
 let mapp (p:view) (l:lens) : lens = fork p (map l) id 
 
@@ -64,11 +69,11 @@ let hoist_nonunique (n:name) (p:view) : lens = xfork {n} p (hoist n) id
 
 let rename (m:name) (n:name) : lens = xfork {m} {n} (hoist m;plunge n) id
 
-let hd (d:view) : lens = focus "*h" { "*t" = d }
+let hd (d:view) : lens = focus hd_tag { tl_tag = d }
 
-let tl (d:view) : lens = focus "*h" { "*h" = d }
+let tl (d:view) : lens = focus tl_tag { hd_tag = d }
 
-let list_map (l:lens) : lens = wmap { "*h" -> l, "*t" -> (list_map l) }
+let list_map (l:lens) : lens = wmap { hd_tag -> l, tl_tag -> (list_map l) }
 
 let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
 
