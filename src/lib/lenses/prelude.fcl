@@ -4,6 +4,7 @@ module Prelude =
 let hd_tag : name = "*h"
 let tl_tag : name = "*t"
 let nil_tag : name = "*nil"
+let list_tags = { hd_tag, tl_tag, nil_tag }
 
 (* schemas *)
 type Nil = {nil_tag = {}} 
