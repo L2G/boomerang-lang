@@ -495,33 +495,33 @@ let _ = register_native "Prelude.merge_native" "name -> name -> lens" merge_lib
 let cond_impl c a1 a2 f21o f12o lt lf =
   { get = 
       (fun cv ->
-	 if Type.member c cv then lt.get cv
+	 if Type.member cv c then lt.get cv
 	 else lf.get cv);
     put = 
       (fun a co ->
-	 if Type.member a1 a then
-	   if Type.member a2 a then
+	 if Type.member a a1 then
+	   if Type.member a a2 then
 	     match co with
 	       | None -> lf.put a co
 	       | Some cv ->
-		   if Type.member c cv
+		   if Type.member cv c
 		   then lt.put a co
 		   else lf.put a co
 	   else
 	     match co with
 	       | None -> lt.put a co
 	       | Some cv ->
-		   if Type.member c cv
+		   if Type.member cv c
 		   then lt.put a co
 		   else lt.put a (match f21o with 
 				    | Some l -> (Some (l.get cv))
 				    | None   -> None)
 	 else
-	   if Type.member a2 a then
+	   if Type.member a a2 then
 	     match co with
 	       | None -> lf.put a co
 	       | Some cv ->
-		   if Type.member c cv
+		   if Type.member cv c
 		   then lf.put a (match f12o with 
 				    | Some l -> (Some (l.get cv))
 				    | None   -> None)

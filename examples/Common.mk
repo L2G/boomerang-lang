@@ -7,7 +7,7 @@ HARMONYSRC = $(TOP)/src
 LENSLIB = $(TOP)/src/lib/lenses
 LENSPATH = -I $(LENSLIB) -I .
 
-HARMONY = $(HARMONYSRC)/harmony $(LENSPATH)
+HARMONY = $(HARMONYSRC)/harmony $(HARMONYFLAGS) $(LENSPATH)
 
 all: test
 

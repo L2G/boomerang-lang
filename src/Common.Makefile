@@ -37,6 +37,12 @@ BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
 
 VIEWER_SOURCES = meta.ml xml.ml
 
+################
+# SYNC SOURCES #
+################
+
+SYNC_SOURCES = sync.ml
+
 ###########
 # PLUGINS #
 ###########
@@ -49,6 +55,7 @@ PLUGIN_SOURCES = prelude.ml
 
 COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/lib/ubase/%) \
 		 $(BASE_SOURCES:%=$(SRC)/%) \
+		 $(SYNC_SOURCES:%=$(SRC)/%) \
 		 $(VIEWER_SOURCES:%=$(SRC)/lib/viewers/%) \
 		 $(PLUGIN_SOURCES:%=$(SRC)/lib/native/%)
 

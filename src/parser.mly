@@ -190,6 +190,14 @@ non_empty_viewelt_list:
   | viewelt                                  { [$1] }
   | viewelt COMMA non_empty_viewelt_list     { $1::$3 }
 
+exp_list:
+  |                                          { [] }
+  | non_empty_exp_list                       { $1 }
+
+non_empty_exp_list:
+  | exp                                      { [$1] }
+  | exp COMMA non_empty_exp_list             { $1::$3 }
+
 /*** TYPES ***/
 typeexp:
   | ptypeexp                                 { TT $1 }
@@ -199,14 +207,6 @@ ptypeexp:
   | ptypeexp BAR apptypeexp                  { TUnion($2,[$1;$3]) }
   | apptypeexp                               { $1 }
       
-ptypeexp_list:
-  |                                          { [] }
-  | non_empty_ptypeexp_list                  { $1 }
-
-non_empty_ptypeexp_list:
-  | ptypeexp                                 { [$1] }
-  | ptypeexp COMMA non_empty_ptypeexp_list   { $1::$3 }
-
 apptypeexp:
   | apptypeexp atypeexp                      { let i = 
 						 merge_inc 
@@ -214,7 +214,7 @@ apptypeexp:
 						   (info_of_ptypeexp $2) in 
 						 TApp(i, $1, $2) }
   | atypeexp                                 { $1 }
-
+ 
 atypeexp:
   | EMPTY                                    { TEmpty($1) } 
   | qid                                      { let i = info_of_qid $1 in TVar(i, $1) }
@@ -253,6 +253,14 @@ non_empty_typeelt_list:
   | typeelt                                  { [$1] }
   | typeelt COMMA non_empty_typeelt_list     { $1::$3 }
 
+ptypeexp_list:
+  |                                          { [] }
+  | non_empty_ptypeexp_list                  { $1 }
+
+non_empty_ptypeexp_list:
+  | ptypeexp                                 { [$1] }
+  | ptypeexp COMMA non_empty_ptypeexp_list   { $1::$3 }
+
 excepts_opt :
   |                                          { [] }
   | SLASH LPAREN two_except_list RPAREN      { $3 }
@@ -280,14 +288,6 @@ name:
 IDENT_or_STRING: 
   | IDENT                                   { $1 }
   | STRING                                  { $1 }
-
-exp_list:
-  |                                          { [] }
-  | non_empty_exp_list                       { $1 }
-
-non_empty_exp_list:
-  | exp                                      { [$1] }
-  | exp COMMA non_empty_exp_list             { $1::$3 }
 
 /*** EXTERNAL view parser */
 ext_view: 
