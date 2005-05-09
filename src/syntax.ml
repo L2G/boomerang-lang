@@ -62,7 +62,7 @@ type exp =
   | EName of i * id
   | EType of i * typeexp
   | EView of i * (i * exp * exp) list 
-  | EListView of i * (i * exp) list 
+  | EListView of i * exp list 
 
 (* types *)
 and typeexp = TT of ptypeexp | NT of ptypeexp 
@@ -199,7 +199,7 @@ let rec string_of_exp = function
 			    ^ (string_of_exp v))
 	      vbs))
   | EListView(_,vs) ->
-      brackets (concat ", " (Safelist.map (fun (_,v) -> (string_of_exp v)) vs))
+      brackets (concat ", " (Safelist.map string_of_exp vs))
 
 and string_of_typeexp = function
   | TT pt -> string_of_ptypeexp pt

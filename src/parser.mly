@@ -27,13 +27,6 @@ let list_qid i = ([(i,"Prelude")], (i, "List"))
 let nil_qid i = ([(i,"Prelude")], (i, "Nil"))
 let cons_qid i = ([(i,"Prelude")], (i, "Cons"))
 
-(* rewrite exp_cores w/o ENames to typeexps *)
-let rec e2te e = match e with
-  | EVar(i,q)     -> TVar(i,q)
-  | EApp(i,e1,e2) -> TApp(i, e2te e1, e2te e2)
-  | _             -> 
-      let i = info_of_exp e in 
-	raise Parsing.Parse_error
 %}
 
 %token <Info.t> EOF 
@@ -172,39 +165,23 @@ aexp:
   | LBRACE map_list RBRACE                   { EMap($1, $2) }
 
 map:
-  | exp_core ARROW exp                       { let i = 
-						 merge_inc 
-						   (info_of_exp $1) 
-						   (info_of_exp $3) 
-					       in 
+  | exp ARROW exp                           { let i = merge_inc (info_of_exp $1) (info_of_exp $3) in 
 						 (i, $1,$3) 
 					     }
-      
+
 map_list:
   | map                                      { [$1] }
   | map COMMA map_list                       { $1::$3 }
 
-/* Core subset of expressions: 
- *    just identifiers, names, applications; 
- *    used in views, maps, and types.
- */
-exp_core:
-  | exp_core aexp_core                       { EApp(info_of_exp $1,$1,$2) }
-  | aexp_core                                { $1 }
-
-aexp_core:
-  | name                                     { let (i,_) = $1 in EName(i,$1) } 
-  | aexp_core_but_name                       { $1 }
-
-aexp_core_but_name:  
-  | qid                                      { let (_,(i,_)) = $1 in EVar(i,$1) }
-  | LPAREN exp_core RPAREN                   { $2 }
-                                                 
 /*** VIEWS ***/
 viewexp:
   | LBRACE viewelt_list RBRACE               { EView(merge_inc $1 $3, $2) }
-  | LBRACK listelt_list RBRACK               { EListView(merge_inc $1 $3, $2) }
-  
+  | LBRACK exp_list RBRACK                   { EListView(merge_inc $1 $3, $2) }
+      
+viewelt:
+  | exp                                      { let i = info_of_exp $1 in (i, $1, emptyView i) }				  	     
+  | exp EQUAL exp                            { (info_of_exp $1, $1, $3) }
+
 viewelt_list:
   |                                          { [] }
   | non_empty_viewelt_list                   { $1 }
@@ -213,52 +190,37 @@ non_empty_viewelt_list:
   | viewelt                                  { [$1] }
   | viewelt COMMA non_empty_viewelt_list     { $1::$3 }
 
-viewelt:
-  | exp_core                                 { let i = info_of_exp $1 in 
-						 (i, $1, emptyView i) 
-					     }
-  | exp_core EQUAL innerview                 { let i = info_of_exp $1 in 
-						 (i, $1, $3) 
-					     }
-
-listelt_list:
-  |                                          { [] }
-  | non_empty_listelt_list                   { $1 }
-
-non_empty_listelt_list:
-  | listelt                                  { [$1] }
-  | listelt COMMA non_empty_listelt_list     { $1::$3 }
-
-listelt:
-  | innerview                                { let i = info_of_exp $1 in (i, $1) }
-
-innerview:
-  | viewexp                                  { $1 }
-  | aexp_core_but_name                       { $1 }
-  | name                                     { let (i,x) = $1 in EView(i,[(i,EName(i,$1), emptyView i)])}
-
 /*** TYPES ***/
 typeexp:
   | ptypeexp                                 { TT $1 }
-  | exp_core                                 { TT (e2te $1) }
   | TILDE ptypeexp                           { NT $2 }
-  | TILDE exp_core                           { NT (e2te $2) }
-ptypeexp:
-  | ptypeexp BAR ctypeexp                    { TUnion($2,[$1;$3]) }
-  | ctypeexp                                 { $1 }
 
-ctypeexp:
-  | atypeexp COMMA ctypeexp                  { TCat($2, [$1;$3]) }
+ptypeexp:
+  | ptypeexp BAR apptypeexp                  { TUnion($2,[$1;$3]) }
+  | apptypeexp                               { $1 }
+      
+ptypeexp_list:
+  |                                          { [] }
+  | non_empty_ptypeexp_list                  { $1 }
+
+non_empty_ptypeexp_list:
+  | ptypeexp                                 { [$1] }
+  | ptypeexp COMMA non_empty_ptypeexp_list   { $1::$3 }
+
+apptypeexp:
+  | apptypeexp atypeexp                      { let i = 
+						 merge_inc 
+						   (info_of_ptypeexp $1) 
+						   (info_of_ptypeexp $2) in 
+						 TApp(i, $1, $2) }
   | atypeexp                                 { $1 }
 
 atypeexp:
   | EMPTY                                    { TEmpty($1) } 
-  | exp_core LBRACE innertype RBRACE         { let i = info_of_exp $1 in TName(i,$1,$3) }  
-  | STAR excepts_opt LBRACE innertype RBRACE { TStar($1,$2,$4) }
-  | BANG excepts_opt LBRACE innertype RBRACE { TBang($1,$2,$4) }
+  | qid                                      { let i = info_of_qid $1 in TVar(i, $1) }
   | LPAREN ptypeexp RPAREN                   { $2 } 
   | LBRACE typeelt_list RBRACE               { let i = merge_inc $1 $3 in TCat(i,$2) }
-  | LBRACK innertype_list RBRACK             { let i = merge_inc $1 $3 in
+  | LBRACK ptypeexp_list RBRACK              { let i = merge_inc $1 $3 in
 					       let nil = TVar(i, nil_qid i) in
 					       let cons = TVar(i, cons_qid i) in
 						 Safelist.fold_right
@@ -267,17 +229,21 @@ atypeexp:
 						   nil
 					     }
       
-innertype: 
-  | exp_core                                { e2te $1 }
-  | atypeexp                                 { $1 } 
-
-innertype_list:
-  |                                          { [] }
-  | innertype COMMA non_empty_innertype_list { $1::$3 }
-
-non_empty_innertype_list:
-  | innertype                                { [$1] }
-  | innertype COMMA non_empty_innertype_list { $1::$3 }
+typeelt:
+  | aexp                                     { let i = info_of_exp $1 in TName(i, $1, emptyViewType i) }
+  | aexp EQUAL ptypeexp                      { let i = merge_inc (info_of_exp $1) (info_of_ptypeexp $3) in
+						 TName(i, $1, $3) }
+  | aexp EQUAL name                          { let n_info = info_of_id $3 in
+					       let i = merge_inc (info_of_exp $1) n_info in
+						 TName(i, $1, TName(n_info, EName(n_info, $3), emptyViewType i)) }
+  | STAR excepts_opt EQUAL ptypeexp          { TStar($1,$2,$4) }
+  | STAR excepts_opt EQUAL name              { let n_info = info_of_id $4 in 
+					       let i = merge_inc $1 n_info in
+						 TStar(i, $2, TName(n_info, EName(n_info, $4), emptyViewType i)) }
+  | BANG excepts_opt EQUAL ptypeexp          { TBang($1,$2,$4) }
+  | BANG excepts_opt EQUAL name              { let n_info = info_of_id $4 in 
+					       let i = merge_inc $1 n_info in
+						 TBang(i, $2, TName(n_info, EName(n_info, $4), emptyViewType i)) }
 
 typeelt_list:
   |                                          { [] }
@@ -287,23 +253,14 @@ non_empty_typeelt_list:
   | typeelt                                  { [$1] }
   | typeelt COMMA non_empty_typeelt_list     { $1::$3 }
 
-typeelt:
-  | aexp_core_but_name                       { e2te $1 }
-  | aexp_core EQUAL innertype                { let i = info_of_exp $1 in 
-						 TName(i, $1, $3)
-					     }
-  | name                                     { let i = info_of_id $1 in 
-						 TName(i,EName(i,$1),emptyViewType i) 
-					     }
-      
 excepts_opt :
-  |                                         { [] }
-  | LPAREN except_list RPAREN               { $2 }
+  |                                          { [] }
+  | LPAREN except_list RPAREN                { $2 }
 
 except_list:
-  |                                         { [] }
-  | exp_core COMMA except_list              { $1::$3 }
-
+  |                                          { [] }
+  | aexp COMMA except_list                   { $1::$3 }
+      
 /*** identifiers ***/
 qid:
   | IDENT                                   { qid_of_id $1 }
@@ -319,6 +276,14 @@ name:
 IDENT_or_STRING: 
   | IDENT                                   { $1 }
   | STRING                                  { $1 }
+
+exp_list:
+  |                                          { [] }
+  | non_empty_exp_list                       { $1 }
+
+non_empty_exp_list:
+  | exp                                      { [$1] }
+  | exp COMMA non_empty_exp_list             { $1::$3 }
 
 /*** EXTERNAL view parser */
 ext_view: 

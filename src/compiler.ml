@@ -256,7 +256,16 @@ and check_exp sev e0 =
 	  let new_ks = Safelist.map
 	    (fun (i,ne,ve) -> 
 	       let new_ne = expect_sort_exp "view expression" sev (SName(i)) ne in
-	       let new_ve = expect_sort_exp "view expression" sev (SView(i)) ve in
+	       (* ve can either be a view, or a name, which is shorthand for n={} *)
+	       let ve_sort, new_ve0 = check_exp sev ve in 
+	       let ve_i = info_of_exp new_ve0 in
+	       let new_ve = match ve_sort with		   
+		   SName(_) -> EView(ve_i, [(ve_i, new_ve0, emptyView ve_i)])
+		 | SView(_) -> new_ve0
+		 | s -> failAt ve_i 
+		     (sprintf "Sort checking error in view binding: expected name or view but found %s"
+			(string_of_sort s))
+	       in
 		 (i, new_ne, new_ve))
 	    ks
 	  in		      
@@ -266,9 +275,10 @@ and check_exp sev e0 =
       | EListView(i,vs) ->
 	  let new_vs = 
 	    Safelist.map
-	      (fun (i,ve) -> 
+	      (fun ve -> 
+		 let i = info_of_exp ve in
 		 let new_ve = expect_sort_exp "list view expression" sev (SView(i)) ve in
-		   (i, new_ve))
+		   new_ve)
 	      vs
 	  in		      
 	  let new_e0 = EListView(i, new_vs) in
@@ -605,7 +615,7 @@ let rec compile_exp cev e0 =
     | EListView(i,vs) ->
 	let rec compile_listbinds cev vs = match vs with
 	    [] -> V.empty_list
-	  | (i,vi)::vrest ->
+	  | vi::vrest ->
 	      let v = compile_exp_view cev vi in
 	      let lrest = compile_listbinds cev vrest in
 		V.cons v lrest

@@ -6,10 +6,10 @@ let tl_tag : name = "*t"
 let nil_tag : name = "*nil"
 
 (* schemas *)
-type Nil = { nil_tag = {}} 
-type Cons H T = { hd_tag = H, tl_tag = T }
-type List T = { hd_tag = T, tl_tag = (List T) } | { nil_tag = {}}
-type Any = *{Any}
+type Nil = {nil_tag = {}} 
+type Cons H T = {hd_tag = H, tl_tag = T }
+type List T = Cons T (List T) | Nil
+type Any = {*=Any}
 
 (* re-exported native lenses *)
 let probe : (name -> lens) = probe_native
@@ -80,6 +80,6 @@ let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt l
 let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
 
 let rename_if_present (m:name) (n:name) : lens = 
-  acond <m{Any},*{Any}> <n{Any},*{Any}>
+  acond <{m=Any, *=Any}> <{n=Any, *=Any}>
     (rename m n)
     id
