@@ -16,5 +16,8 @@ buildandtest: build test
 build:
 	make -C $(HARMONYSRC)
 
+rebuild:
+	make -C $(HARMONYSRC) clean all
+
 clean::
 	rm -f *.tmp junk.* *~

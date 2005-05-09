@@ -11,20 +11,18 @@ let addEmptyTail = add "*t" {}; mapName {"*t"} (addAtomic)
 let listifyHd = addAtomic; addEmptyTail
 
 (* Schemas *)
-let isEmptyList = < {"*nil"} >
-
-let foo = < {"x1" = Any, "a1" = Any, "*" = Any} >
-
+let EmptyList = < {"*nil"} >
 let SingletonList (X:type) = < {"*h"=X, "*t"=[]} >
 let SingListSingList = SingletonList (SingletonList Any)
+let StrangeSchema = < {"x1" = Any, "a1" = Any, "*" = Any} >
 
 let groupby2 : lens =
-  acond isEmptyList isEmptyList
+  acond EmptyList EmptyList
         id
         (rename "*h" "x1";
          rename "*" "a1";
          hoist_nonunique "*t" {"*t", "*h", "*"};
-         acond foo SingListSingList
+         acond StrangeSchema SingListSingList
                (xfork {"*"} {"*t"} (plunge "*t") id;
                 rename "x1" "*h";
                 rename "a1" "*";
@@ -57,15 +55,13 @@ and dict_lens : lens =
   list_map (keypair_lens)
 
 and keypair_lens : lens =
-  wmap { "*h" -> hoist key;leaf_lens, 
+  wmap { "*h" -> hoist "key"; leaf_lens, 
          "*t" -> wmap {"*h" -> plist_object_lens } }
 
 and leaf_lens : lens =
   hoist "";
-  acond (isEmptyList) (inter (child "*t" isEmptyList) 
-                             (child "*h" (child "PCDATA" (hasChild "BLANK"))))
-   (* The LET is to get around a parsing error! *)
-   (const (let foo = {"PCDATA"="BLANK"} in [foo]) {})
+  acond EmptyList < { "*t"=EmptyList, "*h"={"PCDATA" = {"BLANK"={}, *\"BLANK"=Any}}} >
+   (const [{"PCDATA"="BLANK"}] {})
    id;
   hd [];
   hoist "PCDATA"
@@ -73,7 +69,7 @@ and leaf_lens : lens =
 let plist_lens =
   hoist "";
   hd [];
-  hoist plist;
+  hoist "plist";
   focus "" {};
   hd [];
   plist_object_lens
