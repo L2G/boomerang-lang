@@ -34,7 +34,7 @@ let cons_qid i = ([(i,"Prelude")], (i, "Cons"))
 %token <Info.t> LET IN FUN AND MODULE END OPEN TYPE
 %token <Info.t> LENS VIEW TYPE NAME ARROW
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
-%token <Info.t> SEMI COMMA DOT EQUAL COLON MINUS
+%token <Info.t> SEMI COMMA DOT EQUAL COLON SLASH
 %token <Info.t> EMPTY STAR BANG BAR TILDE 
 
 %start modl sort qid ext_view
@@ -230,10 +230,10 @@ atypeexp:
 					     }
       
 typeelt:
-  | aexp                                     { let i = info_of_exp $1 in TName(i, $1, emptyViewType i) }
-  | aexp EQUAL ptypeexp                      { let i = merge_inc (info_of_exp $1) (info_of_ptypeexp $3) in
+  | exp                                      { let i = info_of_exp $1 in TName(i, $1, emptyViewType i) }
+  | exp EQUAL ptypeexp                       { let i = merge_inc (info_of_exp $1) (info_of_ptypeexp $3) in
 						 TName(i, $1, $3) }
-  | aexp EQUAL name                          { let n_info = info_of_id $3 in
+  | exp EQUAL name                           { let n_info = info_of_id $3 in
 					       let i = merge_inc (info_of_exp $1) n_info in
 						 TName(i, $1, TName(n_info, EName(n_info, $3), emptyViewType i)) }
   | STAR excepts_opt EQUAL ptypeexp          { TStar($1,$2,$4) }
@@ -255,11 +255,15 @@ non_empty_typeelt_list:
 
 excepts_opt :
   |                                          { [] }
-  | LPAREN except_list RPAREN                { $2 }
+  | SLASH LPAREN two_except_list RPAREN      { $3 }
+  | SLASH except_list                        { $2 }
+
+two_except_list:
+  | exp COMMA except_list                    { $1::$3 }
 
 except_list:
-  |                                          { [] }
-  | aexp COMMA except_list                   { $1::$3 }
+  | exp                                      { [$1] }
+  | two_except_list                          { $1 }
       
 /*** identifiers ***/
 qid:

@@ -50,7 +50,7 @@ rule token = parse
 | "lens"        { LENS (info lexbuf) }
 | "view"        { VIEW (info lexbuf) }
 | "name"        { NAME (info lexbuf) }
-| "\""		{ STRING ((info lexbuf), (string lexbuf)) }
+| "empty"       { EMPTY(info lexbuf) }
 | "="		{ EQUAL (info lexbuf) }
 | "{"		{ LBRACE (info lexbuf) }
 | "}"		{ RBRACE (info lexbuf) }
@@ -64,12 +64,12 @@ rule token = parse
 | ","           { COMMA (info lexbuf) }
 | "."           { DOT (info lexbuf) }
 | ":"           { COLON (info lexbuf) }
-| "empty"       { EMPTY(info lexbuf) }
 | "*"           { STAR (info lexbuf) } 
 | '!'           { BANG (info lexbuf) }
 | '|'           { BAR (info lexbuf) }
 | '~'           { TILDE (info lexbuf) }
-| '\\'           { MINUS (info lexbuf) }
+| "\\"          { SLASH (info lexbuf) }
+| "\""		{ STRING ((info lexbuf), (string lexbuf)) }
 (* generic stuff *)
 | idchar	{ let i = (info lexbuf) in IDENT (i, (lexeme lexbuf)) }
 | newline       { newline lexbuf; token lexbuf }
