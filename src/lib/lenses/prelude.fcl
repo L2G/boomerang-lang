@@ -47,6 +47,10 @@ let cond_fw : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_fw_n
 
 let cond_wf : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_wf_native
 
+let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
+
+let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+
 let pivot : (name -> lens) = pivot_native 
 
 let join : (name -> name -> lens) = join_native
@@ -68,7 +72,12 @@ let focus (n:name) (d:view) : lens = filter {n} d ; hoist n
 
 let hoist_nonunique (n:name) (p:view) : lens = xfork {n} p (hoist n) id 
 
-let rename (m:name) (n:name) : lens = xfork {m} {n} (hoist m;plunge n) id
+let rename (m:name) (n:name) : lens = xfork {m} {n} (hoist m; plunge n) id
+
+let rename_if_present (m:name) (n:name) : lens = 
+  acond <{m=Any, *=Any}> <{n=Any, *=Any}>
+    (rename m n)
+    id
 
 let hd (d:view) : lens = focus hd_tag { tl_tag = d }
 
@@ -76,11 +85,4 @@ let tl (d:view) : lens = focus tl_tag { hd_tag = d }
 
 let list_map (l:lens) : lens = wmap { hd_tag -> l, tl_tag -> (list_map l) }
 
-let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
 
-let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
-
-let rename_if_present (m:name) (n:name) : lens = 
-  acond <{m=Any, *=Any}> <{n=Any, *=Any}>
-    (rename m n)
-    id

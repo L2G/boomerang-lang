@@ -24,13 +24,13 @@ let myrename (m:name) (n:name) : lens =
 let groupby2 : lens =
   acond EmptyList EmptyList
         id
-        (myrename "*h" "temp*h";
-         myrename "*" "a1";
+        (rename_if_present "*h" "temp*h";
+         rename_if_present "*" "a1";
          hoist_nonunique "*t" {"*t", "*h", "*"};
          acond StrangeSchema SingListSingList
                (xfork {"*"} {"*t"} (plunge "*t") id;
-                myrename "temp*h" "*h";
-                myrename "a1" "*";
+                rename_if_present "temp*h" "*h";
+                rename_if_present "a1" "*";
                 plunge "*h";
                 listifyHd)
                (mapName {"*h"} (plunge "*h");
@@ -38,9 +38,9 @@ let groupby2 : lens =
                 xfork {"*", "*h"} {"x2"} (plunge "x2") id;
                 mapName {"x2"} (addEmptyTail);
                 xfork {"temp*h", "x2", "a1"} {"*h", "*"}
-                      (myrename "temp*h" "*h";
-                       myrename "x2" "*t";
-                       myrename "a1" "*";
+                      (rename_if_present "temp*h" "*h";
+                       rename_if_present "x2" "*t";
+                       rename_if_present "a1" "*";
                        plunge "*h";
                        addAtomic)
                       (mapName {"*t"} groupby2)))
