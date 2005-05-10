@@ -9,21 +9,26 @@
 (***********************************************************)
 
 (* debugging *)
-let debug_flag = true
+let debug_flag = false
 let debug s = if debug_flag then (prerr_string (s ^ "\n"))
 
+let sprintf = Printf.sprintf
+
 (* generic pretty-printing helper functions *)
-let concat sep list = 
-  if (list = []) 
-  then "" 
-  else
-    Safelist.fold_right 
-      (fun h t -> if (t = sep) then h else (h ^ sep ^ t))
-      list
-      sep
-      
+let concat 
+    (fold:('a -> string -> string) -> 't -> string -> string)
+    (sep:string) 
+    (pretty:'a -> string) 
+    (structure: 't) : string =
+  let f (h:'a) (acc:string) : string = 
+    if acc = "" then (pretty h) 
+    else (sprintf "%s%s%s" (pretty h) sep acc)
+  in    
+    fold f structure ""
+    
+let concat_list sep l = concat Safelist.fold_right sep (fun x -> x) l 
+
 let enclose p1 s p2 = p1 ^ s ^ p2
 let braces s = enclose "(" s ")"
 let brackets s = enclose "[" s "]" 
 let curlybraces s = enclose "{" s "}" 
-let sprintf = Printf.sprintf

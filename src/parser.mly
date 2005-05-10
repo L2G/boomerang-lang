@@ -299,7 +299,7 @@ ext_view:
   | LBRACK ext_viewelt_list RBRACK          { Safelist.fold_right 
 						(fun v vacc -> V.cons v vacc) 
 						$2 
-						V.empty 
+						V.empty_list
 					    }
   
 ext_viewelt_list:

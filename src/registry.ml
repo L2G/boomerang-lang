@@ -49,20 +49,16 @@ let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found 
 (* env pretty printer *)
 let string_of_rv rv = 
   let (s,v) = rv in
-    Pretty.concat "" [ Value.string_of_t v
-		     ; ":"
-		     ; Syntax.string_of_sort s]
-
+    sprintf "%s:%s" (Value.string_of_t v) (Syntax.string_of_sort s)
+      
 let string_of_env ev = 
   Pretty.curlybraces 
     (QidMap.fold (fun q r acc -> 
-		    Pretty.concat ""
-		      [ "\n\t"
-		      ; Syntax.string_of_qid q
-		      ; " = "
-		      ; string_of_rv (!r)
-		      ; if (acc = "") then "" else ", "
-		      ; acc]) 
+		    sprintf "\n\t%s=%s%s%s"		      
+		      (Syntax.string_of_qid q)
+		      (string_of_rv (!r))
+		      (if (acc = "") then "" else ", ")
+		      acc)
        ev "")
 
 

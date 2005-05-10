@@ -25,7 +25,11 @@ let compiler_debug = Prefs.createBool "debug-compiler" false
 
 let debug s = 
   if Prefs.read compiler_debug 
-  then prerr_string (sprintf "%s\n" s)
+  then 
+    begin 
+      prerr_string (sprintf "%s\n" s);
+      flush stderr
+    end
 
 (* error reporting *)
 let file_name = ref "" 
@@ -57,7 +61,7 @@ let set_cev_ctx cev qs = let (os,ev) = cev in (qs,ev)
 let lookup_cev cev q = 
   let _ = debug (sprintf "looking up %s in [%s]!" 
 		   (string_of_qid q) 
-		   (Pretty.concat "," 
+		   (Pretty.concat_list "," 
 		      (Safelist.map string_of_qid (ctx_of_cev cev))))
   in
   match (Registry.lookup_library cev ev_of_cev ctx_of_cev q) with
@@ -641,85 +645,114 @@ and compile_exp_view cev e =
 	    
 and compile_typeexp cev t0 =
   let _ = debug (sprintf "compiling typeexpression %s" (string_of_typeexp t0)) in
-  match t0 with
-      Syntax.TT pt ->
-	let pt_sort, pt_val = compile_ptypeexp cev pt in
-	  make_rv pt_sort (Value.T (Type.TT pt_val))
-    | Syntax.NT pt ->
-	let pt_sort, pt_val = compile_ptypeexp cev pt in
-	  make_rv pt_sort (Value.T (Type.NT pt_val))
-	  
-and compile_ptypeexp cev pt0 = match pt0 with
-    TEmpty(i) -> (SType i), Type.Empty
-  | TVar(i,q) ->
-      begin
-	(* look up in the environment; check that recursive uses OK *)
-	match (lookup_cev cev q) with
-	    Some rv ->
-	      let tsort = sort_of_rv rv in
-	      let tval = Type.Var (q,(ctx_of_cev cev)) in
-		tsort, tval
-	  | None ->
-	      failAt i
-		(sprintf "Run error: unbound type variable %s." (string_of_qid q))
-      end
-  | TApp(i,pt1,pt2) ->
-      begin
-	match compile_ptypeexp cev pt1 with
-	    STOper(_,_,rs), pt1_val ->
-	      let _, pt2_val = compile_ptypeexp cev pt2 in
-		rs, Type.App(pt1_val, pt2_val)
-	  | s, _ ->
-	      failAt i
-		(sprintf "Run error: type operator expected at left-hand side of type application but %s found"
-		   (string_of_sort s))
-      end
+    match t0 with
+	Syntax.TT pt ->
+	  let pt_sort, pt_val = compile_ptypeexp cev pt in
+	    make_rv pt_sort (Value.T (Type.TT pt_val))
+      | Syntax.NT pt ->
+	  let pt_sort, pt_val = compile_ptypeexp cev pt in
+	    make_rv pt_sort (Value.T (Type.NT pt_val))
+	      
+and compile_ptypeexp cev pt0 = 
+  let ptype2thunk cev pt () = 
+    let _ = debug (sprintf "forced thunk for %s" (string_of_ptypeexp pt)) in
+      match pt with 
+	  TVar(i,q) -> 
+	    begin 
+	      match lookup_cev cev q with
+		  Some rv -> 
+		    begin
+		      match value_of_rv rv with 
+			  Value.T (Type.TT qpt) -> qpt
+			| _ -> failAt i (sprintf "Run error: type variable %s is not bound to a non-negative type." 
+					   (string_of_qid q))
+		    end
+		| None -> failAt i
+		    (sprintf "Run error: unbound type variable %s." 
+		       (string_of_qid q))
+	    end
+	| TApp(i,pt1,pt2) ->
+	    begin
+	      match compile_ptypeexp cev pt1 with
+		  _,Type.Fun(_,f) -> 
+		    let _, pt2v = compile_ptypeexp cev pt2 in
+		      f pt2v
+		| s,_         -> failAt i
+		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found"
+		       (string_of_sort s))
+	    end
+	| _ -> assert false
+    in match pt0 with
+	TEmpty(i) -> (SType i), Type.Empty(i)
+      | TVar(i,q) ->
+	  begin
+	    (* look up in the environment; check that recursive uses OK *)
+	    match (lookup_cev cev q) with
+		Some rv ->
+		  let tsort = sort_of_rv rv in
+		  let tval = Type.Var (i,q,ptype2thunk cev pt0) in
+		    tsort, tval
+	      | None ->
+		  failAt i
+		    (sprintf "Run error: unbound type variable %s." (string_of_qid q))
+	  end
+      | TApp(i,pt1,pt2) ->
+	  begin
+	    match compile_ptypeexp cev pt1 with
+		STOper(_,_,rs), pt1_val ->
+		  let _, pt2_val = compile_ptypeexp cev pt2 in
+		    rs, Type.App(i, pt1_val, pt2_val, ptype2thunk cev pt0)
+	      | s, _ ->
+		  failAt i
+		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found"
+		       (string_of_sort s))
+	  end
 
-  | TFun(i,[x],f_sort,pt) ->
-      begin
-	let x_qid = qid_of_id x in
-	let f_impl pt_arg =
-	  let x_rv = make_rv (SType(i)) (Value.T(Type.TT(pt_arg))) in
-	  let body_cev = update_cev cev x_qid x_rv in
-	  let _,body_val = compile_ptypeexp body_cev pt in
-	    body_val
-	in
-	let fun_sort = STOper(i,SType(i),f_sort) in
-	let fun_value = Type.Fun(f_impl) in
-	  fun_sort, fun_value
-      end
-  | TFun(i,_,_,_) -> failAt i "Run error: unflattened type function"
-        
-  | TName(i,e,pt) ->
-      let n = compile_exp_name cev e in
-      let _, t_val = compile_ptypeexp cev pt in
-      	SType(i), (Type.Name(n,t_val))
-	  
-  | TBang(i,excl,pt) ->
-      let excl_ns = List.map (compile_exp_name cev) excl in
-      let _, t_val = compile_ptypeexp cev pt in 
-	SType(i), (Type.Bang(excl_ns,t_val))
-	  
-  | TStar(i,excl,pt) ->
-      let excl_ns = List.map (compile_exp_name cev) excl in
-      let _, t_val = compile_ptypeexp cev pt in 
-	SType(i), (Type.Star(excl_ns,t_val))
-  | TCat(i,pts) ->
-      let pt_vals = Safelist.map
-	(fun pti -> let _, ti_val = compile_ptypeexp cev pti in
-	   ti_val)
-	pts
-      in
-	SType(i), (Type.Cat(pt_vals))
-	  
-  | TUnion(i,pts) ->
-      let pt_vals = Safelist.map
-	(fun pti -> let _, ti_val = compile_ptypeexp cev pti in
-	   ti_val)
-	pts
-      in
-	SType(i), (Type.Union(pt_vals))
-	    	
+      | TFun(i,[x],f_sort,pt) ->
+	  begin
+	    let x_qid = qid_of_id x in
+	    let f_impl pt_arg =
+	      let x_rv = make_rv (SType(i)) (Value.T(Type.TT(pt_arg))) in
+	      let body_cev = update_cev cev x_qid x_rv in
+	      let _,body_val = compile_ptypeexp body_cev pt in
+		body_val
+	    in
+	    let fun_sort = STOper(i,SType(i),f_sort) in
+	    let fun_value = Type.Fun(i,f_impl) in
+	      fun_sort, fun_value
+	  end
+      | TFun(i,_,_,_) -> failAt i "Run error: unflattened type function"
+          
+      | TName(i,e,pt) ->
+	  let n = compile_exp_name cev e in
+	  let _, t_val = compile_ptypeexp cev pt in
+      	    SType(i), (Type.Name(i,n,t_val))
+	      
+      | TBang(i,excl,pt) ->
+	  let excl_ns = List.map (compile_exp_name cev) excl in
+	  let _, t_val = compile_ptypeexp cev pt in 
+	    SType(i), (Type.Bang(i,excl_ns,t_val))
+	      
+      | TStar(i,excl,pt) ->
+	  let excl_ns = List.map (compile_exp_name cev) excl in
+	  let _, t_val = compile_ptypeexp cev pt in 
+	    SType(i), (Type.Star(i,excl_ns,t_val))
+      | TCat(i,pts) ->
+	  let pt_vals = Safelist.map
+	    (fun pti -> let _, ti_val = compile_ptypeexp cev pti in
+	       ti_val)
+	    pts
+	  in
+	    SType(i), (Type.Cat(i,pt_vals))
+	      
+      | TUnion(i,pts) ->
+	  let pt_vals = Safelist.map
+	    (fun pti -> let _, ti_val = compile_ptypeexp cev pti in
+	       ti_val)
+	    pts
+	  in
+	    SType(i), (Type.Union(i,pt_vals))
+	      
 and compile_bindings cev bs =
   let _ = debug (sprintf "compiling bindings %s\n" (string_of_bindings bs)) in
   (* collect up a compile_env that includes recursive bindings *)

@@ -7,16 +7,7 @@ let reader s =
     with Parsing.Parse_error -> 
       raise (Error.Run_error ("Parse error at: " ^ Info.string_of_t (Lexer.info lexbuf)))
       
-let writer v =
-  let out,flush = Format.get_formatter_output_functions () in
-  let buf = Buffer.create 64 in
-  Format.set_formatter_output_functions 
-    (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
-  V.format v;
-  Format.print_flush();
-  let s = Buffer.contents buf in
-  Format.set_formatter_output_functions out flush;
-  s
+let writer = V.string_of_t
 
 let _ =
   let etest filename copt = Misc.filename_extension filename = "meta" in

@@ -222,63 +222,6 @@ let same_root_sort v1 v2 =
 (* ---------------------------------------------------------------------- *)
 (* PRETTY PRINTING *)
 
-let rec pretty_print ((VI (_,m)) as v) =
-  if is_list v then 
-    begin (* A list *)
-      let rec loop pp lst = 
-	match lst with
-            [] -> ()
-	  | [kid] -> pp kid 
-	  | kid::rest -> pp kid; Format.printf ",@ "; loop pp rest 
-      in
-      let rec pp v = 
-	if is_value v then 
-	  Format.print_string (get_value v)
-	else 
-	  pretty_print v
-      in
-      let lst = list_from_structure v in
-	Format.printf "[@[<hv0>";
-	loop pp lst;
-	Format.printf "@]]"
-    end 
-  else 
-    begin
-      if (is_value v) then 
-	begin (* A value *)
-	  Format.printf "{%s}" (Misc.whack (get_value v))
-	end
-      else 
-	begin 
-	  if (Name.Map.for_all (fun kid -> is_empty kid) m) then
-	    begin (* All entries are values - so print only labels *)
-	      Format.printf "{@[<hv0>";
-	      Name.Map.iter_with_sep
-		(fun k kid -> Format.printf "%s" (Misc.whack k))
-		(fun() -> Format.printf ",@ ")
-		m;	      
-	      Format.printf "@]}";
-	    end
-	  else 
-	    begin (* Not all entres are values *)
-	      Format.printf "@[<hv0>";
-              Format.printf "{@[<hv0>";
-	      (* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *)
-	      Name.Map.iter_with_sep
-		(fun k kid -> 
-		   Format.printf "@[<hv0>%s =@ " (Misc.whack k);
-		   pretty_print kid;
-		   Format.printf "@]")
-		(fun() -> (Format.printf ",";Format.force_newline ()))
-		m;
-	      Format.printf "@]";
-	      (* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *)
-	      Format.printf "}";
-	      Format.printf "@]";
-	    end
-	end
-    end 
-
 let raw = 
   Prefs.createBool "raw" false "Dump views in 'raw' form" ""
       
@@ -288,7 +231,7 @@ let rec format ((VI (_,m)) as v) =
       let rec loop = function
           [] -> ()
 	| [kid] -> format kid
-	| kid::rest -> format kid; Format.printf "@ "; loop rest in
+	| kid::rest -> format kid; Format.printf ",@ "; loop rest in
       Format.printf "[@[<hv0>";
       loop (list_from_structure v);
       Format.printf "@]]"
@@ -302,7 +245,7 @@ let rec format ((VI (_,m)) as v) =
 	    Format.printf "@[<hv1>%s =@ " (Misc.whack k);
 	    format kid;
 	    Format.printf "@]")
-          (fun() -> Format.printf " @ ")
+          (fun() -> Format.printf ",@ ")
           m;
         Format.printf "@]}"
       end
@@ -327,6 +270,18 @@ let rec format_raw ((VI (_,m)) as v) =
     (fun x -> format_raw x) 
     (fun (VI (_,m)) -> Name.Map.is_empty m)
     m  
+
+let string_of_t v = 
+  let out,flush = Format.get_formatter_output_functions () in
+  let buf = Buffer.create 64 in
+    Format.set_formatter_output_functions 
+      (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
+    format v;
+    Format.print_flush();
+    let s = Buffer.contents buf in
+      Format.set_formatter_output_functions out flush;
+      s
+
     
 type msg = [ `String of string | `Name of Name.t | `Break | `View of t
            | `View_opt of t option | `Open_box | `Close_box ]
@@ -401,5 +356,62 @@ let rec show_diffs_inner v u path =
 let rec show_diffs v u =
   Format.printf "@[<v0>";
   show_diffs_inner v u [];
-  Format.printf "@]";
+  Format.printf "@]"
   
+(* CK's old pretty printer for views *)
+(* let rec pretty_print ((VI (_,m)) as v) = *)
+(*   if is_list v then  *)
+(*     begin (\* A list *\) *)
+(*       let rec loop pp lst =  *)
+(* 	match lst with *)
+(*             [] -> () *)
+(* 	  | [kid] -> pp kid  *)
+(* 	  | kid::rest -> pp kid; Format.printf ",@ "; loop pp rest  *)
+(*       in *)
+(*       let rec pp v =  *)
+(* 	if is_value v then  *)
+(* 	  Format.print_string (get_value v) *)
+(* 	else  *)
+(* 	  pretty_print v *)
+(*       in *)
+(*       let lst = list_from_structure v in *)
+(* 	Format.printf "[@[<hv0>"; *)
+(* 	loop pp lst; *)
+(* 	Format.printf "@]]" *)
+(*     end  *)
+(*   else  *)
+(*     begin *)
+(*       if (is_value v) then  *)
+(* 	begin (\* A value *\) *)
+(* 	  Format.printf "{%s}" (Misc.whack (get_value v)) *)
+(* 	end *)
+(*       else  *)
+(* 	begin  *)
+(* 	  if (Name.Map.for_all (fun kid -> is_empty kid) m) then *)
+(* 	    begin (\* All entries are values - so print only labels *\) *)
+(* 	      Format.printf "{@[<hv0>"; *)
+(* 	      Name.Map.iter_with_sep *)
+(* 		(fun k kid -> Format.printf "%s" (Misc.whack k)) *)
+(* 		(fun() -> Format.printf ",@ ") *)
+(* 		m;	       *)
+(* 	      Format.printf "@]}"; *)
+(* 	    end *)
+(* 	  else  *)
+(* 	    begin (\* Not all entres are values *\) *)
+(* 	      Format.printf "@[<hv0>"; *)
+(*               Format.printf "{@[<hv0>"; *)
+(* 	      (\* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *\) *)
+(* 	      Name.Map.iter_with_sep *)
+(* 		(fun k kid ->  *)
+(* 		   Format.printf "@[<hv0>%s =@ " (Misc.whack k); *)
+(* 		   pretty_print kid; *)
+(* 		   Format.printf "@]") *)
+(* 		(fun() -> (Format.printf ",";Format.force_newline ())) *)
+(* 		m; *)
+(* 	      Format.printf "@]"; *)
+(* 	      (\* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *\) *)
+(* 	      Format.printf "}"; *)
+(* 	      Format.printf "@]"; *)
+(* 	    end *)
+(* 	end *)
+(*     end  *)

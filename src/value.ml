@@ -4,9 +4,8 @@
 (*                                                                  *)
 (* value.ml - internal run-time representation of Focal structures  *)
 (*                                                                  *)
-(* $Id: value.ml,v 1.5 2005/04/21 03:27:42 jnfoster Exp $ *)
-(*                                                                  *)
 (********************************************************************)
+(* $Id: value.ml,v 1.5 2005/04/21 03:27:42 jnfoster Exp $ *)
   
 type t = 
     N of Name.t                 (* names *)
@@ -24,17 +23,17 @@ let rec string_of_t = function
   | F(f) -> "<fun>"
       
 (* dummy value generator *)
-let rec dummy = function
+let rec dummy s = match s with 
     Syntax.SName(_) -> N "_"
   | Syntax.SLens(_) -> L (Lens.native (fun _ -> assert false) (fun _ _ -> assert false))
-  | Syntax.SType(_) -> T (Type.TT(Type.Empty))
+  | Syntax.SType(i) -> T (Type.TT(Type.Empty(i)))
   | Syntax.SView(_) -> V (V.empty)
   | Syntax.SArrow(_,_,rs) -> F (fun _ -> dummy rs)
-  | Syntax.STOper(_,_,rs) -> T (Type.TT(Type.Fun (fun _ -> dummy_ptype rs)))
+  | Syntax.STOper(i,_,rs) -> T (Type.TT(dummy_ptype s))
 
 and dummy_ptype = function
-    Syntax.STOper(_,_,rs) -> Type.Fun (fun _ -> dummy_ptype rs)
-  | Syntax.SType(_)       -> Type.Empty
+    Syntax.STOper(i,_,rs) -> Type.Fun (i, fun _ -> dummy_ptype rs)
+  | Syntax.SType(i)       -> Type.Empty(i)
   | _                     -> assert false
       
 (* MEMOIZATION *)
