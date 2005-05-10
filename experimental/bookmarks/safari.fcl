@@ -12,32 +12,37 @@ let listifyHd = addAtomic; addEmptyTail
 
 (* Schemas *)
 let EmptyList = < {"*nil"} >
+let EmptyView = < {} >
 let SingletonList (X:type) = < {"*h"=X, "*t"=[]} >
 let SingListSingList = SingletonList (SingletonList Any)
 let StrangeSchema = < {"x1" = Any, "a1" = Any, "*" = Any} >
 
+let myrename (m:name) (n:name) : lens = 
+  probe "before xfork";
+  xfork {m} {n} (probe "before acond"; acond EmptyView EmptyView id (probe "inside myrename"; hoist m; plunge n)) id
+
 let groupby2 : lens =
   acond EmptyList EmptyList
         id
-        (rename "*h" "x1";
-         rename "*" "a1";
+        (myrename "*h" "temp*h";
+         myrename "*" "a1";
          hoist_nonunique "*t" {"*t", "*h", "*"};
          acond StrangeSchema SingListSingList
                (xfork {"*"} {"*t"} (plunge "*t") id;
-                rename "x1" "*h";
-                rename "a1" "*";
+                myrename "temp*h" "*h";
+                myrename "a1" "*";
                 plunge "*h";
                 listifyHd)
                (mapName {"*h"} (plunge "*h");
                 hoist_nonunique "*h" {"*h"};
                 xfork {"*", "*h"} {"x2"} (plunge "x2") id;
                 mapName {"x2"} (addEmptyTail);
-                xfork {"x1", "x2", "a1"} {"*h", "*"}
-                      (rename "x1" "*h";
-                       rename "x2" "*t";
-                       rename "a1" "*";
-                        plunge "*h";
-                        addAtomic)
+                xfork {"temp*h", "x2", "a1"} {"*h", "*"}
+                      (myrename "temp*h" "*h";
+                       myrename "x2" "*t";
+                       myrename "a1" "*";
+                       plunge "*h";
+                       addAtomic)
                       (mapName {"*t"} groupby2)))
 
 let plist_object_lens : lens =
