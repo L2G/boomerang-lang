@@ -89,7 +89,20 @@ let rec cmp_lex l1 l2 cmp_f =
 	  else cmp_lex_aux t1 t2 tie
   in
     cmp_lex_aux l1 l2 eq
-  
+
+let rec eq_ptyp pt1 pt2 = match pt1,pt2 with
+    Var(_,x1,_),Var(_,x2,_) -> Syntax.qid_compare x1 x2 = 0
+  | Name(_,n1,ptn1),Name(_,n2,ptn2) -> (n1=n2) && (eq_ptyp ptn1 ptn2)
+  | Star(_,f1,ptx1),Star(_,f2,ptx2) -> (f1=f2) && (eq_ptyp ptx1 ptx2)
+  | Bang(_,f1,ptx1),Bang(_,f2,ptx2) -> (f1=f2) && (eq_ptyp ptx1 ptx2)
+  | Cat(_,cs1), Cat(_,cs2)            ->       
+      if (Safelist.length cs1 <> Safelist.length cs2) then false
+      else Safelist.fold_left 
+	(fun ok (ci1,ci2) -> ok && (eq_ptyp ci1 ci2))
+	true
+	(Safelist.combine cs1 cs2)
+  | _ -> false 
+    
 let rec cmp_typ t1 t2 = match t1,t2 with
     NT(_),TT(_)      -> lt
   | TT(_), NT(_)     -> gt	
@@ -257,14 +270,13 @@ and pt2nf_aux dethunk pt0 =
 (*     | Cat(_,cs) ->  *)
 (* 	let kids_map = SMap.Map.empty in *)
 	  
-let rec project t0 n = 
-  match t0 with 
-      TT pt -> 
-	begin match project_pt pt n with 
-	    None -> None
-	  | Some ptn -> Some (TT (ptn))
-	end
-    | _ -> failAt (info_of_t t0) "can't project on a negative type"
+let rec project t0 n = match t0 with 
+    TT pt -> 
+      begin match project_pt pt n with 
+	  None -> None
+	| Some ptn -> Some (TT (ptn))
+      end
+  | _ -> failAt (info_of_t t0) "can't project on a negative type"
 and project_pt pt0 n =
   let _ = debug (Format.sprintf "--- PROJECT_PT --- %s from t=%s\n" n (string_of_pt pt0)) in
     match pt0 with
@@ -276,22 +288,34 @@ and project_pt pt0 n =
  	  (fun xo pti -> 
 	     match xo with 
  		 None -> project_pt pti n 
-	       | Some x -> begin match project_pt pti n with
-		     None -> xo
-		   | Some ptin ->
-		       if ptin = x then xo
-		       else (Format.printf
-			       "ERROR: type is not projectable because %s <> %s \n"
-			       (string_of_pt ptin)
-			       (string_of_pt x);
-			     assert false)
-		 end)
+	       | Some x -> 
+		   begin match project_pt pti n with
+		       None -> xo
+		     | Some ptin ->
+			 if eq_ptyp ptin x then xo
+			 else  failAt (info_of_pt pt0)
+			   (sprintf "Fatal error: %s is not projectable on %s; %s <> %s"
+			      (string_of_pt pt0) n
+			      (string_of_pt pti)
+			      (string_of_pt x))
+		   end)
 	    None
 	    pts
-      | Cat(_,pts) -> Safelist.fold_left
+      | Cat(i,pts) -> Safelist.fold_left
 	  (fun xo pti -> match xo with
 	       None   -> project_pt pti n
-	     | Some _ -> assert (project_pt pti n = None); xo)
+	     | Some x -> 
+		 begin
+		   match project_pt pti n with 
+		       None -> xo
+		     | Some ptin -> 
+			 if eq_ptyp ptin x then xo
+			 else failAt (info_of_pt pt0)
+			   (sprintf "Fatal error: %s is not projectable on %s; %s <> %s"
+			      (string_of_pt pt0) n
+			      (string_of_pt pti)
+			      (string_of_pt x))
+		 end)
 	    None
 	    pts
       | Var(_,q,thk)        -> project_pt (eval_pt pt0) n
@@ -302,6 +326,9 @@ let rec member v t = match t2nf t with
     TT pt -> member_pt v pt
   | NT pt -> not (member_pt v pt)
 and member_pt v pt0 = 
+  (* sanity check for projectability *)
+  let _ = V.fold (fun k _ () -> let _ = project_pt pt0 k in ()) v () in
+  
   let res = match pt0 with
     Empty(i)     -> false
   | Fun(_,_)     -> false
