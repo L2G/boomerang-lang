@@ -4,13 +4,13 @@ test: testget testput
 
 testget: 
 	$(HARMONY) \
-	     get -concrete vcard.xml -output out.meta -lens Vcard.l \
-	     && echo && cat out.meta
+	     get -concrete concrete.xml -output out.tmp:xml -lens Template.l \
+	     && echo && cat out.tmp
 
 testput: 
 	$(HARMONY) \
-	     put -concrete vcard.xml -abstract newabstract.meta \
-	     -output out.tmp:xml -lens Vcard.l \
+	     put -concrete concrete.xml -abstract newabstract.xml \
+	     -output out.tmp:xml -lens Template.l \
 	     && echo && cat out.tmp
 
 
