@@ -10,6 +10,19 @@
 open Pretty
     
 let sprintf = Printf.sprintf
+(* low-level compiler debugging *)
+let types_debug = Prefs.createBool "debug-types" false 
+  "print debugging information about types"
+  "print debugging information about types"
+
+let debug s = 
+  if Prefs.read types_debug 
+  then 
+    begin 
+      prerr_string (sprintf "%s\n" s);
+      flush stderr
+    end
+
 
 let failAt i mesg = 
   Printf.eprintf "Fatal error at %s: %s" (Info.string_of_t i) mesg; 
@@ -247,9 +260,9 @@ and pt2nf_aux dethunk pt0 =
       in		  
 	begin
 	  match lift_us_rep with
-	    | [[]]          -> Empty(i) (* recognize some obviously empty types *)
+(*	    | [[]]          -> Empty(i) (* recognize some obviously empty types *) *)
 	    | [[Empty(_)]]     -> Empty(i)
-	    | [[(Cat(_,[]))]]  -> Empty(i)
+(*	    | [[(Cat(_,[]))]]  -> Empty(i) *)
 	    | [[t]]         -> check_repeats t
 	    | [cs]          -> check_repeats (Cat(i,cs))
 	    | _             -> Union (i, Safelist.map (fun x -> check_repeats (Cat(i,x))) lift_us_rep)

@@ -225,25 +225,26 @@ let same_root_sort v1 v2 =
 let raw = 
   Prefs.createBool "raw" false "Dump views in 'raw' form" ""
       
-let rec format ((VI (_,m)) as v) =
+let format v =
+  let rec format_aux ((VI (_,m)) as v) inner = 
   if (not (Prefs.read raw)) then
     if is_list v then begin
       let rec loop = function
           [] -> ()
-	| [kid] -> format kid
-	| kid::rest -> format kid; Format.printf ",@ "; loop rest in
+	| [kid] -> format_aux kid true
+	| kid::rest -> format_aux kid true; Format.printf ",@ "; loop rest in
       Format.printf "[@[<hv0>";
       loop (list_from_structure v);
       Format.printf "@]]"
     end else begin
-      if (is_value v) then
+      if (is_value v && inner) then
 	Format.printf "%s" (Misc.whack (get_value v))
       else begin
         Format.printf "{@[<hv0>";
 	Name.Map.iter_with_sep
 	  (fun k kid -> 
 	    Format.printf "@[<hv1>%s =@ " (Misc.whack k);
-	    format kid;
+	    format_aux kid true;
 	    Format.printf "@]")
           (fun() -> Format.printf ",@ ")
           m;
@@ -254,9 +255,11 @@ let rec format ((VI (_,m)) as v) =
     Name.Map.dump 
       (fun ks -> ks)
       Misc.whack 
-      (fun x -> format x) 
+      (fun x -> format_aux x true) 
       (fun (VI (_,m)) -> Name.Map.is_empty m)
       m
+  in
+    format_aux v false
 
 let format_option = function
     None -> Format.printf "NONE"; 
