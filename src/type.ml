@@ -90,6 +90,8 @@ let rec cmp_lex l1 l2 cmp_f =
   in
     cmp_lex_aux l1 l2 eq
 
+(* a VERY conservative approximation of equality *)
+(* assumes that types are in normal form *)
 let rec eq_ptyp pt1 pt2 = match pt1,pt2 with
     Var(_,x1,_),Var(_,x2,_) -> Syntax.qid_compare x1 x2 = 0
   | Name(_,n1,ptn1),Name(_,n2,ptn2) -> (n1=n2) && (eq_ptyp ptn1 ptn2)
@@ -101,6 +103,13 @@ let rec eq_ptyp pt1 pt2 = match pt1,pt2 with
 	(fun ok (ci1,ci2) -> ok && (eq_ptyp ci1 ci2))
 	true
 	(Safelist.combine cs1 cs2)
+  | Union(_,us1), Cat(_,us2) ->       
+      if (Safelist.length us1 <> Safelist.length us2) then false
+      else Safelist.fold_left 
+	(fun ok (ui1,ui2) -> ok && (eq_ptyp ui1 ui2))
+	true
+	(Safelist.combine us1 us2)
+  | App(_,pt11,pt12,_),App(_,pt21,pt22,_) -> eq_ptyp pt11 pt21 && eq_ptyp pt21 pt22      
   | _ -> false 
     
 let rec cmp_typ t1 t2 = match t1,t2 with

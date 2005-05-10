@@ -5,7 +5,7 @@
 #                             For updates see:
 #                http://www.oefai.at/~markus/ocaml_sources
 #
-#        $Id: OCamlMakefile,v 1.1 2005/04/11 18:35:04 jnfoster Exp $
+#        $Id: OCamlMakefile,v 1.69 2005/01/28 14:59:30 mottl Exp $
 #
 ###########################################################################
 
@@ -105,7 +105,7 @@ ifdef MSVC
   export MSVC
   WIN32   := 1
   ifndef STATIC
-    CFLAGS_WIN32 := -DCAML_DLL 
+    CPPFLAGS_WIN32 := -DCAML_DLL
   endif
   CFLAGS_WIN32 += -nologo
   EXT_OBJ := obj
@@ -150,6 +150,7 @@ export CXX
 export CFLAGS
 export CXXFLAGS
 export LDFLAGS
+export CPPFLAGS
 
 ifndef RPATH_FLAG
   RPATH_FLAG := -R
@@ -157,12 +158,16 @@ endif
 export RPATH_FLAG
 
 ifndef MSVC
-ifndef PIC_FLAGS
-  PIC_FLAGS := -fPIC -DPIC
+ifndef PIC_CFLAGS
+  PIC_CFLAGS := -fPIC
+endif
+ifndef PIC_CPPFLAGS
+  PIC_CPPFLAGS := -DPIC
 endif
 endif
 
-export PIC_FLAGS
+export PIC_CFLAGS
+export PIC_CPPFLAGS
 
 BCRESULT  := $(addsuffix $(BCSUFFIX), $(RESULT))
 NCRESULT  := $(addsuffix $(NCSUFFIX), $(RESULT))
@@ -270,23 +275,30 @@ ifndef CAMLP4
 endif
 export CAMLP4
 
-ifdef PACKS
-  empty :=
-  space := $(empty) $(empty)
-  comma := ,
-  ifdef PREDS
-    PRE_OCAML_FIND_PREDICATES := $(subst $(space),$(comma),$(PREDS))
-    PRE_OCAML_FIND_PACKAGES := $(subst $(space),$(comma),$(PACKS))
-    OCAML_FIND_PREDICATES := -predicates $(PRE_OCAML_FIND_PREDICATES)
-#    OCAML_DEP_PREDICATES := -syntax $(PRE_OCAML_FIND_PREDICATES)
-    OCAML_FIND_PACKAGES := $(OCAML_FIND_PREDICATES) -package $(PRE_OCAML_FIND_PACKAGES)
-    OCAML_DEP_PACKAGES := $(OCAML_DEP_PREDICATES) -package $(PRE_OCAML_FIND_PACKAGES)
-  else
-    OCAML_FIND_PACKAGES := -package $(subst $(space),$(comma),$(PACKS))
-    OCAML_DEP_PACKAGES :=
+ifndef REAL_OCAMLFIND
+  ifdef PACKS
+    ifndef CREATE_LIB
+      ifdef THREADS
+	PACKS += threads
+      endif
+    endif
+    empty :=
+    space := $(empty) $(empty)
+    comma := ,
+    ifdef PREDS
+      PRE_OCAML_FIND_PREDICATES := $(subst $(space),$(comma),$(PREDS))
+      PRE_OCAML_FIND_PACKAGES := $(subst $(space),$(comma),$(PACKS))
+      OCAML_FIND_PREDICATES := -predicates $(PRE_OCAML_FIND_PREDICATES)
+  #    OCAML_DEP_PREDICATES := -syntax $(PRE_OCAML_FIND_PREDICATES)
+      OCAML_FIND_PACKAGES := $(OCAML_FIND_PREDICATES) -package $(PRE_OCAML_FIND_PACKAGES)
+      OCAML_DEP_PACKAGES := $(OCAML_DEP_PREDICATES) -package $(PRE_OCAML_FIND_PACKAGES)
+    else
+      OCAML_FIND_PACKAGES := -package $(subst $(space),$(comma),$(PACKS))
+      OCAML_DEP_PACKAGES :=
+    endif
+    OCAML_FIND_LINKPKG := -linkpkg
+    REAL_OCAMLFIND := $(OCAMLFIND)
   endif
-  OCAML_FIND_LINKPKG := -linkpkg
-  REAL_OCAMLFIND := $(OCAMLFIND)
 endif
 
 export OCAML_FIND_PACKAGES
@@ -350,6 +362,8 @@ export ANNOT_FLAG
 export C_OXRIDL
 export SUBPROJS
 export CFLAGS_WIN32
+export CPPFLAGS_WIN32
+
 INCFLAGS :=
 
 SHELL := /bin/sh
@@ -569,7 +583,8 @@ ifndef REAL_OCAMLC
   MAKE_DEPS := $(MLDEPS) $(BCDEPIS)
 
   ifdef CREATE_LIB
-    CFLAGS := $(PIC_FLAGS) $(CFLAGS)
+    CFLAGS := $(PIC_CFLAGS) $(CFLAGS)
+    CPPFLAGS := $(PIC_CPPFLAGS) $(CPPFLAGS)
     ifndef STATIC
       ifneq ($(strip $(OBJ_LINK)),)
 	MAKEDLL := $(DLLSONAME)
@@ -617,7 +632,7 @@ else
   REAL_IMPL_INTF := $(IMPLX_INTF)
   IMPL_SUF := .cmx
 
-  CFLAGS := -DNATIVE_CODE $(CFLAGS)
+  CPPFLAGS := -DNATIVE_CODE $(CPPFLAGS)
 
   DEPFLAGS  := -native
   MAKE_DEPS := $(MLDEPS) $(NCDEPIS)
@@ -629,7 +644,8 @@ else
   ifndef CREATE_LIB
     ALL_LDFLAGS += $(LIBS:%=%.cmxa)
   else
-    CFLAGS := $(PIC_FLAGS) $(CFLAGS)
+    CFLAGS := $(PIC_CFLAGS) $(CFLAGS)
+    CPPFLAGS := $(PIC_CPPFLAGS) $(CPPFLAGS)
   endif
 
   ifdef THREADS
@@ -955,9 +971,21 @@ endif
 %.ml:			%.mll
 			$(OCAMLLEX) $<
 
-.PRECIOUS:		%.ml %.mli
-%.ml %.mli:		%.mly
+.PRECIOUS:              %.ml %.mli
+%.ml %.mli:             %.mly
 			$(OCAMLYACC) $(YFLAGS) $<
+			$(QUIET)pp=`sed -n -e 's/.*(\*pp \([^*]*\) \*).*/\1/p;q' $<`; \
+			if [ ! -z "$$pp" ]; then \
+			  mv $*.ml $*.ml.temporary; \
+			  echo "(*pp $$pp $(PPFLAGS)*)" > $*.ml; \
+			  cat $*.ml.temporary >> $*.ml; \
+			  rm $*.ml.temporary; \
+			  mv $*.mli $*.mli.temporary; \
+			  echo "(*pp $$pp $(PPFLAGS)*)" > $*.mli; \
+			  cat $*.mli.temporary >> $*.mli; \
+			  rm $*.mli.temporary; \
+			fi
+
 
 .PRECIOUS:		%.ml
 %.ml:			%.rep
@@ -983,10 +1011,12 @@ endif
 
 .c.$(EXT_OBJ):
 			$(OCAMLC) -c -cc "$(CC)" -ccopt "$(CFLAGS) \
+				$(CPPFLAGS) $(CPPFLAGS_WIN32) \
 				$(CFLAGS_WIN32) $(CINCFLAGS) $(CFLAG_O)$@ " $< 
 
 .$(EXT_CXX).$(EXT_OBJ):
-			$(CXX) -c $(CXXFLAGS) $(CINCFLAGS) -I'$(OCAMLLIBPATH)' \
+			$(CXX) -c $(CXXFLAGS) $(CINCFLAGS) $(CPPFLAGS) \
+				-I'$(OCAMLLIBPATH)' \
 				$< $(CFLAG_O)$@
 
 $(MLDEPDIR)/%.d:	%.ml
@@ -1094,24 +1124,24 @@ rawinstall:	all
 .PHONY: rawuninstall
 rawuninstall:
 	$(QUIET)printf "\nUninstalling library from: $(OCAML_LIB_INSTALL)\n"
-	cd $(OCAML_LIB_INSTALL); rm $(notdir $(LIBINSTALL_FILES))
+	cd $(OCAML_LIB_INSTALL) && rm $(notdir $(LIBINSTALL_FILES))
 	$(QUIET)printf "\nUninstallation successful.\n"
 
 ###########################################################################
 # MAINTAINANCE RULES
 
 .PHONY:	clean
-clean:
+clean::
 	rm -f $(TARGETS) $(TRASH)
 	rm -rf $(BCDIDIR) $(NCDIDIR) $(MLDEPDIR)
 
 .PHONY:	cleanup
-cleanup:
+cleanup::
 	rm -f $(NONEXECS) $(TRASH)
 	rm -rf $(BCDIDIR) $(NCDIDIR) $(MLDEPDIR)
 
 .PHONY: clean-doc
-clean-doc:
+clean-doc::
 	rm -rf doc
 
 .PHONY: nobackup
