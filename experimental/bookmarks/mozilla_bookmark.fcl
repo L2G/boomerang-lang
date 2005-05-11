@@ -1,0 +1,97 @@
+module Mozilla_bookmark =
+open Prelude
+
+(* definitions of types for conditionals *)
+type Ddavech3 = { "dd" = { "" = Cons {"h3" = Any } Any }}
+type Ddsansh3 = { "dd" = { "" = Cons {"PCDATA" = Any } Any }}
+type Dt = { "dt" = Any }
+
+type Item = List (Ddavech3 | Ddsansh3 | Dt)
+
+type ItemFolder = Ddavech3 :: Item
+type ItemFolderDesc = Ddavech3 ::  Ddsansh3 :: Item
+type ItemLink = Dt :: Item
+type ItemLinkDesc = Dt :: Ddsansh3 :: Item
+
+(* lens *)
+let l =
+  let no_descr_tag : view  =
+    { hd_tag = { "dd" = { "" = [ {"PCDATA"= {"No description"}} ] }}} in
+  let no_descr : view =
+    { hd_tag = { "PCDATA" = {"No description"}}} in
+  
+  let hoist_hd (p : view) =
+    hoist_nonunique hd_tag p;
+    hoist_nonunique tl_tag list_tags  in
+
+  let link : lens =
+    hoist "";
+    hd [];
+    hoist "a";
+    filter {"", "href", "add_date"} {};
+    rename "" "name";
+    rename "href" "url";
+    prune "add_date" {"01/01/1970"};
+    wmap { "name" -> (hd []; hoist "PCDATA") }
+      
+  and folder : lens =
+    hoist "";
+    hoist_hd {"h3"};
+    fork {"h3"} id (hoist_hd {"dl"});
+    rename "h3" "name";
+    rename "dl" "contents";
+    wmap {"name" -> (filter {""} {}; hoist ""; hd []; hoist "PCDATA"),
+      "contents" -> (hoist ""; item_list)}
+      
+  and item_list : lens =
+
+    let itemfolderdesc = 
+      wmap { hd_tag -> (hoist ""; hd []; rename "h3" "name") ,
+	tl_tag -> 
+	  wmap {hd_tag -> hoist "dd"; hoist ""; focus tl_tag no_descr; hd [];
+	    wmap { "dl" -> (plunge "contents"; plunge hd_tag) }}
+	   };
+      hoist_nonunique tl_tag {tl_tag, "dl"};
+      hoist_nonunique "dl" {hd_tag};
+      wmap { hd_tag -> folder, tl_tag -> item_list } 
+    in
+    let itemfolder =
+      wmap { hd_tag -> folder, tl_tag -> item_list } 
+    in
+    let itemlink =
+      wmap { hd_tag -> link, tl_tag -> item_list } 
+    in
+    let itemlinkdesc =
+    (* in the get, we just focus on the link, and discard the following description *)
+      wmap { hd_tag -> link, tl_tag -> focus tl_tag no_descr_tag };
+      wmap { tl_tag -> item_list }  
+    in
+
+    ccond <ItemFolderDesc> itemfolderdesc
+      (ccond <ItemFolder> itemfolder
+	 (ccond <ItemLinkDesc> itemlinkdesc
+	    (ccond <ItemLink> itemlink
+	       (* then it must be Nil *) id
+	       )
+	    )
+	 );
+    list_map (rename_if_present "dd" "folder"; rename_if_present "dt" "link") in
+      
+  let bookmarks : lens =
+    hoist "";
+    hd [];
+    hoist "html";
+    focus "" {"xmlns" = { "http://www.w3.org/1999/xhtml"}};
+    tl { "head" = { "" = [{"title" = {""= [{ "PCDATA" = {"Bookmarks"}}]}}]}};
+    hd [];
+    hoist "body";
+    hoist "";
+    tl { "h1" = { "" = [{ "PCDATA" = {"Bookmarks"} }]}};
+    hd [];
+    hoist "dl";
+    hoist "";
+    item_list
+
+  in
+  bookmarks
+    

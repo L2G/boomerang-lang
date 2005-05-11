@@ -20,4 +20,4 @@ rebuild:
 	make -C $(HARMONYSRC) clean all
 
 clean::
-	rm -f *.tmp junk.* *~
+	rm -f *.tmp junk.* *.cmo *.cmi *~
