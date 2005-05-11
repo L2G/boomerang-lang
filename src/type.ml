@@ -84,7 +84,14 @@ let eval_pt pt = match pt with
     Var(_,_,thk) -> thk () 
   | App(_,_,_,thk) -> thk ()
   | _            -> pt
-      
+
+(* CONSTANTS *)
+let nil_type = Name(Info.bogus, V.nil_tag, Cat(Info.bogus, []))  
+let cons_type h t = 
+  let i = Info.merge_inc (info_of_pt h) (info_of_pt t) in
+    Cat(i, [Name(i, V.hd_tag, h);
+	    Name(i, V.tl_tag, t)])      
+
 (* a (somewhat arbitrary) order on types: used in t2nf *)
 let eq = 0     (* symbolic comparisons *)
 let lt = -1

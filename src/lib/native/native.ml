@@ -17,18 +17,13 @@ let nil_tag = Value.N (V.nil_tag)
 let _ = register_native "Native.nil_tag" "name" nil_tag
 
 (* these need to be baked in here, because the parser uses them *)
-let nil_type = Type.Name(Info.bogus, V.nil_tag, Type.Cat(Info.bogus, []))  
-let cons_type h t = 
-  let i = Info.merge_inc (Type.info_of_pt h) (Type.info_of_pt t) in
-    Type.Cat(i, [Type.Name(i, V.hd_tag, h);
-		 Type.Name(i, V.tl_tag, t)])      
 let cons =   
   let i = Info.bogus in    
-    Value.T(Type.TT(Type.Fun(i,fun h -> Type.Fun(i,fun t -> cons_type h t))))      
+    Value.T(Type.TT(Type.Fun(i,fun h -> Type.Fun(i,fun t -> Type.cons_type h t))))      
 let _ = register_native "Native.Cons" "type => type => type" cons
 let nil = 
   let i = Info.bogus in
-    Value.T (Type.TT(nil_type))
+    Value.T (Type.TT(Type.nil_type))
 let _ = register_native "Native.Nil" "type" nil
 
 (* (\* common abbreviations used in unit tests *\) *)
