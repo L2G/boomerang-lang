@@ -260,38 +260,20 @@ and pt2nf_aux dethunk pt0 =
       in		  
 	begin
 	  match lift_us_rep with
-(*	    | [[]]          -> Empty(i) (* recognize some obviously empty types *) *)
 	    | [[Empty(_)]]     -> Empty(i)
-(*	    | [[(Cat(_,[]))]]  -> Empty(i) *)
 	    | [[t]]         -> check_repeats t
 	    | [cs]          -> check_repeats (Cat(i,cs))
 	    | _             -> Union (i, Safelist.map (fun x -> check_repeats (Cat(i,x))) lift_us_rep)
 	end
+	  (* FIXME: these stay the same? *)
+	  (*	    | [[]]          -> Empty(i) (* recognize some obviously empty types *) *)
+	  (*	    | [[(Cat(_,[]))]]  -> Empty(i) *)
+
+
   in
   let _ = debug (sprintf "p2nf_aux %s %s ---> %s" (string_of_bool dethunk) (string_of_pt pt0) (string_of_pt res)) in
     res
 
-(* (\* a conservative approximation of CED *\) *)
-(* module type SMap = Mapplus.Make( *)
-(*   struct *)
-(*     type t = string *)
-(*     let compare = compare *)
-(*     let to_string = (fun s -> s) *)
-(*   end) *)
-
-(* let rec is_consistent t0 = match t2nf t0 with *)
-(*     TT pt -> is_consistent_pt pt *)
-(*   | NT pt -> false *)
-(* and is_consistent_pt pt0 =  *)
-(*   match pt0 with *)
-(*       Empty(_) -> true *)
-(*     | Fun(_) -> true ? *)
-(*     | App(_) | Var(_) -> is_consistent_pt (eval_pt pt0) *)
-(*     | Name(_) | Star(_) | Bang(_) -> true *)
-(*     | Union(_,us) -> true STUB *)
-(*     | Cat(_,cs) ->  *)
-(* 	let kids_map = SMap.Map.empty in *)
-	  
 let rec project t0 n = match t0 with 
     TT pt -> 
       begin match project_pt pt n with 
@@ -409,7 +391,7 @@ and member_pt v pt0 =
       let rec loop cs v =
 	let lres = 
 	  if (V.is_empty v) then
-	  (* all the cs must be Stars *)
+	  (* either cs = [] or all cs are Stars *)
 	  List.fold_left (fun ok h -> match h with Star _ -> ok | _ -> false) true cs
 	else
 	  match cs with

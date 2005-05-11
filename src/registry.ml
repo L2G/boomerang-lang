@@ -43,7 +43,7 @@ let overwrite oev get_ev put_ev q r =
     oev 
   with Not_found ->
     update oev get_ev put_ev q r
-
+      
 let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found -> None
 
 (* env pretty printer *)

@@ -31,6 +31,7 @@ let qid_compare (qs1,x1) (qs2,x2) =
 	  else ids_compare t1 t2
   in
     ids_compare (qs1@[x1]) (qs2@[x2])
+let qid_equal q1 q2 = (qid_compare q1 q2 = 0)
 
 (* utility functions *)
 let qid_of_id id = [],id

@@ -47,7 +47,13 @@ let oper_of_xs xs i = Safelist.fold_right
  *  - a Registry.env: mapping from qids to Registry.rv 
  *)
 type compile_env = Syntax.qid list * Registry.env
-    
+
+let string_of_cev cev = 
+  let (os,ev) = cev in 
+    sprintf "{opens={%s} env=%s}" 
+      (Pretty.concat_list ", " (Safelist.map string_of_qid os))
+      (Registry.string_of_env ev)
+
 (* the empty compilation enviroment*)
 let empty_cev = ([], Registry.empty)
   
@@ -59,11 +65,6 @@ let set_cev_ctx cev qs = let (os,ev) = cev in (qs,ev)
  						
 (* helper functions for environments **) 
 let lookup_cev cev q = 
-  let _ = debug (sprintf "looking up %s in [%s]!" 
-		   (string_of_qid q) 
-		   (Pretty.concat_list "," 
-		      (Safelist.map string_of_qid (ctx_of_cev cev))))
-  in
   match (Registry.lookup_library cev ev_of_cev ctx_of_cev q) with
       None -> None 
     | Some rv -> Some rv
@@ -72,15 +73,20 @@ let lookup_cev cev q =
 let update_cev cev q rv = 
   Registry.update cev ev_of_cev set_cev_ev q rv
 
-(* overwrite a cev with a new sort *)
-let overwrite_cev cev q rv = 
-  Registry.overwrite cev ev_of_cev set_cev_ev q rv
+(* overwrite a cev with a new value *)
+let overwrite_cev cev q rv = Registry.overwrite cev ev_of_cev set_cev_ev q rv
     
 (* sort checking environments comprise:
  *  - a qid list: a list of variables that may NOT be used recursively
  *  - a compile env
  *)
 type sort_env = Syntax.qid list * compile_env
+
+let string_of_sev sev = 
+  let (rs,cev) = sev in 
+    sprintf "{recursive_vars={%s} compile_env=%s}" 
+      (Pretty.concat_list ", " (Safelist.map string_of_qid rs))
+      (string_of_cev cev)      
     
 (* the empty sort checking enviroment*)
 let empty_sev = ([], empty_cev)
@@ -106,8 +112,9 @@ let update_sev sev q s =
 let add_rec_var q sev = let (rs,cev) = sev in (q::rs,cev)
 
 (* check if a use of a variable is OK *)
-let rec_var_ok sev q = let (rs,_) = sev in not (Safelist.mem q rs)
-					     
+let rec_var_ok sev q = let (rs,_) = sev in 
+  not (Safelist.exists (qid_equal q) rs)
+    
 (* clear the list of recursive variables (e.g., when we go under a lambda) *)
 let clear_rec_vars sev = let (_,cev) = sev in ([],cev)
 						
@@ -420,7 +427,7 @@ and check_bindings sev bs =
       bs
   in
   let rec check_binding sev bi =   
-    let _ = debug (sprintf "compiling binding %s\n" (string_of_binding bi)) in match bi with
+    let _ = debug (sprintf "checking binding %s\n" (string_of_binding bi)) in match bi with
 	Syntax.BDef(i,f,[],so,e) -> 
 	  let f_qid = qid_of_id f in
 	  let e_sort, new_e = 
@@ -487,7 +494,7 @@ and check_typebindings sev tbs =
       
 (* type check a single declaration *)
 let rec check_decl sev di = 
-  let _ = debug (sprintf "compiling declaration %s\n" (string_of_decl di)) in 
+  let _ = debug (sprintf "checking declaration %s\n" (string_of_decl di)) in 
   match di with
     | DLet(i,bs) -> 
 	let new_sev, names, new_bs = check_bindings sev bs in
@@ -528,7 +535,7 @@ and check_module_aux sev ds =
     (new_sev, names, Safelist.rev new_ds_rev)
       
 let check_module m0 = 
-  let _ = debug (sprintf "compiling module %s" (string_of_module m0)) in
+  let _ = debug (sprintf "checking module %s" (string_of_module m0)) in
   let (Syntax.MDef(i,m,nctx,ds)) = m0 in
   let sev = set_sev_ctx empty_sev (nctx@Registry.pre_ctx) in
   let _,_,new_ds = check_module_aux sev ds in 
@@ -758,13 +765,13 @@ and compile_bindings cev bs =
   (* collect up a compile_env that includes recursive bindings *)
   let bcev =
     Safelist.fold_left
-      (fun bcev (BDef(i,f,xs,so,e)) ->
+      (fun bcev ((BDef(i,f,xs,so,e) as bi)) ->
 	 let f_qid = qid_of_id f in
 	   match so with
 	       (* recursive bindings must give their return sort *)
 	     | Some s ->
 		 let b_sort = (sort_of_param_list i xs s) in
-		 let dummy = Value.dummy b_sort in
+		 let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_binding bi)) b_sort in
 		   add_rec_var f_qid (update_cev bcev f_qid (make_rv b_sort dummy))
 	     | None   -> bcev)
       cev
@@ -793,12 +800,12 @@ and compile_typebindings cev tbs =
   let _ = debug (sprintf "compiling typebindings %s\n" (string_of_typebindings tbs)) in
   (* collect up a compile_env that includes recursive type bindings *)
   let tbcev = Safelist.fold_left
-    (fun tbcev (x,xs,t) ->
+    (fun tbcev ((x,xs,t) as ti) ->
        let i = info_of_id x in (* FIXME: merge info from x and xs *)
        let x_qid = qid_of_id x in
        let b_sort = oper_of_xs xs i in
-       let dummy = Value.dummy b_sort in
-	 add_rec_var x_qid (update_cev tbcev x_qid (make_rv b_sort dummy)))
+       let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_typebinding ti)) b_sort in
+       	 add_rec_var x_qid (update_cev tbcev x_qid (make_rv b_sort dummy)))
     cev
     tbs
   in

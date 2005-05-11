@@ -16,5 +16,5 @@ type t =
   | F of (t -> t)               (* functions *)
 
 val string_of_t : t -> string
-val dummy : Syntax.sort -> t
+val dummy : ?msg:string -> Syntax.sort -> t
 val memoize : t -> t

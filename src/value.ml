@@ -23,12 +23,20 @@ let rec string_of_t = function
   | F(f) -> "<fun>"
       
 (* dummy value generator *)
-let rec dummy s = match s with 
+let rec dummy ?(msg="") s = match s with 
     Syntax.SName(_) -> N "_"
-  | Syntax.SLens(_) -> L (Lens.native (fun _ -> assert false) (fun _ _ -> assert false))
+  | Syntax.SLens(_) -> 
+      let error _ = 
+	flush stdout; flush stderr;
+	prerr_string (Printf.sprintf "Fatal error: dummy %s was not overwritten.\n" msg);
+	flush stderr; 
+	assert false
+      in
+	L (Lens.native error error)
+
   | Syntax.SType(i) -> T (Type.TT(Type.Empty(i)))
   | Syntax.SView(_) -> V (V.empty)
-  | Syntax.SArrow(_,_,rs) -> F (fun _ -> dummy rs)
+  | Syntax.SArrow(_,_,rs) -> F (fun _ -> dummy ~msg:msg rs)
   | Syntax.STOper(i,_,rs) -> T (Type.TT(dummy_ptype s))
 
 and dummy_ptype = function
