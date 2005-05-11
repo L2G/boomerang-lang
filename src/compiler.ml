@@ -779,7 +779,7 @@ and compile_bindings cev bs =
 	     | Some s ->
 		 let b_sort = (sort_of_param_list i xs s) in
 		 let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_binding bi)) b_sort in
-		   add_rec_var f_qid (update_cev bcev f_qid (make_rv b_sort dummy))
+		   update_cev bcev f_qid (make_rv b_sort dummy)
 	     | None   -> bcev)
       cev
       bs
@@ -812,7 +812,7 @@ and compile_typebindings cev tbs =
        let x_qid = qid_of_id x in
        let b_sort = oper_of_xs xs i in
        let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_typebinding ti)) b_sort in
-       	 add_rec_var x_qid (update_cev tbcev x_qid (make_rv b_sort dummy)))
+       	 update_cev tbcev x_qid (make_rv b_sort dummy))
     cev
     tbs
   in
@@ -896,7 +896,7 @@ let compile_file fn n =
   in
   let ast = check_module ast in
   let _ = compile_module ast in
-  let _ = debug (Registry.string_of_env (Registry.get_library ())) in
+  let _ = debug (sprintf "COMPILED MODULE %s, LIBRARY = %s\n" m_str (Registry.string_of_env (Registry.get_library ()))) in
   let _ = file_name := old_file_name in
     ()
       

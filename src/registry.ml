@@ -132,14 +132,27 @@ let load q = match get_module_prefix q with
 	    match fno with 
 	      | None -> ()
 	      | Some fn ->
-		  prerr_string ("[ loading " ^ fn ^ " ]\n");
+		  prerr_string ("[ loading " ^ fn ^ "... ]\n");
 		  loaded := (IdSet.add n (!loaded)); 
-		  (!compile_file_impl) fn n
+		  (!compile_file_impl) fn n;
+		  prerr_string ("[ " ^ fn ^ " loaded ]\n");
+
 	  end
 
 (* lookup in a naming context *)
 let lookup_library2 nctx q = 
+  let _ = debug (sprintf "lookup_library2: %s in [%s] from %s\n"
+		   (Syntax.string_of_qid q)
+		   (concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
+		   (string_of_env !library))
+  in
   let rec lookup_library_aux os q2 =       
+    let _ = debug (sprintf "lookup_library_aux %s in [%s] from %s "
+		     (Syntax.string_of_qid q2)
+		     (concat_list ", " (Safelist.map Syntax.string_of_qid os))
+		     (string_of_env !library)
+		  )
+    in
     let sq = Syntax.string_of_qid in
     let _ = load q2 in
       match lookup (!library) (fun x -> x) q2 with
@@ -151,6 +164,11 @@ let lookup_library2 nctx q =
     lookup_library_aux nctx q
 
 let lookup_library oev ev_of_oev ctx_of_oev q = 
+  let _ = debug (sprintf "looking up %s in [%s] from %s\n"
+		   (Syntax.string_of_qid q)
+		   (concat_list ", " (Safelist.map Syntax.string_of_qid (ctx_of_oev oev)))
+		   (string_of_env (ev_of_oev oev)))
+  in    
   let ev = ev_of_oev oev in
     match lookup ev (fun x -> x) q with
       | Some r -> Some r
