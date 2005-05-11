@@ -38,8 +38,10 @@ let nil_view i =
 %token <Info.t> LET IN FUN AND MODULE END OPEN TYPE
 %token <Info.t> LENS VIEW TYPE NAME ARROW
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
-%token <Info.t> SEMI COMMA DOT EQUAL COLON SLASH
+%token <Info.t> SEMI COMMA DOT EQUAL COLON SLASH DOUBLECOLON
 %token <Info.t> EMPTY STAR BANG BAR TILDE 
+
+%right DOUBLECOLON
 
 %start modl sort qid ext_view
 %type <Syntax.modl> modl
@@ -226,9 +228,9 @@ apptypeexp:
   | ctypeexp                                 { $1 }
 
 ctypeexp:
-  | ctypeexp COLON COLON atypeexp            { let i = merge_inc (info_of_ptypeexp $1) (info_of_ptypeexp $4) in
-					       let cons = TVar(merge_inc $2 $3, cons_qid i) in 
-						 TApp(i, TApp(i, cons, $1), $4)
+  | ctypeexp DOUBLECOLON ctypeexp            { let i = merge_inc (info_of_ptypeexp $1) (info_of_ptypeexp $3) in
+					       let cons = TVar(i, cons_qid i) in 
+						 TApp(i, TApp(i, cons, $1), $3)
 					     }
   | atypeexp                                 { $1 }
  
@@ -308,7 +310,7 @@ IDENT_or_STRING:
 
 /*** EXTERNAL view parser */
 ext_view:
-  | ext_view COLON COLON aext_view         { V.cons $1 $4 }
+  | ext_view DOUBLECOLON aext_view         { V.cons $1 $3 }
   | aext_view                              { $1 }
 
 aext_view: 

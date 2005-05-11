@@ -63,6 +63,7 @@ rule token = parse
 | ";"           { SEMI (info lexbuf) }
 | ","           { COMMA (info lexbuf) }
 | "."           { DOT (info lexbuf) }
+| "::"          { DOUBLECOLON (info lexbuf) }
 | ":"           { COLON (info lexbuf) }
 | "*"           { STAR (info lexbuf) } 
 | '!'           { BANG (info lexbuf) }
