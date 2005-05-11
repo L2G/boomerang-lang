@@ -41,6 +41,7 @@ let l =
     hoist "";
     hoist_hd {"h3"};
     fork {"h3"} id (hoist_hd {"dl"});
+    prune nil_tag {}; prune hd_tag {}; prune tl_tag {};
     rename "h3" "name";
     rename "dl" "contents";
     wmap {"name" -> (filter {""} {}; hoist ""; hd []; hoist "PCDATA"),
