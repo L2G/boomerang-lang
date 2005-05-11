@@ -1,26 +1,5 @@
 module Safari =
 
-(* note: mapName takes a predicate, but it *must* contain 
-   a single name when we have variables in views; we should 
-   change it so that it takes a name instead *)
-let mapName (p:view) (l:lens) = fork p (map l) id
- 
-(* list helpers *)
-let addAtomic = add "*" {}
-let addEmptyTail = add "*t" {}; mapName {"*t"} (addAtomic)
-let listifyHd = addAtomic; addEmptyTail
-
-(* Schemas *)
-let EmptyList = < {"*nil"} >
-let EmptyView = < {} >
-let SingletonList (X:type) = < {"*h"=X, "*t"=[]} >
-let SingListSingList = SingletonList (SingletonList Any)
-let StrangeSchema = < {"x1" = Any, "a1" = Any, "*" = Any} >
-
-let myrename (m:name) (n:name) : lens = 
-  probe "before xfork";
-  xfork {m} {n} (probe "before acond"; acond EmptyView EmptyView id (probe "inside myrename"; hoist m; plunge n)) id
-
 let groupby2 : lens =
   let tmp : name = "tmp" in
   let add_empty_tail : lens =
@@ -52,10 +31,13 @@ let groupby2 : lens =
               (wmap { tl_tag -> groupby2 })))
       
 let plist_object_lens : lens =
+  probe "plist_object_lens";
   wmap { "dict" -> dict_lens,
          "array" -> array_lens,
-         "string" -> leaf_lens }
+         "string" -> leaf_lens };
+  probe "plist_object_lens - end"
 
+(* What I want to write:
 and array_lens : lens =
   hoist "";
   list_map plist_object_lens
@@ -64,14 +46,33 @@ and dict_lens : lens =
   hoist "";
   groupby2;
   list_map (keypair_lens)
+*)
+
+(* What I have to write: *)
+and array_lens : lens =
+  probe "array_lens";
+  wmap {"" -> list_map plist_object_lens};
+  probe "array_lens -- middle";
+  hoist "";
+  probe "array_lens - end"
+
+and dict_lens : lens =
+  probe "dict_lens";
+  wmap {"" -> groupby2; list_map (keypair_lens)};
+  probe "dict_lens - middle";
+  hoist "";
+  probe "dict_lens - end"
 
 and keypair_lens : lens =
+  probe "keypair_lens";
   wmap { "*h" -> hoist "key"; leaf_lens, 
-         "*t" -> wmap {"*h" -> plist_object_lens } }
+         "*t" -> wmap {"*h" -> plist_object_lens } };
+  probe "keypair_lens - end"
 
 and leaf_lens : lens =
+  probe "leaf_lens";
   hoist "";
-  acond EmptyList < { "*t"=EmptyList, "*h"={"PCDATA" = {"BLANK"={}, *\"BLANK"=Any}}} >
+  acond <[]> < { "*t"=[], "*h"={"PCDATA" = {"BLANK"={}, *\"BLANK"=Any}}} >
    (const [{"PCDATA"="BLANK"}] {})
    id;
   hd [];

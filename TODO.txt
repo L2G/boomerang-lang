@@ -1,10 +1,14 @@
 THINGS TO DO
 
 IMMEDIATE
+think about Makefiles!
+think about whether the lambda-calculus part of focal should be strict or
+  lazy (in particular, recursion)
 catch errors and print them sensibly (including parsability)
+  e.g., V.IllFormed
+  (these also need to be caught in viewers!)
 output to stdout option and input from stdin
-fix 'make test' in /src so that it actually runs all tests
-copy src/INSTALL and such
+fix 'make test' in /src so that it actually runs all tests automatically
 Compiler.runerror should call failAt (and must therefore take some extra info)
 why, again, do fork and friends take views, not types?
 
