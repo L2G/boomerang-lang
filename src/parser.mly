@@ -24,9 +24,13 @@ let error t info = let (l,c1),(_,c2) = info in
 (* constants *)
 let compose2_qid i = ([(i,"Prelude")], (i, "compose2_native"))
 let list_qid i = ([(i,"Prelude")], (i, "List"))
-let nil_qid i = ([(i,"Prelude")], (i, "Nil"))
+let nil_qid i : Syntax.qid = ([(i,"Prelude")], (i, "Nil"))
+let nil_tag_qid i : Syntax.qid = ([(i,"Prelude")], (i, "nil_tag"))
 let cons_qid i = ([(i,"Prelude")], (i, "Cons"))
-
+let nil_view i = 
+  let nil_name = EVar(i, nil_tag_qid i) in 
+  let empty_view = EView(i, []) in
+    EView(i, [(i, nil_name, empty_view)]) 
 %}
 
 %token <Info.t> EOF 
@@ -175,8 +179,18 @@ map_list:
 
 /*** VIEWS ***/
 viewexp:
+  | viewexp COLON COLON aviewexp            { EConsView(merge_inc (info_of_exp $1) (info_of_exp $4) ,$1,$4) } 
+  | aviewexp                                 { $1 }
+
+aviewexp:
   | LBRACE viewelt_list RBRACE               { EView(merge_inc $1 $3, $2) }
-  | LBRACK exp_list RBRACK                   { EListView(merge_inc $1 $3, $2) }
+  | LBRACK RBRACK                            { nil_view (merge_inc $1 $2) }
+  | LBRACK non_empty_exp_list RBRACK         { Safelist.fold_right 
+						 (fun ci v -> 
+						    let i = merge_inc (info_of_exp ci) (info_of_exp v) in 
+						      EConsView(i, ci, v))
+						 $2
+						 (nil_view $3) }
       
 viewelt:
   | exp                                      { let i = info_of_exp $1 in (i, $1, emptyView i) }				  	     
@@ -190,10 +204,6 @@ non_empty_viewelt_list:
   | viewelt                                  { [$1] }
   | viewelt COMMA non_empty_viewelt_list     { $1::$3 }
 
-exp_list:
-  |                                          { [] }
-  | non_empty_exp_list                       { $1 }
-
 non_empty_exp_list:
   | exp                                      { [$1] }
   | exp COMMA non_empty_exp_list             { $1::$3 }
@@ -206,13 +216,20 @@ typeexp:
 ptypeexp:
   | ptypeexp BAR apptypeexp                  { TUnion($2,[$1;$3]) }
   | apptypeexp                               { $1 }
-      
+
 apptypeexp:
-  | apptypeexp atypeexp                      { let i = 
+  | apptypeexp ctypeexp                      { let i = 
 						 merge_inc 
 						   (info_of_ptypeexp $1) 
 						   (info_of_ptypeexp $2) in 
 						 TApp(i, $1, $2) }
+  | ctypeexp                                 { $1 }
+
+ctypeexp:
+  | ctypeexp COLON COLON atypeexp            { let i = merge_inc (info_of_ptypeexp $1) (info_of_ptypeexp $4) in
+					       let cons = TVar(merge_inc $2 $3, cons_qid i) in 
+						 TApp(i, TApp(i, cons, $1), $4)
+					     }
   | atypeexp                                 { $1 }
  
 atypeexp:
@@ -290,7 +307,11 @@ IDENT_or_STRING:
   | STRING                                  { $1 }
 
 /*** EXTERNAL view parser */
-ext_view: 
+ext_view:
+  | ext_view COLON COLON aext_view         { V.cons $1 $4 }
+  | aext_view                              { $1 }
+
+aext_view: 
   | LBRACE ext_viewelt_list RBRACE          { Safelist.fold_right 
 						(fun v vacc -> V.concat vacc v) 
 						$2 

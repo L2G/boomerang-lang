@@ -150,28 +150,30 @@ let rec check_sort es s =
  ***)
 
 (* EXPRESSIONS *)
-let expect_sort msg sort term2info check_term term =
+let expect_sort msg sort term2info check_term string_of_term term =
   let i = term2info term in
   let term_sort, new_term = check_term term in
   let term_ok, actual_term_sort = check_sort sort term_sort in
   let _ = 
     if (not term_ok) then 
       failAt i 
-	(sprintf "Sort checking error in %s: %s expected but %s found"
+	(sprintf "Sort checking error in %s: %s expected but %s found\n\t%s"
 	   msg
 	   (string_of_sort sort)
-	   (string_of_sort actual_term_sort))
+	   (string_of_sort actual_term_sort)
+	   (string_of_term term)
+	)	
   in
     new_term
       
 let rec expect_sort_exp msg sev sort e = 
-  expect_sort msg sort info_of_exp (check_exp sev) e
+  expect_sort msg sort info_of_exp (check_exp sev) string_of_exp e
 
 and expect_sort_ptypeexp msg sev sort pt = 
-  expect_sort msg sort info_of_ptypeexp (check_ptypeexp sev) pt
+  expect_sort msg sort info_of_ptypeexp (check_ptypeexp sev) string_of_ptypeexp pt
 
 and expect_sort_typeexp msg sev sort t = 
-  expect_sort msg sort info_of_typeexp (check_typeexp sev) t
+  expect_sort msg sort info_of_typeexp (check_typeexp sev) string_of_typeexp t
     
 and check_exp sev e0 = 
   let _ = debug (sprintf "checking expression %s" (string_of_exp e0)) in
@@ -288,16 +290,18 @@ and check_exp sev e0 =
 	  let new_e0 = EView(i, new_ks) in
 	    (SView(i)), new_e0
 	      
-      | EListView(i,vs) ->
-	  let new_vs = 
-	    Safelist.map
-	      (fun ve -> 
-		 let i = info_of_exp ve in
-		 let new_ve = expect_sort_exp "list view expression" sev (SView(i)) ve in
-		   new_ve)
-	      vs
-	  in		      
-	  let new_e0 = EListView(i, new_vs) in
+      | EConsView(i,e1,e2) ->
+	  let e1_sort, new_e10 = check_exp sev e1 in 
+	  let e1_i = info_of_exp new_e10 in
+	  let new_e1 = match e1_sort with		   
+	      SName(_) -> EView(e1_i, [(e1_i, new_e10, emptyView e1_i)])
+	    | SView(_) -> new_e10
+	    | s -> failAt e1_i 
+		(sprintf "Sort checking error in list view binding: expected name or view but found %s"
+		   (string_of_sort s))
+	  in
+	  let new_e2 = expect_sort_exp "cons list view expression" sev (SView(i)) e2 in
+	  let new_e0 = EConsView(i, new_e1, new_e2) in
 	    (SView(i)), new_e0
 	      
 (* TYPE EXPRESSIONS *)
@@ -630,16 +634,12 @@ let rec compile_exp cev e0 =
 	let view_value = (Value.V (compile_viewbinds cev ks)) in
 	  make_rv (SView(i)) view_value
 	    
-    | EListView(i,vs) ->
-	let rec compile_listbinds cev vs = match vs with
-	    [] -> V.empty_list
-	  | vi::vrest ->
-	      let v = compile_exp_view cev vi in
-	      let lrest = compile_listbinds cev vrest in
-		V.cons v lrest
-	in
-	let list_value = Value. V (compile_listbinds cev vs) in
-	  make_rv (SView(i)) list_value
+    | EConsView(i,e1,e2) ->
+	let v1 = compile_exp_view cev e1 in
+	let v2 = compile_exp_view cev e2 in
+	let v = V.cons v1 v2 in
+	let cons_value = Value. V (v) in
+	  make_rv (SView(i)) cons_value
 	    
 and compile_exp_name cev e =
   let i = info_of_exp e in
