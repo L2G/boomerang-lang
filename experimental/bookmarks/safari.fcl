@@ -22,29 +22,35 @@ let myrename (m:name) (n:name) : lens =
   xfork {m} {n} (probe "before acond"; acond EmptyView EmptyView id (probe "inside myrename"; hoist m; plunge n)) id
 
 let groupby2 : lens =
-  acond EmptyList EmptyList
-        id
-        (rename_if_present "*h" "temp*h";
-         rename_if_present "*" "a1";
-         hoist_nonunique "*t" {"*t", "*h", "*"};
-         acond StrangeSchema SingListSingList
-               (xfork {"*"} {"*t"} (plunge "*t") id;
-                rename_if_present "temp*h" "*h";
-                rename_if_present "a1" "*";
-                plunge "*h";
-                listifyHd)
-               (mapName {"*h"} (plunge "*h");
-                hoist_nonunique "*h" {"*h"};
-                xfork {"*", "*h"} {"x2"} (plunge "x2") id;
-                mapName {"x2"} (addEmptyTail);
-                xfork {"temp*h", "x2", "a1"} {"*h", "*"}
-                      (rename_if_present "temp*h" "*h";
-                       rename_if_present "x2" "*t";
-                       rename_if_present "a1" "*";
-                       plunge "*h";
-                       addAtomic)
-                      (mapName {"*t"} groupby2)))
-
+  let tmp : name = "tmp" in
+  let add_empty_tail : lens =
+    add tl_tag {};
+    wmap { tl_tag -> add nil_tag {} }
+  in
+    acond <[]> <[]>
+      id
+      ((* (1) save hd of the list under tmp *)
+	rename hd_tag tmp;
+	(* (2) bring the tail of the list up to the root level *)
+	hoist_nonunique tl_tag list_tags;
+	(* split on domain at the root level; two cases:
+	   (a) tail was empty --> domain is { tmp, nil }
+	   (b) tail was non-empty --> domain is { tmp, hd, tl }
+	*)
+	acond <{tmp=Any,nil_tag={}}> <[[Any]]>
+	  ((* case (a) yeild [[tmp]] *)
+	    xfork {nil_tag} {tl_tag} (plunge tl_tag) id;
+            rename tmp hd_tag;
+            plunge hd_tag;
+	    add_empty_tail)	  
+	  ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
+            xfork {tmp, hd_tag} {hd_tag}
+              (rename hd_tag tl_tag;
+	       wmap {tl_tag -> plunge hd_tag; add_empty_tail };
+               rename tmp hd_tag;             
+               plunge hd_tag)
+              (wmap { tl_tag -> groupby2 })))
+      
 let plist_object_lens : lens =
   wmap { "dict" -> dict_lens,
          "array" -> array_lens,

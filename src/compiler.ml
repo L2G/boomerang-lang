@@ -108,6 +108,9 @@ let lookup_sev sev q =
 let update_sev sev q s = 
   Registry.update sev ev_of_sev set_sev_ev q (make_rv s (Value.dummy s))
     
+let set_rec_vars sev qs = let (rs,cev) = sev in (qs,cev)
+let get_rec_vars sev = let (rs,_) = sev in rs
+
 (* add a qid to the list of not-recursive variables *)
 let add_rec_var q sev = let (rs,cev) = sev in (q::rs,cev)
 
@@ -219,7 +222,7 @@ and check_exp sev e0 =
 	  let new_ms = Safelist.map
 	    (fun (i,n,l) -> 
 	       let new_n = expect_sort_exp "map name" sev (SName(i)) n in
-	       let new_l = expect_sort_exp "map lens" sev (SLens(i)) l in
+	       let new_l = expect_sort_exp "map lens" (clear_rec_vars sev) (SLens(i)) l in
 		 (i, new_n, new_l))
 	    ms
 	  in 
@@ -243,8 +246,10 @@ and check_exp sev e0 =
 			 (string_of_sort e1_sort))
 	  end		  	    
       | ELet(i,bs,e) ->
+	  let old_rs = get_rec_vars sev in
 	  let bsev,_,new_bs = check_bindings sev bs in
-	  let e_sort, new_e = check_exp bsev e in
+	  let bsev1 = set_rec_vars bsev old_rs in
+	  let e_sort, new_e = check_exp bsev1 e in
 	  let new_e0 = ELet(i, new_bs, new_e) in
 	    e_sort, new_e0
 	      
@@ -495,15 +500,17 @@ and check_typebindings sev tbs =
 (* type check a single declaration *)
 let rec check_decl sev di = 
   let _ = debug (sprintf "checking declaration %s\n" (string_of_decl di)) in 
+  let old_rec_vars = get_rec_vars sev in
   match di with
     | DLet(i,bs) -> 
 	let new_sev, names, new_bs = check_bindings sev bs in
 	let new_di = DLet(i, new_bs) in
-	  (clear_rec_vars new_sev, names, new_di)
+	  (set_rec_vars new_sev old_rec_vars, names, new_di)
+
     | DType(i,tbs) ->      
 	let new_sev, names, new_tbs = check_typebindings sev tbs in
 	let new_di = DType(i, new_tbs) in
-	  (clear_rec_vars new_sev, names, new_di)  
+	  (set_rec_vars new_sev old_rec_vars, names, new_di)  
     | DMod(i,n,ds) ->
 	let n_qid = qid_of_id n in	
 	let m_sev,names,new_ds = check_module_aux sev ds in
@@ -520,7 +527,7 @@ let rec check_decl sev di =
 	  names
 	in
 	let new_di = DMod(i,n,new_ds) in
-	  (new_sev, Safelist.rev names_rev, new_di)
+	  (set_rec_vars new_sev old_rec_vars, Safelist.rev names_rev, new_di)
 	    
 (* type check a module *)
 and check_module_aux sev ds = 
