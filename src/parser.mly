@@ -296,7 +296,7 @@ ext_view:
 						$2 
 						V.empty 
 					    }
-  | LBRACK ext_viewelt_list RBRACK          { Safelist.fold_right 
+  | LBRACK ext_innerview_list RBRACK        { Safelist.fold_right 
 						(fun v vacc -> V.cons v vacc) 
 						$2 
 						V.empty_list
@@ -322,3 +322,12 @@ ext_innerview:
   | IDENT_or_STRING                          { let n = string_of_id $1 in 
 						 V.set V.empty n (Some V.empty)	  
 					     }
+
+
+ext_innerview_list:
+  |                                          { [] }
+  | ext_non_empty_innerview_list             { $1 }
+
+ext_non_empty_innerview_list:
+  | ext_innerview                            { [$1] }
+  | ext_innerview COMMA ext_non_empty_innerview_list { $1::$3 }
