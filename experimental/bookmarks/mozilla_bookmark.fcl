@@ -2,11 +2,12 @@ module Mozilla_bookmark =
 open Prelude
 
 (* definitions of types for conditionals *)
+type Dd = { "dt" = Any }
 type Ddavech3 = { "dd" = { "" = Cons {"h3" = Any } Any }}
 type Ddsansh3 = { "dd" = { "" = Cons {"PCDATA" = Any } Any }}
 type Dt = { "dt" = Any }
 
-type Item = List (Ddavech3 | Ddsansh3 | Dt)
+type Item = List (Dd | Dt)
 
 type ItemFolder = Ddavech3 :: Item
 type ItemFolderDesc = Ddavech3 ::  Ddsansh3 :: Item
