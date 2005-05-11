@@ -23,10 +23,6 @@ val dumpframe: stackframe -> V.msg list
 (** raise an error from a lens *)
 val error : V.msg list -> 'a
 
-val probe : string -> t
-(** [probe s] behaves the same as [id], but dumps out the views it sees to the
-    debugging stream, along with the identifying tag [s]. *)
-
 val tracepoint : string -> t -> t
 
 val trap_errors_in : ('a -> 'b) -> 'a -> 'b

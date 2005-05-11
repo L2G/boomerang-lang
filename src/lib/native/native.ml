@@ -8,6 +8,29 @@ open Value
 open Syntax
 open Error
 
+(* standard tags for cons-cell encoded lists *)
+let hd_tag = Value.N (V.hd_tag)
+let _ = register_native "Native.hd_tag" "name" hd_tag
+let tl_tag = Value.N (V.tl_tag)
+let _ = register_native "Native.tl_tag" "name" tl_tag
+let nil_tag = Value.N (V.nil_tag)
+let _ = register_native "Native.nil_tag" "name" nil_tag
+
+(* these need to be baked in here, because the parser uses them *)
+let nil_type = Type.Name(Info.bogus, V.nil_tag, Type.Cat(Info.bogus, []))  
+let cons_type h t = 
+  let i = Info.merge_inc (Type.info_of_pt h) (Type.info_of_pt t) in
+    Type.Cat(i, [Type.Name(i, V.hd_tag, h);
+		 Type.Name(i, V.tl_tag, t)])      
+let cons =   
+  let i = Info.bogus in    
+    Value.T(Type.TT(Type.Fun(i,fun h -> Type.Fun(i,fun t -> cons_type h t))))      
+let _ = register_native "Native.Cons" "type => type => type" cons
+let nil = 
+  let i = Info.bogus in
+    Value.T (Type.TT(nil_type))
+let _ = register_native "Native.Nil" "type" nil
+
 (* (\* common abbreviations used in unit tests *\) *)
 (* let a = Compiler.compile_view "{a={}}" *)
 (* let b = Compiler.compile_view "{b={}}" *)
@@ -20,39 +43,45 @@ open Error
 (* DEBUGGING *)
 (*************)
 
-(* these must come first because the Compiler automtically inserts
-   tracepoints for recursive Focal lens expressions (and hence, it'd
-   better be defined) *)
-
-(* the native implementations of both debugging lenses live in Lens.t *)
-
-(* (\* PROBE *\) *)
-(* let ref_get_probe = ref (fun _ _ _ -> ()) *)
-(* let ref_put_probe = ref (fun _ _ _ _ ->()) *)
-(* let _ = register ("Prelude.probe",T (Arrow (Name,Lens)), *)
-(* 		  F (function N n -> L (Lens.probe2 n (!ref_get_probe) (!ref_put_probe)) *)
-(* 		       | _ -> focal_type_error "probe")) *)
-
 (* PROBE *)
-let probe_native = Lens.probe 
+let probe msg = Lens.native
+  (fun c ->
+     Format.printf "@,@[<v0>%s (get) @,  " msg;
+     V.format c;
+     Format.printf "@,@]";
+     Format.print_flush ();
+     c)
+  (fun a co ->     
+     Format.printf "@,@[<v0>%s (put) @,  " msg;
+     V.format a;
+     Format.printf "@,  ";
+     begin
+       match co with
+           None -> Format.printf "MISSING";
+         | Some c -> V.format c
+     end;
+     Format.printf "@,@]";
+     Format.print_flush ();
+     a)
+  
 let probe_lib = 
   F(function 
-      | N n -> L (probe_native n)
-      | _ -> focal_type_error "Prelude.probe")
+      | N n -> L (probe n)
+      | _ -> focal_type_error "Native.probe")
     
-let _ = register_native "Prelude.probe_native" "name -> lens" probe_lib
+let _ = register_native "Native.probe" "name -> lens" probe_lib
 	  
 
 (* TRACEPOINT *)
-let tracepoint_native = Lens.tracepoint
+let tracepoint = Lens.tracepoint
 let tracepoint_lib = 
   F(function 
       | N n -> F(function 
-		   | L l -> L (tracepoint_native n l)
-		   | _ -> focal_type_error "Prelude.tracepoint")
-      | _ -> focal_type_error "Prelude.tracepoint")
+		   | L l -> L (tracepoint n l)
+		   | _ -> focal_type_error "Native.tracepoint")
+      | _ -> focal_type_error "Native.tracepoint")
     
-let _ = register_native "Prelude.tracepoint_native" "name -> lens -> lens" tracepoint_lib
+let _ = register_native "Native.tracepoint" "name -> lens -> lens" tracepoint_lib
 	  
 (******************)
 (* Generic Lenses *)
@@ -60,12 +89,12 @@ let _ = register_native "Prelude.tracepoint_native" "name -> lens -> lens" trace
 
 (*** ID ***)
 (* id - native interface *)
-let id_native =
+let id =
   { get = (fun c -> c);
     put = (fun a co -> a)}
 
 (* id - library interface  *)
-let id_lib = L id_native
+let id_lib = L id
 
 (* (\* id - unit tests *\) *)
 (* let id_unit_tests = *)
@@ -74,27 +103,27 @@ let id_lib = L id_native
 (*   ; test_put_eq [] "{a=b}" (Some "{}") (\*=*\) "{a=b}" *)
 (*   ] *)
 
-let _ = register_native "Prelude.id_native" "lens" id_lib
+let _ = register_native "Native.id" "lens" id_lib
 	  
 (*** CONST ***)
 (* const - native interface *)
-let const_native v d =
+let const v d =
   { get = (fun c -> v);
     put = (fun a co ->
 	     if V.equal a v then
 	       match co with
 		 | None -> d
 		 | Some(c) -> c
-	     else error [`String "Prelude.const(put): abstract view";
+	     else error [`String "Native.const(put): abstract view";
 			 `View a;
 			 `String "is not equal to"; `View (v)]) }
     
 (* const - library interface *)
 let const_lib = F (function
 		     | V v -> F (function 
-				   | V d -> L (const_native v d)
-				   | _ -> focal_type_error "Prelude.const")
-		     | _ -> focal_type_error "Prelude.const")
+				   | V d -> L (const v d)
+				   | _ -> focal_type_error "Native.const")
+		     | _ -> focal_type_error "Native.const")
 		  
 (* (\* const - unit tests *\) *)
 (* let const_unit_tests =  *)
@@ -106,11 +135,11 @@ let const_lib = F (function
 (*     ; test_put_fail [va;vb] "{b={}}" None *)
 (*     ] *)
 
-let _ = register_native "Prelude.const_native" "view -> view -> lens" const_lib
+let _ = register_native "Native.const" "view -> view -> lens" const_lib
 	  
 (*** COMPOSE2 ***)
 (* compose2 - native interface *)
-let compose2_native l1 l2 = 
+let compose2 l1 l2 = 
   let l1 = memoize_lens l1 in
     { get = (fun c -> (l2.get (l1.get c)));
       put = (fun a co -> 
@@ -122,9 +151,9 @@ let compose2_native l1 l2 =
 let compose2_lib = 
   F (function
        | L l1 -> F (function
-		      | L l2 -> L (compose2_native l1 l2)
-		      | _ -> focal_type_error "Prelude.compose2")
-       | _ -> focal_type_error "Prelude.compose2")
+		      | L l2 -> L (compose2 l1 l2)
+		      | _ -> focal_type_error "Native.compose2")
+       | _ -> focal_type_error "Native.compose2")
     
 (* (\* compose2 - unit tests *\) *)
 (* let compose2_unit_tests =  *)
@@ -139,7 +168,7 @@ let compose2_lib =
 (*     ; test_put_eq [const_ab;const_ba] "{b={}}" (Some "{}") (\*=*\) "{}" *)
 (*     ] *)
 
-let _ = register_native "Prelude.compose2_native" "lens -> lens -> lens" compose2_lib
+let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 
 (********************)
 (* Lenses for trees *)
@@ -149,7 +178,7 @@ let _ = register_native "Prelude.compose2_native" "lens -> lens -> lens" compose
 (* map can be implemented in terms of wmap, but it delays evaluation,
    of the sub-lens which is bad for memoization and causes too 
    much consing... *)
-let map_native l = 
+let map l = 
   { get = (fun c ->
 	     let binds =
 	       V.fold
@@ -177,8 +206,8 @@ let map_native l =
 (* map - library interface *)
 let map_lib = 
   F (function
-       | L l -> L (map_native l)
-       | _ -> focal_type_error "Prelude.map")
+       | L l -> L (map l)
+       | _ -> focal_type_error "Native.map")
     
 (* (\* map - unit_tests *\) *)
 (* let map_unit_tests =  *)
@@ -189,16 +218,16 @@ let map_lib =
 (*     ; test_put_eq [const_ab] "{x={a={}} y={a={}}}" (Some "{y=[1 2 3]}") (\*=*\) "{x={b={}} y=[1 2 3]}" *)
 (*     ] *)
 
-let _ = register_native "Prelude.map_native" "lens -> lens" map_lib
+let _ = register_native "Native.map" "lens -> lens" map_lib
 	  
 (*** WMAP ***)
 (* wmap - native interface *)
-let wmap_native (l0 : Value.t -> Value.t) : Lens.t = 
+let wmap (l0 : Value.t -> Value.t) : Lens.t = 
   let l =
     let memo = Hashtbl.create 11 in
       (fun k -> try Hashtbl.find memo k with
 	   Not_found -> 
-	     let res = match l0 (N k) with L l -> l | _ -> focal_type_error "Prelude.wmap" in 
+	     let res = match l0 (N k) with L l -> l | _ -> focal_type_error "Native.wmap" in 
 	       Hashtbl.add memo k res; res)
   in
     { get = (fun c ->
@@ -228,8 +257,8 @@ let wmap_native (l0 : Value.t -> Value.t) : Lens.t =
 (* wmap - library interface *)
 let wmap_lib = 
   F (function
-       | F m -> L (wmap_native m)
-       | _ -> focal_type_error "Prelude.wmap")
+       | F m -> L (wmap m)
+       | _ -> focal_type_error "Native.wmap")
     
 (* (\* wmap - unit tests *\) *)
 (* let wmap_unit_tests =  *)
@@ -244,11 +273,11 @@ let wmap_lib =
 (*     ; test_put_eq [m] "{y={a={}} z={c={}}}" (Some "{x={} y=[1 2 3]}") (\*=*\) "{y=[1 2 3] z={c={}}}" *)
 (*     ] *)
       
-let _ = register_native "Prelude.wmap_native" "(name -> lens) -> lens" wmap_lib
+let _ = register_native "Native.wmap" "(name -> lens) -> lens" wmap_lib
   
 (* XFORK *)
 (* xfork - native interface *)
-let xfork_native pcv pav l1 l2 =
+let xfork pcv pav l1 l2 =
   (* FIXME: check that pcv and pca have height <= 1? *)
   let dom_pcv = V.dom pcv in
   let dom_pav = V.dom pav in
@@ -260,11 +289,11 @@ let xfork_native pcv pav l1 l2 =
 	 let a1 = l1.get c1 in
 	 let a2 = l2.get c2 in
 	   if not(Name.Set.for_all pa (V.dom a1)) then
-	     error [`String "Prelude.xfork(get): l1 yielded a child not ";
+	     error [`String "Native.xfork(get): l1 yielded a child not ";
          	    `String "satisfying pa"; 
 		    `View a1];
 	   if not(Name.Set.for_all (fun k -> not (pa k)) (V.dom a2)) then
-	     error [`String "Prelude.xfork(get): l2 yielded a child satisfying pa";
+	     error [`String "Native.xfork(get): l2 yielded a child satisfying pa";
 		    `View a2];
 	   V.concat a1 a2);
     put = (fun a co -> 
@@ -275,11 +304,11 @@ let xfork_native pcv pav l1 l2 =
 	     let c1' = l1.put a1 co1 in
 	     let c2' = l2.put a2 co2 in
 	       if not(Name.Set.for_all pc (V.dom c1')) then
-		 error [`String "Prelude.xfork(put): l1 yielded a child ";
+		 error [`String "Native.xfork(put): l1 yielded a child ";
 			`String "not satisfying pc"; 
 			`View c1'];
 	       if not(Name.Set.for_all (fun k -> not (pc k)) (V.dom c2')) then
-		 error [`String "Prelude.xfork(put): l2 yielded a child ";
+		 error [`String "Native.xfork(put): l2 yielded a child ";
 			`String "satisfying pc"; 
 			`View c2'];
 	       V.concat c1' c2')}
@@ -289,11 +318,11 @@ let xfork_lib =
   F(function V pcv -> F (
       function V pav -> F (
 	function L l1 -> F (
-	  function L l2 -> L (xfork_native pcv pav l1 l2)
-	    | _ -> focal_type_error "Prelude.xfork")
-	  | _ -> focal_type_error "Prelude.xfork")
-	| _ -> focal_type_error "Prelude.xfork")
-      | _ -> focal_type_error "Prelude.xfork")
+	  function L l2 -> L (xfork pcv pav l1 l2)
+	    | _ -> focal_type_error "Native.xfork")
+	  | _ -> focal_type_error "Native.xfork")
+	| _ -> focal_type_error "Native.xfork")
+      | _ -> focal_type_error "Native.xfork")
     
 (* (\* xfork - unit tests *\) *)
 (* let xfork_unit_tests =  *)
@@ -315,20 +344,20 @@ let xfork_lib =
 (*     ; test_put_fail [pc;pa;const_ax;const_ba] "{a={}}" None *)
 (*     ] *)
       
-let _ = register_native "Prelude.xfork_native" "view -> view -> lens -> lens -> lens" xfork_lib
+let _ = register_native "Native.xfork" "view -> view -> lens -> lens -> lens" xfork_lib
 	  
 (* HOIST *)
 (* hoist - native interface *)
-let hoist_native k =
+let hoist k =
   { get = 
       (fun c ->
 	 if (Name.Set.cardinal (V.dom c)) <> 1 then
-	   error [`String "Prelude.hoist: expecting exactly one child (named ";
+	   error [`String "Native.hoist: expecting exactly one child (named ";
 		  `Name k; 
 		  `String ")"; 
 		  `View c];
 	 if (Name.Set.choose (V.dom c)) <> k then
-	       error [`String "Prelude.hoist: child should be named "; 
+	       error [`String "Native.hoist: child should be named "; 
 		      `Name k; 
 		      `View c];
 	 V.get_required c k);
@@ -339,8 +368,8 @@ let hoist_native k =
 (* hoist - library interface *)
 let hoist_lib = 
   F (function 
-       |  N k -> L (hoist_native k)
-       | _ -> focal_type_error "Prelude.hoist")
+       |  N k -> L (hoist k)
+       | _ -> focal_type_error "Native.hoist")
     
 (* (\* hoist - unit tests *\) *)
 (* let hoist_unit_tests =  *)
@@ -351,26 +380,26 @@ let hoist_lib =
 (*   ; test_get_fail [N "n"] (\*=*\) "{a={}}" *)
 (*   ] *)
 
-let _ = register_native "Prelude.hoist_native" "name -> lens" hoist_lib
+let _ = register_native "Native.hoist" "name -> lens" hoist_lib
 
 (* PLUNGE *)
 (* plunge - native interface *)
-let plunge_native k =
+let plunge k =
   { get = (fun c -> V.set V.empty k (Some c));
     put = (fun a _ -> 
 	     if (Name.Set.cardinal (V.dom a)) <> 1 then
-	       error [`String "Prelude.plunge(put): expecting exactly one child"; 
+	       error [`String "Native.plunge(put): expecting exactly one child"; 
 		      `View a];
 	     if (Name.Set.choose (V.dom a)) <> k then
-	       error [`String "Prelude.plunge(put): child should be named ";
+	       error [`String "Native.plunge(put): child should be named ";
 		      `Name k; `View a];
 	     V.get_required a k)}
     
 (* plunge - library interface *)
 let plunge_lib = 
   F (function
-       | N k -> L (plunge_native k)
-       | _ -> focal_type_error "Prelude.plunge")
+       | N k -> L (plunge k)
+       | _ -> focal_type_error "Native.plunge")
     
 (* (\* plunge - unit tests *\) *)
 (* let plunge_unit_tests =  *)
@@ -383,14 +412,14 @@ let plunge_lib =
 (*   ; test_put_fail [N "n"] "{a={}}" (Some "{}") *)
 (*   ] *)
 
-let _ = register_native "Prelude.plunge_native" "name -> lens" plunge_lib
+let _ = register_native "Native.plunge" "name -> lens" plunge_lib
 	  
 (******************)
 (* Copy and Merge *)
 (******************)
 (* COPY *)
 (* copy - native interface *)
-let copy_native m n =
+let copy m n =
   { get = 
       (fun c -> 
 	 let child =
@@ -405,14 +434,14 @@ let copy_native m n =
       (fun a _ -> 
 	 if (try V.equal (V.get_required a m) (V.get_required a n)
 	     with V.Illformed(_,_) -> 
-	       error [`String "Prelude.copy(put): expecting two children named ";
+	       error [`String "Native.copy(put): expecting two children named ";
 		      `Name m; 
 		      `String "and";
 		      `Name n; 
 		      `View a])
 	 then V.set a n None
 	 else 
-	   error [`String "Prelude.copy(put): expecting two equal children named ";
+	   error [`String "Native.copy(put): expecting two equal children named ";
 		  `Name m; 
 		  `String " and ";
 		  `Name n;
@@ -422,9 +451,9 @@ let copy_native m n =
 let copy_lib =
   F (function 
        | N m -> F (function 
-		       N n -> L (copy_native m n)
-		     | _ -> focal_type_error "Prelude.copy")
-       | _ -> focal_type_error "Prelude.copy")
+		       N n -> L (copy m n)
+		     | _ -> focal_type_error "Native.copy")
+       | _ -> focal_type_error "Native.copy")
     
 (* (\* copy - unit tests *\) *)
 (* let copy_unit_tests =  *)
@@ -437,11 +466,11 @@ let copy_lib =
 (*   ; test_put_fail  [N "x"; N "y"] "{x={a={}} y={b={}}}" None *)
 (*   ] *)
 
-let _ = register_native "Prelude.copy_native" "name -> name -> lens" copy_lib
+let _ = register_native "Native.copy" "name -> name -> lens" copy_lib
 
 (* MERGE *)
 (* merge - native interface *)
-let merge_native m n =
+let merge m n =
   { get = (fun c -> V.set c n None) ;
     put = 
       (fun a ->
@@ -450,7 +479,7 @@ let merge_native m n =
 	       (try V.set a n (Some (V.get_required a m))
 		with V.Illformed(_,_) -> 
 		  error
-		  [`String "Prelude.merge(put): expecting a child named ";
+		  [`String "Native.merge(put): expecting a child named ";
 		   `Name m])
 	   | Some c ->
 	       let cmo,cno = (V.get c m), (V.get c n) in
@@ -470,9 +499,9 @@ let merge_native m n =
 let merge_lib =
   F (function 
        | N m -> F (function 
-		       N n -> L (merge_native m n)
-		     | _ -> focal_type_error "Prelude.merge")
-       | _ -> focal_type_error "Prelude.merge")
+		       N n -> L (merge m n)
+		     | _ -> focal_type_error "Native.merge")
+       | _ -> focal_type_error "Native.merge")
     
 (* (\* merge - unit tests *\) *)
 (* let merge_unit_tests =    *)
@@ -484,7 +513,7 @@ let merge_lib =
 (*   ; test_put_fail [N "x"; N "y"] "{}" None *)
 (*   ] *)
 
-let _ = register_native "Prelude.merge_native" "name -> name -> lens" merge_lib
+let _ = register_native "Native.merge" "name -> name -> lens" merge_lib
 
 (****************)
 (* Conditionals *)
@@ -527,15 +556,15 @@ let cond_impl c a1 a2 f21o f12o lt lf =
 				    | None   -> None)
 		   else lf.put a co
 	   else error [
-	     `String "Prelude.cond (put): the abstract view does not satisfy a1 or a2:";
+	     `String "Native.cond (put): the abstract view does not satisfy a1 or a2:";
 	     `View a ]
       )}
 
-let cond_ff_native c a1 a2 f21 f12 lt lf = cond_impl c a1 a2 (Some f21) (Some f12) lt lf 
-let cond_native = cond_ff_native 
-let cond_ww_native c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf 
-let cond_fw_native c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
-let cond_wf_native c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
+let cond_ff c a1 a2 f21 f12 lt lf = cond_impl c a1 a2 (Some f21) (Some f12) lt lf 
+let cond = cond_ff 
+let cond_ww c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf 
+let cond_fw c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
+let cond_wf c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
 
 (* cond - library interface *)
 let cond_lib =
@@ -545,22 +574,22 @@ let cond_lib =
 	   function L f21 -> F (
 	     function L f12 -> F (
 	       function L lt -> F (
-		 function L lf -> L (cond_native c a1 a2 f21 f12 lt lf)
-		   | _ -> focal_type_error "Prelude.cond")
-		 | _ -> focal_type_error "Prelude.cond")
-	       | _ -> focal_type_error "Prelude.cond")
-	     | _ -> focal_type_error "Prelude.cond")
-	   | _ -> focal_type_error "Prelude.cond")
-	 | _ -> focal_type_error "Prelude.cond")
-       | _ -> focal_type_error "Prelude.cond")
+		 function L lf -> L (cond c a1 a2 f21 f12 lt lf)
+		   | _ -> focal_type_error "Native.cond")
+		 | _ -> focal_type_error "Native.cond")
+	       | _ -> focal_type_error "Native.cond")
+	     | _ -> focal_type_error "Native.cond")
+	   | _ -> focal_type_error "Native.cond")
+	 | _ -> focal_type_error "Native.cond")
+       | _ -> focal_type_error "Native.cond")
 
 let _ = register_native
-  "Prelude.cond_native"
+  "Native.cond"
   "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
   cond_lib
 
 let _ = register_native
-  "Prelude.cond_ff_native"
+  "Native.cond_ff"
   "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
   cond_lib
 
@@ -570,15 +599,15 @@ let cond_ww_lib =
        function T a1 -> F (
 	 function T a2 -> F (
 	   function L lt -> F (
-	     function L lf -> L (cond_ww_native c a1 a2 lt lf)
-	       | _ -> focal_type_error "Prelude.cond")
-	     | _ -> focal_type_error "Prelude.cond")
-	   | _ -> focal_type_error "Prelude.cond")
-	 | _ -> focal_type_error "Prelude.cond")
-       | _ -> focal_type_error "Prelude.cond")
+	     function L lf -> L (cond_ww c a1 a2 lt lf)
+	       | _ -> focal_type_error "Native.cond")
+	     | _ -> focal_type_error "Native.cond")
+	   | _ -> focal_type_error "Native.cond")
+	 | _ -> focal_type_error "Native.cond")
+       | _ -> focal_type_error "Native.cond")
 
 let _ = register_native
-  "Prelude.cond_ww_native"
+  "Native.cond_ww"
   "type -> type -> type -> lens -> lens -> lens"
   cond_ww_lib
 
@@ -589,16 +618,16 @@ let cond_fw_lib =
 	 function T a2 -> F (
 	   function L f21 -> F(
 	     function L lt -> F (
-	       function L lf -> L (cond_fw_native c a1 a2 f21 lt lf)
-		 | _ -> focal_type_error "Prelude.cond")
-	       | _ -> focal_type_error "Prelude.cond")
-	     | _ -> focal_type_error "Prelude.cond")
-	   | _ -> focal_type_error "Prelude.cond")
-	 | _ -> focal_type_error "Prelude.cond")
-       | _ -> focal_type_error "Prelude.cond")
+	       function L lf -> L (cond_fw c a1 a2 f21 lt lf)
+		 | _ -> focal_type_error "Native.cond")
+	       | _ -> focal_type_error "Native.cond")
+	     | _ -> focal_type_error "Native.cond")
+	   | _ -> focal_type_error "Native.cond")
+	 | _ -> focal_type_error "Native.cond")
+       | _ -> focal_type_error "Native.cond")
     
 let _ = register_native
-  "Prelude.cond_fw_native"
+  "Native.cond_fw"
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_fw_lib
 
@@ -609,16 +638,16 @@ let cond_wf_lib =
 	 function T a2 -> F (
 	   function L f12 -> F(
 	     function L lt -> F (
-	       function L lf -> L (cond_wf_native c a1 a2 f12 lt lf)
-		 | _ -> focal_type_error "Prelude.cond")
-	       | _ -> focal_type_error "Prelude.cond")
-	     | _ -> focal_type_error "Prelude.cond")
-	   | _ -> focal_type_error "Prelude.cond")
-	 | _ -> focal_type_error "Prelude.cond")
-       | _ -> focal_type_error "Prelude.cond")
+	       function L lf -> L (cond_wf c a1 a2 f12 lt lf)
+		 | _ -> focal_type_error "Native.cond")
+	       | _ -> focal_type_error "Native.cond")
+	     | _ -> focal_type_error "Native.cond")
+	   | _ -> focal_type_error "Native.cond")
+	 | _ -> focal_type_error "Native.cond")
+       | _ -> focal_type_error "Native.cond")
     
 let _ = register_native
-  "Prelude.cond_wf_native"
+  "Native.cond_wf"
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_wf_lib
     
@@ -668,13 +697,13 @@ let _ = register_native
 
 (* PIVOT *)
 (* pivot - native interface *)
-let pivot_native k =
+let pivot k =
   { get = 
       (fun c ->
 	 let ck =
 	   try V.get_required c k
 	   with V.Illformed(_,_) -> 
-	     error [`String "Prelude.pivot(get): the following view should have ";
+	     error [`String "Native.pivot(get): the following view should have ";
 		    `String "exactly one child named "; 
 		    `Name k; 
 		    `View c] in
@@ -683,14 +712,14 @@ let pivot_native k =
     put = 
       (fun a _ ->
 	 if (Name.Set.cardinal (V.dom a)) <> 1 then
-	   error [`String "Prelude.pivot(get): the following view should have ";
+	   error [`String "Native.pivot(get): the following view should have ";
 		  `String "exactly one child"; 
 		  `View a]
 	 else
 	   let ak = Name.Set.choose (V.dom a) in
 	   let w = try V.get_required a ak with Not_found -> assert false in
 	     if V.get w k <> None then
-	       error [`String "Prelude.pivot(put): child ";
+	       error [`String "Native.pivot(put): child ";
 		      `Name k;
 		      `String "of this view should not exist: "; 
 		      `View w]
@@ -701,8 +730,8 @@ let pivot_native k =
 (* pivot - library interface *)
 let pivot_lib = 
   F (function
-       | N k -> L (pivot_native k)
-       | _ -> focal_type_error "Prelude.pivot")
+       | N k -> L (pivot k)
+       | _ -> focal_type_error "Native.pivot")
     
 (* (\* pivot - unit tests *\) *)
 (* let pivot_unit_tests =  *)
@@ -713,7 +742,7 @@ let pivot_lib =
 (*   ; test_put_fail [N "k"] "{x={k=[0] a=[1]}}" None *)
 (*   ] *)
 
-let _ = register_native "Prelude.pivot_native" "name -> lens" pivot_lib
+let _ = register_native "Native.pivot" "name -> lens" pivot_lib
   
 (* JOIN *)
 (* Dan Spoonhower's outer join *)
@@ -722,7 +751,7 @@ let _ = register_native "Prelude.pivot_native" "name -> lens" pivot_lib
    readability.  let's clean it up later -nate
 *)
 (* join - native interface *)
-let join_native m1 m2 = 
+let join m1 m2 = 
   { get = 
       (fun c ->
 	 try
@@ -750,7 +779,7 @@ let join_native m1 m2 =
 	   let tm1, tm2 = (V.get_required c m1, V.get_required c m2) in	 
 	     compute_join tm1 tm2 V.empty
 	 with V.Illformed(_,_) ->
-	   error [`String "Prelude.join(get): expected view with children: "; 
+	   error [`String "Native.join(get): expected view with children: "; 
 		  `Name m1; 
 		  `String " and "; 
 		  `Name m2]
@@ -769,7 +798,7 @@ let join_native m1 m2 =
 	       let acc' = 
 		 match (V.get tk m1, V.get tk m2) with
 		   | None, None       -> 
-		       error [`String "Prelude.join(put): illformed abstract view"]
+		       error [`String "Native.join(put): illformed abstract view"]
 		   | Some t1, None    -> 
 		       V.set acc m1 (Some (V.set cm1 k (Some t1)))
 		   | None, Some t2    -> 
@@ -781,7 +810,7 @@ let join_native m1 m2 =
 	       in
 		 compute_unjoin b' acc'
 	     with Not_found ->
-	       error [`String "Prelude.join(put): the impossible happened"] in
+	       error [`String "Native.join(put): the impossible happened"] in
 	   compute_unjoin a init 
       )
   }
@@ -791,9 +820,9 @@ let join_lib =
   F (function 
        | N n1 -> 
 	   F (function 
-		| N n2 -> L (join_native n1 n2)
-		| _ -> focal_type_error "Prelude.join")
-       | _ -> focal_type_error "Prelude.join")
+		| N n2 -> L (join n1 n2)
+		| _ -> focal_type_error "Native.join")
+       | _ -> focal_type_error "Native.join")
     
 (* (\* join - unit tests *\) *)
 (* let join_unit_tests =  *)
@@ -807,18 +836,18 @@ let join_lib =
 (*   ; test_get_fail [N "x";N "y"] "{x=[]}" *)
 (*   ] *)
 
-let _ = register_native "Prelude.join_native" "name -> name -> lens" join_lib
+let _ = register_native "Native.join" "name -> name -> lens" join_lib
 
 (* FLATTEN *)
 (* flatten - native interface *)
-let flatten_native =   
+let flatten =   
   let rec get = function 
       c -> 
 	if V.is_empty_list c then V.empty_list
 	else 
 	  (* Error handling in case of ill-formed list *)
-	  let head = V.get_required c V.head_tag in 
-	  let c' = V.get_required c V.tail_tag in
+	  let head = V.get_required c V.hd_tag in 
+	  let c' = V.get_required c V.tl_tag in
 	    (* List of labels pointing toward trees *)
 	    if Name.Set.cardinal (V.dom head) = 1 then 
 	      let c_list = V.to_list head in
@@ -835,7 +864,7 @@ let flatten_native =
 			let a' = V.set a k None in
 			  V.set a' k (Some (V.cons d s))
 		end 
-	    else error [`String "Prelude.flatten(get): expected a view with exactly one child: "; 
+	    else error [`String "Native.flatten(get): expected a view with exactly one child: "; 
 			`View head]
   in
   let listify v =
@@ -851,9 +880,9 @@ let flatten_native =
     | Some c -> 
 	if V.is_empty_list c then V.structure_from_list (listify a)
 	else 
-	  let head = V.get_required c V.head_tag in
+	  let head = V.get_required c V.hd_tag in
 	    (* Error handling in case of ill-formed list *)
-	  let c' = V.get_required c V.tail_tag in
+	  let c' = V.get_required c V.tl_tag in
 	    (* List of labels pointing toward trees *)
 	    if Name.Set.cardinal (V.dom head) = 1 then 
 	      let c_list = V.to_list head in
@@ -862,8 +891,8 @@ let flatten_native =
 		    None -> put a (Some c')
 		  | Some ds -> 
 		      (* Error handling in case of ill-formed list *)
-		      let d' = V.get_required ds V.head_tag in 
-		      let s = V.get_required ds V.tail_tag in
+		      let d' = V.get_required ds V.hd_tag in 
+		      let s = V.get_required ds V.tl_tag in
 			if V.is_empty_list s then
 			  V.cons 
 			    (V.from_list [k,d']) 
@@ -872,14 +901,14 @@ let flatten_native =
 			  V.cons 
 			    (V.from_list [k,d']) 
 			    (put (V.set (V.set a k None) k (Some s)) (Some c'))
-	    else error [`String "Prelude.flatten(put): expected a view with exactly one child: "; 
+	    else error [`String "Native.flatten(put): expected a view with exactly one child: "; 
 			`View head]
   in
     {get = get ;
      put = put }
       
 (* flatten - library interface *)
-let flatten_lib =  L flatten_native
+let flatten_lib =  L flatten
 
 (* (\* flatten - unit tests *\) *)
 (* let flatten_unit_tests =  *)
@@ -894,7 +923,7 @@ let flatten_lib =  L flatten_native
 (*     (\* ; test_put_fail [] "{}" (Some "[{a={}} {b={}}]") -- succeeds but should fail? *\) *)
 (*   ]  *)
 
-let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
+let _ = register_native "Native.flatten" "lens" flatten_lib
 
 (* (\***********************\) *)
 (* (\* DERIVED TREE LENSES *\) *)
@@ -923,7 +952,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*     ] *)
  
 (* let _ =  *)
-(*   register_and_test  *)
+(*   register_native_and_test  *)
 (*     ("fork",T (Arrow (Predicate, Arrow (Lens, Arrow (Lens,Lens)))), fork_lib) *)
 (*     fork_unit_tests *)
 
@@ -952,7 +981,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*   ; test_put_eq [pa;const_bb] "{a={b={}} b=[2]}" (Some "{a=[1] b=[3]}") (\*=*\) "{a=[1] b=[2]}" *)
 (*   ] *)
 
-(* let _ = register_and_test *)
+(* let _ = register_native_and_test *)
 (* 	  ("mapp", T(Arrow(Predicate, Arrow (Lens,Lens))), mapp_lib) *)
 (* 	  mapp_unit_tests *)
  
@@ -979,7 +1008,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*   ; test_put_eq [px;vy] "{}" (Some "{y=[1]}") "{y=[1]}" *)
 (*   ] *)
     
-(* let _ = register_and_test *)
+(* let _ = register_native_and_test *)
 (* 	  ("filter", T (Arrow (Predicate, Arrow (View, Lens))), filter_lib) *)
 (* 	  filter_unit_tests *)
 	  
@@ -1006,7 +1035,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*   ; test_put_fail [N "a";vel] "{a={}}" None *)
 (*   ] *)
 
-(* let _ = register_and_test *)
+(* let _ = register_native_and_test *)
 (* 	  ("prune", T (Arrow (Name, Arrow (View, Lens))), prune_lib) *)
 (* 	  prune_unit_tests *)
 	  
@@ -1035,7 +1064,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*     ; test_put_fail [N "a"; vel] "{a={}}" (Some "{a={}}") *)
 (*     ] *)
 
-(* let _ = register_and_test  *)
+(* let _ = register_native_and_test  *)
 (* 	  ("add", T (Arrow (Name, Arrow (View,Lens))), add_lib) *)
 (* 	  add_unit_tests *)
 
@@ -1064,7 +1093,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*     *\) *)
 (*   ]   *)
 
-(* let _ = register_and_test  *)
+(* let _ = register_native_and_test  *)
 (* 	  ("focus", T (Arrow (Name, Arrow (View,Lens))), focus_lib) *)
 (* 	  focus_unit_tests *)
 
@@ -1090,7 +1119,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*     ; test_get_fail [N "x";pa] "{}" *)
 (*     ] *)
 
-(* let _ = register_and_test  *)
+(* let _ = register_native_and_test  *)
 (* 	  ("hoist_nonunique",T (Arrow (Name, Arrow (Predicate, Lens))), hoist_nonunique_lib) *)
 (* 	  hoist_nonunique_unit_tests *)
 
@@ -1119,7 +1148,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*   ; test_put_fail [N "x"; N "y"] "{x={}}" None *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
+(* let _ = register_native_and_test  *)
 (* 	  ("rename", T (Arrow (Name, Arrow (Name, Lens))), rename_lib) *)
 (* 	  rename_unit_tests *)
 
@@ -1151,7 +1180,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (* ; test_put_eq [N "x";N "y"] "{x=[1]}" None (\*=*\) "{x=[1]}" *)
 (* ] *)
 
-(* let _ = register_and_test  *)
+(* let _ = register_native_and_test  *)
 (* 	  ("rename_if_present",T (Arrow (Name, Arrow (Name, Lens))), rename_if_present_lib) *)
 (* 	  rename_if_present_unit_tests *)
 
@@ -1180,7 +1209,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*   ; test_get_fail [vel] "[]" *)
 (*   ]   *)
   
-(* let _ = register_and_test  *)
+(* let _ = register_native_and_test  *)
 (* 	  ("hd", T (Arrow (View,Lens)), hd_lib) *)
 (* 	  hd_unit_tests *)
 
@@ -1205,7 +1234,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*   ; test_get_fail [ve] "[]" *)
 (*   ] *)
 
-(* let _ = register_and_test  *)
+(* let _ = register_native_and_test  *)
 (* 	  ("tl", T (Arrow (View,Lens)), tl_lib) *)
 (* 	  tl_unit_tests *)
 
@@ -1232,7 +1261,7 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*     ; test_put_eq [const_bb] "[b b b]" (Some "[1 2]") (\*=*\) "[1 2 b]" *)
 (*     ] *)
 
-(* let _ = register_and_test *)
+(* let _ = register_native_and_test *)
 (* 	  ("list_map", T (Arrow (Lens, Lens)), list_map_lib) *)
 (*   	  list_map_unit_tests *)
 	  
@@ -1293,6 +1322,6 @@ let _ = register_native "Prelude.flatten_native" "lens" flatten_lib
 (*     ; test_put_eq [da;db;va] "[{a=1}]" (Some "[a a {b=3}]") (\*=*\) "[{a=1} {b=3}]" *)
 (*     ] *)
       
-(* let _ = register_and_test *)
+(* let _ = register_native_and_test *)
 (* 	  ("list_filter", T(Arrow(Schema,Arrow(Schema, Arrow(View, Lens)))), list_filter_lib) *)
 (* 	  list_filter_unit_tests *)

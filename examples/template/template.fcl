@@ -1,5 +1,3 @@
 module Template = 
 
-let l = hoist ""; hd []; hoist "a"
-
-
+let l = hoist ""; List.hd []; hoist "a"

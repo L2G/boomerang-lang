@@ -31,7 +31,7 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 
 BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
                pretty.ml info.ml error.ml \
-               syntax.ml parser.mly lexer.mll \
+	       syntax.ml parser.mly lexer.mll \
                type.ml value.ml registry.ml \
                compiler.ml
 
@@ -47,7 +47,7 @@ SYNC_SOURCES = sync.ml
 # PLUGINS #
 ###########
 
-PLUGIN_SOURCES = prelude.ml
+PLUGIN_SOURCES = native.ml
 
 ##################
 # COMMON SOURCES #

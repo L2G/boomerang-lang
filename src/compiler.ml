@@ -185,11 +185,11 @@ and check_exp sev e0 =
 		(true, Some s) -> s, e0
 	      | (false, Some _)  -> 
 		  failAt i 
-		    (sprintf  "Sort checking error at variable: %s may not be used recursively." 	  
+		    (sprintf  "Sort checking error at variable: %s may not be used recursively" 	  
 		       (string_of_qid q))
 	      | (_, None) -> 
 		  failAt i 
-		    (sprintf "Sort checking error at variable: %s is not bound." 
+		    (sprintf "Sort checking error at variable: %s is not bound" 
 		       (string_of_qid q))
 	  end
       | EFun(i,[],_,_) -> failAt i (sprintf "Fatal error: zero argument function")
@@ -326,11 +326,11 @@ and check_ptypeexp sev pt0 = match pt0 with
 	    (true, Some s) -> s, pt0
 	  | (false, Some _)  -> 
 	      failAt i 
-		(sprintf "Sort checking error at type variable: %s may not be used recursively." 
+		(sprintf "Sort checking error at type variable: %s may not be used recursively" 
 		   (string_of_qid q))
 	  | (_,None) -> 
 	      failAt i 
-		(sprintf "Sort checking error at type varibale: %s is not bound."
+		(sprintf "Sort checking error at type varibale: %s is not bound"
 		   (string_of_qid q))
       end
   | TApp(i,pt1,pt2) ->
@@ -629,7 +629,7 @@ let rec compile_exp cev e0 =
 	      let vrest = compile_viewbinds cev krest in
 		match (V.get vrest n) with
 		    None   -> V.set vrest n (Some v)
-		  | Some _ -> failAt i "Run error: repeated name in view"
+		  | Some _ -> failAt i (sprintf "Run error: name %s is repeated in view" n)
 	in
 	let view_value = (Value.V (compile_viewbinds cev ks)) in
 	  make_rv (SView(i)) view_value
@@ -683,11 +683,11 @@ and compile_ptypeexp cev pt0 =
 		    begin
 		      match value_of_rv rv with 
 			  Value.T (Type.TT qpt) -> qpt
-			| _ -> failAt i (sprintf "Run error: type variable %s is not bound to a non-negative type." 
+			| _ -> failAt i (sprintf "Run error: type variable %s is not bound to a non-negative type" 
 					   (string_of_qid q))
 		    end
 		| None -> failAt i
-		    (sprintf "Run error: unbound type variable %s." 
+		    (sprintf "Run error: unbound type variable %s" 
 		       (string_of_qid q))
 	    end
 	| TApp(i,pt1,pt2) ->
@@ -697,7 +697,7 @@ and compile_ptypeexp cev pt0 =
 		    let f = match force_pt ptv1 with
 			Type.Fun(_,f) -> f
 		      | _        -> failAt (Type.info_of_pt ptv1)
-			  (sprintf "Fatal error: type operator expected at left-hand side of type application.")
+			  (sprintf "Fatal error: type operator expected at left-hand side of type application")
 		    in
 		    let _,ptv2 = compile_ptypeexp cev pt2 in		      
 		      f ptv2
@@ -718,7 +718,7 @@ and compile_ptypeexp cev pt0 =
 		    tsort, tval
 	      | None ->
 		  failAt i
-		    (sprintf "Run error: unbound type variable %s." (string_of_qid q))
+		    (sprintf "Run error: unbound type variable %s" (string_of_qid q))
 	  end
       | TApp(i,pt1,pt2) ->
 	  begin
@@ -728,7 +728,7 @@ and compile_ptypeexp cev pt0 =
 		    rs, Type.App(i, pt1_val, pt2_val, ptype2thunk cev pt0)
 	      | s, _ ->
 		  failAt i
-		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found in %s."
+		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found in %s"
 		       (string_of_sort s) (string_of_ptypeexp pt0))
 	  end
 

@@ -47,6 +47,7 @@ rule token = parse
 | "open"        { OPEN (info lexbuf) }
 | "type"        { TYPE (info lexbuf) }
 | "->"          { ARROW (info lexbuf) }
+| "=>"          { DOUBLEARROW (info lexbuf) }
 | "lens"        { LENS (info lexbuf) }
 | "view"        { VIEW (info lexbuf) }
 | "name"        { NAME (info lexbuf) }
@@ -63,7 +64,6 @@ rule token = parse
 | ";"           { SEMI (info lexbuf) }
 | ","           { COMMA (info lexbuf) }
 | "."           { DOT (info lexbuf) }
-| "::"          { DOUBLECOLON (info lexbuf) }
 | ":"           { COLON (info lexbuf) }
 | "*"           { STAR (info lexbuf) } 
 | '!'           { BANG (info lexbuf) }

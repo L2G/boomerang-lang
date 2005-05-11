@@ -9,9 +9,9 @@ type t = VI of wf * t Name.Map.t
 type reader = string -> t option
 type writer = t option -> string -> unit
 
-let nil_tag = "*nil"
-let head_tag = "*h"
-let tail_tag = "*t"
+let nil_tag = "nil"
+let hd_tag = "hd"
+let tl_tag = "tl"
 
 exception Illformed of string * (t list)
 
@@ -101,14 +101,14 @@ let field_value k s = set_field_value empty k s
  * Lists
  *)
 
-let cons v1 v2 = create_star [(head_tag, Some v1); (tail_tag, Some v2)]
+let cons v1 v2 = create_star [(hd_tag, Some v1); (tl_tag, Some v2)]
 
 let empty_list = create_star [(nil_tag, Some empty)]
 		   
 let is_cons v = Name.Set.equal
 		  (dom v) 
-		  (Name.Set.add head_tag 
-		     (Name.Set.add tail_tag Name.Set.empty))
+		  (Name.Set.add hd_tag 
+		     (Name.Set.add tl_tag Name.Set.empty))
 		  
 let is_empty_list v = Name.Set.equal
 			(dom v) 
@@ -117,16 +117,16 @@ let is_empty_list v = Name.Set.equal
 let rec is_list v = 
   is_empty_list v || 
   (is_cons v &&
-   is_list (get_required v tail_tag))
+   is_list (get_required v tl_tag))
 
-let head v = get_required v head_tag
-let tail v = get_required v tail_tag
+let head v = get_required v hd_tag
+let tail v = get_required v tl_tag
 
 let rec list_from_structure v =
   let rec loop acc v' = 
     if is_empty_list v' then Safelist.rev acc else
       if is_list v' then
-	loop ((get_required v' head_tag) :: acc) (get_required v' tail_tag)
+	loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
       else raise (Illformed ("list_from_structure: this is not a list!", [v])) in 
     loop [] v 
 

@@ -1,61 +1,50 @@
 module Prelude = 
 
-(* names *)
-let hd_tag : name = "*h"
-let tl_tag : name = "*t"
-let nil_tag : name = "*nil"
-let list_tags = { hd_tag, tl_tag, nil_tag }
-
-(* schemas *)
-type Nil = {nil_tag = {}} 
-type Cons H T = {hd_tag = H, tl_tag = T }
-type List T = Cons T (List T) | Nil
+(* SCHEMAS *)
 type Any = {*=Any}
+type None = ~Any
 
 (* re-exported native lenses *)
-let probe : (name -> lens) = probe_native
+let probe : (name -> lens) = Native.probe
 
-let tracepoint : (name -> lens -> lens) = tracepoint_native
+let tracepoint : (name -> lens -> lens) = Native.tracepoint
 
-let id : lens = id_native
+let id : lens = Native.id
 
-let const : (view -> view -> lens) = const_native
+let const : (view -> view -> lens) = Native.const
 
-let compose2 : (lens -> lens -> lens) = compose2_native
+let compose2 : (lens -> lens -> lens) = Native.compose2
 
-let map : (lens -> lens) = map_native
+let map : (lens -> lens) = Native.map
 
-let wmap : ((name -> lens) -> lens) = wmap_native
+let wmap : ((name -> lens) -> lens) = Native.wmap
 
-let xfork : (view -> view -> lens -> lens -> lens) = xfork_native
+let xfork : (view -> view -> lens -> lens -> lens) = Native.xfork
 
-let hoist : (name -> lens) = hoist_native
+let hoist : (name -> lens) = Native.hoist
 
-let plunge : (name -> lens) = plunge_native 
+let plunge : (name -> lens) = Native.plunge 
 
-let copy : (name -> name -> lens) = copy_native
+let copy : (name -> name -> lens) = Native.copy
 
-let merge : (name -> name -> lens) = merge_native
+let merge : (name -> name -> lens) = Native.merge
 
-let cond_ff : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = cond_ff_native
+let cond_ff : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = Native.cond_ff
 
-let cond : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = cond_ff
+let cond : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = Native.cond_ff
 
-let cond_ww : (type -> type -> type -> lens -> lens -> lens) = cond_ww_native
+let cond_ww : (type -> type -> type -> lens -> lens -> lens) = Native.cond_ww
 
-let cond_fw : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_fw_native
+let cond_fw : (type -> type -> type -> lens -> lens -> lens -> lens) = Native.cond_fw
 
-let cond_wf : (type -> type -> type -> lens -> lens -> lens -> lens) = cond_wf_native
+let cond_wf : (type -> type -> type -> lens -> lens -> lens -> lens) = Native.cond_wf
 
-let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
 
-let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+let pivot : (name -> lens) = Native.pivot 
 
-let pivot : (name -> lens) = pivot_native 
+let join : (name -> name -> lens) = Native.join
 
-let join : (name -> name -> lens) = join_native
-
-let flatten : lens = flatten_native
+let flatten : lens = Native.flatten
 
 (* derived lenses *)
 let fork (p:view) : (lens -> lens -> lens) = xfork p p
@@ -72,6 +61,10 @@ let focus (n:name) (d:view) : lens = filter {n} d ; hoist n
 
 let hoist_nonunique (n:name) (p:view) : lens = xfork {n} p (hoist n) id 
 
+let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
+
+let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+
 let rename (m:name) (n:name) : lens = xfork {m} {n} (hoist m; plunge n) id
 
 let rename_if_present (m:name) (n:name) : lens = 
@@ -79,10 +72,5 @@ let rename_if_present (m:name) (n:name) : lens =
     (rename m n)
     id
 
-let hd (d:view) : lens = focus hd_tag { tl_tag = d }
-
-let tl (d:view) : lens = focus tl_tag { hd_tag = d }
-
-let list_map (l:lens) : lens = wmap { hd_tag -> l, tl_tag -> (list_map l) }
 
 

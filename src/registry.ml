@@ -132,11 +132,10 @@ let load q = match get_module_prefix q with
 	    match fno with 
 	      | None -> ()
 	      | Some fn ->
-		  prerr_string ("[ loading " ^ fn ^ "... ]\n");
+		  prerr_string ("[ loading " ^ fn ^ "... ]\n"); flush stderr;
 		  loaded := (IdSet.add n (!loaded)); 
 		  (!compile_file_impl) fn n;
-		  prerr_string ("[ " ^ fn ^ " loaded ]\n");
-
+		  prerr_string ("[ " ^ fn ^ " loaded ]\n"); flush stderr
 	  end
 
 (* lookup in a naming context *)
@@ -154,15 +153,21 @@ let lookup_library2 nctx q =
 		  )
     in
     let sq = Syntax.string_of_qid in
-    let _ = load q2 in
-      match lookup (!library) (fun x -> x) q2 with
-	| Some r -> Some r
-	| None -> match os with 
-	    | []       -> None
-	    | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
-  in
-    lookup_library_aux nctx q
-
+    let try_lib () = lookup !library (fun x -> x) q2 in
+      (* try here first, to avoid looping on native values *)
+      match try_lib () with
+	  Some r -> Some r
+	| None -> 
+	    begin
+	      match load q2; try_lib () with
+		| Some r -> Some r
+		| None -> match os with 
+		    | []       -> None
+		    | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
+	    end
+    in
+      lookup_library_aux nctx q
+	
 let lookup_library oev ev_of_oev ctx_of_oev q = 
   let _ = debug (sprintf "looking up %s in [%s] from %s\n"
 		   (Syntax.string_of_qid q)

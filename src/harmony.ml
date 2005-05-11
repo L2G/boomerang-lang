@@ -1,5 +1,6 @@
 (****************************  Top-level functions *******************************)
-
+let debug s = prerr_string (s ^ "\n"); flush stderr 
+ 
 let failwith s = prerr_endline s; exit 1
   
 let get_ekey f = function
@@ -42,7 +43,6 @@ let get lens_qid concrete_file output_file =
   let ekey = get_ekey r reader_ek in
   (* apply the reader, get the concrete view *)
   let cv = get_view_from_file (Surveyor.get_reader ekey) r in
-  (* let _ = V.format_option cv ; print_newline "" in *)
   (* now we'll get the lens *)
   let lens = match (Registry.lookup_lens (Registry.parse_qid lens_qid)) with 
       Some l -> l
@@ -55,7 +55,6 @@ let get lens_qid concrete_file output_file =
       | None -> failwith (Printf.sprintf "Concrete view file %s is missing." concrete_file) 
     with V.Error(e) -> V.format_msg e; failwith "Error in get function"
   in
-(*  let _= V.format av; print_endline "" in *)
   (* we're gonna have to output it *)
   let (o, viewer_ek) = parse_replica output_file in
   (* get back the viewer *)
@@ -236,6 +235,8 @@ let usageMsg =
     
 let main () =
   (* retrieves the value of a -option, fails if argument is missing on the cmd ine *)
+  let _ = debug "welcome to get" in
+
   let p pref = 
     match Prefs.read pref with 
       "" ->  

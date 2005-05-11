@@ -57,28 +57,7 @@ let trap_errors_in f x =
       )
   | V.Error l ->
       error l
-        
-let probe msg =
-  { get = (fun a ->
-      Format.printf "@,@[<v0>%s (get) @,  " msg;
-      V.format a;
-      Format.printf "@,@]";
-      a);
-    put = (fun a co ->
-      Format.printf "@,@[<v0>%s (put) @,  " msg;
-      V.format a;
-      Format.printf "@,  ";
-      begin
-        match co with
-          None -> Format.printf "MISSING";
-        | Some c -> V.format c
-      end;
-      Format.printf "@,@]";
-      a) }
-
-
-
-
+       
 let probe2 name callget callput =
   { get = (fun c -> callget name c (Misc.dynamic_lookup stack);
       c);

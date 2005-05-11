@@ -1,5 +1,25 @@
 module List = 
 
+let hd_tag : name = Native.hd_tag
+let tl_tag : name = Native.tl_tag
+let nil_tag : name = Native.nil_tag
+
+let list_tags = { hd_tag, tl_tag, nil_tag }
+
+(* schemas *)
+type Nil = Native.Nil
+type Cons H T = Native.Cons H T
+type List T = Nil | Cons T (List T)
+
+let hd (d:view) : lens = 
+  focus hd_tag { tl_tag = d }
+
+let tl (d:view) : lens = 
+  focus tl_tag { hd_tag = d }
+
+let list_map (l:lens) : lens = 
+  wmap { hd_tag -> l, tl_tag -> (list_map l) }
+
 let groupby2 : lens =
   let tmp : name = "tmp" in
   let add_empty_tail : lens =
@@ -29,4 +49,3 @@ let groupby2 : lens =
                rename tmp hd_tag;             
                plunge hd_tag)
               (wmap { tl_tag -> groupby2 })))
-      

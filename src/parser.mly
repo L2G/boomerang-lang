@@ -15,18 +15,17 @@ open Syntax
 open Info
 
 let ( @ ) = Safelist.append
-
+  
 let error t info = let (l,c1),(_,c2) = info in
   let s = Printf.sprintf "%d:%d-%d" l c1 c2 in
     if t = "" then raise (Error.Parse_error (s,info))
     else raise (Error.Parse_error (s^ ": " ^ t,info))
 
 (* constants *)
-let compose2_qid i = ([(i,"Prelude")], (i, "compose2_native"))
-let list_qid i = ([(i,"Prelude")], (i, "List"))
-let nil_qid i : Syntax.qid = ([(i,"Prelude")], (i, "Nil"))
-let nil_tag_qid i : Syntax.qid = ([(i,"Prelude")], (i, "nil_tag"))
-let cons_qid i = ([(i,"Prelude")], (i, "Cons"))
+let compose2_qid i = ([(i,"Native")], (i, "compose2"))
+let nil_qid i = ([(i,"Native")], (i, "Nil"))
+let cons_qid i = ([(i,"Native")], (i, "Cons"))
+let nil_tag_qid i = ([(i,"Native")], (i, "nil_tag"))
 let nil_view i = 
   let nil_name = EVar(i, nil_tag_qid i) in 
   let empty_view = EView(i, []) in
@@ -36,12 +35,10 @@ let nil_view i =
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
 %token <Info.t> LET IN FUN AND MODULE END OPEN TYPE
-%token <Info.t> LENS VIEW TYPE NAME ARROW
+%token <Info.t> LENS VIEW TYPE NAME ARROW DOUBLEARROW
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
-%token <Info.t> SEMI COMMA DOT EQUAL COLON SLASH DOUBLECOLON
+%token <Info.t> SEMI COMMA DOT EQUAL COLON SLASH 
 %token <Info.t> EMPTY STAR BANG BAR TILDE 
-
-%right DOUBLECOLON
 
 %start modl sort qid ext_view
 %type <Syntax.modl> modl
@@ -107,6 +104,12 @@ sort:
 						 (info_of_sort $3) 
 					       in 
 						 SArrow (i,$1,$3) 
+					     }
+  | asort DOUBLEARROW sort                   { let i = merge_inc 
+						 (info_of_sort $1) 
+						 (info_of_sort $3) 
+					       in 
+						 STOper (i,$1,$3) 
 					     }
   | asort                                    { $1 }
 
@@ -181,7 +184,7 @@ map_list:
 
 /*** VIEWS ***/
 viewexp:
-  | viewexp COLON COLON aviewexp            { EConsView(merge_inc (info_of_exp $1) (info_of_exp $4) ,$1,$4) } 
+  | aviewexp COLON COLON viewexp             { EConsView(merge_inc (info_of_exp $1) (info_of_exp $4) ,$1,$4) } 
   | aviewexp                                 { $1 }
 
 aviewexp:
@@ -228,9 +231,9 @@ apptypeexp:
   | ctypeexp                                 { $1 }
 
 ctypeexp:
-  | ctypeexp DOUBLECOLON ctypeexp            { let i = merge_inc (info_of_ptypeexp $1) (info_of_ptypeexp $3) in
+  | atypeexp COLON COLON ctypeexp            { let i = merge_inc (info_of_ptypeexp $1) (info_of_ptypeexp $4) in
 					       let cons = TVar(i, cons_qid i) in 
-						 TApp(i, TApp(i, cons, $1), $3)
+						 TApp(i, TApp(i, cons, $1), $4)
 					     }
   | atypeexp                                 { $1 }
  
@@ -310,7 +313,7 @@ IDENT_or_STRING:
 
 /*** EXTERNAL view parser */
 ext_view:
-  | ext_view DOUBLECOLON aext_view         { V.cons $1 $3 }
+  | aext_view COLON COLON ext_view         { V.cons $1 $4 }
   | aext_view                              { $1 }
 
 aext_view: 

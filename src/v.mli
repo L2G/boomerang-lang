@@ -173,6 +173,6 @@ val dump_to_file : string -> t -> unit
   
 (* --------------------------------------------------------------------- *)
 (* Names used to encode cons cells as trees *)
-val head_tag : Name.t
-val tail_tag : Name.t
-
+val hd_tag : Name.t
+val tl_tag : Name.t
+val nil_tag : Name.t
