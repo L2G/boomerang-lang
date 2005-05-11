@@ -11,6 +11,7 @@ output to stdout option and input from stdin
 fix 'make test' in /src so that it actually runs all tests automatically
 Compiler.runerror should call failAt (and must therefore take some extra info)
 why, again, do fork and friends take views, not types?
+move experimental/bookmarks/list.fcl someplace more central
 
 TIDYING
 * make clean should remove the silly ._d directories from OCamlMakefile
