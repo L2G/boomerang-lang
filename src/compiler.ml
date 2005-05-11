@@ -668,8 +668,13 @@ and compile_typeexp cev t0 =
 	    make_rv pt_sort (Value.T (Type.NT pt_val))
 	      
 and compile_ptypeexp cev pt0 = 
+  let rec force_pt pt = match pt with 
+      Type.Var(_,_,thk) -> force_pt (thk ())
+    | Type.App(_,_,_,thk) -> force_pt (thk ())
+    | _                 -> pt
+  in
   let ptype2thunk cev pt () = 
-    let _ = debug (sprintf "forced thunk for %s" (string_of_ptypeexp pt)) in
+    let _ = debug (sprintf "forced thunk for %s\n" (string_of_ptypeexp pt)) in
       match pt with 
 	  TVar(i,q) -> 
 	    begin 
@@ -688,12 +693,17 @@ and compile_ptypeexp cev pt0 =
 	| TApp(i,pt1,pt2) ->
 	    begin
 	      match compile_ptypeexp cev pt1 with
-		  _,Type.Fun(_,f) -> 
-		    let _, pt2v = compile_ptypeexp cev pt2 in
-		      f pt2v
+		  STOper(_),ptv1 -> 
+		    let f = match force_pt ptv1 with
+			Type.Fun(_,f) -> f
+		      | _        -> failAt (Type.info_of_pt ptv1)
+			  (sprintf "Fatal error: type operator expected at left-hand side of type application.")
+		    in
+		    let _,ptv2 = compile_ptypeexp cev pt2 in		      
+		      f ptv2
 		| s,_         -> failAt i
-		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found"
-		       (string_of_sort s))
+		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found in %s"
+		       (string_of_sort s) (string_of_ptypeexp pt))
 	    end
 	| _ -> assert false
     in match pt0 with
@@ -718,8 +728,8 @@ and compile_ptypeexp cev pt0 =
 		    rs, Type.App(i, pt1_val, pt2_val, ptype2thunk cev pt0)
 	      | s, _ ->
 		  failAt i
-		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found"
-		       (string_of_sort s))
+		    (sprintf "Run error: type operator expected at left-hand side of type application but %s found in %s."
+		       (string_of_sort s) (string_of_ptypeexp pt0))
 	  end
 
       | TFun(i,[x],f_sort,pt) ->
