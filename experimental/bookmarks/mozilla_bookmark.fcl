@@ -2,17 +2,17 @@ module Mozilla_bookmark =
 open Prelude
 
 (* definitions of types for conditionals *)
-type Dd = { "dt" = Any }
-type Ddavech3 = { "dd" = { "" = Cons {"h3" = Any } Any }}
-type Ddsansh3 = { "dd" = { "" = Cons {"PCDATA" = Any } Any }}
+type Dd = { "dd" = Any }
+type Ddavech3 = { "dd" = { "" = [{"h3" = Any}] } }
+type Ddsansh3 = { "dd" = { "" = ({"PCDATA" = Any } :: Any )} }
 type Dt = { "dt" = Any }
 
-type Item = List (Dd | Dt)
+type Item = List (Dd | Dt )
 
-type ItemFolder = Ddavech3 :: Item
-type ItemFolderDesc = Ddavech3 ::  Ddsansh3 :: Item
+type ItemFolder = Dd :: Item
+type ItemFolderDesc = Ddavech3 :: (Ddsansh3 :: Item)
 type ItemLink = Dt :: Item
-type ItemLinkDesc = Dt :: Ddsansh3 :: Item
+type ItemLinkDesc = Dt :: (Ddsansh3 :: Item)
 
 (* lens *)
 let l =
@@ -26,6 +26,7 @@ let l =
     hoist_nonunique tl_tag list_tags  in
 
   let link : lens =
+    hoist "dt";
     hoist "";
     hd [];
     hoist "a";
@@ -36,6 +37,7 @@ let l =
     wmap { "name" -> (hd []; hoist "PCDATA") }
       
   and folder : lens =
+    hoist "dd";
     hoist "";
     hoist_hd {"h3"};
     fork {"h3"} id (hoist_hd {"dl"});
@@ -45,9 +47,10 @@ let l =
       "contents" -> (hoist ""; item_list)}
       
   and item_list : lens =
-
+    let itemfolderdesc2 =
+      tl {}; wmap {tl_tag ->item_list}; tl {} in
     let itemfolderdesc = 
-      wmap { hd_tag -> (hoist ""; hd []; rename "h3" "name") ,
+      wmap { hd_tag -> (hoist "dd"; hoist ""; hd []; rename "h3" "name") ,
 	tl_tag -> 
 	  wmap {hd_tag -> hoist "dd"; hoist ""; focus tl_tag no_descr; hd [];
 	    wmap { "dl" -> (plunge "contents"; plunge hd_tag) }}
@@ -67,8 +70,7 @@ let l =
       wmap { hd_tag -> link, tl_tag -> focus tl_tag no_descr_tag };
       wmap { tl_tag -> item_list }  
     in
-
-    ccond <ItemFolderDesc> itemfolderdesc
+    ccond <ItemFolderDesc> itemfolderdesc2
       (ccond <ItemFolder> itemfolder
 	 (ccond <ItemLinkDesc> itemlinkdesc
 	    (ccond <ItemLink> itemlink
