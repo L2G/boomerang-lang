@@ -1,20 +1,24 @@
 module Mozilla_bookmark =
 open Prelude
-
+  
 (* definitions of types for conditionals *)
 type Dd = { "dd" = Any }
 type Ddavech3 = { "dd" = { "" = [{"h3" = Any}] } }
 type Ddsansh3 = { "dd" = { "" = ({"PCDATA" = Any } :: Any )} }
 type Dt = { "dt" = Any }
-
+      
 type Item = List.List (Dd | Dt )
-
+      
 type ItemFolder = Dd :: Item
 type ItemFolderDesc = Ddavech3 :: (Ddsansh3 :: Item)
 type ItemLink = Dt :: Item
 type ItemLinkDesc = Dt :: (Ddsansh3 :: Item)
+			   
+(* lenses *)
 
-(* lens *)
+(* this lens keeps stuff like descriptions for eventual    *)
+(* sync with another mozilla bookmark. To syn with another *)
+(* type of bookmark, the lens l2 should be applied instead *)
 let l =
   let no_descr_tag : view  =
     { List.HD = { "dd" = { "" = [ {"PCDATA"= {"No description"}} ] }}} in
@@ -24,27 +28,19 @@ let l =
   let hoist_hd (p : view) =
     hoist_nonunique List.HD p;
     hoist_nonunique List.TL List.tags  in
-
+  
   let link : lens = 
-    trace "LINK >>>\n";
     hoist "dt";
     wmap { "" ->
       List.hd [];
-      trace "1\n";
       hoist "a";
       filter {"", "href", "add_date"} {};
-      trace "2\n";
       rename "" "name";
-      trace "3\n";
       rename "href" "url";
-      trace "4\n";
       prune "add_date" {"01/01/1970"};
-      trace "5\n";
       wmap { "name" -> (List.hd []; hoist "PCDATA") }
 	 };
-    trace "6\n";
-    hoist_nonunique "" {"name", "url"};
-    trace "\n<<< LINK\n"
+    hoist_nonunique "" {"name", "url"}
       
   and folder : lens =
     hoist "dd";
@@ -91,21 +87,15 @@ let l =
       wmap { List.HD -> link, List.TL -> item_list } 
     in
     let itemlinkdesc =
-      trace "\nITEMLINKDESC >>>\n";
       (* pretty much the same strategy as in itemfolderdesc, but EZer here *)
       wmap { List.HD -> hoist "dt",
 	List.TL -> wmap { List.HD -> hoist "dd"; hoist ""; List.hd []; rename "PCDATA" "description" };
 	  hoist_nonunique List.HD {"description"}
 	   };
-      trace "-1\n";
       hoist_nonunique List.HD {""};
-      trace "-2\n";
       hoist_nonunique List.TL {"description", List.TL};
-      trace "-3\n";
       xfork {"", "description"} {List.HD} (plunge "dt"; plunge List.HD) id;
-      trace "-5\n";
-      wmap { List.HD -> link, List.TL -> item_list } ;
-      trace "\n<<< ITEMLINKDESC\n"
+      wmap { List.HD -> link, List.TL -> item_list }
 	
     in
     ccond <ItemFolderDesc> itemfolderdesc
@@ -117,7 +107,7 @@ let l =
 	    )
 	 );
     List.map (rename_if_present "dd" "folder"; rename_if_present "dt" "link") in
-      
+  
   let bookmarks : lens =
     hoist "";
     List.hd [];
@@ -132,7 +122,14 @@ let l =
     hoist "dl";
     hoist "";
     item_list
-
+      
   in
   bookmarks
-    
+
+(* see l *)
+let l2 =
+  let disc_desc : lens =
+    List.map (wmap {"contents" -> disc_desc }; filter {"name", "contents", "url"} {})
+  in
+  (l;  disc_desc)
+
