@@ -1,27 +1,25 @@
 module Plist =
 
-open List
-
 let plist_object_lens : lens =
   wmap { "dict" -> dict_lens,
          "array" -> array_lens,
          "string" -> leaf_lens }
 
 and array_lens : lens =
-  wmap {"" -> List.list_map plist_object_lens};
+  wmap {"" -> List.map plist_object_lens};
   hoist ""
 
 and dict_lens : lens =
-  wmap {"" -> groupby2; List.list_map (keypair_lens)};
+  wmap {"" -> List.groupby2; List.map (keypair_lens)};
   hoist ""
 
 and keypair_lens : lens =
-  wmap { "*h" -> hoist "key"; leaf_lens, 
-         "*t" -> wmap {"*h" -> plist_object_lens } }
+  wmap { List.HD -> hoist "key"; leaf_lens, 
+         List.TL -> wmap { List.HD -> plist_object_lens } }
 
 and leaf_lens : lens =
   hoist "";
-  acond <[]> < { "*t"=[], "*h"={"PCDATA" = {"BLANK"={}, *\("BLANK")=Any}}} >
+  acond <[]> < { List.TL=[], List.HD={"PCDATA" = {"BLANK"={}, *\("BLANK")=Any}}} >
     (const [{"PCDATA"="BLANK"}] {})
     id;
   List.hd [];
