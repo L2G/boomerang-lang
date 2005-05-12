@@ -6,6 +6,9 @@ type None = ~Any
 
 (* re-exported native lenses *)
 let probe : (name -> lens) = Native.probe
+let trace : (name -> lens) = Native.trace
+let assert : (type -> lens) = Native.assert
+let invert : (lens -> lens) = Native.invert
 
 let tracepoint : (name -> lens -> lens) = Native.tracepoint
 

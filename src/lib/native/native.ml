@@ -65,8 +65,26 @@ let probe_lib =
       | _ -> focal_type_error "Native.probe")
     
 let _ = register_native "Native.probe" "name -> lens" probe_lib
-	  
 
+(* TRACE *)
+let trace msg = 
+  { get = (fun c ->
+	     Format.printf "%s (get)" msg;
+	     Format.print_flush ();
+	     c);
+    put = (fun a co ->     
+	     Format.printf "%s (put)" msg;
+	     Format.print_flush ();
+	     a)
+  }
+  
+let trace_lib = 
+  F(function 
+      | N n -> L (trace n)
+      | _ -> focal_type_error "Native.trace")
+    
+let _ = register_native "Native.trace" "name -> lens" trace_lib
+	
 (* TRACEPOINT *)
 let tracepoint = Lens.tracepoint
 let tracepoint_lib = 
@@ -77,7 +95,38 @@ let tracepoint_lib =
       | _ -> focal_type_error "Native.tracepoint")
     
 let _ = register_native "Native.tracepoint" "name -> lens -> lens" tracepoint_lib
-	  
+
+
+(* INVERT *)
+(* flip the direction -- only for bijective lenses! *)
+let invert l = 
+  { get = (fun c -> l.put c None);
+    put = (fun a _ -> l.get a) }
+    
+let invert_lib = 
+  F(function 
+      | L l -> L (invert l)
+      | _ -> focal_type_error "Native.invert")
+    
+let _ = register_native "Native.invert" "lens -> lens" invert_lib
+
+let assert_native t = 
+  let check_assert dir v t = 
+    if not (Type.member v t) then
+      error [`String ("Native.assert(" ^ dir ^ "): view");
+	     `View v;
+	     `String "is not a member of "; `String (Type.string_of_t t)] 
+  in          
+    { get = ( fun c -> check_assert "get" c t; c);
+      put = ( fun a _ -> check_assert "put" a t; a) }
+
+let assert_lib = 
+  F(function
+	T t -> L (assert_native t) 
+      | _ -> focal_type_error "Native.assert")
+
+let _ = register_native "Native.assert" "type -> lens" assert_lib
+      
 (******************)
 (* Generic Lenses *)
 (******************)

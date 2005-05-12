@@ -674,7 +674,7 @@ and compile_ptypeexp cev pt0 =
     | _                 -> pt
   in
   let ptype2thunk cev pt () = 
-    let _ = debug (sprintf "forced thunk for %s\n" (string_of_ptypeexp pt)) in
+    let _ = debug (sprintf "forced thunk for %s\n" (string_of_ptypeexp pt)); flush stderr in
       match pt with 
 	  TVar(i,q) -> 
 	    begin 

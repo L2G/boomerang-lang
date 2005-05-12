@@ -95,21 +95,22 @@ let groupby2 : lens =
                plunge HD)
               (wmap { TL -> groupby2 })))
 
-let ungroupby2 : lens = 
-  let tmp : name = "tmp" in
-    acond < [] > < [] >
-      id
-      (acond <[[Any]]> <[Any]>
-	 (focus HD {TL=[]})
-	 (rename TL tmp;
-	  hoist_nonunique HD tags;
-	  xfork { tmp, TL } { TL }
-	    (hoist_nonunique TL tags;
-	     prune TL { TL=[] };
-	     rename tmp TL;
-	     wmap { TL -> ungroupby2 };
-	     plunge TL)
-	    id))
+let ungroupby2 : lens = invert (groupby2)
+
+(*   let tmp : name = "tmp" in *)
+(*     acond < [] > < [] > *)
+(*       id *)
+(*       (acond <[[Any]]> <[Any]> *)
+(* 	 (hd []) *)
+(* 	 (rename TL tmp; *)
+(* 	  hoist_nonunique HD tags; *)
+(* 	  xfork { tmp, TL } { TL } *)
+(* 	    (hoist_nonunique TL tags; *)
+(* 	     prune TL { TL=[] }; *)
+(* 	     rename tmp TL; *)
+(* 	     wmap { TL -> ungroupby2 }; *)
+(* 	     plunge TL) *)
+(* 	    id)) *)
       
 (* swap the first two elements of a list *)
 let swap : lens = 
@@ -128,13 +129,13 @@ let swap_all : lens =
        
 let collapse : lens = 
   let tmp : name = "tmp" in
-    ccond < [Any, Any] > 
+    acond < [Any, Any] > < [Any, Any] > (* WRONG *)
       id
       (groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
 
 let expand : lens = 
   let tmp : name = "tmp" in
-    ccond < {* \ (HD,TL) = Any }::Any > 
+    acond < {* \ (HD,TL) = Any }::Any > < {* \ (HD,TL) = Any }::Any >  (* WRONG *)
       id
       (ungroupby2; plunge tmp; wmap { tmp -> expand }; hoist tmp)
 
@@ -142,6 +143,8 @@ let fast_reverse : lens =
   let x : name = "x" in
   let tmp : name = "tmp" in
     map (plunge x);
+    assert <List {"x"=Any}>;
+    trace "TRACEPOINT #1";
     collapse;
     swap_all;
     expand;
