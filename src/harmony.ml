@@ -87,9 +87,14 @@ let put lens_string abstract concrete output =
   in
   (* apply it to put the abstract view into the concrete view*)
   let newcv = 
-    match av with
+    try match av with
       Some aview -> Lens.put lens aview cv
-    | None -> failwith (Printf.sprintf "The abstract view file %s is missing or empty" a) in
+    | None -> failwith (Printf.sprintf "The abstract view file %s is missing or empty" a)
+    with V.Error(e) -> (V.format_msg e; failwith "Error in put function")
+    | V.Illformed(m,vs) -> 
+	V.format_msg ([`String m]@(Safelist.map (fun vi -> `View vi) vs)) ; failwith "Error in put function"
+  in
+
   (* we're gonna have to output it *)
   let (o, viewer_ek) = parse_replica output in
   (* get back the viewer *)

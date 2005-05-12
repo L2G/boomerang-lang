@@ -2,7 +2,7 @@ module Vcard =
 
 let EmptyList = List.Nil (*<{"*nil"}>*)
 let firstListEmpty = <{List.HD = List.Nil (*{"*nil"}*), List.TL = Any}>
-let charComma = <{","}>
+let char = <{"'"}>
 
 let l = 
 let lens1:lens = ( List.hd []; hoist ""; List.hd []; hoist "PCDATA" )
@@ -14,8 +14,8 @@ and lens2:lens = (List.hd []; hoist "";
             flatten; map (List.hd []) )
 
 and concat:lens = (
-   acond firstListEmpty charComma
-         (fork {List.HD} (map(rename List.NIL ",")) (map(focus List.HD {List.TL =[]} )))
+   acond firstListEmpty char
+         (fork {List.HD} (map(rename List.NIL "'")) (map(focus List.HD {List.TL =[]} )))
          
          (xfork {List.HD} {List.HD, "x"} (hoist List.HD; rename List.TL "x") id;
           xfork {List.TL, "x"} {List.TL} 
