@@ -1,22 +1,33 @@
 module Vcard =
 
-let EmptyList = <{"*nil"}>
+let EmptyList = List.Nil (*<{"*nil"}>*)
+let firstListEmpty = <{List.HD = {"*nil"}, List.TL = Any}>
+let charSpace = <{""}>
 
-let l =  
-let lens1 = ( hd []; hoist ""; hd []; hoist "PCDATA" )
-in
-let lens2 = (hd []; hoist ""; 
-            list_map (
+let l = 
+let lens1:lens = ( List.hd []; hoist ""; List.hd []; hoist "PCDATA" )
+and lens2:lens = (List.hd []; hoist ""; 
+            List.map (
               map (hoist ""; ccond EmptyList 
-                             (list_map (hoist "PCDATA")) 
-			     (hd[];hoist "PCDATA")));
-            flatten; map (hd[]) )
+                             (List.map (hoist "PCDATA")) 
+			     (List.hd[];hoist "PCDATA"))  ) ;
+            
+              flatten; map (List.hd []) )
 
-in
+and concat:lens = (
+   acond firstListEmpty charSpace
+         (fork {List.HD} (map(rename List.NIL "")) (map(focus List.HD {List.TL =[]} )))
+         
+         (xfork {List.HD} {List.HD, "x"} (hoist List.HD; rename List.TL "x") id;
+          xfork {List.TL, "x"} {List.TL} 
+                (rename "x" List.HD; plunge List.TL (*; wmap {List.TL -> concat} *)) id);
+          (*wmap {List.TL -> concat}*)  
+    wmap { List.TL -> (List.tl []; List.hd [])} )
 
-hoist ""; hd [] (*we use list_map later*); hoist "iq"; (*here*)
+in 
+hoist ""; List.hd [] (*we use List.map later*); hoist "iq"; (*here*)
 focus "" [];
-hd []; map (focus "" []; flatten;
+List.hd []; map (focus "" []; flatten;
              wmap { "FN" -> lens1, 
                    "NICKNAME" -> lens1,
                    "TITLE" -> lens1,
@@ -28,33 +39,14 @@ hd []; map (focus "" []; flatten;
                    "TEL" -> lens2,
                    "EMAIL" -> lens2,
                    "ADR" -> lens2,
-                   "N" -> lens2,
+                   "N" -> (List.hd[]; hoist ""; List.map (map (hoist ""; List.hd[]; hoist "PCDATA"));
+                           flatten; xfork {"GIVEN"} {List.HD}
+                                          (rename "GIVEN" List.HD)
+					  (rename "FAMILY" List.HD; add List.TL []; plunge List.TL)
+                          ; concat  ),  
                    "ORG" -> lens2                 
                   };
               pivot "FN"
             
-           )
+           ) 
 
-
-(*
-xfork {""} {"vCard"} 
-      ((rename "" "vCard"); 
-        map (flatten; hoist "vCard"; hd []; focus "" {}; flatten;
-             wmap { "FN" -> lens1, 
-                   "NICKNAME" -> lens1,
-                   "TITLE" -> lens1,
-                   "ROLE" -> lens1,
-                   "DESC" -> lens1,
-                   "BDAY" -> lens1,
-                   "URL" -> lens1,
-                   "JABBERID" -> lens1
-               (*  "TEL" -> lens2,
-                   "EMAIL" -> lens2,
-                   "ADR" -> lens2,
-                   "N" -> lens2,
-                   "ORG" -> lens2                 
-                 *) }
-             ); map (pivot "FN")) 
-      id 
-
-*)

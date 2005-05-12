@@ -8,15 +8,15 @@
        REGION = CO,
        STREET = "1899 Wynkoop Street",
        WORK = []},
-     BDAY = 19660806,
+     BDAY = 1966-08-06,
      DESC =
       "More information about me is located on my \n      personal website: http://www.saint-andre.com/",
      EMAIL = {INTERNET = [google], PREF = [], USERID = speter},
      JABBERID = stpeterjabberorg,
-     N = {FAMILY = SaintAndre, GIVEN = Peter, MIDDLE = []},
+     N = [John, Saint-Andre],
      NICKNAME = stpeter,
      ORG = {ORGNAME = "Jabber Software Foundation", ORGUNIT = []},
      ROLE = "Patron Saint",
      TEL = {NUMBER = 3033083282, VOICE = [], WORK = []},
      TITLE = "Executive Director",
-     URL = httpwwwjabberorgpeoplestpeterphp}}}
+     URL = "http://www.jabberorg./people/stpeter.php"}}}
