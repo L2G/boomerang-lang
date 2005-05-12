@@ -94,3 +94,55 @@ let groupby2 : lens =
                rename tmp HD;             
                plunge HD)
               (wmap { TL -> groupby2 })))
+
+let ungroupby2 : lens = 
+  let tmp : name = "tmp" in
+    acond < [] > < [] >
+      id
+      (acond <[[Any]]> <[Any]>
+	 (focus HD {TL=[]})
+	 (rename TL tmp;
+	  hoist_nonunique HD tags;
+	  xfork { tmp, TL } { TL }
+	    (hoist_nonunique TL tags;
+	     prune TL { TL=[] };
+	     rename tmp TL;
+	     wmap { TL -> ungroupby2 };
+	     plunge TL)
+	    id))
+      
+(* swap the first two elements of a list *)
+let swap : lens = 
+  let tmp = "tmp" in 
+    acond < [Any] | [] > < [Any] | [] >
+	id
+	(rename HD tmp;
+	 hoist_nonunique TL tags;
+	 xfork { tmp, TL } { TL } (rename tmp HD; plunge TL) id)
+
+let swap_all : lens = 
+  swap; 
+  acond < { * \ (HD,TL) = Any }::Any > < { * \ (HD,TL)=Any }::Any > 
+    id 
+    (wmap { HD -> swap_all, TL -> wmap { HD -> swap_all } })
+       
+let collapse : lens = 
+  let tmp : name = "tmp" in
+    ccond < [Any, Any] > 
+      id
+      (groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
+
+let expand : lens = 
+  let tmp : name = "tmp" in
+    ccond < {* \ (HD,TL) = Any }::Any > 
+      id
+      (ungroupby2; plunge tmp; wmap { tmp -> expand }; hoist tmp)
+
+let fast_reverse : lens = 
+  let x : name = "x" in
+  let tmp : name = "tmp" in
+    map (plunge x);
+    collapse;
+    swap_all;
+    expand;
+    map (hoist x)
