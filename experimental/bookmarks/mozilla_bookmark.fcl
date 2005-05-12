@@ -25,40 +25,64 @@ let l =
     hoist_nonunique List.HD p;
     hoist_nonunique List.TL List.tags  in
 
-  let link : lens =
+  let link : lens = 
+    trace "LINK >>>\n";
     hoist "dt";
-    hoist "";
-    List.hd [];
-    hoist "a";
-    filter {"", "href", "add_date"} {};
-    rename "" "name";
-    rename "href" "url";
-    prune "add_date" {"01/01/1970"};
-    wmap { "name" -> (List.hd []; hoist "PCDATA") }
+    wmap { "" ->
+      List.hd [];
+      trace "1\n";
+      hoist "a";
+      filter {"", "href", "add_date"} {};
+      trace "2\n";
+      rename "" "name";
+      trace "3\n";
+      rename "href" "url";
+      trace "4\n";
+      prune "add_date" {"01/01/1970"};
+      trace "5\n";
+      wmap { "name" -> (List.hd []; hoist "PCDATA") }
+	 };
+    trace "6\n";
+    hoist_nonunique "" {"name", "url"};
+    trace "\n<<< LINK\n"
       
   and folder : lens =
     hoist "dd";
-    hoist "";
-    hoist_hd {"h3"};
-    fork {"h3"} id (hoist_hd {"dl"});
-    prune List.NIL {}; prune List.HD {}; prune List.TL {};
-    rename "h3" "name";
-    rename "dl" "contents";
-    wmap {"name" -> (filter {""} {}; hoist ""; List.hd []; hoist "PCDATA"),
-      "contents" -> (hoist ""; item_list)}
+    wmap { "" ->
+      hoist_hd {"h3"};
+      fork {"h3"} id (hoist_hd {"dl"});
+      prune List.NIL {}; prune List.HD {}; prune List.TL {};
+      rename "h3" "name";
+      rename "dl" "contents";
+      wmap {"name" -> (filter {""} {}; hoist ""; List.hd []; hoist "PCDATA"),
+	"contents" -> (hoist ""; item_list)}
+	 };
+    hoist_nonunique  "" {"name", "contents"}
+      
       
   and item_list : lens =
     let itemfolderdesc2 =
       List.tl {}; wmap {List.TL ->item_list}; List.tl {} in
     let itemfolderdesc = 
-      wmap { List.HD -> (hoist "dd"; hoist ""; List.hd []; rename "h3" "name") ,
+      (* that's the tricky part.. will comment it later *)
+      wmap { List.HD -> (hoist	"dd"; hoist ""; List.hd []),
 	List.TL -> 
-	  wmap {List.HD -> hoist "dd"; hoist ""; focus List.TL no_descr; List.hd [];
-	    wmap { "dl" -> (plunge "contents"; plunge List.HD) }}
+	  wmap {List.HD -> hoist "dd"; hoist ""; 
+	    hoist_nonunique List.HD {"PCDATA"}; rename "PCDATA" "description";
+	    rename List.TL "myTail"
+	       };
+	  hoist_nonunique List.HD {"myTail", "description"}
 	   };
-      hoist_nonunique List.TL {List.TL, "dl"};
-      hoist_nonunique "dl" {List.HD};
-      wmap { List.HD -> folder, List.TL -> item_list } 
+      hoist_nonunique List.TL {List.TL, "myTail", "description"};
+      hoist_nonunique List.HD {"h3"};
+      plunge List.HD;
+      wmap { List.HD -> 
+	xfork {"myTail", "h3", "description"} {List.HD} 
+	  (xfork {"h3", "myTail"} {""} (rename "myTail" List.TL; xfork {"h3"} {List.HD} (plunge List.HD) id; plunge "") id; plunge "dd"; plunge List.HD) 
+	  id 
+	   }; 
+      hoist List.HD;
+      wmap { List.HD -> folder, List.TL -> item_list }
     in
     let itemfolder =
       wmap { List.HD -> folder, List.TL -> item_list } 
@@ -67,11 +91,24 @@ let l =
       wmap { List.HD -> link, List.TL -> item_list } 
     in
     let itemlinkdesc =
-    (* in the get, we just focus on the link, and discard the following description *)
-      wmap { List.HD -> link, List.TL -> focus List.TL no_descr_tag };
-      wmap { List.TL -> item_list }  
+      trace "\nITEMLINKDESC >>>\n";
+      (* pretty much the same strategy as in itemfolderdesc, but EZer here *)
+      wmap { List.HD -> hoist "dt",
+	List.TL -> wmap { List.HD -> hoist "dd"; hoist ""; List.hd []; rename "PCDATA" "description" };
+	  hoist_nonunique List.HD {"description"}
+	   };
+      trace "-1\n";
+      hoist_nonunique List.HD {""};
+      trace "-2\n";
+      hoist_nonunique List.TL {"description", List.TL};
+      trace "-3\n";
+      xfork {"", "description"} {List.HD} (plunge "dt"; plunge List.HD) id;
+      trace "-5\n";
+      wmap { List.HD -> link, List.TL -> item_list } ;
+      trace "\n<<< ITEMLINKDESC\n"
+	
     in
-    ccond <ItemFolderDesc> itemfolderdesc2
+    ccond <ItemFolderDesc> itemfolderdesc
       (ccond <ItemFolder> itemfolder
 	 (ccond <ItemLinkDesc> itemlinkdesc
 	    (ccond <ItemLink> itemlink
