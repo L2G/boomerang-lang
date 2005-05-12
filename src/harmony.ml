@@ -53,7 +53,9 @@ let get lens_qid concrete_file output_file =
     try match cv with
       |	Some cview -> Lens.get lens cview 
       | None -> failwith (Printf.sprintf "Concrete view file %s is missing." concrete_file) 
-    with V.Error(e) -> V.format_msg e; failwith "Error in get function"
+    with V.Error(e) -> (V.format_msg e; failwith "Error in get function")
+      | V.Illformed(m,vs) -> 
+	  V.format_msg ([`String m]@(Safelist.map (fun vi -> `View vi) vs)) ; failwith "Error in get function"
   in
   (* we're gonna have to output it *)
   let (o, viewer_ek) = parse_replica output_file in
@@ -70,7 +72,7 @@ let get lens_qid concrete_file output_file =
 let put lens_string abstract concrete output =
   (* look if there is also an encoding specification *)
   let (a, reader_ek) = parse_replica abstract in
-  (* get the encoding key of the abstract*)
+    (* get the encoding key of the abstract*)
   let akey = get_ekey a reader_ek in
   (* apply the reader, get the abstract view *)
   let av = get_view_from_file (Surveyor.get_reader akey) a in

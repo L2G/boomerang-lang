@@ -588,7 +588,7 @@ let rec compile_exp cev e0 =
       | EFun(i,_,Some _, _) -> failAt i "Run error: unflattened function"
       | EFun(i,_,_, _) -> failAt i "Run error: unannotated function"
       | EMap(i,ms) ->
-	  let id_exp = EVar(i, Registry.parse_qid "Prelude.id_native") in
+	  let id_exp = EVar(i, Registry.parse_qid "Native.id") in
 	  (* maps are implemented as functions from names -> lenses *)
 	  let map_impl = Safelist.fold_left
 	    (fun f (i,n,l) ->

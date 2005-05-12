@@ -85,7 +85,7 @@ let new_value s = singleton s empty
 let get_value v =
   if (is_value v) then (Name.Set.choose (dom v))
   else raise (Illformed ("get_value: not a value",[v]))
-
+    
 let get_field_value v k = get_value (get_required v k)
 
 let get_field_value_option v k =

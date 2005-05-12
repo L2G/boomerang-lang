@@ -39,16 +39,16 @@ let _ = register_native "Native.Nil" "type" nil
 (*************)
 
 (* PROBE *)
-let probe msg = Lens.native
-  (fun c ->
+let probe msg = 
+  { get = (fun c ->
      Format.printf "@,@[<v0>%s (get) @,  " msg;
      V.format c;
      Format.printf "@,@]";
      Format.print_flush ();
-     c)
-  (fun a co ->     
-     Format.printf "@,@[<v0>%s (put) @,  " msg;
-     V.format a;
+     c);
+    put = (fun a co ->     
+	     Format.printf "@,@[<v0>%s (put) @,  " msg;
+	     V.format a;
      Format.printf "@,  ";
      begin
        match co with
@@ -57,7 +57,7 @@ let probe msg = Lens.native
      end;
      Format.printf "@,@]";
      Format.print_flush ();
-     a)
+     a)}
   
 let probe_lib = 
   F(function 
@@ -695,15 +695,16 @@ let _ = register_native
 let pivot k =
   { get = 
       (fun c ->
-	 let ck =
-	   try V.get_required c k
+	   try 
+	     let ck = V.get_required c k in
+	     let ckv = V.get_value ck in
+	       V.set V.empty ckv (Some (V.set c k None))
 	   with V.Illformed(_,_) -> 
 	     error [`String "Native.pivot(get): the following view should have ";
 		    `String "exactly one child named "; 
 		    `Name k; 
-		    `View c] in
-	 let ckv = V.get_value ck in
-	   V.set V.empty ckv (Some (V.set c k None)));
+		    `String ", leading to a value ";
+		    `View c]);
     put = 
       (fun a _ ->
 	 if (Name.Set.cardinal (V.dom a)) <> 1 then

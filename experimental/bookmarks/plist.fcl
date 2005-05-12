@@ -7,24 +7,12 @@ let plist_object_lens : lens =
          "array" -> array_lens,
          "string" -> leaf_lens }
 
-(* What I want to write:
 and array_lens : lens =
-  hoist "";
-  list_map plist_object_lens
-
-and dict_lens : lens =
-  hoist "";
-  groupby2;
-  list_map (keypair_lens)
-*)
-
-(* What I have to write: *)
-and array_lens : lens =
-  wmap {"" -> list_map plist_object_lens};
+  wmap {"" -> List.list_map plist_object_lens};
   hoist ""
 
 and dict_lens : lens =
-  wmap {"" -> groupby2; list_map (keypair_lens)};
+  wmap {"" -> groupby2; List.list_map (keypair_lens)};
   hoist ""
 
 and keypair_lens : lens =
@@ -33,18 +21,18 @@ and keypair_lens : lens =
 
 and leaf_lens : lens =
   hoist "";
-  acond <[]> < { "*t"=[], "*h"={"PCDATA" = {"BLANK"={}, *\"BLANK"=Any}}} >
-   (const [{"PCDATA"="BLANK"}] {})
-   id;
-  hd [];
+  acond <[]> < { "*t"=[], "*h"={"PCDATA" = {"BLANK"={}, *\("BLANK")=Any}}} >
+    (const [{"PCDATA"="BLANK"}] {})
+    id;
+  List.hd [];
   hoist "PCDATA"
 
 let plist_lens =
   hoist "";
-  hd [];
+  List.hd [];
   hoist "plist";
   focus "" {};
-  hd [];
+  List.hd [];
   plist_object_lens
 
 

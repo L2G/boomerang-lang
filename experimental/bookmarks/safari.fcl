@@ -4,9 +4,9 @@ open Plist
 
 let flatten_dict =
   hoist "dict";
-  list_map (
-    pivot hd_tag;
-    map (focus tl_tag {}; hd [])
+  List.list_map (
+    pivot List.hd_tag;
+    map (focus List.tl_tag {}; List.hd [])
   )
 
 let l =
