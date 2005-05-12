@@ -3,7 +3,7 @@
     {ADR =
       {CTRY = USA,
        EXTADD = "Suite 600",
-       LOCALITY = Philadelphia,
+       LOCALITY = Denver,
        PCODE = 80202,
        REGION = CO,
        STREET = "1899 Wynkoop Street",
@@ -11,12 +11,12 @@
      BDAY = 1966-08-06,
      DESC =
       "More information about me is located on my \n      personal website: http://www.saint-andre.com/",
-     EMAIL = {INTERNET = [google], PREF = [], USERID = speter},
-     JABBERID = stpeterjabberorg,
-     N = [John, Saint-Andre],
+     EMAIL = {INTERNET = [google], PREF = [], USERID = "stpeter@jabber.org"},
+     JABBERID = "stpeter@jabber.org",
+     N = Peter,Saint-Andre,
      NICKNAME = stpeter,
      ORG = {ORGNAME = "Jabber Software Foundation", ORGUNIT = []},
      ROLE = "Patron Saint",
-     TEL = {NUMBER = 3033083282, VOICE = [], WORK = []},
+     TEL = {NUMBER = "303-308-3282", VOICE = [], WORK = []},
      TITLE = "Executive Director",
-     URL = "http://www.jabberorg./people/stpeter.php"}}}
+     URL = httpwwwjabberorgpeoplestpeterphp}}}

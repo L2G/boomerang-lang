@@ -32,7 +32,7 @@ let error lexbuf s =
 
 let blank = [' ' '\t']+
 let newline = "\n"
-let idchar = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']+
+let idchar = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_' '-']+
 let string = '"' [^'"']* '"'
 let anyline = [^'\n']* '\n'
 

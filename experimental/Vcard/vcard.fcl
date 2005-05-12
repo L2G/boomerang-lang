@@ -1,8 +1,8 @@
 module Vcard =
 
 let EmptyList = List.Nil (*<{"*nil"}>*)
-let firstListEmpty = <{List.HD = {"*nil"}, List.TL = Any}>
-let charSpace = <{""}>
+let firstListEmpty = <{List.HD = List.Nil (*{"*nil"}*), List.TL = Any}>
+let charComma = <{","}>
 
 let l = 
 let lens1:lens = ( List.hd []; hoist ""; List.hd []; hoist "PCDATA" )
@@ -10,20 +10,17 @@ and lens2:lens = (List.hd []; hoist "";
             List.map (
               map (hoist ""; ccond EmptyList 
                              (List.map (hoist "PCDATA")) 
-			     (List.hd[];hoist "PCDATA"))  ) ;
-            
-              flatten; map (List.hd []) )
+			     (List.hd[];hoist "PCDATA")));
+            flatten; map (List.hd []) )
 
 and concat:lens = (
-   acond firstListEmpty charSpace
-         (fork {List.HD} (map(rename List.NIL "")) (map(focus List.HD {List.TL =[]} )))
+   acond firstListEmpty charComma
+         (fork {List.HD} (map(rename List.NIL ",")) (map(focus List.HD {List.TL =[]} )))
          
          (xfork {List.HD} {List.HD, "x"} (hoist List.HD; rename List.TL "x") id;
           xfork {List.TL, "x"} {List.TL} 
-                (rename "x" List.HD; plunge List.TL (*; wmap {List.TL -> concat} *)) id);
-          (*wmap {List.TL -> concat}*)  
-    wmap { List.TL -> (List.tl []; List.hd [])} )
-
+                (rename "x" List.HD; plunge List.TL ; wmap {List.TL -> concat} ) id)
+       )  
 in 
 hoist ""; List.hd [] (*we use List.map later*); hoist "iq"; (*here*)
 focus "" [];
@@ -43,10 +40,9 @@ List.hd []; map (focus "" []; flatten;
                            flatten; xfork {"GIVEN"} {List.HD}
                                           (rename "GIVEN" List.HD)
 					  (rename "FAMILY" List.HD; add List.TL []; plunge List.TL)
-                          ; concat  ),  
+                          ;List.map (List.hd []; explode); concat; implode ),  
                    "ORG" -> lens2                 
                   };
               pivot "FN"
-            
            ) 
 
