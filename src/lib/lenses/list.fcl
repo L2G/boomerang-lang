@@ -17,6 +17,54 @@ let tl (d:view) : lens = focus TL { HD = d }
 
 let map (l:lens) : lens = wmap { HD -> l, TL -> (map l) }
 
+let reverse : lens = 
+  let tmp : name = "tmp" in
+  let rotate : lens = 
+    acond <[] | [Any]> <[] | [Any]>
+      id
+      (rename HD tmp;
+       hoist_nonunique TL tags;
+       xfork {tmp, TL} {TL}
+	 (rename tmp HD;
+	  plunge TL;
+	  wmap { TL -> rotate })
+	 id) 
+  in
+    wmap { TL -> reverse }; 
+    rotate
+
+(* FIXME? maybe change this name, it sounds like @ *)       
+let append (v:view) : lens =
+  acond <[]> <[Any]>
+    (const v {})
+    (wmap { TL -> append v })
+
+let old_list_filter (E:type) : lens = 
+  wmap { TL -> old_list_filter E };
+  ccond < E :: Any >
+    (tl {"error"})
+    id    
+    
+(* filter:
+ *    - v must NOT be an E
+ *)
+let filter (D:type) (E:type) (some_D:view) : lens =
+  let filter_aux (D:type) (E:type) (some_D:view) : lens = 
+    cond_ff <List E> < [] > < D::(List D) >
+      (old_list_filter D)
+      (append [some_D])
+      (const [] [])
+      (inner_filter)
+  and inner_filter : lens =
+    (* this Any used to be a List containing at least one D *)
+    ccond < E::Any > 
+      (wmap { TL -> inner_filter }; tl {"error"})
+      (wmap { TL -> filter_aux D E some_D } )
+  in
+    filter_aux D E some_D
+      
+let test_filter : lens = filter < Any > < {"1"=Any} > {}
+
 let groupby2 : lens =
   let tmp : name = "tmp" in
   let add_empty_tail : lens =

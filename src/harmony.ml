@@ -237,8 +237,6 @@ let usageMsg =
     
 let main () =
   (* retrieves the value of a -option, fails if argument is missing on the cmd ine *)
-  let _ = debug "welcome to get" in
-
   let p pref = 
     match Prefs.read pref with 
       "" ->  
