@@ -395,15 +395,12 @@ let _ = register_native "Native.xfork" "view -> view -> lens -> lens -> lens" xf
 let hoist k =
   { get = 
       (fun c ->
-	 if (Name.Set.cardinal (V.dom c)) <> 1 then
-	   error [`String "Native.hoist: expecting exactly one child (named ";
-		  `Name k; 
-		  `String ")"; 
-		  `View c];
-	 if (Name.Set.choose (V.dom c)) <> k then
-	       error [`String "Native.hoist: child should be named "; 
-		      `Name k; 
-		      `View c];
+	 if   (Name.Set.cardinal (V.dom c)) <> 1 
+	   or (Name.Set.choose (V.dom c)) <> k then
+	     error [`String "Native.hoist (get): expecting exactly one child (named ";
+		    `Name k; 
+		    `String ")"; 
+		    `View c];
 	 V.get_required c k);
     put = 
       (fun a _ -> 
@@ -431,12 +428,12 @@ let _ = register_native "Native.hoist" "name -> lens" hoist_lib
 let plunge k =
   { get = (fun c -> V.set V.empty k (Some c));
     put = (fun a _ -> 
-	     if (Name.Set.cardinal (V.dom a)) <> 1 then
-	       error [`String "Native.plunge(put): expecting exactly one child named "; 
-		       `Name k; `View a];
-	     if (Name.Set.choose (V.dom a)) <> k then
-	       error [`String "Native.plunge(put): child should be named ";
-		      `Name k; `View a];
+	     if   (Name.Set.cardinal (V.dom a)) <> 1 
+	       or (Name.Set.choose (V.dom a)) <> k then
+	     error [`String "Native.plunge (put): expecting exactly one child (named ";
+		    `Name k; 
+		    `String ")"; 
+		    `View a];
 	     V.get_required a k)}
     
 (* plunge - library interface *)
@@ -1377,41 +1374,39 @@ let _ = register_native "Native.flatten" "lens" flatten_lib
 (*//////////////////*)
 
 let explode =
-  let rec tree_of_string = function
+  let rec tree_of_string msg = function
       "" -> []
     | s -> 
 	let sh = String.sub s 0 1 and st = String.sub s 1 (String.length s - 1) in
-	(V.new_value sh)::(tree_of_string st)
-  and string_of_tree = function
+	(V.new_value sh)::(tree_of_string msg st)
+  and string_of_tree msg = function
       [] -> ""
     | a::q -> 
 	if( Name.Set.cardinal (V.dom a)) <> 1 then
-	  error [`String "native.explode (put) : expecting exactly one child :";
-		  `View a
+	  error [`String ("Native.explode ("^msg^") : expecting exactly one child :");
+		 `View a
 		];
 	let ch = Name.Set.choose (V.dom a) in
-	if String.length ch <> 1 then
-	  error [`String "native.explode (put) : expecting child with a one-char name";
-		  `View a
-		];
-	ch^(string_of_tree q)
+	  if String.length ch <> 1 then
+	    error [`String ("Native.explode (" ^ msg ^ ") : expecting child with a one character name");
+		   `View a
+		  ];
+	  ch^(string_of_tree msg q)
   in
-  { get =
-    (fun c ->
-      if( Name.Set.cardinal (V.dom c)) <> 1 then
-	error [`String " native.explode (get) : expecting exactly one child :";
-		`View c];
-      let k = Name.Set.choose (V.dom c) in
-      (* here is the string we have to 'explode' *)
-      V.structure_from_list (tree_of_string k)
-      );
-    put = 
-    (fun a _ -> V.new_value (string_of_tree (V.list_from_structure a)))
-  }
-
+    { get =
+	(fun c ->
+	   if( Name.Set.cardinal (V.dom c)) <> 1 then
+	     error [`String " Native.explode (get) : expecting exactly one child :";
+		    `View c];
+	   let k = Name.Set.choose (V.dom c) in
+	     (* here is the string we have to 'explode' *)
+	     V.structure_from_list (tree_of_string "get" k)
+	);
+      put = (fun a _ -> V.new_value (string_of_tree "put" (V.list_from_structure a)))
+    }
+      
 (* explode library interface *)  
-let explode_lib = 
-  L ( explode)
+let explode_lib = L (explode)
     
 (* (\* explode - unit tests *\) *)
 (* let explode_unit_tests =  *)
@@ -1424,54 +1419,4 @@ let explode_lib =
 (*   ]  *)
 
 let _ = register_native "Native.explode" "lens" explode_lib
-
-let implode =
-  let rec tree_of_string = function
-      "" -> []
-    | s -> 
-	let sh = String.sub s 0 1 and st = String.sub s 1 (String.length s - 1) in
-	(V.new_value sh)::(tree_of_string st)
-  and string_of_tree = function
-      [] -> ""
-    | a::q -> 
-	if( Name.Set.cardinal (V.dom a)) <> 1 then
-	  error [`String "native.implode (get) : expecting exactly one child :";
-		  `View a
-		];
-	let ch = Name.Set.choose (V.dom a) in
-	if String.length ch <> 1 then
-	  error [`String "native.implode (get) : expecting child with a one-char name";
-		  `View a
-		];
-	ch^(string_of_tree q)
-  in
-  { put =
-    (fun a _ ->
-      if( Name.Set.cardinal (V.dom a)) <> 1 then
-	error [`String "native.implode (put) : expecting exactly one child :";
-		`View a];
-      let k = Name.Set.choose (V.dom a) in
-      (* here is the string we have to 'explode' *)
-      V.structure_from_list (tree_of_string k)
-      );
-    get = 
-    (fun c -> V.new_value (string_of_tree (V.list_from_structure c)))
-  }
-
-(* implode library interface *)  
-let implode_lib = 
-  L ( implode)
     
-(* (\* implode - unit tests *\) *)
-(* let implode_unit_tests =  *)
-(*   [ test_put_eq [] "{\"\"}" None "[]"; *)
-(*     test_put_eq [] "{youpi}" None "[y o u p i]"; *)
-(*     test_put_eq [] "{\"youpi blam\"}" None  "[y o u p i {\" \"} b l a m]"; *)
-(*     test_get_eq [] "[y o u p i {\" \"} b l a m]" "{\"youpi blam\"}"; *)
-(*     test_get_eq [] "[y o u p i]" "{youpi}"; *)
-(*     test_get_eq [] "[]" "{\"\"}" *)
-(*   ]  *)
-
-let _ = register_native "Native.implode" "lens" implode_lib
-
-
