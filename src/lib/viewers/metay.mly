@@ -18,7 +18,7 @@ let info_of_id (i,_) = i
 
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT
-%token <Info.t> LBRACE RBRACE LBRACK RBRACK COMMA CONS EQUAL
+%token <Info.t> LBRACE RBRACE LBRACK RBRACK COMMA COLON EQUAL
 
 %start view
 %type <V.t> view
@@ -26,7 +26,7 @@ let info_of_id (i,_) = i
 %%
 
 view:
-  | aview CONS view                { V.cons $1 $3 }
+  | aview COLON COLON view         { V.cons $1 $4 }
   | aview                          { $1 }
 
 aview: 

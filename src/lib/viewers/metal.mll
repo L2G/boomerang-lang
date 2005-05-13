@@ -32,7 +32,7 @@ let error lexbuf s =
 
 let blank = [' ' '\t']+
 let newline = "\n"
-let notsymbol = ([^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ','] | "::")+
+let notsymbol = ([^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ','] | ":")+
 
 rule token = parse
 | blank		{ token lexbuf }
@@ -42,7 +42,7 @@ rule token = parse
 | "["		{ LBRACK (info lexbuf) }
 | "]"		{ RBRACK (info lexbuf) }
 | ","           { COMMA (info lexbuf) }
-| "::"          { CONS (info lexbuf) }
+| ":"           { COLON (info lexbuf) }
 | "\""		{ IDENT ((info lexbuf), (string lexbuf)) }
 | notsymbol	{ let i = (info lexbuf) in IDENT (i, (lexeme lexbuf)) }
 | newline       { newline lexbuf; token lexbuf }

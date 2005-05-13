@@ -226,8 +226,9 @@ let raw =
   Prefs.createBool "raw" false "Dump views in 'raw' form" ""
       
 let format v =
+  let symbols = [' ';'\t';'\n';'\"';'{';'}';'[';']';'=';',';':'] in
   let rec format_aux ((VI (_,m)) as v) inner = 
-  if (not (Prefs.read raw)) then
+    if (not (Prefs.read raw)) then
     if is_list v then begin
       let rec loop = function
           [] -> ()
@@ -238,12 +239,12 @@ let format v =
       Format.printf "@]]"
     end else begin
       if (is_value v && inner) then
-	Format.printf "%s" (Misc.whack (get_value v))
+	Format.printf "%s" (Misc.whack_chars (get_value v) symbols)
       else begin
         Format.printf "{@[<hv0>";
 	Name.Map.iter_with_sep
 	  (fun k kid -> 
-	    Format.printf "@[<hv1>%s =@ " (Misc.whack k);
+	    Format.printf "@[<hv1>%s =@ " (Misc.whack_chars k symbols);
 	    format_aux kid true;
 	    Format.printf "@]")
           (fun() -> Format.printf ",@ ")

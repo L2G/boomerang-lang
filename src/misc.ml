@@ -279,15 +279,16 @@ let rec replace_substrings s l =
   | (sub,sub')::rest -> replace_substrings (replace_substring s sub sub') rest
 
     
-let whack s =
-(*   let s = if String.length s > 30 then (String.sub s 0 30 ^ "...") else s in  *)
+let whack_chars s cl =
+  (*   let s = if String.length s > 30 then (String.sub s 0 30 ^ "...") else s in  *)
   let s = String.escaped s in
-  let s = if String.contains s ' ' || String.contains s '"'
-    then "\""^s^"\""
+  let s = 
+    if Safelist.exists (fun c -> String.contains s c) cl then "\""^s^"\""
     else s in
-  if s="" then "\"\""
-  else s
-
+    if s="" then "\"\""
+    else s
+      
+let whack s = whack_chars s [' '; '"']
 
 let unescaped s =
   let buf = Buffer.create (String.length s) in

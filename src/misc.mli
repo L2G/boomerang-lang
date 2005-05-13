@@ -47,6 +47,7 @@ val findsubstring : string -> string -> int option
 val trimLeadingSpaces : string -> string
 val replace_substring : string -> string -> string -> string
 val replace_substrings : string -> (string * string) list -> string
+val whack_chars : string -> char list -> string
 val whack : string -> string
 val unwhack : string -> string
 val hexify_string : string -> string
