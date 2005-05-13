@@ -17,7 +17,7 @@ testsafget:
 	     && echo && cat out.tmp
 
 testmozput: testmozget
-#	$(HARMONY) \
+	$(HARMONY) \
 	     put -concrete $(MOZ_TMP_FILE) -abstract $(MOZ_OUTPUT_FILE) -l $(MOZILLA_LENS) -o $(MOZ_GETPUT_FILE) \
 	     && echo && cat $(MOZ_GETPUT_FILE)
 
