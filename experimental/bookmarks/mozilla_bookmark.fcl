@@ -48,8 +48,8 @@ let l =
       hoist_hd {"h3"};
       fork {"h3"} id (hoist_hd {"dl"});
       prune List.NIL {}; prune List.HD {}; prune List.TL {};
-      rename "h3" "name";
-      rename "dl" "contents";
+      rename_if_present "h3" "name";
+      rename_if_present "dl" "contents";
       wmap {"name" -> (filter {""} {}; hoist ""; List.hd []; hoist "PCDATA"),
 	"contents" -> (hoist ""; item_list)}
 	 };
@@ -125,11 +125,10 @@ let l =
       
   in
   bookmarks
-
+    
 (* see l *)
 let l2 =
   let disc_desc : lens =
     List.map (wmap {"contents" -> disc_desc }; filter {"name", "contents", "url"} {})
   in
   (l;  disc_desc)
-

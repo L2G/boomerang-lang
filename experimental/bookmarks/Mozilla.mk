@@ -5,6 +5,9 @@ MOZ_PREPROCESS_TARGET = mPP
 MOZ_TEST_FILE = bookmarks2.html
 MOZ_TMP_FILE = bookmarks2.xml
 MOZ_OUTPUT_FILE = output.meta
+MOZ_GETPUT_FILE = putback.xml
+
+MOZILLA_LENS = Mozilla_bookmark.l
 
 mpp: $(MOZ_PREPROCESS_SRC)
 	ocamlc -o $(MOZ_PREPROCESS_TARGET) $(MOZ_PREPROCESS_LIB) $(MOZ_PREPROCESS_SRC)
