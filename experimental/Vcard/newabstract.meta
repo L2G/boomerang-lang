@@ -1,5 +1,5 @@
 {vCard =
-  {"Peter Saint-Andre" =
+  {"John Smith" =
     {ADR =
       {CTRY = USA,
        EXTADD = "Suite 600",
@@ -11,12 +11,12 @@
      BDAY = 1966-08-06,
      DESC =
       "More information about me is located on my \n      personal website: http://www.saint-andre.com/",
-     EMAIL = {INTERNET = [google], PREF = [], USERID = "stpeter@jabber.org"},
-     JABBERID = "stpeter@jabber.org",
-     N = Peter,Saint-Andre,
+     EMAIL = {INTERNET = [www.google.com], PREF = [], USERID = stpeter@jabber.org},
+     FN = "Peter Saint-Andre",
+     JABBERID = stpeter@jabber.org,
      NICKNAME = stpeter,
      ORG = {ORGNAME = "Jabber Software Foundation", ORGUNIT = []},
      ROLE = "Patron Saint",
-     TEL = {NUMBER = "303-308-3282", VOICE = [], WORK = []},
+     TEL = {NUMBER = 303-308-3282, VOICE = [], WORK = []},
      TITLE = "Executive Director",
-     URL = httpwwwjabberorgpeoplestpeterphp}}}
+     URL = http://www.jabber.org/people/stpeter.php}}}

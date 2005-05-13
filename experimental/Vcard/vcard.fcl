@@ -1,26 +1,34 @@
 module Vcard =
 
-let EmptyList = List.Nil (*<{"*nil"}>*)
-let firstListEmpty = <{List.HD = List.Nil (*{"*nil"}*), List.TL = Any}>
-let char = <{"'"}>
+let EmptyList = List.Nil 
+let firstListEmpty = <{List.HD = List.Nil, List.TL = Any}>
+let firstCharSpace = <{" "}::Any>
+
+let concat:lens =
+  acond firstListEmpty firstCharSpace
+    (fork {List.HD} 
+       (map(rename List.NIL " ")) 
+       (map(focus List.HD {List.TL =[]} )))
+    
+    (xfork {List.HD} {List.HD, "x"} 
+       (hoist List.HD; 
+	rename List.TL "x") 
+       id;
+     xfork {List.TL, "x"} {List.TL} 
+       (rename "x" List.HD; 
+	plunge List.TL ; 
+	wmap {List.TL -> concat})
+       id)
 
 let l = 
+
 let lens1:lens = ( List.hd []; hoist ""; List.hd []; hoist "PCDATA" )
 and lens2:lens = (List.hd []; hoist ""; 
-            List.map (
-              map (hoist ""; ccond EmptyList 
-                             (List.map (hoist "PCDATA")) 
-			     (List.hd[];hoist "PCDATA")));
-            flatten; map (List.hd []) )
-
-and concat:lens = (
-   acond firstListEmpty char
-         (fork {List.HD} (map(rename List.NIL "'")) (map(focus List.HD {List.TL =[]} )))
-         
-         (xfork {List.HD} {List.HD, "x"} (hoist List.HD; rename List.TL "x") id;
-          xfork {List.TL, "x"} {List.TL} 
-                (rename "x" List.HD; plunge List.TL ; wmap {List.TL -> concat} ) id)
-       )  
+            List.map (map (hoist ""; ccond EmptyList 
+                             	     (List.map (hoist "PCDATA")) 
+			     	     (List.hd[];hoist "PCDATA")));
+            flatten; 
+            map (List.hd []) )
 in 
 hoist ""; List.hd [] (*we use List.map later*); hoist "iq"; (*here*)
 focus "" [];
@@ -36,13 +44,17 @@ List.hd []; map (focus "" []; flatten;
                    "TEL" -> lens2,
                    "EMAIL" -> lens2,
                    "ADR" -> lens2,
-                   "N" -> (List.hd[]; hoist ""; List.map (map (hoist ""; List.hd[]; hoist "PCDATA"));
+                   "N" -> (List.hd[]; hoist ""; 
+                           List.map (map (hoist ""; List.hd[]; hoist "PCDATA"));
                            flatten; xfork {"GIVEN"} {List.HD}
                                           (rename "GIVEN" List.HD)
-					  (rename "FAMILY" List.HD; add List.TL []; plunge List.TL)
-                          ;List.map (List.hd []; explode); concat; implode ),  
+					  (rename "FAMILY" List.HD; add List.TL []; 
+                                           plunge List.TL);
+                           List.map (List.hd []; explode); 
+			   concat; 
+                           implode ),  
                    "ORG" -> lens2                 
                   };
-              pivot "FN"
+              pivot "N"
            ) 
 
