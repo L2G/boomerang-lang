@@ -32,7 +32,7 @@ let error lexbuf s =
 
 let blank = [' ' '\t']+
 let newline = "\n"
-let notsymbol = ([^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ','] | ":")+
+let notsymbol = [^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ',' ':']+
 
 rule token = parse
 | blank		{ token lexbuf }
