@@ -70,6 +70,7 @@ and typeexp = TT of ptypeexp | NT of ptypeexp
 
 and ptypeexp = 
     TEmpty of i
+  | TAny of i
   | TVar of i * qid
   | TApp of i * ptypeexp * ptypeexp
   | TFun of i * id list * sort * ptypeexp (* only used internally *)
@@ -119,6 +120,7 @@ let info_of_exp = function
 
 let info_of_ptypeexp = function
     TEmpty(i) -> i
+  | TAny(i) -> i
   | TFun(i,_,_,_) -> i
   | TApp(i,_,_) -> i
   | TVar(i,_)   -> i
@@ -206,7 +208,8 @@ and string_of_typeexp = function
   | NT pt -> concat_list "" ["~"; "("; string_of_ptypeexp pt ;")"]
 
 and string_of_ptypeexp = function 
-  | TEmpty(_)     -> "empty"
+    TEmpty(_)     -> "Empty"
+  | TAny(_)       -> "Any"
   | TVar(_,q)     -> string_of_qid q
   | TFun(_,xs,s,pt)   -> 
       sprintf "tfun %s : %s => %s" 

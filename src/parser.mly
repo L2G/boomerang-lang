@@ -38,14 +38,12 @@ let nil_view i =
 %token <Info.t> LENS VIEW TYPE NAME ARROW DOUBLEARROW
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
 %token <Info.t> SEMI COMMA DOT EQUAL COLON SLASH 
-%token <Info.t> EMPTY STAR BANG BAR TILDE 
+%token <Info.t> ANY EMPTY STAR BANG BAR TILDE 
 
-%start modl sort qid ext_view
+%start modl sort qid 
 %type <Syntax.modl> modl
 %type <Syntax.sort> sort
 %type <Syntax.qid> qid
-%type <V.t> ext_view
-
 %%
 
 /*** MODULES ***/
@@ -238,6 +236,7 @@ ctypeexp:
   | atypeexp                                 { $1 }
  
 atypeexp:
+  | ANY                                      { TAny($1) }
   | EMPTY                                    { TEmpty($1) } 
   | qid                                      { let i = info_of_qid $1 in TVar(i, $1) }
   | LPAREN ptypeexp RPAREN                   { $2 } 
@@ -307,53 +306,3 @@ IDENT_list:
 name:
   | STRING                                  { $1 }
 
-IDENT_or_STRING: 
-  | IDENT                                   { $1 }
-  | STRING                                  { $1 }
-
-/*** EXTERNAL view parser */
-ext_view:
-  | aext_view COLON COLON ext_view         { V.cons $1 $4 }
-  | aext_view                              { $1 }
-
-aext_view: 
-  | LBRACE ext_viewelt_list RBRACE          { Safelist.fold_right 
-						(fun v vacc -> V.concat vacc v) 
-						$2 
-						V.empty 
-					    }
-  | LBRACK ext_innerview_list RBRACK        { Safelist.fold_right 
-						(fun v vacc -> V.cons v vacc) 
-						$2 
-						V.empty_list
-					    }
-  
-ext_viewelt_list:
-  |                                        { [] }
-  | ext_non_empty_viewelt_list             { $1 }
-
-ext_non_empty_viewelt_list:
-  | ext_viewelt                                  { [$1] }
-  | ext_viewelt COMMA ext_non_empty_viewelt_list { $1::$3 }
-
-ext_viewelt:
-  | IDENT_or_STRING                          { let n = string_of_id $1 in
-						 V.set V.empty n (Some V.empty)
-					     }
-  | IDENT_or_STRING EQUAL ext_innerview      { let n = string_of_id $1 in
-						 V.set V.empty n (Some $3)
-					     }
-ext_innerview:
-  | ext_view                                 { $1 }
-  | IDENT_or_STRING                          { let n = string_of_id $1 in 
-						 V.set V.empty n (Some V.empty)	  
-					     }
-
-
-ext_innerview_list:
-  |                                          { [] }
-  | ext_non_empty_innerview_list             { $1 }
-
-ext_non_empty_innerview_list:
-  | ext_innerview                            { [$1] }
-  | ext_innerview COMMA ext_non_empty_innerview_list { $1::$3 }

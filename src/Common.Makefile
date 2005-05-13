@@ -35,7 +35,7 @@ BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
                type.ml value.ml registry.ml \
                compiler.ml
 
-VIEWER_SOURCES = meta.ml xml.ml
+VIEWER_SOURCES = metay.mly metal.mll meta.ml xml.ml
 
 ################
 # SYNC SOURCES #

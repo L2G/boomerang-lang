@@ -33,6 +33,7 @@ type i = Info.t
 type t = TT of pt | NT of pt 
 and pt = 
     Empty of i
+  | Any of i
   | Var of i * Syntax.qid * thunk
   | App of i * pt * pt * thunk
   | Fun of i * (pt -> pt)
@@ -48,6 +49,7 @@ let rec info_of_t = function
   | NT pt -> info_of_pt pt
 and info_of_pt = function
     Empty(i)     -> i
+  | Any(i)       -> i
   | Var(i,_,_)   -> i
   | App(i,_,_,_) -> i
   | Fun(i,_)     -> i
@@ -64,6 +66,7 @@ let rec string_of_t = function
 
 and string_of_pt = function
   | Empty(_) -> "empty"
+  | Any(_) -> "Any"
   | Var (_,x,_) -> Syntax.string_of_qid x
   | App(_,pt1,pt2,_) -> sprintf "(%s %s)" (string_of_pt pt1) (string_of_pt pt2)
   | Fun (_,_) -> "<type fun>"
@@ -113,7 +116,9 @@ let rec cmp_lex l1 l2 cmp_f =
 (* a VERY conservative approximation of equality *)
 (* assumes that types are in normal form *)
 let rec eq_ptyp pt1 pt2 = match pt1,pt2 with
-    Var(_,x1,_),Var(_,x2,_) -> Syntax.qid_compare x1 x2 = 0
+    Empty(_),Empty(_) -> true
+  | Any(_),Any(_) -> true
+  | Var(_,x1,_),Var(_,x2,_) -> Syntax.qid_compare x1 x2 = 0
   | Name(_,n1,ptn1),Name(_,n2,ptn2) -> (n1=n2) && (eq_ptyp ptn1 ptn2)
   | Star(_,f1,ptx1),Star(_,f2,ptx2) -> (f1=f2) && (eq_ptyp ptx1 ptx2)
   | Bang(_,f1,ptx1),Bang(_,f2,ptx2) -> (f1=f2) && (eq_ptyp ptx1 ptx2)
@@ -139,8 +144,17 @@ let rec cmp_typ t1 t2 = match t1,t2 with
   | TT(pt1), TT(pt2) -> cmp_ptyp pt1 pt2	  
 and cmp_ptyp t1 t2 =
   match t1,t2 with      
+      (* Empty *)
+      Empty(_),Empty(_)         -> eq
+    | Empty(_),_                -> lt
+    | _,Empty(_)                -> gt
+	(* Any *)
+    | Any(_),Any(_)             -> eq
+    | Any(_),_                  -> lt
+    | _,Any(_)                  -> gt
+
       (* Fun *)
-      Fun(_),Fun(_)             -> eq
+    | Fun(_),Fun(_)             -> eq
     | Fun(_),_                  -> lt
     | _,Fun(_)                  -> gt
 	
@@ -150,13 +164,8 @@ and cmp_ptyp t1 t2 =
 
     (* App *)
     | App(_,pt1,pt2,_),_        -> cmp_ptyp (eval_pt pt1) t2
-    | _,App(_,pt1,pt2,_)        -> cmp_ptyp t1 (eval_pt pt2)
-	
-    (* Empty *)
-    | Empty(_),Empty(_)         -> eq
-    | Empty(_),_                -> lt
-    | _,Empty(_)                -> gt
-	
+    | _,App(_,pt1,pt2,_)        -> cmp_ptyp t1 (eval_pt pt2)	
+   
     (* Name *)
     | Name(_,n1,_),Name(_,n2,_) -> compare n1 n2
     | Name(_,_,_),_             -> lt
@@ -193,14 +202,13 @@ let rec t2nf t0 = match t0 with
 and pt2nf pt0 = pt2nf_aux true pt0
 and pt2nf_aux dethunk pt0 = 
   let res = match pt0 with      
-  | Empty(_)       -> pt0
-  | Fun(_)         -> pt0
-  | Var(_,_,_)     -> if dethunk then pt2nf_aux true (eval_pt pt0) else pt0
-  | App(_,_,_,_)   -> pt2nf_aux dethunk (eval_pt pt0) 
-  | Name(i,n,pt1)  -> Name(i, n, pt2nf_aux false pt1)
-  | Bang(i,es,pt1) -> Bang(i, Safelist.sort compare es, pt2nf_aux false pt1)
-  | Star(i,es,pt1) -> Star(i, Safelist.sort compare es, pt2nf_aux false pt1)      
-      
+      Empty(_) | Any(_) | Fun(_) -> pt0
+    | Var(_,_,_)     -> if dethunk then pt2nf_aux true (eval_pt pt0) else pt0
+    | App(_,_,_,_)   -> pt2nf_aux dethunk (eval_pt pt0) 
+    | Name(i,n,pt1)  -> Name(i, n, pt2nf_aux false pt1)
+    | Bang(i,es,pt1) -> Bang(i, Safelist.sort compare es, pt2nf_aux false pt1)
+    | Star(i,es,pt1) -> Star(i, Safelist.sort compare es, pt2nf_aux false pt1)      
+	
   (* unions:
      - recursively normalize
      - lift nested unions
@@ -291,7 +299,8 @@ let rec project t0 n = match t0 with
 and project_pt pt0 n =
   let _ = debug (Format.sprintf "--- PROJECT_PT --- %s from t=%s\n" n (string_of_pt pt0)) in
     match pt0 with
-      | Empty(_)        -> None
+	Empty(_)        -> None
+      | Any(i)          -> Some (Any(i))
       | Name(_,m,pt)   -> if (n=m) then Some pt else None
       | Bang(_,f,pt)   -> if (Safelist.mem n f) then None else Some pt
       | Star(_,f,pt)   -> if (Safelist.mem n f) then None else Some pt
@@ -341,78 +350,80 @@ and member_pt v pt0 =
   let _ = V.fold (fun k _ () -> let _ = project_pt pt0 k in ()) v () in
   
   let res = match pt0 with
-    Empty(i)     -> false
-  | Fun(_,_)     -> false
-  | Var(_,_,_)   -> member_pt v (eval_pt pt0)
-  | App(_,_,_,_) -> member_pt v (eval_pt pt0)
-  | Name(_,n,pt) ->
-      let d = V.dom v in
-        begin match Name.Set.cardinal d with
-          | 1 ->
-       	      let k = Name.Set.choose d in
-       	      let vk = V.get_required v k in
-       		(k = n) && (member_pt vk pt)
-          | _ -> false
-        end
-  | Bang(_,f,pt) ->
-      let d = V.dom v in
-        begin match Name.Set.cardinal d with
-          | 1 ->
-       	      let k = Name.Set.choose d in
-       	      let vk = V.get_required v k in
-       		(not (List.mem k f)) && 
-       		  (member_pt vk pt)
-          | _ -> false
-        end
-  | Star(_,f,pt) -> Name.Set.fold
-      (fun k okSoFar ->
-         okSoFar && (not (List.mem k f)) &&
-           (member_pt (V.get_required v k) pt))
+      Empty(i)     -> false
+    | Any(_)       -> true
+    | Fun(_,_)     -> false
+    | Var(_,_,_)   -> member_pt v (eval_pt pt0)
+    | App(_,_,_,_) -> member_pt v (eval_pt pt0)
+    | Name(_,n,pt) ->
+	let d = V.dom v in
+          begin match Name.Set.cardinal d with
+            | 1 ->
+       		let k = Name.Set.choose d in
+       		let vk = V.get_required v k in
+       		  (k = n) && (member_pt vk pt)
+            | _ -> false
+          end
+    | Bang(_,f,pt) ->
+	let d = V.dom v in
+          begin match Name.Set.cardinal d with
+            | 1 ->
+       		let k = Name.Set.choose d in
+       		let vk = V.get_required v k in
+       		  (not (List.mem k f)) && 
+       		    (member_pt vk pt)
+            | _ -> false
+          end
+    | Star(_,f,pt) -> Name.Set.fold
+	(fun k okSoFar ->
+           okSoFar && (not (List.mem k f)) &&
+             (member_pt (V.get_required v k) pt))
         (V.dom v)
-        true
-  | Union (_,us) -> List.fold_left
-      (fun acc ui -> 
-         if acc then true
-         else member_pt v ui)
-        false
-        us
-  | Cat (_,cs) ->
-      let rec split v pt =
-	match pt with
-	  | Empty(_)   -> (None, v)
-	  | Name(_,n,pt) ->
-	      (match V.get v n with
-	         | None       -> (None, v)
-	         | Some vn    -> (Some (vn,pt), V.set v n None))
-	  | Bang(_,f,pt)  ->
-	      let n = Name.Set.choose (V.dom v) in
-	      let vn = V.get_required v n in
-	        if (List.mem n f) then (None, v)
-	        else (Some (vn,pt), V.set v n None)
-	  | Star(_,f,pt)  -> (Some (v,pt), V.empty)
-	  | _ -> 
-	      failAt (info_of_pt pt)
-		(sprintf "non-atomic type in concatenation: %s"
-		   (string_of_pt pt))
-      in
-      let rec loop cs v =
-	let lres = 
-	  if (V.is_empty v) then
-	  (* either cs = [] or all cs are Stars *)
-	  List.fold_left (fun ok h -> match h with Star _ -> ok | _ -> false) true cs
-	else
-	  match cs with
-	    | []   -> false
-	    | [ci] -> member_pt v ci
-	    | ci::rest ->
-		match split v ci with
-		  | (None,_)             -> false
-		  | (Some (vk,pt), vrest) -> (member_pt vk pt) && (loop rest vrest)
+          true
+    | Union (_,us) -> List.fold_left
+	(fun acc ui -> 
+           if acc then true
+           else member_pt v ui)
+          false
+          us
+    | Cat (_,cs) ->
+	let rec split v pt =
+	  match pt with
+	      Empty(_)   -> (None, v)
+	    | Any(i)  -> (Some (v,Any(i)), V.empty)
+	    | Name(_,n,pt) ->
+		(match V.get v n with
+	           | None       -> (None, v)
+	           | Some vn    -> (Some (vn,pt), V.set v n None))
+	    | Bang(_,f,pt)  ->
+		let n = Name.Set.choose (V.dom v) in
+		let vn = V.get_required v n in
+	          if (List.mem n f) then (None, v)
+	          else (Some (vn,pt), V.set v n None)
+	    | Star(_,f,pt)  -> (Some (v,pt), V.empty)
+	    | _ -> 
+		failAt (info_of_pt pt)
+		  (sprintf "non-atomic type in concatenation: %s"
+		     (string_of_pt pt))
 	in
-	let _ = debug (sprintf "loop %s %s --> %s" (brackets (concat_list ", " (Safelist.map string_of_pt cs))) (V.string_of_t v) (string_of_bool lres)) in 
-	  lres
-      in
-	loop cs v
+	let rec loop cs v =
+	  let lres = 
+	    if (V.is_empty v) then
+	      (* either cs = [] or all cs are Stars *)
+	      List.fold_left (fun ok h -> match h with Star _ -> ok | _ -> false) true cs
+	    else
+	      match cs with
+		| []   -> false
+		| [ci] -> member_pt v ci
+		| ci::rest ->
+		    match split v ci with
+		      | (None,_)             -> false
+		      | (Some (vk,pt), vrest) -> (member_pt vk pt) && (loop rest vrest)
+	  in
+	  let _ = debug (sprintf "loop %s %s --> %s" (brackets (concat_list ", " (Safelist.map string_of_pt cs))) (V.string_of_t v) (string_of_bool lres)) in 
+	    lres
+	in
+	  loop cs v
   in
   let _ = debug (sprintf "member_pt(%s, %s) --> %s" (V.string_of_t v) (string_of_pt pt0) (string_of_bool res)) in
     res
@@ -493,6 +504,7 @@ and tdoms_pt pt =
       | Bang(_,f,x)  -> TDoms.singleton (TDom.singleton (DAny(nameset f))) 
       | Star(_,f,x)  -> TDoms.singleton (TDom.singleton (DAll(nameset f))) 
       | Empty(_)     -> TDoms.empty
+      | Any(_)       -> TDoms.singleton (TDom.singleton (DAll(Name.Set.empty)))
       | Var(_) | App(_) -> tdoms_pt (eval_pt pt)
       | Fun(i,_) -> failAt i "can't compute tdom of a type function"
 	  

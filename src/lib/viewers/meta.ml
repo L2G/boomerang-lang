@@ -3,10 +3,10 @@
 let reader s =
   let lexbuf = Lexing.from_string s in        
     try 
-      (Parser.ext_view Lexer.token lexbuf) 
+      (Metay.view Metal.token lexbuf) 
     with Parsing.Parse_error -> 
-      raise (Error.Run_error ("Parse error at: " ^ Info.string_of_t (Lexer.info lexbuf)))
-      
+      raise (Error.Run_error ("Parse error in view at: " ^ Info.string_of_t (Metal.info lexbuf)))
+	
 let writer = V.string_of_t
 
 let _ =

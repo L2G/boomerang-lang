@@ -1,7 +1,6 @@
 module Prelude = 
 
 (* SCHEMAS *)
-type Any = {*=Any}
 type None = ~Any
 
 (* re-exported native lenses *)
@@ -52,7 +51,7 @@ let flatten : lens = Native.flatten
 
 let explode : lens = Native.explode
 
-let implode : lens = Native.implode
+let implode : lens = invert (explode)
 
 (* derived lenses *)
 let fork (p:view) : (lens -> lens -> lens) = xfork p p
@@ -71,7 +70,7 @@ let hoist_nonunique (n:name) (p:view) : lens = xfork {n} p (hoist n) id
 
 let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
 
-let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c <Any> <Any> id id lt lf
 
 let rename (m:name) (n:name) : lens = xfork {m} {n} (hoist m; plunge n) id
 

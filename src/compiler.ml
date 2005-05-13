@@ -318,7 +318,8 @@ and check_typeexp sev t0 =
 	    pt_sort, new_t0
 	  
 and check_ptypeexp sev pt0 = match pt0 with
-    TEmpty(i) -> (SType i), pt0
+    TEmpty(i) -> (SType (i), pt0)
+  | TAny(i) -> (SType(i), pt0)
   | TVar(i,q) -> 
       begin
 	(* look up in the environment; check that recursive uses OK *)
@@ -707,7 +708,8 @@ and compile_ptypeexp cev pt0 =
 	    end
 	| _ -> assert false
     in match pt0 with
-	TEmpty(i) -> (SType i), Type.Empty(i)
+	TEmpty(i) -> (SType(i), Type.Empty(i))
+      | TAny(i) -> (SType(i), Type.Any(i))
       | TVar(i,q) ->
 	  begin
 	    (* look up in the environment; check that recursive uses OK *)

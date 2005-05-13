@@ -32,7 +32,7 @@ let error lexbuf s =
 
 let blank = [' ' '\t']+
 let newline = "\n"
-let idchar = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_' '-']+
+let idchar = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']+
 let string = '"' [^'"']* '"'
 let anyline = [^'\n']* '\n'
 
@@ -51,7 +51,8 @@ rule token = parse
 | "lens"        { LENS (info lexbuf) }
 | "view"        { VIEW (info lexbuf) }
 | "name"        { NAME (info lexbuf) }
-| "empty"       { EMPTY(info lexbuf) }
+| "Any"         { ANY(info lexbuf) }
+| "Empty"       { EMPTY(info lexbuf) }
 | "="		{ EQUAL (info lexbuf) }
 | "{"		{ LBRACE (info lexbuf) }
 | "}"		{ RBRACE (info lexbuf) }
