@@ -432,8 +432,8 @@ let plunge k =
   { get = (fun c -> V.set V.empty k (Some c));
     put = (fun a _ -> 
 	     if (Name.Set.cardinal (V.dom a)) <> 1 then
-	       error [`String "Native.plunge(put): expecting exactly one child"; 
-		      `View a];
+	       error [`String "Native.plunge(put): expecting exactly one child named "; 
+		       `Name k; `View a];
 	     if (Name.Set.choose (V.dom a)) <> k then
 	       error [`String "Native.plunge(put): child should be named ";
 		      `Name k; `View a];
