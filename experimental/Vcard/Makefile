@@ -11,7 +11,5 @@ testput:
 	$(HARMONY) \
 	     put -concrete vcard.xml -abstract newabstract.meta \
 	     -output out.tmp:xml -lens Vcard.l \
-	     && echo && cat out.tmp
-
-
+	     && echo && cat out.
 
