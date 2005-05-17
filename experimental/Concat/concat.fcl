@@ -18,13 +18,11 @@ let concat_aux: lens =
     id 
 
 and concat1: lens = 
-    probe "concat1";
     acond firstListEmpty firstCharSpace 
           (fork {List.HD} (map (rename List.NIL " ")) (wmap {List.TL -> concat2}))
           (plunge "()"; wmap { "()" -> concat_aux}; hoist "()")
 
 and concat2: lens = 
-    probe "concat2";
     acond lastListEmpty listCharNonSpace 
           (List.hd [] )
           (plunge "(*)"; wmap { "(*)" -> concat_aux}; hoist "(*)")
