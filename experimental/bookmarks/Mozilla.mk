@@ -4,8 +4,9 @@ MOZ_PREPROCESS_TARGET = mPP
 
 MOZ_TEST_FILE = bookmarks2.html
 MOZ_TMP_FILE = bookmarks2.xml
-MOZ_OUTPUT_FILE = output.meta
-MOZ_GETPUT_FILE = putback.xml
+MOZ_OUTPUT_FILE = output2.meta
+MOZ_GETPUT_FILE = putback2.xml
+MOZ_TEST_OUT = newBookmarks2.html
 
 MOZILLA_LENS = Mozilla_bookmark.l
 
@@ -14,8 +15,7 @@ mpp: $(MOZ_PREPROCESS_SRC)
 
 tidy: mpp $(MOZ_TEST_FILE)
 # /dev/null has to be removed, I was just fed up with the loooooong error output of tidy ;)
-#	-tidy -f /dev/null -asxml $(MOZ_TEST_FILE) > $(MOZ_TMP_FILE)
+	-tidy -f /dev/null -asxml $(MOZ_TEST_FILE) > $(MOZ_TMP_FILE)
 
 preprocess: tidy
 	./$(MOZ_PREPROCESS_TARGET) $(MOZ_TMP_FILE)
-

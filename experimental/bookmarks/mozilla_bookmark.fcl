@@ -1,7 +1,12 @@
 module Mozilla_bookmark =
 open Prelude
-  
+
+open Schemas
+
+type Dummy = Schemas.Abstract
+
 (* definitions of types for conditionals *)
+(* in the get way *)
 type Dd = { "dd" = Any }
 type Ddavech3 = { "dd" = { "" = [{"h3" = Any}] } }
 type Ddsansh3 = { "dd" = { "" = ({"PCDATA" = Any } :: Any )} }
@@ -13,7 +18,13 @@ type ItemFolder = Dd :: Item
 type ItemFolderDesc = Ddavech3 :: (Ddsansh3 :: Item)
 type ItemLink = Dt :: Item
 type ItemLinkDesc = Dt :: (Ddsansh3 :: Item)
-			   
+
+(* and in the put way *)
+type Link = {"dt" = Schemas.Link } :: Item
+type Folder = { "dd" = Schemas.Folder } :: Item
+type LinkWithDesc =  {"dt" = {"name" = Any, "url" = Any, "description" = Any} } :: Item
+type FolderWithDesc = { "dd" = {"name" = Any, "contents" = Any, "description" = Any} } :: Item
+
 (* lenses *)
 
 (* this lens keeps stuff like descriptions for eventual    *)
@@ -30,30 +41,32 @@ let l =
     hoist_nonunique List.TL List.tags  in
   
   let link : lens = 
-    hoist "dt";
-    wmap { "" ->
-      List.hd [];
-      hoist "a";
-      filter {"", "href", "add_date"} {};
-      rename "" "name";
-      rename "href" "url";
-      prune "add_date" {"01/01/1970"};
-      wmap { "name" -> (List.hd []; hoist "PCDATA") }
-	 };
-    hoist_nonunique "" {"name", "url"}
+    wmap {"dt"->
+      wmap { "" ->
+	List.hd [];
+	hoist "a";
+	filter {"", "href", "add_date"} {};
+	rename "" "name";
+	rename "href" "url";
+	prune "add_date" {"01/01/1970"};
+	wmap { "name" -> (List.hd []; hoist "PCDATA") }
+	   };
+      hoist_nonunique "" {"name", "url"}
+	 }
       
   and folder : lens =
-    hoist "dd";
-    wmap { "" ->
-      hoist_hd {"h3"};
-      fork {"h3"} id (hoist_hd {"dl"});
-      prune List.NIL {}; prune List.HD {}; prune List.TL {};
-      rename_if_present "h3" "name";
-      rename_if_present "dl" "contents";
-      wmap {"name" -> (filter {""} {}; hoist ""; List.hd []; hoist "PCDATA"),
-	"contents" -> (hoist ""; item_list)}
-	 };
-    hoist_nonunique  "" {"name", "contents"}
+    wmap { "dd" ->
+      wmap { "" ->
+	hoist_hd {"h3"};
+	fork {"h3"} id (hoist_nonunique List.HD {"dl"});
+	prune List.TL [];
+	rename_if_present "h3" "name";
+	rename_if_present "dl" "contents";
+	wmap {"name" -> (filter {""} {}; hoist ""; List.hd []; hoist "PCDATA"),
+	  "contents" -> (hoist ""; item_list)}
+	   };
+      hoist_nonunique  "" {"name", "contents"}
+	 }
       
       
   and item_list : lens =
@@ -98,10 +111,10 @@ let l =
       wmap { List.HD -> link, List.TL -> item_list }
 	
     in
-    ccond <ItemFolderDesc> itemfolderdesc
-      (ccond <ItemFolder> itemfolder
-	 (ccond <ItemLinkDesc> itemlinkdesc
-	    (ccond <ItemLink> itemlink
+    acond <ItemFolderDesc> <FolderWithDesc> itemfolderdesc
+      (acond <ItemFolder> <Folder> itemfolder
+	 (acond <ItemLinkDesc> <LinkWithDesc> itemlinkdesc
+	    (acond <ItemLink> <Link> itemlink
 	       (* then it must be Nil *) id
 	       )
 	    )

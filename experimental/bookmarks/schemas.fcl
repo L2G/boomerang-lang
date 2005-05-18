@@ -1,0 +1,12 @@
+module Schemas =
+open Prelude
+  
+type V = { !={} }     
+
+(* the abstract schema for heterogeneous synchronization *)
+type Link = { "name" = V, "url" = V }
+
+type Folder  = { "name" = V, "contents" = Contents }     
+and Contents  = List.List ({ "folder" = Folder} | {"link" =  Link})
+
+type Abstract = Contents

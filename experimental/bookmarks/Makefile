@@ -20,6 +20,7 @@ testmozput: testmozget
 	$(HARMONY) \
 	     put -concrete $(MOZ_TMP_FILE) -abstract $(MOZ_OUTPUT_FILE) -l $(MOZILLA_LENS) -o $(MOZ_GETPUT_FILE) \
 	     && echo && cat $(MOZ_GETPUT_FILE)
+	-tidy -f /dev/null -ashtml $(MOZ_GETPUT_FILE) > $(MOZ_TEST_OUT)
 
 testmozget: preprocess
 	$(HARMONY) \
