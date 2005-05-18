@@ -1,0 +1,19 @@
+module Xml =
+open Prelude
+
+let PCDATA = "PCDATA"
+let childrenTag = ""
+
+type Value = { PCDATA = { ! = {}}}
+
+type XmlAny =  { childrenTag = List.List {! = XmlAny}, *\"" = { ! = {}}}
+
+(* type Star n T attrs = { n = { childrenTag = List.List T, *\(~ attrs)= { ! = {}}}} *)
+(* type Plus n T attrs = { n = { childrenTag = (T :: List.List T), *\(~ attrs)= { ! = {}}}} *)
+
+(* type List n L attrs = { n = { childrenTag = L, *\(~attrs) = {! = {}}}} *)
+
+(* type NStar n T = { n = { childrenTag = List.List T}} *)
+(* type NPlus n T = { n = { childrenTag = (T :: List.List T)}} *)
+
+(* type NList n L = { n = { childrenTag = L}} *)

@@ -8,7 +8,7 @@ MOZ_OUTPUT_FILE = output2.meta
 MOZ_GETPUT_FILE = putback2.xml
 MOZ_TEST_OUT = newBookmarks2.html
 
-MOZILLA_LENS = Mozilla_bookmark.l
+MOZILLA_LENS = Mozilla_bookmark.l2
 
 mpp: $(MOZ_PREPROCESS_SRC)
 	ocamlc -o $(MOZ_PREPROCESS_TARGET) $(MOZ_PREPROCESS_LIB) $(MOZ_PREPROCESS_SRC)

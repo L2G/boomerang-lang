@@ -1,7 +1,6 @@
 module Mozilla_bookmark =
 open Prelude
-
-open Schemas
+open Xml
 
 type Dummy = Schemas.Abstract
 
@@ -20,11 +19,23 @@ type ItemLink = Dt :: Item
 type ItemLinkDesc = Dt :: (Ddsansh3 :: Item)
 
 (* and in the put way *)
+type FullLink U = {"name" = U, "url" = U, "description" = U}
+type FullFolder T U = {"name" = U, "contents" = T, "description" = U}
+
 type Link = {"dt" = Schemas.Link } :: Item
 type Folder = { "dd" = Schemas.Folder } :: Item
-type LinkWithDesc =  {"dt" = {"name" = Any, "url" = Any, "description" = Any} } :: Item
-type FolderWithDesc = { "dd" = {"name" = Any, "contents" = Any, "description" = Any} } :: Item
+type LinkWithDesc =  {"dt" = FullLink Any } :: Item
+type FolderWithDesc = { "dd" = FullFolder Any Any } :: Item
 
+(* and for the asserts *)
+type MLink = Schemas.Link | (FullLink Schemas.V)
+(** this Any should be replaced by MozAbstract because FullFolder uses its first *)
+(** argument under a name so it's ok for recursion...                            *)
+type MFolder = Schemas.Folder | (FullFolder Any Schemas.V)
+and MozAbstract = List.List ({ "folder" =  MFolder } | { "link" = MLink })
+
+type MozConcrete = Any
+      
 (* lenses *)
 
 (* this lens keeps stuff like descriptions for eventual    *)
@@ -122,6 +133,7 @@ let l =
     List.map (rename_if_present "dd" "folder"; rename_if_present "dt" "link") in
   
   let bookmarks : lens =
+    assert <MozConcrete>;
     hoist "";
     List.hd [];
     hoist "html";
@@ -134,7 +146,8 @@ let l =
     List.hd [];
     hoist "dl";
     hoist "";
-    item_list
+    item_list;
+    assert <Any>
       
   in
   bookmarks
@@ -142,6 +155,6 @@ let l =
 (* see l *)
 let l2 =
   let disc_desc : lens =
-    List.map (wmap {"contents" -> disc_desc }; filter {"name", "contents", "url"} {})
+    List.map (map (wmap {"contents" -> disc_desc }; filter {"name", "contents", "url"} {}))
   in
-  (l;  disc_desc)
+  (l;  disc_desc; assert <Schemas.Abstract>)
