@@ -2,162 +2,64 @@ module Safari =
 
 open Plist
 
+(* types *)
+type Value = { ! = {} }
+(* Safari bookmark abstract schema *)
+type URIDict = { "BLANK" = Value, "title" = Value, *\"BLANK","title" = Any }
+type Link = { "URIDictionary" = URIDict, "URLString" = Value, *\"URIDictionary","URLString" = Any }
+type Folder = { "Children" = List.List Item, "Title" = Value, *\"Children","Title" = Any }
+and Item = { "folder" = Folder } | { "link" = Link }
+type SafAbstract = List.List Item
+
+(* lenses *)
 let flatten_dict =
   hoist "dict";
   List.map (
     pivot List.HD;
     map (focus List.TL {}; List.hd [])
-  )
+  );
+  flatten;
+  map (List.hd [])
 
+let root = 
+  focus "Children" { "array" = [] }
+
+let children : lens = 
+  wmap { "array" -> List.map (item; 
+			      pivot "WebBookmarkType";
+(* 			      wmap { "WebBookmarkTypeLeaf" -> wmap { "URIDictionary" -> rename "title" "name"}, *)
+(* 				"WebBookmarkTypeList" -> rename "Title" "name" *)
+(* 				   }; *)
+			      acond <{"WebBookmarkTypeLeaf" = Any}> <{"link"=Any}> 
+			      (rename "WebBookmarkTypeLeaf" "link")
+				(rename "WebBookmarkTypeList" "folder")
+				) 
+       };
+  hoist "array"
+
+and item : lens = 
+  flatten_dict;
+  wmap { "Children" -> children,
+    "URIDictionary" -> item,
+      "URLString" -> hoist "string",
+      "WebBookmarkType" -> hoist "string",
+	"title" -> hoist "string",
+	  "Title" -> hoist "string",
+	    "BLANK" -> hoist "string"
+       }
+
+(* l is for homogeneous synchronization of safari bookmarks *)
 let l =
   plist_lens;
   flatten_dict;
-  id (* ... *)
+  root;
+  children;
+  (* checkpoint :) *)
+  assert SafAbstract
 
-(* Stuff still to be converted from the old ML implementation...
-
-(* N.b.: in the Safari bookmark format, the URL of a link is stored in two
-   places(!) -- in the URLString field and in the key field of the
-   URIDictionary subtree.  From experiments with Safari, it appears that the
-   former is the real one, and even OMITTING the latter doesn't cause any harm.
-
-   [later] Unfortunately, this is not true in later versions of Safari.  Both
-   must be present. 
-*)
-
-let flatten_dict =
-  tracepoint "safari_flatten_dict" [
-    hoist "dict";
-    map_list
-      (compose [
-         rename_cons "h" "t";
-         pivot "h";
-         mapc [focus "t" (V.atomic V.empty); head V.empty_list];
-       ]);
-    flatten;
-  ]
-
-let safari_link_lens =
-  tracepoint "safari_link_lens" [
-    rename [("WebBookmarkTypeLeaf","link")];
-    mapp (Prd.s "link") 
-      (compose [
-         xfork (Prd.s "URIDictionary") (Prd.m ["name";"urlcopy"])
-           (tracepoint "fork1" [
-              hoist "URIDictionary";
-              flatten_dict;
-              filter (Prd.m ["title";"BLANK"]) V.empty;
-              rename [("title","name");("BLANK","urlcopy")];
-              map (hoist "string");
-            ])
-           (compose [rename [("URLString","url")]; map (hoist "string")]);
-         merge "url" "urlcopy";
-(*
-         map (Prd.s "dict") V.empty
-              (filter (Prd.s "title"));
-         hoist "dict";
-*)
-       ]);
-  ]
-
-let safari_proxy_lens =
-  tracepoint "safari_proxy_lens" [
-    rename [("Title","name")];
-    mapp (Prd.s "name") (hoist "string");
-  ]
-
-let rec safari_folder_lens () =
-  tracepoint "safari_folder_lens" [
-    rename [("WebBookmarkTypeList","folder")];
-    mapc [
-      mapp (Prd.s "Children")
-        (compose [
-           hoist "array";
-           map_list (protect safari_item_lens);
-         ]);
-      mapp (Prd.s "Title") (hoist "string");
-      rename [("Title","name"); ("Children","contents")];
-      mapp (Prd.s "name")
-       (rename [("BookmarksBar",Bookmarks.toolbar_folder_name);
-                ("Top-level bookmark folder", Bookmarks.top_level_folder_name)]);
-    ];
-  ]
-
-and safari_item_lens () =
-  tracepoint "safari_item_lens" [
-    flatten_dict;
-    filter (Prd.neg (Prd.s "WebBookmarkUUID")) V.empty;
-    mapp (Prd.s "WebBookmarkType") (hoist "string");
-    pivot "WebBookmarkType";
-    dispatch [
-      (Prd.s "WebBookmarkTypeList"), (Prd.s "folder"),
-         protect safari_folder_lens;
-      (Prd.s "WebBookmarkTypeLeaf"), (Prd.s "link"),
-         safari_link_lens;
-      (Prd.s "WebBookmarkTypeProxy"), (Prd.s "WebBookmarkTypeProxy"),
-         safari_proxy_lens;
-      (* ... *)
-    ]
-  ]
-
-and toplevel_lens () =
-  tracepoint "safari_toplevel_lens" [
-    flatten_dict;
-    filter (Prd.neg (Prd.s "WebBookmarkUUID")) V.empty;
-    mapp (Prd.s "WebBookmarkType") (hoist "string");
-    pivot "WebBookmarkType";
-    protect toplevel_folder_lens;
-  ]
-
-and toplevel_folder_lens () =
-  compose [
-    rename [("WebBookmarkTypeList","folder")];
-    mapc [
-      mapp (Prd.s "Title") (hoist "string");
-      rename [("Title","name"); ("Children","contents")];
-      mapp (Prd.s "name")
-       (rename ["Top-level bookmark folder", Bookmarks.top_level_folder_name]);
-      mapp (Prd.s "contents")
-        (compose [
-           hoist "array";
-           map_head (protect safari_item_lens);
-           map_tail (compose [
-                      map_head (compose [
-                        flatten_dict;
-                        filter (Prd.neg (Prd.s "WebBookmarkUUID")) V.empty;
-                        mapp (Prd.s "WebBookmarkType") (hoist "string");
-                        pivot "WebBookmarkType";
-                        protect safari_folder_lens;
-                        hoist "folder";
-                        filter (Prd.s "contents")
-                             (V.from_desc (V.V ["name",V.Val "BookmarksMenu"]));
-                        hoist "contents";
-                      ]);
-                      head V.empty;
-                      (*map_tail (map_list (protect safari_item_lens));*)
-                    ]);
-         ]);
-      prune "WebBookmarkFileVersion"
-        (V.from_desc
-          (V.V ["integer", V.V ["",V.L [V.V ["PCDATA",V.Val "1"]]]]));
-    ];
-  ]
-
-let remove_proxy =
-  tracepoint "Safari.remove_proxy" [
-    map
-     (mapp (Prd.s "contents")
-           (list_filter (fun v -> Name.Set.mem "link" (V.dom v) or
-                                  Name.Set.mem "folder" (V.dom v))));
-  ]
-
-(*let toolbar_folder =
-  compose [
-    lens;
-    Bookmarks.focus_item "Bookmarks Bar"
-  ]*)
-
-let lens = protect toplevel_lens
- *)
-
+(* l2 is for heterogeneous synchronization of safari bookmarks *)
+let l2 =
+  l;
+  id
+    (* ... *)
 

@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <plist version="1.0">
   <dict>
     <key>Children</key>
@@ -14,7 +13,7 @@
               <key>lastVisitedDate</key>
               <string>137106200.7</string>
               <key>title</key>
-              <string>BCP</string>
+              <string>newBCP</string>
             </dict>
             <key>URLString</key>
             <string>file:///home/bcpierce/pub/index.html</string>
@@ -24,7 +23,20 @@
             <string>FD799B4E-4503-11D7-A1B7-000393A6C2CA</string>
           </dict>
         </array>
+        <key>Title</key>
+	<string>A bookmark Folder</string>
+	<key>WebBookmarkType</key>
+	<string>WebBookmarkTypeList</string>
+	<key>WebBookmarkUUID</key>
+	<string>B8EFDF7A-C88E-11D9-B14E-000393B2B580</string>
       </dict>
     </array>
+    <key>WebBookmarkFileVersion</key>
+    <integer>1</integer>
+    <key>WebBookmarkType</key>
+    <string>WebBookmarkTypeList</string>
+    <key>WebBookmarkUUID</key>
+    <string>F1E634E8-B04C-11D9-8612-000393B2B580</string>
   </dict>
 </plist>
+
