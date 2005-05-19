@@ -58,8 +58,21 @@ let l =
   assert SafAbstract
 
 (* l2 is for heterogeneous synchronization of safari bookmarks *)
+let tidy : lens =
+  let tidy_folder = 
+    rename "Children" "contents"; wmap {"contents" -> tidy }; rename "Title" "name"; 
+    filter {"name", "contents"} {} in
+  let tidy_link =
+    rename "URLString" "url";
+    wmap { "URIDictionary" -> rename "title" "name"; filter {"BLANK", "name"} {}};
+    hoist_nonunique "URIDictionary" {"name", "BLANK"};
+    merge "url" "BLANK";
+    filter {"name", "url"} {}
+  in
+  List.map (wmap {"folder" -> tidy_folder, "link" -> tidy_link})
+    
 let l2 =
   l;
-  id
-    (* ... *)
-
+  tidy;
+  (* final checkpoint *)
+  assert Schemas.Abstract
