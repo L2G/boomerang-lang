@@ -158,9 +158,10 @@ let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2
     match r2cv with
       Some v -> Some (Lens.get lens2 v)
     | None -> None in
-  (** TODO here we do some synchronization *)
+  (* the actual synchronization *)
   let (action, newarav, newr1av, newr2av) =
     Sync.sync schema arav r1av r2av in
+  (** for DEBUG, pretty-print of the action *)
   let _ = Sync.format action in
   (* we apply the lenses in the put direction *)
   let newarcv =
