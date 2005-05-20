@@ -107,66 +107,96 @@ let put lens_string abstract concrete output =
 (* ========== *)	
 (*    SYNC    *)
 (* ========== *)
-(* let sync archive replica1 replica2 schema lensa lens1 lens2 newarchive newreplica1 newreplica2 = *)
-(*   (\* reading the views from the given filenames *\) *)
-(*   (\* the archive *\) *)
-(*   let (ar, reader_ek) = parse_replica archive in *)
-(*   let arkey = get_ekey ar reader_ek in *)
-(*   let arcv = get_view_from_file (Surveyor.get_reader arkey) ar in *)
-(*   (\* the 1st replica *\) *)
-(*   let (r1, reader_ek) = parse_replica replica1 in *)
-(*   let r1key = get_ekey r1 reader_ek in *)
-(*   let r1cv = get_view_from_file (Surveyor.get_reader r1key) r1 in *)
-(*   (\* the 2nd replica *\) *)
-(*   let (r2, reader_ek) = parse_replica replica2 in *)
-(*   let r2key = get_ekey r2 reader_ek in *)
-(*   let r2cv = get_view_from_file (Surveyor.get_reader r2key) r2 in *)
-(*   (\* the lenses *\) *)
-(*   let lensa = Native.id in *)
-(*   let lens1 = Native.id in *)
-(*   let lens2 = Native.id in *)
-(*   (\* apply the lenses in the get direction *\) *)
-(*   let arav = *)
-(*     match arcv with  *)
-(*       Some v -> Some (Lens.get lensa v)  *)
-(*     | None -> None in *)
-(*   let r1av = *)
-(*     match r1cv with *)
-(*       Some v -> Some (Lens.get lens1 v)  *)
-(*     | None -> None in *)
-(*   let r2av = *)
-(*     match r2cv with *)
-(*       Some v -> Some (Lens.get lens2 v)  *)
-(*     | None -> None in *)
-(*   (\** TODO here we do some synchronization *\) *)
-(*   let (newarav, newr1av, newr2av) =  *)
-(*     synchronize arav r1av r2av in *)
-(*   (\* we apply the lenses in the put direction *\) *)
-(*   let newarcv = *)
-(*     match newarav with  *)
-(*       Some v -> Some (Lens.put lensa v arcv) | None -> None in *)
-(*   let newr1cv = *)
-(*     match newr1av with *)
-(*       Some v -> Some (Lens.put lens1 v r1cv) | None -> None in *)
-(*   let newr2cv = *)
-(*     match newr2av with *)
-(*       Some v -> Some (Lens.put lens2 v r2cv) | None -> None in *)
-(*   (\* and we write the results *\) *)
-(*   (\* first the archive *\) *)
-(*   let (o, viewer_ek) = parse_replica newarchive in *)
-(*   let okey = get_ekey o viewer_ek in *)
-(*   let s = (Surveyor.get_writer okey) newarcv in *)
-(*   view_to_file s o ; *)
-(*   (\* now the first replica *\) *)
-(*   let (o, viewer_ek) = parse_replica newreplica1 in *)
-(*   let okey = get_ekey o viewer_ek in *)
-(*   let s = (Surveyor.get_writer okey) newr1cv in *)
-(*   view_to_file s o *)
-(*   (\* and finally the second replica *\) *)
-(*   let (o, viewer_ek) = parse_replica newreplica2 in *)
-(*   let okey = get_ekey o viewer_ek in *)
-(*   let s = (Surveyor.get_writer okey) newr2cv in *)
-(*   view_to_file s o *)
+let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2_string newarchive newreplica1 newreplica2 =
+  (* reading the views from the given filenames *)
+  (* the archive *)
+  let (ar, reader_ek) = parse_replica archive in
+  let arkey = get_ekey ar reader_ek in
+  let arcv = get_view_from_file (Surveyor.get_reader arkey) ar in
+  (* the 1st replica *)
+  let (r1, reader_ek) = parse_replica replica1 in
+  let r1key = get_ekey r1 reader_ek in
+  let r1cv = get_view_from_file (Surveyor.get_reader r1key) r1 in
+  (* the 2nd replica *)
+  let (r2, reader_ek) = parse_replica replica2 in
+  let r2key = get_ekey r2 reader_ek in
+  let r2cv = get_view_from_file (Surveyor.get_reader r2key) r2 in
+  (* the lenses *)
+  let lensa = match (Registry.lookup_lens (Registry.parse_qid lensa_string)) with 
+    Some l -> l
+  | None -> failwith (Printf.sprintf "Lens %s not found" lensa_string)
+  in
+  let lens1 = match (Registry.lookup_lens (Registry.parse_qid lens1_string)) with 
+    Some l -> l
+  | None -> failwith (Printf.sprintf "Lens %s not found" lens1_string)
+  in
+  let lens2 = match (Registry.lookup_lens (Registry.parse_qid lens2_string)) with 
+    Some l -> l
+  | None -> failwith (Printf.sprintf "Lens %s not found" lens2_string)
+  in
+  (* the schema *)
+  let schema = 
+    match (Registry.lookup () (Registry.get_library) (Registry.parse_qid schema_string)) with
+      Some rv ->
+	begin
+	  match (Registry.sort_of_rv rv, Registry.value_of_rv rv) with
+	    Syntax.SType _, Value.T(t) -> t 
+	  | _ -> failwith (Printf.sprintf "%s is not a schema" schema_string)
+	end
+    | None -> failwith (Printf.sprintf "Schema %s not found" schema_string)
+  in
+  (* apply the lenses in the get direction *)
+  let arav =
+    match arcv with
+      Some v -> Some (Lens.get lensa v)
+    | None -> None in
+  let r1av =
+    match r1cv with
+      Some v -> Some (Lens.get lens1 v)
+    | None -> None in
+  let r2av =
+    match r2cv with
+      Some v -> Some (Lens.get lens2 v)
+    | None -> None in
+  (** TODO here we do some synchronization *)
+  let (action, newarav, newr1av, newr2av) =
+    Sync.sync schema arav r1av r2av in
+  let _ = Sync.format action in
+  (* we apply the lenses in the put direction *)
+  let newarcv =
+    match newarav with
+      Some v -> Some (Lens.put lensa v arcv) | None -> None in
+  let newr1cv =
+    match newr1av with
+      Some v -> Some (Lens.put lens1 v r1cv) | None -> None in
+  let newr2cv =
+    match newr2av with
+      Some v -> Some (Lens.put lens2 v r2cv) | None -> None in
+  (* and we write the results *)
+  (* first the archive *)
+  let (o, viewer_ek) = parse_replica newarchive in
+  let okey = get_ekey o viewer_ek in
+  match newarcv with
+    Some a ->
+      let s = (Surveyor.get_writer okey) a in
+      view_to_file s o
+  | None -> assert false;
+  (* now the first replica *)
+  let (o, viewer_ek) = parse_replica newreplica1 in
+  let okey = get_ekey o viewer_ek in
+  match newr1cv with
+    Some r1 ->
+      let s = (Surveyor.get_writer okey) r1 in
+      view_to_file s o
+  | None -> assert false;
+  (* and finally the second replica *)
+  let (o, viewer_ek) = parse_replica newreplica2 in
+  let okey = get_ekey o viewer_ek in
+  match newr2cv with
+    Some r2 ->
+      let s = (Surveyor.get_writer okey) r2 in
+      view_to_file s o
+  | None -> assert false
 
 
 (****************************  Command-line switches *******************************)
@@ -260,13 +290,11 @@ let main () =
   | ["put"] ->
 	put (p lens) (p abstract) (p concrete) (p output)
   | ["sync"] ->
-      assert false
-(*	sync 
+	sync 
 	  (p archive) (p replica1) (p replica2) 
 	  (p schema)
 	  (p lensar) (p lensr1) (p lensr2)
 	  (p newarchive) (p newreplica1) (p newreplica2)
-*)
   | [ss] -> failwith(Printf.sprintf "Unknown command : %s \n%s" ss (Prefs.printUsage usageMsg; ""))
   | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
   |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))

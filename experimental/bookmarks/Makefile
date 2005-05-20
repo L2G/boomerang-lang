@@ -33,4 +33,6 @@ testmozget: preprocess
 	     && echo && cat $(MOZ_OUTPUT_FILE) && echo
 
 
-
+sync:
+	$(HARMONY) \
+	     sync -newreplica2 newr2.xml -newreplica1 newr1.xml -newarchive newar.meta -lensr2 Mozilla_bookmark.l2 -lensr1 Safari.l2 -lensar Prelude.id -schema Schemas.Abstract -replica2 bookmarks2.xml -replica1 concrete.xml -archive arch.meta
