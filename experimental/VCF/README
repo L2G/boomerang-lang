@@ -1,0 +1,2 @@
+To see what the lexer works, you type:
+   ./vcard vcard.vcf
