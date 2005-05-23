@@ -10,3 +10,20 @@ type Folder  = { "name" = V, "contents" = Contents }
 and Contents  = List.List ({ "folder" = Folder} | {"link" =  Link})
 
 type Abstract = Contents
+
+(* the new one, with bushes *)
+type Twig = List.List { * = (V | Twig) }
+
+type BushAbstract = { * = (V | Twig) }
+
+
+(* the lens to flatten the abstract into a bush *)
+let flatten_to_bush : lens =
+  List.map (
+  wmap {"folder" -> (pivot "name"; map (hoist "contents"; flatten_to_bush)) , 
+    "link" -> pivot "name"; map (hoist "url")} 
+    );
+  flatten
+
+let flatten_bookmarks =
+  flatten_to_bush

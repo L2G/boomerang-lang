@@ -22,7 +22,7 @@ let flatten_dict =
   map (List.hd [])
 
 let root = 
-  focus "Children" { "array" = [] }
+  focus "Children" {}
 
 let children : lens = 
   wmap { "array" -> List.map (item; 
@@ -42,15 +42,17 @@ and item : lens =
   wmap { "Children" -> children,
     "URIDictionary" -> item,
       "URLString" -> hoist "string",
-      "WebBookmarkType" -> hoist "string",
-	"title" -> hoist "string",
-	  "Title" -> hoist "string",
-	    "BLANK" -> hoist "string"
+	"WebBookmarkType" -> hoist "string",
+	  "title" -> hoist "string",
+	    "Title" -> hoist "string",
+	      "BLANK" -> hoist "string"
        }
-
+    
 (* l is for homogeneous synchronization of safari bookmarks *)
 let l =
+  probe "AVANT / APRES PLIST";
   plist_lens;
+  probe "ENTRE PLIST ET SAFARI";
   flatten_dict;
   root;
   children;

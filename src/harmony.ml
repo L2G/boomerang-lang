@@ -28,8 +28,10 @@ let get_view_from_file reader file =
     None
       
 let view_to_file written file =
+  let _ = Printf.printf "\nWriting [%s] to file %s" written file in
   let outc = open_out file in
-  output_string  outc written
+  (output_string outc written; close_out outc)
+   
     
 let synchronize o a b = (o,a,b)
     
@@ -177,27 +179,27 @@ let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2
   (* first the archive *)
   let (o, viewer_ek) = parse_replica newarchive in
   let okey = get_ekey o viewer_ek in
-  match newarcv with
+  (match newarcv with
     Some a ->
       let s = (Surveyor.get_writer okey) a in
       view_to_file s o
-  | None -> assert false;
+  | None -> assert false);
   (* now the first replica *)
   let (o, viewer_ek) = parse_replica newreplica1 in
   let okey = get_ekey o viewer_ek in
-  match newr1cv with
+  (match newr1cv with
     Some r1 ->
       let s = (Surveyor.get_writer okey) r1 in
       view_to_file s o
-  | None -> assert false;
+  | None -> assert false);
   (* and finally the second replica *)
   let (o, viewer_ek) = parse_replica newreplica2 in
   let okey = get_ekey o viewer_ek in
-  match newr2cv with
+  (match newr2cv with
     Some r2 ->
       let s = (Surveyor.get_writer okey) r2 in
       view_to_file s o
-  | None -> assert false
+  | None -> assert false)
 
 
 (****************************  Command-line switches *******************************)

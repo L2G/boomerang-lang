@@ -20,7 +20,7 @@ and keypair_lens : lens =
 and leaf_lens : lens =
   hoist "";
   acond <[]> < { List.TL=[], List.HD={"PCDATA" = {"BLANK"={}, *\("BLANK")=Any}}} >
-    (const [{"PCDATA"="BLANK"}] {})
+    (const [{"PCDATA"="BLANK"}] [])
     id;
   List.hd [];
   hoist "PCDATA"
@@ -29,7 +29,7 @@ let plist_lens =
   hoist "";
   List.hd [];
   hoist "plist";
-  focus "" {};
+  focus "" { "version" = "1.0" };
   List.hd [];
   plist_object_lens
 
