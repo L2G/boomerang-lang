@@ -28,10 +28,8 @@ let get_view_from_file reader file =
     None
       
 let view_to_file written file =
-  let _ = Printf.printf "\nWriting [%s] to file %s" written file in
   let outc = open_out file in
-  (output_string outc written; close_out outc)
-   
+    (output_string outc written; close_out outc)   
     
 let synchronize o a b = (o,a,b)
     
@@ -137,7 +135,7 @@ let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2
   | None -> failwith (Printf.sprintf "Lens %s not found" lens2_string)
   in
   (* the schema *)
-  let schema = 
+  let schema : Type.t = 
     match (Registry.lookup () (Registry.get_library) (Registry.parse_qid schema_string)) with
       Some rv ->
 	begin
