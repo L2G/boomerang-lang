@@ -19,7 +19,7 @@ let debug s_thnk =
   if Prefs.read types_debug 
   then 
     begin 
-      prerr_string (sprintf "%s\n" s_thnk);
+      prerr_string (sprintf "%s\n" (s_thnk ()));
       flush stderr
     end
 
@@ -222,10 +222,9 @@ and it2nf force it0 =
       Empty(_) | Any(_) | Fun(_) -> it0
     | Var(_,_,_)     -> if force then it2nf force (eval_it it0) else it0
     | App(_,_,_,_)   -> it2nf force (eval_it it0) 
-    | Name(i,n,pt1)  -> Name(i, n, pt2nf force pt1)
-    | Bang(i,es,pt1) -> Bang(i, Safelist.sort compare es, pt2nf force pt1)
-    | Star(i,es,pt1) -> Star(i, Safelist.sort compare es, pt2nf force pt1)      
-	
+    | Name(i,n,pt1)  -> Name(i, n, pt2nf false pt1)
+    | Bang(i,es,pt1) -> Bang(i, Safelist.sort compare es, pt2nf false pt1)
+    | Star(i,es,pt1) -> Star(i, Safelist.sort compare es, pt2nf false pt1)     	
   (* unions:
      - recursively normalize
      - lift nested unions
@@ -317,19 +316,23 @@ and it2nf force it0 =
 			       lift_us_rep)
 	end
   in
-  (* let _ = debug (sprintf "p2nf_aux %s %s ---> %s" (string_of_bool dethunk) (string_of_pt pt0) (string_of_pt res)) in *)
+    (* let _ = debug (sprintf "p2nf_aux %s %s ---> %s" (string_of_bool dethunk) (string_of_pt pt0) (string_of_pt res)) in *)
     res
 
-let rec project t0 n = match t2nf t0 with 
+let rec project t0 n = 
+  debug (fun () -> sprintf "project type %s on %s" (string_of_t t0) n);
+  match t2nf t0 with 
     TT pt -> begin 
       match (project_pt pt n) with
 	  Some ptn -> Some (TT ptn)
 	| None -> None
     end
   | _ -> failAt (info_of_t t0) (fun () -> "Fatal error: can't project a negative type")
-      
-and project_pt ((_,_,itr) as pt0) = project_it !itr 
+and project_pt ((_,_,itr) as pt0) n = 
+  debug (fun () -> sprintf "project pre type %s on %s" (string_of_pt pt0) n);
+  project_it !itr n
 and project_it it0 n =   
+  debug (fun () -> sprintf "project inner type %s on %s" (string_of_it it0) n);
   match it0 with
       Empty(_)        -> None
     | Any(i)          -> Some ((* FIXME: hack!*) (ref true, V.Hash.create 1, ref (Any(i))))
@@ -370,10 +373,12 @@ and project_it it0 n =
 		 end)
 	    None
 	    pts
-      | Var(_) | App(_) | Fun(_) -> 
-	  failAt (info_of_it it0)
-	    (fun () -> sprintf "Fatal error: cannot project type %s (on %s)"
+      | Var(_) | App(_) -> project_it (eval_it it0) n
+      | Fun(_) -> 
+	  failAt (info_of_it it0) 
+	    (fun () -> sprintf "Fatal error: cannot project type operator %s (on %s)"
 	       (string_of_it it0) n)
+	    
 	    
 let rec member v t0 = match t2nf t0 with 
     TT pt -> member_pt v pt
