@@ -13,12 +13,12 @@ testsafari: testsafput
 
 testsafget: 
 	$(HARMONY) \
-	     get -concrete concrete.xml -output out.tmp:meta -lens Safari.l2 \
+	     get -concrete bigconcrete.xml -output out.tmp:meta -lens Safari.l2 \
 	     && echo && cat out.tmp && echo
 
 testsafput: testsafget
 	$(HARMONY) \
-	     put -concrete concrete.xml -abstract out.tmp:meta -lens Safari.l2 -output getput.xml \
+	     put -concrete bigconcrete.xml -abstract out.tmp:meta -lens Safari.l2 -output getput.xml \
 	     && echo && cat getput.xml
 
 testmozput: testmozget

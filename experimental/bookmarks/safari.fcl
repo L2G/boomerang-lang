@@ -8,7 +8,8 @@ type Value = { ! = {} }
 type URIDict = { "BLANK" = Value, "title" = Value, *\"BLANK","title" = Any }
 type Link = { "URIDictionary" = URIDict, "URLString" = Value, *\"URIDictionary","URLString" = Any }
 type Folder = { "Children" = List.List Item, "Title" = Value, *\"Children","Title" = Any }
-and Item = { "folder" = Folder } | { "link" = Link }
+  | { "Title" = Value, *\"Children","Title" = Any }
+and Item = { "folder" = Folder } | { "link" = Link } | { "proxy" = Any }
 type SafAbstract = List.List Item
 
 (* lenses *)
@@ -32,13 +33,17 @@ let children : lens =
 (* 				   }; *)
 			      acond <{"WebBookmarkTypeLeaf" = Any}> <{"link"=Any}> 
 			      (rename "WebBookmarkTypeLeaf" "link")
-				(rename "WebBookmarkTypeList" "folder")
+				(acond <{"WebBookmarkTypeProxy" = Any}> <{"proxy"=Any}>
+				 (rename "WebBookmarkTypeProxy" "proxy")
+				   (rename "WebBookmarkTypeList" "folder")
+				   )
 				) 
        };
   hoist "array"
 
 and item : lens = 
   flatten_dict;
+  acond <{*\"Children","URIDictionary","BLANK" = Any}> <{"Children"= { "array" = List.Nil }, *\"Children" = Any}>  (add "Children" {"array"=[]}) id;
   wmap { "Children" -> children,
     "URIDictionary" -> item,
       "URLString" -> hoist "string",
@@ -50,9 +55,7 @@ and item : lens =
     
 (* l is for homogeneous synchronization of safari bookmarks *)
 let l =
-  probe "AVANT / APRES PLIST";
   plist_lens;
-  probe "ENTRE PLIST ET SAFARI";
   flatten_dict;
   root;
   children;
@@ -69,9 +72,14 @@ let tidy : lens =
     wmap { "URIDictionary" -> rename "title" "name"; filter {"BLANK", "name"} {}};
     hoist_nonunique "URIDictionary" {"name", "BLANK"};
     merge "url" "BLANK";
-    filter {"name", "url"} {}
+    filter {"name", "url"} {} in
+  let skip_proxies : lens =
+    ccond <{"proxy"=Any} :: Any> (wmap { List.TL -> skip_proxies }; List.tl {"proxy"={}})
+			    (wmap { List.TL -> skip_proxies} )
   in
+  skip_proxies;
   List.map (wmap {"folder" -> tidy_folder, "link" -> tidy_link})
+    
     
 let l2 =
   l;
