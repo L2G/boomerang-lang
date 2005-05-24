@@ -104,7 +104,7 @@ let generic_read_from rd =
       parse_wfcontent_entity config rd default_spec in
     V.set V.empty "" (Some (V.structure_from_list [xml2view docRoot]))
   with
-    e -> prerr_string "PXP error\n"; flush stderr; Misc.bad (Pxp_types.string_of_exn e)
+    e -> Misc.bad (Pxp_types.string_of_exn e)
 
 let reader s = generic_read_from (from_string s)
 
