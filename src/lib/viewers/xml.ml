@@ -97,13 +97,14 @@ let rec xml2view n =
 
 let generic_read_from rd =
   let config = { default_config with warner = new warner; 
+		 encoding = `Enc_utf8;
 		 drop_ignorable_whitespace = true} in 
   try 
     let docRoot = 
       parse_wfcontent_entity config rd default_spec in
     V.set V.empty "" (Some (V.structure_from_list [xml2view docRoot]))
   with
-    e -> Misc.bad (Pxp_types.string_of_exn e)
+    e -> prerr_string "PXP error\n"; flush stderr; Misc.bad (Pxp_types.string_of_exn e)
 
 let reader s = generic_read_from (from_string s)
 

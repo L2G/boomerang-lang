@@ -4,15 +4,14 @@
 #                                                                  #
 # Common.Makefile - source dependencies: included in Makefiles     #
 ####################################################################
-
-# $Id$ 
+# $Id$  
 
 OCAMLMAKEFILE = $(SRC)/OCamlMakefile
 
-OCAMLC = ocamlfind ocamlc -dtypes -package "pxp,pxp-engine,pxp-lex-iso88591,netstring,unix,str" 
-OCAMLOPT = ocamlfind ocamlopt -dtypes -package "pxp,pxp-engine,pxp-lex-iso88591,netstring,unix,str" 
-OCAMLMKTOP = ocamlfind ocamlmktop -dtypes -package "pxp,pxp-engine,pxp-lex-iso88591,netstring,unix,str" 
-OCAMLYACC = ocamlyacc -v 
+PACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
+YFLAGS = -v 
+OCAMLFLAGS = -dtypes
+OCAMLCPFLAGS = f
 
 all: native-code
 
@@ -59,6 +58,6 @@ COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/lib/ubase/%) \
 		 $(VIEWER_SOURCES:%=$(SRC)/lib/viewers/%) \
 		 $(PLUGIN_SOURCES:%=$(SRC)/lib/native/%)
 
-TRASH = parser.output
+TRASH = $(SRC)/parser.output $(SRC)/lib/viewers/metay.output
 
 include $(SRC)/OCamlMakefile
