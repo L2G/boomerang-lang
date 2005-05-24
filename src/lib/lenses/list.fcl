@@ -85,70 +85,54 @@ let groupby2 : lens =
                plunge HD)
               (wmap { TL -> groupby2 })))
 
-let ungroupby2 : lens = invert (groupby2)
+(*** FAST REVERSE *)
+
+let cap_name : name = "x"
+let pad_name : name = "y"
 
 (* swap the first two elements of a list *)
 let swap : lens = 
   let tmp = "tmp" in 
   let tmp2 = "tmp2" in 
+    probe "SWAP IN"; 
     acond < [Any] | [] > < [Any] | [] >
 	id	   
-	(rename HD tmp;
+	(probe "SWAP F"; rename HD tmp;
 	 hoist_nonunique TL tags;
 	 xfork { tmp, TL } { TL } (rename tmp HD; plunge TL) id)
+
+type PadOrCap = { pad_name = Any } | { cap_name = Any }
 	
 let swap_all : lens = 
   swap; 
-  acond < { * \ (HD,TL) = Any }::Any > < { * \ (HD,TL)=Any }::Any > 
+  acond < PadOrCap::PadOrCap::Any > < PadOrCap::PadOrCap::Any > 
     id 
     (wmap { HD -> swap_all, TL -> wmap { HD -> swap_all } })
        
+
+type EvenList = [] | { HD = Any, TL = { HD = Any, TL = EvenList }}
+type OddList =  { HD = Any, TL = (Nil | {HD = Any, TL = OddList})}
+
+(* HACK: this type is not projectable; but it will work with member :-) *)
+type PaddedList = [{pad_name=Any}] | { HD = Any, TL = PaddedList }
+    
+let pad : lens = 
+  acond < OddList > < PaddedList >
+    (append [{pad_name={}}] )
+    id
+
 let collapse : lens = 
   let tmp : name = "tmp" in
-    acond < [Any, Any] > < [Any, Any] > (* WRONG *)
+    acond < [Any, Any] > < [Any, Any] > 
       id
-      (groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
+      (pad; groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
 
 let fast_reverse : lens = 
-  let x : name = "x" in
-  let tmp : name = "tmp" in
-    map (plunge x);
-    probe "(1)";
-    collapse;
-    probe "(2)";
-    swap_all;
-    probe "(3)"
-(*
-let move_odd_forward : lens = 
-  let tmp : name = "tmp" in    
-    xfork { HD } { HD, tmp } (hoist HD; prune TL []) id;	    
-    probe "move odd forward #1";
-    fork { HD } 
-      ( (* make the first element a singleton list *)
-      add TL []; plunge HD ) 
-      ( (* make the next element a list containing tmp and TL *)
-      hd [];
-      rename tmp HD;
-      plunge HD;
-      add TL []; 
-      plunge TL)
-
-let merge_first_two : lens = 
-  let elt1 = "elt1" in
-  let elt2 = "elt2" in
-    rename HD elt1;
-    hoist_nonunique TL tags;
-    rename HD elt2;
-    xfork { elt1, elt2 } { HD }
-      ( xfork { elt2 } { TL } ( rename elt2 HD; add TL []; plunge TL ) ( rename elt1 HD );
-	plunge HD )
-      id
-
-let fixup : lens = 
-  acond < [Any] > < [Any] >
-    id    
-    (acond < [Any]::[Any,Any]::Any > < [Any, Any]::[Any]::Any >
-       move_odd_forward
-       id;
-     wmap { TL -> fixup })
-*)
+  map (plunge cap_name);
+  collapse;
+  probe "COLLAPSED";
+  swap_all;
+  probe "SWAPPED";
+  invert (collapse);
+  probe "UNCOLLAPSED";
+  map (hoist cap_name)

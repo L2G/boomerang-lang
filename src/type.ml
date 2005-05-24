@@ -393,9 +393,6 @@ and member_pt v ((_,memo,itr) as pt0) =
   end	
 	
 and member_it v it0 =   
-  (* sanity check for projectability; 
-     FIXME: should really just do this once during normalization *)
-  let _ = V.fold (fun k _ () -> let _ = project_it it0 k in ()) v () in
   let res = match it0 with
       Empty(i)     -> false
     | Any(_)       -> true
@@ -456,6 +453,9 @@ and member_it v it0 =
 		     (string_of_it it))
 	in
 	let rec loop cs v =
+	  (* sanity check for projectability; 
+	     FIXME: should really just do this once during normalization *)
+	  let _ = V.fold (fun k _ () -> let _ = project_it it0 k in ()) v () in	    
 	  let lres = 
 	    if (V.is_empty v) then
 	      (* either cs = [] or all cs are Stars *)
