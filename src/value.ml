@@ -34,14 +34,14 @@ let rec dummy ?(msg="") s = match s with
       in
 	L (Lens.native error error)
 
-  | Syntax.SType(i) -> T (Type.TT(Type.Empty(i)))
+  | Syntax.SType(i) -> T (Type.TT (Type.mk_ptype (Type.Empty(i))))
   | Syntax.SView(_) -> V (V.empty)
   | Syntax.SArrow(_,_,rs) -> F (fun _ -> dummy ~msg:msg rs)
-  | Syntax.STOper(i,_,rs) -> T (Type.TT(dummy_ptype s))
+  | Syntax.STOper(i,_,rs) -> T (Type.TT (dummy_ptype s))
 
 and dummy_ptype = function
-    Syntax.STOper(i,_,rs) -> Type.Fun (i, fun _ -> dummy_ptype rs)
-  | Syntax.SType(i)       -> Type.Empty(i)
+    Syntax.STOper(i,_,rs) -> Type.mk_ptype (Type.Fun (i, fun _ -> Type.it_of_pt (dummy_ptype rs)))
+  | Syntax.SType(i)       -> Type.mk_ptype (Type.Empty(i))
   | _                     -> assert false
       
 (* MEMOIZATION *)

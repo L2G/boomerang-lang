@@ -115,7 +115,7 @@ let accumulate oldacc k = function
 (* to detect malformed synchronization results (i.e. ones that are not GOOD *)
 (* w.r.t. docs/simple.txt *)
 
-let rec sync' t archo lefto righto =
+let rec sync' (t:Type.t) archo lefto righto =
   let assert_member v t = 
     if (not (try (Type.member v t)
 	     with Not_found -> assert false))
@@ -219,7 +219,7 @@ let rec sync' t archo lefto righto =
 		  (* return originals in SchemaConflict *)   
 		  (SchemaConflict(t,lv,rv),archo,lefto,righto)
 		    
-and sync t o a b = 
+and sync (t:Type.t) o a b = 
   (* Version for debugging (because, at the moment, output from the
      debug function looks terrible *)
   (*  V.format_msg [`String "sync:"

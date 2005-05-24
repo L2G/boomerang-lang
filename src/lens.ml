@@ -77,16 +77,8 @@ let tracepoint s l =
     }
 
 (* memoization stuff *)
-module H =
-  Hashtbl.Make(
-    struct
-      type t = V.t
-      let equal = (==)                                (* Use physical equality test *)
-      let hash o = Hashtbl.hash (Obj.magic o : int)   (* Hash on physical addr *)
-    end)
-
 let memoize_lens l = 
-  let memotable = H.create 1 in	
+  let memotable = V.Hash.create 1 in	
     (* We use memo information in both directions -- to
        short-circuit a get when we see it for the second time, and
        also to avoid computing the put when we can see what its
@@ -94,10 +86,10 @@ let memoize_lens l =
     native 
       (fun c -> 
 	 try
-	   H.find memotable c
+	   V.Hash.find memotable c
 	 with Not_found -> begin
 	   let a = get l c in
-	     H.add memotable c a;
+	     V.Hash.add memotable c a;
 	     a
 	 end)
       (fun a co -> 
@@ -105,7 +97,7 @@ let memoize_lens l =
 	     None -> put l a None
 	   | Some c ->
 	       try
-		 let a' = H.find memotable c in
+		 let a' = V.Hash.find memotable c in
 		   if a' == a then c else put l a co
 	       with Not_found -> put l a co)
       

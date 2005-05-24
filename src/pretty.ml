@@ -9,10 +9,10 @@
 (***********************************************************)
 
 (* debugging *)
-let debug_flag = false
-let debug s = if debug_flag then (prerr_string (s ^ "\n"))
-
 let sprintf = Printf.sprintf
+let debug_flag = false
+let debug msg_thk = 
+  if debug_flag then (prerr_string (sprintf "%s\n" (msg_thk ())); flush stderr)
 
 (* generic pretty-printing helper functions *)
 let concat 

@@ -1,9 +1,9 @@
 module List = 
 
+(* names, views *)
 let HD : name = Native.hd_tag
 let TL : name = Native.tl_tag
 let NIL : name = Native.nil_tag
-
 let tags = { HD, TL, NIL }
 
 (* schemas *)
@@ -11,12 +11,10 @@ type Nil = Native.Nil
 type Cons H T = Native.Cons H T
 type List T = Nil | Cons T (List T)
 
+(* lenses *)
 let hd (d:view) : lens = focus HD { TL = d }
-
 let tl (d:view) : lens = focus TL { HD = d }
-
 let map (l:lens) : lens = wmap { HD -> l, TL -> (map l) }
-
 let reverse : lens = 
   let tmp : name = "tmp" in
   let rotate : lens = 
@@ -33,25 +31,19 @@ let reverse : lens =
     wmap { TL -> reverse }; 
     rotate
 
-(* FIXME? maybe change this name, it sounds like @ *)       
+(* FIXME? maybe change this name, it sounds like the general @ *)       
 let append (v:view) : lens =
   acond <[]> <[Any]>
     (const v {})
     (wmap { TL -> append v })
 
-let old_list_filter (E:type) : lens = 
-  wmap { TL -> old_list_filter E };
-  ccond < E :: Any >
-    (tl {"error"})
-    id    
-    
 (* filter:
- *    - v must NOT be an E
+ *    - some_D must NOT be an E
  *)
 let filter (D:type) (E:type) (some_D:view) : lens =
   let filter_aux (D:type) (E:type) (some_D:view) : lens = 
     cond_ff <List E> < [] > < D::(List D) >
-      (old_list_filter D)
+      (plunge "_"; wmap { "_" -> filter E D {} }; hoist "_")
       (append [some_D])
       (const [] [])
       (inner_filter)
@@ -63,8 +55,6 @@ let filter (D:type) (E:type) (some_D:view) : lens =
   in
     filter_aux D E some_D
       
-let test_filter : lens = filter < Any > < {"1"=Any} > {}
-
 let groupby2 : lens =
   let tmp : name = "tmp" in
   let add_empty_tail : lens =
@@ -97,30 +87,16 @@ let groupby2 : lens =
 
 let ungroupby2 : lens = invert (groupby2)
 
-(*   let tmp : name = "tmp" in *)
-(*     acond < [] > < [] > *)
-(*       id *)
-(*       (acond <[[Any]]> <[Any]> *)
-(* 	 (hd []) *)
-(* 	 (rename TL tmp; *)
-(* 	  hoist_nonunique HD tags; *)
-(* 	  xfork { tmp, TL } { TL } *)
-(* 	    (hoist_nonunique TL tags; *)
-(* 	     prune TL { TL=[] }; *)
-(* 	     rename tmp TL; *)
-(* 	     wmap { TL -> ungroupby2 }; *)
-(* 	     plunge TL) *)
-(* 	    id)) *)
-      
 (* swap the first two elements of a list *)
 let swap : lens = 
   let tmp = "tmp" in 
+  let tmp2 = "tmp2" in 
     acond < [Any] | [] > < [Any] | [] >
-	id
+	id	   
 	(rename HD tmp;
 	 hoist_nonunique TL tags;
 	 xfork { tmp, TL } { TL } (rename tmp HD; plunge TL) id)
-
+	
 let swap_all : lens = 
   swap; 
   acond < { * \ (HD,TL) = Any }::Any > < { * \ (HD,TL)=Any }::Any > 
@@ -133,19 +109,46 @@ let collapse : lens =
       id
       (groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
 
-let expand : lens = 
-  let tmp : name = "tmp" in
-    acond < {* \ (HD,TL) = Any }::Any > < {* \ (HD,TL) = Any }::Any >  (* WRONG *)
-      id
-      (ungroupby2; plunge tmp; wmap { tmp -> expand }; hoist tmp)
-
 let fast_reverse : lens = 
   let x : name = "x" in
   let tmp : name = "tmp" in
     map (plunge x);
-    assert <List {"x"=Any}>;
-    trace "TRACEPOINT #1";
+    probe "(1)";
     collapse;
+    probe "(2)";
     swap_all;
-    expand;
-    map (hoist x)
+    probe "(3)"
+(*
+let move_odd_forward : lens = 
+  let tmp : name = "tmp" in    
+    xfork { HD } { HD, tmp } (hoist HD; prune TL []) id;	    
+    probe "move odd forward #1";
+    fork { HD } 
+      ( (* make the first element a singleton list *)
+      add TL []; plunge HD ) 
+      ( (* make the next element a list containing tmp and TL *)
+      hd [];
+      rename tmp HD;
+      plunge HD;
+      add TL []; 
+      plunge TL)
+
+let merge_first_two : lens = 
+  let elt1 = "elt1" in
+  let elt2 = "elt2" in
+    rename HD elt1;
+    hoist_nonunique TL tags;
+    rename HD elt2;
+    xfork { elt1, elt2 } { HD }
+      ( xfork { elt2 } { TL } ( rename elt2 HD; add TL []; plunge TL ) ( rename elt1 HD );
+	plunge HD )
+      id
+
+let fixup : lens = 
+  acond < [Any] > < [Any] >
+    id    
+    (acond < [Any]::[Any,Any]::Any > < [Any, Any]::[Any]::Any >
+       move_odd_forward
+       id;
+     wmap { TL -> fixup })
+*)

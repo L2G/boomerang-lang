@@ -33,9 +33,16 @@ let qid_compare (qs1,x1) (qs2,x2) =
     ids_compare (qs1@[x1]) (qs2@[x2])
 let qid_equal q1 q2 = (qid_compare q1 q2 = 0)
 
+let string_of_id (_,i) = i
+let string_of_qid (q,i) = concat_list "." (Safelist.map string_of_id q@[string_of_id i])
+
+let qid_hash q = Hashtbl.hash (string_of_qid q)
+
 (* utility functions *)
 let qid_of_id id = [],id
 let id_of_string i s = (i,s)
+
+
 
 let dot (qs1,x1) (qs2,x2) = (qs1@(x1::qs2),x2)
 
@@ -152,9 +159,6 @@ let id_of_param = function PDef(_,x,_) -> x
 let sort_of_param = function PDef(_,_,s) -> s
 
 (* pretty printing stuff *)
-(* identifiers *)
-let string_of_id (_,i) = i
-let string_of_qid (q,i) = concat_list "." (Safelist.map string_of_id q@[string_of_id i])
 
 (* sorts *)
 let rec string_of_sort = function

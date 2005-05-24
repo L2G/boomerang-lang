@@ -4,9 +4,8 @@
 (*                                                                  *)
 (* registry.mli - interface for library of Focal values             *)
 (*                                                                  *)
-(* $Id: value.ml,v 1.5 2005/04/21 03:27:42 jnfoster Exp $ *)
-(*                                                                  *)
 (********************************************************************)
+(* $Id: value.ml,v 1.5 2005/04/21 03:27:42 jnfoster Exp $ *)
 
 (* registry values *)
 type rv 
@@ -16,7 +15,7 @@ val sort_of_rv : rv -> Syntax.sort
 
 (* environments *)
 type env 
-val empty : env 
+val empty : unit -> env 
 val update : 'a -> ('a -> env) -> ('a -> env -> 'a) -> Syntax.qid -> rv -> 'a
 val overwrite : 'a -> ('a -> env) -> ('a -> env -> 'a) -> Syntax.qid -> rv -> 'a
 val lookup : 'a -> ('a -> env) -> Syntax.qid -> rv option

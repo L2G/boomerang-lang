@@ -7,6 +7,8 @@ type t
 (** A view is a tree of names.  Formally, a [V.t] can be thought of as a
     partial function from [Name.t]'s to [V.t]'s. *)
 
+module Hash : Hashtbl.S with type key = t
+
 (* --------------------------------------------------------------------- *)
 (**{2 Accessors} *)
 

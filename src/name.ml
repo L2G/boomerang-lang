@@ -12,3 +12,9 @@ type t = name
 module Map = NameMap.Map
 module Set = NameMap.KeySet
 
+module Hash = Hashtbl.Make(
+  struct
+    type t = name
+    let equal = (==)
+    let hash o = Hashtbl.hash (Obj.magic o : int)
+  end)

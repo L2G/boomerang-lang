@@ -29,7 +29,7 @@ module QidMap = EMap.Map
 module QidSet = EMap.KeySet
 
 type env = (rv ref) QidMap.t
-let empty : env = QidMap.empty
+let empty () = QidMap.empty
 
 (* produce env[q->v]; yields a NEW env *)
 let update oev get_ev put_ev q r = put_ev oev (QidMap.add q (ref r) (get_ev oev))
@@ -49,6 +49,7 @@ let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found 
 (* env pretty printer *)
 let string_of_rv rv = 
   let (s,v) = rv in
+    assert false;
     sprintf "%s:%s" (Value.string_of_t v) (Syntax.string_of_sort s)
       
 let string_of_env ev = 
@@ -77,7 +78,7 @@ let parse_qid s =
 
 let pre_ctx = List.map parse_qid ["Prelude"]
 
-let library : env ref = ref empty
+let library : env ref = ref (empty ())
 let loaded = ref IdSet.empty
 
 let get_library () = !library
@@ -140,13 +141,13 @@ let load q = match get_module_prefix q with
 
 (* lookup in a naming context *)
 let lookup_library2 nctx q = 
-  let _ = debug (sprintf "lookup_library2: %s in [%s] from %s\n"
+  let _ = debug (fun () -> sprintf "lookup_library2: %s in [%s] from %s\n"
 		   (Syntax.string_of_qid q)
 		   (concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
 		   (string_of_env !library))
   in
   let rec lookup_library_aux os q2 =       
-    let _ = debug (sprintf "lookup_library_aux %s in [%s] from %s "
+    let _ = debug (fun () -> sprintf "lookup_library_aux %s in [%s] from %s "
 		     (Syntax.string_of_qid q2)
 		     (concat_list ", " (Safelist.map Syntax.string_of_qid os))
 		     (string_of_env !library)
@@ -169,7 +170,7 @@ let lookup_library2 nctx q =
       lookup_library_aux nctx q
 	
 let lookup_library oev ev_of_oev ctx_of_oev q = 
-  let _ = debug (sprintf "looking up %s in [%s] from %s\n"
+  let _ = debug (fun () -> sprintf "looking up %s in [%s] from %s\n"
 		   (Syntax.string_of_qid q)
 		   (concat_list ", " (Safelist.map Syntax.string_of_qid (ctx_of_oev oev)))
 		   (string_of_env (ev_of_oev oev)))

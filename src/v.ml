@@ -6,6 +6,16 @@ type wf = WF | NWF of string
 (* the bool indicates if the view is well formed *)
 type t = VI of wf * t Name.Map.t
 
+(* Hashes of views *)
+type thist = t (* hack to avoid cyclic type in Hash functor application *)
+module Hash =
+  Hashtbl.Make(
+    struct
+      type t = thist
+      let equal = (==)                                (* Use physical equality test *)
+      let hash o = Hashtbl.hash (Obj.magic o : int)   (* Hash on physical addr *)
+    end)
+    
 let nil_tag = "nil"
 let hd_tag = "hd"
 let tl_tag = "tl"
