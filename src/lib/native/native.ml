@@ -885,7 +885,7 @@ let _ = register_native "Native.join" "name -> name -> lens" join_lib
 let flatten =   
   let rec get = function 
       c -> 
-	if V.is_empty_list c then V.empty_list
+	if V.is_empty_list c then V.empty
 	else 
 	  (* Error handling in case of ill-formed list *)
 	  let head = V.get_required c V.hd_tag in 
