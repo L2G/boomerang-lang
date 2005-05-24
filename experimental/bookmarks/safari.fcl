@@ -86,3 +86,7 @@ let l2 =
   tidy;
   (* final checkpoint *)
   assert Schemas.Abstract
+
+let l3 =
+  l2;
+  Schemas.flatten_bookmarks

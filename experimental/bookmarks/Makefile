@@ -13,12 +13,12 @@ testsafari: testsafput
 
 testsafget: 
 	$(HARMONY) \
-	     get -concrete bigconcrete.xml -output out.tmp:meta -lens Safari.l2 \
+	     get -concrete bigconcrete.xml -output out.tmp:meta -lens Safari.l3 \
 	     && echo && cat out.tmp && echo
 
 testsafput: testsafget
 	$(HARMONY) \
-	     put -concrete bigconcrete.xml -abstract out.tmp:meta -lens Safari.l2 -output getput.xml \
+	     put -concrete bigconcrete.xml -abstract out.tmp:meta -lens Safari.l3 -output getput.xml \
 	     && echo && cat getput.xml
 
 testmozput: testmozget
@@ -35,7 +35,10 @@ testmozget: preprocess
 
 sync:
 	$(HARMONY) \
-	     sync -newreplica2 newr2.xml -newreplica1 newr1.xml -newarchive newar.meta -lensr2 Mozilla_bookmark.l2 -lensr1 Safari.l2 -lensar Prelude.id -schema Schemas.Abstract -replica2 dummy.xml -replica1 bigconcrete.xml -archive arch.meta
+	     sync -newreplica2 newr2.xml -newreplica1 newr1.xml -newarchive newar.meta -lensr2 Mozilla_bookmark.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 dummy.xml -replica1 bigconcrete.xml -archive arch.meta
 
 	$(HARMONY) \
-	     sync -newreplica2 dnewr2.xml -newreplica1 dnewr1.xml -newarchive dnewar.meta -lensr2 Mozilla_bookmark.l2 -lensr1 Safari.l2 -lensar Prelude.id -schema Schemas.Abstract -replica2 bookmarks2.xml -replica1 dummy.xml -archive arch.meta
+	     sync -newreplica2 dnewr2.xml -newreplica1 dnewr1.xml -newarchive dnewar.meta -lensr2 Mozilla_bookmark.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 bookmarks.xml -replica1 dummy.xml -archive arch.meta
+
+	$(HARMONY) \
+	     sync -newreplica2 mixed2.xml -newreplica1 mixed1.xml -newarchive mixedar.meta -lensr2 Mozilla_bookmark.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 bookmarks.xml -replica1 bigconcrete.xml -archive arch.meta

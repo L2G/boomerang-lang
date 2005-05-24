@@ -158,3 +158,7 @@ let l2 =
     List.map (map (wmap {"contents" -> disc_desc }; filter {"name", "contents", "url"} {}))
   in
   (l;  disc_desc; assert <Schemas.Abstract>)
+
+let l3 =
+  l2;
+  Schemas.flatten_bookmarks

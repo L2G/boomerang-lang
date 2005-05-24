@@ -2,11 +2,11 @@ MOZ_PREPROCESS_SRC = mozillaPreProcess.ml
 MOZ_PREPROCESS_LIB = unix.cma str.cma
 MOZ_PREPROCESS_TARGET = mPP
 
-MOZ_TEST_FILE = bookmarks2.html
-MOZ_TMP_FILE = bookmarks2.xml
-MOZ_OUTPUT_FILE = output2.meta
-MOZ_GETPUT_FILE = putback2.xml
-MOZ_TEST_OUT = newBookmarks2.html
+MOZ_TEST_FILE = bookmarks.html
+MOZ_TMP_FILE = bookmarks.xml
+MOZ_OUTPUT_FILE = output.meta
+MOZ_GETPUT_FILE = putback.xml
+MOZ_TEST_OUT = newBookmarks.html
 
 MOZILLA_LENS = Mozilla_bookmark.l2
 
