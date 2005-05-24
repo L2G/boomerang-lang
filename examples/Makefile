@@ -15,3 +15,5 @@ all: test
 test:
 	make -C template test
 
+clean:
+	make -C template clean

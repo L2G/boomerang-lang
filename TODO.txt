@@ -2,6 +2,8 @@ THINGS TO DO
 
 IMMEDIATE
 think about Makefiles!
+continue documenting interfaces (do 'make docs' in /src), 
+  beginning with v.mli (which still probably has dead stuff in it)
 think about whether the lambda-calculus part of focal should be strict or
   lazy (in particular, recursion)
 catch errors and print them sensibly (including parsability)

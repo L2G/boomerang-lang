@@ -18,6 +18,9 @@ all: native-code
 tags:
 	etags $(SOURCES)
 
+clean::
+	-rm -f *~
+
 #######
 # LIB #
 #######

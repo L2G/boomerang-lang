@@ -1043,6 +1043,8 @@ $(BCDIDIR)/%.di $(NCDIDIR)/%.di:	%.mli
 			fi
 
 doc/$(RESULT)/html: $(DOC_FILES)
+	echo DOC_FILES = $(DOC_FILES)
+	echo SOURCES = $(SOURCES)
 	rm -rf $@
 	mkdir -p $@
 	$(QUIET)pp=`sed -n -e '/^#/d' -e 's/(\*pp \([^*]*\) \*)/\1/p;q' $<`; \

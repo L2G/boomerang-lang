@@ -261,9 +261,6 @@ let rec propagate archo lefto righto = function
       (V.from_list lbinds),
       (V.from_list rbinds)
     in
-    V.check_well_formed f;
-    V.check_well_formed s;
-    V.check_well_formed t;
     (Some f,
      Some s,
      Some t)

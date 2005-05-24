@@ -6,9 +6,6 @@ type wf = WF | NWF of string
 (* the bool indicates if the view is well formed *)
 type t = VI of wf * t Name.Map.t
 
-type reader = string -> t option
-type writer = t option -> string -> unit
-
 let nil_tag = "nil"
 let hd_tag = "hd"
 let tl_tag = "tl"
@@ -36,10 +33,6 @@ let get_required ((VI (_,m)) as v) k =
       
 let is_well_formed (VI (b,_)) = b = WF
 
-let check_well_formed = function
-  | VI (NWF s, _) as v -> raise (Illformed (s, [v]))
-  | _ -> ()
-    
 (* ----------------------------------------------------------------------
  * Creators
  *)
@@ -323,14 +316,6 @@ let format_msg l =
   Format.printf "@[<v0>";
   loop l;
   Format.printf "@,@]"
-
-let dump_to_file fname v =
-  Format.print_flush ();
-  let out,flush = Format.get_formatter_output_functions () in
-  Format.set_formatter_out_channel (open_out fname);
-  format v;
-  Format.print_flush ();
-  Format.set_formatter_output_functions out flush
 
 let error_msg l =
   raise (Error l)

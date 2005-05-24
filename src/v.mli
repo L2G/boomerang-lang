@@ -1,17 +1,11 @@
 (** Views *)
 
+(* --------------------------------------------------------------------- *)
+(**{2 The Type of Views} *)
+
 type t
-(** A view is a tree of names.  Formally, a [V.t] is a partial function
-    from [Name.t]'s to [V.t]'s. *)
-
-type reader = string -> t option
-(** Reads a file or filesystem into a concrete view. *)
-
-type writer = t option -> string -> unit
-(** Writes a concrete view out to a file or filesystem. *)
-
-val check_well_formed : t -> unit
-(** Check whether a view is well formed; raise Illformed if not *)
+(** A view is a tree of names.  Formally, a [V.t] can be thought of as a
+    partial function from [Name.t]'s to [V.t]'s. *)
 
 (* --------------------------------------------------------------------- *)
 (**{2 Accessors} *)
@@ -21,7 +15,7 @@ val dom : t -> Name.Set.t
 
 val singleton_dom : t -> Name.t
 (** [atomic_dom v] returns the name of the single child of the singleton view
-    [v]. Raises [Illformed if [v] is not a singleton. *)
+    [v]. Raises [Illformed] if [v] is not a singleton. *)
 
 val get : t -> Name.t -> t option
 (** [get v k] yields [Some kid] if [v(k) = kid], or [None] if [v] is undefined
@@ -169,10 +163,9 @@ val error_msg : msg list -> 'a
 
 val show_diffs : t -> t -> unit
 
-val dump_to_file : string -> t -> unit
-  
 (* --------------------------------------------------------------------- *)
-(* Names used to encode cons cells as trees *)
+(**{2 Names used to encode cons cells as trees} *)
+
 val hd_tag : Name.t
 val tl_tag : Name.t
 val nil_tag : Name.t
