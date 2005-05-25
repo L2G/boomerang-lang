@@ -6,12 +6,10 @@ open GText
 
 let fontMonospaceMediumPango = lazy (Pango.Font.from_string "monospace 16")
 
-
 let tagtable = tag_table ()
 let colortag = tag ~name:"color" ()
 let _ = colortag#set_property (`BACKGROUND "yellow")
 let _ = tagtable#add (colortag#as_tag)
-
 
 class probe_widget get callbacks ~packing =
 (* Main vertical box *)
@@ -81,11 +79,6 @@ object(self)
   method add_probe n =
     probe_list#add (GList.list_item ~label:((self#increase ())^": "^n) ())
 end
-(*
-  initializer 
-    if get then callbacks#set_trace_get_window self
-    else callbacks#set_trace_put_window self
- *)
   
 class probe_window callbacks =
   let tooltips = GData.tooltips () in
@@ -157,16 +150,7 @@ class trace_window get callbacks =
 	       )
       ()
   in
-  (*
-    let main_horizontal_box = 
-    GPack.hbox ~spacing:0 ~homogeneous:false 
-    ~packing:(main_vertical_box#pack ~padding:0
-    ~fill:false
-    ~expand:false
-    )
-    ()
-    in
-   *)
+
 (* List View *)
   let scrolledwindow_list = 
     GBin.scrolled_window
@@ -200,7 +184,7 @@ class trace_window get callbacks =
       ~cursor_visible:false
       ()
   in
-(*  let _ = view#misc#modify_font (Lazy.force fontMonospaceMediumPango) in*)
+
 (* Callbacks *)
   let _ = probe_list#connect#select_child
 	    ~callback:(function li -> 
@@ -228,5 +212,3 @@ object(self)
     else callbacks#set_trace_put_window self
 
 end
-
-      

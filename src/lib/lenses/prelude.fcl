@@ -62,7 +62,7 @@ let filter (p:view) (d:view) : lens = fork p id (const {} d)
 
 let prune (n:name) (d:view) : lens = fork {n} (const {} {n=d}) id
 
-let add (n:name) (v:view) : lens = xfork {} {n} (const v {} ; plunge n) id
+let add (n:name) (v:view) : lens = xfork {} {n} (const {n=v} {}) id
 
 let focus (n:name) (d:view) : lens = filter {n} d ; hoist n
 

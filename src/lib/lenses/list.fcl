@@ -55,12 +55,8 @@ let filter (D:type) (E:type) (some_D:view) : lens =
   in
     filter_aux D E some_D
       
-let groupby2 : lens =
+let groupby2 : lens = 
   let tmp : name = "tmp" in
-  let add_empty_tail : lens =
-    add TL {};
-    wmap { TL -> add NIL {} }
-  in
     acond <[]> <[]>
       id
       ((* (1) save hd of the list under tmp *)
@@ -76,63 +72,72 @@ let groupby2 : lens =
 	    xfork {NIL} {TL} (plunge TL) id;
             rename tmp HD;
             plunge HD;
-	    add_empty_tail)	  
+	    add TL [])	  
 	  ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
             xfork {tmp, HD} {HD}
               (rename HD TL;
-	       wmap {TL -> plunge HD; add_empty_tail };
+	       wmap {TL -> plunge HD; add TL [] };
                rename tmp HD;             
                plunge HD)
-              (wmap { TL -> groupby2 })))
+               (wmap { TL -> groupby2 })))
 
 (*** FAST REVERSE *)
-
-let cap_name : name = "x"
-let pad_name : name = "y"
+let pad : name = "pad"
+  
+let groupby2_w_pad : lens = 
+  let tmp : name = "tmp" in
+    acond <[]> <[]>
+      id
+      ((* (1) save hd of the list under tmp *)
+	rename HD tmp;
+	(* (2) bring the tail of the list up to the root level *)
+	hoist_nonunique TL tags;
+	(* split on domain at the root level; two cases:
+	   (a) tail was empty --> domain is { tmp, nil }
+	   (b) tail was non-empty --> domain is { tmp, hd, tl }
+	*)
+	acond < {tmp=Any,NIL={}} > < [[Any,{pad={}}]] >
+	  ((* case (a) yeild [[tmp]] *)	    
+	    xfork {NIL} {TL} (plunge TL) id;
+            rename tmp HD;
+            plunge HD;
+	    add TL [{pad={}}])
+	  ((* case (b) produce [tmp,hd]::(groupby2_w_pad tl) *)
+            xfork {tmp, HD} {HD}
+              (rename HD TL;
+	       wmap {TL -> plunge HD; add TL [] };
+               rename tmp HD;             
+               plunge HD)
+              (wmap { TL -> groupby2_w_pad })))
 
 (* swap the first two elements of a list *)
 let swap : lens = 
   let tmp = "tmp" in 
   let tmp2 = "tmp2" in 
-    probe "SWAP IN"; 
-    acond < [Any] | [] > < [Any] | [] >
+    acond < [] | [Any] | [Any, {pad={}}] > < [] | [Any] | [Any, {pad={}}] >
 	id	   
-	(probe "SWAP F"; rename HD tmp;
+	(rename HD tmp;
 	 hoist_nonunique TL tags;
 	 xfork { tmp, TL } { TL } (rename tmp HD; plunge TL) id)
-
-type PadOrCap = { pad_name = Any } | { cap_name = Any }
 	
 let swap_all : lens = 
-  swap; 
-  acond < PadOrCap::PadOrCap::Any > < PadOrCap::PadOrCap::Any > 
-    id 
-    (wmap { HD -> swap_all, TL -> wmap { HD -> swap_all } })
-       
-
-type EvenList = [] | { HD = Any, TL = { HD = Any, TL = EvenList }}
-type OddList =  { HD = Any, TL = (Nil | {HD = Any, TL = OddList})}
-
-(* HACK: this type is not projectable; but it will work with member :-) *)
-type PaddedList = [{pad_name=Any}] | { HD = Any, TL = PaddedList }
-    
-let pad : lens = 
-  acond < OddList > < PaddedList >
-    (append [{pad_name={}}] )
+  acond < { ! \ (HD,TL) = Any} > < { ! \ (HD,TL) = Any } > 
     id
-
+    (swap; wmap { HD -> swap_all, TL -> wmap { HD -> swap_all }})
+       
 let collapse : lens = 
   let tmp : name = "tmp" in
     acond < [Any, Any] > < [Any, Any] > 
       id
-      (pad; groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
+      (groupby2_w_pad; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
 
 let fast_reverse : lens = 
-  map (plunge cap_name);
+  let cap = "x" in
+  map (plunge cap);
   collapse;
   probe "COLLAPSED";
   swap_all;
   probe "SWAPPED";
-  invert (collapse);
-  probe "UNCOLLAPSED";
-  map (hoist cap_name)
+  invert (groupby2_w_pad); 
+  probe "UNCOLLAPSED"
+    (*   map (hoist cap) *)
