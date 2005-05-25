@@ -3,15 +3,18 @@ all: buildandtest
 include ../Common.mk
 
 include Mozilla.mk
+include IExplorer6.mk
 
-test: testsafari testmozilla
+test: testsafari testmozilla testie
 
 
 testmozilla: testmozput
 
 testsafari: testsafput
 
-testsafget: 
+testie: testieput
+
+testsafget: bigconcrete.xml safari.fcl plist.fcl schemas.fcl
 	$(HARMONY) \
 	     get -concrete bigconcrete.xml -output out.tmp:meta -lens Safari.l3 \
 	     && echo && cat out.tmp && echo

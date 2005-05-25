@@ -6,7 +6,7 @@ type V = { ! = {} }
 type IE6PList = { "URL" = V, *\"URL" = V }
 type IE6DList = { "BASEURL" = V, *\"BASEURL" = V } 
 type IE6Url = { "InetShortcut" = IE6PList } | { "InetShortcut" = IE6PList, "Default"=IE6DList}
-type IE6Link = { "name" = V, "url" = IE6Url } | { "noturl" = V }
+type IE6Link = { "name" = V, "url" = IE6Url } | { "name" = V, "noturl" = V }
 type IE6Folder = { "name" = V, "contents" = IE6Concrete }
 and IE6Concrete = List.List ({"link" = IE6Link } | {"folder" = IE6Folder})
   
@@ -14,7 +14,8 @@ let l : lens =
   let folder = 
     wmap { "contents" -> l } in
   let link =
-    filter {"name", "url"} {};
+    ccond <{"noturl" = Any, "name" = Any}> (const {} {}) id;
+(*  filter {"name", "url"} {}; *)
     wmap {"url" -> 
       ccond <{ "InetShortcut" = Any }>
 	(hoist "InetShortcut"; focus "URL" {})
