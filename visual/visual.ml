@@ -31,7 +31,7 @@ let string_of_tree t = Meta.writer t
 class customized_callbacks = object(self)
   inherit Callbacks.default_callbacks
   
-  val avaible = ref true
+  val available = ref true
   val mutable example_present = true
   val mutable trace_present = false
 
@@ -41,65 +41,62 @@ class customized_callbacks = object(self)
   val mutable interactive_type = true
   val mutable interactive_parse = true
 
-(* Callbacks for the focal editor *)
-
-  (* helper: reads in a file to the lens pane *)
+(* Callbacks for the focal editor *)  
   method input_focal_file filename =    
     let content = 
       try Misc.read filename
-      with _ -> Ui_common.error avaible "I/O Error";"" in
-    if content <> "" then
-      begin
-        self#focal_window#focal_buffer#set_text content
-      end     
-
+      with _ -> Ui_common.error available "I/O Error";"" in
+      if content <> "" then
+	begin
+          self#focal_window#focal_buffer#set_text content
+	end     
+	  
   method on_open_activate () =
-    if !avaible then
+    if !available then
       begin
-	Ui_common.select_file avaible 
+	Ui_common.select_file available 
 	  (function filename -> self#input_focal_file filename);
 	  debug "Event activate from open";() 
       end
       
   method on_new_activate () =
-    if !avaible then
+    if !available then
       begin
-        self#focal_window#focal_buffer#set_text "do id";
+        self#focal_window#focal_buffer#set_text "let main : lens = id";
 	debug "Event activate from new";() 
       end
 
   method on_save_activate () =
-    if !avaible then
+    if !available then
       begin
-        Ui_common.select_file avaible 
+        Ui_common.select_file available 
 	  (function filename -> 
 	     let content =  self#focal_window#focal_buffer#get_text () in
 	     try Misc.write filename content
-	     with _ -> Ui_common.error avaible "I/O Error"
+	     with _ -> Ui_common.error available "I/O Error"
 	  );     
 	debug "Event activate from save";() 
       end
 	
   method on_edit_activate () =
-    if !avaible then
+    if !available then
       begin
         debug "Event activate from edit";() 
       end
       
   method on_about_activate () =
-    if !avaible then
+    if !available then
       begin
         debug "Event activate from about";() 
       end
 	
   method on_see_example_clicked () =
-    if !avaible then
+    if !available then
       if example_present then
 	begin
 	  self#focal_window#example_window#misc#hide ();
 	  example_present <- false
 	end
-(*example_destroy ()*)
       else
 	begin
 	  example_present <- true;
@@ -108,7 +105,7 @@ class customized_callbacks = object(self)
 	end
 
   method on_seeprobe_clicked () =
-    if !avaible then
+    if !available then
       if trace_present then
 	begin
 	  self#trace_destroy ()
@@ -133,7 +130,8 @@ class customized_callbacks = object(self)
     let remove_tag () =
       self#focal_window#focal_buffer#remove_all_tags
 	~start:(self#focal_window#focal_buffer#start_iter) 
-	~stop:(self#focal_window#focal_buffer#end_iter) in
+	~stop:(self#focal_window#focal_buffer#end_iter) 
+    in
       if interactive_parse || force then
 	begin
 	  self#focal_window#add_error "OK";
@@ -142,15 +140,18 @@ class customized_callbacks = object(self)
 	  remove_tag ();
 	  try
 	    let old_file_name = !Compiler.file_name in
-	    let _ = Compiler.file_name := "visualizer buffer" in	  
+	    let _ = Compiler.file_name := "visualizer buffer" in
 	    let _ = Lexer.reset () in
 	    let lexbuf = Lexing.from_string 
-	      (Printf.sprintf "\n module _Visual_Buffer = \n %s " 
-		 (self#focal_window#focal_buffer#get_text ())) in	  
+	      (Printf.sprintf "\nmodule _Visual_Buffer=\n%s\n" 
+		 (self#focal_window#focal_buffer#get_text ())) in
 	    let ast =
 	      try Parser.modl Lexer.token lexbuf
 	      with Parsing.Parse_error ->
-		Compiler.failAt (Lexer.info lexbuf) (fun () -> "Syntax error")
+		Compiler.failAt (Lexer.info lexbuf) 
+		  (fun () -> "Syntax error" ^ 
+		     (Printf.sprintf "\n[module _Visual_Buffer=\n%s]\n" 
+			(self#focal_window#focal_buffer#get_text ())))
 	    in
 	    let ast = Compiler.check_module ast in
 	    let _ = Compiler.compile_module ast in
@@ -320,7 +321,7 @@ class customized_callbacks = object(self)
 
 
   method on_initialize_abstract_1_activate () =
-    if !avaible then
+    if !available then
       begin
 	abstract2 := (!abstract1) ;
 	let s = string_of_tree (!abstract2) in
@@ -329,9 +330,9 @@ class customized_callbacks = object(self)
       end
 
   method on_openview_activate () =
-    if !avaible then
+    if !available then
       begin
-	Ui_common.select_file avaible 
+	Ui_common.select_file available 
 	  (function filename -> 
 	     try
 	       let enc = Safelist.hd (Surveyor.find_encodings filename None) in
@@ -341,9 +342,9 @@ class customized_callbacks = object(self)
 		   let t = reader filename in
 		   let file_content = string_of_tree t in
 		     self#focal_window#example_window#concrete1#buffer#set_text file_content
-		 with Sys_error _ -> Ui_common.error avaible "Incorrect file!"
+		 with Sys_error _ -> Ui_common.error available "Incorrect file!"
 	       end;
-		 avaible := true
+		 available := true
 	     with
 		 Failure e -> prerr_string (e^"\n"));
 	debug "Event activate from openview";() 
@@ -380,9 +381,8 @@ class customized_callbacks = object(self)
     Safelist.iter (self#trace_window#put_probe#probe_list#remove) c;
     self#trace_window#put_probe#buffer#set_text ""
 
-
   method on_seeprobe_clicked () =
-    if !avaible then
+    if !available then
       if trace_present then
 	begin
 	  self#trace_destroy ()
@@ -393,7 +393,6 @@ class customized_callbacks = object(self)
 	self#trace_window#window#show ();
         debug "Event clicked from show_probe";()
       end
-
 
   method add_get_probe n p =
     if not trace_present 
@@ -420,32 +419,34 @@ class customized_callbacks = object(self)
   method add_probe = 
     add_probe_ref
 
-  method print_frame : probecall -> V.msg list = function 
-      Get(n,c,s)->([`String
-		      (Misc.color n Misc.Yellow ~bold:true);
-		    `Break;`String
-		      (Misc.color "---------------------------------------------"
-			 Misc.Yellow ~bold:true);
-		    `Break;`String (Misc.color "Call of get with argt:" Misc.Yellow ~bold:true);
-		    `Break;`View c;`Break; `String
-		      (Misc.color "---------------------------------------------"
-			 Misc.Yellow ~bold:true);`Break;
-		    `String (Misc.color "STACK DUMP:" Misc.Yellow ~bold:true);
-		    `Break]@(Safelist.concat (Safelist.map Lens.dumpframe s)))
-    | Put(n,a,copt,s)->([`String
-			   (Misc.color n Misc.Yellow ~bold:true);
-			 `Break;`String
-			   (Misc.color "---------------------------------------------"
-			      Misc.Yellow ~bold:true);
-			 `Break;`String (Misc.color "Call of put with argt:" Misc.Yellow ~bold:true);
-			 `Break;`View a ; `Break]@
-			(match copt with None -> [`String "MISSING";`Break] | Some c -> [`View c; `Break])@
-			[ `String
-			    (Misc.color "---------------------------------------------"
-			       Misc.Yellow ~bold:true);`Break;
-			  `String (Misc.color "STACK DUMP:" Misc.Yellow ~bold:true);
-			  `Break]@(Safelist.concat (Safelist.map Lens.dumpframe s)))
-
+  method print_frame : probecall -> V.msg list = 
+    function Get(n,c,s)->
+      ([`String
+	  (Misc.color n Misc.Yellow ~bold:true);
+	`Break;`String
+	  (Misc.color "---------------------------------------------"
+	     Misc.Yellow ~bold:true);
+	`Break;`String (Misc.color "Call of get with argt:" Misc.Yellow ~bold:true);
+	`Break;`View c;`Break; `String
+	  (Misc.color "---------------------------------------------"
+	     Misc.Yellow ~bold:true);`Break;
+	`String (Misc.color "STACK DUMP:" Misc.Yellow ~bold:true);
+	`Break]@(Safelist.concat (Safelist.map Lens.dumpframe s)))
+      | Put(n,a,copt,s)->
+	  ([`String
+	      (Misc.color n Misc.Yellow ~bold:true);
+	    `Break;`String
+	      (Misc.color "---------------------------------------------"
+		 Misc.Yellow ~bold:true);
+	    `Break;`String (Misc.color "Call of put with argt:" Misc.Yellow ~bold:true);
+	    `Break;`View a ; `Break]@
+	     (match copt with None -> [`String "MISSING";`Break] | Some c -> [`View c; `Break])@
+	      [ `String
+		  (Misc.color "---------------------------------------------"
+		     Misc.Yellow ~bold:true);`Break;
+		`String (Misc.color "STACK DUMP:" Misc.Yellow ~bold:true);
+		`Break]@(Safelist.concat (Safelist.map Lens.dumpframe s)))
+	    
   method select_get_probe (i:int) =
     let p = Safelist.nth get_probe_list i in
     let msg = self#print_frame p in
@@ -482,32 +483,17 @@ class customized_callbacks = object(self)
 
 end
 
-(* helpers for command-line argument parsing *)
-let fail s = Format.eprintf "%s@." s; exit 1
-    
-(* Parse command line arguments *)
+(* MAIN *)
 let _ = 
-  Arg.parse 
-    [
-      ("-debug-ui",
-       Arg.Unit(fun _ -> debug_ui:=true),
-       "\tPrint debugging messages"
-      )
-    ]
-    (fun s -> fail (Printf.sprintf "extra argument %s" s))
-    ("usage: visual [options]")
-
-(** Main function **)
+  Prefs.parseCmdLine "usage: visual"
+    
 let main () = 
   let callbacks = new customized_callbacks in
   let focal_window = new Ui_focal.focal_window callbacks in
-  let trace_window = new Ui_trace.probe_window callbacks in
-    (* You should probably remove the next line if you want to use the event masks from glade *)
+  let trace_window = new Ui_trace.probe_window callbacks in    
   let _ = GtkBase.Widget.add_events focal_window#window#as_widget [`ALL_EVENTS] in
   let _ = focal_window#init () in
   let _ = focal_window#window#show() in    
     GMain.Main.main ()
 
-(* fire up the GUI *)
-let _ = Printexc.print main () 
-
+let _ = main ()

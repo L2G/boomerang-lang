@@ -112,19 +112,6 @@ let main_vertical_box =
     ()
 in
 
-(* Not yet working --BCP
-  (* Menus *)
-  let menuBar =
-      GMenu.menu_bar ~border_width:0
-        ~packing:(main_vertical_box#pack ~expand:true) () in
-    let menus = new GMenu.factory ~accel_modi:[] menuBar in
-    let accel_group = menus#accel_group in
-    toplevelWindow#add_accel_group accel_group;
-    let add_submenu ?(modi=[]) ~label () =
-      new GMenu.factory ~accel_group ~accel_modi:modi (menus#add_submenu label)
-    in
-*)
-
 (* Action buttons *)
 let actionBar =
   GButton.toolbar ~style:`BOTH
@@ -293,7 +280,7 @@ object(self)
     focal_statusbar_context#pop ();
     ignore (focal_statusbar_context#push s)
   method focal_options = focal_options
-  method init () = self#focal_buffer#set_text "id"
+  method init () = self#focal_buffer#set_text "let main : lens = id"
   method example_window = example_widget
   initializer callbacks#set_window self 
 end
