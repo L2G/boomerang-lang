@@ -41,4 +41,10 @@ sync:
 	     sync -newreplica2 dnewr2.xml -newreplica1 dnewr1.xml -newarchive dnewar.meta -lensr2 Mozilla_bookmark.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 bookmarks.xml -replica1 dummy.xml -archive arch.meta
 
 	$(HARMONY) \
-	     sync -newreplica2 mixed2.xml -newreplica1 mixed1.xml -newarchive mixedar.meta -lensr2 Mozilla_bookmark.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 bookmarks.xml -replica1 bigconcrete.xml -archive arch.meta
+	     sync -newreplica2 mixed2.xml -newreplica1 mixed1.xml -newarchive mixedar.meta -lensr2 Mozilla_bookmark.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 bookmarks.xml -replica1 bigconcrete.xml -archive arch.meta	
+
+	$(HARMONY) \
+	     sync -newreplica2 maximixed2.meta -newreplica1 maximixed1.xml -newarchive maximixedar.meta -lensr2 IExplorer.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 ie-concrete.meta -replica1 mixed1.xml -archive arch.meta
+
+	$(HARMONY) \
+	     sync -newreplica2 megamixed2.xml -newreplica1 megamixed1.xml -newarchive megamixedar.meta -lensr2 Mozilla_bookmark.l3 -lensr1 Safari.l3 -lensar Prelude.id -schema Schemas.BushAbstract -replica2 mixed2.xml -replica1 maximixed1.xml -archive mixedar.meta

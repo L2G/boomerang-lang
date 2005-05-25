@@ -1,0 +1,31 @@
+{folders =
+  {"ASUS E-Service" =
+    [{folders = {},
+      links =
+       {"http://member.asus.com/" = "ASUS Member.url",
+        "http://www.asus.com/" = "ASUS Homepage.url",
+        "http://www.asus.com/support" = "ASUS Technical Support.url",
+        "http://www.asus.com/support/download" = "ASUS Software Download.url"}}],
+   Liens =
+    [{folders = {},
+      links =
+       {"http://www.microsoft.com/isapi/redir.dll?prd=ie&ar=hotmail" =
+         Hotmail.url,
+        "http://www.microsoft.com/isapi/redir.dll?prd=ie&ar=windows" =
+         Windows.url,
+        "http://www.microsoft.com/isapi/redir.dll?prd=ie&ar=windowsmedia" =
+         "Windows Media.url",
+        "http://www.microsoft.com/isapi/redir.dll?prd=ie&pver=6&ar=CLinks" =
+         "Personnaliser les liens.url"}}]},
+ links =
+  {"http://2002.polytechnique.org/" = "Le site de la promotion X 2002.url",
+   "http://robotolabs.dyndns.org/torrents.html" =
+    "[rl] simpsons .torrents - a .torrent site for simpsons, chappelle\\'s show, and documentaries.url",
+   "http://securityresponse.symantec.com/avcenter/venc/data/trojan.favadd.html" =
+    "Symantec Security Response - Trojan.Favadd.url",
+   "http://www.microsoft.com/isapi/redir.dll?prd=ie&pver=6&ar=IStart" =
+    MSN.com.url,
+   "http://www.microsoft.com/isapi/redir.dll?prd=windows&sbp=mediaplayer&plcid=&pver=6.1&os=&over=&olcid=&clcid=&ar=Media&sba=RadioBar&o1=&o2=&o3=" =
+    "Guide des stations de radio.url",
+   "http://www.the-spoiler.com/ADVENTURE/Adeline/relentless.1.html" =
+    "Twinsen\\'s Adventure(Relentless, Little Big Adventure) walkthrough - solution of the Southern Hemisphere.url"}}
