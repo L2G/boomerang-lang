@@ -36,9 +36,16 @@ let traite_closetag tag =
 let tag = [^'<''>''/']*
 let all = [^'\n''<''>']*
 let blank = [' ''\t''\n']
+let openvcard = '<'['V''v']['C''c']['A''a']['R''r']['D''d']'>'
+let closevcard = '<''/'['V''v']['C''c']['A''a']['R''r']['D''d']'>'
 
-    rule main = parse 
-| blank*  '<' (tag as arg) ">\n"
+
+rule main = parse
+| openvcard blank*
+    {
+     printf "BEGIN:VCARD\n";
+     main lexbuf}
+| blank*  '<' (tag as arg) ">" blank*
     {
      inside := false;
      maintag := arg;
@@ -46,22 +53,26 @@ let blank = [' ''\t''\n']
      printf " %s" arg;
      intag lexbuf
    }
-| blank* eof {()}
+| blank* closevcard 
+    {
+     printf "END:VCARD"
+   }
+| eof {()}
 
 and intag = parse
-| blank* '<' (tag as arg) ">\n"
+| blank* '<' (tag as arg) ">" blank*
     {
      traite_opentag arg;
      inside := true;
      intag lexbuf
    }
-| blank* (all as str) ";;\n"
-| blank* (all as str) '\n'
+| blank* (all as str) ";;" blank*
+| blank* (all as str) blank*
     {
      printf ":%s\n" str ;
      intag lexbuf
    }
-| blank* "</" (tag as arg) ">\n"
+| blank* "</" (tag as arg) '>' blank*
     {
      traite_closetag arg;
      if List.length (!list_tag) = 0 then main lexbuf else intag lexbuf

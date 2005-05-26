@@ -13,6 +13,8 @@ let verbose = ref true
 let count = ref 1
 and nb_space = ref 0
 
+let name = ref ""
+
 let hashNum : (int,string) Hashtbl.t = Hashtbl.create 13
 and hashTag : (string,string) Hashtbl.t = Hashtbl.create 13
 
@@ -35,6 +37,11 @@ let sentence = motif1? (ig blank* motif2)? (ig blank* motif3)? '\n'
 let lastSentence= motif1? (ig blank* motif2)? (ig blank* motif3)? eof
 
     rule main = parse
+| "BEGIN:" (motif as arg) '\n'
+    {
+     name := arg;
+     main lexbuf;
+   }
 | blank* (motif as arg) ';'
     {
      let str = get_tag lexbuf in 
@@ -69,8 +76,12 @@ let lastSentence= motif1? (ig blank* motif2)? (ig blank* motif3)? eof
      end;
      main lexbuf
    }
-| eof 
-    {() }
+| "END:" (motif as arg) eof 
+    {
+     if (Pervasives.compare arg !name) != 0 then
+       raise (Error("unmatch BEGIN and END\n"))
+     else ()
+   }
 
 and get_tag = parse
 | (motif as arg) ';'
@@ -81,6 +92,16 @@ and get_tag = parse
        for i=1 to !nb_space do s := !s^" " done;
        let str = get_tag lexbuf in
        (!s)^"<"^arg^">\n"^str^(!s)^"</"^arg^">\n"
+     end
+   }
+
+| blank* "ENCODING=QUOTED-PRINTABLE:"
+    {
+     let s = ref "" in
+     begin
+       for i=1 to !nb_space do s := !s^" " done;
+       let str = get_string lexbuf in
+        str
      end
    }
 | (motif as arg) ':'
@@ -137,6 +158,7 @@ let main filename =
   let lexbuf = Lexing.from_channel chan in
   try
     main lexbuf ;
+    printf "<%s>\n" !name;
     for i=1 to !count-1 do
       begin
 	let s = Hashtbl.find hashNum i in
@@ -144,6 +166,7 @@ let main filename =
 	printf "%s %s%s\n" ("<"^s^">\n") arg ("</"^s^">\n");
       end;
     done;
+    printf "</%s>" !name;
     flush stdout
   with
   | exc -> begin

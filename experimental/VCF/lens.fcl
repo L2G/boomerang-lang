@@ -1,0 +1,35 @@
+module Lens=
+
+let lens1 = (List.hd []; hoist ""; List.hd[]; 
+	       map(hoist""; List.hd []; hoist "PCDATA"))
+
+let lens2 = List.hd [];  hoist "";  flatten;  map(lens1)
+
+let lens3 = List.hd []; hoist ""; List.hd []; hoist "PCDATA"
+
+let lens4 =  (List.hd []; hoist ""; List.hd [];
+	      map(hoist ""; List.hd []; 
+		  map(hoist ""; List.hd []; 
+		      map (hoist ""; List.hd []; hoist "PCDATA"))))
+
+let lens5 = (List.hd[]; hoist ""; List.hd []; 
+	     map(hoist ""; List.hd []; hoist "PCDATA"))
+  
+let lensTEL = (List.hd []; hoist ""; flatten;
+	       fork {"Work"}
+		 ( map (lens4) )
+		 ( fork {"Modem"} (map(lens5)) (map(lens3)) ) )
+    
+let l = 
+  hoist "";
+  List.hd [];
+  map ( hoist ""; flatten;
+        fork {"TEL"}
+	  ( map(lensTEL) )
+	  ( fork {"ADR","LABEL"}
+	      ( map(lens2) )
+	      ( fork {"EMAIL"} 
+		  ( map(lens1) )
+		  ( map(lens3) ) ) )
+       )
+

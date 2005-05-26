@@ -1,2 +1,13 @@
-To see what the lexer works, you type:
-   ./vcard vcard.vcf
+make:
+    - vcard.vcf => vcard.xml (change format de vcard from vcf to xml)
+    - using harmony:(the lens l in lens.fcl)
+	+ in get direction: take the concrete view "vcard.xml" and return 
+ 	                    the view outget.meta
+	+ in put direction: take the abstract view "newabstract.meta" and
+	                    return the view output.xml	
+    - output.xml => newvcard.vcf 
+
+In conclusion, we have the new vcard.
+
+Remark: to make clean, use "make clean_all" (I use make clean_all to 
+	distinguish with "make clean" in Common)
