@@ -10,6 +10,20 @@
 
 open Pretty
 
+(* DEBUGGING *)
+
+let registry_debug = Prefs.createBool "debug-registry" false 
+  "print debugging information about Focal registry"
+  "print debugging information about Focal registry"
+
+let debug s_thk = 
+  if Prefs.read registry_debug 
+  then 
+    begin 
+      prerr_string (sprintf "%s\n" (s_thk ()));
+      flush stderr
+    end
+
 (* REGISTRY VALUES *)
 type rv = Syntax.sort * Value.t
 let make_rv s v = (s,v)
@@ -48,8 +62,7 @@ let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found 
 
 (* env pretty printer *)
 let string_of_rv rv = 
-  let (s,v) = rv in
-    assert false;
+  let (s,v) = rv in    
     sprintf "%s:%s" (Value.string_of_t v) (Syntax.string_of_sort s)
       
 let string_of_env ev = 
@@ -82,15 +95,27 @@ let library : env ref = ref (empty ())
 let loaded = ref IdSet.empty
 
 (* clear all loaded modules; used, e.g., in the visualizer *)
+let old_library = ref None
 let reset () = 
-  library := empty ();
-  loaded := IdSet.empty
-    
+  if !old_library = None then old_library := Some !library;
+  loaded := IdSet.empty;  
+  library := 
+    begin 
+      match !old_library with 
+	  Some lib -> lib
+	| None -> assert false
+    end
+      
 let get_library () = !library
   
 let register q r = library := (QidMap.add q (ref r) (!library))
-let register_env ev m = QidMap.iter (fun q r -> register (Syntax.dot m q) !r) ev
-  
+let register_env ev m = 
+  debug (fun () -> sprintf "register_env for %s" (Syntax.string_of_qid m));
+  QidMap.iter 
+    (fun q r -> 
+       debug (fun () -> sprintf "registring %s" (Syntax.string_of_qid (Syntax.dot m q)));
+       register (Syntax.dot m q) !r) ev
+    
 let register_native qs ss v = 
   let sort_of_string s = 
     let lexbuf = Lexing.from_string s in

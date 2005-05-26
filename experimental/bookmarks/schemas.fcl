@@ -16,7 +16,6 @@ type Item = { "folders" = { * = List.List Any }, "links" = { * = V } }
 and Twig = List.List { "folders" = { * = List.List Twig }, "links" = { * = V } }
 type BushAbstract = Item
 
-
 (* the lens to flatten the abstract into a bush *)
 let flatten_to_bush : lens =
   List.map (
@@ -43,4 +42,3 @@ let flatten_to_bush : lens =
 let flatten_bookmarks =
   flatten_to_bush;
   assert BushAbstract
-    

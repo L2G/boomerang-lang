@@ -8,11 +8,6 @@
 
 open Syntax
 
-(* global mutable variables *)
-(* FIXME: we don't need this to be a ref cell; 
-   there's no reason we can't pass this as a parameter to the functions 
-*)
-
 (* imported functions *)
 let sprintf = Printf.sprintf  
 let (@) = Safelist.append
@@ -904,9 +899,6 @@ let compile_module m0 =
   let new_cev,_ = compile_module_aux cev ds in
     Registry.register_env (ev_of_cev new_cev) (Syntax.qid_of_id m)
 	      
-
-(* exported functions *)
-
 (* parsing *)
 let parse_lexbuf lexbuf = 
   let _ = Lexer.reset () in
@@ -922,6 +914,7 @@ let parse_string str =
 let parse_file fn = 
   parse_lexbuf (Lexing.from_channel (open_in fn))
 
+(* the main functions this module exports *)
 (* end-to-end compilation *)
 let compile_string fake_name str = 
   let old_fn = !Lexer.file_name in

@@ -1,4 +1,4 @@
-module List = 
+module List =
 
 (* names, views *)
 let HD : name = Native.hd_tag

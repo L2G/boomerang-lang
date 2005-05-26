@@ -2,6 +2,9 @@ open GText
 open GToolbox
 open Lexing
 
+(* imports *)
+let sprintf = Printf.sprintf
+
 (* global, mutable variable declarations *)
 let concrete1 = ref (Some V.empty)
 let abstract1 = ref V.empty 
@@ -24,6 +27,9 @@ let debug s = if !debug_ui then prerr_endline s
 let _ = Format.set_margin 25
 
 let string_of_tree t = Meta.writer t
+
+(* lookup helpers *)
+let lookup qid_str = Registry.lookup_library (Registry.parse_qid qid_str)
 
 (**********************************)
 (** Callbacks from the interface **)
@@ -119,7 +125,7 @@ class customized_callbacks = object(self)
 
   method compile force () = 
     let pos_to_iter = self#focal_window#focal_buffer#get_iter in
-    let add_tag (pos1,pos2) =
+    let add_tag (pos1,pos2) = if false then
       let it1,it2 = pos_to_iter (`LINECHAR (fst pos1 -1,max (snd pos1 -1) 0)),
 	pos_to_iter (`LINECHAR (fst pos2-1,max (snd pos2 -1) 0)) in
 	self#focal_window#focal_buffer#remove_all_tags
@@ -127,50 +133,70 @@ class customized_callbacks = object(self)
 	  ~stop:(self#focal_window#focal_buffer#end_iter);
 	self#focal_window#focal_buffer#apply_tag_by_name "color"  
 	  ~start:it1 ~stop:it2 in
-    let remove_tag () =
+    let remove_tag () = if false then
       self#focal_window#focal_buffer#remove_all_tags
 	~start:(self#focal_window#focal_buffer#start_iter) 
 	~stop:(self#focal_window#focal_buffer#end_iter) 
     in
       if interactive_parse || force then
 	begin
-	  self#focal_window#add_error "OK";
-	  self#init_get_probe ();
-	  self#init_put_probe ();
-	  remove_tag ();
-	  try
-	    let old_file_name = !Compiler.file_name in
-	    let _ = Compiler.file_name := "visualizer buffer" in
-	    let _ = Lexer.reset () in
-	    let lexbuf = Lexing.from_string 
-	      (Printf.sprintf "\nmodule _Visual_Buffer=\n%s\n" 
-		 (self#focal_window#focal_buffer#get_text ())) in
-	    let ast =
-	      try Parser.modl Lexer.token lexbuf
-	      with Parsing.Parse_error ->
-		Compiler.failAt (Lexer.info lexbuf) 
-		  (fun () -> "Syntax error" ^ 
-		     (Printf.sprintf "\n[module _Visual_Buffer=\n%s]\n" 
-			(self#focal_window#focal_buffer#get_text ())))
-	    in
-	    let ast = Compiler.check_module ast in
-	    let _ = Compiler.compile_module ast in
-	    let _ = Compiler.file_name := old_file_name in
-	    let _ = lens := None;
-	      if interactive_get || force then
-		begin
-		  self#update_abstract1 ();
-		  if interactive_put || force then
-		    self#update_concrete2 ()
-		end
-	    in
-	      ()
-	  with _ -> 
-	    (self#focal_window#add_error "KO";
-	     (* add_tag info; *) lens := None;
-	     self#focal_window#focal_types_buffer#set_text ("ERROR"))
+	  let vb_fn = "visualizer buffer" in
+	  let vb_mn = "_Visualizer_buffer" in	      
+	    self#focal_window#add_error "OK";
+	    self#init_get_probe ();
+	    self#init_put_probe ();
+	    remove_tag ();
+	    try
+	      let _ = Registry.reset () in
+	      let _ = Lexer.reset () in
+	      let old_fn = !Lexer.file_name in
+	      let _ = Lexer.file_name := vb_fn in
+	      let _ = Compiler.compile_string 
+		vb_fn
+		(sprintf "module %s=%s\n"
+		   vb_mn
+		   (self#focal_window#focal_buffer#get_text()))
+	      in
+	      let _ = Lexer.file_name := old_fn in
+	      let _ = lens :=
+		match lookup (sprintf "%s.%s" vb_mn "main") with
+		    None -> raise (Error.Run_error(Info.bogus, "", 
+						   (sprintf "main is not bound")))
+		  | Some rv -> 
+		      begin
+			match Registry.value_of_rv rv with
+			    Value.L l -> Some l
+			  | _ -> raise (Error.Run_error(Info.bogus, "", "main is not a lens"))
+		      end
+	      in
+		if interactive_get || force then
+		  begin
+		    self#update_abstract1 ();
+		    if interactive_put || force then
+		      self#update_concrete2 ()
+		  end		  
+	    with (Error.Syntax_error(i,fn,msg)) -> 
+	      (self#focal_window#add_error "KO";
+	       if (fn = vb_fn) then add_tag i;
+	       lens := None;
+	       self#focal_window#focal_types_buffer#set_text (sprintf "Parse error: %s" msg))
+	      | (Error.Sort_error(i,fn,msg)) -> 
+		  (self#focal_window#add_error "KO";
+		   if (fn = vb_fn) then add_tag i;
+		   lens := None;
+		   self#focal_window#focal_types_buffer#set_text 
+		     (sprintf "Sort error: %s" msg))
+	      |  (Error.Run_error(i,fn,msg)) -> 
+		   (self#focal_window#add_error "KO";
+		    if (fn = vb_fn) then add_tag i;
+		    lens := None;
+		    self#focal_window#focal_types_buffer#set_text (sprintf "Run error: %s" msg))
+	      |  (Error.Fatal_error(msg)) -> 
+		   (self#focal_window#add_error "KO";
+		    lens := None;
+		    self#focal_window#focal_types_buffer#set_text (sprintf "Fatal error: %s" msg))
 	end
-	
+	  
   method on_focal_texteditor_changed () = 
     let _ = self#focal_window#add_error "" in
     self#compile false ()
@@ -496,4 +522,4 @@ let main () =
   let _ = focal_window#window#show() in    
     GMain.Main.main ()
 
-let _ = main ()
+let _ = Printexc.print main ()

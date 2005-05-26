@@ -25,6 +25,7 @@ val string_of_env : env -> string
 (* library *)
 val parse_qid : string -> Syntax.qid 
 val pre_ctx : Syntax.qid list
+val reset : unit -> unit
 val get_library : unit -> env 
 val register_env : env -> Syntax.qid -> unit
 val register_native : string -> string -> Value.t -> unit

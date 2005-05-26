@@ -4,7 +4,7 @@
 
 open GText
 
-let fontMonospaceMediumPango = lazy (Pango.Font.from_string "monospace 16")
+let fontMonospaceMediumPango = lazy (Pango.Font.from_string "monospace 14")
 
 let tagtable = tag_table ()
 let colortag = tag ~name:"color" ()
