@@ -25,9 +25,12 @@ let flatten_dict =
   flatten;
   map (List.hd [])
 
+(* Discards the general info of the file, focuses on the bookmarks *)
 let root = 
   focus "Children" {}
     
+(* recursively applies item to all children, and    *)
+(* puts the data under a link, folder, or proxy key *)
 let children : lens = 
   wmap { "array" -> List.map (item; 
 			      pivot "WebBookmarkType";
@@ -45,7 +48,7 @@ and item : lens =
   (* flattens the item *)
   flatten_dict;
   
-  (* if the item is empty, we add an empty list of children *)
+  (* if the item is a dict and does not have children, we add an empty list of children *)
   acond 
     <{*\"Children","URIDictionary","BLANK" = Any}> 
     <{"Children"= { "array" = List.Nil }, *\"Children" = Any}>  
@@ -64,6 +67,7 @@ and item : lens =
     
 (* l is for homogeneous synchronization of safari bookmarks *)
 let l =
+  (** We lack an assert SafConcrete here :( *)
   plist_lens;
   flatten_dict;
   root;

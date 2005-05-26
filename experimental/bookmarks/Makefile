@@ -7,6 +7,7 @@ include IExplorer6.mk
 
 test: testsafari testmozilla testie
 
+all: test sync
 
 testmozilla: testmozput
 
