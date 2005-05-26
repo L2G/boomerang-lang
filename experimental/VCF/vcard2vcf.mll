@@ -8,6 +8,7 @@ let inside = ref false
 
 let list_tag = ref []
 let maintag = ref ""
+let subject = ref ""
 
 let rec print_list list= 
   match list with
@@ -29,22 +30,26 @@ let traite_opentag tag =
 let traite_closetag tag =
   list_tag := remove tag (!list_tag); 
   ()
-    
-
 } 
 
 let tag = [^'<''>''/']*
 let all = [^'\n''<''>']*
 let blank = [' ''\t''\n']
-let openvcard = '<'['V''v']['C''c']['A''a']['R''r']['D''d']'>'
-let closevcard = '<''/'['V''v']['C''c']['A''a']['R''r']['D''d']'>'
 
 
 rule main = parse
-| openvcard blank*
+| blank* '<' (tag as arg) '>' blank*
     {
-     printf "BEGIN:VCARD\n";
-     main lexbuf}
+     printf "BEGIN:%s\n" arg;
+     subject := arg;
+     in_main lexbuf
+   }
+| _ 
+    {
+     raise (Error("Expect the main tag of file .xml"))
+   }
+
+and in_main = parse
 | blank*  '<' (tag as arg) ">" blank*
     {
      inside := false;
@@ -53,9 +58,11 @@ rule main = parse
      printf " %s" arg;
      intag lexbuf
    }
-| blank* closevcard 
+|blank* "</" (tag as arg) '>'
     {
-     printf "END:VCARD"
+     if (Pervasives.compare arg !subject) != 0 then
+       raise(Error("</"^(!subject)^"> is expected in the place of </"^arg^">"))
+     else printf "END:%s" arg
    }
 | eof {()}
 
@@ -75,7 +82,7 @@ and intag = parse
 | blank* "</" (tag as arg) '>' blank*
     {
      traite_closetag arg;
-     if List.length (!list_tag) = 0 then main lexbuf else intag lexbuf
+     if List.length (!list_tag) = 0 then in_main lexbuf else intag lexbuf
    }
 
 
