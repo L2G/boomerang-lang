@@ -1,6 +1,8 @@
 (* meta.ml - meta (abstract value) *)
 
 let reader s =
+  let _ = Metal.reset () in
+  let _ = Metal.file_name := "meta string" in
   let lexbuf = Lexing.from_string s in        
     try 
       (Metay.view Metal.token lexbuf) 

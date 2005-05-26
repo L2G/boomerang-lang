@@ -96,12 +96,27 @@ let tidy : lens =
   skip_proxies;
   List.map (wmap {"folder" -> tidy_folder, "link" -> tidy_link})
     
+(* Treats BookmarksMenu as the root of the bookmarks file, and
+   swivels BookmarksBar under it *)
+let plunge_menu : lens =   
+  focus "folders" {};
+  wmap { "BookmarksMenu" -> List.hd [{"folders"={}, "links"={}}] };
+  hoist_nonunique "BookmarksMenu" {"folders", "links"};	   
+  wmap { "folders" -> plunge "_tmp" };  
+  xfork { "folders", "BookmarksBar" } { "folders" }
+    (hoist_nonunique "folders" { "_tmp" };
+     fork { "BookmarksBar" } id (hoist "_tmp");
+     plunge "folders")
+    id
+
 (* l2 is for heterogeneous synchronization of safari bookmarks *)    
 let l2 =
   l;
   tidy
-
+    
 (* l3 uses the unordered schema Schemas.BushAbstract *)
 let l3 =
   l2;
-  Schemas.flatten_bookmarks
+  Schemas.flatten_bookmarks;
+  plunge_menu;
+  assert Schemas.BushAbstract

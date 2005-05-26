@@ -3,11 +3,12 @@
 open Error
 
 let failwith s = prerr_endline s; exit 1
- 
+
+(* let debug s_thk = prerr_endline ("DEBUG: " ^ (s_thk ())); flush stderr *) 
 (* lookup from registry *)
-let lookup qid_str = 
+let protect thk = 
   try 
-    Registry.lookup_library (Registry.parse_qid qid_str)
+    thk ()
   with 
       Syntax_error(i,fn,msg) 
     | Sort_error(i,fn,msg) 
@@ -17,9 +18,19 @@ let lookup qid_str =
 	  (Info.string_of_t i) 
 	  msg;
 	exit 1
+    | V.Error(ml) -> 
+	Printf.eprintf "Fatal error: V.Error\n";
+	flush stdout;
+	V.format_msg ml; 
+	exit 1
     | Fatal_error(msg) ->
 	Printf.eprintf "Fatal error: %s\n" msg;
 	exit 1
+
+let lookup qid_str = 
+  protect 
+    (fun () -> 
+       Registry.lookup_library (Registry.parse_qid qid_str))
 	  
 let lookup_lens qid_str = 
   match lookup qid_str with
@@ -86,7 +97,7 @@ let get lens_qid concrete_file output_file =
   (* apply it to get the abstract view *)
   let av = 
     try match cv with
-      |	Some cview -> Lens.get lens cview 
+      |	Some cview -> protect (fun () -> Lens.get lens cview)
       | None -> failwith (Printf.sprintf "Concrete view file %s is missing." concrete_file) 
     with V.Error(e) -> (V.format_msg e; failwith "Error in get function")
       | V.Illformed(m,vs) -> 
@@ -110,7 +121,7 @@ let put lens_string abstract concrete output =
     (* get the encoding key of the abstract*)
   let akey = get_ekey a reader_ek in
   (* apply the reader, get the abstract view *)
-  let av = get_view_from_file (Surveyor.get_reader akey) a in
+  let av = protect (fun () -> get_view_from_file (Surveyor.get_reader akey) a) in
   (* do the same job for the concrete view *)
   let (c, reader_ek) = parse_replica concrete in
   let ckey = get_ekey c reader_ek in
@@ -120,22 +131,21 @@ let put lens_string abstract concrete output =
   (* apply it to put the abstract view into the concrete view*)
   let newcv = 
     try match av with
-      Some aview -> Lens.put lens aview cv
+      Some aview -> protect (fun () -> Lens.put lens aview cv)
     | None -> failwith (Printf.sprintf "The abstract view file %s is missing or empty" a)
     with V.Error(e) -> (V.format_msg e; failwith "Error in put function")
     | V.Illformed(m,vs) -> 
 	V.format_msg ([`String m]@(Safelist.map (fun vi -> `View vi) vs)) ; failwith "Error in put function"
   in
-
   (* we're gonna have to output it *)
   let (o, viewer_ek) = parse_replica output in
   (* get back the viewer *)
   let okey = get_ekey o viewer_ek in
   (* apply it to get a string *)
   let written = (Surveyor.get_writer okey) newcv in
-  (* and do the output *)
-  view_to_file written o
-
+    (* and do the output *)
+    view_to_file written o 
+    
 (* ========== *)	
 (*    SYNC    *)
 (* ========== *)
@@ -144,15 +154,15 @@ let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2
   (* the archive *)
   let (ar, reader_ek) = parse_replica archive in
   let arkey = get_ekey ar reader_ek in
-  let arcv = get_view_from_file (Surveyor.get_reader arkey) ar in
+  let arcv = protect (fun () -> get_view_from_file (Surveyor.get_reader arkey) ar) in
   (* the 1st replica *)
   let (r1, reader_ek) = parse_replica replica1 in
   let r1key = get_ekey r1 reader_ek in
-  let r1cv = get_view_from_file (Surveyor.get_reader r1key) r1 in
+  let r1cv = protect (fun () -> get_view_from_file (Surveyor.get_reader r1key) r1) in
   (* the 2nd replica *)
   let (r2, reader_ek) = parse_replica replica2 in
   let r2key = get_ekey r2 reader_ek in
-  let r2cv = get_view_from_file (Surveyor.get_reader r2key) r2 in
+  let r2cv = protect (fun () -> get_view_from_file (Surveyor.get_reader r2key) r2) in
   (* the lenses *)
   let lensa = lookup_lens lensa_string in
   let lens1 = lookup_lens lens1_string in 
@@ -162,56 +172,58 @@ let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2
   (* apply the lenses in the get direction *)
   let arav =
     match arcv with
-      Some v -> Some (Lens.get lensa v)
+      Some v -> Some (protect (fun () -> Lens.get lensa v))
     | None -> None in
   let r1av =
     match r1cv with
-      Some v -> Some (Lens.get lens1 v)
+      Some v -> Some (protect (fun () -> Lens.get lens1 v))
     | None -> None in
   let r2av =
     match r2cv with
-      Some v -> Some (Lens.get lens2 v)
+      Some v -> Some (protect (fun () -> Lens.get lens2 v))
     | None -> None in
   (* the actual synchronization *)
   let (action, newarav, newr1av, newr2av) =
     Sync.sync schema arav r1av r2av in
-  (** for DEBUG, pretty-print of the action *)
   let _ = Sync.format action in
   (* we apply the lenses in the put direction *)
   let newarcv =
     match newarav with
-      Some v -> Some (Lens.put lensa v arcv) | None -> None in
+	Some v -> Some (protect (fun () -> Lens.put lensa v arcv)) 
+      | None -> None in
   let newr1cv =
     match newr1av with
-      Some v -> Some (Lens.put lens1 v r1cv) | None -> None in
+	Some v -> Some (protect (fun () -> Lens.put lens1 v r1cv))
+      | None -> None in
   let newr2cv =
     match newr2av with
-      Some v -> Some (Lens.put lens2 v r2cv) | None -> None in
-  (* and we write the results *)
+      Some v -> Some (protect (fun () -> Lens.put lens2 v r2cv))
+      | None -> None in
+    (* and we write the results *)
   (* first the archive *)
   let (o, viewer_ek) = parse_replica newarchive in
   let okey = get_ekey o viewer_ek in
-  (match newarcv with
-    Some a ->
-      let s = (Surveyor.get_writer okey) a in
-      view_to_file s o
-  | None -> assert false);
-  (* now the first replica *)
-  let (o, viewer_ek) = parse_replica newreplica1 in
-  let okey = get_ekey o viewer_ek in
-  (match newr1cv with
-    Some r1 ->
-      let s = (Surveyor.get_writer okey) r1 in
-      view_to_file s o
-  | None -> assert false);
-  (* and finally the second replica *)
-  let (o, viewer_ek) = parse_replica newreplica2 in
-  let okey = get_ekey o viewer_ek in
-  (match newr2cv with
-    Some r2 ->
-      let s = (Surveyor.get_writer okey) r2 in
-      view_to_file s o
-  | None -> assert false)
+    (match newarcv with
+	 Some a ->
+	   let s = (Surveyor.get_writer okey) a in
+	     protect (fun () -> view_to_file s o)
+       | None -> assert false);
+    (* now the first replica *)
+    let (o, viewer_ek) = parse_replica newreplica1 in
+    let okey = get_ekey o viewer_ek in
+      (match newr1cv with
+	   Some r1 ->
+	     let s = (Surveyor.get_writer okey) r1 in
+	       protect (fun () -> view_to_file s o)
+	 | None -> assert false);
+      (* and finally the second replica *)
+      let (o, viewer_ek) = parse_replica newreplica2 in
+      let okey = get_ekey o viewer_ek in
+	(match newr2cv with
+	     Some r2 ->
+	       let s = (Surveyor.get_writer okey) r2 in
+		 protect (fun () -> view_to_file s o)
+	   | None -> assert false)
 
 (****************************  Command-line switches *******************************)
 
@@ -302,7 +314,7 @@ let main () =
     ["get"] | ["show"]-> 
 	get (p lens) (p concrete) (p output)
   | ["put"] ->
-	put (p lens) (p abstract) (p concrete) (p output)
+      put (p lens) (p abstract) (p concrete) (p output)
   | ["sync"] ->
 	sync 
 	  (p archive) (p replica1) (p replica2) 

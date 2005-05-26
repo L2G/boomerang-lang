@@ -18,9 +18,6 @@ all: native-code
 tags:
 	etags $(SOURCES)
 
-clean::
-	-rm -f *~
-
 #######
 # LIB #
 #######
@@ -61,6 +58,6 @@ COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/lib/ubase/%) \
 		 $(VIEWER_SOURCES:%=$(SRC)/lib/viewers/%) \
 		 $(PLUGIN_SOURCES:%=$(SRC)/lib/native/%)
 
-TRASH = $(SRC)/parser.output $(SRC)/lib/viewers/metay.output
+TRASH := $(TRASH) $(SRC)/parser.output $(SRC)/lib/viewers/metay.output
 
 include $(SRC)/OCamlMakefile

@@ -11,7 +11,7 @@ type Ddavech3 = { "dd" = { "" = [{"h3" = Any}] } }
 type Ddsansh3 = { "dd" = { "" = ({"PCDATA" = Any } :: Any )} }
 type Dt = { "dt" = Any }
       
-type Item = List.List (Dd | Dt )
+type Item = List (Dd | Dt )
       
 type ItemFolder = Dd :: Item
 type ItemFolderDesc = Ddavech3 :: (Ddsansh3 :: Item)
@@ -32,7 +32,7 @@ type MLink = Schemas.Link | (FullLink Schemas.V)
 (** this Any should be replaced by MozAbstract because FullFolder uses its first *)
 (** argument under a name so it's ok for recursion...                            *)
 type MFolder = Schemas.Folder | (FullFolder Any Schemas.V)
-and MozAbstract = List.List ({ "folder" =  MFolder } | { "link" = MLink })
+and MozAbstract = List ({ "folder" =  MFolder } | { "link" = MLink })
 
 type MozConcrete = Any
       

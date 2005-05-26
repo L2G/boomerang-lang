@@ -1,0 +1,37 @@
+module Plist =
+
+let plist_object_lens : lens =
+  wmap { "dict" -> dict_lens,
+         "array" -> array_lens,
+         "string" -> leaf_lens }
+
+and array_lens : lens =
+  wmap {"" -> List.map plist_object_lens};
+  hoist ""
+
+and dict_lens : lens =
+  wmap {"" -> List.groupby2; List.map (keypair_lens)};
+  hoist ""
+
+and keypair_lens : lens =
+  wmap { List.HD -> hoist "key"; leaf_lens, 
+         List.TL -> wmap { List.HD -> plist_object_lens } }
+
+and leaf_lens : lens =
+  hoist "";
+  acond <[]> < { List.TL=[], List.HD={"PCDATA" = {"BLANK"={}, *\("BLANK")=Any}}} >
+    (const [{"PCDATA"="BLANK"}] [])
+    id;
+  List.hd [];
+  hoist "PCDATA"
+
+let plist_lens =
+  hoist "";
+  List.hd [];
+  hoist "plist";
+  focus "" { "version" = "1.0" };
+  List.hd [];
+  plist_object_lens
+
+
+

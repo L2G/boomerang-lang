@@ -2,6 +2,9 @@ module Prelude =
 
 (* SCHEMAS *)
 type None = ~Any
+type Nil = Native.Nil
+type Cons H T = Native.Cons H T
+type List T = Nil | Cons T (List T)
 
 (* re-exported native lenses *)
 let probe : (name -> lens) = Native.probe

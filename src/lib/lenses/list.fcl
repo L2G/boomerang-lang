@@ -6,11 +6,6 @@ let TL : name = Native.tl_tag
 let NIL : name = Native.nil_tag
 let tags = { HD, TL, NIL }
 
-(* schemas *)
-type Nil = Native.Nil
-type Cons H T = Native.Cons H T
-type List T = Nil | Cons T (List T)
-
 (* lenses *)
 let hd (d:view) : lens = focus HD { TL = d }
 let tl (d:view) : lens = focus TL { HD = d }
@@ -56,6 +51,10 @@ let filter (D:type) (E:type) (some_D:view) : lens =
     filter_aux D E some_D
       
 let groupby2 : lens = 
+  let add_empty_tail : lens =
+    add TL {};
+    wmap { TL -> add NIL {} }
+  in
   let tmp : name = "tmp" in
     acond <[]> <[]>
       id
@@ -68,15 +67,15 @@ let groupby2 : lens =
 	   (b) tail was non-empty --> domain is { tmp, hd, tl }
 	*)
 	acond <{tmp=Any,NIL={}}> <[[Any]]>
-	  ((* case (a) yeild [[tmp]] *)
+	  ((* case (a) yield [[tmp]] *)
 	    xfork {NIL} {TL} (plunge TL) id;
             rename tmp HD;
             plunge HD;
-	    add TL [])	  
+	    add_empty_tail)
 	  ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
             xfork {tmp, HD} {HD}
               (rename HD TL;
-	       wmap {TL -> plunge HD; add TL [] };
+	       wmap {TL -> plunge HD; add_empty_tail };
                rename tmp HD;             
                plunge HD)
                (wmap { TL -> groupby2 })))

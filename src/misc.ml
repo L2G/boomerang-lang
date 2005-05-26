@@ -281,18 +281,22 @@ let rec replace_substrings s l =
     
 let whack_chars s cl =
   (*   let s = if String.length s > 30 then (String.sub s 0 30 ^ "...") else s in  *)
+  let debug s = prerr_endline s in
   let s = 
     (* escape only the strictly necessary *)
     Safelist.fold_right 
       ( fun (p,r) s -> Str.global_replace (Str.regexp p ) r s )   
-      [("\"","\\\"");("\'","\\\'")]
+      [("\"","\\\"");("\\", "\\\\\\\\")]
       s
   in
   let s = 
     if Safelist.exists (fun c -> String.contains s c) cl then "\""^s^"\""
     else s in
+  let s = 
     if s="" then "\"\""
     else s
+  in
+    s
       
 let whack s = whack_chars s [' '; '"']
 

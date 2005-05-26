@@ -36,6 +36,7 @@ let notsymbol = [^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ',' ':']+
 
 rule token = parse
 | blank		{ token lexbuf }
+| newline       { newline lexbuf; token lexbuf }
 | "="		{ EQUAL (info lexbuf) }
 | "{"		{ LBRACE (info lexbuf) }
 | "}"		{ RBRACE (info lexbuf) }
@@ -45,7 +46,6 @@ rule token = parse
 | ":"           { COLON (info lexbuf) }
 | "\""		{ IDENT ((info lexbuf), (string lexbuf)) }
 | notsymbol	{ let i = (info lexbuf) in IDENT (i, (lexeme lexbuf)) }
-| newline       { newline lexbuf; token lexbuf }
 | eof		{ EOF (info lexbuf) }
 | _		{ error lexbuf "Unknown token" }
 
@@ -57,12 +57,9 @@ and string = parse
 | eof		{ error lexbuf "Unmatched '\"'"}
 
 and escape = parse
-| "'"		{ "'" }
 | "\""		{ "\"" }
 | "\\"		{ "\\" }
-| "b"		{ "\008" }
 | "n"		{ "\010" }
-| "r"		{ "\013" }
 | "t"		{ "\009" }
 | eof		{ error lexbuf "EOF when reading escape" }
 | _		{ error lexbuf "Unknown escape" }
