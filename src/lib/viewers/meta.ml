@@ -5,7 +5,7 @@ let reader s =
     try 
       (Metay.view Metal.token lexbuf) 
     with Parsing.Parse_error -> 
-      raise (Error.Run_error ("Parse error in view at: " ^ Info.string_of_t (Metal.info lexbuf)))
+      raise (Error.Syntax_error (Metal.info lexbuf, !Metal.file_name, "syntax error"))
 	
 let writer = V.string_of_t
 

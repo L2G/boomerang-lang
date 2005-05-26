@@ -16,11 +16,6 @@ open Info
 
 let ( @ ) = Safelist.append
   
-let error t info = let (l,c1),(_,c2) = info in
-  let s = Printf.sprintf "%d:%d-%d" l c1 c2 in
-    if t = "" then raise (Error.Parse_error (s,info))
-    else raise (Error.Parse_error (s^ ": " ^ t,info))
-
 (* constants *)
 let compose2_qid i = ([(i,"Native")], (i, "compose2"))
 let nil_qid i = ([(i,"Native")], (i, "Nil"))

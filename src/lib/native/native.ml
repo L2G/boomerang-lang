@@ -6,7 +6,10 @@ open Lens
 open Registry
 open Value
 open Syntax
-open Error
+
+(* helper function for constructing a Focal type error *)
+let focal_type_error msg = 
+  raise (Error.Fatal_error (Printf.sprintf "run-time sort error in expression %s" msg))
 
 (* standard tags for cons-cell encoded lists *)
 let hd_tag = Value.N (V.hd_tag)

@@ -29,7 +29,7 @@ module QidMap = EMap.Map
 module QidSet = EMap.KeySet
 
 type env = (rv ref) QidMap.t
-let empty () = QidMap.empty
+let empty () : env = QidMap.empty
 
 (* produce env[q->v]; yields a NEW env *)
 let update oev get_ev put_ev q r = put_ev oev (QidMap.add q (ref r) (get_ev oev))
@@ -81,8 +81,13 @@ let pre_ctx = List.map parse_qid ["Prelude"]
 let library : env ref = ref (empty ())
 let loaded = ref IdSet.empty
 
+(* clear all loaded modules; used, e.g., in the visualizer *)
+let reset () = 
+  library := empty ();
+  loaded := IdSet.empty
+    
 let get_library () = !library
-
+  
 let register q r = library := (QidMap.add q (ref r) (!library))
 let register_env ev m = QidMap.iter (fun q r -> register (Syntax.dot m q) !r) ev
   
@@ -169,7 +174,7 @@ let lookup_library2 nctx q =
     in
       lookup_library_aux nctx q
 	
-let lookup_library oev ev_of_oev ctx_of_oev q = 
+let lookup_oev oev ev_of_oev ctx_of_oev q = 
   let _ = debug (fun () -> sprintf "looking up %s in [%s] from %s\n"
 		   (Syntax.string_of_qid q)
 		   (concat_list ", " (Safelist.map Syntax.string_of_qid (ctx_of_oev oev)))
@@ -180,7 +185,5 @@ let lookup_library oev ev_of_oev ctx_of_oev q =
       | Some r -> Some r
       | None -> lookup_library2 (ctx_of_oev oev) q
 	  
-let lookup_lens q = match lookup_library2 [] q with 
-  | None -> None
-  | Some r -> 
-      match value_of_rv r with Value.L l -> Some l | _ -> None
+let lookup_library q = lookup_library2 [] q
+

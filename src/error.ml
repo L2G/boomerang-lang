@@ -4,18 +4,15 @@
 (*                                                                             *)
 (* error.ml - compiler exceptions                                              *)
 (*                                                                             *)
-(* $Id$ *)
-(*                                                                             *)
 (*******************************************************************************)
+(* $Id$ *)
 
-exception Syntax_error of string * Info.t
-exception Parse_error of string * Info.t
-exception Sort_error of string * Info.t
-exception Run_error of string
+type i = Info.t
+exception Syntax_error of i * string * string 
+exception Sort_error of i * string * string
+exception Run_error of i * string * string 
+exception Fatal_error of string 
 
-(* helper function for constructing a Focal type error *)
-let focal_type_error s = 
-  raise (Run_error ("Incorrect type for Focal expression:" ^ s))
     
 
 

@@ -8,16 +8,19 @@
 
 open Syntax
 
+(* global mutable variables *)
+(* FIXME: we don't need this to be a ref cell; 
+   there's no reason we can't pass this as a parameter to the functions 
+*)
+
 (* imported functions *)
 let sprintf = Printf.sprintf  
-
 let (@) = Safelist.append
-
 let make_rv = Registry.make_rv
 let sort_of_rv = Registry.sort_of_rv
 let value_of_rv = Registry.value_of_rv
 
-(* low-level compiler debugging *)
+(* debugging *)
 let compiler_debug = Prefs.createBool "debug-compiler" false 
   "print debugging information during Focal compilation"
   "print debugging information during Focal compilation"
@@ -29,17 +32,16 @@ let debug s_thk =
       prerr_string (sprintf "%s\n" (s_thk ()));
       flush stderr
     end
-      
-(* error reporting *)
-let file_name = ref "" 
-let failAt i mesg_thk =
-  Printf.eprintf "File \"%s\", %s:\n%s\n" (!file_name) (Info.string_of_t i) (mesg_thk ());
-  exit 1
 
-(* general helpers *)
-let oper_of_xs xs i = Safelist.fold_right
-    (fun _ s -> STOper(i,SType(i), s)) xs (SType(i))
+(* exceptions *)
+let parse_error i msg_thk = 
+  raise (Error.Syntax_error(i, !Lexer.file_name, msg_thk ()))
 
+let sort_error i msg_thk = 
+  raise (Error.Sort_error(i, !Lexer.file_name, msg_thk ()))
+    
+let run_error i msg_thk = 
+  raise (Error.Run_error(i, !Lexer.file_name, msg_thk ()))
 
 (* compiling environments comprise:
  *  - a qid list: the naming context, a list of open modules 
@@ -64,7 +66,7 @@ let set_cev_ctx cev qs = let (os,ev) = cev in (qs,ev)
  						
 (* helper functions for environments **) 
 let lookup_cev cev q = 
-  match (Registry.lookup_library cev ev_of_cev ctx_of_cev q) with
+  match (Registry.lookup_oev cev ev_of_cev ctx_of_cev q) with
       None -> None 
     | Some rv -> Some rv
 	
@@ -99,7 +101,7 @@ let set_sev_ctx sev qs = let (rs,cev) = sev in (rs,set_cev_ctx cev qs)
 (* helper functions for sort checking **) 
 (* returns a sort *)
 let lookup_sev sev q = 
-  match (Registry.lookup_library sev ev_of_sev ctx_of_sev q) with
+  match (Registry.lookup_oev sev ev_of_sev ctx_of_sev q) with
       None -> None 
     | Some rv -> Some (sort_of_rv rv)
 	
@@ -125,6 +127,9 @@ let clear_rec_vars sev = let (_,cev) = sev in ([],cev)
 let sort_of_param_list i ps s = 
   Safelist.fold_right (fun p ts -> SArrow(i,sort_of_param p,ts))  ps s
 
+let oper_of_xs xs i = Safelist.fold_right
+    (fun _ s -> STOper(i,SType(i), s)) xs (SType(i))
+
 (* check that s matches expected sort es. *) 
 let rec check_sort es s = 
   match (es,s) with
@@ -148,14 +153,14 @@ let rec check_sort es s =
  ***
  ***)
 
-(* EXPRESSIONS *)
+(* helpers for sort checking *)
 let expect_sort msg sort term2info check_term string_of_term term =
   let i = term2info term in
   let term_sort, new_term = check_term term in
   let term_ok, actual_term_sort = check_sort sort term_sort in
   let _ = 
     if (not term_ok) then 
-      failAt i 
+      sort_error i
 	(fun () -> 
 	   sprintf "Sort checking error in %s: %s expected but %s found\n\t%s"
 	     msg
@@ -174,7 +179,8 @@ and expect_sort_ptypeexp msg sev sort pt =
 
 and expect_sort_typeexp msg sev sort t = 
   expect_sort msg sort info_of_typeexp (check_typeexp sev) string_of_typeexp t
-    
+
+(* EXPRESSIONS *)    
 and check_exp sev e0 = 
   (* let _ = debug (sprintf "checking expression %s" (string_of_exp e0)) in *)
     match e0 with
@@ -184,15 +190,16 @@ and check_exp sev e0 =
 	    match (rec_var_ok sev q, lookup_sev sev q) with
 		(true, Some s) -> s, e0
 	      | (false, Some _)  -> 
-		  failAt i 
+		  sort_error i 
 		    (fun () -> 
-		       sprintf  "Sort checking error at variable: %s may not be used recursively" (string_of_qid q))
+		       sprintf  "%s may not be used recursively" (string_of_qid q))
 	      | (_, None) -> 
-		  failAt i 
-		    (fun () -> sprintf "Sort checking error at variable: %s is not bound" 
+		  sort_error i 
+		    (fun () -> sprintf "%s is not bound" 
 		       (string_of_qid q))
 	  end
-      | EFun(i,[],_,_) -> failAt i (fun () -> sprintf "Fatal error: zero argument function")
+	    
+      | EFun(i,[],_,_) -> run_error i (fun () -> sprintf "zero argument function")
 	  
       | EFun(i,[p],return_sort_opt,body) ->
 	  (* fully-annotated, simple lambda *)
@@ -242,9 +249,9 @@ and check_exp sev e0 =
 		    let new_e0 = EApp(i, new_e1, new_e2) in
 		      return_sort, new_e0
 		| _ -> 
-		    failAt i 
+		    sort_error i 
 		      (fun () -> sprintf 
-			 "Sort checking error in left-hand side of application: expected function but found %s"		       
+			 "expected function but found %s at left-hand side of application"		       
 			 (string_of_sort e1_sort))
 	  end		  	    
       | ELet(i,bs,e) ->
@@ -263,9 +270,9 @@ and check_exp sev e0 =
 	    check_sort (SType(i)) t_sort
 	  in
 	  let _ = if (not t_ok) then 
-	    failAt (info_of_typeexp t)
+	    sort_error (info_of_typeexp t)
 	      (fun () -> 
-		 sprintf "Sort checking error in type expression: expected type but found %s"
+		 sprintf "expected type but found %s"
 		   (string_of_sort actual_t_sort))
 	  in
 	  let new_e0 = EType(i, new_t) in
@@ -281,9 +288,9 @@ and check_exp sev e0 =
 	       let new_ve = match ve_sort with		   
 		   SName(_) -> EView(ve_i, [(ve_i, new_ve0, emptyView ve_i)])
 		 | SView(_) -> new_ve0
-		 | s -> failAt ve_i 
+		 | s -> sort_error ve_i 
 		     (fun () -> 
-			sprintf "Sort checking error in view binding: expected name or view but found %s"
+			sprintf "expected name or view but found %s"
 			  (string_of_sort s))
 	       in
 		 (i, new_ne, new_ve))
@@ -298,9 +305,9 @@ and check_exp sev e0 =
 	  let new_e1 = match e1_sort with		   
 	      SName(_) -> EView(e1_i, [(e1_i, new_e10, emptyView e1_i)])
 	    | SView(_) -> new_e10
-	    | s -> failAt e1_i 
+	    | s -> sort_error e1_i 
 		(fun () -> 
-		   sprintf "Sort checking error in list view binding: expected name or view but found %s"
+		   sprintf "expected name or view but found %s"
 		     (string_of_sort s))
 	  in
 	  let new_e2 = expect_sort_exp "cons list view expression" sev (SView(i)) e2 in
@@ -329,14 +336,14 @@ and check_ptypeexp sev pt0 = match pt0 with
 	match (rec_var_ok sev q, lookup_sev sev q) with
 	    (true, Some s) -> s, pt0
 	  | (false, Some _)  -> 
-	      failAt i 
+	      sort_error i 
 		(fun () -> 
-		   sprintf "Sort checking error at type variable: %s may not be used recursively" 
+		   sprintf "%s may not be used recursively" 
 		     (string_of_qid q))
 	  | (_,None) -> 
-	      failAt i 
+	      sort_error i 
 		(fun () -> 
-		   sprintf "Sort checking error at type varibale: %s is not bound"
+		   sprintf "%s is not bound"
 		     (string_of_qid q))
       end
   | TApp(i,pt1,pt2) ->
@@ -352,16 +359,16 @@ and check_ptypeexp sev pt0 = match pt0 with
 		let new_pt0 = TApp(i,new_pt1, new_pt2) in
 		  return_sort, new_pt0
 	    | pt1_sort -> 
-		failAt i 
+		run_error i 
 		  (fun () -> 
-		     sprintf "Sort checking error in right-hand side of type application: expected type operator expected but found %s"
+		     sprintf "expected type operator but found %s at right-hand side of type application"
 		       (string_of_sort pt1_sort))
       end
 
   | TFun(i,xs,pt_sort,pt) -> 
       begin
 	match xs with 
-	    [] -> failAt i (fun () -> "Fatal error: zero-argument type function")
+	    [] -> run_error i (fun () -> "zero-argument type function")
 	  | [x] ->
 	      let i = info_of_id x in
 	      let pt_sev = clear_rec_vars (update_sev sev (qid_of_id x) (SType(i))) in	
@@ -529,9 +536,9 @@ let rec check_decl sev di =
 	let new_sev, names_rev = Safelist.fold_left 
 	  (fun (new_sev, names) q -> 
 	     match Registry.lookup m_sev ev_of_sev q with
-		 None -> failAt i 
+		 None -> run_error i 
 		   (fun () -> 
-		      sprintf "Fatal error: the impossible happened; a just-compiled declaration, %s, was not found"
+		      sprintf "the just-compiled declaration, %s, went missing"
 			(string_of_qid q))
 	       | Some q_rv ->
 		   let nq_dot_q = dot n_qid q in
@@ -577,9 +584,9 @@ let rec compile_exp cev e0 =
 	    (* look up in the environment *)
 	    match lookup_cev cev q with
 		Some rv -> rv
-	      | None -> failAt i
+	      | None -> run_error i
 		  (fun () -> 
-		     sprintf "Run error at variable: %s is not bound"
+		     sprintf "%s is not bound"
 		       (string_of_qid q))
 	  end
 	  	  
@@ -595,8 +602,8 @@ let rec compile_exp cev e0 =
 	  let fun_sort = SArrow(i,param_sort, ret_sort) in
 	  let fun_value = Value.F(f_impl) in
 	    make_rv fun_sort fun_value
-      | EFun(i,_,Some _, _) -> failAt i (fun () -> "Run error: unflattened function")
-      | EFun(i,_,_, _) -> failAt i (fun () -> "Run error: unannotated function")
+      | EFun(i,_,Some _, _) -> run_error i (fun () -> "unflattened function")
+      | EFun(i,_,_, _) -> run_error i (fun () -> "unannotated function")
       | EMap(i,ms) ->
 	  let id_exp = EVar(i, Registry.parse_qid "Native.id") in
 	  (* maps are implemented as functions from names -> lenses *)
@@ -607,7 +614,7 @@ let rec compile_exp cev e0 =
 		     Value.N n1 ->
 		       if (id_equal n1 n2) then value_of_rv (compile_exp cev l)
 		       else f v
-		   | _ -> failAt i (fun () -> "Run error: argument to map is not a name"))
+		   | _ -> run_error i (fun () -> "argument to map is not a name"))
 	    (fun _ -> value_of_rv (compile_exp cev id_exp))
 	    ms
 	  in	    
@@ -621,8 +628,8 @@ let rec compile_exp cev e0 =
 	      | SArrow(_,_,return_sort), Value.F f ->
 		  let e2_rv = compile_exp cev e2 in
 		    make_rv return_sort (f (value_of_rv e2_rv))
-	      | _ -> failAt i 
-		  (fun () -> sprintf "Run error: function expected at left-hand side of application but %s found"
+	      | _ -> run_error i 
+		  (fun () -> sprintf "expected function but found %s at left-hand side of application"
 		     (string_of_sort (sort_of_rv e1_rv)))
 	end
     | ELet(i,bs,e) ->
@@ -639,7 +646,7 @@ let rec compile_exp cev e0 =
 	      let vrest = compile_viewbinds cev krest in
 		match (V.get vrest n) with
 		    None   -> V.set vrest n (Some v)
-		  | Some _ -> failAt i (fun () -> sprintf "Run error: name %s is repeated in view" n)
+		  | Some _ -> run_error i (fun () -> sprintf "name %s is repeated in view" n)
 	in
 	let view_value = (Value.V (compile_viewbinds cev ks)) in
 	  make_rv (SView(i)) view_value
@@ -656,17 +663,17 @@ and compile_exp_name cev e =
   let e_rv = compile_exp cev e in
     match value_of_rv (e_rv) with
       | Value.N n -> n
-      | _ -> failAt i (fun () -> sprintf "Run error: name expected but %s found" 
-			 (string_of_sort (sort_of_rv e_rv)))
-
+      | _ -> run_error i (fun () -> sprintf "name expected but %s found" 
+			    (string_of_sort (sort_of_rv e_rv)))
+	  
 and compile_exp_view cev e =
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
     match value_of_rv (e_rv) with
       | Value.V v -> v
-      | _ -> failAt i (fun () -> sprintf "Run error: view expected but %s found" 
-			 (string_of_sort (sort_of_rv e_rv)))
-	    
+      | _ -> run_error i (fun () -> sprintf "view expected but %s found" 
+			    (string_of_sort (sort_of_rv e_rv)))
+	  
 and compile_typeexp cev t0 =
   (* let _ = debug (sprintf "compiling typeexpression %s" (string_of_typeexp t0)) in *)
     match t0 with
@@ -693,12 +700,12 @@ and compile_ptypeexp cev pt0 =
 		  begin
 		    match value_of_rv rv with 
 			Value.T (Type.TT pt) -> pt
-		      | _ -> failAt i 
-			  (fun () -> sprintf "Run error: type variable %s is not bound to a non-negative type" 
+		      | _ -> run_error i 
+			  (fun () -> sprintf "type variable %s is not bound to a non-negative type" 
 			     (string_of_qid q))
 		  end
-	      | None -> failAt i
-		  (fun () -> sprintf "Run error: unbound type variable %s" 
+	      | None -> run_error i
+		  (fun () -> sprintf "type variable %s is not bound" 
 		     (string_of_qid q))
 	  end
       | TApp(i,pt1,pt2) ->
@@ -707,13 +714,14 @@ and compile_ptypeexp cev pt0 =
 		STOper(_),ptv1 -> 
 		  let f = match force_it ptv1 with
 		      Type.Fun(_,f) -> f
-		    | _        -> failAt (Type.info_of_it ptv1)
-			(fun () -> sprintf "Fatal error: type operator expected at left-hand side of type application")
+		    | _        -> run_error 
+			(Type.info_of_it ptv1)
+			  (fun () -> sprintf "type operator expected at left-hand side of type application")
 		  in
 		  let _,ptv2 = compile_ptypeexp cev pt2 in		      
 		    (Type.mk_ptype (f ptv2)) (* FIXME: hack! *)
-	      | s,_         -> failAt i
-		  (fun () -> sprintf "Run error: type operator expected at left-hand side of type application but %s found in %s"
+	      | s,_         -> run_error i
+		  (fun () -> sprintf "type operator expected at left-hand side of type application but %s found in %s"
 		     (string_of_sort s) (string_of_ptypeexp pt))
 	  end
       | _ -> assert false
@@ -729,8 +737,8 @@ and compile_ptypeexp cev pt0 =
 		let tval = Type.Var (i,q,ptype2thunk cev pt0) in
 		  tsort, tval
 	    | None ->
-		failAt i
-		  (fun () -> sprintf "Run error: unbound type variable %s" (string_of_qid q))
+		run_error i
+		  (fun () -> sprintf "type variable %s is not bound" (string_of_qid q))
 	end
     | TApp(i,pt1,pt2) ->
 	begin
@@ -739,9 +747,9 @@ and compile_ptypeexp cev pt0 =
 		let _, pt2_val = compile_ptypeexp cev pt2 in
 		  rs, Type.App(i, pt1_val, pt2_val, ptype2thunk cev pt0)
 	    | s, _ ->
-		failAt i
-		  (fun () -> sprintf "Run error: type operator expected at left-hand side of type application but %s found in %s"
-		     (string_of_sort s) (string_of_ptypeexp pt0))
+		run_error i
+		  (fun () -> sprintf "type operator expected but %s found at left-hand side of type application"
+		     (string_of_sort s))
 	end
 	  
     | TFun(i,[x],f_sort,pt) ->
@@ -757,7 +765,7 @@ and compile_ptypeexp cev pt0 =
 	  let fun_value = Type.Fun(i,f_impl) in
 	    fun_sort, fun_value
 	end
-    | TFun(i,_,_,_) -> failAt i (fun () -> "Run error: unflattened type function")
+    | TFun(i,_,_,_) -> run_error i (fun () -> "unflattened type function")
         
     | TName(i,e,pt) ->
 	let n = compile_exp_name cev e in
@@ -815,7 +823,7 @@ and compile_bindings cev bs =
 	let memoized_v = Value.memoize (value_of_rv e_rv) in
 	let memoized_rv = make_rv (sort_of_rv e_rv) memoized_v in
 	  (f_qid, overwrite_cev bcev f_qid memoized_rv)
-      | Syntax.BDef(i,_,_,_,_) -> failAt i (fun () -> "Run error: unflattened binding")
+      | Syntax.BDef(i,_,_,_,_) -> run_error i (fun () -> "unflattened binding")
   in
   let bcev,names_rev = Safelist.fold_left
     (fun (bcev,names_rev) bi ->
@@ -846,7 +854,7 @@ and compile_typebindings cev tbs =
 	    let x_qid = qid_of_id x in
 	    let t_rv = compile_typeexp cev t in
 	      (x_qid, overwrite_cev cev x_qid t_rv)
-	| (x,_,_) -> failAt (info_of_id x) (fun () -> "Run error: unflattened type binding")
+	| (x,_,_) -> run_error (info_of_id x) (fun () -> "unflattened type binding")
   in
   let tbcev,names_rev = Safelist.fold_left
     (fun (tbcev,names_rev) tbi ->
@@ -874,8 +882,8 @@ let rec compile_decl cev di =
 		 Some rv ->
 		   let nq_dot_q = dot nq q in
 		     (update_cev cev nq_dot_q rv, nq_dot_q::names)
-	       | None -> failAt i
-		   (fun () -> sprintf "Fatal error: the impossible happened; a just-compiled declaration, %s, was not found"
+	       | None -> run_error i
+		   (fun () -> sprintf "the just-compiled declaration, %s, went missing"
 		      (string_of_qid q)))
 	  (cev,[])
 	  names
@@ -896,30 +904,50 @@ let compile_module m0 =
   let new_cev,_ = compile_module_aux cev ds in
     Registry.register_env (ev_of_cev new_cev) (Syntax.qid_of_id m)
 	      
-let compile_file fn n =
-  (* let _ = debug (sprintf "compiling file %s" fn) in *)
-  let old_file_name = !file_name in
-  let _ = file_name := fn in
-  let fchan = open_in fn in
-  let lexbuf = Lexing.from_channel fchan in
+
+(* exported functions *)
+
+(* parsing *)
+let parse_lexbuf lexbuf = 
   let _ = Lexer.reset () in
-  let ast =
-    try Parser.modl Lexer.token lexbuf
+    try 
+      Parser.modl Lexer.token lexbuf
     with Parsing.Parse_error ->
-      failAt (Lexer.info lexbuf) (fun () -> "Syntax error")
+      parse_error (Lexer.info lexbuf) 
+	(fun () -> "syntax error")
+	
+let parse_string str = 
+  parse_lexbuf (Lexing.from_string str)
+    
+let parse_file fn = 
+  parse_lexbuf (Lexing.from_channel (open_in fn))
+
+(* end-to-end compilation *)
+let compile_string fake_name str = 
+  let old_fn = !Lexer.file_name in
+  let _ = Lexer.file_name := fake_name in
+  let ast = parse_string str in  
+  let ast = check_module ast in 
+  let _ = compile_module ast in 
+  let _ = Lexer.file_name := old_fn in 
+    ()
+
+let compile_file fn n =
+  let old_fn = !Lexer.file_name in
+  let _ = Lexer.file_name := fn in
+  let ast = parse_file fn in
+  let m_str = string_of_id (id_of_modl ast) in
+  let _ =
+    if (string_of_id n <> m_str) then
+      sort_error 
+	(info_of_module ast)
+	(fun () -> sprintf "module %s must appear in a file named %s.fcl"
+	   m_str (String.uncapitalize m_str))
   in
-  (* check that module is in correct file *)
-  let m = id_of_modl ast in
-  let n_str = string_of_id n in
-  let m_str = string_of_id m in
-  let _ = if (n_str <> m_str) then
-    failAt (info_of_module ast)
-      (fun () -> sprintf "Module %s must appear in a file named %s.fcl"
-	 m_str (String.uncapitalize m_str))
-  in
-  let ast = check_module ast in
-  let _ = compile_module ast in
-  let _ = file_name := old_file_name in
+  let ast = check_module ast in 
+  let _ = compile_module ast in 
+  let _ = Lexer.file_name := old_fn in 
     ()
       
+(* ugly backpatch hack! *)
 let _ = Registry.compile_file_impl := compile_file

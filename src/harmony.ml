@@ -1,8 +1,46 @@
 (****************************  Top-level functions *******************************)
-let debug s = prerr_string (s ^ "\n"); flush stderr 
- 
+
+open Error
+
 let failwith s = prerr_endline s; exit 1
-  
+ 
+(* lookup from registry *)
+let lookup qid_str = 
+  try 
+    Registry.lookup_library (Registry.parse_qid qid_str)
+  with 
+      Syntax_error(i,fn,msg) 
+    | Sort_error(i,fn,msg) 
+    | Run_error(i,fn,msg) ->     
+	Printf.eprintf "File \"%s\", %s:\n%s\n" 
+	  fn 
+	  (Info.string_of_t i) 
+	  msg;
+	exit 1
+    | Fatal_error(msg) ->
+	Printf.eprintf "Fatal error: %s\n" msg;
+	exit 1
+	  
+let lookup_lens qid_str = 
+  match lookup qid_str with
+      None -> failwith (Printf.sprintf "%s not found" qid_str)
+    | Some rv -> 
+	begin
+	  match Registry.value_of_rv rv with
+	      Value.L l -> l
+	    | _ -> failwith (Printf.sprintf "%s is not a lens" qid_str)
+	end
+
+let lookup_type qid_str = 
+  match lookup qid_str with
+      None -> failwith (Printf.sprintf "%s not found" qid_str)
+    | Some rv -> 
+	begin
+	  match Registry.value_of_rv rv with
+	      Value.T t -> t
+	    | _ -> failwith (Printf.sprintf "%s is not a type" qid_str)
+	end
+	    
 let get_ekey f = function
     Some ekey ->
       (try let _ = Surveyor.get_encoding ekey in ekey with
@@ -44,10 +82,7 @@ let get lens_qid concrete_file output_file =
   (* apply the reader, get the concrete view *)
   let cv = get_view_from_file (Surveyor.get_reader ekey) r in
   (* now we'll get the lens *)
-  let lens = match (Registry.lookup_lens (Registry.parse_qid lens_qid)) with 
-      Some l -> l
-    | None -> failwith (Printf.sprintf "lens %s not found" lens_qid)
-  in
+  let lens = lookup_lens lens_qid in
   (* apply it to get the abstract view *)
   let av = 
     try match cv with
@@ -81,10 +116,7 @@ let put lens_string abstract concrete output =
   let ckey = get_ekey c reader_ek in
   let cv = get_view_from_file (Surveyor.get_reader ckey) c in
   (* now we'll get the lens *)
-  let lens = match (Registry.lookup_lens (Registry.parse_qid lens_string)) with 
-      Some l -> l
-    | None -> failwith (Printf.sprintf "Lens %s not found" lens_string)
-  in
+  let lens = lookup_lens lens_string in
   (* apply it to put the abstract view into the concrete view*)
   let newcv = 
     try match av with
@@ -122,29 +154,11 @@ let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2
   let r2key = get_ekey r2 reader_ek in
   let r2cv = get_view_from_file (Surveyor.get_reader r2key) r2 in
   (* the lenses *)
-  let lensa = match (Registry.lookup_lens (Registry.parse_qid lensa_string)) with 
-    Some l -> l
-  | None -> failwith (Printf.sprintf "Lens %s not found" lensa_string)
-  in
-  let lens1 = match (Registry.lookup_lens (Registry.parse_qid lens1_string)) with 
-    Some l -> l
-  | None -> failwith (Printf.sprintf "Lens %s not found" lens1_string)
-  in
-  let lens2 = match (Registry.lookup_lens (Registry.parse_qid lens2_string)) with 
-    Some l -> l
-  | None -> failwith (Printf.sprintf "Lens %s not found" lens2_string)
-  in
+  let lensa = lookup_lens lensa_string in
+  let lens1 = lookup_lens lens1_string in 
+  let lens2 = lookup_lens lens2_string in 
   (* the schema *)
-  let schema : Type.t = 
-    match (Registry.lookup () (Registry.get_library) (Registry.parse_qid schema_string)) with
-      Some rv ->
-	begin
-	  match (Registry.sort_of_rv rv, Registry.value_of_rv rv) with
-	    Syntax.SType _, Value.T(t) -> t 
-	  | _ -> failwith (Printf.sprintf "%s is not a schema" schema_string)
-	end
-    | None -> failwith (Printf.sprintf "Schema %s not found" schema_string)
-  in
+  let schema = lookup_type schema_string in 
   (* apply the lenses in the get direction *)
   let arav =
     match arcv with
@@ -198,7 +212,6 @@ let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2
       let s = (Surveyor.get_writer okey) r2 in
       view_to_file s o
   | None -> assert false)
-
 
 (****************************  Command-line switches *******************************)
 

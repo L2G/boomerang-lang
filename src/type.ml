@@ -533,11 +533,11 @@ let nfcheck tbase f t =
   match tbase with
       Cat(_) ->
 	(match it_of_pt t with
-	     Cat(_) | Union(_) -> raise (Error.Run_error("Type is not in normal form")) 
+	     Cat(_) | Union(_) -> raise (Error.Fatal_error("Type is not in normal form")) 
 	   | _ -> f t)
     | Union(_) -> 
 	(match it_of_pt t with 
-	     Union(_) -> raise (Error.Run_error("Type is not in normal form")) 
+	     Union(_) -> raise (Error.Fatal_error("Type is not in normal form")) 
 	   | _ -> f t)
     | _ -> f t
 	

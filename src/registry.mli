@@ -28,8 +28,8 @@ val pre_ctx : Syntax.qid list
 val get_library : unit -> env 
 val register_env : env -> Syntax.qid -> unit
 val register_native : string -> string -> Value.t -> unit
-val lookup_library : 'a -> ('a -> env) -> ('a -> Syntax.qid list) -> Syntax.qid -> rv option
-val lookup_lens : Syntax.qid -> Lens.t option
+val lookup_oev : 'a -> ('a -> env) -> ('a -> Syntax.qid list) -> Syntax.qid -> rv option
+val lookup_library : Syntax.qid -> rv option
   
 (* backpatch hack *)
 val compile_file_impl : (string -> Syntax.id -> unit) ref

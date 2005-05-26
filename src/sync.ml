@@ -125,7 +125,7 @@ let rec sync' (t:Type.t) archo lefto righto =
 	Format.printf 
 	  "\n is not in type\n\t%s.\n" 
 	  (Type.string_of_t t);
-	raise (Error.Run_error ("Synchronization error: view is not a member of the type."))
+	raise (Error.Fatal_error ("Synchronization error: view is not a member of the type."))
       end
   in    
     match (archo, lefto, righto) with
