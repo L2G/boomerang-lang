@@ -138,6 +138,7 @@ let rec structure_from_list = function
   | [] -> empty_list
   | v :: vs -> cons v (structure_from_list vs)
 
+let list_length v = Safelist.length (list_from_structure v)
 
 (* ----------------------------------------------------------------------
  * Easy building

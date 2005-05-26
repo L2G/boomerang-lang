@@ -82,8 +82,9 @@ let groupby2 : lens =
                (wmap { TL -> groupby2 })))
 
 (*** FAST REVERSE *)
-let pad : name = "pad"
+let pad (n:name) : lens = Native.pad n
   
+(* 
 let groupby2_w_pad : lens = 
   let tmp : name = "tmp" in
     acond <[]> <[]>
@@ -109,12 +110,13 @@ let groupby2_w_pad : lens =
                rename tmp HD;             
                plunge HD)
               (wmap { TL -> groupby2_w_pad })))
+*)
 
 (* swap the first two elements of a list *)
 let swap : lens = 
   let tmp = "tmp" in 
   let tmp2 = "tmp2" in 
-    acond < [] | [Any] | [Any, {pad={}}] > < [] | [Any] | [Any, {pad={}}] >
+    acond < [] | [Any] > < [] | [Any] >
 	id	   
 	(rename HD tmp;
 	 hoist_nonunique TL tags;
@@ -129,7 +131,13 @@ let collapse : lens =
   let tmp : name = "tmp" in
     acond < [Any, Any] > < [Any, Any] > 
       id
-      (groupby2_w_pad; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
+      (groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
+
+let uncollapse : lens = 
+  let tmp : name = "tmp" in
+    acond < { ! \ (HD,TL) = Any } :: Any > < { ! \ (HD,TL) = Any } :: Any >
+      id
+      (invert (groupby2); plunge tmp; wmap { tmp -> uncollapse }; hoist tmp)
 
 let fast_reverse : lens = 
   let cap = "x" in
@@ -137,7 +145,5 @@ let fast_reverse : lens =
   collapse;
   probe "COLLAPSED";
   swap_all;
-  probe "SWAPPED";
-  invert (groupby2_w_pad); 
-  probe "UNCOLLAPSED"
+  probe "SWAPPED"
     (*   map (hoist cap) *)

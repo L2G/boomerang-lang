@@ -1423,3 +1423,38 @@ let explode_lib = L (explode)
 
 let _ = register_native "Native.explode" "lens" explode_lib
     
+(* PAD *)
+(* pad a list to a power of two *)
+let pad n = 
+  let nextPowerOf2 n = 
+    let lg = (log (float_of_int n)) /. (log 2.0) in
+      int_of_float (2.0 ** (ceil lg))
+  in
+  let pad_view = V.set V.empty n (Some V.empty) in
+    { get = 
+	(fun c -> 
+	   let len = V.list_length c in
+	   let rec add_pad v = function
+	       0 -> v
+	     | x -> add_pad (V.cons pad_view v) (x-1)
+	   in
+	     add_pad c (nextPowerOf2 len)
+	);
+      put = 
+	(* FIXME: all the pads should be at the front of the list, 
+	   but this primitive doesn't test that *)
+	(fun a co ->
+	   V.structure_from_list 
+	     (Safelist.filter 
+		(fun v -> not (V.equal pad_view v))
+		(V.list_from_structure a))
+	)
+    }
+
+let pad_lib = 
+  F(function 
+      | N n -> L (pad n)
+      | _ -> focal_type_error "Native.pad")
+    
+let _ = register_native "Native.pad" "name -> lens" pad_lib
+  

@@ -143,6 +143,7 @@ class customized_callbacks = object(self)
 	  let vb_fn = "visualizer buffer" in
 	  let vb_mn = "_Visualizer_buffer" in	      
 	    self#focal_window#add_error "OK";
+	    self#focal_window#focal_types_buffer#set_text "";
 	    self#init_get_probe ();
 	    self#init_put_probe ();
 	    remove_tag ();
@@ -179,18 +180,20 @@ class customized_callbacks = object(self)
 	      (self#focal_window#add_error "KO";
 	       if (fn = vb_fn) then add_tag i;
 	       lens := None;
-	       self#focal_window#focal_types_buffer#set_text (sprintf "Parse error: %s" msg))
+	       self#focal_window#focal_types_buffer#set_text 
+		 (sprintf "Parse error: %s at %s of %s" msg (Info.string_of_t i) fn))
 	      | (Error.Sort_error(i,fn,msg)) -> 
 		  (self#focal_window#add_error "KO";
 		   if (fn = vb_fn) then add_tag i;
 		   lens := None;
 		   self#focal_window#focal_types_buffer#set_text 
-		     (sprintf "Sort error: %s" msg))
+		     (sprintf "Sort error: %s at %s of %s" msg (Info.string_of_t i) fn))
 	      |  (Error.Run_error(i,fn,msg)) -> 
 		   (self#focal_window#add_error "KO";
 		    if (fn = vb_fn) then add_tag i;
 		    lens := None;
-		    self#focal_window#focal_types_buffer#set_text (sprintf "Run error: %s" msg))
+		    self#focal_window#focal_types_buffer#set_text 
+		      (sprintf "Parse error: %s at %s of %s" msg (Info.string_of_t i) fn))
 	      |  (Error.Fatal_error(msg)) -> 
 		   (self#focal_window#add_error "KO";
 		    lens := None;

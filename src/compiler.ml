@@ -911,8 +911,8 @@ let parse_lexbuf lexbuf =
 let parse_string str = 
   parse_lexbuf (Lexing.from_string str)
     
-let parse_file fn = 
-  parse_lexbuf (Lexing.from_channel (open_in fn))
+let parse_chan fc = 
+  parse_lexbuf (Lexing.from_channel fc)
 
 (* the main functions this module exports *)
 (* end-to-end compilation *)
@@ -928,7 +928,8 @@ let compile_string fake_name str =
 let compile_file fn n =
   let old_fn = !Lexer.file_name in
   let _ = Lexer.file_name := fn in
-  let ast = parse_file fn in
+  let fchan = open_in fn in
+  let ast = parse_chan fchan in
   let m_str = string_of_id (id_of_modl ast) in
   let _ =
     if (string_of_id n <> m_str) then
@@ -939,6 +940,7 @@ let compile_file fn n =
   in
   let ast = check_module ast in 
   let _ = compile_module ast in 
+  let _ = close_in fchan in
   let _ = Lexer.file_name := old_fn in 
     ()
       

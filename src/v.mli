@@ -117,6 +117,8 @@ val structure_from_list : t list -> t
 
 val list_from_structure : t -> t list
 
+val list_length : t -> int
+
 val is_cons : t -> bool
 
 (* raises Illformed if no head or no tail *)
