@@ -1,23 +1,22 @@
 {VCARD =
   {ADR =
     {PARCEL =
-      {WORK =
-        "133;133 Walnut St.;Suite 360;Philly;Penn;00000;U.S.A.;;"},
-     POSTAL = {WORK = ";;P.O. Box 10010;AnyCity;AnyState;00000;U.S.A.;;"}},
+      {WORK = ";133 Walnut St.;Suite 360;Philly;Penn;00000;U.S.A.;;"},
+     POSTAL = {WORK = ";;P.O. Box 10010;AnyCity;AnyState;00000;U.S.A;;"}},
    BDAY = 1997-11-29;;,
-   EMAIL = {Internet = webmaster@here.com;;},
+   EMAIL = {Internet = webmaster@anywhere.com;;},
    FN = "Mr. John P. Smith, Jr.;;",
-   LABEL = {POSTAL = {WORK = "P.O. Box 10010;Anywhere, TN  37849;U.S.A."}},
+   LABEL = {POSTAL = {WORK = "P.O. Box 10010;Anywhere,   TN  37849;U.S.A."}},
    ORG = "XYZ Corp.;North American Division;Manufacturing;;",
-   REV = 20050520T142805;;,
+   REV = 20050526T134100;;,
    TEL =
-    {Cell = +1-234-456-7891;;,
-     Home = +1-234-456-789;;,
+    {Cell = {VOICE = +1-234-456-7891;;},
+     Home = {VOICE = {FAX = {MESG = +1-234-456-789123456789;;}}},
      Modem = {FAX = "+1-234-456-7891,,*3;;"},
-     Pager = +1-234-456-7891;;,
-     Work = {VOICE = {MESG = {PREF = "+1-234-456-7891234567 x56473;;"}}}},
+     Pager = {VOICE = {FAX = +1-234-456-7891;;}},
+     Work = {VOICE = {FAX = {MESG = {PREF = "+1-234-456-7891 x56473;;"}}}}},
    TITLE = "General Manager;;",
    TZ = -0500;;,
-   UID = "http://www.upenn.com/mrh.vcf;;",
-   URL = "http://www.anywhere.com/mrh.vcf;;",
+   UID = "http://www.anywhere.com/mrh.vcf;;",
+   URL = "http://www.upenn.com/mrh.vcf;;",
    VERSION = 2.1;;}}

@@ -1,5 +1,8 @@
 module Lens=
 
+type V = { !={} }
+type data = {"PCDATA" = V}
+
 let lens1 = (List.hd []; hoist ""; List.hd[]; 
 	       map(hoist""; List.hd []; hoist "PCDATA"))
 
@@ -15,17 +18,30 @@ let lens4 =  (List.hd []; hoist ""; List.hd [];
 let lens5 = (List.hd[]; hoist ""; List.hd []; 
 	     map(hoist ""; List.hd []; hoist "PCDATA"))
   
-let lensTEL = (List.hd []; hoist ""; flatten;
-	       fork {"Work"}
-		 ( map (lens4) )
-		 ( fork {"Modem"} (map(lens5)) (map(lens3)) ) )
+let lensTEL = List.hd []; hoist ""; flatten;
+                map (List.hd []; hoist ""; List.hd [];
+		     ccond data
+		       (hoist "PCDATA")
+		       (map(hoist ""; List.hd [];
+			    ccond data
+			      (hoist "PCDATA")
+			      (map(hoist ""; List.hd [];
+                                   ccond data 
+				     (hoist "PCDATA")
+				     (map(hoist ""; List.hd [];
+					  ccond data
+					    (hoist "PCDATA")
+					    (map (hoist ""; List.hd [];
+						  ccond data
+						    (hoist "PCDATA")
+						    (probe "The format of vcard in TEL isn't valid") ) ) ) ) ) ) ) ) ) 
     
 let l = 
   hoist "";
   List.hd [];
   map ( hoist ""; flatten;
         fork {"TEL"}
-	  ( map(lensTEL) )
+	  ( map(lensTEL))
 	  ( fork {"ADR","LABEL"}
 	      ( map(lens2) )
 	      ( fork {"EMAIL"} 
