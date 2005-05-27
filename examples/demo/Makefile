@@ -1,65 +1,75 @@
-
 include ../Common.mk
 
-# HARMONY STUFF
+###
+#  Common Harmony stuff to build ie6util
+###
 SRC = $(shell pwd)/../../src
-RESULT = ie6util
 CLIBS = $(COMMON_CLIBS)
 SOURCES = $(COMMON_SOURCES) ie6util.ml
-IN-FOLDER = ./IE6BMSample
-OUT-FOLDER = ./IE6BMNew
+RESULT = ie6util
 
-SAFARI_PLIST=/Users/nate/Library/Safari/Bookmarks.plist
+
+SAFARI_PLIST= /Users/nate/Library/Safari/Bookmarks.plist
+IN-FOLDER = IE6BMSample
+IN-TAR = IE6BMSample.tar.gz
+OUT-FOLDER = IE6BMNew
+OUT-TAR = IE6BMNew.tar.gz
 
 TRASH := $(TRASH) safari-pre-in.xml safari-in.xml safari-out.xml \
         ie-out.meta arch-in.meta arch-out.meta \
-	 $(IN-FOLDER) $(OUT-FOLDER) ie-in.meta \
+	 $(IN-FOLDER) $(OUT-FOLDER) $(OUT-TAR) ie-in.meta \
 	 *.o *.cm* ie6util
 
 test: 
-	@echo "Welcome to the Harmony Demo"	
+	@echo "Welcome to the Harmony Demo"
 
-all-clean: 
+clean2: 
 	rm -fr $(TRASH)
 
 # Preprocess Safari input
-safari-in.xml: $(SAFARI_PLIST)
+safari-in.meta: $(SAFARI_PLIST)
 	plutil -convert xml1 \
 		-o safari-pre-in.xml \
 		$(SAFARI_PLIST);
 	tail +3 safari-pre-in.xml > safari-in.xml;
+	$(HARMONY) -I lenses get -l Safari.l3 -c safari-in.xml -o safari-in.meta
 
 # Preprocess IE input
 $(IN-FOLDER):
 	tar zxvf IE6BMSample.tar.gz
 
 ie-in.meta: native-code $(IN-FOLDER)
-	./ie6util get $(IN-FOLDER) ie-in.meta
+	./ie6util get $(IN-FOLDER) ie-pre-in.meta
+	$(HARMONY) -I lenses get -l IExplorer.l3 -c ie-pre-in.meta -o ie-in.meta
 
-# Sync
-sync: safari-in.xml ie-in.meta 
+# Synchronization
+sync: safari-in.meta ie-in.meta 
 	$(HARMONY) -I lenses sync \
 		-schema Schemas.BushAbstract \
 		-archive arch-in.meta \
-		-lensar Prelude.id \
-		-replica1 safari-in.xml \
-		-lensr1 Safari.l3 \
+		-replica1 safari-in.meta \
 		-replica2 ie-in.meta \
-		-lensr2 IExplorer.l3 \
-		-newreplica1 safari-out.xml \
+		-lensar Prelude.id -lensr1 Prelude.id -lensr2 Prelude.id \
+		-newreplica1 safari-out.meta \
 		-newreplica2 ie-out.meta \
 		-newarchive arch-out.meta
 
 # Postprocess Safari output
-update-safari: 
+safari-out.xml:
+	$(HARMONY) -I lenses put -l Safari.l3 -a safari-out.meta -c safari-in.meta -o safari-out.xml
+
+update-safari: safari-out.xml
 	plutil -convert binary1 -o $(SAFARI_PLIST) safari-out.xml
 
 # Postprocess IE output
+
+$(OUT-FOLDER): ie6util ie-out.meta
+	$(HARMONY) -I lenses put -l IExplorer.l3 -a ie-out.meta -c ie-in.meta -o ie-out2.meta
+	./ie6util put ie-out2.meta $(OUT-FOLDER) 
+
 update-ie: $(OUT-FOLDER)
 	tar zcvf IE6BMNew.tar.gz $(OUT-FOLDER)
 	scp IE6BMNew.tar.gz jnfoster@seas.upenn.edu:html/tmp/
 
-$(OUT-FOLDER): ie6util ie-out.meta
-	./ie6util put ie-out.meta $(OUT-FOLDER) 
 
 include $(SRC)/Common.Makefile
