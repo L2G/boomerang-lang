@@ -1,0 +1,1 @@
+The real lens concat is the lens l, it works on the list of lists ( if you want the empty list, you write it [""]).   
