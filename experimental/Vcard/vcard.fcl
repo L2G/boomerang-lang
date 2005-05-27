@@ -1,7 +1,7 @@
 module Vcard =
 
-let EmptyList = List.Nil 
-let firstListEmpty = <{List.HD = List.Nil, List.TL = Any}>
+let EmptyList = Nil 
+let firstListEmpty = <{List.HD = Nil, List.TL = Any}>
 let firstCharSpace = <{" "}::Any>
 
 let concat:lens =
