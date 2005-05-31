@@ -1,6 +1,7 @@
 THINGS TO DO
 
 IMMEDIATE
+fix lexer, add unit test framework
 think about Makefiles!
 continue documenting interfaces (do 'make docs' in /src), 
   beginning with v.mli (which still probably has dead stuff in it)
