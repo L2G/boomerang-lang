@@ -1,4 +1,4 @@
-(** Views *)
+(** The module for Views *)
 
 (* --------------------------------------------------------------------- *)
 (**{2 The Type of Views} *)
@@ -16,16 +16,16 @@ val dom : t -> Name.Set.t
 (** [dom v] returns the domain of [v]. *)
 
 val singleton_dom : t -> Name.t
-(** [atomic_dom v] returns the name of the single child of the singleton view
-    [v]. Raises [Illformed] if [v] is not a singleton. *)
+(** [singleton_dom v] returns the name of the single child of the singleton view [v].
+    @raise Illformed if [v] is not a singleton. *)
 
 val get : t -> Name.t -> t option
 (** [get v k] yields [Some kid] if [v(k) = kid], or [None] if [v] is undefined
     at [k]. *)
 
 val get_required : t -> Name.t -> t 
-(** [get_required v k] returns [v(k)], raising [Illformed] if [k] not in
-    [dom v]. *) 
+(** [get_required v k] returns [v(k)].
+    @raise Illformed if the required child [k] is missing in [v].*)
 
 val is_empty : t -> bool
 (** [is_empty v] returns true if [dom v] is the empty set. *)
@@ -38,41 +38,54 @@ val equal_opt : t option -> t option -> bool
     Some v1'], [v2 = Some v2'] and [v1' = v2'].  Otherwise it returns false. *)
 
 val is_singleton : t -> bool
+(** [is_singleton v] returns true if [dom v] only has one element, and false otherwise. *)
+
 val same_root_sort : t -> t -> bool
+(** [same_root_sort v u] returns true if the domains of [v] and [u] are equal. *)
+
 val is_list : t -> bool
+(** [is_list v] returns true if [v] represents is a list, and false otherwise. *)
+
 val is_empty_list : t -> bool
+(** [is_empty_list v] returns true if and only if [v] is the view representing the empy list. *)
 
 val to_list : t -> (Name.t * t) list
+(** [to_list v] returns the list of the children of [v], associated to their names. *)
 
 (* --------------------------------------------------------------------- *)
 (** {2 Creators} *)
 
 exception Illformed of string * (t list)
-(** Raised if someone attempts to create a view that violates
-    well-formedness constraints. *)
+(** Raised if someone attempts to create a view that violates well-formedness constraints. *)
 
 val empty : t
-
-val empty_list: t
+(** The empty view *)
 
 val from_list : (Name.t * t) list -> t
+(** Being the converse function of [to_list], [from_list l] returns the view with
+    the children described in the association list [l] *)
 
 val set : t -> Name.t -> t option -> t
+(** [set v k kid] sets the children under name [k] in [v] to [t] if [kid = Some t],
+    and removes any previously existing entry under [k] if [kid = None] *)
 
 val set_star : t -> (Name.t * t option) list -> t
+(** [set_star v kidl] takes every [(n, kid)] in [kidl] and iteratively applies
+    [set v k kid]. {e NB : Children are modified in left-to-right order.} *)
 
 val create_star : (Name.t * t option) list -> t
 (** [create_star binds = set_star empty binds] *)
 
+(** A description type for views. A view can then be created from a description using [from_desc] *)
 type desc =
-    V of (Name.t * desc) list   (* a view *)
-  | L of desc list              (* a list of views *)
-  | Val of Name.t               (* a value *)  
-  | In of t                     (* an existing view *)
-  | E                           (* the empty view *)
+    V of (Name.t * desc) list   (** A view with names and associated children in a list *)
+  | L of desc list              (** A list of views *)
+  | Val of Name.t               (** A view representing a single value *)  
+  | In of t                     (** An existing view *)
+  | E                           (** The empty view *)
 
 val from_desc : desc -> t
-
+(** [from_desc d] creates the view corresponding to the description [d] *)
 
 (* --------------------------------------------------------------------- *)
 (** {2 Special forms of views} *)
@@ -85,19 +98,20 @@ val new_value : Name.t -> t
     single child and no grandchildren. *)
 
 val get_value : t -> Name.t
-(** [get_value v] returns the single element of [dom v] if [v] is a value and
-    raises [Illformed] otherwise. *)
+(** [get_value v] returns the single element of [dom v] if [v] is a value.
+    @raise Illformed otherwise. *)
 
 val is_value : t -> bool
 (** Test whether a view is a value. *)
 
 val get_field_value : t -> Name.t -> Name.t
-(** [get_field_value v k] assumes that [v] has a child named [k], and that [k]
-    has a child that is a value; returns the value **)
+(** [get_field_value v k] assumes that [v] has a child named [k], and that [k] is a value ; returns this value.
+    @raise Illformed if there is no child named [k], or if it is not a value *)
 
 val get_field_value_option : t -> Name.t -> Name.t option
 (** [get_field_value v k] returns [None] if [v] does not have a child named
-    [k], otherwise returns [Some (get_field_value v k)] **)    
+    [k], otherwise returns [Some (get_field_value v k)]
+    @raise Illformed if [v] has a child named [k], but [k] is not a value *)    
 
 val set_field_value : t -> Name.t -> Name.t -> t
 (** [set_field_value v k s] creates a value from [s], and stores it under
@@ -110,66 +124,108 @@ val field_value : Name.t -> Name.t -> t
 (** {2 Views representing lists} *)
 
 val cons : t -> t -> t
+(** [cons v t] returns the view representing the list of head [v] and tail [t] *)
 
 val empty_list : t
+(** The view representing the empty list *)
 
 val structure_from_list : t list -> t
+(** [structure_from_list tl] returns the view representing the list of views [tl] *)
 
 val list_from_structure : t -> t list
+(** [list_from_structure t] assumes [t] is a list and returns an ocaml list of the views in [t].
+    @raise Illformed if [t] is not a list *)
 
 val list_length : t -> int
+(** [list_length t] assumes [t] is a list, and returns its length.
+    @raise Illformed if [t] is not a list *)
 
 val is_cons : t -> bool
+(** [is_cons t] returns true if and only if the domain of [t] is that of a non-empty list *)
 
-(* raises Illformed if no head or no tail *)
 val head : t -> t
+(** [head t] returns the head of the list [t]
+    @raise Illformed if [t] has not a list or is empty *)
+
 val tail : t -> t
+(** [tail t] returns the tail of the list [t]
+    @raise Illformed if [t] has not a list or is empty *)
 
 (* --------------------------------------------------------------------- *)
 (** {2 Utility functions} *)
 
 val map : (t -> (t option)) -> t -> t
+(** [map f v] returns a view with same domain as [v], where the associated value [a] of all
+    bindings of [v] has been replaced by the result of the application of [f] to [a]. The 
+    bindings are passed to [f] in increasing order with respect to the alphabetical order
+    on the names in the domain *)
 
 val mapi : (Name.t -> t -> (t option)) -> t -> t
+(** Same as [map], but the function receives as arguments both the name and the associated
+    view for each child in the view. *)
 
-(** returns true if the given predicate is true for all child views *)
 val for_all : (t -> bool) -> t -> bool
+(** returns true if the given predicate is true for all child views *)
 
-(** returns true if the given predicate is true for all name&child view pairs *)
 val for_alli : (Name.t -> t -> bool) -> t -> bool
+(** returns true if the given predicate is true for all name&child view pairs *)
 
 val fold : (Name.t -> t -> 'a -> 'a) -> t -> 'a -> 'a
+(** [fold f v] a computes [(f kN tN ... (f k1 t1 a)...)], where [k1 ... kN] are
+    the names of all children in [v]  (in increasing order), and [t1 ... tN]
+    are the associated trees. *)
 
 val iter : (Name.t -> t -> unit) -> t -> unit
+(** [iter f v] applies [f] to all children in [v]. [f] receives the name as first
+    argument, and the associated tree as second argument. The names are passed to
+    [f] in alphabetical order. *)
 
 val split : (Name.t -> bool) -> t -> t * t
+(** [split p v] splits the view [v] according to the predicate [p] on names.
+    Returns the pair of views [(v1,v2)], such all names in [dom v1] verify [p]. *)
 
 val concat : t -> t -> t
-(* raises [IllFormed] in case of domain collision *)
+(** [concat v1 v2] yields the view containing all the children of [v1] and [v2].
+    @raise Illformed in case of domain collision *)
 
 (* --------------------------------------------------------------------- *)
 (** {2 Printing functions} *)
+(** {3 Pretty-printing of views} *)
 
 val format : t -> unit
+(** The view passed to [format] is formatted to a string and printed to the standard output. *)
 
 val format_option : t option -> unit
+(** [format_option] does the same job as [format] if its argument is [Some view], and prints {i None} otherwise. *)
 
 val string_of_t : t -> string
+(** [string_of_t v] returns the formatted string representing [v] without actually printing it. *)
 
+val show_diffs : t -> t -> unit
+(** Shows the differences between the two views passed as arguments. *)
+
+(** {3 Formatting of error messages} *)
+(**  A type for easy formatting of error messages *)
 type msg = [`String of string | `Name of Name.t | `Break | `View of t
           | `View_opt of t option | `Open_box | `Close_box ] 
 
 exception Error of msg list
+(** General exception for errors in Harmony *)
 
 val format_msg : msg list -> unit
+(** Prints a message list to the standard error output. *)
 
 val error_msg : msg list -> 'a
-
-val show_diffs : t -> t -> unit
+(** @raise Error with the message list passed as argument *)
 
 (* --------------------------------------------------------------------- *)
 (**{2 Names used to encode cons cells as trees} *)
 
 val hd_tag : Name.t
+(** The tag name for the head of a list *)
+
 val tl_tag : Name.t
+(** The tag name for the tail of a list *)
+
 val nil_tag : Name.t
+(** The tag name for the empty list *)
