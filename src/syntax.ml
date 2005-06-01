@@ -32,7 +32,17 @@ let qid_compare (qs1,x1) (qs2,x2) =
   in
     ids_compare (qs1@[x1]) (qs2@[x2])
 let qid_equal q1 q2 = (qid_compare q1 q2 = 0)
-
+	
+let qid_prefix q1 q2 = 
+  let (is1,i1) = q1 in
+  let (is2,i2) = q2 in 
+  let il1 = is1 @ [i1] in
+  let il2 = is2 @ [i2] in
+    ((Safelist.length il1) <= (Safelist.length il2)) 
+    && (Safelist.for_all 
+	  (fun (i1,i2) -> id_equal i1 i2)
+	  (Safelist.combine il1 (Misc.take (Safelist.length il1) il2)))
+      
 let string_of_id (_,i) = i
 let string_of_qid (q,i) = concat_list "." (Safelist.map string_of_id q@[string_of_id i])
 
@@ -96,7 +106,9 @@ type typebinding = (id * id list * typeexp)
 type decl = 
     DLet of i * binding list 
   | DType of i * typebinding list 
-  | DMod of i * id * decl list  (* inner modules can't open name spaces, for now *)
+  | DMod of i * id * decl list 
+  | DTestGet of i * exp * exp * exp option 
+  | DTestPut of i * exp * (exp * exp option) * exp option
       
 (* modules *)
 type modl = MDef of i * id * qid list * decl list
@@ -263,6 +275,8 @@ and string_of_decl = function
        ; string_of_id i
        ; " =\n"]
        @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
+  | DTestGet(_) -> " TESTGET"
+  | DTestPut(_) -> " TESTPUT"
 
 let id_of_modl (MDef(_,m,_,_)) = m
 let info_of_module (MDef(i,_,_,_)) = i

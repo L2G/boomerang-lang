@@ -1,59 +1,89 @@
 module List =
 
-(* names, views *)
 let HD : name = Native.hd_tag
 let TL : name = Native.tl_tag
 let NIL : name = Native.nil_tag
-let tags = { HD, TL, NIL }
-
+let tags : view = { `HD, `TL, `NIL }
+  
 (* lenses *)
-let hd (d:view) : lens = focus HD { TL = d }
-let tl (d:view) : lens = focus TL { HD = d }
-let map (l:lens) : lens = wmap { HD -> l, TL -> (map l) }
+let hd (d:view) : lens = focus HD { `TL = d }
+let tl (d:view) : lens = focus TL { `HD = d }
+let map (l:lens) : lens = wmap { `HD -> l, `TL -> (map l) }
+
 let reverse : lens = 
-  let tmp : name = "tmp" in
+  let old_HD : name = "old_hd" in
   let rotate : lens = 
-    acond <[] | [Any]> <[] | [Any]>
-      id
-      (rename HD tmp;
-       hoist_nonunique TL tags;
-       xfork {tmp, TL} {TL}
-	 (rename tmp HD;
-	  plunge TL;
-	  wmap { TL -> rotate })
-	 id) 
+    acond < [] | [`Any] > < [] | [`Any] >
+	id
+	(rename HD old_HD;
+	 hoist_nonunique TL tags;
+	 xfork {`old_HD, `TL} {`TL}
+	   (rename old_HD HD;
+	    plunge TL;
+	    wmap { `TL -> rotate })
+	   id) 
   in
-    wmap { TL -> reverse }; 
+    wmap { `TL -> reverse }; 
     rotate
 
-(* FIXME? maybe change this name, it sounds like the general @ *)       
-let append (v:view) : lens =
-  acond <[]> <[Any]>
-    (const v {})
-    (wmap { TL -> append v })
+let simple_filter (E:type) : lens = 
+  wmap { `TL -> simple_filter E };
+  ccond < E::Any >
+    (tl {"error"})
+    id
 
-(* filter:
- *    - some_D must NOT be an E
- *)
+(* filter: - some_D must NOT be an E
+ *)    
 let filter (D:type) (E:type) (some_D:view) : lens =
+  let append (v:view) : lens =
+    acond <[]> <[`Any]>
+      (const v {})
+      (wmap { `TL -> append v })
+  in
   let filter_aux (D:type) (E:type) (some_D:view) : lens = 
     cond_ff <List E> < [] > < D::(List D) >
       (plunge "_"; wmap { "_" -> filter E D {} }; hoist "_")
-      (append [some_D])
+      (append [`some_D])
       (const [] [])
       (inner_filter)
   and inner_filter : lens =
     (* this Any used to be a List containing at least one D *)
     ccond < E::Any > 
-      (wmap { TL -> inner_filter }; tl {"error"})
-      (wmap { TL -> filter_aux D E some_D } )
+      (wmap { `TL -> inner_filter }; tl {"error"})
+      (wmap { `TL -> filter_aux D E some_D } )
   in
     filter_aux D E some_D
+
+
+let concat : lens = 
+  let concat_aux : lens = 
+    xfork {`HD} {`HD, "x"} 
+      (hoist HD; rename TL "x") 
+      id;
+    xfork {"x", `TL} {`TL} 
+      (rename "x" HD; plunge TL; 
+       wmap {`TL -> concat1}) 
+      id
       
+  and concat1: lens =
+    acond < []::Any > < {" "}::Any >
+      (fork {`HD} 
+	 (map (rename NIL " ")) 
+	 (wmap {`TL -> concat2}))
+      (plunge "_"; wmap { "_" -> concat_aux}; hoist "_")
+      
+  and concat2: lens = 
+    ccond < [] >
+      id
+      (acond < [`Any] > < List { ! \ (" ") = `Any} >
+         (focus HD {`TL = []} )
+         (plunge "_"; wmap { "_" -> concat1}; hoist "_"))
+  in concat1
+
 let groupby2 : lens = 
   let add_empty_tail : lens =
     add TL {};
-    wmap { TL -> add NIL {} }
+    wmap { `TL -> add NIL {} }
   in
   let tmp : name = "tmp" in
     acond <[]> <[]>
@@ -66,77 +96,51 @@ let groupby2 : lens =
 	   (a) tail was empty --> domain is { tmp, nil }
 	   (b) tail was non-empty --> domain is { tmp, hd, tl }
 	*)
-	acond <{tmp=Any,NIL={}}> <[[Any]]>
+	acond <{`tmp=`Any,`NIL={}}> <[[`Any]]>
 	  ((* case (a) yield [[tmp]] *)
-	    xfork {NIL} {TL} (plunge TL) id;
+	    xfork {`NIL} {`TL} (plunge TL) id;
             rename tmp HD;
             plunge HD;
 	    add_empty_tail)
 	  ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
-            xfork {tmp, HD} {HD}
+            xfork {`tmp, `HD} {`HD}
               (rename HD TL;
-	       wmap {TL -> plunge HD; add_empty_tail };
+	       wmap {`TL -> plunge HD; add_empty_tail };
                rename tmp HD;             
                plunge HD)
-               (wmap { TL -> groupby2 })))
+               (wmap { `TL -> groupby2 })))
 
 (*** FAST REVERSE *)
 let pad (n:name) : lens = Native.pad n
   
-(* 
-let groupby2_w_pad : lens = 
-  let tmp : name = "tmp" in
-    acond <[]> <[]>
-      id
-      ((* (1) save hd of the list under tmp *)
-	rename HD tmp;
-	(* (2) bring the tail of the list up to the root level *)
-	hoist_nonunique TL tags;
-	(* split on domain at the root level; two cases:
-	   (a) tail was empty --> domain is { tmp, nil }
-	   (b) tail was non-empty --> domain is { tmp, hd, tl }
-	*)
-	acond < {tmp=Any,NIL={}} > < [[Any,{pad={}}]] >
-	  ((* case (a) yeild [[tmp]] *)	    
-	    xfork {NIL} {TL} (plunge TL) id;
-            rename tmp HD;
-            plunge HD;
-	    add TL [{pad={}}])
-	  ((* case (b) produce [tmp,hd]::(groupby2_w_pad tl) *)
-            xfork {tmp, HD} {HD}
-              (rename HD TL;
-	       wmap {TL -> plunge HD; add TL [] };
-               rename tmp HD;             
-               plunge HD)
-              (wmap { TL -> groupby2_w_pad })))
-*)
-
 (* swap the first two elements of a list *)
 let swap : lens = 
   let tmp = "tmp" in 
   let tmp2 = "tmp2" in 
-    acond < [] | [Any] > < [] | [Any] >
+    acond < [] | [`Any] > < [] | [`Any] >
 	id	   
 	(rename HD tmp;
 	 hoist_nonunique TL tags;
-	 xfork { tmp, TL } { TL } (rename tmp HD; plunge TL) id)
+	 xfork { `tmp, `TL } { `TL } (rename tmp HD; plunge TL) id)
 	
 let swap_all : lens = 
-  acond < { ! \ (HD,TL) = Any} > < { ! \ (HD,TL) = Any } > 
+  acond < { ! \ (`HD,`TL) = `Any} > < { ! \ (`HD,`TL) = `Any } > 
     id
-    (swap; wmap { HD -> swap_all, TL -> wmap { HD -> swap_all }})
+    (swap; wmap { `HD -> swap_all, `TL -> wmap { `HD -> swap_all }})
        
+type no_list_tags = { * \ ( `HD,`TL,`NIL) = `Any }
+
 let collapse : lens = 
   let tmp : name = "tmp" in
-    acond < [Any, Any] > < [Any, Any] > 
+    acond < [ `Any, `Any] > < [ `Any, `Any ] >
       id
-      (groupby2; plunge tmp; wmap { tmp -> collapse }; hoist tmp)
+      (groupby2; plunge tmp; wmap { `tmp -> collapse }; hoist tmp)
 
 let uncollapse : lens = 
   let tmp : name = "tmp" in
-    acond < { ! \ (HD,TL) = Any } :: Any > < { ! \ (HD,TL) = Any } :: Any >
+    acond < { ! \ (`HD,`TL) = `Any } :: Any > < { ! \ (`HD,`TL) = `Any } :: Any >
       id
-      (invert (groupby2); plunge tmp; wmap { tmp -> uncollapse }; hoist tmp)
+      (invert (groupby2); plunge tmp; wmap { `tmp -> uncollapse }; hoist tmp)
 
 let fast_reverse : lens = 
   let cap = "x" in
@@ -145,4 +149,3 @@ let fast_reverse : lens =
   probe "COLLAPSED";
   swap_all;
   probe "SWAPPED"
-    (*   map (hoist cap) *)

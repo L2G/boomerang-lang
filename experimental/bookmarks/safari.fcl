@@ -84,7 +84,7 @@ let tidy : lens =
   
   let tidy_link =
     rename "URLString" "url";
-    wmap { "URIDictionary" -> rename "title" "name"; filter {"BLANK", "name"} {}};
+    below "URIDictionary" (rename "title" "name"; filter {"BLANK", "name"} {});
     hoist_nonunique "URIDictionary" {"name", "BLANK"};
     merge "url" "BLANK";
     filter {"name", "url"} {} in

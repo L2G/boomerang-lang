@@ -20,6 +20,23 @@ let compiler_debug = Prefs.createBool "debug-compiler" false
   "print debugging information during Focal compilation"
   "print debugging information during Focal compilation"
 
+(* unit testing *)
+let tests = Prefs.createStringList
+  "test"
+  "run unit test for the specified module"
+  "run unit tests for the specified module"
+let _ = Prefs.alias tests "t"
+  
+let test_all = Prefs.createBool "test-all" false
+  "run unit tests for all modules"
+  "run unit tests for all modules"
+
+let check_test m = 
+  Safelist.fold_left 
+    (fun r qs -> r or (Syntax.qid_prefix (Registry.parse_qid qs) m))
+    (Prefs.read test_all)
+    (Prefs.read tests)
+    
 let debug s_thk = 
   if Prefs.read compiler_debug 
   then 
@@ -37,6 +54,9 @@ let sort_error i msg_thk =
     
 let run_error i msg_thk = 
   raise (Error.Run_error(i, !Lexer.file_name, msg_thk ()))
+
+let test_error i msg_thk = 
+  raise (Error.Test_error(i, !Lexer.file_name, msg_thk ()))
 
 (* compiling environments comprise:
  *  - a qid list: the naming context, a list of open modules 
@@ -512,7 +532,7 @@ and check_typebindings sev tbs =
     (tbsev, Safelist.rev names_rev, Safelist.rev new_tbs_rev)
       
 (* type check a single declaration *)
-let rec check_decl sev di = 
+let rec check_decl sev m di = 
   (* let _ = debug_decl (sprintf "checking declaration %s\n" (string_of_decl di)) in *)
   let old_rec_vars = get_rec_vars sev in
   match di with
@@ -527,7 +547,8 @@ let rec check_decl sev di =
 	  (set_rec_vars new_sev old_rec_vars, names, new_di)  
     | DMod(i,n,ds) ->
 	let n_qid = qid_of_id n in	
-	let m_sev,names,new_ds = check_module_aux sev ds in
+	let mn = Syntax.dot m n_qid in
+	let m_sev,names,new_ds = check_module_aux sev mn ds in
 	let new_sev, names_rev = Safelist.fold_left 
 	  (fun (new_sev, names) q -> 
 	     match Registry.lookup m_sev ev_of_sev q with
@@ -543,13 +564,47 @@ let rec check_decl sev di =
 	in
 	let new_di = DMod(i,n,new_ds) in
 	  (set_rec_vars new_sev old_rec_vars, Safelist.rev names_rev, new_di)
+    | DTestGet(i,l,c,reso) ->	
+	if not (check_test m) then (sev, [], di)
+	else
+	  begin
+	    let new_l = expect_sort_exp "test lens get" sev (SLens(i)) l in
+	    let new_c = expect_sort_exp "test lens get concrete view" sev (SView(i)) c in
+	    let new_reso = 
+	      match reso with 
+		  None     -> None 
+		| Some res -> Some (expect_sort_exp "test lens get result" sev (SView(i)) res)
+	    in
+	    let new_di = DTestGet(i,new_l, new_c, new_reso) in
+	      (sev, [], new_di)
+	  end
 	    
+    | DTestPut(i,l,(a,co),reso) -> 
+	if not (check_test m) then (sev, [], di)
+	else
+	  begin
+	    let new_l = expect_sort_exp "test lens put" sev (SLens(i)) l in
+	    let new_a = expect_sort_exp "test lens put abstract view" sev (SView(i)) a in
+	    let new_co = 
+	      match co with 
+		  None     -> None 
+		| Some c -> Some (expect_sort_exp "test lens put concrete view" sev (SView(i)) c)
+	    in
+	    let new_reso = 
+	      match reso with 
+		  None     -> None 
+		| Some res -> Some (expect_sort_exp "test lens get result" sev (SView(i)) res)
+	    in
+	    let new_di = DTestPut(i,new_l, (new_a, new_co), new_reso) in
+	      (sev, [], new_di)
+	  end
+	
 (* type check a module *)
-and check_module_aux sev ds = 
+and check_module_aux sev m ds = 
   let new_sev, names, new_ds_rev = 
     Safelist.fold_left 
       (fun (sev, names, new_ds_rev) di ->
-	 let new_sev, new_names, new_di = check_decl sev di in
+	 let new_sev, new_names, new_di = check_decl sev m di in
 	   new_sev, names@new_names, new_di::new_ds_rev)
       (sev,[],[])
       ds
@@ -560,7 +615,7 @@ let check_module m0 =
   (* let _ = debug (sprintf "checking module %s" (string_of_module m0)) in *)
   let (Syntax.MDef(i,m,nctx,ds)) = m0 in
   let sev = set_sev_ctx (empty_sev ()) (nctx@Registry.pre_ctx) in
-  let _,_,new_ds = check_module_aux sev ds in 
+  let _,_,new_ds = check_module_aux sev (Syntax.qid_of_id m) ds in 
   let new_m0 = Syntax.MDef(i,m,nctx,new_ds) in
     new_m0
 
@@ -668,7 +723,15 @@ and compile_exp_view cev e =
       | Value.V v -> v
       | _ -> run_error i (fun () -> sprintf "view expected but %s found" 
 			    (string_of_sort (sort_of_rv e_rv)))
-	  
+
+and compile_exp_lens cev e = 
+  let i = info_of_exp e in
+  let e_rv = compile_exp cev e in
+    match value_of_rv (e_rv) with
+      | Value.L l -> l
+      | _ -> run_error i (fun () -> sprintf "lens expected but %s found" 
+			    (string_of_sort (sort_of_rv e_rv)))
+  
 and compile_typeexp cev t0 =
   (* let _ = debug (sprintf "compiling typeexpression %s" (string_of_typeexp t0)) in *)
     match t0 with
@@ -861,14 +924,15 @@ and compile_typebindings cev tbs =
     tbcev, Safelist.rev names_rev
 
 (* type check a single declaration *)
-let rec compile_decl cev di = 
+let rec compile_decl cev m di = 
   (* let _ = debug_decl (sprintf "compiling declaration %s\n" (string_of_decl di)) in *)
   match di with
   | DLet(i,bs) -> compile_bindings cev bs 
   | DType(i,tbs) -> compile_typebindings cev tbs
   | DMod(i,n,ds) ->
       let nq = qid_of_id n in
-      let m_cev, names = compile_module_aux cev ds in
+      let mn = dot m nq in
+      let m_cev, names = compile_module_aux cev mn ds in
       (* insert all the just-compiled names into the environment *)
       let new_cev, names_rev =
 	Safelist.fold_left
@@ -884,10 +948,80 @@ let rec compile_decl cev di =
 	  names
       in
 	new_cev, Safelist.rev names_rev
+  | DTestGet(i,l,c,reso) ->
+      if check_test m then
+	begin
+	  let ao = 
+	    try
+	      Some (Lens.get 
+		      (compile_exp_lens cev l)
+		      (compile_exp_view cev c))
+	    with (V.Error(_)) -> None
+	  in
+	    match ao, reso with 
+		None, None -> ()
+	      | Some a, Some res -> 
+		  let resv = compile_exp_view cev res in
+		  if not (V.equal a resv) then
+		    test_error i 
+		      (fun () -> 
+			 sprintf "Get test failed: expected %s, found %s"
+			   (V.string_of_t resv)
+			   (V.string_of_t a))
+	      | None, Some res -> 
+		  let resv = compile_exp_view cev res in
+		  test_error i 
+		    (fun () -> 
+		       sprintf "Get test failed: expected %s but error on get"
+			 (V.string_of_t resv))		  
+	      | Some a, None -> 
+		  test_error i 
+		    (fun () -> 
+		       sprintf "Get test failed: expected error, found %s"
+			 (V.string_of_t a))		    
+	end;
+      (cev, [])
+	
+  | DTestPut(i,l,(a,co),reso) -> 
+      if check_test m then
+	begin
+	  let co' = 
+	    try
+	      Some (Lens.put 
+		      (compile_exp_lens cev l)
+		      (compile_exp_view cev a) 
+		      (match co with 
+			   None -> None 
+			 | Some c -> Some (compile_exp_view cev c)))
+	    with (V.Error(_)) -> None
+	  in
+	    match co', reso with 
+		None, None -> ()
+	      | Some c', Some res -> 
+		  let resv = compile_exp_view cev res in 
+		  if not (V.equal c' resv) then
+		    test_error i 
+		      (fun () -> 
+			 sprintf "Put test failed: expected %s, found %s"
+			   (V.string_of_t resv)
+			   (V.string_of_t c'))
+	      | None, Some res -> 
+		  let resv = compile_exp_view cev res in 
+		    test_error i 
+		      (fun () -> 
+			 sprintf "Put test failed: expected %s but error on put"
+			   (V.string_of_t resv))		  
+	      | Some c', None -> 
+		  test_error i 
+		    (fun () -> 
+		       sprintf "Put test failed: expected error, found %s"
+			 (V.string_of_t c'))		    
+	end;
+      (cev, [])
 	  
-and compile_module_aux cev ds = Safelist.fold_left
+and compile_module_aux cev m ds = Safelist.fold_left
   (fun ((cev, names):compile_env * qid list) (di:decl) ->
-     let new_cev, new_names = compile_decl cev di in
+     let new_cev, new_names = compile_decl cev m di in
        new_cev, names@new_names)
   (cev,[])
   ds
@@ -895,18 +1029,19 @@ and compile_module_aux cev ds = Safelist.fold_left
 let compile_module m0 =
   (* let _ = debug (sprintf "compiling module %s" (string_of_module m0)) in *)
   let (Syntax.MDef(i,m,nctx,ds)) = m0 in
+  let mq = qid_of_id m in
   let cev = set_cev_ctx (empty_cev ()) (nctx@Registry.pre_ctx) in
-  let new_cev,_ = compile_module_aux cev ds in
-    Registry.register_env (ev_of_cev new_cev) (Syntax.qid_of_id m)
+  let new_cev,_ = compile_module_aux cev mq ds in
+    Registry.register_env (ev_of_cev new_cev) mq
 	      
 (* parsing *)
 let parse_lexbuf lexbuf = 
   let _ = Lexer.reset () in
     try 
-      Parser.modl Lexer.token lexbuf
+      Parser.modl Lexer.main lexbuf
     with Parsing.Parse_error ->
       parse_error (Lexer.info lexbuf) 
-	(fun () -> "syntax error")
+	(fun () -> "Syntax error")
 	
 let parse_string str = 
   parse_lexbuf (Lexing.from_string str)
@@ -932,7 +1067,7 @@ let compile_file fn n =
   let ast = parse_chan fchan in
   let m_str = string_of_id (id_of_modl ast) in
   let _ =
-    if (string_of_id n <> m_str) then
+    if (n <> m_str) then
       sort_error 
 	(info_of_module ast)
 	(fun () -> sprintf "module %s must appear in a file named %s.fcl"

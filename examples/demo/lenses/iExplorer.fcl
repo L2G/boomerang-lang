@@ -37,12 +37,12 @@ let l : lens =
   let skip_empty_links : lens =
     ccond <{"link"={}}::Any>
       (wmap { List.TL -> skip_empty_links }; List.tl {"link"={}})
-	(wmap { List.TL -> skip_empty_links} ) in
-  
-  assert IE6Concrete;
-  List.map ( wmap {"folder" -> folder, "link" -> link} );
-  skip_empty_links
+      (wmap { List.TL -> skip_empty_links} ) in
     
+    assert IE6Concrete;
+    List.map ( wmap {"folder" -> folder, "link" -> link} );
+    skip_empty_links
+      
 let l3 =
   l;
   Schemas.flatten_bookmarks

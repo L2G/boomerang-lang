@@ -13,6 +13,8 @@ OCAMLLDFLAGS = -linkpkg
 
 DOCDIR = doc
 
+OCAMLLEX = ocamllex -ml
+
 include $(SRC)/Common.Makefile
 
 test: all

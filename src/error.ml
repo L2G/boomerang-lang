@@ -11,6 +11,7 @@ type i = Info.t
 exception Syntax_error of i * string * string 
 exception Sort_error of i * string * string
 exception Run_error of i * string * string 
+exception Test_error of i * string * string 
 exception Fatal_error of string 
 
     

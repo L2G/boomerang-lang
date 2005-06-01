@@ -2,23 +2,17 @@ module Safari =
 
 open Plist
 
-(* types *)
+(* TYPES *)
 type Value = { ! = {} }
-
-(* Safari bookmark abstract schema *)
-type URIDict = { "BLANK" = Value, "title" = Value, *\"BLANK","title" = Any }
-
-type Link = { "URIDictionary" = URIDict, "URLString" = Value, *\"URIDictionary","URLString" = Any }
-
-type Folder = { "Children" = List Item, "Title" = Value, *\"Children","Title" = Any }
-            | { "Title" = Value, *\"Children","Title" = Any }
+type URIDict = { "BLANK" = Value, "title" = Value, * \ ("BLANK", "title") = Any }
+type Link = { "URIDictionary" = URIDict, "URLString" = Value, * \ ("URIDictionary","URLString") = Any }
+type Folder = { "Children" = List Item, "Title" = Value, * \ ("Children","Title") = Any }
+              | { "Title" = Value, * \ ("Children","Title") = Any }
 and Item = { "folder" = Folder } | { "link" = Link } | { "proxy" = Any }
-  
 type SafAbstract = List Item
 
-(* lenses *)
-
-(* this lens flatten a dict into a bush { key1 = data1, key2 = data2, ... } *)
+(* LENSES *)
+(* flatten_dict -- flattens a dict into a bush { key1 = data1, key2 = data2, ... } *)
 let flatten_dict =
   hoist "dict";
   List.map ( pivot List.HD;  map (focus List.TL {}; List.hd []) );

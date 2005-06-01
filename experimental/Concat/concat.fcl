@@ -1,35 +1,3 @@
 module Concat =
 
-let firstListEmpty = <{List.HD = Nil, List.TL = Any}>
-let lastListEmpty = <{List.HD = Any, List.TL = Nil}> 
 
-let charNonSpace = <{!\" " = Any}>
-type listCharNonSpace = List charNonSpace
-let firstCharSpace =  <{" "}:: Any> 
-
-let concat: lens = 
-
-  let concat_aux: lens = 
-    (xfork {List.HD} {List.HD, "x"} 
-      (hoist List.HD; rename List.TL "x") 
-      id;
-    xfork {"x", List.TL} {List.TL} 
-      (rename "x" List.HD; plunge List.TL; wmap {List.TL -> concat1}) 
-      id) 
-
-  and concat1: lens =
-    (acond firstListEmpty firstCharSpace 
-      (fork {List.HD} 
-	 (map (rename List.NIL " ")) 
-	 (wmap {List.TL -> concat2}))
-      (plunge "()"; wmap { "()" -> concat_aux}; hoist "()"))
-
-  and concat2: lens = 
-    (ccond Nil
-      (id)
-      (acond lastListEmpty listCharNonSpace 
-         (focus List.HD {List.TL = []} )
-         ( plunge "()"; wmap { "()" -> concat1}; hoist "()")))
-  in concat1
-
-let l: lens =  List.map (List.hd [];explode); concat ; implode

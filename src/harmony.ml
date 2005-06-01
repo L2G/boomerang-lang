@@ -18,6 +18,12 @@ let protect thk =
 	  (Info.string_of_t i) 
 	  msg;
 	exit 1
+    | Test_error(i,fn,msg) -> 
+	Printf.eprintf "File \"%s\", %s:\nUnit test%s\n" 
+	  fn 
+	  (Info.string_of_t i) 
+	  msg;
+	exit 1	
     | V.Error(ml) -> 
 	Printf.eprintf "Fatal error: V.Error\n";
 	flush stdout;
@@ -287,13 +293,17 @@ let _ = Prefs.alias lensr2 "l2"
 let schema = Prefs.createString "schema" "" "*the schema for the synchronization" ""
 let _ = Prefs.alias schema "s"
 
+let mod_qid = Prefs.createString "module" "" "*the module to check" ""
+let _ = Prefs.alias mod_qid "m"
+
 let rest = Prefs.createStringList "rest" "*stuff" ""
 
 (****************************  Command-line Processing *******************************)
   
 let usageMsg = 
   "usage: harmony get -lens l -concrete cf -output of [options]\n"
-  ^ "       harmony put -lens l -abstract af -concrete cf -output of [options]\n\n"
+  ^ "       harmony put -lens l -abstract af -concrete cf -output of [options]\n"
+  ^ "       harmony check module [options]\n\n"
   ^ "Options:"
     
 let main () =
@@ -321,10 +331,10 @@ let main () =
 	  (p schema)
 	  (p lensar) (p lensr1) (p lensr2)
 	  (p newarchive) (p newreplica1) (p newreplica2)
+  | ["check"] -> protect (fun () -> Registry.load (p mod_qid))
   | [ss] -> failwith(Printf.sprintf "Unknown command : %s \n%s" ss (Prefs.printUsage usageMsg; ""))
   | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
   |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
-	
-
+       
 let _ = 
   Unix.handle_unix_error main ()

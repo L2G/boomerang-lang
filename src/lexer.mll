@@ -1,5 +1,4 @@
 {
-
 open Parser
 
 module LE = Lexing
@@ -8,8 +7,8 @@ let lexeme = LE.lexeme
 let linestart = ref 0
 let lineno = ref 1
 let file_name = ref ""
-  
-let reset fn = 
+
+let reset () = 
   linestart := 0; 
   lineno := 1
     
@@ -27,57 +26,73 @@ let error lexbuf msg =
   let t = lexeme lexbuf in   
   let s = Printf.sprintf "%s : %s" msg t in
     raise (Error.Syntax_error(i, !file_name, s))
+
+(* dictionary of Focal keywords *)
+let keywords = Hashtbl.create 17
+let _ = 
+  Safelist.iter 
+    (fun (kw,tok) -> Hashtbl.add keywords kw tok )
+    [ "let", (fun i -> LET i)
+    ; "in", (fun i -> IN i)
+    ; "fun", (fun i -> FUN i)
+    ; "and", (fun i -> AND i)
+    ; "module", (fun i -> MODULE i)
+    ; "end", (fun i -> END i)
+    ; "begin", (fun i -> BEGIN i)
+    ; "open", (fun i -> OPEN i)
+    ; "type", (fun i -> TYPE i)
+    ; "lens", (fun i -> LENS i)
+    ; "view", (fun i -> VIEW i)
+    ; "name", (fun i -> NAME i)
+    ; "test", (fun i -> TEST i)
+    ; "error", (fun i -> ERROR i)
+    ; "missing", (fun i -> MISSING i)
+    ; "Any", (fun i -> ANY i)
+    ; "Empty", (fun i -> EMPTY i)
+    ]
 }
 
-let blank = [' ' '\t']+
+let whitespace = [' ' '\t']+
 let newline = "\n"
-let idchar = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']+
+let id_char = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']
 let string = '"' [^'"']* '"'
-let anyline = [^'\n']* '\n'
 
-rule token = parse
-| blank		{ token lexbuf }
-| "let"         { LET (info lexbuf) }
-| "in"          { IN (info lexbuf) }
-| "fun"         { FUN (info lexbuf) }
-| "and"         { AND (info lexbuf) }
-| "module"      { MODULE (info lexbuf) }
-| "end"         { END (info lexbuf) }
-| "open"        { OPEN (info lexbuf) }
-| "type"        { TYPE (info lexbuf) }
-| "->"          { ARROW (info lexbuf) }
-| "=>"          { DOUBLEARROW (info lexbuf) }
-| "lens"        { LENS (info lexbuf) }
-| "view"        { VIEW (info lexbuf) }
-| "name"        { NAME (info lexbuf) }
-| "Any"         { ANY(info lexbuf) }
-| "Empty"       { EMPTY(info lexbuf) }
-| "="		{ EQUAL (info lexbuf) }
-| "{"		{ LBRACE (info lexbuf) }
-| "}"		{ RBRACE (info lexbuf) }
-| "["		{ LBRACK (info lexbuf) }
-| "]"		{ RBRACK (info lexbuf) }
-| "("		{ LPAREN (info lexbuf) }
-| ")"		{ RPAREN (info lexbuf) }
-| "<"		{ LANGLE (info lexbuf) }
-| ">"		{ RANGLE (info lexbuf) }
-| ";"           { SEMI (info lexbuf) }
-| ","           { COMMA (info lexbuf) }
-| "."           { DOT (info lexbuf) }
-| ":"           { COLON (info lexbuf) }
-| "*"           { STAR (info lexbuf) } 
-| '!'           { BANG (info lexbuf) }
-| '|'           { BAR (info lexbuf) }
-| '~'           { TILDE (info lexbuf) }
-| "\\"          { SLASH (info lexbuf) }
-| "\""		{ STRING ((info lexbuf), (string lexbuf)) }
-(* generic stuff *)
-| idchar	{ let i = (info lexbuf) in IDENT (i, (lexeme lexbuf)) }
-| newline       { newline lexbuf; token lexbuf }
-| eof		{ EOF (info lexbuf) }
-| "(*"          { comment lexbuf; token lexbuf }
-(* symbol covers the rest of the alphabets *)
-| _		{ error lexbuf "Unknown token" }
+rule main = parse
+| whitespace        { main lexbuf }
+| "->"              { ARROW (info lexbuf) }
+| "=>"              { DOUBLEARROW (info lexbuf) }
+| "<"               { LANGLE (info lexbuf) }
+| ">"               { RANGLE (info lexbuf) }
+| "("               { LPAREN (info lexbuf) }
+| ")"               { RPAREN (info lexbuf) }
+| ";"               { SEMI (info lexbuf) }
+| "."               { DOT (info lexbuf) }
+| "*"               { STAR (info lexbuf) }
+| "!"               { BANG (info lexbuf) }
+| "|"               { BAR (info lexbuf) }
+| "~"               { TILDE (info lexbuf) }
+| "="	            { EQUAL (info lexbuf) }
+| "{"	            { LBRACE (info lexbuf) }
+| "}"	            { RBRACE (info lexbuf) }
+| "["               { LBRACK (info lexbuf) }
+| "]"	    	    { RBRACK (info lexbuf) }
+| ","               { COMMA (info lexbuf) }
+| ":"               { COLON (info lexbuf) }
+| "\\"              { BACKSLASH (info lexbuf) }
+| "/"               { SLASH (info lexbuf) }
+| ","               { COMMA (info lexbuf) }
+| ":"               { COLON (info lexbuf) }
+| "`"               { BACKTICK (info lexbuf) }
+| "\""              { STRING ((info lexbuf), (string lexbuf)) }
+| id_char+ as ident { try 
+                        let kw = Hashtbl.find keywords ident in
+                          kw (info lexbuf)
+                      with Not_found ->
+                        IDENT (info lexbuf, ident) }
+| newline           { newline lexbuf; main lexbuf }
+| eof		    { EOF (info lexbuf) } 
+| "(*"              { comment lexbuf; main lexbuf }
+| _		    { error lexbuf "Unknown token" }
 
 and string = parse
 | "\\"		{ let s = escape lexbuf in s ^ string lexbuf }

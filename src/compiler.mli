@@ -9,5 +9,5 @@
 
 (** The Focal compiler *)
 
-val compile_file : string -> Syntax.id -> unit
+val compile_file : string -> string -> unit
 val compile_string : string -> string -> unit

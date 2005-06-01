@@ -61,25 +61,25 @@ let fork (p:view) : (lens -> lens -> lens) = xfork p p
 
 let mapp (p:view) (l:lens) : lens = fork p (map l) id 
 
+let below (n:name) (l:lens) : lens = wmap { `n -> l }
+
 let filter (p:view) (d:view) : lens = fork p id (const {} d)
 
-let prune (n:name) (d:view) : lens = fork {n} (const {} {n=d}) id
+let prune (n:name) (d:view) : lens = fork {`n} (const {} {`n=`d}) id
 
-let add (n:name) (v:view) : lens = xfork {} {n} (const {n=v} {}) id
+let add (n:name) (v:view) : lens = xfork {} {`n} (const {`n=`v} {}) id
 
-let focus (n:name) (d:view) : lens = filter {n} d ; hoist n
+let focus (n:name) (d:view) : lens = filter {`n} d ; hoist n
 
-let hoist_nonunique (n:name) (p:view) : lens = xfork {n} p (hoist n) id 
+let hoist_nonunique (n:name) (p:view) : lens = xfork {`n} p (hoist n) id 
 
 let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
 
 let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c <Any> <Any> id id lt lf
 
-let rename (m:name) (n:name) : lens = xfork {m} {n} (hoist m; plunge n) id
+let rename (m:name) (n:name) : lens = xfork {`m} {`n} (hoist m; plunge n) id
 
 let rename_if_present (m:name) (n:name) : lens = 
-  acond <{m=Any, *=Any}> <{n=Any, *=Any}>
+  acond <{`m=`Any, *=`Any}> <{`n=`Any, *=`Any}>
     (rename m n)
     id
-
-

@@ -72,9 +72,11 @@ val register_native : string -> string -> Value.t -> unit
 val lookup_oev : 'a -> ('a -> env) -> ('a -> Syntax.qid list) -> Syntax.qid -> rv option
 (** ?? *)
 
+val load : string -> unit
+
 val lookup_library : Syntax.qid -> rv option
 (** [lookup_library qid = lookup () get_library] *)
   
 (**/**)
 (* backpatch hack *)
-val compile_file_impl : (string -> Syntax.id -> unit) ref
+val compile_file_impl : (string -> string -> unit) ref

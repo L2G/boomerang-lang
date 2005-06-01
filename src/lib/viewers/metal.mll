@@ -27,7 +27,6 @@ let error lexbuf msg =
   let t = lexeme lexbuf in   
   let s = Printf.sprintf "%s : %s" msg t in
     raise (Error.Syntax_error(i, !file_name, s))
-
 }
 
 let blank = [' ' '\t']+

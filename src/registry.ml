@@ -78,27 +78,28 @@ let string_of_env ev =
 
 (* LIBRARY *)
 (* Sets whose elements are Syntax.ids *)
-module IdSet = Set.Make(
+module StringSet = Set.Make(
   struct
-    type t = Syntax.id
-    let compare = Syntax.id_compare
+    type t = string
+    let compare = compare
   end)
   
 (* the library's state *)
 let parse_qid s =     
   let lexbuf = Lexing.from_string s in
-    Parser.qid Lexer.token lexbuf 
+    Lexer.reset ();
+    Parser.qid Lexer.main lexbuf 
 
 let pre_ctx = List.map parse_qid ["Prelude"]
 
 let library : env ref = ref (empty ())
-let loaded = ref IdSet.empty
+let loaded = ref StringSet.empty
 
 (* clear all loaded modules; used, e.g., in the visualizer *)
 let old_library = ref None
 let reset () = 
   if !old_library = None then old_library := Some !library;
-  loaded := IdSet.empty;  
+  loaded := StringSet.empty;  
   library := 
     begin 
       match !old_library with 
@@ -119,7 +120,8 @@ let register_env ev m =
 let register_native qs ss v = 
   let sort_of_string s = 
     let lexbuf = Lexing.from_string s in
-      Parser.sort Lexer.token lexbuf 
+      Lexer.reset ();
+      Parser.sort Lexer.main lexbuf 
   in	
   let q = parse_qid qs in
   let s = sort_of_string ss in
@@ -152,23 +154,24 @@ let find_filename n =
 (* load modules dynamically *)
 (* backpatch hack *)
 let compile_file_impl = ref (fun _ _ -> ())  
-let load q = match get_module_prefix q with 
-  | None -> ()
-  | Some n ->       
-      let ns = Syntax.string_of_id n in
-      let fno = find_filename ns in	
-	if (IdSet.mem n (!loaded)) then ()	  
-	else 
-	  begin
-	    match fno with 
-	      | None -> ()
-	      | Some fn ->
-		  prerr_string ("[ loading " ^ fn ^ "... ]\n"); flush stderr;
-		  loaded := (IdSet.add n (!loaded)); 
-		  (!compile_file_impl) fn n;
-		  prerr_string ("[ " ^ fn ^ " loaded ]\n"); flush stderr
-	  end
 
+let load ns = 
+  let fno = find_filename ns in	
+    if (StringSet.mem ns (!loaded)) then ()	  
+    else 
+      begin
+	match fno with 
+	  | None -> ()
+	  | Some fn ->
+	      prerr_string (sprintf "[ loading %s]\n" fn); flush stderr;
+	      loaded := (StringSet.add ns (!loaded)); 
+	      (!compile_file_impl) fn ns
+      end
+	
+let load_var q = match get_module_prefix q with 
+  | None -> ()
+  | Some n -> load (Syntax.string_of_id n)
+      
 (* lookup in a naming context *)
 let lookup_library2 nctx q = 
   let _ = debug (fun () -> sprintf "lookup_library2: %s in [%s] from %s\n"
@@ -190,7 +193,7 @@ let lookup_library2 nctx q =
 	  Some r -> Some r
 	| None -> 
 	    begin
-	      match load q2; try_lib () with
+	      match load_var q2; try_lib () with
 		| Some r -> Some r
 		| None -> match os with 
 		    | []       -> None
