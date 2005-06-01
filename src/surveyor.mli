@@ -1,4 +1,4 @@
-(* The surveyor handles low-level registration of plugins. *)
+(** The surveyor handles low-level registration of plugins. *)
 
 type type_desc = string list
 type encoding_key = string

@@ -123,6 +123,15 @@ let partition n l =
   if ((Safelist.length l) <= n) then (l,[]) else
   help n l []
 
+let take n l =
+  let rec take_aux n l acc =
+    match n,l with
+    0,_ | _,[]           -> Safelist.rev acc
+      | n,(x::xs) when n > 0 -> take_aux (n-1) xs (x::acc)
+      | _                    -> assert false
+  in
+  take_aux n l []
+
 (* composel : ('a -> 'a) list -> ('a -> 'a) *)
 let composel (l : ('a -> 'a) list) =
   Safelist.fold_left (fun f acc -> (fun s -> f (acc s))) (fun x -> x) l
