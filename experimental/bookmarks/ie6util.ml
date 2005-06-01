@@ -1,4 +1,5 @@
 (* A wrapper for IE6 bookmarks' synchronization *)
+(* test *)
 
 open Unix
 
