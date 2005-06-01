@@ -67,9 +67,9 @@ let from_list vl = VI (WF,(Name.Map.from_list vl))
  * Singletons, Values, and Fields
  *)
 
-let singleton k v = set empty k (Some v)
+(* let singleton k v = set empty k (Some v) *)
 
-let is_singleton v = Name.Set.cardinal (dom v) = 1
+(* let is_singleton v = Name.Set.cardinal (dom v) = 1 *)
 
 let singleton_dom v =
   let d = dom v in
@@ -83,22 +83,22 @@ let is_value v =
     (Name.Set.cardinal d = 1) &&
     (is_empty (get_required v (Name.Set.choose d)))
       
-let new_value s = singleton s empty 
+let new_value s = set empty s (Some empty)
 
 let get_value v =
   if (is_value v) then (Name.Set.choose (dom v))
   else raise (Illformed ("get_value: not a value",[v]))
     
-let get_field_value v k = get_value (get_required v k)
+(* let get_field_value v k = get_value (get_required v k) *)
 
-let get_field_value_option v k =
-  match get v k with
-    Some v' -> Some(get_value v')
-  | None -> None
+(* let get_field_value_option v k = *)
+(*   match get v k with *)
+(*     Some v' -> Some(get_value v') *)
+(*   | None -> None *)
 
-let set_field_value v k s = set v k (Some (new_value s))
+(* let set_field_value v k s = set v k (Some (new_value s)) *)
 
-let field_value k s = set_field_value empty k s
+let field_value k s = set empty k (Some (new_value s))
 
 (* ----------------------------------------------------------------------
  * Lists
@@ -109,8 +109,8 @@ let cons v1 v2 = create_star [(hd_tag, Some v1); (tl_tag, Some v2)]
 let empty_list = create_star [(nil_tag, Some empty)]
 		   
 let is_cons v = Name.Set.equal
-		  (dom v) 
-		  (Name.Set.add hd_tag 
+		  (dom v)
+		  (Name.Set.add hd_tag
 		     (Name.Set.add tl_tag Name.Set.empty))
 		  
 let is_empty_list v = Name.Set.equal
@@ -122,8 +122,8 @@ let rec is_list v =
   (is_cons v &&
    is_list (get_required v tl_tag))
 
-let head v = get_required v hd_tag
-let tail v = get_required v tl_tag
+(* let head v = get_required v hd_tag *)
+(* let tail v = get_required v tl_tag *)
 
 let rec list_from_structure v =
   let rec loop acc v' = 
@@ -170,25 +170,25 @@ let rec equal v1 v2 =
   Name.Set.for_all (fun n -> equal (get_required v1 n) (get_required v2 n)) 
     names
 
-let equal_opt v1o v2o =
-  match v1o, v2o with
-    None, None -> true
-  | Some v1, Some v2 -> equal v1 v2
-  | _, _ -> false
+(* let equal_opt v1o v2o = *)
+(*   match v1o, v2o with *)
+(*     None, None -> true *)
+(*   | Some v1, Some v2 -> equal v1 v2 *)
+(*   | _, _ -> false *)
 
 let fold f (VI (_,m)) c = Name.Map.fold f m c
 
-let map f v =
-    fold (fun k vk vacc -> set_unsafe vacc k (f vk)) v empty
+(* let map f v = *)
+(*     fold (fun k vk vacc -> set_unsafe vacc k (f vk)) v empty *)
 
-let mapi f v =
-    fold (fun k vk vacc -> set_unsafe vacc k (f k vk)) v empty
+(* let mapi f v = *)
+(*     fold (fun k vk vacc -> set_unsafe vacc k (f k vk)) v empty *)
 
-let for_all f = function VI (_,v) ->
-  Name.Map.for_all f v
+(* let for_all f = function VI (_,v) -> *)
+(*   Name.Map.for_all f v *)
 
-let for_alli f = function VI (_,v) ->
-  Name.Map.for_alli f v
+(* let for_alli f = function VI (_,v) -> *)
+(*   Name.Map.for_alli f v *)
 
 let to_list v =
   fold (fun n k acc -> (n,k) :: acc) v []
@@ -207,7 +207,7 @@ let concat v1 v2 =
                      ("concat: the view obtained while concatenating the following two view is not well formed: ",
                      [v1;v2;]))
     
-let iter f (VI (_,m)) = Name.Map.iter f m
+(* let iter f (VI (_,m)) = Name.Map.iter f m *)
 
 let split p v =
   let binds1,binds2 =
@@ -220,8 +220,8 @@ let split p v =
       v ([],[]) in
   (create_star binds1, create_star binds2)
 
-let same_root_sort v1 v2 =
-  Name.Set.equal (dom v1) (dom v2)
+(* let same_root_sort v1 v2 = *)
+(*   Name.Set.equal (dom v1) (dom v2) *)
 
 (* ---------------------------------------------------------------------- *)
 (* PRETTY PRINTING *)
@@ -267,7 +267,7 @@ let format v =
     format_aux v false
 
 let format_option = function
-    None -> Format.printf "NONE"; 
+    None -> Format.printf "NONE";
   | Some v -> format v
 
 
