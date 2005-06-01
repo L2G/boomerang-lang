@@ -28,11 +28,12 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 # BASE/COMPILER SOURCES #
 #########################
 
-BASE_SOURCES = misc.ml mapplus.ml name.ml v.ml lens.ml surveyor.ml \
+BASE_SOURCES = misc.mli misc.ml mapplus.mli mapplus.ml name.ml v.mli v.ml lens.mli \
+               lens.ml surveyor.mli surveyor.ml \
                pretty.ml info.ml error.ml \
 	       syntax.ml parser.mly lexer.mll \
-               type.ml value.ml registry.ml \
-               compiler.ml
+               type.ml value.mli value.ml registry.mli registry.ml \
+               compiler.mli compiler.ml
 
 VIEWER_SOURCES = metay.mly metal.mll meta.ml xml.ml
 
