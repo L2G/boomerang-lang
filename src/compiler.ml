@@ -662,7 +662,7 @@ let rec compile_exp cev e0 =
 	       let n2 = compile_exp_name cev n in
 		 fun v -> match v with
 		     Value.N n1 ->
-		       if (id_equal n1 n2) then value_of_rv (compile_exp cev l)
+		       if (n1 = n2) then value_of_rv (compile_exp cev l)
 		       else f v
 		   | _ -> run_error i (fun () -> "argument to map is not a name"))
 	    (fun _ -> value_of_rv (compile_exp cev id_exp))
@@ -965,19 +965,19 @@ let rec compile_decl cev m di =
 		  if not (V.equal a resv) then
 		    test_error i 
 		      (fun () -> 
-			 sprintf "Get test failed: expected %s, found %s"
+			 sprintf "(get): expected %s, found %s"
 			   (V.string_of_t resv)
 			   (V.string_of_t a))
 	      | None, Some res -> 
 		  let resv = compile_exp_view cev res in
 		  test_error i 
 		    (fun () -> 
-		       sprintf "Get test failed: expected %s but error on get"
+		       sprintf "(get): expected %s, found error"
 			 (V.string_of_t resv))		  
 	      | Some a, None -> 
 		  test_error i 
 		    (fun () -> 
-		       sprintf "Get test failed: expected error, found %s"
+		       sprintf "(get): expected error, found %s"
 			 (V.string_of_t a))		    
 	end;
       (cev, [])
@@ -1002,19 +1002,19 @@ let rec compile_decl cev m di =
 		  if not (V.equal c' resv) then
 		    test_error i 
 		      (fun () -> 
-			 sprintf "Put test failed: expected %s, found %s"
+			 sprintf "(put): expected %s, found %s"
 			   (V.string_of_t resv)
 			   (V.string_of_t c'))
 	      | None, Some res -> 
 		  let resv = compile_exp_view cev res in 
 		    test_error i 
 		      (fun () -> 
-			 sprintf "Put test failed: expected %s but error on put"
+			 sprintf "(put): expected %s, found error"
 			   (V.string_of_t resv))		  
 	      | Some c', None -> 
 		  test_error i 
 		    (fun () -> 
-		       sprintf "Put test failed: expected error, found %s"
+		       sprintf "(put): expected error, found %s"
 			 (V.string_of_t c'))		    
 	end;
       (cev, [])

@@ -6,9 +6,23 @@ let NIL : name = Native.nil_tag
 let tags : view = { `HD, `TL, `NIL }
   
 (* lenses *)
-let hd (d:view) : lens = focus HD { `TL = d }
-let tl (d:view) : lens = focus TL { `HD = d }
+let hd (d:view) : lens = focus HD { `TL = `d }
+test (hd []) / [1] = {1}
+test (hd []) \ {1} missing = [1]
+test (hd []) \ {1} [2,3] = [1,3]
+test (hd []) / [] = error
+
+let tl (d:view) : lens = focus TL { `HD = `d }
+test (tl {}) / [1,2,3] = [2,3]
+test (tl {}) \ [2,3] missing = [{},2,3]
+test (tl {}) \ [2,3] [1]  = [1,2,3]
+test (tl {}) / [] = error
+
 let map (l:lens) : lens = wmap { `HD -> l, `TL -> (map l) }
+test (map (const {b} {c})) / [] = []
+test (map (const {b} {c})) / [1,2,3] = [b,b,b]
+test (map (const {b} {c})) \ [] missing = []
+test (map (const {b} {c})) \ [b,b,b] [1,2] = [1,2,c]
 
 let reverse : lens = 
   let old_HD : name = "old_hd" in
@@ -25,6 +39,13 @@ let reverse : lens =
   in
     wmap { `TL -> reverse }; 
     rotate
+
+test reverse / [] = []
+test reverse / [1] = [1]
+test reverse / [1,2,3] = [3,2,1]
+test reverse \ [] missing = []
+test reverse \ [] [1,2,3] = []
+test reverse \ [3,2,1] [] = [1,2,3]
 
 let simple_filter (E:type) : lens = 
   wmap { `TL -> simple_filter E };
@@ -54,6 +75,13 @@ let filter (D:type) (E:type) (some_D:view) : lens =
   in
     filter_aux D E some_D
 
+test (filter <{a=`Any}> <{b=`Any}> {a}) / [] = []
+test (filter <{a=`Any}> <{b=`Any}> {a}) / [{a=1}, {a=2}, {b=3}, {a=4}] = [{a=1}, {a=2}, {a=4}] 
+test (filter <{a=`Any}> <{b=`Any}> {a}) / [{a=1}, {a=2}, {a=3}] = [{a=1}, {a=2}, {a=3}]
+test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [{a=1}, {a=2}, {b=3}, {a=4}] = [{a=1}, {a=2}, {b=3}, {a=3}] 
+test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [{b=3}] = [{b=3}, {a=1}, {a=2}, {a=3}] 
+test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [a, {b=3}] = [{a=1}, {b=3}, {a=2}, {a=3}] 
+test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}] [a,a,{b=3}] = [{a=1}, {b=3}]
 
 let concat : lens = 
   let concat_aux : lens = 
@@ -79,6 +107,15 @@ let concat : lens =
          (focus HD {`TL = []} )
          (plunge "_"; wmap { "_" -> concat1}; hoist "_"))
   in concat1
+
+test concat / [] = error (* FIXME: wrong *)
+test concat / [a] = error (* FIXME: wrong *)
+test concat / [[u],[p,e,n,n]] = [u," ",p,e,n,n]
+test concat / [[u,n,i,v],[o,f],[p,e,n,n]] = [u,n,i,v," ",o,f," ",p,e,n,n]
+test concat \ [] missing = error (* FIXME: wrong *)
+test concat \ [a] missing = error (* FIXME: wrong *)
+test concat \ [u,n,i,v," ",o,f," ",p,e,n,n] missing =  [[u,n,i,v],[o,f],[p,e,n,n]] 
+test concat \ [u,n,i,v," ",o,f," ",p,e,n,n] [[u,n,i,v]] =  [[u,n,i,v],o,f," ",p,e,n,n] (* FIXME: wrong *)
 
 let groupby2 : lens = 
   let add_empty_tail : lens =
@@ -110,42 +147,55 @@ let groupby2 : lens =
                plunge HD)
                (wmap { `TL -> groupby2 })))
 
-(*** FAST REVERSE *)
-let pad (n:name) : lens = Native.pad n
+test groupby2 / [] = []
+test groupby2 / [1] = [[1]]
+test groupby2 / [1,2,3,4] = [[1,2],[3,4]]
+test groupby2 / [1,2,3,4,5] = [[1,2],[3,4],[5]]
+test groupby2 \ [] missing = []
+test groupby2 \ [] [1,2,3] = []
+test groupby2 \ [[1]] missing = [1]
+test groupby2 \ [[1]] [1,2,3] = [1]
+test groupby2 \ [[1,2],[3,4]] missing = [1,2,3,4]
+test groupby2 \ [[1,2],[3,4]] [1,2] = [1,2,3,4]
+test groupby2 \ [[1,2],[3,4],[5]] missing = [1,2,3,4,5]
+test groupby2 \ [[1,2],[3,4],[5]] [1,2,3] = [1,2,3,4,5]
+
+(* (\*** FAST REVERSE *\) *)
+(* let pad (n:name) : lens = Native.pad n *)
   
-(* swap the first two elements of a list *)
-let swap : lens = 
-  let tmp = "tmp" in 
-  let tmp2 = "tmp2" in 
-    acond < [] | [`Any] > < [] | [`Any] >
-	id	   
-	(rename HD tmp;
-	 hoist_nonunique TL tags;
-	 xfork { `tmp, `TL } { `TL } (rename tmp HD; plunge TL) id)
+(* (\* swap the first two elements of a list *\) *)
+(* let swap : lens =  *)
+(*   let tmp = "tmp" in  *)
+(*   let tmp2 = "tmp2" in  *)
+(*     acond < [] | [`Any] > < [] | [`Any] > *)
+(* 	id	    *)
+(* 	(rename HD tmp; *)
+(* 	 hoist_nonunique TL tags; *)
+(* 	 xfork { `tmp, `TL } { `TL } (rename tmp HD; plunge TL) id) *)
 	
-let swap_all : lens = 
-  acond < { ! \ (`HD,`TL) = `Any} > < { ! \ (`HD,`TL) = `Any } > 
-    id
-    (swap; wmap { `HD -> swap_all, `TL -> wmap { `HD -> swap_all }})
+(* let swap_all : lens =  *)
+(*   acond < { ! \ (`HD,`TL) = `Any} > < { ! \ (`HD,`TL) = `Any } >  *)
+(*     id *)
+(*     (swap; wmap { `HD -> swap_all, `TL -> wmap { `HD -> swap_all }}) *)
        
-type no_list_tags = { * \ ( `HD,`TL,`NIL) = `Any }
+(* type no_list_tags = { * \ ( `HD,`TL,`NIL) = `Any } *)
 
-let collapse : lens = 
-  let tmp : name = "tmp" in
-    acond < [ `Any, `Any] > < [ `Any, `Any ] >
-      id
-      (groupby2; plunge tmp; wmap { `tmp -> collapse }; hoist tmp)
+(* let collapse : lens =  *)
+(*   let tmp : name = "tmp" in *)
+(*     acond < [ `Any, `Any] > < [ `Any, `Any ] > *)
+(*       id *)
+(*       (groupby2; plunge tmp; wmap { `tmp -> collapse }; hoist tmp) *)
 
-let uncollapse : lens = 
-  let tmp : name = "tmp" in
-    acond < { ! \ (`HD,`TL) = `Any } :: Any > < { ! \ (`HD,`TL) = `Any } :: Any >
-      id
-      (invert (groupby2); plunge tmp; wmap { `tmp -> uncollapse }; hoist tmp)
+(* let uncollapse : lens =  *)
+(*   let tmp : name = "tmp" in *)
+(*     acond < { ! \ (`HD,`TL) = `Any } :: Any > < { ! \ (`HD,`TL) = `Any } :: Any > *)
+(*       id *)
+(*       (invert (groupby2); plunge tmp; wmap { `tmp -> uncollapse }; hoist tmp) *)
 
-let fast_reverse : lens = 
-  let cap = "x" in
-  map (plunge cap);
-  collapse;
-  probe "COLLAPSED";
-  swap_all;
-  probe "SWAPPED"
+(* let fast_reverse : lens =  *)
+(*   let cap = "x" in *)
+(*   map (plunge cap); *)
+(*   collapse; *)
+(*   probe "COLLAPSED"; *)
+(*   swap_all; *)
+(*   probe "SWAPPED" *)

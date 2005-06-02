@@ -63,13 +63,17 @@ decls:
 
 /* TEST Stuff */
 get_args:
-  | LPAREN viewexp RPAREN                   { $2 }
+  | aexp                                 { $1 }
+
 put_args:
-  | LPAREN viewexp COMMA viewexp RPAREN     { ($2, Some $4) }
-  | LPAREN viewexp COMMA MISSING RPAREN     { ($2, None) }
+  | aexp aexp                            { ($1, Some $2) }
+  | aexp MISSING                         { ($1, None) }
+  | LPAREN exp COMMA exp RPAREN          { ($2, Some $4) }
+  | LPAREN exp COMMA MISSING RPAREN      { ($2, None) }
+
 test_res:
-  | viewexp                                  { Some $1 }
-  | ERROR                                     { None }
+  | exp                                     { Some $1 }
+  | ERROR                                   { None }
 
 /**** BINDINGS ***/      
 binding_list:

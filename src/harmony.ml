@@ -19,7 +19,7 @@ let protect thk =
 	  msg;
 	exit 1
     | Test_error(i,fn,msg) -> 
-	Printf.eprintf "File \"%s\", %s:\nUnit test%s\n" 
+	Printf.eprintf "File \"%s\", %s:\nUnit test failed %s\n" 
 	  fn 
 	  (Info.string_of_t i) 
 	  msg;
@@ -303,7 +303,7 @@ let rest = Prefs.createStringList "rest" "*stuff" ""
 let usageMsg = 
   "usage: harmony get -lens l -concrete cf -output of [options]\n"
   ^ "       harmony put -lens l -abstract af -concrete cf -output of [options]\n"
-  ^ "       harmony check module [options]\n\n"
+  ^ "       harmony check -module m [options]\n\n"
   ^ "Options:"
     
 let main () =
@@ -331,7 +331,12 @@ let main () =
 	  (p schema)
 	  (p lensar) (p lensr1) (p lensr2)
 	  (p newarchive) (p newreplica1) (p newreplica2)
-  | ["check"] -> protect (fun () -> Registry.load (p mod_qid))
+  | ["check"] -> 
+      let go () = 
+	if not (Registry.load (p mod_qid)) then 
+	  failwith (Printf.sprintf "Error: could not find module %s\n" (p mod_qid))
+      in
+	protect go
   | [ss] -> failwith(Printf.sprintf "Unknown command : %s \n%s" ss (Prefs.printUsage usageMsg; ""))
   | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
   |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))

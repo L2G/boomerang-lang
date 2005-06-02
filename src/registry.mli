@@ -72,7 +72,11 @@ val register_native : string -> string -> Value.t -> unit
 val lookup_oev : 'a -> ('a -> env) -> ('a -> Syntax.qid list) -> Syntax.qid -> rv option
 (** ?? *)
 
-val load : string -> unit
+val load : string -> bool
+(** ?? *)
+
+val find_filename : string -> string option
+(** ?? *)
 
 val lookup_library : Syntax.qid -> rv option
 (** [lookup_library qid = lookup () get_library] *)

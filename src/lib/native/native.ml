@@ -29,13 +29,39 @@ let nil =
     Value.T (Type.TT(Type.mk_ptype (Type.nil_it)))
 let _ = register_native "Native.Nil" "type" nil
 
-(* (\* common abbreviations used in unit tests *\) *)
-(* let a = Compiler.compile_view "{a={}}" *)
-(* let b = Compiler.compile_view "{b={}}" *)
-(* let empty = Compiler.compile_view "{}"  *)
-(* let va = V a *)
-(* let vb = V b *)
-(* let ve = V empty *)
+(*************)
+(* UTILITIES *)
+(*************)
+let load_meta n = 
+  let old_fn = !Metal.file_name in
+  let reset_metal () = Metal.file_name := old_fn in
+  let _ = 
+    Metal.reset ();
+    Metal.file_name := n 
+  in
+  let fn = match find_filename n with
+      None -> 
+	reset_metal(); 
+	error [`String ("Native.load_meta: Cannot find file " ^ n)]
+    | Some fn -> fn in
+  let fchan = open_in fn in
+  let lexbuf = Lexing.from_channel fchan in
+  let v = 
+    try 
+      (Metay.view Metal.token lexbuf)
+    with Parsing.Parse_error -> 
+      reset_metal ();
+      error [`String ("Native.load_meta: Error parsing meta view in " ^ fn)]
+  in
+    reset_metal ();
+    v
+
+let load_meta_lib =
+  F(function 
+      | N n -> V (load_meta n)
+      | _ -> focal_type_error "Native.load_meta")
+    
+let _ = register_native "Native.load_meta" "name -> view" load_meta_lib
 
 (*************)
 (* DEBUGGING *)
@@ -135,25 +161,13 @@ let _ = register_native "Native.assert" "type -> lens" assert_lib
 (******************)
 
 (*** ID ***)
-(* id - native interface *)
 let id =
   { get = (fun c -> c);
     put = (fun a co -> a)}
-
-(* id - library interface  *)
 let id_lib = L id
-
-(* (\* id - unit tests *\) *)
-(* let id_unit_tests = *)
-(*   [ test_get_eq []  "{}" (\*=*\) "{}" *)
-(*   ; test_put_eq []  "{}" None (\*=*\) "{}" *)
-(*   ; test_put_eq [] "{a=b}" (Some "{}") (\*=*\) "{a=b}" *)
-(*   ] *)
-
 let _ = register_native "Native.id" "lens" id_lib
 	  
 (*** CONST ***)
-(* const - native interface *)
 let const v d =
   { get = (fun c -> v);
     put = (fun a co ->
@@ -164,28 +178,15 @@ let const v d =
 	     else error [`String "Native.const(put): abstract view";
 			 `View a;
 			 `String "is not equal to"; `View (v)]) }
-    
-(* const - library interface *)
 let const_lib = F (function
 		     | V v -> F (function 
 				   | V d -> L (const v d)
 				   | _ -> focal_type_error "Native.const")
 		     | _ -> focal_type_error "Native.const")
 		  
-(* (\* const - unit tests *\) *)
-(* let const_unit_tests =  *)
-(*     [ test_get_eq [va;vb] "{}" (\*=*\) "{a={}}" *)
-(*     ; test_get_eq [ve;ve] "[1 2 3]" (\*=*\) "{}" *)
-(*     ; test_put_eq [va;vb] "{a={}}" None (\*=*\) "{b={}}" *)
-(*     ; test_put_eq [va;vb] "{a={}}" (Some "{}") (\*=*\) "{}" *)
-(*     ; test_put_fail [va;vb] "{b={}}" (Some "{}") *)
-(*     ; test_put_fail [va;vb] "{b={}}" None *)
-(*     ] *)
-
 let _ = register_native "Native.const" "view -> view -> lens" const_lib
 	  
 (*** COMPOSE2 ***)
-(* compose2 - native interface *)
 let compose2 l1 l2 = 
   let l1 = memoize_lens l1 in
     { get = (fun c -> (l2.get (l1.get c)));
@@ -194,7 +195,6 @@ let compose2 l1 l2 =
 		 | None -> l1.put (l2.put a None) None
 		 | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}
       
-(* compose2 - library interface *)
 let compose2_lib = 
   F (function
        | L l1 -> F (function
@@ -202,19 +202,6 @@ let compose2_lib =
 		      | _ -> focal_type_error "Native.compose2")
        | _ -> focal_type_error "Native.compose2")
     
-(* (\* compose2 - unit tests *\) *)
-(* let compose2_unit_tests =  *)
-(*   let const_ab = L (const a b) in *)
-(*   let const_ba = L (const b a) in *)
-(*     [ test_get_eq [id_lib; id_lib] "{a={}}" (\*=*\) "{a={}}" *)
-(*     ; test_get_eq [id_lib; const_ab] "{}" (\*=*\) "{a={}}" *)
-(*     ; test_get_eq [const_ab;const_ba] "{}" (\*=*\) "{b={}}" *)
-(*     ; test_put_eq [id_lib; const_ab] "{a={}}" None (\*=*\) "{b={}}" *)
-(*     ; test_put_eq [id_lib; const_ab] "{a={}}" (Some "{}") (\*=*\) "{}" *)
-(*     ; test_put_eq [const_ab;const_ba] "{b={}}" None (\*=*\) "{b={}}" *)
-(*     ; test_put_eq [const_ab;const_ba] "{b={}}" (Some "{}") (\*=*\) "{}" *)
-(*     ] *)
-
 let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
 
 (********************)
@@ -255,15 +242,6 @@ let map_lib =
   F (function
        | L l -> L (map l)
        | _ -> focal_type_error "Native.map")
-    
-(* (\* map - unit_tests *\) *)
-(* let map_unit_tests =  *)
-(*   let const_ab = L (const a b) in *)
-(*     [ test_get_eq [id_lib] "{x={} y=[1 2 3]}" (\*=*\) "{x={} y=[1 2 3]}" *)
-(*     ; test_get_eq [const_ab] "{x={} y=[1 2 3]}" (\*=*\) "{x={a={}} y={a={}}}" *)
-(*     ; test_put_eq [const_ab] "{x={a={}} y={a={}}}" None (\*=*\) "{x={b={}} y={b={}}}" *)
-(*     ; test_put_eq [const_ab] "{x={a={}} y={a={}}}" (Some "{y=[1 2 3]}") (\*=*\) "{x={b={}} y=[1 2 3]}" *)
-(*     ] *)
 
 let _ = register_native "Native.map" "lens -> lens" map_lib
 	  
@@ -323,7 +301,6 @@ let wmap_lib =
 let _ = register_native "Native.wmap" "(name -> lens) -> lens" wmap_lib
   
 (* XFORK *)
-(* xfork - native interface *)
 let xfork pcv pav l1 l2 =
   (* FIXME: check that pcv and pca have height <= 1? *)
   let dom_pcv = V.dom pcv in
@@ -360,7 +337,6 @@ let xfork pcv pav l1 l2 =
 			`View c2'];
 	       V.concat c1' c2')}
 
-(* xfork - library interface *)
 let xfork_lib = 
   F(function V pcv -> F (
       function V pav -> F (
@@ -370,31 +346,10 @@ let xfork_lib =
 	  | _ -> focal_type_error "Native.xfork")
 	| _ -> focal_type_error "Native.xfork")
       | _ -> focal_type_error "Native.xfork")
-    
-(* (\* xfork - unit tests *\) *)
-(* let xfork_unit_tests =  *)
-(*   let pc = P (Prd.s "x") in *)
-(*   let pa = P (Prd.s "a") in *)
-(*   let const_ax = L (const a (Compiler.compile_view "{x={}}")) in *)
-(*   let const_ba = L (const b a) in *)
-
-(*     [ test_get_eq [pc;pa;const_ax;const_ba] "{x={} y={}}" (\*=*\) "{a={} b={}}" *)
-(*     ; test_get_eq [pc;pa;const_ax;const_ba] "{x={}}" (\*=*\) "{a={} b={}}" *)
-(*     ; test_get_eq [pc;pa;const_ax;id_lib] "{x={} y={}}" (\*=*\) "{a={} y={}}" *)
-(*     ; test_get_eq [pc;pa;const_ax;const_ba] "{}" (\*=*\) "{a={} b={}}" *)
-(*     ; test_get_eq [pc;pa;const_ax;id_lib] "{}" (\*=*\) "{a={}}" *)
-(*     ; test_put_eq [pc;pa;const_ax;const_ba] "{a={} b={}}" (Some "{}") (\*=*\) "{}" *)
-(*     ; test_put_eq [pc;pa;const_ax;const_ba] "{a={} b={}}" (Some "{b={}}") (\*=*\) "{b={}}" *)
-(*     ; test_put_eq [pc;pa;const_ax;const_ba] "{a={} b={}}" None (\*=*\) "{a={} x={}}" *)
-(*     ; test_get_fail [pc;pa;const_ba;id_lib] "{}" *)
-(*     ; test_put_fail [pc;pa;const_ax;const_ba] "{}" None *)
-(*     ; test_put_fail [pc;pa;const_ax;const_ba] "{a={}}" None *)
-(*     ] *)
-      
+          
 let _ = register_native "Native.xfork" "view -> view -> lens -> lens -> lens" xfork_lib
 	  
 (* HOIST *)
-(* hoist - native interface *)
 let hoist k =
   { get = 
       (fun c ->
@@ -409,25 +364,14 @@ let hoist k =
       (fun a _ -> 
 	 V.set V.empty k (Some a)) }
 
-(* hoist - library interface *)
 let hoist_lib = 
   F (function 
        |  N k -> L (hoist k)
        | _ -> focal_type_error "Native.hoist")
     
-(* (\* hoist - unit tests *\) *)
-(* let hoist_unit_tests =  *)
-(*   [ test_get_eq [N "n"] "{n={a={}}}" (\*=*\) "{a={}}" *)
-(*   ; test_put_eq [N "n"] "{a={}}" None (\*=*\) "{n={a={}}}" *)
-(*   ; test_put_eq [N "n"] "{a={}}" (Some "{}") (\*=*\) "{n={a={}}}" *)
-(*   ; test_put_eq [N "n"] "{}" None (\*=*\) "{n={}}" *)
-(*   ; test_get_fail [N "n"] (\*=*\) "{a={}}" *)
-(*   ] *)
-
 let _ = register_native "Native.hoist" "name -> lens" hoist_lib
 
 (* PLUNGE *)
-(* plunge - native interface *)
 let plunge k =
   { get = (fun c -> V.set V.empty k (Some c));
     put = (fun a _ -> 
@@ -439,30 +383,17 @@ let plunge k =
 		    `View a];
 	     V.get_required a k)}
     
-(* plunge - library interface *)
 let plunge_lib = 
   F (function
        | N k -> L (plunge k)
        | _ -> focal_type_error "Native.plunge")
     
-(* (\* plunge - unit tests *\) *)
-(* let plunge_unit_tests =  *)
-(*   [ test_get_eq [N "n"]"{a={}}" (\*=*\) "{n={a={}}}" *)
-(*   ; test_get_eq [N "n"] "{}" (\*=*\) "{n={}}" *)
-(*   ; test_put_eq [N "n"] "{n={a={}}}" None (\*=*\) "{a={}}" *)
-(*   ; test_put_eq [N "n"] "{n={a={}}}" (Some "{}") (\*=*\) "{a={}}" *)
-(*   ; test_put_eq [N "n"] "{n={}}" (Some "{a={}}") (\*=*\) "{}" *)
-(*   ; test_put_fail [N "n"] "{a={}}" None *)
-(*   ; test_put_fail [N "n"] "{a={}}" (Some "{}") *)
-(*   ] *)
-
 let _ = register_native "Native.plunge" "name -> lens" plunge_lib
 	  
 (******************)
 (* Copy and Merge *)
 (******************)
 (* COPY *)
-(* copy - native interface *)
 let copy m n =
   { get = 
       (fun c -> 
@@ -491,29 +422,16 @@ let copy m n =
 		  `Name n;
 		  `View a]) }
 
-(* copy - library interface *)
 let copy_lib =
   F (function 
        | N m -> F (function 
 		       N n -> L (copy m n)
 		     | _ -> focal_type_error "Native.copy")
        | _ -> focal_type_error "Native.copy")
-    
-(* (\* copy - unit tests *\) *)
-(* let copy_unit_tests =  *)
-(*   [ test_get_eq [N "x";N "y"] "{x={a={}}}" (\*=*\) "{x={a={}} y={a={}}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{x={a={}} y={a={}}}" None (\*=*\) "{x={a={}}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{x={a={}} y={a={}}}" (Some "{x={a={}}}") (\*=*\) "{x={a={}}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{x={b={}} y={b={}}}" (Some "{x={a={}}}") (\*=*\) "{x={b={}}}" *)
-(*   ; test_get_fail [N "x"; N "y"] "{}" *)
-(*   ; test_put_fail  [N "x"; N "y"] "{x={a={}}}" None *)
-(*   ; test_put_fail  [N "x"; N "y"] "{x={a={}} y={b={}}}" None *)
-(*   ] *)
 
 let _ = register_native "Native.copy" "name -> name -> lens" copy_lib
 
 (* MERGE *)
-(* merge - native interface *)
 let merge m n =
   { get = (fun c -> V.set c n None) ;
     put = 
@@ -539,7 +457,6 @@ let merge m n =
 		 else V.set a n cno)
   }
 
-(* merge - library interface *)
 let merge_lib =
   F (function 
        | N m -> F (function 
@@ -547,16 +464,6 @@ let merge_lib =
 		     | _ -> focal_type_error "Native.merge")
        | _ -> focal_type_error "Native.merge")
     
-(* (\* merge - unit tests *\) *)
-(* let merge_unit_tests =    *)
-(*   [ test_get_eq [N "x";N "y"] "{x={a={}} y={a={}}}" (\*=*\) "{x={a={}}}" *)
-(*   ; test_get_eq [N "x";N "y"] "{x={a={}} y={b={}}}" (\*=*\) "{x={a={}}}" *)
-(*   ; test_get_eq [N "x";N "y"] "{x={b={}} y={b={}}}" (\*=*\) "{x={b={}}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{x={a={}}}" None (\*=*\) "{x={a={}} y={a={}}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{x={a={}}}" (Some "{x={a={}} y={b={}}}") (\*=*\) "{x={a={}} y={b={}}}" *)
-(*   ; test_put_fail [N "x"; N "y"] "{}" None *)
-(*   ] *)
-
 let _ = register_native "Native.merge" "name -> name -> lens" merge_lib
 
 (****************)
@@ -564,7 +471,6 @@ let _ = register_native "Native.merge" "name -> name -> lens" merge_lib
 (****************)
 	    
 (* COND *)
-(* cond - native interface *)
 let cond_impl c a1 a2 f21o f12o lt lf =
   { get = 
       (fun cv ->
@@ -605,20 +511,18 @@ let cond_impl c a1 a2 f21o f12o lt lf =
       )}
 
 let cond_ff c a1 a2 f21 f12 lt lf = cond_impl c a1 a2 (Some f21) (Some f12) lt lf 
-let cond = cond_ff 
-let cond_ww c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf 
+let cond_ww c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf
 let cond_fw c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
 let cond_wf c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
 
-(* cond - library interface *)
-let cond_lib =
+let cond_ff_lib =
   F (function T c -> F (
        function T a1 -> F (
 	 function T a2 -> F (
 	   function L f21 -> F (
 	     function L f12 -> F (
 	       function L lt -> F (
-		 function L lf -> L (cond c a1 a2 f21 f12 lt lf)
+		 function L lf -> L (cond_ff c a1 a2 f21 f12 lt lf)
 		   | _ -> focal_type_error "Native.cond")
 		 | _ -> focal_type_error "Native.cond")
 	       | _ -> focal_type_error "Native.cond")
@@ -627,17 +531,12 @@ let cond_lib =
 	 | _ -> focal_type_error "Native.cond")
        | _ -> focal_type_error "Native.cond")
 
-let _ = register_native
-  "Native.cond"
-  "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
-  cond_lib
 
 let _ = register_native
   "Native.cond_ff"
   "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
-  cond_lib
+  cond_fflib
 
-(* cond_ww - library interface *)
 let cond_ww_lib =
   F (function T c -> F (
        function T a1 -> F (
@@ -655,7 +554,6 @@ let _ = register_native
   "type -> type -> type -> lens -> lens -> lens"
   cond_ww_lib
 
-(* cond_fw - library interface *)
 let cond_fw_lib =
   F (function T c -> F (
        function T a1 -> F (
@@ -675,7 +573,6 @@ let _ = register_native
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_fw_lib
 
-(* cond_fw - library interface *)
 let cond_wf_lib =
   F (function T c -> F (
        function T a1 -> F (
@@ -694,53 +591,12 @@ let _ = register_native
   "Native.cond_wf"
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_wf_lib
-    
-(* (\* cond - unit tests *\) *)
-(* let cond_unit_tests = *)
-(*   let const_aa = L (const a a) in *)
-(*   let const_bb = L (const b b) in *)
-(*   let sc_a = Sc (equalDom a) in *)
-(*   let sc_b = Sc (equalDom b) in *)
-(*   let omega = L (Lens.native (fun _ -> error []) (fun _ _ -> error [])) in *)
-(*     [ test_get_eq [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb]"{a=[1]}" (\*=*\) "{a={}}" *)
-(*     ; test_get_eq [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb]"{b=[2]}" (\*=*\) "{b={}}" *)
-(*     ; test_put_eq [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb]"{a={}}" (Some "{a=[1]}") (\*=*\) "{a=[1]}" *)
-(*     ; test_put_eq [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb] "{a={}}" None (\*=*\) "{a={}}" *)
-(*     ; test_put_eq [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb] "{a={}}" (Some "{b=[1]}") (\*=*\) "{a={}}" *)
-(*     ; test_put_fail [sc_a;sc_a;sc_b;omega;omega;const_aa;const_bb]"{}" None *)
-(*     ] (\* should add tests that stress the conversion functions f21 and f22, overlap in a1, a2*\) *)
-    
-(* (\* acond - unit tests *\) *)
-(* let acond_unit_tests = *)
-(*   let sc_a = Sc (equalDom a) in *)
-(*   let sc_b = Sc (equalDom b) in *)
-(*   let const_ba = L (const b a) in *)
-(*   let const_ab = L (const a b) in *)
-(*     [ test_get_eq [sc_a;sc_b;const_ba;const_ab] "{a=[1]}" (\*=*\) "{b={}}" *)
-(*     ; test_get_eq [sc_a;sc_b;const_ba;const_ab] "{}" (\*=*\) "{a={}}" *)
-(*     ; test_put_eq [sc_a;sc_b;const_ba;const_ab] "{b={}}" None (\*=*\) "{a={}}" *)
-(*     ; test_put_eq [sc_a;sc_b;const_ba;const_ab] "{b={}}" (Some "{a=[1]}") (\*=*\) "{a=[1]}" *)
-(*     ] *)
-	
-(* (\* ccond - unit tests *\) *)
-(* let ccond_unit_tests =  *)
-(*   let sc_a = Sc (equalDom a) in *)
-(*   let lt = L (const b a) in *)
-(*   let lf = L (compose2 (const V.empty V.empty) (plunge "b")) in *)
-(*     [ test_get_eq [sc_a;lt;lf] "{a=[1]}" (\*=*\) "{b={}}" *)
-(*     ; test_get_eq [sc_a;lt;lf] "{c=[2]}" (\*=*\) "{b={}}" *)
-(*     ; test_put_eq [sc_a;lt;lf] "{b={}}" None (\*=*\) "{}" *)
-(*     ; test_put_eq [sc_a;lt;lf] "{b={}}" (Some "{c=[2]}") (\*=*\) "{c=[2]}" *)
-(*     ; test_put_eq [sc_a;lt;lf] "{b={}}" (Some "{a=[3]}") (\*=*\) "{a=[3]}" *)
-(*     ; test_put_fail [sc_a;lt;lf] "{a={}}" None *)
-(*     ] *)
-      	  
+          	  
 (*************)
 (* DATABASES *)
 (*************)
 
 (* PIVOT *)
-(* pivot - native interface *)
 let pivot k =
   { get = 
       (fun c ->
@@ -772,21 +628,11 @@ let pivot k =
 	       V.set w k (Some (V.new_value ak))
       )} 
 
-(* pivot - library interface *)
 let pivot_lib = 
   F (function
        | N k -> L (pivot k)
        | _ -> focal_type_error "Native.pivot")
     
-(* (\* pivot - unit tests *\) *)
-(* let pivot_unit_tests =  *)
-(*   [ test_get_eq [N "k"] "{k={x={}} a=[1] b=[2]}" (\*=*\) "{x={a=[1] b=[2]}}" *)
-(*   ; test_put_eq [N "k"] "{x={a=[1] b=[2]}}" None (\*=*\) "{k={x={}} a=[1] b=[2]}" *)
-(*   ; test_get_fail [N "k"] "{}" *)
-(*   ; test_put_fail [N "k"] "{x={} y={}}" None *)
-(*   ; test_put_fail [N "k"] "{x={k=[0] a=[1]}}" None *)
-(*   ] *)
-
 let _ = register_native "Native.pivot" "name -> lens" pivot_lib
   
 (* JOIN *)
@@ -795,7 +641,6 @@ let _ = register_native "Native.pivot" "name -> lens" pivot_lib
    it correct so using lots of lets and explicit match statements for
    readability.  let's clean it up later -nate
 *)
-(* join - native interface *)
 let join m1 m2 = 
   { get = 
       (fun c ->
@@ -860,7 +705,6 @@ let join m1 m2 =
       )
   }
 
-(* join - library interface *)
 let join_lib = 
   F (function 
        | N n1 -> 
@@ -869,22 +713,9 @@ let join_lib =
 		| _ -> focal_type_error "Native.join")
        | _ -> focal_type_error "Native.join")
     
-(* (\* join - unit tests *\) *)
-(* let join_unit_tests =  *)
-(*   [ test_get_eq [N "x";N "y"] "{x={} y={}}" (\*=*\) "{}"  *)
-(*   ; test_get_eq [N "x";N "y"] "{x={1={} 2={}} y = {2={}}}" (\*=*\) "{1={x={}} 2={x={} y={}}}" *)
-(*   ; test_get_eq [N "x";N "y"] "{x={1=[a] 2=[b]} y = {2=[c]}}" (\*=*\) "{1={x=[a]} 2={x=[b] y=[c]}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{}" None (\*=*\) "{x={} y={}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{}" (Some "{x=[1] y=[2]}") (\*=*\) "{x={} y={}}" *)
-(*   ; test_put_eq [N "x";N "y"] "{a={x=[1] y=[3]} b={x=[2]} c={y=[4]}}" None (\*=*\) "{x={a=[1] b=[2]} y={a=[3] c=[4]}}" *)
-(*   ; test_get_fail [N "x";N "y"] "{}" *)
-(*   ; test_get_fail [N "x";N "y"] "{x=[]}" *)
-(*   ] *)
-
 let _ = register_native "Native.join" "name -> name -> lens" join_lib
 
 (* FLATTEN *)
-(* flatten - native interface *)
 let flatten =   
   let rec get = function 
       c -> 
@@ -952,430 +783,13 @@ let flatten =
     {get = get ;
      put = put }
       
-(* flatten - library interface *)
 let flatten_lib =  L flatten
-
-(* (\* flatten - unit tests *\) *)
-(* let flatten_unit_tests =  *)
-(*   [ test_get_eq [] "[]" (\*=*\) "[]" *)
-(*   ; test_get_eq [] "[{k1={a={}}} {k2={b={}}}]" (\*=*\) "{k1=[{a={}}] k2=[{b={}}]}" *)
-(*   ; test_get_eq [] "[{a=[1]} {b=[2]} {a=[3]}]" (\*=*\) "{a=[[1] [3]] b=[[2]]}" *)
-(*   ; test_put_eq [] "{a=[[1] [3]] b=[[2]]}" (Some "[{a=[1]} {b=[2]} {a=[3]}]") (\*=*\) "[{a=[1]} {b=[2]} {a=[3]}]" *)
-(*   ; test_put_eq [] "{a=[[1] [3]] b=[[2]]}" (Some "[{b=[1]} {a=[2]}]") (\*=*\) "[{b=[2]} {a=[1]} {a=[3]}]" *)
-(*   ; test_put_eq [] "{a=[[1]] b=[[2]]}" (Some "[{b=[1]} {a=[2]} {a=[3]}]") (\*=*\) "[{b=[2]} {a=[1]}]" *)
-(*   ; test_get_fail [] "[{a={} b={}}]" *)
-(*   ; test_put_fail [] "{a=[{}]}" (Some "[{a={} b={}}]") *)
-(*     (\* ; test_put_fail [] "{}" (Some "[{a={}} {b={}}]") -- succeeds but should fail? *\) *)
-(*   ]  *)
 
 let _ = register_native "Native.flatten" "lens" flatten_lib
 
-(* (\***********************\) *)
-(* (\* DERIVED TREE LENSES *\) *)
-(* (\***********************\) *)
-
-(* (\* FORK *\) *)
-(* (\* fork - library interface *\) *)
-(* let fork_lib = Compiler.compile_focal "do function p -> xfork p p" *)
-
-(* (\* fork - native interface *\) *)
-(* let fork p l1 l2 = *)
-(*   let r = fork_lib in *)
-(*   let r = (funOfArg r) (P p) in *)
-(*   let r = (funOfArg r) (L l1) in *)
-(*   let r = (funOfArg r) (L l2) in *)
-(*     lensOfArg r *)
-
-(* (\* fork - unit tests *\) *)
-(* let fork_unit_tests =  *)
-(*   let px = P (Prd.s "x") in *)
-(*   let x = (Compiler.compile_view "{x={}}") in *)
-(*   let const_bx = L (const b x) in *)
-(*   let const_bb = L (const b b) in *)
-(*     [ test_get_fail [px;const_bx;id_lib] "{x={}}" *)
-(*     ; test_put_fail [px;const_bb;id_lib] "{b={}}" (Some "{x={}}") *)
-(*     ] *)
- 
-(* let _ =  *)
-(*   register_native_and_test  *)
-(*     ("fork",T (Arrow (Predicate, Arrow (Lens, Arrow (Lens,Lens)))), fork_lib) *)
-(*     fork_unit_tests *)
-
-
-(* (\* MAPP *\) *)
-(* (\* mapp - library interface *\) *)
-(* let mapp_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let mapp p l = fork p (map l) id *)
-(*      do mapp" *)
-
-(* (\* mapp - native interface *\) *)
-(* let mapp p l =  *)
-(*   let r = mapp_lib in *)
-(*   let r = (funOfArg r) (P p) in *)
-(*   let r = (funOfArg r) (L l) in *)
-(*     lensOfArg r *)
-
-(* (\* mapp - unit_tests *\) *)
-(* let mapp_unit_tests =  *)
-(*   let pa = P (Prd.s "a") in *)
-(*   let const_bb = L (const b b) in *)
-(*   [ test_get_eq [pa;const_bb] "{}" (\*=*\) "{}" *)
-(*   ; test_get_eq [pa;const_bb] "{a={} b=[2]}" (\*=*\) "{a={b={}} b=[2]}" *)
-(*   ; test_put_eq [pa;const_bb] "{a={b={}} b=[2]}" None (\*=*\) "{a={b={}} b=[2]}" *)
-(*   ; test_put_eq [pa;const_bb] "{a={b={}} b=[2]}" (Some "{a=[1] b=[3]}") (\*=*\) "{a=[1] b=[2]}" *)
-(*   ] *)
-
-(* let _ = register_native_and_test *)
-(* 	  ("mapp", T(Arrow(Predicate, Arrow (Lens,Lens))), mapp_lib) *)
-(* 	  mapp_unit_tests *)
- 
-(* (\* FILTER *\) *)
-(* (\* filter - library interface *\) *)
-(* let filter_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let filter p d = fork p id (const {} d) do filter" *)
-
-(* (\* filter - native interface *\) *)
-(* let filter p d = *)
-(*   let r = filter_lib in *)
-(*   let r = (funOfArg r) (P p) in *)
-(*   let r = (funOfArg r) (V d) in *)
-(*     lensOfArg r *)
-
-(* (\* filter - unit tests *\) *)
-(* let filter_unit_tests =  *)
-(*   let px = P (Prd.s "x") in *)
-(*   let vy = V (Compiler.compile_view "{y={}}") in *)
-(*   [ test_get_eq [px;vy] "{}" (\*=*\) "{}" *)
-(*   ; test_get_eq [px;vy] "{y={} x={}}" (\*=*\) "{x={}}"  *)
-(*   ; test_put_eq [px;vy] "{}" None (\*=*\) "{y={}}" *)
-(*   ; test_put_eq [px;vy] "{}" (Some "{y=[1]}") "{y=[1]}" *)
-(*   ] *)
-    
-(* let _ = register_native_and_test *)
-(* 	  ("filter", T (Arrow (Predicate, Arrow (View, Lens))), filter_lib) *)
-(* 	  filter_unit_tests *)
-	  
-(* (\* PRUNE *\) *)
-(* (\* prune - library interface *\) *)
-(* let prune_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let prune n d = fork {n} (const {} {n=d}) id do prune" *)
-    
-(* (\* prune - native interface *\) *)
-(* let prune n d = *)
-(*   let r = prune_lib in *)
-(*   let r = (funOfArg r) (N n) in *)
-(*   let r = (funOfArg r) (V d) in *)
-(*     lensOfArg r *)
-
-(* (\* prune - unit tests *\) *)
-(* let prune_unit_tests =  *)
-(*   let vel = V (Compiler.compile_view "[]") in *)
-(*   [ test_get_eq [N "a";vel] "{}" (\*=*\) "{}" *)
-(*   ; test_get_eq [N "a";vel] "{a=[1] b=[2]}" (\*=*\) "{b=[2]}" *)
-(*   ; test_put_eq [N "a";vel] "{b=[2]}" None (\*=*\) "{a=[] b=[2]}" *)
-(*   ; test_put_eq [N "a";vel] "{b=[2]}" (Some "{a=[1] b=[3]}") (\*=*\) "{a=[1] b=[2]}" *)
-(*   ; test_put_fail [N "a";vel] "{a={}}" None *)
-(*   ] *)
-
-(* let _ = register_native_and_test *)
-(* 	  ("prune", T (Arrow (Name, Arrow (View, Lens))), prune_lib) *)
-(* 	  prune_unit_tests *)
-	  
-(* (\* ADD *\) *)
-(* (\* add - library interface *\) *)
-(* let add_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let add n v = xfork {} {n} (const v {} ; plunge n) id do add" *)
-
-(* (\* add - native interface *\) *)
-(* let add n v = *)
-(*   let r = add_lib in *)
-(*   let r = (funOfArg r) (N n) in *)
-(*   let r = (funOfArg r) (V v) in *)
-(*     lensOfArg r *)
-
-(* (\* add - unit tests *\) *)
-(* let add_unit_tests =  *)
-(*   let vel = V (Compiler.compile_view "[]") in *)
-(*     [ test_get_eq [N "a";vel] "{}" (\*=*\) "{a=[]}" *)
-(*     ; test_get_eq [N "a";vel] "{b={}}" (\*=*\) "{a=[] b={}}" *)
-(*     ; test_put_eq [N "a";vel] "{a=[] b=[1 2 3]}" None (\*=*\) "{b=[1 2 3]}" *)
-(*     ; test_put_eq [N "a";vel] "{a=[] b=[1 2 3]}" (Some "{}") (\*=*\) "{b=[1 2 3]}" *)
-(*     ; test_get_fail [N "a"; vel] "{a={}}" *)
-(*     ; test_put_fail [N "a"; vel] "{}" None *)
-(*     ; test_put_fail [N "a"; vel] "{a={}}" (Some "{a={}}") *)
-(*     ] *)
-
-(* let _ = register_native_and_test  *)
-(* 	  ("add", T (Arrow (Name, Arrow (View,Lens))), add_lib) *)
-(* 	  add_unit_tests *)
-
-(* (\* FOCUS *\) *)
-(* (\* focus - library interface *\) *)
-(* let focus_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let focus n d = filter {n} d ; hoist n do focus" *)
-
-(* (\* focus - native interface *\) *)
-(* let focus n d = *)
-(*   let r = focus_lib in *)
-(*   let r = (funOfArg r) (N n) in *)
-(*   let r = (funOfArg r) (V d) in *)
-(*     lensOfArg r *)
-
-(* (\* focus - unit tests *\) *)
-(* let focus_unit_tests =  *)
-(*   [ test_get_eq [N "a"; ve] "{a=[1 2 3] b=[4 5 6]}" (\*=*\) "[1 2 3]" *)
-(*   ; test_put_eq [N "a"; ve] "{}" None (\*=*\) "{a={}}" *)
-(*   ; test_put_eq [N "a"; ve] "[11 12 13]" (Some "{a=[1 2 3] b=[4 5 6]}") (\*=*\) "{a=[11 12 13] b=[4 5 6]}" *)
-(*   ; test_get_fail [N "a"; ve] "{}"  *)
-(*   ; test_get_fail [N "a"; ve] "{b={}}"  *)
-(*     (\* this test succeeds, which is funny b/c co is illegal *)
-(*        ; test_put_fail [N "a"; ve] "[11 12 13]" (Some "{b=[4 5 6]}")  *)
-(*     *\) *)
-(*   ]   *)
-
-(* let _ = register_native_and_test  *)
-(* 	  ("focus", T (Arrow (Name, Arrow (View,Lens))), focus_lib) *)
-(* 	  focus_unit_tests *)
-
-(* (\* HOIST_NONUNIQUE *\) *)
-(* (\* hoist_nonunique - library interface *\) *)
-(* let hoist_nonunique_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let hoist_nonunique n p = xfork {n} p (hoist n) id do hoist_nonunique" *)
-    
-(* (\* hoist_nonunique - native interface *\) *)
-(* let hoist_nonunique n p = *)
-(*   let r = hoist_nonunique_lib in *)
-(*   let r = (funOfArg r) (N n) in *)
-(*   let r = (funOfArg r) (P p) in *)
-(*     lensOfArg r       *)
-
-(* (\* hoist_nonunique - unit tests *\) *)
-(* let hoist_nonunique_unit_tests =  *)
-(*   let pa = P (Prd.s "a") in *)
-(*     [ test_get_eq [N "x";pa] "{x={a=[]} y=[1 2 3]}" (\*=*\) "{a=[] y=[1 2 3]}" *)
-(*     ; test_put_eq [N "x";pa] "{a=[1 2 3] y=[4 5 6]}" None (\*=*\) "{x={a=[1 2 3]} y=[4 5 6]}" *)
-(*     ; test_put_eq [N "x";pa] "{a=[1 2 3] y=[4 5 6]}" (Some "{x={a=[]}}") (\*=*\) "{x={a=[1 2 3]} y=[4 5 6]}" *)
-(*     ; test_get_fail [N "x";pa] "{}" *)
-(*     ] *)
-
-(* let _ = register_native_and_test  *)
-(* 	  ("hoist_nonunique",T (Arrow (Name, Arrow (Predicate, Lens))), hoist_nonunique_lib) *)
-(* 	  hoist_nonunique_unit_tests *)
-
-(* (\* RENAME *\) *)
-(* (\* rename - library interface *\) *)
-(* let rename_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let rename m n = xfork {m} {n} (hoist m;plunge n) id do rename" *)
-
-(* (\* rename - native interface *\) *)
-(* let rename m n = *)
-(*   let r = rename_lib in *)
-(*   let r = (funOfArg r) (N m) in  *)
-(*   let r = (funOfArg r) (N n) in  *)
-(*     lensOfArg r *)
-
-(* (\* rename - unit tests *\) *)
-(* let rename_unit_tests =  *)
-(*   [ test_get_eq [N "x"; N "y"] "{x=[1]}" (\*=*\) "{y=[1]}" *)
-(*   ; test_get_eq [N "x"; N "y"] "{x=[1] z=[2]}" (\*=*\) "{y=[1] z=[2]}" *)
-(*   ; test_put_eq [N "x"; N "y"] "{y=[1]}" None (\*=*\) "{x=[1]}" *)
-(*   ; test_put_eq [N "x"; N "y"] "{y=[1] z=[2]}" None (\*=*\) "{x=[1] z=[2]}" *)
-(*   ; test_get_fail [N "x"; N "y"] "{}" *)
-(*   ; test_get_fail [N "x"; N "y"] "{y={}}" *)
-(*   ; test_put_fail [N "x"; N "y"] "{}" None *)
-(*   ; test_put_fail [N "x"; N "y"] "{x={}}" None *)
-(*   ] *)
-
-(* let _ = register_native_and_test  *)
-(* 	  ("rename", T (Arrow (Name, Arrow (Name, Lens))), rename_lib) *)
-(* 	  rename_unit_tests *)
-
-(* (\* RENAME_IF_PRESENT *\) *)
-(* (\* rename_if_present - library interface *\)   *)
-(* let rename_if_present_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let rename_if_present m n =  *)
-(*        acond (hasChild m) (hasChild n)  *)
-(*          (rename m n)  *)
-(*          id *)
-(*      do rename_if_present" *)
-
-(* (\* rename_if_present - native interface *\)   *)
-(* let rename_if_present n m = *)
-(*   let r = rename_if_present_lib in *)
-(*   let r = (funOfArg r) (N m) in  *)
-(*   let r = (funOfArg r) (N n) in  *)
-(*     lensOfArg r *)
-
-(* (\* rename_if_present - unit tests *\) *)
-(* let rename_if_present_unit_tests =  *)
-(* [ test_get_eq [N "x";N "y"] "{}" (\*=*\) "{}" *)
-(* ; test_get_eq [N "x";N "y"] "{x=[1]}" (\*=*\) "{y=[1]}" *)
-(* ; test_get_eq [N "x";N "y"] "{x=[1] z=[2]}" (\*=*\) "{y=[1] z=[2]}" *)
-(* ; test_get_eq [N "x";N "y"] "{y=[1]}" (\*=*\) "{y=[1]}" *)
-(* ; test_put_eq [N "x";N "y"] "{y=[1]}" None (\*=*\) "{x=[1]}" *)
-(* ; test_put_eq [N "x";N "y"] "{y=[1] z=[2]}" None (\*=*\) "{x=[1] z=[2]}" *)
-(* ; test_put_eq [N "x";N "y"] "{x=[1]}" None (\*=*\) "{x=[1]}" *)
-(* ] *)
-
-(* let _ = register_native_and_test  *)
-(* 	  ("rename_if_present",T (Arrow (Name, Arrow (Name, Lens))), rename_if_present_lib) *)
-(* 	  rename_if_present_unit_tests *)
-
-(* (\***********************\) *)
-(* (\* DERIVED LIST LENSES *\) *)
-(* (\***********************\) *)
-
-(* (\* HD *\) *)
-(* (\* hd - library interface *\) *)
-(* let hd_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let hd d = focus *h {*t=d} do hd" *)
-
-(* (\* hd - native interface *\) *)
-(* let hd d = *)
-(*   let r = hd_lib in *)
-(*   let r = (funOfArg r) (V d) in *)
-(*     lensOfArg r *)
-
-(* (\* hd - unit tests *\) *)
-(* let hd_unit_tests =  *)
-(*   let vel = V (Compiler.compile_view "[]") in *)
-(*   [ test_get_eq [vel] "[1]" (\*=*\) "{1={}}" *)
-(*   ; test_put_eq [vel] "{1={}}" None (\*=*\) "[1]" *)
-(*   ; test_put_eq [vel] "{1={}}" (Some "[2 3]") (\*=*\) "[1 3]" *)
-(*   ; test_get_fail [vel] "[]" *)
-(*   ]   *)
-  
-(* let _ = register_native_and_test  *)
-(* 	  ("hd", T (Arrow (View,Lens)), hd_lib) *)
-(* 	  hd_unit_tests *)
-
-(* (\* TL *\) *)
-(* (\* tl - library interface *\) *)
-(* let tl_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let tl d = focus *t {*h=d}  *)
-(*      do tl" *)
-
-(* (\* tl - native interface *\) *)
-(* let tl d = *)
-(*   let r = tl_lib in *)
-(*   let r = (funOfArg r) (V d) in *)
-(*     lensOfArg r *)
-
-(* (\* tl - unit tests *\) *)
-(* let tl_unit_tests =  *)
-(*   [ test_get_eq [ve] "[1 2 3]" (\*=*\) "[2 3]" *)
-(*   ; test_put_eq [ve] "[2 3]" None (\*=*\) "[{} 2 3]" *)
-(*   ; test_put_eq [ve] "[2 3]" (Some "[1]") (\*=*\) "[1 2 3]" *)
-(*   ; test_get_fail [ve] "[]" *)
-(*   ] *)
-
-(* let _ = register_native_and_test  *)
-(* 	  ("tl", T (Arrow (View,Lens)), tl_lib) *)
-(* 	  tl_unit_tests *)
-
-(* (\* LIST_MAP *\) *)
-(* (\* list_map - library interface *\) *)
-(* let list_map_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "let list_map l = *)
-(*        let rec aux = wmap < *h -> l *t -> aux > in aux *)
-(*      do list_map" *)
-
-(* (\* list_map - native interface *\) *)
-(* let list_map l=  *)
-(*   let r = list_map_lib in *)
-(*   let r = (funOfArg r) (L l) in *)
-(*     lensOfArg r *)
-
-(* (\* list_map - unit tests *\) *)
-(* let list_map_unit_tests =  *)
-(*   let const_bb = L (const b b) in *)
-(*     [ test_get_eq [const_bb] "[]" (\*=*\) "[]" *)
-(*     ; test_get_eq [const_bb] "[1 2 3]" (\*=*\) "[b b b]" *)
-(*     ; test_put_eq [const_bb] "[]" None (\*=*\) "[]" *)
-(*     ; test_put_eq [const_bb] "[b b b]" (Some "[1 2]") (\*=*\) "[1 2 b]" *)
-(*     ] *)
-
-(* let _ = register_native_and_test *)
-(* 	  ("list_map", T (Arrow (Lens, Lens)), list_map_lib) *)
-(*   	  list_map_unit_tests *)
-	  
-(* (\* LIST_FILTER *\) *)
-(* (\* list_filter - library interface *\) *)
-(* let list_filter_lib =  *)
-(*   Compiler.compile_focal  *)
-(*     "(\* simple list filter. its PUT direction is not the same as list_filter, *\) *)
-(*      (\*  below. Its GET direction is fine, and we use it as f_21 in the       *\) *)
-(*      (\* instance of cond below                                                *\) *)
-
-(*      let old_list_filter D E =  *)
-(*        let rec l =  *)
-(*        ccond (isCons E (isListOf (union D E)))  *)
-(*          (tl {error}; l) *)
-(*          (wmap < *t -> l >) *)
-(*        in l *)
-
-(*     let append v =  *)
-(*        let rec l =  *)
-(*          acond isEmptyList (isCons all (isEmptyList)) *)
-(*            (const v {}) *)
-(*            (wmap <*t -> l>) *)
-(*        in l *)
-
-(*      let list_filter D E default_D = *)
-(*        let rec l =  *)
-(*          cond (isListOf E) (isEmptyList) (isCons D (isListOf D)) *)
-(*             (old_list_filter E D) *)
-(*             (append [default_D]) *)
-(*             (const [] []) *)
-(*             (inner_filter) *)
-(*        and inner_filter = *)
-(*          ccond (isCons E (isList_at_least_one D)) *)
-(*          (tl {error}; inner_filter) *)
-(*          (wmap < *t -> l>) *)
-(*        in l *)
-
-(*      do list_filter" *)
-
-(* (\* list_filter - native interface *\) *)
-(* let list_filter d e default_D =  *)
-(*   let r = list_filter_lib in *)
-(*   let r = (funOfArg r) (Sc d) in *)
-(*   let r = (funOfArg r) (Sc e) in *)
-(*   let r = (funOfArg r) (V default_D) in *)
-(*     lensOfArg r *)
-
-(* let list_filter_unit_tests =  *)
-(*   let da = Sc (equalDom a) in *)
-(*   let db = Sc (equalDom b) in *)
-(*     [ test_get_eq [da;db;va] "[]" (\*=*\) "[]" *)
-(*     ; test_get_eq [da;db;va] "[{a=1} {a=2} {b=3} {a=4}]" (\*=*\) "[{a=1} {a=2} {a=4}]" *)
-(*     ; test_put_eq [da;db;va] "[{a=1} {a=2} {a=3}]" None (\*=*\) "[{a=1} {a=2} {a=3}]" *)
-(*     ; test_put_eq [da;db;va] "[{a=1} {a=2} {a=3}]" (Some "[{a=1} {a=2} {b=3} {a=4}]") (\*=*\) "[{a=1} {a=2} {b=3} {a=3}]" *)
-(*     ; test_put_eq [da;db;va] "[{a=1} {a=2} {a=3}]" (Some "[{b=3}]") (\*=*\) "[{b=3} {a=1} {a=2} {a=3}]" *)
-(*     ; test_put_eq [da;db;va] "[{a=1} {a=2} {a=3}]" (Some "[a {b=3}]") (\*=*\) "[{a=1} {b=3} {a=2} {a=3}]" *)
-(*     ; test_put_eq [da;db;va] "[{a=1}]" (Some "[a a {b=3}]") (\*=*\) "[{a=1} {b=3}]" *)
-(*     ] *)
-      
-(* let _ = register_native_and_test *)
-(* 	  ("list_filter", T(Arrow(Schema,Arrow(Schema, Arrow(View, Lens)))), list_filter_lib) *)
-(* 	  list_filter_unit_tests *)
-
-
-(*///////////////////*)
+(************)
 (* EXPLODE  *)
-(*//////////////////*)
-
+(************)
 let explode =
   let rec tree_of_string msg = function
       "" -> []
@@ -1408,19 +822,8 @@ let explode =
       put = (fun a _ -> V.new_value (string_of_tree "put" (V.list_from_structure a)))
     }
       
-(* explode library interface *)  
 let explode_lib = L (explode)
     
-(* (\* explode - unit tests *\) *)
-(* let explode_unit_tests =  *)
-(*   [ test_get_eq [] "{\"\"}" "[]"; *)
-(*     test_get_eq [] "{youpi}" "[y o u p i]"; *)
-(*     test_get_eq [] "{\"youpi blam\"}" "[y o u p i {\" \"} b l a m]"; *)
-(*     test_put_eq [] "[y o u p i {\" \"} b l a m]" None "{\"youpi blam\"}"; *)
-(*     test_put_eq [] "[y o u p i]" None "{youpi}"; *)
-(*     test_put_eq [] "[]" None "{\"\"}" *)
-(*   ]  *)
-
 let _ = register_native "Native.explode" "lens" explode_lib
     
 (* PAD *)

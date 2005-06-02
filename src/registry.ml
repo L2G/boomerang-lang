@@ -139,38 +139,37 @@ let paths = Prefs.createStringList
   "Focal modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources."
 let _ = Prefs.alias paths "I"
   
-let find_filename n = 
-  let fn = (String.uncapitalize n) ^ ".fcl" in
+let find_filename fn = 
   let rec loop ds = match ds with
     | []    -> None
-    | d::drest -> 
+    | d::drest -> 	
 	let full_fn = d ^ (if d.[String.length d - 1] = '/' then "" else "/") ^ fn in
 	  if (Sys.file_exists full_fn) then Some full_fn
 	  else loop drest
   in
-  let includes = Prefs.read paths in
-    loop (includes)
+    loop (Prefs.read paths)
       
 (* load modules dynamically *)
 (* backpatch hack *)
 let compile_file_impl = ref (fun _ _ -> ())  
 
 let load ns = 
-  let fno = find_filename ns in	
-    if (StringSet.mem ns (!loaded)) then ()	  
+  let fno = find_filename ((String.uncapitalize ns) ^ ".fcl") in	
+    if (StringSet.mem ns (!loaded)) then true
     else 
       begin
 	match fno with 
-	  | None -> ()
+	  | None -> false
 	  | Some fn ->
-	      prerr_string (sprintf "[ loading %s]\n" fn); flush stderr;
+	      prerr_string (sprintf "[ loading %s]\n%!" fn);
 	      loaded := (StringSet.add ns (!loaded)); 
-	      (!compile_file_impl) fn ns
+	      (!compile_file_impl) fn ns;
+	      true
       end
 	
 let load_var q = match get_module_prefix q with 
   | None -> ()
-  | Some n -> load (Syntax.string_of_id n)
+  | Some n -> ignore (load (Syntax.string_of_id n))
       
 (* lookup in a naming context *)
 let lookup_library2 nctx q = 

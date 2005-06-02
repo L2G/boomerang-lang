@@ -19,7 +19,7 @@ type qid = id list * id
 (* functions on identifiers *)
 (* equality: ignore parsing Info.t *)
 let id_compare (_,x1) (_,x2) = compare x1 x2
-let id_equal i1 i2 = (compare i1 i2 = 0)
+let id_equal i1 i2 = (id_compare i1 i2 = 0)
 let qid_compare (qs1,x1) (qs2,x2) = 
   let rec ids_compare xs1 xs2 = match xs1,xs2 with
       [],[] -> 0
@@ -42,7 +42,7 @@ let qid_prefix q1 q2 =
     && (Safelist.for_all 
 	  (fun (i1,i2) -> id_equal i1 i2)
 	  (Safelist.combine il1 (Misc.take (Safelist.length il1) il2)))
-      
+	
 let string_of_id (_,i) = i
 let string_of_qid (q,i) = concat_list "." (Safelist.map string_of_id q@[string_of_id i])
 
