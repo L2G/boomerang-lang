@@ -363,7 +363,7 @@ class customized_callbacks = object(self)
       begin
 	Ui_common.select_file available 
 	  (function filename -> 
-	     try
+	     try	       
 	       let enc = Safelist.hd (Surveyor.find_encodings filename None) in
 	       let reader = Surveyor.get_reader enc in
 	       begin
