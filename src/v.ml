@@ -81,7 +81,7 @@ let singleton_dom v =
 let is_value v =
   let d = dom v in 
     (Name.Set.cardinal d = 1) &&
-    (is_empty (get_required v (Name.Set.choose d)))
+      (is_empty (get_required v (Name.Set.choose d)))
       
 let new_value s = set empty s (Some empty)
 
@@ -289,7 +289,6 @@ let string_of_t v =
     let s = Buffer.contents buf in
       Format.set_formatter_output_functions out flush;
       s
-
     
 type msg = [ `String of string | `Name of Name.t | `Break | `View of t
            | `View_opt of t option | `Open_box | `Close_box ]

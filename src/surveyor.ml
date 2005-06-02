@@ -45,3 +45,25 @@ let get_writer ekey = (get_encoding ekey).writer
 let get_description ekey = (get_encoding ekey).description
 let print_description ekey = print_endline ((get_description ekey) ^ " (" ^ ekey ^ ")")
 (*let string_of_encoding_key (ekey:encoding_key) = ekey*)
+
+(* utilities *)
+let parse_filename fn =
+  try 
+    let i = String.rindex fn ':' in
+      (String.sub fn 0 i, Some(String.sub fn (i+1) ((String.length fn) - (i+1))))
+  with
+      Not_found -> (fn,None)
+
+let get_ekey eko fn contents_opt = 
+  match eko with 
+      Some ekey ->
+	begin 
+	  try 
+	    let _ = get_encoding ekey in ekey 
+	  with
+	      Not_found -> raise (Error.Fatal_error (Printf.sprintf "unknown encoding key: %s" ekey))
+	end
+    | None -> 
+	match (find_encodings fn contents_opt) with
+	  | [ek] -> ek
+	  | _    -> raise (Error.Fatal_error (Printf.sprintf "No unique encoding for file '%s'" fn))

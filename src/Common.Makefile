@@ -29,9 +29,8 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 #########################
 
 BASE_SOURCES = misc.mli misc.ml mapplus.mli mapplus.ml name.ml v.mli v.ml lens.mli \
-               lens.ml surveyor.mli surveyor.ml \
-               pretty.ml info.ml error.ml \
-	       syntax.ml parser.mly lexer.mll \
+               lens.ml info.ml error.ml surveyor.mli surveyor.ml \
+               pretty.ml syntax.ml parser.mly lexer.mll \
                type.ml value.mli value.ml registry.mli registry.ml \
                compiler.mli compiler.ml
 

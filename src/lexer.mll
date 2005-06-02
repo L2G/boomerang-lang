@@ -47,8 +47,6 @@ let _ =
     ; "test", (fun i -> TEST i)
     ; "error", (fun i -> ERROR i)
     ; "missing", (fun i -> MISSING i)
-    ; "Any", (fun i -> ANY i)
-    ; "Empty", (fun i -> EMPTY i)
     ]
 }
 

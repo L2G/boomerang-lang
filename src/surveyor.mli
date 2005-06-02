@@ -18,6 +18,7 @@ val register_encoding : encoding_key -> encoding -> unit
 (** [register_encoding key enc] registers [enc] associated with [key] with
     the surveyor. *)
 
+(* 
 val find_encodings : string -> string option -> encoding_key list
 (** [find_encodings filename contents] finds the set of encodings which
     identify with the supplied information. *)
@@ -28,6 +29,7 @@ val get_all_encodings : unit -> encoding_key list
 
 val get_encoding : encoding_key -> encoding
 (** [get_encoding k] gets the encoding associated with [k]. *)
+*)
 
 val get_reader : encoding_key -> string -> V.t
 (** [get_reader k] gets the reader associated with [k]. *)
@@ -41,3 +43,8 @@ val get_description : encoding_key -> string
 val print_description : encoding_key -> unit
 (** [print_description k] prints a description associated with [k]. *)
 
+val parse_filename : string -> string * (string option)
+(** [parse_filename fn] splits a filename into the real filename and an optional annotation to select the viewer **)
+
+val get_ekey : string option -> string -> string option -> encoding_key
+(** [get_ekey eko fn contents_opt] returns eko if it is registered or else looks up the encoding for fn and contents **)

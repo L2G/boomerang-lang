@@ -32,36 +32,22 @@ let _ = register_native "Native.Nil" "type" nil
 (*************)
 (* UTILITIES *)
 (*************)
-let load_meta n = 
-  let old_fn = !Metal.file_name in
-  let reset_metal () = Metal.file_name := old_fn in
-  let _ = 
-    Metal.reset ();
-    Metal.file_name := n 
-  in
-  let fn = match find_filename n with
-      None -> 
-	reset_metal(); 
-	error [`String ("Native.load_meta: Cannot find file " ^ n)]
+let load n = 
+  let (fn, ekeyo) = Surveyor.parse_filename n in
+  let fn = match find_filename fn with
+      None -> error [`String ("Native.load: cannot locate " ^ fn)]
     | Some fn -> fn in
-  let fchan = open_in fn in
-  let lexbuf = Lexing.from_channel fchan in
-  let v = 
-    try 
-      (Metay.view Metal.token lexbuf)
-    with Parsing.Parse_error -> 
-      reset_metal ();
-      error [`String ("Native.load_meta: Error parsing meta view in " ^ fn)]
-  in
-    reset_metal ();
-    v
+  let ekey = Surveyor.get_ekey ekeyo fn None in
+    match Misc.view_of_file fn (Surveyor.get_reader ekey) with
+	None -> error [`String ("Native.load: error loading file " ^ fn)]
+      | Some v -> v
 
-let load_meta_lib =
+let load_lib =
   F(function 
-      | N n -> V (load_meta n)
-      | _ -> focal_type_error "Native.load_meta")
+      | N n -> V (load n)
+      | _ -> focal_type_error "Native.load")
     
-let _ = register_native "Native.load_meta" "name -> view" load_meta_lib
+let _ = register_native "Native.load" "name -> view" load_lib
 
 (*************)
 (* DEBUGGING *)

@@ -4,9 +4,7 @@ open Error
 
 let failwith s = prerr_endline s; exit 1
 
-(* let debug s_thk = prerr_endline ("DEBUG: " ^ (s_thk ())); flush stderr *) 
-(* lookup from registry *)
-let protect thk = 
+let fail_on_errors thk = 
   try 
     thk ()
   with 
@@ -34,9 +32,7 @@ let protect thk =
 	exit 1
 
 let lookup qid_str = 
-  protect 
-    (fun () -> 
-       Registry.lookup_library (Registry.parse_qid qid_str))
+  Registry.lookup_library (Registry.parse_qid qid_str)
 	  
 let lookup_lens qid_str = 
   match lookup qid_str with
@@ -57,183 +53,75 @@ let lookup_type qid_str =
 	      Value.T t -> t
 	    | _ -> failwith (Printf.sprintf "%s is not a type" qid_str)
 	end
-	    
-let get_ekey f = function
-    Some ekey ->
-      (try let _ = Surveyor.get_encoding ekey in ekey with
-	   Not_found -> prerr_endline ("unknown encoding key " ^ ekey); exit 1)
-  | None -> 
-      (* We shall be able to pass some contents instead of None *)
-      (match (Surveyor.find_encodings f None) with
-	 | [ek] -> ek
-	 | _    -> 
-	     failwith (Printf.sprintf "No unique encoding found for file '%s'" f))
-	
-let parse_replica r =
-  try 
-    let n = String.rindex r ':' in
-    (String.sub r 0 n, Some(String.sub r (n+1) ((String.length r) - (n+1))))
-  with
-    Not_found -> (r,None)
 
-let get_view_from_file reader file = 
-  if Sys.file_exists file then
-    Some (Util.convertUnixErrorsToFatal "Harmony" ( fun () -> reader (Misc.read file)))
-  else
-    None
+let read_view fn = 
+  let (fn, ekeyo) = Surveyor.parse_filename fn in
+  let ekey = Surveyor.get_ekey ekeyo fn None in
+    Misc.view_of_file fn (Surveyor.get_reader ekey)
       
-let view_to_file written file =
-  let outc = open_out file in
-    (output_string outc written; close_out outc)   
-    
-let synchronize o a b = (o,a,b)
-    
-(* ========== *)	
-(* GET / SHOW *)
-(* ========== *)	
-let get lens_qid concrete_file output_file =
-  (* look if there is also an encoding specification *)
-  let (r, reader_ek) = parse_replica concrete_file in
-  (* get the encoding key *)
-  let ekey = get_ekey r reader_ek in
-  (* apply the reader, get the concrete view *)
-  let cv = get_view_from_file (Surveyor.get_reader ekey) r in
-  (* now we'll get the lens *)
-  let lens = lookup_lens lens_qid in
-  (* apply it to get the abstract view *)
-  let av = 
-    try match cv with
-      |	Some cview -> protect (fun () -> Lens.get lens cview)
-      | None -> failwith (Printf.sprintf "Concrete view file %s is missing." concrete_file) 
-    with V.Error(e) -> (V.format_msg e; failwith "Error in get function")
-      | V.Illformed(m,vs) -> 
-	  V.format_msg ([`String m]@(Safelist.map (fun vi -> `View vi) vs)) ; failwith "Error in get function"
+let write_view fn v = 
+  let (fn, ekey) = Surveyor.parse_filename fn in
+  let ekey = Surveyor.get_ekey ekey fn None in
+  let v_str = (Surveyor.get_writer ekey) v in    
+    Misc.write fn v_str
+
+(*********)
+(* CHECK *)
+(*********)
+let check m = 
+  if not (Registry.load m) then
+    failwith (Printf.sprintf "Error: could not find module %s\n" m)
+	      
+(*******)
+(* GET *)
+(*******)
+let get lens c_fn o_fn = 
+  let cvo = read_view c_fn in
+  let lens = lookup_lens lens in
+  let av = match cvo with
+    | Some cv -> Lens.get lens cv
+    | None -> failwith (Printf.sprintf "Concrete view file %s is missing." c_fn) 
   in
-  (* we're gonna have to output it *)
-  let (o, viewer_ek) = parse_replica output_file in
-  (* get back the viewer *)
-  let okey = get_ekey o viewer_ek in
-  (* apply it to get a string *)
-  let written = (Surveyor.get_writer okey) av in
-  (* and do the output *)
-    view_to_file written o
-    
-(* ========== *)	
-(*     PUT    *)
-(* ========== *)	
-let put lens_string abstract concrete output =
-  (* look if there is also an encoding specification *)
-  let (a, reader_ek) = parse_replica abstract in
-    (* get the encoding key of the abstract*)
-  let akey = get_ekey a reader_ek in
-  (* apply the reader, get the abstract view *)
-  let av = protect (fun () -> get_view_from_file (Surveyor.get_reader akey) a) in
-  (* do the same job for the concrete view *)
-  let (c, reader_ek) = parse_replica concrete in
-  let ckey = get_ekey c reader_ek in
-  let cv = get_view_from_file (Surveyor.get_reader ckey) c in
-  (* now we'll get the lens *)
-  let lens = lookup_lens lens_string in
-  (* apply it to put the abstract view into the concrete view*)
-  let newcv = 
-    try match av with
-      Some aview -> protect (fun () -> Lens.put lens aview cv)
-    | None -> failwith (Printf.sprintf "The abstract view file %s is missing or empty" a)
-    with V.Error(e) -> (V.format_msg e; failwith "Error in put function")
-    | V.Illformed(m,vs) -> 
-	V.format_msg ([`String m]@(Safelist.map (fun vi -> `View vi) vs)) ; failwith "Error in put function"
-  in
-  (* we're gonna have to output it *)
-  let (o, viewer_ek) = parse_replica output in
-  (* get back the viewer *)
-  let okey = get_ekey o viewer_ek in
-  (* apply it to get a string *)
-  let written = (Surveyor.get_writer okey) newcv in
-    (* and do the output *)
-    view_to_file written o 
-    
-(* ========== *)	
-(*    SYNC    *)
-(* ========== *)
-let sync archive replica1 replica2 schema_string lensa_string lens1_string lens2_string newarchive newreplica1 newreplica2 =
-  (* reading the views from the given filenames *)
-  (* the archive *)
-  let (ar, reader_ek) = parse_replica archive in
-  let arkey = get_ekey ar reader_ek in
-  let arcv = protect (fun () -> get_view_from_file (Surveyor.get_reader arkey) ar) in
-  (* the 1st replica *)
-  let (r1, reader_ek) = parse_replica replica1 in
-  let r1key = get_ekey r1 reader_ek in
-  let r1cv = protect (fun () -> get_view_from_file (Surveyor.get_reader r1key) r1) in
-  (* the 2nd replica *)
-  let (r2, reader_ek) = parse_replica replica2 in
-  let r2key = get_ekey r2 reader_ek in
-  let r2cv = protect (fun () -> get_view_from_file (Surveyor.get_reader r2key) r2) in
-  (* the lenses *)
-  let lensa = lookup_lens lensa_string in
-  let lens1 = lookup_lens lens1_string in 
-  let lens2 = lookup_lens lens2_string in 
-  (* the schema *)
-  let schema = lookup_type schema_string in 
-  (* apply the lenses in the get direction *)
-  let arav =
-    match arcv with
-      Some v -> Some (protect (fun () -> Lens.get lensa v))
-    | None -> None in
-  let r1av =
-    match r1cv with
-      Some v -> Some (protect (fun () -> Lens.get lens1 v))
-    | None -> None in
-  let r2av =
-    match r2cv with
-      Some v -> Some (protect (fun () -> Lens.get lens2 v))
-    | None -> None in
-  (* the actual synchronization *)
-  let (action, newarav, newr1av, newr2av) =
-    Sync.sync schema arav r1av r2av in
-  let _ = Sync.format action in
-  (* we apply the lenses in the put direction *)
-  let newarcv =
-    match newarav with
-	Some v -> Some (protect (fun () -> Lens.put lensa v arcv)) 
-      | None -> None in
-  let newr1cv =
-    match newr1av with
-	Some v -> Some (protect (fun () -> Lens.put lens1 v r1cv))
-      | None -> None in
-  let newr2cv =
-    match newr2av with
-      Some v -> Some (protect (fun () -> Lens.put lens2 v r2cv))
-      | None -> None in
-    (* and we write the results *)
-  (* first the archive *)
-  let (o, viewer_ek) = parse_replica newarchive in
-  let okey = get_ekey o viewer_ek in
-    (match newarcv with
-	 Some a ->
-	   let s = (Surveyor.get_writer okey) a in
-	     protect (fun () -> view_to_file s o)
-       | None -> assert false);
-    (* now the first replica *)
-    let (o, viewer_ek) = parse_replica newreplica1 in
-    let okey = get_ekey o viewer_ek in
-      (match newr1cv with
-	   Some r1 ->
-	     let s = (Surveyor.get_writer okey) r1 in
-	       protect (fun () -> view_to_file s o)
-	 | None -> assert false);
-      (* and finally the second replica *)
-      let (o, viewer_ek) = parse_replica newreplica2 in
-      let okey = get_ekey o viewer_ek in
-	(match newr2cv with
-	     Some r2 ->
-	       let s = (Surveyor.get_writer okey) r2 in
-		 protect (fun () -> view_to_file s o)
-	   | None -> assert false)
+    write_view o_fn av
+
+(*******)
+(* PUT *)
+(*******)
+let put lens a_fn c_fn o_fn = 
+  let avo = read_view a_fn in
+  let cvo = read_view c_fn in 
+  let lens = lookup_lens lens in
+  let cv' = match avo with
+      Some av -> Lens.put lens av cvo
+    | None -> failwith (Printf.sprintf "The abstract view file %s is missing or empty" a_fn)
+  in	
+    write_view o_fn cv'
+      
+(********)
+(* SYNC *)
+(********)
+let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
+  let o = read_view o_fn in
+  let a = read_view a_fn in
+  let b = read_view b_fn in
+  let s = lookup_type s in 
+  let lenso = lookup_lens lenso in
+  let lensa = lookup_lens lensa in 
+  let lensb = lookup_lens lensb in         
+  let oa = Misc.map_option (Lens.get lenso) o in
+  let aa = Misc.map_option (Lens.get lenso) a in
+  let ba = Misc.map_option (Lens.get lenso) b in
+  let (act, oa', aa', ba') = Sync.sync s oa aa ba in
+  let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
+  let a' = Misc.map_option (fun a' -> Lens.put lenso a' o) aa' in
+  let b' = Misc.map_option (fun b' -> Lens.put lenso b' o) ba' in
+    Sync.format act;
+    ignore (Misc.map_option (write_view o'_fn) o');
+    ignore (Misc.map_option (write_view a'_fn) a');
+    ignore (Misc.map_option (write_view b'_fn) b')
 
 (****************************  Command-line switches *******************************)
 
-(* get and put options *)
 let lens = Prefs.createString 
   "lens" 
   ""
@@ -262,7 +150,6 @@ let output = Prefs.createString
   "name of the file to use as the output file for get and put"
 let _ = Prefs.alias output "o"
 
-(* sync stuff *)
 let replica1 = Prefs.createString "replica1" "" "*the first of the 2 replicas to synchronize" ""
 let _ = Prefs.alias replica1 "r1"
 
@@ -293,53 +180,44 @@ let _ = Prefs.alias lensr2 "l2"
 let schema = Prefs.createString "schema" "" "*the schema for the synchronization" ""
 let _ = Prefs.alias schema "s"
 
-let mod_qid = Prefs.createString "module" "" "*the module to check" ""
-let _ = Prefs.alias mod_qid "m"
+let module_qid = Prefs.createString "module" "" "*the module to check" ""
+let _ = Prefs.alias module_qid "m"
 
 let rest = Prefs.createStringList "rest" "*stuff" ""
 
 (****************************  Command-line Processing *******************************)
   
 let usageMsg = 
-  "usage: harmony get -lens l -concrete cf -output of [options]\n"
+    "usage: harmony get -lens l -concrete cf -output of [options]\n"
   ^ "       harmony put -lens l -abstract af -concrete cf -output of [options]\n"
   ^ "       harmony check -module m [options]\n\n"
   ^ "Options:"
     
 let main () =
-  (* retrieves the value of a -option, fails if argument is missing on the cmd ine *)
+  (* retrieves the value of a -option, fails if argument is missing on
+     the command line *)
   let p pref = 
     match Prefs.read pref with 
-      "" ->  
-	let names = Prefs.name pref in 
-	failwith (Printf.sprintf "argument '%s' required for 'harmony %s'" 
-		    (Safelist.nth names (Safelist.length names - 1))
-                    (Safelist.nth (Prefs.read rest) 0)
-        )    
-    | s -> s in
-  (* we parse the command line *)
-  Prefs.parseCmdLine usageMsg;
-  (* and check the anonymous args to see what's next *)
-  match Prefs.read rest with
-    ["get"] | ["show"]-> 
-	get (p lens) (p concrete) (p output)
-  | ["put"] ->
-      put (p lens) (p abstract) (p concrete) (p output)
-  | ["sync"] ->
-	sync 
-	  (p archive) (p replica1) (p replica2) 
-	  (p schema)
-	  (p lensar) (p lensr1) (p lensr2)
-	  (p newarchive) (p newreplica1) (p newreplica2)
-  | ["check"] -> 
-      let go () = 
-	if not (Registry.load (p mod_qid)) then 
-	  failwith (Printf.sprintf "Error: could not find module %s\n" (p mod_qid))
-      in
-	protect go
-  | [ss] -> failwith(Printf.sprintf "Unknown command : %s \n%s" ss (Prefs.printUsage usageMsg; ""))
-  | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
-  |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
-       
-let _ = 
-  Unix.handle_unix_error main ()
+	"" ->  
+	  let names = Prefs.name pref in 
+	    failwith (Printf.sprintf "argument '%s' required for 'harmony %s'" 
+			(Safelist.nth names (Safelist.length names - 1))
+			(Safelist.nth (Prefs.read rest) 0)
+		     )    
+      | s -> s in
+    Prefs.parseCmdLine usageMsg;
+    match Prefs.read rest with
+      | ["check"]          -> check (p module_qid)	  
+      | ["get"] | ["show"] -> get (p lens) (p concrete) (p output)
+      | ["put"]            -> put (p lens) (p abstract) (p concrete) (p output)
+      | ["sync"]           -> 
+	  sync 
+	    (p archive) (p replica1) (p replica2) 
+	    (p schema)
+	    (p lensar) (p lensr1) (p lensr2)
+	    (p newarchive) (p newreplica1) (p newreplica2)
+      | [ss] -> failwith(Printf.sprintf "Unknown command : %s \n%s" ss (Prefs.printUsage usageMsg; ""))
+      | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
+      |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
+
+let _ = (Unix.handle_unix_error (fun () -> fail_on_errors main)) ()

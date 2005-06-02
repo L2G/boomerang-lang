@@ -33,7 +33,7 @@ let nil_view i =
 %token <Info.t> LENS VIEW TYPE NAME ARROW DOUBLEARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH TEST ERROR MISSING
-%token <Info.t> ANY EMPTY STAR BANG BAR TILDE 
+%token <Info.t> STAR BANG BAR TILDE 
 
 %start modl sort qid 
 %type <Syntax.modl> modl
@@ -243,9 +243,11 @@ ctypeexp:
   | atypeexp                                 { $1 }
 
 atypeexp:
-  | ANY                                      { TAny($1) }
-  | EMPTY                                    { TEmpty($1) } 
-  | qid                                      { let i = info_of_qid $1 in TVar(i, $1) }
+  | qid                                      { let i = info_of_qid $1 in 
+						 match $1 with 
+						     ([],(_,"Any")) -> TAny(i)
+						   | ([],(_,"Empty")) -> TEmpty(i)
+						   | _ -> TVar(i, $1) }
   | LPAREN ptypeexp RPAREN                   { $2 } 
   | LBRACE typeelt_list RBRACE               { let i = merge_inc $1 $3 in TCat(i,$2) }
   | LBRACK iptypeexp_list RBRACK             { let i = merge_inc $1 $3 in
