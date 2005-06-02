@@ -6,10 +6,10 @@ type Dummy = Schemas.Abstract
 
 (* definitions of types for conditionals *)
 (* in the get way *)
-type Dd = { "dd" = Any }
-type Ddavech3 = { "dd" = { "" = [{"h3" = Any}] } }
-type Ddsansh3 = { "dd" = { "" = ({"PCDATA" = Any } :: Any )} }
-type Dt = { "dt" = Any }
+type Dd = { "dd" = `Any }
+type Ddavech3 = { "dd" = { "" = [{"h3" = `Any}] } }
+type Ddsansh3 = { "dd" = { "" = ({"PCDATA" = `Any } :: `Any )} }
+type Dt = { "dt" = `Any }
       
 type Item = List (Dd | Dt )
       
@@ -19,20 +19,20 @@ type ItemLink = Dt :: Item
 type ItemLinkDesc = Dt :: (Ddsansh3 :: Item)
 
 (* and in the put way *)
-type FullLink U = {"name" = U, "url" = U, "description" = U}
-type FullFolder T U = {"name" = U, "contents" = T, "description" = U}
+type FullLink U = {"name" = `U, "url" = `U, "description" = `U}
+type FullFolder T U = {"name" = `U, "contents" = `T, "description" = `U}
 
-type Link = {"dt" = Schemas.Link } :: Item
-type Folder = { "dd" = Schemas.Folder } :: Item
-type LinkWithDesc =  {"dt" = FullLink Any } :: Item
-type FolderWithDesc = { "dd" = FullFolder Any Any } :: Item
+type Link = {"dt" = `(Schemas.Link) } :: Item
+type Folder = { "dd" = `(Schemas.Folder) } :: Item
+type LinkWithDesc =  {"dt" = `(FullLink Any) } :: Item
+type FolderWithDesc = { "dd" = `(FullFolder Any Any) } :: Item
 
 (* and for the asserts *)
 type MLink = Schemas.Link | (FullLink Schemas.V)
 (** this Any should be replaced by MozAbstract because FullFolder uses its first *)
 (** argument under a name so it's ok for recursion...                            *)
 type MFolder = Schemas.Folder | (FullFolder Any Schemas.V)
-and MozAbstract = List ({ "folder" =  MFolder } | { "link" = MLink })
+and MozAbstract = List ({ "folder" =  `MFolder } | { "link" = `MLink })
 
 type MozConcrete = Any
       
@@ -43,9 +43,9 @@ type MozConcrete = Any
 (* type of bookmark, the lens l2 should be applied instead *)
 let l =
   let no_descr_tag : view  =
-    { List.HD = { "dd" = { "" = [ {"PCDATA"= {"No description"}} ] }}} in
+    { `(List.HD) = { "dd" = { "" = [ {"PCDATA"= {"No description"}} ] }}} in
   let no_descr : view =
-    { List.HD = { "PCDATA" = {"No description"}}} in
+    { `(List.HD) = { "PCDATA" = {"No description"}}} in
   
   let hoist_hd (p : view) =
     hoist_nonunique List.HD p;
@@ -82,44 +82,44 @@ let l =
       
   and item_list : lens =
     let itemfolderdesc2 =
-      List.tl {}; wmap {List.TL ->item_list}; List.tl {} in
+      List.tl {}; wmap {`(List.TL) ->item_list}; List.tl {} in
     let itemfolderdesc = 
       (* that's the tricky part.. will comment it later *)
-      wmap { List.HD -> (hoist	"dd"; hoist ""; List.hd []),
-	List.TL -> 
-	  wmap {List.HD -> hoist "dd"; hoist ""; 
+      wmap { `(List.HD) -> (hoist "dd"; hoist ""; List.hd []),
+	`(List.TL) -> 
+	  wmap {`(List.HD)-> hoist "dd"; hoist ""; 
 	    hoist_nonunique List.HD {"PCDATA"}; rename "PCDATA" "description";
 	    rename List.TL "myTail"
 	       };
 	  hoist_nonunique List.HD {"myTail", "description"}
 	   };
-      hoist_nonunique List.TL {List.TL, "myTail", "description"};
+      hoist_nonunique List.TL {`(List.TL), "myTail", "description"};
       hoist_nonunique List.HD {"h3"};
       plunge List.HD;
-      wmap { List.HD -> 
-	xfork {"myTail", "h3", "description"} {List.HD} 
-	  (xfork {"h3", "myTail"} {""} (rename "myTail" List.TL; xfork {"h3"} {List.HD} (plunge List.HD) id; plunge "") id; plunge "dd"; plunge List.HD) 
+      wmap { `(List.HD) -> 
+	xfork {"myTail", "h3", "description"} {`(List.HD)} 
+	  (xfork {"h3", "myTail"} {""} (rename "myTail" List.TL; xfork {"h3"} {`(List.HD)} (plunge List.HD) id; plunge "") id; plunge "dd"; plunge List.HD) 
 	  id 
 	   }; 
       hoist List.HD;
-      wmap { List.HD -> folder, List.TL -> item_list }
+      wmap { `(List.HD) -> folder, `(List.TL) -> item_list }
     in
     let itemfolder =
-      wmap { List.HD -> folder, List.TL -> item_list } 
+      wmap { `(List.HD) -> folder, `(List.TL) -> item_list } 
     in
     let itemlink =
-      wmap { List.HD -> link, List.TL -> item_list } 
+      wmap { `(List.HD) -> link, `(List.TL) -> item_list } 
     in
     let itemlinkdesc =
       (* pretty much the same strategy as in itemfolderdesc, but EZer here *)
-      wmap { List.HD -> hoist "dt",
-	List.TL -> wmap { List.HD -> hoist "dd"; hoist ""; List.hd []; rename "PCDATA" "description" };
+      wmap { `(List.HD) -> hoist "dt",
+	`(List.TL) -> wmap { `(List.HD) -> hoist "dd"; hoist ""; List.hd []; rename "PCDATA" "description" };
 	  hoist_nonunique List.HD {"description"}
 	   };
       hoist_nonunique List.HD {""};
-      hoist_nonunique List.TL {"description", List.TL};
-      xfork {"", "description"} {List.HD} (plunge "dt"; plunge List.HD) id;
-      wmap { List.HD -> link, List.TL -> item_list }
+      hoist_nonunique List.TL {"description", `(List.TL)};
+      xfork {"", "description"} {`(List.HD)} (plunge "dt"; plunge List.HD) id;
+      wmap { `(List.HD) -> link, `(List.TL) -> item_list }
 	
     in
     acond <ItemFolderDesc> <FolderWithDesc> itemfolderdesc

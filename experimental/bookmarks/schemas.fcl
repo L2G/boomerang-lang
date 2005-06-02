@@ -5,16 +5,16 @@ open Prelude
 type V = { !={} }     
 
 (* the abstract schema for heterogeneous synchronization, as described in the paper *)
-type Link = { "name" = V, "url" = V }
+type Link = { "name" = `V, "url" = `V }
 
-type Folder  = { "name" = V, "contents" = Contents }     
-and Contents  = List ({ "folder" = Folder} | {"link" =  Link})
+type Folder  = { "name" = `V, "contents" = `Contents }     
+and Contents  = List ({ "folder" = `Folder} | {"link" =  `Link})
 
 type Abstract = Contents
 
 (* A flattened abstract bookmark schema for synchronization with easy alignment *)
-type Item = { "folders" = { * = List Item }, "links" = { * = V } }
-and Twig = List { "folders" = { * = List Twig }, "links" = { * = V } }
+type Item = { "folders" = { * = `(List Item) }, "links" = { * = `V } }
+and Twig = List { "folders" = { * = `(List Twig) }, "links" = { * = `V } }
 
 type BushAbstract = Item
       
@@ -43,9 +43,9 @@ let flatten_to_bush : lens =
   (* the following conditionals adds empty folders and links if needed *)
   acond <{}> <{"folders"={}, "links"={}}>
   ( add "links" {}; add "folders" {} )
-    (acond <{"links"=Any}> <{"folders"={}, "links" = Any}>
+    (acond <{"links"=`Any}> <{"folders"={}, "links" = `Any}>
      (add "folders" {})
-       (acond <{"folders"=Any}> <{"folders" = Any, "links" = {}}>
+       (acond <{"folders"=`Any}> <{"folders" = `Any, "links" = {}}>
 	(add "links" {})
 	  id
 	  )

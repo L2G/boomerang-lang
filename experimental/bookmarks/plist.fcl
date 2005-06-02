@@ -14,12 +14,12 @@ and dict_lens : lens =
   hoist ""
 
 and keypair_lens : lens =
-  wmap { List.HD -> hoist "key"; leaf_lens, 
-         List.TL -> wmap { List.HD -> plist_object_lens } }
+  wmap { `(List.HD) -> hoist "key"; leaf_lens, 
+         `(List.TL) -> wmap { `(List.HD) -> plist_object_lens } }
 
 and leaf_lens : lens =
   hoist "";
-  acond <[]> < { List.TL=[], List.HD={"PCDATA" = {"BLANK"={}, *\("BLANK")=Any}}} >
+  acond <[]> < { `(List.TL)=[], `(List.HD)={"PCDATA" = {"BLANK"={}, *\("BLANK")=`Any}}} >
     (const [{"PCDATA"="BLANK"}] [])
     id;
   List.hd [];
@@ -32,6 +32,3 @@ let plist_lens =
   focus "" { "version" = "1.0" };
   List.hd [];
   plist_object_lens
-
-
-

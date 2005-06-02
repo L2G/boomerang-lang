@@ -6,13 +6,13 @@ open Plist
 type Value = { ! = {} }
 
 (* Safari bookmark abstract schema *)
-type URIDict = { "BLANK" = Value, "title" = Value, *\"BLANK","title" = Any }
+type URIDict = { "BLANK" = `Value, "title" = `Value, *\"BLANK","title" = `Any }
 
-type Link = { "URIDictionary" = URIDict, "URLString" = Value, *\"URIDictionary","URLString" = Any }
+type Link = { "URIDictionary" = `URIDict, "URLString" = `Value, *\"URIDictionary","URLString" = `Any }
 
-type Folder = { "Children" = List Item, "Title" = Value, *\"Children","Title" = Any }
-            | { "Title" = Value, *\"Children","Title" = Any }
-and Item = { "folder" = Folder } | { "link" = Link } | { "proxy" = Any }
+type Folder = { "Children" = `(List Item), "Title" = `Value, *\"Children","Title" = `Any }
+            | { "Title" = `Value, *\"Children","Title" = `Any }
+and Item = { "folder" = `Folder } | { "link" = `Link } | { "proxy" = `Any }
   
 type SafAbstract = List Item
 
@@ -34,9 +34,9 @@ let root =
 let children : lens = 
   wmap { "array" -> List.map (item; 
 			      pivot "WebBookmarkType";
-			      acond <{"WebBookmarkTypeLeaf" = Any}> <{"link"=Any}> 
+			      acond <{"WebBookmarkTypeLeaf" = `Any}> <{"link"= `Any}> 
 			      (rename "WebBookmarkTypeLeaf" "link")
-				(acond <{"WebBookmarkTypeProxy" = Any}> <{"proxy"=Any}>
+				(acond <{"WebBookmarkTypeProxy" = `Any}> <{"proxy"= `Any}>
 				 (rename "WebBookmarkTypeProxy" "proxy")
 				   (rename "WebBookmarkTypeList" "folder")
 				   )
@@ -50,8 +50,8 @@ and item : lens =
   
   (* if the item is a dict and does not have children, we add an empty list of children *)
   acond 
-    <{ * \ ("Children" ,"URIDictionary","BLANK") = Any}> 
-    <{ "Children" = { "array" = [] }, * \ ("Children") = Any}>  
+    <{ * \ ("Children" ,"URIDictionary","BLANK") = `Any}> 
+    <{ "Children" = { "array" = [] }, * \ ("Children") = `Any}>  
     (add "Children" {"array"=[]}) 
     id;
 
@@ -90,8 +90,8 @@ let tidy : lens =
     filter {"name", "url"} {} in
   
   let skip_proxies : lens =
-    ccond <{"proxy"=Any} :: Any> (wmap { List.TL -> skip_proxies }; List.tl {"proxy"={}})
-			    (wmap { List.TL -> skip_proxies} )
+    ccond <{"proxy" = `Any} :: Any> (wmap { `(List.TL) -> skip_proxies }; List.tl {"proxy"={}})
+			    (wmap { `(List.TL) -> skip_proxies} )
   in
   skip_proxies;
   List.map (wmap {"folder" -> tidy_folder, "link" -> tidy_link})
