@@ -91,9 +91,6 @@ Major topics:
           - but make sure these don't get on the critical path!
       - maybe some of the driver scripts should be written in Perl/Python
   * Packaging and configuration
-      - delete ./configure stuff
-      - remove graphical stuff from makefile defaults
-      - delete optometrist and related crust
       - no backups
   * Documentation
       - documentation of lenses should be generated from source code (both ocaml
