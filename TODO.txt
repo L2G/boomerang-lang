@@ -10,7 +10,6 @@ fix 'make test' in /src so that it actually runs all tests automatically
 why, again, do fork and friends take views, not types?
   - because I haven't gotten to changing it over --JNF
   - but we should do this, to get negation of views too...
-decide on a licence and put it in code as appropriate
 
 TIDYING
 * make clean should remove the silly ._d directories from OCamlMakefile
