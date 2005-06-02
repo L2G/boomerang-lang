@@ -9,7 +9,7 @@ think about whether the lambda-calculus part of focal should be strict or
 fix 'make test' in /src so that it actually runs all tests automatically
 why, again, do fork and friends take views, not types?
   - because I haven't gotten to changing it over --JNF
-  - but we should do this, to get negation of views too...
+  - but we should do this, to get negation of views too... 
 
 TIDYING
 * make clean should remove the silly ._d directories from OCamlMakefile
