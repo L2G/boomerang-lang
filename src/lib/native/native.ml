@@ -38,7 +38,7 @@ let load n =
       None -> error [`String ("Native.load: cannot locate " ^ fn)]
     | Some fn -> fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
-    match Misc.view_of_file fn (Surveyor.get_reader ekey) with
+    match Surveyor.view_of_file fn (Surveyor.get_reader ekey) with
 	None -> error [`String ("Native.load: error loading file " ^ fn)]
       | Some v -> v
 

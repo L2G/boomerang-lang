@@ -17,7 +17,6 @@ let invert : (lens -> lens) = Native.invert
 
 (** id **)
 let id : lens = Native.id
-test id / {a,b,c} = load "abc.tmp:meta"
 test id / {} = {}
 test id / {a=b} = {a=b}
 test id \ ({},missing) = {}

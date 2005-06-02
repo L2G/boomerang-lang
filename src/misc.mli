@@ -101,7 +101,6 @@ val in_dir : string -> (unit -> 'a) -> 'a
 
 val remove_file_or_dir : string -> unit
 val read : string -> string
-val view_of_file : string -> (string -> V.t) -> V.t option
 val write : string -> string -> unit
 val backup : string -> unit
 val tempFileName : string -> string

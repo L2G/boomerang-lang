@@ -57,7 +57,7 @@ let lookup_type qid_str =
 let read_view fn = 
   let (fn, ekeyo) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
-    Misc.view_of_file fn (Surveyor.get_reader ekey)
+    Surveyor.view_of_file fn (Surveyor.get_reader ekey)
       
 let write_view fn v = 
   let (fn, ekey) = Surveyor.parse_filename fn in

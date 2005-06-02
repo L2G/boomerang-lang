@@ -67,3 +67,9 @@ let get_ekey eko fn contents_opt =
 	match (find_encodings fn contents_opt) with
 	  | [ek] -> ek
 	  | _    -> raise (Error.Fatal_error (Printf.sprintf "No unique encoding for file '%s'" fn))
+
+let view_of_file fn reader = 
+  if Sys.file_exists fn then
+    Some (Util.convertUnixErrorsToFatal "Harmony" ( fun () -> reader (Misc.read fn)))
+  else
+    None

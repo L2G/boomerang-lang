@@ -453,12 +453,6 @@ let read file =
   with exn ->
     close_in chan;
     raise exn;;
-
-let view_of_file fn reader = 
-  if Sys.file_exists fn then
-    Some (Util.convertUnixErrorsToFatal "Harmony" ( fun () -> reader (read fn)))
-  else
-    None
       
 let write file s =
   let chan = open_out file in

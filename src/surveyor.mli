@@ -48,3 +48,5 @@ val parse_filename : string -> string * (string option)
 
 val get_ekey : string option -> string -> string option -> encoding_key
 (** [get_ekey eko fn contents_opt] returns eko if it is registered or else looks up the encoding for fn and contents **)
+
+val view_of_file : string -> (string -> V.t) -> V.t option
