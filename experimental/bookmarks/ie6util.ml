@@ -1,4 +1,5 @@
 (* A wrapper for IE6 bookmarks' synchronization *)
+
 open Unix
 
 type ('a,'b) directory = Folder of string * 'b * ('a,'b) directory list | File of string * 'a
