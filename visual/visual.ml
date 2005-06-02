@@ -364,15 +364,15 @@ class customized_callbacks = object(self)
 	Ui_common.select_file available 
 	  (function filename -> 
 	     try	       
-	       let enc = Safelist.hd (Surveyor.find_encodings filename None) in
+	       let enc = Surveyor.get_ekey None filename None in
 	       let reader = Surveyor.get_reader enc in
-	       begin
-		 try 
-		   let t = reader filename in
-		   let file_content = string_of_tree t in
-		     self#focal_window#example_window#concrete1#buffer#set_text file_content
-		 with Sys_error _ -> Ui_common.error available "Incorrect file!"
-	       end;
+		 begin
+		   try 
+		     let t = reader filename in
+		     let file_content = string_of_tree t in
+		       self#focal_window#example_window#concrete1#buffer#set_text file_content
+		   with Sys_error _ -> Ui_common.error available "Incorrect file!"
+		 end;
 		 available := true
 	     with
 		 Failure e -> prerr_string (e^"\n"));
