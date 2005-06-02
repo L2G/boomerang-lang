@@ -4,9 +4,9 @@ open Prelude
 let PCDATA = "PCDATA"
 let childrenTag = ""
 
-type Value = { 'PCDATA = { ! = {}}}
+type Value = { `PCDATA = { ! = {}}}
 
-type XmlAny =  { 'childrenTag = List {! = XmlAny}, *\"" = { ! = {}}}
+type XmlAny =  { `childrenTag = List {! = XmlAny}, *\"" = { ! = {}}}
 
 (* type Star n T attrs = { n = { childrenTag = List T, *\(~ attrs)= { ! = {}}}} *)
 (* type Plus n T attrs = { n = { childrenTag = (T :: List T), *\(~ attrs)= { ! = {}}}} *)
