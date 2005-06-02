@@ -8,6 +8,7 @@ think about whether the lambda-calculus part of focal should be strict or
   lazy (in particular, recursion)
 fix 'make test' in /src so that it actually runs all tests automatically
 why, again, do fork and friends take views, not types?
+  - because I haven't gotten to changing it over --JNF
 decide on a licence and put it in code as appropriate
 
 TIDYING
