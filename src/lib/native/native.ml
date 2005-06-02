@@ -535,7 +535,7 @@ let cond_ff_lib =
 let _ = register_native
   "Native.cond_ff"
   "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
-  cond_fflib
+  cond_ff_lib
 
 let cond_ww_lib =
   F (function T c -> F (
