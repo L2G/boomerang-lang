@@ -13,6 +13,11 @@ YFLAGS = -v
 OCAMLFLAGS = -dtypes
 OCAMLCPFLAGS = f
 
+##
+# Tell ocamlfind to use .opt versions of OCaml tools
+##
+OCAMLFIND_COMMANDS=$(foreach cmd,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(cmd)=$(cmd).opt)
+
 all: native-code
 
 tags:
