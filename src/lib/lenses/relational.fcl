@@ -1,10 +1,16 @@
 module Relational =
 
-let union : (name -> name -> lens) = Native.Relational.union
+let union : (name -> name -> name -> lens) = Native.Relational.union
+let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
+let unionr : (name -> name -> name -> lens) = Native.Relational.unionr
 
-let inter : (name -> name -> lens) = Native.Relational.inter
+let inter : (name -> name -> name -> lens) = Native.Relational.inter
+let interl : (name -> name -> name -> lens) = Native.Relational.interl
+let interr : (name -> name -> name -> lens) = Native.Relational.interr
 
-let diff : (name -> name -> lens) = Native.Relational.diff
+let diff : (name -> name -> name -> lens) = Native.Relational.diff
+let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
+let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
 
 let select : (name -> name -> name -> name -> lens) = Native.Relational.select
 
