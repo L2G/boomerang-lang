@@ -1,13 +1,11 @@
 (* Views are the synchronizer's most basic abstraction. *)   
 
-(* well formed or not, with reason *)
-type wf = WF | NWF of string
-
 (* the bool indicates if the view is well formed *)
-type t = VI of wf * t Name.Map.t
+type t = VI of t Name.Map.t
 
 (* Hashes of views *)
 type thist = t (* hack to avoid cyclic type in Hash functor application *)
+
 module Hash =
   Hashtbl.Make(
     struct
@@ -26,33 +24,31 @@ exception Illformed of string * (t list)
  * Accessors
  *)
 
-let dom (VI (_,m)) = Name.Map.domain m
+let dom (VI m) = Name.Map.domain m
 
 let is_empty v = Name.Set.is_empty (dom v)
 
-let get (VI (_,m)) k = 
+let get (VI m) k = 
   try
     Some (Name.Map.find k m)
   with
   | Not_found -> None
 
-let get_required ((VI (_,m)) as v) k =
+let get_required ((VI m) as v) k =
   try Name.Map.find k m
   with Not_found ->
     raise (Illformed ("V.get_required: missing child \""^k^"\" in view ", [v]))
       
-let is_well_formed (VI (b,_)) = b = WF
-
 (* ----------------------------------------------------------------------
  * Creators
  *)
 
-let empty = VI (WF, Name.Map.empty)
+let empty = VI Name.Map.empty
 
-let set_unsafe (VI (b,m)) k kid =
+let set_unsafe (VI m) k kid =
   match kid with
-  | None -> VI (b,(Name.Map.remove k m))
-  | Some v -> VI (b,(Name.Map.add k v m))
+  | None -> VI (Name.Map.remove k m)
+  | Some v -> VI (Name.Map.add k v m)
 
 let set v k kid = set_unsafe v k kid 
 
@@ -61,7 +57,7 @@ let set_star v binds =
 
 let create_star binds = set_star empty binds
        
-let from_list vl = VI (WF,(Name.Map.from_list vl))
+let from_list vl = VI (Name.Map.from_list vl)
 
 (* ----------------------------------------------------------------------
  * Singletons, Values, and Fields
@@ -176,7 +172,7 @@ let rec equal v1 v2 =
 (*   | Some v1, Some v2 -> equal v1 v2 *)
 (*   | _, _ -> false *)
 
-let fold f (VI (_,m)) c = Name.Map.fold f m c
+let fold f (VI m) c = Name.Map.fold f m c
 
 (* let map f v = *)
 (*     fold (fun k vk vacc -> set_unsafe vacc k (f vk)) v empty *)
@@ -231,7 +227,7 @@ let raw =
       
 let format v =
   let symbols = [' ';'\t';'\n';'\"';'{';'}';'[';']';'=';',';':'] in
-  let rec format_aux ((VI (_,m)) as v) inner = 
+  let rec format_aux ((VI m) as v) inner = 
     if (not (Prefs.read raw)) then
     if is_list v then begin
       let rec loop = function
@@ -261,7 +257,7 @@ let format v =
       (fun ks -> ks)
       Misc.whack 
       (fun x -> format_aux x true) 
-      (fun (VI (_,m)) -> Name.Map.is_empty m)
+      (fun (VI m) -> Name.Map.is_empty m)
       m
   in
     format_aux v false
@@ -271,12 +267,12 @@ let format_option = function
   | Some v -> format v
 
 
-let rec format_raw ((VI (_,m)) as v) =
+let rec format_raw ((VI m) as v) =
   Name.Map.dump 
     (fun ks -> ks)
     Misc.whack 
     (fun x -> format_raw x) 
-    (fun (VI (_,m)) -> Name.Map.is_empty m)
+    (fun (VI m) -> Name.Map.is_empty m)
     m  
 
 let string_of_t v = 
