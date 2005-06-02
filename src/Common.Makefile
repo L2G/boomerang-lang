@@ -46,7 +46,13 @@ SYNC_SOURCES = sync.ml
 # PLUGINS #
 ###########
 
-PLUGIN_SOURCES = native.ml
+RELATIONAL_SOURCES = relation.mli relation.ml \
+                     rlens.mli rlens.ml \
+                     dblens.mli dblens.ml \
+                     treedb.ml relational.ml
+
+PLUGIN_SOURCES = native.ml \
+                 $(RELATIONAL_SOURCES:%=relational/%)
 
 ##################
 # COMMON SOURCES #
