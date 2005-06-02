@@ -1,36 +1,28 @@
 THINGS TO DO
 
 IMMEDIATE
-fix lexer, add unit test framework
 think about Makefiles!
 continue documenting interfaces (do 'make docs' in /src), 
   beginning with v.mli (which still probably has dead stuff in it)
 think about whether the lambda-calculus part of focal should be strict or
   lazy (in particular, recursion)
-catch errors and print them sensibly (including parsability)
-  e.g., V.IllFormed
-  (these also need to be caught in viewers!)
-output to stdout option and input from stdin
 fix 'make test' in /src so that it actually runs all tests automatically
 why, again, do fork and friends take views, not types?
+decide on a licence and put it in code as appropriate
 
 TIDYING
 * make clean should remove the silly ._d directories from OCamlMakefile
 * Add interface files with camldoc documentation for EVERY MODULE
 * renaming: hoist becomes hoist_unique
-* Rename *h etc to something else
 
 CORE 
 * Delete/delete conflicts should maybe be removed
-* push synchronization down to atomic or equally changed
-   -  more generally, tidy the sync algorithm
 * memoize equality checks
 
 USER INTERFACE
 * Improve printing of everything
-
-SYNC VISUALIZER
-* need to show output even in conflict cases
+* push synchronization down to atomic or equally changed
+   -  more generally, tidy the sync algorithm
 
 LENSES
 * find or write external palm to XML parser and writer
@@ -44,6 +36,10 @@ LENSES
 * new primitive:  hoistAny (which acts like hoist except that it doesn't
                     care what name the edge it's clipping out has; takes a
                     default name for the put case)
+
+LOW PRIORITY
+output to stdout option and input from stdin
+sync visualizer: need to show output even in conflict cases
 
 THINGS TO THINK ABOUT LATER
 * check on funding possibilities for Harmony Eclipse plug-in 
