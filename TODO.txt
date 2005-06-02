@@ -54,7 +54,7 @@ THINGS TO THINK ABOUT LATER
 DOCUMENTATION
 move installation instructions for tidy and lablgtk2 from src/INSTALL to elsewhere
 
-______________________________________________________________________________
+____________________________________________________________________________
 HARMONY SUMMER 2005 PLANS
 =========================
 
