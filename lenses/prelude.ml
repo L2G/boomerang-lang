@@ -13,21 +13,21 @@ let focal_type_error msg =
 
 (* standard tags for cons-cell encoded lists *)
 let hd_tag = Value.N (V.hd_tag)
-let _ = register_native "Native.hd_tag" "name" hd_tag
+let _ = register_native "Native.Prelude.hd_tag" "name" hd_tag
 let tl_tag = Value.N (V.tl_tag)
-let _ = register_native "Native.tl_tag" "name" tl_tag
+let _ = register_native "Native.Prelude.tl_tag" "name" tl_tag
 let nil_tag = Value.N (V.nil_tag)
-let _ = register_native "Native.nil_tag" "name" nil_tag
+let _ = register_native "Native.Prelude.nil_tag" "name" nil_tag
 
 (* these need to be baked in here, because the parser uses them *)
 let cons =   
   let i = Info.bogus in    
     Value.T(Type.TT(Type.mk_ptype (Type.Fun(i,fun h -> Type.Fun(i,fun t -> Type.cons_it h t)))))
-let _ = register_native "Native.Cons" "type => type => type" cons
+let _ = register_native "Native.Prelude.Cons" "type => type => type" cons
 let nil = 
   let i = Info.bogus in
     Value.T (Type.TT(Type.mk_ptype (Type.nil_it)))
-let _ = register_native "Native.Nil" "type" nil
+let _ = register_native "Native.Prelude.Nil" "type" nil
 
 (*************)
 (* UTILITIES *)
@@ -35,19 +35,19 @@ let _ = register_native "Native.Nil" "type" nil
 let load n = 
   let (fn, ekeyo) = Surveyor.parse_filename n in
   let fn = match find_filename fn with
-      None -> error [`String ("Native.load: cannot locate " ^ fn)]
+      None -> error [`String ("Native.Prelude.load: cannot locate " ^ fn)]
     | Some fn -> fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
     match Surveyor.view_of_file fn (Surveyor.get_reader ekey) with
-	None -> error [`String ("Native.load: error loading file " ^ fn)]
+	None -> error [`String ("Native.Prelude.load: error loading file " ^ fn)]
       | Some v -> v
 
 let load_lib =
   F(function 
       | N n -> V (load n)
-      | _ -> focal_type_error "Native.load")
+      | _ -> focal_type_error "Native.Prelude.load")
     
-let _ = register_native "Native.load" "name -> view" load_lib
+let _ = register_native "Native.Prelude.load" "name -> view" load_lib
 
 (*************)
 (* DEBUGGING *)
@@ -77,9 +77,9 @@ let probe msg =
 let probe_lib = 
   F(function 
       | N n -> L (probe n)
-      | _ -> focal_type_error "Native.probe")
+      | _ -> focal_type_error "Native.Prelude.probe")
     
-let _ = register_native "Native.probe" "name -> lens" probe_lib
+let _ = register_native "Native.Prelude.probe" "name -> lens" probe_lib
 
 (* TRACE *)
 let trace msg = 
@@ -96,9 +96,9 @@ let trace msg =
 let trace_lib = 
   F(function 
       | N n -> L (trace n)
-      | _ -> focal_type_error "Native.trace")
+      | _ -> focal_type_error "Native.Prelude.trace")
     
-let _ = register_native "Native.trace" "name -> lens" trace_lib
+let _ = register_native "Native.Prelude.trace" "name -> lens" trace_lib
 	
 (* TRACEPOINT *)
 let tracepoint = Lens.tracepoint
@@ -106,10 +106,10 @@ let tracepoint_lib =
   F(function 
       | N n -> F(function 
 		   | L l -> L (tracepoint n l)
-		   | _ -> focal_type_error "Native.tracepoint")
-      | _ -> focal_type_error "Native.tracepoint")
+		   | _ -> focal_type_error "Native.Prelude.tracepoint")
+      | _ -> focal_type_error "Native.Prelude.tracepoint")
     
-let _ = register_native "Native.tracepoint" "name -> lens -> lens" tracepoint_lib
+let _ = register_native "Native.Prelude.tracepoint" "name -> lens -> lens" tracepoint_lib
 
 
 (* INVERT *)
@@ -121,14 +121,14 @@ let invert l =
 let invert_lib = 
   F(function 
       | L l -> L (invert l)
-      | _ -> focal_type_error "Native.invert")
+      | _ -> focal_type_error "Native.Prelude.invert")
     
-let _ = register_native "Native.invert" "lens -> lens" invert_lib
+let _ = register_native "Native.Prelude.invert" "lens -> lens" invert_lib
 
 let assert_native t = 
   let check_assert dir v t = 
     if not (Type.member v t) then
-      error [`String ("Native.assert(" ^ dir ^ "): view");
+      error [`String ("Native.Prelude.assert(" ^ dir ^ "): view");
 	     `View v;
 	     `String "is not a member of "; `String (Type.string_of_t t)] 
   in          
@@ -138,9 +138,9 @@ let assert_native t =
 let assert_lib = 
   F(function
 	T t -> L (assert_native t) 
-      | _ -> focal_type_error "Native.assert")
+      | _ -> focal_type_error "Native.Prelude.assert")
 
-let _ = register_native "Native.assert" "type -> lens" assert_lib
+let _ = register_native "Native.Prelude.assert" "type -> lens" assert_lib
       
 (******************)
 (* Generic Lenses *)
@@ -151,7 +151,7 @@ let id =
   { get = (fun c -> c);
     put = (fun a co -> a)}
 let id_lib = L id
-let _ = register_native "Native.id" "lens" id_lib
+let _ = register_native "Native.Prelude.id" "lens" id_lib
 	  
 (*** CONST ***)
 let const v d =
@@ -161,16 +161,16 @@ let const v d =
 	       match co with
 		 | None -> d
 		 | Some(c) -> c
-	     else error [`String "Native.const(put): abstract view";
+	     else error [`String "Native.Prelude.const(put): abstract view";
 			 `View a;
 			 `String "is not equal to"; `View (v)]) }
 let const_lib = F (function
 		     | V v -> F (function 
 				   | V d -> L (const v d)
-				   | _ -> focal_type_error "Native.const")
-		     | _ -> focal_type_error "Native.const")
+				   | _ -> focal_type_error "Native.Prelude.const")
+		     | _ -> focal_type_error "Native.Prelude.const")
 		  
-let _ = register_native "Native.const" "view -> view -> lens" const_lib
+let _ = register_native "Native.Prelude.const" "view -> view -> lens" const_lib
 	  
 (*** COMPOSE2 ***)
 let compose2 l1 l2 = 
@@ -185,10 +185,10 @@ let compose2_lib =
   F (function
        | L l1 -> F (function
 		      | L l2 -> L (compose2 l1 l2)
-		      | _ -> focal_type_error "Native.compose2")
-       | _ -> focal_type_error "Native.compose2")
+		      | _ -> focal_type_error "Native.Prelude.compose2")
+       | _ -> focal_type_error "Native.Prelude.compose2")
     
-let _ = register_native "Native.compose2" "lens -> lens -> lens" compose2_lib
+let _ = register_native "Native.Prelude.compose2" "lens -> lens -> lens" compose2_lib
 
 (********************)
 (* Lenses for trees *)
@@ -227,9 +227,9 @@ let map l =
 let map_lib = 
   F (function
        | L l -> L (map l)
-       | _ -> focal_type_error "Native.map")
+       | _ -> focal_type_error "Native.Prelude.map")
 
-let _ = register_native "Native.map" "lens -> lens" map_lib
+let _ = register_native "Native.Prelude.map" "lens -> lens" map_lib
 	  
 (*** WMAP ***)
 (* wmap - native interface *)
@@ -238,7 +238,7 @@ let wmap (l0 : Value.t -> Value.t) : (V.t, V.t) Lens.t =
     let memo = Hashtbl.create 11 in
       (fun k -> try Hashtbl.find memo k with
 	   Not_found -> 
-	     let res = match l0 (N k) with L l -> l | _ -> focal_type_error "Native.wmap" in 
+	     let res = match l0 (N k) with L l -> l | _ -> focal_type_error "Native.Prelude.wmap" in 
 	       Hashtbl.add memo k res; res)
   in
     { get = (fun c ->
@@ -269,7 +269,7 @@ let wmap (l0 : Value.t -> Value.t) : (V.t, V.t) Lens.t =
 let wmap_lib = 
   F (function
        | F m -> L (wmap m)
-       | _ -> focal_type_error "Native.wmap")
+       | _ -> focal_type_error "Native.Prelude.wmap")
     
 (* (\* wmap - unit tests *\) *)
 (* let wmap_unit_tests =  *)
@@ -284,7 +284,7 @@ let wmap_lib =
 (*     ; test_put_eq [m] "{y={a={}} z={c={}}}" (Some "{x={} y=[1 2 3]}") (\*=*\) "{y=[1 2 3] z={c={}}}" *)
 (*     ] *)
       
-let _ = register_native "Native.wmap" "(name -> lens) -> lens" wmap_lib
+let _ = register_native "Native.Prelude.wmap" "(name -> lens) -> lens" wmap_lib
   
 (* XFORK *)
 let xfork pcv pav l1 l2 =
@@ -299,11 +299,11 @@ let xfork pcv pav l1 l2 =
 	 let a1 = l1.get c1 in
 	 let a2 = l2.get c2 in
 	   if not(Name.Set.for_all pa (V.dom a1)) then
-	     error [`String "Native.xfork(get): l1 yielded a child not ";
+	     error [`String "Native.Prelude.xfork(get): l1 yielded a child not ";
          	    `String "satisfying pa"; 
 		    `View a1];
 	   if not(Name.Set.for_all (fun k -> not (pa k)) (V.dom a2)) then
-	     error [`String "Native.xfork(get): l2 yielded a child satisfying pa";
+	     error [`String "Native.Prelude.xfork(get): l2 yielded a child satisfying pa";
 		    `View a2];
 	   V.concat a1 a2);
     put = (fun a co -> 
@@ -314,11 +314,11 @@ let xfork pcv pav l1 l2 =
 	     let c1' = l1.put a1 co1 in
 	     let c2' = l2.put a2 co2 in
 	       if not(Name.Set.for_all pc (V.dom c1')) then
-		 error [`String "Native.xfork(put): l1 yielded a child ";
+		 error [`String "Native.Prelude.xfork(put): l1 yielded a child ";
 			`String "not satisfying pc"; 
 			`View c1'];
 	       if not(Name.Set.for_all (fun k -> not (pc k)) (V.dom c2')) then
-		 error [`String "Native.xfork(put): l2 yielded a child ";
+		 error [`String "Native.Prelude.xfork(put): l2 yielded a child ";
 			`String "satisfying pc"; 
 			`View c2'];
 	       V.concat c1' c2')}
@@ -328,12 +328,12 @@ let xfork_lib =
       function V pav -> F (
 	function L l1 -> F (
 	  function L l2 -> L (xfork pcv pav l1 l2)
-	    | _ -> focal_type_error "Native.xfork")
-	  | _ -> focal_type_error "Native.xfork")
-	| _ -> focal_type_error "Native.xfork")
-      | _ -> focal_type_error "Native.xfork")
+	    | _ -> focal_type_error "Native.Prelude.xfork")
+	  | _ -> focal_type_error "Native.Prelude.xfork")
+	| _ -> focal_type_error "Native.Prelude.xfork")
+      | _ -> focal_type_error "Native.Prelude.xfork")
           
-let _ = register_native "Native.xfork" "view -> view -> lens -> lens -> lens" xfork_lib
+let _ = register_native "Native.Prelude.xfork" "view -> view -> lens -> lens -> lens" xfork_lib
 	  
 (* HOIST *)
 let hoist k =
@@ -341,7 +341,7 @@ let hoist k =
       (fun c ->
 	 if   (Name.Set.cardinal (V.dom c)) <> 1 
 	   or (Name.Set.choose (V.dom c)) <> k then
-	     error [`String "Native.hoist (get): expecting exactly one child (named ";
+	     error [`String "Native.Prelude.hoist (get): expecting exactly one child (named ";
 		    `Name k; 
 		    `String ")"; 
 		    `View c];
@@ -353,9 +353,9 @@ let hoist k =
 let hoist_lib = 
   F (function 
        |  N k -> L (hoist k)
-       | _ -> focal_type_error "Native.hoist")
+       | _ -> focal_type_error "Native.Prelude.hoist")
     
-let _ = register_native "Native.hoist" "name -> lens" hoist_lib
+let _ = register_native "Native.Prelude.hoist" "name -> lens" hoist_lib
 
 (* PLUNGE *)
 let plunge k =
@@ -363,7 +363,7 @@ let plunge k =
     put = (fun a _ -> 
 	     if   (Name.Set.cardinal (V.dom a)) <> 1 
 	       or (Name.Set.choose (V.dom a)) <> k then
-	     error [`String "Native.plunge (put): expecting exactly one child (named ";
+	     error [`String "Native.Prelude.plunge (put): expecting exactly one child (named ";
 		    `Name k; 
 		    `String ")"; 
 		    `View a];
@@ -372,9 +372,9 @@ let plunge k =
 let plunge_lib = 
   F (function
        | N k -> L (plunge k)
-       | _ -> focal_type_error "Native.plunge")
+       | _ -> focal_type_error "Native.Prelude.plunge")
     
-let _ = register_native "Native.plunge" "name -> lens" plunge_lib
+let _ = register_native "Native.Prelude.plunge" "name -> lens" plunge_lib
 	  
 (******************)
 (* Copy and Merge *)
@@ -386,7 +386,7 @@ let copy m n =
 	 let child =
 	   try V.get_required c m
 	   with V.Illformed(_,_) -> 
-	     error [`String "PervasivesNative.copy(get): expecting one child named ";
+	     error [`String "Native.Prelude.copy(get): expecting one child named ";
 		    `Name m; 
 		    `String ")"; 
 		    `View c] in
@@ -395,14 +395,14 @@ let copy m n =
       (fun a _ -> 
 	 if (try V.equal (V.get_required a m) (V.get_required a n)
 	     with V.Illformed(_,_) -> 
-	       error [`String "Native.copy(put): expecting two children named ";
+	       error [`String "Native.Prelude.copy(put): expecting two children named ";
 		      `Name m; 
 		      `String "and";
 		      `Name n; 
 		      `View a])
 	 then V.set a n None
 	 else 
-	   error [`String "Native.copy(put): expecting two equal children named ";
+	   error [`String "Native.Prelude.copy(put): expecting two equal children named ";
 		  `Name m; 
 		  `String " and ";
 		  `Name n;
@@ -412,10 +412,10 @@ let copy_lib =
   F (function 
        | N m -> F (function 
 		       N n -> L (copy m n)
-		     | _ -> focal_type_error "Native.copy")
-       | _ -> focal_type_error "Native.copy")
+		     | _ -> focal_type_error "Native.Prelude.copy")
+       | _ -> focal_type_error "Native.Prelude.copy")
 
-let _ = register_native "Native.copy" "name -> name -> lens" copy_lib
+let _ = register_native "Native.Prelude.copy" "name -> name -> lens" copy_lib
 
 (* MERGE *)
 let merge m n =
@@ -427,7 +427,7 @@ let merge m n =
 	       (try V.set a n (Some (V.get_required a m))
 		with V.Illformed(_,_) -> 
 		  error
-		  [`String "Native.merge(put): expecting a child named ";
+		  [`String "Native.Prelude.merge(put): expecting a child named ";
 		   `Name m])
 	   | Some c ->
 	       let cmo,cno = (V.get c m), (V.get c n) in
@@ -447,10 +447,10 @@ let merge_lib =
   F (function 
        | N m -> F (function 
 		       N n -> L (merge m n)
-		     | _ -> focal_type_error "Native.merge")
-       | _ -> focal_type_error "Native.merge")
+		     | _ -> focal_type_error "Native.Prelude.merge")
+       | _ -> focal_type_error "Native.Prelude.merge")
     
-let _ = register_native "Native.merge" "name -> name -> lens" merge_lib
+let _ = register_native "Native.Prelude.merge" "name -> name -> lens" merge_lib
 
 (****************)
 (* Conditionals *)
@@ -492,7 +492,7 @@ let cond_impl c a1 a2 f21o f12o lt lf =
 				    | None   -> None)
 		   else lf.put a co
 	   else error [
-	     `String "Native.cond (put): the abstract view does not satisfy a1 or a2:";
+	     `String "Native.Prelude.cond (put): the abstract view does not satisfy a1 or a2:";
 	     `View a ]
       )}
 
@@ -509,17 +509,17 @@ let cond_ff_lib =
 	     function L f12 -> F (
 	       function L lt -> F (
 		 function L lf -> L (cond_ff c a1 a2 f21 f12 lt lf)
-		   | _ -> focal_type_error "Native.cond")
-		 | _ -> focal_type_error "Native.cond")
-	       | _ -> focal_type_error "Native.cond")
-	     | _ -> focal_type_error "Native.cond")
-	   | _ -> focal_type_error "Native.cond")
-	 | _ -> focal_type_error "Native.cond")
-       | _ -> focal_type_error "Native.cond")
+		   | _ -> focal_type_error "Native.Prelude.cond")
+		 | _ -> focal_type_error "Native.Prelude.cond")
+	       | _ -> focal_type_error "Native.Prelude.cond")
+	     | _ -> focal_type_error "Native.Prelude.cond")
+	   | _ -> focal_type_error "Native.Prelude.cond")
+	 | _ -> focal_type_error "Native.Prelude.cond")
+       | _ -> focal_type_error "Native.Prelude.cond")
 
 
 let _ = register_native
-  "Native.cond_ff"
+  "Native.Prelude.cond_ff"
   "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
   cond_ff_lib
 
@@ -529,14 +529,14 @@ let cond_ww_lib =
 	 function T a2 -> F (
 	   function L lt -> F (
 	     function L lf -> L (cond_ww c a1 a2 lt lf)
-	       | _ -> focal_type_error "Native.cond")
-	     | _ -> focal_type_error "Native.cond")
-	   | _ -> focal_type_error "Native.cond")
-	 | _ -> focal_type_error "Native.cond")
-       | _ -> focal_type_error "Native.cond")
+	       | _ -> focal_type_error "Native.Prelude.cond")
+	     | _ -> focal_type_error "Native.Prelude.cond")
+	   | _ -> focal_type_error "Native.Prelude.cond")
+	 | _ -> focal_type_error "Native.Prelude.cond")
+       | _ -> focal_type_error "Native.Prelude.cond")
 
 let _ = register_native
-  "Native.cond_ww"
+  "Native.Prelude.cond_ww"
   "type -> type -> type -> lens -> lens -> lens"
   cond_ww_lib
 
@@ -547,15 +547,15 @@ let cond_fw_lib =
 	   function L f21 -> F(
 	     function L lt -> F (
 	       function L lf -> L (cond_fw c a1 a2 f21 lt lf)
-		 | _ -> focal_type_error "Native.cond")
-	       | _ -> focal_type_error "Native.cond")
-	     | _ -> focal_type_error "Native.cond")
-	   | _ -> focal_type_error "Native.cond")
-	 | _ -> focal_type_error "Native.cond")
-       | _ -> focal_type_error "Native.cond")
+		 | _ -> focal_type_error "Native.Prelude.cond")
+	       | _ -> focal_type_error "Native.Prelude.cond")
+	     | _ -> focal_type_error "Native.Prelude.cond")
+	   | _ -> focal_type_error "Native.Prelude.cond")
+	 | _ -> focal_type_error "Native.Prelude.cond")
+       | _ -> focal_type_error "Native.Prelude.cond")
     
 let _ = register_native
-  "Native.cond_fw"
+  "Native.Prelude.cond_fw"
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_fw_lib
 
@@ -566,15 +566,15 @@ let cond_wf_lib =
 	   function L f12 -> F(
 	     function L lt -> F (
 	       function L lf -> L (cond_wf c a1 a2 f12 lt lf)
-		 | _ -> focal_type_error "Native.cond")
-	       | _ -> focal_type_error "Native.cond")
-	     | _ -> focal_type_error "Native.cond")
-	   | _ -> focal_type_error "Native.cond")
-	 | _ -> focal_type_error "Native.cond")
-       | _ -> focal_type_error "Native.cond")
+		 | _ -> focal_type_error "Native.Prelude.cond")
+	       | _ -> focal_type_error "Native.Prelude.cond")
+	     | _ -> focal_type_error "Native.Prelude.cond")
+	   | _ -> focal_type_error "Native.Prelude.cond")
+	 | _ -> focal_type_error "Native.Prelude.cond")
+       | _ -> focal_type_error "Native.Prelude.cond")
     
 let _ = register_native
-  "Native.cond_wf"
+  "Native.Prelude.cond_wf"
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_wf_lib
           	  
@@ -591,7 +591,7 @@ let pivot k =
 	     let ckv = V.get_value ck in
 	       V.set V.empty ckv (Some (V.set c k None))
 	   with V.Illformed(_,_) -> 
-	     error [`String "Native.pivot(get): the following view should have ";
+	     error [`String "Native.Prelude.pivot(get): the following view should have ";
 		    `String "exactly one child named "; 
 		    `Name k; 
 		    `String ", leading to a value ";
@@ -599,14 +599,14 @@ let pivot k =
     put = 
       (fun a _ ->
 	 if (Name.Set.cardinal (V.dom a)) <> 1 then
-	   error [`String "Native.pivot(get): the following view should have ";
+	   error [`String "Native.Prelude.pivot(get): the following view should have ";
 		  `String "exactly one child"; 
 		  `View a]
 	 else
 	   let ak = Name.Set.choose (V.dom a) in
 	   let w = try V.get_required a ak with Not_found -> assert false in
 	     if V.get w k <> None then
-	       error [`String "Native.pivot(put): child ";
+	       error [`String "Native.Prelude.pivot(put): child ";
 		      `Name k;
 		      `String "of this view should not exist: "; 
 		      `View w]
@@ -617,9 +617,9 @@ let pivot k =
 let pivot_lib = 
   F (function
        | N k -> L (pivot k)
-       | _ -> focal_type_error "Native.pivot")
+       | _ -> focal_type_error "Native.Prelude.pivot")
     
-let _ = register_native "Native.pivot" "name -> lens" pivot_lib
+let _ = register_native "Native.Prelude.pivot" "name -> lens" pivot_lib
   
 (* JOIN *)
 (* Dan Spoonhower's outer join *)
@@ -655,7 +655,7 @@ let join m1 m2 =
 	   let tm1, tm2 = (V.get_required c m1, V.get_required c m2) in	 
 	     compute_join tm1 tm2 V.empty
 	 with V.Illformed(_,_) ->
-	   error [`String "Native.join(get): expected view with children: "; 
+	   error [`String "Native.Prelude.join(get): expected view with children: "; 
 		  `Name m1; 
 		  `String " and "; 
 		  `Name m2]
@@ -674,7 +674,7 @@ let join m1 m2 =
 	       let acc' = 
 		 match (V.get tk m1, V.get tk m2) with
 		   | None, None       -> 
-		       error [`String "Native.join(put): illformed abstract view"]
+		       error [`String "Native.Prelude.join(put): illformed abstract view"]
 		   | Some t1, None    -> 
 		       V.set acc m1 (Some (V.set cm1 k (Some t1)))
 		   | None, Some t2    -> 
@@ -686,7 +686,7 @@ let join m1 m2 =
 	       in
 		 compute_unjoin b' acc'
 	     with Not_found ->
-	       error [`String "Native.join(put): the impossible happened"] in
+	       error [`String "Native.Prelude.join(put): the impossible happened"] in
 	   compute_unjoin a init 
       )
   }
@@ -696,10 +696,10 @@ let join_lib =
        | N n1 -> 
 	   F (function 
 		| N n2 -> L (join n1 n2)
-		| _ -> focal_type_error "Native.join")
-       | _ -> focal_type_error "Native.join")
+		| _ -> focal_type_error "Native.Prelude.join")
+       | _ -> focal_type_error "Native.Prelude.join")
     
-let _ = register_native "Native.join" "name -> name -> lens" join_lib
+let _ = register_native "Native.Prelude.join" "name -> name -> lens" join_lib
 
 (* FLATTEN *)
 let flatten =   
@@ -726,7 +726,7 @@ let flatten =
 			let a' = V.set a k None in
 			  V.set a' k (Some (V.cons d s))
 		end 
-	    else error [`String "Native.flatten(get): expected a view with exactly one child: "; 
+	    else error [`String "Native.Prelude.flatten(get): expected a view with exactly one child: "; 
 			`View head]
   in
   let listify v =
@@ -763,7 +763,7 @@ let flatten =
 			  V.cons 
 			    (V.from_list [k,d']) 
 			    (put (V.set (V.set a k None) k (Some s)) (Some c'))
-	    else error [`String "Native.flatten(put): expected a view with exactly one child: "; 
+	    else error [`String "Native.Prelude.flatten(put): expected a view with exactly one child: "; 
 			`View head]
   in
     {get = get ;
@@ -771,7 +771,7 @@ let flatten =
       
 let flatten_lib =  L flatten
 
-let _ = register_native "Native.flatten" "lens" flatten_lib
+let _ = register_native "Native.Prelude.flatten" "lens" flatten_lib
 
 (************)
 (* EXPLODE  *)
@@ -786,12 +786,12 @@ let explode =
       [] -> ""
     | a::q -> 
 	if( Name.Set.cardinal (V.dom a)) <> 1 then
-	  error [`String ("Native.explode ("^msg^") : expecting exactly one child :");
+	  error [`String ("Native.Prelude.explode ("^msg^") : expecting exactly one child :");
 		 `View a
 		];
 	let ch = Name.Set.choose (V.dom a) in
 	  if String.length ch <> 1 then
-	    error [`String ("Native.explode (" ^ msg ^ ") : expecting child with a one character name");
+	    error [`String ("Native.Prelude.explode (" ^ msg ^ ") : expecting child with a one character name");
 		   `View a
 		  ];
 	  ch^(string_of_tree msg q)
@@ -799,7 +799,7 @@ let explode =
     { get =
 	(fun c ->
 	   if( Name.Set.cardinal (V.dom c)) <> 1 then
-	     error [`String " Native.explode (get) : expecting exactly one child :";
+	     error [`String " Native.Prelude.explode (get) : expecting exactly one child :";
 		    `View c];
 	   let k = Name.Set.choose (V.dom c) in
 	     (* here is the string we have to 'explode' *)
@@ -810,7 +810,7 @@ let explode =
       
 let explode_lib = L (explode)
     
-let _ = register_native "Native.explode" "lens" explode_lib
+let _ = register_native "Native.Prelude.explode" "lens" explode_lib
     
 (* PAD *)
 (* pad a list to a power of two *)
@@ -843,7 +843,7 @@ let pad n =
 let pad_lib = 
   F(function 
       | N n -> L (pad n)
-      | _ -> focal_type_error "Native.pad")
+      | _ -> focal_type_error "Native.Prelude.pad")
     
-let _ = register_native "Native.pad" "name -> lens" pad_lib
+let _ = register_native "Native.Prelude.pad" "name -> lens" pad_lib
   

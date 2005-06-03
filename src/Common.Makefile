@@ -58,7 +58,7 @@ RELATIONAL_SOURCES = relation.mli relation.ml \
                      dblens.mli dblens.ml \
                      treedb.ml relational.ml
 
-PLUGIN_SOURCES = native.ml \
+NATIVE_LENS_SOURCES = prelude.ml \
                  $(RELATIONAL_SOURCES)
 
 ##################
@@ -69,7 +69,7 @@ COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/ubase/%) \
 		 $(BASE_SOURCES:%=$(SRC)/%) \
 		 $(SYNC_SOURCES:%=$(SRC)/%) \
 		 $(VIEWER_SOURCES:%=$(SRC)/%) \
-		 $(PLUGIN_SOURCES:%=$(LENSESDIR)/%)
+		 $(NATIVE_LENS_SOURCES:%=$(LENSESDIR)/%)
 
 TRASH := $(TRASH) $(SRC)/parser.output $(SRC)/metay.output 
 
