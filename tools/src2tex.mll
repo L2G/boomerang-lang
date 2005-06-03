@@ -66,25 +66,25 @@
   | c ->
       if !lineMode = CHARS then
 	match c with
-	  '_' -> pr "{\\char'137}"
-	| '#' -> pr "{\\char'43}"
+	  '_' -> pr "{\\char95}"
+	| '#' -> pr "{\\char35}"
 	| ' ' -> pr "{\\TTSPACE}"
-	| '$' -> pr "{\\char'44}"
-	| '%' -> pr "{\\char'45}"
-	| '&' -> pr "{\\char'46}"
-	| '~' -> pr "{\\char'176}"
-	| '^' -> pr "{\\char'136}"
-	| '\\' -> pr "{\\char'134}"
-	| '{' -> pr "{\\char'173}"
-	| '}' -> pr "{\\char'175}"
+	| '$' -> pr "{\\char36}"
+	| '%' -> pr "{\\char37}"
+	| '&' -> pr "{\\char38}"
+	| '~' -> pr "{\\char126}"
+	| '^' -> pr "{\\char94}"
+	| '\\' -> pr "{\\char92}"
+	| '{' -> pr "{\\char123}"
+	| '}' -> pr "{\\char125}"
 	(* | '\'' -> pr "{ensuremath{'}}" *)
 	| _ -> print_char c
       else if shouldPrint() then
 	(checkVerb();
 	if !inVerbatim then
           match c with
-	      '{' -> pr "{\\char'173}"
-	    | '}' -> pr "{\\char'175}"
+	      '{' -> pr "{\\char123}"
+	    | '}' -> pr "{\\char125}"
 	    | _ -> print_char c
         else print_char c)
       else
