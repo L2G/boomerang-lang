@@ -40,14 +40,18 @@ GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 $(SRC2F):
 	$(MAKE) -C $(TOOLSDIR)
 
+$(SRC2TEX):
+	$(MAKE) -C $(TOOLSDIR)
+
 ####################################################################
 # Common targets
 
 clean::
-	echo "cleaning $(PWD)"
+	@echo "-------------------- cleaning $(PWD) -----------------------"
 	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
-	for i in $(SUBDIRS); do $(MAKE) -C $$i clean; done
+	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do $(MAKE) -C $$i clean; done
 
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
-	for i in $(SUBDIRS); do $(MAKE) -C $$i test; done
+	@echo "-------------------- testing $(PWD) -----------------------"
+	@for i in $(SUBDIRS); do $(MAKE) -C $$i test; done
 
