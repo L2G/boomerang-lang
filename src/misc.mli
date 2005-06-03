@@ -55,7 +55,7 @@ val iter_with_sep : ('a -> unit) -> (unit -> 'b) -> 'a list -> unit
 (** [iter_with_sep f fsep [x1;x2;...xn]] computes [f x1; fsep (); f x2; fsep (); ... ; f xn]. *)
 
 val rev_and_flatten : 'a list list -> 'a list
-(** [rev_and_flatten [l1; l2; ... ; ln]] returns [ln@...@l2@l1]. *)
+(** [rev_and_flatten [l1; l2; ... ; ln]] returns [ln\@...\@l2\@l1]. *)
 
 val safeassoc : ('a * 'a) list -> 'a -> 'a
 (** [safeassoc l a] returns [b] is there is some [(a,b)] in [l], and [a] otherwise. *)
