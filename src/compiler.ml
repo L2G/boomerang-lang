@@ -45,98 +45,137 @@ let debug s_thk =
       flush stderr
     end
 
-(* exceptions *)
+(* helper functions for reporting exceptions *)
 let parse_error i msg_thk = 
-  raise (Error.Syntax_error(i, !Lexer.file_name, msg_thk ()))
-
+  let msg = 
+    Printf.sprintf "Parse error: %s" (msg_thk ()) in
+    raise (Error.Compile_error(i, !Lexer.file_name, msg))
+      
 let sort_error i msg_thk = 
-  raise (Error.Sort_error(i, !Lexer.file_name, msg_thk ()))
+  let msg = 
+    Printf.sprintf "Sort checking error: %s" (msg_thk ()) in
+    raise (Error.Compile_error(i, !Lexer.file_name, msg))
     
-let run_error i msg_thk = 
-  raise (Error.Run_error(i, !Lexer.file_name, msg_thk ()))
-
 let test_error i msg_thk = 
-  raise (Error.Test_error(i, !Lexer.file_name, msg_thk ()))
+  let msg = 
+    Printf.sprintf "Unit test failed: %s" (msg_thk ()) in    
+    raise (Error.Compile_error(i, !Lexer.file_name, msg))
 
+let run_error i msg_thk = 
+  let msg = 
+    Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
+    raise (Error.Compile_error(i, !Lexer.file_name, msg))
+          
 (* compiling environments comprise:
  *  - a qid list: the naming context, a list of open modules 
  *  - a Registry.env: mapping from qids to Registry.rv 
  *)
-type compile_env = Syntax.qid list * Registry.env
 
-let string_of_cev cev = 
-  let (os,ev) = cev in 
-    sprintf "{opens={%s} env=%s}" 
-      (Pretty.concat_list ", " (Safelist.map string_of_qid os))
-      (Registry.string_of_env ev)
+module type CommonEnvSig = sig
+  type t 
+  val empty : unit -> t
+  val get_ev : t -> Registry.rv Env.t
+  val set_ev : t -> Registry.rv Env.t -> t
+  val get_ctx : t -> Syntax.qid list
+  val set_ctx : t -> Syntax.qid list -> t
+  val to_string : t -> string
+end
 
-(* the empty compilation enviroment*)
-let empty_cev () = ([], Registry.empty ())
-  
-(* getters/setters for compile_envs *)
-let ev_of_cev cev = let (_,ev) = cev in ev
-let set_cev_ev cev ev = let (os,_) = cev in (os,ev)
-let ctx_of_cev cev = let (os,_) = cev in os
-let set_cev_ctx cev qs = let (os,ev) = cev in (qs,ev)
- 						
-(* helper functions for environments **) 
-let lookup_cev cev q = 
-  match (Registry.lookup_oev cev ev_of_cev ctx_of_cev q) with
-      None -> None 
-    | Some rv -> Some rv
+module type CEnvSig = sig
+  include CommonEnvSig
+  val lookup : t -> Syntax.qid -> Registry.rv option
+  val update : t -> Syntax.qid -> Registry.rv -> t
+  val overwrite : t -> Syntax.qid -> Registry.rv -> t
+end    
+
+module type SCEnvSig = sig
+  include CommonEnvSig
+
+  val add_rec_var : t -> Syntax.qid -> t
+  val clear_rec_vars : t -> t
+  val rec_var_ok : t -> Syntax.qid -> bool 
+  val get_rec_vars : t -> Syntax.qid list
+  val set_rec_vars : t -> Syntax.qid list -> t
+
+  val lookup : t -> Syntax.qid -> Syntax.sort option
+  val update : t -> Syntax.qid -> Syntax.sort -> t
+end
+
+
+module CEnv : CEnvSig = struct
+  type t = Syntax.qid list * (Registry.rv Env.t)
+      
+  let empty () = ([], (Env.empty ()))    
+
+  (* getters and setters *)
+  let get_ev cev = let (_,ev) = cev in ev
+  let set_ev cev ev = let (os,_) = cev in (os,ev)
+  let get_ctx cev = let (os,_) = cev in os
+  let set_ctx cev qs = let (os,ev) = cev in (qs,ev)
+						  
+  (* lookup from a cev, then from the library *)
+  let lookup cev q = 
+    match Env.lookup (get_ev cev) q with
+	None -> Registry.lookup_library_ctx (get_ctx cev) q
+      | Some rv -> Some rv
+	  
+  (* update a cev with a new rv *)
+  let update cev q rv = 
+    set_ev cev (Env.update (get_ev cev) q rv)
+      
+  (* overwrite a cev with a new value *)
+  let overwrite cev q rv = 
+    set_ev cev (Env.overwrite (get_ev cev) q rv)
+      
+  let to_string cev = 
+    let (os,ev) = cev in 
+      sprintf "{ctx={%s} env=%s}" 
+	(Misc.concat_list ", " (Safelist.map string_of_qid os))
+	(Env.to_string ev Registry.string_of_rv)
+end
 	
-(* update a cev with a new rv *)
-let update_cev cev q rv = 
-  Registry.update cev ev_of_cev set_cev_ev q rv
 
-(* overwrite a cev with a new value *)
-let overwrite_cev cev q rv = Registry.overwrite cev ev_of_cev set_cev_ev q rv
+module SCEnv : SCEnvSig = struct
+  type t = Syntax.qid list * CEnv.t
+  let empty () = ([], CEnv.empty ())
     
-(* sort checking environments comprise:
- *  - a qid list: a list of variables that may NOT be used recursively
- *  - a compile env
- *)
-type sort_env = Syntax.qid list * compile_env
+  (* getters/setters for sort_checking_envs *)
+  let get_ev sev = let (_,cev) = sev in CEnv.get_ev cev
+  let set_ev sev ev = let (rs,cev) = sev in (rs,CEnv.set_ev cev ev)
+  let get_ctx sev = let (_,cev) = sev in CEnv.get_ctx cev
+  let set_ctx sev qs = let (rs,cev) = sev in (rs,CEnv.set_ctx cev qs) 
 
-let string_of_sev sev = 
-  let (rs,cev) = sev in 
-    sprintf "{recursive_vars={%s} compile_env=%s}" 
-      (Pretty.concat_list ", " (Safelist.map string_of_qid rs))
-      (string_of_cev cev)      
-    
-(* the empty sort checking enviroment*)
-let empty_sev () = ([], empty_cev ())
-  
-(* getters/setters for compile_envs *)
-let ev_of_sev sev = let (_,cev) = sev in ev_of_cev cev
-let set_sev_ev sev ev = let (rs,cev) = sev in (rs,set_cev_ev cev ev)
-let ctx_of_sev sev = let (_,cev) = sev in ctx_of_cev cev
-let set_sev_ctx sev qs = let (rs,cev) = sev in (rs,set_cev_ctx cev qs) 
+  (* add a qid to the list of not-recursive variables *)
+  let add_rec_var sev q = let (rs,cev) = sev in (q::rs,cev)
+						  
+  (* check if a use of a variable is OK *)
+  let rec_var_ok sev q = let (rs,_) = sev in 
+    not (Safelist.exists (qid_equal q) rs)
 
-(* helper functions for sort checking **) 
-(* returns a sort *)
-let lookup_sev sev q = 
-  match (Registry.lookup_oev sev ev_of_sev ctx_of_sev q) with
-      None -> None 
-    | Some rv -> Some (sort_of_rv rv)
+  let get_rec_vars sev = let (rs,_) = sev in rs
+  let set_rec_vars sev rs = let (_,cev) = sev in (rs,cev)
+      
+  (* clear the list of recursive variables (e.g., when we go under a lambda) *)
+  let clear_rec_vars sev = let (_,cev) = sev in ([],cev)
+						  
+  let lookup sev q = 
+    let (_,cev) = sev in
+      match CEnv.lookup cev q with
+	  None -> None
+	| Some rv -> Some (Registry.sort_of_rv rv)
+	      
+  (* update a cev with a new sort *)
+  let update sev q s = 
+    let (rs,cev) = sev in
+      (rs, (CEnv.update cev q (Registry.make_rv s (Value.dummy s))))
 	
-(* update a cev with a new sort *)
-let update_sev sev q s = 
-  Registry.update sev ev_of_sev set_sev_ev q (make_rv s (Value.dummy s))
-    
-let set_rec_vars sev qs = let (rs,cev) = sev in (qs,cev)
-let get_rec_vars sev = let (rs,_) = sev in rs
+  let to_string sev = 
+    let (rs,cev) = sev in 
+      sprintf "{compile_env=%s, recursive_vars={%s}}"
+	(CEnv.to_string cev)      	
+	(Misc.concat_list ", " (Safelist.map string_of_qid rs))
+end
 
-(* add a qid to the list of not-recursive variables *)
-let add_rec_var q sev = let (rs,cev) = sev in (q::rs,cev)
-
-(* check if a use of a variable is OK *)
-let rec_var_ok sev q = let (rs,_) = sev in 
-  not (Safelist.exists (qid_equal q) rs)
-    
-(* clear the list of recursive variables (e.g., when we go under a lambda) *)
-let clear_rec_vars sev = let (_,cev) = sev in ([],cev)
-						
 (* convert a list of parameters ps with sorts s1,..sn and a sort s 
  * to arrow sort s1 -> ... -> sn -> s *)
 let sort_of_param_list i ps s = 
@@ -202,7 +241,7 @@ and check_exp sev e0 =
 	EVar(i,q) ->
 	  begin
 	    (* look up in the environment; check that recursive uses OK *)
-	    match (rec_var_ok sev q, lookup_sev sev q) with
+	    match (SCEnv.rec_var_ok sev q, SCEnv.lookup sev q) with
 		(true, Some s) -> s, e0
 	      | (false, Some _)  -> 
 		  sort_error i 
@@ -221,8 +260,8 @@ and check_exp sev e0 =
 	  let param_sort = sort_of_param p in
 	  let param_id = id_of_param p in	  
 	  let body_sev = (* check body in an env where param has its sort *)
-	    clear_rec_vars
-	      (update_sev sev
+	    SCEnv.clear_rec_vars
+	      (SCEnv.update sev
 		 (qid_of_id param_id)
 		 param_sort)
 	  in	    
@@ -246,7 +285,7 @@ and check_exp sev e0 =
 	  let new_ms = Safelist.map
 	    (fun (i,n,l) -> 
 	       let new_n = expect_sort_exp "map name" sev (SName(i)) n in
-	       let new_l = expect_sort_exp "map lens" (clear_rec_vars sev) (SLens(i)) l in
+	       let new_l = expect_sort_exp "map lens" (SCEnv.clear_rec_vars sev) (SLens(i)) l in
 		 (i, new_n, new_l))
 	    ms
 	  in 
@@ -270,9 +309,9 @@ and check_exp sev e0 =
 			 (string_of_sort e1_sort))
 	  end		  	    
       | ELet(i,bs,e) ->
-	  let old_rs = get_rec_vars sev in
+	  let old_rs = SCEnv.get_rec_vars sev in
 	  let bsev,_,new_bs = check_bindings sev bs in
-	  let bsev1 = set_rec_vars bsev old_rs in
+	  let bsev1 = SCEnv.set_rec_vars bsev old_rs in
 	  let e_sort, new_e = check_exp bsev1 e in
 	  let new_e0 = ELet(i, new_bs, new_e) in
 	    e_sort, new_e0
@@ -348,7 +387,7 @@ and check_ptypeexp sev pt0 = match pt0 with
   | TVar(i,q) -> 
       begin
 	(* look up in the environment; check that recursive uses OK *)
-	match (rec_var_ok sev q, lookup_sev sev q) with
+	match (SCEnv.rec_var_ok sev q, SCEnv.lookup sev q) with
 	    (true, Some s) -> s, pt0
 	  | (false, Some _)  -> 
 	      sort_error i 
@@ -386,7 +425,7 @@ and check_ptypeexp sev pt0 = match pt0 with
 	    [] -> run_error i (fun () -> "zero-argument type function")
 	  | [x] ->
 	      let i = info_of_id x in
-	      let pt_sev = clear_rec_vars (update_sev sev (qid_of_id x) (SType(i))) in	
+	      let pt_sev = SCEnv.clear_rec_vars (SCEnv.update sev (qid_of_id x) (SType(i))) in	
 	      let new_pt = 
 		expect_sort_ptypeexp "body of type operator" pt_sev pt_sort pt
 	      in
@@ -403,7 +442,7 @@ and check_ptypeexp sev pt0 = match pt0 with
 	sev (SName(i)) ne 
       in
       let new_pt = expect_sort_ptypeexp "atomic named type" 
-	(clear_rec_vars sev) (SType(i)) pt 
+	(SCEnv.clear_rec_vars sev) (SType(i)) pt 
       in
       let new_pt0 = TName(i, new_ne, new_pt) in
 	SType(i), new_pt0
@@ -413,7 +452,7 @@ and check_ptypeexp sev pt0 = match pt0 with
 	(fun exi -> expect_sort_exp "exception list" sev (SName(i)) exi) excls
       in
       let new_pt = expect_sort_ptypeexp "atomic !-type" 
-	(clear_rec_vars sev) (SType(i)) pt 
+	(SCEnv.clear_rec_vars sev) (SType(i)) pt 
       in
       let new_pt0 = TBang(i,new_excls, new_pt) in
 	SType(i), new_pt0
@@ -423,7 +462,7 @@ and check_ptypeexp sev pt0 = match pt0 with
 	(fun exi -> expect_sort_exp "exception list" sev (SName(i)) exi) excls
       in
       let new_pt = expect_sort_ptypeexp "atomic !-type" 
-	(clear_rec_vars sev) (SType(i)) pt
+	(SCEnv.clear_rec_vars sev) (SType(i)) pt
       in
       let new_pt0 = TStar(i, new_excls, new_pt) in
 	SType(i), new_pt0
@@ -459,7 +498,7 @@ and check_bindings sev bs =
 	       (* recursive bindings must give their return sort *)
 	     | Some s -> 
 		 let b_sort = (sort_of_param_list i xs s) in
-		   add_rec_var f_qid (update_sev bsev f_qid b_sort)
+		   SCEnv.add_rec_var (SCEnv.update bsev f_qid b_sort) f_qid
 	     | None   -> bsev)
       sev
       bs
@@ -475,7 +514,7 @@ and check_bindings sev bs =
 	      | Some e_sort -> e_sort, expect_sort_exp "let binding" sev e_sort e
 	  in
 	  let new_bi = Syntax.BDef(i, f, [], Some e_sort, new_e) in
-	    (update_sev bsev f_qid e_sort, f_qid, new_bi)
+	    (SCEnv.update bsev f_qid e_sort, f_qid, new_bi)
       | Syntax.BDef(i,f,ps,so,e) -> 
 	  let new_e = EFun(i,ps,so,e) in
 	    (* rewrite bindings with parameters to plain ol' lambdas *)
@@ -498,7 +537,7 @@ and check_typebindings sev tbs =
        let i = info_of_id x in (* FIXME: merge info from x and xs *)
        let x_qid = qid_of_id x in
        let tb_sort = oper_of_xs xs i in
-       let new_sev = add_rec_var x_qid (update_sev tbsev x_qid tb_sort) in
+       let new_sev = SCEnv.add_rec_var (SCEnv.update tbsev x_qid tb_sort) x_qid in
 	 (new_sev, tb_sort::tb_sorts_rev))
     (sev,[])
     tbs
@@ -534,36 +573,36 @@ and check_typebindings sev tbs =
 (* type check a single declaration *)
 let rec check_decl sev m di = 
   (* let _ = debug_decl (sprintf "checking declaration %s\n" (string_of_decl di)) in *)
-  let old_rec_vars = get_rec_vars sev in
+  let old_rec_vars = SCEnv.get_rec_vars sev in
   match di with
     | DLet(i,bs) -> 
 	let new_sev, names, new_bs = check_bindings sev bs in
 	let new_di = DLet(i, new_bs) in
-	  (set_rec_vars new_sev old_rec_vars, names, new_di)
+	  (SCEnv.set_rec_vars new_sev old_rec_vars, names, new_di)
 
     | DType(i,tbs) ->      
 	let new_sev, names, new_tbs = check_typebindings sev tbs in
 	let new_di = DType(i, new_tbs) in
-	  (set_rec_vars new_sev old_rec_vars, names, new_di)  
+	  (SCEnv.set_rec_vars new_sev old_rec_vars, names, new_di)  
     | DMod(i,n,ds) ->
 	let n_qid = qid_of_id n in	
 	let mn = Syntax.dot m n_qid in
 	let m_sev,names,new_ds = check_module_aux sev mn ds in
 	let new_sev, names_rev = Safelist.fold_left 
 	  (fun (new_sev, names) q -> 
-	     match Registry.lookup m_sev ev_of_sev q with
+	     match Env.lookup (SCEnv.get_ev m_sev) q with
 		 None -> run_error i 
 		   (fun () -> 
 		      sprintf "the just-compiled declaration, %s, went missing"
 			(string_of_qid q))
 	       | Some q_rv ->
 		   let nq_dot_q = dot n_qid q in
-		     (update_sev sev nq_dot_q (sort_of_rv q_rv), nq_dot_q::names))
+		     (SCEnv.update sev nq_dot_q (sort_of_rv q_rv), nq_dot_q::names))
 	  (sev,[])
 	  names
 	in
 	let new_di = DMod(i,n,new_ds) in
-	  (set_rec_vars new_sev old_rec_vars, Safelist.rev names_rev, new_di)
+	  (SCEnv.set_rec_vars new_sev old_rec_vars, Safelist.rev names_rev, new_di)
     | DTestGet(i,l,c,reso) ->	
 	if not (check_test m) then (sev, [], di)
 	else
@@ -614,7 +653,7 @@ and check_module_aux sev m ds =
 let check_module m0 = 
   (* let _ = debug (sprintf "checking module %s" (string_of_module m0)) in *)
   let (Syntax.MDef(i,m,nctx,ds)) = m0 in
-  let sev = set_sev_ctx (empty_sev ()) (nctx@Registry.pre_ctx) in
+  let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Registry.pre_ctx) in
   let _,_,new_ds = check_module_aux sev (Syntax.qid_of_id m) ds in 
   let new_m0 = Syntax.MDef(i,m,nctx,new_ds) in
     new_m0
@@ -632,7 +671,7 @@ let rec compile_exp cev e0 =
 	EVar(i,q) ->
 	  begin
 	    (* look up in the environment *)
-	    match lookup_cev cev q with
+	    match CEnv.lookup cev q with
 		Some rv -> rv
 	      | None -> run_error i
 		  (fun () -> 
@@ -646,7 +685,7 @@ let rec compile_exp cev e0 =
 	  let param_qid = qid_of_id (id_of_param p) in
 	  let param_sort = sort_of_param p in
 	  let f_impl v =
-	    let body_cev = update_cev cev param_qid (make_rv param_sort v) in
+	    let body_cev = CEnv.update cev param_qid (make_rv param_sort v) in
 	      value_of_rv (compile_exp body_cev e)
 	  in
 	  let fun_sort = SArrow(i,param_sort, ret_sort) in
@@ -753,7 +792,7 @@ and compile_ptypeexp cev pt0 =
     match pt with 
 	TVar(i,q) -> 
 	  begin 
-	    match lookup_cev cev q with
+	    match CEnv.lookup cev q with
 		Some rv -> 
 		  begin
 		    match value_of_rv rv with 
@@ -789,7 +828,7 @@ and compile_ptypeexp cev pt0 =
     | TVar(i,q) ->
 	begin
 	  (* look up in the environment; check that recursive uses OK *)
-	  match (lookup_cev cev q) with
+	  match (CEnv.lookup cev q) with
 	      Some rv ->
 		let tsort = sort_of_rv rv in
 		let tval = Type.Var (i,q,ptype2thunk cev pt0) in
@@ -815,7 +854,7 @@ and compile_ptypeexp cev pt0 =
 	  let x_qid = qid_of_id x in
 	  let f_impl it_arg =
 	    let x_rv = make_rv (SType(i)) (Value.T(Type.TT(Type.mk_ptype it_arg))) in
-	    let body_cev = update_cev cev x_qid x_rv in
+	    let body_cev = CEnv.update cev x_qid x_rv in
 	    let _,body_val = compile_ptypeexp body_cev pt in
 	      body_val
 	  in
@@ -867,7 +906,7 @@ and compile_bindings cev bs =
 	     | Some s ->
 		 let b_sort = (sort_of_param_list i xs s) in
 		 let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_binding bi)) b_sort in
-		   update_cev bcev f_qid (make_rv b_sort dummy)
+		   CEnv.update bcev f_qid (make_rv b_sort dummy)
 	     | None   -> bcev)
       cev
       bs
@@ -880,7 +919,7 @@ and compile_bindings cev bs =
 	let e_rv = compile_exp cev e in	
 	let memoized_v = Value.memoize (value_of_rv e_rv) in
 	let memoized_rv = make_rv (sort_of_rv e_rv) memoized_v in
-	  (f_qid, overwrite_cev bcev f_qid memoized_rv)
+	  (f_qid, CEnv.overwrite bcev f_qid memoized_rv)
       | Syntax.BDef(i,_,_,_,_) -> run_error i (fun () -> "unflattened binding")
   in
   let bcev,names_rev = Safelist.fold_left
@@ -901,7 +940,7 @@ and compile_typebindings cev tbs =
        let x_qid = qid_of_id x in
        let b_sort = oper_of_xs xs i in
        let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_typebinding ti)) b_sort in
-       	 update_cev tbcev x_qid (make_rv b_sort dummy))
+       	 CEnv.update tbcev x_qid (make_rv b_sort dummy))
     cev
     tbs
   in
@@ -911,7 +950,7 @@ and compile_typebindings cev tbs =
 	  (x,[],t) ->
 	    let x_qid = qid_of_id x in
 	    let t_rv = compile_typeexp cev t in
-	      (x_qid, overwrite_cev cev x_qid t_rv)
+	      (x_qid, CEnv.overwrite cev x_qid t_rv)
 	| (x,_,_) -> run_error (info_of_id x) (fun () -> "unflattened type binding")
   in
   let tbcev,names_rev = Safelist.fold_left
@@ -937,10 +976,10 @@ let rec compile_decl cev m di =
       let new_cev, names_rev =
 	Safelist.fold_left
 	  (fun (cev, names) q ->
-	     match Registry.lookup m_cev ev_of_cev q with
+	     match Env.lookup (CEnv.get_ev m_cev) q with
 		 Some rv ->
 		   let nq_dot_q = dot nq q in
-		     (update_cev cev nq_dot_q rv, nq_dot_q::names)
+		     (CEnv.update cev nq_dot_q rv, nq_dot_q::names)
 	       | None -> run_error i
 		   (fun () -> sprintf "the just-compiled declaration, %s, went missing"
 		      (string_of_qid q)))
@@ -1020,7 +1059,7 @@ let rec compile_decl cev m di =
       (cev, [])
 	  
 and compile_module_aux cev m ds = Safelist.fold_left
-  (fun ((cev, names):compile_env * qid list) (di:decl) ->
+  (fun (cev, names) di ->
      let new_cev, new_names = compile_decl cev m di in
        new_cev, names@new_names)
   (cev,[])
@@ -1030,19 +1069,20 @@ let compile_module m0 =
   (* let _ = debug (sprintf "compiling module %s" (string_of_module m0)) in *)
   let (Syntax.MDef(i,m,nctx,ds)) = m0 in
   let mq = qid_of_id m in
-  let cev = set_cev_ctx (empty_cev ()) (nctx@Registry.pre_ctx) in
+  let cev = CEnv.set_ctx (CEnv.empty ()) (nctx@Registry.pre_ctx) in
   let new_cev,_ = compile_module_aux cev mq ds in
-    Registry.register_env (ev_of_cev new_cev) mq
+    Registry.register_env (CEnv.get_ev new_cev) mq
 	      
-(* parsing *)
+(* parsing helpers *)
 let parse_lexbuf lexbuf = 
-  let _ = Lexer.reset () in
-    try 
-      Parser.modl Lexer.main lexbuf
-    with Parsing.Parse_error ->
-      parse_error (Lexer.info lexbuf) 
-	(fun () -> "Syntax error")
-	
+  try 
+    let ast = Parser.modl Lexer.main lexbuf in
+      Lexer.finish ();
+      ast
+  with Parsing.Parse_error ->
+    parse_error (Lexer.info lexbuf) 
+      (fun () -> "Syntax error")
+      
 let parse_string str = 
   parse_lexbuf (Lexing.from_string str)
     
@@ -1052,19 +1092,16 @@ let parse_chan fc =
 (* the main functions this module exports *)
 (* end-to-end compilation *)
 let compile_string fake_name str = 
-  let old_fn = !Lexer.file_name in
-  let _ = Lexer.file_name := fake_name in
+  let _ = Lexer.setup fake_name in
   let ast = parse_string str in  
   let ast = check_module ast in 
-  let _ = compile_module ast in 
-  let _ = Lexer.file_name := old_fn in 
-    ()
-
+    compile_module ast 
+      
 let compile_file fn n =
-  let old_fn = !Lexer.file_name in
-  let _ = Lexer.file_name := fn in
+  let _ = Lexer.setup fn in  
   let fchan = open_in fn in
-  let ast = parse_chan fchan in
+  let ast = parse_chan fchan in  
+  let _ = close_in fchan in
   let m_str = string_of_id (id_of_modl ast) in
   let _ =
     if (n <> m_str) then
@@ -1074,10 +1111,7 @@ let compile_file fn n =
 	   m_str (String.uncapitalize m_str))
   in
   let ast = check_module ast in 
-  let _ = compile_module ast in 
-  let _ = close_in fchan in
-  let _ = Lexer.file_name := old_fn in 
-    ()
-      
+    compile_module ast
+    
 (* ugly backpatch hack! *)
 let _ = Registry.compile_file_impl := compile_file

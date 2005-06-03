@@ -3,130 +3,77 @@
 (* harmony@lists.seas.upenn.edu                                     *)
 (*                                                                  *)
 (* registry.ml - library of Focal values                            *)
-(*                                                                  *)
-(* $Id: value.ml,v 1.5 2005/04/21 03:27:42 jnfoster Exp $ *)
-(*                                                                  *)
 (********************************************************************)
+(* $Id $ *)
 
-open Pretty
+let debug = Trace.debug "registry"
 
-(* DEBUGGING *)
+(* --------------- Registry values -------------- *)
 
-let registry_debug = Prefs.createBool "debug-registry" false 
-  "print debugging information about Focal registry"
-  "print debugging information about Focal registry"
-
-let debug s_thk = 
-  if Prefs.read registry_debug 
-  then 
-    begin 
-      prerr_string (sprintf "%s\n" (s_thk ()));
-      flush stderr
-    end
-
-(* REGISTRY VALUES *)
 type rv = Syntax.sort * Value.t
+
+(* utility functions *)
 let make_rv s v = (s,v)
 let value_of_rv (s,v) = v
 let sort_of_rv (s,v) = s
-
-(* ENVIRONMENTS *)
-(* Maps whose keys are Syntax.qids *)
-module EMap = 
-  Mapplus.Make(
-    struct
-      type t = Syntax.qid
-      let compare = Syntax.qid_compare
-      let to_string = Syntax.string_of_qid 
-    end)
-module QidMap = EMap.Map
-module QidSet = EMap.KeySet
-
-type env = (rv ref) QidMap.t
-let empty () : env = QidMap.empty
-
-(* produce env[q->v]; yields a NEW env *)
-let update oev get_ev put_ev q r = put_ev oev (QidMap.add q (ref r) (get_ev oev))
-  
-(* produce env[q:=v]; yields the SAME env 
-   unless q is not in env; then it uses update to give a NEW env
-*)
-let overwrite oev get_ev put_ev q r = 
-  try 
-    (QidMap.find q (get_ev oev)):=r; 
-    oev 
-  with Not_found ->
-    update oev get_ev put_ev q r
-      
-let lookup oev get_ev q = try Some !(QidMap.find q (get_ev oev)) with Not_found -> None
-
-(* env pretty printer *)
 let string_of_rv rv = 
   let (s,v) = rv in    
-    sprintf "%s:%s" (Value.string_of_t v) (Syntax.string_of_sort s)
-      
-let string_of_env ev = 
-  Pretty.curlybraces 
-    (QidMap.fold (fun q r acc -> 
-		    sprintf "\n\t%s=%s%s%s"		      
-		      (Syntax.string_of_qid q)
-		      (string_of_rv (!r))
-		      (if (acc = "") then "" else ", ")
-		      acc)
-       ev "")
+    Printf.sprintf "%s:%s" (Value.string_of_t v) (Syntax.string_of_sort s)
 
-
-(* LIBRARY *)
-(* Sets whose elements are Syntax.ids *)
-module StringSet = Set.Make(
-  struct
-    type t = string
-    let compare = compare
-  end)
-  
-(* the library's state *)
+(* utility functions for parsing *)      
+(* FIXME: these could live somewhere else, but dependencies make it
+   difficult *)
 let parse_qid s =     
   let lexbuf = Lexing.from_string s in
-    Lexer.reset ();
-    Parser.qid Lexer.main lexbuf 
+    Lexer.setup "qid constant";
+    let q = Parser.qid Lexer.main lexbuf in
+      Lexer.finish ();
+      q
 
+let parse_sort s =
+  let lexbuf = Lexing.from_string s in
+    Lexer.setup "sort constant";
+    let st = Parser.sort Lexer.main lexbuf in
+      Lexer.finish ();
+      st
+	
+(* --------------- Focal library -------------- *)
+
+(* constants *)
 let pre_ctx = List.map parse_qid ["Prelude"]
 
-let library : env ref = ref (empty ())
-let loaded = ref StringSet.empty
+(* state *)
+let loaded = ref []
+let library : (rv Env.t) ref = ref (Env.empty ())
 
-(* clear all loaded modules; used, e.g., in the visualizer *)
+(* utilities *)
+let get_library () = !library
+  
+(* hack to reset library to native stuff in visualizer *)
 let old_library = ref None
 let reset () = 
   if !old_library = None then old_library := Some !library;
-  loaded := StringSet.empty;  
+  loaded := [];
   library := 
-    begin 
-      match !old_library with 
-	  Some lib -> lib
-	| None -> assert false
-    end
-      
-let get_library () = !library
+    match !old_library with 
+	Some l -> l
+      | None -> assert false
+
+(* --------------- Registration functions -------------- *)
+	  
+(* register a value *)
+(* FIXME: it would be save to use overwrite here *)
+let register q r = library := (Env.update (!library) q r)
   
-let register q r = library := (QidMap.add q (ref r) (!library))
-let register_env ev m = 
-  debug (fun () -> sprintf "register_env for %s" (Syntax.string_of_qid m));
-  QidMap.iter 
-    (fun q r -> 
-       debug (fun () -> sprintf "registring %s" (Syntax.string_of_qid (Syntax.dot m q)));
-       register (Syntax.dot m q) !r) ev
-    
+(* register a native function *)
 let register_native qs ss v = 
-  let sort_of_string s = 
-    let lexbuf = Lexing.from_string s in
-      Lexer.reset ();
-      Parser.sort Lexer.main lexbuf 
-  in	
   let q = parse_qid qs in
-  let s = sort_of_string ss in
+  let s = parse_sort ss in
     register q (s,v)
-  
+	  
+(* register a whole (rv Env.t) in m *)
+let register_env ev m = Env.iter (fun q r -> register (Syntax.dot m q) r) ev
+
 (* get the filename that a module is stored at *)
 let get_module_prefix q = 
   match q with 
@@ -155,14 +102,14 @@ let compile_file_impl = ref (fun _ _ -> ())
 
 let load ns = 
   let fno = find_filename ((String.uncapitalize ns) ^ ".fcl") in	
-    if (StringSet.mem ns (!loaded)) then true
+    if (Safelist.mem ns (!loaded)) then true
     else 
       begin
 	match fno with 
 	  | None -> false
 	  | Some fn ->
-	      prerr_string (sprintf "[ loading %s]\n%!" fn);
-	      loaded := (StringSet.add ns (!loaded)); 
+	      prerr_string (Printf.sprintf "[ loading %s]\n%!" fn);
+	      loaded := ns::(!loaded); 
 	      (!compile_file_impl) fn ns;
 	      true
       end
@@ -172,21 +119,16 @@ let load_var q = match get_module_prefix q with
   | Some n -> ignore (load (Syntax.string_of_id n))
       
 (* lookup in a naming context *)
-let lookup_library2 nctx q = 
-  let _ = debug (fun () -> sprintf "lookup_library2: %s in [%s] from %s\n"
-		   (Syntax.string_of_qid q)
-		   (concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
-		   (string_of_env !library))
-  in
-  let rec lookup_library_aux os q2 =       
-    let _ = debug (fun () -> sprintf "lookup_library_aux %s in [%s] from %s "
+let lookup_library_ctx nctx q = 
+  let rec lookup_library_aux nctx q2 =       
+    let _ = debug (fun () -> Printf.eprintf "lookup_library_aux %s in [%s] from %s "
 		     (Syntax.string_of_qid q2)
-		     (concat_list ", " (Safelist.map Syntax.string_of_qid os))
-		     (string_of_env !library)
+		     (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
+		     (Env.to_string !library string_of_rv)
 		  )
     in
     let sq = Syntax.string_of_qid in
-    let try_lib () = lookup !library (fun x -> x) q2 in
+    let try_lib () = Env.lookup !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
 	  Some r -> Some r
@@ -194,23 +136,11 @@ let lookup_library2 nctx q =
 	    begin
 	      match load_var q2; try_lib () with
 		| Some r -> Some r
-		| None -> match os with 
+		| None -> match nctx with 
 		    | []       -> None
 		    | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
 	    end
-    in
-      lookup_library_aux nctx q
-	
-let lookup_oev oev ev_of_oev ctx_of_oev q = 
-  let _ = debug (fun () -> sprintf "looking up %s in [%s] from %s\n"
-		   (Syntax.string_of_qid q)
-		   (concat_list ", " (Safelist.map Syntax.string_of_qid (ctx_of_oev oev)))
-		   (string_of_env (ev_of_oev oev)))
-  in    
-  let ev = ev_of_oev oev in
-    match lookup ev (fun x -> x) q with
-      | Some r -> Some r
-      | None -> lookup_library2 (ctx_of_oev oev) q
-	  
-let lookup_library q = lookup_library2 [] q
+  in
+    lookup_library_aux nctx q
 
+let lookup_library q = lookup_library_ctx [] q

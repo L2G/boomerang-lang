@@ -1,35 +1,8 @@
-(****************************  Top-level functions *******************************)
+(* ---------------  Top-level functions --------------- *)
 
 open Error
 
 let failwith s = prerr_endline s; exit 1
-
-let fail_on_errors thk = 
-  try 
-    thk ()
-  with 
-      Syntax_error(i,fn,msg) 
-    | Sort_error(i,fn,msg) 
-    | Run_error(i,fn,msg) ->     
-	Printf.eprintf "File \"%s\", %s:\n%s\n" 
-	  fn 
-	  (Info.string_of_t i) 
-	  msg;
-	exit 1
-    | Test_error(i,fn,msg) -> 
-	Printf.eprintf "File \"%s\", %s:\nUnit test failed %s\n" 
-	  fn 
-	  (Info.string_of_t i) 
-	  msg;
-	exit 1	
-    | V.Error(ml) -> 
-	Printf.eprintf "Fatal error: V.Error\n";
-	flush stdout;
-	V.format_msg ml; 
-	exit 1
-    | Fatal_error(msg) ->
-	Printf.eprintf "Fatal error: %s\n" msg;
-	exit 1
 
 let lookup qid_str = 
   Registry.lookup_library (Registry.parse_qid qid_str)
@@ -220,4 +193,4 @@ let main () =
       | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
       |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
 
-let _ = (Unix.handle_unix_error (fun () -> fail_on_errors main)) ()
+let _ = (Unix.handle_unix_error (fun () -> Error.fail_on_error main)) ()

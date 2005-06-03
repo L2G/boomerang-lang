@@ -342,3 +342,4 @@ IDENT_list:
 IDENT_or_STRING:
   | STRING                                  { $1 }
   | IDENT                                   { $1 }
+

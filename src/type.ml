@@ -7,9 +7,8 @@
 (*********************************************************)
 (* $Id: type.ml,v 1.1 2005/04/11 18:24:48 jnfoster Exp $ *)
 
-open Pretty
-    
 let sprintf = Printf.sprintf
+
 (* low-level compiler debugging *)
 let types_debug = Prefs.createBool "debug-types" false 
   "print debugging information about types"
@@ -78,14 +77,14 @@ and string_of_it = function
   | Name(_,n,pt) -> sprintf "%s = %s" n (string_of_pt pt)
   | Bang(_,f,pt)  -> 
       sprintf "!%s = %s"
-	(if f = [] then "" else "\\" ^ braces (concat_list ", " f))
+	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
 	(string_of_pt pt)  
   | Star(_,f,pt)  ->
      sprintf "*%s = %s"
-	(if f = [] then "" else "\\" ^ braces (concat_list ", " f))
+	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
 	(string_of_pt pt)
-  | Cat(_,cs)   -> curlybraces (concat_list ", " (Safelist.map string_of_pt cs))
-  | Union(_,ts)  -> braces (concat_list " | " (Safelist.map string_of_pt ts))
+  | Cat(_,cs)   -> Misc.curlybraces (Misc.concat_list ", " (Safelist.map string_of_pt cs))
+  | Union(_,ts)  -> Misc.parens (Misc.concat_list " | " (Safelist.map string_of_pt ts))
 
 (* STUBS *)
 let eval_it it  = match it with 
@@ -471,7 +470,7 @@ and member_it v it0 =
 	  in
 	    (* let _ = debug 
 	       (sprintf "loop %s %s --> %s" 
-	       (brackets (concat_list ", " (Safelist.map string_of_pt cs))) 
+	       (Misc.brackets (Misc.concat_list ", " (Safelist.map string_of_pt cs))) 
 	       (V.string_of_t v) 
 	       (string_of_bool lres)) 
 	       in *)
@@ -523,11 +522,11 @@ let atom2str ta = match ta with
   | DAll s -> "*"
   | DName n -> n
 
-let concat_tdom sep td = concat TDom.fold sep atom2str td
-let tdom2str td = curlybraces (concat_tdom " " td)
+let concat_tdom sep td = Misc.concat TDom.fold sep atom2str td
+let tdom2str td = Misc.curlybraces (concat_tdom " " td)
 
-let concat_tdoms sep tds = concat TDoms.fold sep tdom2str tds
-let tdoms2str tds = curlybraces (concat_tdoms " " tds)
+let concat_tdoms sep tds = Misc.concat TDoms.fold sep tdom2str tds
+let tdoms2str tds = Misc.curlybraces (concat_tdoms " " tds)
 
 let nfcheck tbase f t = 
   match tbase with
