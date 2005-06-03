@@ -1,6 +1,14 @@
-include ../Common.mk
+####################################################################
+# The Harmony Project                                              #
+# harmony@lists.seas.upenn.edu                                     #
+####################################################################
 
-test: testget testput
+# $Id: Makefile 121 2005-05-05 00:19:32Z bcpierce $ 
+
+TOP = ../..
+include $(TOP)/Top.Makefile
+
+test:: testget testput
 
 testget: 
 	$(HARMONY) \

@@ -8,29 +8,7 @@
 TOP = ..
 include $(TOP)/Top.Makefile
 
-
-######## Needs updated!! ########
-
-SRC = prelude.src
-FCL = $(subst .src,.fcl, $(SRC))
-TEX = $(subst .src,.tex, $(SRC))
-
-all: $(FCL)
-
-%.fcl : %.src $(SRC2F)
-	$(SRC2F) $< $@
-
-%.tex : %.src $(SRC2TEX)
-	$(SRC2TEX) $< > $@
-
-temp:
-	$(MAKE) -C $(TOOLS)  
-	-rm prelude.fcl
-	$(MAKE) prelude.fcl
-
-$(SRC2F):
-	$(MAKE) -C $(TOOLS)
-
 clean::
-	rm -f $(FCL)
+	rm -f $(GENERATEDFCLFILES)
 
+all:
