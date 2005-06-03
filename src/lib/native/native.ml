@@ -233,7 +233,7 @@ let _ = register_native "Native.map" "lens -> lens" map_lib
 	  
 (*** WMAP ***)
 (* wmap - native interface *)
-let wmap (l0 : Value.t -> Value.t) : Lens.t = 
+let wmap (l0 : Value.t -> Value.t) : (V.t, V.t) Lens.t = 
   let l =
     let memo = Hashtbl.create 11 in
       (fun k -> try Hashtbl.find memo k with

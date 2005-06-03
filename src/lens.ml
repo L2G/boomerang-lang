@@ -3,9 +3,9 @@
 (* Basic Definitions *)
 
 (* Type of lenses *)
-type t = { 
-  get: V.t -> V.t;
-  put: V.t -> V.t option -> V.t
+type ('a, 'b) t = { 
+  get: 'a -> 'b;
+  put: 'b -> 'a option -> 'a
 }
 
 (* External functions that extract the components of a lens *)

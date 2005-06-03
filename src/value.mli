@@ -13,7 +13,7 @@
 (** The type of run-time representations *)
 type t = 
     N of Name.t                 (** names *)
-  | L of Lens.t                 (** lenses *)      
+  | L of (V.t, V.t) Lens.t      (** lenses *)      
   | T of Type.t                 (** types *)
   | V of V.t                    (** views *)
   | F of (t -> t)               (** functions *)
