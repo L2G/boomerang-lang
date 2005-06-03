@@ -40,7 +40,7 @@ BASE_SOURCES = info.ml error.ml misc.mli misc.ml mapplus.mli mapplus.ml \
                type.ml value.mli value.ml registry.mli registry.ml \
                compiler.mli compiler.ml
 
-VIEWER_SOURCES = metay.mly metal.mll meta.ml xml.ml
+VIEWER_SOURCES = metay.mly metal.mll metaviewer.ml xmlviewer.ml
 
 ################
 # SYNC SOURCES #
@@ -58,18 +58,18 @@ RELATIONAL_SOURCES = relation.mli relation.ml \
                      treedb.ml relational.ml
 
 PLUGIN_SOURCES = native.ml \
-                 $(RELATIONAL_SOURCES:%=relational/%)
+                 $(RELATIONAL_SOURCES)
 
 ##################
 # COMMON SOURCES #
 ##################
 
-COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/lib/ubase/%) \
+COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/ubase/%) \
 		 $(BASE_SOURCES:%=$(SRC)/%) \
 		 $(SYNC_SOURCES:%=$(SRC)/%) \
-		 $(VIEWER_SOURCES:%=$(SRC)/lib/viewers/%) \
-		 $(PLUGIN_SOURCES:%=$(SRC)/lib/native/%)
+		 $(VIEWER_SOURCES:%=$(SRC)/%) \
+		 $(PLUGIN_SOURCES:%=$(LENSESDIR)/%)
 
-TRASH := $(TRASH) $(SRC)/parser.output $(SRC)/lib/viewers/metay.output
+TRASH := $(TRASH) $(SRC)/parser.output $(SRC)/metay.output 
 
 include $(SRC)/OCamlMakefile

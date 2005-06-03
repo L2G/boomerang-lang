@@ -1,5 +1,8 @@
 THINGS TO DO
 
+REALLY IMMEDIATE
+rename viewer files to include "viewer" in the name
+
 IMMEDIATE
 continue documenting interfaces (do 'make docs' in /src), 
   beginning with v.mli (which still probably has dead stuff in it)

@@ -49,5 +49,8 @@ uninstall:
 	ocamlfind remove $(NAME)
 
 clean::
-	rm -f *.cmi *.cmo *.cmx *.cma *.cmxa *.a *.o *~ uprintf.ml
+	rm -f *.cmi *.cmo *.cmx *.cma *.cmxa *.a *.o *~ 
+
+test:
+
 

@@ -1,5 +1,4 @@
-#line 1 "prelude.src"
-     
+#{#} 
 module Prelude = 
 
 (* SCHEMAS *)
@@ -19,8 +18,8 @@ let invert : (lens -> lens) = Native.invert
 
 (** id **)
 let id : lens = Native.id
-  test id / {} = {}
-  test id / {a=b} = {a=b}
+#*test id / {} = {}
+#*test id / {a=b} = {a=b}
 test id \ ({},missing) = {}
 test id \ ({a=b}, {}) = {a=b}
 

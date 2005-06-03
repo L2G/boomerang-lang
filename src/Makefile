@@ -1,12 +1,12 @@
 ####################################################################
 # The Harmony Project                                              #
 # harmony@lists.seas.upenn.edu                                     #
-#                                                                  #
-# Makefile - main Makefile for harmony sources                     #
 ####################################################################
 
+# $Id$
+
 TOP = ..
-# SUBDIRS = ubase
+SUBDIRS = ubase
 include $(TOP)/Top.Makefile
 
 SRC = $(shell pwd)
