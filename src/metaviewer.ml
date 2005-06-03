@@ -7,7 +7,7 @@ let reader s =
     try 
       (Metay.view Metal.token lexbuf) 
     with Parsing.Parse_error -> 
-      raise (Error.Syntax_error (Metal.info lexbuf, !Metal.file_name, "syntax error"))
+      raise (Error.Compile_error (Metal.info lexbuf, !Metal.file_name, "syntax error"))
 	
 let writer = V.string_of_t
 

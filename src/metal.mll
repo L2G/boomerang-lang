@@ -9,7 +9,8 @@ let lexeme = LE.lexeme
 let linestart = ref 0
 let lineno = ref 1
 let file_name = ref ""
-let reset () = 
+
+let reset () =
   linestart := 0; 
   lineno := 1
 
@@ -26,7 +27,7 @@ let error lexbuf msg =
   let i = info lexbuf in
   let t = lexeme lexbuf in   
   let s = Printf.sprintf "%s : %s" msg t in
-    raise (Error.Syntax_error(i, !file_name, s))
+    raise (Error.Compile_error(i, !file_name, s))
 }
 
 let blank = [' ' '\t']+
