@@ -27,6 +27,11 @@ let error lexbuf msg =
   let s = Printf.sprintf "%s : %s" msg t in
     raise (Error.Syntax_error(i, !file_name, s))
 
+let text = Lexing.lexeme
+
+let extractLineno yytext offset =
+  int_of_string (String.sub yytext offset (String.length yytext - offset))
+
 (* dictionary of Focal keywords *)
 let keywords = Hashtbl.create 17
 let _ = 
@@ -89,6 +94,7 @@ rule main = parse
                         IDENT (info lexbuf, ident) }
 | newline           { newline lexbuf; main lexbuf }
 | eof		    { EOF (info lexbuf) } 
+| "#line " ['0'-'9']+  { lineno := extractLineno (text lexbuf) 6 - 1; getFile lexbuf }
 | "(*"              { comment lexbuf; main lexbuf }
 | _		    { error lexbuf "Unknown token" }
 
@@ -116,3 +122,13 @@ and comment = parse
 | newline          { newline lexbuf; comment lexbuf }
 | eof		   { error lexbuf "Unmatched '(*'" }
 | _                { comment lexbuf }
+
+and getFile = parse
+  " "* "\"" { getName lexbuf }
+
+and getName = parse
+  [^ '"' '\n']+ { file_name := (text lexbuf); finishName lexbuf }
+
+and finishName = parse
+  '"' [^ '\n']* { main lexbuf }
+

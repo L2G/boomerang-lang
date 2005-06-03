@@ -5,6 +5,10 @@
 # Makefile - main Makefile for harmony sources                     #
 ####################################################################
 
+TOP = ..
+# SUBDIRS = ubase
+include $(TOP)/Top.Makefile
+
 SRC = $(shell pwd)
 
 RESULT = harmony
@@ -17,7 +21,7 @@ OCAMLLEX = ocamllex -ml
 
 include $(SRC)/Common.Makefile
 
-test: all
+test:: all
 
 docs: all
 	-rm -rf $(DOCDIR)

@@ -1,7 +1,6 @@
 THINGS TO DO
 
 IMMEDIATE
-think about Makefiles!
 continue documenting interfaces (do 'make docs' in /src), 
   beginning with v.mli (which still probably has dead stuff in it)
 think about whether the lambda-calculus part of focal should be strict or
@@ -10,6 +9,18 @@ fix 'make test' in /src so that it actually runs all tests automatically
 why, again, do fork and friends take views, not types?
   - because I haven't gotten to changing it over --JNF
   - but we should do this, to get negation of views too... 
+
+MAKEFILES
+structure
+  /Top.Makefile       included by *every* Makefile everywhere; 
+                      defines where things can be found, e.g. SRCDIR,
+                      LIBDIR, TOOLDIR
+                      also defines stuff like 'make clean', etc.
+every Makefile looks like this:
+  TOP = ../..
+  include $(TOP)/Top.Makefile
+  all: <whatever...>
+  
 
 TIDYING
 * make clean should remove the silly ._d directories from OCamlMakefile
