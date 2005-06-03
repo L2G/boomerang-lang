@@ -10,3 +10,4 @@ SUBDIRS = template
 TOP = ..
 include $(TOP)/Top.Makefile
 
+all:

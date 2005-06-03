@@ -44,6 +44,7 @@ $(SRC2F):
 # Common targets
 
 clean::
+	echo "cleaning $(PWD)"
 	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
 	for i in $(SUBDIRS); do $(MAKE) -C $$i clean; done
 
