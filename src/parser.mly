@@ -17,10 +17,10 @@ open Info
 let ( @ ) = Safelist.append
   
 (* constants *)
-let compose2_qid i = ([(i,"Native")], (i, "compose2"))
-let nil_qid i = ([(i,"Native")], (i, "Nil"))
-let cons_qid i = ([(i,"Native")], (i, "Cons"))
-let nil_tag_qid i = ([(i,"Native")], (i, "nil_tag"))
+let compose2_qid i = mk_qid [mk_id i "Native"] (mk_id i "compose2")
+let nil_qid i = mk_qid [mk_id i "Native"] (mk_id i "Nil")
+let cons_qid i = mk_qid [mk_id i "Native"] (mk_id i "Cons")
+let nil_tag_qid i = mk_qid [mk_id i "Native"] (mk_id i "nil_tag")
 let nil_view i = 
   let nil_name = EVar(i, nil_tag_qid i) in 
   let empty_view = EView(i, []) in
@@ -141,12 +141,12 @@ param:
 
 /**** QUOTED TERMS ****/
 quoted_name:
-  | IDENT_or_STRING                          { let (i,_) = $1 in EName(i, $1) }
+  | IDENT_or_STRING                          { let i = info_of_id $1 in EName(i, $1) }
   | BACKTICK aexp                            { $2 }
       
 quoted_view:
   | viewexp                                  { $1 }
-  | IDENT_or_STRING                          { let (i,_) = $1 in EName(i, $1) }
+  | IDENT_or_STRING                          { let i = info_of_id $1 in EName(i, $1) }
   | BACKTICK aexp                            { $2 }
 
 /*** EXPRESSIONS ***/
@@ -170,12 +170,8 @@ appexp:
   | aexp                                     { $1 }
 
 aexp:
-  | STRING                                   { let (i,_) = $1 in 
-						 EName(i,$1) 
-					     } 
-  | qid                                      { let (_,(i,_)) = $1 in 
-						 EVar(i,$1) 
-					     }
+  | STRING                                   { let i = info_of_id $1 in EName(i, $1) } 
+  | qid                                      { let i = info_of_qid $1 in EVar(i,$1) }
   | viewexp                                  { $1 }
   | LANGLE typeexp RANGLE                    { EType($1,$2) }
   | LPAREN exp RPAREN                        { $2 }
@@ -244,9 +240,9 @@ ctypeexp:
 
 atypeexp:
   | qid                                      { let i = info_of_qid $1 in 
-						 match $1 with 
-						     ([],(_,"Any")) -> TAny(i)
-						   | ([],(_,"Empty")) -> TEmpty(i)
+						 match string_of_qid $1 with 
+						     "Any" -> TAny(i)
+						   | "Empty" -> TEmpty(i)
 						   | _ -> TVar(i, $1) }
   | LPAREN ptypeexp RPAREN                   { $2 } 
   | LBRACE typeelt_list RBRACE               { let i = merge_inc $1 $3 in TCat(i,$2) }
@@ -332,7 +328,7 @@ except_list:
       
 /*** identifiers ***/
 qid:
-  | IDENT                                   { qid_of_id $1 }
+  | IDENT                                   { qid_of_id ($1) }
   | qid DOT IDENT                           { dot $1 (qid_of_id $3) }
 
 IDENT_list:

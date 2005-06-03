@@ -44,8 +44,8 @@ rule token = parse
 | "]"		{ RBRACK (info lexbuf) }
 | ","           { COMMA (info lexbuf) }
 | ":"           { COLON (info lexbuf) }
-| "\""		{ IDENT ((info lexbuf), (string lexbuf)) }
-| notsymbol	{ let i = (info lexbuf) in IDENT (i, (lexeme lexbuf)) }
+| "\""		{ IDENT (Syntax.mk_id (info lexbuf) (string lexbuf)) }
+| notsymbol	{ let i = (info lexbuf) in IDENT (Syntax.mk_id i (lexeme lexbuf)) }
 | eof		{ EOF (info lexbuf) }
 | _		{ error lexbuf "Unknown token" }
 

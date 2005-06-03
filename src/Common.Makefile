@@ -37,7 +37,7 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                relation.mli relation.ml \
                mapplus.mli mapplus.ml name.ml v.mli v.ml lens.mli lens.ml \
                surveyor.mli surveyor.ml \
-               syntax.ml parser.mly lexer.mll \
+               syntax.mli syntax.ml parser.mly lexer.mll \
                type.ml value.mli value.ml \
                env.mli env.ml registry.mli registry.ml \
                compiler.mli compiler.ml

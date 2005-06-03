@@ -91,12 +91,12 @@ rule main = parse
 | ","               { COMMA (info lexbuf) }
 | ":"               { COLON (info lexbuf) }
 | "`"               { BACKTICK (info lexbuf) }
-| "\""              { STRING ((info lexbuf), (string lexbuf)) }
+| "\""              { STRING (Syntax.mk_id (info lexbuf) (string lexbuf)) }
 | id_char+ as ident { try 
                         let kw = Hashtbl.find keywords ident in
                           kw (info lexbuf)
                       with Not_found ->
-                        IDENT (info lexbuf, ident) }
+                        IDENT (Syntax.mk_id (info lexbuf) ident) }
 | newline           { newline lexbuf; main lexbuf }
 | eof		    { EOF (info lexbuf) } 
 | "#line " ['0'-'9']+  { lineno := extractLineno (text lexbuf) 6 - 1; getFile lexbuf }

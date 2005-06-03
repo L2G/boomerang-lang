@@ -11,9 +11,6 @@
 open Error
 open Info
 
-let string_of_id (_,s) = s
-let info_of_id (i,_) = i
-
 %}
 
 %token <Info.t> EOF 
@@ -50,18 +47,18 @@ non_empty_viewelt_list:
   | viewelt COMMA non_empty_viewelt_list { $1::$3 }
 
  viewelt:
-  | IDENT                          { let n = string_of_id $1 in
+  | IDENT                          { let n = Syntax.string_of_id $1 in
 				       V.set V.empty n (Some V.empty)
 				   }
-  | IDENT EQUAL innerview          { let n = string_of_id $1 in
+  | IDENT EQUAL innerview          { let n = Syntax.string_of_id $1 in
 				       V.set V.empty n (Some $3)
 				   }
 innerview:
   | view                           { $1 }
-  | IDENT                          { let n = string_of_id $1 in 
+  | IDENT                          { let n = Syntax.string_of_id $1 in 
 				       V.set V.empty n (Some V.empty)	  
 				   }
-
+      
 innerview_list:
   |                                      { [] }
   | non_empty_innerview_list             { $1 }
@@ -69,3 +66,4 @@ innerview_list:
 non_empty_innerview_list:
   | innerview                                { [$1] }
   | innerview COMMA non_empty_innerview_list { $1::$3 }
+

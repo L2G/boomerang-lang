@@ -4,7 +4,7 @@
 (*                                                              *)
 (* syntax.ml - Focal abstract syntax                            *)
 (****************************************************************)
-(* $Id: syntax.ml,v 1.2 2005/04/11 18:24:47 jnfoster Exp $ *)
+(* $Id$ *)
 
 let ( @ ) = Safelist.append  (* redefine @ to use stack-safe append *)
 let sprintf = Printf.sprintf (* import selectively *)
@@ -13,6 +13,11 @@ let sprintf = Printf.sprintf (* import selectively *)
 type i = Info.t
 type id = i * string
 type qid = id list * id
+
+let get_qualifiers (is,_) = is
+
+let mk_id i s = (i,s)
+let mk_qid is i = (is,i)
 
 (* functions on identifiers *)
 (* equality: ignore parsing Info.t *)

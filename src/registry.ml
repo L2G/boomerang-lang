@@ -76,9 +76,9 @@ let register_env ev m = Env.iter (fun q r -> register (Syntax.dot m q) r) ev
 
 (* get the filename that a module is stored at *)
 let get_module_prefix q = 
-  match q with 
-    | ([],_) -> None
-    | (n::_,_) -> Some n
+  match Syntax.get_qualifiers q with 
+    | [] -> None
+    | n::_ -> Some n
 	
 let paths = Prefs.createStringList 
   "include" 
@@ -134,7 +134,10 @@ let lookup_library_ctx nctx q =
 	  Some r -> Some r
 	| None -> 
 	    begin
-	      match load_var q2; try_lib () with
+	      match 
+		(load_var q2; 
+		 try_lib ())
+	      with
 		| Some r -> Some r
 		| None -> match nctx with 
 		    | []       -> None
