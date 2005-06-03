@@ -1,0 +1,116 @@
+module Safari =
+
+open Plist
+
+(* TYPES *)
+type Value = { ! = {} }
+type URIDict = { "BLANK" = Value, "title" = Value, * \ ("BLANK", "title") = Any }
+type Link = { "URIDictionary" = URIDict, "URLString" = Value, * \ ("URIDictionary","URLString") = Any }
+type Folder = { "Children" = List Item, "Title" = Value, * \ ("Children","Title") = Any }
+              | { "Title" = Value, * \ ("Children","Title") = Any }
+and Item = { "folder" = Folder } | { "link" = Link } | { "proxy" = Any }
+type SafAbstract = List Item
+
+(* LENSES *)
+(* flatten_dict -- flattens a dict into a bush { key1 = data1, key2 = data2, ... } *)
+let flatten_dict =
+  hoist "dict";
+  List.map ( pivot List.HD;  map (focus List.TL {}; List.hd []) );
+  flatten;
+  map (List.hd [])
+
+(* Discards the general info of the file, focuses on the bookmarks *)
+let root = 
+  focus "Children" {}
+    
+(* recursively applies item to all children, and    *)
+(* puts the data under a link, folder, or proxy key *)
+let children : lens = 
+  wmap { "array" -> List.map (item; 
+			      pivot "WebBookmarkType";
+			      acond <{"WebBookmarkTypeLeaf" = Any}> <{"link"=Any}> 
+			      (rename "WebBookmarkTypeLeaf" "link")
+				(acond <{"WebBookmarkTypeProxy" = Any}> <{"proxy"=Any}>
+				 (rename "WebBookmarkTypeProxy" "proxy")
+				   (rename "WebBookmarkTypeList" "folder")
+				   )
+				) 
+       };
+  hoist "array"
+    
+and item : lens = 
+  (* flattens the item *)
+  flatten_dict;
+  
+  (* if the item is a dict and does not have children, we add an empty list of children *)
+  acond 
+    <{ * \ ("Children" ,"URIDictionary","BLANK") = Any}> 
+    <{ "Children" = { "array" = [] }, * \ ("Children") = Any}>  
+    (add "Children" {"array"=[]}) 
+    id;
+
+  (* hoist values and recursively applies children or item if needed *)
+  wmap { "Children" -> children,
+    "URIDictionary" -> item,
+      "URLString" -> hoist "string",
+	"WebBookmarkType" -> hoist "string",
+	  "title" -> hoist "string",
+	    "Title" -> hoist "string",
+	      "BLANK" -> hoist "string"
+       }
+    
+(* l is for homogeneous synchronization of safari bookmarks *)
+let l =
+  (** We lack an assert SafConcrete here :( *)
+  plist_lens;
+  flatten_dict;
+  root;
+  children;
+  assert SafAbstract
+
+(* tidy removes from the view the safari-specific contents  *)
+(* and returns a view following the Schemas.Abstract schema *)
+let tidy : lens =
+  
+  let tidy_folder = 
+    rename "Children" "contents"; wmap {"contents" -> tidy }; rename "Title" "name"; 
+    filter {"name", "contents"} {} in
+  
+  let tidy_link =
+    rename "URLString" "url";
+    wmap { "URIDictionary" -> rename "title" "name"; filter {"BLANK", "name"} {}};
+    hoist_nonunique "URIDictionary" {"name", "BLANK"};
+    merge "url" "BLANK";
+    filter {"name", "url"} {} in
+  
+  let skip_proxies : lens =
+    ccond <{"proxy"=Any} :: Any> (wmap { List.TL -> skip_proxies }; List.tl {"proxy"={}})
+			    (wmap { List.TL -> skip_proxies} )
+  in
+  skip_proxies;
+  List.map (wmap {"folder" -> tidy_folder, "link" -> tidy_link})
+    
+(* Treats BookmarksMenu as the root of the bookmarks file, and
+   swivels BookmarksBar under it *)
+let plunge_menu : lens =   
+  focus "folders" {};
+  wmap { "BookmarksMenu" -> List.hd [{"folders"={}, "links"={}}] };
+  hoist_nonunique "BookmarksMenu" {"folders", "links"};	   
+  wmap { "folders" -> plunge "_tmp" };  
+  xfork { "folders", "BookmarksBar" } { "folders" }
+    (hoist_nonunique "folders" { "_tmp" };
+     fork { "BookmarksBar" } id (hoist "_tmp");
+     plunge "folders")
+    id
+
+(* l2 is for heterogeneous synchronization of safari bookmarks *)    
+let l2 =
+  l;
+  tidy
+    
+(* l3 uses the unordered schema Schemas.BushAbstract *)
+let l3 =
+  l2;
+  Schemas.flatten_bookmarks;
+  plunge_menu;
+  assert Schemas.BushAbstract
