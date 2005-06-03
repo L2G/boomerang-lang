@@ -1,15 +1,21 @@
-(* Misc utils *)
+(****************************************************************)
+(* The Harmony Project                                          *)
+(* harmony@lists.seas.upenn.edu                                 *)
+(*                                                              *)
+(* misc.ml - Miscelaneous functions                             *)
+(****************************************************************)
+(* $Id$ *)
 
 let debug = Trace.debug "misc"
 
-(* ------------- additional Hashtbl utilities --------------- *)
+(* ------------- Hashtbl utilities --------------- *)
 let safe_hash_add tbl x y =
   if (Hashtbl.mem tbl x) then
     raise (Failure "Misc.hash_safe_add: key already bound")
   else
     Hashtbl.add tbl x y
 
-(* --- *)
+(* ------------- Safelist utilities --------------- *)
 
 let enum l =
   Safelist.rev
@@ -17,7 +23,7 @@ let enum l =
 	    (fun (i,acc) k -> (i+1,(i,k)::acc))
 	    (0,[]) l))
 
-(* determines if all the elements of l are unique *)
+(* returns true iff elements of l are unique *)
 let uniq l =
   let rec loop = function
       [] -> true
@@ -43,10 +49,6 @@ let safetail l = try
   Safelist.tl l
 with (Failure "tl") -> []
 
-let map_option f = function
-    None -> None
-  | Some x -> Some (f x)
-
 let rec fold_left2 f c xs ys = match xs,ys with
   [],[] -> c
 | (x::xs),[] -> fold_left2 f (f c (Some x) None) xs []
@@ -70,15 +72,6 @@ let fold_left2_with_pad f c xs ys padx pady =
     | [],(y::ys) -> loop (f acc padx y) ([],ys)
     | (x::xs),(y::ys) -> loop (f acc x y) (xs,ys) in
   loop c (xs,ys)
-
-let map2opt f xs ys =
-  let rec loop acc = function
-      [],[] -> Safelist.rev acc
-    | x::xs,[] -> loop ((f (Some x) None)::acc) (xs,[])
-    | [],y::ys -> loop ((f None (Some y))::acc) ([],ys)
-    | x::xs,y::ys -> loop ((f (Some x) (Some y))::acc) (xs,ys) in
-  loop [] (xs,ys)
-  
 
 let map2_with_pad f xs ys padx pady =
   Safelist.rev
@@ -136,15 +129,21 @@ let take n l =
 let composel (l : ('a -> 'a) list) =
   Safelist.fold_left (fun f acc -> (fun s -> f (acc s))) (fun x -> x) l
 
-(* --- *)
+(* ------------- Option utilities --------------- *)
 
-exception Bad of string
+let map_option f = function
+    None -> None
+  | Some x -> Some (f x)
 
-let bad s = raise (Bad s)
+let map2opt f xs ys =
+  let rec loop acc = function
+      [],[] -> Safelist.rev acc
+    | x::xs,[] -> loop ((f (Some x) None)::acc) (xs,[])
+    | [],y::ys -> loop ((f None (Some y))::acc) ([],ys)
+    | x::xs,y::ys -> loop ((f (Some x) (Some y))::acc) (xs,ys) in
+  loop [] (xs,ys)
 
-exception Unimplemented of string
-
-(* --- *)
+(* ------------- String/Char utilities --------------- *)
 
 (* Based on String.escape 
  *)
@@ -329,7 +328,7 @@ let unescaped s =
 	  let i3 = int_of_char(c3) - int_of_char('0') in
 	  let i4 = int_of_char(c4) - int_of_char('0') in
 	  if (i2 < 0 || i2 > 9 || i3 < 0 || i3 > 9 || i4 < 0 || i4 > 9) then
-	    bad (Printf.sprintf "Bad escape sequence in %s" (whack s))
+	    raise (Error.Fatal_error (Printf.sprintf "Bad escape sequence in %s" (whack s)))
 	  else
 	    (Buffer.add_char buf 
 	      (char_of_int (i2 * 100 + i3 * 10 + i4)); loop (i+4))
@@ -363,8 +362,6 @@ let splitIntoWords (s:string) (c:char) =
 let filename_extension (s:string) =
   Safelist.nth (Safelist.rev (splitIntoWords s '.')) 0
 
-(* --- *)
-
 let colorize =
   Prefs.createBool "colorize" false
     "Use colored text to make output more readable" ""
@@ -386,7 +383,7 @@ let color s ?(bold=false) c =
     let prefix = if bold then "1;" else "0;" in
     "[" ^ prefix ^ (colorcode c) ^ s ^ "[0;29m" 
 
-(* --- *)
+(* ------------- File/Directory utilities --------------- *)
 
 (* is_dir : string -> bool *)
 let is_dir f =
@@ -419,29 +416,28 @@ let in_dir d f =
   Unix.chdir cwd;
   res
 
-
 let rec remove_file_or_dir d =
   if not (Sys.file_exists d) then () else
   if (Unix.stat d).Unix.st_kind = Unix.S_DIR then begin
     let handle = Unix.opendir d in
     let rec loop () =
       let r = try Some(Unix.readdir handle)
-              with End_of_file -> None
-                 | Sys_error s -> bad ("Error reading "^d^" ("^s^")") in
-      match r with
-        Some f ->
-          if f="." || f=".." then loop ()
-          else begin
-            remove_file_or_dir (d^"/"^f);
-            loop ()
-          end  
-      | None ->
-          Unix.closedir handle;
-          Unix.rmdir d
+      with End_of_file -> None
+        | Sys_error s -> raise (Error.Fatal_error("Error reading "^d^" ("^s^")")) in
+	match r with
+            Some f ->
+              if f="." || f=".." then loop ()
+              else begin
+		remove_file_or_dir (d^"/"^f);
+		loop ()
+              end  
+	  | None ->
+              Unix.closedir handle;
+              Unix.rmdir d
     in loop ()
   end else 
     Sys.remove d
-
+      
 let read file =
   let chan = open_in file in
   try
@@ -469,19 +465,19 @@ let tempFileName tag =
   let name = Printf.sprintf "harmony%s-%d-%f.tmp" tag pid now in
   name
 
-let time_as_compact_str () =
-  let time = Unix.localtime (Unix.time()) in
-  Printf.sprintf
-    "%4d%02d%02d+%02d%02d" 
-    (time.Unix.tm_year + 1900)
-    (time.Unix.tm_mon + 1)
-    time.Unix.tm_mday
-    time.Unix.tm_hour
-    time.Unix.tm_min
-
 let backup_suffix = ".bak"
 
 let backup_file_name path =
+  let time_as_compact_str () =
+    let time = Unix.localtime (Unix.time()) in
+      Printf.sprintf
+	"%4d%02d%02d+%02d%02d" 
+	(time.Unix.tm_year + 1900)
+	(time.Unix.tm_mon + 1)
+	time.Unix.tm_mday
+	time.Unix.tm_hour
+	time.Unix.tm_min
+  in
   let t = time_as_compact_str () in
   let rec f i =
     let suf =
@@ -506,8 +502,6 @@ let backup path =
   let newpath = backup_file_name path in
   if is_dir path or Sys.file_exists path then cp_dash_r path newpath
 
-(* --- *)
-
 (* read_char : unit -> char *)
 let read_char () =
   let term = Unix.tcgetattr Unix.stdin in
@@ -525,6 +519,8 @@ let read_char () =
   with
   | e -> Unix.tcsetattr Unix.stdin Unix.TCSANOW term; raise e
 
+(* ------------- Mutable variable utilities --------------- *)
+
 let dynamic_var i = ref i
 
 let dynamic_lookup d = !d
@@ -540,4 +536,3 @@ let dynamic_bind d v f =
     d := cur;
     raise e
   end 
-    

@@ -29,9 +29,6 @@ val safeheadtail : 'a list -> 'a option * 'a list
 val safetail : 'a list -> 'a list
 (** [safetail l] returns the tail of [l] or [] if it encounters a failure. *)
 
-val map_option : ('a -> 'b) -> 'a option -> 'b option
-(** [map_option f o] returns [Some(f v)] if [o] is [Some v], and [None] otherwise. *)
-
 val fold_left2 :
   ('a -> 'b option -> 'c option -> 'a) -> 'a -> 'b list -> 'c list -> 'a
 (** [fold_left2 f a b c] is similar to [List.fold_left2], but the two lists can have different sizes since [f] uses options. *)
@@ -45,9 +42,6 @@ val fold_left2_with_pad :
   ('a -> 'b -> 'c -> 'a) -> 'a -> 'b list -> 'c list -> 'b -> 'c -> 'a
 (** [fold_left2_with_pad f c xs ys padx ypadx] is similar to [fold_left2] but does not use options. Instead,
     [padx] (resp. [pady]) are passed to [f] if [xs] (resp. [ys]) is shorter than [ys] (resp. [xs]). *)
-
-val map2opt : ('a option -> 'b option -> 'c) -> 'a list -> 'b list -> 'c list
-(** [map2opt] is similar to [List.map2] but the function expects options, so the two lists do not have to be of the same size. *)
 
 val map2_with_pad :
   ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'a -> 'b -> 'c list
@@ -78,13 +72,12 @@ val take : int -> 'a list -> 'a list
 val composel : ('a -> 'a) list -> ('a -> 'a)
 (** composes a list of functions,  applying the leftmost function first. *)
 
-(** {2 Exceptions} *)
+(** {2 Option utility functions } **)
+val map_option : ('a -> 'b) -> 'a option -> 'b option
+(** [map_option f o] returns [Some(f v)] if [o] is [Some v], and [None] otherwise. *)
 
-exception Bad of string
-val bad : string -> 'a
-(** [bad s] raises Bad s. *)
-
-exception Unimplemented of string
+val map2opt : ('a option -> 'b option -> 'c) -> 'a list -> 'b list -> 'c list
+(** [map2opt] is similar to [List.map2] but the function expects options, so the two lists do not have to be of the same size. *)
 
 (** {2 String utility functions} *)
 
