@@ -55,6 +55,25 @@ DOCUMENTATION
 move installation instructions for tidy and lablgtk2 from src/INSTALL to elsewhere
 
 ____________________________________________________________________________
+NOTE FROM MICHAEL -- HAVE WE DEALT WITH THIS?
+
+   > I meant to ask this before: In the new INSTALL instructions for
+   > OSX QUICK START it says to 
+   > "set (in Makefile.conf)
+   >   export INCDIRS := /sw/include"
+   > First, shouldn't it say "(in OCamlMakefile)" instead of
+   > Makefile.conf?
+   
+   Don't think so -- OCamlMakefile is something imported from outside and we
+   want to be able to overwrite it with newer versions.
+   
+OK.  There is no file Makefile.conf in harmony4/src, and I assume
+the comment wasn't for Makefile.conf in pcre --- so into which
+file should we put in "export INCDIRS ..." and "export LIBDIRS
+..."?  (I know what needs to be done, I just don't know where it
+should be done).
+
+____________________________________________________________________________
 HARMONY SUMMER 2005 PLANS
 =========================
 
