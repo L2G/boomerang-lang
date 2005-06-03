@@ -27,4 +27,3 @@ val dummy : ?msg:string -> Syntax.sort -> t
 
 val memoize : t -> t
 (** Nate, could you fill in that one please ? I'm not sure of what it does *)
-

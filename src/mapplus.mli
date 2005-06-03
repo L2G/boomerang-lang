@@ -90,7 +90,10 @@ module type S =
           unspecified. *)
 
       val for_all: ('a -> bool) -> 'a t -> bool
+      (** [for_all p m] returns true if and only if the predicate [p] is true for all values in [m]. *)
+
       val for_alli: (key -> 'a -> bool) -> 'a t -> bool
+      (** Same as [for_all], but the predicate also takes the key as argument. *)
 
       val dump: (key list -> key list)
              -> (key -> string)

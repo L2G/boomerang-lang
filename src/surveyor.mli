@@ -50,3 +50,5 @@ val get_ekey : string option -> string -> string option -> encoding_key
 (** [get_ekey eko fn contents_opt] returns eko if it is registered or else looks up the encoding for fn and contents **)
 
 val view_of_file : string -> (string -> V.t) -> V.t option
+(** Given a filename [fn] and a reader [r], [view_of_file fn r] reads the contents of the file, pass it to the reader, and returns the result. If an error was encountered, [None] is returned. *)
+
