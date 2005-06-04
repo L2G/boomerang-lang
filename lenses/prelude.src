@@ -1,4 +1,5 @@
-#{#} 
+#{#}
+#@\section{Prelude Lenses}
 module Prelude = 
 
 (* SCHEMAS *)
@@ -18,10 +19,14 @@ let invert : (lens -> lens) = Native.Prelude.invert
 
 (** id **)
 let id : lens = Native.Prelude.id
+#{@}
+The \LN{id} lens returns its concrete argument unchanged in the \GET{} 
+direction, and its abstract argument unchanged in the \PUT{} direction.
+#{#}
 #*test id / {} = {}
 #*test id / {a=b} = {a=b}
-test id \ ({},missing) = {}
-test id \ ({a=b}, {}) = {a=b}
+#*test id \ ({},missing) = {}
+#*test id \ ({a=b}, {}) = {a=b}
 
 (** const **)
 let const : (view -> view -> lens) = Native.Prelude.const

@@ -85,6 +85,7 @@
           match c with
 	      '{' -> pr "{\\char123}"
 	    | '}' -> pr "{\\char125}"
+            | '\\' -> pr "{\\char92}"
 	    | _ -> print_char c
         else print_char c)
       else
