@@ -12,7 +12,7 @@ default: all
 ####################################################################
 # Navigation
 
-LENSESDIR = $(PWD)/$(TOP)/lenses
+LENSESDIR = $(shell pwd)/$(TOP)/lenses
 TOOLSDIR = $(TOP)/tools
 SRCDIR = $(TOP)/src
 
