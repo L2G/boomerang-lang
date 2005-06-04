@@ -23,7 +23,7 @@ include $(SRC)/Common.Makefile
 
 test:: all
 
-docs: all
+docs: 
 	-rm -rf $(DOCDIR)
 	-mkdir $(DOCDIR)
-	ocamldoc -d $(DOCDIR) -html v.mli 
+	ocamldoc -d $(DOCDIR) -html *.mli 

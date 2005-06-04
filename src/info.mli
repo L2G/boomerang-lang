@@ -6,22 +6,24 @@
 (*******************************************************************************)
 (* $Id$ *)
 
+(** {2 File location information} *)
+
 type pos = int * int
-(** [pos] represents a pin-point location in a file **)
+(** An [Info.pos] represents a pin-point location in a file *)
 
 type t = pos * pos
-(** [t] represents a location that spans a chunk of a file **)
+(** [t] represents a location that spans a chunk of a file *)
 
 val bogus : t
-(** [bogus] is a dummy location **)
+(** [bogus] is a dummy location *)
 
 val string_of_t : t -> string 
-(** [string_of_t] pretty prints a location for easy parsing by [compile-mode] in [emacs] **)
+(** [string_of_t] pretty prints a location for easy parsing by [compile-mode] in [emacs] *)
   
 val merge_inc : t -> t -> t
 (** [merge_inc i1 i2] merges the locations [i1] and [i2] into a new
-    location; includes the endpoints **)
+    location; includes the endpoints *)
 
 val merge_exc : t -> t -> t
 (** [merge_exc i1 i2] merges the locations [i1] and [i2] into a new
-    location; excludes the endpoints **)
+    location; excludes the endpoints *)

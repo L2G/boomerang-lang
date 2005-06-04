@@ -1,15 +1,21 @@
-(** The module for Lenses *)
+(** Lenses (basic definitions and infrastructure) *)
 
-(** Type of lenses *)
+(** Note that this module is just infrastructure.  Actual definitions of primitive 
+  lenses can be found in [prelude.ml], etc... *) 
+
+(* ------------------------------------------------------------------------- *)
+(** {2 Basics} *)
+
+(** The type of lenses *)
 type ('a, 'b) t = { 
   get: 'a -> 'b;
   put: 'b -> 'a option -> 'a
 }
-(** A lens can be viewed as its two functions, get and put, and is
-    parameterized ty the types of the concrete and abstract domains. *)
+(** A lens comprises two functions, [get] and [put], and is
+    parameterized by the types of the concrete and abstract domains. *)
 
 val get : ('a, 'b) t -> 'a -> 'b
-(** [get l c] returns the result of applying [l.get] to the view [v]. *)
+(** [get l c] returns the result of applying [l.get] to the view [c]. *)
 
 val put : ('a, 'b) t -> 'b -> 'a option -> 'a
 (** [put l a c] returns the result of applying [l.put] to the abstract view
@@ -20,27 +26,42 @@ val native : ('a -> 'b) -> ('b -> 'a option -> 'a) -> ('a, 'b) t
     programmer has manually checked the lens laws!) into a lens *)
 
 (* ------------------------------------------------------------------------- *)
+(** {2 Memoization} *)
+
+val memoize_lens : (V.t, V.t) t -> (V.t, V.t) t
+(** [memoize_lens l] returns a memoized version of [l] *)
+
+
+(* ------------------------------------------------------------------------- *)
 (** {2 Debugging support} *)
 
+(** [tracepoint "foo" l] yields a lens that behaves just like [l] except that,
+  during evaluation of its [get] and [put] functions, a [stackframe] is pushed onto
+  a stack of current tracepoints.  This stack can be printed if an error occurs during
+  evaluation of [l]. *)
+val tracepoint : string -> (V.t, V.t) t -> (V.t, V.t) t
+
+(** raise an error from a lens *)
+val error : V.msg list -> 'a
+
+val trap_errors_in : ('a -> 'b) -> 'a -> 'b
+(** [trap_errors_in f] behaves like [f] except that [IllFormed] exceptions are
+    trapped and printed *)
+
+
+(* ------------------------------------------------------------------------- *)
+(** {2 Visualizer support}
+
+(** The lens visualizer needs lower-level access to the lens stack. *)
+
+(** The type of stack frames. *)
 type stackframe
 
 (** to display a stackframe *)
 val dumpframe: stackframe -> V.msg list
 
-(** raise an error from a lens *)
-val error : V.msg list -> 'a
-
-val tracepoint : string -> (V.t, V.t) t -> (V.t, V.t) t
-
-val trap_errors_in : ('a -> 'b) -> 'a -> 'b
-(** [trap_errors_in f] behaves like [f] except that IllFormed exceptions are
-    trapped and printed *)
-
 val probe2 : string -> (string -> V.t -> stackframe list -> unit)
   -> (string -> V.t -> V.t option -> stackframe list -> unit) -> (V.t, V.t) t
-
-val memoize_lens : (V.t, V.t) t -> (V.t, V.t) t
-(** Speed improvement for applying a lens *)
 
 (* (\* ------------------------------------------------------------------------- *\) *)
 (* (\** {2 Recursion support} *\) *)

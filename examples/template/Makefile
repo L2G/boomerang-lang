@@ -8,7 +8,10 @@
 TOP = ../..
 include $(TOP)/Top.Makefile
 
-test:: testget testput
+all: test
+
+test:: 
+	$(HARMONY) check -module Template -test-all
 
 testget: 
 	$(HARMONY) \

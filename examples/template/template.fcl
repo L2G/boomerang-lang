@@ -1,3 +1,5 @@
 module Template = 
 
 let l = hoist ""; List.hd []; hoist "a"
+
+test l / (load "concrete.xml") = []  

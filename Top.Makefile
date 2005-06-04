@@ -12,7 +12,9 @@ default: all
 ####################################################################
 # Navigation
 
-LENSESDIR = $(shell pwd)/$(TOP)/lenses
+CWD = $(shell pwd)
+
+LENSESDIR = $(CWD)/$(TOP)/lenses
 TOOLSDIR = $(TOP)/tools
 SRCDIR = $(TOP)/src
 
@@ -38,6 +40,7 @@ SRCFILES = prelude.src
 GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 
 %.fcl : %.src $(SRC2F)
+	-rm -f $@
 	$(SRC2F) $< $@
 	chmod -w $@
 
@@ -53,11 +56,15 @@ $(SRC2TEX):
 clean::
 	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
 	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do \
-	    echo "#################### cleaning $(PWD)/$$i #######################"; \
+	    echo "###### cleaning $(CWD)/$$i ######"; \
 	    $(MAKE) -C $$i clean; done
 
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
 	@for i in $(SUBDIRS); do \
-	   echo "#################### testing $(PWD)/$$i #######################"; \
+	   echo "###### testing $(CWD)/$$i ######"; \
 	   $(MAKE) -C $$i test; done
 
+buildharmony: 
+	$(MAKE) -C $(SRCDIR) all
+
+buildandtest: buildharmony test

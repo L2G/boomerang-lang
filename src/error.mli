@@ -6,7 +6,7 @@
 (*****************************************************)
 (* $Id$ *)
 
-(** {2 Harmony Exceptions} **)
+(** Exceptions used throughout Harmony *)
 
 exception Compile_error of Info.t * string * string 
 (** A [Compiler_error i file_name msg] is raised when an error occurs

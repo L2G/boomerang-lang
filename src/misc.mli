@@ -1,4 +1,4 @@
-(** Miscellaneous useful functions *)
+(** {1 Miscellaneous useful functions} *)
 
 (** {2 Hashtbl utility functions} *)
 

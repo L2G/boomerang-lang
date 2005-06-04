@@ -6,7 +6,7 @@
 (***********************************************)
 (* $Id$ *)
 
-(** {2 Environments} *)
+(** Environments for resolving Focal qualified identifiers *)
 
 type 'a t
 (** Abstract type of environments *)

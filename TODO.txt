@@ -1,48 +1,26 @@
 THINGS TO DO
 
-REALLY IMMEDIATE
-rename viewer files to include "viewer" in the name
-
 IMMEDIATE
+make sure running 'make test' actually RUNS unit tests in all fcl files
+fix 'make test' in /src so that it actually runs all unit tests in the code automatically
+
+SOON
 continue documenting interfaces (do 'make docs' in /src), 
-  beginning with v.mli (which still probably has dead stuff in it)
-think about whether the lambda-calculus part of focal should be strict or
-  lazy (in particular, recursion)
-fix 'make test' in /src so that it actually runs all tests automatically
+
+THINGS NATE IS WORKING ON
 why, again, do fork and friends take views, not types?
   - because I haven't gotten to changing it over --JNF
-  - but we should do this, to get negation of views too... 
-
-MAKEFILES
-structure
-  /Top.Makefile       included by *every* Makefile everywhere; 
-                      defines where things can be found, e.g. SRCDIR,
-                      LIBDIR, TOOLDIR
-                      also defines stuff like 'make clean', etc.
-every Makefile looks like this:
-  TOP = ../..
-  include $(TOP)/Top.Makefile
-  all: <whatever...>
-  
+    but we should do this, to get negation of views too... 
 
 TIDYING
-* make clean should remove the silly ._d directories from OCamlMakefile
 * Add interface files with camldoc documentation for EVERY MODULE
 * renaming: hoist becomes hoist_unique
 
-CORE 
-* Delete/delete conflicts should maybe be removed
-* memoize equality checks
-
-USER INTERFACE
-* Improve printing of everything
-* push synchronization down to atomic or equally changed
-   -  more generally, tidy the sync algorithm
-
 LENSES
+* think about whether the lambda-calculus part of focal should be strict or
+  lazy (in particular, recursion)
 * find or write external palm to XML parser and writer
 * find or write external iCalendar to XML parser and writer
-* Add Safari plugin
 * Add the tests for plugins
 * get calendar lenses (ICal, ICalendar and PalmDatebook) working again
    - deal correctly with alignment (via lenses)
@@ -51,6 +29,13 @@ LENSES
 * new primitive:  hoistAny (which acts like hoist except that it doesn't
                     care what name the edge it's clipping out has; takes a
                     default name for the put case)
+
+SYNC ALGORITHM
+* Improve printing of everything
+* Delete/delete conflicts should maybe be removed
+* memoize equality checks
+* push synchronization down to atomic or equally changed
+   -  more generally, tidy the sync algorithm
 
 LOW PRIORITY
 output to stdout option and input from stdin
@@ -67,6 +52,7 @@ THINGS TO THINK ABOUT LATER
 
 DOCUMENTATION
 move installation instructions for tidy and lablgtk2 from src/INSTALL to elsewhere
+move src/INSTALL to top level
 
 ____________________________________________________________________________
 NOTE FROM MICHAEL -- HAVE WE DEALT WITH THIS?
