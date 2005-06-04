@@ -50,7 +50,7 @@ val trap_errors_in : ('a -> 'b) -> 'a -> 'b
 
 
 (* ------------------------------------------------------------------------- *)
-(** {2 Visualizer support}
+(** {2 Visualizer support} *)
 
 (** The lens visualizer needs lower-level access to the lens stack. *)
 
