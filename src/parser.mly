@@ -17,10 +17,12 @@ open Info
 let ( @ ) = Safelist.append
   
 (* constants *)
-let compose2_qid i = mk_qid [mk_id i "Native"] (mk_id i "compose2")
-let nil_qid i = mk_qid [mk_id i "Native"] (mk_id i "Nil")
-let cons_qid i = mk_qid [mk_id i "Native"] (mk_id i "Cons")
-let nil_tag_qid i = mk_qid [mk_id i "Native"] (mk_id i "nil_tag")
+let nat_pre i = Safelist.map (mk_id i) ["Native"; "Prelude"]
+
+let compose2_qid i = mk_qid (nat_pre i) (mk_id i "compose2")
+let nil_qid i = mk_qid (nat_pre i) (mk_id i "Nil")
+let cons_qid i = mk_qid (nat_pre i) (mk_id i "Cons")
+let nil_tag_qid i = mk_qid (nat_pre i) (mk_id i "nil_tag")
 let nil_view i = 
   let nil_name = EVar(i, nil_tag_qid i) in 
   let empty_view = EView(i, []) in

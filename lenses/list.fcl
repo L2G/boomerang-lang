@@ -1,8 +1,8 @@
 module List =
 
-let HD : name = Native.hd_tag
-let TL : name = Native.tl_tag
-let NIL : name = Native.nil_tag
+let HD : name = Native.Prelude.hd_tag
+let TL : name = Native.Prelude.tl_tag
+let NIL : name = Native.Prelude.nil_tag
 let tags : view = { `HD, `TL, `NIL }
   
 (* lenses *)
