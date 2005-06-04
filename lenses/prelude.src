@@ -30,13 +30,19 @@ direction, and its abstract argument unchanged in the \PUT{} direction.
 
 (** const **)
 let const : (view -> view -> lens) = Native.Prelude.const
-test const {a} {b} / {} = {a}
-test const {} {} / [1, 2, 3] = {}
-test const {a} {b} \ ({a}, {}) = {}
-test const {a} {b} \ ({a}, [1,2,3]) = [1,2,3]
-test const {a} {b} \ ({a}, missing) = {b}
-test const {a} {b} \ ({b}, {}) = error
-test const {a} {b} \ ({b}, missing) = error
+#{@}
+The \LN{const} \(t\) \(d\) lens always return the tree \(t\) in the \GET{} 
+direction. In the \PUT{} direction, it is only defined if the abstract tree 
+has not changed (if it still is \(t\)). In this case, it returns the original 
+concrete tree if there is one, and the default tree \(d\) otherwise.
+#{#}
+#*test const {a} {b} / {} = {a}
+#*test const {} {} / [1, 2, 3] = {}
+#*test const {a} {b} \ ({a}, {}) = {}
+#*test const {a} {b} \ ({a}, [1,2,3]) = [1,2,3]
+#*test const {a} {b} \ ({a}, missing) = {b}
+#*test const {a} {b} \ ({b}, {}) = error
+#*test const {a} {b} \ ({b}, missing) = error
 
 (** compose2 **)
 let compose2 : (lens -> lens -> lens) = Native.Prelude.compose2
