@@ -11,4 +11,4 @@ include $(TOP)/Top.Makefile
 clean::
 	rm -f $(GENERATEDFCLFILES)
 
-all:
+all: $(GENERATEDFCLFILES)

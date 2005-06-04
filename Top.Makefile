@@ -12,7 +12,7 @@ default: all
 ####################################################################
 # Navigation
 
-LENSESDIR = $(TOP)/lenses
+LENSESDIR = $(PWD)/$(TOP)/lenses
 TOOLSDIR = $(TOP)/tools
 SRCDIR = $(TOP)/src
 
@@ -31,11 +31,15 @@ HARMONYBIN = $(SRCDIR)/harmony
 $(HARMONYBIN):
 	$(MAKE) -C $(SRCDIR)
 
+####################################################################
+# Generating .fcl and .tex files from .src
+
 SRCFILES = prelude.src
 GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 
 %.fcl : %.src $(SRC2F)
 	$(SRC2F) $< $@
+	chmod -w $@
 
 $(SRC2F):
 	$(MAKE) -C $(TOOLSDIR)
@@ -49,11 +53,11 @@ $(SRC2TEX):
 clean::
 	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
 	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do \
-	    echo "-------------------- cleaning $$i -----------------------"; \
+	    echo "#################### cleaning $(PWD)/$$i #######################"; \
 	    $(MAKE) -C $$i clean; done
 
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
 	@for i in $(SUBDIRS); do \
-	   echo "-------------------- testing $$i -----------------------"; \
+	   echo "#################### testing $(PWD)/$$i #######################"; \
 	   $(MAKE) -C $$i test; done
 
