@@ -1071,7 +1071,6 @@ let compile_module m0 =
 let parse_lexbuf lexbuf = 
   try 
     let ast = Parser.modl Lexer.main lexbuf in
-      Lexer.finish ();
       ast
   with Parsing.Parse_error ->
     parse_error (Lexer.info lexbuf) 
@@ -1105,7 +1104,8 @@ let compile_file fn n =
 	   m_str (String.uncapitalize m_str))
   in
   let ast = check_module ast in 
-    compile_module ast
-    
+  let _ = compile_module ast in
+    Lexer.finish ()
+
 (* ugly backpatch hack! *)
 let _ = Registry.compile_file_impl := compile_file

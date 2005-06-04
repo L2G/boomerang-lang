@@ -5,19 +5,25 @@ module LE = Lexing
 
 let lexeme = LE.lexeme
 let linestart = ref 0
+let old_linestart = ref 0
 let lineno = ref 1
+let old_lineno = ref 1
 let file_name = ref ""
 let old_file_name = ref ""
 
 let setup fn = 
   old_file_name := !file_name;
+  old_linestart := !linestart;
+  old_lineno := !lineno;
   file_name := fn;
   linestart := 0; 
   lineno := 1
     
 let finish () = 
-  file_name := !old_file_name
-    
+  file_name := !old_file_name;
+  linestart := !old_linestart;
+  lineno := !old_lineno
+
 let newline lexbuf : unit = 
   linestart := LE.lexeme_start lexbuf;
   incr lineno
