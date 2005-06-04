@@ -1,12 +1,10 @@
 (*********************************************************)
 (* The Harmony Project                                   *)
 (* harmony@lists.seas.upenn.edu                          *)
-(*                                                       *)
-(* registry.mli - interface for library of Focal values  *)
 (*********************************************************)
-(* $Id$ *)
+(* $Id: Makefile 378 2005-06-04 18:08:36Z bcpierce $ *)
 
-(** {2 Registry values } *)
+(** {2 Registry of Focal values } *)
 
 type rv 
 (** The type of registry values; just a sort and a value. *)

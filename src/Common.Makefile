@@ -2,7 +2,7 @@
 # The Harmony Project                                              #
 # harmony@lists.seas.upenn.edu                                     #
 #                                                                  #
-# Common.Makefile - source dependencies: included in Makefiles     #
+# Common.Makefile - common rules for OCaml parts of Harmony        #
 ####################################################################
 # $Id$  
 
@@ -19,6 +19,8 @@ OCAMLCPFLAGS = f
 OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(c).opt)
 
 all: native-code
+
+fast: bc
 
 tags:
 	etags $(SOURCES)
@@ -43,7 +45,7 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                env.mli env.ml registry.mli registry.ml \
                compiler.mli compiler.ml
 
-VIEWER_SOURCES = metay.mly metal.mll metaviewer.ml xmlviewer.ml
+VIEWER_SOURCES = metay.mly metal.mll viewers.ml
 
 ################
 # SYNC SOURCES #

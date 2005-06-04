@@ -1,6 +1,5 @@
 (** Low-level registration of lenses, viewers, etc. *)
 
-type type_desc = string list
 type encoding_key = string
 
 type encoding_test = string -> string option -> bool

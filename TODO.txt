@@ -5,6 +5,14 @@ finish going over .mli files and docs
 consolidate viewers into one file
 structured text demo
 
+NATE TASKS
+why, again, do fork and friends take views, not types?
+  - because I haven't gotten to changing it over --JNF
+    but we should do this, to get negation of views too... 
+add docs to registry.mli and other compiler modules
+
+------------
+
 IMMEDIATE
 make sure running 'make test' actually RUNS unit tests in all fcl files
 fix 'make test' in /src so that it actually runs all unit tests in the code automatically
@@ -13,11 +21,6 @@ SOON
 continue documenting interfaces (do 'make docs' in /src), 
 it would be really nice to be able to parse (and print!) XML directly from
   focal programs (i.e., to include XML in meta parsing and printing)
-
-NATE TASKS
-why, again, do fork and friends take views, not types?
-  - because I haven't gotten to changing it over --JNF
-    but we should do this, to get negation of views too... 
 
 TIDYING
 * Remove V.IllFormed and replace all uses with something appropriate from Error
@@ -33,7 +36,6 @@ LENSES
   lazy (in particular, recursion)
 * find or write external palm to XML parser and writer
 * find or write external iCalendar to XML parser and writer
-* Add the tests for plugins
 * get calendar lenses (ICal, ICalendar and PalmDatebook) working again
    - deal correctly with alignment (via lenses)
    - move iCalendar handling into a separate program

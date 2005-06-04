@@ -1,14 +1,10 @@
 (********************************************************************)
 (* The Harmony Project                                              *)
 (* harmony@lists.seas.upenn.edu                                     *)
-(*                                                                  *)
-(* value.mli - interface for run-time representations               *)
-(*                                                                  *)
-(* $Id$ *)
-(*                                                                  *)
 (********************************************************************)
+(* $Id$ *)
 
-(** Module for Focal values at run-time *)
+(** Run-time representations of Focal values *)
 
 (** The type of run-time representations *)
 type t = 
@@ -23,7 +19,8 @@ val string_of_t : t -> string
 
 val dummy : ?msg:string -> Syntax.sort -> t
 (** [dummy s] returns a dummy value of sort [s]. For sorts, see [Syntax.sort].
-   @param the first optional argument is used as an error message for a dummy lens, its default is "" *)
+  @param the first optional argument is used as an error message for a dummy lens;
+  its default is "". *)
 
 val memoize : t -> t
 (** Nate, could you fill in that one please ? I'm not sure of what it does *)

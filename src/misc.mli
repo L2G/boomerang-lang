@@ -127,6 +127,8 @@ val whack : string -> string
 val unwhack : string -> string
 (** the (almost) inverse of [whack_chars] *)
 
+
+
 val hexify_string : string -> string
 
 val splitIntoWords : string -> char -> string list
@@ -194,7 +196,7 @@ val dynamic_bind : 'a ref -> 'a -> (unit -> 'b) -> 'b
 (** [dynamic_bind d v f] executes [f] with [d] containing [v], and then restores [d]'s original value. *)
 
 
-(** {2 Pretty printing} *)
+(** {2 Formatting} *)
 
 val concat : 
      (('a -> string -> string) -> 't -> string -> string) 
@@ -203,13 +205,13 @@ val concat :
   -> 't 
   -> string
 (** [concat fold sep pretty structure] uses [fold] and [pretty] to
-    pretty-print [structure]. Elements are separated by [sep]. *)
+    format [structure] into a string. Elements are separated by [sep]. *)
     
 val concat_list : string -> (string list) -> string
 (** [concat_list sep l] concatenates a string list using [sep] to separate elements *)
 
 val curlybraces : string -> string
-(** [curlybraces s] encloses s in '{' '}' *)
+(** [curlybraces s] encloses s in '\{' '\}' *)
 
 val parens : string -> string
 (** [parens s] encloses s in '(' ')' *)

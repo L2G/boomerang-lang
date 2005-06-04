@@ -2,10 +2,10 @@
 (* The Harmony Project                                   *)
 (* harmony@lists.seas.upenn.edu                          *)
 (*                                                       *)
-(* type.mli - interface for on types                     *)
-(*                                                       *)
 (*********************************************************)
 (* $Id$ *)
+
+(** Focal types *)
 
 type t = TT of pt | NT of pt
 and pt
