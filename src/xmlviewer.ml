@@ -1,31 +1,6 @@
 (* $Id: xml.ml,v 1.1 2004/08/03 21:12:16 denielou Exp $ *)
 (* support for reading/writing XML data *)
 
-(* [This comment is a bit out of date...]
-
-   An XML element is either a data or is a tag. If it is data, we represent
-   this as a value containing the data, pointed to by a PCDATA child, or:
-     {PCDATA = {<data> = {}
-                *** = {}}
-   If it is a tag, it may have attribute elements and/or sub-elements. We
-   recurse on the sub-elements, and create a list structure, storing it
-   under "", and store the attribute values under their names. This whole
-   view is then stored under the tag name. So:
-     <t a1="v1" a2="v2">hi</t>
-   is represented as:
-     {t = {"" = {PCDATA = {hi = {}
-                           *** = {}}
-                 *** = {}}
-           a1 = {v1 = {}
-                 *** = {}}
-           a2 = {v2 = {}
-                 *** = {}}}}
-   Now a true XML document consists of one top-level element, but HTML may
-   have multiple top-level elements. So that we may re-use code for writing
-   the views out, we represent the entire document as a list structure of
-   top-level elements stored under "".
-*)
-
 open Pxp_document
 open Pxp_yacc
 open Pxp_types

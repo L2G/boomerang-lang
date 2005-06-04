@@ -6,6 +6,11 @@
 (****************************************************************)
 (* $Id$ *)
 
+(** Focal abstract syntax
+
+    (See [parser.mly] for concrete syntax.)
+*)
+
 (** {2 Identifiers, qualified identifiers, annotated with parsing information } *)
 type id 
 type qid 

@@ -1,3 +1,8 @@
+(** Viewer for XML views
+
+    (Does this need any interface at all?)
+  *)
+
 (** A simple preproccessing function for stripping the DOCTYPE declaration.
    This is generally a good idea, and is default with gen_reader. *)
 val strip_doctype : string -> string
@@ -9,4 +14,4 @@ val reader : string -> V.t
 val writer : V.t -> string
 
 val escapeXml : Name.t -> Name.t
-(** used by xmlarchive *)
+(** used by xmlarchive (still used??) *)

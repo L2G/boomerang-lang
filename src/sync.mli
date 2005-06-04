@@ -6,6 +6,8 @@
 (****************************************************************)
 (* $Id *)
 
+(** The synchronization algorithm *)
+
 type copy_value
 type action
 

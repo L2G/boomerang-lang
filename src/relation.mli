@@ -1,3 +1,5 @@
+(** Utilities for manipulating relational data *)
+
 type t
 type record = (string * string) list
 exception Type_error of string

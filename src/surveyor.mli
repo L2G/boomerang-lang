@@ -1,4 +1,4 @@
-(** The surveyor handles low-level registration of plugins. *)
+(** Low-level registration of lenses, viewers, etc. *)
 
 type type_desc = string list
 type encoding_key = string

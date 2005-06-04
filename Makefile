@@ -5,7 +5,7 @@
 
 # $Id: Common.Makefile 121 2005-05-05 00:19:32Z bcpierce $
 
-SUBDIRS = src examples papers tools
+SUBDIRS = src lenses examples papers tools 
 SUBDIRSCLEANONLY = experimental visual
 
 TOP = .

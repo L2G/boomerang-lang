@@ -6,11 +6,13 @@
 (***************************************************)
 (* $Id$ *)
 
+(** Names (which label edges in views) *)
+
 type t = string
 (** A name is just a string *)
 
 module Set : Set.S with type elt = t
-  (** Sets with names as elements *)
+  (** Sets of names *)
 
 module Map : Mapplus.SMap with type key_t = t and type key_set = Set.t
   (** Finite maps with names as keys *)
