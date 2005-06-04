@@ -6,6 +6,8 @@ fix 'make test' in /src so that it actually runs all unit tests in the code auto
 
 SOON
 continue documenting interfaces (do 'make docs' in /src), 
+it would be really nice to be able to parse (and print!) XML directly from
+  focal programs (i.e., to include XML in meta parsing and printing)
 
 THINGS NATE IS WORKING ON
 why, again, do fork and friends take views, not types?

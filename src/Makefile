@@ -27,3 +27,6 @@ docs:
 	-rm -rf $(DOCDIR)
 	-mkdir $(DOCDIR)
 	ocamldoc -d $(DOCDIR) -html *.mli 
+
+clean::
+	rm -rf lenses
