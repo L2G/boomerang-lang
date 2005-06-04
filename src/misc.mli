@@ -1,10 +1,4 @@
-(** {1 Miscellaneous useful functions} *)
-
-(** {2 Hashtbl utility functions} *)
-
-val safe_hash_add : ('a,'b) Hashtbl.t -> 'a -> 'b -> unit
-(** [safe_hash_add ht key data] safely adds a binding between [key] and [data] in [ht].
-    @raise Failure if a previous binding for [key] aldready existed *)
+(** Miscellaneous utility functions *)
 
 (** {2 List utility functions} *)
 
@@ -72,12 +66,15 @@ val take : int -> 'a list -> 'a list
 val composel : ('a -> 'a) list -> ('a -> 'a)
 (** composes a list of functions,  applying the leftmost function first. *)
 
-(** {2 Option utility functions } **)
+
+(** {2 Option utility functions } *)
+
 val map_option : ('a -> 'b) -> 'a option -> 'b option
 (** [map_option f o] returns [Some(f v)] if [o] is [Some v], and [None] otherwise. *)
 
 val map2opt : ('a option -> 'b option -> 'c) -> 'a list -> 'b list -> 'c list
 (** [map2opt] is similar to [List.map2] but the function expects options, so the two lists do not have to be of the same size. *)
+
 
 (** {2 String utility functions} *)
 
@@ -121,7 +118,8 @@ val replace_substrings : string -> (string * string) list -> string
 (** [replace_substrings] is similar to [replace_substring], but iterates on a list of substitution. The leftmost substitution is applied first. *)
 
 val whack_chars : string -> char list -> string
-(** [whack_chars s cl] escapes [s], puts it between double quotes if it contains some of the characters in [cl], and returns the result.*)
+(** [whack_chars s cl] escapes [s], puts it between double quotes if it contains any
+    of the characters in [cl], and returns the result.*)
 
 val whack : string -> string
 (** [whack s = whack_chars s [' ';'"']] *)
@@ -134,12 +132,19 @@ val hexify_string : string -> string
 val splitIntoWords : string -> char -> string list
 (** [splitIntoWords s c] splits [s] into words separated by [c], and returns them as a list. *)
 
-val filename_extension : string -> string
-(** returns the extension of a filename. *)
-
 type color = Black | Red | Green | Yellow | Blue | Pink | Cyan | White
 val color : string -> ?bold:bool -> color -> string
 (** ansi-colors a string.  defaults to not bold. *)
+
+val filename_extension : string -> string
+(** returns the extension of a filename. *)
+
+
+(** {2 Hashtbl utility functions} *)
+
+val safe_hash_add : ('a,'b) Hashtbl.t -> 'a -> 'b -> unit
+(** [safe_hash_add ht key data] safely adds a binding between [key] and [data] in [ht].
+    @raise Failure if a previous binding for [key] aldready existed. *)
 
 (** {2 File handling functions} *)
 
@@ -171,6 +176,7 @@ val backup : string -> unit
 val tempFileName : string -> string
 (** Returns a fresh temporary filename tagged with the string passed as argument. *)
 
+
 (** {2 I/O}*)
 
 val read_char : unit -> char
@@ -187,19 +193,20 @@ val dynamic_lookup : 'a ref -> 'a
 val dynamic_bind : 'a ref -> 'a -> (unit -> 'b) -> 'b
 (** [dynamic_bind d v f] executes [f] with [d] containing [v], and then restores [d]'s original value. *)
 
-(** {2 Pretty printing} **)
+
+(** {2 Pretty printing} *)
 
 val concat : 
-  (('a -> string -> string) -> 't -> string -> string) -> 
-  string -> 
-  ('a -> string) -> 
-  't -> 
-  string
+     (('a -> string -> string) -> 't -> string -> string) 
+  -> string 
+  -> ('a -> string) 
+  -> 't 
+  -> string
 (** [concat fold sep pretty structure] uses [fold] and [pretty] to
-pretty-print [structure]. Elements are separated by [sep]. **)
+    pretty-print [structure]. Elements are separated by [sep]. *)
     
 val concat_list : string -> (string list) -> string
-(** [concat_list sep l] concatenates a string list using [sep] to separate elements **)
+(** [concat_list sep l] concatenates a string list using [sep] to separate elements *)
 
 val curlybraces : string -> string
 (** [curlybraces s] encloses s in '{' '}' *)

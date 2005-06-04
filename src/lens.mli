@@ -9,8 +9,7 @@
 (** The type of lenses *)
 type ('a, 'b) t = { 
   get: 'a -> 'b;
-  put: 'b -> 'a option -> 'a
-}
+  put: 'b -> 'a option -> 'a }
 (** A lens comprises two functions, [get] and [put], and is
     parameterized by the types of the concrete and abstract domains. *)
 
@@ -23,13 +22,13 @@ val put : ('a, 'b) t -> 'b -> 'a option -> 'a
 
 val native : ('a -> 'b) -> ('b -> 'a option -> 'a) -> ('a, 'b) t
 (** Convert a pair of host-language functions (for which the
-    programmer has manually checked the lens laws!) into a lens *)
+    programmer has manually checked the lens laws!) into a lens. *)
 
 (* ------------------------------------------------------------------------- *)
 (** {2 Memoization} *)
 
 val memoize_lens : (V.t, V.t) t -> (V.t, V.t) t
-(** [memoize_lens l] returns a memoized version of [l] *)
+(** [memoize_lens l] returns a memoized version of [l]. *)
 
 
 (* ------------------------------------------------------------------------- *)
@@ -57,11 +56,15 @@ val trap_errors_in : ('a -> 'b) -> 'a -> 'b
 (** The type of stack frames. *)
 type stackframe
 
-(** to display a stackframe *)
+(** Display a stackframe *)
 val dumpframe: stackframe -> V.msg list
 
-val probe2 : string -> (string -> V.t -> stackframe list -> unit)
-  -> (string -> V.t -> V.t option -> stackframe list -> unit) -> (V.t, V.t) t
+(** Build a lens that, when invoked, will call us back with some tracing informa *)
+val probe2 :
+     string
+  -> (string -> V.t -> stackframe list -> unit)
+  -> (string -> V.t -> V.t option -> stackframe list -> unit)
+  -> (V.t, V.t) t
 
 (* (\* ------------------------------------------------------------------------- *\) *)
 (* (\** {2 Recursion support} *\) *)

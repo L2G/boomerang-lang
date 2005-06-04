@@ -6,7 +6,7 @@
 (*********************************************************)
 (* $Id$ *)
 
-(** {2 Registry values } **)
+(** {2 Registry values } *)
 
 type rv 
 (** The type of registry values; just a sort and a value. *)
@@ -21,7 +21,7 @@ val sort_of_rv : rv -> Syntax.sort
 (** [sort_of_rv r] returns the sort from [r]. *)
     
 val string_of_rv : rv -> string
-(** [string_of_rv r] Returns a string representing [r] **)
+(** [string_of_rv r] Returns a string representing [r] *)
 
 (** {2 Library} *)
 
@@ -49,10 +49,10 @@ val find_filename : string -> string option
 (** ?? *)
 
 val lookup_library_ctx : Syntax.qid list -> Syntax.qid -> rv option
-(** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] **)
+(** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_library : Syntax.qid -> rv option
-(** [lookup_library q] looks up [q] from the library **)
+(** [lookup_library q] looks up [q] from the library *)
 
 (**/**)
 val compile_file_impl : (string -> string -> unit) ref

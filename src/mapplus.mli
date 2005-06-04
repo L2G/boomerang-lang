@@ -1,6 +1,4 @@
-(** Extended maps
- 
-  An extended version of OCaml's standard Map module, providing several
+(** An extended version of OCaml's standard Map module, providing several
   additional operations
 *)
 
@@ -16,7 +14,7 @@ module type SMap = sig
     (** The empty map. *)
     
   val is_empty: 'a t -> bool
-    (** Tells whether the map is empty **)
+    (** Tells whether the map is empty *)
     
   val size: 'a t -> int
     (** the size of the map as an int *)

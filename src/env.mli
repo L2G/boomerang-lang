@@ -16,19 +16,19 @@ val empty : unit -> 'a t
 
 val update : 'a t -> Syntax.qid -> 'a -> 'a t
   (** [update ev q r] extends [ev] with a binding for [qid] and
-      [rv]. Returns a new environment **)
+      [rv]. Returns a new environment *)
 
 val overwrite : 'a t -> Syntax.qid -> 'a -> 'a t
   (** [overwrite ev q r] returns [ev], with the binding for [q]
       overwritten to [r]. If no binding for [q] exists, then extends [ev]
-      with [q] bound to [r]. **)
+      with [q] bound to [r]. *)
 
 val lookup : 'a t -> Syntax.qid -> 'a option
   (** [lookup ev q] returns an option representing the binding for [q]
-      in [ev]. **)
+      in [ev]. *)
 
 val to_string : 'a t -> ('a -> string) -> string
-  (** [to_string string_of_r ev] returns a string representing [ev]. **)
+  (** [to_string string_of_r ev] returns a string representing [ev]. *)
   
 val iter : (Syntax.qid -> 'a -> unit) -> 'a t -> unit
   

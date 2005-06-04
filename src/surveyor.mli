@@ -44,10 +44,10 @@ val print_description : encoding_key -> unit
 (** [print_description k] prints a description associated with [k]. *)
 
 val parse_filename : string -> string * (string option)
-(** [parse_filename fn] splits a filename into the real filename and an optional annotation to select the viewer **)
+(** [parse_filename fn] splits a filename into the real filename and an optional annotation to select the viewer *)
 
 val get_ekey : string option -> string -> string option -> encoding_key
-(** [get_ekey eko fn contents_opt] returns eko if it is registered or else looks up the encoding for fn and contents **)
+(** [get_ekey eko fn contents_opt] returns eko if it is registered or else looks up the encoding for fn and contents *)
 
 val view_of_file : string -> (string -> V.t) -> V.t option
 (** Given a filename [fn] and a reader [r], [view_of_file fn r] reads the contents of the file, pass it to the reader, and returns the result. If an error was encountered, [None] is returned. *)

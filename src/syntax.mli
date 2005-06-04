@@ -6,7 +6,7 @@
 (****************************************************************)
 (* $Id$ *)
 
-(** {2 Identifiers, qualified identifiers, annotated with parsing information } **)
+(** {2 Identifiers, qualified identifiers, annotated with parsing information } *)
 type id 
 type qid 
 
@@ -26,7 +26,7 @@ val qid_of_id : id -> qid
 val id_of_string : Info.t -> string -> id
 val dot : qid -> qid -> qid
 
-(** {2 Datatypes for Focal abstract syntax } **)
+(** {2 Datatypes for Focal abstract syntax } *)
 type sort = 
     SName of Info.t
   | SLens of Info.t
@@ -72,7 +72,7 @@ type decl =
       
 type modl = MDef of Info.t * id * qid list * decl list
 
-(** {3 Utility functions } **)
+(** {3 Utility functions } *)
 
 val emptyView : Info.t -> exp
 val emptyViewType : Info.t -> ptypeexp
@@ -83,7 +83,7 @@ val id_of_modl : modl -> id
 val id_of_param : param -> id
 val sort_of_param : param -> sort
 
-(** {3 Info getters } **)
+(** {3 Info getters } *)
 
 val info_of_list : ('a -> Info.t) -> Info.t -> 'a list -> Info.t
 val info_of_id : id -> Info.t
@@ -98,7 +98,7 @@ val info_of_bindings : Info.t -> binding list -> Info.t
 val info_of_typebindings : Info.t -> typebinding list -> Info.t
 val info_of_module : modl -> Info.t
 
-(** {3 Pretty printers } **)
+(** {3 Pretty printers } *)
 
 val string_of_id : id -> string
 val string_of_qid : qid -> string
