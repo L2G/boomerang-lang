@@ -35,10 +35,11 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 
 BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                relation.mli relation.ml \
-               mapplus.mli mapplus.ml name.ml v.mli v.ml lens.mli lens.ml \
+               mapplus.mli mapplus.ml \
+               name.mli name.ml v.mli v.ml lens.mli lens.ml \
                surveyor.mli surveyor.ml \
                syntax.mli syntax.ml parser.mly lexer.mll \
-               type.ml value.mli value.ml \
+               type.mli type.ml value.mli value.ml \
                env.mli env.ml registry.mli registry.ml \
                compiler.mli compiler.ml
 
@@ -48,7 +49,7 @@ VIEWER_SOURCES = metay.mly metal.mll metaviewer.ml xmlviewer.ml
 # SYNC SOURCES #
 ################
 
-SYNC_SOURCES = sync.ml
+SYNC_SOURCES = sync.mli sync.ml
 
 ###########
 # PLUGINS #

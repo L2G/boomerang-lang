@@ -33,7 +33,6 @@ let rec dummy ?(msg="") s = match s with
 	assert false
       in
 	L (Lens.native error error)
-
   | Syntax.SType(i) -> T (Type.TT (Type.mk_ptype (Type.Empty(i))))
   | Syntax.SView(_) -> V (V.empty)
   | Syntax.SArrow(_,_,rs) -> F (fun _ -> dummy ~msg:msg rs)

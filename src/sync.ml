@@ -1,4 +1,10 @@
-(* $Id: sync.ml,v 1.14 2005/03/01 17:24:16 jnfoster Exp $ *)
+(****************************************************************)
+(* The Harmony Project                                          *)
+(* harmony@lists.seas.upenn.edu                                 *)
+(*                                                              *)
+(* sync.ml - Core synchronizer                                  *)
+(****************************************************************)
+(* $Id *)
 
 type copy_value =
   | Adding of V.t

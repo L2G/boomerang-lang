@@ -66,11 +66,6 @@ let run_error i msg_thk =
     Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
     raise (Error.Compile_error(i, !Lexer.file_name, msg))
           
-(* compiling environments comprise:
- *  - a qid list: the naming context, a list of open modules 
- *  - a Registry.env: mapping from qids to Registry.rv 
- *)
-
 module type CommonEnvSig = sig
   type t 
   val empty : unit -> t
@@ -81,6 +76,7 @@ module type CommonEnvSig = sig
   val to_string : t -> string
 end
 
+(* compiling environments *)
 module type CEnvSig = sig
   include CommonEnvSig
   val lookup : t -> Syntax.qid -> Registry.rv option
@@ -88,19 +84,17 @@ module type CEnvSig = sig
   val overwrite : t -> Syntax.qid -> Registry.rv -> t
 end    
 
+(* checking environments *)
 module type SCEnvSig = sig
   include CommonEnvSig
-
   val add_rec_var : t -> Syntax.qid -> t
   val clear_rec_vars : t -> t
   val rec_var_ok : t -> Syntax.qid -> bool 
   val get_rec_vars : t -> Syntax.qid list
   val set_rec_vars : t -> Syntax.qid list -> t
-
   val lookup : t -> Syntax.qid -> Syntax.sort option
   val update : t -> Syntax.qid -> Syntax.sort -> t
 end
-
 
 module CEnv : CEnvSig = struct
   type t = Syntax.qid list * (Registry.rv Env.t)

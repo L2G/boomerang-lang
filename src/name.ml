@@ -1,3 +1,11 @@
+(***************************************************)
+(* The Harmony Project                             *)
+(* harmony@lists.seas.upenn.edu                    *)
+(*                                                 *)
+(* name.ml - names and structures built from names *)
+(***************************************************)
+(* $Id$ *)
+
 type name = string
 
 module NameMap =
