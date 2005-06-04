@@ -47,11 +47,13 @@ $(SRC2TEX):
 # Common targets
 
 clean::
-	@echo "-------------------- cleaning $(PWD) -----------------------"
 	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
-	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do $(MAKE) -C $$i clean; done
+	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do \
+	    echo "-------------------- cleaning $$i -----------------------"; \
+	    $(MAKE) -C $$i clean; done
 
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
-	@echo "-------------------- testing $(PWD) -----------------------"
-	@for i in $(SUBDIRS); do $(MAKE) -C $$i test; done
+	@for i in $(SUBDIRS); do \
+	   echo "-------------------- testing $$i -----------------------"; \
+	   $(MAKE) -C $$i test; done
 
