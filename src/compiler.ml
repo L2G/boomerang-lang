@@ -49,22 +49,22 @@ let debug s_thk =
 let parse_error i msg_thk = 
   let msg = 
     Printf.sprintf "Parse error: %s" (msg_thk ()) in
-    raise (Error.Compile_error(i, !Lexer.file_name, msg))
+    raise (Error.Compile_error(i, Lexer.file_name (), msg))
       
 let sort_error i msg_thk = 
   let msg = 
     Printf.sprintf "Sort checking error: %s" (msg_thk ()) in
-    raise (Error.Compile_error(i, !Lexer.file_name, msg))
+    raise (Error.Compile_error(i, Lexer.file_name (), msg))
     
 let test_error i msg_thk = 
   let msg = 
     Printf.sprintf "Unit test failed: %s" (msg_thk ()) in    
-    raise (Error.Compile_error(i, !Lexer.file_name, msg))
+    raise (Error.Compile_error(i, Lexer.file_name (), msg))
 
 let run_error i msg_thk = 
   let msg = 
     Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
-    raise (Error.Compile_error(i, !Lexer.file_name, msg))
+    raise (Error.Compile_error(i, Lexer.file_name (), msg))
           
 module type CommonEnvSig = sig
   type t 

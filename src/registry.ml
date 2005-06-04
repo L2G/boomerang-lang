@@ -111,6 +111,8 @@ let load ns =
 	      prerr_string (Printf.sprintf "[ loading %s]\n%!" fn);
 	      loaded := ns::(!loaded); 
 	      (!compile_file_impl) fn ns;
+	      prerr_string (Printf.sprintf "[ loaded %s]\n%!" fn);
+
 	      true
       end
 	

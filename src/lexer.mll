@@ -3,47 +3,45 @@ open Parser
 
 module LE = Lexing
 
-let lexeme = LE.lexeme
-let linestart = ref 0
-let old_linestart = ref 0
-let lineno = ref 1
-let old_lineno = ref 1
-let file_name = ref ""
-let old_file_name = ref ""
+let debug = Trace.debug "lexer"
 
-let setup fn = 
-  old_file_name := !file_name;
-  old_linestart := !linestart;
-  old_lineno := !lineno;
-  file_name := fn;
-  linestart := 0; 
-  lineno := 1
-    
-let finish () = 
-  file_name := !old_file_name;
-  linestart := !old_linestart;
-  lineno := !old_lineno
+let lexeme = LE.lexeme
+
+let info_stk : (string ref * int ref * int ref ) Stack.t = Stack.create ()
+let _ = Stack.push (ref "", ref 1, ref 0) info_stk
+
+let file_name () = let (fr,_,_) = Stack.top info_stk in !fr
+let lineno () = let (_,lr,_) = Stack.top info_stk in !lr
+let linestart () = let (_,_,cr) = Stack.top info_stk in !cr
+let set_lineno l = let (_,lr,_) = Stack.top info_stk in lr := l
+let set_linestart c = let (_,_,cr) = Stack.top info_stk in cr := c
+let set_filename f = let (fr,_,_) = Stack.top info_stk in fr := f
+
+let setup fn = Stack.push (ref fn,ref 1,ref 0) info_stk
+let finish () = ignore (Stack.pop info_stk)
 
 let newline lexbuf : unit = 
-  linestart := LE.lexeme_start lexbuf;
-  incr lineno
+  set_linestart (LE.lexeme_start lexbuf);
+  set_lineno (lineno () + 1)
 
 let info lexbuf : Info.t = 
   let c1 = LE.lexeme_start lexbuf in
   let c2 = LE.lexeme_end lexbuf in
-  (!lineno, c1 - !linestart),(!lineno, c2 - !linestart)
-
+  let l = lineno () in
+  let c = linestart () in
+    (l, c1 - c),(l, c2 - c)
+      
 let error lexbuf msg =
   let i = info lexbuf in
   let t = lexeme lexbuf in   
   let s = Printf.sprintf "Lexing error: %s : %s" msg t in
-    raise (Error.Compile_error(i, !file_name, s))
+    raise (Error.Compile_error(i, file_name (), s))
 
 let text = Lexing.lexeme
 
 let extractLineno yytext offset =
   int_of_string (String.sub yytext offset (String.length yytext - offset))
-
+    
 (* dictionary of Focal keywords *)
 let keywords = Hashtbl.create 17
 let _ = 
@@ -106,7 +104,7 @@ rule main = parse
                         IDENT (Syntax.mk_id (info lexbuf) ident) }
 | newline           { newline lexbuf; main lexbuf }
 | eof		    { EOF (info lexbuf) } 
-| "#line " ['0'-'9']+  { lineno := extractLineno (text lexbuf) 6 - 1; getFile lexbuf }
+| "#line " ['0'-'9']+  { set_lineno (extractLineno (text lexbuf) 6 - 1); getFile lexbuf }
 | "(*"              { comment lexbuf; main lexbuf }
 | _		    { error lexbuf "unknown token" }
 
@@ -139,7 +137,7 @@ and getFile = parse
   " "* "\"" { getName lexbuf }
 
 and getName = parse
-  [^ '"' '\n']+ { file_name := (text lexbuf); finishName lexbuf }
+  [^ '"' '\n']+ { set_filename (text lexbuf); finishName lexbuf }
 
 and finishName = parse
   '"' [^ '\n']* { main lexbuf }
