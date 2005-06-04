@@ -11,6 +11,7 @@ let old_file_name = ref ""
 
 let setup fn = 
   old_file_name := !file_name;
+  file_name := fn;
   linestart := 0; 
   lineno := 1
     
