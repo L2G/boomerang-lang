@@ -624,16 +624,17 @@ let rec check_decl sev m di =
 	    let new_di = DTestPut(i,new_l, (new_a, new_co), new_reso) in
 	      (sev, [], new_di)
 	  end
-    | DTestSync(i,lo,la,lb,orig,result) -> 
+    | DTestSync(i,lo,la,lb,ty,orig,result) -> 
 	if not (check_test m) then (sev, [], di)
 	else
 	  begin
 	    let new_lo = expect_sort_exp "test archive lens sync" sev (SLens(i)) lo in
 	    let new_la = expect_sort_exp "test replica A lens sync" sev (SLens(i)) la in
 	    let new_lb = expect_sort_exp "test replica B lens sync" sev (SLens(i)) lb in
+	    let new_ty = expect_sort_ptypeexp "test sync type" sev (SType(i)) ty in
 	    let new_orig = expect_sort_exp "test sync orig view" sev (SView(i)) orig in
 	    let new_result = expect_sort_exp "test sync result view" sev (SView(i)) result in
-	    let new_di = DTestSync(i,new_lo,new_la,new_lb,new_orig,new_result) in
+	    let new_di = DTestSync(i,new_lo,new_la,new_lb,new_ty,new_orig,new_result) in
 	      (sev, [], new_di)
 	  end
 	
@@ -1058,10 +1059,11 @@ let rec compile_decl cev m di =
 			 (V.string_of_t c'))		    
 	end;
       (cev, [])
-  | DTestSync(i,lo,la,lb,orig,result) ->
+  | DTestSync(i,lo,la,lb,typ,orig,result) ->
       let lo = compile_exp_lens cev lo
       and la = compile_exp_lens cev la
       and lb = compile_exp_lens cev lb
+      and typ = snd (compile_ptypeexp cev typ)
       and orig = compile_exp_view cev orig
       and result = compile_exp_view cev result in
       let co,ca,cb =

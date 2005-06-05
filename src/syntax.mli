@@ -74,7 +74,7 @@ type decl =
   | DMod of Info.t * id * decl list 
   | DTestGet of Info.t * exp * exp * exp option 
   | DTestPut of Info.t * exp * (exp * exp option) * exp option
-  | DTestSync of Info.t * exp * exp * exp * exp * exp * exp
+  | DTestSync of Info.t * exp * exp * exp * ptypeexp * exp * exp
       
 type modl = MDef of Info.t * id * qid list * decl list
 
