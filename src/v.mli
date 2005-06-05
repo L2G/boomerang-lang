@@ -207,6 +207,9 @@ exception Error of msg list
 val format_msg : msg list -> unit
 (** Prints a message list to the standard error output. *)
 
+val format_msg_as_string : msg list -> string
+(** Prints a message list to a string. *)
+
 val error_msg : msg list -> 'a
 (** @raise Error with the message list passed as argument *)
 

@@ -292,6 +292,7 @@ type msg = [ `String of string | `Name of Name.t | `Break | `View of t
 
 exception Error of msg list
 
+(* TODO: rewrite error message formatting nicely *)
 let format_msg l = 
   let rec loop = function
     | [] -> ()
@@ -318,11 +319,35 @@ let format_msg l =
     | `Close_box :: r ->
         Format.printf "@]";
         loop r
-
   in
   Format.printf "@[<v0>";
   loop l;
   Format.printf "@,@]"
+
+let format_msg_as_string l = 
+  let format_one = function
+    | `String s ->
+        Format.sprintf "%s" s
+    | `Name k ->
+        Format.sprintf "%s" (Misc.whack k)
+    | `Break ->
+        Format.sprintf "@,"
+    | `View v ->
+        (Format.sprintf "@,  @[<v2>") ^
+        (string_of_t v) ^
+        (Format.sprintf "@]@,")
+    | `View_opt v ->
+        (Format.sprintf "@,  @[<v2>") ^
+        (match v with None -> "" | Some v' -> string_of_t v') ^
+        (Format.sprintf "@]@,")
+    | `Open_box ->
+        Format.sprintf "@,  @[<v2>"
+    | `Close_box ->
+        Format.sprintf "@]"
+  in
+  (Format.sprintf "@[<v0>") ^
+  (String.concat "" (Safelist.map format_one l)) ^
+  (Format.sprintf "@,@]")
 
 let error_msg l =
   raise (Error l)
