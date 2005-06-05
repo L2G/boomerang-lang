@@ -276,16 +276,19 @@ let rec format_raw ((VI m) as v) =
     (fun (VI m) -> Name.Map.is_empty m)
     m  
 
-let string_of_t v = 
+let format_to_string f =
   let out,flush = Format.get_formatter_output_functions () in
   let buf = Buffer.create 64 in
     Format.set_formatter_output_functions 
       (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
-    format v;
+    f ();
     Format.print_flush();
     let s = Buffer.contents buf in
       Format.set_formatter_output_functions out flush;
       s
+    
+let string_of_t v = 
+  format_to_string (fun () -> format v)
     
 type msg = [ `String of string | `Name of Name.t | `Break | `View of t
            | `View_opt of t option | `Open_box | `Close_box ]
@@ -324,30 +327,8 @@ let format_msg l =
   loop l;
   Format.printf "@,@]"
 
-let format_msg_as_string l = 
-  let format_one = function
-    | `String s ->
-        Format.sprintf "%s" s
-    | `Name k ->
-        Format.sprintf "%s" (Misc.whack k)
-    | `Break ->
-        Format.sprintf "@,"
-    | `View v ->
-        (Format.sprintf "@,  @[<v2>") ^
-        (string_of_t v) ^
-        (Format.sprintf "@]@,")
-    | `View_opt v ->
-        (Format.sprintf "@,  @[<v2>") ^
-        (match v with None -> "" | Some v' -> string_of_t v') ^
-        (Format.sprintf "@]@,")
-    | `Open_box ->
-        Format.sprintf "@,  @[<v2>"
-    | `Close_box ->
-        Format.sprintf "@]"
-  in
-  (Format.sprintf "@[<v0>") ^
-  (String.concat "" (Safelist.map format_one l)) ^
-  (Format.sprintf "@,@]")
+let format_msg_as_string msg = 
+  format_to_string (fun () -> format_msg msg)
 
 let error_msg l =
   raise (Error l)
