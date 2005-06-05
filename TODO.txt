@@ -10,6 +10,11 @@ why, again, do fork and friends take views, not types?
   - because I haven't gotten to changing it over --JNF
     but we should do this, to get negation of views too... 
 add docs to registry.mli and other compiler modules
+fix this printing problem:
+      Native.Prelude.assert(get): view
+        [X, [A, b], [C]]
+      is not a member of ({hd = H, tl = T} | nil = {})
+  (note the H and T in the last line...)
 
 ------------
 

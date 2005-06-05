@@ -14,9 +14,7 @@ test continue / \ [x, []] = [[x]]
 (* Called when the first element satisfies the predicate.  Starts a new "head list". *) 
 let start_fresh = wmap { `List.HD -> plunge List.HD; add List.TL [] }
 test start_fresh / \ [x, [y], [z]] = [[x], [y], [z]]
-
-type TailIsComplete H = Cons Any (Cons (Cons H Any) Any)
-type HeadIsSingletonList = Cons (Cons Any Nil) Any
+test start_fresh / \ [x,[]] = [[x],[]]
 
 type Char = Value   (* Should be just single characters *)
 
@@ -26,17 +24,21 @@ type Complete H = Cons H (Incomplete H)
 type MaybeComplete H = Complete H | Incomplete H
 type ParsedList H = Cons (MaybeComplete H) (List (Complete H))
 
+type TailComplete H = Cons Any (Cons (Cons H Any) Any)
+type HeadSingletonAndTailNonempty = Cons (Cons Any Nil) (Cons Any Any)
+
 let process_elt (H:type) =
   assert <Nil | Cons Element (ParsedList H)>;
   acond <Nil> <Cons Nil Nil>
     (const [[]] [])
-    (acond <TailIsComplete H> <HeadIsSingletonList> 
+    (acond <TailComplete H> <HeadSingletonAndTailNonempty> 
        start_fresh
        continue);
   assert <ParsedList H>
 
 type T = NonEmptyList ({X}|{A}|{B}|{C})
 test process_elt T / \ [] = [[]]
+test process_elt T / \ [[X], []] = [[[X]]]
 test process_elt T / \ [[X], [[A],[b]], [[C]]] = [[[X]], [[A],[b]], [[C]]]
 test process_elt T / \ [[X], [[a],[b]], [[C]]] = [[[X],[a],[b]], [[C]]]
 
@@ -44,10 +46,70 @@ let loop (H: type) : lens = wmap { `List.TL -> loop H }; process_elt H
 
 let parse_list_with_headers (H:type) = loop H
 
-(* ------------------------------------------------------------------------ *)
+(******************************************************************************)
+(* Some specific useful instances... *)
+
+(* The top-level structured text lens.  Maps from lists of values to lists of lists of values, where the
+   first element of each of the resulting sublists (except possibly the first) is a "header".  The parameter
+   H specifies the type of headers in "exploded" form -- i.e., H should be a type of lists of characters. *)
+let l (H:type) = List.map explode; parse_list_with_headers H; List.map (List.map implode)
 
 type CapLetter = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}|{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
 type AllCapsList = NonEmptyList (CapLetter|{" "})
 
-let from_blob = split; List.map explode; parse_list_with_headers AllCapsList; List.map (List.map implode)
+let caps_headers = l AllCapsList
+
+test caps_headers / \ [] = [[]]
+test caps_headers / \ [X] = [[X]]
+test caps_headers / \ [x] = [[x]]
+test caps_headers / \ [X,y,Z] = [[X,y],[Z]]
+test caps_headers / \ [x,y,Z] = [[x,y],[Z]]
+
+(******)
+
+type StarHeader1 = Cons {"*"} (Cons {" "} (NonEmptyList Char))
+type StarHeader2 = Cons {"*"} StarHeader1
+
+let star_headers = l StarHeader1; List.map (wmap {`List.TL -> (l StarHeader2)})
+
+test star_headers / \ ["* Foo", bar] = [["* Foo", [bar]]]
+test star_headers / \ ["* Foo", "** bar", "** baz"] = [["* Foo", ["** bar"],["** baz"]]]
+test star_headers / \ ["* Foo", "** bar", glorf, "** baz", urg] = [["* Foo", ["** bar", glorf],["** baz",urg]]]
+test star_headers / \ ["* Foo", "* Bar", baz] = [["* Foo", []], ["* Bar", [baz]]]
+
+(* Some degenerate ones *)
+test star_headers / \ [] = [[]]
+test star_headers / \ [foo] = [[foo, []]]
+test star_headers / \ [foo, "* Bar"] = [[foo, []], ["* Bar", []]]
+test star_headers / \ [foo, "** Bar"] = [[foo, ["** Bar"]]]
+                                                  
+(*
+
+sync
+  O = [X,y,z] -------> [X,a,b] using caps_headers
+  A = [X,y,b] -------> [X,a,b] using caps_headers
+  B = [X,a,z] -------> [X,a,b] using caps_headers
+
+sync via caps_headers
+  { O = [X,y,z],
+    A = [X,a,z],
+    B = [X,y,b] }
+  =
+  { O = [X,y,z],
+    A = [X,a,z],
+    B = [X,y,b] }
+*)
+                                          
+sync with caps_headers
+  { O = [X,y,z],
+    A = [X,a,z],
+    B = [X,y,b] }
+  =
+    [X,y,z]
+
+
+(******************************************************************************)
+(* Some useful instances packaged for invoking from the command line... *)
+
+let file_with_all_caps_headers = split; caps_headers
 

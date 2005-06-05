@@ -12,4 +12,4 @@ all: test
 
 test::
 	$(HARMONY) check -module Structuredtext -test-all
-	$(HARMONY) get -concrete eg1.txt:blob -lens Structuredtext.from_blob -output junk.tmp:meta && cat junk.tmp
+

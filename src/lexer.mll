@@ -60,6 +60,8 @@ let _ =
     ; "view", (fun i -> VIEW i)
     ; "name", (fun i -> NAME i)
     ; "test", (fun i -> TEST i)
+    ; "sync", (fun i -> SYNC i)
+    ; "with", (fun i -> WITH i)
     ; "error", (fun i -> ERROR i)
     ; "missing", (fun i -> MISSING i)
     ]
