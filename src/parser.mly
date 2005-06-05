@@ -62,6 +62,8 @@ decls:
   | MODULE IDENT EQUAL decls END decls            { (DMod($1,$2,$4))::$6 }
   | TEST exp SLASH get_args EQUAL test_res decls  { (DTestGet($1, $2, $4, $6))::$7 }
   | TEST exp BACKSLASH put_args EQUAL test_res decls { (DTestPut($1, $2, $4, $6))::$7 }
+  | TEST exp SLASH BACKSLASH get_args EQUAL test_res decls { (DTestGet($1, $2, $5, $7))::
+                                                             (DTestPut($1, $2, ($5, None), $7))::$8 }
 
 /* TEST Stuff */
 get_args:

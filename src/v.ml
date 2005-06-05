@@ -55,6 +55,7 @@ let set v k kid = set_unsafe v k kid
 let set_star v binds =
    Safelist.fold_left (fun vacc (k,kid) -> set_unsafe vacc k kid) v binds
 
+(* TODO: check how we can unify create_star and from_list *)
 let create_star binds = set_star empty binds
        
 let from_list vl = VI (Name.Map.from_list vl)
