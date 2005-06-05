@@ -1,0 +1,53 @@
+module Structuredtext = 
+
+(* Called when the first element does not satisfy the predicate.  Adds the first element
+   to the first sublist (i.e., the head of the tail). *)
+let continue =
+  rename List.HD "temp";
+  hoist_nonunique List.TL { `List.HD, `List.TL };
+  xfork {temp,`List.HD} {`List.HD}
+    (rename List.HD List.TL; rename "temp" List.HD; plunge List.HD)
+    id
+test continue / \ [x, [y], [z]] = [[x,y], [z]]
+test continue / \ [x, []] = [[x]]
+
+(* Called when the first element satisfies the predicate.  Starts a new "head list". *) 
+let start_fresh = wmap { `List.HD -> plunge List.HD; add List.TL [] }
+test start_fresh / \ [x, [y], [z]] = [[x], [y], [z]]
+
+type TailIsComplete H = Cons Any (Cons (Cons H Any) Any)
+type HeadIsSingletonList = Cons (Cons Any Nil) Any
+
+type Char = Value   (* Should be just single characters *)
+
+type Element = List Char  
+type Incomplete H = List Any  (* Bogus: Should be List Char \ H *)
+type Complete H = Cons H (Incomplete H)
+type MaybeComplete H = Complete H | Incomplete H
+type ParsedList H = Cons (MaybeComplete H) (List (Complete H))
+
+let process_elt (H:type) =
+  assert <Nil | Cons Element (ParsedList H)>;
+  acond <Nil> <Cons Nil Nil>
+    (const [[]] [])
+    (acond <TailIsComplete H> <HeadIsSingletonList> 
+       start_fresh
+       continue);
+  assert <ParsedList H>
+
+type T = NonEmptyList ({X}|{A}|{B}|{C})
+test process_elt T / \ [] = [[]]
+test process_elt T / \ [[X], [[A],[b]], [[C]]] = [[[X]], [[A],[b]], [[C]]]
+test process_elt T / \ [[X], [[a],[b]], [[C]]] = [[[X],[a],[b]], [[C]]]
+
+let loop (H: type) : lens = wmap { `List.TL -> loop H }; process_elt H
+
+let parse_list_with_headers (H:type) = loop H
+
+(* ------------------------------------------------------------------------ *)
+
+type CapLetter = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}|{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
+type AllCapsList = NonEmptyList (CapLetter|{" "})
+
+let from_blob = split; List.map explode; parse_list_with_headers AllCapsList; List.map (List.map implode)
+
