@@ -7,6 +7,8 @@ type None = ~Any
 type Nil = Native.Prelude.Nil
 type Cons H T = Native.Prelude.Cons H T
 type List T = Nil | Cons T (List T)
+type NonEmptyList T = Cons T (List T)
+type Value = {!=`Any}
 
 (* re-exported native lenses *)
 let load : (name -> view) = Native.Prelude.load
@@ -183,6 +185,19 @@ test explode \ [] missing = {""}
 
 (** implode **)
 let implode : lens = invert (explode)
+
+(** split **)
+let split : lens = Native.Prelude.split
+test split / {} = error
+test split / {focal} = [focal]
+(* test split / \ {focal} = [focal] *)
+test split / {"focal\n"} = [focal,""]
+test split / {""} = [""]
+test split / {"lenses\nfocal"} = [lenses,focal]
+test split \ [] missing = error
+
+(** unsplit **)
+let unsplit : lens = invert (split)
 
 (* derived lenses *)
 let fork (p:view) : (lens -> lens -> lens) = xfork p p

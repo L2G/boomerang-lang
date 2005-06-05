@@ -1,3 +1,32 @@
+(******************************************************************************) 
+(*                               Meta viewer                                  *)
+(******************************************************************************)
+
+(* viewer for "meta" format, a simple concrete syntax for trees *)
+
+let metareader s =
+  let _ = Metal.reset () in
+  let _ = Metal.file_name := "meta string" in
+  let lexbuf = Lexing.from_string s in        
+    try 
+      (Metay.view Metal.token lexbuf) 
+    with Parsing.Parse_error -> 
+      raise (Error.Compile_error (Metal.info lexbuf, !Metal.file_name, "syntax error"))
+	
+let metawriter = V.string_of_t
+
+let _ =
+  let etest filename copt = Misc.filename_extension filename = "meta" in
+  let encoding = {
+    Surveyor.description = "ASCII view format";
+    Surveyor.encoding_test = etest;
+    Surveyor.reader = metareader;
+    Surveyor.writer = metawriter;
+  }
+  in
+    Surveyor.register_encoding "meta" encoding
+
+
 (******************************************************************************)
 (*                               Meta viewer                                  *)
 (******************************************************************************)
@@ -25,6 +54,22 @@ let _ =
   }
   in
     Surveyor.register_encoding "meta" encoding
+
+
+(******************************************************************************)
+(*                           One-big-blob viewer                              *)
+(******************************************************************************)
+
+let _ =
+  let etest filename copt = (Misc.filename_extension filename = "txt") in
+  let encoding = {
+    Surveyor.description = "one-big-blob format";
+    Surveyor.encoding_test = etest;
+    Surveyor.reader = (fun s -> V.new_value s);
+    Surveyor.writer = (fun s -> V.get_value s);
+  }
+  in
+    Surveyor.register_encoding "blob" encoding
 
 
 (******************************************************************************)

@@ -67,4 +67,7 @@ test:: $(HARMONYBIN) $(GENERATEDFCLFILES)
 buildharmony: 
 	$(MAKE) -C $(SRCDIR) all
 
-buildandtest: buildharmony test
+t: buildharmony test
+
+updateall:
+	cd $(TOP); svn update

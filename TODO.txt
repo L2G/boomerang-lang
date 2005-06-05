@@ -23,6 +23,8 @@ it would be really nice to be able to parse (and print!) XML directly from
   focal programs (i.e., to include XML in meta parsing and printing)
 
 TIDYING
+* We should move all the primitive list-handling lenses out of Prelude and
+  into List
 * Remove V.IllFormed and replace all uses with something appropriate from Error
     --> ditto V.Error
     --> also, Lens.trap_errors will need to be fixed!

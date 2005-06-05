@@ -193,4 +193,11 @@ let main () =
       | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
       |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
 
-let _ = (Unix.handle_unix_error (fun () -> Error.fail_on_error main)) ()
+let _ =
+  try
+    (Unix.handle_unix_error (fun () -> Error.fail_on_error main)) ()
+  with
+    V.Error(m) ->
+       Printf.eprintf "raised V.Error: \n%s" (V.format_msg_as_string m);
+       exit 1
+

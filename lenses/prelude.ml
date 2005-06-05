@@ -812,6 +812,28 @@ let explode_lib = L (explode)
     
 let _ = register_native "Native.Prelude.explode" "lens" explode_lib
     
+(*********)
+(* SPLIT *)
+(*********)
+let split =
+   { get = (fun c ->
+              if not (V.is_value c) then
+                error [`String ("Native.Prelude.split (get) : expecting exactly one child :"); `View c];
+              V.structure_from_list (Safelist.map V.new_value (Misc.split_nonescape '\n' (V.get_value c))));
+     put = (fun a c ->
+             let lines = Safelist.map V.get_value (V.list_from_structure a) in
+             if lines=[] then
+               error [`String ("Native.Prelude.split (put) : abstract argument must be non-empty :"); `View a];
+             Safelist.iter
+               (fun s -> if String.contains s '\n' then
+                           error [`String ("Native.Prelude.split (put): abstract view contains '\\n'"); `View a])
+               lines;
+             V.new_value (String.concat "\n" lines)) }
+      
+let split_lib = L (split)
+    
+let _ = register_native "Native.Prelude.split" "lens" split_lib
+    
 (* PAD *)
 (* pad a list to a power of two *)
 let pad n = 

@@ -38,33 +38,27 @@ let check_test m =
     (Prefs.read tests)
     
 let debug s_thk = 
-  if Prefs.read compiler_debug 
-  then 
-    begin 
-      prerr_string (sprintf "%s\n" (s_thk ()));
-      flush stderr
-    end
+  if Prefs.read compiler_debug then begin 
+    prerr_string (sprintf "%s\n" (s_thk ()));
+    flush stderr
+  end
 
 (* helper functions for reporting exceptions *)
 let parse_error i msg_thk = 
-  let msg = 
-    Printf.sprintf "Parse error: %s" (msg_thk ()) in
-    raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  let msg = Printf.sprintf "Parse error: %s" (msg_thk ()) in
+  raise (Error.Compile_error(i, Lexer.file_name (), msg))
       
 let sort_error i msg_thk = 
-  let msg = 
-    Printf.sprintf "Sort checking error: %s" (msg_thk ()) in
-    raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  let msg = Printf.sprintf "Sort checking error: %s" (msg_thk ()) in
+  raise (Error.Compile_error(i, Lexer.file_name (), msg))
     
 let test_error i msg_thk = 
-  let msg = 
-    Printf.sprintf "Unit test failed: %s" (msg_thk ()) in    
-    raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  let msg = Printf.sprintf "Unit test failed: %s" (msg_thk ()) in    
+  raise (Error.Compile_error(i, Lexer.file_name (), msg))
 
 let run_error i msg_thk = 
-  let msg = 
-    Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
-    raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  let msg = Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
+  raise (Error.Compile_error(i, Lexer.file_name (), msg))
           
 module type CommonEnvSig = sig
   type t 
@@ -956,6 +950,8 @@ and compile_typebindings cev tbs =
   in
     tbcev, Safelist.rev names_rev
 
+type testresult = OK of V.t | Error of V.msg list
+
 (* type check a single declaration *)
 let rec compile_decl cev m di = 
   (* let _ = debug_decl (sprintf "compiling declaration %s\n" (string_of_decl di)) in *)
@@ -986,14 +982,14 @@ let rec compile_decl cev m di =
 	begin
 	  let ao = 
 	    try
-	      Some (Lens.get 
-		      (compile_exp_lens cev l)
-		      (compile_exp_view cev c))
-	    with (V.Error(_)) -> None
+	      OK (Lens.get 
+		    (compile_exp_lens cev l)
+		    (compile_exp_view cev c))
+	    with (V.Error(m)) -> Error m
 	  in
 	    match ao, reso with 
-		None, None -> ()
-	      | Some a, Some res -> 
+		Error _, None -> ()
+	      | OK a, Some res -> 
 		  let resv = compile_exp_view cev res in
 		  if not (V.equal a resv) then
 		    test_error i 
@@ -1001,13 +997,13 @@ let rec compile_decl cev m di =
 			 sprintf "(get): expected %s, found %s"
 			   (V.string_of_t resv)
 			   (V.string_of_t a))
-	      | None, Some res -> 
+	      | Error m, Some res -> 
 		  let resv = compile_exp_view cev res in
 		  test_error i 
 		    (fun () -> 
-		       sprintf "(get): expected %s, found error"
-			 (V.string_of_t resv))		  
-	      | Some a, None -> 
+		       sprintf "(get): expected %s, found error\n%s"
+			 (V.string_of_t resv) (V.format_msg_as_string m))		  
+	      | OK a, None -> 
 		  test_error i 
 		    (fun () -> 
 		       sprintf "(get): expected error, found %s"
@@ -1020,17 +1016,17 @@ let rec compile_decl cev m di =
 	begin
 	  let co' = 
 	    try
-	      Some (Lens.put 
+	      OK (Lens.put 
 		      (compile_exp_lens cev l)
 		      (compile_exp_view cev a) 
 		      (match co with 
 			   None -> None 
 			 | Some c -> Some (compile_exp_view cev c)))
-	    with (V.Error(_)) -> None
+	    with (V.Error m) -> Error m
 	  in
 	    match co', reso with 
-		None, None -> ()
-	      | Some c', Some res -> 
+		Error _, None -> ()
+	      | OK c', Some res -> 
 		  let resv = compile_exp_view cev res in 
 		  if not (V.equal c' resv) then
 		    test_error i 
@@ -1038,13 +1034,13 @@ let rec compile_decl cev m di =
 			 sprintf "(put): expected %s, found %s"
 			   (V.string_of_t resv)
 			   (V.string_of_t c'))
-	      | None, Some res -> 
+	      | Error m, Some res -> 
 		  let resv = compile_exp_view cev res in 
 		    test_error i 
 		      (fun () -> 
-			 sprintf "(put): expected %s, found error"
-			   (V.string_of_t resv))		  
-	      | Some c', None -> 
+			 sprintf "(put): expected %s, found error\n%s"
+			   (V.string_of_t resv) (V.format_msg_as_string m))		  
+	      | OK c', None -> 
 		  test_error i 
 		    (fun () -> 
 		       sprintf "(put): expected error, found %s"
