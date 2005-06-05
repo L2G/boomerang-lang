@@ -83,14 +83,12 @@ test star_headers / \ [foo] = [[foo, []]]
 test star_headers / \ [foo, "* Bar"] = [[foo, []], ["* Bar", []]]
 test star_headers / \ [foo, "** Bar"] = [[foo, ["** Bar"]]]
                                                   
-sync with caps_headers at <List Any>
+sync with caps_headers at (List Any)
   { O = [X,y,z],
     A = [X,a,z],
     B = [X,y,b] }
   =
-  { O = [X,y,z],
-    A = [X,a,z],
-    B = [X,y,b] }
+    [X,a,b]
 
 
 (******************************************************************************)

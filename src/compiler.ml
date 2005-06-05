@@ -1063,7 +1063,9 @@ let rec compile_decl cev m di =
       let lo = compile_exp_lens cev lo
       and la = compile_exp_lens cev la
       and lb = compile_exp_lens cev lb
-      and typ = snd (compile_ptypeexp cev typ)
+      and typ = match Registry.value_of_rv (compile_typeexp cev (Syntax.TT typ)) with
+          Value.T t -> t
+        | _ -> assert false 
       and orig = compile_exp_view cev orig
       and result = compile_exp_view cev result in
       let co,ca,cb =
@@ -1086,7 +1088,8 @@ let rec compile_decl cev m di =
 			 sprintf "(sync): error when applying the lenses in the get direction\n%s"
 			   (V.format_msg_as_string m))
       in
-      let ao',aa',ab' = ao,aa,ab in
+      let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) in
+      let (ao',aa',ab') = match (ao',aa',ab') with Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') | _ -> assert false in
       let co',ca',cb' =
         try
           (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb))

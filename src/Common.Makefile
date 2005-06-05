@@ -43,15 +43,10 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                syntax.mli syntax.ml parser.mly lexer.mll \
                type.mli type.ml value.mli value.ml \
                env.mli env.ml registry.mli registry.ml \
+	       sync.mli sync.ml \
                compiler.mli compiler.ml
 
 VIEWER_SOURCES = metay.mly metal.mll viewers.ml
-
-################
-# SYNC SOURCES #
-################
-
-SYNC_SOURCES = sync.mli sync.ml
 
 ###########
 # PLUGINS #
@@ -70,7 +65,6 @@ NATIVE_LENS_SOURCES = prelude.ml \
 
 COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/ubase/%) \
 		 $(BASE_SOURCES:%=$(SRC)/%) \
-		 $(SYNC_SOURCES:%=$(SRC)/%) \
 		 $(VIEWER_SOURCES:%=$(SRC)/%) \
 		 $(NATIVE_LENS_SOURCES:%=$(LENSESDIR)/%)
 
