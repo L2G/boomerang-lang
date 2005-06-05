@@ -279,6 +279,7 @@ and string_of_decl = function
        @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
   | DTestGet(_) -> " TESTGET"
   | DTestPut(_) -> " TESTPUT"
+  | DTestSync(_) -> " TESTSYNC"
 
 let id_of_modl (MDef(_,m,_,_)) = m
 let info_of_module (MDef(i,_,_,_)) = i
