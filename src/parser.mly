@@ -34,7 +34,7 @@ let nil_view i =
 %token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN TYPE
 %token <Info.t> LENS VIEW TYPE NAME ARROW DOUBLEARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE
-%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH TEST SYNC WITH ERROR MISSING
+%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH TEST SYNC WITH AT ERROR MISSING
 %token <Info.t> STAR BANG BAR TILDE 
 
 %start modl sort qid 
@@ -64,8 +64,8 @@ decls:
   | TEST exp BACKSLASH put_args EQUAL test_res decls { (DTestPut($1, $2, $4, $6))::$7 }
   | TEST exp SLASH BACKSLASH get_args EQUAL exp decls { (DTestGet($1, $2, $5, (Some $7)))::
                                                              (DTestPut($1, $2, ($7, None), Some $5))::$8 }
-  | SYNC WITH aexp aexp EQUAL aexp decls          { (DTestSync($1,$3,$3,$3,$4,$6)) :: $7 }
-  | SYNC WITH aexp aexp aexp aexp EQUAL aexp decls { (DTestSync($1,$3,$4,$5,$6,$8)) :: $9 }
+  | SYNC WITH aexp AT aexp aexp EQUAL aexp decls   { (DTestSync($1,$3,$3,$3,$5,$6,$8)) :: $9 }
+  | SYNC WITH aexp aexp aexp AT aexp aexp EQUAL aexp decls { (DTestSync($1,$3,$4,$5,$7,$8,$10)) :: $11 }
 
 /* TEST Stuff */
 get_args:

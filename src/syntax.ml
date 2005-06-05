@@ -110,7 +110,7 @@ type decl =
   | DMod of i * id * decl list 
   | DTestGet of i * exp * exp * exp option 
   | DTestPut of i * exp * (exp * exp option) * exp option
-  | DTestSync of Info.t * exp * exp * exp * exp * exp
+  | DTestSync of Info.t * exp * exp * exp * exp * exp * exp
       
 (* modules *)
 type modl = MDef of i * id * qid list * decl list

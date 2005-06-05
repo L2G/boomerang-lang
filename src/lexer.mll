@@ -62,6 +62,7 @@ let _ =
     ; "test", (fun i -> TEST i)
     ; "sync", (fun i -> SYNC i)
     ; "with", (fun i -> WITH i)
+    ; "at", (fun i -> AT i)
     ; "error", (fun i -> ERROR i)
     ; "missing", (fun i -> MISSING i)
     ]
