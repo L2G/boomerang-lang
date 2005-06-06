@@ -3,10 +3,10 @@
 # harmony@lists.seas.upenn.edu                                     #
 ####################################################################
 
-# $Id: Common.Makefile 121 2005-05-05 00:19:32Z bcpierce $
+# $Id$
 
-SUBDIRS = src lenses examples papers tools 
-SUBDIRSCLEANONLY = experimental visual
+SUBDIRS = src lenses examples tools doc
+SUBDIRSCLEANONLY = experimental visual papers
 
 TOP = .
 include $(TOP)/Top.Makefile
