@@ -49,7 +49,7 @@ let info lexbuf : Info.t =
   let c2 = LE.lexeme_end lexbuf in
   let l = lineno () in
   let c = linestart () in
-    (l, c1 - c),(l, c2 - c)
+    (l, c1 - c - 1),(l, c2 - c - 1)
       
 let error lexbuf msg =
   let i = info lexbuf in
