@@ -64,6 +64,7 @@ and ptypeexp =
   | TStar of Info.t * exp list * ptypeexp
   | TCat of Info.t * ptypeexp list 
   | TUnion of Info.t * ptypeexp list
+  | TSingleton of Info.t * exp
 and binding = BDef of Info.t * id * param list * sort option * exp
 
 type typebinding = (id * id list * typeexp)

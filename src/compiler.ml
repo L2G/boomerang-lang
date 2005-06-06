@@ -169,47 +169,59 @@ let oper_of_xs xs i = Safelist.fold_right
     (fun _ s -> STOper(i,SType(i), s)) xs (SType(i))
 
 (* check that s matches expected sort es. *) 
-let rec check_sort es s = 
+let rec match_sort es s = 
   match (es,s) with
-      (SName _,SName _) -> (true, s)
-    | (SLens _,SLens _) -> (true, s)
-    | (SType _,SType _) -> (true, s)
-    | (SView _,SView _) -> (true, s)
+      (SName _,SName _) -> true
+    | (SLens _,SLens _) -> true
+    | (SType _,SType _) -> true
+    | (SView _,SView _) -> true
     | (SArrow(_,es1,es2),SArrow(i,s1,s2)) ->
-	let b1,f1 = check_sort es1 s1 in
-  	let b2,f2 = check_sort es2 s2 in
- 	  ((b1 & b2), SArrow(i, f1,f2))
+	let b1 = match_sort es1 s1 in
+  	let b2 = match_sort es2 s2 in
+ 	(b1 & b2)
     | (STOper(_,es1,es2),STOper(i,s1,s2)) ->
-	let b1,f1 = check_sort es1 s1 in
-  	let b2,f2 = check_sort es2 s2 in
- 	  ((b1 & b2), STOper(i, f1,f2))
-    | _ -> (false, s)
+	let b1 = match_sort es1 s1 in
+  	let b2 = match_sort es2 s2 in
+ 	(b1 & b2)
+    | _ -> false
 
-let expect_sort msg sort term2info check_term string_of_term term =
-  let i = term2info term in
+let expect_sort msg sort check_term string_of_term term coercions =
   let term_sort, new_term = check_term term in
-  let term_ok, actual_term_sort = check_sort sort term_sort in
-  let _ = 
-    if (not term_ok) then 
-      sort_error i
+  let sorts_equal = match_sort sort term_sort in
+  if sorts_equal then new_term else
+    coercions sort term_sort new_term
 	(fun () -> 
 	   sprintf "Sort checking error in %s: %s expected but %s found\n\t%s"
 	     msg
 	     (string_of_sort sort)
-	     (string_of_sort actual_term_sort)
+	     (string_of_sort term_sort)
 	     (string_of_term term)
 	)	
-  in
-    new_term
       
 let rec expect_sort_exp msg sev sort e = 
-  expect_sort msg sort info_of_exp (check_exp sev) string_of_exp e
+  expect_sort msg sort (check_exp sev) string_of_exp e
+    (fun es s e msg ->
+       let i = info_of_exp e in
+       match es,s with
+         | SType _, SView _ -> EType(i,TT(TSingleton(i,e)))
+         | _,_ -> sort_error i msg)
 
 and expect_sort_ptypeexp msg sev sort pt = 
-  expect_sort msg sort info_of_ptypeexp (check_ptypeexp sev) string_of_ptypeexp pt
+  expect_sort msg sort (check_ptypeexp sev) string_of_ptypeexp pt
+    (fun es s pt msg ->
+       let i = info_of_ptypeexp pt in
+       match es,s with
+         | SType _, SView _ ->
+             begin
+               match pt with
+                 | TVar(i',x) -> TSingleton(i,EVar(i',x))
+                 | _ -> sort_error i msg
+             end
+         | _,_ -> sort_error i msg)
 
 and expect_sort_typeexp msg sev sort t = 
-  expect_sort msg sort info_of_typeexp (check_typeexp sev) string_of_typeexp t
+  expect_sort msg sort (check_typeexp sev) string_of_typeexp t
+    (fun es s t msg -> let i = info_of_typeexp t in sort_error i msg)
 
 (* EXPRESSIONS *)    
 and check_exp sev e0 = 
@@ -296,18 +308,9 @@ and check_exp sev e0 =
       | EName(i,x) -> (SName(i)), e0
 	    
       | EType(i,t) ->
-	  let t_sort, new_t = check_typeexp sev t in
-	  let t_ok, actual_t_sort = 
-	    check_sort (SType(i)) t_sort
-	  in
-	  let _ = if (not t_ok) then 
-	    sort_error (info_of_typeexp t)
-	      (fun () -> 
-		 sprintf "expected type but found %s"
-		   (string_of_sort actual_t_sort))
-	  in
+	  let new_t = expect_sort_typeexp "type expression" sev (SType i) t in
 	  let new_e0 = EType(i, new_t) in
-	    t_sort, new_e0
+	    (SType i), new_e0
 	    
       | EView(i,ks) ->
 	  let new_ks = Safelist.map
@@ -463,6 +466,10 @@ and check_ptypeexp sev pt0 = match pt0 with
       in
       let new_pt0 = TUnion(i, new_pts) in
 	SType(i), new_pt0
+
+  | TSingleton(i,e) ->
+      let new_e = expect_sort_exp "singleton type" sev (SView i) e in
+        (SType i), (TSingleton(i,new_e))
 	    	
 and check_bindings sev bs = 
   (* let _ = debug (sprintf "checking bindings %s\n" (string_of_bindings bs)) in *)
@@ -729,7 +736,7 @@ let rec compile_exp cev e0 =
 	let v1 = compile_exp_view cev e1 in
 	let v2 = compile_exp_view cev e2 in
 	let v = V.cons v1 v2 in
-	let cons_value = Value. V (v) in
+	let cons_value = Value.V (v) in
 	  make_rv (SView(i)) cons_value
 	    
 and compile_exp_name cev e =
@@ -870,7 +877,6 @@ and compile_ptypeexp cev pt0 =
 	  pts
 	in
 	  SType(i), (Type.Cat(i,pt_vals))
-	    
     | TUnion(i,pts) ->
 	let pt_vals = Safelist.map
 	  (fun pti -> let _, ti_val = compile_ptypeexp cev pti in
@@ -878,6 +884,9 @@ and compile_ptypeexp cev pt0 =
 	  pts
 	in
 	  SType(i), (Type.Union(i,pt_vals))
+    | TSingleton(i,e) ->
+        let v = compile_exp_view cev e in
+          (SType i),Type.Singleton(i,v)
 	      
 and compile_bindings cev bs =
   (* let _ = debug (sprintf "compiling bindings %s\n" (string_of_bindings bs)) in *)

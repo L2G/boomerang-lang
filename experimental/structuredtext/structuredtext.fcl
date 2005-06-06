@@ -27,24 +27,24 @@ type ParsedList H = Cons (MaybeComplete H) (List (Complete H))
 type TailComplete H = Cons Any (Cons (Cons H Any) Any)
 type HeadSingletonAndTailNonempty = Cons (Cons Any Nil) (Cons Any Any)
 
+let fold_right (init:view) (l:lens) : lens =
+  wmap {`List.TL -> fold_right init l};
+  acond <[]> <[`init]>
+    (const [`init] [])
+    l
+
 let process_elt (H:type) =
-  assert <Nil | Cons Element (ParsedList H)>;
-  acond <Nil> <Cons Nil Nil>
-    (const [[]] [])
     (acond <TailComplete H> <HeadSingletonAndTailNonempty> 
        start_fresh
-       continue);
-  assert <ParsedList H>
+       continue)
 
 type T = NonEmptyList ({X}|{A}|{B}|{C})
-test process_elt T / \ [] = [[]]
 test process_elt T / \ [[X], []] = [[[X]]]
 test process_elt T / \ [[X], [[A],[b]], [[C]]] = [[[X]], [[A],[b]], [[C]]]
 test process_elt T / \ [[X], [[a],[b]], [[C]]] = [[[X],[a],[b]], [[C]]]
 
-let loop (H: type) : lens = wmap { `List.TL -> loop H }; process_elt H
-
-let parse_list_with_headers (H:type) = loop H
+let parse_list_with_headers (H:type) =
+  fold_right [] (process_elt H)
 
 (******************************************************************************)
 (* Some specific useful instances... *)

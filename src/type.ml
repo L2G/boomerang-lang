@@ -5,7 +5,7 @@
 (* type.ml - representation and functions on types       *)
 (*                                                       *)
 (*********************************************************)
-(* $Id: type.ml,v 1.1 2005/04/11 18:24:48 jnfoster Exp $ *)
+(* $Id$ *)
 
 let sprintf = Printf.sprintf
 
@@ -42,6 +42,7 @@ and it =
   | Bang of i * (string list) * pt
   | Cat of i * pt list 
   | Union of i * pt list 
+  | Singleton of i * V.t
 and thunk = unit -> pt
 
 let it_of_pt = function (_,_,itr) -> !itr
@@ -61,6 +62,7 @@ and info_of_it = function
   | Bang(i,_,_)  -> i
   | Cat(i,_)   -> i
   | Union(i,_) -> i
+  | Singleton(i,_) -> i
 
 (* types *)
 let rec string_of_t = function 
@@ -85,6 +87,7 @@ and string_of_it = function
 	(string_of_pt pt)
   | Cat(_,cs)   -> Misc.curlybraces (Misc.concat_list ", " (Safelist.map string_of_pt cs))
   | Union(_,ts)  -> Misc.parens (Misc.concat_list " | " (Safelist.map string_of_pt ts))
+  | Singleton(_,v)  -> V.string_of_t v
 
 (* STUBS *)
 let eval_it it  = match it with 
@@ -94,6 +97,7 @@ let eval_it it  = match it with
 
 (* CONSTRUCTOR *)
 let mk_ptype it : pt = (ref false, V.Hash.create 1, ref it)
+let mk_nptype it : pt = (ref true, V.Hash.create 1, ref it)
      
 (* CONSTANTS *)
 (* fix to use new representation *)
@@ -148,6 +152,7 @@ and eq_it it1 it2 = match it1,it2 with
 	true
 	(Safelist.combine us1 us2)
   | App(_,it11,it12,_),App(_,it21,it22,_) -> eq_it it11 it21 && eq_it it21 it22      
+  | Singleton(_,v),Singleton(_,v') -> V.equal v v'
   | _ -> false 
     
 let rec cmp_t t1 t2 = match t1,t2 with
@@ -193,6 +198,8 @@ and cmp_it t1 t2 =
     | _,Cat(_)                 -> gt
     | Union(_,us1),Union(_,us2) -> 
 	cmp_lex (Safelist.sort cmp_pt us1) (Safelist.sort cmp_pt us2) cmp_pt
+    | _,Singleton(_,_) -> lt (* FIXME: we should find what to do *)
+    | Singleton(_,_),_ -> gt (* FIXME: we should find what to do *)
       
 (* sort a type list *)
 let sort_it it = it (* STUB *)
@@ -218,7 +225,7 @@ and pt2nf force ((normalized,memo,itr) as pt0) =
       
 and it2nf force it0 = 
   let res = match it0 with      
-      Empty(_) | Any(_) | Fun(_) -> it0
+      Empty(_) | Any(_) | Fun(_) | Singleton(_) -> it0
     | Var(_,_,_)     -> if force then it2nf force (eval_it it0) else it0
     | App(_,_,_,_)   -> it2nf force (eval_it it0) 
     | Name(i,n,pt1)  -> Name(i, n, pt2nf false pt1)
@@ -334,7 +341,7 @@ and project_it it0 n =
   debug (fun () -> sprintf "project inner type %s on %s" (string_of_it it0) n);
   match it0 with
       Empty(_)        -> None
-    | Any(i)          -> Some ((* FIXME: hack!*) (ref true, V.Hash.create 1, ref (Any(i))))
+    | Any(i)          -> Some (mk_nptype (Any(i)))
     | Name(_,m,pt)   -> if (n=m) then Some pt else None
     | Bang(_,f,pt)   -> if (Safelist.mem n f) then None else Some pt
     | Star(_,f,pt)   -> if (Safelist.mem n f) then None else Some pt
@@ -377,6 +384,11 @@ and project_it it0 n =
 	  failAt (info_of_it it0) 
 	    (fun () -> sprintf "Fatal error: cannot project type operator %s (on %s)"
 	       (string_of_it it0) n)
+      | Singleton(i,v) ->
+          (match V.get v n with
+             | None -> None
+             | Some v' -> Some(mk_nptype (Singleton(i,v')))
+          )
 	    
 	    
 let rec member v t0 = match t2nf t0 with 
@@ -395,6 +407,7 @@ and member_it v it0 =
   let res = match it0 with
       Empty(i)     -> false
     | Any(_)       -> true
+    | Singleton(_,v') -> V.equal v v'
     | Fun(i,_)     -> 
 	failAt i
 	  (fun () -> "Fatal error: cannot check for membership in type operator")
@@ -569,6 +582,10 @@ and tdoms_it it =
       | Any(_)       -> TDoms.singleton (TDom.singleton (DAll(Name.Set.empty)))
       | Var(_,_,thk) | App(_,_,_,thk) -> tdoms_pt ((* FIXME: hack! *) thk ())
       | Fun(i,_) -> failAt i (fun () -> "Fatal error: cannot calculate type domain of a type function")
+      | Singleton(_,v) -> TDoms.singleton ( Name.Set.fold
+                                             (fun k d -> TDom.add (DName k) d)
+                                             (V.dom v)
+                                             TDom.empty)
 	  
 let rec vdom_in_tdoms vd tds =
   let name_match n ta =

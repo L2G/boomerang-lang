@@ -22,6 +22,7 @@ type it =
   | Bang of Info.t * (string list) * pt
   | Cat of Info.t * pt list 
   | Union of Info.t * pt list 
+  | Singleton of Info.t * V.t
 
 val mk_ptype : it -> pt
 val it_of_pt : pt -> it

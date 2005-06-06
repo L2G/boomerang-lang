@@ -5,7 +5,7 @@
 (* value.ml - internal run-time representation of Focal structures  *)
 (*                                                                  *)
 (********************************************************************)
-(* $Id: value.ml,v 1.5 2005/04/21 03:27:42 jnfoster Exp $ *)
+(* $Id$ *)
 
 type t = 
     N of Name.t                 (* names *)

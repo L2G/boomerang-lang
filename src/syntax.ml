@@ -97,6 +97,7 @@ and ptypeexp =
   | TStar of i * exp list * ptypeexp
   | TCat of i * ptypeexp list 
   | TUnion of i * ptypeexp list
+  | TSingleton of i * exp
       
 (* bindings *)
 and binding = BDef of i * id * param list * sort option * exp
@@ -150,6 +151,7 @@ let info_of_ptypeexp = function
   | TName(i,_,_) -> i
   | TCat(i,_) -> i
   | TUnion(i,_t) -> i
+  | TSingleton(i,_) -> i
 
 let info_of_typeexp = function
     TT pt -> info_of_ptypeexp pt
@@ -248,6 +250,7 @@ and string_of_ptypeexp = function
     	; Misc.curlybraces (string_of_ptypeexp pt)]
   | TCat(_,cs) -> Misc.concat_list "," (Safelist.map string_of_ptypeexp cs)
   | TUnion(_,us) -> Misc.parens (Misc.concat_list " | " (Safelist.map string_of_ptypeexp us))
+  | TSingleton(_,e) -> string_of_exp e
 
 and string_of_binding (BDef(_,x,ps,so,e)) = 
   Misc.concat_list ""
