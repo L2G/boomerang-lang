@@ -27,12 +27,6 @@ type ParsedList H = Cons (MaybeComplete H) (List (Complete H))
 type TailComplete H = Cons Any (Cons (Cons H Any) Any)
 type HeadSingletonAndTailNonempty = Cons (Cons Any Nil) (Cons Any Any)
 
-let fold_right (init:view) (l:lens) : lens =
-  wmap {`List.TL -> fold_right init l};
-  acond <[]> <[`init]>
-    (const [`init] [])
-    l
-
 let process_elt (H:type) =
     (acond <TailComplete H> <HeadSingletonAndTailNonempty> 
        start_fresh

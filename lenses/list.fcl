@@ -179,3 +179,9 @@ test groupby2 \ [[1,2],[3,4]] [1,2] = [1,2,3,4]
 test groupby2 \ [[1,2],[3,4],[5]] missing = [1,2,3,4,5]
 test groupby2 \ [[1,2],[3,4],[5]] [1,2,3] = [1,2,3,4,5]
 
+let fold_right (init:view) (l:lens) : lens =
+  wmap {`TL -> fold_right init l};
+  acond <[]> <[`init]>
+    (const [`init] [])
+    l
+
