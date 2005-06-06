@@ -23,7 +23,15 @@ include $(SRC)/Common.Makefile
 
 test:: all
 
+######################################################################
+# Documentation generation for Harmony sources
+
 READINORDER = name.mli v.mli lens.mli surveyor.mli sync.mli harmony.mli
+
+ALLMLIS = $(wildcard *.mli)
+
+temp: 
+	echo 
 
 docs: 
 	-mkdir $(DOCDIR)

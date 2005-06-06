@@ -2,8 +2,7 @@ THINGS TO DO
 
 BCP TASKS
 finish going over .mli files and docs
-consolidate viewers into one file
-structured text demo
+change "split" to "lines"
 
 NATE TASKS
 why, again, do fork and friends take views, not types?
