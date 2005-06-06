@@ -8,19 +8,14 @@
 
 open Syntax
 
-(* imported functions *)
+(* --------------- Imports --------------- *)
 let sprintf = Printf.sprintf  
 let (@) = Safelist.append
 let make_rv = Registry.make_rv
 let sort_of_rv = Registry.sort_of_rv
 let value_of_rv = Registry.value_of_rv
 
-(* debugging *)
-let compiler_debug = Prefs.createBool "debug-compiler" false 
-  "print debugging information during Focal compilation"
-  "print debugging information during Focal compilation"
-
-(* unit testing *)
+(* --------------- Unit tests --------------- *)
 let tests = Prefs.createStringList
   "test"
   "run unit test for the specified module"
@@ -37,29 +32,27 @@ let check_test m =
     (Prefs.read test_all)
     (Prefs.read tests)
     
+(* --------------- Error Reporting --------------- *)
 let debug s_thk = 
-  if Prefs.read compiler_debug then begin 
-    prerr_string (sprintf "%s\n" (s_thk ()));
-    flush stderr
-  end
+  Trace.debug "compiler" (fun () -> Printf.eprintf "%s\n%!" (s_thk ()))
 
-(* helper functions for reporting exceptions *)
 let parse_error i msg_thk = 
   let msg = Printf.sprintf "Parse error: %s" (msg_thk ()) in
-  raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  raise (Error.Compile_error(i, Lexer.filename (), msg))
       
 let sort_error i msg_thk = 
   let msg = Printf.sprintf "Sort checking error: %s" (msg_thk ()) in
-  raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  raise (Error.Compile_error(i, Lexer.filename (), msg))
     
 let test_error i msg_thk = 
   let msg = Printf.sprintf "Unit test failed: %s" (msg_thk ()) in    
-  raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  raise (Error.Compile_error(i, Lexer.filename (), msg))
 
 let run_error i msg_thk = 
   let msg = Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
-  raise (Error.Compile_error(i, Lexer.file_name (), msg))
+  raise (Error.Compile_error(i, Lexer.filename (), msg))
           
+(* --------------- Environments --------------- *)
 module type CommonEnvSig = sig
   type t 
   val empty : unit -> t
@@ -78,7 +71,7 @@ module type CEnvSig = sig
   val overwrite : t -> Syntax.qid -> Registry.rv -> t
 end    
 
-(* checking environments *)
+(* sort checking environments *)
 module type SCEnvSig = sig
   include CommonEnvSig
   val add_rec_var : t -> Syntax.qid -> t
@@ -122,7 +115,6 @@ module CEnv : CEnvSig = struct
 	(Env.to_string ev Registry.string_of_rv)
 end
 	
-
 module SCEnv : SCEnvSig = struct
   type t = Syntax.qid list * CEnv.t
   let empty () = ([], CEnv.empty ())
@@ -164,6 +156,10 @@ module SCEnv : SCEnvSig = struct
 	(Misc.concat_list ", " (Safelist.map string_of_qid rs))
 end
 
+(* --------------- Sort checker --------------- *)
+
+(* utility functions *)
+
 (* convert a list of parameters ps with sorts s1,..sn and a sort s 
  * to arrow sort s1 -> ... -> sn -> s *)
 let sort_of_param_list i ps s = 
@@ -189,13 +185,6 @@ let rec check_sort es s =
  	  ((b1 & b2), STOper(i, f1,f2))
     | _ -> (false, s)
 
-(***
- ***
- *** SORT CHECKER
- ***
- ***)
-
-(* helpers for sort checking *)
 let expect_sort msg sort term2info check_term string_of_term term =
   let i = term2info term in
   let term_sort, new_term = check_term term in
@@ -658,11 +647,7 @@ let check_module m0 =
   let new_m0 = Syntax.MDef(i,m,nctx,new_ds) in
     new_m0
 
-(***
- ***
- *** COMPILER
- ***
- ***)
+(* --------------- Compiler --------------- *)
 
 (* EXPRESSIONS *)
 let rec compile_exp cev e0 =
@@ -1133,7 +1118,9 @@ let compile_module m0 =
   let new_cev,_ = compile_module_aux cev mq ds in
     Registry.register_env (CEnv.get_ev new_cev) mq
 	      
-(* parsing helpers *)
+(* --------------- Exported functions --------------- *)
+
+(* parse an AST from a lexbuf *)
 let parse_lexbuf lexbuf = 
   try 
     let ast = Parser.modl Lexer.main lexbuf in
@@ -1142,20 +1129,22 @@ let parse_lexbuf lexbuf =
     parse_error (Lexer.info lexbuf) 
       (fun () -> "Syntax error")
       
+(* parse an AST from a string *)
 let parse_string str = 
   parse_lexbuf (Lexing.from_string str)
     
+(* parse an AST from a channel *)
 let parse_chan fc = 
   parse_lexbuf (Lexing.from_channel fc)
 
-(* the main functions this module exports *)
-(* end-to-end compilation *)
+(* end-to-end compilation of strings *)
 let compile_string fake_name str = 
   let _ = Lexer.setup fake_name in
   let ast = parse_string str in  
   let ast = check_module ast in 
     compile_module ast 
       
+(* end-to-end compilation of files *)
 let compile_file fn n =
   let _ = Lexer.setup fn in  
   let fchan = open_in fn in
@@ -1173,5 +1162,5 @@ let compile_file fn n =
   let _ = compile_module ast in
     Lexer.finish ()
 
-(* ugly backpatch hack! *)
+(* FIXME: ugly backpatch hack! *)
 let _ = Registry.compile_file_impl := compile_file

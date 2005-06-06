@@ -80,6 +80,8 @@ let get_module_prefix q =
     | [] -> None
     | n::_ -> Some n
 	
+(* --------------- Lookup functions -------------- *)
+
 let paths = Prefs.createStringList 
   "include" 
   "search path for .fcl sources"

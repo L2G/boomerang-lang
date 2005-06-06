@@ -4,7 +4,7 @@
 (*                                                                  *)
 (* compiler.mli - interface for Focal compiler                      *)
 (********************************************************************)
-(* $Id: value.ml,v 1.5 2005/04/21 03:27:42 jnfoster Exp $ *)
+(* $Id$ *)
 
 (** The Focal compiler *)
 
