@@ -1,11 +1,6 @@
 
 module R = Relation
 
-type ('c, 'a) lens = {
-  get : 'c -> 'a;
-  put : 'a -> 'c -> 'c;
-}
-
 (* Some relational lenses *)
 
 (* Helper functions *)
@@ -34,12 +29,6 @@ let rel_select p rel =
     rel
     (R.create (R.fields rel))
 
-let rel_select_value k s rel =
-  R.fold
-    (fun x r -> if List.assoc k x = s then R.insert x r else r)
-    rel
-    (R.create (R.fields rel))
-
 let rel_join rel1 rel2 =
   let r = R.create (R.fields rel1 @ R.fields rel2) in
   let addall1 rcd r =
@@ -60,87 +49,91 @@ let rel_join rel1 rel2 =
 let rename m n =
   let getfun c =
     R.rename m n c
-  and putfun a c =
+  and putfun a co =
     R.rename n m a
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 (* Union *)
 
-let uniongen f =
+let generic_union f =
   let getfun (c1, c2) =
     c1 ||~ c2
-  and putfun a (c1, c2) =
-    let free_agents = a --~ (c1 ||~ c2) in
-    let left = R.fold
-      (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
-    let right = R.fold
-      (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
-    let both = R.fold
-      (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
-    ((a &&~ c1) ||~ left ||~ both, (a &&~ c2) ||~ right ||~ both)
+  and putfun a co =
+    let rev_union (c1, c2) =
+      let free_agents = a --~ (c1 ||~ c2) in
+      let left = R.fold
+        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
+      let right = R.fold
+        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
+      let both = R.fold
+        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
+      ((a &&~ c1) ||~ left ||~ both, (a &&~ c2) ||~ right ||~ both)
+    in
+    match co with
+    | None -> let empty = R.create (R.fields a) in rev_union (empty, empty)
+    | Some(c) -> rev_union c
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 (* Intersection *)
 
-let intergen f =
+let generic_inter f =
   let getfun (c1, c2) =
     c1 &&~ c2
-  and putfun a (c1, c2) =
-    let free_agents = (c1 &&~ c2) --~ a in
-    let left = R.fold
-      (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
-    let right = R.fold
-      (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
-    let both = R.fold
-      (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
-    ((a ||~ c1) --~ (left ||~ both), (a ||~ c2) --~ (right ||~ both))
+  and putfun a co =
+    let rev_inter (c1, c2) =
+      let free_agents = (c1 &&~ c2) --~ a in
+      let left = R.fold
+        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
+      let right = R.fold
+        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
+      let both = R.fold
+        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
+      ((a ||~ c1) --~ (left ||~ both), (a ||~ c2) --~ (right ||~ both))
+    in
+    match co with
+    | None -> let empty = R.create (R.fields a) in rev_inter (empty, empty)
+    | Some(c) -> rev_inter c
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 (* Difference *)
 
-let diffgen f =
+let generic_diff f =
   let getfun (c1, c2) =
     c1 --~ c2
-  and putfun a (c1, c2) =
-    let free_agents = (c1 --~ c2) --~ a in
-    let left = R.fold
-      (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
-    let right = R.fold
-      (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
-    let both = R.fold
-      (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
-    ((a ||~ c1) --~ (left ||~ both), (c2 --~ a) ||~ (right ||~ both))
+  and putfun a co =
+    let rev_diff (c1, c2) =
+      let free_agents = (c1 --~ c2) --~ a in
+      let left = R.fold
+        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
+      let right = R.fold
+        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
+      let both = R.fold
+        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
+      ((a ||~ c1) --~ (left ||~ both), (c2 --~ a) ||~ (right ||~ both))
+    in
+    match co with
+    | None -> let empty = R.create (R.fields a) in rev_diff (empty, empty)
+    | Some(c) -> rev_diff c
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 (* Selection *)
 
-(* key=value selection *)
-let select k s =
-  let getfun c =
-    rel_select_value k s c
-  and putfun a c =
-    let a' = rel_select_value k s c in
-    let added = a --~ a' in
-    let removed = a' --~ a in
-    (c --~ removed) ||~ added
-  in
-  { get = getfun; put = putfun }
-
 (* general predicate on records *)
-let selectgen p =
+let generic_select p =
   let getfun c =
     rel_select p c
-  and putfun a c =
+  and putfun a co =
+    let c = match co with None -> R.create (R.fields a) | Some(c) -> c in
     let a' = rel_select p c in
     let added = a --~ a' in
     let removed = a' --~ a in
     (c --~ removed) ||~ added
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 (* Projection *)
 
@@ -153,7 +146,8 @@ let list_diff l1 l2 =
 let project p q d =
   let getfun c =
     R.project p c
-  and putfun a c =
+  and putfun a co =
+    let c = match co with None -> R.create (R.fields a) | Some(c) -> c in
     if R.equal a (R.project p c) then
       c
     else
@@ -163,17 +157,30 @@ let project p q d =
       let additions = rel_join newkeys d in
       rel_join a (comp ||~ additions)
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 (* Join *)
 
-let join =
+let generic_join f =
   let getfun (c1, c2) =
     rel_join c1 c2
-  and putfun a (c1, c2) =
-    let flds1 = R.fields c1 in
-    let flds2 = R.fields c2 in
-    (R.project flds1 a, R.project flds2 a)
+  and putfun a co =
+    let rev_join (c1, c2) =
+      let free_agents = (rel_join c1 c2) --~ a in
+      let left = R.fold
+        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
+      let right = R.fold
+        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
+      let both = R.fold
+        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
+      let proj1 = R.project (R.fields c1) in
+      let proj2 = R.project (R.fields c2) in
+      ((proj1 a ||~ c1) --~ proj1 (left ||~ both),
+        (proj2 a ||~ c2) --~ proj2 (right ||~ both))
+    in
+    match co with
+    | None -> let empty = R.create (R.fields a) in rev_join (empty, empty)
+    | Some(c) -> rev_join c
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 

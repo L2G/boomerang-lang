@@ -1,5 +1,4 @@
 
-open Lens
 open Syntax
 open Registry
 open Value
@@ -11,19 +10,21 @@ let focal_type_error msg =
 
 (* Binary relational lenses *)
 
+let lift_to_opt f xo =
+  match xo with
+  | None -> None
+  | Some(x) -> Some(f x)
+
 let lift_binary dblens src1 src2 dst =
   let getfun c =
     let dbc = Treedb.view_to_db c in
-    Treedb.db_to_view ((dblens src1 src2 dst).Dblens.get dbc)
+    Treedb.db_to_view (Lens.get (dblens src1 src2 dst) dbc)
   and putfun a co =
-    match co with
-    | None -> focal_type_error "Relational.[some binary lens]"
-    | Some(c) ->
-      let dba = Treedb.view_to_db a in
-      let dbc = Treedb.view_to_db c in
-      Treedb.db_to_view ((dblens src1 src2 dst).Dblens.put dba dbc)
+    let dba = Treedb.view_to_db a in
+    let dbco = lift_to_opt Treedb.view_to_db co in
+    Treedb.db_to_view (Lens.put (dblens src1 src2 dst) dba dbco)
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 let make_binary_lib name lens =
   F(function N(n1) ->
@@ -52,6 +53,8 @@ let () = register_binary_dblens "Native.Relational.diffl" Dblens.diffl
 let () = register_binary_dblens "Native.Relational.diffr" Dblens.diffr
 (* Join *)
 let () = register_binary_dblens "Native.Relational.join" Dblens.join
+let () = register_binary_dblens "Native.Relational.joinl" Dblens.joinl
+let () = register_binary_dblens "Native.Relational.joinr" Dblens.joinr
 
 
 (* Select *)
@@ -59,16 +62,13 @@ let () = register_binary_dblens "Native.Relational.join" Dblens.join
 let lift_unary dblens src dst =
   let getfun c =
     let dbc = Treedb.view_to_db c in
-    Treedb.db_to_view ((dblens src dst).Dblens.get dbc)
+    Treedb.db_to_view (Lens.get (dblens src dst) dbc)
   and putfun a co =
-    match co with
-    | None -> focal_type_error "Relational.[some unary lens]"
-    | Some(c) ->
-      let dba = Treedb.view_to_db a in
-      let dbc = Treedb.view_to_db c in
-      Treedb.db_to_view ((dblens src dst).Dblens.put dba dbc)
+    let dba = Treedb.view_to_db a in
+    let dbco = lift_to_opt Treedb.view_to_db co in
+    Treedb.db_to_view (Lens.put (dblens src dst) dba dbco)
   in
-  { get = getfun; put = putfun }
+  Lens.native getfun putfun
 
 let select k s = lift_unary (Dblens.select k s)
 
