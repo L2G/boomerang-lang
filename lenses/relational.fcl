@@ -1,5 +1,7 @@
 module Relational =
 
+let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
+
 let union : (name -> name -> name -> lens) = Native.Relational.union
 let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
 let unionr : (name -> name -> name -> lens) = Native.Relational.unionr
@@ -12,7 +14,15 @@ let diff : (name -> name -> name -> lens) = Native.Relational.diff
 let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
 let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
 
-let select : (name -> name -> name -> name -> lens) = Native.Relational.select
+let select : (name -> name -> name -> name -> lens) =
+  Native.Relational.select
+let select_eq : (name -> name -> name -> name -> lens) =
+  Native.Relational.select_eq
+
+let project : (view -> view -> view -> name -> name -> lens) =
+  Native.Relational.project
 
 let join : (name -> name -> name -> lens) = Native.Relational.join
+let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
+let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
 
