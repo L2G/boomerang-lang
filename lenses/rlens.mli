@@ -1,3 +1,5 @@
+(** Lenses for relations. *)
+
 type bias = Left | Right | Both
 val rename :
   string -> string -> (Relation.t, Relation.t) Lens.t
