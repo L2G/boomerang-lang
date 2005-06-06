@@ -60,13 +60,14 @@ decls:
   | LET binding_list decls                        { (DLet($1,$2))::$3 }
   | TYPE typebinding_list decls                   { (DType($1,$2))::$3 } 
   | MODULE IDENT EQUAL decls END decls            { (DMod($1,$2,$4))::$6 }
-  | TEST exp SLASH get_args EQUAL test_res decls  { (DTestGet($1, $2, $4, $6))::$7 }
-  | TEST exp BACKSLASH put_args EQUAL test_res decls { (DTestPut($1, $2, $4, $6))::$7 }
-  | TEST exp SLASH BACKSLASH get_args EQUAL exp decls { (DTestGet($1, $2, $5, (Some $7)))::
-                                                             (DTestPut($1, $2, ($7, None), Some $5))::$8 }
-  | SYNC WITH aexp AT atypeexp aexp EQUAL aexp decls   { (DTestSync($1,$3,$3,$3,$5,$6,$8)) :: $9 }
-  | SYNC WITH aexp aexp aexp AT atypeexp aexp EQUAL aexp decls { (DTestSync($1,$3,$4,$5,$7,$8,$10)) :: $11 }
-
+  | TEST exp SLASH get_args EQUAL test_res decls                { let (i2,res) = $6 in (DTestGet(merge_inc $1 i2, $2, $4, res))::$7 }
+  | TEST exp BACKSLASH put_args EQUAL test_res decls            { let (i2,res) = $6 in (DTestPut(merge_inc $1 i2, $2, $4, res))::$7 }
+  | TEST exp SLASH BACKSLASH get_args EQUAL exp decls           { let i = merge_inc $1 (info_of_exp $7) in
+								    (DTestGet(i, $2, $5, (Some $7)))::
+								    (DTestPut(i, $2, ($7, None), Some $5))::$8 }
+  | SYNC WITH aexp AT atypeexp aexp EQUAL aexp decls            { let i = merge_inc $1 (info_of_exp $8) in (DTestSync(i,$3,$3,$3,$5,$6,$8)) :: $9 }
+  | SYNC WITH aexp aexp aexp AT atypeexp aexp EQUAL aexp decls  { let i = merge_inc $1 (info_of_exp $10) in (DTestSync(i,$3,$4,$5,$7,$8,$10)) :: $11 }
+      
 /* TEST Stuff */
 get_args:
   | aexp                                 { $1 }
@@ -78,8 +79,8 @@ put_args:
   | LPAREN exp COMMA MISSING RPAREN      { ($2, None) }
 
 test_res:
-  | exp                                     { Some $1 }
-  | ERROR                                   { None }
+  | exp                                     { (info_of_exp $1, Some $1) }
+  | ERROR                                   { ($1, None) }
 
 /**** BINDINGS ***/      
 binding_list:
