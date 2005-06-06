@@ -34,10 +34,7 @@ let get (VI m) k =
   with
   | Not_found -> None
 
-let get_required ((VI m) as v) k =
-  try Name.Map.find k m
-  with Not_found ->
-    raise (Illformed ("V.get_required: missing child \""^k^"\" in view ", [v]))
+let get_required ((VI m) as v) k = Name.Map.find k m
       
 (* ----------------------------------------------------------------------
  * Creators
@@ -72,7 +69,7 @@ let singleton_dom v =
   let d = dom v in
   if Name.Set.cardinal d <> 1 then
     raise (Illformed ("singleton_dom: view with several children", [v]));
-  Name.Set.choose d
+    Name.Set.choose d
 
 (* v is a value if it has one child, and that child is [V.empty] *)
 let is_value v =

@@ -201,7 +201,7 @@ val show_diffs : t -> t -> unit
 type msg = [`String of string | `Name of Name.t | `Break | `View of t
           | `View_opt of t option | `Open_box | `Close_box ] 
 
-exception Error of msg list
+(* exception Error of msg list *)
 (** General exception for errors in Harmony *)
 
 val format_msg : msg list -> unit

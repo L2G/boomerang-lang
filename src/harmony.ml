@@ -7,7 +7,7 @@ let failwith s = prerr_endline s; exit 1
 let lookup qid_str = 
   Registry.lookup_library (Registry.parse_qid qid_str)
 	  
-let lookup_lens qid_str = 
+let lookup_lens qid_str =
   match lookup qid_str with
       None -> failwith (Printf.sprintf "%s not found" qid_str)
     | Some rv -> 
@@ -193,11 +193,11 @@ let main () =
       | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
       |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
 
-let _ =
-  try
-    (Unix.handle_unix_error (fun () -> Error.fail_on_error main)) ()
+let _ = 
+  try 
+    Unix.handle_unix_error (fun () -> Error.fail_on_error main) ()
   with
-    V.Error(m) ->
-       Printf.eprintf "raised V.Error: \n%s" (V.format_msg_as_string m);
-       exit 1
-
+      V.Illformed(s,m) -> 
+	failwith (Printf.sprintf "V.Illformed: %s %s"
+		    s
+		    (Misc.concat_list ", " (Safelist.map V.string_of_t m)))

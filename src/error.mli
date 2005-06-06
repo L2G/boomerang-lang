@@ -14,12 +14,16 @@ exception Compile_error of Info.t * string * string
   checking, unit testing errors, and failed assertions. *)
 
 exception Native_error of string
-(** [Native_error msg] is raised by implementation so native lenses. *)
+  (** [Run_error msg] is raised by ML functions in the back end. *)
 
 exception Fatal_error of string 
 (** [Fatal_error msg] is raised when unexpected situations arise in
     Focal programs. *)
 
+val string_of_file_info : string -> Info.t -> string
+  (** [string_of_file_info fn i] returns a string describing location
+      [i] in file [fn]. *)
+
 val fail_on_error : (unit -> 'a) -> 'a
-(** [fail_on_error f] runs [f ()] and handles errors by printing a
-    description of the error and exiting. *)
+  (** [fail_on_error f] runs [f ()] and handles errors by printing a
+      description of the error and exiting. *)

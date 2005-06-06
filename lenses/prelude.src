@@ -10,8 +10,12 @@ type List T = Nil | Cons T (List T)
 type NonEmptyList T = Cons T (List T)
 type Value = {!=`Any}
 
-(* re-exported native lenses *)
-let load : (name -> view) = Native.Prelude.load
+(* --- I/O --- *)
+let read : (name -> name) = Native.Prelude.read
+let load : (name -> name -> view) = Native.Prelude.load
+let load_file : (name -> view) = Native.Prelude.load_file
+
+(* ---- Debugging --- *)
 let probe : (name -> lens) = Native.Prelude.probe
 let trace : (name -> lens) = Native.Prelude.trace
 let assert : (type -> lens) = Native.Prelude.assert

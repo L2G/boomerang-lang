@@ -32,22 +32,55 @@ let _ = register_native "Native.Prelude.Nil" "type" nil
 (*************)
 (* UTILITIES *)
 (*************)
-let load n = 
-  let (fn, ekeyo) = Surveyor.parse_filename n in
+let read fn = 
   let fn = match find_filename fn with
-      None -> error [`String ("Native.Prelude.load: cannot locate " ^ fn)]
+      None -> error [`String ("Native.Prelude.read: cannot locate " ^ fn)]
     | Some fn -> fn in
-  let ekey = Surveyor.get_ekey ekeyo fn None in
-    match Surveyor.view_of_file fn (Surveyor.get_reader ekey) with
-	None -> error [`String ("Native.Prelude.load: error loading file " ^ fn)]
-      | Some v -> v
+    try 
+      Misc.read fn 
+    with 
+	_ -> raise (Error.Native_error ("Native.prelude.read: error reading " ^ fn))
+    
+(* read *)
+let read_lib =
+  F(function 
+      | N fn -> N (read fn)
+      | _ -> focal_type_error "Native.Prelude.read")
+    
+let _ = register_native "Native.Prelude.read" "name -> name" read_lib
+
+(* load *)  
+let load viewer s = 
+  let ekey = Surveyor.get_ekey (Some viewer) "" (Some s) in
+    (Surveyor.get_reader ekey) s
 
 let load_lib =
+  F (function
+       | N s -> F (function 
+		     | N viewer -> V (load viewer s)
+		     | _ -> focal_type_error "Native.Prelude.load")
+       | _ -> focal_type_error "Native.Prelude.load")
+
+let _ = register_native "Native.Prelude.load" "name -> name -> view" load_lib
+
+(* load_file *)
+let load_file fn = 
+  let (fn,ekeyo) = Surveyor.parse_filename fn in
+  let contents = read fn in
+  let ekey = 
+    try 
+      Surveyor.get_ekey ekeyo fn (Some contents) 
+    with Error.Fatal_error m -> raise (Error.Native_error m)
+  in     
+    load ekey (contents)
+      
+let load_file_lib =
   F(function 
-      | N n -> V (load n)
-      | _ -> focal_type_error "Native.Prelude.load")
+      | N fn -> V (load_file fn)
+      | _ -> focal_type_error "Native.Prelude.load_file")
     
-let _ = register_native "Native.Prelude.load" "name -> view" load_lib
+let _ = register_native "Native.Prelude.load_file" "name -> view" load_file_lib
+  
 
 (*************)
 (* DEBUGGING *)
@@ -385,7 +418,7 @@ let copy m n =
       (fun c -> 
 	 let child =
 	   try V.get_required c m
-	   with V.Illformed(_,_) -> 
+	   with Not_found ->
 	     error [`String "Native.Prelude.copy(get): expecting one child named ";
 		    `Name m; 
 		    `String ")"; 
@@ -394,7 +427,7 @@ let copy m n =
     put = 
       (fun a _ -> 
 	 if (try V.equal (V.get_required a m) (V.get_required a n)
-	     with V.Illformed(_,_) -> 
+	     with Not_found -> 
 	       error [`String "Native.Prelude.copy(put): expecting two children named ";
 		      `Name m; 
 		      `String "and";
@@ -425,7 +458,7 @@ let merge m n =
 	 function
 	   | None -> 
 	       (try V.set a n (Some (V.get_required a m))
-		with V.Illformed(_,_) -> 
+		with Not_found -> 
 		  error
 		  [`String "Native.Prelude.merge(put): expecting a child named ";
 		   `Name m])
@@ -590,7 +623,7 @@ let pivot k =
 	     let ck = V.get_required c k in
 	     let ckv = V.get_value ck in
 	       V.set V.empty ckv (Some (V.set c k None))
-	   with V.Illformed(_,_) -> 
+	   with Not_found -> 
 	     error [`String "Native.Prelude.pivot(get): the following view should have ";
 		    `String "exactly one child named "; 
 		    `Name k; 
@@ -654,7 +687,7 @@ let join m1 m2 =
 	   in
 	   let tm1, tm2 = (V.get_required c m1, V.get_required c m2) in	 
 	     compute_join tm1 tm2 V.empty
-	 with V.Illformed(_,_) ->
+	 with Not_found -> 
 	   error [`String "Native.Prelude.join(get): expected view with children: "; 
 		  `Name m1; 
 		  `String " and "; 

@@ -27,8 +27,8 @@ let dumpframe fr =
       GetFrame (s,c) -> [`String (s ^ " (get)"); `View c]
     | PutFrame (s,a,co) ->
         [`String (s ^ " (put)"); `View a; `String "into"; `View_opt co] in
-  [`Break; `String "FRAME "] @ m
-
+    [`Break; `String "FRAME "] @ m
+      
 let stack = Misc.dynamic_var []
 
 let error e =
@@ -36,28 +36,30 @@ let error e =
   let st =
     if curstack = [] then []
     else
-      [`Break; `String
-          (Misc.color "-------------------------------------------------"
-           Misc.Yellow ~bold:true);
-       `Break; `String (Misc.color "STACK DUMP:" Misc.Yellow ~bold:true);
-       `Break]
+      [`Break
+      ; `String
+	(Misc.color "-------------------------------------------------" 
+	   Misc.Yellow ~bold:true)
+      ;`Break
+      ; `String (Misc.color "STACK DUMP:" Misc.Yellow ~bold:true)
+      ;`Break
+      ]
       @ (Safelist.flatten_map dumpframe curstack) in
-  V.error_msg (e @ st)
-
+    raise 
+      (Error.Native_error
+	 (V.format_msg_as_string (e @ st)))
+      
 let trap_errors_in f x =
   try
     f x 
-  with
-  | V.Illformed (msg, vbad) ->
-      error ([
-        `String "Tried to construct ill-formed view (";
-        `String msg;
-        `String ")";] @
-        (Safelist.map (fun v -> `View v) vbad);
-      )
-  | V.Error l ->
-      error l
-       
+  with 
+      (Error.Compile_error(i,fn,s)) -> 
+	error ([`String (Error.string_of_file_info fn i)
+	       ;`String s])
+    | (Error.Native_error(s)) 
+    | (Error.Fatal_error(s))
+      -> error ([`String s])
+
 let probe2 name callget callput =
   { get = (fun c -> callget name c (Misc.dynamic_lookup stack);
       c);

@@ -15,6 +15,12 @@ exception Native_error of string
 (* unexpected, fatal errors *)
 exception Fatal_error of string 
 
+(* string_of_file_info : string -> Info.t -> string *)
+let string_of_file_info fn i = 
+  Printf.sprintf "File \"%s\", %s"
+    fn 
+    (Info.string_of_t i) 
+    
 (* fail_on_error : (unit -> 'a) -> 'a 
  *    simple error handling: print and exit. Used in the text UI *)
 let fail_on_error f = 
@@ -22,9 +28,8 @@ let fail_on_error f =
     f ()
   with 
       Compile_error(i, fn,msg) ->
-	Printf.eprintf "File \"%s\", %s:\n%s\n" 
-	  fn 
-	  (Info.string_of_t i) 
+	Printf.eprintf "%s:\n%s\n"
+	  (string_of_file_info fn i)
 	  msg;
 	exit 1
     | Native_error(msg) 
