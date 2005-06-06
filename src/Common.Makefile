@@ -36,9 +36,9 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 #########################
 
 BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
-               relation.mli relation.ml \
                mapplus.mli mapplus.ml \
                name.mli name.ml v.mli v.ml lens.mli lens.ml \
+               relation.mli relation.ml treedb.mli treedb.ml \
                surveyor.mli surveyor.ml \
                syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
                type.mli type.ml value.mli value.ml \
@@ -54,7 +54,7 @@ VIEWER_SOURCES = metay.mly metal.mll viewers.ml
 
 RELATIONAL_SOURCES = rlens.mli rlens.ml \
                      dblens.mli dblens.ml \
-                     treedb.ml relational.ml
+                     relational.ml
 
 NATIVE_LENS_SOURCES = prelude.ml \
                  $(RELATIONAL_SOURCES)
