@@ -89,9 +89,9 @@ sync with caps_headers at (List Any)
    ...so for now we do: *)   
 
 (*
-  type NestedListOfValues = Any
-*)
 type NestedListOfValues = Nil | { `List.HD=({!\(`List.HD,`List.TL,`List.NIL)=`Any} | `NestedListOfValues), `List.TL=`NestedListOfValues}
+*)
+type NestedListOfValues = List (Cons Value (List (Cons Value (List Value) )))
 
 
 (******************************************************************************)

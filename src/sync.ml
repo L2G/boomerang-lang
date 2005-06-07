@@ -17,7 +17,6 @@ let wraptrace s f =
 type copy_value =
   | Adding of V.t
   | Deleting of V.t
-  | Replacing of V.t * V.t
 
 type action =
   | SchemaConflict of Type.t * V.t * V.t 
@@ -55,26 +54,12 @@ let rec find_conflict a =
 	     | Some a -> opt) m None
 
 let format_copy s = function
-  | Adding v -> V.format_msg [
-      `String s;
-      `String " Adding:";
-      `View v ]
-  | Deleting v -> V.format_msg [
-      `String s;
-      `String " Deleting:";
-      `View v ]
-  | Replacing (oldv, newv) -> 
-      V.format_msg [
-        `String s; 
-        `String " Replacing";
-        `View oldv;
-        `String " with ";
-        `View newv
-      ]
+  | Adding v -> V.format_msg [ `String s; `Open_box; `String " Add"; `View v; `Close_box ]
+  | Deleting v -> V.format_msg [`String s; `Open_box; `String " Delete"; `View v; `Close_box ]
 	
 let rec format = function
   | SchemaConflict (t,lv,rv) ->
-      V.format_msg ([`String "[SchemaConflict] "; `String (Type.string_of_t t);`View lv; `View rv] )
+      V.format_msg ([`Open_box; `String "[SchemaConflict] "; `Break; `String (Type.string_of_t t); `Break; `View lv; `View rv; `Close_box] )
   | GoDown(m) ->
       Name.Map.dump (fun ks -> ks) Misc.whack
         (fun x -> format x)

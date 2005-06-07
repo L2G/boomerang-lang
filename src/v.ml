@@ -297,30 +297,29 @@ let format_msg l =
   let rec loop = function
     | [] -> ()
     | `String s :: r ->
-        Format.printf "%s" s; (* Format.print_flush (); *) loop r
+        Format.printf "%s" s; loop r
     | `Name k :: r ->
-        Format.printf "%s" (Misc.whack k); (* Format.print_flush (); *) loop r
+        Format.printf "%s" (Misc.whack k); loop r
     | `Break :: r ->
-        Format.printf "@,"; (* Format.print_flush (); *) loop r
+        Format.printf "@,"; loop r
     | `View v :: r ->
-        Format.printf "@,  @[<v2>";
+        Format.printf "@[<hv2>";
         format v;
         Format.printf "@]@,";
-        (* Format.print_flush(); *)
         loop r
     | `View_opt v :: r ->
-        Format.printf "@,  @[<v2>";
+        Format.printf "@[<hv2>";
         format_option v;
         Format.printf "@]@,";
         loop r
     | `Open_box :: r ->
-        Format.printf "@,  @[<v2>";
+        Format.printf "@[<hv2>";
         loop r
     | `Close_box :: r ->
         Format.printf "@]";
         loop r
   in
-  Format.printf "@[<v0>";
+  Format.printf "@[<hv0>";
   loop l;
   Format.printf "@,@]"
 

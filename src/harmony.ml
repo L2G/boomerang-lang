@@ -91,7 +91,9 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lenso a' o) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lenso b' o) ba' in
-  Sync.format act;
+  Format.eprintf "\n%!";
+  Sync.format_without_equal act;
+  Format.printf "\n%!";
   ignore (Misc.map_option (write_view o'_fn) o');
   ignore (Misc.map_option (write_view a'_fn) a');
   ignore (Misc.map_option (write_view b'_fn) b')

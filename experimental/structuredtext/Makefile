@@ -19,7 +19,7 @@ clean::
 	rm -rf $(DEMOFILES)
 
 demo:: 
-	@$(MAKE) buildharmony
+	@$(MAKE) buildharmonyfast
 	@if [ -f a.txt ] && [ -f b.txt ]; then $(MAKE) continue-demo; else $(MAKE) init-demo; fi
 
 init-demo:
@@ -40,16 +40,16 @@ continue-demo:
 	   -archive o.txt  -lensar Structuredtext.file_with_star_headers \
 	   -replica1 a.txt  -lensr1 Structuredtext.file_with_star_headers \
 	   -replica2 b.txt  -lensr2 Structuredtext.file_with_star_headers \
-	   -newarchive o.txt -newreplica1 a.txt -newreplica2 b.txt \
-	   -debug harmony -debug sync
+	   -newarchive o.txt -newreplica1 a.txt -newreplica2 b.txt 
 
 temp:
+	@$(MAKE) buildharmony
 	$(MAKE) init-demo
 	echo "* HEADER" > a.txt
 	echo "** NEW SUBHEADER" >> a.txt
 	echo "text" >> a.txt
 	echo "** SUBHEADER" >> a.txt
 	echo "more text" >> a.txt
-	$(MAKE) continue-demo
+	$(MAKE) demo
 
 

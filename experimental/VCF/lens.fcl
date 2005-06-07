@@ -1,51 +1,14 @@
 module Lens=
 
-type V = { !={} }
-type data = {"PCDATA" = V}
+type value = { "PCDATA" = `Any :: [] }
 
-let lens1 = (List.hd []; hoist ""; List.hd[]; 
-	       map(hoist""; List.hd []; hoist "PCDATA"))
+let lensCommon: lens = 
+  acond value <{ ! = {} }>
+  (hoist "PCDATA"; List. hd [])
+    ( map (List.hd []; hoist ""; flatten;
+	   plunge "_"; wmap {"_" -> lensCommon}; hoist "_") )
 
-let lens2 = List.hd [];  hoist "";  flatten;  map(lens1)
-
-let lens3 = List.hd []; hoist ""; List.hd []; hoist "PCDATA"
-
-let lens4 =  (List.hd []; hoist ""; List.hd [];
-	      map(hoist ""; List.hd []; 
-		  map(hoist ""; List.hd []; 
-		      map (hoist ""; List.hd []; hoist "PCDATA"))))
-
-let lens5 = (List.hd[]; hoist ""; List.hd []; 
-	     map(hoist ""; List.hd []; hoist "PCDATA"))
-  
-let lensTEL = List.hd []; hoist ""; flatten;
-                map (List.hd []; hoist ""; List.hd [];
-		     ccond data
-		       (hoist "PCDATA")
-		       (map(hoist ""; List.hd [];
-			    ccond data
-			      (hoist "PCDATA")
-			      (map(hoist ""; List.hd [];
-                                   ccond data 
-				     (hoist "PCDATA")
-				     (map(hoist ""; List.hd [];
-					  ccond data
-					    (hoist "PCDATA")
-					    (map (hoist ""; List.hd [];
-						  ccond data
-						    (hoist "PCDATA")
-						    (probe "The format of vcard in TEL isn't valid") ) ) ) ) ) ) ) ) ) 
-    
 let l = 
-  hoist "";
-  List.hd [];
-  map ( hoist ""; flatten;
-        fork {"TEL"}
-	  ( map(lensTEL))
-	  ( fork {"ADR","LABEL"}
-	      ( map(lens2) )
-	      ( fork {"EMAIL"} 
-		  ( map(lens1) )
-		  ( map(lens3) ) ) )
-       )
+  hoist ""; List.hd []; 
+  map (hoist ""; flatten; lensCommon)
 
