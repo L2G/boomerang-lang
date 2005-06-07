@@ -141,6 +141,7 @@ let rec sync' (t:Type.t) archo lefto righto =
 	  (Type.string_of_t t);
 	raise (Error.Fatal_error ("Synchronization error: view is not a member of the type."))
       end
+    else debug (fun()->Printf.eprintf "done assert_member...\n%!");
   in    
     match (archo, lefto, righto) with
       | _   , None, None -> (MarkEqual, None, None, None)

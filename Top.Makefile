@@ -72,4 +72,4 @@ t: buildharmony test
 
 updateall:
 	cd $(TOP); svn update
-	$(MAKE) buildharmony
+

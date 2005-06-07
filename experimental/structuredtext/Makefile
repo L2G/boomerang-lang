@@ -43,4 +43,13 @@ continue-demo:
 	   -newarchive o.txt -newreplica1 a.txt -newreplica2 b.txt \
 	   -debug harmony -debug sync
 
+temp:
+	$(MAKE) init-demo
+	echo "* HEADER" > a.txt
+	echo "** NEW SUBHEADER" >> a.txt
+	echo "text" >> a.txt
+	echo "** SUBHEADER" >> a.txt
+	echo "more text" >> a.txt
+	$(MAKE) continue-demo
+
 

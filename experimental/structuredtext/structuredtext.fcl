@@ -91,7 +91,7 @@ sync with caps_headers at (List Any)
 (*
   type NestedListOfValues = Any
 *)
-type NestedListOfValues = Nil | { `List.HD=`(Value | NestedListOfValues), `List.TL=`NestedListOfValues}
+type NestedListOfValues = Nil | { `List.HD=({!\(`List.HD,`List.TL,`List.NIL)=`Any} | `NestedListOfValues), `List.TL=`NestedListOfValues}
 
 
 (******************************************************************************)
