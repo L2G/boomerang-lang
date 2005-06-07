@@ -87,13 +87,16 @@ sync with caps_headers at (List Any)
 (* Doesn't work because of bogus contractiveness check... 
      type NestedListOfValues = List (Value | NestedListOfValues)
    ...so for now we do: *)   
+
 (*
-type NestedListOfValues = Nil | { `List.HD=`(Value | NestedListOfValues), `List.TL=`NestedListOfValues}
-type NestedListOfValues = Any
+  type NestedListOfValues = Any
 *)
+type NestedListOfValues = Nil | { `List.HD=`(Value | NestedListOfValues), `List.TL=`NestedListOfValues}
+
 
 (******************************************************************************)
 (* Some useful instances packaged for invoking from the command line... *)
 
 let file_with_all_caps_headers = split; caps_headers
+let file_with_star_headers = split; star_headers
 

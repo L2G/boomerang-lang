@@ -37,9 +37,10 @@ init-demo:
 
 continue-demo:
 	$(HARMONY) sync -schema Structuredtext.NestedListOfValues \
-	   -archive o.txt  -lensar Structuredtext.star_headers \
-	   -replica1 a.txt  -lensr1 Structuredtext.star_headers \
-	   -replica2 b.txt  -lensr2 Structuredtext.star_headers \
+	   -archive o.txt  -lensar Structuredtext.file_with_star_headers \
+	   -replica1 a.txt  -lensr1 Structuredtext.file_with_star_headers \
+	   -replica2 b.txt  -lensr2 Structuredtext.file_with_star_headers \
 	   -newarchive o.txt -newreplica1 a.txt -newreplica2 b.txt \
-	   -debug harmony
+	   -debug harmony -debug sync
+
 

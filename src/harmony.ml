@@ -74,28 +74,27 @@ let put lens a_fn c_fn o_fn =
 (* SYNC *)
 (********)
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
-  debug (fun()-> Printf.eprintf "Here1\n");
+  debug (fun()->Printf.eprintf "Start...\n%!");
   let o = read_view o_fn in
-  debug (fun()-> Printf.eprintf "Here2\n");
   let a = read_view a_fn in
   let b = read_view b_fn in
-  debug (fun()-> Printf.eprintf "Here3\n");
   let s = lookup_type s in 
-  debug (fun()-> Printf.eprintf "Here4\n");
+  debug (fun()->Printf.eprintf "Lenses...\n%!");
   let lenso = lookup_lens lenso in
   let lensa = lookup_lens lensa in 
   let lensb = lookup_lens lensb in         
   let oa = Misc.map_option (Lens.get lenso) o in
   let aa = Misc.map_option (Lens.get lenso) a in
   let ba = Misc.map_option (Lens.get lenso) b in
+  debug (fun()->Printf.eprintf "Sync...\n%!");
   let (act, oa', aa', ba') = Sync.sync s oa aa ba in
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lenso a' o) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lenso b' o) ba' in
-    Sync.format act;
-    ignore (Misc.map_option (write_view o'_fn) o');
-    ignore (Misc.map_option (write_view a'_fn) a');
-    ignore (Misc.map_option (write_view b'_fn) b')
+  Sync.format act;
+  ignore (Misc.map_option (write_view o'_fn) o');
+  ignore (Misc.map_option (write_view a'_fn) a');
+  ignore (Misc.map_option (write_view b'_fn) b')
 
 (****************************  Command-line switches *******************************)
 

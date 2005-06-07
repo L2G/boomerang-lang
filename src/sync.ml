@@ -6,6 +6,14 @@
 (****************************************************************)
 (* $Id *)
 
+let debug = Trace.debug "sync"
+
+let wraptrace s f =
+  debug (fun() -> Printf.eprintf "Start %s\n%!" s);
+  let r = f() in
+  debug (fun() -> Printf.eprintf "Done %s\n%!" s);
+  r
+
 type copy_value =
   | Adding of V.t
   | Deleting of V.t
@@ -18,8 +26,6 @@ type action =
   | CopyLeftToRight of copy_value
   | CopyRightToLeft of copy_value
   | GoDown of action Name.Map.t
-
-let debug = Trace.debug "sync"
 
 let get_action_name = function
     SchemaConflict _  -> "schema conflict"
@@ -122,7 +128,9 @@ let accumulate oldacc k = function
 (* w.r.t. docs/simple.txt *)
 
 let rec sync' (t:Type.t) archo lefto righto =
+  debug (fun()->Printf.eprintf "sync'...\n%!");
   let assert_member v t = 
+    debug (fun()->Printf.eprintf "assert_member...\n%!");
     if (not (try (Type.member v t)
 	     with Not_found -> assert false))
     then
@@ -170,7 +178,7 @@ let rec sync' (t:Type.t) archo lefto righto =
 	      Name.Set.fold
 		(fun k (actacc, aracc, lacc, racc) ->
 		   let tk = 
-		     (match Type.project t k with
+		     (match wraptrace ("project "^k) (fun()-> Type.project t k) with
 			  None ->
 			    (* can't happen since every child k is either in  *)
 			    (* either dom(a) or dom(b), both of which are in  *)
@@ -209,21 +217,23 @@ let rec sync' (t:Type.t) archo lefto righto =
 	      (V.from_list lbinds),
 	      (V.from_list rbinds)		
 	    in
+              debug (fun()->Printf.eprintf "here 1...\n%!");
 	      let tdoms  = Type.tdoms t in
+              debug (fun()->Printf.eprintf "here 2...\n%!");
 	      let a'_in_tdoms = Type.vdom_in_tdoms (V.dom a') tdoms in
 	      let b'_in_tdoms = Type.vdom_in_tdoms (V.dom b') tdoms in
-		if a'_in_tdoms && b'_in_tdoms
-		then
-		  (GoDown(Safelist.fold_left
+              debug (fun()->Printf.eprintf "here 3...\n%!");
+              if a'_in_tdoms && b'_in_tdoms then
+		(GoDown(Safelist.fold_left
 			    (fun acc (k, act) -> Name.Map.add k act acc)
 			    Name.Map.empty
 			    acts),
-		   Some o',
-		   Some a',
-		   Some b')
-		else
-		  (* return originals in SchemaConflict *)   
-		  (SchemaConflict(t,lv,rv),archo,lefto,righto)
+		 Some o',
+		 Some a',
+		 Some b')
+	      else
+		(* return originals in SchemaConflict *)   
+		(SchemaConflict(t,lv,rv),archo,lefto,righto)
 		    
 and sync (t:Type.t) o a b = 
   (* Version for debugging (because, at the moment, output from the
