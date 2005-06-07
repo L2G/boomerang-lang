@@ -72,7 +72,7 @@ buildharmonyfast:
 	@$(MAKE) -C $(SRCDIR) fast
 	@$(MAKE) -C $(LENSESDIR) all
 
-t: buildharmony test
+t: buildharmonyfast test
 
 updateall:
 	cd $(TOP); svn update

@@ -202,7 +202,7 @@ val show_diffs : t -> t -> unit
 (** {2 Formatting of error messages} *)
 (**  A type for easy formatting of error messages *)
 type msg = [`String of string | `Name of Name.t | `Break | `View of t
-          | `View_opt of t option | `Open_box | `Close_box ] 
+           | `View_opt of t option | `Open_box | `Open_vbox | `Close_box ]
 
 (* exception Error of msg list *)
 (** General exception for errors in Harmony *)

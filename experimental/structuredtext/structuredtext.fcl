@@ -100,3 +100,55 @@ type NestedListOfValues = List (Cons Value (List (Cons Value (List Value) )))
 let file_with_all_caps_headers = split; caps_headers
 let file_with_star_headers = split; star_headers
 
+
+(******************************************************************************)
+(* Sync tests *)
+
+sync with file_with_star_headers at NestedListOfValues
+  { O = "* HEADER
+        |** SUBHEADER
+        |text
+        |** ANOTHER SUBHEADER
+        |more text",
+    A = "* HEADER
+        |** NEW SUBHEADER
+        |text
+        |new text
+        |** ANOTHER SUBHEADER
+        |more text",
+    B = "* HEADER
+        |** SUBHEADER
+        |text
+        |** ANOTHER NEW SUBHEADER
+        |more text"}
+  =
+       {"* HEADER
+        |** NEW SUBHEADER
+        |text
+        |new text
+        |** ANOTHER NEW SUBHEADER
+        |more text"}
+
+sync with file_with_star_headers at NestedListOfValues
+  { O = "* HEADER
+        |** SUBHEADER
+        |text
+        |** ANOTHER SUBHEADER
+        |more text",
+    A = "* HEADER
+        |** NEW SUBHEADER
+        |text
+        |** ANOTHER SUBHEADER
+        |more text",
+    B = "* HEADER
+        |** SUBHEADER
+        |text
+        |** ANOTHER NEW SUBHEADER
+        |more text"}
+  =
+       {"* HEADER
+        |** NEW SUBHEADER
+        |text
+        |** ANOTHER NEW SUBHEADER
+        |more text"}
+

@@ -59,7 +59,8 @@ let format_copy s = function
 	
 let rec format = function
   | SchemaConflict (t,lv,rv) ->
-      V.format_msg ([`Open_box; `String "[SchemaConflict] "; `Break; `String (Type.string_of_t t); `Break; `View lv; `View rv; `Close_box] )
+      V.format_msg ([`Open_vbox; `String "[SchemaConflict] "; `Break; `String (Type.string_of_t t);
+                     `Break; `View lv; `Break; `View rv; `Close_box] )
   | GoDown(m) ->
       Name.Map.dump (fun ks -> ks) Misc.whack
         (fun x -> format x)
@@ -75,7 +76,7 @@ let rec format = function
 
 let rec format_without_equal = function
   | SchemaConflict (t,lv,rv) -> 
-      V.format_msg ([`String "[SchemaConflict] "; `String (Type.string_of_t t); `View lv; `View rv] )
+      V.format_msg ([`Open_vbox; `String "[SchemaConflict] at type "; `String (Type.string_of_t t); `Break; `View lv; `Break; `View rv; `Close_box] )
   | GoDown(m) ->
       let prch (n,ch) = 
 	let prf() = Format.printf "@["; format_without_equal ch; Format.printf "@]" in

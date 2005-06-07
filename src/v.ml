@@ -264,7 +264,6 @@ let format_option = function
     None -> Format.printf "NONE";
   | Some v -> format v
 
-
 let rec format_raw ((VI m) as v) =
   Name.Map.dump 
     (fun ks -> ks)
@@ -288,7 +287,7 @@ let string_of_t v =
   format_to_string (fun () -> format v)
     
 type msg = [ `String of string | `Name of Name.t | `Break | `View of t
-           | `View_opt of t option | `Open_box | `Close_box ]
+           | `View_opt of t option | `Open_box | `Open_vbox | `Close_box ]
 
 exception Error of msg list
 
@@ -303,9 +302,7 @@ let format_msg l =
     | `Break :: r ->
         Format.printf "@,"; loop r
     | `View v :: r ->
-        Format.printf "@[<hv2>";
         format v;
-        Format.printf "@]@,";
         loop r
     | `View_opt v :: r ->
         Format.printf "@[<hv2>";
@@ -314,6 +311,9 @@ let format_msg l =
         loop r
     | `Open_box :: r ->
         Format.printf "@[<hv2>";
+        loop r
+    | `Open_vbox :: r ->
+        Format.printf "@[<v2>";
         loop r
     | `Close_box :: r ->
         Format.printf "@]";
