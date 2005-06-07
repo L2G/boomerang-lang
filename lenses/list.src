@@ -6,8 +6,8 @@ module List =
 (* SCHEMAS *)
 type Nil = Native.Prelude.Nil
 type Cons X Y = Native.Prelude.Cons X Y
-type T X = Nil | Cons X (List X)
-type NonEmptyList X = Cons X (List X)
+type T X = Nil | Cons X (T X)
+type NonEmptyList X = Cons X (T X)
 
 let HD : name = Native.Prelude.hd_tag
 let TL : name = Native.Prelude.tl_tag
@@ -72,7 +72,7 @@ let filter (D:type) (E:type) (some_D:view) : lens =
       (wmap { `TL -> append v })
   in
   let filter_aux (D:type) (E:type) (some_D:view) : lens = 
-    cond_ff <List E> < [] > < D::(List D) >
+    cond_ff <T E> < [] > < D::(T D) >
       (plunge "_"; wmap { "_" -> filter E D {} }; hoist "_")
       (append [`some_D])
       (const [] [])

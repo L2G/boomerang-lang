@@ -6,9 +6,9 @@ module Spinelist =
 (***********************************************************************)
 (* "Spine lists" *)
 
-type SpineList T = Nil | {!\`List.TL=T, `List.TL=`(SpineList T)}
+type T X = List.Nil | {!\`List.TL=X, `List.TL=`(T X)}
 
-type KeyedList T = List {!\`List.TL=T}
+type KeyedList X = List.T {!\`List.TL=X}
 
 let spinelist : lens =
   acond <[]> <[]>
@@ -21,7 +21,7 @@ test spinelist / \ [a,{b=foo},c] = {a, `List.TL={b=foo, `List.TL={c, `List.TL=[]
 (* Sync tests *)
 
 (* The "jumping element" problem for ordinary lists *)
-sync with id at (List {!=`Value})
+sync with id at (List.T {!=`Value})
   { O = [{a=foo},{b=bar},{c=baz}],
     A = [{a=FOO},{c=baz}],
     B = [{a=foo},{b=bar},{c=URG}] }
@@ -33,7 +33,7 @@ sync with id at (List {!=`Value})
 (* NOT WORKING BECAUSE OF TYPES BUG
 
 (* With spine lists, the result is happier... *)
-sync with spinelist at (SpineList Value)
+sync with spinelist at (T Value)
   { O = [{a=foo},{b=bar},{c=baz}],
     A = [{a=FOO},{c=baz}],
     B = [{a=foo},{b=bar},{c=URG}] }
