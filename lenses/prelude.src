@@ -1,13 +1,12 @@
+\section{The Standard Prelude}
+
+These lenses are defined everywhere and need not be qualified with a module
+name. 
+
 #{#}
-#@\section{The Standard Prelude}
 module Prelude = 
 
 (* SCHEMAS *)
-type None = ~Any
-type Nil = Native.Prelude.Nil
-type Cons H T = Native.Prelude.Cons H T
-type List T = Nil | Cons T (List T)
-type NonEmptyList T = Cons T (List T)
 type Value = {!=`Any}
 
 (* --- I/O --- *)

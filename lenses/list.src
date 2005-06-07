@@ -3,6 +3,12 @@
 #{#}
 module List =
 
+(* SCHEMAS *)
+type Nil = Native.Prelude.Nil
+type Cons X Y = Native.Prelude.Cons X Y
+type T X = Nil | Cons X (List X)
+type NonEmptyList X = Cons X (List X)
+
 let HD : name = Native.Prelude.hd_tag
 let TL : name = Native.Prelude.tl_tag
 let NIL : name = Native.Prelude.nil_tag
