@@ -1,6 +1,6 @@
-(* ---------------  Top-level functions --------------- *)
-
 open Error
+
+let debug = Trace.debug "harmony"
 
 let failwith s = prerr_endline s; exit 1
 
@@ -74,10 +74,14 @@ let put lens a_fn c_fn o_fn =
 (* SYNC *)
 (********)
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
+  debug (fun()-> Printf.eprintf "Here1\n");
   let o = read_view o_fn in
+  debug (fun()-> Printf.eprintf "Here2\n");
   let a = read_view a_fn in
   let b = read_view b_fn in
+  debug (fun()-> Printf.eprintf "Here3\n");
   let s = lookup_type s in 
+  debug (fun()-> Printf.eprintf "Here4\n");
   let lenso = lookup_lens lenso in
   let lensa = lookup_lens lensa in 
   let lensb = lookup_lens lensb in         
@@ -161,9 +165,17 @@ let rest = Prefs.createStringList "rest" "*stuff" ""
 (****************************  Command-line Processing *******************************)
   
 let usageMsg = 
-    "usage: harmony get -lens l -concrete cf -output of [options]\n"
-  ^ "       harmony put -lens l -abstract af -concrete cf -output of [options]\n"
-  ^ "       harmony check -module m [options]\n\n"
+    "usage: harmony get -lens LENS -concrete FILE -output FILE [options]\n"
+  ^ "       harmony put -lens LENS -abstract FILE -concrete FILE -output FILE [options]\n"
+  ^ "       harmony check -module MODULE [options]\n"
+  ^ "       harmony sync -schema SCHEMA"
+  ^ "               [-archive FILE -lensar LENS] \n"
+  ^ "               -replica1 FILE -lensr1 LENS \n"
+  ^ "               -replica2 FILE -lensr2 LENS \n"      
+  ^ "               -newarchive FILE \n"
+  ^ "               -newreplica1 FILE \n"
+  ^ "               -newreplica2 FILE \n"      
+  ^ "\n"
   ^ "Options:"
     
 let main () =

@@ -5,7 +5,7 @@
 # Common Makefile infrastructure			           #
 ####################################################################
 
-# $Id: Common.Makefile 121 2005-05-05 00:19:32Z bcpierce $
+# $Id$
 
 default: all
 
@@ -65,9 +65,11 @@ test:: $(HARMONYBIN) $(GENERATEDFCLFILES)
 	   $(MAKE) -C $$i test; done
 
 buildharmony: 
-	$(MAKE) -C $(SRCDIR) all
+	@$(MAKE) -C $(SRCDIR) all
+	@$(MAKE) -C $(LENSESDIR) all
 
 t: buildharmony test
 
 updateall:
 	cd $(TOP); svn update
+	$(MAKE) buildharmony

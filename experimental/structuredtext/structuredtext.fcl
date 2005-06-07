@@ -38,7 +38,7 @@ test process_elt T / \ [[X], [[A],[b]], [[C]]] = [[[X]], [[A],[b]], [[C]]]
 test process_elt T / \ [[X], [[a],[b]], [[C]]] = [[[X],[a],[b]], [[C]]]
 
 let parse_list_with_headers (H:type) =
-  fold_right [] (process_elt H)
+  List.fold_right [] (process_elt H)
 
 (******************************************************************************)
 (* Some specific useful instances... *)
@@ -84,6 +84,13 @@ sync with caps_headers at (List Any)
   =
     [X,a,b]
 
+(* Doesn't work because of bogus contractiveness check... 
+     type NestedListOfValues = List (Value | NestedListOfValues)
+   ...so for now we do: *)   
+(*
+type NestedListOfValues = Nil | { `List.HD=`(Value | NestedListOfValues), `List.TL=`NestedListOfValues}
+type NestedListOfValues = Any
+*)
 
 (******************************************************************************)
 (* Some useful instances packaged for invoking from the command line... *)
