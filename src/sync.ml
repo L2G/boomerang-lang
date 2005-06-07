@@ -178,7 +178,11 @@ let rec sync' (t:Type.t) archo lefto righto =
 	      Name.Set.fold
 		(fun k (actacc, aracc, lacc, racc) ->
 		   let tk = 
-		     (match wraptrace ("project "^k) (fun()-> Type.project t k) with
+		     (match 
+			wraptrace 
+			  (Printf.sprintf "project %s from %s" k (Type.string_of_t t)) 
+			  (fun()-> Type.project t k) 
+		      with
 			  None ->
 			    (* can't happen since every child k is either in  *)
 			    (* either dom(a) or dom(b), both of which are in  *)

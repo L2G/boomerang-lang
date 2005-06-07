@@ -9,22 +9,10 @@
 
 let sprintf = Printf.sprintf
 
-(* low-level compiler debugging *)
-let types_debug = Prefs.createBool "debug-types" false 
-  "print debugging information about types"
-  "print debugging information about types"
+let debug f = Trace.debug "type" (fun () -> f (); Printf.eprintf "\n%!")
 
-let debug s_thnk = 
-  if Prefs.read types_debug 
-  then 
-    begin 
-      prerr_string (sprintf "%s\n" (s_thnk ()));
-      flush stderr
-    end
-
-let failAt i mesg_thk = 
-  Printf.eprintf "Fatal error at %s: %s" (Info.string_of_t i) (mesg_thk ()); 
-  exit 1
+let fatal_error f = 
+  raise (Error.Fatal_error (sprintf "Fatal error in type %s" (f())))
 
 (* TYPES *)
 type i = Info.t
@@ -322,23 +310,22 @@ and it2nf force it0 =
 			       lift_us_rep)
 	end
   in
-    (* let _ = debug (sprintf "p2nf_aux %s %s ---> %s" (string_of_bool dethunk) (string_of_pt pt0) (string_of_pt res)) in *)
     res
 
 let rec project t0 n = 
-  debug (fun () -> sprintf "project type %s on %s" (string_of_t t0) n);
+  debug (fun () -> Printf.eprintf "project type %s on %s" (string_of_t t0) n);
   match t2nf t0 with 
     TT pt -> begin 
       match (project_pt pt n) with
 	  Some ptn -> Some (TT ptn)
 	| None -> None
     end
-  | _ -> failAt (info_of_t t0) (fun () -> "Fatal error: can't project a negative type")
+  | _ -> fatal_error (fun () -> sprintf "cannot project negative type %s" (string_of_t t0))
 and project_pt ((_,_,itr) as pt0) n = 
-  debug (fun () -> sprintf "project pre type %s on %s" (string_of_pt pt0) n);
+  debug (fun () -> Printf.eprintf "project pre type %s on %s" (string_of_pt pt0) n);
   project_it !itr n
 and project_it it0 n =   
-  debug (fun () -> sprintf "project inner type %s on %s" (string_of_it it0) n);
+  debug (fun () -> Printf.eprintf "project inner type %s on %s" (string_of_it it0) n);
   match it0 with
       Empty(_)        -> None
     | Any(i)          -> Some (mk_nptype (Any(i)))
@@ -354,11 +341,14 @@ and project_it it0 n =
 		       None -> xo
 		     | Some ptin ->
 			 if eq_pt ptin x then xo
-			 else  failAt (info_of_it it0)
-			   (fun () -> sprintf "Fatal error: %s is not projectable on %s; %s <> %s"
-			      (string_of_it it0) n
-			      (string_of_pt pti)
-			      (string_of_pt x))
+			 else  
+			   fatal_error
+			     (fun () -> 
+				sprintf "%s is not projectable on %s; %s <> %s"
+				  (string_of_it it0) 
+				  n
+				  (string_of_pt pti)
+				  (string_of_pt x))
 		   end)
 	    None
 	    pts
@@ -371,19 +361,23 @@ and project_it it0 n =
 		       None -> xo
 		     | Some ptin -> 
 			 if eq_pt ptin x then xo
-			 else failAt (info_of_it it0)
-			   (fun () -> sprintf "Fatal error: %s is not projectable on %s; %s <> %s"
-			      (string_of_it it0) n
-			      (string_of_pt pti)
-			      (string_of_pt x))
+			 else 
+			   fatal_error
+			     (fun () -> 
+				sprintf "%s is not projectable on %s; %s <> %s"
+				  (string_of_it it0) n
+				  (string_of_pt pti)
+				  (string_of_pt x))
 		 end)
 	    None
 	    pts
       | Var(_) | App(_) -> project_it (eval_it it0) n
       | Fun(_) -> 
-	  failAt (info_of_it it0) 
-	    (fun () -> sprintf "Fatal error: cannot project type operator %s (on %s)"
-	       (string_of_it it0) n)
+	  fatal_error
+	    (fun () -> 
+	       sprintf "cannot project type operator %s (on %s)"
+		 (string_of_it it0) 
+		 n)
       | Singleton(i,v) ->
           (match V.get v n with
              | None -> None
@@ -409,8 +403,10 @@ and member_it v it0 =
     | Any(_)       -> true
     | Singleton(_,v') -> V.equal v v'
     | Fun(i,_)     -> 
-	failAt i
-	  (fun () -> "Fatal error: cannot check for membership in type operator")
+	fatal_error
+	  (fun () -> 
+	     sprintf "cannot check for membership in type operator %s"
+	       (string_of_it it0))
     | Var(_,_,thk)   -> member_pt v ((* FIXME: hack!*) thk ())
     | App(_,_,_,thk) -> member_pt v ((* FIXME: hack!*) thk ())
     | Name(_,n,pt) ->
@@ -460,9 +456,10 @@ and member_it v it0 =
 	          else (Some (vn,pt), V.set v n None)
 	    | Star(_,f,pt)  -> (Some (v,pt), V.empty)
 	    | _ -> 
-		failAt (info_of_it it)
-		  (fun () -> sprintf "Fatal error: Non-atomic type in concatenation: %s"
-		     (string_of_it it))
+		fatal_error
+		  (fun () -> 
+		     sprintf "non-atomic type in concatenation: %s"
+		       (string_of_it it))
 	in
 	let rec loop cs v =
 	  (* sanity check for projectability; 
@@ -557,9 +554,10 @@ let rec tdoms t =
   match t with 
       TT pt -> tdoms_pt pt
     | _     -> 
-	failAt 
-	  (info_of_t t) 
-	  (fun () -> "Fatal error: cannot calculate type domain for negated type")
+	fatal_error 
+	  (fun () -> 
+	     sprintf "cannot calculate type domain for negative type %s"
+	       (string_of_t t))
 
 and tdoms_pt (_,_,itr) = tdoms_it !itr
 and tdoms_it it = 
@@ -581,7 +579,11 @@ and tdoms_it it =
       | Empty(_)     -> TDoms.empty
       | Any(_)       -> TDoms.singleton (TDom.singleton (DAll(Name.Set.empty)))
       | Var(_,_,thk) | App(_,_,_,thk) -> tdoms_pt ((* FIXME: hack! *) thk ())
-      | Fun(i,_) -> failAt i (fun () -> "Fatal error: cannot calculate type domain of a type function")
+      | Fun(i,_) -> 
+	  fatal_error 
+	    (fun () -> 
+	       sprintf "cannot calculate type domain of type operator %s"
+		 (string_of_it it))
       | Singleton(_,v) -> TDoms.singleton ( Name.Set.fold
                                              (fun k d -> TDom.add (DName k) d)
                                              (V.dom v)
