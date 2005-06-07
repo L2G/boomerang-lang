@@ -164,7 +164,7 @@ composeexp:
   | getputexp                                { $1 } 
 
 getputexp:
-  | appexp SLASH getputexp                                { let i = merge_inc (info_of_exp $1) (info_of_exp $3) in
+  | appexp SLASH appexp                                   { let i = merge_inc (info_of_exp $1) (info_of_exp $3) in
 							      mk_get_exp i $1 $3 }
   | appexp BACKSLASH aexp aexp                            { let i = merge_inc (info_of_exp $1) (info_of_exp $4) in 
 							      mk_put_exp i $1 $3 (Some $4) }
