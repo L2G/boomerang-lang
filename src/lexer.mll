@@ -134,6 +134,7 @@ rule main = parse
 and string = parse
 | "\\"		{ let s = escape lexbuf in s ^ string lexbuf }
 | "\""		{ "" }
+| newline whitespace+ '|' { newline lexbuf; let s = lexeme lexbuf in s ^ string lexbuf }
 | newline	{ newline lexbuf; let s = lexeme lexbuf in s ^ string lexbuf }
 | _		{ let s = lexeme lexbuf in s ^ string lexbuf }
 | eof		{ error lexbuf "unmatched '\"'"}
