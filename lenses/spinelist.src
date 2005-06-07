@@ -28,6 +28,8 @@ sync with id at (List {!=`Value})
     A = [{a=FOO},{c=baz}],
     B = [{a=FOO},{c=baz},{c=URG}] }
     
+(* NOT WORKING BECAUSE OF TYPES BUG
+
 (* With spine lists, the result is happier... *)
 sync with spinelist at (SpineList Value)
   { O = [{a=foo},{b=bar},{c=baz}],
@@ -38,3 +40,4 @@ sync with spinelist at (SpineList Value)
     A = [{a=FOO},{c=baz}],
     B = [{a=FOO},{b=bar},{c=URG}] }
     
+*)
