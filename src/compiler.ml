@@ -978,19 +978,19 @@ let rec compile_decl cev m di =
 		    if not (V.equal v resv) then
 		      test_error i 
 			(fun () -> 
-			   sprintf "(get): expected %s, found %s"
+			   sprintf "expected %s, found %s"
 			     (V.string_of_t resv)
 			     (V.string_of_t v))
 	      | Error m, Some res -> 
 		  let resv = compile_exp_view cev res in
 		    test_error i 
 		      (fun () -> 
-			 sprintf "(get): expected %s, found error\n%s"
+			 sprintf "expected %s, found error\n%s"
 			   (V.string_of_t resv) m)
 	      | OK v, None -> 
 		  test_error i 
 		    (fun () -> 
-		       sprintf "(get): expected error, found %s"
+		       sprintf "expected error, found %s"
 			 (V.string_of_t v))		    
 	end;
       (cev, [])	
