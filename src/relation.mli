@@ -7,9 +7,17 @@ type t
 type record = (string * string) list
 (** The type of records (elements in a relation). *)
 
-exception Type_error of string
-(** An exception raised when an operation is called on a relation with
-    an inappropriate set of fields. *)
+exception Unequal_domains of string list * string list
+(** An exception raised when an operation expects objects with equivalent
+    domains.  The two domains are reported. *)
+
+exception Domain_excludes of string list * string
+(** An exception raised when an operation expects a name that does belong
+    to a domain.  The domain and name are reported. *)
+
+exception Domain_includes of string list * string
+(** An exception raised when an operation expects a name that does {e not}
+    belong to a domain.  The domain and name are reported. *)
 
 val create : string list -> t
 (** Create a empty relation with the given set of field names.  As the
@@ -21,32 +29,35 @@ val fields : t -> string list
 
 val insert : record -> t -> t
 (** Add a record to a relation.  The record must have the correct set of
-    fields. *)
+    fields.
+    @raise Unequal_domains if the domain of the record does not match the
+    domain of the relation. *)
 
 val fold : (record -> 'a -> 'a) -> t -> 'a -> 'a
 (** Perform a fold operation over the records in a relation. *)
 
 val rename : string -> string -> t -> t
-(** [rename m n r] renames the field [m] in [r] to [n].  The field name [m] must
-    exist in the relation and the name [n] must not exist; otherwise,
-    {!Relation.Type_error} will be thrown. *)
+(** [rename m n r] renames the field [m] in [r] to [n].
+    @raise Domain_excludes if [m] does not belong to the domain of [r].
+    @raise Domain_includes if [n] belongs to the domain of [r]. *)
 
 val project : string list -> t -> t
 (** Create a new relation by projecting on the listed fields.  Duplicate field
-    names will be ignored.  The exception {!Relation.Type_error} will be thrown
-    if the fields given are not a subset of the actual fields of the
-    relation. *)
+    names will be silently ignored.
+    @raise Domain_excludes if one of the fields given does not belong to the
+    relation.  One of the fields that does not belong is reported. *)
 
 val union : t -> t -> t
-(** Create the union of two relations.  They must have the same field names. *)
+(** Create the union of two relations.
+    @raise Unequal_domains if the relations do not have the same domain. *)
 
 val inter : t -> t -> t
-(** Create the intersection of two relations.  They must have the same field 
-    names. *)
+(** Create the intersection of two relations.
+    @raise Unequal_domains if the relations do not have the same domain. *)
 
 val diff : t -> t -> t
-(** Create the difference of two relations.  They must have the same field 
-    names. *)
+(** Create the difference of two relations.
+    @raise Unequal_domains if the relations do not have the same domain. *)
 
 val equal : t -> t -> bool
 (** Check two relations for equality. *)

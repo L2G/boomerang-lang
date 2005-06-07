@@ -13,7 +13,10 @@ type t = {
   rows : StrListSet.t
 }
 type record = (string * string) list
-exception Type_error of string
+
+exception Unequal_domains of string list * string list
+exception Domain_excludes of string list * string
+exception Domain_includes of string list * string
 
 let create flds =
   { flds = List.fold_right StrSet.add flds StrSet.empty;
@@ -26,7 +29,7 @@ let insert rcd r =
   let cmpfst (x1, y1) (x2, y2) = compare x1 x2 in
   let (clms, ents) = List.split (List.sort cmpfst rcd) in
   if clms <> StrSet.elements r.flds then
-    raise (Type_error("insert"));
+    raise (Unequal_domains(clms, StrSet.elements r.flds));
   {r with rows = StrListSet.add ents r.rows}
 
 let fold f r init =
@@ -39,9 +42,9 @@ let fold f r init =
 
 let rename m n r =
   if StrSet.mem n r.flds then
-    raise (Type_error("rename: field "^n^" already present"));
+    raise (Domain_includes(StrSet.elements r.flds, n));
   if not (StrSet.mem m r.flds) then
-    raise (Type_error("rename: field "^m^" not present"));
+    raise (Domain_excludes(StrSet.elements r.flds, m));
   let swapname s = if s = m then n else s in
   let flds = List.map swapname (StrSet.elements r.flds) in
   let accum row rel =
@@ -50,18 +53,21 @@ let rename m n r =
   StrListSet.fold accum r.rows (create flds)
 
 let project p r =
-  if not (List.for_all (fun x -> StrSet.mem x r.flds) p) then
-    raise (Type_error("project: some field not present"));
-  let flds = StrSet.elements r.flds in
-  let accum row rel =
-    let keep (x, y) = List.mem x p in
-    insert (List.filter keep (List.combine flds row)) rel
-  in
-  StrListSet.fold accum r.rows (create p)
+  try
+    let fld = List.find (fun x -> not (StrSet.mem x r.flds)) p in
+    raise (Domain_excludes(StrSet.elements r.flds, fld))
+  with
+  | Not_found -> (* This means everything is OK.  Proceed as normal. *)
+      let flds = StrSet.elements r.flds in
+      let accum row rel =
+        let keep (x, y) = List.mem x p in
+        insert (List.filter keep (List.combine flds row)) rel
+      in
+      StrListSet.fold accum r.rows (create p)
 
 let lift_set_op op r1 r2 =
   if not (StrSet.equal r1.flds r2.flds) then
-    raise (Type_error("union"));
+    raise (Unequal_domains(StrSet.elements r1.flds, StrSet.elements r2.flds));
   {r1 with rows = op r1.rows r2.rows}
 
 let union = lift_set_op StrListSet.union

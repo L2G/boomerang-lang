@@ -44,6 +44,18 @@ let rel_join rel1 rel2 =
   in
   R.fold addall1 rel2 r
 
+(* Making lenses and trapping errors *)
+
+let mk_lens opname get put =
+  let trap_dom_errors f x =
+    try f x with
+    (* FIXME: return useful messages! *)
+    | R.Unequal_domains(d1, d2) -> Lens.error [`String opname]
+    | R.Domain_excludes(d, a) -> Lens.error [`String opname]
+    | R.Domain_includes(d, a) -> Lens.error [`String opname]
+  in
+  Lens.native (trap_dom_errors get) (trap_dom_errors put)
+
 (* Rename *)
 
 let rename m n =
@@ -52,7 +64,7 @@ let rename m n =
   and putfun a co =
     R.rename n m a
   in
-  Lens.native getfun putfun
+  mk_lens "<relational rename>" getfun putfun
 
 (* Union *)
 
@@ -74,7 +86,7 @@ let generic_union f =
     | None -> let empty = R.create (R.fields a) in rev_union (empty, empty)
     | Some(c) -> rev_union c
   in
-  Lens.native getfun putfun
+  mk_lens "<relational union>" getfun putfun
 
 (* Intersection *)
 
@@ -96,7 +108,7 @@ let generic_inter f =
     | None -> let empty = R.create (R.fields a) in rev_inter (empty, empty)
     | Some(c) -> rev_inter c
   in
-  Lens.native getfun putfun
+  mk_lens "<relational intersect>" getfun putfun
 
 (* Difference *)
 
@@ -118,7 +130,7 @@ let generic_diff f =
     | None -> let empty = R.create (R.fields a) in rev_diff (empty, empty)
     | Some(c) -> rev_diff c
   in
-  Lens.native getfun putfun
+  mk_lens "<relational difference>" getfun putfun
 
 (* Selection *)
 
@@ -133,7 +145,7 @@ let generic_select p =
     let removed = a' --~ a in
     (c --~ removed) ||~ added
   in
-  Lens.native getfun putfun
+  mk_lens "<relational select>" getfun putfun
 
 (* Projection *)
 
@@ -157,7 +169,7 @@ let project p q d =
       let additions = rel_join newkeys d in
       rel_join a (comp ||~ additions)
   in
-  Lens.native getfun putfun
+  mk_lens "<relational project>" getfun putfun
 
 (* Join *)
 
@@ -182,5 +194,5 @@ let generic_join f =
     | None -> let empty = R.create (R.fields a) in rev_join (empty, empty)
     | Some(c) -> rev_join c
   in
-  Lens.native getfun putfun
+  mk_lens "<relational join>" getfun putfun
 

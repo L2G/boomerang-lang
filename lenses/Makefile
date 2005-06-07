@@ -11,6 +11,9 @@ include $(TOP)/Top.Makefile
 clean::
 	rm -f $(GENERATEDFCLFILES)
 
+test::
+	$(HARMONY) check -module Relational -test-all
+
 all: $(GENERATEDFCLFILES)
 
 test::

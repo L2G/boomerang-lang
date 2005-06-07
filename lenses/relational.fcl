@@ -1,6 +1,40 @@
 module Relational =
 
+let norm (r : view) : view = Prelude.map Native.listsort / r
+
+let rcd1 = { first = "Aaron", last = "Bohannon", email = "aaron@cis" }
+let rcd1' = { first = "Aaron", lastname = "Bohannon", email = "aaron@cis" }
+let rcd2 = { first = "Nate", last = "Foster", email = "nate@cis" }
+let rcd2' = { first = "Nate", lastname = "Foster", email = "nate@cis" }
+let rcd3 = { first = "Jeff", last = "Vaughan", email = "jeff@cis" }
+let addrbook = {
+  tbl1 = [ `rcd1, `rcd2 ],
+  tbl2 = [ `rcd1, `rcd2, `rcd3 ]
+}
+let addrbook' = {
+  tbl1 = [ `rcd1', `rcd2' ],
+  tbl2 = [ `rcd1, `rcd2, `rcd3 ]
+}
+
+(*
+let db = {
+  birthdays = [
+    { name = Alice, month = June, day = 12 },
+    { name = Bob, month = December, day = 13 },
+    { name = Carol, month = October, day = 31 }
+  ]
+}
+*)
+
 let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
+test
+  norm (rename "last" "lastname" "tbl1" "tbl1" / addrbook)
+=
+  norm addrbook'
+test
+  norm (rename "lastname" "last" "tbl1" "tbl1" / addrbook)
+=
+  error
 
 let union : (name -> name -> name -> lens) = Native.Relational.union
 let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
