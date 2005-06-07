@@ -1,10 +1,12 @@
-HARMONY_DIR = ../../src
-VIEWERS_DIR = $(HARMONY_DIR)/lib/viewers
-LIB_DIR = $(HARMONY_DIR)/lib/ubase
-LIB_DIRS = -I $(HARMONY_DIR) -I $(VIEWERS_DIR) -I $(LIB_DIR)
-CMX_FILES = error.cmx safelist.cmx uprintf.cmx util.cmx uarg.cmx \
+####################################################################
+# The Harmony Project                                              #
+# harmony@lists.seas.upenn.edu                                     #
+####################################################################
+
+LIB_DIRS = -I $(SRCDIR) -I $(SRCDIR)/ubase
+CMX_FILES = info.cmx error.cmx safelist.cmx uprintf.cmx util.cmx uarg.cmx \
 	   prefs.cmx trace.cmx misc.cmx mapplus.cmx \
-           info.cmx name.cmx surveyor.cmx v.cmx metal.cmx metay.cmx meta.cmx
+           name.cmx surveyor.cmx v.cmx syntax.cmx metal.cmx metay.cmx
 
 FAVDIR = ./IE6BMSample
 MOVEDDIR = ./IE6BMNew

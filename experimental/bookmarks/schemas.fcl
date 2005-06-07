@@ -8,13 +8,13 @@ type V = { !={} }
 type Link = { "name" = `V, "url" = `V }
 
 type Folder  = { "name" = `V, "contents" = `Contents }     
-and Contents  = List ({ "folder" = `Folder} | {"link" =  `Link})
+and Contents  = List.T ({ "folder" = `Folder} | {"link" =  `Link})
 
 type Abstract = Contents
 
 (* A flattened abstract bookmark schema for synchronization with easy alignment *)
-type Item = { "folders" = { * = `(List Item) }, "links" = { * = `V } }
-and Twig = List { "folders" = { * = `(List Twig) }, "links" = { * = `V } }
+type Item = { "folders" = { * = `(List.T Item) }, "links" = { * = `V } }
+and Twig = List.T { "folders" = { * = `(List.T Twig) }, "links" = { * = `V } }
 
 type BushAbstract = Item
       

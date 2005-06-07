@@ -1,13 +1,20 @@
-all: buildandtest
+####################################################################
+# The Harmony Project                                              #
+# harmony@lists.seas.upenn.edu                                     #
+####################################################################
 
-include ../Common.mk
+TOP = ../..
+include $(TOP)/Top.Makefile
 
 include Mozilla.mk
 include IExplorer6.mk
 
-test: testsafari testmozilla testie
+test:: testsafari testmozilla testie
 
 all: test sync
+
+clean::
+	$(MAKE) cleanIE
 
 testmozilla: testmozput
 

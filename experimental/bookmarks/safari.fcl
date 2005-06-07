@@ -10,11 +10,11 @@ type URIDict = { "BLANK" = `Value, "title" = `Value, *\"BLANK","title" = `Any }
 
 type Link = { "URIDictionary" = `URIDict, "URLString" = `Value, *\"URIDictionary","URLString" = `Any }
 
-type Folder = { "Children" = `(List Item), "Title" = `Value, *\"Children","Title" = `Any }
+type Folder = { "Children" = `(List.T Item), "Title" = `Value, *\"Children","Title" = `Any }
             | { "Title" = `Value, *\"Children","Title" = `Any }
 and Item = { "folder" = `Folder } | { "link" = `Link } | { "proxy" = `Any }
   
-type SafAbstract = List Item
+type SafAbstract = List.T Item
 
 (* lenses *)
 

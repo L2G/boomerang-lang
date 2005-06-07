@@ -233,10 +233,10 @@ let read_bookmark file =
     
 let dump_to_meta t f =
   let outc = open_out f in
-  (output_string outc (Meta.writer t); close_out outc)
+  (output_string outc (Surveyor.get_writer "meta" t); close_out outc)
     
 let read_from_meta f =
-  Meta.reader (contents f)
+  Surveyor.get_reader "meta" (contents f)
 
 let usage = "ie6util get <directory> <dest>\nie6util put <src> <directory>"
 
