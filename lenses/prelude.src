@@ -1,5 +1,5 @@
 #{#}
-#@\section{Prelude Lenses}
+#@\section{The Standard Prelude}
 module Prelude = 
 
 (* SCHEMAS *)
