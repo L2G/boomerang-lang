@@ -36,7 +36,7 @@ $(HARMONYBIN):
 ####################################################################
 # Generating .fcl and .tex files from .src
 
-SRCFILES = prelude.src
+SRCFILES = $(shell (cd $(LENSESDIR); ls *.src))
 GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 
 %.fcl : %.src $(SRC2F)

@@ -104,6 +104,7 @@ let file_with_star_headers = split; star_headers
 (******************************************************************************)
 (* Sync tests *)
 
+(* Successful propagation of non-conflicting changes *)
 sync with file_with_star_headers at NestedListOfValues
   { O = "* HEADER
         |** SUBHEADER
@@ -129,26 +130,25 @@ sync with file_with_star_headers at NestedListOfValues
         |** ANOTHER NEW SUBHEADER
         |more text"}
 
+(* A header conflict *)
 sync with file_with_star_headers at NestedListOfValues
   { O = "* HEADER
         |** SUBHEADER
-        |text
-        |** ANOTHER SUBHEADER
-        |more text",
+        |text",
     A = "* HEADER
         |** NEW SUBHEADER
-        |text
-        |** ANOTHER SUBHEADER
-        |more text",
+        |text",
     B = "* HEADER
-        |** SUBHEADER
-        |text
-        |** ANOTHER NEW SUBHEADER
-        |more text"}
+        |** DIFFERENT NEW SUBHEADER
+        |text"}
   =
-       {"* HEADER
+  { O = "* HEADER
+        |** SUBHEADER
+        |text",
+    A = "* HEADER
         |** NEW SUBHEADER
-        |text
-        |** ANOTHER NEW SUBHEADER
-        |more text"}
-
+        |text",
+    B = "* HEADER
+        |** DIFFERENT NEW SUBHEADER
+        |text"}
+       
