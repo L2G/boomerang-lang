@@ -47,12 +47,32 @@ let rel_join rel1 rel2 =
 (* Making lenses and trapping errors *)
 
 let mk_lens opname get put =
+  let dom ls =
+    `View(V.from_list (List.map (fun x -> (x, V.empty)) ls))
+  in
   let trap_dom_errors f x =
     try f x with
-    (* FIXME: return useful messages! *)
-    | R.Unequal_domains(d1, d2) -> Lens.error [`String opname]
-    | R.Domain_excludes(d, a) -> Lens.error [`String opname]
-    | R.Domain_includes(d, a) -> Lens.error [`String opname]
+    | R.Unequal_domains(d1, d2) ->
+        Lens.error
+          [ `String(opname^":")
+          ; `Space; dom d1
+          ; `Space; `String("is unqual to")
+          ; `Space; dom d2
+          ]
+    | R.Domain_excludes(d, a) ->
+        Lens.error
+          [ `String(opname^":")
+          ; `Space; dom d
+          ; `Space; `String("does not include")
+          ; `Space; `String(a)
+          ]
+    | R.Domain_includes(d, a) ->
+        Lens.error
+          [ `String(opname^":")
+          ; `Space; dom d
+          ; `Space; `String("already contains")
+          ; `Space; `String(a)
+          ]
   in
   Lens.native (trap_dom_errors get) (trap_dom_errors put)
 
