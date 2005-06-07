@@ -1055,62 +1055,65 @@ let rec compile_decl cev m di =
 	end;
       (cev, [])
   | DTestSync(i,lo,la,lb,typ,orig,result) ->
-      let lo = compile_exp_lens cev lo
-      and la = compile_exp_lens cev la
-      and lb = compile_exp_lens cev lb
-      and typ = match Registry.value_of_rv (compile_typeexp cev (Syntax.TT typ)) with
-          Value.T t -> t
-        | _ -> assert false 
-      and orig = compile_exp_view cev orig
-      and result = compile_exp_view cev result in
-      let co,ca,cb =
-        try
-          (V.get_required orig "O", V.get_required orig "A", V.get_required orig "B")
-        with
-            Not_found -> 
-	      test_error i 
-		(fun () -> 
-		   sprintf "(sync): the initial view should have children 'O', 'A', and 'B'\n%s"		     
-		     (V.format_msg_as_string [`View orig]))
-      in
-      let ao,aa,ab =
-        try
-          (Lens.get lo co, Lens.get la ca, Lens.get lb cb)
-        with
-            Error.Native_error m | Error.Compile_error (_,_,m) | Error.Fatal_error m ->
-	      test_error i 
-		(fun () -> 
-		   sprintf "(sync): error when applying the lenses in the get direction\n%s"
-		     m)
-      in
-      let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) in
-      let (ao',aa',ab') = match (ao',aa',ab') with Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') | _ -> assert false in
-      let co',ca',cb' =
-        try
-          (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb))
-        with
-            Error.Native_error m ->
-		    test_error i 
-		      (fun () -> 
-			 sprintf "(sync): error when applying the lenses in the put direction\n%s"
-			   m)
-      in
-      let reso,resa,resb =
-        if Name.Set.equal (V.dom result) (Name.Set.add "O" (Name.Set.add "A" (Name.Set.add "B" Name.Set.empty))) then
-          (V.get_required result "O", V.get_required result "A", V.get_required result "B")
-        else
-          result,result,result
-      in
-      let report_error exp res msg =
-        test_error i (fun () -> 
-			sprintf "(sync): expected %s %s, found %s"
-                          msg
-			  (V.string_of_t exp)
-			  (V.string_of_t res))
-      in
-	if not (V.equal reso co') then report_error reso co' "archive";
-      if not (V.equal resa ca') then report_error resa ca' "replica A";
-      if not (V.equal resb cb') then report_error resb cb' "replica B";
+      if check_test m then
+        begin
+          let lo = compile_exp_lens cev lo
+          and la = compile_exp_lens cev la
+          and lb = compile_exp_lens cev lb
+          and typ = match Registry.value_of_rv (compile_typeexp cev (Syntax.TT typ)) with
+              Value.T t -> t
+            | _ -> assert false 
+          and orig = compile_exp_view cev orig
+          and result = compile_exp_view cev result in
+          let co,ca,cb =
+            try
+              (V.get_required orig "O", V.get_required orig "A", V.get_required orig "B")
+            with
+                Not_found -> 
+    	      test_error i 
+    		(fun () -> 
+    		   sprintf "(sync): the initial view should have children 'O', 'A', and 'B'\n%s"		     
+    		     (V.format_msg_as_string [`View orig]))
+          in
+          let ao,aa,ab =
+            try
+              (Lens.get lo co, Lens.get la ca, Lens.get lb cb)
+            with
+                Error.Native_error m | Error.Compile_error (_,_,m) | Error.Fatal_error m ->
+    	      test_error i 
+    		(fun () -> 
+    		   sprintf "(sync): error when applying the lenses in the get direction\n%s"
+    		     m)
+          in
+          let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) in
+          let (ao',aa',ab') = match (ao',aa',ab') with Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') | _ -> assert false in
+          let co',ca',cb' =
+            try
+              (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb))
+            with
+                Error.Native_error m ->
+    		    test_error i 
+    		      (fun () -> 
+    			 sprintf "(sync): error when applying the lenses in the put direction\n%s"
+    			   m)
+          in
+          let reso,resa,resb =
+            if Name.Set.equal (V.dom result) (Name.Set.add "O" (Name.Set.add "A" (Name.Set.add "B" Name.Set.empty))) then
+              (V.get_required result "O", V.get_required result "A", V.get_required result "B")
+            else
+              result,result,result
+          in
+          let report_error exp res msg =
+            test_error i (fun () -> 
+    			sprintf "(sync): expected %s %s, found %s"
+                              msg
+    			  (V.string_of_t exp)
+    			  (V.string_of_t res))
+          in
+    	if not (V.equal reso co') then report_error reso co' "archive";
+        if not (V.equal resa ca') then report_error resa ca' "replica A";
+        if not (V.equal resb cb') then report_error resb cb' "replica B"
+      end;
       (cev, [])
 	  
 and compile_module_aux cev m ds = Safelist.fold_left
