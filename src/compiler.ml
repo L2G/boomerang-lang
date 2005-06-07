@@ -163,26 +163,26 @@ end
 (* convert a list of parameters ps with sorts s1,..sn and a sort s 
  * to arrow sort s1 -> ... -> sn -> s *)
 let sort_of_param_list i ps s = 
-  Safelist.fold_right (fun p ts -> SArrow(i,sort_of_param p,ts))  ps s
+  Safelist.fold_right (fun p ts -> SArrow(sort_of_param p,ts))  ps s
 
-let oper_of_xs xs i = Safelist.fold_right
-    (fun _ s -> STOper(i,SType(i), s)) xs (SType(i))
+let oper_of_xs xs = Safelist.fold_right
+    (fun _ s -> STOper(SType, s)) xs SType
 
 (* check that s matches expected sort es. *) 
 let rec match_sort es s = 
   match (es,s) with
-      (SName _,SName _) -> true
-    | (SLens _,SLens _) -> true
-    | (SType _,SType _) -> true
-    | (SView _,SView _) -> true
-    | (SArrow(_,es1,es2),SArrow(i,s1,s2)) ->
+      (SName,SName) -> true
+    | (SLens,SLens) -> true
+    | (SType,SType) -> true
+    | (SView,SView) -> true
+    | (SArrow(es1,es2),SArrow(s1,s2)) ->
 	let b1 = match_sort es1 s1 in
   	let b2 = match_sort es2 s2 in
- 	(b1 & b2)
-    | (STOper(_,es1,es2),STOper(i,s1,s2)) ->
+ 	  (b1 & b2)
+    | (STOper(es1,es2),STOper(s1,s2)) ->
 	let b1 = match_sort es1 s1 in
   	let b2 = match_sort es2 s2 in
- 	(b1 & b2)
+ 	  (b1 & b2)
     | _ -> false
 
 let expect_sort msg sort check_term string_of_term term coercions =
@@ -203,7 +203,7 @@ let rec expect_sort_exp msg sev sort e =
     (fun es s e msg ->
        let i = info_of_exp e in
        match es,s with
-         | SType _, SView _ -> EType(i,TT(TSingleton(i,e)))
+         | SType, SView -> EType(i,TT(TSingleton(i,e)))
          | _,_ -> sort_error i msg)
 
 and expect_sort_ptypeexp msg sev sort pt = 
@@ -211,7 +211,7 @@ and expect_sort_ptypeexp msg sev sort pt =
     (fun es s pt msg ->
        let i = info_of_ptypeexp pt in
        match es,s with
-         | SType _, SView _ ->
+         | SType, SView ->
              begin
                match pt with
                  | TVar(i',x) -> TSingleton(i,EVar(i',x))
@@ -260,7 +260,7 @@ and check_exp sev e0 =
 		return_sort, 
 		expect_sort_exp "function body" body_sev return_sort body
 	  in
-	  let fun_sort = SArrow(i,param_sort, body_sort) in
+	  let fun_sort = SArrow(param_sort, body_sort) in
 	  let new_e0 = EFun(i,[p], Some body_sort, new_body) in
 	    fun_sort, new_e0
       | EFun(i,p1::p2::ps,return_sort_opt,body) ->
@@ -269,12 +269,12 @@ and check_exp sev e0 =
 	    (* FIXME: do this better... it's going to re-flatten f many times *)
 	    check_exp sev (EFun(i,[p1],None,new_body))	    
       | EMap(i,ms) ->	
-	  let map_sort = SArrow(i, SName(i), SLens(i)) in
+	  let map_sort = SArrow(SName, SLens) in 
 	  (* check that each element of ms is a name * lens pair *)
 	  let new_ms = Safelist.map
 	    (fun (i,n,l) -> 
-	       let new_n = expect_sort_exp "map name" sev (SName(i)) n in
-	       let new_l = expect_sort_exp "map lens" (SCEnv.clear_rec_vars sev) (SLens(i)) l in
+	       let new_n = expect_sort_exp "map name" sev SName n in
+	       let new_l = expect_sort_exp "map lens" (SCEnv.clear_rec_vars sev) SLens l in
 		 (i, new_n, new_l))
 	    ms
 	  in 
@@ -285,7 +285,7 @@ and check_exp sev e0 =
 	  begin
 	    let e1_sort,new_e1 = check_exp sev e1 in
 	      match e1_sort with
-		  SArrow(_,param_sort,return_sort) ->
+		  SArrow(param_sort,return_sort) ->
 		    let new_e2 = 
 		      expect_sort_exp "right-hand side of application" sev param_sort e2 
 		    in
@@ -303,25 +303,25 @@ and check_exp sev e0 =
 	  let bsev1 = SCEnv.set_rec_vars bsev old_rs in
 	  let e_sort, new_e = check_exp bsev1 e in
 	  let new_e0 = ELet(i, new_bs, new_e) in
-	    e_sort, new_e0
+	    (e_sort, new_e0)
 	      
-      | EName(i,x) -> (SName(i)), e0
+      | EName(i,x) -> (SName, e0)
 	    
       | EType(i,t) ->
-	  let new_t = expect_sort_typeexp "type expression" sev (SType i) t in
+	  let new_t = expect_sort_typeexp "type expression" sev SType t in 
 	  let new_e0 = EType(i, new_t) in
-	    (SType i), new_e0
+	    (SType, new_e0)
 	    
       | EView(i,ks) ->
 	  let new_ks = Safelist.map
 	    (fun (i,ne,ve) -> 
-	       let new_ne = expect_sort_exp "view expression" sev (SName(i)) ne in
+	       let new_ne = expect_sort_exp "view expression" sev SName ne in 
 	       (* ve can either be a view, or a name, which is shorthand for n={} *)
 	       let ve_sort, new_ve0 = check_exp sev ve in 
 	       let ve_i = info_of_exp new_ve0 in
 	       let new_ve = match ve_sort with		   
-		   SName(_) -> EView(ve_i, [(ve_i, new_ve0, emptyView ve_i)])
-		 | SView(_) -> new_ve0
+		   SName -> EView(ve_i, [(ve_i, new_ve0, emptyView ve_i)])
+		 | SView -> new_ve0
 		 | s -> sort_error ve_i 
 		     (fun () -> 
 			sprintf "expected name or view but found %s"
@@ -331,22 +331,22 @@ and check_exp sev e0 =
 	    ks
 	  in		      
 	  let new_e0 = EView(i, new_ks) in
-	    (SView(i)), new_e0
+	    (SView, new_e0)
 	      
       | EConsView(i,e1,e2) ->
 	  let e1_sort, new_e10 = check_exp sev e1 in 
 	  let e1_i = info_of_exp new_e10 in
 	  let new_e1 = match e1_sort with		   
-	      SName(_) -> EView(e1_i, [(e1_i, new_e10, emptyView e1_i)])
-	    | SView(_) -> new_e10
+	      SName -> EView(e1_i, [(e1_i, new_e10, emptyView e1_i)])
+	    | SView -> new_e10
 	    | s -> sort_error e1_i 
 		(fun () -> 
 		   sprintf "expected name or view but found %s"
 		     (string_of_sort s))
 	  in
-	  let new_e2 = expect_sort_exp "cons list view expression" sev (SView(i)) e2 in
+	  let new_e2 = expect_sort_exp "cons list view expression" sev SView e2 in
 	  let new_e0 = EConsView(i, new_e1, new_e2) in
-	    (SView(i)), new_e0
+	    (SView, new_e0)
 	      
 (* TYPE EXPRESSIONS *)
 and check_typeexp sev t0 = 
@@ -362,8 +362,8 @@ and check_typeexp sev t0 =
 	    pt_sort, new_t0
 	  
 and check_ptypeexp sev pt0 = match pt0 with
-    TEmpty(i) -> (SType (i), pt0)
-  | TAny(i) -> (SType(i), pt0)
+    TEmpty(i) -> (SType, pt0)
+  | TAny(i) -> (SType, pt0)
   | TVar(i,q) -> 
       begin
 	(* look up in the environment; check that recursive uses OK *)
@@ -384,7 +384,7 @@ and check_ptypeexp sev pt0 = match pt0 with
       begin
 	let pt1_sort, new_pt1 = check_ptypeexp sev pt1 in
 	  match pt1_sort with
-	      STOper(_,param_sort,return_sort) ->
+	      STOper(param_sort,return_sort) ->
 		let new_pt2 = 
 		  expect_sort_ptypeexp 
 		    "right hand side of type application" 
@@ -405,71 +405,70 @@ and check_ptypeexp sev pt0 = match pt0 with
 	    [] -> run_error i (fun () -> "zero-argument type function")
 	  | [x] ->
 	      let i = info_of_id x in
-	      let pt_sev = SCEnv.clear_rec_vars (SCEnv.update sev (qid_of_id x) (SType(i))) in	
+	      let pt_sev = SCEnv.clear_rec_vars (SCEnv.update sev (qid_of_id x) SType) in	
 	      let new_pt = 
 		expect_sort_ptypeexp "body of type operator" pt_sev pt_sort pt
 	      in
-	      let tfun_sort = STOper(i,SType(i),pt_sort) in
+	      let tfun_sort = STOper(SType,pt_sort) in
 	      let new_pt0 = TFun(i,xs,pt_sort,new_pt) in
 		tfun_sort, new_pt0
 	  | (x::xrest) ->
 	      let pt_body = TFun(i, xrest, pt_sort, pt) in
-                check_ptypeexp sev (TFun(i,[x],STOper(i, SType(i), pt_sort),pt_body))
+                check_ptypeexp sev (TFun(i,[x],STOper(SType, pt_sort),pt_body))
       end	  
         
   | TName(i,ne,pt) ->      
-      let new_ne = expect_sort_exp "atomic name type" 
-	sev (SName(i)) ne 
-      in
-      let new_pt = expect_sort_ptypeexp "atomic named type" 
-	(SCEnv.clear_rec_vars sev) (SType(i)) pt 
-      in
+      let new_ne = expect_sort_exp "name type" sev SName ne in
+      let new_pt = 
+	expect_sort_ptypeexp "name type" (SCEnv.clear_rec_vars sev) SType pt in
       let new_pt0 = TName(i, new_ne, new_pt) in
-	SType(i), new_pt0
+	(SType, new_pt0)
 	  
   | TBang(i,excls,pt) ->
       let new_excls = Safelist.map 
-	(fun exi -> expect_sort_exp "exception list" sev (SName(i)) exi) excls
+	(fun exi -> expect_sort_exp "exception list" sev SName exi) excls
       in
-      let new_pt = expect_sort_ptypeexp "atomic !-type" 
-	(SCEnv.clear_rec_vars sev) (SType(i)) pt 
+      let new_pt = 
+	expect_sort_ptypeexp "!-type" (SCEnv.clear_rec_vars sev) SType pt 
       in
       let new_pt0 = TBang(i,new_excls, new_pt) in
-	SType(i), new_pt0
+	(SType, new_pt0)
   	  
   | TStar(i,excls,pt) ->
-      let new_excls = Safelist.map 
-	(fun exi -> expect_sort_exp "exception list" sev (SName(i)) exi) excls
+      let new_excls = 
+	Safelist.map 
+	  (fun exi -> expect_sort_exp "exception list" sev SName exi) 
+	  excls
       in
-      let new_pt = expect_sort_ptypeexp "atomic !-type" 
-	(SCEnv.clear_rec_vars sev) (SType(i)) pt
-      in
+      let new_pt = 
+	expect_sort_ptypeexp "!-type" (SCEnv.clear_rec_vars sev) SType pt in
       let new_pt0 = TStar(i, new_excls, new_pt) in
-	SType(i), new_pt0
+	(SType, new_pt0)
 	  
   | TCat(i,pts) ->
       let new_pts = Safelist.map
 	(fun pti -> 
 	   let i = info_of_ptypeexp pti in
-	     expect_sort_ptypeexp "concatenated type" sev (SType(i)) pti)
+	     expect_sort_ptypeexp "concatenated type" sev SType pti)
 	pts
       in
       let new_pt0 = TCat(i, new_pts) in
-	SType(i), new_pt0
+	(SType, new_pt0)
 	  
   | TUnion(i,pts) ->
-      let new_pts = Safelist.map
-	(fun pti -> 
-	   let i = info_of_ptypeexp pti in
-	     expect_sort_ptypeexp "union type" sev (SType(i)) pti)
-	pts
+      let new_pts = 
+	Safelist.map
+	  (fun pti -> 
+	     let i = info_of_ptypeexp pti in
+	       expect_sort_ptypeexp "union type" sev SType pti)
+	  pts
       in
       let new_pt0 = TUnion(i, new_pts) in
-	SType(i), new_pt0
+	(SType, new_pt0)
 
   | TSingleton(i,e) ->
-      let new_e = expect_sort_exp "singleton type" sev (SView i) e in
-        (SType i), (TSingleton(i,new_e))
+      let new_e = expect_sort_exp "singleton type" sev SView e in
+        (SType, (TSingleton(i,new_e)))
 	    	
 and check_bindings sev bs = 
   (* let _ = debug (sprintf "checking bindings %s\n" (string_of_bindings bs)) in *)
@@ -520,7 +519,7 @@ and check_typebindings sev tbs =
     (fun (tbsev, tb_sorts_rev) (x,xs,t) ->
        let i = info_of_id x in (* FIXME: merge info from x and xs *)
        let x_qid = qid_of_id x in
-       let tb_sort = oper_of_xs xs i in
+       let tb_sort = oper_of_xs xs in
        let new_sev = SCEnv.add_rec_var (SCEnv.update tbsev x_qid tb_sort) x_qid in
 	 (new_sev, tb_sort::tb_sorts_rev))
     (sev,[])
@@ -539,8 +538,8 @@ and check_typebindings sev tbs =
 	| (t_sort,(x,xs,t)) -> 
 	    let i = info_of_id x in
 	    let new_t = match t with 
-		TT pt -> TT (TFun(i,xs,SType(i),pt))
-	      | NT pt -> TT (TFun(i,xs,SType(i),pt))
+		TT pt -> TT (TFun(i,xs,SType,pt))
+	      | NT pt -> TT (TFun(i,xs,SType,pt))
 	    in
 	      (* rewrite bindings with parameters to plain ol' lambdas *)
 	      check_annotated_typebinding sev (t_sort, (x,[],new_t))
@@ -591,12 +590,12 @@ let rec check_decl sev m di =
 	if not (check_test m) then (sev, [], di)
 	else
 	  begin
-	    let new_l = expect_sort_exp "test lens get" sev (SLens(i)) l in
-	    let new_c = expect_sort_exp "test lens get concrete view" sev (SView(i)) c in
+	    let new_l = expect_sort_exp "test lens get" sev SLens l in
+	    let new_c = expect_sort_exp "test lens get concrete view" sev SView c in
 	    let new_reso = 
 	      match reso with 
 		  None     -> None 
-		| Some res -> Some (expect_sort_exp "test lens get result" sev (SView(i)) res)
+		| Some res -> Some (expect_sort_exp "test lens get result" sev SView res)
 	    in
 	    let new_di = DTestGet(i,new_l, new_c, new_reso) in
 	      (sev, [], new_di)
@@ -605,17 +604,17 @@ let rec check_decl sev m di =
 	if not (check_test m) then (sev, [], di)
 	else
 	  begin
-	    let new_l = expect_sort_exp "test lens put" sev (SLens(i)) l in
-	    let new_a = expect_sort_exp "test lens put abstract view" sev (SView(i)) a in
+	    let new_l = expect_sort_exp "test lens put" sev SLens l in
+	    let new_a = expect_sort_exp "test lens put abstract view" sev SView a in
 	    let new_co = 
 	      match co with 
 		  None     -> None 
-		| Some c -> Some (expect_sort_exp "test lens put concrete view" sev (SView(i)) c)
+		| Some c -> Some (expect_sort_exp "test lens put concrete view" sev SView c)
 	    in
 	    let new_reso = 
 	      match reso with 
 		  None     -> None 
-		| Some res -> Some (expect_sort_exp "test lens get result" sev (SView(i)) res)
+		| Some res -> Some (expect_sort_exp "test lens get result" sev SView res)
 	    in
 	    let new_di = DTestPut(i,new_l, (new_a, new_co), new_reso) in
 	      (sev, [], new_di)
@@ -624,12 +623,12 @@ let rec check_decl sev m di =
 	if not (check_test m) then (sev, [], di)
 	else
 	  begin
-	    let new_lo = expect_sort_exp "test archive lens sync" sev (SLens(i)) lo in
-	    let new_la = expect_sort_exp "test replica A lens sync" sev (SLens(i)) la in
-	    let new_lb = expect_sort_exp "test replica B lens sync" sev (SLens(i)) lb in
-	    let new_ty = expect_sort_ptypeexp "test sync type" sev (SType(i)) ty in
-	    let new_orig = expect_sort_exp "test sync orig view" sev (SView(i)) orig in
-	    let new_result = expect_sort_exp "test sync result view" sev (SView(i)) result in
+	    let new_lo = expect_sort_exp "test archive lens sync" sev SLens lo in
+	    let new_la = expect_sort_exp "test replica A lens sync" sev SLens la in
+	    let new_lb = expect_sort_exp "test replica B lens sync" sev SLens lb in
+	    let new_ty = expect_sort_ptypeexp "test sync type" sev SType ty in
+	    let new_orig = expect_sort_exp "test sync orig view" sev SView orig in
+	    let new_result = expect_sort_exp "test sync result view" sev SView result in
 	    let new_di = DTestSync(i,new_lo,new_la,new_lb,new_ty,new_orig,new_result) in
 	      (sev, [], new_di)
 	  end
@@ -680,7 +679,7 @@ let rec compile_exp cev e0 =
 	    let body_cev = CEnv.update cev param_qid (make_rv param_sort v) in
 	      value_of_rv (compile_exp body_cev e)
 	  in
-	  let fun_sort = SArrow(i,param_sort, ret_sort) in
+	  let fun_sort = SArrow(param_sort, ret_sort) in
 	  let fun_value = Value.F(f_impl) in
 	    make_rv fun_sort fun_value
       | EFun(i,_,Some _, _) -> run_error i (fun () -> "unflattened function")
@@ -699,14 +698,14 @@ let rec compile_exp cev e0 =
 	    (fun _ -> value_of_rv (compile_exp cev id_exp))
 	    ms
 	  in	    
-	  let map_sort = SArrow(i, SName(i), SLens(i)) in
+	  let map_sort = SArrow(SName, SLens) in
 	  let map_value = Value.F(map_impl) in
 	    make_rv map_sort map_value	    
     | EApp(i,e1,e2) ->
 	begin
 	  let e1_rv = compile_exp cev e1 in
 	    match sort_of_rv e1_rv, value_of_rv e1_rv with
-	      | SArrow(_,_,return_sort), Value.F f ->
+	      | SArrow(_,return_sort), Value.F f ->
 		  let e2_rv = compile_exp cev e2 in
 		    make_rv return_sort (f (value_of_rv e2_rv))
 	      | _ -> run_error i 
@@ -716,7 +715,7 @@ let rec compile_exp cev e0 =
     | ELet(i,bs,e) ->
 	let bcev,_ = compile_bindings cev bs in
 	  compile_exp bcev e	    
-    | EName(i,x) -> make_rv (SName(i)) (Value.N (name_of_id x))	  
+    | EName(i,x) -> make_rv SName (Value.N (name_of_id x))	  
     | EType(i,t) -> compile_typeexp cev t	    
     | EView(i,ks) ->
 	let rec compile_viewbinds cev ks = match ks with
@@ -730,14 +729,14 @@ let rec compile_exp cev e0 =
 		  | Some _ -> run_error i (fun () -> sprintf "name %s is repeated in view" n)
 	in
 	let view_value = (Value.V (compile_viewbinds cev ks)) in
-	  make_rv (SView(i)) view_value
+	  make_rv SView view_value
 	    
     | EConsView(i,e1,e2) ->
 	let v1 = compile_exp_view cev e1 in
 	let v2 = compile_exp_view cev e2 in
 	let v = V.cons v1 v2 in
 	let cons_value = Value.V (v) in
-	  make_rv (SView(i)) cons_value
+	  make_rv SView cons_value
 	    
 and compile_exp_name cev e =
   let i = info_of_exp e in
@@ -815,8 +814,8 @@ and compile_ptypeexp cev pt0 =
 	  end
       | _ -> assert false
   in match pt0 with
-      TEmpty(i) -> (SType(i), Type.Empty(i))
-    | TAny(i) -> (SType(i), Type.Any(i))
+      TEmpty(i) -> (SType, Type.Empty(i))
+    | TAny(i)   -> (SType, Type.Any(i))
     | TVar(i,q) ->
 	begin
 	  (* look up in the environment; check that recursive uses OK *)
@@ -832,7 +831,7 @@ and compile_ptypeexp cev pt0 =
     | TApp(i,pt1,pt2) ->
 	begin
 	  match compile_ptypeexp cev pt1 with
-	      STOper(_,_,rs), pt1_val ->
+	      STOper(_,rs), pt1_val ->
 		let _, pt2_val = compile_ptypeexp cev pt2 in
 		  rs, Type.App(i, pt1_val, pt2_val, ptype2thunk cev pt0)
 	    | s, _ ->
@@ -845,12 +844,12 @@ and compile_ptypeexp cev pt0 =
 	begin
 	  let x_qid = qid_of_id x in
 	  let f_impl it_arg =
-	    let x_rv = make_rv (SType(i)) (Value.T(Type.TT(Type.mk_ptype it_arg))) in
+	    let x_rv = make_rv SType (Value.T(Type.TT(Type.mk_ptype it_arg))) in
 	    let body_cev = CEnv.update cev x_qid x_rv in
 	    let _,body_val = compile_ptypeexp body_cev pt in
 	      body_val
 	  in
-	  let fun_sort = STOper(i,SType(i),f_sort) in
+	  let fun_sort = STOper(SType,f_sort) in
 	  let fun_value = Type.Fun(i,f_impl) in
 	    fun_sort, fun_value
 	end
@@ -859,34 +858,34 @@ and compile_ptypeexp cev pt0 =
     | TName(i,e,pt) ->
 	let n = compile_exp_name cev e in
 	let _, t_val = compile_ptypeexp cev pt in
-      	  SType(i), (Type.Name(i,n,Type.mk_ptype t_val))
+      	  (SType, (Type.Name(i,n,Type.mk_ptype t_val)))
 	    
     | TBang(i,excl,pt) ->
 	let excl_ns = List.map (compile_exp_name cev) excl in
 	let _, t_val = compile_ptypeexp cev pt in 
-	  SType(i), (Type.Bang(i,excl_ns,Type.mk_ptype t_val))
+	  (SType, (Type.Bang(i,excl_ns,Type.mk_ptype t_val)))
 	    
     | TStar(i,excl,pt) ->
 	let excl_ns = List.map (compile_exp_name cev) excl in
 	let _, t_val = compile_ptypeexp cev pt in 
-	  SType(i), (Type.Star(i,excl_ns,Type.mk_ptype t_val))
+	  (SType, (Type.Star(i,excl_ns,Type.mk_ptype t_val)))
     | TCat(i,pts) ->
 	let pt_vals = Safelist.map
 	  (fun pti -> let _, ti_val = compile_ptypeexp cev pti in
 	     Type.mk_ptype ti_val)
 	  pts
 	in
-	  SType(i), (Type.Cat(i,pt_vals))
+	  (SType, (Type.Cat(i,pt_vals)))
     | TUnion(i,pts) ->
 	let pt_vals = Safelist.map
 	  (fun pti -> let _, ti_val = compile_ptypeexp cev pti in
 	     Type.mk_ptype ti_val)
 	  pts
 	in
-	  SType(i), (Type.Union(i,pt_vals))
+	  (SType, (Type.Union(i,pt_vals)))
     | TSingleton(i,e) ->
         let v = compile_exp_view cev e in
-          (SType i),Type.Singleton(i,v)
+          (SType,Type.Singleton(i,v))
 	      
 and compile_bindings cev bs =
   (* let _ = debug (sprintf "compiling bindings %s\n" (string_of_bindings bs)) in *)
@@ -932,7 +931,7 @@ and compile_typebindings cev tbs =
     (fun tbcev ((x,xs,t) as ti) ->
        let i = info_of_id x in (* FIXME: merge info from x and xs *)
        let x_qid = qid_of_id x in
-       let b_sort = oper_of_xs xs i in
+       let b_sort = oper_of_xs xs in
        let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_typebinding ti)) b_sort in
        	 CEnv.update tbcev x_qid (make_rv b_sort dummy))
     cev

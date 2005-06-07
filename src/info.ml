@@ -9,9 +9,9 @@
 type pos = int * int
 type t = pos * pos
 
-(* bogus : t
+(* dummy : t
  *     a dummy location *)
-let bogus = ((0,0),(0,0))
+let dummy = ((-1,-1),(-1,-1))
 
 (* string_of_t : t
  *     pretty prints a location for easy parsing in emacs compile-mode *)

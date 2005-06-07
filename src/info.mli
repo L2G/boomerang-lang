@@ -14,8 +14,8 @@ type pos = int * int
 type t = pos * pos
 (** [t] represents a location that spans a chunk of a file *)
 
-val bogus : t
-(** [bogus] is a dummy location *)
+val dummy : t
+(** [dummy] is a dummy location *)
 
 val string_of_t : t -> string 
 (** [string_of_t] pretty prints a location for easy parsing by [compile-mode] in [emacs] *)

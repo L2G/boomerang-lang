@@ -33,12 +33,12 @@ val dot : qid -> qid -> qid
 
 (** {2 Datatypes for Focal abstract syntax } *)
 type sort = 
-    SName of Info.t
-  | SLens of Info.t
-  | SType of Info.t 
-  | SView of Info.t  
-  | SArrow of Info.t * sort * sort
-  | STOper of Info.t * sort * sort
+    SName 
+  | SLens 
+  | SType  
+  | SView   
+  | SArrow of sort * sort
+  | STOper of sort * sort
 
 type param = PDef of Info.t * id * sort
 
@@ -98,7 +98,6 @@ val info_of_qid : qid -> Info.t
 val info_of_exp : exp -> Info.t
 val info_of_ptypeexp : ptypeexp -> Info.t
 val info_of_typeexp : typeexp -> Info.t
-val info_of_sort : sort -> Info.t
 val info_of_binding : binding -> Info.t
 val info_of_typebinding : typebinding -> Info.t
 val info_of_bindings : Info.t -> binding list -> Info.t

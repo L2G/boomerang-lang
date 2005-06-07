@@ -102,8 +102,8 @@ let mk_nptype it : pt = (ref true, V.Hash.create 1, ref it)
 (* CONSTANTS *)
 (* fix to use new representation *)
 let nil_it = 
-  let empty_view_pt = mk_ptype (Cat(Info.bogus, [])) in
-    Name(Info.bogus, V.nil_tag, empty_view_pt)
+  let empty_view_pt = mk_ptype (Cat(Info.dummy, [])) in
+    Name(Info.dummy, V.nil_tag, empty_view_pt)
       
 let cons_it h t = 
   let i = Info.merge_inc (info_of_it h) (info_of_it t) in

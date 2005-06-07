@@ -24,8 +24,8 @@ let rec string_of_t = function
       
 (* dummy value generator *)
 let rec dummy ?(msg="") s = match s with 
-    Syntax.SName(_) -> N "_"
-  | Syntax.SLens(_) -> 
+    Syntax.SName -> N "_"
+  | Syntax.SLens -> 
       let error _ = 
 	flush stdout; flush stderr;
 	prerr_string (Printf.sprintf "Fatal error: dummy %s was not overwritten.\n" msg);
@@ -33,15 +33,16 @@ let rec dummy ?(msg="") s = match s with
 	assert false
       in
 	L (Lens.native error error)
-  | Syntax.SType(i) -> T (Type.TT (Type.mk_ptype (Type.Empty(i))))
-  | Syntax.SView(_) -> V (V.empty)
-  | Syntax.SArrow(_,_,rs) -> F (fun _ -> dummy ~msg:msg rs)
-  | Syntax.STOper(i,_,rs) -> T (Type.TT (dummy_ptype s))
+  | Syntax.SType -> T (Type.TT (Type.mk_ptype (Type.Empty(Info.dummy))))
+  | Syntax.SView -> V (V.empty)
+  | Syntax.SArrow(_,rs) -> F (fun _ -> dummy ~msg:msg rs)
+  | Syntax.STOper(_,rs) -> T (Type.TT (dummy_ptype s))
 
 and dummy_ptype = function
-    Syntax.STOper(i,_,rs) -> Type.mk_ptype (Type.Fun (i, fun _ -> Type.it_of_pt (dummy_ptype rs)))
-  | Syntax.SType(i)       -> Type.mk_ptype (Type.Empty(i))
-  | _                     -> assert false
+    Syntax.STOper(_,rs) -> Type.mk_ptype (Type.Fun (Info.dummy, fun _ -> Type.it_of_pt (dummy_ptype rs)))
+  | Syntax.SType        -> Type.mk_ptype (Type.Empty(Info.dummy))
+  | s                   -> 
+      raise (Error.Fatal_error(Printf.sprintf "unexpected type, %s, in Value.dummy_ptype" (Syntax.string_of_sort s)))
       
 (* MEMOIZATION *)
 type thist = t (* HACK! *)

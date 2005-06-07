@@ -84,7 +84,7 @@ test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [{b=3}] = [{b=3}
 test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [a, {b=3}] = [{a=1}, {b=3}, {a=2}, {a=3}] 
 test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}] [a,a,{b=3}] = [{a=1}, {b=3}]
 
-
+(* concat *)
 let concat2 : lens =
   let inner_concat2 : lens = 
     acond < []::Any > < {y=" "}::Any> 

@@ -180,6 +180,9 @@ val split : (Name.t -> bool) -> t -> t * t
 (** [split p v] splits the view [v] according to the predicate [p] on names.
     Returns the pair of views [(v1,v2)], such all names in [dom v1] verify [p]. *)
 
+val is_list : t -> bool
+  (** [is_list v] returns true iff [v] is a view that encodes a list. *)
+
 val concat : t -> t -> t
 (** [concat v1 v2] yields the view containing all the children of [v1] and [v2].
     @raise Illformed in case of domain collision *)

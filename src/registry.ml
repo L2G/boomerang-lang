@@ -33,7 +33,7 @@ let parse_qid s =
 let parse_sort s =
   let lexbuf = Lexing.from_string s in
     Lexer.setup "sort constant";
-    let st = Parser.sort Lexer.main lexbuf in
+    let (i,st) = Parser.sort Lexer.main lexbuf in
       Lexer.finish ();
       st
 	

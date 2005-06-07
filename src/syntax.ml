@@ -61,13 +61,13 @@ let dot (qs1,x1) (qs2,x2) = (qs1@(x1::qs2),x2)
 
 (* sorts *)
 type sort = 
-    SName of i
-  | SLens of i
-  | SType of i 
-  | SView of i  
-  | SArrow of i * sort * sort
-  | STOper of i * sort * sort
-
+    SName 
+  | SLens  
+  | SType   
+  | SView    
+  | SArrow of sort * sort
+  | STOper of sort * sort
+      
 (* parameters *)
 type param = PDef of i * id * sort
 
@@ -157,14 +157,6 @@ let info_of_typeexp = function
     TT pt -> info_of_ptypeexp pt
   | NT pt -> info_of_ptypeexp pt
 
-let info_of_sort = function
-    SName(i)      -> i 
-  | SLens(i)      -> i 
-  | SType(i)      -> i 
-  | SView(i)      -> i 
-  | SArrow(i,_,_) -> i
-  | STOper(i,_,_) -> i
-
 let info_of_binding (BDef(i,_,_,_,_)) = i
 let info_of_typebinding (x,_,t) = Info.merge_inc (info_of_id x) (info_of_typeexp t)
 let info_of_bindings (i:Info.t) (bs:binding list) : Info.t = info_of_list info_of_binding i bs
@@ -178,12 +170,12 @@ let sort_of_param = function PDef(_,_,s) -> s
 
 (* sorts *)
 let rec string_of_sort = function
-    SName(_)        -> "name"
-  | SLens(_)        -> "lens"
-  | SType(_)        -> "type"
-  | SView(_)        -> "view"
-  | SArrow(_,s1,s2) -> sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
-  | STOper(_,s1,s2) -> sprintf "(%s => %s)" (string_of_sort s1) (string_of_sort s2)
+    SName         -> "name"
+  | SLens         -> "lens"
+  | SType         -> "type"
+  | SView         -> "view"
+  | SArrow(s1,s2) -> sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
+  | STOper(s1,s2) -> sprintf "(%s => %s)" (string_of_sort s1) (string_of_sort s2)
 
 (* params *)
 let string_of_param (PDef(_,i,s)) = Misc.parens(string_of_id i ^ ":" ^ string_of_sort s)

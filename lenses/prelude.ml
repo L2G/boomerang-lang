@@ -7,6 +7,8 @@ open Registry
 open Value
 open Syntax
 
+let (@) = Safelist.append
+
 (* helper function for constructing a Focal type error *)
 let focal_type_error msg = 
   raise (Error.Fatal_error (Printf.sprintf "run-time sort error in expression %s" msg))
@@ -21,11 +23,11 @@ let _ = register_native "Native.Prelude.nil_tag" "name" nil_tag
 
 (* these need to be baked in here, because the parser uses them *)
 let cons =   
-  let i = Info.bogus in    
+  let i = Info.dummy in    
     Value.T(Type.TT(Type.mk_ptype (Type.Fun(i,fun h -> Type.Fun(i,fun t -> Type.cons_it h t)))))
 let _ = register_native "Native.Prelude.Cons" "type => type => type" cons
 let nil = 
-  let i = Info.bogus in
+  let i = Info.dummy in
     Value.T (Type.TT(Type.mk_ptype (Type.nil_it)))
 let _ = register_native "Native.Prelude.Nil" "type" nil
 
@@ -902,3 +904,45 @@ let pad_lib =
     
 let _ = register_native "Native.Prelude.pad" "name -> lens" pad_lib
   
+(* split an even list in half *)
+let even_split = 
+  let check_list v dir = 
+    if not (V.is_list v) then 
+      error [`String (Printf.sprintf "Native.Prelude.even_split (%s): " dir); `View v; `String "is not a list"]
+  in
+    {
+      get = 
+	(fun c -> 
+	   check_list c "get";
+	   let l = V.list_from_structure c in
+	     match l with 
+		 [] -> c
+	       | _ -> begin
+		   let n = Safelist.length l in
+		   let rec loop l acc i = 
+		   if i = 0 then (Safelist.rev acc, l)
+		   else match l with 
+		       h::t -> loop t (h::acc) (i-1)
+		     | [] -> 	   error [`String "Native.Prelude.even_split (get): "; `View c; `String "does not have even length"]
+		 in
+		 let (l1,l2) = loop l [] (n/2) in
+		 let vl1 = V.structure_from_list l1 in
+		 let vl2 = V.structure_from_list l2 in
+		   V.structure_from_list [vl1;vl2] 
+	       end);    
+    put = 
+      (fun a co -> 
+	 check_list a "put";
+	 match V.list_from_structure a with
+	     [] -> a
+	   | [l1;l2] -> 
+	       check_list l1 "put";
+	       check_list l2 "put";
+	       V.structure_from_list ((V.list_from_structure l1) @ (V.list_from_structure l2))
+	   | _ -> 
+	       error [`String "Native.Prelude.even_split (get): "; `View a; `String "is not a list of length two"])
+      }
+
+let even_split_lib = L (even_split)
+
+let _ = register_native "Native.Prelude.even_split" "lens" even_split_lib
