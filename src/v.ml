@@ -286,7 +286,7 @@ let format_to_string f =
 let string_of_t v = 
   format_to_string (fun () -> format v)
     
-type msg = [ `String of string | `Name of Name.t | `Break | `View of t
+type msg = [ `String of string | `Name of Name.t | `Break | `Space | `View of t
            | `View_opt of t option | `Open_box | `Open_vbox | `Close_box ]
 
 exception Error of msg list
@@ -301,13 +301,13 @@ let format_msg l =
         Format.printf "%s" (Misc.whack k); loop r
     | `Break :: r ->
         Format.printf "@,"; loop r
+    | `Space :: r ->
+        Format.printf "@ "; loop r
     | `View v :: r ->
         format v;
         loop r
     | `View_opt v :: r ->
-        Format.printf "@[<hv2>";
         format_option v;
-        Format.printf "@]@,";
         loop r
     | `Open_box :: r ->
         Format.printf "@[<hv2>";
