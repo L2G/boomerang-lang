@@ -1,3 +1,4 @@
+#{#}
 module Relational =
 
 let norm (r : view) : view = Prelude.map Native.listsort / r

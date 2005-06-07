@@ -1,0 +1,40 @@
+#{#}
+module Spinelist =
+
+(***********************************************************************)
+(* "Spine lists" *)
+
+type SpineList T = Nil | {!\`List.TL=T, `List.TL=`(SpineList T)}
+
+type KeyedList T = List {!\`List.TL=T}
+
+let spinelist : lens =
+  acond <[]> <[]>
+    id
+    (fork {`List.TL} id (hoist List.HD); wmap { `List.TL -> spinelist })
+
+test spinelist / \ [a,{b=foo},c] = {a, `List.TL={b=foo, `List.TL={c, `List.TL=[]}}}
+
+(***********************************************************************)
+(* Sync tests *)
+
+(* The "jumping element" problem for ordinary lists *)
+sync with id at (List {!=`Value})
+  { O = [{a=foo},{b=bar},{c=baz}],
+    A = [{a=FOO},{c=baz}],
+    B = [{a=foo},{b=bar},{c=URG}] }
+  = 
+  { O = [{a=FOO},{c=baz},{c=baz}],
+    A = [{a=FOO},{c=baz}],
+    B = [{a=FOO},{c=baz},{c=URG}] }
+    
+(* With spine lists, the result is happier... *)
+sync with spinelist at (SpineList Value)
+  { O = [{a=foo},{b=bar},{c=baz}],
+    A = [{a=FOO},{c=baz}],
+    B = [{a=foo},{b=bar},{c=URG}] }
+  = 
+  { O = [{a=FOO},{b=bar},{c=baz}],
+    A = [{a=FOO},{c=baz}],
+    B = [{a=FOO},{b=bar},{c=URG}] }
+    

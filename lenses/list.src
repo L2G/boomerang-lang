@@ -1,3 +1,4 @@
+#{#}
 module List =
 
 let HD : name = Native.Prelude.hd_tag
@@ -29,14 +30,14 @@ let reverse : lens =
   let old_HD : name = "old_hd" in
   let rotate : lens = 
     acond < [] | [`Any] > < [] | [`Any] >
-	id
-	(rename HD old_HD;
-	 hoist_nonunique TL tags;
-	 xfork {`old_HD, `TL} {`TL}
-	   (rename old_HD HD;
-	    plunge TL;
-	    wmap { `TL -> rotate })
-	   id) 
+        id
+        (rename HD old_HD;
+         hoist_nonunique TL tags;
+         xfork {`old_HD, `TL} {`TL}
+           (rename old_HD HD;
+            plunge TL;
+            wmap { `TL -> rotate })
+           id) 
   in
     wmap { `TL -> reverse }; 
     rotate
@@ -118,8 +119,8 @@ test concat2 \ [u,n,i,v," ",p,e,n,n] [[u],[p]] =  [[u,n,i,v],[p,e,n,n]]
 (*   and concat1: lens = *)
 (*     acond < []::Any > < {" "}::Any > *)
 (*       (fork {`HD} *)
-(* 	 (map (rename NIL " ")) *)
-(* 	 (wmap {`TL -> concat2})) *)
+(*       (map (rename NIL " ")) *)
+(*       (wmap {`TL -> concat2})) *)
 (*       (plunge "_"; wmap { "_" -> concat_aux}; hoist "_") *)
 (* *)            
 (*   and concat2: lens = *)
@@ -145,23 +146,23 @@ let groupby2 : lens =
     acond <[]> <[]>
       id
       ((* (1) save hd of the list under tmp *)
-	rename HD tmp;
-	(* (2) bring the tail of the list up to the root level *)
-	hoist_nonunique TL tags;
-	(* split on domain at the root level; two cases:
-	   (a) tail was empty --> domain is { tmp, nil }
-	   (b) tail was non-empty --> domain is { tmp, hd, tl }
-	*)
-	acond <{`tmp=`Any,`NIL={}}> <[[`Any]]>
-	  ((* case (a) yield [[tmp]] *)
-	    xfork {`NIL} {`TL} (plunge TL) id;
+        rename HD tmp;
+        (* (2) bring the tail of the list up to the root level *)
+        hoist_nonunique TL tags;
+        (* split on domain at the root level; two cases:
+           (a) tail was empty --> domain is { tmp, nil }
+           (b) tail was non-empty --> domain is { tmp, hd, tl }
+        *)
+        acond <{`tmp=`Any,`NIL={}}> <[[`Any]]>
+          ((* case (a) yield [[tmp]] *)
+            xfork {`NIL} {`TL} (plunge TL) id;
             rename tmp HD;
             plunge HD;
-	    add_empty_tail)
-	  ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
+            add_empty_tail)
+          ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
             xfork {`tmp, `HD} {`HD}
               (rename HD TL;
-	       wmap {`TL -> plunge HD; add_empty_tail };
+               wmap {`TL -> plunge HD; add_empty_tail };
                rename tmp HD;             
                plunge HD)
                (wmap { `TL -> groupby2 })))
