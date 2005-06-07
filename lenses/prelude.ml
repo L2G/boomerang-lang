@@ -84,6 +84,32 @@ let load_file_lib =
 let _ = register_native "Native.Prelude.load_file" "name -> view" load_file_lib
   
 
+let get l c = Lens.get l c
+let get_lib = F(function
+		  | L l -> F(function
+			       | V c -> V (get l c)
+			       | _ -> focal_type_error "Native.Prelude.get")
+		  | _ -> focal_type_error "Native.Prelude.get")
+let _ = register_native "Native.Prelude.get" "lens -> view -> view" get_lib
+
+let put l a c = Lens.put l a (Some c)
+let put_lib = F(function
+		  | L l -> F(function
+			       | V a -> F(function
+					    | V c -> V (put l a c)
+					    | _ -> focal_type_error "Native.Prelude.put")
+			       | _ -> focal_type_error "Native.Prelude.put")
+		  | _ -> focal_type_error "Native.Prelude.put")
+let _ = register_native "Native.Prelude.put" "lens -> view -> view -> view" put_lib
+
+let create l a = Lens.put l a None
+let create_lib = F(function
+		  | L l -> F(function
+			       | V a -> V (create l a)
+			       | _ -> focal_type_error "Native.Prelude.create")
+		  | _ -> focal_type_error "Native.Prelude.create")
+let _ = register_native "Native.Prelude.create" "lens -> view -> view" create_lib
+
 (*************)
 (* DEBUGGING *)
 (*************)

@@ -73,8 +73,7 @@ type decl =
     DLet of Info.t * binding list 
   | DType of Info.t * typebinding list 
   | DMod of Info.t * id * decl list 
-  | DTestGet of Info.t * exp * exp * exp option 
-  | DTestPut of Info.t * exp * (exp * exp option) * exp option
+  | DTest of Info.t * exp * exp option 
   | DTestSync of Info.t * exp * exp * exp * ptypeexp * exp * exp
       
 type modl = MDef of Info.t * id * qid list * decl list

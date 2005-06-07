@@ -109,8 +109,7 @@ type decl =
     DLet of i * binding list 
   | DType of i * typebinding list 
   | DMod of i * id * decl list 
-  | DTestGet of i * exp * exp * exp option 
-  | DTestPut of i * exp * (exp * exp option) * exp option
+  | DTest of i * exp * exp option 
   | DTestSync of Info.t * exp * exp * exp * ptypeexp * exp * exp
       
 (* modules *)
@@ -272,8 +271,7 @@ and string_of_decl = function
        ; string_of_id i
        ; " =\n"]
        @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
-  | DTestGet(_) -> " TESTGET"
-  | DTestPut(_) -> " TESTPUT"
+  | DTest(_) -> " TEST"
   | DTestSync(_) -> " TESTSYNC"
 
 let id_of_modl (MDef(_,m,_,_)) = m

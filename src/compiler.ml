@@ -586,37 +586,17 @@ let rec check_decl sev m di =
 	in
 	let new_di = DMod(i,n,new_ds) in
 	  (SCEnv.set_rec_vars new_sev old_rec_vars, Safelist.rev names_rev, new_di)
-    | DTestGet(i,l,c,reso) ->	
+    | DTest(i,e,reso) ->	
 	if not (check_test m) then (sev, [], di)
 	else
 	  begin
-	    let new_l = expect_sort_exp "test lens get" sev SLens l in
-	    let new_c = expect_sort_exp "test lens get concrete view" sev SView c in
+	    let new_e = expect_sort_exp "test left-hand side" sev SView e in
 	    let new_reso = 
 	      match reso with 
 		  None     -> None 
-		| Some res -> Some (expect_sort_exp "test lens get result" sev SView res)
+		| Some res -> Some (expect_sort_exp "test result" sev SView res)
 	    in
-	    let new_di = DTestGet(i,new_l, new_c, new_reso) in
-	      (sev, [], new_di)
-	  end
-    | DTestPut(i,l,(a,co),reso) -> 
-	if not (check_test m) then (sev, [], di)
-	else
-	  begin
-	    let new_l = expect_sort_exp "test lens put" sev SLens l in
-	    let new_a = expect_sort_exp "test lens put abstract view" sev SView a in
-	    let new_co = 
-	      match co with 
-		  None     -> None 
-		| Some c -> Some (expect_sort_exp "test lens put concrete view" sev SView c)
-	    in
-	    let new_reso = 
-	      match reso with 
-		  None     -> None 
-		| Some res -> Some (expect_sort_exp "test lens get result" sev SView res)
-	    in
-	    let new_di = DTestPut(i,new_l, (new_a, new_co), new_reso) in
+	    let new_di = DTest(i,new_e, new_reso) in
 	      (sev, [], new_di)
 	  end
     | DTestSync(i,lo,la,lb,ty,orig,result) -> 
@@ -982,78 +962,38 @@ let rec compile_decl cev m di =
 	  names
       in
 	new_cev, Safelist.rev names_rev
-  | DTestGet(i,l,c,reso) ->
+  | DTest(i,e,reso) ->
       if check_test m then
 	begin
-	  let ao = 
+	  let vo = 
 	    try
-	      OK (Lens.get 
-		    (compile_exp_lens cev l)
-		    (compile_exp_view cev c))
+	      OK (compile_exp_view cev e)
 	    with (Error.Native_error(m)) -> Error m
 	      | V.Illformed(s,vl) -> Error (V.format_msg_as_string ([`String s] @ (Safelist.map (fun v -> `View v) vl)))
 	  in
-	    match ao, reso with 
+	    match vo, reso with 
 		Error _, None -> ()
-	      | OK a, Some res -> 
+	      | OK v, Some res -> 
 		  let resv = compile_exp_view cev res in
-		    if not (V.equal a resv) then
+		    if not (V.equal v resv) then
 		      test_error i 
 			(fun () -> 
 			   sprintf "(get): expected %s, found %s"
 			     (V.string_of_t resv)
-			     (V.string_of_t a))
+			     (V.string_of_t v))
 	      | Error m, Some res -> 
 		  let resv = compile_exp_view cev res in
 		    test_error i 
 		      (fun () -> 
 			 sprintf "(get): expected %s, found error\n%s"
 			   (V.string_of_t resv) m)
-	      | OK a, None -> 
+	      | OK v, None -> 
 		  test_error i 
 		    (fun () -> 
 		       sprintf "(get): expected error, found %s"
-			 (V.string_of_t a))		    
+			 (V.string_of_t v))		    
 	end;
-      (cev, [])
-	
-  | DTestPut(i,l,(a,co),reso) -> 
-      if check_test m then
-	begin
-	  let co' = 
-	    try
-	      OK (Lens.put 
-		      (compile_exp_lens cev l)
-		      (compile_exp_view cev a) 
-		      (match co with 
-			   None -> None 
-			 | Some c -> Some (compile_exp_view cev c)))
-	    with (Error.Native_error(m)) -> Error m
-	      | V.Illformed(s,vl) -> Error (V.format_msg_as_string ([`String s] @ (Safelist.map (fun v -> `View v) vl)))
-	  in
-	    match co', reso with 
-		Error _, None -> ()
-	      | OK c', Some res -> 
-		  let resv = compile_exp_view cev res in 
-		  if not (V.equal c' resv) then
-		    test_error i 
-		      (fun () -> 
-			 sprintf "(put): expected %s, found %s"
-			   (V.string_of_t resv)
-			   (V.string_of_t c'))
-	      | Error m, Some res -> 
-		  let resv = compile_exp_view cev res in 
-		    test_error i 
-		      (fun () -> 
-			 sprintf "(put): expected %s, found error\n%s"
-			   (V.string_of_t resv) m)
-	      | OK c', None -> 
-		  test_error i 
-		    (fun () -> 
-		       sprintf "(put): expected error, found %s"
-			 (V.string_of_t c'))		    
-	end;
-      (cev, [])
+      (cev, [])	
   | DTestSync(i,lo,la,lb,typ,orig,result) ->
       if check_test m then
         begin

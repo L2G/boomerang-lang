@@ -49,7 +49,6 @@ concrete tree if there is one, and the default tree \(d\) otherwise.
 #*test const {a} {b} \ ({b}, missing) = error
 
 (** compose2 **)
-let compose2 : (lens -> lens -> lens) = Native.Prelude.compose2
 test (id; id) / {a} = {a}
 test (id; const {a} {b}) / {} = {a}
 test (const {a} {b}; const {b} {a}) / {} = {b}

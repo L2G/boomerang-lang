@@ -27,6 +27,18 @@ let nil_view i =
   let nil_name = EVar(i, nil_tag_qid i) in 
   let empty_view = EView(i, []) in
     EView(i, [(i, nil_name, empty_view)]) 
+let get_qid i = mk_qid (nat_pre i) (mk_id i "get")
+let put_qid i = mk_qid (nat_pre i) (mk_id i "put")
+let create_qid i = mk_qid (nat_pre i) (mk_id i "create")
+
+let mk_compose2_exp i e1 e2 = EApp(i,EApp(i,EVar(i,compose2_qid i),e1),e2)
+
+let mk_put_exp i l a co = match co with 
+    None -> EApp(i, EApp(i, EVar(i, create_qid i), l), a)
+  | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i), l), a), c)
+
+let mk_get_exp i l c = EApp(i, EApp(i, EVar(i, get_qid i), l), c)
+
 %}
 
 %token <Info.t> EOF 
@@ -62,27 +74,18 @@ decls:
   | TYPE typebinding_list decls                   { let i = merge_inc $1 (info_of_typebindings $1 $2) in 
 						      (DType(i,$2))::$3 }
   | MODULE IDENT EQUAL decls END decls            { let i = merge_inc $1 $5 in (DMod(i,$2,$4))::$6 }
-  | TEST exp SLASH get_args EQUAL test_res decls        { let (i2,res) = $6 in 
-							    (DTestGet(merge_inc $1 i2, $2, $4, res))::$7 }
-  | TEST exp BACKSLASH put_args EQUAL test_res decls    { let (i2,res) = $6 in 
-							    (DTestPut(merge_inc $1 i2, $2, $4, res))::$7 }
-  | TEST exp SLASH BACKSLASH get_args EQUAL exp decls   { let i = merge_inc $1 (info_of_exp $7) in
-							    (DTestGet(i, $2, $5, (Some $7)))::
-							    (DTestPut(i, $2, ($7, None), Some $5))::$8 }
-  | SYNC WITH aexp AT atypeexp aexp EQUAL aexp decls    { let i = merge_inc $1 (info_of_exp $8) in 
-							    (DTestSync(i,$3,$3,$3,$5,$6,$8)) :: $9 }
-  | SYNC WITH aexp aexp aexp AT atypeexp aexp EQUAL aexp decls  { let i = merge_inc $1 (info_of_exp $10) in 
-								    (DTestSync(i,$3,$4,$5,$7,$8,$10)) :: $11 }
-      
-/* ---------------  testing --------------- */
-get_args:
-  | aexp                                 { $1 }
+  | TEST exp EQUAL test_res decls                 { let (i2,res) = $4 in 
+						    let i = merge_inc $1 i2 in						      
+						      (DTest(i, $2, res))::$5 }
+  | TEST appexp SLASH BACKSLASH exp EQUAL exp decls { let i = merge_inc $1 (info_of_exp $7) in
+							DTest(i, mk_get_exp i $2 $5, (Some $7))
+							::DTest(i,mk_put_exp i $2 $7 None, (Some $5))
+							::$8 }
 
-put_args:
-  | aexp aexp                            { ($1, Some $2) }
-  | aexp MISSING                         { ($1, None) }
-  | LPAREN exp COMMA exp RPAREN          { ($2, Some $4) }
-  | LPAREN exp COMMA MISSING RPAREN      { ($2, None) }
+  | SYNC WITH aexp AT atypeexp aexp EQUAL aexp decls { let i = merge_inc $1 (info_of_exp $8) in 
+							 (DTestSync(i,$3,$3,$3,$5,$6,$8)) :: $9 }
+  | SYNC WITH aexp aexp aexp AT atypeexp aexp EQUAL aexp decls { let i = merge_inc $1 (info_of_exp $10) in 
+								   (DTestSync(i,$3,$4,$5,$7,$8,$10)) :: $11 }
 
 test_res:
   | exp                                     { (info_of_exp $1, Some $1) }
@@ -94,12 +97,8 @@ binding_list:
   | binding                                  {  [$1] }
       
 binding:    
-  | IDENT param_list opt_sort EQUAL exp      { let i = merge_inc 
-						 (info_of_id $1) 
-						 (info_of_exp $5) 
-					       in 
-						 BDef(i,$1,$2,$3,$5) 
-					     }
+  | IDENT param_list opt_sort EQUAL exp      { let i = merge_inc (info_of_id $1) (info_of_exp $5) in 
+						 BDef(i,$1,$2,$3,$5) }
       
 typebinding:
   | IDENT IDENT_list EQUAL typeexp           { ($1, $2, $4) } 
@@ -160,12 +159,23 @@ exp:
   | composeexp                               { $1 }
 
 composeexp:
-  | composeexp SEMI appexp                   { let i = merge_inc (info_of_exp $1) (info_of_exp $3) in
-					       let c2 = compose2_qid i in
-						 EApp(i,EApp(i,EVar(i,c2),$1),$3)
-					     }
-  | appexp                                   { $1 } 
+  | composeexp SEMI getputexp                { let i = merge_inc (info_of_exp $1) (info_of_exp $3) in
+						 mk_compose2_exp i $1 $3 }
+  | getputexp                                { $1 } 
 
+getputexp:
+  | appexp SLASH appexp                                   { let i = merge_inc (info_of_exp $1) (info_of_exp $3) in
+							      mk_get_exp i $1 $3 }
+  | appexp BACKSLASH aexp aexp                            { let i = merge_inc (info_of_exp $1) (info_of_exp $4) in 
+							      mk_put_exp i $1 $3 (Some $4) }
+  | appexp BACKSLASH LPAREN exp COMMA exp RPAREN          { let i = merge_inc (info_of_exp $1) $7 in
+							      mk_put_exp i $1 $4 (Some $6) }
+  | appexp BACKSLASH LPAREN exp COMMA MISSING RPAREN      { let i = merge_inc (info_of_exp $1) $7 in 
+							      mk_put_exp i $1 $4 None }
+  | appexp BACKSLASH aexp MISSING                         { let i = merge_inc (info_of_exp $1) $4 in 
+							      mk_put_exp i $1 $3 None}
+  | appexp                                                { $1 }
+      
 appexp:
   | appexp aexp                              { let i = merge_inc (info_of_exp $1) (info_of_exp $2) in 
 						 EApp(i,$1,$2) }
