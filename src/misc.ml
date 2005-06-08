@@ -287,26 +287,36 @@ let rec replace_substrings s l =
   | (sub,sub')::rest -> replace_substrings (replace_substring s sub sub') rest
 
     
-let whack_chars s cl =
+let whack_chars s cl reverse =
   (*   let s = if String.length s > 30 then (String.sub s 0 30 ^ "...") else s in  *)
   let debug s = prerr_endline s in
   let s = 
     (* escape only the strictly necessary *)
-    Safelist.fold_right 
-      ( fun (p,r) s -> Str.global_replace (Str.regexp p ) r s )   
+    Safelist.fold_right ( fun (p,r) s -> Str.global_replace (Str.regexp p ) r s )   
       [("\"","\\\"");("\\", "\\\\\\\\")]
       s
   in
-  let s = 
-    if Safelist.exists (fun c -> String.contains s c) cl then "\""^s^"\""
-    else s in
-  let s = 
-    if s="" then "\"\""
-    else s
-  in
-    s
+    if reverse then
+      try
+        String.iter
+          (fun c -> if not (List.mem c cl) then raise Not_found)
+          s;
+        s
+      with
+        | Not_found -> "\""^s^"\""
+    else
+    if (Safelist.exists (fun c -> String.contains s c) cl) then "\""^s^"\"" else s
       
-let whack s = whack_chars s [' '; '"']
+let whack s = whack_chars s [' '; '"'] false
+
+let whack_ident s = 
+  whack_chars s
+    ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'; 'k'; 'l'; 'm'; 'o';
+     'n'; 'p'; 'q'; 'r'; 's'; 't'; 'u'; 'v'; 'w'; 'x'; 'y'; 'z'; 'A'; 'B';
+     'C'; 'D'; 'E'; 'F'; 'G'; 'H'; 'I'; 'J'; 'K'; 'L'; 'M'; 'O'; 'N'; 'P';
+     'Q'; 'R'; 'S'; 'T'; 'U'; 'V'; 'W'; 'X'; 'Y'; 'Z'; '0'; '1'; '2'; '3';
+     '4'; '5'; '6'; '7'; '8'; '9'; '0'; '\''; '_'; '-'; '@']
+    true
 
 let unescaped s =
   let buf = Buffer.create (String.length s) in

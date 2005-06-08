@@ -117,17 +117,14 @@ val replace_substring : string -> string -> string -> string
 val replace_substrings : string -> (string * string) list -> string
 (** [replace_substrings] is similar to [replace_substring], but iterates on a list of substitution. The leftmost substitution is applied first. *)
 
-val whack_chars : string -> char list -> string
-(** [whack_chars s cl] escapes [s], puts it between double quotes if it contains any
-    of the characters in [cl], and returns the result.*)
-
 val whack : string -> string
 (** [whack s = whack_chars s [' ';'"']] *)
 
+val whack_ident : string -> string
+(** [whack_ident s] calls whack_chars, putting double quotes if the [s] contains non-identifier characters *)
+
 val unwhack : string -> string
 (** the (almost) inverse of [whack_chars] *)
-
-
 
 val hexify_string : string -> string
 

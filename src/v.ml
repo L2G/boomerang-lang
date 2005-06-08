@@ -235,9 +235,8 @@ let raw =
   Prefs.createBool "raw" false "Dump views in 'raw' form" ""
       
 let format v =
-  let symbols = [' ';'\t';'\n';'\"';'{';'}';'[';']';'=';',';':'] in
   let format_str s =
-    let s' = Misc.whack_chars s symbols in
+    let s' = Misc.whack_ident s in
       if s' = "" then "\"\"" else s'
   in
   let rec format_aux ((VI m) as v) inner = 

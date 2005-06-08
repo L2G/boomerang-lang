@@ -90,7 +90,7 @@ let _ =
 
 let whitespace = [' ' '\t']+
 let newline = "\n"
-let id_char = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_']
+let id_char = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_' '-' '@']
 let string = '"' [^'"']* '"'
 
 rule main = parse
