@@ -3,58 +3,292 @@ module Relational =
 
 let norm (db : view) : view = Prelude.map Native.listsort / db
 
-let bd_alice0 (n : name) : view =
-  Prelude.rename "foo" n / { foo = Alice, month = June, day = 12 }
+let bd_a = { nm = Alice, mon = June,     day = 12 }
+let bd_b = { nm = Bob,   mon = December, day = 13 }
+let bd_c = { nm = Carol, mon = October,  day = 31 }
+let bd_d = { nm = Dave,  mon = June,     day = 13 }
+let bd_e = { nm = Ellen, mon = February, day = 29 }
+let bd_f = { nm = Fred , mon = August,   day = 15 }
 
-let bd_alice (n : name) : view = { `n = Alice, month = June,     day = 12 }
-let bd_bob   (n : name) : view = { `n = Bob,   month = December, day = 13 }
-let bd_carol (n : name) : view = { `n = Carol, month = October,  day = 31 }
-let bd_dave  (n : name) : view = { `n = Dave,  month = June,     day = 13 }
-let bd_ellen (n : name) : view = { `n = Ellen, month = February, day = 29 }
+let ph_a = { nm = Alice, ph = "555-555-5555" }
+let ph_b = { nm = Bob,   ph = "123-456-7890" }
 
-let mk_bday_db0 (n : name) : view =
-  { birthdays =
-    [ `(bd_alice0 n), `(bd_bob n), `(bd_carol n) ]
-  }
 
-let mk_bday_db1 (n : name) : view =
-  { birthdays =
-    [ `(bd_alice n), `(bd_bob n), `(bd_carol n) ]
-  }
+(* RENAME *)
 
 let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
 
-test
-  norm (rename "person" "nm" "birthdays" "birthdays" / mk_bday_db1 "person")
-= norm (mk_bday_db1 "nm")
+(* Definitions for testing rename. *)
+
+  let bday_db_abc =
+    { birthdays =
+      [ `bd_a, `bd_b, `bd_c ]
+    }
+
+  let rename_nm (n : name) (v : view) : view =
+    Prelude.rename "nm" n / v
+
+  let bday_db_abc' : view =
+    { birthdays' =
+      [ `(rename_nm "name" bd_a)
+      , `(rename_nm "name" bd_b)
+      , `(rename_nm "name" bd_c)
+      ]
+    }
+
+(* Testing rename. *)
 
 test
-  norm (rename "person" "day" "birthdays" "birthdays" / mk_bday_db1 "person")
+  norm (rename "nm" "name" "birthdays" "birthdays'" / bday_db_abc)
+= norm (bday_db_abc')
+
+test
+  norm (rename "nm" "day" "birthdays" "birthdays'" / bday_db_abc)
 = error (* "day" already exists *)
 
 test
-  norm (rename "foo" "bar" "birthdays" "birthdays" / mk_bday_db1 "person")
+  norm (rename "foo" "bar" "birthdays" "birthdays'" / bday_db_abc)
 = error (* "foo" does not exist *)
 
+
+(* Definitions for testing union, intersection, and difference. *)
+
+  let mixed_db =
+    { birthdays = [ `bd_a, `bd_b ]
+    , phonebook = [ `ph_a, `ph_b ]
+    }
+
+  let bday_db_abc_bde =
+    { birthdays1 = [ `bd_a, `bd_b, `bd_c ]
+    , birthdays2 = [ `bd_b, `bd_d, `bd_e ]
+    }
+
+  let bday_db_abcd =
+    { birthdays = [ `bd_a, `bd_b, `bd_c, `bd_d ]
+    }
+
+  let bday_db_abcde =
+    { birthdays = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
+    }
+
+  let bday_db_b =
+    { birthdays = [ `bd_b ]
+    }
+
+  let bday_db_b_b =
+    { birthdays1 = [ `bd_b ]
+    , birthdays2 = [ `bd_b ]
+    }
+
+  let bday_db_abcde_abcde =
+    { birthdays1 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
+    , birthdays2 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
+    }
+
+  let bday_db_abcde_ =
+    { birthdays1 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
+    , birthdays2 = [ ]
+    }
+
+  let bday_db__abcde =
+    { birthdays1 = [ ]
+    , birthdays2 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
+    }
+
+  let bday_db_cef =
+    { birthdays = [ `bd_c, `bd_e, `bd_f ]
+    }
+
+  let bday_db_cf_ef =
+    { birthdays1 = [ `bd_c, `bd_f ]
+    , birthdays2 = [ `bd_e, `bd_f ]
+    }
+
+  let bday_db_cf_e =
+    { birthdays1 = [ `bd_c, `bd_f ]
+    , birthdays2 = [ `bd_e ]
+    }
+
+  let bday_db_c_ef =
+    { birthdays1 = [ `bd_c ]
+    , birthdays2 = [ `bd_e, `bd_f ]
+    }
+
+  let bday_db_acef_cdef =
+    { birthdays1 = [ `bd_a, `bd_c, `bd_e, `bd_f ]
+    , birthdays2 = [ `bd_c, `bd_d, `bd_e, `bd_f ]
+    }
+
+
+(* UNION *)
+
 let union : (name -> name -> name -> lens) = Native.Relational.union
+
+test
+  norm (union "birthdays1" "birthdays2" "birthdays" / bday_db_abc_bde)
+= norm bday_db_abcde
+
+test
+  norm (union "birthdays" "birthdays2" "birthdays" / bday_db_abc_bde)
+= error (* table birthdays doesn't exist *)
+
+test
+  norm (union "birthdays" "phonebook" "some_table" / mixed_db)
+= error (* table domains do not match *)
+
+test
+  norm (union "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde bday_db_abc_bde)
+= norm bday_db_abc_bde
+
+test
+  norm (union "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde missing)
+= norm bday_db_abcde_abcde
+
+test
+  norm (union "birthdays1" "birthdays2" "birthdays" \
+    bday_db_cef bday_db_abc_bde)
+= norm bday_db_cf_ef
+
+test
+  norm (union "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde bday_db_abcde)
+= error (* tables birthdays1 and birthdays2 do not exist in concrete view *)
+
+
 let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
+
+test
+  norm (unionl "birthdays1" "birthdays2" "birthdays" / bday_db_abc_bde)
+= norm bday_db_abcde
+
+test
+  norm (unionl "birthdays" "birthdays2" "birthdays" / bday_db_abc_bde)
+= error (* table birthdays doesn't exist *)
+
+test
+  norm (unionl "birthdays" "phonebook" "some_table" / mixed_db)
+= error (* table domains do not match *)
+
+test
+  norm (unionl "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde bday_db_abc_bde)
+= norm bday_db_abc_bde
+
+test
+  norm (unionl "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde missing)
+= norm bday_db_abcde_
+
+test
+  norm (unionl "birthdays1" "birthdays2" "birthdays" \
+    bday_db_cef bday_db_abc_bde)
+= norm bday_db_cf_e
+
+test
+  norm (unionl "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde bday_db_abcde)
+= error (* tables birthdays1 and birthdays2 do not exist in concrete view *)
+
+
 let unionr : (name -> name -> name -> lens) = Native.Relational.unionr
 
+test
+  norm (unionr "birthdays1" "birthdays2" "birthdays" / bday_db_abc_bde)
+= norm bday_db_abcde
+
+test
+  norm (unionr "birthdays" "birthdays2" "birthdays" / bday_db_abc_bde)
+= error (* table birthdays doesn't exist *)
+
+test
+  norm (unionr "birthdays" "phonebook" "some_table" / mixed_db)
+= error (* table domains do not match *)
+
+test
+  norm (unionr "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde bday_db_abc_bde)
+= norm bday_db_abc_bde
+
+test
+  norm (unionr "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde missing)
+= norm bday_db__abcde
+
+test
+  norm (unionr "birthdays1" "birthdays2" "birthdays" \
+    bday_db_cef bday_db_abc_bde)
+= norm bday_db_c_ef
+
+test
+  norm (unionr "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde bday_db_abcde)
+= error (* tables birthdays1 and birthdays2 do not exist in concrete view *)
+
+(* INTERSECTION *)
+
 let inter : (name -> name -> name -> lens) = Native.Relational.inter
+
+test
+  norm (inter "birthdays1" "birthdays2" "birthdays" / bday_db_abc_bde)
+= norm bday_db_b
+
+test
+  norm (inter "birthdays" "birthdays2" "birthdays" / bday_db_abc_bde)
+= error (* table birthdays doesn't exist *)
+
+test
+  norm (inter "birthdays" "phonebook" "some_table" / mixed_db)
+= error (* table domains do not match *)
+
+test
+  norm (inter "birthdays1" "birthdays2" "birthdays" \
+    bday_db_b bday_db_abc_bde)
+= norm bday_db_abc_bde
+
+test
+  norm (inter "birthdays1" "birthdays2" "birthdays" \
+    bday_db_b missing)
+= norm bday_db_b_b
+
+test
+  norm (inter "birthdays1" "birthdays2" "birthdays" \
+    bday_db_cef bday_db_abc_bde)
+= norm bday_db_acef_cdef
+
+test
+  norm (inter "birthdays1" "birthdays2" "birthdays" \
+    bday_db_abcde bday_db_abcde)
+= error (* tables birthdays1 and birthdays2 do not exist in concrete view *)
+
+
 let interl : (name -> name -> name -> lens) = Native.Relational.interl
 let interr : (name -> name -> name -> lens) = Native.Relational.interr
+
+
+(* DIFFERENCE *)
 
 let diff : (name -> name -> name -> lens) = Native.Relational.diff
 let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
 let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
+
+
+(* SELECT *)
 
 let select : (name -> name -> name -> name -> lens) =
   Native.Relational.select
 let select_eq : (name -> name -> name -> name -> lens) =
   Native.Relational.select_eq
 
+
+(* PROJECT *)
+
 let project : (view -> view -> view -> name -> name -> lens) =
   Native.Relational.project
+
+
+(* JOIN *)
 
 let join : (name -> name -> name -> lens) = Native.Relational.join
 let joinl : (name -> name -> name -> lens) = Native.Relational.joinl

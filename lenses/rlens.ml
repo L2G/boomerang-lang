@@ -50,8 +50,8 @@ let mk_lens opname get put =
   let dom ls =
     `View(V.from_list (List.map (fun x -> (x, V.empty)) ls))
   in
-  let trap_dom_errors f x =
-    try f x with
+  let trap_dom_errors f x y =
+    try f x y with
     | R.Unequal_domains(d1, d2) ->
         Lens.error
           [ `String(opname^":")
@@ -74,7 +74,7 @@ let mk_lens opname get put =
           ; `Space; `String(a)
           ]
   in
-  Lens.native (trap_dom_errors get) (trap_dom_errors put)
+  Lens.native ((trap_dom_errors (fun () -> get)) ()) (trap_dom_errors put)
 
 (* Rename *)
 
