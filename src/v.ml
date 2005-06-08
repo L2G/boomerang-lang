@@ -236,6 +236,10 @@ let raw =
       
 let format v =
   let symbols = [' ';'\t';'\n';'\"';'{';'}';'[';']';'=';',';':'] in
+  let format_str s =
+    let s' = Misc.whack_chars s symbols in
+      if s' = "" then "\"\"" else s'
+  in
   let rec format_aux ((VI m) as v) inner = 
     if (not (Prefs.read raw)) then
     if is_list v then begin
@@ -248,12 +252,12 @@ let format v =
       Format.printf "@]]"
     end else begin
       if (is_value v && inner) then
-	Format.printf "%s" (Misc.whack_chars (get_value v) symbols)
+	Format.printf "%s" (format_str (get_value v))
       else begin
         Format.printf "{@[<hv0>";
 	Name.Map.iter_with_sep
 	  (fun k kid -> 
-	    Format.printf "@[<hv1>%s =@ " (Misc.whack_chars k symbols);
+	    Format.printf "@[<hv1>%s =@ " (format_str k);
 	    format_aux kid true;
 	    Format.printf "@]")
           (fun() -> Format.printf ",@ ")

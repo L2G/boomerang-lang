@@ -64,14 +64,14 @@ and string_of_it = function
   | Var (_,x,_) -> Syntax.string_of_qid x
   | App(_,it1,it2,_) -> sprintf "(%s %s)" (string_of_it it1) (string_of_it it2)
   | Fun (_,_) -> "<type fun>"
-  | Name(_,n,pt) -> sprintf "%s = %s" n (string_of_pt pt)
+  | Name(_,n,pt) -> sprintf "%s = %s" (Misc.whack n) (string_of_pt pt)
   | Bang(_,f,pt)  -> 
       sprintf "!%s = %s"
-	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
+	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " (Safelist.map Misc.whack f)))
 	(string_of_pt pt)  
   | Star(_,f,pt)  ->
      sprintf "*%s = %s"
-	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
+	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " (Safelist.map Misc.whack f)))
 	(string_of_pt pt)
   | Cat(_,cs)   -> Misc.curlybraces (Misc.concat_list ", " (Safelist.map string_of_pt cs))
   | Union(_,ts)  -> Misc.parens (Misc.concat_list " | " (Safelist.map string_of_pt ts))

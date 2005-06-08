@@ -152,7 +152,7 @@ let generic_read_from rd =
   try 
     let docRoot = 
       parse_wfcontent_entity config rd default_spec in
-    V.set V.empty "" (Some (V.structure_from_list [xml2view docRoot]))
+    V.structure_from_list [xml2view docRoot]
   with
       e -> raise (Error.Fatal_error(Pxp_types.string_of_exn e))
 
@@ -212,7 +212,7 @@ let dump_view_as_pretty_xml fmtr v =
       Format.fprintf fmtr "";
     end
   else
-    let tags = V.list_from_structure (V.get_required v "") in
+    let tags = V.list_from_structure v in
     Format.fprintf fmtr "@[<v0>";
     Misc.iter_with_sep (dump_tag fmtr)
     (fun () -> Format.fprintf fmtr "@,") tags;

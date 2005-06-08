@@ -1,6 +1,6 @@
 module Template = 
 
-let l = hoist ""; List.hd []; hoist "a"
+let l = List.hd []; hoist "a"; hoist ""
 
 test l / (load_file "concrete.xml") = (load_file "abstract.xml")
 test l \ (load_file "newabstract.xml") (load_file "concrete.xml") = (load_file "newconcrete.xml")
