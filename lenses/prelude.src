@@ -182,6 +182,8 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 
 
 #{@}
+
+
 \subsection{Derived Lenses}
 
 \LENSSECTION{fork}
@@ -306,65 +308,71 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 ##   test (rename_if_present "x" "y") / {y=1} = {y=1}
 ##*)
 
-#{#}
+\subsection{String Processing}
 
-#@\subsection{String Processing}
+\LENSSECTION{explode}
+##let explode : lens = Native.Prelude.explode
+##test explode / {} = error
+##test explode / {""} = []
+##test explode / {focal} = [f,o,c,a,l]
+##test explode / {"lenses focal"} = [l,e,n,s,e,s," ",f,o,c,a,l]
+##test explode \ [l,e,n,s,e,s," ",f,o,c,a,l] missing = {"lenses focal"}
+##test explode \ [f,o,c,a,l] {} = {focal}
+##test explode \ [] missing = {""}
 
-#@\LENSSECTION{explode}
-let explode : lens = Native.Prelude.explode
-test explode / {} = error
-test explode / {""} = []
-test explode / {focal} = [f,o,c,a,l]
-test explode / {"lenses focal"} = [l,e,n,s,e,s," ",f,o,c,a,l]
-test explode \ [l,e,n,s,e,s," ",f,o,c,a,l] missing = {"lenses focal"}
-test explode \ [f,o,c,a,l] {} = {focal}
-test explode \ [] missing = {""}
+\LENSSECTION{implode}
+##let implode : lens = invert (explode)
 
-#@\LENSSECTION{implode}
-let implode : lens = invert (explode)
+\LENSSECTION{split}
+##let split : lens = Native.Prelude.split
+##test split / {} = error
+##test split / {focal} = [focal]
+##(* test split / \ {focal} = [focal] *)
+##test split / {"focal\n"} = [focal,""]
+##test split / {""} = [""]
+##test split / {"lenses\nfocal"} = [lenses,focal]
+##test split \ [] missing = error
 
-#@\LENSSECTION{split}
-let split : lens = Native.Prelude.split
-test split / {} = error
-test split / {focal} = [focal]
-(* test split / \ {focal} = [focal] *)
-test split / {"focal\n"} = [focal,""]
-test split / {""} = [""]
-test split / {"lenses\nfocal"} = [lenses,focal]
-test split \ [] missing = error
+\LENSSECTION{unsplit}
+##let unsplit : lens = invert (split)
 
-#@\LENSSECTION{unsplit}
-let unsplit : lens = invert (split)
+\LENSSECTION{read}
+Read a file into a name containing the whole file. 
 
-#@\LENSSECTION{read}
-let read : (name -> name) = Native.Prelude.read
+##let read : (name -> name) = Native.Prelude.read
 
-#@\LENSSECTION{load}
-let load : (name -> name -> view) = Native.Prelude.load
+\LENSSECTION{load}
+@load ekey blob@ parses @blob@ using the viewer identified by the encoding
+key @ekey@ and yields a view.
 
-#@\LENSSECTION{load@_@file}
-let load_file : (name -> view) = Native.Prelude.load_file
+##let load : (name -> name -> view) = Native.Prelude.load
 
-#@\subsection{Debugging Support}
+\LENSSECTION{load@_@file}
+ @load_file name@ parses a file into a view, using the encoding key
+specified as part of the file name or the default encoding key for this file
+type if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
 
-#@\LENSSECTION{probe}
-let probe : (name -> lens) = Native.Prelude.probe
+##let load_file : (name -> view) = Native.Prelude.load_file
 
-#@\LENSSECTION{trace}
-let trace : (name -> lens) = Native.Prelude.trace
+\subsection{Debugging Support}
 
-#@\LENSSECTION{assert}
-let assert : (type -> lens) = Native.Prelude.assert
+\LENSSECTION{probe}
+##let probe : (name -> lens) = Native.Prelude.probe
 
-#@\LENSSECTION{tracepoint}
-let tracepoint : (name -> lens -> lens) = Native.Prelude.tracepoint
+\LENSSECTION{trace}
+##let trace : (name -> lens) = Native.Prelude.trace
 
-#@\subsection{Miscellaneous}
+\LENSSECTION{assert}
+##let assert : (type -> lens) = Native.Prelude.assert
 
-#{@}
+\LENSSECTION{tracepoint}
+##let tracepoint : (name -> lens -> lens) = Native.Prelude.tracepoint
+
+\subsection{Miscellaneous}
+
 \LENSSECTIONnott{Definition by inversion}
 The function @invert@ maps a bijective lens @l@ to a bijective lens whose
 \GET{} is the \PUT{} of @l@ and vice versa.
 \finish{Put a test.}
-#{#}
+
 

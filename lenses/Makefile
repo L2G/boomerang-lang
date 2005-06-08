@@ -15,4 +15,5 @@ all: $(GENERATEDFCLFILES)
 
 test::
 	$(HARMONY) check -module Spinelist -test-all 
+	$(HARMONY) check -module Xml -test-all 
 	$(HARMONY) check -module Relational -test-all 

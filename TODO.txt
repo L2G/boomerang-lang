@@ -1,9 +1,11 @@
 THINGS TO DO
 
 BCP TASKS
-finish going over .mli files and docs
 change "split" to "lines" and "invert" to "inverse"
-discuss changing concrete syntax of "put" tests
+continue with prelude.src and friends
+look at address book stuff and reintegrate
+work with stephane on unison integration
+finish structured text demo (integrate spinelists) after nate's new types
 
 NATE TASKS
 why, again, do fork and friends take views, not types?
@@ -15,6 +17,7 @@ fix this printing problem:
         [X, [A, b], [C]]
       is not a member of ({hd = H, tl = T} | nil = {})
   (note the H and T in the last line...)
+delete old (uncurried) concrete syntax of put tests
 
 ------------
 
