@@ -18,6 +18,6 @@ test:: $(GENERATEDFCLFILES)
 	$(HARMONY) check -module Spinelist -test-all 
 	$(HARMONY) check -module Relational -test-all 
 
-doc: $(GENERATEDFCLFILES)
+doc: $(GENERATEDFCLFILES) buildharmonyfast
 	$(HARMONY) check -module Xml -test-all 
 	make -C $(DOCDIR) ps

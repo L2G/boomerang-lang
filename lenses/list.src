@@ -1,119 +1,140 @@
 \section{Module {\tt List}}
 
+##module List =
+
+\subsection{The List Encoding}
+
+\finish{Describe it and show some unit tests}
+
+\subsection{Names and Schemas}
+
+#*type Nil = Native.Prelude.Nil
+#*type Cons X Y = Native.Prelude.Cons X Y
+#*type T X = Nil | Cons X (T X)
+#*type NonEmptyList X = Cons X (T X)
+
+#*let HD : name = Native.Prelude.hd_tag
+#*let TL : name = Native.Prelude.tl_tag
+#*let NIL : name = Native.Prelude.nil_tag
+#*let tags : view = { `HD, `TL, `NIL }
+
+\subsection{Lenses}
+
+\LENSSECTION{hd}
+#*let hd (d:view) : lens = focus HD { `TL = `d }
+
+#*test (hd []) / [1] = {1}
+#*test (hd []) / [[1]] = [1]
+#*test (hd []) \ {1} missing = [1]
+#*test (hd []) \ {1} [2,3] = [1,3]
+#*test (hd []) / [] = error
+#*
+\LENSSECTION{tl}
+#*let tl (d:view) : lens = focus TL { `HD = `d }
+
+#*test (tl {}) / [1,2,3] = [2,3]
+#*test (tl {}) \ [2,3] missing = [{},2,3]
+#*test (tl {}) \ [2,3] [1]  = [1,2,3]
+#*test (tl {}) / [] = error
+
+\LENSSECTION{map}
+#*let map (l:lens) : lens = wmap { `HD -> l, `TL -> (map l) }
+
+#*test (map (const {b} {c})) / [] = []
+#*test (map (const {b} {c})) / [1,2,3] = [b,b,b]
+#*test (map (const {b} {c})) \ [] missing = []
+#*test (map (const {b} {c})) \ [b,b,b] [1,2] = [1,2,c]
+
+\LENSSECTION{reverse}
+#*let reverse : lens = 
+#*  let old_HD : name = "old_hd" in
+#*  let rotate : lens = 
+#*    acond < [] | [`Any] > < [] | [`Any] >
+#*        id
+#*        (rename HD old_HD;
+#*         hoist_nonunique TL tags;
+#*         xfork {`old_HD, `TL} {`TL}
+#*           (rename old_HD HD;
+#*            plunge TL;
+#*            wmap { `TL -> rotate })
+#*           id) 
+#*  in
+#*    wmap { `TL -> reverse }; 
+#*    rotate
+
+#*test reverse / [] = []
+#*test reverse / [1] = [1]
+#*test reverse / [1,2,3] = [3,2,1]
+#*test reverse \ [] missing = []
+#*test reverse \ [] [1,2,3] = []
+#*test reverse \ [3,2,1] [] = [1,2,3]
+
+\LENSSECTION{fold@_@right}
+#*let fold_right (init:view) (l:lens) : lens =
+#*  wmap {`TL -> fold_right init l};
+#*  acond <[]> <[`init]>
+#*    (const [`init] [])
+#*    l
+
+\LENSSECTION{filter}
+
+#*let simple_filter (E:type) : lens = 
+#*  wmap { `TL -> simple_filter E };
+#*  ccond < E::Any >
+#*    (tl {"error"})
+#*    id
+
+#*(* filter: - note that some_D must NOT be an E *)    
+#*let filter (D:type) (E:type) (some_D:view) : lens =
+#*  let append (v:view) : lens =
+#*    acond <[]> <[`Any]>
+#*      (const v {})
+#*      (wmap { `TL -> append v })
+#*  in
+#*  let filter_aux (D:type) (E:type) (some_D:view) : lens = 
+#*    cond_ff <T E> < [] > < D::(T D) >
+#*      (plunge "_"; wmap { "_" -> filter E D {} }; hoist "_")
+#*      (append [`some_D])
+#*      (const [] [])
+#*      (inner_filter)
+#*  and inner_filter : lens =
+#*    (* this Any used to be a List containing at least one D *)
+#*    ccond < E::Any > 
+#*      (wmap { `TL -> inner_filter }; tl {"error"})
+#*      (wmap { `TL -> filter_aux D E some_D } )
+#*  in
+#*    filter_aux D E some_D
+
+#*test (filter <{a=`Any}> <{b=`Any}> {a}) / [] = []
+#*test (filter <{a=`Any}> <{b=`Any}> {a}) / [{a=1}, {a=2}, {b=3}, {a=4}] = [{a=1}, {a=2}, {a=4}] 
+#*test (filter <{a=`Any}> <{b=`Any}> {a}) / [{a=1}, {a=2}, {a=3}] = [{a=1}, {a=2}, {a=3}]
+#*test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [{a=1}, {a=2}, {b=3}, {a=4}] = [{a=1}, {a=2}, {b=3}, {a=3}] 
+#*test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [{b=3}] = [{b=3}, {a=1}, {a=2}, {a=3}] 
+#*test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [a, {b=3}] = [{a=1}, {b=3}, {a=2}, {a=3}] 
+#*test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}] [a,a,{b=3}] = [{a=1}, {b=3}]
+
+\LENSSECTION{concat2}
+#*let concat2 : lens =
+#*  let inner_concat2 : lens = 
+#*    acond < []::Any > < {y=" "}::Any> 
+#*      (fork {`HD} (map (const {y=" "} [])) (wmap {`TL -> hd []}))
+#*      (xfork {`HD} {`HD, x} (hoist HD; rename TL "x") id;
+#*       xfork {x, `TL} {`TL} (rename "x" HD; plunge TL; wmap {`TL -> inner_concat2}) id)
+#*  in
+#*    map (map (plunge "y"));
+#*    inner_concat2;
+#*    map (hoist "y")
+
+#*test concat2 / [[],[]] = [" "]
+#*test concat2 / [[u],[p,e,n,n]] = [u," ",p,e,n,n]
+#*test concat2 / [[u,n,i,v],[p,e,n,n]] = [u,n,i,v," ",p,e,n,n]
+#*test concat2 \ [" "] missing = [[],[]]
+#*test concat2 \ [" "] [[u],[p,e,n,n]] = [[],[]]
+#*test concat2 \ [u,n,i,v," ",p,e,n,n] missing =  [[u,n,i,v],[p,e,n,n]] 
+#*test concat2 \ [u,n,i,v," ",p,e,n,n] [[],[]] =  [[u,n,i,v],[p,e,n,n]] 
+#*test concat2 \ [u,n,i,v," ",p,e,n,n] [[u],[p]] =  [[u,n,i,v],[p,e,n,n]] 
+
 #{#}
-module List =
-
-(* SCHEMAS *)
-type Nil = Native.Prelude.Nil
-type Cons X Y = Native.Prelude.Cons X Y
-type T X = Nil | Cons X (T X)
-type NonEmptyList X = Cons X (T X)
-
-let HD : name = Native.Prelude.hd_tag
-let TL : name = Native.Prelude.tl_tag
-let NIL : name = Native.Prelude.nil_tag
-let tags : view = { `HD, `TL, `NIL }
-  
-(* lenses *)
-let hd (d:view) : lens = focus HD { `TL = `d }
-test (hd []) / [1] = {1}
-test (hd []) / [[1]] = [1]
-test (hd []) \ {1} missing = [1]
-test (hd []) \ {1} [2,3] = [1,3]
-test (hd []) / [] = error
-
-let tl (d:view) : lens = focus TL { `HD = `d }
-test (tl {}) / [1,2,3] = [2,3]
-test (tl {}) \ [2,3] missing = [{},2,3]
-test (tl {}) \ [2,3] [1]  = [1,2,3]
-test (tl {}) / [] = error
-
-let map (l:lens) : lens = wmap { `HD -> l, `TL -> (map l) }
-test (map (const {b} {c})) / [] = []
-test (map (const {b} {c})) / [1,2,3] = [b,b,b]
-test (map (const {b} {c})) \ [] missing = []
-test (map (const {b} {c})) \ [b,b,b] [1,2] = [1,2,c]
-
-let reverse : lens = 
-  let old_HD : name = "old_hd" in
-  let rotate : lens = 
-    acond < [] | [`Any] > < [] | [`Any] >
-        id
-        (rename HD old_HD;
-         hoist_nonunique TL tags;
-         xfork {`old_HD, `TL} {`TL}
-           (rename old_HD HD;
-            plunge TL;
-            wmap { `TL -> rotate })
-           id) 
-  in
-    wmap { `TL -> reverse }; 
-    rotate
-
-test reverse / [] = []
-test reverse / [1] = [1]
-test reverse / [1,2,3] = [3,2,1]
-test reverse \ [] missing = []
-test reverse \ [] [1,2,3] = []
-test reverse \ [3,2,1] [] = [1,2,3]
-
-let simple_filter (E:type) : lens = 
-  wmap { `TL -> simple_filter E };
-  ccond < E::Any >
-    (tl {"error"})
-    id
-
-(* filter: - some_D must NOT be an E
- *)    
-let filter (D:type) (E:type) (some_D:view) : lens =
-  let append (v:view) : lens =
-    acond <[]> <[`Any]>
-      (const v {})
-      (wmap { `TL -> append v })
-  in
-  let filter_aux (D:type) (E:type) (some_D:view) : lens = 
-    cond_ff <T E> < [] > < D::(T D) >
-      (plunge "_"; wmap { "_" -> filter E D {} }; hoist "_")
-      (append [`some_D])
-      (const [] [])
-      (inner_filter)
-  and inner_filter : lens =
-    (* this Any used to be a List containing at least one D *)
-    ccond < E::Any > 
-      (wmap { `TL -> inner_filter }; tl {"error"})
-      (wmap { `TL -> filter_aux D E some_D } )
-  in
-    filter_aux D E some_D
-
-test (filter <{a=`Any}> <{b=`Any}> {a}) / [] = []
-test (filter <{a=`Any}> <{b=`Any}> {a}) / [{a=1}, {a=2}, {b=3}, {a=4}] = [{a=1}, {a=2}, {a=4}] 
-test (filter <{a=`Any}> <{b=`Any}> {a}) / [{a=1}, {a=2}, {a=3}] = [{a=1}, {a=2}, {a=3}]
-test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [{a=1}, {a=2}, {b=3}, {a=4}] = [{a=1}, {a=2}, {b=3}, {a=3}] 
-test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [{b=3}] = [{b=3}, {a=1}, {a=2}, {a=3}] 
-test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}, {a=2}, {a=3}] [a, {b=3}] = [{a=1}, {b=3}, {a=2}, {a=3}] 
-test (filter <{a=`Any}> <{b=`Any}> {a}) \ [{a=1}] [a,a,{b=3}] = [{a=1}, {b=3}]
-
-(* concat *)
-let concat2 : lens =
-  let inner_concat2 : lens = 
-    acond < []::Any > < {y=" "}::Any> 
-      (fork {`HD} (map (const {y=" "} [])) (wmap {`TL -> hd []}))
-      (xfork {`HD} {`HD, x} (hoist HD; rename TL "x") id;
-       xfork {x, `TL} {`TL} (rename "x" HD; plunge TL; wmap {`TL -> inner_concat2}) id)
-  in
-    map (map (plunge "y"));
-    inner_concat2;
-    map (hoist "y")
-
-test concat2 / [[],[]] = [" "]
-test concat2 / [[u],[p,e,n,n]] = [u," ",p,e,n,n]
-test concat2 / [[u,n,i,v],[p,e,n,n]] = [u,n,i,v," ",p,e,n,n]
-test concat2 \ [" "] missing = [[],[]]
-test concat2 \ [" "] [[u],[p,e,n,n]] = [[],[]]
-test concat2 \ [u,n,i,v," ",p,e,n,n] missing =  [[u,n,i,v],[p,e,n,n]] 
-test concat2 \ [u,n,i,v," ",p,e,n,n] [[],[]] =  [[u,n,i,v],[p,e,n,n]] 
-test concat2 \ [u,n,i,v," ",p,e,n,n] [[u],[p]] =  [[u,n,i,v],[p,e,n,n]] 
-      
 (* let concat : lens = *)
 (*   let concat_aux : lens = *)
 (*     xfork {`HD} {`HD, "x"} *)
@@ -144,55 +165,49 @@ test concat2 \ [u,n,i,v," ",p,e,n,n] [[u],[p]] =  [[u,n,i,v],[p,e,n,n]]
 (* test concat \ [] missing = error (\* FIXME: wrong *\) *)
 (* test concat \ [u,n,i,v," ",o,f," ",p,e,n,n] [[u,n,i,v]] =  [[u,n,i,v],o,f," ",p,e,n,n] (\* FIXME: wrong *\) *)
 (* test concat / [[u,n,i,v],[o,f],[p,e,n,n]] = [u,n,i,v," ",o,f," ",p,e,n,n] *)
+#{@}
 
-let groupby2 : lens = 
-  let add_empty_tail : lens =
-    add TL {};
-    wmap { `TL -> add NIL {} }
-  in
-  let tmp : name = "tmp" in
-    acond <[]> <[]>
-      id
-      ((* (1) save hd of the list under tmp *)
-        rename HD tmp;
-        (* (2) bring the tail of the list up to the root level *)
-        hoist_nonunique TL tags;
-        (* split on domain at the root level; two cases:
-           (a) tail was empty --> domain is { tmp, nil }
-           (b) tail was non-empty --> domain is { tmp, hd, tl }
-        *)
-        acond <{`tmp=`Any,`NIL={}}> <[[`Any]]>
-          ((* case (a) yield [[tmp]] *)
-            xfork {`NIL} {`TL} (plunge TL) id;
-            rename tmp HD;
-            plunge HD;
-            add_empty_tail)
-          ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
-            xfork {`tmp, `HD} {`HD}
-              (rename HD TL;
-               wmap {`TL -> plunge HD; add_empty_tail };
-               rename tmp HD;             
-               plunge HD)
-               (wmap { `TL -> groupby2 })))
+\LENSSECTION{groupby2}
+#*let groupby2 : lens = 
+#*  let add_empty_tail : lens =
+#*    add TL {};
+#*    wmap { `TL -> add NIL {} }
+#*  in
+#*  let tmp : name = "tmp" in
+#*    acond <[]> <[]>
+#*      id
+#*      ((* (1) save hd of the list under tmp *)
+#*        rename HD tmp;
+#*        (* (2) bring the tail of the list up to the root level *)
+#*        hoist_nonunique TL tags;
+#*        (* split on domain at the root level; two cases:
+#*           (a) tail was empty --> domain is { tmp, nil }
+#*           (b) tail was non-empty --> domain is { tmp, hd, tl }
+#*        *)
+#*        acond <{`tmp=`Any,`NIL={}}> <[[`Any]]>
+#*          ((* case (a) yield [[tmp]] *)
+#*            xfork {`NIL} {`TL} (plunge TL) id;
+#*            rename tmp HD;
+#*            plunge HD;
+#*            add_empty_tail)
+#*          ((* case (b) produce [tmp,hd]::(groupby2 tl) *)
+#*            xfork {`tmp, `HD} {`HD}
+#*              (rename HD TL;
+#*               wmap {`TL -> plunge HD; add_empty_tail };
+#*               rename tmp HD;             
+#*               plunge HD)
+#*               (wmap { `TL -> groupby2 })))
 
-test groupby2 / [] = []
-test groupby2 / [1] = [[1]]
-test groupby2 / [1,2,3,4] = [[1,2],[3,4]]
-test groupby2 / [1,2,3,4,5] = [[1,2],[3,4],[5]]
-test groupby2 \ [] missing = []
-test groupby2 \ [] [1,2,3] = []
-test groupby2 \ [[1]] missing = [1]
-test groupby2 \ [[1]] [1,2,3] = [1]
-test groupby2 \ [[1,2],[3,4]] missing = [1,2,3,4]
-test groupby2 \ [[1,2],[3,4]] [1,2] = [1,2,3,4]
-test groupby2 \ [[1,2],[3,4],[5]] missing = [1,2,3,4,5]
-test groupby2 \ [[1,2],[3,4],[5]] [1,2,3] = [1,2,3,4,5]
+#*test groupby2 / [] = []
+#*test groupby2 / [1] = [[1]]
+#*test groupby2 / [1,2,3,4] = [[1,2],[3,4]]
+#*test groupby2 / [1,2,3,4,5] = [[1,2],[3,4],[5]]
+#*test groupby2 \ [] missing = []
+#*test groupby2 \ [] [1,2,3] = []
+#*test groupby2 \ [[1]] missing = [1]
+#*test groupby2 \ [[1]] [1,2,3] = [1]
+#*test groupby2 \ [[1,2],[3,4]] missing = [1,2,3,4]
+#*test groupby2 \ [[1,2],[3,4]] [1,2] = [1,2,3,4]
+#*test groupby2 \ [[1,2],[3,4],[5]] missing = [1,2,3,4,5]
+#*test groupby2 \ [[1,2],[3,4],[5]] [1,2,3] = [1,2,3,4,5]
 
-let fold_right (init:view) (l:lens) : lens =
-  wmap {`TL -> fold_right init l};
-  acond <[]> <[`init]>
-    (const [`init] [])
-    l
-
-                                     
-                     

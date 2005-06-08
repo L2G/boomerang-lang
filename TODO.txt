@@ -21,14 +21,8 @@ delete old (uncurried) concrete syntax of put tests
 
 ------------
 
-IMMEDIATE
-make sure running 'make test' actually RUNS unit tests in all fcl files
-fix 'make test' in /src so that it actually runs all unit tests in the code automatically
-
 SOON
-continue documenting interfaces (do 'make docs' in /src), 
-it would be really nice to be able to parse (and print!) XML directly from
-  focal programs (i.e., to include XML in meta parsing and printing)
+add typechecking tests to the parser?
 
 TIDYING
 * We should move all the primitive list-handling lenses out of Prelude and

@@ -78,3 +78,11 @@ t: buildharmonyfast test
 updateall:
 	cd $(TOP); svn update
 
+
+####################################################################
+# Personalization
+
+# Load file of individual harmony flags from home dir (if present)
+
+-include $(HOME)/.harmony.mk
+

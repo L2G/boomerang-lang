@@ -20,8 +20,6 @@ OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(
 
 all: native-code
 
-fast: bc
-
 tags:
 	etags $(SOURCES)
 

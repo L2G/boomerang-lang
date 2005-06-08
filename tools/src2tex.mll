@@ -154,99 +154,102 @@ rule lex = parse
     if !newLine then (newLine := false; lineMode := BOTH; inVerb())
     else (pc lexbuf '#'; pc lexbuf '*'); lex lexbuf
   }
-| "<->" {
-    checkVerb(); if shouldPrint() then pr "\\(\\Def\\)"; lex lexbuf
-  }
-| "->" {
-    checkVerb(); if shouldPrint() then pr "\\(\\Arrow\\)"; lex lexbuf
-  }
-| "<-" {
-    checkVerb(); if shouldPrint() then pr "\\(\\LeftArrow\\)"; lex lexbuf
-  }
-| "::" {
-    translateIfInCharmode lexbuf "\\Inkind{}";
-    lex lexbuf
-  }
-| "==" {
-    checkVerb(); if shouldPrint() then pr "{\\Defn}"; lex lexbuf
-  }
-| "=>" {
-    checkVerb(); if shouldPrint() then pr "\\(\\TArrow\\)"; lex lexbuf 
-  }
-| "==>" {
-    checkVerb(); if shouldPrint() then pr "\\(\\CaseArrow\\)"; lex lexbuf
-  }
-| "lambda" [' ' '\t']* {
-    translateIfInCharmode lexbuf "\\LAMBDA{}";
-    lex lexbuf
-  }
-| "All" [' ' '\t']* {
-    translateIfInCharmode lexbuf "\\FORALL{}";
-    lex lexbuf
-  }
-| "Some("  {
-    pr "Some(";
-    lex lexbuf
-  }
-| "Some" [' ' '\t']* {
-    translateIfInCharmode lexbuf "\\EXISTS{}";
-    lex lexbuf
-  }
-| [' ' '\t']* "knownas" [' ' '\t']* {
-    translateIfInCharmode lexbuf "\\KNOWNAS{}";
-    lex lexbuf
-  }
-| "Struct" [' ' '\t']* {
-    translateIfInCharmode lexbuf "\\STRUCT{}";
-    lex lexbuf
-  }
-| "Pi" [' ' '\t']* {
-    translateIfInCharmode lexbuf "\\PI{}";
-    lex lexbuf
-  }
-| "<|" {
-    checkVerb(); if shouldPrint() then pr "\\(\\LAngleBar\\)"; lex lexbuf
-  }
-| "|>" {
-    checkVerb(); if shouldPrint() then pr "\\(\\BarRAngle\\)"; lex lexbuf
-  }
-| "{|" {
-    checkVerb(); if shouldPrint() then pr "\\(\\LCurlyBar\\)"; lex lexbuf
-  }
-| "|}" {
-    checkVerb(); if shouldPrint() then pr "\\(\\BarRCurly\\)"; lex lexbuf
-  }
-| "**" {
-    checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\TIMES\\)"); lex lexbuf
-  }
-| "$" {
-    checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\Triangle\\)"); lex lexbuf
-  }
-| "Some" ' '+ {
-    checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\exists\\)"); lex lexbuf
-  }
-| "Rec" ' '+ {
-    checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\mu\\)"); lex lexbuf
-  }
-| "|]" ' '* "->" {
-    checkVerb(); prifchar lexbuf (fun ()-> pr "]"); lex lexbuf
-} 
-| "All[" ['a'-'z'] | "[|" ['a'-'z'] {
-    (* variable beginning with lowercase letters is \Pi *)
-    checkVerb(); 
-    prifchar lexbuf (fun ()-> pr "\\(\\Pi\\)[";
-                       let b = Lexing.lexeme lexbuf in
-                       print_char (String.get b (String.length b -1)));
-    lex lexbuf
-  }
-| "All[" ['A'-'Z'] | "[|" ['A'-'Z'] {   
-    (* variable beginning with uppercase letters is \forall *)
-    checkVerb(); 
-    prifchar lexbuf (fun ()-> pr "\\(\\forall\\)[";
-                       let b = Lexing.lexeme lexbuf in
-                       print_char (String.get b (String.length b - 1)));
-    lex lexbuf
-  }
+
+(*
+  | "<->" {
+      checkVerb(); if shouldPrint() then pr "\\(\\Def\\)"; lex lexbuf
+    }
+  | "->" {
+      checkVerb(); if shouldPrint() then pr "\\(\\Arrow\\)"; lex lexbuf
+    }
+  | "<-" {
+      checkVerb(); if shouldPrint() then pr "\\(\\LeftArrow\\)"; lex lexbuf
+    }
+  | "::" {
+      translateIfInCharmode lexbuf "\\Inkind{}";
+      lex lexbuf
+    }
+  | "==" {
+      checkVerb(); if shouldPrint() then pr "{\\Defn}"; lex lexbuf
+    }
+  | "=>" {
+      checkVerb(); if shouldPrint() then pr "\\(\\TArrow\\)"; lex lexbuf 
+    }
+  | "==>" {
+      checkVerb(); if shouldPrint() then pr "\\(\\CaseArrow\\)"; lex lexbuf
+    }
+  | "lambda" [' ' '\t']* {
+      translateIfInCharmode lexbuf "\\LAMBDA{}";
+      lex lexbuf
+    }
+  | "All" [' ' '\t']* {
+      translateIfInCharmode lexbuf "\\FORALL{}";
+      lex lexbuf
+    }
+  | "Some("  {
+      pr "Some(";
+      lex lexbuf
+    }
+  | "Some" [' ' '\t']* {
+      translateIfInCharmode lexbuf "\\EXISTS{}";
+      lex lexbuf
+    }
+  | [' ' '\t']* "knownas" [' ' '\t']* {
+      translateIfInCharmode lexbuf "\\KNOWNAS{}";
+      lex lexbuf
+    }
+  | "Struct" [' ' '\t']* {
+      translateIfInCharmode lexbuf "\\STRUCT{}";
+      lex lexbuf
+    }
+  | "Pi" [' ' '\t']* {
+      translateIfInCharmode lexbuf "\\PI{}";
+      lex lexbuf
+    }
+  | "<|" {
+      checkVerb(); if shouldPrint() then pr "\\(\\LAngleBar\\)"; lex lexbuf
+    }
+  | "|>" {
+      checkVerb(); if shouldPrint() then pr "\\(\\BarRAngle\\)"; lex lexbuf
+    }
+  | "{|" {
+      checkVerb(); if shouldPrint() then pr "\\(\\LCurlyBar\\)"; lex lexbuf
+    }
+  | "|}" {
+      checkVerb(); if shouldPrint() then pr "\\(\\BarRCurly\\)"; lex lexbuf
+    }
+  | "**" {
+      checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\TIMES\\)"); lex lexbuf
+    }
+  | "$" {
+      checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\Triangle\\)"); lex lexbuf
+    }
+  | "Some" ' '+ {
+      checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\exists\\)"); lex lexbuf
+    }
+  | "Rec" ' '+ {
+      checkVerb(); prifchar lexbuf (fun ()-> pr "\\(\\mu\\)"); lex lexbuf
+    }
+  | "|]" ' '* "->" {
+      checkVerb(); prifchar lexbuf (fun ()-> pr "]"); lex lexbuf
+  } 
+  | "All[" ['a'-'z'] | "[|" ['a'-'z'] {
+      (* variable beginning with lowercase letters is \Pi *)
+      checkVerb(); 
+      prifchar lexbuf (fun ()-> pr "\\(\\Pi\\)[";
+                         let b = Lexing.lexeme lexbuf in
+                         print_char (String.get b (String.length b -1)));
+      lex lexbuf
+    }
+  | "All[" ['A'-'Z'] | "[|" ['A'-'Z'] {   
+      (* variable beginning with uppercase letters is \forall *)
+      checkVerb(); 
+      prifchar lexbuf (fun ()-> pr "\\(\\forall\\)[";
+                         let b = Lexing.lexeme lexbuf in
+                         print_char (String.get b (String.length b - 1)));
+      lex lexbuf
+    }
+*)
 | "@@" {
     (*(if !lineMode = CHARS then print_char '@' else (pc lexbuf '@'; pc lexbuf '@'));*)
     print_char '@';
