@@ -170,6 +170,17 @@ let rec equal v1 v2 =
 (*   | Some v1, Some v2 -> equal v1 v2 *)
 (*   | _, _ -> false *)
 
+let rec compare v1 v2 =
+  let dv1, dv2 = dom v1, dom v2 in
+  let dcmp = Name.Set.compare dv1 dv2 in
+  if dcmp <> 0 then dcmp else
+  List.fold_left
+    (fun acc n ->
+      if acc <> 0 then acc else
+      compare (get_required v1 n) (get_required v2 n))
+    0
+    (Name.Set.elements dv1)
+
 let fold f (VI m) c = Name.Map.fold f m c
 
 (* let map f v = *)

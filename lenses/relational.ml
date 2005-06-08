@@ -23,7 +23,7 @@ let makebush =
 (* List sorting *)
 let listsort =
   let getfun c =
-    V.structure_from_list (List.sort compare (V.list_from_structure c))
+    V.structure_from_list (List.sort V.compare (V.list_from_structure c))
   in
   let putfun a co =
     match co with

@@ -1,43 +1,40 @@
-\section{Module {\tt Relational}}
-
 #{#}
 module Relational =
 
-let norm (r : view) : view = Prelude.map Native.listsort / r
+let norm (db : view) : view = Prelude.map Native.listsort / db
 
-let rcd1 = { first = "Aaron", last = "Bohannon", email = "aaron@cis" }
-let rcd1' = { first = "Aaron", lastname = "Bohannon", email = "aaron@cis" }
-let rcd2 = { first = "Nate", last = "Foster", email = "nate@cis" }
-let rcd2' = { first = "Nate", lastname = "Foster", email = "nate@cis" }
-let rcd3 = { first = "Jeff", last = "Vaughan", email = "jeff@cis" }
-let addrbook = {
-  tbl1 = [ `rcd1, `rcd2 ],
-  tbl2 = [ `rcd1, `rcd2, `rcd3 ]
-}
-let addrbook' = {
-  tbl1 = [ `rcd1', `rcd2' ],
-  tbl2 = [ `rcd1, `rcd2, `rcd3 ]
-}
+let bd_alice0 (n : name) : view =
+  Prelude.rename "foo" n / { foo = Alice, month = June, day = 12 }
 
-(*
-let db = {
-  birthdays = [
-    { name = Alice, month = June, day = 12 },
-    { name = Bob, month = December, day = 13 },
-    { name = Carol, month = October, day = 31 }
-  ]
-}
-*)
+let bd_alice (n : name) : view = { `n = Alice, month = June,     day = 12 }
+let bd_bob   (n : name) : view = { `n = Bob,   month = December, day = 13 }
+let bd_carol (n : name) : view = { `n = Carol, month = October,  day = 31 }
+let bd_dave  (n : name) : view = { `n = Dave,  month = June,     day = 13 }
+let bd_ellen (n : name) : view = { `n = Ellen, month = February, day = 29 }
+
+let mk_bday_db0 (n : name) : view =
+  { birthdays =
+    [ `(bd_alice0 n), `(bd_bob n), `(bd_carol n) ]
+  }
+
+let mk_bday_db1 (n : name) : view =
+  { birthdays =
+    [ `(bd_alice n), `(bd_bob n), `(bd_carol n) ]
+  }
 
 let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
+
 test
-  norm (rename "last" "lastname" "tbl1" "tbl1" / addrbook)
-=
-  norm addrbook'
+  norm (rename "person" "nm" "birthdays" "birthdays" / mk_bday_db1 "person")
+= norm (mk_bday_db1 "nm")
+
 test
-  norm (rename "lastname" "last" "tbl1" "tbl1" / addrbook)
-=
-  error
+  norm (rename "person" "day" "birthdays" "birthdays" / mk_bday_db1 "person")
+= error (* "day" already exists *)
+
+test
+  norm (rename "foo" "bar" "birthdays" "birthdays" / mk_bday_db1 "person")
+= error (* "foo" does not exist *)
 
 let union : (name -> name -> name -> lens) = Native.Relational.union
 let unionl : (name -> name -> name -> lens) = Native.Relational.unionl

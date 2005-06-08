@@ -73,6 +73,9 @@ val equal : t -> t -> bool
 (* (\** [equal_opt v1 v2] returns true if [v1 = None] and [v2 = None] or if [v1 = *)
 (*     Some v1'], [v2 = Some v2'] and [v1' = v2'].  Otherwise it returns false. *\) *)
 
+val compare : t -> t -> int
+(** [compare v1 v2] can be used as a comparison function on views. *)
+
 (* val is_singleton : t -> bool *)
 (* (\** [is_singleton v] returns true if [dom v] only has one element, and false otherwise. *\) *)
 
