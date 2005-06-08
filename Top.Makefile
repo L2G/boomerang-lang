@@ -69,11 +69,7 @@ buildharmony:
 	@$(MAKE) -C $(SRCDIR) all
 	@$(MAKE) -C $(LENSESDIR) all
 
-buildharmonyfast: 
-	@$(MAKE) -C $(SRCDIR) fast
-	@$(MAKE) -C $(LENSESDIR) all
-
-t: buildharmonyfast test
+t: buildharmony test
 
 updateall:
 	cd $(TOP); svn update

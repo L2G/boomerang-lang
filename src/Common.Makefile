@@ -18,7 +18,11 @@ OCAMLCPFLAGS = f
 ##
 OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(c).opt)
 
+ifeq ($(COMPILEHARMONYASBYTECODE),yes)
+all: bc
+else
 all: native-code
+endif
 
 tags:
 	etags $(SOURCES)
