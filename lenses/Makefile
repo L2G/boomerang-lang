@@ -13,7 +13,11 @@ clean::
 
 all: $(GENERATEDFCLFILES)
 
-test::
-	$(HARMONY) check -module Spinelist -test-all 
+test:: $(GENERATEDFCLFILES)
 	$(HARMONY) check -module Xml -test-all 
+	$(HARMONY) check -module Spinelist -test-all 
 	$(HARMONY) check -module Relational -test-all 
+
+doc: $(GENERATEDFCLFILES)
+	$(HARMONY) check -module Xml -test-all 
+	make -C $(DOCDIR) ps

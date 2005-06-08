@@ -17,6 +17,7 @@ CWD = $(shell pwd)
 LENSESDIR = $(CWD)/$(TOP)/lenses
 TOOLSDIR = $(TOP)/tools
 SRCDIR = $(TOP)/src
+DOCDIR = $(TOP)/doc
 
 SRC2F = $(TOOLSDIR)/src2f
 SRC2TEX = $(TOOLSDIR)/src2tex

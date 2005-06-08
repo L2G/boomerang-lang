@@ -52,14 +52,14 @@ let read_lib =
 let _ = register_native "Native.Prelude.read" "name -> name" read_lib
 
 (* load *)  
-let load viewer s = 
-  let ekey = Surveyor.get_ekey (Some viewer) "" (Some s) in
-    (Surveyor.get_reader ekey) s
+let load ekey blob = 
+  let ekey = Surveyor.get_ekey (Some ekey) "" (Some blob) in
+    (Surveyor.get_reader ekey) blob
 
 let load_lib =
   F (function
-       | N s -> F (function 
-		     | N viewer -> V (load viewer s)
+       | N ekey -> F (function 
+		     | N blob -> V (load ekey blob)
 		     | _ -> focal_type_error "Native.Prelude.load")
        | _ -> focal_type_error "Native.Prelude.load")
 
