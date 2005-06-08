@@ -1,0 +1,18 @@
+\section{Module {\tt Xml}}
+
+##module Xml =
+
+#*test id / (load "xml" "<a></a>") = 
+#*            {"" = [{a = {"" = []}}]}
+
+#*test id / (load "xml" "<a attr=\"foo\"></a>") = 
+#*            {"" = [{a = {"" = [], attr = foo}}]}
+
+This encoding is described by following type declarations:
+#*let children = ""
+#*type PCDATA = { PCDATA = { ! = {}}}
+#*type XmlElt =   {!\PCDATA = {`children = `List.T `XmlElt,  (* subelts *)
+#*                             *\`children = {! = {}} }}     (* attrs *)
+#*              | PCDATA
+#*type T = { `children = `List.T `XmlElt }
+
