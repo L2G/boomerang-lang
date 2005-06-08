@@ -263,26 +263,28 @@ rule lex = parse
     else
       (pc lexbuf '@'; pc lexbuf '@'; pc lexbuf '@'; lex lexbuf)
   }
-| '_'['a'-'z' 'A'-'Z' '0'-'9']+ '\''*
-| '_' '{' [^ '}' '@' ]* '}' '\''* {
-    let s = Lexing.lexeme lexbuf in
-    let l = String.length s in
-    let numprimes =
-      let rec loop n = if n<l && s.[l-n-1] = '\'' then loop(n+1) else n
-      in loop 0 in
-    let subscr = String.sub s 1 (l-numprimes-1) in
-    let primes = String.make numprimes '\'' in
-    if !lineMode = CHARS then
-      (pr "}"; pr primes; pr "_{"; pr subscr; pr "}\\itbox{")
-    else if shouldPrint() then
-      (checkVerb();
-       if !lineMode=SRC || !lineMode = BOTH
-          || (!lineMode=NONE && (!mode=SRC || !mode=BOTH)) then
-         (pr "\\progegsubscr{"; pr subscr; pr "}"; pr primes)
-       else
-         pr s);
-    lex lexbuf
-  }
+(*
+  | '_'['a'-'z' 'A'-'Z' '0'-'9']+ '\''*
+  | '_' '{' [^ '}' '@' ]* '}' '\''* {
+      let s = Lexing.lexeme lexbuf in
+      let l = String.length s in
+      let numprimes =
+        let rec loop n = if n<l && s.[l-n-1] = '\'' then loop(n+1) else n
+        in loop 0 in
+      let subscr = String.sub s 1 (l-numprimes-1) in
+      let primes = String.make numprimes '\'' in
+      if !lineMode = CHARS then
+        (pr "}"; pr primes; pr "_{"; pr subscr; pr "}\\itbox{")
+      else if shouldPrint() then
+        (checkVerb();
+         if !lineMode=SRC || !lineMode = BOTH
+            || (!lineMode=NONE && (!mode=SRC || !mode=BOTH)) then
+           (pr "\\progegsubscr{"; pr subscr; pr "}"; pr primes)
+         else
+           pr s);
+      lex lexbuf
+    }
+*)
 | '\''+ {
     let s = Lexing.lexeme lexbuf in
     if !lineMode = CHARS then

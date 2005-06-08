@@ -2,17 +2,121 @@
 
 ##module Xml =
 
+\subsection{Encoding}
+
+Elements:
 #*test id / (load "xml" "<a></a>") =
 #*            [{a = {"" = []}}]
 
-#*test id / (load "xml" "<a attr=\"foo\"></a>") =
+Nested elements:
+#*test id / (load "xml" "<a><b/><c/><b/></a>") =
+#*            [{a = {"" = [{b = {"" = []}}, 
+#*                         {c = {"" = []}}, 
+#*                         {b = {"" = []}}]}}]
+
+Attributes:
+#*test id / (load "xml" "<a attr='foo'></a>") =
 #*            [{a = {"" = [], attr = foo}}]
+
+PCDATA:
+#*test id / (load "xml" "<a>foo<b>bar</b>baz</a>") =
+#*            [{a = {"" = [{PCDATA = foo}, 
+#*                         {b = {"" = [{PCDATA = bar}]}}, 
+#*                         {PCDATA = baz}]}}]
+
+\subsection{Schemas}
 
 This encoding is described by following type declarations:
 #*let children = ""
 #*type PCDATA = { PCDATA = { ! = {}}}
-#*type XmlElt =   {!\PCDATA = {`children = `List.T `XmlElt,  (* subelts *)
-#*                             *\`children = {! = {}} }}     (* attrs *)
+#*type XmlElt =   {!\PCDATA = {`children = `(List.T XmlElt),  (* subelts *)
+#*                             *\`children = {! = {}} }}      (* attrs *)
 #*              | PCDATA
 #*type T = List.T XmlElt
 
+\finish{Change over to better way of writing this when new types are ready.} 
+
+#{#}
+(* We really want to write it this way: 
+type XmlElt =   {!\PCDATA = {`children = `T,            (* subelts *)
+                             *\`children = {! = {}} }}  (* attrs *)
+              | PCDATA
+and T = List.T XmlElt
+*)
+#{@}
+
+@Bare@ XML trees are ones containing no attributes:
+#*type BareElt =   {!\PCDATA = {`children = `(List.T BareElt)}}
+#*              | PCDATA
+#*type Bare = List.T BareElt
+
+
+\subsection{Lenses}
+
+Needed:
+\begin{itemize}
+\item hoist element
+\item hoist pcdata 
+\end{itemize}
+
+#{*}
+type FlattenedXML = { PCDATA = `(List.T Value), 
+                      *\PCDATA = `(List.T FlattenedXML) } 
+                  | { *\PCDATA = `(List.T FlattenedXML) }
+
+let flatten : lens = 
+  plunge "FOO"; wmap { FOO -> 
+  assert Bare;
+  List.map flatten_elt;
+  Prelude.flatten; 
+  assert FlattenedXML };
+  hoist "FOO"
+
+and flatten_elt : lens = 
+  assert BareElt;
+  acond <PCDATA> <PCDATA>
+    id
+    (map (wmap {`children -> flatten}; hoist children))
+
+test flatten / 
+        (load "xml" "<a><b/><c/><b/></a>") 
+      = {a = [{b = [{}, {}], 
+               c = [{}]}]}
+
+test flatten / 
+        (load "xml" "<a>foo</a>") 
+      = {a = [{PCDATA = [foo]}]}
+
+test flatten / 
+        (load "xml" "<a>foo<b/></a>") 
+      = {a = [{PCDATA = [foo], b = [{}]}]}
+
+
+type FlattenedPCDATA = { PCDATA = [`Value] } 
+type SimpleFlattenedXML = { PCDATA = [`Value], 
+                            *\PCDATA = [`SimpleFlattenedXML] } 
+                        | { *\PCDATA = [`SimpleFlattenedXML] }
+
+type SquashedPCDATA = { PCDATA = `Value } 
+(* This would be nicer to write if we had concatenation of types: *)
+type SquashedXML = { PCDATA = `Value, *\PCDATA = `SquashedXML } 
+                 | { *\PCDATA = `SquashedXML }
+
+let squash_aux : lens = 
+  probe "start";
+  assert SimpleFlattenedXML;
+  fork {PCDATA} 
+    (map (List.hd []))
+    (wmap (fun (n:name) -> List.hd []; squash_aux));
+  assert SquashedXML
+
+let squash = flatten; squash_aux
+
+test squash / 
+        (load "xml" "<a>foo</a>") 
+      = {a = {PCDATA = foo}}
+
+test squash / 
+        (load "xml" "<a>foo<b>bar</b><c>baz</c></a>") 
+      = {a = {PCDATA = foo, b = {PCDATA = bar}, c = {PCDATA = baz}}}
+#{@}

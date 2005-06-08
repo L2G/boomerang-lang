@@ -80,6 +80,8 @@ test (wmap { y -> const {a} {b}}) \ {x=a} {x,y=[1,2,3]} = {x=a}
 test (wmap { y -> const {a} {b}}) \ {y=a} {x,y=[1,2,3]} = {y=[1,2,3]}
 test (wmap { y -> const {a} {b}}) \ {y=a, z=c} {x,y=[1,2,3]} = {y=[1,2,3], z=c}
 
+#@\finish{Is there a wildcard?}
+
 #@\LENSSECTION{xfork}
 let xfork : (view -> view -> lens -> lens -> lens) = Native.Prelude.xfork
 test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x,y} = {a,b}

@@ -804,28 +804,28 @@ let flatten =
 	if V.is_empty_list c then V.structure_from_list (listify a)
 	else 
 	  let head = V.get_required c V.hd_tag in
-	    (* Error handling in case of ill-formed list *)
+          (* Error handling in case of ill-formed list *)
 	  let c' = V.get_required c V.tl_tag in
-	    (* List of labels pointing toward trees *)
-	    if Name.Set.cardinal (V.dom head) = 1 then 
-	      let c_list = V.to_list head in
-	      let (k,d) = Safelist.hd c_list in
-		match V.get a k with
-		    None -> put a (Some c')
-		  | Some ds -> 
-		      (* Error handling in case of ill-formed list *)
-		      let d' = V.get_required ds V.hd_tag in 
-		      let s = V.get_required ds V.tl_tag in
-			if V.is_empty_list s then
-			  V.cons 
-			    (V.from_list [k,d']) 
-			    (put (V.set a k None) (Some c'))
-			else 
-			  V.cons 
-			    (V.from_list [k,d']) 
-			    (put (V.set (V.set a k None) k (Some s)) (Some c'))
-	    else error [`String "Native.Prelude.flatten(put): expected a view with exactly one child: "; 
-			`View head]
+          (* List of labels pointing toward trees *)
+          if Name.Set.cardinal (V.dom head) = 1 then 
+            let c_list = V.to_list head in
+            let (k,d) = Safelist.hd c_list in
+            match V.get a k with
+                None -> put a (Some c')
+              | Some ds -> 
+                  (* Error handling in case of ill-formed list *)
+                  let d' = V.get_required ds V.hd_tag in 
+                  let s = V.get_required ds V.tl_tag in
+                  if V.is_empty_list s then
+                    V.cons 
+                      (V.from_list [k,d']) 
+                      (put (V.set a k None) (Some c'))
+                  else 
+                    V.cons 
+                      (V.from_list [k,d']) 
+                      (put (V.set (V.set a k None) k (Some s)) (Some c'))
+          else error [`String "Native.Prelude.flatten(put): expected a view with exactly one child: "; 
+                      `View head]
   in
     {get = get ;
      put = put }
