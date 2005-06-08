@@ -2,7 +2,8 @@ THINGS TO DO
 
 BCP TASKS
 finish going over .mli files and docs
-change "split" to "lines"
+change "split" to "lines" and "invert" to "inverse"
+discuss changing concrete syntax of "put" tests
 
 NATE TASKS
 why, again, do fork and friends take views, not types?
