@@ -5,12 +5,12 @@
 ##let norm (db : view) : view = Prelude.map Native.listsort / db
 
 #{#}
-let bd_a = { nm = Alice, mon = June,     day = 12 }
-let bd_b = { nm = Bob,   mon = December, day = 13 }
-let bd_c = { nm = Carol, mon = October,  day = 31 }
-let bd_d = { nm = Dave,  mon = June,     day = 13 }
-let bd_e = { nm = Ellen, mon = February, day = 29 }
-let bd_f = { nm = Fred , mon = August,   day = 15 }
+let bd_a = { nm = Alice, mon = June,     day = 21, age = 21 }
+let bd_b = { nm = Bob,   mon = December, day = 13, age = 25 }
+let bd_c = { nm = Carol, mon = October,  day = 31, age = 31 }
+let bd_d = { nm = Dave,  mon = June,     day = 23, age = 23 }
+let bd_e = { nm = Ellen, mon = February, day = 29, age = 27 }
+let bd_f = { nm = Fred , mon = August,   day = 15, age = 41 }
 
 let ph_a = { nm = Alice, ph = "555-555-5555" }
 let ph_b = { nm = Bob,   ph = "123-456-7890" }
