@@ -97,6 +97,10 @@ and flatten_elt : lens =
                (hoist children))))
 #{@}
 
+#*test flatten_elt /
+#*       ((List.hd []) / (load "xml" "<a>text</a>"))
+#*     = {a = {PCDATA = [text]}}
+
 \finish{Need explanations from here on...}
 #*test flatten / 
 #*        (load "xml" "<a> <c/> <b/> </a>") 
@@ -185,11 +189,11 @@ combination a name.
 #*      = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
 
 It is also useful to @squash@ a single element:
-#*let squash_elt = flatten_elt; squash_flattened
+#*let squash_elt = flatten_elt; map squash_flattened
 
-test squash_elt /
-          ((List.hd []; hoist children) / (load "xml" "<a attr='foo'>text<b/></a>"))
-        = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
+#*test squash_elt /
+#*          ((List.hd []) / (load "xml" "<a attr='foo'>text<b/></a>"))
+#*        = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
 
 The above tests actually happen to work in both directions.  In 
 general, though, the PUT direction of squash doesn't have enough 
