@@ -226,7 +226,7 @@ Description.
 ##  Native.Relational.project
 
 #{*}
-test project {A, B, C} {A, B} [{D = 4}] "R" "S" /
+test project {A, B, C} {A, B} [{D = 8}, {D = 9}] "R" "S" /
        { R = [{A = 10, B = 1, C = 5, D = 7},
               {A = 10, B = 1, C = 5, D = 8},
               {A = 10, B = 2, C = 5, D = 7},
@@ -239,7 +239,7 @@ test project {A, B, C} {A, B} [{D = 4}] "R" "S" /
 #{@}
 In the \PUT{} direction,
 #{*}
-test project {A, B, C} {A, B} [{D = 9}] "R" "S" \
+test project {A, B, C} {A, B} [{D = 8}, {D = 9}] "R" "S" \
        { S = [{A = 10, B = 1, C = 4},
               {A = 10, B = 2, C = 5},
               {A = 20, B = 1, C = 6},
@@ -253,6 +253,7 @@ test project {A, B, C} {A, B} [{D = 9}] "R" "S" \
               {A = 10, B = 1, C = 4, D = 8},
               {A = 10, B = 2, C = 5, D = 7},
               {A = 20, B = 1, C = 6, D = 7},
+              {A = 30, B = 1, C = 6, D = 8},
               {A = 30, B = 1, C = 6, D = 9}]}
 #{@}
 
