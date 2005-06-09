@@ -11,7 +11,8 @@ let view_to_rcd view =
 
 let rel_to_view rel =
   V.structure_from_list
-    (List.rev
+    (* FIXME: If Ocaml >= 3.08.3, List.rev is sufficient. *)
+    (List.sort V.compare
       (Relation.fold (fun rcd ls -> rcd_to_view rcd :: ls) rel []))
 
 let view_to_rel view =

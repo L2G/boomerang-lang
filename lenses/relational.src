@@ -197,8 +197,7 @@ test select "A" "1" "R" "S" \
              {A = 1, C = 9}]}
        {R = [{A = 1, C = 2},
              {A = 3, C = 4}]}
-     = 
-       {R = [{A = 1, C = 8},
+     = {R = [{A = 1, C = 8},
              {A = 1, C = 9},
              {A = 3, C = 4}]}
 #{@}
@@ -221,10 +220,41 @@ test select_eq "A" "B" "R" "S" /
 The behavior of the \PUT{} direction is analogous to @select@.
 
 \LENSSECTION{project}
+Description.
 
-let project : (view -> view -> view -> name -> name -> lens) =
-  Native.Relational.project
+##let project : (view -> view -> view -> name -> name -> lens) =
+##  Native.Relational.project
 
+#{*}
+test project {A, B, C} {A, B} [{D = 4}] "R" "S" /
+       { R = [{A = 10, B = 1, C = 5, D = 7},
+              {A = 10, B = 1, C = 5, D = 8},
+              {A = 10, B = 2, C = 5, D = 7},
+              {A = 20, B = 1, C = 6, D = 7},
+              {A = 20, B = 2, C = 6, D = 7}]}
+     = { S = [{A = 10, B = 1, C = 5},
+              {A = 10, B = 2, C = 5},
+              {A = 20, B = 1, C = 6},
+              {A = 20, B = 2, C = 6}]}
+#{@}
+In the \PUT{} direction,
+#{*}
+test project {A, B, C} {A, B} [{D = 9}] "R" "S" \
+       { S = [{A = 10, B = 1, C = 4},
+              {A = 10, B = 2, C = 5},
+              {A = 20, B = 1, C = 6},
+              {A = 30, B = 1, C = 6}]}
+       { R = [{A = 10, B = 1, C = 5, D = 7},
+              {A = 10, B = 1, C = 5, D = 8},
+              {A = 10, B = 2, C = 5, D = 7},
+              {A = 20, B = 1, C = 6, D = 7},
+              {A = 20, B = 2, C = 6, D = 7}]}
+     = { R = [{A = 10, B = 1, C = 4, D = 7},
+              {A = 10, B = 1, C = 4, D = 8},
+              {A = 10, B = 2, C = 5, D = 7},
+              {A = 20, B = 1, C = 6, D = 7},
+              {A = 30, B = 1, C = 6, D = 9}]}
+#{@}
 
 \LENSSECTION{union}
 The lens @union R S T@ replaces the relations @R@ and @S@ by 
