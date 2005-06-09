@@ -45,46 +45,56 @@ and T = List.T XmlElt
 *)
 #{@}
 
-@Bare@ XML trees are ones containing no attributes:
-#*type BareElt =   {!\PCDATA = {`children = `(List.T BareElt)}}
-#*              | PCDATA
-#*type Bare = List.T BareElt
-
-
 \subsection{Lenses}
 
 \finish{
 More needed:
 \begin{itemize}
 \item all of these need to be extended to deal with attributes!!
+\item Much of this would be nicer to write if we had concatenation of types
 \item hoist element
 \item hoist pcdata 
 \end{itemize}
 }
 
 \LENSSECTION{flatten}
-The @flatten@ lens (like @List.flatten@) removes the ordering from an XML
-structure, leaving a ``bush'' of type @FlattenedXML@:
+The @flatten@ lens is a generalized version of @List.flatten@.  Removes the
+ordering from an XML structure, leaving a ``bush'' of type @FlattenedXML@:
+\finish{This really needs type concatenation!!}
 #{*}
 type FlattenedXML = { PCDATA = `(List.T Value), 
                       *\PCDATA = `(List.T FlattenedXML) } 
-                  | { *\PCDATA = `(List.T FlattenedXML) }
+                  | { ATTRS = {!=`Value,*=`Value}, 
+                      *\PCDATA,ATTRS = `(List.T FlattenedXML) } 
+                  | { PCDATA = `(List.T Value), 
+                      ATTRS = {!=`Value,*=`Value}, 
+                      *\PCDATA,ATTRS = `(List.T FlattenedXML) } 
+                  | { *\PCDATA,ATTRS = `(List.T FlattenedXML) }
 #{@}
 
 #{#}
 let flatten : lens = 
   plunge "FOO"; wmap { FOO -> 
-  assert Bare;
+  assert T;
   List.map flatten_elt;
   Prelude.flatten; 
   assert FlattenedXML };
   hoist "FOO"
 
 and flatten_elt : lens = 
-  assert BareElt;
+  assert XmlElt;
   acond <PCDATA> <PCDATA>
     id
-    (map (wmap {`children -> flatten}; hoist children))
+    (map (acond <{`children=`Any}> <{*\ATTRS=`Any}>
+            (* No attributes *)
+            (wmap {`children -> flatten}; hoist children)
+            (* Attributes *)
+            (fork {`children} 
+              (wmap {`children -> flatten})
+              (plunge "ATTRS");
+             fork {ATTRS}
+               id
+               (hoist children))))
 #{@}
 
 \finish{Need explanations from here on...}
@@ -96,46 +106,71 @@ and flatten_elt : lens =
 #*test flatten / 
 #*        (load "xml" "<a>foo</a>") 
 #*      = {a = [{PCDATA = [foo]}]}
-#*
+
 #*test flatten / 
 #*        (load "xml" "<a> <b/> <c/> <b/> </a>") 
 #*      = {a = [{b = [{}, {}], 
 #*               c = [{}]}]}
-#*
+
 #*test flatten / 
 #*        (load "xml" "<a>foo<b/></a>") 
 #*      = {a = [{PCDATA = [foo], b = [{}]}]}
 
+#*test flatten / 
+#*        (load "xml" "<a foo='attrfoo'><b/>text</a>") 
+#*      = {a = [{ATTRS = {foo = attrfoo}, 
+#*               PCDATA = [text], 
+#*               b = [{}]}]}
 
-\LENSSECTION{squash}
-The @squash@ lens goes a step further.  It assumes that its concrete
+
+\LENSSECTION{@squash_flattened@}
+The @squash@ lens defined below goes a step further.  It assumes that its
+concrete 
 argument is ``non-repetitive'' in the sense that each element contains at
 most one sub-element with a given tag (and at most one PCDATA sub-element).
-For such XML structures, there is no need for any list structure in their
-abstract representations---i.e., the target type of @squash@ is:
-#{#}
+#{*}
 type FlattenedPCDATA = { PCDATA = [`Value] } 
-type SimpleFlattenedXML = { PCDATA = [`Value], 
-                            *\PCDATA = [`SimpleFlattenedXML] } 
-                        | { *\PCDATA = [`SimpleFlattenedXML] }
+type SimpleFlattenedXML = { *\PCDATA = [`SimpleFlattenedXML] }
+                        | { PCDATA = [`Value], 
+                            *\PCDATA,ATTRS = [`SimpleFlattenedXML] } 
+                        | { ATTRS = {!=`Value,*=`Value}, 
+                            *\PCDATA,ATTRS = [`SimpleFlattenedXML] } 
+                        | { PCDATA = [`Value],
+                            ATTRS = {!=`Value,*=`Value}, 
+                            *\PCDATA,ATTRS = [`SimpleFlattenedXML] } 
 #{@}
+
+For such XML structures, there is no need for any list structure in their
+abstract representations---i.e., we can take just the head elements of all
+the lists, yielding something of this type:
 #{*}
 type SquashedPCDATA = { PCDATA = `Value } 
-(* This would be nicer to write if we had concatenation of types: *)
-type SquashedXML = { PCDATA = `Value, *\PCDATA = `SquashedXML } 
-                 | { *\PCDATA = `SquashedXML }
+type SquashedXML = { *\PCDATA,ATTRS = `SquashedXML }
+                 | { PCDATA = `Value, 
+                     *\PCDATA,ATTRS = `SquashedXML } 
+                 | { ATTRS = {!=`Value,*=`Value}, 
+                     *\PCDATA,ATTRS = `SquashedXML } 
+                 | { ATTRS = {!=`Value,*=`Value}, 
+                     PCDATA = `Value, 
+                     *\PCDATA,ATTRS = `SquashedXML } 
 #{@}
+The @squash_flattened@ 
 
 #{#}
-let squash_aux : lens = 
+let squash_flattened : lens = 
   assert SimpleFlattenedXML;
-  fork {PCDATA} 
-    (map (List.hd []))
-    (wmap (fun (n:name) -> List.hd []; squash_aux));
+  fork {ATTRS}
+    id
+    (fork {PCDATA} 
+      (map (List.hd []))
+      (wmap (fun (n:name) -> List.hd []; squash_flattened)));
   assert SquashedXML
-
-let squash = flatten; squash_aux
 #{@}
+
+\LENSSECTION{squash}
+Often, @flatten@ and @squash_flattened@ are used together, so we give the
+combination a name.
+#*let squash = flatten; squash_flattened
 
 #*test squash / 
 #*        (load "xml" "<a>foo</a>") 
@@ -144,6 +179,10 @@ let squash = flatten; squash_aux
 #*test squash / 
 #*        (load "xml" "<a>foo<b>bar</b><c>baz</c></a>") 
 #*      = {a = {PCDATA = foo, b = {PCDATA = bar}, c = {PCDATA = baz}}}
+
+#*test squash / 
+#*        (load "xml" "<a attr='foo'>text<b/></a>") 
+#*      = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
 
 The above tests actually happen to work in both directions.  In 
 general, though, the PUT direction of squash doesn't have enough 
