@@ -184,6 +184,13 @@ combination a name.
 #*        (load "xml" "<a attr='foo'>text<b/></a>") 
 #*      = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
 
+It is also useful to @squash@ a single element:
+#*let squash_elt = flatten_elt; squash_flattened
+
+test squash_elt /
+          ((List.hd []; hoist children) / (load "xml" "<a attr='foo'>text<b/></a>"))
+        = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
+
 The above tests actually happen to work in both directions.  In 
 general, though, the PUT direction of squash doesn't have enough 
 information to determine the ordering of newly created elements, so 
