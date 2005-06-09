@@ -41,10 +41,10 @@ let fold f r init =
   StrListSet.fold f' r.rows init
 
 let rename m n r =
-  if StrSet.mem n r.flds then
-    raise (Domain_includes(StrSet.elements r.flds, n));
   if not (StrSet.mem m r.flds) then
     raise (Domain_excludes(StrSet.elements r.flds, m));
+  if StrSet.mem n r.flds && n <> m then
+    raise (Domain_includes(StrSet.elements r.flds, n));
   let swapname s = if s = m then n else s in
   let flds = List.map swapname (StrSet.elements r.flds) in
   let accum row rel =

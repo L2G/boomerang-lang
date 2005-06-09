@@ -3,6 +3,7 @@ module Db = Map.Make(String)
 
 (* Functions to lift lenses on relations to lenses on databases *)
 
+(*
 let mk_lens opname get put =
   let trap_not_found f x y =
     try f x y with
@@ -10,48 +11,81 @@ let mk_lens opname get put =
         Lens.error [ `String(opname^":"); `Space; `String("no such table") ]
   in
   Lens.native ((trap_not_found (fun () -> get)) ()) (trap_not_found put)
+*)
+
+let table_missing opname tblname =
+  Lens.error
+    [ `String(opname^":")
+    ; `Space; `String("no such table:")
+    ; `Space; `String(tblname)
+    ]
+
+let table_exists opname tblname =
+  Lens.error
+    [ `String(opname^":")
+    ; `Space; `String("table already exists:")
+    ; `Space; `String(tblname)
+    ]
 
 let lift_unary opname lens src dst =
   let getfun c =
-    let srctbl = Db.find src c in
+    let srctbl =
+      try Db.find src c with Not_found -> table_missing opname src in
+    if dst <> src && Db.mem dst c then table_exists opname dst;
     Db.add dst (Lens.get lens srctbl)
       (Db.remove src c)
   and putfun a co =
-    let dsttbl = Db.find dst a in
+    let dsttbl =
+      try Db.find dst a with Not_found -> table_missing opname dst in
     let newtbl =
       match co with
       | None -> Lens.put lens dsttbl None
       | Some(c) ->
-          let srctbl = Db.find src c in
+          let srctbl =
+            try Db.find src c with
+            | Not_found -> table_missing opname src
+          in
           Lens.put lens dsttbl (Some(srctbl))
     in
+    if src <> dst && Db.mem src a then table_exists opname src;
     Db.add src newtbl
       (Db.remove dst a)
   in
-  mk_lens opname getfun putfun
+  Lens.native getfun putfun
 
 let lift_binary opname lens src1 src2 dst =
   let getfun c =
-    let srctbl1 = Db.find src1 c in
-    let srctbl2 = Db.find src2 c in
+    let srctbl1 =
+      try Db.find src1 c with Not_found -> table_missing opname src1 in
+    let srctbl2 =
+      try Db.find src2 c with Not_found -> table_missing opname src2 in
+    if dst <> src1 && dst <> src2 && Db.mem dst c then table_exists opname dst;
     Db.add dst (Lens.get lens (srctbl1, srctbl2))
       (Db.remove src1
         (Db.remove src2 c))
   and putfun a co =
-    let dsttbl = Db.find dst a in
+    let dsttbl =
+      try Db.find dst a with Not_found -> table_missing opname dst in
     let newtbl1, newtbl2 =
       match co with
       | None -> Lens.put lens dsttbl None
       | Some(c) ->
-          let srctbl1 = Db.find src1 c in
-          let srctbl2 = Db.find src2 c in
+          let srctbl1 =
+            try Db.find src1 c with
+            | Not_found -> table_missing opname src1
+          and srctbl2 =
+            try Db.find src2 c with
+            | Not_found -> table_missing opname src2
+          in
           Lens.put lens dsttbl (Some((srctbl1, srctbl2)))
     in
+    if src1 <> dst && Db.mem src1 a then table_exists opname src1;
+    if src2 <> dst && Db.mem src2 a then table_exists opname src2;
     Db.add src1 newtbl1
       (Db.add src2 newtbl2
         (Db.remove dst a))
   in
-  mk_lens opname getfun putfun
+  Lens.native getfun putfun
 
 (* Lenses *)
 

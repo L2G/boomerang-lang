@@ -56,7 +56,7 @@ let mk_lens opname get put =
         Lens.error
           [ `String(opname^":")
           ; `Space; dom d1
-          ; `Space; `String("is unqual to")
+          ; `Space; `String("is unequal to")
           ; `Space; dom d2
           ]
     | R.Domain_excludes(d, a) ->
