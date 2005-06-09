@@ -1,0 +1,71 @@
+module Vcard =
+
+(* According to http://www.jabber.org/jeps/jep-0054.html, a VCard should start with a version
+   number, then is followed by mandatory FN and N. As every example seem not to have a version,
+   we assume that the first element is a FN. *)
+
+let l = 
+      (* we first bring the FN element, assumed to be the first, as key *)
+      List.hd []; focus "vCard" {}; focus "" {xmlns = vcard-temp};
+      wmap {`List.HD -> Xml.squash_elt; hoist "FN"; hoist "PCDATA"};
+      pivot List.HD; map (hoist List.TL);
+      (* we now squash the first element of the list, that is N, and flatten the rest *)
+      map (wmap {`List.HD -> Xml.squash_elt, `List.TL -> Xml.flatten};
+           hoist_nonunique List.HD {N}; rename List.TL "contents")
+
+test l / (load "xml" "<vCard xmlns='vcard-temp'>
+                      |  <FN>Alan Schmitt</FN>
+                      |  <N>
+                      |    <FAMILY>Schmitt</FAMILY>
+                      |    <GIVEN>Alan</GIVEN>
+                      |    <MIDDLE/>
+                      |  </N>
+                      |  <NICKNAME>brab</NICKNAME>
+                      |  <URL>http://sardes.inrialpes.fr/~aschmitt/</URL>
+                      |  <BDAY>1974-04-02</BDAY>
+                      |  <ORG>
+                      |    <ORGNAME>INRIA Rhône-Alpes</ORGNAME>
+                      |    <ORGUNIT/>
+                      |  </ORG>
+                      |  <TITLE>Researcher</TITLE>
+                      |  <TEL><VOICE/><WORK/><NUMBER>+33 (0)4 76 61 54 15</NUMBER></TEL>
+                      |  <TEL><VOICE/><HOME/><NUMBER>+33 (0)8 71 79 74 00</NUMBER></TEL>
+                      |  <ADR>
+                      |    <HOME/>
+                      |    <EXTADD/>
+                      |    <STREET>4, rue de l'Isère</STREET>
+                      |    <LOCALITY>Grenoble</LOCALITY>
+                      |    <REGION></REGION>
+                      |    <PCODE>380000</PCODE>
+                      |    <CTRY>FRANCE</CTRY>
+                      |  </ADR>
+                      |  <EMAIL><INTERNET/><PREF/><USERID>alan.schmitt@polytechnique.org</USERID></EMAIL>
+                      |</vCard>")
+=
+{"Alan Schmitt" =
+  {N = {FAMILY = {PCDATA = Schmitt}, GIVEN = {PCDATA = Alan}, MIDDLE = {}},
+   contents =
+    {ADR =
+      [{CTRY = [{PCDATA = [FRANCE]}],
+        EXTADD = [{}],
+        HOME = [{}],
+        LOCALITY = [{PCDATA = [Grenoble]}],
+        PCODE = [{PCDATA = [380000]}],
+        REGION = [{}],
+        STREET = [{PCDATA = ["4, rue de l'Isère"]}]}],
+     BDAY = [{PCDATA = [1974-04-02]}],
+     EMAIL =
+      [{INTERNET = [{}],
+        PREF = [{}],
+        USERID = [{PCDATA = ["alan.schmitt@polytechnique.org"]}]}],
+     NICKNAME = [{PCDATA = [brab]}],
+     ORG = [{ORGNAME = [{PCDATA = ["INRIA Rhône-Alpes"]}], ORGUNIT = [{}]}],
+     TEL =
+      [{NUMBER = [{PCDATA = ["+33 (0)4 76 61 54 15"]}],
+        VOICE = [{}],
+        WORK = [{}]},
+       {HOME = [{}],
+        NUMBER = [{PCDATA = ["+33 (0)8 71 79 74 00"]}],
+        VOICE = [{}]}],
+     TITLE = [{PCDATA = [Researcher]}],
+     URL = [{PCDATA = ["http://sardes.inrialpes.fr/~aschmitt/"]}]}}}

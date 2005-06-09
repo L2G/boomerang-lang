@@ -5,7 +5,7 @@
 
 # $Id$ 
 
-SUBDIRS = template structuredtext
+SUBDIRS = template structuredtext addresses
 
 TOP = ..
 include $(TOP)/Top.Makefile

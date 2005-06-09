@@ -1,0 +1,11 @@
+<vCard xmlns='vcard-temp'>
+  <FN>JeremieMiller</FN>
+  <N>
+    <GIVEN>Jeremie</GIVEN>
+    <FAMILY>Miller</FAMILY>
+    <MIDDLE/>
+  </N>
+  <NICKNAME>jer</NICKNAME>
+  <EMAIL><INTERNET/><PREF/><USERID>jeremie@jabber.org</USERID></EMAIL>
+  <JABBERID>jer@jabber.org</JABBERID>
+</vCard>

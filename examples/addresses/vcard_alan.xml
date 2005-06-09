@@ -1,0 +1,43 @@
+<vCard xmlns='vcard-temp'>
+  <FN>Alan Schmitt</FN>
+  <N>
+    <FAMILY>Schmitt</FAMILY>
+    <GIVEN>Alan</GIVEN>
+    <MIDDLE/>
+  </N>
+  <NICKNAME>brab</NICKNAME>
+  <URL>http://sardes.inrialpes.fr/~aschmitt/</URL>
+  <BDAY>1974-04-02</BDAY>
+  <ORG>
+    <ORGNAME>INRIA Rhône-Alpes</ORGNAME>
+    <ORGUNIT/>
+  </ORG>
+  <TITLE>Researcher</TITLE>
+  <ROLE></ROLE>
+  <TEL><VOICE/><WORK/><NUMBER>+33 (0)4 76 61 54 15</NUMBER></TEL>
+  <TEL><FAX/><WORK/><NUMBER/></TEL>
+  <TEL><MSG/><WORK/><NUMBER/></TEL>
+  <ADR>
+    <WORK/>
+    <EXTADD></EXTADD>
+    <STREET></STREET>
+    <LOCALITY></LOCALITY>
+    <REGION></REGION>
+    <PCODE></PCODE>
+    <CTRY></CTRY>
+  </ADR>
+  <TEL><VOICE/><HOME/><NUMBER>+33 (0)8 71 79 74 00</NUMBER></TEL>
+  <TEL><FAX/><HOME/><NUMBER/></TEL>
+  <TEL><MSG/><HOME/><NUMBER/></TEL>
+  <ADR>
+    <HOME/>
+    <EXTADD/>
+    <STREET/>
+    <LOCALITY>Grenoble</LOCALITY>
+    <REGION></REGION>
+    <PCODE>380000</PCODE>
+    <CTRY>FRANCE</CTRY>
+  </ADR>
+  <EMAIL><INTERNET/><PREF/><USERID>alan.schmitt@polytechnique.org</USERID></EMAIL>
+  <DESC></DESC>
+</vCard>
