@@ -53,17 +53,25 @@ and T = List.T XmlElt
 
 \subsection{Lenses}
 
-Needed:
+\finish{
+More needed:
 \begin{itemize}
+\item all of these need to be extended to deal with attributes!!
 \item hoist element
 \item hoist pcdata 
 \end{itemize}
+}
 
+\LENSSECTION{flatten}
+The @flatten@ lens (like @List.flatten@) removes the ordering from an XML
+structure, leaving a ``bush'' of type @FlattenedXML@:
 #{*}
 type FlattenedXML = { PCDATA = `(List.T Value), 
                       *\PCDATA = `(List.T FlattenedXML) } 
                   | { *\PCDATA = `(List.T FlattenedXML) }
+#{@}
 
+#{#}
 let flatten : lens = 
   plunge "FOO"; wmap { FOO -> 
   assert Bare;
@@ -77,33 +85,49 @@ and flatten_elt : lens =
   acond <PCDATA> <PCDATA>
     id
     (map (wmap {`children -> flatten}; hoist children))
+#{@}
 
-test flatten / 
-        (load "xml" "<a><b/><c/><b/></a>") 
-      = {a = [{b = [{}, {}], 
-               c = [{}]}]}
+\finish{Need explanations from here on...}
+#*test flatten / 
+#*        (load "xml" "<a> <c/> <b/> </a>") 
+#*      = {a = [{b = [{}], 
+#*               c = [{}]}]}
 
-test flatten / 
-        (load "xml" "<a>foo</a>") 
-      = {a = [{PCDATA = [foo]}]}
+#*test flatten / 
+#*        (load "xml" "<a>foo</a>") 
+#*      = {a = [{PCDATA = [foo]}]}
+#*
+#*test flatten / 
+#*        (load "xml" "<a> <b/> <c/> <b/> </a>") 
+#*      = {a = [{b = [{}, {}], 
+#*               c = [{}]}]}
+#*
+#*test flatten / 
+#*        (load "xml" "<a>foo<b/></a>") 
+#*      = {a = [{PCDATA = [foo], b = [{}]}]}
 
-test flatten / 
-        (load "xml" "<a>foo<b/></a>") 
-      = {a = [{PCDATA = [foo], b = [{}]}]}
 
-
+\LENSSECTION{squash}
+The @squash@ lens goes a step further.  It assumes that its concrete
+argument is ``non-repetitive'' in the sense that each element contains at
+most one sub-element with a given tag (and at most one PCDATA sub-element).
+For such XML structures, there is no need for any list structure in their
+abstract representations---i.e., the target type of @squash@ is:
+#{#}
 type FlattenedPCDATA = { PCDATA = [`Value] } 
 type SimpleFlattenedXML = { PCDATA = [`Value], 
                             *\PCDATA = [`SimpleFlattenedXML] } 
                         | { *\PCDATA = [`SimpleFlattenedXML] }
-
+#{@}
+#{*}
 type SquashedPCDATA = { PCDATA = `Value } 
 (* This would be nicer to write if we had concatenation of types: *)
 type SquashedXML = { PCDATA = `Value, *\PCDATA = `SquashedXML } 
                  | { *\PCDATA = `SquashedXML }
+#{@}
 
+#{#}
 let squash_aux : lens = 
-  probe "start";
   assert SimpleFlattenedXML;
   fork {PCDATA} 
     (map (List.hd []))
@@ -111,12 +135,43 @@ let squash_aux : lens =
   assert SquashedXML
 
 let squash = flatten; squash_aux
-
-test squash / 
-        (load "xml" "<a>foo</a>") 
-      = {a = {PCDATA = foo}}
-
-test squash / 
-        (load "xml" "<a>foo<b>bar</b><c>baz</c></a>") 
-      = {a = {PCDATA = foo, b = {PCDATA = bar}, c = {PCDATA = baz}}}
 #{@}
+
+#*test squash / 
+#*        (load "xml" "<a>foo</a>") 
+#*      = {a = {PCDATA = foo}}
+
+#*test squash / 
+#*        (load "xml" "<a>foo<b>bar</b><c>baz</c></a>") 
+#*      = {a = {PCDATA = foo, b = {PCDATA = bar}, c = {PCDATA = baz}}}
+
+The above tests actually happen to work in both directions.  In 
+general, though, the PUT direction of squash doesn't have enough 
+information to determine the ordering of newly created elements, so 
+it just inserts them in alphabetical order.  This means that completely
+new structures will be completely sorted: 
+#*test squash \
+#*        {a = {PCDATA=foo, 
+#*              d={PCDATA=bar,A=first}, 
+#*              c={PCDATA=baz,z=second}}}
+#*        missing
+#*      = 
+#*        (load "xml" "<a>foo
+#*                    |   <c>baz<z><second/></z></c>
+#*                    |   <d><A><first/></A>
+#*                    |      bar
+#*                    |   </d>
+#*                    |</a>") 
+
+More interestingly, if we PUT an abstract structure into an
+existing concrete one, the existing structures will retain their old
+order.  New substructures will be placed at the end.
+
+#*test squash \
+#*        {a = {PCDATA = foo, 
+#*              extra = {},
+#*              b = {PCDATA = bar, extra={}}, 
+#*              c = {PCDATA = baz}}}
+#*        (load "xml" "<a> foo <b>bar</b> <c>baz</c> </a>") 
+#*      = 
+#*        (load "xml" "<a> foo <b>bar<extra/></b> <c>baz</c> <extra/> </a>") 

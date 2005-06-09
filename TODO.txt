@@ -2,6 +2,7 @@ THINGS TO DO
 
 BCP TASKS
 change "split" to "lines" and "invert" to "inverse"
+move flatten and friends to list.src
 continue with prelude.src and friends
 look at address book stuff and reintegrate
 work with stephane on unison integration
