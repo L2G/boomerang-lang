@@ -1,8 +1,10 @@
+\section{Module {\tt Relational}}
+
+##module Relational =
+
+##let norm (db : view) : view = Prelude.map Native.listsort / db
+
 #{#}
-module Relational =
-
-let norm (db : view) : view = Prelude.map Native.listsort / db
-
 let bd_a = { nm = Alice, mon = June,     day = 12 }
 let bd_b = { nm = Bob,   mon = December, day = 13 }
 let bd_c = { nm = Carol, mon = October,  day = 31 }
@@ -20,12 +22,37 @@ let c = bd_c
 let d = bd_d
 let e = bd_e
 let f = bd_f
+#{@}
 
+\subsection{Encoding}
 
-(* RENAME *)
+\finish{Explain}
 
-let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
+\subsection{Lenses}
 
+\finish{Explain conventions.}
+
+\LENSSECTION{rename}
+The lens @rename A B R S@ renames the field @A@ to @B@ in the
+table @R@ and gives the altered table the name @S@.  The \PUT{}
+direction does the converse.
+
+##let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
+
+%% Convention: 
+%%    R,S,T  relations
+%%    A,B,C  columns
+%%    a,b,c,1,2,3  data
+
+#{*}
+test rename "A" "B" "R" "S" / \
+       {R = [{A = 1, C = 2},
+             {A = 3, C = 4}]}
+     = {S = [{B = 1, C = 2}, 
+             {B = 3, C = 4}]}
+#{@}
+
+#{#}
 (* RENAME TESTS *)
 
 let rename_nm (n : name) (v : view) : view =
@@ -146,90 +173,97 @@ test
     }
   )
 = error (* "birthdays" is not a table in the concrete view *)
-
-(* Definitions for testing union, intersection, and difference. *)
-
-  let mixed_db =
-    { birthdays = [ `bd_a, `bd_b ]
-    , phonebook = [ `ph_a, `ph_b ]
-    }
-
-  let bday_db_abc_bde =
-    { birthdays1 = [ `bd_a, `bd_b, `bd_c ]
-    , birthdays2 = [ `bd_b, `bd_d, `bd_e ]
-    }
-
-  let bday_db_abcd =
-    { birthdays = [ `bd_a, `bd_b, `bd_c, `bd_d ]
-    }
-
-  let bday_db_abcde =
-    { birthdays = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
-    }
-
-  let bday_db_b =
-    { birthdays = [ `bd_b ]
-    }
-
-  let bday_db_b_b =
-    { birthdays1 = [ `bd_b ]
-    , birthdays2 = [ `bd_b ]
-    }
-
-  let bday_db_abcde_abcde =
-    { birthdays1 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
-    , birthdays2 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
-    }
-
-  let bday_db_abcde_ =
-    { birthdays1 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
-    , birthdays2 = [ ]
-    }
-
-  let bday_db__abcde =
-    { birthdays1 = [ ]
-    , birthdays2 = [ `bd_a, `bd_b, `bd_c, `bd_d, `bd_e ]
-    }
-
-  let bday_db_cef =
-    { birthdays = [ `bd_c, `bd_e, `bd_f ]
-    }
-
-  let bday_db_cf_ef =
-    { birthdays1 = [ `bd_c, `bd_f ]
-    , birthdays2 = [ `bd_e, `bd_f ]
-    }
-
-  let bday_db_cf_e =
-    { birthdays1 = [ `bd_c, `bd_f ]
-    , birthdays2 = [ `bd_e ]
-    }
-
-  let bday_db_c_ef =
-    { birthdays1 = [ `bd_c ]
-    , birthdays2 = [ `bd_e, `bd_f ]
-    }
-
-  let bday_db_acef_cdef =
-    { birthdays1 = [ `bd_a, `bd_c, `bd_e, `bd_f ]
-    , birthdays2 = [ `bd_c, `bd_d, `bd_e, `bd_f ]
-    }
-
-  let bday_db_acef_bcdef =
-    { birthdays1 = [ `bd_a, `bd_c, `bd_e, `bd_f ]
-    , birthdays2 = [ `bd_b, `bd_c, `bd_d, `bd_e, `bd_f ]
-    }
-
-  let bday_db_abcef_cdef =
-    { birthdays1 = [ `bd_a, `bd_b, `bd_c, `bd_e, `bd_f ]
-    , birthdays2 = [ `bd_c, `bd_d, `bd_e, `bd_f ]
-    }
+#{@}
 
 
-(* UNION *)
+\LENSSECTION{select}
+The lens @select A v R S@ selects the records in @R@ for which the field @A@
+has the value @v@.
 
-let union : (name -> name -> name -> lens) = Native.Relational.union
+##let select : (name -> name -> name -> name -> lens) = Native.Relational.select
 
+#{*}
+test select "A" "1" "R" "S" /
+       {R = [{A = 1, C = 2},
+             {A = 3, C = 4}]}
+     = {S = [{A = 1, C = 2}]}
+#{@}
+In the \PUT{} direction, the abstract view must contain only records whose
+@A@ field has value @v@.  These records are combined with the records from
+the concrete view with field @A@ different from @v@.
+#{*}
+test select "A" "1" "R" "S" \
+       {S = [{A = 1, C = 8},
+             {A = 1, C = 9}]}
+       {R = [{A = 1, C = 2},
+             {A = 3, C = 4}]}
+     = 
+       {R = [{A = 1, C = 8},
+             {A = 1, C = 9},
+             {A = 3, C = 4}]}
+#{@}
+
+\LENSSECTION{select@_@eq}
+The lens @select_eq A B R S@ selects the records in @R@ for which the fields
+@A@ and @B@ have the same value.
+
+##let select_eq : (name -> name -> name -> name -> lens) =
+##  Native.Relational.select_eq
+
+#{*}
+test select_eq "A" "B" "R" "S" /
+       {R = [{A = 1, B = 1, C = 2},
+             {A = 1, B = 2, C = 3},
+             {A = 4, B = 4, C = 5}]}
+     = {S = [{A = 1, B = 1, C = 2},
+             {A = 4, B = 4, C = 5}]}
+#{@}
+The behavior of the \PUT{} direction is analogous to @select@.
+
+\LENSSECTION{project}
+
+let project : (view -> view -> view -> name -> name -> lens) =
+  Native.Relational.project
+
+
+\LENSSECTION{union}
+The lens @union R S T@ replaces the relations @R@ and @S@ by 
+a new relation @T@ containing the union of their tuples.  
+
+##let union : (name -> name -> name -> lens) = Native.Relational.union
+
+#{*}
+test union "R" "S" "T" /
+       {R = [{A = 1}, {A = 2}],
+        S = [{A = 2}, {A = 3}] }
+     = {T = [{A = 1}, {A = 2}, {A = 3}]}
+#{@}
+In the \PUT{} direction, @union@ treats @R@ and @S@ symmetrically: new
+elements in the abstract table @T@ are propagated to both @R@ and @S@.
+Here, for example, the abstract view deletes the elements with values @1@
+and @2@ for @A@, keeps @3@, and adds @4@.  The deletions are propagated to
+both concrete tables (as they must be); the concrete source of @3@ (the @S@
+table only) is maintained; and the new value @4@ is propagated to both @S@
+and @T@.
+#{*}
+test union "R" "S" "T" \
+       {T = [{A = 3}, {A = 4}]}
+       {R = [{A = 1}, {A = 2}],
+        S = [{A = 2}, {A = 3}] }
+     = {R = [{A = 4}],
+        S = [{A = 3}, {A = 4}] }
+#{@}
+The case where d the concrete argument to \PUT{} is missing is treated just
+like the case where the concrete @S@ and @T@ are empty tables:
+#{*}
+test union "R" "S" "T" \
+       {T = [{A = 3}, {A = 4}]}
+       missing
+     = {R = [{A = 3}, {A = 4}],
+        S = [{A = 3}, {A = 4}]}
+#{@}
+
+#{#}
 test
   norm (union "tbl2" "tbl3" "tbl4" /
     { tbl1 = [ `ph_a, `ph_b ]
@@ -331,10 +365,24 @@ test
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
+#{@}
 
+\LENSSECTION{unionl}
+The lens @unionl R S T@ is an asymmetric variant of @union R S T@ that 
+adds new elements only to @R@.
 
-let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
+##let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
 
+#{*}
+test unionl "R" "S" "T" \
+       {T = [{A = 3}, {A = 4}]}
+       {R = [{A = 1}, {A = 2}],
+        S = [{A = 2}, {A = 3}] }
+     = {R = [{A = 4}],
+        S = [{A = 3}] }
+#{@}
+
+#{#}
 test
   norm (unionl "tbl2" "tbl3" "tbl4" /
     { tbl1 = [ `ph_a, `ph_b ]
@@ -436,10 +484,23 @@ test
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
+#{@}
 
+\LENSSECTION{unionr}
+Similarly, @unionr R S T@ adds new elements only to @S@.
 
-let unionr : (name -> name -> name -> lens) = Native.Relational.unionr
+##let unionr : (name -> name -> name -> lens) = Native.Relational.unionr
 
+#{*}
+test unionr "R" "S" "T" \
+       {T = [{A = 3}, {A = 4}]}
+       {R = [{A = 1}, {A = 2}],
+        S = [{A = 2}, {A = 3}] }
+     = {R = [],
+        S = [{A = 3},{A = 4}] }
+#{@}
+
+#{#}
 test
   norm (unionr "tbl2" "tbl3" "tbl4" /
     { tbl1 = [ `ph_a, `ph_b ]
@@ -1169,20 +1230,6 @@ test
     }
   )
 = error (* "tbl3" does not exist in the concrete view *)
-
-
-(* SELECT *)
-
-let select : (name -> name -> name -> name -> lens) =
-  Native.Relational.select
-let select_eq : (name -> name -> name -> name -> lens) =
-  Native.Relational.select_eq
-
-
-(* PROJECT *)
-
-let project : (view -> view -> view -> name -> name -> lens) =
-  Native.Relational.project
 
 
 (* JOIN *)
