@@ -11,7 +11,8 @@ let view_to_rcd view =
 
 let rel_to_view rel =
   V.structure_from_list
-    (Relation.fold (fun rcd ls -> rcd_to_view rcd :: ls) rel [])
+    (List.rev
+      (Relation.fold (fun rcd ls -> rcd_to_view rcd :: ls) rel []))
 
 let view_to_rel view =
   let rcds = List.map view_to_rcd (V.list_from_structure view) in
