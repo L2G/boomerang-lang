@@ -1,10 +1,13 @@
-include ../Common.mk
+TOP = ../..
+include $(TOP)/Top.Makefile
+
 OCAMLC=ocamlc
 OCAMLLEX=ocamllex
 
 all: testget testput vcard2vcf
 
-test: testget testput
+test:
+	@echo "Vcard vcf"
 
 testget: vcard2xml
 	$(HARMONY) \
