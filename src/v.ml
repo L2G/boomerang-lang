@@ -254,7 +254,7 @@ let format v =
       Format.printf "@]]"
     end else begin
       if (is_value v && inner) then
-	Format.printf "%s" (format_str (get_value v))
+	Format.printf "{%s}" (format_str (get_value v))
       else begin
         Format.printf "{@[<hv0>";
 	Name.Map.iter_with_sep

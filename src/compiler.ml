@@ -778,18 +778,18 @@ let rec compile_decl cev m di =
 		      test_error i 
 			(fun () -> 
 			   V.format_msg_as_string
-			     [`String "expected"; `Break;
-			      `View resv;`Break;
-			      `String "found"; `Break;
+			     [`String "expected:"; `Space;
+			      `View resv;`Space;
+			      `String "found:"; `Space;
 			      `View v])
 	      | Error m, Some res -> 
 		  let resv = compile_exp_view cev res in
 		    test_error i 
 		      (fun () -> 
 			 V.format_msg_as_string
-			   [`String "expected"; `Break;
- 			    `View resv; `Break;
-			    `String "found error: ";
+			   [`String "expected:"; `Space;
+ 			    `View resv; `Space;
+			    `String "found error:"; `Space;
                             `String m])
 	
 	      | OK v, None -> 
