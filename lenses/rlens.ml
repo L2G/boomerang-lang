@@ -180,6 +180,16 @@ let project p q d =
     R.project p c
   and putfun a co =
     let c = match co with None -> R.create (R.fields a) | Some(c) -> c in
+    if false then begin
+      prerr_endline "*** BEGIN PROJECT DEBUGGING ***";
+      prerr_endline "Abstract view:";
+      R.dump_stderr a;
+      prerr_endline "Concrete view:";
+      R.dump_stderr c;
+      prerr_endline "Calculated abstract view:";
+      R.dump_stderr (R.project p c);
+      prerr_endline "**** END PROJECT DEBUGGING ****";
+    end;
     if R.equal a (R.project p c) then
       c
     else

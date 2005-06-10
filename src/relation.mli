@@ -62,3 +62,5 @@ val diff : t -> t -> t
 val equal : t -> t -> bool
 (** Check two relations for equality. *)
 
+val dump_stderr : t -> unit
+

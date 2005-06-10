@@ -77,3 +77,11 @@ let diff = lift_set_op StrListSet.diff
 let equal r1 r2 =
   StrSet.equal r1.flds r2.flds && StrListSet.equal r1.rows r2.rows
 
+let string_of_list (f : 'a -> string) (l : 'a list) =
+  "[" ^ String.concat "; " (List.map f l) ^ "]"
+
+let dump_stderr r =
+  let prerr_strlist l = prerr_endline (string_of_list (fun x -> x) l) in
+  prerr_strlist (fields r);
+  StrListSet.fold (fun row _ -> prerr_strlist row) r.rows ()
+

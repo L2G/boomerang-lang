@@ -10,7 +10,7 @@ let bd_b = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
 let bd_c = { nm = {Carol}, mon = {October},  day = {31}, age = {31} }
 let bd_d = { nm = {Dave},  mon = {June},     day = {23}, age = {23} }
 let bd_e = { nm = {Ellen}, mon = {February}, day = {29}, age = {27} }
-let bd_f = { nm = {Fred }, mon = {August},   day = {15}, age = {41} }
+let bd_f = { nm = {Fred} , mon = {August},   day = {15}, age = {41} }
 
 let ph_a = { nm = {Alice}, ph = {"555-555-5555"} }
 let ph_b = { nm = {Bob},   ph = {"123-456-7890"} }
@@ -220,30 +220,60 @@ test select_eq "A" "B" "R" "S" /
 The behavior of the \PUT{} direction is analogous to @select@.
 
 \LENSSECTION{project}
-Description.
+Relational projections can be performed with the @project@ lens.  However,
+@project@ takes additional arguments to specify the behavior of the lens in
+the \PUT{} direction.
 
 ##let project : (view -> view -> view -> name -> name -> lens) =
 ##  Native.Relational.project
 
 #{*}
-test project {A, B, C} {A, B} [{D = {8}}, {D = {9}}] "R" "S" /
-       { R = [{A = {10}, B = {1}, C = {5}, D = {7}},
-              {A = {10}, B = {1}, C = {5}, D = {8}},
-              {A = {10}, B = {2}, C = {5}, D = {7}},
-              {A = {20}, B = {1}, C = {6}, D = {7}},
-              {A = {20}, B = {2}, C = {6}, D = {7}}]}
-     = { S = [{A = {10}, B = {1}, C = {5}}, 
-              {A = {10}, B = {2}, C = {5}}, 
-              {A = {20}, B = {1}, C = {6}}, 
-              {A = {20}, B = {2}, C = {6}}]}
+test project {A} {A} [{B = {7}}] "R" "S" /
+       { R = [{A = {1}, B = {5}},
+              {A = {2}, B = {6}},
+              {A = {2}, B = {5}}]}
+     = { S = [{A = {1}},
+              {A = {2}}]}
 #{@}
 In the \PUT{} direction,
+Showing deletions.
+#{*}
+test project {A} {A} [{B = {7}}] "R" "S" \
+       { S = [{A = {1}}]}
+       { R = [{A = {1}, B = {5}},
+              {A = {2}, B = {6}},
+              {A = {2}, B = {5}}]}
+     = { R = [{A = {1}, B = {5}}]}
+#{@}
+Showing additions.
+#{*}
+test project {A} {A} [{B = {7}}] "R" "S" \
+       { S = [{A = {1}},
+              {A = {2}}]}
+       { R = [{A = {1}, B = {5}}]}
+     = { R = [{A = {1}, B = {5}},
+              {A = {2}, B = {7}}]}
+#{@}
+Showing updates (incorrectly).
+#{*}
+test project {A, C} {A, C} [{B = {7}}] "R" "S" \
+       { S = [{A = {1}, C = {3}}]}
+       { R = [{A = {1}, B = {5}, C = {2}}]}
+     = { R = [{A = {1}, B = {7}, C = {3}}]}
+#{@}
+Showing updates (incorrectly).
+#{*}
+test project {A, C} {A} [{B = {7}}] "R" "S" \
+       { S = [{A = {1}, C = {3}}]}
+       { R = [{A = {1}, B = {5}, C = {2}}]}
+     = { R = [{A = {1}, B = {5}, C = {3}}]}
+#{@}
 #{*}
 test project {A, B, C} {A, B} [{D = {8}}, {D = {9}}] "R" "S" \
        { S = [{A = {10}, B = {1}, C = {4}},
               {A = {10}, B = {2}, C = {5}},
               {A = {20}, B = {1}, C = {6}},
-              {A = {30}, B = {1}, C = {6}}]}
+              {A = {21}, B = {2}, C = {6}}]}
        { R = [{A = {10}, B = {1}, C = {5}, D = {7}},
               {A = {10}, B = {1}, C = {5}, D = {8}},
               {A = {10}, B = {2}, C = {5}, D = {7}},
@@ -253,8 +283,8 @@ test project {A, B, C} {A, B} [{D = {8}}, {D = {9}}] "R" "S" \
               {A = {10}, B = {1}, C = {4}, D = {8}},
               {A = {10}, B = {2}, C = {5}, D = {7}},
               {A = {20}, B = {1}, C = {6}, D = {7}},
-              {A = {30}, B = {1}, C = {6}, D = {8}},
-              {A = {30}, B = {1}, C = {6}, D = {9}}]}
+              {A = {21}, B = {2}, C = {6}, D = {8}},
+              {A = {21}, B = {2}, C = {6}, D = {9}}]}
 #{@}
 
 \LENSSECTION{union}
