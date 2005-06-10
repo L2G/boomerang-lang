@@ -57,7 +57,7 @@ let mk_empty_view i = ECat(i,[])
 %token <Info.t> LENS VIEW TYPE NAME ARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH TEST SYNC WITH AT ERROR MISSING
-%token <Info.t> STAR BANG BAR 
+%token <Info.t> STAR BANG BAR PLUS
 
 %start modl sort qid 
 %type <Syntax.modl> modl
@@ -79,8 +79,8 @@ decls:
   | LET binding_list decls                   { DLet(mbs2 $1 $2,$2)::$3 }
   | MODULE IDENT EQUAL decls END decls       { DMod(m $1 $5,$2,$4)::$6 } 
   | TEST exp EQUAL test_res decls            { DTest(m $1 (fst $4), $2, snd $4)::$5 }
-  | TEST appexp SLASH BACKSLASH exp EQUAL 
-      exp decls                              { let i = me2 $1 $7 in
+  | TEST composeexp SLASH BACKSLASH exp 
+      EQUAL exp decls                        { let i = me2 $1 $7 in
 					       let get_test = DTest(i, mk_get_exp i $2 $5, (Some $7)) in
 					       let put_test = DTest(i, mk_put_exp i $2 $7 None, (Some $5)) in
 						 get_test::put_test::$8 }
@@ -135,27 +135,30 @@ param:
 exp: 
   | LET binding_list IN exp                  { ELet(me2 $1 $4,$2,$4) }
   | FUN param param_list opt_sort ARROW exp  { EFun(me2 $1 $6,$2::$3,$4,$6) }
+  | getputexp                                { $1 }
+
+getputexp:
+  | composeexp SLASH composeexp              { mk_get_exp (me $1 $3) $1 $3 }
+  | composeexp BACKSLASH aexp aexp           { mk_put_exp (me $1 $4) $1 $3 (Some $4) }
+  | composeexp BACKSLASH aexp MISSING        { mk_put_exp (me1 $1 $4) $1 $3 None }
   | composeexp                               { $1 }
 
 composeexp:
   | composeexp SEMI barexp                   { mk_compose2_exp (me $1 $3) $1 $3 }
   | barexp                                   { $1 } 
 
-/* FIXME: do we want these precedences? - JNF */
 barexp:
-  | barexp BAR consexp                       { EUnion(me $1 $3,[$1;$3]) }
+  | barexp BAR plusexp                       { EUnion(me $1 $3,[$1;$3]) }
+  | plusexp                                  { $1 }
+
+plusexp:
+  | plusexp PLUS consexp                     { ECat(me $1 $3, [$1; $3]) }
   | consexp                                  { $1 }
 
 consexp:
-  | getputexp COLON COLON consexp            { ECons(me $1 $4, $1, $4) }
-  | getputexp                                { $1 }
-      
-getputexp:
-  | appexp SLASH appexp                      { mk_get_exp (me $1 $3) $1 $3 }
-  | appexp BACKSLASH aexp aexp               { mk_put_exp (me $1 $4) $1 $3 (Some $4) }
-  | appexp BACKSLASH aexp MISSING            { mk_put_exp (me1 $1 $4) $1 $3 None }
+  | appexp COLON COLON consexp               { ECons(me $1 $4, $1, $4) }
   | appexp                                   { $1 }
-            
+
 appexp:
   | appexp aexp                              { EApp(me $1 $2,$1,$2) }
   | aexp                                     { $1 }
@@ -165,8 +168,9 @@ aexp:
   | qid                                      { EVar(info_of_qid $1,$1) }
   | typeexp                                  { $1 }
   | LPAREN exp RPAREN                        { $2 }
+  | BEGIN exp END                            { $2 }
   | LBRACE map_list RBRACE                   { EMap(m $1 $3, $2) }
-
+      
 map:
   | quoted_name ARROW exp                    { ($1,$3) }
 

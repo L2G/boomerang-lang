@@ -113,6 +113,7 @@ rule main = parse
 | "/"               { SLASH (info lexbuf) }
 | ","               { COMMA (info lexbuf) }
 | ":"               { COLON (info lexbuf) }
+| "+"               { PLUS (info lexbuf) }
 | "`"               { BACKTICK (info lexbuf) }
 | "\""              { STRING (Syntax.mk_id (info lexbuf) (string lexbuf)) }
 | id_char+ as ident { try 

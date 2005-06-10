@@ -88,8 +88,8 @@ test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1}
 
 #@\LENSSECTION{xfork}
 let xfork : (view -> view -> lens -> lens -> lens) = Native.Prelude.xfork
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x,y} = {a,b}
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} = {a,b}
+test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {y} = {a,b}
+test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {} = {a,b}
 test (xfork {x} {a} (const {a} {x}) id) / {x,y} = {a,y}
 test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {} = {a,b}
 test (xfork {x} {a} (const {a} {x}) id) / {} = {a}
