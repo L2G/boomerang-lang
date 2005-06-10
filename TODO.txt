@@ -21,7 +21,6 @@ fix this printing problem:
 delete old (uncurried) concrete syntax of put tests
 
 ALAN TASKS
-have "assert" error give the expected type"
 have a new kind of names: "+" which is "!,*"
 
 ------------

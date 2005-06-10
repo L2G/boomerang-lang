@@ -789,7 +789,8 @@ let rec compile_decl cev m di =
 			 V.format_msg_as_string
 			   [`String "expected"; `Break;
  			    `View resv; `Break;
-			    `String "found error"])
+			    `String "found error: ";
+                            `String m])
 	
 	      | OK v, None -> 
 		  test_error i 

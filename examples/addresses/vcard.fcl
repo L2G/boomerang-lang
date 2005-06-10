@@ -4,6 +4,11 @@ module Vcard =
    number, then is followed by mandatory FN and N. As every example seem not to have a version,
    we assume that the first element is a FN. *)
 
+let hoist_optional_pcdata = 
+  acond {PCDATA = Value} Value
+    (hoist "PCDATA")
+    id
+
 let l = 
       (* we first bring the FN element, assumed to be the first, as key *)
       List.hd []; focus "vCard" {}; focus "" {xmlns = {vcard-temp}};
@@ -11,7 +16,14 @@ let l =
       pivot List.HD; map (hoist List.TL);
       (* we now squash the first element of the list, that is N, and flatten the rest *)
       map (wmap {`List.HD -> Xml.squash_elt, `List.TL -> Xml.flatten};
-           hoist_nonunique List.HD {N}; rename List.TL "contents")
+           hoist_nonunique List.HD {N}; rename List.TL "contents");
+      (* we now hoist the PCDATA data under name N *)
+      map (mapp {N} (map hoist_optional_pcdata));
+      (* we assume there is only one birthday *)
+      map (mapp {contents} (
+             fork {BDAY}
+               (Xml.squash_elt; map hoist_optional_pcdata)
+               id))
 
 test l / (load "xml" "<vCard xmlns='vcard-temp'>
                       |  <FN>Alan Schmitt</FN>
@@ -43,7 +55,7 @@ test l / (load "xml" "<vCard xmlns='vcard-temp'>
                       |</vCard>")
 =
 {"Alan Schmitt" =
-  {N = {FAMILY = {PCDATA = {Schmitt}}, GIVEN = {PCDATA = {Alan}}, MIDDLE = {}},
+  {N = {FAMILY = {Schmitt}, GIVEN = {Alan}, MIDDLE = {}},
    contents =
     {ADR =
       [{CTRY = [{PCDATA = [{FRANCE}]}],
