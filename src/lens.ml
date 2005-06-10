@@ -117,15 +117,6 @@ let memoize_lens l =
 (*     error [`String "A lens named "; `String n; `String " is already defined"] *)
 (*   else Hashtbl.add hashtable n (Value.memoize_lens l) *)
 
-(* let named ?(hashtable=definitions) n =  *)
-(*   { get = (fun c -> *)
-(*              try (Hashtbl.find hashtable n).get c *)
-(*              with Not_found -> *)
-(*                error [`String "No lens named "; `String n; `String " has been defined"]); *)
-(*     put = (fun a co ->  *)
-(*              try (Hashtbl.find hashtable n).put a co *)
-(*              with Not_found -> *)
-(*                error [`String "No lens named "; `String n; `String " has been defined"])} *)
 
 (* (\* A convenient way to create a recursive lens without giving it a meaningful name *\) *)
 (* let nextid = ref 0 *)

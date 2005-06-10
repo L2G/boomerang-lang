@@ -37,19 +37,19 @@ let debug s_thk =
   Trace.debug "compiler" (fun () -> Printf.eprintf "%s\n%!" (s_thk ()))
 
 let parse_error i msg_thk = 
-  let msg = Printf.sprintf "Parse error %s" (msg_thk ()) in
+  let msg = Printf.sprintf "Parse error: %s" (msg_thk ()) in
   raise (Error.Compile_error(i, Lexer.filename (), msg))
       
 let sort_error i msg_thk = 
-  let msg = Printf.sprintf "Sort checking error %s" (msg_thk ()) in
+  let msg = Printf.sprintf "Sort checking error: %s" (msg_thk ()) in
   raise (Error.Compile_error(i, Lexer.filename (), msg))
     
 let test_error i msg_thk = 
-  let msg = Printf.sprintf "Unit test failed %s" (msg_thk ()) in    
-  raise (Error.Compile_error(i, Lexer.filename (), msg))
+  let msg = Printf.sprintf "Unit test failed: %s" (msg_thk ()) in    
+    raise (Error.Compile_error(i, Lexer.filename (), msg))
 
 let run_error i msg_thk = 
-  let msg = Printf.sprintf "Unexpected run error %s" (msg_thk ()) in    
+  let msg = Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
   raise (Error.Compile_error(i, Lexer.filename (), msg))
           
 (* --------------- Environments --------------- *)
@@ -330,13 +330,14 @@ and check_exp sev e0 =
 	begin
 	  (* look up in the environment; check that recursive uses OK *)
 	  match (SCEnv.rec_var_ok sev q, SCEnv.lookup sev q) with
-	      (true, Some s) -> (s,e0)
-	    | (false, Some SType) -> (SType, e0)
-	    | (false, Some _) -> 
+	      (true, Some s)      -> (s,e0)
+	    | (false, Some SType) -> (SType, e0) (* OK, types are lazy *)
+	    | (false, Some SLens) -> (SType, e0) (* OK, lenses are values *)
+	    | (false, Some _)     -> 
 		sort_error i 
 		  (fun () -> 
 		     sprintf  "%s may not be used recursively" (string_of_qid q))
-	    | (_, None) -> 
+	    | (_, None)           -> 
 		sort_error i 
 		  (fun () -> sprintf "%s is not bound" 
 		     (string_of_qid q))
@@ -572,7 +573,7 @@ let rec compile_exp cev e0 =
 		    (Value.T (Type.mk_cons i t1 t2))
 	      | _ -> run_error i (fun () -> "expected view or type in atom")
 	    end
-	      
+
       | EFun(i,[p],Some ret_sort,e) ->
 	  (* fully-annotated, simple lambda *)
 	  (* the actual implementation of f *)
@@ -587,7 +588,10 @@ let rec compile_exp cev e0 =
 	    mk_rv 
 	      f_sort
 	      (Value.F (f_sort, f_impl))
-	      
+
+      | EFun(i,_,_,_) -> 
+	  run_error i (fun () -> sprintf "unflattened or unannotated function")
+	    
       | ELet(i, bs,e) ->
 	  let bcev,_ = compile_bindings cev bs in
 	    compile_exp bcev e	    
@@ -636,29 +640,43 @@ let rec compile_exp cev e0 =
 	      SType
 	      (Value.T (Value.Union(i,ts)))
 	      
-      | EVar(i,q) -> begin
-	  match CEnv.lookup cev q with	      
-	      Some rv -> 
-		let qs = s_of_rv rv in
-		  if (ends_with_type qs) then
-		    let thunk () = 
-		      match CEnv.lookup cev q with
-			  Some rv -> v_of_rv rv	
-			| None -> run_error i
-			    (fun () -> sprintf "%s became unbound" (string_of_qid q))
-		    in
-		      mk_rv qs (Value.T(Value.Var(i,q,thunk)))
-		  else rv
-	    | None -> run_error i
-		(fun () -> sprintf "%s is not bound" (string_of_qid q))
-	end
-
-      | _ -> 
-	  run_error 
-	    (info_of_exp e0)
-	    (fun () -> Printf.sprintf "Cannot compile expression %s"
-	       (string_of_exp e0))
-
+      | EVar(i,q) -> 
+	  let rv = match CEnv.lookup cev q with
+	      Some rv -> rv 
+	    | None -> run_error 
+		(info_of_exp e0)
+		  (fun () -> 
+		     Printf.sprintf "Cannot compile expression %s"
+		       (string_of_exp e0)) in
+	    match s_of_rv rv with
+		(* lenses *)
+		SLens -> 
+		  let fetch_lens () = 			     
+		    match CEnv.lookup cev q with 
+			Some rv -> Value.get_lens i (v_of_rv rv)
+		      | None -> run_error i 
+			  (fun () -> sprintf "lens %s went missing" (* "can't" happen :-) *)
+			     (string_of_qid q))
+		  in		    
+		  let get c = Lens.get (fetch_lens ()) c in
+		  let put a co = Lens.put (fetch_lens ()) a co in
+		    mk_rv 
+		      SLens 
+		      (Value.L (Lens.native get put))
+		      
+	      (* types *)
+	      | s when ends_with_type s ->
+		  let thunk () = 
+		    match CEnv.lookup cev q with
+			Some rv -> v_of_rv rv	
+		      | None -> run_error i
+			  (fun () -> sprintf "%s became unbound" (string_of_qid q))
+		  in
+		    mk_rv s (Value.T(Value.Var(i,q,thunk)))			
+		      
+	      (* everything else *)
+	      | _ -> rv
+		  
 (* compilation helpers when we know the sort *)	  	  	    
 and compile_exp_name cev e =
   let i = info_of_exp e in
@@ -759,20 +777,26 @@ let rec compile_decl cev m di =
 		    if not (V.equal v resv) then
 		      test_error i 
 			(fun () -> 
-			   sprintf "expected %s, found %s"
-			     (V.string_of_t resv)
-			     (V.string_of_t v))
+			   V.format_msg_as_string
+			     [`String "expected"; `Break;
+			      `View resv;`Break;
+			      `String "found"; `Break;
+			      `View v])
 	      | Error m, Some res -> 
 		  let resv = compile_exp_view cev res in
 		    test_error i 
 		      (fun () -> 
-			 sprintf "expected %s, found error\n%s"
-			   (V.string_of_t resv) m)
+			 V.format_msg_as_string
+			   [`String "expected"; `Break;
+ 			    `View resv; `Break;
+			    `String "found error"])
+	
 	      | OK v, None -> 
 		  test_error i 
 		    (fun () -> 
-		       sprintf "expected error, found %s"
-			 (V.string_of_t v))		    
+		       V.format_msg_as_string
+			 [`String "expected error, found"; `Break;
+ 			  `View v;])
 	end;
       (cev, [])	
 	  
