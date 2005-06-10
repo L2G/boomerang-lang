@@ -8,6 +8,17 @@
 
 let debug = Trace.debug "registry"
 
+let verbose_flag =
+  Prefs.createBool "verbose" true
+    "display more information"
+    "display more information"
+let _ = Prefs.alias verbose_flag "v"
+
+let verbose thk = 
+  if (Prefs.read verbose_flag) then 
+    thk ()
+  else ()
+
 (* --------------- Registry values -------------- *)
 
 type rv = Syntax.sort * Value.t
@@ -93,11 +104,9 @@ let load ns =
 	match fno with 
 	  | None -> false
 	  | Some fn ->
-	      prerr_string (Printf.sprintf "[loading %s]\n%!" fn);
 	      loaded := ns::(!loaded); 
 	      (!compile_file_impl) fn ns;
-	      prerr_string (Printf.sprintf "[loaded %s]\n%!" fn);
-
+	      verbose (fun () -> (Printf.eprintf "[loaded %s]\n%!" fn));
 	      true
       end
 	
@@ -108,12 +117,12 @@ let load_var q = match get_module_prefix q with
 (* lookup in a naming context *)
 let lookup_library_ctx nctx q = 
   let rec lookup_library_aux nctx q2 =       
-    let _ = debug (fun () -> Printf.eprintf "lookup_library_aux %s in [%s] from %s "
-		     (Syntax.string_of_qid q2)
-		     (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
-		     (Env.to_string !library string_of_rv)
-		  )
-    in
+    (* let _ = debug (fun () -> Printf.eprintf "lookup_library_aux %s in [%s] from %s "
+       (Syntax.string_of_qid q2)
+       (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
+       (Env.to_string !library string_of_rv)
+       )
+       in *)
     let sq = Syntax.string_of_qid in
     let try_lib () = Env.lookup !library q2 in
       (* try here first, to avoid looping on native values *)
