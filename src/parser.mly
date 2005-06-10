@@ -57,7 +57,7 @@ let mk_empty_view i = ECat(i,[])
 %token <Info.t> LENS VIEW TYPE NAME ARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH TEST SYNC WITH AT ERROR MISSING
-%token <Info.t> STAR BANG BAR PLUS
+%token <Info.t> STAR BANG BAR PLUS QMARK
 
 %start modl sort qid 
 %type <Syntax.modl> modl
@@ -192,8 +192,14 @@ typeelt:
   | quoted_name                              { let i = info_of_exp $1 in 
 						 EAtom(i, $1, mk_empty_view i) }
   | quoted_name EQUAL exp                    { EAtom(me $1 $3,$1,$3) }
+  | quoted_name QMARK EQUAL exp              { let i = me $1 $4 in 
+						 EUnion(i, [ECat(i,[]); EAtom(i,$1,$4)]) }
   | STAR excepts_opt EQUAL exp               { EStar (me2 $1 $4,$2,$4) }
   | BANG excepts_opt EQUAL exp               { EBang(me2 $1 $4,$2,$4) }
+  | BANG QMARK excepts_opt EQUAL exp         { let i = me2 $1 $5 in 
+						 EUnion(i, [ECat(i,[]); EBang(i,$3,$5)]) }							  
+  | PLUS excepts_opt EQUAL exp               { let i = me2 $1 $4 in 
+						 ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
       
 /* --------------- type helpers --------------- */
 quoted_name:
