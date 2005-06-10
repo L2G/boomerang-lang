@@ -67,6 +67,13 @@ let register_binary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> lens"
     (make_binary_lib fclname (lift_binary dblens))
 
+let register_view_view_binary_dblens fclname dblens =
+  register_native fclname "view -> view -> name -> name -> name -> lens" (
+    mk_vfun "view -> name -> name -> name -> lens" fclname 
+      (fun v1 -> mk_vfun "name -> name -> name -> lens" fclname
+	 (fun v2 -> make_binary_lib fclname (lift_binary (dblens v1 v2))))
+  )
+
 (* Union *)
 let () = register_binary_dblens "Native.Relational.union" Dblens.union
 let () = register_binary_dblens "Native.Relational.unionl" Dblens.unionl
@@ -86,6 +93,23 @@ let () = register_binary_dblens "Native.Relational.diffr" Dblens.diffr
 let () = register_binary_dblens "Native.Relational.join" Dblens.join
 let () = register_binary_dblens "Native.Relational.joinl" Dblens.joinl
 let () = register_binary_dblens "Native.Relational.joinr" Dblens.joinr
+
+(* Outer join *)
+let () =
+  register_view_view_binary_dblens "Native.Relational.ojoin" (
+    fun dv1 dv2 ->
+      Dblens.ojoin (Treedb.view_to_rel dv1) (Treedb.view_to_rel dv2)
+  )
+let () =
+  register_view_view_binary_dblens "Native.Relational.ojoinl" (
+    fun dv1 dv2 ->
+      Dblens.ojoinl (Treedb.view_to_rel dv1) (Treedb.view_to_rel dv2)
+  )
+let () =
+  register_view_view_binary_dblens "Native.Relational.ojoinr" (
+    fun dv1 dv2 ->
+      Dblens.ojoinr (Treedb.view_to_rel dv1) (Treedb.view_to_rel dv2)
+  )
 
 
 (* Unary relational lenses *)
@@ -120,7 +144,7 @@ let register_view_view_view_unary_dblens fclname dblens =
 	 (fun v2 -> mk_vfun "name -> name -> lens" fclname
 	    (fun v3 -> make_unary_lib fclname (lift_unary (dblens v1 v2 v3)))))
   )
-    
+
 (* Rename *)
 let () =
   register_name_name_unary_dblens

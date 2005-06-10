@@ -99,3 +99,19 @@ val joinr :
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
 (** Same as [join], but the {e put} operation is right-biased. *)
 
+val ojoin :
+  Relation.t -> Relation.t -> string -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** [ojoin ct1 ct2 at] performs an inner ojoin on [ct1] and [ct2].  The operation
+    in the {e put} direction is symmetric. *)
+
+val ojoinl :
+  Relation.t -> Relation.t -> string -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** Same as [ojoin], but the {e put} operation is left-biased. *)
+
+val ojoinr :
+  Relation.t -> Relation.t -> string -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** Same as [ojoin], but the {e put} operation is right-biased. *)
+

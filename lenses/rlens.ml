@@ -13,6 +13,7 @@ let take_dir d f x r =
 let ( ||~ ) = R.union
 let ( &&~ ) = R.inter
 let ( --~ ) = R.diff
+let ( >>~ ) r f = R.project f r
 
 let rcd_extends r1 r2 =
   List.for_all (fun x -> List.mem x r1) r2
@@ -43,6 +44,14 @@ let rel_join rel1 rel2 =
     R.fold accum rel1 r
   in
   R.fold addall1 rel2 r
+
+let ( **~ ) = rel_join
+
+let outer_join d1 d2 r1 r2 =
+    let shared_flds = list_inter (R.fields r1) (R.fields r2) in
+    let only1 = (((r1 >>~ shared_flds) --~ (r2 >>~ shared_flds)) **~ r1) **~ d1
+    and only2 = (((r2 >>~ shared_flds) --~ (r1 >>~ shared_flds)) **~ r2) **~ d2 in
+    (r1 **~ r2) ||~ (only1 **~ d1) ||~ (only2 **~ d2)
 
 (* Making lenses and trapping errors *)
 
@@ -177,7 +186,7 @@ let list_diff l1 l2 =
 
 let project p q d =
   let getfun c =
-    R.project p c
+    c >>~ p
   and putfun a co =
     let c = match co with None -> R.create (R.fields a) | Some(c) -> c in
     if false then begin
@@ -190,31 +199,31 @@ let project p q d =
       R.dump_stderr (R.project p c);
       prerr_endline "**** END PROJECT DEBUGGING ****";
     end;
-    if R.equal a (R.project p c) then
+    if R.equal a (c >>~ p) then
       c
     else
       let compflds = (list_diff (R.fields c) p) @ q in
-      let comp = R.project compflds c in
-      let newkeys = R.project q a --~ R.project q c in
-      let additions = rel_join newkeys d in
-      rel_join a (comp ||~ additions)
+      let comp = c >>~ compflds in
+      let newkeys = (a >>~ q) --~ (c >>~ q) in
+      let additions = newkeys **~ d in
+      a **~ (comp ||~ additions)
   in
   mk_lens "<relational project>" getfun putfun
 
-(* Join *)
+(* Inner Join *)
 
 let generic_join f =
   let getfun (c1, c2) =
-    rel_join c1 c2
+    c1 **~ c2
   and putfun a co =
     let rev_join (c1, c2) =
-      let free_agents = (rel_join c1 c2) --~ a in
+      let free_deletions = (c1 **~ c2) --~ a in
       let left = R.fold
-        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
+        (take_dir Left f) free_deletions (R.create (R.fields free_deletions)) in
       let right = R.fold
-        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
+        (take_dir Right f) free_deletions (R.create (R.fields free_deletions)) in
       let both = R.fold
-        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
+        (take_dir Both f) free_deletions (R.create (R.fields free_deletions)) in
       let proj1 = R.project (R.fields c1) in
       let proj2 = R.project (R.fields c2) in
       ((proj1 a ||~ c1) --~ proj1 (left ||~ both),
@@ -224,5 +233,38 @@ let generic_join f =
     | None -> let empty = R.create (R.fields a) in rev_join (empty, empty)
     | Some(c) -> rev_join c
   in
-  mk_lens "<relational join>" getfun putfun
+  mk_lens "<relational inner join>" getfun putfun
+
+(* Outer Join *)
+
+let generic_ojoin dl dr b =
+  let getfun (c1, c2) =
+    outer_join dl dr c1 c2
+  and putfun a co =
+    let rev_join (c1, c2) =
+      let additions = a --~ outer_join dl dr c1 c2 in
+      let left_additions =
+        additions &&~
+        ((additions >>~ list_inter (R.fields c1) (R.fields c2)) **~ dr) in
+      let right_additions =
+        additions &&~
+        ((additions >>~ list_inter (R.fields c1) (R.fields c2)) **~ dl) in
+      let free_additions =
+        additions --~ (left_additions ||~ right_additions) in
+      let left = R.fold
+        (take_dir Left b) free_additions (R.create (R.fields free_additions)) in
+      let right = R.fold
+        (take_dir Right b) free_additions (R.create (R.fields free_additions)) in
+      let both = R.fold
+        (take_dir Both b) free_additions (R.create (R.fields free_additions)) in
+      let proj1 = R.project (R.fields c1) in
+      let proj2 = R.project (R.fields c2) in
+      ((proj1 a &&~ c1) ||~ proj1 (left_additions ||~ left ||~ both),
+        (proj2 a &&~ c1) ||~ proj2 (right_additions ||~ right ||~ both))
+    in
+    match co with
+    | None -> let empty = R.create (R.fields a) in rev_join (empty, empty)
+    | Some(c) -> rev_join c
+  in
+  mk_lens "<relational outer join>" getfun putfun
 

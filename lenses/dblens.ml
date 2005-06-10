@@ -118,3 +118,10 @@ let join = lift_binary "join" (Rlens.generic_join (fun x -> Rlens.Both))
 let joinl = lift_binary "joinl" (Rlens.generic_join (fun x -> Rlens.Left))
 let joinr = lift_binary "joinr" (Rlens.generic_join (fun x -> Rlens.Right))
 
+let ojoin dl dr =
+  lift_binary "ojoin" (Rlens.generic_ojoin dl dr (fun x -> Rlens.Both))
+let ojoinl dl dr =
+  lift_binary "ojoinl" (Rlens.generic_ojoin dl dr (fun x -> Rlens.Left))
+let ojoinr dl dr =
+  lift_binary "ojoinr" (Rlens.generic_ojoin dl dr (fun x -> Rlens.Right))
+

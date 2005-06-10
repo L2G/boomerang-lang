@@ -213,22 +213,40 @@ The lens @inter R S T@ replaces the relations @R@ and @S@ by a new relation
 @T@ containing the intersection of their tuples.
 
 ##let inter : (name -> name -> name -> lens) = Native.Relational.inter
-
 ##let interl : (name -> name -> name -> lens) = Native.Relational.interl
-
 ##let interr : (name -> name -> name -> lens) = Native.Relational.interr
 
 ##let diff : (name -> name -> name -> lens) = Native.Relational.diff
-
 ##let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
-
 ##let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
 
 ##let join : (name -> name -> name -> lens) = Native.Relational.join
-
 ##let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
-
 ##let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
+
+#{*}
+test join "R" "S" "T" /
+       {R = [{A = {1}, B = {3}},
+             {A = {2}, B = {3}}],
+        S = [{A = {1}, C = {5}}]}
+     = {T = [{A = {1}, B = {3}, C = {5}}]}
+#{@}
+
+##let ojoin : (view -> view -> name -> name -> name -> lens) =
+##  Native.Relational.ojoin
+##let ojoinl : (view -> view -> name -> name -> name -> lens) =
+##  Native.Relational.ojoinl
+##let ojoinr : (view -> view -> name -> name -> name -> lens) =
+##  Native.Relational.ojoinr
+
+#{*}
+test ojoin [{C = {55}}] [{B = {33}}] "R" "S" "T" /
+       {R = [{A = {1}, B = {3}},
+             {A = {2}, B = {3}}],
+        S = [{A = {1}, C = {5}}]}
+     = {T = [{A = {1}, B = {3}, C = {5}},
+             {A = {2}, B = {3}, C = {55}}]}
+#{@}
 
 
 #{#}

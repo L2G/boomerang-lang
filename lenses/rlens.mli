@@ -15,3 +15,6 @@ val project :
   string list -> string list -> Relation.t -> (Relation.t, Relation.t) Lens.t
 val generic_join :
   (Relation.record -> bias) -> (Relation.t * Relation.t, Relation.t) Lens.t
+val generic_ojoin :
+  Relation.t -> Relation.t ->
+    (Relation.record -> bias) -> (Relation.t * Relation.t, Relation.t) Lens.t
