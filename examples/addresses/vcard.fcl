@@ -9,6 +9,14 @@ let hoist_optional_pcdata =
     (hoist "PCDATA")
     id
 
+(* list of PCDATA at the top of the element *)
+let flatten_several_depth1 n:name =
+      mapp {`n} (List.map (Xml.squash_flattened; hoist_optional_pcdata))
+
+(* record of PCDATA at the top of the element *)
+let flatten_several_depth2 n:name =
+      mapp {`n} (List.map (Xml.squash_flattened; map hoist_optional_pcdata))
+
 let l = 
       (* we first bring the FN element, assumed to be the first, as key *)
       List.hd []; focus "vCard" {}; focus "" {xmlns = {vcard-temp}};
@@ -19,11 +27,22 @@ let l =
            hoist_nonunique List.HD {N}; rename List.TL "contents");
       (* we now hoist the PCDATA data under name N *)
       map (mapp {N} (map hoist_optional_pcdata));
-      (* we assume there is only one birthday *)
-      map (mapp {contents} (
-             fork {BDAY}
-               (Xml.squash_flattened; map hoist_optional_pcdata)
-               id))
+      (* flattening birthdays, nicknames, title, url *)
+      map (mapp {contents} (flatten_several_depth1 "BDAY";
+                            flatten_several_depth1 "NICKNAME";
+                            flatten_several_depth1 "TITLE";
+                            flatten_several_depth1 "URL"));
+      (* flattening addresses, email, tel *)
+      map (mapp {contents} (flatten_several_depth2 "ADR";
+                            flatten_several_depth2 "EMAIL";
+                            flatten_several_depth2 "TEL"));
+      (* ORG is special: one ORGNAME, several ORGUNITS *)
+      map (mapp {contents} (mapp {ORG} (List.map (
+        fork {ORGNAME}
+          (Xml.squash_flattened; map hoist_optional_pcdata)
+          (map (List.map hoist_optional_pcdata))))))
+        
+
 
 test l / (load "xml" "<vCard xmlns='vcard-temp'>
                       |  <FN>Alan Schmitt</FN>
@@ -58,26 +77,26 @@ test l / (load "xml" "<vCard xmlns='vcard-temp'>
   {N = {FAMILY = {Schmitt}, GIVEN = {Alan}, MIDDLE = {}},
    contents =
     {ADR =
-      [{CTRY = [{PCDATA = [{FRANCE}]}],
-        EXTADD = [{}],
-        HOME = [{}],
-        LOCALITY = [{PCDATA = [{Grenoble}]}],
-        PCODE = [{PCDATA = [{380000}]}],
-        REGION = [{}],
-        STREET = [{PCDATA = [{"4, rue de l'Isère"}]}]}],
-     BDAY = {1974-04-02},
+      [{CTRY = {FRANCE},
+        EXTADD = {},
+        HOME = {},
+        LOCALITY = {Grenoble},
+        PCODE = {380000},
+        REGION = {},
+        STREET = {"4, rue de l'Isère"}}],
+     BDAY = [{1974-04-02}],
      EMAIL =
-      [{INTERNET = [{}],
-        PREF = [{}],
-        USERID = [{PCDATA = [{"alan.schmitt@polytechnique.org"}]}]}],
-     NICKNAME = [{PCDATA = [{brab}]}],
-     ORG = [{ORGNAME = [{PCDATA = [{"INRIA Rhône-Alpes"}]}], ORGUNIT = [{}]}],
+      [{INTERNET = {},
+        PREF = {},
+        USERID = {"alan.schmitt@polytechnique.org"}}],
+     NICKNAME = [{brab}],
+     ORG = [{ORGNAME = {"INRIA Rhône-Alpes"}, ORGUNIT = [{}]}],
      TEL =
-      [{NUMBER = [{PCDATA = [{"+33 (0)4 76 61 54 15"}]}],
-        VOICE = [{}],
-        WORK = [{}]},
-       {HOME = [{}],
-        NUMBER = [{PCDATA = [{"+33 (0)8 71 79 74 00"}]}],
-        VOICE = [{}]}],
-     TITLE = [{PCDATA = [{Researcher}]}],
-     URL = [{PCDATA = [{"http://sardes.inrialpes.fr/~aschmitt/"}]}]}}}
+      [{NUMBER = {"+33 (0)4 76 61 54 15"},
+        VOICE = {},
+        WORK = {}},
+       {HOME = {},
+        NUMBER = {"+33 (0)8 71 79 74 00"},
+        VOICE = {}}],
+     TITLE = [{Researcher}],
+     URL = [{"http://sardes.inrialpes.fr/~aschmitt/"}]}}}
