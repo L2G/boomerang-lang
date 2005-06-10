@@ -1,19 +1,20 @@
 \section{The Standard Prelude}
 
-The lenses described in this section are defined everywhere and need not be
-qualified with a module name.
+The lenses described in this section are available everywhere by default and
+need not be qualified with a module name.
 
 #{#}
 module Prelude = 
 
 (* Documentation for this comes at the end, but we need to use it sooner *)
 let invert : (lens -> lens) = Native.Prelude.invert
-let Any : type = Native.Prelude.Any
-let Empty : type = Native.Prelude.Empty
-
 #{@}
 
 \subsection{Predefined Schemas}
+
+\finish{These need documentation.}
+##let Any : type = Native.Prelude.Any
+##let Empty : type = Native.Prelude.Empty
 
 The @Value@ schema describes views with just one child pointing to an empty
 view.  
@@ -44,7 +45,7 @@ concrete tree if there is one, and the default tree \(d\) otherwise.
 #*test const {a} {b} \ {a} {c} = {c}
 #*test const {a} {b} \ {a} missing = {b}
 
-\LENSSECTIONnott{Composition}
+\LENSSECTION{[}
 \finish{Not sure how to describe the \PUT{} direction or what unit tests are
 useful to show.}
 ##test (id; id) / {a} = {a}
@@ -375,7 +376,7 @@ type if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
 
 \subsection{Miscellaneous}
 
-\LENSSECTIONnott{Definition by inversion}
+\LENSSECTION{invert}
 The function @invert@ maps a bijective lens @l@ to a bijective lens whose
 \GET{} is the \PUT{} of @l@ and vice versa.
 \finish{Put a test.}

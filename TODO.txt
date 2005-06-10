@@ -27,22 +27,17 @@ have a new kind of names: "+" which is "!,*"
 ------------
 
 SOON
-add typechecking tests to the parser?
+* add typechecking tests to the parser?
+* make 'make test' *stop* if any errors are encountered in subdirs
 
 TIDYING
 * We should move all the primitive list-handling lenses out of Prelude and
   into List
-* Remove V.IllFormed and replace all uses with something appropriate from Error
-    --> ditto V.Error
-    --> also, Lens.trap_errors will need to be fixed!
 * The Sync module exports a bunch of stuff that looks internal -- is it needed
   by the sync visualizer, perhaps?  Otherwise let's drop it.
-* Add interface files with camldoc documentation for EVERY MODULE
 * renaming: hoist becomes hoist_unique
 
 LENSES
-* think about whether the lambda-calculus part of focal should be strict or
-  lazy (in particular, recursion)
 * find or write external palm to XML parser and writer
 * find or write external iCalendar to XML parser and writer
 * get calendar lenses (ICal, ICalendar and PalmDatebook) working again
