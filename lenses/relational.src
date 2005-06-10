@@ -5,16 +5,16 @@
 ##let norm (db : view) : view = Prelude.map Native.listsort / db
 
 #{#}
-let bd_a = { nm = Alice, mon = June,     day = 21, age = 21 }
-let bd_b = { nm = Bob,   mon = December, day = 13, age = 25 }
-let bd_c = { nm = Carol, mon = October,  day = 31, age = 31 }
-let bd_d = { nm = Dave,  mon = June,     day = 23, age = 23 }
-let bd_e = { nm = Ellen, mon = February, day = 29, age = 27 }
-let bd_f = { nm = Fred , mon = August,   day = 15, age = 41 }
+let bd_a = { nm = {Alice}, mon = {June},     day = {21}, age = {21} }
+let bd_b = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
+let bd_c = { nm = {Carol}, mon = {October},  day = {31}, age = {31} }
+let bd_d = { nm = {Dave},  mon = {June},     day = {23}, age = {23} }
+let bd_e = { nm = {Ellen}, mon = {February}, day = {29}, age = {27} }
+let bd_f = { nm = {Fred }, mon = {August},   day = {15}, age = {41} }
 
-let ph_a = { nm = Alice, ph = "555-555-5555" }
-let ph_b = { nm = Bob,   ph = "123-456-7890" }
-let ph_c = { nm = Carol, ph = "314-159-2653" }
+let ph_a = { nm = {Alice}, ph = {"555-555-5555"} }
+let ph_b = { nm = {Bob},   ph = {"123-456-7890"} }
+let ph_c = { nm = {Carol}, ph = {"314-159-2653"} }
 
 let a = bd_a
 let b = bd_b
@@ -46,10 +46,10 @@ direction does the converse.
 
 #{*}
 test rename "A" "B" "R" "S" / \
-       {R = [{A = 1, C = 2},
-             {A = 3, C = 4}]}
-     = {S = [{B = 1, C = 2}, 
-             {B = 3, C = 4}]}
+       {R = [{A = {1}, C = {2}},
+             {A = {3}, C = {4}}]}
+     = {S = [{B = {1}, C = {2}}, 
+             {B = {3}, C = {4}}]}
 #{@}
 
 #{#}
@@ -60,116 +60,116 @@ let rename_nm (n : name) (v : view) : view =
 
 test
   norm (rename "nm" "nm" "bdays" "bdays" /
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = norm (
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 
 test
   norm (rename "nm" "name" "bdays" "bdays" /
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = norm (
-    { bdays = [ `(rename_nm "name" bd_a), `(rename_nm "name" bd_c) ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 
 test
   norm (rename "nm" "name" "bdays" "birthdays" /
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = norm (
-    { birthdays = [ `(rename_nm "name" bd_a), `(rename_nm "name" bd_c) ]
-    , phnums = [ `ph_a, `ph_b ]
+    { birthdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 
 test
   norm (rename "nm" "name" "bdays" "phnums" /
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = error (* the table "phnums" already exsits *)
 
 test
   norm (rename "nm" "day" "bdays" "bdays" /
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = error (* the field "day" already exsits *)
 
 test
   norm (rename "foo" "name" "bdays" "bdays" /
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = error (* the field "foo" does not exsit *)
 
 test
   norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ `(rename_nm "name" bd_a), `(rename_nm "name" bd_b) ]
-    , phnums = [ `ph_a, `ph_c ]
-    , phnums2 = [ `ph_b ]
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
     }
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = norm (
-    { bdays = [ `bd_a, `bd_b ]
-    , phnums = [ `ph_a, `ph_c ]
-    , phnums2 = [ `ph_b ]
+    { bdays = [ bd_a, bd_b ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
     }
   )
 
 test
   norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ `(rename_nm "name" bd_a), `(rename_nm "name" bd_b) ]
-    , phnums = [ `ph_a, `ph_c ]
-    , phnums2 = [ `ph_b ]
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
     }
     missing
   )
 = norm (
-    { bdays = [ `bd_a, `bd_b ]
-    , phnums = [ `ph_a, `ph_c ]
-    , phnums2 = [ `ph_b ]
+    { bdays = [ bd_a, bd_b ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
     }
   )
 
 test
   norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ `bd_a, `bd_b ]
-    , phnums = [ `ph_a, `ph_c ]
-    , phnums2 = [ `ph_b ]
+    { bdays = [ bd_a, bd_b ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
     }
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = error (* "name" is not a column name in the abstract view *)
 
 test
   norm (rename "nm" "name" "birthdays" "bdays" \
-    { bdays = [ `(rename_nm "name" bd_a), `(rename_nm "name" bd_b) ]
-    , phnums = [ `ph_a, `ph_c ]
-    , phnums2 = [ `ph_b ]
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
     }
-    { bdays = [ `bd_a, `bd_c ]
-    , phnums = [ `ph_a, `ph_b ]
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
     }
   )
 = error (* "birthdays" is not a table in the concrete view *)
@@ -184,22 +184,22 @@ has the value @v@.
 
 #{*}
 test select "A" "1" "R" "S" /
-       {R = [{A = 1, C = 2},
-             {A = 3, C = 4}]}
-     = {S = [{A = 1, C = 2}]}
+       {R = [{A = {1}, C = {2}},
+             {A = {3}, C = {4}}]}
+     = {S = [{A = {1}, C = {2}}]}
 #{@}
 In the \PUT{} direction, the abstract view must contain only records whose
 @A@ field has value @v@.  These records are combined with the records from
 the concrete view with field @A@ different from @v@.
 #{*}
 test select "A" "1" "R" "S" \
-       {S = [{A = 1, C = 8},
-             {A = 1, C = 9}]}
-       {R = [{A = 1, C = 2},
-             {A = 3, C = 4}]}
-     = {R = [{A = 1, C = 8},
-             {A = 1, C = 9},
-             {A = 3, C = 4}]}
+       {S = [{A = {1}, C = {8}},
+             {A = {1}, C = {9}}]}
+       {R = [{A = {1}, C = {2}},
+             {A = {3}, C = {4}}]}
+     = {R = [{A = {1}, C = {8}},
+             {A = {1}, C = {9}},
+             {A = {3}, C = {4}}]}
 #{@}
 
 \LENSSECTION{select@_@eq}
@@ -211,11 +211,11 @@ The lens @select_eq A B R S@ selects the records in @R@ for which the fields
 
 #{*}
 test select_eq "A" "B" "R" "S" /
-       {R = [{A = 1, B = 1, C = 2},
-             {A = 1, B = 2, C = 3},
-             {A = 4, B = 4, C = 5}]}
-     = {S = [{A = 1, B = 1, C = 2},
-             {A = 4, B = 4, C = 5}]}
+       {R = [{A = {1}, B = {1}, C = {2}},
+             {A = {1}, B = {2}, C = {3}},
+             {A = {4}, B = {4}, C = {5}}]}
+     = {S = [{A = {1}, B = {1}, C = {2}},
+             {A = {4}, B = {4}, C = {5}}]}
 #{@}
 The behavior of the \PUT{} direction is analogous to @select@.
 
@@ -226,35 +226,35 @@ Description.
 ##  Native.Relational.project
 
 #{*}
-test project {A, B, C} {A, B} [{D = 8}, {D = 9}] "R" "S" /
-       { R = [{A = 10, B = 1, C = 5, D = 7},
-              {A = 10, B = 1, C = 5, D = 8},
-              {A = 10, B = 2, C = 5, D = 7},
-              {A = 20, B = 1, C = 6, D = 7},
-              {A = 20, B = 2, C = 6, D = 7}]}
-     = { S = [{A = 10, B = 1, C = 5},
-              {A = 10, B = 2, C = 5},
-              {A = 20, B = 1, C = 6},
-              {A = 20, B = 2, C = 6}]}
+test project {A, B, C} {A, B} [{D = {8}}, {D = {9}}] "R" "S" /
+       { R = [{A = {10}, B = {1}, C = {5}, D = {7}},
+              {A = {10}, B = {1}, C = {5}, D = {8}},
+              {A = {10}, B = {2}, C = {5}, D = {7}},
+              {A = {20}, B = {1}, C = {6}, D = {7}},
+              {A = {20}, B = {2}, C = {6}, D = {7}}]}
+     = { S = [{A = {10}, B = {1}, C = {5}}, 
+              {A = {10}, B = {2}, C = {5}}, 
+              {A = {20}, B = {1}, C = {6}}, 
+              {A = {20}, B = {2}, C = {6}}]}
 #{@}
 In the \PUT{} direction,
 #{*}
-test project {A, B, C} {A, B} [{D = 8}, {D = 9}] "R" "S" \
-       { S = [{A = 10, B = 1, C = 4},
-              {A = 10, B = 2, C = 5},
-              {A = 20, B = 1, C = 6},
-              {A = 30, B = 1, C = 6}]}
-       { R = [{A = 10, B = 1, C = 5, D = 7},
-              {A = 10, B = 1, C = 5, D = 8},
-              {A = 10, B = 2, C = 5, D = 7},
-              {A = 20, B = 1, C = 6, D = 7},
-              {A = 20, B = 2, C = 6, D = 7}]}
-     = { R = [{A = 10, B = 1, C = 4, D = 7},
-              {A = 10, B = 1, C = 4, D = 8},
-              {A = 10, B = 2, C = 5, D = 7},
-              {A = 20, B = 1, C = 6, D = 7},
-              {A = 30, B = 1, C = 6, D = 8},
-              {A = 30, B = 1, C = 6, D = 9}]}
+test project {A, B, C} {A, B} [{D = {8}}, {D = {9}}] "R" "S" \
+       { S = [{A = {10}, B = {1}, C = {4}},
+              {A = {10}, B = {2}, C = {5}},
+              {A = {20}, B = {1}, C = {6}},
+              {A = {30}, B = {1}, C = {6}}]}
+       { R = [{A = {10}, B = {1}, C = {5}, D = {7}},
+              {A = {10}, B = {1}, C = {5}, D = {8}},
+              {A = {10}, B = {2}, C = {5}, D = {7}},
+              {A = {20}, B = {1}, C = {6}, D = {7}},
+              {A = {20}, B = {2}, C = {6}, D = {7}}]}
+     = { R = [{A = {10}, B = {1}, C = {4}, D = {7}},
+              {A = {10}, B = {1}, C = {4}, D = {8}},
+              {A = {10}, B = {2}, C = {5}, D = {7}},
+              {A = {20}, B = {1}, C = {6}, D = {7}},
+              {A = {30}, B = {1}, C = {6}, D = {8}},
+              {A = {30}, B = {1}, C = {6}, D = {9}}]}
 #{@}
 
 \LENSSECTION{union}
@@ -265,9 +265,9 @@ a new relation @T@ containing the union of their tuples.
 
 #{*}
 test union "R" "S" "T" /
-       {R = [{A = 1}, {A = 2}],
-        S = [{A = 2}, {A = 3}] }
-     = {T = [{A = 1}, {A = 2}, {A = 3}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}] }
+     = {T = [{A = {1}}, {A = {2}}, {A = {3}}]}
 #{@}
 In the \PUT{} direction, @union@ treats @R@ and @S@ symmetrically: new
 elements in the abstract table @T@ are propagated to both @R@ and @S@.
@@ -278,121 +278,121 @@ table only) is maintained; and the new value @4@ is propagated to both @S@
 and @T@.
 #{*}
 test union "R" "S" "T" \
-       {T = [{A = 3}, {A = 4}]}
-       {R = [{A = 1}, {A = 2}],
-        S = [{A = 2}, {A = 3}] }
-     = {R = [{A = 4}],
-        S = [{A = 3}, {A = 4}] }
+       {T = [{A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}] }
+     = {R = [{A = {4}}],
+        S = [{A = {3}}, {A = {4}}] }
 #{@}
 The case where d the concrete argument to \PUT{} is missing is treated just
 like the case where the concrete @S@ and @T@ are empty tables:
 #{*}
 test union "R" "S" "T" \
-       {T = [{A = 3}, {A = 4}]}
+       {T = [{A = {3}}, {A = {4}}]}
        missing
-     = {R = [{A = 3}, {A = 4}],
-        S = [{A = 3}, {A = 4}]}
+     = {R = [{A = {3}}, {A = {4}}],
+        S = [{A = {3}}, {A = {4}}]}
 #{@}
 
 #{#}
 test
   norm (union "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ a, b, c, d, e ]
     }
   )
 
 test
   norm (union "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (union "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (union "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (union "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c, `d, `e ]
-    , tbl3 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c, d, e ]
+    , tbl3 = [ a, b, c, d, e ]
     }
   )
 
 test
   norm (union "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `e, `f ]
+    { tbl4 = [ c, e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl2 = [ `c, `f ]
-    , tbl3 = [ `e, `f ]
+    { tbl2 = [ c, f ]
+    , tbl3 = [ e, f ]
     }
   )
 
 test
   norm (union "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (union "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
@@ -406,112 +406,112 @@ adds new elements only to @R@.
 
 #{*}
 test unionl "R" "S" "T" \
-       {T = [{A = 3}, {A = 4}]}
-       {R = [{A = 1}, {A = 2}],
-        S = [{A = 2}, {A = 3}] }
-     = {R = [{A = 4}],
-        S = [{A = 3}] }
+       {T = [{A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}] }
+     = {R = [{A = {4}}],
+        S = [{A = {3}}] }
 #{@}
 
 #{#}
 test
   norm (unionl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ a, b, c, d, e ]
     }
   )
 
 test
   norm (unionl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (unionl "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (unionl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (unionl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c, d, e ]
     , tbl3 = [ ]
     }
   )
 
 test
   norm (unionl "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `e, `f ]
+    { tbl4 = [ c, e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl2 = [ `c, `f ]
-    , tbl3 = [ `e ]
+    { tbl2 = [ c, f ]
+    , tbl3 = [ e ]
     }
   )
 
 test
   norm (unionl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (unionl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
@@ -524,112 +524,112 @@ Similarly, @unionr R S T@ adds new elements only to @S@.
 
 #{*}
 test unionr "R" "S" "T" \
-       {T = [{A = 3}, {A = 4}]}
-       {R = [{A = 1}, {A = 2}],
-        S = [{A = 2}, {A = 3}] }
+       {T = [{A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}] }
      = {R = [],
-        S = [{A = 3},{A = 4}] }
+        S = [{A = {3}},{A = {4}}] }
 #{@}
 
 #{#}
 test
   norm (unionr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ a, b, c, d, e ]
     }
   )
 
 test
   norm (unionr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (unionr "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (unionr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (unionr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
+    { tbl1 = [ ph_a, ph_c ]
     , tbl2 = [ ]
-    , tbl3 = [ `a, `b, `c, `d, `e ]
+    , tbl3 = [ a, b, c, d, e ]
     }
   )
 
 test
   norm (unionr "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `e, `f ]
+    { tbl4 = [ c, e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl2 = [ `c ]
-    , tbl3 = [ `e, `f ]
+    { tbl2 = [ c ]
+    , tbl3 = [ e, f ]
     }
   )
 
 test
   norm (unionr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (unionr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a, `b, `c, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a, b, c, d, e ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
@@ -641,102 +641,102 @@ let inter : (name -> name -> name -> lens) = Native.Relational.inter
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `b ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ b ]
     }
   )
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (inter "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `b ]
-    , tbl3 = [ `b ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ b ]
+    , tbl3 = [ b ]
     }
   )
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `e, `f ]
+    { tbl4 = [ c, e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl2 = [ `a, `c, `e, `f ]
-    , tbl3 = [ `c, `d, `e, `f ]
+    { tbl2 = [ a, c, e, f ]
+    , tbl3 = [ c, d, e, f ]
     }
   )
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
@@ -746,102 +746,102 @@ let interl : (name -> name -> name -> lens) = Native.Relational.interl
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `b ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ b ]
     }
   )
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (interl "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `b ]
-    , tbl3 = [ `b ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ b ]
+    , tbl3 = [ b ]
     }
   )
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `e, `f ]
+    { tbl4 = [ c, e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl2 = [ `a, `c, `e, `f ]
-    , tbl3 = [ `b, `c, `d, `e, `f ]
+    { tbl2 = [ a, c, e, f ]
+    , tbl3 = [ b, c, d, e, f ]
     }
   )
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
@@ -851,102 +851,102 @@ let interr : (name -> name -> name -> lens) = Native.Relational.interr
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `b ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ b ]
     }
   )
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (interr "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `b ]
-    , tbl3 = [ `b ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ b ]
+    , tbl3 = [ b ]
     }
   )
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `e, `f ]
+    { tbl4 = [ c, e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = norm (
-    { tbl2 = [ `b, `a, `c, `e, `f ]
-    , tbl3 = [ `c, `d, `e, `f ]
+    { tbl2 = [ b, a, c, e, f ]
+    , tbl3 = [ c, d, e, f ]
     }
   )
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `d, `e ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, d, e ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `b ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ b ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
@@ -958,100 +958,100 @@ let diff : (name -> name -> name -> lens) = Native.Relational.diff
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ a ]
     }
   )
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (diff "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a ]
     , tbl3 = [ ]
     }
   )
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `d, `e ]
+    { tbl4 = [ c, d, e ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl2 = [ `b, `c, `d, `e ]
-    , tbl3 = [ `a, `b ]
+    { tbl2 = [ b, c, d, e ]
+    , tbl3 = [ a, b ]
     }
   )
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
+    { tbl1 = [ ph_a, ph_c ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* "tbl3" does not exist in the concrete view *)
@@ -1061,100 +1061,100 @@ let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ a ]
     }
   )
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (diffl "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a ]
     , tbl3 = [ ]
     }
   )
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `d, `e ]
+    { tbl4 = [ c, d, e ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl2 = [ `b, `c, `d, `e ]
-    , tbl3 = [ `b ]
+    { tbl2 = [ b, c, d, e ]
+    , tbl3 = [ b ]
     }
   )
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
+    { tbl1 = [ ph_a, ph_c ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* "tbl3" does not exist in the concrete view *)
@@ -1164,100 +1164,100 @@ let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl4 = [ a ]
     }
   )
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* "tbl2" doesn't exist *)
 
 test
   norm (diffr "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* table domains do not match *)
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
+    , tbl5 = [ e, f ]
     }
-    { tbl1 = [ `ph_a, `ph_b ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_b ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
-    , tbl5 = [ `e, `f ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
+    , tbl5 = [ e, f ]
     }
   )
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
     }
     missing
   )
 = norm (
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a ]
     , tbl3 = [ ]
     }
   )
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ `c, `d, `e ]
+    { tbl4 = [ c, d, e ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = norm (
-    { tbl2 = [ `a, `b, `c, `d, `e ]
-    , tbl3 = [ `a, `b ]
+    { tbl2 = [ a, b, c, d, e ]
+    , tbl3 = [ a, b ]
     }
   )
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
+    { tbl1 = [ ph_a, ph_c ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
-    , tbl3 = [ `b, `c, `d ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
+    , tbl3 = [ b, c, d ]
     }
   )
 = error (* "tbl4" does not exist in the abstract view *)
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl4 = [ `a ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl4 = [ a ]
     }
-    { tbl1 = [ `ph_a, `ph_c ]
-    , tbl2 = [ `a, `b, `c ]
+    { tbl1 = [ ph_a, ph_c ]
+    , tbl2 = [ a, b, c ]
     }
   )
 = error (* "tbl3" does not exist in the concrete view *)

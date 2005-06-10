@@ -68,12 +68,6 @@ let rec eq t1 t2 = match t1,t2 with
   | App(_),App(_) -> false
   | _             -> false
     
-(* let rec cmp_t t1 t2 = match t1,t2 with *)
-(*     NT(_),TT(_)      -> lt *)
-(*   | TT(_), NT(_)     -> gt	 *)
-(*   | NT(pt1),NT(pt2) -> cmp_pt pt1 pt2 *)
-(*   | TT(pt1),TT(pt2) -> cmp_pt pt1 pt2 *)
-(* and cmp_pt (_,_,itr1) (_,_,itr2) = cmp_it !itr1 !itr2 *)
 (* and cmp_it t1 t2 = *)
 (*   match t1,t2 with       *)
 (*       Empty(_),Empty(_)         -> eq *)
@@ -111,31 +105,12 @@ let rec eq t1 t2 = match t1,t2 with
 (*     | _,Cat(_)                 -> gt *)
 (*     | Union(_,us1),Union(_,us2) ->  *)
 (* 	cmp_lex (Safelist.sort cmp_pt us1) (Safelist.sort cmp_pt us2) cmp_pt *)
-(*     | _,Singleton(_,_) -> lt (\* FIXME: we should find what to do *\) *)
-(*     | Singleton(_,_),_ -> gt (\* FIXME: we should find what to do *\) *)
       
 (* (\* sort a type list *\) *)
 (* let sort_it it = it (\* STUB *\) *)
 (* let sort_pt_list ptl = Safelist.sort cmp_pt ptl *)
 	  
 (* (\*** UTILITIES ***\) *)
-(* (\* pt2nf/t2nf: convert a (pre)type to normal form *\) *)
-(* let rec t2nf t0 = match t0 with *)
-(*     NT pt -> NT (pt2nf true pt) *)
-(*   | TT pt -> TT (pt2nf true pt) *)
-	  
-(* and pt2nf force ((normalized,memo,itr) as pt0) =  *)
-(*   let _ =  *)
-(*     match force,!itr with *)
-(* 	false, Var(_) -> () *)
-(*       | _ ->  *)
-(* 	  if not !normalized then *)
-(* 	    let it_nf = it2nf force !itr in *)
-(* 	      normalized := true; *)
-(* 	      itr := it_nf *)
-(*   in *)
-(*     pt0 *)
-      
 (* and it2nf force it0 =  *)
 (*   let res = match it0 with       *)
 (*       Empty(_) | Any(_) | Fun(_) | Singleton(_) -> it0 *)
@@ -399,101 +374,80 @@ module TDoms =
 	     let compare = compare
 	   end)  
   
-(* let atom2str ta = match ta with *)
-(*     DAny s -> "!" *)
-(*   | DAll s -> "*" *)
-(*   | DName n -> n *)
+let atom2str ta = match ta with
+    DAny s -> "!"
+  | DAll s -> "*"
+  | DName n -> n
 
-(* let concat_tdom sep td = Misc.concat TDom.fold sep atom2str td *)
-(* let tdom2str td = Misc.curlybraces (concat_tdom " " td) *)
+let concat_tdom sep td = Misc.concat TDom.fold sep atom2str td
+let tdom2str td = Misc.curlybraces (concat_tdom " " td)
 
-(* let concat_tdoms sep tds = Misc.concat TDoms.fold sep tdom2str tds *)
-(* let tdoms2str tds = Misc.curlybraces (concat_tdoms " " tds) *)
+let concat_tdoms sep tds = Misc.concat TDoms.fold sep tdom2str tds
+let tdoms2str tds = Misc.curlybraces (concat_tdoms " " tds)
 
-(* let nfcheck tbase f t =  *)
-(*   match tbase with *)
-(*       Cat(_) -> *)
-(* 	(match it_of_pt t with *)
-(* 	     Cat(_) | Union(_) -> raise (Error.Fatal_error("Type is not in normal form"))  *)
-(* 	   | _ -> f t) *)
-(*     | Union(_) ->  *)
-(* 	(match it_of_pt t with  *)
-(* 	     Union(_) -> raise (Error.Fatal_error("Type is not in normal form"))  *)
-(* 	   | _ -> f t) *)
-(*     | _ -> f t *)
+let nfcheck tbase f t =match tbase with
+    Cat(_) ->
+      (match t with
+	   Cat(_) | Union(_) -> raise (Error.Fatal_error("Type is not in normal form"))
+	 | _ -> f t)
+  | Union(_) ->
+      (match t with
+	   Union(_) -> raise (Error.Fatal_error("Type is not in normal form"))
+	 | _ -> f t)
+  | _ -> f t
 	
-let rec tdoms t = TDoms.empty
-(*   match t with  *)
-(*       TT pt -> tdoms_pt pt *)
-(*     | _     ->  *)
-(* 	fatal_error  *)
-(* 	  (fun () ->  *)
-(* 	     sprintf "cannot calculate type domain for negative type %s" *)
-(* 	       (string_of_t t)) *)
-
-(* and tdoms_pt (_,_,itr) = tdoms_it !itr *)
-(* and tdoms_it it =  *)
-(*   let nameset lst =  *)
-(*     List.fold_left (fun ns n -> Name.Set.add n ns) Name.Set.empty lst *)
-(*   in  *)
-(*   let shallow_union f lst =  *)
-(*     List.fold_left (fun acc td -> TDoms.union acc (f td)) TDoms.empty lst      *)
-(*   in *)
-(*   let deep_union f lst =  *)
-(*     TDoms.singleton (TDoms.fold (fun acc d -> TDom.union acc d) (shallow_union f lst) TDom.empty) *)
-(*   in *)
-(*     match it with *)
-(* 	Union(_,tl)  -> shallow_union (nfcheck it tdoms_pt) tl *)
-(*       | Cat(_,tl)    -> deep_union (nfcheck it tdoms_pt) tl *)
-(*       | Name(_,m,x)  -> TDoms.singleton (TDom.singleton (DName(m)))  *)
-(*       | Bang(_,f,x)  -> TDoms.singleton (TDom.singleton (DAny(nameset f)))  *)
-(*       | Star(_,f,x)  -> TDoms.singleton (TDom.singleton (DAll(nameset f)))  *)
-(*       | Empty(_)     -> TDoms.empty *)
-(*       | Any(_)       -> TDoms.singleton (TDom.singleton (DAll(Name.Set.empty))) *)
-(*       | Var(_,_,thk) | App(_,_,_,thk) -> tdoms_pt ((\* FIXME: hack! *\) thk ()) *)
-(*       | Fun(i,_) ->  *)
-(* 	  fatal_error  *)
-(* 	    (fun () ->  *)
-(* 	       sprintf "cannot calculate type domain of type operator %s" *)
-(* 		 (string_of_it it)) *)
-(*       | Singleton(_,v) -> TDoms.singleton ( Name.Set.fold *)
-(*                                              (fun k d -> TDom.add (DName k) d) *)
-(*                                              (V.dom v) *)
-(*                                              TDom.empty) *)
+let rec tdoms t = 
+  let nameset lst =
+    List.fold_left (fun ns n -> Name.Set.add n ns) Name.Set.empty lst
+  in
+  let shallow_union f lst =
+    List.fold_left (fun acc td -> TDoms.union acc (f td)) TDoms.empty lst
+  in
+  let deep_union f lst =
+    TDoms.singleton (TDoms.fold (fun acc d -> TDom.union acc d) (shallow_union f lst) TDom.empty)
+  in match t with
+      Union(_,tl)  -> shallow_union (nfcheck t tdoms) tl
+    | Cat(_,tl)    -> deep_union (nfcheck t tdoms) tl
+    | Atom(_,m,x)  -> TDoms.singleton (TDom.singleton (DName(m)))
+    | Bang(_,f,x)  -> TDoms.singleton (TDom.singleton (DAny(nameset f)))
+    | Star(_,f,x)  -> TDoms.singleton (TDom.singleton (DAll(nameset f)))
+    | Empty(_)     -> TDoms.empty
+    | Any(_)       -> TDoms.singleton (TDom.singleton (DAll(Name.Set.empty)))
+    | Var(_,_,thk) | App(_,_,_,thk) -> tdoms (Value.get_type (Info.M "computing type domain") (thk ()))
 	  
-let rec vdom_in_tdoms vd tds = true
-
-(*   let name_match n ta = *)
-(*     match ta with *)
-(* 	DName m -> m=n *)
-(*       | _ -> false *)
-(*   in *)
-(*   let any_match n ta =  *)
-(*     match ta with *)
-(* 	DAny s -> not (Name.Set.mem n s)  *)
-(*       | _ -> false *)
-(*   in *)
-(*   let all_match n ta =  *)
-(*     match ta with *)
-(* 	DAll s -> not (Name.Set.mem n s)  *)
-(*       | _ -> false *)
-(*   in     *)
-(*   let tdom_filter keep f n (vd,td) =  *)
-(*     let (td1,td2) = TDom.partition (f n) td in *)
-(*       if (TDom.cardinal td1)=1  *)
-(*       then (Name.Set.remove n vd,  *)
-(* 	    if keep then td else td2)  *)
-(*       else (vd,td) *)
-(*   in     *)
-(*   let is_all ta = *)
-(*     match ta with *)
-(* 	DAll _ -> true *)
-(*       | _ -> false *)
-(*   in  *)
-(*   let rec vdom_matches_tdom vd td = *)
-(*     let (vd1,td1) = (Name.Set.fold (tdom_filter false name_match) vd (vd,td)) in *)
-(*     let (vd2,td2) = (Name.Set.fold (tdom_filter false any_match) vd (vd1,td1)) in *)
-(*     let (vd3,td3) = (Name.Set.fold (tdom_filter true all_match) vd (vd2,td2)) in *)
-(*       (Name.Set.is_empty vd3) && ((TDom.is_empty td3) or (TDom.for_all is_all td3)) *)
-(*   in *)
-(*     TDoms.exists (vdom_matches_tdom vd) tds  *)
+let rec vdom_in_tdoms vd tds  = 
+  let name_match n ta =
+    match ta with
+	DName m -> m=n
+      | _ -> false
+  in
+  let any_match n ta =
+    match ta with
+	DAny s -> not (Name.Set.mem n s)
+      | _ -> false
+  in
+  let all_match n ta =
+    match ta with
+	DAll s -> not (Name.Set.mem n s)
+      | _ -> false
+  in
+  let tdom_filter keep f n (vd,td) =
+    let (td1,td2) = TDom.partition (f n) td in
+      if (TDom.cardinal td1)=1
+      then (Name.Set.remove n vd,
+	    if keep then td else td2)
+      else (vd,td)
+  in
+  let is_all ta =
+    match ta with
+	DAll _ -> true
+      | _ -> false
+  in
+  let rec vdom_matches_tdom vd td =
+    let (vd1,td1) = (Name.Set.fold (tdom_filter false name_match) vd (vd,td)) in
+    let (vd2,td2) = (Name.Set.fold (tdom_filter false any_match) vd (vd1,td1)) in
+    let (vd3,td3) = (Name.Set.fold (tdom_filter true all_match) vd (vd2,td2)) in
+      (Name.Set.is_empty vd3) && ((TDom.is_empty td3) or (TDom.for_all is_all td3))
+  in
+    TDoms.exists (vdom_matches_tdom vd) tds
+      
