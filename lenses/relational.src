@@ -2,28 +2,6 @@
 
 ##module Relational =
 
-##let norm (db : view) : view = Prelude.map Native.listsort / db
-
-#{#}
-let bd_a = { nm = {Alice}, mon = {June},     day = {21}, age = {21} }
-let bd_b = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
-let bd_c = { nm = {Carol}, mon = {October},  day = {31}, age = {31} }
-let bd_d = { nm = {Dave},  mon = {June},     day = {23}, age = {23} }
-let bd_e = { nm = {Ellen}, mon = {February}, day = {29}, age = {27} }
-let bd_f = { nm = {Fred} , mon = {August},   day = {15}, age = {41} }
-
-let ph_a = { nm = {Alice}, ph = {"555-555-5555"} }
-let ph_b = { nm = {Bob},   ph = {"123-456-7890"} }
-let ph_c = { nm = {Carol}, ph = {"314-159-2653"} }
-
-let a = bd_a
-let b = bd_b
-let c = bd_c
-let d = bd_d
-let e = bd_e
-let f = bd_f
-#{@}
-
 \subsection{Encoding}
 
 \finish{Explain}
@@ -37,12 +15,12 @@ The lens @rename A B R S@ renames the field @A@ to @B@ in the
 table @R@ and gives the altered table the name @S@.  The \PUT{}
 direction does the converse.
 
-##let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
-
 %% Convention: 
 %%    R,S,T  relations
 %%    A,B,C  columns
 %%    a,b,c,1,2,3  data
+
+##let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
 
 #{*}
 test rename "A" "B" "R" "S" / \
@@ -50,129 +28,6 @@ test rename "A" "B" "R" "S" / \
              {A = {3}, C = {4}}]}
      = {S = [{B = {1}, C = {2}}, 
              {B = {3}, C = {4}}]}
-#{@}
-
-#{#}
-(* RENAME TESTS *)
-
-let rename_nm (n : name) (v : view) : view =
-  Prelude.rename "nm" n / v
-
-test
-  norm (rename "nm" "nm" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "birthdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { birthdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "phnums" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* the table "phnums" already exsits *)
-
-test
-  norm (rename "nm" "day" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* the field "day" already exsits *)
-
-test
-  norm (rename "foo" "name" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* the field "foo" does not exsit *)
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { bdays = [ bd_a, bd_b ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    missing
-  )
-= norm (
-    { bdays = [ bd_a, bd_b ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ bd_a, bd_b ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* "name" is not a column name in the abstract view *)
-
-test
-  norm (rename "nm" "name" "birthdays" "bdays" \
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* "birthdays" is not a table in the concrete view *)
 #{@}
 
 
@@ -324,7 +179,206 @@ test union "R" "S" "T" \
         S = [{A = {3}}, {A = {4}}]}
 #{@}
 
+\LENSSECTION{unionl}
+The lens @unionl R S T@ is an asymmetric variant of @union R S T@ that 
+adds new elements only to @R@.
+
+##let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
+
+#{*}
+test unionl "R" "S" "T" \
+       {T = [{A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}] }
+     = {R = [{A = {4}}],
+        S = [{A = {3}}] }
+#{@}
+
+\LENSSECTION{unionr}
+Similarly, @unionr R S T@ adds new elements only to @S@.
+
+##let unionr : (name -> name -> name -> lens) = Native.Relational.unionr
+
+#{*}
+test unionr "R" "S" "T" \
+       {T = [{A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}] }
+     = {R = [],
+        S = [{A = {3}},{A = {4}}] }
+#{@}
+
+\LENSSECTION{inter}
+The lens @inter R S T@ replaces the relations @R@ and @S@ by a new relation
+@T@ containing the intersection of their tuples.
+
+##let inter : (name -> name -> name -> lens) = Native.Relational.inter
+
+##let interl : (name -> name -> name -> lens) = Native.Relational.interl
+
+##let interr : (name -> name -> name -> lens) = Native.Relational.interr
+
+##let diff : (name -> name -> name -> lens) = Native.Relational.diff
+
+##let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
+
+##let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
+
+##let join : (name -> name -> name -> lens) = Native.Relational.join
+
+##let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
+
+##let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
+
+
 #{#}
+(* ADDITIONAL TESTS *)
+
+let norm (db : view) : view = Prelude.map Native.listsort / db
+
+let bd_a = { nm = {Alice}, mon = {June},     day = {21}, age = {21} }
+let bd_b = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
+let bd_c = { nm = {Carol}, mon = {October},  day = {31}, age = {31} }
+let bd_d = { nm = {Dave},  mon = {June},     day = {23}, age = {23} }
+let bd_e = { nm = {Ellen}, mon = {February}, day = {29}, age = {27} }
+let bd_f = { nm = {Fred} , mon = {August},   day = {15}, age = {41} }
+
+let ph_a = { nm = {Alice}, ph = {"555-555-5555"} }
+let ph_b = { nm = {Bob},   ph = {"123-456-7890"} }
+let ph_c = { nm = {Carol}, ph = {"314-159-2653"} }
+
+let a = bd_a
+let b = bd_b
+let c = bd_c
+let d = bd_d
+let e = bd_e
+let f = bd_f
+
+
+(* ADDITIONAL RENAME TESTS *)
+
+let rename_nm (n : name) (v : view) : view =
+  Prelude.rename "nm" n / v
+
+test
+  norm (rename "nm" "nm" "bdays" "bdays" /
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= norm (
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+
+test
+  norm (rename "nm" "name" "bdays" "bdays" /
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= norm (
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+
+test
+  norm (rename "nm" "name" "bdays" "birthdays" /
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= norm (
+    { birthdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+
+test
+  norm (rename "nm" "name" "bdays" "phnums" /
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= error (* the table "phnums" already exsits *)
+
+test
+  norm (rename "nm" "day" "bdays" "bdays" /
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= error (* the field "day" already exsits *)
+
+test
+  norm (rename "foo" "name" "bdays" "bdays" /
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= error (* the field "foo" does not exsit *)
+
+test
+  norm (rename "nm" "name" "bdays" "bdays" \
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
+    }
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= norm (
+    { bdays = [ bd_a, bd_b ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
+    }
+  )
+
+test
+  norm (rename "nm" "name" "bdays" "bdays" \
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
+    }
+    missing
+  )
+= norm (
+    { bdays = [ bd_a, bd_b ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
+    }
+  )
+
+test
+  norm (rename "nm" "name" "bdays" "bdays" \
+    { bdays = [ bd_a, bd_b ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
+    }
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= error (* "name" is not a column name in the abstract view *)
+
+test
+  norm (rename "nm" "name" "birthdays" "bdays" \
+    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
+    , phnums = [ ph_a, ph_c ]
+    , phnums2 = [ ph_b ]
+    }
+    { bdays = [ bd_a, bd_c ]
+    , phnums = [ ph_a, ph_b ]
+    }
+  )
+= error (* "birthdays" is not a table in the concrete view *)
+
+
+(* ADDITIONAL UNION TESTS *)
+
 test
   norm (union "tbl2" "tbl3" "tbl4" /
     { tbl1 = [ ph_a, ph_b ]
@@ -426,24 +480,10 @@ test
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
-#{@}
 
-\LENSSECTION{unionl}
-The lens @unionl R S T@ is an asymmetric variant of @union R S T@ that 
-adds new elements only to @R@.
 
-##let unionl : (name -> name -> name -> lens) = Native.Relational.unionl
+(* ADDITIONAL UNIONL TESTS *)
 
-#{*}
-test unionl "R" "S" "T" \
-       {T = [{A = {3}}, {A = {4}}]}
-       {R = [{A = {1}}, {A = {2}}],
-        S = [{A = {2}}, {A = {3}}] }
-     = {R = [{A = {4}}],
-        S = [{A = {3}}] }
-#{@}
-
-#{#}
 test
   norm (unionl "tbl2" "tbl3" "tbl4" /
     { tbl1 = [ ph_a, ph_b ]
@@ -545,23 +585,10 @@ test
     }
   )
 = error (* table "tbl3" does not exist in the concrete view *)
-#{@}
 
-\LENSSECTION{unionr}
-Similarly, @unionr R S T@ adds new elements only to @S@.
 
-##let unionr : (name -> name -> name -> lens) = Native.Relational.unionr
+(* ADDITIONAL UNIONL TESTS *)
 
-#{*}
-test unionr "R" "S" "T" \
-       {T = [{A = {3}}, {A = {4}}]}
-       {R = [{A = {1}}, {A = {2}}],
-        S = [{A = {2}}, {A = {3}}] }
-     = {R = [],
-        S = [{A = {3}},{A = {4}}] }
-#{@}
-
-#{#}
 test
   norm (unionr "tbl2" "tbl3" "tbl4" /
     { tbl1 = [ ph_a, ph_b ]
@@ -665,9 +692,7 @@ test
 = error (* table "tbl3" does not exist in the concrete view *)
 
 
-(* INTERSECTION *)
-
-let inter : (name -> name -> name -> lens) = Native.Relational.inter
+(* ADDITIONAL INTER TESTS *)
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" /
@@ -772,7 +797,7 @@ test
 = error (* table "tbl3" does not exist in the concrete view *)
 
 
-let interl : (name -> name -> name -> lens) = Native.Relational.interl
+(* ADDITIONAL INTERL TESTS *)
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" /
@@ -877,7 +902,7 @@ test
 = error (* table "tbl3" does not exist in the concrete view *)
 
 
-let interr : (name -> name -> name -> lens) = Native.Relational.interr
+(* ADDITIONAL INTERR TESTS *)
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" /
@@ -982,9 +1007,7 @@ test
 = error (* table "tbl3" does not exist in the concrete view *)
 
 
-(* DIFFERENCE *)
-
-let diff : (name -> name -> name -> lens) = Native.Relational.diff
+(* ADDITIONAL DIFF TESTS *)
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" /
@@ -1087,7 +1110,7 @@ test
 = error (* "tbl3" does not exist in the concrete view *)
 
 
-let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
+(* ADDITIONAL DIFFL TESTS *)
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" /
@@ -1190,7 +1213,7 @@ test
 = error (* "tbl3" does not exist in the concrete view *)
 
 
-let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
+(* ADDITIONAL DIFFR TESTS *)
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" /
@@ -1291,11 +1314,5 @@ test
     }
   )
 = error (* "tbl3" does not exist in the concrete view *)
-
-
-(* JOIN *)
-
-let join : (name -> name -> name -> lens) = Native.Relational.join
-let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
-let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
+#{@}
 
