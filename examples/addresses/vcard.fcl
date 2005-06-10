@@ -17,10 +17,10 @@ let flatten_several_depth1 n:name =
 let flatten_several_depth2 n:name =
       mapp {`n} (List.map (Xml.squash_flattened; map hoist_optional_pcdata))
 
-let l = 
+let l =
       (* we first bring the FN element, assumed to be the first, as key *)
-      List.hd []; focus "vCard" {}; focus "" {xmlns = {vcard-temp}};
-      wmap {`List.HD -> Xml.squash_elt; hoist "FN"; hoist "PCDATA"};
+      List.hd []; focus "vCard" {}; focus Xml.children {xmlns = {vcard-temp}};
+      mapp {`List.HD} (Xml.squash_elt; hoist "FN"; hoist "PCDATA");
       pivot List.HD; map (hoist List.TL);
       (* we now squash the first element of the list, that is N, and flatten the rest *)
       map (wmap {`List.HD -> Xml.squash_elt, `List.TL -> Xml.flatten};
