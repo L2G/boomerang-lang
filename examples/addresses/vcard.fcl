@@ -22,7 +22,7 @@ let l =
       (* we assume there is only one birthday *)
       map (mapp {contents} (
              fork {BDAY}
-               (Xml.squash_elt; map hoist_optional_pcdata)
+               (Xml.squash_flattened; map hoist_optional_pcdata)
                id))
 
 test l / (load "xml" "<vCard xmlns='vcard-temp'>
@@ -65,7 +65,7 @@ test l / (load "xml" "<vCard xmlns='vcard-temp'>
         PCODE = [{PCDATA = [{380000}]}],
         REGION = [{}],
         STREET = [{PCDATA = [{"4, rue de l'Isère"}]}]}],
-     BDAY = [{PCDATA = [{1974-04-02}]}],
+     BDAY = {1974-04-02},
      EMAIL =
       [{INTERNET = [{}],
         PREF = [{}],
