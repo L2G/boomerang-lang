@@ -342,7 +342,7 @@ let rec member v t0 =
 	in
 	let rec loop ts v =
 	  debug (fun () -> Printf.eprintf "loop {%s} %s\n%!"
-		   (Misc.concat_list "," (Safelist.map Type.string_of_t ts))
+		   (Misc.concat_list "," (Safelist.map string_of_t ts))
 		   (V.string_of_t v));
 	  (* sanity check for projectability;
 	     FIXME: should really just do this once during normalization *)
@@ -363,7 +363,7 @@ let rec member v t0 =
     debug (fun () -> 
 	     Printf.eprintf "member %s %s = %b\n%!"
 	       (V.string_of_t v)
-	       (Type.string_of_t t0)
+	       (string_of_t t0)
 	       result);
     result
 
