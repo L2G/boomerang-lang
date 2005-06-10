@@ -26,201 +26,179 @@ let force t0 = match t0 with
     Var(_,_,f) | App(_,_,_,f) -> Value.get_type (Info.M "forcing type expression") (f ())
   | _                         -> t0
 
-(* (\* a (somewhat arbitrary) order on types: used in t2nf *\) *)
-(* let eq = 0     (\* symbolic comparisons *\) *)
-(* let lt = -1 *)
-(* let gt = 1 *)
-  
-(* (\* helper for comparing lists of things in dictionary order *\) *)
-(* let rec cmp_lex l1 l2 cmp_f = *)
-(*   let rec cmp_lex_aux l1 l2 tie = *)
-(*     match (l1,l2) with *)
-(* 	([],[])           -> tie *)
-(*       | (_,[])            -> gt *)
-(*       | ([],_)            -> lt *)
-(*       | (h1::t1),(h2::t2) -> *)
-(* 	  if (tie = eq) then cmp_lex_aux t1 t2 (cmp_f h1 h2) *)
-(* 	  else cmp_lex_aux t1 t2 tie *)
-(*   in *)
-(*     cmp_lex_aux l1 l2 eq *)
-
-(* a VERY conservative approximation of equality *)
-(* assumes that types are in normal form *)
-let rec eq t1 t2 = match t1,t2 with
-    Empty(_),Empty(_)               -> true
-  | Any(_),Any(_)                   -> true
-  | Var(_,x1,_),Var(_,x2,_)         -> Syntax.qid_compare x1 x2 = 0
-  | Atom(_,n1,t1),Atom(_,n2,t2) -> (n1=n2) && (eq t1 t2)
-  | Star(_,f1,t1),Star(_,f2,t2) -> (f1=f2) && (eq t1 t2)
-  | Bang(_,f1,t1),Bang(_,f2,t2) -> (f1=f2) && (eq t1 t2)
-  | Cat(_,ts1), Cat(_,ts2)          ->
-      if (Safelist.length ts1 <> Safelist.length ts2) then false
-      else Safelist.fold_left
-	(fun ok (ti1,ti2) -> ok && (eq ti1 ti2))
-	true
-	(Safelist.combine ts1 ts2)
-  | Union(_,ts1), Cat(_,ts2)        ->
-      if (Safelist.length ts1 <> Safelist.length ts2) then false
-      else Safelist.fold_left
-	(fun ok (ti1,ti2) -> ok && (eq ti1 ti2))
-	true
-	(Safelist.combine ts1 ts2)
-  | App(_),App(_) -> false
-  | _             -> false
+(* (\* a VERY conservative approximation of equality *\) *)
+(* (\* assumes that types are in normal form *\) *)
+(* let rec eq_type t1 t2 = match t1,t2 with *)
+(*     Empty(_),Empty(_)               -> true *)
+(*   | Any(_),Any(_)                   -> true *)
+(*   | Var(_,x1,_),Var(_,x2,_)         -> Syntax.qid_compare x1 x2 = 0 *)
+(*   | Atom(_,n1,t1),Atom(_,n2,t2) -> (n1=n2) && (eq t1 t2) *)
+(*   | Star(_,f1,t1),Star(_,f2,t2) -> (f1=f2) && (eq t1 t2) *)
+(*   | Bang(_,f1,t1),Bang(_,f2,t2) -> (f1=f2) && (eq t1 t2) *)
+(*   | Cat(_,ts1), Cat(_,ts2)          -> *)
+(*       if (Safelist.length ts1 <> Safelist.length ts2) then false *)
+(*       else Safelist.fold_left *)
+(* 	(fun ok (ti1,ti2) -> ok && (eq ti1 ti2)) *)
+(* 	true *)
+(* 	(Safelist.combine ts1 ts2) *)
+(*   | Union(_,ts1), Cat(_,ts2)        -> *)
+(*       if (Safelist.length ts1 <> Safelist.length ts2) then false *)
+(*       else Safelist.fold_left *)
+(* 	(fun ok (ti1,ti2) -> ok && (eq ti1 ti2)) *)
+(* 	true *)
+(* 	(Safelist.combine ts1 ts2) *)
+(*   | App(_),App(_) -> false *)
+(*   | _             -> false *)
     
-(* and cmp_it t1 t2 = *)
-(*   match t1,t2 with       *)
-(*       Empty(_),Empty(_)         -> eq *)
-(*     | Empty(_),_                -> lt *)
-(*     | _,Empty(_)                -> gt *)
-(*     | Any(_),Any(_)             -> eq *)
-(*     | Any(_),_                  -> lt *)
-(*     | _,Any(_)                  -> gt *)
-(*     | Fun(_),Fun(_)             -> eq *)
-(*     | Fun(_),_                  -> lt *)
-(*     | _,Fun(_)                  -> gt *)
-(*     | Var(_,x,_),Var(_,y,_)     -> compare x y (\* FIXME: broken? *\) *)
-(*     | Var(_),_                  -> lt *)
-(*     | _,Var(_)                  -> gt *)
-(*     | App(_,it11,it12,_),App(_,it21,it22,_) ->  *)
-(* 	let cmp1 = cmp_it it11 it21 in *)
-(* 	  if cmp1 <> eq then cmp1 *)
-(* 	  else cmp_it it12 it22  *)
-(*     | App(_),_                  -> lt *)
-(*     | _,App(_)                  -> gt     *)
-(*     | Name(_,n1,_),Name(_,n2,_) -> compare n1 n2 *)
-(*     | Name(_,_,_),_             -> lt *)
-(*     | _,Name(_,_,_)             -> gt *)
-(*     | Bang(_,f1,_),Bang(_,f2,_) ->  *)
-(* 	cmp_lex (Safelist.sort compare f1) (Safelist.sort compare f2) compare *)
-(*     | Bang(_,_,_),_             -> lt *)
-(*     | _,Bang(_,_,_)             -> gt *)
-(*     | Star(_,f1,_),Star(_,f2,_) ->  *)
-(* 	cmp_lex (Safelist.sort compare f1) (Safelist.sort compare f2) compare *)
-(*     | Star(_,_,_),_             -> lt *)
-(*     | _,Star(_,_,_)             -> gt *)
-(*     | Cat(_,cs1),Cat(_,cs2)    ->  *)
-(* 	cmp_lex (Safelist.sort cmp_pt cs1) (Safelist.sort cmp_pt cs2) cmp_pt *)
-(*     | Cat(_),_                 -> lt *)
-(*     | _,Cat(_)                 -> gt *)
-(*     | Union(_,us1),Union(_,us2) ->  *)
-(* 	cmp_lex (Safelist.sort cmp_pt us1) (Safelist.sort cmp_pt us2) cmp_pt *)
-      
-(* (\* sort a type list *\) *)
-(* let sort_it it = it (\* STUB *\) *)
-(* let sort_pt_list ptl = Safelist.sort cmp_pt ptl *)
-	  
-(* (\*** UTILITIES ***\) *)
-(* and it2nf force it0 =  *)
-(*   let res = match it0 with       *)
-(*       Empty(_) | Any(_) | Fun(_) | Singleton(_) -> it0 *)
-(*     | Var(_,_,_)     -> if force then it2nf force (eval_it it0) else it0 *)
-(*     | App(_,_,_,_)   -> it2nf force (eval_it it0)  *)
-(*     | Name(i,n,pt1)  -> Name(i, n, pt2nf false pt1) *)
-(*     | Bang(i,es,pt1) -> Bang(i, Safelist.sort compare es, pt2nf false pt1) *)
-(*     | Star(i,es,pt1) -> Star(i, Safelist.sort compare es, pt2nf false pt1)     	 *)
-(*   (\* unions: *)
-(*      - recursively normalize *)
-(*      - lift nested unions *)
-(*      - remove obviously Empty types from unions *)
-(*   *\) *)
-(*   | Union(i,us)  -> *)
-(*       let us_nf = Safelist.map (pt2nf force) us in *)
-(*       let lifted_us = Safelist.fold_left *)
-(* 	(fun acc h_pt -> *)
-(* 	     match it_of_pt h_pt with *)
-(* 		 Empty(_)    -> acc    (\* skip TEmpty bits of unions *\) *)
-(* 	       | Union(_,us) -> us@acc (\* lift nested unions *\) *)
-(* 	       | _           -> h_pt::acc) *)
-(* 	[] *)
-(* 	us_nf *)
-(*       in *)
-(* 	begin *)
-(* 	  match lifted_us with *)
-(* 	    | []           -> Empty(i) *)
-(* 	    | [h_pt] ->  *)
-(* 		begin  *)
-(* 		  match it_of_pt h_pt with *)
-(* 		      (Union(_,[])) -> Empty(i) *)
-(* 		    | _ -> sort_it (Union(i, lifted_us)) *)
-(* 		end *)
-(* 	    | _ -> sort_it (Union(i,lifted_us)) *)
-(* 	end *)
-(*   (\* TCat: *)
-(*      - recursively normalize cs *)
-(*      - lift nested cats in cs *)
-(*      - distribute nested unions over cats *)
-(*      - sort result *)
-(*      - if a name is repeated, then TEmpty *)
-(*   *\) *)
-(*   | Cat(i,cs)    -> *)
-(*       let cs_nf = Safelist.map (pt2nf force) cs in		 *)
-(*       (\* temporarily represent the lifted union of cats as a list of lists *\) *)
-(*       let lift_us_rep = Safelist.fold_left *)
-(* 	(fun acc h_pt -> *)
-(* 	   (\* helper functions for readability *\) *)
-(* 	   let prepend s a = Safelist.map (fun x -> sort_pt_list (s::x)) a in *)
-(* 	   let concat cs a = Safelist.map (fun x -> sort_pt_list (x @ cs)) a in	    *)
-(* 	     match it_of_pt h_pt with *)
-(* 	        Cat(_,cs)   -> concat cs acc (\* lift nested cats *\) *)
-(* 	       | Union(_,us) -> *)
-(* 		   (\* distribute unions, lift deep-nested cats *\) *)
-(* 		   Safelist.flatten *)
-(* 		     (Safelist.map *)
-(* 			(fun u_pt -> match it_of_pt u_pt with *)
-(* 			   | Cat(_,cs) -> concat cs acc			      *)
-(* 			   | _         -> prepend u_pt acc) us) *)
-(* 	       | _         -> prepend h_pt acc) *)
-(* 	[[]] *)
-(* 	cs_nf *)
-(*       in *)
-(*       let check_repeats it1 = *)
-(* 	let rec cr_aux cs acc = *)
-(* 	  match cs with *)
-(* 	    | []                                           -> Cat (i,Safelist.rev acc) *)
-(* 	    | [h]                                          -> cr_aux [] (h::acc) *)
-(* 	    | h1::h2::t ->  *)
-(* 		let it1 = it_of_pt h1 in *)
-(* 		let it2 = it_of_pt h2 in  *)
-(* 		  begin *)
-(* 		    match it1,it2 with  *)
-(* 			Name(_,n,_), Name(_,m,_)  *)
-(* 			  when (n = m) -> Empty(i) *)
-(* 		      | _ -> cr_aux (h2::t) (h1::acc)                                     *)
-(* 		  end *)
-(* 	in *)
-(* 	  match it1 with *)
-(* 	      Cat(_,cs) -> cr_aux cs [] *)
-(* 	    | _ -> it1		 *)
-(*       in		   *)
-(* 	begin *)
-(* 	  match lift_us_rep with *)
-(* 	      [[h_pt]] ->  *)
-(* 		begin  *)
-(* 		  match it_of_pt h_pt with  *)
-(* 		      Empty(_) -> Empty(i) *)
-(* 		    | _ -> check_repeats (it_of_pt h_pt) *)
-(* 		end *)
-(* 	    | [cs] -> check_repeats (Cat(i,cs)) *)
-(* 	    | _    -> Union (i, Safelist.map  *)
-(* 			       (fun x ->  *)
-(* 				  let it = check_repeats (Cat(i,x)) in *)
-(* 				    (\* FIXME: hack! *\)  *)
-(* 				    (ref true, V.Hash.create 1, ref it)) *)
-(* 			       lift_us_rep) *)
-(* 	end *)
-(*   in *)
-(*     res *)
+(* a (somewhat arbitrary) order on types: used in t2nf *)
+let eq = 0     (* symbolic comparisons *)
+let lt = -1
+let gt = 1
+  
+(* helper for comparing lists of things in dictionary order *)
+let rec cmp_lex l1 l2 cmp_f =
+  let rec cmp_lex_aux l1 l2 tie =
+    match (l1,l2) with
+	([],[])           -> tie
+      | (_,[])            -> gt
+      | ([],_)            -> lt
+      | (h1::t1),(h2::t2) ->
+	  if (tie = eq) then cmp_lex_aux t1 t2 (cmp_f h1 h2)
+	  else cmp_lex_aux t1 t2 tie
+  in
+    cmp_lex_aux l1 l2 eq
 
+(* compare on types *)
+let rec cmp_type t1 t2 = match t1,t2 with      
+    (* t1,t2 have same shape *)
+    Empty(_),Empty(_)         
+  | Any(_),Any(_)             -> eq
+  | Var(_,x,_),Var(_,y,_)     -> compare x y
+  | App(_,v11,v12,_),App(_,v21,v22,_) ->
+      if compare v11 v21 = eq then eq 
+      else compare v12 v22 
+  | Atom(_,n1,t1),Atom(_,n2,t2) -> 
+      if (compare n1 n2 = eq) then eq 
+      else cmp_type t1 t2
+  | Bang(_,f1,t1),Bang(_,f2,t2) 
+  | Star(_,f1,t1),Star(_,f2,t2) ->
+      if (cmp_lex 
+	    (Safelist.sort compare f1) 
+	    (Safelist.sort compare f2) 
+	    compare) = eq 
+      then eq
+      else cmp_type t1 t2
+  | Cat(_,ts1),Cat(_,ts2)    	
+  | Union(_,ts1),Union(_,ts2) ->
+      cmp_lex 
+	(Safelist.sort cmp_type ts1) 
+	(Safelist.sort cmp_type ts2) 
+	cmp_type
+
+    (* t1,t2 have different shapes *)
+    | Empty(_),_                -> lt
+    | _,Empty(_)                -> gt
+    | Any(_),_                  -> lt
+    | _,Any(_)                  -> gt
+    | Var(_),_                  -> lt
+    | _,Var(_)                  -> gt
+    | App(_),_                  -> lt
+    | _,App(_)                  -> gt
+    | Atom(_,_,_),_             -> lt
+    | _,Atom(_,_,_)             -> gt
+    | Bang(_,_,_),_             -> lt
+    | _,Bang(_,_,_)             -> gt
+    | Star(_,_,_),_             -> lt
+    | _,Star(_,_,_)             -> gt
+    | Cat(_),_                  -> lt
+    | _,Cat(_)                  -> gt
+      
+(* sort a type *)
+let rec sort_type t = match t with
+    Atom(i,n,t) -> Atom(i,n,sort_type t)
+  | Bang(i,f,t) -> Bang(i,f,sort_type t)
+  | Star(i,f,t) -> Star(i,f,sort_type t)
+  | Cat(i,ts)   -> Cat(i,sort_type_list ts)
+  | Union(i,ts) -> Union(i,sort_type_list ts)
+  | _           -> t
+and sort_type_list ts = Safelist.sort cmp_type (Safelist.map sort_type ts)
+	  
+(* normalizer *)
+let t2nf = 
+  let rec t2nf_aux depth t0 = match sort_type t0 with
+      Empty(_) | Any(_) -> t0
+    | Var(_,_,_)     -> if (depth < 1) then t2nf_aux depth (force t0) else t0
+    | App(_,_,_,_)   -> t2nf_aux depth (force t0)
+    | Atom(i,n,t)  -> Atom(i, n, t2nf_aux (depth+1) t)
+    | Bang(i,f,t) -> Bang(i,f,t2nf_aux (depth +1) t)
+    | Star(i,f,t) -> Star(i,f,t2nf_aux (depth +1) t)
+
+    (* Union:
+       - recursively normalize
+       - lift nested unions
+       - remove obviously Empty types from unions
+    *)
+    | Union(i,ts)  ->
+	let ts_nf = Safelist.map (t2nf_aux depth) ts in
+	let lifted_ts = Safelist.fold_left
+	  (fun acc ti ->
+	     match ti with
+		 Empty(_)    -> acc    (* skip TEmpty bits of unions *)
+	       | Union(_,us) -> us@acc (* lift nested unions *)
+	       | _           -> ti::acc)
+	  []
+	  ts_nf
+	in begin match lifted_ts with
+	    []              
+	  | [Union(_,[])] -> Empty(i)
+	  | _             -> Union(i,lifted_ts)
+	  end
+
+    (* Cat:
+       - recursively normalize cs
+       - lift nested cats in cs
+       - distribute nested unions over cats
+       - sort result
+       - if a name is repeated, then TEmpty
+    *)
+    | Cat(i,ts)    ->
+	(* temporarily represent the lifted union of cats as a list of lists *)
+	let ts_nf = Safelist.map (t2nf_aux depth) ts in	  	  
+	let lift_ts_rep = Safelist.fold_left
+	  (fun acc ti ->
+	     (* helper functions for readability *)
+	     let prepend s a = Safelist.map (fun x -> sort_type_list (s::x)) a in
+	     let concat cs a = Safelist.map (fun x -> sort_type_list (x @ cs)) a in
+	       match ti with
+	           Cat(_,cs) -> concat cs acc (* lift nested cats *)
+		 | Union(_,us) ->
+		     (* distribute unions, lift deep-nested cats *)
+		     Safelist.flatten 
+		       (Safelist.map
+			  (function
+			     | Cat(_,ts'') -> concat ts'' acc
+			     | ui         -> prepend ui acc) us)
+		 | _         -> prepend ti acc)
+	  [[]]
+	  ts_nf
+	in begin match lift_ts_rep with
+	    [[Empty(_)]] -> Empty(i)
+	  | [[ti]]       -> ti
+	  | [cs]         -> Cat(i,cs)
+	  | _            -> Union(i, Safelist.map (fun ri -> Cat(i,ri)) lift_ts_rep)	      
+	  end
+  in
+    t2nf_aux 0
+      
 let rec project t0 n = 
   (*   debug (fun () -> Printf.eprintf "project type %s on %s" (string_of_t t0) n); *)
-  match t0 with
+  match t2nf t0 with
       Empty(_)        -> None
     | Any(i)          -> Some (Any(i))
     | Atom(_,m,t)   -> if (n=m) then Some t else None
     | Bang(_,f,t)   -> if (Safelist.mem n f) then None else Some t
     | Star(_,f,t)   -> if (Safelist.mem n f) then None else Some t
-    | Union(_,ts)  -> 
+    | Union(i,ts)  -> 
 	Safelist.fold_left
  	  (fun xo ti ->
 	     match xo with
@@ -229,9 +207,10 @@ let rec project t0 n =
 		   match project ti n with
 		       None -> xo
 		     | Some tin ->
-			 if eq tin x then xo
+			 if cmp_type tin x <> eq then xo
 			 else fatal_error
-			   (sprintf "%s is not projectable on %s; %s <> %s"
+			   (sprintf "at %s : %s is not projectable on %s; %s <> %s"
+			      (Info.string_of_t i)
 			      (string_of_t t0)
 			      n
 			      (string_of_t ti)
@@ -246,9 +225,10 @@ let rec project t0 n =
 	       match project ti n with
 		   None -> xo
 		 | Some tin ->
-		     if eq tin x then xo
+		     if cmp_type tin x <> eq then xo
 		     else fatal_error
-		       (sprintf "%s is not projectable on %s; %s <> %s"
+		       (sprintf "at %s : %s is not projectable on %s; %s <> %s"
+			  (Info.string_of_t i)
 			  (string_of_t t0) n
 			  (string_of_t ti)
 			  (string_of_t x))
@@ -259,7 +239,7 @@ let rec project t0 n =
 	project (force t0) n
 	
 let rec member v t0 = 
-  let result = match t0 with
+  let result = match t2nf t0 with
       Empty(i) -> false
     | Any(_)   -> true
     | Var(_) | App(_) -> member v (force t0)
