@@ -58,13 +58,10 @@ let lift_binary dblens src1 src2 dst =
   Lens.native getfun putfun
 
 let make_binary_lib fclname lens =
-  F(function N(n1) ->
-    F(function N(n2) ->
-      F(function N(n3) ->
-        L(lens n1 n2 n3)
-        | _ -> focal_type_error fclname)
-      | _ -> focal_type_error fclname)
-    | _ -> focal_type_error fclname)
+  mk_nfun "name -> name -> lens" fclname 
+    (fun n1 -> mk_nfun "name -> lens" fclname
+       (fun n2 -> mk_nfun "lens" fclname
+	  (fun n3 -> L(lens n1 n2 n3))))
 
 let register_binary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> lens"
@@ -105,32 +102,25 @@ let lift_unary dblens src dst =
   Lens.native getfun putfun
 
 let make_unary_lib fclname lens =
-  F(function N(n1) ->
-    F(function N(n2) ->
-      L(lens n1 n2)
-      | _ -> focal_type_error fclname)
-    | _ -> focal_type_error fclname)
+  mk_nfun "name -> lens" fclname
+    (fun n1 -> mk_nfun "lens" fclname
+       (fun n2 -> L(lens n1 n2)))
 
 let register_name_name_unary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> name -> lens" (
-    F(function N(n1') ->
-      F(function N(n2') ->
-        make_unary_lib fclname (lift_unary (dblens n1' n2'))
-        | _ -> focal_type_error fclname)
-      | _ -> focal_type_error fclname)
+    mk_nfun "name -> name -> name -> lens" fclname 
+      (fun n1' -> mk_nfun "name -> name -> lens" fclname
+	 (fun n2' -> make_unary_lib fclname (lift_unary (dblens n1' n2'))))
   )
 
 let register_view_view_view_unary_dblens fclname dblens =
   register_native fclname "view -> view -> view -> name -> name -> lens" (
-    F(function V(v1) ->
-      F(function V(v2) ->
-        F(function V(v3) ->
-          make_unary_lib fclname (lift_unary (dblens v1 v2 v3))
-          | _ -> focal_type_error fclname)
-        | _ -> focal_type_error fclname)
-      | _ -> focal_type_error fclname)
+    mk_vfun "view -> view -> name -> name -> lens" fclname 
+      (fun v1 -> mk_vfun "view -> name -> name -> lens" fclname
+	 (fun v2 -> mk_vfun "name -> name -> lens" fclname
+	    (fun v3 -> make_unary_lib fclname (lift_unary (dblens v1 v2 v3)))))
   )
-
+    
 (* Rename *)
 let () =
   register_name_name_unary_dblens

@@ -8,13 +8,16 @@ module Prelude =
 
 (* Documentation for this comes at the end, but we need to use it sooner *)
 let invert : (lens -> lens) = Native.Prelude.invert
+let Any : type = Native.Prelude.Any
+let Empty : type = Native.Prelude.Empty
+
 #{@}
 
 \subsection{Predefined Schemas}
 
 The @Value@ schema describes views with just one child pointing to an empty
 view.  
-#*type Value = {!=`Any}
+#*let Value : type = {!=Any}
 
 \subsection{Basic Lenses}
 
@@ -23,7 +26,7 @@ The \LN{id} lens returns its concrete argument unchanged in the \GET{}
 direction and its abstract argument unchanged in the \PUT{} direction.
 ##let id : lens = Native.Prelude.id
 ##test id / \ {} = {}
-#*test id / \ {a=b} = {a=b}
+#*test id / \ {a={b}} = {a={b}}
 
 \LENSSECTION{const}
 ##let const : (view -> view -> lens) = Native.Prelude.const
@@ -59,13 +62,13 @@ The lens @map l@ applies @l@ to each of the {\em children} of the argument
 view.  
 ##let map : (lens -> lens) = Native.Prelude.map
 ##test (map id) / {} = {}
-##test (map id) \ {} [1,2,3] = {}
+##test (map id) \ {} [{1},{2},{3}] = {}
 ##test (map id) \ {} missing = {}
-##test (map id) / {x, y=[1,2,3]} = {x, y=[1,2,3]}
-##test (map (const {a} {b})) / {x, y=[1,2,3]} = {x=a, y=a}
-##test (map (const {a} {b})) \ {x=a, y=a} missing = {x=b, y=b}
-##test (map (const {a} {b})) \ {x=a, y=a} {y=[1,2,3]} = {x=b, y=[1,2,3]}
-##test (map (const {a} {b})) \ {x=c} missing = error
+##test (map id) / {x, y=[{1},{2},{3}]} = {x, y=[{1},{2},{3}]}
+##test (map (const {a} {b})) / {x, y=[{1},{2},{3}]} = {x={a}, y={a}}
+##test (map (const {a} {b})) \ {x={a}, y={a}} missing = {x={b}, y={b}}
+##test (map (const {a} {b})) \ {x={a}, y={a}} {y=[{1},{2},{3}]} = {x={b}, y=[{1},{2},{3}]}
+##test (map (const {a} {b})) \ {x={c}} missing = error
 
 #{#}
 
@@ -73,12 +76,12 @@ view.
 let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
 test (wmap { y -> const {a} {b}}) / {} = {}
 test (wmap { y -> const {a} {b}}) \ {} missing = {}
-test (wmap { y -> const {a} {b}}) \ {} [1,2,3] = {}
-test (wmap { y -> const {a} {b}}) / {x, y=[1,2,3]} = {x, y=a}
-test (wmap { y -> const {a} {b}}) \ {x, y=a} missing = {x, y=b}
-test (wmap { y -> const {a} {b}}) \ {x=a} {x,y=[1,2,3]} = {x=a}
-test (wmap { y -> const {a} {b}}) \ {y=a} {x,y=[1,2,3]} = {y=[1,2,3]}
-test (wmap { y -> const {a} {b}}) \ {y=a, z=c} {x,y=[1,2,3]} = {y=[1,2,3], z=c}
+test (wmap { y -> const {a} {b}}) \ {} {1,2,3} = {}
+test (wmap { y -> const {a} {b}}) / {x, y={1,2,3}} = {x, y={a}}
+test (wmap { y -> const {a} {b}}) \ {x, y={a}} missing = {x, y={b}}
+test (wmap { y -> const {a} {b}}) \ {x={a}} {x,y=[{1},{2},{3}]} = {x={a}}
+test (wmap { y -> const {a} {b}}) \ {y={a}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}]}
+test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}], z={c}}
 
 #@\finish{Is there a wildcard?}
 
@@ -98,89 +101,89 @@ test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a} missing = error
 
 #@\LENSSECTION{hoist}
 let hoist : (name -> lens) = Native.Prelude.hoist
-test (hoist "n") / {n=a} = {a}
+test (hoist "n") / {n={a}} = {a}
 test (hoist "n") / {a} = error
-test (hoist "n") \ {a} missing = {n=a}
-test (hoist "n") \ {a} {} = {n=a}
+test (hoist "n") \ {a} missing = {n={a}}
+test (hoist "n") \ {a} {} = {n={a}}
 test (hoist "n") \ {} missing = {n}
 
 #@\LENSSECTION{plunge}
 (* This is just (invert hoist), no? *)
 let plunge : (name -> lens) = Native.Prelude.plunge 
-test (plunge "n") / {a} = {n=a}
+test (plunge "n") / {a} = {n={a}}
 test (plunge "n") / {} = {n}
-test (plunge "n") \ {n=a} missing = {a}
-test (plunge "n") \ {n=a} {} = {a}
+test (plunge "n") \ {n={a}} missing = {a}
+test (plunge "n") \ {n={a}} {} = {a}
 test (plunge "n") \ {n} {a} = {}
 test (plunge "n") \ {a} missing = error
 test (plunge "n") \ {a} {} = error
 test (plunge "n") \ {n,a} missing = error
 
 #@\LENSSECTION{cond}
-let cond_ff : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond_ff
+let cond : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let cond_ww : (type -> type -> type -> lens -> lens -> lens) = Native.Prelude.cond_ww
 let cond_fw : (type -> type -> type -> lens -> lens -> lens -> lens) = Native.Prelude.cond_fw
 let cond_wf : (type -> type -> type -> lens -> lens -> lens -> lens) = Native.Prelude.cond_wf
-let cond = cond_ff
-test (cond_ww <{a=`Any}> <{a=`Any}> <{b=`Any}> (const {a} {a}) (const {b} {b})) / {a=[1]} = {a}
-test (cond_ww <{a=`Any}> <{a=`Any}> <{b=`Any}> (const {a} {a}) (const {b} {b})) / {b=[2]} = {b}
-test (cond_ww <{a=`Any}> <{a=`Any}> <{b=`Any}> (const {a} {a}) (const {b} {b})) \ {a} {a=[1]} = {a=[1]}
-test (cond_ww <{a=`Any}> <{a=`Any}> <{b=`Any}> (const {a} {a}) (const {b} {b})) \ {a} missing = {a}
-test (cond_ww <{a=`Any}> <{a=`Any}> <{b=`Any}> (const {a} {a}) (const {b} {b})) \ {a} {b=[2]} = {a}
-test (cond_ww <{a=`Any}> <{a=`Any}> <{b=`Any}> (const {a} {a}) (const {b} {b})) \ {} missing = error
+let cond_ff = cond
+test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) / {a=[{1}]} = {a}
+test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) / {b=[{2}]} = {b}
+test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {a} {a=[{1}]} = {a=[{1}]}
+test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {a} missing = {a}
+test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {a} {b=[{2}]} = {a}
+test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {} missing = error
 
 #@\LENSSECTION{pivot}
 let pivot : (name -> lens) = Native.Prelude.pivot 
 test (pivot "k") / {} = error
-test (pivot "k") / {k=x} = {x}
-test (pivot "k") / {k={x=y}} = error
-test (pivot "k") / {k=x, a=[1], b=[2]} = {x={a=[1], b=[2]}}
-test (pivot "k") \ {x={a=[1], b=[2]}} missing = {k=x, a=[1], b=[2]}
+test (pivot "k") / {k={x}} = {x}
+test (pivot "k") / {k={x={y}}} = error
+test (pivot "k") / {k={x}, a=[{1}], b=[{2}]} = {x={a=[{1}], b=[{2}]}}
+test (pivot "k") \ {x={a=[{1}], b=[{2}]}} missing = {k={x}, a=[{1}], b=[{2}]}
 test (pivot "k") \ {x, y} missing = error
-test (pivot "k") \ {x={k=[0]}, a=[1]} missing = error
+test (pivot "k") \ {x={k=[{0}]}, a=[{1}]} missing = error
 
 #@\LENSSECTION{join}
 let join : (name -> name -> lens) = Native.Prelude.join
 test (join "x" "y") / {} = error
 test (join "x" "y") / {x} = error
 test (join "x" "y") / {x, y} = {}
-test (join "x" "y") / {x={1=[a], 2=[b]}, y={2=[c]}} = {1={x=[a]}, 2={x=[b], y=[c]}}
-test (join "x" "y") / {x={1,2}, y=2} = {1=x, 2={x,y}}
+test (join "x" "y") / {x={1=[{a}], 2=[{b}]}, y={2=[{c}]}} = {1={x=[{a}]}, 2={x=[{b}], y=[{c}]}}
+test (join "x" "y") / {x={1,2}, y={2}} = {1={x}, 2={x,y}}
 test (join "x" "y") \ {} missing = {x, y}
-test (join "x" "y") \ {} {x=[1], y=[2]} = {x, y}
-test (join "x" "y") \ {a={x=[1], y=[3]}, b={x=[2]}, c={y=[4]}} missing = {x={a=[1], b=[2]},  y={a=[3], c=[4]}}
+test (join "x" "y") \ {} {x=[{1}], y=[{2}]} = {x, y}
+test (join "x" "y") \ {a={x=[{1}], y=[{3}]}, b={x=[{2}]}, c={y=[{4}]}} missing = {x={a=[{1}], b=[{2}]},  y={a=[{3}], c=[{4}]}}
 
 #@\LENSSECTION{flatten}
 let flatten : lens = Native.Prelude.flatten
 test flatten / [] = {}
-test flatten / [{k1=a}, {k2=b}] = {k1=[a], k2=[b]}
-test flatten / [{a=1}, {b=2}, {a=3}] = {a=[1,3], b=[2]}
-test flatten \ {a=[4,6], b=[5]} [{a=1}, {b=2}, {a=3}] = [{a=4}, {b=5}, {a=6}] 
-test flatten \ {a=[4,6], b=[5]} [{b=1}, {a=2}] = [{b=5}, {a=4}, {a=6}]
-test flatten \ {a=[1], b=[2]} [{b=1}, {a=2}, {a=3}] = [{b=2}, {a=1}]
+test flatten / [{k1={a}}, {k2={b}}] = {k1=[{a}], k2=[{b}]}
+test flatten / [{a={1}}, {b={2}}, {a={3}}] = {a=[{1},{3}], b=[{2}]}
+test flatten \ {a=[{4},{6}], b=[{5}]} [{a={1}}, {b={2}}, {a={3}}] = [{a={4}}, {b={5}}, {a={6}}] 
+test flatten \ {a=[{4},{6}], b=[{5}]} [{b={1}}, {a={2}}] = [{b={5}}, {a={4}}, {a={6}}]
+test flatten \ {a=[{1}], b=[{2}]} [{b={1}}, {a={2}}, {a={3}}] = [{b={2}}, {a={1}}]
 test flatten / [{a,b}] = error
 test flatten \ {a=[{}]} [{a,b}] = error
 
 #@\LENSSECTION{merge}
 let merge : (name -> name -> lens) = Native.Prelude.merge
-test (merge "x" "y") / {x=a, y=a} = {x=a}
-test (merge "x" "y") / {x=a, y=b} = {x=a}
-test (merge "x" "y") / {x=b, y=b} = {x=b}
-test (merge "x" "y") \ {x=a} missing = {x=a, y=a}
-test (merge "x" "y") \ {x=a} {x=a, y=b} = {x=a, y=b}
+test (merge "x" "y") / {x={a}, y={a}} = {x={a}}
+test (merge "x" "y") / {x={a}, y={b}} = {x={a}}
+test (merge "x" "y") / {x={b}, y={b}} = {x={b}}
+test (merge "x" "y") \ {x={a}} missing = {x={a}, y={a}}
+test (merge "x" "y") \ {x={a}} {x={a}, y={b}} = {x={a}, y={b}}
 test (merge "x" "y") \ {} missing = error
 
 #@\LENSSECTION{copy}
 (* Note that this is not really useful because of the type constraint.  
    But here it is, for what it's worth... *)
 let copy : (name -> name -> lens) = Native.Prelude.copy
-test (copy "x" "y") / {x=a} = {x=a, y=a}
-test (copy "x" "y") \ {x=a, y=a} missing = {x=a}
-test (copy "x" "y") \ {x=a, y=a} {x=a} = {x=a}
-test (copy "x" "y") \ {x=a, y=a} {x=b} = {x=a}
+test (copy "x" "y") / {x={a}} = {x={a}, y={a}}
+test (copy "x" "y") \ {x={a}, y={a}} missing = {x={a}}
+test (copy "x" "y") \ {x={a}, y={a}} {x={a}} = {x={a}}
+test (copy "x" "y") \ {x={a}, y={a}} {x={b}} = {x={a}}
 test (copy "x" "y") / {} = error
-test (copy "x" "y") \ {x=a} missing = error
-test (copy "x" "y") \ {x=a, y=b} missing = error
+test (copy "x" "y") \ {x={a}} missing = error
+test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 
 #{@}
@@ -200,9 +203,9 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 #*let mapp (p:view) (l:lens) : lens = fork p (map l) id 
 
 #*test (mapp {a} (const {b} {b})) / {} = {}
-#*test (mapp {a} (const {b} {b})) / {a,b=2} = {a=b, b=2}
-#*test (mapp {a} (const {b} {b})) \ {a=b, b=2} missing = {a=b, b=2}
-#*test (mapp {a} (const {b} {b})) \ {a=b, b=2} {a=1,b=3} = {a=1, b=2}
+#*test (mapp {a} (const {b} {b})) / {a,b={2}} = {a={b}, b={2}}
+#*test (mapp {a} (const {b} {b})) \ {a={b}, b={2}} missing = {a={b}, b={2}}
+#*test (mapp {a} (const {b} {b})) \ {a={b}, b={2}} {a={1},b={3}} = {a={1}, b={2}}
 
 \LENSSECTION{below}
 
@@ -215,26 +218,26 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 #*test (filter {x} {y}) / {} = {}
 #*test (filter {x} {y}) / {y,x} = {x}
 #*test (filter {x} {y}) \ {} missing = {y}
-#*test (filter {x} {y}) \ {} {y=1} = {y=1}
+#*test (filter {x} {y}) \ {} {y={1}} = {y={1}}
 
 \LENSSECTION{prune}
 
-#*let prune (n:name) (d:view) : lens = fork {`n} (const {} {`n=`d}) id
+#*let prune (n:name) (d:view) : lens = fork {`n} (const {} {`n=d}) id
 
 #*test (prune "a" []) / {} = {}
-#*test (prune "a" []) / {a=1, b=2} = {b=2}
-#*test (prune "a" []) \ {b=2} missing = {a=[], b=2}
-#*test (prune "a" []) \ {b=2} {a=1, b=3} = {a=1, b=2}
+#*test (prune "a" []) / {a={1}, b={2}} = {b={2}}
+#*test (prune "a" []) \ {b={2}} missing = {a=[], b={2}}
+#*test (prune "a" []) \ {b={2}} {a={1}, b={3}} = {a={1}, b={2}}
 #*test (prune "a" []) \ {a} missing = error
 
 \LENSSECTION{add}
 
-#*let add (n:name) (v:view) : lens = xfork {} {`n} (const {`n=`v} {}) id
+#*let add (n:name) (v:view) : lens = xfork {} {`n} (const {`n=v} {}) id
 
 #*test (add "a" []) / {} = {a=[]}
 #*test (add "a" []) / {b} = {a=[], b}
-#*test (add "a" []) \ {a=[], b=[1,2,3]} missing = {b=[1,2,3]}
-#*test (add "a" []) \ {a=[], b=[1,2,3]} {} = {b=[1,2,3]}
+#*test (add "a" []) \ {a=[], b=[{1},{2},{3}]} missing = {b=[{1},{2},{3}]}
+#*test (add "a" []) \ {a=[], b=[{1},{2},{3}]} {} = {b=[{1},{2},{3}]}
 #*test (add "a" []) / {a} = error
 #*test (add "a" []) \ {} missing = error
 #*test (add "a" []) \ {a} {a} = error
@@ -243,51 +246,51 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 
 #*let focus (n:name) (d:view) : lens = filter {`n} d ; hoist n
 
-#*test (focus "a" {}) / {a=[1,2,3], b=[4,5,6]} = [1,2,3]
+#*test (focus "a" {}) / {a=[{1},{2},{3}], b=[{4},{5},{6}]} = [{1},{2},{3}]
 #*test (focus "a" {}) \ {} missing = {a}
-#*test (focus "a" {}) \ [7,8,9] {a=[1,2,3], b=[4,5,6]} = {a=[7,8,9], b=[4,5,6]}
+#*test (focus "a" {}) \ [{7},{8},{9}] {a=[{1},{2},{3}], b=[{4},{5},{6}]} = {a=[{7},{8},{9}], b=[{4},{5},{6}]}
 #*test (focus "a" {}) / {} = error
 #*test (focus "a" {}) / {b} = error
-#*test (focus "a" {}) \ [1,2,3] {b=[4,5,6]} = {a=[1,2,3], b=[4,5,6]} (*FIXME -> error *)
+#*test (focus "a" {}) \ [{1},{2},{3}] {b=[{4},{5},{6}]} = {a=[{1},{2},{3}], b=[{4},{5},{6}]} (*FIXME -> error *)
 
 \LENSSECTION{hoist@_@nonunique}
 
 #*let hoist_nonunique (n:name) (p:view) : lens = xfork {`n} p (hoist n) id 
 
 #*test (hoist_nonunique "x" {a}) / {} = error
-#*test (hoist_nonunique "x" {a}) / {x={a=[]}, y=[1,2,3]} = {a=[], y=[1,2,3]}
-#*test (hoist_nonunique "x" {a}) \ {a=[1,2,3], y=[4,5,6]} missing = {x={a=[1,2,3]}, y=[4,5,6]}
-#*test (hoist_nonunique "x" {a}) \ {a=[1,2,3], y=[4,5,6]} {x=a} = {x={a=[1,2,3]}, y=[4,5,6]}
+#*test (hoist_nonunique "x" {a}) / {x={a=[]}, y=[{1},{2},{3}]} = {a=[], y=[{1},{2},{3}]}
+#*test (hoist_nonunique "x" {a}) \ {a=[{1},{2},{3}], y=[{4},{5},{6}]} missing = {x={a=[{1},{2},{3}]}, y=[{4},{5},{6}]}
+#*test (hoist_nonunique "x" {a}) \ {a=[{1},{2},{3}], y=[{4},{5},{6}]} {x={a}} = {x={a=[{1},{2},{3}]}, y=[{4},{5},{6}]}
 #*test (hoist_nonunique "x" {a}) \ {} missing = {x}
 
 \LENSSECTION{acond}
 
-#*let acond (c:type) (a:type) (lt:lens) (lf:lens) : lens = cond_ww c <a> <~a> lt lf 
+#*let acond : (type -> type -> lens -> lens -> lens) = Native.Prelude.acond
 
-#*test (acond <{a=`Any}> <{b=`Any}> (const {b} {a}) (const {a} {b})) / {} = {a}
-#*test (acond <{a=`Any}> <{b=`Any}> (const {b} {a}) (const {a} {b})) / {a=1} = {b}
-#*test (acond <{a=`Any}> <{b=`Any}> (const {b} {a}) (const {a} {b})) \ {b} missing = {a}
-#*test (acond <{a=`Any}> <{b=`Any}> (const {b} {a}) (const {a} {b})) \ {b} {a=1} = {a=1}
+#*test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {} = {a}
+#*test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {a={1}} = {b}
+#*test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} missing = {a}
+#*test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} {a={1}} = {a={1}}
 
 \LENSSECTION{ccond}
 
-#*let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c <Any> <Any> id id lt lf
+#*let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
 
-#*test (ccond <{a=`Any}> (const {b} {a}) (const {} {}; plunge "b")) / {a=1} = {b}
-#*test (ccond <{a=`Any}> (const {b} {a}) (const {} {}; plunge "b")) / {c=2} = {b}
-#*test (ccond <{a=`Any}> (const {b} {a}) (const {} {}; plunge "b")) \ {b} missing = {}
-#*test (ccond <{a=`Any}> (const {b} {a}) (const {} {}; plunge "b")) \ {b} {c=2} = {c=2}
-#*test (ccond <{a=`Any}> (const {b} {a}) (const {} {}; plunge "b")) \ {b} {a=3} = {a=3}
-#*test (ccond <{a=`Any}> (const {b} {a}) (const {} {}; plunge "b")) \ {a} missing = error
+#*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {a={1}} = {b}
+#*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {c={2}} = {b}
+#*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} missing = {}
+#*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} {c={2}} = {c={2}}
+#*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} {a={3}} = {a={3}}
+#*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {a} missing = error
 
 \LENSSECTION{rename}
 
 #*let rename (m:name) (n:name) : lens = xfork {`m} {`n} (hoist m; plunge n) id
 
-#*test (rename "x" "y") / {x=1} = {y=1}
-#*test (rename "x" "y") / {x=1, z=2} = {y=1, z=2}
-#*test (rename "x" "y") \ {y=1} missing = {x=1}
-#*test (rename "x" "y") \ {y=1, z=2} missing = {x=1, z=2}
+#*test (rename "x" "y") / {x={1}} = {y={1}}
+#*test (rename "x" "y") / {x={1}, z={2}} = {y={1}, z={2}}
+#*test (rename "x" "y") \ {y={1}} missing = {x={1}}
+#*test (rename "x" "y") \ {y={1}, z={2}} missing = {x={1}, z={2}}
 #*test (rename "x" "y") / {} = error
 #*test (rename "x" "y") / {y} = error 
 #*test (rename "x" "y") \ {} missing = error
@@ -296,18 +299,18 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 \LENSSECTION{rename@_@if@_@present}
 
 #*let rename_if_present (m:name) (n:name) : lens = 
-#*  acond <{`m=`Any, *=`Any}> <{`n=`Any, *=`Any}>
+#*  acond {`m=Any, *=Any} {`n=Any, *=Any}
 #*    (rename m n)
 #*    id
 
 #*test (rename_if_present "x" "y") / {} = {}
-#*test (rename_if_present "x" "y") / {x=1} = {y=1}
-#*test (rename_if_present "x" "y") / {x=1, z=2} = {y=1, z=2}
-#*test (rename_if_present "x" "y") \ {y=1} missing = {x=1}
-#*test (rename_if_present "x" "y") \ {y=1, z=2} missing = {x=1,z=2}
-#*test (rename_if_present "x" "y") \ {x=1} missing = {x=1}
+#*test (rename_if_present "x" "y") / {x={1}} = {y={1}}
+#*test (rename_if_present "x" "y") / {x={1}, z={2}} = {y={1}, z={2}}
+#*test (rename_if_present "x" "y") \ {y={1}} missing = {x={1}}
+#*test (rename_if_present "x" "y") \ {y={1}, z={2}} missing = {x={1},z={2}}
+#*test (rename_if_present "x" "y") \ {x={1}} missing = {x={1}}
 ##(* should we put an assert to catch this?
-##   test (rename_if_present "x" "y") / {y=1} = {y=1}
+##   test (rename_if_present "x" "y") / {y={1}} = {y={1}}
 ##*)
 
 \subsection{String Processing}
@@ -316,10 +319,10 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 ##let explode : lens = Native.Prelude.explode
 ##test explode / {} = error
 ##test explode / {""} = []
-##test explode / {focal} = [f,o,c,a,l]
-##test explode / {"lenses focal"} = [l,e,n,s,e,s," ",f,o,c,a,l]
-##test explode \ [l,e,n,s,e,s," ",f,o,c,a,l] missing = {"lenses focal"}
-##test explode \ [f,o,c,a,l] {} = {focal}
+##test explode / {focal} = [{f},{o},{c},{a},{l}]
+##test explode / {"lenses focal"} = [{l},{e},{n},{s},{e},{s},{" "},{f},{o},{c},{a},{l}]
+##test explode \ [{l},{e},{n},{s},{e},{s},{" "},{f},{o},{c},{a},{l}] missing = {"lenses focal"}
+##test explode \ [{f},{o},{c},{a},{l}] {} = {focal}
 ##test explode \ [] missing = {""}
 
 \LENSSECTION{implode}
@@ -328,11 +331,11 @@ test (copy "x" "y") \ {x=a, y=b} missing = error
 \LENSSECTION{split}
 ##let split : lens = Native.Prelude.split
 ##test split / {} = error
-##test split / {focal} = [focal]
+##test split / {focal} = [{focal}]
 ##(* test split / \ {focal} = [focal] *)
-##test split / {"focal\n"} = [focal,""]
-##test split / {""} = [""]
-##test split / {"lenses\nfocal"} = [lenses,focal]
+##test split / {"focal\n"} = [{focal},{""}]
+##test split / {""} = [{""}]
+##test split / {"lenses\nfocal"} = [{lenses},{focal}]
 ##test split \ [] missing = error
 
 \LENSSECTION{unsplit}

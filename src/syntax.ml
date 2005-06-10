@@ -56,6 +56,17 @@ let qid_of_id id = [],id
 let id_of_string i s = (i,s)
 let dot (qs1,x1) (qs2,x2) = (qs1@(x1::qs2),x2)
 
+(* constants *)
+let native_prelude i = Safelist.map (mk_id i) ["Native"; "Prelude"]
+let mk_pre_qid i s = mk_qid (native_prelude i) (mk_id i s)
+let compose2_qid i = mk_pre_qid i "compose2"
+let get_qid i = mk_pre_qid i "get"
+let create_qid i = mk_pre_qid i "create"
+let put_qid i = mk_pre_qid i "put"
+let sync_qid i = mk_pre_qid i "_sync" (* can't write "sync" because it's a token :( *)
+let cons_qid i = mk_pre_qid i "Cons"
+let nil_qid i = mk_pre_qid i "Nil"
+let type_of_view_qid i = mk_pre_qid i "type_of_view"
 
 (* abstract syntax *)
 
@@ -66,182 +77,146 @@ type sort =
   | SType   
   | SView    
   | SArrow of sort * sort
-  | STOper of sort * sort
       
 (* parameters *)
 type param = PDef of i * id * sort
 
 (* expressions *)
 type exp = 
-    EVar of i * qid
+    EApp of i  * exp * exp
+  | EAtom of i * exp * exp 
+  | EBang of i * exp list * exp
+  | ECat of i * exp list 
+  | ECons of i * exp * exp 
   | EFun of i * param list * sort option * exp 
-  | EMap of i * (i * exp * exp) list
-  | EApp of i * exp * exp
   | ELet of i * binding list * exp
+  | EMap of i * (exp * exp) list
   | EName of i * id
-  | EType of i * typeexp
-  | EView of i * (i * exp * exp) list 
-  | EConsView of i * exp * exp
-
-(* types *)
-and typeexp = TT of ptypeexp | NT of ptypeexp 
-
-and ptypeexp = 
-    TEmpty of i
-  | TAny of i
-  | TVar of i * qid
-  | TApp of i * ptypeexp * ptypeexp
-  | TFun of i * id list * sort * ptypeexp (* only used internally *)
-  | TName of i * exp * ptypeexp 
-  | TBang of i * exp list * ptypeexp
-  | TStar of i * exp list * ptypeexp
-  | TCat of i * ptypeexp list 
-  | TUnion of i * ptypeexp list
-  | TSingleton of i * exp
+  | ENil of i
+  | EStar of i * exp list * exp
+  | EUnion of i * exp list
+  | EVar of i * qid
       
 (* bindings *)
 and binding = BDef of i * id * param list * sort option * exp
 
-type typebinding = (id * id list * typeexp)
-
 (* declarations *)
 type decl = 
     DLet of i * binding list 
-  | DType of i * typebinding list 
   | DMod of i * id * decl list 
   | DTest of i * exp * exp option 
-  | DTestSync of Info.t * exp * exp * exp * ptypeexp * exp * exp
       
 (* modules *)
 type modl = MDef of i * id * qid list * decl list
-
-(* simple constants *)
-let emptyView i = EView(i,[])
-let emptyViewType i = TStar(i,[], (TEmpty(i)))
   
 (* accessor functions *)
 let name_of_id (_,x) = x
 let id_of_binding (BDef(_,x,_,_,_)) = x
-let id_of_typebinding (x,_,_) = x
 
 (* read off info fields *)
 let info_of_list (e2i:'a -> Info.t) (i:Info.t) (l: 'a list) : Info.t = Safelist.fold_left (fun i ei -> Info.merge_inc (e2i ei) i) i l
 let info_of_id = function (i,_) -> i
 let info_of_qid = function (_,id) -> info_of_id id
 let info_of_exp = function
-    ELet(i,_,_) -> i
+  | EApp(i,_,_)   -> i
+  | EAtom(i,_,_)  -> i
+  | EBang(i,_,_)  -> i
+  | ECat(i,_)     -> i
+  | ECons(i,_,_)  -> i
   | EFun(i,_,_,_) -> i
-  | EApp(i,_,_) -> i
-  | EVar(i,_) -> i
-  | EName(i,_) -> i
-  | EMap(i,_) -> i
-  | EView(i,_) -> i
-  | EConsView(i,_,_) -> i
-  | EType(i,_) -> i
-
-let info_of_ptypeexp = function
-    TEmpty(i) -> i
-  | TAny(i) -> i
-  | TFun(i,_,_,_) -> i
-  | TApp(i,_,_) -> i
-  | TVar(i,_)   -> i
-  | TStar(i,_,_) -> i
-  | TBang(i,_,_) -> i
-  | TName(i,_,_) -> i
-  | TCat(i,_) -> i
-  | TUnion(i,_t) -> i
-  | TSingleton(i,_) -> i
-
-let info_of_typeexp = function
-    TT pt -> info_of_ptypeexp pt
-  | NT pt -> info_of_ptypeexp pt
+  | ELet(i,_,_)   -> i
+  | EName(i,_)    -> i
+  | ENil(i)       -> i
+  | EMap(i,_)     -> i
+  | EStar(i,_,_)  -> i
+  | EUnion(i,_t)  -> i
+  | EVar(i,_)     -> i
 
 let info_of_binding (BDef(i,_,_,_,_)) = i
-let info_of_typebinding (x,_,t) = Info.merge_inc (info_of_id x) (info_of_typeexp t)
 let info_of_bindings (i:Info.t) (bs:binding list) : Info.t = info_of_list info_of_binding i bs
-let info_of_typebindings i ts = info_of_list info_of_typebinding i ts
 
 (* read off pieces of parameters *)
 let id_of_param = function PDef(_,x,_) -> x
 let sort_of_param = function PDef(_,_,s) -> s
 
 (* pretty printing stuff *)
-
 (* sorts *)
 let rec string_of_sort = function
     SName         -> "name"
   | SLens         -> "lens"
   | SType         -> "type"
   | SView         -> "view"
-  | SArrow(s1,s2) -> sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
-  | STOper(s1,s2) -> sprintf "(%s => %s)" (string_of_sort s1) (string_of_sort s2)
+  | SArrow(s1,s2) -> 
+      sprintf "(%s -> %s)" 
+	(string_of_sort s1) 
+	(string_of_sort s2)
 
 (* params *)
-let string_of_param (PDef(_,i,s)) = Misc.parens(string_of_id i ^ ":" ^ string_of_sort s)
+let string_of_param (PDef(_,i,s)) = 
+  Misc.parens(sprintf "%s:%s" 
+		(string_of_id i) 
+		(string_of_sort s))
 
 (* expressions *)
 let rec string_of_exp = function 
-    EVar(_,q)       -> string_of_qid q
-  | EFun(_,ps,so,e) -> ("fun " 
-			       ^ (Misc.concat_list " " (Safelist.map string_of_param ps))
-			       ^ (match so with 
-				    | None -> "" 
-				    | Some s -> " : " ^ string_of_sort s)
-			       ^ " -> "
-			       ^ (string_of_exp e))
-  | EApp(_,e1,e2)    -> Misc.parens (sprintf "%s %s" (string_of_exp e1) (string_of_exp e2))
-  | EMap(_,ms)       -> 
-      Misc.curlybraces (Misc.concat_list ", " 
-		     (Safelist.map (fun (_,e1,e2) -> 
-				      sprintf "%s -> %s"
-					(string_of_exp e1)
-					(string_of_exp e2))
-			ms))
-	
-  | ELet(i,bs,e)     -> ("let " 
-			 ^ (string_of_bindings bs)
-			 ^ " in "
-			 ^ (string_of_exp e))
-  | EName(_,i)       -> string_of_id i
-  | EType(_,t)       -> string_of_typeexp t
-  | EView(_,vbs) -> 
+  | EApp(_,e1,e2)    -> 
+      Misc.parens (sprintf "%s %s" 
+		     (string_of_exp e1) 
+		     (string_of_exp e2))
+  | EAtom(_,n,e)     -> 
+      sprintf "%s=%s" 
+	(string_of_exp n) 
+	(string_of_exp e)
+  | EBang(_,f,e)  ->
+      sprintf "!%s = %s"
+    	(if f = [] then "" 
+	 else 
+	   Misc.parens
+	     (Misc.concat_list " " 
+		(Safelist.map string_of_exp f)))
+	(string_of_exp e)
+  | ECat(_,es) -> 
       Misc.curlybraces
+	(Misc.concat_list "," 
+	   (Safelist.map string_of_exp es))
+  | ECons(_,e1,e2) ->
+      sprintf "%s::%s"
+	(string_of_exp e1)
+	(string_of_exp e2)
+  | EFun(_,ps,so,e) -> 
+      sprintf "fun %s%s -> %s"
+	(Misc.concat_list " " (Safelist.map string_of_param ps))
+	(match so with 
+	     None -> "" 
+	   | Some s -> sprintf " : %s" (string_of_sort s))
+	(string_of_exp e)
+  | EMap(_,ms) -> 
+      Misc.curlybraces 
 	(Misc.concat_list ", " 
-	   (Safelist.map (fun (_,n,v) -> 
-			    (string_of_exp n) 
-			    ^ "=" 
-			    ^ (string_of_exp v))
-	      vbs))
-  | EConsView(_,e1,e2) -> sprintf ("%s::%s") (string_of_exp e1) (string_of_exp e2)
-
-and string_of_typeexp = function
-  | TT pt -> string_of_ptypeexp pt
-  | NT pt -> Misc.concat_list "" ["~"; "("; string_of_ptypeexp pt ;")"]
-
-and string_of_ptypeexp = function 
-    TEmpty(_)     -> "Empty"
-  | TAny(_)       -> "Any"
-  | TVar(_,q)     -> string_of_qid q
-  | TFun(_,xs,s,pt)   -> 
-      sprintf "tfun %s : %s => %s" 
-	(Misc.concat_list ", " (List.map string_of_id xs))	
-	(string_of_sort s)
-	(string_of_ptypeexp pt)
-  | TApp(_,pt1,pt2) -> Misc.concat_list "" ["("; string_of_ptypeexp pt1; " "; string_of_ptypeexp pt2; ")"]
-  | TName(_,n,pt) -> sprintf "%s{%s}" (string_of_exp n) (string_of_ptypeexp pt)
-  | TBang(_,f,pt)  ->
-      Misc.concat_list ""
-    	[ "!"
-    	; if f = [] then "" else Misc.parens (Misc.concat_list " " (Safelist.map string_of_exp f))
-    	; Misc.curlybraces (string_of_ptypeexp pt)]
-  | TStar(_,f,pt)  ->
-      Misc.concat_list ""
-    	[ "*"
-    	; if f = [] then "" else Misc.parens (Misc.concat_list " " (Safelist.map string_of_exp f))
-    	; Misc.curlybraces (string_of_ptypeexp pt)]
-  | TCat(_,cs) -> Misc.concat_list "," (Safelist.map string_of_ptypeexp cs)
-  | TUnion(_,us) -> Misc.parens (Misc.concat_list " | " (Safelist.map string_of_ptypeexp us))
-  | TSingleton(_,e) -> string_of_exp e
+	   (Safelist.map (fun (e1,e2) -> 
+			    sprintf "%s -> %s"
+			      (string_of_exp e1)
+			      (string_of_exp e2))
+	      ms))
+  | ELet(_,bs,e) ->
+      sprintf "let %s in %s" 
+	(string_of_bindings bs)
+	(string_of_exp e)
+  | EName(_,n) -> string_of_id n
+  | ENil(_) -> Misc.brackets ""
+  | EStar(_,f,e)  ->
+      sprintf "!%s = %s"
+    	(if f = [] then "" 
+	 else 
+	   Misc.parens
+	     (Misc.concat_list " " 
+		(Safelist.map string_of_exp f)))
+	(string_of_exp e)
+  | EUnion(_,es) ->
+      Misc.parens 
+	(Misc.concat_list " | " 
+	   (Safelist.map string_of_exp es))
+  | EVar(_,x) -> string_of_qid x
 
 and string_of_binding (BDef(_,x,ps,so,e)) = 
   Misc.concat_list ""
@@ -254,25 +229,19 @@ and string_of_binding (BDef(_,x,ps,so,e)) =
     ; string_of_exp e]
 and string_of_bindings bs = Misc.concat_list " and " (Safelist.map string_of_binding bs)
 
-and string_of_typebinding (x,xs,t) = 
-  sprintf "%s %s = %s"
-    (string_of_id x)
-    (Misc.concat_list " " (Safelist.map string_of_id xs))
-    (string_of_typeexp t) 
-
-and string_of_typebindings ts = 
-  Misc.concat_list " and " (Safelist.map string_of_typebinding ts)
-
 and string_of_decl = function
   | DLet(i,bs) -> "let " ^ (string_of_bindings bs)			
-  | DType(i,ts) -> "type " ^ (string_of_typebindings ts)
   | DMod(_,i,ds) -> Misc.concat_list "" 
       (["module "
        ; string_of_id i
        ; " =\n"]
        @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
-  | DTest(_) -> " TEST"
-  | DTestSync(_) -> " TESTSYNC"
+  | DTest(_,e1,e2o) -> Misc.concat_list " "
+      (["test"
+       ; string_of_exp e1
+       ; "="
+       ; match e2o with None -> "error" | Some e2 -> string_of_exp e2
+       ])
 
 let id_of_modl (MDef(_,m,_,_)) = m
 let info_of_module (MDef(i,_,_,_)) = i

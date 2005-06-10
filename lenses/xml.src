@@ -16,23 +16,23 @@ Nested elements:
 
 Attributes:
 #*test id / (load "xml" "<a attr='foo'></a>") =
-#*            [{a = {"" = [], attr = foo}}]
+#*            [{a = {"" = [], attr = {foo}}}]
 
 PCDATA:
 #*test id / (load "xml" "<a>foo<b>bar</b>baz</a>") =
-#*            [{a = {"" = [{PCDATA = foo}, 
-#*                         {b = {"" = [{PCDATA = bar}]}}, 
-#*                         {PCDATA = baz}]}}]
+#*            [{a = {"" = [{PCDATA = {foo}}, 
+#*                         {b = {"" = [{PCDATA = {bar}}]}}, 
+#*                         {PCDATA = {baz}}]}}]
 
 \subsection{Schemas}
 
 This encoding is described by following type declarations:
 #*let children = ""
-#*type PCDATA = { PCDATA = { ! = {}}}
-#*type XmlElt =   {!\PCDATA = {`children = `(List.T XmlElt),  (* subelts *)
-#*                             *\`children = {! = {}} }}      (* attrs *)
-#*              | PCDATA
-#*type T = List.T XmlElt
+#*let PCDATA : type = { PCDATA = { ! = {}}}
+#*let XmlElt : type = {!\PCDATA = {`children = (List.T XmlElt),  (* subelts *)
+#*                                 *\`children = {! = {}} }}      (* attrs *)
+#*                  | PCDATA
+#*let T : type = List.T XmlElt
 
 \finish{Change over to better way of writing this when new types are ready.} 
 
@@ -62,14 +62,14 @@ The @flatten@ lens is a generalized version of @List.flatten@.  Removes the
 ordering from an XML structure, leaving a ``bush'' of type @FlattenedXML@:
 \finish{This really needs type concatenation!!}
 #{*}
-type FlattenedXML = { PCDATA = `(List.T Value), 
-                      *\PCDATA = `(List.T FlattenedXML) } 
-                  | { ATTRS = {!=`Value,*=`Value}, 
-                      *\PCDATA,ATTRS = `(List.T FlattenedXML) } 
-                  | { PCDATA = `(List.T Value), 
-                      ATTRS = {!=`Value,*=`Value}, 
-                      *\PCDATA,ATTRS = `(List.T FlattenedXML) } 
-                  | { *\PCDATA,ATTRS = `(List.T FlattenedXML) }
+let FlattenedXML : type = { PCDATA = (List.T Value), 
+			    *\PCDATA = (List.T FlattenedXML) } 
+			  | { ATTRS = {!=Value,*=Value}, 
+			      *\PCDATA,ATTRS = (List.T FlattenedXML) } 
+			  | { PCDATA = (List.T Value), 
+			      ATTRS = {!=Value,*=Value}, 
+			      *\PCDATA,ATTRS = (List.T FlattenedXML) } 
+			  | { *\PCDATA,ATTRS = (List.T FlattenedXML) }
 #{@}
 
 #{#}
@@ -83,9 +83,9 @@ let flatten : lens =
 
 and flatten_elt : lens = 
   assert XmlElt;
-  acond <PCDATA> <PCDATA>
+  acond PCDATA PCDATA
     id
-    (map (acond <{`children=`Any}> <{*\ATTRS=`Any}>
+    (map (acond {`children=Any} {*\ATTRS=Any}
             (* No attributes *)
             (wmap {`children -> flatten}; hoist children)
             (* Attributes *)
@@ -99,7 +99,7 @@ and flatten_elt : lens =
 
 #*test flatten_elt /
 #*       ((List.hd []) / (load "xml" "<a>text</a>"))
-#*     = {a = {PCDATA = [text]}}
+#*     = {a = {PCDATA = [{text}]}}
 
 \finish{Need explanations from here on...}
 #*test flatten / 
@@ -109,7 +109,7 @@ and flatten_elt : lens =
 
 #*test flatten / 
 #*        (load "xml" "<a>foo</a>") 
-#*      = {a = [{PCDATA = [foo]}]}
+#*      = {a = [{PCDATA = [{foo}]}]}
 
 #*test flatten / 
 #*        (load "xml" "<a> <b/> <c/> <b/> </a>") 
@@ -118,12 +118,12 @@ and flatten_elt : lens =
 
 #*test flatten / 
 #*        (load "xml" "<a>foo<b/></a>") 
-#*      = {a = [{PCDATA = [foo], b = [{}]}]}
+#*      = {a = [{PCDATA = [{foo}], b = [{}]}]}
 
 #*test flatten / 
 #*        (load "xml" "<a foo='attrfoo'><b/>text</a>") 
-#*      = {a = [{ATTRS = {foo = attrfoo}, 
-#*               PCDATA = [text], 
+#*      = {a = [{ATTRS = {foo = {attrfoo}}, 
+#*               PCDATA = [{text}], 
 #*               b = [{}]}]}
 
 
@@ -133,30 +133,30 @@ concrete
 argument is ``non-repetitive'' in the sense that each element contains at
 most one sub-element with a given tag (and at most one PCDATA sub-element).
 #{*}
-type FlattenedPCDATA = { PCDATA = [`Value] } 
-type SimpleFlattenedXML = { *\PCDATA = [`SimpleFlattenedXML] }
-                        | { PCDATA = [`Value], 
-                            *\PCDATA,ATTRS = [`SimpleFlattenedXML] } 
-                        | { ATTRS = {!=`Value,*=`Value}, 
-                            *\PCDATA,ATTRS = [`SimpleFlattenedXML] } 
-                        | { PCDATA = [`Value],
-                            ATTRS = {!=`Value,*=`Value}, 
-                            *\PCDATA,ATTRS = [`SimpleFlattenedXML] } 
+let FlattenedPCDATA : type = { PCDATA = [Value] } 
+let SimpleFlattenedXML : type = { *\PCDATA = [SimpleFlattenedXML] }
+				| { PCDATA = [Value], 
+				    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
+				| { ATTRS = {!=Value,*=Value}, 
+				    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
+				| { PCDATA = [Value],
+				    ATTRS = {!=Value,*=Value}, 
+				    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
 #{@}
 
 For such XML structures, there is no need for any list structure in their
 abstract representations---i.e., we can take just the head elements of all
 the lists, yielding something of this type:
 #{*}
-type SquashedPCDATA = { PCDATA = `Value } 
-type SquashedXML = { *\PCDATA,ATTRS = `SquashedXML }
-                 | { PCDATA = `Value, 
-                     *\PCDATA,ATTRS = `SquashedXML } 
-                 | { ATTRS = {!=`Value,*=`Value}, 
-                     *\PCDATA,ATTRS = `SquashedXML } 
-                 | { ATTRS = {!=`Value,*=`Value}, 
-                     PCDATA = `Value, 
-                     *\PCDATA,ATTRS = `SquashedXML } 
+let SquashedPCDATA : type = { PCDATA = Value } 
+let SquashedXML : type = { *\PCDATA,ATTRS = SquashedXML }
+			 | { PCDATA = Value, 
+			     *\PCDATA,ATTRS = SquashedXML } 
+			 | { ATTRS = {!=Value,*=Value}, 
+			     *\PCDATA,ATTRS = SquashedXML } 
+			 | { ATTRS = {!=Value,*=Value}, 
+			     PCDATA = Value, 
+			     *\PCDATA,ATTRS = SquashedXML } 
 #{@}
 The @squash_flattened@ 
 
@@ -178,22 +178,22 @@ combination a name.
 
 #*test squash / 
 #*        (load "xml" "<a>foo</a>") 
-#*      = {a = {PCDATA = foo}}
+#*      = {a = {PCDATA = {foo}}}
 
 #*test squash / 
 #*        (load "xml" "<a>foo<b>bar</b><c>baz</c></a>") 
-#*      = {a = {PCDATA = foo, b = {PCDATA = bar}, c = {PCDATA = baz}}}
+#*      = {a = {PCDATA = {foo}, b = {PCDATA = {bar}}, c = {PCDATA = {baz}}}}
 
 #*test squash / 
 #*        (load "xml" "<a attr='foo'>text<b/></a>") 
-#*      = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
+#*      = {a = {ATTRS = {attr = {foo}}, PCDATA = {text}, b = {}}}
 
 It is also useful to @squash@ a single element:
 #*let squash_elt = flatten_elt; map squash_flattened
 
 #*test squash_elt /
 #*          ((List.hd []) / (load "xml" "<a attr='foo'>text<b/></a>"))
-#*        = {a = {ATTRS = {attr = foo}, PCDATA = text, b = {}}}
+#*        = {a = {ATTRS = {attr = {foo}}, PCDATA = {text}, b = {}}}
 
 The above tests actually happen to work in both directions.  In 
 general, though, the PUT direction of squash doesn't have enough 
@@ -201,9 +201,9 @@ information to determine the ordering of newly created elements, so
 it just inserts them in alphabetical order.  This means that completely
 new structures will be completely sorted: 
 #*test squash \
-#*        {a = {PCDATA=foo, 
-#*              d={PCDATA=bar,A=first}, 
-#*              c={PCDATA=baz,z=second}}}
+#*        {a = {PCDATA={foo}, 
+#*              d={PCDATA={bar},A={first}}, 
+#*              c={PCDATA={baz},z={second}}}}
 #*        missing
 #*      = 
 #*        (load "xml" "<a>foo
@@ -218,10 +218,10 @@ existing concrete one, the existing structures will retain their old
 order.  New substructures will be placed at the end.
 
 #*test squash \
-#*        {a = {PCDATA = foo, 
+#*        {a = {PCDATA = {foo}, 
 #*              extra = {},
-#*              b = {PCDATA = bar, extra={}}, 
-#*              c = {PCDATA = baz}}}
+#*              b = {PCDATA = {bar}, extra={}}, 
+#*              c = {PCDATA = {baz}}}}
 #*        (load "xml" "<a> foo <b>bar</b> <c>baz</c> </a>") 
 #*      = 
 #*        (load "xml" "<a> foo <b>bar<extra/></b> <c>baz</c> <extra/> </a>") 

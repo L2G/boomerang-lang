@@ -8,34 +8,34 @@ let continue =
   xfork {temp,`List.HD} {`List.HD}
     (rename List.HD List.TL; rename "temp" List.HD; plunge List.HD)
     id
-test continue / \ [x, [y], [z]] = [[x,y], [z]]
-test continue / \ [x, []] = [[x]]
+test continue / \ [{x}, [{y}], [{z}]] = [[{x},{y}], [{z}]]
+test continue / \ [{x}, []] = [[{x}]]
 
 (* Called when the first element satisfies the predicate.  Starts a new "head list". *) 
 let start_fresh = wmap { `List.HD -> plunge List.HD; add List.TL [] }
-test start_fresh / \ [x, [y], [z]] = [[x], [y], [z]]
-test start_fresh / \ [x,[]] = [[x],[]]
+test start_fresh / \ [{x}, [{y}], [{z}]] = [[{x}], [{y}], [{z}]]
+test start_fresh / \ [{x},[]] = [[{x}],[]]
 
-type Char = Value   (* Should be just single characters *)
+let Char : type = Value   (* Should be just single characters *)
 
-type Element = List.T Char  
-type Incomplete H = List.T Any  (* Bogus: Should be List Char \ H *)
-type Complete H = List.Cons H (Incomplete H)
-type MaybeComplete H = Complete H | Incomplete H
-type ParsedList H = List.Cons (MaybeComplete H) (List.T (Complete H))
+let Element : type = List.T Char  
+let Incomplete (H:type) : type = List.T Any  (* Bogus: Should be List Char \ H *)
+let Complete (H:type) : type = List.Cons H (Incomplete H)
+let MaybeComplete (H:type) : type = Complete H | Incomplete H
+let ParsedList (H:type) : type = List.Cons (MaybeComplete H) (List.T (Complete H))
 
-type TailComplete H = List.Cons Any (List.Cons (List.Cons H Any) Any)
-type HeadSingletonAndTailNonempty = List.Cons (List.Cons Any List.Nil) (List.Cons Any Any)
+let TailComplete (H:type) = List.Cons Any (List.Cons (List.Cons H Any) Any)
+let HeadSingletonAndTailNonempty : type = List.Cons (List.Cons Any List.Nil) (List.Cons Any Any)
 
 let process_elt (H:type) =
-    (acond <TailComplete H> <HeadSingletonAndTailNonempty> 
+    (acond (TailComplete H) (HeadSingletonAndTailNonempty)
        start_fresh
        continue)
 
-type T = List.NonEmptyList ({X}|{A}|{B}|{C})
-test process_elt T / \ [[X], []] = [[[X]]]
-test process_elt T / \ [[X], [[A],[b]], [[C]]] = [[[X]], [[A],[b]], [[C]]]
-test process_elt T / \ [[X], [[a],[b]], [[C]]] = [[[X],[a],[b]], [[C]]]
+let T : type = List.NonEmptyList ({X}|{A}|{B}|{C})
+test process_elt T / \ [[{X}], []] = [[[{X}]]]
+test process_elt T / \ [[{X}], [[{A}],[{b}]], [[{C}]]] = [[[{X}]], [[{A}],[{b}]], [[{C}]]]
+test process_elt T / \ [[{X}], [[{a}],[{b}]], [[{C}]]] = [[[{X}],[{a}],[{b}]], [[{C}]]]
 
 let parse_list_with_headers (H:type) =
   List.fold_right [] (process_elt H)
@@ -48,51 +48,51 @@ let parse_list_with_headers (H:type) =
    H specifies the type of headers in "exploded" form -- i.e., H should be a type of lists of characters. *)
 let l (H:type) = List.map explode; parse_list_with_headers H; List.map (List.map implode)
 
-type CapLetter = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}|{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
-type AllCapsList = List.NonEmptyList (CapLetter|{" "})
-
+let CapLetter : type = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}|{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
+let AllCapsList : type = List.NonEmptyList (CapLetter|{" "})
+		  
 let caps_headers = l AllCapsList
 
 test caps_headers / \ [] = [[]]
-test caps_headers / \ [X] = [[X]]
-test caps_headers / \ [x] = [[x]]
-test caps_headers / \ [X,y,Z] = [[X,y],[Z]]
-test caps_headers / \ [x,y,Z] = [[x,y],[Z]]
+test caps_headers / \ [{X}] = [[{X}]]
+test caps_headers / \ [{x}] = [[{x}]]
+test caps_headers / \ [{X},{y},{Z}] = [[{X},{y}],[{Z}]]
+test caps_headers / \ [{x},{y},{Z}] = [[{x},{y}],[{Z}]]
 
 (******)
 
-type StarHeader1 = List.Cons {"*"} (List.Cons {" "} (List.NonEmptyList Char))
-type StarHeader2 = List.Cons {"*"} StarHeader1
+let StarHeader1 : type = List.Cons {"*"} (List.Cons {" "} (List.NonEmptyList Char))
+let StarHeader2 : type = List.Cons {"*"} StarHeader1
 
 let star_headers = l StarHeader1; List.map (wmap {`List.TL -> (l StarHeader2)})
 
-test star_headers / \ ["* Foo", bar] = [["* Foo", [bar]]]
-test star_headers / \ ["* Foo", "** bar", "** baz"] = [["* Foo", ["** bar"],["** baz"]]]
-test star_headers / \ ["* Foo", "** bar", glorf, "** baz", urg] = [["* Foo", ["** bar", glorf],["** baz",urg]]]
-test star_headers / \ ["* Foo", "* Bar", baz] = [["* Foo", []], ["* Bar", [baz]]]
+test star_headers / \ [{"* Foo"}, {bar}] = [[{"* Foo"}, [{bar}]]]
+test star_headers / \ [{"* Foo"}, {"** bar"}, {"** baz"}] = [[{"* Foo"}, [{"** bar"}],[{"** baz"}]]]
+test star_headers / \ [{"* Foo"}, {"** bar"}, {glorf}, {"** baz"}, {urg}] = [[{"* Foo"}, [{"** bar"}, {glorf}],[{"** baz"}, {urg}]]]
+test star_headers / \ [{"* Foo"}, {"* Bar"}, {baz}] = [[{"* Foo"}, []], [{"* Bar"}, [{baz}]]]
 
 (* Some degenerate ones *)
 test star_headers / \ [] = [[]]
-test star_headers / \ [foo] = [[foo, []]]
-test star_headers / \ [foo, "* Bar"] = [[foo, []], ["* Bar", []]]
-test star_headers / \ [foo, "** Bar"] = [[foo, ["** Bar"]]]
+test star_headers / \ [{foo}] = [[{foo}, []]]
+test star_headers / \ [{foo}, {"* Bar"}] = [[{foo}, []], [{"* Bar"}, []]]
+test star_headers / \ [{foo}, {"** Bar"}] = [[{foo}, [{"** Bar"}]]]
                                                   
 sync with caps_headers at (List.T Any)
-  { O = [X,y,z],
-    A = [X,a,z],
-    B = [X,y,b] }
+  { O = [{X},{y},{z}],
+    A = [{X},{a},{z}],
+    B = [{X},{y},{b}] }
   =
-    [X,a,b]
+    (let res = [{X},{a},{b}] in
+       { O=res, A=res, B=res })
 
 (* Doesn't work because of bogus contractiveness check... 
      type NestedListOfValues = List (Value | NestedListOfValues)
    ...so for now we do: *)   
 
-(*
-type NestedListOfValues = Nil | { `List.HD=({!\(`List.HD,`List.TL,`List.NIL)=`Any} | `NestedListOfValues), `List.TL=`NestedListOfValues}
-*)
-type NestedListOfValues = List.T (List.Cons Value (List.T (List.Cons Value (List.T Value) )))
 
+(* let NestedListOfValues : type = List.Nil | { `List.HD=({!\(`List.HD,`List.TL,`List.NIL)=Any} | NestedListOfValues), `List.TL=NestedListOfValues} *)
+
+let NestedListOfValues : type = List.T (List.Cons Value (List.T (List.Cons Value (List.T Value) )))
 
 (******************************************************************************)
 (* Some useful instances packaged for invoking from the command line... *)
@@ -106,49 +106,51 @@ let file_with_star_headers = split; star_headers
 
 (* Successful propagation of non-conflicting changes *)
 sync with file_with_star_headers at NestedListOfValues
-  { O = "* HEADER
+  { O = {"* HEADER
         |** SUBHEADER
         |text
         |** ANOTHER SUBHEADER
-        |more text",
-    A = "* HEADER
+        |more text"},
+    A = {"* HEADER
         |** NEW SUBHEADER
         |text
         |new text
         |** ANOTHER SUBHEADER
-        |more text",
-    B = "* HEADER
+        |more text"},
+    B = {"* HEADER
         |** SUBHEADER
         |text
         |** ANOTHER NEW SUBHEADER
-        |more text"}
+        |more text"}}
   =
-       {"* HEADER
-        |** NEW SUBHEADER
-        |text
-        |new text
-        |** ANOTHER NEW SUBHEADER
-        |more text"}
+  (let res = {"* HEADER
+              |** NEW SUBHEADER
+              |text
+              |new text
+              |** ANOTHER NEW SUBHEADER
+              |more text"} in       
+    {O=res, A=res, B=res})
 
 (* A header conflict *)
 sync with file_with_star_headers at NestedListOfValues
-  { O = "* HEADER
-        |** SUBHEADER
-        |text",
-    A = "* HEADER
-        |** NEW SUBHEADER
-        |text",
-    B = "* HEADER
-        |** DIFFERENT NEW SUBHEADER
-        |text"}
+  { O = {"* HEADER
+         |** SUBHEADER
+         |text"},
+    A = {"* HEADER
+         |** NEW SUBHEADER
+         |text"},
+    B = {"* HEADER
+         |** DIFFERENT NEW SUBHEADER
+         |text"}}
   =
-  { O = "* HEADER
-        |** SUBHEADER
-        |text",
-    A = "* HEADER
-        |** NEW SUBHEADER
-        |text",
-    B = "* HEADER
+  { O = {"* HEADER
+         |** SUBHEADER
+         |text"},
+    A = {"* HEADER
+         |** NEW SUBHEADER
+         |text"},
+    B = {"* HEADER
         |** DIFFERENT NEW SUBHEADER
-        |text"}
+        |text"}}
+
        

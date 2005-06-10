@@ -7,40 +7,20 @@
 
 (** Focal types *)
 
-type t = TT of pt | NT of pt
-and pt
-
-type thunk = unit -> pt
-type it = 
-    Empty of Info.t
-  | Any of Info.t
-  | Var of Info.t * Syntax.qid * thunk
-  | App of Info.t * it * it * thunk
-  | Fun of Info.t * (it -> it)
-  | Name of Info.t * string * pt
-  | Star of Info.t * (string list) * pt
-  | Bang of Info.t * (string list) * pt
-  | Cat of Info.t * pt list 
-  | Union of Info.t * pt list 
-  | Singleton of Info.t * V.t
-
-val mk_ptype : it -> pt
-val it_of_pt : pt -> it
-
-(* utility functions *)
-val info_of_t : t -> Info.t
-val info_of_it : it -> Info.t
+(* --------------- Representation --------------- *)
+(** re-export [Value.ty] and [Value.string_of_ty] *)
+type t = Value.ty
 val string_of_t : t -> string
-val string_of_it : it -> string
 
-(* constants *)
-val nil_it : it
-val cons_it : it -> it -> it
+(* -------------- Constants --------------- *)
+
+val mk_nil : Info.t -> t
+val mk_cons : Info.t -> t -> t -> t
 
 (* -------------- Functions on types --------------- *)
 
-val project : t -> Name.t -> t option
-val member : V.t -> t -> bool 
+val project : Value.ty -> Name.t -> Value.ty option
+val member : V.t -> Value.ty -> bool 
 
 (* -------------- Type domains --------------- *)
 type tdom_atom =
@@ -51,5 +31,5 @@ type tdom_atom =
 module TDom : Set.S with type elt = tdom_atom
 module TDoms : Set.S with type elt = TDom.t
 	
-val tdoms : t -> TDoms.t
+val tdoms : Value.ty -> TDoms.t
 val vdom_in_tdoms : Name.Set.t -> TDoms.t -> bool

@@ -21,7 +21,7 @@ let newline lexbuf : unit =
 let info lexbuf : Info.t = 
   let c1 = LE.lexeme_start lexbuf in
   let c2 = LE.lexeme_end lexbuf in
-  (!lineno, c1 - !linestart),(!lineno, c2 - !linestart)
+    Info.I ((!lineno, c1 - !linestart),(!lineno, c2 - !linestart))
 
 let error lexbuf msg =
   let i = info lexbuf in

@@ -7,7 +7,6 @@ let debug = Trace.debug "lexer"
 
 let lexeme = LE.lexeme
 
-type f_info = (string * int * int)
 let info_stk = ref []
 
 let filename () = match !info_stk with 
@@ -49,7 +48,7 @@ let info lexbuf : Info.t =
   let c2 = LE.lexeme_end lexbuf in
   let l = lineno () in
   let c = linestart () in
-    (l, c1 - c - 1),(l, c2 - c - 1)
+    Info.I ((l, c1 - c - 1),(l, c2 - c - 1))
       
 let error lexbuf msg =
   let i = info lexbuf in
@@ -96,9 +95,6 @@ let string = '"' [^'"']* '"'
 rule main = parse
 | whitespace        { main lexbuf }
 | "->"              { ARROW (info lexbuf) }
-| "=>"              { DOUBLEARROW (info lexbuf) }
-| "<"               { LANGLE (info lexbuf) }
-| ">"               { RANGLE (info lexbuf) }
 | "("               { LPAREN (info lexbuf) }
 | ")"               { RPAREN (info lexbuf) }
 | ";"               { SEMI (info lexbuf) }
@@ -106,7 +102,6 @@ rule main = parse
 | "*"               { STAR (info lexbuf) }
 | "!"               { BANG (info lexbuf) }
 | "|"               { BAR (info lexbuf) }
-| "~"               { TILDE (info lexbuf) }
 | "="	            { EQUAL (info lexbuf) }
 | "{"	            { LBRACE (info lexbuf) }
 | "}"	            { RBRACE (info lexbuf) }

@@ -1,32 +1,3 @@
-(******************************************************************************) 
-(*                               Meta viewer                                  *)
-(******************************************************************************)
-
-(* viewer for "meta" format, a simple concrete syntax for trees *)
-
-let metareader s =
-  let _ = Metal.reset () in
-  let _ = Metal.file_name := "meta string" in
-  let lexbuf = Lexing.from_string s in        
-    try 
-      (Metay.view Metal.token lexbuf) 
-    with Parsing.Parse_error -> 
-      raise (Error.Compile_error (Metal.info lexbuf, !Metal.file_name, "syntax error"))
-	
-let metawriter = V.string_of_t
-
-let _ =
-  let etest filename copt = Misc.filename_extension filename = "meta" in
-  let encoding = {
-    Surveyor.description = "ASCII view format";
-    Surveyor.encoding_test = etest;
-    Surveyor.reader = metareader;
-    Surveyor.writer = metawriter;
-  }
-  in
-    Surveyor.register_encoding "meta" encoding
-
-
 (******************************************************************************)
 (*                               Meta viewer                                  *)
 (******************************************************************************)
@@ -71,11 +42,9 @@ let _ =
   in
     Surveyor.register_encoding "blob" encoding
 
-
 (******************************************************************************)
 (*                               XML viewer                                   *)
 (******************************************************************************)
-
 open Pxp_document
 open Pxp_yacc
 open Pxp_types
@@ -156,7 +125,7 @@ let generic_read_from rd =
   with
       e -> raise (Error.Fatal_error(Pxp_types.string_of_exn e))
 
-let reader s = generic_read_from (from_string s)
+let xmlreader s = generic_read_from (from_string s)
 
 let pcdata_only kids =
   Safelist.for_all
@@ -218,7 +187,7 @@ let dump_view_as_pretty_xml fmtr v =
     (fun () -> Format.fprintf fmtr "@,") tags;
     Format.fprintf fmtr "@]"
 
-let writer v =
+let xmlwriter v =
   let buf = Buffer.create 20 in
   let fmtr = Format.formatter_of_buffer buf in
   dump_view_as_pretty_xml fmtr v;
@@ -232,8 +201,8 @@ let _ =
   let encoding = {
     Surveyor.description = "XML";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = reader;
-    Surveyor.writer = writer;
+    Surveyor.reader = xmlreader;
+    Surveyor.writer = xmlwriter;
   }
   in
   Surveyor.register_encoding "xml" encoding

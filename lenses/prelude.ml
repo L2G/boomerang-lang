@@ -9,63 +9,77 @@ open Syntax
 
 let (@) = Safelist.append
 
-(* helper function for constructing a Focal type error *)
-let focal_type_error msg = 
-  raise (Error.Fatal_error (Printf.sprintf "run-time sort error in expression %s" msg))
-
 (* standard tags for cons-cell encoded lists *)
-let hd_tag = Value.N (V.hd_tag)
-let _ = register_native "Native.Prelude.hd_tag" "name" hd_tag
-let tl_tag = Value.N (V.tl_tag)
-let _ = register_native "Native.Prelude.tl_tag" "name" tl_tag
-let nil_tag = Value.N (V.nil_tag)
-let _ = register_native "Native.Prelude.nil_tag" "name" nil_tag
+let hd_tag = V.hd_tag
+let hd_tag_lib = Value.N (hd_tag)
+let _ = register_native "Native.Prelude.hd_tag" "name" hd_tag_lib
+let tl_tag = V.tl_tag
+let tl_tag_lib = Value.N (tl_tag)
+let _ = register_native "Native.Prelude.tl_tag" "name" tl_tag_lib
+let nil_tag = V.nil_tag
+let nil_tag_lib = Value.N (nil_tag)
+let _ = register_native "Native.Prelude.nil_tag" "name" nil_tag_lib
 
 (* these need to be baked in here, because the parser uses them *)
-let cons =   
-  let i = Info.dummy in    
-    Value.T(Type.TT(Type.mk_ptype (Type.Fun(i,fun h -> Type.Fun(i,fun t -> Type.cons_it h t)))))
-let _ = register_native "Native.Prelude.Cons" "type => type => type" cons
-let nil = 
-  let i = Info.dummy in
-    Value.T (Type.TT(Type.mk_ptype (Type.nil_it)))
-let _ = register_native "Native.Prelude.Nil" "type" nil
+let cons_qid = "Native.Prelude.Cons" 
+let cons h t = Type.mk_cons (Info.M cons_qid) h t
+let cons_lib = 
+  mk_tfun "type -> type" cons_qid 
+    (fun h -> mk_tfun "type" cons_qid 
+       (fun t -> Value.T(cons h t)))
+let _ = register_native cons_qid "type -> type -> type" cons_lib
+
+let nil_qid = "Native.Prelude.Nil"
+let nil = Type.mk_nil (Info.M nil_qid)
+let nil_lib = Value.T (nil)
+let _ = register_native nil_qid "type" nil_lib
+
+let any_qid = "Native.Prelude.Any"
+let any = Value.Any(Info.M any_qid)
+let any_lib = Value.T(any)
+let _ = register_native any_qid "type" any_lib
+
+let empty_qid = "Native.Prelude.Empty"
+let empty = Value.Empty(Info.M empty_qid) 
+let empty_lib = Value.T (empty)
+let _ = register_native empty_qid "type" empty_lib
 
 (*************)
 (* UTILITIES *)
 (*************)
+
+(* read *)
+let read_qid = "Native.Prelude.read"
+
 let read fn = 
   let fn = match find_filename fn with
-      None -> error [`String ("Native.Prelude.read: cannot locate " ^ fn)]
+      None -> error [`String (read_qid^": cannot locate " ^ fn)]
     | Some fn -> fn in
     try 
       Misc.read fn 
     with 
-	_ -> raise (Error.Native_error ("Native.prelude.read: error reading " ^ fn))
-    
-(* read *)
+	_ -> raise (Error.Native_error (read_qid^": error reading " ^ fn))
+	  
 let read_lib =
-  F(function 
-      | N fn -> N (read fn)
-      | _ -> focal_type_error "Native.Prelude.read")
-    
-let _ = register_native "Native.Prelude.read" "name -> name" read_lib
+  mk_nfun "name" read_qid (fun fn -> Value.N (read fn))
+
+let _ = register_native read_qid "name -> name" read_lib
 
 (* load *)  
+let load_qid = "Native.Prelude.load"
 let load ekey blob = 
   let ekey = Surveyor.get_ekey (Some ekey) "" (Some blob) in
     (Surveyor.get_reader ekey) blob
-
 let load_lib =
-  F (function
-       | N ekey -> F (function 
-		     | N blob -> V (load ekey blob)
-		     | _ -> focal_type_error "Native.Prelude.load")
-       | _ -> focal_type_error "Native.Prelude.load")
+  mk_nfun "name -> view" load_qid
+  (fun ekey -> mk_nfun "view" load_qid
+              (fun blob -> Value.V (load ekey blob)))
 
-let _ = register_native "Native.Prelude.load" "name -> name -> view" load_lib
+let _ = register_native load_qid "name -> name -> view" load_lib
 
 (* load_file *)
+let load_file_qid = "Native.Prelude.load_file"
+
 let load_file fn = 
   let (fn,ekeyo) = Surveyor.parse_filename fn in
   let contents = read fn in
@@ -77,44 +91,84 @@ let load_file fn =
     load ekey (contents)
       
 let load_file_lib =
-  F(function 
-      | N fn -> V (load_file fn)
-      | _ -> focal_type_error "Native.Prelude.load_file")
-    
-let _ = register_native "Native.Prelude.load_file" "name -> view" load_file_lib
-  
+  mk_nfun "view" load_file_qid (fun fn -> Value.V (load_file fn))
+
+let _ = register_native load_file_qid "name -> view" load_file_lib
+
+(* get *)
+let get_qid = "Native.Prelude.get"
 
 let get l c = Lens.get l c
-let get_lib = F(function
-		  | L l -> F(function
-			       | V c -> V (get l c)
-			       | _ -> focal_type_error "Native.Prelude.get")
-		  | _ -> focal_type_error "Native.Prelude.get")
-let _ = register_native "Native.Prelude.get" "lens -> view -> view" get_lib
+
+let get_lib =
+  mk_lfun "view -> view" get_qid
+    (fun l ->
+       mk_vfun "view" get_qid (fun c -> Value.V (get l c)))
+
+let _ = register_native get_qid "lens -> view -> view" get_lib
+
+(* put *)
+let put_qid = "Native.Prelude.put"
 
 let put l a c = Lens.put l a (Some c)
-let put_lib = F(function
-		  | L l -> F(function
-			       | V a -> F(function
-					    | V c -> V (put l a c)
-					    | _ -> focal_type_error "Native.Prelude.put")
-			       | _ -> focal_type_error "Native.Prelude.put")
-		  | _ -> focal_type_error "Native.Prelude.put")
-let _ = register_native "Native.Prelude.put" "lens -> view -> view -> view" put_lib
+
+let put_lib =
+  mk_lfun "view -> view -> view" put_qid
+    (fun l ->
+       mk_vfun "view -> view" put_qid
+         (fun a ->
+            mk_vfun "view" put_qid (fun c -> Value.V (put l a c))))
+
+let _ = register_native put_qid "lens -> view -> view -> view" put_lib
+
+(* create *)
+let create_qid = "Native.Prelude.create"
 
 let create l a = Lens.put l a None
-let create_lib = F(function
-		  | L l -> F(function
-			       | V a -> V (create l a)
-			       | _ -> focal_type_error "Native.Prelude.create")
-		  | _ -> focal_type_error "Native.Prelude.create")
-let _ = register_native "Native.Prelude.create" "lens -> view -> view" create_lib
+
+let create_lib =
+  mk_lfun "view -> view" create_qid
+    (fun l -> mk_vfun "view" create_qid
+                (fun a -> Value.V (create l a)))
+
+let _ = register_native create_qid "lens -> view -> view" create_lib
+
+(* sync *)
+let sync_qid = "Native.Prelude._sync"
+let sync lo la lb typ orig = 
+  let co,ca,cb =
+    try
+      (V.get_required orig "O", V.get_required orig "A", V.get_required orig "B")
+    with
+        Not_found -> error [`String sync_qid
+			   ; `String ":the initial view,"
+			   ; `View orig
+			   ; `String "should have children 'O', 'A', and 'B'"
+			   ] in
+  let ao,aa,ab = (Lens.get lo co, Lens.get la ca, Lens.get lb cb) in
+  let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) in
+  let (ao',aa',ab') = match (ao',aa',ab') with 
+      Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') 
+    | _ -> assert false in
+  let co',ca',cb' = (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb)) in
+    V.from_list [("O", co'); ("A",ca'); ("B",cb')]
+
+let sync_lib = mk_lfun "lens -> lens -> type -> view -> view" sync_qid 
+  (fun lo -> mk_lfun "lens -> type -> view -> view" sync_qid
+     (fun la -> mk_lfun "type -> view -> view" sync_qid
+	(fun lb -> mk_tfun "view -> view" sync_qid 
+	   (fun typ -> mk_vfun "view" sync_qid 
+	      (fun orig -> V (sync lo la lb typ orig))))))
+
+let _ = register_native sync_qid "lens -> lens -> lens -> type -> view -> view" sync_lib   
 
 (*************)
 (* DEBUGGING *)
 (*************)
 
 (* PROBE *)
+let probe_qid = "Native.Prelude.probe"
+
 let probe msg = 
   { get = (fun c ->
      Format.printf "@,@[<v0>%s (get) @,  " msg;
@@ -136,13 +190,14 @@ let probe msg =
      a)}
   
 let probe_lib = 
-  F(function 
-      | N n -> L (probe n)
-      | _ -> focal_type_error "Native.Prelude.probe")
-    
-let _ = register_native "Native.Prelude.probe" "name -> lens" probe_lib
+  mk_nfun "lens" probe_qid
+    (fun n -> Value.L (probe n))
+
+let _ = register_native probe_qid "name -> lens" probe_lib
 
 (* TRACE *)
+let trace_qid = "Native.Prelude.trace"
+
 let trace msg = 
   { get = (fun c ->
 	     Format.printf "%s (get)" msg;
@@ -155,66 +210,80 @@ let trace msg =
   }
   
 let trace_lib = 
-  F(function 
-      | N n -> L (trace n)
-      | _ -> focal_type_error "Native.Prelude.trace")
-    
-let _ = register_native "Native.Prelude.trace" "name -> lens" trace_lib
+  mk_nfun "lens" trace_qid
+    (fun n -> Value.L (trace n))
+
+let _ = register_native trace_qid "name -> lens" trace_lib
 	
 (* TRACEPOINT *)
+let tracepoint_qid = "Native.Prelude.tracepoint"
+
 let tracepoint = Lens.tracepoint
+
 let tracepoint_lib = 
-  F(function 
-      | N n -> F(function 
-		   | L l -> L (tracepoint n l)
-		   | _ -> focal_type_error "Native.Prelude.tracepoint")
-      | _ -> focal_type_error "Native.Prelude.tracepoint")
-    
-let _ = register_native "Native.Prelude.tracepoint" "name -> lens -> lens" tracepoint_lib
+  mk_nfun "lens -> lens" tracepoint_qid
+    (fun n ->
+       mk_lfun "lens" tracepoint_qid (fun l -> Value.L (tracepoint n l)))
+let _ = register_native tracepoint_qid "name -> lens -> lens" tracepoint_lib
 
 
 (* INVERT *)
 (* flip the direction -- only for bijective lenses! *)
+let invert_qid = "Native.Prelude.invert"
+
 let invert l = 
   { get = (fun c -> l.put c None);
     put = (fun a _ -> l.get a) }
     
 let invert_lib = 
-  F(function 
-      | L l -> L (invert l)
-      | _ -> focal_type_error "Native.Prelude.invert")
-    
-let _ = register_native "Native.Prelude.invert" "lens -> lens" invert_lib
+  mk_lfun "lens" invert_qid (fun l -> Value.L (invert l))
+
+let _ = register_native invert_qid "lens -> lens" invert_lib
+
+(* ASSERT *)
+let assert_qid = "Native.Prelude.assert" 
+
+let no_assert = Prefs.createBool "no-assert" false
+  "don't check assertions"
+  "don't check assertions"
 
 let assert_native t = 
   let check_assert dir v t = 
-    if not (Type.member v t) then
-      error [`String ("Native.Prelude.assert(" ^ dir ^ "): view");
+    if (Prefs.read no_assert)
+      && (not (Type.member v t)) 
+    then
+      error [`String (assert_qid^"(" ^ dir ^ "): view");
 	     `View v;
-	     `String "is not a member of "; `String (Type.string_of_t t)] 
+	     `String "is not a member of "; 
+	     `String (Type.string_of_t t)] 
   in          
     { get = ( fun c -> check_assert "get" c t; c);
       put = ( fun a _ -> check_assert "put" a t; a) }
-
+      
 let assert_lib = 
-  F(function
-	T t -> L (assert_native t) 
-      | _ -> focal_type_error "Native.Prelude.assert")
-
-let _ = register_native "Native.Prelude.assert" "type -> lens" assert_lib
+  mk_tfun "lens" assert_qid 
+    (fun t -> L (assert_native t))
+    
+let _ = register_native assert_qid "type -> lens" assert_lib
       
 (******************)
 (* Generic Lenses *)
 (******************)
 
 (*** ID ***)
+let id_qid = "Native.Prelude.id"
+
 let id =
   { get = (fun c -> c);
     put = (fun a co -> a)}
+
 let id_lib = L id
-let _ = register_native "Native.Prelude.id" "lens" id_lib
+
+let _ = register_native id_qid "lens" id_lib
 	  
 (*** CONST ***)
+let const_qid = "Native.Prelude.const"
+
 let const v d =
   { get = (fun c -> v);
     put = (fun a co ->
@@ -222,18 +291,19 @@ let const v d =
 	       match co with
 		 | None -> d
 		 | Some(c) -> c
-	     else error [`String "Native.Prelude.const(put): abstract view";
+	     else error [`String (const_qid ^ "(put): abstract view");
 			 `View a;
 			 `String "is not equal to"; `View (v)]) }
-let const_lib = F (function
-		     | V v -> F (function 
-				   | V d -> L (const v d)
-				   | _ -> focal_type_error "Native.Prelude.const")
-		     | _ -> focal_type_error "Native.Prelude.const")
-		  
-let _ = register_native "Native.Prelude.const" "view -> view -> lens" const_lib
+let const_lib =
+  mk_vfun "view -> lens" const_qid
+    (fun v ->
+       mk_vfun "lens" const_qid (fun d -> Value.L (const v d)))
+  
+let _ = register_native const_qid "view -> view -> lens" const_lib
 	  
 (*** COMPOSE2 ***)
+let compose2_qid = "Native.Prelude.compose2"
+
 let compose2 l1 l2 = 
   let l1 = memoize_lens l1 in
     { get = (fun c -> (l2.get (l1.get c)));
@@ -243,13 +313,11 @@ let compose2 l1 l2 =
 		 | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}
       
 let compose2_lib = 
-  F (function
-       | L l1 -> F (function
-		      | L l2 -> L (compose2 l1 l2)
-		      | _ -> focal_type_error "Native.Prelude.compose2")
-       | _ -> focal_type_error "Native.Prelude.compose2")
+  mk_lfun "lens -> lens" compose2_qid
+    (fun l1 ->
+       mk_lfun "lens" compose2_qid (fun l2 -> Value.L (compose2 l1 l2)))
     
-let _ = register_native "Native.Prelude.compose2" "lens -> lens -> lens" compose2_lib
+let _ = register_native compose2_qid "lens -> lens -> lens" compose2_lib
 
 (********************)
 (* Lenses for trees *)
@@ -259,6 +327,8 @@ let _ = register_native "Native.Prelude.compose2" "lens -> lens -> lens" compose
 (* map can be implemented in terms of wmap, but it delays evaluation,
    of the sub-lens which is bad for memoization and causes too 
    much consing... *)
+let map_qid = "Native.Prelude.map"
+          
 let map l = 
   { get = (fun c ->
 	     let binds =
@@ -286,20 +356,20 @@ let map l =
     
 (* map - library interface *)
 let map_lib = 
-  F (function
-       | L l -> L (map l)
-       | _ -> focal_type_error "Native.Prelude.map")
+  mk_lfun "lens" map_qid (fun l -> Value.L (map l))
 
-let _ = register_native "Native.Prelude.map" "lens -> lens" map_lib
+let _ = register_native map_qid "lens -> lens" map_lib
 	  
 (*** WMAP ***)
 (* wmap - native interface *)
+let wmap_qid = "Native.Prelude.wmap"
+
 let wmap (l0 : Value.t -> Value.t) : (V.t, V.t) Lens.t = 
   let l =
     let memo = Hashtbl.create 11 in
       (fun k -> try Hashtbl.find memo k with
 	   Not_found -> 
-	     let res = match l0 (N k) with L l -> l | _ -> focal_type_error "Native.Prelude.wmap" in 
+	     let res = match l0 (N k) with L l -> l | v -> focal_type_error (Info.M wmap_qid) SLens v in 
 	       Hashtbl.add memo k res; res)
   in
     { get = (fun c ->
@@ -328,9 +398,7 @@ let wmap (l0 : Value.t -> Value.t) : (V.t, V.t) Lens.t =
       
 (* wmap - library interface *)
 let wmap_lib = 
-  F (function
-       | F m -> L (wmap m)
-       | _ -> focal_type_error "Native.Prelude.wmap")
+  mk_ffun "name -> lens" "lens" wmap_qid (fun m -> Value.L (wmap m))
     
 (* (\* wmap - unit tests *\) *)
 (* let wmap_unit_tests =  *)
@@ -345,9 +413,11 @@ let wmap_lib =
 (*     ; test_put_eq [m] "{y={a={}} z={c={}}}" (Some "{x={} y=[1 2 3]}") (\*=*\) "{y=[1 2 3] z={c={}}}" *)
 (*     ] *)
       
-let _ = register_native "Native.Prelude.wmap" "(name -> lens) -> lens" wmap_lib
+let _ = register_native wmap_qid "(name -> lens) -> lens" wmap_lib
   
 (* XFORK *)
+let xfork_qid = "Native.Prelude.xfork"
+
 let xfork pcv pav l1 l2 =
   (* FIXME: check that pcv and pca have height <= 1? *)
   let dom_pcv = V.dom pcv in
@@ -360,11 +430,11 @@ let xfork pcv pav l1 l2 =
 	 let a1 = l1.get c1 in
 	 let a2 = l2.get c2 in
 	   if not(Name.Set.for_all pa (V.dom a1)) then
-	     error [`String "Native.Prelude.xfork(get): l1 yielded a child not ";
+	     error [`String xfork_qid; `String "(get): l1 yielded a child not ";
          	    `String "satisfying pa"; 
 		    `View a1];
 	   if not(Name.Set.for_all (fun k -> not (pa k)) (V.dom a2)) then
-	     error [`String "Native.Prelude.xfork(get): l2 yielded a child satisfying pa";
+	     error [`String xfork_qid; `String "(get): l2 yielded a child satisfying pa";
 		    `View a2];
 	   V.concat a1 a2);
     put = (fun a co -> 
@@ -375,34 +445,35 @@ let xfork pcv pav l1 l2 =
 	     let c1' = l1.put a1 co1 in
 	     let c2' = l2.put a2 co2 in
 	       if not(Name.Set.for_all pc (V.dom c1')) then
-		 error [`String "Native.Prelude.xfork(put): l1 yielded a child ";
+		 error [`String xfork_qid; `String "(put): l1 yielded a child ";
 			`String "not satisfying pc"; 
 			`View c1'];
 	       if not(Name.Set.for_all (fun k -> not (pc k)) (V.dom c2')) then
-		 error [`String "Native.Prelude.xfork(put): l2 yielded a child ";
+		 error [`String xfork_qid; `String "(put): l2 yielded a child ";
 			`String "satisfying pc"; 
 			`View c2'];
 	       V.concat c1' c2')}
 
 let xfork_lib = 
-  F(function V pcv -> F (
-      function V pav -> F (
-	function L l1 -> F (
-	  function L l2 -> L (xfork pcv pav l1 l2)
-	    | _ -> focal_type_error "Native.Prelude.xfork")
-	  | _ -> focal_type_error "Native.Prelude.xfork")
-	| _ -> focal_type_error "Native.Prelude.xfork")
-      | _ -> focal_type_error "Native.Prelude.xfork")
+  mk_vfun "view -> lens -> lens -> lens" xfork_qid
+    (fun pcv ->
+       mk_vfun "lens -> lens -> lens" xfork_qid
+         (fun pav ->
+            mk_lfun "lens -> lens" xfork_qid
+              (fun l1 ->
+                 mk_lfun "lens" xfork_qid (fun l2 -> Value.L (xfork pcv pav l1 l2)))))
           
-let _ = register_native "Native.Prelude.xfork" "view -> view -> lens -> lens -> lens" xfork_lib
+let _ = register_native xfork_qid "view -> view -> lens -> lens -> lens" xfork_lib
 	  
 (* HOIST *)
+let hoist_qid = "Native.Prelude.hoist"
+
 let hoist k =
   { get = 
       (fun c ->
 	 if   (Name.Set.cardinal (V.dom c)) <> 1 
 	   or (Name.Set.choose (V.dom c)) <> k then
-	     error [`String "Native.Prelude.hoist (get): expecting exactly one child (named ";
+	     error [`String hoist_qid; `String "(get): expecting exactly one child (named ";
 		    `Name k; 
 		    `String ")"; 
 		    `View c];
@@ -412,42 +483,42 @@ let hoist k =
 	 V.set V.empty k (Some a)) }
 
 let hoist_lib = 
-  F (function 
-       |  N k -> L (hoist k)
-       | _ -> focal_type_error "Native.Prelude.hoist")
+  mk_nfun "lens" hoist_qid (fun k -> Value.L (hoist k))
     
-let _ = register_native "Native.Prelude.hoist" "name -> lens" hoist_lib
+let _ = register_native hoist_qid "name -> lens" hoist_lib
 
 (* PLUNGE *)
+let plunge_qid = "Native.Prelude.plunge"
+
 let plunge k =
   { get = (fun c -> V.set V.empty k (Some c));
     put = (fun a _ -> 
 	     if   (Name.Set.cardinal (V.dom a)) <> 1 
 	       or (Name.Set.choose (V.dom a)) <> k then
-	     error [`String "Native.Prelude.plunge (put): expecting exactly one child (named ";
+	     error [`String plunge_qid; `String "(put): expecting exactly one child (named ";
 		    `Name k; 
 		    `String ")"; 
 		    `View a];
 	     V.get_required a k)}
     
 let plunge_lib = 
-  F (function
-       | N k -> L (plunge k)
-       | _ -> focal_type_error "Native.Prelude.plunge")
+  mk_nfun "lens" plunge_qid (fun k -> Value.L (plunge k))
     
-let _ = register_native "Native.Prelude.plunge" "name -> lens" plunge_lib
+let _ = register_native plunge_qid "name -> lens" plunge_lib
 	  
 (******************)
 (* Copy and Merge *)
 (******************)
 (* COPY *)
+let copy_qid = "Native.Prelude.copy"
+
 let copy m n =
   { get = 
       (fun c -> 
 	 let child =
 	   try V.get_required c m
 	   with Not_found ->
-	     error [`String "Native.Prelude.copy(get): expecting one child named ";
+	     error [`String copy_qid; `String "(get): expecting one child named ";
 		    `Name m; 
 		    `String ")"; 
 		    `View c] in
@@ -456,29 +527,29 @@ let copy m n =
       (fun a _ -> 
 	 if (try V.equal (V.get_required a m) (V.get_required a n)
 	     with Not_found -> 
-	       error [`String "Native.Prelude.copy(put): expecting two children named ";
+	       error [`String copy_qid; `String "(put): expecting two children named ";
 		      `Name m; 
 		      `String "and";
 		      `Name n; 
 		      `View a])
 	 then V.set a n None
 	 else 
-	   error [`String "Native.Prelude.copy(put): expecting two equal children named ";
+	   error [`String copy_qid; `String "(put): expecting two equal children named ";
 		  `Name m; 
 		  `String " and ";
 		  `Name n;
 		  `View a]) }
 
 let copy_lib =
-  F (function 
-       | N m -> F (function 
-		       N n -> L (copy m n)
-		     | _ -> focal_type_error "Native.Prelude.copy")
-       | _ -> focal_type_error "Native.Prelude.copy")
+  mk_nfun "name -> lens" copy_qid
+    (fun m ->
+       mk_nfun "lens" copy_qid (fun n -> Value.L (copy m n)))
 
-let _ = register_native "Native.Prelude.copy" "name -> name -> lens" copy_lib
+let _ = register_native copy_qid "name -> name -> lens" copy_lib
 
 (* MERGE *)
+let merge_qid = "Native.Prelude.merge"
+                  
 let merge m n =
   { get = (fun c -> V.set c n None) ;
     put = 
@@ -488,7 +559,7 @@ let merge m n =
 	       (try V.set a n (Some (V.get_required a m))
 		with Not_found -> 
 		  error
-		  [`String "Native.Prelude.merge(put): expecting a child named ";
+		  [`String merge_qid; `String "(put): expecting a child named ";
 		   `Name m])
 	   | Some c ->
 	       let cmo,cno = (V.get c m), (V.get c n) in
@@ -505,28 +576,28 @@ let merge m n =
   }
 
 let merge_lib =
-  F (function 
-       | N m -> F (function 
-		       N n -> L (merge m n)
-		     | _ -> focal_type_error "Native.Prelude.merge")
-       | _ -> focal_type_error "Native.Prelude.merge")
+  mk_nfun "name -> lens" merge_qid
+    (fun m ->
+       mk_nfun "lens" merge_qid (fun n -> Value.L (merge m n)))
     
-let _ = register_native "Native.Prelude.merge" "name -> name -> lens" merge_lib
+let _ = register_native merge_qid "name -> name -> lens" merge_lib
 
 (****************)
 (* Conditionals *)
 (****************)
 	    
 (* COND *)
-let cond_impl c a1 a2 f21o f12o lt lf =
+let cond_qid = "Native.Prelude.cond"
+
+let cond_impl c ?(b1=fun x -> x) a1 ?(b2=fun x -> x) a2 f21o f12o lt lf =
   { get = 
       (fun cv ->
 	 if Type.member cv c then lt.get cv
 	 else lf.get cv);
     put = 
       (fun a co ->
-	 if Type.member a a1 then
-	   if Type.member a a2 then
+	 if b1 (Type.member a a1) then
+	   if b2 (Type.member a a2) then
 	     match co with
 	       | None -> lf.put a co
 	       | Some cv ->
@@ -543,7 +614,7 @@ let cond_impl c a1 a2 f21o f12o lt lf =
 				    | Some l -> (Some (l.get cv))
 				    | None   -> None)
 	 else
-	   if Type.member a a2 then
+	   if b2 (Type.member a a2) then
 	     match co with
 	       | None -> lf.put a co
 	       | Some cv ->
@@ -553,7 +624,8 @@ let cond_impl c a1 a2 f21o f12o lt lf =
 				    | None   -> None)
 		   else lf.put a co
 	   else error [
-	     `String "Native.Prelude.cond (put): the abstract view does not satisfy a1 or a2:";
+             `String cond_qid;
+	     `String "(put): the abstract view does not satisfy a1 or a2:";
 	     `View a ]
       )}
 
@@ -563,87 +635,107 @@ let cond_fw c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
 let cond_wf c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
 
 let cond_ff_lib =
-  F (function T c -> F (
-       function T a1 -> F (
-	 function T a2 -> F (
-	   function L f21 -> F (
-	     function L f12 -> F (
-	       function L lt -> F (
-		 function L lf -> L (cond_ff c a1 a2 f21 f12 lt lf)
-		   | _ -> focal_type_error "Native.Prelude.cond")
-		 | _ -> focal_type_error "Native.Prelude.cond")
-	       | _ -> focal_type_error "Native.Prelude.cond")
-	     | _ -> focal_type_error "Native.Prelude.cond")
-	   | _ -> focal_type_error "Native.Prelude.cond")
-	 | _ -> focal_type_error "Native.Prelude.cond")
-       | _ -> focal_type_error "Native.Prelude.cond")
-
+  mk_tfun "type -> type -> lens -> lens -> lens -> lens -> lens" cond_qid
+    (fun c ->
+       mk_tfun "type -> lens -> lens -> lens -> lens -> lens" cond_qid
+         (fun a1 ->
+            mk_tfun "lens -> lens -> lens -> lens -> lens" cond_qid
+              (fun a2 ->
+                 mk_lfun "lens -> lens -> lens -> lens" cond_qid
+                   (fun f21 ->
+                      mk_lfun "lens -> lens -> lens" cond_qid
+                        (fun f12 ->
+                           mk_lfun "lens -> lens" cond_qid
+                             (fun lt -> mk_lfun "lens" cond_qid 
+                                          (fun lf -> Value.L (cond_ff c a1 a2 f21 f12 lt lf))))))))
 
 let _ = register_native
-  "Native.Prelude.cond_ff"
+  cond_qid
   "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
   cond_ff_lib
 
+let cond_ww_qid = "Native.Prelude.cond_ww"
+
 let cond_ww_lib =
-  F (function T c -> F (
-       function T a1 -> F (
-	 function T a2 -> F (
-	   function L lt -> F (
-	     function L lf -> L (cond_ww c a1 a2 lt lf)
-	       | _ -> focal_type_error "Native.Prelude.cond")
-	     | _ -> focal_type_error "Native.Prelude.cond")
-	   | _ -> focal_type_error "Native.Prelude.cond")
-	 | _ -> focal_type_error "Native.Prelude.cond")
-       | _ -> focal_type_error "Native.Prelude.cond")
+  mk_tfun "type -> type -> lens -> lens -> lens" cond_ww_qid
+    (fun c ->
+       mk_tfun "type -> lens -> lens -> lens" cond_ww_qid
+         (fun a1 ->
+            mk_tfun "lens -> lens -> lens" cond_ww_qid
+              (fun a2 ->
+                 mk_lfun "lens -> lens" cond_ww_qid
+                   (fun lt -> mk_lfun "lens" cond_ww_qid 
+                      (fun lf -> Value.L (cond_ww c a1 a2 lt lf))))))
 
 let _ = register_native
-  "Native.Prelude.cond_ww"
+  cond_ww_qid
   "type -> type -> type -> lens -> lens -> lens"
   cond_ww_lib
 
+let cond_fw_qid = "Native.Prelude.cond_fw"
+
 let cond_fw_lib =
-  F (function T c -> F (
-       function T a1 -> F (
-	 function T a2 -> F (
-	   function L f21 -> F(
-	     function L lt -> F (
-	       function L lf -> L (cond_fw c a1 a2 f21 lt lf)
-		 | _ -> focal_type_error "Native.Prelude.cond")
-	       | _ -> focal_type_error "Native.Prelude.cond")
-	     | _ -> focal_type_error "Native.Prelude.cond")
-	   | _ -> focal_type_error "Native.Prelude.cond")
-	 | _ -> focal_type_error "Native.Prelude.cond")
-       | _ -> focal_type_error "Native.Prelude.cond")
+  mk_tfun "type -> type -> lens -> lens -> lens -> lens" cond_fw_qid
+    (fun c ->
+       mk_tfun "type -> lens -> lens -> lens -> lens" cond_fw_qid
+         (fun a1 ->
+            mk_tfun "lens -> lens -> lens -> lens" cond_fw_qid
+              (fun a2 ->
+                 mk_lfun "lens -> lens -> lens" cond_fw_qid
+                   (fun f21 ->
+                      mk_lfun "lens -> lens" cond_fw_qid
+                        (fun lt -> mk_lfun "lens" cond_fw_qid 
+                           (fun lf -> Value.L (cond_fw c a1 a2 f21 lt lf)))))))
     
 let _ = register_native
-  "Native.Prelude.cond_fw"
+  cond_fw_qid
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_fw_lib
 
+let cond_wf_qid = "Native.Prelude.cond_wf"
+
 let cond_wf_lib =
-  F (function T c -> F (
-       function T a1 -> F (
-	 function T a2 -> F (
-	   function L f12 -> F(
-	     function L lt -> F (
-	       function L lf -> L (cond_wf c a1 a2 f12 lt lf)
-		 | _ -> focal_type_error "Native.Prelude.cond")
-	       | _ -> focal_type_error "Native.Prelude.cond")
-	     | _ -> focal_type_error "Native.Prelude.cond")
-	   | _ -> focal_type_error "Native.Prelude.cond")
-	 | _ -> focal_type_error "Native.Prelude.cond")
-       | _ -> focal_type_error "Native.Prelude.cond")
+  mk_tfun "type -> type -> lens -> lens -> lens -> lens" cond_wf_qid
+    (fun c ->
+       mk_tfun "type -> lens -> lens -> lens -> lens" cond_wf_qid
+         (fun a1 ->
+            mk_tfun "lens -> lens -> lens -> lens" cond_wf_qid
+              (fun a2 ->
+                 mk_lfun "lens -> lens -> lens" cond_wf_qid
+                   (fun f12 ->
+                      mk_lfun "lens -> lens" cond_wf_qid
+                        (fun lt -> mk_lfun "lens" cond_wf_qid 
+                           (fun lf -> Value.L (cond_wf c a1 a2 f12 lt lf)))))))
     
 let _ = register_native
-  "Native.Prelude.cond_wf"
+  cond_wf_qid
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_wf_lib
-          	  
+
+let acond c a lt lf = cond_impl c a ~b2:(fun x -> not x) a None None lt lf
+
+let acond_qid = "Native.Prelude.acond"
+
+let acond_lib =
+  mk_tfun "type -> lens -> lens -> lens" acond_qid
+    (fun c ->
+       mk_tfun "lens -> lens -> lens" acond_qid
+         (fun a ->
+            mk_lfun "lens -> lens" acond_qid
+              (fun lt ->
+                 mk_lfun "lens" acond_qid (fun lf -> Value.L (acond c a lt lf)))))
+
+let _ = register_native
+  acond_qid
+  "type -> type -> lens -> lens -> lens"
+  acond_lib
+  
 (*************)
 (* DATABASES *)
 (*************)
 
 (* PIVOT *)
+let pivot_qid = "Native.Prelude.pivot"
 let pivot k =
   { get = 
       (fun c ->
@@ -676,11 +768,12 @@ let pivot k =
       )} 
 
 let pivot_lib = 
-  F (function
-       | N k -> L (pivot k)
-       | _ -> focal_type_error "Native.Prelude.pivot")
+  mk_nfun "lens" pivot_qid (fun k -> L(pivot k))
     
-let _ = register_native "Native.Prelude.pivot" "name -> lens" pivot_lib
+let _ = register_native 
+  pivot_qid 
+  "name -> lens" 
+  pivot_lib
   
 (* JOIN *)
 (* Dan Spoonhower's outer join *)
@@ -688,6 +781,7 @@ let _ = register_native "Native.Prelude.pivot" "name -> lens" pivot_lib
    it correct so using lots of lets and explicit match statements for
    readability.  let's clean it up later -nate
 *)
+let join_qid = "Native.Prelude.join"
 let join m1 m2 = 
   { get = 
       (fun c ->
@@ -753,19 +847,17 @@ let join m1 m2 =
   }
 
 let join_lib = 
-  F (function 
-       | N n1 -> 
-	   F (function 
-		| N n2 -> L (join n1 n2)
-		| _ -> focal_type_error "Native.Prelude.join")
-       | _ -> focal_type_error "Native.Prelude.join")
-    
-let _ = register_native "Native.Prelude.join" "name -> name -> lens" join_lib
+  mk_nfun "name -> lens" join_qid 
+    (fun n1 -> mk_nfun "lens" join_qid 
+       (fun n2 -> L (join n1 n2)))
+
+let _ = register_native join_qid "name -> name -> lens" join_lib
 
 (* FLATTEN *)
+let flatten_qid = "Native.Prelude.flatten"
 let flatten =   
   let rec get = function 
-      c -> 
+      c -> 	
 	if V.is_empty_list c then V.empty
 	else 
 	  (* Error handling in case of ill-formed list *)
@@ -832,11 +924,12 @@ let flatten =
       
 let flatten_lib =  L flatten
 
-let _ = register_native "Native.Prelude.flatten" "lens" flatten_lib
+let _ = register_native flatten_qid "lens" flatten_lib
 
 (************)
 (* EXPLODE  *)
 (************)
+let explode_qid = "Native.Prelude.explode"
 let explode =
   let rec tree_of_string msg = function
       "" -> []
@@ -871,11 +964,12 @@ let explode =
       
 let explode_lib = L (explode)
     
-let _ = register_native "Native.Prelude.explode" "lens" explode_lib
+let _ = register_native explode_qid "lens" explode_lib
     
 (*********)
 (* SPLIT *)
 (*********)
+let split_qid = "Native.Prelude.split"
 let split =
    { get = (fun c ->
               if not (V.is_value c) then
@@ -893,10 +987,11 @@ let split =
       
 let split_lib = L (split)
     
-let _ = register_native "Native.Prelude.split" "lens" split_lib
+let _ = register_native split_qid "lens" split_lib
     
 (* PAD *)
 (* pad a list to a power of two *)
+let pad_qid = "Native.Prelude.pad"
 let pad n = 
   let nextPowerOf2 n = 
     let lg = (log (float_of_int n)) /. (log 2.0) in
@@ -924,13 +1019,12 @@ let pad n =
     }
 
 let pad_lib = 
-  F(function 
-      | N n -> L (pad n)
-      | _ -> focal_type_error "Native.Prelude.pad")
+  mk_nfun "lens" pad_qid (fun n -> L (pad n))
     
-let _ = register_native "Native.Prelude.pad" "name -> lens" pad_lib
+let _ = register_native pad_qid "name -> lens" pad_lib
   
 (* split an even list in half *)
+let even_split_qid = "Native.Prelude.even_split"
 let even_split = 
   let check_list v dir = 
     if not (V.is_list v) then 
@@ -968,7 +1062,5 @@ let even_split =
 	   | _ -> 
 	       error [`String "Native.Prelude.even_split (get): "; `View a; `String "is not a list of length two"])
       }
-
 let even_split_lib = L (even_split)
-
-let _ = register_native "Native.Prelude.even_split" "lens" even_split_lib
+let _ = register_native even_split_qid "lens" even_split_lib

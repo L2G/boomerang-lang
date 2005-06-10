@@ -2,7 +2,7 @@
 (* The Harmony Project                                   *)
 (* harmony@lists.seas.upenn.edu                          *)
 (*********************************************************)
-(* $Id: Makefile 378 2005-06-04 18:08:36Z bcpierce $ *)
+(* $Id$ *)
 
 (** {2 Registry of Focal values } *)
 
@@ -22,9 +22,6 @@ val string_of_rv : rv -> string
 (** [string_of_rv r] Returns a string representing [r] *)
 
 (** {2 Library} *)
-
-val parse_qid : string -> Syntax.qid
-(** Returns a [Syntax.qid] qualified name from a string *)
 
 val pre_ctx : Syntax.qid list
 

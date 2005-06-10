@@ -11,19 +11,16 @@
 type pos = int * int
 (** An [Info.pos] represents a pin-point location in a file *)
 
-type t = pos * pos
-(** [t] represents a location that spans a chunk of a file *)
-
-val dummy : t
-(** [dummy] is a dummy location *)
+type t = I of pos * pos | M of string
+(** [t] represents a location that spans a chunk of a file, or a message if no precise location is available. *)
 
 val string_of_t : t -> string 
 (** [string_of_t] pretty prints a location for easy parsing by [compile-mode] in [emacs] *)
   
 val merge_inc : t -> t -> t
 (** [merge_inc i1 i2] merges the locations [i1] and [i2] into a new
-    location; includes the endpoints *)
+    location; includes the endpoints. Only defined for [I]. *)
 
 val merge_exc : t -> t -> t
 (** [merge_exc i1 i2] merges the locations [i1] and [i2] into a new
-    location; excludes the endpoints *)
+    location; excludes the endpoints. Only defined for [I]. *)

@@ -19,28 +19,11 @@ let sort_of_rv (s,v) = s
 let string_of_rv rv = 
   let (s,v) = rv in    
     Printf.sprintf "%s:%s" (Value.string_of_t v) (Syntax.string_of_sort s)
-
-(* utility functions for parsing *)      
-(* FIXME: these could live somewhere else, but dependencies make it
-   difficult *)
-let parse_qid s =     
-  let lexbuf = Lexing.from_string s in
-    Lexer.setup "qid constant";
-    let q = Parser.qid Lexer.main lexbuf in
-      Lexer.finish ();
-      q
-
-let parse_sort s =
-  let lexbuf = Lexing.from_string s in
-    Lexer.setup "sort constant";
-    let (i,st) = Parser.sort Lexer.main lexbuf in
-      Lexer.finish ();
-      st
 	
 (* --------------- Focal library -------------- *)
 
 (* constants *)
-let pre_ctx = List.map parse_qid ["Prelude"]
+let pre_ctx = List.map Value.parse_qid ["Prelude"]
 
 (* state *)
 let loaded = ref []
@@ -67,8 +50,8 @@ let register q r = library := (Env.update (!library) q r)
   
 (* register a native function *)
 let register_native qs ss v = 
-  let q = parse_qid qs in
-  let s = parse_sort ss in
+  let q = Value.parse_qid qs in
+  let s = Value.parse_sort ss in
     register q (s,v)
 	  
 (* register a whole (rv Env.t) in m *)
@@ -110,10 +93,10 @@ let load ns =
 	match fno with 
 	  | None -> false
 	  | Some fn ->
-	      prerr_string (Printf.sprintf "[ loading %s]\n%!" fn);
+	      prerr_string (Printf.sprintf "[loading %s]\n%!" fn);
 	      loaded := ns::(!loaded); 
 	      (!compile_file_impl) fn ns;
-	      prerr_string (Printf.sprintf "[ loaded %s]\n%!" fn);
+	      prerr_string (Printf.sprintf "[loaded %s]\n%!" fn);
 
 	      true
       end

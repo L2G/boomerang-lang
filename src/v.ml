@@ -34,8 +34,11 @@ let get (VI m) k =
   with
   | Not_found -> None
 
-let get_required ((VI m) as v) k = Name.Map.find k m
-      
+let get_required ((VI m) as v) k = 
+  try 
+    Name.Map.find k m
+  with Not_found -> raise (Illformed (Printf.sprintf "get_required %s failed." k, [v]))
+  
 (* ----------------------------------------------------------------------
  * Creators
  *)

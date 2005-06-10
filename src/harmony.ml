@@ -5,27 +5,23 @@ let debug = Trace.debug "harmony"
 let failwith s = prerr_endline s; exit 1
 
 let lookup qid_str = 
-  Registry.lookup_library (Registry.parse_qid qid_str)
+  Registry.lookup_library (Value.parse_qid qid_str)
 	  
 let lookup_lens qid_str =
   match lookup qid_str with
       None -> failwith (Printf.sprintf "%s not found" qid_str)
     | Some rv -> 
-	begin
-	  match Registry.value_of_rv rv with
-	      Value.L l -> l
-	    | _ -> failwith (Printf.sprintf "%s is not a lens" qid_str)
-	end
+	Value.get_lens 
+	  (Info.M (Printf.sprintf "%s is not a lens" qid_str))
+	  (Registry.value_of_rv rv)
 
-let lookup_type qid_str = 
+let lookup_type qid_str =
   match lookup qid_str with
       None -> failwith (Printf.sprintf "%s not found" qid_str)
     | Some rv -> 
-	begin
-	  match Registry.value_of_rv rv with
-	      Value.T t -> t
-	    | _ -> failwith (Printf.sprintf "%s is not a type" qid_str)
-	end
+	Value.get_type 
+	  (Info.M (Printf.sprintf "%s is not a type" qid_str))
+	  (Registry.value_of_rv rv)
 
 let read_view fn = 
   let (fn, ekeyo) = Surveyor.parse_filename fn in
@@ -214,3 +210,4 @@ let _ =
 	failwith (Printf.sprintf "V.Illformed: %s %s"
 		    s
 		    (Misc.concat_list ", " (Safelist.map V.string_of_t m)))
+	  
