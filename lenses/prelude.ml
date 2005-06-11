@@ -50,7 +50,6 @@ let _ = register_native empty_qid "type" empty_lib
 
 (* read *)
 let read_qid = "Native.Prelude.read"
-
 let read fn = 
   let fn = match find_filename fn with
       None -> error [`String (read_qid^": cannot locate " ^ fn)]
@@ -59,10 +58,8 @@ let read fn =
       Misc.read fn 
     with 
 	_ -> raise (Error.Native_error (read_qid^": error reading " ^ fn))
-	  
 let read_lib =
   mk_nfun "name" read_qid (fun fn -> Value.N (read fn))
-
 let _ = register_native read_qid "name -> name" read_lib
 
 (* load *)  
@@ -74,12 +71,10 @@ let load_lib =
   mk_nfun "name -> view" load_qid
   (fun ekey -> mk_nfun "view" load_qid
               (fun blob -> Value.V (load ekey blob)))
-
 let _ = register_native load_qid "name -> name -> view" load_lib
 
 (* load_file *)
 let load_file_qid = "Native.Prelude.load_file"
-
 let load_file fn = 
   let (fn,ekeyo) = Surveyor.parse_filename fn in
   let contents = read fn in
@@ -89,48 +84,37 @@ let load_file fn =
     with Error.Fatal_error m -> raise (Error.Native_error m)
   in     
     load ekey (contents)
-      
 let load_file_lib =
   mk_nfun "view" load_file_qid (fun fn -> Value.V (load_file fn))
-
 let _ = register_native load_file_qid "name -> view" load_file_lib
 
 (* get *)
 let get_qid = "Native.Prelude.get"
-
 let get l c = Lens.get l c
-
 let get_lib =
   mk_lfun "view -> view" get_qid
     (fun l ->
        mk_vfun "view" get_qid (fun c -> Value.V (get l c)))
-
 let _ = register_native get_qid "lens -> view -> view" get_lib
 
 (* put *)
 let put_qid = "Native.Prelude.put"
-
 let put l a c = Lens.put l a (Some c)
-
 let put_lib =
   mk_lfun "view -> view -> view" put_qid
     (fun l ->
        mk_vfun "view -> view" put_qid
          (fun a ->
             mk_vfun "view" put_qid (fun c -> Value.V (put l a c))))
-
 let _ = register_native put_qid "lens -> view -> view -> view" put_lib
 
 (* create *)
 let create_qid = "Native.Prelude.create"
-
 let create l a = Lens.put l a None
-
 let create_lib =
   mk_lfun "view -> view" create_qid
     (fun l -> mk_vfun "view" create_qid
                 (fun a -> Value.V (create l a)))
-
 let _ = register_native create_qid "lens -> view -> view" create_lib
 
 (* sync *)
@@ -168,7 +152,6 @@ let _ = register_native sync_qid "lens -> lens -> lens -> type -> view -> view" 
 
 (* PROBE *)
 let probe_qid = "Native.Prelude.probe"
-
 let probe msg = 
   { get = (fun c ->
      Format.printf "@,@[<v0>%s (get) @,  " msg;
@@ -188,16 +171,13 @@ let probe msg =
      Format.printf "@,@]";
      Format.print_flush ();
      a)}
-  
 let probe_lib = 
   mk_nfun "lens" probe_qid
     (fun n -> Value.L (probe n))
-
 let _ = register_native probe_qid "name -> lens" probe_lib
 
 (* TRACE *)
 let trace_qid = "Native.Prelude.trace"
-
 let trace msg = 
   { get = (fun c ->
 	     Format.printf "%s (get)" msg;
@@ -206,47 +186,37 @@ let trace msg =
     put = (fun a co ->     
 	     Format.printf "%s (put)" msg;
 	     Format.print_flush ();
-	     a)
-  }
-  
+	     a)}
 let trace_lib = 
   mk_nfun "lens" trace_qid
     (fun n -> Value.L (trace n))
-
 let _ = register_native trace_qid "name -> lens" trace_lib
 	
 (* TRACEPOINT *)
 let tracepoint_qid = "Native.Prelude.tracepoint"
-
 let tracepoint = Lens.tracepoint
-
 let tracepoint_lib = 
   mk_nfun "lens -> lens" tracepoint_qid
     (fun n ->
        mk_lfun "lens" tracepoint_qid (fun l -> Value.L (tracepoint n l)))
 let _ = register_native tracepoint_qid "name -> lens -> lens" tracepoint_lib
 
-
 (* INVERT *)
 (* flip the direction -- only for bijective lenses! *)
 let invert_qid = "Native.Prelude.invert"
-
 let invert l = 
   { get = (fun c -> l.put c None);
     put = (fun a _ -> l.get a) }
-    
 let invert_lib = 
   mk_lfun "lens" invert_qid (fun l -> Value.L (invert l))
-
 let _ = register_native invert_qid "lens -> lens" invert_lib
 
 (* ASSERT *)
-let assert_qid = "Native.Prelude.assert" 
-
 let no_assert = Prefs.createBool "no-assert" false
   "don't check assertions"
   "don't check assertions"
 
+let assert_qid = "Native.Prelude.assert" 
 let assert_native t = 
   let check_assert dir v t = 
     if (not (Prefs.read no_assert))
@@ -259,31 +229,25 @@ let assert_native t =
   in          
     { get = ( fun c -> check_assert "get" c t; c);
       put = ( fun a _ -> check_assert "put" a t; a) }
-      
 let assert_lib = 
   mk_tfun "lens" assert_qid 
-    (fun t -> L (assert_native t))
-    
+    (fun t -> L (assert_native t))    
 let _ = register_native assert_qid "type -> lens" assert_lib
-      
+
 (******************)
 (* Generic Lenses *)
 (******************)
 
 (*** ID ***)
 let id_qid = "Native.Prelude.id"
-
 let id =
   { get = (fun c -> c);
     put = (fun a co -> a)}
-
 let id_lib = L id
-
 let _ = register_native id_qid "lens" id_lib
 	  
 (*** CONST ***)
 let const_qid = "Native.Prelude.const"
-
 let const v d =
   { get = (fun c -> v);
     put = (fun a co ->
@@ -298,25 +262,21 @@ let const_lib =
   mk_vfun "view -> lens" const_qid
     (fun v ->
        mk_vfun "lens" const_qid (fun d -> Value.L (const v d)))
-  
 let _ = register_native const_qid "view -> view -> lens" const_lib
 	  
 (*** COMPOSE2 ***)
 let compose2_qid = "Native.Prelude.compose2"
-
 let compose2 l1 l2 = 
   let l1 = memoize_lens l1 in
     { get = (fun c -> (l2.get (l1.get c)));
       put = (fun a co -> 
 	       match co with
 		 | None -> l1.put (l2.put a None) None
-		 | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}
-      
+		 | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}      
 let compose2_lib = 
   mk_lfun "lens -> lens" compose2_qid
     (fun l1 ->
        mk_lfun "lens" compose2_qid (fun l2 -> Value.L (compose2 l1 l2)))
-    
 let _ = register_native compose2_qid "lens -> lens -> lens" compose2_lib
 
 (********************)
@@ -328,7 +288,6 @@ let _ = register_native compose2_qid "lens -> lens -> lens" compose2_lib
    of the sub-lens which is bad for memoization and causes too 
    much consing... *)
 let map_qid = "Native.Prelude.map"
-          
 let map l = 
   { get = (fun c ->
 	     let binds =
@@ -357,13 +316,11 @@ let map l =
 (* map - library interface *)
 let map_lib = 
   mk_lfun "lens" map_qid (fun l -> Value.L (map l))
-
 let _ = register_native map_qid "lens -> lens" map_lib
 	  
 (*** WMAP ***)
 (* wmap - native interface *)
 let wmap_qid = "Native.Prelude.wmap"
-
 let wmap (l0 : Value.t -> Value.t) : (V.t, V.t) Lens.t = 
   let l =
     let memo = Hashtbl.create 11 in
@@ -394,30 +351,13 @@ let wmap (l0 : Value.t -> Value.t) : (V.t, V.t) Lens.t =
 		     | _ -> assert false
 		   end)::bindacc)
   	       a [] in
-	     V.create_star cbinds)}
-      
-(* wmap - library interface *)
+	     V.create_star cbinds)}      
 let wmap_lib = 
-  mk_ffun "name -> lens" "lens" wmap_qid (fun m -> Value.L (wmap m))
-    
-(* (\* wmap - unit tests *\) *)
-(* let wmap_unit_tests =  *)
-(*   let m = M (fun n -> if n = "y" then const a b else id) in *)
-(*     [ test_get_eq [m] "{}" (\*=*\) "{}" *)
-(*     ; test_get_eq [m] "{x={} y=[1 2 3]}" (\*=*\) "{x={} y={a={}}}" *)
-(*     ; test_put_eq [m] "{}" None (\*=*\) "{}" *)
-(*     ; test_put_eq [m] "{}" (Some "{x={} y=[1 2 3]}") (\*=*\) "{}" *)
-(*     ; test_put_eq [m] "{x={} y={a={}}}" None (\*=*\) "{x={} y={b={}}}" *)
-(*     ; test_put_eq [m] "{x={a={}}}" (Some "{x={} y=[1 2 3]}") (\*=*\) "{x={a={}}}" *)
-(*     ; test_put_eq [m] "{y={a={}}}" (Some"{x={} y=[1 2 3]}") (\*=*\) "{y=[1 2 3]}" *)
-(*     ; test_put_eq [m] "{y={a={}} z={c={}}}" (Some "{x={} y=[1 2 3]}") (\*=*\) "{y=[1 2 3] z={c={}}}" *)
-(*     ] *)
-      
+  mk_ffun "name -> lens" "lens" wmap_qid (fun m -> Value.L (wmap m))      
 let _ = register_native wmap_qid "(name -> lens) -> lens" wmap_lib
   
 (* XFORK *)
 let xfork_qid = "Native.Prelude.xfork"
-
 let xfork pcv pav l1 l2 =
   (* FIXME: check that pcv and pca have height <= 1? *)
   let dom_pcv = V.dom pcv in
@@ -453,7 +393,6 @@ let xfork pcv pav l1 l2 =
 			`String "satisfying pc"; 
 			`View c2'];
 	       V.concat c1' c2')}
-
 let xfork_lib = 
   mk_vfun "view -> lens -> lens -> lens" xfork_qid
     (fun pcv ->
@@ -462,12 +401,10 @@ let xfork_lib =
             mk_lfun "lens -> lens" xfork_qid
               (fun l1 ->
                  mk_lfun "lens" xfork_qid (fun l2 -> Value.L (xfork pcv pav l1 l2)))))
-          
 let _ = register_native xfork_qid "view -> view -> lens -> lens -> lens" xfork_lib
 	  
 (* HOIST *)
 let hoist_qid = "Native.Prelude.hoist"
-
 let hoist k =
   { get = 
       (fun c ->
@@ -481,15 +418,12 @@ let hoist k =
     put = 
       (fun a _ -> 
 	 V.set V.empty k (Some a)) }
-
 let hoist_lib = 
-  mk_nfun "lens" hoist_qid (fun k -> Value.L (hoist k))
-    
+  mk_nfun "lens" hoist_qid (fun k -> Value.L (hoist k))    
 let _ = register_native hoist_qid "name -> lens" hoist_lib
 
 (* PLUNGE *)
 let plunge_qid = "Native.Prelude.plunge"
-
 let plunge k =
   { get = (fun c -> V.set V.empty k (Some c));
     put = (fun a _ -> 
@@ -499,11 +433,9 @@ let plunge k =
 		    `Name k; 
 		    `String ")"; 
 		    `View a];
-	     V.get_required a k)}
-    
+	     V.get_required a k)}    
 let plunge_lib = 
-  mk_nfun "lens" plunge_qid (fun k -> Value.L (plunge k))
-    
+  mk_nfun "lens" plunge_qid (fun k -> Value.L (plunge k))    
 let _ = register_native plunge_qid "name -> lens" plunge_lib
 	  
 (******************)
@@ -511,7 +443,6 @@ let _ = register_native plunge_qid "name -> lens" plunge_lib
 (******************)
 (* COPY *)
 let copy_qid = "Native.Prelude.copy"
-
 let copy m n =
   { get = 
       (fun c -> 
@@ -539,17 +470,14 @@ let copy m n =
 		  `String " and ";
 		  `Name n;
 		  `View a]) }
-
 let copy_lib =
   mk_nfun "name -> lens" copy_qid
     (fun m ->
        mk_nfun "lens" copy_qid (fun n -> Value.L (copy m n)))
-
 let _ = register_native copy_qid "name -> name -> lens" copy_lib
 
 (* MERGE *)
-let merge_qid = "Native.Prelude.merge"
-                  
+let merge_qid = "Native.Prelude.merge"                  
 let merge m n =
   { get = (fun c -> V.set c n None) ;
     put = 
@@ -572,14 +500,11 @@ let merge m n =
 	       in
 		 if (eqCmCn) 
 		 then V.set a n (V.get a m)
-		 else V.set a n cno)
-  }
-
+		 else V.set a n cno)}
 let merge_lib =
   mk_nfun "name -> lens" merge_qid
     (fun m ->
        mk_nfun "lens" merge_qid (fun n -> Value.L (merge m n)))
-    
 let _ = register_native merge_qid "name -> name -> lens" merge_lib
 
 (****************)
@@ -588,7 +513,6 @@ let _ = register_native merge_qid "name -> name -> lens" merge_lib
 	    
 (* COND *)
 let cond_qid = "Native.Prelude.cond"
-
 let cond_impl c ?(b1=fun x -> x) a1 ?(b2=fun x -> x) a2 f21o f12o lt lf =
   { get = 
       (fun cv ->
@@ -628,12 +552,10 @@ let cond_impl c ?(b1=fun x -> x) a1 ?(b2=fun x -> x) a2 f21o f12o lt lf =
 	     `String "(put): the abstract view does not satisfy a1 or a2:";
 	     `View a ]
       )}
-
 let cond_ff c a1 a2 f21 f12 lt lf = cond_impl c a1 a2 (Some f21) (Some f12) lt lf 
 let cond_ww c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf
 let cond_fw c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
 let cond_wf c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
-
 let cond_ff_lib =
   mk_tfun "type -> type -> lens -> lens -> lens -> lens -> lens" cond_qid
     (fun c ->
@@ -648,14 +570,11 @@ let cond_ff_lib =
                            mk_lfun "lens -> lens" cond_qid
                              (fun lt -> mk_lfun "lens" cond_qid 
                                           (fun lf -> Value.L (cond_ff c a1 a2 f21 f12 lt lf))))))))
-
 let _ = register_native
   cond_qid
   "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
   cond_ff_lib
-
 let cond_ww_qid = "Native.Prelude.cond_ww"
-
 let cond_ww_lib =
   mk_tfun "type -> type -> lens -> lens -> lens" cond_ww_qid
     (fun c ->
@@ -666,14 +585,11 @@ let cond_ww_lib =
                  mk_lfun "lens -> lens" cond_ww_qid
                    (fun lt -> mk_lfun "lens" cond_ww_qid 
                       (fun lf -> Value.L (cond_ww c a1 a2 lt lf))))))
-
 let _ = register_native
   cond_ww_qid
   "type -> type -> type -> lens -> lens -> lens"
   cond_ww_lib
-
 let cond_fw_qid = "Native.Prelude.cond_fw"
-
 let cond_fw_lib =
   mk_tfun "type -> type -> lens -> lens -> lens -> lens" cond_fw_qid
     (fun c ->
@@ -685,15 +601,12 @@ let cond_fw_lib =
                    (fun f21 ->
                       mk_lfun "lens -> lens" cond_fw_qid
                         (fun lt -> mk_lfun "lens" cond_fw_qid 
-                           (fun lf -> Value.L (cond_fw c a1 a2 f21 lt lf)))))))
-    
+                           (fun lf -> Value.L (cond_fw c a1 a2 f21 lt lf)))))))    
 let _ = register_native
   cond_fw_qid
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_fw_lib
-
 let cond_wf_qid = "Native.Prelude.cond_wf"
-
 let cond_wf_lib =
   mk_tfun "type -> type -> lens -> lens -> lens -> lens" cond_wf_qid
     (fun c ->
@@ -706,16 +619,14 @@ let cond_wf_lib =
                       mk_lfun "lens -> lens" cond_wf_qid
                         (fun lt -> mk_lfun "lens" cond_wf_qid 
                            (fun lf -> Value.L (cond_wf c a1 a2 f12 lt lf)))))))
-    
 let _ = register_native
   cond_wf_qid
   "type -> type -> type -> lens -> lens -> lens -> lens"
   cond_wf_lib
 
+(* ACOND *)
 let acond c a lt lf = cond_impl c a ~b2:(fun x -> not x) a None None lt lf
-
 let acond_qid = "Native.Prelude.acond"
-
 let acond_lib =
   mk_tfun "type -> lens -> lens -> lens" acond_qid
     (fun c ->
@@ -724,7 +635,6 @@ let acond_lib =
             mk_lfun "lens -> lens" acond_qid
               (fun lt ->
                  mk_lfun "lens" acond_qid (fun lf -> Value.L (acond c a lt lf)))))
-
 let _ = register_native
   acond_qid
   "type -> type -> lens -> lens -> lens"
@@ -766,10 +676,8 @@ let pivot k =
 	     else
 	       V.set w k (Some (V.new_value ak))
       )} 
-
 let pivot_lib = 
-  mk_nfun "lens" pivot_qid (fun k -> L(pivot k))
-    
+  mk_nfun "lens" pivot_qid (fun k -> L(pivot k))    
 let _ = register_native 
   pivot_qid 
   "name -> lens" 
@@ -845,12 +753,10 @@ let join m1 m2 =
 	   compute_unjoin a init 
       )
   }
-
 let join_lib = 
   mk_nfun "name -> lens" join_qid 
     (fun n1 -> mk_nfun "lens" join_qid 
        (fun n2 -> L (join n1 n2)))
-
 let _ = register_native join_qid "name -> name -> lens" join_lib
 
 (* FLATTEN *)
@@ -921,9 +827,7 @@ let flatten =
   in
     {get = get ;
      put = put }
-      
 let flatten_lib =  L flatten
-
 let _ = register_native flatten_qid "lens" flatten_lib
 
 (************)
@@ -963,7 +867,6 @@ let explode =
     }
       
 let explode_lib = L (explode)
-    
 let _ = register_native explode_qid "lens" explode_lib
     
 (*********)
@@ -986,7 +889,6 @@ let split =
              V.new_value (String.concat "\n" lines)) }
       
 let split_lib = L (split)
-    
 let _ = register_native split_qid "lens" split_lib
     
 (* PAD *)
@@ -1014,13 +916,8 @@ let pad n =
 	   V.structure_from_list 
 	     (Safelist.filter 
 		(fun v -> not (V.equal pad_view v))
-		(V.list_from_structure a))
-	)
-    }
-
-let pad_lib = 
-  mk_nfun "lens" pad_qid (fun n -> L (pad n))
-    
+		(V.list_from_structure a)))}
+let pad_lib = mk_nfun "lens" pad_qid (fun n -> L (pad n))    
 let _ = register_native pad_qid "name -> lens" pad_lib
   
 (* split an even list in half *)
@@ -1043,24 +940,31 @@ let even_split =
 		   if i = 0 then (Safelist.rev acc, l)
 		   else match l with 
 		       h::t -> loop t (h::acc) (i-1)
-		     | [] -> 	   error [`String "Native.Prelude.even_split (get): "; `View c; `String "does not have even length"]
+		     | [] -> error 
+			 [`String "Native.Prelude.even_split (get): ";
+			  `View c;
+			  `String "does not have even length"]
 		 in
-		 let (l1,l2) = loop l [] (n/2) in
-		 let vl1 = V.structure_from_list l1 in
-		 let vl2 = V.structure_from_list l2 in
-		   V.structure_from_list [vl1;vl2] 
-	       end);    
-    put = 
-      (fun a co -> 
-	 check_list a "put";
-	 match V.list_from_structure a with
-	     [] -> a
-	   | [l1;l2] -> 
-	       check_list l1 "put";
-	       check_list l2 "put";
-	       V.structure_from_list ((V.list_from_structure l1) @ (V.list_from_structure l2))
-	   | _ -> 
-	       error [`String "Native.Prelude.even_split (get): "; `View a; `String "is not a list of length two"])
-      }
+		   let (l1,l2) = loop l [] (n/2) in
+		   let vl1 = V.structure_from_list l1 in
+		   let vl2 = V.structure_from_list l2 in
+		     V.structure_from_list [vl1;vl2] 
+		 end);    
+      put = 
+	(fun a co -> 
+	   check_list a "put";
+	   match V.list_from_structure a with
+	       [] -> a
+	     | [l1;l2] -> 
+		 check_list l1 "put";
+		 check_list l2 "put";
+		 V.structure_from_list ((V.list_from_structure l1) @ (V.list_from_structure l2))
+	     | _ -> 
+		 error 
+		   [`String "Native.Prelude.even_split (get): "
+		   ; `Space
+		   ; `View a
+		   ; `Space
+		   ; `String "is not a list of length two"])}
 let even_split_lib = L (even_split)
 let _ = register_native even_split_qid "lens" even_split_lib

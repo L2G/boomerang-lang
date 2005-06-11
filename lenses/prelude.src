@@ -48,7 +48,7 @@ concrete tree if there is one, and the default tree \(d\) otherwise.
 \LENSSECTION{[}
 \finish{Not sure how to describe the \PUT{} direction or what unit tests are
 useful to show.}
-##test (id; id) / {a} = {a}
+##test (id; id) /\ {a} = {a}
 ##test (id; const {a} {b}) / {} = {a}
 ##test (const {a} {b}; const {b} {a}) / {} = {b}
 ##test (id; const {a} {b}) \ {a} missing = {b}
@@ -62,8 +62,7 @@ useful to show.}
 The lens @map l@ applies @l@ to each of the {\em children} of the argument
 view.  
 ##let map : (lens -> lens) = Native.Prelude.map
-##test (map id) / {} = {}
-##test (map id) \ {} [{1},{2},{3}] = {}
+##test (map id) /\ {} = {}
 ##test (map id) \ {} missing = {}
 ##test (map id) / {x, y=[{1},{2},{3}]} = {x, y=[{1},{2},{3}]}
 ##test (map (const {a} {b})) / {x, y=[{1},{2},{3}]} = {x={a}, y={a}}
@@ -101,24 +100,24 @@ test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {} missing = error
 test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a} missing = error
 
 #@\LENSSECTION{hoist}
-let hoist : (name -> lens) = Native.Prelude.hoist
-test (hoist "n") / {n={a}} = {a}
-test (hoist "n") / {a} = error
-test (hoist "n") \ {a} missing = {n={a}}
-test (hoist "n") \ {a} {} = {n={a}}
-test (hoist "n") \ {} missing = {n}
+#* let hoist : (name -> lens) = Native.Prelude.hoist
+#* test (hoist "n") /\ {n} = {}
+#* test (hoist "n") /\ {n={a}} = {a}
+#* test (hoist "n") / {} = error
+#* test (hoist "n") / {a} = error
+#* test (hoist "n") \ {a} missing = {n={a}}
+#* test (hoist "n") \ {} missing = {n}
 
 #@\LENSSECTION{plunge}
-(* This is just (invert hoist), no? *)
-let plunge : (name -> lens) = Native.Prelude.plunge 
-test (plunge "n") / {a} = {n={a}}
-test (plunge "n") / {} = {n}
-test (plunge "n") \ {n={a}} missing = {a}
-test (plunge "n") \ {n={a}} {} = {a}
-test (plunge "n") \ {n} {a} = {}
-test (plunge "n") \ {a} missing = error
-test (plunge "n") \ {a} {} = error
-test (plunge "n") \ {n,a} missing = error
+#* let plunge (n:name) : lens = invert (hoist n)
+#* test (plunge "n") /\ {a} = {n={a}}
+#* test (plunge "n") /\ {} = {n}
+#* test (plunge "n") \ {n={a}} missing = {a}
+#* test (plunge "n") \ {n={a}} {} = {a}
+#* test (plunge "n") \ {n} {a} = {}
+#* test (plunge "n") \ {a} missing = error
+#* test (plunge "n") \ {a} {} = error
+#* test (plunge "n") \ {n,a} missing = error
 
 #@\LENSSECTION{cond}
 let cond : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
