@@ -90,9 +90,11 @@ sync with caps_headers at (List.T Any)
    ...so for now we do: *)   
 
 
-(* let NestedListOfValues : type = List.Nil | { `List.HD=({!\(`List.HD,`List.TL,`List.NIL)=Any} | NestedListOfValues), `List.TL=NestedListOfValues} *)
+let NestedListOfValues : type = List.Nil | { `List.HD=({! \ (`List.HD,`List.TL,`List.NIL)=Any} | NestedListOfValues), `List.TL=NestedListOfValues}
 
+(* 
 let NestedListOfValues : type = List.T (List.Cons Value (List.T (List.Cons Value (List.T Value) )))
+*)
 
 (******************************************************************************)
 (* Some useful instances packaged for invoking from the command line... *)

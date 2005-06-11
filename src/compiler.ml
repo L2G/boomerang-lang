@@ -474,12 +474,13 @@ let rec compile_exp cev e0 =
 		      let thunk () = 
 			let f = match force v1 with
 			    Value.F(_,f) -> f
-			  | _   -> run_error i (fun () -> "expected function at left-hand side of application")
+			  | _   -> run_error i 
+			      (fun () -> "expected function at left-hand side of application")
 			in
 			  f v2
 		      in
 			mk_rv return_sort (Value.T(Value.App(i,v1,v2,thunk)))
-		    else		      		      
+		    else
 		      begin match v1 with
 			  Value.F(_,f) -> mk_rv return_sort (f v2)
 			| _   -> run_error i (fun () -> "expected function at left-hand side of application")
@@ -853,7 +854,7 @@ let compile_file fn n =
     if (n <> m_str) then
       sort_error 
 	(info_of_module ast)
-	(fun () -> sprintf "module %s must appear in a file named %s.fcl"
+	(fun () -> sprintf "module %s must appear in a file named %s.fcl."
 	   m_str (String.uncapitalize m_str))
   in
   let ast = check_module ast in 

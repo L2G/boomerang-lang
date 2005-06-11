@@ -9,7 +9,7 @@
 let debug = Trace.debug "registry"
 
 let verbose_flag =
-  Prefs.createBool "verbose" true
+  Prefs.createBool "verbose" false
     "display more information"
     "display more information"
 let _ = Prefs.alias verbose_flag "v"
@@ -104,6 +104,7 @@ let load ns =
 	match fno with 
 	  | None -> false
 	  | Some fn ->
+	      verbose (fun () -> (Printf.eprintf "[loading %s ...]\n%!" fn));
 	      loaded := ns::(!loaded); 
 	      (!compile_file_impl) fn ns;
 	      verbose (fun () -> (Printf.eprintf "[loaded %s]\n%!" fn));

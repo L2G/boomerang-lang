@@ -114,20 +114,16 @@ let accumulate oldacc k = function
 (* w.r.t. docs/simple.txt *)
 
 let rec sync' (t:Type.t) archo lefto righto =
-  debug (fun()->Printf.eprintf "sync'...\n%!");
   let assert_member v t = 
-    debug (fun()->Printf.eprintf "assert_member...\n%!");
-    if (not (try (Type.member v t)
-	     with Not_found -> assert false))
+    if (not (Type.member v t))
     then
-      begin Format.printf "ERROR: \n view\n\t";
-	V.format v;
-	Format.printf 
-	  "\n is not in type\n\t%s.\n" 
-	  (Type.string_of_t t);
-	raise (Error.Fatal_error ("Synchronization error: view is not a member of the type."))
+      begin 
+	Lens.error [`String "Synchronziation error: "; `Break
+		   ; `View v; `Break
+		   ; `String " does not belong to "; `Break
+		   ; `String (Value.string_of_ty t)
+		   ; `String "."]
       end
-    else debug (fun()->Printf.eprintf "done assert_member...\n%!");
   in    
     match (archo, lefto, righto) with
       | _   , None, None -> (MarkEqual, None, None, None)
@@ -164,29 +160,17 @@ let rec sync' (t:Type.t) archo lefto righto =
 	    let actbinds, arbinds, lbinds, rbinds = 	      
 	      Name.Set.fold
 		(fun k (actacc, aracc, lacc, racc) ->
-		   let tk = 
-		     (match 
-			wraptrace 
-			  (Printf.sprintf "project %s from %s" k (Type.string_of_t t)) 
-			  (fun()-> Type.project t k) 
-		      with
-			  None ->
-			    (* can't happen since every child k is either in  *)
-			    (* either dom(a) or dom(b), both of which are in  *)
-                            (* T, as we just checked. For debugging, here's a *)
-                            (* helpful error message                          *)
-			    (Format.printf "ERROR:\nty = %s\n cannot be projected on k=%s\n" 
-			       (Type.string_of_t t) k;
-			     Format.printf "\no = ";
-			     (match archo with
-				  None -> Format.printf "NONE"
-				| Some o -> V.format o);
-			     Format.printf "\na = ";
-			     V.format lv;
-			     Format.printf "\nb = ";
-			     V.format rv);
-			    assert false
-			| Some tk -> tk)
+		   let tk = match Type.project t k with
+		       None ->
+			 (* can't happen since every child k is either in  *)
+			 (* either dom(a) or dom(b), both of which are in  *)
+                         (* T, as we just checked. For debugging, here's a *)
+                         (* helpful error message                          *)
+			 Lens.error [`String "synchronization error: type "
+			       ; `String (Type.string_of_t t)
+			       ; `String " cannot be projected on "
+			       ; `String k]
+		     | Some tk -> tk
 		   in
 		   let act, archo', lefto', righto' =
 		     sync 
@@ -208,17 +192,14 @@ let rec sync' (t:Type.t) archo lefto righto =
 	      (V.from_list lbinds),
 	      (V.from_list rbinds)		
 	    in
-              debug (fun()->Printf.eprintf "here 1...\n%!");
 	      let tdoms  = Type.tdoms t in
-              debug (fun()->Printf.eprintf "here 2...\n%!");
 	      let a'_in_tdoms = Type.vdom_in_tdoms (V.dom a') tdoms in
 	      let b'_in_tdoms = Type.vdom_in_tdoms (V.dom b') tdoms in
-              debug (fun()->Printf.eprintf "here 3...\n%!");
               if a'_in_tdoms && b'_in_tdoms then
 		(GoDown(Safelist.fold_left
-			    (fun acc (k, act) -> Name.Map.add k act acc)
-			    Name.Map.empty
-			    acts),
+			  (fun acc (k, act) -> Name.Map.add k act acc)
+			  Name.Map.empty
+			  acts),
 		 Some o',
 		 Some a',
 		 Some b')

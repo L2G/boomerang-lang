@@ -34,18 +34,20 @@ let sort_of_t = function
 
 (* pretty print *)
 let rec string_of_t = function
-    N(n) -> "N " ^ n
-  | T(t) -> "T " ^ (string_of_ty t)
-  | V(v) -> "V " ^ (V.string_of_t v)
-  | L(l) -> "L <lens>"
-  | F(s,_) -> Printf.sprintf "F <%s fun>" (Syntax.string_of_sort s)
+    N(n)   -> n
+  | T(t)   -> (string_of_ty t)
+  | V(v)   -> (V.string_of_t v)
+  | L(l)   -> "<lens>"
+  | F(s,_) -> Printf.sprintf "<%s fun>" (Syntax.string_of_sort s)
       
 and string_of_ty = function
     Empty(_) -> "Empty"
   | Any(_) -> "Any"
-  | Var (_,x,_)    -> Syntax.string_of_qid x
-  | App(_,t1,t2,_) -> Printf.sprintf "<delayed application %s %s>" (string_of_t t1) (string_of_t t2)
-  | Atom(_,n,t) -> Printf.sprintf "%s = %s" n (string_of_ty t)
+  | Var (_,x,thk) -> Syntax.string_of_qid x
+  | App(_,t1,t2,_) -> 
+      Printf.sprintf "(%s %s)" (string_of_t t1) (string_of_t t2)
+  | Atom(_,n,t) -> 
+      Printf.sprintf "%s = %s" n (string_of_ty t)
   | Bang(_,f,t)  -> 
       Printf.sprintf "!%s = %s"
 	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))

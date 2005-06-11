@@ -136,8 +136,6 @@ let _ = register_native create_qid "lens -> view -> view" create_lib
 (* sync *)
 let sync_qid = "Native.Prelude._sync"
 let sync lo la lb typ orig = 
-  let p f = f () in
-  let _ = Printf.eprintf "welcome to sync %s\n%!" (V.string_of_t orig) in
   let co,ca,cb =
     try
       (V.get_required orig "O", V.get_required orig "A", V.get_required orig "B")
@@ -148,14 +146,11 @@ let sync lo la lb typ orig =
 			   ; `String "should have children 'O', 'A', and 'B'"
 			   ] in
   let ao,aa,ab = (Lens.get lo co, Lens.get la ca, Lens.get lb cb) in
-  let _ = p (fun () -> Printf.eprintf "get is done\n%!") in
   let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) in
-  let _ = p (fun () -> Printf.eprintf "sync is done\n%!") in
   let (ao',aa',ab') = match (ao',aa',ab') with 
       Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') 
     | _ -> assert false in
-  let co',ca',cb' = (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb)) in
-  let _ = p (fun () -> Printf.eprintf "put is done\n%!") in
+  let co',ca',cb' = (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb)) in	
     V.from_list [("O", co'); ("A",ca'); ("B",cb')]
       
 let sync_lib = mk_lfun "lens -> lens -> type -> view -> view" sync_qid 

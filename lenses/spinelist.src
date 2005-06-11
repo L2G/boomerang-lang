@@ -6,7 +6,7 @@ module Spinelist =
 (***********************************************************************)
 (* "Spine lists" *)
 
-let T (X:type) : type = List.Nil | {!\`List.TL=X, `List.TL=(T X)}
+let T (X:type) : type = [] | {!\(`List.TL,`List.NIL)=X, `List.TL=(T X)}
 
 let KeyedList (X:type) : type = List.T {!\`List.TL=X}
 
@@ -30,16 +30,19 @@ sync with id at (List.T {!=Value})
     A = [{a={FOO}},{c={baz}}],
     B = [{a={FOO}},{c={baz}},{c={URG}}] }
     
-(* NOT WORKING BECAUSE OF TYPES BUG
-
 (* With spine lists, the result is happier... *)
 sync with spinelist at (T Value)
-  { O = [{a=foo},{b=bar},{c=baz}],
-    A = [{a=FOO},{c=baz}],
-    B = [{a=foo},{b=bar},{c=URG}] }
-  = 
-  { O = [{a=FOO},{b=bar},{c=baz}],
-    A = [{a=FOO},{c=baz}],
-    B = [{a=FOO},{b=bar},{c=URG}] }
-    
+    { O = [{a={foo}},{b={bar}},{c={baz}}],
+      A = [{a={FOO}},{c={baz}}],
+      B = [{a={foo}},{b={bar}},{c={URG}}] }
+    = 
+  {A = [{a = {FOO}}, {c = {baz}}],     
+   B = [{a = {FOO}}, {c = {baz}}, {c = {URG}}],
+   O = [{a = {FOO}}, {c = {baz}}, {c = {baz}}]}
+
+(* who calculated this?? *)
+(* 
+  { O = [{a={FOO}},{b={bar}},{c={baz}}],
+    A = [{a={FOO}},{c={baz}}],
+    B = [{a={FOO}},{b={bar}},{c={URG}}] }
 *)
