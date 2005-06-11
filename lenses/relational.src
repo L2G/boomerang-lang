@@ -220,17 +220,71 @@ The lens @inter R S T@ replaces the relations @R@ and @S@ by a new relation
 ##let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
 ##let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
 
-##let join : (name -> name -> name -> lens) = Native.Relational.join
-##let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
-##let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
+\LENSSECTION{join}
+The lens @join R S T@ replaces the relations @R@ and @S@ by a new relation @T@
+containing the inner join of @R@ and @S@.  The join is performed on the fields
+in the two tables that share the same name.
 
+##let join : (name -> name -> name -> lens) = Native.Relational.join
+
+The inner join is simply a cross product when the two tables share no column
+names.
+#{*}
+test join "R" "S" "T" /
+       {R = [{A = {1}},
+             {A = {2}}],
+        S = [{B = {3}},
+             {B = {4}}]}
+     = {T = [{A = {1}, B = {3}},
+             {A = {1}, B = {4}},
+             {A = {2}, B = {3}},
+             {A = {2}, B = {4}}]}
+#{@}
+If the two tables both have the same set of column names, an inner join is
+equivalent to an intersection operation.
+#{*}
+test join "R" "S" "T" /
+       {R = [{A = {1}},
+             {A = {2}}],
+        S = [{A = {1}},
+             {A = {3}}]}
+     = {T = [{A = {1}}]}
+#{@}
+A more complex join can occur when there is some overlap in the set of column
+names in each table.
 #{*}
 test join "R" "S" "T" /
        {R = [{A = {1}, B = {3}},
+             {A = {1}, B = {4}},
              {A = {2}, B = {3}}],
         S = [{A = {1}, C = {5}}]}
-     = {T = [{A = {1}, B = {3}, C = {5}}]}
+     = {T = [{A = {1}, B = {3}, C = {5}},
+             {A = {1}, B = {4}, C = {5}}]}
 #{@}
+The \PUT{} direction of this lens is not total on the domain of all tables
+with the same field names as the resulting table @T@, since a single table
+entry in @R@ or @S@ may become duplicated across several rows in @T@.
+When the overlapping fields of @R@ and @S@ form a satisfactory key for both of
+them, there is no harm in freely modifiying the abstract view.  New entries
+in @T@ result in new entries in both @R@ and @S@.  Deletions from @T@ result
+in a deletion from both @R@ and @S@ because this is a symmetric version of
+@join@.
+#{*}
+test join "R" "S" "T" \
+       {T = [{A = {2}, B = {5}, C = {8}},
+             {A = {4}, B = {6}, C = {7}}]}
+       {R = [{A = {1}, B = {5}},
+             {A = {2}, B = {6}}],
+        S = [{A = {1}, C = {7}},
+             {A = {3}, C = {8}}]}
+     = {R = [{A = {2}, B = {5}},
+             {A = {4}, B = {6}}],
+        S = [{A = {2}, C = {8}},
+             {A = {4}, C = {7}}]}
+#{@}
+
+##let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
+##let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
 
 ##let ojoin : (view -> view -> name -> name -> name -> lens) =
 ##  Native.Relational.ojoin

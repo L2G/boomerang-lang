@@ -217,17 +217,20 @@ let generic_join f =
     c1 **~ c2
   and putfun a co =
     let rev_join (c1, c2) =
+      let sflds = list_inter (R.fields c1) (R.fields c2) in
       let free_deletions = (c1 **~ c2) --~ a in
       let left = R.fold
-        (take_dir Left f) free_deletions (R.create (R.fields free_deletions)) in
-      let right = R.fold
-        (take_dir Right f) free_deletions (R.create (R.fields free_deletions)) in
-      let both = R.fold
+        (take_dir Left f) free_deletions (R.create (R.fields free_deletions))
+      and right = R.fold
+        (take_dir Right f) free_deletions (R.create (R.fields free_deletions))
+      and both = R.fold
         (take_dir Both f) free_deletions (R.create (R.fields free_deletions)) in
       let proj1 = R.project (R.fields c1) in
       let proj2 = R.project (R.fields c2) in
-      ((proj1 a ||~ c1) --~ proj1 (left ||~ both),
-        (proj2 a ||~ c2) --~ proj2 (right ||~ both))
+      ((proj1 a ||~ (c1 **~ ((a >>~ sflds) --~ (c1 >>~ sflds))))
+          --~ proj1 (left ||~ both),
+        (proj2 a ||~ (c2 **~ ((a >>~ sflds) --~ (c2 >>~ sflds))))
+           --~ proj2 (right ||~ both))
     in
     match co with
     | None -> let empty = R.create (R.fields a) in rev_join (empty, empty)
