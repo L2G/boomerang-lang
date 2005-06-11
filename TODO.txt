@@ -7,6 +7,7 @@ continue with prelude.src and friends
 look at address book stuff and reintegrate
 work with stephane on unison integration
 finish structured text demo (integrate spinelists) after nate's new types
+examples/experimental Makefiles should calculate subdirs
 
 NATE TASKS
 why, again, do fork and friends take views, not types?
@@ -22,6 +23,12 @@ delete old (uncurried) concrete syntax of put tests
 
 ALAN TASKS
 have a new kind of names: "+" which is "!,*"
+
+INITIAL RELEASE (TO SOME SUBSET OF...)
+Miles Sabin <miles@milessabin.com>
+Jerome Simeon
+Alain Frisch
+Geoff
 
 ------------
 
