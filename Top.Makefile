@@ -78,6 +78,14 @@ t: buildharmony test
 updateall:
 	cd $(TOP); svn update
 
+buildtags:
+	$(MAKE) clean
+	(cd $(TOP); \
+	 etags `find . -name "*.src" \
+	           -or -name "*.ml" \
+	           -or -name "*.mli" \
+	           -or -name "*Makefile*"`)
+
 
 ####################################################################
 # Personalization

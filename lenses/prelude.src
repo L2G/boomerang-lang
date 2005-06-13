@@ -12,8 +12,12 @@ let invert : (lens -> lens) = Native.Prelude.invert
 
 \subsection{Predefined Schemas}
 
-\finish{These need documentation.}
+\LENSSECTION{Any}
+The schema @Any@ includes all trees.
+
 ##let Any : type = Native.Prelude.Any
+
+and @Empty@ describe
 ##let Empty : type = Native.Prelude.Empty
 
 The @Value@ schema describes views with just one child pointing to an empty
