@@ -6,8 +6,9 @@ and need not be qualified with a module name.
 #{#}
 module Prelude = 
 
-(* Documentation for this comes at the end, but we use it earlier: *)
+(* Documentation for these comes later, but we need to use them earlier: *)
 let invert : (lens -> lens) = Native.Prelude.invert
+#* let hoist : (name -> lens) = Native.Prelude.hoist
 #{@}
 
 \subsection{Predefined Schemas}
@@ -25,7 +26,7 @@ The schema @Value@ describes trees with just one child pointing to an empty
 tree:
 #*let Value : schema = {!=Any}
 
-\subsection{Basic Lenses}
+\subsection{Generic Lenses}
 
 \LENSSECTION{id}
 The \LN{id} lens returns its concrete argument unchanged in the \GET{} 
@@ -55,20 +56,70 @@ semicolon.  In the \GET{} direction, @l;k@ simply applies the \GET{}
 component of @l@ followed by the \GET{} component of @k@.  In the other
 direction, the two {\PUT} functions are applied in turn: first, the {\PUT}
 function of @k@ is used to put the abstract tree $a$ into the concrete tree
-that the {\GET} of @k@ was applied to, i.e., $l \lget{c}$; the result of
+that the {\GET} of @k@ was applied to, i.e., $@l@ \lget{c}$; the result of
 this \PUT{} is then put into $c$ using the {\PUT} function of @l@.  (If the
-concrete tree $c$ is @missing@, then, $l \lget{c}$ is also defined to be
-@missing@, so the effect of $(@l;k@){a}{\missing}$ is to use @k@ to put $a$
-into @missing@ and then @l@ to put the result into @missing@.)
+concrete tree $c$ is @missing@, then, $@l@ \lget{c}$ is also defined to be
+@missing@, so the effect of $@l;k@ \lputn a\ @missing@$ is to use @k@ to put
+$a$ into @missing@ and then @l@ to put the result into @missing@.)
+#*test (hoist "x"; hoist "y") / \ {x = {y = {z}}} = {z}
+A similar test case using two instances of @const@ illustrates the strong
+schema constraint imposed by @const@ (the second argument of the
+second @const@ {\em must} be @{d}@).
 ##test (id; id) /\ {a} = {a}
 ##test (id; const {a} {d}) / {} = {a}
 #*test (const {a} {d}; const {b} {a}) / {} = {b}
 ##test (id; const {a} {b}) \ {a} missing = {b}
 ##test (id; const {a} {b}) \ {a} {} = {}
+#*test (const {a} {d}; const {b} {a}) \ {b} {foo,bar} = {foo,bar}
 #*test (const {a} {d}; const {b} {a}) \ {b} missing = {d}
-##test (const {a} {d}; const {b} {a}) \ {b} {} = {}
+#*test (const {a} {d}; const {b} {foo}) \ {b} missing = error
 
-\finish{Stopped here!}
+\subsection{Tree Lenses}
+
+#@\LENSSECTION{hoist}
+The lens \LN{hoist} $n$ is used to shorten a tree by removing an edge at
+the top.  In the {\GET} direction, it expects a tree that has exactly one
+child, named $n$.  It returns this child, removing the edge $n$. In the
+\PUT{} direction, the value of the old concrete tree is ignored and a new
+one is created, with a single edge $n$ pointing to the given abstract tree.
+%
+##(* Actually defined above *)
+#*test (hoist "n") /\ {n} = {}
+#*test (hoist "n") /\ {n={a}} = {a}
+It is an error to apply \LN{hoist} $n$ to a concrete tree whose domain is
+not exactly $n$.
+#*test (hoist "n") / {} = error
+#*test (hoist "n") / {a} = error
+##test (hoist "n") \ {a} missing = {n={a}}
+##test (hoist "n") \ {} missing = {n}
+
+#@\LENSSECTION{plunge}
+The lens @plunge n@ can be defined as 
+#* let plunge (n:name) : lens = invert (hoist n)
+using the @invert@ lens operator defined below.  It is the exact inverse of
+@hoist n@.  
+#*test (plunge "n") /\ {a} = {n={a}}
+## test (plunge "n") /\ {} = {n}
+## test (plunge "n") \ {n={a}} missing = {a}
+## test (plunge "n") \ {n={a}} {} = {a}
+## test (plunge "n") \ {n} {a} = {}
+## test (plunge "n") \ {a} missing = error
+## test (plunge "n") \ {a} {} = error
+## test (plunge "n") \ {n,a} missing = error
+
+#@\LENSSECTION{xfork}
+##let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {y} = {a,b}
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {} = {a,b}
+##test (xfork {x} {a} (const {a} {x}) id) / {x,y} = {a,y}
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {} = {a,b}
+##test (xfork {x} {a} (const {a} {x}) id) / {} = {a}
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a,b} {} = {}
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a,b} {b} = {b}
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a,b} missing = {a,x}
+##test (xfork {x} {a} (const {b} {a}) id) / {} = error
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {} missing = error
+##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a} missing = error
 
 \LENSSECTION{map}
 The lens @map l@ applies @l@ to each of the {\em children} of the argument
@@ -82,54 +133,22 @@ tree.
 ##test (map (const {a} {b})) \ {x={a}, y={a}} {y=[{1},{2},{3}]} = {x={b}, y=[{1},{2},{3}]}
 ##test (map (const {a} {b})) \ {x={c}} missing = error
 
-#{#}
-
 #@\LENSSECTION{wmap}
-let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
-test (wmap { y -> const {a} {b}}) / {} = {}
-test (wmap { y -> const {a} {b}}) \ {} missing = {}
-test (wmap { y -> const {a} {b}}) \ {} {1,2,3} = {}
-test (wmap { y -> const {a} {b}}) / {x, y={1,2,3}} = {x, y={a}}
-test (wmap { y -> const {a} {b}}) \ {x, y={a}} missing = {x, y={b}}
-test (wmap { y -> const {a} {b}}) \ {x={a}} {x,y=[{1},{2},{3}]} = {x={a}}
-test (wmap { y -> const {a} {b}}) \ {y={a}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}]}
-test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}], z={c}}
+##let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
+##test (wmap { y -> const {a} {b}}) / {} = {}
+##test (wmap { y -> const {a} {b}}) \ {} missing = {}
+##test (wmap { y -> const {a} {b}}) \ {} {1,2,3} = {}
+##test (wmap { y -> const {a} {b}}) / {x, y={1,2,3}} = {x, y={a}}
+##test (wmap { y -> const {a} {b}}) \ {x, y={a}} missing = {x, y={b}}
+##test (wmap { y -> const {a} {b}}) \ {x={a}} {x,y=[{1},{2},{3}]} = {x={a}}
+##test (wmap { y -> const {a} {b}}) \ {y={a}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}]}
+##test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}], z={c}}
 
 #@\finish{Is there a wildcard?}
 
-#@\LENSSECTION{xfork}
-let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {y} = {a,b}
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {} = {a,b}
-test (xfork {x} {a} (const {a} {x}) id) / {x,y} = {a,y}
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {} = {a,b}
-test (xfork {x} {a} (const {a} {x}) id) / {} = {a}
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a,b} {} = {}
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a,b} {b} = {b}
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a,b} missing = {a,x}
-test (xfork {x} {a} (const {b} {a}) id) / {} = error
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {} missing = error
-test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a} missing = error
+\subsection{Conditionals}
 
-#@\LENSSECTION{hoist}
-#* let hoist : (name -> lens) = Native.Prelude.hoist
-#* test (hoist "n") /\ {n} = {}
-#* test (hoist "n") /\ {n={a}} = {a}
-#* test (hoist "n") / {} = error
-#* test (hoist "n") / {a} = error
-#* test (hoist "n") \ {a} missing = {n={a}}
-#* test (hoist "n") \ {} missing = {n}
-
-#@\LENSSECTION{plunge}
-#* let plunge (n:name) : lens = invert (hoist n)
-#* test (plunge "n") /\ {a} = {n={a}}
-#* test (plunge "n") /\ {} = {n}
-#* test (plunge "n") \ {n={a}} missing = {a}
-#* test (plunge "n") \ {n={a}} {} = {a}
-#* test (plunge "n") \ {n} {a} = {}
-#* test (plunge "n") \ {a} missing = error
-#* test (plunge "n") \ {a} {} = error
-#* test (plunge "n") \ {n,a} missing = error
+#{#}
 
 #@\LENSSECTION{cond}
 let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
