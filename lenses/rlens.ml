@@ -223,7 +223,8 @@ let generic_join f =
       let shflds = list_inter lflds rflds in
       let additions =
         (* records that were inserted into the abstract view *)
-        a --~ (c1 **~ c2) in
+        a --~ (c1 **~ c2)
+      in
       let mod_left =
         (* a projection on the shared fields of the records in the left
          * concrete table that should be modified based upon additions in the
@@ -233,16 +234,19 @@ let generic_join f =
         (* a projection on the shared fields of the records in the right
          * concrete table that should be modified based upon additions in the
          * abstract view *)
-        (additions >>~ shflds) &&~ (c2 >>~ shflds) in
+        (additions >>~ shflds) &&~ (c2 >>~ shflds)
+      in
       let add_left =
         (* records that should be added to the left concrete table *)
         additions >>~ lflds
       and add_right =
-        (* records that should be added to the left concrete table *)
-        additions >>~ rflds in
+        (* records that should be added to the right concrete table *)
+        additions >>~ rflds
+      in
       let deletions =
         (* records that were removed from the abstract view *)
-        (c1 **~ c2) --~ a in
+        (c1 **~ c2) --~ a
+      in
       let del_left =
         (* records that should be removed from the left concrete table *)
         ((R.fold (take_dir Left f) deletions empty_abs) >>~ lflds) ||~
@@ -263,32 +267,44 @@ let generic_join f =
 (* Outer Join *)
 
 let generic_ojoin dl dr b =
+  let ( ***~ ) = outer_join dl dr in
   let getfun (c1, c2) =
-    outer_join dl dr c1 c2
+    c1 ***~ c2
   and putfun a co =
+    let empty_abs = R.create (R.fields a) in
     let rev_join (c1, c2) =
-      let additions = a --~ outer_join dl dr c1 c2 in
-      let left_additions =
-        additions &&~
-        ((additions >>~ list_inter (R.fields c1) (R.fields c2)) **~ dr) in
-      let right_additions =
-        additions &&~
-        ((additions >>~ list_inter (R.fields c1) (R.fields c2)) **~ dl) in
-      let free_additions =
-        additions --~ (left_additions ||~ right_additions) in
-      let left = R.fold
-        (take_dir Left b) free_additions (R.create (R.fields free_additions)) in
-      let right = R.fold
-        (take_dir Right b) free_additions (R.create (R.fields free_additions)) in
-      let both = R.fold
-        (take_dir Both b) free_additions (R.create (R.fields free_additions)) in
-      let proj1 = R.project (R.fields c1) in
-      let proj2 = R.project (R.fields c2) in
-      ((proj1 a &&~ c1) ||~ proj1 (left_additions ||~ left ||~ both),
-        (proj2 a &&~ c1) ||~ proj2 (right_additions ||~ right ||~ both))
+      let lflds = R.fields c1
+      and rflds = R.fields c2 in
+      let shflds = list_inter lflds rflds in
+      let additions =
+        (* records that were inserted into the abstract view *)
+        a --~ (c1 ***~ c2)
+      in
+      let add_left_only =
+        (* records that must only be added to the left concrete table *)
+        additions &&~ ((additions >>~ shflds) **~ dr)
+      and add_right_only =
+        (* records that must only be added to the right concrete table *)
+        additions &&~ ((additions >>~ shflds) **~ dl)
+      in
+      let add_either =
+        (* records that may be added to either concrete table *)
+        additions --~ (add_left_only ||~ add_right_only)
+      in
+      let add_left =
+        (* records that should be added to the left concrete table *)
+        (add_left_only ||~
+          (R.fold (take_dir Left b) add_either empty_abs)) >>~ lflds
+      and add_right =
+        (* records that should be added to the right concrete table *)
+        (add_right_only ||~
+          (R.fold (take_dir Right b) add_either empty_abs)) >>~ rflds
+      in
+      ((c1 &&~ (a >>~ lflds)) ||~ (add_left >>~ lflds),
+       (c2 &&~ (a >>~ rflds)) ||~ (add_right >>~ rflds))
     in
     match co with
-    | None -> let empty = R.create (R.fields a) in rev_join (empty, empty)
+    | None -> rev_join (empty_abs, empty_abs)
     | Some(c) -> rev_join c
   in
   mk_lens "<relational outer join>" getfun putfun

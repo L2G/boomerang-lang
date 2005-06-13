@@ -10,15 +10,21 @@
 
 \finish{Explain conventions.}
 
-\LENSSECTION{rename}
-The lens @rename A B R S@ renames the field @A@ to @B@ in the
-table @R@ and gives the altered table the name @S@.  The \PUT{}
-direction does the converse.
-
-%% Convention: 
-%%    R,S,T  relations
+%% Convention for trees representing relations: 
+%%    R,S  relations
 %%    A,B,C  columns
-%%    a,b,c,1,2,3  data
+%%    1,2,3  data
+%% Convention for meta-variables:
+%%    r,s,t  names of relations
+%%    a,b  names of columns
+%%    x,y  data
+%%    D,E  relations
+%%    P,Q  views that provide sets of names
+
+\LENSSECTION{rename}
+The lens @rename a b r s@ renames the field @a@ to @b@ in the table named @r@
+and replaces it with an updated table under the name @s@.  The \PUT{}
+direction does the converse.
 
 ##let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
 
@@ -305,8 +311,51 @@ test join "R" "S" "T" \
              {A = {4}, C = {7}}]}
 #{@}
 
+\LENSSECTION{joinl}
+The lens @joinl R S T@ is an asymmetric variant of @join R S T@ that
+propagates deletions in @T@ only to @R@.
+
 ##let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
+
+#{*}
+test joinl "R" "S" "T" \
+       {T = [{A = {2}, B = {5}, C = {8}},
+             {A = {4}, B = {6}, C = {7}}]}
+       {R = [{A = {1}, B = {5}},
+             {A = {2}, B = {6}}],
+        S = [{A = {1}, C = {7}},
+             {A = {3}, C = {8}}]}
+     = {R = [{A = {2}, B = {5}},
+             {A = {4}, B = {6}}],
+        S = [{A = {1}, C = {7}},
+             {A = {2}, C = {8}},
+             {A = {3}, C = {8}},
+             {A = {4}, C = {7}}]}
+#{@}
+
+\LENSSECTION{joinr}
+Similarly, @joinr R S T@ propagates deletions only to @S@.
+
 ##let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
+
+#{*}
+test joinr "R" "S" "T" \
+       {T = [{A = {2}, B = {5}, C = {8}},
+             {A = {4}, B = {6}, C = {7}}]}
+       {R = [{A = {1}, B = {5}},
+             {A = {2}, B = {6}}],
+        S = [{A = {1}, C = {7}},
+             {A = {3}, C = {8}}]}
+     = {R = [{A = {1}, B = {5}},
+             {A = {2}, B = {5}},
+             {A = {4}, B = {6}}],
+        S = [{A = {2}, C = {8}},
+             {A = {3}, C = {8}},
+             {A = {4}, C = {7}}]}
+#{@}
+
+\LENSSECTION{ojoin}
+The lens @ojoin D E@
 
 ##let ojoin : (view -> view -> name -> name -> name -> lens) =
 ##  Native.Relational.ojoin
