@@ -11,16 +11,28 @@ put GPL notice in files
 finish title page (discuss)
 
 NATE TASKS
-why, again, do fork and friends take views, not types?
-  - because I haven't gotten to changing it over --JNF
-    but we should do this, to get negation of views too... 
-add docs to registry.mli and other compiler modules
-fix this printing problem:
-      Native.Prelude.assert(get): view
-        [X, [A, b], [C]]
-      is not a member of ({hd = H, tl = T} | nil = {})
-  (note the H and T in the last line...)
-delete old (uncurried) concrete syntax of put tests
+
+NATE TASKS
+     NOW
+	  fix meta
+	  
+	  centralize errors
+
+	  eliminate contractiveness tests?
+	  
+          add docs to registry.mli and other compiler modules
+	  fix this printing problem:
+	        Native.Prelude.assert(get): view
+		        [X, [A, b], [C]]
+			      is not a member of ({hd = H, tl = T} | nil = {})
+	  (note the H and T in the last line...)
+	  This is really two things:
+	  (1) fix formatting of types (and everything else)
+	  and (2) have member print a better error message pinpointing the 
+	  view and type that made it fail.
+
+     LATER
+	make fork and friends take types
 
 INITIAL RELEASE (TO SOME SUBSET OF...)
 Miles Sabin <miles@milessabin.com>
