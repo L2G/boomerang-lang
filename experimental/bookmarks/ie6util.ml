@@ -87,10 +87,10 @@ let rec bookmark_to_desc : (bookmark -> V.desc) =
 	in
 	V.V [("link",link)]
 
-let bookmark_to_view : (bookmark -> V.t) =
+let bookmark_to_tree : (bookmark -> V.t) =
   fun bkmark -> V.from_desc ( bookmark_to_desc bkmark )
       
-let rec bookmark_from_view : (V.t -> bookmark list) = function t ->
+let rec bookmark_from_tree : (V.t -> bookmark list) = function t ->
   let linklists = V.list_from_structure t in
   List.map 
     (fun t -> match V.singleton_dom t with
@@ -98,9 +98,9 @@ let rec bookmark_from_view : (V.t -> bookmark list) = function t ->
 	let folder = V.get_required t "folder" in
 	let name = V.get_required folder "name" in
 	let contents = V.get_required folder "contents" in
-	Folder(V.get_value name, false, bookmark_from_view contents)
+	Folder(V.get_value name, false, bookmark_from_tree contents)
     | "link" ->
-	let url_from_view t =
+	let url_from_tree t =
 	  let by2 t =
 	    V.fold (fun name v acc -> (name, V.get_value v)::acc) t []
 	  in
@@ -112,7 +112,7 @@ let rec bookmark_from_view : (V.t -> bookmark list) = function t ->
 	let name = V.get_required link "name" in
 	let url =
 	  match V.get link "url" with
-	    Some urlt -> Url (url_from_view urlt)
+	    Some urlt -> Url (url_from_tree urlt)
 	  | None -> NotUrl (V.get_value (V.get_required link "noturl"))	in
 	File (V.get_value name, url)
     | _ -> assert false
@@ -186,7 +186,7 @@ let readBookmarkFolder : (string -> bookmark) =
 
 (* let myBookmarks = readBookmarkFolder favdir;; *)
 
-(* let myBookmarksView = bookmark_to_meta myBookmarks;; *)
+(* let myBookmarksTree = bookmark_to_meta myBookmarks;; *)
       
 let rec printLines tag = function
     (a,b) :: q -> (printLines tag q)^(Printf.sprintf "%s=%s\013\n" a b)
@@ -229,7 +229,7 @@ let write_bookmark bl newdir =
   writeBookmarkFolder (Folder(newdir, true, bl))
     
 let read_bookmark file =
-  bookmark_to_view (readBookmarkFolder file)
+  bookmark_to_tree (readBookmarkFolder file)
     
 let dump_to_meta t f =
   let outc = open_out f in
@@ -250,7 +250,7 @@ let _ = match Array.length (Sys.argv) with
 	   Printf.printf "[ie6util] Bookmark folder %s successfully dumped into %s\n" dir dest)
       |	"put" ->
 	  let src = Sys.argv.(2) and newdir = Sys.argv.(3) in
-	  (write_bookmark (bookmark_from_view (read_from_meta src)) newdir;
+	  (write_bookmark (bookmark_from_tree (read_from_meta src)) newdir;
 	   Printf. printf "[ie6util] Bookmark folder %s successfully created from %s\n" newdir src)
       |	_ -> prerr_endline usage
     end

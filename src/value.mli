@@ -11,7 +11,7 @@ type t =
     N of Name.t                 (* names *)
   | L of (V.t, V.t) Lens.t      (* lenses *)      
   | T of ty                     (* types *)
-  | V of V.t                    (* views *)
+  | V of V.t                    (* trees *)
   | F of Syntax.sort * (t -> t)               (* functions *)
 (** The type of run-time representations of types *)
 and ty = 
@@ -41,8 +41,8 @@ val focal_type_error : Info.t -> Syntax.sort -> t -> 'a
 val get_type : Info.t -> t -> ty
 (** [get_type i v] extracts the [ty] from [v], converting it from [V.t] if needed. Prints an error message at [i] on failure. *)
 
-val get_view : Info.t -> t -> V.t
-(** [get_view i v] extracts the [V.t] from [v]. Prints an error message at [i] on failure. *)
+val get_tree : Info.t -> t -> V.t
+(** [get_tree i v] extracts the [V.t] from [v]. Prints an error message at [i] on failure. *)
 
 val get_lens : Info.t -> t -> (V.t, V.t) Lens.t
 (** [get_lens i v] extracts the [(V.t, V.t) Lens.t] from [v]. Prints an error message at [i] on failure. *)
@@ -57,7 +57,7 @@ val mk_nfun : string -> string -> (Name.t -> t) -> t
 (** [mk_nfun return_sort msg f] create a function from names to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
 
 val mk_vfun : string -> string -> (V.t -> t) -> t
-(** [mk_vfun return_sort msg f] create a function from views to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
+(** [mk_vfun return_sort msg f] create a function from trees to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
 
 val mk_lfun : string -> string -> ((V.t,V.t) Lens.t -> t) -> t
 (** [mk_lfun return_sort msg f] create a function from lenses to [return_sort] using [f], displaying [msg] if runtime failure occurs *)

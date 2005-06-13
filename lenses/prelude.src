@@ -13,16 +13,17 @@ let invert : (lens -> lens) = Native.Prelude.invert
 \subsection{Predefined Schemas}
 
 \LENSSECTION{Any}
-The schema @Any@ includes all trees.
+The schema @Any@ denotes the set of all trees.
+##let Any : schema = Native.Prelude.Any
 
-##let Any : type = Native.Prelude.Any
+\LENSSECTION{Empty}
+The schema @Empty@ denotes the empty set of trees.
+##let Empty : schema = Native.Prelude.Empty
 
-and @Empty@ describe
-##let Empty : type = Native.Prelude.Empty
-
-The @Value@ schema describes views with just one child pointing to an empty
-view.  
-#*let Value : type = {!=Any}
+\LENSSECTION{Value}
+The schema @Value@ describes trees with just one child pointing to an empty
+tree:
+#*let Value : schema = {!=Any}
 
 \subsection{Basic Lenses}
 
@@ -34,7 +35,7 @@ direction and its abstract argument unchanged in the \PUT{} direction.
 #*test id / \ {a={b}} = {a={b}}
 
 \LENSSECTION{const}
-##let const : (view -> view -> lens) = Native.Prelude.const
+##let const : (tree -> tree -> lens) = Native.Prelude.const
 The lens \LN{const} \(t\) \(d\)  always return the tree \(t\) in the \GET{} 
 direction. 
 #*test const {a} {b} / {} = {a}
@@ -49,22 +50,29 @@ concrete tree if there is one, and the default tree \(d\) otherwise.
 #*test const {a} {b} \ {a} {c} = {c}
 #*test const {a} {b} \ {a} missing = {b}
 
-\LENSSECTION{[}
-\finish{Not sure how to describe the \PUT{} direction or what unit tests are
-useful to show.}
+\LENSSECTION{;} The lens composition operation is written as an infix
+semicolon.  In the \GET{} direction, @l;k@ simply applies the \GET{}
+component of @l@ followed by the \GET{} component of @k@.  In the other
+direction, the two {\PUT} functions are applied in turn: first, the {\PUT}
+function of @k@ is used to put the abstract tree $a$ into the concrete tree
+that the {\GET} of @k@ was applied to, i.e., $l \lget{c}$; the result of
+this \PUT{} is then put into $c$ using the {\PUT} function of @l@.  (If the
+concrete tree $c$ is @missing@, then, $l \lget{c}$ is also defined to be
+@missing@, so the effect of $(@l;k@){a}{\missing}$ is to use @k@ to put $a$
+into @missing@ and then @l@ to put the result into @missing@.)
 ##test (id; id) /\ {a} = {a}
-##test (id; const {a} {b}) / {} = {a}
-##test (const {a} {b}; const {b} {a}) / {} = {b}
+##test (id; const {a} {d}) / {} = {a}
+#*test (const {a} {d}; const {b} {a}) / {} = {b}
 ##test (id; const {a} {b}) \ {a} missing = {b}
 ##test (id; const {a} {b}) \ {a} {} = {}
-##test (const {a} {b}; const {b} {a}) \ {b} missing = {b}
-##test (const {a} {b}; const {b} {a}) \ {b} {} = {}
+#*test (const {a} {d}; const {b} {a}) \ {b} missing = {d}
+##test (const {a} {d}; const {b} {a}) \ {b} {} = {}
 
 \finish{Stopped here!}
 
 \LENSSECTION{map}
 The lens @map l@ applies @l@ to each of the {\em children} of the argument
-view.  
+tree.  
 ##let map : (lens -> lens) = Native.Prelude.map
 ##test (map id) /\ {} = {}
 ##test (map id) \ {} missing = {}
@@ -90,7 +98,7 @@ test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1}
 #@\finish{Is there a wildcard?}
 
 #@\LENSSECTION{xfork}
-let xfork : (view -> view -> lens -> lens -> lens) = Native.Prelude.xfork
+let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
 test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {y} = {a,b}
 test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {} = {a,b}
 test (xfork {x} {a} (const {a} {x}) id) / {x,y} = {a,y}
@@ -124,10 +132,10 @@ test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a} missing = error
 #* test (plunge "n") \ {n,a} missing = error
 
 #@\LENSSECTION{cond}
-let cond : (type -> type -> type -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
-let cond_ww : (type -> type -> type -> lens -> lens -> lens) = Native.Prelude.cond_ww
-let cond_fw : (type -> type -> type -> lens -> lens -> lens -> lens) = Native.Prelude.cond_fw
-let cond_wf : (type -> type -> type -> lens -> lens -> lens -> lens) = Native.Prelude.cond_wf
+let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
+let cond_ww : (schema -> schema -> schema -> lens -> lens -> lens) = Native.Prelude.cond_ww
+let cond_fw : (schema -> schema -> schema -> lens -> lens -> lens -> lens) = Native.Prelude.cond_fw
+let cond_wf : (schema -> schema -> schema -> lens -> lens -> lens -> lens) = Native.Prelude.cond_wf
 let cond_ff = cond
 test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) / {a=[{1}]} = {a}
 test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) / {b=[{2}]} = {b}
@@ -156,7 +164,7 @@ test (merge "x" "y") \ {x={a}} {x={a}, y={b}} = {x={a}, y={b}}
 test (merge "x" "y") \ {} missing = error
 
 #@\LENSSECTION{copy}
-(* Note that this is not really useful because of the type constraint.  
+(* Note that this is not really useful because of the schema constraint.  
    But here it is, for what it's worth... *)
 let copy : (name -> name -> lens) = Native.Prelude.copy
 test (copy "x" "y") / {x={a}} = {x={a}, y={a}}
@@ -175,14 +183,14 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{fork}
 
-#*let fork (p:view) : (lens -> lens -> lens) = xfork p p
+#*let fork (p:tree) : (lens -> lens -> lens) = xfork p p
 
 #*test (fork {x} (const {b} {x}) (const {b} {b})) / {x} = error
 #*test (fork {x} (const {b} {b}) id) \ {b} {x} = error
 
 \LENSSECTION{mapp}
 
-#*let mapp (p:view) (l:lens) : lens = fork p (map l) id 
+#*let mapp (p:tree) (l:lens) : lens = fork p (map l) id 
 
 #*test (mapp {a} (const {b} {b})) / {} = {}
 #*test (mapp {a} (const {b} {b})) / {a,b={2}} = {a={b}, b={2}}
@@ -195,7 +203,7 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{filter}
 
-#*let filter (p:view) (d:view) : lens = fork p id (const {} d)
+#*let filter (p:tree) (d:tree) : lens = fork p id (const {} d)
 
 #*test (filter {x} {y}) / {} = {}
 #*test (filter {x} {y}) / {y,x} = {x}
@@ -204,7 +212,7 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{prune}
 
-#*let prune (n:name) (d:view) : lens = fork {`n} (const {} {`n=d}) id
+#*let prune (n:name) (d:tree) : lens = fork {`n} (const {} {`n=d}) id
 
 #*test (prune "a" []) / {} = {}
 #*test (prune "a" []) / {a={1}, b={2}} = {b={2}}
@@ -214,7 +222,7 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{add}
 
-#*let add (n:name) (v:view) : lens = xfork {} {`n} (const {`n=v} {}) id
+#*let add (n:name) (v:tree) : lens = xfork {} {`n} (const {`n=v} {}) id
 
 #*test (add "a" []) / {} = {a=[]}
 #*test (add "a" []) / {b} = {a=[], b}
@@ -226,7 +234,7 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{focus}
 
-#*let focus (n:name) (d:view) : lens = filter {`n} d ; hoist n
+#*let focus (n:name) (d:tree) : lens = filter {`n} d ; hoist n
 
 #*test (focus "a" {}) / {a=[{1},{2},{3}], b=[{4},{5},{6}]} = [{1},{2},{3}]
 #*test (focus "a" {}) \ {} missing = {a}
@@ -237,7 +245,7 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{hoist@_@nonunique}
 
-#*let hoist_nonunique (n:name) (p:view) : lens = xfork {`n} p (hoist n) id 
+#*let hoist_nonunique (n:name) (p:tree) : lens = xfork {`n} p (hoist n) id 
 
 #*test (hoist_nonunique "x" {a}) / {} = error
 #*test (hoist_nonunique "x" {a}) / {x={a=[]}, y=[{1},{2},{3}]} = {a=[], y=[{1},{2},{3}]}
@@ -247,7 +255,7 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{acond}
 
-#*let acond : (type -> type -> lens -> lens -> lens) = Native.Prelude.acond
+#*let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
 
 #*test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {} = {a}
 #*test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {a={1}} = {b}
@@ -256,7 +264,7 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 \LENSSECTION{ccond}
 
-#*let ccond (c:type) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+#*let ccond (c:schema) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
 
 #*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {a={1}} = {b}
 #*test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {c={2}} = {b}
@@ -304,16 +312,16 @@ Read a file into a name containing the whole file.
 
 \LENSSECTION{load}
 @load ekey blob@ parses @blob@ using the viewer identified by the encoding
-key @ekey@ and yields a view.
+key @ekey@ and yields a tree.
 
-##let load : (name -> name -> view) = Native.Prelude.load
+##let load : (name -> name -> tree) = Native.Prelude.load
 
 \LENSSECTION{load@_@file}
- @load_file name@ parses a file into a view, using the encoding key
+ @load_file name@ parses a file into a tree, using the encoding key
 specified as part of the file name or the default encoding key for this file
-type if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
+schema if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
 
-##let load_file : (name -> view) = Native.Prelude.load_file
+##let load_file : (name -> tree) = Native.Prelude.load_file
 
 \subsection{Debugging Support}
 
@@ -324,7 +332,7 @@ type if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
 ##let trace : (name -> lens) = Native.Prelude.trace
 
 \LENSSECTION{assert}
-##let assert : (type -> lens) = Native.Prelude.assert
+##let assert : (schema -> lens) = Native.Prelude.assert
 
 \LENSSECTION{tracepoint}
 ##let tracepoint : (name -> lens -> lens) = Native.Prelude.tracepoint

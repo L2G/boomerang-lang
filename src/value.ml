@@ -11,7 +11,7 @@ type t =
     N of Name.t                 (* names *)
   | L of (V.t, V.t) Lens.t      (* lenses *)      
   | T of ty                     (* types *)
-  | V of V.t                    (* views *)
+  | V of V.t                    (* trees *)
   | F of Syntax.sort * (t -> t)               (* functions *)
 and ty = 
     Empty of Info.t
@@ -101,14 +101,14 @@ let focal_type_error i es v =
 	      (Syntax.string_of_sort (sort_of_t v))
 	      (string_of_t v)))
 
-(* [type_of_view v] yields the singleton [Value.ty] containing [v] *)
-let rec type_of_view v =
+(* [type_of_tree v] yields the singleton [Value.ty] containing [v] *)
+let rec type_of_tree v =
   V.fold 
     (fun k vk t -> 
        match t with 
-	   Cat(i,ts) -> Cat(i,Atom(i,k,(type_of_view vk))::ts)
+	   Cat(i,ts) -> Cat(i,Atom(i,k,(type_of_tree vk))::ts)
 	 | _         ->
-	     raise (Error.Fatal_error("in type_of_view: reached an ill-formed type")))
+	     raise (Error.Fatal_error("in type_of_tree: reached an ill-formed type")))
     v
     (Cat(Info.M "coerced type",[]))
 
@@ -117,7 +117,7 @@ let rec type_of_view v =
 let get_type i v = 
   match v with 
       T t -> t 
-    | V v -> type_of_view v
+    | V v -> type_of_tree v
     | _ -> focal_type_error i Syntax.SSchema v
 	
 let get_name i v = 
@@ -125,7 +125,7 @@ let get_name i v =
       N n -> n 
     | _ -> focal_type_error i Syntax.SName v
 
-let get_view i v = 
+let get_tree i v = 
   match v with 
       V vi -> vi 
     | _ -> focal_type_error i Syntax.STree v
@@ -145,10 +145,10 @@ let mk_name_fun return_sort msg f =
     fun v -> f (get_name (Info.M msg) v))
 let mk_nfun s = mk_name_fun (parse_sort s)
 
-let mk_view_fun return_sort msg f = 
+let mk_tree_fun return_sort msg f = 
   F(Syntax.SArrow(Syntax.STree,return_sort),
-    fun v -> f (get_view (Info.M msg) v))
-let mk_vfun s = mk_view_fun (parse_sort s)
+    fun v -> f (get_tree (Info.M msg) v))
+let mk_vfun s = mk_tree_fun (parse_sort s)
 
 let mk_lens_fun return_sort msg f = 
   F(Syntax.SArrow(Syntax.SLens,return_sort),
@@ -171,7 +171,7 @@ let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
 (* 	 (Syntax.string_of_sort s2))  *)
 (*   in match s1,s2 with *)
 (*       _ when s1 = s2                  -> (fun v -> x) *)
-(*     | SView,SType                     -> (fun V vi -> T (type_of_view vi)  *)
+(*     | STree,SType                     -> (fun V vi -> T (type_of_tree vi)  *)
 (* 					  | _ -> err s1 s2) *)
 (*     | SArrow(s11,s12),SArrow(s21,s22) -> (fun F f -> *)
 (* 					    let c f' = fun x -> (coerce s12 s22) (f' ((coerce s22 s11) x)) in *)
@@ -184,9 +184,9 @@ let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
 (*   | SLens          -> F(function L _ as v -> f v *)
 (* 			  | _ -> focal_type_error s msg) *)
 (*   | SType          -> F(function T _ as v -> f v *)
-(* 			  | V vi -> f (T (type_of_view vi)) *)
+(* 			  | V vi -> f (T (type_of_tree vi)) *)
 (* 			  | _ -> focal_type_error s msg) *)
-(*   | SView          -> F(function V _ as v -> f v *)
+(*   | STree          -> F(function V _ as v -> f v *)
 (* 			  | _ -> focal_type_error s msg) *)
 (*   | SArrow(s1,s2)  -> F(function F _ as v -> f v *)
 (* 			  | _ -> focal_type_error s msg) *)

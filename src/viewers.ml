@@ -9,7 +9,7 @@ let metareader s =
   let _ = Metal.file_name := "meta string" in
   let lexbuf = Lexing.from_string s in        
     try 
-      (Metay.view Metal.token lexbuf) 
+      (Metay.tree Metal.token lexbuf) 
     with Parsing.Parse_error -> 
       raise (Error.Compile_error (Metal.info lexbuf, !Metal.file_name, "syntax error"))
 	
@@ -18,7 +18,7 @@ let metawriter = V.string_of_t
 let _ =
   let etest filename copt = Misc.filename_extension filename = "meta" in
   let encoding = {
-    Surveyor.description = "ASCII view format";
+    Surveyor.description = "ASCII tree format";
     Surveyor.encoding_test = etest;
     Surveyor.reader = metareader;
     Surveyor.writer = metawriter;
@@ -72,7 +72,7 @@ let escapeXmlChar = function
 	"-"
 let escapeXml = Misc.escape escapeXmlChar
 
-let rec xml2view n =
+let rec xml2tree n =
   match n # node_type with
     T_element name -> 
       debug (fun () -> Format.printf "in element \"%s\"\n" name);
@@ -84,7 +84,7 @@ let rec xml2view n =
             []
         | [n'] ->
             debug (fun () -> Format.printf "one nonblank subnode, recursing\n");
-            [xml2view n']
+            [xml2tree n']
         | ns ->
             let rec loop acc = function
                 [] -> Safelist.rev acc
@@ -93,7 +93,7 @@ let rec xml2view n =
                   loop acc ns 
               | n'::ns ->
                   debug (fun () -> Format.printf "NOT skipping blank PCDATA\n");
-                  loop ((xml2view n')::acc) ns in
+                  loop ((xml2tree n')::acc) ns in
             loop [] ns in 
       let attrkids =
         Safelist.map
@@ -121,7 +121,7 @@ let generic_read_from rd =
   try 
     let docRoot = 
       parse_wfcontent_entity config rd default_spec in
-    V.structure_from_list [xml2view docRoot]
+    V.structure_from_list [xml2tree docRoot]
   with
       e -> raise (Error.Fatal_error(Pxp_types.string_of_exn e))
 
@@ -134,16 +134,16 @@ let pcdata_only kids =
        (Name.Set.cardinal d > 0) && (Name.Set.choose d = pcdata_tag))
     kids
 
-(* assumes v is a view of the form produced by xml2view above *)
+(* assumes v is a tree of the form produced by xml2tree above *)
 let rec dump_tag fmtr v =
-  (* V.format_msg [`String "enter dump_tag"; `View v]; *)
+  (* V.format_msg [`String "enter dump_tag"; `Tree v]; *)
   (* v should have one (singleton) child, which is the tag name *)
   let dom = V.dom v in
   if ((Name.Set.cardinal dom) <> 1) then
-    V.error_msg [`String "dump_view_as_pretty_xml, should have 1 child ";
+    V.error_msg [`String "dump_tree_as_pretty_xml, should have 1 child ";
 		 `String (Printf.sprintf "(has %d): "
 			    (Name.Set.cardinal dom));
-		 `View v];
+		 `Tree v];
   let tag = Name.Set.choose dom in
   debug (fun() -> Format.printf "dump_tag %s @," (Misc.whack tag));
   if (tag = pcdata_tag) then
@@ -174,10 +174,10 @@ let rec dump_tag fmtr v =
     debug (fun() -> Format.printf "finished dump_tag %s @," (Misc.whack tag));
     Format.fprintf fmtr "</%s>@]" tag
 
-let dump_view_as_pretty_xml fmtr v =
+let dump_tree_as_pretty_xml fmtr v =
   if V.is_empty v then
     begin
-      debug (fun() -> Format.printf "writing out empty view == empty file");
+      debug (fun() -> Format.printf "writing out empty tree == empty file");
       Format.fprintf fmtr "";
     end
   else
@@ -190,7 +190,7 @@ let dump_view_as_pretty_xml fmtr v =
 let xmlwriter v =
   let buf = Buffer.create 20 in
   let fmtr = Format.formatter_of_buffer buf in
-  dump_view_as_pretty_xml fmtr v;
+  dump_tree_as_pretty_xml fmtr v;
   Format.fprintf fmtr "\n@.";
   Buffer.contents buf
 

@@ -203,9 +203,9 @@ let _ =
        ~tooltip:"Open a Focal Program"
        ~callback:(callbacks#on_open_activate) () in
 let _ = 
-  actionBar#insert_button ~text:"View"
+  actionBar#insert_button ~text:"Tree"
     ~icon:((GMisc.image ~stock:`OPEN ())#coerce)
-       ~tooltip:"Open a View"
+       ~tooltip:"Open a Tree"
        ~callback:(callbacks#on_openview_activate) () in
 let _ = 
   actionBar#insert_button ~text:"Save"

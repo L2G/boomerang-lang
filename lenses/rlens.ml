@@ -57,7 +57,7 @@ let outer_join d1 d2 r1 r2 =
 
 let mk_lens opname get put =
   let dom ls =
-    `View(V.from_list (List.map (fun x -> (x, V.empty)) ls))
+    `Tree(V.from_list (List.map (fun x -> (x, V.empty)) ls))
   in
   let trap_dom_errors f x y =
     try f x y with

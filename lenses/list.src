@@ -8,20 +8,20 @@
 
 \subsection{Names and Schemas}
 
-#*let Nil : type = Native.Prelude.Nil
-#*let Cons (X:type) (Y:type) : type = Native.Prelude.Cons X Y
-#*let T (X:type) : type = Nil | Cons X (T X)
-#*let NonEmptyList (X:type) : type = Cons X (T X)
+#*let Nil : schema = Native.Prelude.Nil
+#*let Cons (X:schema) (Y:schema) : schema = Native.Prelude.Cons X Y
+#*let T (X:schema) : schema = Nil | Cons X (T X)
+#*let NonEmptyList (X:schema) : schema = Cons X (T X)
 
 #*let HD : name = Native.Prelude.hd_tag
 #*let TL : name = Native.Prelude.tl_tag
 #*let NIL : name = Native.Prelude.nil_tag
-#*let tags : view = { `HD, `TL, `NIL }
+#*let tags : tree = { `HD, `TL, `NIL }
 
 \subsection{Lenses}
 
 \LENSSECTION{hd}
-#*let hd (d:view) : lens = focus HD { `TL = d }
+#*let hd (d:tree) : lens = focus HD { `TL = d }
 
 #*test (hd []) / [{1}] = {1}
 #*test (hd []) / [[{1}]] = [{1}]
@@ -30,7 +30,7 @@
 #*test (hd []) / [] = error
 #*
 \LENSSECTION{tl}
-#*let tl (d:view) : lens = focus TL { `HD = d }
+#*let tl (d:tree) : lens = focus TL { `HD = d }
 
 #*test (tl {}) / [{1},{2},{3}] = [{2},{3}]
 #*test (tl {}) \ [{2},{3}] missing = [{},{2},{3}]
@@ -70,7 +70,7 @@
 #*test reverse \ [{3},{2},{1}] [] = [{1},{2},{3}]
 
 \LENSSECTION{fold@_@right}
-#*let fold_right (init:view) (l:lens) : lens =
+#*let fold_right (init:tree) (l:lens) : lens =
 #*  wmap {`TL -> fold_right init l};
 #*  acond [] [init]
 #*    (const [init] [])
@@ -78,20 +78,20 @@
 
 \LENSSECTION{filter}
 
-#*let simple_filter (E:type) : lens = 
+#*let simple_filter (E:schema) : lens = 
 #*  wmap { `TL -> simple_filter E };
 #*  ccond  (E::Any)
 #*    (tl {"error"})
 #*    id
 
 #*(* filter: - note that some_D must NOT be an E *)    
-#*let filter (D:type) (E:type) (some_D:view) : lens =
-#*  let append (v:view) : lens =
+#*let filter (D:schema) (E:schema) (some_D:tree) : lens =
+#*  let append (v:tree) : lens =
 #*    acond [] [Any]
 #*      (const v {})
 #*      (wmap { `TL -> append v })
 #*  in
-#*  let filter_aux (D:type) (E:type) (some_D:view) : lens = 
+#*  let filter_aux (D:schema) (E:schema) (some_D:tree) : lens = 
 #*    cond_ff (T E) []  (D::(T D))
 #*      (plunge "_"; wmap { "_" -> filter E D {} }; hoist "_")
 #*      (append [some_D])

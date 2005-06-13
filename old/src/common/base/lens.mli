@@ -24,7 +24,7 @@ val dumpframe: stackframe -> V.msg list
 val error : V.msg list -> 'a
 
 val probe : string -> t
-(** [probe s] behaves the same as [id], but dumps out the views it sees to the
+(** [probe s] behaves the same as [id], but dumps out the trees it sees to the
     debugging stream, along with the identifying tag [s]. *)
 
 val tracepoint : string -> t -> t

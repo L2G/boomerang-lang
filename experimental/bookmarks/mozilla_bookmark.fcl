@@ -42,12 +42,12 @@ type MozConcrete = Any
 (* sync with another mozilla bookmark. To syn with another *)
 (* type of bookmark, the lens l2 should be applied instead *)
 let l =
-  let no_descr_tag : view  =
+  let no_descr_tag : tree  =
     { `(List.HD) = { "dd" = { "" = [ {"PCDATA"= {"No description"}} ] }}} in
-  let no_descr : view =
+  let no_descr : tree =
     { `(List.HD) = { "PCDATA" = {"No description"}}} in
   
-  let hoist_hd (p : view) =
+  let hoist_hd (p : tree) =
     hoist_nonunique List.HD p;
     hoist_nonunique List.TL List.tags  in
   

@@ -42,13 +42,13 @@ let mk_put_exp i l a co =
   match co with 
       None -> EApp(i, EApp(i, EVar(i, create_qid i), l), a)
     | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i), l), a), c)
-	
+        
 (* mk_sync_exp *)
 let mk_sync_exp i lo la lb t v = 
     EApp(i,EApp(i,EApp(i,EApp(i,EApp(i,EVar(i,sync_qid i),lo),la),lb),t),v)
       
-(* mk_empty_view *)
-let mk_empty_view i = ECat(i,[])
+(* mk_empty_tree *)
+let mk_empty_tree i = ECat(i,[])
 
 %}
 
@@ -82,18 +82,18 @@ decls:
   | TEST exp EQUAL test_res decls            { DTest(m $1 (fst $4), $2, snd $4)::$5 }
   | TEST composeexp SLASH BACKSLASH exp 
       EQUAL exp decls                        { let i = me2 $1 $7 in
-					       let get_test = DTest(i, mk_get_exp i $2 $5, (Some $7)) in
-					       let put_test = DTest(i, mk_put_exp i $2 $7 None, (Some $5)) in
-						 get_test::put_test::$8 }
+                                               let get_test = DTest(i, mk_get_exp i $2 $5, (Some $7)) in
+                                               let put_test = DTest(i, mk_put_exp i $2 $7 None, (Some $5)) in
+                                                 get_test::put_test::$8 }
       
   | SYNC WITH aexp AT aexp aexp EQUAL 
       aexp decls                             { let i = me2 $1 $8 in
-					       let sync_test = DTest(i, mk_sync_exp i $3 $3 $3 $5 $6, Some $8) in
-						 sync_test::$9 } 
+                                               let sync_test = DTest(i, mk_sync_exp i $3 $3 $3 $5 $6, Some $8) in
+                                                 sync_test::$9 } 
   | SYNC WITH aexp aexp aexp AT 
       aexp aexp EQUAL aexp decls             { let i = me2 $1 $10 in
-					       let sync_test = DTest(i, mk_sync_exp i $3 $4 $5 $7 $8, Some $10) in
-						 sync_test::$11 }
+                                               let sync_test = DTest(i, mk_sync_exp i $3 $4 $5 $7 $8, Some $10) in
+                                                 sync_test::$11 }
   |                                          { [] }
       
 test_res:
@@ -180,27 +180,27 @@ map_list:
   | map                                      { [$1] }
   | map COMMA map_list                       { $1::$3 }
       
-/* ---------------  types/views --------------- */
+/* ---------------  types/types --------------- */
 typeexp:
   | LBRACE typeelt_list RBRACE               { ECat(m $1 $3,$2) }
   | LBRACK exp_list RBRACK                   { Safelist.fold_right
-						 (fun ti acc -> 
-						    ECons(me ti acc,ti,acc))
-						 $2
-						 (ENil($3))}
+                                                 (fun ti acc -> 
+                                                    ECons(me ti acc,ti,acc))
+                                                 $2
+                                                 (ENil($3))}
 
 typeelt:
   | quoted_name                              { let i = info_of_exp $1 in 
-						 EAtom(i, $1, mk_empty_view i) }
+                                                 EAtom(i, $1, mk_empty_tree i) }
   | quoted_name EQUAL exp                    { EAtom(me $1 $3,$1,$3) }
   | quoted_name QMARK EQUAL exp              { let i = me $1 $4 in 
-						 EUnion(i, [ECat(i,[]); EAtom(i,$1,$4)]) }
+                                                 EUnion(i, [ECat(i,[]); EAtom(i,$1,$4)]) }
   | STAR excepts_opt EQUAL exp               { EStar (me2 $1 $4,$2,$4) }
   | BANG excepts_opt EQUAL exp               { EBang(me2 $1 $4,$2,$4) }
   | BANG QMARK excepts_opt EQUAL exp         { let i = me2 $1 $5 in 
-						 EUnion(i, [ECat(i,[]); EBang(i,$3,$5)]) }							  
+                                                 EUnion(i, [ECat(i,[]); EBang(i,$3,$5)]) }                                                        
   | PLUS excepts_opt EQUAL exp               { let i = me2 $1 $4 in 
-						 ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
+                                                 ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
       
 /* --------------- type helpers --------------- */
 quoted_name:
@@ -244,4 +244,4 @@ qid:
 IDENT_or_STRING:
   | STRING                                  { $1 }
   | IDENT                                   { $1 }
-					     
+                                             

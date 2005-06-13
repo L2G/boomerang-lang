@@ -68,8 +68,8 @@ let l =
   children;
   assert SafAbstract
 
-(* tidy removes from the view the safari-specific contents  *)
-(* and returns a view following the Schemas.Abstract schema *)
+(* tidy removes from the tree the safari-specific contents  *)
+(* and returns a tree following the Schemas.Abstract schema *)
 let tidy : lens =
   
   let tidy_folder = 

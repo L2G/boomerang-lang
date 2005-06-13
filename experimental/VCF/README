@@ -1,10 +1,10 @@
 make:
     - vcard.vcf => vcard.xml (change format de vcard from vcf to xml)
     - using harmony:(the lens l in lens.fcl)
-	+ in get direction: take the concrete view "vcard.xml" and return 
- 	                    the view outget.meta
-	+ in put direction: take the abstract view "newabstract.meta" and
-	                    return the view output.xml	
+	+ in get direction: take the concrete tree "vcard.xml" and return 
+ 	                    the tree outget.meta
+	+ in put direction: take the abstract tree "newabstract.meta" and
+	                    return the tree output.xml	
     - output.xml => newvcard.vcf 
 
 In conclusion, we have the new vcard.

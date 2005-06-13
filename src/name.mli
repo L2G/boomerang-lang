@@ -6,7 +6,7 @@
 (***************************************************)
 (* $Id$ *)
 
-(** Names (which label edges in views) *)
+(** Names (which label edges in trees) *)
 
 type t = string
 (** A name is just a string *)

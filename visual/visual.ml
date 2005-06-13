@@ -456,7 +456,7 @@ class customized_callbacks = object(self)
 	  (Misc.color "---------------------------------------------"
 	     Misc.Yellow ~bold:true);
 	`Break;`String (Misc.color "Call of get with argt:" Misc.Yellow ~bold:true);
-	`Break;`View c;`Break; `String
+	`Break;`Tree c;`Break; `String
 	  (Misc.color "---------------------------------------------"
 	     Misc.Yellow ~bold:true);`Break;
 	`String (Misc.color "STACK DUMP:" Misc.Yellow ~bold:true);
@@ -468,8 +468,8 @@ class customized_callbacks = object(self)
 	      (Misc.color "---------------------------------------------"
 		 Misc.Yellow ~bold:true);
 	    `Break;`String (Misc.color "Call of put with argt:" Misc.Yellow ~bold:true);
-	    `Break;`View a ; `Break]@
-	     (match copt with None -> [`String "MISSING";`Break] | Some c -> [`View c; `Break])@
+	    `Break;`Tree a ; `Break]@
+	     (match copt with None -> [`String "MISSING";`Break] | Some c -> [`Tree c; `Break])@
 	      [ `String
 		  (Misc.color "---------------------------------------------"
 		     Misc.Yellow ~bold:true);`Break;

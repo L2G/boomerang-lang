@@ -6,9 +6,9 @@ module Spinelist =
 (***********************************************************************)
 (* "Spine lists" *)
 
-let T (X:type) : type = [] | {!\(`List.TL,`List.NIL)=X, `List.TL=(T X)}
+let T (X:schema) : schema = [] | {!\(`List.TL,`List.NIL)=X, `List.TL=(T X)}
 
-let KeyedList (X:type) : type = List.T {!\`List.TL=X}
+let KeyedList (X:schema) : schema = List.T {!\`List.TL=X}
 
 let spinelist : lens =
   acond [] []

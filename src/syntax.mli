@@ -41,7 +41,7 @@ val put_qid : Info.t -> qid
 val sync_qid : Info.t -> qid
 val cons_qid : Info.t -> qid
 val nil_qid : Info.t -> qid
-val type_of_view_qid : Info.t -> qid
+val type_of_tree_qid : Info.t -> qid
 
 (** {2 Datatypes for Focal abstract syntax } *)
 type sort = 

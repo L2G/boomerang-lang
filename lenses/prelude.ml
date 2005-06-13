@@ -24,25 +24,25 @@ let _ = register_native "Native.Prelude.nil_tag" "name" nil_tag_lib
 let cons_qid = "Native.Prelude.Cons" 
 let cons h t = Type.mk_cons (Info.M cons_qid) h t
 let cons_lib = 
-  mk_tfun "type -> type" cons_qid 
-    (fun h -> mk_tfun "type" cons_qid 
+  mk_tfun "schema -> schema" cons_qid 
+    (fun h -> mk_tfun "schema" cons_qid 
        (fun t -> Value.T(cons h t)))
-let _ = register_native cons_qid "type -> type -> type" cons_lib
+let _ = register_native cons_qid "schema -> schema -> schema" cons_lib
 
 let nil_qid = "Native.Prelude.Nil"
 let nil = Type.mk_nil (Info.M nil_qid)
 let nil_lib = Value.T (nil)
-let _ = register_native nil_qid "type" nil_lib
+let _ = register_native nil_qid "schema" nil_lib
 
 let any_qid = "Native.Prelude.Any"
 let any = Value.Any(Info.M any_qid)
 let any_lib = Value.T(any)
-let _ = register_native any_qid "type" any_lib
+let _ = register_native any_qid "schema" any_lib
 
 let empty_qid = "Native.Prelude.Empty"
 let empty = Value.Empty(Info.M empty_qid) 
 let empty_lib = Value.T (empty)
-let _ = register_native empty_qid "type" empty_lib
+let _ = register_native empty_qid "schema" empty_lib
 
 (*************)
 (* UTILITIES *)
@@ -68,10 +68,10 @@ let load ekey blob =
   let ekey = Surveyor.get_ekey (Some ekey) "" (Some blob) in
     (Surveyor.get_reader ekey) blob
 let load_lib =
-  mk_nfun "name -> view" load_qid
-  (fun ekey -> mk_nfun "view" load_qid
+  mk_nfun "name -> tree" load_qid
+  (fun ekey -> mk_nfun "tree" load_qid
               (fun blob -> Value.V (load ekey blob)))
-let _ = register_native load_qid "name -> name -> view" load_lib
+let _ = register_native load_qid "name -> name -> tree" load_lib
 
 (* load_file *)
 let load_file_qid = "Native.Prelude.load_file"
@@ -85,37 +85,37 @@ let load_file fn =
   in     
     load ekey (contents)
 let load_file_lib =
-  mk_nfun "view" load_file_qid (fun fn -> Value.V (load_file fn))
-let _ = register_native load_file_qid "name -> view" load_file_lib
+  mk_nfun "tree" load_file_qid (fun fn -> Value.V (load_file fn))
+let _ = register_native load_file_qid "name -> tree" load_file_lib
 
 (* get *)
 let get_qid = "Native.Prelude.get"
 let get l c = Lens.get l c
 let get_lib =
-  mk_lfun "view -> view" get_qid
+  mk_lfun "tree -> tree" get_qid
     (fun l ->
-       mk_vfun "view" get_qid (fun c -> Value.V (get l c)))
-let _ = register_native get_qid "lens -> view -> view" get_lib
+       mk_vfun "tree" get_qid (fun c -> Value.V (get l c)))
+let _ = register_native get_qid "lens -> tree -> tree" get_lib
 
 (* put *)
 let put_qid = "Native.Prelude.put"
 let put l a c = Lens.put l a (Some c)
 let put_lib =
-  mk_lfun "view -> view -> view" put_qid
+  mk_lfun "tree -> tree -> tree" put_qid
     (fun l ->
-       mk_vfun "view -> view" put_qid
+       mk_vfun "tree -> tree" put_qid
          (fun a ->
-            mk_vfun "view" put_qid (fun c -> Value.V (put l a c))))
-let _ = register_native put_qid "lens -> view -> view -> view" put_lib
+            mk_vfun "tree" put_qid (fun c -> Value.V (put l a c))))
+let _ = register_native put_qid "lens -> tree -> tree -> tree" put_lib
 
 (* create *)
 let create_qid = "Native.Prelude.create"
 let create l a = Lens.put l a None
 let create_lib =
-  mk_lfun "view -> view" create_qid
-    (fun l -> mk_vfun "view" create_qid
+  mk_lfun "tree -> tree" create_qid
+    (fun l -> mk_vfun "tree" create_qid
                 (fun a -> Value.V (create l a)))
-let _ = register_native create_qid "lens -> view -> view" create_lib
+let _ = register_native create_qid "lens -> tree -> tree" create_lib
 
 (* sync *)
 let sync_qid = "Native.Prelude._sync"
@@ -125,8 +125,8 @@ let sync lo la lb typ orig =
       (V.get_required orig "O", V.get_required orig "A", V.get_required orig "B")
     with
         Not_found -> error [`String sync_qid
-			   ; `String ":the initial view,"
-			   ; `View orig
+			   ; `String ":the initial tree,"
+			   ; `Tree orig
 			   ; `String "should have children 'O', 'A', and 'B'"
 			   ] in
   let ao,aa,ab = (Lens.get lo co, Lens.get la ca, Lens.get lb cb) in
@@ -137,14 +137,14 @@ let sync lo la lb typ orig =
   let co',ca',cb' = (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb)) in	
     V.from_list [("O", co'); ("A",ca'); ("B",cb')]
       
-let sync_lib = mk_lfun "lens -> lens -> type -> view -> view" sync_qid 
-  (fun lo -> mk_lfun "lens -> type -> view -> view" sync_qid
-     (fun la -> mk_lfun "type -> view -> view" sync_qid
-	(fun lb -> mk_tfun "view -> view" sync_qid 
-	   (fun typ -> mk_vfun "view" sync_qid 
+let sync_lib = mk_lfun "lens -> lens -> schema -> tree -> tree" sync_qid 
+  (fun lo -> mk_lfun "lens -> schema -> tree -> tree" sync_qid
+     (fun la -> mk_lfun "schema -> tree -> tree" sync_qid
+	(fun lb -> mk_tfun "tree -> tree" sync_qid 
+	   (fun typ -> mk_vfun "tree" sync_qid 
 	      (fun orig -> V (sync lo la lb typ orig))))))
 
-let _ = register_native sync_qid "lens -> lens -> lens -> type -> view -> view" sync_lib   
+let _ = register_native sync_qid "lens -> lens -> lens -> schema -> tree -> tree" sync_lib   
 
 (*************)
 (* DEBUGGING *)
@@ -222,8 +222,8 @@ let assert_native t =
     if (not (Prefs.read no_assert))
       && (not (Type.member v t)) 
     then
-      error [`String (assert_qid^"(" ^ dir ^ "): view");
-	     `View v;
+      error [`String (assert_qid^"(" ^ dir ^ "): tree");
+	     `Tree v;
 	     `String "is not a member of "; 
 	     `String (Type.string_of_t t)] 
   in          
@@ -232,7 +232,7 @@ let assert_native t =
 let assert_lib = 
   mk_tfun "lens" assert_qid 
     (fun t -> L (assert_native t))    
-let _ = register_native assert_qid "type -> lens" assert_lib
+let _ = register_native assert_qid "schema -> lens" assert_lib
 
 (******************)
 (* Generic Lenses *)
@@ -255,14 +255,14 @@ let const v d =
 	       match co with
 		 | None -> d
 		 | Some(c) -> c
-	     else error [`String (const_qid ^ "(put): abstract view");
-			 `View a;
-			 `String "is not equal to"; `View (v)]) }
+	     else error [`String (const_qid ^ "(put): abstract tree");
+			 `Tree a;
+			 `String "is not equal to"; `Tree (v)]) }
 let const_lib =
-  mk_vfun "view -> lens" const_qid
+  mk_vfun "tree -> lens" const_qid
     (fun v ->
        mk_vfun "lens" const_qid (fun d -> Value.L (const v d)))
-let _ = register_native const_qid "view -> view -> lens" const_lib
+let _ = register_native const_qid "tree -> tree -> lens" const_lib
 	  
 (*** COMPOSE2 ***)
 let compose2_qid = "Native.Prelude.compose2"
@@ -372,10 +372,10 @@ let xfork pcv pav l1 l2 =
 	   if not(Name.Set.for_all pa (V.dom a1)) then
 	     error [`String xfork_qid; `String "(get): l1 yielded a child not ";
          	    `String "satisfying pa"; 
-		    `View a1];
+		    `Tree a1];
 	   if not(Name.Set.for_all (fun k -> not (pa k)) (V.dom a2)) then
 	     error [`String xfork_qid; `String "(get): l2 yielded a child satisfying pa";
-		    `View a2];
+		    `Tree a2];
 	   V.concat a1 a2);
     put = (fun a co -> 
 	     let co1,co2 =
@@ -387,21 +387,21 @@ let xfork pcv pav l1 l2 =
 	       if not(Name.Set.for_all pc (V.dom c1')) then
 		 error [`String xfork_qid; `String "(put): l1 yielded a child ";
 			`String "not satisfying pc"; 
-			`View c1'];
+			`Tree c1'];
 	       if not(Name.Set.for_all (fun k -> not (pc k)) (V.dom c2')) then
 		 error [`String xfork_qid; `String "(put): l2 yielded a child ";
 			`String "satisfying pc"; 
-			`View c2'];
+			`Tree c2'];
 	       V.concat c1' c2')}
 let xfork_lib = 
-  mk_vfun "view -> lens -> lens -> lens" xfork_qid
+  mk_vfun "tree -> lens -> lens -> lens" xfork_qid
     (fun pcv ->
        mk_vfun "lens -> lens -> lens" xfork_qid
          (fun pav ->
             mk_lfun "lens -> lens" xfork_qid
               (fun l1 ->
                  mk_lfun "lens" xfork_qid (fun l2 -> Value.L (xfork pcv pav l1 l2)))))
-let _ = register_native xfork_qid "view -> view -> lens -> lens -> lens" xfork_lib
+let _ = register_native xfork_qid "tree -> tree -> lens -> lens -> lens" xfork_lib
 	  
 (* HOIST *)
 let hoist_qid = "Native.Prelude.hoist"
@@ -413,7 +413,7 @@ let hoist k =
 	     error [`String hoist_qid; `String "(get): expecting exactly one child (named ";
 		    `Name k; 
 		    `String ")"; 
-		    `View c];
+		    `Tree c];
 	 V.get_required c k);
     put = 
       (fun a _ -> 
@@ -432,7 +432,7 @@ let plunge k =
 	     error [`String plunge_qid; `String "(put): expecting exactly one child (named ";
 		    `Name k; 
 		    `String ")"; 
-		    `View a];
+		    `Tree a];
 	     V.get_required a k)}    
 let plunge_lib = 
   mk_nfun "lens" plunge_qid (fun k -> Value.L (plunge k))    
@@ -452,7 +452,7 @@ let copy m n =
 	     error [`String copy_qid; `String "(get): expecting one child named ";
 		    `Name m; 
 		    `String ")"; 
-		    `View c] in
+		    `Tree c] in
 	   V.set c n (Some child)) ;
     put = 
       (fun a _ -> 
@@ -462,14 +462,14 @@ let copy m n =
 		      `Name m; 
 		      `String "and";
 		      `Name n; 
-		      `View a])
+		      `Tree a])
 	 then V.set a n None
 	 else 
 	   error [`String copy_qid; `String "(put): expecting two equal children named ";
 		  `Name m; 
 		  `String " and ";
 		  `Name n;
-		  `View a]) }
+		  `Tree a]) }
 let copy_lib =
   mk_nfun "name -> lens" copy_qid
     (fun m ->
@@ -549,17 +549,17 @@ let cond_impl c ?(b1=fun x -> x) a1 ?(b2=fun x -> x) a2 f21o f12o lt lf =
 		   else lf.put a co
 	   else error [
              `String cond_qid;
-	     `String "(put): the abstract view does not satisfy a1 or a2:";
-	     `View a ]
+	     `String "(put): the abstract tree does not satisfy a1 or a2:";
+	     `Tree a ]
       )}
 let cond_ff c a1 a2 f21 f12 lt lf = cond_impl c a1 a2 (Some f21) (Some f12) lt lf 
 let cond_ww c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf
 let cond_fw c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
 let cond_wf c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
 let cond_ff_lib =
-  mk_tfun "type -> type -> lens -> lens -> lens -> lens -> lens" cond_qid
+  mk_tfun "schema -> schema -> lens -> lens -> lens -> lens -> lens" cond_qid
     (fun c ->
-       mk_tfun "type -> lens -> lens -> lens -> lens -> lens" cond_qid
+       mk_tfun "schema -> lens -> lens -> lens -> lens -> lens" cond_qid
          (fun a1 ->
             mk_tfun "lens -> lens -> lens -> lens -> lens" cond_qid
               (fun a2 ->
@@ -572,13 +572,13 @@ let cond_ff_lib =
                                           (fun lf -> Value.L (cond_ff c a1 a2 f21 f12 lt lf))))))))
 let _ = register_native
   cond_qid
-  "type -> type -> type -> lens -> lens -> lens -> lens -> lens"
+  "schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens"
   cond_ff_lib
 let cond_ww_qid = "Native.Prelude.cond_ww"
 let cond_ww_lib =
-  mk_tfun "type -> type -> lens -> lens -> lens" cond_ww_qid
+  mk_tfun "schema -> schema -> lens -> lens -> lens" cond_ww_qid
     (fun c ->
-       mk_tfun "type -> lens -> lens -> lens" cond_ww_qid
+       mk_tfun "schema -> lens -> lens -> lens" cond_ww_qid
          (fun a1 ->
             mk_tfun "lens -> lens -> lens" cond_ww_qid
               (fun a2 ->
@@ -587,13 +587,13 @@ let cond_ww_lib =
                       (fun lf -> Value.L (cond_ww c a1 a2 lt lf))))))
 let _ = register_native
   cond_ww_qid
-  "type -> type -> type -> lens -> lens -> lens"
+  "schema -> schema -> schema -> lens -> lens -> lens"
   cond_ww_lib
 let cond_fw_qid = "Native.Prelude.cond_fw"
 let cond_fw_lib =
-  mk_tfun "type -> type -> lens -> lens -> lens -> lens" cond_fw_qid
+  mk_tfun "schema -> schema -> lens -> lens -> lens -> lens" cond_fw_qid
     (fun c ->
-       mk_tfun "type -> lens -> lens -> lens -> lens" cond_fw_qid
+       mk_tfun "schema -> lens -> lens -> lens -> lens" cond_fw_qid
          (fun a1 ->
             mk_tfun "lens -> lens -> lens -> lens" cond_fw_qid
               (fun a2 ->
@@ -604,13 +604,13 @@ let cond_fw_lib =
                            (fun lf -> Value.L (cond_fw c a1 a2 f21 lt lf)))))))    
 let _ = register_native
   cond_fw_qid
-  "type -> type -> type -> lens -> lens -> lens -> lens"
+  "schema -> schema -> schema -> lens -> lens -> lens -> lens"
   cond_fw_lib
 let cond_wf_qid = "Native.Prelude.cond_wf"
 let cond_wf_lib =
-  mk_tfun "type -> type -> lens -> lens -> lens -> lens" cond_wf_qid
+  mk_tfun "schema -> schema -> lens -> lens -> lens -> lens" cond_wf_qid
     (fun c ->
-       mk_tfun "type -> lens -> lens -> lens -> lens" cond_wf_qid
+       mk_tfun "schema -> lens -> lens -> lens -> lens" cond_wf_qid
          (fun a1 ->
             mk_tfun "lens -> lens -> lens -> lens" cond_wf_qid
               (fun a2 ->
@@ -621,14 +621,14 @@ let cond_wf_lib =
                            (fun lf -> Value.L (cond_wf c a1 a2 f12 lt lf)))))))
 let _ = register_native
   cond_wf_qid
-  "type -> type -> type -> lens -> lens -> lens -> lens"
+  "schema -> schema -> schema -> lens -> lens -> lens -> lens"
   cond_wf_lib
 
 (* ACOND *)
 let acond c a lt lf = cond_impl c a ~b2:(fun x -> not x) a None None lt lf
 let acond_qid = "Native.Prelude.acond"
 let acond_lib =
-  mk_tfun "type -> lens -> lens -> lens" acond_qid
+  mk_tfun "schema -> lens -> lens -> lens" acond_qid
     (fun c ->
        mk_tfun "lens -> lens -> lens" acond_qid
          (fun a ->
@@ -637,7 +637,7 @@ let acond_lib =
                  mk_lfun "lens" acond_qid (fun lf -> Value.L (acond c a lt lf)))))
 let _ = register_native
   acond_qid
-  "type -> type -> lens -> lens -> lens"
+  "schema -> schema -> lens -> lens -> lens"
   acond_lib
   
 (*************)
@@ -654,25 +654,25 @@ let pivot k =
 	     let ckv = V.get_value ck in
 	       V.set V.empty ckv (Some (V.set c k None))
 	   with Not_found -> 
-	     error [`String "Native.Prelude.pivot(get): the following view should have ";
+	     error [`String "Native.Prelude.pivot(get): the following tree should have ";
 		    `String "exactly one child named "; 
 		    `Name k; 
 		    `String ", leading to a value ";
-		    `View c]);
+		    `Tree c]);
     put = 
       (fun a _ ->
 	 if (Name.Set.cardinal (V.dom a)) <> 1 then
-	   error [`String "Native.Prelude.pivot(get): the following view should have ";
+	   error [`String "Native.Prelude.pivot(get): the following tree should have ";
 		  `String "exactly one child"; 
-		  `View a]
+		  `Tree a]
 	 else
 	   let ak = Name.Set.choose (V.dom a) in
 	   let w = try V.get_required a ak with Not_found -> assert false in
 	     if V.get w k <> None then
 	       error [`String "Native.Prelude.pivot(put): child ";
 		      `Name k;
-		      `String "of this view should not exist: "; 
-		      `View w]
+		      `String "of this tree should not exist: "; 
+		      `Tree w]
 	     else
 	       V.set w k (Some (V.new_value ak))
       )} 
@@ -718,7 +718,7 @@ let join m1 m2 =
 	   let tm1, tm2 = (V.get_required c m1, V.get_required c m2) in	 
 	     compute_join tm1 tm2 V.empty
 	 with Not_found -> 
-	   error [`String "Native.Prelude.join(get): expected view with children: "; 
+	   error [`String "Native.Prelude.join(get): expected tree with children: "; 
 		  `Name m1; 
 		  `String " and "; 
 		  `Name m2]
@@ -737,7 +737,7 @@ let join m1 m2 =
 	       let acc' = 
 		 match (V.get tk m1, V.get tk m2) with
 		   | None, None       -> 
-		       error [`String "Native.Prelude.join(put): illformed abstract view"]
+		       error [`String "Native.Prelude.join(put): illformed abstract tree"]
 		   | Some t1, None    -> 
 		       V.set acc m1 (Some (V.set cm1 k (Some t1)))
 		   | None, Some t2    -> 
@@ -785,8 +785,8 @@ let flatten =
 			let a' = V.set a k None in
 			  V.set a' k (Some (V.cons d s))
 		end 
-	    else error [`String "Native.Prelude.flatten(get): expected a view with exactly one child: "; 
-			`View head]
+	    else error [`String "Native.Prelude.flatten(get): expected a tree with exactly one child: "; 
+			`Tree head]
   in
   let listify v =
     let v_list = V.to_list v in
@@ -822,8 +822,8 @@ let flatten =
                     V.cons 
                       (V.from_list [k,d']) 
                       (put (V.set (V.set a k None) k (Some s)) (Some c'))
-          else error [`String "Native.Prelude.flatten(put): expected a view with exactly one child: "; 
-                      `View head]
+          else error [`String "Native.Prelude.flatten(put): expected a tree with exactly one child: "; 
+                      `Tree head]
   in
     {get = get ;
      put = put }
@@ -845,12 +845,12 @@ let explode =
     | a::q -> 
 	if( Name.Set.cardinal (V.dom a)) <> 1 then
 	  error [`String ("Native.Prelude.explode ("^msg^") : expecting exactly one child :");
-		 `View a
+		 `Tree a
 		];
 	let ch = Name.Set.choose (V.dom a) in
 	  if String.length ch <> 1 then
 	    error [`String ("Native.Prelude.explode (" ^ msg ^ ") : expecting child with a one character name");
-		   `View a
+		   `Tree a
 		  ];
 	  ch^(string_of_tree msg q)
   in
@@ -858,7 +858,7 @@ let explode =
 	(fun c ->
 	   if( Name.Set.cardinal (V.dom c)) <> 1 then
 	     error [`String " Native.Prelude.explode (get) : expecting exactly one child :";
-		    `View c];
+		    `Tree c];
 	   let k = Name.Set.choose (V.dom c) in
 	     (* here is the string we have to 'explode' *)
 	     V.structure_from_list (tree_of_string "get" k)
@@ -876,15 +876,15 @@ let lines_qid = "Native.Prelude.lines"
 let lines =
    { get = (fun c ->
               if not (V.is_value c) then
-                error [`String ("Native.Prelude.lines (get) : expecting exactly one child :"); `View c];
+                error [`String ("Native.Prelude.lines (get) : expecting exactly one child :"); `Tree c];
               V.structure_from_list (Safelist.map V.new_value (Misc.split_nonescape '\n' (V.get_value c))));
      put = (fun a c ->
              let lines = Safelist.map V.get_value (V.list_from_structure a) in
              if lines=[] then
-               error [`String ("Native.Prelude.lines (put) : abstract argument must be non-empty :"); `View a];
+               error [`String ("Native.Prelude.lines (put) : abstract argument must be non-empty :"); `Tree a];
              Safelist.iter
                (fun s -> if String.contains s '\n' then
-                           error [`String ("Native.Prelude.lines (put): abstract view contains '\\n'"); `View a])
+                           error [`String ("Native.Prelude.lines (put): abstract tree contains '\\n'"); `Tree a])
                lines;
              V.new_value (String.concat "\n" lines)) }
       
@@ -899,13 +899,13 @@ let pad n =
     let lg = (log (float_of_int n)) /. (log 2.0) in
       int_of_float (2.0 ** (ceil lg))
   in
-  let pad_view = V.set V.empty n (Some V.empty) in
+  let pad_tree = V.set V.empty n (Some V.empty) in
     { get = 
 	(fun c -> 
 	   let len = V.list_length c in
 	   let rec add_pad v = function
 	       0 -> v
-	     | x -> add_pad (V.cons pad_view v) (x-1)
+	     | x -> add_pad (V.cons pad_tree v) (x-1)
 	   in
 	     add_pad c (nextPowerOf2 len)
 	);
@@ -915,7 +915,7 @@ let pad n =
 	(fun a co ->
 	   V.structure_from_list 
 	     (Safelist.filter 
-		(fun v -> not (V.equal pad_view v))
+		(fun v -> not (V.equal pad_tree v))
 		(V.list_from_structure a)))}
 let pad_lib = mk_nfun "lens" pad_qid (fun n -> L (pad n))    
 let _ = register_native pad_qid "name -> lens" pad_lib
@@ -925,7 +925,7 @@ let even_split_qid = "Native.Prelude.even_split"
 let even_split = 
   let check_list v dir = 
     if not (V.is_list v) then 
-      error [`String (Printf.sprintf "Native.Prelude.even_split (%s): " dir); `View v; `String "is not a list"]
+      error [`String (Printf.sprintf "Native.Prelude.even_split (%s): " dir); `Tree v; `String "is not a list"]
   in
     {
       get = 
@@ -942,7 +942,7 @@ let even_split =
 		       h::t -> loop t (h::acc) (i-1)
 		     | [] -> error 
 			 [`String "Native.Prelude.even_split (get): ";
-			  `View c;
+			  `Tree c;
 			  `String "does not have even length"]
 		 in
 		   let (l1,l2) = loop l [] (n/2) in
@@ -963,7 +963,7 @@ let even_split =
 		 error 
 		   [`String "Native.Prelude.even_split (get): "
 		   ; `Space
-		   ; `View a
+		   ; `Tree a
 		   ; `Space
 		   ; `String "is not a list of length two"])}
 let even_split_lib = L (even_split)

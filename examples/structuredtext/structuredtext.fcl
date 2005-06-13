@@ -16,28 +16,28 @@ let start_fresh = wmap { `List.HD -> plunge List.HD; add List.TL [] }
 test start_fresh / \ [{x}, [{y}], [{z}]] = [[{x}], [{y}], [{z}]]
 test start_fresh / \ [{x},[]] = [[{x}],[]]
 
-let Char : type = Value   (* Should be just single characters *)
+let Char : schema = Value   (* Should be just single characters *)
 
-let Element : type = List.T Char  
-let Incomplete (H:type) : type = List.T Any  (* Bogus: Should be List Char \ H *)
-let Complete (H:type) : type = List.Cons H (Incomplete H)
-let MaybeComplete (H:type) : type = Complete H | Incomplete H
-let ParsedList (H:type) : type = List.Cons (MaybeComplete H) (List.T (Complete H))
+let Element : schema = List.T Char  
+let Incomplete (H:schema) : schema = List.T Any  (* Bogus: Should be List Char \ H *)
+let Complete (H:schema) : schema = List.Cons H (Incomplete H)
+let MaybeComplete (H:schema) : schema = Complete H | Incomplete H
+let ParsedList (H:schema) : schema = List.Cons (MaybeComplete H) (List.T (Complete H))
 
-let TailComplete (H:type) = List.Cons Any (List.Cons (List.Cons H Any) Any)
-let HeadSingletonAndTailNonempty : type = List.Cons (List.Cons Any List.Nil) (List.Cons Any Any)
+let TailComplete (H:schema) = List.Cons Any (List.Cons (List.Cons H Any) Any)
+let HeadSingletonAndTailNonempty : schema = List.Cons (List.Cons Any List.Nil) (List.Cons Any Any)
 
-let process_elt (H:type) =
+let process_elt (H:schema) =
     (acond (TailComplete H) (HeadSingletonAndTailNonempty)
        start_fresh
        continue)
 
-let T : type = List.NonEmptyList ({X}|{A}|{B}|{C})
+let T : schema = List.NonEmptyList ({X}|{A}|{B}|{C})
 test process_elt T / \ [[{X}], []] = [[[{X}]]]
 test process_elt T / \ [[{X}], [[{A}],[{b}]], [[{C}]]] = [[[{X}]], [[{A}],[{b}]], [[{C}]]]
 test process_elt T / \ [[{X}], [[{a}],[{b}]], [[{C}]]] = [[[{X}],[{a}],[{b}]], [[{C}]]]
 
-let parse_list_with_headers (H:type) =
+let parse_list_with_headers (H:schema) =
   List.fold_right [] (process_elt H)
 
 (******************************************************************************)
@@ -45,11 +45,11 @@ let parse_list_with_headers (H:type) =
 
 (* The top-level structured text lens.  Maps from lists of values to lists of lists of values, where the
    first element of each of the resulting sublists (except possibly the first) is a "header".  The parameter
-   H specifies the type of headers in "exploded" form -- i.e., H should be a type of lists of characters. *)
-let l (H:type) = List.map List.explode; parse_list_with_headers H; List.map (List.map List.implode)
+   H specifies the schema of headers in "exploded" form -- i.e., H should be a schema of lists of characters. *)
+let l (H:schema) = List.map List.explode; parse_list_with_headers H; List.map (List.map List.implode)
 
-let CapLetter : type = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}|{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
-let AllCapsList : type = List.NonEmptyList (CapLetter|{" "})
+let CapLetter : schema = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}|{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
+let AllCapsList : schema = List.NonEmptyList (CapLetter|{" "})
 		  
 let caps_headers = l AllCapsList
 
@@ -61,8 +61,8 @@ test caps_headers / \ [{x},{y},{Z}] = [[{x},{y}],[{Z}]]
 
 (******)
 
-let StarHeader1 : type = List.Cons {"*"} (List.Cons {" "} (List.NonEmptyList Char))
-let StarHeader2 : type = List.Cons {"*"} StarHeader1
+let StarHeader1 : schema = List.Cons {"*"} (List.Cons {" "} (List.NonEmptyList Char))
+let StarHeader2 : schema = List.Cons {"*"} StarHeader1
 
 let star_headers = l StarHeader1; List.map (wmap {`List.TL -> (l StarHeader2)})
 
@@ -86,14 +86,14 @@ sync with caps_headers at (List.T Any)
        { O=res, A=res, B=res })
 
 (* Doesn't work because of bogus contractiveness check... 
-     type NestedListOfValues = List (Value | NestedListOfValues)
+     schema NestedListOfValues = List (Value | NestedListOfValues)
    ...so for now we do: *)   
 
 
-let NestedListOfValues : type = List.Nil | { `List.HD=({! \ (`List.HD,`List.TL,`List.NIL)=Any} | NestedListOfValues), `List.TL=NestedListOfValues}
+let NestedListOfValues : schema = List.Nil | { `List.HD=({! \ (`List.HD,`List.TL,`List.NIL)=Any} | NestedListOfValues), `List.TL=NestedListOfValues}
 
 (* 
-let NestedListOfValues : type = List.T (List.Cons Value (List.T (List.Cons Value (List.T Value) )))
+let NestedListOfValues : schema = List.T (List.Cons Value (List.T (List.Cons Value (List.T Value) )))
 *)
 
 (******************************************************************************)

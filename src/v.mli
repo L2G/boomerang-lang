@@ -1,10 +1,10 @@
-(** Views (trees) *)
+(** Trees *)
 
 (* --------------------------------------------------------------------- *)
-(**{2 The Type of Views} *)
+(**{2 The Type of Trees} *)
 
 type t
-(** A view is a tree of names.  Formally, a [V.t] can be thought of as a
+(** A [V.t] is a tree of names.  Formally, a [V.t] can be thought of as a
     partial function from [Name.t]'s to [V.t]'s. *)
 
 (* --------------------------------------------------------------------- *)
@@ -22,7 +22,7 @@ val dom : t -> Name.Set.t
 (** [dom v] returns the domain of [v]. *)
 
 val singleton_dom : t -> Name.t
-(** [singleton_dom v] returns the name of the single child of the singleton view [v].
+(** [singleton_dom v] returns the name of the single child of the singleton tree [v].
     @raise Illformed if [v] is not a singleton. *)
 
 val to_list : t -> (Name.t * t) list
@@ -32,13 +32,13 @@ val to_list : t -> (Name.t * t) list
 (** {2 Creators} *)
 
 exception Illformed of string * (t list)
-(** Raised if someone attempts to create a view that violates well-formedness constraints. *)
+(** Raised if someone attempts to create a tree that violates well-formedness constraints. *)
 
 val empty : t
-(** The empty view *)
+(** The empty tree *)
 
 val from_list : (Name.t * t) list -> t
-(** Being the converse function of [to_list], [from_list l] returns the view with
+(** Being the converse function of [to_list], [from_list l] returns the tree with
     the children described in the association list [l] *)
 
 val set : t -> Name.t -> t option -> t
@@ -48,16 +48,16 @@ val set : t -> Name.t -> t option -> t
 val create_star : (Name.t * t option) list -> t
 (** [create_star binds = set_star empty binds] *)
 
-(** A description type for views. A view can then be created from a description using [from_desc] *)
+(** A description type for trees. A tree can then be created from a description using [from_desc] *)
 type desc =
-    V of (Name.t * desc) list   (** A view with names and associated children in a list *)
-  | L of desc list              (** A list of views *)
-  | Val of Name.t               (** A view representing a single value *)  
-  | In of t                     (** An existing view *)
-  | E                           (** The empty view *)
+    V of (Name.t * desc) list   (** A tree with names and associated children in a list *)
+  | L of desc list              (** A list of trees *)
+  | Val of Name.t               (** A tree representing a single value *)  
+  | In of t                     (** An existing tree *)
+  | E                           (** The empty tree *)
 
 val from_desc : desc -> t
-(** [from_desc d] creates the view corresponding to the description [d] *)
+(** [from_desc d] creates the tree corresponding to the description [d] *)
 
 (* --------------------------------------------------------------------- *)
 (**{2 Tests} *)
@@ -74,7 +74,7 @@ val equal : t -> t -> bool
 (*     Some v1'], [v2 = Some v2'] and [v1' = v2'].  Otherwise it returns false. *\) *)
 
 val compare : t -> t -> int
-(** [compare v1 v2] can be used as a comparison function on views. *)
+(** [compare v1 v2] can be used as a comparison function on trees. *)
 
 (* val is_singleton : t -> bool *)
 (* (\** [is_singleton v] returns true if [dom v] only has one element, and false otherwise. *\) *)
@@ -84,13 +84,13 @@ val compare : t -> t -> int
 
 
 (* --------------------------------------------------------------------- *)
-(** {2 Special forms of views} *)
+(** {2 Special forms of trees} *)
 
 (* val singleton : Name.t -> t -> t *)
-(* (\** [singleton n v] returns a new view with [n] mapping to [v]. *\) *)
+(* (\** [singleton n v] returns a new tree with [n] mapping to [v]. *\) *)
 
 val new_value : Name.t -> t
-(** Returns a value made from the given name.  A value is a view with a
+(** Returns a value made from the given name.  A value is a tree with a
     single child and no grandchildren. *)
 
 val get_value : t -> Name.t
@@ -98,7 +98,7 @@ val get_value : t -> Name.t
     @raise Illformed otherwise. *)
 
 val is_value : t -> bool
-(** Test whether a view is a value. *)
+(** Test whether a tree is a value. *)
 
 (* val get_field_value : t -> Name.t -> Name.t *)
 (* (\** [get_field_value v k] assumes that [v] has a child named [k], and that [k] is a value ; returns this value. *)
@@ -115,25 +115,25 @@ val is_value : t -> bool
 
 val field_value : Name.t -> Name.t -> t
 (** [field_value k s] creates a value from [s], stores it under [k] and returns the
-    corresponding view *)
+    corresponding tree *)
 
 (* --------------------------------------------------------------------- *)
-(** {2 Views representing lists} *)
+(** {2 Trees representing lists} *)
 
 val cons : t -> t -> t
-(** [cons v t] returns the view representing the list of head [v] and tail [t] *)
+(** [cons v t] returns the tree representing the list of head [v] and tail [t] *)
 
 val empty_list : t
-(** The view representing the empty list *)
+(** The tree representing the empty list *)
 
 val is_empty_list : t -> bool
-(** [is_empty_list v] returns true if and only if [v] is the view representing the empy list. *)
+(** [is_empty_list v] returns true if and only if [v] is the tree representing the empy list. *)
 
 val structure_from_list : t list -> t
-(** [structure_from_list tl] returns the view representing the list of views [tl] *)
+(** [structure_from_list tl] returns the tree representing the list of trees [tl] *)
 
 val list_from_structure : t -> t list
-(** [list_from_structure t] assumes [t] is a list and returns an ocaml list of the views in [t].
+(** [list_from_structure t] assumes [t] is a list and returns an ocaml list of the trees in [t].
     @raise Illformed if [t] is not a list *)
 
 val list_length : t -> int
@@ -154,20 +154,20 @@ val nil_tag : Name.t
 (** {2 Utility functions} *)
 
 (* val map : (t -> (t option)) -> t -> t *)
-(* (\** [map f v] returns a view with same domain as [v], where the associated value [a] of all *)
+(* (\** [map f v] returns a tree with same domain as [v], where the associated value [a] of all *)
 (*     bindings of [v] has been replaced by the result of the application of [f] to [a]. The  *)
 (*     bindings are passed to [f] in increasing order with respect to the alphabetical order *)
 (*     on the names in the domain *\) *)
 
 (* val mapi : (Name.t -> t -> (t option)) -> t -> t *)
 (* (\** Same as [map], but the function receives as arguments both the name and the associated *)
-(*     view for each child in the view. *\) *)
+(*     tree for each child in the tree. *\) *)
 
 (* val for_all : (t -> bool) -> t -> bool *)
-(* (\** returns true if the given predicate is true for all child views *\) *)
+(* (\** returns true if the given predicate is true for all child trees *\) *)
 
 (* val for_alli : (Name.t -> t -> bool) -> t -> bool *)
-(* (\** returns true if the given predicate is true for all name&child view pairs *\) *)
+(* (\** returns true if the given predicate is true for all name&child tree pairs *\) *)
 
 val fold : (Name.t -> t -> 'a -> 'a) -> t -> 'a -> 'a
 (** [fold f v] a computes [(f kN tN ... (f k1 t1 a)...)], where [k1 ... kN] are
@@ -180,32 +180,32 @@ val fold : (Name.t -> t -> 'a -> 'a) -> t -> 'a -> 'a
 (*     [f] in alphabetical order. *\) *)
 
 val split : (Name.t -> bool) -> t -> t * t
-(** [split p v] splits the view [v] according to the predicate [p] on names.
-    Returns the pair of views [(v1,v2)], such all names in [dom v1] verify [p]. *)
+(** [split p v] splits the tree [v] according to the predicate [p] on names.
+    Returns the pair of trees [(v1,v2)], such all names in [dom v1] verify [p]. *)
 
 val is_list : t -> bool
-  (** [is_list v] returns true iff [v] is a view that encodes a list. *)
+  (** [is_list v] returns true iff [v] is a tree that encodes a list. *)
 
 val concat : t -> t -> t
-(** [concat v1 v2] yields the view containing all the children of [v1] and [v2].
+(** [concat v1 v2] yields the tree containing all the children of [v1] and [v2].
     @raise Illformed in case of domain collision *)
 
 (* --------------------------------------------------------------------- *)
-(** {2 Pretty-printing of views} *)
+(** {2 Pretty-printing of trees} *)
 
 val format : t -> unit
-(** The view passed to [format] is formatted to a string and printed to the standard output. *)
+(** The tree passed to [format] is formatted to a string and printed to the standard output. *)
 
 val string_of_t : t -> string
 (** [string_of_t v] returns the formatted string representing [v] without actually printing it. *)
 
 val show_diffs : t -> t -> unit
-(** Shows the differences between the two views passed as arguments. *)
+(** Shows the differences between the two trees passed as arguments. *)
 
 (** {2 Formatting of error messages} *)
 (**  A type for easy formatting of error messages *)
-type msg = [`String of string | `Name of Name.t | `Break | `Space | `View of t
-           | `View_opt of t option | `Open_box | `Open_vbox | `Close_box ]
+type msg = [`String of string | `Name of Name.t | `Break | `Space | `Tree of t
+           | `Tree_opt of t option | `Open_box | `Open_vbox | `Close_box ]
 
 (* exception Error of msg list *)
 (** General exception for errors in Harmony *)
@@ -220,8 +220,8 @@ val error_msg : msg list -> 'a
 (** @raise Error with the message list passed as argument *)
 
 (* --------------------------------------------------------------------- *)
-(**{2 Pre-built hashtables of views} *)
+(**{2 Pre-built hashtables of trees} *)
 
-(** Hash tables with views as keys *)
+(** Hash tables with trees as keys *)
 module Hash : Hashtbl.S with type key = t
 

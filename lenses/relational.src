@@ -19,7 +19,7 @@
 %%    a,b  names of columns
 %%    x,y  data
 %%    D,E  relations
-%%    P,Q  views that provide sets of names
+%%    P,Q  trees that provide sets of names
 
 \LENSSECTION{rename}
 The lens @rename a b r s@ renames the field @a@ to @b@ in the table named @r@
@@ -49,9 +49,9 @@ test select "A" "1" "R" "S" /
              {A = {3}, C = {4}}]}
      = {S = [{A = {1}, C = {2}}]}
 #{@}
-In the \PUT{} direction, the abstract view must contain only records whose
+In the \PUT{} direction, the abstract tree must contain only records whose
 @A@ field has value @v@.  These records are combined with the records from
-the concrete view with field @A@ different from @v@.
+the concrete tree with field @A@ different from @v@.
 #{*}
 test select "A" "1" "R" "S" \
        {S = [{A = {1}, C = {8}},
@@ -85,7 +85,7 @@ Relational projections can be performed with the @project@ lens.  However,
 @project@ takes additional arguments to specify the behavior of the lens in
 the \PUT{} direction.
 
-##let project : (view -> view -> view -> name -> name -> lens) =
+##let project : (tree -> tree -> tree -> name -> name -> lens) =
 ##  Native.Relational.project
 
 #{*}
@@ -162,7 +162,7 @@ test union "R" "S" "T" /
 #{@}
 In the \PUT{} direction, @union@ treats @R@ and @S@ symmetrically: new
 elements in the abstract table @T@ are propagated to both @R@ and @S@.
-Here, for example, the abstract view deletes the elements with values @1@
+Here, for example, the abstract tree deletes the elements with values @1@
 and @2@ for @A@, keeps @3@, and adds @4@.  The deletions are propagated to
 both concrete tables (as they must be); the concrete source of @3@ (the @S@
 table only) is maintained; and the new value @4@ is propagated to both @S@
@@ -275,11 +275,11 @@ rows of @T@ (as in a cross-product), the insertion and deletion of rows from
 or updated in a consistent manner.  In other words, the \PUT{} direction of
 this lens is not total on the domain of all tables with the same field names
 as the resulting table @T@.  However, for efficiency reasons, our lens will
-not raise an error when the abstract view lies outside of the appropriate
+not raise an error when the abstract tree lies outside of the appropriate
 domain.
 
 In the case that a record has been deleted from @T@, this may be reflected in
-the concrete view by the deletion of a record @R@ or @S@ or both.  The
+the concrete tree by the deletion of a record @R@ or @S@ or both.  The
 behavior of @join@ is to propagated to both @R@ and @S@.
 #{*}
 test join "R" "S" "T" \
@@ -294,8 +294,8 @@ test join "R" "S" "T" \
              {A = {5}}]}
 #{@}
 Another subtle point is that the addition of a record in @T@ can cause the
-addition of a record in one of the tables of the concrete view (@S@ below)
-while causing an update of the other table in the concrete view (@R@ below).
+addition of a record in one of the tables of the concrete tree (@S@ below)
+while causing an update of the other table in the concrete tree (@R@ below).
 #{*}
 test join "R" "S" "T" \
        {T = [{A = {2}, B = {5}, C = {8}},
@@ -357,11 +357,11 @@ test joinr "R" "S" "T" \
 \LENSSECTION{ojoin}
 The lens @ojoin D E@
 
-##let ojoin : (view -> view -> name -> name -> name -> lens) =
+##let ojoin : (tree -> tree -> name -> name -> name -> lens) =
 ##  Native.Relational.ojoin
-##let ojoinl : (view -> view -> name -> name -> name -> lens) =
+##let ojoinl : (tree -> tree -> name -> name -> name -> lens) =
 ##  Native.Relational.ojoinl
-##let ojoinr : (view -> view -> name -> name -> name -> lens) =
+##let ojoinr : (tree -> tree -> name -> name -> name -> lens) =
 ##  Native.Relational.ojoinr
 
 #{*}
@@ -377,7 +377,7 @@ test ojoin [{C = {55}}] [{B = {33}}] "R" "S" "T" /
 #{#}
 (* ADDITIONAL TESTS *)
 
-let norm (db : view) : view = Prelude.map Native.listsort / db
+let norm (db : tree) : tree = Prelude.map Native.listsort / db
 
 let bd_a = { nm = {Alice}, mon = {June},     day = {21}, age = {21} }
 let bd_b = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
@@ -400,7 +400,7 @@ let f = bd_f
 
 (* ADDITIONAL RENAME TESTS *)
 
-let rename_nm (n : name) (v : view) : view =
+let rename_nm (n : name) (v : tree) : tree =
   Prelude.rename "nm" n / v
 
 test
@@ -505,7 +505,7 @@ test
     , phnums = [ ph_a, ph_b ]
     }
   )
-= error (* "name" is not a column name in the abstract view *)
+= error (* "name" is not a column name in the abstract tree *)
 
 test
   norm (rename "nm" "name" "birthdays" "bdays" \
@@ -517,7 +517,7 @@ test
     , phnums = [ ph_a, ph_b ]
     }
   )
-= error (* "birthdays" is not a table in the concrete view *)
+= error (* "birthdays" is not a table in the concrete tree *)
 
 
 (* ADDITIONAL UNION TESTS *)
@@ -610,7 +610,7 @@ test
     , tbl3 = [ b, d, e ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (union "tbl2" "tbl3" "tbl4" \
@@ -622,7 +622,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* table "tbl3" does not exist in the concrete view *)
+= error (* table "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL UNIONL TESTS *)
@@ -715,7 +715,7 @@ test
     , tbl3 = [ b, d, e ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (unionl "tbl2" "tbl3" "tbl4" \
@@ -727,7 +727,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* table "tbl3" does not exist in the concrete view *)
+= error (* table "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL UNIONL TESTS *)
@@ -820,7 +820,7 @@ test
     , tbl3 = [ b, d, e ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (unionr "tbl2" "tbl3" "tbl4" \
@@ -832,7 +832,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* table "tbl3" does not exist in the concrete view *)
+= error (* table "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL INTER TESTS *)
@@ -925,7 +925,7 @@ test
     , tbl3 = [ b, d, e ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (inter "tbl2" "tbl3" "tbl4" \
@@ -937,7 +937,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* table "tbl3" does not exist in the concrete view *)
+= error (* table "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL INTERL TESTS *)
@@ -1030,7 +1030,7 @@ test
     , tbl3 = [ b, d, e ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (interl "tbl2" "tbl3" "tbl4" \
@@ -1042,7 +1042,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* table "tbl3" does not exist in the concrete view *)
+= error (* table "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL INTERR TESTS *)
@@ -1135,7 +1135,7 @@ test
     , tbl3 = [ b, d, e ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (interr "tbl2" "tbl3" "tbl4" \
@@ -1147,7 +1147,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* table "tbl3" does not exist in the concrete view *)
+= error (* table "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL DIFF TESTS *)
@@ -1239,7 +1239,7 @@ test
     , tbl3 = [ b, c, d ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (diff "tbl2" "tbl3" "tbl4" \
@@ -1250,7 +1250,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* "tbl3" does not exist in the concrete view *)
+= error (* "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL DIFFL TESTS *)
@@ -1342,7 +1342,7 @@ test
     , tbl3 = [ b, c, d ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (diffl "tbl2" "tbl3" "tbl4" \
@@ -1353,7 +1353,7 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* "tbl3" does not exist in the concrete view *)
+= error (* "tbl3" does not exist in the concrete tree *)
 
 
 (* ADDITIONAL DIFFR TESTS *)
@@ -1445,7 +1445,7 @@ test
     , tbl3 = [ b, c, d ]
     }
   )
-= error (* "tbl4" does not exist in the abstract view *)
+= error (* "tbl4" does not exist in the abstract tree *)
 
 test
   norm (diffr "tbl2" "tbl3" "tbl4" \
@@ -1456,6 +1456,6 @@ test
     , tbl2 = [ a, b, c ]
     }
   )
-= error (* "tbl3" does not exist in the concrete view *)
+= error (* "tbl3" does not exist in the concrete tree *)
 #{@}
 

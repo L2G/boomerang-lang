@@ -9,8 +9,8 @@ val nicetypesoftheprog :
 val types_to_string : 
   (Syntax.typedef * Syntax.typeschema) -> string
 
-(* used in Compiler.compile_view to figure out which AstVars are names
+(* used in Compiler.compile_tree to figure out which AstVars are names
 and which are really variables *)
 
-val annot_view :
+val annot_tree :
   Syntax.expr -> Syntax.expr

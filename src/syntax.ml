@@ -66,7 +66,7 @@ let put_qid i = mk_pre_qid i "put"
 let sync_qid i = mk_pre_qid i "_sync" (* can't write "sync" because it's a token :( *)
 let cons_qid i = mk_pre_qid i "Cons"
 let nil_qid i = mk_pre_qid i "Nil"
-let type_of_view_qid i = mk_pre_qid i "type_of_view"
+let type_of_tree_qid i = mk_pre_qid i "type_of_tree"
 
 (* abstract syntax *)
 

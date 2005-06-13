@@ -24,9 +24,9 @@ type stackframe =
 
 let dumpframe fr =
   let m = match fr with
-      GetFrame (s,c) -> [`String (s ^ " (get)"); `View c]
+      GetFrame (s,c) -> [`String (s ^ " (get)"); `Tree c]
     | PutFrame (s,a,co) ->
-        [`String (s ^ " (put)"); `View a; `String "into"; `View_opt co] in
+        [`String (s ^ " (put)"); `Tree a; `String "into"; `Tree_opt co] in
     [`Break; `String "FRAME "] @ m
       
 let stack = Misc.dynamic_var []

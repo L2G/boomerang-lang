@@ -17,53 +17,53 @@ open Info
 %token <Syntax.id> IDENT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK COMMA COLON EQUAL
 
-%start view
-%type <V.t> view
+%start tree
+%type <V.t> tree
 
 %%
 
-view:
-  | aview COLON COLON view         { V.cons $1 $4 }
-  | aview                          { $1 }
+tree:
+  | atree COLON COLON tree         { V.cons $1 $4 }
+  | atree                          { $1 }
 
-aview: 
-  | LBRACE viewelt_list RBRACE     { Safelist.fold_right 
+atree: 
+  | LBRACE treeelt_list RBRACE     { Safelist.fold_right 
 				       (fun v vacc -> V.concat vacc v) 
 				       $2 
 				       V.empty 
 				   }
-  | LBRACK innerview_list RBRACK   { Safelist.fold_right 
+  | LBRACK innertree_list RBRACK   { Safelist.fold_right 
 				       (fun v vacc -> V.cons v vacc) 
 				       $2 
 				       V.empty_list
 				   }
   
-viewelt_list:
+treeelt_list:
   |                                { [] }
-  | non_empty_viewelt_list     { $1 }
+  | non_empty_treeelt_list     { $1 }
 
-non_empty_viewelt_list:
-  | viewelt                              { [$1] }
-  | viewelt COMMA non_empty_viewelt_list { $1::$3 }
+non_empty_treeelt_list:
+  | treeelt                              { [$1] }
+  | treeelt COMMA non_empty_treeelt_list { $1::$3 }
 
- viewelt:
+ treeelt:
   | IDENT                          { let n = Syntax.string_of_id $1 in
 				       V.set V.empty n (Some V.empty)
 				   }
-  | IDENT EQUAL innerview          { let n = Syntax.string_of_id $1 in
+  | IDENT EQUAL innertree          { let n = Syntax.string_of_id $1 in
 				       V.set V.empty n (Some $3)
 				   }
-innerview:
-  | view                           { $1 }
+innertree:
+  | tree                           { $1 }
   | IDENT                          { let n = Syntax.string_of_id $1 in 
 				       V.set V.empty n (Some V.empty)	  
 				   }
       
-innerview_list:
+innertree_list:
   |                                      { [] }
-  | non_empty_innerview_list             { $1 }
+  | non_empty_innertree_list             { $1 }
 
-non_empty_innerview_list:
-  | innerview                                { [$1] }
-  | innerview COMMA non_empty_innerview_list { $1::$3 }
+non_empty_innertree_list:
+  | innertree                                { [$1] }
+  | innertree COMMA non_empty_innertree_list { $1::$3 }
 

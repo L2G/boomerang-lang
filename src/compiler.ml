@@ -162,8 +162,8 @@ end
 (* [ends_with_type s] is [true] iff [s] is [type] or is of the form
    [s_1 -> ... s_n -> type] *)
 let rec ends_with_type = function
-    (* N.B.: a view is a value, so we don't need to delay computations
-       involving views *)
+    (* N.B.: a tree is a value, so we don't need to delay computations
+       involving trees *)
     SSchema       -> true
   | SArrow(_,s) -> ends_with_type s
   | _           -> false
@@ -502,7 +502,6 @@ let rec compile_exp cev e0 =
 		  mk_rv 
 		    SSchema
 		    (Value.T (Value.Atom(i,n,t)))
-	      | _ -> run_error i (fun () -> "expected view or type in atom")
 	    end
 		    
       | EBang(i,es,e) ->
@@ -537,7 +536,7 @@ let rec compile_exp cev e0 =
 		  STree -> 
 		    let vi = Safelist.fold_left
 		      (fun vacc v -> 
-			 try V.concat vacc (Value.get_view i v)
+			 try V.concat vacc (Value.get_tree i v)
 			 with V.Illformed _ -> 
 			   (* FIXME: better msg *)
 			   run_error i (fun () -> "domain collision"))
@@ -572,7 +571,7 @@ let rec compile_exp cev e0 =
 		  mk_rv 
 		    SSchema
 		    (Value.T (Type.mk_cons i t1 t2))
-	      | _ -> run_error i (fun () -> "expected view or type in atom")
+	      | _ -> run_error i (fun () -> "expected tree or type in atom")
 	    end
 
       | EFun(i,[p],Some ret_sort,e) ->
@@ -684,10 +683,10 @@ and compile_exp_name cev e =
   let e_rv = compile_exp cev e in
     Value.get_name i (v_of_rv e_rv)
       
-and compile_exp_view cev e =
+and compile_exp_tree cev e =
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
-    Value.get_view i (v_of_rv e_rv)
+    Value.get_tree i (v_of_rv e_rv)
       
 and compile_exp_type cev e =
   let i = info_of_exp e in
@@ -767,29 +766,29 @@ let rec compile_decl cev m di =
 	begin
 	  let vo = 
 	    try
-	      OK (compile_exp_view cev e)
+	      OK (compile_exp_tree cev e)
 	    with (Error.Native_error(m)) -> Error m
-	      | V.Illformed(s,vl) -> Error (V.format_msg_as_string ([`String s] @ (Safelist.map (fun v -> `View v) vl)))
+	      | V.Illformed(s,vl) -> Error (V.format_msg_as_string ([`String s] @ (Safelist.map (fun v -> `Tree v) vl)))
 	  in
 	    match vo, reso with 
 		Error _, None -> ()
 	      | OK v, Some res -> 
-		  let resv = compile_exp_view cev res in
+		  let resv = compile_exp_tree cev res in
 		    if not (V.equal v resv) then
 		      test_error i 
 			(fun () -> 
 			   V.format_msg_as_string
 			     [`String "expected:"; `Space;
-			      `View resv;`Space;
+			      `Tree resv;`Space;
 			      `String "found:"; `Space;
-			      `View v])
+			      `Tree v])
 	      | Error m, Some res -> 
-		  let resv = compile_exp_view cev res in
+		  let resv = compile_exp_tree cev res in
 		    test_error i 
 		      (fun () -> 
 			 V.format_msg_as_string
 			   [`String "expected:"; `Space;
- 			    `View resv; `Space;
+ 			    `Tree resv; `Space;
 			    `String "found error:"; `Space;
                             `String m])
 	
@@ -798,7 +797,7 @@ let rec compile_decl cev m di =
 		    (fun () -> 
 		       V.format_msg_as_string
 			 [`String "expected error, found"; `Break;
- 			  `View v;])
+ 			  `Tree v;])
 	end;
       (cev, [])	
 	  

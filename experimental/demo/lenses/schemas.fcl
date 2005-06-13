@@ -18,7 +18,7 @@ and Twig = List { "folders" = { * = List Twig }, "links" = { * = V } }
 
 type BushAbstract = Item
       
-(* the lens to flatten the abstract view into a bush *)
+(* the lens to flatten the abstract tree into a bush *)
 let flatten_to_bush : lens =
 
   (* recursively applies the lens to the folder contents, and pivots the links *)

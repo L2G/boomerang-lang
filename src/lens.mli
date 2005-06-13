@@ -14,10 +14,10 @@ type ('a, 'b) t = {
     parameterized by the types of the concrete and abstract domains. *)
 
 val get : ('a, 'b) t -> 'a -> 'b
-(** [get l c] returns the result of applying [l.get] to the view [c]. *)
+(** [get l c] returns the result of applying [l.get] to the tree [c]. *)
 
 val put : ('a, 'b) t -> 'b -> 'a option -> 'a
-(** [put l a c] returns the result of applying [l.put] to the abstract view
+(** [put l a c] returns the result of applying [l.put] to the abstract tree
     [a] and the concrete [c] *)
 
 val native : ('a -> 'b) -> ('b -> 'a option -> 'a) -> ('a, 'b) t

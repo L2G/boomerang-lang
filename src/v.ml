@@ -1,9 +1,9 @@
-(* Views are the synchronizer's most basic abstraction. *)   
+(* Trees are the synchronizer's most basic abstraction. *)   
 
-(* the bool indicates if the view is well formed *)
+(* the bool indicates if the tree is well formed *)
 type t = VI of t Name.Map.t
 
-(* Hashes of views *)
+(* Hashes of trees *)
 type thist = t (* hack to avoid cyclic type in Hash functor application *)
 
 module Hash =
@@ -71,7 +71,7 @@ let from_list vl = VI (Name.Map.from_list vl)
 let singleton_dom v =
   let d = dom v in
   if Name.Set.cardinal d <> 1 then
-    raise (Illformed ("singleton_dom: view with several children", [v]));
+    raise (Illformed ("singleton_dom: tree with several children", [v]));
     Name.Set.choose d
 
 (* v is a value if it has one child, and that child is [V.empty] *)
@@ -208,11 +208,11 @@ let concat v1 v2 =
   with
   | Invalid_argument _ -> raise 
                            ( Illformed
-                           ("concat: domain collision between the following two views: ",
+                           ("concat: domain collision between the following two trees: ",
                            [v1;v2;]))
   | Illformed _ -> raise
                      ( Illformed
-                     ("concat: the view obtained while concatenating the following two view is not well formed: ",
+                     ("concat: the tree obtained while concatenating the following two tree is not well formed: ",
                      [v1;v2;]))
     
 (* let iter f (VI (_,m)) = Name.Map.iter f m *)
@@ -235,7 +235,7 @@ let split p v =
 (* PRETTY PRINTING *)
 
 let raw = 
-  Prefs.createBool "raw" false "Dump views in 'raw' form" ""
+  Prefs.createBool "raw" false "Dump trees in 'raw' form" ""
       
 let format v =
   let format_str s =
@@ -303,8 +303,8 @@ let format_to_string f =
 let string_of_t v = 
   format_to_string (fun () -> format v)
     
-type msg = [ `String of string | `Name of Name.t | `Break | `Space | `View of t
-           | `View_opt of t option | `Open_box | `Open_vbox | `Close_box ]
+type msg = [ `String of string | `Name of Name.t | `Break | `Space | `Tree of t
+           | `Tree_opt of t option | `Open_box | `Open_vbox | `Close_box ]
 
 exception Error of msg list
 
@@ -320,10 +320,10 @@ let format_msg l =
         Format.printf "@,"; loop r
     | `Space :: r ->
         Format.printf "@ "; loop r
-    | `View v :: r ->
+    | `Tree v :: r ->
         format v;
         loop r
-    | `View_opt v :: r ->
+    | `Tree_opt v :: r ->
         format_option v;
         loop r
     | `Open_box :: r ->
@@ -373,7 +373,7 @@ let rec show_diffs v u =
   show_diffs_inner v u [];
   Format.printf "@]"
   
-(* CK's old pretty printer for views *)
+(* CK's old pretty printer for trees *)
 (* let rec pretty_print ((VI (_,m)) as v) = *)
 (*   if is_list v then  *)
 (*     begin (\* A list *\) *)

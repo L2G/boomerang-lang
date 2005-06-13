@@ -68,7 +68,7 @@ class example_widget ~packing ?(show=true) callbacks =
       ~show:show
       ()
   in
-  (* Views *)
+  (* Trees *)
   let view_hbox = 
     GPack.hbox
       ~spacing:2 ~homogeneous:false

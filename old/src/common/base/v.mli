@@ -1,17 +1,17 @@
-(** Views *)
+(** Tree *)
 
 type t
-(** A view is a tree of names.  Formally, a [V.t] is a partial function
+(** A [V.t] is a tree of names.  Formally, a [V.t] is a partial function
     from [Name.t]'s to [V.t]'s. *)
 
 type reader = string -> t option
-(** Reads a file or filesystem into a concrete view. *)
+(** Reads a file or filesystem into a concrete tree. *)
 
 type writer = t option -> string -> unit
-(** Writes a concrete view out to a file or filesystem. *)
+(** Writes a concrete tree out to a file or filesystem. *)
 
 val check_well_formed : t -> unit
-(** Check whether a view is well formed; raise Illformed if not *)
+(** Check whether a tree is well formed; raise Illformed if not *)
 
 (* --------------------------------------------------------------------- *)
 (**{2 Accessors} *)
@@ -20,7 +20,7 @@ val dom : t -> Name.Set.t
 (** [dom v] returns the domain of [v]. *)
 
 val singleton_dom : t -> Name.t
-(** [atomic_dom v] returns the name of the single child of the singleton view
+(** [atomic_dom v] returns the name of the single child of the singleton tree
     [v]. Raises [Illformed if [v] is not a singleton. *)
 
 val get : t -> Name.t -> t option
@@ -52,7 +52,7 @@ val to_list : t -> (Name.t * t) list
 (** {2 Creators} *)
 
 exception Illformed of string * (t list)
-(** Raised if someone attempts to create a view that violates
+(** Raised if someone attempts to create a tree that violates
     well-formedness constraints. *)
 
 val empty : t
@@ -69,23 +69,23 @@ val create_star : (Name.t * t option) list -> t
 (** [create_star binds = set_star empty binds] *)
 
 type desc =
-    V of (Name.t * desc) list   (* a view *)
-  | L of desc list              (* a list of views *)
+    V of (Name.t * desc) list   (* a tree *)
+  | L of desc list              (* a list of trees *)
   | Val of Name.t               (* a value *)  
-  | In of t                     (* an existing view *)
-  | E                           (* the empty view *)
+  | In of t                     (* an existing tree *)
+  | E                           (* the empty tree *)
 
 val from_desc : desc -> t
 
 
 (* --------------------------------------------------------------------- *)
-(** {2 Special forms of views} *)
+(** {2 Special forms of trees} *)
 
 val singleton : Name.t -> t -> t
-(** [singleton n v] returns a new view with [n] mapping to [v]. *)
+(** [singleton n v] returns a new tree with [n] mapping to [v]. *)
 
 val new_value : Name.t -> t
-(** Returns a value made from the given name.  A value is a view with a
+(** Returns a value made from the given name.  A value is a tree with a
     single child and no grandchildren. *)
 
 val get_value : t -> Name.t
@@ -93,7 +93,7 @@ val get_value : t -> Name.t
     raises [Illformed] otherwise. *)
 
 val is_value : t -> bool
-(** Test whether a view is a value. *)
+(** Test whether a tree is a value. *)
 
 val get_field_value : t -> Name.t -> Name.t
 (** [get_field_value v k] assumes that [v] has a child named [k], and that [k]
@@ -134,10 +134,10 @@ val map : (t -> (t option)) -> t -> t
 
 val mapi : (Name.t -> t -> (t option)) -> t -> t
 
-(** returns true if the given predicate is true for all child views *)
+(** returns true if the given predicate is true for all child trees *)
 val for_all : (t -> bool) -> t -> bool
 
-(** returns true if the given predicate is true for all name&child view pairs *)
+(** returns true if the given predicate is true for all name&child tree pairs *)
 val for_alli : (Name.t -> t -> bool) -> t -> bool
 
 val fold : (Name.t -> t -> 'a -> 'a) -> t -> 'a -> 'a

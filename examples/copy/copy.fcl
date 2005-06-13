@@ -1,18 +1,18 @@
 (* First useful use of copy ;-)
-   When some information needs to be duplicated in an abstract view
+   When some information needs to be duplicated in an abstract tree
    (for instance a "display name" and the name of a contact in an address
    book entry), this information may already be duplicated and different
    in the concrete format. This lens does the following:
-   - if the information is duplicated in the concrete view, it is passed unchanged
-   - if the information is not duplicated in the concrete view, it is copied
+   - if the information is duplicated in the concrete tree, it is passed unchanged
+   - if the information is not duplicated in the concrete tree, it is copied
    - on the way back, if:
      - exact copy in abstract and one entries in concrete -> one entries in concrete
      - exact copy in abstract and two entries in concrete -> two entries in concrete
      - different in abstract -> two entries in concrete
-     - exact copy in abstract and concrete view missing -> two entries in concrete
+     - exact copy in abstract and concrete tree missing -> two entries in concrete
        FIX: we would like to have only one entry in the previous case, but this
             requires a "not" type for the cond
-     - different in abstract and concrete view missing -> two entries in concrete
+     - different in abstract and concrete tree missing -> two entries in concrete
      *)
 
 module Copy =

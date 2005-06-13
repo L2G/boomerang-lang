@@ -54,13 +54,13 @@ let rec find_conflict a =
 	     | Some a -> opt) m None
 
 let format_copy s = function
-  | Adding v -> V.format_msg [ `String s; `Open_box; `String " Add"; `View v; `Close_box ]
-  | Deleting v -> V.format_msg [`String s; `Open_box; `String " Delete"; `View v; `Close_box ]
+  | Adding v -> V.format_msg [ `String s; `Open_box; `String " Add"; `Tree v; `Close_box ]
+  | Deleting v -> V.format_msg [`String s; `Open_box; `String " Delete"; `Tree v; `Close_box ]
 	
 let rec format = function
   | SchemaConflict (t,lv,rv) ->
       V.format_msg ([`Open_vbox; `String "[SchemaConflict] "; `Break; `String (Type.string_of_t t);
-                     `Break; `View lv; `Break; `View rv; `Close_box] )
+                     `Break; `Tree lv; `Break; `Tree rv; `Close_box] )
   | GoDown(m) ->
       Name.Map.dump (fun ks -> ks) Misc.whack
         (fun x -> format x)
@@ -76,7 +76,7 @@ let rec format = function
 
 let rec format_without_equal = function
   | SchemaConflict (t,lv,rv) -> 
-      V.format_msg ([`Open_vbox; `String "[SchemaConflict] at type "; `String (Type.string_of_t t); `Break; `View lv; `Break; `View rv; `Close_box] )
+      V.format_msg ([`Open_vbox; `String "[SchemaConflict] at type "; `String (Type.string_of_t t); `Break; `Tree lv; `Break; `Tree rv; `Close_box] )
   | GoDown(m) ->
       let prch (n,ch) = 
 	let prf() = Format.printf "@["; format_without_equal ch; Format.printf "@]" in
@@ -103,12 +103,12 @@ let rec format_without_equal = function
   | CopyRightToLeft c -> format_copy "<====" c
       
 (* accum : oldacc -> key -> val option -> newacc *)
-(* accumulate adds a binding for a view option to an accumulator *)
+(* accumulate adds a binding for a tree option to an accumulator *)
 let accumulate oldacc k = function
     None -> oldacc
   | Some v -> (k, v) :: oldacc
 
-(* N.B.: sync builds not only a worklist structure, but also the new views *)
+(* N.B.: sync builds not only a worklist structure, but also the new trees *)
 (* that would result; this lets us rely on the invariants maintained by v.ml *)
 (* to detect malformed synchronization results (i.e. ones that are not GOOD *)
 (* w.r.t. docs/simple.txt *)
@@ -119,7 +119,7 @@ let rec sync' (t:Type.t) archo lefto righto =
     then
       begin 
 	Lens.error [`String "Synchronziation error: "; `Break
-		   ; `View v; `Break
+		   ; `Tree v; `Break
 		   ; `String " does not belong to "; `Break
 		   ; `String (Value.string_of_ty t)
 		   ; `String "."]
@@ -213,7 +213,7 @@ and sync (t:Type.t) o a b =
   (*  V.format_msg [`String "sync:"
       ; `String ("\ndelta: " ^ (Tutil.defs2str delta))
       ; `String ("\nty: " ^ (Tutil.t2str ty))
-      ; `View_opt o; `View_opt a; `View_opt b];
+      ; `Tree_opt o; `Tree_opt a; `Tree_opt b];
   *)
   let result = sync' t o a b in
     result

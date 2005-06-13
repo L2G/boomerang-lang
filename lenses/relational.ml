@@ -3,7 +3,7 @@ open Syntax
 open Registry
 open Value
 
-(* View freezing *)
+(* Tree freezing *)
 let freeze =
   let getfun c =
     V.new_value (Surveyor.get_writer "meta" c)
@@ -48,12 +48,12 @@ let lift_to_opt f xo =
 
 let lift_binary dblens src1 src2 dst =
   let getfun c =
-    let dbc = Treedb.view_to_db c in
-    Treedb.db_to_view (Lens.get (dblens src1 src2 dst) dbc)
+    let dbc = Treedb.tree_to_db c in
+    Treedb.db_to_tree (Lens.get (dblens src1 src2 dst) dbc)
   and putfun a co =
-    let dba = Treedb.view_to_db a in
-    let dbco = lift_to_opt Treedb.view_to_db co in
-    Treedb.db_to_view (Lens.put (dblens src1 src2 dst) dba dbco)
+    let dba = Treedb.tree_to_db a in
+    let dbco = lift_to_opt Treedb.tree_to_db co in
+    Treedb.db_to_tree (Lens.put (dblens src1 src2 dst) dba dbco)
   in
   Lens.native getfun putfun
 
@@ -67,9 +67,9 @@ let register_binary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> lens"
     (make_binary_lib fclname (lift_binary dblens))
 
-let register_view_view_binary_dblens fclname dblens =
-  register_native fclname "view -> view -> name -> name -> name -> lens" (
-    mk_vfun "view -> name -> name -> name -> lens" fclname 
+let register_tree_tree_binary_dblens fclname dblens =
+  register_native fclname "tree -> tree -> name -> name -> name -> lens" (
+    mk_vfun "tree -> name -> name -> name -> lens" fclname 
       (fun v1 -> mk_vfun "name -> name -> name -> lens" fclname
 	 (fun v2 -> make_binary_lib fclname (lift_binary (dblens v1 v2))))
   )
@@ -96,19 +96,19 @@ let () = register_binary_dblens "Native.Relational.joinr" Dblens.joinr
 
 (* Outer join *)
 let () =
-  register_view_view_binary_dblens "Native.Relational.ojoin" (
+  register_tree_tree_binary_dblens "Native.Relational.ojoin" (
     fun dv1 dv2 ->
-      Dblens.ojoin (Treedb.view_to_rel dv1) (Treedb.view_to_rel dv2)
+      Dblens.ojoin (Treedb.tree_to_rel dv1) (Treedb.tree_to_rel dv2)
   )
 let () =
-  register_view_view_binary_dblens "Native.Relational.ojoinl" (
+  register_tree_tree_binary_dblens "Native.Relational.ojoinl" (
     fun dv1 dv2 ->
-      Dblens.ojoinl (Treedb.view_to_rel dv1) (Treedb.view_to_rel dv2)
+      Dblens.ojoinl (Treedb.tree_to_rel dv1) (Treedb.tree_to_rel dv2)
   )
 let () =
-  register_view_view_binary_dblens "Native.Relational.ojoinr" (
+  register_tree_tree_binary_dblens "Native.Relational.ojoinr" (
     fun dv1 dv2 ->
-      Dblens.ojoinr (Treedb.view_to_rel dv1) (Treedb.view_to_rel dv2)
+      Dblens.ojoinr (Treedb.tree_to_rel dv1) (Treedb.tree_to_rel dv2)
   )
 
 
@@ -116,12 +116,12 @@ let () =
 
 let lift_unary dblens src dst =
   let getfun c =
-    let dbc = Treedb.view_to_db c in
-    Treedb.db_to_view (Lens.get (dblens src dst) dbc)
+    let dbc = Treedb.tree_to_db c in
+    Treedb.db_to_tree (Lens.get (dblens src dst) dbc)
   and putfun a co =
-    let dba = Treedb.view_to_db a in
-    let dbco = lift_to_opt Treedb.view_to_db co in
-    Treedb.db_to_view (Lens.put (dblens src dst) dba dbco)
+    let dba = Treedb.tree_to_db a in
+    let dbco = lift_to_opt Treedb.tree_to_db co in
+    Treedb.db_to_tree (Lens.put (dblens src dst) dba dbco)
   in
   Lens.native getfun putfun
 
@@ -137,10 +137,10 @@ let register_name_name_unary_dblens fclname dblens =
 	 (fun n2' -> make_unary_lib fclname (lift_unary (dblens n1' n2'))))
   )
 
-let register_view_view_view_unary_dblens fclname dblens =
-  register_native fclname "view -> view -> view -> name -> name -> lens" (
-    mk_vfun "view -> view -> name -> name -> lens" fclname 
-      (fun v1 -> mk_vfun "view -> name -> name -> lens" fclname
+let register_tree_tree_tree_unary_dblens fclname dblens =
+  register_native fclname "tree -> tree -> tree -> name -> name -> lens" (
+    mk_vfun "tree -> tree -> name -> name -> lens" fclname 
+      (fun v1 -> mk_vfun "tree -> name -> name -> lens" fclname
 	 (fun v2 -> mk_vfun "name -> name -> lens" fclname
 	    (fun v3 -> make_unary_lib fclname (lift_unary (dblens v1 v2 v3)))))
   )
@@ -159,16 +159,16 @@ let () =
     "Native.Relational.select_eq" Dblens.select_eq
 
 (* Project *)
-let view_to_string_list v =
+let tree_to_string_list v =
   Name.Set.elements (V.dom v)
 
 let () =
-  register_view_view_view_unary_dblens
+  register_tree_tree_tree_unary_dblens
     "Native.Relational.project" (
-      fun fldsview keysview dfltview ->
+      fun fldstree keystree dflttree ->
         Dblens.project
-          (view_to_string_list fldsview)
-          (view_to_string_list keysview)
-          (Treedb.view_to_rel dfltview)
+          (tree_to_string_list fldstree)
+          (tree_to_string_list keystree)
+          (Treedb.tree_to_rel dflttree)
     )
 

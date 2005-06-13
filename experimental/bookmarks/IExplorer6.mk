@@ -11,17 +11,17 @@ CMX_FILES = info.cmx error.cmx safelist.cmx uprintf.cmx util.cmx uarg.cmx \
 FAVDIR = ./IE6BMSample
 MOVEDDIR = ./IE6BMNew
 
-VIEW_FILE = dumped-bkmark.meta
+TREE_FILE = dumped-bkmark.meta
 
 ie6util: ie6util.ml
 	ocamlopt -o ie6util $(LIB_DIRS) str.cmxa unix.cmxa $(CMX_FILES) ie6util.ml
 
 testieget: ie6util
-	./ie6util get $(FAVDIR) $(VIEW_FILE) && echo && cat $(VIEW_FILE)
+	./ie6util get $(FAVDIR) $(TREE_FILE) && echo && cat $(TREE_FILE)
 
 testieput: testieget
-	./ie6util put $(VIEW_FILE) $(MOVEDDIR)
+	./ie6util put $(TREE_FILE) $(MOVEDDIR)
 
 cleanIE:
 	rm -rf $(MOVEDDIR)
-	rm -rf *~ *.o *.cm* ie6util $(VIEW_FILE)
+	rm -rf *~ *.o *.cm* ie6util $(TREE_FILE)

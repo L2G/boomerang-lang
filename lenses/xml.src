@@ -28,17 +28,17 @@ PCDATA:
 
 This encoding is described by following type declarations:
 #*let children = ""
-#*let PCDATA : type = { PCDATA = { ! = {}}}
-#*let XmlElt : type = {!\PCDATA = {`children = (List.T XmlElt),  (* subelts *)
+#*let PCDATA : schema = { PCDATA = { ! = {}}}
+#*let XmlElt : schema = {!\PCDATA = {`children = (List.T XmlElt),  (* subelts *)
 #*                                 *\`children = {! = {}} }}      (* attrs *)
 #*                  | PCDATA
-#*let T : type = List.T XmlElt
+#*let T : schema = List.T XmlElt
 
-\finish{Change over to better way of writing this when new types are ready.} 
+\finish{Change over to better way of writing this when new schemas are ready.} 
 
 #{#}
 (* We really want to write it this way: 
-type XmlElt =   {!\PCDATA = {`children = `T,            (* subelts *)
+schema XmlElt =   {!\PCDATA = {`children = `T,            (* subelts *)
                              *\`children = {! = {}} }}  (* attrs *)
               | PCDATA
 and T = List.T XmlElt
@@ -51,7 +51,7 @@ and T = List.T XmlElt
 More needed:
 \begin{itemize}
 \item all of these need to be extended to deal with attributes!!
-\item Much of this would be nicer to write if we had concatenation of types
+\item Much of this would be nicer to write if we had concatenation of schemas
 \item hoist element
 \item hoist pcdata 
 \end{itemize}
@@ -59,10 +59,10 @@ More needed:
 
 \LENSSECTION{flatten}
 The @flatten@ lens is a generalized version of @List.flatten@.  Removes the
-ordering from an XML structure, leaving a ``bush'' of type @FlattenedXML@:
-\finish{This really needs type concatenation!!}
+ordering from an XML structure, leaving a ``bush'' of schema @FlattenedXML@:
+\finish{This really needs schema concatenation!!}
 #{*}
-let FlattenedXML : type = { PCDATA = (List.T Value), 
+let FlattenedXML : schema = { PCDATA = (List.T Value), 
                             *\PCDATA = (List.T FlattenedXML) } 
                           | { ATTRS = {!=Value,*=Value}, 
                               *\PCDATA,ATTRS = (List.T FlattenedXML) } 
@@ -133,8 +133,8 @@ concrete
 argument is ``non-repetitive'' in the sense that each element contains at
 most one sub-element with a given tag (and at most one PCDATA sub-element).
 #{*}
-let FlattenedPCDATA : type = { PCDATA = [Value] } 
-let SimpleFlattenedXML : type = { *\PCDATA = [SimpleFlattenedXML] }
+let FlattenedPCDATA : schema = { PCDATA = [Value] } 
+let SimpleFlattenedXML : schema = { *\PCDATA = [SimpleFlattenedXML] }
                                 | { PCDATA = [Value], 
                                     *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
                                 | { ATTRS = {!=Value,*=Value}, 
@@ -146,10 +146,10 @@ let SimpleFlattenedXML : type = { *\PCDATA = [SimpleFlattenedXML] }
 
 For such XML structures, there is no need for any list structure in their
 abstract representations---i.e., we can take just the head elements of all
-the lists, yielding something of this type:
+the lists, yielding something of this schema:
 #{*}
-let SquashedPCDATA : type = { PCDATA = Value } 
-let SquashedXML : type = { *\PCDATA,ATTRS = SquashedXML }
+let SquashedPCDATA : schema = { PCDATA = Value } 
+let SquashedXML : schema = { *\PCDATA,ATTRS = SquashedXML }
                          | { PCDATA = Value, 
                              *\PCDATA,ATTRS = SquashedXML } 
                          | { ATTRS = {!=Value,*=Value}, 

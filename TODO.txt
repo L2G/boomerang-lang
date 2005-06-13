@@ -10,6 +10,8 @@ put GPL notice in files
   and download/read instructions on getting copyright transfer
 finish title page (discuss)
 
+the Type module should be renamed Schema, I guess
+
 NATE TASKS
 
 NATE TASKS

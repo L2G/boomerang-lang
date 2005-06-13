@@ -92,14 +92,16 @@ t: buildharmony test
 updateall:
 	cd $(TOP); svn update
 
+.PHONY: tags
+
 buildtags:
 	$(MAKE) clean
 	(cd $(TOP); \
-	 etags `find . -name "*.src" \
+	 etags `find .  -name "*.src" \
 	           -or -name "*.fcl" \
 	           -or -name "*.ml" \
 	           -or -name "*.mli" \
-	           -or -name "*Makefile*"`)
+	           -or -name "*Makefile*" | egrep -v ".svn|./old|./papers|./talks"`)
 
 
 ####################################################################

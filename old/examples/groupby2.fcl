@@ -5,7 +5,7 @@ let idFork p l = fork p l id
 let idXFork pc pa l = xfork pc pa l id
 
 (* note: mapName takes a predicate, but it *must* contain 
-   a single name when we have variables in views, we should 
+   a single name when we have variables in trees, we should 
    change it so that it takes a name instead 
 *)
 let mapName p l = idFork p (map l)

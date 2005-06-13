@@ -23,12 +23,12 @@ let lookup_type qid_str =
 	  (Info.M (Printf.sprintf "%s is not a type" qid_str))
 	  (Registry.value_of_rv rv)
 
-let read_view fn = 
+let read_tree fn = 
   let (fn, ekeyo) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
-    Surveyor.view_of_file fn (Surveyor.get_reader ekey)
+    Surveyor.tree_of_file fn (Surveyor.get_reader ekey)
       
-let write_view fn v = 
+let write_tree fn v = 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
   let v_str = (Surveyor.get_writer ekey) v in    
@@ -45,34 +45,34 @@ let check m =
 (* GET *)
 (*******)
 let get lens c_fn o_fn = 
-  let cvo = read_view c_fn in
+  let cvo = read_tree c_fn in
   let lens = lookup_lens lens in
   let av = match cvo with
     | Some cv -> Lens.get lens cv
-    | None -> failwith (Printf.sprintf "Concrete view file %s is missing." c_fn) 
+    | None -> failwith (Printf.sprintf "Concrete tree file %s is missing." c_fn) 
   in
-    write_view o_fn av
+    write_tree o_fn av
 
 (*******)
 (* PUT *)
 (*******)
 let put lens a_fn c_fn o_fn = 
-  let avo = read_view a_fn in
-  let cvo = read_view c_fn in 
+  let avo = read_tree a_fn in
+  let cvo = read_tree c_fn in 
   let lens = lookup_lens lens in
   let cv' = match avo with
       Some av -> Lens.put lens av cvo
-    | None -> failwith (Printf.sprintf "The abstract view file %s is missing or empty" a_fn)
+    | None -> failwith (Printf.sprintf "The abstract tree file %s is missing or empty" a_fn)
   in	
-    write_view o_fn cv'
+    write_tree o_fn cv'
       
 (********)
 (* SYNC *)
 (********)
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
-  let o = read_view o_fn in
-  let a = read_view a_fn in
-  let b = read_view b_fn in
+  let o = read_tree o_fn in
+  let a = read_tree a_fn in
+  let b = read_tree b_fn in
   let s = lookup_type s in 
   let lenso = lookup_lens lenso in
   let lensa = lookup_lens lensa in 
@@ -85,9 +85,9 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let a' = Misc.map_option (fun a' -> Lens.put lenso a' o) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lenso b' o) ba' in
     Sync.format_without_equal act;
-    ignore (Misc.map_option (write_view o'_fn) o');
-    ignore (Misc.map_option (write_view a'_fn) a');
-    ignore (Misc.map_option (write_view b'_fn) b')
+    ignore (Misc.map_option (write_tree o'_fn) o');
+    ignore (Misc.map_option (write_tree a'_fn) a');
+    ignore (Misc.map_option (write_tree b'_fn) b')
 
 (****************************  Command-line switches *******************************)
 
@@ -101,14 +101,14 @@ let _ = Prefs.alias lens "l"
 let concrete = Prefs.createString 
   "concrete" 
   ""
-  "concrete view to use for get and put" 
+  "concrete tree to use for get and put" 
   "name of the file to use as the concrete argument to get and put"
 let _ = Prefs.alias concrete "c"
 
 let abstract = Prefs.createString 
   "abstract" 
   ""
-  "abstract view to use for get and put" 
+  "abstract tree to use for get and put" 
   "name of the file to use as the abstract argument to get and put"
 let _ = Prefs.alias abstract "a"
 

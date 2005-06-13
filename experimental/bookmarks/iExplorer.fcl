@@ -33,7 +33,7 @@ let l : lens =
 	   )
 	 } in
   
-  (* skip_empty_links removes the { link = {} } views that result from applying link to a noturl file *)
+  (* skip_empty_links removes the { link = {} } trees that result from applying link to a noturl file *)
   let skip_empty_links : lens =
     ccond <{"link"={}}::Any>
       (wmap { `(List.TL) -> skip_empty_links }; List.tl {"link"={}})
