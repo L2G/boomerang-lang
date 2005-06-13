@@ -50,14 +50,14 @@ GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 %.mly: %.src $(SRC2F)
 	-rm -f $@
 	$(SRC2F) $< $@.tmp
-	-cpp -P $@.tmp $@
+	tail +2 $@.tmp > $@
 	-rm -f $@.tmp
 	chmod -w $@
 
 %.mll: %.src $(SRC2F)
 	-rm -f $@
 	$(SRC2F) $< $@.tmp
-	-cpp -P $@.tmp $@
+	tail +2 $@.tmp > $@
 	-rm -f $@.tmp
 	chmod -w $@
 
