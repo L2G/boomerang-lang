@@ -233,7 +233,7 @@
 #*test flatten / [{a,b}] = error
 #*test flatten \ {a=[{}]} [{a,b}] = error
 
-\lenses{Conversions Between Strings and Lists}
+\subsection{Conversions Between Strings and Lists}
 
 \LENSSECTION{explode}
 ##let explode : lens = Native.Prelude.explode

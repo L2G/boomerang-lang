@@ -46,7 +46,7 @@ let parse_list_with_headers (H:type) =
 (* The top-level structured text lens.  Maps from lists of values to lists of lists of values, where the
    first element of each of the resulting sublists (except possibly the first) is a "header".  The parameter
    H specifies the type of headers in "exploded" form -- i.e., H should be a type of lists of characters. *)
-let l (H:type) = List.map explode; parse_list_with_headers H; List.map (List.map implode)
+let l (H:type) = List.map List.explode; parse_list_with_headers H; List.map (List.map List.implode)
 
 let CapLetter : type = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}|{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
 let AllCapsList : type = List.NonEmptyList (CapLetter|{" "})
@@ -99,8 +99,8 @@ let NestedListOfValues : type = List.T (List.Cons Value (List.T (List.Cons Value
 (******************************************************************************)
 (* Some useful instances packaged for invoking from the command line... *)
 
-let file_with_all_caps_headers = split; caps_headers
-let file_with_star_headers = split; star_headers
+let file_with_all_caps_headers = List.lines; caps_headers
+let file_with_star_headers = List.lines; star_headers
 
 
 (******************************************************************************)

@@ -27,7 +27,7 @@ SRC2TEX = $(TOOLSDIR)/src2tex
 ####################################################################
 # Setup for running harmony 
 
-LENSPATH = -I $(LENSESDIR) -I .
+LENSPATH = -I $(LENSESDIR) -I $(CWD)
 HARMONYBIN = $(SRCDIR)/harmony 
 HARMONY = $(HARMONYBIN) $(HARMONYFLAGS) $(LENSPATH)
 

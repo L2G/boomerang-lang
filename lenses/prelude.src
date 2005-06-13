@@ -1,12 +1,12 @@
 \section{The Standard Prelude}
 
-The lenses described in this section are available everywhere by default and
-need not be qualified with a module name.
+The lenses and schemas described in this section are available by default
+and need not be qualified with a module name.
 
 #{#}
 module Prelude = 
 
-(* Documentation for this comes at the end, but we need to use it sooner *)
+(* Documentation for this comes at the end, but we use it earlier: *)
 let invert : (lens -> lens) = Native.Prelude.invert
 #{@}
 

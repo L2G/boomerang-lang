@@ -1,13 +1,10 @@
 THINGS TO DO
 
 BCP TASKS
-change "split" to "lines" and "invert" to "inverse"
-move flatten and friends to list.src
 continue with prelude.src and friends
 look at address book stuff and reintegrate
 work with stephane on unison integration
 finish structured text demo (integrate spinelists) after nate's new types
-examples/experimental Makefiles should calculate subdirs
 make Plist a library module and experiment with syncing some real plists
 put GPL notice in files
   and download/read instructions on getting copyright transfer
