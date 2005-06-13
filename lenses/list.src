@@ -233,4 +233,32 @@
 #*test flatten / [{a,b}] = error
 #*test flatten \ {a=[{}]} [{a,b}] = error
 
+\lenses{Conversions Between Strings and Lists}
+
+\LENSSECTION{explode}
+##let explode : lens = Native.Prelude.explode
+##test explode / {} = error
+##test explode / {""} = []
+##test explode / {focal} = [{f},{o},{c},{a},{l}]
+##test explode / {"lenses focal"} = [{l},{e},{n},{s},{e},{s},{" "},{f},{o},{c},{a},{l}]
+##test explode \ [{l},{e},{n},{s},{e},{s},{" "},{f},{o},{c},{a},{l}] missing = {"lenses focal"}
+##test explode \ [{f},{o},{c},{a},{l}] {} = {focal}
+##test explode \ [] missing = {""}
+
+\LENSSECTION{implode}
+##let implode : lens = invert (explode)
+
+\LENSSECTION{lines}
+##let lines : lens = Native.Prelude.lines
+##test lines / {} = error
+##test lines / {focal} = [{focal}]
+##(* test lines / \ {focal} = [focal] *)
+##test lines / {"focal\n"} = [{focal},{""}]
+##test lines / {""} = [{""}]
+##test lines / {"lenses\nfocal"} = [{lenses},{focal}]
+##test lines \ [] missing = error
+
+\LENSSECTION{unlines}
+##let unlines : lens = invert (lines)
+
  

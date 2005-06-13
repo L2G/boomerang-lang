@@ -14,6 +14,8 @@ clean::
 all: $(GENERATEDFCLFILES)
 
 test:: $(GENERATEDFCLFILES)
+	$(HARMONY) check -module Prelude -test-all 
+	$(HARMONY) check -module List -test-all 
 	$(HARMONY) check -module Xml -test-all 
 	$(HARMONY) check -module Spinelist -test-all 
 	$(HARMONY) check -module Relational -test-all 
