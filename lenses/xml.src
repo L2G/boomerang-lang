@@ -63,13 +63,13 @@ ordering from an XML structure, leaving a ``bush'' of type @FlattenedXML@:
 \finish{This really needs type concatenation!!}
 #{*}
 let FlattenedXML : type = { PCDATA = (List.T Value), 
-			    *\PCDATA = (List.T FlattenedXML) } 
-			  | { ATTRS = {!=Value,*=Value}, 
-			      *\PCDATA,ATTRS = (List.T FlattenedXML) } 
-			  | { PCDATA = (List.T Value), 
-			      ATTRS = {!=Value,*=Value}, 
-			      *\PCDATA,ATTRS = (List.T FlattenedXML) } 
-			  | { *\PCDATA,ATTRS = (List.T FlattenedXML) }
+                            *\PCDATA = (List.T FlattenedXML) } 
+                          | { ATTRS = {!=Value,*=Value}, 
+                              *\PCDATA,ATTRS = (List.T FlattenedXML) } 
+                          | { PCDATA = (List.T Value), 
+                              ATTRS = {!=Value,*=Value}, 
+                              *\PCDATA,ATTRS = (List.T FlattenedXML) } 
+                          | { *\PCDATA,ATTRS = (List.T FlattenedXML) }
 #{@}
 
 #{#}
@@ -77,7 +77,7 @@ let flatten : lens =
   plunge "FOO"; wmap { FOO -> 
   assert T;
   List.map flatten_elt;
-  Prelude.flatten; 
+  List.flatten; 
   assert FlattenedXML };
   hoist "FOO"
 
@@ -135,13 +135,13 @@ most one sub-element with a given tag (and at most one PCDATA sub-element).
 #{*}
 let FlattenedPCDATA : type = { PCDATA = [Value] } 
 let SimpleFlattenedXML : type = { *\PCDATA = [SimpleFlattenedXML] }
-				| { PCDATA = [Value], 
-				    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
-				| { ATTRS = {!=Value,*=Value}, 
-				    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
-				| { PCDATA = [Value],
-				    ATTRS = {!=Value,*=Value}, 
-				    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
+                                | { PCDATA = [Value], 
+                                    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
+                                | { ATTRS = {!=Value,*=Value}, 
+                                    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
+                                | { PCDATA = [Value],
+                                    ATTRS = {!=Value,*=Value}, 
+                                    *\PCDATA,ATTRS = [SimpleFlattenedXML] } 
 #{@}
 
 For such XML structures, there is no need for any list structure in their
@@ -150,13 +150,13 @@ the lists, yielding something of this type:
 #{*}
 let SquashedPCDATA : type = { PCDATA = Value } 
 let SquashedXML : type = { *\PCDATA,ATTRS = SquashedXML }
-			 | { PCDATA = Value, 
-			     *\PCDATA,ATTRS = SquashedXML } 
-			 | { ATTRS = {!=Value,*=Value}, 
-			     *\PCDATA,ATTRS = SquashedXML } 
-			 | { ATTRS = {!=Value,*=Value}, 
-			     PCDATA = Value, 
-			     *\PCDATA,ATTRS = SquashedXML } 
+                         | { PCDATA = Value, 
+                             *\PCDATA,ATTRS = SquashedXML } 
+                         | { ATTRS = {!=Value,*=Value}, 
+                             *\PCDATA,ATTRS = SquashedXML } 
+                         | { ATTRS = {!=Value,*=Value}, 
+                             PCDATA = Value, 
+                             *\PCDATA,ATTRS = SquashedXML } 
 #{@}
 The @squash_flattened@ 
 

@@ -5,10 +5,9 @@
 
 # $Id$ 
 
-SUBDIRS = template structuredtext addresses copy
-
 TOP = ..
 include $(TOP)/Top.Makefile
+SUBDIRS = $(ALLSUBDIRS)
 
 all:
 

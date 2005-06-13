@@ -211,3 +211,26 @@
 #*test groupby2 \ [[{1},{2}],[{3},{4}],[{5}]] missing = [{1},{2},{3},{4},{5}]
 #*test groupby2 \ [[{1},{2}],[{3},{4}],[{5}]] [{1},{2},{3}] = [{1},{2},{3},{4},{5}]
 
+#@\LENSSECTION{join}
+#*let join : (name -> name -> lens) = Native.Prelude.join
+#*test (join "x" "y") / {} = error
+#*test (join "x" "y") / {x} = error
+#*test (join "x" "y") / {x, y} = {}
+#*test (join "x" "y") / {x={1=[{a}], 2=[{b}]}, y={2=[{c}]}} = {1={x=[{a}]}, 2={x=[{b}], y=[{c}]}}
+#*test (join "x" "y") / {x={1,2}, y={2}} = {1={x}, 2={x,y}}
+#*test (join "x" "y") \ {} missing = {x, y}
+#*test (join "x" "y") \ {} {x=[{1}], y=[{2}]} = {x, y}
+#*test (join "x" "y") \ {a={x=[{1}], y=[{3}]}, b={x=[{2}]}, c={y=[{4}]}} missing = {x={a=[{1}], b=[{2}]},  y={a=[{3}], c=[{4}]}}
+
+#@\LENSSECTION{flatten}
+#*let flatten : lens = Native.Prelude.flatten
+#*test flatten / [] = {}
+#*test flatten / [{k1={a}}, {k2={b}}] = {k1=[{a}], k2=[{b}]}
+#*test flatten / [{a={1}}, {b={2}}, {a={3}}] = {a=[{1},{3}], b=[{2}]}
+#*test flatten \ {a=[{4},{6}], b=[{5}]} [{a={1}}, {b={2}}, {a={3}}] = [{a={4}}, {b={5}}, {a={6}}] 
+#*test flatten \ {a=[{4},{6}], b=[{5}]} [{b={1}}, {a={2}}] = [{b={5}}, {a={4}}, {a={6}}]
+#*test flatten \ {a=[{1}], b=[{2}]} [{b={1}}, {a={2}}, {a={3}}] = [{b={2}}, {a={1}}]
+#*test flatten / [{a,b}] = error
+#*test flatten \ {a=[{}]} [{a,b}] = error
+
+ 

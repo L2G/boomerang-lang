@@ -19,6 +19,8 @@ TOOLSDIR = $(TOP)/tools
 SRCDIR = $(TOP)/src
 DOCDIR = $(TOP)/doc
 
+ALLSUBDIRS = $(shell find * -type d -print -prune)
+
 SRC2F = $(TOOLSDIR)/src2f
 SRC2TEX = $(TOOLSDIR)/src2tex
 
@@ -63,7 +65,9 @@ clean::
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
 	@for i in $(SUBDIRS); do \
 	   echo "###### testing $(CWD)/$$i ######"; \
-	   $(MAKE) -C $$i test; done
+	   $(MAKE) -C $$i test;  \
+	   if [ $$? -ne 0 ]; then exit $$?; fi; \
+	done
 
 buildharmony: 
 	@$(MAKE) -C $(SRCDIR) all

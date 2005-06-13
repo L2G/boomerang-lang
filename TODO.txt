@@ -8,6 +8,10 @@ look at address book stuff and reintegrate
 work with stephane on unison integration
 finish structured text demo (integrate spinelists) after nate's new types
 examples/experimental Makefiles should calculate subdirs
+make Plist a library module and experiment with syncing some real plists
+put GPL notice in files
+  and download/read instructions on getting copyright transfer
+finish title page (discuss)
 
 NATE TASKS
 why, again, do fork and friends take views, not types?
@@ -21,14 +25,12 @@ fix this printing problem:
   (note the H and T in the last line...)
 delete old (uncurried) concrete syntax of put tests
 
-ALAN TASKS
-have a new kind of names: "+" which is "!,*"
-
 INITIAL RELEASE (TO SOME SUBSET OF...)
 Miles Sabin <miles@milessabin.com>
-Jerome Simeon
 Alain Frisch
 Geoff
+LATER?
+Jerome Simeon
 
 ------------
 
