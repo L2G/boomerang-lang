@@ -8,7 +8,7 @@ module R = Relation
 type bias = Left | Right | Both
 
 let take_dir d f x r =
-  if f x = d then R.insert x r else r
+  if f x = d || f x = Both then R.insert x r else r
 
 let ( ||~ ) = R.union
 let ( &&~ ) = R.inter
@@ -216,24 +216,46 @@ let generic_join f =
   let getfun (c1, c2) =
     c1 **~ c2
   and putfun a co =
+    let empty_abs = R.create (R.fields a) in
     let rev_join (c1, c2) =
-      let sflds = list_inter (R.fields c1) (R.fields c2) in
-      let free_deletions = (c1 **~ c2) --~ a in
-      let left = R.fold
-        (take_dir Left f) free_deletions (R.create (R.fields free_deletions))
-      and right = R.fold
-        (take_dir Right f) free_deletions (R.create (R.fields free_deletions))
-      and both = R.fold
-        (take_dir Both f) free_deletions (R.create (R.fields free_deletions)) in
-      let proj1 = R.project (R.fields c1) in
-      let proj2 = R.project (R.fields c2) in
-      ((proj1 a ||~ (c1 **~ ((a >>~ sflds) --~ (c1 >>~ sflds))))
-          --~ proj1 (left ||~ both),
-        (proj2 a ||~ (c2 **~ ((a >>~ sflds) --~ (c2 >>~ sflds))))
-           --~ proj2 (right ||~ both))
+      let lflds = R.fields c1
+      and rflds = R.fields c2 in
+      let shflds = list_inter lflds rflds in
+      let additions =
+        (* records that were inserted into the abstract view *)
+        a --~ (c1 **~ c2) in
+      let mod_left =
+        (* a projection on the shared fields of the records in the left
+         * concrete table that should be modified based upon additions in the
+         * abstract view *)
+        (additions >>~ shflds) &&~ (c1 >>~ shflds)
+      and mod_right =
+        (* a projection on the shared fields of the records in the right
+         * concrete table that should be modified based upon additions in the
+         * abstract view *)
+        (additions >>~ shflds) &&~ (c2 >>~ shflds) in
+      let add_left =
+        (* records that should be added to the left concrete table *)
+        additions >>~ lflds
+      and add_right =
+        (* records that should be added to the left concrete table *)
+        additions >>~ rflds in
+      let deletions =
+        (* records that were removed from the abstract view *)
+        (c1 **~ c2) --~ a in
+      let del_left =
+        (* records that should be removed from the left concrete table *)
+        ((R.fold (take_dir Left f) deletions empty_abs) >>~ lflds) ||~
+          (mod_left **~ c1)
+      and del_right =
+        (* records that should be removed from the right concrete table *)
+        ((R.fold (take_dir Right f) deletions empty_abs) >>~ rflds) ||~
+          (mod_right **~ c2) in
+      ((c1 --~ del_left) ||~ add_left,
+       (c2 --~ del_right) ||~ add_right)
     in
     match co with
-    | None -> let empty = R.create (R.fields a) in rev_join (empty, empty)
+    | None -> rev_join (empty_abs, empty_abs)
     | Some(c) -> rev_join c
   in
   mk_lens "<relational inner join>" getfun putfun
