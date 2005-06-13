@@ -47,8 +47,8 @@ val type_of_view_qid : Info.t -> qid
 type sort = 
     SName 
   | SLens 
-  | SType  
-  | SView   
+  | SSchema  
+  | STree   
   | SArrow of sort * sort
 
 type param = PDef of Info.t * id * sort

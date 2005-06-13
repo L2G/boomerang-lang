@@ -164,7 +164,7 @@ end
 let rec ends_with_type = function
     (* N.B.: a view is a value, so we don't need to delay computations
        involving views *)
-    SType       -> true
+    SSchema       -> true
   | SArrow(_,s) -> ends_with_type s
   | _           -> false
 
@@ -179,7 +179,7 @@ let rec subsort u v = match u,v with
       let b1 = subsort s21 s11  in
       let b2 = subsort s12 s22 in 
 	b1 && b2
-  | SView,SType  -> true
+  | STree,SSchema  -> true
   | _ when u = v -> true
   | _            -> false
 
@@ -218,7 +218,7 @@ and check_exp sev e0 =
     (* type atoms *)
     | EAtom(i,e1,e2) ->
 	let _,new_e1 = expect_sort_exp "atom" sev SName e1 in
-	let e2_sort, new_e2 = expect_sort_exp "atom" sev SType e2 in
+	let e2_sort, new_e2 = expect_sort_exp "atom" sev SSchema e2 in
 	let new_e0 = EAtom(i, new_e1, new_e2) in
 	  (e2_sort, new_e0)
 	    
@@ -227,30 +227,30 @@ and check_exp sev e0 =
 	  (fun ei -> snd (expect_sort_exp "exception list" sev SName ei))
 	  es 
 	in
-	let _,new_e = expect_sort_exp "!-type" sev SType e in
+	let _,new_e = expect_sort_exp "!-type" sev SSchema e in
 	let new_e0 = EBang(i,new_es,new_e) in
-	  (SType, new_e0)
+	  (SSchema, new_e0)
 
     | ECat(i,es) ->
 	let e0_sort,new_es_rev = Safelist.fold_left
 	  (fun (es_sort,new_es_rev) ei -> 
-	     let ei_sort, new_ei = expect_sort_exp "concatenation" sev SType ei in
+	     let ei_sort, new_ei = expect_sort_exp "concatenation" sev SSchema ei in
 	     let new_sort = match ei_sort,es_sort with
-		 SView,SView -> SView
-	       | _           -> SType in
+		 STree,STree -> STree
+	       | _           -> SSchema in
 	       (new_sort,new_ei::new_es_rev))
-	  (SView,[])
+	  (STree,[])
 	  es in
 	let new_e0 = ECat(i, Safelist.rev new_es_rev) in
 	  (e0_sort, new_e0)
 	    
     | ECons(i,e1,e2) -> 
-	let e1_sort, new_e1 = expect_sort_exp "cons" sev SType e1 in
-	let e2_sort, new_e2 = expect_sort_exp "cons" sev SType e2 in
+	let e1_sort, new_e1 = expect_sort_exp "cons" sev SSchema e1 in
+	let e2_sort, new_e2 = expect_sort_exp "cons" sev SSchema e2 in
 	let e0_sort = 
 	  match e1_sort,e2_sort with
-	      SView,SView -> SView
-	    | _           -> SType in
+	      STree,STree -> STree
+	    | _           -> SSchema in
 	let new_e0 = ECons(i, new_e1, new_e2) in
 	  (e0_sort, new_e0)
 	    
@@ -305,34 +305,34 @@ and check_exp sev e0 =
 	    
     | EName(i,x) -> (SName, EName(i, x))
 	
-    | ENil(i) -> (SView, ENil(i))
+    | ENil(i) -> (STree, ENil(i))
 
     | EStar(i,es,e) ->
 	let new_es = Safelist.map 
 	  (fun ei -> snd (expect_sort_exp "exception list" sev SName ei))
 	  es 
 	in
-	let _,new_e = expect_sort_exp "*-type" sev SType e in
+	let _,new_e = expect_sort_exp "*-type" sev SSchema e in
 	let new_e0 = EStar(i,new_es,new_e) in
-	  (SType, new_e0)
+	  (SSchema, new_e0)
 
     | EUnion(i,es) ->
 	let new_es = Safelist.map
 	  (fun ei -> 
 	     let _,new_ei = 
-	       expect_sort_exp "union" sev SType ei in
+	       expect_sort_exp "union" sev SSchema ei in
 	       new_ei)
 	  es in
 	let new_e0 = EUnion(i, new_es) in
-	  (SType, new_e0)
+	  (SSchema, new_e0)
 	    
     | EVar(i,q) ->
 	begin
 	  (* look up in the environment; check that recursive uses OK *)
 	  match (SCEnv.rec_var_ok sev q, SCEnv.lookup sev q) with
 	      (true, Some s)      -> (s,e0)
-	    | (false, Some SType) -> (SType, e0) (* OK, types are lazy *)
-	    | (false, Some SLens) -> (SType, e0) (* OK, lenses are values *)
+	    | (false, Some SSchema) -> (SSchema, e0) (* OK, types are lazy *)
+	    | (false, Some SLens) -> (SSchema, e0) (* OK, lenses are values *)
 	    | (false, Some _)     -> 
 		sort_error i 
 		  (fun () -> 
@@ -418,12 +418,12 @@ let rec check_decl sev m di =
 	if not (check_test m) then (sev, [], di)
 	else
 	  begin
-	    let _,new_e = expect_sort_exp "test expression" sev SView e in
+	    let _,new_e = expect_sort_exp "test expression" sev STree e in
 	    let new_reso = 
 	      match reso with 
 		  None     -> None 
 		| Some res -> 
-		    let _,new_res = expect_sort_exp "test result" sev SView res in
+		    let _,new_res = expect_sort_exp "test result" sev STree res in
 		      Some(new_res)
 	    in
 	    let new_di = DTest(i,new_e, new_reso) in
@@ -496,11 +496,11 @@ let rec compile_exp cev e0 =
 	    begin match v_of_rv e2_rv with
 		Value.V v -> 
 		  mk_rv
-		    SView
+		    STree
 		    (Value.V (V.set V.empty n (Some v)))
 	      | Value.T t ->
 		  mk_rv 
-		    SType
+		    SSchema
 		    (Value.T (Value.Atom(i,n,t)))
 	      | _ -> run_error i (fun () -> "expected view or type in atom")
 	    end
@@ -509,7 +509,7 @@ let rec compile_exp cev e0 =
 	  let ns = Safelist.map (compile_exp_name cev) es in
 	  let t = compile_exp_type cev e in 
 	    mk_rv 
-	      SType
+	      SSchema
 	      (Value.T (Value.Bang(i,ns,t)))
 
       | ECat(i, es) ->
@@ -518,23 +518,23 @@ let rec compile_exp cev e0 =
 	      (fun (s,vs_rev) ei -> 		 
 		 let v = v_of_rv (compile_exp cev ei) in
 		   match s, v with
-		       SView, (Value.V _) -> 
+		       STree, (Value.V _) -> 
 			 (s, v::vs_rev)
-		     | SView, (Value.T _) ->
-			 (SType, 
+		     | STree, (Value.T _) ->
+			 (SSchema, 
 			  v::(Safelist.map (fun v -> Value.T (Value.get_type i v)) vs_rev))
-		     | SType, (Value.V _) 
-		     | SType, (Value.T _) ->
+		     | SSchema, (Value.V _) 
+		     | SSchema, (Value.T _) ->
 			 (s, (Value.T (Value.get_type i v))::vs_rev)			 
 		     | _ -> run_error i (fun () -> 
 					   sprintf "bogus value in ECat: %s %s"
 					     (string_of_sort s) (Value.string_of_t v)))
-	      (SView,[])
+	      (STree,[])
 	      es
 	  in 
 	    begin
 	      match e0_sort with
-		  SView -> 
+		  STree -> 
 		    let vi = Safelist.fold_left
 		      (fun vacc v -> 
 			 try V.concat vacc (Value.get_view i v)
@@ -544,10 +544,10 @@ let rec compile_exp cev e0 =
 		      V.empty 
 		      (Safelist.rev vs_rev)
 		    in
-		      mk_rv SView (Value.V(vi))		      
-		| SType -> 
+		      mk_rv STree (Value.V(vi))		      
+		| SSchema -> 
 		    let ts = Safelist.rev_map (Value.get_type i) vs_rev in
-		      mk_rv SType (Value.T (Value.Cat(i,ts)))
+		      mk_rv SSchema (Value.T (Value.Cat(i,ts)))
 		| _ -> assert false
 	    end			
       | ECons(i,e1,e2) -> 
@@ -555,22 +555,22 @@ let rec compile_exp cev e0 =
 	  let e2_v = v_of_rv (compile_exp cev e2) in    
 	    begin match e1_v, e2_v with
 		Value.V v1, Value.V v2     -> 
-		  mk_rv SView (Value.V (V.cons v1 v2))
+		  mk_rv STree (Value.V (V.cons v1 v2))
 	      | Value.V _, Value.T t ->
 	      	  mk_rv 
-		    SType 
+		    SSchema 
 		    (Value.T (Type.mk_cons i 
 				(Value.get_type i e1_v)
 				t))
 	      | Value.T t, Value.V _ ->
 	      	  mk_rv 
-		    SType 
+		    SSchema 
 		    (Value.T (Type.mk_cons i 
 				t
 				(Value.get_type i e2_v)))
 	      | Value.T t1, Value.T t2 -> 
 		  mk_rv 
-		    SType
+		    SSchema
 		    (Value.T (Type.mk_cons i t1 t2))
 	      | _ -> run_error i (fun () -> "expected view or type in atom")
 	    end
@@ -625,20 +625,20 @@ let rec compile_exp cev e0 =
 	    
       | ENil(i) -> 
 	  mk_rv
-	    SView
+	    STree
 	    (Value.V (V.empty_list))
 
       | EStar(i,es,e) ->
 	  let ns = Safelist.map (compile_exp_name cev) es in
 	  let t = compile_exp_type cev e in
       	    mk_rv 
-	      SType
+	      SSchema
 	      (Value.T (Value.Star(i,ns,t)))
 	      
       | EUnion(i, es) ->
 	  let ts = Safelist.map (fun ei -> compile_exp_type cev ei) es in	  
 	    mk_rv 
-	      SType
+	      SSchema
 	      (Value.T (Value.Union(i,ts)))
 	      
       | EVar(i,q) -> 

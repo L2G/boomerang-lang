@@ -1,3 +1,4 @@
+#{#}
 /************************************************************/
 /* The Harmony Project                                      */
 /* harmony@lists.seas.upenn.edu                             */
@@ -53,8 +54,8 @@ let mk_empty_view i = ECat(i,[])
 
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
-%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN TYPE
-%token <Info.t> LENS VIEW TYPE NAME ARROW BACKTICK
+%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA
+%token <Info.t> LENS TREE TYPE NAME ARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH TEST SYNC WITH AT ERROR MISSING
 %token <Info.t> STAR BANG BAR PLUS QMARK
@@ -114,9 +115,9 @@ sort:
 
 asort:
   | LENS                                     { ($1, SLens) }
-  | VIEW                                     { ($1, SView) }
+  | TREE                                     { ($1, STree) }
   | NAME                                     { ($1, SName) } 
-  | TYPE                                     { ($1, SType) }
+  | SCHEMA                                   { ($1, SSchema) }
   | LPAREN sort RPAREN                       { $2 }
 
 opt_sort:

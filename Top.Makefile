@@ -47,6 +47,20 @@ GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 	$(SRC2F) $< $@
 	chmod -w $@
 
+%.mly: %.src $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@.tmp
+	-cpp -P $@.tmp $@
+	-rm -f $@.tmp
+	chmod -w $@
+
+%.mll: %.src $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@.tmp
+	-cpp -P $@.tmp $@
+	-rm -f $@.tmp
+	chmod -w $@
+
 $(SRC2F):
 	$(MAKE) -C $(TOOLSDIR)
 

@@ -28,8 +28,8 @@ and thunk = unit -> t
 let sort_of_t = function
    N _    -> Syntax.SName    
  | L _    -> Syntax.SLens
- | T _    -> Syntax.SType
- | V _    -> Syntax.SView
+ | T _    -> Syntax.SSchema
+ | V _    -> Syntax.STree
  | F(s,_) -> s
 
 (* pretty print *)
@@ -118,7 +118,7 @@ let get_type i v =
   match v with 
       T t -> t 
     | V v -> type_of_view v
-    | _ -> focal_type_error i Syntax.SType v
+    | _ -> focal_type_error i Syntax.SSchema v
 	
 let get_name i v = 
   match v with 
@@ -128,7 +128,7 @@ let get_name i v =
 let get_view i v = 
   match v with 
       V vi -> vi 
-    | _ -> focal_type_error i Syntax.SView v
+    | _ -> focal_type_error i Syntax.STree v
 	
 let get_lens i v = 
   match v with
@@ -136,7 +136,7 @@ let get_lens i v =
     | _ -> focal_type_error i Syntax.SLens v
 
 let mk_type_fun return_sort msg f = 
-  F(Syntax.SArrow(Syntax.SType,return_sort),
+  F(Syntax.SArrow(Syntax.SSchema,return_sort),
     fun v -> f (get_type (Info.M msg) v))
 let mk_tfun s = mk_type_fun (parse_sort s)
   
@@ -146,7 +146,7 @@ let mk_name_fun return_sort msg f =
 let mk_nfun s = mk_name_fun (parse_sort s)
 
 let mk_view_fun return_sort msg f = 
-  F(Syntax.SArrow(Syntax.SView,return_sort),
+  F(Syntax.SArrow(Syntax.STree,return_sort),
     fun v -> f (get_view (Info.M msg) v))
 let mk_vfun s = mk_view_fun (parse_sort s)
 
@@ -213,8 +213,8 @@ let rec dummy ?(msg="") s = match s with
 	assert false
       in
 	L (Lens.native error error)
-  | Syntax.SType -> T (Empty(Info.M "dummy type"))
-  | Syntax.SView -> V (V.empty)
+  | Syntax.SSchema -> T (Empty(Info.M "dummy type"))
+  | Syntax.STree -> V (V.empty)
   | Syntax.SArrow(_,rs) -> F (s, fun _ -> dummy ~msg:msg rs)
 
 (* MEMOIZATION *)

@@ -74,8 +74,8 @@ let type_of_view_qid i = mk_pre_qid i "type_of_view"
 type sort = 
     SName 
   | SLens  
-  | SType   
-  | SView    
+  | SSchema   
+  | STree    
   | SArrow of sort * sort
       
 (* parameters *)
@@ -144,8 +144,8 @@ let sort_of_param = function PDef(_,_,s) -> s
 let rec string_of_sort = function
     SName         -> "name"
   | SLens         -> "lens"
-  | SType         -> "type"
-  | SView         -> "view"
+  | SSchema         -> "schema"
+  | STree         -> "tree"
   | SArrow(s1,s2) -> 
       sprintf "(%s -> %s)" 
 	(string_of_sort s1) 

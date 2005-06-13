@@ -19,7 +19,7 @@ OCAMLCPFLAGS = f
 OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(c).opt)
 
 ifeq ($(COMPILEHARMONYASBYTECODE),yes)
-all: bc
+all: byte-code
 else
 all: native-code
 endif
