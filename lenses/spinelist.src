@@ -31,7 +31,7 @@ sync with id at (List.T {!=Value})
     B = [{a={FOO}},{c={baz}},{c={URG}}] }
     
 (* With spine lists, the result is happier... *)
-sync with (spinelist; probe "HERE") at (T Value)
+sync with spinelist at (T Value)
     { O = [{a={foo}},{b={bar}},{c={baz}}],
       A = [{a={FOO}},{c={baz}}],
       B = [{a={foo}},{b={bar}},{c={URG}}] }
