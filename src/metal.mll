@@ -8,26 +8,58 @@ module LE = Lexing
 let lexeme = LE.lexeme
 let linestart = ref 0
 let lineno = ref 1
-let file_name = ref ""
 
-let reset () =
-  linestart := 0; 
-  lineno := 1
+let info_stk = ref []
+
+let filename () = match !info_stk with 
+    [] -> Error.simple_error "Lexer.filename : info stack is empty."
+  | (fn,_,_)::_ -> fn
+      
+let lineno () = match !info_stk with 
+    [] -> Error.simple_error "Lexer.lineno : info stack is empty."
+  | (_,l,_)::_ -> l
+
+let linestart () = match !info_stk with 
+    [] -> Error.simple_error "Lexer.linestart : info stack is empty."
+  | (_,_,c)::_ -> c
+
+let set_filename fn = match !info_stk with 
+    [] -> Error.simple_error "Lexer.set_filename : info stack is empty."
+  | (_,l,c)::t -> info_stk := (fn,l,c)::t
+      
+let set_lineno l = match !info_stk with 
+    [] -> Error.simple_error "Lexer.set_lineno : info stack is empty."
+  | (fn,_,c)::t -> info_stk := (fn,l,c)::t
+      
+let set_linestart c = match !info_stk with 
+    [] -> Error.simple_error "Lexer.set_linestart : info stack is empty."
+  | (fn,l,_)::t -> info_stk := (fn,l,c)::t
+
+let setup fn = info_stk := (fn,1,0)::!info_stk
+
+let finish () = match !info_stk with
+    [] -> Error.simple_error "Lexer.finish : info stack is empty."
+  | _::t -> info_stk := t
 
 let newline lexbuf : unit = 
-  linestart := LE.lexeme_start lexbuf;
-  incr lineno
+  set_linestart (LE.lexeme_start lexbuf);
+  set_lineno (lineno () + 1)
 
 let info lexbuf : Info.t = 
   let c1 = LE.lexeme_start lexbuf in
   let c2 = LE.lexeme_end lexbuf in
-    Info.I ((!lineno, c1 - !linestart),(!lineno, c2 - !linestart))
+    Info.I (filename (), 
+	    (lineno (), c1 - linestart()),
+	    (lineno (), c2 - linestart ()))
 
 let error lexbuf msg =
   let i = info lexbuf in
   let t = lexeme lexbuf in   
-  let s = Printf.sprintf "%s : %s" msg t in
-    raise (Error.Compile_error(i, !file_name, s))
+  let s = Printf.sprintf "%s: lexing error %s at %s." 
+    (Info.string_of_t i)
+    msg 
+    t in
+    Error.simple_error s
 }
 
 let blank = [' ' '\t']+

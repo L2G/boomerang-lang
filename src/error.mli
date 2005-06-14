@@ -8,22 +8,18 @@
 
 (** Exceptions used throughout Harmony *)
 
-exception Compile_error of Info.t * string * string 
-(** A [Compiler_error i file_name msg] is raised when an error occurs
-  at a location in a Focal program. Examples include lexing, parse, sort
-  checking, unit testing errors, and failed assertions. *)
+exception Harmony_error of (unit -> unit)
+  (** A [Harmony_error f] is the only exception raised in Harmony
+      programs.  Information about the error can be printed by
+      applying the function carried with each exception. By
+      convention, the errors are printed using functions from OCaml's
+      Format module *)
 
-exception Native_error of string
-  (** [Run_error msg] is raised by ML functions in the back end. *)
+val simple_error : string -> 'a
+  (** [simple_error s] raises a [Harmony_error] that prints [s], which
+      should be a short, easily formatted string. *)
 
-exception Fatal_error of string 
-(** [Fatal_error msg] is raised when unexpected situations arise in
-    Focal programs. *)
+val exit_on_error : (unit -> 'a) -> 'a
+  (** [exit_on_error f] runs [f ()] and handles errors by printing a
+      description of the error to [stderr] and exiting. *)
 
-val string_of_file_info : string -> Info.t -> string
-  (** [string_of_file_info fn i] returns a string describing location
-      [i] in file [fn]. *)
-
-val fail_on_error : (unit -> 'a) -> 'a
-  (** [fail_on_error f] runs [f ()] and handles errors by printing a
-      description of the error and exiting. *)

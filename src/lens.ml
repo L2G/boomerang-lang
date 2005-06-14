@@ -45,21 +45,9 @@ let error e =
       ;`Break
       ]
       @ (Safelist.flatten_map dumpframe curstack) in
-    raise 
-      (Error.Native_error
-	 (V.format_msg_as_string (e @ st)))
+    raise (Error.Harmony_error
+	     (fun () -> V.format_msg (e @ st)))
       
-let trap_errors_in f x =
-  try
-    f x 
-  with 
-      (Error.Compile_error(i,fn,s)) -> 
-	error ([`String (Error.string_of_file_info fn i)
-	       ;`String s])
-    | (Error.Native_error(s)) 
-    | (Error.Fatal_error(s))
-      -> error ([`String s])
-
 let probe2 name callget callput =
   { get = (fun c -> callget name c (Misc.dynamic_lookup stack);
       c);
@@ -70,7 +58,7 @@ let tracepoint s l =
   let with_frame fr f =
     Misc.dynamic_bind
       stack (fr :: (Misc.dynamic_lookup stack))
-      (trap_errors_in f)
+      f
   in
     { get = 
 	(fun a -> with_frame (GetFrame(s,a)) (fun () -> l.get a));
@@ -79,6 +67,9 @@ let tracepoint s l =
     }
 
 (* memoization stuff *)
+let hits = ref 0
+let misses = ref 0
+let rate () = 100.0 *. (float_of_int !hits) /. (float_of_int !misses)
 let memoize_lens l = 
   let memotable = V.Hash.create 1 in	
     (* We use memo information in both directions -- to
@@ -88,8 +79,11 @@ let memoize_lens l =
     native 
       (fun c -> 
 	 try
-	   V.Hash.find memotable c
+	   let r = V.Hash.find memotable c in
+	   let _ = incr hits in
+	     r
 	 with Not_found -> begin
+	   incr misses;
 	   let a = get l c in
 	     V.Hash.add memotable c a;
 	     a

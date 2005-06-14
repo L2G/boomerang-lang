@@ -11,7 +11,7 @@ open Value
 (* imports *)
 let sprintf = Printf.sprintf
 let debug = Trace.debug "type" 
-let fatal_error msg = raise (Error.Fatal_error (sprintf "Fatal error in type : %s" msg))
+let fatal_error msg = raise (Error.Harmony_error (fun () -> Format.printf "Fatal error in type : %s" msg))
 
 (* re-export [Value.ty] and [Value.string_of_ty] in this name space *)
 type t = Value.ty
@@ -381,13 +381,13 @@ let concat_tdoms sep tds = Misc.concat TDoms.fold sep tdom2str tds
 let tdoms2str tds = Misc.curlybraces (concat_tdoms " " tds)
 
 let nfcheck tbase f t =match tbase with
-    Cat(_) ->
+    Cat(i,_) ->
       (match t with
-	   Cat(_) | Union(_) -> raise (Error.Fatal_error("Type is not in normal form"))
+	   Cat(_) | Union(_) -> fatal_error (sprintf "%s: Type is not in normal form" (Info.string_of_t i))
 	 | _ -> f t)
-  | Union(_) ->
+  | Union(i,_) ->
       (match t with
-	   Union(_) -> raise (Error.Fatal_error("Type is not in normal form"))
+	   Union(_) -> fatal_error (sprintf "%s: Type is not in normal form" (Info.string_of_t i))
 	 | _ -> f t)
   | _ -> f t
 	

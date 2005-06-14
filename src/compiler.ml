@@ -37,20 +37,20 @@ let debug s_thk =
   Trace.debug "compiler" (fun () -> Printf.eprintf "%s\n%!" (s_thk ()))
 
 let parse_error i msg_thk = 
-  let msg = Printf.sprintf "Parse error: %s" (msg_thk ()) in
-  raise (Error.Compile_error(i, Lexer.filename (), msg))
+  raise (Error.Harmony_error
+	   (fun () -> Format.printf "%s : Parse error @\n %s" (Info.string_of_t i) (msg_thk ())))
       
 let sort_error i msg_thk = 
-  let msg = Printf.sprintf "Sort checking error: %s" (msg_thk ()) in
-  raise (Error.Compile_error(i, Lexer.filename (), msg))
+  raise (Error.Harmony_error
+	   (fun () -> Format.printf "%s : Sort checking error @\n %s" (Info.string_of_t i) (msg_thk ())))
     
 let test_error i msg_thk = 
-  let msg = Printf.sprintf "Unit test failed: %s" (msg_thk ()) in    
-    raise (Error.Compile_error(i, Lexer.filename (), msg))
-
+  raise (Error.Harmony_error
+	   (fun () -> Format.printf "%s : Unit test failed @ " (Info.string_of_t i); (msg_thk ())))
+    
 let run_error i msg_thk = 
-  let msg = Printf.sprintf "Unexpected run error: %s" (msg_thk ()) in    
-  raise (Error.Compile_error(i, Lexer.filename (), msg))
+  raise (Error.Harmony_error
+	   (fun () -> Format.printf "%s : Unexpected run-time error @\n %s" (Info.string_of_t i) (msg_thk ())))
           
 (* --------------- Environments --------------- *)
 module type CommonEnvSig = sig
@@ -502,6 +502,7 @@ let rec compile_exp cev e0 =
 		  mk_rv 
 		    SSchema
 		    (Value.T (Value.Atom(i,n,t)))
+	      | _ -> assert false
 	    end
 		    
       | EBang(i,es,e) ->
@@ -535,11 +536,7 @@ let rec compile_exp cev e0 =
 	      match e0_sort with
 		  STree -> 
 		    let vi = Safelist.fold_left
-		      (fun vacc v -> 
-			 try V.concat vacc (Value.get_tree i v)
-			 with V.Illformed _ -> 
-			   (* FIXME: better msg *)
-			   run_error i (fun () -> "domain collision"))
+		      (fun vacc v -> V.concat vacc (Value.get_tree i v))
 		      V.empty 
 		      (Safelist.rev vs_rev)
 		    in
@@ -735,7 +732,7 @@ and compile_bindings cev bs =
   in
     bcev, Safelist.rev names_rev
       
-type testresult = OK of V.t | Error of string
+type testresult = OK of V.t | Error of (unit -> unit)
 
 (* type check a single declaration *)
 let rec compile_decl cev m di = 
@@ -767,8 +764,7 @@ let rec compile_decl cev m di =
 	  let vo = 
 	    try
 	      OK (compile_exp_tree cev e)
-	    with (Error.Native_error(m)) -> Error m
-	      | V.Illformed(s,vl) -> Error (V.format_msg_as_string ([`String s] @ (Safelist.map (fun v -> `Tree v) vl)))
+	    with (Error.Harmony_error(m)) -> Error m
 	  in
 	    match vo, reso with 
 		Error _, None -> ()
@@ -777,7 +773,7 @@ let rec compile_decl cev m di =
 		    if not (V.equal v resv) then
 		      test_error i 
 			(fun () -> 
-			   V.format_msg_as_string
+			   V.format_msg
 			     [`String "expected:"; `Space;
 			      `Tree resv;`Space;
 			      `String "found:"; `Space;
@@ -786,16 +782,16 @@ let rec compile_decl cev m di =
 		  let resv = compile_exp_tree cev res in
 		    test_error i 
 		      (fun () -> 
-			 V.format_msg_as_string
+			 V.format_msg
 			   [`String "expected:"; `Space;
  			    `Tree resv; `Space;
-			    `String "found error:"; `Space;
-                            `String m])
+			    `String "found error:"; `Space];
+			 m ())
 	
 	      | OK v, None -> 
 		  test_error i 
 		    (fun () -> 
-		       V.format_msg_as_string
+		       V.format_msg
 			 [`String "expected error, found"; `Break;
  			  `Tree v;])
 	end;

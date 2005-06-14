@@ -34,10 +34,6 @@ let listsort =
 
 let () = register_native "Native.listsort" "lens" (L(listsort))
 
-(* helper function for constructing a Focal type error *)
-let focal_type_error msg = 
-  raise (Error.Fatal_error (Printf.sprintf "run-time sort error in expression %s" msg))
-
 let lift_to_opt f xo =
   match xo with
   | None -> None

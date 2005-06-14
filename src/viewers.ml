@@ -5,14 +5,19 @@
 (* viewer for "meta" format, a simple concrete syntax for trees *)
 
 let metareader s =
-  let _ = Metal.reset () in
-  let _ = Metal.file_name := "meta string" in
+  let _ = Metal.setup "meta string" in
   let lexbuf = Lexing.from_string s in        
+  let res = 
     try 
       (Metay.tree Metal.token lexbuf) 
     with Parsing.Parse_error -> 
-      raise (Error.Compile_error (Metal.info lexbuf, !Metal.file_name, "syntax error"))
-	
+	raise (Error.Harmony_error
+		 (fun () -> Format.printf "%s: syntax error." 
+		    (Info.string_of_t (Lexer.info lexbuf))))
+  in
+  let _ = Metal.finish () in
+    res
+
 let metawriter = V.string_of_t
 
 let _ =
@@ -123,7 +128,9 @@ let generic_read_from rd =
       parse_wfcontent_entity config rd default_spec in
     V.structure_from_list [xml2tree docRoot]
   with
-      e -> raise (Error.Fatal_error(Pxp_types.string_of_exn e))
+      e -> raise (Error.Harmony_error
+		    (fun () -> 
+		       Format.printf "%s" (Pxp_types.string_of_exn e)))
 
 let xmlreader s = generic_read_from (from_string s)
 

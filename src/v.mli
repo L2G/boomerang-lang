@@ -16,23 +16,20 @@ val get : t -> Name.t -> t option
 
 val get_required : t -> Name.t -> t 
 (** [get_required v k] returns [v(k)].
-    @raise Illformed if the required child [k] is missing in [v].*)
+    @raise an exception if the required child [k] is missing in [v].*)
 
 val dom : t -> Name.Set.t
 (** [dom v] returns the domain of [v]. *)
 
 val singleton_dom : t -> Name.t
 (** [singleton_dom v] returns the name of the single child of the singleton tree [v].
-    @raise Illformed if [v] is not a singleton. *)
+    @raise an exception if [v] is not a singleton. *)
 
 val to_list : t -> (Name.t * t) list
 (** [to_list v] returns the list of the children of [v], associated to their names. *)
 
 (* --------------------------------------------------------------------- *)
 (** {2 Creators} *)
-
-exception Illformed of string * (t list)
-(** Raised if someone attempts to create a tree that violates well-formedness constraints. *)
 
 val empty : t
 (** The empty tree *)
@@ -95,7 +92,7 @@ val new_value : Name.t -> t
 
 val get_value : t -> Name.t
 (** [get_value v] returns the single element of [dom v] if [v] is a value.
-    @raise Illformed otherwise. *)
+    @raise an exception otherwise. *)
 
 val is_value : t -> bool
 (** Test whether a tree is a value. *)
@@ -134,11 +131,11 @@ val structure_from_list : t list -> t
 
 val list_from_structure : t -> t list
 (** [list_from_structure t] assumes [t] is a list and returns an ocaml list of the trees in [t].
-    @raise Illformed if [t] is not a list *)
+    @raise an exception if [t] is not a list *)
 
 val list_length : t -> int
 (** [list_length t] assumes [t] is a list, and returns its length.
-    @raise Illformed if [t] is not a list *)
+    @raise an exception if [t] is not a list *)
 
 val hd_tag : Name.t
 (** The tag name for the head of a list *)
@@ -188,7 +185,7 @@ val is_list : t -> bool
 
 val concat : t -> t -> t
 (** [concat v1 v2] yields the tree containing all the children of [v1] and [v2].
-    @raise Illformed in case of domain collision *)
+    @raise an exception in case of domain collision *)
 
 (* --------------------------------------------------------------------- *)
 (** {2 Pretty-printing of trees} *)

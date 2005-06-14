@@ -11,7 +11,7 @@
 type pos = int * int
 (** An [Info.pos] represents a pin-point location in a file *)
 
-type t = I of pos * pos | M of string
+type t = I of string * pos * pos | M of string
 (** [t] represents a location that spans a chunk of a file, or a message if no precise location is available. *)
 
 val string_of_t : t -> string 

@@ -5,7 +5,6 @@ type t = VI of t Name.Map.t
 
 (* Hashes of trees *)
 type thist = t (* hack to avoid cyclic type in Hash functor application *)
-
 module Hash =
   Hashtbl.Make(
     struct
@@ -18,31 +17,7 @@ let nil_tag = "nil"
 let hd_tag = "hd"
 let tl_tag = "tl"
 
-exception Illformed of string * (t list)
-
-(* ----------------------------------------------------------------------
- * Accessors
- *)
-
-let dom (VI m) = Name.Map.domain m
-
-let is_empty v = Name.Set.is_empty (dom v)
-
-let get (VI m) k = 
-  try
-    Some (Name.Map.find k m)
-  with
-  | Not_found -> None
-
-let get_required ((VI m) as v) k = 
-  try 
-    Name.Map.find k m
-  with Not_found -> raise (Illformed (Printf.sprintf "get_required %s failed." k, [v]))
-  
-(* ----------------------------------------------------------------------
- * Creators
- *)
-
+(* --------------- creators --------------- *)
 let empty = VI Name.Map.empty
 
 let set_unsafe (VI m) k kid =
@@ -60,31 +35,30 @@ let create_star binds = set_star empty binds
        
 let from_list vl = VI (Name.Map.from_list vl)
 
-(* ----------------------------------------------------------------------
- * Singletons, Values, and Fields
- *)
+(* --------------- accessors --------------- *)
+let dom (VI m) = Name.Map.domain m
 
+let is_empty v = Name.Set.is_empty (dom v)
+
+let get (VI m) k = 
+  try
+    Some (Name.Map.find k m)
+  with
+  | Not_found -> None
+
+(* -------------- singletons, values, fields --------------- *)
 (* let singleton k v = set empty k (Some v) *)
-
 (* let is_singleton v = Name.Set.cardinal (dom v) = 1 *)
-
-let singleton_dom v =
-  let d = dom v in
-  if Name.Set.cardinal d <> 1 then
-    raise (Illformed ("singleton_dom: tree with several children", [v]));
-    Name.Set.choose d
 
 (* v is a value if it has one child, and that child is [V.empty] *)
 let is_value v =
   let d = dom v in 
     (Name.Set.cardinal d = 1) &&
-      (is_empty (get_required v (Name.Set.choose d)))
+      (match get v (Name.Set.choose d) with
+	 None -> false (* can't happen *)
+      | Some vk -> is_empty vk)
       
 let new_value s = set empty s (Some empty)
-
-let get_value v =
-  if (is_value v) then (Name.Set.choose (dom v))
-  else raise (Illformed ("get_value: not a value",[v]))
     
 (* let get_field_value v k = get_value (get_required v k) *)
 
@@ -97,10 +71,7 @@ let get_value v =
 
 let field_value k s = set empty k (Some (new_value s))
 
-(* ----------------------------------------------------------------------
- * Lists
- *)
-
+(* --------------- lists --------------- *)
 let cons v1 v2 = create_star [(hd_tag, Some v1); (tl_tag, Some v2)]
 
 let empty_list = create_star [(nil_tag, Some empty)]
@@ -116,30 +87,105 @@ let is_empty_list v = Name.Set.equal
 
 let rec is_list v = 
   is_empty_list v || 
-  (is_cons v &&
-   is_list (get_required v tl_tag))
-
+    (is_cons v &&
+       (match get v tl_tag with
+	    None -> false (* can't happen *)
+	  | Some tl -> is_list tl))
+     
 (* let head v = get_required v hd_tag *)
 (* let tail v = get_required v tl_tag *)
-
-let rec list_from_structure v =
-  let rec loop acc v' = 
-    if is_empty_list v' then Safelist.rev acc else
-      if is_list v' then
-	loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
-      else raise (Illformed ("list_from_structure: this is not a list!", [v])) in 
-    loop [] v 
 
 (* ### Not tail recursive! *)
 let rec structure_from_list = function
   | [] -> empty_list
   | v :: vs -> cons v (structure_from_list vs)
 
+(* -------------- pretty printing --------------- *)
+let raw = Prefs.createBool "raw" false "Dump trees in 'raw' form" ""
+  
+let rec format v =
+  let format_str s =
+    let s' = Misc.whack_ident s in
+      if s' = "" then "\"\"" else s'
+  in
+  let rec format_aux ((VI m) as v) inner = 
+    if (not (Prefs.read raw)) then
+      if is_list v then begin
+	let rec loop = function
+          [] -> ()
+	| [kid] -> format_aux kid true
+	| kid::rest -> format_aux kid true; Format.printf ",@ "; loop rest in
+      Format.printf "[@[<hv0>";
+      loop (list_from_structure v);
+      Format.printf "@]]"
+    end else begin
+      if (is_value v && inner) then
+	Format.printf "{%s}" (format_str (get_value v))
+      else begin
+        Format.printf "{@[<hv0>";
+	Name.Map.iter_with_sep
+	  (fun k kid -> 
+	    Format.printf "@[<hv1>%s =@ " (format_str k);
+	    format_aux kid true;
+	    Format.printf "@]")
+          (fun() -> Format.printf ",@ ")
+          m;
+        Format.printf "@]}"
+      end
+    end 
+  else 
+    Name.Map.dump 
+      (fun ks -> ks)
+      Misc.whack 
+      (fun x -> format_aux x true) 
+      (fun (VI m) -> Name.Map.is_empty m)
+      m
+  in
+    format_aux v false
+
+(* --------------- easy access / building --------------- *)
+
+and list_from_structure v =
+  let rec loop acc v' = 
+    if is_empty_list v' then Safelist.rev acc else
+      if is_list v' then
+	loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
+      else raise (Error.Harmony_error 
+		    (fun () -> 
+		       Format.printf "V.list_from_structure";
+		       format v;
+		       Format.printf "is not a list!"))
+  in
+    loop [] v 
+
+and get_required ((VI m) as v) k = 
+  try 
+    Name.Map.find k m
+  with Not_found -> 
+    raise (Error.Harmony_error 
+	     (fun () -> Format.printf "get_required %s failed on" k;
+		format v))
+
+and get_value v =
+  if (is_value v) then (Name.Set.choose (dom v))
+  else raise (Error.Harmony_error 
+		    (fun () -> 
+		       Format.printf "V.get_value";
+		       format v;
+		       Format.printf "is not a value!"))
+
+
 let list_length v = Safelist.length (list_from_structure v)
 
-(* ----------------------------------------------------------------------
- * Easy building
- *)
+let singleton_dom v =
+  let d = dom v in
+  if Name.Set.cardinal d <> 1 then
+    raise (Error.Harmony_error (fun () -> 
+				  Format.printf "V.singleton_dom: tree with several children";
+				  format v));
+    Name.Set.choose d
+
+
 
 type desc =
     V of (Name.t * desc) list
@@ -207,13 +253,11 @@ let concat v1 v2 =
     from_list binds
   with
   | Invalid_argument _ -> raise 
-                           ( Illformed
-                           ("concat: domain collision between the following two trees: ",
-                           [v1;v2;]))
-  | Illformed _ -> raise
-                     ( Illformed
-                     ("concat: the tree obtained while concatenating the following two tree is not well formed: ",
-                     [v1;v2;]))
+                           ( Error.Harmony_error 
+			       (fun () -> 
+				  Format.printf "V.concat: domain collision between the following two trees:";
+				  format v1;
+				  format v2))
     
 (* let iter f (VI (_,m)) = Name.Map.iter f m *)
 
@@ -231,84 +275,13 @@ let split p v =
 (* let same_root_sort v1 v2 = *)
 (*   Name.Set.equal (dom v1) (dom v2) *)
 
-(* ---------------------------------------------------------------------- *)
-(* PRETTY PRINTING *)
-
-let raw = 
-  Prefs.createBool "raw" false "Dump trees in 'raw' form" ""
-      
-let format v =
-  let format_str s =
-    let s' = Misc.whack_ident s in
-      if s' = "" then "\"\"" else s'
-  in
-  let rec format_aux ((VI m) as v) inner = 
-    if (not (Prefs.read raw)) then
-    if is_list v then begin
-      let rec loop = function
-          [] -> ()
-	| [kid] -> format_aux kid true
-	| kid::rest -> format_aux kid true; Format.printf ",@ "; loop rest in
-      Format.printf "[@[<hv0>";
-      loop (list_from_structure v);
-      Format.printf "@]]"
-    end else begin
-      if (is_value v && inner) then
-	Format.printf "{%s}" (format_str (get_value v))
-      else begin
-        Format.printf "{@[<hv0>";
-	Name.Map.iter_with_sep
-	  (fun k kid -> 
-	    Format.printf "@[<hv1>%s =@ " (format_str k);
-	    format_aux kid true;
-	    Format.printf "@]")
-          (fun() -> Format.printf ",@ ")
-          m;
-        Format.printf "@]}"
-      end
-    end 
-  else 
-    Name.Map.dump 
-      (fun ks -> ks)
-      Misc.whack 
-      (fun x -> format_aux x true) 
-      (fun (VI m) -> Name.Map.is_empty m)
-      m
-  in
-    format_aux v false
+(* ---- random utilities ---- *)
+(* TODO: rewrite error message formatting nicely *)
 
 let format_option = function
     None -> Format.printf "NONE";
   | Some v -> format v
 
-let rec format_raw ((VI m) as v) =
-  Name.Map.dump 
-    (fun ks -> ks)
-    Misc.whack 
-    (fun x -> format_raw x) 
-    (fun (VI m) -> Name.Map.is_empty m)
-    m  
-
-let format_to_string f =
-  let out,flush = Format.get_formatter_output_functions () in
-  let buf = Buffer.create 64 in
-    Format.set_formatter_output_functions 
-      (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
-    f ();
-    Format.print_flush();
-    let s = Buffer.contents buf in
-      Format.set_formatter_output_functions out flush;
-      s
-    
-let string_of_t v = 
-  format_to_string (fun () -> format v)
-    
-type msg = [ `String of string | `Name of Name.t | `Break | `Space | `Tree of t
-           | `Tree_opt of t option | `Open_box | `Open_vbox | `Close_box ]
-
-exception Error of msg list
-
-(* TODO: rewrite error message formatting nicely *)
 let format_msg l = 
   let rec loop = function
     | [] -> ()
@@ -340,11 +313,35 @@ let format_msg l =
   loop l;
   Format.printf "@,@]"
 
+let rec format_raw ((VI m) as v) =
+  Name.Map.dump 
+    (fun ks -> ks)
+    Misc.whack 
+    (fun x -> format_raw x) 
+    (fun (VI m) -> Name.Map.is_empty m)
+    m  
+
+let format_to_string f =
+  let out,flush = Format.get_formatter_output_functions () in
+  let buf = Buffer.create 64 in
+    Format.set_formatter_output_functions 
+      (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
+    f ();
+    Format.print_flush();
+    let s = Buffer.contents buf in
+      Format.set_formatter_output_functions out flush;
+      s
+
 let format_msg_as_string msg = 
   format_to_string (fun () -> format_msg msg)
+    
+let string_of_t v = 
+  format_to_string (fun () -> format v)
+    
+type msg = [ `String of string | `Name of Name.t | `Break | `Space | `Tree of t
+           | `Tree_opt of t option | `Open_box | `Open_vbox | `Close_box ]
 
-let error_msg l =
-  raise (Error l)
+let error_msg l = raise (Error.Harmony_error (fun () -> format_msg l))
   
 let pathchange path m v =
   Format.printf "%s: %s@,"

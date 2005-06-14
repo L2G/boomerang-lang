@@ -50,33 +50,33 @@ let lexeme = LE.lexeme
 let info_stk = ref []
 
 let filename () = match !info_stk with 
-    [] -> raise (Error.Fatal_error("Lexer.filename : info stack is empty."))
+    [] -> Error.simple_error "Lexer.filename : info stack is empty."
   | (fn,_,_)::_ -> fn
       
 let lineno () = match !info_stk with 
-    [] -> raise (Error.Fatal_error("Lexer.lineno : info stack is empty."))
+    [] -> Error.simple_error "Lexer.lineno : info stack is empty."
   | (_,l,_)::_ -> l
 
 let linestart () = match !info_stk with 
-    [] -> raise (Error.Fatal_error("Lexer.linestart : info stack is empty."))
+    [] -> Error.simple_error "Lexer.linestart : info stack is empty."
   | (_,_,c)::_ -> c
 
 let set_filename fn = match !info_stk with 
-    [] -> raise (Error.Fatal_error("Lexer.set_filename : info stack is empty."))
+    [] -> Error.simple_error "Lexer.set_filename : info stack is empty."
   | (_,l,c)::t -> info_stk := (fn,l,c)::t
       
 let set_lineno l = match !info_stk with 
-    [] -> raise (Error.Fatal_error("Lexer.set_lineno : info stack is empty."))
+    [] -> Error.simple_error "Lexer.set_lineno : info stack is empty."
   | (fn,_,c)::t -> info_stk := (fn,l,c)::t
       
 let set_linestart c = match !info_stk with 
-    [] -> raise (Error.Fatal_error("Lexer.set_linestart : info stack is empty."))
+    [] -> Error.simple_error "Lexer.set_linestart : info stack is empty."
   | (fn,l,_)::t -> info_stk := (fn,l,c)::t
 
 let setup fn = info_stk := (fn,1,0)::!info_stk
 
 let finish () = match !info_stk with
-    [] -> raise (Error.Fatal_error("Lexer.finish : info stack is empty."))
+    [] -> Error.simple_error "Lexer.finish : info stack is empty."
   | _::t -> info_stk := t
       
 let newline lexbuf : unit = 
@@ -88,13 +88,16 @@ let info lexbuf : Info.t =
   let c2 = LE.lexeme_end lexbuf in
   let l = lineno () in
   let c = linestart () in
-    Info.I ((l, c1 - c - 1),(l, c2 - c - 1))
+    Info.I (filename(), (l, c1 - c - 1),(l, c2 - c - 1))
       
 let error lexbuf msg =
   let i = info lexbuf in
   let t = lexeme lexbuf in   
-  let s = Printf.sprintf "Lexing error: %s : %s" msg t in
-    raise (Error.Compile_error(i, filename (), s))
+  let s = Printf.sprintf "%s: lexing error %s at %s." 
+    (Info.string_of_t i)
+    msg 
+    t in
+    Error.simple_error s
 
 let text = Lexing.lexeme
 

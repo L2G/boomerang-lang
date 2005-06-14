@@ -61,12 +61,12 @@ let get_ekey eko fn contents_opt =
 	  try 
 	    let _ = get_encoding ekey in ekey 
 	  with
-	      Not_found -> raise (Error.Fatal_error (Printf.sprintf "unknown encoding key: %s" ekey))
+	      Not_found -> raise (Error.Harmony_error (fun () -> Format.printf "unknown encoding key: %s" ekey))
 	end
     | None -> 
 	match (find_encodings fn contents_opt) with
 	  | [ek] -> ek
-	  | _    -> raise (Error.Fatal_error (Printf.sprintf "No unique encoding for file '%s'" fn))
+	  | _    -> raise (Error.Harmony_error (fun () -> Format.printf "No unique encoding for file '%s'" fn))
 
 let tree_of_file fn reader = 
   if Sys.file_exists fn then

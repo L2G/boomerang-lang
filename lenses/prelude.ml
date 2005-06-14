@@ -57,7 +57,8 @@ let read fn =
     try 
       Misc.read fn 
     with 
-	_ -> raise (Error.Native_error (read_qid^": error reading " ^ fn))
+	_ -> raise (Error.Harmony_error 
+		      (fun () -> Format.printf "%s : error reading %s" read_qid fn))
 let read_lib =
   mk_nfun "name" read_qid (fun fn -> Value.N (read fn))
 let _ = register_native read_qid "name -> name" read_lib
@@ -78,11 +79,7 @@ let load_file_qid = "Native.Prelude.load_file"
 let load_file fn = 
   let (fn,ekeyo) = Surveyor.parse_filename fn in
   let contents = read fn in
-  let ekey = 
-    try 
-      Surveyor.get_ekey ekeyo fn (Some contents) 
-    with Error.Fatal_error m -> raise (Error.Native_error m)
-  in     
+  let ekey = Surveyor.get_ekey ekeyo fn (Some contents) in
     load ekey (contents)
 let load_file_lib =
   mk_nfun "tree" load_file_qid (fun fn -> Value.V (load_file fn))

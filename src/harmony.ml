@@ -197,12 +197,8 @@ let main () =
       | []   -> failwith(Printf.sprintf "%s\n" (Prefs.printUsage usageMsg;""))
       |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
 
-let _ = 
-  try 
-    Unix.handle_unix_error (fun () -> Error.fail_on_error main) ()
-  with
-      V.Illformed(s,m) -> 
-	failwith (Printf.sprintf "V.Illformed: %s %s"
-		    s
-		    (Misc.concat_list ", " (Safelist.map V.string_of_t m)))
-	  
+let _ = Unix.handle_unix_error 
+  (fun () -> Error.exit_on_error main;
+     Printf.eprintf "Lens memotable global hit rate: %.1f%%\n" (Lens.rate ()))
+  ()
+  

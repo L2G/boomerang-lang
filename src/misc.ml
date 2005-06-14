@@ -338,7 +338,7 @@ let unescaped s =
 	  let i3 = int_of_char(c3) - int_of_char('0') in
 	  let i4 = int_of_char(c4) - int_of_char('0') in
 	  if (i2 < 0 || i2 > 9 || i3 < 0 || i3 > 9 || i4 < 0 || i4 > 9) then
-	    raise (Error.Fatal_error (Printf.sprintf "Bad escape sequence in %s" (whack s)))
+	    raise (Error.Harmony_error (fun () -> Format.printf "Bad escape sequence in %s" (whack s)))
 	  else
 	    (Buffer.add_char buf 
 	      (char_of_int (i2 * 100 + i3 * 10 + i4)); loop (i+4))
@@ -433,7 +433,7 @@ let rec remove_file_or_dir d =
     let rec loop () =
       let r = try Some(Unix.readdir handle)
       with End_of_file -> None
-        | Sys_error s -> raise (Error.Fatal_error("Error reading "^d^" ("^s^")")) in
+        | Sys_error s -> raise (Error.Harmony_error(fun () -> Format.printf "Error reading %s (%s)" d s)) in
 	match r with
             Some f ->
               if f="." || f=".." then loop ()

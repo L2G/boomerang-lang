@@ -70,9 +70,9 @@ let parse_qid s =
       try 
 	Parser.qid Lexer.main lexbuf 
       with Parsing.Parse_error -> 
-	raise (Error.Compile_error((Lexer.info lexbuf), 
-				 Lexer.filename (), 
-				 "syntax error"))
+	raise (Error.Harmony_error
+		 (fun () -> Format.printf "%s: syntax error." 
+		    (Info.string_of_t (Lexer.info lexbuf))))
     in 
       Lexer.finish ();
       q
@@ -84,9 +84,9 @@ let parse_sort s =
       try 
 	Parser.sort Lexer.main lexbuf 
       with Parsing.Parse_error -> 
-	raise (Error.Compile_error((Lexer.info lexbuf), 
-				 Lexer.filename (), 
-				 "syntax error"))	  
+	raise (Error.Harmony_error
+		 (fun () -> Format.printf "%s: syntax error." 
+		    (Info.string_of_t (Lexer.info lexbuf))))
     in
       Lexer.finish ();
       st
@@ -94,8 +94,8 @@ let parse_sort s =
 (* errors *)
 
 let focal_type_error i es v = 
-  raise (Error.Fatal_error 
-	   (Printf.sprintf "Run-time sort error at %s: expected %s, found %s in %s"
+  raise (Error.Harmony_error
+	   (fun () -> Format.printf "%s: run-time sort error; expected %s, found %s in %s."
 	      (Info.string_of_t i)
 	      (Syntax.string_of_sort es)
 	      (Syntax.string_of_sort (sort_of_t v))
@@ -108,7 +108,8 @@ let rec type_of_tree v =
        match t with 
 	   Cat(i,ts) -> Cat(i,Atom(i,k,(type_of_tree vk))::ts)
 	 | _         ->
-	     raise (Error.Fatal_error("in type_of_tree: reached an ill-formed type")))
+	     raise (Error.Harmony_error
+		      (fun () -> Format.printf "The impossible happened in type_of_tree! Reached an ill-formed type.")))
     v
     (Cat(Info.M "coerced type",[]))
 

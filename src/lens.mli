@@ -26,7 +26,7 @@ val native : ('a -> 'b) -> ('b -> 'a option -> 'a) -> ('a, 'b) t
 
 (* ------------------------------------------------------------------------- *)
 (** {2 Memoization} *)
-
+val rate : unit -> float
 val memoize_lens : (V.t, V.t) t -> (V.t, V.t) t
 (** [memoize_lens l] returns a memoized version of [l]. *)
 
@@ -42,11 +42,6 @@ val tracepoint : string -> (V.t, V.t) t -> (V.t, V.t) t
 
 (** raise an error from a lens *)
 val error : V.msg list -> 'a
-
-val trap_errors_in : ('a -> 'b) -> 'a -> 'b
-(** [trap_errors_in f] behaves like [f] except that [IllFormed] exceptions are
-    trapped and printed *)
-
 
 (* ------------------------------------------------------------------------- *)
 (** {2 Visualizer support} *)
