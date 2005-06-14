@@ -101,7 +101,7 @@ rule lex = parse
     if Array.length Sys.argv == 3 then
       (wholename := Array.get Sys.argv 1;
        basename := Array.get Sys.argv 2;
-       emit "#line 1 \""; emit !wholename;
+       emit "# 1 \""; emit !wholename;
        emit "\"\n"; lex (Lexing.from_channel (open_in !wholename)))
     else
       (basename := "tex/f"; 

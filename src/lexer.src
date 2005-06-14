@@ -167,7 +167,7 @@ rule main = parse
                         IDENT (Syntax.mk_id (info lexbuf) ident) }
 | newline           { newline lexbuf; main lexbuf }
 | eof		    { EOF (info lexbuf) } 
-| "#line " ['0'-'9']+  { set_lineno (extractLineno (text lexbuf) 6 - 1); getFile lexbuf }
+| "# " ['0'-'9']+   { set_lineno (extractLineno (text lexbuf) 2); getFile lexbuf }
 | "(*"              { comment lexbuf; main lexbuf }
 | _		    { error lexbuf "unknown token" }
 
