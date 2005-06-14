@@ -198,7 +198,7 @@ let main () =
       |  _   -> failwith(Printf.sprintf "Only one command at a time :\n %s" (Prefs.printUsage usageMsg; ""))
 
 let _ = Unix.handle_unix_error 
-  (fun () -> Error.exit_on_error main;
-     Printf.eprintf "Lens memotable global hit rate: %.1f%%\n" (Lens.rate ()))
+  (fun () -> Error.exit_on_error main)     
   ()
+  
   

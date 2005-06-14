@@ -1,0 +1,181 @@
+#{#}
+
+module Mozilla =
+
+(* --------------- schemas --------------- *)
+let Dd : schema = {"dd"=Any}
+let Ddavech3 : schema = { "dd" = { "" = [{"h3" = Any}] } }
+let Ddsansh3 : schema = { "dd" = { "" = ({"PCDATA" = Any } :: Any )} }
+let Dt : schema = { "dt" = Any }
+      
+let Item : schema = List.T (Dd | Dt )
+      
+let ItemFolder : schema = Dd :: Item
+let ItemFolderDesc : schema = Ddavech3 :: (Ddsansh3 :: Item)
+let ItemLink : schema = Dt :: Item
+let ItemLinkDesc : schema = Dt :: (Ddsansh3 :: Item)
+
+(* and in the put way *)
+let FullLink (U:schema) : schema = 
+  {"name" = U, "url" = U, "description" = U}
+
+let FullFolder (T:schema) (U:schema) : schema = 
+  {"name" = U, "contents" = T, "description" = U}
+
+let Link : schema = {"dt" = (Common.Link) } :: Item
+let Folder : schema = { "dd" = (Common.Folder) } :: Item
+let LinkWithDesc : schema =  {"dt" = (FullLink Any) } :: Item
+let FolderWithDesc : schema = { "dd" = (FullFolder Any Any) } :: Item
+
+(* and for the asserts *)
+let MLink : schema = Common.Link | (FullLink Value)
+(** this Any should be replaced by MozAbstract because FullFolder uses its first *)
+(** argument under a name so it's ok for recursion...                            *)
+let MFolder : schema = Common.Folder | (FullFolder Any Value)
+and MozAbstract : schema = List.T ({ "folder" =  MFolder } | { "link" = MLink })
+
+let MozConcrete : schema = Any
+      
+(* lenses *)
+
+(* this lens keeps stuff like descriptions for eventual    *)
+(* sync with another mozilla bookmark. To sync with another *)
+(* type of bookmark, the lens l2 should be applied instead *)
+let l : lens =
+  let no_descr_tag : tree = { `List.HD = { "dd" = { "" = [ {"PCDATA"= {"No description"}} ] }}} in
+  let no_descr : tree = { `List.HD = { "PCDATA" = {"No description"}}} in  
+  let hoist_hd (p : tree) : lens =
+    hoist_nonunique List.HD p;
+    hoist_nonunique List.TL List.tags  in
+  
+  let link : lens =
+    wmap {"dt"->
+      wmap { "" ->
+	List.hd [];
+	hoist "a";
+	filter {"", "href", "add_date"} {};
+	rename "" "name";
+	rename "href" "url";
+	prune "add_date" {"01/01/1970"};
+	wmap { "name" -> (List.hd []; hoist "PCDATA") }
+	   };
+      hoist_nonunique "" {"name", "url"}
+	 }
+      
+  and folder : lens =
+    wmap { "dd" ->
+      wmap { "" ->
+	hoist_hd {"h3"};
+	fork {"h3"} id (hoist_nonunique List.HD {"dl"});
+	prune List.TL [];
+	rename_if_present "h3" "name";
+	rename_if_present "dl" "contents";
+	wmap {"name" -> (filter {""} {}; hoist ""; List.hd []; hoist "PCDATA"),
+	  "contents" -> (hoist ""; item_list)}
+	   };
+      hoist_nonunique  "" {"name", "contents"}
+	 }
+      
+      
+  and item_list : lens =
+    let itemfolderdesc2 : lens =
+      List.tl {}; wmap {`List.TL ->item_list}; List.tl {} in
+    let itemfolderdesc : lens =
+      (* that's the tricky part.. will comment it later *)
+      wmap { `List.HD -> 
+	       begin 
+		 hoist "dd"; 
+		 hoist ""; 
+		 List.hd [] 
+	       end,
+	       `List.TL -> begin 
+		 wmap { `List.HD -> 
+			  begin 
+			    hoist "dd"; 
+                            hoist ""; 
+                            hoist_nonunique List.HD {"PCDATA"}; 
+                            rename "PCDATA" "description"; 
+                            rename List.TL "myTail" 
+			  end};
+                 hoist_nonunique List.HD {"myTail", "description"}
+	       end
+	   };
+      hoist_nonunique List.TL {`List.TL, "myTail", "description"};
+      hoist_nonunique List.HD {"h3"};
+      plunge List.HD;
+      wmap { `List.HD ->
+	       begin
+		 xfork {"myTail", "h3", "description"} {`List.HD}
+		   (xfork {"h3", "myTail"} {""} 
+		      (rename "myTail" List.TL; 
+		       xfork {"h3"} {`List.HD} 
+			 (plunge List.HD) 
+			 id; 
+		       plunge "") 
+		      id; 
+		    plunge "dd"; 
+		    plunge List.HD)
+		   id
+	       end};
+      hoist List.HD;
+      wmap { `List.HD -> folder, 
+	     `List.TL -> item_list }
+    in
+    let itemfolder : lens = wmap { `List.HD -> folder, `List.TL -> item_list }
+    in
+    let itemlink : lens =
+      wmap { `List.HD -> link, `List.TL -> item_list }
+    in
+    let itemlinkdesc : lens =
+      (* pretty much the same strategy as in itemfolderdesc, but EZer here *)
+      wmap { `List.HD -> hoist "dt",
+	`List.TL -> wmap { `List.HD -> hoist "dd"; hoist ""; List.hd []; rename "PCDATA" "description" };
+	  hoist_nonunique List.HD {"description"}
+	   };
+      hoist_nonunique List.HD {""};
+      hoist_nonunique List.TL {"description", `List.TL};
+      xfork {"", "description"} {`List.HD} (plunge "dt"; plunge List.HD) id;
+      wmap { `List.HD -> link, `List.TL -> item_list }
+	
+    in
+    acond ItemFolderDesc FolderWithDesc itemfolderdesc
+      (acond ItemFolder Folder itemfolder
+	 (acond ItemLinkDesc LinkWithDesc itemlinkdesc
+	    (acond ItemLink Link itemlink
+	       (* then it must be Nil *) id
+	       )
+	    )
+	 );
+    List.map (rename_if_present "dd" "folder"; rename_if_present "dt" "link") in
+  
+  let bookmarks : lens =
+    assert MozConcrete;
+    hoist "";
+    List.hd [];
+    hoist "html";
+    focus "" {"xmlns" = { "http://www.w3.org/1999/xhtml"}};
+    List.tl { "head" = { "" = [{"title" = {""= [{ "PCDATA" = {"Bookmarks"}}]}}]}};
+    List.hd [];
+    hoist "body";
+    hoist "";
+    List.tl { "h1" = { "" = [{ "PCDATA" = {"Bookmarks"} }]}};
+    List.hd [];
+    hoist "dl";
+    hoist "";
+    item_list;
+    assert Any
+      
+  in
+  bookmarks
+    
+(* see l *)
+let l2 : lens =
+  let disc_desc : lens =
+    List.map (map (wmap {"contents" -> disc_desc }; filter {"name", "contents", "url"} {}))
+  in
+  (l;  disc_desc; assert Common.Abstract)
+
+let l3 : lens =
+  l2;
+  Common.flatten_bookmarks
+
