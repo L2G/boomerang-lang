@@ -379,23 +379,23 @@ test ojoin [{C = {55}}] [{B = {33}}] "R" "S" "T" /
 
 let norm (db : tree) : tree = Prelude.map Native.listsort / db
 
-let bd_a = { nm = {Alice}, mon = {June},     day = {21}, age = {21} }
-let bd_b = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
-let bd_c = { nm = {Carol}, mon = {October},  day = {31}, age = {31} }
-let bd_d = { nm = {Dave},  mon = {June},     day = {23}, age = {23} }
-let bd_e = { nm = {Ellen}, mon = {February}, day = {29}, age = {27} }
-let bd_f = { nm = {Fred} , mon = {August},   day = {15}, age = {41} }
+let bd_a : tree = { nm = {Alice}, mon = {June},     day = {21}, age = {21} }
+let bd_b : tree = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
+let bd_c : tree = { nm = {Carol}, mon = {October},  day = {31}, age = {31} }
+let bd_d : tree = { nm = {Dave},  mon = {June},     day = {23}, age = {23} }
+let bd_e : tree = { nm = {Ellen}, mon = {February}, day = {29}, age = {27} }
+let bd_f : tree = { nm = {Fred} , mon = {August},   day = {15}, age = {41} }
 
-let ph_a = { nm = {Alice}, ph = {"555-555-5555"} }
-let ph_b = { nm = {Bob},   ph = {"123-456-7890"} }
-let ph_c = { nm = {Carol}, ph = {"314-159-2653"} }
+let ph_a : tree = { nm = {Alice}, ph = {"555-555-5555"} }
+let ph_b : tree = { nm = {Bob},   ph = {"123-456-7890"} }
+let ph_c : tree = { nm = {Carol}, ph = {"314-159-2653"} }
 
-let a = bd_a
-let b = bd_b
-let c = bd_c
-let d = bd_d
-let e = bd_e
-let f = bd_f
+let a : tree = bd_a
+let b : tree = bd_b
+let c : tree = bd_c
+let d : tree = bd_d
+let e : tree = bd_e
+let f : tree = bd_f
 
 
 (* ADDITIONAL RENAME TESTS *)

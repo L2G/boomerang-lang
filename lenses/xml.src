@@ -27,7 +27,7 @@ PCDATA:
 \subsection{Schemas}
 
 This encoding is described by following type declarations:
-#*let children = ""
+#*let children : name = ""
 #*let PCDATA : schema = { PCDATA = { ! = {}}}
 #*let XmlElt : schema = {!\PCDATA = {`children = (List.T XmlElt),  (* subelts *)
 #*                                 *\`children = {! = {}} }}      (* attrs *)
@@ -174,7 +174,7 @@ let squash_flattened : lens =
 \LENSSECTION{squash}
 Often, @flatten@ and @squash_flattened@ are used together, so we give the
 combination a name.
-#*let squash = flatten; squash_flattened
+#*let squash : lens = flatten; squash_flattened
 
 #*test squash / 
 #*        (load "xml" "<a>foo</a>") 
@@ -189,7 +189,7 @@ combination a name.
 #*      = {a = {ATTRS = {attr = {foo}}, PCDATA = {text}, b = {}}}
 
 It is also useful to @squash@ a single element:
-#*let squash_elt = flatten_elt; map squash_flattened
+#*let squash_elt : lens = flatten_elt; map squash_flattened
 
 #*test squash_elt /
 #*          ((List.hd []) / (load "xml" "<a attr='foo'>text<b/></a>"))

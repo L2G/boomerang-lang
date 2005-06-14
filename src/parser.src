@@ -106,7 +106,7 @@ binding_list:
   | binding                                  { [$1] }
 
 binding:    
-  | IDENT param_list opt_sort EQUAL exp      { BDef(mie $1 $5,$1,$2,$3,$5) }
+  | IDENT param_list COLON asort EQUAL exp   { BDef(mie $1 $6,$1,$2,Some (snd $4),$6) }
       
 /* ---------------  sorts --------------- */
 sort:

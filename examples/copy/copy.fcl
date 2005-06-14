@@ -17,13 +17,13 @@
 
 module Copy =
 
-let Equal = {a={x},b={x}} | {a={y},b={y}} | {a={z},b={z}}
+let Equal : schema = {a={x},b={x}} | {a={y},b={y}} | {a={z},b={z}}
 
-let C = {a = ({x} | {y} | {z})}
+let C : schema = {a = ({x} | {y} | {z})}
 
-let Full = C + {b = ({x} | {y} | {z})}
+let Full : schema = C + {b = ({x} | {y} | {z})}
 
-let l =
+let l : lens =
   cond_wf C Equal Full
     (copy "a" "b")   
     (copy "a" "b")

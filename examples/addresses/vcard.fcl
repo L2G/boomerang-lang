@@ -4,20 +4,20 @@ module Vcard =
    number, then is followed by mandatory FN and N. As every example seem not to have a version,
    we assume that the first element is a FN. *)
 
-let hoist_optional_pcdata = 
+let hoist_optional_pcdata : lens = 
   acond {PCDATA = Value} Value
     (hoist "PCDATA")
     id
 
 (* list of PCDATA at the top of the element *)
-let flatten_several_depth1 n:name =
+let flatten_several_depth1 (n:name) : lens =
       mapp {`n} (List.map (Xml.squash_flattened; hoist_optional_pcdata))
 
 (* record of PCDATA at the top of the element *)
-let flatten_several_depth2 n:name =
+let flatten_several_depth2 (n:name) : lens =
       mapp {`n} (List.map (Xml.squash_flattened; map hoist_optional_pcdata))
 
-let l =
+let l : lens =
       (* we first bring the FN element, assumed to be the first, as key *)
       List.hd []; focus "vCard" {}; focus Xml.children {xmlns = {vcard-temp}};
       mapp {`List.HD} (Xml.squash_elt; hoist "FN"; hoist "PCDATA");
