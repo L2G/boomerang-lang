@@ -189,7 +189,7 @@ param:
      \alt <GetPutExp>
 #{#}
 exp: 
-  | LET binding_list IN exp                  { ELet(me2 $1 $4,$2,$4) }
+  | LET binding_list IN exp                  { ELet(m $1 $3,$2,$4) }
   | FUN param param_list opt_sort ARROW exp  { EFun(me2 $1 $6,$2::$3,$4,$6) }
   | getputexp                                { $1 }
 

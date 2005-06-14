@@ -38,19 +38,19 @@ let debug s_thk =
 
 let parse_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s : Parse error @\n %s" (Info.string_of_t i) (msg_thk ())))
+	   (fun () -> Format.printf "%s: Parse error @\n %s" (Info.string_of_t i) (msg_thk ())))
       
 let sort_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s : Sort checking error @\n %s" (Info.string_of_t i) (msg_thk ())))
+	   (fun () -> Format.printf "%s: Sort checking error @\n %s" (Info.string_of_t i) (msg_thk ())))
     
 let test_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s : Unit test failed @ " (Info.string_of_t i); (msg_thk ())))
+	   (fun () -> Format.printf "%s: Unit test failed @ " (Info.string_of_t i); (msg_thk ())))
     
 let run_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s : Unexpected run-time error @\n %s" (Info.string_of_t i) (msg_thk ())))
+	   (fun () -> Format.printf "%s: Unexpected run-time error @\n %s" (Info.string_of_t i) (msg_thk ())))
           
 (* --------------- Environments --------------- *)
 module type CommonEnvSig = sig

@@ -14,8 +14,8 @@ type t = I of string * pos * pos | M of string
 let string_of_t = function
     I (fn, (l1,c1),(l2,c2)) -> 
       if l2=l2
-      then Printf.sprintf "File \"%s\" line %d, characters %d-%d" fn l1 c1 c2
-      else Printf.sprintf "File \"%s\" line %d, character %d, to line %d, character %d" fn l1 c1 l2 c2
+      then Printf.sprintf "File \"%s\", line %d, characters %d-%d" fn l1 c1 c2
+      else Printf.sprintf "File \"%s\", line %d, character %d, to line %d, character %d" fn l1 c1 l2 c2
   | M s -> s
 
 (* merge_inc : t -> t -> t

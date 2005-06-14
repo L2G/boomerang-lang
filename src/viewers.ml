@@ -132,7 +132,11 @@ let generic_read_from rd =
 		    (fun () -> 
 		       Format.printf "%s" (Pxp_types.string_of_exn e)))
 
-let xmlreader s = generic_read_from (from_string s)
+let strip_doctype = 
+  Str.global_replace (Str.regexp "<!DOCTYPE[^>]*>") ""
+
+let xmlreader ?(preproc = strip_doctype) s = 
+  generic_read_from (from_string (preproc s))
 
 let pcdata_only kids =
   Safelist.for_all
@@ -200,8 +204,6 @@ let xmlwriter v =
   dump_tree_as_pretty_xml fmtr v;
   Format.fprintf fmtr "\n@.";
   Buffer.contents buf
-
-let strip_doctype = Str.global_replace (Str.regexp "<!DOCTYPE[^>]*>") ""
 
 let _ =
   let etest filename copt = Misc.filename_extension filename = "xml" in
