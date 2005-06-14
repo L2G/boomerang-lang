@@ -67,15 +67,43 @@ let mk_empty_tree i = ECat(i,[])
 
 %%
 
-/* ---------------  modules --------------- */
+#{@}
+\section{Concrete Syntax}
+#{#}
+
+/* ---------------  modules & declarations --------------- */
+#{@}
+\subsection{Modules and Declarations}
+\begin{grammar}
+
+<CompilationUnit> ::= @module@ <Id> @=@ <Open>* <Decl>*
+ 
+#{#}
+
 modl:
   | MODULE IDENT EQUAL opens decls EOF        { MDef(m $1 $6,$2,$4,$5) }
       
+#{@}
+
+<Open> ::= @open@ <QId>
+
+#{#}
 opens:
   | OPEN qid opens                           { $2::$3 }
   |                                          { [] }
 
-/* ---------------  declarations --------------- */
+
+#{@}
+
+<Decl> ::= @let@ <Binding>+ 
+         \alt @module@ <Id> @=@ <Decl>* @end@
+         \alt @test@ <Exp> @=@ <Exp>
+         \alt @test@ <Exp> @=@ @error@
+         \alt @sync@ @with@ <AExp> @at@ <AExp> <AExp> @=@ <AExp>
+         \alt @sync@ @with@ <AExp> <AExp> <AExp> @at@ <AExp> <AExp> @=@ <AExp>
+\end{grammar}
+#{#}
+
 decls:
   | LET binding_list decls                   { DLet(mbs2 $1 $2,$2)::$3 }
   | MODULE IDENT EQUAL decls END decls       { DMod(m $1 $5,$2,$4)::$6 } 
@@ -101,6 +129,13 @@ test_res:
   | ERROR                                    { ($1, None) }
 
 /* ---------------  bindings --------------- */
+#{@}
+\subsection{Bindings}
+\begin{grammar}
+<Binding> ::= <Id> (<Ident>@:@<Sort>)+ @:@ <ASort> @=@ <Exp>
+\end{grammar}
+#{#}
+
 binding_list:
   | binding_list AND binding                 { $1@[$3] }
   | binding                                  { [$1] }
@@ -108,15 +143,29 @@ binding_list:
 binding:    
   | IDENT param_list COLON asort EQUAL exp   { BDef(mie $1 $6,$1,$2,Some (snd $4),$6) }
       
-/* ---------------  sorts --------------- */
+/* ---------------  sorts & params --------------- */
+#{@}
+\subsection{Sorts}
+\begin{grammar}
+<Sort> ::= <ASort> @->@ <Sort>
+      \alt <ASort>
+
+<ASort> ::= @lens@ 
+       \alt @name@
+       \alt @tree@
+       \alt @schema@
+       \alt @(@ <Sort> @)@
+\end{grammar}
+#{#}
+
 sort:
   | asort ARROW sort                         { (ms $1 $3, SArrow(snd $1, snd $3)) }
   | asort                                    { $1 }
 
 asort:
   | LENS                                     { ($1, SLens) }
-  | TREE                                     { ($1, STree) }
   | NAME                                     { ($1, SName) } 
+  | TREE                                     { ($1, STree) }
   | SCHEMA                                   { ($1, SSchema) }
   | LPAREN sort RPAREN                       { $2 }
 
@@ -129,14 +178,29 @@ param_list:
   |                                          { [] }
 
 param:
-  | IDENT COLON asort                        { PDef(mis $1 $3, $1, snd $3) }
   | LPAREN IDENT COLON sort RPAREN           { PDef(m $1 $5, $2, snd $4) }
       
 /* ---------------  expressions --------------- */
+#{@}
+\subsection{Expressions}
+\begin{grammar}
+<Exp> ::= @let@ <Binding>+ @in@ <Exp>
+     \alt @fun@ (<Ident> @:@ <Sort>)+ [@:@ <Sort>] @->@ <Exp>
+     \alt <GetPutExp>
+#{#}
 exp: 
   | LET binding_list IN exp                  { ELet(me2 $1 $4,$2,$4) }
   | FUN param param_list opt_sort ARROW exp  { EFun(me2 $1 $6,$2::$3,$4,$6) }
   | getputexp                                { $1 }
+
+#{@}
+
+<GetPutExp> ::= <ComposeExp> @/@ <ComposeExp>
+           \alt <ComposeExp> @\@ <AExp> <AExp>
+           \alt <ComposeExp> @\@ <AExp> @missing@
+           \alt <ComposeExp>
+ 
+#{#}
 
 getputexp:
   | composeexp SLASH composeexp              { mk_get_exp (me $1 $3) $1 $3 }
@@ -144,34 +208,80 @@ getputexp:
   | composeexp BACKSLASH aexp MISSING        { mk_put_exp (me1 $1 $4) $1 $3 None }
   | composeexp                               { $1 }
 
+
+#{@}
+
+<ComposeExp> ::= <ComposeExp> @;@ <BarExp>
+            \alt <BarExp>
+
+#{#}
+
 composeexp:
   | composeexp SEMI barexp                   { mk_compose2_exp (me $1 $3) $1 $3 }
   | barexp                                   { $1 } 
+
+#{@}
+
+<BarExp> ::= <BarExp> @|@ <PlusExp>
+        \alt <PlusExp>
+
+#{#}
 
 barexp:
   | barexp BAR plusexp                       { EUnion(me $1 $3,[$1;$3]) }
   | plusexp                                  { $1 }
 
+#{@}
+<PlusExp> ::= <PlusExp> @+@ <ConsExp>
+         \alt <ConsExp>
+
+#{#}
+
 plusexp:
   | plusexp PLUS consexp                     { ECat(me $1 $3, [$1; $3]) }
   | consexp                                  { $1 }
 
+
+#{@}
+
+<ConsExp> ::= <AppExp> @::@ <ConsExp>
+         \alt <AppExp>
+
+#{#}
 consexp:
   | appexp COLON COLON consexp               { ECons(me $1 $4, $1, $4) }
   | appexp                                   { $1 }
+
+#{@}
+
+<AppExp> ::= <AppExp> <AExp>
+        \alt <AExp>
+
+#{#}
 
 appexp:
   | appexp aexp                              { EApp(me $1 $2,$1,$2) }
   | aexp                                     { $1 }
 
+#{@}
+
+<AExp> ::= @''@<String>@''@
+      \alt <QId>
+      \alt <TreeExp>
+      \alt @{@ (<QuotedName> @->@ <Exp>)+ @}@
+      \alt @(@ <Exp> @)@
+      \alt @begin@ <Exp> @end@
+\end{grammar}
+#{#}
+
 aexp:
   | STRING                                   { EName(info_of_id $1,$1) }
   | qid                                      { EVar(info_of_qid $1,$1) }
-  | typeexp                                  { $1 }
+  | treeexp                                  { $1 }
   | LPAREN exp RPAREN                        { $2 }
   | BEGIN exp END                            { $2 }
   | LBRACE map_list RBRACE                   { EMap(m $1 $3, $2) }
-      
+
 map:
   | quoted_name ARROW exp                    { ($1,$3) }
 
@@ -181,15 +291,31 @@ map_list:
   | map COMMA map_list                       { $1::$3 }
       
 /* ---------------  types/types --------------- */
-typeexp:
-  | LBRACE typeelt_list RBRACE               { ECat(m $1 $3,$2) }
+#{@}
+\subsubsection{Tree Expressions}
+\begin{grammar}
+<TreeExp> ::= @{@ <TreeElt>* @}@
+         \alt @[@ <Exp>* @]@
+#{#}
+treeexp:
+  | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }
   | LBRACK exp_list RBRACK                   { Safelist.fold_right
                                                  (fun ti acc -> 
                                                     ECons(me ti acc,ti,acc))
                                                  $2
                                                  (ENil($3))}
 
-typeelt:
+#{@}
+
+<TreeElt> ::= <QuotedName>
+         \alt <QuotedName> [@?@] @=@ <Exp>
+         \alt @*@ [@?@] [@\@ @(@ <QuotedName>* @)@] @=@ <Exp>
+         \alt @!@ [@?@] [@\@ @(@ <QuotedName>* @)@] @=@ <Exp>
+         \alt @+@ [@\@ @(@ <QuotedName>* @)@] @=@ <Exp>
+
+\end{grammar}
+#{#}
+treeelt:
   | quoted_name                              { let i = info_of_exp $1 in 
                                                  EAtom(i, $1, mk_empty_tree i) }
   | quoted_name EQUAL exp                    { EAtom(me $1 $3,$1,$3) }
@@ -203,18 +329,28 @@ typeelt:
                                                  ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
       
 /* --------------- type helpers --------------- */
+#{@} 
+\subsection{Quoted Names}
+\begin{grammar}
+<QuotedName> ::= <Ident>
+            \alt @''@<String>@''@
+            \alt \char96 <AExp>
+
+\end{grammar}
+#{#}
+
 quoted_name:
   | IDENT_or_STRING                          { EName(info_of_id $1,$1) }
   | BACKTICK aexp                            { $2 }
 
 
-typeelt_list:
-  | non_empty_typeelt_list                   { $1 }
+treeelt_list:
+  | non_empty_treeelt_list                   { $1 }
   |                                          { [] }
 
-non_empty_typeelt_list:
-  | typeelt                                  { [$1] }
-  | typeelt COMMA non_empty_typeelt_list     { $1::$3 }
+non_empty_treeelt_list:
+  | treeelt                                  { [$1] }
+  | treeelt COMMA non_empty_treeelt_list     { $1::$3 }
 
 exp_list:
   | non_empty_exp_list                       { $1 }
@@ -237,6 +373,15 @@ except_list:
   | two_except_list                          { $1 }
       
 /* ---------------  identifiers --------------- */
+#{@} 
+\subsection{Qualified Identifiers}
+
+\begin{grammar}
+<QId> ::= <Ident>
+     \alt <QId> @.@ <Ident>
+\end{grammar}
+#{#}
+
 qid:
   | IDENT                                    { qid_of_id ($1) }
   | qid DOT IDENT                            { dot $1 (qid_of_id $3) }
@@ -245,3 +390,4 @@ IDENT_or_STRING:
   | STRING                                  { $1 }
   | IDENT                                   { $1 }
                                              
+
