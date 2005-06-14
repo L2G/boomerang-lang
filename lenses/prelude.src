@@ -155,7 +155,6 @@ let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) 
 let cond_ww : (schema -> schema -> schema -> lens -> lens -> lens) = Native.Prelude.cond_ww
 let cond_fw : (schema -> schema -> schema -> lens -> lens -> lens -> lens) = Native.Prelude.cond_fw
 let cond_wf : (schema -> schema -> schema -> lens -> lens -> lens -> lens) = Native.Prelude.cond_wf
-let cond_ff = cond
 test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) / {a=[{1}]} = {a}
 test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) / {b=[{2}]} = {b}
 test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {a} {a=[{1}]} = {a=[{1}]}

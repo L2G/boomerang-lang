@@ -103,12 +103,6 @@ and sort_type_list ts = Safelist.sort cmp_type (Safelist.map sort_type ts)
 (* normalizer *)
 let t2nf t0 = 
   let rec t2nf_aux depth t0 = 
-(*     debug (fun () ->  *)
-(* 	     Printf.eprintf "t2nf_aux %s %d %s\n%!" *)
-(* 	       msg *)
-(* 	       depth *)
-(* 	       (string_of_t t0)) *)
-(*     ; *)
     match sort_type t0 with
 	Empty(_) | Any(_) -> t0
       | Var(_,_,_)     -> if (depth < 1) then t2nf_aux depth (force t0) else t0
@@ -172,12 +166,13 @@ let t2nf t0 =
 	    | _            -> Union(i, Safelist.map (fun ri -> Cat(i,ri)) lift_ts_rep)	      
 	    end
   in     
-    t2nf_aux 0 t0
-      (* debug (fun () ->  *)
-      (* 	     Printf.eprintf "normalize %s = %s\n%!" *)
-      (* 	       (string_of_t t0)  *)
-      (* 	       (string_of_t res)) *)
-
+  let res = t2nf_aux 0 t0 in
+    debug (fun () ->
+    	     Printf.eprintf "t2nf %s = %s\n%!"	       
+    	       (string_of_t t0)
+	       (string_of_t res))
+    ;
+    res
 (* a VERY conservative approximation of equality *)
 (* assumes that types are in normal form *)
 let rec equal t1 t2 = match t1,t2 with
@@ -383,11 +378,11 @@ let tdoms2str tds = Misc.curlybraces (concat_tdoms " " tds)
 let nfcheck tbase f t =match tbase with
     Cat(i,_) ->
       (match t with
-	   Cat(_) | Union(_) -> fatal_error (sprintf "%s: Type is not in normal form" (Info.string_of_t i))
+	   Cat(_) | Union(_) -> fatal_error (sprintf "%s: Type %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
 	 | _ -> f t)
   | Union(i,_) ->
       (match t with
-	   Union(_) -> fatal_error (sprintf "%s: Type is not in normal form" (Info.string_of_t i))
+	   Union(_) -> fatal_error (sprintf "%s: Type %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
 	 | _ -> f t)
   | _ -> f t
 	
@@ -400,7 +395,7 @@ let rec tdoms t =
   in
   let deep_union f lst =
     TDoms.singleton (TDoms.fold (fun acc d -> TDom.union acc d) (shallow_union f lst) TDom.empty)
-  in match t with
+  in match t2nf t with
       Union(_,tl)  -> shallow_union (nfcheck t tdoms) tl
     | Cat(_,tl)    -> deep_union (nfcheck t tdoms) tl
     | Atom(_,m,x)  -> TDoms.singleton (TDom.singleton (DName(m)))
@@ -414,7 +409,7 @@ let rec vdom_in_tdoms vd tds  =
   let name_match n ta =
     match ta with
 	DName m -> m=n
-      | _ -> false
+      | _ -> false 
   in
   let any_match n ta =
     match ta with

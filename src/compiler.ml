@@ -822,9 +822,6 @@ let parse_lexbuf lexbuf =
   with Parsing.Parse_error ->
     parse_error (Lexer.info lexbuf) 
       (fun () -> "Syntax error")
-    | Invalid_argument s -> 
-	parse_error (Lexer.info lexbuf)
-	  (fun () -> sprintf "Syntax error: InvalidArgument %s" s)
  
 (* parse an AST from a string *)
 let parse_string str = 
