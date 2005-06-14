@@ -107,8 +107,48 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ## test (plunge "n") \ {a} {} = error
 ## test (plunge "n") \ {n,a} missing = error
 
-#@\LENSSECTION{xfork}
+#@\LENSSECTION{xfork} 
 ##let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
+%
+The lens combinator \LN{xfork} applies different
+lenses to different parts of a tree: it splits the tree into two parts
+according to the names of its immediate children, applies a different lens
+to each, and concatenates the results.  
+%
+Formally, \LN{xfork} takes as arguments two sets of names and two lenses.
+For example:
+#*test (xfork {a} {x,y,z} (hoist "a") id)  / {a={x,y}, b={z}, c} = {x,y,b={z},c}
+%
+(Note that sets of names are represented syntactically as trees of
+values.)
+The first set of names, @{a}@, specifies how concrete
+trees should be split: in the \GET{} direction, the input tree (here 
+@{a={x,y},b={z},c}@) is split into a tree with just the top-level edge labeled
+@a@ (i.e., @{a={x,y}}@), which is passed through  
+@hoist "a"@, and a tree with the edges @b@ and @c@ (i.e., @{b={z},c}@),
+which is passed through @id@.  The resulting trees (@{x,y}@ and @{b={z},c}@)
+are merged to form the result.  
+
+The second set of names, @{x,y,z}@, specifies that only the names @x@, @y@,
+and @z@ may appear at the top level in the tree returned by the first
+\GET{}, and also that these three names may {\em not} appear at the top
+level in the tree returned by the second \GET{}; these conditions ensure
+that the final merge always makes sense.
+#*test (xfork {a} {x} (hoist "a") id)  / {a={x,y}, b={z}, c} = error
+#*test (xfork {a} {x,y,z,b,c} (hoist "a") id)  / {a={x,y}, b={z}, c} = error
+
+The \PUT{} direction of @xfork@ works similarly: the concrete argument is
+split according to the first set of names, the abstract argument according
+to the second set of names, the two lenses are applied to the corresponding
+pairs of constituent trees, and the results are merged.  Again, the \PUT{}
+direction of the first lens must always yield trees whose top-level names
+fall in the first set, and the second lens must yield trees whose names fall
+in the second set.
+#*test (xfork {a} {x,y,z} (hoist "a") id)  
+#*        \ {x, z={foo}, b, d} 
+#*          {a={x,y}, b, c} 
+#*      = {a={x,z={foo}}, b, d}
+
 ##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {y} = {a,b}
 ##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) / {x} + {} = {a,b}
 ##test (xfork {x} {a} (const {a} {x}) id) / {x,y} = {a,y}
@@ -121,10 +161,34 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {} missing = error
 ##test (xfork {x} {a} (const {a} {x}) (const {b} {a})) \ {a} missing = error
 
-\LENSSECTION{map}
-The lens @map l@ applies @l@ to each of the {\em children} of the argument
-tree.  
+\LENSSECTION{fork}
+Often, the two sets of names passed to @xfork@ are the same.  The derived
+lens @fork@ packages this case for convenience:
+#*let fork (p:tree) (l1:lens) (l2:lens) : lens = xfork p p l1 l2
+
+##test (fork {x} (const {b} {x}) (const {b} {b})) / {x} = error
+##test (fork {x} (const {b} {b}) id) \ {b} {x} = error
+
+\LENSSECTION{map} 
 ##let map : (lens -> lens) = Native.Prelude.map
+%
+The lens @map l@ applies @l@ to each of the {\em children}
+of the argument tree.  In the {\GET} direction, it applies $l\lgetn$ to each
+{subtree} of the root and combines the results together into a new tree.
+#*test (map (const {x} {new})) / {a={b},c} = {a={x},c={x}}
+In the \PUT{} direction, there are three cases to consider.
+\begin{enumerate}
+\item Names that appear only in the concrete tree (i.e., they have been
+deleted in the abstract tree) are deleted in the resulting concrete tree.
+#*test (map (const {x} {new})) \ {a={x}} {a={b},c} = {a={b}}
+\item Names that appear
+\item For names that appear in both the concrete and abstract arguments,
+the \PUT{} direction of @l@ is applied to corresponding subtrees and the
+results are collected
+#*test (map (const {x} {new})) \ {a={x}} {a={b},c} = {a={b}}
+#*test (map (plunge "n")) \ {a={n={x,foo}},b={n={bar}}} {a={x},b} = {a={x,foo},b={bar}} 
+\end{enumerate}
+
 ##test (map id) /\ {} = {}
 ##test (map id) \ {} missing = {}
 ##test (map id) / {x, y=[{1},{2},{3}]} = {x, y=[{1},{2},{3}]}
@@ -199,13 +263,6 @@ test (copy "x" "y") \ {x={a}, y={b}} missing = error
 
 
 \subsection{Derived Lenses}
-
-\LENSSECTION{fork}
-
-#*let fork (p:tree) : (lens -> lens -> lens) = xfork p p
-
-#*test (fork {x} (const {b} {x}) (const {b} {b})) / {x} = error
-#*test (fork {x} (const {b} {b}) id) \ {b} {x} = error
 
 \LENSSECTION{mapp}
 
