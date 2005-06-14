@@ -145,14 +145,12 @@ let generic_diff f =
   let getfun (c1, c2) =
     c1 --~ c2
   and putfun a co =
+    let empty_abs = R.create (R.fields a) in
     let rev_diff (c1, c2) =
-      let free_agents = (c1 --~ c2) --~ a in
-      let left = R.fold
-        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
-      let right = R.fold
-        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
-      let both = R.fold
-        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
+      let deletions = (c1 --~ c2) --~ a in
+      let left = R.fold (take_dir Left f) deletions empty_abs in
+      let right = R.fold (take_dir Right f) deletions empty_abs in
+      let both = R.fold (take_dir Both f) deletions empty_abs in
       ((a ||~ c1) --~ (left ||~ both), (c2 --~ a) ||~ (right ||~ both))
     in
     match co with

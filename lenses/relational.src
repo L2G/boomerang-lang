@@ -3,23 +3,60 @@
 ##module Relational =
 
 \subsection{Encoding}
-
-\finish{Explain}
+Abstractly, relational data is built from \emph{records}, which are (unordered)
+mappings from names to data values, and \emph{relations}, which are (unordered)
+sets of records with identical domains.  There are different possible
+enocodings of relations into trees with different trade-offs.  We will encode
+data values as singleton trees and records as a tree whose domain is
+identical to that of the record.  Here is an example of a record encoded as a
+tree:
+$$ @{ A = {1}, B = {2}, C = {5} }@ $$
+Relations are encoded as lists of records.  In this case, we have introduced
+some infidelity because lists impose a particular order on their elements.
+Thus, the following lenses obey the lens laws only up to reording of the
+records in our representation of a relation.  Formally, we will make no
+guarantee on the order of the records in a relation after applying a lens or
+native function; however, we have written the test cases below to conform to
+the case where relations returned by lenses are ordered lexicographically.
+We may also combine a collection of named records into a \emph{database}.
+There is a natural way to do this.  Here is an example of a database with
+tables named @R@ and @S@.
+#{*}
+let foo : tree = {R = [{A = {1}, C = {2}},
+                       {A = {3}, C = {4}}],
+                  S = [{B = {5}, C = {6}}, 
+                       {B = {7}, C = {8}},
+                       {B = {9}, C = {8}}]}
+#{@}
 
 \subsection{Lenses}
 
-\finish{Explain conventions.}
+Our relational lenses are intended to operate on databases, as encoded
+above.  The lens will create an abstract view of a database by performing
+a relational operation on one or two relations of the concrete view and
+replacing them with a single relation in the abstract view, while leaving the
+other relations unchanged.  All of the lenses follow the convention that their
+last argument will be the name to use for the table that results from the
+relational operation and their next-to-last argument(s) will be then name(s)
+of the relation(s) upon which the relational operation will be performed.
+
+As we describe relational lenses, we will use @r@, @s@, and @t@ as
+meta-variables for the names of relations in a database and @"R"@, @"S"@, and
+@"T"@ as the labels on the tree edges under which relations appear in our
+encoding of databases.  Where there is no confusion, we will use @r@ (resp.
+@s@ and @t@) to refer to the abstract relation represented by the tree under
+the name @r@ (resp. @s@ and @t@).
 
 %% Convention for trees representing relations: 
-%%    R,S  relations
+%%    R,S,T  relations
 %%    A,B,C  columns
 %%    1,2,3  data
 %% Convention for meta-variables:
 %%    r,s,t  names of relations
-%%    a,b  names of columns
-%%    x,y  data
-%%    D,E  relations
-%%    P,Q  trees that provide sets of names
+%%    a,b,c  names of columns
+%%    x,y,z  data
+%%    D,E,F  relations
+%%    P,Q    trees that provide sets of names
 
 \LENSSECTION{rename}
 The lens @rename a b r s@ renames the field @a@ to @b@ in the table named @r@
@@ -38,8 +75,8 @@ test rename "A" "B" "R" "S" / \
 
 
 \LENSSECTION{select}
-The lens @select A v R S@ selects the records in @R@ for which the field @A@
-has the value @v@.
+The lens @select a x r s@ selects the records in @r@ for which the field named
+@a@ has the value @x@.
 
 ##let select : (name -> name -> name -> name -> lens) = Native.Relational.select
 
@@ -50,8 +87,9 @@ test select "A" "1" "R" "S" /
      = {S = [{A = {1}, C = {2}}]}
 #{@}
 In the \PUT{} direction, the abstract tree must contain only records whose
-@A@ field has value @v@.  These records are combined with the records from
-the concrete tree with field @A@ different from @v@.
+field named @a@ has the value @x@.  These records are combined with the
+records from the concrete tree, in which a value other than @x@ may appear in
+the field named @a@.
 #{*}
 test select "A" "1" "R" "S" \
        {S = [{A = {1}, C = {8}},
@@ -64,8 +102,8 @@ test select "A" "1" "R" "S" \
 #{@}
 
 \LENSSECTION{select@_@eq}
-The lens @select_eq A B R S@ selects the records in @R@ for which the fields
-@A@ and @B@ have the same value.
+The lens @select_eq a b r s@ selects the records in @r@ for which the fields
+named @a@ and @b@ have the same value.
 
 ##let select_eq : (name -> name -> name -> name -> lens) =
 ##  Native.Relational.select_eq
@@ -96,7 +134,7 @@ test project {A} {A} [{B = {7}}] "R" "S" /
      = { S = [{A = {1}},
               {A = {2}}]}
 #{@}
-In the \PUT{} direction,
+In the \PUT{} direction:
 Showing deletions.
 #{*}
 test project {A} {A} [{B = {7}}] "R" "S" \
@@ -129,6 +167,7 @@ test project {A, C} {A} [{B = {7}}] "R" "S" \
        { R = [{A = {1}, B = {5}, C = {2}}]}
      = { R = [{A = {1}, B = {5}, C = {3}}]}
 #{@}
+Showing everything.
 #{*}
 test project {A, B, C} {A, B} [{D = {8}}, {D = {9}}] "R" "S" \
        { S = [{A = {10}, B = {1}, C = {4}},
@@ -222,13 +261,9 @@ The lens @inter R S T@ replaces the relations @R@ and @S@ by a new relation
 ##let interl : (name -> name -> name -> lens) = Native.Relational.interl
 ##let interr : (name -> name -> name -> lens) = Native.Relational.interr
 
-##let diff : (name -> name -> name -> lens) = Native.Relational.diff
-##let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
-##let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
-
 \LENSSECTION{join}
-The lens @join R S T@ replaces the relations @R@ and @S@ by a new relation @T@
-containing the inner join of @R@ and @S@.  The join is performed by matching
+The lens @join r s t@ replaces the relations @r@ and @s@ by a new relation @t@
+containing the inner join of @r@ and @s@.  The join is performed by matching
 the fields of the two tables that share the same name.
 
 ##let join : (name -> name -> name -> lens) = Native.Relational.join
@@ -268,19 +303,18 @@ test join "R" "S" "T" /
              {A = {1}, B = {4}, C = {5}}]}
 #{@}
 
-There are couple of important considerations for the put direction.  In the
-case where data appearing in one row of @R@ or @S@ are duplicated in several
-rows of @T@ (as in a cross-product), the insertion and deletion of rows from
-@T@ may be highly constrained so that repeated information is added, deleted,
-or updated in a consistent manner.  In other words, the \PUT{} direction of
-this lens is not total on the domain of all tables with the same field names
-as the resulting table @T@.  However, for efficiency reasons, our lens will
-not raise an error when the abstract tree lies outside of the appropriate
-domain.
+There are a couple of important considerations for the \PUT{} direction.  In
+the case where data appearing in one row of @r@ or @s@ are duplicated in
+several rows of @t@ (as in a cross-product), the insertion and deletion of
+rows from @t@ may be highly constrained so that repeated information is added,
+deleted, or updated in a consistent manner.  In other words, the \PUT{}
+direction of this lens is not total on the domain of all tables with the field
+names that agree with @t@.  However, for efficiency reasons, our lens will not
+raise an error when the abstract tree lies outside of the appropriate domain.
 
-In the case that a record has been deleted from @T@, this may be reflected in
-the concrete tree by the deletion of a record @R@ or @S@ or both.  The
-behavior of @join@ is to propagated to both @R@ and @S@.
+In the case that a record has been deleted from @t@, this may be reflected in
+the concrete tree by the deletion of a record @r@ or @s@ or both.  The
+behavior of @join@ is to propagate the deletion to both @r@ and @s@.
 #{*}
 test join "R" "S" "T" \
        {T = [{A = {5}}]}
@@ -293,9 +327,9 @@ test join "R" "S" "T" \
         S = [{A = {3}},
              {A = {5}}]}
 #{@}
-Another subtle point is that the addition of a record in @T@ can cause the
-addition of a record in one of the tables of the concrete tree (@S@ below)
-while causing an update of the other table in the concrete tree (@R@ below).
+Another subtle point is that the addition of a record in @t@ can cause the
+addition of a record in one of the tables of the concrete tree (@s@ below)
+while causing an update of the other table in the concrete tree (@r@ below).
 #{*}
 test join "R" "S" "T" \
        {T = [{A = {2}, B = {5}, C = {8}},
@@ -312,8 +346,8 @@ test join "R" "S" "T" \
 #{@}
 
 \LENSSECTION{joinl}
-The lens @joinl R S T@ is an asymmetric variant of @join R S T@ that
-propagates deletions in @T@ only to @R@.
+The lens @joinl r s t@ is an asymmetric variant of @join r s t@ that
+propagates deletions in @t@ only to @r@.
 
 ##let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
 
@@ -334,7 +368,7 @@ test joinl "R" "S" "T" \
 #{@}
 
 \LENSSECTION{joinr}
-Similarly, @joinr R S T@ propagates deletions only to @S@.
+Similarly, @joinr r s t@ propagates deletions only to @s@.
 
 ##let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
 
@@ -373,6 +407,73 @@ test ojoin [{C = {55}}] [{B = {33}}] "R" "S" "T" /
              {A = {2}, B = {3}, C = {55}}]}
 #{@}
 
+
+\LENSSECTION{diff}
+The lens @diff r s t@ replaces the relations @r@ and @s@ by a new relation @t@
+containing the set-theoretic difference between @r@ and @s@, \emph{i.e.}~all
+of the records that appear in @r@ but not in @s@.
+
+##let diff : (name -> name -> name -> lens) = Native.Relational.diff
+
+#{*}
+test diff "R" "S" "T" /
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}]}
+     = {T = [{A = {1}}]}
+#{@}
+In the \PUT{} direction, @diff@ may modify both @r@ and @s@ when elements have
+been deleted from the abstract view: deleting an element from @t@ will result
+in the element being deleted from @r@ \emph{and} added to @s@.  Additions to
+@t@ will result in their obligatory addition to @r@ and removal from @s@.
+#{*}
+test diff "R" "S" "T" \
+       {T = [{A = {2}}, {A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}]}
+     = {R = [{A = {2}}, {A = {3}}, {A = {4}}],
+        S = [{A = {1}}]}
+#{@}
+The case where the concrete argument to \PUT{} is missing is treated just
+like the case where the concrete @s@ and @t@ are empty relations:
+#{*}
+test diff "R" "S" "T" \
+       {T = [{A = {1}}, {A = {2}}]}
+       missing
+     = {R = [{A = {1}}, {A = {2}}],
+        S = []}
+#{@}
+
+\LENSSECTION{diffl}
+The lens @diffl r s t@ is a variant of @diffl r s t@ that deals with deletions
+in the abstract view by only deleting them from @r@ and does not add them to
+@s@.
+
+##let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
+
+#{*}
+test diffl "R" "S" "T" \
+       {T = [{A = {2}}, {A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}]}
+     = {R = [{A = {2}}, {A = {3}}, {A = {4}}],
+        S = []}
+#{@}
+
+\LENSSECTION{diffl}
+The lens @diffl r s t@ is a variant of @diffl r s t@ that deals with deletions
+in the abstract view by only adding them to @s@ and does not remove them from
+@t@.
+
+##let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
+
+#{*}
+test diffr "R" "S" "T" \
+       {T = [{A = {2}}, {A = {3}}, {A = {4}}]}
+       {R = [{A = {1}}, {A = {2}}],
+        S = [{A = {2}}, {A = {3}}]}
+     = {R = [{A = {1}}, {A = {2}}, {A = {3}}, {A = {4}}],
+        S = [{A = {1}}]}
+#{@}
 
 #{#}
 (* ADDITIONAL TESTS *)
