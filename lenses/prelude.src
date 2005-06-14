@@ -13,6 +13,7 @@ module Prelude =
 let invert : (lens -> lens) = Native.Prelude.invert
 let hoist : (name -> lens) = Native.Prelude.hoist
 let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
+let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
 let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
 #{@}
@@ -163,7 +164,16 @@ not exactly $n$.
 ##test (hoist "n") \ {} missing = {n}
 
 \LENSSECTION{hoist@_@nonunique}
+The derived lens @hoist_nonunique@ $n$ is a generalized variant of @hoist@ that
+removes the restriction that its concrete argument have domain exactly $n$.
+%
 #*let hoist_nonunique (n:name) (p:tree) : lens = xfork {`n} p (hoist n) id 
+%
+It takes an extra argument, a set of names represented as a tree, specifying
+the possible names of top-level edges in the subtree reached under $n$,
+which must be disjoint from the names of top-level edges other than~$n$.
+%
+#*test (hoist_nonunique "n" {a,b,c}) /\ {n={a},x={b}} = {a, x={b}}
 
 ##test (hoist_nonunique "x" {a}) / {} = error
 ##test (hoist_nonunique "x" {a}) / {x={a=[]}, y=[{1},{2},{3}]} = {a=[], y=[{1},{2},{3}]}
@@ -172,10 +182,9 @@ not exactly $n$.
 ##test (hoist_nonunique "x" {a}) \ {} missing = {x}
 
 #@\LENSSECTION{plunge}
-The lens @plunge n@ can be defined as 
+The lens @plunge n@, defined as 
 #* let plunge (n:name) : lens = invert (hoist n)
-using the @invert@ lens operator defined below.  It is the exact inverse of
-@hoist n@.  
+is the exact inverse of @hoist n@.  
 #*test (plunge "n") /\ {a} = {n={a}}
 ## test (plunge "n") /\ {} = {n}
 ## test (plunge "n") \ {n={a}} missing = {a}
@@ -185,9 +194,20 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ## test (plunge "n") \ {a} {} = error
 ## test (plunge "n") \ {n,a} missing = error
 
-\LENSSECTION{filter}
 
+\LENSSECTION{filter}
+The @filter@ lens allows all but a given set of children (specified as a
+tree) to be projected away in the \GET{} direction and restored in the
+\PUT{} direction. 
 #*let filter (p:tree) (d:tree) : lens = fork p id (const {} d)
+
+#*test (filter {x,y,z} {new}) / {x,y,a,b,c} = {x,y}
+#*test (filter {x,y,z} {new}) \ {x,z} {x,y,a,b,c} = {x,z,a,b,c}
+The second argument to @filter@ is a tree (with top-level names not in the
+given set) that is used as a default value for the projected away part of
+the tree in the case where the \PUT{} part of @filter@ is applied to
+@missing@.   
+#*test (filter {x,y,z} {new}) \ {x,y} missing = {x,y,new}
 
 ##test (filter {x} {y}) / {} = {}
 ##test (filter {x} {y}) / {y,x} = {x}
@@ -195,8 +215,15 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ##test (filter {x} {y}) \ {} {y={1}} = {y={1}}
 
 \LENSSECTION{focus}
-
+The lens @focus@ $n$ $d$, defined as
 #*let focus (n:name) (d:tree) : lens = filter {`n} d ; hoist n
+projects away all the top-level names except $n$ (restoring them in the
+\PUT{} direction) and then hoists the children of $n$ up to the top level. 
+#*test (focus "n" {new}) / {x={a},n={b={c}}} = {b={c}}
+#*test (focus "n" {new}) \ {b={d},e} {x={a},n={b={c}}} = {x={a},n={b={d},e}} 
+As for @filter@, the second argument is used when the \PUT{} direction of
+@focus@ is applied to @missing@.
+#*test (focus "n" {new}) \ {b={d},e} missing = {n={b={d},e}, new} 
 
 ##test (focus "a" {}) / {a=[{1},{2},{3}], b=[{4},{5},{6}]} = [{1},{2},{3}]
 ##test (focus "a" {}) \ {} missing = {a}
@@ -206,8 +233,14 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ##test (focus "a" {}) \ [{1},{2},{3}] {b=[{4},{5},{6}]} = {a=[{1},{2},{3}], b=[{4},{5},{6}]} (*FIXME -> error *)
 
 \LENSSECTION{prune}
-
+The lens @prune@ $n$ removes just the name $n$ in the \GET{} direction (if
+it is present) and restores it in the \PUT{} direction.
 #*let prune (n:name) (d:tree) : lens = fork {`n} (const {} {`n=d}) id
+
+#*test (prune "n" {new}) / {} = {}
+#*test (prune "n" {new}) / {n={a},m={b}} = {m={b}}
+#*test (prune "n" {new}) \ {m={c},d} {n={a},m={b}} = {n={a}, m={c}, d} 
+#*test (prune "n" {new}) \ {m={c},d} missing = {n={new}, m={c}, d} 
 
 ##test (prune "a" []) / {} = {}
 ##test (prune "a" []) / {a={1}, b={2}} = {b={2}}
@@ -216,8 +249,11 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ##test (prune "a" []) \ {a} missing = error
 
 \LENSSECTION{add}
-
+The lens @add@ $n$ $v$ adds a new subtree $v$ named $n$ in the \GET{}
+direction and removes it in the \PUT{} direction.  
 #*let add (n:name) (v:tree) : lens = xfork {} {`n} (const {`n=v} {}) id
+
+#*test (add "n" {x}) / \ {a={z}} = {a={z},n={x}}
 
 ##test (add "a" []) / {} = {a=[]}
 ##test (add "a" []) / {b} = {a=[], b}
@@ -228,8 +264,11 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ##test (add "a" []) \ {a} {a} = error
 
 \LENSSECTION{rename}
-
+The lens @rename@ $m$ $n$ renames $m$ to $n$ in the \GET{} direction and $n$
+to $m$ in the \PUT{} direction.
 #*let rename (m:name) (n:name) : lens = xfork {`m} {`n} (hoist m; plunge n) id
+
+#*test (rename "m" "n") /\ {m={a}, x={b}} = {n={a}, x={b}}
 
 ##test (rename "x" "y") / {x={1}} = {y={1}}
 ##test (rename "x" "y") / {x={1}, z={2}} = {y={1}, z={2}}
@@ -240,12 +279,19 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ##test (rename "x" "y") \ {} missing = error
 ##test (rename "x" "y") \ {x} missing = error
 
-\LENSSECTION{rename@_@if@_@present}
-
+\LENSSECTION{rename_if_present}
+The lens @rename_if_present@ $m$ $n$ is just like @rename@ $m$ $n$ except
+that it does not 
+demand that its concrete argument actually possess a subtree named $m$ or
+that its abstract argument possess a subtree named $n$.
 #*let rename_if_present (m:name) (n:name) : lens = 
 #*  acond {`m=Any, *=Any} {`n=Any, *=Any}
 #*    (rename m n)
 #*    id
+
+#*test (rename_if_present "m" "n") /\ {m={a}, x={b}} = {n={a}, x={b}}
+#*test (rename_if_present "m" "n") /\ {x={b}} = {x={b}}
+#*test (rename "m" "n") / {x={b}} = error
 
 ##test (rename_if_present "x" "y") / {} = {}
 ##test (rename_if_present "x" "y") / {x={1}} = {y={1}}
@@ -258,16 +304,23 @@ using the @invert@ lens operator defined below.  It is the exact inverse of
 ##*)
 
 #@\LENSSECTION{pivot}
+The lens @pivot@ $k$ performs a ``rotation'' on the root of the tree, taking
+a tree of the form @{k={x}}+w@ to one of the form @{x=w}@---i.e., promoting
+the value under $k$ to the top so that it becomes a key for the remaining
+children, @w@.  
+%
 ##let pivot : (name -> lens) = Native.Prelude.pivot 
 ##test (pivot "k") / {} = error
-##test (pivot "k") / {k={x}} = {x}
+#*test (pivot "k") / \ {k={x},a,b={c}} = {x={a,b={c}}}
 ##test (pivot "k") / {k={x={y}}} = error
 ##test (pivot "k") / {k={x}, a=[{1}], b=[{2}]} = {x={a=[{1}], b=[{2}]}}
 ##test (pivot "k") \ {x={a=[{1}], b=[{2}]}} missing = {k={x}, a=[{1}], b=[{2}]}
 ##test (pivot "k") \ {x, y} missing = error
 ##test (pivot "k") \ {x={k=[{0}]}, a=[{1}]} missing = error
-
-(Often used just before @List.flatten@.)
+%
+The most common use of @pivot@ is in the idiom 
+%
+@List.map (pivot "k"); List.flatten@. 
 
 \subsection{Mapping}
 
@@ -301,7 +354,11 @@ the \PUT{} direction of @l@ is applied to corresponding subtrees.
 ##test (map (const {a} {b})) \ {x={c}} missing = error
 
 \LENSSECTION{mapp}
+The lens @mapp p l@ is just like @map l@ except that it ignores subtrees
+whose names are not in the set @p@ (which is specified as a tree).
 #*let mapp (p:tree) (l:lens) : lens = fork p (map l) id 
+
+#*test (mapp {a,b} (const {x} {new})) / {a={b},c} = {a={x},c}
 
 ##test (mapp {a} (const {b} {b})) / {} = {}
 ##test (mapp {a} (const {b} {b})) / {a,b={2}} = {a={b}, b={2}}
@@ -314,6 +371,9 @@ The @wmap@ combinator is a generalized variant of @map@ that can apply a
 {\em different} lens to each subtree.  Its argument is a function from names
 to lenses (see Section~\ref{sec:functionsfromnamestolenses}).  
 #*test (wmap (fun (y:name) -> plunge y)) / {a,b={foo}} = {a={a}, b={b={foo}}}
+#*test (wmap { a -> const {x} {new}, b -> plunge "n" }) 
+#*        / {a,b={foo}} 
+#*        = {a={x}, b={n={foo}}}
 
 ##test (wmap { y -> const {a} {b}}) / {} = {}
 ##test (wmap { y -> const {a} {b}}) \ {} missing = {}
@@ -324,16 +384,42 @@ to lenses (see Section~\ref{sec:functionsfromnamestolenses}).
 ##test (wmap { y -> const {a} {b}}) \ {y={a}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}]}
 ##test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}], z={c}}
 
-\finish{need more tests showing ``case'' idiom}
-
-\LENSSECTION{below}
-#*let below (n:name) (l:lens) : lens = wmap { `n -> l }
-
 
 \subsection{Conditionals}
 
-#@\LENSSECTION{cond}
-##let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
+\LENSSECTION{ccond} 
+The ``concrete conditional'' lens @ccond c lt lf@ tests whether its concrete
+argument belongs to the schema @c@, acting like @lt@ if so and @lf@ if not,
+in both \GET{} and \PUT{} directions.   
+##let ccond (c:schema) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+
+#*test (ccond {a=Any} (hoist "a") id) / {a={x}} = {x}
+#*test (ccond {a=Any} (hoist "a") id) \ {y,z} {a={x}} = {a={y,z}}
+#*test (ccond {a=Any} (hoist "a") id) / {b={x}} = {b={x}}
+#*test (ccond {a=Any} (hoist "a") id) \ {y,z} {b={x}} = {y,z}
+
+##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {a={1}} = {b}
+##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {c={2}} = {b}
+##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} missing = {}
+##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} {c={2}} = {c={2}}
+##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} {a={3}} = {a={3}}
+##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {a} missing = error
+
+\LENSSECTION{acond}
+
+##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {} = {a}
+##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {a={1}} = {b}
+##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} missing = {a}
+##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} {a={1}} = {a={1}}
+
+\LENSSECTION{cond} 
+The combinator @cond@ is a ``generalized conditional'' lens.  It is seldom
+used by itself---most often, either @ccond@ or @acond@ suffices.  Please
+see~\cite{Focal2005} for more details.  (The standard prelude also provides
+four variants, called @cond_ww@, @cond_fw@, @cond_wf@, @cond_ff@, that
+treat the ``fixup functions'' in slightly different ways.  For details, read
+the source.)
+
 ##let cond_ww : (schema -> schema -> schema -> lens -> lens -> lens) = Native.Prelude.cond_ww
 ##let cond_fw : (schema -> schema -> schema -> lens -> lens -> lens -> lens) = Native.Prelude.cond_fw
 ##let cond_wf : (schema -> schema -> schema -> lens -> lens -> lens -> lens) = Native.Prelude.cond_wf
@@ -344,24 +430,6 @@ to lenses (see Section~\ref{sec:functionsfromnamestolenses}).
 ##test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {a} missing = {a}
 ##test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {a} {b=[{2}]} = {a}
 ##test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {} missing = error
-
-\LENSSECTION{acond}
-
-##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {} = {a}
-##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {a={1}} = {b}
-##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} missing = {a}
-##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} {a={1}} = {a={1}}
-
-\LENSSECTION{ccond}
-
-#*let ccond (c:schema) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
-
-##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {a={1}} = {b}
-##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {c={2}} = {b}
-##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} missing = {}
-##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} {c={2}} = {c={2}}
-##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {b} {a={3}} = {a={3}}
-##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {a} missing = error
 
 \subsection{Merging and Copying}
 
