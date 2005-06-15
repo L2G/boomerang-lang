@@ -31,7 +31,7 @@ The schema @Empty@ denotes the empty set of trees.
 \LENSSECTION{Value}
 The schema @Value@ describes trees with just one child pointing to an empty
 tree:
-#*let Value : schema = {!=Any}
+#*let Value : schema = {!={}}
 
 \subsection{Generic Lenses}
 
