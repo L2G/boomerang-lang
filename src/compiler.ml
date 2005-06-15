@@ -60,7 +60,6 @@ module type CommonEnvSig = sig
   val set_ev : t -> Registry.rv Env.t -> t
   val get_ctx : t -> Syntax.qid list
   val set_ctx : t -> Syntax.qid list -> t
-  val to_string : t -> string
 end
 
 (* compiling environments *)
@@ -74,11 +73,6 @@ end
 (* sort checking environments *)
 module type SCEnvSig = sig
   include CommonEnvSig
-  val add_rec_var : t -> Syntax.qid -> t
-  val clear_rec_vars : t -> t
-  val rec_var_ok : t -> Syntax.qid -> bool 
-  val get_rec_vars : t -> Syntax.qid list
-  val set_rec_vars : t -> Syntax.qid list -> t
   val lookup : t -> Syntax.qid -> Syntax.sort option
   val update : t -> Syntax.qid -> Syntax.sort -> t
 end
@@ -107,12 +101,6 @@ module CEnv : CEnvSig = struct
   (* overwrite a cev with a new value *)
   let overwrite cev q rv = 
     set_ev cev (Env.overwrite (get_ev cev) q rv)
-      
-  let to_string cev = 
-    let (os,ev) = cev in 
-      sprintf "{ctx={%s} env=%s}" 
-	(Misc.concat_list ", " (Safelist.map string_of_qid os))
-	(Env.to_string ev Registry.string_of_rv)
 end
 	
 module SCEnv : SCEnvSig = struct
@@ -125,35 +113,17 @@ module SCEnv : SCEnvSig = struct
   let get_ctx sev = let (_,cev) = sev in CEnv.get_ctx cev
   let set_ctx sev qs = let (rs,cev) = sev in (rs,CEnv.set_ctx cev qs) 
 
-  (* add a qid to the list of not-recursive variables *)
-  let add_rec_var sev q = let (rs,cev) = sev in (q::rs,cev)
-						  
-  (* check if a use of a variable is OK *)
-  let rec_var_ok sev q = let (rs,_) = sev in 
-    not (Safelist.exists (qid_equal q) rs)
-
-  let get_rec_vars sev = let (rs,_) = sev in rs
-  let set_rec_vars sev rs = let (_,cev) = sev in (rs,cev)
-      
-  (* clear the list of recursive variables (e.g., when we go under a lambda) *)
-  let clear_rec_vars sev = let (_,cev) = sev in ([],cev)
-						  
   let lookup sev q = 
     let (_,cev) = sev in
       match CEnv.lookup cev q with
 	  None -> None
 	| Some rv -> Some (s_of_rv rv)
-	      
+	    
   (* update a cev with a new sort *)
   let update sev q s = 
     let (rs,cev) = sev in
       (rs, (CEnv.update cev q (mk_rv s (Value.dummy s))))
 	
-  let to_string sev = 
-    let (rs,cev) = sev in 
-      sprintf "{compile_env=%s, recursive_vars={%s}}"
-	(CEnv.to_string cev)      	
-	(Misc.concat_list ", " (Safelist.map string_of_qid rs))
 end
 
 (* --------------- Sort checker --------------- *)
@@ -267,12 +237,7 @@ and check_exp sev e0 =
 	let param_sort = sort_of_param p in
 	let param_id = id_of_param p in	  
 	let body_sev = 
-	  (* check body in an env where param has its sort *)
-	  SCEnv.clear_rec_vars
-	    (SCEnv.update sev
-	       (qid_of_id param_id)
-	       param_sort)
-	in	    
+	  (SCEnv.update sev (qid_of_id param_id) param_sort) in	    
 	let body_sort, new_body = 
 	  match return_sort_opt with
 	      Some return_sort -> expect_sort_exp "function body" body_sev return_sort body
@@ -283,10 +248,8 @@ and check_exp sev e0 =
 	  (e0_sort, new_e0)
 	    
     | ELet(i,bs,e) ->
-	let old_rs = SCEnv.get_rec_vars sev in
 	let bsev,_,new_bs = check_bindings sev bs in
-	let bsev1 = SCEnv.set_rec_vars bsev old_rs in
-	let e0_sort, new_e = check_exp bsev1 e in
+	let e0_sort, new_e = check_exp bsev e in
 	let new_e0 = ELet(i, new_bs, new_e) in
 	  (e0_sort, new_e0)
 	    
@@ -295,7 +258,7 @@ and check_exp sev e0 =
 	let new_ms = Safelist.map
 	  (fun (n,l) -> 
 	     let _,new_n = expect_sort_exp "map name" sev SName n in
-	     let _,new_l = expect_sort_exp "map lens" (SCEnv.clear_rec_vars sev) SLens l in
+	     let _,new_l = expect_sort_exp "map lens" sev SLens l in
 	       (new_n, new_l))
 	  ms
 	in
@@ -328,19 +291,11 @@ and check_exp sev e0 =
 	    
     | EVar(i,q) ->
 	begin
-	  (* look up in the environment; check that recursive uses OK *)
-	  match (SCEnv.rec_var_ok sev q, SCEnv.lookup sev q) with
-	      (true, Some s)      -> (s,e0)
-	    | (false, Some SSchema) -> (SSchema, e0) (* OK, types are lazy *)
-	    | (false, Some SLens) -> (SSchema, e0) (* OK, lenses are values *)
-	    | (false, Some _)     -> 
-		sort_error i 
-		  (fun () -> 
-		     sprintf  "%s may not be used recursively" (string_of_qid q))
-	    | (_, None)           -> 
-		sort_error i 
-		  (fun () -> sprintf "%s is not bound" 
-		     (string_of_qid q))
+	  match SCEnv.lookup sev q with
+	      Some s  -> (s,e0)
+	    | None -> sort_error i 
+		(fun () -> sprintf "%s is not bound" 
+		   (string_of_qid q))
 	end
 	  
 and check_bindings sev bs = 	    
@@ -354,8 +309,8 @@ and check_bindings sev bs =
 	       (* recursive bindings must give their return sort *)
 	     | Some s -> 
 		 let b_sort = (sort_of_param_list i xs s) in
-		   SCEnv.add_rec_var (SCEnv.update bsev f_qid b_sort) f_qid
-	     | None   -> bsev)
+		   SCEnv.update bsev f_qid b_sort
+	     | None -> bsev)
       sev
       bs
   in
@@ -388,12 +343,11 @@ and check_bindings sev bs =
 (* type check a single declaration *)
 let rec check_decl sev m di = 
   (* let _ = debug_decl (sprintf "checking declaration %s\n" (string_of_decl di)) in *)
-  let old_rec_vars = SCEnv.get_rec_vars sev in
   match di with
     | DLet(i,bs) -> 
 	let new_sev, names, new_bs = check_bindings sev bs in
 	let new_di = DLet(i, new_bs) in
-	  (SCEnv.set_rec_vars new_sev old_rec_vars, names, new_di)
+	  (new_sev, names, new_di)
 
     | DMod(i,n,ds) ->
 	let n_qid = qid_of_id n in	
@@ -413,7 +367,7 @@ let rec check_decl sev m di =
 	  names
 	in
 	let new_di = DMod(i,n,new_ds) in
-	  (SCEnv.set_rec_vars new_sev old_rec_vars, Safelist.rev names_rev, new_di)
+	  (new_sev, Safelist.rev names_rev, new_di)
     | DTest(i,e,reso) ->	
 	if not (check_test m) then (sev, [], di)
 	else
