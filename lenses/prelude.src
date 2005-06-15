@@ -81,7 +81,7 @@ second @const@ {\em must} be @{d}@).
 #*test (const {a} {d}; const {b} {a}) \ {b} missing = {d}
 #*test (const {a} {d}; const {b} {foo}) \ {b} missing = error
 
-\subsection{Forking}
+\subsection{Forking Lenses}
 
 #@\LENSSECTION{xfork} 
 %
@@ -144,7 +144,7 @@ lens @fork@ packages this case for convenience:
 ##test (fork {x} (const {b} {x}) (const {b} {b})) / {x} = error
 ##test (fork {x} (const {b} {b}) id) \ {b} {x} = error
 
-\subsection{Structural Transformations on Trees}
+\subsection{Lenses for Structural Transformations on Trees}
 
 #@\LENSSECTION{hoist}
 The lens \LN{hoist} $n$ is used to shorten a tree by removing an edge at
@@ -322,7 +322,7 @@ The most common use of @pivot@ is in the idiom
 %
 @List.map (pivot "k"); List.flatten@. 
 
-\subsection{Mapping}
+\subsection{Mapping Lenses}
 
 \LENSSECTION{map} 
 ##let map : (lens -> lens) = Native.Prelude.map
@@ -385,18 +385,26 @@ to lenses (see Section~\ref{sec:functionsfromnamestolenses}).
 ##test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}], z={c}}
 
 
-\subsection{Conditionals}
+\subsection{Conditional Lenses}
 
 \LENSSECTION{ccond} 
-The ``concrete conditional'' lens @ccond c lt lf@ tests whether its concrete
-argument belongs to the schema @c@, acting like @lt@ if so and @lf@ if not,
+The ``concrete conditional'' @ccond C lt lf@ tests whether its concrete
+argument belongs to the schema @C@, acting like @lt@ if so and @lf@ if not,
 in both \GET{} and \PUT{} directions.   
-##let ccond (c:schema) (lt:lens) (lf:lens) : lens = cond c Any Any id id lt lf
+##let ccond (C:schema) (lt:lens) (lf:lens) : lens = cond C Any Any id id lt lf
 
 #*test (ccond {a=Any} (hoist "a") id) / {a={x}} = {x}
 #*test (ccond {a=Any} (hoist "a") id) \ {y,z} {a={x}} = {a={y,z}}
 #*test (ccond {a=Any} (hoist "a") id) / {b={x}} = {b={x}}
 #*test (ccond {a=Any} (hoist "a") id) \ {y,z} {b={x}} = {y,z}
+
+Note that, to ensure well-behavedness, the lenses @lt@ and @lf@ must have
+exactly the same range.  That is, if @T@ is the entire set of trees that the
+lens @ccond C lt lf@ is ever going to be applied to, then the set of
+possible results of the \GET{} direction of @lt@ when applied to trees in
+@C@ should coincide with the set of possible results of the \GET{} direction
+of @lf@ when applied to trees in $@T@\setminus @C@$.  See~\cite{Focal2005}
+for more discussion of this point.
 
 ##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {a={1}} = {b}
 ##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) / {c={2}} = {b}
@@ -406,19 +414,46 @@ in both \GET{} and \PUT{} directions.
 ##test (ccond {a=Any} (const {b} {a}) (const {} {}; plunge "b")) \ {a} missing = error
 
 \LENSSECTION{acond}
+The ``abstract conditional'' @acond C A lt lf@ tests its concrete argument
+against the schema @C@ in the \GET{} direction and tests its abstract
+argument against the schema @A@ in the \PUT{} direction, sending its
+arguments through @lt@ or @lf@ in each case.
+
+#*let acond_test : lens = acond {a=Any,b=Any} {a=Any} (filter {a} {new}) id
+
+#*test acond_test / {a={x},b={y}} = {a={x}}
+#*test acond_test / {a={x},c={z}} = {a={x},c={z}}
+#*test acond_test / {} = {}
+
+#*test acond_test \ {a={foo}} {a={x},b={y}} = {a={foo},b={y}} 
+#*test acond_test \ {a={foo},c={z}} {a={x},b={y}} = {a={foo},c={z}} 
+#*test acond_test \ {a={foo}} {a={x}} = {a={foo},new} 
+(The final example shows an important detail: if the \PUT{} of 
+%
+@acond C A lt lf@ is applied to a tree @a@ that {\em does} belong to @A@
+together with a tree @c@ that does {\em not} belong to @C@, then the \PUT{}
+of @lt@ is used to put @a@ into @missing@.)
+
 
 ##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {} = {a}
 ##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) / {a={1}} = {b}
 ##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} missing = {a}
 ##test (acond {a=Any} {b=Any} (const {b} {a}) (const {a} {b})) \ {b} {a={1}} = {a={1}}
 
-\LENSSECTION{cond} 
-The combinator @cond@ is a ``generalized conditional'' lens.  It is seldom
-used by itself---most often, either @ccond@ or @acond@ suffices.  Please
-see~\cite{Focal2005} for more details.  (The standard prelude also provides
-four variants, called @cond_ww@, @cond_fw@, @cond_wf@, @cond_ff@, that
-treat the ``fixup functions'' in slightly different ways.  For details, read
-the source.)
+Note that the lenses @lt@ and @lf@ should have disjoint ranges.  If @T@ is
+the entire set of trees that the lens @acond C A lt lf@ is ever going to be
+applied to, then the set of possible results of the \GET{} direction of @lt@
+when applied to trees in @C@ should be exactly @A@, and the set of possible
+results of the \GET{} direction of @lf@ when applied to trees in
+$@T@\setminus @C@$ should be disjoint from @A@.
+
+\LENSSECTION{cond} %
+The lens combinator @cond@ is a ``generalized conditional.''  It is seldom
+used by itself---most often, either @ccond@ or @acond@ suffices---but
+occasionally its full power is needed.  Please see~\cite{Focal2005} for more
+details.  (The standard prelude also provides four variants, called
+@cond_ww@, @cond_fw@, @cond_wf@, @cond_ff@, that treat the ``fixup
+functions'' in slightly different ways.  For details, read the source.)
 
 ##let cond_ww : (schema -> schema -> schema -> lens -> lens -> lens) = Native.Prelude.cond_ww
 ##let cond_fw : (schema -> schema -> schema -> lens -> lens -> lens -> lens) = Native.Prelude.cond_fw
@@ -431,61 +466,95 @@ the source.)
 ##test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {a} {b=[{2}]} = {a}
 ##test (cond_ww {a=Any} {a=Any} {b=Any} (const {a} {a}) (const {b} {b})) \ {} missing = error
 
-\subsection{Merging and Copying}
+\subsection{Merging and Copying Lenses}
 
-#@\LENSSECTION{merge}
+#@\LENSSECTION{merge} %
+It sometimes happens that a concrete representation requires equality
+between two distinct subtrees within a view.  A \LN{merge} lens is one way
+to preserve this invariant when the abstract view is updated.  In the \GET{}
+direction, \LN{merge} takes a tree with two (equal) branches and
+deletes one of them.  In the \PUT{} direction, \LN{merge} copies the updated
+value of the remaining branch to {\em both} branches in the concrete view.
+
 ##let merge : (name -> name -> lens) = Native.Prelude.merge
-##test (merge "x" "y") / {x={a}, y={a}} = {x={a}}
-##test (merge "x" "y") / {x={a}, y={b}} = {x={a}}
-##test (merge "x" "y") / {x={b}, y={b}} = {x={b}}
-##test (merge "x" "y") \ {x={a}} missing = {x={a}, y={a}}
-##test (merge "x" "y") \ {x={a}} {x={a}, y={b}} = {x={a}, y={b}}
-##test (merge "x" "y") \ {} missing = error
 
-#@\LENSSECTION{copy}
+#*test (merge "m" "n") / {m={a}, n={a}} = {m={a}}
+#*test (merge "m" "n") / {m={a}, n={b}} = {m={a}}
+#*test (merge "m" "n") / {m={b}, n={b}} = {m={b}}
+#*test (merge "m" "n") \ {m={a}} missing = {m={a}, n={a}}
+#*test (merge "m" "n") \ {m={a}} {m={a}, n={b}} = {m={a}, n={b}}
+#*test (merge "m" "n") \ {} missing = error
+
+#@\LENSSECTION{copy} %
+In the \GET{} direction, $\LN{copy}\ m\ n$ takes a tree, $c$, that
+has no child labeled $n$.  If $c(m)$ exists, then $\LN{copy}\ m\
+n$ duplicates $c(m)$ by setting both $a(m)$ and $a(n)$ equal to
+$c(m)$.  In the \PUT{} direction, $\LN{copy}$ simply discards
+$a(n)$.  
+
 ##let copy : (name -> name -> lens) = Native.Prelude.copy
-##test (copy "x" "y") / {x={a}} = {x={a}, y={a}}
-##test (copy "x" "y") \ {x={a}, y={a}} missing = {x={a}}
-##test (copy "x" "y") \ {x={a}, y={a}} {x={a}} = {x={a}}
-##test (copy "x" "y") \ {x={a}, y={a}} {x={b}} = {x={a}}
-##test (copy "x" "y") / {} = error
-##test (copy "x" "y") \ {x={a}} missing = error
-##test (copy "x" "y") \ {x={a}, y={b}} missing = error
+#*test (copy "m" "n") / {m={a}} = {m={a}, n={a}}
+#*test (copy "m" "n") \ {m={a}, n={a}} missing = {m={a}}
+#*test (copy "m" "n") \ {m={a}, n={a}} {m={a}} = {m={a}}
+#*test (copy "m" "n") \ {m={a}, n={a}} {m={b}} = {m={a}}
+#*test (copy "m" "n") / {} = error
+#*test (copy "m" "n") \ {m={a}} missing = error
+#*test (copy "m" "n") \ {m={a}, n={b}} missing = error
 
+The \PUT{} of the @copy@ lens is only guaranteed to be well behaved if the
+subtrees under $m$ and $n$ in the abstract view are always identical.  This
+is a very strong constraint, which makes @copy@ nearly uselesss in practical
+programming.  See~\cite{Focal2005} for more discussion.
 
-\subsection{String Processing}
+\subsection{Debugging Lenses}
+
+\LENSSECTION{assert} %
+The lens @assert T@ behaves like the identity lens but performs some
+run-time type checking: if its \GET{} direction is invoked with a concrete
+argument not belonging to @T@ or its \PUT{} direction is invoked with either
+argument not belonging to @T@, then it  prints a
+message to this effect and halts the interpreter.  
+##let assert : (schema -> lens) = Native.Prelude.assert
+
+\LENSSECTION{probe} %
+The lens @probe msg@ behaves like @id@ except that, whenever it is invoked, it
+dumps its arguments (along with the identifying string @msg@) to the
+standard output.
+##let probe : (name -> lens) = Native.Prelude.probe
+
+\LENSSECTION{tracepoint} %
+The lens @tracepoint msg l@ behaves just like @l@ except that, when it is
+invoked, it places a marker on the call stack.  If the execution of @l@
+results in a run-time exception (because of a bad argument to a lens, for
+example), these stack markers and their associated arguments are printed as
+part of the termination message. 
+##let tracepoint : (name -> lens -> lens) = Native.Prelude.tracepoint
+
+\LENSSECTION{trace}
+##let trace : (name -> lens) = Native.Prelude.trace
+\finish{I forget what this one does!! -B}
+
+\subsection{String Processing Functions}
 
 \LENSSECTION{read}
-Read a file into a name containing the whole file. 
+The expression @read f@ reads the file @f@ from the disk and returns its
+whole contents as a single name.
 
 ##let read : (name -> name) = Native.Prelude.read
 
 \LENSSECTION{load}
-@load ekey blob@ parses @blob@ using the viewer identified by the encoding
-key @ekey@ and yields a tree.
+@load ekey blob@ parses the name @blob@ using the viewer identified by the
+encoding key @ekey@ and yields a tree.
 
 ##let load : (name -> name -> tree) = Native.Prelude.load
 
 \LENSSECTION{load@_@file}
- @load_file name@ parses a file into a tree, using the encoding key
+@load_file name@ parses a file into a tree, using the encoding key
 specified as part of the file name or the default encoding key for this file
 schema if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
 
 ##let load_file : (name -> tree) = Native.Prelude.load_file
 
-\subsection{Debugging Support}
-
-\LENSSECTION{probe}
-##let probe : (name -> lens) = Native.Prelude.probe
-
-\LENSSECTION{trace}
-##let trace : (name -> lens) = Native.Prelude.trace
-
-\LENSSECTION{assert}
-##let assert : (schema -> lens) = Native.Prelude.assert
-
-\LENSSECTION{tracepoint}
-##let tracepoint : (name -> lens -> lens) = Native.Prelude.tracepoint
 
 \subsection{Miscellaneous}
 
