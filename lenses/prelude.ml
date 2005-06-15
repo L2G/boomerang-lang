@@ -172,22 +172,6 @@ let probe_lib =
   mk_nfun "lens" probe_qid
     (fun n -> Value.L (probe n))
 let _ = register_native probe_qid "name -> lens" probe_lib
-
-(* TRACE *)
-let trace_qid = "Native.Prelude.trace"
-let trace msg = 
-  { get = (fun c ->
-	     Format.printf "%s (get)" msg;
-	     Format.print_flush ();
-	     c);
-    put = (fun a co ->     
-	     Format.printf "%s (put)" msg;
-	     Format.print_flush ();
-	     a)}
-let trace_lib = 
-  mk_nfun "lens" trace_qid
-    (fun n -> Value.L (trace n))
-let _ = register_native trace_qid "name -> lens" trace_lib
 	
 (* TRACEPOINT *)
 let tracepoint_qid = "Native.Prelude.tracepoint"

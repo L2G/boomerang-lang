@@ -530,17 +530,15 @@ example), these stack markers and their associated arguments are printed as
 part of the termination message. 
 ##let tracepoint : (name -> lens -> lens) = Native.Prelude.tracepoint
 
-\LENSSECTION{trace}
-##let trace : (name -> lens) = Native.Prelude.trace
-\finish{I forget what this one does!! -B}
-
-\subsection{String Processing Functions}
+\subsection{I/O Functions}
 
 \LENSSECTION{read}
 The expression @read f@ reads the file @f@ from the disk and returns its
 whole contents as a single name.
 
 ##let read : (name -> name) = Native.Prelude.read
+
+\subsection{Viewer Functions}
 
 \LENSSECTION{load}
 @load ekey blob@ parses the name @blob@ using the viewer identified by the
@@ -554,7 +552,6 @@ specified as part of the file name or the default encoding key for this file
 schema if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
 
 ##let load_file : (name -> tree) = Native.Prelude.load_file
-
 
 \subsection{Miscellaneous}
 
