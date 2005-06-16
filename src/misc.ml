@@ -307,7 +307,11 @@ let whack_chars s cl reverse =
     else
     if (Safelist.exists (fun c -> String.contains s c) cl) then "\""^s^"\"" else s
       
-let whack s = whack_chars s [' '; '"'] false
+let whack s =   
+  if s = "" then 
+    "\"\"" 
+  else 
+    whack_chars s [' '; '"'] false
 
 let whack_ident s = 
   whack_chars s

@@ -68,6 +68,8 @@ let mk_empty_tree i = ECat(i,[])
 %%
 
 #{@}
+\renewcommand{\lit}[1]{\char96{}#1\char39{}}
+
 \section{Concrete Syntax}
 #{#}
 
@@ -76,18 +78,13 @@ let mk_empty_tree i = ECat(i,[])
 \subsection{Modules and Declarations}
 \begin{grammar}
 
-<CompilationUnit> ::= @module@ <Id> @=@ <Open>* <Decl>*
+<CompilationUnit> ::= \lit{@module@} <Ident> \lit{@=@} (\lit{@open@} <Qid>)* <Decl>*
  
 #{#}
 
 modl:
   | MODULE IDENT EQUAL opens decls EOF        { MDef(m $1 $6,$2,$4,$5) }
       
-#{@}
-
-<Open> ::= @open@ <QId>
-
-#{#}
 opens:
   | OPEN qid opens                           { $2::$3 }
   |                                          { [] }
@@ -95,12 +92,12 @@ opens:
 
 #{@}
 
-<Decl> ::= @let@ <Binding>+ 
-         \alt @module@ <Id> @=@ <Decl>* @end@
-         \alt @test@ <Exp> @=@ <Exp>
-         \alt @test@ <Exp> @=@ @error@
-         \alt @sync@ @with@ <AExp> @at@ <AExp> <AExp> @=@ <AExp>
-         \alt @sync@ @with@ <AExp> <AExp> <AExp> @at@ <AExp> <AExp> @=@ <AExp>
+<Decl> ::= \lit{@let@} <BindingList> 
+         \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
+         \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
+         \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
+         \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
+         \alt \lit{@sync@} \lit{@with@} <AExp> <AExp> <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
 \end{grammar}
 #{#}
 
@@ -132,12 +129,16 @@ test_res:
 #{@}
 \subsection{Bindings}
 \begin{grammar}
-<Binding> ::= <Id> (<Ident>@:@<Sort>)+ @:@ <ASort> @=@ <Exp>
+<Binding> ::= <Ident> (<Ident>\lit{@:@}<Sort>)+ \lit{@:@} <ASort> \lit{@=@} <Exp>
+
+<BindingList> ::= <Binding> 
+             \alt <Binding> \lit{and} <BindingList>
+
 \end{grammar}
 #{#}
 
 binding_list:
-  | binding_list AND binding                 { $1@[$3] }
+  | binding AND binding_list                 { $1::$3 }
   | binding                                  { [$1] }
 
 binding:    
@@ -147,14 +148,14 @@ binding:
 #{@}
 \subsection{Sorts}
 \begin{grammar}
-<Sort> ::= <ASort> @->@ <Sort>
+<Sort> ::= <ASort> \lit{@->@} <Sort>
       \alt <ASort>
 
-<ASort> ::= @lens@ 
-       \alt @name@
-       \alt @tree@
-       \alt @schema@
-       \alt @(@ <Sort> @)@
+<ASort> ::= \lit{@lens@}
+       \alt \lit{@name@}
+       \alt \lit{@tree@}
+       \alt \lit{@schema@}
+       \alt \lit{@(@} <Sort> \lit{@)@}
 \end{grammar}
 #{#}
 
@@ -184,9 +185,14 @@ param:
 #{@}
 \subsection{Expressions}
 \begin{grammar}
-<Exp> ::= @let@ <Binding>+ @in@ <Exp>
-     \alt @fun@ (<Ident> @:@ <Sort>)+ [@:@ <Sort>] @->@ <Exp>
+<Exp> ::= \lit{@let@} <BindingList> \lit{@in@} <Exp>
+     \alt \lit{@fun@} ([\lit{(}]<Ident>\lit{@:@}<Sort>[\lit{)}])+ [\lit{@:@}<Sort>] \lit{@->@} <Exp>
      \alt <GetPutExp>
+
+
+<ExpList> ::= <Exp>
+         \alt <Exp> \lit{@,@} <ExpList>
+
 #{#}
 exp: 
   | LET binding_list IN exp                  { ELet(m $1 $3,$2,$4) }
@@ -195,15 +201,15 @@ exp:
 
 #{@}
 
-<GetPutExp> ::= <ComposeExp> @/@ <ComposeExp>
-           \alt <ComposeExp> @\@ <AExp> <AExp>
-           \alt <ComposeExp> @\@ <AExp> @missing@
+<GetPutExp> ::= <ComposeExp> \lit{@/@} <PlusExp>
+           \alt <ComposeExp> \lit{@\@} <AExp> <AExp>
+           \alt <ComposeExp> \lit{@\@} <AExp> \lit{@missing@}
            \alt <ComposeExp>
  
 #{#}
 
 getputexp:
-  | composeexp SLASH composeexp              { mk_get_exp (me $1 $3) $1 $3 }
+  | composeexp SLASH plusexp              { mk_get_exp (me $1 $3) $1 $3 }
   | composeexp BACKSLASH aexp aexp           { mk_put_exp (me $1 $4) $1 $3 (Some $4) }
   | composeexp BACKSLASH aexp MISSING        { mk_put_exp (me1 $1 $4) $1 $3 None }
   | composeexp                               { $1 }
@@ -211,7 +217,7 @@ getputexp:
 
 #{@}
 
-<ComposeExp> ::= <ComposeExp> @;@ <BarExp>
+<ComposeExp> ::= <ComposeExp> \lit{@;@} <BarExp>
             \alt <BarExp>
 
 #{#}
@@ -222,7 +228,7 @@ composeexp:
 
 #{@}
 
-<BarExp> ::= <BarExp> @|@ <PlusExp>
+<BarExp> ::= <BarExp> \lit{@|@} <PlusExp>
         \alt <PlusExp>
 
 #{#}
@@ -232,7 +238,7 @@ barexp:
   | plusexp                                  { $1 }
 
 #{@}
-<PlusExp> ::= <PlusExp> @+@ <ConsExp>
+<PlusExp> ::= <PlusExp> \lit{@+@} <ConsExp>
          \alt <ConsExp>
 
 #{#}
@@ -244,7 +250,7 @@ plusexp:
 
 #{@}
 
-<ConsExp> ::= <AppExp> @::@ <ConsExp>
+<ConsExp> ::= <AppExp> \lit{::} <ConsExp>
          \alt <AppExp>
 
 #{#}
@@ -265,22 +271,33 @@ appexp:
 
 #{@}
 
-<AExp> ::= @''@<String>@''@
+<AExp> ::= <String>
       \alt <QId>
-      \alt <TreeExp>
-      \alt @{@ (<QuotedName> @->@ <Exp>)+ @}@
-      \alt @(@ <Exp> @)@
-      \alt @begin@ <Exp> @end@
-\end{grammar}
+      \alt \lit{@{@} <MapList> \lit{@}@}
+      \alt \lit{@{@} <TreeEltList> \lit{@}@}
+      \alt \lit{@[@} <ExpList> \lit{@]@}
+      \alt \lit{@(@} <Exp> \lit{@)@}
+      \alt \lit{@begin@} <Exp> \lit{@end@}
+
+<Map> ::= <QuotedName> \lit{@->@} <Exp>
+
+<MapList> ::= <Map>
+         \alt <Map> \lit{@,@} <MapList>
+
 #{#}
 
 aexp:
   | STRING                                   { EName(info_of_id $1,$1) }
   | qid                                      { EVar(info_of_qid $1,$1) }
-  | treeexp                                  { $1 }
   | LPAREN exp RPAREN                        { $2 }
   | BEGIN exp END                            { $2 }
   | LBRACE map_list RBRACE                   { EMap(m $1 $3, $2) }
+  | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }
+  | LBRACK exp_list RBRACK                   { Safelist.fold_right
+                                                 (fun ti acc -> 
+                                                    ECons(me ti acc,ti,acc))
+                                                 $2
+                                                 (ENil($3))}      
 
 map:
   | quoted_name ARROW exp                    { ($1,$3) }
@@ -290,28 +307,17 @@ map_list:
   | map                                      { [$1] }
   | map COMMA map_list                       { $1::$3 }
       
-/* ---------------  types/types --------------- */
-#{@}
-\subsubsection{Tree Expressions}
-\begin{grammar}
-<TreeExp> ::= @{@ <TreeElt>* @}@
-         \alt @[@ <Exp>* @]@
-#{#}
-treeexp:
-  | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }
-  | LBRACK exp_list RBRACK                   { Safelist.fold_right
-                                                 (fun ti acc -> 
-                                                    ECons(me ti acc,ti,acc))
-                                                 $2
-                                                 (ENil($3))}
 
 #{@}
 
 <TreeElt> ::= <QuotedName>
-         \alt <QuotedName> [@?@] @=@ <Exp>
-         \alt @*@ [@?@] [@\@ @(@ <QuotedName>* @)@] @=@ <Exp>
-         \alt @!@ [@?@] [@\@ @(@ <QuotedName>* @)@] @=@ <Exp>
-         \alt @+@ [@\@ @(@ <QuotedName>* @)@] @=@ <Exp>
+         \alt <QuotedName>[\lit{@?@}] \lit{@=@} <Exp>
+         \alt \lit{@*@}[\lit{@?@}] [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
+         \alt \lit{@!@}[\lit{@?@}] [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
+         \alt \lit{@+@} [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
+
+<TreeEltList> ::= <TreeElt>
+             \alt <TreeElt> \lit{@,@} <TreeEltList>
 
 \end{grammar}
 #{#}
@@ -319,11 +325,11 @@ treeelt:
   | quoted_name                              { let i = info_of_exp $1 in 
                                                  EAtom(i, $1, mk_empty_tree i) }
   | quoted_name EQUAL exp                    { EAtom(me $1 $3,$1,$3) }
-  | quoted_name QMARK EQUAL exp              { let i = me $1 $4 in 
+  | QMARK quoted_name EQUAL exp              { let i = me $1 $4 in 
                                                  EUnion(i, [ECat(i,[]); EAtom(i,$1,$4)]) }
   | STAR excepts_opt EQUAL exp               { EStar (me2 $1 $4,$2,$4) }
   | BANG excepts_opt EQUAL exp               { EBang(me2 $1 $4,$2,$4) }
-  | BANG QMARK excepts_opt EQUAL exp         { let i = me2 $1 $5 in 
+  | QMARK BANG excepts_opt EQUAL exp         { let i = me2 $1 $5 in 
                                                  EUnion(i, [ECat(i,[]); EBang(i,$3,$5)]) }                                                        
   | PLUS excepts_opt EQUAL exp               { let i = me2 $1 $4 in 
                                                  ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
@@ -333,8 +339,11 @@ treeelt:
 \subsection{Quoted Names}
 \begin{grammar}
 <QuotedName> ::= <Ident>
-            \alt @''@<String>@''@
-            \alt \char96 <AExp>
+            \alt <String>
+            \alt \lit{\char96} <AExp>
+ 
+<QuotedNameList> ::= <QuotedName>
+                \alt <QuotedName> \lit{@,@} <QuotedNameList>
 
 \end{grammar}
 #{#}
@@ -365,12 +374,9 @@ excepts_opt :
   | BACKSLASH except_list                    { $2 }
   |                                          { [] }
 
-two_except_list:
-  | quoted_name COMMA except_list            { $1::$3 }
-
 except_list:
   | quoted_name                              { [$1] }
-  | two_except_list                          { $1 }
+  | quoted_name COMMA except_list            { $1::$3 }
       
 /* ---------------  identifiers --------------- */
 #{@} 
@@ -378,7 +384,7 @@ except_list:
 
 \begin{grammar}
 <QId> ::= <Ident>
-     \alt <QId> @.@ <Ident>
+     \alt <QId> \lit{@.@} <Ident>
 \end{grammar}
 #{#}
 

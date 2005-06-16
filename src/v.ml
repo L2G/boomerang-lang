@@ -158,12 +158,13 @@ and list_from_structure v =
   in
     loop [] v 
 
-and get_required ((VI m) as v) k = 
+and get_required ?(msg="") ((VI m) as v) k = 
+  let msg2 = if msg = "" then "" else msg ^ ": " in
   try 
     Name.Map.find k m
   with Not_found -> 
     raise (Error.Harmony_error 
-	     (fun () -> Format.printf "get_required %s failed on" k;
+	     (fun () -> Format.printf "%sget_required %s failed on " msg2 (Misc.whack k);
 		format v))
 
 and get_value v =

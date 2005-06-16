@@ -14,7 +14,7 @@ val get : t -> Name.t -> t option
 (** [get v k] yields [Some kid] if [v(k) = kid], or [None] if [v] is undefined
     at [k]. *)
 
-val get_required : t -> Name.t -> t 
+val get_required : ?msg:string -> t -> Name.t -> t 
 (** [get_required v k] returns [v(k)].
     @raise an exception if the required child [k] is missing in [v].*)
 
