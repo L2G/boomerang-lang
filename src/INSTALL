@@ -32,8 +32,11 @@ pcre        Phil Hazel's PCRE library, version >= 4.1.
 
             OSX QUICK START:
               fink install pcre
-            and then set (in Makefile.conf)
-                export INCDIRS := /sw/include
+
+              (Note that installing pcre using Fink means that pcre is
+              installed in a ``non-standard place'', and your
+              pcre-ocaml installation below must follow the
+              corresponding instructions.)
 
             QUICK START: 
               ./configure; make; sudo make install
@@ -59,6 +62,7 @@ pxp         Tested with version 1.1.5.
 That's it!  Only 6 dependencies!
 
 Now, simply type 'make' and you should end up with a harmony binary.
+Type 'make test' and you should see all the regression tests run.
 
 
 ----------------------------------------
@@ -73,14 +77,21 @@ lablgtk2    It is required by the lens visualizer (not the synchronizer).
 	    QUICK START
 	    ./configure; make world; make opt; sudo make install; make clean
 
-tidylib	    This is a common package that may be already in your
-	    system. The headers tidy.h and tidyenum.h are especially
-	    required.
+            On OSX, we've had some problems with package dependencies,
+            especially under Fink.  Things seem to go much better
+            under Darwinports.  (Just do "sudo ports install lablgtk2"!)
+
+tidy	    This is a common package that may be already in your
+	    system. 
+
 	    http://tidy.sourceforge.net/
+
 	    There are RPMs, debs for the major Linux distributions.
 
-	    QUICK START:
-		sudo fink install tidy
+            QUICK START:
 		cd build/gmake; make; sudo make install
+
+	    QUICK START FOR OSX:
+		sudo fink install tidy
 
 

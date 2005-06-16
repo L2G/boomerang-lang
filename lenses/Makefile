@@ -21,5 +21,5 @@ test:: $(GENERATEDFCLFILES)
 	$(HARMONY) check -module Relational -test-all 
 
 doc: $(GENERATEDFCLFILES) buildharmony
-	$(HARMONY) check -module Prelude -test-all 
+	$(HARMONY) check -module List -test-all 
 	make -C $(DOCDIR) ps
