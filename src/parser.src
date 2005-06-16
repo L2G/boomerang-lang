@@ -70,12 +70,41 @@ let mk_empty_tree i = ECat(i,[])
 #{@}
 \renewcommand{\lit}[1]{\char96{}#1\char39{}}
 
-\section{Concrete Syntax}
+\section{Syntactic Structure}
+
+This section gives the formal definition of Focal syntax, as an EBNF
+grammar. Terminal symbols are written in a typewriter font and
+enclosed in single quotes, like this: \lit{@module@}. Non-terminals
+are enclosed in angle brackets, like this: \synt{Exp}. Optional
+elements are enclosed in square brackets: \syntax{[\lit{@:@} <Sort>]},
+terms may be grouped using parentheses, and repeated elements are
+specified using \syntax{*} (0 or more) and \syntax{+} (1 or more).
+
 #{#}
 
 /* ---------------  modules & declarations --------------- */
 #{@}
 \subsection{Modules and Declarations}
+
+A Focal compilation unit contains a single module declaration @module M@ 
+that must appear in a file named @m.fcl@.  A module contains a
+sequence of @open@ declarations, which import all the declarations
+from another module, followed by a sequence of declarations. A
+declaration is either a @let@ declaration, a nested @module@
+declaration, or a unit test.
+
+\subsection{Unit Tests}
+
+Focal supports two different kinds of unit tests, which are only
+tested when the system is run in testing mode (see
+Section~\ref{sec:cmdlineargs}). The first form, \syntax{\lit{test}
+  <Exp> @=@ <Exp>}, tests that the expressions on the left and right
+side of the @=@ symbol, which must be trees, are equal. The second,
+\syntax{\lit{test} <Exp> \lit{@=@} \lit{@error@}}, 
+
+
+
+
 \begin{grammar}
 
 <CompilationUnit> ::= \lit{@module@} <Ident> \lit{@=@} (\lit{@open@} <Qid>)* <Decl>*
@@ -99,6 +128,8 @@ opens:
          \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
          \alt \lit{@sync@} \lit{@with@} <AExp> <AExp> <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
 \end{grammar}
+
+
 #{#}
 
 decls:
@@ -311,9 +342,10 @@ map_list:
 #{@}
 
 <TreeElt> ::= <QuotedName>
-         \alt <QuotedName>[\lit{@?@}] \lit{@=@} <Exp>
-         \alt \lit{@*@}[\lit{@?@}] [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
-         \alt \lit{@!@}[\lit{@?@}] [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
+         \alt [\lit{@?@}] <QuotedName> \lit{@=@} <Exp>
+         \alt \lit{@*@} [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
+         \alt \lit{@!@} [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
+         \alt \lit{@?@} [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
          \alt \lit{@+@} [\lit{@\@} [\lit{@(@}] <QuotedNameList> [\lit{@)@}]] \lit{@=@} <Exp>
 
 <TreeEltList> ::= <TreeElt>
@@ -329,8 +361,8 @@ treeelt:
                                                  EUnion(i, [ECat(i,[]); EAtom(i,$2,$4)]) }
   | STAR excepts_opt EQUAL exp               { EStar (me2 $1 $4,$2,$4) }
   | BANG excepts_opt EQUAL exp               { EBang(me2 $1 $4,$2,$4) }
-  | QMARK BANG excepts_opt EQUAL exp         { let i = me2 $1 $5 in 
-                                                 EUnion(i, [ECat(i,[]); EBang(i,$3,$5)]) }                                                        
+  | QMARK excepts_opt EQUAL exp              { let i = me2 $1 $4 in 
+						 EUnion(i, [ECat(i,[]); EBang(i,$2,$4)]) }                                                        
   | PLUS excepts_opt EQUAL exp               { let i = me2 $1 $4 in 
                                                  ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
       
