@@ -4,32 +4,16 @@
 
 \subsection{Encoding} 
 
-\finish{General question: does this stuff subsume @List.join@?  Can that
-  just be deleted?}
-
 Relational data is built from
 \emph{records}, which are (unordered) mappings from names to data values, and
 \emph{relations}, which are (unordered) sets of records with identical
 domains.  In Focal, we work with relations that are encoded as
-trees.  Different enocodings of relations into trees are possible, each having
-some drawbacks\finish{This sounds a little worrying.}.  We encode data
-values as singleton trees and records as a 
+trees.  We encode data values as singleton trees and records as a 
 tree whose domain is identical to that of the record.  Here is an example of a
 record encoded as a tree: $$ @{ A = {1}, B = {2}, C = {5} }@ $$ We have chosen
-to encode relations as lists of records.  In this case, the encoding is not
-bijective because a list both imposes an order on elements and allows
-duplicates, neither of which are true of mathematical sets.\finish{But
-  couldn't we easily maintain the invariant that the elements of the
-  relation are always sorted, and doesn't this recover what we need?  (OK,
-  maybe not quite, since an external program that is presenting relational
-  data to us may not sort it, so the whole round trip through Harmony may
-  fail to be well behaved.  But we're used to this sort of silliness.)}  Thus, the
-following lenses obey the lens laws only up to reording of (and removal of
-duplicates in, if necessary) the records in our representation of a relation.
-Formally, we will make no guarantee on the order of the records in a relation
-after applying a lens or native function; however, we have written the test
-cases below to conform to the sitution where the records of the relations
-returned by lenses are ordered lexicographically.
+to encode relations as lists of records.  The lists of records produced by
+lenses will be sorted lexicographically (and without duplicates) so as to
+maintain a canonical representation of the underlying mathematical set.
 
 A collection of named relations forms a \emph{database}.
 For example, here is the Focal encoding a database with relations named @R@
