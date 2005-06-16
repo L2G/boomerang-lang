@@ -278,28 +278,25 @@ let generic_ojoin dl dr b =
         (* records that were inserted into the abstract view *)
         a --~ (c1 ***~ c2)
       in
-      let add_left_only =
-        (* records that must only be added to the left concrete table *)
-        additions &&~ ((additions >>~ shflds) **~ dr)
-      and add_right_only =
-        (* records that must only be added to the right concrete table *)
-        additions &&~ ((additions >>~ shflds) **~ dl)
+      let must_add_either =
+        (* added records that must be added in one or both concrete tables *)
+        additions &&~ (((additions >>~ shflds) **~ dl) **~ dr)
       in
-      let add_either =
-        (* records that may be added to either concrete table *)
-        additions --~ (add_left_only ||~ add_right_only)
+      let must_add_both =
+        (* added records that must be added in both concrete tables *)
+        additions --~ must_add_either
       in
       let add_left =
         (* records that should be added to the left concrete table *)
-        (add_left_only ||~
-          (R.fold (take_dir Left b) add_either empty_abs)) >>~ lflds
+        (must_add_both ||~
+          (R.fold (take_dir Left b) must_add_either empty_abs)) >>~ lflds
       and add_right =
         (* records that should be added to the right concrete table *)
-        (add_right_only ||~
-          (R.fold (take_dir Right b) add_either empty_abs)) >>~ rflds
+        (must_add_both ||~
+          (R.fold (take_dir Right b) must_add_either empty_abs)) >>~ rflds
       in
-      ((c1 &&~ (a >>~ lflds)) ||~ (add_left >>~ lflds),
-       (c2 &&~ (a >>~ rflds)) ||~ (add_right >>~ rflds))
+      ((c1 &&~ (a >>~ lflds)) ||~ add_left,
+       (c2 &&~ (a >>~ rflds)) ||~ add_right)
     in
     match co with
     | None -> rev_join (empty_abs, empty_abs)

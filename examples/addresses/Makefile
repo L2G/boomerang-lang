@@ -27,9 +27,9 @@ init-demo:
 	cp vcard_example_2.xml a.xml
 	cp a.xml b.xml
 	$(MAKE) continue-demo
-	echo
-	echo Demo initialized: You can now edit a.xml and/or b.xml and 
-	echo then do 'make demo' to synchronize them.
+	@echo
+	@echo Demo initialized: You can now edit a.xml and/or b.xml and 
+	@echo then do 'make demo' to synchronize them.
 
 continue-demo:
 	$(HARMONY) sync -schema Xml.T \
