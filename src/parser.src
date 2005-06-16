@@ -325,8 +325,8 @@ treeelt:
   | quoted_name                              { let i = info_of_exp $1 in 
                                                  EAtom(i, $1, mk_empty_tree i) }
   | quoted_name EQUAL exp                    { EAtom(me $1 $3,$1,$3) }
-  | QMARK quoted_name EQUAL exp              { let i = me $1 $4 in 
-                                                 EUnion(i, [ECat(i,[]); EAtom(i,$1,$4)]) }
+  | QMARK quoted_name EQUAL exp              { let i = me2 $1 $4 in 
+                                                 EUnion(i, [ECat(i,[]); EAtom(i,$2,$4)]) }
   | STAR excepts_opt EQUAL exp               { EStar (me2 $1 $4,$2,$4) }
   | BANG excepts_opt EQUAL exp               { EBang(me2 $1 $4,$2,$4) }
   | QMARK BANG excepts_opt EQUAL exp         { let i = me2 $1 $5 in 
