@@ -28,10 +28,14 @@ The schema @Any@ denotes the set of all trees.
 The schema @Empty@ denotes the empty set of trees.
 ##let Empty : schema = Native.Prelude.Empty
 
+\LENSSECTION{KeyedTree}
+A ``keyed'' tree consists of a single name pointing to some subtree.
+#*let KeyedTree (X:schema) : schema = {!=X}
+
 \LENSSECTION{Value}
 The schema @Value@ describes trees with just one child pointing to an empty
 tree:
-#*let Value : schema = {!={}}
+#*let Value : schema = KeyedTree {}
 
 \subsection{Generic Lenses}
 

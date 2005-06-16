@@ -62,7 +62,13 @@ class warner =
       print_endline ((Misc.color "WARNING: " Misc.Yellow ~bold:true) ^ w)
   end
 
-let pcdata_tag = "PCDATA"
+let pcdata_tag = "@pcdata"
+let pcdata_tag_lib = Value.N pcdata_tag
+let _ = Registry.register_native "Native.Xml.pcdata_tag" "name" pcdata_tag_lib
+
+let children_tag = "@children"
+let children_tag_lib = Value.N children_tag
+let _ = Registry.register_native "Native.Xml.children_tag" "name" children_tag_lib
 
 let escapeXmlChar = function
     '&' -> "&amp;"
@@ -111,7 +117,7 @@ let rec xml2tree n =
       V.set V.empty name (Some (
                             V.set
                             (V.from_list attrkids) 
-                            ""
+                            children_tag
                             (Some kid_struct)))
   | T_data ->
       let str = Util.trimWhitespace (n # data) in
@@ -163,11 +169,12 @@ let rec dump_tag fmtr v =
     Format.fprintf fmtr "%s" (escapeXml data) 
   else
     let subv = V.get_required v tag in
-    (* now, subv should have one "" child (a list of sub-elements) and may *)
-    (* have some other children representing attributes of the tag *)
-    let kids_struct = V.get_required subv "" in
+    (* now, subv should have one children_tag child (a list of sub-elements)
+       and may have some other children representing attributes of the tag *)
+    let kids_struct = V.get_required subv children_tag in
     let kids = V.list_from_structure kids_struct in
-    let attrnames = Name.Set.elements (Name.Set.remove "" (V.dom subv)) in
+    let attrnames =
+      Name.Set.elements (Name.Set.remove children_tag (V.dom subv)) in
     let attrs =
       Safelist.map
 	(fun k -> (k, escapeXml (V.get_value (V.get_required subv k))))
@@ -189,7 +196,7 @@ let dump_tree_as_pretty_xml fmtr v =
   if V.is_empty v then
     begin
       debug (fun() -> Format.printf "writing out empty tree == empty file");
-      Format.fprintf fmtr "";
+      Format.fprintf fmtr ""; 
     end
   else
     let tags = V.list_from_structure v in

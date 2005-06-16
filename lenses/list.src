@@ -3,6 +3,7 @@
 ##module List =
 
 \subsection{The List Encoding}
+\label{sec:listenc}
 
 Lists are represented in Focal as trees of ``cons cells.''  For example, the
 list @[1,2]@ is represented by the tree @{HD={1}, TL={HD={2}, TL={NIL}}}@.
@@ -294,9 +295,8 @@ test filter_test \ [{a={1}}]
 %
 ##let flatten : lens = Native.Prelude.flatten
 %
-The \LN{flatten} lens takes a list of ``keyed'' trees (trees consisting of a
-single name pointing to an arbitrary subtree) and flattens it into a bush
-whose top-level children are the keys from the original list:
+The \LN{flatten} lens takes a list of keyed trees and flattens it into a
+bush whose top-level children are the keys from the original list:
 %
 #*test flatten / [{k1={a}}, {k2={b}}] = {k1=[{a}], k2=[{b}]}
 The ``keys'' in the concrete list need not be distinct.  If a key @k@ is

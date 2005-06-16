@@ -2,17 +2,15 @@ THINGS TO DO
 
 BCP TASKS
 continue with prelude.src and friends
-look at address book stuff and reintegrate
 work with stephane on unison integration
 finish structured text demo (integrate spinelists) after nate's new types
 make Plist a library module and experiment with syncing some real plists
 put GPL notice in files
   and download/read instructions on getting copyright transfer
 finish title page (discuss)
-
 the Type module should be renamed Schema, I guess
-
-NATE TASKS
+make Xml.children be a native thing, like List.hd (same for PCDATA)
+  and change children to "@children" or something, instead of ""
 
 NATE TASKS
      NOW

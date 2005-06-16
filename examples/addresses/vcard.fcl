@@ -5,8 +5,8 @@ module Vcard =
    we assume that the first element is a FN. *)
 
 let hoist_optional_pcdata : lens = 
-  acond {PCDATA = Value} Value
-    (hoist "PCDATA")
+  acond {`Xml.PCDATA = Value} Value
+    (hoist Xml.PCDATA)
     id
 
 (* list of PCDATA at the top of the element *)
@@ -19,8 +19,8 @@ let flatten_several_depth2 (n:name) : lens =
 
 let l : lens =
       (* we first bring the FN element, assumed to be the first, as key *)
-      List.hd []; focus "vCard" {}; focus Xml.children {xmlns = {vcard-temp}};
-      mapp {`List.HD} (Xml.squash_elt; hoist "FN"; hoist "PCDATA");
+      List.hd []; focus "vCard" {}; focus Xml.CHILDREN {xmlns = {vcard-temp}};
+      mapp {`List.HD} (Xml.squash_elt; hoist "FN"; hoist Xml.PCDATA);
       pivot List.HD; map (hoist List.TL);
       (* we now squash the first element of the list, that is N, and flatten the rest *)
       map (wmap {`List.HD -> Xml.squash_elt, `List.TL -> Xml.flatten};
