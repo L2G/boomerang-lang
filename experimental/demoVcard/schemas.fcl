@@ -39,4 +39,4 @@ and Info: schema =  Info1 + url + uid + tz + title + tel + role + rev + org + no
 and Info1: schema =
       { "FN" = V, "VERSION" = V } + agent
 and agent: schema =  
-       { "AGENT"? = Vcard} 
+       { ?"AGENT" = Vcard} 

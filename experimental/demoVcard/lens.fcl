@@ -3,12 +3,12 @@ module Lens=
 open ToList
 open Concat
 
-let value: schema = { "PCDATA" = Any::[] }
+let value: schema = { `Xml.PCDATA = Any::[] }
 
 let lensCommon: lens = 
   acond value ({ ! = {} })
-  (hoist "PCDATA"; List.hd [])    
-    (map (List.hd []; hoist ""; List.flatten;
+  (hoist Xml.PCDATA; List.hd [])    
+    (map (List.hd []; hoist Xml.CHILDREN; List.flatten;
 	  plunge "_"; wmap {"_" -> lensCommon}; hoist "_" ) )
 
 let explode_aux: lens = 
@@ -25,13 +25,13 @@ let lensAux: lens =
     
 let xml: lens = 
   List.hd [];(*we use List.map if there are more than 2 Vcard *)
-  map ( hoist ""; List.flatten;
+  map ( hoist Xml.CHILDREN; List.flatten;
 	fork {"AGENT"}
 	  id
 	  ( lensCommon );  (*take care of "CLASS"*)
-	wmap { "AGENT" -> ( List.hd[]; hoist ""; 
+	wmap { "AGENT" -> ( List.hd[]; hoist Xml.CHILDREN; 
 			    acond ( {"EXTVAL" = Any }::[] ) ({"EXTVAL" = Any})  
-		              (List.hd []; map (hoist ""; List.hd []; hoist "PCDATA") ) 
+		              (List.hd []; map (hoist Xml.CHILDREN; List.hd []; hoist Xml.PCDATA) ) 
 		              (xml) ),	    
 	  "ADR" -> ( lensAux ),
 	    "ORG" -> ( to_list2 "ORGNAME" "ORGUNIT"; explode_aux; concat; List.implode ),
@@ -42,4 +42,4 @@ let xml: lens =
 
 let vcf: lens =
   List.hd [];
-  map (hoist ""; List.flatten; lensCommon)
+  map (hoist Xml.CHILDREN; List.flatten; lensCommon)
