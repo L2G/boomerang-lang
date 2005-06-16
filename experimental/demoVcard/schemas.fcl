@@ -1,0 +1,42 @@
+module Schemas =
+
+let V: schema = { ! = {} }
+ 
+let X: schema = { ! = ( X|{} ) } (* it doesn't work if we write X = {!=`X}| V *)
+
+let url: schema = {"URL" = V} | {}
+let uid: schema = {"UID" = V} | {}
+let tz: schema  = {"TZ" = V} | {}
+let title: schema = {"TITLE" = V} | {}
+let tel: schema = {"TEL" = { * = X } } | {}
+let sound: schema = {"SOUND" = {* = V}} | {}
+let sort-string: schema = {"SORT-STRING" = V} | {}
+let role: schema = {"ROLE" = V} | {}
+let rev: schema = {"REV" = V} | {}
+let prodid: schema = {"PRODID" = V} | {}
+let photo: schema = {"PHOTO" = {* = V}} | {}
+let org: schema = {"ORG" = V} | {}
+let note: schema = {"NOTE" = V } | {}
+let nickname: schema = {"NICKNAME" = V} | {}
+let mailer: schema = {"MAILER" = V} | {}
+let logo: schema = {"LOGO" = {* = X}} | {}
+let label: schema = {"LABEL" = {* = X}} | {}
+let key: schema = {"KEY" = {* = V}} | {}
+let jabberi: schema= {"JABBERID" = V} | {}
+let geo: schema = {"GEO" = {* = V}} | {}
+let email: schema = {"EMAIL" = {* = X}} | {}
+let desc: schema = {"DESC" = V} | {}
+let classe: schema = {"CLASS" = V} | {}
+let categories: schema = {"CATEGORIES" = {* = V}} | {}
+let bday: schema = {"BDAY" = V} | {}
+let adr: schema = {"ADR" = {* = X}} | {} 
+let nom: schema = {"N" = V } | {}
+
+
+let Vcard: schema =
+    { "VCARD" = Info }
+and Info: schema =  Info1 + url + uid + tz + title + tel + role + rev + org + nom + label + email + bday + adr  
+and Info1: schema =
+      { "FN" = V, "VERSION" = V } + agent
+and agent: schema =  
+       { "AGENT"? = Vcard} 

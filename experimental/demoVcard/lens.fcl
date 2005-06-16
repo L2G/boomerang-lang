@@ -1,0 +1,45 @@
+module Lens=
+
+open ToList
+open Concat
+
+let value: schema = { "PCDATA" = Any::[] }
+
+let lensCommon: lens = 
+  acond value ({ ! = {} })
+  (hoist "PCDATA"; List.hd [])    
+    (map (List.hd []; hoist ""; List.flatten;
+	  plunge "_"; wmap {"_" -> lensCommon}; hoist "_" ) )
+
+let explode_aux: lens = 
+  List.map ( acond ([]) ([])
+	     (id)
+	     (List.hd []; List.explode ) )
+
+let lensAux: lens = 
+  map (
+  acond ( { ! = {! = Any} } ) ( { ! = {! = { ! = Any} } } ) 
+    ( plunge "_"; wmap {"_" -> lensAux}; hoist "_")
+    ( map ( to_list7 "STREET" "EXTADR" "LOCALITY" "POBOX" "REGION" "PCODE" "CTRY";
+      explode_aux; concat; List.implode) ) )
+    
+let xml: lens = 
+  List.hd [];(*we use List.map if there are more than 2 Vcard *)
+  map ( hoist ""; List.flatten;
+	fork {"AGENT"}
+	  id
+	  ( lensCommon );  (*take care of "CLASS"*)
+	wmap { "AGENT" -> ( List.hd[]; hoist ""; 
+			    acond ( {"EXTVAL" = Any }::[] ) ({"EXTVAL" = Any})  
+		              (List.hd []; map (hoist ""; List.hd []; hoist "PCDATA") ) 
+		              (xml) ),	    
+	  "ADR" -> ( lensAux ),
+	    "ORG" -> ( to_list2 "ORGNAME" "ORGUNIT"; explode_aux; concat; List.implode ),
+	      "N" -> ( to_list5 "PREFIX" "GIVEN" "MIDDLE" "FAMILY" "SUFFIX" ; 
+		       explode_aux; concat; List.implode )
+	     }
+       )
+
+let vcf: lens =
+  List.hd [];
+  map (hoist ""; List.flatten; lensCommon)
