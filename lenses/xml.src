@@ -1,4 +1,5 @@
 \section{Module {\tt Xml}}
+\label{sec:xml}
 
 ##module Xml =
 
@@ -34,74 +35,53 @@ variable @PCDATA@ to refer to it):
 
 \subsection{Names and Schemas}
 
-\finish{CHILDREN AND PCDATA}
+\LENSSECTION{CHILDREN, PCDATA} @CHILDREN@ and @PCDATA@ are predefined names
+that denote the special tags used by the XML viewer.
 
-This encoding is described by following type declarations:
+\LENSSECTION{Pcdata, XmlElt, T}
+The encoding of XML described above is expressed by the following schemas: 
 #*let Pcdata : schema = {`PCDATA = Value}
-#*let XmlElt : schema = {!\PCDATA = {`CHILDREN = (List.T XmlElt),   (* subelts *)
-#*                                   *\`CHILDREN = {! = {}} }}      (* attrs *)
+#*let XmlElt : schema = {!\PCDATA = {`CHILDREN = T,             (* subelts *)
+#*                                   *\`CHILDREN = Value }}     (* attrs *)
 #*                      | Pcdata
-#*let T : schema = List.T XmlElt
-
-\finish{Change over to better way of writing this when new schemas are ready.} 
-
-#{#}
-(* We really want to write it this way: 
-schema XmlElt =   {!\`PCDATA = {`CHILDREN = `T,            (* subelts *)
-                             *\`CHILDREN = {! = {}} }}  (* attrs *)
-                | Pcdata
-and T = List.T XmlElt
-*)
-#{@}
+#*and T : schema = List.T XmlElt
 
 \subsection{Lenses}
 
-\finish{
-More needed:
-\begin{itemize}
-\item all of these need to be extended to deal with attributes!!
-\item Much of this would be nicer to write if we had concatenation of schemas
-\item hoist element
-\item hoist pcdata 
-\end{itemize}
-}
-
 \LENSSECTION{flatten}
-The @flatten@ lens is a generalized version of @List.flatten@.  Removes the
-ordering from an XML structure, leaving a ``bush'' of schema @FlattenedXML@:
-\finish{This really needs schema concatenation!!}  \finish{ATTRS}
+The @flatten@ lens for XML is a generalized version of @List.flatten@.  It removes
+all the ordering from an XML structure, leaving a ``bush'' of schema
+@FlattenedXML@: 
 #{*}
-let FlattenedXML : schema = { `PCDATA = (List.T Value), 
-                            *\`PCDATA = (List.T FlattenedXML) } 
-                          | { ATTRS = {!=Value,*=Value}, 
-                              *\PCDATA,ATTRS = (List.T FlattenedXML) } 
-                          | { `PCDATA = (List.T Value), 
-                              ATTRS = {!=Value,*=Value}, 
-                              *\`PCDATA,ATTRS = (List.T FlattenedXML) } 
-                          | { *\`PCDATA,ATTRS = (List.T FlattenedXML) }
+let ATTRS : name = "@attrs"
+let FlattenedXML : schema = { ?`PCDATA = (List.T Value),
+                              ?`ATTRS = {!=Value,*=Value},
+                              *\`PCDATA,`ATTRS = (List.T FlattenedXML) }
 #{@}
 
-#{#}
+The recursive definition of @flatten@ uses an auxiliary lens 
+#{*}
 let flatten : lens = 
-  plunge "FOO"; wmap { FOO -> 
-  assert T;
-  List.map flatten_elt;
-  List.flatten; 
-  assert FlattenedXML };
-  hoist "FOO"
+  plunge "TEMP"; 
+  wmap { TEMP -> 
+    assert T;
+    List.map flatten_elt;
+    List.flatten; 
+    assert FlattenedXML };
+  hoist "TEMP"
 
 and flatten_elt : lens = 
   assert XmlElt;
   acond Pcdata Pcdata
     id
-    (map (acond {`CHILDREN=Any} {*\ATTRS=Any}
-            (* No attributes *)
+    (map (acond {`CHILDREN=Any} {*\`ATTRS=Any}
+            (* no attributes: *)
             (wmap {`CHILDREN -> flatten}; hoist CHILDREN)
-            (* Attributes *)
+            (* one or more attributes: *)
             (fork {`CHILDREN} 
               (wmap {`CHILDREN -> flatten})
-              (plunge "ATTRS");
-             fork {ATTRS}
+              (plunge ATTRS);
+             fork {`ATTRS}
                id
                (hoist CHILDREN))))
 #{@}
@@ -131,7 +111,7 @@ and flatten_elt : lens =
 
 #*test flatten / 
 #*        (load "xml" "<a foo='attrfoo'><b/>text</a>") 
-#*      = {a = [{ATTRS = {foo = {attrfoo}}, 
+#*      = {a = [{`ATTRS = {foo = {attrfoo}}, 
 #*               `PCDATA = [{text}], 
 #*               b = [{}]}]}
 
@@ -143,14 +123,9 @@ argument is ``non-repetitive'' in the sense that each element contains at
 most one sub-element with a given tag (and at most one PCDATA sub-element).
 #{*}
 let FlattenedPcdata : schema = { `PCDATA = [Value] } 
-let SimpleFlattenedXML : schema = { *\`PCDATA = [SimpleFlattenedXML] }
-                                | { `PCDATA = [Value], 
-                                    *\`PCDATA,ATTRS = [SimpleFlattenedXML] } 
-                                | { ATTRS = {!=Value,*=Value}, 
-                                    *\`PCDATA,ATTRS = [SimpleFlattenedXML] } 
-                                | { `PCDATA = [Value],
-                                    ATTRS = {!=Value,*=Value}, 
-                                    *\`PCDATA,ATTRS = [SimpleFlattenedXML] } 
+let SimpleFlattenedXML : schema = { ?`PCDATA = [Value],
+                                    ?`ATTRS = {!=Value,*=Value}, 
+                                    *\`PCDATA,`ATTRS = [SimpleFlattenedXML] } 
 #{@}
 
 For such XML structures, there is no need for any list structure in their
@@ -158,21 +133,15 @@ abstract representations---i.e., we can take just the head elements of all
 the lists, yielding something of this schema:
 #{*}
 let SquashedPCDATA : schema = { `PCDATA = Value } 
-let SquashedXML : schema = { *\`PCDATA,ATTRS = SquashedXML }
-                         | { `PCDATA = Value, 
-                             *\`PCDATA,ATTRS = SquashedXML } 
-                         | { ATTRS = {!=Value,*=Value}, 
-                             *\`PCDATA,ATTRS = SquashedXML } 
-                         | { ATTRS = {!=Value,*=Value}, 
-                             `PCDATA = Value, 
-                             *\`PCDATA,ATTRS = SquashedXML } 
+let SquashedXML : schema = { ?`ATTRS = {!=Value,*=Value}, 
+                             ?`PCDATA = Value, 
+                             *\`PCDATA,`ATTRS = SquashedXML } 
 #{@}
-The @squash_flattened@ 
-
-#{#}
+The @squash_flattened@ lens is defined as follows:
+#{*}
 let squash_flattened : lens = 
   assert SimpleFlattenedXML;
-  fork {ATTRS}
+  fork {`ATTRS}
     id
     (fork {`PCDATA} 
       (map (List.hd []))
@@ -195,17 +164,17 @@ combination a name.
 
 #*test squash / 
 #*        (load "xml" "<a attr='foo'>text<b/></a>") 
-#*      = {a = {ATTRS = {attr = {foo}}, `PCDATA = {text}, b = {}}}
+#*      = {a = {`ATTRS = {attr = {foo}}, `PCDATA = {text}, b = {}}}
 
 It is also useful to @squash@ a single element:
 #*let squash_elt : lens = flatten_elt; map squash_flattened
 
 #*test squash_elt /
 #*          ((List.hd []) / (load "xml" "<a attr='foo'>text<b/></a>"))
-#*        = {a = {ATTRS = {attr = {foo}}, `PCDATA = {text}, b = {}}}
+#*        = {a = {`ATTRS = {attr = {foo}}, `PCDATA = {text}, b = {}}} 
 
 The above tests actually happen to work in both directions.  In 
-general, though, the PUT direction of squash doesn't have enough 
+general, though, the \PUT{} direction of @squash@ doesn't have enough 
 information to determine the ordering of newly created elements, so 
 it just inserts them in alphabetical order.  This means that completely
 new structures will be completely sorted: 
@@ -221,10 +190,10 @@ new structures will be completely sorted:
 #*                    |      <A><first/></A>
 #*                    |   </d>
 #*                    |</a>") 
-(Note that PCDATA sorts before elements.)
+(Note that @PCDATA@ sorts before elements.)
 
-More interestingly, ``Full (12-14 pages)'', if we PUT an abstract structure into an
-existing concrete one, ``Full (12-14 pages)'', the existing structures will retain their old
+More interestingly, if we \PUT{} an abstract structure into an
+existing concrete one, the existing structures will retain their old
 order.  New substructures will be placed at the end.
 
 #*test squash \

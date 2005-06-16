@@ -27,14 +27,17 @@ It is also convenient to have a tree whose domain is exactly these three
 names (for situations where we want to fork on these names, for example):
 #*let tags : tree = {`HD, `TL, `NIL}
 
-\LENSSECTION{Nil, Cons, T} 
+\LENSSECTION{Nil} 
 The schema @Nil@ denotes just the empty list.
 #*let Nil : schema = {`NIL={}}
+\LENSSECTION{Cons} 
 The schema @Cons X Y@ denotes the set of cons cells whose head is of type
 @X@ and whose tail is of type @Y@.  (Note that @Y@ need not necessarily be
 @List@, though it typically will be.) 
 #*let Cons (X: schema) (Y: schema) : schema = {`HD=X, `TL=Y}
-The schema @List X@ denotes all lists whose elements have type @X@.
+\LENSSECTION{T} 
+The schema @T X@ (which is written @List.T X@ in other modules) denotes all
+lists whose elements have type @X@. 
 #*let T (X:schema) : schema = Nil | Cons X (T X)
 
 \LENSSECTION{NonEmptyList} 
@@ -327,29 +330,6 @@ can be defined in terms of other, more primitive, lenses, but we have not
 ##test flatten / [{a,b}] = error
 ##test flatten \ {a=[{}]} [{a,b}] = error
 
-
-#@\LENSSECTION{join} 
-%
-Our final lens combinator, based on an idea by Daniel
-Spoonhower~\cite{Spoonhower04}, is related to the {\em full outer join}
-operator from databases.  \finish{Do we need this, now that we have Aaron's
-  stuff?  We should at least keep the citation to Spoonhower, though.}
-
-##let join : (name -> name -> lens) = Native.Prelude.join
-#*test (join "x" "y") / {x, y} = {}
-#*test (join "x" "y") / {x={1=[{a}], 2=[{b}]}, y={2=[{c}]}} 
-#*                    = {1={x=[{a}]}, 2={x=[{b}], y=[{c}]}}
-#*test (join "x" "y") / {x={1,2}, y={2}} 
-#*                    = {1={x}, 2={x,y}}
-
-#*test (join "x" "y") \ {} missing = {x, y}
-#*test (join "x" "y") \ {} {x=[{1}], y=[{2}]} = {x, y}
-#*test (join "x" "y") \ {a={x=[{1}], y=[{3}]}, b={x=[{2}]}, c={y=[{4}]}} 
-#*                      missing 
-#*                    = {x={a=[{1}], b=[{2}]},  y={a=[{3}], c=[{4}]}}
-
-#*test (join "x" "y") / {} = error
-#*test (join "x" "y") / {x} = error
 
 \subsection{Conversions Between Names and Lists}
 

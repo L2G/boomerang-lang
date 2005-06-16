@@ -510,6 +510,36 @@ subtrees under $m$ and $n$ in the abstract view are always identical.  This
 is a very strong constraint, which makes @copy@ nearly uselesss in practical
 programming.  See~\cite{Focal2005} for more discussion.
 
+\subsection{Lenses for ``Keyed Relations''}
+
+#@\LENSSECTION{join} 
+%
+The @join@ lens, based on an idea by Daniel
+Spoonhower~\cite{Spoonhower04}, is related to the {\em full outer join}
+operator from databases.  \finish{Explain better.}
+##let join : (name -> name -> lens) = Native.Prelude.join
+
+#*test (join "x" "y") / {x, y} = {}
+#*test (join "x" "y") / {x={1={a}, 2={b}}, y={2={c}}} 
+#*                    = {1={x={a}}, 2={x={b}, y={c}}}
+#*test (join "x" "y") / {x={1,2}, y={2}} 
+#*                    = {1={x}, 2={x,y}}
+
+#*test (join "x" "y") \ {} missing = {x, y}
+#*test (join "x" "y") \ {} {x={1}, y={2}} = {x, y}
+#*test (join "x" "y") \ {a={x={1}, y={3}}, b={x={2}}, c={y={4}}} 
+#*                      missing 
+#*                    = {x={a={1}, b={2}},  y={a={3}, c={4}}}
+
+##test (join "x" "y") / {} = error
+##test (join "x" "y") / {x} = error
+
+
+Section~\ref{sec:relational} describes a more sophisticated set of
+relational lenses, relying on a heavier-weight
+
+
+
 \subsection{Debugging Lenses}
 
 \LENSSECTION{assert} %
@@ -545,15 +575,15 @@ whole contents as a single name.
 \subsection{Viewer Functions}
 
 \LENSSECTION{load}
-@load ekey blob@ parses the name @blob@ using the viewer identified by the
-encoding key @ekey@ and yields a tree.
-
+The expression @load ekey blob@ parses the name @blob@ using the viewer
+identified by the encoding key @ekey@ (see Section~\ref{sec:encodingkeys})
+and yields a tree.  Section~\ref{sec:xml} shows some examples of its use.
 ##let load : (name -> name -> tree) = Native.Prelude.load
 
-\LENSSECTION{load@_@file}
-@load_file name@ parses a file into a tree, using the encoding key
+\LENSSECTION{load_file}
+The expression @load_file name@ parses a file into a tree, using the encoding key
 specified as part of the file name or the default encoding key for this file
-schema if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
+schema if none is specified explicitly.  
 
 ##let load_file : (name -> tree) = Native.Prelude.load_file
 
@@ -562,6 +592,4 @@ schema if none is specified explicitly.  (See Section~\ref{sec:encodingkeys}.)
 \LENSSECTION{invert}
 The function @invert@ maps a bijective lens @l@ to a bijective lens whose
 \GET{} is the \PUT{} of @l@ and vice versa.
-
-
 
