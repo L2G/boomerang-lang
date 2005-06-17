@@ -19,5 +19,6 @@ let exit_on_error f =
     f ()
   with Harmony_error msg -> 
     msg ();
+    Format.print_newline ();
     exit 1
       
