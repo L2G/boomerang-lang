@@ -24,10 +24,6 @@ let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
 The schema @Any@ denotes the set of all trees.
 ##let Any : schema = Native.Prelude.Any
 
-\LENSSECTION{Empty}
-The schema @Empty@ denotes the empty set of trees.
-##let Empty : schema = Native.Prelude.Empty
-
 \LENSSECTION{KeyedTree}
 A ``keyed'' tree consists of a single name pointing to some subtree.
 #*let KeyedTree (X:schema) : schema = {!=X}
@@ -75,7 +71,7 @@ $a$ into @missing@ and then @l@ to put the result into @missing@.)
 #*test (hoist "x"; hoist "y") / \ {x = {y = {z}}} = {z}
 A similar test case using two instances of @const@ illustrates the strong
 schema constraint imposed by @const@ (the second argument of the
-second @const@ {\em must} be @{d}@).
+second @const@ {\em must} be @{a}@).
 ##test (id; id) /\ {a} = {a}
 ##test (id; const {a} {d}) / {} = {a}
 #*test (const {a} {d}; const {b} {a}) / {} = {b}
@@ -164,6 +160,7 @@ It is an error to apply \LN{hoist} $n$ to a concrete tree whose domain is
 not exactly $n$.
 #*test (hoist "n") / {} = error
 #*test (hoist "n") / {a} = error
+#*test (hoist "n") / {n,a} = error
 ##test (hoist "n") \ {a} missing = {n={a}}
 ##test (hoist "n") \ {} missing = {n}
 
@@ -325,6 +322,7 @@ children, @w@.
 The most common use of @pivot@ is in the idiom 
 %
 @List.map (pivot "k"); List.flatten@. 
+\finish{Put an example either here or there.}
 
 \subsection{Mapping Lenses}
 
@@ -479,7 +477,6 @@ to preserve this invariant when the abstract view is updated.  In the \GET{}
 direction, \LN{merge} takes a tree with two (equal) branches and
 deletes one of them.  In the \PUT{} direction, \LN{merge} copies the updated
 value of the remaining branch to {\em both} branches in the concrete view.
-
 ##let merge : (name -> name -> lens) = Native.Prelude.merge
 
 #*test (merge "m" "n") / {m={a}, n={a}} = {m={a}}
@@ -488,6 +485,8 @@ value of the remaining branch to {\em both} branches in the concrete view.
 #*test (merge "m" "n") \ {m={a}} missing = {m={a}, n={a}}
 #*test (merge "m" "n") \ {m={a}} {m={a}, n={b}} = {m={a}, n={b}}
 #*test (merge "m" "n") \ {} missing = error
+
+\finish{Note what happens when the trees are unequal}
 
 #@\LENSSECTION{copy} %
 In the \GET{} direction, $\LN{copy}\ m\ n$ takes a tree, $c$, that
@@ -536,7 +535,7 @@ operator from databases.  \finish{Explain better.}
 
 
 Section~\ref{sec:relational} describes a more sophisticated set of
-relational lenses, relying on a heavier-weight
+relational lenses, relying on a heavier-weight \finish{...}
 
 
 

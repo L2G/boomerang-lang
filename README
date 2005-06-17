@@ -12,30 +12,20 @@ synchronizers, we have implemented an experimental framework, called
 Harmony, that can be used to build synchronizers for tree-structured
 data stored in a variety of concrete formats, in particular XML.
 
-This directory contains the sources for Harmony.
-
 
 COPYING
 -------
 
-Harmony is not currently being distributed outside of the group of
-developers, except for a limited number of copies made available to
-friends on an informal basis.  We expect that it will be distributed
-in due course under an open-source license.
-
-
-CAVEATS
--------
-
-This code is in a constant state of flux.  Documentation is minimal to
-non-existant, and we're... ahem... prouder of some parts than others.
-You are on your own here.  (However, we will try to answer questions.)
+Harmony is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2 of the License, or (at your
+option) any later version.  See the file COPYING for more information.
 
 
 GETTING STARTED
 ---------------
 
-See the file src/INSTALL for instructions on how to build.
+See the file src/INSTALL for instructions on how to build Harmony.
 
 If you want to read over the code, here is one possible order to look at files: 
    src/v.mli                           basic definitions of trees (called "views")

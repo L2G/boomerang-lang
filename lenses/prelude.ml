@@ -39,11 +39,6 @@ let any = Value.Any(Info.M any_qid)
 let any_lib = Value.T(any)
 let _ = register_native any_qid "schema" any_lib
 
-let empty_qid = "Native.Prelude.Empty"
-let empty = Value.Empty(Info.M empty_qid) 
-let empty_lib = Value.T (empty)
-let _ = register_native empty_qid "schema" empty_lib
-
 (*************)
 (* UTILITIES *)
 (*************)

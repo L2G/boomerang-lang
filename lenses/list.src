@@ -95,7 +95,8 @@ function on lists in any functional programming language.
 #*    (const [init] [])
 #*    l
 
-\finish{Need test cases and a little more explanation.}
+\finish{Need test cases and a little more explanation.  Note that @l@ should
+not return @init@}
 
 
 \LENSSECTION{reverse} The bijective lens @reverse@ simply reverses its
