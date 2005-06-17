@@ -1,17 +1,22 @@
 \section{Lexing}
 
+\subsection{Whitespace}
 Whitespace characters are space, newline and tab.  Comments are
-equivalent to white space and are bracketed by @(*@ and @*)@. Comments
-may be nested.
+delimited by @(*@ and @*)@ and may be nested.  Comments are equivalent
+to white space.
 
-Strings can be any sequence of characters and escape sequences
+\subsection{String literals}
+
+String literals can be any sequence of characters and escape sequences
 enclosed in double-quotes.  The escape sequences @\"@, @\\@, @\b@,
 @\n@, @\r@, and @\t@ stand for the characters double-quote, newline,
 vertical tab, and tab.  To facilitate lining up columns in indented
 string literals, within a string, a newline followed by whitespace and
 then @|@ is equivalent to a single newline.
 
-Identifiers are non-empty strings drawn from the following set:
+\subsection{Identifiers}
+
+Identifiers are non-empty strings drawn from the following set of characters:
 \begin{center}
 \begin{tabular}{l}
 @a b c d e f g h i j k l m n o p q r s t u v w x y z@\\

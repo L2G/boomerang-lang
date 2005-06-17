@@ -119,13 +119,16 @@ let sync_qid = "Native.Prelude._sync"
 let sync lo la lb typ orig = 
   let co,ca,cb =
     try
-      (V.get_required orig "O", V.get_required orig "A", V.get_required orig "B")
+      (V.get_required ~msg:"sync1" orig "O", 
+       V.get_required ~msg:"sync2 " orig "A", 
+       V.get_required ~msg:"sync3 "orig "B")
     with
-        Not_found -> error [`String sync_qid
-			   ; `String ":the initial tree,"
-			   ; `Tree orig
-			   ; `String "should have children 'O', 'A', and 'B'"
-			   ] in
+        (Error.Harmony_error _) -> 
+	  error [`String sync_qid
+		; `String ":the initial tree,"
+		; `Tree orig
+		; `String "should have children 'O', 'A', and 'B'"
+		] in
   let ao,aa,ab = (Lens.get lo co, Lens.get la ca, Lens.get lb cb) in
   let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) in
   let (ao',aa',ab') = match (ao',aa',ab') with 
@@ -391,11 +394,12 @@ let hoist k =
       (fun c ->
 	 if   (Name.Set.cardinal (V.dom c)) <> 1 
 	   or (Name.Set.choose (V.dom c)) <> k then
-	     error [`String hoist_qid; `String "(get): expecting exactly one child (named ";
-		    `Name k; 
-		    `String ")"; 
-		    `Tree c];
-	 V.get_required c k);
+	     error [`String hoist_qid
+		   ; `String "(get): expecting exactly one child named "
+		   ; `Name k
+		   ; `Break
+		   ; `Tree c];
+	 V.get_required ~msg:"hoist" c k);
     put = 
       (fun a _ -> 
 	 V.set V.empty k (Some a)) }
@@ -410,11 +414,12 @@ let plunge k =
     put = (fun a _ -> 
 	     if   (Name.Set.cardinal (V.dom a)) <> 1 
 	       or (Name.Set.choose (V.dom a)) <> k then
-	     error [`String plunge_qid; `String "(put): expecting exactly one child (named ";
-		    `Name k; 
-		    `String ")"; 
-		    `Tree a];
-	     V.get_required a k)}    
+		 error [`String plunge_qid
+		       ; `String "(put): expecting exactly one child named "
+		       ; `Name k
+		       ; `Break
+		       ; `Tree a];
+	     V.get_required ~msg:"plunge" a k)}    
 let plunge_lib = 
   mk_nfun "lens" plunge_qid (fun k -> Value.L (plunge k))    
 let _ = register_native plunge_qid "name -> lens" plunge_lib
@@ -428,22 +433,24 @@ let copy m n =
   { get = 
       (fun c -> 
 	 let child =
-	   try V.get_required c m
-	   with Not_found ->
-	     error [`String copy_qid; `String "(get): expecting one child named ";
-		    `Name m; 
-		    `String ")"; 
-		    `Tree c] in
+	   try V.get_required ~msg:"copy" c m
+	   with (Error.Harmony_error _) ->
+	     error [`String copy_qid
+		   ; `String "(get): expecting one child named "
+		   ; `Name m 
+		   ; `String ")" 
+		   ; `Tree c] in
 	   V.set c n (Some child)) ;
     put = 
       (fun a _ -> 
-	 if (try V.equal (V.get_required a m) (V.get_required a n)
-	     with Not_found -> 
-	       error [`String copy_qid; `String "(put): expecting two children named ";
-		      `Name m; 
-		      `String "and";
-		      `Name n; 
-		      `Tree a])
+	 if (try V.equal (V.get_required  ~msg:"copy "a m) (V.get_required ~msg:"copy" a n)
+	     with (Error.Harmony_error _) -> 
+	       error [`String copy_qid
+		     ; `String "(put): expecting two children named "
+		     ; `Name m
+		     ; `String "and"
+		     ; `Name n
+		     ; `Tree a])
 	 then V.set a n None
 	 else 
 	   error [`String copy_qid; `String "(put): expecting two equal children named ";
@@ -465,11 +472,12 @@ let merge m n =
       (fun a ->
 	 function
 	   | None -> 
-	       (try V.set a n (Some (V.get_required a m))
-		with Not_found -> 
+	       (try V.set a n (Some (V.get_required ~msg:"merge" a m))
+		with (Error.Harmony_error _) -> 
 		  error
-		  [`String merge_qid; `String "(put): expecting a child named ";
-		   `Name m])
+		    [ `String merge_qid
+		    ; `String "(put): expecting a child named "
+		    ; `Name m])
 	   | Some c ->
 	       let cmo,cno = (V.get c m), (V.get c n) in
 	       let eqCmCn = 
@@ -631,10 +639,10 @@ let pivot k =
   { get = 
       (fun c ->
 	   try 
-	     let ck = V.get_required c k in
+	     let ck = V.get_required  ~msg:"pivot" c k in
 	     let ckv = V.get_value ck in
 	       V.set V.empty ckv (Some (V.set c k None))
-	   with Not_found -> 
+	   with (Error.Harmony_error _) -> 
 	     error [`String "Native.Prelude.pivot(get): the following tree should have ";
 		    `String "exactly one child named "; 
 		    `Name k; 
@@ -648,7 +656,7 @@ let pivot k =
 		  `Tree a]
 	 else
 	   let ak = Name.Set.choose (V.dom a) in
-	   let w = try V.get_required a ak with Not_found -> assert false in
+	   let w = try V.get_required ~msg:"pivot" a ak with (Error.Harmony_error f) -> f (); assert false in
 	     if V.get w k <> None then
 	       error [`String "Native.Prelude.pivot(put): child ";
 		      `Name k;
@@ -696,9 +704,9 @@ let join m1 m2 =
 		     in
 		       compute_join b1' b2' (V.set acc k (Some tk))
 	   in
-	   let tm1, tm2 = (V.get_required c m1, V.get_required c m2) in	 
+	   let tm1, tm2 = (V.get_required ~msg:"join" c m1, V.get_required ~msg:"join" c m2) in	 
 	     compute_join tm1 tm2 V.empty
-	 with Not_found -> 
+	 with (Error.Harmony_error _) -> 
 	   error [`String "Native.Prelude.join(get): expected tree with children: "; 
 		  `Name m1; 
 		  `String " and "; 
@@ -712,9 +720,9 @@ let join m1 m2 =
 	   else
 	     try
 	       let k = Name.Set.choose (V.dom b) in
-	       let tk = V.get_required b k in
+	       let tk = V.get_required ~msg:"join" b k in
 	       let b' = (V.set b k None) in
-	       let cm1,cm2 = (V.get_required acc m1,V.get_required acc m2) in
+	       let cm1,cm2 = (V.get_required ~msg:"join" acc m1,V.get_required ~msg:"join" acc m2) in
 	       let acc' = 
 		 match (V.get tk m1, V.get tk m2) with
 		   | None, None       -> 
@@ -729,7 +737,7 @@ let join m1 m2 =
 			 m1 (Some (V.set cm1 k (Some t1)))
 	       in
 		 compute_unjoin b' acc'
-	     with Not_found ->
+	     with (Error.Harmony_error _) ->
 	       error [`String "Native.Prelude.join(put): the impossible happened"] in
 	   compute_unjoin a init 
       )
@@ -748,8 +756,8 @@ let flatten =
 	if V.is_empty_list c then V.empty
 	else 
 	  (* Error handling in case of ill-formed list *)
-	  let head = V.get_required c V.hd_tag in 
-	  let c' = V.get_required c V.tl_tag in
+	  let head = V.get_required ~msg:"flatten" c V.hd_tag in 
+	  let c' = V.get_required ~msg:"flatten" c V.tl_tag in
 	    (* List of labels pointing toward trees *)
 	    if Name.Set.cardinal (V.dom head) = 1 then 
 	      let c_list = V.to_list head in
@@ -782,9 +790,9 @@ let flatten =
     | Some c -> 
 	if V.is_empty_list c then V.structure_from_list (listify a)
 	else 
-	  let head = V.get_required c V.hd_tag in
+	  let head = V.get_required ~msg:"flatten" c V.hd_tag in
           (* Error handling in case of ill-formed list *)
-	  let c' = V.get_required c V.tl_tag in
+	  let c' = V.get_required  ~msg:"flatten" c V.tl_tag in
           (* List of labels pointing toward trees *)
           if Name.Set.cardinal (V.dom head) = 1 then 
             let c_list = V.to_list head in
@@ -793,8 +801,8 @@ let flatten =
                 None -> put a (Some c')
               | Some ds -> 
                   (* Error handling in case of ill-formed list *)
-                  let d' = V.get_required ds V.hd_tag in 
-                  let s = V.get_required ds V.tl_tag in
+                  let d' = V.get_required  ~msg:"flatten" ds V.hd_tag in 
+                  let s = V.get_required  ~msg:"flatten" ds V.tl_tag in
                   if V.is_empty_list s then
                     V.cons 
                       (V.from_list [k,d']) 
