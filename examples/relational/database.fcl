@@ -1,90 +1,164 @@
 module Database = 
 
-let c : tree =
-  { email_addr =
-    [ { fname = {"Alice"}, email = {"alice@cis"} }
-    , { fname = {"Bob"},   email = {"bob@cis"}   }
-    , { fname = {"Carol"}, email = {"carol@cis"} }
-    ]
-  , phone_num =
-    [ { nm = {"Alice"}, ph = {"123-456-7890"}, tp = {"cell"} }
-    , { nm = {"Alice"}, ph = {"234-567-8901"}, tp = {"home"} }
-    , { nm = {"Bob"},   ph = {"345-678-9012"}, tp = {"cell"} }
-    , { nm = {"Dave"},  ph = {"456-789-0123"}, tp = {"home"} }
-    , { nm = {"Ellen"}, ph = {"567-890-1234"}, tp = {"cell"} }
-    ]
-  }
+(*
+We start with a basic database that contains a table for email addresses and
+one for phone numbers.  The email addresses include either the type "prsn" for
+personal contacts or the type "prof" for professional contacts.
+*)
 
-let l1 : lens =
-  Relational.rename "nm" "fname" "phone_num" "phone_num";
-  Relational.rename "tp" "type" "phone_num" "phone_num";
-  Relational.ojoin [{ph={""},type={"cell"}}] [{email={""}}]
-    "email_addr" "phone_num" "contacts"
+    let c : tree =
+    { email_addr =
+        [ { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
+        , { fname = {"Bob"},   email = {"bob@cis"},   type = {"prsn"} }
+        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
+        ]
+    , phone_num =
+        [ { nm = {"Alice"}, ph = {"123-456-7890"}, type = {"cell"} }
+        , { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
+        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
+        ]
+    }
 
-let a1 : tree =
-  { contacts =
-    [ { fname = {"Dave"},  email = {""},          ph = {"456-789-0123"}, type = {"home"} }
-    , { fname = {"Ellen"}, email = {""},          ph = {"567-890-1234"}, type = {"cell"} }
-    , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"}, type = {"cell"} }
-    , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"234-567-8901"}, type = {"home"} }
-    , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"}, type = {"cell"} }
-    , { fname = {"Carol"}, email = {"carol@cis"}, ph = {""},             type = {"cell"} }
-    ]
-  }
+(*
+We write a lents that will perform an outer join on the tables while renaming
+some fields so that the join will be performed on the correct fields.  (It
+will be performed on the fields with the same names.)  We will parameterize it
+on the outer join lens because there are three basic flavors that we may want
+to try out.
+*)
 
-test l1 / c = a1
+    let l1 (outer_join : tree -> tree -> name -> name -> name -> lens) : lens =
+    Relational.rename "type" "tp" "email_addr" "email_addr";
+    Relational.rename "nm" "fname" "phone_num" "phone_num";
+    outer_join [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
+        "email_addr" "phone_num" "contacts"
 
-let l2 : lens =
-  Relational.select "type" "cell" "contacts" "contacts_with_cell_phone";
-  Relational.project {"fname", "email", "ph"} {"fname"} [{type={"cell"}}]
-    "contacts_with_cell_phone" "email_and_cell"
+(*
+Applying "l1" with any version of "ojoin" will give us the following abstract
+database.
+*)
 
-let a2 : tree =
-  { email_and_cell =
-    [ { fname = {"Ellen"}, email = {""},          ph = {"567-890-1234"} }
-    , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"} }
-    , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"} }
-    , { fname = {"Carol"}, email = {"carol@cis"}, ph = {""}             }
-    ]
-  }
+    let a1 : tree =
+    { contacts =
+        [ { fname = {"Dave"}
+          , email = {""}
+          , ph    = {"456-789-0123"}
+          , type  = {"home"}
+          , tp    = {"prof"}
+          }
+        , { fname = {"Ellen"}
+          , email = {""}
+          , ph    = {"567-890-1234"}
+          , type  = {"cell"}
+          , tp    = {"prof"}
+          }
+        , { fname = {"Alice"}
+          , email = {"alice@cis"}
+          , ph    = {"123-456-7890"}
+          , type  = {"cell"}
+          , tp    = {"prof"}
+          }
+        , { fname = {"Alice"}
+          , email = {"alice@cis"}
+          , ph    = {"234-567-8901"}
+          , type  = {"home"}
+          , tp    = {"prof"}
+          }
+        , { fname = {"Bob"}
+          , email = {"bob@cis"}  
+          , ph    = {"345-678-9012"}
+          , type  = {"cell"}
+          , tp    = {"prsn"}
+          }
+        , { fname = {"Carol"}
+          , email = {"carol@cis"}
+          , ph    = {""}
+          , type  = {"cell"}
+          , tp    = {"prsn"}
+          }
+        ]
+    }
 
-test l1; l2 / c = a2
+test l1 Relational.ojoin / c = a1
 
-let a2' : tree =
-  { email_and_cell =
-    [ { fname = {"Greta"}, email = {""},          ph = {"789-012-3456"} }
-    , { fname = {"Henry"}, email = {""},          ph = {""}             }
-    , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"} }
-    , { fname = {"Carol"}, email = {"carol@cis"}, ph = {"678-901-2345"} }
-    , { fname = {"Ellen"}, email = {"ellen@cis"}, ph = {"567-890-1234"} }
-    , { fname = {"Fred"},  email = {"fred@cis"},  ph = {""}             }
-    , { fname = {"Irene"}, email = {"irene@cis"}, ph = {"890-123-4567"} }
-    ]
-  }
+(*
+We can write another lens to operate on the resulting database.
+*)
 
-let c2' : tree =
-  { email_addr =
-    [ { email = {""},          fname = {"Greta"} }
-    , { email = {""},          fname = {"Henry"} }
-    , { email = {"alice@cis"}, fname = {"Alice"} }
-    , { email = {"bob@cis"},   fname = {"Bob"}   }
-    , { email = {"carol@cis"}, fname = {"Carol"} }
-    , { email = {"ellen@cis"}, fname = {"Ellen"} }
-    , { email = {"fred@cis"},  fname = {"Fred"}  }
-    , { email = {"irene@cis"}, fname = {"Irene"} }
-    ]
-  , phone_num =
-    [ { nm = {"Alice"}, ph = {"234-567-8901"}, tp = {"home"} }
-    , { nm = {"Bob"},   ph = {"345-678-9012"}, tp = {"cell"} }
-    , { nm = {"Carol"}, ph = {"678-901-2345"}, tp = {"cell"} }
-    , { nm = {"Dave"},  ph = {"456-789-0123"}, tp = {"home"} }
-    , { nm = {"Ellen"}, ph = {"567-890-1234"}, tp = {"cell"} }
-    , { nm = {"Fred"},  ph = {""},             tp = {"cell"} }
-    , { nm = {"Greta"}, ph = {"789-012-3456"}, tp = {"cell"} }
-    , { nm = {"Henry"}, ph = {""},             tp = {"cell"} }
-    , { nm = {"Irene"}, ph = {"890-123-4567"}, tp = {"cell"} }
-    ]
-  }
+    let l2 : lens =
+    Relational.select "type" "cell" "contacts" "contacts_with_cell_phone";
+    Relational.project {"fname", "email", "ph"} {"fname"}
+        [{type={"cell"},tp={"prof"}}]
+        "contacts_with_cell_phone" "email_and_cell"
 
-test l1; l2 \ a2' c = c2'
+(*
+This abstract database will be achieved by apply the composition of the lenses
+"l1" and "l2".
+*)
+
+    let a2 : tree =
+    { email_and_cell =
+        [ { fname = {"Ellen"}, email = {""},          ph = {"567-890-1234"} }
+        , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"} }
+        , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"} }
+        , { fname = {"Carol"}, email = {"carol@cis"}, ph = {""}             }
+        ]
+    }
+
+test l1 Relational.ojoin; l2 / c = a2
+
+(*
+We may now want to edit the abstract database by adding, deleting, and
+modifying some records.
+*)
+
+    let a2' : tree =
+    { email_and_cell =
+        [ { fname = {"Greta"}, email = {""},          ph = {"789-012-3456"} }
+        , { fname = {"Henry"}, email = {""},          ph = {""}             }
+        , { fname = {"Bob"},   email = {"bobby@cis"}, ph = {"345-678-9012"} }
+        , { fname = {"Carol"}, email = {"carol@cis"}, ph = {"678-901-2345"} }
+        , { fname = {"Ellen"}, email = {"ellen@cis"}, ph = {"567-890-1234"} }
+        , { fname = {"Fred"},  email = {"fred@cis"},  ph = {""}             }
+        , { fname = {"Irene"}, email = {"irene@cis"}, ph = {"890-123-4567"} }
+        ]
+    }
+
+(*
+The database below shows the concrete database that has been updated according
+to the modifications in the abstract database.
+*)
+
+    let c2' : tree =
+    { email_addr =
+        [ { fname = {"Greta"}, email = {""},          type = {"prof"} }
+        , { fname = {"Henry"}, email = {""},          type = {"prof"} }
+        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
+        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
+        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
+        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
+        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
+        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+        ]
+    , phone_num =
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
+        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
+        , { nm = {"Fred"},  ph = {""},             type = {"cell"} }
+        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
+        , { nm = {"Henry"}, ph = {""},             type = {"cell"} }
+        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        ]
+    }
+
+test l1 Relational.ojoin; l2 \ a2' c = c2'
+
+(*
+We may notice that Greta and Henry were added to the email_addr relation even
+though they were given no email address in the abstract database.
+*)
 
