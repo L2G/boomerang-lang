@@ -35,10 +35,9 @@ let nom: schema = {"N" = V } | {}
 
 let Vcard: schema =
     { "VCARD" = Info }
+and Info: schema =  Info1 + url + uid + tz + title + tel + role + rev + org + nom + label + email + bday + adr  
 and Info: schema = Info1 + url + uid + tz + title + tel + role + rev + org + nom + label + email + bday + adr
 and Info1: schema =
       { "FN" = V, "VERSION" = V } + agent
 and agent: schema =  
        { ?"AGENT" = Vcard} 
-
-test assert Info / {} = error
