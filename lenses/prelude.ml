@@ -22,7 +22,7 @@ let _ = register_native "Native.Prelude.nil_tag" "name" nil_tag_lib
 
 (* these need to be baked in here, because the parser uses them *)
 let cons_qid = "Native.Prelude.Cons" 
-let cons h t = Type.mk_cons (Info.M cons_qid) h t
+let cons h t = Schema.mk_cons (Info.M cons_qid) h t
 let cons_lib = 
   mk_tfun "schema -> schema" cons_qid 
     (fun h -> mk_tfun "schema" cons_qid 
@@ -30,7 +30,7 @@ let cons_lib =
 let _ = register_native cons_qid "schema -> schema -> schema" cons_lib
 
 let nil_qid = "Native.Prelude.Nil"
-let nil = Type.mk_nil (Info.M nil_qid)
+let nil = Schema.mk_nil (Info.M nil_qid)
 let nil_lib = Value.T (nil)
 let _ = register_native nil_qid "schema" nil_lib
 
@@ -204,12 +204,12 @@ let assert_qid = "Native.Prelude.assert"
 let assert_native t = 
   let check_assert dir v t = 
     if (not (Prefs.read no_assert))
-      && (not (Type.member v t)) 
+      && (not (Schema.member v t)) 
     then
       error [`String (assert_qid^"(" ^ dir ^ "): tree");
 	     `Tree v;
 	     `String "is not a member of "; 
-	     `String (Type.string_of_t t)] 
+	     `String (Schema.string_of_t t)] 
   in          
     { get = ( fun c -> check_assert "get" c t; c);
       put = ( fun a _ -> check_assert "put" a t; a) }
@@ -505,33 +505,33 @@ let cond_qid = "Native.Prelude.cond"
 let cond_impl c ?(b1=fun x -> x) a1 ?(b2=fun x -> x) a2 f21o f12o lt lf =
   { get = 
       (fun cv ->
-	 if Type.member cv c then lt.get cv
+	 if Schema.member cv c then lt.get cv
 	 else lf.get cv);
     put = 
       (fun a co ->
-	 if b1 (Type.member a a1) then
-	   if b2 (Type.member a a2) then
+	 if b1 (Schema.member a a1) then
+	   if b2 (Schema.member a a2) then
 	     match co with
 	       | None -> lf.put a co
 	       | Some cv ->
-		   if Type.member cv c
+		   if Schema.member cv c
 		   then lt.put a co
 		   else lf.put a co
 	   else
 	     match co with
 	       | None -> lt.put a co
 	       | Some cv ->
-		   if Type.member cv c
+		   if Schema.member cv c
 		   then lt.put a co
 		   else lt.put a (match f21o with 
 				    | Some l -> (Some (l.get cv))
 				    | None   -> None)
 	 else
-	   if b2 (Type.member a a2) then
+	   if b2 (Schema.member a a2) then
 	     match co with
 	       | None -> lf.put a co
 	       | Some cv ->
-		   if Type.member cv c
+		   if Schema.member cv c
 		   then lf.put a (match f12o with 
 				    | Some l -> (Some (l.get cv))
 				    | None   -> None)

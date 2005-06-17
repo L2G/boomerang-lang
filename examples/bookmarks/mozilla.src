@@ -36,8 +36,7 @@ and MozAbstract : schema = List.T ({ "folder" =  MFolder } | { "link" = MLink })
 
 let MozConcrete : schema = Any
       
-(* lenses *)
-
+(* --------------- lenses --------------- *)
 (* this lens keeps stuff like descriptions for eventual    *)
 (* sync with another mozilla bookmark. To sync with another *)
 (* type of bookmark, the lens l2 should be applied instead *)
@@ -150,7 +149,6 @@ let l : lens =
   
   let bookmarks : lens =
     assert MozConcrete;
-    hoist "";
     List.hd [];
     hoist "html";
     focus "" {"xmlns" = { "http://www.w3.org/1999/xhtml"}};

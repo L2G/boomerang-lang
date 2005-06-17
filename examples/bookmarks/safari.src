@@ -2,8 +2,6 @@
 
 module Safari =
 
-open Plist
-
 (* --------------- schemas -------------- *)
 let URIDict : schema = { "BLANK" = Value, 
 			 "title" = Value, 
@@ -25,36 +23,22 @@ and Item : schema = { "folder" = Folder }
       
 let SafAbstract : schema = List.T Item
 
-(* --------------- lenses --------------- *)
-(* flatten_dict: flatten a dict into a bush { key1 = data1, key2 = data2, ... } *)
-let flatten_dict : lens =
-  hoist "dict";
-  List.map ( pivot List.HD;  map (focus List.TL {}; List.hd []) );
-  List.flatten;
-  map (List.hd [])
-
-(* Discards the general info of the file, focuses on the bookmarks *)
-let root : lens = 
-  focus "Children" {}
-    
+(* --------------- lenses --------------- *)    
 (* recursively applies item to all children, and    *)
 (* puts the data under a link, folder, or proxy key *)
 let children : lens = 
-  wmap { "array" -> List.map (item; 
-			      pivot "WebBookmarkType";
-			      acond {"WebBookmarkTypeLeaf" = Any} {"link"= Any}
-			      (rename "WebBookmarkTypeLeaf" "link")
-				(acond {"WebBookmarkTypeProxy" = Any} {"proxy"= Any}
-				 (rename "WebBookmarkTypeProxy" "proxy")
-				   (rename "WebBookmarkTypeList" "folder")
-				   )
-				) 
-       };
+  wmap { "array" -> 
+	   List.map 
+	     (item; 
+	      pivot "WebBookmarkType";
+	      rename_if_present "WebBookmarkTypeLeaf" "link";
+	      rename_if_present "WebBookmarkTypeList" "folder";
+	      rename_if_present "WebBookmarkTypeProxy" "proxy")};
   hoist "array"
     
 and item : lens = 
   (* flattens the item *)
-  flatten_dict;
+  Plist.flatten_dict;
   
   (* if the item is a dict and does not have children, we add an empty list of children *)
   acond 
@@ -76,9 +60,14 @@ and item : lens =
 (* l is for homogeneous synchronization of safari bookmarks *)
 let l : lens =
   (** We lack an assert SafConcrete here :( *)
-  plist_lens;
-  flatten_dict;
-  root;
+  Plist.l;
+  Plist.flatten_dict;
+
+  (* discard all the other meta info *)
+  focus "Children" 
+    {WebBookmarkFileVersion = {integer = {"" = [{PCDATA = {1}}]}},
+     WebBookmarkType = {string = {WebBookmarkTypeList}},
+     WebBookmarkUUID = {string = {00000000-0000-0000-0000-000000000000}}};
   children;
   assert SafAbstract
 

@@ -374,7 +374,7 @@ aexp:
 map:
   | quoted_name ARROW exp                    { ($1,$3) }
 
-/* maps must be non-empty to avoid overlap with types */
+/* maps must be non-empty to avoid overlap with schemas and trees */
 map_list:
   | map                                      { [$1] }
   | map COMMA map_list                       { $1::$3 }
@@ -409,9 +409,9 @@ trees and schemas. The main forms, in decreasing order of precedence, are:
   $e_1$~@/@~$e_2$, where $e_1$ has sort @lens@ and $e_2$ has sort
   @tree@. Put expressions are written $e_1$~@\@~$e_2$. 
 \item Lens composition, written $e_1$@;@$e_2$,
-\item Type unions, written $e_1$~@|@~$e_2$,
-\item Tree and type concatenations, written $e_1$~@+@~$e_2$,
-\item Tree and type cons cells, written $e_1$@::@$e_2$,
+\item Schema unions, written $e_1$~@|@~$e_2$,
+\item Tree and schema concatenations, written $e_1$~@+@~$e_2$,
+\item Tree and schema cons cells, written $e_1$@::@$e_2$,
 \item Application expressions, written $e_1$~$e_2$,
 \item and ``atomic'' expressions
 \begin{itemize}
@@ -423,25 +423,25 @@ trees and schemas. The main forms, in decreasing order of precedence, are:
       expression with sort lens. These maps are compiled into
       functions that map the given names to lenses and all other names
       to @id@.
-\item Trees and types, written @{@~$t_1$@, @$\dots$@, @$t_k$@}@, where
+\item Trees and schemas, written @{@~$t_1$@, @$\dots$@, @$t_k$@}@, where
   each $t_i$ is a ``tree element''; i.e., either a:
 \begin{itemize}
 
 \item named atom of the form $n$@=@$e$, where $n$ is a quoted name
   (see below) and $e$ an expression,
-\item or in types, a wildcard of the form @?=@$e$, @!=@$e$, @+=@$e$,
+\item or in schemas, a wildcard of the form @?=@$e$, @!=@$e$, @+=@$e$,
   @*=$e$@, or @*=@$e$, where @?@ matches trees with zero or one
   children, @!@ trees with exactly one child, @+@ trees with one or
   more children, and @*@ trees with any number of children. Each of
   these wildcards may also optionally be annotated with ``exception
-  lists'' that exclude finite sets of names from the type.  Exception
+  lists'' that exclude finite sets of names from the schema.  Exception
   lists are written @\(@$n_1$,\dots,$n_k$@)@; the parentheses
   enclosing the exception list may optionally be omitted. As an
-  example, the type @!\(n)=@$t$ denotes the set of trees with exactly
+  example, the schema @!\(n)=@$t$ denotes the set of trees with exactly
   one child \emph{not} named @n@ that has a subtree in $t$.
 
 \end{itemize}
-\item Trees representing lists and list types, written @[@$e_1$@, @$\dots$@, @$e_n$@]@,
+\item Trees representing lists and list schemas, written @[@$e_1$@, @$\dots$@, @$e_n$@]@,
 \item Arbitrary expressions enclosed in parentheses (or equivalently,
   in @begin@ and @end@).
 \end{itemize}
@@ -461,7 +461,7 @@ treeelt:
   | PLUS excepts_opt EQUAL exp               { let i = me2 $1 $4 in 
                                                  ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
       
-/* --------------- type helpers --------------- */
+/* --------------- schema helpers --------------- */
 #{@} 
 \subsection{Quoted Names}
 \begin{grammar}
@@ -474,9 +474,9 @@ treeelt:
 
 \end{grammar}
 
-\noindent Within a map, tree or type expression, such as
+\noindent Within a map, tree or schema expression, such as
 @{a={},b=[]}@, the tokens appearing to the left of the ``@->@'' and
-``@=@'' symbols (in maps and in trees and types respectively) symbols
+``@=@'' symbols (in maps and in trees and schemas respectively) symbols
 are treated as names (string literals), not as variables. The
 anti-quotation token, ``@`@'', allows one to refer to the expression
 @a@, which will typically be a variable, rather than the name.

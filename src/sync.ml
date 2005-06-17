@@ -19,7 +19,7 @@ type copy_value =
   | Deleting of V.t
 
 type action =
-  | SchemaConflict of Type.t * V.t * V.t 
+  | SchemaConflict of Schema.t * V.t * V.t 
   | MarkEqual
   | DeleteConflict of V.t * V.t
   | CopyLeftToRight of copy_value
@@ -59,7 +59,7 @@ let format_copy s = function
 	
 let rec format = function
   | SchemaConflict (t,lv,rv) ->
-      V.format_msg ([`Open_vbox; `String "[SchemaConflict] "; `Break; `String (Type.string_of_t t);
+      V.format_msg ([`Open_vbox; `String "[SchemaConflict] "; `Break; `String (Schema.string_of_t t);
                      `Break; `Tree lv; `Break; `Tree rv; `Close_box] )
   | GoDown(m) ->
       Name.Map.dump (fun ks -> ks) Misc.whack
@@ -76,7 +76,7 @@ let rec format = function
 
 let rec format_without_equal = function
   | SchemaConflict (t,lv,rv) -> 
-      V.format_msg ([`Open_vbox; `String "[SchemaConflict] at type "; `String (Type.string_of_t t); `Break; `Tree lv; `Break; `Tree rv; `Close_box] )
+      V.format_msg ([`Open_vbox; `String "[SchemaConflict] at type "; `String (Schema.string_of_t t); `Break; `Tree lv; `Break; `Tree rv; `Close_box] )
   | GoDown(m) ->
       let prch (n,ch) = 
 	let prf() = Format.printf "@["; format_without_equal ch; Format.printf "@]" in
@@ -113,9 +113,9 @@ let accumulate oldacc k = function
 (* to detect malformed synchronization results (i.e. ones that are not GOOD *)
 (* w.r.t. docs/simple.txt *)
 
-let rec sync' (t:Type.t) archo lefto righto =
+let rec sync' (t:Schema.t) archo lefto righto =
   let assert_member v t = 
-    if (not (Type.member v t))
+    if (not (Schema.member v t))
     then
       begin 
 	Lens.error [`String "Synchronziation error: "; `Break
@@ -160,14 +160,14 @@ let rec sync' (t:Type.t) archo lefto righto =
 	    let actbinds, arbinds, lbinds, rbinds = 	      
 	      Name.Set.fold
 		(fun k (actacc, aracc, lacc, racc) ->
-		   let tk = match Type.project t k with
+		   let tk = match Schema.project t k with
 		       None ->
 			 (* can't happen since every child k is either in  *)
 			 (* either dom(a) or dom(b), both of which are in  *)
                          (* T, as we just checked. For debugging, here's a *)
                          (* helpful error message                          *)
 			 Lens.error [`String "synchronization error: type "
-			       ; `String (Type.string_of_t t)
+			       ; `String (Schema.string_of_t t)
 			       ; `String " cannot be projected on "
 			       ; `String k]
 		     | Some tk -> tk
@@ -192,9 +192,9 @@ let rec sync' (t:Type.t) archo lefto righto =
 	      (V.from_list lbinds),
 	      (V.from_list rbinds)		
 	    in
-	      let tdoms  = Type.tdoms t in
-	      let a'_in_tdoms = Type.vdom_in_tdoms (V.dom a') tdoms in
-	      let b'_in_tdoms = Type.vdom_in_tdoms (V.dom b') tdoms in
+	      let tdoms  = Schema.tdoms t in
+	      let a'_in_tdoms = Schema.vdom_in_tdoms (V.dom a') tdoms in
+	      let b'_in_tdoms = Schema.vdom_in_tdoms (V.dom b') tdoms in
               if a'_in_tdoms && b'_in_tdoms then
 		(GoDown(Safelist.fold_left
 			  (fun acc (k, act) -> Name.Map.add k act acc)
@@ -207,7 +207,7 @@ let rec sync' (t:Type.t) archo lefto righto =
 		(* return originals in SchemaConflict *)   
 		(SchemaConflict(t,lv,rv),archo,lefto,righto)
 		    
-and sync (t:Type.t) o a b = 
+and sync (t:Schema.t) o a b = 
   (* Version for debugging (because, at the moment, output from the
      debug function looks terrible *)
   (*  V.format_msg [`String "sync:"

@@ -509,19 +509,19 @@ let rec compile_exp cev e0 =
 	      | Value.V _, Value.T t ->
 	      	  mk_rv 
 		    SSchema 
-		    (Value.T (Type.mk_cons i 
+		    (Value.T (Schema.mk_cons i 
 				(Value.get_type i e1_v)
 				t))
 	      | Value.T t, Value.V _ ->
 	      	  mk_rv 
 		    SSchema 
-		    (Value.T (Type.mk_cons i 
+		    (Value.T (Schema.mk_cons i 
 				t
 				(Value.get_type i e2_v)))
 	      | Value.T t1, Value.T t2 -> 
 		  mk_rv 
 		    SSchema
-		    (Value.T (Type.mk_cons i t1 t2))
+		    (Value.T (Schema.mk_cons i t1 t2))
 	      | _ -> run_error i (fun () -> "expected tree or type in atom")
 	    end
 

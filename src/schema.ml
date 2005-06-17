@@ -383,11 +383,11 @@ let tdoms2str tds = Misc.curlybraces (concat_tdoms " " tds)
 let nfcheck tbase f t =match tbase with
     Cat(i,_) ->
       (match t with
-	   Cat(_) | Union(_) -> fatal_error (sprintf "%s: Type %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
+	   Cat(_) | Union(_) -> fatal_error (sprintf "%s: Schema %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
 	 | _ -> f t)
   | Union(i,_) ->
       (match t with
-	   Union(_) -> fatal_error (sprintf "%s: Type %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
+	   Union(_) -> fatal_error (sprintf "%s: Schema %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
 	 | _ -> f t)
   | _ -> f t
 	

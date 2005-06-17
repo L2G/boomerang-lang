@@ -27,10 +27,17 @@ and leaf_lens : lens =
   List.hd [];
   hoist "PCDATA"
 
-let plist_lens : lens =
-  hoist "";
+let l : lens =
   List.hd [];
   hoist "plist";
   focus "" { "version" = {"1.0"} };
   List.hd [];
   plist_object_lens
+
+(* flatten_dict: flatten a dict into a bush { key1 = data1, key2 = data2, ... } *)
+let flatten_dict : lens =
+  hoist "dict";
+  List.map ( pivot List.HD;  map (focus List.TL {}; List.hd []) );
+  List.flatten;
+  map (List.hd [])
+
