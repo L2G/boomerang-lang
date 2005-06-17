@@ -1,22 +1,90 @@
 module Database = 
 
+let c : tree =
+  { email_addr =
+    [ { fname = {"Alice"}, email = {"alice@cis"} }
+    , { fname = {"Bob"},   email = {"bob@cis"}   }
+    , { fname = {"Carol"}, email = {"carol@cis"} }
+    ]
+  , phone_num =
+    [ { nm = {"Alice"}, ph = {"123-456-7890"}, tp = {"cell"} }
+    , { nm = {"Alice"}, ph = {"234-567-8901"}, tp = {"home"} }
+    , { nm = {"Bob"},   ph = {"345-678-9012"}, tp = {"cell"} }
+    , { nm = {"Dave"},  ph = {"456-789-0123"}, tp = {"home"} }
+    , { nm = {"Ellen"}, ph = {"567-890-1234"}, tp = {"cell"} }
+    ]
+  }
+
 let l1 : lens =
-  Relational.rename "nm" "name" "phone_num" "phone_num";
+  Relational.rename "nm" "fname" "phone_num" "phone_num";
   Relational.rename "tp" "type" "phone_num" "phone_num";
   Relational.ojoin [{ph={""},type={"cell"}}] [{email={""}}]
     "email_addr" "phone_num" "contacts"
 
+let a1 : tree =
+  { contacts =
+    [ { fname = {"Dave"},  email = {""},          ph = {"456-789-0123"}, type = {"home"} }
+    , { fname = {"Ellen"}, email = {""},          ph = {"567-890-1234"}, type = {"cell"} }
+    , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"}, type = {"cell"} }
+    , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"234-567-8901"}, type = {"home"} }
+    , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"}, type = {"cell"} }
+    , { fname = {"Carol"}, email = {"carol@cis"}, ph = {""},             type = {"cell"} }
+    ]
+  }
+
+test l1 / c = a1
+
 let l2 : lens =
   Relational.select "type" "cell" "contacts" "contacts_with_cell_phone";
-  Relational.project {"name", "email", "ph"} {"name"} [{type={"cell"}}]
+  Relational.project {"fname", "email", "ph"} {"fname"} [{type={"cell"}}]
     "contacts_with_cell_phone" "email_and_cell"
 
-test l1 / (load_file "concrete.meta") =
-  (load_file "abstract1.meta")
+let a2 : tree =
+  { email_and_cell =
+    [ { fname = {"Ellen"}, email = {""},          ph = {"567-890-1234"} }
+    , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"} }
+    , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"} }
+    , { fname = {"Carol"}, email = {"carol@cis"}, ph = {""}             }
+    ]
+  }
 
-test l1; l2 / (load_file "concrete.meta") =
-  (load_file "abstract2.meta")
+test l1; l2 / c = a2
 
-test l1; l2 \ (load_file "newabstract2.meta") (load_file "concrete.meta") =
-  (load_file "newconcrete.meta")
+let a2' : tree =
+  { email_and_cell =
+    [ { fname = {"Greta"}, email = {""},          ph = {"789-012-3456"} }
+    , { fname = {"Henry"}, email = {""},          ph = {""}             }
+    , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"} }
+    , { fname = {"Carol"}, email = {"carol@cis"}, ph = {"678-901-2345"} }
+    , { fname = {"Ellen"}, email = {"ellen@cis"}, ph = {"567-890-1234"} }
+    , { fname = {"Fred"},  email = {"fred@cis"},  ph = {""}             }
+    , { fname = {"Irene"}, email = {"irene@cis"}, ph = {"890-123-4567"} }
+    ]
+  }
+
+let c2' : tree =
+  { email_addr =
+    [ { email = {""},          fname = {"Greta"} }
+    , { email = {""},          fname = {"Henry"} }
+    , { email = {"alice@cis"}, fname = {"Alice"} }
+    , { email = {"bob@cis"},   fname = {"Bob"}   }
+    , { email = {"carol@cis"}, fname = {"Carol"} }
+    , { email = {"ellen@cis"}, fname = {"Ellen"} }
+    , { email = {"fred@cis"},  fname = {"Fred"}  }
+    , { email = {"irene@cis"}, fname = {"Irene"} }
+    ]
+  , phone_num =
+    [ { nm = {"Alice"}, ph = {"234-567-8901"}, tp = {"home"} }
+    , { nm = {"Bob"},   ph = {"345-678-9012"}, tp = {"cell"} }
+    , { nm = {"Carol"}, ph = {"678-901-2345"}, tp = {"cell"} }
+    , { nm = {"Dave"},  ph = {"456-789-0123"}, tp = {"home"} }
+    , { nm = {"Ellen"}, ph = {"567-890-1234"}, tp = {"cell"} }
+    , { nm = {"Fred"},  ph = {""},             tp = {"cell"} }
+    , { nm = {"Greta"}, ph = {"789-012-3456"}, tp = {"cell"} }
+    , { nm = {"Henry"}, ph = {""},             tp = {"cell"} }
+    , { nm = {"Irene"}, ph = {"890-123-4567"}, tp = {"cell"} }
+    ]
+  }
+
+test l1; l2 \ a2' c = c2'
 
