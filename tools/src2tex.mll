@@ -86,6 +86,7 @@
 	      '{' -> pr "{\\char123}"
 	    | '}' -> pr "{\\char125}"
             | '\\' -> pr "{\\char92}"
+	    | '~' -> pr "{\\char126}"
 	    | _ -> print_char c
         else print_char c)
       else

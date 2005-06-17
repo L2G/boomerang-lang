@@ -1,5 +1,6 @@
 HARMONY: A GENERIC SYNCHRONIZATION FRAMEWORK
-============================================
+http://www.cis.upenn.edu/~bcpierce/harmony
+
 
 OVERVIEW
 -------
@@ -25,23 +26,7 @@ option) any later version.  See the file COPYING for more information.
 GETTING STARTED
 ---------------
 
-See the file src/INSTALL for instructions on how to build Harmony.
-
-If you want to read over the code, here is one possible order to look at files: 
-   src/v.mli                           basic definitions of trees (called "views")
-   src/lens.mli                        basic definitions of lenses
-   src/lib/native/prelude.ml           the most important primitive lenses
-   src/lib/lenses/prelude.fcl          some important derived lenses
-   examples/*                          lots of real-world lenses
-   src/sync.ml                         the synchronization algorithm
-   src/harmony.ml                      the top-level program
-
-To understand what's going on in the code, you'll also want to have a
-look at the papers describing lenses ("Combinators for bi-directional
-tree transformations") and the overall synchronization architecture
-("Bringing harmony to optimism"), which can be found via the Harmony
-home page:
-
-    http://www.cis.upenn.edu/~bcpierce/harmony
+See the Quick Start chapter in the Harmony Programmer's Manual
+(manual.pdf).
 
    

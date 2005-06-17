@@ -1,18 +1,9 @@
 THINGS TO DO
 
 BCP TASKS
-continue with prelude.src and friends
-move join to prelude
 work with stephane on unison integration
 finish structured text demo (integrate spinelists) after nate's new types
 make Plist a library module and experiment with syncing some real plists
-put GPL notice in files
-  and download/read instructions on getting copyright transfer
-
-EXPORT PROCEDURE
-turn off draft mode in manual before building it
-  make document more than once to be sure about refs
-move papers, notes, old, etc. to a separate, private svn repository
 
 NATE TASKS
      NOW
@@ -36,23 +27,31 @@ NATE TASKS
      LATER
 	make fork and friends take types
 
-RELEASE ANNOUNCEMENT TO 
+_________________________________________________________________________
+
+BEFORE BIG RELEASE
+put GPL notice in files
+  and download/read instructions on getting copyright transfer
+
+FIRST RELEASE ANNOUNCEMENT LIST
+Penn db group
+
+PUBLIC RELEASE ANNOUNCEMENT LIST
 Jerome Simeon
 Alain Frisch
+Peter Buneman
+Tokyo people
+Serge Abiteboul
+Srivastava
 
 MAKE MAILING LIST FOR FRIENDS
 Miles Sabin <miles@milessabin.com>
 Geoff
 
-------------
-
-SOON
-* add typechecking tests to the parser?
-* make 'make test' *stop* if any errors are encountered in subdirs
+__________________________________________________________________________
 
 TIDYING
-* We should move all the primitive list-handling lenses out of Prelude and
-  into List
+move papers, notes, old, etc. to a separate, private svn repository
 * The Sync module exports a bunch of stuff that looks internal -- is it needed
   by the sync visualizer, perhaps?  Otherwise let's drop it.
 * renaming: hoist becomes hoist_unique
@@ -76,7 +75,6 @@ SYNC ALGORITHM
    -  more generally, tidy the sync algorithm
 
 LOW PRIORITY
-output to stdout option and input from stdin
 sync visualizer: need to show output even in conflict cases
 
 THINGS TO THINK ABOUT LATER
