@@ -88,16 +88,33 @@ concrete one, then the elements at the end will be \PUT{} into @missing@.
 
 \LENSSECTION{fold_right}
 The lens @fold_right init l@ is analogous to the familiar @fold_right@
-function on lists in any functional programming language.  
+function on lists in any functional programming language. In the \GET{}
+direction, the lens @l@ is recursively applied to the tail of the list,
+or the @init@ tree is used if the list is empty. In the \PUT{} direction,
+$@l@ \lputn$ is recursively applied to the abstract tree and the concrete
+list, until the abstract tree is exactly @init@. For that reason, note
+that @l@ shall not return @init@.
+
 #*let fold_right (init:tree) (l:lens) : lens =
 #*  wmap {`TL -> fold_right init l};
-#*  acond [] [init]
-#*    (const [init] [])
+#*  acond [] init
+#*    (const init [])
 #*    l
 
-\finish{Need test cases and a little more explanation.  Note that @l@ should
-not return @init@}
+The following lens uses @fold_right@ to transform a list of values into a {\em chain} of
+values.
+#*let fold_right_test : lens = fold_right {} (pivot HD; Prelude.map (hoist TL))
 
+#*test fold_right_test / [] = {}
+#*test fold_right_test / [{1},{2},{3}] = {1={2={3}}}
+#*test fold_right_test \ {2={4={6}}} [{1},{hello}] = [{2},{4},{6}]
+
+#*test fold_right {bar} (const {foo} {new}) / [{1},{2}] = {foo}
+#*test fold_right {bar} (const {foo} {new}) / [] = {bar}
+#*test fold_right {bar} (const {foo} {new}) \ {foo} [{1},{2}] = [{1},{2}]
+#*test fold_right {bar} (const {foo} {new}) \ {foo} missing = {new}
+#*test fold_right {bar} (const {foo} {new}) \ {baz} {anyway} = error
+\finish{Need double-check.}
 
 \LENSSECTION{reverse} The bijective lens @reverse@ simply reverses its
 argument list in both directions.  \finish{Some explanation needed.}

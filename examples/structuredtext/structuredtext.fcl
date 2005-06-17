@@ -38,7 +38,7 @@ test process_elt T / \ [[{X}], [[{A}],[{b}]], [[{C}]]] = [[[{X}]], [[{A}],[{b}]]
 test process_elt T / \ [[{X}], [[{a}],[{b}]], [[{C}]]] = [[[{X}],[{a}],[{b}]], [[{C}]]]
 
 let parse_list_with_headers (H:schema) : lens =
-  List.fold_right [] (process_elt H)
+  List.fold_right [[]] (process_elt H)
 
 (******************************************************************************)
 (* Some specific useful instances... *)

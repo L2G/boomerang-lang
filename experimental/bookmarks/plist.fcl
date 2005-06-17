@@ -26,7 +26,6 @@ and leaf_lens : lens =
   hoist "PCDATA"
 
 let plist_lens =
-  hoist "";
   List.hd [];
   hoist "plist";
   focus "" { "version" = "1.0" };
