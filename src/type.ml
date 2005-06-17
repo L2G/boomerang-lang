@@ -55,8 +55,9 @@ let rec cmp_type t1 t2 = match t1,t2 with
       if compare v11 v21 = eq then eq 
       else compare v12 v22 
   | Atom(_,n1,t1),Atom(_,n2,t2) -> 
-      if (compare n1 n2 = eq) then eq 
-      else cmp_type t1 t2
+      let n_cmp = compare n1 n2 in
+	if (n_cmp = eq) then cmp_type t1 t2
+	else n_cmp
   | Bang(_,f1,t1),Bang(_,f2,t2) 
   | Star(_,f1,t1),Star(_,f2,t2) ->
       if (cmp_lex 
@@ -102,8 +103,12 @@ and sort_type_list ts = Safelist.sort cmp_type (Safelist.map sort_type ts)
 	  
 (* normalizer *)
 let t2nf t0 = 
+  debug (fun () ->
+    	   Printf.eprintf "START t2nf %s\n%!"
+    	     (string_of_t t0))
+  ;
   let rec t2nf_aux depth t0 = 
-    match sort_type t0 with
+    match t0 with
 	Empty(_) | Any(_) -> t0
       | Var(_,_,_)     -> if (depth < 1) then t2nf_aux depth (force t0) else t0
       | App(_,_,_,_)   -> if (depth < 1) then t2nf_aux depth (force t0) else t0
@@ -129,7 +134,7 @@ let t2nf t0 =
 	  in begin match lifted_ts with
 	      []              
 	    | [Union(_,[])] -> Empty(i)
-	    | _             -> Union(i,lifted_ts)
+	    | _             -> sort_type (Union(i,lifted_ts))
 	    end
 	       
       (* Cat:
@@ -161,14 +166,14 @@ let t2nf t0 =
 	    ts_nf
 	  in begin match lift_ts_rep with
 	      [[Empty(_)]] -> Empty(i)
-	    | [[ti]]       -> ti
-	    | [cs]         -> Cat(i,cs)
-	    | _            -> Union(i, Safelist.map (fun ri -> Cat(i,ri)) lift_ts_rep)	      
+	    | [[ti]]       -> sort_type ti
+	    | [cs]         -> sort_type (Cat(i,cs))
+	    | _            -> sort_type (Union(i, Safelist.map (fun ri -> Cat(i,ri)) lift_ts_rep))
 	    end
   in     
   let res = t2nf_aux 0 t0 in
     debug (fun () ->
-    	     Printf.eprintf "t2nf %s = %s\n%!"	       
+    	     Printf.eprintf "FINISH t2nf %s = %s\n%!"	       
     	       (string_of_t t0)
 	       (string_of_t res))
     ;
