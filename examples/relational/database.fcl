@@ -1,0 +1,22 @@
+module Database = 
+
+let l1 : lens =
+  Relational.rename "nm" "name" "phone_num" "phone_num";
+  Relational.rename "tp" "type" "phone_num" "phone_num";
+  Relational.ojoin [{ph={""},type={"cell"}}] [{email={""}}]
+    "email_addr" "phone_num" "contacts"
+
+let l2 : lens =
+  Relational.select "type" "cell" "contacts" "contacts_with_cell_phone";
+  Relational.project {"name", "email", "ph"} {"name"} [{type={"cell"}}]
+    "contacts_with_cell_phone" "email_and_cell"
+
+test l1 / (load_file "concrete.meta") =
+  (load_file "abstract1.meta")
+
+test l1; l2 / (load_file "concrete.meta") =
+  (load_file "abstract2.meta")
+
+test l1; l2 \ (load_file "newabstract2.meta") (load_file "concrete.meta") =
+  (load_file "newconcrete.meta")
+

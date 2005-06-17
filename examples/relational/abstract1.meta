@@ -1,0 +1,11 @@
+
+{ contacts =
+  [ { name = {"Dave"},  email = {""},          ph = {"456-789-0123"}, type = {"home"} }
+  , { name = {"Ellen"}, email = {""},          ph = {"567-890-1234"}, type = {"cell"} }
+  , { name = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"}, type = {"cell"} }
+  , { name = {"Alice"}, email = {"alice@cis"}, ph = {"234-567-8901"}, type = {"home"} }
+  , { name = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"}, type = {"cell"} }
+  , { name = {"Carol"}, email = {"carol@cis"}, ph = {""},             type = {"cell"} }
+  ]
+}
+
