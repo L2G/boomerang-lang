@@ -1,18 +1,26 @@
 \section{Lexing}
 
-\subsection{Whitespace}
 Whitespace characters are space, newline and tab.  Comments are
 delimited by @(*@ and @*)@ and may be nested.  Comments are equivalent
 to white space.
 
-\subsection{String literals}
-
 String literals can be any sequence of characters and escape sequences
 enclosed in double-quotes.  The escape sequences @\"@, @\\@, @\b@,
-@\n@, @\r@, and @\t@ stand for the characters double-quote, newline,
+@\n@, @\r@, and @\t@ stand for the characters double-quote, backslash, backspace, newline,
 vertical tab, and tab.  To facilitate lining up columns in indented
 string literals, within a string, a newline followed by whitespace and
-then @|@ is equivalent to a single newline.
+then @|@ is equivalent to a single newline. For example, 
+\begin{verbatim}
+        "University
+        |of 
+        |Pennsylvania"
+\end{verbatim}
+is equivalent to 
+\begin{verbatim}
+"University
+of
+Pennsylvania"
+\end{verbatim}
 
 \subsection{Identifiers}
 
@@ -26,9 +34,7 @@ Identifiers are non-empty strings drawn from the following set of characters:
 \end{tabular}
 \end{center}
 
-\subsection{Keywords}
-
-The following symbols are reserved keywords:
+and the following keywords and symbols are reserved and are not valid as identifers:
 
 \begin{center}
 \begin{tabular}{llllllllll}

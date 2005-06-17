@@ -33,31 +33,97 @@ let sort_of_t = function
  | F(s,_) -> s
 
 (* pretty print *)
-let rec string_of_t = function
-    N(n)   -> n
-  | T(t)   -> (string_of_ty t)
-  | V(v)   -> (V.string_of_t v)
-  | L(l)   -> "<lens>"
-  | F(s,_) -> Printf.sprintf "<%s fun>" (Syntax.string_of_sort s)
+let rec string_of_t t =   
+  match string_of_t_aux [] t with
+      _,[],s -> s
+    | _,ds,s -> 
+	Printf.sprintf "%s\nwhere\n\t%s"
+	  s
+	  (Misc.concat_list "\n\t" ds)
+
+and string_of_t_aux printed = function
+    N(n)   -> [],[],n
+  | T(t)   -> string_of_ty_aux printed t 
+  | V(v)   -> [],[],(V.string_of_t v)
+  | L(l)   -> [],[],"<lens>"
+  | F(s,_) -> [],[],Printf.sprintf "<%s fun>" (Syntax.string_of_sort s)
       
-and string_of_ty = function
-    Empty(_) -> "Empty"
-  | Any(_) -> "Any"
-  | Var (_,x,thk) -> Syntax.string_of_qid x
-  | App(_,t1,t2,_) -> 
-      Printf.sprintf "(%s %s)" (string_of_t t1) (string_of_t t2)
-  | Atom(_,n,t) -> 
-      Printf.sprintf "%s = %s" n (string_of_ty t)
-  | Bang(_,f,t)  -> 
-      Printf.sprintf "!%s = %s"
-	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
-	(string_of_ty t)  
-  | Star(_,f,t)  ->
-      Printf.sprintf "*%s = %s"
-	(if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
-	(string_of_ty t)
-  | Cat(_,ts)   -> Misc.curlybraces (Misc.concat_list ", " (Safelist.map string_of_ty ts))
-  | Union(_,ts)  -> Misc.parens (Misc.concat_list " | " (Safelist.map string_of_ty ts))
+and string_of_ty t0 = 
+  let _, ds, s = string_of_ty_aux [] t0 in
+    Printf.sprintf "%s\nwhere\n\t%s"
+      s
+      (Misc.concat_list "\n\t" ds)
+      
+and string_of_ty_aux printed = function
+    Empty(_)      -> printed, [], "Empty"
+  | Any(_)        -> printed, [], "Any"
+  | Var (_,x,thk) -> 
+      let sx = Syntax.string_of_qid x in
+	  if 
+	    (Safelist.exists (fun q -> Syntax.qid_equal q x) printed)
+	  then 
+	    (printed, [], sx)
+	  else
+	    (* UGLY! need to Format properly here *)
+	    (match thk () with 
+		 T t1 -> 
+		   let ps,ds,s1 = string_of_ty_aux (x::printed) t1 in		   
+		     (ps,
+		      (Printf.sprintf "%s = %s" sx s1)::ds,
+		      sx)		     
+	       | V v  -> 
+		   (x::printed, 
+		    [Printf.sprintf "%s = %s" sx (V.string_of_t v)], 
+		    sx)
+	       | _    -> (printed, [], sx))
+	      
+    | App(_,t1,t2,_) -> 
+	let ps1,ds1,s1 = string_of_t_aux printed t1 in
+	let ps2,ds2,s2 = string_of_t_aux ps1 t2 in
+	  ps2, ds1 @ ds2, (Printf.sprintf "(%s %s)" s1 s2)
+
+    | Atom(_,n,t) -> 
+	let ps, ds,s = string_of_ty_aux printed t in
+	  ps, ds, (Printf.sprintf "%s = %s" n s)
+
+    | Bang(_,f,t)  -> 
+	let ps, ds,s = string_of_ty_aux printed t in
+	  (ps, 
+	   ds, 
+	   (Printf.sprintf "!%s = %s"
+	      (if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
+	      s))
+    | Star(_,f,t)  ->
+	let ps, ds,s = string_of_ty_aux printed t in
+	  (ps, 
+	   ds, 
+	   (Printf.sprintf "!%s = %s"
+	      (if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
+	      s))
+    | Cat(_,ts)   -> 
+	let (ps, ds,ss_rev) = 
+	  Safelist.fold_left 
+	    (fun (ps,ds,ss) ti -> 
+	       let ps',ds',s' = string_of_ty_aux ps ti in
+		 (ps', ds@ds', s'::ss))
+	    (printed,[],[])
+	    ts
+	in
+	  (ps, 
+	   ds, 
+	   Misc.curlybraces (Misc.concat_list ", " (Safelist.rev ss_rev)))
+    | Union(_,ts) -> 
+	let (ps, ds,ss_rev) = 
+	  Safelist.fold_left 
+	    (fun (ps,ds,ss) ti -> 
+	       let ps',ds',s' = string_of_ty_aux ps ti in
+		 (ps', ds@ds',s'::ss))
+	    (printed,[],[])
+	    ts
+	in
+	  (ps, 
+	   ds, 
+	   Misc.curlybraces (Misc.concat_list " | " (Safelist.rev ss_rev)))
 
 (*random helpers *)
 (* utility functions for parsing *)      
@@ -94,27 +160,26 @@ let parse_sort s =
 (* errors *)
 
 let focal_type_error i es v = 
-  raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s: run-time sort error; expected %s, found %s in %s."
-	      (Info.string_of_t i)
-	      (Syntax.string_of_sort es)
-	      (Syntax.string_of_sort (sort_of_t v))
-	      (string_of_t v)))
-
+    raise (Error.Harmony_error
+	     (fun () -> Format.printf "%s: run-time sort error; expected %s, found %s in %s."
+		(Info.string_of_t i)
+		(Syntax.string_of_sort es)
+		(Syntax.string_of_sort (sort_of_t v))
+		(string_of_t v)))
+      
 (* [type_of_tree v] yields the singleton [Value.ty] containing [v] *)
 let rec type_of_tree v =
-  V.fold 
-    (fun k vk t -> 
-       match t with 
-	   Cat(i,ts) -> Cat(i,Atom(i,k,(type_of_tree vk))::ts)
-	 | _         ->
-	     raise (Error.Harmony_error
-		      (fun () -> Format.printf "The impossible happened in type_of_tree! Reached an ill-formed type.")))
-    v
-    (Cat(Info.M "coerced type",[]))
+    V.fold 
+      (fun k vk t -> 
+	 match t with 
+	     Cat(i,ts) -> Cat(i,Atom(i,k,(type_of_tree vk))::ts)
+	   | _         ->
+	       raise (Error.Harmony_error
+			(fun () -> Format.printf "The impossible happened in type_of_tree! Reached an ill-formed type.")))
+      v
+      (Cat(Info.M "coerced type",[]))
+      
 
-
-(* FIXME: say what we found if it's not expected *)	   
 let get_type i v = 
   match v with 
       T t -> t 

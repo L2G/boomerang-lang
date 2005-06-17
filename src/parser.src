@@ -120,7 +120,7 @@ opens:
 \end{grammar}
 
 \noindent A Focal compilation unit contains a single module
-declaration @module M@ that must appear in a file named @m.fcl@.  A
+declaration, such as @module Foo@, that must appear in a file named @foo.fcl@.  A
 module contains a sequence of @open@ declarations, which import all
 the declarations from another module, followed by a sequence of
 declarations. A declaration is either a @let@, a nested @module@, or a
