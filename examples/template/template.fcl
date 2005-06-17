@@ -4,3 +4,4 @@ let l : lens = List.hd []; hoist "a"; hoist Xml.CHILDREN
 
 test l / (load_file "concrete.xml") = (load_file "abstract.xml")
 test l \ (load_file "newabstract.xml") (load_file "concrete.xml") = (load_file "newconcrete.xml")
+
