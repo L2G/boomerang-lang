@@ -153,9 +153,9 @@ let rec subsort u v = match u,v with
   | _ when u = v -> true
   | _            -> false
 
-let rec expect_sort_exp msg sev expected_sort e =
+let rec expect_sort_exp msg ?(bindersOK=true) sev expected_sort e =
   let i = info_of_exp e in
-  let e_sort, new_e = check_exp sev e in
+  let e_sort, new_e = check_exp ~bindersOK:bindersOK sev e in
     if subsort e_sort expected_sort then 
       (e_sort,new_e)
     else
@@ -166,9 +166,9 @@ let rec expect_sort_exp msg sev expected_sort e =
 	     (string_of_sort expected_sort)
 	     (string_of_sort e_sort)
 	     (string_of_exp e))
-	    
+	
 (* EXPRESSIONS *)    
-and check_exp sev e0 = 
+and check_exp ?(bindersOK=true) sev e0 = 
   (* let _ = debug (sprintf "checking expression %s" (string_of_exp e0)) in *)
   match e0 with
       (* applications *)
@@ -183,8 +183,8 @@ and check_exp sev e0 =
 		(fun () -> sprintf 
 		   "expected function type in application but found %s"
 		   (string_of_sort e1_sort))
-	end
-	  
+      end
+	
     (* type atoms *)
     | EAtom(i,e1,e2) ->
 	let _,new_e1 = expect_sort_exp "atom" sev SName e1 in
@@ -204,7 +204,8 @@ and check_exp sev e0 =
     | ECat(i,es) ->
 	let e0_sort,new_es_rev = Safelist.fold_left
 	  (fun (es_sort,new_es_rev) ei -> 
-	     let ei_sort, new_ei = expect_sort_exp "concatenation" sev SSchema ei in
+	     let ei_sort, new_ei = 
+	       expect_sort_exp ~bindersOK:false "concatenation" sev SSchema ei in
 	     let new_sort = match ei_sort,es_sort with
 		 STree,STree -> STree
 	       | _           -> SSchema in
@@ -215,8 +216,8 @@ and check_exp sev e0 =
 	  (e0_sort, new_e0)
 	    
     | ECons(i,e1,e2) -> 
-	let e1_sort, new_e1 = expect_sort_exp "cons" sev SSchema e1 in
-	let e2_sort, new_e2 = expect_sort_exp "cons" sev SSchema e2 in
+	let e1_sort, new_e1 = expect_sort_exp ~bindersOK:false "cons" sev SSchema e1 in
+	let e2_sort, new_e2 = expect_sort_exp ~bindersOK:false "cons" sev SSchema e2 in
 	let e0_sort = 
 	  match e1_sort,e2_sort with
 	      STree,STree -> STree
@@ -248,6 +249,10 @@ and check_exp sev e0 =
 	  (e0_sort, new_e0)
 	    
     | ELet(i,bs,e) ->
+	if (not bindersOK) then 
+	  sort_error i 
+	    (fun () -> "let-binders not allowed under concatenations and unions")
+	;
 	let bsev,_,new_bs = check_bindings sev bs in
 	let e0_sort, new_e = check_exp bsev e in
 	let new_e0 = ELet(i, new_bs, new_e) in
@@ -283,7 +288,7 @@ and check_exp sev e0 =
 	let new_es = Safelist.map
 	  (fun ei -> 
 	     let _,new_ei = 
-	       expect_sort_exp "union" sev SSchema ei in
+	       expect_sort_exp ~bindersOK:false "union" sev SSchema ei in
 	       new_ei)
 	  es in
 	let new_e0 = EUnion(i, new_es) in
@@ -316,7 +321,7 @@ and check_bindings sev bs =
   in
   let rec check_binding sev bi =   
     (* let _ = debug (sprintf "checking binding %s\n" (string_of_binding bi)) in *)
-       match bi with 
+    match bi with 
 	Syntax.BDef(i,f,[],so,e) -> 
 	  let f_qid = qid_of_id f in
 	  let e_sort, new_e = 

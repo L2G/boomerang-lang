@@ -11,7 +11,7 @@ open Value
 (* imports *)
 let sprintf = Printf.sprintf
 let debug = Trace.debug "type" 
-let fatal_error msg = raise (Error.Harmony_error (fun () -> Format.printf "Fatal error in type : %s" msg))
+let fatal_error i msg = raise (Error.Harmony_error (fun () -> Format.printf "%s\nFatal error in type : %s" (Info.string_of_t i) msg))
 
 (* re-export [Value.ty] and [Value.string_of_ty] in this name space *)
 type t = Value.ty
@@ -110,8 +110,14 @@ let t2nf t0 =
   let rec t2nf_aux depth t0 = 
     match t0 with
 	Empty(_) | Any(_) -> t0
-      | Var(_,_,_)     -> if (depth < 1) then t2nf_aux depth (force t0) else t0
-      | App(_,_,_,_)   -> if (depth < 1) then t2nf_aux depth (force t0) else t0
+      | Var(i,x,_)     -> 
+	  if (depth < 1)
+	  then t2nf_aux  depth (force t0) 
+	  else t0
+      | App(_,_,_,_)   -> 
+	  if (depth < 1) then 
+	    t2nf_aux depth (force t0) 
+	  else t0
       | Atom(i,n,t)  -> Atom(i, n, t2nf_aux (depth + 1) t)
       | Bang(i,f,t) -> Bang(i,f,t2nf_aux (depth + 1) t)
       | Star(i,f,t) -> Star(i,f,t2nf_aux (depth + 1) t)
@@ -217,7 +223,7 @@ let rec project t0 n =
 			 None -> xo
 		       | Some tin ->
 			   if equal tin x then xo
-			   else fatal_error
+			   else fatal_error i
 			     (sprintf "%s is not projectable on %s; %s <> %s"
 				(string_of_t t0)
 				n
@@ -234,7 +240,7 @@ let rec project t0 n =
 		     None -> xo
 		   | Some tin ->
 		       if equal tin x then xo
-		       else fatal_error
+		       else fatal_error i
 			 (sprintf "%s is not projectable on %s; %s <> %s"
 			    (string_of_t t0) n
 			    (string_of_t ti)
@@ -308,7 +314,8 @@ let rec member v t0 =
 	      else (Some (vn,t), V.set v n None)
 	| Star(_,f,t)  -> (Some (v,t1), V.empty)
 	| _ ->
-	    fatal_error
+	    fatal_error 
+	      (Value.info_of_ty t1)
 	      (sprintf "non-atomic type in concatenation: %s"
 		 (string_of_t t1))
       in
@@ -383,11 +390,11 @@ let tdoms2str tds = Misc.curlybraces (concat_tdoms " " tds)
 let nfcheck tbase f t =match tbase with
     Cat(i,_) ->
       (match t with
-	   Cat(_) | Union(_) -> fatal_error (sprintf "%s: Schema %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
+	   Cat(_) | Union(_) -> fatal_error i (sprintf "%s: Schema %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
 	 | _ -> f t)
   | Union(i,_) ->
       (match t with
-	   Union(_) -> fatal_error (sprintf "%s: Schema %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
+	   Union(_) -> fatal_error i (sprintf "%s: Schema %s is not in normal form" (string_of_t tbase) (Info.string_of_t i))
 	 | _ -> f t)
   | _ -> f t
 	
