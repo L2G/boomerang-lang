@@ -19,7 +19,7 @@ all: test
 
 TMPDIR=/tmp
 TMP=$(TMPDIR)/harmony
-EXPORTNAME=harmony-prerelease
+EXPORTNAME=harmony-$(shell date "+20%y%m%d")
 DOWNLOADDIR=$(HOME)/pub/harmony/download
 
 export: 

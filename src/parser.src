@@ -145,7 +145,7 @@ of a bijective lens: @ test@~$l_1$~@/@~$t_1$~@=@~$t_2$ and
 evaluates $t_1$. This kind of test is uesd to ensure that native
 lenses, such @hoist@, check side conditions on their inputs correctly; for example,
 @ test hoist "n" {} = error@.  
-The fourth form, @test@~$t_1$~@=?@$, causes Harmony to run the unit test and
+The fourth form, @test@~$t_1$~@=?@, causes Harmony to run the unit test and
 print out the result.
 The final two forms are used to test the behavior of the synchronization algorithm: 
 \begin{center}

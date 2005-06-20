@@ -5,7 +5,6 @@ work with stephane on unison integration
 finish structured text demo (integrate spinelists) after nate's new types
 make Plist a library module and experiment with syncing some real plists
 
-
 NATE TASKS
      NOW
 	  fix meta
