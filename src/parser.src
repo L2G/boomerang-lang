@@ -113,9 +113,9 @@ opens:
 
 <Decl> ::= \lit{@let@} <BindingList> 
      \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
-     \alt \lit{@print@} <Exp> 
      \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
      \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
+     \alt \lit{@test@} <Exp> \lit{@=@} ?
      \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
      \alt \lit{@sync@} \lit{@with@} <AExp> <AExp> <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
 \end{grammar}
@@ -131,9 +131,7 @@ signatures or sealing.
 
 \subsubsection{Unit Tests} \label{sec:unittests}
 
-\finish{Need to document @print@}
-
-The syntax includes five forms of unit tests (which are only tested when
+The syntax includes several forms of unit tests (which are only tested when
 the system is run in testing mode; see
 Section~\ref{sec:cmdlineargs}).  The first form, @test@~$t_1$~@=@~$t_2$, 
 checks that $t_1$ and $t_2$, which must both have sort @tree@, 
@@ -147,8 +145,9 @@ of a bijective lens: @ test@~$l_1$~@/@~$t_1$~@=@~$t_2$ and
 evaluates $t_1$. This kind of test is uesd to ensure that native
 lenses, such @hoist@, check side conditions on their inputs correctly; for example,
 @ test hoist "n" {} = error@.  
-The final two forms of unit tests are used to test the
-behavior of the synchronization algorithm: 
+The fourth form, @test@~$t_1$~@=?@$, causes Harmony to run the unit test and
+print out the result.
+The final two forms are used to test the behavior of the synchronization algorithm: 
 \begin{center}
 @sync with@~$l$~@at@~$s$~@{O=@$o$@, A=@$a$@, B=@$b$@} = {O=@~$o'$~@, A=@~$a'$~@, B=@~$b'$@}@.
 \end{center}
