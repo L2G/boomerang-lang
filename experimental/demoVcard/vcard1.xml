@@ -103,6 +103,13 @@
    <ORGNAME> org name </ORGNAME>
    <ORGUNIT> org unit </ORGUNIT>
  </ORG>
+ <SORT-STRING> sort-string </SORT-STRING>
+ <PRODID> prodid </PRODID>
+ <NOTE> note </NOTE>
+ <NICKNAME> nickname </NICKNAME>
+ <MAILER> mailer </MAILER>
+ <JABBERID> jabberid </JABBERID>
+ <DESC> its very fast now</DESC>
  <REV> rev </REV>
  <TZ> tz </TZ>
  <UID> uid </UID>

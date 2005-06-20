@@ -37,9 +37,29 @@ let xml: lens =
 	    "ORG" -> ( to_list2 "ORGNAME" "ORGUNIT"; explode_aux; concat; List.implode ),
 	      "N" -> ( to_list5 "PREFIX" "GIVEN" "MIDDLE" "FAMILY" "SUFFIX" ; 
 		       explode_aux; concat; List.implode )
-	     }
+	     };
+	xfork {"BDAY", "DESC","JABBERID","MAILER","NICKNAME", 
+	       "NOTE","SORT-STRING","REV","ROLE","PRODID","TITLE","UID","URL","TZ"}
+	  {"INFO"}
+	  (plunge "INFO"; map ( to_list14 "BDAY" "DESC" "JABBERID" "MAILER" "NICKNAME" 
+				  "NOTE" "SORT-STRING" "REV" "ROLE" "PRODID" "TITLE" "UID" "URL" "TZ";
+				explode_aux; concat; List.implode) )
+	  (id);
+	pivot "FN"
        )
 
 let vcf: lens =
   List.hd [];
-  map (hoist Xml.CHILDREN; List.flatten; lensCommon)
+  map (hoist Xml.CHILDREN; List.flatten; 
+       fork {"AGENT"}
+	 ( map ( List.hd []; hoist Xml.CHILDREN; vcf) )
+	 ( lensCommon );
+       xfork {"BDAY", "DESC","JABBERID","MAILER","NICKNAME", 
+	      "NOTE","SORT-STRING","REV","ROLE","PRODID","TITLE","UID","URL","TZ"}
+	 {"INFO"}
+	 (plunge "INFO"; map ( to_list14 "BDAY" "DESC" "JABBERID" "MAILER" "NICKNAME" 
+				 "NOTE" "SORT-STRING" "REV" "ROLE" "PRODID" "TITLE" "UID" "URL" "TZ";
+			       explode_aux; concat; List.implode) )
+	 (id);
+       pivot "FN"
+      )

@@ -37,3 +37,45 @@ let to_list7 (n1:name) (n2:name) (n3:name)
   xfork {`n1} {`List.HD}
     (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
     (plunge List.TL; wmap{`List.TL -> to_list6 n2 n3 n4 n5 n6 n7} )
+
+let to_list8 (n1:name) (n2:name) (n3:name) (n4:name) 
+             (n5:name) (n6:name) (n7:name) (n8:name): lens =
+  xfork {`n1} {`List.HD}
+    (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
+    (plunge List.TL; wmap{`List.TL -> to_list7 n2 n3 n4 n5 n6 n7 n8} )
+
+let to_list9 (n1:name) (n2:name) (n3:name) (n4:name) 
+             (n5:name) (n6:name) (n7:name) (n8:name) (n9:name): lens =
+  xfork {`n1} {`List.HD}
+    (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
+    (plunge List.TL; wmap{`List.TL -> to_list8 n2 n3 n4 n5 n6 n7 n8 n9} )
+
+let to_list10 (n1:name) (n2:name) (n3:name) (n4:name) (n5:name) 
+              (n6:name) (n7:name) (n8:name) (n9:name) (n10:name): lens =
+  xfork {`n1} {`List.HD}
+    (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
+    (plunge List.TL; wmap{`List.TL -> to_list9 n2 n3 n4 n5 n6 n7 n8 n9 n10} )
+
+let to_list11 (n1:name) (n2:name) (n3:name) (n4:name) (n5:name) 
+              (n6:name) (n7:name) (n8:name) (n9:name) (n10:name) (n11:name): lens =
+  xfork {`n1} {`List.HD}
+    (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
+    (plunge List.TL; wmap{`List.TL -> to_list10 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11} )
+
+let to_list12 (n1:name) (n2:name) (n3:name) (n4:name) (n5:name) (n6:name) 
+              (n7:name) (n8:name) (n9:name) (n10:name) (n11:name) (n12:name): lens =
+  xfork {`n1} {`List.HD}
+    (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
+    (plunge List.TL; wmap{`List.TL -> to_list11 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12} )
+
+let to_list13(n1:name) (n2:name) (n3:name) (n4:name) (n5:name) (n6:name) 
+             (n7:name) (n8:name) (n9:name) (n10:name) (n11:name) (n12:name) (n13:name): lens =
+  xfork {`n1} {`List.HD}
+    (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
+    (plunge List.TL; wmap{`List.TL -> to_list12 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13} )
+
+let to_list14(n1:name) (n2:name) (n3:name) (n4:name) (n5:name) (n6:name) (n7:name) 
+             (n8:name) (n9:name) (n10:name) (n11:name) (n12:name) (n13:name) (n14:name): lens =
+  xfork {`n1} {`List.HD}
+    (plunge List.HD; wmap{`List.HD -> to_list1 n1 } )
+    (plunge List.TL; wmap{`List.TL -> to_list13 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14} )

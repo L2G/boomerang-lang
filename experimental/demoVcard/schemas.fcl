@@ -22,7 +22,7 @@ let mailer: schema = {"MAILER" = V} | {}
 let logo: schema = {"LOGO" = {* = X}} | {}
 let label: schema = {"LABEL" = {* = X}} | {}
 let key: schema = {"KEY" = {* = V}} | {}
-let jabberi: schema= {"JABBERID" = V} | {}
+let jabberid: schema= {"JABBERID" = V} | {}
 let geo: schema = {"GEO" = {* = V}} | {}
 let email: schema = {"EMAIL" = {* = X}} | {}
 let desc: schema = {"DESC" = V} | {}
@@ -32,11 +32,12 @@ let bday: schema = {"BDAY" = V} | {}
 let adr: schema = {"ADR" = {* = X}} | {} 
 let nom: schema = {"N" = V } | {}
 
+let inf: schema = {"INFO" = V}
+let version: schema = {"VERSION" = V}
 
 let Vcard: schema =
-    { "VCARD" = Info }
-and Info: schema =  Info1 + url + uid + tz + title + tel + role + rev + org + nom + label + email + bday + adr  
-and Info1: schema =
-      { "FN" = V, "VERSION" = V } + agent
+    { "VCARD" = {!= Info} }
+and Info: schema = agent + inf + tel + org + nom + label + email + adr + version
 and agent: schema =  
        { ?"AGENT" = Vcard} 
+
