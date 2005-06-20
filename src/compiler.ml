@@ -373,19 +373,20 @@ let rec check_decl sev m di =
 	in
 	let new_di = DMod(i,n,new_ds) in
 	  (new_sev, Safelist.rev names_rev, new_di)
-    | DTest(i,e,reso) ->	
+    | DTest(i,e,res) ->	
 	if not (check_test m) then (sev, [], di)
 	else
 	  begin
 	    let _,new_e = expect_sort_exp "test expression" sev STree e in
-	    let new_reso = 
-	      match reso with 
-		  None     -> None 
-		| Some res -> 
+	    let new_res = 
+	      match res with 
+		ErrorResult -> ErrorResult
+  	      | PrintResult -> PrintResult
+	      | Result res -> 
 		    let _,new_res = expect_sort_exp "test result" sev STree res in
-		      Some(new_res)
+		      Result(new_res)
 	    in
-	    let new_di = DTest(i,new_e, new_reso) in
+	    let new_di = DTest(i,new_e, new_res) in
 	      (sev, [], new_di)
 	  end
 	
@@ -717,7 +718,7 @@ let rec compile_decl cev m di =
 	  names
       in
 	new_cev, Safelist.rev names_rev
-  | DTest(i,e,reso) ->
+  | DTest(i,e,res) ->
       if check_test m then
 	begin
 	  let vo = 
@@ -725,9 +726,14 @@ let rec compile_decl cev m di =
 	      OK (compile_exp_tree cev e)
 	    with (Error.Harmony_error(m)) -> Error m
 	  in
-	    match vo, reso with 
-		Error _, None -> ()
-	      | OK v, Some res -> 
+	    match vo, res with 
+	      | OK v, PrintResult -> 
+		  V.format_msg [`String "Test result:"; `Space; `Tree v]
+	      | Error m, PrintResult -> 
+		  V.format_msg [`String "Test result: error"];
+                  m()
+	      | Error _, ErrorResult -> ()
+	      | OK v, Result res -> 
 		  let resv = compile_exp_tree cev res in
 		    if not (V.equal v resv) then
 		      test_error i 
@@ -737,7 +743,7 @@ let rec compile_decl cev m di =
 			      `Tree resv;`Space;
 			      `String "found:"; `Space;
 			      `Tree v])
-	      | Error m, Some res -> 
+	      | Error m, Result res -> 
 		  let resv = compile_exp_tree cev res in
 		    test_error i 
 		      (fun () -> 
@@ -747,7 +753,7 @@ let rec compile_decl cev m di =
 			    `String "found error:"; `Space];
 			 m ())
 	
-	      | OK v, None -> 
+	      | OK v, ErrorResult -> 
 		  test_error i 
 		    (fun () -> 
 		       V.format_msg

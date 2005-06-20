@@ -57,7 +57,7 @@ let mk_empty_tree i = ECat(i,[])
 %token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA
 %token <Info.t> LENS TREE TYPE NAME ARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
-%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH TEST SYNC WITH AT ERROR MISSING
+%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
 %token <Info.t> STAR BANG BAR PLUS QMARK
 
 %start modl sort qid 
@@ -113,6 +113,7 @@ opens:
 
 <Decl> ::= \lit{@let@} <BindingList> 
      \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
+     \alt \lit{@print@} <Exp> 
      \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
      \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
      \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
@@ -130,9 +131,11 @@ signatures or sealing.
 
 \subsubsection{Unit Tests} \label{sec:unittests}
 
+\finish{Need to document @print@}
+
 The syntax includes five forms of unit tests (which are only tested when
 the system is run in testing mode; see
-Section~\ref{sec:cmdlineargs}). The first form, @test@~$t_1$~@=@~$t_2$, 
+Section~\ref{sec:cmdlineargs}).  The first form, @test@~$t_1$~@=@~$t_2$, 
 checks that $t_1$ and $t_2$, which must both have sort @tree@, 
 evaluate to equal values. This kind of test is often used to check the 
 behavior of the \GET{} and \PUT{} components of
@@ -165,23 +168,24 @@ decls:
   | TEST exp EQUAL test_res decls            { DTest(m $1 (fst $4), $2, snd $4)::$5 }
   | TEST composeexp SLASH BACKSLASH exp 
       EQUAL exp decls                        { let i = me2 $1 $7 in
-                                               let get_test = DTest(i, mk_get_exp i $2 $5, (Some $7)) in
-                                               let put_test = DTest(i, mk_put_exp i $2 $7 None, (Some $5)) in
+                                               let get_test = DTest(i, mk_get_exp i $2 $5, (Result $7)) in
+                                               let put_test = DTest(i, mk_put_exp i $2 $7 None, (Result $5)) in
                                                  get_test::put_test::$8 }
       
   | SYNC WITH aexp AT aexp aexp EQUAL 
       aexp decls                             { let i = me2 $1 $8 in
-                                               let sync_test = DTest(i, mk_sync_exp i $3 $3 $3 $5 $6, Some $8) in
+                                               let sync_test = DTest(i, mk_sync_exp i $3 $3 $3 $5 $6, Result $8) in
                                                  sync_test::$9 } 
   | SYNC WITH aexp aexp aexp AT 
       aexp aexp EQUAL aexp decls             { let i = me2 $1 $10 in
-                                               let sync_test = DTest(i, mk_sync_exp i $3 $4 $5 $7 $8, Some $10) in
+                                               let sync_test = DTest(i, mk_sync_exp i $3 $4 $5 $7 $8, Result $10) in
                                                  sync_test::$11 }
   |                                          { [] }
       
 test_res:
-  | exp                                      { (info_of_exp $1, Some $1) }
-  | ERROR                                    { ($1, None) }
+  | exp                                      { (info_of_exp $1, Result $1) }
+  | ERROR                                    { ($1, ErrorResult) }
+  | QMARK                                    { ($1, PrintResult) }
 
 /* ---------------  bindings --------------- */
 #{@}
@@ -457,7 +461,7 @@ treeelt:
   | STAR excepts_opt EQUAL exp               { EStar (me2 $1 $4,$2,$4) }
   | BANG excepts_opt EQUAL exp               { EBang(me2 $1 $4,$2,$4) }
   | QMARK excepts_opt EQUAL exp              { let i = me2 $1 $4 in 
-						 EUnion(i, [ECat(i,[]); EBang(i,$2,$4)]) }                                                        
+                                                 EUnion(i, [ECat(i,[]); EBang(i,$2,$4)]) }                                                        
   | PLUS excepts_opt EQUAL exp               { let i = me2 $1 $4 in 
                                                  ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
       

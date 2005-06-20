@@ -5,6 +5,7 @@ work with stephane on unison integration
 finish structured text demo (integrate spinelists) after nate's new types
 make Plist a library module and experiment with syncing some real plists
 
+
 NATE TASKS
      NOW
 	  fix meta
@@ -55,6 +56,7 @@ move papers, notes, old, etc. to a separate, private svn repository
 * The Sync module exports a bunch of stuff that looks internal -- is it needed
   by the sync visualizer, perhaps?  Otherwise let's drop it.
 * renaming: hoist becomes hoist_unique
+* some of the options (logfile, addprefsto) don't make sense for Harmony
 
 LENSES
 * find or write external palm to XML parser and writer

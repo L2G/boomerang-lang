@@ -6,7 +6,7 @@
 # $Id$
 
 TOP = ..
-SUBDIRS = ubase
+SUBDIRSCLEANONLY = ubase
 include $(TOP)/Top.Makefile
 
 SRC = $(shell pwd)

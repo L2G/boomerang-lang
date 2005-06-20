@@ -84,10 +84,11 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lenso a' o) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lenso b' o) ba' in
-    Sync.format_without_equal act;
-    ignore (Misc.map_option (write_tree o'_fn) o');
-    ignore (Misc.map_option (write_tree a'_fn) a');
-    ignore (Misc.map_option (write_tree b'_fn) b')
+  Sync.format_without_equal act;
+  Format.print_newline();
+  ignore (Misc.map_option (write_tree o'_fn) o');
+  ignore (Misc.map_option (write_tree a'_fn) a');
+  ignore (Misc.map_option (write_tree b'_fn) b')
 
 (****************************  Command-line switches *******************************)
 
@@ -160,7 +161,7 @@ let usageMsg =
     "usage: harmony get -lens LENS -concrete FILE -output FILE [options]\n"
   ^ "       harmony put -lens LENS -abstract FILE -concrete FILE -output FILE [options]\n"
   ^ "       harmony check -module MODULE [options]\n"
-  ^ "       harmony sync -schema SCHEMA"
+  ^ "       harmony sync -schema SCHEMA\n"
   ^ "               [-archive FILE -lensar LENS] \n"
   ^ "               -replica1 FILE -lensr1 LENS \n"
   ^ "               -replica2 FILE -lensr2 LENS \n"      

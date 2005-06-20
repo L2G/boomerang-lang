@@ -70,10 +70,15 @@ type exp =
 
 and binding = BDef of Info.t * id * param list * sort option * exp
 
+type test_result =
+    Result of exp
+  | ErrorResult
+  | PrintResult
+
 type decl = 
     DLet of Info.t * binding list 
   | DMod of Info.t * id * decl list 
-  | DTest of Info.t * exp * exp option 
+  | DTest of Info.t * exp * test_result
       
 type modl = MDef of Info.t * id * qid list * decl list
 

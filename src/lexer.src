@@ -6,7 +6,8 @@ to white space.
 
 String literals can be any sequence of characters and escape sequences
 enclosed in double-quotes.  The escape sequences @\"@, @\\@, @\b@,
-@\n@, @\r@, and @\t@ stand for the characters double-quote, backslash, backspace, newline,
+@\n@, @\r@, and @\t@ stand for the characters double-quote, backslash,
+backspace, newline, 
 vertical tab, and tab.  To facilitate lining up columns in indented
 string literals, within a string, a newline followed by whitespace and
 then @|@ is equivalent to a single newline. For example, 
@@ -15,12 +16,17 @@ then @|@ is equivalent to a single newline. For example,
         |of 
         |Pennsylvania"
 \end{verbatim}
-is equivalent to 
+is equivalent to  both
 \begin{verbatim}
 "University
 of
 Pennsylvania"
 \end{verbatim}
+and 
+\begin{verbatim}
+"University\nof\nPennsylvania"
+\end{verbatim}
+
 
 \subsection{Identifiers}
 
@@ -40,7 +46,7 @@ and the following keywords and symbols are reserved and are not valid as identif
 \begin{tabular}{llllllllll}
   @and@    & @at@     & @begin@  & @end@    & @error@  & @fun@    & @in@    &
   @lens@   & @let@    & @missing@\\
-  @module@ & @name@   & @open@   & @sync@   & @test@   & @tree@   & @schema@  &
+  @module@ & @name@   & @open@  & @sync@   & @test@   & @tree@   & @schema@  &
   @with@\\
   @->@ & @(@  & @)@  & @;@  & @.@  & @*@  & @!@  & @|@  & @=@  & @{@\\
   @}@  & @[@  & @]@  & @,@  & @:@  & @\@ & @/@  & @,@  & @:@  & @+@\\
@@ -160,7 +166,7 @@ rule main = parse
 | "{"               { LBRACE (info lexbuf) }
 | "}"               { RBRACE (info lexbuf) }
 | "["               { LBRACK (info lexbuf) }
-| "]"       	    { RBRACK (info lexbuf) }
+| "]"               { RBRACK (info lexbuf) }
 | ","               { COMMA (info lexbuf) }
 | ":"               { COLON (info lexbuf) }
 | "\\"              { BACKSLASH (info lexbuf) }
@@ -177,35 +183,35 @@ rule main = parse
                       with Not_found ->
                         IDENT (Syntax.mk_id (info lexbuf) ident) }
 | newline           { newline lexbuf; main lexbuf }
-| eof		    { EOF (info lexbuf) } 
+| eof               { EOF (info lexbuf) } 
 | "# " ['0'-'9']+   { set_lineno (extractLineno (text lexbuf) 2); getFile lexbuf }
 | "(*"              { comment lexbuf; main lexbuf }
-| _		    { error lexbuf "unknown token" }
+| _                 { error lexbuf "unknown token" }
 
 and string = parse
-| "\\"		{ let s = escape lexbuf in s ^ string lexbuf }
-| "\""		{ "" }
+| "\\"          { let s = escape lexbuf in s ^ string lexbuf }
+| "\""          { "" }
 | newline [' ' '\t']* "|" { newline lexbuf; "\n" ^ string lexbuf }
-| newline	{ newline lexbuf; let s = lexeme lexbuf in s ^ string lexbuf }
-| _		{ let s = lexeme lexbuf in s ^ string lexbuf }
-| eof		{ error lexbuf "unmatched '\"'"}
+| newline       { newline lexbuf; let s = lexeme lexbuf in s ^ string lexbuf }
+| _             { let s = lexeme lexbuf in s ^ string lexbuf }
+| eof           { error lexbuf "unmatched '\"'"}
 
 and escape = parse
-| "'"		{ "'" }
-| "\""		{ "\"" }
-| "\\"		{ "\\" }
-| "b"		{ "\008" }
-| "n"		{ "\010" }
-| "r"		{ "\013" }
-| "t"		{ "\009" }
-| eof		{ error lexbuf "EOF when reading escape" }
-| _		{ error lexbuf "unknown escape" }
+| "'"           { "'" }
+| "\""          { "\"" }
+| "\\"          { "\\" }
+| "b"           { "\008" }
+| "n"           { "\010" }
+| "r"           { "\013" }
+| "t"           { "\009" }
+| eof           { error lexbuf "EOF when reading escape" }
+| _             { error lexbuf "unknown escape" }
 
 and comment = parse
 | "(*"             { comment lexbuf; comment lexbuf }
 | "*)"             { () }
 | newline          { newline lexbuf; comment lexbuf }
-| eof		   { error lexbuf "unmatched '(*'" }
+| eof              { error lexbuf "unmatched '(*'" }
 | _                { comment lexbuf }
 
 and getFile = parse

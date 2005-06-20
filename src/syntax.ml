@@ -101,10 +101,15 @@ type exp =
 and binding = BDef of i * id * param list * sort option * exp
 
 (* declarations *)
+type test_result =
+    Result of exp
+  | ErrorResult
+  | PrintResult
+
 type decl = 
     DLet of i * binding list 
   | DMod of i * id * decl list 
-  | DTest of i * exp * exp option 
+  | DTest of i * exp * test_result
       
 (* modules *)
 type modl = MDef of i * id * qid list * decl list
@@ -236,11 +241,12 @@ and string_of_decl = function
        ; string_of_id i
        ; " =\n"]
        @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
-  | DTest(_,e1,e2o) -> Misc.concat_list " "
+  | DTest(_,e1,tr) -> Misc.concat_list " "
       (["test"
        ; string_of_exp e1
        ; "="
-       ; match e2o with None -> "error" | Some e2 -> string_of_exp e2
+       ; match tr with
+         ErrorResult -> "error" | PrintResult -> "?" | Result e2 -> string_of_exp e2
        ])
 
 let id_of_modl (MDef(_,m,_,_)) = m
