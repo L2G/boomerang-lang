@@ -111,11 +111,12 @@ opens:
 
 #{@}
 
-<Decl> ::= \lit{@let@} <BindingList> 
+<Decl> ::= 
+          \lit{@let@} <BindingList> 
      \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
      \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
      \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
-     \alt \lit{@test@} <Exp> \lit{@=@} ?
+     \alt \lit{@test@} <Exp> \lit{@=@} \lit{@?@}
      \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
      \alt \lit{@sync@} \lit{@with@} <AExp> <AExp> <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
 \end{grammar}

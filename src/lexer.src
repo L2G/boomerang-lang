@@ -22,11 +22,13 @@ is equivalent to  both
 of
 Pennsylvania"
 \end{verbatim}
-and 
+(in the leftmost column) and 
 \begin{verbatim}
 "University\nof\nPennsylvania"
 \end{verbatim}
-
+(anywhere).  \finish{One could argue that newlines should be allowed in
+  strings only when followed by |, to eliminate forgot-to-close-string
+  errors.} 
 
 \subsection{Identifiers}
 

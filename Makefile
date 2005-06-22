@@ -33,7 +33,7 @@ export:
 	rm -rf $(TMP)/old
 	rm -rf $(TMP)/notes
 	rm -rf $(TMP)/readings
-	cp $(DOCDIR)/main.pdf $(TMP)/manual.pdf
+	cp $(DOCDIR)/main.pdf $(TMP)/doc/manual.pdf
 	(cd $(TMPDIR); tar cvf - $(EXPORTNAME) \
            | gzip --force --best > $(EXPORTNAME).tar.gz)
 	mv $(TMPDIR)/$(EXPORTNAME).tar.gz $(DOWNLOADDIR)

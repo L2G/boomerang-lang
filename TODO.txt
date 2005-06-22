@@ -8,11 +8,8 @@ make Plist a library module and experiment with syncing some real plists
 NATE TASKS
      NOW
 	  fix meta
-	  
 	  centralize errors
-
 	  eliminate contractiveness tests?
-	  
           add docs to registry.mli and other compiler modules
 	  fix this printing problem:
 	        Native.Prelude.assert(get): view
@@ -23,7 +20,6 @@ NATE TASKS
 	  (1) fix formatting of types (and everything else)
 	  and (2) have member print a better error message pinpointing the 
 	  view and type that made it fail.
-
      LATER
 	make fork and friends take types
 
