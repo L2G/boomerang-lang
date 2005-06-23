@@ -16,6 +16,7 @@ CWD = $(shell pwd)
 
 LENSESDIR = $(CWD)/$(TOP)/lenses
 TOOLSDIR = $(TOP)/tools
+EXTERNDIR = $(CWD)/$(TOP)/extern
 SRCDIR = $(TOP)/src
 DOCDIR = $(TOP)/doc
 

@@ -27,9 +27,16 @@ endif
 tags:
 	etags $(SOURCES)
 
-#######
-# LIB #
-#######
+#################
+# EXTERNAL LIBS #
+#################
+
+INCDIRS = $(EXTERNDIR)/ocaml-csv-1.0.3
+LIBS = csv
+
+#########
+# UBASE #
+#########
 
 UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 
