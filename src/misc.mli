@@ -163,11 +163,15 @@ val in_dir : string -> (unit -> 'a) -> 'a
 val remove_file_or_dir : string -> unit
 (** [remove_file_or_dir s] has the same behaviour as {i rm -rf s}. *)
 
+val read_chan : in_channel -> string
+(** Reads from channel and returns its whole contents as a string. *)
+
 val read : string -> string
 (** Reads a file and returns its contents as a string. *)
 
 val write : string -> string -> unit
-(** [write file s] opens file and erase every previous contents to [s]. If the file did not exist, it is created. *)
+(** [write file s] opens [file] and overwrites its previous contents with [s].
+    If the file did not exist, it is created. *)
 
 val backup : string -> unit
 (** Writes a backup of the filename passed as argument. *)

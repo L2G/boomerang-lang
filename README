@@ -27,6 +27,15 @@ GETTING STARTED
 ---------------
 
 See the Quick Start chapter in the Harmony Programmer's Manual
-(doc/manual.pdf).
+(doc/manual.pdf).  Or, if you want to get started compiling things
+right away and read while that is chugging away, have a look at
+src/INSTALL.
 
-   
+
+MAILING LIST
+------------
+
+Active users of Harmony are encouraged to subscribe to the harmony-hackers
+mailing list by visiting:
+
+    http://lists.seas.upenn.edu/mailman/listinfo/harmony-hackers

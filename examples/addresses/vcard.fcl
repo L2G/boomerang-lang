@@ -1,8 +1,8 @@
 module Vcard =
 
 (* According to http://www.jabber.org/jeps/jep-0054.html, a VCard should start with a version
-   number, then is followed by mandatory FN and N. As every example seem not to have a version,
-   we assume that the first element is a FN. *)
+   number, then is followed by mandatory FN and N. As every actual example we've found on the
+   web seems not to follow this rule, we assume that the first element is a FN. *)
 
 let hoist_optional_pcdata : lens = 
   acond {`Xml.PCDATA = Value} Value
@@ -73,30 +73,30 @@ test l / (load "xml" "<vCard xmlns='vcard-temp'>
                       |  <EMAIL><INTERNET/><PREF/><USERID>alan.schmitt@polytechnique.org</USERID></EMAIL>
                       |</vCard>")
 =
-{"Alan Schmitt" =
-  {N = {FAMILY = {Schmitt}, GIVEN = {Alan}, MIDDLE = {}},
-   contents =
-    {ADR =
-      [{CTRY = {FRANCE},
-        EXTADD = {},
-        HOME = {},
-        LOCALITY = {Grenoble},
-        PCODE = {380000},
-        REGION = {},
-        STREET = {"4, rue de l'Isère"}}],
-     BDAY = [{1974-04-02}],
-     EMAIL =
-      [{INTERNET = {},
-        PREF = {},
-        USERID = {"alan.schmitt@polytechnique.org"}}],
-     NICKNAME = [{brab}],
-     ORG = [{ORGNAME = {"INRIA Rhône-Alpes"}, ORGUNIT = [{}]}],
-     TEL =
-      [{NUMBER = {"+33 (0)4 76 61 54 15"},
-        VOICE = {},
-        WORK = {}},
-       {HOME = {},
-        NUMBER = {"+33 (0)8 71 79 74 00"},
-        VOICE = {}}],
-     TITLE = [{Researcher}],
-     URL = [{"http://sardes.inrialpes.fr/~aschmitt/"}]}}}
+     {"Alan Schmitt" =
+       {N = {FAMILY = {Schmitt}, GIVEN = {Alan}, MIDDLE = {}},
+        contents =
+         {ADR =
+           [{CTRY = {FRANCE},
+             EXTADD = {},
+             HOME = {},
+             LOCALITY = {Grenoble},
+             PCODE = {380000},
+             REGION = {},
+             STREET = {"4, rue de l'Isère"}}],
+          BDAY = [{1974-04-02}],
+          EMAIL =
+           [{INTERNET = {},
+             PREF = {},
+             USERID = {"alan.schmitt@polytechnique.org"}}],
+          NICKNAME = [{brab}],
+          ORG = [{ORGNAME = {"INRIA Rhône-Alpes"}, ORGUNIT = [{}]}],
+          TEL =
+           [{NUMBER = {"+33 (0)4 76 61 54 15"},
+             VOICE = {},
+             WORK = {}},
+            {HOME = {},
+             NUMBER = {"+33 (0)8 71 79 74 00"},
+             VOICE = {}}],
+          TITLE = [{Researcher}],
+          URL = [{"http://sardes.inrialpes.fr/~aschmitt/"}]}}}

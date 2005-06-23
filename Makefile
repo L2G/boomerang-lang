@@ -17,9 +17,9 @@ all: test
 ###########################################################################
 ## Export
 
-TMPDIR=/tmp
-TMP=$(TMPDIR)/harmony
 EXPORTNAME=harmony-$(shell date "+20%y%m%d")
+TMPDIR=/tmp
+TMP=$(TMPDIR)/$(EXPORTNAME)
 DOWNLOADDIR=$(HOME)/pub/harmony/download
 
 export: 

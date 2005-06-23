@@ -2,8 +2,8 @@ THINGS TO DO
 
 BCP TASKS
 work with stephane on unison integration
-finish structured text demo (integrate spinelists) after nate's new types
 make Plist a library module and experiment with syncing some real plists
+move Thang's general concat into List module
 
 NATE TASKS
      NOW
@@ -27,22 +27,20 @@ _________________________________________________________________________
 
 BEFORE BIG RELEASE
 put GPL notice in files
-  and download/read instructions on getting copyright transfer
+  make sure GPL is stated correctly for CSV module
 
 FIRST RELEASE ANNOUNCEMENT LIST
 Penn db group
+Nathan Whitehead
 
 PUBLIC RELEASE ANNOUNCEMENT LIST
 Jerome Simeon
 Alain Frisch
 Peter Buneman
 Tokyo people
+Pascal Molli and group
 Serge Abiteboul
 Srivastava
-
-MAKE MAILING LIST FOR FRIENDS
-Miles Sabin <miles@milessabin.com>
-Geoff
 
 __________________________________________________________________________
 

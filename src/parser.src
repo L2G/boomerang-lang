@@ -86,7 +86,7 @@ enclosed in single quotes, like this: \lit{@module@};
 \item Optional elements are enclosed in square brackets:
   \syntax{[\lit{@:@} <Sort>]};
 \item Terms may be grouped using parentheses;
-\item Repeated repeated elements are specified using \syntax{*} (0 or
+\item Repeated elements are specified using \syntax{*} (0 or
   more) and \syntax{+} (1 or more).
 \end{itemize}
 #{#}
@@ -145,7 +145,8 @@ of a bijective lens: @ test@~$l_1$~@/@~$t_1$~@=@~$t_2$ and
 @test@~$t_1$~@= error@, checks that $t_1$ raises an exception when it
 evaluates $t_1$. This kind of test is uesd to ensure that native
 lenses, such @hoist@, check side conditions on their inputs correctly; for example,
-@ test hoist "n" {} = error@.  
+%
+@test hoist "n" {} = error@.  
 The fourth form, @test@~$t_1$~@=?@, causes Harmony to run the unit test and
 print out the result.
 The final two forms are used to test the behavior of the synchronization algorithm: 

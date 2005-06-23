@@ -1,4 +1,12 @@
-(* First useful use of copy ;-)
+(* A demonstration of the first useful use that we've found of the copy lens!
+
+   (Just a toy proof of concept, because it depends on being able to write a schema
+   that constrains two subtrees to be equal, which is too much for our schema language
+   except in the trivial finite case.  To achieve this effect for real, we'd build in
+   a primitive lens that incorporates this schema.)
+
+                                         -----
+
    When some information needs to be duplicated in an abstract tree
    (for instance a "display name" and the name of a contact in an address
    book entry), this information may already be duplicated and different

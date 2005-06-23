@@ -452,26 +452,36 @@ let rec remove_file_or_dir d =
   end else 
     Sys.remove d
       
+let read_chan chan =
+  let nbytes = in_channel_length chan in
+  let string = String.create nbytes in
+  really_input chan string 0 nbytes;
+  string
+      
 let read file =
-  let chan = open_in file in
-  try
-    let nbytes = in_channel_length chan in
-    let string = String.create nbytes in
-    really_input chan string 0 nbytes;
-    close_in chan;
-    string
-  with exn ->
-    close_in chan;
-    raise exn;;
+  if file = "-" then
+    read_chan stdin
+  else 
+    let chan = open_in file in
+    try
+      let r = read_chan chan in
+      close_in chan;
+      r
+    with exn ->
+      close_in chan;
+      raise exn
       
 let write file s =
-  let chan = open_out file in
-  try
-    output_string chan s;
-    close_out chan
-  with exn ->
-    close_out chan;
-    raise exn;;
+  if file = "-" then
+    output_string stdout s
+  else 
+    let chan = open_out file in
+    try
+      output_string chan s;
+      close_out chan
+    with exn ->
+      close_out chan;
+      raise exn
 
 let tempFileName tag =
   let pid = Unix.getpid() in
