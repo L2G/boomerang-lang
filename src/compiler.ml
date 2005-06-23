@@ -728,7 +728,7 @@ let rec compile_decl cev m di =
 	  in
 	    match vo, res with 
 	      | OK v, PrintResult -> 
-		  V.format_msg [`String "Test result:"; `Space; `Tree v]
+		  V.format_msg [`String "Test result:"; `Space; `Tree v; `Break];
 	      | Error m, PrintResult -> 
 		  V.format_msg [`String "Test result: error"];
                   m()
