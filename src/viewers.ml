@@ -89,15 +89,15 @@ let _ =
   let write_db tr fn =
     Csvdb.save_db fn (Treedb.tree_to_db tr)
   in
-  let etest filename copt = (Misc.filename_extension filename = "csv") in
+  let etest filename copt = true in
   let encoding = {
-    Surveyor.description = "CSV relational table";
+    Surveyor.description = "CSV relational database";
     Surveyor.encoding_test = etest;
     Surveyor.reader = read_db;
     Surveyor.writer = write_db;
   }
   in
-    Surveyor.register_encoding "csv" encoding
+    Surveyor.register_encoding "csvdb" encoding
 
 (******************************************************************************)
 (*                               XML viewer                                   *)
