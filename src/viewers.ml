@@ -77,6 +77,28 @@ let _ =
   in
     Surveyor.register_encoding "csv" encoding
 
+let _ =
+  let rec read_db cd =
+    match cd with
+    | Surveyor.FromString(s) ->
+      raise (Error.Harmony_error (fun () -> 
+        Format.printf "%s" "Cannot view a string as a database"))
+    | Surveyor.FromFile(fn) ->
+        Treedb.db_to_tree (Csvdb.load_db fn)
+  in
+  let write_db tr fn =
+    Csvdb.save_db fn (Treedb.tree_to_db tr)
+  in
+  let etest filename copt = (Misc.filename_extension filename = "csv") in
+  let encoding = {
+    Surveyor.description = "CSV relational table";
+    Surveyor.encoding_test = etest;
+    Surveyor.reader = read_db;
+    Surveyor.writer = write_db;
+  }
+  in
+    Surveyor.register_encoding "csv" encoding
+
 (******************************************************************************)
 (*                               XML viewer                                   *)
 (******************************************************************************)
