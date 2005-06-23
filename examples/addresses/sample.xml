@@ -1,6 +1,4 @@
-<vcard>
-<fn>Full Name</fn>
-</vcard>
+<xcard>
 
 <vcard>
 <n><given>John</given><family>Doe</family></n>
@@ -14,9 +12,4 @@
 </note>
 </vcard>
 
-<vcard>
-<n><given>Mary</given><middle>Jane</middle><family>Doe</family></n>
-<tel-home>(215) 222-5555</tel-home>
-<tel-work>(215) 222-7777</tel-home>
-</vcard>
-
+</xcard>
