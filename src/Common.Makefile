@@ -47,7 +47,8 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                mapplus.mli mapplus.ml \
                name.mli name.ml v.mli v.ml lens.mli lens.ml \
-               relation.mli relation.ml treedb.mli treedb.ml \
+               relation.mli relation.ml \
+	       treedb.mli treedb.ml csvdb.mli csvdb.ml \
                surveyor.mli surveyor.ml \
                syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
                value.mli value.ml schema.mli schema.ml \

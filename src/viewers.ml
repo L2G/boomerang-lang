@@ -48,6 +48,36 @@ let _ =
     Surveyor.register_encoding "blob" encoding
 
 (******************************************************************************)
+(*                               CSV viewers                                  *)
+(******************************************************************************)
+
+let _ =
+  let rec read_tbl cd =
+    match cd with
+    | Surveyor.FromString(s) ->
+        let (fn, ouch) = Filename.open_temp_file "harmony" ".csv" in
+        output_string ouch s;
+        close_out ouch;
+        let x = read_tbl (Surveyor.FromFile(fn)) in
+        Sys.remove fn;
+        x
+    | Surveyor.FromFile(fn) ->
+        Treedb.rel_to_tree (Csvdb.load_tbl fn)
+  in
+  let write_tbl tr fn =
+    Csvdb.save_tbl fn (Treedb.tree_to_rel tr)
+  in
+  let etest filename copt = (Misc.filename_extension filename = "csv") in
+  let encoding = {
+    Surveyor.description = "CSV relational table";
+    Surveyor.encoding_test = etest;
+    Surveyor.reader = read_tbl;
+    Surveyor.writer = write_tbl;
+  }
+  in
+    Surveyor.register_encoding "csv" encoding
+
+(******************************************************************************)
 (*                               XML viewer                                   *)
 (******************************************************************************)
 open Pxp_document

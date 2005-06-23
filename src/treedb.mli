@@ -1,4 +1,4 @@
-(** A module for embedding relational databases into trees. *)
+(** A module for converting trees to and from relational databases. *)
 
 (** Relational databases are values of type [Relation.t Map.Make(String).t]. *)
 
