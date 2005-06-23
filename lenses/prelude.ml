@@ -62,7 +62,7 @@ let _ = register_native read_qid "name -> name" read_lib
 let load_qid = "Native.Prelude.load"
 let load ekey blob = 
   let ekey = Surveyor.get_ekey (Some ekey) "" (Some blob) in
-    (Surveyor.get_reader ekey) blob
+    (Surveyor.get_reader ekey) (Surveyor.FromString blob)
 let load_lib =
   mk_nfun "name -> tree" load_qid
   (fun ekey -> mk_nfun "tree" load_qid

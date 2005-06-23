@@ -3,23 +3,6 @@ open Syntax
 open Registry
 open Value
 
-(* Tree freezing *)
-let freeze =
-  let getfun c =
-    V.new_value (Surveyor.get_writer "meta" c)
-  and putfun a co =
-    Surveyor.get_reader "meta" (V.get_value a)
-  in
-  Lens.native getfun putfun
-
-let () = register_native "Native.freeze" "lens" (L(freeze))
-
-(*
-(* Bush making *)
-let makebush =
-  let getfun c =
-*)
-
 (* List sorting *)
 let listsort =
   let getfun c =

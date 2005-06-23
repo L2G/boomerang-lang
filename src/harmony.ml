@@ -31,8 +31,7 @@ let read_tree fn =
 let write_tree fn v = 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
-  let v_str = (Surveyor.get_writer ekey) v in    
-    Misc.write fn v_str
+  (Surveyor.get_writer ekey) v fn  
 
 (*********)
 (* CHECK *)
@@ -78,12 +77,12 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let lensa = lookup_lens lensa in 
   let lensb = lookup_lens lensb in         
   let oa = Misc.map_option (Lens.get lenso) o in
-  let aa = Misc.map_option (Lens.get lenso) a in
-  let ba = Misc.map_option (Lens.get lenso) b in
+  let aa = Misc.map_option (Lens.get lensa) a in
+  let ba = Misc.map_option (Lens.get lensb) b in
   let (act, oa', aa', ba') = Sync.sync s oa aa ba in
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
-  let a' = Misc.map_option (fun a' -> Lens.put lenso a' o) aa' in
-  let b' = Misc.map_option (fun b' -> Lens.put lenso b' o) ba' in
+  let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
+  let b' = Misc.map_option (fun b' -> Lens.put lensb b' b) ba' in
   Sync.format_without_equal act;
   Format.print_newline();
   ignore (Misc.map_option (write_tree o'_fn) o');

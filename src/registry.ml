@@ -82,6 +82,10 @@ let paths = Prefs.createStringList
   "Focal modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources."
 let _ = Prefs.alias paths "I"
   
+let focalpath =
+  try Util.splitIntoWords (Unix.getenv "FOCALPATH") ':'
+  with Not_found -> []
+
 let find_filename fn = 
   let rec loop ds = match ds with
     | []    -> None
@@ -90,7 +94,7 @@ let find_filename fn =
 	  if (Sys.file_exists full_fn) then Some full_fn
 	  else loop drest
   in
-    loop (Prefs.read paths)
+    loop ((Prefs.read paths) @ focalpath)
       
 (* load modules dynamically *)
 (* backpatch hack *)

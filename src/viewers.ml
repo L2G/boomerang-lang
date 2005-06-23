@@ -25,8 +25,8 @@ let _ =
   let encoding = {
     Surveyor.description = "ASCII tree format";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = metareader;
-    Surveyor.writer = metawriter;
+    Surveyor.reader = Surveyor.simple_reader metareader;
+    Surveyor.writer = Surveyor.simple_writer metawriter;
   }
   in
     Surveyor.register_encoding "meta" encoding
@@ -41,8 +41,8 @@ let _ =
   let encoding = {
     Surveyor.description = "one-big-blob format";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = (fun s -> V.new_value s);
-    Surveyor.writer = (fun s -> V.get_value s);
+    Surveyor.reader = Surveyor.simple_reader (fun s -> V.new_value s);
+    Surveyor.writer = Surveyor.simple_writer (fun s -> V.get_value s);
   }
   in
     Surveyor.register_encoding "blob" encoding
@@ -217,8 +217,8 @@ let _ =
   let encoding = {
     Surveyor.description = "XML";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = xmlreader;
-    Surveyor.writer = xmlwriter;
+    Surveyor.reader = Surveyor.simple_reader xmlreader;
+    Surveyor.writer = Surveyor.simple_writer xmlwriter;
   }
   in
   Surveyor.register_encoding "xml" encoding

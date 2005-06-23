@@ -3,12 +3,24 @@ type encoding_key = string
 type filename = string
 type contents = string
 type encoding_test = filename -> contents option -> bool
+
+type content_desc =
+    FromString of string
+  | FromFile of string
+
 type encoding = {
   description: string;               (** "long" description *)
   encoding_test: encoding_test;      (** id function *)
-  reader: string -> V.t;             (** reads data in the given encoding *)
-  writer: V.t -> string;             (** writes data to the given encoding *)
+  reader: content_desc -> V.t;       (** reads data in the given encoding *)
+  writer: V.t -> string -> unit;     (** writes data to the specified file *)
 }
+
+let simple_reader f c =
+  match c with
+    FromString s -> f s
+  | FromFile s -> f (Misc.read s)
+
+let simple_writer f v filename = Misc.write filename (f v)
 
 (* An encoding-keyed map. *)
 module EncodingKey : Map.OrderedType with type t = encoding_key =
@@ -70,6 +82,6 @@ let get_ekey eko fn contents_opt =
 
 let tree_of_file fn reader = 
   if Sys.file_exists fn then
-    Some (Util.convertUnixErrorsToFatal "Harmony" ( fun () -> reader (Misc.read fn)))
+    Some (Util.convertUnixErrorsToFatal "Harmony" ( fun () -> reader (FromFile fn)))
   else
     None
