@@ -1,6 +1,6 @@
 let read_file fname =
   let ch = open_in fname in
-  ICalendar.read (fun () -> input_char)
+  ICalendar.read (fun () -> input_char ch)
 in
 let res = read_file Sys.argv.(1) in
 if ICalendar_syntax.validate_icalendar res then
