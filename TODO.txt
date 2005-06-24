@@ -1,9 +1,16 @@
 THINGS TO DO
 
 BCP TASKS
+check that CSV files are working
+write lens for converting CSV addrbook to abstract addrbook
+see if augmented cvs files can be written as well as read
 work with stephane on unison integration
 make Plist a library module and experiment with syncing some real plists
 move Thang's general concat into List module
+assertion failure should print a line number
+  - make native assert function take a string arg
+  - make parser recognize assert keyword specially and supply fileinfo
+    as string
 
 NATE TASKS
      NOW

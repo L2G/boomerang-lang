@@ -10,8 +10,8 @@ include $(TOP)/Top.Makefile
 
 all: test
 
-test::
-	$(HARMONY) check -module Vcard -test-all
+test:: buildharmony
+	$(HARMONY) check -module Addr -test-all
 
 DEMOFILES = a.xml b.xml o.xml
 

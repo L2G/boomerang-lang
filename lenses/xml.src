@@ -40,21 +40,33 @@ that denote the special tags used by the XML viewer.
 
 \LENSSECTION{Pcdata, XmlElt, T}
 The encoding of XML described above is expressed by the following schemas: 
-#*let Pcdata : schema = {`PCDATA = Value}
+#*let Pcdata : schema = {`PCDATA = NonNullValue}
 #*let XmlElt : schema = {!\PCDATA = {`CHILDREN = T,             (* subelts *)
 #*                                   *\`CHILDREN = Value }}     (* attrs *)
 #*                      | Pcdata
 #*and T : schema = List.T XmlElt
+(Note that the value under @PCDATA@ is never the empty string: our XML
+parser throws away whitespace-only character sequences, so they never show
+up as PCDATA.)
 
 \subsection{Lenses}
+
+\LENSSECTION{hoist_pcdata} The @hoist_pcdata@ lens behaves almost like @hoist
+PCDATA@, but also handles the case where the whole tree is empty
+(corresponding to a null @PCDATA@ at this point).
+#*let hoist_pcdata : lens = 
+#*  acond Pcdata NonNullValue
+#*    (hoist PCDATA)
+#*    (const {""} {})
 
 \LENSSECTION{flatten}
 The @flatten@ lens for XML is a generalized version of @List.flatten@.  It removes
 all the ordering from an XML structure, leaving a ``bush'' of schema
-@FlattenedXML@: 
+@FlattenedXML@: \finish{some instances of @Value@ should be @NonNullValue@
+  for PCDATA in the rest}
 #{*}
 let ATTRS : name = "@attrs"
-let FlattenedXML : schema = { ?`PCDATA = (List.T Value),
+let FlattenedXML : schema = { ?`PCDATA = (List.T NonNullValue),
                               ?`ATTRS = {!=Value,*=Value},
                               *\`PCDATA,`ATTRS = (List.T FlattenedXML) }
 #{@}

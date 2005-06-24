@@ -89,7 +89,7 @@ let _ =
   let write_db tr fn =
     Csvdb.save_db fn (Treedb.tree_to_db tr)
   in
-  let etest filename copt = true in
+  let etest filename copt = false in
   let encoding = {
     Surveyor.description = "CSV relational database";
     Surveyor.encoding_test = etest;

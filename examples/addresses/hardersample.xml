@@ -1,4 +1,20 @@
 <vcard>
+<n><given>John</given><family>Doe</family></n>
+</vcard>
+
+<vcard>
+<n><family>Jones family</family></n>
+<note>
+  An interesting indented
+  note on two lines
+</note>
+</vcard>
+
+<vcard>
+<n><family>Last</family></n>
+</vcard>
+
+<vcard>
 <fn>Full Name</fn>
 </vcard>
 

@@ -201,9 +201,9 @@ let assert_native t =
     if (not (Prefs.read no_assert))
       && (not (Schema.member v t)) 
     then
-      error [`String (assert_qid^"(" ^ dir ^ "): tree");
-	     `Tree v;
-	     `String "is not a member of "; 
+      error [`String (assert_qid^"(" ^ dir ^ "): tree"); `Space;
+	     `Tree v; `Space;
+	     `String "is not a member of";  `Space;
 	     `String (Schema.string_of_t t)] 
   in          
     { get = ( fun c -> check_assert "get" c t; c);

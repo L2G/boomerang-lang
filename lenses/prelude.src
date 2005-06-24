@@ -33,6 +33,10 @@ The schema @Value@ describes trees with just one child pointing to an empty
 tree:
 #*let Value : schema = KeyedTree {}
 
+\LENSSECTION{NonNullValue}
+The schema @NonNullValue@ describes all values except @{""}@:
+#*let NonNullValue : schema = {!\""={}}
+
 \subsection{Generic Lenses}
 
 \LENSSECTION{id}
