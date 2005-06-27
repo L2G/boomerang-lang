@@ -6,7 +6,7 @@
 # $Id$
 
 TOP = ..
-SUBDIRSCLEANONLY = ubase
+SUBDIRSCLEANONLY = ubase iCalendar
 include $(TOP)/Top.Makefile
 
 SRC = $(shell pwd)

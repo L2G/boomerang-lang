@@ -40,6 +40,15 @@ LIBS = csv
 
 UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 
+#############
+# ICALENDAR #
+#############
+
+ICALENDAR_SOURCES = iCalendar/iCalendar_syntax.ml iCalendar/iCalendar_print.ml \
+                 iCalendar/iCalendar_lextypes.ml iCalendar/iCalendarparse.mly  \
+		 iCalendar/iCalendarlex.mll iCalendar/iCalendar.mli \
+		 iCalendar/iCalendar.ml iCalendar/myCal.ml
+
 #########################
 # BASE/COMPILER SOURCES #
 #########################
@@ -56,7 +65,9 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
 	       sync.mli sync.ml \
                compiler.mli compiler.ml
 
-VIEWER_SOURCES = metay.mly metal.mll viewers.ml
+VIEWER_SOURCES = metay.mly metal.mll \
+		 $(ICALENDAR_SOURCES) \
+		 viewers.ml
 
 ###########
 # PLUGINS #

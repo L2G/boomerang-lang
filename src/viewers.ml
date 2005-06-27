@@ -274,3 +274,36 @@ let _ =
   }
   in
   Surveyor.register_encoding "xml" encoding
+
+(******************************************************************************)
+(*                              iCalendar viewer                              *)
+(******************************************************************************)
+
+let chars_from_str s =
+  let len = String.length s in
+  let cur_pos = ref 0 in
+  let get_char () =
+    let pos = !cur_pos in
+    if pos = len then raise End_of_file;
+    incr cur_pos;
+    s.[pos]
+  in
+  get_char
+
+let iCalReader =
+  (fun s -> MyCal.view_from_icalendar (ICalendar.read (chars_from_str s)))
+
+let iCalWriter = 
+  (fun ic -> ICalendar.tostring 
+      ICalendar_print.print_icalendar (MyCal.icalendar_from_view ic))
+
+let _ =
+  let etest filename copt = Misc.filename_extension filename = "ics" in
+  let encoding = {
+    Surveyor.description = "iCalendar";
+    Surveyor.encoding_test = etest;
+    Surveyor.reader = Surveyor.simple_reader iCalReader;
+    Surveyor.writer = Surveyor.simple_writer iCalWriter;
+  } 
+  in
+  Surveyor.register_encoding "ical" encoding

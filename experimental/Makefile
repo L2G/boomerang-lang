@@ -5,7 +5,7 @@
 
 # $Id$ 
 
-SUBDIRSCLEANONLY = bookmarks Concat Vcard VCF demo structuredtext
+SUBDIRSCLEANONLY = bookmarks Concat Vcard VCF demo structuredtext iCalendar
 
 TOP = ..
 include $(TOP)/Top.Makefile
