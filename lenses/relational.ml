@@ -46,18 +46,52 @@ let register_binary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> lens"
     (make_binary_lib fclname (lift_binary dblens))
 
+let schemas_to_bias_fun fclname sl sr rcd =
+  let tr = Treedb.rcd_to_tree rcd in
+  let l = Schema.member tr sl
+  and r = Schema.member tr sr in
+  if l && r then Rlens.Both
+  else if l then Rlens.Left
+  else if r then Rlens.Right
+  else Lens.error
+    [ `String(fclname^":")
+    ; `Space; `String("schemas provided do not include")
+    ; `Space; `Tree(tr)
+    ]
+
+let register_schema_schema_binary_dblens fclname dblens =
+  register_native fclname "schema -> schema -> name -> name -> name -> lens" (
+    mk_tfun "schema -> name -> name -> name -> lens" fclname (
+      fun s1 -> mk_tfun "name -> name -> name -> lens" fclname (
+        fun s2 -> make_binary_lib fclname (
+          lift_binary (dblens (schemas_to_bias_fun fclname s1 s2))))))
+
 let register_tree_tree_binary_dblens fclname dblens =
   register_native fclname "tree -> tree -> name -> name -> name -> lens" (
     mk_vfun "tree -> name -> name -> name -> lens" fclname 
-      (fun v1 -> mk_vfun "name -> name -> name -> lens" fclname
-	 (fun v2 -> make_binary_lib fclname (lift_binary (dblens v1 v2))))
+      (fun t1 -> mk_vfun "name -> name -> name -> lens" fclname
+	 (fun t2 -> make_binary_lib fclname (lift_binary (dblens t1 t2))))
   )
 
+let () =
+  register_schema_schema_binary_dblens
+    "Native.Relational.union" Dblens.union
+
+let () =
+  register_schema_schema_binary_dblens
+    "Native.Relational.inter" Dblens.inter
+
+let () =
+  register_schema_schema_binary_dblens
+    "Native.Relational.diff" Dblens.diff
+
 (* Union *)
+(*
 let () = register_binary_dblens "Native.Relational.union" Dblens.union
 let () = register_binary_dblens "Native.Relational.unionl" Dblens.unionl
 let () = register_binary_dblens "Native.Relational.unionr" Dblens.unionr
-
+*)
+    (*
 (* Intersection *)
 let () = register_binary_dblens "Native.Relational.inter" Dblens.inter
 let () = register_binary_dblens "Native.Relational.interl" Dblens.interl
@@ -67,12 +101,19 @@ let () = register_binary_dblens "Native.Relational.interr" Dblens.interr
 let () = register_binary_dblens "Native.Relational.diff" Dblens.diff
 let () = register_binary_dblens "Native.Relational.diffl" Dblens.diffl
 let () = register_binary_dblens "Native.Relational.diffr" Dblens.diffr
+    *)
 
+    (*
 (* Join *)
 let () = register_binary_dblens "Native.Relational.join" Dblens.join
 let () = register_binary_dblens "Native.Relational.joinl" Dblens.joinl
 let () = register_binary_dblens "Native.Relational.joinr" Dblens.joinr
+*)
+let () =
+  register_schema_schema_binary_dblens
+    "Native.Relational.ijoin" Dblens.ijoin
 
+    (*
 (* Outer join *)
 let () =
   register_tree_tree_binary_dblens "Native.Relational.ojoin" (
@@ -89,6 +130,34 @@ let () =
     fun dv1 dv2 ->
       Dblens.ojoinr (Treedb.tree_to_rel dv1) (Treedb.tree_to_rel dv2)
   )
+*)
+
+let () =
+  let fclname = "Native.Relational.ojoin" in
+  register_native fclname
+  "tree -> tree -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" (
+    mk_vfun
+    "tree -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
+      fun t1 ->
+        mk_vfun
+        "schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
+          fun t2 ->
+            mk_tfun "schema -> schema -> schema -> name -> name -> name -> lens" fclname (
+              fun s1 ->
+                mk_tfun "schema -> schema -> name -> name -> name -> lens" fclname (
+                  fun s2 ->
+                    mk_tfun "schema -> name -> name -> name -> lens" fclname (
+                      fun s3 ->
+                        mk_tfun "name -> name -> name -> lens" fclname (
+                          fun s4 -> make_binary_lib fclname (
+                            lift_binary (
+                              Dblens.ojoin
+                                (Treedb.tree_to_rel t1)
+                                (Treedb.tree_to_rel t2)
+                                (fun r -> Schema.member (Treedb.rcd_to_tree r) s1)
+                                (fun r -> Schema.member (Treedb.rcd_to_tree r) s2)
+                                (schemas_to_bias_fun fclname s3 s4)
+                            )))))))))
 
 
 (* Unary relational lenses *)
@@ -116,6 +185,13 @@ let register_name_name_unary_dblens fclname dblens =
 	 (fun n2' -> make_unary_lib fclname (lift_unary (dblens n1' n2'))))
   )
 
+let register_schema_unary_dblens fclname dblens =
+  register_native fclname "schema -> name -> name -> lens" (
+    mk_tfun "name -> name -> lens" fclname (
+      fun s -> make_unary_lib fclname (
+        lift_unary (dblens (
+          fun rcd -> (Schema.member (Treedb.rcd_to_tree rcd)) s)))))
+
 let register_tree_tree_tree_unary_dblens fclname dblens =
   register_native fclname "tree -> tree -> tree -> name -> name -> lens" (
     mk_vfun "tree -> tree -> name -> name -> lens" fclname 
@@ -131,7 +207,7 @@ let () =
 
 (* Select *)
 let () =
-  register_name_name_unary_dblens
+  register_schema_unary_dblens
     "Native.Relational.select" Dblens.select
 let () =
   register_name_name_unary_dblens

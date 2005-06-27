@@ -7,8 +7,11 @@ module R = Relation
 
 type bias = Left | Right | Both
 
-let take_dir d f x r =
-  if f x = d || f x = Both then R.insert x r else r
+let incl_left b rcd =
+  b rcd = Left || b rcd = Both
+
+let incl_right b rcd =
+  b rcd = Right || b rcd = Both
 
 let ( ||~ ) = R.union
 let ( &&~ ) = R.inter
@@ -97,19 +100,15 @@ let rename m n =
 
 (* Union *)
 
-let generic_union f =
+let union b =
   let getfun (c1, c2) =
     c1 ||~ c2
   and putfun a co =
     let rev_union (c1, c2) =
-      let free_agents = a --~ (c1 ||~ c2) in
-      let left = R.fold
-        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
-      let right = R.fold
-        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
-      let both = R.fold
-        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
-      ((a &&~ c1) ||~ left ||~ both, (a &&~ c2) ||~ right ||~ both)
+      let additions = a --~ (c1 ||~ c2) in
+      let left = rel_select (incl_left b) additions
+      and right = rel_select (incl_right b) additions in
+      ((a &&~ c1) ||~ left, (a &&~ c2) ||~ right)
     in
     match co with
     | None -> let empty = R.create (R.fields a) in rev_union (empty, empty)
@@ -119,19 +118,15 @@ let generic_union f =
 
 (* Intersection *)
 
-let generic_inter f =
+let inter b =
   let getfun (c1, c2) =
     c1 &&~ c2
   and putfun a co =
     let rev_inter (c1, c2) =
-      let free_agents = (c1 &&~ c2) --~ a in
-      let left = R.fold
-        (take_dir Left f) free_agents (R.create (R.fields free_agents)) in
-      let right = R.fold
-        (take_dir Right f) free_agents (R.create (R.fields free_agents)) in
-      let both = R.fold
-        (take_dir Both f) free_agents (R.create (R.fields free_agents)) in
-      ((a ||~ c1) --~ (left ||~ both), (a ||~ c2) --~ (right ||~ both))
+      let deletions = (c1 &&~ c2) --~ a in
+      let left = rel_select (incl_left b) deletions
+      and right = rel_select (incl_right b) deletions in
+      ((a ||~ c1) --~ left, (a ||~ c2) --~ right)
     in
     match co with
     | None -> let empty = R.create (R.fields a) in rev_inter (empty, empty)
@@ -141,17 +136,15 @@ let generic_inter f =
 
 (* Difference *)
 
-let generic_diff f =
+let diff b =
   let getfun (c1, c2) =
     c1 --~ c2
   and putfun a co =
-    let empty_abs = R.create (R.fields a) in
     let rev_diff (c1, c2) =
       let deletions = (c1 --~ c2) --~ a in
-      let left = R.fold (take_dir Left f) deletions empty_abs in
-      let right = R.fold (take_dir Right f) deletions empty_abs in
-      let both = R.fold (take_dir Both f) deletions empty_abs in
-      ((a ||~ c1) --~ (left ||~ both), (c2 --~ a) ||~ (right ||~ both))
+      let left = rel_select (incl_left b) deletions
+      and right = rel_select (incl_right b) deletions in
+      ((a ||~ c1) --~ left, (c2 --~ a) ||~ right)
     in
     match co with
     | None -> let empty = R.create (R.fields a) in rev_diff (empty, empty)
@@ -162,7 +155,7 @@ let generic_diff f =
 (* Selection *)
 
 (* general predicate on records *)
-let generic_select p =
+let select p =
   let getfun c =
     rel_select p c
   and putfun a co =
@@ -210,7 +203,7 @@ let project p q d =
 
 (* Inner Join *)
 
-let generic_join f =
+let ijoin b =
   let getfun (c1, c2) =
     c1 **~ c2
   and putfun a co =
@@ -247,11 +240,11 @@ let generic_join f =
       in
       let del_left =
         (* records that should be removed from the left concrete table *)
-        ((R.fold (take_dir Left f) deletions empty_abs) >>~ lflds) ||~
+        ((rel_select (incl_left b) deletions) >>~ lflds) ||~
           (mod_left **~ c1)
       and del_right =
         (* records that should be removed from the right concrete table *)
-        ((R.fold (take_dir Right f) deletions empty_abs) >>~ rflds) ||~
+        ((rel_select (incl_right b) deletions) >>~ rflds) ||~
           (mod_right **~ c2) in
       ((c1 --~ del_left) ||~ add_left,
        (c2 --~ del_right) ||~ add_right)
@@ -264,7 +257,7 @@ let generic_join f =
 
 (* Outer Join *)
 
-let generic_ojoin dl dr b =
+let ojoin dl dr pl pr b =
   let ( ***~ ) = outer_join dl dr in
   let getfun (c1, c2) =
     c1 ***~ c2
@@ -280,16 +273,19 @@ let generic_ojoin dl dr b =
       in
       let may_add_left = additions &&~ ((additions >>~ rflds) **~ dr)
       and may_add_right = additions &&~ ((additions >>~ lflds) **~ dl) in
+      let must_add_one = may_add_left &&~ may_add_right in
       let must_add_left = additions --~ may_add_left
       and must_add_right = additions --~ may_add_right in
       let add_left =
         (* records that should be added to the left concrete table *)
         (must_add_left ||~
-          (R.fold (take_dir Left b) may_add_left empty_abs)) >>~ lflds
+          ((rel_select pl may_add_left) ||~
+            (rel_select (incl_left b) must_add_one))) >>~ lflds
       and add_right =
         (* records that should be added to the right concrete table *)
         (must_add_right ||~
-          (R.fold (take_dir Right b) may_add_right empty_abs)) >>~ rflds
+          ((rel_select pr may_add_right) ||~
+            (rel_select (incl_right b) must_add_one))) >>~ rflds
       in
       ((c1 &&~ (a >>~ lflds)) ||~ add_left,
        (c2 &&~ (a >>~ rflds)) ||~ add_right)

@@ -22,25 +22,30 @@ personal contacts or the type "prof" for professional contacts.
     }
 
 (*
-We write a lents that will perform an outer join on the tables while renaming
+We write a lens that will perform an outer join on the tables while renaming
 some fields so that the join will be performed on the correct fields.  (It
 will be performed on the fields with the same names.)  We will parameterize it
-on the outer join lens because there are three basic flavors that we may want
-to try out.
+on the outer join lens because there are multiple versions of outer join that
+control the behavior in the PUT direction.
 *)
 
-    let l1 (outer_join : tree -> tree -> name -> name -> name -> lens) : lens =
+    let l (outer_join : name -> name -> name -> lens) : lens =
     Relational.rename "type" "tp" "email_addr" "email_addr";
     Relational.rename "nm" "fname" "phone_num" "phone_num";
-    outer_join [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
-        "email_addr" "phone_num" "contacts"
+    outer_join "email_addr" "phone_num" "contacts"
+
+    let oj1 (r : name) (s : name) (t : name) : lens =
+        Relational.ojoin
+            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
+            Any Any Any Any
+            r s t
 
 (*
-Applying "l1" with any version of "ojoin" will give us the following abstract
+Applying "l" with any version of "ojoin" will give us the following abstract
 database.
 *)
 
-    let a1 : tree =
+    let a : tree =
     { contacts =
         [ { fname = {"Dave"}
           , email = {""}
@@ -81,24 +86,26 @@ database.
         ]
     }
 
-test l1 Relational.ojoin / c = a1
+test l oj1 / c = a
 
 (*
 We can write another lens to operate on the resulting database.
 *)
 
-    let l2 : lens =
-    Relational.select "type" "cell" "contacts" "contacts_with_cell_phone";
+    let l' : lens =
+    Relational.select
+        {fname=Any,email=Any,ph=Any,type={"cell"},tp=Any}
+        "contacts" "contacts_with_cell_phone";
     Relational.project {"fname", "email", "ph"} {"fname"}
         [{type={"cell"},tp={"prof"}}]
         "contacts_with_cell_phone" "email_and_cell"
 
 (*
 This abstract database will be achieved by apply the composition of the lenses
-"l1" and "l2".
+"l" and "l'".
 *)
 
-    let a2 : tree =
+    let a1 : tree =
     { email_and_cell =
         [ { fname = {"Ellen"}, email = {""},          ph = {"567-890-1234"} }
         , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"} }
@@ -107,14 +114,16 @@ This abstract database will be achieved by apply the composition of the lenses
         ]
     }
 
-test l1 Relational.ojoin; l2 / c = a2
+    let l1 : lens = l oj1; l'
+
+test l1 / c = a1
 
 (*
 We may now want to edit the abstract database by adding, deleting, and
 modifying some records.
 *)
 
-    let a2' : tree =
+    let a1' : tree =
     { email_and_cell =
         [ { fname = {"Greta"}, email = {""},          ph = {"789-012-3456"} }
         , { fname = {"Henry"}, email = {""},          ph = {""}             }
@@ -131,7 +140,7 @@ The database below shows the concrete database that has been updated according
 to the modifications in the abstract database.
 *)
 
-    let c2' : tree =
+    let c1' : tree =
     { email_addr =
         [ { fname = {"Greta"}, email = {""},          type = {"prof"} }
         , { fname = {"Henry"}, email = {""},          type = {"prof"} }
@@ -155,10 +164,132 @@ to the modifications in the abstract database.
         ]
     }
 
-test l1 Relational.ojoin; l2 \ a2' c = c2'
+test l1 \ a1' c = c1'
 
 (*
 We may notice that Greta and Henry were added to the email_addr relation even
-though they were given no email address in the abstract database.
+though they were given no email address in the abstract database, while Fred
+and Henry were added to the phone_num relation even though they were given no
+phone number.  This behavior may be controlled by changing the parameters to
+the outer join.
 *)
+
+    let oj3 (r : name) (s : name) (t : name) : lens =
+        Relational.ojoin
+            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
+            {} {} Any Any
+            r s t
+
+    let l3 : lens = l oj3; l'
+
+test l3 / c = l oj1; l' / c
+
+    let a2' : tree = a1'
+
+    let c2' : tree =
+    { email_addr =
+        [ { fname = {"Henry"}, email = {""},          type = {"prof"} }
+        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
+        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
+        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
+        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
+        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
+        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+        ]
+    , phone_num =
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
+        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
+        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
+        , { nm = {"Henry"}, ph = {""},             type = {"cell"} }
+        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        ]
+    }
+
+test l3 \ a2' c = c2'
+
+(* The entry for Henry remains because he was given default values for the
+entries in both tables.  The behavior in the case of such additions is
+controlled by the 5th and 6th parameters to ojoin.  However, the union of
+these two schema must cover all possible additions, since the entry for Henry
+must appear in one table or the other. *)
+
+    let oj4 (r : name) (s : name) (t : name) : lens =
+        Relational.ojoin
+            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
+            {} {} Any {}
+            r s t
+
+    let l4 : lens = l oj4; l'
+
+test l4 / c = l oj1; l' / c
+
+    let a3' : tree = a1'
+
+    let c3' : tree =
+    { email_addr =
+        [ { fname = {"Henry"}, email = {""},          type = {"prof"} }
+        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
+        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
+        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
+        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
+        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
+        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+        ]
+    , phone_num =
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
+        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
+        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
+        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        ]
+    }
+
+test l4 \ a3' c = c3'
+
+(* However, one must note that Henry may still be added to the phone_num table
+based upon the fourth argument to ojoin, even if the record would not be added
+due to the sixth argument.*)
+
+    let oj5 (r : name) (s : name) (t : name) : lens =
+        Relational.ojoin
+            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
+            {} Any Any {}
+            r s t
+
+    let l5 : lens = l oj5; l'
+
+test l5 / c = l oj1; l' / c
+
+    let a4' : tree = a1'
+
+    let c4' : tree =
+    { email_addr =
+        [ { fname = {"Henry"}, email = {""},          type = {"prof"} }
+        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
+        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
+        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
+        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
+        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
+        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+        ]
+    , phone_num =
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
+        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
+        , { nm = {"Fred"},  ph = {""},             type = {"cell"} }
+        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
+        , { nm = {"Henry"}, ph = {""},             type = {"cell"} }
+        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        ]
+    }
+
+test l5 \ a4' c = c4'
+
 

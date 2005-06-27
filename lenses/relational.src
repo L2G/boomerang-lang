@@ -5,11 +5,10 @@
 
 \subsection{Encoding} 
 
-Relational data is built from
-\emph{records}, which are (unordered) mappings from names to data values, and
-\emph{relations}, which are (unordered) sets of records with identical
-domains.  In Focal, we work with relations that are encoded as
-trees.  We encode data values as singleton trees and records as a 
+Relational data is built from \emph{records}, which are (unordered) mappings
+from names to data values, and \emph{relations}, which are (unordered) sets of
+records with identical domains.  In Focal, we work with relations that are
+encoded as trees.  We encode data values as singleton trees and records as a
 tree whose domain is identical to that of the record.  Here is an example of a
 record encoded as a tree: $$ @{ A = {1}, B = {2}, C = {5} }@ $$ We have chosen
 to encode relations as lists of records.  The lists of records produced by
@@ -57,6 +56,7 @@ represented by the tree under the name @r@ (resp. @s@ and @t@).
 %%    D,E,F  relations
 %%    P,Q    trees that provide sets of names
 
+
 \LENSSECTION{rename}
 The lens @rename a b r s@ renames the field @a@ to @b@ in the relation named
 @r@ and replaces it with an updated relation under the name @s@.  The \PUT{}
@@ -74,13 +74,12 @@ test rename "A" "B" "R" "S" / \
 
 
 \LENSSECTION{select}
-The lens @select a x r s@ selects the records in @r@ for which the field
-@a@ has the value @x@.
+The lens @select T r s@ selects the records in @r@ that are in the schema @T@.
 
-##let select : (name -> name -> name -> name -> lens) = Native.Relational.select
+##let select : (schema -> name -> name -> lens) = Native.Relational.select
 
 #{*}
-test select "A" "1" "R" "S" /
+test select {A = {1}, C = Any} "R" "S" /
        {R = [{A = {1}, C = {2}},
              {A = {3}, C = {4}}]}
      = {S = [{A = {1}, C = {2}}]}
@@ -90,7 +89,7 @@ field @a@ has the value @x@.  These records are combined with the
 records from the concrete tree, in which a value other than @x@ may appear in
 the field @a@.
 #{*}
-test select "A" "1" "R" "S" \
+test select {A = {1}, C = Any} "R" "S" \
        {S = [{A = {1}, C = {8}},
              {A = {1}, C = {9}}]}
        {R = [{A = {1}, C = {2}},
@@ -180,17 +179,18 @@ test project {A, C} {A} [{B = {7}}] "R" "S" \
 The behavior is not specified if the set of key fields given is not
 actually a key.
 
-\LENSSECTION{join}
-The lens @join r s t@ replaces the relations @r@ and @s@ by a new relation @t@
+\LENSSECTION{ijoin}
+The lens @ijoin A B r s t@ replaces the relations @r@ and @s@ by a new relation @t@
 containing the inner join of @r@ and @s@.  The join is performed on the fields
 of @r@ and @s@ that share the same names.
 
-##let join : (name -> name -> name -> lens) = Native.Relational.join
+##let ijoin : (schema -> schema -> name -> name -> name -> lens) =
+##  Native.Relational.ijoin
 
 The inner join is simply a cross product when the two relations share no column
 names.
 #{*}
-test join "R" "S" "T" /
+test ijoin Any Any "R" "S" "T" /
        {R = [{A = {1}},
              {A = {2}}],
         S = [{B = {3}},
@@ -203,7 +203,7 @@ test join "R" "S" "T" /
 If the two relations both have the same set of column names, an inner join is
 equivalent to an intersection operation.
 #{*}
-test join "R" "S" "T" /
+test ijoin Any Any "R" "S" "T" /
        {R = [{A = {1}},
              {A = {2}}],
         S = [{A = {1}},
@@ -213,7 +213,7 @@ test join "R" "S" "T" /
 A more complex join can occur when there is some overlap in the set of column
 names in each relation.
 #{*}
-test join "R" "S" "T" /
+test ijoin Any Any "R" "S" "T" /
        {R = [{A = {1}, B = {3}},
              {A = {1}, B = {4}},
              {A = {2}, B = {3}}],
@@ -234,9 +234,12 @@ domain.
 
 In the case that a record has been deleted from @t@, this may be reflected in
 the concrete dababase by the deletion of a record @r@ or @s@ or both.  The
-behavior of @join@ is to propagate the deletion to both @r@ and @s@.
+behavior of @ijoin@ is determined by the schema parameters @A@ and @B@.  If an
+addition in @t@ is described by the schema @A@ (resp. @B@), the deletion will
+be propagated to @r@ (resp. @s@).  A runtime error will occur if an addition
+in @t@ is not described by either schema.
 #{*}
-test join "R" "S" "T" \
+test ijoin Any Any "R" "S" "T" \
        {T = [{A = {5}}]}
        {R = [{A = {1}},
              {A = {2}}],
@@ -251,7 +254,7 @@ Another subtle point is that the addition of a record in @t@ can cause the
 addition of a record in one of the relations of the concrete tree (@s@ below)
 while causing an update of the other relation in the concrete tree (@r@ below).
 #{*}
-test join "R" "S" "T" \
+test ijoin Any Any "R" "S" "T" \
        {T = [{A = {2}, B = {5}, C = {8}},
              {A = {4}, B = {6}, C = {7}}]}
        {R = [{A = {1}, B = {5}},
@@ -265,14 +268,8 @@ test join "R" "S" "T" \
              {A = {4}, C = {7}}]}
 #{@}
 
-\LENSSECTION{joinl}
-The lens @joinl r s t@ is an asymmetric variant of @join r s t@ that
-propagates deletions in @t@ only to @r@.
-
-##let joinl : (name -> name -> name -> lens) = Native.Relational.joinl
-
 #{*}
-test joinl "R" "S" "T" \
+test ijoin Any {} "R" "S" "T" \
        {T = [{A = {2}, B = {5}, C = {8}},
              {A = {4}, B = {6}, C = {7}}]}
        {R = [{A = {1}, B = {5}},
@@ -287,13 +284,8 @@ test joinl "R" "S" "T" \
              {A = {4}, C = {7}}]}
 #{@}
 
-\LENSSECTION{joinr}
-Similarly, @joinr r s t@ propagates deletions only to @s@.
-
-##let joinr : (name -> name -> name -> lens) = Native.Relational.joinr
-
 #{*}
-test joinr "R" "S" "T" \
+test ijoin {} Any "R" "S" "T" \
        {T = [{A = {2}, B = {5}, C = {8}},
              {A = {4}, B = {6}, C = {7}}]}
        {R = [{A = {1}, B = {5}},
@@ -308,21 +300,48 @@ test joinr "R" "S" "T" \
              {A = {4}, C = {7}}]}
 #{@}
 
-\LENSSECTION{ojoin}
-The lens @ojoin D E r s t@ replaces the relations @r@ and @s@ by a new
-relation @t@ containing the outer join of @r@ and @s@.  The join is performed
-on the fields of @r@ and @s@ that share the same names.  The argument @D@ is a
-list of records (\emph{i.e.}~a relation) that completes the missing fields
-when a record only appears in @r@.  Similarly, when a record only appears in
-@s@, @E@ will be used to supply default values.
+\LENSSECTION{ijoin1}
+We may wish to have an abbreviation for a join that always propagates
+deletions to the left table but not to the right.
 
-##let ojoin : (tree -> tree -> name -> name -> name -> lens) =
+#*let ijoin1 : (name -> name -> name -> lens) = ijoin Any {}
+
+\LENSSECTION{ijoin2}
+We may also wish to have an abbreviation for a join that always propagates
+deletions to both tables.
+
+#*let ijoin2 : (name -> name -> name -> lens) = ijoin Any Any
+
+
+\LENSSECTION{ojoin}
+The lens @ojoin D1 D2 A1 A2 B1 B2 r s t@ is a generic version of an outer
+join.  The first six parameters control the behavior of the \PUT{} direction.
+The parameter @D1@ (resp. @D2@) should be a non-empty list of records containing
+the default values for the fields of @s@ (resp. the fields of @r@) that do not
+occur in @t@ (that is, the table in the abstract database that is the outer
+join of @r@ and @s@).  If @D1@ or @D2@
+has more that one item, then multiple records will be added to @t@ for each
+unmatched record in the corresponding source table.  The parameter @A1@ (resp.
+@A2@) should be a schema that defines the set of records, which, when added in
+the abstract database with the default values for the fields unique to @s@
+(resp. @r@), will result in additions to @r@ (resp. @s@) in the \PUT{}
+direction.  The parameter @B1@ (resp. @B2@) should be a schema that defines
+the set of records, which, when added in the abstract database with the
+default value for \emph{both} the fields unique to @s@ and the fields unique
+to @r@, will result in additions to @r@ (resp. @s@) in the \PUT{} direction.
+The union of @B1@ and @B2@ should cover all possible records that could be
+added to @t@ with the default values given by @D1@ and @D2@.
+
+##let ojoin : (tree -> tree -> schema -> schema -> schema -> schema -> name -> name -> name -> lens) =
 ##  Native.Relational.ojoin
 
 The outer join (like the inner join) is a cross product when the two relations
 share no column names.
 #{*}
-test ojoin [{B = {10}}] [{A = {20}}] "R" "S" "T" /
+test ojoin [{B = {10}}] [{A = {20}}]
+              {A = Any, B = Any} {A = Any, B = Any}
+              {A = Any, B = Any} {A = Any, B = Any}
+              "R" "S" "T" /
        {R = [{A = {1}},
              {A = {2}}],
         S = [{B = {3}},
@@ -335,7 +354,10 @@ test ojoin [{B = {10}}] [{A = {20}}] "R" "S" "T" /
 If the two relations both have the same set of column names, an outer join is
 equivalent to a union operation.
 #{*}
-test ojoin [{}] [{}] "R" "S" "T" /
+test ojoin [{}] [{}]
+              {A = Any} {A = Any}
+              {A = Any} {A = Any}
+              "R" "S" "T" /
        {R = [{A = {1}},
              {A = {2}}],
         S = [{A = {1}},
@@ -347,7 +369,10 @@ test ojoin [{}] [{}] "R" "S" "T" /
 A more complex join can occur when there is some overlap in the set of column
 names in each relation.
 #{*}
-test ojoin [{C = {0}}] [{B = {0}}] "R" "S" "T" /
+test ojoin [{C = {0}}] [{B = {0}}]
+              {A = Any, B = Any, C = Any} {A = Any, B = Any, C = Any}
+              {A = Any, B = Any, C = Any} {A = Any, B = Any, C = Any}
+              "R" "S" "T" /
        {R = [{A = {1}, B = {4}},
              {A = {2}, B = {4}}],
         S = [{A = {1}, C = {6}},
@@ -365,10 +390,16 @@ in both @r@ and @s@ in the \PUT{} direction.  In the case of additions, some
 additions are necessary in the concrete relations.  When an addition is made
 with non-default values for the fields belonging to a concrete table, it will
 be necessary to add it to that concrete relation.  When an addition is made
-with default values, it will be optional.  In these cases, the lens @ojoin@
-will always add the new record to both.
+with default values for the fields unique to one concrete table (or both),
+then the schema parameters will determine to which concrete tables the
+addition will be propagated (as described above).
 #{*}
-test ojoin [{C = {0}}] [{B = {0}}] "R" "S" "T" \
+test ojoin [{C = {0}}] [{B = {0}}]
+              {A = Any, B = {0}, C = Any}
+              {A = Any, B = Any, C = {0}}
+              {A = Any, B = {0}, C = {0}}
+              {A = Any, B = {0}, C = {0}}
+              "R" "S" "T" \
        {T = [{A = {3}, B = {0}, C = {0}},
              {A = {4}, B = {0}, C = {9}},
              {A = {5}, B = {7}, C = {0}},
@@ -386,40 +417,13 @@ test ojoin [{C = {0}}] [{B = {0}}] "R" "S" "T" \
              {A = {6}, C = {9}}]}
 #{@}
 
-\LENSSECTION{ojoinl}
-The lens @ojoinl D E r s t@ is an asymmetric variant of @ojoin D E r s t@ that
-propagates addeditions in @t@ only to @r@ when there is a choice,
-\emph{i.e.}~when the added record has only default values in the non-overlapping
-fields.
-
-##let ojoinl : (tree -> tree -> name -> name -> name -> lens) =
-##  Native.Relational.ojoinl
-
 #{*}
-test ojoinl [{C = {0}}] [{B = {0}}] "R" "S" "T" \
-       {T = [{A = {3}, B = {0}, C = {0}},
-             {A = {4}, B = {0}, C = {9}},
-             {A = {5}, B = {7}, C = {0}},
-             {A = {6}, B = {8}, C = {9}}]}
-       {R = [{A = {1}, B = {7}},
-             {A = {2}, B = {8}}],
-        S = [{A = {1}, C = {9}}]}
-     = {R = [{A = {3}, B = {0}},
-             {A = {4}, B = {0}},
-             {A = {5}, B = {7}},
-             {A = {6}, B = {8}}],
-        S = [{A = {4}, C = {9}},
-             {A = {6}, C = {9}}]}
-#{@}
-
-\LENSSECTION{ojoinr}
-Similarly, @ojoinr D E r s t@ propagates additions only to @s@ when possible.
-
-##let ojoinr : (tree -> tree -> name -> name -> name -> lens) =
-##  Native.Relational.ojoinr
-
-#{*}
-test ojoinr [{C = {0}}] [{B = {0}}] "R" "S" "T" \
+test ojoin [{C = {0}}] [{B = {0}}]
+              {A = {}, B = {0}, C = Any}
+              {A = {}, B = Any, C = {0}}
+              {A = {}, B = {0}, C = {0}}
+              {A = Any, B = {0}, C = {0}}
+              "R" "S" "T" \
        {T = [{A = {3}, B = {0}, C = {0}},
              {A = {4}, B = {0}, C = {9}},
              {A = {5}, B = {7}, C = {0}},
@@ -431,56 +435,39 @@ test ojoinr [{C = {0}}] [{B = {0}}] "R" "S" "T" \
              {A = {6}, B = {8}}],
         S = [{A = {3}, C = {0}},
              {A = {4}, C = {9}},
-             {A = {5}, C = {0}},
              {A = {6}, C = {9}}]}
 #{@}
 
 
 \LENSSECTION{diff}
-The lens @diff r s t@ replaces the relations @r@ and @s@ by a new relation @t@
+The lens @diff A B r s t@ replaces the relations @r@ and @s@ by a new relation @t@
 containing the set-theoretic difference between @r@ and @s@, \emph{i.e.}~all
 of the records that appear in @r@ but not in @s@.
 
-##let diff : (name -> name -> name -> lens) = Native.Relational.diff
+##let diff : (schema -> schema -> name -> name -> name -> lens) = Native.Relational.diff
 
 #{*}
-test diff "R" "S" "T" /
+test diff Any Any "R" "S" "T" /
        {R = [{A = {1}}, {A = {2}}],
         S = [{A = {2}}, {A = {3}}]}
      = {T = [{A = {1}}]}
 #{@}
-In the \PUT{} direction, @diff@ may modify both @r@ and @s@ when elements have
-been deleted from the abstract database: deleting an element from @t@ will
-result in the element being deleted from @r@ \emph{and} added to @s@.
-Additions to @t@ will result in their obligatory addition to @r@ and removal
-from @s@.
+In the \PUT{} direction, a deletion in @t@ may result in a modification to @r@
+(a deletion) or to @s@ (an addition) or to both tables.  If the additiion in
+@t@ is described by the schema @A@ (resp. @B@), the deletion will cause a
+modification in @r@ (resp. @s@).  A runtime error will occur if an additiion
+in @t@ is not described by either schema.
 #{*}
-test diff "R" "S" "T" \
+test diff Any Any "R" "S" "T" \
        {T = [{A = {2}}, {A = {3}}, {A = {4}}]}
        {R = [{A = {1}}, {A = {2}}],
         S = [{A = {2}}, {A = {3}}]}
      = {R = [{A = {2}}, {A = {3}}, {A = {4}}],
         S = [{A = {1}}]}
 #{@}
-The case where the concrete argument to \PUT{} is missing is treated just
-like the case where the concrete @s@ and @t@ are empty relations:
-#{*}
-test diff "R" "S" "T" \
-       {T = [{A = {1}}, {A = {2}}]}
-       missing
-     = {R = [{A = {1}}, {A = {2}}],
-        S = []}
-#{@}
-
-\LENSSECTION{diffl}
-The lens @diffl r s t@ is a variant of @diffl r s t@ that deals with deletions
-in the abstract database by only deleting them from @r@ and does not add them
-to @s@.
-
-##let diffl : (name -> name -> name -> lens) = Native.Relational.diffl
 
 #{*}
-test diffl "R" "S" "T" \
+test diff Any {} "R" "S" "T" \
        {T = [{A = {2}}, {A = {3}}, {A = {4}}]}
        {R = [{A = {1}}, {A = {2}}],
         S = [{A = {2}}, {A = {3}}]}
@@ -488,15 +475,8 @@ test diffl "R" "S" "T" \
         S = []}
 #{@}
 
-\LENSSECTION{diffl}
-The lens @diffl r s t@ is a variant of @diffl r s t@ that deals with deletions
-in the abstract database by only adding them to @s@ and does not remove them
-from @t@.
-
-##let diffr : (name -> name -> name -> lens) = Native.Relational.diffr
-
 #{*}
-test diffr "R" "S" "T" \
+test diff {} Any "R" "S" "T" \
        {T = [{A = {2}}, {A = {3}}, {A = {4}}]}
        {R = [{A = {1}}, {A = {2}}],
         S = [{A = {2}}, {A = {3}}]}
@@ -504,458 +484,13 @@ test diffr "R" "S" "T" \
         S = [{A = {1}}]}
 #{@}
 
-#{#}
-(* ADDITIONAL TESTS *)
-
-let norm (db : tree) : tree = Prelude.map Native.listsort / db
-
-let bd_a : tree = { nm = {Alice}, mon = {June},     day = {21}, age = {21} }
-let bd_b : tree = { nm = {Bob},   mon = {December}, day = {13}, age = {25} }
-let bd_c : tree = { nm = {Carol}, mon = {October},  day = {31}, age = {31} }
-let bd_d : tree = { nm = {Dave},  mon = {June},     day = {23}, age = {23} }
-let bd_e : tree = { nm = {Ellen}, mon = {February}, day = {29}, age = {27} }
-let bd_f : tree = { nm = {Fred} , mon = {August},   day = {15}, age = {41} }
-
-let ph_a : tree = { nm = {Alice}, ph = {"555-555-5555"} }
-let ph_b : tree = { nm = {Bob},   ph = {"123-456-7890"} }
-let ph_c : tree = { nm = {Carol}, ph = {"314-159-2653"} }
-
-let a : tree = bd_a
-let b : tree = bd_b
-let c : tree = bd_c
-let d : tree = bd_d
-let e : tree = bd_e
-let f : tree = bd_f
-
-
-(* ADDITIONAL RENAME TESTS *)
-
-let rename_nm (n : name) (v : tree) : tree =
-  Prelude.rename "nm" n / v
-
-test
-  norm (rename "nm" "nm" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "birthdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { birthdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_c) ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "phnums" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* the relation "phnums" already exsits *)
-
-test
-  norm (rename "nm" "day" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* the field "day" already exsits *)
-
-test
-  norm (rename "foo" "name" "bdays" "bdays" /
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* the field "foo" does not exsit *)
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= norm (
-    { bdays = [ bd_a, bd_b ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    missing
-  )
-= norm (
-    { bdays = [ bd_a, bd_b ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-  )
-
-test
-  norm (rename "nm" "name" "bdays" "bdays" \
-    { bdays = [ bd_a, bd_b ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* "name" is not a column name in the abstract tree *)
-
-test
-  norm (rename "nm" "name" "birthdays" "bdays" \
-    { bdays = [ (rename_nm "name" bd_a), (rename_nm "name" bd_b) ]
-    , phnums = [ ph_a, ph_c ]
-    , phnums2 = [ ph_b ]
-    }
-    { bdays = [ bd_a, bd_c ]
-    , phnums = [ ph_a, ph_b ]
-    }
-  )
-= error (* "birthdays" is not a relation in the concrete tree *)
-
-
-(* ADDITIONAL DIFF TESTS *)
-
-test
-  norm (diff "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl4 = [ a ]
-    }
-  )
-
-test
-  norm (diff "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* "tbl2" doesn't exist *)
-
-test
-  norm (diff "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* relation domains do not match *)
-
-test
-  norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    , tbl5 = [ e, f ]
-    }
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    , tbl5 = [ e, f ]
-    }
-  )
-
-test
-  norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    }
-    missing
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a ]
-    , tbl3 = [ ]
-    }
-  )
-
-test
-  norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ c, d, e ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl2 = [ b, c, d, e ]
-    , tbl3 = [ a, b ]
-    }
-  )
-
-test
-  norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* "tbl4" does not exist in the abstract tree *)
-
-test
-  norm (diff "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    }
-  )
-= error (* "tbl3" does not exist in the concrete tree *)
-
-
-(* ADDITIONAL DIFFL TESTS *)
-
-test
-  norm (diffl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl4 = [ a ]
-    }
-  )
-
-test
-  norm (diffl "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* "tbl2" doesn't exist *)
-
-test
-  norm (diffl "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* relation domains do not match *)
-
-test
-  norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    , tbl5 = [ e, f ]
-    }
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    , tbl5 = [ e, f ]
-    }
-  )
-
-test
-  norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    }
-    missing
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a ]
-    , tbl3 = [ ]
-    }
-  )
-
-test
-  norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ c, d, e ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl2 = [ b, c, d, e ]
-    , tbl3 = [ b ]
-    }
-  )
-
-test
-  norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* "tbl4" does not exist in the abstract tree *)
-
-test
-  norm (diffl "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    }
-  )
-= error (* "tbl3" does not exist in the concrete tree *)
-
-
-(* ADDITIONAL DIFFR TESTS *)
-
-test
-  norm (diffr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl4 = [ a ]
-    }
-  )
-
-test
-  norm (diffr "tbl2" "tbl3" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* "tbl2" doesn't exist *)
-
-test
-  norm (diffr "tbl1" "tbl2" "tbl4" /
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* relation domains do not match *)
-
-test
-  norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    , tbl5 = [ e, f ]
-    }
-    { tbl1 = [ ph_a, ph_b ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    , tbl5 = [ e, f ]
-    }
-  )
-
-test
-  norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    }
-    missing
-  )
-= norm (
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a ]
-    , tbl3 = [ ]
-    }
-  )
-
-test
-  norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl4 = [ c, d, e ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= norm (
-    { tbl2 = [ a, b, c, d, e ]
-    , tbl3 = [ a, b ]
-    }
-  )
-
-test
-  norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    , tbl3 = [ b, c, d ]
-    }
-  )
-= error (* "tbl4" does not exist in the abstract tree *)
-
-test
-  norm (diffr "tbl2" "tbl3" "tbl4" \
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl4 = [ a ]
-    }
-    { tbl1 = [ ph_a, ph_c ]
-    , tbl2 = [ a, b, c ]
-    }
-  )
-= error (* "tbl3" does not exist in the concrete tree *)
+The case where the concrete argument to \PUT{} is missing is treated just
+like the case where the concrete @s@ and @t@ are empty relations:
+#{*}
+test diff Any Any "R" "S" "T" \
+       {T = [{A = {1}}, {A = {2}}]}
+       missing
+     = {R = [{A = {1}}, {A = {2}}],
+        S = []}
 #{@}
 

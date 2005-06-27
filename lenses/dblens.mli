@@ -14,6 +14,22 @@ val rename :
     view. *)
 
 val union :
+  (Relation.record -> Rlens.bias) -> string -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** Same as [union], but the bias decision is a parameter. *)
+
+val inter :
+  (Relation.record -> Rlens.bias) -> string -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** Same as [union], but the bias decision is a parameter. *)
+
+val diff :
+  (Relation.record -> Rlens.bias) -> string -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** Same as [union], but the bias decision is a parameter. *)
+
+(*
+val union :
   string -> string -> string ->
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
 (** [union ct1 ct2 at] is a lens that makes the union of [ct1] and [ct2].  The
@@ -60,12 +76,21 @@ val diffr :
   string -> string -> string ->
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
 (** Same as [diff], but the {e put} operation is right-biased. *)
+*)
 
+(*
 val select :
   string -> string -> string -> string ->
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
 (** [select f v ct at] selects the records in [ct] for which the field [f] has
     the value [v]. *)
+*)
+
+val select :
+  (Relation.record -> bool) -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** [select p ct at] selects the records in [ct] that satisfy the predicate
+    [p]. *)
 
 val select_eq :
   string -> string -> string -> string ->
@@ -83,6 +108,7 @@ val project :
     is a relation that supplies default values for the non-projected fields in
     case records are added in the abstract view. *)
 
+(*
 val join :
   string -> string -> string ->
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
@@ -98,7 +124,21 @@ val joinr :
   string -> string -> string ->
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
 (** Same as [join], but the {e put} operation is right-biased. *)
+*)
 
+val ijoin :
+  (Relation.record -> Rlens.bias) -> string -> string -> string ->
+    (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** Same as [join], but the bias decision is a parameter. *)
+
+val ojoin :
+  Relation.t -> Relation.t ->
+    (Relation.record -> bool) -> (Relation.record -> bool) ->
+      (Relation.record -> Rlens.bias) -> string -> string -> string ->
+        (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
+(** Same as [ojoin], but the bias decision is a parameter. *)
+
+(*
 val ojoin :
   Relation.t -> Relation.t -> string -> string -> string ->
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
@@ -114,4 +154,5 @@ val ojoinr :
   Relation.t -> Relation.t -> string -> string -> string ->
     (Relation.t Map.Make(String).t, Relation.t Map.Make(String).t) Lens.t
 (** Same as [ojoin], but the {e put} operation is right-biased. *)
+*)
 
