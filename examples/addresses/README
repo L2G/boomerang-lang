@@ -1,0 +1,9 @@
+INSTALLATION NOTES
+
+grab latest pilot-link from www.pilot-link.org
+
+  ./configure --prefix=$HOME
+  make
+  make install
+
+pilot-xfer --fetch AddressDB.pdb -p usb: 

@@ -1,0 +1,98 @@
+(* Things to think about:
+     - how to write an abstract schema where all the bits are optional
+       without hurting performance too much
+     - how to massage the name as discussed
+         concrete format (xcard)
+           either just <n>last</n>
+           or else <n><given>first</given><family>last</family></n>
+              (with both components optional but at least one needed)
+         abstract format: last;first
+*)
+
+module Addr = 
+
+let Element (x:name) (attrs:schema) (content:schema) : schema =
+  { `x = ({`Xml.CHILDREN = content} + attrs) }
+
+let FnLn : schema =
+    [Element "family" {} [Xml.Pcdata], Element "given" {} [Xml.Pcdata]]
+(* Three more to go here... *)
+
+let Name : schema =
+  Element "n" {} ([Xml.Pcdata] | FnLn)
+
+let Fields : schema =
+  Element "note" {} ([Xml.Pcdata] | [])
+
+let VCard : schema =
+  Element "vcard" {} (Name :: (List.T Fields))
+
+let XCard : schema =
+  [Element "xcard" {} (List.T VCard)]
+
+let Addr : schema =
+  { note = Value }
+
+let AddrBook : schema = {* = {* = Addr}}
+  (* {last={first={...}}} *)
+
+let massage_name : lens =
+   hoist Xml.PCDATA
+
+(* NOTES TOWARD A FANCIER VERSION... 
+let massage_name : lens =
+  acond { `Xml.PCDATA = Any } NoCommas
+    (hoist Xml.PCDATA; explode)
+    (hoist "family"; hoist Xml.PCDATA; explode)
+*)
+
+let handle_unique_field (f:name) : lens =
+  fork {`f}
+    (Xml.squash_flattened;
+     map Xml.hoist_pcdata;
+     acond {`f=NonNullValue} {`f=NonNullValue}
+       id
+       (ccond {} (add f {""}) id))
+    id
+
+let FAMILY : name = "&family"
+
+let use_name_as_key : lens =
+  assert VCard;
+  hoist "vcard";
+  hoist Xml.CHILDREN;
+  mapp {`List.HD}
+    (Xml.flatten_elt;
+     hoist "n";
+     ccond {`Xml.PCDATA = (List.T NonNullValue)}
+       (plunge List.HD; add List.TL []; plunge "family")
+       id;
+     rename_if_present "family" FAMILY;
+     handle_unique_field FAMILY;
+     handle_unique_field "given");
+  hoist_nonunique List.HD {`FAMILY,given};  
+  fork {`FAMILY}
+    id
+    (pivot "given");
+  pivot FAMILY;
+  map (map (hoist List.TL));
+  assert {! = {! = List.T Fields}}
+
+let handle_fields : lens =
+  handle_unique_field "note"
+
+let l : lens =
+  assert XCard;
+  List.hd {};
+  hoist "xcard";
+  hoist Xml.CHILDREN;
+  List.map use_name_as_key;
+  List.flatten;
+  map (List.flatten; map (List.hd {}; Xml.flatten; handle_fields))
+(*  assert AddrBook *)
+    
+
+let sample : tree = (load_file "sample.xml")
+test l / sample = ?
+                     
+(* test id / (load_file "sample.csv") = ? *)
