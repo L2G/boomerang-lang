@@ -1,9 +1,10 @@
 # 1 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
  
 (*
-  this lexer accepts both \r\n and \n end of line
-  this lexer requires the version to be 2.0
-  *)
+   this lexer accepts both \r\n and \n end of line
+   (* isn't that too restrictive ? - SL *)
+   this lexer requires the version to be 2.0
+*)
   
   open ICalendarparse
   open ICalendar_lextypes
@@ -47,7 +48,7 @@ let get_stored_string () =
   *)
   s
 
-# 51 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 52 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 let __ocaml_lex_init_lexbuf lexbuf mem_size =
   let pos = lexbuf.Lexing.lex_curr_pos in
   lexbuf.Lexing.lex_mem <- Array.create mem_size (-1) ;
@@ -10653,284 +10654,284 @@ let rec line lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 72 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 73 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( BVCALENDAR )
-# 10659 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10660 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 73 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 74 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( EVCALENDAR )
-# 10664 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10665 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 74 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 75 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( BVEVENT )
-# 10669 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10670 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 3 ->
-# 75 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 76 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( EVEVENT )
-# 10674 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10675 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 4 ->
-# 76 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 77 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( BVALARM )
-# 10679 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10680 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 5 ->
-# 77 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 78 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( EVALARM )
-# 10684 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10685 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 6 ->
-# 78 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 79 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( BVTIMEZONE )
-# 10689 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10690 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 7 ->
-# 79 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 80 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( EVTIMEZONE )
-# 10694 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10695 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 8 ->
-# 80 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 81 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( BSTANDARD )
-# 10699 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10700 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 9 ->
-# 81 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 82 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( ESTANDARD )
-# 10704 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10705 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 10 ->
-# 82 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 83 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( BDAYLIGHT )
-# 10709 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10710 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 11 ->
-# 83 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 84 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( EDAYLIGHT )
-# 10714 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10715 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 12 ->
-# 84 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 85 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let pidval = text lexbuf in
                             crlf lexbuf;
                             PRODID (xplist, pidval) )
-# 10723 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10724 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 13 ->
-# 89 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 90 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             version2 lexbuf;
                             crlf lexbuf;
                             VERSION (xplist,"2.0") )
-# 10732 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10733 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 14 ->
-# 94 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 95 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let calval = calvalue lexbuf in
                             crlf lexbuf;
                             CALSCALE (xplist, calval) )
-# 10741 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10742 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 15 ->
-# 99 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 100 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let metval = iana_token lexbuf in
                             crlf lexbuf;
                             METHOD (xplist, metval) )
-# 10750 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10751 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 16 ->
-# 104 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 105 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let name = Lexing.lexeme lexbuf in
                             let params = all_param_list lexbuf in 
                             col lexbuf;
                             let txt = text lexbuf in
                             crlf lexbuf;
                             XPROP (name, params, txt) )
-# 10760 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10761 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 17 ->
-# 110 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 111 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let classval = classvalue lexbuf in
                             crlf lexbuf;
                             CLASS (xplist, classval) )
-# 10769 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10770 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 18 ->
-# 115 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 116 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let dt = date_time lexbuf in
                             crlf lexbuf;
                             CREATED (xplist, dt) )
-# 10778 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10779 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 19 ->
-# 120 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 121 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let text = text lexbuf in
                             crlf lexbuf;
                             DESCRIPTION (params, text) )
-# 10787 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10788 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 20 ->
-# 125 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 126 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let dval = dtp lexbuf in
                             crlf lexbuf;
                             DTSTART (params, dval) )
-# 10796 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10797 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 21 ->
-# 130 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 131 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let coord = geoval lexbuf in
                             crlf lexbuf;
                             GEO(xplist, coord) )
-# 10805 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10806 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 22 ->
-# 135 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 136 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let dt = date_time lexbuf in
                             crlf lexbuf;
                             LASTMODIFIED(xplist, dt) )
-# 10814 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10815 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 23 ->
-# 140 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 141 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let text = text lexbuf in
                             crlf lexbuf;
                             LOCATION (params, text) )
-# 10823 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10824 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 24 ->
-# 145 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 146 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let uri = uri lexbuf in
                             crlf lexbuf;
                             ORGANIZER (params, uri) )
-# 10832 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10833 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 25 ->
-# 150 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 151 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let pr = integer_val lexbuf in
                             crlf lexbuf;
                             PRIORITY (xplist, pr) )
-# 10841 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10842 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 26 ->
-# 155 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 156 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let allparams = all_param_list lexbuf in
                             col lexbuf;
                             let dt = dtp lexbuf in
                             crlf lexbuf;
                             DTSTAMP(allparams, dt) )
-# 10850 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10851 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 27 ->
-# 160 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 161 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let seq = integer_val lexbuf in
                             crlf lexbuf;
                             SEQUENCE (xplist, seq) )
-# 10859 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10860 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 28 ->
-# 165 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 166 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let status = status lexbuf in
                             crlf lexbuf;
                             STATUS (xplist, status) )
-# 10868 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10869 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 29 ->
-# 170 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 171 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let txt = text lexbuf in
                             crlf lexbuf;
                             SUMMARY (params, txt) )
-# 10877 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10878 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 30 ->
-# 175 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 176 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let transval = transvalue lexbuf in
                             crlf lexbuf;
                             TRANSP (xplist, transval) )
-# 10886 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10887 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 31 ->
-# 180 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 181 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let uid = text lexbuf in
                             crlf lexbuf;
                             UID (xplist, uid) )
-# 10895 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10896 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 32 ->
-# 185 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 186 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let url = uri lexbuf in
                             crlf lexbuf;
                             URL (xplist, url) )
-# 10904 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10905 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 33 ->
-# 190 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 191 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let rval = dtp lexbuf in
                             crlf lexbuf;
                             RECURRENCEID (params, rval) )
-# 10913 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10914 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 34 ->
-# 195 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 196 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let dval = dtp lexbuf in
                             crlf lexbuf;
                             DTEND (params, dval) )
-# 10922 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10923 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 35 ->
-# 200 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 201 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let duration = durval lexbuf in
                             crlf lexbuf;
                             DURATION (xplist, duration) )
-# 10931 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10932 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 36 ->
-# 205 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 206 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let aval =  
@@ -10940,66 +10941,66 @@ let rec line lexbuf =
                             in
                             crlf lexbuf;
                             ATTACH (params, aval) )
-# 10944 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10945 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 37 ->
-# 214 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 215 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let aval = uri lexbuf in
                             crlf lexbuf;
                             ATTENDEE (params, aval) )
-# 10953 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10954 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 38 ->
-# 219 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 220 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let t = text lexbuf in
                             let tl = text_list lexbuf in
                             crlf lexbuf;
                             CATEGORIES (params, t :: tl) )
-# 10963 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10964 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 39 ->
-# 225 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 226 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let text = text lexbuf in
                             crlf lexbuf;
                             COMMENT (params, text) )
-# 10972 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10973 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 40 ->
-# 230 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 231 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let text = text lexbuf in
                             crlf lexbuf;
                             CONTACT (params, text) )
-# 10981 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10982 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 41 ->
-# 235 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 236 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let v = dtp lexbuf in
                             let vl = dtp_list lexbuf in
                             crlf lexbuf;
                             EXDATE (params, (v::vl)) )
-# 10991 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 10992 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 42 ->
-# 241 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 242 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xpl = xparam_list lexbuf in
                             col lexbuf;
                             let v = recur lexbuf in
                             crlf lexbuf;
                             EXRULE (xpl, v) )
-# 11000 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11001 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 43 ->
-# 246 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 247 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let i = integer_val lexbuf in
@@ -11014,128 +11015,128 @@ let rec line lexbuf =
                             in
                             crlf lexbuf;
                             RSTATUS (params, (i::il), sd, ed) )
-# 11018 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11019 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 44 ->
-# 260 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 261 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let text = text lexbuf in
                             crlf lexbuf;
                             RELATED_TO (params, text) )
-# 11027 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11028 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 45 ->
-# 265 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 266 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let t = text lexbuf in
                             let tl = text_list lexbuf in
                             crlf lexbuf;
                             RESOURCES (params, t :: tl) )
-# 11037 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11038 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 46 ->
-# 271 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 272 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let v = dtp lexbuf in
                             let vl = dtp_list lexbuf in
                             crlf lexbuf;
                             RDATE (params, (v::vl)) )
-# 11047 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11048 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 47 ->
-# 277 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 278 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xpl = xparam_list lexbuf in
                             col lexbuf;
                             let v = recur lexbuf in
                             crlf lexbuf;
                             RRULE (xpl, v) )
-# 11056 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11057 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 48 ->
-# 282 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 283 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xpl = xparam_list lexbuf in
                             col lexbuf;
                             let v = actionval lexbuf in
                             crlf lexbuf;
                             ACTION (xpl, v) )
-# 11065 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11066 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 49 ->
-# 287 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 288 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let v = dtp lexbuf in
                             crlf lexbuf;
                             TRIGGER (params, v) )
-# 11074 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11075 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 50 ->
-# 292 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 293 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xpl = xparam_list lexbuf in
                             col lexbuf;
                             let v = integer_val lexbuf in
                             crlf lexbuf;
                             REPEAT (xpl, v) )
-# 11083 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11084 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 51 ->
-# 297 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 298 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xpl = xparam_list lexbuf in
                             col lexbuf;
                             let global = is_slash lexbuf in
                             let v = text lexbuf in
                             crlf lexbuf;
                             TZID (xpl, global, v) )
-# 11093 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11094 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 52 ->
-# 303 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 304 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let url = uri lexbuf in
                             crlf lexbuf;
                             TZURL (xplist, url) )
-# 11102 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11103 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 53 ->
-# 308 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 309 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let off = utcoffset lexbuf in
                             crlf lexbuf;
                             TZOFFSETTO (xplist, off) )
-# 11111 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11112 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 54 ->
-# 313 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 314 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let off = utcoffset lexbuf in
                             crlf lexbuf;
                             TZOFFSETFROM (xplist, off) )
-# 11120 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11121 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 55 ->
-# 318 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 319 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let params = all_param_list lexbuf in
                             col lexbuf;
                             let t = text lexbuf in
                             crlf lexbuf;
                             TZNAME (params, t) )
-# 11129 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11130 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 56 ->
-# 323 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 324 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( EOF )
-# 11134 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11135 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 57 ->
-# 324 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 325 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           (  let s = aline lexbuf in failwith (s ^ " is not implemented yet") )
-# 11139 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11140 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11148,9 +11149,9 @@ and aline lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 327 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 328 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                           ( Lexing.lexeme lexbuf )
-# 11154 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11155 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11163,15 +11164,15 @@ and col lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 330 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 331 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( () )
-# 11169 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11170 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 331 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 332 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( print_endline (Lexing.lexeme lexbuf);
                             failwith "expected a :" )
-# 11175 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11176 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11184,14 +11185,14 @@ and crlf lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 335 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 336 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( () )
-# 11190 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11191 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 336 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 337 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( print_endline (Lexing.lexeme lexbuf); failwith "expected eol" )
-# 11195 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11196 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11204,14 +11205,14 @@ and quote lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 339 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 340 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( () )
-# 11210 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11211 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 340 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 341 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( failwith "expected a \"" )
-# 11215 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11216 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11224,14 +11225,14 @@ and is_semi lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 343 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 344 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( true )
-# 11230 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11231 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 344 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 345 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( false )
-# 11235 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11236 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11244,14 +11245,14 @@ and semi lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 347 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 348 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( () )
-# 11250 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11251 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 348 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 349 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( failwith "expected a ';'" )
-# 11255 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11256 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11264,14 +11265,14 @@ and version2 lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 351 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 352 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( () )
-# 11270 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11271 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 352 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 353 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( failwith "version number different from 2.0" )
-# 11275 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11276 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11284,9 +11285,9 @@ and uri lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 355 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 356 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( Lexing.lexeme lexbuf )
-# 11290 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11291 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11299,14 +11300,14 @@ and text_list lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 358 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 359 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let t = text lexbuf in t :: (text_list lexbuf) )
-# 11305 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11306 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 359 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 360 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( [] )
-# 11310 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11311 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11319,7 +11320,7 @@ and text lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 362 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 363 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( reset_string_buffer ();
                             let string_start = Lexing.lexeme_start lexbuf in
                             string_start_pos := string_start;
@@ -11335,7 +11336,7 @@ and text lexbuf =
                             *)
                             get_stored_string ()
                           )
-# 11339 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11340 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11348,14 +11349,14 @@ and binary lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 379 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 380 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( reset_string_buffer ();
                             let string_start = Lexing.lexeme_start lexbuf in
                             string_start_pos := string_start;
                             inbinary lexbuf;
                             get_stored_string ()
                           )
-# 11359 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11360 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11368,16 +11369,16 @@ and xparam_list lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 387 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 388 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let s = Lexing.lexeme lexbuf in
                             let s' = String.sub s 1 ((String.length s) - 1) in
                             let r = (s', param_value_equal lexbuf) in r :: (xparam_list lexbuf) )
-# 11376 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11377 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 390 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 391 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( [] )
-# 11381 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11382 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11390,10 +11391,10 @@ and param_value_equal lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 393 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 394 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let pv = param_value lexbuf in
                             pv :: (param_value_list lexbuf) )
-# 11397 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11398 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11406,9 +11407,9 @@ and param_value lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 397 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 398 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                     ( Lexing.lexeme lexbuf )
-# 11412 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11413 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11421,15 +11422,15 @@ and param_value_list lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 400 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 401 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let pv = param_value lexbuf in
                             pv :: (param_value_list lexbuf) )
-# 11428 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11429 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 402 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 403 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( [] )
-# 11433 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11434 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11442,9 +11443,9 @@ and lang_rfc1766 lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 406 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 407 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( Lexing.lexeme lexbuf )
-# 11448 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11449 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11457,9 +11458,9 @@ and paramtext lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 409 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 410 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                         ( Lexing.lexeme lexbuf )
-# 11463 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11464 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11472,9 +11473,9 @@ and valuetype lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 413 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 414 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                         ( ICalendar_lextypes.valuetypeparam_from_string (Lexing.lexeme lexbuf) )
-# 11478 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11479 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11487,9 +11488,9 @@ and encodingval lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 416 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 417 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                         ( ICalendar_lextypes.encoding_from_string (Lexing.lexeme lexbuf) )
-# 11493 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11494 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11502,9 +11503,9 @@ and iana_or_x lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 419 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 420 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                         ( Lexing.lexeme lexbuf )
-# 11508 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11509 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11517,9 +11518,9 @@ and status lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 423 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 424 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                     ( ICalendar_lextypes.status_from_string (Lexing.lexeme lexbuf) )
-# 11523 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11524 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11532,9 +11533,9 @@ and transvalue lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 426 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 427 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                 ( ICalendar_lextypes.transvalue_from_string (Lexing.lexeme lexbuf) )
-# 11538 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11539 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11547,9 +11548,9 @@ and cutype lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 430 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 431 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
   ( ICalendar_lextypes.cutype_from_string (Lexing.lexeme lexbuf) )
-# 11553 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11554 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11562,14 +11563,14 @@ and quoted_uri_list lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 433 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 434 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                         ( let r = uri lexbuf in quote lexbuf; r :: (quoted_uri_list lexbuf) )
-# 11568 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11569 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 434 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 435 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                         ( [] )
-# 11573 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11574 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11582,9 +11583,9 @@ and role lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 438 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 439 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                         ( ICalendar_lextypes.roleparam_from_string (Lexing.lexeme lexbuf) )
-# 11588 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11589 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11597,9 +11598,9 @@ and partstatparam lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 441 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 442 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                                                                                                                       ( ICalendar_lextypes.partstatparam_from_string (Lexing.lexeme lexbuf) )
-# 11603 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11604 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11612,9 +11613,9 @@ and reltypeparam lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 445 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 446 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                       ( ICalendar_lextypes.reltypeparam_from_string (Lexing.lexeme lexbuf) )
-# 11618 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11619 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11627,9 +11628,9 @@ and rangeparam lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 448 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 449 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                     ( ICalendar_lextypes.rangeparam_from_string (Lexing.lexeme lexbuf) )
-# 11633 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11634 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11642,9 +11643,9 @@ and trigrelparam lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 451 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 452 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                   ( ICalendar_lextypes.trigrelparam_from_string (Lexing.lexeme lexbuf) )
-# 11648 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11649 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11657,144 +11658,144 @@ and all_param_list lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 454 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 455 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let res = uri lexbuf in
                            quote lexbuf;
                            let r = Altrepparam res in r :: (all_param_list lexbuf) )
-# 11665 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11666 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 457 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 458 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = CNparam (param_value lexbuf) in r :: (all_param_list lexbuf) )
-# 11670 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11671 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 458 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 459 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Cutypeparam (cutype lexbuf) in r :: (all_param_list lexbuf) )
-# 11675 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11676 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 3 ->
-# 459 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 460 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let u = uri lexbuf in
                            quote lexbuf;
                            let r = Delfromparam (u :: (quoted_uri_list lexbuf)) in
                            r :: (all_param_list lexbuf) )
-# 11683 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11684 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 4 ->
-# 463 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 464 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let u = uri lexbuf in
                            quote lexbuf;
                            let r = Deltoparam (u :: (quoted_uri_list lexbuf)) in
                            r :: (all_param_list lexbuf) )
-# 11691 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11692 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 5 ->
-# 467 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 468 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let uri = uri lexbuf in
                            quote lexbuf;
                            let r = Dirparam uri in r :: (all_param_list lexbuf) )
-# 11698 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11699 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 6 ->
-# 470 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 471 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Encparam (encodingval lexbuf) in r :: (all_param_list lexbuf) )
-# 11703 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11704 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 7 ->
-# 471 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 472 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Fmtparam (iana_or_x lexbuf) in r :: (all_param_list lexbuf) )
-# 11708 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11709 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 8 ->
-# 472 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 473 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Langparam (lang_rfc1766 lexbuf) in r :: (all_param_list lexbuf) )
-# 11713 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11714 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 9 ->
-# 473 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 474 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let u = uri lexbuf in
                            quote lexbuf;
                            let r = Memberparam (u :: (quoted_uri_list lexbuf)) in
                            r :: (all_param_list lexbuf) )
-# 11721 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11722 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 10 ->
-# 477 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 478 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Partstatparam (partstatparam lexbuf) in r :: (all_param_list lexbuf) )
-# 11726 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11727 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 11 ->
-# 478 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 479 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Rangeparam (rangeparam lexbuf) in r :: (all_param_list lexbuf) )
-# 11731 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11732 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 12 ->
-# 479 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 480 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( Trigrelparam ICalendar_syntax.RelStart :: (all_param_list lexbuf) )
-# 11736 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11737 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 13 ->
-# 480 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 481 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( Trigrelparam ICalendar_syntax.RelEnd :: (all_param_list lexbuf) )
-# 11741 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11742 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 14 ->
-# 481 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 482 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Reltypeparam (reltypeparam lexbuf) in r :: (all_param_list lexbuf) )
-# 11746 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11747 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 15 ->
-# 482 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 483 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( (Rsvpparam true) :: (all_param_list lexbuf) )
-# 11751 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11752 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 16 ->
-# 483 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 484 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( (Rsvpparam false) :: (all_param_list lexbuf) )
-# 11756 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11757 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 17 ->
-# 484 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 485 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let r = Roleparam (role lexbuf) in r :: (all_param_list lexbuf) )
-# 11761 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11762 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 18 ->
-# 485 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 486 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let uri = uri lexbuf in
                            quote lexbuf;
                            let r = Sentbyparam uri in r :: (all_param_list lexbuf) )
-# 11768 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11769 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 19 ->
-# 488 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 489 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let pt = paramtext lexbuf in 
                            let r = Tzidparam(true, pt) in r :: (all_param_list lexbuf) )
-# 11774 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11775 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 20 ->
-# 490 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 491 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let pt = paramtext lexbuf in 
                            let r = Tzidparam(false, pt) in r :: (all_param_list lexbuf) )
-# 11780 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11781 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 21 ->
-# 492 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 493 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let vt = valuetype lexbuf in
                            (Valuetypeparam vt) :: (all_param_list lexbuf) )
-# 11786 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11787 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 22 ->
-# 494 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 495 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let s = Lexing.lexeme lexbuf in
                             let s' = String.sub s 1 ((String.length s) - 1) in
                             let r = Xparam (s', param_value_equal lexbuf) in r :: (all_param_list lexbuf) )
-# 11793 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11794 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 23 ->
-# 497 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 498 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( [] )
-# 11798 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11799 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11807,9 +11808,9 @@ and digits lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 500 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 501 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( int_of_string (Lexing.lexeme lexbuf) )
-# 11813 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11814 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11822,9 +11823,9 @@ and onetwod lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 503 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 504 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( int_of_string (Lexing.lexeme lexbuf) )
-# 11828 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11829 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11837,26 +11838,26 @@ and onetwosignedopt lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 506 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 507 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( Some (int_of_string (Lexing.lexeme lexbuf))  )
-# 11843 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11844 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 507 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 508 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( let s = Lexing.lexeme lexbuf in
                               let s' = String.sub s 1 ((String.length s) - 1) in
                               Some (int_of_string s')  )
-# 11850 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11851 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 510 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 511 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( Some (int_of_string (Lexing.lexeme lexbuf))  )
-# 11855 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11856 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 3 ->
-# 511 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 512 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( None )
-# 11860 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11861 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11869,21 +11870,21 @@ and onetwosigned lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 514 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 515 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             (int_of_string (Lexing.lexeme lexbuf)  )
-# 11875 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11876 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 515 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 516 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( let s = Lexing.lexeme lexbuf in
                               let s' = String.sub s 1 ((String.length s) - 1) in
                               int_of_string s'  )
-# 11882 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11883 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 518 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 519 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( int_of_string (Lexing.lexeme lexbuf)  )
-# 11887 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11888 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11896,14 +11897,14 @@ and onetwodlist lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 521 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 522 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwod lexbuf in v :: (onetwodlist lexbuf) )
-# 11902 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11903 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 522 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 523 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( [] )
-# 11907 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11908 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11916,14 +11917,14 @@ and onetwosignedlist lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 525 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 526 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwosigned lexbuf in v :: (onetwosignedlist lexbuf) )
-# 11922 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11923 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 526 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 527 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( [] )
-# 11927 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11928 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11936,21 +11937,21 @@ and onethreesigned lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 529 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 530 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                                 (int_of_string (Lexing.lexeme lexbuf)  )
-# 11942 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11943 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 530 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 531 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                                 ( let s = Lexing.lexeme lexbuf in
                               let s' = String.sub s 1 ((String.length s) - 1) in
                               int_of_string s'  )
-# 11949 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11950 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 533 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 534 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                                 ( int_of_string (Lexing.lexeme lexbuf)  )
-# 11954 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11955 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11963,14 +11964,14 @@ and onethreesignedlist lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 536 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 537 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onethreesigned lexbuf in v :: (onethreesignedlist lexbuf) )
-# 11969 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11970 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 537 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 538 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( [] )
-# 11974 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11975 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11983,10 +11984,10 @@ and weekday lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 540 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 541 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                                     ( ICalendar_lextypes.weekday_from_string
                                                         (Lexing.lexeme lexbuf) )
-# 11990 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 11991 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -11999,10 +12000,10 @@ and weekdaynum lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 544 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 545 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let n = onetwosignedopt lexbuf in
                            n, weekday lexbuf )
-# 12006 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12007 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12015,15 +12016,15 @@ and wdaylist lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 548 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 549 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let w = weekdaynum lexbuf in
                            w :: (wdaylist lexbuf) )
-# 12022 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12023 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 550 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 551 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( [] )
-# 12027 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12028 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12036,94 +12037,94 @@ and recurstuff lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 553 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 554 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let d = dtp lexbuf in (RecDate d) :: (recurstuff lexbuf) )
-# 12042 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12043 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 554 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 555 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let c = digits lexbuf in (RecCount c) :: (recurstuff lexbuf) )
-# 12047 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12048 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 555 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 556 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let c = digits lexbuf in (RecInterval c) :: (recurstuff lexbuf) )
-# 12052 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12053 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 3 ->
-# 556 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 557 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwod lexbuf in 
                            let l = onetwodlist lexbuf in (RecBySecond (v :: l)) :: (recurstuff lexbuf) )
-# 12058 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12059 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 4 ->
-# 558 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 559 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwod lexbuf in
                            let l = onetwodlist lexbuf in (RecByMinute (v :: l)) :: (recurstuff lexbuf) )
-# 12064 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12065 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 5 ->
-# 560 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 561 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwod lexbuf in
                            let l = onetwodlist lexbuf in (RecByHour (v :: l)) :: (recurstuff lexbuf) )
-# 12070 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12071 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 6 ->
-# 562 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 563 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = weekdaynum lexbuf in
                            let l = wdaylist lexbuf in (RecByDay (v :: l)) :: (recurstuff lexbuf) )
-# 12076 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12077 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 7 ->
-# 564 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 565 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwosigned lexbuf in
                            let l = onetwosignedlist lexbuf in 
                            (RecByMonthDay (v :: l)) :: (recurstuff lexbuf) )
-# 12083 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12084 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 8 ->
-# 567 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 568 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                           ( let v = onethreesigned lexbuf in
                            let l = onethreesignedlist lexbuf in 
                            (RecByYearDay (v :: l)) :: (recurstuff lexbuf) )
-# 12090 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12091 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 9 ->
-# 570 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 571 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwosigned lexbuf in
                            let l = onetwosignedlist lexbuf in 
                            (RecByWeekNo (v :: l)) :: (recurstuff lexbuf) )
-# 12097 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12098 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 10 ->
-# 573 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 574 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onetwod lexbuf in
                            let l = onetwodlist lexbuf in (RecByMonth (v :: l)) :: (recurstuff lexbuf) )
-# 12103 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12104 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 11 ->
-# 575 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 576 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let v = onethreesigned lexbuf in
                            let l = onethreesignedlist lexbuf in 
                            (RecBySetPos (v :: l)) :: (recurstuff lexbuf) )
-# 12110 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12111 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 12 ->
-# 578 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 579 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let w = weekday lexbuf in (RecWkStart w) :: (recurstuff lexbuf) )
-# 12115 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12116 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 13 ->
-# 579 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 580 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let s = Lexing.lexeme lexbuf in
                             let s' = String.sub s 1 ((String.length s) - 1) in
                             let r = RecX (s', text lexbuf) in r :: (recurstuff lexbuf) )
-# 12122 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12123 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 14 ->
-# 582 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 583 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( [] )
-# 12127 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12128 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12136,9 +12137,9 @@ and freq lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 586 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 587 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( ICalendar_lextypes.freq_from_string (Lexing.lexeme lexbuf) )
-# 12142 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12143 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12151,10 +12152,10 @@ and recur lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 589 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 590 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                          ( let freq = freq lexbuf in
                            freq, (recurstuff lexbuf) )
-# 12158 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12159 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12167,28 +12168,28 @@ and intext lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 594 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 595 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
     ( store_string_char('\\');
       store_string_char(Lexing.lexeme_char lexbuf 1);
       intext lexbuf )
-# 12175 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12176 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 599 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 600 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
     ( store_string_char(Lexing.lexeme_char lexbuf 1);
       intext lexbuf )
-# 12181 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12182 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 602 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 603 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
     ( store_string_char(Lexing.lexeme_char lexbuf 0);
       intext lexbuf )
-# 12187 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12188 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 3 ->
-# 604 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 605 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
      ( () )
-# 12192 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12193 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12201,15 +12202,15 @@ and inbinary lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 607 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 608 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                ( store_string (Lexing.lexeme lexbuf);
                                  inbinary lexbuf )
-# 12208 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12209 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 609 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 610 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                ( inendbinary lexbuf )
-# 12213 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12214 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12222,19 +12223,19 @@ and inendbinary lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 612 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
-                               ( store_string (Lexing.lexeme lexbuf) )
-# 12228 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
-
-  | 1 ->
 # 613 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                ( store_string (Lexing.lexeme lexbuf) )
-# 12233 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12229 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+
+  | 1 ->
+# 614 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+                               ( store_string (Lexing.lexeme lexbuf) )
+# 12234 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 614 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 615 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                ( )
-# 12238 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12239 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12247,9 +12248,9 @@ and iana_token lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 617 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 618 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( Lexing.lexeme lexbuf )
-# 12253 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12254 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12262,9 +12263,9 @@ and calvalue lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 620 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 621 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( ICalendar_lextypes.calvalue_from_string (Lexing.lexeme lexbuf) )
-# 12268 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12269 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12277,9 +12278,9 @@ and classvalue lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 624 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 625 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( ICalendar_lextypes.classvalue_from_string (Lexing.lexeme lexbuf) )
-# 12283 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12284 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12292,14 +12293,14 @@ and date_time lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 627 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 628 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( let d = date lexbuf in
                               single_T lexbuf;
                               let t = time lexbuf in
                               { ICalendar_syntax.date = d;
                                 ICalendar_syntax.time = t}
                               )
-# 12303 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12304 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12312,9 +12313,9 @@ and two_digits lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 635 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 636 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( Lexing.lexeme lexbuf )
-# 12318 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12319 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12327,14 +12328,14 @@ and opt_two_digits lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 638 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 639 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( Some (Lexing.lexeme lexbuf) )
-# 12333 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12334 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 639 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 640 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( None )
-# 12338 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12339 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12347,19 +12348,19 @@ and get_sign lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 642 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 643 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( true )
-# 12353 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12354 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 643 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 644 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( false )
-# 12358 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12359 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 644 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 645 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( failwith "Expected a '+' or a '-'" )
-# 12363 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12364 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12372,7 +12373,7 @@ and utcoffset lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 647 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 648 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( let pos = get_sign lexbuf in
                               let h = int_of_string (two_digits lexbuf) in
                               let m = int_of_string (two_digits lexbuf) in
@@ -12386,7 +12387,7 @@ and utcoffset lexbuf =
                                 ICalendar_syntax.off_m = m;
                                 ICalendar_syntax.off_s = s; }
                             )
-# 12390 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12391 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12399,11 +12400,11 @@ and date lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 662 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 663 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( match opt_date lexbuf with
                               | Some d -> d
                               | None -> failwith "was expecting a date = 8 digits" )
-# 12407 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12408 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12416,17 +12417,17 @@ and opt_date lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 667 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 668 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( let year = int_of_string (Lexing.lexeme lexbuf) in
                               let month = int_of_string (two_digits lexbuf) in
                               let day = int_of_string (two_digits lexbuf) in
                               Some (ICalendar_lextypes.mk_date (year, month, day)) )
-# 12425 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12426 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 671 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 672 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( None )
-# 12430 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12431 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12439,14 +12440,14 @@ and is_slash lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 674 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 675 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( true )
-# 12445 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12446 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 675 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 676 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( false )
-# 12450 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12451 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12459,14 +12460,14 @@ and single_T lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 679 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 680 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( () )
-# 12465 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12466 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 680 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 681 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( failwith "was expecting a T" )
-# 12470 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12471 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12479,14 +12480,14 @@ and is_T lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 683 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 684 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( true )
-# 12485 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12486 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 684 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 685 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( false )
-# 12490 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12491 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12499,7 +12500,7 @@ and time lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 687 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 688 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let hour = int_of_string (two_digits lexbuf) in
                                let minute = int_of_string (two_digits lexbuf) in
                                let second = int_of_string (two_digits lexbuf) in
@@ -12510,7 +12511,7 @@ and time lexbuf =
                                in
                                ICalendar_lextypes.mk_time res
                              )
-# 12514 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12515 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12523,14 +12524,14 @@ and single_Z lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 699 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 700 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                        ( true )
-# 12529 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12530 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 700 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 701 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                                        ( false )
-# 12534 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12535 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12543,7 +12544,7 @@ and dtp lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 703 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 704 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( match opt_date lexbuf with
                                | Some d ->
                                    if (is_T lexbuf) then
@@ -12561,7 +12562,7 @@ and dtp lexbuf =
                                    else
                                      ICalendar_syntax.DateVal d
                                | None -> ICalendar_syntax.DurationVal (durval lexbuf) )
-# 12565 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12566 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12574,14 +12575,14 @@ and dtp_list lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 722 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 723 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let v = dtp lexbuf in v :: (dtp_list lexbuf) )
-# 12580 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12581 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 723 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 724 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( [] )
-# 12585 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12586 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12594,9 +12595,9 @@ and float_val lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 726 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 727 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( float_of_string (Lexing.lexeme lexbuf) )
-# 12600 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12601 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12609,21 +12610,21 @@ and integer_val lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 729 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 730 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( int_of_string (Lexing.lexeme lexbuf)  )
-# 12615 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12616 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 730 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 731 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( let s = Lexing.lexeme lexbuf in
                               let s' = String.sub s 1 ((String.length s) - 1) in
                               int_of_string s'  )
-# 12622 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12623 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 733 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 734 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                             ( int_of_string (Lexing.lexeme lexbuf)  )
-# 12627 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12628 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12636,11 +12637,11 @@ and geoval lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 736 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 737 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let f1 = float_val lexbuf in
                                semi lexbuf;
                                (f1, float_val lexbuf) )
-# 12644 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12645 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12653,43 +12654,43 @@ and duropt lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 741 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 742 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let s = Lexing.lexeme lexbuf in
                                Week (int_of_string (String.sub s 0 ((String.length s) - 1))) )
-# 12660 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12661 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 743 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 744 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let s = Lexing.lexeme lexbuf in
                                if is_T lexbuf then
                                  DayT (int_of_string (String.sub s 0 ((String.length s) - 1)), duropt lexbuf) 
                                else
                                  Day (int_of_string (String.sub s 0 ((String.length s) - 1))) 
                                )
-# 12670 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12671 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 749 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 750 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let s = Lexing.lexeme lexbuf in
                                Hour (int_of_string (String.sub s 0 ((String.length s) - 1)), duropt lexbuf) )
-# 12676 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12677 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 3 ->
-# 751 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 752 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let s = Lexing.lexeme lexbuf in
                                Minute (int_of_string (String.sub s 0 ((String.length s) - 1)), duropt lexbuf) )
-# 12682 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12683 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 4 ->
-# 753 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 754 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let s = Lexing.lexeme lexbuf in
                                Second (int_of_string (String.sub s 0 ((String.length s) - 1))) )
-# 12688 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12689 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 5 ->
-# 755 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 756 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( DurEnd )
-# 12693 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12694 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12702,29 +12703,29 @@ and opt_durval lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 758 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 759 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( Some (neg_dur (convert_duration_time (duropt lexbuf))) )
-# 12708 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12709 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 759 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 760 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( Some (neg_dur (convert_duration_week_date (duropt lexbuf))) )
-# 12713 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12714 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 2 ->
-# 760 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 761 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( Some (convert_duration_time (duropt lexbuf)) )
-# 12718 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12719 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 3 ->
-# 761 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 762 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( Some (convert_duration_week_date (duropt lexbuf)) )
-# 12723 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12724 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 4 ->
-# 762 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 763 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( None )
-# 12728 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12729 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12737,11 +12738,11 @@ and durval lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 765 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 766 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( match (opt_durval lexbuf) with
                                | Some d -> d
                                | None -> failwith "expected a duration" )
-# 12745 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12746 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12754,15 +12755,15 @@ and dot_integer_list lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 770 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 771 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( let i = integer_val lexbuf in
                                i :: (dot_integer_list lexbuf) )
-# 12761 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12762 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | 1 ->
-# 772 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 773 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( [] )
-# 12766 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12767 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 
@@ -12775,9 +12776,9 @@ and actionval lexbuf =
     Lexing.pos_cnum = lexbuf.Lexing.lex_abs_pos + lexbuf.Lexing.lex_curr_pos};
   match __ocaml_lex_result with
   | 0 ->
-# 776 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
+# 777 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.mll"
                              ( ICalendar_lextypes.actionval_from_string (Lexing.lexeme lexbuf) )
-# 12781 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
+# 12782 "/home/steak/devel/harmony4/src/iCalendar/iCalendarlex.ml"
 
   | _ -> raise (Failure "lexing: empty token")
 

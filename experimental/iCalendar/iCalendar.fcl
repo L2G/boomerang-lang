@@ -3,13 +3,13 @@ module ICalendar =
 
 let ICalendar : schema = [{calprops = CalProps, components = Components}]
     
-and CalProps : schema = {prodid = XPListPlusVal,
-			  version = XPListPlusVal,
-			  ?calscale = XPListPlusVal,
-			  ?method = XPListPlusVal,
+and CalProps : schema = {prodid = XPListPlusVal Value,
+			  version = XPListPlusVal Value,
+			  ?calscale = XPListPlusVal Value,
+			  ?method = XPListPlusVal Value,
 			    ?xprop = XProp}
     
-and XPListPlusVal : schema = {val = Value, ?xplist = XPList}
+and XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList}
     
 and XPList : schema = List.T ({"name" = Value, val = List.T Value})
     
@@ -30,7 +30,97 @@ and Bool : schema = {"#true" = {}} | {"#false" = {}}
   
 and ValueNotList : schema = { !\(`List.HD, `List.TL, `List.NIL) = {}}
 
-and Components : schema = List.T {val = Any, type = ({Eventc} | {Timezonec})}
+and Components : schema = 
+  List.T ({val = Eventc, type = {Eventc}} | {val = Timezonec, type = {Timezonec}})
     
+and Eventc : schema = {props = CompProp, ?alarms = List.T CompProp}
+	
+and CompProp : schema = 
+      { ?action = XPListPlusVal Value,
+	?attach = List.T (ParamsPlusVal ({ "AttUri" = Value } | { "AttBinary" = Value})),
+	?attendee = List.T (ParamsPlusVal Value),
+	?categories = List.T (ParamsPlusVal (List.T Value)),
+	?"class" = XPListPlusVal Value,
+	?comment = List.T (ParamsPlusVal Value),
+	?contact = List.T (ParamsPlusVal Value),
+	?created = XPListPlusVal DateTime,
+	?daylightc = List.T CompProp,
+	?description = ParamsPlusVal Value,
+	?dtend = ParamsPlusVal DtPval,
+	?dtstamp = ParamsPlusVal DtPval,
+	?dtstart = ParamsPlusVal DtPval,
+	?duration = Duration,
+	?exdate = List.T (ParamsPlusVal (List.T DtPval)),
+	?exrule = List.T (XPListPlusVal Recur),
+	?geo = Geo,
+	?lastmod = XPListPlusVal DateTime,
+	?location = ParamsPlusVal Value,
+	?organizer = ParamsPlusVal Value,
+	?priority = XPListPlusVal Value,
+	?rdate = List.T (ParamsPlusVal (List.T DtPval)),
+	?recurid = ParamsPlusVal DtPval,
+	?related_to = List.T (ParamsPlusVal Value),
+	?repeat = XPListPlusVal Value,
+	?resources = List.T (ParamsPlusVal (List.T Value)),
+	?rrule =  List.T (XPListPlusVal Recur),
+	?rstatus = List.T RStatus,
+	?seq = XPListPlusVal Value,
+	?standardc = List.T CompProp,
+	?status = XPListPlusVal Value,
+	?summary = ParamsPlusVal Value,
+	?transp = XPListPlusVal Value,
+	?trigger = ParamsPlusVal DtPval,
+	?tzid = TzID,
+	?tzname = List.T (ParamsPlusVal Value),
+	?tzoffsetto = XPListPlusVal OffsetTime,
+	?tzoffsetfrom = XPListPlusVal OffsetTime,
+	?tzurl = XPListPlusVal Value,
+	?uid = XPListPlusVal Value,
+	?url = XPListPlusVal Value,
+	?xprop = XProp
+      }	
+
+and ParamsPlusVal (T : schema) : schema = { val = T, params = Params}
+	
+and DateTime : schema = 
+      { date = {year = Value, month = Value, day = Value},
+	time = {hour = Value, minute = Value, second = Value, zulu = Value}}
+	
+and DtPval : schema = 
+      { "DateTimeVal" = DateTime } |
+      { "DateVal" = {year = Value, month = Value, day = Value}} |
+      { "PeriodVal" = Period } |
+      { "DurationVal" = Duration}
+      
+and Period : schema = 
+      { "PeriodExplicit" = { start = DateTime, "end" = DateTime}} |
+      { "PeriodStart" = { start = DateTime, duration = Duration}}
+	
+and Duration : schema = { negative = Bool, length = DurLength }
+
+and DurLength : schema = 
+      { "DurWeek" = Value } |
+      { "DurTime" = { hour = Value, minute = Value, second = Value}} |
+      { "DurDate" = { "Day" = Value, 
+		      ?"Time"= {hour = Value, minute = Value, second = Value }}}
+	
+and Recur : schema = Any
+	
+and Geo : schema = { latitude = Value, longitude = Value, ?xplist = XPList}
+	
+and RStatus : schema = 
+      { code = List.T Value, text = Value, ?extdata = Value, params = Params}
+	
+and TzID : schema = { global = Bool, val = Value, ?xplist = XPList }
+	
+and OffsetTime : schema = 
+      { positive = Bool, hour = Value, minute = Value, second = Value }
+
+and Timezonec : schema = CompProp
+
+(* this is just a trick to temporary *not* use CompProps ('tis too slow) *)
+and CompProp : schema = Any
+
 let l : lens = 
   assert ICalendar
+    
