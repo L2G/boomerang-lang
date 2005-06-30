@@ -1327,8 +1327,8 @@ let view_from_calprops p =
     | None -> []
     | Some (xpl, cv) ->
         ["calscale", V.from_list (("val", 
-                                     V.new_value (ICalendar.tostring ICalendar_print.print_calvalue cv))
-                              :: (viewpair_from_xplist xpl))
+                                   V.new_value (ICalendar.tostring ICalendar_print.print_calvalue cv))
+				  :: (viewpair_from_xplist xpl))
         ]);
     (match p.imethod with
     | None -> []

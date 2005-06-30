@@ -1,4 +1,36 @@
 module ICalendar =
  open Prelude
 
-let l : lens = id
+let ICalendar : schema = [{calprops = CalProps, components = Components}]
+    
+and CalProps : schema = {prodid = XPListPlusVal,
+			  version = XPListPlusVal,
+			  ?calscale = XPListPlusVal,
+			  ?method = XPListPlusVal,
+			    ?xprop = XProp}
+    
+and XPListPlusVal : schema = {val = Value, ?xplist = XPList}
+    
+and XPList : schema = List.T ({"name" = Value, val = List.T Value})
+    
+and XProp : schema = List.T {"name" = Value, val = Value, params = Params}
+    
+and Params : schema = { *\(delfromparam, deltoparam, memberparam, 
+			   rsvpparam, tzidparam, valuetypeparam, xplist ) = ValueNotList,
+			*\(altrepparam, cnparam, cutypeparam, dirparam, encodingparam, 
+			   fmttypeparam, langparam, partstatparam, rangeparam, reltypeparam,
+			   roleparam, rsvpparam, sentbyparam, trigrelparam, tzidparam,
+			   valuetypeparam, xplist) = List.T Value,
+			?xplist = XPList,
+			?rsvpparam = Bool,
+			?tzidparam = { global = Bool, val = Value}
+		      }
+
+and Bool : schema = {"#true" = {}} | {"#false" = {}}
+  
+and ValueNotList : schema = { !\(`List.HD, `List.TL, `List.NIL) = {}}
+
+and Components : schema = List.T {val = Any, type = ({Eventc} | {Timezonec})}
+    
+let l : lens = 
+  assert ICalendar

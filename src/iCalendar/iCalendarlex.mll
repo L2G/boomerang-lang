@@ -1,8 +1,9 @@
 {
 (*
-  this lexer accepts both \r\n and \n end of line
-  this lexer requires the version to be 2.0
-  *)
+   this lexer accepts both \r\n and \n end of line
+   (* isn't that too restrictive ? - SL *)
+   this lexer requires the version to be 2.0
+*)
   
   open ICalendarparse
   open ICalendar_lextypes
