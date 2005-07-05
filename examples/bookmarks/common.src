@@ -4,9 +4,8 @@ module Common =
   
 (* the abstract schema for heterogeneous synchronization, as described in the paper *)
 let Link : schema = { "name" = Value, "url" = Value }
-
 let Folder : schema = { "name" = Value, "contents" = Contents }     
-and Contents : schema = List.T ({ "folder" = Folder} | {"link" =  Link})
+and Contents : schema = List.T (Folder | {"link" =  Link})
 
 let Abstract : schema = Contents
 

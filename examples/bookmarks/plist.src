@@ -8,32 +8,32 @@ let plist_object_lens : lens =
          "string" -> leaf_lens }
 
 and array_lens : lens =
-  wmap {"" -> List.map plist_object_lens};
-  hoist ""
+  wmap {`Xml.CHILDREN -> List.map plist_object_lens};
+  hoist Xml.CHILDREN
 
 and dict_lens : lens =
-  wmap {"" -> List.groupby2; List.map (keypair_lens)};
-  hoist ""
+  wmap {`Xml.CHILDREN -> List.groupby2; List.map (keypair_lens)};
+  hoist Xml.CHILDREN
 
 and keypair_lens : lens =
   wmap { `(List.HD) -> hoist "key"; leaf_lens, 
          `(List.TL) -> wmap { `(List.HD) -> plist_object_lens } }
 
 and leaf_lens : lens =
-  hoist "";
-  acond [] { `(List.TL)=[], `(List.HD)={"PCDATA" = {"BLANK"={}, *\("BLANK")=Any}}}
-    (const [{"PCDATA"={"BLANK"}}] [])
+  hoist Xml.CHILDREN;
+  acond [] { `(List.TL)=[], `(List.HD)={` Xml.PCDATA = {"BLANK"={}, *\("BLANK")=Any}}}
+    (const [{`Xml.PCDATA={"BLANK"}}] [])
     id;
   List.hd [];
-  hoist "PCDATA"
+  hoist Xml.PCDATA
 
 let l : lens =
   List.hd [];
   hoist "plist";
-  focus "" { "version" = {"1.0"} };
+  focus Xml.CHILDREN { "version" = {"1.0"} };
   List.hd [];
   plist_object_lens
-
+    
 (* flatten_dict: flatten a dict into a bush { key1 = data1, key2 = data2, ... } *)
 let flatten_dict : lens =
   hoist "dict";
