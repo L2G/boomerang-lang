@@ -6,7 +6,7 @@ module Mozilla =
   let item : lens = 
     hoist "DT";
     hoist Xml.CHILDREN;
-    acond CFolder Common.Folder
+    acond CFolder Bookmarks.Folder
       folder
       link
   and folder : lens = 
@@ -18,17 +18,17 @@ module Mozilla =
       id;
     
     wmap { "name" ->  focus Xml.CHILDREN {}; List.hd []; hoist Xml.PCDATA,
-	     "contents" -> hoist Xml.CHILDREN; List.map item }
+             "contents" -> hoist Xml.CHILDREN; List.map item }
       
   and link : lens = 
     List.hd [];
     rename "A" "link";
     wmap { "link" ->
-	     (xfork { `Xml.CHILDREN, "HREF" } { "name", "url" }
-		(rename "HREF" "url";
-		 fork {"url"} id 		   
-		   (focus Xml.CHILDREN {};List.hd []; rename Xml.PCDATA "name"))
-		(const {} {})) }
+             (xfork { `Xml.CHILDREN, "HREF" } { "name", "url" }
+                (rename "HREF" "url";
+                 fork {"url"} id                   
+                   (focus Xml.CHILDREN {};List.hd []; rename Xml.PCDATA "name"))
+                (const {} {})) }
       
   let l : lens = 
     List.hd [];
@@ -39,4 +39,4 @@ module Mozilla =
     hoist "DL";
     hoist Xml.CHILDREN;
     List.map item;
-    Common.rename_bookmarksbar
+    Bookmarks.rename_bookmarksbar

@@ -43,6 +43,11 @@ $(HARMONYBIN):
 SRCFILES = $(shell (cd $(LENSESDIR); ls *.src))
 GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 
+LOCALSRCFILES = $(shell (ls *.src))
+LOCALGENERATEDFCLFILES = $(subst .src,.fcl, $(LOCALSRCFILES))
+
+all: $(LOCALGENERATEDFCLFILES)
+
 %.fcl : %.src $(SRC2F)
 	-rm -f $@
 	$(SRC2F) $< $@
@@ -75,6 +80,7 @@ clean::
 
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
 	@for i in $(SUBDIRS); do \
+	   echo \
 	   echo "###### testing $(CWD)/$$i ######"; \
 	   $(MAKE) -C $$i test;  \
 	   if [ $$? -ne 0 ]; then exit $$?; fi; \

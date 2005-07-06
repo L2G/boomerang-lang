@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# Script for driving Harmony for synchronizing bookmark files
+# Usable both stand-alone and as an external merge program for Unison
+
+# design issue: perhaps there should be an initialization phase 
+# when we make decisions like whether we're doing ordered or unordered...
+# (but how does that then work when called from Unison...?)
+
+##########################################################################
+# Argument parsing
+
+# Defaults
+ORDERED=YES
+BACKUP=YES
+
+if [ -z $1 ]; then
+  echo "Usage:"
+  echo "    harmonize-bookmarks FILE FILE [options]"
+  echo " or harmonize-bookmarks -ar FILE -r1 FILE -r2 FILE [options]"
+  echo " or harmonize-bookmarks -ar FILE -r1 FILE -r2 FILE "
+  echo "                        -newar FILE -newr1 FILE -newr2 FILE [options]"
+  echo
+  echo "where [options] may include... (others are passed to Harmony)"
+  echo "   -ordered     (default)"
+  echo "   -unordered  "
+  echo "   -backup      (default)"
+  echo "   -nobackup  "
+  exit 1
+fi
+
+# Handle special case where the two files to sync are given "bare" 
+# as the first two args
+if [ -n "$(echo $1 | grep '^[^-]')" ] && [ -n "$(echo $2 | grep '^[^-]')" ]; then
+  R1=$1
+  R2=$2
+  shift; shift
+fi
+
+# Parse command line
+while [ ! $1 = "" ]; do    # why doesn't  [ -n $1 ] work??
+  case $1 in
+    -ar ) 
+       AR=$2
+       shift;;
+    -r1 )  
+       R1=$2
+       shift;;
+    -r2 )  
+       R2=$2
+       shift;;
+    -newar ) 
+       NEWAR=$2
+       shift;;
+    -newr1 )  
+       NEWR1=$2
+       shift;;
+    -newr2 )  
+       NEWR2=$2
+       shift;;
+    -ordered )  
+       ORDERED=YES ;;
+    -unordered )  
+       ORDERED=NO ;;
+    -backup )  
+       BACKUP=YES ;;
+    -nobackup )  
+       BACKUP=NO ;;
+    * )
+       HARMONYARGS="$HARMONYARGS $1" ;;
+  esac
+  shift
+done
+
+# Make up archive name if not specified
+if [ -z $AR ]; then
+  AR=.harmonyar-$ORDERED-$R1-$R2
+fi
+
+# Put things back where they came from if not specified
+if [ -z $NEWAR ]; then NEWAR=$AR; fi
+if [ -z $NEWR1 ];   then NEWR1=$R1;     fi
+if [ -z $NEWR2 ];   then NEWR2=$R2;     fi
+
+
+##############################################################################
+# Make backups if requested
+
+BACKUPSUFFIX=$$.bak
+
+if [ $BACKUP = YES ]; then
+  if [ -f $AR ]; then cp $AR $AR-$BACKUPSUFFIX; fi
+  if [ -f $R1 ]; then cp $R1 $R1-$BACKUPSUFFIX; fi
+  if [ -f $R2 ]; then cp $R2 $R2-$BACKUPSUFFIX; fi
+fi
+
+##############################################################################
+# Do any necessary pre-processing of the files
+
+# Just handling the safari-safari case for now!!
+if [ -f $AR ]; then plutil -convert xml1 $AR; fi
+if [ -f $R1 ]; then plutil -convert xml1 $R1; fi
+if [ -f $R2 ]; then plutil -convert xml1 $R2; fi
+
+
+##############################################################################
+# Do sync
+
+if [ $ORDERED = YES ]; then ARLENS=Safari.l2; else ARLENS=Safari.l3; fi
+R1LENS=$ARLENS
+R2LENS=$ARLENS
+
+ARENC=xml
+R1ENC=xml
+R2ENC=xml
+
+CMD="harmony sync -schema Bookmarks.Abstract -archive $AR:$ARENC -newarchive $NEWAR:$ARENC -lensar $ARLENS -replica1 $R1:$R1ENC -newreplica1 $NEWR1:$R1ENC -lensr1 $R1LENS -replica2 $R2:$R2ENC -newreplica2 $NEWR2:$R2ENC -lensr2 $R2LENS $HARMONYARGS"
+
+echo $CMD
+$CMD
+
+
+##############################################################################
+# Apply post-processing as appropriate
+#
+# (nothing yet)
+
+

@@ -1,6 +1,6 @@
 #{#}
 
-module Common =
+module Bookmarks =
   
 (* the abstract schema for heterogeneous synchronization, as described in the paper *)
 let Link : schema = { "name" = Value, "url" = Value }
@@ -30,7 +30,7 @@ let flatten_to_bush : lens =
   (* now we flatten these lists, and keep only the heads for links, since *)
   (* different links at the same location never have the same urls        *)
   wmap {"folder" -> List.flatten,
-	  "link" -> (List.flatten; map (List.hd [])) };
+          "link" -> (List.flatten; map (List.hd [])) };
   
   (* we also rename the two lists in a more consistent way *)
   rename_if_present "folder" "folders";
@@ -42,9 +42,9 @@ let flatten_to_bush : lens =
     (acond {"links"=Any} {"folders"={}, "links" = Any}
      (add "folders" {})
        (acond {"folders"=Any} {"folders" = Any, "links" = {}}
-	(add "links" {})
-	  id
-	  )
+        (add "links" {})
+          id
+          )
        )    
     
 let flatten_bookmarks : lens =
@@ -56,7 +56,7 @@ let toolbar : name = "bookmarks toolbar"
 
 let rename_bookmarksbar : lens = 
   wmap { `List.HD -> 
-	   begin
-	     wmap { "name" -> rename "BookmarksBar" toolbar }
-	   end
+           begin
+             wmap { "name" -> rename "BookmarksBar" toolbar }
+           end
        }
