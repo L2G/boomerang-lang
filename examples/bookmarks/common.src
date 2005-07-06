@@ -51,3 +51,12 @@ let flatten_bookmarks : lens =
   assert Abstract;
   flatten_to_bush;
   assert BushAbstract
+
+let toolbar : name = "bookmarks toolbar"
+
+let rename_bookmarksbar : lens = 
+  wmap { `List.HD -> 
+	   begin
+	     wmap { "name" -> rename "BookmarksBar" toolbar }
+	   end
+       }

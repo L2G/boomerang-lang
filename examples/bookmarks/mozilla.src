@@ -39,5 +39,4 @@ module Mozilla =
     hoist "DL";
     hoist Xml.CHILDREN;
     List.map item;
-    List.tl {}
-
+    Common.rename_bookmarksbar
