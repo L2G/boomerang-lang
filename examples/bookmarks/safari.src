@@ -4,18 +4,18 @@ module Safari =
 
 (* --------------- schemas -------------- *)
 let URIDict : schema = { "BLANK" = Value, 
-			 "title" = Value, 
-			 *\("BLANK","title") = Any }
+                         "title" = Value, 
+                         *\("BLANK","title") = Any }
 
 let Link : schema = { "URIDictionary" = URIDict, 
-		      "URLString" = Value, 
-		      * \ ("URIDictionary","URLString") = Any }
+                      "URLString" = Value, 
+                      * \ ("URIDictionary","URLString") = Any }
     
 let Folder : schema = { "Children" = (List.T Item), 
-			"Title" = Value, 
-			* \ ("Children","Title") = Any }
+                        "Title" = Value, 
+                        * \ ("Children","Title") = Any }
                     | { "Title" = Value, 
-			* \ ("Children","Title") = Any }
+                        * \ ("Children","Title") = Any }
 
 and Item : schema = { "folder" = Folder } 
                   | { "link" = Link } 
@@ -28,12 +28,12 @@ let SafAbstract : schema = List.T Item
 (* puts the data under a link, folder, or proxy key *)
 let children : lens = 
   wmap { "array" -> 
-	   List.map 
-	     (item; 
-	      pivot "WebBookmarkType";
-	      rename_if_present "WebBookmarkTypeLeaf" "link";
-	      rename_if_present "WebBookmarkTypeList" "folder";
-	      rename_if_present "WebBookmarkTypeProxy" "proxy")};
+           List.map 
+             (item; 
+              pivot "WebBookmarkType";
+              rename_if_present "WebBookmarkTypeLeaf" "link";
+              rename_if_present "WebBookmarkTypeList" "folder";
+              rename_if_present "WebBookmarkTypeProxy" "proxy")};
   hoist "array"
     
 and item : lens = 
@@ -51,10 +51,10 @@ and item : lens =
   wmap { "Children" -> children,
     "URIDictionary" -> item,
       "URLString" -> hoist "string",
-	"WebBookmarkType" -> hoist "string",
-	  "title" -> hoist "string",
-	    "Title" -> hoist "string",
-	      "BLANK" -> hoist "string"
+        "WebBookmarkType" -> hoist "string",
+          "title" -> hoist "string",
+            "Title" -> hoist "string",
+              "BLANK" -> hoist "string"
        }
     
 (* l is for homogeneous synchronization of safari bookmarks *)

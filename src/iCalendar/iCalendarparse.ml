@@ -58,7 +58,7 @@ type token =
   | TZNAME of ( ICalendar_lextypes.all_params list * string )
 
 open Parsing;;
-# 2 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 2 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
 open ICalendar_syntax
 open ICalendar_print
 
@@ -831,7 +831,7 @@ let mk_tzname (p,t) =
     print_tzname print_string [res];
     failwith "TZNAME creation failed"
   end
-# 835 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 835 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
 let yytransl_const = [|
   257 (* BVCALENDAR *);
   258 (* EVCALENDAR *);
@@ -1063,466 +1063,466 @@ let yyact = [|
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 : 'icalendarlist) in
     Obj.repr(
-# 830 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 830 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( _1 )
-# 1069 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1069 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : ICalendar_syntax.icalendar))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 1 : 'icalobject) in
     let _2 = (peek_val parser_env 0 : 'icalendarlist) in
     Obj.repr(
-# 834 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 834 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( _1 :: _2 )
-# 1077 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1077 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'icalendarlist))
 ; (fun parser_env ->
     Obj.repr(
-# 836 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 836 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( [] )
-# 1083 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1083 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'icalendarlist))
 ; (fun parser_env ->
     let _2 = (peek_val parser_env 3 : 'calprops) in
     let _3 = (peek_val parser_env 2 : 'components) in
     Obj.repr(
-# 840 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 840 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( mk_calobj _2  _3 )
-# 1091 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1091 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'icalobject))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 1 : 'calprop) in
     let _2 = (peek_val parser_env 0 : 'calprops) in
     Obj.repr(
-# 844 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 844 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( _1 :: _2 )
-# 1099 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1099 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'calprops))
 ; (fun parser_env ->
     Obj.repr(
-# 846 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 846 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( [] )
-# 1105 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1105 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'calprops))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * string ) in
     Obj.repr(
-# 850 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 850 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Prodid _1 )
-# 1112 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1112 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'calprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * string ) in
     Obj.repr(
-# 852 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 852 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Version _1 )
-# 1119 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1119 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'calprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.calvalue ) in
     Obj.repr(
-# 854 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 854 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Calscale _1 )
-# 1126 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1126 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'calprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * string ) in
     Obj.repr(
-# 856 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 856 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Method _1 )
-# 1133 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1133 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'calprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 : 'xprop) in
     Obj.repr(
-# 858 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 858 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Xprop _1 )
-# 1140 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1140 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'calprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  string * (ICalendar_lextypes.all_params list) * string ) in
     Obj.repr(
-# 862 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 862 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( mk_xprop _1 )
-# 1147 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1147 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'xprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 1 : 'component) in
     let _2 = (peek_val parser_env 0 : 'components) in
     Obj.repr(
-# 866 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 866 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( _1 :: _2 )
-# 1155 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1155 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'components))
 ; (fun parser_env ->
     Obj.repr(
-# 868 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 868 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( [] )
-# 1161 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1161 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'components))
 ; (fun parser_env ->
     let _2 = (peek_val parser_env 1 : 'eventc) in
     Obj.repr(
-# 872 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 872 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Eventc _2 )
-# 1168 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1168 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'component))
 ; (fun parser_env ->
     let _2 = (peek_val parser_env 1 : 'timezonec) in
     Obj.repr(
-# 874 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 874 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Timezonec _2 )
-# 1175 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1175 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'component))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 1 : 'allprops) in
     let _2 = (peek_val parser_env 0 : 'alarmcs) in
     Obj.repr(
-# 878 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 878 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( {event_comp = mk_eventprop _1; event_alarms = _2} )
-# 1183 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1183 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'eventc))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 1 : 'aprop) in
     let _2 = (peek_val parser_env 0 : 'allprops) in
     Obj.repr(
-# 882 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 882 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( _1 :: _2 )
-# 1191 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1191 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'allprops))
 ; (fun parser_env ->
     Obj.repr(
-# 884 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 884 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( [] )
-# 1197 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1197 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'allprops))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.classval ) in
     Obj.repr(
-# 888 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 888 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Class _1 )
-# 1204 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1204 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.date_time ) in
     Obj.repr(
-# 890 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 890 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Created _1 )
-# 1211 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1211 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string ) in
     Obj.repr(
-# 892 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 892 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Description (mk_description _1) )
-# 1218 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1218 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * ICalendar_syntax.dtpval ) in
     Obj.repr(
-# 894 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 894 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( DTstart (mk_dt "DTSTART" _1) )
-# 1225 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1225 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ( float * float )) in
     Obj.repr(
-# 896 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 896 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Geo _1 )
-# 1232 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1232 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.date_time ) in
     Obj.repr(
-# 898 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 898 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( LastModified _1 )
-# 1239 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1239 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string ) in
     Obj.repr(
-# 900 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 900 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Location (mk_location _1) )
-# 1246 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1246 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string ) in
     Obj.repr(
-# 902 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 902 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Organizer (mk_organizer _1) )
-# 1253 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1253 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * int ) in
     Obj.repr(
-# 904 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 904 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Priority (mk_priority _1) )
-# 1260 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1260 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_lextypes.all_params list * ICalendar_syntax.dtpval ) in
     Obj.repr(
-# 906 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 906 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Dtstamp (mk_dt "DTSTAMP" _1) )
-# 1267 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1267 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * int ) in
     Obj.repr(
-# 908 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 908 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Sequence _1 )
-# 1274 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1274 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.status ) in
     Obj.repr(
-# 910 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 910 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Status (mk_event_status _1) )
-# 1281 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1281 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string ) in
     Obj.repr(
-# 912 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 912 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Summary (mk_summary _1) )
-# 1288 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1288 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.transvalue ) in
     Obj.repr(
-# 914 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 914 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Transp _1 )
-# 1295 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1295 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * string ) in
     Obj.repr(
-# 916 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 916 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Uid _1 )
-# 1302 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1302 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * string ) in
     Obj.repr(
-# 918 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 918 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Url _1 )
-# 1309 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1309 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * ICalendar_syntax.dtpval ) in
     Obj.repr(
-# 920 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 920 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Recurid (mk_recurid _1) )
-# 1316 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1316 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * ICalendar_syntax.dtpval ) in
     Obj.repr(
-# 922 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 922 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( DTend (mk_dt "DTEND" _1) )
-# 1323 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1323 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.duration ) in
     Obj.repr(
-# 924 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 924 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Duration _1 )
-# 1330 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1330 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * ICalendar_syntax.attachvalue ) in
     Obj.repr(
-# 926 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 926 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Attach (mk_attach _1) )
-# 1337 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1337 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string) in
     Obj.repr(
-# 928 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 928 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Attendee (mk_attendee _1) )
-# 1344 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1344 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string list) in
     Obj.repr(
-# 930 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 930 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Categories (mk_categories _1) )
-# 1351 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1351 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string) in
     Obj.repr(
-# 932 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 932 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Comment (mk_comment _1) )
-# 1358 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1358 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string) in
     Obj.repr(
-# 934 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 934 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Contact (mk_contact _1) )
-# 1365 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1365 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * (ICalendar_syntax.dtpval) list ) in
     Obj.repr(
-# 936 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 936 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Exdate (mk_dtl "EXDATE" false _1) )
-# 1372 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1372 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * (ICalendar_syntax.freq * ICalendar_lextypes.recur list) ) in
     Obj.repr(
-# 938 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 938 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Exrule (mk_rule "EXRULE" _1) )
-# 1379 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1379 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * int list * string * string option) in
     Obj.repr(
-# 940 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 940 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Rstatus (mk_rstatus _1) )
-# 1386 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1386 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string) in
     Obj.repr(
-# 942 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 942 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Related_to (mk_related_to _1) )
-# 1393 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1393 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * string list) in
     Obj.repr(
-# 944 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 944 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Resources (mk_resources _1) )
-# 1400 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1400 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  (ICalendar_lextypes.all_params list) * (ICalendar_syntax.dtpval) list ) in
     Obj.repr(
-# 946 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 946 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Rdate (mk_dtl "RDATE" true _1) )
-# 1407 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1407 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * (ICalendar_syntax.freq * ICalendar_lextypes.recur list) ) in
     Obj.repr(
-# 948 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 948 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Rrule (mk_rule "RRULE" _1) )
-# 1414 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1414 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.action ) in
     Obj.repr(
-# 950 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 950 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Action _1 )
-# 1421 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1421 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_lextypes.all_params list * ICalendar_syntax.dtpval ) in
     Obj.repr(
-# 952 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 952 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Trigger (mk_trigger _1) )
-# 1428 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1428 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * int ) in
     Obj.repr(
-# 954 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 954 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Repeat _1 )
-# 1435 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1435 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * bool * string ) in
     Obj.repr(
-# 956 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 956 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Tzid _1 )
-# 1442 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1442 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * string ) in
     Obj.repr(
-# 958 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 958 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Tzurl _1 )
-# 1449 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1449 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.offset_time ) in
     Obj.repr(
-# 960 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 960 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Tzoffsetto (mk_offset "TZOFFSETTO" _1) )
-# 1456 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1456 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_syntax.xplist * ICalendar_syntax.offset_time ) in
     Obj.repr(
-# 962 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 962 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Tzoffsetfrom (mk_offset "TZOFFSETFROM" _1) )
-# 1463 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1463 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 :  ICalendar_lextypes.all_params list * string ) in
     Obj.repr(
-# 964 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 964 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Tzname (mk_tzname _1) )
-# 1470 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1470 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 : 'standardc) in
     Obj.repr(
-# 966 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 966 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Standardc _1 )
-# 1477 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1477 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 : 'daylightc) in
     Obj.repr(
-# 968 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 968 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( Daylightc _1 )
-# 1484 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1484 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 : 'xprop) in
     Obj.repr(
-# 970 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 970 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( CXprop _1 )
-# 1491 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1491 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'aprop))
 ; (fun parser_env ->
     let _2 = (peek_val parser_env 2 : 'allprops) in
     let _4 = (peek_val parser_env 0 : 'alarmcs) in
     Obj.repr(
-# 974 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 974 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( (mk_alarmc _2) :: _4 )
-# 1499 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1499 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'alarmcs))
 ; (fun parser_env ->
     Obj.repr(
-# 976 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 976 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( [] )
-# 1505 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1505 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'alarmcs))
 ; (fun parser_env ->
     let _1 = (peek_val parser_env 0 : 'allprops) in
     Obj.repr(
-# 980 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 980 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( mk_timezonec _1 )
-# 1512 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1512 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'timezonec))
 ; (fun parser_env ->
     let _2 = (peek_val parser_env 1 : 'allprops) in
     Obj.repr(
-# 984 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 984 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( mk_tzprop _2 )
-# 1519 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1519 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'standardc))
 ; (fun parser_env ->
     let _2 = (peek_val parser_env 1 : 'allprops) in
     Obj.repr(
-# 988 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.mly"
+# 988 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.mly"
                    ( mk_tzprop _2 )
-# 1526 "/home/steak/devel/harmony4/src/iCalendar/iCalendarparse.ml"
+# 1526 "/Users/bcpierce/current/harmony/src/iCalendar/iCalendarparse.ml"
                : 'daylightc))
 (* Entry icalendar *)
 ; (fun parser_env -> raise (YYexit (peek_val parser_env 0)))

@@ -65,8 +65,11 @@ test:: common.fcl mozilla.fcl plist.fcl safari.fcl
 	$(HARMONY) check -module Mozilla -test-all
 	$(HARMONY) check -module Safari -test-all
 
+temp: common.fcl mozilla.fcl plist.fcl safari.fcl
+	time $(HARMONY) get -lens Safari.l -concrete Bookmarks.plist:xml -output out.tmp:meta
 
 clean::
 	rm -rf moz.xml moz.meta moz2.xml moz3.xml xml2moz xml2moz.ml moz2xml moz2xml.ml saf.xml saf.meta saf2.xml *.fcl archive.meta archive2.meta moz2.meta saf2.meta 
 	cp .archive.meta archive.meta
+
 

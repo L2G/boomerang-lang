@@ -19,6 +19,9 @@ OCAMLLEX = ocamllex -ml
 
 all: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
 
+profiling: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
+	$(MAKE) pnc
+
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
