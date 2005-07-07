@@ -1,6 +1,11 @@
 module ICalendar =
  open Prelude
 
+let Append (L1 : schema) (L2 : schema) : schema =
+  { `List.HD = L1, `List.TL = Append L1 L2 } | L2
+
+(*-------------------------------------------------------------------------*)
+
 let ICalendar : schema = [{calprops = CalProps, components = Components}]
     
 and CalProps : schema = {prodid = XPListPlusVal Value,
@@ -121,6 +126,277 @@ and Timezonec : schema = CompProp
 (* this is just a trick to temporary *not* use CompProps ('tis too slow) *)
 and CompProp : schema = Any
 
-let l : lens = 
-  assert ICalendar
+(*-------------------------------------------------------------------------*)
+(* ok this is roughly a try of straight Alan's lens translation into Focal *)
+let promote (m: name) (n: name) : lens = 
+  xfork {m} {m,n} 
+    (hoist m; fork {n} id (plunge m))
+    id
+
+let event_with_xharm : lens =
+  xfork {xprop} {xprop, harm_uid, harm_props}
+    (mapp {xprop} (** extract and list_fork here *) id;
+     promote "xprop" "harm_uid";
+     promote "xprop" "harm_props")
+    id
+
+let event_without_xharm : lens =
+  (** pfew lotsa stuff to translate here *)
+  id
+
+let icalendar : lens =
+  List.hd [];
+  focus "components"
+    { calprops = { prodid = { val = { "Harmony" }},
+		   version = { val = { "2.0" }}}};
+  
+  List.map
+    (acond { type = {"Timezonec"}, val = Any } { type = {"Timezonec"}, val = Any }
+       (mapp {val} (rename "tzid" "uid"))
+       (mapp {val}
+	  ( mapp {props}
+	     ( acond
+		{ xprop = 
+		  Append 
+		    Any 
+		    ({ "name" = { "X-HARMONY-ID" }, *\"name" = Any}::(List.T Any))
+		} 
+		{ harm_uid = Any }
+		event_with_xharm
+		event_without_xharm))))
+
+(*-------------------------------------------------------------------------*)
+(* And this is more to give it a try from scratch *)
+
+(* one lens per schema variable above *)
+(* let ICalendar : schema = [{calprops = CalProps, components = Components}] *)
+let icalendar_lens : lens =
+  List.hd []; (* assuming only one calendar object *)
+  focus "components"
+    { calprops = { prodid = { val = { "Harmony" }},
+		   version = { val = { "2.0" }}}};
+  components_lens
+  
+(* and CalProps : schema = {prodid = XPListPlusVal Value, *)
+(* 			  version = XPListPlusVal Value, *)
+(* 			  ?calscale = XPListPlusVal Value, *)
+(* 			  ?method = XPListPlusVal Value, *)
+(* 			    ?xprop = XProp} *)
+and calprops_lens : lens =
+  id
     
+(* and XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList} *)
+and xplistplusval_lens (l: lens) : lens =
+  wmap { val -> l, xplist -> xplist_lens }
+    
+(* and XPList : schema = List.T ({"name" = Value, val = List.T Value}) *)
+and xplist_lens : lens =
+  List.map 
+    (pivot "name";
+     map (hoist "val"; List.flatten; map (List.hd [])));
+  List.flatten;
+  map (List.hd []) (** check that !! this assumes that the same name does'nt 
+		   appear twice in a xplist *)
+    
+(* and XProp : schema = List.T {"name" = Value, val = Value, params = Params} *)
+and xprop_lens : lens =
+  List.map (pivot "name";
+	    map (mapp {"params"} params_lens));
+  List.flatten;
+  map (List.hd []) (** same remark as above *)
+    
+(* and Params : schema = { *\(delfromparam, deltoparam, memberparam,  *)
+(* 			   rsvpparam, tzidparam, xplist ) = ValueNotList, *)
+(* 			*\(altrepparam, cnparam, cutypeparam, dirparam, encodingparam,  *)
+(* 			   fmttypeparam, langparam, partstatparam, rangeparam, reltypeparam, *)
+(* 			   roleparam, rsvpparam, sentbyparam, trigrelparam, tzidparam, *)
+(* 			   valuetypeparam, xplist) = List.T Value, *)
+(* 			?xplist = XPList, *)
+(* 			?rsvpparam = Bool, *)
+(* 			?tzidparam = { global = Bool, val = Value} *)
+(* 		      } *)
+and params_lens : lens =
+  mapp {delfromparam, deltoparam, memberparam}
+    (List.flatten; map (List.hd []));
+  mapp {"xplist"} xplist_lens
+    
+(* and Bool : schema = {"#true" = {}} | {"#false" = {}} *)
+  
+(* and ValueNotList : schema = { !\(`List.HD, `List.TL, `List.NIL) = {}} *)
+
+(* and Components : schema =  *)
+(*   List.T ({val = Eventc, type = {Eventc}} | {val = Timezonec, type = {Timezonec}}) *)
+and components_lens : lens =
+  List.map
+    (acond {val = Eventc, type = Any} {val = Eventc, type = Any}
+       (mapp {val} eventc_lens)
+       (mapp {val} timezonec_lens))
+    
+(* and Eventc : schema = {props = CompProp, ?alarms = List.T CompProp} *)
+and eventc_lens : lens =
+  wmap { "props" -> compprop_lens, "alarms" -> List.map compprop_lens}
+	
+(* and CompProp : schema =  *)
+(*       { ?action = XPListPlusVal Value, *)
+(* 	?attach = List.T (ParamsPlusVal ({ "AttUri" = Value } | { "AttBinary" = Value})), *)
+(* 	?attendee = List.T (ParamsPlusVal Value), *)
+(* 	?categories = List.T (ParamsPlusVal (List.T Value)), *)
+(* 	?"class" = XPListPlusVal Value, *)
+(* 	?comment = List.T (ParamsPlusVal Value), *)
+(* 	?contact = List.T (ParamsPlusVal Value), *)
+(* 	?created = XPListPlusVal DateTime, *)
+(* 	?daylightc = List.T CompProp, *)
+(* 	?description = ParamsPlusVal Value, *)
+(* 	?dtend = ParamsPlusVal DtPval, *)
+(* 	?dtstamp = ParamsPlusVal DtPval, *)
+(* 	?dtstart = ParamsPlusVal DtPval, *)
+(* 	?duration = Duration, *)
+(* 	?exdate = List.T (ParamsPlusVal (List.T DtPval)), *)
+(* 	?exrule = List.T (XPListPlusVal Recur), *)
+(* 	?geo = Geo, *)
+(* 	?lastmod = XPListPlusVal DateTime, *)
+(* 	?location = ParamsPlusVal Value, *)
+(* 	?organizer = ParamsPlusVal Value, *)
+(* 	?priority = XPListPlusVal Value, *)
+(* 	?rdate = List.T (ParamsPlusVal (List.T DtPval)), *)
+(* 	?recurid = ParamsPlusVal DtPval, *)
+(* 	?related_to = List.T (ParamsPlusVal Value), *)
+(* 	?repeat = XPListPlusVal Value, *)
+(* 	?resources = List.T (ParamsPlusVal (List.T Value)), *)
+(* 	?rrule =  List.T (XPListPlusVal Recur), *)
+(* 	?rstatus = List.T RStatus, *)
+(* 	?seq = XPListPlusVal Value, *)
+(* 	?standardc = List.T CompProp, *)
+(* 	?status = XPListPlusVal Value, *)
+(* 	?summary = ParamsPlusVal Value, *)
+(* 	?transp = XPListPlusVal Value, *)
+(* 	?trigger = ParamsPlusVal DtPval, *)
+(* 	?tzid = TzID, *)
+(* 	?tzname = List.T (ParamsPlusVal Value), *)
+(* 	?tzoffsetto = XPListPlusVal OffsetTime, *)
+(* 	?tzoffsetfrom = XPListPlusVal OffsetTime, *)
+(* 	?tzurl = XPListPlusVal Value, *)
+(* 	?uid = XPListPlusVal Value, *)
+(* 	?url = XPListPlusVal Value, *)
+(* 	?xprop = XProp *)
+(*       } *)	
+and compprop_lens : lens =
+   wmap {
+	   "action" -> xplistplusval_lens id,
+	   "attach" -> List.map (paramsplusval_lens id),
+	   "attendee" -> List.map (paramsplusval_lens id),
+	   "categories" -> List.map (paramsplusval_lens (List.flatten; map (List.hd []))),
+	   "class" -> xplistplusval_lens id,
+	   "comment" -> List.map (paramsplusval_lens id),
+	   "contact" -> List.map (paramsplusval_lens id),
+	   "created" -> xplistplusval_lens datetime_lens,
+	   "daylightc" -> List.map compprop_lens,
+	   "description" -> paramsplusval_lens id,
+	   "dtend" -> paramsplusval_lens dtpval_lens,
+	   "dtstamp" -> paramsplusval_lens dtpval_lens,
+           "dtstart" -> paramsplusval_lens dtpval_lens,
+	   "duration" -> duration_lens,
+	   "exdate" -> List.map (paramsplusval_lens (List.map dtpval_lens)),
+	   "exrule" -> List.map (xplistplusval_lens recur_lens),
+	   "geo" -> geo_lens,
+	   "lastmod" -> xplistplusval_lens datetime_lens,
+	   "location" -> paramsplusval_lens id,
+	   "organizer" -> paramsplusval_lens id,
+	   "priority" -> xplistplusval_lens id,
+	   "rdate" -> List.map (paramsplusval_lens (List.map dtpval_lens)),
+	   "recurid" -> paramsplusval_lens dtpval_lens,
+	   "related_to" -> List.map (paramsplusval_lens id),
+	   "repeat" -> xplistplusval_lens id,
+	   "resources" -> List.map (paramsplusval_lens (List.flatten; map (List.hd []))),
+	   "rrule" -> List.map (xplistplusval_lens recur_lens),
+	   "rstatus" -> List.map rstatus_lens,
+	   "seq" -> xplistplusval_lens id,
+	   "standardc" -> List.map compprop_lens,
+	   "status" -> xplistplusval_lens id,
+	   "summary" -> paramsplusval_lens id,
+	   "transp" -> xplistplusval_lens id,
+	   "trigger" -> paramsplusval_lens dtpval_lens,
+	   "tzid" -> tzid_lens,
+	   "tzname" -> List.map (paramsplusval_lens id),
+	   "tzoffsetto" -> xplistplusval_lens offsettime_lens,
+	   "tzoffsetfrom" -> xplistplusval_lens offsettime_lens,
+	   "tzurl" -> xplistplusval_lens id,
+	   "uid" -> xplistplusval_lens id,
+	   "url" -> xplistplusval_lens id,
+	   "xprop" -> xprop_lens
+	 }
+
+(* and ParamsPlusVal (T : schema) : schema = { val = T, params = Params} *)
+and paramsplusval_lens (l: lens) : lens =
+   wmap { "val" -> l, "params" -> params_lens}
+	
+(* and DateTime : schema =  *)
+(*       { date = {year = Value, month = Value, day = Value}, *)
+(* 	time = {hour = Value, minute = Value, second = Value, zulu = Value}} *)
+and datetime_lens : lens =
+   id
+	
+(* and DtPval : schema =  *)
+(*       { "DateTimeVal" = DateTime } | *)
+(*       { "DateVal" = {year = Value, month = Value, day = Value}} | *)
+(*       { "PeriodVal" = Period } | *)
+(*       { "DurationVal" = Duration} *)
+and dtpval_lens : lens =
+   wmap { "DateTimeVal" -> datetime_lens,
+     "PeriodVal" -> period_lens,
+       "DurationVal" -> duration_lens}
+(** rename everything to one single date here ? *)
+(** then I have to have different schemas inside *)
+      
+(* and Period : schema =  *)
+(*       { "PeriodExplicit" = { start = DateTime, "end" = DateTime}} | *)
+(*       { "PeriodStart" = { start = DateTime, duration = Duration}} *)
+and period_lens : lens =
+   wmap { "PeriodExplicit" -> map datetime_lens,
+     "PeriodStart" -> wmap { "start" -> datetime_lens, "duration" -> duration_lens}}
+	
+(* and Duration : schema = { negative = Bool, length = DurLength } *)
+and duration_lens : lens =
+   mapp {length} durlength_lens
+
+(* and DurLength : schema =  *)
+(*       { "DurWeek" = Value } | *)
+(*       { "DurTime" = { hour = Value, minute = Value, second = Value}} | *)
+(*       { "DurDate" = { "Day" = Value,  *)
+(* 		      ?"Time"= {hour = Value, minute = Value, second = Value }}} *)
+and durlength_lens : lens =
+   id
+
+(** Recur is still to be done *)	
+(* and Recur : schema = Any *)
+and recur_lens : lens =
+   id
+	
+(* and Geo : schema = { latitude = Value, longitude = Value, ?xplist = XPList} *)
+and geo_lens : lens =
+   mapp {xplist} xplist_lens
+	
+(* and RStatus : schema =  *)
+(*       { code = List.T Value, text = Value, ?extdata = Value, params = Params} *)
+and rstatus_lens : lens =
+   wmap { "code" -> (List.flatten; map (List.hd [])), "params" -> params_lens }
+	
+(* and TzID : schema = { global = Bool, val = Value, ?xplist = XPList } *)
+and tzid_lens : lens =
+   pivot "val";
+   map ( mapp {xplist} xplist_lens )
+	
+(* and OffsetTime : schema =  *)
+(*       { positive = Bool, hour = Value, minute = Value, second = Value } *)
+and offsettime_lens : lens =
+   id
+
+(* and Timezonec : schema = CompProp *)
+and timezonec_lens : lens =
+  compprop_lens
+
+(*-------------------------------------------------------------------------*)
+
+let l : lens = 
+  assert ICalendar;
+  icalendar_lens
