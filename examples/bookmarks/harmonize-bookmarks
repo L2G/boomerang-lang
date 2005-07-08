@@ -7,6 +7,15 @@
 # when we make decisions like whether we're doing ordered or unordered...
 # (but how does that then work when called from Unison...?)
 
+# another issue: If just one of the files exists, then this script should 
+# degenerate to a format conversion.  Does Harmony do that automatically?
+
+# possible encodings:
+#   meta
+#   mozilla
+#   safari
+#   (and later perhaps some others)
+
 ##########################################################################
 # Argument parsing
 
@@ -72,15 +81,68 @@ while [ ! $1 = "" ]; do    # why doesn't  [ -n $1 ] work??
   shift
 done
 
-# Make up archive name if not specified
-if [ -z $AR ]; then
-  AR=.harmonyar-$ORDERED-$R1-$R2
+# Make up archive name if not specified (and use meta encoding in this case)
+if [ -z $AR ]; then AR=.harmonyar-$ORDERED-$R1-$R2.meta; fi
+
+
+##############################################################################
+# Analyze the situation and set up what we're going to do later
+
+# figure out what format each of the two replicas (and the archive if it exists) 
+#   set the encoding keys appropriately
+# decide what is the right abstract schema to hit
+# for each replica, choose a lens that makes the appropriate transformation
+
+# Figure out encodings
+if [ -n "$(echo $AR | grep '.html$')" ] ; then ARENC=xml; ARTYPE=mozilla; fi
+if [ -n "$(echo $AR | grep '.meta$')" ] ; then ARENC=meta; ARTYPE=meta; fi
+if [ -n "$(echo $AR | grep '.plist$')" ] ; then ARENC=safari; ARTYPE=safari; fi
+if [ -n "$(echo $R1 | grep '.html$')" ] ; then R1ENC=xml; R1TYPE=mozilla; fi
+if [ -n "$(echo $R1 | grep '.meta$')" ] ; then R1ENC=meta; R1TYPE=meta; fi
+if [ -n "$(echo $R1 | grep '.plist$')" ] ; then R1ENC=safari; R1TYPE=safari; fi
+if [ -n "$(echo $R2 | grep '.html$')" ] ; then R2ENC=xml; R2TYPE=mozilla; fi
+if [ -n "$(echo $R2 | grep '.meta$')" ] ; then R2ENC=meta; R2TYPE=meta; fi
+if [ -n "$(echo $R2 | grep '.plist$')" ] ; then R2ENC=safari; R2TYPE=safari; fi
+
+unimplemented()
+{
+   echo "Uh oh -- Unimplemented combination!"
+   exit 1
+}
+
+case $R1TYPE$R2TYPE in
+  safarisafari ) 
+    if [ $ORDERED = YES ]; then SCHEMA=Abstract; else SCHEMA=BushAbstract; fi ;;
+  mozillamozilla ) 
+    if [ $ORDERED = YES ]; then SCHEMA=Abstract; else unimplemented; fi ;;
+  * ) 
+    unimplemented
+esac
+
+if [ $SCHEMA = Abstract ]; then
+  case $ARTYPE in
+    meta ) ARLENS=Prelude.id ;;
+    safari ) ARLENS=Safari.l2 ;;
+    mozilla ) ARLENS=Mozilla.l ;;
+  esac 
+  # argh -- this is getting too messy!!
 fi
 
-# Put things back where they came from if not specified
+exit 1
+
+if [ $ORDERED = YES ]; then ARLENS=Safari.l2; else ARLENS=Safari.l3; fi
+R1LENS=$ARLENS
+R2LENS=$ARLENS
+
+ARENC=xml
+R1ENC=xml
+R2ENC=xml
+
+
+# Put updated files back on top of originals if new names are not specified
 if [ -z $NEWAR ]; then NEWAR=$AR; fi
-if [ -z $NEWR1 ];   then NEWR1=$R1;     fi
-if [ -z $NEWR2 ];   then NEWR2=$R2;     fi
+if [ -z $NEWR1 ]; then NEWR1=$R1; fi
+if [ -z $NEWR2 ]; then NEWR2=$R2; fi
 
 
 ##############################################################################
@@ -94,6 +156,7 @@ if [ $BACKUP = YES ]; then
   if [ -f $R2 ]; then cp $R2 $R2-$BACKUPSUFFIX; fi
 fi
 
+
 ##############################################################################
 # Do any necessary pre-processing of the files
 
@@ -106,15 +169,7 @@ if [ -f $R2 ]; then plutil -convert xml1 $R2; fi
 ##############################################################################
 # Do sync
 
-if [ $ORDERED = YES ]; then ARLENS=Safari.l2; else ARLENS=Safari.l3; fi
-R1LENS=$ARLENS
-R2LENS=$ARLENS
-
-ARENC=xml
-R1ENC=xml
-R2ENC=xml
-
-CMD="harmony sync -schema Bookmarks.Abstract -archive $AR:$ARENC -newarchive $NEWAR:$ARENC -lensar $ARLENS -replica1 $R1:$R1ENC -newreplica1 $NEWR1:$R1ENC -lensr1 $R1LENS -replica2 $R2:$R2ENC -newreplica2 $NEWR2:$R2ENC -lensr2 $R2LENS $HARMONYARGS"
+CMD="harmony sync -schema Bookmarks.$SCHEMA -archive $AR:$ARENC -newarchive $NEWAR:$ARENC -lensar $ARLENS -replica1 $R1:$R1ENC -newreplica1 $NEWR1:$R1ENC -lensr1 $R1LENS -replica2 $R2:$R2ENC -newreplica2 $NEWR2:$R2ENC -lensr2 $R2LENS $HARMONYARGS"
 
 echo $CMD
 $CMD

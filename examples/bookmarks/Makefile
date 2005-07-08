@@ -73,7 +73,7 @@ clean::
 	-cp .archive.meta archive.meta
 	rm -rf temp*
 
-test-script: $(LOCALGENERATEDFCLFILES)
+test-script: $(LOCALGENERATEDFCLFILES) moz2xml xml2moz
 	if [ ! -e temp1.plist ]; then cp SafariExample.plist temp1.plist; fi
 	if [ ! -e temp2.plist ]; then cp SafariExample.plist temp2.plist; fi
 	./harmonize-bookmarks temp1.plist temp2.plist

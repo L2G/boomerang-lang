@@ -46,8 +46,6 @@ GENERATEDFCLFILES = $(subst .src,.fcl, $(SRCFILES:%=$(LENSESDIR)/%))
 LOCALSRCFILES = $(shell (ls *.src))
 LOCALGENERATEDFCLFILES = $(subst .src,.fcl, $(LOCALSRCFILES))
 
-all: $(LOCALGENERATEDFCLFILES)
-
 %.fcl : %.src $(SRC2F)
 	-rm -f $@
 	$(SRC2F) $< $@
