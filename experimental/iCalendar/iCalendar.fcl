@@ -109,7 +109,24 @@ and DurLength : schema =
       { "DurDate" = { "Day" = Value, 
 		      ?"Time"= {hour = Value, minute = Value, second = Value }}}
 	
-and Recur : schema = Any
+and Recur : schema = 
+      { freq = Value,
+	?interval = Value,
+	?bysecond = List.T Value,
+	?byminute = List.T Value,
+	?byhour = List.T Value,
+	?byday = List.T ByDayElt,
+	?bymonthday = List.T Value, 
+	?byyearday = List.T Value,
+	?byweekno = List.T Value,
+	?bymonth = List.T Value,
+	?bysetpos = List.T Value,
+	?wkstart = Value,
+	?bytext = { "name" = Value, val= Value },
+	?"end" = { count = Value } | { until = DtPval }
+      }
+
+and ByDayElt : schema = { weekday = Value, ?which = Value}
 	
 and Geo : schema = { latitude = Value, longitude = Value, ?xplist = XPList}
 	
@@ -187,7 +204,10 @@ and calprops_lens : lens =
     
 (* and XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList} *)
 and xplistplusval_lens (l: lens) : lens =
-  wmap { val -> l, xplist -> xplist_lens }
+  wmap { val -> l, xplist -> xplist_lens };
+  acond { val = Value, xplist = Any } { ! = { * = { * = Value }}}
+    (pivot "val"; map (hoist "xplist"))
+    id
     
 (* and XPList : schema = List.T ({"name" = Value, val = List.T Value}) *)
 and xplist_lens : lens =
@@ -328,7 +348,10 @@ and compprop_lens : lens =
 
 (* and ParamsPlusVal (T : schema) : schema = { val = T, params = Params} *)
 and paramsplusval_lens (l: lens) : lens =
-   wmap { "val" -> l, "params" -> params_lens}
+   wmap { "val" -> l, "params" -> params_lens};
+   acond {val = Value, params = Params} {! = Any}
+	(pivot "val"; map (hoist "params"))
+	id
 	
 (* and DateTime : schema =  *)
 (*       { date = {year = Value, month = Value, day = Value}, *)
@@ -367,9 +390,35 @@ and duration_lens : lens =
 and durlength_lens : lens =
    id
 
-(** Recur is still to be done *)	
-(* and Recur : schema = Any *)
+(* and Recur : schema =  *)
+(*       { freq = Value, *)
+(* 	?interval = Value, *)
+(* 	?bysecond = List.T Value, *)
+(* 	?byminute = List.T Value, *)
+(* 	?byhour = List.T Value, *)
+(* 	?byday = List.T ByDayElt, *)
+(* 	?bymonthday = List.T Value,  *)
+(* 	?byyearday = List.T Value, *)
+(* 	?byweekno = List.T Value, *)
+(* 	?bymonth = List.T Value, *)
+(* 	?bysetpos = List.T Value, *)
+(* 	?wkstart = Value, *)
+(* 	?bytext = { "name" = Value, val= Value }, *)
+(* 	?"end" = { count = Value } | { until = DtPval } *)
+(*       } *)
 and recur_lens : lens =
+      mapp { bysecond, byminute, byhour, bymonthday,
+	     byyearday, byweekno, bymonth, bysetpos}
+	  (List.flatten; map (List.hd []));
+      wmap { "byday" -> bydayelt_lens,
+	"bytext" -> (pivot "name"; map (hoist "val")),
+	  "end" -> (acond {count = Value} {count = Value}
+		      id
+		      (map dtpval_lens))
+	   }
+
+(* and ByDayElt : schema = { weekday = Value, ?which = Value} *)
+and bydayelt_lens : lens =
    id
 	
 (* and Geo : schema = { latitude = Value, longitude = Value, ?xplist = XPList} *)
