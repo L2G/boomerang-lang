@@ -7,10 +7,8 @@
 
 TOP = ../..
 include $(TOP)/Top.Makefile
-MOZSRC = "/Users/nate/Library/Application Support/Firefox/Profiles/03gr5tt5.default/bookmarks.html"
-SAFSRC = "/Users/nate/Library/Safari/bookmarks.plist"
 
-all: test
+all: 
 
 moz2xml: moz2xml.mll
 	ocamllex moz2xml.mll
@@ -19,6 +17,38 @@ moz2xml: moz2xml.mll
 xml2moz: xml2moz.mll
 	ocamllex xml2moz.mll
 	ocamlopt -o xml2moz xml2moz.ml
+
+test:: $(LOCALGENERATEDFCLFILES)
+	$(HARMONY) check -module Mozilla -test-all
+	$(HARMONY) check -module Safari -test-all
+
+temp: $(LOCALGENERATEDFCLFILES)
+	time $(HARMONY) get -lens Safari.l -concrete Bookmarks.plist:xml -output out.tmp:meta
+
+clean::
+	rm -rf moz.xml moz.meta moz2.xml moz3.xml xml2moz xml2moz.ml moz2xml moz2xml.ml saf.xml saf.meta saf2.xml *.fcl archive.meta archive2.meta moz2.meta saf2.meta 
+	-cp .archive.meta archive.meta
+	rm -rf temp*
+
+##############################################################################
+
+RESULT = harmonizebookmarks
+SOURCES = $(COMMON_SOURCES) harmonizebookmarks.ml 
+OCAMLLDFLAGS = -linkpkg
+
+include $(SRCDIR)/Common.Makefile
+
+test-script: $(LOCALGENERATEDFCLFILES) moz2xml xml2moz harmonizebookmarks
+	if [ ! -e temp1.plist ]; then cp SafariExample.plist temp1.plist; fi
+	if [ ! -e temp2.plist ]; then cp SafariExample.plist temp2.plist; fi
+	./harmonizebookmarks temp1.plist temp2.plist $(HARMONYFLAGS) $(LENSPATH) -debug startup
+
+
+##############################################################################
+# Old Nate stuff (delete pretty soon):
+
+MOZSRC = "/Users/nate/Library/Application Support/Firefox/Profiles/03gr5tt5.default/bookmarks.html"
+SAFSRC = "/Users/nate/Library/Safari/bookmarks.plist"
 
 $(MOZSRC):
 
@@ -61,19 +91,3 @@ sync:
 	  -newr1 saf2.meta \
 	  -newr2 moz2.meta \
 
-test:: $(LOCALGENERATEDFCLFILES)
-	$(HARMONY) check -module Mozilla -test-all
-	$(HARMONY) check -module Safari -test-all
-
-temp: $(LOCALGENERATEDFCLFILES)
-	time $(HARMONY) get -lens Safari.l -concrete Bookmarks.plist:xml -output out.tmp:meta
-
-clean::
-	rm -rf moz.xml moz.meta moz2.xml moz3.xml xml2moz xml2moz.ml moz2xml moz2xml.ml saf.xml saf.meta saf2.xml *.fcl archive.meta archive2.meta moz2.meta saf2.meta 
-	-cp .archive.meta archive.meta
-	rm -rf temp*
-
-test-script: $(LOCALGENERATEDFCLFILES) moz2xml xml2moz
-	if [ ! -e temp1.plist ]; then cp SafariExample.plist temp1.plist; fi
-	if [ ! -e temp2.plist ]; then cp SafariExample.plist temp2.plist; fi
-	./harmonize-bookmarks temp1.plist temp2.plist

@@ -6,7 +6,7 @@
 ####################################################################
 # $Id$  
 
-OCAMLMAKEFILE = $(SRC)/OCamlMakefile
+OCAMLMAKEFILE = $(SRCDIR)/OCamlMakefile
 
 PACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
 YFLAGS = -v 
@@ -33,6 +33,14 @@ tags:
 
 INCDIRS = $(EXTERNDIR)/ocaml-csv-1.0.3
 LIBS = csv
+
+all: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
+
+profiling: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
+	$(MAKE) pnc
+
+$(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
+	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
 #########
 # UBASE #
@@ -63,7 +71,8 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                value.mli value.ml schema.mli schema.ml \
                env.mli env.ml registry.mli registry.ml \
 	       sync.mli sync.ml \
-               compiler.mli compiler.ml
+               compiler.mli compiler.ml \
+	       toplevel.ml  
 
 VIEWER_SOURCES = metay.mly metal.mll \
 		 $(ICALENDAR_SOURCES) \
@@ -84,11 +93,11 @@ NATIVE_LENS_SOURCES = prelude.ml \
 # COMMON SOURCES #
 ##################
 
-COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRC)/ubase/%) \
-		 $(BASE_SOURCES:%=$(SRC)/%) \
-		 $(VIEWER_SOURCES:%=$(SRC)/%) \
+COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRCDIR)/ubase/%) \
+		 $(BASE_SOURCES:%=$(SRCDIR)/%) \
+		 $(VIEWER_SOURCES:%=$(SRCDIR)/%) \
 		 $(NATIVE_LENS_SOURCES:%=$(LENSESDIR)/%)
 
-TRASH := $(TRASH) $(SRC)/parser.output $(SRC)/metay.output 
+TRASH := $(TRASH) $(SRCDIR)/parser.output $(SRCDIR)/metay.output 
 
-include $(SRC)/OCamlMakefile
+include $(SRCDIR)/OCamlMakefile

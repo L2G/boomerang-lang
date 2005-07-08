@@ -9,23 +9,14 @@ TOP = ..
 SUBDIRSCLEANONLY = ubase iCalendar
 include $(TOP)/Top.Makefile
 
-SRC = $(shell pwd)
-
 RESULT = harmony
 SOURCES = $(COMMON_SOURCES) harmony.ml 
 OCAMLLDFLAGS = -linkpkg
 
-OCAMLLEX = ocamllex -ml
+# Why did we have this?  The ocaml manual says it is not recommended!
+# OCAMLLEX = ocamllex -ml
 
-all: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
-
-profiling: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
-	$(MAKE) pnc
-
-$(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
-	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
-
-include $(SRC)/Common.Makefile
+include $(SRCDIR)/Common.Makefile
 
 test:: all
 
