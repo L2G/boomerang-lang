@@ -3,8 +3,9 @@ module ICalendar =
 
 let Append (L1 : schema) (L2 : schema) : schema =
   { `List.HD = L1, `List.TL = Append L1 L2 } | L2
-
+    
 (*-------------------------------------------------------------------------*)
+(* Concrete Schemas *)
 
 let ICalendar : schema = [{calprops = CalProps, components = Components}]
     
@@ -20,21 +21,30 @@ and XPList : schema = List.T ({"name" = Value, val = List.T Value})
     
 and XProp : schema = List.T {"name" = Value, val = Value, params = Params}
     
-and Params : schema = { *\(delfromparam, deltoparam, memberparam, 
-			   rsvpparam, tzidparam, valuetypeparam, xplist ) = ValueNotList,
-			*\(altrepparam, cnparam, cutypeparam, dirparam, encodingparam, 
-			   fmttypeparam, langparam, partstatparam, rangeparam, reltypeparam,
-			   roleparam, rsvpparam, sentbyparam, trigrelparam, tzidparam,
-			   valuetypeparam, xplist) = List.T Value,
-			?xplist = XPList,
+and Params : schema = { ?altrepparam = Value,
+			?cnparam = Value,
+			?cutypeparam = Value,
+			?delfromparam = List.T Value,
+			?deltoparam = List.T Value,
+			?dirparam = Value,
+			?encodingparam = Value, 
+			?fmttypeparam = Value,
+			?langparam = Value,
+			?memberparam = List.T Value,
+			?partstatparam = Value,
+			?rangeparam = Value,
+			?reltypeparam = Value,
+			?roleparam = Value,
 			?rsvpparam = Bool,
-			?tzidparam = { global = Bool, val = Value}
+			?sentbyparam = Value,
+			?trigrelparam = Value,
+			?tzidparam = { global = Bool, val = Value},
+			?valuetypeparam = Value,
+			?xplist = XPList
 		      }
 
 and Bool : schema = {"#true" = {}} | {"#false" = {}}
   
-and ValueNotList : schema = { !\(`List.HD, `List.TL, `List.NIL) = {}}
-
 and Components : schema = 
   List.T ({val = Eventc, type = {Eventc}} | {val = Timezonec, type = {Timezonec}})
     
@@ -140,8 +150,151 @@ and OffsetTime : schema =
 
 and Timezonec : schema = CompProp
 
-(* this is just a trick to temporary *not* use CompProps ('tis too slow) *)
+(* this is just a trick to temporary *not* use CompProps ('tis too slow) or Params *)
 and CompProp : schema = Any
+and Params : schema = Any
+
+(*-------------------------------------------------------------------------*)
+(* Abstract Schemas *)
+
+let ICalendar_A : schema = Components_A
+    
+and XPListPlusVal_A (T : schema) : schema = {val = T, ?xplist = XPList_A} | {! = XPList_A}
+  
+and XPList_A : schema = { * = { * = {} }}
+    
+and XProp_A : schema = { * = {val = Value, params = Params_A}}
+
+and Params_A : schema = { ?altrepparam = Value,
+			?cnparam = Value,
+			?cutypeparam = Value,
+			?delfromparam = { * = {} },
+			?deltoparam = { * = {} },
+			?dirparam = Value,
+			?encodingparam = Value, 
+			?fmttypeparam = Value,
+			?langparam = Value,
+			?memberparam = { * = {} },
+			?partstatparam = Value,
+			?rangeparam = Value,
+			?reltypeparam = Value,
+			?roleparam = Value,
+			?rsvpparam = Bool,
+			?sentbyparam = Value,
+			?trigrelparam = Value,
+			?tzidparam = { global = Bool, val = Value},
+			?valuetypeparam = Value,
+			?xplist = XPList_A
+		      }
+
+and Components_A : schema = 
+  List.T ({val = Eventc_A, type = {Eventc}} | {val = Timezonec_A, type = {Timezonec}})
+    
+and Eventc_A : schema = {props = CompProp_A, ?alarms = List.T CompProp_A}
+	
+and CompProp_A : schema = 
+      { ?action = XPListPlusVal_A Value,
+	?attach = List.T (ParamsPlusVal_A ({ "AttUri" = Value } | { "AttBinary" = Value})),
+	?attendee = List.T (ParamsPlusVal_A Value),
+	?categories = List.T (ParamsPlusVal_A { * = {} }),
+	?"class" = XPListPlusVal_A Value,
+	?comment = List.T (ParamsPlusVal_A Value),
+	?contact = List.T (ParamsPlusVal_A Value),
+	?created = XPListPlusVal_A DateTime_A,
+	?daylightc = List.T CompProp_A,
+	?description = ParamsPlusVal_A Value,
+	?dtend = ParamsPlusVal_A DtPval_A,
+	?dtstamp = ParamsPlusVal_A DtPval_A,
+	?dtstart = ParamsPlusVal_A DtPval_A,
+	?duration = Duration_A,
+	?exdate = List.T (ParamsPlusVal_A (List.T DtPval_A)),
+	?exrule = List.T (XPListPlusVal_A Recur_A),
+	?geo = Geo_A,
+	?lastmod = XPListPlusVal_A DateTime_A,
+	?location = ParamsPlusVal_A Value,
+	?organizer = ParamsPlusVal_A Value,
+	?priority = XPListPlusVal_A Value,
+	?rdate = List.T (ParamsPlusVal_A (List.T DtPval_A)),
+	?recurid = ParamsPlusVal_A DtPval_A,
+	?related_to = List.T (ParamsPlusVal_A Value),
+	?repeat = XPListPlusVal_A Value,
+	?resources = List.T (ParamsPlusVal_A { * = {}}),
+	?rrule =  List.T (XPListPlusVal_A Recur_A),
+	?rstatus = List.T RStatus_A,
+	?seq = XPListPlusVal_A Value,
+	?standardc = List.T CompProp_A,
+	?status = XPListPlusVal_A Value,
+	?summary = ParamsPlusVal_A Value,
+	?transp = XPListPlusVal_A Value,
+	?trigger = ParamsPlusVal_A DtPval_A,
+	?tzid = TzID_A,
+	?tzname = List.T (ParamsPlusVal_A Value),
+	?tzoffsetto = XPListPlusVal_A OffsetTime_A,
+	?tzoffsetfrom = XPListPlusVal_A OffsetTime_A,
+	?tzurl = XPListPlusVal_A Value,
+	?uid = XPListPlusVal_A Value,
+	?url = XPListPlusVal_A Value,
+	?xprop = XProp_A
+      }	
+
+and ParamsPlusVal_A (T : schema) : schema = { val = T, params = Params} | {! = Params}
+	
+and DateTime_A : schema = 
+      { date = {year = Value, month = Value, day = Value},
+	time = {hour = Value, minute = Value, second = Value, zulu = Value}}
+	
+and DtPval_A : schema = 
+      { "DateTimeVal" = DateTime_A } |
+      { "DateVal" = {year = Value, month = Value, day = Value}} |
+      { "PeriodVal" = Period_A } |
+      { "DurationVal" = Duration_A }
+      
+and Period_A : schema = 
+      { "PeriodExplicit" = { start = DateTime_A, "end" = DateTime_A}} |
+      { "PeriodStart" = { start = DateTime_A, duration = Duration_A}}
+	
+and Duration_A : schema = { negative = Bool, length = DurLength_A }
+
+and DurLength_A : schema = 
+      { "DurWeek" = Value } |
+      { "DurTime" = { hour = Value, minute = Value, second = Value}} |
+      { "DurDate" = { "Day" = Value, 
+		      ?"Time"= {hour = Value, minute = Value, second = Value }}}
+	
+and Recur_A : schema = 
+      { freq = Value,
+	?interval = Value,
+	?bysecond = { * = {} },
+	?byminute = { * = {} },
+	?byhour = { * = {} },
+	?byday = List.T ByDayElt_A,
+	?bymonthday = { * = {} }, 
+	?byyearday = { * = {} },
+	?byweekno = { * = {} },
+	?bymonth = { * = {} },
+	?bysetpos = { * = {} },
+	?wkstart = Value,
+	?bytext = { "name" = Value, val= Value },
+	?"end" = { count = Value } | { until = DtPval_A }
+      }
+
+and ByDayElt_A : schema = { weekday = Value, ?which = Value}
+	
+and Geo_A : schema = { latitude = Value, longitude = Value, ?xplist = XPList_A}
+	
+and RStatus_A : schema = 
+      { code = { * = {} }, text = Value, ?extdata = Value, params = Params_A}
+	
+and TzID_A : schema = { global = Bool, val = Value, ?xplist = XPList_A }
+	
+and OffsetTime_A : schema = 
+      { positive = Bool, hour = Value, minute = Value, second = Value }
+
+and Timezonec_A : schema = CompProp_A
+
+(* this is just a trick to temporary *not* use CompProps ('tis too slow) or Params *)
+and CompProp_A : schema = Any
+and Params_A : schema = Any
 
 (*-------------------------------------------------------------------------*)
 (* ok this is roughly a try of straight Alan's lens translation into Focal *)
@@ -184,8 +337,8 @@ let icalendar : lens =
 
 (*-------------------------------------------------------------------------*)
 (* And this is more to give it a try from scratch *)
-
 (* one lens per schema variable above *)
+
 (* let ICalendar : schema = [{calprops = CalProps, components = Components}] *)
 let icalendar_lens : lens =
   List.hd []; (* assuming only one calendar object *)
@@ -205,7 +358,7 @@ and calprops_lens : lens =
 (* and XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList} *)
 and xplistplusval_lens (l: lens) : lens =
   wmap { val -> l, xplist -> xplist_lens };
-  acond { val = Value, xplist = Any } { ! = { * = { * = Value }}}
+  acond { val = Value, xplist = Any } { ! = XPList_A}
     (pivot "val"; map (hoist "xplist"))
     id
     
@@ -225,15 +378,26 @@ and xprop_lens : lens =
   List.flatten;
   map (List.hd []) (** same remark as above *)
     
-(* and Params : schema = { *\(delfromparam, deltoparam, memberparam,  *)
-(* 			   rsvpparam, tzidparam, xplist ) = ValueNotList, *)
-(* 			*\(altrepparam, cnparam, cutypeparam, dirparam, encodingparam,  *)
-(* 			   fmttypeparam, langparam, partstatparam, rangeparam, reltypeparam, *)
-(* 			   roleparam, rsvpparam, sentbyparam, trigrelparam, tzidparam, *)
-(* 			   valuetypeparam, xplist) = List.T Value, *)
-(* 			?xplist = XPList, *)
+(* and Params : schema = { ?altrepparam = Value, *)
+(* 			?cnparam = Value, *)
+(* 			?cutypeparam = Value, *)
+(* 			?delfromparam = List.T Value, *)
+(* 			?deltoparam = List.T Value, *)
+(* 			?dirparam = Value, *)
+(* 			?encodingparam = Value,  *)
+(* 			?fmttypeparam = Value, *)
+(* 			?langparam = Value, *)
+(* 			?memberparam = List.T Value, *)
+(* 			?partstatparam = Value, *)
+(* 			?rangeparam = Value, *)
+(* 			?reltypeparam = Value, *)
+(* 			?roleparam = Value, *)
 (* 			?rsvpparam = Bool, *)
-(* 			?tzidparam = { global = Bool, val = Value} *)
+(* 			?sentbyparam = Value, *)
+(* 			?trigrelparam = Value, *)
+(* 			?tzidparam = { global = Bool, val = Value}, *)
+(* 			?valuetypeparam = Value, *)
+(* 			?xplist = XPList *)
 (* 		      } *)
 and params_lens : lens =
   mapp {delfromparam, deltoparam, memberparam}
@@ -349,7 +513,7 @@ and compprop_lens : lens =
 (* and ParamsPlusVal (T : schema) : schema = { val = T, params = Params} *)
 and paramsplusval_lens (l: lens) : lens =
    wmap { "val" -> l, "params" -> params_lens};
-   acond {val = Value, params = Params} {! = Any}
+   acond {val = Value, params = Params} {! = Params_A}
 	(pivot "val"; map (hoist "params"))
 	id
 	
@@ -368,8 +532,9 @@ and dtpval_lens : lens =
    wmap { "DateTimeVal" -> datetime_lens,
      "PeriodVal" -> period_lens,
        "DurationVal" -> duration_lens}
-(** rename everything to one single date here ? *)
-(** then I have to have different schemas inside *)
+(** rename everything to one single date here ?
+   then I have to have different schemas inside
+   to be able to put the right thing in the put way *)
       
 (* and Period : schema =  *)
 (*       { "PeriodExplicit" = { start = DateTime, "end" = DateTime}} | *)
@@ -444,8 +609,10 @@ and offsettime_lens : lens =
 and timezonec_lens : lens =
   compprop_lens
 
+
 (*-------------------------------------------------------------------------*)
 
 let l : lens = 
   assert ICalendar;
-  icalendar_lens
+  icalendar_lens;
+  assert ICalendar_A
