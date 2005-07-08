@@ -36,8 +36,8 @@ let inf: schema = {"INFO" = V}
 let version: schema = {"VERSION" = V}
 
 let Vcard: schema =
-    { "VCARD" = {!= Info} }
+    { "VCARD" = Info }
 and Info: schema = agent + inf + tel + org + nom + label + email + adr + version
 and agent: schema =  
-       { ?"AGENT" = Vcard} 
+       { "FN" = V, ?"AGENT" = Vcard} 
 

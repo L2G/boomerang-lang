@@ -4,6 +4,19 @@ Use:
   "make xml-xml" :  to synchronize vcard1.xml and vcard2.xml
   "make vcf-vcf" :  to synchronize vcard1.vcf and vcard2.vcf
 
+06/22/2005:
+Add lensOrg to lens.fcl. It resolves the synchronization between the kinds:
+	 ORG = {ORGNAME = a, (ORGUNIT = b)*} and  ORG = `Value
+
+Remark: in newabstract, if there is only one element in ORG (it means only
+ORGNAME appear in the new abstract), it's written with semicolon,e.g: "name;" (not "name")
+
+06/20/2005:
+It's very fast now (by translate a view {?n1 = V,...,?nk = V} to {info = V} ).
+We can apply this technique in case that the tree has a huge number of nodes in 
+a same level.
+
+06/16/2005:
 It takes about 11 minutes in "make" and "make xml-xml", about 5 minutes in "make vcf-vcf"  
 (It's so slow because of the schema of vCard; I don't like it :-) )
 
