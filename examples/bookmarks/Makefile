@@ -8,8 +8,6 @@
 TOP = ../..
 include $(TOP)/Top.Makefile
 
-all: 
-
 moz2xml: moz2xml.mll
 	ocamllex moz2xml.mll
 	ocamlopt -o moz2xml moz2xml.ml
@@ -25,10 +23,13 @@ test:: $(LOCALGENERATEDFCLFILES)
 temp: $(LOCALGENERATEDFCLFILES)
 	time $(HARMONY) get -lens Safari.l -concrete Bookmarks.plist:xml -output out.tmp:meta
 
-clean::
+tidy:
 	rm -rf moz.xml moz.meta moz2.xml moz3.xml xml2moz xml2moz.ml moz2xml moz2xml.ml saf.xml saf.meta saf2.xml *.fcl archive.meta archive2.meta moz2.meta saf2.meta 
-	-cp .archive.meta archive.meta
 	rm -rf temp*
+	rm -rf .*.bak .*.tmp *.cmo *.cmi *.cmx ._d .harmonyar* ._bcdi $(RESULT) *.annot
+
+clean:: tidy
+	-cp .archive.meta archive.meta
 
 ##############################################################################
 
@@ -38,7 +39,12 @@ OCAMLLDFLAGS = -linkpkg
 
 include $(SRCDIR)/Common.Makefile
 
-test-script: $(LOCALGENERATEDFCLFILES) moz2xml xml2moz harmonizebookmarks
+test-script: all $(LOCALGENERATEDFCLFILES) moz2xml xml2moz 
+	if [ ! -e temp1.html ]; then cp MozillaExample.html temp1.html; fi
+	if [ ! -e temp2.html ]; then cp MozillaExample.html temp2.html; fi
+	./harmonizebookmarks temp1.html temp2.html $(HARMONYFLAGS) $(LENSPATH) -debug startup
+
+test-script-safari: $(LOCALGENERATEDFCLFILES) moz2xml xml2moz harmonizebookmarks
 	if [ ! -e temp1.plist ]; then cp SafariExample.plist temp1.plist; fi
 	if [ ! -e temp2.plist ]; then cp SafariExample.plist temp2.plist; fi
 	./harmonizebookmarks temp1.plist temp2.plist $(HARMONYFLAGS) $(LENSPATH) -debug startup

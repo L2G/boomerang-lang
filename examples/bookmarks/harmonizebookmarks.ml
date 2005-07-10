@@ -37,15 +37,25 @@ let badUsage() =
   Prefs.printUsage usageMsg;
   exit 1
 
-type bookmarkType = Mozilla | Safari | Meta
-
 let debug = Trace.debug "startup"
+
+type bookmarkType = Mozilla | Safari | Meta
 
 let bookmarktype2string = function
   | Mozilla -> "Mozilla"
   | Safari  -> "Safari"
   | Meta    -> "Meta"
         
+let moz2xml f fpre =
+  let cmd = Printf.sprintf "./moz2xml < %s > %s" f fpre in
+  debug (fun() -> Format.printf "%s\n" cmd);
+  if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
+
+let xml2moz fpost f =
+  let cmd = Printf.sprintf "./xml2moz < %s > %s" fpost f in
+  if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
+
+
 let main () =
   Prefs.parseCmdLine usageMsg;
 
@@ -80,21 +90,22 @@ let main () =
   let newr1 = p newr1pref in
   let newr2 = p newr2pref in
             
-  (* Figure out encodings *)
+  (* Figure out encodings, types, and pre/postprocessing requirements *)
   let choose_encoding f =
-    if Filename.check_suffix f ".html" then ("xml",Mozilla)
-    else if Filename.check_suffix f ".plist" then ("xml",Safari)
-    else if Filename.check_suffix f ".meta" then ("meta",Meta)
+    if Filename.check_suffix f ".html" then ("xml",Mozilla,Some moz2xml,Some xml2moz)
+    else if Filename.check_suffix f ".plist" then ("xml",Safari,None,None)
+    else if Filename.check_suffix f ".meta" then ("meta",Meta,None,None)
     else failwith ("Unrecognized suffix: "^f) in
-  let (arenc,artype) = choose_encoding ar in
-  let (r1enc,r1type) = choose_encoding r1 in
-  let (r2enc,r2type) = choose_encoding r2 in
+  let (arenc,artype,arpre,arpost) = choose_encoding ar in
+  let (r1enc,r1type,r1pre,r1post) = choose_encoding r1 in
+  let (r2enc,r2type,r2pre,r2post) = choose_encoding r2 in
 
+  (* Choose abstract schema *)
   let schema =
     match r1type,r2type,ordered with
       Safari,Safari,true -> "Abstract"
     | Safari,Safari,false -> "BushAbstract"
-    | Mozilla,Mozilla,true -> "Abstract"
+    | Mozilla,Mozilla,true -> "Abstract" 
     | _ -> failwith (Printf.sprintf "Unimplemented combination of file types: %s, %s, ordered=%b"
                        (bookmarktype2string r1type) (bookmarktype2string r2type) ordered) in
 
@@ -109,12 +120,48 @@ let main () =
   let r1lens = choose_lens r1type in
   let r2lens = choose_lens r2type in
 
-  let enc f e = f ^ ":" ^ e in 
+  let enc f e = f ^ ":" ^ e in
 
-  sync (enc ar arenc) (enc r1 r1enc) (enc r2 r2enc)
-       ("Bookmarks."^schema)
-       arlens r1lens r2lens
-       (enc newar arenc) (enc newr1 r1enc) (enc newr2 r2enc)
+  let tempnames = ref [] in
+  let tempname f =
+    let n = Misc.tempFileName f in
+    tempnames := f::!tempnames;
+    n  in
+  let cleanupTempFiles () =
+    List.iter (fun n -> Sys.remove n) !tempnames in
+
+  Util.finalize (fun () ->
+    (* Do pre-processing *)
+    let process f p =
+      match p with
+        None -> f
+      | Some pfun ->
+          let ftemp = tempname f in
+          pfun f ftemp;
+          ftemp   in
+    let artemp = process ar arpre in
+    let r1temp = process r1 r1pre in
+    let r2temp = process r2 r2pre in
+
+    (* Make up temporary output file names *)
+    let newartemp = tempname ar in
+    let newr1temp = tempname r1 in
+    let newr2temp = tempname r2 in
+
+    (* Sync *)
+    sync (enc artemp arenc) (enc r1temp r1enc) (enc r2temp r2enc)
+         ("Bookmarks."^schema)
+         arlens r1lens r2lens
+         (enc newar arenc) (enc newr1 r1enc) (enc newr2 r2enc)
+
+    (* Postprocess *)
+
+  )
+  (* Clean up *)
+  (fun () -> 
+    (* cleanupTempFiles() *) ()
+    
+  )
 
 let _ = Unix.handle_unix_error 
   (fun () -> Error.exit_on_error main)     

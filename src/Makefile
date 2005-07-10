@@ -35,4 +35,4 @@ docs:
 	ocamldoc -d $(DOCDIR) -html $(READINORDER) $(filter-out $(READINORDER) parser.mli metay.mli, $(wildcard *.mli))
 
 clean::
-	rm -rf lenses doc
+	rm -rf lenses doc parser.mly lexer.mll
