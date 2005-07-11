@@ -1,0 +1,27 @@
+iCalendar.cmi: iCalendar_syntax.cmo 
+iCalendarparse.cmi: iCalendar_lextypes.cmo iCalendar_syntax.cmo 
+ical.cmi: iCalendar_syntax.cmo 
+iCalendarlex.cmo: iCalendar_lextypes.cmo iCalendar_syntax.cmo \
+    iCalendarparse.cmi 
+iCalendarlex.cmx: iCalendar_lextypes.cmx iCalendar_syntax.cmx \
+    iCalendarparse.cmx 
+iCalendar_lextypes.cmo: iCalendar_syntax.cmo 
+iCalendar_lextypes.cmx: iCalendar_syntax.cmx 
+iCalendar.cmo: iCalendar_print.cmo iCalendarlex.cmo iCalendarparse.cmi \
+    iCalendar.cmi 
+iCalendar.cmx: iCalendar_print.cmx iCalendarlex.cmx iCalendarparse.cmx \
+    iCalendar.cmi 
+iCalendarparse.cmo: iCalendar_lextypes.cmo iCalendar_print.cmo \
+    iCalendar_syntax.cmo iCalendarparse.cmi 
+iCalendarparse.cmx: iCalendar_lextypes.cmx iCalendar_print.cmx \
+    iCalendar_syntax.cmx iCalendarparse.cmi 
+iCalendar_print.cmo: iCalendar_syntax.cmo 
+iCalendar_print.cmx: iCalendar_syntax.cmx 
+iCalendartest.cmo: iCalendar.cmi iCalendar_syntax.cmo 
+iCalendartest.cmx: iCalendar.cmx iCalendar_syntax.cmx 
+ical.cmo: iCalendar.cmi iCalendar_lextypes.cmo iCalendar_print.cmo \
+    iCalendar_syntax.cmo ical.cmi 
+ical.cmx: iCalendar.cmx iCalendar_lextypes.cmx iCalendar_print.cmx \
+    iCalendar_syntax.cmx ical.cmi 
+iCalViewer.cmo: iCalendar.cmi iCalendar_print.cmo ical.cmi 
+iCalViewer.cmx: iCalendar.cmx iCalendar_print.cmx ical.cmx 

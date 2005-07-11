@@ -243,7 +243,7 @@ let allparams_from_view_opt = function
           | Some s -> Some (V.get_value s)
           );
         fbtypeparam    =
-          (match V.get v "fmttypeparam" with
+          (match V.get v "fbttypeparam" with
           | None -> None
           | Some s -> failwith "fbtypeparam not implemented yet"
           );
@@ -1117,7 +1117,7 @@ let rec comp_prop_from_view v =
         | None -> []
         | Some v' -> Safelist.map ( fun v'' ->
                            (xplist_from_view_opt (V.get v'' "xplist"),
-                           recur_from_view (V.get_required v' "val")))
+                           recur_from_view (V.get_required v'' "val")))
                         (V.list_from_structure v')
       );
       comp_freebusy     =
