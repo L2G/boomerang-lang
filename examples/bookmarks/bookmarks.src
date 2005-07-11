@@ -57,6 +57,6 @@ let toolbar : name = "bookmarks toolbar"
 let rename_bookmarksbar : lens = 
   wmap { `List.HD -> 
            begin
-             wmap { "name" -> rename "BookmarksBar" toolbar }
+             wmap { "name" -> const { `toolbar } { "BookmarksBar" } }
            end
        }

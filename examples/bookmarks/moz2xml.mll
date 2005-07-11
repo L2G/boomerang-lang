@@ -12,7 +12,8 @@ rule bookmarks = parse
   | _                                         { bookmarks lexbuf }
 and item = parse
   | whitespace                                { emit (lexeme lexbuf); item lexbuf }
-  | "<HR>" | "<HR>" whitespace | "<p>"        { item lexbuf }
+  | "<HR>" | "<HR>" whitespace | "<p>" 
+  | "<DD>" [^ '\n']+ '\n'                     { item lexbuf }
   | "</A>"                                    { emit (sprintf "%s</DT>" (lexeme lexbuf)); item lexbuf }
   | "</DL>"                                   { emit (sprintf "%s</DT>" (lexeme lexbuf)); item lexbuf }
   | eof                                       { exit 0 }   
