@@ -18,12 +18,6 @@ OCAMLCPFLAGS = f
 ##
 OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(c).opt)
 
-ifeq ($(COMPILEHARMONYASBYTECODE),yes)
-all: byte-code
-else
-all: native-code
-endif
-
 tags:
 	etags $(SOURCES)
 
@@ -41,6 +35,16 @@ profiling: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+
+###################
+# DEFAULT TARGETS #
+###################
+
+ifeq ($(COMPILEHARMONYASBYTECODE),yes)
+all: byte-code
+else
+all: native-code
+endif
 
 #########
 # UBASE #
