@@ -1,13 +1,23 @@
 TOP = ../..
 include $(TOP)/Top.Makefile
 
+ICALREAD = $(TOP)/extern/iCalendar/iCalViewer ascal
+ICALWRITE = $(TOP)/extern/iCalendar/iCalViewer asmeta
+TMPA = tmpa.meta
+TMPC = tmpc.meta
+FINALC = finalc.meta
+
 all: test
 
 test::
-	$(HARMONY) get -c calendar.ics -o calendar.meta -l ICalendar.l -I .
-	cat calendar.meta
+	$(ICALREAD) calendar.ics $(TMPC)
+	$(HARMONY) get -c $(TMPC) -o $(TMPA) -l ICalendar.l
+	cat $(TMPA)
+	echo
+	echo
+	$(HARMONY) put -a $(TMPA) -c $(TMPC) -o $(FINALC) -l ICalendar.l
+	$(ICALWRITE) $(FINALC) updated.ics
+	cat $(FINALC)
 
-	echo
-	echo
-	$(HARMONY) put -a calendar.meta -c calendar.raw.meta -o calendar.put.meta -l ICalendar.l
-	cat calendar.put.meta
+clean::
+	rm $(TMPA) $(TMPC) updated.ics $(FINALC)
