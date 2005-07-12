@@ -10,7 +10,7 @@ open Value
 
 (* imports *)
 let sprintf = Printf.sprintf
-let debug = Trace.debug "type" 
+let debug = Trace.debug "verbose" 
 let fatal_error i msg = raise (Error.Harmony_error (fun () -> Format.printf "%s\nFatal error in type : %s" (Info.string_of_t i) msg))
 
 (* re-export [Value.ty] and [Value.string_of_ty] in this name space *)
@@ -257,11 +257,10 @@ let rec project t0 n =
 	  
 let rec member v t0 = 
   let t0_nf = t2nf t0 in
-(*     debug (fun () -> *)
-(*     	     Printf.eprintf "checking member %s in %s\n%!" *)
-(*     	       (V.string_of_t v) *)
-(*     	       (string_of_t t0_nf)) *)
-(*     ; *)
+  (* debug (fun () -> 
+     	     Printf.eprintf "checking member %s in %s\n%!" 
+     	       (V.string_of_t v) 
+     	       (string_of_t t0_nf)); *)
   match t0_nf with    
     Empty(i) -> false
   | Any(_)   -> true

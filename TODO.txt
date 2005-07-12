@@ -1,6 +1,10 @@
 THINGS TO DO
 
 BCP TASKS
+bookmark demo
+  make Unison not swallow debugging output from merge cmd (at least in text UI)
+  why is COMPILEHARMONYASBYTECODE getting set to yes?
+  why is merge not changing either temp file?
 check that CSV files are working
 write lens for converting CSV addrbook to abstract addrbook
 see if augmented cvs files can be written as well as read

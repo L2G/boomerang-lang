@@ -106,7 +106,7 @@ open Pxp_document
 open Pxp_yacc
 open Pxp_types
 
-let debug = Trace.debug "xml"
+let debug = Trace.debug "verbose"
 
 class warner =
   object 

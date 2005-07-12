@@ -1,15 +1,15 @@
 (* Remove this: *)
 open Toplevel
 
-let r1pref = Prefs.createString "r1" "" "*the first replica to synchronize" ""
+let r1pref = Prefs.createString "r1" "" "*first replica to synchronize" ""
 
-let r2pref = Prefs.createString "r2" "" "*the second of the 2 replicas to synchronize" ""
+let r2pref = Prefs.createString "r2" "" "*second replica to synchronize" ""
 
 let arpref =  Prefs.createString "ar" "" "*the archive" ""
 
 let newarpref = Prefs.createString "newar" "" "*the new archive after synchronization" ""
 
-let newr1pref = Prefs.createString "new1" "" "*the updated first replica" ""
+let newr1pref = Prefs.createString "newr1" "" "*the updated first replica" ""
 
 let newr2pref = Prefs.createString "newr2" "" "*the updated second replica" ""
 
@@ -46,16 +46,18 @@ let bookmarktype2string = function
   | Safari  -> "Safari"
   | Meta    -> "Meta"
         
-let moz2xml f fpre =
-  let cmd = Printf.sprintf "./moz2xml < %s > %s" f fpre in
+let runcmd cmd = 
   debug (fun() -> Format.eprintf "%s\n" cmd);
   if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
 
-let xml2moz fpost f =
-  let cmd = Printf.sprintf "./xml2moz < %s > %s" fpost f in
-  debug (fun() -> Format.eprintf "%s\n" cmd);
-  if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
+let moz2xml f fpre = runcmd (Printf.sprintf "moz2xml < %s > %s" f fpre)
 
+let xml2moz fpost f = runcmd (Printf.sprintf "xml2moz < %s > %s" fpost f)
+
+let plutil f fpre = runcmd (Printf.sprintf "plutil -convert xml1 %s -o %s" f fpre)
+  
+let cp f g = runcmd (Printf.sprintf "cp %s %s" f g)
+  
 
 let main () =
   Prefs.parseCmdLine usageMsg;
@@ -94,7 +96,7 @@ let main () =
   (* Figure out encodings, types, and pre/postprocessing requirements *)
   let choose_encoding f =
     if Filename.check_suffix f ".html" then ("xml",Mozilla,Some moz2xml,Some xml2moz)
-    else if Filename.check_suffix f ".plist" then ("xml",Safari,None,None)
+    else if Filename.check_suffix f ".plist" then ("xml",Safari,Some plutil,None)
     else if Filename.check_suffix f ".meta" then ("meta",Meta,None,None)
     else failwith ("Unrecognized suffix: "^f) in
   let (arenc,artype,arpre,arpost) = choose_encoding ar in
@@ -163,7 +165,7 @@ let main () =
     (* Postprocess *)
     let postprocess p fpost f =
       match p with
-        None -> ()
+        None -> cp fpost f
       | Some pfun -> pfun fpost f   in
     postprocess arpost newartemp newar;
     postprocess r1post newr1temp newr1;

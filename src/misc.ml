@@ -487,7 +487,7 @@ let tempFileName tag =
   let rec loop i = 
     let pid = Unix.getpid() in
     let now = Unix.time() in
-    let name = Printf.sprintf "harmony-%s-%d-%f%d.tmp" tag pid now i in
+    let name = Printf.sprintf "%s-%d-%f%d.tmp" tag pid now i in
     if Sys.file_exists name then loop (i+1)
     else name
   in loop 0

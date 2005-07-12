@@ -42,6 +42,8 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 
 ifeq ($(COMPILEHARMONYASBYTECODE),yes)
 all: byte-code
+test1: 
+	echo $(COMPILEHARMONYASBYTECODE)
 else
 all: native-code
 endif
