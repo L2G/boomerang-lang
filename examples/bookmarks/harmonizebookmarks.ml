@@ -48,11 +48,12 @@ let bookmarktype2string = function
         
 let moz2xml f fpre =
   let cmd = Printf.sprintf "./moz2xml < %s > %s" f fpre in
-  debug (fun() -> Format.printf "%s\n" cmd);
+  debug (fun() -> Format.eprintf "%s\n" cmd);
   if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
 
 let xml2moz fpost f =
   let cmd = Printf.sprintf "./xml2moz < %s > %s" fpost f in
+  debug (fun() -> Format.eprintf "%s\n" cmd);
   if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
 
 
@@ -101,11 +102,16 @@ let main () =
   let (r2enc,r2type,r2pre,r2post) = choose_encoding r2 in
 
   (* Choose abstract schema *)
+  let undup = function
+      [x;y] -> if x=y then [x] else [x;y]
+    | l -> l in
+  let sort_types l = undup (List.sort compare l) in
   let schema =
-    match r1type,r2type,ordered with
-      Safari,Safari,true -> "Abstract"
-    | Safari,Safari,false -> "BushAbstract"
-    | Mozilla,Mozilla,true -> "Abstract" 
+    match (sort_types [r1type;r2type]),ordered with
+      [Safari],true -> "Abstract"
+    | [Safari],false -> "BushAbstract"
+    | [Mozilla],true -> "Abstract" 
+    | [Mozilla;Safari],true -> "Abstract" 
     | _ -> failwith (Printf.sprintf "Unimplemented combination of file types: %s, %s, ordered=%b"
                        (bookmarktype2string r1type) (bookmarktype2string r2type) ordered) in
 
@@ -132,30 +138,36 @@ let main () =
 
   Util.finalize (fun () ->
     (* Do pre-processing *)
-    let process f p =
+    let preprocess f p =
       match p with
         None -> f
       | Some pfun ->
           let ftemp = tempname f in
           pfun f ftemp;
           ftemp   in
-    let artemp = process ar arpre in
-    let r1temp = process r1 r1pre in
-    let r2temp = process r2 r2pre in
+    let artemp = preprocess ar arpre in
+    let r1temp = preprocess r1 r1pre in
+    let r2temp = preprocess r2 r2pre in
 
     (* Make up temporary output file names *)
-    let newartemp = tempname ar in
-    let newr1temp = tempname r1 in
-    let newr2temp = tempname r2 in
+    let newartemp = tempname newar in
+    let newr1temp = tempname newr1 in
+    let newr2temp = tempname newr2 in
 
     (* Sync *)
     sync (enc artemp arenc) (enc r1temp r1enc) (enc r2temp r2enc)
          ("Bookmarks."^schema)
          arlens r1lens r2lens
-         (enc newar arenc) (enc newr1 r1enc) (enc newr2 r2enc)
+         (enc newartemp arenc) (enc newr1temp r1enc) (enc newr2temp r2enc);
 
     (* Postprocess *)
-
+    let postprocess p fpost f =
+      match p with
+        None -> ()
+      | Some pfun -> pfun fpost f   in
+    postprocess arpost newartemp newar;
+    postprocess r1post newr1temp newr1;
+    postprocess r2post newr2temp newr2
   )
   (* Clean up *)
   (fun () -> 

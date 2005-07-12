@@ -484,10 +484,13 @@ let write file s =
       raise exn
 
 let tempFileName tag =
-  let pid = Unix.getpid() in
-  let now = Unix.time() in
-  let name = Printf.sprintf "harmony%s-%d-%f.tmp" tag pid now in
-  name
+  let rec loop i = 
+    let pid = Unix.getpid() in
+    let now = Unix.time() in
+    let name = Printf.sprintf "harmony-%s-%d-%f%d.tmp" tag pid now i in
+    if Sys.file_exists name then loop (i+1)
+    else name
+  in loop 0
 
 let backup_suffix = ".bak"
 
