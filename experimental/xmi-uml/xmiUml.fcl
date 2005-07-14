@@ -1,0 +1,5 @@
+module XmiUml =
+open Xmi
+  
+let l : lens =
+  assert (Xmi.T Any)

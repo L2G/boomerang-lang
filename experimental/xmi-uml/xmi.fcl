@@ -1,0 +1,105 @@
+module Xmi =
+  
+let Append (T1 : schema) (L : schema) : schema =
+  {`List.HD = T1, `List.TL = Append T1 L} | L
+
+let CData : schema = { ! = {}}
+
+let XMI_element_att : schema =
+  { ?"xmi.id" = CData,
+    ?"xmi.label" = CData,
+    ?"xmi.uuid" = CData }
+
+let XMI_link_att : schema =
+  { ?"xml:link" = CData,
+    ?"inline" = { "true"} | {"false" },
+    ?"actuate" = { "show"} | {"user" },
+    ?"href" = CData,
+    ?"title" = CData,
+    ?"show" = { "embed"} | {"replace"} | { "new" },
+    ?"behavior" = CData,
+    ?"xmi.idref" = CData,
+    ?"xmi.uuidref" = CData}
+
+let Model : schema =
+  {"XMI.model" = ({`Xml.CHILDREN =  Any,
+		    "xmi.name" = CData,
+		    ?"xmi.version" = CData }
+		    + XMI_link_att) }
+
+let MetaModel : schema =
+  {"XMI.metamodel" = ({`Xml.CHILDREN =  Any,
+			"xmi.name" = CData,
+			?"xmi.version" = CData }
+			+ XMI_link_att) }
+
+let MetaMetaModel : schema =
+  {"XMI.metametamodel" = ({`Xml.CHILDREN =  Any,
+			    "xmi.name" = CData,
+			    ?"xmi.version" = CData } 
+			    + XMI_link_att )}
+
+let Documentation : schema =
+  {"XMI.documentation" = { `Xml.CHILDREN =
+			   List.T (
+			   Xml.Pcdata |
+			   { "XMI.owner" = Any } |
+			   { "XMI.contact" = Any } |
+			   { "XMI.longDescription" = Any } |
+			   { "XMI.shortDescription" = Any } |
+			   { "XMI.exporter" = Any } |
+			   { "XMI.exporterVersion" = Any } |
+			   { "XMI.notice" = Any })} }
+ 
+let Header : schema = 
+  let Models : schema =
+    Append Model (Append MetaModel (List.T MetaMetaModel)) in
+  {"XMI.header" = { `Xml.CHILDREN =
+		    { `List.HD = Documentation, `List.TL = Models } |
+		    Models } }
+    
+let Extensions : schema = 
+  {"XMI.extensions" = { `Xml.CHILDREN = List.T Any,
+			"xmi.extender" = CData }}
+
+let Extension : schema = 
+  {"XMI.extension" = ({ `Xml.CHILDREN = List.T Any,
+			"xmi.extender" = CData,
+			"xmi.extenderID" = CData }
+			+ XMI_link_att + XMI_element_att) }
+
+let Delete : schema =
+  {"XMI.delete" = 
+    ({`Xml.CHILDREN = []} + XMI_element_att + XMI_link_att) }
+
+let Add : schema =
+  {"XMI.add" = 
+    ({`Xml.CHILDREN = List.T Any, ?"xmi.position"= CData }
+       + XMI_element_att
+       + XMI_link_att)}
+
+let Replace : schema =
+  {"XMI.replace" = 
+    ({ `Xml.CHILDREN = List.T Any, ?"xmi.position" = CData}
+       + XMI_link_att
+       + XMI_element_att)}
+
+let Difference : schema =
+  {"XMI.difference" = 
+    ({`Xml.CHILDREN = ([Difference] | [Delete] | [Add] | List.T Replace)}
+       + XMI_element_att
+       + XMI_link_att)}
+
+let T (Contents : schema) : schema =
+  List.T 
+    ({ XMI = 
+      { `Xml.CHILDREN = 
+	(List.Cons Header
+	   ({`List.HD = {"XMI.content" = 
+			  { `Xml.CHILDREN = Contents }},
+	      `List.TL = (Append Difference (List.T Extensions))}
+            | (Append Difference (List.T Extensions)))),
+	"xmi.version" = {"1.0"},
+	?timestamp = CData,
+	?verified = CData}
+     })
