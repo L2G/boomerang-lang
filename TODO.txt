@@ -1,6 +1,7 @@
 THINGS TO DO
 
 BCP TASKS
+play with argouml.org stuff
 bookmark demo
   make Unison not swallow debugging output from merge cmd (at least in text UI)
   why is COMPILEHARMONYASBYTECODE getting set to yes?
@@ -39,6 +40,13 @@ SOMEBODY
 the printing/tracing/debugging stuff is still not working very well.  In
   particular, calls to Trace.debug produce some of their output on the
   stdout stream and some on stderr...!  
+change implementation of sync alg to eliminate delete/delete conflicts,
+  as discussed by Alan
+
+STEPHANE
+in Unison merge function, when we call out to the Harmony process, we need
+  to capture both its stdout and its stderr.  Also, we may want to print
+  them incrementally rather than waiting for the subprocess to exit
 
 _________________________________________________________________________
 

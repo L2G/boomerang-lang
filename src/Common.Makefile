@@ -6,18 +6,6 @@
 ####################################################################
 # $Id$  
 
-OCAMLMAKEFILE = $(SRCDIR)/OCamlMakefile
-
-PACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
-YFLAGS = -v 
-OCAMLFLAGS = -dtypes
-OCAMLCPFLAGS = f
-
-##
-# Tell ocamlfind to use .opt versions of OCaml tools
-##
-OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(c).opt)
-
 tags:
 	etags $(SOURCES)
 
@@ -25,15 +13,19 @@ tags:
 # EXTERNAL LIBS #
 #################
 
-INCDIRS = $(EXTERNDIR)/ocaml-csv-1.0.3
-LIBS = csv
+all: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
+native-code: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
+native-code-library: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
 
-all: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
+LIBS += $(EXTERNDIR)/ocaml-csv-1.0.3/csv
 
-profiling: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma
+profiling: 
 	$(MAKE) pnc
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
+	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+
+$(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
 ###################
@@ -42,8 +34,6 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 
 ifeq ($(COMPILEHARMONYASBYTECODE),yes)
 all: byte-code
-test1: 
-	echo $(COMPILEHARMONYASBYTECODE)
 else
 all: native-code
 endif
@@ -96,4 +86,4 @@ COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRCDIR)/ubase/%) \
 
 TRASH := $(TRASH) $(SRCDIR)/parser.output $(SRCDIR)/metay.output 
 
-include $(SRCDIR)/OCamlMakefile
+include $(OCAMLMAKEFILE)

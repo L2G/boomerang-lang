@@ -6,12 +6,14 @@
 # $Id$
 
 TOP = ..
-SUBDIRSCLEANONLY = ubase iCalendar
+SUBDIRSCLEANONLY = ubase 
 include $(TOP)/Top.Makefile
 
 RESULT = harmony
 SOURCES = $(COMMON_SOURCES) harmony.ml 
 OCAMLLDFLAGS = -linkpkg
+
+# PRE_TARGETS = lexer.mll parser.mly
 
 # Why did we have this?  The ocaml manual says it is not recommended!
 # OCAMLLEX = ocamllex -ml
@@ -19,6 +21,7 @@ OCAMLLDFLAGS = -linkpkg
 include $(SRCDIR)/Common.Makefile
 
 test:: all
+
 
 ######################################################################
 # Documentation generation for Harmony sources

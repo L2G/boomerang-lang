@@ -26,7 +26,7 @@ let lookup_type qid_str =
 let read_tree fn = 
   let (fn, ekeyo) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
-    Surveyor.tree_of_file fn (Surveyor.get_reader ekey)
+  Surveyor.tree_of_file fn (Surveyor.get_reader ekey)
       
 let write_tree fn v = 
   let (fn, ekey) = Surveyor.parse_filename fn in
@@ -87,8 +87,8 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   Format.print_newline();
   ignore (Misc.map_option (write_tree o'_fn) o');
   ignore (Misc.map_option (write_tree a'_fn) a');
-  ignore (Misc.map_option (write_tree b'_fn) b')
-
+  ignore (Misc.map_option (write_tree b'_fn) b');
+  exit (if Sync.conflict_free act then 0 else 1)
 
 let rest = Prefs.createStringList "rest" "*stuff" ""
 

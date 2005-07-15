@@ -13,17 +13,19 @@ default: all
 # Navigation
 
 CWD = $(shell pwd)
+FULLTOP = $(CWD)/$(TOP)
 
-LENSESDIR = $(CWD)/$(TOP)/lenses
-TOOLSDIR = $(TOP)/tools
-EXTERNDIR = $(CWD)/$(TOP)/extern
-SRCDIR = $(TOP)/src
-DOCDIR = $(TOP)/doc
+LENSESDIR = $(FULLTOP)/lenses
+TOOLSDIR = $(FULLTOP)/tools
+EXTERNDIR = $(FULLTOP)/extern
+SRCDIR = $(FULLTOP)/src
+DOCDIR = $(FULLTOP)/doc
 
 ALLSUBDIRS = $(shell find * -type d -print -prune)
 
 SRC2F = $(TOOLSDIR)/src2f
 SRC2TEX = $(TOOLSDIR)/src2tex
+
 
 ####################################################################
 # Setup for running harmony 
@@ -34,6 +36,24 @@ HARMONY = $(HARMONYBIN) $(HARMONYFLAGS) $(LENSPATH)
 
 $(HARMONYBIN):
 	$(MAKE) -C $(SRCDIR)
+
+
+####################################################################
+# OCaml compilation
+
+OCAMLMAKEFILE = $(SRCDIR)/OCamlMakefile
+
+PACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
+YFLAGS = -v 
+OCAMLFLAGS = -dtypes
+OCAMLCPFLAGS = f
+
+LIBDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
+INCDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
+
+# Tell ocamlfind to use .opt versions of OCaml tools
+OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(c).opt)
+
 
 ####################################################################
 # Generating .fcl and .tex files from .src
@@ -65,11 +85,12 @@ $(SRC2F):
 $(SRC2TEX):
 	$(MAKE) -C $(TOOLSDIR)
 
+
 ####################################################################
 # Common targets
 
 clean::
-	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
+	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak .*.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
 	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do \
 	    echo "###### cleaning $(CWD)/$$i ######"; \
 	    $(MAKE) -C $$i clean; done
