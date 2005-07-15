@@ -4,11 +4,15 @@ include $(TOP)/Top.Makefile
 SRC := ../../src
 
 RESULT = iCalViewer
-CLIBS = $(COMMON_CLIBS)
+LIBS += harmony
 SOURCES = $(COMMON_SOURCES)  iCalendar_syntax.ml iCalendar_print.ml \
                  iCalendar_lextypes.ml iCalendarparse.mly \
 		 iCalendarlex.mll iCalendar.mli iCalendar.ml \
 		 ical.mli ical.ml iCalViewer.ml
 
-include $(SRC)/Common.Makefile
+all: makeharmonylib nc
 
+makeharmonylib:
+	$(MAKE) -C $(SRCDIR) native-code-library
+
+include $(OCAMLMAKEFILE)
