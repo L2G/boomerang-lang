@@ -371,6 +371,13 @@ whose names are not in the set @p@ (which is specified as a tree).
 ##test (mapp {a} (const {b} {b})) \ {a={b}, b={2}} missing = {a={b}, b={2}}
 ##test (mapp {a} (const {b} {b})) \ {a={b}, b={2}} {a={1},b={3}} = {a={1}, b={2}}
 
+\LENSSECTION{mapn}
+The lens @mapn n l@ performs @l@ just on the child named @n@.
+#*let mapn (n:name) (l:lens) : lens = mapp {`n} l 
+
+#*test (mapn "a" (const {x} {new})) / {a={b},c} = {a={x},c}
+#*test (mapn "a" (const {x} {new})) \ {a={x},c} missing = {a={new},c}
+
 #@\LENSSECTION{wmap} 
 %
 The @wmap@ combinator is a generalized variant of @map@ that can apply a

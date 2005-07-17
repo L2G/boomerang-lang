@@ -373,9 +373,16 @@ single characters.
 
 #*test implode / \ [{f},{o},{c},{a},{l}] = {focal}
 
+\LENSSECTION{split} The lens @split@ converts a @Value@ to a list of
+values by splitting it at newline characters.
+##let split (k:name) : lens = Native.Prelude.split k
+
+\LENSSECTION{unsplit} The lens @unsplit@ reverses the action of @split@.
+#*let unsplit (k:name) : lens = invert (split k)
+
 \LENSSECTION{lines} The lens @lines@ converts a @Value@ to a list of
 values by splitting it at newline characters.
-##let lines : lens = Native.Prelude.lines
+##let lines : lens = split "\n"
 #*test lines / {""} = [{""}]
 #*test lines / {focal} = [{focal}]
 #*test lines / {"lenses

@@ -55,9 +55,11 @@ let columns csv =
   List.fold_left max 0 (List.map List.length csv)
 
 type state_t = StartField
+               | StartFieldComment
 	       | InUnquotedField
 	       | InQuotedField
 	       | InQuotedFieldAfterQuote
+	       | InQuotedFieldAfterQuoteSemi
 
 let load_rows ?(separator = ',') f chan =
   let row = ref [] in			(* Current row. *)
@@ -95,16 +97,24 @@ let load_rows ?(separator = ',') f chan =
       match !state with
 	  StartField ->			(* Expecting quote or other char. *)
 	    if c = '\"' then (
-	      state := InQuotedField;
-	      field := []
-	    ) else if c = separator then (* Empty field. *)
+	      state := InQuotedField
+	    ) else if c = '#' then ( (* Comment (e.g. on first line). *)
+	      state := StartFieldComment
+	    ) else if c = separator then ( (* Empty field. *)
 	      empty_field ()
-	    else if c = '\n' then (	(* Empty field, end of row. *)
+            ) else if c = '\n' then (	  (* Empty field, end of row. *)
 	      empty_field ();
 	      end_of_row ()
 	    ) else (
 	      state := InUnquotedField;
 	      field := [c]
+	    )
+        | StartFieldComment ->	
+	    if c = ' ' then (
+	      state := StartField
+	    ) else (
+	      state := StartField;
+	      field := c :: !field
 	    )
 	| InUnquotedField ->		(* Reading chars to end of field. *)
 	    if c = separator then	(* End of field. *)
@@ -123,6 +133,9 @@ let load_rows ?(separator = ',') f chan =
 	    if c = '\"' then (		(* Doubled quote. *)
 	      field := c :: !field;
 	      state := InQuotedField
+	    ) else if c = ';' then (	(* Semicolon following quote continues field (?) *)
+	      field := c :: !field;
+	      state := InQuotedFieldAfterQuoteSemi
 	    ) else if c = '0' then (	(* Quote-0 is ASCII NUL. *)
 	      field := '\000' :: !field;
 	      state := InQuotedField
@@ -132,6 +145,16 @@ let load_rows ?(separator = ',') f chan =
 	      end_of_field ();
 	      end_of_row ()
 	    )
+	| InQuotedFieldAfterQuoteSemi ->	
+	    if c = '\"' then (
+	      state := InQuotedField
+	    ) else if c = separator then 
+	      end_of_field ()
+	    else if c = '\n' then (	(* end of row. *)
+	      end_of_row ()
+	    ) else (
+	      state := InUnquotedField;
+            )
     ); (* end of match *)
     loop ()
   in
@@ -141,10 +164,10 @@ let load_rows ?(separator = ',') f chan =
       End_of_file ->
 	(* Any part left to write out? *)
 	(match !state with
-	     StartField ->
+	     StartField | StartFieldComment ->
 	       if !row <> [] then
 		 ( empty_field (); end_of_row () )
-	   | InUnquotedField | InQuotedFieldAfterQuote ->
+	   | InUnquotedField | InQuotedFieldAfterQuote | InQuotedFieldAfterQuoteSemi ->
 	       end_of_field (); end_of_row ()
 	   | InQuotedField ->
 	       raise (Bad_CSV_file "Missing end quote after quoted field.")
@@ -231,11 +254,26 @@ let associate header data =
       List.combine header row
   ) data
 
+(* 
+let tweak_comment_prefix_on_first_line l =
+  match l with
+    [] -> l
+  | []::rest -> l
+  | (f::flds)::rest ->
+      (*
+      if String.length f < 4 then l
+      else if f.[0]='"' && f.[1]='#' && f.[2]=' ' then
+        ((String.sub f 3 ((String.length f) - 4))::flds)::rest
+      else l
+        *) ("HELLO"::flds)::rest
+*)
+
 let save_out ?(separator = ',') chan csv =
   (* Quote a single CSV field. *)
   let quote_field field =
     if String.contains field separator ||
       String.contains field '\"' ||
+      String.contains field ';' ||
       String.contains field '\n'
     then (
       let buffer = Buffer.create 100 in
@@ -243,6 +281,9 @@ let save_out ?(separator = ',') chan csv =
       for i = 0 to (String.length field) - 1 do
 	match field.[i] with
             '\"' -> Buffer.add_string buffer "\"\""
+          | ';'  -> Buffer.add_string buffer "\"";
+                    Buffer.add_string buffer ";";
+                    Buffer.add_string buffer "\""
 	  | c    -> Buffer.add_char buffer c
       done;
       Buffer.add_char buffer '\"';

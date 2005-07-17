@@ -40,13 +40,15 @@ test process_elt T / \ [[{X}], [[{a}],[{b}]], [[{C}]]] = [[[{X}],[{a}],[{b}]], [
 let parse_list_with_headers (H:schema) : lens =
   List.fold_right [[]] (process_elt H)
 
-(******************************************************************************)
-(* Some specific useful instances... *)
-
 (* The top-level structured text lens.  Maps from lists of values to lists of lists of values, where the
    first element of each of the resulting sublists (except possibly the first) is a "header".  The parameter
    H specifies the schema of headers in "exploded" form -- i.e., H should be a schema of lists of characters. *)
 let l (H:schema) : lens = List.map List.explode; parse_list_with_headers H; List.map (List.map List.implode)
+
+let l_with (S:schema) (l':lens) : lens = l S; List.map (wmap {`List.TL -> l'})
+
+(******************************************************************************)
+(* Some specific useful instances... *)
 
 let CapLetter : schema = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}
                         |{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
@@ -64,8 +66,11 @@ test caps_headers / \ [{x},{y},{Z}] = [[{x},{y}],[{Z}]]
 
 let StarHeader1 : schema = List.Cons {"*"} (List.Cons {" "} (List.NonEmptyList Char))
 let StarHeader2 : schema = List.Cons {"*"} StarHeader1
+let StarHeader3 : schema = List.Cons {"*"} StarHeader2
 
-let star_headers : lens = l StarHeader1; List.map (wmap {`List.TL -> (l StarHeader2)})
+let star_headers : lens = l_with StarHeader1 (l StarHeader2)
+
+let combined_headers : lens = l_with StarHeader1 (l_with StarHeader2 (l_with StarHeader3 (l AllCapsList)))
 
 test star_headers / \ [{"* Foo"}, {bar}] = [[{"* Foo"}, [{bar}]]]
 test star_headers / \ [{"* Foo"}, {"** bar"}, {"** baz"}] = [[{"* Foo"}, [{"** bar"}],[{"** baz"}]]]
@@ -102,6 +107,7 @@ let NestedListOfValues : schema = List.T (List.Cons Value (List.T (List.Cons Val
 
 let file_with_all_caps_headers : lens = List.lines; caps_headers
 let file_with_star_headers : lens = List.lines; star_headers
+let file_with_combined_headers : lens = List.lines; combined_headers
 
 
 (******************************************************************************)

@@ -856,24 +856,37 @@ let _ = register_native explode_qid "lens" explode_lib
 (*********)
 (* LINES *)
 (*********)
-let lines_qid = "Native.Prelude.lines"
-let lines =
+let split_qid = "Native.Prelude.split"
+let split sep =
+  let sepchar = if String.length sep = 1 then sep.[0]
+                else error [`String "Native.Prelude.split (get) - ";
+                            `String "separator should be one character:"; `Name sep] in
    { get = (fun c ->
               if not (V.is_value c) then
-                error [`String ("Native.Prelude.lines (get) : expecting exactly one child :"); `Tree c];
-              V.structure_from_list (Safelist.map V.new_value (Misc.split_nonescape '\n' (V.get_value c))));
+                error [`String ("Native.Prelude.split (get) : expecting exactly one child :"); `Tree c];
+              V.structure_from_list (Safelist.map V.new_value (Misc.split_nonescape sepchar (V.get_value c))));
      put = (fun a c ->
-             let lines = Safelist.map V.get_value (V.list_from_structure a) in
-             if lines=[] then
-               error [`String ("Native.Prelude.lines (put) : abstract argument must be non-empty :"); `Tree a];
+             let split = Safelist.map V.get_value (V.list_from_structure a) in
+             if split=[] then
+               error [`String ("Native.Prelude.split (put) : abstract argument must be non-empty :"); `Tree a];
              Safelist.iter
                (fun s -> if String.contains s '\n' then
-                           error [`String ("Native.Prelude.lines (put): abstract tree contains '\\n'"); `Tree a])
-               lines;
-             V.new_value (String.concat "\n" lines)) }
+                           error [`String ("Native.Prelude.split (put): abstract tree contains '");
+                                  `String sep; `String "': ";
+                                  `Tree a])
+               split;
+             V.new_value (String.concat sep split)) }
       
-let lines_lib = L (lines)
-let _ = register_native lines_qid "lens" lines_lib
+let pivot_lib = 
+  mk_nfun "lens" pivot_qid (fun k -> L(pivot k))    
+let _ = register_native 
+  pivot_qid 
+  "name -> lens" 
+  pivot_lib
+
+let split_lib =
+  mk_nfun "lens" pivot_qid (fun k -> L (split k))    
+let _ = register_native split_qid "name -> lens" split_lib
     
 (* PAD *)
 (* pad a list to a power of two *)

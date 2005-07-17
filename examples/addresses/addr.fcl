@@ -9,37 +9,99 @@
          abstract format: last;first
 *)
 
-module Addr = 
+module Addr =
+
+(*******************************************************************)
+(* List hackery (perhaps it belongs in list.src?) *)                          
+
+let add_to_list (n:name) (l:name) : lens =
+  xfork { `n, `l } { `l }
+    (rename n List.HD;
+     rename l List.TL;
+     plunge l)
+    id
+
+let add_to_list_if_present (n:name) (l:name) : lens =
+  acond {`n={""}, `l=[], *\`n,`l=Any}  {`l=[], *\`n,`l=Any}
+    (prune n {""})
+    (add_to_list n l)
+
+test add_to_list_if_present "n" "l" / {n={5}, l=[]} = {l=[{5}]}
+test add_to_list_if_present "n" "l" / {n={""}, l=[]} = {l=[]}
+test add_to_list_if_present "n" "l" / {n={6}, l=[{5}]} = {l=[{6},{5}]}
+test add_to_list_if_present "n" "l" / {n={""}, l=[{5}]} = {l=[{""},{5}]}
+
+test add_to_list_if_present "n" "l" \ {l=[]} missing = {n={""}, l=[]}
+test add_to_list_if_present "n" "l" \ {l=[{5}]} missing = {n={5}, l=[]}
+test add_to_list_if_present "n" "l" \ {l=[{5},{4}]} missing = {n={5}, l=[{4}]}
+
+test add_to_list_if_present "n" "l" \ {l=[]} {n={""},l=[]} = {n={""}, l=[]}
+test add_to_list_if_present "n" "l" \ {l=[{5}]} {n={""},l=[]} = {n={5}, l=[]}
+test add_to_list_if_present "n" "l" \ {l=[{5},{4}]} {n={""},l=[]} = {n={5}, l=[{4}]}
+
+test add_to_list_if_present "n" "l" \ {l=[]} {n={5},l=[]} = {n={""}, l=[]}
+test add_to_list_if_present "n" "l" \ {l=[{6}]} {n={5},l=[]} = {n={6}, l=[]}
+test add_to_list_if_present "n" "l" \ {l=[{6}]} {n={""},l=[{5}]} = {n={6}, l=[]}
+
+
+(*******************************************************************)
+(* Abstract schema *)                          
+
+let Addr : schema =
+  {
+    Company = Value,
+    Title = Value,
+    Phone = { Home=List.T Value,
+              Work=List.T Value,
+              Email=List.T Value,
+              Mobile=List.T Value },
+    Address = Value,
+    City = Value,
+    Note = Value,
+    State = Value,
+    Zip = Value,
+    Country = Value
+  }
+
+let AddrBook : schema = {* = {* = List.T Addr}}
+  (* {last={first=[addr1, addr2, ...]}} *)
+
+
+(*******************************************************************)
+(* XCard format *)                          
 
 let Element (x:name) (attrs:schema) (content:schema) : schema =
   { `x = ({`Xml.CHILDREN = content} + attrs) }
 
 let FnLn : schema =
     [Element "family" {} [Xml.Pcdata], Element "given" {} [Xml.Pcdata]]
-(* Three more to go here... *)
+let LnFn : schema =
+    [Element "given" {} [Xml.Pcdata], Element "family" {} [Xml.Pcdata]]
+let Ln : schema =
+    [Element "family" {} [Xml.Pcdata]]
+let Fn : schema =
+    [Element "given" {} [Xml.Pcdata]]
 
 let Name : schema =
-  Element "n" {} ([Xml.Pcdata] | FnLn)
+  Element "n" {} ([Xml.Pcdata] | FnLn | LnFn | Ln | Fn)
 
-let Fields : schema =
-  Element "note" {} ([Xml.Pcdata] | [])
+let Field : schema =
+    Element "note" {} ([Xml.Pcdata] | [])
+  | Element "tel-cell" {} ([Xml.Pcdata] | [])
+  | Element "tel-work" {} ([Xml.Pcdata] | [])
+  | Element "tel-home" {} ([Xml.Pcdata] | [])
+  | Element "email" {} ([Xml.Pcdata] | [])
 
 let VCard : schema =
-  Element "vcard" {} (Name :: (List.T Fields))
+  Element "vcard" {} (Name :: (List.T Field))
 
 let XCard : schema =
   [Element "xcard" {} (List.T VCard)]
 
-let Addr : schema =
-  { note = Value }
-
-let AddrBook : schema = {* = {* = Addr}}
-  (* {last={first={...}}} *)
-
 let massage_name : lens =
    hoist Xml.PCDATA
 
-(* NOTES TOWARD A FANCIER VERSION... 
+(* NOTES TOWARD A FANCIER VERSION...
 let massage_name : lens =
   acond { `Xml.PCDATA = Any } NoCommas
     (hoist Xml.PCDATA; explode)
@@ -52,7 +114,20 @@ let handle_unique_field (f:name) : lens =
      map Xml.hoist_pcdata;
      acond {`f=NonNullValue} {`f=NonNullValue}
        id
-       (ccond {} (add f {""}) id))
+       (* WAS: (ccond {} (add f {""}) id)) *)
+       (add f {""}))
+    id
+
+test handle_unique_field "a" / \ {} = {a={""}}
+test handle_unique_field "a" / \ {a=[{`Xml.PCDATA = [{hello}]}]} = {a={hello}}
+test handle_unique_field "a" \ {a={hello}} {} = {a=[{`Xml.PCDATA = [{hello}]}]}
+test handle_unique_field "a" \ {a={""}} {a=[{`Xml.PCDATA = [{hello}]}]} = {}
+
+let handle_nonunique_field (f:name) : lens =
+  fork {`f}
+    (acond {} {`f=[]}
+       (add f [])
+       (map (List.flatten; hoist Xml.PCDATA; List.map (List.hd []))))
     id
 
 let FAMILY : name = "&family"
@@ -70,29 +145,152 @@ let use_name_as_key : lens =
      rename_if_present "family" FAMILY;
      handle_unique_field FAMILY;
      handle_unique_field "given");
-  hoist_nonunique List.HD {`FAMILY,given};  
+  hoist_nonunique List.HD {`FAMILY,given};
   fork {`FAMILY}
     id
     (pivot "given");
   pivot FAMILY;
   map (map (hoist List.TL));
-  assert {! = {! = List.T Fields}}
+  assert {! = {! = List.T Field}}
+
+(*
+let add_if_missing (n:name) (nullval:tree) : lens =
+  acond {*\`n=Any} {*\`n=Any, `n=nullval}
+    (add n nullval)
+    id
+*)
 
 let handle_fields : lens =
-  handle_unique_field "note"
+  let unique (nc:name) (na:name) : lens =
+    handle_unique_field nc; rename nc na in
+  let nonunique (nc:name) (na:name) : lens =
+    handle_nonunique_field nc; rename nc na in
+  unique "company" "Company";
+  unique "title" "Title";
+  unique "address" "Address";
+  unique "city" "City";
+  unique "state" "State";
+  unique "zip" "Zip";
+  unique "country" "Country";
+  unique "note" "Note";
+  nonunique "tel-home" "Home";
+  nonunique "tel-work" "Work";
+  nonunique "email" "Email";
+  nonunique "tel-cell" "Mobile";
+  xfork {Home,Work,Email,Mobile} {Phone}
+    (plunge "Phone")
+    id
 
-let l : lens =
-  assert XCard;
-  List.hd {};
+let xcard : lens =
+  assert XCard;   (* but perhaps we shouldn't actually do this
+                       because the structure may be large! *)
+  List.hd [];
   hoist "xcard";
   hoist Xml.CHILDREN;
   List.map use_name_as_key;
   List.flatten;
-  map (List.flatten; map (List.hd {}; Xml.flatten; handle_fields))
-(*  assert AddrBook *)
-    
+  map (List.flatten; map (List.map (Xml.flatten; handle_fields)));
+  assert AddrBook  (* Might also be slow! *)
 
-let sample : tree = (load_file "sample.xml")
-test l / sample = ?
-                     
-(* test id / (load_file "sample.csv") = ? *)
+(* Note that unit tests involving creation will fail unless the fields
+   within each xcard are given in sorted order... *)
+test xcard / \
+   (load "xml" 
+     "<xcard>
+     | <vcard>
+     |   <n><family>Doe</family><given>John</given></n>
+     |   <note>hello world</note>
+     |   <tel-home>792-8134</tel-home>
+     |   <tel-home>732-4684</tel-home>
+     | </vcard>
+     |</xcard>
+     |")
+  =
+    {Doe =
+      {John =
+        [{Address = {""},
+          City = {""},
+          Company = {""},
+          Country = {""},
+          Note = {"hello world"},
+          Phone =
+           {Email = [], Home = [{792-8134}, {732-4684}], Mobile = [], Work = []},
+          State = {""},
+          Title = {""},
+          Zip = {""}}]}}
+
+
+(************************************************************************)
+(* CSV format *)
+
+let alpha_labels : lens =
+  rename "01" "Last name";
+  rename "02" "First name";
+  rename "03" "Title";
+  rename "04" "Company";
+  rename "05" "Phone1";
+  rename "06" "Phone2";
+  rename "07" "Phone3";
+  rename "08" "Phone4";
+  rename "09" "Phone5";
+  rename "10" "Address";
+  rename "11" "City";
+  rename "12" "State";
+  rename "13" "Zip";
+  rename "14" "Country";
+  rename "15" "Custom 1";
+  rename "16" "Custom 2";
+  rename "17" "Custom 3";
+  rename "18" "Custom 4";
+  rename "19" "Note";
+  rename "20" "Private";
+  rename "21" "Category"
+
+let prune_if_null (n:name) (nullval:tree) : lens =
+  acond {`n=nullval, *\`n=Any}  {*\`n=Any}  
+    (prune n nullval)
+    id
+
+let prune_null_entries : lens = 
+  prune_if_null "Category" {Unfiled};  
+  prune_if_null "Private" {0};
+  prune_if_null "Custom 1" {""};
+  prune_if_null "Custom 2" {""};
+  prune_if_null "Custom 3" {""};
+  prune_if_null "Custom 4" {""}
+(* We'd like to get rid of all these, but it will make the abstract schema
+   run real slow at the moment...!
+  prune_if_null "Phone" []; 
+  prune_if_null "Address" {""};
+  prune_if_null "City" {""};
+  prune_if_null "Company" {""};
+  prune_if_null "Note" {""};
+  prune_if_null "State" {""};
+  prune_if_null "Title" {""};
+  prune_if_null "Zip" {""};
+  prune_if_null "Country" {""};
+*)
+
+let format_phone : lens =
+  List.split ";";
+  pivot List.HD;
+  map (hoist List.TL; List.hd [])
+
+let format_csv_addr : lens =
+  alpha_labels;
+  add "Phone" [];
+  add_to_list_if_present "Phone5" "Phone";
+  add_to_list_if_present "Phone4" "Phone";
+  add_to_list_if_present "Phone3" "Phone";
+  add_to_list_if_present "Phone2" "Phone";
+  add_to_list_if_present "Phone1" "Phone";
+  mapn "Phone" (List.map format_phone; List.flatten);
+  prune_null_entries;
+  pivot "Last name";
+  map (pivot "First name")
+
+let csv : lens =
+  List.map format_csv_addr;
+  List.flatten;  (* Flatten last names *)
+  map List.flatten;  (* Flatten first names *)
+  assert AddrBook

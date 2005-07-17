@@ -79,6 +79,12 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let oa = Misc.map_option (Lens.get lenso) o in
   let aa = Misc.map_option (Lens.get lensa) a in
   let ba = Misc.map_option (Lens.get lensb) b in
+  (* fill this in...
+  debug (fun() ->
+           Format.printf "Synchronizing...\n";
+           Format.printf "  o = ";
+        );
+  *)
   let (act, oa', aa', ba') = Sync.sync s oa aa ba in
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in

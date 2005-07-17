@@ -5,30 +5,17 @@ module Rel = Relation
 let ( |> ) f g x =
   g (f x)
 
-(*
-(* Return the lines of text from an input channel. *)
-let rec readlines inch =
-  try
-    let line = input_line inch in
-    line :: (readlines inch)
-  with
-    End_of_file -> [] ;;
-
-(* Get lines of text from a file. *)
-let filelines filename =
-  let inch = open_in filename in
-  let lines = readlines inch in
-  close_in inch;
-  lines ;;
-
-let filecontents filename =
-  (String.concat "\n" (filelines filename)) ^ "\n"
-*)
+let trim_comment_prefix = function
+    [] -> []
+  | f::fs ->
+         (if Util.startswith f "# " then String.sub f 2 ((String.length f) - 2) else f) 
+      :: fs
 
 let list_to_rel tbl =
   match tbl with
   | [] -> Rel.create []
   | flds :: rows ->
+      let flds = trim_comment_prefix flds in
       let rcds = List.map (fun x -> List.combine flds x) rows in
       List.fold_right Rel.insert rcds (Rel.create flds)
 
@@ -52,8 +39,16 @@ let load_db dir =
   let tbls = List.map ((Filename.concat dir) |> load_tbl) csvfiles in
   List.fold_right2 Db.add tblnames tbls Db.empty
 
+let add_comment_prefix_to_fields = function
+    [] -> []
+  | []::rest -> []::rest
+  | (f::flds)::rest -> (("# "^f) :: flds) :: rest
+
 let save_tbl file tbl =
-  Csv.save file (rel_to_list tbl)
+  let l = rel_to_list tbl in
+  Printf.eprintf "Saving %d csv rows\n" (List.length l);
+  let l = add_comment_prefix_to_fields l in
+  Csv.save file l
 
 let save_db dir db =
   if not (Sys.file_exists dir) then Unix.mkdir dir 493;

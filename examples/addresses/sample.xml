@@ -1,6 +1,10 @@
 <xcard>
 
 <vcard>
+<n><given>John</given><family>Doe</family></n>
+</vcard>
+
+<vcard>
 <n>Just a name</n>
 <note>Hello</note>
 </vcard>
@@ -15,7 +19,23 @@
 
 <vcard>
 <n>Empty note</n>
-<note/>
 </vcard>
+
+<vcard>
+<n><family>Last only</family></n>
+</vcard>
+
+<vcard>
+<n><given>First only</given></n>
+</vcard>
+
+  <vcard>
+    <n>
+      <family>Adelson</family>
+      <given>Beth</given>
+    </n>
+    <tel-home>215-925-1774</tel-home>
+    <tel-cell>215-999-9999</tel-cell>
+  </vcard>
 
 </xcard>

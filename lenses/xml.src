@@ -52,7 +52,8 @@ up as PCDATA.)
 \subsection{Lenses}
 
 \LENSSECTION{hoist_pcdata} The @hoist_pcdata@ lens behaves almost like
-@hoist_PCDATA@, but also handles the case where the whole tree is empty
+%
+@hoist PCDATA@, but also handles the case where the whole tree is empty
 (corresponding to a null @PCDATA@ at this point).
 #*let hoist_pcdata : lens = 
 #*  acond Pcdata NonNullValue

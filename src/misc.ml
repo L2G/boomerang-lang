@@ -378,7 +378,7 @@ let filename_extension (s:string) =
 
 let colorize =
   Prefs.createBool "colorize" false
-    "Use colored text to make output more readable" ""
+    "*Use colored text to make output more readable" ""
 
 type color = Black | Red | Green | Yellow | Blue | Pink | Cyan | White
 let colorcode = function

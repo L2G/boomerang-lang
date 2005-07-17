@@ -1,20 +1,20 @@
 THINGS TO DO
 
 BCP TASKS
-play with argouml.org stuff
+address demo
+  write a small ML front end driver
+  write sync schema
+  generalize to fields allowing more than one value
+  check that CSV files are working
+  write lens for converting CSV addrbook to abstract addrbook
+  see if augmented cvs files can be written as well as read
+structured text demo
+  implement third and fourth levels of nesting (last one using ALLCAPS)
+  make an ML front end
 bookmark demo
   make Unison not swallow debugging output from merge cmd (at least in text UI)
-  why is COMPILEHARMONYASBYTECODE getting set to yes?
-  why is merge not changing either temp file?
-check that CSV files are working
-write lens for converting CSV addrbook to abstract addrbook
-see if augmented cvs files can be written as well as read
 make Plist a library module and experiment with syncing some real plists
 move Thang's general concat into List module
-assertion failure should print a line number
-  - make native assert function take a string arg
-  - make parser recognize assert keyword specially and supply fileinfo
-    as string
 the code in Registry that searches for files along the search path should
   also look in subdirectories
 
@@ -42,6 +42,10 @@ the printing/tracing/debugging stuff is still not working very well.  In
   stdout stream and some on stderr...!  
 change implementation of sync alg to eliminate delete/delete conflicts,
   as discussed by Alan
+assertion failure should print a line number
+  - make native assert function take a string arg
+  - make parser recognize assert keyword specially and supply fileinfo
+    as string
 
 STEPHANE
 in Unison merge function, when we call out to the Harmony process, we need
