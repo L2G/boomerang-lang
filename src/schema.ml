@@ -218,19 +218,24 @@ let rec equal t1 t2 = match t1,t2 with
     Any(_),Any(_) -> true
   | Atom(_,n1,tn1),Atom(_,n2,tn2) -> (n1=n2) && (equal tn1 tn2)
   | Cat(_,_,ts1), Cat(_,_,ts2) ->
-      (Safelist.fold_left
-	 (fun ok (ti1,ti2) -> ok && (equal ti1 ti2))
-	 (Safelist.length ts1 = Safelist.length ts2)
-	 (Safelist.combine ts1 ts2))
+      if (Safelist.length ts1 = Safelist.length ts2) then 
+        (Safelist.fold_left
+	   (fun ok (ti1,ti2) -> ok && (equal ti1 ti2))
+	   true
+	   (Safelist.combine ts1 ts2))
+      else
+        false
   | Var(_,x1,_),Var(_,x2,_) -> Syntax.qid_compare x1 x2 = 0
   | Wild(_,f1,l1,u1,tx1),Wild(_,f2,l2,u2,tx2) -> 
       ((f1,l1,u1) = (f2,l2,u2) 
           && (equal tx1 tx2))
   | Union(_,_,ts1), Union(_,_,ts2) ->
-      (Safelist.fold_left
-	 (fun ok (ti1,ti2) -> ok && (equal ti1 ti2))
-	 (Safelist.length ts1 = Safelist.length ts2)
-	 (Safelist.combine ts1 ts2))
+      if (Safelist.length ts1 = Safelist.length ts2) then
+        (Safelist.fold_left
+	   (fun ok (ti1,ti2) -> ok && (equal ti1 ti2))
+           true
+	   (Safelist.combine ts1 ts2))
+      else false
   |_ -> false
 
 (* -------------------- constructors --------------- *)
