@@ -91,16 +91,10 @@ sync with caps_headers at (List.T Any)
     (let res : tree = [{X},{a},{b}] in
        { O=res, A=res, B=res })
 
-(* Doesn't work because of bogus contractiveness check... 
-     schema NestedListOfValues = List (Value | NestedListOfValues)
-   ...so for now we do: *)   
+schema NonListValue = {!\`List.HD,`List.TL,`List.NIL={}}
 
+schema NestedListOfValues = List.T (NonListValue | NestedListOfValues)
 
-let NestedListOfValues : schema = List.Nil | { `List.HD=({! \ (`List.HD,`List.TL,`List.NIL)=Any} | NestedListOfValues), `List.TL=NestedListOfValues}
-
-(* 
-let NestedListOfValues : schema = List.T (List.Cons Value (List.T (List.Cons Value (List.T Value) )))
-*)
 
 (******************************************************************************)
 (* Some useful instances packaged for invoking from the command line... *)
