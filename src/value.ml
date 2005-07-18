@@ -10,25 +10,14 @@
 type t = 
     N of Name.t                 (* names *)
   | L of (V.t, V.t) Lens.t      (* lenses *)      
-  | T of ty                     (* types *)
+  | S of Schema.t               (* schemas *)
   | V of V.t                    (* trees *)
-  | F of Syntax.sort * (t -> t)               (* functions *)
-and ty = 
-    Empty of Info.t
-  | Any of Info.t
-  | Var of Info.t * Syntax.qid * thunk
-  | App of Info.t * t * t * thunk
-  | Atom of Info.t * string * ty
-  | Star of Info.t * (string list) * ty
-  | Bang of Info.t * (string list) * ty
-  | Cat of Info.t * ty list 
-  | Union of Info.t * ty list 
-and thunk = unit -> t
+  | F of Syntax.sort * (t -> t) (* functions *)
 
 let sort_of_t = function
    N _    -> Syntax.SName    
  | L _    -> Syntax.SLens
- | T _    -> Syntax.SSchema
+ | S _    -> Syntax.SSchema
  | V _    -> Syntax.STree
  | F(s,_) -> s
 
@@ -36,94 +25,18 @@ let sort_of_t = function
 let rec string_of_t t =   
   match string_of_t_aux [] t with
       _,[],s -> s
-    | _,ds,s -> 
-	Printf.sprintf "%s\nwhere\n\t%s"
+    | _,ds,s -> s
+(* 	Printf.sprintf "%s\nwhere\n\t%s"
 	  s
 	  (Misc.concat_list "\n\t" ds)
-
+*)
 and string_of_t_aux printed = function
     N(n)   -> [],[],n
-  | T(t)   -> string_of_ty_aux printed t 
+  | S(s)   -> [],[],Schema.string_of_t s
   | V(v)   -> [],[],(V.string_of_t v)
   | L(l)   -> [],[],"<lens>"
   | F(s,_) -> [],[],Printf.sprintf "<%s fun>" (Syntax.string_of_sort s)
-      
-and string_of_ty t0 = 
-  let _, ds, s = string_of_ty_aux [] t0 in
-    Printf.sprintf "%s\nwhere\n\t%s"
-      s
-      (Misc.concat_list "\n\t" ds)
-      
-and string_of_ty_aux printed = function
-    Empty(_)      -> printed, [], "Empty"
-  | Any(_)        -> printed, [], "Any"
-  | Var (_,x,thk) -> 
-      let sx = Syntax.string_of_qid x in
-	  if 
-	    (Safelist.exists (fun q -> Syntax.qid_equal q x) printed)
-	  then 
-	    (printed, [], sx)
-	  else
-	    (* UGLY! need to Format properly here *)
-	    (match thk () with 
-		 T t1 -> 
-		   let ps,ds,s1 = string_of_ty_aux (x::printed) t1 in		   
-		     (ps,
-		      (Printf.sprintf "%s = %s" sx s1)::ds,
-		      sx)		     
-	       | V v  -> 
-		   (x::printed, 
-		    [Printf.sprintf "%s = %s" sx (V.string_of_t v)], 
-		    sx)
-	       | _    -> (printed, [], sx))
-	      
-    | App(_,t1,t2,_) -> 
-	let ps1,ds1,s1 = string_of_t_aux printed t1 in
-	let ps2,ds2,s2 = string_of_t_aux ps1 t2 in
-	  ps2, ds1 @ ds2, (Printf.sprintf "(%s %s)" s1 s2)
 
-    | Atom(_,n,t) -> 
-	let ps, ds,s = string_of_ty_aux printed t in
-	  ps, ds, (Printf.sprintf "%s = %s" n s)
-
-    | Bang(_,f,t)  -> 
-	let ps, ds,s = string_of_ty_aux printed t in
-	  (ps, 
-	   ds, 
-	   (Printf.sprintf "!%s = %s"
-	      (if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
-	      s))
-    | Star(_,f,t)  ->
-	let ps, ds,s = string_of_ty_aux printed t in
-	  (ps, 
-	   ds, 
-	   (Printf.sprintf "!%s = %s"
-	      (if f = [] then "" else "\\" ^ Misc.parens (Misc.concat_list ", " f))
-	      s))
-    | Cat(_,ts)   -> 
-	let (ps, ds,ss_rev) = 
-	  Safelist.fold_left 
-	    (fun (ps,ds,ss) ti -> 
-	       let ps',ds',s' = string_of_ty_aux ps ti in
-		 (ps', ds@ds', s'::ss))
-	    (printed,[],[])
-	    ts
-	in
-	  (ps, 
-	   ds, 
-	   Misc.curlybraces (Misc.concat_list ", " (Safelist.rev ss_rev)))
-    | Union(_,ts) -> 
-	let (ps, ds,ss_rev) = 
-	  Safelist.fold_left 
-	    (fun (ps,ds,ss) ti -> 
-	       let ps',ds',s' = string_of_ty_aux ps ti in
-		 (ps', ds@ds',s'::ss))
-	    (printed,[],[])
-	    ts
-	in
-	  (ps, 
-	   ds, 
-	   Misc.curlybraces (Misc.concat_list " | " (Safelist.rev ss_rev)))
 
 (*random helpers *)
 (* utility functions for parsing *)      
@@ -167,23 +80,20 @@ let focal_type_error i es v =
 		(Syntax.string_of_sort (sort_of_t v))
 		(string_of_t v)))
       
-(* [type_of_tree v] yields the singleton [Value.ty] containing [v] *)
-let rec type_of_tree v =
-    V.fold 
-      (fun k vk t -> 
-	 match t with 
-	     Cat(i,ts) -> Cat(i,Atom(i,k,(type_of_tree vk))::ts)
-	   | _         ->
-	       raise (Error.Harmony_error
-			(fun () -> Format.printf "The impossible happened in type_of_tree! Reached an ill-formed type.")))
-      v
-      (Cat(Info.M "coerced type",[]))
-      
+(* [schema_of_tree v] yields the singleton [Value.ty] containing [v] *)
+let rec schema_of_tree v =
+  let i = Info.M "schema coerced from view" in
+    Schema.mk_cat 
+      i
+      (V.fold  
+         (fun k vk ts -> (Schema.mk_atom i k (schema_of_tree vk))::ts)
+         v
+         [])
 
-let get_type i v = 
+let get_schema i v = 
   match v with 
-      T t -> t 
-    | V v -> type_of_tree v
+      S s -> s 
+    | V v -> schema_of_tree v
     | _ -> focal_type_error i Syntax.SSchema v
 	
 let get_name i v = 
@@ -201,10 +111,10 @@ let get_lens i v =
       L l -> l
     | _ -> focal_type_error i Syntax.SLens v
 
-let mk_type_fun return_sort msg f = 
+let mk_schema_fun return_sort msg f = 
   F(Syntax.SArrow(Syntax.SSchema,return_sort),
-    fun v -> f (get_type (Info.M msg) v))
-let mk_tfun s = mk_type_fun (parse_sort s)
+    fun v -> f (get_schema (Info.M msg) v))
+let mk_sfun s = mk_schema_fun (parse_sort s)
   
 let mk_name_fun return_sort msg f = 
   F(Syntax.SArrow(Syntax.SName,return_sort),
@@ -257,16 +167,6 @@ let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
 (*   | SArrow(s1,s2)  -> F(function F _ as v -> f v *)
 (* 			  | _ -> focal_type_error s msg) *)
 
-let info_of_ty = function
-    Var(i,_,_)   -> i
-  | Any(i)       -> i
-  | Empty(i)     -> i
-  | App(i,_,_,_) -> i
-  | Atom(i,_,_)  -> i
-  | Star(i,_,_)  -> i
-  | Bang(i,_,_)  -> i
-  | Cat(i,_)     -> i
-  | Union(i,_)   -> i      
 
 (* dummy value generator *)
 let rec dummy ?(msg="") s = match s with 
@@ -278,9 +178,9 @@ let rec dummy ?(msg="") s = match s with
 	flush stderr; 
 	assert false
       in
-	L (Lens.native error error)
-  | Syntax.SSchema -> T (Empty(Info.M "dummy type"))
-  | Syntax.STree -> V (V.empty)
+	L (Lens.native error (fun _ -> error))
+  | Syntax.SSchema -> S (Schema.mk_any (Info.M "dummy type"))
+  | Syntax.STree   -> V (V.empty)
   | Syntax.SArrow(_,rs) -> F (s, fun _ -> dummy ~msg:msg rs)
 
 (* MEMOIZATION *)
@@ -296,7 +196,7 @@ module H =
 let memoize v =
   match v with 
       N _ -> v
-    | T _ -> v
+    | S _ -> v
     | V _ -> v
     | L l -> L (Lens.memoize_lens l) 
     | F(s,f) -> F (s, 

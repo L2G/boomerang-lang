@@ -26,6 +26,7 @@ let mie x1 e2 = m (info_of_id x1) (info_of_exp e2)
 let mis x1 s1 = m (info_of_id x1) (fst s1)
 let ms s1 s2 = m (fst s1) (fst s2)
 let mbs2 i1 bs2 = m i1 (info_of_bindings i1 bs2)
+let mss2 i1 ss2 = m i1 (info_of_schema_bindings i1 ss2)
   
 (* helpers for easy syntax tree construction *)
 
@@ -113,6 +114,7 @@ opens:
 
 <Decl> ::= 
           \lit{@let@} <BindingList> 
+     \ald \lit{@schema@} <SchemaBindingList>
      \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
      \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
      \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
@@ -165,6 +167,7 @@ is similar, but applies a different lens to $o$, $a$, and $b$.
 
 decls:
   | LET binding_list decls                   { DLet(mbs2 $1 $2,$2)::$3 }
+  | SCHEMA schema_binding_list decls         { DSchema(mss2 $1 $2, $2)::$3 }
   | MODULE IDENT EQUAL decls END decls       { DMod(m $1 $5,$2,$4)::$6 } 
   | TEST exp EQUAL test_res decls            { DTest(m $1 (fst $4), $2, snd $4)::$5 }
   | TEST composeexp SLASH BACKSLASH exp 
@@ -198,6 +201,11 @@ test_res:
 <BindingList> ::= <Binding> 
              \alt <Binding> \lit{and} <BindingList>
 
+
+<SchemaBinding> ::= <Ident> \lit{@=@} <Exp>
+
+<SchemaBindingList> ::= <SchemaBinding> 
+             \alt <SchemaBinding> \lit{and} <SchemaBindingList>
 \end{grammar}
 
 \noindent Bindings in Focal are identical to OCaml bindings with one
@@ -211,7 +219,14 @@ binding_list:
   | binding                                  { [$1] }
 
 binding:    
-  | IDENT param_list COLON asort EQUAL exp   { BDef(mie $1 $6,$1,$2,Some (snd $4),$6) }
+  | IDENT param_list COLON asort EQUAL exp   { BDef(mie $1 $6,$1,$2,snd $4,$6) }
+
+schema_binding_list:
+  | schema_binding AND schema_binding_list   { $1::$3 }
+  | schema_binding                           { [$1] }
+
+schema_binding:
+  | IDENT EQUAL exp                          { SDef(mie $1 $3, $1, $3) }
       
 /* ---------------  sorts & params --------------- */
 #{@}
@@ -264,6 +279,7 @@ param:
 
 \begin{grammar}
 <Exp> ::= \lit{@let@} <BindingList> \lit{@in@} <Exp>
+     \alt \lit{@schema@} <SchemaBindingList> \lit{@in@} <Exp>
      \alt \lit{@fun@} ([\lit{(}]<Ident>\lit{@:@}<Sort>[\lit{)}])+ [\lit{@:@}<Sort>] \lit{@->@} <Exp>
      \alt <GetPutExp>
 
@@ -273,6 +289,7 @@ param:
 #{#}
 exp: 
   | LET binding_list IN exp                  { ELet(m $1 $3,$2,$4) }
+  | SCHEMA schema_binding_list IN exp        { ESchema(m $1 $3,$2,$4) }
   | FUN param param_list opt_sort ARROW exp  { EFun(me2 $1 $6,$2::$3,$4,$6) }
   | getputexp                                { $1 }
 
@@ -459,12 +476,14 @@ treeelt:
   | quoted_name EQUAL exp                    { EAtom(me $1 $3,$1,$3) }
   | QMARK quoted_name EQUAL exp              { let i = me2 $1 $4 in 
                                                  EUnion(i, [ECat(i,[]); EAtom(i,$2,$4)]) }
-  | STAR excepts_opt EQUAL exp               { EStar (me2 $1 $4,$2,$4) }
-  | BANG excepts_opt EQUAL exp               { EBang(me2 $1 $4,$2,$4) }
-  | QMARK excepts_opt EQUAL exp              { let i = me2 $1 $4 in 
-                                                 EUnion(i, [ECat(i,[]); EBang(i,$2,$4)]) }                                                        
-  | PLUS excepts_opt EQUAL exp               { let i = me2 $1 $4 in 
-                                                 ECat(i,[EBang(i,$2,$4); EStar(i,$2,$4)]) }
+  | bangs_opt STAR excepts_opt EQUAL exp     { EWild (me2 $2 $5,$3,$1,None,$5) }
+  | PLUS excepts_opt EQUAL exp               { EWild(me2 $1 $4,$2,1,None,$4) }
+  | BANG bangs_opt excepts_opt EQUAL exp     { EWild(me2 $1 $5,$3,1,Some ($2 + 1),$5) }
+  | QMARK excepts_opt EQUAL exp              { EWild(me2 $1 $4,$2,0,Some 1,$4) }
+
+bangs_opt:
+  |                                          { 0 }
+  | BANG bangs_opt                           { 1 + $2 }
       
 /* --------------- schema helpers --------------- */
 #{@} 

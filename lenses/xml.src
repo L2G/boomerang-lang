@@ -41,8 +41,8 @@ that denote the special tags used by the XML viewer.
 \LENSSECTION{Pcdata, XmlElt, T}
 The encoding of XML described above is expressed by the following schemas: 
 #*let Pcdata : schema = {`PCDATA = NonNullValue}
-#*let XmlElt : schema = {!\PCDATA = {`CHILDREN = T,             (* subelts *)
-#*                                   *\`CHILDREN = Value }}     (* attrs *)
+#*let XmlElt : schema = {! \ `PCDATA = {`CHILDREN = T,             (* subelts *)
+#*                                   *\`CHILDREN = Value }}        (* attrs *)
 #*                      | Pcdata
 #*and T : schema = List.T XmlElt
 (Note that the value under @PCDATA@ is never the empty string: our XML
@@ -217,3 +217,4 @@ order.  New substructures will be placed at the end.
 #*        (load "xml" "<a> foo <b>bar</b> <c>baz</c> </a>") 
 #*      = 
 #*        (load "xml" "<a> foo <b>bar<extra/></b> <c>baz</c> <extra/> </a>") 
+

@@ -16,6 +16,10 @@ let s_of_rv = Registry.sort_of_rv
 let v_of_rv = Registry.value_of_rv
 
 (* --------------- Unit tests --------------- *)
+
+(* unit tests either succeed, yielding a value, or fail with a msg *)
+type testresult = OK of V.t | Error of (unit -> unit)
+
 let tests = Prefs.createStringList
   "test"
   "run unit test for the specified module"
@@ -26,12 +30,14 @@ let test_all = Prefs.createBool "test-all" false
   "run unit tests for all modules"
   "run unit tests for all modules"
 
+(* [check_test m] returns true iff the command line arguments
+   '-test-all' or '-test m' are set *)
 let check_test m = 
   Safelist.fold_left 
     (fun r qs -> r or (Syntax.qid_prefix (Value.parse_qid qs) m))
     (Prefs.read test_all)
     (Prefs.read tests)
-    
+
 (* --------------- Error Reporting --------------- *)
 let debug s_thk = 
   Trace.debug "compiler" (fun () -> Printf.eprintf "%s\n%!" (s_thk ()))
@@ -52,6 +58,15 @@ let run_error i msg_thk =
   raise (Error.Harmony_error
 	   (fun () -> Format.printf "%s: Unexpected run-time error @\n %s" (Info.string_of_t i) (msg_thk ())))
           
+(* --------------- GenSym ----------------- *)
+let fresh_var_counter = ref 0
+let fresh_var x = 
+  let n = !fresh_var_counter in 
+  let i = Syntax.info_of_id x in
+  let s = Syntax.string_of_id x in
+    incr fresh_var_counter;
+    Syntax.mk_id i ("'" ^ s ^ (string_of_int n))
+
 (* --------------- Environments --------------- *)
 module type CommonEnvSig = sig
   type t 
@@ -62,7 +77,7 @@ module type CommonEnvSig = sig
   val set_ctx : t -> Syntax.qid list -> t
 end
 
-(* compiling environments *)
+(* compilation environments *)
 module type CEnvSig = sig
   include CommonEnvSig
   val lookup : t -> Syntax.qid -> Registry.rv option
@@ -122,25 +137,14 @@ module SCEnv : SCEnvSig = struct
   (* update a cev with a new sort *)
   let update sev q s = 
     let (rs,cev) = sev in
-      (rs, (CEnv.update cev q (mk_rv s (Value.dummy s))))
-	
+      (rs, (CEnv.update cev q (mk_rv s (Value.dummy s))))	
 end
 
 (* --------------- Sort checker --------------- *)
 
-(* utility functions *)
-(* [ends_with_type s] is [true] iff [s] is [type] or is of the form
-   [s_1 -> ... s_n -> type] *)
-let rec ends_with_type = function
-    (* N.B.: a tree is a value, so we don't need to delay computations
-       involving trees *)
-    SSchema       -> true
-  | SArrow(_,s) -> ends_with_type s
-  | _           -> false
-
-(* convert a list of parameters ps with sorts s1,..sn and a sort s 
- * to arrow sort s1 -> ... -> sn -> s *)
-let sort_of_param_list i ps s = 
+(* helper function to convert a list of parameters [ps] with sorts
+ * [s1,..,sk] and a sort [s] to the arrow sort [s1 -> ... -> sk -> s] *)
+let sort_of_params i ps s = 
   Safelist.fold_right (fun p ts -> SArrow(sort_of_param p,ts))  ps s
 
 (* check if one sort is a subsort of another *)
@@ -153,9 +157,9 @@ let rec subsort u v = match u,v with
   | _ when u = v -> true
   | _            -> false
 
-let rec expect_sort_exp msg ?(bindersOK=true) sev expected_sort e =
+let rec expect_sort_exp msg sev expected_sort e =
   let i = info_of_exp e in
-  let e_sort, new_e = check_exp ~bindersOK:bindersOK sev e in
+  let e_sort, new_e = check_exp sev e in
     if subsort e_sort expected_sort then 
       (e_sort,new_e)
     else
@@ -168,7 +172,7 @@ let rec expect_sort_exp msg ?(bindersOK=true) sev expected_sort e =
 	     (string_of_exp e))
 	
 (* EXPRESSIONS *)    
-and check_exp ?(bindersOK=true) sev e0 = 
+and check_exp sev e0 = 
   (* let _ = debug (sprintf "checking expression %s" (string_of_exp e0)) in *)
   match e0 with
       (* applications *)
@@ -181,31 +185,22 @@ and check_exp ?(bindersOK=true) sev e0 =
 	  | e1_sort,_ -> 
 	      sort_error i 
 		(fun () -> sprintf 
-		   "expected function type in application but found %s"
+		   "expected arrow sort in left-hand side of application but found %s"
 		   (string_of_sort e1_sort))
       end
 	
     (* type atoms *)
     | EAtom(i,e1,e2) ->
-	let _,new_e1 = expect_sort_exp "atom" sev SName e1 in
-	let e2_sort, new_e2 = expect_sort_exp "atom" sev SSchema e2 in
+	let _,new_e1 = expect_sort_exp "atom name" sev SName e1 in
+	let e2_sort, new_e2 = expect_sort_exp "atom schema" sev SSchema e2 in
 	let new_e0 = EAtom(i, new_e1, new_e2) in
 	  (e2_sort, new_e0)
 	    
-    | EBang(i,es,e) ->
-	let new_es = Safelist.map 
-	  (fun ei -> snd (expect_sort_exp "exception list" sev SName ei))
-	  es 
-	in
-	let _,new_e = expect_sort_exp "!-type" sev SSchema e in
-	let new_e0 = EBang(i,new_es,new_e) in
-	  (SSchema, new_e0)
-
     | ECat(i,es) ->
 	let e0_sort,new_es_rev = Safelist.fold_left
 	  (fun (es_sort,new_es_rev) ei -> 
 	     let ei_sort, new_ei = 
-	       expect_sort_exp ~bindersOK:false "concatenation" sev SSchema ei in
+	       expect_sort_exp "concatenation (tree or schema)" sev SSchema ei in
 	     let new_sort = match ei_sort,es_sort with
 		 STree,STree -> STree
 	       | _           -> SSchema in
@@ -216,8 +211,8 @@ and check_exp ?(bindersOK=true) sev e0 =
 	  (e0_sort, new_e0)
 	    
     | ECons(i,e1,e2) -> 
-	let e1_sort, new_e1 = expect_sort_exp ~bindersOK:false "cons" sev SSchema e1 in
-	let e2_sort, new_e2 = expect_sort_exp ~bindersOK:false "cons" sev SSchema e2 in
+	let e1_sort, new_e1 = expect_sort_exp "cons (tree or schema)" sev SSchema e1 in
+	let e2_sort, new_e2 = expect_sort_exp "cons (tree or schema)" sev SSchema e2 in
 	let e0_sort = 
 	  match e1_sort,e2_sort with
 	      STree,STree -> STree
@@ -234,32 +229,25 @@ and check_exp ?(bindersOK=true) sev e0 =
 	  check_exp sev (EFun(i,[p1],None,new_body))	    
 	    
     | EFun(i,[p],return_sort_opt,body) ->
-	(* simple lambda *)
-	let param_sort = sort_of_param p in
-	let param_id = id_of_param p in	  
-	let body_sev = 
-	  (SCEnv.update sev (qid_of_id param_id) param_sort) in	    
+	let p_sort = sort_of_param p in
+	let p_id = id_of_param p in	  
+	let body_sev = SCEnv.update sev (qid_of_id p_id) p_sort in
 	let body_sort, new_body = 
 	  match return_sort_opt with
-	      Some return_sort -> expect_sort_exp "function body" body_sev return_sort body
-	    | None             -> check_exp body_sev body
+	      Some s -> expect_sort_exp "function body" body_sev s body
+	    | None   -> check_exp body_sev body
 	in
-	let e0_sort = SArrow(param_sort, body_sort) in
+	let e0_sort = SArrow(p_sort, body_sort) in
 	let new_e0 = EFun(i,[p], Some body_sort, new_body) in
 	  (e0_sort, new_e0)
 	    
     | ELet(i,bs,e) ->
-	if (not bindersOK) then 
-	  sort_error i 
-	    (fun () -> "let-binders not allowed under concatenations and unions")
-	;
 	let bsev,_,new_bs = check_bindings sev bs in
 	let e0_sort, new_e = check_exp bsev e in
 	let new_e0 = ELet(i, new_bs, new_e) in
 	  (e0_sort, new_e0)
 	    
     | EMap(i,ms) ->	
-	(* check that each element of ms is a name * lens pair *)
 	let new_ms = Safelist.map
 	  (fun (n,l) -> 
 	     let _,new_n = expect_sort_exp "map name" sev SName n in
@@ -275,67 +263,68 @@ and check_exp ?(bindersOK=true) sev e0 =
 	
     | ENil(i) -> (STree, ENil(i))
 
-    | EStar(i,es,e) ->
-	let new_es = Safelist.map 
-	  (fun ei -> snd (expect_sort_exp "exception list" sev SName ei))
-	  es 
-	in
-	let _,new_e = expect_sort_exp "*-type" sev SSchema e in
-	let new_e0 = EStar(i,new_es,new_e) in
-	  (SSchema, new_e0)
+    | EProtect(i,e) -> 
+        let _, new_e = expect_sort_exp "protect" sev SLens e in
+          (SLens, EProtect(i,new_e))
+
+    | ESchema(i,ss,e) ->
+        let ssev,_,new_ss = check_schema_bindings sev ss in
+        let _, new_e = expect_sort_exp "schema binding" ssev SSchema e in
+          (SSchema, ESchema(i,new_ss,new_e))
 
     | EUnion(i,es) ->
 	let new_es = Safelist.map
 	  (fun ei -> 
 	     let _,new_ei = 
-	       expect_sort_exp ~bindersOK:false "union" sev SSchema ei in
+	       expect_sort_exp "union schema" sev SSchema ei in
 	       new_ei)
 	  es in
 	let new_e0 = EUnion(i, new_es) in
 	  (SSchema, new_e0)
 	    
     | EVar(i,q) ->
-	begin
-	  match SCEnv.lookup sev q with
-	      Some s  -> (s,e0)
-	    | None -> sort_error i 
-		(fun () -> sprintf "%s is not bound" 
+	begin match SCEnv.lookup sev q with
+	    Some s  -> (s,e0)
+	  | None -> 
+              sort_error i 
+	        (fun () -> sprintf "%s is not bound" 
 		   (string_of_qid q))
 	end
-	  
+
+    | EWild(i,es,l,u,e) ->
+	let new_es = Safelist.map 
+	  (fun ei -> snd (expect_sort_exp "wildcard exception list" sev SName ei))
+	  es 
+	in
+	let _,new_e = expect_sort_exp "wildcard schema" sev SSchema e in
+	let new_e0 = EWild(i,new_es,l,u,new_e) in
+	  (SSchema, new_e0)
+
+
+
 and check_bindings sev bs = 	    
   (* let _ = debug (sprintf "checking bindings %s\n" (string_of_bindings bs)) in *)
-  (* collect up a compile_env that includes recursive bindings *)
   let bsev =
     Safelist.fold_left
-      (fun bsev (BDef(i,f,xs,so,e)) ->
-	 let f_qid = qid_of_id f in
-	   match so with
-	       (* recursive bindings must give their return sort *)
-	     | Some s -> 
-		 let b_sort = (sort_of_param_list i xs s) in
-		   SCEnv.update bsev f_qid b_sort
-	     | None -> bsev)
+      (fun bsev (BDef(i,f,xs,s,e)) ->
+	 SCEnv.update bsev 
+           (qid_of_id f) 
+           (sort_of_params i xs s))
       sev
-      bs
-  in
+      bs in
   let rec check_binding sev bi =   
     (* let _ = debug (sprintf "checking binding %s\n" (string_of_binding bi)) in *)
     match bi with 
-	Syntax.BDef(i,f,[],so,e) -> 
+	Syntax.BDef(i,f,[],s,e) -> 
 	  let f_qid = qid_of_id f in
-	  let e_sort, new_e = 
-	    match so with 
-		None -> check_exp sev e 
-	      | Some e_sort -> expect_sort_exp "let binding" sev e_sort e
-	  in
-	  let new_bi = Syntax.BDef(i, f, [], Some e_sort, new_e) in
+	  let e_sort, new_e = expect_sort_exp "let binding" sev s e in
+	  let new_bi = Syntax.BDef(i, f, [], e_sort, new_e) in
 	    (SCEnv.update bsev f_qid e_sort, f_qid, new_bi)
-      | Syntax.BDef(i,f,ps,so,e) -> 
-	  let new_e = EFun(i,ps,so,e) in
-	    (* rewrite bindings with parameters to plain ol' lambdas *)
-	    check_binding sev (Syntax.BDef(i,f,[],None,new_e))
-  in
+      | Syntax.BDef(i,f,ps,s,e) -> 
+          (* rewrite bindings with parameters to plain ol' lambdas *)          
+	  let new_e = EFun(i,ps,Some s,e) in
+	  let new_s = sort_of_params i ps s in
+            check_binding sev (Syntax.BDef(i,f,[],new_s,new_e)) in
   let bsev,names_rev,new_bs_rev = Safelist.fold_left 
     (fun (bsev, names_rev,new_bs_rev) bi ->  
        let bsev, f_qid, new_bi = check_binding bsev bi in
@@ -344,7 +333,29 @@ and check_bindings sev bs =
     bs
   in
     (bsev, Safelist.rev names_rev, Safelist.rev new_bs_rev)
-            
+
+and check_schema_bindings sev ss = 	    
+  let ssev = 
+    Safelist.fold_left
+      (fun ssev (SDef(i,x,_)) -> SCEnv.update ssev (qid_of_id x) SSchema)
+      sev
+      ss in
+  let rec check_schema_binding sev si = match si with 
+      Syntax.SDef(i,x,e) -> 
+	let x_qid = qid_of_id x in
+        let _, new_e = expect_sort_exp "schema binding" sev SSchema e in
+	let new_si = Syntax.SDef(i, x, new_e) in
+	  (SCEnv.update ssev x_qid SSchema, x_qid, new_si)
+  in
+  let ssev,names_rev,new_ss_rev = Safelist.fold_left 
+    (fun (ssev, names_rev,new_ss_rev) si ->  
+       let ssev, x_qid, new_si = check_schema_binding ssev si in
+	 ssev, x_qid::names_rev, new_si::new_ss_rev)
+    (ssev,[],[])
+    ss
+  in
+    (ssev, Safelist.rev names_rev, Safelist.rev new_ss_rev)
+      
 (* type check a single declaration *)
 let rec check_decl sev m di = 
   (* let _ = debug_decl (sprintf "checking declaration %s\n" (string_of_decl di)) in *)
@@ -373,6 +384,11 @@ let rec check_decl sev m di =
 	in
 	let new_di = DMod(i,n,new_ds) in
 	  (new_sev, Safelist.rev names_rev, new_di)
+    | DSchema(i,ss) ->
+        let new_sev, names, new_ss = check_schema_bindings sev ss in
+        let new_di = DSchema(i,ss) in
+          (new_sev, names, new_di)
+
     | DTest(i,e,res) ->	
 	if not (check_test m) then (sev, [], di)
 	else
@@ -390,7 +406,6 @@ let rec check_decl sev m di =
 	      (sev, [], new_di)
 	  end
 	
-(* type check a module *)
 and check_module_aux sev m ds = 
   let new_sev, names, new_ds_rev = 
     Safelist.fold_left 
@@ -414,226 +429,211 @@ let check_module m0 =
 
 (* EXPRESSIONS *)
 let rec compile_exp cev e0 =
-  (* force evaluation of type applications, variables *)
-  let rec force v = match v with
-      Value.T (Value.App(_,_,_,thk)) -> force (thk ())
-    | Value.T (Value.Var(_,_,thk))   -> force (thk ())
-    | _                              -> v    
-  in
-    (* let _ = debug (sprintf "compiling expression %s" (string_of_exp e0)) in *)
-    match e0 with
-      | EApp(i,e1,e2) -> 	
-	  let e1_rv = compile_exp cev e1 in
-	  let e2_rv = compile_exp cev e2 in
-	  let v1 = v_of_rv e1_rv in
-	  let v2 = v_of_rv e2_rv in
-	    begin 
-	      match s_of_rv e1_rv with
-		| SArrow(_,return_sort) -> 
-		    if (ends_with_type return_sort) then 
-		      let thunk () = 
-			let f = match force v1 with
-			    Value.F(_,f) -> f
-			  | _   -> run_error i 
-			      (fun () -> "expected function at left-hand side of application")
-			in
-			  f v2
-		      in
-			mk_rv return_sort (Value.T(Value.App(i,v1,v2,thunk)))
-		    else
-		      begin match v1 with
-			  Value.F(_,f) -> mk_rv return_sort (f v2)
-			| _   -> run_error i (fun () -> "expected function at left-hand side of application")
-		      end
-		| _ -> run_error i 
-		    (fun () -> sprintf "expected function sort but found %s at left-hand side of application"
-		       (string_of_sort (s_of_rv e1_rv)))
-	    end
-
-      | EAtom(i,e1,e2) ->
-	  let n = compile_exp_name cev e1 in
-	  let e2_rv = compile_exp cev e2 in 
-	    begin match v_of_rv e2_rv with
-		Value.V v -> 
-		  mk_rv
-		    STree
-		    (Value.V (V.set V.empty n (Some v)))
-	      | Value.T t ->
-		  mk_rv 
-		    SSchema
-		    (Value.T (Value.Atom(i,n,t)))
-	      | _ -> assert false
-	    end
-		    
-      | EBang(i,es,e) ->
-	  let ns = Safelist.map (compile_exp_name cev) es in
-	  let t = compile_exp_type cev e in 
-	    mk_rv 
-	      SSchema
-	      (Value.T (Value.Bang(i,ns,t)))
-
-      | ECat(i, es) ->
-	  let e0_sort, vs_rev = 
-	    Safelist.fold_left 
-	      (fun (s,vs_rev) ei -> 		 
-		 let v = v_of_rv (compile_exp cev ei) in
-		   match s, v with
-		       STree, (Value.V _) -> 
-			 (s, v::vs_rev)
-		     | STree, (Value.T _) ->
-			 (SSchema, 
-			  v::(Safelist.map (fun v -> Value.T (Value.get_type i v)) vs_rev))
-		     | SSchema, (Value.V _) 
-		     | SSchema, (Value.T _) ->
-			 (s, (Value.T (Value.get_type i v))::vs_rev)			 
-		     | _ -> run_error i (fun () -> 
-					   sprintf "bogus value in ECat: %s %s"
-					     (string_of_sort s) (Value.string_of_t v)))
-	      (STree,[])
-	      es
-	  in 
-	    begin
-	      match e0_sort with
-		  STree -> 
-		    let vi = Safelist.fold_left
-		      (fun vacc v -> V.concat vacc (Value.get_tree i v))
-		      V.empty 
-		      (Safelist.rev vs_rev)
-		    in
-		      mk_rv STree (Value.V(vi))		      
-		| SSchema -> 
-		    let ts = Safelist.rev_map (Value.get_type i) vs_rev in
-		      mk_rv SSchema (Value.T (Value.Cat(i,ts)))
-		| _ -> assert false
-	    end			
-      | ECons(i,e1,e2) -> 
-	  let e1_v = v_of_rv (compile_exp cev e1) in 
-	  let e2_v = v_of_rv (compile_exp cev e2) in    
-	    begin match e1_v, e2_v with
-		Value.V v1, Value.V v2     -> 
-		  mk_rv STree (Value.V (V.cons v1 v2))
-	      | Value.V _, Value.T t ->
-	      	  mk_rv 
-		    SSchema 
-		    (Value.T (Schema.mk_cons i 
-				(Value.get_type i e1_v)
-				t))
-	      | Value.T t, Value.V _ ->
-	      	  mk_rv 
-		    SSchema 
-		    (Value.T (Schema.mk_cons i 
-				t
-				(Value.get_type i e2_v)))
-	      | Value.T t1, Value.T t2 -> 
-		  mk_rv 
-		    SSchema
-		    (Value.T (Schema.mk_cons i t1 t2))
-	      | _ -> run_error i (fun () -> "expected tree or type in atom")
-	    end
-
-      | EFun(i,[p],Some ret_sort,e) ->
-	  (* fully-annotated, simple lambda *)
-	  (* the actual implementation of f *)
-	  let param_qid = qid_of_id (id_of_param p) in
-	  let param_sort = sort_of_param p in
-	  let f_sort = SArrow(param_sort, ret_sort) in
-	  let f_impl v =
-	    let body_cev = 
-	      CEnv.update cev param_qid (mk_rv param_sort v) in
-	      v_of_rv (compile_exp body_cev e)
-	  in
-	    mk_rv 
-	      f_sort
-	      (Value.F (f_sort, f_impl))
-
-      | EFun(i,_,_,_) -> 
-	  run_error i (fun () -> sprintf "unflattened or unannotated function")
+  (* let _ = debug (sprintf "compiling expression %s" (string_of_exp e0)) in *)
+  match e0 with
+    | EApp(i,e1,e2) -> 	
+	let e1_rv = compile_exp cev e1 in
+	let e2_rv = compile_exp cev e2 in
+	let v1 = v_of_rv e1_rv in
+	let v2 = v_of_rv e2_rv in
+	  begin 
+	    match s_of_rv e1_rv with
+	      | SArrow(_,return_sort) -> 
+		  begin match v1 with
+		      Value.F(_,f) -> mk_rv return_sort (f v2)
+		    | _   -> 
+                        run_error 
+                          i 
+                          (fun () -> sprintf 
+                             "expected function at left-hand side of application but found %s"
+                             (Value.string_of_t v2))
+		  end
+	      | s -> 
+                  run_error i 
+		    (fun () -> sprintf
+                       "expected function sort at left-hand side of application but found %s"
+		       (string_of_sort s))
+	  end
+            
+    | EAtom(i,e1,e2) ->
+	let n = compile_exp_name cev e1 in
+	let e2_rv = compile_exp cev e2 in 
+	  begin match v_of_rv e2_rv with
+	      Value.V v -> 
+		mk_rv
+		  STree
+		  (Value.V (V.set V.empty n (Some v)))
+	    | Value.S s ->
+		mk_rv 
+		  SSchema
+		  (Value.S (Schema.mk_atom i n s))
+	    | v -> run_error i
+                (fun () -> sprintf 
+                   "expected schema or tree in atom but found %s"
+                   (Value.string_of_t v))
+	  end
 	    
-      | ELet(i, bs,e) ->
-	  let bcev,_ = compile_bindings cev bs in
-	    compile_exp bcev e	    
-	      
-      (* maps are implemented as functions from names -> lenses *)
-      | EMap(i, ms) ->
-	  let id_exp = EVar(i, Value.parse_qid "Native.Prelude.id") in	    	  	    
-	  let map_impl = Safelist.fold_left
-	    (fun f (ne,le) ->
-	       let n = compile_exp_name cev ne in
-		 begin
-		   function (Value.N n1 as v) ->
-		     if (n1 = n) then v_of_rv (compile_exp cev le)
-		     else f v
-		     | _ -> run_error i (fun () -> "argument to map is not a name")
-		 end)
-	    (fun _ -> v_of_rv (compile_exp cev id_exp))
-	    ms
-	  in	    
-	  let map_sort = SArrow(SName, SLens) in
-	  let map_value = Value.F(map_sort, map_impl) in
-	    mk_rv 
-	      map_sort
-	      map_value
-
-      | EName(i, x) -> 
-	  mk_rv 
-	    SName 
-	    (Value.N (name_of_id x))
-	    
-      | ENil(i) -> 
-	  mk_rv
-	    STree
-	    (Value.V (V.empty_list))
-
-      | EStar(i,es,e) ->
-	  let ns = Safelist.map (compile_exp_name cev) es in
-	  let t = compile_exp_type cev e in
-      	    mk_rv 
-	      SSchema
-	      (Value.T (Value.Star(i,ns,t)))
-	      
-      | EUnion(i, es) ->
-	  let ts = Safelist.map (fun ei -> compile_exp_type cev ei) es in	  
-	    mk_rv 
-	      SSchema
-	      (Value.T (Value.Union(i,ts)))
-	      
-      | EVar(i,q) -> 
-	  let rv = match CEnv.lookup cev q with
-	      Some rv -> rv 
-	    | None -> run_error 
-		(info_of_exp e0)
-		  (fun () -> 
-		     Printf.sprintf "Cannot compile expression %s"
-		       (string_of_exp e0)) in
-	    match s_of_rv rv with
-		(* lenses *)
-		SLens -> 
-		  let fetch_lens () = 			     
-		    match CEnv.lookup cev q with 
-			Some rv -> Value.get_lens i (v_of_rv rv)
-		      | None -> run_error i 
-			  (fun () -> sprintf "lens %s went missing" (* "can't" happen :-) *)
-			     (string_of_qid q))
-		  in		    
-		  let get c = Lens.get (fetch_lens ()) c in
-		  let put a co = Lens.put (fetch_lens ()) a co in
-		    mk_rv 
-		      SLens 
-		      (Value.L (Lens.native get put))
-		      
-	      (* types *)
-	      | s when ends_with_type s ->
-		  let thunk () = 
-		    match CEnv.lookup cev q with
-			Some rv -> v_of_rv rv	
-		      | None -> run_error i
-			  (fun () -> sprintf "%s became unbound" (string_of_qid q))
+    | ECat(i, es) ->
+	let e0_sort, vs_rev = 
+	  Safelist.fold_left 
+	    (fun (s,vs_rev) ei -> 		 
+	       let v = v_of_rv (compile_exp cev ei) in
+		 match s, v with
+		     STree, (Value.V _) -> 
+		       (s, v::vs_rev)
+		   | STree, (Value.S _) ->
+		       (SSchema, 
+			v::(Safelist.map (fun v -> Value.S (Value.get_schema i v)) vs_rev))
+		   | SSchema, (Value.V _) 
+		   | SSchema, (Value.S _) ->
+		       (s, (Value.S (Value.get_schema i v))::vs_rev)			 
+		   | _ -> run_error i (fun () -> 
+					 sprintf "bogus value in ECat: %s %s"
+					   (string_of_sort s) (Value.string_of_t v)))
+	    (STree,[])
+	    es
+	in 
+	  begin
+	    match e0_sort with
+		STree -> 
+		  let vi = Safelist.fold_left
+		    (fun vacc v -> V.concat vacc (Value.get_tree i v))
+		    V.empty 
+		    (Safelist.rev vs_rev)
 		  in
-		    mk_rv s (Value.T(Value.Var(i,q,thunk)))			
-		      
-	      (* everything else *)
-	      | _ -> rv
-		  
+		    mk_rv STree (Value.V(vi))		      
+	      | SSchema -> 
+		  let ts = Safelist.rev_map (Value.get_schema i) vs_rev in
+		    mk_rv SSchema (Value.S (Schema.mk_cat i ts))
+	      | _ -> assert false
+	  end			
+    | ECons(i,e1,e2) -> 
+	let e1_v = v_of_rv (compile_exp cev e1) in 
+	let e2_v = v_of_rv (compile_exp cev e2) in    
+	  begin match e1_v, e2_v with
+	      Value.V v1, Value.V v2     -> 
+		mk_rv STree (Value.V (V.cons v1 v2))
+	    | Value.V _, Value.S t ->
+	      	mk_rv 
+		  SSchema 
+		  (Value.S (Schema.mk_cons i 
+			      (Value.get_schema i e1_v)
+			      t))
+	    | Value.S t, Value.V _ ->
+	      	mk_rv 
+		  SSchema 
+		  (Value.S (Schema.mk_cons i 
+			      t
+			      (Value.get_schema i e2_v)))
+	    | Value.S t1, Value.S t2 -> 
+		mk_rv 
+		  SSchema
+		  (Value.S (Schema.mk_cons i t1 t2))
+	    | _ -> run_error i (fun () -> "expected tree or type in atom")
+	  end
+
+    | EFun(i,[p],Some ret_sort,e) ->
+	(* fully-annotated, simple lambda *)
+	(* the actual implementation of f *)
+	let param_qid = qid_of_id (id_of_param p) in
+	let param_sort = sort_of_param p in
+	let f_sort = SArrow(param_sort, ret_sort) in
+	let f_impl v =
+	  let body_cev = 
+	    CEnv.update cev param_qid (mk_rv param_sort v) in
+	    v_of_rv (compile_exp body_cev e)
+	in
+	  mk_rv 
+	    f_sort
+	    (Value.F (f_sort, f_impl))
+
+    | EFun(i,_,_,_) -> 
+	run_error i (fun () -> sprintf "unflattened or unannotated function")
+	  
+    | ELet(i, bs,e) ->
+	let bcev,_ = compile_bindings cev bs in
+	  compile_exp bcev e	    
+	    
+    (* maps are implemented as functions from names -> lenses *)
+    | EMap(i, ms) ->
+	let id_exp = EVar(i, Value.parse_qid "Native.Prelude.id") in	    	  	    
+	let map_impl = Safelist.fold_left
+	  (fun f (ne,le) ->
+	     let n = compile_exp_name cev ne in
+	       begin
+		 function (Value.N n1 as v) ->
+		   if (n1 = n) then v_of_rv (compile_exp cev le)
+		   else f v
+		   | _ -> run_error i (fun () -> "argument to map is not a name")
+	       end)
+	  (fun _ -> v_of_rv (compile_exp cev id_exp))
+	  ms
+	in	    
+	let map_sort = SArrow(SName, SLens) in
+	let map_value = Value.F(map_sort, map_impl) in
+	  mk_rv 
+	    map_sort
+	    map_value
+
+    | EName(i, x) -> 
+	mk_rv 
+	  SName 
+	  (Value.N (name_of_id x))
+	  
+    | ENil(i) -> 
+	mk_rv
+	  STree
+	  (Value.V (V.empty_list))
+
+    | EProtect(i,e) -> 
+        (* call by need lenses: evaluate the lens the first time it is
+           needed, then backpatch the ref cell so that subsequent
+           applications of the lens require no further evaluation.  *)
+        let lensro = ref None in
+        let fetch_lens () = match !lensro with
+            None -> 
+              let l = compile_exp_lens cev e in
+                lensro := Some l;
+                l
+          | Some l -> l
+        in
+        let get c = Lens.get (fetch_lens ()) c in
+        let put a co = Lens.put (fetch_lens ()) a co in
+          mk_rv 
+            SLens
+            (Value.L (Lens.native get put))
+            
+    | ESchema(i,ss,e) -> 
+        let scev,_ = compile_schema_bindings cev ss in 
+          compile_exp scev e
+
+    | EUnion(i, es) ->
+	let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in	  
+	  mk_rv 
+	    SSchema
+	    (Value.S (Schema.mk_union i ts))
+	    
+    | EVar(i,q) -> begin 
+        match CEnv.lookup cev q with
+	    Some rv -> rv 
+	  | None -> run_error 
+	      (info_of_exp e0)
+	        (fun () -> 
+		   Printf.sprintf "Unbound variable %s"
+		     (string_of_exp e0)) 
+      end
+
+    | EWild(i,es,l,u,e) ->
+	let ns = 
+          Safelist.fold_left 
+            (fun ns ei -> Name.Set.add (compile_exp_name cev ei) ns) 
+            Name.Set.empty 
+            es in
+	let t = compile_exp_schema cev e in 
+	  mk_rv 
+	    SSchema
+	    (Value.S (Schema.mk_wild i ns l u t))
+	   
 (* compilation helpers when we know the sort *)	  	  	    
 and compile_exp_name cev e =
   let i = info_of_exp e in
@@ -645,11 +645,11 @@ and compile_exp_tree cev e =
   let e_rv = compile_exp cev e in
     Value.get_tree i (v_of_rv e_rv)
       
-and compile_exp_type cev e =
+and compile_exp_schema cev e =
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
-    Value.get_type i (v_of_rv e_rv)
-	    
+    Value.get_schema i (v_of_rv e_rv)
+      
 and compile_exp_lens cev e = 
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
@@ -660,27 +660,22 @@ and compile_bindings cev bs =
   (* collect up a compile_env that includes recursive bindings *)
   let bcev =
     Safelist.fold_left
-      (fun bcev ((BDef(i,f,xs,so,e) as bi)) ->
+      (fun bcev ((BDef(i,f,xs,s,e) as bi)) ->
 	 let f_qid = qid_of_id f in
-	   match so with
-	       (* recursive bindings must give their return sort *)
-	     | Some s ->
-		 let b_sort = (sort_of_param_list i xs s) in
-		 let dummy = Value.dummy ~msg:(sprintf "DUMMY for %s" (string_of_binding bi)) b_sort in
-		   CEnv.update bcev f_qid (mk_rv b_sort dummy)
-	     | None   -> bcev)
+	 let b_sort = (sort_of_params i xs s) in
+	 let dummy = Value.dummy b_sort in
+	   CEnv.update bcev f_qid (mk_rv b_sort dummy))      
       cev
-      bs
-  in
+      bs in
   let rec compile_binding cev bi =
     (* let _ = debug (sprintf "compiling binding %s\n" (string_of_binding bi)) in *) 
     match bi with 
-      Syntax.BDef(i,f,[],so,e) ->
-	let f_qid = qid_of_id f in
-	let e_rv = compile_exp cev e in	
-	let memoized_v = Value.memoize (v_of_rv e_rv) in
-	let memoized_rv = mk_rv (s_of_rv e_rv) memoized_v in
-	  (f_qid, CEnv.overwrite bcev f_qid memoized_rv)
+        Syntax.BDef(i,f,[],s,e) ->
+	  let f_qid = qid_of_id f in
+	  let e_rv = compile_exp cev e in	
+	  let memoized_v = Value.memoize (v_of_rv e_rv) in
+	  let memoized_rv = mk_rv (s_of_rv e_rv) memoized_v in
+	    (f_qid, CEnv.overwrite bcev f_qid memoized_rv)
       | Syntax.BDef(i,_,_,_,_) -> run_error i (fun () -> "unflattened binding")
   in
   let bcev,names_rev = Safelist.fold_left
@@ -691,9 +686,75 @@ and compile_bindings cev bs =
     bs
   in
     bcev, Safelist.rev names_rev
-      
-type testresult = OK of V.t | Error of (unit -> unit)
 
+and compile_schema_bindings cev ss =
+  (* schema bindings are a little tricky.  given a set of mutually
+     recursive schema bindings ss, we produce the environment where
+     each variable maps to a fresh Schema.Var. However, to construct a
+     Schema.Var, we need to make a thunk that wraps an environment
+     containing all the variables defined in this block. We do this in
+     two passes to be sure that the correct environment gets slotted
+     into each thunk. The schemas are actually compiled in the 3rd
+     phase *)
+
+  (* pass 1: gensym fresh names, update the cev we're given,
+     producing a pre_cev where each schema-bound variable points to a
+     dummy *)
+  let dummy_rv = mk_rv SSchema (Value.dummy SSchema) in
+  let pre_cev,fresh_xs_rev = Safelist.fold_left
+    (fun (cev0,fresh_xs_rev) ((SDef(i,x,e) as si)) ->
+       let fresh_x = qid_of_id (fresh_var x) in
+       let cev1 = CEnv.update cev0 (qid_of_id x) dummy_rv in
+       let cev2 = CEnv.update cev1 fresh_x dummy_rv in
+         (cev2, fresh_x::fresh_xs_rev))
+    (cev,[])
+    ss in
+  let fresh_xs = Safelist.rev fresh_xs_rev in
+  let annot_ss = Safelist.combine fresh_xs ss in
+    
+  (* pass 2: overwrite the binding for each schema-bound variable so
+     that it maps to the freshly gensym'd name *)
+  let scev = Safelist.fold_left
+    (fun scev (fresh_x,SDef(i,x,_)) -> 
+       let x_thk () = 
+         match CEnv.lookup scev fresh_x with
+             None -> 
+               run_error 
+                 i 
+                 (fun () -> sprintf "%s is not bound" (string_of_qid fresh_x))
+         | Some rv -> Value.get_schema i (v_of_rv rv) in
+       let x_schema = Schema.mk_var i fresh_x x_thk in
+         CEnv.overwrite scev 
+           (qid_of_id x)
+           (mk_rv SSchema (Value.S(x_schema))))
+    pre_cev
+    annot_ss
+  in          
+
+  (* helper function to compile annotated schema bindings *)
+  let rec compile_annot_schema_binding cev asi = match asi with 
+      fresh_x,Syntax.SDef(i,x,e) ->
+	let x_qid = qid_of_id x in
+        let e_rv = compile_exp cev e in 
+        let vars_ok = match v_of_rv e_rv with 
+            Value.S s -> Schema.is_contractive fresh_xs s
+          | _         -> true
+        in if (not vars_ok) then
+            run_error i (fun () -> sprintf "non-contractive schema variable")
+          else
+            (x_qid, CEnv.overwrite cev fresh_x e_rv) in    
+
+  (* phase 3: compile each schema expression, updating the mapping for
+     each fresh_x *)
+  let scev,names_rev = Safelist.fold_left
+    (fun (scev,names_rev) asi ->
+       let x_qid, scev = compile_annot_schema_binding scev asi in
+	 scev, x_qid::names_rev)
+    (scev,[])
+    annot_ss
+  in
+    scev, Safelist.rev_append names_rev fresh_xs_rev
+      
 (* type check a single declaration *)
 let rec compile_decl cev m di = 
   (* let _ = debug_decl (sprintf "compiling declaration %s\n" (string_of_decl di)) in *)
@@ -718,6 +779,7 @@ let rec compile_decl cev m di =
 	  names
       in
 	new_cev, Safelist.rev names_rev
+  | DSchema(i,ss) -> compile_schema_bindings cev ss
   | DTest(i,e,res) ->
       if check_test m then
 	begin

@@ -7,29 +7,30 @@
 
 (** Focal types *)
 
-(* --------------- Representation --------------- *)
-(** re-export [Value.ty] and [Value.string_of_ty] *)
-type t = Value.ty
+(* --------------- representation --------------- *)
+type t 
+(** [t] is held abstract *)
+
+(** [string_of_t t] pretty prints the schema [t] *)
 val string_of_t : t -> string
 
-(* -------------- Constants --------------- *)
+(** [info_of_t t] returns the parsing information associated with [t] *)
+val info_of_t : t -> Info.t
 
+(* -------------- constructors --------------- *)
+val mk_any : Info.t -> t
+val mk_atom : Info.t -> Name.t -> t -> t
+val mk_cat : Info.t -> t list -> t
+val mk_union : Info.t -> t list -> t
+val mk_var : Info.t -> Syntax.qid -> (unit -> t) -> t
+val mk_wild : Info.t -> Name.Set.t -> int -> int option -> t -> t
+
+(* -------------- constants --------------- *)
 val mk_nil : Info.t -> t
 val mk_cons : Info.t -> t -> t -> t
 
-(* -------------- Functions on types --------------- *)
-
-val project : Value.ty -> Name.t -> Value.ty option
-val member : V.t -> Value.ty -> bool 
-
-(* -------------- Type domains --------------- *)
-type tdom_atom =
-    DAny of Name.Set.t
-  | DAll of Name.Set.t
-  | DName of string
-      
-module TDom : Set.S with type elt = tdom_atom
-module TDoms : Set.S with type elt = TDom.t
-	
-val tdoms : Value.ty -> TDoms.t
-val vdom_in_tdoms : Name.Set.t -> TDoms.t -> bool
+(* -------------- operations --------------- *)
+val is_contractive : Syntax.qid list -> t -> bool
+val project : t -> Name.t -> t option
+val dom_member : V.t -> t -> bool
+val member : V.t -> t -> bool

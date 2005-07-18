@@ -38,12 +38,12 @@ The schema @Cons X Y@ denotes the set of cons cells whose head is of type
 \LENSSECTION{T} 
 The schema @T X@ (which is written @List.T X@ in other modules) denotes all
 lists whose elements have type @X@. 
-#*let T (X:schema) : schema = Nil | Cons X (T X)
+#*let T (X:schema) : schema =
+#*  schema F = Nil | Cons X (F) in F
 
 \LENSSECTION{NonEmptyList} 
 It is also convenient to have a schema denoting just non-empty lists:
 #*let NonEmptyList (X:schema) : schema = Cons X (T X)
-
 
 \subsection{Lenses}
 
@@ -93,7 +93,7 @@ direction, the lens @l@ is recursively applied to the tail of the list,
 or the @init@ tree is used if the list is empty. In the \PUT{} direction,
 $@l@ \lputn$ is recursively applied to the abstract tree and the concrete
 list, until the abstract tree is exactly @init@. For that reason, note
-that @l@ shall not return @init@.
+that @l@ must not return @init@.
 
 #*let fold_right (init:tree) (l:lens) : lens =
 #*  wmap {`TL -> fold_right init l};

@@ -24,19 +24,19 @@ let _ = register_native "Native.Prelude.nil_tag" "name" nil_tag_lib
 let cons_qid = "Native.Prelude.Cons" 
 let cons h t = Schema.mk_cons (Info.M cons_qid) h t
 let cons_lib = 
-  mk_tfun "schema -> schema" cons_qid 
-    (fun h -> mk_tfun "schema" cons_qid 
-       (fun t -> Value.T(cons h t)))
+  mk_sfun "schema -> schema" cons_qid 
+    (fun h -> mk_sfun "schema" cons_qid 
+       (fun t -> Value.S(cons h t)))
 let _ = register_native cons_qid "schema -> schema -> schema" cons_lib
 
 let nil_qid = "Native.Prelude.Nil"
 let nil = Schema.mk_nil (Info.M nil_qid)
-let nil_lib = Value.T (nil)
+let nil_lib = Value.S (nil)
 let _ = register_native nil_qid "schema" nil_lib
 
 let any_qid = "Native.Prelude.Any"
-let any = Value.Any(Info.M any_qid)
-let any_lib = Value.T(any)
+let any = Schema.mk_any(Info.M any_qid)
+let any_lib = Value.S(any)
 let _ = register_native any_qid "schema" any_lib
 
 (*************)
@@ -135,7 +135,7 @@ let sync lo la lb typ orig =
 let sync_lib = mk_lfun "lens -> lens -> schema -> tree -> tree" sync_qid 
   (fun lo -> mk_lfun "lens -> schema -> tree -> tree" sync_qid
      (fun la -> mk_lfun "schema -> tree -> tree" sync_qid
-	(fun lb -> mk_tfun "tree -> tree" sync_qid 
+	(fun lb -> mk_sfun "tree -> tree" sync_qid 
 	   (fun typ -> mk_vfun "tree" sync_qid 
 	      (fun orig -> V (sync lo la lb typ orig))))))
 
@@ -209,7 +209,7 @@ let assert_native t =
     { get = ( fun c -> check_assert "get" c t; c);
       put = ( fun a _ -> check_assert "put" a t; a) }
 let assert_lib = 
-  mk_tfun "lens" assert_qid 
+  mk_sfun "lens" assert_qid 
     (fun t -> L (assert_native t))    
 let _ = register_native assert_qid "schema -> lens" assert_lib
 
@@ -541,11 +541,11 @@ let cond_ww c a1 a2 lt lf = cond_impl c a1 a2 None None lt lf
 let cond_fw c a1 a2 f21 lt lf = cond_impl c a1 a2 (Some f21) None lt lf
 let cond_wf c a1 a2 f12 lt lf = cond_impl c a1 a2 None (Some f12) lt lf
 let cond_ff_lib =
-  mk_tfun "schema -> schema -> lens -> lens -> lens -> lens -> lens" cond_qid
+  mk_sfun "schema -> schema -> lens -> lens -> lens -> lens -> lens" cond_qid
     (fun c ->
-       mk_tfun "schema -> lens -> lens -> lens -> lens -> lens" cond_qid
+       mk_sfun "schema -> lens -> lens -> lens -> lens -> lens" cond_qid
          (fun a1 ->
-            mk_tfun "lens -> lens -> lens -> lens -> lens" cond_qid
+            mk_sfun "lens -> lens -> lens -> lens -> lens" cond_qid
               (fun a2 ->
                  mk_lfun "lens -> lens -> lens -> lens" cond_qid
                    (fun f21 ->
@@ -560,11 +560,11 @@ let _ = register_native
   cond_ff_lib
 let cond_ww_qid = "Native.Prelude.cond_ww"
 let cond_ww_lib =
-  mk_tfun "schema -> schema -> lens -> lens -> lens" cond_ww_qid
+  mk_sfun "schema -> schema -> lens -> lens -> lens" cond_ww_qid
     (fun c ->
-       mk_tfun "schema -> lens -> lens -> lens" cond_ww_qid
+       mk_sfun "schema -> lens -> lens -> lens" cond_ww_qid
          (fun a1 ->
-            mk_tfun "lens -> lens -> lens" cond_ww_qid
+            mk_sfun "lens -> lens -> lens" cond_ww_qid
               (fun a2 ->
                  mk_lfun "lens -> lens" cond_ww_qid
                    (fun lt -> mk_lfun "lens" cond_ww_qid 
@@ -575,11 +575,11 @@ let _ = register_native
   cond_ww_lib
 let cond_fw_qid = "Native.Prelude.cond_fw"
 let cond_fw_lib =
-  mk_tfun "schema -> schema -> lens -> lens -> lens -> lens" cond_fw_qid
+  mk_sfun "schema -> schema -> lens -> lens -> lens -> lens" cond_fw_qid
     (fun c ->
-       mk_tfun "schema -> lens -> lens -> lens -> lens" cond_fw_qid
+       mk_sfun "schema -> lens -> lens -> lens -> lens" cond_fw_qid
          (fun a1 ->
-            mk_tfun "lens -> lens -> lens -> lens" cond_fw_qid
+            mk_sfun "lens -> lens -> lens -> lens" cond_fw_qid
               (fun a2 ->
                  mk_lfun "lens -> lens -> lens" cond_fw_qid
                    (fun f21 ->
@@ -592,11 +592,11 @@ let _ = register_native
   cond_fw_lib
 let cond_wf_qid = "Native.Prelude.cond_wf"
 let cond_wf_lib =
-  mk_tfun "schema -> schema -> lens -> lens -> lens -> lens" cond_wf_qid
+  mk_sfun "schema -> schema -> lens -> lens -> lens -> lens" cond_wf_qid
     (fun c ->
-       mk_tfun "schema -> lens -> lens -> lens -> lens" cond_wf_qid
+       mk_sfun "schema -> lens -> lens -> lens -> lens" cond_wf_qid
          (fun a1 ->
-            mk_tfun "lens -> lens -> lens -> lens" cond_wf_qid
+            mk_sfun "lens -> lens -> lens -> lens" cond_wf_qid
               (fun a2 ->
                  mk_lfun "lens -> lens -> lens" cond_wf_qid
                    (fun f12 ->
@@ -612,9 +612,9 @@ let _ = register_native
 let acond c a lt lf = cond_impl c a ~b2:(fun x -> not x) a None None lt lf
 let acond_qid = "Native.Prelude.acond"
 let acond_lib =
-  mk_tfun "schema -> lens -> lens -> lens" acond_qid
+  mk_sfun "schema -> lens -> lens -> lens" acond_qid
     (fun c ->
-       mk_tfun "lens -> lens -> lens" acond_qid
+       mk_sfun "lens -> lens -> lens" acond_qid
          (fun a ->
             mk_lfun "lens -> lens" acond_qid
               (fun lt ->
@@ -732,8 +732,9 @@ let join m1 m2 =
 			 m1 (Some (V.set cm1 k (Some t1)))
 	       in
 		 compute_unjoin b' acc'
-	     with (Error.Harmony_error _) ->
-	       error [`String "Native.Prelude.join(put): the impossible happened"] in
+	     with (Error.Harmony_error m) ->
+	       m ();
+	       error ([`String "Native.Prelude.join(put): the impossible happened"])in
 	   compute_unjoin a init 
       )
   }

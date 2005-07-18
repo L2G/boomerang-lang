@@ -85,7 +85,6 @@ type param = PDef of i * id * sort
 type exp = 
     EApp of i  * exp * exp
   | EAtom of i * exp * exp 
-  | EBang of i * exp list * exp
   | ECat of i * exp list 
   | ECons of i * exp * exp 
   | EFun of i * param list * sort option * exp 
@@ -93,12 +92,16 @@ type exp =
   | EMap of i * (exp * exp) list
   | EName of i * id
   | ENil of i
-  | EStar of i * exp list * exp
+  | EProtect of i * exp 
+  | ESchema of i * schema_binding list * exp 
   | EUnion of i * exp list
   | EVar of i * qid
+  | EWild of i * exp list * int * int option * exp
       
 (* bindings *)
-and binding = BDef of i * id * param list * sort option * exp
+and binding = BDef of i * id * param list * sort * exp
+
+and schema_binding = SDef of i * id * exp 
 
 (* declarations *)
 type test_result =
@@ -109,8 +112,9 @@ type test_result =
 type decl = 
     DLet of i * binding list 
   | DMod of i * id * decl list 
+  | DSchema of i * schema_binding list
   | DTest of i * exp * test_result
-      
+       
 (* modules *)
 type modl = MDef of i * id * qid list * decl list
   
@@ -123,22 +127,26 @@ let info_of_list (e2i:'a -> Info.t) (i:Info.t) (l: 'a list) : Info.t = Safelist.
 let info_of_id = function (i,_) -> i
 let info_of_qid = function (_,id) -> info_of_id id
 let info_of_exp = function
-  | EApp(i,_,_)   -> i
-  | EAtom(i,_,_)  -> i
-  | EBang(i,_,_)  -> i
-  | ECat(i,_)     -> i
-  | ECons(i,_,_)  -> i
-  | EFun(i,_,_,_) -> i
-  | ELet(i,_,_)   -> i
-  | EName(i,_)    -> i
-  | ENil(i)       -> i
-  | EMap(i,_)     -> i
-  | EStar(i,_,_)  -> i
-  | EUnion(i,_t)  -> i
-  | EVar(i,_)     -> i
+  | EApp(i,_,_)    -> i
+  | EAtom(i,_,_)   -> i
+  | ECat(i,_)      -> i
+  | ECons(i,_,_)   -> i
+  | EFun(i,_,_,_)  -> i
+  | ELet(i,_,_)    -> i
+  | EName(i,_)     -> i
+  | ENil(i)        -> i
+  | EMap(i,_)      -> i
+  | EProtect(i,_)  -> i
+  | ESchema(i,_,_) -> i 
+  | EUnion(i,_t)   -> i
+  | EVar(i,_)      -> i
+  | EWild(i,_,_,_,_)   -> i
 
 let info_of_binding (BDef(i,_,_,_,_)) = i
-let info_of_bindings (i:Info.t) (bs:binding list) : Info.t = info_of_list info_of_binding i bs
+let info_of_bindings i bs = info_of_list info_of_binding i bs
+
+let info_of_schema_binding (SDef(i,_,_)) = i
+let info_of_schema_bindings i ss = info_of_list info_of_schema_binding i ss
 
 (* read off pieces of parameters *)
 let id_of_param = function PDef(_,x,_) -> x
@@ -172,14 +180,6 @@ let rec string_of_exp = function
       sprintf "%s=%s" 
 	(string_of_exp n) 
 	(string_of_exp e)
-  | EBang(_,f,e)  ->
-      sprintf "!%s = %s"
-    	(if f = [] then "" 
-	 else 
-	   Misc.parens
-	     (Misc.concat_list " " 
-		(Safelist.map string_of_exp f)))
-	(string_of_exp e)
   | ECat(_,es) -> 
       Misc.curlybraces
 	(Misc.concat_list "," 
@@ -209,30 +209,36 @@ let rec string_of_exp = function
 	(string_of_exp e)
   | EName(_,n) -> string_of_id n
   | ENil(_) -> Misc.brackets ""
-  | EStar(_,f,e)  ->
-      sprintf "!%s = %s"
+  | EProtect(_,e) -> sprintf "protect (%s)" (string_of_exp e)
+  | ESchema(_,ss,e) -> 
+      sprintf "schema %s in %s"
+        (string_of_schema_bindings ss)
+        (string_of_exp e)
+  | EUnion(_,es) ->
+      Misc.parens 
+	(Misc.concat_list " | " 
+	   (Safelist.map string_of_exp es))
+  | EVar(_,x) -> string_of_qid x
+  | EWild(_,f,l,u,e)  ->
+      sprintf "*%s = %s"
     	(if f = [] then "" 
 	 else 
 	   Misc.parens
 	     (Misc.concat_list " " 
 		(Safelist.map string_of_exp f)))
 	(string_of_exp e)
-  | EUnion(_,es) ->
-      Misc.parens 
-	(Misc.concat_list " | " 
-	   (Safelist.map string_of_exp es))
-  | EVar(_,x) -> string_of_qid x
 
-and string_of_binding (BDef(_,x,ps,so,e)) = 
+and string_of_binding (BDef(_,x,ps,s,e)) = 
   Misc.concat_list ""
     [string_of_id x
     ; Misc.concat_list " " (" " :: (Safelist.map string_of_param ps))
-    ; (match so with 
-	 | None -> ""
-	 | Some s -> (" : " ^ string_of_sort s))
+    ; " : "
+    ; string_of_sort s
     ; " = "
     ; string_of_exp e]
 and string_of_bindings bs = Misc.concat_list " and " (Safelist.map string_of_binding bs)
+and string_of_schema_binding(SDef(_,x,e)) = sprintf "%s = %s" (string_of_id x) (string_of_exp e)
+and string_of_schema_bindings ss = Misc.concat_list " and " (Safelist.map string_of_schema_binding ss)
 
 and string_of_decl = function
   | DLet(i,bs) -> "let " ^ (string_of_bindings bs)			
@@ -241,6 +247,7 @@ and string_of_decl = function
        ; string_of_id i
        ; " =\n"]
        @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
+  | DSchema(i,ss) -> sprintf "schema %s" (string_of_schema_bindings ss)
   | DTest(_,e1,tr) -> Misc.concat_list " "
       (["test"
        ; string_of_exp e1

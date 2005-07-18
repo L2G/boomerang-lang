@@ -17,11 +17,11 @@ let lookup_lens qid_str =
 	  (Info.M (Printf.sprintf "%s is not a lens" qid_str))
 	  (Registry.value_of_rv rv)
 
-let lookup_type qid_str =
+let lookup_schema qid_str =
   match lookup qid_str with
       None -> failwith (Printf.sprintf "schema %s not found" qid_str)
     | Some rv -> 
-	Value.get_type 
+	Value.get_schema 
 	  (Info.M (Printf.sprintf "%s is not a schema" qid_str))
 	  (Registry.value_of_rv rv)
 
@@ -74,7 +74,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let o = read_tree o_fn in
   let a = read_tree a_fn in
   let b = read_tree b_fn in
-  let s = lookup_type s in 
+  let s = lookup_schema s in 
   let lenso = lookup_lens lenso in
   let lensa = lookup_lens lensa in 
   let lensb = lookup_lens lensb in         

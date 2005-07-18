@@ -6,7 +6,8 @@ module Spinelist =
 (***********************************************************************)
 (* "Spine lists" *)
 
-let T (X:schema) : schema = [] | {!\(`List.TL,`List.NIL)=X, `List.TL=(T X)}
+let T (X:schema) : schema = 
+  schema G = [] | {!\(`List.TL,`List.NIL)=X, `List.TL=G} in G
 
 let KeyedList (X:schema) : schema = List.T {!\`List.TL=X}
 
@@ -29,14 +30,14 @@ sync with id at (List.T {!=Value})
   { O = [{a={FOO}},{c={baz}},{c={baz}}],
     A = [{a={FOO}},{c={baz}}],
     B = [{a={FOO}},{c={baz}},{c={URG}}] }
-    
+
 (* With spine lists, the result is happier... *)
 sync with spinelist at (T Value)
     { O = [{a={foo}},{b={bar}},{c={baz}}],
       A = [{a={FOO}},{c={baz}}],
       B = [{a={foo}},{b={bar}},{c={URG}}] }
     = 
-  {A = [{a = {FOO}}, {c = {baz}}],     
+  {A = [{a = {FOO}}, {c = {baz}}],
    B = [{a = {FOO}}, {c = {baz}}, {c = {URG}}],
    O = [{a = {FOO}}, {c = {baz}}, {c = {baz}}]}
 

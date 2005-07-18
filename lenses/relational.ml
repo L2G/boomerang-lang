@@ -61,8 +61,8 @@ let schemas_to_bias_fun fclname sl sr rcd =
 
 let register_schema_schema_binary_dblens fclname dblens =
   register_native fclname "schema -> schema -> name -> name -> name -> lens" (
-    mk_tfun "schema -> name -> name -> name -> lens" fclname (
-      fun s1 -> mk_tfun "name -> name -> name -> lens" fclname (
+    mk_sfun "schema -> name -> name -> name -> lens" fclname (
+      fun s1 -> mk_sfun "name -> name -> name -> lens" fclname (
         fun s2 -> make_binary_lib fclname (
           lift_binary (dblens (schemas_to_bias_fun fclname s1 s2))))))
 
@@ -142,13 +142,13 @@ let () =
         mk_vfun
         "schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
           fun t2 ->
-            mk_tfun "schema -> schema -> schema -> name -> name -> name -> lens" fclname (
+            mk_sfun "schema -> schema -> schema -> name -> name -> name -> lens" fclname (
               fun s1 ->
-                mk_tfun "schema -> schema -> name -> name -> name -> lens" fclname (
+                mk_sfun "schema -> schema -> name -> name -> name -> lens" fclname (
                   fun s2 ->
-                    mk_tfun "schema -> name -> name -> name -> lens" fclname (
+                    mk_sfun "schema -> name -> name -> name -> lens" fclname (
                       fun s3 ->
-                        mk_tfun "name -> name -> name -> lens" fclname (
+                        mk_sfun "name -> name -> name -> lens" fclname (
                           fun s4 -> make_binary_lib fclname (
                             lift_binary (
                               Dblens.ojoin
@@ -187,7 +187,7 @@ let register_name_name_unary_dblens fclname dblens =
 
 let register_schema_unary_dblens fclname dblens =
   register_native fclname "schema -> name -> name -> lens" (
-    mk_tfun "name -> name -> lens" fclname (
+    mk_sfun "name -> name -> lens" fclname (
       fun s -> make_unary_lib fclname (
         lift_unary (dblens (
           fun rcd -> (Schema.member (Treedb.rcd_to_tree rcd)) s)))))

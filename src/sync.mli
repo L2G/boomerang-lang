@@ -19,7 +19,7 @@ val format_copy : string -> copy_value -> unit
 val format : action -> unit
 val format_without_equal : action -> unit
 val accumulate : (Name.t * V.t) list -> Name.t -> V.t option -> (Name.t * V.t) list
-val sync : Value.ty -> V.t option -> V.t option -> V.t option -> 
+val sync : Schema.t -> V.t option -> V.t option -> V.t option -> 
   action * V.t option * V.t option * V.t option
 val propagate : V.t option -> V.t option -> V.t option -> action -> 
   V.t option * V.t option * V.t option 

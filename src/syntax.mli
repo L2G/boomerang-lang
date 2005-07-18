@@ -56,7 +56,6 @@ type param = PDef of Info.t * id * sort
 type exp = 
     EApp of Info.t * exp * exp
   | EAtom of Info.t * exp * exp 
-  | EBang of Info.t * exp list * exp
   | ECat of Info.t * exp list 
   | ECons of Info.t * exp * exp 
   | EFun of Info.t * param list * sort option * exp 
@@ -64,11 +63,15 @@ type exp =
   | EMap of Info.t * (exp * exp) list
   | EName of Info.t * id
   | ENil of Info.t 
-  | EStar of Info.t * exp list * exp
+  | EProtect of Info.t * exp 
+  | ESchema of Info.t * schema_binding list * exp 
   | EUnion of Info.t * exp list
   | EVar of Info.t * qid
+  | EWild of Info.t * exp list * int * int option * exp
 
-and binding = BDef of Info.t * id * param list * sort option * exp
+and binding = BDef of Info.t * id * param list * sort * exp
+
+and schema_binding = SDef of Info.t * id * exp 
 
 type test_result =
     Result of exp
@@ -78,6 +81,7 @@ type test_result =
 type decl = 
     DLet of Info.t * binding list 
   | DMod of Info.t * id * decl list 
+  | DSchema of Info.t * schema_binding list
   | DTest of Info.t * exp * test_result
       
 type modl = MDef of Info.t * id * qid list * decl list
@@ -98,6 +102,9 @@ val info_of_qid : qid -> Info.t
 val info_of_exp : exp -> Info.t
 val info_of_binding : binding -> Info.t
 val info_of_bindings : Info.t -> binding list -> Info.t
+
+val info_of_schema_binding : schema_binding -> Info.t
+val info_of_schema_bindings : Info.t -> schema_binding list -> Info.t
 val info_of_module : modl -> Info.t
 
 (** {3 Pretty printers } *)
@@ -109,5 +116,7 @@ val string_of_param : param -> string
 val string_of_exp : exp -> string
 val string_of_binding : binding -> string
 val string_of_bindings : binding list -> string
+val string_of_schema_binding : schema_binding -> string
+val string_of_schema_bindings : schema_binding list -> string
 val string_of_decl : decl -> string
 val string_of_module : modl -> string

@@ -121,7 +121,7 @@ let rec sync' (t:Schema.t) archo lefto righto =
 	Lens.error [`String "Synchronziation error: "; `Break
 		   ; `Tree v; `Break
 		   ; `String " does not belong to "; `Break
-		   ; `String (Value.string_of_ty t)
+		   ; `String (Schema.string_of_t t)
 		   ; `String "."]
       end
   in    
@@ -192,9 +192,8 @@ let rec sync' (t:Schema.t) archo lefto righto =
 	      (V.from_list lbinds),
 	      (V.from_list rbinds)		
 	    in
-	      let tdoms  = Schema.tdoms t in
-	      let a'_in_tdoms = Schema.vdom_in_tdoms (V.dom a') tdoms in
-	      let b'_in_tdoms = Schema.vdom_in_tdoms (V.dom b') tdoms in
+            let a'_in_tdoms = Schema.dom_member a' t in
+            let b'_in_tdoms = Schema.dom_member b' t in
               if a'_in_tdoms && b'_in_tdoms then
 		(GoDown(Safelist.fold_left
 			  (fun acc (k, act) -> Name.Map.add k act acc)

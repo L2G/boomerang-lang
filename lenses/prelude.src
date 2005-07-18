@@ -22,7 +22,7 @@ let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
 
 \LENSSECTION{Any}
 The schema @Any@ denotes the set of all trees.
-##let Any : schema = Native.Prelude.Any
+##schema Any = Native.Prelude.Any
 
 \LENSSECTION{KeyedTree}
 A ``keyed'' tree consists of a single name pointing to some subtree.
@@ -31,11 +31,11 @@ A ``keyed'' tree consists of a single name pointing to some subtree.
 \LENSSECTION{Value}
 The schema @Value@ describes trees with just one child pointing to an empty
 tree:
-#*let Value : schema = KeyedTree {}
+#*schema Value = KeyedTree {}
 
 \LENSSECTION{NonNullValue}
 The schema @NonNullValue@ describes all values except @{""}@:
-#*let NonNullValue : schema = {!\""={}}
+#*schema NonNullValue = {!\""={}}
 
 \subsection{Generic Lenses}
 
@@ -290,7 +290,7 @@ that it does not
 demand that its concrete argument actually possess a subtree named $m$ or
 that its abstract argument possess a subtree named $n$.
 #*let rename_if_present (m:name) (n:name) : lens = 
-#*  acond {`m=Any, *=Any} {`n=Any, *=Any}
+#*  acond {`m=Any, * \ `m = Any } {`n=Any, * \ `n = Any }
 #*    (rename m n)
 #*    id
 
@@ -602,4 +602,3 @@ schema if none is specified explicitly.
 \LENSSECTION{invert}
 The function @invert@ maps a bijective lens @l@ to a bijective lens whose
 \GET{} is the \PUT{} of @l@ and vice versa.
-
