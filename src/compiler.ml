@@ -688,14 +688,14 @@ and compile_bindings cev bs =
     bcev, Safelist.rev names_rev
 
 and compile_schema_bindings cev ss =
-  (* schema bindings are a little tricky.  given a set of mutually
+  (* schema bindings are a little tricky.  Given a set of mutually
      recursive schema bindings ss, we produce the environment where
      each variable maps to a fresh Schema.Var. However, to construct a
      Schema.Var, we need to make a thunk that wraps an environment
      containing all the variables defined in this block. We do this in
      two passes to be sure that the correct environment gets slotted
      into each thunk. The schemas are actually compiled in the 3rd
-     phase *)
+     phase. *)
 
   (* pass 1: gensym fresh names, update the cev we're given,
      producing a pre_cev where each schema-bound variable points to a

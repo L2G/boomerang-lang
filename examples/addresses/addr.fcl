@@ -73,17 +73,32 @@ let AddrBook : schema = {* = {* = List.T Addr}}
 let Element (x:name) (attrs:schema) (content:schema) : schema =
   { `x = ({`Xml.CHILDREN = content} + attrs) }
 
-let FnLn : schema =
-    [Element "family" {} [Xml.Pcdata], Element "given" {} [Xml.Pcdata]]
-let LnFn : schema =
-    [Element "given" {} [Xml.Pcdata], Element "family" {} [Xml.Pcdata]]
-let Ln : schema =
-    [Element "family" {} [Xml.Pcdata]]
-let Fn : schema =
-    [Element "given" {} [Xml.Pcdata]]
+(* Interesting lens programming note...  We would *like* to write this:
+
+      let FnLn : schema =
+          [Element "family" {} [Xml.Pcdata], Element "given" {} [Xml.Pcdata]]
+      let LnFn : schema =
+          [Element "given" {} [Xml.Pcdata], Element "family" {} [Xml.Pcdata]]
+      let Ln : schema =
+          [Element "family" {} [Xml.Pcdata]]
+      let Fn : schema =
+          [Element "given" {} [Xml.Pcdata]]
+
+      let Name : schema =
+        Element "n" {} ([Xml.Pcdata] | FnLn | LnFn | Ln | Fn)
+
+   ... but we can't because Name is not projectable.  Instead, we write a more
+   permissive schema and convince ourselves informally that, when inputs are presented
+   in the format above, our lenses behave as we expect.
+*)
+
+let NameComponent : schema =
+      Element "family" {} [Xml.Pcdata]
+    | Element "given" {} [Xml.Pcdata]
+    | Xml.Pcdata
 
 let Name : schema =
-  Element "n" {} ([Xml.Pcdata] | FnLn | LnFn | Ln | Fn)
+  Element "n" {} (NameComponent :: ([] | [NameComponent]))
 
 let Field : schema =
     Element "note" {} ([Xml.Pcdata] | [])

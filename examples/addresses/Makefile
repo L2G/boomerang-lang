@@ -75,4 +75,5 @@ test9:: buildharmony
 
 test10:: buildharmony all
 	cp sample.xml r1.xml
-	./harmonize-addresses $(LENSPATH) r1.xml r2.csv
+	./harmonize-addresses $(LENSPATH) r1.xml r2.csv -v
+

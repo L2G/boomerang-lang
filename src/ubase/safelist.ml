@@ -107,7 +107,7 @@ let combine l1 l2 =
   let rec loop acc = function
     ([], []) -> List.rev acc
   | (a1::l1r, a2::l2r) -> loop ((a1, a2)::acc) (l1r,l2r)
-  | (_, _) -> invalid_arg "Util.combine"
+  | (_, _) -> invalid_arg "Safelist.combine"
   in
     loop [] (l1,l2)
 
