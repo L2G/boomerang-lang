@@ -6,7 +6,16 @@
 TOP = ../..
 include $(TOP)/Top.Makefile
 
-all: test
+RESULT = harmonize-addresses
+SOURCES = harmonize-addresses.ml 
+LIBS += harmony
+
+all: makeharmonylib nc
+
+include $(OCAMLMAKEFILE)
+
+####################################################################
+# Tests
 
 test:: buildharmony
 	$(HARMONY) check -module Addr -test-all
@@ -64,3 +73,6 @@ test9:: buildharmony
 	   -newarchive onew.meta -newreplica1 r1new.xml  -newreplica2 r2new.csv \
 	   -debug harmony
 
+test10:: buildharmony all
+	cp sample.xml r1.xml
+	./harmonize-addresses $(LENSPATH) r1.xml r2.csv

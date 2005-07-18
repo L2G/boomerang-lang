@@ -58,11 +58,13 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                value.mli value.ml schema.mli schema.ml \
                env.mli env.ml registry.mli registry.ml \
 	       sync.mli sync.ml \
-               compiler.mli compiler.ml \
-	       toplevel.ml  
+               compiler.mli compiler.ml 
 
 VIEWER_SOURCES = metay.mly metal.mll \
 		 viewers.ml
+
+TOPLEVEL_SOURCES = toplevel.ml  
+
 
 ###########
 # PLUGINS #
@@ -82,7 +84,8 @@ NATIVE_LENS_SOURCES = prelude.ml \
 COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRCDIR)/ubase/%) \
 		 $(BASE_SOURCES:%=$(SRCDIR)/%) \
 		 $(VIEWER_SOURCES:%=$(SRCDIR)/%) \
-		 $(NATIVE_LENS_SOURCES:%=$(LENSESDIR)/%)
+		 $(NATIVE_LENS_SOURCES:%=$(LENSESDIR)/%) \
+		 $(TOPLEVEL_SOURCES:%=$(SRCDIR)/%) 
 
 TRASH := $(TRASH) $(SRCDIR)/parser.output $(SRCDIR)/metay.output 
 

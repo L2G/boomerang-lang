@@ -122,6 +122,10 @@ let load_var q = match get_module_prefix q with
 (* lookup in a naming context *)
 let lookup_library_ctx nctx q = 
   let rec lookup_library_aux nctx q2 =       
+Printf.eprintf "lookup_library_aux %s in [%s] from %s "
+       (Syntax.string_of_qid q2)
+       (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
+       (Env.to_string !library string_of_rv);
     (* let _ = debug (fun () -> Printf.eprintf "lookup_library_aux %s in [%s] from %s "
        (Syntax.string_of_qid q2)
        (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))

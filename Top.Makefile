@@ -48,11 +48,19 @@ YFLAGS = -v
 OCAMLFLAGS = -dtypes
 OCAMLCPFLAGS = f
 
+LIBS += csv
+
 LIBDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
 INCDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
 
 # Tell ocamlfind to use .opt versions of OCaml tools
 OCAMLFIND_COMMANDS=$(foreach c,ocamlc ocamlopt ocamlcp ocamldoc ocamldep,$(c)=$(c).opt)
+
+$(SRCDIR)/harmony.cmxa: 
+	$(MAKE) -C $(SRCDIR) native-code-library
+
+makeharmonylib:
+	$(MAKE) -C $(SRCDIR) native-code-library
 
 
 ####################################################################

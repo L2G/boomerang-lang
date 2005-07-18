@@ -5,3 +5,5 @@
   [Surveyor], which dispatches to them as needed when it is asked to load and dump
   files. 
   *)
+
+val init : unit -> unit

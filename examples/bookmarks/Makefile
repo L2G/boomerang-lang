@@ -34,24 +34,21 @@ clean:: tidy
 
 ##############################################################################
 
-RESULT = harmonizebookmarks
-SOURCES = harmonizebookmarks.ml 
+RESULT = harmonize-bookmarks
+SOURCES = harmonize-bookmarks.ml 
 LIBS += harmony
 
 all: makeharmonylib nc
-
-makeharmonylib:
-	$(MAKE) -C $(SRCDIR) native-code-library
 
 include $(OCAMLMAKEFILE)
 
 test-script: all $(LOCALGENERATEDFCLFILES) moz2xml xml2moz 
 	if [ ! -e temp1.html ]; then cp MozillaExample.html temp1.html; fi
 	if [ ! -e temp2.html ]; then cp MozillaExample.html temp2.html; fi
-	./harmonizebookmarks temp1.html temp2.html $(HARMONYFLAGS) $(LENSPATH) -debug startup
+	./harmonize-bookmarks temp1.html temp2.html $(HARMONYFLAGS) $(LENSPATH) -debug startup
 
-test-script-safari: $(LOCALGENERATEDFCLFILES) moz2xml xml2moz harmonizebookmarks
+test-script-safari: $(LOCALGENERATEDFCLFILES) moz2xml xml2moz harmonize-bookmarks
 	if [ ! -e temp1.plist ]; then cp SafariExample.plist temp1.plist; fi
 	if [ ! -e temp2.plist ]; then cp SafariExample.plist temp2.plist; fi
-	./harmonizebookmarks temp1.plist temp2.plist $(HARMONYFLAGS) $(LENSPATH) -debug startup
+	./harmonize-bookmarks temp1.plist temp2.plist $(HARMONYFLAGS) $(LENSPATH) -debug startup
 

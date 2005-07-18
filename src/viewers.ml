@@ -274,3 +274,8 @@ let _ =
   }
   in
   Surveyor.register_encoding "xml" encoding
+
+(* The initialization function actually does nothing -- all initialization happens
+   at module loading time.  However, we need something here that can be called externally
+   to make sure that this module *is* loaded. *)
+let init () = ()    
