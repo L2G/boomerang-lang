@@ -530,10 +530,12 @@ operator from databases.  \finish{Explain better.}
 ##let join : (name -> name -> lens) = Native.Prelude.join
 
 #*test (join "x" "y") / {x, y} = {}
-#*test (join "x" "y") / {x={1={a}, 2={b}}, y={2={c}}} 
+#*test (join "x" "y") / {x={1={a}, 2={b}}, y={2={c}}}
 #*                    = {1={x={a}}, 2={x={b}, y={c}}}
-#*test (join "x" "y") / {x={1,2}, y={2}} 
+#*test (join "x" "y") / {x={1,2}, y={2}}
 #*                    = {1={x}, 2={x,y}}
+#*test (join "x" "y") / {x={1}, y}
+#*                    = {1={x}}
 
 #*test (join "x" "y") \ {} missing = {x, y}
 #*test (join "x" "y") \ {} {x={1}, y={2}} = {x, y}
