@@ -17,7 +17,9 @@ include $(OCAMLMAKEFILE)
 ####################################################################
 # Tests
 
-test:: buildharmony
+test:: buildharmony unit-tests test10
+
+unit-tests:
 	$(HARMONY) check -module Addr -test-all
 
 test1:: buildharmony

@@ -103,6 +103,9 @@ clean::
 	    echo "###### cleaning $(CWD)/$$i ######"; \
 	    $(MAKE) -C $$i clean; done
 
+cleanall:
+	$(MAKE) -C $(TOP) clean
+
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
 	@for i in $(SUBDIRS); do \
 	   echo \
