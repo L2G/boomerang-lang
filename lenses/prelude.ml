@@ -966,3 +966,7 @@ let even_split =
 		   ; `String "is not a list of length two"])}
 let even_split_lib = L (even_split)
 let _ = register_native even_split_qid "lens" even_split_lib
+
+(* force dynamic loading when compiled in a library *)
+let init () = ()
+

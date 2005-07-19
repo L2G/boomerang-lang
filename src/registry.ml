@@ -56,10 +56,9 @@ let reset () =
 (* --------------- Registration functions -------------- *)
 	  
 (* register a value *)
-(* FIXME: it would be save to use overwrite here *)
 let register q r = library := (Env.update (!library) q r)
   
-(* register a native function *)
+(* register a native value *)
 let register_native qs ss v = 
   let q = Value.parse_qid qs in
   let s = Value.parse_sort ss in
@@ -68,12 +67,6 @@ let register_native qs ss v =
 (* register a whole (rv Env.t) in m *)
 let register_env ev m = Env.iter (fun q r -> register (Syntax.dot m q) r) ev
 
-(* get the filename that a module is stored at *)
-let get_module_prefix q = 
-  match Syntax.get_qualifiers q with 
-    | [] -> None
-    | n::_ -> Some n
-	
 (* --------------- Lookup functions -------------- *)
 
 let paths = Prefs.createStringList 
@@ -85,6 +78,12 @@ let _ = Prefs.alias paths "I"
 let focalpath =
   try Util.splitIntoWords (Unix.getenv "FOCALPATH") ':'
   with Not_found -> []
+
+(* get the filename that a module is stored at *)
+let get_module_prefix q = 
+  match Syntax.get_qualifiers q with 
+    | [] -> None
+    | n::_ -> Some n
 
 let find_filename fn = 
   let rec loop ds = match ds with
@@ -98,7 +97,7 @@ let find_filename fn =
       
 (* load modules dynamically *)
 (* backpatch hack *)
-let compile_file_impl = ref (fun _ _ -> ())  
+let compile_file_impl = ref (fun _ _ -> Printf.eprintf "Focal compiler is not loaded! Exiting..."; exit 1)  
 
 let load ns = 
   let fno = find_filename ((String.uncapitalize ns) ^ ".fcl") in	
@@ -122,12 +121,12 @@ let load_var q = match get_module_prefix q with
 (* lookup in a naming context *)
 let lookup_library_ctx nctx q = 
   let rec lookup_library_aux nctx q2 =       
-(*
-Printf.eprintf "lookup_library_aux %s in [%s] from %s "
-       (Syntax.string_of_qid q2)
-       (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
-       (Env.to_string !library string_of_rv);
-*)
+
+    (* Printf.eprintf "lookup_library_aux %s in [%s] from %s "
+      (Syntax.string_of_qid q2)
+      (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
+      (Env.to_string !library string_of_rv);
+    *)
     (* let _ = debug (fun () -> Printf.eprintf "lookup_library_aux %s in [%s] from %s "
        (Syntax.string_of_qid q2)
        (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
@@ -141,10 +140,7 @@ Printf.eprintf "lookup_library_aux %s in [%s] from %s "
 	  Some r -> Some r
 	| None -> 
 	    begin
-	      match 
-		(load_var q2; 
-		 try_lib ())
-	      with
+	      match load_var q2; try_lib () with
 		| Some r -> Some r
 		| None -> match nctx with 
 		    | []       -> None
@@ -154,4 +150,3 @@ Printf.eprintf "lookup_library_aux %s in [%s] from %s "
     lookup_library_aux nctx q
 
 let lookup_library q = lookup_library_ctx [] q
-

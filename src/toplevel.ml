@@ -1,14 +1,17 @@
-open Error;;
+open Error
 
-Viewers.init();;
+(* initialize implicitly referenced modules *)
+let _ = 
+  Compiler.init();
+  Viewers.init();
+  Prelude.init()
 
 let debug = Trace.debug "toplevel"
 
 let failwith s = prerr_endline s; exit 1
 
-let lookup qid_str = 
-  Registry.lookup_library (Value.parse_qid qid_str)
-	  
+let lookup qid_str = Registry.lookup_library (Value.parse_qid qid_str)
+      	  
 let lookup_lens qid_str =
   match lookup qid_str with
       None -> failwith (Printf.sprintf "lens %s not found" qid_str)
@@ -139,8 +142,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     ^ "Options:" in
 
   (* Deal with command line *)
-  Prefs.parseCmdLine usageMsg;
-  debug (fun() -> Prefs.dumpPrefsToStderr() );
+    Prefs.parseCmdLine usageMsg;
+    debug (fun() -> Prefs.dumpPrefsToStderr() );
 
   (* Handle command lines of the special form 'harmonize-blah r1 r2' *)
   begin match Prefs.read rest with

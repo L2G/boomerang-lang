@@ -883,4 +883,5 @@ let compile_file fn n =
     Lexer.finish ()
 
 (* FIXME: ugly backpatch hack! *)
+let init () = ()
 let _ = Registry.compile_file_impl := compile_file
