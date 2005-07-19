@@ -191,6 +191,9 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   (* Choose abstract schema *)
   let undup = function
       [x;y] -> if x=y then [x] else [x;y]
+    | [x;y;z] ->
+        let lend = if y=z then [] else [z] in
+          if x=y then x :: lend else x :: y :: lend
     | l -> l in
   let sort_types l = undup (List.sort compare l) in
   let rec remove_meta = function
