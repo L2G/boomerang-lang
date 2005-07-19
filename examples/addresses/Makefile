@@ -10,6 +10,9 @@ RESULT = harmonize-addresses
 SOURCES = harmonize-addresses.ml 
 LIBS += harmony
 
+clean::
+	rm -rf ar*.{xml,csv} r1*.{xml,csv} r2*.{xml,csv}
+
 all: makeharmonylib nc
 
 include $(OCAMLMAKEFILE)
