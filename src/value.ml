@@ -179,7 +179,7 @@ let rec dummy ?(msg="") s = match s with
 	assert false
       in
 	L (Lens.native error (fun _ -> error))
-  | Syntax.SSchema -> S (Schema.mk_any (Info.M "dummy type"))
+  | Syntax.SSchema -> S (Schema.mk_any (Info.M "dummy schema"))
   | Syntax.STree   -> V (V.empty)
   | Syntax.SArrow(_,rs) -> F (s, fun _ -> dummy ~msg:msg rs)
 

@@ -80,10 +80,12 @@ end
 (* compilation environments *)
 module type CEnvSig = sig
   include CommonEnvSig
+  val get_smode : t -> bool
+  val set_smode : t -> bool -> t
   val lookup : t -> Syntax.qid -> Registry.rv option
   val update : t -> Syntax.qid -> Registry.rv -> t
   val overwrite : t -> Syntax.qid -> Registry.rv -> t
-end    
+end 
 
 (* sort checking environments *)
 module type SCEnvSig = sig
@@ -93,15 +95,17 @@ module type SCEnvSig = sig
 end
 
 module CEnv : CEnvSig = struct
-  type t = Syntax.qid list * (Registry.rv Env.t)
+  type t = bool * Syntax.qid list * (Registry.rv Env.t)
       
-  let empty () = ([], (Env.empty ()))    
+  let empty () = (false, [], (Env.empty ()))    
 
   (* getters and setters *)
-  let get_ev cev = let (_,ev) = cev in ev
-  let set_ev cev ev = let (os,_) = cev in (os,ev)
-  let get_ctx cev = let (os,_) = cev in os
-  let set_ctx cev qs = let (os,ev) = cev in (qs,ev)
+  let get_ev cev = let (_,_,ev) = cev in ev
+  let set_ev cev ev = let (sm,os,_) = cev in (sm,os,ev)
+  let get_ctx cev = let (_,os,_) = cev in os
+  let set_ctx cev qs = let (sm,_,ev) = cev in (sm,qs,ev)
+  let get_smode cev = let (sm,_,_) = cev in sm
+  let set_smode cev sm = let (_,os,ev) = cev in (sm,os,ev)
 						  
   (* lookup from a cev, then from the library *)
   let lookup cev q = 
@@ -119,25 +123,20 @@ module CEnv : CEnvSig = struct
 end
 	
 module SCEnv : SCEnvSig = struct
-  type t = Syntax.qid list * CEnv.t
-  let empty () = ([], CEnv.empty ())
-    
-  (* getters/setters for sort_checking_envs *)
-  let get_ev sev = let (_,cev) = sev in CEnv.get_ev cev
-  let set_ev sev ev = let (rs,cev) = sev in (rs,CEnv.set_ev cev ev)
-  let get_ctx sev = let (_,cev) = sev in CEnv.get_ctx cev
-  let set_ctx sev qs = let (rs,cev) = sev in (rs,CEnv.set_ctx cev qs) 
+  type t = CEnv.t
+  let empty = CEnv.empty        
+  let get_ev = CEnv.get_ev
+  let set_ev = CEnv.set_ev   
+  let get_ctx = CEnv.get_ctx
+  let set_ctx = CEnv.set_ctx
 
   let lookup sev q = 
-    let (_,cev) = sev in
-      match CEnv.lookup cev q with
-	  None -> None
-	| Some rv -> Some (s_of_rv rv)
-	    
-  (* update a cev with a new sort *)
+    match CEnv.lookup sev q with
+	None -> None
+      | Some rv -> Some (s_of_rv rv)
+	  
   let update sev q s = 
-    let (rs,cev) = sev in
-      (rs, (CEnv.update cev q (mk_rv s (Value.dummy s))))	
+    CEnv.update sev q (mk_rv s (Value.dummy s))
 end
 
 (* --------------- Sort checker --------------- *)
@@ -284,7 +283,7 @@ and check_exp sev e0 =
 	    
     | EVar(i,q) ->
 	begin match SCEnv.lookup sev q with
-	    Some s  -> (s,e0)
+            Some s -> (s,e0)
 	  | None -> 
               sort_error i 
 	        (fun () -> sprintf "%s is not bound" 
@@ -299,8 +298,6 @@ and check_exp sev e0 =
 	let _,new_e = expect_sort_exp "wildcard schema" sev SSchema e in
 	let new_e0 = EWild(i,new_es,l,u,new_e) in
 	  (SSchema, new_e0)
-
-
 
 and check_bindings sev bs = 	    
   (* let _ = debug (sprintf "checking bindings %s\n" (string_of_bindings bs)) in *)
@@ -464,9 +461,9 @@ let rec compile_exp cev e0 =
 		  STree
 		  (Value.V (V.set V.empty n (Some v)))
 	    | Value.S s ->
-		mk_rv 
-		  SSchema
-		  (Value.S (Schema.mk_atom i n s))
+                let s = Schema.mk_atom i n s in
+                  if not (CEnv.get_smode cev) then Schema.assert_wf s [];
+		  mk_rv SSchema (Value.S s)
 	    | v -> run_error i
                 (fun () -> sprintf 
                    "expected schema or tree in atom but found %s"
@@ -486,7 +483,7 @@ let rec compile_exp cev e0 =
 			v::(Safelist.map (fun v -> Value.S (Value.get_schema i v)) vs_rev))
 		   | SSchema, (Value.V _) 
 		   | SSchema, (Value.S _) ->
-		       (s, (Value.S (Value.get_schema i v))::vs_rev)			 
+		       (s, (Value.S (Value.get_schema i v))::vs_rev)
 		   | _ -> run_error i (fun () -> 
 					 sprintf "bogus value in ECat: %s %s"
 					   (string_of_sort s) (Value.string_of_t v)))
@@ -502,33 +499,31 @@ let rec compile_exp cev e0 =
 		    (Safelist.rev vs_rev)
 		  in
 		    mk_rv STree (Value.V(vi))		      
-	      | SSchema -> 
+	      | SSchema ->                   
 		  let ts = Safelist.rev_map (Value.get_schema i) vs_rev in
-		    mk_rv SSchema (Value.S (Schema.mk_cat i ts))
+                  let s = Schema.mk_cat i ts in
+                    if not (CEnv.get_smode cev) then Schema.assert_wf s [];
+		    mk_rv SSchema (Value.S s)
 	      | _ -> assert false
 	  end			
-    | ECons(i,e1,e2) -> 
+    | ECons(i,e1,e2) ->         
 	let e1_v = v_of_rv (compile_exp cev e1) in 
 	let e2_v = v_of_rv (compile_exp cev e2) in    
 	  begin match e1_v, e2_v with
 	      Value.V v1, Value.V v2     -> 
 		mk_rv STree (Value.V (V.cons v1 v2))
 	    | Value.V _, Value.S t ->
-	      	mk_rv 
-		  SSchema 
-		  (Value.S (Schema.mk_cons i 
-			      (Value.get_schema i e1_v)
-			      t))
+                let s = Schema.mk_cons i (Value.get_schema i e1_v) t in
+                  if not (CEnv.get_smode cev) then Schema.assert_wf s [];
+	      	  mk_rv SSchema (Value.S s)
 	    | Value.S t, Value.V _ ->
-	      	mk_rv 
-		  SSchema 
-		  (Value.S (Schema.mk_cons i 
-			      t
-			      (Value.get_schema i e2_v)))
+                let s = Schema.mk_cons i t (Value.get_schema i e2_v) in
+                  if not (CEnv.get_smode cev) then Schema.assert_wf s [];
+	      	  mk_rv SSchema (Value.S s)
 	    | Value.S t1, Value.S t2 -> 
-		mk_rv 
-		  SSchema
-		  (Value.S (Schema.mk_cons i t1 t2))
+		let s = Schema.mk_cons i t1 t2 in 
+                  if not (CEnv.get_smode cev) then Schema.assert_wf s [];
+	      	  mk_rv SSchema (Value.S s)
 	    | _ -> run_error i (fun () -> "expected tree or type in atom")
 	  end
 
@@ -609,9 +604,9 @@ let rec compile_exp cev e0 =
 
     | EUnion(i, es) ->
 	let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in	  
-	  mk_rv 
-	    SSchema
-	    (Value.S (Schema.mk_union i ts))
+        let s = Schema.mk_union i ts in 
+          if not (CEnv.get_smode cev) then Schema.assert_wf s [];
+	  mk_rv SSchema (Value.S s)
 	    
     | EVar(i,q) -> begin 
         match CEnv.lookup cev q with
@@ -619,20 +614,20 @@ let rec compile_exp cev e0 =
 	  | None -> run_error 
 	      (info_of_exp e0)
 	        (fun () -> 
-		   Printf.sprintf "Unbound variable %s"
-		     (string_of_exp e0)) 
+		   Printf.sprintf "Unbound variable %s in %s"
+		     (string_of_exp e0)
+                     (Env.to_string (CEnv.get_ev cev) Registry.string_of_rv))
       end
 
     | EWild(i,es,l,u,e) ->
-	let ns = 
-          Safelist.fold_left 
-            (fun ns ei -> Name.Set.add (compile_exp_name cev ei) ns) 
-            Name.Set.empty 
-            es in
+	let f = Safelist.fold_left 
+          (fun f ei -> Name.Set.add (compile_exp_name cev ei) f)
+          Name.Set.empty 
+          es in
 	let t = compile_exp_schema cev e in 
-	  mk_rv 
-	    SSchema
-	    (Value.S (Schema.mk_wild i ns l u t))
+        let s = Schema.mk_wild i f l u t in
+          if not (CEnv.get_smode cev) then Schema.assert_wf s [];
+	  mk_rv SSchema (Value.S s)
 	   
 (* compilation helpers when we know the sort *)	  	  	    
 and compile_exp_name cev e =
@@ -695,8 +690,13 @@ and compile_schema_bindings cev ss =
      containing all the variables defined in this block. We do this in
      two passes to be sure that the correct environment gets slotted
      into each thunk. The schemas are actually compiled in the 3rd
-     phase. *)
+     phase. In the 4th pass, we check the well-formedness of the
+     schemas *)
 
+  (* turn off wf-checking for schemas; we'll do that ourselves in pass 4 *)
+  let old_smode = CEnv.get_smode cev in 
+  let cev = CEnv.set_smode cev true in
+    
   (* pass 1: gensym fresh names, update the cev we're given,
      producing a pre_cev where each schema-bound variable points to a
      dummy *)
@@ -709,7 +709,7 @@ and compile_schema_bindings cev ss =
          (cev2, fresh_x::fresh_xs_rev))
     (cev,[])
     ss in
-  let fresh_xs = Safelist.rev fresh_xs_rev in
+  let fresh_xs = Safelist.rev fresh_xs_rev in        
   let annot_ss = Safelist.combine fresh_xs ss in
     
   (* pass 2: overwrite the binding for each schema-bound variable so
@@ -718,41 +718,40 @@ and compile_schema_bindings cev ss =
     (fun scev (fresh_x,SDef(i,x,_)) -> 
        let x_thk () = 
          match CEnv.lookup scev fresh_x with
-             None -> 
-               run_error 
-                 i 
-                 (fun () -> sprintf "%s is not bound" (string_of_qid fresh_x))
-         | Some rv -> Value.get_schema i (v_of_rv rv) in
+             None -> run_error i 
+               (fun () -> sprintf "%s is not bound" (string_of_qid fresh_x))
+           | Some rv -> Value.get_schema i (v_of_rv rv) in
        let x_schema = Schema.mk_var i fresh_x x_thk in
          CEnv.overwrite scev 
            (qid_of_id x)
            (mk_rv SSchema (Value.S(x_schema))))
     pre_cev
     annot_ss
-  in          
+  in             
 
-  (* helper function to compile annotated schema bindings *)
-  let rec compile_annot_schema_binding cev asi = match asi with 
-      fresh_x,Syntax.SDef(i,x,e) ->
-	let x_qid = qid_of_id x in
-        let e_rv = compile_exp cev e in 
-        let vars_ok = match v_of_rv e_rv with 
-            Value.S s -> Schema.is_contractive fresh_xs s
-          | _         -> true
-        in if (not vars_ok) then
-            run_error i (fun () -> sprintf "non-contractive schema variable")
-          else
-            (x_qid, CEnv.overwrite cev fresh_x e_rv) in    
-
-  (* phase 3: compile each schema expression, updating the mapping for
-     each fresh_x *)
+  (* phase 3: compile each schema expression, updating the mapping for each fresh_x *)
   let scev,names_rev = Safelist.fold_left
-    (fun (scev,names_rev) asi ->
-       let x_qid, scev = compile_annot_schema_binding scev asi in
+    (fun (scev,names_rev) (fresh_x,Syntax.SDef(i,x,e)) ->
+       let x_qid,scev = 
+	 let x_qid = qid_of_id x in
+         let e_rv = compile_exp scev e in 
+           (x_qid, CEnv.overwrite scev fresh_x e_rv)
+       in
 	 scev, x_qid::names_rev)
     (scev,[])
     annot_ss
   in
+
+  (* phase 4: check well-formedness each of the just-compiled schemas *)
+  let _ = Safelist.fold_left 
+    (fun _ (fresh_x,SDef(i,_,_)) -> match CEnv.lookup scev fresh_x with
+         None -> run_error i (fun () -> "just-compiled schema went missing")
+       | Some rv -> match v_of_rv rv with Value.S si -> Schema.assert_wf si fresh_xs | _ -> ())
+    ()
+    annot_ss in         
+    
+  (* final result *)    
+  let scev = CEnv.set_smode scev old_smode in    
     scev, Safelist.rev_append names_rev fresh_xs_rev
       
 (* type check a single declaration *)

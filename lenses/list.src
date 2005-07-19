@@ -39,7 +39,7 @@ The schema @Cons X Y@ denotes the set of cons cells whose head is of type
 The schema @T X@ (which is written @List.T X@ in other modules) denotes all
 lists whose elements have type @X@. 
 #*let T (X:schema) : schema =
-#*  schema F = Nil | Cons X (F) in F
+#*  schema F = Nil | Cons X F in F
 
 \LENSSECTION{NonEmptyList} 
 It is also convenient to have a schema denoting just non-empty lists:

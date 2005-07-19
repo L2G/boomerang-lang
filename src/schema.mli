@@ -30,7 +30,7 @@ val mk_nil : Info.t -> t
 val mk_cons : Info.t -> t -> t -> t
 
 (* -------------- operations --------------- *)
-val is_contractive : Syntax.qid list -> t -> bool
+val assert_wf : t -> Syntax.qid list -> unit
 val project : t -> Name.t -> t option
 val dom_member : V.t -> t -> bool
 val member : V.t -> t -> bool
