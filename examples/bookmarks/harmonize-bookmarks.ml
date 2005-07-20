@@ -22,7 +22,7 @@ let plutil f fpre = runcmd (Printf.sprintf "plutil -convert xml1 %s -o %s" f fpr
 let chooseEncoding f =
   if Filename.check_suffix f ".html" then ("xml",Mozilla,Some moz2xml,Some xml2moz)
   else if Filename.check_suffix f ".plist" then ("xml",Safari,Some plutil,None)
-  else failwith ("Unrecognized suffix: "^f)
+  else raise Not_found
 
 let chooseAbstractSchema types =
   let ordered = Prefs.read orderedpref in

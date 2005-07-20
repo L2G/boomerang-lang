@@ -164,7 +164,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   end;
 
   (* Make up an archive name if none was provided *)
-  if Prefs.read arpref = "" then
+  if Prefs.read arpref = "" && Prefs.read r2pref <> "" then
     Prefs.set arpref
       (Printf.sprintf ".harmonyar-%s-%s-%s.meta"
          (archNameUniquifier()) (Prefs.read r1pref) (Prefs.read r2pref));
@@ -191,10 +191,15 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
       (f',Some e) -> (f',e,Unknown,None,None)
     | (_,None) -> 
         if Util.endswith f ".meta" then (f,"meta",Meta,None,None)
-        else begin
-          let (fenc,ftypeuser,fpre,fpost) = chooseEncoding f in
-          (f,fenc,UserType ftypeuser,fpre,fpost)
-        end   in
+        else
+          try
+            let (fenc,ftypeuser,fpre,fpost) = chooseEncoding f in
+            (f,fenc,UserType ftypeuser,fpre,fpost)
+          with
+            Not_found ->
+              let e = Surveyor.get_ekey None f None in
+              (f,e,Unknown,None,None)
+        in
   let (arf,arenc,artype,arpre,arpost) = encoding ar in
   let (r1f,r1enc,r1type,r1pre,r1post) = encoding r1 in
   let (r2f,r2enc,r2type,r2pre,r2post) = encoding r2 in

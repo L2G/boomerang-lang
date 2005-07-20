@@ -265,7 +265,9 @@ let xmlwriter v =
   Buffer.contents buf
 
 let _ =
-  let etest filename copt = Misc.filename_extension filename = "xml" in
+  let etest filename copt =
+    let ext = Misc.filename_extension filename in
+    ext = "xml" || ext = "plist" in
   let encoding = {
     Surveyor.description = "XML";
     Surveyor.encoding_test = etest;

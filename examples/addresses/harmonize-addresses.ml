@@ -3,7 +3,7 @@ type addresstype = XCard | PilotAddressesCsv
 let chooseEncoding f =
   if Util.endswith f ".xml" then ("xml",XCard,None,None)
   else if Util.endswith f ".csv" then ("csv",PilotAddressesCsv,None,None)   (* Need to strip first line, etc.! *)
-  else failwith ("Unrecognized address book suffix: "^f) 
+  else raise Not_found
 
 let chooseAbstractSchema types = "Addr.AddrBook"
 

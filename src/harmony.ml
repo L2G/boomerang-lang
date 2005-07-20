@@ -3,7 +3,7 @@
 Toplevel.toplevel
   "harmony"
   (fun() -> "")
-  (fun f -> Toplevel.failwith ("Encoding must be specified explicitly for " ^ f))
+  (fun f -> raise Not_found)
   (fun _ -> "Prelude.Any")
   (fun _ _ -> "Prelude.id")
 
