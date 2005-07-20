@@ -60,19 +60,6 @@ let get lens c_fn o_fn =
   in
     write_tree o_fn av
 
-(*******)
-(* PUT *)
-(*******)
-let put lens a_fn c_fn o_fn = 
-  let avo = read_tree a_fn in
-  let cvo = read_tree c_fn in 
-  let lens = lookup_lens lens in
-  let cv' = match avo with
-      Some av -> Lens.put lens av cvo
-    | None -> failwith (Printf.sprintf "The abstract tree file %s is missing or empty" a_fn)
-  in	
-    write_tree o_fn cv'
-      
 (********)
 (* SYNC *)
 (********)
@@ -189,15 +176,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   overwrite newr2pref r2pref;
 
   (* Grab all the preferences *)
-  let p pref = 
-    match Prefs.read pref with 
-        "" ->  
-          let names = Prefs.name pref in 
-            failwith (Printf.sprintf "argument '%s' is required" 
-                        (Safelist.nth names (Safelist.length names - 1))
-                     )    
-      | s -> s in
-  let ar    = p arpref in
+  let p pref = Prefs.read pref in
+  let ar    = p arpref in 
   let r1    = p r1pref in
   let r2    = p r2pref in
   let newar = p newarpref in
@@ -206,7 +186,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
             
   (* Figure out encodings, types, and pre/postprocessing requirements *)
   let encoding f =
-    match Surveyor.parse_filename f with
+    if f="" then ("meta",Meta,None,None)
+    else match Surveyor.parse_filename f with
       (f',Some e) -> (e,Unknown,None,None)
     | (_,None) -> 
         if Util.endswith f ".meta" then ("meta",Meta,None,None)
@@ -225,7 +206,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
         let lend = if y=z then [] else [z] in
           if x=y then x :: lend else x :: y :: lend
     | l -> l in
-  let sort_types l = undup (List.sort compare l) in
+  let sort_types l = undup (List.sort compare l) in 
   let rec remove_meta = function
       [] -> []
     | Unknown::rest -> remove_meta rest
@@ -271,26 +252,29 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     let r1temp = preprocess r1 r1pre in
     let r2temp = preprocess r2 r2pre in
 
-    (* Make up temporary output file names *)
-    let newartemp = tempname newar in
-    let newr1temp = tempname newr1 in
-    let newr2temp = tempname newr2 in
+    (* Do it *)
+    if r2="" then begin
+      get r1lens (enc r1temp r1enc) (enc "-" "meta")
+    end else begin
+      (* Make up temporary output file names *)
+      let newartemp = tempname newar in
+      let newr1temp = tempname newr1 in
+      let newr2temp = tempname newr2 in
 
-    (* Sync *)
-    sync (enc artemp arenc) (enc r1temp r1enc) (enc r2temp r2enc)
-         schema
-         arlens r1lens r2lens
-         (enc newartemp arenc) (enc newr1temp r1enc) (enc newr2temp r2enc);
+      sync (enc artemp arenc) (enc r1temp r1enc) (enc r2temp r2enc)
+           schema
+           arlens r1lens r2lens
+           (enc newartemp arenc) (enc newr1temp r1enc) (enc newr2temp r2enc);
 
-    (* Postprocess *)
-    let postprocess p fpost f =
-      match p with
-        None -> cp fpost f
-      | Some pfun -> pfun fpost f   in
-    postprocess arpost newartemp newar;
-    postprocess r1post newr1temp newr1;
-    postprocess r2post newr2temp newr2
-  )
+      (* Postprocess *)
+      let postprocess p fpost f =
+        match p with
+          None -> cp fpost f
+        | Some pfun -> pfun fpost f   in
+      postprocess arpost newartemp newar;
+      postprocess r1post newr1temp newr1;
+      postprocess r2post newr2temp newr2
+    end)
   (* Clean up *)
   (fun () -> 
     (* cleanupTempFiles() *) ()

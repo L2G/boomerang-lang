@@ -20,10 +20,17 @@ include $(OCAMLMAKEFILE)
 ####################################################################
 # Tests
 
-test:: buildharmony unit-tests test10
+test:: buildharmony unit-tests test0 test10
 
 unit-tests:
 	$(HARMONY) -check Addr -test-all
+
+test0:: buildharmony all
+	./harmonize-addresses $(LENSPATH) r1.xml $(HARMONYFLAGS)
+
+test0a::
+	./harmonize-addresses $(LENSPATH) r1.xml junk.csv
+	cat junk.csv
 
 test1:: buildharmony
 	$(HARMONY) get -lens Addr.l -concrete sample.xml -output -:meta
