@@ -223,7 +223,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     if d <> "" then d
     else match t with 
         Meta -> "Prelude.id"
-      | Unknown -> failwith ("-"^s^"lens preference must be specified explicitly")
+      | Unknown -> failwith ("-lens"^s^" preference must be specified explicitly")
       | UserType ut -> chooseLens ut schema in
   let arlens = choose "ar" lensarpref artype in
   let r1lens = choose "r1" lensr1pref r1type in
