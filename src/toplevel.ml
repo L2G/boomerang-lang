@@ -186,18 +186,18 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
             
   (* Figure out encodings, types, and pre/postprocessing requirements *)
   let encoding f =
-    if f="" then ("meta",Meta,None,None)
+    if f="" then ("","meta",Meta,None,None)
     else match Surveyor.parse_filename f with
-      (f',Some e) -> (e,Unknown,None,None)
+      (f',Some e) -> (f',e,Unknown,None,None)
     | (_,None) -> 
-        if Util.endswith f ".meta" then ("meta",Meta,None,None)
+        if Util.endswith f ".meta" then (f,"meta",Meta,None,None)
         else begin
           let (fenc,ftypeuser,fpre,fpost) = chooseEncoding f in
-          (fenc,UserType ftypeuser,fpre,fpost)
+          (f,fenc,UserType ftypeuser,fpre,fpost)
         end   in
-  let (arenc,artype,arpre,arpost) = encoding ar in
-  let (r1enc,r1type,r1pre,r1post) = encoding r1 in
-  let (r2enc,r2type,r2pre,r2post) = encoding r2 in
+  let (arf,arenc,artype,arpre,arpost) = encoding ar in
+  let (r1f,r1enc,r1type,r1pre,r1post) = encoding r1 in
+  let (r2f,r2enc,r2type,r2pre,r2post) = encoding r2 in
 
   (* Choose abstract schema *)
   let undup = function
@@ -218,16 +218,18 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     | s -> s   in
 
   (* Choose what lenses to use *)
-  let choose s default t =
-    let d = Prefs.read default in
-    if d <> "" then d
-    else match t with 
-        Meta -> "Prelude.id"
-      | Unknown -> failwith ("-lens"^s^" preference must be specified explicitly")
-      | UserType ut -> chooseLens ut schema in
-  let arlens = choose "ar" lensarpref artype in
-  let r1lens = choose "r1" lensr1pref r1type in
-  let r2lens = choose "r2" lensr2pref r2type in
+  let choose f s default t =
+    if f = "" then "Prelude.id"
+    else 
+      let d = Prefs.read default in
+        if d <> "" then d
+        else match t with 
+            Meta -> "Prelude.id"
+          | Unknown -> failwith ("-lens"^s^" preference must be specified explicitly")
+          | UserType ut -> chooseLens ut schema in
+  let arlens = choose arf "ar" lensarpref artype in
+  let r1lens = choose r1f "r1" lensr1pref r1type in
+  let r2lens = choose r2f "r2" lensr2pref r2type in
 
   let enc f e = f ^ ":" ^ e in
 
@@ -248,9 +250,9 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
           let ftemp = tempname f in
           pfun f ftemp;
           ftemp   in
-    let artemp = preprocess ar arpre in
-    let r1temp = preprocess r1 r1pre in
-    let r2temp = preprocess r2 r2pre in
+    let artemp = preprocess arf arpre in
+    let r1temp = preprocess r1f r1pre in
+    let r2temp = preprocess r2f r2pre in
 
     (* Do it *)
     if r2="" then begin
