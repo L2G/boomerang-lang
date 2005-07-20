@@ -11,4 +11,4 @@ include $(TOP)/Top.Makefile
 all: test
 
 test::
-	$(HARMONY) check -module Copy -test-all
+	$(HARMONY) -check Copy -test-all

@@ -17,8 +17,8 @@ xml2moz: xml2moz.mll
 	ocamlopt -o xml2moz xml2moz.ml
 
 test:: $(LOCALGENERATEDFCLFILES)
-	$(HARMONY) check -module Mozilla -test-all
-	$(HARMONY) check -module Safari -test-all
+	$(HARMONY) -check Mozilla -test-all
+	$(HARMONY) -check Safari -test-all
 
 temp: $(LOCALGENERATEDFCLFILES)
 	time $(HARMONY) get -lens Safari.l -concrete Bookmarks.plist:xml -output out.tmp:meta

@@ -14,11 +14,11 @@ clean::
 all: $(GENERATEDFCLFILES)
 
 test:: $(GENERATEDFCLFILES)
-	$(HARMONY) check -module Prelude -test-all 
-	$(HARMONY) check -module List -test-all 
-	$(HARMONY) check -module Xml -test-all 
-	$(HARMONY) check -module Spinelist -test-all 
-	$(HARMONY) check -module Relational -test-all 
+	$(HARMONY) -check Prelude -test-all 
+	$(HARMONY) -check List -test-all 
+	$(HARMONY) -check Xml -test-all 
+	$(HARMONY) -check Spinelist -test-all 
+	$(HARMONY) -check Relational -test-all 
 
 doc: $(GENERATEDFCLFILES) buildharmony
 	$(HARMONY) check -module Xml -test-all 

@@ -1,13 +1,14 @@
 open Error
 
-(* initialize implicitly referenced modules *)
 let _ = 
+  (* initialize required but not directly referenced modules *)
   Compiler.init();
   Viewers.init();
   Prelude.init()
 
 let debug = Trace.debug "toplevel"
 
+(* FIX: This probably needs to be integrated with the new printing stuff *)
 let failwith s = prerr_endline s; exit 1
 
 let lookup qid_str = Registry.lookup_library (Value.parse_qid qid_str)
@@ -29,11 +30,13 @@ let lookup_schema qid_str =
 	  (Registry.value_of_rv rv)
 
 let read_tree fn = 
+  if fn="" then None else 
   let (fn, ekeyo) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
   Surveyor.tree_of_file fn (Surveyor.get_reader ekey)
       
 let write_tree fn v = 
+  if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
   (Surveyor.get_writer ekey) v fn  
@@ -108,17 +111,29 @@ let rest = Prefs.createStringList "rest" "*stuff" ""
 
 (* Common preferences *)
 
-let r1pref = Prefs.createString "r1" "" "*first replica to synchronize" ""
+let r1pref = Prefs.createString "r1" "" "first replica to synchronize" ""
 
-let r2pref = Prefs.createString "r2" "" "*second replica to synchronize" ""
+let r2pref = Prefs.createString "r2" "" "second replica to synchronize" ""
 
-let arpref =  Prefs.createString "ar" "" "*the archive" ""
+let arpref =  Prefs.createString "ar" "" "archive for synchronization" ""
 
-let newarpref = Prefs.createString "newar" "" "*the new archive after synchronization" ""
+let newarpref = Prefs.createString "newar" "" "new archive after synchronization" ""
 
-let newr1pref = Prefs.createString "newr1" "" "*the updated first replica" ""
+let newr1pref = Prefs.createString "newr1" "" "new first replica" ""
 
-let newr2pref = Prefs.createString "newr2" "" "*the updated second replica" ""
+let newr2pref = Prefs.createString "newr2" "" "new second replica" ""
+
+let lensarpref = Prefs.createString "lensar" "" "explicitly specified lens for archive" ""
+
+let lensr1pref = Prefs.createString "lensr1" "" "explicitly specified lens for first replica" ""
+
+let lensr2pref = Prefs.createString "lensr2" "" "explicitly specified lens for second replica" ""
+
+let schemapref = Prefs.createString "schema" "" "explicitly specified synchronization schema" ""
+let _ = Prefs.alias schemapref "s"
+
+let check_pref = Prefs.createStringList "check" "run unit tests for given module(s)" ""
+                   
 
 (* Running external commands *)
 
@@ -130,24 +145,33 @@ let cp f g = runcmd (Printf.sprintf "cp %s %s" f g)
   
 (* Top-level boilerplate *)
 
-type 'a filetype = Meta | UserType of 'a
+type 'a filetype = Unknown | Meta | UserType of 'a
 
 let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens () =
   let usageMsg = 
       "Usage:\n"
-    ^ "    "^progName^" FILE FILE [options]\n"
-    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE [options]\n"
-    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE -newar FILE -newr1 FILE -newr2 FILE [options]\n"
+    ^ "    "^progName^" FILE [options]\n"
+    ^ " or "^progName^" FILE FILE [options]\n"
+    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE [more options]\n"
+    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE -newar FILE -newr1 FILE -newr2 FILE [more options]\n"
     ^ "\n"
     ^ "Options:" in
 
   (* Deal with command line *)
-    Prefs.parseCmdLine usageMsg;
-    debug (fun() -> Prefs.dumpPrefsToStderr() );
+  Prefs.parseCmdLine usageMsg;
+  debug (fun() -> Prefs.dumpPrefsToStderr() );
 
-  (* Handle command lines of the special form 'harmonize-blah r1 r2' *)
+  (* Run unit tests if requested *)
+  if Prefs.read check_pref <> [] then
+    begin
+      Safelist.iter check (Prefs.read check_pref);
+      if Prefs.read rest = [] then exit 0
+    end;
+
+  (* Handle command lines of the special forms 'harmonize-blah r1 r2' or 'harmonize-blah r1' *)
   begin match Prefs.read rest with
-      [r1;r2] -> Prefs.set r1pref r1; Prefs.set r2pref r2
+    | [r1] -> Prefs.set r1pref r1
+    | [r1;r2] -> Prefs.set r1pref r1; Prefs.set r2pref r2
     | [] -> ()
     | _ -> Prefs.printUsage usageMsg; exit 1
   end;
@@ -182,11 +206,14 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
             
   (* Figure out encodings, types, and pre/postprocessing requirements *)
   let encoding f =
-    if Util.endswith f ".meta" then ("meta",Meta,None,None)
-    else begin
-      let (fenc,ftypeuser,fpre,fpost) = chooseEncoding f in
-      (fenc,UserType ftypeuser,fpre,fpost)
-    end in
+    match Surveyor.parse_filename f with
+      (f',Some e) -> (e,Unknown,None,None)
+    | (_,None) -> 
+        if Util.endswith f ".meta" then ("meta",Meta,None,None)
+        else begin
+          let (fenc,ftypeuser,fpre,fpost) = chooseEncoding f in
+          (fenc,UserType ftypeuser,fpre,fpost)
+        end   in
   let (arenc,artype,arpre,arpost) = encoding ar in
   let (r1enc,r1type,r1pre,r1post) = encoding r1 in
   let (r2enc,r2type,r2pre,r2post) = encoding r2 in
@@ -201,17 +228,25 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   let sort_types l = undup (List.sort compare l) in
   let rec remove_meta = function
       [] -> []
+    | Unknown::rest -> remove_meta rest
     | Meta::rest -> remove_meta rest
     | (UserType t)::rest -> t::(remove_meta rest) in
-  let schema = chooseAbstractSchema (sort_types (remove_meta [artype;r1type;r2type])) in
+  let schema =
+    match Prefs.read schemapref with
+      "" -> chooseAbstractSchema (sort_types (remove_meta [artype;r1type;r2type]))
+    | s -> s   in
 
   (* Choose what lenses to use *)
-  let choose = function
-      Meta -> "Prelude.id"
-    | UserType t -> chooseLens t schema in
-  let arlens = choose artype in
-  let r1lens = choose r1type in
-  let r2lens = choose r2type in
+  let choose s default t =
+    let d = Prefs.read default in
+    if d <> "" then d
+    else match t with 
+        Meta -> "Prelude.id"
+      | Unknown -> failwith "-"^s^"lens preference must be specified explicitly"
+      | UserType ut -> chooseLens ut schema in
+  let arlens = choose "ar" lensarpref artype in
+  let r1lens = choose "r1" lensr1pref r1type in
+  let r2lens = choose "r2" lensr2pref r2type in
 
   let enc f e = f ^ ":" ^ e in
 

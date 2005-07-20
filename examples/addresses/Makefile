@@ -7,7 +7,7 @@ TOP = ../..
 include $(TOP)/Top.Makefile
 
 RESULT = harmonize-addresses
-SOURCES = harmonize-addresses.ml 
+SOURCES = $(CWD)/harmonize-addresses.ml 
 LIBS += harmony
 
 clean::
@@ -23,7 +23,7 @@ include $(OCAMLMAKEFILE)
 test:: buildharmony unit-tests test10
 
 unit-tests:
-	$(HARMONY) check -module Addr -test-all
+	$(HARMONY) -check Addr -test-all
 
 test1:: buildharmony
 	$(HARMONY) get -lens Addr.l -concrete sample.xml -output -:meta
