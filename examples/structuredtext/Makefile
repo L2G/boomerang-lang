@@ -11,7 +11,7 @@ include $(TOP)/Top.Makefile
 all: test
 
 test::
-	$(HARMONY) check -module Structuredtext -test-all
+	$(HARMONY) -check Structuredtext -test-all
 
 DEMOFILES = a.txt b.txt o.txt
 

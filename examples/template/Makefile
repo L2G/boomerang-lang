@@ -11,7 +11,7 @@ include $(TOP)/Top.Makefile
 all: test
 
 test:: 
-	$(HARMONY) check -module Main -test-all
+	$(HARMONY) -check Main -test-all
 
 get:
 	$(HARMONY) get -lens Main.l -concrete test.xml -output temp.meta

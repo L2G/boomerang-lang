@@ -11,7 +11,7 @@ include $(TOP)/Top.Makefile
 all: test
 
 test:: 
-	$(HARMONY) check -module Database -test-all
+	$(HARMONY) -check Database -test-all
 
 
 
