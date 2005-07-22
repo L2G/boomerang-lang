@@ -579,7 +579,7 @@ ifndef REAL_OCAMLC
   REAL_IMPL_INTF := $(IMPLO_INTF)
   IMPL_SUF := .cmo
 
-  DEPFLAGS  :=
+  #DEPFLAGS  :=
   MAKE_DEPS := $(MLDEPS) $(BCDEPIS)
 
   ifdef CREATE_LIB
@@ -634,7 +634,7 @@ else
 
   CPPFLAGS := -DNATIVE_CODE $(CPPFLAGS)
 
-  DEPFLAGS  := -native
+  DEPFLAGS  += -native
   MAKE_DEPS := $(MLDEPS) $(NCDEPIS)
 
   ALL_LDFLAGS := $(PLDFLAGS) $(INCFLAGS) $(OCAMLLDFLAGS) \
@@ -1024,11 +1024,11 @@ $(MLDEPDIR)/%.d:	%.ml
 			$(QUIET)if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 			$(QUIET)pp=`sed -n -e '/^#/d' -e 's/(\*pp \([^*]*\) \*)/\1/p;q' $<`; \
 			if [ -z "$$pp" ]; then \
-			  $(REAL_OCAMLFIND) $(OCAMLDEP) $(OCAML_DEP_PACKAGES) \
+			  $(REAL_OCAMLFIND) $(OCAMLDEP) $(BCPDEPFLAGS) $(OCAML_DEP_PACKAGES) \
 				$(DINCFLAGS) $< > $@; \
 			else \
 			  $(REAL_OCAMLFIND) $(OCAMLDEP) $(OCAML_DEP_PACKAGES) \
-				-pp "$$pp $(PPFLAGS)" $(DINCFLAGS) $< > $@; \
+				-pp "$$pp $(PPFLAGS)" $(BCPDEPFLAGS) $(DINCFLAGS) $< > $@; \
 			fi
 
 $(BCDIDIR)/%.di $(NCDIDIR)/%.di:	%.mli
@@ -1036,9 +1036,9 @@ $(BCDIDIR)/%.di $(NCDIDIR)/%.di:	%.mli
 			$(QUIET)if [ ! -d $(@D) ]; then mkdir -p $(@D); fi
 			$(QUIET)pp=`sed -n -e '/^#/d' -e 's/(\*pp \([^*]*\) \*)/\1/p;q' $<`; \
 			if [ -z "$$pp" ]; then \
-			  $(REAL_OCAMLFIND) $(OCAMLDEP) $(DEPFLAGS) $(DINCFLAGS) $< > $@; \
+			  $(REAL_OCAMLFIND) $(OCAMLDEP) $(DEPFLAGS) $(BCPDEPFLAGS) $(DINCFLAGS) $< > $@; \
 			else \
-			  $(REAL_OCAMLFIND) $(OCAMLDEP) $(DEPFLAGS) \
+			  $(REAL_OCAMLFIND) $(OCAMLDEP) $(BCPDEPFLAGS) $(DEPFLAGS) \
 			    -pp "$$pp $(PPFLAGS)" $(DINCFLAGS) $< > $@; \
 			fi
 

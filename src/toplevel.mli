@@ -1,4 +1,4 @@
-val failwith : string -> 'a
+val runcmd : string -> unit
 
 val toplevel :
   (* Name of the current program *)
