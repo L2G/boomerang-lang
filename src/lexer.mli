@@ -17,6 +17,12 @@ val finish : unit -> unit
 val filename : unit -> string
 (** [filename ()] returns the name of the file being lexed *)
 
+val lineno : unit -> int
+(** [lineno ()] returns the current line number of the file being lexed *)
+
+val linestart : unit -> int
+(** [linestart ()] returns the character position in the current line of the file being lexed *)
+
 val info : Lexing.lexbuf -> Info.t
 (** [info lexbuf] extracts an [Info.t] of [lexbuf] *)
 

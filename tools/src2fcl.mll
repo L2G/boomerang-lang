@@ -10,9 +10,9 @@
   and lineMode = ref NONE
   and newLine = ref true
 
-  let current = ref ""
-  let old = ref ""
-  let emit s = current := (!current ^ s)
+  let buffer_size = 240
+  let current = Buffer.create buffer_size
+  let old = Buffer.create buffer_size
 
   let suffix = ref "f" 
   let terminator = ref ";" 
@@ -20,6 +20,17 @@
   let basename = ref ""
   let wholename = ref ""
   let count = ref 0
+
+  let emit s = Buffer.add_string current s
+
+  let reset () = 
+    mode := TEX;
+    lineMode := NONE;
+    newLine := true;
+    Buffer.reset current;
+    Buffer.reset old;
+    count := 0
+
   let dump() =
      count := !count + 1;
      let outname = !basename (* ^ "." ^ (string_of_int !count) ^ "." ^ !suffix *) in
@@ -27,13 +38,13 @@
                        ^ (if !created_files <> "" then " " else "")
                        ^ !created_files);
      let o = open_out outname in
-     if !old <> "" then
-       (output_string o ("DO printingoff" ^ !terminator ^ "\n");
-        output_string o !old;
-        output_string o ("DO printingon" ^ !terminator ^ "\n"));
-     output_string o !current; close_out o;
-     old := !old ^ !current;
-     current := ""
+       if (Buffer.length old) <> 0 then
+         (output_string o ("DO printingoff" ^ !terminator ^ "\n");
+          Buffer.output_buffer o old;
+          output_string o ("DO printingon" ^ !terminator ^ "\n"));
+       Buffer.output_buffer o current; close_out o;
+       Buffer.reset old; Buffer.add_buffer old current;
+       Buffer.reset current
 
   let pr s =
     if (!mode = SRC && !lineMode = NONE) || !lineMode = SRC then
@@ -97,16 +108,10 @@ rule lex = parse
   }
 
 {
-  let () =
-    if Array.length Sys.argv == 3 then
-      (wholename := Array.get Sys.argv 1;
-       basename := Array.get Sys.argv 2;
-       emit "# 1 \""; emit !wholename;
-       emit "\"\n"; lex (Lexing.from_channel (open_in !wholename)))
-    else
-      (basename := "tex/f"; 
-       lex (Lexing.from_channel stdin));
-    if String.length(!current) > 0 then dump();
-    print_string !created_files; print_string "\n";
-    exit 0
+  let fcl_of_src fn = 
+    reset ();
+    let fchan = open_in fn in
+    let fcl_string = lex (Lexing.from_channel fchan) in 
+    let _ = close_in fchan in 
+      Buffer.contents current
 }

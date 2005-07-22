@@ -85,34 +85,46 @@ let get_module_prefix q =
     | [] -> None
     | n::_ -> Some n
 
-let find_filename fn = 
-  let rec loop ds = match ds with
+let find_filename basename exts = 
+  let rec loop dirs = match dirs with
     | []    -> None
-    | d::drest -> 	
-	let full_fn = d ^ (if d.[String.length d - 1] = '/' then "" else "/") ^ fn in
-	  if (Sys.file_exists full_fn) then Some full_fn
-	  else loop drest
+    | dir::drest ->
+        begin 
+          let try_fn ext k = 
+            let fn = Printf.sprintf "%s%s%s%s%s"
+              dir
+              (if dir.[String.length dir - 1] = '/' then "" else "/")
+              basename 
+              (if String.length ext = 0 then "" else ".")
+              ext in 
+              if Sys.file_exists fn then Some fn
+              else k ()
+          in
+          let rec inner_loop = function
+              [] -> try_fn "" (fun () -> loop drest)                
+            | ext::erest -> try_fn ext (fun () -> inner_loop erest) in
+            inner_loop exts              
+        end
   in
     loop ((Prefs.read paths) @ focalpath)
       
 (* load modules dynamically *)
 (* backpatch hack *)
-let compile_file_impl = ref (fun _ _ -> Printf.eprintf "Focal compiler is not loaded! Exiting..."; exit 1)  
+let compile_file_impl = ref (fun _ _ -> Printf.eprintf "Focal compiler is not linked! Exiting..."; exit 1)  
 
 let load ns = 
-  let fno = find_filename ((String.uncapitalize ns) ^ ".fcl") in	
+  let fno = find_filename (String.uncapitalize ns) ["src"; "fcl"] in
     if (Safelist.mem ns (!loaded)) then true
-    else 
-      begin
-	match fno with 
-	  | None -> false
-	  | Some fn ->
-	      verbose (fun () -> (Printf.eprintf "[loading %s ...]\n%!" fn));
-	      loaded := ns::(!loaded); 
-	      (!compile_file_impl) fn ns;
-	      verbose (fun () -> (Printf.eprintf "[loaded %s]\n%!" fn));
-	      true
-      end
+    else begin
+      match fno with 
+	| None -> false
+	| Some fn ->
+	    verbose (fun () -> (Printf.eprintf "[loading %s ...]\n%!" fn));
+	    loaded := ns::(!loaded); 
+	    (!compile_file_impl) fn ns;
+	    verbose (fun () -> (Printf.eprintf "[loaded %s]\n%!" fn));
+	    true
+    end
 	
 let load_var q = match get_module_prefix q with 
   | None -> ()

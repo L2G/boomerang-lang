@@ -46,7 +46,7 @@ let _ = register_native any_qid "schema" any_lib
 (* read *)
 let read_qid = "Native.Prelude.read"
 let read fn = 
-  let fn = match find_filename fn with
+  let fn = match find_filename fn [] with
       None -> error [`String (read_qid^": cannot locate " ^ fn)]
     | Some fn -> fn in
     try 
@@ -246,12 +246,12 @@ let _ = register_native const_qid "tree -> tree -> lens" const_lib
 (*** COMPOSE2 ***)
 let compose2_qid = "Native.Prelude.compose2"
 let compose2 l1 l2 = 
-  let l1 = memoize_lens l1 in
-    { get = (fun c -> (l2.get (l1.get c)));
-      put = (fun a co -> 
-	       match co with
-		 | None -> l1.put (l2.put a None) None
-		 | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}      
+  let l1 = memoize_lens l1 in 
+  { get = (fun c -> (l2.get (l1.get c)));
+    put = (fun a co -> 
+	     match co with
+	       | None -> l1.put (l2.put a None) None
+	       | Some c -> l1.put (l2.put a (Some (l1.get c))) co)}      
 let compose2_lib = 
   mk_lfun "lens -> lens" compose2_qid
     (fun l1 ->

@@ -40,7 +40,7 @@ val register_native : string -> string -> Value.t -> unit
 val load : string -> bool
 (** ?? *)
 
-val find_filename : string -> string option
+val find_filename : string -> string list -> string option
 (** ?? *)
 
 val lookup_library_ctx : Syntax.qid list -> Syntax.qid -> rv option

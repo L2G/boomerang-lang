@@ -268,8 +268,9 @@ and check_exp sev e0 =
 
     | ESchema(i,ss,e) ->
         let ssev,_,new_ss = check_schema_bindings sev ss in
-        let _, new_e = expect_sort_exp "schema binding" ssev SSchema e in
-          (SSchema, ESchema(i,new_ss,new_e))
+        let e0_sort, new_e = check_exp ssev e in 
+        let new_e0 = ESchema(i,new_ss,new_e) in
+          (e0_sort, new_e0)
 
     | EUnion(i,es) ->
 	let new_es = Safelist.map
@@ -743,13 +744,20 @@ and compile_schema_bindings cev ss =
   in
 
   (* phase 4: check well-formedness each of the just-compiled schemas *)
-  let _ = Safelist.fold_left 
-    (fun _ (fresh_x,SDef(i,_,_)) -> match CEnv.lookup scev fresh_x with
+  (* overwrite x |-> Schema.Var(fresh_x) to x |-> ENV(fresh_x) *)
+  let scev = Safelist.fold_left 
+    (fun scev (fresh_x,SDef(i,x,_)) -> match CEnv.lookup scev fresh_x with
          None -> run_error i (fun () -> "just-compiled schema went missing")
-       | Some rv -> match v_of_rv rv with Value.S si -> Schema.assert_wf si fresh_xs | _ -> ())
-    ()
-    annot_ss in         
-    
+       | Some rv -> 
+           let rv_sort = s_of_rv rv in
+           let rv_value = match v_of_rv rv with 
+               Value.S si as v -> Schema.assert_wf si fresh_xs; v
+             | v -> v in
+             (* make x map to the actual schema, not to a variable *)
+             CEnv.overwrite scev (qid_of_id x) (mk_rv rv_sort rv_value))
+    scev
+    annot_ss in
+
   (* final result *)    
   let scev = CEnv.set_smode scev old_smode in    
     scev, Safelist.rev_append names_rev fresh_xs_rev
@@ -842,46 +850,38 @@ let compile_module m0 =
 
 (* parse an AST from a lexbuf *)
 let parse_lexbuf lexbuf = 
-  try 
-    let ast = Parser.modl Lexer.main lexbuf in
-      ast
+  try Parser.modl Lexer.main lexbuf 
   with Parsing.Parse_error ->
     parse_error (Lexer.info lexbuf) 
       (fun () -> "Syntax error")
- 
-(* parse an AST from a string *)
-let parse_string str = 
-  parse_lexbuf (Lexing.from_string str)
-    
-(* parse an AST from a channel *)
-let parse_chan fc = 
-  parse_lexbuf (Lexing.from_channel fc)
-
-(* end-to-end compilation of strings *)
-let compile_string fake_name str = 
-  let _ = Lexer.setup fake_name in
-  let ast = parse_string str in  
-  let ast = check_module ast in 
-    compile_module ast 
       
 (* end-to-end compilation of files *)
-let compile_file fn n =
-  let _ = Lexer.setup fn in  
-  let fchan = open_in fn in
-  let ast = parse_chan fchan in  
-  let _ = close_in fchan in
-  let m_str = string_of_id (id_of_modl ast) in
+let compile_file fn n =  
+  let ast = 
+    if Util.endswith fn ".src" then 
+      let fcl_string = Src2fcl.fcl_of_src fn in 
+      let _ = Lexer.setup fn in         
+      let lexbuf = Lexing.from_string fcl_string in
+        parse_lexbuf lexbuf 
+    else
+      let _ = Lexer.setup fn in          
+      let fchan = open_in fn in
+      let ast = parse_lexbuf (Lexing.from_channel fchan) in 
+        close_in fchan;
+        ast in
   let _ =
-    if (n <> m_str) then
-      sort_error 
-	(info_of_module ast)
-	(fun () -> sprintf "module %s must appear in a file named %s.fcl."
-	   m_str (String.uncapitalize m_str))
-  in
-  let ast = check_module ast in 
-  let _ = compile_module ast in
+    let m_str = string_of_id (id_of_modl ast) in
+      if n <> m_str then
+        sort_error 
+	  (info_of_module ast)
+	  (fun () -> sprintf "module %s must appear in a file named %s.fcl."
+	     m_str (String.uncapitalize m_str)) in
+  let ast' = check_module ast in 
+  let _ = compile_module ast' in
     Lexer.finish ()
-
+      
 (* FIXME: ugly backpatch hack! *)
-let init () = ()
 let _ = Registry.compile_file_impl := compile_file
+
+(* force loading of this module when using dynamically-linked libraries *)
+let init () = ()

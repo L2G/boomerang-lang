@@ -30,7 +30,6 @@ type t =
 and thunk = unit -> t
 
 (* --------------- accessors --------------- *)
-
 let info_of_t = function
     Any(i)          -> i
   | Atom(i,_,_)     -> i
@@ -302,7 +301,7 @@ let is_proj_aux i fd ts =
         None, None -> None
       | Some r,_ | _,Some r -> Some r
 
-(* [is_projectable t0] returns [None] if [t0] is projectable (on all
+(* [is_projectable fd t0] returns [None] if [t0] is projectable (on all
    names) and [Some(k,t1,t2)] otherwise where [k] is the child that
    the type is not projectable on, and [t1], [t2] are the distinct
    projected types *)
@@ -310,9 +309,8 @@ let is_proj_aux i fd ts =
    loop otherwise) *)
 let rec is_projectable t0 = match t0 with 
     Any(_) | Atom(_) | Wild(_) -> None
-  | Var(_,_,thk) -> is_projectable (thk ())
-  | Cat(i,ts) | Union(i,ts) -> 
-      is_proj_aux i (fdom_of_t t0) ts
+  | Var(_,_,thk)               -> is_projectable (thk ())
+  | Cat(i,ts) | Union(i,ts)    -> is_proj_aux i (fdom_of_t t0) ts
 
 let rec has_disjoint_cats t0 = match t0 with
     Any(_) | Atom(_) | Wild(_) -> None
@@ -393,9 +391,9 @@ let rec member_aux v t0 = match t0 with
         | None -> begin match l with
               [] -> None
             | h::t -> loop (member_aux v h) t
-          end in 
+          end in
         loop None ts
-  | Cat(_,ts) -> 
+  | Cat(_,ts) ->
       let split_reso = 
         Name.Set.fold 
           (fun k acco -> match acco with 

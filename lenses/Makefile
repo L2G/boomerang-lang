@@ -19,6 +19,10 @@ test:: $(GENERATEDFCLFILES)
 	$(HARMONY) -check Xml -test-all 
 	$(HARMONY) -check Spinelist -test-all 
 	$(HARMONY) -check Relational -test-all 
+	$(HARMONY) -check Units -test-all
+
+units:
+	$(HARMONY) -check Units -test-all
 
 doc: $(GENERATEDFCLFILES) buildharmony
 	$(HARMONY) check -module Xml -test-all 

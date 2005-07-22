@@ -395,4 +395,3 @@ values by splitting it at newline characters.
 \LENSSECTION{unlines} The lens @unlines@ reverses the action of @lines@.
 #*let unlines : lens = invert (lines)
 
- 

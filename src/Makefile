@@ -60,6 +60,7 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 # BASE/COMPILER SOURCES #
 #########################
 
+SRC2FCL_SOURCES = src2fcl.mll
 BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                mapplus.mli mapplus.ml \
                name.mli name.ml v.mli v.ml lens.mli lens.ml \
@@ -93,7 +94,8 @@ NATIVE_LENS_SOURCES = prelude.ml \
 # COMMON SOURCES #
 ##################
 
-COMMON_SOURCES = $(UBASE_LIB_SOURCES:%=$(SRCDIR)/ubase/%) \
+COMMON_SOURCES = $(SRC2FCL_SOURCES:%=$(TOOLSDIR)/%) \
+                 $(UBASE_LIB_SOURCES:%=$(SRCDIR)/ubase/%) \
 		 $(BASE_SOURCES:%=$(SRCDIR)/%) \
 		 $(VIEWER_SOURCES:%=$(SRCDIR)/%) \
 		 $(NATIVE_LENS_SOURCES:%=$(LENSESDIR)/%) \

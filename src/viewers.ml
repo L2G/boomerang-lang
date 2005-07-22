@@ -12,8 +12,8 @@ let metareader s =
       (Metay.tree Metal.token lexbuf) 
     with Parsing.Parse_error -> 
 	raise (Error.Harmony_error
-		 (fun () -> Format.printf "%s: syntax error." 
-		    (Info.string_of_t (Lexer.info lexbuf))))
+		 (fun () -> Format.printf "%s: syntax error in meta tree." 
+		    (Info.string_of_t (Metal.info lexbuf))))
   in
   let _ = Metal.finish () in
     res

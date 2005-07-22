@@ -50,7 +50,7 @@ let parse_qid s =
 	Parser.qid Lexer.main lexbuf 
       with Parsing.Parse_error -> 
 	raise (Error.Harmony_error
-		 (fun () -> Format.printf "%s: syntax error." 
+		 (fun () -> Format.printf "%s: syntax error in qualfied identifier." 
 		    (Info.string_of_t (Lexer.info lexbuf))))
     in 
       Lexer.finish ();
@@ -64,22 +64,21 @@ let parse_sort s =
 	Parser.sort Lexer.main lexbuf 
       with Parsing.Parse_error -> 
 	raise (Error.Harmony_error
-		 (fun () -> Format.printf "%s: syntax error." 
+		 (fun () -> Format.printf "%s: syntax error in sort." 
 		    (Info.string_of_t (Lexer.info lexbuf))))
     in
       Lexer.finish ();
       st
 
 (* errors *)
-
 let focal_type_error i es v = 
-    raise (Error.Harmony_error
-	     (fun () -> Format.printf "%s: run-time sort error; expected %s, found %s in %s."
-		(Info.string_of_t i)
-		(Syntax.string_of_sort es)
-		(Syntax.string_of_sort (sort_of_t v))
-		(string_of_t v)))
-      
+  raise (Error.Harmony_error
+	   (fun () -> Format.printf "%s: run-time sort error; expected %s, found %s in %s."
+	      (Info.string_of_t i)
+	      (Syntax.string_of_sort es)
+	      (Syntax.string_of_sort (sort_of_t v))
+	      (string_of_t v)))
+    
 (* [schema_of_tree v] yields the singleton [Value.ty] containing [v] *)
 let rec schema_of_tree v =
   let i = Info.M "schema coerced from view" in
@@ -193,19 +192,20 @@ module H =
       let hash o = Hashtbl.hash (Obj.magic o : int)   (* Hash on physical addr *)
     end)
     
-let memoize v =
-  match v with 
-      N _ -> v
-    | S _ -> v
-    | V _ -> v
-    | L l -> L (Lens.memoize_lens l) 
-    | F(s,f) -> F (s, 
-		   let memotable = H.create 1 in
-		     (fun x -> try
-			H.find memotable x
-		      with Not_found -> begin 
-			let fx = f x in
-			  H.add memotable x fx;
-			  fx
-		      end))
-	
+let memoize v = match v with 
+  | F(s,f) -> F (s, 
+		 let memotable = H.create 1 in
+		   (fun x -> try
+		      H.find memotable x
+		    with Not_found -> begin 
+		      let fx = f x in
+			H.add memotable x fx;
+			fx
+		    end)) 
+  | _ -> v
+
+(*   match v with  *)
+(*       N _ -> v *)
+(*     | S _ -> v *)
+(*     | V _ -> v *)
+(*     | L l -> L (Lens.memoize_lens l)  *)
