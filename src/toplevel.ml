@@ -89,7 +89,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   ignore (Misc.map_option (write_tree o'_fn) o');
   ignore (Misc.map_option (write_tree a'_fn) a');
   ignore (Misc.map_option (write_tree b'_fn) b');
-  exit (if Sync.conflict_free act then 0 else 1)
+  if not (Sync.conflict_free act) then exit 1
 
 let rest = Prefs.createStringList "rest" "*stuff" ""
 
@@ -272,6 +272,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
            schema
            arlens r1lens r2lens
            (enc newartemp arenc) (enc newr1temp r1enc) (enc newr2temp r2enc);
+
+      debug (fun () -> Format.printf "sync finished");
 
       (* Postprocess *)
       let postprocess p fpost f =
