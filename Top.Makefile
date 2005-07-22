@@ -98,11 +98,15 @@ $(SRC2TEX):
 ####################################################################
 # Common targets
 
-clean::
-	rm -rf *.tmp *.aux *.bbl *.blg *.log *.dvi *.bak .*.bak *~ temp.* TAGS *.cmo *.cmi *.cmx *.o *.annot 
+clean:: tidy
+	rm -rf *.aux *.bbl *.blg *.log *.dvi TAGS *.cmo *.cmi *.cmx *.o 
 	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do \
 	    echo "###### cleaning $(CWD)/$$i ######"; \
 	    $(MAKE) -C $$i clean; done
+
+tidy::
+	rm -rf *.tmp *.bak .*.bak .bak.* *~ temp.* *.annot 
+	rm -rf r1.* r2.* ar.*
 
 cleanall:
 	$(MAKE) -C $(TOP) clean

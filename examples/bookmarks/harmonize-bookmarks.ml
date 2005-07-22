@@ -1,7 +1,6 @@
-(* Remove this: *)
-open Toplevel
-
 let orderedpref = Prefs.createBool "ordered" true "*keep bookmark ordering" ""
+
+let recompressPlists = Prefs.createBool "compress" true "*convert plist files to binary form after sync" ""
 
 let archNameUniquifier () =
   if Prefs.read orderedpref then "ord" else "nonord"
@@ -13,17 +12,26 @@ let bookmarktype2string = function
   | Safari  -> "Safari"
   | Meta    -> "Meta"
         
-let moz2xml f fpre = runcmd (Printf.sprintf "moz2xml < %s > %s" f fpre)
+let moz2xml f fpre =
+  if Sys.file_exists f then
+    Toplevel.runcmd (Printf.sprintf "moz2xml < %s > %s" f fpre)
 
-let xml2moz fpost f = runcmd (Printf.sprintf "xml2moz < %s > %s" fpost f)
+let xml2moz fpost f =
+  if Sys.file_exists fpost then
+    Toplevel.runcmd (Printf.sprintf "xml2moz < %s > %s" fpost f)
 
-let plutil f fpre = runcmd (Printf.sprintf "plutil -convert xml1 %s -o %s" f fpre)
+let plutil f fpre =
+  Toplevel.runcmd (Printf.sprintf "plutil -convert xml1 %s -o %s" f fpre)
 
-let plutilbak f fpost = runcmd (Printf.sprintf "plutil -convert binary1 %s -o %s" f fpost)
+let plutilback f fpost =
+  if Prefs.read recompressPlists then
+    Toplevel.runcmd (Printf.sprintf "plutil -convert binary1 %s -o %s" f fpost)
+  else 
+    Toplevel.runcmd (Printf.sprintf "cp %s %s" f fpost)
   
 let chooseEncoding f =
   if Filename.check_suffix f ".html" then ("xml",Mozilla,Some moz2xml,Some xml2moz)
-  else if Filename.check_suffix f ".plist" then ("xml",Safari,Some plutil,Some plutilbak)
+  else if Filename.check_suffix f ".plist" then ("xml",Safari,Some plutil,Some plutilback)
   else raise Not_found
 
 let chooseAbstractSchema types =

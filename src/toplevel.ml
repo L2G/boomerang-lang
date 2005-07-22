@@ -158,7 +158,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   (* Handle command lines of the special forms 'harmonize-blah r1 r2' or 'harmonize-blah r1' *)
   begin match Prefs.read rest with
     | [r1] -> Prefs.set r1pref r1
-    | [r1;r2] -> Prefs.set r1pref r1; Prefs.set r2pref r2
+    | [r2;r1] -> Prefs.set r1pref r1; Prefs.set r2pref r2
     | [] -> ()
     | _ -> Prefs.printUsage usageMsg; exit 1
   end;
