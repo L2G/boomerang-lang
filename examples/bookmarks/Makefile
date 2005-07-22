@@ -89,7 +89,7 @@ MAKEDEMO = $(MAKE) R1ORIG=$(R1ORIG) R2ORIG=$(R2ORIG)
 
 demo%:
 	$(QUIET)$(MAKE) init-demo $(DEMO$*)
-	$(QUIET)$(MAKEDEMO) demo
+	$(QUIET)$(MAKEDEMO) demo $(DEMO$*)
 
 export R1=r1$(suffix $(R1ORIG))
 export R2=r2$(suffix $(R2ORIG))
