@@ -101,10 +101,10 @@ val info_of_id : id -> Info.t
 val info_of_qid : qid -> Info.t
 val info_of_exp : exp -> Info.t
 val info_of_binding : binding -> Info.t
-val info_of_bindings : Info.t -> binding list -> Info.t
+val info_of_bindings : binding list -> Info.t
 
 val info_of_schema_binding : schema_binding -> Info.t
-val info_of_schema_bindings : Info.t -> schema_binding list -> Info.t
+val info_of_schema_bindings : schema_binding list -> Info.t
 val info_of_module : modl -> Info.t
 
 (** {3 Pretty printers } *)

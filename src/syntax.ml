@@ -143,10 +143,16 @@ let info_of_exp = function
   | EWild(i,_,_,_,_)   -> i
 
 let info_of_binding (BDef(i,_,_,_,_)) = i
-let info_of_bindings i bs = info_of_list info_of_binding i bs
+let info_of_bindings bs = 
+  match bs with 
+      [] -> Info.M "NONE"
+    | h::t -> info_of_list info_of_binding (info_of_binding h) t
 
 let info_of_schema_binding (SDef(i,_,_)) = i
-let info_of_schema_bindings i ss = info_of_list info_of_schema_binding i ss
+let info_of_schema_bindings ss = 
+  match ss with 
+      [] -> Info.M "NONE"
+    | h::t -> info_of_list info_of_schema_binding (info_of_schema_binding h) t
 
 (* read off pieces of parameters *)
 let id_of_param = function PDef(_,x,_) -> x

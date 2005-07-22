@@ -332,36 +332,38 @@ let rec has_disjoint_cats t0 = match t0 with
         None 
         ts
       
-      
 let assert_wf t0 xs =
   (match is_contractive t0 xs with 
-      None -> ()
-    | Some x -> 
-        fatal_error 
-          (info_of_t t0) 
-          (sprintf "schema variable %s may not be used recursively in %s\n%!"
+       None -> ()
+     | Some x -> 
+        fatal_error
+          (info_of_t t0)
+          (sprintf "schema variable %s may not be used recursively in %s"
              (Syntax.string_of_qid x)
              (string_of_t t0)))
   ;
   (match has_disjoint_cats t0 with 
        None -> ()
-     | Some fs -> fatal_error (info_of_t t0)
-         (sprintf "schema %s has domain overlap on %s\n%!"
-            (string_of_t t0)
-            (Misc.curlybraces 
-               (Misc.concat_list ", " 
-                  (Safelist.map Misc.whack (Name.Set.elements fs))))))
+     | Some fs -> 
+         fatal_error
+           (info_of_t t0)
+           (sprintf "schema %s has domain overlap on %s"
+              (string_of_t t0)
+              (Misc.curlybraces 
+                 (Misc.concat_list ", " 
+                    (Safelist.map Misc.whack (Name.Set.elements fs))))))
   ;
   (match is_projectable t0 with 
        None -> ()
      | Some(k,t1,t2) -> 
-         fatal_error (info_of_t t0) 
-           (sprintf "schema %s is not projectable on %s: %s <> %s\n%!" 
+         fatal_error
+           (info_of_t t0)
+           (sprintf "schema %s is not projectable on %s: %s <> %s" 
               (string_of_t t0)
               (Misc.whack k) 
               (string_of_t t1)
               (string_of_t t2)))
-          
+    
 (* --------------- constants --------------- *)
 let mk_nil i = mk_cat i [mk_atom i V.nil_tag (mk_cat i [])]
 let mk_cons i h t = mk_cat i [mk_atom i V.hd_tag h;

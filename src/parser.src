@@ -25,8 +25,8 @@ let me2 i1 e2 = m i1 (info_of_exp e2)
 let mie x1 e2 = m (info_of_id x1) (info_of_exp e2)
 let mis x1 s1 = m (info_of_id x1) (fst s1)
 let ms s1 s2 = m (fst s1) (fst s2)
-let mbs2 i1 bs2 = m i1 (info_of_bindings i1 bs2)
-let mss2 i1 ss2 = m i1 (info_of_schema_bindings i1 ss2)
+let mbs2 i1 bs2 = m i1 (info_of_bindings bs2)
+let mss2 i1 ss2 = m i1 (info_of_schema_bindings ss2)
   
 (* helpers for easy syntax tree construction *)
 
