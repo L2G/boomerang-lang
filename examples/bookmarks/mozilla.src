@@ -7,8 +7,9 @@ module Mozilla =
     hoist "DT";
     hoist Xml.CHILDREN;
     acond CFolder Bookmarks.Folder
-      folder
-      link
+      (protect (folder))
+      (protect (link))
+
   and folder : lens = 
     hoist_nonunique List.HD { "H3" };
     rename "H3" "name";

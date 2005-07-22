@@ -46,9 +46,9 @@ and the following keywords and symbols are reserved and are not valid as identif
 
 \begin{center}
 \begin{tabular}{llllllllll}
-  @and@    & @at@     & @begin@  & @end@    & @error@  & @fun@    & @in@    &
+  @and@    & @at@     & @begin@  & @end@    & @error@  & @fun@    & @in@    & 
   @lens@   & @let@    & @missing@\\
-  @module@ & @name@   & @open@  & @sync@   & @test@   & @tree@   & @schema@  &
+  @module@ & @name@   & @open@  & @protect@ & @sync@   & @test@   & @tree@   & @schema@  &
   @with@\\
   @->@ & @(@  & @)@  & @;@  & @.@  & @*@  & @!@  & @|@  & @=@  & @{@\\
   @}@  & @[@  & @]@  & @,@  & @:@  & @\@ & @/@  & @,@  & @:@  & @+@\\
@@ -129,24 +129,25 @@ let _ =
   Safelist.iter 
     (fun (kw,tok) -> Hashtbl.add keywords kw tok )
   [ "and", (fun i -> AND i)
-    ; "at", (fun i -> AT i)
-    ; "begin", (fun i -> BEGIN i)
-    ; "end", (fun i -> END i)
-    ; "error", (fun i -> ERROR i)
-    ; "fun", (fun i -> FUN i)
-    ; "in", (fun i -> IN i)
-    ; "lens", (fun i -> LENS i)
-    ; "let", (fun i -> LET i)
-    ; "missing", (fun i -> MISSING i)
-    ; "module", (fun i -> MODULE i)
-    ; "name", (fun i -> NAME i)
-    ; "open", (fun i -> OPEN i)
-    ; "sync", (fun i -> SYNC i)
-    ; "test", (fun i -> TEST i)
-    ; "tree", (fun i -> TREE i)
-    ; "schema", (fun i -> SCHEMA i)
-    ; "with", (fun i -> WITH i)    
-    ]
+  ; "at", (fun i -> AT i)
+  ; "begin", (fun i -> BEGIN i)
+  ; "end", (fun i -> END i)
+  ; "error", (fun i -> ERROR i)
+  ; "fun", (fun i -> FUN i)
+  ; "in", (fun i -> IN i)
+  ; "lens", (fun i -> LENS i)
+  ; "let", (fun i -> LET i)
+  ; "missing", (fun i -> MISSING i)
+  ; "module", (fun i -> MODULE i)
+  ; "name", (fun i -> NAME i)
+  ; "open", (fun i -> OPEN i)
+  ; "protect", (fun i -> PROTECT i)
+  ; "sync", (fun i -> SYNC i)
+  ; "test", (fun i -> TEST i)
+  ; "tree", (fun i -> TREE i)
+  ; "schema", (fun i -> SCHEMA i)
+  ; "with", (fun i -> WITH i)    
+  ]
 }
 
 let whitespace = [' ' '\t']+

@@ -171,13 +171,13 @@ let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
 let rec dummy ?(msg="") s = match s with 
     Syntax.SName -> N "_"
   | Syntax.SLens -> 
-      let error _ = 
+      let error v = 
 	flush stdout; flush stderr;
-	prerr_string (Printf.sprintf "Fatal error: dummy %s was not overwritten.\n" msg);
+	prerr_string (Printf.sprintf "Fatal error: dummy %s was not overwritten.\nTree = %s" msg (V.string_of_t v));
 	flush stderr; 
 	assert false
       in
-	L (Lens.native error (fun _ -> error))
+	L (Lens.native error (fun a co -> error a))
   | Syntax.SSchema -> S (Schema.mk_any (Info.M "dummy schema"))
   | Syntax.STree   -> V (V.empty)
   | Syntax.SArrow(_,rs) -> F (s, fun _ -> dummy ~msg:msg rs)

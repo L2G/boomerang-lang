@@ -55,7 +55,7 @@ let mk_empty_tree i = ECat(i,[])
 
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
-%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA
+%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA PROTECT
 %token <Info.t> LENS TREE TYPE NAME ARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
@@ -288,6 +288,7 @@ param:
 
 #{#}
 exp: 
+  | PROTECT exp                              { EProtect(me2 $1 $2, $2) }
   | LET binding_list IN exp                  { ELet(m $1 $3,$2,$4) }
   | SCHEMA schema_binding_list IN exp        { ESchema(m $1 $3,$2,$4) }
   | FUN param param_list opt_sort ARROW exp  { EFun(me2 $1 $6,$2::$3,$4,$6) }

@@ -132,7 +132,7 @@ module SCEnv : SCEnvSig = struct
       | Some rv -> Some (s_of_rv rv)
 	  
   let update sev q s = 
-    CEnv.update sev q (mk_rv s (Value.dummy s))
+    CEnv.update sev q (mk_rv s (Value.dummy ~msg:"SCev stub" s))
 end
 
 let check_schemas = ref true
@@ -651,33 +651,29 @@ and compile_exp_lens cev e =
     Value.get_lens i (v_of_rv e_rv)
 
 and compile_bindings cev bs =
-  (* let _ = debug (sprintf "compiling bindings %s\n" (string_of_bindings bs)) in *)
+  (* let _ = Printf.eprintf "*** compiling bindings {%s}\n%!" (Misc.concat_list ", " (Safelist.map (function Syntax.BDef(_,x,_,_,_) -> Syntax.string_of_id x) bs)) in *)
   (* collect up a compile_env that includes recursive bindings *)
   let bcev =
     Safelist.fold_left
       (fun bcev ((BDef(i,f,xs,s,e) as bi)) ->
 	 let f_qid = qid_of_id f in
 	 let b_sort = (sort_of_params i xs s) in
-	 let dummy = Value.dummy b_sort in
-	   CEnv.update bcev f_qid (mk_rv b_sort dummy))      
+	 let dummy = Value.dummy ~msg:(sprintf "%s (temporary stub for %s)" (Syntax.string_of_sort b_sort) (Syntax.string_of_id f)) b_sort in
+	   CEnv.update bcev f_qid (mk_rv b_sort dummy))
       cev
       bs in
-  let rec compile_binding cev bi =
-    (* let _ = debug (sprintf "compiling binding %s\n" (string_of_binding bi)) in *) 
-    match bi with 
-        Syntax.BDef(i,f,[],s,e) ->
-	  let f_qid = qid_of_id f in
-	  let e_rv = compile_exp cev e in	
-	  let memoized_v = Value.memoize (v_of_rv e_rv) in
-	  let memoized_rv = mk_rv (s_of_rv e_rv) memoized_v in
-	    (f_qid, CEnv.overwrite bcev f_qid memoized_rv)
-      | Syntax.BDef(i,_,_,_,_) -> run_error i (fun () -> "unflattened binding")
-  in
-  let bcev,names_rev = Safelist.fold_left
-    (fun (bcev,names_rev) bi ->
-       let f_qid, bcev = compile_binding bcev bi in
-	 bcev, f_qid::names_rev)
-    (bcev,[])
+
+  let names_rev = Safelist.fold_left
+    (fun names_rev bi -> match bi with 
+         Syntax.BDef(i,f,[],s,e) ->
+	   let f_qid = qid_of_id f in
+	   let e_rv = compile_exp bcev e in
+	   let memoized_v = Value.memoize (v_of_rv e_rv) in
+	   let memoized_rv = mk_rv (s_of_rv e_rv) memoized_v in
+           let _ = CEnv.overwrite bcev f_qid memoized_rv in
+             f_qid::names_rev
+       | Syntax.BDef(i,_,_,_,_) -> run_error i (fun () -> "unflattened binding"))
+    []
     bs
   in
     bcev, Safelist.rev names_rev
