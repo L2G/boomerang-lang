@@ -36,6 +36,7 @@ clean:: tidy
 
 RESULT = harmonize-bookmarks
 SOURCES = harmonize-bookmarks.ml 
+LIBS += harmony
 
 all: makeharmonylib nc
 

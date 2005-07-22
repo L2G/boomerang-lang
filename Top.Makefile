@@ -48,7 +48,7 @@ YFLAGS = -v
 OCAMLFLAGS = -dtypes
 OCAMLCPFLAGS = f
 
-LIBS += csv harmony
+LIBS += csv 
 
 LIBDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
 INCDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
