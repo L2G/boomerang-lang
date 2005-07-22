@@ -18,10 +18,12 @@ let moz2xml f fpre = runcmd (Printf.sprintf "moz2xml < %s > %s" f fpre)
 let xml2moz fpost f = runcmd (Printf.sprintf "xml2moz < %s > %s" fpost f)
 
 let plutil f fpre = runcmd (Printf.sprintf "plutil -convert xml1 %s -o %s" f fpre)
+
+let plutilbak f fpost = runcmd (Printf.sprintf "plutil -convert binary1 %s -o %s" f fpost)
   
 let chooseEncoding f =
   if Filename.check_suffix f ".html" then ("xml",Mozilla,Some moz2xml,Some xml2moz)
-  else if Filename.check_suffix f ".plist" then ("xml",Safari,Some plutil,None)
+  else if Filename.check_suffix f ".plist" then ("xml",Safari,Some plutil,Some plutilbak)
   else raise Not_found
 
 let chooseAbstractSchema types =
