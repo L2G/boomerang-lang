@@ -13,6 +13,7 @@ type t =
   | S of Schema.t               (* schemas *)
   | V of V.t                    (* trees *)
   | F of Syntax.sort * (t -> t) (* functions *)
+  | D of Syntax.sort * Syntax.qid (* dummy values *)
 
 let sort_of_t = function
    N _    -> Syntax.SName    
@@ -20,23 +21,16 @@ let sort_of_t = function
  | S _    -> Syntax.SSchema
  | V _    -> Syntax.STree
  | F(s,_) -> s
+ | D(s,_) -> s
 
 (* pretty print *)
-let rec string_of_t t =   
-  match string_of_t_aux [] t with
-      _,[],s -> s
-    | _,ds,s -> s
-(* 	Printf.sprintf "%s\nwhere\n\t%s"
-	  s
-	  (Misc.concat_list "\n\t" ds)
-*)
-and string_of_t_aux printed = function
-    N(n)   -> [],[],n
-  | S(s)   -> [],[],Schema.string_of_t s
-  | V(v)   -> [],[],(V.string_of_t v)
-  | L(l)   -> [],[],"<lens>"
-  | F(s,_) -> [],[],Printf.sprintf "<%s fun>" (Syntax.string_of_sort s)
-
+let rec string_of_t = function
+    N(n)   -> n
+  | S(s)   -> Schema.string_of_t s
+  | V(v)   -> V.string_of_t v
+  | L(l)   -> "<lens>"
+  | F(s,_) -> Printf.sprintf "<%s fun>" (Syntax.string_of_sort s)
+  | D(s,q) -> Printf.sprintf "<%s dummy for %s>" (Syntax.string_of_sort s) (Syntax.string_of_qid q)
 
 (*random helpers *)
 (* utility functions for parsing *)      
@@ -136,6 +130,8 @@ let mk_fun_fun arg_sort return_sort msg f =
       | v         -> focal_type_error (Info.M msg) arg_sort v)
 let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
 
+let is_dummy = function D _ -> true | _ -> false
+
 (* (\* coerce: precondition is s1 <: s2 *\) *)
 (* let coerce s1 s2 =  *)
 (*   let err s1 s2 =  *)
@@ -166,21 +162,8 @@ let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
 (*   | SArrow(s1,s2)  -> F(function F _ as v -> f v *)
 (* 			  | _ -> focal_type_error s msg) *)
 
-
 (* dummy value generator *)
-let rec dummy ?(msg="") s = match s with 
-    Syntax.SName -> N "_"
-  | Syntax.SLens -> 
-      let error v = 
-	flush stdout; flush stderr;
-	prerr_string (Printf.sprintf "Fatal error: dummy %s was not overwritten.\nTree = %s" msg (V.string_of_t v));
-	flush stderr; 
-	assert false
-      in
-	L (Lens.native error (fun a co -> error a))
-  | Syntax.SSchema -> S (Schema.mk_any (Info.M "dummy schema"))
-  | Syntax.STree   -> V (V.empty)
-  | Syntax.SArrow(_,rs) -> F (s, fun _ -> dummy ~msg:msg rs)
+let rec dummy s q = D(s,q) 
 
 (* MEMOIZATION *)
 type thist = t (* HACK! *)

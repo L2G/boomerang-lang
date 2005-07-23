@@ -40,11 +40,11 @@ that denote the special tags used by the XML viewer.
 
 \LENSSECTION{Pcdata, XmlElt, T}
 The encoding of XML described above is expressed by the following schemas: 
-#*let Pcdata : schema = {`PCDATA = NonNullValue}
-#*let XmlElt : schema = {! \ `PCDATA = {`CHILDREN = T,             (* subelts *)
-#*                                   *\`CHILDREN = Value }}        (* attrs *)
-#*                      | Pcdata
-#*and T : schema = List.T XmlElt
+#*schema Pcdata = {`PCDATA = NonNullValue}
+#*schema XmlElt = {! \ `PCDATA = {`CHILDREN = T,             (* subelts *)
+#*                             *\`CHILDREN = Value }}        (* attrs *)
+#*                | Pcdata
+#*and T = List.T XmlElt
 (Note that the value under @PCDATA@ is never the empty string: our XML
 parser throws away whitespace-only character sequences, so they never show
 up as PCDATA.)
@@ -67,9 +67,9 @@ all the ordering from an XML structure, leaving a ``bush'' of schema
   for PCDATA in the rest}
 #{*}
 let ATTRS : name = "@attrs"
-let FlattenedXML : schema = { ?`PCDATA = (List.T NonNullValue),
-                              ?`ATTRS = {!=Value,*=Value},
-                              *\`PCDATA,`ATTRS = (List.T FlattenedXML) }
+schema FlattenedXML = { ?`PCDATA = (List.T NonNullValue),
+                        ?`ATTRS = {!=Value,*=Value},
+                        *\`PCDATA,`ATTRS = (List.T FlattenedXML) }
 #{@}
 
 The recursive definition of @flatten@ uses an auxiliary lens 
@@ -135,20 +135,20 @@ concrete
 argument is ``non-repetitive'' in the sense that each element contains at
 most one sub-element with a given tag (and at most one PCDATA sub-element).
 #{*}
-let FlattenedPcdata : schema = { `PCDATA = [Value] } 
-let SimpleFlattenedXML : schema = { ?`PCDATA = [Value],
-                                    ?`ATTRS = {!=Value,*=Value}, 
-                                    *\`PCDATA,`ATTRS = [SimpleFlattenedXML] } 
+schema FlattenedPcdata = { `PCDATA = [Value] } 
+schema SimpleFlattenedXML = { ?`PCDATA = [Value],
+                              ?`ATTRS = {!=Value,*=Value}, 
+                              *\`PCDATA,`ATTRS = [SimpleFlattenedXML] } 
 #{@}
 
 For such XML structures, there is no need for any list structure in their
 abstract representations---i.e., we can take just the head elements of all
 the lists, yielding something of this schema:
 #{*}
-let SquashedPCDATA : schema = { `PCDATA = Value } 
-let SquashedXML : schema = { ?`ATTRS = {!=Value,*=Value}, 
-                             ?`PCDATA = Value, 
-                             *\`PCDATA,`ATTRS = SquashedXML } 
+schema SquashedPCDATA = { `PCDATA = Value } 
+schema SquashedXML = { ?`ATTRS = {!=Value,*=Value}, 
+                       ?`PCDATA = Value, 
+                       *\`PCDATA,`ATTRS = SquashedXML } 
 #{@}
 The @squash_flattened@ lens is defined as follows:
 #{*}

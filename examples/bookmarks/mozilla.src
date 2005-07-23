@@ -2,7 +2,7 @@
 
 module Mozilla =
 
-  let CFolder : schema = [{"H3" = Any },{"DL" = Any}]
+  schema CFolder = [{"H3" = Any },{"DL" = Any}]
   let item : lens = 
     hoist "DT";
     hoist Xml.CHILDREN;

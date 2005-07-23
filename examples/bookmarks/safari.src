@@ -3,25 +3,25 @@
 module Safari =
 
 (* --------------- schemas -------------- *)
-let URIDict : schema = { "BLANK" = Value, 
+schema URIDict = { "BLANK" = Value, 
                          "title" = Value, 
                          *\("BLANK","title") = Any }
 
-let Link : schema = { "URIDictionary" = URIDict, 
+schema Link = { "URIDictionary" = URIDict, 
                       "URLString" = Value, 
                       * \ ("URIDictionary","URLString") = Any }
     
-let Folder : schema = { "Children" = (List.T Item), 
+schema Folder = { "Children" = (List.T Item), 
                         "Title" = Value, 
                         * \ ("Children","Title") = Any }
                     | { "Title" = Value, 
                         * \ ("Children","Title") = Any }
 
-and Item : schema = { "folder" = Folder } 
+and Item = { "folder" = Folder } 
                   | { "link" = Link } 
                   | { "proxy" = Any }
       
-let SafAbstract : schema = List.T Item
+schema SafAbstract = List.T Item
 
 (* --------------- lenses --------------- *)    
 (* recursively applies item to all children, and    *)

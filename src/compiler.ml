@@ -132,7 +132,7 @@ module SCEnv : SCEnvSig = struct
       | Some rv -> Some (s_of_rv rv)
 	  
   let update sev q s = 
-    CEnv.update sev q (mk_rv s (Value.dummy ~msg:"SCev stub" s))
+    CEnv.update sev q (mk_rv s (Value.dummy s (Value.parse_qid "NONE")))
 end
 
 let check_schemas = ref true
@@ -610,7 +610,17 @@ let rec compile_exp cev e0 =
 	    
     | EVar(i,q) -> begin 
         match CEnv.lookup cev q with
-	    Some rv -> rv 
+	    Some rv -> 
+              if Value.is_dummy (v_of_rv rv) then 
+                (* for agreement with the paper semantics, we should
+                   uncomment out the next line so that we diverge here
+                   instead of throwing an exception; it seems more
+                   helpful to throw the exception. *)
+                (* let rec diverge () = diverge () in diverge () *)
+                run_error (info_of_exp e0)
+                  (fun () -> Printf.sprintf "Variable %s is not used contractively in recursive definition"
+                     (string_of_exp e0))
+              else rv
 	  | None -> run_error 
 	      (info_of_exp e0)
 	        (fun () -> 
@@ -658,7 +668,7 @@ and compile_bindings cev bs =
       (fun bcev ((BDef(i,f,xs,s,e) as bi)) ->
 	 let f_qid = qid_of_id f in
 	 let b_sort = (sort_of_params i xs s) in
-	 let dummy = Value.dummy ~msg:(sprintf "%s (temporary stub for %s)" (Syntax.string_of_sort b_sort) (Syntax.string_of_id f)) b_sort in
+	 let dummy = Value.dummy b_sort (Syntax.qid_of_id f) in
 	   CEnv.update bcev f_qid (mk_rv b_sort dummy))
       cev
       bs in
@@ -692,9 +702,9 @@ and compile_schema_bindings cev ss =
   (* pass 1: gensym fresh names, update the cev we're given,
      producing a pre_cev where each schema-bound variable points to a
      dummy *)
-  let dummy_rv = mk_rv SSchema (Value.dummy SSchema) in
   let scev,fresh_xs_rev = Safelist.fold_left
     (fun (scev0,fresh_xs_rev) ((SDef(i,x,e) as si)) ->
+       let dummy_rv = mk_rv SSchema (Value.dummy SSchema (qid_of_id x)) in
        let fresh_x = qid_of_id (fresh_var x) in
        let scev1 = CEnv.update scev0 (qid_of_id x) dummy_rv in
        let scev2 = CEnv.update scev1 fresh_x dummy_rv in

@@ -13,6 +13,7 @@ type t =
   | S of Schema.t               (* schemas *)
   | V of V.t                    (* trees *)
   | F of Syntax.sort * (t -> t) (* functions *)
+  | D of Syntax.sort * Syntax.qid (* dummy *)
 
 val parse_qid : string -> Syntax.qid
 (** Returns a [Syntax.qid] qualified name from a string *)
@@ -53,10 +54,13 @@ val mk_ffun : string -> string -> string -> ((t -> t) -> t) -> t
 val string_of_t : t -> string
 (** [string_of_t v] returns a formatted string representing [v] *)
 
-val dummy : ?msg:string -> Syntax.sort -> t
+val dummy : Syntax.sort -> Syntax.qid -> t
 (** [dummy s] returns a dummy value of sort [s]. For sorts, see [Syntax.sort].
   @param the first optional argument is used as an error message for a dummy lens;
   its default is "". *)
+
+val is_dummy : t -> bool
+(** [is_dummy v] returns true iff [v] is a dummy value *)
 
 val memoize : t -> t
 (** Nate, could you fill in that one please ? I'm not sure of what it does *)
