@@ -1,14 +1,7 @@
 THINGS TO DO
 
 BCP TASKS
-structured text demo
-  make an ML front end for it
-  test implementation of third and fourth levels of nesting (last one using ALLCAPS)
-finish implementing uniform demo conventions and polish all demos
-  make a "playing with demos" section of the tutorial
-    recommend starting with structured text?  (Even though it is a bit
-    dangerous...!) 
-fix up the template directory
+fix up the template directory (and, if needed, the instruction in quick.src.)
 
 give Nate write-access to download area
 some of the options (logfile, addprefsto) don't make sense for Harmony
