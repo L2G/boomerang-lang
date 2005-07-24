@@ -21,12 +21,13 @@ EXPORTNAME=harmony-$(shell date "+20%y%m%d")
 TMPDIR=/tmp
 TMP=$(TMPDIR)/$(EXPORTNAME)
 DOWNLOADDIR=$(HOME)/pub/harmony/download
+HARMONYUSER=jnfoster
 
 export: 
 	echo \\draftfalse > $(DOCDIR)/temp.tex
 	$(MAKE) -C $(DOCDIR) pdf
 	rm -rf $(TMPDIR)/$(EXPORTNAME)
-	(cd $(TMPDIR); svn export svn+ssh://bcpierce@halfdome.cis.upenn.edu/mnt/saul/plclub1/svnroot/harmony4 $(EXPORTNAME))
+	(cd $(TMPDIR); svn export svn+ssh://$(HARMONYUSER)@halfdome.cis.upenn.edu/mnt/saul/plclub1/svnroot/harmony4 $(EXPORTNAME))
 	rm -rf $(TMP)/Personal.Makefile
 	rm -rf $(TMP)/papers
 	rm -rf $(TMP)/talks

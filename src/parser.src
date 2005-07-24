@@ -114,7 +114,7 @@ opens:
 
 <Decl> ::= 
           \lit{@let@} <BindingList> 
-     \ald \lit{@schema@} <SchemaBindingList>
+     \alt \lit{@schema@} <SchemaBindingList>
      \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
      \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
      \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
