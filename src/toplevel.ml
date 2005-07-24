@@ -60,6 +60,8 @@ let get lens c_fn o_fn =
   in
     write_tree o_fn av
 
+let signalconflicts = Prefs.createBool "signalconflicts" false "exit with status 1 (instead of 0) on conflicts" ""
+
 (********)
 (* SYNC *)
 (********)
@@ -89,14 +91,14 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   ignore (Misc.map_option (write_tree o'_fn) o');
   ignore (Misc.map_option (write_tree a'_fn) a');
   ignore (Misc.map_option (write_tree b'_fn) b');
-  if not (Sync.conflict_free act) then exit 1
-
-let rest = Prefs.createStringList "rest" "*stuff" ""
+  if not (Sync.conflict_free act) && Prefs.read signalconflicts then exit 1
 
 (**********************************************************************************)
 (* Infrastructure for custom top-level programs *)             
 
 (* Common preferences *)
+
+let rest = Prefs.createStringList "rest" "*stuff" ""
 
 let r1pref = Prefs.createString "r1" "" "first replica to synchronize" ""
 

@@ -1,6 +1,6 @@
-let orderedpref = Prefs.createBool "ordered" true "*keep bookmark ordering" ""
+let orderedpref = Prefs.createBool "ordered" true "keep bookmark ordering" ""
 
-let recompressPlists = Prefs.createBool "compress" true "*convert plist files to binary form after sync" ""
+let recompressPlists = Prefs.createBool "compress" true "convert plist files to binary form after sync" ""
 
 let archNameUniquifier () =
   if Prefs.read orderedpref then "ord" else "nonord"

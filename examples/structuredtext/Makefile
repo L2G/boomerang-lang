@@ -8,15 +8,26 @@
 TOP = ../..
 include $(TOP)/Top.Makefile
 
-all: test
+all: makeharmonylib nc
+
+include $(OCAMLMAKEFILE)
 
 test::
 	$(HARMONY) -check Structuredtext -test-all
+
+RESULT = harmonize-structuredtext
+SOURCES = harmonize-structuredtext.ml 
+LIBS += harmony
 
 
 ##############################################################################
 ## Demos
 
-# DEMO1 = R1ORIG=simpleexample.txt  R2ORIG=empty.meta
+DEMO1 = R1ORIG=example1.txt       R2ORIG=empty.txt     HARMONYFLAGS=-simplified
+DEMO2 = R1ORIG=example2.txt       R2ORIG=empty.meta    HARMONYFLAGS=-simplified
+DEMO3 = R1ORIG=example3.txt       R2ORIG=empty.meta    
+DEMO4 = R1ORIG=example4.txt       R2ORIG=empty.txt
+DEMO5 = R1ORIG=example5.txt       R2ORIG=empty.txt
+DEMO6 = R1ORIG=example6.txt       R2ORIG=empty.txt
 
 

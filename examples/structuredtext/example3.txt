@@ -1,0 +1,66 @@
+For this demo, we are using a more sophisticated lens to map from the
+concrete text file to the abstract tree.  (This is achieved by dropping the
+-simplified flag on the command line to harmonize-structuredtext, which
+causes the lens Structuredtext.file_with_combined_headers to be used instead
+of Structuredtext.file_with_simple_star_headers, as can be seen by a quick
+look at harmonize-structuredtext.ml.  These lenses, in turn, are defined in
+the Focal source file structuredtext.fcl -- this involves some pretty tricky
+lens programming, though, so don't be discouraged if that file doesn't make
+much sense right now.)
+
+Notice that there are now four levels of headers; lines beginning with one,
+two, and three stars, and then lines with no stars but consisting entirely
+of capital letters and spaces.  
+
+Note, also, that levels can be "skipped" -- e.g., this text is not preceded
+by any header lines at all.  In this case, empty headers for all the missing
+levels are automatically inserted.
+
+Try editing the abstract tree and changing the first "" header to a "* FOO"
+(don't forget the space after the star).  See what happens when the abstract
+tree is pushed back down into the concrete text format.
+
+Do 'make demo4' when you are ready to go on.
+
+
+* HEADER
+** SUBHEADER
+*** SUBSUBHEAD
+PARA HEAD
+para line
+para line
+para line
+para line
+para line
+para line
+PARA HEAD
+para line
+para line
+para line
+para line
+PARA HEAD
+* HEADER
+** SUBHEADER
+*** SUBSUBHEAD
+PARA HEAD
+para
+para
+para
+para
+para
+para
+PARA HEAD
+para
+para
+para
+para
+para
+para
+PARA HEAD
+para
+para
+para
+para
+para
+para
+o

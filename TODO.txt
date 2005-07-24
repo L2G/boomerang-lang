@@ -6,17 +6,33 @@ structured text demo
   test implementation of third and fourth levels of nesting (last one using ALLCAPS)
 finish implementing uniform demo conventions and polish all demos
   make a "playing with demos" section of the tutorial
+    recommend starting with structured text?  (Even though it is a bit
+    dangerous...!) 
 fix up the template directory
 
+give Nate write-access to download area
+some of the options (logfile, addprefsto) don't make sense for Harmony
+  and should be suppressed
 make conflict runs give 0 exit code unless a switch is set
 make Plist a library module and experiment with syncing some real plists
 move Thang's general concat into List module
 the code in Registry that searches for files along the search path should
   also look in subdirectories
 why does - not work as an output file for csv (but works for meta, e.g.)?
+tidy this file and consider leaving it out of the distro
+
+We should also do the last little step to make the address demo really work
+with palm data -- preprocessing the output from pilot-address to change the
+first line to use numeric headers.  (No postprocess is needed because the
+header line is ignored.)  I haven't done it yet because doing it right is
+not entirely trivial (though pretty easy): it should really be done by
+reading the file into memory as a string, but then it will *be* in memory
+and the later stages of the process should be able to use it right there,
+without dumping it out to a file again.
 
 NATE TASKS
 NOW
+split the svn repository
   fix meta
   centralize errors
   eliminate contractiveness tests?
@@ -73,6 +89,7 @@ Peter Buneman
 Penn db group
 
 PUBLIC RELEASE ANNOUNCEMENT LIST
+Daniel Spoonhauer
 Alain Frisch
 Tokyo people
 Pascal Molli and group
@@ -87,7 +104,6 @@ move papers, notes, old, etc. to a separate, private svn repository
 * The Sync module exports a bunch of stuff that looks internal -- is it needed
   by the sync visualizer, perhaps?  Otherwise let's drop it.
 * renaming: hoist becomes hoist_unique
-* some of the options (logfile, addprefsto) don't make sense for Harmony
 
 LENSES
 * find or write external palm to XML parser and writer

@@ -45,7 +45,29 @@ let parse_list_with_headers (H:schema) : lens =
    H specifies the schema of headers in "exploded" form -- i.e., H should be a schema of lists of characters. *)
 let l (H:schema) : lens = List.map List.explode; parse_list_with_headers H; List.map (List.map List.implode)
 
-let l_with (S:schema) (l':lens) : lens = l S; List.map (wmap {`List.TL -> l'})
+let FirstElementIn (S:schema) : schema =
+  List.Cons S (List.T Any)
+
+let FirstElementNonNull : schema =
+  List.Cons (List.NonEmptyList Any) (List.T Any)
+
+let l_with (S:schema) (l':lens) : lens =
+  l S;
+  List.map (
+    wmap { `List.HD -> List.explode };
+    acond (FirstElementIn S) FirstElementNonNull
+      (id)
+      (wmap { `List.HD -> List.implode };
+       plunge List.TL;
+       add List.HD []);
+    wmap { `List.HD -> List.implode };
+    wmap {`List.TL -> l'})
+
+(* BCP: I'm actually not yet sure whether this simpler one might not be better:
+    let l_with (S:schema) (l':lens) : lens = l S; List.map l'
+  or:
+    let l_with (S:schema) (l':lens) : lens = l S; List.map (wmap {`List.TL -> l'})
+*) 
 
 (******************************************************************************)
 (* Some specific useful instances... *)
@@ -68,6 +90,7 @@ let StarHeader1 : schema = List.Cons {"*"} (List.Cons {" "} (List.NonEmptyList C
 let StarHeader2 : schema = List.Cons {"*"} StarHeader1
 let StarHeader3 : schema = List.Cons {"*"} StarHeader2
 
+let simple_star_headers : lens = l StarHeader1
 let star_headers : lens = l_with StarHeader1 (l StarHeader2)
 
 let combined_headers : lens = l_with StarHeader1 (l_with StarHeader2 (l_with StarHeader3 (l AllCapsList)))
@@ -100,6 +123,7 @@ schema NestedListOfValues = List.T (NonListValue | NestedListOfValues)
 
 let file_with_all_caps_headers : lens = List.lines; caps_headers
 let file_with_star_headers : lens = List.lines; star_headers
+let file_with_simple_star_headers : lens = List.lines; simple_star_headers
 let file_with_combined_headers : lens = List.lines; combined_headers
 
 
