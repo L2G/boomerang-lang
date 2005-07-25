@@ -26,9 +26,11 @@ unit-tests:
 	$(HARMONY) -check Addr -test-all
 
 test0:: buildharmony all
+	cp sample.xml r1.xml
 	./harmonize-addresses $(LENSPATH) r1.xml $(HARMONYFLAGS)
 
 test0a::
+	cp sample.xml r1.xml
 	./harmonize-addresses $(LENSPATH) r1.xml junk.csv
 	cat junk.csv
 
