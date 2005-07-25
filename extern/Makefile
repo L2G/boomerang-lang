@@ -7,7 +7,7 @@
 
 TOP = ..
 include $(TOP)/Top.Makefile
-SUBDIRSCLEANONLY = $(ALLSUBDIRS)
+SUBDIRSCLEANONLY = iCalendar ocaml-csv-1.0.3
 
 all:
 
