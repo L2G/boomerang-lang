@@ -189,7 +189,7 @@ init-demo: all
 	$(QUIET)echo "Copying $(R1ORIG) to $(R1) and $(R2ORIG) to $(R2)"
 	$(QUIET)rm -rf $(R1) $(R2) ar.meta
 	$(QUIET)cp $(R1ORIG) $(R1)
-	$(QUIET)if [ -f $(R2) ]; then cp $(R2ORIG) $(R2); fi
+	$(QUIET)if [ -f $(R2ORIG) ]; then cp $(R2ORIG) $(R2); fi
 
 demo: 
 	$(QUIET)if [ ! -e $(R1) ]; then $(MAKEDEMO) demo1; exit 1; fi
@@ -198,8 +198,17 @@ demo:
 	   echo ; \
 	   echo 'Please edit $(R1) and/or $(R2) and do "make demo"...'; \
          else \
+	   cp $(R1) $(R1)prev.tmp; \
+	   cp $(R2) $(R2)prev.tmp; \
 	   $(EDITOR) $(R1) $(R2); \
-	   $(MAKEDEMO) demo; \
+	   export AGAIN=yes; \
+	   diff -q $(R1) $(R1)prev.tmp; \
+	   if diff -q $(R1) $(R1)prev.tmp && diff -q $(R2) $(R2)prev.tmp; then \
+	     export AGAIN=; \
+           fi; \
+	   if [ "$$AGAIN" != "" ]; then \
+	     $(MAKEDEMO) demo; \
+	   fi; \
          fi
 
 ########

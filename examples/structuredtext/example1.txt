@@ -5,15 +5,16 @@ ideas with just one level of structure.
 
 Try adding a few new lines below SECOND PART in one replica (the file
 r1.txt) and below the THIRD PART in the other (r2.txt).  Then do 'make demo'
-to see what happens (or, if you're reading this in an editor that was
+to see what happens. (Or, if you're reading this in an editor that was
 created automatically by a 'make demo1', just save the files and quit the
 editor; the new files will be synchronized and redisplayed for further
-editing).  Repeat if desired.
+editing.  The demo will automatically repeat as long as you keep changing
+one of the files in the editor.  If you change neither file, the demo
+terminates.)  Repeat as desired.
 
-You can also try changing the files in other sorts of way and doing 'make
-demo' to see what happens.  If you get things into a state that you don't
-understand and want to start fresh, do 'make demo1' to reinitialize the
-demo.
+You can also try changing the files in other sorts of ways to see what
+happens.  If you get things into a state that you don't understand and want
+to start fresh, do 'make demo1' to reinitialize the demo.
 
 When you're ready, do 'make demo2' to go on to the next step.
 
