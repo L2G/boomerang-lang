@@ -3,7 +3,6 @@ include $(TOP)/Top.Makefile
 
 ICALREAD = $(TOP)/extern/iCalendar/iCalViewer ascal
 ICALWRITE = $(TOP)/extern/iCalendar/iCalViewer asmeta
-TMPA = tmpa.meta
 DUM1 = dum1.meta
 DUM2 = dum2.meta
 TMPC = tmpc.meta
@@ -18,10 +17,9 @@ test::
 		   -r2 $(TMPC) -lensr2 ICalendar.l \
 		   -newr1 $(FINALC) -newar $(DUM1) -newr2 $(DUM2) \
 		   -schema ICalendar.ICalendar_A
-	cat $(TMPA)
 	echo
 	$(ICALWRITE) $(FINALC) updated.ics
 	cat $(FINALC)
 
 clean::
-	rm $(TMPA) $(TMPC) $(DUM1) $(DUM2) updated.ics $(FINALC)
+	rm $(TMPC) $(DUM1) $(DUM2) updated.ics $(FINALC)

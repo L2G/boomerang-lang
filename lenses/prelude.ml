@@ -203,6 +203,10 @@ let assert_native t =
 	None -> ()
       |	Some (v0, t0) ->
 	  error [`String (assert_qid^"(" ^ dir ^ "): tree"); `Space;
+		  `Tree v; `Space;
+		  `String "is not a member of";  `Space;
+		  `String (Schema.string_of_t t);
+		  `Space; `String "because"; `Space;
 		  `Tree v0; `Space;
 		  `String "is not a member of";  `Space;
 		  `String (Schema.string_of_t t0)]
