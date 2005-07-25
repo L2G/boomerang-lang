@@ -5,11 +5,11 @@ IN = myfirst.xmi:xml
 
 OUT = output.meta
 
-all: test
+all: testxmi
 
-test::
-	$(HARMONY) get -c $(IN) -o $(OUT) -l XmiUml.l -I $(TOP)/lenses
-	cat $(OUT)
+testxmi:
+	$(HARMONY) $(IN) -lensr1 XmiUml.l \
+	-lensar XmiUml.l -I $(TOP)/lenses
 
 clean::
 	rm $(OUT)

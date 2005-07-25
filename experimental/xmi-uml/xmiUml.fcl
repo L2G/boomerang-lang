@@ -1,5 +1,28 @@
 module XmiUml =
 open Xmi
-  
+
+let model : lens = 
+  hoist "Model_Management.Model";
+  List.map 
+    (mapp {"Foundation.Core.ModelElement.name"}
+       (List.hd []; map (List.hd []); Xml.hoist_pcdata);
+     pivot "Foundation.Core.ModelElement.name");
+  List.flatten;
+  map (List.hd [])
+
+let model_flatten : lens =
+   hoist "Model_Management.Model";
+  List.hd [];
+  sfork { "xmi.id" = Any, "xmi.uuid" = Any } { "Hello" = {} }
+    (const {"Hello"} { "xmi.id" = {"world"}, "xmi.uuid" = {"!"}})
+    (id);
+  probe "Ici"
+    
 let l : lens =
-  assert (Xmi.T Any)
+  assert (Xmi.T Any);
+  Xmi.toFlattenedContents 
+    (load "xml" 
+       "<XMI.header>
+       <XMI.metamodel xmi.name=\"UML\" xmi.version=\"1.3\"/>
+       </XMI.header>");
+  model_flatten

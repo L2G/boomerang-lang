@@ -259,6 +259,25 @@ let concat v1 v2 =
 				  Format.printf "V.concat: domain collision between the following two trees:";
 				  format v1;
 				  format v2))
+
+(* A general concat that doesn't fail on domain collision, 
+   but concats recursively under the children *)
+let rec gconcat v1 v2 =
+  let rec picks e acc = function
+      [] -> (None, Safelist.rev acc)
+    | (a,t)::q -> 
+	if a = e then 
+	  (Some t, (Safelist.rev acc)@q)
+	else
+	  picks e ((a,t)::acc) q in
+  let rec aux = function
+      [], q2 -> q2
+    | q1, [] -> q1
+    | (a, t)::q, q2 -> 
+	(match picks a [] q2 with
+	  Some t', q' -> (a, gconcat t t')::(aux (q,q'))
+	| None, q' -> (a,t)::(aux (q,q'))) in
+  from_list ( aux ((to_list v1),(to_list v2)) )
     
 (* let iter f (VI (_,m)) = Name.Map.iter f m *)
 

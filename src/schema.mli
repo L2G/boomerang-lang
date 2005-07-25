@@ -34,3 +34,8 @@ val assert_wf : t -> Syntax.qid list -> unit
 val project : t -> Name.t -> t option
 val dom_member : V.t -> t -> bool
 val member : V.t -> t -> bool
+(** [pick_bad_subtree v t] returns [None] if [v] is a member of [t],
+   and [Some (v0, t0)] otherwise, where [v0] is a subtree
+   of [v] where assertion failed against [t0]. *)
+val pick_bad_subtree : V.t -> t -> (V.t * t) option
+

@@ -370,6 +370,12 @@ let mk_cons i h t = mk_cat i [mk_atom i V.hd_tag h;
                               mk_atom i V.tl_tag t]
       
 (* --------------- member and dom_member ---------------*)
+
+(* membership test results *)
+type membership =
+    Member of (Name.t * t) list
+  | Failure of V.t * t
+	
 (* [empty_view_member t] returns [true] iff {} is a member of t *)
 let rec empty_view_member t0 = match t0 with
     Any(_) -> true
@@ -380,21 +386,22 @@ let rec empty_view_member t0 = match t0 with
   | Wild(_,_,l,uo,_) -> (l <= 0) && (match uo with None -> true | Some u -> (u >=0))
         
 let rec member_aux v t0 = match t0 with 
-    Any(_) -> Some []
+    Any(_) -> Member []
   | Atom(_,n,t) -> 
       let d = V.dom v in 
         if (Name.Set.cardinal d = 1) 
           && (Name.Set.choose d = n)
-        then Some [(n,t)]
-        else None
+        then Member [(n,t)]
+        else Failure (v, t0)
   | Union(_,ts) ->
       let rec loop acc l = match acc with 
-          Some _ -> acc 
-        | None -> begin match l with
-              [] -> None
-            | h::t -> loop (member_aux v h) t
-          end in
-        loop None ts
+        Member _ -> acc
+      | Failure _ -> 
+	  begin match l with
+            [] -> Failure (v, t0)
+          | h::t -> loop (member_aux v h) t
+	  end in
+      loop (Failure (v, t0)) ts
   | Cat(_,ts) ->
       let split_reso = 
         Name.Set.fold 
@@ -402,16 +409,20 @@ let rec member_aux v t0 = match t0 with
                None -> None
              | Some (t,ps) -> begin
                  match split t k with 
-                     None -> None
-                   | Some(tk,tres) -> Some (tres, (k,tk)::ps)
-               end)
+                   None -> None
+                 | Some(tk,tres) -> Some (tres, (k,tk)::ps)
+             end)
           (V.dom v)
           (Some (t0,[])) in
-        begin 
-          match split_reso with 
-              None -> None
-            | Some(tres,ps) -> if empty_view_member tres then Some(ps) else None
-        end
+      begin 
+        match split_reso with 
+          None -> Failure (v, t0)
+        | Some(tres,ps) -> 
+	    if empty_view_member tres then 
+	      Member(ps) 
+	    else 
+	      Failure(v,t0)
+      end
   | Var(_,_,thk) -> member_aux v (thk ())
   | Wild(_,f,l,uo,t) -> 
       let d = V.dom v in
@@ -420,15 +431,27 @@ let rec member_aux v t0 = match t0 with
           && (match uo with None -> true | Some u -> c <= u)
           && (Name.Set.is_empty (Name.Set.inter f d))
         then 
-          Some (Name.Set.fold (fun k ps -> (k,t)::ps) d [] )
+          Member (Name.Set.fold (fun k ps -> (k,t)::ps) d [] )
         else 
-          None
+          Failure (v,t0)
 	    
 let rec member v t0 = match member_aux v t0 with 
-    None -> false 
-  | Some ps -> 
+    Failure _ -> false 
+  | Member ps  -> 
       Safelist.for_all 
         (fun (k,tk) -> member (V.get_required v k) tk) 
         ps
 
-let dom_member v t0 = match member_aux v t0 with None -> false | Some _ -> true
+let rec pick_bad_subtree v t0 = match member_aux v t0 with 
+    Failure (v,t) -> Some (v,t)
+  | Member ps -> 
+      let rec for_all = function
+	  [] -> None
+	| (k,tk)::q -> 
+	    match pick_bad_subtree (V.get_required v k) tk with
+	      Some (v,t) -> Some (v,t)
+	    | None -> for_all q		  
+      in
+      for_all ps
+
+let dom_member v t0 = match member_aux v t0 with Failure _ -> false | Member _ -> true

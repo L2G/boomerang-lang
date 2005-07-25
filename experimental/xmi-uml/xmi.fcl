@@ -1,8 +1,5 @@
 module Xmi =
   
-let Append (T1 : schema) (L : schema) : schema =
-  {`List.HD = T1, `List.TL = Append T1 L} | L
-
 let CData : schema = { ! = {}}
 
 let XMI_element_att : schema =
@@ -53,10 +50,10 @@ let Documentation : schema =
  
 let Header : schema = 
   let Models : schema =
-    Append Model (Append MetaModel (List.T MetaMetaModel)) in
-  {"XMI.header" = { `Xml.CHILDREN =
-		    { `List.HD = Documentation, `List.TL = Models } |
-		    Models } }
+    List.T {!\"XMI.documentation" = Any} in
+(*     Append Model (Append MetaModel (List.T MetaMetaModel))  in *)
+  {"XMI.header" = (* { `Xml.CHILDREN = *)
+(* 		    (Documentation :: Models) | Models } *) Any }
     
 let Extensions : schema = 
   {"XMI.extensions" = { `Xml.CHILDREN = List.T Any,
@@ -86,20 +83,29 @@ let Replace : schema =
 
 let Difference : schema =
   {"XMI.difference" = 
-    ({`Xml.CHILDREN = ([Difference] | [Delete] | [Add] | List.T Replace)}
-       + XMI_element_att
-       + XMI_link_att)}
+   (*  ({`Xml.CHILDREN = List.T (Difference | Delete | Add | Replace)} *)
+(*        + XMI_element_att *)
+(*        + XMI_link_att) *) Any}
 
 let T (Contents : schema) : schema =
   List.T 
     ({ XMI = 
-      { `Xml.CHILDREN = 
-	(List.Cons Header
-	   ({`List.HD = {"XMI.content" = 
-			  { `Xml.CHILDREN = Contents }},
-	      `List.TL = (Append Difference (List.T Extensions))}
-            | (Append Difference (List.T Extensions)))),
-	"xmi.version" = {"1.0"},
-	?timestamp = CData,
-	?verified = CData}
+       { `Xml.CHILDREN = 
+	 (List.T
+	    (Header | 
+	    {"XMI.content" = { `Xml.CHILDREN = Contents }} |
+	    Difference |
+	    Extensions)),
+	 "xmi.version" = {"1.0"},
+	 ?timestamp = CData,
+	 ?verified = CData}
      })
+
+
+let toFlattenedContents (header : tree) : lens =
+  List.hd [];
+  hoist "XMI";
+  focus Xml.CHILDREN {"xmi.version" = {"1.0"}};
+  Xml.flatten;
+  focus "XMI.content" header;
+  List.hd []

@@ -4,6 +4,8 @@ include $(TOP)/Top.Makefile
 ICALREAD = $(TOP)/extern/iCalendar/iCalViewer ascal
 ICALWRITE = $(TOP)/extern/iCalendar/iCalViewer asmeta
 TMPA = tmpa.meta
+DUM1 = dum1.meta
+DUM2 = dum2.meta
 TMPC = tmpc.meta
 FINALC = finalc.meta
 
@@ -11,13 +13,15 @@ all: test
 
 test::
 	$(ICALREAD) calendar.ics $(TMPC)
-	$(HARMONY) get -c $(TMPC) -o $(TMPA) -l ICalendar.l
+	$(HARMONY) -ar $(TMPC) -lensar ICalendar.l \
+		   -r1 $(TMPC) -lensr1 ICalendar.l \
+		   -r2 $(TMPC) -lensr2 ICalendar.l \
+		   -newr1 $(FINALC) -newar $(DUM1) -newr2 $(DUM2) \
+		   -schema ICalendar.ICalendar_A
 	cat $(TMPA)
 	echo
-	echo
-	$(HARMONY) put -a $(TMPA) -c $(TMPC) -o $(FINALC) -l ICalendar.l
 	$(ICALWRITE) $(FINALC) updated.ics
 	cat $(FINALC)
 
 clean::
-	rm $(TMPA) $(TMPC) updated.ics $(FINALC)
+	rm $(TMPA) $(TMPC) $(DUM1) $(DUM2) updated.ics $(FINALC)

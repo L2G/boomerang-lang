@@ -198,16 +198,17 @@ let no_assert = Prefs.createBool "no-assert" false
 let assert_qid = "Native.Prelude.assert" 
 let assert_native t = 
   let check_assert dir v t = 
-    if (not (Prefs.read no_assert))
-      && (not (Schema.member v t)) 
-    then
-      error [`String (assert_qid^"(" ^ dir ^ "): tree"); `Space;
-	     `Tree v; `Space;
-	     `String "is not a member of";  `Space;
-	     `String (Schema.string_of_t t)] 
+    if (not (Prefs.read no_assert)) then
+      match Schema.pick_bad_subtree v t with
+	None -> ()
+      |	Some (v0, t0) ->
+	  error [`String (assert_qid^"(" ^ dir ^ "): tree"); `Space;
+		  `Tree v0; `Space;
+		  `String "is not a member of";  `Space;
+		  `String (Schema.string_of_t t0)]
   in          
-    { get = ( fun c -> check_assert "get" c t; c);
-      put = ( fun a _ -> check_assert "put" a t; a) }
+  { get = ( fun c -> check_assert "get" c t; c);
+    put = ( fun a _ -> check_assert "put" a t; a) }
 let assert_lib = 
   mk_sfun "lens" assert_qid 
     (fun t -> L (assert_native t))    
@@ -381,6 +382,86 @@ let xfork_lib =
               (fun l1 ->
                  mk_lfun "lens" xfork_qid (fun l2 -> Value.L (xfork pcv pav l1 l2)))))
 let _ = register_native xfork_qid "tree -> tree -> lens -> lens -> lens" xfork_lib
+
+(* SFORK *)
+let sfork_qid = "Native.Prelude.sfork"
+let sfork sc sa l1 l2 =
+  { get = 
+      (fun c ->
+	let lc = V.to_list c in
+	V.from_list 
+	  (Safelist.map (fun (n, cn) ->
+	    (n,
+	     if Schema.member cn sc then
+	       let an = l1.get cn in
+	       if Schema.member an sa then 
+		 an 
+	       else
+		 error [`String sfork_qid; `String "(get): l1 applied to child ";
+			 `String n; `String " yielded a child not in "; `Space;
+			 `String (Schema.string_of_t sa); `Space; `Tree an]
+	     else
+	       let an = l2.get cn in
+	       if not(Schema.member an sa) then 
+		 an 
+	       else
+		 error [`String sfork_qid; `String "(get): l2 applied to child ";
+			 `String n; `String " yielded a child in "; `Space;
+			 `String (Schema.string_of_t sa); `Space; `Tree an]))
+	     lc));
+    put = (fun a co -> 
+      let validate t n b =
+      	if Schema.member t sc =  b then 
+	  t
+	else
+	  error [`String sfork_qid; `String "(put): "; 
+		  if b then `String "l1" else `String "l2"; 
+		  `String "applied to child ";`String n; 
+		  if b then 
+		    `String " yielded a child not in " 
+		  else
+		    `String " yielded a child in";
+		  `Space; `String (Schema.string_of_t sc); `Space; `Tree t] in
+      let la = V.to_list a in
+      V.from_list 
+	(Safelist.map (fun (n, an) -> 
+	  (n,
+	   match co with
+	     None -> 
+	       if Schema.member an sa then 
+		 validate (l1.put an None) n true
+	       else
+		 validate (l2.put an None) n false
+	   | Some c -> 
+	       begin
+		 match V.get c n with
+		   None ->
+		     if Schema.member an sa then 
+		       validate (l1.put an None) n true
+		     else
+		       validate (l2.put an None) n false
+		 | Some cn -> 
+		     begin 
+		       match (Schema.member cn sc, Schema.member an sa) with
+			 (true, true) -> validate (l1.put an (Some cn)) n true
+		       | (true, false) -> validate (l1.put an None) n true
+		       | (false, false) -> validate (l2.put an (Some cn)) n false
+		       | (false, true) -> validate (l2.put an None) n false
+		     end
+	       end
+		 ))
+	   la))
+  }
+    
+let sfork_lib = 
+  mk_sfun "schema -> lens -> lens -> lens" sfork_qid
+    (fun c ->
+       mk_sfun "lens -> lens -> lens" sfork_qid
+         (fun a ->
+            mk_lfun "lens -> lens" sfork_qid
+              (fun l1 ->
+                 mk_lfun "lens" sfork_qid (fun l2 -> Value.L (sfork c a l1 l2)))))
+let _ = register_native sfork_qid "schema -> schema -> lens -> lens -> lens" sfork_lib
 	  
 (* HOIST *)
 let hoist_qid = "Native.Prelude.hoist"
