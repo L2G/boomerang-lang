@@ -130,7 +130,10 @@ let runcmd cmd =
   debug (fun() -> Format.eprintf "%s\n" cmd);
   if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
 
-let cp f g = runcmd (Printf.sprintf "cp %s %s" f g)
+let cp_or_del f g =
+  if Sys.file_exists f
+  then runcmd (Printf.sprintf "cp %s %s" f g)
+  else if Sys.file_exists g then runcmd (Printf.sprintf "rm %s" g)
   
 (* Top-level boilerplate *)
 
@@ -275,12 +278,10 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
            arlens r1lens r2lens
            (enc newartemp arenc) (enc newr1temp r1enc) (enc newr2temp r2enc);
 
-      debug (fun () -> Format.printf "sync finished");
-
       (* Postprocess *)
       let postprocess p fpost f =
         match p with
-          None -> cp fpost f
+          None -> cp_or_del fpost f
         | Some pfun -> pfun fpost f   in
       postprocess arpost newartemp newar;
       postprocess r1post newr1temp newr1;
@@ -288,8 +289,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     end)
   (* Clean up *)
   (fun () -> 
-    (* cleanupTempFiles() *) ()
-    
+    (* cleanupTempFiles() *)
+      Format.print_flush ()
   )
   
 let toplevel progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens =
