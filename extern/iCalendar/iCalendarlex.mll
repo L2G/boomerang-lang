@@ -107,12 +107,12 @@ rule line = parse
                             col lexbuf;
                             let txt = text lexbuf in
                             crlf lexbuf;
-                            XPROP (name, params, txt) }                           
+                            XPROP (name, params, txt) }
 | "CLASS"                 { let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let classval = classvalue lexbuf in
                             crlf lexbuf;
-                            CLASS (xplist, classval) }                           
+                            CLASS (xplist, classval) }                          
 | "CREATED"               { let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let dt = date_time lexbuf in
@@ -321,6 +321,7 @@ rule line = parse
                             let t = text lexbuf in
                             crlf lexbuf;
                             TZNAME (params, t) }
+| eol                     { line lexbuf }
 | eof                     { EOF }
 | ""                      {  let s = aline lexbuf in failwith (s ^ " is not implemented yet") }
 

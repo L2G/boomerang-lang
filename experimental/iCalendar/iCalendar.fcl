@@ -185,9 +185,10 @@ schema XProp_A = { * = {val = Value, ?params = Params_A}}
 
 and Components_A = 
   let Timezonec_A : schema = CompProp_A in
-  List.T ({Eventc = Eventc_A} | {Timezonec = Timezonec_A})
+  {?Eventc = { * = (CompProp_A + {?alarms = List.T CompProp_A})},
+	       ?Timezonec = { * = Timezonec_A}}
     
-and Eventc_A = {props = CompProp_A, ?alarms = List.T CompProp_A}
+and Eventc_A = { props = CompProp_A, ?alarms = List.T CompProp_A}
 	
 and CompProp_A =
       { ?action = XPListPlusVal_A Value,
@@ -280,7 +281,7 @@ and Geo_A = { latitude = Value, longitude = Value, ?xplist = XPList_A}
 and RStatus_A = 
       { code = { * = {} }, text = Value, ?extdata = Value, ?params = Params_A}
 	
-and TzID_A = { ! = {global = Bool, ?xplist = XPList_A }}
+and TzID_A = { ! = {}}
 	
 and OffsetTime_A = 
       { positive = Bool, hour = Value, minute = Value, second = Value }
@@ -333,6 +334,16 @@ schema ICalendar_A = Components_A
 (*-------------------------------------------------------------------------*)
 (* And this is more to give it a try from scratch *)
 (* one lens per schema variable above *)
+
+let domCompProp : tree = 
+  { "action", "attach", "attendee", "categories", "class",
+    "comment", "contact", "created", "daylightc", "description",
+    "dtend", "dtstamp", "dtstart", "duration", "exdate", "exrule",
+    "geo", "lastmod", "location", "organizer", "priority", "rdate",
+    "recurid", "related_to", "repeat", "resources", "rrule", "rstatus",
+    "seq", "standardc", "status", "summary", "transp", "trigger",
+    "tzid", "tzname", "tzoffsetto", "tzoffsetfrom", "tzurl", "uid",
+    "url", "xprop"} 
 
 (* let ICalendar : schema = [{calprops = CalProps, components = Components}] *)
 let icalendar_lens : lens =
@@ -414,6 +425,11 @@ and components_lens : lens =
        (mapp {val} (protect eventc_lens))
        (mapp {val} (protect timezonec_lens));
      pivot "type"; map (hoist "val"));
+  List.flatten;
+  wmap { "Eventc" -> (List.map (hoist_nonunique "props" domCompProp;
+				pivot "uid");
+		      List.flatten; map (List.hd [])),
+         "Timezonec" -> (List.map (pivot "tzid"); List.flatten; map (List.hd []))};
   assert Components_A
     
 (* and Eventc : schema = {props = CompProp, ?alarms = List.T CompProp} *)
@@ -622,8 +638,7 @@ and rstatus_lens : lens =
 (* and TzID : schema = { global = Bool, val = Value, ?xplist = XPList } *)
 and tzid_lens : lens =
   assert TzID;
-  pivot "val";
-  map ( mapp {xplist} xplist_lens );
+  pivot "val"; map ( const {} {"global" = {"#true"}});
   assert TzID_A
 	
 (* and OffsetTime : schema =  *)
