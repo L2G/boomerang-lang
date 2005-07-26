@@ -1,7 +1,17 @@
-#{#}
+\section{Module {\tt Plist}}
+\label{sec:plist}
 
-module Plist =
+The @plist@ format is a generic XML representation for structured data
+(strings, arrays, and finite maps).  It is heavily used in OS X---for
+storage of application preference files, system configuration information,
+etc.  
 
+##module Plist =
+
+The core of the module is a group of mutually recursive lenses that walk
+over the plist structure and perform an appropriate transformation at each
+node.  
+#{*}
 let plist_object_lens : lens =
   wmap { "dict" -> dict_lens,
          "array" -> array_lens,
@@ -26,18 +36,28 @@ and leaf_lens : lens =
     id;
   List.hd [];
   hoist Xml.PCDATA
+#{@}
 
+The module's main lens, @l@, deals with a little top-level boilerplate and
+invokes @plist_object_lens@ to process the body of the file.
+#{*}
 let l : lens =
   List.hd [];
   hoist "plist";
   focus Xml.CHILDREN { "version" = {"1.0"} };
   List.hd [];
   plist_object_lens
+#{@}
     
-(* flatten_dict: flatten a dict into a bush { key1 = data1, key2 = data2, ... } *)
+Finally, the utility lens @flatten_dict@ takes an ordered dictionary
+structure and flattens it into a bush of the form %
+@{ key1 = data1, key2 = data2, ... }@.
+#{*}
 let flatten_dict : lens =
   hoist "dict";
   List.map ( pivot List.HD;  map (focus List.TL {}; List.hd []) );
   List.flatten;
   map (List.hd [])
+#{@}
+
 

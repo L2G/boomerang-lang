@@ -14,15 +14,14 @@ test::
 	$(HARMONY) -check Main -test-all
 
 get:
-	$(HARMONY) get -lens Main.l -concrete test.xml -output temp.meta
-	cat temp.meta
+	$(HARMONY) test.xml -lensr1 Main.l 
 
 sync:
-	$(HARMONY) sync -replica1 r1.xml -lensr1 Main.l \
-	                -replica2 r2.xml -lensr2 Main.l \
-	                -archive archive.xml -lensar Main.l \
-	                -newreplica1 r1.xml \
-	                -newreplica2 r2.xml \
-	                -newarchive archive.xml \
-		        -schema Prelude.Any
+	$(HARMONY) -r1 r1.xml -lensr1 Main.l \
+	           -r2 r2.xml -lensr2 Main.l \
+	           -ar archive.xml -lensar Main.l \
+	           -newr1 r1.xml \
+	           -newr2 r2.xml \
+	           -newar archive.xml \
+		   -schema Prelude.Any
 

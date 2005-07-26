@@ -1,13 +1,8 @@
 THINGS TO DO
 
 BCP TASKS
-fix up the template directory (and, if needed, the instruction in quick.src.)
-
-give Nate write-access to download area
 some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
-make conflict runs give 0 exit code unless a switch is set
-make Plist a library module and experiment with syncing some real plists
 move Thang's general concat into List module
 the code in Registry that searches for files along the search path should
   also look in subdirectories
@@ -54,36 +49,31 @@ assertion failure should print a line number
   - make parser recognize assert keyword specially and supply fileinfo
     as string
 
-STEPHANE
-in Unison merge function, when we call out to the Harmony process, we need
-  to capture both its stdout and its stderr.  Also, we may want to print
-  them incrementally rather than waiting for the subprocess to exit
-
 _________________________________________________________________________
 
 BEFORE BIG RELEASE
 put GPL notice in files
   make sure GPL is stated correctly for CSV module
-add a notice that add contributions are understood as assigning copyright
 
 FIRST RELEASE ANNOUNCEMENT LIST
 trevor
 jerome
 plclub
 lambda kids
+Norman Ramsey
 Nathan Whitehead
+Perdita Stevens
 Jerome Simeon
 martin hofmann
-perdita stevens
-norman ramsey
+Daniel Spoonhauer
+Alain Frisch
 peter sewell
 james cheney
 Peter Buneman
 Penn db group
+ask on the Unison hackers list if anybody is interested in playing
 
 PUBLIC RELEASE ANNOUNCEMENT LIST
-Daniel Spoonhauer
-Alain Frisch
 Tokyo people
 Pascal Molli and group
 Serge Abiteboul
