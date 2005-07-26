@@ -186,17 +186,26 @@ export R1=r1$(suffix $(R1ORIG))
 export R2=r2$(suffix $(R2ORIG))
 
 init-demo: all
-	$(QUIET)echo "Copying $(R1ORIG) to $(R1) and $(R2ORIG) to $(R2)"
+	$(QUIET)echo -n "Copying $(R1ORIG) to $(R1)"
+	$(QUIET)if [ -n "$(R2ORIG)" ] && [ -f $(R2ORIG) ]; then echo " and $(R2ORIG) to $(R2)"; else echo ""; fi
 	$(QUIET)rm -rf $(R1) $(R2) ar.meta
 	$(QUIET)cp $(R1ORIG) $(R1)
-	$(QUIET)if [ -f $(R2ORIG) ]; then cp $(R2ORIG) $(R2); fi
+	$(QUIET)if [ -n "$(R2ORIG)" ] && [ -f $(R2ORIG) ]; then cp $(R2ORIG) $(R2); fi
 
 demo: 
 	$(QUIET)if [ ! -e $(R1) ]; then $(MAKEDEMO) demo1; exit 1; fi
-	$(DEMOCMD) $(R1) $(R2) -ar ar.meta 
-	$(QUIET)if [ -z $(EDITOR) ]; then \
+	$(QUIET)if [ -z $(R2ORIG) ]; then \
+	    echo $(DEMOCMD) $(R1); \
+	    $(DEMOCMD) $(R1); \
+	  else \
+	    echo $(DEMOCMD) $(R1) $(R2) -ar ar.meta; \
+	    $(DEMOCMD) $(R1) $(R2) -ar ar.meta; \
+	  fi
+	$(QUIET)if [ -z $(EDITOR) ] || [ -n "$(NOEDIT)" ]; then \
 	   echo ; \
-	   echo 'Please edit $(R1) and/or $(R2) and do "make demo"...'; \
+	   echo -n "Please edit $(R1)"; \
+	   if [ -n "$(R2ORIG)" ]; then echo -n " and/or $(R2)"; fi; \
+	   echo ' and do "make demo"...'; \
          else \
 	   cp $(R1) $(R1)prev.tmp; \
 	   cp $(R2) $(R2)prev.tmp; \

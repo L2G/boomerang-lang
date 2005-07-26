@@ -20,14 +20,13 @@ include $(OCAMLMAKEFILE)
 ####################################################################
 # Tests
 
-test:: buildharmony unit-tests test0 test10
+test:: buildharmony unit-tests
 
 unit-tests:
 	$(HARMONY) -check Addr -test-all
 
-test0:: buildharmony all
-	cp sample.xml r1.xml
-	./harmonize-addresses $(LENSPATH) r1.xml $(HARMONYFLAGS)
+DEMO1 = R1ORIG=sample.xml NOEDIT=yes
+DEMO2 = R1ORIG=sample.xml R2ORIG=inexistent.csv
 
 test0a::
 	cp sample.xml r1.xml
@@ -86,8 +85,3 @@ test9:: buildharmony
 	   -replica2 r2.csv  -lensr2 Addr.csv \
 	   -newarchive onew.meta -newreplica1 r1new.xml  -newreplica2 r2new.csv \
 	   -debug harmony
-
-test10:: buildharmony all
-	cp sample.xml r1.xml
-	./harmonize-addresses $(LENSPATH) r1.xml r2.csv $(HARMONYFLAGS)
-
