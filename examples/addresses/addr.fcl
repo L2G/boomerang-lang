@@ -138,12 +138,17 @@ test handle_unique_field "a" / \ {a=[{`Xml.PCDATA = [{hello}]}]} = {a={hello}}
 test handle_unique_field "a" \ {a={hello}} {} = {a=[{`Xml.PCDATA = [{hello}]}]}
 test handle_unique_field "a" \ {a={""}} {a=[{`Xml.PCDATA = [{hello}]}]} = {}
 
-let handle_nonunique_field (f:name) : lens =
+let handle_nonunique_field (f:name) (present:lens) : lens =
   fork {`f}
     (acond {} {`f=[]}
        (add f [])
-       (map (List.flatten; hoist Xml.PCDATA; List.map (List.hd []))))
+        present)
     id
+
+test handle_nonunique_field "a" id / \ {} = {a = []}
+test handle_nonunique_field "a" id / \ {a= [{hello}]} = {a=[{hello}]}
+test handle_nonunique_field "a" id \ {a=[{hello}]} {} = {a=[{hello}]}
+test handle_nonunique_field "a" id \ {a=[]} {a=[{hello}]} = {}
 
 let FAMILY : name = "&family"
 
@@ -179,7 +184,7 @@ let handle_fields : lens =
   let unique (nc:name) (na:name) : lens =
     handle_unique_field nc; rename nc na in
   let nonunique (nc:name) (na:name) : lens =
-    handle_nonunique_field nc; rename nc na in
+    handle_nonunique_field nc (map (List.flatten; hoist Xml.PCDATA; List.map (List.hd []))); rename nc na in
   unique "company" "Company";
   unique "title" "Title";
   unique "address" "Address";
@@ -299,7 +304,11 @@ let format_csv_addr : lens =
   add_to_list_if_present "Phone3" "Phone";
   add_to_list_if_present "Phone2" "Phone";
   add_to_list_if_present "Phone1" "Phone";
-  mapn "Phone" (List.map format_phone; List.flatten);
+  mapn "Phone" (List.map format_phone; List.flatten;
+                handle_nonunique_field "Email" id;
+                handle_nonunique_field "Home" id;
+                handle_nonunique_field "Mobile" id;
+                handle_nonunique_field "Work" id);
   prune_null_entries;
   pivot "Last name";
   map (pivot "First name")

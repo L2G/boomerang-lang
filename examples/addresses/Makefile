@@ -11,7 +11,7 @@ SOURCES = $(CWD)/harmonize-addresses.ml
 LIBS += harmony
 
 clean::
-	rm -rf ar*.{xml,csv} r1*.{xml,csv} r2*.{xml,csv}
+	rm -rf ar*.{xml,csv} r1*.{xml,csv} r2*.{xml,csv} .harmonyar*.meta .harmonyar*.tmp
 
 all: makeharmonylib nc
 
