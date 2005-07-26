@@ -54,13 +54,16 @@ let Addr : schema =
     Phone = { Home=List.T Value,
               Work=List.T Value,
               Email=List.T Value,
-              Mobile=List.T Value },
+              Fax=List.T Value,
+              Mobile=List.T Value,
+              Other=List.T Value},
     Address = Value,
     City = Value,
     Note = Value,
     State = Value,
     Zip = Value,
-    Country = Value
+    Country = Value,
+    Category = Value
   }
 
 let AddrBook : schema = {* = {* = List.T Addr}}
@@ -106,6 +109,7 @@ let Field : schema =
   | Element "tel-work" {} ([Xml.Pcdata] | [])
   | Element "tel-home" {} ([Xml.Pcdata] | [])
   | Element "email" {} ([Xml.Pcdata] | [])
+  | Element "category" {} ([Xml.Pcdata] | [])
 
 let VCard : schema =
   Element "vcard" {} (Name :: (List.T Field))
@@ -123,20 +127,20 @@ let massage_name : lens =
     (hoist "family"; hoist Xml.PCDATA; explode)
 *)
 
-let handle_unique_field (f:name) : lens =
+let handle_unique_field (f:name) (defval:name) : lens =
   fork {`f}
     (Xml.squash_flattened;
      map Xml.hoist_pcdata;
-     acond {`f=NonNullValue} {`f=NonNullValue}
+     acond {`f={!\`defval={}}} {`f={!\`defval={}}}
        id
        (* WAS: (ccond {} (add f {""}) id)) *)
-       (add f {""}))
+       (add f {`defval}))
     id
 
-test handle_unique_field "a" / \ {} = {a={""}}
-test handle_unique_field "a" / \ {a=[{`Xml.PCDATA = [{hello}]}]} = {a={hello}}
-test handle_unique_field "a" \ {a={hello}} {} = {a=[{`Xml.PCDATA = [{hello}]}]}
-test handle_unique_field "a" \ {a={""}} {a=[{`Xml.PCDATA = [{hello}]}]} = {}
+test handle_unique_field "a" "" / \ {} = {a={""}}
+test handle_unique_field "a" "" / \ {a=[{`Xml.PCDATA = [{hello}]}]} = {a={hello}}
+test handle_unique_field "a" "" \ {a={hello}} {} = {a=[{`Xml.PCDATA = [{hello}]}]}
+test handle_unique_field "a" "" \ {a={""}} {a=[{`Xml.PCDATA = [{hello}]}]} = {}
 
 let handle_nonunique_field (f:name) (present:lens) : lens =
   fork {`f}
@@ -163,8 +167,8 @@ let use_name_as_key : lens =
        (plunge List.HD; add List.TL []; plunge "family")
        id;
      rename_if_present "family" FAMILY;
-     handle_unique_field FAMILY;
-     handle_unique_field "given");
+     handle_unique_field FAMILY "";
+     handle_unique_field "given" "");
   hoist_nonunique List.HD {`FAMILY,given};
   fork {`FAMILY}
     id
@@ -182,7 +186,7 @@ let add_if_missing (n:name) (nullval:tree) : lens =
 
 let handle_fields : lens =
   let unique (nc:name) (na:name) : lens =
-    handle_unique_field nc; rename nc na in
+    handle_unique_field nc ""; rename nc na in
   let nonunique (nc:name) (na:name) : lens =
     handle_nonunique_field nc (map (List.flatten; hoist Xml.PCDATA; List.map (List.hd []))); rename nc na in
   unique "company" "Company";
@@ -193,11 +197,14 @@ let handle_fields : lens =
   unique "zip" "Zip";
   unique "country" "Country";
   unique "note" "Note";
+  handle_unique_field "category" "Unfiled"; rename "category" "Category";
   nonunique "tel-home" "Home";
   nonunique "tel-work" "Work";
   nonunique "email" "Email";
+  nonunique "fax" "Fax";
   nonunique "tel-cell" "Mobile";
-  xfork {Home,Work,Email,Mobile} {Phone}
+  nonunique "other" "Other";
+  xfork {Home,Work,Email,Fax,Mobile,Other} {Phone}
     (plunge "Phone")
     id
 
@@ -229,12 +236,13 @@ test xcard / \
     {Doe =
       {John =
         [{Address = {""},
+          Category = {Unfiled},
           City = {""},
           Company = {""},
           Country = {""},
           Note = {"hello world"},
           Phone =
-           {Email = [], Home = [{792-8134}, {732-4684}], Mobile = [], Work = []},
+           {Email = [], Fax = [], Home = [{792-8134}, {732-4684}], Mobile = [], Other = [], Work = []},
           State = {""},
           Title = {""},
           Zip = {""}}]}}
@@ -244,27 +252,27 @@ test xcard / \
 (* CSV format *)
 
 let alpha_labels : lens =
-  rename "01" "Last name";
-  rename "02" "First name";
-  rename "03" "Title";
-  rename "04" "Company";
-  rename "05" "Phone1";
-  rename "06" "Phone2";
-  rename "07" "Phone3";
-  rename "08" "Phone4";
-  rename "09" "Phone5";
-  rename "10" "Address";
-  rename "11" "City";
-  rename "12" "State";
-  rename "13" "Zip";
-  rename "14" "Country";
-  rename "15" "Custom 1";
-  rename "16" "Custom 2";
-  rename "17" "Custom 3";
-  rename "18" "Custom 4";
-  rename "19" "Note";
-  rename "20" "Private";
-  rename "21" "Category"
+  rename_if_present "01" "Last name";
+  rename_if_present "02" "First name";
+  rename_if_present "03" "Title";
+  rename_if_present "04" "Company";
+  rename_if_present "05" "Phone1";
+  rename_if_present "06" "Phone2";
+  rename_if_present "07" "Phone3";
+  rename_if_present "08" "Phone4";
+  rename_if_present "09" "Phone5";
+  rename_if_present "10" "Address";
+  rename_if_present "11" "City";
+  rename_if_present "12" "State";
+  rename_if_present "13" "Zip Code";
+  rename_if_present "14" "Country";
+  rename_if_present "15" "Custom 1";
+  rename_if_present "16" "Custom 2";
+  rename_if_present "17" "Custom 3";
+  rename_if_present "18" "Custom 4";
+  rename_if_present "19" "Note";
+  rename_if_present "20" "Private";
+  rename_if_present "21" "Category"
 
 let prune_if_null (n:name) (nullval:tree) : lens =
   acond {`n=nullval, *\`n=Any}  {*\`n=Any}  
@@ -272,12 +280,13 @@ let prune_if_null (n:name) (nullval:tree) : lens =
     id
 
 let prune_null_entries : lens = 
-  prune_if_null "Category" {Unfiled};  
-  prune_if_null "Private" {0};
+  prune_if_null "Private" {0}
+  (* We remove all Custom fields for the moment, so this is not needed
   prune_if_null "Custom 1" {""};
   prune_if_null "Custom 2" {""};
   prune_if_null "Custom 3" {""};
   prune_if_null "Custom 4" {""}
+  *)
 (* We'd like to get rid of all these, but it will make the abstract schema
    run real slow at the moment...!
   prune_if_null "Phone" []; 
@@ -289,15 +298,22 @@ let prune_null_entries : lens =
   prune_if_null "Title" {""};
   prune_if_null "Zip" {""};
   prune_if_null "Country" {""};
+  prune_if_null "Category" {Unfiled};  
 *)
 
 let format_phone : lens =
-  List.split ";";
-  pivot List.HD;
-  map (hoist List.TL; List.hd [])
+  acond {""} {Garbage}
+    (const {Garbage} {""})
+    (List.split ";";
+     pivot List.HD;
+     map (hoist List.TL; List.hd []))
+
+let extract_csv_name : lens =
+  alpha_labels;
+  pivot "Last name";
+  map (pivot "First name")
 
 let format_csv_addr : lens =
-  alpha_labels;
   add "Phone" [];
   add_to_list_if_present "Phone5" "Phone";
   add_to_list_if_present "Phone4" "Phone";
@@ -305,16 +321,25 @@ let format_csv_addr : lens =
   add_to_list_if_present "Phone2" "Phone";
   add_to_list_if_present "Phone1" "Phone";
   mapn "Phone" (List.map format_phone; List.flatten;
+                fork {Garbage} (const {} {}) id;
+                rename_if_present "E-mail" "Email";
                 handle_nonunique_field "Email" id;
+                handle_nonunique_field "Fax" id;
                 handle_nonunique_field "Home" id;
                 handle_nonunique_field "Mobile" id;
+                handle_nonunique_field "Other" id;
                 handle_nonunique_field "Work" id);
-  prune_null_entries;
-  pivot "Last name";
-  map (pivot "First name")
+  rename_if_present "Zip Code" "Zip";
+  prune "Custom 1" {""};
+  prune "Custom 2" {""};
+  prune "Custom 3" {""};
+  prune "Custom 4" {""};
+  prune_null_entries
 
 let csv : lens =
-  List.map format_csv_addr;
+  List.map extract_csv_name;
+  (* never do anything that removes information before the aligning flatten*)
   List.flatten;  (* Flatten last names *)
   map List.flatten;  (* Flatten first names *)
+  map (map (List.map format_csv_addr));
   assert AddrBook
