@@ -1,0 +1,32 @@
+<xcard>
+
+  <vcard>
+    <n><family>** THE ADDRESS BOOK DEMO **</family></n>
+    <note>The first address book demo illustrates very simple address book synchronization.
+
+Try changing the text in the tel-home tag of the first entry in one replica
+(the file r1.xml) and the tel-work tag of the second entry in the other
+(r2.xml). Then do [make demo] to see what happens. (Or, if you are reading this
+in an editor that was created automatically by a [make demo1], just save the
+files and quit the editor; the new files will be synchronized and redisplayed
+for further editing.  The demo will automatically repeat as long as you keep
+changing one of the files in the editor.  If you change neither file, the demo
+terminates.)  Repeat as desired.
+
+You can also try changing the files in other sorts of ways to see what happens.
+If you get things into a state that you do not understand and want to start
+fresh, do [make demo1] to reinitialize the demo.
+    </note>
+  </vcard>
+
+  <vcard>
+    <n><family>First entry</family></n>
+    <tel-home>123-4567</tel-home>
+  </vcard>
+
+  <vcard>
+    <n><family>Second entry</family></n>
+    <tel-work>314-1596</tel-work>
+  </vcard>
+
+</xcard>

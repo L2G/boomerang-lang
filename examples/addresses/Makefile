@@ -20,29 +20,19 @@ include $(OCAMLMAKEFILE)
 ####################################################################
 # Tests
 
-test:: buildharmony unit-tests
+test:: buildharmony unit-tests demo1 demo2
 
 unit-tests:
 	$(HARMONY) -check Addr -test-all
 
-DEMO1 = R1ORIG=sample.xml NOEDIT=yes
-DEMO2 = R1ORIG=sample.xml R2ORIG=inexistent.csv
+DEMO1 = R1ORIG=example1.xml R2FORMAT=xml
 
-test0a::
-	cp sample.xml r1.xml
-	./harmonize-addresses $(LENSPATH) r1.xml junk.csv
-	cat junk.csv
-
-test1:: buildharmony
-	$(HARMONY) get -lens Addr.l -concrete sample.xml -output -:meta
+DEMO7 = R1ORIG=sample.xml
+DEMO8 = R1ORIG=sample.xml R2FORMAT=csv
+DEMO9 = R1ORIG=sample.csv
 
 test2:: buildharmony
 	$(HARMONY) get -lens Addr.l -concrete $(HOME)/current/z/addresses.txt:xml -output -:meta
-
-test3:: 
-	$(MAKE) -C ../../extern/ocaml-csv-1.0.3
-	$(MAKE) buildharmony 
-	$(HARMONY) get -lens Addr.csv -concrete sample.csv -output -:meta
 
 test4:: buildharmony
 	$(MAKE) -C ../../extern/pilot-link-0.12.0-pre4/src pilot-addresses

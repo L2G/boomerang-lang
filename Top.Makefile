@@ -173,7 +173,7 @@ ifneq (,$(DEMO9))
   DEMOS += demo9
 endif
 
-MAKEDEMO = $(MAKE) R1ORIG=$(R1ORIG) R2ORIG=$(R2ORIG) 
+MAKEDEMO = $(MAKE) R1ORIG=$(R1ORIG) R2FORMAT=$(R2FORMAT) 
 
 # Default (can be overridden if extra flags are needed, e.g.)
 DEMOCMD = ./$(RESULT) $(HARMONYFLAGS) $(LENSPATH)
@@ -183,29 +183,19 @@ demo%:
 	$(QUIET)$(MAKEDEMO) demo $(DEMO$*)
 
 export R1=r1$(suffix $(R1ORIG))
-export R2=r2$(suffix $(R2ORIG))
+export R2=r2.$(if $(R2FORMAT),$(R2FORMAT),meta)
 
 init-demo: all
-	$(QUIET)echo -n "Copying $(R1ORIG) to $(R1)"
-	$(QUIET)if [ -n "$(R2ORIG)" ] && [ -f $(R2ORIG) ]; then echo " and $(R2ORIG) to $(R2)"; else echo ""; fi
+	$(QUIET)echo "Copying $(R1ORIG) to $(R1)"
 	$(QUIET)rm -rf $(R1) $(R2) ar.meta
 	$(QUIET)cp $(R1ORIG) $(R1)
-	$(QUIET)if [ -n "$(R2ORIG)" ] && [ -f $(R2ORIG) ]; then cp $(R2ORIG) $(R2); fi
 
 demo: 
 	$(QUIET)if [ ! -e $(R1) ]; then $(MAKEDEMO) demo1; exit 1; fi
-	$(QUIET)if [ -z $(R2ORIG) ]; then \
-	    echo $(DEMOCMD) $(R1); \
-	    $(DEMOCMD) $(R1); \
-	  else \
-	    echo $(DEMOCMD) $(R1) $(R2) -ar ar.meta; \
-	    $(DEMOCMD) $(R1) $(R2) -ar ar.meta; \
-	  fi
+	$(DEMOCMD) $(R1) $(R2) -ar ar.meta;
 	$(QUIET)if [ -z $(EDITOR) ] || [ -n "$(NOEDIT)" ]; then \
 	   echo ; \
-	   echo -n "Please edit $(R1)"; \
-	   if [ -n "$(R2ORIG)" ]; then echo -n " and/or $(R2)"; fi; \
-	   echo ' and do "make demo"...'; \
+	   echo 'Please edit $(R1) and/or $(R2) and do "make demo"...'; \
          else \
 	   cp $(R1) $(R1)prev.tmp; \
 	   cp $(R2) $(R2)prev.tmp; \
@@ -221,18 +211,19 @@ demo:
          fi
 
 ########
-
-DEMOTESTS = $(subst demo,test,$(DEMOS))
-
-test:: 
-	$(QUIET)if [ -n "$(DEMOTESTS)" ]; then $(MAKEDEMO) $(DEMOTESTS); fi
-
-test%:
-	$(MAKE) init-demo $(DEMO$*)
-	$(MAKE) run-test $(DEMO$*)
-
-run-test:
-	$(DEMOCMD) $(R1) $(R2) -ar ar.meta 
+# Alan: the following seems to interfere with existing tests and prevent make to complete
+#
+# DEMOTESTS = $(subst demo,test,$(DEMOS))
+# 
+# test:: 
+# 	$(QUIET)if [ -n "$(DEMOTESTS)" ]; then $(MAKEDEMO) $(DEMOTESTS); fi
+# 
+# test%:
+# 	$(MAKE) init-demo $(DEMO$*)
+# 	$(MAKE) run-test $(DEMO$*)
+# 
+# run-test:
+# 	$(DEMOCMD) $(R1) $(R2) -ar ar.meta 
 
 
 ####################################################################

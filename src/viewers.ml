@@ -128,6 +128,7 @@ let escapeXmlChar = function
   | '>' -> "&gt;"
   | '\'' -> "&apos;"
   | '"' -> "&quot;"
+  | '\n' -> "\n" (* we don't want to escape carriage returns*)
   | c -> 
       if ((int_of_char c) >= 128) || ((int_of_char c) < 32) then 
 	Printf.sprintf "&#%d;" (int_of_char c)
@@ -242,7 +243,9 @@ let rec dump_tag fmtr v =
 	(fun () -> Format.fprintf fmtr "@ ") kids;
     end;
     debug (fun() -> Format.printf "finished dump_tag %s @," (Misc.whack tag));
-    Format.fprintf fmtr "</%s>@]" tag
+    Format.fprintf fmtr "@]";
+    if not (pcdata_only kids) then Format.fprintf fmtr "@,";
+    Format.fprintf fmtr "</%s>" tag
 
 let dump_tree_as_pretty_xml fmtr v =
   if V.is_empty v then
