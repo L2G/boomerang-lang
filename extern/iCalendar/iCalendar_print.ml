@@ -756,6 +756,11 @@ let print_component prs = function
       print_allprop prs e.event_comp;
       print_alarm_list prs e.event_alarms;
       prs "END:VEVENT\n"
+  | Todoc td ->
+      prs "BEGIN:VTODO\n";
+      print_allprop prs td.todo_comp;
+      print_alarm_list prs td.todo_alarms;
+      prs "END:VTODO\n"
   | Timezonec t ->
       prs "BEGIN:VTIMEZONE\n";
       print_allprop prs t;

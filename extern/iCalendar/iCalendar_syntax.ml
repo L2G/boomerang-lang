@@ -285,7 +285,7 @@ type comp_prop =
     mutable comp_categories   : categories list;
     mutable comp_class        : classt option;
     mutable comp_comment      : comment list;
-    mutable comp_completed    : unit option;
+    mutable comp_completed    : dtxp option;
     mutable comp_contact      : contact list;
     mutable comp_created      : dtxp option;
     mutable comp_daylightc    : comp_prop list;
@@ -293,7 +293,7 @@ type comp_prop =
     mutable comp_dtend        : dt option;
     mutable comp_dtstamp      : dt option;
     mutable comp_dtstart      : dt option;
-    mutable comp_due          : unit option;
+    mutable comp_due          : dt option;
     mutable comp_duration     : (xplist * duration) option;
     mutable comp_exdate       : dtpl list;
     mutable comp_exrule       : (xplist * recur) list;
@@ -302,7 +302,7 @@ type comp_prop =
     mutable comp_lastmod      : dtxp option;
     mutable comp_location     : location option;
     mutable comp_organizer    : organizer option;
-    mutable comp_percent      : unit option;
+    mutable comp_percent      : (xplist * int) option;
     mutable comp_priority     : (xplist * int) option;
     mutable comp_rdate        : dtpl list;
     mutable comp_recurid      : recurid option;
@@ -345,9 +345,13 @@ let no_comp_prop () =
   
 type eventc = { event_comp : comp_prop;
                 event_alarms : comp_prop list; }
+
+type todoc = { todo_comp : comp_prop;
+	       todo_alarms : comp_prop list; }
   
 type component =
   | Eventc of eventc
+  | Todoc of todoc
   | Timezonec of comp_prop
   
 type icalobject =
@@ -438,6 +442,8 @@ let validate_xprop_list = List.for_all validate_xprop
   
 let validate_class _ = true
 
+let validate_completed _ = true
+
 let validate_created _ = true
 
 let validate_description = function
@@ -497,6 +503,10 @@ let validate_organizer = function
          }
        -> true
   | _ -> false
+
+let validate_percent = function
+  | None -> true
+  | Some(_, n) -> (n >= 0) && (n <= 100)
 
 let validate_priority = function
   | None -> true
@@ -735,6 +745,58 @@ let validate_eventprop = function
   ( match dte, dur with Some _, Some _ -> false | _, _ -> true)
  | _ -> false
   
+let validate_todoprop = function 
+  | { 
+    comp_action       = None; comp_attach       = atta; comp_attendee     = atte; comp_categories   = cate;
+    comp_class        = cl  ; comp_comment      = comm; comp_completed    = cmpl; comp_contact      = cont;
+    comp_created      = cr  ; comp_daylightc    = []  ; comp_description  = desc; comp_dtend        = None;
+    comp_dtstamp      = dtst; comp_dtstart      = dts ; comp_due          = due ; comp_duration     = dur ;
+    comp_exdate       = exda; comp_exrule       = exru; comp_freebusy     = []  ; comp_geo          = geo ;
+    comp_lastmod      = last; comp_location     = loc ; comp_organizer    = org ; comp_percent      = perc;
+    comp_priority     = prio; comp_rdate        = rdat; comp_recurid      = recu; comp_related_to   = rel ;
+    comp_repeat       = None; comp_resources    = res ; comp_rrule        = rrul; comp_rstatus      = rsta;
+    comp_seq          = seq ; comp_standardc    = []  ; comp_status       = stat; comp_summary      = summ;
+    comp_transp       = None; comp_trigger      = None; comp_tzid         = None; comp_tzname       = []  ;
+    comp_tzoffsetto   = None; comp_tzoffsetfrom = None; comp_tzurl        = None; comp_uid          = uid ;
+    comp_url          = url ; comp_xprop       = xpro;
+  } ->
+    validate_class cl && 
+    validate_completed cmpl &&
+    validate_created cr &&
+    validate_description desc &&
+    validate_dt dts &&
+    validate_geo geo &&
+    validate_lastmod last &&
+    validate_location loc &&
+    validate_organizer org &&
+    validate_percent perc &&
+    validate_priority prio &&
+    validate_dt dtst &&
+    validate_sequence seq &&
+    validate_event_status stat &&
+    validate_summary summ &&
+    validate_uid uid &&
+    validate_url url &&
+    validate_recurid recu &&
+    validate_dt due &&
+    validate_duration dur &&
+    validate_attach atta &&
+    validate_attendee atte &&
+    validate_categories cate &&
+    validate_comment comm &&
+    validate_contact cont &&
+    validate_dtpl false exda &&
+    validate_rule exru && 
+    validate_rstatus rsta && 
+    validate_related_to rel && 
+    validate_resources res && 
+    validate_dtpl true rdat && 
+    validate_rule rrul && 
+    validate_xprop_list xpro &&
+    ( match due, dur with Some _, Some _ -> false | _, _ -> true)
+  | _ -> false      
+
+
 let validate_trigger = function
   | { triggerparam = 
              { altrepparam    = None; cnparam        = None; cutypeparam    = None; delfromparam   = []  ;
@@ -873,6 +935,8 @@ let validate_timezone = function
 let validate_component = function
   | Eventc e ->
       validate_eventprop e.event_comp && validate_alarm_list e.event_alarms
+  | Todoc td ->
+      validate_todoprop td.todo_comp && validate_alarm_list td.todo_alarms
   | Timezonec t ->
       validate_timezone t
   

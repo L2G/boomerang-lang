@@ -11,6 +11,7 @@ type props =
 
 type all_component_props =
   | Class of (xplist * classval)
+  | Completed of (xplist * date_time)
   | Created of (xplist * date_time)
   | Description of description
   | DTstart of dt
@@ -18,6 +19,7 @@ type all_component_props =
   | LastModified of (xplist * date_time)
   | Location of location
   | Organizer of organizer
+  | Percent of (xplist * int)
   | Priority of (xplist * int)
   | Dtstamp of dt
   | Sequence of (xplist * int)
@@ -28,6 +30,7 @@ type all_component_props =
   | Url of (xplist * string)
   | Recurid of recurid
   | DTend of dt
+  | Due of dt
   | Duration of (xplist * duration)
   | Attach of attach
   | Attendee of attendee
@@ -340,6 +343,11 @@ let mk_compprop l =
     | Some _ -> failwith "setting CLASS twice"
     | None -> ep.comp_class <- Some c
   in
+  let set_completed (xpl, d) =
+    match ep.comp_completed with
+    | Some _ -> failwith "setting COMPLETED twice"
+    | None -> ep.comp_completed <- Some (xpl, d)
+  in
   let set_created (xpl, d) =
     match ep.comp_created with
     | Some _ -> failwith "setting CREATED twice"
@@ -374,6 +382,11 @@ let mk_compprop l =
     match ep.comp_organizer with
     | Some _ -> failwith "setting ORGANIZER twice"
     | None -> ep.comp_organizer <- Some o
+  in
+  let set_percent p =
+    match ep.comp_percent with
+    | Some _ -> failwith "setting PERCENT twice"
+    | None -> ep.comp_percent <- Some p
   in
   let set_priority p =
     match ep.comp_priority with
@@ -424,6 +437,11 @@ let mk_compprop l =
     match ep.comp_dtend with
     | Some _ -> failwith "setting DTEND twice"
     | None -> ep.comp_dtend <- Some dt
+  in
+  let set_due dt =
+    match ep.comp_due with
+    | Some _ -> failwith "setting DUE twice"
+    | None -> ep.comp_due <- Some dt
   in
   let set_duration d =
     match ep.comp_duration with
@@ -515,6 +533,7 @@ let mk_compprop l =
   in
   let rec loop = function
     | Class c :: r -> set_class c; loop r
+    | Completed c :: r -> set_completed c; loop r
     | Created c :: r -> set_created c; loop r
     | Description d :: r -> set_description d; loop r
     | DTstart dt :: r -> set_dtstart dt; loop r
@@ -522,6 +541,7 @@ let mk_compprop l =
     | LastModified l :: r -> set_lastmod l; loop r
     | Location l :: r -> set_location l; loop r
     | Organizer o :: r -> set_organizer o; loop r
+    | Percent p :: r -> set_percent p; loop r
     | Priority p :: r -> set_priority p; loop r
     | Dtstamp d :: r -> set_dtstamp d; loop r
     | Sequence s :: r -> set_sequence s; loop r
@@ -532,6 +552,7 @@ let mk_compprop l =
     | Url u :: r -> set_url u; loop r
     | Recurid re :: r -> set_recurid re; loop r
     | DTend dt :: r -> set_dtend dt; loop r
+    | Due dt :: r -> set_due dt; loop r
     | Duration d :: r -> set_duration d; loop r
     | Attach a :: r -> set_attach a; loop r
     | Attendee a :: r -> set_attendee a; loop r
@@ -581,6 +602,11 @@ let mk_eventprop e =
   if validate_eventprop res then res (* we duplicate some work here. Bad. *)
   else failwith "VEVENT creation failed"
   
+let mk_todoprop e =
+  let res = mk_compprop e in
+  if validate_todoprop res then res (* we duplicate some work here. Bad. *)
+  else failwith "VTODO creation failed"
+
 let mk_alarmc a =
   let res = mk_compprop a in
   if validate_alarm res then res (* we duplicate some work here. Bad. *)
@@ -774,7 +800,7 @@ let mk_tzname (p,t) =
 %}
 
 %token BVCALENDAR EVCALENDAR BVEVENT EVEVENT BVALARM EVALARM BVTIMEZONE EVTIMEZONE
-%token BSTANDARD ESTANDARD BDAYLIGHT EDAYLIGHT
+%token BSTANDARD ESTANDARD BDAYLIGHT EDAYLIGHT BVTODO EVTODO
 %token EOF
 %token < ICalendar_syntax.xplist * string > PRODID
 %token < ICalendar_syntax.xplist * string > VERSION
@@ -782,6 +808,7 @@ let mk_tzname (p,t) =
 %token < ICalendar_syntax.xplist * string > METHOD
 %token < string * (ICalendar_lextypes.all_params list) * string > XPROP
 %token < ICalendar_syntax.xplist * ICalendar_syntax.classval > CLASS
+%token < ICalendar_syntax.xplist * ICalendar_syntax.date_time > COMPLETED
 %token < ICalendar_syntax.xplist * ICalendar_syntax.date_time > CREATED
 %token < (ICalendar_lextypes.all_params list) * string > DESCRIPTION
 %token < (ICalendar_lextypes.all_params list) * ICalendar_syntax.dtpval > DTSTART
@@ -789,6 +816,7 @@ let mk_tzname (p,t) =
 %token < ICalendar_syntax.xplist * ICalendar_syntax.date_time > LASTMODIFIED
 %token < (ICalendar_lextypes.all_params list) * string > LOCATION
 %token < (ICalendar_lextypes.all_params list) * string > ORGANIZER
+%token < ICalendar_syntax.xplist * int > PERCENT
 %token < ICalendar_syntax.xplist * int > PRIORITY
 %token < ICalendar_lextypes.all_params list * ICalendar_syntax.dtpval > DTSTAMP
 %token < ICalendar_syntax.xplist * int > SEQUENCE
@@ -799,6 +827,7 @@ let mk_tzname (p,t) =
 %token < ICalendar_syntax.xplist * string > URL
 %token < (ICalendar_lextypes.all_params list) * ICalendar_syntax.dtpval > RECURRENCEID
 %token < (ICalendar_lextypes.all_params list) * ICalendar_syntax.dtpval > DTEND
+%token < (ICalendar_lextypes.all_params list) * ICalendar_syntax.dtpval > DUE
 %token < ICalendar_syntax.xplist * ICalendar_syntax.duration > DURATION
 %token < (ICalendar_lextypes.all_params list) * ICalendar_syntax.attachvalue > ATTACH
 %token < (ICalendar_lextypes.all_params list) * string> ATTENDEE
@@ -872,11 +901,17 @@ component      : BVEVENT eventc EVEVENT
                    { Eventc $2 }
                | BVTIMEZONE timezonec EVTIMEZONE
                    { Timezonec $2 }
+	       | BVTODO todoc EVTODO
+		   { Todoc $2 }
                ;
 
 eventc         : allprops alarmcs
                    { {event_comp = mk_eventprop $1; event_alarms = $2} }
-               ;
+	       ;
+
+todoc          : allprops alarmcs
+		   { {todo_comp = mk_todoprop $1; todo_alarms = $2} }
+	       ;
 
 allprops       : aprop allprops
                    { $1 :: $2 }
@@ -886,6 +921,8 @@ allprops       : aprop allprops
  
 aprop          : CLASS
                    { Class $1 }
+	       | COMPLETED
+		   { Completed $1 }
                | CREATED
                    { Created $1 }
                | DESCRIPTION
@@ -900,6 +937,8 @@ aprop          : CLASS
                    { Location (mk_location $1) }
                | ORGANIZER
                    { Organizer (mk_organizer $1) }
+	       | PERCENT
+		   { Percent $1 }
                | PRIORITY
                    { Priority (mk_priority $1) }
                | DTSTAMP
@@ -920,6 +959,8 @@ aprop          : CLASS
                    { Recurid (mk_recurid $1) }
                | DTEND
                    { DTend (mk_dt "DTEND" $1) }
+	       | DUE
+		   { Due (mk_dt "DUE" $1) }
                | DURATION
                    { Duration $1 }
                | ATTACH

@@ -837,7 +837,7 @@ let rec view_from_comp_prop c =
     | l -> ["comment", V.structure_from_list (Safelist.map view_from_comment l)]);
     (match c.comp_completed with
     | None -> []
-    | Some () ->  failwith "COMPLETED not implemented yet"
+    | Some d -> ["completed", view_from_dtxp d]
     );
     (match c.comp_contact with
     | [] -> []
@@ -865,7 +865,7 @@ let rec view_from_comp_prop c =
     );
     (match c.comp_due with
     | None -> []
-    | Some () ->  failwith "DUE not implemented yet"
+    | Some d ->  ["due", view_from_dt d]
     );
     (match c.comp_duration with
     | None -> []
@@ -906,8 +906,9 @@ let rec view_from_comp_prop c =
     );
     (match c.comp_percent with
     | None -> []
-    | Some _ ->  failwith "PERCENT not implemented yet"
-    );
+    | Some (xpl,p) -> 
+	[ "percent", V.from_list (("val", V.new_value (string_of_int p))
+                                  :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_priority with
     | None -> []
     | Some (xpl, p) ->
@@ -1057,8 +1058,7 @@ let rec comp_prop_from_view v =
       comp_completed    =
         (match V.get v "completed" with
         | None -> None
-        | Some v' -> V.error_msg [`String " the 'completed' field is not implemented yet ";
-                                `Tree v]
+        | Some v' -> Some (dtxp_from_view v')
       );
       comp_contact      =
         (match V.get v "contact" with
@@ -1098,8 +1098,7 @@ let rec comp_prop_from_view v =
       comp_due          =
         (match V.get v "due" with
         | None -> None
-        | Some v' -> V.error_msg [`String " the 'due' field is not implemented yet ";
-                                `Tree v]
+        | Some v' -> Some (dt_from_view v')
       );
       comp_duration     =
         (match V.get v "duration" with
@@ -1151,8 +1150,8 @@ let rec comp_prop_from_view v =
       comp_percent      =
         (match V.get v "percent" with
         | None -> None
-        | Some v' -> V.error_msg [`String " the 'PERCENT' field is not implemented yet ";
-                                `Tree v]
+        | Some v' -> Some (xplist_from_view_opt (V.get v' "xplist"),
+			   int_of_string (V.get_value (V.get_required v' "val")))
       );
       comp_priority     =
         (match V.get v "priority" with
@@ -1300,6 +1299,11 @@ let view_from_component = function
                    "val",  V.from_list (("props", view_from_comp_prop c) ::
                                         (viewpair_from_component_list "alarms" a))
     ]
+  | Todoc { todo_comp = c; todo_alarms = a } ->
+      V.from_list ["type", V.new_value "Todoc";
+		    "val", V.from_list (("props", view_from_comp_prop c) ::
+					(viewpair_from_component_list "alarms" a))
+		  ]
   | Timezonec v ->
       V.from_list ["type", V.new_value "Timezonec";
                    "val",  view_from_comp_prop v]
@@ -1310,6 +1314,8 @@ let component_from_view v =
     match (V.get_value (V.get_required v "type")) with
     | "Eventc" -> Eventc { event_comp = comp_prop_from_view (V.get_required v' "props");
                            event_alarms = component_list_from_view_opt (V.get v' "alarms") }
+    | "Todoc" -> Todoc { todo_comp = comp_prop_from_view (V.get_required v' "props");
+                         todo_alarms = component_list_from_view_opt (V.get v' "alarms") }
     | "Timezonec" -> Timezonec (comp_prop_from_view v')
     | s -> V.error_msg [`String s; `String " is not implemented yet in "; `Tree v])
     

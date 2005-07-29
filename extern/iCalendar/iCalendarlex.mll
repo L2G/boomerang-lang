@@ -74,6 +74,8 @@ rule line = parse
 | "END:VCALENDAR" eol     { EVCALENDAR }
 | "BEGIN:VEVENT" eol      { BVEVENT }
 | "END:VEVENT" eol        { EVEVENT }
+| "BEGIN:VTODO" eol       { BVTODO }
+| "END:VTODO" eol         { EVTODO }
 | "BEGIN:VALARM" eol      { BVALARM }
 | "END:VALARM" eol        { EVALARM }
 | "BEGIN:VTIMEZONE" eol   { BVTIMEZONE }
@@ -112,7 +114,12 @@ rule line = parse
                             col lexbuf;
                             let classval = classvalue lexbuf in
                             crlf lexbuf;
-                            CLASS (xplist, classval) }                          
+                            CLASS (xplist, classval) }
+| "COMPLETED"             { let xplist = xparam_list lexbuf in
+                            col lexbuf;
+                            let dt = date_time lexbuf in
+			    crlf lexbuf;
+			    COMPLETED (xplist, dt) }
 | "CREATED"               { let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let dt = date_time lexbuf in
@@ -148,6 +155,11 @@ rule line = parse
                             let uri = uri lexbuf in
                             crlf lexbuf;
                             ORGANIZER (params, uri) }
+| "PERCENT-COMPLETE"      { let xplist = xparam_list lexbuf in
+                            col lexbuf;
+                            let pct = integer_val lexbuf in
+			    crlf lexbuf;
+			    PERCENT (xplist, pct) }
 | "PRIORITY"              { let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let pr = integer_val lexbuf in
@@ -198,6 +210,11 @@ rule line = parse
                             let dval = dtp lexbuf in
                             crlf lexbuf;
                             DTEND (params, dval) }
+| "DUE"                   { let params = all_param_list lexbuf in
+                            col lexbuf;
+                            let dval = dtp lexbuf in
+			    crlf lexbuf;
+			    DUE (params, dval) }
 | "DURATION"              { let xplist = xparam_list lexbuf in
                             col lexbuf;
                             let duration = durval lexbuf in
