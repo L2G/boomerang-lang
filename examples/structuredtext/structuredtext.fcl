@@ -101,10 +101,11 @@ test star_headers / \ [{"* Foo"}, {"** bar"}, {glorf}, {"** baz"}, {urg}] = [[{"
 test star_headers / \ [{"* Foo"}, {"* Bar"}, {baz}] = [[{"* Foo"}, []], [{"* Bar"}, [{baz}]]]
 
 (* Some degenerate ones *)
-test star_headers / \ [] = [[]]
-test star_headers / \ [{foo}] = [[{foo}, []]]
-test star_headers / \ [{foo}, {"* Bar"}] = [[{foo}, []], [{"* Bar"}, []]]
-test star_headers / \ [{foo}, {"** Bar"}] = [[{foo}, [{"** Bar"}]]]
+test star_headers / \ [] = [[{""}, []]]
+test star_headers / \ [{""}] = [[{""}, [{""}]]]
+test star_headers / \ [{foo}] = [[{""}, [{foo}]]]
+test star_headers / \ [{foo}, {"* Bar"}] = [[{""}, [{foo}]], [{"* Bar"}, []]]
+test star_headers / \ [{foo}, {"** Bar"}] = [[{""}, [{foo}], [{"** Bar"}]]]
                                                   
 sync with caps_headers at (List.T Any)
   { O = [{X},{y},{z}],
