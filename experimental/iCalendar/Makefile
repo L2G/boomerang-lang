@@ -11,7 +11,17 @@ TMPU = updated.meta
 FINALC = finalc.meta
 FINALU = finalu.meta
 
-all: test
+all: harmonize-calendars
+
+sync:
+	unison default2 -ui text
+
+modifs:
+	korganizer a/mycal.ics&
+	korganizer b/mycal.ics&
+
+harmonize-calendars: harmonize-calendars.ml
+	ocamlc -o harmonize-calendars unix.cma harmonize-calendars.ml
 
 test::
 	$(ICALREAD) calendar.ics $(TMPC)
@@ -25,9 +35,9 @@ test::
 	cat $(FINALC)
 
 update:
-	cp $(TMPC) archive.meta
+	echo [] > archive.meta
 	$(ICALREAD) calendar.ics $(TMPC)
-	$(ICALREAD) mycalevents.ics $(TMPU)
+	$(ICALREAD) mycal.ics $(TMPU)
 	$(HARMONY) -ar archive.meta -lensar ICalendar.l \
 		   -r1 $(TMPU) -lensr1 ICalendar.l \
 		   -r2 $(TMPC) -lensr2 ICalendar.l \
@@ -38,7 +48,7 @@ update:
 	cat $(FINALC)
 
 get:
-	$(ICALREAD) calendar.ics $(TMPC)
+	$(ICALREAD) mycal.ics $(TMPC)
 	$(HARMONY) $(TMPC) -lensr1 ICalendar.l > $(TMPA)
 	echo
 	cat $(TMPA)

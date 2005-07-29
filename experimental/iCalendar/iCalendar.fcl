@@ -33,7 +33,7 @@ let XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList}
     
 let ParamsPlusVal (T : schema) : schema = {val = T, ?params = Params}
 	
-schema ICalendar = [{calprops = CalProps, components = Any}]
+schema ICalendar = [{calprops = CalProps, components = Any}] | []
     
 and CalProps = {prodid = XPListPlusVal Value,
 			  version = XPListPlusVal Value,
@@ -45,9 +45,11 @@ and XProp = List.T {"name" = Value, val = Value, ?params = Params}
     
 and Components = 
   let Timezonec : schema = CompProp in
-  List.T ({val = Eventc | Timezonec, type = ({Eventc} | {Timezonec})})
+  List.T ({val = Eventc | Timezonec | Todoc , type = ({Eventc} | {Timezonec} | {Todoc})})
     
 and Eventc = {props = CompProp, ?alarms = List.T CompProp}
+
+and Todoc = {props = CompProp, ?alarms = List.T CompProp}
 	
 and CompProp = 
       { ?action = XPListPlusVal Value,
@@ -56,6 +58,7 @@ and CompProp =
 	?categories = List.T (ParamsPlusVal (List.T Value)),
 	?"class" = XPListPlusVal Value,
 	?comment = List.T (ParamsPlusVal Value),
+	?completed = XPListPlusVal DateTime,
 	?contact = List.T (ParamsPlusVal Value),
 	?created = XPListPlusVal DateTime,
 	?daylightc = List.T CompProp,
@@ -63,6 +66,7 @@ and CompProp =
 	?dtend = ParamsPlusVal DtPval,
 	?dtstamp = ParamsPlusVal DtPval,
 	?dtstart = ParamsPlusVal DtPval,
+	?due = ParamsPlusVal DtPval,
 	?duration = XPListPlusVal Duration,
 	?exdate = List.T (ParamsPlusVal (List.T DtPval)),
 	?exrule = List.T (XPListPlusVal Recur),
@@ -70,6 +74,7 @@ and CompProp =
 	?lastmod = XPListPlusVal DateTime,
 	?location = ParamsPlusVal Value,
 	?organizer = ParamsPlusVal Value,
+	?percent = XPListPlusVal Value,
 	?priority = XPListPlusVal Value,
 	?rdate = List.T (ParamsPlusVal (List.T DtPval)),
 	?recurid = ParamsPlusVal DtPval,
@@ -186,10 +191,13 @@ schema XProp_A = { * = {val = Value, ?params = Params_A}}
 and Components_A = 
   let Timezonec_A : schema = CompProp_A in
   {?Eventc = { * = (CompProp_A + {?alarms = List.T CompProp_A})},
-	       ?Timezonec = { * = Timezonec_A}}
+    ?Todoc = { * = (CompProp_A + {?alarms = List.T CompProp_A})},
+    ?Timezonec = { * = Timezonec_A}}
     
 and Eventc_A = { props = CompProp_A, ?alarms = List.T CompProp_A}
-	
+
+and Todoc_A = { props = CompProp_A, ?alarms = List.T CompProp_A}
+    
 and CompProp_A =
       { ?action = XPListPlusVal_A Value,
 	?attach = List.T (ParamsPlusVal_A ({ "AttUri" = Value } | { "AttBinary" = Value})),
@@ -197,6 +205,7 @@ and CompProp_A =
 	?categories = List.T (ParamsPlusVal_A { * = {} }),
 	?"class" = XPListPlusVal_A Value,
 	?comment = List.T (ParamsPlusVal_A Value),
+	?completed = XPListPlusVal_A DateTime_A,
 	?contact = List.T (ParamsPlusVal_A Value),
 	?created = XPListPlusVal_A DateTime_A,
  	?daylightc = List.T CompProp_A,
@@ -204,6 +213,7 @@ and CompProp_A =
 	?dtend = ParamsPlusVal_A DtPval_A,
 	?dtstamp = ParamsPlusVal_A DtPval_A,
 	?dtstart = ParamsPlusVal_A DtPval_A,
+	?due = ParamsPlusVal_A DtPval_A,
 	?duration = XPListPlusVal_A Duration_A,
 	?exdate = List.T (ParamsPlusVal_A (List.T DtPval_A)),
 	?exrule = List.T (XPListPlusVal_A Recur_A),
@@ -211,6 +221,7 @@ and CompProp_A =
 	?lastmod = XPListPlusVal_A DateTime_A,
 	?location = ParamsPlusVal_A Value,
 	?organizer = ParamsPlusVal_A Value,
+	?percent = XPListPlusVal_A Value,
 	?priority = XPListPlusVal_A Value,
 	?rdate = List.T (ParamsPlusVal_A (List.T DtPval_A)),
 	?recurid = ParamsPlusVal_A DtPval_A,
@@ -337,24 +348,26 @@ schema ICalendar_A = Components_A
 
 let domCompProp : tree = 
   { "action", "attach", "attendee", "categories", "class",
-    "comment", "contact", "created", "daylightc", "description",
-    "dtend", "dtstamp", "dtstart", "duration", "exdate", "exrule",
-    "geo", "lastmod", "location", "organizer", "priority", "rdate",
-    "recurid", "related_to", "repeat", "resources", "rrule", "rstatus",
-    "seq", "standardc", "status", "summary", "transp", "trigger",
-    "tzid", "tzname", "tzoffsetto", "tzoffsetfrom", "tzurl", "uid",
-    "url", "xprop"} 
+    "comment", "completed", "contact", "created", "daylightc", 
+    "description", "dtend", "dtstamp", "dtstart", "due", "duration",
+    "exdate", "exrule", "geo", "lastmod", "location", "organizer",
+    "percent", "priority", "rdate", "recurid", "related_to", "repeat",
+    "resources", "rrule", "rstatus", "seq", "standardc", "status",
+    "summary", "transp", "trigger", "tzid", "tzname", "tzoffsetto",
+    "tzoffsetfrom", "tzurl", "uid", "url", "xprop"} 
 
-(* let ICalendar : schema = [{calprops = CalProps, components = Components}] *)
+(* let ICalendar : schema = [{calprops = CalProps, components = Components}] | [] *)
 let icalendar_lens : lens =
   assert ICalendar;
-  List.hd []; (* assuming only one calendar object *)
-  focus "components"
-    { calprops = { prodid = { val = { "Harmony" }},
-		   version = { val = { "2.0" }}}};
-  protect components_lens;
+  acond [] {}
+    (const {} [])
+    (List.hd []; (* assuming only one calendar object *)
+     focus "components"
+       { calprops = { prodid = { val = { "Harmony" }},
+		      version = { val = { "2.0" }}}};
+     protect components_lens);
   assert ICalendar_A
-  
+    
 (* and XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList} *)
 and xplistplusval_lens (l: lens) : lens =
   assert (XPListPlusVal Any);
@@ -423,12 +436,17 @@ and components_lens : lens =
   List.map
     (acond {val = Eventc, type = Any} {type = {Eventc}, val = Any}
        (mapp {val} (protect eventc_lens))
-       (mapp {val} (protect timezonec_lens));
+       (acond {val = Todoc, type = Any} {type = {Todoc}, val = Any}
+	  (mapp {val} (protect todoc_lens))
+	  (mapp {val} (protect timezonec_lens)));
      pivot "type"; map (hoist "val"));
   List.flatten;
   wmap { "Eventc" -> (List.map (hoist_nonunique "props" domCompProp;
 				pivot "uid");
 		      List.flatten; map (List.hd [])),
+         "Todoc" -> (List.map (hoist_nonunique "props" domCompProp;
+			       pivot "uid");
+		     List.flatten; map (List.hd [])),
          "Timezonec" -> (List.map (pivot "tzid"); List.flatten; map (List.hd []))};
   assert Components_A
     
@@ -437,14 +455,21 @@ and eventc_lens : lens =
   assert Eventc;
   wmap { "props" -> compprop_lens, "alarms" -> List.map compprop_lens};
   assert Eventc_A
+
+(* and Todoc : schema = {props = CompProp, ?alarms = List.T CompProp} *)
+and todoc_lens : lens =
+  assert Todoc;
+  wmap { "props" -> compprop_lens, "alarms" -> List.map compprop_lens};
+  assert Todoc_A
 	
-(* and CompProp : schema =  *)
+(* and CompProp =  *)
 (*       { ?action = XPListPlusVal Value, *)
 (* 	?attach = List.T (ParamsPlusVal ({ "AttUri" = Value } | { "AttBinary" = Value})), *)
 (* 	?attendee = List.T (ParamsPlusVal Value), *)
 (* 	?categories = List.T (ParamsPlusVal (List.T Value)), *)
 (* 	?"class" = XPListPlusVal Value, *)
 (* 	?comment = List.T (ParamsPlusVal Value), *)
+(* 	?completed = XPListPlusVal DateTime, *)
 (* 	?contact = List.T (ParamsPlusVal Value), *)
 (* 	?created = XPListPlusVal DateTime, *)
 (* 	?daylightc = List.T CompProp, *)
@@ -452,13 +477,15 @@ and eventc_lens : lens =
 (* 	?dtend = ParamsPlusVal DtPval, *)
 (* 	?dtstamp = ParamsPlusVal DtPval, *)
 (* 	?dtstart = ParamsPlusVal DtPval, *)
-(* 	?duration = Duration, *)
+(* 	?due = ParamsPlusVal DtPval, *)
+(* 	?duration = XPListPlusVal Duration, *)
 (* 	?exdate = List.T (ParamsPlusVal (List.T DtPval)), *)
 (* 	?exrule = List.T (XPListPlusVal Recur), *)
 (* 	?geo = Geo, *)
 (* 	?lastmod = XPListPlusVal DateTime, *)
 (* 	?location = ParamsPlusVal Value, *)
 (* 	?organizer = ParamsPlusVal Value, *)
+(* 	?percent = XPListPlusVal Value, *)
 (* 	?priority = XPListPlusVal Value, *)
 (* 	?rdate = List.T (ParamsPlusVal (List.T DtPval)), *)
 (* 	?recurid = ParamsPlusVal DtPval, *)
@@ -481,7 +508,7 @@ and eventc_lens : lens =
 (* 	?uid = XPListPlusVal Value, *)
 (* 	?url = XPListPlusVal Value, *)
 (* 	?xprop = XProp *)
-(*       } *)	
+(*       } *)
 and compprop_lens : lens =
    assert CompProp;
    wmap {
@@ -491,6 +518,7 @@ and compprop_lens : lens =
 	   "categories" -> List.map (paramsplusval_lens (List.flatten; map (List.hd []))),
 	   "class" -> xplistplusval_lens id,
 	   "comment" -> List.map (paramsplusval_lens id),
+           "completed" -> xplistplusval_lens datetime_lens,
 	   "contact" -> List.map (paramsplusval_lens id),
 	   "created" -> xplistplusval_lens datetime_lens,
 	   "daylightc" -> List.map compprop_lens,
@@ -498,6 +526,7 @@ and compprop_lens : lens =
 	   "dtend" -> paramsplusval_lens dtpval_lens,
 	   "dtstamp" -> paramsplusval_lens dtpval_lens,
            "dtstart" -> paramsplusval_lens dtpval_lens,
+           "due" -> paramsplusval_lens dtpval_lens,
 	   "duration" -> xplistplusval_lens duration_lens,
 	   "exdate" -> List.map (paramsplusval_lens (List.map dtpval_lens)),
 	   "exrule" -> List.map (xplistplusval_lens recur_lens),
@@ -505,6 +534,7 @@ and compprop_lens : lens =
 	   "lastmod" -> xplistplusval_lens datetime_lens,
 	   "location" -> paramsplusval_lens id,
 	   "organizer" -> paramsplusval_lens id,
+           "percent" -> xplistplusval_lens id,
 	   "priority" -> xplistplusval_lens id,
 	   "rdate" -> List.map (paramsplusval_lens (List.map dtpval_lens)),
 	   "recurid" -> paramsplusval_lens dtpval_lens,
