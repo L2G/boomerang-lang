@@ -32,9 +32,9 @@ let harmonize r1 r2 ar =
   let (newr1, newr2, newar) = ("new"^r1, "new"^r2, "new"^ar) in
   let harm_args = [|"-schema"; "ICalendar.ICalendar_A";
 		    "-ar"; ar; "-r1"; r1; "-r2"; r2;
-		    "-lensar"; "ICalendar.l";
-		    "-lensr1"; "ICalendar.l";
-		    "-lensr2"; "ICalendar.l";
+		    "-lensar"; "ICalendar.l_no_stamps";
+		    "-lensr1"; "ICalendar.l_no_stamps";
+		    "-lensr2"; "ICalendar.l_no_stamps";
 		    "-newar"; newar; "-newr1"; newr1; "-newr2"; newr2;
 		    "-I"; "../../lenses"; "-I"; "."
 		  |] in
@@ -51,7 +51,7 @@ let write_ics (r1m, r2m, r3m) =
 let usage = "Usage : harmonize-calendars REP1 REP2 ARCH NEWR1 NEWR2 NEWARCH"
 
 let _ = match Array.length Sys.argv with
-  7 -> 
+| 7 ->
     print_endline (atos Sys.argv);
     let (r1m, r2m, arm) = read_ics () in
     write_ics (harmonize r1m r2m arm)
