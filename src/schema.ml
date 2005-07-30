@@ -455,3 +455,97 @@ let rec pick_bad_subtree v t0 = match member_aux v t0 with
       for_all ps
 
 let dom_member v t0 = match member_aux v t0 with Failure _ -> false | Member _ -> true
+
+(*--------- intersection ------------*)
+(* type t =  *)
+(*     Any of Info.t   *)
+(*   | Atom of Info.t * string * t *)
+(*   | Cat of Info.t * t list  *)
+(*   | Union of Info.t * t list  *)
+(*   | Var of Info.t * Syntax.qid * thunk *)
+(*   | Wild of Info.t * Name.Set.t * int * int option * t *)
+(* and thunk = unit -> t *)
+
+type t' = t (* don't know how else to do.. ! *)
+
+module SchemaSet =
+  Set.Make (
+  struct
+    type t = t'
+    let compare = cmp_t
+  end)
+
+let rec create_association_table tl ul = 
+  match ul with 
+    [] -> []
+  | Any(i)::q -> (Any(i), tl)::(create_association_table tl q)
+  | Atom(i, n, t)::q -> 
+      let ass = Safelist.filter (fun tk -> project t n <> None) tl in
+      (Atom(i,n,t), ass)::(create_association_table tl q)
+  | Cat(_,ul)::q -> create_association_table tl (ul@q)
+  | Union(i,ul)::q ->
+      let ass = 
+	Safelist.fold_left 
+	  (fun acc t -> 
+	    match create_association_table tl [t] with
+	      [(_, assk)] ->
+		Safelist.fold_left (fun acc i -> SchemaSet.add i acc) acc assk
+	    | _ -> assert false)
+	  SchemaSet.empty
+	  ul in
+      (Union(i,ul), SchemaSet.elements ass)::(create_association_table tl q)
+  | Var(_, _, thk)::q -> create_association_table tl ((thk ())::q)
+  | Wild(i, f, l, u, t)::q -> 
+      (let rec filt t = match t with
+	Any _ -> true
+      | Atom(_, n, _) -> not (Name.Set.mem n f)
+      | Cat(_,tl) -> Safelist.for_all filt tl
+      | Union(_, tl) -> Safelist.exists filt tl
+      | Var(_, _, thk) -> filt (thk ())
+      | Wild(_, f', l', u', t') ->
+	  let overlap = function
+	      (l, None), (m, None) -> true
+	    | (l, Some k), (m, None) -> m <= k
+	    | (l, None), (m, Some p) -> l <= p
+	    | (l, Some k), (m, Some p) -> m <= k || l <= p in
+	  ((l = 0 && l' = 0) ||
+	  (overlap ((l,u),(l',u')))) in
+      let ass = Safelist.filter filt tl in
+      (Wild(i,f,l,u,t), ass)::(create_association_table tl q))
+	
+let rec intersect t1 t2 = 
+  match t1, t2 with
+    Any _, _ -> true (* note that we cannot express empty schemas right now *)
+  | _, Any _ -> true
+  | Var(i, qid, thk), t -> intersect t (thk ())
+  | t, Var(i, qid, thk) -> intersect t (thk ())
+  | Atom(_, k, t), t0 ->
+      (match split t0 k with
+	Some (t0k, r) -> 
+	  intersect t0k t && empty_view_member r
+      |	None -> false
+	    )
+  | t0, Atom(i, k, t) ->
+      intersect (Atom(i,k,t)) t0
+  | Union(_, tl), t -> 
+      Safelist.fold_left 
+	(fun b tk -> if b then true else intersect t tk)
+	false
+	tl
+  | t, Union(i, tl) ->
+      intersect (Union (i,tl)) t
+  | Wild(_, _, l, u, t), Wild(_, _, l', u', t') ->
+      let overlap = function
+	(l, None), (m, None) -> true
+	| (l, Some k), (m, None) -> m <= k
+	| (l, None), (m, Some p) -> l <= p
+	| (l, Some k), (m, Some p) -> m <= k || l <= p in
+      ((l = 0 && l' = 0) ||
+      (overlap ((l,u),(l',u')) && intersect t t'))
+  | Wild(i,f,l,u,t), Cat(i', tl) ->
+      intersect (Cat(i,[Wild(i,f,l,u,t)])) (Cat(i', tl))
+  | Cat(i', tl), Wild(i,f,l,u,t) ->
+      intersect (Cat(i, [Wild(i,f,l,u,t)])) (Cat(i', tl))
+  | Cat(_, tl), Cat(_, tl') ->
+      false
+      
