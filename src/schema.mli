@@ -11,8 +11,8 @@
 type t 
 (** [t] is held abstract *)
 
-(** [string_of_t t] pretty prints the schema [t] *)
-val string_of_t : t -> string
+(** [format_t t] pretty prints the schema [t] *)
+val format_t : t -> unit
 
 (** [info_of_t t] returns the parsing information associated with [t] *)
 val info_of_t : t -> Info.t
@@ -23,7 +23,7 @@ val mk_atom : Info.t -> Name.t -> t -> t
 val mk_cat : Info.t -> t list -> t
 val mk_union : Info.t -> t list -> t
 val mk_var : Info.t -> Syntax.qid -> (unit -> t) -> t
-val mk_wild : Info.t -> Name.Set.t -> int -> int option -> t -> t
+val mk_wild : Info.t -> Name.Set.t -> int -> bool -> t -> t
 
 (* -------------- constants --------------- *)
 val mk_nil : Info.t -> t

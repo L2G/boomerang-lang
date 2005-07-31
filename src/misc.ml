@@ -288,30 +288,26 @@ let rec replace_substrings s l =
 
     
 let whack_chars s cl reverse =
-  (*   let s = if String.length s > 30 then (String.sub s 0 30 ^ "...") else s in  *)
-  let debug s = prerr_endline s in
-  let s = 
-    (* escape only the strictly necessary *)
-    Safelist.fold_right ( fun (p,r) s -> Str.global_replace (Str.regexp p ) r s )   
-      [("\"","\\\"");("\\", "\\\\\\\\")]
-      s
-  in
+  let esc_s = 
+    Safelist.fold_right 
+      (fun (p,r) s -> Str.global_replace (Str.regexp p) r s)   
+      [("\n","\\n");("\"","\\\"");("\\", "\\\\\\\\")]
+      s in
     if reverse then
-      try
-        String.iter
-          (fun c -> if not (List.mem c cl) then raise Not_found)
-          s;
-        s
-      with
-        | Not_found -> "\""^s^"\""
+      try String.iter
+        (fun c -> if not (List.mem c cl) then raise Not_found)
+        esc_s;
+        esc_s
+      with Not_found -> Printf.sprintf "\"%s\"" esc_s
     else
-    if (Safelist.exists (fun c -> String.contains s c) cl) then "\""^s^"\"" else s
+      if (Safelist.exists (fun c -> String.contains s c) cl) then 
+        Printf.sprintf "\"%s\"" esc_s 
+      else 
+        esc_s
       
 let whack s =   
-  if s = "" then 
-    "\"\"" 
-  else 
-    whack_chars s [' '; '"'] false
+  if s = "" then "\"\"" 
+  else whack_chars s [' '; '\n';'"'] false
 
 let whack_ident s = 
   whack_chars s
@@ -566,21 +562,40 @@ let dynamic_bind d v f =
 
 (* ------------- Pretty printing utilities --------------- *)
 
-let concat 
-    (fold:('a -> string -> string) -> 't -> string -> string)
-    (sep:string) 
-    (pretty:'a -> string) 
-    (structure: 't) : string =
-  let f (h:'a) (acc:string) : string = 
-    if acc = "" then (pretty h) 
-    else (Printf.sprintf "%s%s%s" (pretty h) sep acc)
-  in    
-    fold f structure ""
-      
-let concat_list sep l = concat Safelist.fold_right sep (fun x -> x) l 
+let concat fold sep is_empty empty pretty structure = 
+  fold 
+    (fun acc h -> 
+       if is_empty acc then pretty h
+       else sep acc (pretty h))
+    empty 
+    structure 
+    
+let concat_list sep l = 
+  concat
+    Safelist.fold_left
+    (fun x y -> Printf.sprintf "%s%s%s" x sep y)
+    (fun x -> String.length x = 0)
+    ""
+    (fun x -> x)
+    l
+    
+let concat_f_list sep f l = concat_list sep (Safelist.map f l)
   
-let enclose p1 s p2 = Printf.sprintf "%s%s%s" p1 s p2
-let parens s = enclose "(" s ")"
-let brackets s = enclose "[" s "]" 
-let curlybraces s = enclose "{" s "}" 
-
+let format_list sep f l =
+  let extract_thk = function 
+      Some thk -> thk
+    | None -> (fun () -> ()) in
+  let thko =
+    concat
+      Safelist.fold_left
+      (fun x y -> 
+         Some (fun () -> 
+                 extract_thk x ();
+                 Format.printf sep;
+                 extract_thk y ()))
+      (fun x -> x = None)
+      None
+      (fun x -> Some (fun () -> f x))
+      l
+  in
+    extract_thk thko ()

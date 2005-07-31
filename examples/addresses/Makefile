@@ -20,7 +20,7 @@ include $(OCAMLMAKEFILE)
 ####################################################################
 # Tests
 
-test:: buildharmony unit-tests demo1 demo2
+test:: buildharmony unit-tests demo1 
 
 unit-tests:
 	$(HARMONY) -check Addr -test-all

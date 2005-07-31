@@ -7,12 +7,16 @@
 (* $Id$ *)
 
 (* imports *)
+let (@) = Safelist.append
 let sprintf = Printf.sprintf
 let debug = Trace.debug "type" 
 
-let fatal_error i msg =
+let fatal_error i msg_thk =
   raise (Error.Harmony_error 
-           (fun () -> Format.eprintf "%s: %s" (Info.string_of_t i) msg))
+           (fun () -> 
+              Format.printf "%s: @[<2>" (Info.string_of_t i);
+              msg_thk ();
+              Format.printf "@]"))
 
 (* symbolic comparisons *)
 let eq = 0 
@@ -26,7 +30,7 @@ type t =
   | Cat of Info.t * t list 
   | Union of Info.t * t list 
   | Var of Info.t * Syntax.qid * thunk
-  | Wild of Info.t * Name.Set.t * int * int option * t
+  | Wild of Info.t * Name.Set.t * int * bool * t
 and thunk = unit -> t
 
 (* --------------- accessors --------------- *)
@@ -38,28 +42,84 @@ let info_of_t = function
   | Var(i,_,_)      -> i
   | Wild(i,_,_,_,_) -> i
 
-let rec string_of_t = function
-    Any(_)          -> "Any"
-  | Var (_,x,thk)   -> Syntax.string_of_qid x
-  | Atom(_,n,t)     -> Printf.sprintf "%s = %s" (Misc.whack n) (string_of_t t)
-  | Wild(_,f,l,uo,t) -> 
-      Printf.sprintf "*[%n,%s]%s = %s"
-        l
-        (match uo with None -> "w" | Some u -> string_of_int u)
-        (if Name.Set.is_empty f then "" 
-         else " \\ " ^ Misc.parens (Misc.concat_list ", " (Safelist.map Misc.whack (Name.Set.elements f))))
-	(string_of_t t)
-  | Cat(_,ts)   -> 
-      Misc.curlybraces 
-        (Misc.concat_list ", " 
-           (Safelist.map string_of_t ts))
-  | Union(_,ts) -> 
-      Misc.parens 
-        (Misc.concat_list " | " 
-           (Safelist.map string_of_t ts))
-        
-let string_of_ts ts = Misc.concat_list ", " (Safelist.map string_of_t ts)
+(* returns the set of free variables of a type, represented as a
+   finite map from variables to their expansions *)
+let rec fv = function
+    Any(_)                        -> Syntax.QidMap.empty
+  | Var(_,q,thk)                  -> Syntax.QidMap.from_list [(q,thk ())]
+  | Wild(_,_,_,_,t) | Atom(_,_,t) -> fv t
+  | Cat(_,ts) | Union(_,ts)       ->
+      Safelist.fold_left 
+        (fun acc ti -> 
+           Syntax.QidMap.fold 
+             (fun q t acc -> Syntax.QidMap.add q t acc) 
+             (fv ti) 
+             acc)
+        Syntax.QidMap.empty 
+        ts
 
+let format_t t0 = 
+  let rec format_t_aux cat = function
+      Any(_)          -> Format.printf "Any"
+    | Var (_,x,thk)   -> Format.printf "%s" (Syntax.string_of_qid x)
+    | Atom(_,n,t)     -> 
+        if not cat then Format.printf "{";
+        Format.printf "%s@,=@," (Misc.whack n); 
+        format_t_aux false t; 
+        if not cat then Format.printf "}";
+    | Wild(_,f,l,u,t) ->
+        let rec format_n_bangs n = match n with 
+            0 -> ()
+          | n -> Format.printf "!"; format_n_bangs (n-1) in        
+          if not cat then Format.printf "{";
+          (match l,u with 
+               0,true -> Format.printf "*"
+             | n,true -> format_n_bangs n; Format.printf "*"
+             | n,false -> format_n_bangs n);
+          if not (Name.Set.is_empty f) then 
+            (Format.printf "\\ (@[";
+             Misc.format_list ",@ " (fun n -> Format.printf "%s" (Misc.whack n)) (Name.Set.elements f);
+             Format.printf "@])");
+          Format.printf "@,=@,";
+          format_t_aux false t;
+          if not cat then Format.printf "}";
+    | Cat(_,ts) -> 
+        Format.printf "{@["; 
+        Misc.format_list ",@ " (format_t_aux true) ts; 
+        Format.printf "@]}"
+    | Union(_,ts) -> 
+        Format.printf "(@["; 
+        Misc.format_list "|@ " (format_t_aux false) ts; 
+        Format.printf "@])" in    
+
+  (* helper to compute the free variables that appear in t *)
+  (* uses a slow fixed-point computation ... should fix later *)
+  let rec loop fvs = 
+    let union fvs1 fvs2 = Syntax.QidMap.fold Syntax.QidMap.add fvs1 fvs2 in
+    let qs = Syntax.QidMap.domain fvs in
+    let fvs' = Syntax.QidMap.fold 
+      (fun q t acc -> if Syntax.QidSet.mem q qs then acc else union (fv t) acc) 
+      fvs 
+      fvs in
+      if Syntax.QidSet.equal qs (Syntax.QidMap.domain fvs') then fvs
+      else loop fvs' in
+  let fvs = loop (fv t0) in
+    Format.printf "@[";
+    format_t_aux false t0;
+    if not (Syntax.QidMap.is_empty fvs) then 
+      begin 
+        Format.printf "@\n  where @[";
+        Syntax.QidMap.fold 
+          (fun q t () -> 
+             Format.printf "%s@ =@ @[" (Syntax.string_of_qid q);
+             format_t_aux false t;
+             Format.printf "@]@\n")
+          fvs
+          ();
+        Format.printf "@]";
+      end;
+    Format.printf "@]"
+      
 (* --------------- "flattened" domains --------------- *)
 type fdom =
     Finite of Name.Set.t
@@ -134,15 +194,15 @@ let rec split t0 k = match t0 with
           | Some t0_k -> Some (t0_k, Union(i,Safelist.rev new_ts_rev))
         end
   | Var(_,_,thk) -> split (thk ()) k
-  | Wild(i,f,l,uo,t) -> 
+  | Wild(i,f,l,u,t) -> 
       if Name.Set.mem k f then None
       else 
         let new_f = Name.Set.remove k f in 
-        let residue = match uo with 
-            None   -> Wild(i,new_f,l,None,t)
-          | Some u -> 
-              if u = 1 then Cat(i,[])
-              else Wild(i,new_f,l,Some (u-1),t) in
+        let residue = match u with 
+            true   -> Wild(i,new_f,l,true,t)
+          | false  -> 
+              if l = 1 then Cat(i,[])
+              else Wild(i,new_f,l-1,false,t) in
           Some(t, residue)
 
 let project t0 k = match split t0 k with 
@@ -174,11 +234,6 @@ let rec cmp_t t1 t2 : int =
 	    else cmp_lex_aux t1 t2 tie
     in
       cmp_lex_aux l1 l2 eq in      
-  let cmp_uppers u1 u2 = match u1,u2 with
-      None, None -> eq
-    | Some _,None -> lt
-    | None, Some _ -> gt
-    | Some i1, Some i2 -> compare i1 i2 in
   let rec loop = function 
       []   -> eq
     | h::t -> 
@@ -193,7 +248,7 @@ let rec cmp_t t1 t2 : int =
       | Union(_,ts1),Union(_,ts2) -> cmp_lex ts1 ts2 cmp_t
       | Var(_,x,_),Var(_,y,_) -> Syntax.qid_compare x y
       | Wild(_,f1,l1,u1,t1),Wild(_,f2,l2,u2,t2) ->
-          loop [ (fun () -> cmp_uppers u1 u2)
+          loop [ (fun () -> compare u1 u2)
                ; (fun () -> compare l1 l2)
                ; (fun () -> compare f1 f2)
                ; (fun () -> cmp_t t1 t2)]
@@ -249,7 +304,7 @@ let mk_wild i f l u t = Wild(i,f,l,u,t)
    and [Some xi] otherwise *)
 let rec is_contractive t0 xs = match t0 with
     Any(_) | Atom(_) | Wild(_) -> None
-  | Cat(_,ts) | Union(_,ts)    -> Safelist.fold_left (fun reso ti -> match reso with Some _ -> reso | None -> is_contractive ti xs) None ts
+  | Cat(_,ts) | Union(_,ts) -> Safelist.fold_left (fun reso ti -> match reso with Some _ -> reso | None -> is_contractive ti xs) None ts
   | Var(_,q,_) -> if Safelist.exists (Syntax.qid_equal q) xs then Some q else None
 
 (* [proj_all f ts] projects each of the types in [ts] using [f]. If
@@ -338,31 +393,36 @@ let assert_wf t0 xs =
      | Some x -> 
         fatal_error
           (info_of_t t0)
-          (sprintf "schema variable %s may not be used recursively in %s"
-             (Syntax.string_of_qid x)
-             (string_of_t t0)))
+          (fun () -> 
+             Format.printf "schema variable %s may not be used recursively in@,@["
+               (Syntax.string_of_qid x);
+             format_t t0;
+             Format.printf "@]"))
   ;
   (match has_disjoint_cats t0 with 
        None -> ()
      | Some fs -> 
          fatal_error
            (info_of_t t0)
-           (sprintf "schema %s has domain overlap on %s"
-              (string_of_t t0)
-              (Misc.curlybraces 
-                 (Misc.concat_list ", " 
-                    (Safelist.map Misc.whack (Name.Set.elements fs))))))
+           (fun () -> 
+              Format.printf "schema@ "; 
+              format_t t0;
+              Format.printf "@ has domain overlap on {%s}"
+                (Misc.concat_f_list ", " Misc.whack (Name.Set.elements fs))))
   ;
   (match is_projectable t0 with 
        None -> ()
      | Some(k,t1,t2) -> 
          fatal_error
            (info_of_t t0)
-           (sprintf "schema %s is not projectable on %s: %s <> %s" 
-              (string_of_t t0)
-              (Misc.whack k) 
-              (string_of_t t1)
-              (string_of_t t2)))
+           (fun () -> 
+              Format.printf "schema@ ";
+              format_t t0;
+              Format.printf "@ is not projectable on %s;@ "                 
+                (Misc.whack k);
+              format_t t1;
+              Format.printf "@ <> @ ";
+              format_t t2))
     
 (* --------------- constants --------------- *)
 let mk_nil i = mk_cat i [mk_atom i V.nil_tag (mk_cat i [])]
@@ -383,7 +443,7 @@ let rec empty_view_member t0 = match t0 with
   | Union(_,ts) -> Safelist.exists empty_view_member ts
   | Cat(_,ts) -> Safelist.for_all empty_view_member ts
   | Var(_,_,thk) -> empty_view_member (thk ())
-  | Wild(_,_,l,uo,_) -> (l <= 0) && (match uo with None -> true | Some u -> (u >=0))
+  | Wild(_,_,l,u,_) -> (l <= 0) && (match u with true -> true | false -> not (l > 0))
         
 let rec member_aux v t0 = match t0 with 
     Any(_) -> Member []
@@ -428,7 +488,7 @@ let rec member_aux v t0 = match t0 with
       let d = V.dom v in
       let c = Name.Set.cardinal d in
         if (l <= c)
-          && (match uo with None -> true | Some u -> c <= u)
+          && (match uo with true -> true | false -> (l = c))
           && (Name.Set.is_empty (Name.Set.inter f d))
         then 
           Member (Name.Set.fold (fun k ps -> (k,t)::ps) d [] )
@@ -455,97 +515,3 @@ let rec pick_bad_subtree v t0 = match member_aux v t0 with
       for_all ps
 
 let dom_member v t0 = match member_aux v t0 with Failure _ -> false | Member _ -> true
-
-(*--------- intersection ------------*)
-(* type t =  *)
-(*     Any of Info.t   *)
-(*   | Atom of Info.t * string * t *)
-(*   | Cat of Info.t * t list  *)
-(*   | Union of Info.t * t list  *)
-(*   | Var of Info.t * Syntax.qid * thunk *)
-(*   | Wild of Info.t * Name.Set.t * int * int option * t *)
-(* and thunk = unit -> t *)
-
-type t' = t (* don't know how else to do.. ! *)
-
-module SchemaSet =
-  Set.Make (
-  struct
-    type t = t'
-    let compare = cmp_t
-  end)
-
-let rec create_association_table tl ul = 
-  match ul with 
-    [] -> []
-  | Any(i)::q -> (Any(i), tl)::(create_association_table tl q)
-  | Atom(i, n, t)::q -> 
-      let ass = Safelist.filter (fun tk -> project t n <> None) tl in
-      (Atom(i,n,t), ass)::(create_association_table tl q)
-  | Cat(_,ul)::q -> create_association_table tl (ul@q)
-  | Union(i,ul)::q ->
-      let ass = 
-	Safelist.fold_left 
-	  (fun acc t -> 
-	    match create_association_table tl [t] with
-	      [(_, assk)] ->
-		Safelist.fold_left (fun acc i -> SchemaSet.add i acc) acc assk
-	    | _ -> assert false)
-	  SchemaSet.empty
-	  ul in
-      (Union(i,ul), SchemaSet.elements ass)::(create_association_table tl q)
-  | Var(_, _, thk)::q -> create_association_table tl ((thk ())::q)
-  | Wild(i, f, l, u, t)::q -> 
-      (let rec filt t = match t with
-	Any _ -> true
-      | Atom(_, n, _) -> not (Name.Set.mem n f)
-      | Cat(_,tl) -> Safelist.for_all filt tl
-      | Union(_, tl) -> Safelist.exists filt tl
-      | Var(_, _, thk) -> filt (thk ())
-      | Wild(_, f', l', u', t') ->
-	  let overlap = function
-	      (l, None), (m, None) -> true
-	    | (l, Some k), (m, None) -> m <= k
-	    | (l, None), (m, Some p) -> l <= p
-	    | (l, Some k), (m, Some p) -> m <= k || l <= p in
-	  ((l = 0 && l' = 0) ||
-	  (overlap ((l,u),(l',u')))) in
-      let ass = Safelist.filter filt tl in
-      (Wild(i,f,l,u,t), ass)::(create_association_table tl q))
-	
-let rec intersect t1 t2 = 
-  match t1, t2 with
-    Any _, _ -> true (* note that we cannot express empty schemas right now *)
-  | _, Any _ -> true
-  | Var(i, qid, thk), t -> intersect t (thk ())
-  | t, Var(i, qid, thk) -> intersect t (thk ())
-  | Atom(_, k, t), t0 ->
-      (match split t0 k with
-	Some (t0k, r) -> 
-	  intersect t0k t && empty_view_member r
-      |	None -> false
-	    )
-  | t0, Atom(i, k, t) ->
-      intersect (Atom(i,k,t)) t0
-  | Union(_, tl), t -> 
-      Safelist.fold_left 
-	(fun b tk -> if b then true else intersect t tk)
-	false
-	tl
-  | t, Union(i, tl) ->
-      intersect (Union (i,tl)) t
-  | Wild(_, _, l, u, t), Wild(_, _, l', u', t') ->
-      let overlap = function
-	(l, None), (m, None) -> true
-	| (l, Some k), (m, None) -> m <= k
-	| (l, None), (m, Some p) -> l <= p
-	| (l, Some k), (m, Some p) -> m <= k || l <= p in
-      ((l = 0 && l' = 0) ||
-      (overlap ((l,u),(l',u')) && intersect t t'))
-  | Wild(i,f,l,u,t), Cat(i', tl) ->
-      intersect (Cat(i,[Wild(i,f,l,u,t)])) (Cat(i', tl))
-  | Cat(i', tl), Wild(i,f,l,u,t) ->
-      intersect (Cat(i, [Wild(i,f,l,u,t)])) (Cat(i', tl))
-  | Cat(_, tl), Cat(_, tl') ->
-      false
-      

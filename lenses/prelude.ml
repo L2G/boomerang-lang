@@ -150,18 +150,18 @@ let probe_qid = "Native.Prelude.probe"
 let probe msg = 
   { get = (fun c ->
      Format.printf "@,@[<v0>%s (get) @,  " msg;
-     V.format c;
+     V.format_t c;
      Format.printf "@,@]";
      Format.print_flush ();
      c);
     put = (fun a co ->     
 	     Format.printf "@,@[<v0>%s (put) @,  " msg;
-	     V.format a;
+	     V.format_t a;
      Format.printf "@,  ";
      begin
        match co with
            None -> Format.printf "MISSING";
-         | Some c -> V.format c
+         | Some c -> V.format_t c
      end;
      Format.printf "@,@]";
      Format.print_flush ();
@@ -205,11 +205,11 @@ let assert_native t =
 	  error [`String (assert_qid^"(" ^ dir ^ "): tree"); `Space;
 		  `Tree v; `Space;
 		  `String "is not a member of";  `Space;
-		  `String (Schema.string_of_t t);
+		  `Prim (fun () -> Schema.format_t t);
 		  `Space; `String "because"; `Space;
 		  `Tree v0; `Space;
 		  `String "is not a member of";  `Space;
-		  `String (Schema.string_of_t t0)]
+		  `Prim (fun () -> Schema.format_t t0)]
   in          
   { get = ( fun c -> check_assert "get" c t; c);
     put = ( fun a _ -> check_assert "put" a t; a) }

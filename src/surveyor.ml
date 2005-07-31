@@ -81,7 +81,7 @@ let get_ekey eko fn contents_opt =
 	match (find_encodings fn contents_opt) with
 	  | [ek] -> ek
 	  | []    -> raise (Error.Harmony_error (fun () -> Format.printf "No encoding for file '%s'" fn))
-	  | eks    -> raise (Error.Harmony_error (fun () -> Format.printf "More than one possible encoding for file '%s': %s" fn (Misc.concat_list " " eks)))
+	  | eks    -> raise (Error.Harmony_error (fun () -> Format.printf "More than one possible encoding for file '%s'" fn ))
 
 let tree_of_file fn reader = 
   if Sys.file_exists fn then

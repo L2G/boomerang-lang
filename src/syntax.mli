@@ -31,6 +31,12 @@ val qid_of_id : id -> qid
 val id_of_string : Info.t -> string -> id
 val dot : qid -> qid -> qid
 
+module QidSet : Set.S 
+  with type elt = qid
+
+module QidMap : Mapplus.SMap 
+  with type key_t = qid 
+  and type key_set = QidSet.t
 
 (** constants *)
 val native_prelude : Info.t -> id list
@@ -67,7 +73,7 @@ type exp =
   | ESchema of Info.t * schema_binding list * exp 
   | EUnion of Info.t * exp list
   | EVar of Info.t * qid
-  | EWild of Info.t * exp list * int * int option * exp
+  | EWild of Info.t * exp list * int * bool * exp
 
 and binding = BDef of Info.t * id * param list * sort * exp
 
@@ -111,12 +117,12 @@ val info_of_module : modl -> Info.t
 
 val string_of_id : id -> string
 val string_of_qid : qid -> string
-val string_of_sort : sort -> string
-val string_of_param : param -> string
-val string_of_exp : exp -> string
-val string_of_binding : binding -> string
-val string_of_bindings : binding list -> string
-val string_of_schema_binding : schema_binding -> string
-val string_of_schema_bindings : schema_binding list -> string
-val string_of_decl : decl -> string
-val string_of_module : modl -> string
+val format_sort : sort -> unit
+val format_param : param -> unit
+val format_exp : exp -> unit
+val format_binding : binding -> unit
+val format_bindings : binding list -> unit
+val format_schema_binding : schema_binding -> unit
+val format_schema_bindings : schema_binding list -> unit
+val format_decl : decl -> unit
+val format_module : modl -> unit

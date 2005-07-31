@@ -190,7 +190,7 @@ val concat : t -> t -> t
 (* --------------------------------------------------------------------- *)
 (** {2 Pretty-printing of trees} *)
 
-val format : t -> unit
+val format_t : t -> unit
 (** The tree passed to [format] is formatted to a string and printed to the standard output. *)
 
 val string_of_t : t -> string
@@ -202,7 +202,8 @@ val show_diffs : t -> t -> unit
 (** {2 Formatting of error messages} *)
 (**  A type for easy formatting of error messages *)
 type msg = [`String of string | `Name of Name.t | `Break | `Space | `Tree of t
-           | `Tree_opt of t option | `Open_box | `Open_vbox | `Close_box ]
+           | `Tree_opt of t option | `Prim of (unit -> unit) 
+           | `Open_box | `Open_vbox | `Close_box ]
 
 (* exception Error of msg list *)
 (** General exception for errors in Harmony *)

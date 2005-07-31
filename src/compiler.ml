@@ -44,19 +44,29 @@ let debug s_thk =
 
 let parse_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s: Parse error @\n %s" (Info.string_of_t i) (msg_thk ())))
+	   (fun () -> Format.printf "@[%s: Parse error @\n" (Info.string_of_t i);
+              msg_thk ();
+              Format.printf "@]"))
       
 let sort_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s: Sort checking error @\n %s" (Info.string_of_t i) (msg_thk ())))
+	   (fun () -> 
+              Format.printf "@[%s: Sort checking error@\n" (Info.string_of_t i);
+              msg_thk ();
+              Format.printf "@]"))
     
 let test_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s: Unit test failed @ " (Info.string_of_t i); (msg_thk ())))
+	   (fun () -> Format.printf "@[%s: Unit test failed @ " (Info.string_of_t i); 
+              msg_thk ();
+              Format.printf "@]"))
     
 let run_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s: Unexpected run-time error @\n %s" (Info.string_of_t i) (msg_thk ())))
+	   (fun () -> Format.printf "@[%s: Unexpected run-time error @\n" 
+              (Info.string_of_t i);
+              msg_thk ();
+              Format.printf "@]"))
           
 (* --------------- GenSym ----------------- *)
 let fresh_var_counter = ref 0
@@ -163,11 +173,11 @@ let rec expect_sort_exp msg sev expected_sort e =
     else
       sort_error i
 	(fun () -> 
-	   sprintf "in %s: %s expected but %s found\n\t%s"
-	     msg
-	     (string_of_sort expected_sort)
-	     (string_of_sort e_sort)
-	     (string_of_exp e))
+           Format.printf "@[in %s:" msg;
+           Syntax.format_sort expected_sort;
+           Format.printf " expected@ but ";
+           Syntax.format_sort e_sort;
+           Format.printf "found@]")
 	
 (* EXPRESSIONS *)    
 and check_exp sev e0 = 
@@ -182,9 +192,11 @@ and check_exp sev e0 =
 		(return_sort, new_e0)
 	  | e1_sort,_ -> 
 	      sort_error i 
-		(fun () -> sprintf 
-		   "expected arrow sort in left-hand side of application but found %s"
-		   (string_of_sort e1_sort))
+		(fun () -> 
+                   Format.printf
+		     "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found";
+                   Syntax.format_sort e1_sort;
+                   Format.printf "@]")
       end
 	
     (* type atoms *)
@@ -219,7 +231,7 @@ and check_exp sev e0 =
 	  (e0_sort, new_e0)
 	    
     | EFun(i,[],_,_) -> 
-	run_error i (fun () -> sprintf "zero argument function")
+	run_error i (fun () -> Format.printf "@[function without parameters]")
 	  
     | EFun(i,p1::p2::ps,return_sort_opt,body) ->
 	(* multi-parameter function; rewrite to simple lambda *)
@@ -286,8 +298,9 @@ and check_exp sev e0 =
             Some s -> (s,e0)
 	  | None -> 
               sort_error i 
-	        (fun () -> sprintf "%s is not bound" 
-		   (string_of_qid q))
+	        (fun () -> 
+                   Format.printf "@[%s is not bound@]"
+		     (string_of_qid q))
 	end
 
     | EWild(i,es,l,u,e) ->
@@ -371,7 +384,7 @@ let rec check_decl sev m di =
 	     match Env.lookup (SCEnv.get_ev m_sev) q with
 		 None -> run_error i 
 		   (fun () -> 
-		      sprintf "a just-checked declaration of %s went missing"
+		      Format.printf "@[the compiled declaration for %s went missing@]"
 			(string_of_qid q))
 	       | Some q_rv ->
 		   let nq_dot_q = dot n_qid q in
@@ -441,15 +454,19 @@ let rec compile_exp cev e0 =
 		    | _   -> 
                         run_error 
                           i 
-                          (fun () -> sprintf 
-                             "expected function at left-hand side of application but found %s"
-                             (Value.string_of_t v2))
+                          (fun () -> 
+                             Format.printf
+                               "@[expected function at left-hand side of application but found ";
+                             Value.format_t v2;
+                             Format.printf "@]")
 		  end
 	      | s -> 
                   run_error i 
-		    (fun () -> sprintf
-                       "expected function sort at left-hand side of application but found %s"
-		       (string_of_sort s))
+		    (fun () -> 
+                       Format.printf
+                         "@[expected function sort at left-hand side of application but found ";
+                       Syntax.format_sort s;
+                       Format.printf "@]")
 	  end
             
     | EAtom(i,e1,e2) ->
@@ -465,16 +482,19 @@ let rec compile_exp cev e0 =
                   if !check_schemas then Schema.assert_wf s [];
 		  mk_rv SSchema (Value.S s)
 	    | v -> run_error i
-                (fun () -> sprintf 
-                   "expected schema or tree in atom but found %s"
-                   (Value.string_of_t v))
+                (fun () -> 
+                   Format.printf 
+                   "@[expected schema or tree in atom but found ";
+                   Value.format_t v;
+                   Format.printf "@]")
 	  end
 	    
     | ECat(i, es) ->
 	let e0_sort, vs_rev = 
 	  Safelist.fold_left 
 	    (fun (s,vs_rev) ei -> 		 
-	       let v = v_of_rv (compile_exp cev ei) in
+               let ei_rv = compile_exp cev ei in 
+	       let v = v_of_rv ei_rv in
 		 match s, v with
 		     STree, (Value.V _) -> 
 		       (s, v::vs_rev)
@@ -484,9 +504,11 @@ let rec compile_exp cev e0 =
 		   | SSchema, (Value.V _) 
 		   | SSchema, (Value.S _) ->
 		       (s, (Value.S (Value.get_schema i v))::vs_rev)
-		   | _ -> run_error i (fun () -> 
-					 sprintf "bogus value in ECat: %s %s"
-					   (string_of_sort s) (Value.string_of_t v)))
+		   | _ -> run_error i 
+                       (fun () -> 
+			  Format.printf "@[bogus value in ECat:";
+                          Registry.format_rv ei_rv;
+                          Format.printf "@]"))
 	    (STree,[])
 	    es
 	in 
@@ -524,7 +546,7 @@ let rec compile_exp cev e0 =
 		let s = Schema.mk_cons i t1 t2 in 
                   if !check_schemas then Schema.assert_wf s [];
 	      	  mk_rv SSchema (Value.S s)
-	    | _ -> run_error i (fun () -> "expected tree or type in atom")
+	    | _ -> run_error i (fun () -> Format.printf "@[expected tree or type in atom@]")
 	  end
 
     | EFun(i,[p],Some ret_sort,e) ->
@@ -543,7 +565,7 @@ let rec compile_exp cev e0 =
 	    (Value.F (f_sort, f_impl))
 
     | EFun(i,_,_,_) -> 
-	run_error i (fun () -> sprintf "unflattened or unannotated function")
+	run_error i (fun () -> Format.printf "@[unflattened or unannotated function@]")
 	  
     | ELet(i, bs,e) ->
 	let bcev,_ = compile_bindings cev bs in
@@ -559,7 +581,7 @@ let rec compile_exp cev e0 =
 		 function (Value.N n1 as v) ->
 		   if (n1 = n) then v_of_rv (compile_exp cev le)
 		   else f v
-		   | _ -> run_error i (fun () -> "argument to map is not a name")
+		   | _ -> run_error i (fun () -> Format.printf "@[argument to map is not a name@]")
 	       end)
 	  (fun _ -> v_of_rv (compile_exp cev id_exp))
 	  ms
@@ -618,15 +640,15 @@ let rec compile_exp cev e0 =
                    helpful to throw the exception. *)
                 (* let rec diverge () = diverge () in diverge () *)
                 run_error (info_of_exp e0)
-                  (fun () -> Printf.sprintf "Variable %s is not used contractively in recursive definition"
-                     (string_of_exp e0))
+                  (fun () -> 
+                     Format.printf "@[variable %s may not be used recursively@]"
+                       (Syntax.string_of_qid q))
               else rv
 	  | None -> run_error 
 	      (info_of_exp e0)
 	        (fun () -> 
-		   Printf.sprintf "Unbound variable %s"
-		     (string_of_exp e0)
-                     (* (Env.to_string (CEnv.get_ev cev) Registry.string_of_rv) *))
+		   Format.printf "@[unbound variable %s@]"
+		     (string_of_qid q))
       end
 
     | EWild(i,es,l,u,e) ->
@@ -682,7 +704,7 @@ and compile_bindings cev bs =
 	   let memoized_rv = mk_rv (s_of_rv e_rv) memoized_v in
            let _ = CEnv.overwrite bcev f_qid memoized_rv in
              f_qid::names_rev
-       | Syntax.BDef(i,_,_,_,_) -> run_error i (fun () -> "unflattened binding"))
+       | Syntax.BDef(i,_,_,_,_) -> run_error i (fun () -> Format.printf "@[unflattened binding@]"))
     []
     bs
   in
@@ -721,7 +743,7 @@ and compile_schema_bindings cev ss =
        let x_thk () = 
          match CEnv.lookup scev fresh_x with
              None -> run_error i 
-               (fun () -> sprintf "%s is not bound" (string_of_qid fresh_x))
+               (fun () -> Format.printf "@[%s is not bound@]" (string_of_qid fresh_x))
            | Some rv -> Value.get_schema i (v_of_rv rv) in
        let x_schema = Schema.mk_var i fresh_x x_thk in
          CEnv.overwrite scev 
@@ -756,11 +778,16 @@ and compile_schema_bindings cev ss =
   let scev = Safelist.fold_left 
     (fun scev (fresh_x,SDef(i,x,_)) -> 
        match CEnv.lookup scev fresh_x with
-           None -> run_error i (fun () -> "just-compiled schema went missing")
+           None -> run_error i 
+             (fun () -> 
+                Format.printf "@[the compiled schema for %s went missing@]" (
+                  Syntax.string_of_qid fresh_x))
          | Some rv -> 
              let rv_sort = s_of_rv rv in
              let rv_value = match v_of_rv rv with
-                 Value.S si as v -> if !check_schemas then Schema.assert_wf si !unchecked_schema_vars; v
+                 Value.S si as v -> 
+                   if !check_schemas then 
+                     Schema.assert_wf si !unchecked_schema_vars; v
                | v -> v in
                (* make x map to the actual schema, not to a variable *)             
                CEnv.overwrite scev (qid_of_id x) (mk_rv rv_sort rv_value))
@@ -769,6 +796,7 @@ and compile_schema_bindings cev ss =
     
   (* final result *)
   let _ = 
+    (* reset schema-checking state *)
     check_schemas := old_check_schemas;
     if !check_schemas then unchecked_schema_vars := [] in
     scev, Safelist.rev_append names_rev fresh_xs_rev
@@ -791,7 +819,7 @@ let rec compile_decl cev m di =
 		   let nq_dot_q = dot nq q in
 		     (CEnv.update cev nq_dot_q rv, nq_dot_q::names)
 	       | None -> run_error i
-		   (fun () -> sprintf "a just-compiled declaration of %s went missing"
+		   (fun () -> Format.printf "@[the compiled declaration for %s went missing@]"
 		      (string_of_qid q)))
 	  (cev,[])
 	  names
@@ -864,7 +892,7 @@ let parse_lexbuf lexbuf =
   try Parser.modl Lexer.main lexbuf 
   with Parsing.Parse_error ->
     parse_error (Lexer.info lexbuf) 
-      (fun () -> "Syntax error")
+      (fun () -> Format.printf "@[syntax error@]")
       
 (* end-to-end compilation of files *)
 let compile_file fn n =  
@@ -885,14 +913,13 @@ let compile_file fn n =
       if n <> m_str then
         sort_error 
 	  (info_of_module ast)
-	  (fun () -> sprintf "module %s must appear in a file named %s.fcl."
+	  (fun () -> Format.printf "@[module %s must appear in a file named %s.fcl.@]"
 	     m_str (String.uncapitalize m_str)) in
-  let ast' = check_module ast in 
-  let _ = compile_module ast' in
-    Lexer.finish ()
+    let ast' = check_module ast in 
+    let _ = compile_module ast' in
+      Lexer.finish ()
       
-(* FIXME: ugly backpatch hack! *)
-let _ = Registry.compile_file_impl := compile_file
-
-(* force loading of this module when using dynamically-linked libraries *)
-let init () = ()
+(* ugly backpatch hack! *)
+(* this is a thunk to force loading of this module when used via
+   harmony.cmxa (which is dynamically linked) *)
+let init () = Registry.compile_file_impl := compile_file 

@@ -39,14 +39,18 @@ let lookup ev q =
     Some !(QidMap.find q ev)
   with Not_found -> None
     
-let to_string ev string_of_r = 
-  Misc.curlybraces 
-    (QidMap.fold (fun q r acc -> 
-		    Printf.sprintf "\n\t%s=%s%s%s"		      
-		      (Syntax.string_of_qid q)
-		      (string_of_r (!r))
-		      (if (acc = "") then "" else ", ")
-		      acc)
-       ev "")
+let format_t ev format_r = 
+  Format.printf "{@[";  
+  let _ = 
+    QidMap.fold (fun q r acco -> 
+		   Format.printf "@[%s=@[" (Syntax.string_of_qid q);
+                   format_r (!r);
+                   Format.printf "]";
+                   if acco <> None then Format.printf ",";
+                   Format.printf "]@ ";
+                   Some ())
+      ev
+      None in            
+    Format.printf "]}"
 
 let iter f = QidMap.iter (fun q rvr -> f q (!rvr))

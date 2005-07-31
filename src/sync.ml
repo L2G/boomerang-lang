@@ -59,8 +59,15 @@ let format_copy s = function
 	
 let rec format = function
   | SchemaConflict (t,lv,rv) ->
-      V.format_msg ([`Open_vbox; `String "[SchemaConflict] "; `Break; `String (Schema.string_of_t t);
-                     `Break; `Tree lv; `Break; `Tree rv; `Close_box] )
+      V.format_msg ([`Open_vbox; 
+                     `String "[SchemaConflict] "; 
+                     `Break; 
+                     `Prim (fun () -> Schema.format_t t);
+                     `Break; 
+                     `Tree lv; 
+                     `Break; 
+                     `Tree rv; 
+                     `Close_box] )
   | GoDown(m) ->
       Name.Map.dump (fun ks -> ks) Misc.whack
         (fun x -> format x)
@@ -76,7 +83,14 @@ let rec format = function
 
 let rec format_without_equal = function
   | SchemaConflict (t,lv,rv) -> 
-      V.format_msg ([`Open_vbox; `String "[SchemaConflict] at type "; `String (Schema.string_of_t t); `Break; `Tree lv; `Break; `Tree rv; `Close_box] )
+      V.format_msg ([`Open_vbox
+                    ; `String "[SchemaConflict] at type "
+                    ; `Prim (fun () -> Schema.format_t t)
+                    ; `Break
+                    ; `Tree lv
+                    ; `Break
+                    ; `Tree rv
+                    ; `Close_box] )
   | GoDown(m) ->
       let prch (n,ch) = 
 	let prf() = Format.printf "@["; format_without_equal ch; Format.printf "@]" in
@@ -121,7 +135,7 @@ let rec sync' (t:Schema.t) archo lefto righto =
 	Lens.error [`String "Synchronziation error: "; `Break
 		   ; `Tree v; `Break
 		   ; `String " does not belong to "; `Break
-		   ; `String (Schema.string_of_t t)
+		   ; `Prim (fun () -> Schema.format_t t)
 		   ; `String "."]
       end
   in    
@@ -167,7 +181,7 @@ let rec sync' (t:Schema.t) archo lefto righto =
                          (* T, as we just checked. For debugging, here's a *)
                          (* helpful error message                          *)
 			 Lens.error [`String "synchronization error: type "
-			       ; `String (Schema.string_of_t t)
+			       ; `Prim (fun () -> Schema.format_t t)
 			       ; `String " cannot be projected on "
 			       ; `String k]
 		     | Some tk -> tk

@@ -47,9 +47,26 @@ let qid_prefix q1 q2 =
 	  (Safelist.combine il1 (Misc.take (Safelist.length il1) il2)))
 	
 let string_of_id (_,i) = i
-let string_of_qid (q,i) = Misc.concat_list "." (Safelist.map string_of_id q@[string_of_id i])
+let string_of_qid (qs,i) = 
+  Printf.sprintf "%s%s"
+    (Safelist.fold_left 
+       (fun acc qi -> Printf.sprintf "%s%s." acc (string_of_id qi)) 
+       ""
+       qs)    
+    (string_of_id i)
 
 let qid_hash q = Hashtbl.hash (string_of_qid q)
+
+(* data structures over Qids *)
+module QidMapplus = Mapplus.Make(
+  struct
+    type t = qid
+    let compare = qid_compare
+    let to_string = string_of_qid 
+  end)
+
+module QidMap = QidMapplus.Map
+module QidSet = QidMapplus.KeySet
 
 (* utility functions *)
 let qid_of_id id = [],id
@@ -96,7 +113,7 @@ type exp =
   | ESchema of i * schema_binding list * exp 
   | EUnion of i * exp list
   | EVar of i * qid
-  | EWild of i * exp list * int * int option * exp
+  | EWild of i * exp list * int * bool * exp
       
 (* bindings *)
 and binding = BDef of i * id * param list * sort * exp
@@ -158,120 +175,229 @@ let info_of_schema_bindings ss =
 let id_of_param = function PDef(_,x,_) -> x
 let sort_of_param = function PDef(_,_,s) -> s
 
-(* pretty printing stuff *)
+(* ---------------- pretty printing --------------- *)
 (* sorts *)
-let rec string_of_sort = function
-    SName         -> "name"
-  | SLens         -> "lens"
-  | SSchema         -> "schema"
-  | STree         -> "tree"
-  | SArrow(s1,s2) -> 
-      sprintf "(%s -> %s)" 
-	(string_of_sort s1) 
-	(string_of_sort s2)
-
+let format_sort s0 = 
+  let rec format_sort_aux parens = function
+      SName         -> Format.printf "name"
+    | SLens         -> Format.printf "lens"
+    | SSchema       -> Format.printf "schema"
+    | STree         -> Format.printf "tree"
+    | SArrow(s1,s2) -> 
+        if parens then Format.printf "(";
+        format_sort_aux true s1; 
+        Format.printf "@ ->@ "; 
+        format_sort_aux false s2; 
+        if parens then Format.printf ")"
+  in 
+    Format.printf "@[<2>";
+    format_sort_aux false s0;
+    Format.printf "@]"
+          
 (* params *)
-let string_of_param (PDef(_,i,s)) = 
-  Misc.parens(sprintf "%s:%s" 
-		(string_of_id i) 
-		(string_of_sort s))
+let format_param (PDef(_,i,s)) = 
+  Format.printf "@[%s:" (string_of_id i); 
+  format_sort s; 
+  Format.printf "@]"
+
+type format_mode = { app : bool; cat : bool }
 
 (* expressions *)
-let rec string_of_exp = function 
-  | EApp(_,e1,e2)    -> 
-      Misc.parens (sprintf "%s %s" 
-		     (string_of_exp e1) 
-		     (string_of_exp e2))
-  | EAtom(_,n,e)     -> 
-      sprintf "%s=%s" 
-	(string_of_exp n) 
-	(string_of_exp e)
-  | ECat(_,es) -> 
-      Misc.curlybraces
-	(Misc.concat_list "," 
-	   (Safelist.map string_of_exp es))
-  | ECons(_,e1,e2) ->
-      sprintf "%s::%s"
-	(string_of_exp e1)
-	(string_of_exp e2)
+let rec format_exp_aux mode e0 = match e0 with 
+    EApp(_,e1,e2)   -> 
+      let mode = { mode with cat = false } in   
+        Format.printf "@[<2>"; 
+        if mode.app then Format.printf "(";
+        (* some special formatting for infix operators, etc. *)
+        begin match e1 with 
+            EApp(_,EVar(_,q),e12)
+              when string_of_qid q = "Native.Prelude.compose2" ->
+                format_exp_aux { mode with app = false } e12;
+                Format.printf ";@ ";
+                format_exp_aux { mode with app = false } e2
+          | EVar(_,q) when string_of_qid q = "Native.Prelude.get" ->
+              format_exp_aux { mode with app = true} e2;
+              Format.printf "@ /"                
+          | EVar(_,q) when string_of_qid q = "Native.Prelude.put" -> 
+              format_exp_aux { mode with app = true } e2;
+              Format.printf "@ \\"
+          | EApp(_,EVar(_,q),e12) 
+              when string_of_qid q = "Native.Prelude.create" -> 
+              format_exp_aux { mode with app = true } e12;
+                Format.printf "@ \\@ ";
+                format_exp_aux { mode with app = true } e2;
+                Format.printf "@ missing"                
+          | _ -> 
+              format_exp_aux { mode with app = false } e1; 
+              Format.printf "@ "; 
+              format_exp_aux { mode with app = true } e2
+        end;
+        if mode.app then Format.printf ")";
+        Format.printf "@]"
+
+  | EAtom(_,n,e)    -> 
+      let imode = { mode with cat = false } in
+        Format.printf "@[<2>"; 
+        if not mode.cat then Format.printf "{";
+        format_exp_aux imode n; 
+        Format.printf "=@,"; 
+        format_exp_aux imode e; 
+        if not mode.cat then Format.printf "}";
+        Format.printf "@]"
+  | ECat(_,es)      -> 
+      Format.printf "{@[<1>"; 
+      Misc.format_list 
+        ",@ "
+        (format_exp_aux { mode with cat = true })
+        es; 
+      Format.printf "@]}"
+  | ECons(_,e1,e2)  -> 
+      let mode = { mode with cat = false } in 
+        (* if we have a spine of cons cells, ending in [], print
+           it using list notation. Otherwise, use :: *)
+      let rec get_list_elts acc = function
+          ENil(_) -> Some (Safelist.rev acc)
+        | ECons(_,e,e') -> get_list_elts (e::acc) e'
+        | _            -> None in
+        Format.printf "@["; 
+        begin
+          match get_list_elts [] e0 with 
+              None -> 
+                Format.printf "(";
+                format_exp_aux mode e1; 
+                Format.printf "::@,"; 
+                format_exp_aux mode e2;
+                Format.printf ")";
+            | Some el -> 
+                Format.printf "["; 
+                Misc.format_list ",@ " (format_exp_aux mode) el;
+                Format.printf "]"
+        end;
+        Format.printf "@]"
   | EFun(_,ps,so,e) -> 
-      sprintf "fun %s%s -> %s"
-	(Misc.concat_list " " (Safelist.map string_of_param ps))
-	(match so with 
-	     None -> "" 
-	   | Some s -> sprintf " : %s" (string_of_sort s))
-	(string_of_exp e)
+      let mode = { mode with cat = false } in   
+      Format.printf "@[<2>fun@ ";  
+      Misc.format_list 
+        "@ "
+        format_param 
+        ps;
+      (match so with 
+           None -> ()
+         | Some s -> Format.printf " : "; format_sort s);
+      Format.printf "@ ->@ "; 
+      format_exp_aux mode e;
+      Format.printf "@]"
   | EMap(_,ms) -> 
-      Misc.curlybraces 
-	(Misc.concat_list ", " 
-	   (Safelist.map (fun (e1,e2) -> 
-			    sprintf "%s -> %s"
-			      (string_of_exp e1)
-			      (string_of_exp e2))
-	      ms))
+      let mode = { mode with cat = false } in   
+      Format.printf "{@[<2>";
+      Misc.format_list 
+        ",@, " 
+        (fun (e1,e2) -> format_exp_aux mode e1; Format.printf " ->@ "; format_exp_aux mode e2) 
+        ms;
+      Format.printf "@]}"
   | ELet(_,bs,e) ->
-      sprintf "let %s in %s" 
-	(string_of_bindings bs)
-	(string_of_exp e)
-  | EName(_,n) -> string_of_id n
-  | ENil(_) -> Misc.brackets ""
-  | EProtect(_,e) -> sprintf "protect (%s)" (string_of_exp e)
+      let mode = { mode with cat = false } in 
+      Format.printf "@[<2>";
+      format_bindings bs;
+      Format.printf "@ in@ ";
+      format_exp_aux mode e;
+      Format.printf "@]"
+  | EName(_,n) -> 
+      Format.printf "@[%s@]" (Misc.whack (string_of_id n))
+  | ENil(_) -> 
+      Format.printf "[]"
+  | EProtect(_,e) -> 
+      let mode = { mode with cat = false } in 
+        Format.printf "@[protect@ "; format_exp_aux mode e; Format.printf "@]"
   | ESchema(_,ss,e) -> 
-      sprintf "schema %s in %s"
-        (string_of_schema_bindings ss)
-        (string_of_exp e)
-  | EUnion(_,es) ->
-      Misc.parens 
-	(Misc.concat_list " | " 
-	   (Safelist.map string_of_exp es))
-  | EVar(_,x) -> string_of_qid x
+      let mode = { mode with cat = false } in 
+        Format.printf "@[<2>";
+        format_schema_bindings ss;
+        Format.printf "@ in@ ";
+        format_exp_aux mode e;
+        Format.printf "@]"
+  | EUnion(_,es) -> 
+      let mode = { mode with cat = false } in 
+        Format.printf "@[<2>(";
+        Misc.format_list "@ |@ " (format_exp_aux mode) es;
+        Format.printf ")@]"
+  | EVar(_,x) -> 
+      Format.printf "@[%s@]" (string_of_qid x)
   | EWild(_,f,l,u,e)  ->
-      sprintf "*%s = %s"
-    	(if f = [] then "" 
-	 else 
-	   Misc.parens
-	     (Misc.concat_list " " 
-		(Safelist.map string_of_exp f)))
-	(string_of_exp e)
+      let rec format_n_bangs n = match n with 
+          0 -> ()
+        | n -> Format.printf "!"; format_n_bangs (n-1) in                
+        Format.printf "@[";
+        if not mode.cat then Format.printf "{";
+        let imode = { mode with cat = false } in 
+          (match l,u with 
+               0,true -> Format.printf "*"
+             | n,true -> format_n_bangs n; Format.printf "*"
+             | n,false -> format_n_bangs n);
+          if f <> [] then 
+          (Format.printf "\\(@[";
+           Misc.format_list ",@ " (format_exp_aux imode) f;
+           Format.printf "@])");
+        Format.printf "=@,";
+        format_exp_aux imode e;
+        if not mode.cat then Format.printf "}";
+        Format.printf "@]" 
+          
+and format_exp e = format_exp_aux { app = false; cat = false } e
 
-and string_of_binding (BDef(_,x,ps,s,e)) = 
-  Misc.concat_list ""
-    [string_of_id x
-    ; Misc.concat_list " " (" " :: (Safelist.map string_of_param ps))
-    ; " : "
-    ; string_of_sort s
-    ; " = "
-    ; string_of_exp e]
-and string_of_bindings bs = Misc.concat_list " and " (Safelist.map string_of_binding bs)
-and string_of_schema_binding(SDef(_,x,e)) = sprintf "%s = %s" (string_of_id x) (string_of_exp e)
-and string_of_schema_bindings ss = Misc.concat_list " and " (Safelist.map string_of_schema_binding ss)
+and format_binding (BDef(_,x,ps,s,e)) = 
+  Format.printf "@[<2>%s" (string_of_id x);
+  if ps <> [] then Format.printf "@ "; 
+  Misc.format_list "@ " (fun pi -> Format.printf "("; format_param pi; Format.printf ")") ps;
+  Format.printf "@ :@ ";
+  format_sort s;
+  Format.printf "@ =@ ";
+  format_exp e;
+  Format.printf "@]"
 
-and string_of_decl = function
-  | DLet(i,bs) -> "let " ^ (string_of_bindings bs)			
-  | DMod(_,i,ds) -> Misc.concat_list "" 
-      (["module "
-       ; string_of_id i
-       ; " =\n"]
-       @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
-  | DSchema(i,ss) -> sprintf "schema %s" (string_of_schema_bindings ss)
-  | DTest(_,e1,tr) -> Misc.concat_list " "
-      (["test"
-       ; string_of_exp e1
-       ; "="
-       ; match tr with
-         ErrorResult -> "error" | PrintResult -> "?" | Result e2 -> string_of_exp e2
-       ])
+and format_bindings bs = 
+  Format.printf "@[let "; 
+  Misc.format_list "@\nand " format_binding bs;
+  Format.printf "@]"
+
+and format_schema_binding(SDef(_,x,e)) = 
+  Format.printf "@[<2>%s =@ " (string_of_id x);
+  format_exp e;
+  Format.printf "@]"
+
+and format_schema_bindings ss = 
+  Format.printf "@[schema "; 
+  Misc.format_list "@\nand " format_schema_binding ss;
+  Format.printf "@]"
+
+and format_decl = function
+  | DLet(i,bs) -> format_bindings bs
+  | DMod(_,i,ds) -> 
+      Format.printf "@[module %s =@\n  @[" (string_of_id i);
+      Misc.format_list "@\n" format_decl ds;
+      Format.printf "@]end@]"
+  | DSchema(i,ss) -> format_schema_bindings ss
+  | DTest(_,e,tr) -> 
+      Format.printf "@[<2>test@ ";
+      Format.printf "@[";
+      format_exp e;
+      Format.printf "@ =@ ";
+      (match tr with 
+           ErrorResult -> Format.printf "error"
+         | PrintResult -> Format.printf "?"
+         | Result e2   -> format_exp e2);
+      Format.printf "@]@]"
 
 let id_of_modl (MDef(_,m,_,_)) = m
 let info_of_module (MDef(i,_,_,_)) = i
 
-let string_of_module (MDef(_,id,qs,ds)) = 
-  Misc.concat_list ""
-    (["module "
-     ; string_of_id id
-     ; " =\n"
-     ; (match qs with
-	  | [] -> ""
-	  | _  -> ("\nopen " ^ (Misc.concat_list "\n" (Safelist.map string_of_qid qs)) ^ "\nin"))
-     ] @ (Safelist.map (fun di -> (string_of_decl di) ^ "\n") ds))
-
+let format_module (MDef(_,i,qs,ds)) = 
+  Format.printf "@[module %s =@\n  @[" (string_of_id i);
+  if qs <> [] then 
+    Misc.format_list 
+      "@\n" 
+      (fun qi -> Format.printf "open %s" (string_of_qid qi)) 
+      qs;
+  Misc.format_list "@\n" format_decl ds;
+  Format.print_newline ();
+  Format.printf "@\n@]@]"

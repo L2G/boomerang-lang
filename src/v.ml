@@ -103,7 +103,7 @@ let rec structure_from_list = function
 (* -------------- pretty printing --------------- *)
 let raw = Prefs.createBool "raw" false "Dump trees in 'raw' form" ""
   
-let rec format v =
+let rec format_t v =
   let format_str s =
     let s' = Misc.whack_ident s in
       if s' = "" then "\"\"" else s'
@@ -153,7 +153,7 @@ and list_from_structure v =
       else raise (Error.Harmony_error 
 		    (fun () -> 
 		       Format.printf "V.list_from_structure";
-		       format v;
+		       format_t v;
 		       Format.printf "is not a list!"))
   in
     loop [] v 
@@ -165,14 +165,14 @@ and get_required ?(msg="") ((VI m) as v) k =
   with Not_found -> 
     raise (Error.Harmony_error 
 	     (fun () -> Format.printf "%sget_required %s failed on " msg2 (Misc.whack k);
-		format v))
+		format_t v))
 
 and get_value v =
   if (is_value v) then (Name.Set.choose (dom v))
   else raise (Error.Harmony_error 
 		    (fun () -> 
 		       Format.printf "V.get_value";
-		       format v;
+		       format_t v;
 		       Format.printf "is not a value!"))
 
 
@@ -183,7 +183,7 @@ let singleton_dom v =
   if Name.Set.cardinal d <> 1 then
     raise (Error.Harmony_error (fun () -> 
 				  Format.printf "V.singleton_dom: tree with several children";
-				  format v));
+				  format_t v));
     Name.Set.choose d
 
 
@@ -257,8 +257,8 @@ let concat v1 v2 =
                            ( Error.Harmony_error 
 			       (fun () -> 
 				  Format.printf "V.concat: domain collision between the following two trees:";
-				  format v1;
-				  format v2))
+				  format_t v1;
+				  format_t v2))
 
 (* let iter f (VI (_,m)) = Name.Map.iter f m *)
 
@@ -281,7 +281,7 @@ let split p v =
 
 let format_option = function
     None -> Format.printf "NONE";
-  | Some v -> format v
+  | Some v -> format_t v
 
 let format_msg l = 
   let rec loop = function
@@ -295,10 +295,13 @@ let format_msg l =
     | `Space :: r ->
         Format.printf "@ "; loop r
     | `Tree v :: r ->
-        format v;
+        format_t v;
         loop r
     | `Tree_opt v :: r ->
         format_option v;
+        loop r
+    | `Prim f ::r -> 
+        f ();
         loop r
     | `Open_box :: r ->
         Format.printf "@[<hv2>";
@@ -337,10 +340,11 @@ let format_msg_as_string msg =
   format_to_string (fun () -> format_msg msg)
     
 let string_of_t v = 
-  format_to_string (fun () -> format v)
+  format_to_string (fun () -> format_t v)
     
 type msg = [ `String of string | `Name of Name.t | `Break | `Space | `Tree of t
-           | `Tree_opt of t option | `Open_box | `Open_vbox | `Close_box ]
+           | `Tree_opt of t option | `Prim of unit -> unit
+           | `Open_box | `Open_vbox | `Close_box ]
 
 let error_msg l = raise (Error.Harmony_error (fun () -> format_msg l))
   
@@ -349,7 +353,7 @@ let pathchange path m v =
     (String.concat "/" (Safelist.rev (Safelist.map Misc.whack path)))
     m;
   Format.printf "  @[";
-  format v;
+  format_t v;
   Format.printf "@]@,"
 
 let rec show_diffs_inner v u path =

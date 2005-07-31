@@ -27,9 +27,13 @@ type rv = Syntax.sort * Value.t
 let make_rv s v = (s,v)
 let value_of_rv (s,v) = v
 let sort_of_rv (s,v) = s
-let string_of_rv rv = 
+let format_rv rv = 
   let (s,v) = rv in    
-    Printf.sprintf "%s:%s" (Value.string_of_t v) (Syntax.string_of_sort s)
+    Format.printf "@[";
+    Value.format_t v;
+    Format.printf ":";
+    Syntax.format_sort s;
+    Format.printf "]"
 	
 (* --------------- Focal library -------------- *)
 
@@ -110,7 +114,7 @@ let find_filename basename exts =
       
 (* load modules dynamically *)
 (* backpatch hack *)
-let compile_file_impl = ref (fun _ _ -> Printf.eprintf "Focal compiler is not linked! Exiting..."; exit 1)  
+let compile_file_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
 
 let load ns = 
   let fno = find_filename (String.uncapitalize ns) ["src"; "fcl"] in
@@ -119,10 +123,10 @@ let load ns =
       match fno with 
 	| None -> false
 	| Some fn ->
-	    verbose (fun () -> (Printf.eprintf "[loading %s ...]\n%!" fn));
+	    verbose (fun () -> (Format.eprintf "@[loading %s ...@]@\n%!" fn));
 	    loaded := ns::(!loaded); 
 	    (!compile_file_impl) fn ns;
-	    verbose (fun () -> (Printf.eprintf "[loaded %s]\n%!" fn));
+	    verbose (fun () -> (Format.eprintf "@[loaded %s@]@\n%!" fn));
 	    true
     end
 	

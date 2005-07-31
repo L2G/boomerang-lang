@@ -18,8 +18,8 @@ val value_of_rv : rv -> Value.t
 val sort_of_rv : rv -> Syntax.sort
 (** [sort_of_rv r] returns the sort from [r]. *)
     
-val string_of_rv : rv -> string
-(** [string_of_rv r] Returns a string representing [r] *)
+val format_rv : rv -> unit
+(** [format_rv r] pretty prints [r] *)
 
 (** {2 Library} *)
 

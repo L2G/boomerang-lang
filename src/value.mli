@@ -51,8 +51,8 @@ val mk_lfun : string -> string -> ((V.t,V.t) Lens.t -> t) -> t
 val mk_ffun : string -> string -> string -> ((t -> t) -> t) -> t
 (** [mk_ffun arg_sort return_sort msg f] create a function from functions of sort [arg_sort] to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
 
-val string_of_t : t -> string
-(** [string_of_t v] returns a formatted string representing [v] *)
+val format_t : t -> unit
+(** [format_t v] pretty prints [v] *)
 
 val dummy : Syntax.sort -> Syntax.qid -> t
 (** [dummy s] returns a dummy value of sort [s]. For sorts, see [Syntax.sort].

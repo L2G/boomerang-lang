@@ -27,8 +27,8 @@ val lookup : 'a t -> Syntax.qid -> 'a option
   (** [lookup ev q] returns an option representing the binding for [q]
       in [ev]. *)
 
-val to_string : 'a t -> ('a -> string) -> string
-  (** [to_string string_of_r ev] returns a string representing [ev]. *)
+val format_t : 'a t -> ('a -> unit) -> unit
+  (** [format_t format_r ev] pretty prints [ev] using format_r. *)
   
 val iter : (Syntax.qid -> 'a -> unit) -> 'a t -> unit
   

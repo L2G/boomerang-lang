@@ -24,13 +24,20 @@ let sort_of_t = function
  | D(s,_) -> s
 
 (* pretty print *)
-let rec string_of_t = function
-    N(n)   -> n
-  | S(s)   -> Schema.string_of_t s
-  | V(v)   -> V.string_of_t v
-  | L(l)   -> "<lens>"
-  | F(s,_) -> Printf.sprintf "<%s fun>" (Syntax.string_of_sort s)
-  | D(s,q) -> Printf.sprintf "<%s dummy for %s>" (Syntax.string_of_sort s) (Syntax.string_of_qid q)
+let rec format_t = function
+    N(n)   -> Format.printf "@[%s]" (Misc.whack n)
+  | S(s)   -> Schema.format_t s
+  | V(v)   -> V.format_t v
+  | L(l)   -> Format.printf "@[%s]" "<lens>"
+  | F(s,_) -> 
+      Format.printf "@[%s" "<";
+      Syntax.format_sort s;
+      Format.printf " fun%s]" ">"
+  | D(s,q) -> 
+      Format.printf "@[%s" "<";
+      Syntax.format_sort s;
+      Format.printf " dummy for %s%s]" 
+        (Syntax.string_of_qid q) ">"
 
 (*random helpers *)
 (* utility functions for parsing *)      
@@ -67,11 +74,17 @@ let parse_sort s =
 (* errors *)
 let focal_type_error i es v = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s: run-time sort error; expected %s, found %s in %s."
-	      (Info.string_of_t i)
-	      (Syntax.string_of_sort es)
-	      (Syntax.string_of_sort (sort_of_t v))
-	      (string_of_t v)))
+	   (fun () -> Format.printf "%s: run-time sort error"
+              (Info.string_of_t i)))
+        
+
+  (* FIXME 
+     ; "expected %s, found %s in %s."
+     (Info.string_of_t i)
+     (Syntax.string_of_sort es)
+     (Syntax.string_of_sort (sort_of_t v))
+     (string_of_t v)))
+  *)
     
 (* [schema_of_tree v] yields the singleton [Value.ty] containing [v] *)
 let rec schema_of_tree v =
