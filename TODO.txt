@@ -57,11 +57,10 @@ put GPL notice in files
 
 FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
 * trevor
-  jerome
-  plclub
-  lambda kids 
-  Norman Ramsey
-  Nathan Whitehead
+* jerome
+* plclub
+* lambda kids 
+* Nathan Whitehead
   Perdita Stevens
   Jerome Simeon
   martin hofmann
@@ -71,6 +70,7 @@ FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
   james cheney
   Peter Buneman
   Penn db group
+  Norman Ramsey
   ask on the Unison hackers list if anybody is interested in playing
 
 PUBLIC RELEASE ANNOUNCEMENT LIST
