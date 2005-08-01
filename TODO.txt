@@ -55,30 +55,30 @@ BEFORE BIG RELEASE
 put GPL notice in files
   make sure GPL is stated correctly for CSV module
 
-FIRST RELEASE ANNOUNCEMENT LIST
-trevor
-jerome
-plclub
-lambda kids
-Norman Ramsey
-Nathan Whitehead
-Perdita Stevens
-Jerome Simeon
-martin hofmann
-Daniel Spoonhauer
-Alain Frisch
-peter sewell
-james cheney
-Peter Buneman
-Penn db group
-ask on the Unison hackers list if anybody is interested in playing
+FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
+* trevor
+  jerome
+  plclub
+  lambda kids 
+  Norman Ramsey
+  Nathan Whitehead
+  Perdita Stevens
+  Jerome Simeon
+  martin hofmann
+  Daniel Spoonhauer
+  Alain Frisch
+  peter sewell
+  james cheney
+  Peter Buneman
+  Penn db group
+  ask on the Unison hackers list if anybody is interested in playing
 
 PUBLIC RELEASE ANNOUNCEMENT LIST
-Tokyo people
-Pascal Molli and group
-Serge Abiteboul
-Srivastava
-christophe koch
+  Tokyo people
+  Pascal Molli and group
+  Serge Abiteboul
+  Srivastava
+  christophe koch
 
 __________________________________________________________________________
 
