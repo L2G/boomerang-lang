@@ -46,10 +46,11 @@ let add_comment_prefix_to_fields = function
 
 let save_tbl file tbl =
   let l = rel_to_list tbl in
-  Printf.eprintf "Saving %d csv rows\n" (List.length l);
-  let l = add_comment_prefix_to_fields l in
-  Csv.save file l
-
+    (* should this always be printed?? -JNF *)
+    Format.eprintf "@[Saving %d csv rows@\n@]" (List.length l);
+    let l = add_comment_prefix_to_fields l in
+      Csv.save file l
+        
 let save_db dir db =
   if not (Sys.file_exists dir) then Unix.mkdir dir 493;
   List.iter (fun x -> Sys.remove (Filename.concat dir x)) (get_csvfiles dir);

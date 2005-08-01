@@ -372,6 +372,7 @@ appexp:
       \alt \lit{@[@} <ExpList> \lit{@]@}
       \alt \lit{@(@} <Exp> \lit{@)@}
       \alt \lit{@begin@} <Exp> \lit{@end@}
+      \alt \lit{@protect@} <AExp>
 
 <Map> ::= <QuotedName> \lit{@->@} <Exp>
 

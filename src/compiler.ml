@@ -39,9 +39,8 @@ let check_test m =
     (Prefs.read tests)
 
 (* --------------- Error Reporting --------------- *)
-let debug s_thk = 
-  Trace.debug "compiler" (fun () -> Printf.eprintf "%s\n%!" (s_thk ()))
-
+let debug s_thk = Trace.debug "compiler" (fun () -> Format.eprintf "@[%s@\n%!@]" (s_thk ()))
+  
 let parse_error i msg_thk = 
   raise (Error.Harmony_error
 	   (fun () -> Format.printf "@[%s: Parse error @\n" (Info.string_of_t i);
@@ -683,7 +682,6 @@ and compile_exp_lens cev e =
     Value.get_lens i (v_of_rv e_rv)
 
 and compile_bindings cev bs =
-  (* let _ = Printf.eprintf "*** compiling bindings {%s}\n%!" (Misc.concat_list ", " (Safelist.map (function Syntax.BDef(_,x,_,_,_) -> Syntax.string_of_id x) bs)) in *)
   (* collect up a compile_env that includes recursive bindings *)
   let bcev =
     Safelist.fold_left

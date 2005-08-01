@@ -8,12 +8,6 @@
 
 let debug = Trace.debug "sync"
 
-let wraptrace s f =
-  debug (fun() -> Printf.eprintf "Start %s\n%!" s);
-  let r = f() in
-  debug (fun() -> Printf.eprintf "Done %s\n%!" s);
-  r
-
 type copy_value =
   | Adding of V.t
   | Deleting of V.t
