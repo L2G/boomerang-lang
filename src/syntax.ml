@@ -101,6 +101,7 @@ type param = PDef of i * id * sort
 (* expressions *)
 type exp = 
     EApp of i  * exp * exp
+  | EAssert of i * exp 
   | EAtom of i * exp * exp 
   | ECat of i * exp list 
   | ECons of i * exp * exp 
@@ -144,7 +145,8 @@ let info_of_list (e2i:'a -> Info.t) (i:Info.t) (l: 'a list) : Info.t = Safelist.
 let info_of_id = function (i,_) -> i
 let info_of_qid = function (_,id) -> info_of_id id
 let info_of_exp = function
-  | EApp(i,_,_)    -> i
+    EApp(i,_,_)    -> i
+  | EAssert(i,_)   -> i
   | EAtom(i,_,_)   -> i
   | ECat(i,_)      -> i
   | ECons(i,_,_)   -> i
@@ -157,7 +159,7 @@ let info_of_exp = function
   | ESchema(i,_,_) -> i 
   | EUnion(i,_t)   -> i
   | EVar(i,_)      -> i
-  | EWild(i,_,_,_,_)   -> i
+  | EWild(i,_,_,_,_) -> i
 
 let info_of_binding (BDef(i,_,_,_,_)) = i
 let info_of_bindings bs = 
@@ -234,7 +236,10 @@ let rec format_exp_aux mode e0 = match e0 with
         end;
         if mode.app then Format.printf ")";
         Format.printf "@]"
-
+  | EAssert(_,e) ->       
+      let mode = { mode with cat = false } in
+        Format.printf "@[<2>assert"; format_exp_aux mode e; Format.printf "@]"
+                                                        
   | EAtom(_,n,e)    -> 
       let imode = { mode with cat = false } in
         Format.printf "@[<2>"; 

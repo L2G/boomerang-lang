@@ -4,58 +4,58 @@
 /* harmony@lists.seas.upenn.edu                             */
 /*                                                          */
 /* parser.mly - Focal parser generator                      */
-/************************************************************/
-/* $Id$ */
+    /************************************************************/
+    /* $Id$ */
 
 %{
 
-open Error
-open Syntax
-open Info
+  open Error
+  open Syntax
+  open Info
 
-(* imports *)
-let ( @ ) = Safelist.append
-let debug = Trace.debug "parser"
+  (* imports *)
+  let ( @ ) = Safelist.append
+  let debug = Trace.debug "parser"
 
-(* shorthands *)
-let m = merge_inc
-let me e1 e2 = m (info_of_exp e1) (info_of_exp e2)
-let me1 e1 i2 = m (info_of_exp e1) i2
-let me2 i1 e2 = m i1 (info_of_exp e2)
-let mie x1 e2 = m (info_of_id x1) (info_of_exp e2)
-let mis x1 s1 = m (info_of_id x1) (fst s1)
-let ms s1 s2 = m (fst s1) (fst s2)
-let mbs2 i1 bs2 = m i1 (info_of_bindings bs2)
-let mss2 i1 ss2 = m i1 (info_of_schema_bindings ss2)
-  
-(* helpers for easy syntax tree construction *)
+  (* shorthands *)
+  let m = merge_inc
+  let me e1 e2 = m (info_of_exp e1) (info_of_exp e2)
+  let me1 e1 i2 = m (info_of_exp e1) i2
+  let me2 i1 e2 = m i1 (info_of_exp e2)
+  let mie x1 e2 = m (info_of_id x1) (info_of_exp e2)
+  let mis x1 s1 = m (info_of_id x1) (fst s1)
+  let ms s1 s2 = m (fst s1) (fst s2)
+  let mbs2 i1 bs2 = m i1 (info_of_bindings bs2)
+  let mss2 i1 ss2 = m i1 (info_of_schema_bindings ss2)
+    
+  (* helpers for easy syntax tree construction *)
 
-(* mk_compose2 exp *)
-let mk_compose2_exp i e1 e2 = 
+  (* mk_compose2 exp *)
+  let mk_compose2_exp i e1 e2 = 
     EApp(i, EApp(i, EVar(i, compose2_qid i),e1),e2)
       
-(* mk_get_exp *)
-let mk_get_exp i l c = 
+  (* mk_get_exp *)
+  let mk_get_exp i l c = 
     EApp(i, EApp(i, EVar(i, get_qid i), l), c)
 
-(* mk_put_exp *)
-let mk_put_exp i l a co = 
-  match co with 
-      None -> EApp(i, EApp(i, EVar(i, create_qid i), l), a)
-    | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i), l), a), c)
-        
-(* mk_sync_exp *)
-let mk_sync_exp i lo la lb t v = 
+  (* mk_put_exp *)
+  let mk_put_exp i l a co = 
+    match co with 
+        None -> EApp(i, EApp(i, EVar(i, create_qid i), l), a)
+      | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i), l), a), c)
+          
+  (* mk_sync_exp *)
+  let mk_sync_exp i lo la lb t v = 
     EApp(i,EApp(i,EApp(i,EApp(i,EApp(i,EVar(i,sync_qid i),lo),la),lb),t),v)
       
-(* mk_empty_tree *)
-let mk_empty_tree i = ECat(i,[])
+  (* mk_empty_tree *)
+  let mk_empty_tree i = ECat(i,[])
 
 %}
 
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
-%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA PROTECT
+%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA ASSERT PROTECT
 %token <Info.t> LENS TREE TYPE NAME ARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
@@ -69,26 +69,31 @@ let mk_empty_tree i = ECat(i,[])
 %%
 
 #{@}
+  
 \renewcommand{\lit}[1]{\char96{}#1\char39{}}
 
 \section{Syntactic Structure}
-
+    
 This section gives the formal definition of Focal syntax, using an
 EBNF grammar. The productions for each syntactic category are followed
 by a brief, informal discussion. In the rules we adopt the following
 conventions:
 \begin{itemize}
-\item Literals are written in a typewriter font and
-enclosed in single quotes, like this: \lit{@module@};
-
+  
+\item Literals are written in a typewriter font and enclosed in single 
+  quotes, like this: \lit{@module@};
+  
 \item Non-terminals are enclosed in angle brackets, like this:
   \synt{Exp}. 
-
+  
 \item Optional elements are enclosed in square brackets:
   \syntax{[\lit{@:@} <Sort>]};
+  
 \item Terms may be grouped using parentheses;
+  
 \item Repeated elements are specified using \syntax{*} (0 or
   more) and \syntax{+} (1 or more).
+  
 \end{itemize}
 #{#}
 
@@ -99,49 +104,47 @@ enclosed in single quotes, like this: \lit{@module@};
 \begin{grammar}
 
 <CompilationUnit> ::= \lit{@module@} <Ident> \lit{@=@} (\lit{@open@} <Qid>)* <Decl>*
- 
+  
 #{#}
 
 modl:
-  | MODULE IDENT EQUAL opens decls EOF        { MDef(m $1 $6,$2,$4,$5) }
-      
+| MODULE IDENT EQUAL opens decls EOF        { MDef(m $1 $6,$2,$4,$5) }
+    
 opens:
-  | OPEN qid opens                           { $2::$3 }
-  |                                          { [] }
-
-
+| OPEN qid opens                           { $2::$3 }
+|                                          { [] }
+      
 #{@}
 
-<Decl> ::= 
-          \lit{@let@} <BindingList> 
-     \alt \lit{@schema@} <SchemaBindingList>
-     \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
-     \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
-     \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
-     \alt \lit{@test@} <Exp> \lit{@=@} \lit{@?@}
-     \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
-     \alt \lit{@sync@} \lit{@with@} <AExp> <AExp> <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
+<Decl> ::= \lit{@let@} <BindingList> 
+      \alt \lit{@schema@} <SchemaBindingList>
+      \alt \lit{@module@} <Ident> \lit{@=@} <Decl>* \lit{@end@}
+      \alt \lit{@test@} <Exp> \lit{@=@} <Exp>
+      \alt \lit{@test@} <Exp> \lit{@=@} \lit{@error@}
+      \alt \lit{@test@} <Exp> \lit{@=@} \lit{@?@}
+      \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
+      \alt \lit{@sync@} \lit{@with@} <AExp> <AExp> <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
 \end{grammar}
 
 \noindent A Focal compilation unit contains a single module
-declaration, such as @module Foo@, that must appear in a file named @foo.fcl@.  A
-module contains a sequence of @open@ declarations, which import all
+declaration, such as @module Foo@, that must appear in a file named
+@foo.src@ (for ``literate'' sources) or @foo.fcl@ (for plain sources).
+A module contains a sequence of @open@ declarations, which import all
 the declarations from another module, followed by a sequence of
-declarations. A declaration is either a @let@, a nested @module@, or a
-unit test. Focal modules are currently only used to group code in a
+declarations. A declaration is either a @let@, a @schema@, a nested @module@, or a
+unit test. Focal modules are currently only used to group declarations in a
 common namespace. In particular, Focal does not yet support module
 signatures or sealing.
 
 \subsubsection{Unit Tests} \label{sec:unittests}
 
 The syntax includes several forms of unit tests (which are only tested when
-the system is run in testing mode; see
-Section~\ref{sec:cmdlineargs}).  The first form, @test@~$t_1$~@=@~$t_2$, 
-checks that $t_1$ and $t_2$, which must both have sort @tree@, 
-evaluate to equal values. This kind of test is often used to check the 
-behavior of the \GET{} and \PUT{} components of
-lenses, as in the following snippet: @ test id / {} = {}@. The second
-form, @ test@~$l_1$~@/\@~$t_1$~@=@~$t_3$, is shorthand for two tests
+the system is run in testing mode; see Section~\ref{sec:cmdlineargs}).  
+The first form, @test@~$t_1$~@=@~$t_2$, checks that $t_1$ and $t_2$, which 
+must both be expressions of sort @tree@, evaluate to equal values. This 
+kind of test is often used to check the behavior of the \GET{} and \PUT{} 
+components of lenses, as in the following snippet: @test id / {} = {}@. 
+The second form, @ test@~$l_1$~@/\@~$t_1$~@=@~$t_3$, is shorthand for two tests
 of a bijective lens: @ test@~$l_1$~@/@~$t_1$~@=@~$t_2$ and 
 @test@~$l_1$~@\@~$t_2$~@missing =@~$t_1$. The third form, 
 @test@~$t_1$~@= error@, checks that $t_1$ raises an exception when it
@@ -208,9 +211,15 @@ test_res:
              \alt <SchemaBinding> \lit{and} <SchemaBindingList>
 \end{grammar}
 
-\noindent Bindings in Focal are identical to OCaml bindings with one
-additional requirement: the @let@-bound variable and the expression
-must both be annotated with sorts.
+\noindent Focal @let@-bindings are identical to OCaml @let@-bindings except that the 
+@let@-bound variable and the expression must both be annotated with their sorts.
+
+In a schema declaration, the bound variable may be used recursively,
+as in the following declaration: @schema X = { "n" = X } | {}@, which
+denotes the infinite set of trees containing the empty tree and every
+tree with a single child @n@ whose subtree is also in the schema. For
+more on schemas, see Sections~\ref{sec:parser:expressions} and
+\ref{sec:lang:schemas}.
 
 #{#}
 
@@ -247,7 +256,8 @@ schema_binding:
 system. However, the compiler performs rudimentary sort checking. The
 sorts are @lens@, @name@, @tree@, @schema@, and function sorts, of the
 form $s_1$@->@$s_2$. The sort checker supports exactly one form of
-subtyping: it automatically promotes trees to singleton schemas.
+subtyping: it automatically promotes an expressions with sort tree to
+the singleton schema containing that tree.
 
 #{#}
 
@@ -275,7 +285,7 @@ param:
       
 /* ---------------  expressions --------------- */
 #{@}
-\subsection{Expressions}
+\subsection{Expressions} \label{sec:parser:expressions}
 
 \begin{grammar}
 <Exp> ::= \lit{@let@} <BindingList> \lit{@in@} <Exp>
@@ -288,8 +298,8 @@ param:
 
 #{#}
 exp: 
-  | LET binding_list IN exp                  { ELet(m $1 $3,$2,$4) }
-  | SCHEMA schema_binding_list IN exp        { ESchema(m $1 $3,$2,$4) }
+  | LET binding_list IN exp                  { ELet(me2 $1 $4,$2,$4) }
+  | SCHEMA schema_binding_list IN exp        { ESchema(me2 $1 $4,$2,$4) }
   | FUN param param_list opt_sort ARROW exp  { EFun(me2 $1 $6,$2::$3,$4,$6) }
   | getputexp                                { $1 }
 
@@ -373,6 +383,7 @@ appexp:
       \alt \lit{@(@} <Exp> \lit{@)@}
       \alt \lit{@begin@} <Exp> \lit{@end@}
       \alt \lit{@protect@} <AExp>
+      \alt \lit{@assert@} <AExp>
 
 <Map> ::= <QuotedName> \lit{@->@} <Exp>
 
@@ -386,6 +397,7 @@ aexp:
   | qid                                      { EVar(info_of_qid $1,$1) }
   | LPAREN exp RPAREN                        { $2 }
   | BEGIN exp END                            { $2 }
+  | ASSERT aexp                              { EAssert(me2 $1 $2, $2) }
   | PROTECT aexp                             { EProtect(me2 $1 $2, $2) }
   | LBRACE map_list RBRACE                   { EMap(m $1 $3, $2) }
   | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }
@@ -418,11 +430,12 @@ map_list:
 
 \end{grammar}
 
-Focal expressions are identical to OCaml expressions with only a few
+Focal expressions are similar to OCaml expressions with only a few
 special forms for composing and applying lenses, and for writing down
-trees and schemas. The main forms, in decreasing order of precedence, are:
+trees and schemas. The main forms, in decreasing order of precedence,
+are:
 \begin{itemize}
-\item Full annotated @let@-expressions,
+\item Fully annotated @let@-expressions,
 \item Anonymous $\lambda$-expressions, written 
   @fun @$x_1$@:@$s_1$~$\dots$~$x_k$@:@$s_k$~@:@$s$@-> @$e$, where each
   $x_i$ is a plain identifier and $s_i$ a sort. The parameters and
@@ -431,7 +444,7 @@ trees and schemas. The main forms, in decreasing order of precedence, are:
 \item get and put expressions, which apply the $\lgetn$ and $\lputn$
   components of a lens respectively. A get expression is written
   $e_1$~@/@~$e_2$, where $e_1$ has sort @lens@ and $e_2$ has sort
-  @tree@. Put expressions are written $e_1$~@\@~$e_2$. 
+  @tree@. Put expressions are written $e_1$~@\@~$e_2\;e_3$ or $e_1$~@\@~$e_2$~@missing@, if the concrete argument is missing.
 \item Lens composition, written $e_1$@;@$e_2$,
 \item Schema unions, written $e_1$~@|@~$e_2$,
 \item Tree and schema concatenations, written $e_1$~@+@~$e_2$,
@@ -468,6 +481,23 @@ trees and schemas. The main forms, in decreasing order of precedence, are:
 \item Trees representing lists and list schemas, written @[@$e_1$@, @$\dots$@, @$e_n$@]@,
 \item Arbitrary expressions enclosed in parentheses (or equivalently,
   in @begin@ and @end@).
+
+\item @protect@ expressions, which cause the enclosed expression to be
+  evaluated using lazy (call-by-need) evaluation strategy instead of
+  an eager strategy.
+
+\item @assert@ expressions, which behave like the identity lens but
+  performs some run-time type checking. If the \GET{} function of
+  @assert T@ is invoked with a concrete argument not belonging to the
+  schema @T@ or its \PUT{} direction is invoked with either argument
+  not belonging to @T@, then it prints a message to this effect and
+  halts the interpreter.
+
+\item @assert@ expressions take an argument with sort @schema@ and yield a lens. 
+The lens checks the trees, in both directions, for membership in the schema. If the
+membership test succeeds, then the entire expression behaves like the identity lens; 
+otherwise the lens prints an error message and halts. 
+
 \end{itemize}
 \end{itemize}
 

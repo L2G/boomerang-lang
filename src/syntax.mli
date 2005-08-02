@@ -61,6 +61,7 @@ type param = PDef of Info.t * id * sort
 
 type exp = 
     EApp of Info.t * exp * exp
+  | EAssert of Info.t * exp 
   | EAtom of Info.t * exp * exp 
   | ECat of Info.t * exp list 
   | ECons of Info.t * exp * exp 

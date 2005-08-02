@@ -190,34 +190,6 @@ let invert_lib =
   mk_lfun "lens" invert_qid (fun l -> Value.L (invert l))
 let _ = register_native invert_qid "lens -> lens" invert_lib
 
-(* ASSERT *)
-let no_assert = Prefs.createBool "no-assert" false
-  "don't check assertions"
-  "don't check assertions"
-
-let assert_qid = "Native.Prelude.assert" 
-let assert_native t = 
-  let check_assert dir v t = 
-    if (not (Prefs.read no_assert)) then
-      match Schema.pick_bad_subtree v t with
-	None -> ()
-      |	Some (v0, t0) ->
-	  error [`String (assert_qid^"(" ^ dir ^ "): tree"); `Space;
-		  `Tree v; `Space;
-		  `String "is not a member of";  `Space;
-		  `Prim (fun () -> Schema.format_t t);
-		  `Space; `String "because"; `Space;
-		  `Tree v0; `Space;
-		  `String "is not a member of";  `Space;
-		  `Prim (fun () -> Schema.format_t t0)]
-  in          
-  { get = ( fun c -> check_assert "get" c t; c);
-    put = ( fun a _ -> check_assert "put" a t; a) }
-let assert_lib = 
-  mk_sfun "lens" assert_qid 
-    (fun t -> L (assert_native t))    
-let _ = register_native assert_qid "schema -> lens" assert_lib
-
 (******************)
 (* Generic Lenses *)
 (******************)

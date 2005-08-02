@@ -554,14 +554,6 @@ relational lenses, relying on a heavier-weight \finish{...}
 
 \subsection{Debugging Lenses}
 
-\LENSSECTION{assert} %
-The lens @assert T@ behaves like the identity lens but performs some
-run-time type checking: if its \GET{} direction is invoked with a concrete
-argument not belonging to @T@ or its \PUT{} direction is invoked with either
-argument not belonging to @T@, then it  prints a
-message to this effect and halts the interpreter.  
-##let assert : (schema -> lens) = Native.Prelude.assert
-
 \LENSSECTION{probe} %
 The lens @probe msg@ behaves like @id@ except that, whenever it is invoked, it
 dumps its arguments (along with the identifying string @msg@) to the

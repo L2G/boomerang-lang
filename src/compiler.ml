@@ -38,6 +38,10 @@ let check_test m =
     (Prefs.read test_all)
     (Prefs.read tests)
 
+let no_assert = Prefs.createBool "no-assert" false
+  "don't check assertions"
+  "don't check assertions"
+
 (* --------------- Error Reporting --------------- *)
 let debug s_thk = Trace.debug "compiler" (fun () -> Format.eprintf "@[%s@\n%!@]" (s_thk ()))
   
@@ -197,6 +201,12 @@ and check_exp sev e0 =
                    Syntax.format_sort e1_sort;
                    Format.printf "@]")
       end
+
+    (* assertions *)
+    | EAssert(i,e1) -> 
+        let _,new_e1 = expect_sort_exp "assert schema" sev SSchema e1 in 
+        let new_e0 = EAssert(i, new_e1) in 
+          (SLens, new_e0)
 	
     (* type atoms *)
     | EAtom(i,e1,e2) ->
@@ -467,7 +477,32 @@ let rec compile_exp cev e0 =
                        Syntax.format_sort s;
                        Format.printf "@]")
 	  end
-            
+
+    | EAssert(i,e1) ->
+        let t = compile_exp_schema cev e1 in 
+        let check_assert dir v = 
+          if (not (Prefs.read no_assert)) then
+            match Schema.pick_bad_subtree v t with
+	        None -> ()
+              |	Some (v0, t0) ->
+	          Lens.error [`String (Info.string_of_t i); `Space;
+                         `String (sprintf "assert(%s): tree" dir); `Space;
+		         `Tree v; `Space;
+		         `String "is not a member of";  `Space;
+		         `Prim (fun () -> Schema.format_t t);
+		         `Space; `String "because"; `Space;
+		         `Tree v0; `Space;
+		         `String "is not a member of";  `Space;
+		         `Prim (fun () -> Schema.format_t t0)] in                    
+          mk_rv 
+            SLens
+            (Value.L (Lens.native 
+                        (fun c -> check_assert "get" c; c)
+                        (fun a co -> 
+                           check_assert "put" a; 
+                           (match co with None -> () | Some c -> check_assert "put" c);
+                           a)))
+  
     | EAtom(i,e1,e2) ->
 	let n = compile_exp_name cev e1 in
 	let e2_rv = compile_exp cev e2 in 
