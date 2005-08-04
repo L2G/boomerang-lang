@@ -122,19 +122,19 @@ let children_tag = "@children"
 let children_tag_lib = Value.N children_tag
 let _ = Registry.register_native "Native.Xml.children_tag" "name" children_tag_lib
 
-let escapeXmlChar = function
+let escapeXmlChar inAttr = function
     '&' -> "&amp;"
   | '<' -> "&lt;"
   | '>' -> "&gt;"
-  | '\'' -> "&apos;"
-  | '"' -> "&quot;"
+  | '\'' -> if inAttr then "&apos;" else "'"
+  | '"' -> if inAttr then "&quot;" else "\""
   | '\n' -> "\n" (* we don't want to escape carriage returns*)
   | c -> 
       if ((int_of_char c) >= 128) || ((int_of_char c) < 32) then 
 	Printf.sprintf "&#%d;" (int_of_char c)
       else
 	"-"
-let escapeXml = Misc.escape escapeXmlChar
+let escapeXml inAttr = Misc.escape (escapeXmlChar inAttr)
 
 let rec xml2tree n =
   match n # node_type with
@@ -219,7 +219,7 @@ let rec dump_tag fmtr v =
   if (tag = pcdata_tag) then
     let data = V.get_value (V.get_required v tag) in
     debug (fun() -> Format.printf "dump_tag -- data %s @," (Misc.whack data));
-    Format.fprintf fmtr "%s" (escapeXml data) 
+    Format.fprintf fmtr "%s" (escapeXml false data) 
   else
     let subv = V.get_required v tag in
     (* now, subv should have one children_tag child (a list of sub-elements)
@@ -230,7 +230,7 @@ let rec dump_tag fmtr v =
       Name.Set.elements (Name.Set.remove children_tag (V.dom subv)) in
     let attrs =
       Safelist.map
-	(fun k -> (k, escapeXml (V.get_value (V.get_required subv k))))
+	(fun k -> (k, escapeXml true (V.get_value (V.get_required subv k))))
         attrnames in
     Format.fprintf fmtr "@[<v2><%s" tag;
     Format.fprintf fmtr "@[<hv>";

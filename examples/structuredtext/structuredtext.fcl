@@ -42,32 +42,27 @@ let parse_list_with_headers (H:schema) : lens =
 
 (* The top-level structured text lens.  Maps from lists of values to lists of lists of values, where the
    first element of each of the resulting sublists (except possibly the first) is a "header".  The parameter
-   H specifies the schema of headers in "exploded" form -- i.e., H should be a schema of lists of characters. *)
-let l (H:schema) : lens = List.map List.explode; parse_list_with_headers H; List.map (List.map List.implode)
+   H specifies the schema of headers in "exploded" form -- i.e., H should be a schema of lists of characters.
+   If the first element of the first sublist is not a header, a dummy header {""} is added. *)
 
-let FirstElementIn (S:schema) : schema =
-  List.Cons S (List.T Any)
+let FirstElementIn (H:schema) : schema =
+  List.Cons H (List.T Any)
 
 let FirstElementNonNull : schema =
   List.Cons (List.NonEmptyList Any) (List.T Any)
 
-let l_with (S:schema) (l':lens) : lens =
-  l S;
-  List.map (
-    wmap { `List.HD -> List.explode };
-    acond (FirstElementIn S) FirstElementNonNull
+let l (H:schema) : lens =
+  List.map List.explode;
+  parse_list_with_headers H;
+  wmap { `List.HD ->
+    acond (FirstElementIn H) FirstElementNonNull
       (id)
-      (wmap { `List.HD -> List.implode };
-       plunge List.TL;
-       add List.HD []);
-    wmap { `List.HD -> List.implode };
-    wmap {`List.TL -> l'})
+      (plunge List.TL;
+       add List.HD [])
+  };
+  List.map (List.map List.implode)
 
-(* BCP: I'm actually not yet sure whether this simpler one might not be better:
-    let l_with (S:schema) (l':lens) : lens = l S; List.map l'
-  or:
-    let l_with (S:schema) (l':lens) : lens = l S; List.map (wmap {`List.TL -> l'})
-*) 
+let l_with (S:schema) (l':lens) : lens = l S; List.map (wmap {`List.TL -> l'})
 
 (******************************************************************************)
 (* Some specific useful instances... *)
@@ -78,11 +73,11 @@ let AllCapsList : schema = List.NonEmptyList (CapLetter|{" "})
 		  
 let caps_headers : lens = l AllCapsList
 
-test caps_headers / \ [] = [[]]
+test caps_headers / \ [] = [[{""}]]
 test caps_headers / \ [{X}] = [[{X}]]
-test caps_headers / \ [{x}] = [[{x}]]
+test caps_headers / \ [{x}] = [[{""}, {x}]]
 test caps_headers / \ [{X},{y},{Z}] = [[{X},{y}],[{Z}]]
-test caps_headers / \ [{x},{y},{Z}] = [[{x},{y}],[{Z}]]
+test caps_headers / \ [{x},{y},{Z}] = [[{""}, {x},{y}],[{Z}]]
 
 (******)
 
@@ -95,17 +90,17 @@ let star_headers : lens = l_with StarHeader1 (l StarHeader2)
 
 let combined_headers : lens = l_with StarHeader1 (l_with StarHeader2 (l_with StarHeader3 (l AllCapsList)))
 
-test star_headers / \ [{"* Foo"}, {bar}] = [[{"* Foo"}, [{bar}]]]
+test star_headers / \ [{"* Foo"}, {bar}] = [[{"* Foo"}, [{""}, {bar}]]]
 test star_headers / \ [{"* Foo"}, {"** bar"}, {"** baz"}] = [[{"* Foo"}, [{"** bar"}],[{"** baz"}]]]
 test star_headers / \ [{"* Foo"}, {"** bar"}, {glorf}, {"** baz"}, {urg}] = [[{"* Foo"}, [{"** bar"}, {glorf}],[{"** baz"}, {urg}]]]
-test star_headers / \ [{"* Foo"}, {"* Bar"}, {baz}] = [[{"* Foo"}, []], [{"* Bar"}, [{baz}]]]
+test star_headers / \ [{"* Foo"}, {"* Bar"}, {baz}] = [[{"* Foo"}, [{""}]], [{"* Bar"}, [{""}, {baz}]]]
 
 (* Some degenerate ones *)
-test star_headers / \ [] = [[{""}, []]]
-test star_headers / \ [{""}] = [[{""}, [{""}]]]
-test star_headers / \ [{foo}] = [[{""}, [{foo}]]]
-test star_headers / \ [{foo}, {"* Bar"}] = [[{""}, [{foo}]], [{"* Bar"}, []]]
-test star_headers / \ [{foo}, {"** Bar"}] = [[{""}, [{foo}], [{"** Bar"}]]]
+test star_headers / \ [] = [[{""}, [{""}]]]
+test star_headers / \ [{""}] = [[{""}, [{""}, {""}]]]
+test star_headers / \ [{foo}] = [[{""}, [{""}, {foo}]]]
+test star_headers / \ [{foo}, {"* Bar"}] = [[{""}, [{""}, {foo}]], [{"* Bar"}, [{""}]]]
+test star_headers / \ [{foo}, {"** Bar"}] = [[{""}, [{""}, {foo}], [{"** Bar"}]]]
                                                   
 sync with caps_headers at (List.T Any)
   { O = [{X},{y},{z}],

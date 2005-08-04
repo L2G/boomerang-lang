@@ -6,8 +6,8 @@
 
 This demo illustrates some variations in the treatment of names.  Names are
 recognized in several different formats: given/family, family-only,
-given-only, and &quot;bare name&quot; (just text immediately inside the n
-tag).  In the abstract tree, all of these are transformed into the same
+given-only, and "bare name" (just text immediately inside the n tag).
+In the abstract tree, all of these are transformed into the same
 format: the whole abstract address book consists of a bush whose immediate
 child edges are last names, whose grandchild edges are first names, and
 whose great-grand-trees are the remaining information in each address
@@ -46,6 +46,10 @@ Do [make demo3] when you're ready.
 
 <vcard>
 <n><given>First only</given></n>
+</vcard>
+
+<vcard>
+<n><given>Yet Another First only</given></n>
 </vcard>
 
   <vcard>

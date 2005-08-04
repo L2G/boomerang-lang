@@ -14,14 +14,14 @@ DEMO4 = R1ORIG=example4.txt       R2FORMAT=txt
 DEMO5 = R1ORIG=example5.txt       R2FORMAT=txt
 DEMO6 = R1ORIG=example6.txt       R2FORMAT=txt
 
-include $(TOP)/Top.Makefile
-
 all: makeharmonylib nc
-
-include $(OCAMLMAKEFILE)
 
 test::
 	$(HARMONY) -check Structuredtext -test-all
+
+include $(TOP)/Top.Makefile
+
+include $(OCAMLMAKEFILE)
 
 RESULT = harmonize-structuredtext
 SOURCES = harmonize-structuredtext.ml 

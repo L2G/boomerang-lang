@@ -31,7 +31,7 @@ Do [make demo4] to see the concrete CSV format and how it is mapped into the
 same abstract tree format as we've already seen.  Play with editing both the
 concrete and the abstract trees.
 
-When you arre done playing with that, do [make demo5] to see a heterogeneous
+When you're done playing with that, do [make demo5] to see a heterogeneous
 synchronization between an XML address book and a CSV one.
 
 *</note>
