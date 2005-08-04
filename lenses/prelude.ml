@@ -171,6 +171,16 @@ let probe_lib =
     (fun n -> Value.L (probe n))
 let _ = register_native probe_qid "name -> lens" probe_lib
 	
+(* PROGRESS *)
+let progress_qid = "Native.Prelude.progress"
+let progress msg = 
+  { get = (fun c -> Format.printf "@,[->%s]@," msg; c);
+    put = (fun a co -> Format.printf "@,[<-%s]@," msg; a)}
+let progress_lib = 
+  mk_nfun "lens" progress_qid
+    (fun n -> Value.L (progress n))
+let _ = register_native progress_qid "name -> lens" progress_lib
+	
 (* TRACEPOINT *)
 let tracepoint_qid = "Native.Prelude.tracepoint"
 let tracepoint = Lens.tracepoint

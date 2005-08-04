@@ -27,14 +27,15 @@ and add a new line at the very end in the other.  Resync.  Were you
 surprised?  (If not, try it again!)  
 
 The lesson is that Harmony should be used on list-structured data only with
-great care.  When changes are non-overlapping or when, at least, the list
-structure does not change on both replicas in the same place, all will be
-well.  But when the same parts of a list structure are changed in both
-replicas, counter-intuitive behavior can result.  We are currently
-investigating how this issue can best be addressed.
+great care.  When changes are non-overlapping all will be well.  But when
+the same parts of a list structure are changed in both replicas,
+counter-intuitive behavior can result.  We are investigating how to address
+this issue.
 
 This ends the structured text demos.  If you want to play some more, there
 are demos to be found in most of the other subdirectories of /examples too.
+The address demo is well documented, so that is probably a good place to
+start.
 
 * HEAD
 one

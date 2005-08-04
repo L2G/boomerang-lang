@@ -560,6 +560,12 @@ dumps its arguments (along with the identifying string @msg@) to the
 standard output.
 ##let probe : (name -> lens) = Native.Prelude.probe
 
+\LENSSECTION{progress} %
+The lens @progress msg@ behaves like @id@ except that, whenever it is invoked, it
+prints @msg@ to the standard output.  It is used by potentially long-running lenses to
+give an indication of what part of a large tree they are currently working on.
+##let progress : (name -> lens) = Native.Prelude.progress
+
 \LENSSECTION{tracepoint} %
 The lens @tracepoint msg l@ behaves just like @l@ except that, when it is
 invoked, it places a marker on the call stack.  If the execution of @l@

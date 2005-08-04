@@ -211,19 +211,19 @@ demo:
          fi
 
 ########
-# Alan: the following seems to interfere with existing tests and prevent make to complete
-#
-# DEMOTESTS = $(subst demo,test,$(DEMOS))
-# 
-# test:: 
-# 	$(QUIET)if [ -n "$(DEMOTESTS)" ]; then $(MAKEDEMO) $(DEMOTESTS); fi
-# 
-# test%:
-# 	$(MAKE) init-demo $(DEMO$*)
-# 	$(MAKE) run-test $(DEMO$*)
-# 
-# run-test:
-# 	$(DEMOCMD) $(R1) $(R2) -ar ar.meta 
+
+DEMOTESTS = $(subst demo,dtest,$(DEMOS))
+
+test:: 
+	$(QUIET)if [ -n "$(DEMOTESTS)" ]; then $(MAKE) $(DEMOTESTS); fi
+
+dtest%:
+	$(QUIET)echo "**** Testing demo$* ****"
+	$(MAKE) init-demo $(DEMO$*)
+	$(MAKE) run-test $(DEMO$*)
+
+run-test:
+	$(DEMOCMD) $(R1) $(R2) -ar ar.meta 
 
 
 ####################################################################

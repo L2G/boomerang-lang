@@ -11,7 +11,7 @@ SUBDIRSCLEANONLY = experimental visual papers extern
 TOP = .
 include $(TOP)/Top.Makefile
 
-all: test
+all: buildharmony
 
 
 ###########################################################################
@@ -34,6 +34,7 @@ export:
 	rm -rf $(TMP)/old
 	rm -rf $(TMP)/notes
 	rm -rf $(TMP)/readings
+	rm -rf $(TMP)/TODO.txt
 	cp $(DOCDIR)/main.pdf $(TMP)/doc/manual.pdf
 	(cd $(TMPDIR); tar cvf - $(EXPORTNAME) \
            | gzip --force --best > $(EXPORTNAME).tar.gz)

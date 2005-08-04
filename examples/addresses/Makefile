@@ -4,6 +4,15 @@
 ####################################################################
 
 TOP = ../..
+
+DEMO1 = R1ORIG=example1.xml R2FORMAT=xml
+DEMO2 = R1ORIG=example2.xml
+DEMO3 = R1ORIG=example3.xml
+DEMO4 = R1ORIG=example4.csv 
+DEMO5 = R1ORIG=example4.csv R2FORMAT=xml
+
+all: makeharmonylib nc
+
 include $(TOP)/Top.Makefile
 
 RESULT = harmonize-addresses
@@ -12,24 +21,21 @@ LIBS += harmony
 
 clean::
 	rm -rf ar*.{xml,csv} r1*.{xml,csv} r2*.{xml,csv} .harmonyar*.meta .harmonyar*.tmp
-
-all: makeharmonylib nc
-
 include $(OCAMLMAKEFILE)
+
 
 ####################################################################
 # Tests
 
-test:: buildharmony unit-tests demo1 
+test:: buildharmony unit-tests 
 
 unit-tests:
 	$(HARMONY) -check Addr -test-all
 
-DEMO1 = R1ORIG=example1.xml R2FORMAT=xml
 
-DEMO7 = R1ORIG=sample.xml
-DEMO8 = R1ORIG=sample.xml R2FORMAT=csv
-DEMO9 = R1ORIG=sample.csv
+
+#############################################################################
+## Old/dead:
 
 test2:: buildharmony
 	$(HARMONY) get -lens Addr.l -concrete $(HOME)/current/z/addresses.txt:xml -output -:meta

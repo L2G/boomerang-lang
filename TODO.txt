@@ -5,9 +5,9 @@ some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
 move Thang's general concat into List module
 the code in Registry that searches for files along the search path should
-  also look in subdirectories
+  also look in subdirectories (maybe!)
 why does - not work as an output file for csv (but works for meta, e.g.)?
-tidy this file and consider leaving it out of the distro
+tidy this file
 
 We should also do the last little step to make the address demo really work
 with palm data -- preprocessing the output from pilot-address to change the
@@ -17,6 +17,10 @@ not entirely trivial (though pretty easy): it should really be done by
 reading the file into memory as a string, but then it will *be* in memory
 and the later stages of the process should be able to use it right there,
 without dumping it out to a file again.
+
+STEPHANE TASKS
+document use of Harmony with Unison (make a new chapter in Harmony manual)
+  make sure to say that people need a very new version of Unison
 
 NATE TASKS
 NOW
@@ -42,9 +46,11 @@ LATER
    make fork and friends take types
 
 SOMEBODY
-change implementation of sync alg to eliminate delete/delete conflicts,
+* change the structured text lens so that it adds dummy headers all the time
+* expand the address book demo with a demo2, demo3, that show heterogeneous synchronization, our alignment strategy, and so on
+* change implementation of sync alg to eliminate delete/delete conflicts,
   as discussed by Alan
-assertion failure should print a line number
+* assertion failure should print a line number  (is this done already?)
   - make native assert function take a string arg
   - make parser recognize assert keyword specially and supply fileinfo
     as string
@@ -61,7 +67,8 @@ FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
 * plclub
 * lambda kids 
 * Nathan Whitehead
-  Perdita Stevens
+* Perdita Stevens
+* Unison hackers and users lists
   Jerome Simeon
   martin hofmann
   Daniel Spoonhauer
@@ -71,7 +78,6 @@ FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
   Peter Buneman
   Penn db group
   Norman Ramsey
-  ask on the Unison hackers list if anybody is interested in playing
 
 PUBLIC RELEASE ANNOUNCEMENT LIST
   Tokyo people
