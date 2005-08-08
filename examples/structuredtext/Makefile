@@ -7,12 +7,15 @@
 
 TOP = ../..
 
-DEMO1 = R1ORIG=example1.txt       R2FORMAT=txt     HARMONYFLAGS=-simplified
-DEMO2 = R1ORIG=example2.txt       R2FORMAT=meta    HARMONYFLAGS=-simplified
+DEMO1 = R1ORIG=demo1r1.txt        R2FORMAT=txt     HARMONYFLAGS=-simplified   
+DEMO2 = R1ORIG=demo2r1.txt        R2FORMAT=meta    HARMONYFLAGS=-simplified   
 DEMO3 = R1ORIG=example3.txt       R2FORMAT=meta    
 DEMO4 = R1ORIG=example4.txt       R2FORMAT=txt
 DEMO5 = R1ORIG=example5.txt       R2FORMAT=txt
 DEMO6 = R1ORIG=example6.txt       R2FORMAT=txt
+
+# Just for testing:
+DEMO9 = R1ORIG=demo1r1.txt       
 
 all: makeharmonylib nc
 
@@ -21,11 +24,10 @@ test::
 
 include $(TOP)/Top.Makefile
 
-include $(OCAMLMAKEFILE)
-
 RESULT = harmonize-structuredtext
 SOURCES = harmonize-structuredtext.ml 
 LIBS += harmony
 
+include $(OCAMLMAKEFILE)
 
 

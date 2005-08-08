@@ -1,6 +1,13 @@
 THINGS TO DO
 
 BCP TASKS
+demos
+  #   get PHP demo running on Eniac
+  #   clean up all current Makefile-based demos to use new structure
+  #   move instructions for some demos into separate files
+  #   clean up the PHP code
+  #   debug structured text demo
+make 'make test' not fail if plutil is not available
 some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
 move Thang's general concat into List module
@@ -60,6 +67,7 @@ _________________________________________________________________________
 BEFORE BIG RELEASE
 put GPL notice in files
   make sure GPL is stated correctly for CSV module
+or perhaps switch to LGPL?
 
 FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
 * trevor
@@ -69,6 +77,7 @@ FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
 * Nathan Whitehead
 * Perdita Stevens
 * Unison hackers and users lists
+* Arnaud Sahuguet
   Jerome Simeon
   martin hofmann
   Daniel Spoonhauer

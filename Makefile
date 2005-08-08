@@ -21,7 +21,7 @@ EXPORTNAME=harmony-$(shell date "+20%y%m%d")
 TMPDIR=/tmp
 TMP=$(TMPDIR)/$(EXPORTNAME)
 DOWNLOADDIR=$(HOME)/pub/harmony/download
-HARMONYUSER=jnfoster
+HARMONYUSER?=$(USER)
 
 export: 
 	echo \\draftfalse > $(DOCDIR)/temp.tex

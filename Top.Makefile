@@ -182,8 +182,13 @@ demo%:
 	$(QUIET)$(MAKE) init-demo $(DEMO$*)
 	$(QUIET)$(MAKEDEMO) demo $(DEMO$*)
 
-export R1=r1$(suffix $(R1ORIG))
-export R2=r2.$(if $(R2FORMAT),$(R2FORMAT),meta)
+ifdef R1ORIG
+  export R1=r1$(suffix $(R1ORIG))
+  export R2=r2.$(if $(R2FORMAT),$(R2FORMAT),meta)
+else
+  export R1=$(shell ls r1.* | head -1)
+  export R2=$(shell ls r2.* | head -1)
+endif
 
 init-demo: all
 	$(QUIET)echo "Copying $(R1ORIG) to $(R1)"
@@ -191,15 +196,17 @@ init-demo: all
 	$(QUIET)cp $(R1ORIG) $(R1)
 
 demo: 
-	$(QUIET)if [ ! -e $(R1) ]; then $(MAKEDEMO) demo1; exit 1; fi
-	$(DEMOCMD) $(R1) $(R2) -ar ar.meta;
+	echo R1 = $(R1)   R2 = $(R2)
+	$(QUIET)if [ ! -e $(R1) ]; then echo Initializing demo1; $(MAKEDEMO) demo1; exit 1; fi
+	$(DEMOCMD) $(R1) $(R2) -ar ar.meta
+	$(QUIET)if [ -f "$(INSTR)" ]; then cat $(INSTR); fi
 	$(QUIET)if [ -z $(EDITOR) ] || [ -n "$(NOEDIT)" ]; then \
 	   echo ; \
-	   echo 'Please edit $(R1) and/or $(R2) and do "make demo"...'; \
+	   echo 'Please edit $(R1) and/or $(R2) and do "make demo" to continue...'; \
          else \
 	   cp $(R1) $(R1)prev.tmp; \
 	   cp $(R2) $(R2)prev.tmp; \
-	   $(EDITOR) $(R1) $(R2); \
+	   $(EDITOR) $(INSTR) $(R1) $(R2); \
 	   export AGAIN=yes; \
 	   diff -q $(R1) $(R1)prev.tmp; \
 	   if diff -q $(R1) $(R1)prev.tmp && diff -q $(R2) $(R2)prev.tmp; then \

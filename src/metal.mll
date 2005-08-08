@@ -62,7 +62,7 @@ let error lexbuf msg =
     Error.simple_error s
 }
 
-let blank = [' ' '\t']+
+let blank = [' ' '\t' '\r']+
 let newline = "\n"
 let notsymbol = [^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ',' ':']+
 

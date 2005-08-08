@@ -67,7 +67,7 @@ let rec format = function
         (fun x -> format x)
         (fun _ -> false)
         m
-  | MarkEqual -> Format.printf "<MARK EQUAL>"
+  | MarkEqual -> Format.printf "EQUAL"
   | DeleteConflict (v0,v) ->
       Format.printf "<DELETE CONFLICT>@,  @[";
       V.show_diffs v0 v;
@@ -102,7 +102,7 @@ let rec format_without_equal = function
 	    binds;
 	  Format.printf "@]}"
 	    (* the following can only be called from the root *)
-  | MarkEqual -> Format.printf "<MARK EQUAL>"
+  | MarkEqual -> Format.printf "EQUAL"
   | DeleteConflict (v0,v) ->
       Format.printf "<DELETE CONFLICT>@,  @[";
       V.show_diffs v0 v;
