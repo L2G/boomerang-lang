@@ -1,0 +1,23 @@
+* STRUCTURED TEXT DEMO 
+
+This time, instead of synchronizing one structured text file with another
+one, we're showing the "abstract tree" that results from applying the
+structured text lens to a concrete structured text file.
+
+The second replica is stored as a simple textual dump of Harmony's internal
+tree representation.  During synchronization, the lens applied to the file
+(called r2.meta) is the identity lens -- i.e., r2.meta stores exactly the
+abstract tree obtained from r1.txt.  You can see that the abstract schema
+for synchronizing simple structured text files consists of a list of blocks,
+where each block is a itself a list whose first element is a header line.
+
+Try this now: add a new section header (a line beginning with a star) to the
+first replica and see where it winds up in the abstract tree.  (Deleting all
+this text from the first block may help to see the structure.)
+
+Then go on to the third part of the demo.
+
+* PART 2
+
+* PART 3
+
