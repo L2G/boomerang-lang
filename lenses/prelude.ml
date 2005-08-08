@@ -1021,13 +1021,11 @@ let _ = register_native fconst_qid "tree -> name -> lens" fconst_lib
 (*** FMODIFY ***)
 let fmodify_qid = "Native.Prelude.fmodify"
 let fmodify n cmd =
-  { get = (fun c -> V.from_list (Safelist.filter (fun (k,t) -> k <> n)
-				   (V.to_list c)));
+  { get = (fun c -> V.set c n None);
     put = (fun a co ->
       match co with 
 	Some c ->
-	  let a' = 
-	    V.from_list (Safelist.filter (fun (k,t) -> k <> n) (V.to_list c)) in
+	  let a' = V.set c n None in
 	  if V.equal a a' then
 	    c
 	  else begin
