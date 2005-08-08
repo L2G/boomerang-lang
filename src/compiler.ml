@@ -205,7 +205,7 @@ and check_exp sev e0 =
     (* assertions *)
     | EAssert(i,e1) -> 
         let _,new_e1 = expect_sort_exp "assert schema" sev SSchema e1 in 
-        let new_e0 = EAssert(i, new_e1) in 
+        let new_e0 = EAssert(i, new_e1) in
           (SLens, new_e0)
 	
     (* type atoms *)

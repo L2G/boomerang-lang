@@ -45,7 +45,7 @@ OCAMLMAKEFILE = $(SRCDIR)/OCamlMakefile
 
 PACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
 YFLAGS = -v 
-OCAMLFLAGS = -dtypes
+OCAMLFLAGS = -dtypes -rectypes
 OCAMLCPFLAGS = f
 
 LIBS += csv 

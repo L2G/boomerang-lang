@@ -200,6 +200,31 @@ let invert_lib =
   mk_lfun "lens" invert_qid (fun l -> Value.L (invert l))
 let _ = register_native invert_qid "lens -> lens" invert_lib
 
+(* INTERSECT *)
+let intersect_qid = "Native.Prelude.intersect" 
+let intersect_native t1 t2 = 
+  let intersect t u =
+    if Schema.intersect t u then
+      print_endline 
+	(V.format_msg_as_string [`Prim (fun () -> Schema.format_t t); `Space;
+				  `String "and"; `Space;
+				  `Prim (fun () -> Schema.format_t u); `Space;
+				  `String "DO intersect."])
+    else
+      print_endline 
+	(V.format_msg_as_string [`Prim (fun () -> Schema.format_t t); `Space;
+				  `String "and"; `Space;
+				  `Prim (fun () -> Schema.format_t u); `Space;
+				  `String "DO NOT intersect."])
+  in          
+  { get = ( fun c -> intersect t1 t2; c);
+    put = ( fun a _ -> a) }
+let intersect_lib = 
+  mk_sfun "schema -> lens" intersect_qid 
+    (fun t1 -> mk_sfun "lens" intersect_qid
+	(fun t2 -> L (intersect_native t1 t2)))
+let _ = register_native intersect_qid "schema -> schema -> lens" intersect_lib
+
 (******************)
 (* Generic Lenses *)
 (******************)
@@ -957,3 +982,73 @@ let _ = register_native even_split_qid "lens" even_split_lib
 (* force dynamic loading when compiled in a library *)
 let init () = ()
 
+(*** FCONST ***)
+let output_from d =
+  let readChannelTillEof c =
+    let rec loop lines =
+      try let l = input_line c in
+      loop (l::lines)
+      with End_of_file -> lines in
+    String.concat "\n" (Safelist.rev (loop [])) in
+  let out = Unix.open_process_in d in
+  let output = readChannelTillEof out in
+  match Unix.close_process_in out with
+    Unix.WEXITED 0 -> Some output 
+  | _ -> None
+
+let fconst_qid = "Native.Prelude.fconst"
+let fconst v d =
+  { get = (fun c -> v);
+    put = (fun a co ->
+      if V.equal a v then
+	match co with
+	| None -> 
+	    (match output_from d with
+	      Some name -> V.new_value name
+	    | None -> error [`String (fconst_qid ^ "(put): cmd");
+			      `String d;
+			      `String "returned with non-zero value"])
+	| Some(c) -> c
+      else error [`String (fconst_qid ^ "(put): abstract tree");
+		   `Tree a;
+		   `String "is not equal to"; `Tree (v)]) }
+let fconst_lib =
+  mk_vfun "name -> lens" fconst_qid
+    (fun v ->
+      mk_nfun "lens" fconst_qid (fun n -> Value.L (fconst v n)))
+let _ = register_native fconst_qid "tree -> name -> lens" fconst_lib
+
+(*** FMODIFY ***)
+let fmodify_qid = "Native.Prelude.fmodify"
+let fmodify n cmd =
+  { get = (fun c -> V.from_list (Safelist.filter (fun (k,t) -> k <> n)
+				   (V.to_list c)));
+    put = (fun a co ->
+      match co with 
+	Some c ->
+	  let a' = 
+	    V.from_list (Safelist.filter (fun (k,t) -> k <> n) (V.to_list c)) in
+	  if V.equal a a' then
+	    c
+	  else begin
+	    match output_from cmd with
+	      Some value -> 
+		V.set a n (Some (V.new_value value))
+	    | None ->
+		error [`String (fmodify_qid ^ "(put): cmd");
+			`String cmd;
+			`String "returned with non-zero value"]
+	  end
+      | None ->
+	  match output_from cmd with
+	    Some value -> 
+	      V.set a n (Some (V.new_value value))
+	  | None ->
+	      error [`String (fmodify_qid ^ "(put): cmd");
+		      `String cmd;
+		      `String "returned with non-zero value"])}
+let fmodify_lib =
+  mk_nfun "name -> lens" fmodify_qid
+    (fun n ->
+      mk_nfun "lens" fmodify_qid (fun cmd -> Value.L (fmodify n cmd)))
+let _ = register_native fmodify_qid "name -> name -> lens" fmodify_lib

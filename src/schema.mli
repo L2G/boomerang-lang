@@ -38,4 +38,4 @@ val member : V.t -> t -> bool
    and [Some (v0, t0)] otherwise, where [v0] is a subtree
    of [v] where assertion failed against [t0]. *)
 val pick_bad_subtree : V.t -> t -> (V.t * t) option
-
+val intersect : t -> t -> bool

@@ -29,13 +29,12 @@ let read_ics () =
   (r1m, r2m, r3m)
 
 let harmonize r1 r2 ar =
-  let (newr1, newr2, newar) = ("new"^r1, "new"^r2, "new"^ar) in
+  let (newr1, newr2, newar) = (r1, r2, ar) in
   let harm_args = [|"-schema"; "ICalendar.ICalendar_A";
 		    "-ar"; ar; "-r1"; r1; "-r2"; r2;
-		    "-lensar"; "ICalendar.l_no_stamps";
-		    "-lensr1"; "ICalendar.l_no_stamps";
-		    "-lensr2"; "ICalendar.l_no_stamps";
-		    "-newar"; newar; "-newr1"; newr1; "-newr2"; newr2;
+		    "-lensar"; "ICalendar.l_stamps";
+		    "-lensr1"; "ICalendar.l_stamps";
+		    "-lensr2"; "ICalendar.l_stamps";
 		    "-I"; "../../lenses"; "-I"; "."
 		  |] in
   exec_in_fork_and_wait harmony harm_args;

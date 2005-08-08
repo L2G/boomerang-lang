@@ -49,9 +49,8 @@ update:
 
 get:
 	$(ICALREAD) mycal.ics $(TMPC)
-	$(HARMONY) $(TMPC) -lensr1 ICalendar.l > $(TMPA)
+	$(HARMONY) $(TMPC) -lensr1 ICalendar.l_stamps
 	echo
-	cat $(TMPA)
 
 clean::
 	rm $(TMPC) $(DUM1) $(DUM2) updated.ics $(FINALC)

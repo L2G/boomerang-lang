@@ -247,14 +247,14 @@ and CompProp_A =
       }
 
 and DateTime_A = 
-      { date = {year = Value, month = Value, day = Value},
-	time = {hour = Value, minute = Value, second = Value, zulu = Value}}
+  { date = {year = (Value | {}), month = (Value | {}), day = (Value | {})},
+    time = {hour = (Value | {}), minute = (Value | {}), second = (Value | {}), zulu = Value}}
 	
 and DtPval_A = 
-      { "DateTimeVal" = DateTime_A } |
-      { "DateVal" = {year = Value, month = Value, day = Value}} |
-      { "PeriodVal" = Period_A } |
-      { "DurationVal" = Duration_A }
+  { "DateTimeVal" = DateTime_A } |
+  { "DateVal" = {year = Value, month = Value, day = Value}} |
+  { "PeriodVal" = Period_A } |
+  { "DurationVal" = Duration_A }
       
 and Period_A = 
       { "PeriodExplicit" = { start = DateTime_A, "end" = DateTime_A}} |
@@ -354,7 +354,17 @@ let domCompProp : tree =
     "percent", "priority", "rdate", "recurid", "related_to", "repeat",
     "resources", "rrule", "rstatus", "seq", "standardc", "status",
     "summary", "transp", "trigger", "tzid", "tzname", "tzoffsetto",
-    "tzoffsetfrom", "tzurl", "uid", "url", "xprop"} 
+    "tzoffsetfrom", "tzurl", "uid", "url", "xprop"}
+
+let domCompPropWoLastmod : tree = 
+  { "action", "attach", "attendee", "categories", "class",
+    "comment", "completed", "contact", "created", "daylightc", 
+    "description", "dtend", "dtstamp", "dtstart", "due", "duration",
+    "exdate", "exrule", "geo", "location", "organizer",
+    "percent", "priority", "rdate", "recurid", "related_to", "repeat",
+    "resources", "rrule", "rstatus", "seq", "standardc", "status",
+    "summary", "transp", "trigger", "tzid", "tzname", "tzoffsetto",
+    "tzoffsetfrom", "tzurl", "uid", "url", "xprop"}
 
 (* let ICalendar : schema = [{calprops = CalProps, components = Components}] | [] *)
 let icalendar_lens (filtering: lens): lens =
@@ -594,7 +604,7 @@ and dtpval_lens : lens =
 (** rename everything to one single date here ?
    then I have to have different schemas inside
    to be able to put the right thing in the put way *)
-      
+
 (* and Period : schema =  *)
 (*       { "PeriodExplicit" = { start = DateTime, "end" = DateTime}} | *)
 (*       { "PeriodStart" = { start = DateTime, duration = Duration}} *)
@@ -690,31 +700,40 @@ and timezonec_lens (filtering: lens) : lens =
 (*-------------------------------------------------------------------------*)
 (* general lens, keeping everything in bushes *)
 let l : lens = 
+  intersect CompProp DtPval;
+  intersect CompProp { ! = Any };
+  intersect { * = Any } { ! = Any };
   icalendar_lens id
 
-(* lens filtering away dtstamps and lastmods *)
-let dummy_stamp : tree =
-  {val = 
-    { "DateVal" =
-      { "year" = {1970},
-	"month" = {1},
-	"day" = {1}}}}
+(* lens filtering away dtstamps and lastmods
+   and updating them as appropriate on the putback *)
+let dtstamp_lens : lens =
+  wmap { "val" ->
+    wmap { "DateTimeVal" -> 
+      wmap { "date" ->
+	wmap {
+	"day" -> fconst {} "date +%d",
+	  "month" -> fconst {} "date +%m",
+	    "year" -> fconst {} "date +%Y"
+      },
+	"time" -> 
+	  wmap {
+	  "hour" -> fconst {} "date +%H",
+	    "minute" -> fconst {} "date +%M",
+	      "second" -> fconst {} "date +%S"
+	} }}}
 
-let dummy_dt : tree = 
-  {val =
-    { "date" =
-      { "year" = {1970},
-	"month" = {1},
-	"day" = {1}},
-      "time" = 
-      { "hour" = {23},
-	"minute" = {59},
-	"second" = {59},
-	"zulu" = {666}}}}
-
-let l_no_stamps : lens =
+let lastmod_lens : lens =
+  wmap { "lastmod" -> 
+    (focus "val" {}; hoist_nonunique "date" {"day", "month", "year"};
+     hoist_nonunique "time" {"hour", "minute", "second", "zulu"};
+     prune "zulu" {"#true"})};
+  hoist_nonunique "lastmod" {"day", "month", "year", "hour", "minute", "second"};
+  fmodify "day" "date +%d"; fmodify "month" "date +%m"; fmodify "year" "date +%Y";
+  fmodify "hour" "date +%H"; fmodify "minute" "date +%M"; fmodify "second" "date +%S"
+    
+let l_stamps : lens =
   icalendar_lens 
-    (wmap {"dtstamp" -> (const {} dummy_stamp),
-      "lastmod" -> (const {} dummy_dt)})
-
-
+    (wmap {"dtstamp" -> dtstamp_lens});
+  probe "BETWEEN ICALENDAR AND LASTMOD";
+  map (map lastmod_lens)

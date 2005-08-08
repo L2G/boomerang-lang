@@ -16,6 +16,8 @@ let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
 let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
 let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
+
+let intersect : (schema -> schema -> lens) = Native.Prelude.intersect
 #{@}
 
 \subsection{Predefined Schemas}
@@ -602,3 +604,13 @@ schema if none is specified explicitly.
 \LENSSECTION{invert}
 The function @invert@ maps a bijective lens @l@ to a bijective lens whose
 \GET{} is the \PUT{} of @l@ and vice versa.
+
+\LENSSECTION{fconst}
+The lens @fconst v cmd@ behaves exactly like @const@, except that instead of
+using a default tree @d@ in the case of creation, it executes @cmd@ and uses 
+the value returned by the command.
+
+##let fconst : (tree -> name -> lens) = Native.Prelude.fconst
+#*test (fconst {} "echo youpi") \ {} missing = { "youpi" }
+
+##let fmodify : (name -> name -> lens) = Native.Prelude.fmodify
