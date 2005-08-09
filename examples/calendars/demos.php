@@ -40,7 +40,7 @@ UID:KOrganizer-168648156.762
 SEQUENCE:2
 LAST-MODIFIED:20050809T215425Z
 SUMMARY:Something very important
-LOCATION:In a galaxy far\, far away
+LOCATION:In a galaxy far, far away
 CLASS:PUBLIC
 PRIORITY:3
 CATEGORIES:Business
@@ -96,7 +96,7 @@ UID:KOrganizer-168648156.762
 SEQUENCE:2
 LAST-MODIFIED:20050809T215425Z
 SUMMARY:Something very important
-LOCATION:In a galaxy far\, far away
+LOCATION:In a galaxy far, far away
 CLASS:PUBLIC
 PRIORITY:3
 CATEGORIES:Business
@@ -153,7 +153,7 @@ UID:KOrganizer-168648156.762
 SEQUENCE:2
 LAST-MODIFIED:20050809T215425Z
 SUMMARY:Something very important
-LOCATION:In a galaxy far\, far away
+LOCATION:In a galaxy far, far away
 CLASS:PUBLIC
 PRIORITY:3
 CATEGORIES:Business
