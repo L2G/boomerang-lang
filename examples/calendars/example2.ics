@@ -1,0 +1,41 @@
+BEGIN:VCALENDAR
+PRODID:-//K Desktop Environment//NONSGML KOrganizer 3.3//EN
+VERSION:2.0
+BEGIN:VEVENT
+DTSTAMP:20050809T223442Z
+ORGANIZER:MAILTO:lescuyer@seas.upenn.edu
+CREATED:20050809T213931Z
+UID:KOrganizer-168648156.762
+SEQUENCE:6
+LAST-MODIFIED:20050809T223439Z
+DESCRIPTION:Now\, let's take a look at how iCalendar files are encoded into our
+  native meta format. \n\nThis file consists in exactly the same
+  event as in the demo1 (except this very note\, of course)\, and
+  you can see how the data is rearranged in r2.meta. The abstract view
+  is a bush where the entries are sorted with respect to their type
+  (here\, we only have one entry of sort Eventc\, so the other sorts
+  do not appear). In each sort\, the entries are keyed under an unique
+  identifier\, that is part of the iCalendar specification. This uuid
+  is the cornerstone of our system\, since it is a convenient and
+  easy way to align the entries between two files\, without considering
+  their relative order.\n\nTo illustrate the importance of this uuid
+ \, try forcing to uuid in both files to something different\, and
+  close the editor. What will happen is that Harmony will not find
+  the old key (the only one present in the replica) in either file\,
+  and will therefore assume that it has been deleted from both replicas
+ . On the other hand\, each file will contain a new entry that does
+  not exist on the other side\, so both entries (though equal besides
+  their uuids) will be added to the archive as completely separate
+  entries.
+SUMMARY:Something very important
+LOCATION:In a galaxy far\, far away
+CLASS:PUBLIC
+PRIORITY:3
+CATEGORIES:Business
+DTSTART:20050810T150000Z
+DTEND:20050810T190000Z
+TRANSP:OPAQUE
+END:VEVENT
+
+END:VCALENDAR
+

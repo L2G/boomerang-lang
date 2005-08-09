@@ -6,6 +6,7 @@
 TOP = ../..
 
 DEMO1 = R1ORIG=example1.ics R2FORMAT=ics
+DEMO2 = R1ORIG=example2.ics R2FORMAT=meta
 
 all: makeharmonylib nc
 
