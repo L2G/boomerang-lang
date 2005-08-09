@@ -50,6 +50,7 @@ TRANSP:OPAQUE
 END:VEVENT
 
 END:VCALENDAR
+
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "ics";
@@ -106,6 +107,7 @@ TRANSP:OPAQUE
 END:VEVENT
 
 END:VCALENDAR
+
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "ics";
@@ -163,6 +165,7 @@ TRANSP:OPAQUE
 END:VEVENT
 
 END:VCALENDAR
+
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "ics";
