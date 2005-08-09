@@ -56,7 +56,7 @@ $showarchive = $_REQUEST['SHOWARCHIVE'];
 ##############################################################################
 # Load the demos
 
-chdir("harmonydir/examples");
+chdir("../examples");
 
 $alldemos = array();
 
