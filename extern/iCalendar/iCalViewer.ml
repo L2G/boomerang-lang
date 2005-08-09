@@ -38,7 +38,7 @@ let iCalWriter inc outc =
   ICalendar.write outc false ic
 
 let usage = "Usage : [iCalViewer ascal src dest] converts the ics calendar in src"
-  ^ " to a meta view in dest\n\t [iCalviewer asmeta src dest] does the contrary\n"
+  ^ " to a meta view in dest\n\t [iCalViewer asmeta src dest] does the opposite\n"
 
 let _ =
   match Array.length Sys.argv with

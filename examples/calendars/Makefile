@@ -1,0 +1,29 @@
+####################################################################
+# The Harmony Project                                              #
+# harmony@lists.seas.upenn.edu                                     #
+####################################################################
+
+TOP = ../..
+
+DEMO1 = R1ORIG=example1.ics R2FORMAT=ics
+
+all: makeharmonylib nc
+
+include $(TOP)/Top.Makefile
+
+RESULT = harmonize-calendars
+SOURCES = $(CWD)/harmonize-calendars.ml 
+LIBS += harmony
+
+clean::
+	rm -rf ar*.{ics,meta} r1*.{ics,meta} r2*.{ics,meta} .harmonyar*.meta .harmonyar*.tmp
+include $(OCAMLMAKEFILE)
+
+
+####################################################################
+# Tests
+
+test:: buildharmony unit-tests 
+
+unit-tests:
+	$(HARMONY) -check ICalendar -test-all
