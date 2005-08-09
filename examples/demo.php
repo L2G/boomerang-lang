@@ -1,12 +1,29 @@
 <html>
+
+<head>
+<STYLE TYPE="text/css">
+  body { background: #cccccc; color:black }
+  h1 { text-align: center; padding: 20; background: yellow }
+  table { width:95%; }
+  textarea { background: #FFFFbb; width:100%; height:150; }
+  td { align:top; }
+  .label { color:red; align:left; }
+  .instructions { background:#eeeeee; padding:10; margin-left:60; margin-right:60; border-width:thin; border-color:#aaaaaa; border-style:solid }
+</STYLE>
+</head>
+
 <body>
-<h1>The Harmony Sandbox...</h1>
+<center><h1>The Harmony Sandbox...</h1></center>
 
 <?
 
 # Things to do:
-#   instructions in an (italicized?) box
-#   add a minimal CSS
+#   when the lens changes, do a RESET
+#   add a simple sync demo
+#   make "next" go on to the next demo group
+#   put the manual on the web
+#   number demos from 1
+#   make an html directory and move my stuff there
 
 ##############################################################################
 # Configuration parameters
@@ -25,6 +42,8 @@ $reset = $_REQUEST['RESET'];
 $choosenew = $_REQUEST['CHOOSENEW'];
 $nextpart = $_REQUEST['NEXTPART'];
 $r1 = get_post_data('R1');
+$lensr1 = get_post_data('LENSR1');
+$prevlensr1hex = get_post_data('PREVLENSR1HEX');
 $r2 = get_post_data('R2');
 $arhex = $_REQUEST['AR'];
 $ar = hex2asc($arhex);
@@ -61,6 +80,7 @@ function get_demos_from ($subdir) {
 
 get_demos_from("addresses");
 get_demos_from("structuredtext");
+get_demos_from("lenses");
 # ... and other subdirs
 
 # print_r ($alldemos);
@@ -101,19 +121,23 @@ function demoparam($n) {
 $r1orig = demoparam("r1");
 $r1format = demoparam("r1format");
 $r2format = demoparam("r2format");
+$lensr1orig = demoparam("lensr1");
 $harmonyflags = demoparam("flags");
 $instructions = demoparam("instructions");
 
 if (!empty($reset)) {
   $r1 = $r1orig;
+  $lensr1 = $lensr1orig;
 }
 
 ##############################################################################
-# Format the response page
+# Run Harmony
 
 $democmd = "harmonize-" . $demogroup;
 
-$tempbase = "/tmp/hd" . posix_getpid() . str_replace(" ","",microtime()) . "-";
+$tempbasename = "h" . posix_getpid() . str_replace(array(" ","."),"",microtime());
+$tempdir = "/tmp";
+$tempbase = "$tempdir/$tempbasename";
 
 $r1file = $tempbase . "r1." . $r1format;
 $r2file = $tempbase . "r2." . $r2format;
@@ -128,42 +152,67 @@ if (empty($reset)) {
   put_file($r2file, $r2);
 }
 
+if (!empty($lensr1)) {
+  $lensmodule = $tempbasename . "lens";
+  $lensModule = ucfirst($lensmodule);
+  $lensfile = "$tempdir/$lensmodule.fcl";
+  $lensfilecontents = 
+    "module $lensModule = let l : lens = \n"
+    . "# 0 \"NOFILEHERE\"\n"
+    . $lensr1;
+  put_file($lensfile, $lensfilecontents);
+  if (asc2hex($lensr1) != $prevlensr1hex) {
+    # if the lens has been edited by the user, smash the archive so that
+    # this SYNC becomes just a GET
+    $ar = $r2;
+  }
+}
+
 if (!file_exists($democmd)) {
   abort("Executable " . $democmd . " not found in " . getcwd(),"");
 }
 
 $cmd = 
     "export HOME=../../../..; "
-  . "export FOCALPATH=.:../../lenses;"
-  . "./" . $democmd . " " . $harmonyflags . " "
-  . "-ar " . $arfile . " " 
-  . "-r1 " . $r1file . " " 
-  . "-r2 " . $r2file . " " 
-  . "-newar " . $newarfile . " " 
-  . "-newr1 " . $newr1file . " " 
-  . "-newr2 " . $newr2file . " " 
+  . "export FOCALPATH=.:../../lenses:/$tempdir;"
+  . "./$democmd $harmonyflags "
+  . "-ar $arfile " 
+  . "-r1 $r1file " 
+  . (!empty($lensr1) ? "-lensr1 $lensModule.l " : "")
+  . "-r2 $r2file " 
+  . "-newar $newarfile " 
+  . "-newr1 $newr1file " 
+  . "-newr2 $newr2file " 
   . "2>&1";
 # echo "cmd = " . $cmd . "<p>";
 $output = shell_exec($cmd);
 
-if (!file_exists($newarfile)) {
-  $diag = 
-     "Output from Harmony:</br>" . htmlentities($output) . "<p>"
-     . "File " . $r1file . " contains:<br><pre>" . (htmlentities($r1)) . "</pre><p>"
-     . "File " . $r2file . " contains:<br><pre>" . (htmlentities($r2)) . "</pre><p>"
-     . "File " . $arfile . " contains:<br><pre>" . (htmlentities($ar)) . "</pre><p>"
-    ;
-  abort("Harmony run did not create all three files", $diag);
+if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
+  $ar = filecontents($newarfile);
+  $r1 = filecontents($newr1file);
+  $r2 = filecontents($newr2file);
 }
 
-$ar = filecontents($newarfile);
-$r1 = filecontents($newr1file);
-$r2 = filecontents($newr2file);
+# $diag = 
+#      "Harmony command: <br> $cmd <p>" 
+#    . "Output from Harmony:</br>" . htmlentities($output) . "<p>"
+#    . "File " . $r1file . " contains:<br><pre>" . (htmlentities($r1)) ."</pre><p>"
+#    . "File " . $r2file . " contains:<br><pre>" . (htmlentities($r2)) ."</pre><p>"
+#    . "File " . $arfile . " contains:<br><pre>" . (htmlentities($ar)) ."</pre><p>"
+#    . (!empty($lensr1) ? 
+#         "File " . $lensfile . " contains:<br><pre>" 
+#         . (htmlentities($lensfilecontents)) 
+#         . "</pre><p>"
+#       : "")
+#   ;
+# abort("Harmony run did not create all three files", $diag);
 
 $arhex = asc2hex($ar);
 
 ##############################################################################
 # Format the response page
+
+####### Demo selection controls
 
 echo <<<HTML
 <script language="JavaScript">
@@ -200,10 +249,12 @@ while (!empty($alldemos[$demogroup][$i])) {
   $i = $i + 1;
 }
 
+####### Instructions and control buttons
+
 echo <<<HTML
     </select>
     <p>
-    <i>$instructions</i>
+    <div class=instructions>$instructions</div>
     <p>
     <center>
     <input type="submit" value="Synchronize"/>  
@@ -212,46 +263,85 @@ echo <<<HTML
     $shownextparterror
     <p/>
     <table>
+HTML;
+
+####### Lens box
+
+if (!empty($lensr1)) {
+  $lensr1hex = asc2hex($lensr1);
+  echo <<<HTML
+      <tr>
+        <td colspan=2>
+           <div class=label>Lens: </div>
+           <textarea name="LENSR1">$lensr1</textarea>
+           <input name="PREVLENSR1HEX" type="hidden" value="$lensr1hex"/>
+        </td>
+      </tr>
+HTML;
+}
+
+####### Replicas
+
+if (empty($lensr1)) {
+  $firstreplicatitle = "First replica";
+  $secondreplicatitle = "Second replica";
+}
+else {
+  $firstreplicatitle = "Concrete";
+  $secondreplicatitle = "Abstract";
+}
+
+echo <<<HTML
       <tr> 
-        <td>
-          <center>First replica:</center>
+        <td valign=top>
+          <div class=label>$firstreplicatitle:</div>
           <textarea name="R1" rows="23" cols="50">$r1</textarea>
         </td>
-        <td>
-          <center>Second replica:</center>
+        <td valign=top>
+          <div class=label>$secondreplicatitle:</div>
           <textarea name="R2" rows="23" cols="50">$r2</textarea>
         </td>
       </tr>
+HTML;
+
+####### Harmony output box
+
+echo <<<HTML
       <tr>
-        <td>
+        <td valign=top>
 HTML;
 
 if (!empty($output) && empty($reset)) {
   echo <<<HTML
-    <center>Harmony output: </center>
+    <div class=label>Harmony output: </div>
     <textarea name="DUMMY" rows="23" cols="50">$output</textarea>
 HTML;
 }
 
 echo <<<HTML
         </td>
-        <td>
+        <td valign="top">
 HTML;
+
+####### Archive box
 
 if (!empty($showarchive)) {
   $showarchivechecked = "checked";
 }
 
-echo <<<HTML
-    <input type="checkbox" name="SHOWARCHIVE" $showarchivechecked>Show archive</input>
+$archivecheckbox = <<<HTML
+    <input type="checkbox" name="SHOWARCHIVE" $showarchivechecked onchange="document.theform.submit()">Show archive</input>
 HTML;
 
 if ($showarchive) {
 echo <<<HTML
-    <center>Archive:</center>
+    <div class=label>Archive:</div>
     <textarea name="ARASC" readonly rows="23" cols="50">$ar</textarea><br />
 HTML;
 }
+
+echo "    <div align=right>$archivecheckbox</div>";
+
 
 echo <<<HTML
           <input name="AR" type="hidden" value="$arhex"/>

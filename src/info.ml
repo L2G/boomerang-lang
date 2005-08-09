@@ -13,9 +13,10 @@ type t = I of string * pos * pos | M of string
  *     pretty prints a location for easy parsing in emacs compile-mode *)
 let string_of_t = function
     I (fn, (l1,c1),(l2,c2)) -> 
+      let f = if fn = "NOFILEHERE" then "" else "File " ^ fn ^ ", " in
       if l2=l2
-      then Printf.sprintf "File \"%s\", line %d, characters %d-%d" fn l1 c1 c2
-      else Printf.sprintf "File \"%s\", line %d, character %d, to line %d, character %d" fn l1 c1 l2 c2
+      then Printf.sprintf "%sline %d, characters %d-%d" f l1 c1 c2
+      else Printf.sprintf "%sline %d, character %d, to line %d, character %d" f l1 c1 l2 c2
   | M s -> s
 
 (* merge_inc : t -> t -> t

@@ -176,11 +176,11 @@ let rec expect_sort_exp msg sev expected_sort e =
     else
       sort_error i
 	(fun () -> 
-           Format.printf "@[in %s:" msg;
+           Format.printf "@[in %s:@ " msg;
            Syntax.format_sort expected_sort;
            Format.printf " expected@ but ";
            Syntax.format_sort e_sort;
-           Format.printf "found@]")
+           Format.printf "@ found@]")
 	
 (* EXPRESSIONS *)    
 and check_exp sev e0 = 

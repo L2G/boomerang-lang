@@ -9,5 +9,5 @@ TOP = ..
 include $(TOP)/Top.Makefile
 SUBDIRS = $(ALLSUBDIRS)
 
-all:
+all: buildsubdirs
 

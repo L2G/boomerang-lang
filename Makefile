@@ -11,7 +11,7 @@ SUBDIRSCLEANONLY = experimental visual papers extern
 TOP = .
 include $(TOP)/Top.Makefile
 
-all: buildharmony
+all: buildsubdirs
 
 
 ###########################################################################

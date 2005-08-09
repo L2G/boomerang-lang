@@ -104,6 +104,12 @@ clean:: tidy
 	    echo "###### cleaning $(CWD)/$$i ######"; \
 	    $(MAKE) -C $$i clean; done
 
+buildsubdirs:
+	@for i in $(SUBDIRS); do \
+	    echo "###### Building $(CWD)/$$i ######"; \
+	    $(MAKE) -C $$i; done
+
+
 tidy::
 	rm -rf *.tmp *.bak .*.bak .bak.* *~ temp.* *.annot 
 	rm -rf r1.* r2.* ar.*
