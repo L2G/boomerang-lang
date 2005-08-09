@@ -1,0 +1,311 @@
+<?
+
+$demogroupname = "Structured text";
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<XXX
+This first example of structured text synchronization 
+illustrates the basic ideas with just one level of structure.
+<p>
+Try adding a few new lines below <tt>SECOND PART</tt>
+in one replica and below <tt>THIRD PART</tt> in the other.   
+<p>
+When you're finished playing, go on to the next part of 
+the demo.
+XXX;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+* FIRST PART
+
+* SECOND PART
+
+* THIRD PART
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "txt";
+$demo["r2format"] = "txt";
+$demo["flags"] = "-simplified";
+savedemo();
+# ---------------------------------------------------------
+
+##############################################################################
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<XXX
+This time, instead of synchronizing one structured text file with another
+one, we're showing the "abstract tree" that results from applying the
+structured text lens to a concrete structured text file.
+<p>
+The second replica is stored as a simple textual dump of Harmony's internal
+tree representation.  During synchronization, the lens applied to the file
+(called r2.meta) is the identity lens -- i.e., r2.meta stores exactly the
+abstract tree obtained from r1.txt.  You can see that the abstract schema
+for synchronizing simple structured text files consists of a list of blocks,
+where each block is a itself a list whose first element is a header line.
+<p>
+Try this now: add a new section header (a line beginning with a star) to the
+first replica and see where it winds up in the abstract tree.  (Deleting all
+this text from the first block may help to see the structure.)
+<p>
+Then go on to the next part of the demo.
+XXX;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+* FIRST PART
+
+* SECOND PART
+
+* THIRD PART
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "txt";
+$demo["r2format"] = "meta";
+$demo["flags"] = "-simplified";
+savedemo();
+# ---------------------------------------------------------
+
+##############################################################################
+
+# More text to possibly add back in later...
+# 
+# (This is achieved by dropping the
+# -simplified flag on the command line to harmonize-structuredtext, which
+# causes the lens Structuredtext.file_with_combined_headers to be used instead
+# of Structuredtext.file_with_simple_star_headers, as can be seen by a quick
+# look at harmonize-structuredtext.ml.  These lenses, in turn, are defined in
+# the Focal source file structuredtext.fcl -- this involves some pretty tricky
+# lens programming, though, so don't be discouraged if that file doesn't make
+# much sense right now.)
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<XXX
+For this demo, we are using a more sophisticated lens to map from the
+concrete text file to the abstract tree.  
+<p>
+Notice that there are now four levels of headers; lines beginning with one,
+two, and three stars, and then lines with no stars but consisting entirely
+of capital letters and spaces.  
+<p>
+Note, also, that levels can be "skipped" -- e.g., this text is not preceded
+by any header lines at all.  In this case, empty headers for all the missing
+levels are automatically inserted.
+<p>
+Try editing the abstract tree and changing the first <tt>""</tt> header to a <tt>"* FOO"</tt> 
+(don't forget the space after the star).  See what happens when the abstract
+tree is pushed back down into the concrete text format.
+XXX;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+* HEADER
+** SUBHEADER
+*** SUBSUBHEAD
+PARA HEAD
+para line
+para line
+para line
+para line
+para line
+para line
+PARA HEAD
+para line
+para line
+para line
+para line
+PARA HEAD
+* HEADER
+** SUBHEADER
+*** SUBSUBHEAD
+PARA HEAD
+para
+para
+para
+para
+para
+para
+PARA HEAD
+para
+para
+para
+para
+para
+para
+PARA HEAD
+para
+para
+para
+para
+para
+para
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "txt";
+$demo["r2format"] = "meta";
+savedemo();
+# ---------------------------------------------------------
+
+##############################################################################
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<XXX
+Now we are ready to go back to synchronizing one text file with another,
+this time using more deeply structured trees.
+<p>
+Try making some changes in different parts of the two replicas and seeing
+what happens when they are synchronized.
+XXX;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+* HEADER
+** SUBHEADER
+*** SUBSUBHEAD
+PARA HEAD
+para line
+para line
+para line
+para line
+para line
+para line
+PARA HEAD
+para line
+para line
+para line
+para line
+PARA HEAD
+* HEADER
+** SUBHEADER
+*** SUBSUBHEAD
+PARA HEAD
+para
+para
+para
+para
+para
+para
+PARA HEAD
+para
+para
+para
+para
+para
+para
+PARA HEAD
+para
+para
+para
+para
+para
+para
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "txt";
+$demo["r2format"] = "txt";
+savedemo();
+# ---------------------------------------------------------
+
+##############################################################################
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<XXX
+Now let's try something a bit more interesting: experimenting with
+conflicts.
+<p>
+In one replica, add </tt>FOO</tt> after </tt>one</tt> (on the same line) and </tt>BAR</tt> after
+</tt>two</tt>.  In the other replica, add </tt>BAZ</tt> after </tt>two</tt> and </tt>GLOP</tt> after
+</tt>three</tt>.  Synchronize and notice what happens, both in the states of the
+replicas after synchronization and in the summary printed by Harmony of what
+it has done.
+<p>
+(Yes, we know we need to working on making Harmony's output easier to
+understand!)
+<p>
+At this point, the first and third lines are known to be synchronized and
+can be further edited; changes made just in one replica will be propagated
+to the other.  The second line, on the other hand, is in conflict and will
+stay so until the conflict is repaired.  There are two ways to do this:
+<ol>
+<li>
+   edit both copies of the second line so that they are identical and
+     re-synchronize (the new version will be accepted as the new
+     synchronized value for this line), or
+<li>
+   edit one copy back to its original state (just </tt>two</tt>) and
+     resynchronize (the changed version from the other replica will now be
+     propagaged) 
+</ol>
+<p>
+Try both ways.
+<p>
+(Note that the second behavior is a slight difference between the
+implementation and the algorithm described in our DBPL paper.  The current
+implementation does not record conflicts explicitly in the archive.)
+<p>
+You can also edit header lines, of course, and the same rules of conflicts
+apply there as well.  Try this.
+XXX;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+* HEADER
+one
+two
+three
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "txt";
+$demo["r2format"] = "txt";
+savedemo();
+# ---------------------------------------------------------
+
+##############################################################################
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<XXX
+For our last experiment with structured text, let's have a look at some
+subtleties that arise from Harmony's rather simplistic treatment of lists.
+<p>
+First, observe that, if we change the list structure only in one replica,
+there is never any difficulty.  
+<p>
+Try adding a line of lowercase characters between <tt>one</tt> and <tt>two</tt> below in
+just one of the replicas and see what happens when you sync.
+<p>
+Next, note that if lines get added to both replicas <em>in the same way</em>, there
+is also no problem.
+<p>
+Try adding the same new line to both replicas between <tt>one</tt> and <tt>two</tt>.  See
+what happens.
+<p>
+However, things are not quite so nice if both the same list in both replicas
+is edited.  Try adding another new line to both replicas between <tt>one</tt> and
+<tt>two</tt>.  Moreover, add <tt>FOO</tt> to the line <tt>three</tt> in one of the replicas.  See
+what happens.  (Probably less than you expected.)
+<p>
+Delete the <tt>FOO</tt> and re-sync to repair the conflict.  (The <tt>EQUAL</tt>
+report signals that Harmony has detected and remembered that the replicas
+are now equal.)
+<p>
+Finally, try adding another new line between <tt>one</tt> and <tt>two</tt> in one replica 
+and add a new line at the very end in the other.  Re-sync.  Were you
+surprised?  (If not, try it again!)  
+<p>
+The lesson is that Harmony should be used on list-structured data only with
+great care.  When changes are non-overlapping all will be well.  But when
+the same parts of a list structure are changed in both replicas,
+counter-intuitive behavior can result.  We are investigating how to address
+this issue.
+<p>
+This ends the structured text demo.  
+XXX;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+* HEAD
+one
+two
+three
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "txt";
+$demo["r2format"] = "txt";
+savedemo();
+# ---------------------------------------------------------
+
+?>

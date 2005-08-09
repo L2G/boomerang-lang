@@ -186,8 +186,9 @@ ifdef R1ORIG
   export R1=r1$(suffix $(R1ORIG))
   export R2=r2.$(if $(R2FORMAT),$(R2FORMAT),meta)
 else
-  export R1=$(shell ls r1.* | head -1)
-  export R2=$(shell ls r2.* | head -1)
+  # too noisy!
+  # export R1=$(shell ls r1.* | head -1)
+  # export R2=$(shell ls r2.* | head -1)
 endif
 
 init-demo: all
