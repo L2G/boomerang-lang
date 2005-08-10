@@ -13,6 +13,7 @@ module Prelude =
 let invert : (lens -> lens) = Native.Prelude.invert
 let hoist : (name -> lens) = Native.Prelude.hoist
 let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
+let bfork : (schema -> tree -> lens -> lens -> lens) = Native.Prelude.bfork
 let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
 let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap

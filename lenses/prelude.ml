@@ -394,6 +394,54 @@ let xfork_lib =
                  mk_lfun "lens" xfork_qid (fun l2 -> Value.L (xfork pcv pav l1 l2)))))
 let _ = register_native xfork_qid "tree -> tree -> lens -> lens -> lens" xfork_lib
 	  
+(* BFORK *)
+let bfork_qid = "Native.Prelude.bfork"
+let bfork sc pca l1 l2 =
+  let dom_pav = V.dom pca in
+  let pc = fun v -> Schema.member v sc in
+  let pa = fun n -> Name.Set.mem n dom_pav in
+  { get = 
+    (fun c ->
+      let c1l, c2l = Safelist.partition (fun (n,v) -> pc v) (V.to_list c) in
+      let c1,c2 = (V.from_list c1l, V.from_list c2l) in
+      let a1 = l1.get c1 in
+      let a2 = l2.get c2 in
+      if not(Name.Set.for_all pa (V.dom a1)) then
+	error [`String bfork_qid; `String "(get): l1 yielded a child not ";
+         	`String "satisfying pa"; 
+		`Tree a1];
+      if not(Name.Set.for_all (fun k -> not (pa k)) (V.dom a2)) then
+	error [`String bfork_qid; `String "(get): l2 yielded a child satisfying pa";
+		`Tree a2];
+      V.concat a1 a2);
+    put = (fun a co -> 
+      let co1,co2 =
+	match co with None -> None,None
+	| Some c -> 
+	    let c1l, c2l = Safelist.partition (fun (n,v) -> pc v) (V.to_list c) in
+	    (Some (V.from_list c1l), Some(V.from_list c2l)) in
+      let a1, a2 = V.split pa a in
+      let c1' = l1.put a1 co1 in
+      let c2' = l2.put a2 co2 in
+      if not(Safelist.for_all (fun (_,v) -> pc v) (V.to_list c1')) then
+	error [`String bfork_qid; `String "(put): l1 yielded a child ";
+		`String "not satisfying sc"; 
+		`Tree c1'];
+      if not(Safelist.for_all (fun (_,v) -> not (pc v)) (V.to_list c2')) then
+	error [`String xfork_qid; `String "(put): l2 yielded a child ";
+		`String "satisfying pc"; 
+		`Tree c2'];
+      V.concat c1' c2')}
+let bfork_lib = 
+  mk_sfun "tree -> lens -> lens -> lens" bfork_qid
+    (fun c ->
+       mk_vfun "lens -> lens -> lens" bfork_qid
+         (fun pav ->
+            mk_lfun "lens -> lens" bfork_qid
+              (fun l1 ->
+                 mk_lfun "lens" bfork_qid (fun l2 -> Value.L (bfork c pav l1 l2)))))
+let _ = register_native bfork_qid "schema -> tree -> lens -> lens -> lens" bfork_lib
+
 (* HOIST *)
 let hoist_qid = "Native.Prelude.hoist"
 let hoist k =
