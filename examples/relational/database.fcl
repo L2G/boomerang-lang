@@ -1,295 +1,217 @@
 module Database = 
 
-(*
-We start with a basic database that contains a table for email addresses and
-one for phone numbers.  The email addresses include either the type "prsn" for
-personal contacts or the type "prof" for professional contacts.
-*)
+(* We start with a basic database that contains one table for email addresses
+and one for phone numbers.  The email addresses include either the
+relationship "prsn" for personal contacts or the type "prof" for professional
+contacts.  There is an implicit FD "nm -> rel". *)
 
-    let c : tree =
+(* The phone numbers are given a sort, and it is assumed that the pair of
+fields (nm, sort) is a key for the table. *)
+
+let c : tree =
     { email_addr =
-        [ { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
-        , { fname = {"Bob"},   email = {"bob@cis"},   type = {"prsn"} }
-        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
+        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
         ]
     , phone_num =
-        [ { nm = {"Alice"}, ph = {"123-456-7890"}, type = {"cell"} }
-        , { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
-        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
-        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
-        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
+        [ { nm = {"Alice"}, ph = {"123-456-7890"}, sort = {"cell"} }
+        , { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"} }
+        , { nm = {"Ellen"}, ph = {"567-890-1234"}, sort = {"cell"} }
         ]
     }
 
-(*
-We write a lens that will perform an outer join on the tables while renaming
-some fields so that the join will be performed on the correct fields.  (It
-will be performed on the fields with the same names.)  We will parameterize it
-on the outer join lens because there are multiple versions of outer join that
-control the behavior in the PUT direction.
-*)
+(* We begin with a simple query on the "phone_num" table, in which we select
+records representing cell phone numbers and project away the "sort" field. *)
 
-    let l (outer_join : name -> name -> name -> lens) : lens =
-    Relational.rename "type" "tp" "email_addr" "email_addr";
-    Relational.rename "nm" "fname" "phone_num" "phone_num";
-    outer_join "email_addr" "phone_num" "contacts"
+let l1 : lens =
+    Relational.select {nm=Any,ph=Any,sort={"cell"}}
+        "phone_num" "cell_phone_num";
+    Relational.project {"nm", "ph"} {"nm", "ph"} [{sort={"cell"}}]
+        "cell_phone_num" "cell_phone_num"
 
-    let oj1 (r : name) (s : name) (t : name) : lens =
-        Relational.ojoin
-            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
-            Any Any Any Any
-            r s t
-
-(*
-Applying "l" with any version of "ojoin" will give us the following abstract
-database.
-*)
-
-    let a : tree =
-    { contacts =
-        [ { fname = {"Dave"}
-          , email = {""}
-          , ph    = {"456-789-0123"}
-          , type  = {"home"}
-          , tp    = {"prof"}
-          }
-        , { fname = {"Ellen"}
-          , email = {""}
-          , ph    = {"567-890-1234"}
-          , type  = {"cell"}
-          , tp    = {"prof"}
-          }
-        , { fname = {"Alice"}
-          , email = {"alice@cis"}
-          , ph    = {"123-456-7890"}
-          , type  = {"cell"}
-          , tp    = {"prof"}
-          }
-        , { fname = {"Alice"}
-          , email = {"alice@cis"}
-          , ph    = {"234-567-8901"}
-          , type  = {"home"}
-          , tp    = {"prof"}
-          }
-        , { fname = {"Bob"}
-          , email = {"bob@cis"}  
-          , ph    = {"345-678-9012"}
-          , type  = {"cell"}
-          , tp    = {"prsn"}
-          }
-        , { fname = {"Carol"}
-          , email = {"carol@cis"}
-          , ph    = {""}
-          , type  = {"cell"}
-          , tp    = {"prsn"}
-          }
+let a1 : tree =
+    { email_addr =
+        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
+        ]
+    , cell_phone_num =
+        [ { nm = {"Alice"}, ph = {"123-456-7890"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"} }
+        , { nm = {"Ellen"}, ph = {"567-890-1234"} }
         ]
     }
-
-test l oj1 / c = a
-
-(*
-We can write another lens to operate on the resulting database.
-*)
-
-    let l' : lens =
-    Relational.select
-        {fname=Any,email=Any,ph=Any,type={"cell"},tp=Any}
-        "contacts" "contacts_with_cell_phone";
-    Relational.project {"fname", "email", "ph"} {"fname"}
-        [{type={"cell"},tp={"prof"}}]
-        "contacts_with_cell_phone" "email_and_cell"
-
-(*
-This abstract database will be achieved by apply the composition of the lenses
-"l" and "l'".
-*)
-
-    let a1 : tree =
-    { email_and_cell =
-        [ { fname = {"Ellen"}, email = {""},          ph = {"567-890-1234"} }
-        , { fname = {"Alice"}, email = {"alice@cis"}, ph = {"123-456-7890"} }
-        , { fname = {"Bob"},   email = {"bob@cis"}  , ph = {"345-678-9012"} }
-        , { fname = {"Carol"}, email = {"carol@cis"}, ph = {""}             }
-        ]
-    }
-
-    let l1 : lens = l oj1; l'
 
 test l1 / c = a1
 
-(*
-We may now want to edit the abstract database by adding, deleting, and
-modifying some records.
-*)
+(* We delete Alice, add Carol, add Dave (who was present in the concrete
+view), and modify Ellen. *)
 
-    let a1' : tree =
-    { email_and_cell =
-        [ { fname = {"Greta"}, email = {""},          ph = {"789-012-3456"} }
-        , { fname = {"Henry"}, email = {""},          ph = {""}             }
-        , { fname = {"Bob"},   email = {"bobby@cis"}, ph = {"345-678-9012"} }
-        , { fname = {"Carol"}, email = {"carol@cis"}, ph = {"678-901-2345"} }
-        , { fname = {"Ellen"}, email = {"ellen@cis"}, ph = {"567-890-1234"} }
-        , { fname = {"Fred"},  email = {"fred@cis"},  ph = {""}             }
-        , { fname = {"Irene"}, email = {"irene@cis"}, ph = {"890-123-4567"} }
+let a1' : tree =
+    { email_addr =
+        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
+        ]
+    , cell_phone_num =
+        [ { nm = {"Bob"},   ph = {"345-678-9012"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"} }
+        , { nm = {"Ellen"}, ph = {"890-123-4567"} }
         ]
     }
 
-(*
-The database below shows the concrete database that has been updated according
-to the modifications in the abstract database.
-*)
-
-    let c1' : tree =
+let c1 : tree =
     { email_addr =
-        [ { fname = {"Greta"}, email = {""},          type = {"prof"} }
-        , { fname = {"Henry"}, email = {""},          type = {"prof"} }
-        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
-        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
-        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
-        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
-        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
-        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
         ]
     , phone_num =
-        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
-        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
-        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
-        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
-        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
-        , { nm = {"Fred"},  ph = {""},             type = {"cell"} }
-        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
-        , { nm = {"Henry"}, ph = {""},             type = {"cell"} }
-        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, sort = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"}, sort = {"cell"} }
+        , { nm = {"Ellen"}, ph = {"890-123-4567"}, sort = {"cell"} }
         ]
     }
 
-test l1 \ a1' c = c1'
+test l1 \ a1' c = c1
 
-(*
-We may notice that Greta and Henry were added to the email_addr relation even
-though they were given no email address in the abstract database, while Fred
-and Henry were added to the phone_num relation even though they were given no
-phone number.  This behavior may be controlled by changing the parameters to
-the outer join.
-*)
+(* We next try a less trivial projection. *)
 
-    let oj3 (r : name) (s : name) (t : name) : lens =
-        Relational.ojoin
-            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
-            {} {} Any Any
-            r s t
+let l2 : lens =
+    Relational.project {"nm", "rel"} {"nm"} [{email={""}}]
+        "email_addr" "relation"
 
-    let l3 : lens = l oj3; l'
-
-test l3 / c = l oj1; l' / c
-
-    let a2' : tree = a1'
-
-    let c2' : tree =
-    { email_addr =
-        [ { fname = {"Henry"}, email = {""},          type = {"prof"} }
-        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
-        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
-        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
-        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
-        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
-        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+let a2 : tree =
+    { relation =
+        [ { nm = {"Alice"}, rel = {"prof"} }
+        , { nm = {"Bob"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  rel = {"prof"} }
         ]
     , phone_num =
-        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
-        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
-        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
-        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
-        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
-        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
-        , { nm = {"Henry"}, ph = {""},             type = {"cell"} }
-        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, sort = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"}, sort = {"cell"} }
+        , { nm = {"Ellen"}, ph = {"890-123-4567"}, sort = {"cell"} }
         ]
     }
 
-test l3 \ a2' c = c2'
+test l2 / c1 = a2
 
-(* The entry for Henry remains because he was given default values for the
-entries in both tables.  The behavior in the case of such additions is
-controlled by the 5th and 6th parameters to ojoin.  However, the union of
-these two schema must cover all possible additions, since the entry for Henry
-must appear in one table or the other. *)
+(* We modify the relationship of Bob from "prsn" to "prof"; we delete Carol;
+and we add Dave. *)
 
-    let oj4 (r : name) (s : name) (t : name) : lens =
-        Relational.ojoin
-            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
-            {} {} Any {}
-            r s t
-
-    let l4 : lens = l oj4; l'
-
-test l4 / c = l oj1; l' / c
-
-    let a3' : tree = a1'
-
-    let c3' : tree =
-    { email_addr =
-        [ { fname = {"Henry"}, email = {""},          type = {"prof"} }
-        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
-        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
-        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
-        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
-        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
-        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+let a2' : tree =
+    { relation =
+        [ { nm = {"Alice"}, rel = {"prof"} }
+        , { nm = {"Bob"},   rel = {"prof"} }
+        , { nm = {"Dave"},  rel = {"prsn"} }
+        , { nm = {"Fred"},  rel = {"prof"} }
         ]
     , phone_num =
-        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
-        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
-        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
-        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
-        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
-        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
-        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, sort = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"}, sort = {"cell"} }
+        , { nm = {"Ellen"}, ph = {"890-123-4567"}, sort = {"cell"} }
         ]
     }
 
-test l4 \ a3' c = c3'
-
-(* However, one must note that Henry may still be added to the phone_num table
-based upon the fourth argument to ojoin, even if the record would not be added
-due to the sixth argument.*)
-
-    let oj5 (r : name) (s : name) (t : name) : lens =
-        Relational.ojoin
-            [{ph={""},type={"cell"}}] [{email={""},tp={"prof"}}]
-            {} Any Any {}
-            r s t
-
-    let l5 : lens = l oj5; l'
-
-test l5 / c = l oj1; l' / c
-
-    let a4' : tree = a1'
-
-    let c4' : tree =
+let c2 : tree =
     { email_addr =
-        [ { fname = {"Henry"}, email = {""},          type = {"prof"} }
-        , { fname = {"Alice"}, email = {"alice@cis"}, type = {"prof"} }
-        , { fname = {"Bob"},   email = {"bobby@cis"}, type = {"prsn"} }
-        , { fname = {"Carol"}, email = {"carol@cis"}, type = {"prsn"} }
-        , { fname = {"Ellen"}, email = {"ellen@cis"}, type = {"prof"} }
-        , { fname = {"Fred"},  email = {"fred@cis"},  type = {"prof"} }
-        , { fname = {"Irene"}, email = {"irene@cis"}, type = {"prof"} }
+        [ { nm = {"Dave"},  email = {""},              rel = {"prsn"} }
+        , { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prof"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
         ]
     , phone_num =
-        [ { nm = {"Alice"}, ph = {"234-567-8901"}, type = {"home"} }
-        , { nm = {"Bob"},   ph = {"345-678-9012"}, type = {"cell"} }
-        , { nm = {"Carol"}, ph = {"678-901-2345"}, type = {"cell"} }
-        , { nm = {"Dave"},  ph = {"456-789-0123"}, type = {"home"} }
-        , { nm = {"Ellen"}, ph = {"567-890-1234"}, type = {"cell"} }
-        , { nm = {"Fred"},  ph = {""},             type = {"cell"} }
-        , { nm = {"Greta"}, ph = {"789-012-3456"}, type = {"cell"} }
-        , { nm = {"Henry"}, ph = {""},             type = {"cell"} }
-        , { nm = {"Irene"}, ph = {"890-123-4567"}, type = {"cell"} }
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"} }
+        , { nm = {"Carol"}, ph = {"678-901-2345"}, sort = {"cell"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"}, sort = {"cell"} }
+        , { nm = {"Ellen"}, ph = {"890-123-4567"}, sort = {"cell"} }
         ]
     }
 
-test l5 \ a4' c = c4'
+test l2 \ a2' c1 = c2
 
+(* We may also perform a natural join on the tables after the previous
+projection. *)
+
+let l3 : lens =
+    l2;
+    Relational.ijoin1 "phone_num" "relation" "phone_num"
+
+let a3 : tree =
+    { phone_num =
+        [ { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"}, rel = {"prof"} }
+        , { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"}, rel = {"prof"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"}, rel = {"prsn"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"}, sort = {"cell"}, rel = {"prsn"} }
+        ]
+    }
+
+test l3 / c2 = a3
+
+(* We add an entry for Carol, which will overwrite her previous entry, and one
+for Dave, which will overwrite part of his entry (but not his email address).
+We will delete Alice, which will delete her only from the "phone_num" table.
+We will also add a brand new entry, which will result in additions to both
+tables in the concrete view. *)
+
+let a3' : tree =
+    { phone_num =
+        [ { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"}, rel = {"prof"} }
+        , { nm = {"Carol"}, ph = {"901-234-5678"}, sort = {"home"}, rel = {"prsn"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"}, rel = {"prsn"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"}, sort = {"cell"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  ph = {"111-111-1111"}, sort = {"cell"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  ph = {"222-222-2222"}, sort = {"home"}, rel = {"prsn"} }
+        , { nm = {"Greta"}, ph = {"333-333-3333"}, sort = {"cell"}, rel = {"prof"} }
+        ]
+    }
+
+let c3 : tree =
+    { email_addr =
+        [ { nm = {"Carol"}, email = {""},              rel = {"prsn"} }
+        , { nm = {"Dave"},  email = {""},              rel = {"prsn"} }
+        , { nm = {"Greta"}, email = {""},              rel = {"prof"} }
+        , { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prof"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prsn"} }
+        ]
+    , phone_num =
+        [ { nm = {"Bob"},   ph = {"345-678-9012"}, sort = {"cell"} }
+        , { nm = {"Carol"}, ph = {"901-234-5678"}, sort = {"home"} }
+        , { nm = {"Dave"},  ph = {"456-789-0123"}, sort = {"home"} }
+        , { nm = {"Dave"},  ph = {"789-012-3456"}, sort = {"cell"} }
+        , { nm = {"Ellen"}, ph = {"890-123-4567"}, sort = {"cell"} }
+        , { nm = {"Fred"},  ph = {"111-111-1111"}, sort = {"cell"} }
+        , { nm = {"Fred"},  ph = {"222-222-2222"}, sort = {"home"} }
+        , { nm = {"Greta"}, ph = {"333-333-3333"}, sort = {"cell"} }
+        ]
+    }
+
+test l3 \ a3' c2 = c3
 
