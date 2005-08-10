@@ -1,22 +1,55 @@
 module XmiUml =
 open Xmi
 
-let model : lens = 
-  hoist "Model_Management.Model";
-  List.map 
-    (mapp {"Foundation.Core.ModelElement.name"}
-       (List.hd []; map (List.hd []); Xml.hoist_pcdata);
-     pivot "Foundation.Core.ModelElement.name");
-  List.flatten;
-  map (List.hd [])
+let SubElements : schema =
+  { * = List.T ({`Xml.ATTRS = { "xmi.uuid" = Value, *\"xmi.uuid" = Value }, 
+		  *\`Xml.ATTRS = Any})}
 
-let model_flatten : lens =
-   hoist "Model_Management.Model";
-  List.hd [];
-  sfork { "xmi.id" = Any, "xmi.uuid" = Any } { "Hello" = {} }
-    (const {"Hello"} { "xmi.id" = {"world"}, "xmi.uuid" = {"!"}})
-    (id);
-  probe "Ici"
+schema Abstract =
+  { * = 
+    { * = 
+      {"owned-elts" = { * = Abstract },
+	"pcdatas" = { * = Value },
+	"values" = { * = Value }
+      }
+    }
+  }
+	
+
+let attribute_simplify : lens =
+  bfork [{`Xml.ATTRS = { "xmi.value" = Value}}] {"values"}
+    (map (List.hd []; hoist Xml.ATTRS; hoist "xmi.value");
+     plunge "values")
+    (bfork [{`Xml.ATTRS = { "xmi.idref" = Value}}] {"idrefs"}
+       (map (List.hd []; hoist Xml.ATTRS; hoist "xmi.idref");
+	plunge "idrefs")
+       (bfork [{`Xml.PCDATA = List.T Value}] {"pcdatas"}
+	  (map (List.hd []; hoist Xml.PCDATA; List.hd []);
+	   plunge "pcdatas")
+	  (bfork [SubElements] {"owned-elts"} 
+	     (acond {} {} id
+		(map (List.map protect elements; List.hd []));
+	      (plunge "owned-elts"))
+	     (plunge "others")
+	     )))
+      
+and element_flatten : lens =
+  List.map (mapp {`Xml.ATTRS} (focus "xmi.uuid" {}));
+  List.map (pivot Xml.ATTRS);
+  List.flatten; map (List.hd [])
+    
+and element_simplify : lens =
+(*   mapp {`n}  *)
+(*     (List.hd []; map (List.hd []); Xml.hoist_pcdata); *)
+(*   pivot n; *)
+  (* map *) attribute_simplify;
+  (* we should probably do somthing more clever at some point *)
+  prune "others" {};
+  prune "idrefs" {}
+
+
+and elements : lens =
+  map ( element_flatten; map element_simplify)
     
 let l : lens =
   assert (Xmi.T Any);
@@ -25,4 +58,7 @@ let l : lens =
        "<XMI.header>
        <XMI.metamodel xmi.name=\"UML\" xmi.version=\"1.3\"/>
        </XMI.header>");
-  model_flatten
+  (* hoist "Model_Management.Model";*)
+  elements;
+  assert Abstract       
+       
