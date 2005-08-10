@@ -6,13 +6,16 @@ $demogroupname = "Address books";
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
+<p>
 This first address book demo illustrates very simple address book
 synchronization. 
+</p>
 <p>
 Try changing the text in the <tt>tel-home</tt> tag of the first entry in one
 replica and the <tt>tel-work</tt> tag of the second entry in the other. Then
 re-synchronize and see what happens.  Repeat as desired; then go on to
 the next part of the demo.
+</p>
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX

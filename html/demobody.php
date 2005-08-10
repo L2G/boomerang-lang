@@ -55,11 +55,14 @@ $r1 = get_post_data('R1');
 $lensr1 = get_post_data('LENSR1');
 $prevlensr1hex = get_post_data('PREVLENSR1HEX');
 $r2 = get_post_data('R2');
-$arhex = $_REQUEST['AR'];
+$arhex = $_REQUEST['ARHEX'];
 $ar = hex2asc($arhex);
 $demogroup = $_REQUEST['DEMOGROUP'];
 $demonumber = $_REQUEST['DEMONUMBER'];
+
 $showarchive = $_REQUEST['SHOWARCHIVE'];
+$showoutput = $_REQUEST['SHOWOUTPUT'];
+$instructionsbelow = $_REQUEST['INSTRUCTIONSBELOW'];
 
 # print_r ($_REQUEST);
 
@@ -88,12 +91,12 @@ function get_demos_from ($subdir) {
   }
 }
 
+get_demos_from("basics");
 get_demos_from("addresses");
 get_demos_from("structuredtext");
 get_demos_from("calendars");
-get_demos_from("lenses");
+# get_demos_from("lenses");
 get_demos_from("relational");
-# ... and other subdirs
 
 # print_r ($alldemos);
 
@@ -119,7 +122,7 @@ if (!empty($nextpart)) {
     $reset = "YES";
   }
   else {
-    $shownextparterror = "<br><b>No more parts in this demo</b><br/>(Choose a new demo from the menu above)";
+    $shownextparterror = "<br><b>No more parts in this demo</b><br/>(Choose a new demo from the menu below)";
   }
 }
 
@@ -241,28 +244,67 @@ HTML;
 
 ####### Instructions 
 
-echo <<<HTML
-    <p>
-    <div class=instructions>$instructions</div>
-    <br>
+function emit_instructions () {
+  global $instructions;
+  echo <<<HTML
+      <p>
+      <div class=instructions>$instructions</div>
+      <br>
 HTML;
+}
+
+if (empty($instructionsbelow)) emit_instructions();
+
 
 ####### Control buttons
 
-echo "<table class=controls>
-         <tr><td align=left>";
+echo " <table class=controls> <tr> ";
 
 echo <<<HTML
+    <td align=left>
     <div class=buttonbox>
     <input type="submit" value="Synchronize"/>  
     <input type="submit" value="Reset" name="RESET"/>  
     <input type="submit" value="Next part" name="NEXTPART"/>  
     $shownextparterror
+    </td>
 HTML;
+
+### Checkboxes
+
+echo "<td align=center>";
+
+if (!empty($showarchive)) {
+  $showarchivechecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="SHOWARCHIVE" $showarchivechecked onchange="document.theform.submit()">Show archive</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
+if (!empty($showoutput)) {
+  $showoutputchecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="SHOWOUTPUT" $showoutputchecked onchange="document.theform.submit()">Show output</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
+if (!empty($instructionsbelow)) {
+  $instructionsbelowchecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="INSTRUCTIONSBELOW" $instructionsbelowchecked onchange="document.theform.submit()">Instructions below</input>
+HTML;
+
+echo "</td>";
+
 
 ####### Demo selection controls
 
-echo "</td><td align=right>";
+echo "<td align=right>";
 
 echo <<<HTML
     <div class="demochoice">
@@ -305,7 +347,6 @@ if (!empty($lensr1)) {
         <td colspan=2>
            <div class=label>Lens: </div>
            <textarea name="LENSR1">$lensr1</textarea>
-           <input name="PREVLENSR1HEX" type="hidden" value="$lensr1hex"/>
         </td>
       </tr>
 HTML;
@@ -342,7 +383,7 @@ echo <<<HTML
         <td valign=top>
 HTML;
 
-if (!empty($output) && empty($reset)) {
+if (!empty($showoutput)) {
   echo <<<HTML
     <div class=label>Harmony output: </div>
     <textarea name="DUMMY" rows="23" cols="50">$output</textarea>
@@ -356,14 +397,6 @@ HTML;
 
 ####### Archive box
 
-if (!empty($showarchive)) {
-  $showarchivechecked = "checked";
-}
-
-$archivecheckbox = <<<HTML
-    <input type="checkbox" name="SHOWARCHIVE" $showarchivechecked onchange="document.theform.submit()">Show archive</input>
-HTML;
-
 if ($showarchive) {
 echo <<<HTML
     <div class=label>Archive:</div>
@@ -371,18 +404,34 @@ echo <<<HTML
 HTML;
 }
 
-echo "    <div align=right>$archivecheckbox</div>";
-
-
 echo <<<HTML
-          <input name="AR" type="hidden" value="$arhex"/>
         </td>
       </tr>
     </table>
     </center>
-  </form>
 HTML;
 
+
+####### Instructions
+
+if (!empty($instructionsbelow)) emit_instructions();
+
+
+####### Hidden fields for passing information along to the next invocation
+
+echo <<<HTML
+  <input name="ARHEX" type="hidden" value="$arhex"/>
+  <input name="PREVLENSR1HEX" type="hidden" value="$lensr1hex"/>
+HTML;
+
+
+####### Footer
+
+echo "</form>";
+
+
+##############################################################################
+#
 
 ##############################################################################
 ##############################################################################
