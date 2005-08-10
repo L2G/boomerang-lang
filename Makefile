@@ -13,6 +13,16 @@ include $(TOP)/Top.Makefile
 
 all: buildsubdirs
 
+###########################################################################
+## Installation
+
+WEBDIR = $(HOME)/pub/cgi-bin/harmony
+
+installweb: all
+	rm -rf $(WEBDIR)
+	mkdir $(WEBDIR)
+	chmod a+x $(WEBDIR)
+	cp -rp src lenses examples html doc $(WEBDIR)
 
 ###########################################################################
 ## Export

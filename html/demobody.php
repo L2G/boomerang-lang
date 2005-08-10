@@ -3,7 +3,7 @@
 <head>
 <STYLE TYPE="text/css">
   body { margin-left: 15; margin-right: 15; margin-top: 15; background: #dddddd; color:black }
-  h1 { text-align: center; padding: 20; background: #ffffaa;  
+  h1 { text-align: center; padding: 10; background: #ffffaa;  
        border-width:medium; border-color:#888888; border-style:solid }
   table { width:95%; }
   textarea { background: #FFFFdd; width:100%; height:200; }
