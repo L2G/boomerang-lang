@@ -10,11 +10,11 @@ fields (nm, sort) is a key for the table. *)
 
 let c : tree =
     { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
+        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
         ]
     , phone_num =
         [ { nm = {"Alice"}, ph = {"123-456-7890"}, sort = {"cell"} }
@@ -36,11 +36,11 @@ let l1 : lens =
 
 let a1 : tree =
     { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
+        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
         ]
     , cell_phone_num =
         [ { nm = {"Alice"}, ph = {"123-456-7890"} }
@@ -56,11 +56,11 @@ view), and modify Ellen. *)
 
 let a1' : tree =
     { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
+        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
         ]
     , cell_phone_num =
         [ { nm = {"Bob"},   ph = {"345-678-9012"} }
@@ -72,11 +72,11 @@ let a1' : tree =
 
 let c1 : tree =
     { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo.org"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
+        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
+        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
+        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
         ]
     , phone_num =
         [ { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"} }
@@ -137,11 +137,11 @@ let a2' : tree =
 
 let c2 : tree =
     { email_addr =
-        [ { nm = {"Dave"},  email = {""},              rel = {"prsn"} }
-        , { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prof"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prof"} }
+        [ { nm = {"Dave"},  email = {""},          rel = {"prsn"} }
+        , { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prof"} }
+        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
         ]
     , phone_num =
         [ { nm = {"Alice"}, ph = {"234-567-8901"}, sort = {"home"} }
@@ -174,7 +174,7 @@ let a3 : tree =
 test l3 / c2 = a3
 
 (* We add an entry for Carol, which will overwrite her previous entry, and one
-for Dave, which will overwrite part of his entry (but not his email address).
+for Fred, which will overwrite part of his entry (but not his email address).
 We will delete Alice, which will delete her only from the "phone_num" table.
 We will also add a brand new entry, which will result in additions to both
 tables in the concrete view. *)
@@ -197,8 +197,8 @@ let c3 : tree =
         , { nm = {"Dave"},  email = {""},              rel = {"prsn"} }
         , { nm = {"Greta"}, email = {""},              rel = {"prof"} }
         , { nm = {"Alice"}, email = {"alice@cis"},     rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar.com"},   rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@foo.org"},   rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@bar"},       rel = {"prof"} }
+        , { nm = {"Bob"},   email = {"bob@foo"},       rel = {"prof"} }
         , { nm = {"Fred"},  email = {"fred@cis"},      rel = {"prsn"} }
         ]
     , phone_num =

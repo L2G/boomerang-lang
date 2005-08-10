@@ -92,6 +92,7 @@ get_demos_from("addresses");
 get_demos_from("structuredtext");
 get_demos_from("calendars");
 get_demos_from("lenses");
+get_demos_from("relational");
 # ... and other subdirs
 
 # print_r ($alldemos);
