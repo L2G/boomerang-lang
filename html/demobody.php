@@ -1,30 +1,3 @@
-<html>
-
-<head>
-<STYLE TYPE="text/css">
-  body { margin-left: 15; margin-right: 15; margin-top: 15; background: #dddddd; color:black }
-  h1 { text-align: center; padding: 10; background: #ffffaa;  
-       border-width:medium; border-color:#888888; border-style:solid }
-  table { width:95%; }
-  textarea { background: #FFFFdd; width:100%; height:200; }
-  td { align:top; }
-  .label { color:#990000; align:left; }
-  .instructions { background:#e9e9e9; padding:6; 
-                  margin-left:50; margin-right:50; margin-top:0; margin-botom:0; border-width:thin; 
-                  border-color:#888888; border-style:solid }
-  .controls { }
-/*  
-  .buttonbox { background:#e9e9e9; padding:10; margin-left:30%; margin-right:30%; border-width:thin; 
-               border-color:#888888; border-style:solid }
-  .demochoice { margin-left: 50; margin-right: 50; text-align:right}
-  .controls { background:#e9e9e9; padding:10; border-width:thin; border-color:#888888; border-style:solid }
-*/
-</STYLE>
-</head>
-
-<body>
-<center><h1>Harmony Sandbox</h1></center>
-
 <?
 
 # Things to do:
@@ -38,7 +11,7 @@
 ##############################################################################
 # Configuration parameters
 
-$defaultdemogroup = "addresses";
+$defaultdemogroup = "basics";
 
 
 ##############################################################################
@@ -60,9 +33,10 @@ $ar = hex2asc($arhex);
 $demogroup = $_REQUEST['DEMOGROUP'];
 $demonumber = $_REQUEST['DEMONUMBER'];
 
-$showarchive = $_REQUEST['SHOWARCHIVE'];
-$showoutput = $_REQUEST['SHOWOUTPUT'];
-$instructionsbelow = $_REQUEST['INSTRUCTIONSBELOW'];
+$elidelens = $_REQUEST['ELIDELENS'];
+$elidearchive = $_REQUEST['ELIDEARCHIVE'];
+$elideoutput = $_REQUEST['ELIDEOUTPUT'];
+$optimizespace = $_REQUEST['OPTIMIZESPACE'];
 
 # print_r ($_REQUEST);
 
@@ -137,13 +111,17 @@ $r1orig = demoparam("r1");
 $r1format = demoparam("r1format");
 $r2format = demoparam("r2format");
 $lensr1orig = demoparam("lensr1");
+$lensr2same = demoparam("lensr2same");
 $harmonyflags = demoparam("flags");
 $instructions = demoparam("instructions");
 
 if (!empty($reset)) {
   $r1 = $r1orig;
   $lensr1 = $lensr1orig;
+  # Allow the demo itself to override any settings that it wants to
+  eval (demoparam("extras"));
 }
+
 
 ##############################################################################
 # Run Harmony
@@ -195,11 +173,19 @@ $cmd =
   . "-r1 $r1file " 
   . (!empty($lensr1) ? "-lensr1 $lensModule.l " : "")
   . "-r2 $r2file " 
+  . (!empty($lensr2same) ? "-lensr2 $lensModule.l " : "")
   . "-newar $newarfile " 
   . "-newr1 $newr1file " 
   . "-newr2 $newr2file " 
   . "2>&1";
 # echo "cmd = " . $cmd . "<p>";
+
+if (!empty($reset)) {
+  # If this is a reset, run harmony twice so that the output should read EQUAL
+  $cmdagain = str_replace("new","",$cmd);
+  $output = shell_exec($cmdagain);
+}  
+
 $output = shell_exec($cmd);
 
 if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
@@ -230,6 +216,42 @@ $arhex = asc2hex($ar);
 ##############################################################################
 # Format the response page
 
+if ($elidelens || empty($lensr1orig)) $lensstyle = "display:none";
+
+echo <<<HTML
+  <html>
+
+  <head>
+  <STYLE TYPE="text/css">
+    body { margin-left: 15; margin-right: 15; margin-top: 15; background: #dddddd; color:black }
+    h1 { text-align: center; padding: 10; background: #ffffaa;  
+         border-width:medium; border-color:#888888; border-style:solid }
+    table { width:95%; }
+    textarea { background: #FFFFdd; width:100%; height:230; }
+    textarea.lenstextarea { height:60; }
+    td { align:top; }
+    .lens { $lensstyle }
+    .label { color:#990000; align:left; }
+    .instructions { background:#f2f2f2; padding:6; 
+                    margin-left:50; margin-right:50; margin-top:0; margin-botom:0; border-width:thin; 
+                    border-color:#888888; border-style:solid }
+    .controls { }
+  /*  
+    .buttonbox { background:#e9e9e9; padding:10; margin-left:30%; margin-right:30%; border-width:thin; 
+                 border-color:#888888; border-style:solid }
+    .demochoice { margin-left: 50; margin-right: 50; text-align:right}
+    .controls { background:#e9e9e9; padding:10; border-width:thin; border-color:#888888; border-style:solid }
+  */
+  </STYLE>
+  </head>
+
+  <body>
+HTML;
+
+if (empty($optimizespace)) {
+echo "<center><h1>Harmony Sandbox</h1></center>";
+}
+
 echo '<form name="theform" method="post">';
 
 echo <<<HTML
@@ -253,7 +275,7 @@ function emit_instructions () {
 HTML;
 }
 
-if (empty($instructionsbelow)) emit_instructions();
+if (empty($optimizespace)) emit_instructions();
 
 
 ####### Control buttons
@@ -269,37 +291,6 @@ echo <<<HTML
     $shownextparterror
     </td>
 HTML;
-
-### Checkboxes
-
-echo "<td align=center>";
-
-if (!empty($showarchive)) {
-  $showarchivechecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="SHOWARCHIVE" $showarchivechecked onchange="document.theform.submit()">Show archive</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($showoutput)) {
-  $showoutputchecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="SHOWOUTPUT" $showoutputchecked onchange="document.theform.submit()">Show output</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($instructionsbelow)) {
-  $instructionsbelowchecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="INSTRUCTIONSBELOW" $instructionsbelowchecked onchange="document.theform.submit()">Instructions below</input>
-HTML;
-
-echo "</td>";
 
 
 ####### Demo selection controls
@@ -336,32 +327,14 @@ echo "</select> </div>";
 
 echo "</td></tr></table>";
 
-####### Lens box
+####### The boxes...
 
 echo " <table>";
 
-if (!empty($lensr1)) {
-  $lensr1hex = asc2hex($lensr1);
-  echo <<<HTML
-      <tr>
-        <td colspan=2>
-           <div class=label>Lens: </div>
-           <textarea name="LENSR1">$lensr1</textarea>
-        </td>
-      </tr>
-HTML;
-}
-
 ####### Replicas
 
-if (empty($lensr1)) {
-  $firstreplicatitle = "First replica";
-  $secondreplicatitle = "Second replica";
-}
-else {
-  $firstreplicatitle = "Concrete";
-  $secondreplicatitle = "Abstract";
-}
+$firstreplicatitle = "First replica";
+$secondreplicatitle = "Second replica";
 
 echo <<<HTML
       <tr> 
@@ -376,6 +349,21 @@ echo <<<HTML
       </tr>
 HTML;
 
+####### Lens box
+
+  $lensr1hex = asc2hex($lensr1);
+  echo <<<HTML
+      <tr>
+        <td colspan=2>
+           <div class=lens>
+           <div class=label>Lens: </div>
+           <textarea name="LENSR1" class=lenstextarea>$lensr1</textarea>
+           </div>
+        </td>
+      </tr>
+HTML;
+
+
 ####### Harmony output box
 
 echo <<<HTML
@@ -383,7 +371,7 @@ echo <<<HTML
         <td valign=top>
 HTML;
 
-if (!empty($showoutput)) {
+if (empty($elideoutput)) {
   echo <<<HTML
     <div class=label>Harmony output: </div>
     <textarea name="DUMMY" rows="23" cols="50">$output</textarea>
@@ -397,7 +385,7 @@ HTML;
 
 ####### Archive box
 
-if ($showarchive) {
+if (!$elidearchive) {
 echo <<<HTML
     <div class=label>Archive:</div>
     <textarea name="ARASC" readonly rows="23" cols="50">$ar</textarea><br />
@@ -412,9 +400,51 @@ echo <<<HTML
 HTML;
 
 
+### Checkboxes
+
+if (!empty($optimizespace)) echo "<p>";
+
+echo "<center>";
+
+if (!empty($elidelens)) {
+  $elidelenschecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="ELIDELENS" $elidelenschecked onchange="document.theform.submit()">Elide lens</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
+if (!empty($elidearchive)) {
+  $elidearchivechecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="ELIDEARCHIVE" $elidearchivechecked onchange="document.theform.submit()">Elide archive</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
+if (!empty($elideoutput)) {
+  $elideoutputchecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="ELIDEOUTPUT" $elideoutputchecked onchange="document.theform.submit()">Elide output</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
+if (!empty($optimizespace)) {
+  $optimizespacechecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="OPTIMIZESPACE" $optimizespacechecked onchange="document.theform.submit()">Compress</input>
+HTML;
+
+echo "</center>";
+
 ####### Instructions
 
-if (!empty($instructionsbelow)) emit_instructions();
+# if (!empty($optimizespace)) emit_instructions();
 
 
 ####### Hidden fields for passing information along to the next invocation
