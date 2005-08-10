@@ -173,4 +173,79 @@ $demo["r2format"] = "meta";
 savedemo();
 # ---------------------------------------------------------
 
+##############################################################################
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<XXX
+Each calendar entry has a <tt>DTSTAMP</tt> property, containing the date
+where this instance of the entry was created. It is different from the
+<tt>DTCREATE</tt> property, which is the date of first creation of the entry,
+in the sense that it has to be updated to the current time when the 
+corresponing entry is copied from one file to another.
+<p>
+Now, in Focal, we have a convenient way to know when we are <i>creating</i> a
+part of the view on the putback : this is exactly when the concrete view is 
+<tt>missing</tt>. Therefore, we managed to handle he <tt>DTSTAMP</tt> as
+appropriate by using a special <tt>const</tt> lens, whose default tree can
+be described via a shell command. We then filter away the original 
+<tt>DTSTAMP</tt> value on the get way, and replace it during putback, or
+use calls to 'date' in the case of creation.
+<p>
+To check this yourself, pick the calendar entry below (exactly as it is) and
+copy-paste it after the sole entry of the file in the left window below
+(between <tt>END:VEVENT</tt> and <tt>END:VCALENDAR</tt>). Then synchronize
+and verify that the <tt>DTSTAMP</tt> on the right has been updated as
+appropriate.
+<p>
+<tt>
+BEGIN:VEVENT<br>
+DTSTAMP:20050810T215429Z<br>
+ORGANIZER:MAILTO:lescuyer@seas.upenn.edu<br>
+CREATED:20050810T213931Z<br>
+UID:KOrganizer-168648156.763<br>
+SEQUENCE:0<br>
+LAST-MODIFIED:20050809T215425Z<br>
+SUMMARY:A presentation of Harmony<br>
+LOCATION:307 Levine<br>
+CLASS:PUBLIC<br>
+PRIORITY:5<br>
+CATEGORIES:Education<br>
+DTSTART:20050810T210000Z<br>
+DTEND:20050810T230000Z<br>
+TRANSP:OPAQUE<br>
+END:VEVENT<br>
+</tt>
+XXX;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+BEGIN:VCALENDAR
+PRODID:-//K Desktop Environment//NONSGML KOrganizer 3.3//EN
+VERSION:2.0
+
+BEGIN:VEVENT
+DTSTAMP:20050809T215429Z
+ORGANIZER:MAILTO:lescuyer@seas.upenn.edu
+CREATED:20050809T213931Z
+UID:KOrganizer-168648156.762
+SEQUENCE:2
+LAST-MODIFIED:20050809T215425Z
+SUMMARY:Something very important
+LOCATION:In a galaxy far\, far away
+CLASS:PUBLIC
+PRIORITY:3
+CATEGORIES:Business
+DTSTART:20050810T150000Z
+DTEND:20050810T190000Z
+TRANSP:OPAQUE
+END:VEVENT
+
+END:VCALENDAR
+
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "ics";
+$demo["r2format"] = "ics";
+savedemo();
+# ---------------------------------------------------------
+
 ?>
