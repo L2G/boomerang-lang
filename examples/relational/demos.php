@@ -5,6 +5,8 @@ $demogroupname = "Relational lenses";
 # ---------------------------------------------------------
 $demo["instructions"] = <<<HTML
 
+<h3>Encoding Relations</h3>
+
 <p> The <code>Relational</code> module contains lenses for manipulating
 relational data.  Since Harmony is designed to work with unordered, labeled
 trees, the relations will need to be encoded.<p>
@@ -25,9 +27,6 @@ relation <code>email_addr</code>, having fields <code>nm</code>,
 <code>email</code>, and <code>rel</code>, and a relation
 <code>phone_num</code>, having fields <code>nm</code>, <code>ph</code>, and
 <code>sort</code>.</p>
-
-<p>The lens used below demonstrates that we may manipulate encoded databases
-as trees, if desired.</p>
 
 HTML;
 # ---------------------------------------------------------
@@ -63,6 +62,8 @@ savedemo();
 # ---------------------------------------------------------
 $demo["instructions"] = <<<HTML
 
+<h3>Selection</h3>
+
 <p>The <code>select</code> lens filters the records in a relation.  The filter
 is the first argument to the lens and is given in the form of a schema.  The
 next argument to <code>select</code> is the name of the relation to which to
@@ -73,17 +74,15 @@ relation if desired).</p>
 <p>Suggested modifications of the abstract view:</p>
 
 <ul>
+    <li>Try changing Ellen's phone number in the abstract view.</li>
     <li>Try removing the record for Alice.  Notice that only Alice's cell
     phone entry is deleted in the concrete view.</li>
     <li>Try adding an entry for Dave with a cell phone number in the abstract
     view.</li>
-    <li>Try changing Ellen's phone number in the abstract view.</li>
     <li><strong>NB:</strong> Adding a record with <code>sort = {"home"}</code>
     in the abstract view is, in essence, a type error, but will not be caught
     by the Harmony system.  The behavior of the lens at such a type is
-    unspecified.  In particular, it is not guaranteed to satisfy the
-    lens laws.</li>
-    <li>Try deleting the entry for Alice.  </li>
+    unspecified.</li>
 </ul>
 
 HTML;
@@ -120,12 +119,14 @@ savedemo();
 # ---------------------------------------------------------
 $demo["instructions"] = <<<HTML
 
+<h3>Simple Projection</h3>
+
 <p>The <code>project</code> lens selects a subset of the fields in a relation.
 The selected fields are given as the first argument to the lens.  The second
 argument to the lens should be a subset of the projected fields that acts as a
 key for the relation.  This will affect the behavior of the lens and will be
 further explained in the following part.  The third argument to
-<code>project</code> gives a default value for the missing fields, which will
+<code>project</code> gives default values for the missing fields, which will
 be used in the case that records are added in the abstract view.  As with the
 <code>select</code> lens, the final two arguments are the name of the relation
 to which to apply the operation and the name of the relation that will be
@@ -180,14 +181,13 @@ savedemo();
 # ---------------------------------------------------------
 $demo["instructions"] = <<<HTML
 
-<p>The previous part showed a simple example of projection.  More complex
-behavior can arise though.  Since our view-update model is state-based, it is
-not possible, in general, to distinguish a modifcation from a deletion
-followed by an insertion.  In the case of a relational projection, it is
-desirable (and fortunately possible) to have a notion of modify-updates by
-noting the set of fields that acts as a key in the relation resulting from the
-projection.  Then the lens will align the keys when determining how to
-translate an update.</p>
+<h3>Advanced Projection</h3>
+
+<p>The previous part showed a simple example of projection.  In the simple
+case, altering a record in the projection will destroy the data in the unseen
+fields (<em>i.e.</em> replace it with the defaults).  This can be avoided when
+a key can be identified in the abstract view and non-key fields are
+altered.</p>
 
 <p>We will assume that, in the <code>email_addr</code> relation, there is a
 functional dependency <code>nm -> rel</code>.  Then, if we project away the
@@ -203,7 +203,7 @@ the field name <code>nm</code> in the second argument.</p>
     followed by an insertion, since it preserves the contents of the
     <code>email</code> field.</li>
     <li>Try changing the name <code>Carol</code> to <code>Dave</code>.  Notice
-    that this is treated as a deletion plus an insertion, as desired.</li>
+    that this is treated as a deletion plus an insertion, as it must.</li>
 </ul>
 
 HTML;
@@ -241,6 +241,8 @@ savedemo();
 # ---------------------------------------------------------
 $demo["instructions"] = <<<HTML
 
+<h3>Natural Joins</h3>
+
 <p>There are several lenses for performing joins.  One simple lens for an
 inner (or natural) join is <code>ijoin1</code>.  The only arguments to this
 lens are the names of the two relations to combine and the name to use for the
@@ -258,12 +260,7 @@ is performed on the field <code>nm</code>.</p>
     satisfy the lens laws.</li>
     <li>Add one or two entries for Fred with <code>rel = {"prsn"}</code>.
     Notice that this will update the <code>rel</code> field for Fred in the
-    concrete view without erasing his email address.  <strong>NB:</strong> It
-    is possible to edit an abstract view so as to violate MVD's resulting from
-    a join (although there are none in this example if the intended functional
-    dependencies are maintained).  The behavior of the lens in these cases is
-    unspecified.  In particular, it is not guaranteed to satisfy the lens
-    laws.</li>
+    concrete view without erasing his email address.</li>
     <li>Try deleting the entry for Alice.  There are at least three reasonable
     behaviors in the <code>put</code> direction.  The lens <code>ijoin1</code>
     will delete the entry only from the left relation of the concrete view (the
