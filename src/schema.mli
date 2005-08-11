@@ -39,3 +39,4 @@ val member : V.t -> t -> bool
    of [v] where assertion failed against [t0]. *)
 val pick_bad_subtree : V.t -> t -> (V.t * t) option
 val intersect : t -> t -> bool
+val split_view : V.t -> t -> (V.t * V.t)

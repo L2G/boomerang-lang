@@ -650,3 +650,65 @@ let rec intersect t1 t2 =
 	     "[Debug] Intersection not found after %d associations have been tested\n" !n;
 	   false) in
       search (fun () -> find_association asstbl)
+
+(* ------------------ split --------------- *)
+let rec split_view v = function
+    Any _ -> (v, V.empty)
+  | Atom (_, n, t) ->
+      let (v0, v') = V.split (fun k -> k = n) v in
+      if member v0 t then
+	(v0, v')
+      else
+	(V.empty, v)
+  | Cat (_, tl) ->
+      let vl = Safelist.map (fun t -> split_view v t) tl in
+      let (vl0, vl') = Safelist.split vl in
+      let v0 = Safelist.fold_left V.concat V.empty vl0 in
+      let v' = 
+	(Safelist.fold_left V.concat V.empty
+	   (Safelist.map (fun v -> 
+	     V.from_list 
+	       (Safelist.filter 
+		  (fun (n,_) -> V.get v0 n = None)
+		  (V.to_list v))) vl')) in
+      (v0, v')
+  | Union (_, tl) as s ->
+      let vl = V.to_list v in
+      let (vl0, vl') = 
+	Safelist.partition (fun (n, k) -> 
+	  Safelist.exists (fun s -> 
+	    match project s n with
+	      None -> false
+	    | Some sn -> member k sn) tl) vl in
+      let (v0, v') =
+	(V.from_list vl0, V.from_list vl') in
+      if member v0 s then
+	(v0, v')
+      else
+	V.error_msg
+	  [`String "The schema "; `Space; `Prim (fun () -> format_t s);
+	    `Space; `String "cannot be used to split the following view :";
+	    `Space; `Tree v; `Space;
+	    `String "because the maximal split is not a member of this schema ";
+	    `Space; `Tree v0]
+  | Var (_, _, thk) -> split_view v (thk ())
+  | Wild (_, f, n, star, t) as s->
+      let (vl0, vl') = 
+	Safelist.partition
+	  (fun (k, vk) -> not(Name.Set.mem k f) && member vk t)
+	  (V.to_list v) in
+      let p = Safelist.length vl0 in
+      if star then
+	if p < n then (V.empty, v)
+	else (V.from_list vl0, V.from_list vl')
+      else
+	if p < n then (V.empty, v)
+	else
+	  if p = n then
+	    (V.from_list vl0, V.from_list vl')
+	  else
+	    V.error_msg 
+	      [`String "The schema "; `Space; `Prim (fun () -> format_t s);
+		`Space; `String "cannot be used to split the following view :";
+		`Space; `Tree v; `Space;
+		`String "because there is no maximal split."]
