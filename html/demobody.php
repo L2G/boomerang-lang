@@ -74,6 +74,7 @@ get_demos_from("structuredtext");
 get_demos_from("calendars");
 # get_demos_from("lenses");
 get_demos_from("relational");
+get_demos_from("xmi");
 
 # print_r ($alldemos);
 
