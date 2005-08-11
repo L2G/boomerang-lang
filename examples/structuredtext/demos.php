@@ -41,11 +41,10 @@ tree representation.  During synchronization, the lens applied to the file
 (called r2.meta) is the identity lens -- i.e., r2.meta stores exactly the
 abstract tree obtained from r1.txt.  You can see that the abstract schema
 for synchronizing simple structured text files consists of a list of blocks,
-where each block is a itself a list whose first element is a header line.
+where each block is itself a list whose first element is a header line.
 <p>
 Try this now: add a new section header (a line beginning with a star) to the
-first replica and see where it winds up in the abstract tree.  (Deleting all
-this text from the first block may help to see the structure.)
+first replica and see where it winds up in the abstract tree.  
 <p>
 Then go on to the next part of the demo.
 XXX;
@@ -86,8 +85,7 @@ Notice that there are now four levels of headers; lines beginning with one,
 two, and three stars, and then lines with no stars but consisting entirely
 of capital letters and spaces.  
 <p>
-Note, also, that levels can be "skipped" -- e.g., this text is not preceded
-by any header lines at all.  In this case, empty headers for all the missing
+Note, also, that levels can be "skipped".  In this case, empty headers for all the missing 
 levels are automatically inserted.
 <p>
 Try editing the abstract tree and changing the first <tt>""</tt> header to a <tt>"* FOO"</tt> 

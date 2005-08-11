@@ -47,16 +47,19 @@ chdir("../examples");
 
 $alldemos = array();
 
+$demo = array();  
+
 function savedemo () {
-  global $demo;
-  global $demos;
-  $demos[] = $demo;
+  global $demo, $demos, $lastdemo;
+  $temp = $demo;
+  $demos[] = $temp;
+  $lastdemo = $demo;
   $demo = array();
 }
 
 function get_demos_from ($subdir) {
   global $demo, $demos, $alldemos;
-  $demos = array();
+  $demos = array(0 => "");  # so that the real contents are 1-indexed
   $f = $subdir . "/demos.php";
   if (file_exists($f)) {
     include($f);
@@ -80,7 +83,7 @@ get_demos_from("relational");
 
 if (empty($demogroup)) {
   $demogroup = $defaultdemogroup;
-  $demonumber = 0;
+  $demonumber = 1;
   $reset = "YES";
 }
 
@@ -110,8 +113,10 @@ function demoparam($n) {
 $r1orig = demoparam("r1");
 $r1format = demoparam("r1format");
 $r2format = demoparam("r2format");
+$arformat = demoparam("arformat");
 $lensr1orig = demoparam("lensr1");
 $lensr2same = demoparam("lensr2same");
+$lensarsame = demoparam("lensarsame");
 $harmonyflags = demoparam("flags");
 $instructions = demoparam("instructions");
 
@@ -132,12 +137,14 @@ $tempbasename = "h" . posix_getpid() . str_replace(array(" ","."),"",microtime()
 $tempdir = "/tmp";
 $tempbase = "$tempdir/$tempbasename";
 
+if (empty($arformat)) $arformat = "meta";
+
 $r1file = $tempbase . "r1." . $r1format;
 $r2file = $tempbase . "r2." . $r2format;
-$arfile = $tempbase . "ar.meta";
+$arfile = $tempbase . "ar." . $arformat;
 $newr1file = $tempbase . "newr1." . $r1format;
 $newr2file = $tempbase . "newr2." . $r2format;
-$newarfile = $tempbase . "newar.meta";
+$newarfile = $tempbase . "newar." . $arformat;
 
 put_file($r1file, $r1);
 if (empty($reset)) {
@@ -170,6 +177,7 @@ $cmd =
   . "export FOCALPATH=.:../../lenses:/$tempdir;"
   . "./$democmd $harmonyflags "
   . "-ar $arfile " 
+  . (!empty($lensarsame) ? "-lensar $lensModule.l " : "")
   . "-r1 $r1file " 
   . (!empty($lensr1) ? "-lensr1 $lensModule.l " : "")
   . "-r2 $r2file " 
@@ -227,10 +235,11 @@ echo <<<HTML
     h1 { text-align: center; padding: 10; background: #ffffaa;  
          border-width:medium; border-color:#888888; border-style:solid }
     table { width:95%; }
-    textarea { background: #FFFFdd; width:100%; height:230; }
+    textarea { background: #FFFFdd; width:100%; height:180; }
     textarea.lenstextarea { height:60; }
     td { align:top; }
     .lens { $lensstyle }
+    .red { color:#990000; }
     .label { color:#990000; align:left; }
     .instructions { background:#f2f2f2; padding:6; 
                     margin-left:50; margin-right:50; margin-top:0; margin-botom:0; border-width:thin; 
@@ -249,7 +258,7 @@ echo <<<HTML
 HTML;
 
 if (empty($optimizespace)) {
-echo "<center><h1>Harmony Sandbox</h1></center>";
+echo '<center><h1><img src="http://www.cis.upenn.edu/~bcpierce/harmony/harmonYY-header-trans.gif" width="200" height="70" alt="Harmony"></h1></center>';
 }
 
 echo '<form name="theform" method="post">';
@@ -315,7 +324,7 @@ echo <<<HTML
     <select name="DEMONUMBER" onchange="document.theform.RESET.click()">
 HTML;
 
-$i = 0;
+$i = 1;
 while (!empty($alldemos[$demogroup][$i])) {
   $selected = "";
   if ($i == $demonumber) $selected="selected";

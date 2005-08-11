@@ -13,7 +13,7 @@ RESULT = harmonize-relational
 all: $(RESULT)
 
 $(RESULT):
-	ln -s $(SRCDIR)/harmony $(RESULT)
+	ln -s $(TOP)/src/harmony $(RESULT)
 
 clean::
 	rm -rf $(RESULT)

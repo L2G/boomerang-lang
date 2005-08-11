@@ -52,8 +52,9 @@ XXX;
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
 $demo["lensr1"] = <<<XXX
-Prelude.focus "phone_num" {}
+id
 XXX;
+$demo["extras"] = '$elidelens = "";';
 savedemo();
 # ---------------------------------------------------------
 
@@ -109,8 +110,7 @@ $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
 $demo["lensr1"] = <<<XXX
 Relational.select {nm=Any,ph=Any,sort={"cell"}}
-    "phone_num" "cell_phone_num";
-Prelude.focus "cell_phone_num" {}
+    "phone_num" "cell_phone_num"
 XXX;
 savedemo();
 # ---------------------------------------------------------
@@ -170,8 +170,7 @@ $demo["lensr1"] = <<<XXX
 Relational.select {nm=Any,ph=Any,sort={"cell"}}
     "phone_num" "cell_phone_num";
 Relational.project {"nm", "ph"} {"nm", "ph"} [{sort={"cell"}}]
-    "cell_phone_num" "cell_phone_num";
-Prelude.focus "cell_phone_num" {}
+    "cell_phone_num" "cell_phone_num"
 XXX;
 savedemo();
 # ---------------------------------------------------------
@@ -232,8 +231,7 @@ $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
 $demo["lensr1"] = <<<XXX
 Relational.project {"nm", "rel"} {"nm"} [{email={""}}]
-    "email_addr" "rel";
-Prelude.focus "rel" {}
+    "email_addr" "rel"
 XXX;
 savedemo();
 # ---------------------------------------------------------
@@ -301,8 +299,7 @@ $demo["r2format"] = "meta";
 $demo["lensr1"] = <<<XXX
 Relational.project {"nm", "rel"} {"nm"} [{email={""}}]
     "email_addr" "relation";
-Relational.ijoin1 "phone_num" "relation" "phone_num";
-Prelude.focus "phone_num" {}
+Relational.ijoin1 "phone_num" "relation" "phone_num"
 XXX;
 savedemo();
 # ---------------------------------------------------------
