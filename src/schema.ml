@@ -655,11 +655,7 @@ let rec intersect t1 t2 =
 let rec split_view v = function
     Any _ -> (v, V.empty)
   | Atom (_, n, t) ->
-      let (v0, v') = V.split (fun k -> k = n) v in
-      if member v0 t then
-	(v0, v')
-      else
-	(V.empty, v)
+      V.split (fun k -> k = n && member (V.get_required v k) t ) v
   | Cat (_, tl) ->
       let vl = Safelist.map (fun t -> split_view v t) tl in
       let (vl0, vl') = Safelist.split vl in

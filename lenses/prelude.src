@@ -14,7 +14,6 @@ let invert : (lens -> lens) = Native.Prelude.invert
 let hoist : (name -> lens) = Native.Prelude.hoist
 let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
 let bfork : (schema -> tree -> lens -> lens -> lens) = Native.Prelude.bfork
-let sfork : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.sfork
 let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
 let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
@@ -616,3 +615,38 @@ the value returned by the command.
 #*test (fconst {} "echo youpi") \ {} missing = { "youpi" }
 
 ##let fmodify : (name -> name -> lens) = Native.Prelude.fmodify
+
+\LENSSECTION{sfork}
+Sometimes, we want to be able to split a tree according to how the trees under
+the edges look like, especially when we do not know what the names on the edges
+are. To that purpose, we designed another primitive lens that lets you split
+the concrete view according to a schema.
+The lens \LN{sfork} $C$ $A$ $l_1$ $l_2$ splits the tree according to $C$ in
+the {\GET} direction, applying respectively $l_1$ and $l_2$ to the part of 
+the concrete view that is in $C$, and to the part that remains.
+In the {\PUT} direction, the abstract view is projected on $A$, the concrete
+view on $C$, and the {\PUT} of $l_1$ is applied to these projections, while
+the {\PUT} of $l_2$ is applied on the remaining parts. 
+\finish{To really understand
+how splitting according to a schema is defined, read the corresponding note, 
+or look at the examples.}
+
+#*let sfork : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.sfork
+
+#*test (sfork {x = {! = {}}} {y = Any} (plunge "y") (prune "y" {})) 
+#*        / {x={z}, z, y} = {y={x={z}}, z}
+
+Beware that both lenses get applied, whatever the view and the schema are, because
+if nothing matches $C$, then $l_1$ is applied to the empty view, and on the other hand,
+if everything matches $C$, then $l_2$ is applied to the empty view. Therefore, the lens
+of the previous example is not well-behaved on concrete views that contain no child \verb|x|
+mapping to a value. One should instead protect $l_1$ with an \verb|acond| :
+
+#*test (sfork {x = {! = {}}} {?y = Any} (acond {} {} id (plunge "y")) (prune "y" {})) 
+#*               / {x={x,y}, z, y} = {x = {x,y}, z}
+
+Finally, an example with wildcards :
+
+#*test (sfork {* = {"name" = Any}} {names = { * = Any}} (map (hoist "name"); plunge "names") id)
+#*  / { 314={ "name" = {Joe}}, 218={company = {IBM}}}
+#*  = { names = { 314 = {Joe}}, 218 = {company = {IBM}}}
