@@ -211,7 +211,58 @@ savedemo();
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
-To illustrate the meta encoding of XMI files.
+
+The goal of this demo is to illustrate the meta encoding of XMI
+files. Since XMI files can contain many different tags (the DTD
+specification of the encoding of UML files in XMI is about 100 pages
+!), we cannot provide a lens, nor a synchronization schema, that knows
+about the whole structure of the file and about every name (at least,
+we cannot <i>manually</i>, but we do not have a DTD -> lens generator
+for now). Therefore, we just separate the different parts of the
+elements by testing their children against appropriate schemas. 
+<p>
+Indeed, an XMI-UML element may look like this :
+<p><tt>
+&lt;Foundation.Core.DataType xmi.id=<font color="#BB0000">"xmi.16"</font> xmi.uuid=<font color="#00BB00">"127-0-0-1-587175e0:105a31639e2:-7feb"</font>&gt;<br>
+&nbsp;&lt;<font color="#00BB00">Foundation.Core.ModelElement.name</font>&gt;<font color="#0000BB">int</font>&lt;/Foundation.Core.ModelElement.name&gt;<br>
+&nbsp;&lt;<font color="#00BB00">Foundation.Core.ModelElement.isSpecification</font> xmi.value=<font color="#0000BB">"false"</font>/&gt;<br>
+&nbsp;&lt;<font color="#00BB00">Foundation.Core.GeneralizableElement.isRoot</font> xmi.value=<font color="#0000BB">"false"</font>/&gt;<br>
+&nbsp;&lt;<font color="#00BB00">Foundation.Core.GeneralizableElement.isLeaf</font> xmi.value=<font color="#0000BB">"false"</font>/&gt;<br>
+&nbsp;&lt;<font color="#00BB00">Foundation.Core.GeneralizableElement.isAbstract</font> xmi.value=<font color="#0000BB">"false"</font>/&gt;<br>
+&nbsp;&lt;Foundation.Core.ModelElement.namespace&gt;<br>
+&nbsp;&nbsp;&lt;Foundation.Core.Namespace xmi.idref=<font color="#BB0000">"xmi.1"</font>/&gt;<br>
+&nbsp;&lt;/Foundation.Core.ModelElement.namespace&gt;<br>
+&lt;/Foundation.Core.DataType&gt;<br></tt>
+<p>
+The stuff in green are keys, that means they are going to be used
+for aligning the contents, or values, which are highlighted in blue in the view above.
+Also, there are values that are local and that we do not keep in the abstract view; these
+are highlighted in red.
+
+And the corresponding encoding will plunge all the contents under an
+unique identifier (the <tt>xmi.uuid</tt> attribute), and reorganize
+the contents according to what they look like, that is, tags with a
+<tt>xmi.value</tt> attribute as <tt>values</tt>, tags leading to some
+<tt>PCDATA</tt> as <tt>pcdatas</tt>, and so on. The abstract view
+correpsonding to this snippet of XMI is :
+<p><tt>
+{<font color="#00BB00">"127-0-0-1-587175e0:105a31639e2:-7feb"</font> =<br>
+&nbsp;{owned-elts = {},<br>
+&nbsp;&nbsp;pcdatas = {<font color="#00BB00">"Foundation.Core.ModelElement.name"</font> = {<font color="#0000BB">int</font>}},<br>
+&nbsp;&nbsp;values =<br>
+&nbsp;&nbsp;&nbsp;{<font color="#00BB00">"Foundation.Core.GeneralizableElement.isAbstract"</font> = {<font color="#0000BB">false</font>},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<font color="#00BB00">"Foundation.Core.GeneralizableElement.isLeaf"</font> = {<font color="#0000BB">false</font>},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<font color="#00BB00">"Foundation.Core.GeneralizableElement.isRoot"</font> = {<font color="#0000BB">false</font>},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<font color="#00BB00">"Foundation.Core.ModelElement.isSpecification"</font> = {<font color="#0000BB">false</font>}}}}<br>
+<p></tt>
+
+<tt>owned-elts</tt> is used to store elements in containers, and since
+this datatype does not contain any other elements, it is just pointing
+to the empty tree. Finally, the
+<tt>Foundation.Core.ModelElement.namespace</tt> tag of the concrete
+view and its <tt>xmi.idref</tt> property has been filtered away,
+because this is information that is local to the file and therefore,
+we do not want to synchronize it.
 
 XXX;
 # ---------------------------------------------------------
