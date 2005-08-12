@@ -265,7 +265,7 @@ we do not want to synchronize it.
 
 Try changing values and/or keys in the abstract view below 
 (or in the concrete view if you are brave enough :)) and see
-all everything gets synchronized by Harmony.
+how everything gets synchronized by Harmony.
 
 XXX;
 # ---------------------------------------------------------
