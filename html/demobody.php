@@ -3,9 +3,7 @@
 # Things to do:
 #   when the lens changes, do a RESET
 #   add a simple sync demo
-#   make "next" go on to the next demo group
 #   put the manual on the web
-#   number demos from 1
 
 
 ##############################################################################
@@ -34,11 +32,14 @@ $demogroup = $_REQUEST['DEMOGROUP'];
 $demonumber = $_REQUEST['DEMONUMBER'];
 
 $elidelens = $_REQUEST['ELIDELENS'];
+$elideabstract = $_REQUEST['ELIDEABSTRACT'];
 $elidearchive = $_REQUEST['ELIDEARCHIVE'];
 $elideoutput = $_REQUEST['ELIDEOUTPUT'];
+$onecolumn = $_REQUEST['ONECOLUMN'];
 $optimizespace = $_REQUEST['OPTIMIZESPACE'];
 
-# print_r ($_REQUEST);
+debug ('$_REQUEST', $_REQUEST);
+
 
 ##############################################################################
 # Load the demos
@@ -69,10 +70,13 @@ function get_demos_from ($subdir) {
 }
 
 get_demos_from("basics");
+$alldemos[] = array("header" => "Tutorial synchronization demos");
 get_demos_from("addresses");
 get_demos_from("structuredtext");
+$alldemos[] = array("header" => "Lens Programming");
+get_demos_from("lenses");
+$alldemos[] = array("header" => "Demos for experts (minimally documented)");
 get_demos_from("calendars");
-# get_demos_from("lenses");
 get_demos_from("relational");
 get_demos_from("xmi");
 
@@ -86,21 +90,35 @@ if (empty($demogroup)) {
   $demogroup = $defaultdemogroup;
   $demonumber = 1;
   $reset = "YES";
+  $changegroup = TRUE;
 }
 
 if (!empty($choosenew)) {
   $reset = "YES";
-  $demonumber = "0";
+  $demonumber = "1";
   $nextpart = "";
+  $changegroup = TRUE;
 }
 
 if (!empty($nextpart)) {
+  $reset = "YES";
   if (!empty($alldemos[$demogroup][$demonumber+1])) {
     $demonumber = $demonumber+1;
-    $reset = "YES";
   }
   else {
-    $shownextparterror = "<br><b>No more parts in this demo</b><br/>(Choose a new demo from the menu below)";
+    reset($alldemos);
+    while (current($alldemos) && key($alldemos) != $demogroup) {
+      next($alldemos);
+    }
+    next($alldemos);
+    while (key($alldemos) == "header") { next($alldemos); };
+    if (current($alldemos)) {
+      $demogroup = key($alldemos);
+      $demonumber = 1;
+      $changegroup = TRUE;
+    } else {
+      $shownextparterror = "<br><b>No more demos</b>";
+    }
   }
 }
 
@@ -110,7 +128,6 @@ function demoparam($n) {
   global $demogroup, $demonumber, $alldemos;
   return $alldemos[$demogroup][$demonumber][$n];
 }
-
 $r1orig = demoparam("r1");
 $r1format = demoparam("r1format");
 $r2format = demoparam("r2format");
@@ -121,11 +138,28 @@ $lensarsame = demoparam("lensarsame");
 $harmonyflags = demoparam("flags");
 $instructions = demoparam("instructions");
 
+# A better way: Smash variables using key/value pairs from demo array
+#   extract($alldemos[$demogroup][$demonumber]);
+# (but some care is needed in places where the LHS and RHS of demoparam 
+# calls above are not named the same...)
+
+debug('$demogroup', $demogroup);
+debug('$demonumber', $demonumber);
+debug('$r1format', $r1format);
+
 if (!empty($reset)) {
   $r1 = $r1orig;
   $lensr1 = $lensr1orig;
   # Allow the demo itself to override any settings that it wants to
   eval (demoparam("extras"));
+  # eval ($extras);
+}
+
+if ($changegroup) {
+   $elideabstract = "YES";
+   $elidelens = "YES";
+   $elideoutput = "YES";
+   $elidearchive = "YES";
 }
 
 
@@ -173,10 +207,13 @@ if (!file_exists($democmd)) {
   abort("Executable " . $democmd . " not found in " . getcwd(),"");
 }
 
-$cmd = 
+$cmdbase = 
     "export HOME=../../../..; "
   . "export FOCALPATH=.:../../lenses:/$tempdir;"
-  . "./$democmd $harmonyflags "
+  . "./$democmd $harmonyflags ";
+
+$cmd = 
+    $cmdbase 
   . "-ar $arfile " 
   . (!empty($lensarsame) ? "-lensar $lensModule.l " : "")
   . "-r1 $r1file " 
@@ -187,11 +224,12 @@ $cmd =
   . "-newr1 $newr1file " 
   . "-newr2 $newr2file " 
   . "2>&1";
-# echo "cmd = " . $cmd . "<p>";
+debug ('$cmd',$cmd);
 
 if (!empty($reset)) {
   # If this is a reset, run harmony twice so that the output should read EQUAL
   $cmdagain = str_replace("new","",$cmd);
+  debug('$cmdagain',$cmdagain);
   $output = shell_exec($cmdagain);
 }  
 
@@ -222,10 +260,28 @@ if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file
 
 $arhex = asc2hex($ar);
 
+if (empty($elideabstract)) {
+  # generate abstract versions of the two replicas
+  $getcmd = 
+      $cmdbase 
+    . "$r1file " 
+    . (!empty($lensr1) ? "-lensr1 $lensModule.l " : "")
+    . "2>&1";
+  $r1abstract = shell_exec($getcmd);
+  $getcmd = 
+      $cmdbase 
+    . "$r2file " 
+    . (!empty($lensr2same) ? "-lensr1 $lensModule.l " : "")
+    . "2>&1";
+  $r2abstract = shell_exec($getcmd);
+}
+
 ##############################################################################
 # Format the response page
 
 if ($elidelens || empty($lensr1orig)) $lensstyle = "display:none";
+
+if ($elideabstract) $abstracttreesstyle = "display:none; ";
 
 echo <<<HTML
   <html>
@@ -233,18 +289,22 @@ echo <<<HTML
   <head>
   <STYLE TYPE="text/css">
     body { margin-left: 15; margin-right: 15; margin-top: 15; background: #dddddd; color:black }
-    h1 { text-align: center; padding: 10; background: #ffffaa;  
+    .titlebox { text-align: center; padding-left:10; padding-right:10; 
+         background: #ffffcc;  
          border-width:medium; border-color:#888888; border-style:solid }
+    .titleimage { margin-bottom:10; }
     table { width:95%; }
     textarea { background: #FFFFdd; width:100%; height:180; }
     textarea.lenstextarea { height:60; }
     td { align:top; }
     .lens { $lensstyle }
+    .abstracttrees { $abstracttreesstyle }
     .red { color:#990000; }
     .label { color:#990000; align:left; }
     .instructions { background:#f2f2f2; padding:6; 
-                    margin-left:50; margin-right:50; margin-top:0; margin-botom:0; border-width:thin; 
-                    border-color:#888888; border-style:solid }
+                    margin-left:50; padding-left:10; margin-right:100; margin-top:0; margin-bottom:0; border-width:thin; 
+                    border-color:#888888; border-style:solid;
+                    overflow: auto; max-height:350; }
     .controls { }
   /*  
     .buttonbox { background:#e9e9e9; padding:10; margin-left:30%; margin-right:30%; border-width:thin; 
@@ -259,7 +319,20 @@ echo <<<HTML
 HTML;
 
 if (empty($optimizespace)) {
-echo '<center><h1><img src="http://www.cis.upenn.edu/~bcpierce/harmony/harmonYY-header-trans.gif" width="200" height="70" alt="Harmony"></h1></center>';
+  $currentname = $alldemos[$demogroup]["demogroupname"];
+  echo <<<HTML
+    <table class=titlebox><tr>
+      <td align=left valign=bottom width=30%>
+        <h3>$currentname</h3>
+      </td>
+      <td align=center valign=top>
+        <img class="titleimage" src="http://www.cis.upenn.edu/~bcpierce/harmony/harmonYY-header-trans.gif" width="350" height="100" alt="Harmony">
+      </td>
+      <td align=right valign=bottom width=30%>
+        <h3>Part $demonumber</h3>
+      </td>
+    </tr></table>
+HTML;
 }
 
 echo '<form name="theform" method="post">';
@@ -312,12 +385,19 @@ echo <<<HTML
     <select name="DEMOGROUP" onchange="jsChooseNew()">
 HTML;
 
+echo "<optgroup label=\"Overview\">";
 foreach ($alldemos as $k => $v) {
-  $name = $v["demogroupname"];
-  $selected = "";
-  if ($k == $demogroup) $selected="selected";
-  echo "<option $selected value=\"$k\">$name</option>";
+  if (!empty($v["header"])) {
+    $header = $v["header"];
+    echo "</optgroup> <optgroup label=\"$header\">";
+  } else {
+    $name = $v["demogroupname"];
+    $selected = "";
+    if ($k == $demogroup) $selected="selected";
+    echo "<option $selected value=\"$k\">$name</option>";
+  }
 }
+echo "</optgroup>";
 
 echo <<<HTML
     </select>
@@ -339,12 +419,23 @@ echo "</td></tr></table>";
 
 ####### The boxes...
 
+if (!empty($onecolumn)) {
+  $columnbreakifneeded = "</tr><tr>";
+}
+
 echo " <table>";
 
 ####### Replicas
 
-$firstreplicatitle = "First replica";
-$secondreplicatitle = "Second replica";
+if (!empty($elideabstract)) {
+  $firstreplicatitle = "First replica";
+  $secondreplicatitle = "Second replica";
+  $archivetitle = "Archive";
+} else {
+  $firstreplicatitle = "First replica (concrete)";
+  $secondreplicatitle = "Second replica (concrete)";
+  $archivetitle = "Archive (abstract)";
+}
 
 echo <<<HTML
       <tr> 
@@ -352,6 +443,7 @@ echo <<<HTML
           <div class=label>$firstreplicatitle:</div>
           <textarea name="R1" rows="23" cols="50">$r1</textarea>
         </td>
+        $columnbreakifneeded
         <td valign=top>
           <div class=label>$secondreplicatitle:</div>
           <textarea name="R2" rows="23" cols="50">$r2</textarea>
@@ -374,6 +466,27 @@ HTML;
 HTML;
 
 
+####### Abstract trees box
+
+echo <<<HTML
+    <tr>
+      <td>
+        <div class=abstracttrees>
+          <div class=label>First replica (abstract):</div>
+          <textarea readonly rows="23" cols="50">$r1abstract</textarea><br />
+        </div>
+      </td>
+      $columnbreakifneeded
+      <td>
+        <div class=abstracttrees>
+          <div class=label>Second replica (abstract):</div>
+          <textarea readonly rows="23" cols="50">$r2abstract</textarea><br />
+        </div>
+      </td>
+    </tr>
+HTML;
+
+
 ####### Harmony output box
 
 echo <<<HTML
@@ -390,6 +503,7 @@ HTML;
 
 echo <<<HTML
         </td>
+        $columnbreakifneeded
         <td valign="top">
 HTML;
 
@@ -397,7 +511,7 @@ HTML;
 
 if (!$elidearchive) {
 echo <<<HTML
-    <div class=label>Archive:</div>
+    <div class=label>$archivetitle:</div>
     <textarea name="ARASC" readonly rows="23" cols="50">$ar</textarea><br />
 HTML;
 }
@@ -434,11 +548,29 @@ HTML;
 
 echo "&nbsp;&nbsp";
 
+if (!empty($elideabstract)) {
+  $elideabstractchecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="ELIDEABSTRACT" $elideabstractchecked onchange="document.theform.submit()">Elide abstract trees</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
 if (!empty($elideoutput)) {
   $elideoutputchecked = "checked";
 }
 echo <<<HTML
     <input type="checkbox" name="ELIDEOUTPUT" $elideoutputchecked onchange="document.theform.submit()">Elide output</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
+if (!empty($onecolumn)) {
+  $onecolumnchecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="ONECOLUMN" $onecolumnchecked onchange="document.theform.submit()">One column</input>
 HTML;
 
 echo "&nbsp;&nbsp";
@@ -468,6 +600,8 @@ HTML;
 ####### Footer
 
 echo "</form>";
+
+# echo join("\n",$debuglog);
 
 
 ##############################################################################
@@ -518,5 +652,20 @@ function abort($mesg, $more) {
   exit(0);
 }
 
+function show($data, $func = "print_r", $return_str = false){
+   ob_start();
+   $func($data);
+   $output = ''.htmlspecialchars(ob_get_contents()).'';
+   ob_end_clean();
+   if($return_str) return $output; else echo $output;
+}
+
+function debug ($s,$v) {
+  global $debuglog;
+  $debuglog[] = '<hr width="50%"><p>';
+  $debuglog[] = $s . " = ";
+  $debuglog[] = show ($v, "print_r", TRUE);
+  $debuglog[] = "</p>";
+}
 
 ?>

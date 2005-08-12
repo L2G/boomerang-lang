@@ -18,11 +18,13 @@ all: buildsubdirs
 
 WEBDIR = $(HOME)/pub/cgi-bin/harmony
 
-installweb: all
+installweb: 
+	$(MAKE) clean
+	$(MAKE) all
 	rm -rf $(WEBDIR)
 	mkdir $(WEBDIR)
-	chmod a+x $(WEBDIR)
-	cp -rp src lenses examples html doc $(WEBDIR)
+	cp -r src lenses examples html doc extern $(WEBDIR)
+	chmod -R 755 $(WEBDIR)
 
 ###########################################################################
 ## Export

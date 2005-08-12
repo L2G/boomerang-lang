@@ -1,10 +1,10 @@
 <?
 
-$demogroupname = "Lenses";
+$demogroupname = "Tutorial";
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
-(This is just a stub.  Fill me in!)
+<div class="red">(To be written!)</div>
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
