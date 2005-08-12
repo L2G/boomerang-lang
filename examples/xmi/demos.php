@@ -7,7 +7,29 @@ $demogroupname = "Xmi";
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
 
-This one is not very convenient for a web demo.
+XMI files are XML files designed for the interchange of data. We address here a
+special kind of XMI files, those representing UML, but the same lens we are
+using could be used as well for every kind of XMI files.
+
+As you may see in the window below, the XMI files are somewhat verbose and it is
+neither easy to edit them manually, nor to understand at a first glance what are
+their contents. The file below is a single model containing a single class
+<tt>MyClass</tt> with a few members, and two native datatypes <tt>int</tt> and
+<tt>void</tt>. Here are two screenshots from ArgoUML, an UML editor, showing the 
+corresponding hierarchy tree and class diagram.
+<p align="center">
+<img src="images/MyModel.gif"/> <img src="images/MyClass.gif"/>
+</p>
+
+If you look carefully at the two replicas below, you can see that when you 
+reset, they are not completely equal. Indeed, the right replica is obtained
+by running Harmony once with an empty archive and an empty right replica, so
+all data that is being thrown away before synchronization (e.g. the <tt>header</tt> tag)
+is created with the default value in the right replica. Note, by the way,
+that it gets created after the <tt>contents</tt> tag, whereas it is situated before in
+the original file. This is a consequence of the flattening we apply to lists of tags for
+the purpose of alignment, and through which we lose the order. This could be avoided
+but this swapping seems to be harmless, at least for Argo.
 
 XXX;
 # ---------------------------------------------------------
