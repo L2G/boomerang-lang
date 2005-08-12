@@ -238,13 +238,12 @@ The stuff in green are keys, that means they are going to be used
 for aligning the contents, or values, which are highlighted in blue in the view above.
 Also, there are values that are local and that we do not keep in the abstract view; these
 are highlighted in red.
-
-And the corresponding encoding will plunge all the contents under an
+The corresponding encoding will plunge all the contents under an
 unique identifier (the <tt>xmi.uuid</tt> attribute), and reorganize
 the contents according to what they look like, that is, tags with a
 <tt>xmi.value</tt> attribute as <tt>values</tt>, tags leading to some
 <tt>PCDATA</tt> as <tt>pcdatas</tt>, and so on. The abstract view
-correpsonding to this snippet of XMI is :
+corresponding to this snippet of XMI is :
 <p><tt>
 {<font color="#00BB00">"127-0-0-1-587175e0:105a31639e2:-7feb"</font> =<br>
 &nbsp;{owned-elts = {},<br>
@@ -260,7 +259,7 @@ correpsonding to this snippet of XMI is :
 this datatype does not contain any other elements, it is just pointing
 to the empty tree. Finally, the
 <tt>Foundation.Core.ModelElement.namespace</tt> tag of the concrete
-view and its <tt>xmi.idref</tt> property has been filtered away,
+view and its <tt>xmi.id*</tt> properties has been filtered away,
 because this is information that is local to the file and therefore,
 we do not want to synchronize it.
 
