@@ -26,9 +26,6 @@ and the later stages of the process should be able to use it right there,
 without dumping it out to a file again.
 
 STEPHANE TASKS
-make sure the icalendar viewer gets built when needed by calendar demo
-document use of Harmony with Unison (make a new chapter in Harmony manual)
-  make sure to say that people need a very new version of Unison
 
 NATE TASKS
 NOW
