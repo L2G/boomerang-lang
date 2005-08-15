@@ -1,15 +1,16 @@
 <?
 
-# Things to do:
-#   when the lens changes, do a RESET
-#   add a simple sync demo
-#   put the manual on the web
-
-
 ##############################################################################
 # Configuration parameters
 
+# $enabledebug = TRUE;
+
 $defaultdemogroup = "basics";
+
+$logfile_locations = # relative to the individual demo directory
+  array("../../../harmonywebdemo.log",  # pub/cgi on fling-l
+        "../../log.tmp"                 # harmony on localhost
+        );
 
 
 ##############################################################################
@@ -24,6 +25,7 @@ $choosenew = $_REQUEST['CHOOSENEW'];
 $nextpart = $_REQUEST['NEXTPART'];
 $r1 = get_post_data('R1');
 $lensr1 = get_post_data('LENSR1');
+$schema = get_post_data('SCHEMA');
 $prevlensr1hex = get_post_data('PREVLENSR1HEX');
 $r2 = get_post_data('R2');
 $arhex = $_REQUEST['ARHEX'];
@@ -32,11 +34,13 @@ $demogroup = $_REQUEST['DEMOGROUP'];
 $demonumber = $_REQUEST['DEMONUMBER'];
 
 $elidelens = $_REQUEST['ELIDELENS'];
+$elideschema = $_REQUEST['ELIDESCHEMA'];
 $elideabstract = $_REQUEST['ELIDEABSTRACT'];
 $elidearchive = $_REQUEST['ELIDEARCHIVE'];
 $elideoutput = $_REQUEST['ELIDEOUTPUT'];
 $onecolumn = $_REQUEST['ONECOLUMN'];
 $optimizespace = $_REQUEST['OPTIMIZESPACE'];
+$raw = $_REQUEST['RAW'];
 
 debug ('$_REQUEST', $_REQUEST);
 
@@ -48,18 +52,15 @@ chdir("../examples");
 
 $alldemos = array();
 
-$demo = array();  
-
 function savedemo () {
   global $demo, $demos, $lastdemo;
   $temp = $demo;
   $demos[] = $temp;
-  $lastdemo = $demo;
-  $demo = array();
 }
 
 function get_demos_from ($subdir) {
   global $demo, $demos, $alldemos;
+  $demo = array();  
   $demos = array(0 => "");  # so that the real contents are 1-indexed
   $f = $subdir . "/demos.php";
   if (file_exists($f)) {
@@ -104,14 +105,14 @@ if (!empty($nextpart)) {
   $reset = "YES";
   if (!empty($alldemos[$demogroup][$demonumber+1])) {
     $demonumber = $demonumber+1;
-  }
-  else {
+  } else {
     reset($alldemos);
-    while (current($alldemos) && key($alldemos) != $demogroup) {
+    while (current($alldemos) and key($alldemos) !== $demogroup) {
       next($alldemos);
     }
     next($alldemos);
-    while (key($alldemos) == "header") { next($alldemos); };
+    $temp = current($alldemos); $temp2 = $temp["header"];
+    while (!empty($temp2)) { $temp = next($alldemos); $temp2 = $temp["header"]; }
     if (current($alldemos)) {
       $demogroup = key($alldemos);
       $demonumber = 1;
@@ -137,36 +138,56 @@ $lensr2same = demoparam("lensr2same");
 $lensarsame = demoparam("lensarsame");
 $harmonyflags = demoparam("flags");
 $instructions = demoparam("instructions");
+$democmd = demoparam("democmd");
+$schemaorig = demoparam("schemaorig");
 
 # A better way: Smash variables using key/value pairs from demo array
 #   extract($alldemos[$demogroup][$demonumber]);
 # (but some care is needed in places where the LHS and RHS of demoparam 
 # calls above are not named the same...)
 
-debug('$demogroup', $demogroup);
-debug('$demonumber', $demonumber);
-debug('$r1format', $r1format);
+if ($changegroup) {
+   $reset = "YES";
+   $elideabstract = "YES";
+   $elidelens = "YES";
+   $elideschema = "YES";
+   $onecolumn = "";
+   $elideoutput = "YES";
+   $elidearchive = "YES";
+}
 
 if (!empty($reset)) {
   $r1 = $r1orig;
+  $schema = $schemaorig;
   $lensr1 = $lensr1orig;
   # Allow the demo itself to override any settings that it wants to
   eval (demoparam("extras"));
   # eval ($extras);
 }
 
-if ($changegroup) {
-   $elideabstract = "YES";
-   $elidelens = "YES";
-   $elideoutput = "YES";
-   $elidearchive = "YES";
+##############################################################################
+# Keep a log of who is playing
+
+$remote = trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
+$date = date("Y/m/j G:i:s T");
+$logmsg = "$date  $remote  ($demogroup / $demonumber)\n";
+
+foreach ($logfile_locations as $name) {
+  $handle = @fopen($name, 'a');
+  if ($handle) {
+    echodebug ("Log message written to $name");
+    fwrite($handle, $logmsg);
+    fclose($handle);
+  } else {
+    echodebug ("Could not open $name");
+  }
 }
 
 
 ##############################################################################
 # Run Harmony
 
-$democmd = "harmonize-" . $demogroup;
+if (empty($democmd)) $democmd = "harmonize-" . $demogroup;
 
 $tempbasename = "h" . posix_getpid() . str_replace(array(" ","."),"",microtime());
 $tempdir = "/tmp";
@@ -182,35 +203,38 @@ $newr2file = $tempbase . "newr2." . $r2format;
 $newarfile = $tempbase . "newar." . $arformat;
 
 put_file($r1file, $r1);
-if (empty($reset)) {
-  put_file($arfile, $ar);
-  put_file($r2file, $r2);
-}
+put_file($arfile, $ar);
+put_file($r2file, $r2);
 
-if (!empty($lensr1)) {
-  $lensmodule = $tempbasename . "lens";
-  $lensModule = ucfirst($lensmodule);
-  $lensfile = "$tempdir/$lensmodule.fcl";
-  $lensfilecontents = 
-    "module $lensModule = let l : lens = \n"
-    . "# 0 \"NOFILEHERE\"\n"
-    . $lensr1;
-  put_file($lensfile, $lensfilecontents);
-  if (asc2hex($lensr1) != $prevlensr1hex) {
-    # if the lens has been edited by the user, smash the archive so that
-    # this SYNC becomes just a GET
-    $ar = $r2;
-  }
-}
+$lensmodule = $tempbasename . "lens";
+$lensModule = ucfirst($lensmodule);
+$lensfile = "$tempdir/$lensmodule.fcl";
+$lensfilecontents = 
+  "module $lensModule = let l : lens = \n"
+  . "# 0 \"NOFILEHERE\"\n"
+  . ($lensr1 ? $lensr1 : "id") . "\n\n"
+  . "schema S = \n"
+  . "# 0 \"<schema>\"\n"
+  . ($schema ? $schema : "Any") . "\n";
+put_file($lensfile, $lensfilecontents);
 
 if (!file_exists($democmd)) {
   abort("Executable " . $democmd . " not found in " . getcwd(),"");
 }
 
+if (!empty($raw)) $rawflag = "-raw";
+
 $cmdbase = 
     "export HOME=../../../..; "
   . "export FOCALPATH=.:../../lenses:/$tempdir;"
-  . "./$democmd $harmonyflags ";
+  . "./$democmd $harmonyflags $rawflag ";
+
+# If we are doing a reset, overwrite r2 and archive with r1
+if ($reset) { $forcer1 = TRUE; }
+
+# If the lens has been edited, overwrite r2 and archive with r1
+# (otherwise chaos ensues!)
+if (asc2hex($lensr1) != $prevlensr1hex) { $forcer1 = TRUE; }
 
 $cmd = 
     $cmdbase 
@@ -223,16 +247,10 @@ $cmd =
   . "-newar $newarfile " 
   . "-newr1 $newr1file " 
   . "-newr2 $newr2file " 
+  . (!empty($schema) ? "-schema $lensModule.S " : "")
+  . ($forcer1 ? "-forcer1 " : "")
   . "2>&1";
 debug ('$cmd',$cmd);
-
-if (!empty($reset)) {
-  # If this is a reset, run harmony twice so that the output should read EQUAL
-  $cmdagain = str_replace("new","",$cmd);
-  debug('$cmdagain',$cmdagain);
-  $output = shell_exec($cmdagain);
-}  
-
 $output = shell_exec($cmd);
 
 if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
@@ -240,8 +258,10 @@ if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file
   $r1 = filecontents($newr1file);
   $r2 = filecontents($newr2file);
 } else {
-  $r2 = "<Harmony failed>";
-  $ar = "";
+  # This turns out to mess things up because it leaves bad values in these fields
+  # and that makes it hard to recover
+  # $r2 = "<Harmony failed>";
+  # $ar = "";
 }
 
 # $diag = 
@@ -261,16 +281,16 @@ if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file
 $arhex = asc2hex($ar);
 
 if (empty($elideabstract)) {
-  # generate abstract versions of the two replicas
+  # generate abstract versions of the two (new) replicas
   $getcmd = 
       $cmdbase 
-    . "$r1file " 
+    . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
     . (!empty($lensr1) ? "-lensr1 $lensModule.l " : "")
     . "2>&1";
   $r1abstract = shell_exec($getcmd);
   $getcmd = 
       $cmdbase 
-    . "$r2file " 
+    . (file_exists($newr2file) ? "$newr2file " : "$r2file ")
     . (!empty($lensr2same) ? "-lensr1 $lensModule.l " : "")
     . "2>&1";
   $r2abstract = shell_exec($getcmd);
@@ -281,6 +301,8 @@ if (empty($elideabstract)) {
 
 if ($elidelens || empty($lensr1orig)) $lensstyle = "display:none";
 
+if ($elideschema || empty($schema)) $schemastyle = "display:none";
+
 if ($elideabstract) $abstracttreesstyle = "display:none; ";
 
 echo <<<HTML
@@ -288,22 +310,29 @@ echo <<<HTML
 
   <head>
   <STYLE TYPE="text/css">
-    body { margin-left: 15; margin-right: 15; margin-top: 15; background: #dddddd; color:black }
-    .titlebox { text-align: center; padding-left:10; padding-right:10; 
-         background: #ffffcc;  
-         border-width:medium; border-color:#888888; border-style:solid }
-    .titleimage { margin-bottom:10; }
-    table { width:95%; }
+    body { margin-left: 15; margin-right: 15; margin-top: 15; 
+           background: #dddddd; color:black;
+           font-family: arial, sans-serif;
+           font-size: smaller;
+         }
+    table { width:100%; }
     textarea { background: #FFFFdd; width:100%; height:180; }
-    textarea.lenstextarea { height:60; }
+    textarea.lenstextarea { height:90; }
     td { align:top; }
+    .titlebox { text-align: center; 
+                padding-left:10; padding-right:10; padding-top:10;
+                background: #ffffcc;  
+                border-width:medium; border-color:#888888; border-style:solid }
+    .titleimage { margin-bottom:10; }
     .lens { $lensstyle }
+    .schema { $schemastyle }
     .abstracttrees { $abstracttreesstyle }
     .red { color:#990000; }
     .label { color:#990000; align:left; }
-    .instructions { background:#f2f2f2; padding:6; 
-                    margin-left:50; padding-left:10; margin-right:100; margin-top:0; margin-bottom:0; border-width:thin; 
-                    border-color:#888888; border-style:solid;
+    .instructions { background:#f2f2f2; 
+                    padding:6; padding-left:10; 
+                    margin-left:50; margin-right:50; margin-top:0; margin-bottom:0; 
+                    border-width:thin; border-color:#888888; border-style:solid;
                     overflow: auto; max-height:350; }
     .controls { }
   /*  
@@ -451,16 +480,26 @@ echo <<<HTML
       </tr>
 HTML;
 
-####### Lens box
+####### Lens and schema boxes
 
   $lensr1hex = asc2hex($lensr1);
   echo <<<HTML
       <tr>
         <td colspan=2>
-           <div class=lens>
-           <div class=label>Lens: </div>
-           <textarea name="LENSR1" class=lenstextarea>$lensr1</textarea>
-           </div>
+           <table><tr>
+             <td>
+               <div class=lens>
+               <div class=label>Lens: </div>
+               <textarea name="LENSR1" class=lenstextarea>$lensr1</textarea>
+               </div>
+             </td>           
+             <td>
+               <div class=schema>
+               <div class=label>Synchronization schema: </div>
+               <textarea name="SCHEMA" class=lenstextarea>$schema</textarea>
+               </div>
+             </td>           
+           </tr></table>
         </td>
       </tr>
 HTML;
@@ -539,6 +578,15 @@ HTML;
 
 echo "&nbsp;&nbsp";
 
+if (!empty($elideschema)) {
+  $elideschemachecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="ELIDESCHEMA" $elideschemachecked onchange="document.theform.submit()">Elide schema</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
 if (!empty($elidearchive)) {
   $elidearchivechecked = "checked";
 }
@@ -575,6 +623,15 @@ HTML;
 
 echo "&nbsp;&nbsp";
 
+if (!empty($raw)) {
+  $rawchecked = "checked";
+}
+echo <<<HTML
+    <input type="checkbox" name="RAW" $rawchecked onchange="document.theform.submit()">Raw display</input>
+HTML;
+
+echo "&nbsp;&nbsp";
+
 if (!empty($optimizespace)) {
   $optimizespacechecked = "checked";
 }
@@ -601,7 +658,7 @@ HTML;
 
 echo "</form>";
 
-# echo join("\n",$debuglog);
+if ($enabledebug) echo join("\n",$debuglog);
 
 
 ##############################################################################
@@ -625,6 +682,12 @@ function hex2asc($temp) {
 
 function put_file ($name, $contents) {
   $handle = fopen($name, 'w');
+  fwrite($handle, $contents);
+  fclose($handle);
+}
+
+function append_file ($name, $contents) {
+  $handle = fopen($name, 'a');
   fwrite($handle, $contents);
   fclose($handle);
 }
@@ -660,12 +723,22 @@ function show($data, $func = "print_r", $return_str = false){
    if($return_str) return $output; else echo $output;
 }
 
+function echodebug($s) {
+  global $debuglog;
+  $debuglog[] = $s . "<br>";
+}
+
 function debug ($s,$v) {
   global $debuglog;
   $debuglog[] = '<hr width="50%"><p>';
   $debuglog[] = $s . " = ";
   $debuglog[] = show ($v, "print_r", TRUE);
   $debuglog[] = "</p>";
+}
+
+function gethost ($ip) {
+ $host = `host $ip`;
+ return (($host ? end ( explode (' ', $host)) : $ip));
 }
 
 ?>

@@ -20,6 +20,8 @@ type action =
   | CopyRightToLeft of copy_value
   | GoDown of action Name.Map.t
 
+let equal = MarkEqual
+
 let get_action_name = function
     SchemaConflict _  -> "schema conflict"
   | DeleteConflict _  -> "delete conflict"

@@ -4,14 +4,16 @@ $demogroupname = "Structured text";
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
+<p>
 This first example of structured text synchronization 
 illustrates the basic ideas with just one level of structure.
+</p>
+
 <p>
 Try adding a few new lines below <tt>SECOND PART</tt>
 in one replica and below <tt>THIRD PART</tt> in the other.   
-<p>
-When you're finished playing, go on to the next part of 
-the demo.
+</p>
+
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
@@ -32,6 +34,7 @@ savedemo();
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
+<p>
 This time, instead of synchronizing one structured text file with another
 one, we're showing the "abstract tree" that results from applying the
 structured text lens to a concrete structured text file.
@@ -78,19 +81,23 @@ savedemo();
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
-For this demo, we are using a more sophisticated lens to map from the
-concrete text file to the abstract tree.  
-<p>
-Notice that there are now four levels of headers; lines beginning with one,
-two, and three stars, and then lines with no stars but consisting entirely
-of capital letters and spaces.  
-<p>
-Note, also, that levels can be "skipped".  In this case, empty headers for all the missing 
-levels are automatically inserted.
-<p>
-Try editing the abstract tree and changing the first <tt>""</tt> header to a <tt>"* FOO"</tt> 
-(don't forget the space after the star).  See what happens when the abstract
-tree is pushed back down into the concrete text format.
+
+<p> For this next part (and the following ones), we are using a more
+sophisticated lens to map from the concrete text file to the abstract
+tree.
+        
+<p> Notice that there are now four levels of headers; lines beginning
+with one, two, and three stars, and then lines with no stars but
+consisting entirely of capital letters and spaces.
+
+<p> Note, also, that levels can be "skipped".  In this case, empty
+headers for all the missing levels are automatically inserted.
+
+<p> Try editing the abstract tree and changing the first <tt>""</tt>
+header to a <tt>"* FOO"</tt> (don't forget the space after the star).
+See what happens when the abstract tree is pushed back down into the
+concrete text format.
+
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
@@ -99,39 +106,12 @@ $demo["r1"] = <<<XXX
 *** SUBSUBHEAD
 PARA HEAD
 para line
-para line
-para line
-para line
-para line
-para line
 PARA HEAD
-para line
-para line
-para line
-para line
 PARA HEAD
 * HEADER
 ** SUBHEADER
 *** SUBSUBHEAD
 PARA HEAD
-para
-para
-para
-para
-para
-para
-PARA HEAD
-para
-para
-para
-para
-para
-para
-PARA HEAD
-para
-para
-para
-para
 para
 para
 XXX;
@@ -152,50 +132,6 @@ Try making some changes in different parts of the two replicas and seeing
 what happens when they are synchronized.
 XXX;
 # ---------------------------------------------------------
-$demo["r1"] = <<<XXX
-* HEADER
-** SUBHEADER
-*** SUBSUBHEAD
-PARA HEAD
-para line
-para line
-para line
-para line
-para line
-para line
-PARA HEAD
-para line
-para line
-para line
-para line
-PARA HEAD
-* HEADER
-** SUBHEADER
-*** SUBSUBHEAD
-PARA HEAD
-para
-para
-para
-para
-para
-para
-PARA HEAD
-para
-para
-para
-para
-para
-para
-PARA HEAD
-para
-para
-para
-para
-para
-para
-XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "txt";
 $demo["r2format"] = "txt";
 savedemo();
 # ---------------------------------------------------------

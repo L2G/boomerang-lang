@@ -21,16 +21,6 @@ corresponding hierarchy tree and class diagram.
 <img src="images/MyModel.gif"/> <img src="images/MyClass.gif"/>
 </p>
 
-If you look carefully at the two replicas below, you can see that when you 
-reset, they are not completely equal. Indeed, the right replica is obtained
-by running Harmony once with an empty archive and an empty right replica, so
-all data that is being thrown away before synchronization (e.g. the <tt>header</tt> tag)
-is created with the default value in the right replica. Note, by the way,
-that it gets created after the <tt>contents</tt> tag, whereas it is situated before in
-the original file. This is a consequence of the flattening we apply to lists of tags for
-the purpose of alignment, and through which we lose the order. This could be avoided
-but this swapping seems to be harmless, at least for Argo.
-
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
@@ -457,14 +447,14 @@ mainly on patterns to go through the structure and reorganize everything.
 This is rather impressing that such an easy lens can do such a job without
 knowing much about what it is dealing with, by opposition to the iCalendar demo,
 where the lens and the schema are completely accurate and following the RFC
-scpecification. The only way to get a sense of what this lens is able to do, is
+specification. The only way to get a sense of what this lens is able to do, is
 to actually play with the files with an UML editor, and not manually.
 <p>
 Therefore, we enjoin you to grab Argo <a href="http://argouml.tigris.org/">here</a>
-or to use you favorite UML editor, if you have one, and edit the 
-<a href="../examples/xmi/archive.xmi">example file</a> as you wish. 
-Please let us know of every trouble
-you may have and every misbehaviour of the synchronization that you may encounter,
+or to use you favorite UML editor, if you have one, edit the 
+<a href="../examples/xmi/archive.xmi">example file</a> as you wish, paste edited versions of the file into the first and second replicas, press Synchronize, and see what happens! 
+Please let us know of any trouble
+you may have and any misbehaviour of the synchronization that you may encounter,
 especially if you are using something else than Argo.
 
 XXX;

@@ -18,6 +18,11 @@ OCAMLLDFLAGS = -linkpkg
 # Why did we have this?  The ocaml manual says it is not recommended!
 # OCAMLLEX = ocamllex -ml
 
+all: TAGS
+
+TAGS: 
+	$(MAKE) tags
+
 tags:
 	etags $(SOURCES)
 

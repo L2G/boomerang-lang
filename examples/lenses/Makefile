@@ -6,4 +6,8 @@
 TOP = ../..
 include $(TOP)/Top.Makefile
 
-all:
+all: 
+
+clean::
+	rm -rf $(RESULT)
+

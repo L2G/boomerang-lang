@@ -9,7 +9,9 @@
 (** The synchronization algorithm *)
 
 type copy_value
+
 type action
+val equal : action
 
 val get_action_name : action -> string
 val conflict_free : action -> bool

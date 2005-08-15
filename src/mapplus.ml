@@ -118,11 +118,11 @@ module Make(Ord: OrderedType) = struct
 	Format.printf "{@[<hv0>";
 	let binds = Safelist.map (fun k -> (k, find k u))
 	  (sortf (KeySet.elements (domain u))) in
-	  Misc.iter_with_sep
-	    prch
-	    (fun()-> Format.print_break 1 0)
-	    binds;
-	  Format.printf "@]}"
+        Misc.iter_with_sep
+          prch
+          (fun()-> Format.printf ","; Format.print_break 1 0)
+          binds;
+        Format.printf "@]}"
 	    
   end (* module Map *)
 end (* module Make *)

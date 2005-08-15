@@ -62,27 +62,30 @@ let get lens c_fn o_fn =
 
 let signalconflicts = Prefs.createBool "signalconflicts" false "exit with status 1 (instead of 0) on conflicts" ""
 
+let forcer1 = Prefs.createBool "forcer1" false "overwrite r2 and archive with r1" ""
+
 (********)
 (* SYNC *)
 (********)
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
-  let o = read_tree o_fn in
-  let a = read_tree a_fn in
-  let b = read_tree b_fn in
   let s = lookup_schema s in 
   let lenso = lookup_lens lenso in
   let lensa = lookup_lens lensa in 
   let lensb = lookup_lens lensb in         
-  let oa = Misc.map_option (Lens.get lenso) o in
-  let aa = Misc.map_option (Lens.get lensa) a in
-  let ba = Misc.map_option (Lens.get lensb) b in
-  (* fill this in...
-  debug (fun() ->
-           Format.printf "Synchronizing...\n";
-           Format.printf "  o = ";
-        );
-  *)
-  let (act, oa', aa', ba') = Sync.sync s oa aa ba in
+  let (o, a, b, (act, oa', aa', ba')) =
+    if Prefs.read forcer1 then
+      let a = read_tree a_fn in
+      let aa = Misc.map_option (Lens.get lensa) a in
+      (a, a, a, (Sync.equal, aa, aa, aa))
+    else 
+      let a = read_tree a_fn in
+      let o = read_tree o_fn in
+      let b = read_tree b_fn in
+      let aa = Misc.map_option (Lens.get lensa) a in
+      let oa = Misc.map_option (Lens.get lenso) o in
+      let ba = Misc.map_option (Lens.get lensb) b in
+      (o, a, b, Sync.sync s oa aa ba)
+    in
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' b) ba' in

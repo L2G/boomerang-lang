@@ -6,10 +6,14 @@ $demogroupname = "Address books";
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
-<p>
-This first address book demo illustrates very simple address book
-synchronization. 
-</p>
+
+<p> We've built Harmony instances (i.e., appropriate lenses plus a
+little bit of top-level "glue") for address book data in two different
+formats: an XML variant of the popular vCard format, and
+comma-separated-value files in the form used by the open-source
+<tt>pilot-address</tt> tool, which can be used to exchange data with
+PalmOS-based PDAs.</p>
+
 <p>
 Try changing the text in the <tt>tel-home</tt> tag of the first entry in one
 replica and the <tt>tel-work</tt> tag of the second entry in the other. Then
@@ -22,12 +26,12 @@ $demo["r1"] = <<<XXX
 <xcard>
 
   <vcard>
-    <n><family>First entry</family></n>
+    <n><family>Smith</family></n>
     <tel-home>123-4567</tel-home>
   </vcard>
 
   <vcard>
-    <n><family>Second entry</family></n>
+    <n><family>Jones</family></n>
     <tel-work>314-1596</tel-work>
   </vcard>
 
@@ -43,17 +47,33 @@ savedemo();
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
-This demo illustrates some variations in the treatment of names.  Names are
-recognized in several different formats: given/family, family-only,
-given-only, and "bare name" (just text immediately inside the n tag).
-In the abstract tree, all of these are transformed into the same
-format: the whole abstract address book consists of a bush whose immediate
-child edges are last names, whose grandchild edges are first names, and
-whose great-grand-trees are the remaining information in each address
-record.  Look at the records below and observe how each one is reflected in
-the abstract tree in the other window.
+
+<p>
+The next part of the demo illustrates some variations in the treatment of names.  
+</p>
+
+<p> Names in our vcard format can be represented in several different
+formats: given/family, family-only, given-only, and "bare name" (just
+text immediately inside the <tt>n</tt> tag).  In the abstract tree, all of
+these are transformed into the same format: the whole abstract address
+book consists of a bush whose immediate child edges are last names,
+whose grandchild edges are first names, and whose great-grand-trees
+are the remaining information in each address record.</p>
+
+<p> Look at the records below and observe how each one is reflected in
+the abstract tree in the other window.  </p>
+
+<p> (Note that we are taking advantage of a simple form of
+heterogeneity here: the first replica is being passed through the
+address book lens, while the second replica is using just the identity
+lens.  The effect of this is that we can use the synchronizer to push
+information back and forth through the lens: change the first replica
+and synchronize to see how the get direction of the lens behaves;
+change the second replica and synchronize to see the put-back
+direction in action.) </p>
+
 XXX;
-# ---------------------------------------------------------
+# --------------------------------------------------------- 
 $demo["r1"] = <<<XXX
 <xcard>
 
@@ -62,42 +82,16 @@ $demo["r1"] = <<<XXX
 </vcard>
 
 <vcard>
-<n>Just a name</n>
-<note>Hello</note>
+<n>Mr. Smith</n>
 </vcard>
 
 <vcard>
-<n>Another plain name</n>
+<n><family>Jones</family></n>
 </vcard>
 
 <vcard>
-<n><family>last</family><given>First</given></n>
+<n><given>Fred</given></n>
 </vcard>
-
-<vcard>
-<n>Empty note</n>
-</vcard>
-
-<vcard>
-<n><family>Last only</family></n>
-</vcard>
-
-<vcard>
-<n><given>First only</given></n>
-</vcard>
-
-<vcard>
-<n><given>Yet Another First only</given></n>
-</vcard>
-
-  <vcard>
-    <n>
-      <family>Smith</family>
-      <given>Beth</given>
-    </n>
-    <tel-home>215-222-1774</tel-home>
-    <tel-cell>215-999-9999</tel-cell>
-  </vcard>
 
 </xcard>
 XXX;
@@ -111,24 +105,25 @@ savedemo();
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
-Now let us look at some subtleties in the treatment of phone numbers.  In
-the concrete XML format, there can be any number of (so-called) telephone
-entries, with tags tel-home, tel-work, tel-cell, email, and fax.  In the
-abstract tree, all the entries of each sort are collected into a list.
 
+<p> Now let us look at some subtleties in the treatment of phone
+numbers.  In the concrete XML format, there can be any number of
+(so-called) telephone entries, with tags <tt>tel-home</tt>,
+<tt>tel-work</tt>, <tt>tel-cell</tt>, <tt>email</tt>, and
+<tt>fax</tt>.  In the abstract tree, all the entries of each sort are
+collected into a list.  </p>
+
+<p>
 Check out how this works by looking at the address entries below and the
 corresponding records in the abstract tree.  Try editing some of the records
 and see what happens.  (Also, try editing some of the information in the
 abstract tree and see how it gets propagated back to the concrete one.)
+</p>
+
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
 <xcard>
-
-  <vcard>
-  <n><given>John</given><family>Doe</family></n>
-  <tel-home>123-4567</tel-home>
-  </vcard>
 
   <vcard>
   <n><given>Joe</given><family>Jones</family></n>
@@ -150,25 +145,28 @@ savedemo();
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
-The other concrete address format that we've implemented is a
-pretty straightforward database-like representation.  (In fact, it's
-exactly the format understood by the pilot-address utility from the
-pilot-link suite of PalmOS tools for Unix.)  The concrete format is a
-sequence of lines of comma-separated values (CSV).
 
 <p>
+The other concrete address format that we've implemented is a pretty
+straightforward database-like representation.  (It's exactly the
+format understood by the <tt>pilot-address</tt> utility from the
+<tt>pilot-link</tt> suite of PalmOS tools for Unix.)  The concrete
+format is a sequence of lines of comma-separated values (CSV).
+</p>
 
+<p>
 This is a much simpler representation than the XML one; the only
 tricky bit is that (following Palm's funny format for address records)
 there are several columns allocated jointly to telephone numbers of
 all varieties.  The particular variety of each number is represented
 by a tag in front of the number itself.
+</p>
 
 <p>
-
 Look at the concrete CSV format in the first replica and how it is
 mapped into the same abstract tree format as we've already seen.  Play
 with editing both the concrete and the abstract trees.
+</p>
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
@@ -186,8 +184,10 @@ savedemo();
 
 # ---------------------------------------------------------
 $demo["instructions"] = <<<XXX
+<p>
 Finally, let's see a heterogeneous
 synchronization between an XML address book and a CSV one.
+</p>
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX

@@ -112,34 +112,34 @@ let rec format_t v =
     if (not (Prefs.read raw)) then
       if is_list v then begin
 	let rec loop = function
-          [] -> ()
-	| [kid] -> format_aux kid true
-	| kid::rest -> format_aux kid true; Format.printf ",@ "; loop rest in
-      Format.printf "[@[<hv0>";
-      loop (list_from_structure v);
-      Format.printf "@]]"
-    end else begin
-      if (is_value v && inner) then
-	Format.printf "{%s}" (format_str (get_value v))
-      else begin
-        Format.printf "{@[<hv0>";
-	Name.Map.iter_with_sep
-	  (fun k kid -> 
-	    Format.printf "@[<hv1>%s =@ " (format_str k);
-	    format_aux kid true;
-	    Format.printf "@]")
-          (fun() -> Format.printf ",@ ")
-          m;
-        Format.printf "@]}"
-      end
-    end 
-  else 
-    Name.Map.dump 
-      (fun ks -> ks)
-      Misc.whack 
-      (fun x -> format_aux x true) 
-      (fun (VI m) -> Name.Map.is_empty m)
-      m
+            [] -> ()
+          | [kid] -> format_aux kid true
+          | kid::rest -> format_aux kid true; Format.printf ",@ "; loop rest in
+        Format.printf "[@[<hv0>";
+        loop (list_from_structure v);
+        Format.printf "@]]"
+      end else begin
+        if (is_value v && inner) then
+          Format.printf "{%s}" (format_str (get_value v))
+        else begin
+          Format.printf "{@[<hv0>";
+          Name.Map.iter_with_sep
+            (fun k kid -> 
+              Format.printf "@[<hv1>%s =@ " (format_str k);
+              format_aux kid true;
+              Format.printf "@]")
+            (fun() -> Format.printf ",@ ")
+            m;
+          Format.printf "@]}"
+        end
+      end 
+    else 
+      Name.Map.dump 
+        (fun ks -> ks)
+        Misc.whack 
+        (fun x -> format_aux x true) 
+        (fun (VI m) -> Name.Map.is_empty m)
+        m
   in
     format_aux v false
 
@@ -152,9 +152,9 @@ and list_from_structure v =
 	loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
       else raise (Error.Harmony_error 
 		    (fun () -> 
-		       Format.printf "V.list_from_structure";
+		       Format.printf "V.list_from_structure:@ ";
 		       format_t v;
-		       Format.printf "is not a list!"))
+		       Format.printf "@ is not a list!"))
   in
     loop [] v 
 
