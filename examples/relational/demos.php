@@ -31,21 +31,21 @@ relation <code>email_addr</code>, having fields <code>nm</code>,
 HTML;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
-    { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
-        ]
-    , phone_num =
-        [ { nm = {"Alice"}, ph = {"111-111-1111"}, sort = {"cell"} }
-        , { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
-        , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
-        , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
-        , { nm = {"Ellen"}, ph = {"555-555-5555"}, sort = {"cell"} }
-        ]
-    }
+{ email_addr =
+    [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
+    , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
+    , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
+    , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
+    , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
+    ]
+, phone_num =
+    [ { nm = {"Alice"}, ph = {"111-111-1111"}, sort = {"cell"} }
+    , { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
+    , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
+    , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
+    , { nm = {"Ellen"}, ph = {"555-555-5555"}, sort = {"cell"} }
+    ]
+}
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
@@ -54,6 +54,97 @@ $demo["lensr1"] = <<<XXX
 id
 XXX;
 $demo["extras"] = '$elidelens = "";';
+savedemo();
+# ---------------------------------------------------------
+
+##############################################################################
+
+# ---------------------------------------------------------
+$demo["instructions"] = <<<HTML
+
+<h3>Complex Example</h3>
+
+<p>This example demonstrates a reasonably non-trivial query over a database
+with multiple tables.  In the subsequent parts, we will demonstrate the lenses
+individually.</p>
+
+HTML;
+# ---------------------------------------------------------
+$demo["r1"] = <<<XXX
+{ customers =
+    [ { nm = {Alice}, ph = {"215-555-1001"}, zip = {19104} }
+    , { nm = {Carol}, ph = {"215-555-1002"}, zip = {19146} }
+    , { nm = {David}, ph = {"215-555-1003"}, zip = {19104} }
+    ]
+, corp_customers =
+    [ { corp = {"Univ. of Penn."}, rep = {Bob}, ph = {"215-555-5001"}, zip = {19104} }
+    , { corp = {"Corner Store"}, rep = {Eve}, ph = {"215-555-5002"}, zip = {19104} }
+    , { corp = {"Joe's Pizza"}, rep = {Joe}, ph = {"215-555-5003"}, zip = {19120} }
+    ]
+, parts =
+    [ { id = {1001}, desc = {"Air filter"} }
+    , { id = {1002}, desc = {"Oil filter"} }
+    , { id = {1003}, desc = {"Quart oil"} }
+    , { id = {1004}, desc = {"Fuel filter"} }
+    , { id = {1005}, desc = {"Fuel pump"} }
+    , { id = {1006}, desc = {"Brake pads"} }
+    , { id = {1007}, desc = {"Spark plug"} }
+    , { id = {1008}, desc = {"Computer"} }
+    ]
+, invoices =
+    [ { id = {30501}, cust = {"Univ. of Penn."} }
+    , { id = {30502}, cust = {"Carol"} }
+    , { id = {30504}, cust = {"Corner Store"} }
+    , { id = {30507}, cust = {"Joe's Pizza"} }
+    , { id = {30508}, cust = {"Corner Store"} }
+    , { id = {30509}, cust = {"Alice"} }
+    ]
+, invoice_parts =
+    [ { inv = {30501}, part = {1002}, qty = {1} }
+    , { inv = {30501}, part = {1003}, qty = {5} }
+    , { inv = {30502}, part = {1001}, qty = {1} }
+    , { inv = {30504}, part = {1007}, qty = {4} }
+    , { inv = {30507}, part = {1008}, qty = {1} }
+    , { inv = {30508}, part = {1005}, qty = {1} }
+    , { inv = {30509}, part = {1001}, qty = {1} }
+    , { inv = {30509}, part = {1004}, qty = {1} }
+    ]
+}
+XXX;
+# ---------------------------------------------------------
+$demo["r1format"] = "meta";
+$demo["r2format"] = "meta";
+$demo["lensr1"] = <<<XXX
+add "no" [{iscorp = {no}}];
+Relational.ijoin1 "customers" "no" "customers";
+Relational.project {"corp","ph","zip"} {"corp","ph"} [{rep={""}}]
+    "corp_customers" "corp_customers";
+Relational.rename "corp" "nm"
+    "corp_customers" "corp_customers";
+add "yes" [{iscorp = {yes}}];
+Relational.ijoin1 "corp_customers" "yes" "corp_customers";
+Relational.ojoin [{}] [{}] {} {}
+    {nm=Any,ph=Any,zip=Any,iscorp={no}}
+    {nm=Any,ph=Any,zip=Any,iscorp={yes}}
+    "customers" "corp_customers" "customers";
+Relational.project {"nm", "zip"} {"nm"} [{ph={""},iscorp={"no"}}]
+    "customers" "customers";
+Relational.rename "nm" "cust" "customers" "customers";
+Relational.ijoin1 "invoices" "customers" "invoices";
+Relational.rename "part" "partid" "invoice_parts" "invoice_parts";
+Relational.rename "id" "partid" "parts" "parts";
+Relational.rename "desc" "partdesc" "parts" "parts";
+Relational.ijoin1 "invoice_parts" "parts" "invoice_parts";
+Relational.rename "id" "inv" "invoices" "invoices";
+Relational.ijoin2 "invoices" "invoice_parts" "invoice_entries";
+Relational.select
+    {inv=Any,cust=Any,zip={19104},partid=Any,partdesc=Any,qty=Any}
+    "invoice_entries" "invoice_entries";
+Relational.project
+    {"inv","cust","partid","partdesc","qty"} {"inv"} [{zip={19104}}]
+    "invoice_entries" "invoice_entries"
+
+XXX;
 savedemo();
 # ---------------------------------------------------------
 
@@ -88,21 +179,14 @@ relation if desired).</p>
 HTML;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
-    { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
-        ]
-    , phone_num =
-        [ { nm = {"Alice"}, ph = {"111-111-1111"}, sort = {"cell"} }
-        , { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
-        , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
-        , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
-        , { nm = {"Ellen"}, ph = {"555-555-5555"}, sort = {"cell"} }
-        ]
-    }
+{ phone_num =
+    [ { nm = {"Alice"}, ph = {"111-111-1111"}, sort = {"cell"} }
+    , { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
+    , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
+    , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
+    , { nm = {"Ellen"}, ph = {"555-555-5555"}, sort = {"cell"} }
+    ]
+}
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
@@ -148,21 +232,14 @@ produced.</p>
 HTML;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
-    { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
-        ]
-    , phone_num =
-        [ { nm = {"Alice"}, ph = {"111-111-1111"}, sort = {"cell"} }
-        , { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
-        , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
-        , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
-        , { nm = {"Ellen"}, ph = {"555-555-5555"}, sort = {"cell"} }
-        ]
-    }
+{ phone_num =
+    [ { nm = {"Alice"}, ph = {"111-111-1111"}, sort = {"cell"} }
+    , { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
+    , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
+    , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
+    , { nm = {"Ellen"}, ph = {"555-555-5555"}, sort = {"cell"} }
+    ]
+}
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
@@ -209,29 +286,22 @@ the field name <code>nm</code> in the second argument.</p>
 HTML;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
-    { email_addr =
-        [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prsn"} }
-        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prsn"} }
-        , { nm = {"Carol"}, email = {"carol@foo"}, rel = {"prsn"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
-        ]
-    , phone_num =
-        [ { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
-        , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
-        , { nm = {"Carol"}, ph = {"666-666-6666"}, sort = {"cell"} }
-        , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
-        , { nm = {"Dave"},  ph = {"777-777-7777"}, sort = {"cell"} }
-        , { nm = {"Ellen"}, ph = {"888-888-8888"}, sort = {"cell"} }
-        ]
-    }
+{ phone_num =
+    [ { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
+    , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
+    , { nm = {"Carol"}, ph = {"666-666-6666"}, sort = {"cell"} }
+    , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
+    , { nm = {"Dave"},  ph = {"777-777-7777"}, sort = {"cell"} }
+    , { nm = {"Ellen"}, ph = {"888-888-8888"}, sort = {"cell"} }
+    ]
+}
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
 $demo["lensr1"] = <<<XXX
 Relational.project {"nm", "rel"} {"nm"} [{email={""}}]
-    "email_addr" "rel"
+    "email_addr" "relationship"
 XXX;
 savedemo();
 # ---------------------------------------------------------
@@ -273,22 +343,22 @@ is performed on the field <code>nm</code>.</p>
 HTML;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
-    { email_addr =
-        [ { nm = {"Dave"},  email = {""},          rel = {"prsn"} }
-        , { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prof"} }
-        , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prof"} }
-        , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
-        ]
-    , phone_num =
-        [ { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
-        , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
-        , { nm = {"Carol"}, ph = {"666-666-6666"}, sort = {"cell"} }
-        , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
-        , { nm = {"Dave"},  ph = {"777-777-7777"}, sort = {"cell"} }
-        , { nm = {"Ellen"}, ph = {"888-888-8888"}, sort = {"cell"} }
-        ]
-    }
+{ email_addr =
+    [ { nm = {"Alice"}, email = {"alice@cis"}, rel = {"prof"} }
+    , { nm = {"Bob"},   email = {"bob@bar"},   rel = {"prof"} }
+    , { nm = {"Bob"},   email = {"bob@foo"},   rel = {"prof"} }
+    , { nm = {"Dave"},  email = {"dave@cis"},  rel = {"prsn"} }
+    , { nm = {"Fred"},  email = {"fred@cis"},  rel = {"prof"} }
+    ]
+, phone_num =
+    [ { nm = {"Alice"}, ph = {"222-222-2222"}, sort = {"home"} }
+    , { nm = {"Bob"},   ph = {"333-333-3333"}, sort = {"cell"} }
+    , { nm = {"Carol"}, ph = {"666-666-6666"}, sort = {"cell"} }
+    , { nm = {"Dave"},  ph = {"444-444-4444"}, sort = {"home"} }
+    , { nm = {"Dave"},  ph = {"777-777-7777"}, sort = {"cell"} }
+    , { nm = {"Ellen"}, ph = {"888-888-8888"}, sort = {"cell"} }
+    ]
+}
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
