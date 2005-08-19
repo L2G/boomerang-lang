@@ -1,14 +1,27 @@
 #{#}
 
-module Mozilla =
+(* Mozilla Firefox bookmark lens *)
+module Mozilla =  
 
-  schema CFolder = [{"H3" = Any },{"DL" = Any}]
+  (* abstract schemas for homogeneous synchronization *)
+  schema MLink = { "link" = { "name" = Value, "url" = Value}}
+  schema MSeparator  = { "separator" = {} }
+  schema MFolder = { "name" = Value, "contents" = MContents }
+  and MContents =  List.T (MSeparator | MLink | MFolder)
+
+  schema MAbstract = { "toolbar" = MContents, "bookmarks" = MContents }
+  
+(* item processes a single entity--either an <HR> separator, a link,
+   or a nested folder--within a bookmark folder *)
   let item : lens = 
-    hoist "DT";
-    hoist Xml.CHILDREN;
-    acond CFolder Bookmarks.Folder
-      (protect (folder))
-      (protect (link))
+    acond {"HR" = Any} MSeparator
+      (const { "separator" = {} } {"HR" = {"@children" = []}})
+      (schema CFolder = [{"H3" = Any },{"DL" = Any}] in
+        hoist "DT";
+        hoist Xml.CHILDREN;
+        acond CFolder Bookmarks.Folder
+          (protect (folder))
+          (protect (link)))
 
   and folder : lens = 
     hoist_nonunique List.HD { "H3" };
@@ -19,7 +32,7 @@ module Mozilla =
       id;
     
     wmap { "name" ->  focus Xml.CHILDREN {}; List.hd []; hoist Xml.PCDATA,
-             "contents" -> hoist Xml.CHILDREN; List.map item }
+           "contents" -> hoist Xml.CHILDREN; List.map item }
       
   and link : lens = 
     List.hd [];
@@ -31,7 +44,7 @@ module Mozilla =
                    (focus Xml.CHILDREN {};List.hd []; rename Xml.PCDATA "name"))
                 (const {} {})) }
       
-  let l : lens = 
+  let l1 : lens = 
     List.hd [];
     hoist "DT";    
     hoist Xml.CHILDREN;
@@ -40,4 +53,18 @@ module Mozilla =
     hoist "DL";
     hoist Xml.CHILDREN;
     List.map item;
-    Bookmarks.rename_bookmarksbar
+    (* fix up top-level structure of bookmarks folder *)
+    (* assumes that the contents are non-empty and BookmarksBar is the first folder *)
+    xfork { `List.HD } { "toolbar" } 
+      (hoist List.HD; 
+       focus "contents" { "name" = { "BookmarksBar" } }; 
+       plunge "toolbar")
+      (rename List.TL "bookmarks")
+
+  (* l2 filters away the separator items *)
+  let l2 : lens = 
+    let filter_seps : lens = 
+      List.filter ({"contents" = Any, "name" = Any} | { "link" = Any }) { "separator" } {};
+      List.map (wmap { "contents" -> filter_seps })
+    in
+      l1; map filter_seps

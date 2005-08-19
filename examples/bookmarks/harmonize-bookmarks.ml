@@ -48,7 +48,7 @@ let chooseLens t schema =
   match t,schema with
     Safari,"Bookmarks.Abstract"     -> "Safari.l2"
   | Safari,"Bookmarks.BushAbstract" -> "Safari.l2"
-  | Mozilla,"Bookmarks.Abstract"    -> "Mozilla.l"
+  | Mozilla,"Bookmarks.Abstract"    -> "Mozilla.l2"
   | _                               -> assert false;;
 
 Toplevel.toplevel

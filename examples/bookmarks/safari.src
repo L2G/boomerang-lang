@@ -99,12 +99,14 @@ let tidy : lens =
     
 (* l2 is for heterogeneous synchronization of safari bookmarks *)    
 let l2 : lens = l; tidy; 
-  Bookmarks.rename_bookmarksbar;
-  wmap { `List.TL -> 
-           begin
-             List.hd [];
-             focus "contents" { "name" = {"BookmarksMenu"} }
-           end }
+  xfork { `List.HD } { "toolbar" }
+    (hoist List.HD; 
+     focus "contents" { "name" = { "BookmarksBar" } };
+     plunge "toolbar")
+    (hoist List.TL;
+     List.hd [];
+     focus "contents" { "name" = { "BookmarksMenu" }};
+     plunge "bookmarks")
 
 (* l3 uses the unordered schema Bookmarks.BushAbstract *)
 let l3 : lens = l2; Bookmarks.flatten_bookmarks

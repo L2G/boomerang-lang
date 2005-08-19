@@ -7,11 +7,11 @@ schema Link   = { "name" = Value, "url" = Value }
 schema Folder = { "name" = Value, "contents" = Contents }     
 and Contents  = List.T (Folder | {"link" =  Link})
 
-schema Abstract = Contents
+schema Abstract = { "toolbar" = Contents, "bookmarks" = Contents }
 
 (* A flattened abstract bookmark schema for synchronization with easy alignment *)
 schema Item = { "folders" = { * = (List.T Item) }, "links" = { * = Value } }
-and Twig    = List.T { "folders" = { * = (List.T Twig) }, "links" = { * = Value } }
+   and Twig = List.T { "folders" = { * = (List.T Twig) }, "links" = { * = Value } }
 
 schema BushAbstract = Item
       
@@ -49,14 +49,5 @@ let flatten_to_bush : lens =
     
 let flatten_bookmarks : lens =
   assert Abstract;
-  flatten_to_bush;
+  map flatten_to_bush;
   assert BushAbstract
-
-let toolbar : name = "bookmarks toolbar"
-
-let rename_bookmarksbar : lens = 
-  wmap { `List.HD -> 
-           begin
-             wmap { "name" -> const { `toolbar } { "BookmarksBar" } }
-           end
-       }
