@@ -200,31 +200,6 @@ let invert_lib =
   mk_lfun "lens" invert_qid (fun l -> Value.L (invert l))
 let _ = register_native invert_qid "lens -> lens" invert_lib
 
-(* INTERSECT *)
-let intersect_qid = "Native.Prelude.intersect" 
-let intersect_native t1 t2 = 
-  let intersect t u =
-    if Schema.intersect t u then
-      print_endline 
-	(V.format_msg_as_string [`Prim (fun () -> Schema.format_t t); `Space;
-				  `String "and"; `Space;
-				  `Prim (fun () -> Schema.format_t u); `Space;
-				  `String "DO intersect."])
-    else
-      print_endline 
-	(V.format_msg_as_string [`Prim (fun () -> Schema.format_t t); `Space;
-				  `String "and"; `Space;
-				  `Prim (fun () -> Schema.format_t u); `Space;
-				  `String "DO NOT intersect."])
-  in          
-  { get = ( fun c -> intersect t1 t2; c);
-    put = ( fun a _ -> a) }
-let intersect_lib = 
-  mk_sfun "schema -> lens" intersect_qid 
-    (fun t1 -> mk_sfun "lens" intersect_qid
-	(fun t2 -> L (intersect_native t1 t2)))
-let _ = register_native intersect_qid "schema -> schema -> lens" intersect_lib
-
 (******************)
 (* Generic Lenses *)
 (******************)
@@ -441,45 +416,6 @@ let bfork_lib =
               (fun l1 ->
                  mk_lfun "lens" bfork_qid (fun l2 -> Value.L (bfork c pav l1 l2)))))
 let _ = register_native bfork_qid "schema -> tree -> lens -> lens -> lens" bfork_lib
-
-(* SFORK *)
-let sfork_qid = "Native.Prelude.sfork"
-let sfork sc sa l1 l2 =
-  { get = 
-    (fun c ->
-      let c1, c2 = Schema.split_view c sc in
-      let a1, a2 = (l1.get c1, l2.get c2) in
-      if not(Schema.member a1 sa) then
-	error [`String sfork_qid; `String "(get): l1 yielded a child not ";
-         	`String "satisfying sa"; 
-		`Tree a1];
-      (* LATER : check if a2 is orthogonal to sa *)
-      V.concat a1 a2);
-    put = (fun a co -> 
-      let co1,co2 =
-	match co with 
-	  None -> None,None
-	| Some c -> 
-	    let c1, c2 = Schema.split_view c sc in
-	    Some c1, Some c2 in
-      let a1, a2 = Schema.split_view a sa in
-      let c1' = l1.put a1 co1 in
-      let c2' = l2.put a2 co2 in
-      if not(Schema.member c1' sc) then
-	error [`String sfork_qid; `String "(put): l1 yielded a child ";
-		`String "not satisfying sc"; 
-		`Tree c1'];
-      (* LATER : check if c2' is orthogonal to sc *)
-      V.concat c1' c2')}
-let sfork_lib = 
-  mk_sfun "schema -> lens -> lens -> lens" sfork_qid
-    (fun c ->
-      mk_sfun "lens -> lens -> lens" sfork_qid
-        (fun a ->
-          mk_lfun "lens -> lens" sfork_qid
-            (fun l1 ->
-              mk_lfun "lens" sfork_qid (fun l2 -> Value.L (sfork c a l1 l2)))))
-let _ = register_native sfork_qid "schema -> schema -> lens -> lens -> lens" sfork_lib
 
 (* HOIST *)
 let hoist_qid = "Native.Prelude.hoist"

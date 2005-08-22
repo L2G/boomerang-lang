@@ -700,9 +700,6 @@ and timezonec_lens (filtering: lens) : lens =
 (*-------------------------------------------------------------------------*)
 (* general lens, keeping everything in bushes *)
 let l : lens = 
-  intersect CompProp DtPval;
-  intersect CompProp { ! = Any };
-  intersect { * = Any } { ! = Any };
   icalendar_lens id
 
 (* lens filtering away dtstamps and lastmods

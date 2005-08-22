@@ -13,12 +13,9 @@ module Prelude =
 let invert : (lens -> lens) = Native.Prelude.invert
 let hoist : (name -> lens) = Native.Prelude.hoist
 let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
-let bfork : (schema -> tree -> lens -> lens -> lens) = Native.Prelude.bfork
 let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
 let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
-
-let intersect : (schema -> schema -> lens) = Native.Prelude.intersect
 #{@}
 
 \subsection{Predefined Schemas}
@@ -150,6 +147,32 @@ lens @fork@ packages this case for convenience:
 
 ##test (fork {x} (const {b} {x}) (const {b} {b})) / {x} = error
 ##test (fork {x} (const {b} {b}) id) \ {b} {x} = error
+
+\LENSSECTION{bfork}
+Sometimes, you would like to use a forking lens but you do not know 
+anything about the names of the immediate children, or there are so
+many of them that you don't want (or cannot) list them all. In that
+case, if you {\emph know} that there exist a schema @A@ such that
+for every possible child name, either it will always point to a tree
+in @A@, or it will always point to a tree that is {\emph not} in A,
+then you can use @bfork@. In the \GET{} way, @bfork@ lets you split
+ the concrete view according to the structure of the children, and not
+their names. In the \PUT{} way, you give, alike @xfork@, a set of
+names to split the abstract view. You may wonder why we use a set 
+of names in the \PUT{} way and not a schema like in the \GET{} way.
+Well, this is just an arbitrary choice assuming that once you have
+the concrete view split the way you wanted, you can reorganize it or
+plunge it under some name so that you do not need to match against
+the structure of the chilren anymore. One could imagine two other
+versions of @bfork@, one with schemas both ways, and one with a 
+schema in the \PUT{} way only, but we have not had the need for such
+lenses for now.
+
+##let bfork : (schema -> tree -> lens -> lens -> lens) = Native.Prelude.bfork
+
+#*test (bfork {!={}} {"tmp"} (const {tmp} {})
+#*     (fork {tmp} (const {} {}) id))
+#*     / {tmp = {1, 2}, a = {1}, b = {2, 3}} = { tmp = {}, b = {2,3}} 
 
 \subsection{Lenses for Structural Transformations on Trees}
 
@@ -615,38 +638,3 @@ the value returned by the command.
 #*test (fconst {} "echo youpi") \ {} missing = { "youpi" }
 
 ##let fmodify : (name -> name -> lens) = Native.Prelude.fmodify
-
-\LENSSECTION{sfork}
-Sometimes, we want to be able to split a tree according to how the trees under
-the edges look like, especially when we do not know what the names on the edges
-are. To that purpose, we designed another primitive lens that lets you split
-the concrete view according to a schema.
-The lens \LN{sfork} $C$ $A$ $l_1$ $l_2$ splits the tree according to $C$ in
-the {\GET} direction, applying respectively $l_1$ and $l_2$ to the part of 
-the concrete view that is in $C$, and to the part that remains.
-In the {\PUT} direction, the abstract view is projected on $A$, the concrete
-view on $C$, and the {\PUT} of $l_1$ is applied to these projections, while
-the {\PUT} of $l_2$ is applied on the remaining parts. 
-\finish{To really understand
-how splitting according to a schema is defined, read the corresponding note, 
-or look at the examples.}
-
-#*let sfork : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.sfork
-
-#*test (sfork {x = {! = {}}} {y = Any} (plunge "y") (prune "y" {})) 
-#*        / {x={z}, z, y} = {y={x={z}}, z}
-
-Beware that both lenses get applied, whatever the view and the schema are, because
-if nothing matches $C$, then $l_1$ is applied to the empty view, and on the other hand,
-if everything matches $C$, then $l_2$ is applied to the empty view. Therefore, the lens
-of the previous example is not well-behaved on concrete views that contain no child \verb|x|
-mapping to a value. One should instead protect $l_1$ with an \verb|acond| :
-
-#*test (sfork {x = {! = {}}} {?y = Any} (acond {} {} id (plunge "y")) (prune "y" {})) 
-#*               / {x={x,y}, z, y} = {x = {x,y}, z}
-
-Finally, an example with wildcards :
-
-#*test (sfork {* = {"name" = Any}} {names = { * = Any}} (map (hoist "name"); plunge "names") id)
-#*  / { 314={ "name" = {Joe}}, 218={company = {IBM}}}
-#*  = { names = { 314 = {Joe}}, 218 = {company = {IBM}}}
