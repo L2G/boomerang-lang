@@ -4,6 +4,7 @@
 # Configuration parameters
 
 # $enabledebug = TRUE;
+# $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
 
@@ -168,21 +169,24 @@ if (!empty($reset)) {
 ##############################################################################
 # Keep a log of who is playing
 
-$remote = trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
-$date = date("Y/m/j G:i:s T");
-$logmsg = "$date  $remote  ($demogroup / $demonumber)\n";
+if($enablelogging) {
 
-foreach ($logfile_locations as $name) {
-  $handle = @fopen($name, 'a');
-  if ($handle) {
-    echodebug ("Log message written to $name");
-    fwrite($handle, $logmsg);
-    fclose($handle);
-  } else {
-    echodebug ("Could not open $name");
+  # NB: gethost will hang a few secs offline
+  $remote = trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
+  $date = date("Y/m/j G:i:s T");
+  $logmsg = "$date  $remote  ($demogroup / $demonumber)\n";
+
+  foreach ($logfile_locations as $name) {
+    $handle = @fopen($name, 'a');
+    if ($handle) {
+      echodebug ("Log message written to $name");
+      fwrite($handle, $logmsg);
+      fclose($handle);
+    } else {
+      echodebug ("Could not open $name");
+    }
   }
 }
-
 
 ##############################################################################
 # Run Harmony
@@ -355,7 +359,7 @@ if (empty($optimizespace)) {
         <h3>$currentname</h3>
       </td>
       <td align=center valign=top>
-        <img class="titleimage" src="http://www.cis.upenn.edu/~bcpierce/harmony/harmonYY-header-trans.gif" width="350" height="100" alt="Harmony">
+        <img class="titleimage" src="images/harmonYY-header-trans.gif" width="350" height="100" alt="Harmony">
       </td>
       <td align=right valign=bottom width=30%>
         <h3>Part $demonumber</h3>
