@@ -72,11 +72,13 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let lenso = lookup_lens lenso in
   let lensa = lookup_lens lensa in 
   let lensb = lookup_lens lensb in         
+  let forcer1 = Prefs.read forcer1 in
   let (o, a, b, (act, oa', aa', ba')) =
-    if Prefs.read forcer1 then
+    if forcer1 then begin
       let a = read_tree a_fn in
       let aa = Misc.map_option (Lens.get lensa) a in
       (a, a, a, (Sync.equal, aa, aa, aa))
+    end
     else 
       let a = read_tree a_fn in
       let o = read_tree o_fn in
@@ -86,9 +88,9 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       let ba = Misc.map_option (Lens.get lensb) b in
       (o, a, b, Sync.sync s oa aa ba)
     in
-  let o' = Misc.map_option (fun o' -> Lens.put lenso o' o) oa' in
+  let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
-  let b' = Misc.map_option (fun b' -> Lens.put lensb b' b) ba' in
+  let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
   Sync.format_without_equal act;
   Format.print_newline();
   ignore (Misc.map_option (write_tree o'_fn) o');
@@ -263,9 +265,9 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
           let ftemp = tempname f in
           pfun f ftemp;
           ftemp   in
-    let artemp = preprocess arf arpre in
+    let artemp = if Prefs.read forcer1 then arf else preprocess arf arpre in
     let r1temp = preprocess r1f r1pre in
-    let r2temp = preprocess r2f r2pre in
+    let r2temp = if Prefs.read forcer1 then r2f else preprocess r2f r2pre in
 
     (* Do it *)
     if r2="" then begin
