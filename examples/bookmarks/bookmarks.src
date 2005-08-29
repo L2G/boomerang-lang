@@ -2,41 +2,40 @@
 
 module Bookmarks =
   
-(* the abstract schema for heterogeneous synchronization, as described in the paper *)
+(* --------------- SCHEMAS --------------- *)
+
+(* abstract schema for heterogeneous synchronization *)
 schema Link   = { "name" = Value, "url" = Value }
 schema Folder = { "name" = Value, "contents" = Contents }     
 and Contents  = List.T (Folder | {"link" =  Link})
-
 schema Abstract = { "toolbar" = Contents, "bookmarks" = Contents }
 
-(* A flattened abstract bookmark schema for synchronization with easy alignment *)
+(* alternate "flattened" schema with flexible alignment *)
 schema Item = { "folders" = { * = (List.T Item) }, "links" = { * = Value } }
-   and Twig = List.T { "folders" = { * = (List.T Twig) }, "links" = { * = Value } }
-
+and Twig = List.T { "folders" = { * = (List.T Twig) }, "links" = { * = Value } }
 schema BushAbstract = Item
       
-(* the lens to flatten the abstract tree into a bush *)
-let flatten_to_bush : lens =
+(* ---------------- LENSES ---------------*)
 
-  (* recursively applies the lens to the folder contents, and pivots the links *)
+(* flatten_to_bush :: Abstract <=> BushAbstract *)
+let flatten_to_bush : lens =
+  (* recursively apply lens to the folder contents, pivot links *)
   List.map (
   wmap {"folder" -> (pivot "name"; map (hoist "contents"; flatten_to_bush)) , 
     "link" -> pivot "url"; map (hoist "name")}
     );
-
-  (* this flatten regroups all links and folders in two lists *)
+  (* regroup all links and folders in two lists *)
   List.flatten;
-
-  (* now we flatten these lists, and keep only the heads for links, since *)
-  (* different links at the same location never have the same urls        *)
+  (* flatten these lists, and keep only the heads for links *)
+  (* note that different links at the same location have different urls *)
   wmap {"folder" -> List.flatten,
           "link" -> (List.flatten; map (List.hd [])) };
   
-  (* we also rename the two lists in a more consistent way *)
+  (* we also rename the lists consistently *)
   rename_if_present "folder" "folders";
   rename_if_present "link" "links";
   
-  (* the following conditionals adds empty folders and links if needed *)
+  (* add empty folders and links if needed *)
   acond {} {"folders"={}, "links"={}}
   ( add "links" {}; add "folders" {} )
     (acond {"links"=Any} {"folders"={}, "links" = Any}

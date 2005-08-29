@@ -17,7 +17,7 @@ and item = parse
   | whitespace                                { emit (lexeme lexbuf); item lexbuf }
   | "</A>" opt_whitespace "</DT>"             { emit "</A>"; item lexbuf }
   | "<DL>"                                    { emit "<DL><p>"; item lexbuf }
-  | "</DL>"                                   { emit "\n</DL><p>"; skip_dt lexbuf }      
+  | "</DL>" opt_whitespace                    { emit "\n</DL><p>"; skip_dt lexbuf }      
   | "<HR></HR>" opt_whitespace                { emit "\n<HR>\n"; item lexbuf }
   | eof                                       { exit 0 } 
   | "<DT>" opt_whitespace                     { emit "<DT>"; item lexbuf }

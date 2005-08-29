@@ -90,7 +90,7 @@ let format_t t0 =
     | Union(_,ts) -> 
         Format.printf "(@["; 
         Misc.format_list "|@ " (format_t_aux false) ts; 
-        Format.printf "@])" in    
+        Format.printf "@])" in
 
   (* helper to compute the free variables that appear in t *)
   (* uses a slow fixed-point computation ... should fix later *)

@@ -246,7 +246,7 @@ let groupby2 : lens =
 #*test groupby2 / \ [{1},{2},{3},{4},{5}] = [[{1},{2}], [{3},{4}], [{5}]]
 
 \LENSSECTION{filter} The lens @filter D E d@ maps a concrete list consisting
-of elements belonging to @D|@ and yields (in the \GET{} direction)
+of elements belonging to @D|E@ and yields (in the \GET{} direction)
 a list containing just those elements belonging to @D@.  In the \PUT{}
 direction, a new abstract list of @D@s is ``woven back'' into the concrete
 list, retaining all the concrete @E@s (and maintaining their positions in

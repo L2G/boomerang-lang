@@ -8,11 +8,11 @@ $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
 
-$logfile_locations = # relative to the individual demo directory
+# relative to the individual demo directory
+$logfile_locations = 
   array("../../../harmonywebdemo.log",  # pub/cgi on fling-l
         "../../log.tmp"                 # harmony on localhost
         );
-
 
 ##############################################################################
 # Grab the post data
@@ -78,6 +78,7 @@ get_demos_from("structuredtext");
 $alldemos[] = array("header" => "Lens Programming");
 get_demos_from("lenses");
 $alldemos[] = array("header" => "Demos for experts (minimally documented)");
+get_demos_from("bookmarks");
 get_demos_from("calendars");
 get_demos_from("relational");
 get_demos_from("xmi");
