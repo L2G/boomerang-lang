@@ -32,6 +32,7 @@ let plutilback f fpost =
 let chooseEncoding f =
   if Filename.check_suffix f ".html" then ("xml",Mozilla,Some moz2xml,Some xml2moz)
   else if Filename.check_suffix f ".plist" then ("xml",Safari,Some plutil,Some plutilback)
+  else if Filename.check_suffix f ".xml" then ("xml",Safari,None,None)
   else if Filename.check_suffix f ".meta" then ("meta",Meta,None,None)
   else raise Not_found
 
