@@ -37,9 +37,9 @@ sync with spinelist at (T Value)
       A = [{a={FOO}},{c={baz}}],
       B = [{a={foo}},{b={bar}},{c={URG}}] }
     = 
-  {A = [{a = {FOO}}, {c = {baz}}],
-   B = [{a = {FOO}}, {c = {baz}}, {c = {URG}}],
-   O = [{a = {FOO}}, {c = {baz}}, {c = {baz}}]}
+   { O = [{a = {FOO}}, {c = {baz}}, {c = {baz}}],
+     A = [{a = {FOO}}, {c = {baz}}],
+     B = [{a = {FOO}}, {c = {baz}}, {c = {URG}}]}
 
 (* who calculated this?? *)
 (* 

@@ -1,13 +1,15 @@
 THINGS TO DO
 
+USER INTERFACE TASKS
+is there a way to get JavaScript to listen for a certain keypress (C-c?)
+  and simulate pressing the synchronize button
+
 BCP TASKS
 demos
-  #   get PHP demo running on Eniac
   #   clean up all current Makefile-based demos to use new structure
   #   move instructions for some demos into separate files
   #   clean up the PHP code
   #   debug structured text demo
-make 'make test' not fail if plutil is not available
 some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
 move Thang's general concat into List module
@@ -24,8 +26,6 @@ not entirely trivial (though pretty easy): it should really be done by
 reading the file into memory as a string, but then it will *be* in memory
 and the later stages of the process should be able to use it right there,
 without dumping it out to a file again.
-
-STEPHANE TASKS
 
 NATE TASKS
 NOW

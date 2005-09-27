@@ -128,11 +128,10 @@ let rec sync' (t:Schema.t) archo lefto righto =
     if (not (Schema.member v t))
     then
       begin 
-	Lens.error [`String "Synchronziation error: "; `Break
+	Lens.error [`String "Synchronization error: "; `Break
 		   ; `Tree v; `Break
 		   ; `String " does not belong to "; `Break
-		   ; `Prim (fun () -> Schema.format_t t)
-		   ; `String "."]
+		   ; `Prim (fun () -> Schema.format_t t)]
       end
   in    
     match (archo, lefto, righto) with
