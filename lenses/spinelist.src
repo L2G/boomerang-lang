@@ -9,6 +9,15 @@ module Spinelist =
 let T (X:schema) : schema = 
   schema G = [] | {!\(`List.TL,`List.NIL)=X, `List.TL=G} in G
 
+(* This is the correct version:
+let T (X:schema) : schema = 
+  schema G = [] | {`List.HD=X, !\(`List.HD,`List.NIL)=G} in G
+
+To convert keyed lists to this correct version, we need:
+- a new primitive: get_key k / { a = v } = v + { k = a }
+- rename pivot k to put_key k
+*)
+  
 let KeyedList (X:schema) : schema = List.T {!\`List.TL=X}
 
 let spinelist : lens =

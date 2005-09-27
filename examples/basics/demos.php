@@ -430,9 +430,18 @@ structure are aligned positionally.
 XXX;
 $demo["lensr1"] = <<<XXX
 List.hd []; hoist "contacts"; hoist "@children"; 
-List.map (hoist "person"; hoist "@children"; List.flatten; 
-   map (List.hd []; hoist "@children"; List.hd []; hoist "@pcdata"); pivot "name");
-List.flatten
+List.map (hoist "person"; hoist "@children"; List.flatten;
+  mapp {"name"} (List.hd []; hoist "@children"; List.hd []; hoist "@pcdata");
+  pivot "name";
+  map (
+    map (List.map (hoist "@children"; List.hd []; hoist "@pcdata"));
+    (* We check whether there is an email, if not we add an edge pointing to [] *)
+    acond {} {email = []}
+      (add "email" [])
+      id
+  )
+);
+List.flatten; map (List.hd [])
 XXX;
 $demo["schemaorig"] = "{* = {email = (List.T {! = {}})}}";
 savedemo();

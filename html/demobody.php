@@ -4,7 +4,7 @@
 # Configuration parameters
 
 # $enabledebug = TRUE;
-$enablelogging = TRUE;
+# $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
 
