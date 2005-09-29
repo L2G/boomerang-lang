@@ -6,26 +6,32 @@ module Spinelist =
 (***********************************************************************)
 (* "Spine lists" *)
 
-let T (X:schema) : schema = 
-  schema G = [] | {!\(`List.TL,`List.NIL)=X, `List.TL=G} in G
+let T (X:schema) : schema =
+  schema G = [] | {`List.HD=X, !\(`List.HD,`List.TL,`List.NIL)=G} in G
 
-(* This is the correct version:
-let T (X:schema) : schema = 
-  schema G = [] | {`List.HD=X, !\(`List.HD,`List.NIL)=G} in G
-
-To convert keyed lists to this correct version, we need:
-- a new primitive: get_key k / { a = v } = v + { k = a }
-- rename pivot k to put_key k
-*)
+let put_key : (name -> lens) = pivot
+let get_key (k:name) : lens = invert (put_key k)
   
 let KeyedList (X:schema) : schema = List.T {!\`List.TL=X}
 
 let spinelist : lens =
   acond [] []
     id
-    (fork {`List.TL} id (hoist List.HD); wmap { `List.TL -> spinelist })
+    (mapp {`List.HD} (
+        map (plunge "value");
+        get_key "key";
+        fork {key}
+          id
+          (rename "value" List.HD));
+      xfork {`List.HD} {`List.HD, key}
+        (hoist List.HD)
+        id;
+      fork {`List.HD}
+        id
+        (put_key "key"; map (wmap {`List.TL -> spinelist}; hoist List.TL)))
 
-test spinelist / \ [{a},{b={foo}},{c}] = {a, `List.TL={b={foo}, `List.TL={c, `List.TL=[]}}}
+test spinelist / \ [{a},{b={foo}},{c}] =
+                   {a = {b = {c = [], hd = {}}, hd = {foo}}, hd = {}}
 
 (***********************************************************************)
 (* Sync tests *)
@@ -45,14 +51,7 @@ sync with spinelist at (T Value)
     { O = [{a={foo}},{b={bar}},{c={baz}}],
       A = [{a={FOO}},{c={baz}}],
       B = [{a={foo}},{b={bar}},{c={URG}}] }
-    = 
-   { O = [{a = {FOO}}, {c = {baz}}, {c = {baz}}],
-     A = [{a = {FOO}}, {c = {baz}}],
-     B = [{a = {FOO}}, {c = {baz}}, {c = {URG}}]}
-
-(* who calculated this?? *)
-(* 
-  { O = [{a={FOO}},{b={bar}},{c={baz}}],
-    A = [{a={FOO}},{c={baz}}],
-    B = [{a={FOO}},{b={bar}},{c={URG}}] }
-*)
+    =
+    { O = [{a={FOO}},{b={bar}},{c={baz}}],
+      A = [{a={FOO}},{c={baz}}],
+      B = [{a={FOO}},{b={bar}},{c={URG}}] }
