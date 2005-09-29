@@ -146,15 +146,15 @@ let rec format_t v =
 (* --------------- easy access / building --------------- *)
 
 and list_from_structure v =
+  if not (is_list v) then
+    raise (Error.Harmony_error 
+             (fun () -> 
+                Format.printf "V.list_from_structure:@ ";
+                format_t v;
+                Format.printf "@ is not a list!"));
   let rec loop acc v' = 
     if is_empty_list v' then Safelist.rev acc else
-      if is_list v' then
-	loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
-      else raise (Error.Harmony_error 
-		    (fun () -> 
-		       Format.printf "V.list_from_structure:@ ";
-		       format_t v;
-		       Format.printf "@ is not a list!"))
+      loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
   in
     loop [] v 
 
