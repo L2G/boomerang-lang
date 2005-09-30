@@ -21,4 +21,3 @@ let exit_on_error f =
     msg ();
     Format.print_newline ();
     exit 1
-      

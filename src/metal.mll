@@ -64,7 +64,7 @@ let error lexbuf msg =
 
 let blank = [' ' '\t' '\r']+
 let newline = "\n"
-let notsymbol = [^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ',' ':']+
+let notsymbol = [^ ' ' '\t' '\n' '\"' '{' '}' '[' ']' '=' ',' ':' '|']+
 
 rule token = parse
 | blank		{ token lexbuf }
@@ -72,6 +72,8 @@ rule token = parse
 | "="		{ EQUAL (info lexbuf) }
 | "{"		{ LBRACE (info lexbuf) }
 | "}"		{ RBRACE (info lexbuf) }
+| "[|"		{ LBRACKPIPE (info lexbuf) }
+| "|]"		{ RBRACKPIPE (info lexbuf) }
 | "["		{ LBRACK (info lexbuf) }
 | "]"		{ RBRACK (info lexbuf) }
 | ","           { COMMA (info lexbuf) }

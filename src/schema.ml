@@ -30,6 +30,8 @@ type t =
   | Cat of Info.t * t list 
   | Union of Info.t * t list 
   | Var of Info.t * Syntax.qid * thunk
+(* For Wild: the names are the ones that are excluded, 
+ * the int is the number of "!", the bool is the presence of "*" *)
   | Wild of Info.t * Name.Set.t * int * bool * t
 and thunk = unit -> t
 
@@ -515,3 +517,72 @@ let rec pick_bad_subtree v t0 = match member_aux v t0 with
       for_all ps
 
 let dom_member v t0 = match member_aux v t0 with Failure _ -> false | Member _ -> true
+
+(* --------------- keyed schemas --------------- *)
+let rec is_empty_schema = function
+  | Any _ -> false
+  | Atom(_,_,t) -> is_empty_schema t
+  | Cat(_,ts) -> false
+  | Union(_,ts) -> Safelist.for_all is_empty_schema ts
+  | Var(_,_,th) -> is_empty_schema (th ())
+  | Wild(_,_,i,b,t) -> (i<=0 && not b) || is_empty_schema t
+
+let rec is_keyed_schema = function
+  | Any _ -> false
+  | Atom(_,_,_) -> true
+  | Cat(_,ts) -> (Safelist.fold_right (fun elt acc ->
+                                         if is_empty_schema elt then acc
+                                         else if is_keyed_schema elt then acc + 1
+                                         else acc + 2)) ts 0 = 1
+  | Union(_,ts) -> Safelist.for_all is_keyed_schema ts
+  | Var(_,_,th) -> is_keyed_schema (th ())
+  | Wild(_,_,i,b,_) -> i=1 && not b
+
+let rec mk_spine_cons_from_schema i s1 s2 =
+  if not (is_keyed_schema s1) then
+    fatal_error i
+      (fun () -> 
+         Format.printf "non keyed values allowed by schema@,@[";
+         format_t s1;
+         Format.printf "@]");
+  match s1 with
+  | Any _ -> assert false
+  | Atom(i,s,t) -> mk_cat i [mk_atom i V.hd_tag t;
+                             mk_atom i s s2]
+  | Cat(i,ts) -> (* we know there is exactly one non-empty keyed schema in ts *)
+      let s' =
+        let rec loop = function
+          | [] -> assert false
+          | t :: ts -> if is_keyed_schema t then t else loop ts
+        in loop ts
+      in mk_spine_cons_from_schema i s' s2
+  | Union(i,ts) -> mk_union i (Safelist.map (fun t -> mk_spine_cons_from_schema i t s2) ts)
+  | Var(i,b,th) -> mk_spine_cons_from_schema i (th ()) s2
+  | Wild(i,e,n,b,t) ->
+      assert (n=1 && not b);
+      mk_cat i [mk_atom i V.hd_tag t;
+                mk_wild i e n b s2]
+
+let mk_spine_cons_from_value i v1 s2 =
+  let rec schema_of_tree v =
+    mk_cat 
+      i
+      (V.fold  
+         (fun k vk ts -> (mk_atom i k (schema_of_tree vk))::ts)
+         v
+         [])
+  in
+  let d = V.dom v1 in
+  if Name.Set.cardinal d <> 1 then
+    fatal_error i
+      (fun () -> 
+         Format.printf "This tree should have a single child:";
+         V.format_t v1);
+  let tl = Name.Set.choose d in
+    if (tl = V.tl_tag) || (tl = V.nil_tag) || (tl = V.hd_tag) then
+      fatal_error i
+        (fun () -> 
+           V.format_t v1;
+           Format.printf "@ is using a forbidden name as key!");
+    mk_cat i [mk_atom i V.hd_tag (schema_of_tree (V.get_required v1 tl));
+              mk_atom i tl s2]

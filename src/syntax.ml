@@ -105,6 +105,7 @@ type exp =
   | EAtom of i * exp * exp 
   | ECat of i * exp list 
   | ECons of i * exp * exp 
+  | ESpineCons of i * exp * exp 
   | EFun of i * param list * sort option * exp 
   | ELet of i * binding list * exp
   | EMap of i * (exp * exp) list
@@ -150,6 +151,7 @@ let info_of_exp = function
   | EAtom(i,_,_)   -> i
   | ECat(i,_)      -> i
   | ECons(i,_,_)   -> i
+  | ESpineCons(i,_,_)   -> i
   | EFun(i,_,_,_)  -> i
   | ELet(i,_,_)    -> i
   | EName(i,_)     -> i
@@ -277,6 +279,29 @@ let rec format_exp_aux mode e0 = match e0 with
                 Format.printf "["; 
                 Misc.format_list ",@ " (format_exp_aux mode) el;
                 Format.printf "]"
+        end;
+        Format.printf "@]"
+  | ESpineCons(_,e1,e2)  -> 
+      let mode = { mode with cat = false } in 
+        (* if we have a spine of spined cons cells, ending in [], print
+           it using list notation. Otherwise, use :|: *)
+      let rec get_list_elts acc = function
+          ENil(_) -> Some (Safelist.rev acc)
+        | ECons(_,e,e') -> get_list_elts (e::acc) e'
+        | _            -> None in
+        Format.printf "@["; 
+        begin
+          match get_list_elts [] e0 with 
+              None -> 
+                Format.printf "(";
+                format_exp_aux mode e1; 
+                Format.printf ":|:@,"; 
+                format_exp_aux mode e2;
+                Format.printf ")";
+            | Some el -> 
+                Format.printf "[|"; 
+                Misc.format_list ",@ " (format_exp_aux mode) el;
+                Format.printf "|]"
         end;
         Format.printf "@]"
   | EFun(_,ps,so,e) -> 

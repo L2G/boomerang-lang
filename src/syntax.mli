@@ -65,6 +65,7 @@ type exp =
   | EAtom of Info.t * exp * exp 
   | ECat of Info.t * exp list 
   | ECons of Info.t * exp * exp 
+  | ESpineCons of Info.t * exp * exp 
   | EFun of Info.t * param list * sort option * exp 
   | ELet of Info.t * binding list * exp
   | EMap of Info.t * (exp * exp) list

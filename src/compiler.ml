@@ -239,6 +239,16 @@ and check_exp sev e0 =
 	let new_e0 = ECons(i, new_e1, new_e2) in
 	  (e0_sort, new_e0)
 	    
+    | ESpineCons(i,e1,e2) -> 
+	let e1_sort, new_e1 = expect_sort_exp "spine cons (tree or schema)" sev SSchema e1 in
+	let e2_sort, new_e2 = expect_sort_exp "spine cons (tree or schema)" sev SSchema e2 in
+	let e0_sort = 
+	  match e1_sort,e2_sort with
+	      STree,STree -> STree
+	    | _           -> SSchema in
+	let new_e0 = ESpineCons(i, new_e1, new_e2) in
+	  (e0_sort, new_e0)
+	    
     | EFun(i,[],_,_) -> 
 	run_error i (fun () -> Format.printf "@[function without parameters]")
 	  
@@ -578,6 +588,27 @@ let rec compile_exp cev e0 =
 	      	  mk_rv SSchema (Value.S s)
 	    | Value.S t1, Value.S t2 -> 
 		let s = Schema.mk_cons i t1 t2 in 
+                  if !check_schemas then Schema.assert_wf s [];
+	      	  mk_rv SSchema (Value.S s)
+	    | _ -> run_error i (fun () -> Format.printf "@[expected tree or type in atom@]")
+	  end
+
+    | ESpineCons(i,e1,e2) ->         
+	let e1_v = v_of_rv (compile_exp cev e1) in 
+	let e2_v = v_of_rv (compile_exp cev e2) in    
+	  begin match e1_v, e2_v with
+	      Value.V v1, Value.V v2     -> 
+		mk_rv STree (Value.V (V.spined_cons v1 v2))
+	    | Value.V v1, Value.S t ->
+                let s = Schema.mk_spine_cons_from_value i v1 t in
+                  if !check_schemas then Schema.assert_wf s [];
+	      	  mk_rv SSchema (Value.S s)
+	    | Value.S t, Value.V _ ->
+                let s = Schema.mk_spine_cons_from_schema i t (Value.get_schema i e2_v) in
+                  if !check_schemas then Schema.assert_wf s [];
+	      	  mk_rv SSchema (Value.S s)
+	    | Value.S t1, Value.S t2 -> 
+		let s = Schema.mk_spine_cons_from_schema i t1 t2 in 
                   if !check_schemas then Schema.assert_wf s [];
 	      	  mk_rv SSchema (Value.S s)
 	    | _ -> run_error i (fun () -> Format.printf "@[expected tree or type in atom@]")

@@ -15,7 +15,7 @@ open Info
 
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT
-%token <Info.t> LBRACE RBRACE LBRACK RBRACK COMMA COLON EQUAL
+%token <Info.t> LBRACE RBRACE LBRACK RBRACK LBRACKPIPE RBRACKPIPE COMMA COLON EQUAL
 
 %start tree
 %type <V.t> tree
@@ -37,6 +37,11 @@ atree:
 				       $2 
 				       V.empty_list
 				   }
+  | LBRACKPIPE innertree_list RBRACKPIPE   { Safelist.fold_right 
+                                              (fun v vacc -> V.spined_cons v vacc) 
+                                              $2 
+                                              V.empty_list
+                                           }
   
 treeelt_list:
   |                                { [] }

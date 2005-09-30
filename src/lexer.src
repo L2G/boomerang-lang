@@ -172,6 +172,8 @@ rule main = parse
 | "="               { EQUAL (info lexbuf) }
 | "{"               { LBRACE (info lexbuf) }
 | "}"               { RBRACE (info lexbuf) }
+| "[|"              { LBRACKBAR (info lexbuf) }
+| "|]"              { RBRACKBAR (info lexbuf) }
 | "["               { LBRACK (info lexbuf) }
 | "]"               { RBRACK (info lexbuf) }
 | ","               { COMMA (info lexbuf) }
@@ -179,7 +181,6 @@ rule main = parse
 | "\\"              { BACKSLASH (info lexbuf) }
 | "/"               { SLASH (info lexbuf) }
 | ","               { COMMA (info lexbuf) }
-| ":"               { COLON (info lexbuf) }
 | "+"               { PLUS (info lexbuf) }
 | "?"               { QMARK (info lexbuf) }
 | "`"               { BACKTICK (info lexbuf) }

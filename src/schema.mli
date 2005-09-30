@@ -38,3 +38,7 @@ val member : V.t -> t -> bool
    and [Some (v0, t0)] otherwise, where [v0] is a subtree
    of [v] where assertion failed against [t0]. *)
 val pick_bad_subtree : V.t -> t -> (V.t * t) option
+
+(* -------------- spine consing --------------- *)
+val mk_spine_cons_from_schema : Info.t -> t -> t -> t
+val mk_spine_cons_from_value : Info.t -> V.t -> t -> t

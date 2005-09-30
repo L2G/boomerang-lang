@@ -57,7 +57,7 @@
 %token <Syntax.id> IDENT STRING
 %token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA ASSERT PROTECT
 %token <Info.t> LENS TREE TYPE NAME ARROW BACKTICK
-%token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
+%token <Info.t> LBRACE RBRACE LBRACK RBRACK LBRACKBAR RBRACKBAR LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
 %token <Info.t> STAR BANG BAR PLUS QMARK
 
@@ -355,11 +355,13 @@ plusexp:
 #{@}
 
 <ConsExp> ::= <AppExp> \lit{::} <ConsExp>
+         \alt <AppExp> \lit{:|:} <ConsExp>
          \alt <AppExp>
 
 #{#}
 consexp:
   | appexp COLON COLON consexp               { ECons(me $1 $4, $1, $4) }
+  | appexp COLON BAR COLON consexp           { ESpineCons(me $1 $5, $1, $5) }
   | appexp                                   { $1 }
 
 #{@}
@@ -380,6 +382,7 @@ appexp:
       \alt \lit{@{@} <MapList> \lit{@}@}
       \alt \lit{@{@} <TreeEltList> \lit{@}@}
       \alt \lit{@[@} <ExpList> \lit{@]@}
+      \alt \lit{@[|@} <ExpList> \lit{@|]@}
       \alt \lit{@(@} <Exp> \lit{@)@}
       \alt \lit{@begin@} <Exp> \lit{@end@}
       \alt \lit{@protect@} <AExp>
@@ -404,6 +407,11 @@ aexp:
   | LBRACK exp_list RBRACK                   { Safelist.fold_right
                                                  (fun ti acc -> 
                                                     ECons(me ti acc,ti,acc))
+                                                 $2
+                                                 (ENil($3))}      
+  | LBRACKBAR exp_list RBRACKBAR             { Safelist.fold_right
+                                                 (fun ti acc -> 
+                                                    ESpineCons(me ti acc,ti,acc))
                                                  $2
                                                  (ENil($3))}      
 

@@ -120,6 +120,9 @@ val field_value : Name.t -> Name.t -> t
 val cons : t -> t -> t
 (** [cons v t] returns the tree representing the list of head [v] and tail [t] *)
 
+val spined_cons : t -> t -> t
+(** [spined_cons v t] returns the tree representing the spined list of head [v] and tail [t] *)
+
 val empty_list : t
 (** The tree representing the empty list *)
 
