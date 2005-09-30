@@ -30,8 +30,7 @@ let spinelist : lens =
         id
         (put_key "key"; map (wmap {`List.TL -> spinelist}; hoist List.TL)))
 
-test spinelist / \ [{a},{b={foo}},{c}] =
-                   {a = {b = {c = [], hd = {}}, hd = {foo}}, hd = {}}
+test spinelist / \ [{a},{b={foo}},{c}] = {a} :|: {b = {foo}} :|: [| {c}|]
 
 (***********************************************************************)
 (* Sync tests *)
