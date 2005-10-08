@@ -413,6 +413,7 @@ let rec check_decl sev m di =
 	in
 	let new_di = DMod(i,n,new_ds) in
 	  (new_sev, Safelist.rev names_rev, new_di)
+
     | DSchema(i,ss) ->
         let new_sev, names, new_ss = check_schema_bindings sev ss in
         let new_di = DSchema(i,ss) in

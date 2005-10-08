@@ -22,14 +22,6 @@ type action =
 
 let equal = MarkEqual
 
-let get_action_name = function
-    SchemaConflict _  -> "schema conflict"
-  | DeleteConflict _  -> "delete conflict"
-  | MarkEqual         -> "equal"
-  | CopyLeftToRight _ -> "copy left to right"
-  | CopyRightToLeft _ -> "copy right to left"
-  | GoDown _          -> "go down"
-
 let rec conflict_free = function
     SchemaConflict _ | DeleteConflict _  -> false
   | MarkEqual | CopyLeftToRight _ | CopyRightToLeft _ -> true
@@ -51,58 +43,47 @@ let rec find_conflict a =
 
 let format_copy s = function
   | Adding v ->
-     V.format_msg [`String s; `Open_box; `String " Add"; `Tree v; `Close_box]
+     V.format_msg [`String s; `Open_box; `String " Add "; `Tree v; `Close_box]
   | Deleting v ->
-     V.format_msg [`String s; `Open_box; `String " Delete"; `Tree v; `Close_box]
+     V.format_msg [`String s; `Open_box; `String " Delete "; `Tree v; `Close_box]
 	
-(* 
-let rec format = function
+let format_schema_conflict t lv rv =
+  V.format_msg ([`Open_vbox
+                ; `String "[SchemaConflict] at type "
+                ; `Prim (fun () -> Schema.format_t t)
+                ; `Break; `Tree lv; `Break; `Tree rv
+                ; `Close_box] )
+  
+let rec format_raw = function
   | SchemaConflict (t,lv,rv) ->
-      V.format_msg ([`Open_vbox; 
-                     `String "[SchemaConflict] "; 
-                     `Break; 
-                     `Prim (fun () -> Schema.format_t t);
-                     `Break; 
-                     `Tree lv; 
-                     `Break; 
-                     `Tree rv; 
-                     `Close_box] )
+      format_schema_conflict t lv rv
   | GoDown(m) ->
       Name.Map.dump (fun ks -> ks) Misc.whack
-        (fun x -> format x)
+        (fun x -> format_raw x)
         (fun _ -> false)
         m
   | MarkEqual -> Format.printf "EQUAL"
   | DeleteConflict (v0,v) ->
-      Format.printf "<DELETE CONFLICT>@,  @[";
+      Format.printf "DELETE CONFLICT@,  @[";
       V.show_diffs v0 v;
       Format.printf "@]@,"
-  | CopyLeftToRight c -> format_copy "====>" c
-  | CopyRightToLeft c -> format_copy "<====" c
-*)
+  | CopyLeftToRight c -> format_copy "->" c
+  | CopyRightToLeft c -> format_copy "<-" c
+
+let is_cons m = 
+  let dom_m = Name.Map.domain m in
+     Name.Set.mem V.hd_tag dom_m 
+  || Name.Set.mem V.tl_tag dom_m 
 
 let rec format = function
-  | SchemaConflict (t,lv,rv) -> 
-      V.format_msg ([`Open_vbox
-                    ; `String "[SchemaConflict] at type "
-                    ; `Prim (fun () -> Schema.format_t t)
-                    ; `Break
-                    ; `Tree lv
-                    ; `Break
-                    ; `Tree rv
-                    ; `Close_box] )
+  | SchemaConflict (t,lv,rv) ->
+      format_schema_conflict t lv rv
   | GoDown(m) ->
-      let dom_m = Name.Map.domain m in
-(*
-      if       Name.Set.mem V.hd_tag dom_m 
-            || Name.Set.mem V.tl_tag dom_m 
-            || Name.Set.mem V.nil_tag dom_m   then begin
+      if is_cons m then begin
         (* Special case for lists *)
         Format.printf "[@[<hv0>";
-        format_list m;
-        Format.printf "@]]"
-      end else 
-*)  begin
+        format_cons 0 m
+      end else begin
         (* Default case *)
         let prch (n,ch) = 
           let prf() =
@@ -112,7 +93,7 @@ let rec format = function
           Format.printf "@]" in
         Format.printf "{@[<hv0>";
         let binds = Safelist.map (fun k -> (k, Name.Map.find k m))
-                      (Name.Set.elements dom_m) in
+                      (Name.Set.elements (Name.Map.domain m)) in
         let binds = Safelist.filter (fun (k,e) -> e <> MarkEqual) binds in
         (* Here, we should check for a replacement and treat it special! *)
         Misc.iter_with_sep
@@ -122,22 +103,40 @@ let rec format = function
         Format.printf "@]}"
       end 
   | MarkEqual ->
-      (* by construction, this case can only be invoked at the root *)
+      (* By construction, this case can only be invoked at the root *)
       Format.printf "EQUAL"
   | DeleteConflict (v0,v) ->
       Format.printf "DELETE CONFLICT@,  @[";
       V.show_diffs v0 v;
       Format.printf "@]@,"
-  | CopyLeftToRight c -> format_copy "====>" c
-  | CopyRightToLeft c -> format_copy "<====" c
+  | CopyLeftToRight c -> format_copy "->" c
+  | CopyRightToLeft c -> format_copy "<-" c
       
-(*
-and format_list m =
-  let dom_m = Name.Map.domain m in
-  ...
-    just NIL is not possible
-    if we have just HD and TL
-*)      
+and format_cons equal_hd_count m =
+  let dump_hd_count n =
+    if n = 0 then ()
+    else if n = 1 then Format.printf "..." 
+    else Format.printf "...%d..." n in
+  let close_list () = Format.printf "@]]" in
+  let hd_action = (try Name.Map.find V.hd_tag m with Not_found -> MarkEqual) in
+  let tl_action = (try Name.Map.find V.tl_tag m with Not_found -> MarkEqual) in
+  let hd_interesting = (hd_action <> MarkEqual) in
+  let tl_interesting =
+    (match tl_action with GoDown m -> not (is_cons m)
+                        | _ -> true) in
+  begin (* format the head and/or an appropriate separator, as needed *)
+    match (hd_interesting, tl_interesting) with
+    | true,true -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Format.printf ",@ ");
+                   format hd_action; Format.printf ";@ "
+    | false,true -> dump_hd_count (equal_hd_count+1); Format.printf ";@ ";
+    | true,false -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Format.printf ",@ ");
+                    format hd_action; Format.printf ",@ "
+    | false,false -> ()
+  end;
+  match tl_action with
+  | GoDown(m) -> format_cons (if hd_interesting then 0 else equal_hd_count+1) m
+  | MarkEqual -> Format.printf "...]@]"
+  | a -> format a; Format.printf "]@]"
 
 (* accum : oldacc -> key -> val option -> newacc *)
 (* accumulate adds a binding for a tree option to an accumulator *)
@@ -149,6 +148,8 @@ let accumulate oldacc k = function
 (* that would result; this lets us rely on the invariants maintained by v.ml *)
 (* to detect malformed synchronization results (i.e. ones that are not GOOD *)
 (* w.r.t. docs/simple.txt *)
+(* BCP [Oct 05]: The dynamic checks in v.ml have since been replaced by
+   static schema checks, so I guess we could simplify this if we wanted. *)
 
 let rec sync' (t:Schema.t) archo lefto righto =
   let assert_member v t = 
@@ -184,6 +185,10 @@ let rec sync' (t:Schema.t) archo lefto righto =
       | archo, Some lv, Some rv ->
           assert_member lv t;
 	  assert_member rv t;
+          (* BCP [Oct 05]: The following test could give us a really nasty
+             n^2 behavior in deep trees.  Better to omit the test here and
+             instead, below, check whether all the children of the GoDown
+             are MarkEquals and, if so, replace the whole GoDown by MarkEqual *)
 	  if V.equal lv rv then
             (MarkEqual, Some lv, Some lv, Some rv)
           else
@@ -198,7 +203,7 @@ let rec sync' (t:Schema.t) archo lefto righto =
 		(fun k (actacc, aracc, lacc, racc) ->
 		   let tk = match Schema.project t k with
 		       None ->
-			 (* can't happen since every child k is either in  *)
+			 (* Can't happen, since every child k is in        *)
 			 (* either dom(a) or dom(b), both of which are in  *)
                          (* T, as we just checked. For debugging, here's a *)
                          (* helpful error message                          *)

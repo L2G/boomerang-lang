@@ -12,4 +12,7 @@ SOURCES = $(COMMON_SOURCES)  iCalendar_syntax.ml iCalendar_print.ml \
 
 all: makeharmonylib nc
 
+clean::
+	rm -rf *.output
+
 include $(OCAMLMAKEFILE)

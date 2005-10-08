@@ -3,10 +3,11 @@
 # harmony@lists.seas.upenn.edu                                     #
 ####################################################################
 
-# $Id$ 
-
-SUBDIRSCLEANONLY = bookmarks Concat Vcard VCF demo structuredtext iCalendar demoVcard
-
-TOP = ..
+TOP = ../..
 include $(TOP)/Top.Makefile
+
+all: 
+
+clean::
+	rm -rf $(RESULT)
 

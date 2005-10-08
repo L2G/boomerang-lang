@@ -1,6 +1,7 @@
 THINGS TO DO
 
 BCP TASKS
+a value in a list should print as [1,2] instead of [{1},{2}]
 finish printing of lists in Sync.focus
 do structured text better using keyed lists
 delete discussion of Makefile-based demos from quick start

@@ -93,6 +93,12 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
   Sync.format act;
   Format.print_newline();
+  (* FOLLOWING LINES CAN BE DELETED PRETTY SOON *)
+        Format.print_newline();
+        Format.printf "In raw form:";
+        Format.print_newline();
+        Sync.format_raw act;
+        Format.print_newline();
   ignore (Misc.map_option (write_tree o'_fn) o');
   ignore (Misc.map_option (write_tree a'_fn) a');
   ignore (Misc.map_option (write_tree b'_fn) b');
