@@ -50,9 +50,12 @@ let rec find_conflict a =
 	     | Some a -> opt) m None
 
 let format_copy s = function
-  | Adding v -> V.format_msg [ `String s; `Open_box; `String " Add"; `Tree v; `Close_box ]
-  | Deleting v -> V.format_msg [`String s; `Open_box; `String " Delete"; `Tree v; `Close_box ]
+  | Adding v ->
+     V.format_msg [`String s; `Open_box; `String " Add"; `Tree v; `Close_box]
+  | Deleting v ->
+     V.format_msg [`String s; `Open_box; `String " Delete"; `Tree v; `Close_box]
 	
+(* 
 let rec format = function
   | SchemaConflict (t,lv,rv) ->
       V.format_msg ([`Open_vbox; 
@@ -76,8 +79,9 @@ let rec format = function
       Format.printf "@]@,"
   | CopyLeftToRight c -> format_copy "====>" c
   | CopyRightToLeft c -> format_copy "<====" c
+*)
 
-let rec format_without_equal = function
+let rec format = function
   | SchemaConflict (t,lv,rv) -> 
       V.format_msg ([`Open_vbox
                     ; `String "[SchemaConflict] at type "
@@ -88,30 +92,53 @@ let rec format_without_equal = function
                     ; `Tree rv
                     ; `Close_box] )
   | GoDown(m) ->
-      let prch (n,ch) = 
-	let prf() = Format.printf "@["; format_without_equal ch; Format.printf "@]" in
-	  Format.printf "@[<hv1>%s =@ " (Misc.whack n);
-	  prf();
-	  Format.printf "@]"
-      in
-	Format.printf "{@[<hv0>";
-	let binds = Safelist.map (fun k -> (k, Name.Map.find k m))
-		      (Name.Set.elements (Name.Map.domain m)) in
-	let binds = Safelist.filter (fun (k,e) -> e <> MarkEqual) binds in
-	  Misc.iter_with_sep
-	    prch
-	    (fun()-> Format.print_break 1 0)
-	    binds;
-	  Format.printf "@]}"
-	    (* the following can only be called from the root *)
-  | MarkEqual -> Format.printf "EQUAL"
+      let dom_m = Name.Map.domain m in
+(*
+      if       Name.Set.mem V.hd_tag dom_m 
+            || Name.Set.mem V.tl_tag dom_m 
+            || Name.Set.mem V.nil_tag dom_m   then begin
+        (* Special case for lists *)
+        Format.printf "[@[<hv0>";
+        format_list m;
+        Format.printf "@]]"
+      end else 
+*)  begin
+        (* Default case *)
+        let prch (n,ch) = 
+          let prf() =
+              Format.printf "@["; format ch; Format.printf "@]" in
+          Format.printf "@[<hv1>%s =@ " (Misc.whack n);
+          prf();
+          Format.printf "@]" in
+        Format.printf "{@[<hv0>";
+        let binds = Safelist.map (fun k -> (k, Name.Map.find k m))
+                      (Name.Set.elements dom_m) in
+        let binds = Safelist.filter (fun (k,e) -> e <> MarkEqual) binds in
+        (* Here, we should check for a replacement and treat it special! *)
+        Misc.iter_with_sep
+          prch
+          (fun()-> Format.print_break 1 0)
+          binds;
+        Format.printf "@]}"
+      end 
+  | MarkEqual ->
+      (* by construction, this case can only be invoked at the root *)
+      Format.printf "EQUAL"
   | DeleteConflict (v0,v) ->
-      Format.printf "<DELETE CONFLICT>@,  @[";
+      Format.printf "DELETE CONFLICT@,  @[";
       V.show_diffs v0 v;
       Format.printf "@]@,"
   | CopyLeftToRight c -> format_copy "====>" c
   | CopyRightToLeft c -> format_copy "<====" c
       
+(*
+and format_list m =
+  let dom_m = Name.Map.domain m in
+  ...
+    just NIL is not possible
+    if we have just HD and TL
+*)      
+
 (* accum : oldacc -> key -> val option -> newacc *)
 (* accumulate adds a binding for a tree option to an accumulator *)
 let accumulate oldacc k = function

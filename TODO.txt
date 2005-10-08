@@ -1,14 +1,13 @@
 THINGS TO DO
 
-USER INTERFACE TASKS
-is there a way to get JavaScript to listen for a certain keypress (C-c?)
-  and simulate pressing the synchronize button
-
 BCP TASKS
+finish printing of lists in Sync.focus
+do structured text better using keyed lists
+delete discussion of Makefile-based demos from quick start
+make front end interpret a plain .fcl file as a check command
 demos
   #   clean up all current Makefile-based demos to use new structure
   #   move instructions for some demos into separate files
-  #   clean up the PHP code
   #   debug structured text demo
 some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
@@ -29,7 +28,7 @@ without dumping it out to a file again.
 
 NATE TASKS
 NOW
-split the svn repository
+  split the svn repository
   fix meta
   centralize errors
   eliminate contractiveness tests?
@@ -51,6 +50,7 @@ LATER
    make fork and friends take types
 
 SOMEBODY
+decommission and delete the /visual subdirectory
 * change the structured text lens so that it adds dummy headers all the time
 * expand the address book demo with a demo2, demo3, that show heterogeneous synchronization, our alignment strategy, and so on
 * change implementation of sync alg to eliminate delete/delete conflicts,
@@ -59,13 +59,10 @@ SOMEBODY
   - make native assert function take a string arg
   - make parser recognize assert keyword specially and supply fileinfo
     as string
+put LGPL notice in all files
+  make sure GPL is stated correctly for CSV module
 
 _________________________________________________________________________
-
-BEFORE BIG RELEASE
-put GPL notice in files
-  make sure GPL is stated correctly for CSV module
-or perhaps switch to LGPL?
 
 FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
 * trevor
