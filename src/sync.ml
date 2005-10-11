@@ -46,12 +46,12 @@ let rec find_conflict a =
 
 let format_copy s = function
   | Adding v ->
-     V.format_msg [`Open_box; `String " Add ("; `String s; `String ") "; `Tree v; `Close_box]
+     V.format_msg [`Open_box; `String " Add ("; `String s; `String ")"; `SpaceOrIndent; `Tree v; `Close_box]
   | Deleting v ->
-     V.format_msg [`Open_box; `String " Delete ("; `String s; `String ") "; `Tree v; `Close_box]
+     V.format_msg [`Open_box; `String " Delete ("; `String s; `String ")"; `SpaceOrIndent; `Tree v; `Close_box]
   | Replacing (vold,vnew) ->
-     V.format_msg [`Open_box; `String " Replace ("; `String s; `String ") ";
-                   `Tree vold; `Space; `String "with"; `Space; `Tree vnew; `Close_box]
+     V.format_msg [`Open_box; `String " Replace ("; `String s; `String ")"; `SpaceOrIndent;
+                   `Tree vold; `Space; `String "with"; `SpaceOrIndent; `Tree vnew; `Close_box]
 	
 let format_schema_conflict t lv rv =
   V.format_msg ([`Open_vbox
@@ -87,7 +87,7 @@ let list_tags =
     [V.hd_tag; V.tl_tag; V.nil_tag]
     Name.Set.empty
 
-let rec format = function
+let rec format_pretty = function
   | SchemaConflict (t,lv,rv) ->
       format_schema_conflict t lv rv
   | GoDown(m) ->
@@ -99,7 +99,7 @@ let rec format = function
         (* Default case *)
         let prch (n,ch) = 
           let prf() =
-              Format.printf "@["; format ch; Format.printf "@]" in
+              Format.printf "@["; format_pretty ch; Format.printf "@]" in
           Format.printf "@[<hv1>%s =@ " (Misc.whack n);
           prf();
           Format.printf "@]" in
@@ -145,16 +145,20 @@ and format_cons equal_hd_count m =
   begin (* format the head and/or an appropriate separator, as needed *)
     match (hd_interesting, tl_interesting) with
     | true,true -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Format.printf ",@ ");
-                   format hd_action; Format.printf ";@ "
+                   format_pretty hd_action; Format.printf ";@ "
     | false,true -> dump_hd_count (equal_hd_count+1); Format.printf ";@ ";
     | true,false -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Format.printf ",@ ");
-                    format hd_action; Format.printf ",@ "
+                    format_pretty hd_action; Format.printf ",@ "
     | false,false -> ()
   end;
   match tl_action with
   | GoDown(m) -> format_cons (if hd_interesting then 0 else equal_hd_count+1) m
   | MarkEqual -> Format.printf "...]@]"
-  | a -> format a; Format.printf "]@]"
+  | a -> format_pretty a; Format.printf "]@]"
+
+let format v =
+  if Prefs.read V.raw then format_raw v
+  else format_pretty v
 
 (*********************************************************************************)
 

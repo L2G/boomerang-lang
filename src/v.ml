@@ -119,59 +119,65 @@ let rec structure_from_list = function
 (* -------------- pretty printing --------------- *)
 let raw = Prefs.createBool "raw" false "Dump trees in 'raw' form" ""
   
-let rec format_t v =
-  let format_str s =
-    let s' = Misc.whack_ident s in
-      if s' = "" then "\"\"" else s'
-  in
+let format_str s =
+  let s' = Misc.whack_ident s in
+    if s' = "" then "\"\"" else s'
+
+let rec format_kids m format_rec =
+  Format.printf "{@[<hv0>";
+  Name.Map.iter_with_sep
+    (fun k kid -> 
+      Format.printf "@[<hv1>%s =@ " (format_str k);
+      format_rec kid;
+      Format.printf "@]")
+    (fun() -> Format.printf ",@ ")
+    m;
+  Format.printf "@]}"
+
+and format_t_pretty v =
   let rec format_aux ((VI m) as v) inner = 
-    if (not (Prefs.read raw)) then
-      let format_list_member kid =
-        if is_value kid then Format.printf "%s" (format_str (get_value kid))
-        else format_aux kid true in
-      if is_list v then begin
-	let rec loop = function
-            [] -> ()
-          | [kid] -> format_list_member kid
-          | kid::rest -> format_list_member kid; Format.printf ",@ "; loop rest in
-        Format.printf "[@[<hv0>";
-        loop (list_from_structure v);
-        Format.printf "@]]"
-      end else if is_spined_list v then begin
-	let rec loop = function
-            [] -> ()
-          | [kid] -> format_list_member kid 
-          | kid::rest -> format_list_member kid; Format.printf ",@ "; loop rest in
-        Format.printf "[|@[<hv0>";
-        loop (list_from_spined_structure v);
-        Format.printf "@]|]"
-      end else begin
-        if (is_value v && inner) then
-          Format.printf "{%s}" (format_str (get_value v))
-        else begin
-          Format.printf "{@[<hv0>";
-          Name.Map.iter_with_sep
-            (fun k kid -> 
-              Format.printf "@[<hv1>%s =@ " (format_str k);
-              format_aux kid true;
-              Format.printf "@]")
-            (fun() -> Format.printf ",@ ")
-            m;
-          Format.printf "@]}"
-        end
-      end 
-    else 
-      (* Raw mode *)
-      Name.Map.dump 
-        (fun ks -> ks)
-        Misc.whack 
-        (fun x -> format_aux x true) 
-        (fun (VI m) -> Name.Map.is_empty m)
-        m
-  in
-    format_aux v false
+    let format_list_member kid =
+      if is_value kid then Format.printf "%s" (format_str (get_value kid))
+      else format_aux kid true in
+    if is_list v then begin
+      let rec loop = function
+          [] -> ()
+        | [kid] -> format_list_member kid
+        | kid::rest -> format_list_member kid; Format.printf ",@ "; loop rest in
+      Format.printf "[@[<hv0>";
+      loop (list_from_structure v);
+      Format.printf "@]]"
+    end else if is_spined_list v then begin
+      let rec loop = function
+          [] -> ()
+        | [kid] -> format_list_member kid 
+        | kid::rest -> format_list_member kid; Format.printf ",@ "; loop rest in
+      Format.printf "[|@[<hv0>";
+      loop (list_from_spined_structure v);
+      Format.printf "@]|]"
+    end else begin
+      if (is_value v && inner) then
+        Format.printf "{%s}" (format_str (get_value v))
+      else format_kids m (fun kid -> format_aux kid true)
+    end in
+  format_aux v false
+
+and format_t_raw (VI m) =
+  Name.Map.dump 
+    (fun ks -> ks)
+    Misc.whack 
+    (fun (VI m) -> format_kids m format_t_raw) 
+    (fun (VI m) -> Name.Map.is_empty m)
+    m
+
+and format_t v =
+  if Prefs.read raw then format_t_raw v
+  else format_t_pretty v
 
 (* --------------- easy access / building --------------- *)
+
+(* Note that these are all in the same mutual recursion, so that we can use the
+   formatting stuff to print error messages in the next few functions! *)
 
 and list_from_structure v =
   if not (is_list v) then
@@ -347,6 +353,8 @@ let format_msg l =
         Format.printf "@,"; loop r
     | `Space :: r ->
         Format.printf "@ "; loop r
+    | `SpaceOrIndent :: r ->
+        Format.printf "@;<1 2>"; loop r
     | `Tree v :: r ->
         format_t v;
         loop r
@@ -395,7 +403,7 @@ let format_msg_as_string msg =
 let string_of_t v = 
   format_to_string (fun () -> format_t v)
     
-type msg = [ `String of string | `Name of Name.t | `Break | `Space | `Tree of t
+type msg = [ `String of string | `Name of Name.t | `Break | `Space | `SpaceOrIndent | `Tree of t
            | `Tree_opt of t option | `Prim of unit -> unit
            | `Open_box | `Open_vbox | `Close_box ]
 

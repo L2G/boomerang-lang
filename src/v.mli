@@ -196,6 +196,8 @@ val concat : t -> t -> t
 val format_t : t -> unit
 (** The tree passed to [format] is formatted to a string and printed to the standard output. *)
 
+val raw : bool Prefs.t
+
 val string_of_t : t -> string
 (** [string_of_t v] returns the formatted string representing [v] without actually printing it. *)
 
@@ -204,7 +206,7 @@ val show_diffs : t -> t -> unit
 
 (** {2 Formatting of error messages} *)
 (**  A type for easy formatting of error messages *)
-type msg = [`String of string | `Name of Name.t | `Break | `Space | `Tree of t
+type msg = [`String of string | `Name of Name.t | `Break | `Space | `SpaceOrIndent | `Tree of t
            | `Tree_opt of t option | `Prim of (unit -> unit) 
            | `Open_box | `Open_vbox | `Close_box ]
 
