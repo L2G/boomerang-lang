@@ -81,6 +81,12 @@ let is_cons m =
      Name.Set.mem V.hd_tag dom_m 
   || Name.Set.mem V.tl_tag dom_m 
 
+let list_tags =
+  Safelist.fold_right
+    Name.Set.add
+    [V.hd_tag; V.tl_tag; V.nil_tag]
+    Name.Set.empty
+
 let rec format = function
   | SchemaConflict (t,lv,rv) ->
       format_schema_conflict t lv rv
@@ -125,7 +131,13 @@ and format_cons equal_hd_count m =
     else Format.printf "...(%d)..." n in
   let close_list () = Format.printf "@]]" in
   let hd_action = (try Name.Map.find V.hd_tag m with Not_found -> MarkEqual) in
-  let tl_action = (try Name.Map.find V.tl_tag m with Not_found -> MarkEqual) in
+  let all_tags = Name.Set.elements  in
+  let tl_tag =
+    begin
+      try Name.Set.choose (Name.Set.diff (Name.Map.domain m) list_tags)
+      with Not_found -> V.tl_tag 
+    end in
+  let tl_action = (try Name.Map.find tl_tag m with Not_found -> MarkEqual) in
   let hd_interesting = (hd_action <> MarkEqual) in
   let tl_interesting =
     (match tl_action with GoDown m -> not (is_cons m)
@@ -201,7 +213,9 @@ let rec sync' (t:Schema.t) archo lefto righto =
              are MarkEquals and, if so, replace the whole GoDown by MarkEqual *)
 	  if V.equal lv rv then
             (MarkEqual, Some lv, Some lv, Some rv)
-          else if Name.Set.is_empty (Name.Set.inter (V.dom lv) (V.dom rv))
+          else if Name.Set.is_empty (Name.Set.inter
+                                       (Name.Set.remove V.hd_tag (V.dom lv))
+                                       (Name.Set.remove V.hd_tag (V.dom rv)))
                && archo <> None
                && (V.equal (the archo) lv || V.equal (the archo) rv) then 
             if V.equal (the archo) lv then

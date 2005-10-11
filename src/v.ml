@@ -126,10 +126,10 @@ let rec format_t v =
   in
   let rec format_aux ((VI m) as v) inner = 
     if (not (Prefs.read raw)) then
+      let format_list_member kid =
+        if is_value kid then Format.printf "%s" (format_str (get_value kid))
+        else format_aux kid true in
       if is_list v then begin
-        let format_list_member kid =
-          if is_value kid then Format.printf "%s" (format_str (get_value kid))
-          else format_aux kid true in
 	let rec loop = function
             [] -> ()
           | [kid] -> format_list_member kid
@@ -140,8 +140,8 @@ let rec format_t v =
       end else if is_spined_list v then begin
 	let rec loop = function
             [] -> ()
-          | [kid] -> format_aux kid true
-          | kid::rest -> format_aux kid true; Format.printf ",@ "; loop rest in
+          | [kid] -> format_list_member kid 
+          | kid::rest -> format_list_member kid; Format.printf ",@ "; loop rest in
         Format.printf "[|@[<hv0>";
         loop (list_from_spined_structure v);
         Format.printf "@]|]"
