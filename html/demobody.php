@@ -448,14 +448,14 @@ body {
 
 .grip { 
   position:absolute;
-  bottom:0px;
-  right:0px;
+  bottom:1px;
+  right:1px;
   padding:0; 
   margin:0;
   height:11px;
   width:11px;
   cursor:move;
-  background-image:url("images/resize.gif");
+  background-image:url("images/grip.png");
 }
 
 .resize { 
