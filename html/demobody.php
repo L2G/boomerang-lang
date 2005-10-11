@@ -407,7 +407,7 @@ body {
   margin:0px;
   width:164px;
   height:52px;
-  background-image:url("images/harmony-logo-small.gif");
+  background-image:url("images/harmony-logo-small.png");
 }
 
 #control { 
