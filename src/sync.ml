@@ -11,6 +11,7 @@ let debug = Trace.debug "sync"
 type copy_value =
   | Adding of V.t
   | Deleting of V.t
+  | Replacing of V.t * V.t
 
 type action =
   | SchemaConflict of Schema.t * V.t * V.t 
@@ -41,11 +42,16 @@ let rec find_conflict a =
 	       None -> find_conflict a'
 	     | Some a -> opt) m None
 
+(*********************************************************************************)
+
 let format_copy s = function
   | Adding v ->
-     V.format_msg [`String s; `Open_box; `String " Add "; `Tree v; `Close_box]
+     V.format_msg [`Open_box; `String " Add ("; `String s; `String ") "; `Tree v; `Close_box]
   | Deleting v ->
-     V.format_msg [`String s; `Open_box; `String " Delete "; `Tree v; `Close_box]
+     V.format_msg [`Open_box; `String " Delete ("; `String s; `String ") "; `Tree v; `Close_box]
+  | Replacing (vold,vnew) ->
+     V.format_msg [`Open_box; `String " Replace ("; `String s; `String ") ";
+                   `Tree vold; `Space; `String "with"; `Space; `Tree vnew; `Close_box]
 	
 let format_schema_conflict t lv rv =
   V.format_msg ([`Open_vbox
@@ -67,8 +73,8 @@ let rec format_raw = function
       Format.printf "DELETE CONFLICT@,  @[";
       V.show_diffs v0 v;
       Format.printf "@]@,"
-  | CopyLeftToRight c -> format_copy "->" c
-  | CopyRightToLeft c -> format_copy "<-" c
+  | CopyLeftToRight c -> format_copy "-->" c
+  | CopyRightToLeft c -> format_copy "<--" c
 
 let is_cons m = 
   let dom_m = Name.Map.domain m in
@@ -98,7 +104,7 @@ let rec format = function
         (* Here, we should check for a replacement and treat it special! *)
         Misc.iter_with_sep
           prch
-          (fun()-> Format.print_break 1 0)
+          (fun()-> Format.printf ","; Format.print_break 1 0)
           binds;
         Format.printf "@]}"
       end 
@@ -109,14 +115,14 @@ let rec format = function
       Format.printf "DELETE CONFLICT@,  @[";
       V.show_diffs v0 v;
       Format.printf "@]@,"
-  | CopyLeftToRight c -> format_copy "->" c
-  | CopyRightToLeft c -> format_copy "<-" c
+  | CopyLeftToRight c -> format_copy "-->" c
+  | CopyRightToLeft c -> format_copy "<--" c
       
 and format_cons equal_hd_count m =
   let dump_hd_count n =
     if n = 0 then ()
     else if n = 1 then Format.printf "..." 
-    else Format.printf "...%d..." n in
+    else Format.printf "...(%d)..." n in
   let close_list () = Format.printf "@]]" in
   let hd_action = (try Name.Map.find V.hd_tag m with Not_found -> MarkEqual) in
   let tl_action = (try Name.Map.find V.tl_tag m with Not_found -> MarkEqual) in
@@ -138,6 +144,8 @@ and format_cons equal_hd_count m =
   | MarkEqual -> Format.printf "...]@]"
   | a -> format a; Format.printf "]@]"
 
+(*********************************************************************************)
+
 (* accum : oldacc -> key -> val option -> newacc *)
 (* accumulate adds a binding for a tree option to an accumulator *)
 let accumulate oldacc k = function
@@ -150,6 +158,8 @@ let accumulate oldacc k = function
 (* w.r.t. docs/simple.txt *)
 (* BCP [Oct 05]: The dynamic checks in v.ml have since been replaced by
    static schema checks, so I guess we could simplify this if we wanted. *)
+
+let the = function None -> assert false | Some x -> x
 
 let rec sync' (t:Schema.t) archo lefto righto =
   let assert_member v t = 
@@ -191,13 +201,19 @@ let rec sync' (t:Schema.t) archo lefto righto =
              are MarkEquals and, if so, replace the whole GoDown by MarkEqual *)
 	  if V.equal lv rv then
             (MarkEqual, Some lv, Some lv, Some rv)
+          else if Name.Set.is_empty (Name.Set.inter (V.dom lv) (V.dom rv))
+               && archo <> None
+               && (V.equal (the archo) lv || V.equal (the archo) rv) then 
+            if V.equal (the archo) lv then
+              (CopyRightToLeft (Replacing (lv,rv)), Some rv, Some rv, Some rv)
+            else 
+              (CopyLeftToRight (Replacing (rv,lv)), Some lv, Some lv, Some lv)
           else
 	    let lrkids = Name.Set.union (V.dom lv) (V.dom rv) in
 	    let allkids = 
 	      match archo with
 		| None -> lrkids
-		| Some a -> Name.Set.union (V.dom a) lrkids
-	    in	      
+		| Some a -> Name.Set.union (V.dom a) lrkids   in	      
 	    let actbinds, arbinds, lbinds, rbinds = 	      
 	      Name.Set.fold
 		(fun k (actacc, aracc, lacc, racc) ->
@@ -211,41 +227,37 @@ let rec sync' (t:Schema.t) archo lefto righto =
 			       ; `Prim (fun () -> Schema.format_t t)
 			       ; `String " cannot be projected on "
 			       ; `String k]
-		     | Some tk -> tk
-		   in
+		     | Some tk -> tk   in
 		   let act, archo', lefto', righto' =
 		     sync 
 		       tk
 		       (match archo with None -> None | Some av -> V.get av k)
 		       (V.get lv k)
-		       (V.get rv k)
-		   in
+		       (V.get rv k)   in  
 		   let aracc = accumulate aracc k archo' in
 		   let lacc  = accumulate lacc k lefto' in
 		   let racc  =  accumulate racc k righto' in
-		     ((k, act)::actacc, aracc, lacc, racc ))
+		     ((k, act)::actacc, aracc, lacc, racc))
 		lrkids 
-		([], [], [], [])
-	    in
+		([], [], [], [])   in
 	    let acts,o',a',b' = 
 	      actbinds,
 	      (V.from_list arbinds),
 	      (V.from_list lbinds),
-	      (V.from_list rbinds)		
-	    in
+	      (V.from_list rbinds)   in
             let a'_in_tdoms = Schema.dom_member a' t in
             let b'_in_tdoms = Schema.dom_member b' t in
-              if a'_in_tdoms && b'_in_tdoms then
-		(GoDown(Safelist.fold_left
-			  (fun acc (k, act) -> Name.Map.add k act acc)
-			  Name.Map.empty
-			  acts),
-		 Some o',
-		 Some a',
-		 Some b')
-	      else
-		(* return originals in SchemaConflict *)   
-		(SchemaConflict(t,lv,rv),archo,lefto,righto)
+            if a'_in_tdoms && b'_in_tdoms then
+              (GoDown(Safelist.fold_left
+                        (fun acc (k, act) -> Name.Map.add k act acc)
+                        Name.Map.empty
+                        acts),
+               Some o',
+               Some a',
+               Some b')
+            else
+              (* return originals in SchemaConflict *)   
+              (SchemaConflict(t,lv,rv),archo,lefto,righto)
 		    
 and sync (t:Schema.t) o a b = 
   (* Version for debugging (because, at the moment, output from the

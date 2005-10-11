@@ -1,8 +1,8 @@
 THINGS TO DO
 
 BCP TASKS
-a value in a list should print as [1,2] instead of [{1},{2}]
 finish printing of lists in Sync.focus
+Bug: in structured text demo, try completely emptying a replica
 do structured text better using keyed lists
 delete discussion of Makefile-based demos from quick start
 make front end interpret a plain .fcl file as a check command
