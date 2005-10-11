@@ -71,14 +71,14 @@ let run_error i msg_thk =
               msg_thk ();
               Format.printf "@]"))
           
-(* --------------- GenSym ----------------- *)
-let fresh_var_counter = ref 0
+(* --------------- Poor Man's GenSym ----------------- *)
+let fresh_map : ((int Name.Map.t) ref) = ref Name.Map.empty
 let fresh_var x = 
-  let n = !fresh_var_counter in 
-  let i = Syntax.info_of_id x in
   let s = Syntax.string_of_id x in
-    incr fresh_var_counter;
-    Syntax.mk_id i ("'" ^ s ^ (string_of_int n))
+  let i = Syntax.info_of_id x in
+  let n = Name.Map.safe_find s (!fresh_map) 0 in 
+    fresh_map := Name.Map.add s (n + 1) (!fresh_map);
+    Syntax.mk_id i (sprintf "'%s_%d" s n)
 
 (* --------------- Environments --------------- *)
 module type CommonEnvSig = sig
@@ -183,30 +183,28 @@ let rec expect_sort_exp msg sev expected_sort e =
            Format.printf "@ found@]")
 	
 (* EXPRESSIONS *)    
-and check_exp sev e0 = 
-  (* let _ = debug (sprintf "checking expression %s" (string_of_exp e0)) in *)
-  match e0 with
-      (* applications *)
-      EApp(i,e1,e2) -> begin
-	match check_exp sev e1 with
-	    SArrow(param_sort,return_sort),new_e1 -> 
-	      let e2_sort,new_e2 = expect_sort_exp "application" sev param_sort e2 in
-	      let new_e0 = EApp(i, new_e1, new_e2) in 
-		(return_sort, new_e0)
-	  | e1_sort,_ -> 
-	      sort_error i 
-		(fun () -> 
-                   Format.printf
-		     "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found";
-                   Syntax.format_sort e1_sort;
-                   Format.printf "@]")
-      end
-
-    (* assertions *)
-    | EAssert(i,e1) -> 
-        let _,new_e1 = expect_sort_exp "assert schema" sev SSchema e1 in 
-        let new_e0 = EAssert(i, new_e1) in
-          (SLens, new_e0)
+and check_exp sev e0 = match e0 with
+    (* applications *)
+    EApp(i,e1,e2) -> begin
+      match check_exp sev e1 with
+	  SArrow(param_sort,return_sort),new_e1 -> 
+	    let e2_sort,new_e2 = expect_sort_exp "application" sev param_sort e2 in
+	    let new_e0 = EApp(i, new_e1, new_e2) in 
+	      (return_sort, new_e0)
+	| e1_sort,_ -> 
+	    sort_error i 
+	      (fun () -> 
+                 Format.printf
+		   "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found";
+                 Syntax.format_sort e1_sort;
+                 Format.printf "@]")
+    end
+      
+  (* assertions *)
+  | EAssert(i,e1) -> 
+      let _,new_e1 = expect_sort_exp "assert schema" sev SSchema e1 in 
+      let new_e0 = EAssert(i, new_e1) in
+        (SLens, new_e0)
 	
     (* type atoms *)
     | EAtom(i,e1,e2) ->
@@ -251,57 +249,56 @@ and check_exp sev e0 =
 	    
     | EFun(i,[],_,_) -> 
 	run_error i (fun () -> Format.printf "@[function without parameters]")
-	  
-    | EFun(i,p1::p2::ps,return_sort_opt,body) ->
-	(* multi-parameter function; rewrite to simple lambda *)
-	let new_body = EFun(i,p2::ps,return_sort_opt,body) in	    
-	  check_exp sev (EFun(i,[p1],None,new_body))	    
-	    
-    | EFun(i,[p],return_sort_opt,body) ->
-	let p_sort = sort_of_param p in
-	let p_id = id_of_param p in	  
-	let body_sev = SCEnv.update sev (qid_of_id p_id) p_sort in
-	let body_sort, new_body = 
-	  match return_sort_opt with
-	      Some s -> expect_sort_exp "function body" body_sev s body
-	    | None   -> check_exp body_sev body
-	in
-	let e0_sort = SArrow(p_sort, body_sort) in
-	let new_e0 = EFun(i,[p], Some body_sort, new_body) in
-	  (e0_sort, new_e0)
-	    
-    | ELet(i,bs,e) ->
-	let bsev,_,new_bs = check_bindings sev bs in
-	let e0_sort, new_e = check_exp bsev e in
-	let new_e0 = ELet(i, new_bs, new_e) in
-	  (e0_sort, new_e0)
-	    
-    | EMap(i,ms) ->	
-	let new_ms = Safelist.map
-	  (fun (n,l) -> 
-	     let _,new_n = expect_sort_exp "map name" sev SName n in
-	     let _,new_l = expect_sort_exp "map lens" sev SLens l in
-	       (new_n, new_l))
-	  ms
-	in
-	let e0_sort = SArrow(SName, SLens) in 
-	let new_e0 = EMap(i, new_ms) in
-	  (e0_sort, new_e0)
-	    
-    | EName(i,x) -> (SName, EName(i, x))
 	
-    | ENil(i) -> (STree, ENil(i))
-
+  | EFun(i,p1::p2::ps,return_sort_opt,body) ->
+      (* multi-parameter function; rewrite to simple lambda *)
+      let new_body = EFun(i,p2::ps,return_sort_opt,body) in	    
+	check_exp sev (EFun(i,[p1],None,new_body))	    
+	  
+  | EFun(i,[p],return_sort_opt,body) ->
+      let p_sort = sort_of_param p in
+      let p_id = id_of_param p in	  
+      let body_sev = SCEnv.update sev (qid_of_id p_id) p_sort in
+      let body_sort, new_body = 
+	match return_sort_opt with
+	    Some s -> expect_sort_exp "function body" body_sev s body
+	  | None   -> check_exp body_sev body
+      in
+      let e0_sort = SArrow(p_sort, body_sort) in
+      let new_e0 = EFun(i,[p], Some body_sort, new_body) in
+	(e0_sort, new_e0)
+	  
+  | ELet(i,bs,e) ->
+      let bsev,_,new_bs = check_bindings sev bs in
+      let e0_sort, new_e = check_exp bsev e in
+      let new_e0 = ELet(i, new_bs, new_e) in
+	(e0_sort, new_e0)
+	  
+  | EMap(i,ms) ->	
+      let new_ms = Safelist.map
+	(fun (n,l) -> 
+	   let _,new_n = expect_sort_exp "map name" sev SName n in
+	   let _,new_l = expect_sort_exp "map lens" sev SLens l in
+	     (new_n, new_l))
+	ms in
+      let e0_sort = SArrow(SName, SLens) in 
+      let new_e0 = EMap(i, new_ms) in
+	(e0_sort, new_e0)
+	  
+  | EName(i,x) -> (SName, EName(i, x))
+      
+  | ENil(i) -> (STree, ENil(i))
+      
     | EProtect(i,e) -> 
         let _, new_e = expect_sort_exp "protect" sev SLens e in
           (SLens, EProtect(i,new_e))
-
+            
     | ESchema(i,ss,e) ->
         let ssev,_,new_ss = check_schema_bindings sev ss in
         let e0_sort, new_e = check_exp ssev e in 
         let new_e0 = ESchema(i,new_ss,new_e) in
           (e0_sort, new_e0)
-
+            
     | EUnion(i,es) ->
 	let new_es = Safelist.map
 	  (fun ei -> 
@@ -321,7 +318,7 @@ and check_exp sev e0 =
                    Format.printf "@[%s is not bound@]"
 		     (string_of_qid q))
 	end
-
+          
     | EWild(i,es,l,u,e) ->
 	let new_es = Safelist.map 
 	  (fun ei -> snd (expect_sort_exp "wildcard exception list" sev SName ei))
@@ -330,9 +327,8 @@ and check_exp sev e0 =
 	let _,new_e = expect_sort_exp "wildcard schema" sev SSchema e in
 	let new_e0 = EWild(i,new_es,l,u,new_e) in
 	  (SSchema, new_e0)
-
+            
 and check_bindings sev bs = 	    
-  (* let _ = debug (sprintf "checking bindings %s\n" (string_of_bindings bs)) in *)
   let bsev =
     Safelist.fold_left
       (fun bsev (BDef(i,f,xs,s,e)) ->
@@ -341,19 +337,17 @@ and check_bindings sev bs =
            (sort_of_params i xs s))
       sev
       bs in
-  let rec check_binding sev bi =   
-    (* let _ = debug (sprintf "checking binding %s\n" (string_of_binding bi)) in *)
-    match bi with 
-	Syntax.BDef(i,f,[],s,e) -> 
-	  let f_qid = qid_of_id f in
-	  let e_sort, new_e = expect_sort_exp "let binding" sev s e in
-	  let new_bi = Syntax.BDef(i, f, [], e_sort, new_e) in
-	    (SCEnv.update bsev f_qid e_sort, f_qid, new_bi)
-      | Syntax.BDef(i,f,ps,s,e) -> 
-          (* rewrite bindings with parameters to plain ol' lambdas *)          
-	  let new_e = EFun(i,ps,Some s,e) in
-	  let new_s = sort_of_params i ps s in
-            check_binding sev (Syntax.BDef(i,f,[],new_s,new_e)) in
+  let rec check_binding sev bi = match bi with 
+      Syntax.BDef(i,f,[],s,e) -> 
+	let f_qid = qid_of_id f in
+	let e_sort, new_e = expect_sort_exp "let binding" sev s e in
+	let new_bi = Syntax.BDef(i, f, [], e_sort, new_e) in
+	  (SCEnv.update bsev f_qid e_sort, f_qid, new_bi)
+    | Syntax.BDef(i,f,ps,s,e) -> 
+        (* rewrite bindings with parameters to plain ol' lambdas *)          
+	let new_e = EFun(i,ps,Some s,e) in
+	let new_s = sort_of_params i ps s in
+          check_binding sev (Syntax.BDef(i,f,[],new_s,new_e)) in
   let bsev,names_rev,new_bs_rev = Safelist.fold_left 
     (fun (bsev, names_rev,new_bs_rev) bi ->  
        let bsev, f_qid, new_bi = check_binding bsev bi in
@@ -362,7 +356,7 @@ and check_bindings sev bs =
     bs
   in
     (bsev, Safelist.rev names_rev, Safelist.rev new_bs_rev)
-
+      
 and check_schema_bindings sev ss = 	    
   let ssev = 
     Safelist.fold_left
@@ -386,22 +380,20 @@ and check_schema_bindings sev ss =
     (ssev, Safelist.rev names_rev, Safelist.rev new_ss_rev)
       
 (* type check a single declaration *)
-let rec check_decl sev m di = 
-  (* let _ = debug_decl (sprintf "checking declaration %s\n" (string_of_decl di)) in *)
-  match di with
-    | DLet(i,bs) -> 
-	let new_sev, names, new_bs = check_bindings sev bs in
-	let new_di = DLet(i, new_bs) in
-	  (new_sev, names, new_di)
-
-    | DMod(i,n,ds) ->
-	let n_qid = qid_of_id n in	
-	let mn = Syntax.dot m n_qid in
-	let m_sev,names,new_ds = check_module_aux sev mn ds in
-	let new_sev, names_rev = Safelist.fold_left 
-	  (fun (new_sev, names) q -> 
-	     match Env.lookup (SCEnv.get_ev m_sev) q with
-		 None -> run_error i 
+let rec check_decl sev m d0 = match d0 with
+  | DLet(i,bs) -> 
+      let new_sev, names, new_bs = check_bindings sev bs in
+      let new_d0 = DLet(i, new_bs) in
+	(new_sev, names, new_d0)
+          
+  | DMod(i,n,ds) ->
+      let n_qid = qid_of_id n in	
+      let mn = Syntax.dot m n_qid in
+      let m_sev,names,new_ds = check_module_aux sev mn ds in
+      let new_sev, names_rev = Safelist.fold_left 
+	(fun (new_sev, names) q -> 
+	   match Env.lookup (SCEnv.get_ev m_sev) q with
+	       None -> run_error i 
 		   (fun () -> 
 		      Format.printf "@[the compiled declaration for %s went missing@]"
 			(string_of_qid q))
@@ -411,31 +403,29 @@ let rec check_decl sev m di =
 	  (sev,[])
 	  names
 	in
-	let new_di = DMod(i,n,new_ds) in
-	  (new_sev, Safelist.rev names_rev, new_di)
+	let new_d0 = DMod(i,n,new_ds) in
+	  (new_sev, Safelist.rev names_rev, new_d0)
 
     | DSchema(i,ss) ->
         let new_sev, names, new_ss = check_schema_bindings sev ss in
-        let new_di = DSchema(i,ss) in
-          (new_sev, names, new_di)
+        let new_d0 = DSchema(i,ss) in
+          (new_sev, names, new_d0)
 
     | DTest(i,e,res) ->	
-	if not (check_test m) then (sev, [], di)
-	else
-	  begin
-	    let _,new_e = expect_sort_exp "test expression" sev STree e in
-	    let new_res = 
-	      match res with 
+	if not (check_test m) then (sev, [], d0)
+	else begin
+	  let _,new_e = expect_sort_exp "test expression" sev STree e in
+	  let new_res = 
+	    match res with 
 		ErrorResult -> ErrorResult
   	      | PrintResult -> PrintResult
 	      | Result res -> 
-		    let _,new_res = expect_sort_exp "test result" sev STree res in
-		      Result(new_res)
-	    in
-	    let new_di = DTest(i,new_e, new_res) in
-	      (sev, [], new_di)
-	  end
-	
+		  let _,new_res = expect_sort_exp "test result" sev STree res in
+		    Result(new_res) in
+	  let new_d0 = DTest(i,new_e, new_res) in
+	    (sev, [], new_d0)
+	end
+	  
 and check_module_aux sev m ds = 
   let new_sev, names, new_ds_rev = 
     Safelist.fold_left 
@@ -448,7 +438,6 @@ and check_module_aux sev m ds =
     (new_sev, names, Safelist.rev new_ds_rev)
       
 let check_module m0 = 
-  (* let _ = debug (sprintf "checking module %s" (string_of_module m0)) in *)
   let (Syntax.MDef(i,m,nctx,ds)) = m0 in
   let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Registry.pre_ctx) in
   let _,_,new_ds = check_module_aux sev (Syntax.qid_of_id m) ds in 
@@ -457,83 +446,81 @@ let check_module m0 =
 
 (* --------------- Compiler --------------- *)
 
-(* EXPRESSIONS *)
-let rec compile_exp cev e0 =
-  (* let _ = debug (sprintf "compiling expression %s" (string_of_exp e0)) in *)
-  match e0 with
-    | EApp(i,e1,e2) -> 	
-	let e1_rv = compile_exp cev e1 in
-	let e2_rv = compile_exp cev e2 in
-	let v1 = v_of_rv e1_rv in
-	let v2 = v_of_rv e2_rv in
-	  begin 
-	    match s_of_rv e1_rv with
-	      | SArrow(_,return_sort) -> 
-		  begin match v1 with
-		      Value.F(_,f) -> mk_rv return_sort (f v2)
-		    | _   -> 
-                        run_error 
-                          i 
-                          (fun () -> 
-                             Format.printf
-                               "@[expected function at left-hand side of application but found ";
-                             Value.format_t v2;
-                             Format.printf "@]")
-		  end
-	      | s -> 
-                  run_error i 
-		    (fun () -> 
-                       Format.printf
-                         "@[expected function sort at left-hand side of application but found ";
-                       Syntax.format_sort s;
-                       Format.printf "@]")
-	  end
+(* --------------- expressions ------------- *)
+let rec compile_exp cev e0 = match e0 with
+  | EApp(i,e1,e2) -> 	
+      let e1_rv = compile_exp cev e1 in
+      let e2_rv = compile_exp cev e2 in
+      let v1 = v_of_rv e1_rv in
+      let v2 = v_of_rv e2_rv in
+	begin 
+	  match s_of_rv e1_rv with
+	    | SArrow(_,return_sort) -> 
+		begin match v1 with
+		    Value.F(_,f) -> mk_rv return_sort (f v2)
+		  | _   -> 
+                      run_error 
+                        i 
+                        (fun () -> 
+                           Format.printf
+                             "@[expected function at left-hand side of application but found ";
+                           Value.format_t v2;
+                           Format.printf "@]")
+		end
+	    | s -> 
+                run_error i 
+		  (fun () -> 
+                     Format.printf
+                       "@[expected function sort at left-hand side of application but found ";
+                     Syntax.format_sort s;
+                     Format.printf "@]")
+	end
 
-    | EAssert(i,e1) ->
-        let t = compile_exp_schema cev e1 in 
-        let check_assert dir v = 
-          if (not (Prefs.read no_assert)) then
-            match Schema.pick_bad_subtree v t with
-	        None -> ()
-              |	Some (v0, t0) ->
+  | EAssert(i,e1) ->
+      let t = compile_exp_schema cev e1 in 
+      let check_assert dir v = 
+        if (not (Prefs.read no_assert)) then
+          match Schema.pick_bad_subtree v t with
+	      None -> ()
+            |	Some (v0, t0) ->
 	          Lens.error [`String (Info.string_of_t i); `Space;
-                         `String (sprintf "assert(%s): tree" dir); `Space;
-		         `Tree v; `Space;
-		         `String "is not a member of";  `Space;
-		         `Prim (fun () -> Schema.format_t t);
-		         `Space; `String "because"; `Space;
-		         `Tree v0; `Space;
-		         `String "is not a member of";  `Space;
-		         `Prim (fun () -> Schema.format_t t0)] in                    
-          mk_rv 
-            SLens
-            (Value.L (Lens.native 
-                        (fun c -> check_assert "get" c; c)
-                        (fun a co -> 
-                           check_assert "put" a; 
-                           (match co with None -> () | Some c -> check_assert "put" c);
-                           a)))
-  
-    | EAtom(i,e1,e2) ->
-	let n = compile_exp_name cev e1 in
-	let e2_rv = compile_exp cev e2 in 
-	  begin match v_of_rv e2_rv with
-	      Value.V v -> 
-		mk_rv
-		  STree
-		  (Value.V (V.set V.empty n (Some v)))
-	    | Value.S s ->
-                let s = Schema.mk_atom i n s in
-                  if !check_schemas then Schema.assert_wf s [];
-		  mk_rv SSchema (Value.S s)
-	    | v -> run_error i
-                (fun () -> 
-                   Format.printf 
+                              `String (sprintf "assert(%s): tree" dir); `Space;
+		              `Tree v; `Space;
+		              `String "is not a member of";  `Space;
+		              `Prim (fun () -> Schema.format_t t);
+		              `Space; `String "because"; `Space;
+		              `Tree v0; `Space;
+		              `String "is not a member of";  `Space;
+		              `Prim (fun () -> Schema.format_t t0)] in                    
+        mk_rv 
+          SLens
+          (Value.L (Lens.native 
+                      (fun c -> check_assert "get" c; c)
+                      (fun a co -> 
+                         check_assert "put" a; 
+                         (match co with None -> () | Some c -> check_assert "put" c);
+                         a)))
+          
+  | EAtom(i,e1,e2) ->
+      let n = compile_exp_name cev e1 in
+      let e2_rv = compile_exp cev e2 in 
+	begin match v_of_rv e2_rv with
+	    Value.V v -> 
+	      mk_rv
+		STree
+		(Value.V (V.set V.empty n (Some v)))
+	  | Value.S s ->
+              let s = Schema.mk_atom i n s in
+                if !check_schemas then Schema.assert_wf s [];
+		mk_rv SSchema (Value.S s)
+	  | v -> run_error i
+              (fun () -> 
+                 Format.printf 
                    "@[expected schema or tree in atom but found ";
-                   Value.format_t v;
-                   Format.printf "@]")
-	  end
-	    
+                 Value.format_t v;
+                 Format.printf "@]")
+	end
+	  
     | ECat(i, es) ->
 	let e0_sort, vs_rev = 
 	  Safelist.fold_left 
@@ -555,8 +542,7 @@ let rec compile_exp cev e0 =
                           Registry.format_rv ei_rv;
                           Format.printf "@]"))
 	    (STree,[])
-	    es
-	in 
+	    es in 
 	  begin
 	    match e0_sort with
 		STree -> 
@@ -571,8 +557,12 @@ let rec compile_exp cev e0 =
                   let s = Schema.mk_cat i ts in
                     if !check_schemas then Schema.assert_wf s [];
 		    mk_rv SSchema (Value.S s)
-	      | _ -> assert false
-	  end			
+	      | _ -> run_error i 
+                  (fun () -> 
+                     Format.printf "@[unexpected sort in ECat: ";
+                     Syntax.format_sort e0_sort;
+                     Format.printf "@]")
+	  end
     | ECons(i,e1,e2) ->         
 	let e1_v = v_of_rv (compile_exp cev e1) in 
 	let e2_v = v_of_rv (compile_exp cev e2) in    

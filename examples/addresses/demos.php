@@ -5,7 +5,7 @@ $demogroupname = "Address books";
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> We've built Harmony instances (i.e., appropriate lenses plus a
 little bit of top-level "glue") for address book data in two different
@@ -46,7 +46,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p>
 The next part of the demo illustrates some variations in the treatment of names.  
@@ -104,7 +104,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> Now let us look at some subtleties in the treatment of phone
 numbers.  In the concrete XML format, there can be any number of
@@ -144,7 +144,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p>
 The other concrete address format that we've implemented is a pretty
@@ -183,7 +183,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 <p>
 Finally, let's see a heterogeneous
 synchronization between an XML address book and a CSV one.

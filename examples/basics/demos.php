@@ -3,14 +3,7 @@
 $demogroupname = "Harmony Basics";
 
 # ---------------------------------------------------------
-$demo["r1format"] = "xml";
-$demo["r2format"] = "xml";
-$demo["lensr1"] = "id";
-$demo["lensr2same"] = "YES";
-$demo["schemaorig"] = "Xml.T";
-
-# ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 <center><h2>Welcome to Harmony!</h2></center>
 
 <p> Harmony is a generic synchronization framework for tree-structured
@@ -18,22 +11,21 @@ data.  This site is a live demo of some of Harmony's features.
 
 <ul> 
 
-<li>If you are new to harmony, press the "Next part" button to begin a
+<li>If you are new to Harmony, press the "Next" button above, <img height="18" width="18" src="images/next.png" alt="Next button"/>, to begin a
 tour of its basic structure.
 
 <li> If you're already familiar with the basic ideas of Harmony and
 want to experiment with some more sophisticated demos, choose
-"Tutorial synchronization demos" from the pull-down menu below.  (Some
-additional demos are available under "Demos for experts."
+"Tutorial" from the pull-down menu below.  (Some
+additional demos are available under "Expert" demos.
 Documentation for these is minimal, but you are welcome to play with
 them.)
 
-<li>If you are familiar with our paper, <i>Combinators for Bi-Directional
-Tree Transformations: A Linguistic Approach to the View Update Problem</i>
-(POPL 2005, available <a
+<li>If you are familiar with our paper, <i>Combinators for
+Bi-Directional Tree Transformations: A Linguistic Approach to the View
+Update Problem</i> (POPL 2005, available <a
 href="http://www.cis.upenn.edu/~bcpierce/papers/index.shtml#Data%20Synchronization">here</a>),
-and want to experiment with lens programming, choose "Lens Programming /
-Tutorial."
+and want to play with lenses, choose "Lens Programming" for a short tutorial.
 
 <li>If you are familiar with our paper, <i>Exploiting Schemas in Data
 Synchronization</i> (DBPL 2005, available <a
@@ -46,23 +38,29 @@ text demos are particularly recommended.
 </p>
 
 <p> <div class="red"><i>These demos are still very much under
-development.  Please let us (bcpierce at cis dot upenn dot edu) know
+development.  Please let us (harmony-hackers at lists dot seas dot upenn dot edu) know
 what you think!</i></div> </p>
 
 XXX;
 # ---------------------------------------------------------
+$demo["forcer1"] = "true";
+$demo["r1format"] = "xml";
 $demo["r1"] = <<<XXX
-<a><b>hello</b><c>world</c></a>
+<a>
+  <b>hello</b>
+  <c>world!</c>
+</a>
 XXX;
 # ---------------------------------------------------------
-$demo["extras"] = '$elidearchive = "YES"; $elidelens = "YES"; $elideoutput = "YES";';
+$demo["r2format"] = "xml";
+$demo["arformat"] = "meta";
 savedemo();
 # ---------------------------------------------------------
 
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> Harmony's basic model consists of two replicas to be synchronized
 and an "archive" representing the last common state of these replicas.
@@ -77,9 +75,10 @@ and updates the archive to reflect the new synchronized state. </p>
 <p> To see this in action, try changing <tt>hello</tt> to
 <tt>goodbye</tt> in the first replica below and <tt>world</tt> to
 <tt>cruel world</tt> in the second replica.  Press the "Synchronize"
-button and notice how the changes are propagated.
+button above, <img height="18" width="18" src="images/sync.png" alt="Synchronize Button"/>, and
+notice how the changes are propagated.
 
-Then press "Next part" to go on. 
+Then press "Next" to go on. 
 
 </p>    
 
@@ -96,7 +95,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> Internally, Harmony represents all data in the same way: as
 unordered, edge-labeled trees.  We sometimes call this the "meta" format.
@@ -109,10 +108,11 @@ HTML, raw text, etc.  The first thing Harmony does in each case is to
 parse the concrete files into meta format.  
 </p>
 
-<p>You can see this graphically by unchecking the "elide abstract
-trees" control at the bottom of the page.  This causes the replicas to
-be displayed both in their concrete, external form and in their
-"abstract" internal form after parsing.
+<p>You can see this graphically by clicking the "Show Abstract Trees"
+icon, <img height="18" width="18" src="images/abstract.png" alt="Show Abstract Trees Icon"/>,
+at the top of this page.  This causes the replicas to be displayed both
+in their concrete, external form and in their "abstract" internal form
+after parsing.
   </p>
 
 XXX;
@@ -126,7 +126,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> Since XML data is ordered and our internal ("meta") tree
 representation is unordered, a little encoding is needed.  The parser for XML
@@ -169,7 +169,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> The operation of Harmony's synchronization algorithm is simplicity
 itself: it starts by comparing the sets of child edges of the root nodes of
@@ -190,7 +190,7 @@ The only exception to this behavior occurs when the algorithm realizes that
 the "merged" tree that it has constructed is ill-formed with respect to the
 <i>synchronization schema</i>.  (The desired synchronization schema is
 provided as another input to Harmony.  To see the schema currently in
-effect, uncheck the "Elide schema" control below.  To see the actual
+effect, click the "Show Schema" icon above, <img height="18" width="18" src="images/schema.png" alt="Show Schema Icon"/>.  To see the actual
 definition of this schema, see the "Module XML" section in the chapter on
 the standard libraries in the <a href="../doc/main.pdf"
 target="_blank">Harmony manual</a>.)</p>
@@ -228,7 +228,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> 
 So far, everything is looking good.  But we are not done yet.  
@@ -266,7 +266,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> To do a better job, we need the synchronizer to be able to <i>align</i>
 the information in the two replicas (and the archive) according to some
@@ -318,7 +318,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p>Let's look now at the details of what's going on here.  
 </p>
@@ -351,7 +351,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> The other thing difference from the previous version of the
 example is that the synchronization schema has been changed from
@@ -383,7 +383,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> Our choice to align by <tt>name</tt> has some significant consequences
 for the end-to-end behavior of synchronization.  
@@ -407,7 +407,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> Let's look one more variation of this lens.  We've taken away the final
 component of the lens -- <tt>map (List.hd [])</tt> -- and changed the
@@ -450,7 +450,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> Lenses have one other important use in Harmony: supporting heterogeneous
 synchronization.  
@@ -475,7 +475,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> 
 This completes the tour of Harmony's basic features.  

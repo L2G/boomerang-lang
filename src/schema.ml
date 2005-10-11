@@ -79,9 +79,11 @@ let format_t t0 =
              | n,true -> format_n_bangs n; Format.printf "*"
              | n,false -> format_n_bangs n);
           if not (Name.Set.is_empty f) then 
-            (Format.printf "\\ (@[";
-             Misc.format_list ",@ " (fun n -> Format.printf "%s" (Misc.whack n)) (Name.Set.elements f);
-             Format.printf "@])");
+            begin 
+              Format.printf "\\ (@[";
+              Misc.format_list ",@ " (fun n -> Format.printf "%s" (Misc.whack n)) (Name.Set.elements f);
+              Format.printf "@])"
+            end;
           Format.printf "@,=@,";
           format_t_aux false t;
           if not cat then Format.printf "}";

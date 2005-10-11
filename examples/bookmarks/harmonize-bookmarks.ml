@@ -54,6 +54,7 @@ let chooseLens t schema =
   | Safari,"Bookmarks.BushAbstract" -> "Safari.l2"
   | Mozilla,"Bookmarks.Abstract"    -> "Mozilla.l2"
   | Meta, "Bookmarks.Abstract"      -> "Prelude.id"
+  | Mozilla,_                       -> "Mozilla.play"
   | _                               -> assert false;;
 
 Toplevel.toplevel

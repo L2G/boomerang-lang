@@ -30,25 +30,6 @@ without dumping it out to a file again.
 NATE TASKS
 NOW
   split the svn repository
-  fix meta
-  centralize errors
-  eliminate contractiveness tests?
-  add docs to registry.mli and other compiler modules
-  fix this printing problem:
-        Native.Prelude.assert(get): view
-                [X, [A, b], [C]]
-                      is not a member of ({hd = H, tl = T} | nil = {})
-  (note the H and T in the last line...)
-  This is really two things:
-  (1) fix formatting of types (and everything else)
-  and (2) have member print a better error message pinpointing the 
-  view and type that made it fail.
-  clean up printing mess!
-    e.g., the printing/tracing/debugging stuff is still not working 
-      very well.  In particular, calls to Trace.debug produce some of their 
-      output on the stdout stream and some on stderr...!  
-LATER
-   make fork and friends take types
 
 SOMEBODY
 decommission and delete the /visual subdirectory

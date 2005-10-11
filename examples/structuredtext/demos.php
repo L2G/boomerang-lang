@@ -3,7 +3,7 @@
 $demogroupname = "Structured text";
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 <p>
 This first example of structured text synchronization 
 illustrates the basic ideas with just one level of structure.
@@ -33,7 +33,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 <p>
 This time, instead of synchronizing one structured text file with another
 one, we're showing the "abstract tree" that results from applying the
@@ -80,7 +80,7 @@ savedemo();
 # much sense right now.)
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 <p> For this next part (and the following ones), we are using a more
 sophisticated lens to map from the concrete text file to the abstract
@@ -125,7 +125,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 Now we are ready to go back to synchronizing one text file with another,
 this time using more deeply structured trees.
 <p>
@@ -140,7 +140,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 Now let's try something a bit more interesting: experimenting with
 conflicts.
 <p>
@@ -193,7 +193,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 For our last experiment with structured text, let's have a look at some
 subtleties that arise from Harmony's rather simplistic treatment of lists.
 <p>

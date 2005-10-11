@@ -1,6 +1,9 @@
 <?
-
 $demogroupname = "Bookmarks";
+$demo["instr_w"] = 900;
+$demo["output_w"] = 900;
+$demo["default_w"] = 900;
+$demo["default_h"] = 250;
 
 ################################################################################
 
@@ -590,22 +593,34 @@ XXX;
 $demo["r1format"] = "xml";
 $demo["r2format"] = "meta";
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
-These demos show how Harmony can be used to synchronize bookmark files
-from the Mozilla Firefox and Safari browsers.
-<p>
-The first example demonstrates how the lenses in the <tt>Safari</tt> module
-map between concrete address books and simplified abstract views for
-a medium-sized address book.
-<p>
+$demo["instr"] = <<<XXX
 
-Try modifying some of the link data in the second replica, and observe
-how those changes are propagated back to the XML plist
-representation. Note that changing the name of a link on the abstract
-side changes <i>two</i> piece of data on the XML side.
+<p>
+This demo comes from an application that synchronizes bookmark
+information from diverse browsers, including Mozilla Firefox and
+Safari. As shown in previous demos, we are able to synchronize these
+heterogeneous formats by transforming each bookmark file from its
+concrete native representation into a common abstract form.  We show
+here the Safari and Mozilla Firefox lenses.
+</p>
+
+<p>
+We start by showing how the <tt>Safari.l2</tt> lens maps between
+concrete address books and simplified abstract views for a
+medium-sized address book. The concrete format is displayed as XML and
+the abstract format in meta.
+</p>
+
+<p>
+As a first exercise, modify the name of the Google link in the second
+(abstract) replica, and observe how those changes are propagated back
+to the XML representation. Note that changing the name of a link on
+the abstract side induces <i>two</i> changes on the XML side because the concrete format has some redundancey.
+
 XXX;
 # ---------------------------------------------------------
-$demo["r1"] = $saf;
+$demo["forcer1"] = true; 
+$demo["r1"] = $saf; 
 savedemo();
 
 #################################################################################
@@ -615,7 +630,7 @@ $demo["r1format"] = "html";
 $demo["r2format"] = "meta";
 # ---------------------------------------------------------
 
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 The next example shows how the lenses in the <tt>Mozilla</tt> module
 map between concrete address books, represented in a HTML-like format, 
@@ -634,7 +649,7 @@ savedemo();
 
 $demo["r1format"]="xml";
 $demo["r2format"]="html";
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 
 The final example simply combines the previous two to demonstrate how
 Safari and Firefox bookmark files are synchronized. 

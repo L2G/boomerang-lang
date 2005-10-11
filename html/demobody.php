@@ -1,8 +1,8 @@
-<?
+<?php
 
-##############################################################################
-# Configuration parameters
-
+############################
+# Configuration parameters #
+############################
 # $enabledebug = TRUE;
 # $enablelogging = TRUE;
 
@@ -14,40 +14,34 @@ $logfile_locations =
         "../../log.tmp"                 # harmony on localhost
         );
 
-##############################################################################
-# Grab the post data
+##################
+# Load Form Data #
+##################
 
-function get_post_data ($s) {
-  return str_replace("\r","",stripslashes($_REQUEST[$s]));
-}
+function get_post_data ($s) { return str_replace("\r","",stripslashes($_REQUEST[$s])); }
 
-$reset = $_REQUEST['RESET'];
-$choosenew = $_REQUEST['CHOOSENEW'];
-$nextpart = $_REQUEST['NEXTPART'];
-$r1 = get_post_data('R1');
-$lensr1 = get_post_data('LENSR1');
-$schema = get_post_data('SCHEMA');
-$prevlensr1hex = get_post_data('PREVLENSR1HEX');
-$r2 = get_post_data('R2');
-$arhex = $_REQUEST['ARHEX'];
-$ar = hex2asc($arhex);
-$demogroup = $_REQUEST['DEMOGROUP'];
-$demonumber = $_REQUEST['DEMONUMBER'];
-
-$elidelens = $_REQUEST['ELIDELENS'];
-$elideschema = $_REQUEST['ELIDESCHEMA'];
-$elideabstract = $_REQUEST['ELIDEABSTRACT'];
-$elidearchive = $_REQUEST['ELIDEARCHIVE'];
-$elideoutput = $_REQUEST['ELIDEOUTPUT'];
-$onecolumn = $_REQUEST['ONECOLUMN'];
-$optimizespace = $_REQUEST['OPTIMIZESPACE'];
-$raw = $_REQUEST['RAW'];
+$reset = $_REQUEST['reset'];
+$choosenewgroup = $_REQUEST['choosenewgroup'];
+$choosenewnumber = $_REQUEST['choosenewnumber'];
+$nextpart = $_REQUEST['nextpart'];
+$prevpart = $_REQUEST['prevpart'];
+$r1 = get_post_data('r1_text');
+$r2 = get_post_data('r2_text');
+$ar = get_post_data('ar_text');
+$l1 = get_post_data('l1_text');
+$l2 = get_post_data('l2_text');
+$schema = get_post_data('schema_text');
+$demogroup = $_REQUEST['demogroup'];
+$demonumber = $_REQUEST['demonumber'];
 
 debug ('$_REQUEST', $_REQUEST);
 
+$text_height_diff = 21; 
+$icon_width = 24;
 
-##############################################################################
-# Load the demos
+##################
+# Load Demo Data #
+##################
 
 chdir("../examples");
 
@@ -61,7 +55,7 @@ function savedemo () {
 
 function get_demos_from ($subdir) {
   global $demo, $demos, $alldemos;
-  $demo = array();  
+  $demo = array();
   $demos = array(0 => "");  # so that the real contents are 1-indexed
   $f = $subdir . "/demos.php";
   if (file_exists($f)) {
@@ -72,12 +66,11 @@ function get_demos_from ($subdir) {
 }
 
 get_demos_from("basics");
-$alldemos[] = array("header" => "Tutorial synchronization demos");
+$alldemos[] = array("header" => "Tutorials");
 get_demos_from("addresses");
 get_demos_from("structuredtext");
-$alldemos[] = array("header" => "Lens Programming");
 get_demos_from("lenses");
-$alldemos[] = array("header" => "Demos for experts (minimally documented)");
+$alldemos[] = array("header" => "Expert");
 get_demos_from("bookmarks");
 get_demos_from("calendars");
 get_demos_from("relational");
@@ -86,9 +79,9 @@ get_demos_from("rawsync");
 
 # print_r ($alldemos);
 
-
-##############################################################################
-# Set up parameters
+#####################
+# Set Up Parameters #
+#####################
 
 if (empty($demogroup)) {
   $demogroup = $defaultdemogroup;
@@ -97,15 +90,24 @@ if (empty($demogroup)) {
   $changegroup = TRUE;
 }
 
-if (!empty($choosenew)) {
+if (!empty($choosenewgroup)) {
   $reset = "YES";
   $demonumber = "1";
+  $choosenewnumber = "";
   $nextpart = "";
+  $prevpart = "";
   $changegroup = TRUE;
 }
 
-if (!empty($nextpart)) {
+if (!empty($choosenewnumber)) {
   $reset = "YES";
+  $nextpart = "";
+  $prevpart = "";
+}
+
+if (!empty($nextpart)) {  
+  $reset = "YES";
+  $prevpart = "";
   if (!empty($alldemos[$demogroup][$demonumber+1])) {
     $demonumber = $demonumber+1;
   } else {
@@ -126,54 +128,141 @@ if (!empty($nextpart)) {
   }
 }
 
+if (!empty($prevpart)) {
+  $reset = "YES";
+  if (!empty($alldemos[$demogroup][$demonumber-1])) {
+    $demonumber--;
+  } else {
+    $shownextparterror = "<br><b>No Previous demos</b>";
+  }
+}
+
 chdir($demogroup);
+
+##################
+# Read Demo Data #
+##################
 
 function demoparam($n) {
   global $demogroup, $demonumber, $alldemos;
   return $alldemos[$demogroup][$demonumber][$n];
 }
-$r1orig = demoparam("r1");
+
+$instr = demoparam("instr");
 $r1format = demoparam("r1format");
+$forcer1 = demoparam("forcer1");
 $r2format = demoparam("r2format");
 $arformat = demoparam("arformat");
-$lensr1orig = demoparam("lensr1");
-$lensr2same = demoparam("lensr2same");
-$lensarsame = demoparam("lensarsame");
-$harmonyflags = demoparam("flags");
-$instructions = demoparam("instructions");
+$flags = demoparam("flags");
 $democmd = demoparam("democmd");
-$schemaorig = demoparam("schemaorig");
 
-# A better way: Smash variables using key/value pairs from demo array
-#   extract($alldemos[$demogroup][$demonumber]);
-# (but some care is needed in places where the LHS and RHS of demoparam 
-# calls above are not named the same...)
+$d_instr_w = demoparam("instr_w");
+$d_instr_h = demoparam("instr_h");
+$d_instr_d = demoparam("instr_d");
 
-if ($changegroup) {
-   $reset = "YES";
-   $elideabstract = "YES";
-   $elidelens = "YES";
-   $elideschema = "YES";
-   $onecolumn = "";
-   $elideoutput = "YES";
-   $elidearchive = "YES";
+$d_r1 = demoparam("r1");
+$d_r2 = demoparam("r2");
+$d_ar = demoparam("ar");
+$d_l1 = demoparam("l1");
+$d_l2 = demoparam("l2");
+$d_la = demoparam("la");
+$d_schema = demoparam("schema");
+$d_default_w = demoparam("default_w");
+$d_default_wide_w = demoparam("default_wide_w");
+$d_default_h = demoparam("default_h");
+
+#####################
+# Set Up Parameters #
+#####################
+
+$default_w = $d_default_w ? $d_default_w : 450;
+$default_wide_w = $d_default_wide_w ? $d_default_wide_w : ($default_w * 2 + 10);
+$default_h = $d_default_h ? $d_default_h : 175;
+
+$state_hash = 
+  array("instr"  => array("title" => "Instructions", "w" => $default_wide_w, "d" => "block", "icon" => "instr", "text" => false),
+        "r1"     => array("title" => "Replica #1",   "h" => $default_h, "w" => $default_w, "d" => "block", "icon" => "replica",  "text" => true,  "ro" => false,),
+        "r2"     => array("title" => "Replica #2",   "h" => $default_h, "w" => $default_w, "d" => "block", "icon" => "replica",  "text" => true,  "ro" => false,),
+        "l1"     => array("title" => "Lens #1",      "h" => $default_h, "w" => $default_w, "d" => "none", "icon" => "lens",     "text" => true,  "ro" => false,),
+        "l2"     => array("title" => "Lens #2",      "h" => $default_h, "w" => $default_w, "d" => "none", "icon" => "lens",     "text" => true,  "ro" => false,), 
+        "a1"     => array("title" => "Abstract #1",  "h" => $default_h, "w" => $default_w, "d" => "none", "icon" => "abstract", "text" => true,  "ro" => true,),
+        "a2"     => array("title" => "Abstract #2",  "h" => $default_h, "w" => $default_w, "d" => "none", "icon" => "abstract", "text" => true,  "ro" => true,),
+        "ar"     => array("title" => "Archive",      "h" => $default_h, "w" => $default_w, "d" => "none", "icon" => "archive",  "text" => true,  "ro" => true,),
+        "schema" => array("title" => "Schema",       "h" => $default_h, "w" => $default_w, "d" => "none", "icon" => "schema",   "text" => true,  "ro" => false,),
+        "output" => array("title" => "Output",       "h" => $default_h, "w" => $default_wide_w, "d" => "none", "icon" => "output",   "text" => true,  "ro" => true,)
+      );
+
+$icons = 
+  array("statusok" => array("dummy" => true, "desc" => "OK"            ),
+        "spacer1"   => array("dummy" => true, "file" => "clear"),
+        "sync"     => array("desc" => "Synchronize" ),
+        "prev"     => array("desc" => "Previous Demo"        ),
+        "reset"    => array("desc" => "Reset"           ),
+        "next"     => array("desc" => "Next"            ),
+        "spacer2"   => array("dummy" => true, "file" => "clear"),
+        "instr"    => array("desc" => "Show Instructions",   "shows" => array("instr")),
+        "replica"  => array("desc" => "Show Replicas",       "shows" => array("r1", "r2")),
+        "abstract" => array("desc" => "Show Abstract Trees", "shows" => array("a1", "a2")),  
+        "schema"   => array("desc" => "Show Schema",         "shows" => array("schema")),
+        "archive"  => array("desc" => "Show Archive",        "shows" => array("ar")),
+        "lens"     => array("desc" => "Show Lens",           "shows" => array("l1","l2")),
+        "output"   => array("desc" => "Show Output",         "shows" => array("output"))
+      );
+if ($demonumber == 1) { array_splice($icons, 3, 1); }
+
+//"experton" => array("desc" => "Expert Mode ON"       ),
+//"prevset"  => array("desc" => "Previous Demo Set"    ),
+//"nextset"  => array("desc" => "Next Demo Set"        ),
+$expert = false;
+function pick($expert, $f, $d, $s) { 
+  global $reset;
+  if($reset) { return $d ? $d : $s; } //ignore form data, it's bogus
+  else {
+    //   if($expert) { return $f ? $f : ($d ? $d : $s); }
+    // else { return $d ? $d : ($f ? $f : $s); }
+    return $f ? $f : ($d ? $d : $s);
+  }
 }
+
+foreach ($state_hash as $k=>$v) {
+  $state_hash[$k]['h'] = pick($expert, get_post_data($k . "_h"), demoparam($k . "_h"), $v['h']);
+  $state_hash[$k]['w'] = pick($expert, get_post_data($k . "_w"), demoparam($k . "_w"), $v['w']);
+  $state_hash[$k]['d'] = pick($expert, get_post_data($k . "_d"), demoparam($k . "_d"), $v['d']);
+}
+
+foreach($icons as $i=>$v) {
+  $icons[$i]['active'] = "false";
+  if(! $v['shows']) { 
+    $icons[$i]['active'] = "true";
+  } else {
+    foreach($v['shows'] as $d) {      
+      if($state_hash[$d]['d'] == "none") { $icons[$i]['active'] = "true"; break; }
+    }
+  }
+}
+
+if ($changegroup) { $reset = "YES"; }
 
 if (!empty($reset)) {
-  $r1 = $r1orig;
-  $schema = $schemaorig;
-  $lensr1 = $lensr1orig;
-  # Allow the demo itself to override any settings that it wants to
-  eval (demoparam("extras"));
-  # eval ($extras);
+  $r1 = $d_r1;
+  $r2 = $d_r2;
+  $ar = $d_ar;
+  $l1 = $d_l1;
+  $l2 = $d_l2;
+  $la = $d_la;
+  $schema = $d_schema;
 }
+$l1 = $l1 ? $l1 : "Prelude.id";
+$l2 = $l2 ? $l2 : "Prelude.id";
+$la = $la ? $la : "Prelude.id";
+$schema = $schema ? $schema : "Prelude.Any";
 
-##############################################################################
-# Keep a log of who is playing
+###########
+# Logging #
+###########
 
 if($enablelogging) {
-
-  # NB: gethost will hang a few secs offline
+  /* NB: gethost will hang a few seconds if offline */
   $remote = trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
   $date = date("Y/m/j G:i:s T");
   $logmsg = "$date  $remote  ($demogroup / $demonumber)\n";
@@ -190,9 +279,9 @@ if($enablelogging) {
   }
 }
 
-##############################################################################
-# Run Harmony
-
+###############
+# Run Harmony #
+###############
 if (empty($democmd)) $democmd = "harmonize-" . $demogroup;
 
 $tempbasename = "h" . posix_getpid() . str_replace(array(" ","."),"",microtime());
@@ -209,51 +298,49 @@ $newr2file = $tempbase . "newr2." . $r2format;
 $newarfile = $tempbase . "newar." . $arformat;
 
 put_file($r1file, $r1);
-put_file($arfile, $ar);
 put_file($r2file, $r2);
+put_file($arfile, $ar);
 
 $lensmodule = $tempbasename . "lens";
 $lensModule = ucfirst($lensmodule);
 $lensfile = "$tempdir/$lensmodule.fcl";
 $lensfilecontents = 
-  "module $lensModule = let l : lens = \n"
+  "module $lensModule =\n"
+  . "let l1 : lens = \n"
   . "# 0 \"NOFILEHERE\"\n"
-  . ($lensr1 ? $lensr1 : "id") . "\n\n"
+  . $l1 . "\n\n"
+  . "let l2 : lens = \n"
+  . "# 0 \"NOFILEHERE\"\n"
+  . $l2 . "\n\n"
+  . "let la : lens = \n"
+  . "# 0 \"NOFILEHERE\"\n"
+  . $l1 . "\n\n"
   . "schema S = \n"
   . "# 0 \"<schema>\"\n"
-  . ($schema ? $schema : "Any") . "\n";
+  . $schema . "\n";
 put_file($lensfile, $lensfilecontents);
 
 if (!file_exists($democmd)) {
   abort("Executable " . $democmd . " not found in " . getcwd(),"");
 }
 
-if (!empty($raw)) $rawflag = "-raw";
-
 $cmdbase = 
     "export HOME=../../../..; "
   . "export FOCALPATH=.:../../lenses:/$tempdir;"
-  . "./$democmd $harmonyflags $rawflag ";
-
-# If we are doing a reset, overwrite r2 and archive with r1
-if ($reset) { $forcer1 = TRUE; }
-
-# If the lens has been edited, overwrite r2 and archive with r1
-# (otherwise chaos ensues!)
-if (asc2hex($lensr1) != $prevlensr1hex) { $forcer1 = TRUE; }
+  . "./$democmd $flags";
 
 $cmd = 
     $cmdbase 
-  . "-ar $arfile " 
-  . (!empty($lensarsame) ? "-lensar $lensModule.l " : "")
-  . "-r1 $r1file " 
-  . (!empty($lensr1) ? "-lensr1 $lensModule.l " : "")
-  . "-r2 $r2file " 
-  . (!empty($lensr2same) ? "-lensr2 $lensModule.l " : "")
+  . "-r1 $r1file "
+  . "-r2 $r2file "
+  . "-ar $arfile "
+  . "-lensr1 $lensModule.l1 "
+  . "-lensr2 $lensModule.l2 "
+  . "-lensar $lensModule.la "
   . "-newar $newarfile " 
   . "-newr1 $newr1file " 
   . "-newr2 $newr2file " 
-  . (!empty($schema) ? "-schema $lensModule.S " : "")
+  . "-schema $lensModule.S "
   . ($forcer1 ? "-forcer1 " : "")
   . "2>&1";
 debug ('$cmd',$cmd);
@@ -264,426 +351,464 @@ if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file
   $r1 = filecontents($newr1file);
   $r2 = filecontents($newr2file);
 } else {
-  # This turns out to mess things up because it leaves bad values in these fields
-  # and that makes it hard to recover
-  # $r2 = "<Harmony failed>";
-  # $ar = "";
+  array_shift($icons);
+  array_insert($icons, 0, array("statusnotok" => array("dummy" => "true", "desc" => "ERROR")));
+  $state_hash['output']['d'] = "block";
+  $icons['output']['active'] = "false";  
+  $icons['statusnotok']['active'] = "true";  
 }
 
-# $diag = 
-#      "Harmony command: <br> $cmd <p>" 
-#    . "Output from Harmony:</br>" . htmlentities($output) . "<p>"
-#    . "File " . $r1file . " contains:<br><pre>" . (htmlentities($r1)) ."</pre><p>"
-#    . "File " . $r2file . " contains:<br><pre>" . (htmlentities($r2)) ."</pre><p>"
-#    . "File " . $arfile . " contains:<br><pre>" . (htmlentities($ar)) ."</pre><p>"
-#    . (!empty($lensr1) ? 
-#         "File " . $lensfile . " contains:<br><pre>" 
-#         . (htmlentities($lensfilecontents)) 
-#         . "</pre><p>"
-#       : "")
-#   ;
-# abort("Harmony run did not create all three files", $diag);
-
-$arhex = asc2hex($ar);
-
-if (empty($elideabstract)) {
-  # generate abstract versions of the two (new) replicas
-  $getcmd = 
-      $cmdbase 
-    . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
-    . (!empty($lensr1) ? "-lensr1 $lensModule.l " : "")
-    . "2>&1";
-  $r1abstract = shell_exec($getcmd);
+# generate abstract versions of the two (new) replicas
+  $getcmd = $cmdbase 
+  . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
+  . (!empty($l1) ? "-lensr1 $lensModule.l1 " : "")
+  . "2>&1";
+  $a1 = shell_exec($getcmd);
   $getcmd = 
       $cmdbase 
     . (file_exists($newr2file) ? "$newr2file " : "$r2file ")
-    . (!empty($lensr2same) ? "-lensr1 $lensModule.l " : "")
+    . (!empty($l2) ? "-lensr1 $lensModule.l2 " : "")
     . "2>&1";
-  $r2abstract = shell_exec($getcmd);
+  $a2 = shell_exec($getcmd);
+
+############
+# Response #
+############
+
+print <<<EOF
+<html>
+<head>
+<title>Harmony</title>
+
+<!------------ css ------------>
+<style type="text/css">
+body {
+  background: #eeeeee; 
+  font-family: arial, sans-serif;
+  font-size: small;
 }
 
-##############################################################################
-# Format the response page
-
-if ($elidelens || empty($lensr1orig)) $lensstyle = "display:none";
-
-if ($elideschema || empty($schema)) $schemastyle = "display:none";
-
-if ($elideabstract) $abstracttreesstyle = "display:none; ";
-
-echo <<<HTML
-  <html>
-
-  <head>
-  <STYLE TYPE="text/css">
-    body { margin-left: 15; margin-right: 15; margin-top: 15; 
-           background: #dddddd; color:black;
-           font-family: arial, sans-serif;
-           font-size: smaller;
-         }
-    table { width:100%; }
-    textarea { background: #FFFFdd; width:100%; height:180; }
-    textarea.lenstextarea { height:90; }
-    td { align:top; }
-    .titlebox { text-align: center; 
-                padding-left:10; padding-right:10; padding-top:10;
-                background: #ffffcc;  
-                border-width:medium; border-color:#888888; border-style:solid }
-    .titleimage { margin-bottom:10; }
-    .lens { $lensstyle }
-    .schema { $schemastyle }
-    .abstracttrees { $abstracttreesstyle }
-    .red { color:#990000; }
-    .label { color:#990000; align:left; }
-    .instructions { background:#f2f2f2; 
-                    padding:6; padding-left:10; 
-                    margin-left:50; margin-right:50; margin-top:0; margin-bottom:0; 
-                    border-width:thin; border-color:#888888; border-style:solid;
-                    overflow: auto; max-height:350; }
-    .controls { }
-  /*  
-    .buttonbox { background:#e9e9e9; padding:10; margin-left:30%; margin-right:30%; border-width:thin; 
-                 border-color:#888888; border-style:solid }
-    .demochoice { margin-left: 50; margin-right: 50; text-align:right}
-    .controls { background:#e9e9e9; padding:10; border-width:thin; border-color:#888888; border-style:solid }
-  */
-  </STYLE>
-  </head>
-
-  <body>
-HTML;
-
-if (empty($optimizespace)) {
-  $currentname = $alldemos[$demogroup]["demogroupname"];
-  echo <<<HTML
-    <table class=titlebox><tr>
-      <td align=left valign=bottom width=30%>
-        <h3>$currentname</h3>
-      </td>
-      <td align=center valign=top>
-        <img class="titleimage" src="images/harmonYY-header-trans.gif" width="350" height="100" alt="Harmony">
-      </td>
-      <td align=right valign=bottom width=30%>
-        <h3>Part $demonumber</h3>
-      </td>
-    </tr></table>
-HTML;
+#surtitle { 
+  font-size:xx-small; 
+  font-weight:bold;
 }
 
-echo '<form name="theform" method="post">';
-
-echo <<<HTML
-<script language="JavaScript">
-function jsChooseNew() {
-   document.theform.CHOOSENEW.value="YES";
-   document.theform.submit();
+#header {
+  position:relative;
+  margin: 3px 3px 5px 3px;
+  width:100%;
+  min-width:500px;
+  height:60px;
 }
+
+#logo { 
+  position:absolute;
+  top:0px; left:0px
+  margin:0px;
+  width:164px;
+  height:52px;
+  background-image:url("images/harmony-logo-small.gif");
+}
+
+#control { 
+  min-width:280px;
+  margin-left:175px;
+  margin-right:200px;
+}
+
+#selector { 
+  position:absolute;
+  top:18px;
+  right:0px;
+  width:200px;
+  height:100%;
+}
+
+.title { 
+  position:relative;
+  left:0px;
+  top:0px;
+  background-color:#99ccff;  
+  border:1px solid #bbbbbb;
+  margin-bottom:3px;
+  font-weight:bold;
+  text-align:center;
+}
+
+.min { 
+  position:absolute;
+  height:11px; width:11px;
+  top:1px; right:1px;
+  padding:0px;
+  margin:0px;
+  cursor:default;
+  background-image:url("images/close.png")
+}
+
+
+.grip { 
+  position:absolute;
+  bottom:0px;
+  right:0px;
+  padding:0; 
+  margin:0;
+  height:11px;
+  width:11px;
+  cursor:move;
+  background-image:url("images/resize.gif");
+}
+
+.resize { 
+  position:absolute;
+  bottom:0px;
+  right:0px;
+  cursor:move;
+}
+
+.bot { vertical-align:bottom; }
+.center { margin-left:auto; margin-right:auto; }
+
+.group { float:left; }
+.hide { width:24px; height:24px; display:none; }
+
+.box { 
+  position:relative;
+  float:left;
+  border:1px solid #bbbbbb;
+  background-color:#ffffcc;
+  padding:3px;
+  margin-right:3px;
+  margin-bottom:3px;
+}
+      
+textarea { background:#ffffee; }
+.spacer { clear:both; }
+
+</style>
+
+<!------------ javascript ------------>
+<script type="text/javascript">
+
+/* globals */
+var x = 0;
+var y = 0;
+var clicked = false;
+var clicked_ids = [];
+
+var state = {
+EOF;
+$sep = "\n\t";
+$text = "_text";
+foreach($state_hash as $k=>$v) {    
+  $h = $v['h'] ? ("h:" . $v['h'] . ",") : "";   
+  $w = $v['w'] ? ("w:" . $v['w'] . ",") : "";   
+  $d = $v['d'];
+  print($sep . $k . ':{' . $w . $h . 'd:"' . $d . '"}');
+  $sep = ",\n\t";
+  if($v['text']) {
+    $h = $v['h'] ? ("h:" . ($v['h'] - $text_height_diff ). ",") : "";
+    $w = $v['w'] ? ("w:" . $v['w'] . ",") : "";
+    $d = $v['d'];
+    print($sep . $k . '_text:{' . $w . $h . 'd:"' . $d . '"}');
+  }
+}
+print("\n};\n");
+
+print "var icons = {";
+$sep = "";
+foreach($icons as $i=>$v) {
+  print ($sep . '"' . $i . '"' . ':' . $v['active']);
+  $sep = ", ";
+}
+print "};\n";
+print "function active_icons() { var n = 0; for(i in icons) { if(icons[i]) { n++; } }; return n; }\n";
+print "function icon_index(i) { var n = 0; for(j in icons) { if(i == j) { return n; } if (icons[j]) { n++; } } return -1; }\n";
+
+foreach($state_hash as $k=>$v) {
+  $resize = $k . "_resize";
+  $hide = $k . "_hide";
+  $text = $v['text'] ? ('", "' . $k . '_text') : "";    
+  $icon_name = $v['icon'];
+  $icon = $icon_name . "_icon";
+
+print <<<EOF
+function $resize(e) { return setup_resize(e, ["$k$text"]); }
+function $hide(e) { 
+  state.$k.d = "none"; 
+  document.getElementById("$k").style.display = "none"; 
+  if(! icons["$icon_name"]) { 
+    icons["$icon_name"] = true;
+    document.getElementById("$icon").style.display = "inline"; 
+  } 
+}
+
+EOF;
+}
+
+print <<<EOF
+function setup_resize(e, ids) {
+  var style = document.getElementById(ids[0]).style;  
+  x = e.clientX;
+  y = e.clientY;
+  clicked = true;
+  clicked_ids = ids;
+  style.borderStyle = "dashed";
+  style.borderColor = "#000000";
+  style.backgroundColor = "#ffffee";
+  return;
+}
+ 
+function mouse_up(e) {
+  if (clicked) {
+    clicked = false;
+    var style = document.getElementById(clicked_ids[0]).style;
+    style.borderStyle = "solid";
+    style.borderColor = "#bbbbbb";
+    style.backgroundColor = "#ffffcc";
+    clicked_ids = [];
+  }
+  return;
+}
+
+function mouse_move(e) {
+  if(clicked) {
+    var dx = e.clientX - x;
+    var dy = e.clientY - y;
+    x = x + dx;
+    y = y + dy;
+    for (i=0; i < clicked_ids.length; i++) {
+      var style = document.getElementById(clicked_ids[i]).style;
+      var clicked_data = state[clicked_ids[i]];
+      clicked_data.w += dx;
+      clicked_data.h += dy;
+      style.width = clicked_data.w + "px";
+      style.height = clicked_data.h + "px";
+    }
+  }
+  return;
+}
+
+function show_st(icon) {
+   var surtitle = document.getElementById("surtitle");
+   var desc = document.getElementById(icon + "_icon").alt;
+   var total_icons = active_icons();
+   var n = icon_index(icon);
+   if (n < (total_icons / 2)) {
+     surtitle.style.textAlign = "left";
+     var offset = n * $icon_width;
+     var spacer = '<img src="images/clear.gif" alt="spacer" height="1" width="'+offset+'" >';
+     surtitle.innerHTML = spacer + desc;
+   } else {
+     surtitle.style.textAlign = "right";
+     var offset = (total_icons - n - 1) * $icon_width;
+     var spacer = '<img src="images/clear.gif" alt="spacer" height="1" width="'+offset+'">';
+     surtitle.innerHTML = desc + spacer;
+  }
+}
+
+function hide_st() { document.getElementById("surtitle").innerHTML="&nbsp;"; }
+
+function sync_click() { go_submit(); }
+function reset_click()    { document.theform.reset.value = true; go_submit(); }
+function next_click()     { document.theform.nextpart.value = true; go_submit(); }
+function prev_click()     { document.theform.prevpart.value = true; go_submit(); }
+
+
+EOF;
+
+print "function go_submit()     {\n";
+foreach($state_hash as $k=>$v) {
+  print("  document.theform." . $k . "_h.value = state." . $k . ".h;\n");
+  print("  document.theform." . $k . "_w.value = state." . $k . ".w;\n");
+  print("  document.theform." . $k . "_d.value = state." . $k . ".d;\n");
+}
+print "  document.theform.submit();\n}\n";
+
+foreach($icons as $k=>$v) {
+  $n = $v['n'];
+  $over = $k . "_over";
+  $icon = $k . "_icon";
+  $click = $k . "_click";
+  if($v['shows']) {
+    print "function $click() {\n";
+    print "  hide_st()\n";
+    print "  icons[\"$k\"] = false;\n";
+    print "  document.getElementById(\"$icon\").style.display = \"none\";\n"; 
+    foreach($v['shows'] as $d) { 
+      print "  state.$d.d = \"block\";\n";
+      print "  document.getElementById(\"$d\").style.display = \"block\";\n";
+    }
+    echo "}\n";
+  }
+  echo "function $over(e) { show_st(\"$k\"); }\n";
+}
+    
+
+print "function load() {\n";
+print "  var s;\n";
+print "  for(i in icons) { if(icons[i]) { document.getElementById(i + '_icon').style.display = 'inline'; } }\n"; 
+foreach($state_hash as $k=>$v) {
+  print "  s = document.getElementById(\"$k\").style;\n";
+  print "  s.display = state.$k.d;\n";
+  print "  if(state.$k.w) { s.width = state.$k.w + 'px'; }\n";
+  print "  if(state.$k.h) { s.height = state.$k.h + 'px'; }\n";
+  if($v['text']) {
+    $text = $k . "_text";
+    print "  s = document.getElementById(\"$text\").style;\n";
+    print "  if(state.$k.w) { s.width = (state.$k.w) + 'px'; }\n";
+    print "  if(state.$k.h) { s.height = (state.$k.h - $text_height_diff) + 'px'; }\n";
+  }
+}
+print "  document.addEventListener(\"mouseup\", mouse_up, true);\n";
+print "  document.addEventListener(\"mousemove\", mouse_move, true);\n";
+
+foreach($state_hash as $k=>$v) {
+  $grip = $k . "_grip";
+  $resize = $k . "_resize";
+  $min = $k . "_min";
+  $hide = $k . "_hide";
+  print <<<EOF
+  document.getElementById("$grip").addEventListener("mousedown", $resize, true);
+  document.getElementById("$min").addEventListener("click", $hide, true);
+
+EOF;
+}
+
+foreach($icons as $k=>$v) {
+  $icon = $k . "_icon";
+  $over = $k. "_over";
+  
+  print <<<EOF
+  document.getElementById("$icon").addEventListener("mouseover", $over, true);
+  document.getElementById("$icon").addEventListener("mouseout", hide_st, true);
+
+EOF;
+
+  if(! $v['dummy']) { 
+    $click = $k. "_click";
+    print <<<EOF
+  document.getElementById("$icon").addEventListener("click", $click, true);
+
+EOF;
+  }
+}
+print "}\n";
+
+print <<<EOF
+
+function select_demo_group() {
+   document.theform.choosenewgroup.value="YES";
+   go_submit();
+   return true;
+}
+function select_demo_number() {
+   document.theform.choosenewnumber.value="YES";
+   go_submit();
+   return true;
+}
+
 </script>
-HTML;
+</head>
 
+<body onload="load()">
+  <form method="post" name="theform">
+    <input type="hidden" value="" name="choosenewgroup"/>  
+    <input type="hidden" value="" name="choosenewnumber"/>  
+    <input type="hidden" value="" name="prevpart"/>      
+    <input type="hidden" value="" name="nextpart"/>  
+    <input type="hidden" value="" name="reset"/>
+    <div id="header">
+      <div id="logo"></div>
+      <div id="control">
+        <table class="center">
+          <tr><td><div id="surtitle">&nbsp;</div></td></tr>
+          <tr><td>
 
-####### Instructions 
-
-function emit_instructions () {
-  global $instructions;
-  echo <<<HTML
-      <p>
-      <div class=instructions>$instructions</div>
-      <br>
-HTML;
+EOF;
+foreach($icons as $k=>$v) {
+  $id = $k . "_icon";
+  $src = "images/" . ($v['file'] ? $v['file'] : $k) . ".png";
+  $desc = $v['desc'] ? $v['desc'] : "&nbsp;";
+ print "                <img id=\"$id\" class=\"hide\" src=\"$src\" alt=\"$desc\">\n"; 
 }
 
-if (empty($optimizespace)) emit_instructions();
+print <<<EOF
+           </td>
+          </tr>
+        </table>
+      </div>
+      <div id="selector">
+      <!-- selector stuff -->
+    <select name="demogroup" onchange="select_demo_group()">
+    <optgroup label="Overview">
 
+EOF;
 
-####### Control buttons
-
-echo " <table class=controls> <tr> ";
-
-echo <<<HTML
-    <td align=left>
-    <div class=buttonbox>
-    <input type="submit" value="Synchronize"/>  
-    <input type="submit" value="Reset" name="RESET"/>  
-    <input type="submit" value="Next part" name="NEXTPART"/>  
-    $shownextparterror
-    </td>
-HTML;
-
-
-####### Demo selection controls
-
-echo "<td align=right>";
-
-echo <<<HTML
-    <div class="demochoice">
-    <select name="DEMOGROUP" onchange="jsChooseNew()">
-HTML;
-
-echo "<optgroup label=\"Overview\">";
-foreach ($alldemos as $k => $v) {
-  if (!empty($v["header"])) {
+foreach ($alldemos as $k=>$v) {
+  if(!empty($v["header"])) {
     $header = $v["header"];
-    echo "</optgroup> <optgroup label=\"$header\">";
+    print "</optgroup> <optgroup label=\"$header\">\n";
   } else {
     $name = $v["demogroupname"];
     $selected = "";
-    if ($k == $demogroup) $selected="selected";
+    if($k == $demogroup) $selected="selected";
     echo "<option $selected value=\"$k\">$name</option>";
   }
 }
-echo "</optgroup>";
-
-echo <<<HTML
-    </select>
-    <input type="hidden" value="" name="CHOOSENEW"/>  
-    <select name="DEMONUMBER" onchange="document.theform.RESET.click()">
-HTML;
-
+echo '</optgroup></select>';
+echo '<select name="demonumber" onchange="select_demo_number()">';
 $i = 1;
 while (!empty($alldemos[$demogroup][$i])) {
-  $selected = "";
-  if ($i == $demonumber) $selected="selected";
-  echo "<option $selected value=\"$i\">$i</option>";
-  $i = $i + 1;
+ $selected = "";
+ if ($i == $demonumber) { $selected="selected"; }
+ print "<option $selected value=\"$i\">$i</option>\n";
+ $i = $i + 1;
+}
+echo '</select>';
+echo '</div>';
+echo '</div>';
+echo '<!-- main content -->';
+echo '<div>';
+
+/* generate the divs, titles, etc. */
+foreach ($state_hash as $k=>$v) {
+  $title = $v['title'];
+  $grip = $k . "_grip";
+  $min = $k . "_min";
+  eval("\$k_val = \$$k;");
+  $ro = $v['ro'] ? " readonly" : "";
+  $text = $v['text'] ? "<textarea name=\"" . $k . "_text\" id=\"" . $k . "_text\"$ro>$k_val</textarea>" : "<p>$k_val</p>";
+  $h = $k . "_h";
+  $w = $k . "_w";
+  $d = $k . "_d";
+  print <<<EOF
+  <div class="box" id="$k">
+  <div class="title">$title<div class="min" id="$min"></div></div>
+  <div>$text</div>
+  <div class="grip" id="$grip"></div>
+  </div>
+  <input type="hidden" name="$w" value="0">
+  <input type="hidden" name="$h" value="0">
+  <input type="hidden" name="$d" value="none">
+
+
+EOF;
 }
 
-echo "</select> </div>";
+$debugout = $enabledebug ? join("\n",$debuglog) . "\n" : "\n";
+print <<<EOF
+</form>$debugout
+</body>
+</html>
+EOF;
 
-echo "</td></tr></table>";
+###################################
+# Misc Functions #
+###################################
 
-####### The boxes...
-
-if (!empty($onecolumn)) {
-  $columnbreakifneeded = "</tr><tr>";
-}
-
-echo " <table>";
-
-####### Replicas
-
-if (!empty($elideabstract)) {
-  $firstreplicatitle = "First replica";
-  $secondreplicatitle = "Second replica";
-  $archivetitle = "Archive";
-} else {
-  $firstreplicatitle = "First replica (concrete)";
-  $secondreplicatitle = "Second replica (concrete)";
-  $archivetitle = "Archive (abstract)";
-}
-
-echo <<<HTML
-      <tr> 
-        <td valign=top>
-          <div class=label>$firstreplicatitle:</div>
-          <textarea name="R1" rows="23" cols="50">$r1</textarea>
-        </td>
-        $columnbreakifneeded
-        <td valign=top>
-          <div class=label>$secondreplicatitle:</div>
-          <textarea name="R2" rows="23" cols="50">$r2</textarea>
-        </td>
-      </tr>
-HTML;
-
-####### Lens and schema boxes
-
-  $lensr1hex = asc2hex($lensr1);
-  echo <<<HTML
-      <tr>
-        <td colspan=2>
-           <table><tr>
-             <td>
-               <div class=lens>
-               <div class=label>Lens: </div>
-               <textarea name="LENSR1" class=lenstextarea>$lensr1</textarea>
-               </div>
-             </td>           
-             <td>
-               <div class=schema>
-               <div class=label>Synchronization schema: </div>
-               <textarea name="SCHEMA" class=lenstextarea>$schema</textarea>
-               </div>
-             </td>           
-           </tr></table>
-        </td>
-      </tr>
-HTML;
-
-
-####### Abstract trees box
-
-echo <<<HTML
-    <tr>
-      <td>
-        <div class=abstracttrees>
-          <div class=label>First replica (abstract):</div>
-          <textarea readonly rows="23" cols="50">$r1abstract</textarea><br />
-        </div>
-      </td>
-      $columnbreakifneeded
-      <td>
-        <div class=abstracttrees>
-          <div class=label>Second replica (abstract):</div>
-          <textarea readonly rows="23" cols="50">$r2abstract</textarea><br />
-        </div>
-      </td>
-    </tr>
-HTML;
-
-
-####### Harmony output box
-
-echo <<<HTML
-      <tr>
-        <td valign=top>
-HTML;
-
-if (empty($elideoutput)) {
-  echo <<<HTML
-    <div class=label>Harmony output: </div>
-    <textarea name="DUMMY" rows="23" cols="50">$output</textarea>
-HTML;
-}
-
-echo <<<HTML
-        </td>
-        $columnbreakifneeded
-        <td valign="top">
-HTML;
-
-####### Archive box
-
-if (!$elidearchive) {
-echo <<<HTML
-    <div class=label>$archivetitle:</div>
-    <textarea name="ARASC" readonly rows="23" cols="50">$ar</textarea><br />
-HTML;
-}
-
-echo <<<HTML
-        </td>
-      </tr>
-    </table>
-    </center>
-HTML;
-
-
-### Checkboxes
-
-if (!empty($optimizespace)) echo "<p>";
-
-echo "<center>";
-
-if (!empty($elidelens)) {
-  $elidelenschecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="ELIDELENS" $elidelenschecked onchange="document.theform.submit()">Elide lens</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($elideschema)) {
-  $elideschemachecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="ELIDESCHEMA" $elideschemachecked onchange="document.theform.submit()">Elide schema</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($elidearchive)) {
-  $elidearchivechecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="ELIDEARCHIVE" $elidearchivechecked onchange="document.theform.submit()">Elide archive</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($elideabstract)) {
-  $elideabstractchecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="ELIDEABSTRACT" $elideabstractchecked onchange="document.theform.submit()">Elide abstract trees</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($elideoutput)) {
-  $elideoutputchecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="ELIDEOUTPUT" $elideoutputchecked onchange="document.theform.submit()">Elide output</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($onecolumn)) {
-  $onecolumnchecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="ONECOLUMN" $onecolumnchecked onchange="document.theform.submit()">One column</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($raw)) {
-  $rawchecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="RAW" $rawchecked onchange="document.theform.submit()">Raw display</input>
-HTML;
-
-echo "&nbsp;&nbsp";
-
-if (!empty($optimizespace)) {
-  $optimizespacechecked = "checked";
-}
-echo <<<HTML
-    <input type="checkbox" name="OPTIMIZESPACE" $optimizespacechecked onchange="document.theform.submit()">Compress</input>
-HTML;
-
-echo "</center>";
-
-####### Instructions
-
-# if (!empty($optimizespace)) emit_instructions();
-
-
-####### Hidden fields for passing information along to the next invocation
-
-echo <<<HTML
-  <input name="ARHEX" type="hidden" value="$arhex"/>
-  <input name="PREVLENSR1HEX" type="hidden" value="$lensr1hex"/>
-HTML;
-
-
-####### Footer
-
-echo "</form>";
-
-if ($enabledebug) echo join("\n",$debuglog);
-
-
-##############################################################################
-#
-
-##############################################################################
-##############################################################################
-# Miscellaneous support functions
-
-function asc2hex ($temp) {
-   $len = strlen($temp);
-   for ($i=0; $i<$len; $i++) $data.=sprintf("%02x",ord(substr($temp,$i,1)));
-   return $data;
-}
-
-function hex2asc($temp) {
-   $len = strlen($temp);
-   for ($i=0;$i<$len;$i+=2) $data.=chr(hexdec(substr($temp,$i,2)));
-   return $data;
+function array_insert (&$array, $position, $insert_array) {
+  $first_array = array_splice ($array, 0, $position);
+  $array = array_merge ($first_array, $insert_array, $array);
 }
 
 function put_file ($name, $contents) {
