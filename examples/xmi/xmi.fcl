@@ -101,7 +101,6 @@ let T (Contents : schema) : schema =
 	 ?verified = CData}
      })
 
-
 let toFlattenedContents (header : tree) : lens =
   List.hd [];
   hoist "XMI";

@@ -150,23 +150,23 @@ lens @fork@ packages this case for convenience:
 
 \LENSSECTION{bfork}
 Sometimes, you would like to use a forking lens but you do not know 
-anything about the names of the immediate children, or there are so
-many of them that you don't want (or cannot) list them all. In that
-case, if you {\emph know} that there exist a schema @A@ such that
+anything about the names of the immediate children, or else there are so
+many of them that you don't want to (or cannot) list them all. In that
+case, if you {\emph know} that there exists a schema @A@ such that
 for every possible child name, either it will always point to a tree
 in @A@, or it will always point to a tree that is {\emph not} in A,
-then you can use @bfork@. In the \GET{} way, @bfork@ lets you split
- the concrete view according to the structure of the children, and not
-their names. In the \PUT{} way, you give, alike @xfork@, a set of
-names to split the abstract view. You may wonder why we use a set 
+then you can use @bfork@. In the \GET{} direction, @bfork@ lets you split
+the concrete view according to the structure of the children, rather than
+their names. In the \PUT{} way, you give, like @xfork@, a set of
+names to split the abstract view.  (You may wonder why we use a set 
 of names in the \PUT{} way and not a schema like in the \GET{} way.
-Well, this is just an arbitrary choice assuming that once you have
+This is just an arbitrary choice assuming that once you have
 the concrete view split the way you wanted, you can reorganize it or
 plunge it under some name so that you do not need to match against
-the structure of the chilren anymore. One could imagine two other
-versions of @bfork@, one with schemas both ways, and one with a 
+the structure of the chilren anymore. One could imagine at least two other
+versions of @bfork@---one with schemas both ways, and one with a 
 schema in the \PUT{} way only, but we have not had the need for such
-lenses for now.
+lenses for now.)
 
 ##let bfork : (schema -> tree -> lens -> lens -> lens) = Native.Prelude.bfork
 

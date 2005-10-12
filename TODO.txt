@@ -1,15 +1,13 @@
 THINGS TO DO
 
 BCP TASKS
-finish printing of lists in Sync.focus
 Bug: in structured text demo, try completely emptying a replica
-do structured text better using keyed lists
+do structured text better using spinelists
 delete discussion of Makefile-based demos from quick start
 make front end interpret a plain .fcl file as a check command
 demos
   #   clean up all current Makefile-based demos to use new structure
   #   move instructions for some demos into separate files
-  #   debug structured text demo
 some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
 move Thang's general concat into List module

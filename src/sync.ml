@@ -198,13 +198,13 @@ let rec sync' (t:Schema.t) archo lefto righto =
 	  (CopyLeftToRight (Adding lv), Some lv, Some lv, Some lv)
       | Some arv, None, Some rv ->
 	  assert_member rv t;
-          if V.equal arv rv then
+          if V.included_in rv arv then
             (CopyLeftToRight (Deleting rv), None, None, None)
           else
             (DeleteConflict(arv,rv), Some arv, None, Some rv)
       | Some arv, Some lv, None ->
 	  assert_member lv t;
-          if V.equal arv lv then
+          if V.included_in lv arv then
             (CopyRightToLeft (Deleting lv), None, None, None)
           else
             (DeleteConflict(arv,lv), Some arv, Some lv, None)

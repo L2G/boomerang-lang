@@ -270,7 +270,16 @@ let rec equal v1 v2 =
   if v1 == v2 then true else
   let names = dom v1 in
   Name.Set.equal names (dom v2) &&
-  Name.Set.for_all (fun n -> equal (get_required v1 n) (get_required v2 n)) 
+  Name.Set.for_all
+    (fun n -> equal (get_required v1 n) (get_required v2 n)) 
+    names
+
+let rec included_in v1 v2 =
+  if v1 == v2 then true else
+  let names = dom v1 in
+  Name.Set.subset names (dom v2) &&
+  Name.Set.for_all
+    (fun n -> included_in (get_required v1 n) (get_required v2 n)) 
     names
 
 (* let equal_opt v1o v2o = *)

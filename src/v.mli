@@ -64,11 +64,10 @@ val is_empty : t -> bool
 (** [is_empty v] returns true if [dom v] is the empty set. *)
 
 val equal : t -> t -> bool
-(** [equal v1 v2] is true v1 and v2 are identical trees. *)
+(** [equal v1 v2] is true if v1 and v2 are identical trees. *)
 
-(* val equal_opt : t option -> t option -> bool *)
-(* (\** [equal_opt v1 v2] returns true if [v1 = None] and [v2 = None] or if [v1 = *)
-(*     Some v1'], [v2 = Some v2'] and [v1' = v2'].  Otherwise it returns false. *\) *)
+val included_in : t -> t -> bool
+(** [included_in v1 v2] is true if every path defined in v1 is also defined in v2. *)
 
 val compare : t -> t -> int
 (** [compare v1 v2] can be used as a comparison function on trees. *)

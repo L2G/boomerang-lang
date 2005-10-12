@@ -74,7 +74,7 @@ $alldemos[] = array("header" => "Expert");
 get_demos_from("bookmarks");
 get_demos_from("calendars");
 get_demos_from("relational");
-get_demos_from("xmi");
+# get_demos_from("xmi");
 get_demos_from("rawsync");
 
 # print_r ($alldemos);

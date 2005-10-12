@@ -5,7 +5,7 @@
 
 TOP = ../..
 
-DEMO1 = R1ORIG=archive.xmi        R2FORMAT=xmi
+# DEMO1 = R1ORIG=archive.xmi        R2FORMAT=xmi
 
 all: makeharmonylib nc
 
