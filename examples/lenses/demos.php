@@ -1,24 +1,20 @@
 <?php
 $demogroupname = "Lens Programming";
 $demo["default_w"] = 450;
-$demo["default_h"] = 75;
+$demo["default_h"] = 150;
 $demo["default_wide_w"] = 910;
-$demo["r1format"] = "meta";
-$demo["r2format"] = "meta";
-$demo["forcer1"] = true;
+$demo["r1format"] = $demo["r2format"] = "meta";
 $demo["democmd"] = "../../src/harmony";
-$demo["r1_d"] = "block";
-$demo["l1_d"] = "block";
+$demo["r1_d"] = $demo["l1_d"] = "block";
 $demo["l1_w"] = $demo["default_wide_w"];
 $demo["r2_d"] = "block";
-$demo["l2"] = "Prelude.id";
-$demo["l2_d"] = "none";
-$demo["a1_d"] = "none";
-$demo["a2_d"] = "none";
+$demo["l2_d"] = $demo["a1_d"] = $demo["a2_d"] = "none";
+$demo["forcer1"] = true;
+$demo["l2"] = "id";
 
-# ---------------------------------------------------------
+############################################################
+
 $demo["instr"] = <<<XXX
-
 <p>This tutorial gives a quick introduction to lens programming in Focal.</p>
 
 <p>A lens is a bi-directional transformation that maps <i>between</i>
@@ -35,39 +31,35 @@ includes a domain-specific programming language, called Focal, whose
 programs denote lenses. The concrete syntax of Focal closely resembles
 that of the OCaml programming language, extended with special forms
 for writing trees and schemas. A detailed description of Focal can be
-found in the <a href="../doc/main.pdf">Harmony Programmer's
-Manual</a>. But let's just dive in and write a few lenses.</p>
+found in the <a href="../doc/main.pdf">Harmony Manual</a>. 
+</p>
 
 <p>
 This demo is setup so that the tree in "Replica #1" represents the
 concrete tree and the one in "Replica #2" represents the abstract
 tree.
 
-To start, let's edit the tree in the replica to add a new child
+To start, edit the tree in the replica to add a new child
 named <tt>c</tt> with a subtree <tt>{3}</tt> to the first replica
 (i.e., add '<tt>, c={3}</tt>' just before the closing curly
-brace). Click the "Synchronize" button; you will see your change
+brace). Click the "Synchronize" button; your change will be 
 reflected in the in the second replica.
 </p>
 XXX;
 # ---------------------------------------------------------
-$demo["lensr1"] = "Prelude.id";
-$demo["r1"] = <<<XXX
-{a={1},b={2}}
-XXX;
-$demo["r2"] = $demo["ar"] = "{}";
+$demo["r1"] = "{a={1},b={2}}";
 savedemo();
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
-<p>
-Now let's modify the lens from the identity (which simply propagates
-its first argument in both directions) to a more interesting one. 
+<p> 
+So far we've only seen the identity lens, which propagates its first 
+argument in both directions. Let's play with a more interesting lens. 
 </p>
 
 <p>
-Clear the text in the lens window and type <tt>filter {a,c} {}</tt>
-and then click "Synchronize". The <tt>filter</tt> lens takes a set of
+Clear the text in the lens window and replace it with <tt>filter {a,c} {}</tt>
+and then press "Synchronize". The <tt>filter</tt> lens takes a set of
 names as its first element and prunes away all of the children that do
 not belong to the set.  Notice that the <tt>b</tt> child, and its
 subtree, have been filtered away.  You will see the
@@ -76,12 +68,12 @@ tree <tt>{a={1},c={3}}</tt> in the second replica.
 
 <p>
 Try adding a child named <tt>d</tt> (pointing to a
-tree </tt>{4}</tt>) to the first replica, and click "Synchronize"
+tree </tt>{4}</tt>) to the first replica, and press "Synchronize"
 again. You will see that the <tt>d</tt> child is also filtered
 away.
 </p>
-
 XXX;
+
 # ---------------------------------------------------------
 $demo["lensr1"] = "Prelude.id";
 $demo["r1"] = <<<XXX
@@ -89,13 +81,13 @@ $demo["r1"] = <<<XXX
 XXX;
 $demo["r2"] = $demo["ar"] = "{a={},c={}}";
 savedemo();
-# ---------------------------------------------------------
 
-# ---------------------------------------------------------
+###########################################################
+
 $demo["instr"] = <<<XXX
 <p>
-So far, we've only examined the direction of lenses. For this next
-example, let's explore the put-back function of the <tt>filter</tt> lens.
+So far, we've only examined the get direction of lenses. For this next
+example, let's explore the put-back component of the <tt>filter</tt> lens.
 </p>
 
 <p>
@@ -157,8 +149,7 @@ XXX;
 # ---------------------------------------------------------
 $demo["forcer1"] = true; 
 $demo["r1format"] = "xml"; 
-$demo["r2format"]
-= $demo["ar_format"] = "meta"; 
+$demo["r2format"] = $demo["ar_format"] = "meta"; 
 $demo["l1"] = "Xml.squash";
 $demo["l2"] = $demo["la"] = "id"; 
 $demo["r1"] = <<<XXX
@@ -178,11 +169,14 @@ re-inserted into the structure of the XML document in the first
 replica.
 </p>
 
-<p>This concludes our lightning tour of some of the main features of
+<p>
+This concludes our lightning tour of some of the main features of
 the Focal language. If you want to go further, the first thing to do
-is to read the POPL 05 paper. Also, the "playground" demo gives a raw
-interface to the Harmony backend and can be used to play further with
-lenses.</p>
+is to read the POPL 2005 paper, 
+available <a href="http://www.cis.upenn.edu/~bcpierce/papers/index.shtml#Data%20Synchronization">here</a>. 
+The "Playground" demo, which exposes the raw Harmony system, can be used to play further with
+lens programs.
+</p>
 
 XXX;
 # ---------------------------------------------------------
@@ -197,6 +191,7 @@ $demo["r1"] = <<<XXX
 </a>
 XXX;
 $demo["r2"] = $demo["ar"] = "{\"hello world\"={}}";
+$demo["schema"] = "Prelude.Value";
 savedemo();
 # ---------------------------------------------------------
 

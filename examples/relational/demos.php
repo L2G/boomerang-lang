@@ -1,9 +1,11 @@
 <?
 
 $demogroupname = "Relational lenses";
+$demo["forcer1"] = true;
+$demo["r1_h"] = $demo["r2_h"] = 250;
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<HTML
+$demo["instr"] = <<<HTML
 
 <h3>Encoding Relations</h3>
 
@@ -50,17 +52,17 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = <<<XXX
 id
 XXX;
-$demo["extras"] = '$elidelens = "";';
+$demo["l1_d"] = "block";
 savedemo();
 # ---------------------------------------------------------
 
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<HTML
+$demo["instr"] = <<<HTML
 
 <h3>Complex Example</h3>
 
@@ -114,7 +116,7 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = <<<XXX
 add "no" [{iscorp = {no}}];
 Relational.ijoin1 "customers" "no" "customers";
 Relational.project {"corp","ph","zip"} {"corp","ph"} [{rep={""}}]
@@ -151,7 +153,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<HTML
+$demo["instr"] = <<<HTML
 
 <h3>Selection</h3>
 
@@ -191,7 +193,7 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = <<<XXX
 Relational.select {nm=Any,ph=Any,sort={"cell"}}
     "phone_num" "cell_phone_num"
 XXX;
@@ -201,7 +203,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<HTML
+$demo["instr"] = <<<HTML
 
 <h3>Simple Projection</h3>
 
@@ -244,7 +246,7 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = <<<XXX
 Relational.select {nm=Any,ph=Any,sort={"cell"}}
     "phone_num" "cell_phone_num";
 Relational.project {"nm", "ph"} {"nm", "ph"} [{sort={"cell"}}]
@@ -256,7 +258,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<HTML
+$demo["instr"] = <<<HTML
 
 <h3>Advanced Projection</h3>
 
@@ -299,7 +301,7 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = <<<XXX
 Relational.project {"nm", "rel"} {"nm"} [{email={""}}]
     "email_addr" "relationship"
 XXX;
@@ -309,7 +311,7 @@ savedemo();
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<HTML
+$demo["instr"] = <<<HTML
 
 <h3>Natural Joins</h3>
 
@@ -363,7 +365,7 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "meta";
 $demo["r2format"] = "meta";
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = <<<XXX
 Relational.project {"nm", "rel"} {"nm"} [{email={""}}]
     "email_addr" "relation";
 Relational.ijoin1 "phone_num" "relation" "phone_num"

@@ -1,6 +1,9 @@
 <?
-
 $demogroupname = "Address books";
+$demo["democmd"] = "../../src/harmony";
+$demo["forcer1"] = true;
+$demo["default_h"] = 300;
+$demo["schema"] = "Addr.AddrBook";
 
 ##############################################################################
 
@@ -24,7 +27,6 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
 <xcard>
-
   <vcard>
     <n><family>Smith</family></n>
     <tel-home>123-4567</tel-home>
@@ -38,8 +40,8 @@ $demo["r1"] = <<<XXX
 </xcard>
 XXX;
 # ---------------------------------------------------------
-$demo["r1format"] = "xml";
-$demo["r2format"] = "xml";
+$demo["l1"] = $demo["l2"] = "Addr.xcard";
+$demo["r1format"] = $demo["r2format"] = "xml";
 savedemo();
 # ---------------------------------------------------------
 
@@ -76,27 +78,22 @@ XXX;
 # --------------------------------------------------------- 
 $demo["r1"] = <<<XXX
 <xcard>
-
-<vcard>
-<n><given>John</given><family>Doe</family></n>
-</vcard>
-
-<vcard>
-<n>Mr. Smith</n>
-</vcard>
-
-<vcard>
-<n><family>Jones</family></n>
-</vcard>
-
-<vcard>
-<n><given>Fred</given></n>
-</vcard>
-
+  <vcard>
+    <n><given>John</given><family>Doe</family></n>
+  </vcard>
+  <vcard>
+    <n>Mr. Smith</n>
+  </vcard>
+  <vcard>
+    <n><family>Jones</family></n>
+  </vcard>
+  <vcard>
+    <n><given>Fred</given></n>
+  </vcard>
 </xcard>
 XXX;
 # ---------------------------------------------------------
-$demo["r1format"] = "xml";
+$demo["l2"] = "id";
 $demo["r2format"] = "meta";
 savedemo();
 # ---------------------------------------------------------
@@ -136,8 +133,6 @@ $demo["r1"] = <<<XXX
 </xcard>
 XXX;
 # ---------------------------------------------------------
-$demo["r1format"] = "xml";
-$demo["r2format"] = "meta";
 savedemo();
 # ---------------------------------------------------------
 
@@ -176,7 +171,7 @@ $demo["r1"] = <<<XXX
 XXX;
 # ---------------------------------------------------------
 $demo["r1format"] = "csv";
-$demo["r2format"] = "meta";
+$demo["l1"] = "Addr.csv";
 savedemo();
 # ---------------------------------------------------------
 
@@ -185,8 +180,7 @@ savedemo();
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 <p>
-Finally, let's see a heterogeneous
-synchronization between an XML address book and a CSV one.
+Finally, let's see a heterogeneous synchronization between an XML address book and a CSV one.
 </p>
 XXX;
 # ---------------------------------------------------------
@@ -195,9 +189,6 @@ $demo["r1"] = <<<XXX
 "Doe","James","","","Home";"303-999-3727","Work;999-888-9876","","","","","","","","","","","","","","0","Unfiled"
 "Smith","John","","","Home";"303-999-3727","Work;999-888-9876","Work;111-223-4567","","","","","","","","","","","","This is a note","0","Unfiled"
 XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "csv";
-$demo["r2format"] = "xml";
 savedemo();
 # ---------------------------------------------------------
 

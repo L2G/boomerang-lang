@@ -210,7 +210,7 @@ let rec dump_tag fmtr v =
   (* v should have one (singleton) child, which is the tag name *)
   let dom = V.dom v in
   if ((Name.Set.cardinal dom) <> 1) then
-    V.error_msg [`String "dump_tree_as_pretty_xml, should have 1 child ";
+    V.error_msg [`String "dump_tag, should have 1 child ";
 		 `String (Printf.sprintf "(has %d): "
 			    (Name.Set.cardinal dom));
 		 `Tree v];

@@ -1,9 +1,11 @@
 <?
 $demogroupname = "Bookmarks";
-$demo["instr_w"] = 900;
-$demo["output_w"] = 900;
-$demo["default_w"] = 900;
-$demo["default_h"] = 250;
+$demo["default_wide_w"] = 910;
+$demo["default_w"] = ($demo["default_wide_w"] - 10) / 2;
+$demo["r1_w"] = $demo["r2_w"] = $demo["default_wide_w"];
+$demo["r1_h"] = $demo["r2_h"] = 350;
+$demo["forcer1"] = true;
+$demo["schema"] = "Bookmarks.Abstract";
 
 ################################################################################
 
@@ -590,72 +592,102 @@ XXX;
 
 #############################################################################################
 
-$demo["r1format"] = "xml";
-$demo["r2format"] = "meta";
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
 <p>
-This demo comes from an application that synchronizes bookmark
-information from diverse browsers, including Mozilla Firefox and
-Safari. As shown in previous demos, we are able to synchronize these
-heterogeneous formats by transforming each bookmark file from its
-concrete native representation into a common abstract form.  We show
-here the Safari and Mozilla Firefox lenses.
+This demo shows how we can use Harmony to synchronize bookmark
+information from Mozilla Firefox and Safari browsers. As in previous
+demos, we handle the heterogeneous formats by transforming each
+bookmark file from its concrete native representation into a common
+abstract form using lenses. 
 </p>
 
 <p>
-We start by showing how the <tt>Safari.l2</tt> lens maps between
-concrete address books and simplified abstract views for a
-medium-sized address book. The concrete format is displayed as XML and
-the abstract format in meta.
+Let's start by looking at the behavior of the Safari lens, which maps
+between concrete address books stored in an XML format and the
+simplified abstract view we use to present bookmarks to the
+synchronizer.  Notice that the Safari XML representation includes much
+redundant information, which is projected away by the get function of
+the <tt>Safari.l2</tt> lens in one direction, and restored by the
+put-back function in the other. Specifically, the XML format stores
+each URL <i>twice</i>. By contrast, the abstract tree is quite sparse;
+a bookmark file is just a list of folders or links and no redundant
+information is retained.
 </p>
 
 <p>
-As a first exercise, modify the name of the Google link in the second
-(abstract) replica, and observe how those changes are propagated back
-to the XML representation. Note that changing the name of a link on
-the abstract side induces <i>two</i> changes on the XML side because the concrete format has some redundancey.
-
+As a first exercise, modify the Google link in the second (abstract)
+replica from <tt>www.google.com</tt> to <tt>google.com</tt>. Observe
+how those changes are reflected in the XML representation. Note that
+changing the name of a link on the abstract side induces <i>two</i>
+changes on the XML side.
+</p>
 XXX;
 # ---------------------------------------------------------
-$demo["forcer1"] = true; 
 $demo["r1"] = $saf; 
+$demo["r1format"] = "xml";
+$demo["r2format"] = "meta";
+$demo["l1"] = "Safari.l2";
+$demo["l2"] = "id";
 savedemo();
 
 #################################################################################
 
-# ---------------------------------------------------------
-$demo["r1format"] = "html";
-$demo["r2format"] = "meta";
-# ---------------------------------------------------------
-
 $demo["instr"] = <<<XXX
 
-The next example shows how the lenses in the <tt>Mozilla</tt> module
-map between concrete address books, represented in a HTML-like format, 
-and abstract views belonging to the same schema as in the previous example. 
 <p>
-Try adding the folder
-<tt>{name="for nerds", contents=[{link={url={"http://slashdot.org"}, name={Slashdot}}}]}</tt>
-under the <tt>news</tt> folder in the second replica. 
+Mozilla bookmark files are represented in an HTML format. The
+lens <tt>Mozilla.l2</tt> maps between these documents and abstract
+views belonging to the same schema as in the previous example. Once
+again, notice how the lens strips away. 
+</p>
+
+<p> 
+Add a new folder:
+<tt>{name="for nerds", contents=[{link={url={"http://slashdot.org"},
+name={Slashdot}}}]}</tt> to the bookmark file, just after
+the <tt>news</tt> folder in the second replica. Press "Synchronize"
+and see how the new folder gets added to the Mozilla bookmark file.
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = $moz;
+$demo["l1"] = "Mozilla.l2";
+$demo["l2"] = "id";
+$demo["r1format"] = "html";
+$demo["r2format"] = "meta";
 savedemo();
 # ---------------------------------------------------------
 
 ##############################################################################
 
-$demo["r1format"]="xml";
-$demo["r2format"]="html";
 $demo["instr"] = <<<XXX
 
-The final example simply combines the previous two to demonstrate how
-Safari and Firefox bookmark files are synchronized. 
+<p>
+Putting these pieces together, let's see how we can synchronize a
+bookmark file from Safari with one from Firefox.
+</p>
+
+<p>
+To see that this all works, make the following changes:
+<ul>
+<li>in the Safari replia: delete the New York Times and BBC entries from the "news" folder;
+<li>in the Mozilla replica: add a new entry, <pre>&lt;DT&gt;&lt;A HREF="http://wadler.blogspot.org/"&gt;Wadler's Blog&lt;/A&gt;</pre> to the "blogs" folder.
+</ul>
+Press "Synchronize" and verify that the changes appear on both sides
+(it may be easiest to look at the abstract trees).
+</p>
+
 XXX;
 # ---------------------------------------------------------
-$demo["r1"] = $saf;
+$demo["forcer1"] = false;
+$demo["r1"] = $saf; 
+$demo["r2"] = $moz; 
+$demo["ar"] = "{}";
+$demo["r1format"]="xml";
+$demo["r2format"]="html";
+$demo["l1"] = "Safari.l2";
+$demo["l2"] = "Mozilla.l2";
 savedemo();
 
 ?>

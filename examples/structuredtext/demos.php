@@ -1,6 +1,12 @@
 <?
 
 $demogroupname = "Structured text";
+$demo["democmd"] = "../../src/harmony";
+$demo["forcer1"] = true;
+$demo["default_h"] = 200;
+$demo["schema"] = "Structuredtext.NestedListOfValues";
+$demo["r1format"] = $demo["r2format"] = "txt";
+$demo["l1"] = $demo["l2"] = "Structuredtext.file_with_simple_star_headers";
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
@@ -23,10 +29,6 @@ $demo["r1"] = <<<XXX
 
 * THIRD PART
 XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "txt";
-$demo["r2format"] = "txt";
-$demo["flags"] = "-simplified";
 savedemo();
 # ---------------------------------------------------------
 
@@ -60,9 +62,8 @@ $demo["r1"] = <<<XXX
 * THIRD PART
 XXX;
 # ---------------------------------------------------------
-$demo["r1format"] = "txt";
+$demo["l2"] = "id";
 $demo["r2format"] = "meta";
-$demo["flags"] = "-simplified";
 savedemo();
 # ---------------------------------------------------------
 
@@ -116,9 +117,7 @@ para
 para
 XXX;
 # ---------------------------------------------------------
-$demo["r1format"] = "txt";
-$demo["r2format"] = "meta";
-$demo["flags"] = "";
+$demo["l1"] = "Structuredtext.file_with_combined_headers";
 savedemo();
 # ---------------------------------------------------------
 
@@ -133,7 +132,8 @@ Try making some changes in different parts of the two replicas and seeing
 what happens when they are synchronized.
 XXX;
 # ---------------------------------------------------------
-$demo["r2format"] = "txt";
+$demo["r2format"] = $demo["r1format"];
+$demo["l2"] = $demo["l1"];
 savedemo();
 # ---------------------------------------------------------
 
@@ -184,9 +184,6 @@ one
 two
 three
 XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "txt";
-$demo["r2format"] = "txt";
 savedemo();
 # ---------------------------------------------------------
 
@@ -237,9 +234,6 @@ one
 two
 three
 XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "txt";
-$demo["r2format"] = "txt";
 savedemo();
 # ---------------------------------------------------------
 

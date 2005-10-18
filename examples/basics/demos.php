@@ -1,8 +1,17 @@
 <?
 
-$demogroupname = "Harmony Basics";
+##
+# Global Parameters
+##
+$demogroupname = "Introduction";
+$demo["schema"] = "Xml.T";
+$demo["l1"] = $demo["l2"] = $demo["la"] = "id";
+$demo["r1format"] = $demo["r2format"] = "xml";
+$demo["arformat"] = "meta";
 
 # ---------------------------------------------------------
+$demo["splash"] = true;
+unset($demo["instr_w"]);
 $demo["instr"] = <<<XXX
 <center><h2>Welcome to Harmony!</h2></center>
 
@@ -11,15 +20,16 @@ data.  This site is a live demo of some of Harmony's features.
 
 <ul> 
 
-<li>If you are new to Harmony, press the "Next" button above, <img height="18" width="18" src="images/next.png" alt="Next button"/>, to begin a
-tour of its basic structure.
+<li>If you are new to Harmony, press the "Next" button above, 
+<img height="18" width="18" src="images/icons/next.png" alt="Next button"/>, 
+for a quick introduction to this demo interface and a brief tour of Harmony's 
+basic architecture.
 
 <li> If you're already familiar with the basic ideas of Harmony and
-want to experiment with some more sophisticated demos, choose
-"Tutorial" from the pull-down menu below.  (Some
-additional demos are available under "Expert" demos.
-Documentation for these is minimal, but you are welcome to play with
-them.)
+want to experiment with some more sophisticated demos, choose one of the 
+"Tutorial" demos from the pull-down menu above.  (Some additional demos are 
+available under "Expert" demos. Documentation for these is minimal, but you 
+are welcome to play with them.)
 
 <li>If you are familiar with our paper, <i>Combinators for
 Bi-Directional Tree Transformations: A Linguistic Approach to the View
@@ -33,36 +43,25 @@ href="http://www.cis.upenn.edu/~bcpierce/papers/index.shtml#Data%20Synchronizati
 and want to see some interesting examples of the use of schemas to
 guide the synchronization process, the address book and structured
 text demos are particularly recommended.
-
 </ul>
 </p>
 
-<p> <div class="red"><i>These demos are still very much under
-development.  Please let us (harmony-hackers at lists dot seas dot upenn dot edu) know
-what you think!</i></div> </p>
+<p> 
+<div class="red"><i>These demos are still very much under development.
+Please let us (harmony-hackers at lists dot seas dot upenn dot edu)
+know what you think!</i></div>
+</p>
 
 XXX;
-# ---------------------------------------------------------
-$demo["forcer1"] = "true";
-$demo["r1format"] = "xml";
-$demo["r1"] = <<<XXX
-<a>
-  <b>hello</b>
-  <c>world!</c>
-</a>
-XXX;
-# ---------------------------------------------------------
-$demo["r2format"] = "xml";
-$demo["arformat"] = "meta";
 savedemo();
-# ---------------------------------------------------------
 
 ##############################################################################
-
-# ---------------------------------------------------------
+$demo["default_h"] = 100;
+$demo["default_wide_w"] = 910;
+$demo["default_w"] = ($demo["default_wide_w"] - 10) / 2;
 $demo["instr"] = <<<XXX
 
-<p> Harmony's basic model consists of two replicas to be synchronized
+<p> Harmony's basic architecture consists of two replicas to be synchronized
 and an "archive" representing the last common state of these replicas.
 (The archive is displayed here in a different format from the two
 replicas.  We'll talk about this in a minute.)
@@ -75,22 +74,27 @@ and updates the archive to reflect the new synchronized state. </p>
 <p> To see this in action, try changing <tt>hello</tt> to
 <tt>goodbye</tt> in the first replica below and <tt>world</tt> to
 <tt>cruel world</tt> in the second replica.  Press the "Synchronize"
-button above, <img height="18" width="18" src="images/sync.png" alt="Synchronize Button"/>, and
+button above, <img height="18" width="18" src="images/icons/sync.png" alt="Synchronize Button"/>, and
 notice how the changes are propagated.
 
-Then press "Next" to go on. 
-
+Press "Next" to continue with the next demo. 
 </p>    
 
 XXX;
 # ---------------------------------------------------------
+$demo["splash"] = false;
+$demo["forcer1"] = true;
+$demo["ar_w"] = $demo["default_wide_w"];
+$demo["ar_d"] = "block";
 $demo["r1"] = <<<XXX
-<a><b>hello</b><c>world</c></a>
+<a>
+  <b>hello</b>
+  <c>world</c>
+</a>
 XXX;
-# ---------------------------------------------------------
-$demo["extras"] = '$elidearchive = "";';
 savedemo();
-# ---------------------------------------------------------
+unset($demo["ar_d"]);
+unset($demo["ar_w"]);
 
 ##############################################################################
 
@@ -98,22 +102,47 @@ savedemo();
 $demo["instr"] = <<<XXX
 
 <p> Internally, Harmony represents all data in the same way: as
-unordered, edge-labeled trees.  We sometimes call this the "meta" format.
+unordered, edge-labeled trees.  We sometimes call this the "meta"
+format.  The archive is always displayed in this form.  The replicas,
+on the other hand, can be presented to Harmony in a variety of
+concrete formats: XML (as in this demo), CSV (comma-separated-values),
+vCard, HTML, raw text, etc.  The first thing Harmony does in each case
+is to parse the concrete files into meta format.  You can see this
+graphically by clicking the "Show Abstract Trees" icon, <img
+height="18" width="18" src="images/icons/abstract.png" alt="Show
+Abstract Trees Icon"/>, at the top of this page.  This causes the
+replicas to be displayed both in their concrete, external form and in
+their "abstract" internal form after parsing.
 </p>
 
-<p> The archive is always displayed in this form.  The replicas, on
-the other hand, can be presented to Harmony in a variety of concrete
-formats: XML (as in this demo), CSV (comma-separated-values), vCard,
-HTML, raw text, etc.  The first thing Harmony does in each case is to
-parse the concrete files into meta format.  
+<p>
+Before moving on to the next demo, let's take a few minutes to explore
+the features of this web interface.  Each display (instructions,
+replicas, archive, abstract trees, etc.) can be hidden by clicking the
+close button, <img src="images/close.png" alt="Close"/>, located at
+the upper right-hand corner of the display. A hidden display can be
+made visible by clicking the appropriate icon at the top of this page.
+Most demos only show some of the displays, eliding those that are not
+relevant to that demo. However, you can always override these settings
+and view (or hide) a display as is convenient. You can also change the
+size of a display by dragging the resize grip located at its lower
+right-hand corner. The visibility and size of each display are set to
+defaults at the start of each demo and whenever you click the "Reset"
+button, <img height="18", width="18" src="images/icons/reset.png"
+alt="Reset Demo"/>. However, in "expert mode", which can be entered by
+toggling the "Expert Mode On" button, <img height="18" width="18"
+src="images/icons/experton.png" alt="Expert Mode ON">, local display
+settings persist across different demos and resets.  If an error
+occurs during synchronization, the background of this document is
+turned red, an error icon appears at the top of the screen, and the
+output from the Harmony executable is made visible. To see what this
+looks like, remove the closing <tt></a></tt> tag from Replica #1 and
+click "Synchronize". Repair the error by adding the <tt></a></tt> tag
+back and press "Synchronize" again (or simply click "Reset" to restore
+the initial state of the demo).
 </p>
 
-<p>You can see this graphically by clicking the "Show Abstract Trees"
-icon, <img height="18" width="18" src="images/abstract.png" alt="Show Abstract Trees Icon"/>,
-at the top of this page.  This causes the replicas to be displayed both
-in their concrete, external form and in their "abstract" internal form
-after parsing.
-  </p>
+<p>Then press "Next" to move on to the next demo.</p>
 
 XXX;
 # ---------------------------------------------------------
@@ -141,8 +170,8 @@ form, surrounded by square brackets.  But internally they are
 themselves represented as unordered trees, using a standard "cons
 cell" encoding: a list is represented by a tree with either a single
 child named <tt>nil</tt> or else two children named <tt>hd</tt> and
-<tt>tl</tt>, etc..  To see how things really look internally, check
-the "Raw display" control below.</p>
+<tt>tl</tt>, etc..  <!-- TODO: To see how things really look internally, check
+the "Raw display" control below. --></p>
 
 <p> Another detail of the way trees are displayed is that completely empty
 nodes are omitted -- for example, a tree with one child named <tt>nil</tt>
@@ -153,8 +182,10 @@ leading to an empty node is written <tt>{nil}</tt> instead of
 <tt>@children</tt> edge: Why not just put the list of sub-elements
 directly under the edge representing the element's tag?  To see why, try this: 
 <ul>
-<li>Add the word <tt>hello</tt> between <tt>&lt;b&gt;</tt> and <tt>&lt;/b&gt;</tt>.  Press "Synchronize."
-<li>Add a space and then <tt>cruel="world"</tt> between <tt>&lt;c</tt> and the closing <tt>&gt;</tt>.  Press "Synchronize."
+<li>Add the word <tt>hello</tt> between <tt>&lt;b&gt;</tt> and <tt>&lt;/b&gt;</tt>.  Click "Synchronize."
+<li>Add a space and then the attribute <tt>cruel="world"</tt>
+between <tt>&lt;c</tt> and the closing <tt>&gt;</tt>.  Click
+"Synchronize."
 </ul>
 </p>
 
@@ -190,7 +221,7 @@ The only exception to this behavior occurs when the algorithm realizes that
 the "merged" tree that it has constructed is ill-formed with respect to the
 <i>synchronization schema</i>.  (The desired synchronization schema is
 provided as another input to Harmony.  To see the schema currently in
-effect, click the "Show Schema" icon above, <img height="18" width="18" src="images/schema.png" alt="Show Schema Icon"/>.  To see the actual
+effect, click the "Show Schema" icon above, <img height="18" width="18" src="images/icons/schema.png" alt="Show Schema Icon"/>.  To see the actual
 definition of this schema, see the "Module XML" section in the chapter on
 the standard libraries in the <a href="../doc/main.pdf"
 target="_blank">Harmony manual</a>.)</p>
@@ -218,16 +249,13 @@ XXX;
 $demo["r1"] = <<<XXX
 <a></a>
 XXX;
-$demo["extras"] = '$elideoutput = "";';
 savedemo();
 # ---------------------------------------------------------
-
-
-
 
 ##############################################################################
 
 # ---------------------------------------------------------
+$demo["default_h"] = 175;
 $demo["instr"] = <<<XXX
 
 <p> 
@@ -303,15 +331,15 @@ two replicas) and observe the result of synchonization.
 </p>
 
 XXX;
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = $demo["l2"] = <<<XXX
 List.hd []; hoist "contacts"; hoist "@children"; 
 List.map (hoist "person"; hoist "@children"; List.flatten; 
    map (List.hd []; hoist "@children"; List.hd []; hoist "@pcdata"); pivot "name");
 List.flatten;
 map (List.hd [])
 XXX;
-$demo["schemaorig"] = "{* = {email = {! = {}}}}";
-$demo["extras"] = '$elidelens = ""; $elideschema = ""; $elideabstract = ""; ';
+$demo["schema"] = "{* = {email = {! = {}}}}";
+$demo["l1_d"] = $demo["l2_d"] = $demo["schema_d"] = $demo["a1_d"] = $demo["a2_d"] = "block";
 savedemo();
 # ---------------------------------------------------------
 
@@ -353,7 +381,7 @@ savedemo();
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
-<p> The other thing difference from the previous version of the
+<p> The other thing different from the previous version of the
 example is that the synchronization schema has been changed from
 <tt>Xml.T</tt> to <tt>{* = {email = {! = {}}}}</tt>.  This is an expression
 in Focal's type language (which is a variant of regular tree grammars).  It
@@ -428,7 +456,7 @@ structure are aligned positionally.
 </p>
 
 XXX;
-$demo["lensr1"] = <<<XXX
+$demo["l1"] = $demo["l2"] = <<<XXX
 List.hd []; hoist "contacts"; hoist "@children"; 
 List.map (hoist "person"; hoist "@children"; List.flatten;
   mapp {"name"} (List.hd []; hoist "@children"; List.hd []; hoist "@pcdata");
@@ -443,7 +471,7 @@ List.map (hoist "person"; hoist "@children"; List.flatten;
 );
 List.flatten; map (List.hd [])
 XXX;
-$demo["schemaorig"] = "{* = {email = (List.T {! = {}})}}";
+$demo["schema"] = "{* = {email = (List.T {! = {}})}}";
 savedemo();
 # ---------------------------------------------------------
 
@@ -474,6 +502,7 @@ savedemo();
 
 ##############################################################################
 
+unset($demo["schema"], $demo["l1"], $demo["l2"], $demo["l1_d"], $demo["l2_d"], $demo["a1_d"], $demo["a2_d"], $demo["schema_d"], $demo["ar_d"]);
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 

@@ -14,7 +14,7 @@ let chooseEncoding f =
 let chooseAbstractSchema types = "ICalendar.ICalendar_A"
 
 let chooseLens t schema = "ICalendar.l_stamps"
-;;
+;
 
 Toplevel.toplevel
   "harmonize-calendars"

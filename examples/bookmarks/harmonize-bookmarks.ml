@@ -39,22 +39,15 @@ let chooseEncoding f =
 let chooseAbstractSchema types =
   let ordered = Prefs.read orderedpref in
   match types,ordered with
-    [Safari],true -> "Bookmarks.Abstract"
-  | [Safari],false -> "Bookmarks.BushAbstract"
-  | [Mozilla],true -> "Bookmarks.Abstract" 
-  | [Mozilla;Safari],true -> "Bookmarks.Abstract" 
-  | [Mozilla;Meta],true -> "Bookmarks.Abstract"
-  | [Safari;Meta],true -> "Bookmarks.Abstract"
-  | _ -> failwith (Printf.sprintf "Unimplemented combination of file types: %s, ordered=%b"
-                     (String.concat "," (List.map bookmarktype2string types)) ordered);;
-
+      [Safari],false -> "Bookmarks.BushAbstract"
+    | _ -> "Bookmarks.Abstract"
+        
 let chooseLens t schema =
   match t,schema with
     Safari,"Bookmarks.Abstract"     -> "Safari.l2"
-  | Safari,"Bookmarks.BushAbstract" -> "Safari.l2"
+  | Safari,"Bookmarks.BushAbstract" -> "Safari.l3"
   | Mozilla,"Bookmarks.Abstract"    -> "Mozilla.l2"
   | Meta, "Bookmarks.Abstract"      -> "Prelude.id"
-  | Mozilla,_                       -> "Mozilla.play"
   | _                               -> assert false;;
 
 Toplevel.toplevel

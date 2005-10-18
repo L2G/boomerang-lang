@@ -1,11 +1,17 @@
 <?
 
 $demogroupname = "Calendars";
+$demo["default_h"] = 100;
+$demo["r1_h"] = $demo["r2_h"] = 300;
+$demo["forcer1"] = true;
+$demo["schema"] = "ICalendar.ICalendar_A";
+$demo["l1"] = $demo["l2"] = "ICalendar.l_stamps";
+$demo["r1format"] = $demo["r2format"] = "ics";
 
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 This demo shows how Harmony can be used to synchronize calendar files
 between organizers that use the iCalendar format (e.g., iCal on
 MacOS/X, Evolution or kOrganizer on Linux systems, Outlook on
@@ -50,16 +56,13 @@ END:VEVENT
 END:VCALENDAR
 
 XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "ics";
-$demo["r2format"] = "ics";
 savedemo();
 # ---------------------------------------------------------
 
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 Now, let us take a look at how iCalendar files are encoded into our
 native meta format.
 <p>
@@ -82,41 +85,15 @@ that does not exist on the other side, so both entries (though equal besides
 their uuids) will be added to the archive as completely separate entries.
 XXX;
 # ---------------------------------------------------------
-$demo["r1"] = <<<XXX
-BEGIN:VCALENDAR
-PRODID:-//K Desktop Environment//NONSGML KOrganizer 3.3//EN
-VERSION:2.0
-
-BEGIN:VEVENT
-DTSTAMP:20050809T215429Z
-ORGANIZER:MAILTO:lescuyer@seas.upenn.edu
-CREATED:20050809T213931Z
-UID:KOrganizer-168648156.762
-SEQUENCE:2
-LAST-MODIFIED:20050809T215425Z
-SUMMARY:Something very important
-LOCATION:In a galaxy far\, far away
-CLASS:PUBLIC
-PRIORITY:3
-CATEGORIES:Business
-DTSTART:20050810T150000Z
-DTEND:20050810T190000Z
-TRANSP:OPAQUE
-END:VEVENT
-
-END:VCALENDAR
-
-XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "ics";
 $demo["r2format"] = "meta";
+$demo["l2"] = "id";
 savedemo();
 # ---------------------------------------------------------
 
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 Now, if you looked carefully at the first demo, you may have noticed
 that even if you were just modifying the location of the event in
 the second replica, the changes done in the first replica by the
@@ -139,42 +116,13 @@ When you are done experimenting with lastmods, proceed to next part of the
 to see another similar issue that we faced when developing this calendar
 synchronizer.
 XXX;
-# ---------------------------------------------------------
-$demo["r1"] = <<<XXX
-BEGIN:VCALENDAR
-PRODID:-//K Desktop Environment//NONSGML KOrganizer 3.3//EN
-VERSION:2.0
-
-BEGIN:VEVENT
-DTSTAMP:20050809T215429Z
-ORGANIZER:MAILTO:lescuyer@seas.upenn.edu
-CREATED:20050809T213931Z
-UID:KOrganizer-168648156.762
-SEQUENCE:2
-LAST-MODIFIED:20050809T215425Z
-SUMMARY:Something very important
-LOCATION:In a galaxy far\, far away
-CLASS:PUBLIC
-PRIORITY:3
-CATEGORIES:Business
-DTSTART:20050810T150000Z
-DTEND:20050810T190000Z
-TRANSP:OPAQUE
-END:VEVENT
-
-END:VCALENDAR
-
-XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "ics";
-$demo["r2format"] = "meta";
 savedemo();
 # ---------------------------------------------------------
 
 ##############################################################################
 
 # ---------------------------------------------------------
-$demo["instructions"] = <<<XXX
+$demo["instr"] = <<<XXX
 Each calendar entry has a <tt>DTSTAMP</tt> property, containing the date
 where this instance of the entry was created. It is different from the
 <tt>DTCREATE</tt> property, which is the date of first creation of the entry,
@@ -215,34 +163,8 @@ END:VEVENT<br>
 </tt>
 XXX;
 # ---------------------------------------------------------
-$demo["r1"] = <<<XXX
-BEGIN:VCALENDAR
-PRODID:-//K Desktop Environment//NONSGML KOrganizer 3.3//EN
-VERSION:2.0
-
-BEGIN:VEVENT
-DTSTAMP:20050809T215429Z
-ORGANIZER:MAILTO:lescuyer@seas.upenn.edu
-CREATED:20050809T213931Z
-UID:KOrganizer-168648156.762
-SEQUENCE:2
-LAST-MODIFIED:20050809T215425Z
-SUMMARY:Something very important
-LOCATION:In a galaxy far\, far away
-CLASS:PUBLIC
-PRIORITY:3
-CATEGORIES:Business
-DTSTART:20050810T150000Z
-DTEND:20050810T190000Z
-TRANSP:OPAQUE
-END:VEVENT
-
-END:VCALENDAR
-
-XXX;
-# ---------------------------------------------------------
-$demo["r1format"] = "ics";
 $demo["r2format"] = "ics";
+$demo["l2"] = $demo["l1"];
 savedemo();
 # ---------------------------------------------------------
 
