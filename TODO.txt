@@ -26,7 +26,6 @@ and the later stages of the process should be able to use it right there,
 without dumping it out to a file again.
 
 NATE TASKS
-NOW
   split the svn repository
 
 SOMEBODY
@@ -35,7 +34,7 @@ decommission and delete the /visual subdirectory
 * expand the address book demo with a demo2, demo3, that show heterogeneous synchronization, our alignment strategy, and so on
 * change implementation of sync alg to eliminate delete/delete conflicts,
   as discussed by Alan
-* assertion failure should print a line number  (is this done already?)
+* assertion failure should print a line number  (is this done already? I believe so)
   - make native assert function take a string arg
   - make parser recognize assert keyword specially and supply fileinfo
     as string
