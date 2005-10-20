@@ -1,5 +1,4 @@
 <?
-
 $demogroupname = "Relational lenses";
 $demo["forcer1"] = true;
 $demo["r1_h"] = $demo["r2_h"] = 250;
