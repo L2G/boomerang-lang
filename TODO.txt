@@ -25,9 +25,6 @@ reading the file into memory as a string, but then it will *be* in memory
 and the later stages of the process should be able to use it right there,
 without dumping it out to a file again.
 
-NATE TASKS
-  split the svn repository!
-
 SOMEBODY
 decommission and delete the /visual subdirectory
 * change the structured text lens so that it adds dummy headers all the time
