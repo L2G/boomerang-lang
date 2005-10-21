@@ -1,5 +1,3 @@
-THINGS TO DO
-
 BCP TASKS
 Bug: in structured text demo, try completely emptying a replica
 do structured text better using spinelists
