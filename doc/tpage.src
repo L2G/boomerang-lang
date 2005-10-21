@@ -1,0 +1,69 @@
+\title{\vspace*{-.5in}
+\Huge Harmony Programmer's Manual\vspace*{.5in}}
+\author{\LARGE 
+J. Nathan Foster,
+Benjamin C. Pierce,
+and
+Alan Schmitt \\[1ex]
+\Large with \\[1ex]
+%
+\Large Aaron Bohannon,
+Michael B. Greenwald,
+Owen Gunden, \\
+\Large Malo Denielou,
+Jonathan T. Moore,
+Christian Kirkegaard, \\
+\Large St\'ephane Lescuyer,
+and
+Zhe Yang
+\vspace*{.5in}
+}
+\date{\LARGE \ifdraft {\bf Draft of} \fi  \today}
+\maketitle
+
+\thispagestyle{empty}
+
+\section*{Mailing List}
+
+Active users of Harmony are encouraged to subscribe to the @harmony-hackers@
+mailing list by visiting the following URL:
+\begin{quote}
+@http://lists.seas.upenn.edu/mailman/listinfo/harmony-hackers@
+\end{quote}
+
+\bigskip
+\bigskip
+\bigskip
+
+\section*{Caveats}
+
+The Harmony system is a work in progress.  We are distributing it in hopes
+that others may find it useful or interesting, but it has some serious
+deficiencies that we know about (as well as, surely, some that we don't,
+plus a multitude of minor ones).  In particular, the documentation and user
+interface are... minimal.  Also, the Focal implementation has not been
+carefully optimized.  It's fast enough to run medium-sized (hundreds of
+lines) programs on medium-sized (tens of kilobytes) trees, but it's not up
+to industrial use.
+
+\bigskip \bigskip \bigskip
+
+\section*{Copying}
+
+Harmony is free software; you can redistribute it and/or modify it under the
+terms of the GNU Lesser General Public License as published by the Free
+Software Foundation; either version 2.1 of the License, or (at your option)
+any later version.  See the file COPYING in the source distribution for more
+information.
+
+\bigskip
+\bigskip
+\bigskip
+
+\section*{Contributing}
+
+Contributions to Harmony---especially in the form of interesting or useful
+lenses---are very welcome.  By sending us your code for inclusion in
+Harmony, you are signalling your agreement with the copying policy described
+above.
+

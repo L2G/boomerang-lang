@@ -1,0 +1,541 @@
+\newif\ifqed\qedfalse % \qed box before?
+\def\endofpfmarker{\mbox{$\Box$}}
+\def\endofpf{\hbox{\ }\hfill\endofpfmarker\qedtrue}
+\let \noqed \qedtrue
+\def\qed{\endofpf}
+\newcommand{\proofstyle}{}%\small
+
+\newcommand{\lgetn}{\ensuremath{\mathord{\nearrow}}}
+\newcommand{\lputn}{\ensuremath{\mathord{\searrow}}}
+% \newcommand{\lcreaten}{\Downarrow}
+% \newcommand{\lcreaten}{\,\searrow\!\!\!\!\searrow}
+
+\newcommand{\lget}[1]{\mbox{$\lgetn\,#1$}}
+\newcommand{\lgetlong}[1]{\mbox{$\lgetn(#1)$}}
+\newcommand{\lput}[2]{\mbox{$\,\lputn\left(#1,\,#2\right)$}}
+\newcommand{\lcreate}[1]{\lput{#1}{\missing}}
+
+\newcommand{\GET}{\mbox{\it get}}
+\newcommand{\PUT}{\mbox{\it putback}}
+\newcommand{\CREATE}{\mbox{\it create}}
+
+% \newenvironment{view}{\begin{cases}}{\end{cases}}
+\newcommand{\openviewtext}{\{\hspace{-0.1cm}|}
+\newcommand{\closeviewtext}{|\hspace{-0.1cm}\}}
+\newcommand{\openview}{\left\{\hspace{-0.1cm}\left|}
+\newcommand{\closeview}{\right|\hspace{-0.1cm}\right\}}
+\newenvironment{view}{\openview\begin{array}{@{}l@{}}}{\end{array}\closeview}
+\newenvironment{viewcases}{\openview\begin{array}{@{}ll@{}}}{\end{array}\closeview}
+% \newenvironment{view}{
+%   \mathchoice{
+%     \left\{\hspace{-0.1cm}\left|   \begin{array}{@{}l@{}}
+%   }{
+%     \{\hspace{-0.1cm}|
+%   }{
+%     \{\hspace{-0.1cm}|
+%   }{
+%     \{\hspace{-0.1cm}|
+%   }
+% }{%
+%   \mathchoice{
+%     \end{array}   \right|\hspace{-0.1cm}\right\}
+%   }{
+%     |\hspace{-0.1cm}\}
+%   }{
+%     |\hspace{-0.1cm}\}
+%   }{
+%     |\hspace{-0.1cm}\}
+%   }
+% }
+\newcommand{\MAPSTO}{\mapsto}
+\newcommand{\MAPSTOMAYBE}{\stackrel{?}{\mapsto}}
+\newcommand{\updatedwith}{\mathrel{\leftarrow\!\!\!\!\!\!+}}
+%\newcommand{\MAPSTO}{=}
+\newcommand{\name}[1]{\texttt{#1}}
+% \newcommand{\finalname}[1]{\begin{view}\name{#1}\end{view}}
+\newcommand{\finalname}{\name}
+%\newcommand{\emptyview}{\texttt{{\char'173}{\char'175}}}
+\newcommand{\emptyview}{\{\hspace{-0.1cm}||\hspace{-0.1cm}\}}
+\newcommand{\hdname}{\name{*h}}
+\newcommand{\tlname}{\name{*t}}
+
+\newenvironment{listview}{%
+  \left[
+  \def\arraystretch{1.2}%
+  \array{@{}l@{\quad}l@{}}%
+}{%
+  \endarray\right]%
+}
+
+
+\newcommand{\botlens}{\bot_l}
+\newcommand{\fix}[1]{\mathit{fix}(#1)}
+\newcommand{\namedincchain}[1]{${#1}_0 \prec {#1}_1 \prec \ldots \prec {#1}_n \prec \ldots$ }
+\newcommand{\incchain}{\namedincchain{l}}
+
+\newcommand{\LN}[1]{\texttt{#1}}
+
+\newcommand{\hname}[1]{\textit{{\sc #1}}}
+%\newcommand{\eqdef}{\mathrel{\stackrel{\rm\mbox{\tiny def}}{=}}}
+\newcommand{\eqdef}{=}
+
+\newcommand{\tset}{\mathbb{T}}
+\newcommand{\telt}{\tau}
+\newcommand{\tless}{\sqsubseteq}
+\newcommand{\tinc}[1]{\overline{#1}}
+\newcommand{\intotaltype}{\in}
+
+\newcommand{\isdefined}[1]{#1\text{ is defined}}
+\newcommand{\isundefined}[1]{#1\text{ is undefined}}
+\newcommand{\undefined}{\text{undefined}}
+
+\newcommand{\dom}[1]{\mathsf{dom}(#1)}
+\newcommand{\ran}[1]{\mathsf{ran}(#1)}
+\newcommand{\restricted}[1]{\arrowvert_{#1}}
+% \newcommand{\without}[1]{\arrowvert_{\overline{#1}}}
+\newcommand{\without}[1]{\mathord{\setminus_{#1}}}
+\newcommand{\treeprefix}{<}
+
+\newcommand{\missing}{\Omega}
+\newcommand{\vabs}{A}
+\newcommand{\vcon}{C}
+\newcommand{\universe}{\mathcal{U}}
+\newcommand{\umiss}{\universe_\missing}
+\newcommand{\vmis}{\vcon_\missing}
+\newcommand{\vmiss}{\trees_\missing}
+% \newcommand{\plusmiss}{\cup \{\missing\}}
+\newcommand{\plusmiss}{_\missing}
+
+\newcommand{\Setminus}{\mathord{\setminus}}
+
+\gdef\bigspaceintype{\ }
+\gdef\linebreakintype{\ }
+\gdef\linebreakintypeelsecomma{,}
+
+% typeset argument either using just total types or else once with ordinary
+% types and once with total
+\gdef\yes{Y}
+\gdef\showbothtypes{}
+\newcommand{\onceortwice}[1]{%
+\iffull
+  \gdef\testshowbothtypes{N}
+  \gdef\lensm{\totallensm}
+  \def\showbothtypes{%
+    \gdef\testshowbothtypes{Y}
+    \gdef\lensm{\partiallensm}}
+  #1
+  \ifx\testshowbothtypes\yes
+    \\[.7ex] \gdef\lensm{\totallensm} \def\showbothtypes{} #1
+  \fi
+  \gdef\lensm{\partiallensm}
+\else
+  #1
+\fi
+}
+
+\newcommand{\bcplens}[2]{
+  \gdef\lltype{#1}
+  \begin{center}
+  \fbox{%
+   \def\bigspaceintype{\ \ \ \ }%
+   \def\linebreakintype{\\}%
+   \def\linebreakintypeelsecomma{\\}%
+   $
+  \begin{array}{rcl}
+  #2
+  \\[1ex] \hline \ \\[-2.1ex]
+  \multicolumn{3}{c}{\begin{array}{@{}l@{}}\onceortwice{#1}\end{array}}
+  \end{array}
+  $}
+  \end{center}
+}
+
+\newcommand{\bcphardlens}[3]{
+\gdef\llname{\textnormal{\mbox{\pareno#1\parenc}}}
+\gdef\llput##1##2{\llname \lput{##1}{##2}}
+\gdef\llget##1{\llname \lget{##1}}
+\gdef\llgetlong##1{\llname \lgetlong{##1}}
+\bcplens{#2}{#3}}
+
+\newcommand{\bcpeasylens}[4]{
+  \bcphardlens{#1}{#2}{
+  \llget{c} & \eqdef & #3\\ 
+  \llput{a}{c} & \eqdef & #4 
+  }}
+
+% \gdef\endofpfdisplay{\eqno{\endofpfmarker\gdef\endofpf{}}}
+
+% BCP: This doesn't look great (doesn't put the box flush right), but 
+%  the original definition above doesn't work with fleqn under amsmath 
+\gdef\endofpfdisplay{{\hspace*{.25in}\hfill\endofpfmarker\gdef\endofpf{}}}
+
+%% \newcommand{\wbproof}[4]{
+%% \iffull
+%% \begin{lemma}
+%% $\lltype$.
+%% \end{lemma}
+%% \begin{proof} \ 
+%% \begin{description}
+%% \item[\hname{Get}:] #1
+%% \item[\hname{Put}:] #2
+%% \item[\hname{GetPut}:] #3
+%% \item[\hname{PutGet}:] #4
+%% \endofpf
+%% \end{description}
+%% \end{proof}
+%% \fi
+%% }
+
+\newcommand{\wbproofcase}[1]{{\underline{\hname{#1}}}}
+
+\newcommand{\wbproof}[4]{
+\iffull
+\begin{lemma}[Well-behavedness]
+$\lltype$.
+\end{lemma}
+\begin{proof} \ \\
+\noindent \wbproofcase{Get}: #1
+
+\smallskip
+
+\noindent \wbproofcase{Put}: #2
+
+\smallskip
+
+\noindent \wbproofcase{GetPut}: #3
+
+\smallskip
+
+\noindent \wbproofcase{PutGet}: #4
+\end{proof}
+\fi
+}
+
+\newcommand{\wbderproof}[1]{
+\iffull
+\begin{lemma}[Well-behavedness]
+$\lltype$.
+\end{lemma}
+\begin{proof} 
+#1
+\end{proof}
+\fi
+}
+
+\newcommand{\wbcalc}[1]{
+\vbox{
+$
+\qquad\begin{array}[b]{l@{\qquad}p{3in}}
+#1
+\end{array}
+\hfill
+$
+}
+}
+\newcommand{\totalproof}[1]{%
+\iffull
+{\def\lensm{\totallensm}
+\begin{lemma}[Totality]
+$\lltype$.
+\end{lemma}
+
+\begin{proof}
+#1
+\end{proof}
+}%
+\fi}
+
+\newif\ifparen\parentrue
+\def\pareno{\ifparen(\fi}
+\def\parenc{\ifparen)\fi}
+
+\newif\ifcombo\combofalse
+\newif\ifvery\veryfalse
+
+\newcommand{\corelens}[5]{
+\def\llname{\textnormal{\mbox{\pareno#1\parenc}}}
+\def\llput##1##2{\llname \lput{##1}{##2}}
+\def\llget##1{\llname \lget{##1}}
+\def\llcreate##1{\llname \lcreate{##1}}
+  \begin{center}
+  \fbox{$
+  \begin{array}{rcl}
+  \llget{c} & \eqdef & #3\\ 
+  \llput{a}{c} & \eqdef & #4 
+  \\[1.7ex] \hline \ \\[-1.7ex]
+  \multicolumn{3}{c}{\begin{array}{@{}l@{}}#2\end{array}}
+  \end{array}
+  $}
+  \end{center}
+
+  #5
+}
+
+\newcommand{\coreprooflens}[6]{
+\def\llname{\textnormal{\mbox{\pareno#1\parenc}}}
+\def\llput##1##2{\llname \lput{##1}{##2}}
+\def\llget##1{\llname \lget{##1}}
+\def\llcreate##1{\llname \lcreate{##1}}
+\iffull
+\begin{lemma}
+  \ifcombo
+  #2
+  \else
+  \ifvery
+  #1 is a very well behaved lens.
+  \else
+  #1 is a well-behaved lens.
+  \fi
+  \fi
+\end{lemma}
+\begin{proof}
+\begin{description}
+  \item[\hname{GetPut}]#3
+  \item[\hname{PutGet}]#4
+    \ifvery \item[\hname{PutPut}]#5 \fi
+    \ifcombo\else\qed\fi
+\end{description}
+\ifcombo
+#6
+\fi
+\end{proof}
+\fi
+}
+
+\newcommand{\lens}[7]{
+\corelens{#1}{#2}{#3}{#4}{#5}
+\coreprooflens{#1}{}{#6}{#7}{}{}
+}
+
+
+\newcommand{\combolens}[9]{
+\corelens{#1}{#2}{#3}{#4}{#5}
+\combotrue
+\coreprooflens{#1}{#6}{#7}{#8}{}{#9}
+\combofalse
+}
+
+\newcommand{\vlens}[8]{
+\corelens{#1}{#2}{#3}{#4}{#5}
+\verytrue
+\coreprooflens{#1}{}{#6}{#7}{#8}{}
+\veryfalse
+}
+
+\newcommand{\vcprooflens}[6]{
+\verytrue
+\combotrue
+\coreprooflens{#1}{#2}{#3}{#4}{#5}{#6}
+\veryfalse
+\combofalse
+}
+% Alan's old version
+% \newcommand{\lens}[6]{
+% \def\llput##1##2{\textnormal{\mbox{(#1)}} \lput{##1}{##2}}
+% \def\llget##1{\textnormal{\mbox{(#1)}} \lget{##1}}
+% \def\llcreate##1{\textnormal{\mbox{(#1)}} \lcreate{##1}}
+% \begin{definition}[\textnormal{#1}]
+%   \[
+%   \begin{array}{rcl}
+%     \llget{c} & \eqdef & #2\\
+%     \llput{a}{c} & \eqdef & #3
+%   \end{array}
+%   \]
+% \end{definition}
+% \iffull
+% \begin{proof}(#1 is well defined)
+% \begin{description}
+%   \item[\hname{GetPut}]#4
+%   \item[\hname{PutGet}]#5
+% \end{description}
+% #6
+% \end{proof}
+% \fi
+% }
+
+\newenvironment{derived}{
+\[
+\begin{array}{r@{\;\eqdef\;}l}
+  }{
+\end{array}
+\]}
+\newenvironment{derivedtype}{
+\vspace{-\bigskipamount}
+\vspace{-\medskipamount}
+\[
+\begin{array}{l}
+  }{
+\end{array}
+\]}
+
+\newcommand{\derlens}[3]{
+% \iffull
+\bcplens{#1}{
+  #2 & \eqdef & #3
+  }
+% \else
+% \[
+% #2 \ \eqdef \ #3
+% \]
+% \fi
+}
+
+\newcommand{\derlenswide}[3]{
+% \iffull
+\bcplens{#1}{
+  #2 & \eqdef & #3
+  }
+}
+
+% Annotation macro REMOVED: it looks ugly, replace by the remark one
+% below
+%\def\annotate#1#2{\ifdraft {\normalsize\sc ({#1}:{#2})}\fi}
+% MBG: Highlight macro, so that if an annotation refers to text it can
+% be highlighted, but when submitting, get rid of highlighting.
+\def\highlight#1{{\em {#1}}}
+% \def\highlight#1{#1}
+
+\long\def\comment#1{}
+
+\newcommand{\finish}[1]{\ifdraft {\bf (#1) } \fi}
+\newcommand{\finishfull}[1]{\iffull\finish{#1}\fi}
+\newcommand{\finishnow}[1]{{\large\bf #1}}
+% \newcommand{\finishlater}[1]{\iffull\finish{#1}\fi}
+\newcommand{\finishlater}[1]{}
+\newcommand{\reviewer}[2]{\finish{REVIEWER \##1: #2}}
+% like annotate, except it isn't silent when \draft is false.
+\newcommand{\REMARK}[2]{\ifdraft{\bf [#2 --#1]}\fi}
+\newcommand{\bcp}[1]{\REMARK{bcp}{#1}}
+\providecommand{\bcpforothers}[1]{\REMARK{bcp}{#1}}
+\newcommand{\mbg}[1]{\REMARK{mbg}{#1}}
+\newcommand{\as}[1]{\REMARK{as}{#1}}
+\newcommand{\jonm}[1]{\REMARK{jonm}{#1}}
+\newcommand{\jnf}[1]{\REMARK{jnf}{#1}}
+
+\newenvironment{indentleft}
+               {\list{}{}%
+                \item\relax}
+               {\endlist}
+
+% commented out since it is not used anywhere
+%\newcommand{\GOODLENSES}{\ensuremath{L(\vcon,\vabs)}}
+%\newcommand{\PRETTYGOODLENSES}{\ensuremath{L^{-}(\vcon,\vabs)}}
+\newcommand{\GOODTOTAL}{\ensuremath{L_t(\vcon,\vabs,U,P)}}
+\newcommand{\PRETTYGOODTOTAL}{\ensuremath{L_t^{-}(\vcon,\vabs,U,P)}}
+
+% Change this when we actually move the material to another paper
+\newcommand{\LENSLAWSARTICLE}{\cite{LensesandUpdates2003}}
+
+\newcommand{\breakifoverfraction}[1]{
+  \ifdim\pagetotal > #1\pagegoal
+    \@tempdima\pagetotal \advance\@tempdima\pagedepth
+    \ifdim\@tempdima < \pagegoal 
+      \clearpage\typeout{Forcing optional page break}
+    \else \advance\@tempdima-\pageshrink
+      \ifdim\@tempdima > \pagegoal \par
+      \else\penalty-5000\fi
+  \fi\fi
+  }
+\def\totalpagefraction{0.8}    
+\newcommand{\breakifnearbottom}{\breakifoverfraction{\totalpagefraction}}
+
+%\renewcommand{\textfraction}{.1}
+%\renewcommand{\topfraction}{.9}
+%\renewcommand{\bottomfraction}{.9}
+
+\newcommand{\closed}[1]{\mathtt{closed}(#1)}
+
+\newcommand{\lensfromto}[2]{#1\rightleftharpoons#2}
+% \newcommand{\lenstypesymOmega}{\stackrel{\scriptscriptstyle\Omega}{\rightleftharpoons}}
+\newcommand{\lenstypesymOmega}{%
+  \mathrel{\mathord{\rightleftharpoons}
+  \hspace*{-.75em}
+  {\raise 5pt \hbox{$\scriptscriptstyle\Omega$}}
+  \hspace{.3em}}}
+\newcommand{\totallenstypesymOmega}{%
+  \mathrel{\mathord{\Longleftrightarrow}
+  \hspace*{-1.1em}
+  {\raise 5pt \hbox{$\scriptscriptstyle\Omega$}}
+  \hspace{.75em}}}
+\newcommand{\totallensfromto}[2]{#1\Longleftrightarrow#2}
+\newcommand{\partiallensm}[2]{#1\lenstypesymOmega#2}
+\newcommand{\lensm}{\partiallensm}
+\newcommand{\totallensm}[2]{#1\totallenstypesymOmega#2}
+\newcommand{\qtotallensm}[2]{#1\totallenstypesymOmega^?#2}
+\newcommand{\lensmBACKWARDS}[2]{\lensm{#2}{#1}}
+
+\newcommand{\INS}{\ensuremath{\in}}
+\newcommand{\INT}{\ensuremath{\lenstypesymOmega}}
+\newcommand{\INTOTT}{\ensuremath{\totallenstypesymOmega}}
+\newcommand{\INTOTTnoM}{\ensuremath{\Longleftrightarrow}}
+
+%% (from program.sty)
+%% Powerset symbol:
+\DeclareSymbolFont{eulerletters}{U}{eur}{m}{n}%
+\DeclareMathSymbol{\powersetsymbol}{\mathord}{eulerletters}{"7D}%
+\newsavebox{\powersetbox}
+\sbox{\powersetbox}{\raisebox{0.1ex}{\mbox{\Large$\powersetsymbol$}}}
+\def\powerset{\usebox{\powersetbox}}
+
+\newcommand{\PLUSMISSING}{_{\missing}}
+% \newcommand{\powerset}{{\mathcal P}}
+\newcommand{\SETOFVIEWS}{\mathord\subseteq\universe}
+% \newcommand{\SETOFTREES}{\mathord\in\powerset(\trees)}
+\newcommand{\SETOFTREES}{\mathord\subseteq\trees}
+\newcommand{\trees}{\mathcal{T}}
+% \newcommand{\TREESOVER}[1]{\mathit{TreesOver}(#1)}
+\newcommand{\IN}{\mathord\in}
+\newcommand{\names}{\mathcal{N}}
+\newcommand{\Bij}{\mathit{Bij}}
+% \newcommand{\allnamesexcept}[1]{\names\setminus{n}}
+\newcommand{\allnamesexcept}[1]{\overline{n}}
+% \newcommand{\List}{\mathit{List}}
+\newcommand{\List}[1]{\texttt{[}#1\texttt{]}}
+\newcommand{\ListMN}[3]{\texttt{[}#1 {}^{#2..#3}\texttt{]}}
+\newcommand{\ListM}[2]{\ListMN{#1}{#2}{\omega}}
+\newcommand{\ListN}[2]{\ListMN{#1}{0}{#2}}
+\newcommand{\EmptyList}{\texttt{[]}}
+\newcommand{\emptylist}{\texttt{[]}}
+\newcommand{\AList}[2]{\ensuremath{\texttt{AList}_{#1}(#2)}}
+\newcommand{\Cons}[2]{#1 \!::\! #2}
+\newcommand{\SingletonList}[1]{#1 :: \EmptyList}
+\newcommand{\MixedList}[2]{#1 \& #2}
+\newcommand{\AtMost}[1]{\leq #1}
+\newcommand{\listify}{\mathit{listify}}
+\newcommand{\UNDEFINED}{\bot}
+\newcommand{\DEFINED}{\downarrow}
+\newcommand{\lessdefinedthan}{\sqsubseteq}
+\newcommand{\ltype}[1]{\ensuremath{\mathit{#1}}}
+\newcommand{\XMLtype}[3][\relax]{%
+  \texttt{<}\LN{#2}#1\texttt{>}\;#3\;\texttt{</}\LN{#2}\texttt{>}}
+
+\newcommand{\lubl}[2]{\bigsqcup_{#2 \in \omega} #1_#2}
+\newcommand{\lub}[2]{\bigsqcup_{#2} #1_#2}
+\newcommand{\lubn}[2]{\bigsqcup_{#2} #1}
+
+\newcommand{\SMALLSECTIONHEADER}[1]{\iffull \subsection*{#1} \else \medskip
+  \noindent {\bf #1} \quad\fi \ignorespaces} 
+
+\newcommand{\SMALLLENSHEADER}[1]{\iffull \subsection*{#1} \fi \ignorespaces} 
+
+% \newcommand{\Cat}{\cdot}
+% \newcommand{\cat}{\mathrel{\cdot}}
+\newcommand{\cat}{\mathrel{\cdot}}
+
+\newcommand{\arrow}{\mathrel{\rightarrow}}
+
+\newenvironment{mathdisplayifspacepermits}
+  { \[ }
+  { \] }
+
+\newcommand{\SECTIONREF}[1]{\iffull Section~\ref{#1}\else  \S\ref{#1}\fi}
+\newcommand{\Forexample}{\iffull For example\else E.g.\fi}
+\newcommand{\forexample}{\iffull for example\else e.g.\fi}
+% \newcommand{\CHOOSE}[1]{\mathit{any}(#1)}
+\newcommand{\CHOOSE}[1]{\mathit{any\!}_{#1}}
+\newcommand{\FILTERFUN}[1]{\ensuremath{\mathit{fltr\!}_{#1}}}
+
+\newcommand{\LENSSECTIONnott}[1]{\paragraph*{\fbox{#1}}}
+\newcommand{\LENSSECTION}[1]{\LENSSECTIONnott{\tt #1}}
+\newcommand{\TTSPACE}{\ }
+\newcommand{\Arrow}{\ensuremath{\rightarrow}}

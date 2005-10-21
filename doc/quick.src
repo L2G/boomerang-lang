@@ -1,0 +1,188 @@
+\chapter{Quick Start}
+
+\emph{This chapter is intended for people who are installing Harmony on
+  their own machines.  If you are using it in conjunction with the web demo,
+  you'll want to skip to later sections.}
+
+\section*{Installation}
+
+\begin{enumerate}
+\item Grab and unpack the most recent tarball from here:
+#&http://www.cis.upenn.edu/~bcpierce/harmony/download
+
+\item Follow the instructions in the file @src/INSTALL@ to install the OCaml
+compiler (if necessary) and the libraries on which Harmony depends.
+
+\item Type @make test@ in the top-level directory to build the Harmony
+executable and run all the regression tests.
+\end{enumerate}
+
+\section*{Playing with the Demos}
+
+The @examples@ directory contains a number of different Harmony instances.
+Most of them are also available for live experimentation via the web.  (Go
+to the main Harmony page and follow the ``demo'' link.)  Play with some of
+these to familiarize yourself with the basic concepts and capabilities of
+Harmony.
+
+You'll find the Focal source code for demo @XXX@ in a file called
+@examples/XXX/demos.php@, if you want to see how things work.
+
+%% To get a feel for what Harmony can do, let's begin by playing with a few
+%% pre-packaged demos.  The demos can be run in three different modes:
+%% \begin{enumerate}
+%% \item \textbf{Web browser:} Most of the demos are available on the web
+%%   via the main Harmony page.  The interface should be self-explanatory.
+%% \item \textbf{``Make'':}
+%% The demos can be found in subdirectories
+%%   of the @examples@ directory.  To see what demos are available, do @ls@ and
+%%   look for files beginning with @demoX@, where @X@ is an integer.
+  
+%%   To run a given demo, do @make demoX@.  This will create two files called
+%%   @r1.EXT1@ and @r2.EXT2@ (where the extensions @EXT1@ and @EXT2@ depend on
+%%   the specific demo) and run Harmony to initialize them to the same
+%%   contents.  It may also print out some instructions suggesting what might
+%%   be interesting to do with the files.  You can now edit either or both of
+%%   these files in any way you like and, when finished, type @make demo@ to
+%%   re-run Harmony and synchronize them.  Keep editing the files and re-doing
+%%   @make demo@ as many times as you like.
+
+%% \item \textbf{``Make'' + EDITOR:} For a more interactive experience, set
+%% your shell @EDITOR@ variable to the name of your favorite editor.  When
+%% you do @make demo1@ the files @r1.EXT1@ and @r2.EXT2@ will be created, as
+%% above; then your editor will be started on these files (and the
+%% instructions, if any).  
+
+%% Edit the files as you like, and then save them and quit the editor; the new
+%% files will be synchronized by Harmony and again redisplayed for further
+%% editing.  The demo will automatically repeat as long as you keep changing
+%% one of the files in the editor.  If you change neither file, the demo
+%% terminates.
+%% \end{enumerate}
+
+
+\section*{First Steps in Lens Programming}
+
+Now let's roll up our sleeves and write a few lenses.
+
+\begin{enumerate}
+\item Make a copy of the directory @examples/template@ in a place where you
+can play with it:
+
+#&cp -r examples/template experimental/play
+#&cd experimental/play
+
+\item Type @make test@.  You should see this:
+#&Test result: {a = {1}, b = {2}}
+
+\item Open the file @main.fcl@ in your favorite text editor.  Edit the
+tree in the last line to add a new child named @c@ with a subtree @{3}@
+(i.e., add @c={3}@ just before the closing curly brace) and re-run %
+@make test@.
+
+The three-line Focal program in @main.fcl@ can be read as follows:
+\begin{itemize}
+\item The first line declares that this file contains a module named
+@Main@. 
+\item The second line defines a new lens named @l@, which behaves the same
+as the predefined identity lens, @id@.
+\item The third line asks the Focal system to evaluate the \GET{} direction
+of @l@ on the concrete argument (an expression of type @tree@) following the
+@/@.  The @?@ on the right of the @=@ asks that the result be printed out.
+\end{itemize}
+
+\item Replace the @?@ by the same tree as on the left of the @=@ and re-run
+@make test@.  This time, nothing at all should be printed.  You've just
+written your first unit test.
+
+Edit the tree on the left-hand side of the @=@ and run @make test@.  You
+should now see an error message indicating that the test is failing.  
+
+Change the right-hand side of the @=@ back to @?@.
+
+\item Change the @id@ in the second line to @filter {a,c} {}@.  Re-run 
+%
+@make test@.  You should see this:
+#&Test result: {a = {1}, c = {3}}
+Note that the @b@ child has been filtered away.  
+
+Edit the tree in the test to add a @d@ child, re-run the test, and note that
+this child is also filtered away.
+
+\item Now let's see what this lens does in the \PUT{} direction.  In the
+third line, change the @/@ to @\@ and add, just after the @\@, the tree
+@{a={5}}@.  Run @make test@.  You should see a new concrete tree with an
+updated value for @a@, with @c@ missing, and with the subtrees under @b@ and
+@d@ carried over from the second argument tree.
+
+\item Now let's play with some XML.  Change the right-hand side of the
+definition of @l@ back to @id@ and replace the third line with this:
+#{&}
+let myxml : name = "<a><b>hello world</b></a>"
+
+let myxmltree : tree = (load "xml" myxml)
+
+test l / myxmltree = ?
+#{@}
+Run @make test@.  What's printed is the low-level internal representation of
+XML in Focal---the way an XML string is parsed as a tree.
+
+\item Change the definition of @l@ to @Xml.squash@.  Run @make test@.  That
+looks a little better.
+
+\item Change the definition of @l@ again to 
+#&let l : lens = Xml.squash; hoist "a"; hoist "b"; hoist Xml.PCDATA
+and note that the result of running the test changes to just the string
+@hello world@ (encoded as the unique edge in a tree with an empty subtree). 
+\finish{Maybe @focus@ would be better than @hoist@, since we use it later?}
+
+\item Change the final @test@ to 
+#&test l \ {"goodbye cruel world"} myxmltree = ?
+and note how the new string has been re-inserted into the original XML
+structure.  (The quote marks are needed here because we are defining a tree
+with an edge label containing the space character.)
+
+\item Now let's play with transforming an external file.  Change the
+definition of @l@ to just @Xml.squash@ and type:
+#&make get
+So far, we've just
+been running Harmony in its testing mode, which causes unit tests embedded
+in the code to be evaluated and their results printed.  Doing 
+%
+@make get@
+runs Harmony in a different mode, asking it to run the lens @Main.l@ over
+the contents of the file @test.xml@ (which is parsed as XML because of
+its extension) and put the resulting tree (in Focal's tree
+notation) in the file @temp.meta@.  
+
+\item Change the definition of @l@ to
+#&let l : lens = Xml.squash; focus "a" {}; focus "b" {}
+and observe the results of @make get@.  
+
+\item Now let's synchronize.  Make two copies of the file @test.xml@:
+#&cp test.xml r1.xml
+#&cp test.xml r2.xml
+Now synchronize them by doing
+#&make sync
+Observe that a new file @archive.xml@ has been created and that its
+contents are equal to those of @r1.xml@ and @r2.xml@.  
+
+\item Change the string @hello@ in the file @r1.xml@ to @goodbye@.  Change
+@world@ to @cruel world@ in @r2.xml@.  Do @make sync@ again and observe the
+results.  
+
+Hooray.
+
+\end{enumerate}
+
+This has been a lightning tour of some of the main features of the Harmony
+system.  If you want to go further, the first thing to do is to read over
+the two main technical papers on which the system is
+based~\cite{Focal2005,SYNCTR2005}, both of which are available from 
+the Harmony home page:
+#&http://www.cis.upenn.edu/~bcpierce/harmony
+After that, you should skim the rest of this document to get a sense of what
+is there.  Then you should have a look at the @examples@ directory and play
+with some of the larger demos that we've implemented.
+
+Good luck and have fun!

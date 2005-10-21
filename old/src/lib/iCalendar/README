@@ -1,5 +1,0 @@
-where this does not follow the RFC:
-- we allow \r\n or \n as eol (evolution)
-- we allow valuetype = TEXT in x-prop (iCal)
-- DTSTAMP has the same type than DTSTART (iCal)
-- escape " in text (iCal)

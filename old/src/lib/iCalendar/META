@@ -1,6 +1,0 @@
-requires = ""
-version = "0.0.1"
-description = "iCalendar - Parser and Pretty Printer for iCalendar (RFC 2445) files"
-archive(byte) = "iCalendar.cma"
-archive(native) = "iCalendar.cmxa"
-directory(source) = "/home/schmitta/devel/iCalendar"

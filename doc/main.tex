@@ -1,0 +1,41 @@
+\newif\ifdraft\drafttrue
+\newif\ifhyperref\hyperreffalse
+
+% For temporary control of tex'ing, put commands like \draftfalse
+% in a file called texdirectives.tex, which we read at this point (if
+% it exists).  
+\makeatletter \@input{temp} \makeatother
+
+\documentclass{report}
+
+\ifhyperref
+  \usepackage[pdftex, pagebackref, bookmarksopen=true, pdfpagemode=None,
+              bookmarks=true, bookmarksnum bered=true,colorlinks=true,
+              linkcolor={blue}, citecolor={green}]{hyperref}
+  \hypersetup{}
+\fi
+
+\usepackage{palatino}
+\usepackage{src2tex}
+\usepackage{fullpage}
+\usepackage{syntax}
+\usepackage{local}
+
+\begin{document}
+
+\input{tmp/tpage}
+
+\tableofcontents{}
+
+\input{tmp/intro}
+\input{tmp/quick}
+\input{tmp/lang}
+\input{tmp/lib}
+\input{tmp/sync}
+\input{tmp/system}
+\input{tmp/case}
+
+\bibliographystyle{alpha}
+\bibliography{../papers/harmony,../papers/onlybcpshouldmodify/bcp}
+
+\end{document}

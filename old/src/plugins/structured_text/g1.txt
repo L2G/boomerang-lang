@@ -1,6 +1,0 @@
-FOO
-bar
-
-BAZ
-glorf
-grapple

@@ -1,0 +1,32 @@
+\chapter{Introduction}
+
+Optimistic replication strategies are attractive in a growing range of
+settings where weak consistency guarantees can be accepted in return for
+higher availability and the ability to update data while disconnected.
+These uncoordinated updates must later be {\em synchronized} (or {\em
+  reconciled}) by automatically combining non-conflicting updates while
+detecting and reporting conflicting updates.
+
+The Harmony project aims to develop a generic framework that can be used to
+build high-quality synchronizers for a wide variety of application data
+formats with minimal effort.  The current Harmony system is the realization
+of our progress toward this goal, focusing on the important special cases of
+unordered and rigidly ordered data (including sets, relations, tuples,
+records, feature trees, etc.), with only limited support for list-structured
+data such as structured documents.
+
+The Harmony system has two main components:
+%
+(1) a domain-specific programming language, called Focal, for writing
+\emph{lenses}---bi-directional transformations on trees---which we use to
+convert low-level (and possibly heterogeneous) concrete data formats into a
+high-level {\em synchronization schema}, and
+%
+(2) a generic synchronization algorithm, whose behavior is controlled by the
+synchronization schema.
+
+This document describes both components in detail.
+
+\finish{More...}
+
+
