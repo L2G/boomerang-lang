@@ -11,7 +11,7 @@
 # Configuration parameters #
 ############################
 # $enabledebug = TRUE;
-# $enablelogging = TRUE;
+$enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
 
@@ -243,10 +243,8 @@ if($enablelogging) {
   /* BEWARE: gethost will hang a few seconds if offline */
   $remote = trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
   $browser = $_SERVER['HTTP_USER_AGENT'];
-  echo $browser . "\n";
   $date = date("Y/m/j G:i:s T");
   $logmsg = "$date  $remote  ($demogroup / $demonumber) $browser\n";
-
   foreach ($logfile_locations as $name) {
     $handle = @fopen($name, 'a');
     if ($handle) {
