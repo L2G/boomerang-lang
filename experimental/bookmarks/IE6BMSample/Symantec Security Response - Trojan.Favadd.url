@@ -1,8 +1,0 @@
-[DEFAULT]
-BASEURL="http://securityresponse.symantec.com/avcenter/venc/data/trojan.favadd.html"
-
-[InternetShortcut]
-URL="http://securityresponse.symantec.com/avcenter/venc/data/trojan.favadd.html"
-Modified=40D3B69DE347C50156
-IconIndex=1
-IconFile="http://securityresponse.symantec.com/favicon.ico"
