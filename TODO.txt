@@ -61,7 +61,6 @@ PUBLIC RELEASE ANNOUNCEMENT LIST
   Serge Abiteboul
   Srivastava
   christophe koch
-
 __________________________________________________________________________
 
 TIDYING
