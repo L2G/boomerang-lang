@@ -72,8 +72,7 @@ let _ =
     Surveyor.description = "CSV relational table";
     Surveyor.encoding_test = etest;
     Surveyor.reader = read_tbl;
-    Surveyor.writer = write_tbl;
-  }
+    Surveyor.writer = write_tbl; }
   in
     Surveyor.register_encoding "csv" encoding
 

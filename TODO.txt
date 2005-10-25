@@ -1,39 +1,33 @@
+THINGS TO DO
+
+GAW TASKS
+* Figure out what is wrong with Subversion.
+* Still need to figure out the problem.
+
 BCP TASKS
-Bug: in structured text demo, try completely emptying a replica
-do structured text better using spinelists
-delete discussion of Makefile-based demos from quick start
-make front end interpret a plain .fcl file as a check command
-demos
-  #   clean up all current Makefile-based demos to use new structure
-  #   move instructions for some demos into separate files
-some of the options (logfile, addprefsto) don't make sense for Harmony
+* Bug: in structured text demo, try completely emptying a replica
+* do structured text better using spinelists
+* make front end interpret a plain .fcl file as a check command
+* some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
-move Thang's general concat into List module
-the code in Registry that searches for files along the search path should
+* move Thang's general concat into List module
+* the code in Registry that searches for files along the search path should
   also look in subdirectories (maybe!)
-why does - not work as an output file for csv (but works for meta, e.g.)?
-tidy this file
+* why does - not work as an output file for csv (but works for meta, e.g.)?
+* tidy this file
 
-We should also do the last little step to make the address demo really work
-with palm data -- preprocessing the output from pilot-address to change the
-first line to use numeric headers.  (No postprocess is needed because the
-header line is ignored.)  I haven't done it yet because doing it right is
-not entirely trivial (though pretty easy): it should really be done by
-reading the file into memory as a string, but then it will *be* in memory
-and the later stages of the process should be able to use it right there,
-without dumping it out to a file again.
-
-SOMEBODY
+SOMEBODY TASKS
+* decommission and delete the /visual subdirectory
 * change the structured text lens so that it adds dummy headers all the time
-* expand the address book demo with a demo2, demo3, that show heterogeneous synchronization, our alignment strategy, and so on
 * change implementation of sync alg to eliminate delete/delete conflicts,
   as discussed by Alan
 * assertion failure should print a line number  (is this done already?)
   - make native assert function take a string arg
   - make parser recognize assert keyword specially and supply fileinfo
     as string
-put LGPL notice in all files
-  make sure GPL is stated correctly for CSV module
+* put LGPL notice in all files
+  and make sure GPL is stated correctly for CSV module
+
 _________________________________________________________________________
 
 FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
@@ -61,6 +55,7 @@ PUBLIC RELEASE ANNOUNCEMENT LIST
   Serge Abiteboul
   Srivastava
   christophe koch
+
 __________________________________________________________________________
 
 TIDYING

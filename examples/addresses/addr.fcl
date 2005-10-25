@@ -334,6 +334,8 @@ let format_csv_addr : lens =
   prune "Custom 2" {""};
   prune "Custom 3" {""};
   prune "Custom 4" {""};
+(* Do we also need this?
+   prune "Private" {""}; *) 
   prune_null_entries
 
 let csv : lens =
