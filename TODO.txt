@@ -1,9 +1,5 @@
 THINGS TO DO
 
-GAW TASKS
-* Figure out what is wrong with Subversion.
-* Still need to figure out the problem.
-
 BCP TASKS
 * Bug: in structured text demo, try completely emptying a replica
 * do structured text better using spinelists
