@@ -3,13 +3,41 @@ $demogroupname = "Bookmarks";
 $demo["default_wide_w"] = 910;
 $demo["default_w"] = ($demo["default_wide_w"] - 10) / 2;
 $demo["r1_w"] = $demo["r2_w"] = $demo["default_wide_w"];
-$demo["r1_h"] = $demo["r2_h"] = 350;
-$demo["forcer1"] = true;
+$demo["r1_h"] = $demo["r2_h"] = 250;
 $demo["schema"] = "Bookmarks.Abstract";
 
-################################################################################
+##############################################################################################
 
-$saf = <<<XXX
+$moz = <<<MOZ
+<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- This is an automatically generated file.
+     It will be read and overwritten.
+     DO NOT EDIT! -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1 LAST_MODIFIED="1130422106">Bookmarks</H1>
+
+<DL><p>
+    <DT><H3 ADD_DATE="1130422037" LAST_MODIFIED="1130422057" PERSONAL_TOOLBAR_FOLDER="true" ID="rdf:#$vu1Zz3">Bookmarks Toolbar Folder</H3>
+    <DL><p>
+        <DT><A HREF="http://www.google.com" ADD_DATE="1130422047" LAST_MODIFIED="1130422053" ID="rdf:#$wu1Zz3">Google</A>
+    </DL><p>
+    <DT><H3 ADD_DATE="1130422060" LAST_MODIFIED="1130422181" ID="rdf:#$xu1Zz3">News</H3>
+    <DL><p>
+        <DT><H3 ADD_DATE="1130422158" LAST_MODIFIED="1130422218" ID="rdf:#$Au1Zz3">Geek</H3>
+        <DL><p>
+            <DT><A HREF="http://www.macosxhints.com" ADD_DATE="1130422218" LAST_MODIFIED="1130422240" ID="rdf:#$Cu1Zz3">Mac OS X Hints</A>
+            <DT><A HREF="http://slashdot.org/" ADD_DATE="1130422172" LAST_VISIT="1130422322" LAST_MODIFIED="1130422179" LAST_CHARSET="ISO-8859-1" ID="rdf:#$Bu1Zz3">Slashdot</A>
+        </DL><p>
+        <DT><A HREF="http://nytimes.com" ADD_DATE="1130422065" LAST_MODIFIED="1130422138" ID="rdf:#$yu1Zz3">New York Times</A>
+        <DT><A HREF="http://chronicle.com/" ADD_DATE="1130422080" LAST_MODIFIED="1130422102" ID="rdf:#$zu1Zz3">Chronicle of Higher Education</A>
+    </DL><p>
+</DL><p>
+MOZ;
+
+#############################################################################################
+
+$saf = <<<SAF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -23,124 +51,86 @@ $saf = <<<XXX
 					<key>URIDictionary</key>
 					<dict>
 						<key></key>
-						<string>http://fling-l.seas.upenn.edu/~bcpierce/cgi-bin/harmony/html/demo.php</string>
-						<key>title</key>
-						<string>Harmony Demo</string>
-					</dict>
-					<key>URLString</key>
-					<string>http://fling-l.seas.upenn.edu/~bcpierce/cgi-bin/harmony/html/demo.php</string>
-					<key>WebBookmarkType</key>
-					<string>WebBookmarkTypeLeaf</string>
-					<key>WebBookmarkUUID</key>
-					<string>E47AC88C-1753-478B-B6BC-5CDFD15BBD8D</string>
-				</dict>
-				<dict>
-					<key>URIDictionary</key>
-					<dict>
-						<key></key>
-						<string>http://www.google.com/</string>
+						<string>http://www.google.com</string>
 						<key>title</key>
 						<string>Google</string>
 					</dict>
 					<key>URLString</key>
-					<string>http://www.google.com/</string>
+					<string>http://www.google.com</string>
 					<key>WebBookmarkType</key>
 					<string>WebBookmarkTypeLeaf</string>
 					<key>WebBookmarkUUID</key>
-					<string>5BA0BBF4-0E67-4C18-89A0-F55D4441C52F</string>
+					<string>037AF4AC-708A-4B30-8878-43E5691E191A</string>
 				</dict>
+			</array>
+			<key>Title</key>
+			<string>BookmarksBar</string>
+			<key>WebBookmarkType</key>
+			<string>WebBookmarkTypeList</string>
+			<key>WebBookmarkUUID</key>
+			<string>170CDD4F-2754-45EA-A627-A2160D7382AE</string>
+		</dict>
+		<dict>
+			<key>Children</key>
+			<array>
 				<dict>
 					<key>Children</key>
 					<array>
 						<dict>
+							<key>Children</key>
+							<array>
+								<dict>
+									<key>URIDictionary</key>
+									<dict>
+										<key></key>
+										<string>http://www.macosxhints.com</string>
+										<key>title</key>
+										<string>Mac OS X Hints</string>
+									</dict>
+									<key>URLString</key>
+									<string>http://www.macosxhints.com</string>
+									<key>WebBookmarkType</key>
+									<string>WebBookmarkTypeLeaf</string>
+									<key>WebBookmarkUUID</key>
+									<string>77439671-025D-4738-BF99-3C50873EE380</string>
+								</dict>
+								<dict>
+									<key>URIDictionary</key>
+									<dict>
+										<key></key>
+										<string>http://slashdot.org/</string>
+										<key>title</key>
+										<string>Slashdot</string>
+									</dict>
+									<key>URLString</key>
+									<string>http://slashdot.org/</string>
+									<key>WebBookmarkType</key>
+									<string>WebBookmarkTypeLeaf</string>
+									<key>WebBookmarkUUID</key>
+									<string>ED84E843-2E7A-4546-9504-8405C9C81F0E</string>
+								</dict>
+							</array>
+							<key>Title</key>
+							<string>Geek</string>
+							<key>WebBookmarkType</key>
+							<string>WebBookmarkTypeList</string>
+							<key>WebBookmarkUUID</key>
+							<string>D257AD2E-6E7A-47CA-80E8-7B65866F8EA3</string>
+						</dict>
+						<dict>
 							<key>URIDictionary</key>
 							<dict>
 								<key></key>
-								<string>http://nytimes.com/</string>
+								<string>http://nytimes.com</string>
 								<key>title</key>
 								<string>New York Times</string>
 							</dict>
 							<key>URLString</key>
-							<string>http://nytimes.com/</string>
+							<string>http://nytimes.com</string>
 							<key>WebBookmarkType</key>
 							<string>WebBookmarkTypeLeaf</string>
 							<key>WebBookmarkUUID</key>
-							<string>A2FDF260-9763-439E-92B6-B77D19CECBAB</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://news.bbc.co.uk/</string>
-								<key>title</key>
-								<string>BBC</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://news.bbc.co.uk/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>BFA8108A-B4A4-4CD2-9943-4A26A8274ADD</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.washingtonpost.com/</string>
-								<key>title</key>
-								<string>Washington Post</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.washingtonpost.com/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>F088B530-8ED8-42E2-B75E-CF7801444465</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://slate.msn.com/</string>
-								<key>title</key>
-								<string>Slate</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://slate.msn.com/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>809FEAFA-BBD3-4464-AF2B-E732EBCF5ED6</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.freep.com/</string>
-								<key>title</key>
-								<string>Detroit Free Press</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.freep.com/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>90A26AF9-EC52-43DF-8224-CAE03BC5623B</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://boston.com/</string>
-								<key>title</key>
-								<string>Boston Globe</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://boston.com/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>950BC145-3FBA-4A9C-A1DA-6C0B4107CB04</string>
+							<string>34807109-9BD7-48CE-B69C-A3E6E3634980</string>
 						</dict>
 						<dict>
 							<key>URIDictionary</key>
@@ -155,330 +145,23 @@ $saf = <<<XXX
 							<key>WebBookmarkType</key>
 							<string>WebBookmarkTypeLeaf</string>
 							<key>WebBookmarkUUID</key>
-							<string>BDEEC0F1-B3E6-4858-B22D-57AB1CD0B152</string>
+							<string>A90B567C-7B75-42FA-B787-E3C0ADA7C1F9</string>
 						</dict>
 					</array>
 					<key>Title</key>
-					<string>news</string>
+					<string>News</string>
 					<key>WebBookmarkType</key>
 					<string>WebBookmarkTypeList</string>
 					<key>WebBookmarkUUID</key>
-					<string>97D4DA24-0B3F-4E42-BA0E-DCF8E02E72C2</string>
-				</dict>
-				<dict>
-					<key>Children</key>
-					<array>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.cis.upenn.edu/proj/plclub/</string>
-								<key>title</key>
-								<string>PLClub</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.cis.upenn.edu/proj/plclub/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>208C050C-7D84-4825-8372-C876E03E9808</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.cis.upenn.edu/</string>
-								<key>title</key>
-								<string>Department of CIS</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.cis.upenn.edu/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>7702F85B-9125-4D45-875A-B94119408150</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.upenn.edu/</string>
-								<key>title</key>
-								<string>University of Pennsylvania</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.upenn.edu/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>FD127E23-7C1B-410A-9C88-A453E1E0BDD0</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.upenn.edu/penn_portal/view.php</string>
-								<key>title</key>
-								<string>Penn Portal</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.upenn.edu/penn_portal/view.php</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>CE255FEE-CA26-4E6A-8F95-E32607C16822</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.dailypennsylvanian.com/</string>
-								<key>title</key>
-								<string>Daily Pennsylvanian</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.dailypennsylvanian.com/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>F1D683CA-6E29-4A4D-B194-04F0A98A29D6</string>
-						</dict>
-					</array>
-					<key>Title</key>
-					<string>penn</string>
-					<key>WebBookmarkType</key>
-					<string>WebBookmarkTypeList</string>
-					<key>WebBookmarkUUID</key>
-					<string>FEC86E9F-1FD5-4824-90B1-3A8FF3103C8F</string>
-				</dict>
-				<dict>
-					<key>Children</key>
-					<array>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.srcf.ucam.org/emma-mcr/</string>
-								<key>title</key>
-								<string>Emmanuel MCR</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.srcf.ucam.org/emma-mcr/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>1C546275-8984-42FE-B965-FB5C3DCB4E5D</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.srcf.ucam.org/cuvc/index.php</string>
-								<key>title</key>
-								<string>Cambridge University Volleyball Club</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.srcf.ucam.org/cuvc/index.php</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>080CF335-2737-43F9-A97A-D9EB5D0E2EC5</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.cambridgevolleyball.org/</string>
-								<key>title</key>
-								<string>Cambridge Volleyball Club</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.cambridgevolleyball.org/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>CE5EC7EF-F61C-43E2-9B53-47E7E4EE11A3</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.cam.ac.uk/</string>
-								<key>title</key>
-								<string>University of Cambridge</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.cam.ac.uk/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>7C520AA2-DAFA-4721-93EE-90D3A23388CD</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.emma.cam.ac.uk/</string>
-								<key>title</key>
-								<string>Emmanuel College</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.emma.cam.ac.uk/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>B4CC9E12-E6B6-4FD7-9317-CDB4A0571830</string>
-						</dict>
-					</array>
-					<key>Title</key>
-					<string>cam</string>
-					<key>WebBookmarkType</key>
-					<string>WebBookmarkTypeList</string>
-					<key>WebBookmarkUUID</key>
-					<string>14F4BA7D-3742-4257-88EC-C76D1153584C</string>
-				</dict>
-				<dict>
-					<key>Children</key>
-					<array>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.cs.williams.edu/</string>
-								<key>title</key>
-								<string>Department of CS</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.cs.williams.edu/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>9F5F2C4C-59EB-4613-ABCB-023E3895D9D3</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.williams.edu/</string>
-								<key>title</key>
-								<string>Williams</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.williams.edu/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>F21953E7-3E53-49FF-BB57-618855835900</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://wso.williams.edu/</string>
-								<key>title</key>
-								<string>Williams Students Online</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://wso.williams.edu/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>91E1AFB2-4C2E-4771-80A6-175EB27753A0</string>
-						</dict>
-					</array>
-					<key>Title</key>
-					<string>ephs</string>
-					<key>WebBookmarkType</key>
-					<string>WebBookmarkTypeList</string>
-					<key>WebBookmarkUUID</key>
-					<string>08CDF2D5-DD82-45DB-A74C-E876703A25A9</string>
-				</dict>
-				<dict>
-					<key>Children</key>
-					<array>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://lambda-the-ultimate.org/</string>
-								<key>title</key>
-								<string>Lambda-The-Ultimate</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://lambda-the-ultimate.org/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>D747EA75-361C-4140-96F5-A79410CFFB5A</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://semantics-online.org/blog/</string>
-								<key>title</key>
-								<string>Semantics</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://semantics-online.org/blog/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>5F545F1A-FF63-40F7-B810-101DA1C3F82F</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.ephblog.com/</string>
-								<key>title</key>
-								<string>EphBlog</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.ephblog.com/</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>DEC69167-8000-409B-896A-2CE7D401D689</string>
-						</dict>
-						<dict>
-							<key>URIDictionary</key>
-							<dict>
-								<key></key>
-								<string>http://www.cra.org/govaffairs/blog/index.php</string>
-								<key>title</key>
-								<string>CRA Policy Blog</string>
-							</dict>
-							<key>URLString</key>
-							<string>http://www.cra.org/govaffairs/blog/index.php</string>
-							<key>WebBookmarkType</key>
-							<string>WebBookmarkTypeLeaf</string>
-							<key>WebBookmarkUUID</key>
-							<string>C3D63144-46D7-43DD-BBF6-B0C2BF34F916</string>
-						</dict>
-					</array>
-					<key>Title</key>
-					<string>blogs</string>
-					<key>WebBookmarkType</key>
-					<string>WebBookmarkTypeList</string>
-					<key>WebBookmarkUUID</key>
-					<string>821F52D0-AB31-407A-B128-BDE972999890</string>
+					<string>0F4FFD03-46A1-43D2-AA73-9015CF096E99</string>
 				</dict>
 			</array>
-			<key>Title</key>
-			<string>BookmarksBar</string>
-			<key>WebBookmarkType</key>
-			<string>WebBookmarkTypeList</string>
-			<key>WebBookmarkUUID</key>
-			<string>DF0515F8-716D-11D9-AB3E-000A95D6A56C</string>
-		</dict>
-		<dict>
 			<key>Title</key>
 			<string>BookmarksMenu</string>
 			<key>WebBookmarkType</key>
 			<string>WebBookmarkTypeList</string>
 			<key>WebBookmarkUUID</key>
-			<string>DF052DA6-716D-11D9-AB3E-000A95D6A56C</string>
+			<string>E45C6AB2-6705-4246-A6B2-334F3F7B96C1</string>
 		</dict>
 		<dict>
 			<key>Title</key>
@@ -488,7 +171,7 @@ $saf = <<<XXX
 			<key>WebBookmarkType</key>
 			<string>WebBookmarkTypeProxy</string>
 			<key>WebBookmarkUUID</key>
-			<string>0403D3D1-86B7-434F-AA30-9C3BFEC970FF</string>
+			<string>7CA58A0F-307C-4D94-BAD4-E66E080D40B7</string>
 		</dict>
 		<dict>
 			<key>Title</key>
@@ -498,7 +181,7 @@ $saf = <<<XXX
 			<key>WebBookmarkType</key>
 			<string>WebBookmarkTypeProxy</string>
 			<key>WebBookmarkUUID</key>
-			<string>348A8271-645A-4036-86D5-7748BE20581F</string>
+			<string>3ABAF175-6A94-486F-B32F-ACEC0BE3FC41</string>
 		</dict>
 		<dict>
 			<key>Title</key>
@@ -508,7 +191,7 @@ $saf = <<<XXX
 			<key>WebBookmarkType</key>
 			<string>WebBookmarkTypeProxy</string>
 			<key>WebBookmarkUUID</key>
-			<string>57A750C3-8416-4F89-8D72-EE46D6E9BEE6</string>
+			<string>B0BDE4F2-C2C7-4A23-A093-329CD82496E8</string>
 		</dict>
 		<dict>
 			<key>Title</key>
@@ -518,7 +201,7 @@ $saf = <<<XXX
 			<key>WebBookmarkType</key>
 			<string>WebBookmarkTypeProxy</string>
 			<key>WebBookmarkUUID</key>
-			<string>9CDDA572-0E2D-4C0B-AAB3-62AB94F46DE2</string>
+			<string>CDE7622E-2E2B-43C4-B075-ADFB3C40B50E</string>
 		</dict>
 	</array>
 	<key>WebBookmarkFileVersion</key>
@@ -526,105 +209,115 @@ $saf = <<<XXX
 	<key>WebBookmarkType</key>
 	<string>WebBookmarkTypeList</string>
 	<key>WebBookmarkUUID</key>
-	<string>DF0512DC-716D-11D9-AB3E-000A95D6A56C</string>
+	<string>00000000-0000-0000-0000-000000000000</string>
 </dict>
 </plist>
-XXX;
+SAF;
 
 ################################################################################
-
-$moz = <<<XXX
-<!DOCTYPE NETSCAPE-Bookmark-file-1>
-<!-- This is an automatically generated file.
-     It will be read and overwritten.
-     DO NOT EDIT! -->
-<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
-<TITLE>Bookmarks</TITLE>
-<H1>Bookmarks</H1>
-
-<DL><p>
-    <DT><H3 ADD_DATE="1125136532" LAST_MODIFIED="1125137487" PERSONAL_TOOLBAR_FOLDER="true" ID="rdf:#$PYGe31">Bookmarks Toolbar Folder</H3>
-    <DL><p>
-        <DT><A HREF="http://fling-l.seas.upenn.edu/~bcpierce/cgi-bin/harmony/html/demo.php" ID="rdf:#$0c1TF1">Harmony Demo</A>
-        <DT><A HREF="http://www.google.com/" ID="rdf:#$1c1TF1">Google</A>
-        <DT><H3 ID="rdf:#$2c1TF1">news</H3>
-        <DL><p>
-            <DT><A HREF="http://nytimes.com/" ID="rdf:#$3c1TF1">New York Times</A>
-            <DT><A HREF="http://news.bbc.co.uk/" ID="rdf:#$4c1TF1">BBC</A>
-            <DT><A HREF="http://www.washingtonpost.com/" ID="rdf:#$5c1TF1">Washington Post</A>
-            <DT><A HREF="http://slate.msn.com/" ID="rdf:#$6c1TF1">Slate</A>
-            <DT><A HREF="http://www.freep.com/" ID="rdf:#$7c1TF1">Detroit Free Press</A>
-            <DT><A HREF="http://boston.com/" ID="rdf:#$8c1TF1">Boston Globe</A>
-            <DT><A HREF="http://chronicle.com/" ID="rdf:#$9c1TF1">Chronicle of Higher Education</A>
-        </DL><p>
-        <DT><H3 ID="rdf:#$ac1TF1">penn</H3>
-        <DL><p>
-            <DT><A HREF="http://www.cis.upenn.edu/proj/plclub/" ID="rdf:#$bc1TF1">PLClub</A>
-            <DT><A HREF="http://www.cis.upenn.edu/" ID="rdf:#$cc1TF1">Department of CIS</A>
-            <DT><A HREF="http://www.upenn.edu/" ID="rdf:#$dc1TF1">University of Pennsylvania</A>
-            <DT><A HREF="http://www.upenn.edu/penn_portal/view.php" ID="rdf:#$ec1TF1">Penn Portal</A>
-            <DT><A HREF="http://www.dailypennsylvanian.com/" ID="rdf:#$fc1TF1">Daily Pennsylvanian</A>
-        </DL><p>
-        <DT><H3 ID="rdf:#$gc1TF1">cam</H3>
-        <DL><p>
-            <DT><A HREF="http://www.srcf.ucam.org/emma-mcr/" ID="rdf:#$hc1TF1">Emmanuel MCR</A>
-            <DT><A HREF="http://www.srcf.ucam.org/cuvc/index.php" ID="rdf:#$ic1TF1">Cambridge University Volleyball Club</A>
-            <DT><A HREF="http://www.cambridgevolleyball.org/" ID="rdf:#$jc1TF1">Cambridge Volleyball Club</A>
-            <DT><A HREF="http://www.cam.ac.uk/" ID="rdf:#$kc1TF1">University of Cambridge</A>
-            <DT><A HREF="http://www.emma.cam.ac.uk/" ID="rdf:#$lc1TF1">Emmanuel College</A>
-        </DL><p>
-        <DT><H3 ID="rdf:#$mc1TF1">ephs</H3>
-        <DL><p>
-            <DT><A HREF="http://www.cs.williams.edu/" ID="rdf:#$nc1TF1">Department of CS</A>
-            <DT><A HREF="http://www.williams.edu/" ID="rdf:#$oc1TF1">Williams</A>
-            <DT><A HREF="http://wso.williams.edu/" ID="rdf:#$pc1TF1">Williams Students Online</A>
-        </DL><p>
-        <DT><H3 ID="rdf:#$qc1TF1">blogs</H3>
-        <DL><p>
-            <DT><A HREF="http://lambda-the-ultimate.org/" ID="rdf:#$rc1TF1">Lambda-The-Ultimate</A>
-            <DT><A HREF="http://semantics-online.org/blog/" ID="rdf:#$sc1TF1">Semantics</A>
-            <DT><A HREF="http://www.ephblog.com/" ID="rdf:#$tc1TF1">EphBlog</A>
-            <DT><A HREF="http://www.cra.org/govaffairs/blog/index.php" ID="rdf:#$uc1TF1">CRA Policy Blog</A>
-        </DL><p>
-    </DL><p>
-</DL><p>
-XXX;
-
-#############################################################################################
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
 <p>
-This demo shows how we can use Harmony to synchronize bookmark
-information from Mozilla Firefox and Safari browsers. As in previous
-demos, we handle the heterogeneous formats by transforming each
-bookmark file from its concrete native representation into a common
-abstract form using lenses. 
+This demo shows how we can use Harmony to synchronize bookmark data
+between the Mozilla Firefox and Safari web browsers. Each browser uses
+a different format to represent bookmark data---Firefox represents
+bookmarks in an HTML format whereas Safari uses a compressed, binary
+XML representation. To handle these heterogeneous formats, our tool
+uses <i>lenses</i> to transform each bookmark file from its native
+representation into a common abstract format suitable for
+synchronization.
 </p>
 
 <p>
-Let's start by looking at the behavior of the Safari lens, which maps
-between concrete address books stored in an XML format and the
-simplified abstract view we use to present bookmarks to the
-synchronizer.  Notice that the Safari XML representation includes much
-redundant information, which is projected away by the get function of
-the <tt>Safari.l2</tt> lens in one direction, and restored by the
-put-back function in the other. Specifically, the XML format stores
-each URL <i>twice</i>. By contrast, the abstract tree is quite sparse;
-a bookmark file is just a list of folders or links and no redundant
-information is retained.
+Let's start by looking at the behavior of the Firefox lens.  The
+essential structure of bookmark data is just a list of items where an
+item can either be a link, with both <tt>name</tt> and <tt>url</tt>
+data, or a folder, with a <tt>name</tt> and a <tt>contents</tt>
+leading to a nested list of items.  Because most browers support a
+distinguished "toolbar" folder, we represent a complete bookmark file
+as a tree with exactly two children at the top level, <tt>toolbar</tt>
+and <tt>bookmarks</tt>, each leading to a folder of items.
+
+The HTML format used by Firefox includes many additional bits of data
+including the date and time that each date was added and last
+modified, an ID field containing RDF data, and a cached copy of
+the <tt>favicon.ico</tt> icon for each site.  The get function of the
+projects away all of this data, which is inessential for the purpose
+of synchronizing with Safari bookmark files, and renders the bookmark
+file as a tree in the abstract format described above.
 </p>
 
 <p>
-As a first exercise, modify the Google link in the second (abstract)
-replica from <tt>www.google.com</tt> to <tt>google.com</tt>. Observe
-how those changes are reflected in the XML representation. Note that
-changing the name of a link on the abstract side induces <i>two</i>
-changes on the XML side.
+The schema that describes such abstract trees (written in our schema
+description language syntax) is as follows:
+<pre>
+  schema Link   = { "name" = Value, "url" = Value }
+  schema Folder = { "name" = Value, "contents" = Contents }     
+  and Contents  = List.T (Folder | {"link" =  Link})
+  schema Abstract = { "bookmark" = Contents, "toolbar" = Contents }
+</pre>
+</p>
+
+<p>
+The first replica in this example shows a sample Mozilla bookmark file
+in its concrete HTML format; the second shows the same set of
+bookmarks in "meta" format, after the Firefox lens has been
+applied. Shorten the link for Google to <tt>http://google.com</tt> in
+the Mozilla replica and add a link whose name is <tt>"Lambda The
+Ultimate"</tt> and URL is <tt>http://lambda-the-ultimate.org</tt> to
+the "Geek" folder. Press "Synchronize" to see how these updates are
+reflected on each side.
+</p>
+
+<p>
+Then press "Next" to continue with the next example.
 </p>
 XXX;
 # ---------------------------------------------------------
+$demo["forcer1"] = true;
+$demo["r1"] = $moz; 
+$demo["r1format"] = "html";
+$demo["r2format"] = "meta";
+$demo["l1"] = "Mozilla.l2";
+$demo["l2"] = "id";
+savedemo();
+
+#################################################################################
+
+$demo["instr"] = <<<XXX
+
+Next let's look at the behavior of the Safari lens. The first replica
+now shows the same bookmark data as in the previous demo as
+represented in Safari's XML format. Safari bookmarks are quite verbose
+and like Firefox, contain many inessential and redundant bits of
+data. For example, notice that URLs, such
+as <tt><string>http://www.google.com</string></tt>, appear twice in
+the XML elements representing them.  Other fields, such
+as <tt>WebBookmarkUUID</tt>, <tt>WebBookmarkType</tt>, etc., are
+included for use by other MacOS tools (e.g., iSync) but do not
+correspond to any data on the Mozilla side. The get component of the
+Safari lens extracts just the essential bits---the folder structure
+and links---from a bookmark file, merging rendundant data and
+projecting away the inessential parts.</p>
+
+<p>
+Make the same updates to each replica as in the last example---in the
+first replica, change <i>both</i> URL strings in the Google link
+to <tt>http://google.com</tt>; in the second, add a link to the "Geek"
+folder for Lambda The Ultimate:
+<pre>
+  {link={name={"Lambda The Ultimate"}, url={"http://lambda-the-ultimate.org"}}}
+</pre>
+Press "Synchronize" and verify that the updates are successfully
+propagated to each replica.
+</p>
+
+<p>Then click "Next" to continue.</p>
+XXX;
+
+$demo["forcer1"] = true;
 $demo["r1"] = $saf; 
 $demo["r1format"] = "xml";
 $demo["r2format"] = "meta";
@@ -634,60 +327,150 @@ savedemo();
 
 #################################################################################
 
+$demo["forcer1"] = false;
+$demo["r1"] = $moz; 
+$demo["r2"] = $saf;
+$demo["r1format"] = "html";
+$demo["r2format"] = "xml";
+$demo["l1"] = "Mozilla.l2";
+$demo["l2"] = "Safari.l2";
+$demo["la"] = "id";
+$demo["ar"] = "{}";
 $demo["instr"] = <<<XXX
 
 <p>
-Mozilla bookmark files are represented in an HTML format. The
-lens <tt>Mozilla.l2</tt> maps between these documents and abstract
-views belonging to the same schema as in the previous example. Once
-again, notice how the lens strips away. 
+Now let's put these two pieces together and see how Harmony
+synchronizes a Safari bookmark file with one from Firefox.
+Make the following updates:
+<ul>
+<li>in the Mozilla replica: add a new link for Wadler's blog to the "Geek" folder: 
+<pre>
+  &lt;DT&gt;&lt;A HREF="http://wadler.blogspot.org/"&gt;Wadler's Blog&lt;/A&gt;
+</pre>
+<li>in the Safari replica: delete the Google entry from the toolbar;
+<li>in the Safari replica: add a new link for BBC News to the "News" folder:
+<pre>
+&lt;dict&gt;
+  &lt;key&gt;URIDictionary&lt;/key&gt;
+  &lt;dict&gt;
+    &lt;key&gt;&lt;/key&gt;
+    &lt;string&gt;http://news.bbc.co.uk&lt;/string&gt;
+    &lt;key&gt;title&lt;/key&gt;
+    &lt;string&gt;BBC News&lt;/string&gt;
+    &lt;/dict&gt;
+    &lt;key&gt;URLString&lt;/key&gt;
+    &lt;string&gt;http://news.bbc.co.uk&lt;/string&gt;
+    &lt;key&gt;WebBookmarkType&lt;/key&gt;
+    &lt;string&gt;WebBookmarkTypeLeaf&lt;/string&gt;
+&lt;/dict&gt;
+</pre>
+</ul>
+Press "Synchronize" and verify that the changes appear on both
+sides.  (Because the concrete formats are so verbose, it may be easiest to
+examine the abstract trees; simply click "Show Abstract
+Trees" to display them.)</p>
+
+<p>
+Then click "Next" to continue.
 </p>
 
-<p> 
-Add a new folder:
-<tt>{name="for nerds", contents=[{link={url={"http://slashdot.org"},
-name={Slashdot}}}]}</tt> to the bookmark file, just after
-the <tt>news</tt> folder in the second replica. Press "Synchronize"
-and see how the new folder gets added to the Mozilla bookmark file.
 XXX;
-# ---------------------------------------------------------
+savedemo();
+
+#################################################################################
+
+$demo["instr"] = <<<XXX
+Thus far, all of the examples in this demo have been carefully
+constructed so that the updates made to each replica do not
+overlap. However, in a real-world scenario, this is not always likely
+to be the case. 
+
+Harmony's generic synchronization algorithm is a simple, recursive
+tree walk that traverses the structure of the tree, merging updates
+along the way. For lists, which are encoded as simple cons cells, this
+means that ordered data is synchronized by <i>absolute</i>
+position. To see what can go wrong with this simple strategy, try
+adding a new link at the head of the list in the "News" folder: 
+<ul>
+<li>in the Mozilla replica add: 
+<pre>
+  &lt;DT&gt;&lt;A HREF="http://slate.com/"&gt;Slate&lt;/A&gt;
+</pre>
+</li>
+<li>in the abstract view add: 
+<pre>
+  {link={name="Washington Post", url="http://www.washingtonpost.com"}},
+</pre>
+</li>
+</ul>
+Then click "Synchronize". What happens?
+</p>
+
+<p>
+A <i>schema domain conflict</i> results because the synchronization
+algorithm, which has aligned the entries by absolute position in the
+list, is unable merge the two newly added links into a tree
+representing a single valid link. E.g., merging the two trees produces
+a result:
+<pre>
+{link={name={"Slate", "Washington Post"}, 
+       url={"http://slate.com", "http://www.washingtonpost.com"}}}
+</pre>
+which does not belong to the <tt>Bookmarks.Abstract</tt> schema.
+</p>
+
+<p>
+Press "Next" to move on to the final example, where we explore two
+ways of handing this problem.
+</p>
+
+XXX;
+
+$demo["forcer1"] = true;
 $demo["r1"] = $moz;
-$demo["l1"] = "Mozilla.l2";
-$demo["l2"] = "id";
 $demo["r1format"] = "html";
 $demo["r2format"] = "meta";
+$demo["l1"] = "Mozilla.l2";
+$demo["l2"] = "id";
+$demo["schema"] = "Bookmarks.Abstract";
 savedemo();
-# ---------------------------------------------------------
 
-##############################################################################
+#################################################################################
 
+$demo["forcer1"] = true;
+$demo["r1"] = $moz;
+$demo["r1format"] = "html";
+$demo["r2format"] = "meta";
+$demo["l1"] = "Mozilla.l3";
+$demo["l2"] = "id";
+$demo["schema"] = "Bookmarks.BushAbstract";
+$demo["flags"] = "-unordered ";
 $demo["instr"] = <<<XXX
-
 <p>
-Putting these pieces together, let's see how we can synchronize a
-bookmark file from Safari with one from Firefox.
+Rather than representing a bookmark folder as a <i>list</i> of items,
+we can choose to represent a folder as a <i>bush</i> where the URL of
+each link and the name of each folder serves as a key field for each
+item. The schema for this representation looks like this:
+<pre>
+  schema Item = { ?"folders"={*=Item}, ?"links"={*=Value }}
+  schema BushAbstract = { "bookmarks"=Item, "toolbar"=Item }
+</pre>
+In this example, the Firefox bookmarks are passed to a lens that
+produces an abstract view in this unordered schema. Try making the
+same updates to the "Geeks" folder as in the last example (rename the
+Google URL in two different ways). What happens now?
 </p>
 
 <p>
-To see that this all works, make the following changes:
-<ul>
-<li>in the Safari replia: delete the New York Times and BBC entries from the "news" folder;
-<li>in the Mozilla replica: add a new entry, <pre>&lt;DT&gt;&lt;A HREF="http://wadler.blogspot.org/"&gt;Wadler's Blog&lt;/A&gt;</pre> to the "blogs" folder.
-</ul>
-Press "Synchronize" and verify that the changes appear on both sides
-(it may be easiest to look at the abstract trees).
+Another possibility is to use a fancier list encoding with a key field
+raised up above each cons cell. Using this representation, the
+synchronization algorithm propagates changes between two lists as long
+as both keys have not changed; when both keys have changed, it leaves
+the rest of the list unchanged. For examples of how this works, see
+our DBPL 2005 paper.
 </p>
-
 XXX;
-# ---------------------------------------------------------
-$demo["forcer1"] = false;
-$demo["r1"] = $saf; 
-$demo["r2"] = $moz; 
-$demo["ar"] = "{}";
-$demo["r1format"]="xml";
-$demo["r2format"]="html";
-$demo["l1"] = "Safari.l2";
-$demo["l2"] = "Mozilla.l2";
 savedemo();
+
 
 ?>

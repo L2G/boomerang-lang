@@ -1,9 +1,9 @@
-let orderedpref = Prefs.createBool "ordered" true "keep bookmark ordering" ""
+let unorderedpref = Prefs.createBool "unordered" false "discard bookmark ordering" ""
 
 let recompressPlists = Prefs.createBool "compress" false "convert plist files to binary form after sync" ""
 
 let archNameUniquifier () =
-  if Prefs.read orderedpref then "ord" else "nonord"
+  if Prefs.read unorderedpref then "nonord" else "ord"
 
 type bookmarkType = Mozilla | Safari | Meta
 
@@ -37,9 +37,10 @@ let chooseEncoding f =
   else raise Not_found
 
 let chooseAbstractSchema types =
-  let ordered = Prefs.read orderedpref in
-  match types,ordered with
-      [Safari],false -> "Bookmarks.BushAbstract"
+  let unordered = Prefs.read unorderedpref in
+  match types,unordered with
+      [Safari],true -> "Bookmarks.BushAbstract"
+    | [Mozilla],true -> "Bookmarks.BushAbstract"
     | _ -> "Bookmarks.Abstract"
         
 let chooseLens t schema =
@@ -47,7 +48,9 @@ let chooseLens t schema =
     Safari,"Bookmarks.Abstract"     -> "Safari.l2"
   | Safari,"Bookmarks.BushAbstract" -> "Safari.l3"
   | Mozilla,"Bookmarks.Abstract"    -> "Mozilla.l2"
+  | Mozilla,"Bookmarks.BushAbstract" -> "Mozilla.l3"
   | Meta, "Bookmarks.Abstract"      -> "Prelude.id"
+  | Meta, "Bookmarks.BushAbstract"      -> "Prelude.id"
   | _                               -> assert false;;
 
 Toplevel.toplevel

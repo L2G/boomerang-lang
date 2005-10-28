@@ -425,7 +425,8 @@ let hoist k =
 	 if   (Name.Set.cardinal (V.dom c)) <> 1 
 	   or (Name.Set.choose (V.dom c)) <> k then
 	     error [`String hoist_qid
-		   ; `String "(get): expecting exactly one child named "
+		   ; `String "(get): expecting exactly one child named"
+                   ; `Break
 		   ; `Name k
 		   ; `Break
 		   ; `Tree c];
@@ -445,7 +446,8 @@ let plunge k =
 	     if   (Name.Set.cardinal (V.dom a)) <> 1 
 	       or (Name.Set.choose (V.dom a)) <> k then
 		 error [`String plunge_qid
-		       ; `String "(put): expecting exactly one child named "
+		       ; `String "(put): expecting exactly one child named"
+                       ; `Break
 		       ; `Name k
 		       ; `Break
 		       ; `Tree a];
@@ -466,7 +468,8 @@ let copy m n =
 	   try V.get_required ~msg:"copy" c m
 	   with (Error.Harmony_error _) ->
 	     error [`String copy_qid
-		   ; `String "(get): expecting one child named "
+		   ; `String "(get): expecting one child named"
+                   ; `Break
 		   ; `Name m 
 		   ; `String ")" 
 		   ; `Tree c] in

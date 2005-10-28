@@ -25,7 +25,7 @@ and item = parse
 
 and skip_dt = parse
   | opt_whitespace                            { emit (lexeme lexbuf); skip_dt2 lexbuf }
-  | "</DT>"                                    { item lexbuf }
+  | "</DT>"                                   { item lexbuf }
   | _                                         { emit "JUNK:"; emit (lexeme lexbuf);
                                                 skip_dt lexbuf }
 and skip_dt2 = parse

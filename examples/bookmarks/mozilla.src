@@ -36,7 +36,7 @@ module Mozilla =
       
   and link : lens = 
     List.hd [];
-    rename "A" "link";
+    rename "A" "link"; 
     wmap { "link" ->
              (xfork { `Xml.CHILDREN, "HREF" } { "name", "url" }
                 (rename "HREF" "url";
@@ -69,14 +69,4 @@ module Mozilla =
     in
       l1; map filter_seps
 
-  let item2 : lens = item
-
-  let play : lens = 
-    List.hd [];
-    hoist "DT";
-    hoist Xml.CHILDREN;
-    List.tl { "H1" = { `Xml.CHILDREN = [{`Xml.PCDATA = {Bookmarks}}]}};
-    List.hd [];
-    hoist "DL";
-    hoist Xml.CHILDREN;
-    List.map item2
+  let l3 : lens = l2; Bookmarks.flatten_bookmarks

@@ -11,42 +11,19 @@ and Contents  = List.T (Folder | {"link" =  Link})
 schema Abstract = { "toolbar" = Contents, "bookmarks" = Contents }
 
 (* alternate "flattened" schema with flexible alignment *)
-schema Item = { "folders" = { * = (List.T Item) }, "links" = { * = Value } }
-and Twig = List.T { "folders" = { * = (List.T Twig) }, "links" = { * = Value } }
-schema BushAbstract = Item
+schema Item = { ?"folders" = {*=Item}, ?"links" = { * = Value } }
+schema BushAbstract = { "toolbar" = Item, "bookmarks" = Item }
       
 (* ---------------- LENSES ---------------*)
 
 (* flatten_to_bush :: Abstract <=> BushAbstract *)
-let flatten_to_bush : lens =
-  (* recursively apply lens to the folder contents, pivot links *)
-  List.map (
-  wmap {"folder" -> (pivot "name"; map (hoist "contents"; flatten_to_bush)) , 
-    "link" -> pivot "url"; map (hoist "name")}
-    );
-  (* regroup all links and folders in two lists *)
+let flatten_to_bush : lens = 
+  List.map 
+    (ccond { "contents"=Contents, "name"=Value } 
+       (pivot "name"; map (hoist "contents"; protect (flatten_to_bush)); plunge "folders")
+       (rename "link" "links"; wmap { "links" -> pivot "url"; map (hoist "name") }));
   List.flatten;
-  (* flatten these lists, and keep only the heads for links *)
-  (* note that different links at the same location have different urls *)
-  wmap {"folder" -> List.flatten,
-          "link" -> (List.flatten; map (List.hd [])) };
-  
-  (* we also rename the lists consistently *)
-  rename_if_present "folder" "folders";
-  rename_if_present "link" "links";
-  
-  (* add empty folders and links if needed *)
-  acond {} {"folders"={}, "links"={}}
-  ( add "links" {}; add "folders" {} )
-    (acond {"links"=Any} {"folders"={}, "links" = Any}
-     (add "folders" {})
-       (acond {"folders"=Any} {"folders" = Any, "links" = {}}
-        (add "links" {})
-          id
-          )
-       )    
+  wmap { "folders" -> List.flatten; map (List.hd []),
+           "links" -> List.flatten; map (List.hd []) }
     
-let flatten_bookmarks : lens =
-  assert Abstract;
-  map flatten_to_bush;
-  assert BushAbstract
+let flatten_bookmarks : lens = map flatten_to_bush
