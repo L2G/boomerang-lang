@@ -1,4 +1,4 @@
-THINGS TO DO
+--- THINGS TO DO ---
 
 BCP TASKS
 * Bug: in structured text demo, try completely emptying a replica

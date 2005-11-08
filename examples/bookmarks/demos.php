@@ -253,10 +253,13 @@ file as a tree in the abstract format described above.
 The schema that describes such abstract trees (written in our schema
 description language syntax) is as follows:
 <pre>
-  schema Link   = { "name" = Value, "url" = Value }
-  schema Folder = { "name" = Value, "contents" = Contents }     
-  and Contents  = List.T (Folder | {"link" =  Link})
-  schema Abstract = { "bookmark" = Contents, "toolbar" = Contents }
+  schema Link   = { "name"=Value, 
+                    "url"=Value }
+  schema Folder = { "name"=Value, 
+                    "contents"=Contents }     
+  and Contents  = List.T (Folder | {"link"=Link})
+  schema Abstract = { "bookmark"=Contents, 
+                       "toolbar"=Contents }
 </pre>
 </p>
 
@@ -308,7 +311,8 @@ first replica, change <i>both</i> URL strings in the Google link
 to <tt>http://google.com</tt>; in the second, add a link to the "Geek"
 folder for Lambda The Ultimate:
 <pre>
-  {link={name={"Lambda The Ultimate"}, url={"http://lambda-the-ultimate.org"}}}
+  {"link"={name={"Lambda The Ultimate"}, 
+   "url"={"http://lambda-the-ultimate.org"}}}
 </pre>
 Press "Synchronize" and verify that the updates are successfully
 propagated to each replica.
@@ -399,7 +403,8 @@ adding a new link at the head of the list in the "News" folder:
 </li>
 <li>in the abstract view add: 
 <pre>
-  {link={name="Washington Post", url="http://www.washingtonpost.com"}},
+  {"link"={name="Washington Post", 
+   "url"="http://www.washingtonpost.com"}},
 </pre>
 </li>
 </ul>
@@ -413,8 +418,8 @@ list, is unable merge the two newly added links into a tree
 representing a single valid link. E.g., merging the two trees produces
 a result:
 <pre>
-{link={name={"Slate", "Washington Post"}, 
-       url={"http://slate.com", "http://www.washingtonpost.com"}}}
+{"link"={name={"Slate", "Washington Post"}, 
+ "url"={"http://slate.com", "http://www.washingtonpost.com"}}}
 </pre>
 which does not belong to the <tt>Bookmarks.Abstract</tt> schema.
 </p>
@@ -452,8 +457,10 @@ we can choose to represent a folder as a <i>bush</i> where the URL of
 each link and the name of each folder serves as a key field for each
 item. The schema for this representation looks like this:
 <pre>
-  schema Item = { ?"folders"={*=Item}, ?"links"={*=Value }}
-  schema BushAbstract = { "bookmarks"=Item, "toolbar"=Item }
+  schema Item = { ?"folders"={*=Item}, 
+                  ?"links"={*=Value }}
+  schema BushAbstract = { "bookmarks"=Item, 
+                          "toolbar"=Item }
 </pre>
 In this example, the Firefox bookmarks are passed to a lens that
 produces an abstract view in this unordered schema. Try making the
