@@ -1,5 +1,8 @@
 --- THINGS TO DO ---
 
+GEOFFW TASK
+* Did setting LANG to en_US solve the mysterious Subversion bug?
+
 BCP TASKS
 * Bug: in structured text demo, try completely emptying a replica
 * do structured text better using spinelists
