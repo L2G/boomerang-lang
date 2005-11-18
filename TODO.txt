@@ -2,6 +2,7 @@
 
 GEOFFW TASK
 * Did setting LANG to en_US solve the mysterious Subversion bug?
+* No
 
 BCP TASKS
 * Bug: in structured text demo, try completely emptying a replica
