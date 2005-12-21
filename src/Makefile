@@ -24,7 +24,7 @@ TAGS:
 	$(MAKE) tags
 
 tags:
-	etags $(SOURCES)
+	-etags $(SOURCES)
 
 #################
 # EXTERNAL LIBS #

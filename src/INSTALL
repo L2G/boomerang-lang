@@ -46,6 +46,8 @@ pcre-ocaml  http://www.ocaml.info/home/ocaml_sources.html
             QUICK START FOR OSX: 
                 make STATIC=1; sudo make install STATIC=1
 
+equeue      (needed for ocamlnet, apparently)
+
 ocamlnet    http://www.ocaml-programming.de/packages/
             Tested with version from 0.95 to 0.98.
             
@@ -58,7 +60,7 @@ pxp         Tested with version 1.1.5.
             QUICK START: 
                 ./configure; make all opt; sudo make install
 
-That's it!  Only 6 dependencies!
+That's it!  Only seven dependencies!
 
 Now, simply type 'make' and you should end up with a harmony binary.
 Type 'make test' and you should see all the regression tests run.

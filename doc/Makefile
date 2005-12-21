@@ -19,7 +19,7 @@ main.pdf: $(GENERATEDTEXFILES)
 
 pdf:
 	pdflatex main
-	bibtex main
+	-bibtex main
 	pdflatex main
 	pdflatex main
 
@@ -28,7 +28,7 @@ main.ps: $(GENERATEDTEXFILES)
 
 ps:
 	latex main
-	bibtex main
+	-bibtex main
 	dvips -tletter -omain.ps main
 
 tmp/%.tex : $(LENSESDIR)/%.src $(SRC2TEX) tmp
