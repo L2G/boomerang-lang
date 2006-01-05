@@ -177,7 +177,7 @@ let accumulate oldacc k = function
 
 let the = function None -> assert false | Some x -> x
 
-let rec sync' (t:Schema.t) archo lefto righto =
+let rec sync' s oo ao bo = 
   let assert_member v t = 
     if (not (Schema.member v t))
     then
@@ -188,29 +188,29 @@ let rec sync' (t:Schema.t) archo lefto righto =
 		   ; `Prim (fun () -> Schema.format_t t)]
       end
   in    
-    match (archo, lefto, righto) with
-      | _   , None, None -> (MarkEqual, None, None, None)
+    match (oo, ao, bo) with
+      | _, None, None       -> (MarkEqual, None, None, None)
       | None, None, Some rv -> 
-	  assert_member rv t; 
+	  assert_member rv s; 
 	  (CopyRightToLeft (Adding rv), Some rv, Some rv, Some rv)
       | None, Some lv, None -> 
-	  assert_member lv t; 
+	  assert_member lv s; 
 	  (CopyLeftToRight (Adding lv), Some lv, Some lv, Some lv)
       | Some arv, None, Some rv ->
-	  assert_member rv t;
+	  assert_member rv s;
           if V.included_in rv arv then
             (CopyLeftToRight (Deleting rv), None, None, None)
           else
             (DeleteConflict(arv,rv), Some arv, None, Some rv)
       | Some arv, Some lv, None ->
-	  assert_member lv t;
+	  assert_member lv s;
           if V.included_in lv arv then
             (CopyRightToLeft (Deleting lv), None, None, None)
           else
             (DeleteConflict(arv,lv), Some arv, Some lv, None)
-      | archo, Some lv, Some rv ->
-          assert_member lv t;
-	  assert_member rv t;
+      | _, Some lv, Some rv ->
+          assert_member lv s;
+	  assert_member rv s;
           (* BCP [Oct 05]: The following test could give us a really nasty
              n^2 behavior in deep trees.  Better to omit the test here and
              instead, below, check whether all the children of the GoDown
@@ -220,41 +220,41 @@ let rec sync' (t:Schema.t) archo lefto righto =
           else if Name.Set.is_empty (Name.Set.inter
                                        (Name.Set.remove V.hd_tag (V.dom lv))
                                        (Name.Set.remove V.hd_tag (V.dom rv)))
-               && archo <> None
-               && (V.equal (the archo) lv || V.equal (the archo) rv) then 
-            if V.equal (the archo) lv then
+               && oo <> None
+               && (V.equal (the oo) lv || V.equal (the oo) rv) then 
+            if V.equal (the oo) lv then
               (CopyRightToLeft (Replacing (lv,rv)), Some rv, Some rv, Some rv)
             else 
               (CopyLeftToRight (Replacing (rv,lv)), Some lv, Some lv, Some lv)
           else
 	    let lrkids = Name.Set.union (V.dom lv) (V.dom rv) in
 	    let allkids = 
-	      match archo with
+	      match oo with
 		| None -> lrkids
 		| Some a -> Name.Set.union (V.dom a) lrkids   in	      
 	    let actbinds, arbinds, lbinds, rbinds = 	      
 	      Name.Set.fold
 		(fun k (actacc, aracc, lacc, racc) ->
-		   let tk = match Schema.project t k with
+		   let tk = match Schema.project s k with
 		       None ->
 			 (* Can't happen, since every child k is in        *)
 			 (* either dom(a) or dom(b), both of which are in  *)
                          (* T, as we just checked. For debugging, here's a *)
                          (* helpful error message                          *)
 			 Lens.error [`String "synchronization error: type "
-			       ; `Prim (fun () -> Schema.format_t t)
+			       ; `Prim (fun () -> Schema.format_t s)
 			       ; `String " cannot be projected on "
 			       ; `String k]
 		     | Some tk -> tk   in
-		   let act, archo', lefto', righto' =
+		   let act, o', a', b' =
 		     sync 
 		       tk
-		       (match archo with None -> None | Some av -> V.get av k)
+		       (match oo with None -> None | Some av -> V.get av k)
 		       (V.get lv k)
 		       (V.get rv k)   in  
-		   let aracc = accumulate aracc k archo' in
-		   let lacc  = accumulate lacc k lefto' in
-		   let racc  =  accumulate racc k righto' in
+		   let aracc = accumulate aracc k o' in
+		   let lacc  = accumulate lacc k a' in
+		   let racc  =  accumulate racc k b' in
 		     ((k, act)::actacc, aracc, lacc, racc))
 		lrkids 
 		([], [], [], [])   in
@@ -263,8 +263,8 @@ let rec sync' (t:Schema.t) archo lefto righto =
 	      (V.from_list arbinds),
 	      (V.from_list lbinds),
 	      (V.from_list rbinds)   in
-            let a'_in_tdoms = Schema.dom_member a' t in
-            let b'_in_tdoms = Schema.dom_member b' t in
+            let a'_in_tdoms = Schema.dom_member a' s in
+            let b'_in_tdoms = Schema.dom_member b' s in
             if a'_in_tdoms && b'_in_tdoms then
               (GoDown(Safelist.fold_left
                         (fun acc (k, act) -> Name.Map.add k act acc)
@@ -275,7 +275,7 @@ let rec sync' (t:Schema.t) archo lefto righto =
                Some b')
             else
               (* return originals in SchemaConflict *)   
-              (SchemaConflict(t,lv,rv),archo,lefto,righto)
+              (SchemaConflict(s,lv,rv),oo,ao,bo)
 		    
 and sync (t:Schema.t) o a b = 
   (* Version for debugging (because, at the moment, output from the

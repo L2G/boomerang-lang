@@ -189,6 +189,24 @@ $demo["r1"] = <<<XXX
 "Doe","James","","","Home";"303-999-3727","Work;999-888-9876","","","","","","","","","","","","","","0","Unfiled"
 "Smith","John","","","Home";"303-999-3727","Work;999-888-9876","Work;111-223-4567","","","","","","","","","","","","This is a note","0","Unfiled"
 XXX;
+$demo["r2"] = <<<XXX
+<xcard>
+  <vcard>
+    <n><given>John</given><family>Doe</family></n>
+  </vcard>
+  <vcard>
+    <n>Mr. Smith</n>
+  </vcard>
+  <vcard>
+    <n><family>Jones</family></n>
+  </vcard>
+  <vcard>
+    <n><given>Fred</given></n>
+  </vcard>
+</xcard>
+XXX;
+$demo["l2"] = "Addr.xcard";
+$demo["r2format"] = "xml";
 savedemo();
 # ---------------------------------------------------------
 
