@@ -38,13 +38,13 @@ mailing list by visiting the following URL:
 \section*{Caveats}
 
 The Harmony system is a work in progress.  We are distributing it in hopes
-that others may find it useful or interesting, but it has some serious
-deficiencies that we know about (as well as, surely, some that we don't,
-plus a multitude of minor ones).  In particular, the documentation and user
-interface are... minimal.  Also, the Focal implementation has not been
-carefully optimized.  It's fast enough to run medium-sized (hundreds of
-lines) programs on medium-sized (tens of kilobytes) trees, but it's not up
-to industrial use.
+that others may find it useful or interesting, but it has some significant
+shortcomings that we know about---as well as, surely, some that we
+don't---plus a multitude of minor ones.  In particular, the documentation
+and user interface are... minimal.  Also, the Focal implementation has not
+been carefully optimized.  It's fast enough to run medium-sized (hundreds of
+lines) programs on small to medium-sized (kilobytes to tens of kilobytes)
+trees, but it's not up to industrial use.
 
 \bigskip \bigskip \bigskip
 

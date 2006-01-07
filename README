@@ -13,6 +13,10 @@ synchronizers, we have implemented an experimental framework, called
 Harmony, that can be used to build synchronizers for tree-structured
 data stored in a variety of concrete formats, in particular XML.
 
+This directory contains the sources for Harmony itself, together with
+a collection of sample Harmony instances that can be used to
+synchronize a variety of specific data formats.
+
 
 COPYING
 -------
@@ -27,9 +31,9 @@ GETTING STARTED
 ---------------
 
 See the Quick Start chapter in the Harmony Programmer's Manual
-(doc/manual.pdf).  Or, if you want to get started compiling things
-right away and read while that is chugging away, have a look at
-src/INSTALL.
+(doc/manual.pdf).  (If you want to get started compiling things right
+away and read while that is chugging away, have a look at
+src/INSTALL.)
 
 
 MAILING LIST
