@@ -77,7 +77,7 @@ let register_env ev m = Env.iter (fun q r -> register (Syntax.dot m q) r) ev
 let paths = Prefs.createStringList 
   "include" 
   "search path for .fcl sources"
-  "Focal modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources."
+  "Focal modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources (the current directory and the paths specified in the FOCALPATH environment variable are also searched)."
 let _ = Prefs.alias paths "I"
 
 let focalpath =
@@ -111,7 +111,7 @@ let find_filename basename exts =
             inner_loop exts              
         end
   in
-    loop ((Prefs.read paths) @ focalpath)
+    loop ((Prefs.read paths) @ focalpath @ ["."])
       
 (* load modules dynamically *)
 (* backpatch hack *)

@@ -1,8 +1,8 @@
 \chapter{Quick Start}
 
 \emph{This chapter is intended for people who are installing Harmony on
-  their own machines.  If you are using it in conjunction with the web demo,
-  you'll want to skip to later sections.}
+  their own machines.  If you are only using the web demo, you'll want to
+  skip on to later sections.} 
 
 \section*{Installation}
 
@@ -16,6 +16,12 @@ compiler (if necessary) and the libraries on which Harmony depends.
 \item Type @make test@ in the top-level directory to build the Harmony
 executable and run all the regression tests.
 \end{enumerate}
+
+\section*{Using Harmony with Unison}
+
+If you just want to run Harmony instances from Unison (rather than
+experimenting with writing your own), you should now skip to
+page~\pageref{unison}. 
 
 \section*{Playing with the Demos}
 
