@@ -7,6 +7,7 @@
 (* $Id $ *)
 
 let debug = Trace.debug "registry"
+let sprintf = Printf.sprintf
 
 let verbose_flag =
   Prefs.createBool "verbose" false
@@ -78,7 +79,7 @@ let paths = Prefs.createStringList
   "search path for .fcl sources"
   "Focal modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources."
 let _ = Prefs.alias paths "I"
-  
+
 let focalpath =
   try Util.splitIntoWords (Unix.getenv "FOCALPATH") ':'
   with Not_found -> []
@@ -95,7 +96,7 @@ let find_filename basename exts =
     | dir::drest ->
         begin 
           let try_fn ext k = 
-            let fn = Printf.sprintf "%s%s%s%s%s"
+            let fn = sprintf "%s%s%s%s%s"
               dir
               (if dir.[String.length dir - 1] = '/' then "" else "/")
               basename 
@@ -115,19 +116,33 @@ let find_filename basename exts =
 (* load modules dynamically *)
 (* backpatch hack *)
 let compile_file_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
+let compile_fcl_str_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
+let compile_src_str_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
 
 let load ns = 
-  let fno = find_filename (String.uncapitalize ns) ["src"; "fcl"] in
+  (* helper, when we know which compiler function to use *)
+  let go comp source = 
+    verbose (fun () -> Format.eprintf "@[loading %s ...@]@\n%!" source);
+    loaded := ns::(!loaded);
+    comp ();
+    verbose (fun () -> Format.eprintf "@[loaded %s@]@\n%!" source) in      
+  let uncapped = String.uncapitalize ns in
     if (Safelist.mem ns (!loaded)) then true
     else begin
-      match fno with 
-	| None -> false
+      match find_filename uncapped ["src";"fcl"] with 
+	| None -> 
+            begin
+              try 
+                (* check for baked in source *)
+                let (is_src,str) = Hashtbl.find Bakery.items uncapped in 
+                  if is_src then go (fun () -> (!compile_src_str_impl) str ns) (sprintf "<baked source for %s>" ns)
+                  else go (fun () -> (!compile_fcl_str_impl) str ns) (sprintf "<baked source for %s>" ns);
+                  true
+              with Not_found -> false
+            end
 	| Some fn ->
-	    verbose (fun () -> (Format.eprintf "@[loading %s ...@]@\n%!" fn));
-	    loaded := ns::(!loaded); 
-	    (!compile_file_impl) fn ns;
-	    verbose (fun () -> (Format.eprintf "@[loaded %s@]@\n%!" fn));
-	    true
+	    go (fun () -> (!compile_file_impl) fn ns) fn; 
+            true
     end
 	
 let load_var q = match get_module_prefix q with 

@@ -51,3 +51,5 @@ val lookup_library : Syntax.qid -> rv option
 
 (**/**)
 val compile_file_impl : (string -> string -> unit) ref
+val compile_fcl_str_impl : (string -> string -> unit) ref
+val compile_src_str_impl : (string -> string -> unit) ref

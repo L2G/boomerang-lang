@@ -108,6 +108,11 @@ rule lex = parse
   }
 
 {
+  let fcl_of_src_str s = 
+    reset ();
+    let fcl_string = lex (Lexing.from_string s) in 
+      Buffer.contents current
+
   let fcl_of_src fn = 
     reset ();
     let fchan = open_in fn in

@@ -13,11 +13,6 @@ RESULT = harmony
 SOURCES = $(COMMON_SOURCES) harmony.ml 
 OCAMLLDFLAGS = -linkpkg
 
-# PRE_TARGETS = lexer.mll parser.mly
-
-# Why did we have this?  The ocaml manual says it is not recommended!
-# OCAMLLEX = ocamllex -ml
-
 all: TAGS
 
 TAGS: 
@@ -26,24 +21,31 @@ TAGS:
 tags:
 	-etags $(SOURCES)
 
-#################
-# EXTERNAL LIBS #
-#################
+###########################
+# EXTERNAL TOOLS AND LIBS #
+###########################
 
-all: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
+all: $(SRCDIR)/bakery.ml $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
 native-code: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
 native-code-library: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
 
 LIBS += $(EXTERNDIR)/ocaml-csv-1.0.3/csv
 
 profiling: 
-	$(MAKE) pnc
+	$(MAKE) profiling-native-code
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+
+$(SRCDIR)/baker: $(SRCDIR)/baker.ml
+	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^
+
+$(SRCDIR)/bakery.ml: $(SRCDIR)/baker
+	$^ $(EXAMPLESDIR) $(LENSESDIR) > $@
+
 
 ###################
 # DEFAULT TARGETS #
@@ -74,7 +76,7 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                surveyor.mli surveyor.ml \
                syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
                schema.mli schema.ml value.mli value.ml \
-               env.mli env.ml registry.mli registry.ml \
+               env.mli env.ml bakery.ml registry.mli registry.ml \
 	       sync.mli sync.ml \
                compiler.mli compiler.ml 
 
@@ -82,7 +84,6 @@ VIEWER_SOURCES = metay.mly metal.mll \
 		 viewers.ml
 
 TOPLEVEL_SOURCES = toplevel.ml  
-
 
 ###########
 # PLUGINS #
@@ -106,7 +107,7 @@ COMMON_SOURCES = $(SRC2FCL_SOURCES:%=$(TOOLSDIR)/%) \
 		 $(NATIVE_LENS_SOURCES:%=$(LENSESDIR)/%) \
 		 $(TOPLEVEL_SOURCES:%=$(SRCDIR)/%) 
 
-TRASH := $(TRASH) $(SRCDIR)/parser.output $(SRCDIR)/metay.output 
+TRASH := $(TRASH) $(SRCDIR)/bakery.ml $(SRCDIR)/baker $(SRCDIR)/parser.output $(SRCDIR)/metay.output 
 
 include $(OCAMLMAKEFILE)
 

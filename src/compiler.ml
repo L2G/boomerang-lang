@@ -949,32 +949,54 @@ let parse_lexbuf lexbuf =
     parse_error (Lexer.info lexbuf) 
       (fun () -> Format.printf "@[syntax error@]")
       
+let m_check n m_str ast= 
+  if n = m_str then ()
+  else
+    sort_error 
+      (info_of_module ast)
+      (fun () -> Format.printf "@[module %s must appear in a file named %s.src or %s.fcl.@]"
+	 m_str (String.uncapitalize m_str))
+      
 (* end-to-end compilation of files *)
-let compile_file fn n =  
-  let ast = 
-    if Util.endswith fn ".src" then 
-      let fcl_string = Src2fcl.fcl_of_src fn in 
-      let _ = Lexer.setup fn in         
-      let lexbuf = Lexing.from_string fcl_string in
-        parse_lexbuf lexbuf 
-    else
-      let _ = Lexer.setup fn in          
-      let fchan = open_in fn in
-      let ast = parse_lexbuf (Lexing.from_channel fchan) in 
-        close_in fchan;
-        ast in
-  let _ =
-    let m_str = string_of_id (id_of_modl ast) in
-      if n <> m_str then
-        sort_error 
-	  (info_of_module ast)
-	  (fun () -> Format.printf "@[module %s must appear in a file named %s.fcl.@]"
-	     m_str (String.uncapitalize m_str)) in
-    let ast' = check_module ast in 
-    let _ = compile_module ast' in
-      Lexer.finish ()
+let compile_lexbuf lexbuf n = 
+  let ast = parse_lexbuf lexbuf in
+  let m_str = string_of_id (id_of_modl ast) in 
+  let _ = m_check n m_str ast in
+  let ast' = check_module ast in 
+  let _ = compile_module ast' in 
+    ()
+
+let compile_fcl fn n = 
+  let _ = Lexer.setup fn in          
+  let fchan = open_in fn in
+  let lexbuf = Lexing.from_channel fchan in 
+  let _ = compile_lexbuf lexbuf n in
+  let _ = close_in fchan in
+    Lexer.finish ()
+
+let compile_src fn n = 
+  let fcl_string = Src2fcl.fcl_of_src fn in 
+  let _ = Lexer.setup fn in         
+  let lexbuf = Lexing.from_string fcl_string in
+  let _ = compile_lexbuf lexbuf n in 
+    Lexer.finish ()
+
+let compile_fcl_str s n = 
+  let _ = Lexer.setup "<string constant>" in
+  let lexbuf = Lexing.from_string s in
+  let _ = compile_lexbuf lexbuf n in 
+    Lexer.finish ()
+
+let compile_src_str s n = compile_fcl_str (Src2fcl.fcl_of_src_str s) n
+
+let compile_file fn n = 
+  if Util.endswith fn ".src" then compile_src fn n
+  else compile_fcl fn n 
       
 (* ugly backpatch hack! *)
 (* this is a thunk to force loading of this module when used via
    harmony.cmxa (which is dynamically linked) *)
-let init () = Registry.compile_file_impl := compile_file 
+let init () = 
+  Registry.compile_file_impl := compile_file;
+  Registry.compile_fcl_str_impl := compile_fcl_str;
+  Registry.compile_src_str_impl := compile_src_str 

@@ -16,6 +16,7 @@ CWD = $(shell pwd)
 FULLTOP = $(CWD)/$(TOP)
 
 LENSESDIR = $(FULLTOP)/lenses
+EXAMPLESDIR = $(FULLTOP)/examples
 TOOLSDIR = $(FULLTOP)/tools
 EXTERNDIR = $(FULLTOP)/extern
 SRCDIR = $(FULLTOP)/src
