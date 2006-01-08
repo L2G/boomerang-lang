@@ -1,0 +1,266 @@
+\chapter{Using Harmony From Unison}\label{unison}
+
+Harmony is designed to work with files on a single machine.  To support
+cross-machine harmonization, we have extended the Unison file synchronizer
+so that it can call out to Harmony as an external merge program.  Here are
+the steps for setting this up:
+
+\begin{enumerate}
+\item Build the harmony instances you plan to use and install them someplace
+on your search path on the machine that is going to act as client when
+Unison runs (i.e., the machine where Unison is invoked and where the user
+interface is displayed).  
+
+You can install all of the Harmony instance binaries at once (in your
+\verb|$HOME/bin| directory by default) by typing \verb|make install| at the
+top level.
+
+There is no need to put Harmony's Focal library files anywhere special: the needed 
+libraries are embedded in the binary of each Harmony instance when it is linked.
+
+\item Get yourself a recent version of Unison, either from the Unison home
+page (if you're willing to recompile from source)
+\begin{verbatim}
+  http://www.cis.upenn.edu/~bcpierce/unison
+\end{verbatim}
+or from one of the many binary distributions.
+
+Version 2.17 has the basic functionality needed here, but we continue making
+improvements and fixing bugs, so later versions may work better.
+
+\item Add \verb|merge| commands to your Unison profile(s) to tell it how to
+call the appropriate Harmony instances for different sorts of files.  For
+example, if you want to use the structured text instance of Harmony for all
+\verb|.txt| files and the bookmark instance for the Safari bookmark file,
+you might add this to your profile:
+
+\begin{verbatim}
+  merge = Name *.txt -> harmonize-structuredtext 
+              -ar 'CURRENTARCH' -r1 'CURRENT1' -r2 'CURRENT2' 
+              -newar 'NEWARCH' -newr1 'NEW1' -newr2 'NEW2' 
+  merge = Name Bookmarks.plist -> harmonize-bookmarks 
+              -ar CURRENTARCH -r1 CURRENT1 -r2 'CURRENT2' 
+              -newar 'NEWARCH' -newr1 'NEW1' -newr2 'NEW2' 
+\end{verbatim}
+(These rules are written out on several lines here to avoid going off the
+edge of the page; in your profile, there should be just a single long line
+for each \verb|merge| rule.)
+
+These rules will apply only when Unison is {\em not} running in batch
+mode.  Use \verb|mergebatch| instead of \verb|merge| if you want to live
+dangerously. 
+
+\item Add the rules
+\begin{verbatim}
+  backupcurrent = Name *.txt
+  backupcurrent = Name Bookmarks.plist
+\end{verbatim}
+to your Unison profile.
+
+The effect of these rules is to make Unison keep backups for these files
+more aggressively than usual: instead of just making backups when it
+overwrites some file with a new version from the other replica (or not
+making any backups at all, depending on how you've set the \verb|backup|
+preference), it will make sure that there is {\em always} a backup copy
+corresponding to the current, synchronized state at the end of every
+successful run.  This means that, if both replicas should be changed between
+runs of Unison (so that Unison sees a conflict), it will always have an
+appropriate file to pass to Harmony to use as the last common state for this
+file.
+
+\item Test your setup.  (The test will be illustrated using the structured
+text instance of Harmony, but you can substitute another if you like.)
+\begin{enumerate}
+\item Create a test file (e.g., \verb|foo.txt|) on one replica containing
+  several lines of text
+\begin{verbatim}
+  A
+  b
+  c
+  D
+  e
+\end{verbatim}
+ and run
+  Unison to propagate it to the other:
+\begin{verbatim}
+  unison myprofile -path foo.txt
+\end{verbatim}
+(Assuming that you put the above rules, together with the usual rules for
+\verb|root| and so on, into myprofile.prf in your Unison directory and that
+you created \verb|foo.txt| the root directory of your replica.)
+\item Edit \verb|foo.txt| on one replica and run Unison again (with the same
+command line).  Note that, because only one replica has changed, there is no
+conflict and Unison just copies the file directly without invoking Harmony.
+\item Now edit both copies of \verb|foo.txt| in different ways (e.g., change
+\verb|A| to |AAAAY| in one copy and \verb|e| to \verb|aieee| in the other).
+Run Unison again.  You should see something like this:
+\begin{verbatim}
+  changed  <-M-> changed    foo.txt  
+\end{verbatim}
+The two arrowheads signal a conflict (as usual in Unison), and the \verb|M|
+signals that, by default, Unison is going to attempt to merge the two
+versions.  (You can override this default as usual, to tell it to skip this
+file or just copy one version over the other.)
+
+Tell Unison to proceed.  After a pause (while Unison transfers the server's
+copy of the file onto the client machine), you should see Harmony running.
+
+\item Harmony itself has no user interface: it just tells you what it thinks
+needs to be done to synchronize the changes in the two copies of the file
+and then does it and outputs the updated files.  Unison, however, will ask
+you for confirmation before actually overwriting the real files on both
+replicas. 
+%
+It is a good idea to look carefully at what Harmony has done before agreeing
+to this!
+\item Now, change the  \verb|foo.txt| in conflicting ways --- e.g., change
+\verb|c| to \verb|see| in one replica and to \verb|sea| in the other.  At
+the same time, make a non-conflicting change to each file (e.g., change the
+second line in one and the last line in the other; make sure to keep at least
+one lowercase letter in each of these lines, so as not to complicate the
+example by changing the way the file is parsed into a tree).  
+
+Run Unison and Harmony again.  Notice, in Harmony's output, that the
+non-conflicting changes have been accepted and the conflicting one marked as
+such.
+
+\item Take a look at both copies of \verb|foo.txt|.  Notice that the
+non-conflicting changes are now reflected in both, while the conflicting
+changes are left alone.  
+
+Since this run of Harmony ended with at least one unresolved conflict,
+Unison will {\em not} update its own archive to reflect any of the changes
+that have been made.  That is, as far as Unison is concerned, this file has
+not been successfully synchronized, so it does not update its own
+recollection of the file's last synchronized state.  This means that 
+\begin{enumerate}
+\item if you change the third line in one of the copies back to \verb|c| and
+run Unison (and Harmony), the third line from the other replica will be
+copied into this one; and
+\item if you make another change to one of the lines where you made
+non-conflicting changes before, this change will be flagged as a conflict
+rather than being propagated.
+\end{enumerate}
+The bottom line is that, when Harmony signals a conflict, you should repair
+it as soon as possible.  This can be achieved either by editing the two
+copies so that they become equal or by editing one of the copies to ``back
+out'' its version of the conflicting change.  
+\end{enumerate}
+
+\item That's it!
+
+\item OK, not quite it.  A couple of fine points should be noted:
+\begin{itemize}
+\item This combination of Unison and Harmony can handle only homogeneous
+harmonization: it is not currently possible to synchronize a Safari
+bookmarks file with a Mozilla bookmarks file on another host.
+\item If Harmony signals that it has succeeded with no conflicts but the
+final versions of the files are not byte-for-byte identical (which can
+happen if the lens used by this Harmony instance omits some of the
+information in the concrete files for purposes of synchronbization), then
+Unison will overwrite one of the copies with the other.  (This may seem a
+little surprising, but it is consistent with the fact that Unison deals with
+updates to just one of the replicas at a time by simply copying the updated
+one over the unchanged one.  This avoids the cost of running Harmony most of
+the time.)
+\end{itemize}
+\end{enumerate}
+
+
+
+\endinput
+
+If you are a user of the Unison file synchronizer, you may want to use 
+Harmony from within Unison. \footnote{If you do not know what Unison is,
+  see \texttt{http://www.cis.upenn.edu/~bcpierce/unison}.}
+Unison is a convenient way to use Harmony to do homogeneous synchronization
+between specific files, in the safe and userfriendly way that is well
+known to Unison users.
+
+When Unison is synchronizing two files, it may encounter the case
+where the same file has been modified in conflicting (that is,
+different) ways on both replicas. If this file is source code, you
+may want to use \verb|diff3| to merge the two versions of your file
+and start Unison again with the files equal on both
+replicas. Similarly, if this file is in some format for which you have
+an Harmony instance (e.g. bookmarks file), you may want to use Harmony
+to merge the files. Doing it manually, in either case, can be boring,
+especially if you have to often repeat this manipulation. Fortunately,
+we added a new functionality to Unison that lets you define a merge
+command to be applied to some sort of files, when these
+conflict. Before you go on, make sure that your version of Unison is
+recent enough (2.13 or later), or this functionality will not be
+implemented in your Unison (ver 2.12 can be used with \verb|diff|-like
+commands, but not with Harmony). Remember, if you are using Unison
+between two different machines, that the \emph{same} version of Unison
+must be installed on both, unless they cannot communicate with each
+other.
+
+An important limitation in using Harmony through Unison is that,
+since Unison will always make the files on both replicas equal in the
+case of a successful synchronization, it cannot be used this way to do
+heterogeneous synchronization. For example, if you want to synchronize
+the Firefox bookmarks of your Linux partition and the IE6 bookmarks of
+your WinXP partition together, you cannot use Unison to do that. On
+the contrary, if your goal is to synchronize your Safari bookmarks
+between your desktop machine and your power book, then you just have
+to follow the instructions hereafter, and then let Unison do all the
+job for you.
+
+So, suppose you have a Safari bookmarks file, named
+\verb|bookmarks.plist| at the same location in your both replicas,
+and that you want Unison to use Harmony to merge the two versions of
+this file whenever they conflict. First, we recommand you to write in
+whatever programming language (or script language) you like the most a
+small command that will embody all the options to be passed to Harmony
+and whatever preprocessing/postprocessing is required before Harmony 
+has to be applied. For example, in the case of Safari bookmarks file,
+your command should apply the \verb|plutil| utility before and after
+calling Harmony (to transform .plist files from binary to XML, and
+back to binary after synchronization), and call Harmony with the
+appropriate options for the lenses to be applied and the schema to be
+used for synchronization. In general, your command could look like
+this:
+
+\begin{verbatim}
+preprocess
+pathToHarmony/harmony \
+        -lensr1 M.myLens -lensr2 M.myLens -lensar M.myLens \
+        -schema M.mySchema -I pathToModuleM -IpathToPrelude \
+        -r1 $1  -r2 $2  -ar $3 \
+        -newr1 $4 -newr2 $5 -newar $6
+postprocess
+\end{verbatim}
+
+The only arguments whose passing should be left to Unison are the 
+names of the three inputs and the three outputs. Now, assuming you
+have this command called, say, \verb|my_merge|, open your Unison
+profile.
+
+The first thing you have to do is to set the \verb|merge| preference
+of your profile, to specify to Unison that files named
+\verb|bookmarks.plist| should be merged with the special command :
+
+\begin{verbatim}
+merge = Name bookmarks.plist -> my_merge CURRENT1 CURRENT2 CURRENTARCH 
+                                         NEW1 NEW2 NEWARCH
+\end{verbatim}
+
+Since the Harmony synchronization required an archive, that is, a \emph{last
+synchronized state}, you need to tell Unison to store a copy of the
+file each time it is synchronized or its contents are changed equally
+on both replicas. Here again, just add the following line to your
+profile :
+
+\begin{verbatim}
+backupcurrent = Name bookmarks.plist
+\end{verbatim}
+
+And... that's all! This should be OK now, and Unison should propose
+you to merge the files by default when they conflict, calling your
+command to merge them. If you want more control on the name and the
+location of the archive, or if you do not want Unison to ask you
+confirmation after each merge, take a look at the merge and backup
+sections of the Unison manual and set the appropriate switches in your
+profile.
+
