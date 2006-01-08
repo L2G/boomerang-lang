@@ -30,9 +30,8 @@ findlib     versions from 0.8.1 to 1.0.4 have been tested.
             QUICK START:
               ./configure; make all opt; sudo make install; make clean
 
-pcre        Phil Hazel's PCRE library, version >= 4.1.  
-	    Tested with 4.2 and 4.5.
-            http://www.pcre.org
+pcre        http://www.pcre.org
+            Tested with version 4.5.
 
             OSX QUICK START:
               fink install pcre
@@ -46,7 +45,7 @@ pcre        Phil Hazel's PCRE library, version >= 4.1.
               ./configure; make; sudo make install
 
 pcre-ocaml  http://www.ocaml.info/home/ocaml_sources.html
-            Get version 5.02 or later (tested with 5.09).
+            Tested with version 5.09
 
             QUICK START FOR OSX: 
                 make STATIC=1; sudo make install STATIC=1
@@ -55,6 +54,8 @@ pcre-ocaml  http://www.ocaml.info/home/ocaml_sources.html
                   export INCDIRS := /sw/include
                   export LIBDIRS := /sw/lib
                to Makefile.conf before doing this.
+
+            (For other operating systems, you may or may not need the STATIC=1 stuff.)
 
 equeue      http://www.ocaml-programming.de/packages/
             Tested with version 2.1.3
