@@ -22,8 +22,8 @@ icalviewer:
 
 clean::
 	rm -rf ar*.{ics,meta} r1*.{ics,meta} r2*.{ics,meta} .harmonyar*.meta .harmonyar*.tmp
-include $(OCAMLMAKEFILE)
 
+include $(OCAMLMAKEFILE)
 
 ####################################################################
 # Tests

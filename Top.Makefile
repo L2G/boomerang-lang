@@ -27,6 +27,8 @@ ALLSUBDIRS = $(shell find * -type d -print -prune)
 SRC2F = $(TOOLSDIR)/src2f
 SRC2TEX = $(TOOLSDIR)/src2tex
 
+# This can be overriden by editing the following line, or on the command line
+INSTALLDIR = $(HOME)/bin
 
 ####################################################################
 # Setup for running harmony 
@@ -64,6 +66,15 @@ $(SRCDIR)/harmony.cmxa:
 makeharmonylib:
 	$(MAKE) -C $(SRCDIR) native-code-library
 
+install: all
+	$(QUIET)$(MAKE) justinstall
+
+justinstall: 
+	$(QUIET)if [ ! -z $(RESULT) ]; then echo cd $(CWD); echo cp $(RESULT) $(INSTALLDIR); cp $(RESULT) $(INSTALLDIR); fi 
+	@for i in $(SUBDIRS); do \
+	   $(MAKE) -C $$i justinstall;  \
+	   if [ $$? -ne 0 ]; then exit $$?; fi; \
+	done
 
 ####################################################################
 # Generating .fcl and .tex files from .src
