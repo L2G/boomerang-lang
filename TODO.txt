@@ -5,6 +5,11 @@ GEOFFW TASK
 * No
 
 BCP TASKS
+* Try running harmonize-addresses with empty args -- bad error mesg
+* check for bad unison behavior
+    make conflicting changes to todo.txt
+    run unison/harmony twice
+    note that second time no differences are reported!
 * Bug: in structured text demo, try completely emptying a replica
 * do structured text better using spinelists
 * make front end interpret a plain .fcl file as a check command

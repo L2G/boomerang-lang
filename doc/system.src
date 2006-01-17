@@ -6,6 +6,7 @@
 
 \begin{itemize}
 \item command-line arguments \label{sec:cmdlineargs}
+\item \verb|FOCALPATH| \label{sec:focalpath}
 \item encoding keys \label{sec:encodingkeys}
 \end{itemize}
 

@@ -31,6 +31,7 @@ type addresstype = XCard | PilotAddressesCsv
 
 let chooseEncoding f =
   if Util.endswith f ".xml" then ("xml",XCard,None,None)
+  else if Util.endswith f ".txt" then ("xml",XCard,None,None)  (* Hack, for BCP *)
   else if Util.endswith f ".csv" then ("palmaddrcsv",PilotAddressesCsv,None,None)   (* Need to strip first line, etc.! *)
   else raise Not_found
 

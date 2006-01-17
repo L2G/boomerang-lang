@@ -17,5 +17,8 @@ val conflict_free : action -> bool
 val format : action -> unit
 val sync : Schema.t -> V.t option -> V.t option -> V.t option -> 
   action * V.t option * V.t option * V.t option
+
+(* NOT USED??
 val propagate : V.t option -> V.t option -> V.t option -> action -> 
   V.t option * V.t option * V.t option 
+*)

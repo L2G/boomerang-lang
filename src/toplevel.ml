@@ -147,10 +147,11 @@ type 'a filetype = Unknown | Meta | UserType of 'a
 let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens () =
   let usageMsg = 
       "Usage:\n"
-    ^ "    "^progName^" FILE [options]\n"
-    ^ " or "^progName^" FILE FILE [options]\n"
-    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE [more options]\n"
-    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE -newar FILE -newr1 FILE -newr2 FILE [more options]\n"
+    ^ "    "^progName^" FILE [options]\n                                      dump"
+    ^ " or "^progName^" FILE FILE [options]                                   transform\n"
+    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE [more options]             sync (in place)\n"
+    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE                            sync\n"
+    ^ "                 -newar FILE -newr1 FILE -newr2 FILE [more options]\n"
     ^ "\n"
     ^ "Options:" in
 

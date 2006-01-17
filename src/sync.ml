@@ -288,6 +288,7 @@ and sync (t:Schema.t) o a b =
   let result = sync' t o a b in
     result
 
+(* NOT USED
 let rec propagate archo lefto righto = function
 | SchemaConflict _ -> archo, lefto, righto
 | MarkEqual         -> lefto, lefto, righto  (* may be Some a or None *)
@@ -322,3 +323,4 @@ let rec propagate archo lefto righto = function
     (Some f,
      Some s,
      Some t)
+*)

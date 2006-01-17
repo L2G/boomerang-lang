@@ -148,7 +148,7 @@ The second form, @ test@~$l_1$~@/\@~$t_1$~@=@~$t_3$, is shorthand for two tests
 of a bijective lens: @ test@~$l_1$~@/@~$t_1$~@=@~$t_2$ and 
 @test@~$l_1$~@\@~$t_2$~@missing =@~$t_1$. The third form, 
 @test@~$t_1$~@= error@, checks that $t_1$ raises an exception when it
-evaluates $t_1$. This kind of test is uesd to ensure that native
+evaluates $t_1$. This kind of test is used to ensure that native
 lenses, such @hoist@, check side conditions on their inputs correctly; for example,
 %
 @test hoist "n" {} = error@.  

@@ -70,7 +70,7 @@ install: all
 	$(QUIET)$(MAKE) justinstall
 
 justinstall: 
-	$(QUIET)if [ ! -z $(RESULT) ]; then echo cd $(CWD); echo cp $(RESULT) $(INSTALLDIR); cp $(RESULT) $(INSTALLDIR); fi 
+	$(QUIET)if [ ! -z $(RESULT) ]; then echo cd $(CWD); echo cp  $(RESULT) $(RESULT-HELPERS) $(INSTALLDIR); mkdir -p $(INSTALLDIR); cp $(RESULT) $(RESULT-HELPERS) $(INSTALLDIR)/; fi 
 	@for i in $(SUBDIRS); do \
 	   $(MAKE) -C $$i justinstall;  \
 	   if [ $$? -ne 0 ]; then exit $$?; fi; \

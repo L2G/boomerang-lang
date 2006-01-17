@@ -17,10 +17,11 @@ DEMOCMD = ./$(RESULT) $(HARMONYFLAGS) $(LENSPATH) -compress=false
 include $(TOP)/Top.Makefile
 
 RESULT = harmonize-bookmarks
+RESULT-HELPERS = xml2moz moz2xml
 SOURCES = harmonize-bookmarks.ml 
 LIBS += harmony
 
-all: makeharmonylib nc xml2moz moz2xml
+all: makeharmonylib nc $(RESULT-HELPERS)
 
 include $(OCAMLMAKEFILE)
 

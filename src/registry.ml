@@ -111,7 +111,7 @@ let find_filename basename exts =
             inner_loop exts              
         end
   in
-    loop ((Prefs.read paths) @ focalpath @ ["."])
+    loop ((Prefs.read paths) @ focalpath)
       
 (* load modules dynamically *)
 (* backpatch hack *)
