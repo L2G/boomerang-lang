@@ -4,7 +4,7 @@
 module Mozilla =  
 
   (* abstract schemas for homogeneous synchronization *)
-  schema MLink = { "link" = { "name" = Value, "url" = Value}}
+  schema MLink = { "link" = { "name" = Value, "url" = Value }}
   schema MSeparator  = { "separator" = {} }
   schema MFolder = { "name" = Value, "contents" = MContents }
   and MContents =  List.T (MSeparator | MLink | MFolder)
@@ -38,11 +38,33 @@ module Mozilla =
     List.hd [];
     rename "A" "link"; 
     wmap { "link" ->
-             (xfork { `Xml.CHILDREN, "HREF" } { "name", "url" }
-                (rename "HREF" "url";
-                 fork {"url"} id                   
-                   (focus Xml.CHILDREN {};List.hd []; rename Xml.PCDATA "name"))
-                (const {} {})) }
+             begin 
+               filter { "HREF", "FEEDURL", `Xml.CHILDREN } {};
+               xfork { `Xml.CHILDREN } { "name" }
+                 (focus Xml.CHILDREN {};
+                  List.hd [];
+                  rename Xml.PCDATA "name")
+                 (acond { "FEEDURL"=Any, "HREF"=Any } { "feed"=Any }
+                    (filter { "FEEDURL" } {};
+                     rename "FEEDURL" "feed")
+                    (rename "HREF" "url");                 
+                  acond { "feed"=Any } ({"f"}::{"e"}::{"e"}::{"d"}::Any)
+                    (hoist "feed";
+                     List.explode;
+                     List.tl { "h" };
+                     List.tl { "t" };
+                     List.tl { "t" };
+                     List.tl { "p" };
+                     plunge List.TL; add List.HD { "d" };
+                     plunge List.TL; add List.HD { "e" };
+                     plunge List.TL; add List.HD { "e" };
+                     plunge List.TL; add List.HD { "f" };
+                    (hoist "url";
+                     List.explode);
+                  List.implode;
+                  plunge "url")
+             end
+         }
       
   let l1 : lens = 
     List.hd [];

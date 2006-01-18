@@ -13,6 +13,7 @@ all: makeharmonylib icalviewer nc
 
 include $(TOP)/Top.Makefile
 
+STATIC=1
 RESULT = harmonize-calendars
 SOURCES = $(CWD)/harmonize-calendars.ml 
 LIBS += harmony

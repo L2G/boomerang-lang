@@ -9,6 +9,7 @@ TOP = ..
 SUBDIRSCLEANONLY = ubase 
 include $(TOP)/Top.Makefile
 
+STATIC = 1
 RESULT = harmony
 SOURCES = $(COMMON_SOURCES) harmony.ml 
 OCAMLLDFLAGS = -linkpkg
@@ -45,7 +46,6 @@ $(SRCDIR)/baker: $(SRCDIR)/baker.ml
 
 $(SRCDIR)/bakery.ml: $(SRCDIR)/baker
 	$^ $(EXAMPLESDIR) $(LENSESDIR) > $@
-
 
 ###################
 # DEFAULT TARGETS #

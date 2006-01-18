@@ -773,9 +773,13 @@ function listdir($dirname=".") {
 }
 
 function filecontents($filename) {
-  $handle = fopen($filename, "r");
-  $contents = fread($handle, filesize($filename));
-  fclose($handle);
+  $size = filesize($filename);
+  $contents = "";
+  if ($size != 0) {
+    $handle = fopen($filename, "r");
+    fread($handle, $size);
+    fclose($handle);
+  }
   return $contents;
 }
 
