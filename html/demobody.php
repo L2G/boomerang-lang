@@ -54,7 +54,7 @@ $surtitle_text = "&nbsp;";
 # Load Demo Data #
 ##################
 
-chdir("../examples");
+chdir("examples");
 
 $alldemos = array();
 
@@ -303,7 +303,7 @@ if(!$splash) {
   }
 
   $cmdbase = 
-    "export HOME=../../../..; "
+    "export HOME=./; "
     . "export FOCALPATH=.:../../lenses:/$tempdir;"
     . "./$democmd $flags";
 
