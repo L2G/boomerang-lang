@@ -8,8 +8,13 @@ let goodheader = "# 01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,16,17,18,19,20,
 let _ =
   let read_tbl =
     let fixup_header s =
+      (* This is pretty inefficient!! *)
       let lines = Util.splitIntoWords s '\n' in
-      String.concat "\n" (goodheader :: Safelist.tl (Safelist.tl lines)) in
+      let allbutfirst = Safelist.tl lines in
+      let body = if allbutfirst <> [] && Util.startswith (Safelist.hd allbutfirst) "#"
+        then Safelist.tl allbutfirst
+        else allbutfirst in
+      String.concat "\n" (goodheader :: body) in
     Surveyor.simple_reader
       (fun s -> 
         let (fn, ouch) = Filename.open_temp_file "harmony" ".csv" in

@@ -38,6 +38,9 @@ unit-tests:
 #############################################################################
 ## Old/dead:
 
+testbug:: buildharmony
+	./harmonize-addresses testbug.csv
+
 test2:: buildharmony
 	$(HARMONY) get -lens Addr.l -concrete $(HOME)/current/z/addresses.txt:xml -output -:meta
 

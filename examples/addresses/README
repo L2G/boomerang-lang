@@ -1,9 +1,36 @@
-INSTALLATION NOTES
+INSTALLATION AND USAGE NOTES
 
-grab latest pilot-link from www.pilot-link.org
+* Grab latest pilot-link from www.pilot-link.org and build it
+  something like this:
 
-  ./configure --prefix=$HOME
-  make
-  make install
+    ./configure --prefix=$HOME
+    make
+    make install
 
-pilot-xfer --fetch AddressDB.pdb -p usb: 
+* Create a file of xcard addresses and put it somewhere.  Mine is
+  ~/current/z/addresses.txt.  (Yes, I know that's a strange extension
+  for an xml file.)  If you want to create a fresh one, it
+  should look like this:
+
+     <xcard></xcard>
+
+* Create a directory for storing the local proxy of the palm addresses
+  and the archive file -- e.g.
+
+        mkdir ~/palmarchives
+
+-------------------
+STEPS FOR AN INDIVIDUAL SYNC 
+
+   cd ~/palmarchives
+   # copy addresses from palm to local proxy
+   pilot-addresses -a --write=addresses.csv
+   # make a backup, for the sake of paranoia
+   cp ~/current/z/addresses.txt backup-addresses.txt-`date +%y%m%d-%H%M%S`
+   cp ~/current/z/addresses.csv backup-addresses.csv-`date +%y%m%d-%H%M%S`
+   # Run harmony
+   harmonize-addresses ~/current/z/addresses.txt addresses.csv
+   # Put them back on the palm
+   pilot-addresses --delete-all
+   pilot-addresses -a --read=addresses.csv
+

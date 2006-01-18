@@ -93,6 +93,9 @@ let load_rows ?(separator = ',') f chan =
   in
   let rec loop () =
     let c = input_char chan in
+(* FOR DEBUGGING:
+   Printf.printf "Csv.load_rows: read %s\n" (Char.escaped c);
+*)
     if c != '\r' then (			(* Always ignore \r characters. *)
       match !state with
 	  StartField ->			(* Expecting quote or other char. *)

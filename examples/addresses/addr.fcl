@@ -280,7 +280,8 @@ let prune_if_null (n:name) (nullval:tree) : lens =
     id
 
 let prune_null_entries : lens = 
-  prune_if_null "Private" {0}
+id
+  (* Handled elsewhere: prune_if_null "Private" {0} *)
   (* We remove all Custom fields for the moment, so this is not needed
   prune_if_null "Custom 1" {""};
   prune_if_null "Custom 2" {""};
@@ -334,8 +335,7 @@ let format_csv_addr : lens =
   prune "Custom 2" {""};
   prune "Custom 3" {""};
   prune "Custom 4" {""};
-(* Do we also need this?
-   prune "Private" {""}; *) 
+  prune "Private"  {0};
   prune_null_entries
 
 let csv : lens =

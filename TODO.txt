@@ -1,11 +1,13 @@
 --- THINGS TO DO ---
 
-GEOFFW TASK
-* Did setting LANG to en_US solve the mysterious Subversion bug?
-* No
-
 BCP TASKS
+* harmonize-addresses
+    - fix double-linebreaks problem first!!
+    - entries with the same name cause interesting updates
+    - two identical entries causes weird problems (crash!)
 * Try running harmonize-addresses with empty args -- bad error mesg
+* Doing "make clean" at the top level followed by "make" in 
+  examples/addresses fails
 * check for bad unison behavior
     make conflicting changes to todo.txt
     run unison/harmony twice

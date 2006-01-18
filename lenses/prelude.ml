@@ -157,15 +157,15 @@ let probe msg =
     put = (fun a co ->     
 	     Format.printf "@,@[<v0>%s (put) @,  " msg;
 	     V.format_t a;
-     Format.printf "@,  ";
-     begin
-       match co with
-           None -> Format.printf "MISSING";
-         | Some c -> V.format_t c
-     end;
-     Format.printf "@,@]";
-     Format.print_flush ();
-     a)}
+             Format.printf "@ into@   ";
+             begin
+               match co with
+                   None -> Format.printf "MISSING";
+                 | Some c -> V.format_t c
+             end;
+             Format.printf "@,@]";
+             Format.print_flush ();
+             a)}
 let probe_lib = 
   mk_nfun "lens" probe_qid
     (fun n -> Value.L (probe n))
@@ -221,8 +221,8 @@ let const v d =
 	       match co with
 		 | None -> d
 		 | Some(c) -> c
-	     else error [`String (const_qid ^ "(put): abstract tree");
-			 `Tree a;
+	     else error [`String (const_qid ^ "(put): abstract tree"); 
+			 `Space; `Tree a; `Space;
 			 `String "is not equal to"; `Tree (v)]) }
 let const_lib =
   mk_vfun "tree -> lens" const_qid

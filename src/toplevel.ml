@@ -175,10 +175,11 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   end;
 
   (* Make up an archive name if none was provided *)
+  let fixup s = Misc.replace_substring s "/" "-" in
   if Prefs.read arpref = "" && Prefs.read r2pref <> "" then
     Prefs.set arpref
       (Printf.sprintf ".harmonyar-%s-%s-%s.meta"
-         (archNameUniquifier()) (Prefs.read r1pref) (Prefs.read r2pref));
+         (archNameUniquifier()) (fixup (Prefs.read r1pref)) (fixup (Prefs.read r2pref)));
 
   (* Overwrite original files if no new filenames are specified *)
   let overwrite pnew p = if Prefs.read pnew = "" then Prefs.set pnew (Prefs.read p) in
