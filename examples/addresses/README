@@ -1,3 +1,23 @@
+HARMONIZE-ADDRESSES -- a Harmony instance for Palm and xcard address files
+--------------------------------------------------------------------------
+
+KNOWN SHORTCOMINGS
+
+* Only a subset of the fields in the current Palm address format are
+  handled; birthdays, pictures, etc. are not synchronized
+
+* Fields containing semicolons in Palm files are not handled
+  correctly.  The problem here comes from the pilot-addresses tool,
+  which uses semicolons incorrectly.  In one place, it follows the
+  standard CSV convention that a field containing a semicolon, like
+  X;YZ, should be formatted as "X";"YZ".  (Specifically, it uses this
+  format to recognize "augmented fields" consisting of a phone number
+  label such as Home, Work, etc., plus a phone number.)  But in other
+  places it ignores this convention and expects X;YZ, to be formatted
+  as "X;YZ".  It is not clear how to correct this without changing
+  pilot-addresses or introducing a hideous special-purpose hack in our
+  CSV writing code.
+
 INSTALLATION AND USAGE NOTES
 
 * Grab latest pilot-link from www.pilot-link.org and build it
@@ -7,17 +27,13 @@ INSTALLATION AND USAGE NOTES
     make
     make install
 
-* Create a file of xcard addresses and put it somewhere.  Mine is
-  ~/current/z/addresses.txt.  (Yes, I know that's a strange extension
-  for an xml file.)  If you want to create a fresh one, it
-  should look like this:
-
-     <xcard></xcard>
-
 * Create a directory for storing the local proxy of the palm addresses
   and the archive file -- e.g.
 
         mkdir ~/palmarchives
+
+* Now we're ready to harmonize (assuming your addresses are currently
+  living on your palm)...
 
 -------------------
 STEPS FOR AN INDIVIDUAL SYNC 
@@ -26,11 +42,19 @@ STEPS FOR AN INDIVIDUAL SYNC
    # copy addresses from palm to local proxy
    pilot-addresses -a --write=addresses.csv
    # make a backup, for the sake of paranoia
-   cp ~/current/z/addresses.txt backup-addresses.txt-`date +%y%m%d-%H%M%S`
-   cp ~/current/z/addresses.csv backup-addresses.csv-`date +%y%m%d-%H%M%S`
+   cp addresses.xml backup-addresses.xml-`date +%y%m%d-%H%M%S`
+   cp addresses.csv backup-addresses.csv-`date +%y%m%d-%H%M%S`
    # Run harmony
-   harmonize-addresses ~/current/z/addresses.txt addresses.csv
+   harmonize-addresses addresses.xml addresses.csv
    # Put them back on the palm
    pilot-addresses --delete-all
    pilot-addresses -a --read=addresses.csv
+
+Repeat as desired.
+
+
+
+
+
+
 

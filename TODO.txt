@@ -1,19 +1,18 @@
 --- THINGS TO DO ---
 
 BCP TASKS
-* harmonize-addresses
-    - fix double-linebreaks problem first!!
-    - entries with the same name cause interesting updates
-    - two identical entries causes weird problems (crash!)
-* Try running harmonize-addresses with empty args -- bad error mesg
+* Fix entity handling in XML processing
+* Stuff missing (from, e.g., Aponte's entry)
+* Try running harmonize-addresses with empty args -- bad error mesg!
+* "make testbad" in examples/addresses illustrates a bad problem with 
+  the csv reader: it ignores repeated \n characters (e.g. in note fields)
 * Doing "make clean" at the top level followed by "make" in 
-  examples/addresses fails
+  examples/addresses fails  (in general, makefiles are a bit messed up)
 * check for bad unison behavior
     make conflicting changes to todo.txt
     run unison/harmony twice
     note that second time no differences are reported!
 * Bug: in structured text demo, try completely emptying a replica
-* do structured text better using spinelists
 * make front end interpret a plain .fcl file as a check command
 * some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed
@@ -34,36 +33,6 @@ SOMEBODY TASKS
     as string
 * put LGPL notice in all files
   and make sure GPL is stated correctly for CSV module
-
-_________________________________________________________________________
-
-FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
-* trevor
-* jerome
-* plclub
-* lambda kids 
-* Nathan Whitehead
-* Perdita Stevens
-* Unison hackers and users lists
-* Arnaud Sahuguet
-  Jerome Simeon
-  martin hofmann
-  Daniel Spoonhauer
-  Alain Frisch
-  peter sewell
-  james cheney
-  Peter Buneman
-  Penn db group
-  Norman Ramsey
-
-PUBLIC RELEASE ANNOUNCEMENT LIST
-  Tokyo people
-  Pascal Molli and group
-  Serge Abiteboul
-  Srivastava
-  christophe koch
-
-__________________________________________________________________________
 
 TIDYING
 move papers, notes, old, etc. to a separate, private svn repository
@@ -123,6 +92,34 @@ the comment wasn't for Makefile.conf in pcre --- so into which
 file should we put in "export INCDIRS ..." and "export LIBDIRS
 ..."?  (I know what needs to be done, I just don't know where it
 should be done).
+
+_________________________________________________________________________
+
+FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
+* trevor
+* jerome
+* plclub
+* lambda kids 
+* Nathan Whitehead
+* Perdita Stevens
+* Unison hackers and users lists
+* Arnaud Sahuguet
+  Jerome Simeon
+  martin hofmann
+  Daniel Spoonhauer
+  Alain Frisch
+  peter sewell
+  james cheney
+  Peter Buneman
+  Penn db group
+  Norman Ramsey
+
+PUBLIC RELEASE ANNOUNCEMENT LIST
+  Tokyo people
+  Pascal Molli and group
+  Serge Abiteboul
+  Srivastava
+  christophe koch
 
 ____________________________________________________________________________
 HARMONY SUMMER 2005 PLANS

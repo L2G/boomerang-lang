@@ -348,7 +348,6 @@ can be defined in terms of other, more primitive, lenses, but we have not
 ##test flatten / [{a,b}] = error
 ##test flatten \ {a=[{}]} [{a,b}] = error
 
-
 \subsection{Conversions Between Names and Lists}
 
 It is sometimes necessary to write lenses that manipulate single names as

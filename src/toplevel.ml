@@ -64,6 +64,7 @@ let signalconflicts = Prefs.createBool "signalconflicts" false "exit with status
 
 let forcer1 = Prefs.createBool "forcer1" false "overwrite r2 and archive with r1" ""
 
+
 (********)
 (* SYNC *)
 (********)
@@ -128,6 +129,7 @@ let _ = Prefs.alias schemapref "s"
 
 let check_pref = Prefs.createStringList "check" "run unit tests for given module(s)" ""
                    
+let dryrun = Prefs.createBool "dryrun" false "don't write any files" ""
 
 (* Running external commands *)
 
@@ -178,7 +180,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   let fixup s = Misc.replace_substring s "/" "-" in
   if Prefs.read arpref = "" && Prefs.read r2pref <> "" then
     Prefs.set arpref
-      (Printf.sprintf ".harmonyar-%s-%s-%s.meta"
+      (Printf.sprintf "harmonyar-%s-%s-%s.meta"
          (archNameUniquifier()) (fixup (Prefs.read r1pref)) (fixup (Prefs.read r2pref)));
 
   (* Overwrite original files if no new filenames are specified *)
@@ -287,6 +289,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
 
       (* Postprocess *)
       let postprocess p fpost f =
+        if not (Prefs.read dryrun) then
         match p with
           None -> cp_or_del fpost f
         | Some pfun -> pfun fpost f   in

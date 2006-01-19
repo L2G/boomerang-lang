@@ -60,6 +60,7 @@ type state_t = StartField
 	       | InQuotedField
 	       | InQuotedFieldAfterQuote
 	       | InQuotedFieldAfterQuoteSemi
+	       | AfterSlash of state_t
 
 let load_rows ?(separator = ',') f chan =
   let row = ref [] in			(* Current row. *)
@@ -91,6 +92,9 @@ let load_rows ?(separator = ',') f chan =
     row := [];
     state := StartField
   in
+  let process_slash () =
+    state := AfterSlash (!state)
+  in
   let rec loop () =
     let c = input_char chan in
 (* FOR DEBUGGING:
@@ -108,6 +112,8 @@ let load_rows ?(separator = ',') f chan =
             ) else if c = '\n' then (	  (* Empty field, end of row. *)
 	      empty_field ();
 	      end_of_row ()
+            ) else if c = '\\' then (
+              process_slash()
 	    ) else (
 	      state := InUnquotedField;
 	      field := [c]
@@ -120,7 +126,9 @@ let load_rows ?(separator = ',') f chan =
 	      field := c :: !field
 	    )
 	| InUnquotedField ->		(* Reading chars to end of field. *)
-	    if c = separator then	(* End of field. *)
+            if c = '\\' then 
+              process_slash()
+	    else if c = separator then	(* End of field. *)
 	      end_of_field ()
 	    else if c = '\n' then (	(* End of field and end of row. *)
 	      end_of_field ();
@@ -130,6 +138,8 @@ let load_rows ?(separator = ',') f chan =
 	| InQuotedField ->		(* Reading chars to end of field. *)
 	    if c = '\"' then
 	      state := InQuotedFieldAfterQuote
+            else if c = '\\' then 
+              process_slash()
 	    else
 	      field := c :: !field
 	| InQuotedFieldAfterQuote ->
@@ -147,7 +157,9 @@ let load_rows ?(separator = ',') f chan =
 	    else if c = '\n' then (	(* End of field and end of row. *)
 	      end_of_field ();
 	      end_of_row ()
-	    )
+            ) else if c = '\\' then (
+              process_slash()
+	    ) 
 	| InQuotedFieldAfterQuoteSemi ->	
 	    if c = '\"' then (
 	      state := InQuotedField
@@ -155,9 +167,21 @@ let load_rows ?(separator = ',') f chan =
 	      end_of_field ()
 	    else if c = '\n' then (	(* end of row. *)
 	      end_of_row ()
+            ) else if c = '\\' then (
+              process_slash()
 	    ) else (
 	      state := InUnquotedField;
             )
+        | AfterSlash s ->
+            begin
+              match c with
+              | 'n'  -> field := '\n' :: !field
+              | '\\' -> field := '\\' :: !field
+              | '\t' -> field := 't'  :: '\\' :: !field
+              | '\b' -> field := 'b'  :: '\\' :: !field
+              | _    -> field := c    :: '\\' :: !field
+            end;
+          state := s
     ); (* end of match *)
     loop ()
   in
@@ -174,6 +198,8 @@ let load_rows ?(separator = ',') f chan =
 	       end_of_field (); end_of_row ()
 	   | InQuotedField ->
 	       raise (Bad_CSV_file "Missing end quote after quoted field.")
+	   | AfterSlash _ ->
+	       raise (Bad_CSV_file "Field ends with slash.")
 	)
 
 let load_in ?separator chan =
@@ -271,27 +297,73 @@ let tweak_comment_prefix_on_first_line l =
         *) ("HELLO"::flds)::rest
 *)
 
+let findsubstring s1 s2 =
+  let l1 = String.length s1 in
+  let l2 = String.length s2 in
+  let rec loop i =
+    if i+l1 > l2 then None
+    else if s1 = String.sub s2 i l1 then Some(i)
+    else loop (i+1)
+  in loop 0
+
+let rec replacesubstring s fromstring tostring =
+  match findsubstring fromstring s with
+    None -> s
+  | Some(i) ->
+      let before = String.sub s 0 i in
+      let afterpos = i + (String.length fromstring) in
+      let after = String.sub s afterpos ((String.length s) - afterpos) in
+      before ^ tostring ^ (replacesubstring after fromstring tostring)
+
+let replacesubstrings s spec =
+  List.fold_right (fun (f,t) s -> replacesubstring s f t) spec s
+
 let save_out ?(separator = ',') chan csv =
   (* Quote a single CSV field. *)
   let quote_field field =
     if String.contains field separator ||
       String.contains field '\"' ||
       String.contains field ';' ||
+      String.contains field '\\' ||
+      String.contains field '\t' ||
+      String.contains field '\b' ||
       String.contains field '\n'
-    then (
+    then 
+      let spec = [
+                   ("\n", "\\n") ;
+                   ("\t", "\\t") ;
+                   ("\b", "\\b") ;
+                   ("\\", "\\\\") ;
+                   ("Home;", "Home\";\"") ;
+                   ("Work;", "Work\";\"") ;
+                   ("Mobile;", "Mobile\";\"") ;
+                   ("Fax;", "Fax\";\"") ;
+                   ("E-mail;", "E-mail\";\"") ;
+                   ("Other;", "Other\";\"") ;
+                   ("\"", "\"\"") ;
+                 ] in
+      "\"" ^ (replacesubstrings field spec) ^ "\""
+(*        
+
       let buffer = Buffer.create 100 in
       Buffer.add_char buffer '\"';
       for i = 0 to (String.length field) - 1 do
 	match field.[i] with
             '\"' -> Buffer.add_string buffer "\"\""
+(* BCP: This breaks pilot-address's broken reader 
           | ';'  -> Buffer.add_string buffer "\"";
                     Buffer.add_string buffer ";";
                     Buffer.add_string buffer "\""
+*)
+          | '\n' -> Buffer.add_string buffer "\\n"
+          | '\\' -> Buffer.add_string buffer "\\\\"
 	  | c    -> Buffer.add_char buffer c
       done;
       Buffer.add_char buffer '\"';
       Buffer.contents buffer
     )
+*)
+
     else
       field
   in

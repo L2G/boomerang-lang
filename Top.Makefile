@@ -27,7 +27,8 @@ ALLSUBDIRS = $(shell find * -type d -print -prune)
 SRC2F = $(TOOLSDIR)/src2f
 SRC2TEX = $(TOOLSDIR)/src2tex
 
-# This can be overriden by editing the following line, or on the command line
+# This can be overriden by editing the following line, 
+# or by including "INSTALLDIR=<path>" on the command line
 INSTALLDIR = $(HOME)/bin
 
 ####################################################################
