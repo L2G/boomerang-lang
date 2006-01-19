@@ -58,7 +58,7 @@ module Mozilla =
                      plunge List.TL; add List.HD { "d" };
                      plunge List.TL; add List.HD { "e" };
                      plunge List.TL; add List.HD { "e" };
-                     plunge List.TL; add List.HD { "f" };
+                     plunge List.TL; add List.HD { "f" })
                     (hoist "url";
                      List.explode);
                   List.implode;
