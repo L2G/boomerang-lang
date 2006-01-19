@@ -314,7 +314,7 @@ let fold f (VI m) c = Name.Map.fold f m c
 (*   Name.Map.for_alli f v *)
 
 let to_list v =
-  fold (fun n k acc -> (n,k) :: acc) v []
+  Safelist.rev (fold (fun n k acc -> (n,k) :: acc) v [])
 
 let concat v1 v2 =
   let binds = (to_list v1) @ (to_list v2) in
