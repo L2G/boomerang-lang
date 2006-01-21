@@ -73,8 +73,10 @@ let l (H:schema) : lens =
 let l_with (S:schema) (l':lens) : lens = l S; List.map (wmap {`List.TL -> l'})
 
 (* A variant that also flattens its result *)
+(*
 let l_unordered (S:schema) = l S; wmap {`List.TL -> l'}
 let l_unordered_with (S:schema) (l':lens) : lens = l_unordered S; List.map (wmap {`List.TL -> l'})
+*)
 
 (******************************************************************************)
 (* Some specific useful instances... *)

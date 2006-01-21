@@ -1,5 +1,44 @@
 --- THINGS TO DO ---
 
+IMMEDIATE BUG:
+
+   I think the problem is here, in harmonize-addresses.ml:
+
+   let _ =
+     let read_tbl =
+       let fixup_header s =
+         (* This is pretty inefficient!! *)
+         let lines = Util.splitIntoWords s '\n' in
+
+   if I understand the following correctly (in ubase/util.ml):
+
+   let splitIntoWords (s:string) (c:char) =
+     let rec inword acc start pos =
+       if pos >= String.length(s) || s.[pos] = c then
+         betweenwords ((String.sub s start (pos-start)) :: acc) pos
+       else inword acc start (pos+1)
+     and betweenwords acc pos =
+       if pos >= (String.length s) then (Safelist.rev acc)
+       else if s.[pos]=c then betweenwords acc (pos+1)
+       else inword acc pos pos
+     in betweenwords [] 0
+
+   consecutive separators are just dismissed. The "correct" implementation may be:
+
+   let splitIntoWords (s:string) (c:char) =
+     let rec inword acc start pos =
+       if pos >= String.length(s) || s.[pos] = c then
+         betweenwords ((String.sub s start (pos-start)) :: acc) pos
+       else inword acc start (pos+1)
+     and betweenwords acc pos =
+       if pos >= (String.length s) then (Safelist.rev acc)
+       else if s.[pos]=c then betweenwords (""::acc) (pos+1)
+       else inword acc pos pos
+     in betweenwords [] 0
+
+   but then I have a weird "List.combine error".
+
+
 BCP TASKS
 * Fix entity handling in XML processing
 * Stuff missing (from, e.g., Aponte's entry)

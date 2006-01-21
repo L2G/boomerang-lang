@@ -1,19 +1,31 @@
 HARMONY INSTALLATION INSTRUCTIONS
 ---------------------------------
 
-BUILDING HARMONY
+GODI INSTALLATION INSTRUCTIONS
 
-To install harmony, you'll need the following packages.  They are
-specified here in the order in which they should be installed.
+The simplest way to install the prerequisites needed by Harmony is via the
+Godi package manager for OCaml.  
+
+Download godi from http://godi.ocaml-programming.de/
+Follow installation instructions.  Then do:
+
+godi_console perform -build godi-ocaml-all
+godi_console perform -build godi-pxp
+
+Now go to the directory where you unpacked the Harmony tarball, type 'make',
+and you should end up with a harmony binary in the /src directory (as well
+as binaries for each instance XXX in examples/XXX).  Type 'make test' and
+you should see all the regression tests run.
+
+BUILDING HARMONY BY HAND
+
+To install Harmony's prerequisites individually, you'll need the following
+packages.  They are specified here in the order in which they should be
+installed.
 
 [Note: If you get tangled up and need to start this process again,
 make sure that, at each step, you first do 'make uninstall' or
 whatever to remove the previous version.]
-
-[Another note: We've heard reports that most or all of this stuff can
-be installed more easily using the Godi package manager.  If someone
-could send us detailed instructions, we'd be grateful (and include
-them here!).]
 
 GNU make    Should already be installed on most systems these days
 
