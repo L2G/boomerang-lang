@@ -16,17 +16,19 @@ all: buildsubdirs
 ###########################################################################
 ## Tarball Export
 
-EXPORTNAME=harmony-$(shell date "+20%y%m%d")
+WEBDIR = $(HOME)/html/
+DOWNLOADDIR=$(WEBDIR)/download
 TMPDIR=/tmp
+
+EXPORTNAME=harmony-$(shell date "+20%y%m%d")
 TMP=$(TMPDIR)/$(EXPORTNAME)
-DOWNLOADDIR=$(TOP)/web/download
 HARMONYUSER?=$(USER)
 
-tar: 
+export: 
 	echo \\draftfalse > $(DOCDIR)/temp.tex
-	$(MAKE) -C $(DOCDIR) pdf
+	$(MAKE) -C $(DOCDIR) main.pdf
 	rm -rf $(TMPDIR)/$(EXPORTNAME)
-	(cd $(TMPDIR); svn export file://mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
+	(cd $(TMPDIR); svn export svn+ssh://$(HARMONYUSER)@halfdome.cis.upenn.edu/mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
 	cp $(DOCDIR)/main.pdf $(TMP)/doc/manual.pdf
 	(cd $(TMPDIR); tar cvf - $(EXPORTNAME) \
            | gzip --force --best > $(EXPORTNAME).tar.gz)
@@ -35,9 +37,7 @@ tar:
 ###########################################################################
 ## Web Install
 
-WEBDIR = $(TOP)/web/
-
-install:
+web-install:
 	$(MAKE) all
 	rm -rf $(WEBDIR)
 	mkdir $(WEBDIR)
