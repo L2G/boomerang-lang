@@ -39,8 +39,6 @@ export:
 
 web-install:
 	$(MAKE) all
-	rm -rf $(WEBDIR)
-	mkdir $(WEBDIR)
-	cp -r src lenses examples doc extern $(WEBDIR)
-	cp -r php $(WEBDIR)/cgi-bin/
+	cp -r html/* $(WEBDIR)
+	cp -r src lenses examples doc extern $(WEBDIR)/cgi-bin/
 	chmod -R 755 $(WEBDIR)

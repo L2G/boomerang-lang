@@ -7,14 +7,12 @@
 ################################################################
 # $Id: demo.php 1188 2006-01-18 23:50:17Z jnfoster $
 
-chdir("..");
-
 $home = getcwd();
 
 ############################
 # Configuration parameters #
 ############################
-$enabledebug = TRUE;
+#$enabledebug = TRUE;
 $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
