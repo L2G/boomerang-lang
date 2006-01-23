@@ -2,23 +2,24 @@
 
 <?php include("header.php"); ?>
 
-<div style="margin-top:10px;border:1px solid #bbbbbb;">
+<a name="top"></a>
+<div style="margin-top:10px;">
 <table style="width:100%"><tr><td style="width:250px;">
       <img src="images/harmony-header.png" alt="harmony-header"/>
-</td><td style="text-align:center; vertical-align:middle;">
+</td><td style="text-align:right; font-size:11pt; vertical-align:bottom;">
       [ <a href="#introduction">introduction</a> | 
       <a href="#demo">demo</a> | 
       <a href="#source">source</a> |
       <a href="#members">members</a> | 
       <a href="#papers">publications</a> | 
-      <a href="#related">related projects</a> | 
-      <a href="#support">support</a> ]
+      <a href="#related">related</a> | 
+      <a href="#support">support</a> ] 
 </td></tr></table>
 </div>
 
 <a name="introduction"></a>
 <div class="content">
-<div class="title">Introduction</div>
+<div class="title">Introduction <div class="top">[<a href="#top">Top</a>]</div></div>
 <p>The <strong>Harmony</strong> system is a generic framework for
 reconciling disconnected updates to heterogeneous, replicated XML
 data. It can be used, for instance, to synchronize the bookmark files
@@ -47,7 +48,7 @@ the data being reconciled.</p>
 
 <a name="demo"></a>
 <div class="content">
-<div class="title">Demo</div>
+<div class="title">Demo<div class="top">[<a href="#top">Top</a>]</div></div>
 <p>
 An extensive set of live demos and tutorials on the features of
 Harmony can be found 
@@ -57,7 +58,7 @@ Harmony can be found
 
 <a name="source"></a>
 <div class="content">
-<div class="title">Source code distribution</div>
+<div class="title">Source code distribution<div class="top">[<a href="#top">Top</a>]</div></div>
 <p>
 
 <?php
@@ -67,23 +68,29 @@ function hsize($size) {
    return round($size/pow(1024, ($i = floor(log($size, 1024)))), 2) . $filesizename[$i];
 }
 $dh = opendir("../download");
+$files = array();
 while($f = readdir($dh)) {
   if(preg_match('/.tar.gz$/', $f)) { 
-  $size = hsize(filesize("../download/$f"));
-  print<<<EOF
-   <a href="download/$f">$f</a> [$size]<br>
-EOF;
+    $files[$f] = filemtime("../download/$f");
   }
 }
 closedir($dh);
+arsort($files);
+foreach($files as $f=>$t) {
+  $size = hsize(filesize("../download/$f"));
+  $date = date("j M Y g:ia", $t);
+  print<<<EOF
+  <a href="download/$f"><img style="vertical-align:middle;border:0;" src="images/floppy.png" alt="floppy"/>$f</a> - $date - $size<br>
+EOF;
+}
 ?>
 </p>
 </div>
 
 <a name="members"></a>
 <table style="width:100%;"><tr><td style="width:50%;padding-right:3px;">
-  <div class="content" style="height:100%">
-    <div class="title">Project members</div>
+  <div class="content" style="margin:0;">
+    <div class="title">Project members<div class="top">[<a href="#top">Top</a>]</div></div>
     <table><tr><td>
     <ul>
       <li><a href="http://www.cis.upenn.edu/~bohannon/">Aaron Bohannon</a></li>
@@ -99,7 +106,7 @@ closedir($dh);
     </td></tr></table>
   </div>
 </td><td style="width:50%;padding-left:3px;">
-  <div class="content" style="height:100%">
+  <div class="content" style="margin:0;">
   <div class="title">Past contributors</div>
     <table><tr><td>
     <ul>
@@ -119,13 +126,13 @@ closedir($dh);
 
 <a name="papers"></a>
 <div class="content">
-<div class="title">Papers and Talks</div>
+<div class="title">Papers and Talks<div class="top">[<a href="#top">Top</a>]</div></div>
 <? include("papers.html"); ?>
 </div>
 
 <a name="related"></a>
 <div class="content">
-<div class="title">Related projects</div>
+<div class="title">Related projects<div class="top">[<a href="#top">Top</a>]</div></div>
 <ul>
   <li> Many forms of synchronization can be found in present-day distributed systems: 
     low-level OS support for distributed filesystems with optimistic replication, 
@@ -145,7 +152,7 @@ closedir($dh);
 
 <a name="support"></a>
 <div class="content">
-<div class="title">Support</div>
+<div class="title">Support<div class="top">[<a href="#top">Top</a>]</div></div>
 <p>The Harmony project is supported by the National Science Foundation under 
   the following grants:</p>
   <ul>
@@ -153,6 +160,8 @@ closedir($dh);
      <li>CPA-0429836: <i>Harmony: The Art of Reconciliation</i></li>
   </ul>
 </div>
-<div style="margin-bottom:10px;border:1px solid #bbbbbb;text-align:center;">
-<img src="images/harmony-footer.png" alt="harmony-footer"/></div>
+
+<div style="margin-bottom:10px;text-align:right;">
+<img src="images/harmony-footer.png" alt="harmony-footer"/>
+</div>
 <?php include("footer.php"); ?>

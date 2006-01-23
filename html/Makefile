@@ -1,5 +1,5 @@
 
-all: index.html download.html related.html
+all: index.html related.html
 
 CGI=$(HOME)/html/cgi-bin
 
