@@ -542,8 +542,9 @@ body {
   position:absolute;
   top:0px; left:0px
   margin:0px;
-  height:61px;
+  height:49px;
   width:190px;
+  cursor:pointer;
   background-image:url("images/harmony-logo.png");
 }
 #selector {  
@@ -730,7 +731,7 @@ print <<<HTML
     <input type="hidden" value="" name="submitter"/>
     <input type ="hidden" value="$expert_str" name="expert"/>
     <div id="header">
-      <div id="logo"></div>
+      <div id="logo" onclick="location.href='..'" onmouseover="window.status='Return to Harmony homepage'; return true;"></div>
       <div id="control">
         <table><tr><td>
         <div id="surtitle">$surtitle_text</div>
