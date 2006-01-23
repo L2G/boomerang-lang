@@ -37,8 +37,9 @@ export:
 ###########################################################################
 ## Web Install
 
-web-install:
+web:
 	$(MAKE) all
+	$(MAKE) -C html
 	cp -r html/* $(WEBDIR)
 	cp -r src lenses examples doc extern $(WEBDIR)/cgi-bin/
 	chmod -R 755 $(WEBDIR)
