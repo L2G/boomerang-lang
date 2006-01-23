@@ -773,3 +773,9 @@ let print_icalobject prs { calprops = cp; components = comps; } =
   prs "END:VCALENDAR\n"
 
 let print_icalendar prs = List.iter (print_icalobject prs)
+
+let tostring f ic =
+  let s = ref "" in
+  let g v = s := (!s) ^ v in
+  f g ic;
+  !s

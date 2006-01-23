@@ -97,8 +97,33 @@ let write outc fullnl ic =
   in
   ICalendar_print.print_icalendar (String.iter f) ic
 
-let tostring f ic =
-  let s = ref "" in
-  let g v = s := (!s) ^ v in
-  f g ic;
-  !s
+let chars_from_str inc =
+  fun () -> Pervasives.input_char inc
+
+let read_file inc =
+  let len = in_channel_length inc in
+  let buf = String.create len in
+  really_input inc buf 0 len;
+  buf
+
+let iCalReader inc outc =
+  let s = V.string_of_t (Ical.view_from_icalendar (read (chars_from_str inc))) in
+  Pervasives.output_string outc s
+    
+let iCalWriter inc outc =
+  let ic =
+    let s = read_file inc in
+    let _ = Metal.setup "meta string" in
+    let lexbuf = Lexing.from_string s in        
+    let res = 
+      try 
+	(Metay.tree Metal.token lexbuf) 
+      with Parsing.Parse_error -> 
+	raise (Error.Harmony_error
+		 (fun () -> Format.printf "%s: syntax error." 
+		     (Info.string_of_t (Lexer.info lexbuf))))
+    in
+    let _ = Metal.finish () in
+      Ical.icalendar_from_view res in
+    write outc false ic
+      

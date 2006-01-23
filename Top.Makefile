@@ -41,7 +41,6 @@ HARMONY = $(HARMONYBIN) $(HARMONYFLAGS) $(LENSPATH)
 $(HARMONYBIN):
 	$(MAKE) -C $(SRCDIR)
 
-
 ####################################################################
 # OCaml compilation
 

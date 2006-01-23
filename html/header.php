@@ -36,7 +36,7 @@ td {
 }
 
 .spaced tr:hover { 
-  background-color:#99ccff;
+  background-color:#ffff55;
 }
 
 

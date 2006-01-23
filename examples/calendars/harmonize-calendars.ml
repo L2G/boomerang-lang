@@ -1,11 +1,16 @@
-let icalviewer = "../../extern/iCalendar/iCalViewer"
-
-let read_ics f ftmp =
-  if Sys.file_exists f then
-    Toplevel.runcmd (Printf.sprintf "%s ascal %s %s" icalviewer f ftmp)
+let read_ics f ftmp = 
+  let fc = open_in f in
+  let ftmpc = open_out ftmp in 
+    ICalendar.iCalReader fc ftmpc;
+    close_in fc; 
+    close_out ftmpc
       
-let write_ics f ftmp =
-  Toplevel.runcmd (Printf.sprintf "%s asmeta %s %s" icalviewer f ftmp)
+let write_ics f ftmp = 
+  let fc = open_in f in 
+  let ftmpc = open_out ftmp in 
+    ICalendar.iCalWriter fc ftmpc;
+    close_in fc;
+    close_out ftmpc
 
 let chooseEncoding f =
   if Util.endswith f ".ics" then ("meta", (), Some read_ics, Some write_ics)

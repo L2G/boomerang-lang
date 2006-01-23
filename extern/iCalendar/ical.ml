@@ -112,7 +112,7 @@ let viewpair_from_allparams a =
     (match a.cutypeparam with
     | None -> []
     | Some ct ->
-        ["cutypeparam", V.new_value (ICalendar.tostring ICalendar_print.print_cutype ct)]
+        ["cutypeparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_cutype ct)]
     );
     (match a.delfromparam with
     | [] -> []
@@ -131,7 +131,7 @@ let viewpair_from_allparams a =
     (match a.encodingparam with
     | None -> []
     | Some en ->
-        ["encodingparam", V.new_value (ICalendar.tostring ICalendar_print.print_encoding en)]
+        ["encodingparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_encoding en)]
     );
     (match a.fmttypeparam with
      | None -> []
@@ -153,22 +153,22 @@ let viewpair_from_allparams a =
     (match a.partstatparam with
     | None -> []
     | Some pa ->
-        ["partstatparam", V.new_value (ICalendar.tostring ICalendar_print.print_partstat pa)]
+        ["partstatparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_partstat pa)]
     );
     (match a.rangeparam with
     | None -> []
     | Some ra ->
-        ["rangeparam", V.new_value (ICalendar.tostring ICalendar_print.print_range ra)]
+        ["rangeparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_range ra)]
     );
     (match a.reltypeparam with
     | None -> []
     | Some ra ->
-        ["reltypeparam", V.new_value (ICalendar.tostring ICalendar_print.print_reltypeparam ra)]
+        ["reltypeparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_reltypeparam ra)]
     );
     (match a.roleparam with
     | None -> []
     | Some ra ->
-        ["roleparam", V.new_value (ICalendar.tostring ICalendar_print.print_role ra)]
+        ["roleparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_role ra)]
     );
     (match a.rsvpparam with
      | None -> []
@@ -181,7 +181,7 @@ let viewpair_from_allparams a =
     (match a.trigrelparam with
     | None -> []
     | Some ra ->
-        ["trigrelparam", V.new_value (ICalendar.tostring ICalendar_print.print_trigrel ra)]
+        ["trigrelparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_trigrel ra)]
     );
     (match a.tzidparam with
      | None -> []
@@ -190,7 +190,7 @@ let viewpair_from_allparams a =
     (match a.valuetypeparam with
     | None -> []
     | Some va ->
-        ["valuetypeparam", V.new_value (ICalendar.tostring ICalendar_print.print_valuetype va)]
+        ["valuetypeparam", V.new_value (ICalendar_print.tostring ICalendar_print.print_valuetype va)]
     );
     viewpair_from_xplist a.xplist
   ]
@@ -567,7 +567,7 @@ let recur_end_from_view v =
   
 let view_from_bydayelt (i, w) =
   V.from_list (
-    ("weekday", V.new_value (ICalendar.tostring ICalendar_print.print_weekday w)) ::
+    ("weekday", V.new_value (ICalendar_print.tostring ICalendar_print.print_weekday w)) ::
     (match i with
     | None -> []
     | Some i -> ["which", V.new_value (string_of_int i)]))
@@ -583,7 +583,7 @@ let bydayelt_from_view v =
 
 let view_from_recur r =
   V.from_list (Safelist.flatten [
-    ["freq", V.new_value (ICalendar.tostring ICalendar_print.print_freq r.recur_freq)];
+    ["freq", V.new_value (ICalendar_print.tostring ICalendar_print.print_freq r.recur_freq)];
     (viewpair_from_recur_end r.recur_end);
     (match r.recur_interval with
     | None -> []
@@ -617,7 +617,7 @@ let view_from_recur r =
     | l -> ["bysetpos", V.structure_from_list (Safelist.map (fun e -> V.new_value (string_of_int e)) l)]);
     (match r.recur_wkstart with
     | None -> []
-    | Some w -> ["wkstart", V.new_value (ICalendar.tostring ICalendar_print.print_weekday w)]);
+    | Some w -> ["wkstart", V.new_value (ICalendar_print.tostring ICalendar_print.print_weekday w)]);
     (match r.recur_bytext with
     | None -> []
     | Some (n,t) -> ["bytext", V.from_list ["name", V.new_value n; "val", V.new_value t]])
@@ -815,7 +815,7 @@ let rec view_from_comp_prop c =
     | None -> []
     | Some (xpl, act) ->
         [ "action", V.from_list (("val", 
-                                     V.new_value (ICalendar.tostring ICalendar_print.print_actionval act))
+                                     V.new_value (ICalendar_print.tostring ICalendar_print.print_actionval act))
                                :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_attach with
     | [] -> []
@@ -830,7 +830,7 @@ let rec view_from_comp_prop c =
     | None -> []
     | Some (xpl, cl) ->
         [ "class", V.from_list (("val", 
-                                     V.new_value (ICalendar.tostring ICalendar_print.print_classval cl))
+                                     V.new_value (ICalendar_print.tostring ICalendar_print.print_classval cl))
                                :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_comment with
     | [] -> []
@@ -953,7 +953,7 @@ let rec view_from_comp_prop c =
     (match c.comp_status with
     | None -> []
     | Some (xpl, r) ->
-        [ "status", V.from_list (("val", V.new_value (ICalendar.tostring ICalendar_print.print_status_val r))
+        [ "status", V.from_list (("val", V.new_value (ICalendar_print.tostring ICalendar_print.print_status_val r))
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_summary with
     | None -> []
@@ -962,7 +962,7 @@ let rec view_from_comp_prop c =
     (match c.comp_transp with
     | None -> []
     | Some (xpl, r) ->
-        [ "transp", V.from_list (("val", V.new_value (ICalendar.tostring ICalendar_print.print_transvalue r))
+        [ "transp", V.from_list (("val", V.new_value (ICalendar_print.tostring ICalendar_print.print_transvalue r))
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_trigger with
     | None -> []
@@ -1333,7 +1333,7 @@ let view_from_calprops p =
     | None -> []
     | Some (xpl, cv) ->
         ["calscale", V.from_list (("val", 
-                                   V.new_value (ICalendar.tostring ICalendar_print.print_calvalue cv))
+                                   V.new_value (ICalendar_print.tostring ICalendar_print.print_calvalue cv))
 				  :: (viewpair_from_xplist xpl))
         ]);
     (match p.imethod with
