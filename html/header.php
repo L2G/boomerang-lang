@@ -4,7 +4,7 @@
 <HEAD>
    <TITLE>Harmony Project home page</TITLE>
    <STYLE type="text/css">
-body{
+body {
   background: #eeeeee;
   width:90%;
   margin:0 auto;
@@ -25,6 +25,20 @@ td {
   vertical-align:top;
   padding:0px;
 }
+
+.spaced { border:1px solid #ffff00; }
+
+.darkyellow { background-color:#ffffaa; }
+.lightyellow { background-color:#ffffdd; }
+
+.spaced td { 
+  padding:3px 15px;
+}
+
+.spaced tr:hover { 
+  background-color:#99ccff;
+}
+
 
 a { 
   font-weight:bold;

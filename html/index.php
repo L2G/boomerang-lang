@@ -76,13 +76,29 @@ while($f = readdir($dh)) {
 }
 closedir($dh);
 arsort($files);
+print "<table class=\"spaced\">";
+$odd = true;
 foreach($files as $f=>$t) {
   $size = hsize(filesize("../download/$f"));
-  $date = date("j M Y g:ia", $t);
+  $date = date("j M Y g:ia", $t);  
+  $trclass = "";
+  if($odd) {
+     $odd = false;
+     $trclass = " class=\"darkyellow\"";
+  } else {
+    $odd = true;
+    $trclass = " class=\"lightyellow\"";
+  }
   print<<<EOF
-  <a href="download/$f"><img style="vertical-align:middle;border:0;" src="images/floppy.png" alt="floppy"/>$f</a> - $date - $size<br>
+    <tr$trclass><td>
+      <a href="download/$f">
+      <img style="vertical-align:middle;border:0;" src="images/floppy.png" alt="floppy"/>
+      $f</a>
+   </td><td>$size</td><td>$date</td></tr>
+
 EOF;
 }
+print "</table>"
 ?>
 </p>
 </div>
