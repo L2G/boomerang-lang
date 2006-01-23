@@ -2,10 +2,10 @@
 
 <?php include("header.php"); ?>
 
-<div style="border:1px solid #bbbbbb;">
-<table><tr><td>
-      <img src="images/harmony-header.png"/>
-</td><td style="padding-left:15px; vertical-align:middle;">
+<div style="margin-top:10px;border:1px solid #bbbbbb;">
+<table style="width:100%"><tr><td style="width:250px;">
+      <img src="images/harmony-header.png" alt="harmony-header"/>
+</td><td style="text-align:center; vertical-align:middle;">
       [ <a href="#introduction">introduction</a> | 
       <a href="#demo">demo</a> | 
       <a href="#source">source</a> |
@@ -59,7 +59,24 @@ Harmony can be found
 <div class="content">
 <div class="title">Source code distribution</div>
 <p>
-You can grab a source tarball from <a href="download.html">here</a>.
+
+<?php
+function hsize($size) {
+   if($size == 0) { return("0 Bytes"); }
+   $filesizename = array(" Bytes", " KB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB");
+   return round($size/pow(1024, ($i = floor(log($size, 1024)))), 2) . $filesizename[$i];
+}
+$dh = opendir("../download");
+while($f = readdir($dh)) {
+  if(preg_match('/.tar.gz$/', $f)) { 
+  $size = hsize(filesize("../download/$f"));
+  print<<<EOF
+   <a href="download/$f">$f</a> [$size]<br>
+EOF;
+  }
+}
+closedir($dh);
+?>
 </p>
 </div>
 
@@ -67,27 +84,23 @@ You can grab a source tarball from <a href="download.html">here</a>.
 <table style="width:100%;"><tr><td style="width:50%;padding-right:3px;">
   <div class="content" style="height:100%">
     <div class="title">Project members</div>
-    <p>
     <table><tr><td>
     <ul>
       <li><a href="http://www.cis.upenn.edu/~bohannon/">Aaron Bohannon</a></li>
       <li><a href="http://www.cis.upenn.edu/~jnfoster/">Nate Foster</a></li>
-      <li><a href="http://www.cis.upenn.edu/~sanjeev">Sanjeev Khanna</font></a></li>
-      <li><a href="http://www.cis.upenn.edu/~kkunal">Keshav Kunal</font></a></li> 
+      <li><a href="http://www.cis.upenn.edu/~sanjeev">Sanjeev Khanna</a></li>
+      <li><a href="http://www.cis.upenn.edu/~kkunal">Keshav Kunal</a></li> 
     </ul>
     </td><td>
     <ul>
-      <li><a href="http://www.cis.upenn.edu/~bcpierce/">Benjamin C. Pierce</a> (project leader)</li>
-      <li><a href="http://sardes.inrialpes.fr/~aschmitt/">Alan Schmitt</a></li>
+      <li><a href="http://www.cis.upenn.edu/~bcpierce/">Benjamin C. Pierce</a> (project leader)</li>      <li><a href="http://sardes.inrialpes.fr/~aschmitt/">Alan Schmitt</a></li>
       <li><a href="http://www.seas.upenn.edu/~vaughan2/">Jeff Vaughan</a></li>
     </ul>
     </td></tr></table>
-    </p>
   </div>
 </td><td style="width:50%;padding-left:3px;">
   <div class="content" style="height:100%">
   <div class="title">Past contributors</div>
-    <p>
     <table><tr><td>
     <ul>
       <li>Malo Denielou</li>
@@ -101,22 +114,18 @@ You can grab a source tarball from <a href="download.html">here</a>.
       <li><a href="http://www.cis.upenn.edu/~zheyang">Zhe Yang</a></li>
     </ul>
     </td></tr></table>
-    </p>
   </div>
 </td></tr></table>
 
 <a name="papers"></a>
 <div class="content">
 <div class="title">Papers and Talks</div>
-<p>
 <? include("papers.html"); ?>
-</p>
 </div>
 
 <a name="related"></a>
 <div class="content">
 <div class="title">Related projects</div>
-<p>
 <ul>
   <li> Many forms of synchronization can be found in present-day distributed systems: 
     low-level OS support for distributed filesystems with optimistic replication, 
@@ -132,19 +141,18 @@ You can grab a source tarball from <a href="download.html">here</a>.
   <li>We also maintain a (very incomplete) list of links to <a href="related.html">related 
     projects</a> on synchronization.</li>
 </ul>
-</p>
 </div>
 
 <a name="support"></a>
 <div class="content">
 <div class="title">Support</div>
 <p>The Harmony project is supported by the National Science Foundation under 
-  the following grants:
+  the following grants:</p>
   <ul>
      <li>ITR-0113226: <i>Principles and Practice of Synchronization</i></li>
      <li>CPA-0429836: <i>Harmony: The Art of Reconciliation</i></li>
   </ul>
-</p>
 </div>
-<div style="border:1px solid #bbbbbb;text-align:center;"><img src="images/harmony-footer.png"/></div><br>
+<div style="margin-bottom:10px;border:1px solid #bbbbbb;text-align:center;">
+<img src="images/harmony-footer.png" alt="harmony-footer"/></div>
 <?php include("footer.php"); ?>
