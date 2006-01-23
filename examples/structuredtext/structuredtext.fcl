@@ -100,11 +100,11 @@ let StarHeader2 : schema = List.Cons {"*"} StarHeader1
 let StarHeader3 : schema = List.Cons {"*"} StarHeader2
 
 let simple_star_headers : lens = l StarHeader1
-let simple_star_headers_unordered : lens = l_unordered StarHeader1
+(* let simple_star_headers_unordered : lens = l_unordered StarHeader1 *) 
 let star_headers : lens = l_with StarHeader1 (l StarHeader2)
 
 let combined_headers : lens = l_with StarHeader1 (l_with StarHeader2 (l_with StarHeader3 (l AllCapsList)))
-let combined_headers_unordered : lens = l_unordered_with StarHeader1 (l_unordered_with StarHeader2 (l_unordered_with StarHeader3 (l AllCapsList)))
+(* let combined_headers_unordered : lens = l_unordered_with StarHeader1 (l_unordered_with StarHeader2 (l_unordered_with StarHeader3 (l AllCapsList))) *)
 
 (* Tests *)
 test star_headers / \ [{"* Foo"}, {bar}] = [[{"* Foo"}, [{""}, {bar}]]]

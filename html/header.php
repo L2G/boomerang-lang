@@ -9,21 +9,43 @@ body{
 }
 body,td {
   font-family: helvetica, arial, sans-serif;
-  font-size: small;
+  font-size:10pt;
 }
+
+table { 
+  margin:0px;
+  padding:0px;
+  border-spacing:0px;
+  border-collapse:collapse;
+}
+
+td { 
+  vertical-align:top;
+  padding:0px;
+}
+a { 
+  font-size:10pt;
+  text-decoration:none;
+  color:#016613;
+}
+a:hover {
+  color:#002306;
+  font-weight:bold;
+}
+
 .title { 
   background-color:#99ccff;  
   border:1px solid #bbbbbb;
   font-weight:bold;
-  font-size:normal;
+  font-size:12pt;
+  padding:2px;
 }
 .content {
   background-color:#ffffcc;
   border:1px solid #bbbbbb;
-  padding:3px;
-  margin:3px 0px;
+  padding:5px;
+  margin:5px 0px;
 }
 </style>
 </head>
 <body>
-<center><img src="images/harmony-header.png"/></center>

@@ -6,7 +6,7 @@
   type mode = SRC | TEX
   type lineMode = SRC | TEX | NONE
 
-  let mode = ref TEX
+  let mode = ref SRC
   and lineMode = ref NONE
   and newLine = ref true
 
@@ -24,7 +24,7 @@
   let emit s = Buffer.add_string current s
 
   let reset () = 
-    mode := TEX;
+    mode := SRC;
     lineMode := NONE;
     newLine := true;
     Buffer.reset current;

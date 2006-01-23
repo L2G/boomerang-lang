@@ -967,31 +967,21 @@ let compile_lexbuf lexbuf n =
     ()
 
 let compile_fcl fn n = 
+  let fcl_buf = Src2fcl.fcl_of_src fn in 
   let _ = Lexer.setup fn in          
-  let fchan = open_in fn in
-  let lexbuf = Lexing.from_channel fchan in 
+  let lexbuf = Lexing.from_string fcl_buf in 
   let _ = compile_lexbuf lexbuf n in
-  let _ = close_in fchan in
-    Lexer.finish ()
-
-let compile_src fn n = 
-  let fcl_string = Src2fcl.fcl_of_src fn in 
-  let _ = Lexer.setup fn in         
-  let lexbuf = Lexing.from_string fcl_string in
-  let _ = compile_lexbuf lexbuf n in 
     Lexer.finish ()
 
 let compile_fcl_str s n = 
-  let _ = Lexer.setup "<string constant>" in
-  let lexbuf = Lexing.from_string s in
+  let _ = Lexer.setup "<string constant>" in    
+  let lexbuf = Lexing.from_string (Src2fcl.fcl_of_src_str s) in
   let _ = compile_lexbuf lexbuf n in 
     Lexer.finish ()
 
 let compile_src_str s n = compile_fcl_str (Src2fcl.fcl_of_src_str s) n
 
-let compile_file fn n = 
-  if Util.endswith fn ".src" then compile_src fn n
-  else compile_fcl fn n 
+let compile_file fn n = compile_fcl fn n 
       
 (* ugly backpatch hack! *)
 (* this is a thunk to force loading of this module when used via
@@ -999,4 +989,3 @@ let compile_file fn n =
 let init () = 
   Registry.compile_file_impl := compile_file;
   Registry.compile_fcl_str_impl := compile_fcl_str;
-  Registry.compile_src_str_impl := compile_src_str 

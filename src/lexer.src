@@ -1,3 +1,5 @@
+#{@}
+
 \section{Lexing}
 
 Whitespace characters are space, newline and tab.  Comments are

@@ -117,7 +117,6 @@ let find_filename basename exts =
 (* backpatch hack *)
 let compile_file_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
 let compile_fcl_str_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
-let compile_src_str_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
 
 let load ns = 
   (* helper, when we know which compiler function to use *)
@@ -129,14 +128,15 @@ let load ns =
   let uncapped = String.uncapitalize ns in
     if (Safelist.mem ns (!loaded)) then true
     else begin
-      match find_filename uncapped ["src";"fcl"] with 
+      match find_filename uncapped ["fcl"] with 
 	| None -> 
             begin
               try 
                 (* check for baked in source *)
-                let (is_src,str) = Hashtbl.find Bakery.items uncapped in 
-                  if is_src then go (fun () -> (!compile_src_str_impl) str ns) (sprintf "<baked source for %s>" ns)
-                  else go (fun () -> (!compile_fcl_str_impl) str ns) (sprintf "<baked source for %s>" ns);
+                let str = Hashtbl.find Bakery.items uncapped in 
+                  go (fun () -> 
+                        (!compile_fcl_str_impl) str ns) 
+                    (sprintf "<baked source for %s>" ns);
                   true
               with Not_found -> false
             end
@@ -144,7 +144,7 @@ let load ns =
 	    go (fun () -> (!compile_file_impl) fn ns) fn; 
             true
     end
-	
+      
 let load_var q = match get_module_prefix q with 
   | None -> ()
   | Some n -> ignore (load (Syntax.string_of_id n))

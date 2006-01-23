@@ -1,3 +1,5 @@
+#{@}
+
 \chapter{Using Harmony From Unison}\label{unison}
 
 Harmony is designed to work with files on a single machine.  To support

@@ -8,7 +8,7 @@
   type mode = TEX | SRC | BOTH
   type lineMode = TEX | SRC | BOTH | CHARS | NONE
 
-  let mode = ref TEX
+  let mode = ref SRC
   and lineMode = ref NONE
   and newLine = ref true
   and needsVerbatim = ref false
