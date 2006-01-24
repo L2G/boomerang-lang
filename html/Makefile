@@ -38,12 +38,20 @@ bcp.bib:
 jnf.bib: 
 	wget -O jnf.bib http://www.cis.upenn.edu/~jnfoster/papers/jnf.bib
 
-harmony.bib: bcp.bib jnf.bib 
-	cat bcp.bib jnf.bib > harmony.bib
+harmony-papers.html: bcp.bib jnf.bib 
+	bib2bib -ob harmony-papers.bib -oc harmony-papers.keys\
+          -c '(keys:"harmony") & (($$type="INPROCEEDINGS") | ($$type="ARTICLE"))' $?
+	bibtex2html -o harmony-papers $(B2HFLAGS) -citefile harmony-papers.keys harmony-papers.bib
 
-papers.html: harmony.bib Makefile
-	bib2bib -ob /dev/null -oc harmony.keys -c 'keys:"'harmony'"' harmony.bib
-	bibtex2html -o papers $(B2HFLAGS) -citefile harmony.keys harmony.bib
+harmony-talks.html: bcp.bib jnf.bib
+	bib2bib -ob harmony-talks.bib -oc harmony-talks.keys\
+          -c '(keys:"harmony") & (note:"talk\|keynote")' $?
+	bibtex2html -o harmony-talks $(B2HFLAGS) -citefile harmony-talks.keys harmony-talks.bib
+
+harmony-misc.html: bcp.bib jnf.bib 
+	bib2bib -ob harmony-misc.bib -oc harmony-misc.keys -c 'keys:"'harmony'"' \
+          -c '(keys:"harmony") & ($$type <> "INPROCEEDINGS") & ($$type <> "ARTICLE") & & !(note:talk\|keynote)' $?
+	bibtex2html -o harmony-misc $(B2HFLAGS) -citefile harmony-misc.keys harmony-misc.bib
 
 ####################################################################
 # Convert PHP to HTML
@@ -57,14 +65,13 @@ papers.html: harmony.bib Makefile
 
 ###
 # FIXME: want index.html to also depend on $(WEBDIR)/download
-index.html: index.php header.php footer.php papers.html
-	cp index.php $(CGIDIR)/tmp-index.php
-	cp header.php footer.php papers.html $(CGIDIR)
-	chmod 755 $(CGIDIR)/tmp-index.php
-	wget -O index.html $(CGIURL)/tmp-index.php
-	rm $(CGIDIR)/tmp-index.php $(CGIDIR)/papers.html $(CGIDIR)/header.php $(CGIDIR)/footer.php
+index.html: index.php header.php footer.php harmony-papers.html harmony-talks.html armony-misc.html
+	cp $? $(CGIDIR)/
+	chmod 755 $(CGIDIR)/index.php
+	wget -O $? $(CGIURL)/index.php
+	rm $(CGIDIR)/$?
 
 
 clean::
-	rm -f bcp.bib jnf.bib harmony.bib harmony.keys *.html
+	rm -f *.bib *.keys *.html
 

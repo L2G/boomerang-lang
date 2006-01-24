@@ -186,8 +186,10 @@ HTML;
 
 <a name="papers"></a>
 <div class="content">
-<div class="title">Papers and Talks<div class="top">[<a href="#top">Top</a>]</div></div>
-<? include("papers.html"); ?>
+<div class="title">Publications<div class="top">[<a href="#top">Top</a>]</div></div>
+<h2>Papers</h2> <?php include("harmony-papers.html"); ?>
+<h2>Talks</h2> <?php include("harmony-talks.html"); ?>
+<h2>Miscellaneous</h2> <?php include("harmony-misc.html"); ?>
 </div>
 
 <a name="related"></a>
