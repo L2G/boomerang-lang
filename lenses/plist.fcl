@@ -4,11 +4,22 @@
 \label{sec:plist}
 
 The @plist@ format is a generic XML representation for structured data
-(strings, arrays, and finite maps).  It is heavily used in OS X---for
+  (strings, arrays, and finite maps).  It is heavily used in OS X for
 storage of application preference files, system configuration information,
 etc.  
 
 ##module Plist =
+
+The abstract form of plists is described by the following schema:
+#{*}
+schema T = 
+    {dict = {*=T}}
+  | {array = List.T T}
+  | {string = Value}
+  | {integer = Value}
+
+and DictElt = List.Cons Value (List.Cons T List.Nil)
+#{@}
 
 The core of the module is a group of mutually recursive lenses that walk
 over the plist structure and perform an appropriate transformation at each
@@ -17,14 +28,19 @@ node.
 let plist_object_lens : lens =
   wmap { "dict" -> dict_lens,
          "array" -> array_lens,
-         "string" -> leaf_lens }
+         "string" -> leaf_lens,
+         "integer" -> leaf_lens }
 
 and array_lens : lens =
   wmap {`Xml.CHILDREN -> List.map plist_object_lens};
   hoist Xml.CHILDREN
 
 and dict_lens : lens =
-  wmap {`Xml.CHILDREN -> List.groupby2; List.map (keypair_lens)};
+  wmap {`Xml.CHILDREN ->
+          List.groupby2;
+          List.map (keypair_lens; pivot List.HD; map (focus List.TL {}; List.hd []));
+          List.flatten;
+          map (List.hd [])};
   hoist Xml.CHILDREN
 
 and keypair_lens : lens =
@@ -51,15 +67,45 @@ let l : lens =
   plist_object_lens
 #{@}
     
-Finally, the utility lens @flatten_dict@ takes an ordered dictionary
-structure and flattens it into a bush of the form %
-@{ key1 = data1, key2 = data2, ... }@.
-#{*}
-let flatten_dict : lens =
-  hoist "dict";
-  List.map ( pivot List.HD;  map (focus List.TL {}; List.hd []) );
-  List.flatten;
-  map (List.hd [])
-#{@}
+#{#}
+(* Bug: Adding
+     |  <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+   as the first line of the following file breaks things *)
 
-
+test (l; assert T) / (load "xml" "
+     |  <!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+     |  <plist version=\"1.0\">
+     |  <dict>
+     |          <key>CFBundleIdentifier</key>
+     |          <string>com.adobe.FileInfo.framework</string>
+     |          <key>CFBundleName</key>
+     |          <string>FileInfo</string>
+     |          <key>CFBundleGetInfoString</key>
+     |          <string>FileInfo version 3.1.0.372, Copyright Â©2003 by Adobe Systems Incorporated.  All rights reserved.</string>
+     |          <key>CFBundleShortVersionString</key>
+     |          <string>FileInfo version 3.1.0.372</string>
+     |          <key>CFBundlePackageType</key>
+     |          <string>FMWK</string>
+     |    <key>CFBundleSignature</key>
+     |    <string>????</string>
+     |    <key>CFBundleVersion</key>
+     |    <integer>1</integer>
+     |    <key>CFBundleDevelopmentRegion</key>
+     |    <string>English</string>
+     |    <key>CFBundleInfoDictionaryVersion</key>
+     |    <string>6.0</string>
+     |</dict>
+     |</plist>") "
+  = 
+     {dict =
+       {CFBundleDevelopmentRegion = {string = {English}},
+        CFBundleGetInfoString =
+         {string =
+           {"FileInfo version 3.1.0.372, Copyright �©2003 by Adobe Systems Incorporated.  All rights reserved."}},
+        CFBundleIdentifier = {string = {"com.adobe.FileInfo.framework"}},
+        CFBundleInfoDictionaryVersion = {string = {"6.0"}},
+        CFBundleName = {string = {FileInfo}},
+        CFBundlePackageType = {string = {FMWK}},
+        CFBundleShortVersionString = {string = {"FileInfo version 3.1.0.372"}},
+        CFBundleSignature = {string = {"????"}},
+        CFBundleVersion = {integer = {1}}}}

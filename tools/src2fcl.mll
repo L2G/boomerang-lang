@@ -88,7 +88,7 @@ rule lex = parse
   }
 (* Nuke the next once things stabilize *)
 | "%USECHECKER2" [' ']* "\n" {
-    let s = Lexing.lexeme lexbuf in 
+    let _ = Lexing.lexeme lexbuf in 
     if !newLine then
       (suffix := "ff"; terminator:=";"; emit "\n")
     else

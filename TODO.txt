@@ -40,11 +40,11 @@ IMMEDIATE BUG:
 
 
 BCP TASKS
-* Fix entity handling in XML processing
-* Stuff missing (from, e.g., Aponte's entry)
+* The line 
+    <?xml version="1.0" encoding="UTF-8"?>
+  at the beginning of a plist file causes an error in PXP
+* Dicts in plists should be represented unordered, not as lists
 * Try running harmonize-addresses with empty args -- bad error mesg!
-* "make testbad" in examples/addresses illustrates a bad problem with 
-  the csv reader: it ignores repeated \n characters (e.g. in note fields)
 * Doing "make clean" at the top level followed by "make" in 
   examples/addresses fails  (in general, makefiles are a bit messed up)
 * check for bad unison behavior

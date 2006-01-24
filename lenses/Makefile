@@ -14,6 +14,7 @@ clean::
 all: $(GENERATEDFCLFILES)
 
 test:: $(GENERATEDFCLFILES)
+	$(HARMONY) -check Plist -test-all 
 	$(HARMONY) -check Prelude -test-all 
 	$(HARMONY) -check List -test-all 
 	$(HARMONY) -check Xml -test-all 

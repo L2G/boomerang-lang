@@ -35,8 +35,7 @@ let children : lens =
   hoist "array"
     
 and item : lens = 
-  (* flattens the item *)
-  Plist.flatten_dict;
+  hoist "dict";
   
   (* if the item is a dict and does not have children, we add an empty list of children *)
   acond 
@@ -60,7 +59,7 @@ and item : lens =
 let l : lens =
   (** We lack an assert SafConcrete here :( *)
   Plist.l;
-  Plist.flatten_dict;
+  hoist "dict";
   (* discard all the other meta info *)
   focus "Children" 
     {WebBookmarkFileVersion = {integer = {`Xml.CHILDREN = [{`Xml.PCDATA = {1}}]}},
