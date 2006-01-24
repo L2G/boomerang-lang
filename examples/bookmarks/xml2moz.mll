@@ -2,7 +2,9 @@
   let lexeme = Lexing.lexeme
   let sprintf = Printf.sprintf 
 
-  let emit s = print_string s
+  let outc = ref stdout
+
+  let emit s = output_string (!outc) s
 }
 
 let whitespace = [' ' '\t' '\n']+
@@ -19,7 +21,7 @@ and item = parse
   | "<DL>"                                    { emit "<DL><p>"; item lexbuf }
   | "</DL>" opt_whitespace                    { emit "\n</DL><p>"; skip_dt lexbuf }      
   | "<HR></HR>" opt_whitespace                { emit "\n<HR>\n"; item lexbuf }
-  | eof                                       { exit 0 } 
+  | eof                                       { () } 
   | "<DT>" opt_whitespace                     { emit "<DT>"; item lexbuf }
   | _                                         { emit (lexeme lexbuf); item lexbuf }
 
@@ -42,5 +44,8 @@ and skip_dt2 = parse
                ^ "\n<TITLE>Bookmarks</TITLE>"
                ^ "\n\n"
 
-  let () = emit header; xml (Lexing.from_channel stdin)
+  let go inc outc' = 
+    outc:= outc'; 
+    emit header; 
+    xml (Lexing.from_channel inc)
 }

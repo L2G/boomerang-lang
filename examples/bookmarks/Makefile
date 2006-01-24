@@ -17,23 +17,14 @@ DEMOCMD = ./$(RESULT) $(HARMONYFLAGS) $(LENSPATH) -compress=false
 include $(TOP)/Top.Makefile
 
 RESULT = harmonize-bookmarks
-RESULT-HELPERS = xml2moz moz2xml
-SOURCES = harmonize-bookmarks.ml 
+SOURCES = moz2xml.mll xml2moz.mll harmonize-bookmarks.ml 
 LIBS += harmony
 
-all: makeharmonylib nc $(RESULT-HELPERS)
+all: makeharmonylib native-code
 
 include $(OCAMLMAKEFILE)
 
-moz2xml: moz2xml.mll
-	ocamllex moz2xml.mll
-	ocamlopt -o moz2xml moz2xml.ml
-
-xml2moz: xml2moz.mll
-	ocamllex xml2moz.mll
-	ocamlopt -o xml2moz xml2moz.ml
-
-test:: $(LOCALGENERATEDFCLFILES)
+test:: mozilla.fcl safari.fcl
 	$(HARMONY) -check Mozilla -test-all
 	$(HARMONY) -check Safari -test-all
 

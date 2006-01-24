@@ -26,19 +26,21 @@ td {
   padding:0px;
 }
 
-.spaced { border:1px solid #ffff00; }
+.spaced { 
+  border:1px solid #bbbbbb; 
+  width:100%;
+}
 
 .darkyellow { background-color:#ffffaa; }
 .lightyellow { background-color:#ffffdd; }
 
 .spaced td { 
-  padding:3px 15px;
+  padding:3px 5px;
 }
 
-.spaced tr:hover { 
+.darkyellow:hover,.lightyellow:hover { 
   background-color:#ffff55;
 }
-
 
 a { 
   font-weight:bold;

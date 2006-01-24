@@ -2,7 +2,8 @@
   let lexeme = Lexing.lexeme
   let sprintf = Printf.sprintf 
 
-  let emit s = print_string s
+  let outc = ref stdout
+  let emit s = output_string (!outc) s
 }
 
 let whitespace = [' ' '\t' '\n']+
@@ -17,9 +18,11 @@ and item = parse
   | "<p>" | "<DD>" [^ '\n']+ '\n'             { item lexbuf }
   | "</A>"                                    { emit (sprintf "%s</DT>" (lexeme lexbuf)); item lexbuf }
   | "</DL>"                                   { emit (sprintf "%s</DT>" (lexeme lexbuf)); item lexbuf }
-  | eof                                       { exit 0 }   
+  | eof                                       { () }   
   | _                                         { emit (lexeme lexbuf); item lexbuf }
 
 {
-  let () = bookmarks (Lexing.from_channel stdin)
+  let go inc outc' = 
+    outc := outc';
+    bookmarks (Lexing.from_channel inc)
 }

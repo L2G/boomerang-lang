@@ -56,11 +56,9 @@ Harmony can be found
 </p>
 </div>
 
-<a name="source"></a>
 <div class="content">
-<div class="title">Source code distribution<div class="top">[<a href="#top">Top</a>]</div></div>
-<p>
-
+<div class="title">Source distribution</div>
+<a name="source"></a>
 <?php
 function hsize($size) {
    if($size == 0) { return("0 Bytes"); }
@@ -76,7 +74,11 @@ while($f = readdir($dh)) {
 }
 closedir($dh);
 arsort($files);
-print "<table class=\"spaced\">";
+print<<<HTML
+<table class="spaced" style="margin:7px 0px;">
+<!--  <tr><td class="title" style="padding:3px;" colspan="3">Source distribution</td></tr> -->
+HTML;
+
 $odd = true;
 foreach($files as $f=>$t) {
   $size = hsize(filesize("../download/$f"));
@@ -94,14 +96,56 @@ foreach($files as $f=>$t) {
       <a href="download/$f">
       <img style="vertical-align:middle;border:0;" src="images/floppy.png" alt="floppy"/>
       $f</a>
-   </td><td>$size</td><td>$date</td></tr>
+      </td><td>$size</td><td style="text-align:right">$date</td></tr>
 
 EOF;
 }
-print "</table>"
+print<<<HTML
+</table></div>
+HTML;
+
+if(false) {
+print<<<HTML
+<table class="spaced">
+<tr class="title"><td colspan="3">Binary</td></tr>
+HTML;
+
+$dh = opendir("../download");
+$files = array();
+while($f = readdir($dh)) {
+  if(preg_match('/.tar.gz$/', $f)) { 
+    $files[$f] = filemtime("../download/$f");
+  }
+}
+closedir($dh);
+arsort($files);
+$odd = true;
+foreach($files as $f=>$t) {
+  $size = hsize(filesize("../download/$f"));
+  $date = date("j M Y g:ia", $t);  
+  $trclass = "";
+  if($odd) {
+     $odd = false;
+     $trclass = " class=\"darkyellow\"";
+  } else {
+    $odd = true;
+    $trclass = " class=\"lightyellow\"";
+  }
+  print<<<EOF
+    <tr$trclass><td>
+      <a href="download/$f">
+      <img style="vertical-align:middle;border:0;" src="images/floppy.png" alt="floppy"/>
+      $f</a>
+      </td><td>$size</td><td style="text-align:right">$date</td></tr>
+
+EOF;
+}
+
+print<<<HTML
+</table></td></tr></table>
+HTML;
+}
 ?>
-</p>
-</div>
 
 <a name="members"></a>
 <table style="width:100%;"><tr><td style="width:50%;padding-right:3px;">

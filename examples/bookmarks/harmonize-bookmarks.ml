@@ -14,11 +14,19 @@ let bookmarktype2string = function
         
 let moz2xml f fpre =
   if Sys.file_exists f then
-    Toplevel.runcmd (Printf.sprintf "./moz2xml < %s > %s" (Misc.whack f) (Misc.whack fpre))
+    let fc = open_in f in
+    let fprec = open_out fpre in 
+      Moz2xml.go fc fprec;
+      close_in fc;
+      close_out fprec
 
 let xml2moz fpost f =
   if Sys.file_exists fpost then
-    Toplevel.runcmd (Printf.sprintf "./xml2moz < %s > %s" (Misc.whack fpost) (Misc.whack f))
+    let fpostc = open_in fpost in 
+    let fc = open_out f in 
+      Xml2moz.go fpostc fc;
+      close_in fpostc;
+      close_out fc
 
 let plutil f fpre =
   Toplevel.runcmd (Printf.sprintf "plutil -convert xml1 %s -o %s" (Misc.whack f) (Misc.whack fpre))
