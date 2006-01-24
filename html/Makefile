@@ -40,7 +40,7 @@ jnf.bib:
 
 harmony-papers.html: bcp.bib jnf.bib 
 	bib2bib -ob harmony-papers.bib -oc harmony-papers.keys\
-          -c '(keys:"harmony") & (($$type="INPROCEEDINGS") | ($$type="ARTICLE"))' $?
+          -c '(keys:"harmony") & (($$type="INPROCEEDINGS") | ($$type="ARTICLE") | ($$type="TECHREPORT"))' $?
 	bibtex2html -o harmony-papers $(B2HFLAGS) -citefile harmony-papers.keys harmony-papers.bib
 
 harmony-talks.html: bcp.bib jnf.bib
@@ -50,27 +50,25 @@ harmony-talks.html: bcp.bib jnf.bib
 
 harmony-misc.html: bcp.bib jnf.bib 
 	bib2bib -ob harmony-misc.bib -oc harmony-misc.keys -c 'keys:"'harmony'"' \
-          -c '(keys:"harmony") & ($$type <> "INPROCEEDINGS") & ($$type <> "ARTICLE") & & !(note:talk\|keynote)' $?
+          -c '(keys:"harmony") & ($$type <> "INPROCEEDINGS") & ($$type <> "ARTICLE") & ($$type <> "TECHREPORT") & !(note:"talk\|keynote")' $?
 	bibtex2html -o harmony-misc $(B2HFLAGS) -citefile harmony-misc.keys harmony-misc.bib
 
 ####################################################################
 # Convert PHP to HTML
 
 %.html: %.php header.php footer.php
-	cp header.php footer.php $(CGIDIR)
-	cp $< $(CGIDIR)/tmp-$<
-	chmod 755 $(CGIDIR)/tmp-$<
-	wget -O $@ $(CGIURL)/tmp-$<
-	rm $(CGIDIR)/tmp-$< $(CGIDIR)/header.php $(CGIDIR)/footer.php
+	cp $? $(CGIDIR)
+	chmod 755 $(CGIDIR)/$<
+	wget -O $@ $(CGIURL)/$<
+	(cd $(CGIDIR); rm $?)
 
 ###
 # FIXME: want index.html to also depend on $(WEBDIR)/download
-index.html: index.php header.php footer.php harmony-papers.html harmony-talks.html armony-misc.html
+index.html: index.php header.php footer.php harmony-papers.html harmony-talks.html harmony-misc.html
 	cp $? $(CGIDIR)/
-	chmod 755 $(CGIDIR)/index.php
-	wget -O $? $(CGIURL)/index.php
-	rm $(CGIDIR)/$?
-
+	chmod 755 $(CGIDIR)/$<
+	wget -O $@ $(CGIURL)/index.php
+	(cd $(CGIDIR); rm $?)
 
 clean::
 	rm -f *.bib *.keys *.html

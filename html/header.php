@@ -13,7 +13,10 @@ body,td {
   font-family: helvetica, arial, sans-serif;
   font-size:10pt;
 }
-
+h2 {
+  font-size:11pt;
+  font-weight:bold;
+}
 table { 
   margin:0px;
   padding:0px;

@@ -1,26 +1,35 @@
-HARMONY INSTALLATION INSTRUCTIONS
----------------------------------
+ +-----------------------------------+
+ | HARMONY INSTALLATION INSTRUCTIONS |
+ +-----------------------------------+
 
-GODI INSTALLATION INSTRUCTIONS
+To install Harmony's prerequisites individually, you'll need several
+packages.  These can either be installed using GODI (suggested method)
+or manually (only slightly more difficult).
 
-The simplest way to install the prerequisites needed by Harmony is via the
-Godi package manager for OCaml.  
+ +--------------------------------+
+ | GODI INSTALLATION INSTRUCTIONS |
+ +--------------------------------+
 
-Download godi from http://godi.ocaml-programming.de/
-Follow installation instructions.  Then do:
+The simplest way to install the prerequisites needed by Harmony is via
+the Godi package manager for OCaml. Download godi from
 
-godi_console perform -build godi-ocaml-all
-godi_console perform -build godi-pxp
+  http://godi.ocaml-programming.de/ 
+
+Follow installation instructions.  Then issue the commands:
+
+  godi_console perform -build godi-ocaml-all
+  godi_console perform -build godi-pxp
 
 Now go to the directory where you unpacked the Harmony tarball, type 'make',
 and you should end up with a harmony binary in the /src directory (as well
 as binaries for each instance XXX in examples/XXX).  Type 'make test' and
 you should see all the regression tests run.
 
-BUILDING HARMONY BY HAND
+  +--------------------------+
+  | BUILDING HARMONY BY HAND |
+  +--------------------------+
 
-To install Harmony's prerequisites individually, you'll need the following
-packages.  They are specified here in the order in which they should be
+They are specified here in the order in which they should be
 installed.
 
 [Note: If you get tangled up and need to start this process again,
@@ -30,7 +39,7 @@ whatever to remove the previous version.]
 GNU make    Should already be installed on most systems these days
 
 ocaml       http://caml.inria.fr/ocaml/distrib.html.  
-            OCaml 3.07 or later is needed.
+            OCaml 3.09 or later is needed.
 
             QUICK START ON OSX:
               sudo fink install ocaml
@@ -91,35 +100,4 @@ That's it!  Only seven dependencies!
 
 Now, simply type 'make' and you should end up with a harmony binary.
 Type 'make test' and you should see all the regression tests run.
-
-
-----------------------------------------
-OTHER DEPENDENCIES FOR CERTAIN NON-CRITICAL PARTS OF THE HARMONY DISTRIBUTION
-
-lablgtk2    It is required by the lens visualizer (not the synchronizer).
-	    http://wwwfun.kurims.kyoto-u.ac.jp/soft/olabl/lablgtk.html
-	    Versions >= 2.2 are working.
-	    To install it properly you may need some Pango, Gnome and
-	    Glade libraries.
-	    
-	    QUICK START
-	    ./configure; make world; make opt; sudo make install; make clean
-
-            On OSX, we've had some problems with package dependencies,
-            especially under Fink.  Things seem to go much better
-            under Darwinports.  (Just do "sudo ports install lablgtk2"!)
-
-tidy	    This is a common package that may be already in your
-	    system. 
-
-	    http://tidy.sourceforge.net/
-
-	    There are RPMs, debs for the major Linux distributions.
-
-            QUICK START:
-		cd build/gmake; make; sudo make install
-
-	    QUICK START FOR OSX:
-		sudo fink install tidy
-
 

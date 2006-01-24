@@ -35,9 +35,9 @@ tar:
 ###########################################################################
 ## Web Install - to be run by harmony@halfdome.cis.upenn.edu
 web:
-	echo \\draftfalse > $(DOCDOR)/temp.tex
+	echo \\draftfalse > $(DOCDIR)/temp.tex
 	$(MAKE) all
-	cp $(DOCDIR)/main.pdf $(DOCDIR)/doc/manual.pdf
+	mv $(DOCDIR)/main.pdf $(DOCDIR)/manual.pdf
 	$(MAKE) -C html
 	cp -r html/* doc $(WEBDIR)
 	cp -r src lenses examples extern $(WEBDIR)/cgi-bin/

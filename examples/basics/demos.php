@@ -34,12 +34,12 @@ are welcome to play with them.)
 <li>If you are familiar with our paper, <i>Combinators for
 Bi-Directional Tree Transformations: A Linguistic Approach to the View
 Update Problem</i> (POPL 2005, available <a
-href="http://www.cis.upenn.edu/~bcpierce/papers/index.shtml#Data%20Synchronization">here</a>),
+href="../#Focal2005">here</a>),
 and want to play with lenses, choose "Lens Programming" for a short tutorial.
 
 <li>If you are familiar with our paper, <i>Exploiting Schemas in Data
 Synchronization</i> (DBPL 2005, available <a
-href="http://www.cis.upenn.edu/~bcpierce/papers/index.shtml#Data%20Synchronization">here</a>),
+href="../#SYNC2005">here</a>),
 and want to see some interesting examples of the use of schemas to
 guide the synchronization process, the address book and structured
 text demos are particularly recommended.
@@ -223,7 +223,7 @@ the "merged" tree that it has constructed is ill-formed with respect to the
 provided as another input to Harmony.  To see the schema currently in
 effect, click the "Show Schema" icon above, <img height="18" width="18" src="images/icons/schema.png" alt="Show Schema Icon"/>.  To see the actual
 definition of this schema, see the "Module XML" section in the chapter on
-the standard libraries in the <a href="../doc/main.pdf"
+the standard libraries in the <a href="../doc/manual.pdf"
 target="_blank">Harmony manual</a>.)</p>
 
 <p> In particular, the synchronization schema for XML specifies that an edge
@@ -526,7 +526,7 @@ Tree Transformations: A Linguistic Approach to the View Update Problem</i>
 <li><i>Exploiting Schemas in Data Synchronization</i> (DBPL 2005) </ul> 
 
 Both are available <a
-href="http://www.cis.upenn.edu/~bcpierce/papers/index.shtml#Data%20Synchronization">here</a>.
+href="../#papers">here</a>.
 </p>
 
 XXX;
