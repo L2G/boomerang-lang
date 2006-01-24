@@ -37,7 +37,7 @@ tar:
 web:
 	echo \\draftfalse > $(DOCDIR)/temp.tex
 	$(MAKE) all
-	mv $(DOCDIR)/main.pdf $(DOCDIR)/manual.pdf
+	cp $(DOCDIR)/main.pdf $(DOCDIR)/manual.pdf
 	$(MAKE) -C html
 	cp -r html/* doc $(WEBDIR)
 	cp -r src lenses examples extern $(WEBDIR)/cgi-bin/
