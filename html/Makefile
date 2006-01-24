@@ -1,8 +1,21 @@
+####################################################################
+# The Harmony Project                                              #
+# harmony@lists.seas.upenn.edu                                     #
+####################################################################
+
+# $Id$
+
+TOP=../
+include $(TOP)/Top.Makefile 
 
 all: index.html related.html
 
-CGI=$(HOME)/html/cgi-bin
+WEBDIR=$(HOME)/html
+CGIDIR=$(WEBDIR)/cgi-bin
+CGIURL=http://alliance.seas.upenn.edu/~harmony/cgi-bin/
 
+####################################################################
+# BibTeX2HTML Configuration
 B2HFLAGS = -dl \
 	   -s ./bold-title.bst \
            --nodoc -nofooter -noheader -noabstract -nokeys -nokeywords\
@@ -32,21 +45,26 @@ papers.html: harmony.bib Makefile
 	bib2bib -ob /dev/null -oc harmony.keys -c 'keys:"'harmony'"' harmony.bib
 	bibtex2html -o papers $(B2HFLAGS) -citefile harmony.keys harmony.bib
 
+####################################################################
+# Convert PHP to HTML
+
 %.html: %.php header.php footer.php
-	cp header.php footer.php $(CGI)
-	cp $< $(CGI)/tmp-$<
-	chmod 755 $(CGI)/tmp-$<
-	wget -O $@ http://alliance.seas.upenn.edu/~harmony/cgi-bin/tmp-$<
-	rm $(CGI)/tmp-$< $(CGI)/header.php $(CGI)/footer.php
+	cp header.php footer.php $(CGIDIR)
+	cp $< $(CGIDIR)/tmp-$<
+	chmod 755 $(CGIDIR)/tmp-$<
+	wget -O $@ $(CGIURL)/tmp-$<
+	rm $(CGIDIR)/tmp-$< $(CGIDIR)/header.php $(CGIDIR)/footer.php
 
+###
+# FIXME: want index.html to also depend on $(WEBDIR)/download
 index.html: index.php header.php footer.php papers.html
-	cp index.php $(CGI)/tmp-index.php
-	cp header.php footer.php papers.html $(HOME)/html/cgi-bin/
-	chmod 755 $(CGI)/tmp-index.php
-	wget -O index.html http://alliance.seas.upenn.edu/~harmony/cgi-bin/tmp-index.php
-	rm $(CGI)/tmp-index.php $(CGI)/papers.html $(CGI)/header.php $(CGI)/footer.php
+	cp index.php $(CGIDIR)/tmp-index.php
+	cp header.php footer.php papers.html $(CGIDIR)
+	chmod 755 $(CGIDIR)/tmp-index.php
+	wget -O index.html $(CGIURL)/tmp-index.php
+	rm $(CGIDIR)/tmp-index.php $(CGIDIR)/papers.html $(CGIDIR)/header.php $(CGIDIR)/footer.php
 
-TRASH := $(TRASH) bcp.bib jnf.bib harmony.bib harmony.keys *.html
 
-clean:
-	rm -f $(TRASH)
+clean::
+	rm -f bcp.bib jnf.bib harmony.bib harmony.keys *.html
+

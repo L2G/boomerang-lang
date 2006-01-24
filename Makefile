@@ -13,33 +13,34 @@ include $(TOP)/Top.Makefile
 
 all: buildsubdirs
 
-###########################################################################
-## Tarball Export
-
 WEBDIR = $(HOME)/html/
 DOWNLOADDIR=$(WEBDIR)/download
-TMPDIR=/tmp
-
-EXPORTNAME=harmony-$(shell date "+20%y%m%d")
-TMP=$(TMPDIR)/$(EXPORTNAME)
-HARMONYUSER?=$(USER)
-
-export: 
-	echo \\draftfalse > $(DOCDIR)/temp.tex
-	$(MAKE) -C $(DOCDIR) main.pdf
-	rm -rf $(TMPDIR)/$(EXPORTNAME)
-	(cd $(TMPDIR); svn export file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
-	cp $(DOCDIR)/main.pdf $(TMP)/doc/manual.pdf
-	(cd $(TMPDIR); tar cvf - $(EXPORTNAME) \
-           | gzip --force --best > $(EXPORTNAME).tar.gz)
-	mv $(TMPDIR)/$(EXPORTNAME).tar.gz $(DOWNLOADDIR)
 
 ###########################################################################
-## Web Install
+## Tarball export - to be run by harmony@halfdome.cis.upenn.edu
 
+EXPORTNAME=harmony-$(shell date "+20%y%m%d")
+TMP=/tmp
+TMPDIR=$(TMP)/$(EXPORTNAME)
+
+tar: 
+	echo \\draftfalse > $(DOCDIR)/temp.tex
+	$(MAKE) -C $(DOCDIR) main.pdf
+	rm -rf $(TMPDIR)
+	(cd $(TMP); cd ..; svn export file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
+	cp $(DOCDIR)/main.pdf $(TMPDIR)/doc/manual.pdf
+	(cd $(TMP); tar zcvf $(EXPORTNAME).tar.gz $(EXPORTNAME))
+	mv $(TMP)/$(EXPORTNAME).tar.gz $(DOWNLOADDIR)
+
+###########################################################################
+## Web Install - to be run by harmony@halfdome.cis.upenn.edu
 web:
 	$(MAKE) all
 	$(MAKE) -C html
 	cp -r html/* $(WEBDIR)
 	cp -r src lenses examples doc extern $(WEBDIR)/cgi-bin/
 	chmod -R 755 $(WEBDIR)
+
+export:
+	$(MAKE) tar
+	$(MAKE) web

@@ -111,7 +111,6 @@ TRASH := $(TRASH) $(SRCDIR)/bakery.ml $(SRCDIR)/baker $(SRCDIR)/parser.output $(
 
 include $(OCAMLMAKEFILE)
 
-
 ######################################################################
 # Documentation generation for Harmony sources
 
