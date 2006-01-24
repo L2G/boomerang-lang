@@ -28,7 +28,7 @@ export:
 	echo \\draftfalse > $(DOCDIR)/temp.tex
 	$(MAKE) -C $(DOCDIR) main.pdf
 	rm -rf $(TMPDIR)/$(EXPORTNAME)
-	(cd $(TMPDIR); svn export svn+ssh://$(HARMONYUSER)@halfdome.cis.upenn.edu/mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
+	(cd $(TMPDIR); svn export file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
 	cp $(DOCDIR)/main.pdf $(TMP)/doc/manual.pdf
 	(cd $(TMPDIR); tar cvf - $(EXPORTNAME) \
            | gzip --force --best > $(EXPORTNAME).tar.gz)
