@@ -81,7 +81,7 @@ test (l; assert T) / (load "xml" "
      |          <key>CFBundleName</key>
      |          <string>FileInfo</string>
      |          <key>CFBundleGetInfoString</key>
-     |          <string>FileInfo version 3.1.0.372, Copyright Â©2003 by Adobe Systems Incorporated.  All rights reserved.</string>
+     |          <string>FileInfo version 3.1.0.372, Copyright 2003 by Adobe Systems Incorporated.  All rights reserved.</string>
      |          <key>CFBundleShortVersionString</key>
      |          <string>FileInfo version 3.1.0.372</string>
      |          <key>CFBundlePackageType</key>
@@ -95,13 +95,13 @@ test (l; assert T) / (load "xml" "
      |    <key>CFBundleInfoDictionaryVersion</key>
      |    <string>6.0</string>
      |</dict>
-     |</plist>") "
+     |</plist>") 
   = 
      {dict =
        {CFBundleDevelopmentRegion = {string = {English}},
         CFBundleGetInfoString =
          {string =
-           {"FileInfo version 3.1.0.372, Copyright �©2003 by Adobe Systems Incorporated.  All rights reserved."}},
+           {"FileInfo version 3.1.0.372, Copyright 2003 by Adobe Systems Incorporated.  All rights reserved."}},
         CFBundleIdentifier = {string = {"com.adobe.FileInfo.framework"}},
         CFBundleInfoDictionaryVersion = {string = {"6.0"}},
         CFBundleName = {string = {FileInfo}},
