@@ -173,7 +173,7 @@ HTML;
       <li>Malo Denielou</li>
       <li><a href="http://www.cis.upenn.edu/~mbgreen">Michael Greenwald</a>
       <li>Owen Gunden</li>
-      <li>St&eacute;phane Lescuyer</li>
+      <li><a href="http://www.seas.upenn.edu/~lescuyer">St&eacute;phane Lescuyer</a></li>
     </ul>
     </td><td>
     <ul>
