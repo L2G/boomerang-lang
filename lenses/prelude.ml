@@ -783,22 +783,25 @@ let join_lib =
 let _ = register_native join_qid "name -> name -> lens" join_lib
 
 (* FLATTEN *)
-let flatten_qid = "Native.Prelude.flatten"
-let flatten =   
+let flatten_op_qid = "Native.Prelude.flatten_op"
+let flatten_op l =   
   let rec get = function 
       c -> 	
 	if V.is_empty_list c then V.empty
 	else 
 	  (* Error handling in case of ill-formed list *)
-	  let head = V.get_required ~msg:"flatten" c V.hd_tag in 
+          (* the head that is considered is the get of l *)
+	  let head = l.get (V.get_required ~msg:"flatten" c V.hd_tag) in 
 	  let c' = V.get_required ~msg:"flatten" c V.tl_tag in
 	    (* List of labels pointing toward trees *)
 	    if Name.Set.cardinal (V.dom head) = 1 then 
 	      let c_list = V.to_list head in
 	      let (k,d) = Safelist.hd c_list in
-	      let a_rec = get c' in		
+	      let a = get c' in
 		(* removes spurious *nil labels in output *)
-	      let a = if (V.is_empty_list a_rec) then V.empty else a_rec in 
+                (* Alan: not needed: the initial test in get already makes sure of this *)
+                (*
+	      let a = if (V.is_empty_list a_rec) then V.empty else a_rec in *)
 	      let childk = V.get a k in
 		begin
 		  match childk with
@@ -820,16 +823,17 @@ let flatten =
 		      V.set V.empty k (Some x)) 
 	(Safelist.flatten (Safelist.map listifystep v_list)) in
   let rec put a = function
-      None -> V.structure_from_list (listify a)
+      None -> V.structure_from_list (Safelist.map (fun x -> l.put x None) (listify a))
     | Some c -> 
-	if V.is_empty_list c then V.structure_from_list (listify a)
+	if V.is_empty_list c then put a None
 	else 
 	  let head = V.get_required ~msg:"flatten" c V.hd_tag in
+          let transformed_head = l.get head in
           (* Error handling in case of ill-formed list *)
 	  let c' = V.get_required  ~msg:"flatten" c V.tl_tag in
           (* List of labels pointing toward trees *)
-          if Name.Set.cardinal (V.dom head) = 1 then 
-            let c_list = V.to_list head in
+          if Name.Set.cardinal (V.dom transformed_head) = 1 then 
+            let c_list = V.to_list transformed_head in
             let (k,d) = Safelist.hd c_list in
             match V.get a k with
                 None -> put a (Some c')
@@ -839,19 +843,21 @@ let flatten =
                   let s = V.get_required  ~msg:"flatten" ds V.tl_tag in
                   if V.is_empty_list s then
                     V.cons 
-                      (V.from_list [k,d']) 
+                      (l.put (V.from_list [k,d']) (Some head)) 
                       (put (V.set a k None) (Some c'))
                   else 
                     V.cons 
-                      (V.from_list [k,d']) 
+                      (l.put (V.from_list [k,d']) (Some head))
                       (put (V.set (V.set a k None) k (Some s)) (Some c'))
           else error [`String "Native.Prelude.flatten(put): expected a tree with exactly one child: "; 
                       `Tree head]
   in
     {get = get ;
      put = put }
-let flatten_lib =  L flatten
-let _ = register_native flatten_qid "lens" flatten_lib
+
+let flatten_op_lib =
+  mk_lfun "lens" flatten_op_qid (fun l -> Value.L (flatten_op l))
+let _ = register_native flatten_op_qid "lens -> lens" flatten_op_lib
 
 (************)
 (* EXPLODE  *)

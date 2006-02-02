@@ -316,7 +316,8 @@ test filter_test \ [{a={1}}]
 
 #@\LENSSECTION{flatten}
 %
-##let flatten : lens = Native.Prelude.flatten
+##let flatten_op : (lens -> lens) = Native.Prelude.flatten_op
+##let flatten : lens = flatten_op id
 %
 The \LN{flatten} lens takes a list of keyed trees and flattens it into a
 bush whose top-level children are the keys from the original list:
@@ -341,7 +342,35 @@ Left over elements of the concrete list are deleted from the result.
 #*               [{b={1}}, {a={2}}, {a={3}}] 
 #*             = [{b={2}}, {a={1}}]
 
-Currently, @flatten@ is defined as a built-in lens.  We conjecture that it
+The \LN{flatten} lens is in fact built from the \LN{flatten_op} lens operator,
+as @flatten = flatten_op id@.
+In the \GET{} direction, @flatten_op l@ applies @l@ to each element then
+proceeds as @flatten@.
+In the \PUT{} direction, the list of subtrees under each key in the abstract
+tree is distributed into the corresponding positions in the concrete list, the
+position being determined by the key exhibited by an element of the concrete
+list after apply the \GET{} of @l@. The new concrete element is created by the
+\PUT{} of @l@.
+
+#*let l : lens = flatten_op (Prelude.filter {a,b} {}) 
+#*
+#*test l / [{a={1}, z={junk}}, {b={3}}] = {a=[{1}], b=[{3}]}
+#*
+#*test l \ {b=[{3}]} [{a={1}, z={junk}}, {b={3}}] = [{b={3}}]
+
+It is interesting to notice that @flatten_op l@ is not simply @List.map l; flatten@,
+as @List.map@ does not know which elements in the concrete list where deleted, it
+simply applies \PUT{} according to the order:
+#*let f : lens = Prelude.filter {a,b} {}
+#*let l' : lens = map f; flatten
+#*test l' / [{a={1}, z={junk}}, {b={3}}] = {a=[{1}], b=[{3}]}
+#*
+#*test l' \ {b=[{3}]} [{a={1}, z={junk}}, {b={3}}] = [{b={3},z={junk}}]
+This surprising result is because of the \PUT{} of @List.map@:
+#*test (map f) \ [{b={3}}] [{a={1}, z={junk}}, {b={3}}] = [{b={3},z={junk}}]
+
+
+Currently, @flatten_op@ is defined as a built-in lens.  We conjecture that it
 can be defined in terms of other, more primitive, lenses, but we have not
 (yet) been able to do this.
 %
