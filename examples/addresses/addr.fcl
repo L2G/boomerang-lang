@@ -101,7 +101,7 @@ let NameComponent : schema =
     | Xml.Pcdata
 
 let Name : schema =
-  Element "n" {} (NameComponent :: ([] | [NameComponent]))
+  Element "n" {} ([] | (NameComponent :: ([] | [NameComponent])))
 
 let Field : schema =
     Element "note" {} ([Xml.Pcdata] | [])
@@ -209,18 +209,101 @@ let handle_fields : lens =
     id
 
 let xcard : lens =
-  assert XCard;   (* but perhaps we shouldn't actually do this
-                       because the structure may be large! *)
+  assert XCard;   (* I was worried this would be slow
+                     because the structure may be large, but actually it takes
+                     about .1 second for a 1250-record file!  Ditto the one below. *)
   List.hd [];
   hoist "xcard";
   hoist Xml.CHILDREN;
-  List.map use_name_as_key;
-  List.flatten;
+  List.flatten_op use_name_as_key;
   map (List.flatten; map (List.map (Xml.flatten; handle_fields)));
-  assert AddrBook  (* Might also be slow! *)
+  assert AddrBook
 
 (* Note that unit tests involving creation will fail unless the fields
    within each xcard are given in sorted order... *)
+
+(* Test empty name *)
+test xcard / \
+   (load "xml" 
+     "<xcard>
+     | <vcard>
+     |   <n></n>
+     |   <note>hello world</note>
+     | </vcard>
+     |</xcard>
+     |")
+  =
+    {"" =
+      {"" =
+        [{Address = {""},
+          Category = {Unfiled},
+          City = {""},
+          Company = {""},
+          Country = {""},
+          Note = {"hello world"},
+          Phone =
+           {Email = [], Fax = [], Home = [], Mobile = [], Other = [], Work = []},
+          State = {""},
+          Title = {""},
+          Zip = {""}}]}}
+
+test xcard \
+   {Doe =
+     {John =
+       [{Address = {""},
+         Category = {Unfiled},
+         City = {""},
+         Company = {""},
+         Country = {""},
+         Note = {"hello world"},
+         Phone =
+          {Email = [], Fax = [], Home = [{792-8134}, {732-4684}], Mobile = [], Other = [], Work = []},
+         State = {""},
+         Title = {""},
+         Zip = {""}}]},
+    "" =
+      {"" =
+        [{Address = {""},
+          Category = {Unfiled},
+          City = {""},
+          Company = {""},
+          Country = {""},
+          Note = {"empty"},
+          Phone =
+           {Email = [], Fax = [], Home = [], Mobile = [], Other = [], Work = []},
+          State = {""},
+          Title = {""},
+          Zip = {""}}]}}
+   (load "xml" 
+     "<xcard>
+     | <vcard>
+     |   <n>Charles Addams</n>
+     |   <note>goodbye world</note>
+     | </vcard>
+     | <vcard>
+     |   <n><family>Doe</family><given>John</given></n>
+     |   <note>hello world</note>
+     |   <tel-home>792-8134</tel-home>
+     |   <tel-home>732-4684</tel-home>
+     | </vcard>
+     |</xcard>
+     |")
+  =
+   (load "xml" 
+     "<xcard>
+     | <vcard>
+     |   <n><family>Doe</family><given>John</given></n>
+     |   <note>hello world</note>
+     |   <tel-home>792-8134</tel-home>
+     |   <tel-home>732-4684</tel-home>
+     | </vcard>
+     | <vcard>
+     |   <n></n>
+     |   <note>empty</note>
+     | </vcard>
+     |</xcard>
+     |")
+
 test xcard / \
    (load "xml" 
      "<xcard>
@@ -246,7 +329,6 @@ test xcard / \
           State = {""},
           Title = {""},
           Zip = {""}}]}}
-
 
 (************************************************************************)
 (* CSV format *)

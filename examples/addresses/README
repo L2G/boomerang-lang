@@ -4,7 +4,7 @@ HARMONIZE-ADDRESSES -- a Harmony instance for Palm and xcard address files
 KNOWN SHORTCOMINGS
 
 * Only a subset of the fields in the current Palm address format are
-  handled; birthdays, pictures, etc. are not synchronized
+  handled; birthdays, pictures, etc. are not synchronized.
 
 * Fields containing semicolons in Palm files are not handled
   correctly.  The problem here comes from the pilot-addresses tool,
@@ -45,7 +45,7 @@ STEPS FOR AN INDIVIDUAL SYNC
    cp addresses.xml backup-addresses.xml-`date +%y%m%d-%H%M%S`
    cp addresses.csv backup-addresses.csv-`date +%y%m%d-%H%M%S`
    # Run harmony
-   harmonize-addresses addresses.xml addresses.csv
+   harmonize-addresses addresses.xml addresses.csv   
    # Put them back on the palm
    pilot-addresses --delete-all
    pilot-addresses -a --read=addresses.csv

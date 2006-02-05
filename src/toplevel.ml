@@ -89,11 +89,11 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       let ba = Misc.map_option (Lens.get lensb) b in
       (o, a, b, Sync.sync s oa aa ba)
     in
+  Sync.format act;
+  Format.print_newline();
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
-  Sync.format act;
-  Format.print_newline();
   ignore (Misc.map_option (write_tree o'_fn) o');
   ignore (Misc.map_option (write_tree a'_fn) a');
   ignore (Misc.map_option (write_tree b'_fn) b');

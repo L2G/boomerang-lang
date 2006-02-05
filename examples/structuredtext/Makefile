@@ -19,6 +19,10 @@ DEMO9 = R1ORIG=demo1r1.txt
 
 all: makeharmonylib nc
 
+# Testing a bug -- nuke later
+temp: 
+	harmonize-structuredtext -ar test-tasks.txt -r1 test-unisonmerge1-tasks.txt -r2 test-unisonmerge2-tasks.txt -newar foo.tmp -newr1 bar.tmp -newr2 baz.tmp
+
 test::
 	$(HARMONY) -check Structuredtext -test-all
 

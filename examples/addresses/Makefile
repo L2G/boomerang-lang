@@ -18,7 +18,12 @@ include $(TOP)/Top.Makefile
 
 RESULT = harmonize-addresses
 SOURCES = $(CWD)/harmonize-addresses.ml 
+# EXTRADEPS += addr.fcl
 LIBS += harmony
+
+reinstall: addr.fcl 	
+	-rm -f $(RESULT)
+	$(MAKE)
 
 clean::
 	rm -rf ar*.{xml,csv} r1*.{xml,csv} r2*.{xml,csv} .harmonyar*.meta .harmonyar*.tmp

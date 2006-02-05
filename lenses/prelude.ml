@@ -173,9 +173,13 @@ let _ = register_native probe_qid "name -> lens" probe_lib
 	
 (* PROGRESS *)
 let progress_qid = "Native.Prelude.progress"
+let time() =
+  let times = Unix.times() in
+  let total = times.Unix.tms_utime +. times.Unix.tms_stime in
+  Printf.sprintf "%.1f" total
 let progress msg = 
-  { get = (fun c -> Format.printf "@,[->%s]@," msg; c);
-    put = (fun a co -> Format.printf "@,[<-%s]@," msg; a)}
+  { get = (fun c -> Format.printf "@,[->%s %s]@," (time()) msg; c);
+    put = (fun a co -> Format.printf "@,[<-%s %s]@," (time()) msg; a)}
 let progress_lib = 
   mk_nfun "lens" progress_qid
     (fun n -> Value.L (progress n))

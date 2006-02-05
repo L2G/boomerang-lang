@@ -40,6 +40,10 @@ IMMEDIATE BUG:
 
 
 BCP TASKS
+* implement harmonize-unorderedlines (maybe as the next!)
+* remove ordering from structuredtext (optionally)
+* make Unison permit missing archives (and ask)
+* look at structured text bug (with split, I guess?)
 * The line 
     <?xml version="1.0" encoding="UTF-8"?>
   at the beginning of a plist file causes an error in PXP
