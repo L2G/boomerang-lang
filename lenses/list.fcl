@@ -214,35 +214,21 @@ singleton at the end.  The \PUT{} direction simply concatenates such a list
 of lists.  \finish{Needs some explanation of how it works.}
 #{*}
 let groupby2 : lens = 
-  let add_empty_tail : lens =
-    add TL {};
-    wmap { `TL -> add NIL {} } in
-  let tmp : name = "tmp" in
   acond [] []
     id
-    ( (* (1) save hd of the list under tmp *)
-      rename HD tmp;
-      (* (2) bring the tail of the list up to the root level *)
-      hoist_nonunique TL tags;
-      (* split on domain at the root level; two cases:
-           (a) tail was empty --> domain is { tmp, nil }
-           (b) tail was non-empty --> domain is { tmp, hd, tl } *)
-      acond {`tmp=Any,`NIL={}} [[Any]]
-        ( (* case (a): yield [[tmp]] *)
-          xfork {`NIL} {`TL} (plunge TL) id;
-          rename tmp HD;
-          plunge HD;
-          add_empty_tail)
-        ( (* case (b): produce [tmp,hd]::(groupby2 tl) *)
-          xfork {`tmp, `HD} {`HD}
-            (rename HD TL;
-             wmap {`TL -> plunge HD; add_empty_tail };
-             rename tmp HD;             
-             plunge HD)
-             (wmap { `TL -> groupby2 })))
+    (acond [Any] [[Any]]
+       (plunge HD; add TL { `NIL={} })
+       (rename HD "tmp";
+        hoist_nonunique TL tags;
+        fork { `TL } 
+          (Prelude.map (protect groupby2))
+          (xfork { `HD } { `TL }
+             (add TL { `NIL={} }; plunge TL)
+             (rename "tmp" HD);
+           plunge HD)))
 #{@}
 
-#*test groupby2 / \ [] = []
+#*test groupby2 / \  [] = []
 #*test groupby2 / \ [{1}] = [[{1}]]
 #*test groupby2 / \ [{1},{2},{3},{4}] = [[{1},{2}], [{3},{4}]]
 #*test groupby2 / \ [{1},{2},{3},{4},{5}] = [[{1},{2}], [{3},{4}], [{5}]]
