@@ -149,29 +149,18 @@ of the two given lists appended together and separated by @sep@ (which must
 not occur in either of the given lists).  In the \PUT{} direction, a single
 abstract list is split (at the single occurrence of @sep@) into a pair of
 concrete lists.  \finish{Explain how it works.}
-#*let concat2 (sep:name) : lens =
-#*  let tmp : name = "y" in
-#*  let tmp2 : name = "x" in
-#*  let inner_concat2 : lens = 
-#*    acond ([]::Any) ({`tmp={`sep}}::Any) 
-#*      (fork {`HD} (map (const {`tmp={`sep}} [])) (wmap {`TL -> hd []}))
-#*      (xfork {`HD} {`HD, `tmp2} 
-#*         (hoist HD; rename TL tmp2) 
-#*         id;
-#*       xfork {x, `TL} {`TL} 
-#*         (rename tmp2 HD; plunge TL; wmap {`TL -> inner_concat2}) 
-#*         id)
-#*  in
-#*    map (map (plunge tmp));
-#*    inner_concat2;
-#*    map (hoist tmp)
+#*let concat2 (sep:name) : lens = 
+#*  acond ([]::Any) ({`sep={}}::Any)
+#*    (wmap { `HD -> const {`sep} [] , `TL -> hd []})
+#*    (fork {`TL} id (hoist HD; rename TL "tmp");
+#*     fork {`HD} id (rename "tmp" HD; protect (concat2 sep); plunge TL))
 
 #*test (concat2 " ") / \ [[],[]] 
 #*                     = [{" "}]
 #*test (concat2 " ") / \ [[{u}],[{p},{e},{n},{n}]] 
 #*                     = [{u},{" "},{p},{e},{n},{n}]
 #*test (concat2 " ") / \ [[{u},{n},{i},{v}],[{p},{e},{n},{n}]] 
-#*                     = [{u},{n},{i},{v},{" "},{p},{e},{n},{n}]
+#*                     = [{u},{n},{i},{v},{" "},{p},{e},{n},{n}]      
 
 #{#}
 (* let concat : lens = *)
