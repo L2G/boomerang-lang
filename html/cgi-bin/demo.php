@@ -241,7 +241,10 @@ debug("REALR1", $r1);
 
 if($enablelogging) {
   /* BEWARE: gethost will hang a few seconds if offline */
-  $remote = trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
+  $remote = 
+    ($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"] == "127.0.0.1")
+    ? "localhost"
+    : trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
   $browser = $_SERVER['HTTP_USER_AGENT'];
   $date = date("Y/m/j G:i:s T");
   $logmsg = "$date  $remote  ($demogroup / $demonumber) $browser\n";
