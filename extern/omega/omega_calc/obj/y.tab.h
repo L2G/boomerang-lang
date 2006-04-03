@@ -38,7 +38,7 @@ typedef union {
 #define	IS_ASSIGNED	269
 #define	FORALL	270
 #define	EXISTS	271
-#define	DOMAIN	272
+#define	ODOMAIN	272
 #define	RANGE	273
 #define	DIFFERENCE	274
 #define	DIFFERENCE_TO_RELATION	275
@@ -59,8 +59,8 @@ typedef union {
 #define	CONVEX_CHECK	290
 #define	MAXIMIZE_RANGE	291
 #define	MINIMIZE_RANGE	292
-#define	MAXIMIZE_DOMAIN	293
-#define	MINIMIZE_DOMAIN	294
+#define	MAXIMIZE_ODOMAIN	293
+#define	MINIMIZE_ODOMAIN	294
 #define	LEQ	295
 #define	GEQ	296
 #define	NEQ	297
@@ -91,7 +91,7 @@ typedef union {
 #define	MAKE_UPPER_BOUND	322
 #define	MAKE_LOWER_BOUND	323
 #define	REL_OP	324
-#define	RESTRICT_DOMAIN	325
+#define	RESTRICT_ODOMAIN	325
 #define	RESTRICT_RANGE	326
 #define	SUPERSETOF	327
 #define	SUBSETOF	328

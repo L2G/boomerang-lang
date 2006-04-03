@@ -2434,7 +2434,7 @@ YY_RULE_SETUP
 case 43:
 YY_RULE_SETUP
 #line 134 "../src/parser.l"
-{ BUFFER;  return DOMAIN; }
+{ BUFFER;  return ODOMAIN; }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
@@ -2554,22 +2554,22 @@ YY_RULE_SETUP
 case 67:
 YY_RULE_SETUP
 #line 158 "../src/parser.l"
-{ BUFFER;  return MINIMIZE_DOMAIN; }
+{ BUFFER;  return MINIMIZE_ODOMAIN; }
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
 #line 159 "../src/parser.l"
-{ BUFFER;  return MAXIMIZE_DOMAIN; }
+{ BUFFER;  return MAXIMIZE_ODOMAIN; }
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
 #line 160 "../src/parser.l"
-{ BUFFER;  return MINIMIZE_DOMAIN; }
+{ BUFFER;  return MINIMIZE_ODOMAIN; }
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
 #line 161 "../src/parser.l"
-{ BUFFER;  return MAXIMIZE_DOMAIN; }
+{ BUFFER;  return MAXIMIZE_ODOMAIN; }
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
@@ -2719,12 +2719,12 @@ YY_RULE_SETUP
 case 100:
 YY_RULE_SETUP
 #line 191 "../src/parser.l"
-{ BUFFER;  return RESTRICT_DOMAIN; }
+{ BUFFER;  return RESTRICT_ODOMAIN; }
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
 #line 192 "../src/parser.l"
-{ BUFFER;  return RESTRICT_DOMAIN; }
+{ BUFFER;  return RESTRICT_ODOMAIN; }
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
@@ -2734,7 +2734,7 @@ YY_RULE_SETUP
 case 103:
 YY_RULE_SETUP
 #line 194 "../src/parser.l"
-{ BUFFER;  return RESTRICT_DOMAIN; }
+{ BUFFER;  return RESTRICT_ODOMAIN; }
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
