@@ -219,9 +219,9 @@ void AST_constraints::install(Formula *F) {
   
 	
 void install_neq(F_And *F, Exp *e1, Exp *e2) {
-	F_Or *or = F->add_or();
-	F_And *and1 = or->add_and();
-	F_And *and2 = or->add_and();
+	F_Or *bor = F->add_or();
+	F_And *and1 = bor->add_and();
+	F_And *and2 = bor->add_and();
 	install_gt(and1,e1,e2);
 	install_gt(and2,e2,e1);
 	};
