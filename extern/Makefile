@@ -7,7 +7,7 @@
 
 TOP = ..
 include $(TOP)/Top.Makefile
-SUBDIRSCLEANONLY = iCalendar ocaml-csv-1.0.3
+SUBDIRSCLEANONLY = iCalendar ocaml-csv-1.0.3 omega
 
 all:
 

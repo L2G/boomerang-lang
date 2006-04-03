@@ -5,16 +5,9 @@
 # Top-level makefile: lists possible targets, call those makefiles, install
 #  target
 
-default:
-	@echo Valid targets are:
-	@echo "  " executables: oc petit
-	@echo "  " libraries: libomega.a libcode_gen.a libuniform.a
-	@echo "  " all: all above targets
-	@echo Or, change to the appropriate subdirectory and do \"make\".
-	@echo In any directory, BE SURE to do a \"make depend\" before compiling!
-	@echo Edit Makefile.config to customize\; see INSTALL for details.
+default: oc
 
-all: oc petit
+all: oc 
 
 BASEDIR =.
 
@@ -38,7 +31,7 @@ libuniform.a: tables always
 
 install: install_all
 depend: depend_all
-clean: clean_all
+clean: veryclean_all
 veryclean: veryclean_all
 
 SUBMAKE=$(MAKE)

@@ -26,9 +26,15 @@ tags:
 # EXTERNAL TOOLS AND LIBS #
 ###########################
 
-all: $(SRCDIR)/bakery.ml $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
-native-code: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
-native-code-library: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa
+all: $(SRCDIR)/bakery.ml \
+     $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa \
+     $(EXTERNDIR)/omega/omega_calc/obj/oc
+
+native-code: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa\
+             $(EXTERNDIR)/omega/omega_calc/obj/oc
+
+native-code-library: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa\
+                     $(EXTERNDIR)/omega/omega_calc/obj/oc
 
 LIBS += $(EXTERNDIR)/ocaml-csv-1.0.3/csv
 
@@ -40,6 +46,9 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+
+$(EXTERNDIR)/omega/omega_calc/obj/oc:
+	$(MAKE) -C $(EXTERNDIR)/omega
 
 $(SRCDIR)/baker: $(SRCDIR)/baker.ml
 	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^
@@ -75,7 +84,7 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
 	       treedb.mli treedb.ml csvdb.mli csvdb.ml \
                surveyor.mli surveyor.ml \
                syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
-               schema.mli schema.ml value.mli value.ml \
+               presburger.ml schema.mli schema.ml value.mli value.ml \
                env.mli env.ml bakery.ml registry.mli registry.ml \
 	       sync.mli sync.ml \
                compiler.mli compiler.ml 
