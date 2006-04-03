@@ -84,8 +84,9 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
 	       treedb.mli treedb.ml csvdb.mli csvdb.ml \
                surveyor.mli surveyor.ml \
                syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
-               presburger.ml schema.mli schema.ml value.mli value.ml \
-               env.mli env.ml bakery.ml registry.mli registry.ml \
+               presburger.ml presburger.mli schema.mli schema.ml \
+               value.mli value.ml env.mli env.ml bakery.ml \
+               registry.mli registry.ml \
 	       sync.mli sync.ml \
                compiler.mli compiler.ml 
 

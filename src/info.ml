@@ -25,9 +25,9 @@ let merge_inc =
   function I (fn,pos1,_) -> 
     begin 
       function I (_,_,pos2) -> I (fn,pos1,pos2)
-	| _ -> assert false (* FIXME: throw some exception *)
+	| m -> m
     end
-    | _ -> assert false
+    | m -> (fun _ -> m)
 	
 (* merge_exc : t -> t -> t
  *     merge two locations; excludes the endpoints *)
