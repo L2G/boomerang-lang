@@ -20,8 +20,10 @@ type exp =
 (* formulas are represented in de Bruijn notation *)
 and formula = 
     Equal of Info.t * exp * exp 
+  | Lt of Info.t * exp * exp 
   | Not of Info.t * formula
   | Or of Info.t * formula * formula
+  | And of Info.t * formula * formula
   | Exists of Info.t * formula
 
 (* --------------- utility functions --------------- *)
@@ -30,9 +32,11 @@ let info_of_exp = function
   | Var(i,_)   -> i
   | Sum(i,_,_) -> i
 let info_of_formula = function
-    Equal(i,_,_)   -> i
-  | Not(i,_)       -> i
-  | Or(i,_,_)      -> i
+    Equal(i,_,_) -> i
+  | Lt(i,_,_)    -> i
+  | Not(i,_)     -> i
+  | Or(i,_,_)    -> i
+  | And(i,_,_)   -> i
   | Exists(i,_)  -> i
 
 (* calculate the free variables of an exp or formula *)
@@ -42,8 +46,10 @@ let rec fvs_exp = function
   | Sum(_,e1,e2) -> IntSet.union (fvs_exp e1) (fvs_exp e2) 
 and fvs_formula = function
     Equal(_,e1,e2) -> IntSet.union (fvs_exp e1) (fvs_exp e2)
+  | Lt(_,e1,e2)    -> IntSet.union (fvs_exp e1) (fvs_exp e2)
   | Not(_,f)       -> fvs_formula f
   | Or(_,f1,f2)    -> IntSet.union (fvs_formula f1) (fvs_formula f2)
+  | And(_,f1,f2)   -> IntSet.union (fvs_formula f1) (fvs_formula f2)
   | Exists(_,f)    -> 
       IntSet.fold 
         (fun x s -> if (x <> 0) then (IntSet.add (x-1) s) else s) 
@@ -54,12 +60,14 @@ and fvs_formula = function
 (* cutoff *)
 let rec shift_exp_aux n c = function
     Const(i,n)    -> Const(i,n) 
-  | Var(i,x)      -> Var(i, if (x <= c) then x else x + n)
+  | Var(i,x)      -> Var(i, if (x < c) then x else x + n)
   | Sum(i,e1,e2)  -> Sum(i,shift_exp_aux n c e1, shift_exp_aux n c e2)
 and shift_aux n c = function 
     Equal(i,e1,e2) -> Equal(i, shift_exp_aux n c e1, shift_exp_aux n c e2)
+  | Lt(i,e1,e2)    -> Lt(i, shift_exp_aux n c e1, shift_exp_aux n c e2)
   | Not(i,f)       -> Not(i,shift_aux n c f)
   | Or(i,f1,f2)    -> Or(i, shift_aux n c f1, shift_aux n c f2)
+  | And(i,f1,f2)   -> And(i, shift_aux n c f1, shift_aux n c f2)
   | Exists(i,f)    -> Exists(i, shift_aux n (c+1) f)
 
 (* plain shifting *)
@@ -72,19 +80,19 @@ let rec substitute xs es =
   let rec do_subst xs es i y = 
     match xs,es with
         [],_ | _,[] -> Var(i,y)
-      | (x1::xt),(e1::et) -> 
-          if (y = x1) then e1 else do_subst xt et i y in
+      | (x1::xt),(e1::et) -> if (y = x1) then e1 else do_subst xt et i y in
   let rec substitute_exp xs es = function
       Const(i,n)   -> Const(i,n)
     | Var(i,y)     -> do_subst xs es i y
-    | Sum(i,e1,e2) -> 
-        Sum(i,substitute_exp xs es e1, substitute_exp xs es e2) in 
-    function        
-      Equal(i,e1,e2) -> Equal(i, substitute_exp xs es e1, substitute_exp xs es e2)
-    | Not(i,f)       -> Not(i, substitute xs es f)
-    | Or(i,f1,f2)    -> Or(i, substitute xs es f1, substitute xs es f2)
-    | Exists(i,f)    -> Exists(i, substitute (List.map succ xs) (List.map (shift_exp 1) es) f)
-    
+    | Sum(i,e1,e2) -> Sum(i,substitute_exp xs es e1, substitute_exp xs es e2) in 
+    function
+        Equal(i,e1,e2) -> Equal(i, substitute_exp xs es e1, substitute_exp xs es e2)
+      | Lt(i,e1,e2)    -> Lt(i, substitute_exp xs es e1, substitute_exp xs es e2)
+      | Not(i,f)       -> Not(i, substitute xs es f)
+      | Or(i,f1,f2)    -> Or(i, substitute xs es f1, substitute xs es f2)
+      | And(i,f1,f2)   -> And(i, substitute xs es f1, substitute xs es f2)
+      | Exists(i,f)    -> Exists(i, substitute (List.map succ xs) (List.map (shift_exp 1) es) f)
+
 (** instantiate: exp list -> formula -> formula *)
 let instantiate es f = 
   let rec mk_xs i = function [] -> [] | _::t -> i::(mk_xs (i+1) t) in
@@ -104,6 +112,9 @@ let mkSum e1 e2 = Sum(Info.merge_inc (info_of_exp e1) (info_of_exp e2),e1 ,e2)
 (** mkEqual: exp -> exp -> formula *)
 let mkEqual e1 e2 = Equal(Info.merge_inc (info_of_exp e1) (info_of_exp e2),e1,e2)
 
+(** mklt: exp -> exp -> formula *)
+let mkLt e1 e2 = Lt(Info.merge_inc (info_of_exp e1) (info_of_exp e2),e1,e2)
+
 (** mkNot: formula -> formula *)
 let mkNot f = Not(info_of_formula f, f)
  
@@ -111,18 +122,11 @@ let mkNot f = Not(info_of_formula f, f)
 let mkOr f1 f2 = 
   Or(Info.merge_inc (info_of_formula f1) (info_of_formula f2),f1,f2)
 
+(** mkAnd  formula -> formula -> formula *)
+let mkAnd f1 f2 =  And(Info.merge_inc (info_of_formula f1) (info_of_formula f2), f1, f2)
+
 (** mkExists: formula -> formula *)
 let mkExists f = Exists(info_of_formula f,f)
-
-(** mkAnd  formula -> formula -> formula *)
-let mkAnd f1 f2 =  mkNot (mkOr (mkNot f1) (mkNot f2))
-
-(** mkLt: exp -> exp -> formula *)
-let mkLt e1 e2 = 
-  mkExists
-    (mkEqual 
-       (shift_exp 1 e1)
-       (mkSum (shift_exp 1 e2) (mkVar (info_of_exp e2) 0)))
 
 (** mkLe: exp -> exp -> formula *)
 let mkLe e1 e2 = mkOr (mkEqual e1 e2) (mkLt e1 e2)
@@ -157,58 +161,71 @@ let mkSum_formula f1 f2 =
   let rec mk_exists n acc = if n = 0 then acc else mk_exists (n-1) (mkExists acc) in             
     mk_exists (c1+c2) f'
       
-let rec format_exp = function _ -> Format.printf "UNFINISHED"
-and format_formula = function _ -> Format.printf "UNFINISHED"
+let rec format_exp = function 
+    Const(_,n) -> Format.printf "@[%d@]" n
+  | Var(_,n)   -> Format.printf "@[n%d@]" n
+  | Sum(_,e1,e2) -> 
+      Format.printf "@[";
+      format_exp e1;
+      Format.printf "@,+";
+      format_exp e2;
+      Format.printf "@]"
 
-let rec ofmt_exp fmtr = function 
-    Const(_,n)   -> Format.fprintf fmtr "%d" n
-  | Var(_,n)     -> Format.fprintf fmtr "n%d" n
-  | Sum(_,e1,e2) ->
-      Format.fprintf fmtr "@[(";
-      ofmt_exp fmtr e1; 
-      Format.fprintf fmtr "@ +@ "; 
-      ofmt_exp fmtr e2; 
-      Format.fprintf fmtr ")@]"
-
-let ofmt_formula fmtr = 
-  let rec ofmt_formula_aux fmtr level = function
+let format_formula = 
+  let rec format_formula_aux qd = function
       Equal(_,e1,e2) ->
-        Format.fprintf fmtr "@[";
-        ofmt_exp fmtr e1; 
-        Format.fprintf fmtr "@,=@,"; 
-        ofmt_exp fmtr e2; 
-        Format.fprintf fmtr "@]"
+        Format.printf "@[";
+        format_exp e1; 
+        Format.printf "@,=@,"; 
+        format_exp e2;
+        Format.printf "@]"
+    | Lt(_,e1,e2) ->
+        Format.printf "@[";
+        format_exp e1; 
+        Format.printf "@,<@,"; 
+        format_exp e2;
+        Format.printf "@]"
     | Not(_,f1) -> 
-        Format.fprintf fmtr "@[not@ ("; 
-        ofmt_formula_aux fmtr level f1;
-        Format.fprintf fmtr ")@]"
+        Format.printf "@[not@,("; 
+        format_formula_aux qd f1;
+        Format.printf ")@]"
     | Or(_,f1,f2) ->
-        Format.fprintf fmtr "@[(";
-        ofmt_formula_aux fmtr level f1; 
-        Format.fprintf fmtr "@ or@ "; 
-        ofmt_formula_aux fmtr level f2; 
-        Format.fprintf fmtr ")@]"
+        Format.printf "@[(";
+        format_formula_aux qd f1; 
+        Format.printf "@ or@ "; 
+        format_formula_aux qd f2; 
+        Format.printf ")@]"
+    | And(_,f1,f2) ->
+        Format.printf "@[(";
+        format_formula_aux qd f1; 
+        Format.printf "@ and@ "; 
+        format_formula_aux qd f2; 
+        Format.printf ")@]"
     | Exists(_,f1) -> 
-        Format.fprintf fmtr "@[exists(n%d:" level;
-        ofmt_formula_aux fmtr (level+1) f1;
-        Format.fprintf fmtr ")@]"
-  in          
-    ofmt_formula_aux fmtr 0
+        Format.printf "@[exists(n%d:" qd;
+        Format.printf "n%d>=0@ and@ " qd;
+        format_formula_aux (qd+1) f1;
+        Format.printf ")@]"
+  in       
+    format_formula_aux 0
 
+(* existentially quantify all the free variables in a formula *)
 let close f = 
-  let x = IntSet.max_elt (fvs_formula f) in 
-  let rec wrap n acc = 
-    if (n=0) then acc else wrap (n-1) (mkExists acc) in
-    wrap x f
+  let rec wrap n acc = if (n=0) then acc else wrap (n-1) (mkExists acc) in
+  let fvs = fvs_formula f in
+    if IntSet.is_empty fvs then f 
+    else wrap (IntSet.max_elt fvs) f
 
 (* IMPORTANT: will break unless oc is in your path! *)
 let satisfiable f = 
   let inc,outc = Unix.open_process "oc" in
-  let fmtr = Format.formatter_of_out_channel outc in
+  let old_out, old_flush = Format.get_formatter_output_functions () in
   let _ = 
-    Format.fprintf fmtr "{[]:";
-    ofmt_formula fmtr f;
-    Format.fprintf fmtr "};\n%!" in
+    Format.set_formatter_out_channel outc;
+    Format.printf "{[]:";
+    format_formula (close f);
+    Format.printf "};\n%!";
+    Format. set_formatter_output_functions old_out old_flush in
   let _ = close_out outc in
   let rec parse_oc () = 
     let r = input_line inc in
@@ -219,12 +236,13 @@ let satisfiable f =
     
 let init () = 
   let i = Info.M "baked in" in
-  let _ = assert (satisfiable (mkExists (mkEqual (mkVar i 0) (mkConst i 7)))) in
-  let _ = 
-    assert (not (satisfiable 
-                   (mkExists 
-                      (mkAnd
-                         (mkGt (mkVar i 0) (mkConst i 10))
-                         (mkLt (mkVar i 0) (mkConst i 10)))))) in
+  let f1 = mkExists (mkEqual (mkVar i 0) (mkConst i 7)) in 
+  let f2 = mkExists (mkAnd
+                        (mkGt (mkVar i 0) (mkConst i 10))
+                        (mkLt (mkVar i 0) (mkConst i 10))) in
+  let _ = Format.printf "CHECKING FORMULA: %!"; format_formula f1; Format.printf "\n%!" in
+  let _ = assert (satisfiable f1) in
+  let _ = Format.printf "CHECKING FORMULA: %!"; format_formula f2; Format.printf "\n%!" in
+  let _ = assert (not (satisfiable f2)) in
     ()
         

@@ -30,7 +30,7 @@ val mkGe : exp -> exp -> formula
 val mkSum_formula : formula -> formula -> formula
 
 val format_exp : exp -> unit
-val format_formula : exp -> unit
+val format_formula : formula -> unit
 
 val satisfiable : formula -> bool 
 val init : unit -> unit
