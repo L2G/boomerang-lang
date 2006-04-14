@@ -87,7 +87,7 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                presburger.ml presburger.mli schema.mli schema.ml \
                value.mli value.ml env.mli env.ml bakery.ml \
                registry.mli registry.ml \
-	       sync.mli sync.ml \
+	       diff3.mli diff3.ml sync.mli sync.ml \
                compiler.mli compiler.ml 
 
 VIEWER_SOURCES = metay.mly metal.mll \

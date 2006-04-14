@@ -6,6 +6,10 @@
 (****************************************************************)
 (* $Id *)
 
+let diff3 = Prefs.createBool "diff3" false
+  "Use diff3 algorithm to synchronize lists"
+  "Use diff3 algorithm to synchronize lists"
+
 let debug = Trace.debug "sync"
 
 type copy_value =
@@ -19,28 +23,41 @@ type action =
   | DeleteConflict of V.t * V.t
   | CopyLeftToRight of copy_value
   | CopyRightToLeft of copy_value
+  | ListSync
+  | ListConflict
   | GoDown of action Name.Map.t
 
 let equal = MarkEqual
-
-let rec conflict_free = function
-    SchemaConflict _ | DeleteConflict _  -> false
-  | MarkEqual | CopyLeftToRight _ | CopyRightToLeft _ -> true
-  | GoDown(m) -> Name.Map.for_all conflict_free m
 
 let schema_conflict = function
   | SchemaConflict _ -> true
   | _                -> false
 
+(*********************************************************************************)
+
+module D3Args = struct
+  type elt = V.t
+  let eqv = V.equal
+  let format = V.format_t
+  let tostring = V.string_of_t
+end
+module D3 = Diff3.Make(D3Args)
+
+(*********************************************************************************)
+
 let rec find_conflict a = 
   match a with
       SchemaConflict _ | DeleteConflict _  -> Some a
     | MarkEqual | CopyLeftToRight _ | CopyRightToLeft _ -> None
+    | ListSync -> None  (* bogus! *)
+    | ListConflict -> Some a
     | GoDown(m) -> Name.Map.fold 
 	(fun k a' opt -> 
 	   match opt with
 	       None -> find_conflict a'
 	     | Some a -> opt) m None
+
+let rec conflict_free a = (find_conflict a = None)
 
 (*********************************************************************************)
 
@@ -73,6 +90,8 @@ let rec format_raw = function
       Format.printf "DELETE CONFLICT@,  @[";
       V.show_diffs v0 v;
       Format.printf "@]@,"
+  | ListSync -> Format.printf "DIFF3"
+  | ListConflict -> Format.printf "LIST CONFLICT"
   | CopyLeftToRight c -> format_copy "-->" c
   | CopyRightToLeft c -> format_copy "<--" c
 
@@ -123,15 +142,15 @@ let rec format_pretty = function
       Format.printf "@]@,"
   | CopyLeftToRight c -> format_copy "-->" c
   | CopyRightToLeft c -> format_copy "<--" c
+  | ListSync -> Format.printf "DIFF3"
+  | ListConflict -> Format.printf "LIST CONFLICT"
       
 and format_cons equal_hd_count m =
   let dump_hd_count n =
     if n = 0 then ()
     else if n = 1 then Format.printf "..." 
     else Format.printf "...(%d)..." n in
-  let close_list () = Format.printf "@]]" in
   let hd_action = (try Name.Map.find V.hd_tag m with Not_found -> MarkEqual) in
-  let all_tags = Name.Set.elements  in
   let tl_tag =
     begin
       try Name.Set.choose (Name.Set.diff (Name.Map.domain m) list_tags)
@@ -217,6 +236,8 @@ let rec sync' s oo ao bo =
              are MarkEquals and, if so, replace the whole GoDown by MarkEqual *)
 	  if V.equal lv rv then
             (MarkEqual, Some lv, Some lv, Some rv)
+          (* BCP [Apr 06]: The next tests are potentially nasty too!  And the
+             test for V.hd_tag is a hack that should be removed, if possible. *)
           else if Name.Set.is_empty (Name.Set.inter
                                        (Name.Set.remove V.hd_tag (V.dom lv))
                                        (Name.Set.remove V.hd_tag (V.dom rv)))
@@ -226,12 +247,21 @@ let rec sync' s oo ao bo =
               (CopyRightToLeft (Replacing (lv,rv)), Some rv, Some rv, Some rv)
             else 
               (CopyLeftToRight (Replacing (rv,lv)), Some lv, Some lv, Some lv)
+          else if V.is_list lv && V.is_list rv && Prefs.read diff3 then
+            let ll = V.list_from_structure lv in
+            let rl = V.list_from_structure rv in
+            let ol = match oo with
+                       None -> []
+                     | Some ov -> if V.is_list ov then V.list_from_structure ov else [] in
+            let (ol',ll',rl') = D3.sync (ol,ll,rl) in
+            (ListSync,
+             Some (V.structure_from_list ol'),
+             Some (V.structure_from_list ll'),
+             Some (V.structure_from_list rl'))
+          else if (V.is_list lv || V.is_list rv) && Prefs.read diff3 then
+            (ListConflict, oo, ao, bo)
           else
 	    let lrkids = Name.Set.union (V.dom lv) (V.dom rv) in
-	    let allkids = 
-	      match oo with
-		| None -> lrkids
-		| Some a -> Name.Set.union (V.dom a) lrkids   in	      
 	    let actbinds, arbinds, lbinds, rbinds = 	      
 	      Name.Set.fold
 		(fun k (actacc, aracc, lacc, racc) ->

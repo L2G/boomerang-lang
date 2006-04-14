@@ -85,6 +85,7 @@ get_demos_from("calendars");
 get_demos_from("relational");
 #get_demos_from("xmi");
 get_demos_from("rawsync");
+get_demos_from("talkdemos");
 
 #####################
 # Set Up Parameters #
@@ -623,7 +624,7 @@ CSS;
 ##
 # Javascript
 ##
-$js = <<<JAVASCRIPT
+$js = <<<ENDJAVASCRIPT
 var x=0;
 var y=0;
 var c=null;
@@ -708,7 +709,7 @@ function load() {
 }
 $ELEMENT_functions
 $ICON_functions
-JAVASCRIPT;
+ENDJAVASCRIPT;
 
 # strip redundant whitespace from CSS and javascript
 $css = compress($css);
@@ -718,7 +719,7 @@ $demogroupname = $alldemos[$demogroup]['demogroupname'];
 ##
 # HTML OUTPUT
 ##
-print <<<HTML
+print <<<ENDHTML
 <html>
 <head>
 <title>Harmony - $demogroupname</title>
@@ -748,7 +749,7 @@ print <<<HTML
 <div class="spacer"></div>
 </body>
 </html>
-HTML;
+ENDHTML;
 
 ###################################
 # Misc Functions #

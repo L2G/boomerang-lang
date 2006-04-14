@@ -257,8 +257,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     let n = Misc.tempFileName f in
     tempnames := f::!tempnames;
     n  in
-  let cleanupTempFiles () =
-    List.iter (fun n -> Sys.remove n) !tempnames in
+  (* let cleanupTempFiles () =
+     List.iter (fun n -> Sys.remove n) !tempnames in *)
 
   Util.finalize (fun () ->
     (* Do pre-processing *)

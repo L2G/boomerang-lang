@@ -66,6 +66,7 @@ BCP TASKS
 * tidy this file
 
 SOMEBODY TASKS
+* do the hack to make a control key for running the demo
 * decommission and delete the /visual subdirectory
 * change the structured text lens so that it adds dummy headers all the time
 * change implementation of sync alg to eliminate delete/delete conflicts,

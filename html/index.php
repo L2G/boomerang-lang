@@ -220,6 +220,7 @@ HTML;
   <ul>
      <li>ITR-0113226: <i>Principles and Practice of Synchronization</i></li>
      <li>CPA-0429836: <i>Harmony: The Art of Reconciliation</i></li>
+     <li>IIS-0534592: <i>Linguistic Foundations for XML View Update</i></li>
   </ul>
 </div>
 
