@@ -1,2 +1,0 @@
-R := { [i] : i < 10 && i > 1 && exists ( alpha : i = 3alpha) };
-codegen R;

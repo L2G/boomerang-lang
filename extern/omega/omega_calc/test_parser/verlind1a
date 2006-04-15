@@ -1,3 +1,0 @@
-R := { [i] : 1 <= i <= 6 & Exists (alpha : 3 alpha + 1 <= i <= 3 alpha + 2)
-	   & not (1 <= i <= 2) };
-R;
