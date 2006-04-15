@@ -122,12 +122,18 @@ let sync (o,a,b) =
        (* let _ = eprintf  "AB %B" is_diff_ab in *)
        let add_lines sl el arr dest =
          (* let _ = eprintf "%d %d %d \n" sl el (Array.length arr) in *)
-         let len = el - sl in 
-         if (sl > -1) then 
-           let tmp_arr = Array.init len (fun i -> arr.(sl+i)) in
-           List.append (Array.to_list tmp_arr) dest 
-         else dest in
-       if is_diff_oa then
+	 let isfirst = (sl = -1) in 
+	 let len = if isfirst then el-sl-1 else el-sl in  
+	 let start = if isfirst then 0 else sl in  
+	   if (len > 0) then 
+	     (
+               let tmp_arr = Array.init len (fun i -> arr.(start+i) ) in
+		 List.append (Array.to_list tmp_arr) dest 
+	     )
+           else 
+	     dest 
+       in
+	 if is_diff_oa then
          if is_diff_ob 
          then begin  (* conflict case *)
            let o'= add_lines so eo arr_o o'  in 
