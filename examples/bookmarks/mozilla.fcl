@@ -22,11 +22,11 @@ module Mozilla =
           (protect (link)))
 
   and folder : lens = 
-   xfork { `List.HD } { "name" }
-      (hoist List.HD; rename "H3"; "name")
-      (hoist List.TL; List.hd []; rename "DL" "contents")
-   wmap { "name" ->  focus Xml.CHILDREN {}; List.hd []; hoist Xml.PCDATA,
-           "contents" -> hoist Xml.CHILDREN; List.map item }
+    xfork { `List.HD } { "name" }
+      (hoist List.HD; rename "H3" "name")
+      (hoist List.TL; List.hd []; rename "DL" "contents");
+    wmap { "name" ->  focus Xml.CHILDREN {}; List.hd []; hoist Xml.PCDATA,
+             "contents" -> hoist Xml.CHILDREN; List.map item }
       
   and link : lens = 
     List.hd [];
