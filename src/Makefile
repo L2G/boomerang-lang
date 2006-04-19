@@ -28,13 +28,10 @@ tags:
 
 all: $(SRCDIR)/bakery.ml \
      $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa \
-     $(EXTERNDIR)/omega/omega_calc/obj/oc
 
 native-code: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa\
-             $(EXTERNDIR)/omega/omega_calc/obj/oc
 
 native-code-library: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa\
-                     $(EXTERNDIR)/omega/omega_calc/obj/oc
 
 LIBS += $(EXTERNDIR)/ocaml-csv-1.0.3/csv
 
@@ -46,9 +43,6 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
-
-$(EXTERNDIR)/omega/omega_calc/obj/oc:
-	$(MAKE) -C $(EXTERNDIR)/omega
 
 $(SRCDIR)/baker: $(SRCDIR)/baker.ml
 	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^

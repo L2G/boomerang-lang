@@ -107,5 +107,3 @@ let l2 : lens = l; tidy;
 
 (* l3 uses the unordered schema Bookmarks.BushAbstract *)
 let l3 : lens = l2; Bookmarks.flatten_bookmarks
-
-?
