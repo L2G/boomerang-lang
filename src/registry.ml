@@ -164,7 +164,6 @@ let lookup_library_ctx nctx q =
        (Env.to_string !library string_of_rv)
        )
        in *)
-    let sq = Syntax.string_of_qid in
     let try_lib () = Env.lookup !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with

@@ -8,17 +8,6 @@
 
 (** The synchronization algorithm *)
 
-type copy_value
+val sync : Schema.t -> V.t option -> V.t option -> V.t option -> bool ->
+           [`Conflict | `NoConflict] * V.t option * V.t option * V.t option
 
-type action
-val equal : action
-
-val conflict_free : action -> bool
-val format : action -> unit
-val sync : Schema.t -> V.t option -> V.t option -> V.t option -> 
-  action * V.t option * V.t option * V.t option
-
-(* NOT USED??
-val propagate : V.t option -> V.t option -> V.t option -> action -> 
-  V.t option * V.t option * V.t option 
-*)

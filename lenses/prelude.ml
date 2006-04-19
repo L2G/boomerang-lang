@@ -115,8 +115,8 @@ let sync lo la lb typ orig =
   let co,ca,cb =
     try
       (V.get_required ~msg:"sync1" orig "O", 
-       V.get_required ~msg:"sync2 " orig "A", 
-       V.get_required ~msg:"sync3 "orig "B")
+       V.get_required ~msg:"sync2" orig "A", 
+       V.get_required ~msg:"sync3" orig "B")
     with
         (Error.Harmony_error _) -> 
 	  error [`String sync_qid
@@ -124,8 +124,9 @@ let sync lo la lb typ orig =
 		; `Tree orig
 		; `String "should have children 'O', 'A', and 'B'"
 		] in
+  let log = (V.get orig "log" <> None) in
   let ao,aa,ab = (Lens.get lo co, Lens.get la ca, Lens.get lb cb) in
-  let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) in
+  let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) log in
   let (ao',aa',ab') = match (ao',aa',ab') with 
       Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') 
     | _ -> assert false in

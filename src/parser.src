@@ -180,12 +180,12 @@ decls:
                                                  get_test::put_test::$8 }
       
   | SYNC WITH aexp AT aexp aexp EQUAL 
-      aexp decls                             { let i = me2 $1 $8 in
-                                               let sync_test = DTest(i, mk_sync_exp i $3 $3 $3 $5 $6, Result $8) in
+      test_res decls                         { let i = m $1 (fst $8) in
+                                               let sync_test = DTest(i, mk_sync_exp i $3 $3 $3 $5 $6, snd $8) in
                                                  sync_test::$9 } 
   | SYNC WITH aexp aexp aexp AT 
-      aexp aexp EQUAL aexp decls             { let i = me2 $1 $10 in
-                                               let sync_test = DTest(i, mk_sync_exp i $3 $4 $5 $7 $8, Result $10) in
+      aexp aexp EQUAL test_res decls         { let i = m $1 (fst $10) in
+                                               let sync_test = DTest(i, mk_sync_exp i $3 $4 $5 $7 $8, snd $10) in
                                                  sync_test::$11 }
   |                                          { [] }
       

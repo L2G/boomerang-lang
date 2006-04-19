@@ -74,11 +74,11 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let lensa = lookup_lens lensa in 
   let lensb = lookup_lens lensb in         
   let forcer1 = Prefs.read forcer1 in
-  let (o, a, b, (act, oa', aa', ba')) =
+  let (o, a, b, (conflict, oa', aa', ba')) =
     if forcer1 then begin
       let a = read_tree a_fn in
       let aa = Misc.map_option (Lens.get lensa) a in
-      (a, a, a, (Sync.equal, aa, aa, aa))
+      (a, a, a, (`NoConflict, aa, aa, aa))
     end
     else 
       let a = read_tree a_fn in
@@ -87,9 +87,8 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       let aa = Misc.map_option (Lens.get lensa) a in
       let oa = Misc.map_option (Lens.get lenso) o in
       let ba = Misc.map_option (Lens.get lensb) b in
-      (o, a, b, Sync.sync s oa aa ba)
+      (o, a, b, Sync.sync s oa aa ba true)
     in
-  Sync.format act;
   Format.print_newline();
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
@@ -97,7 +96,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   ignore (Misc.map_option (write_tree o'_fn) o');
   ignore (Misc.map_option (write_tree a'_fn) a');
   ignore (Misc.map_option (write_tree b'_fn) b');
-  if not (Sync.conflict_free act) && Prefs.read signalconflicts then exit 1
+  if conflict = `Conflict && Prefs.read signalconflicts then exit 1
 
 (**********************************************************************************)
 (* Infrastructure for custom top-level programs *)             

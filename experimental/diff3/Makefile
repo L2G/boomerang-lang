@@ -13,7 +13,7 @@ include $(TOP)/Top.Makefile
 
 test:: 
 	$(MAKE) -C $(SRCDIR)
-	$(HARMONY) -diff3 -debug diff3 -check Diff3 -test-all
+	$(HARMONY) -diff3 -check Diff3 -test-all
 
 include $(OCAMLMAKEFILE)
 
