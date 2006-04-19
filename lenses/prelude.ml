@@ -126,10 +126,11 @@ let sync lo la lb typ orig =
 		] in
   let log = (V.get orig "log" <> None) in
   let ao,aa,ab = (Lens.get lo co, Lens.get la ca, Lens.get lb cb) in
-  let _,ao',aa',ab' = Sync.sync typ (Some ao) (Some aa) (Some ab) log in
+  let a,ao',aa',ab' = Sync.sync typ (Some ao, Some aa, Some ab) in
   let (ao',aa',ab') = match (ao',aa',ab') with 
       Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') 
     | _ -> assert false in
+  if log then Sync.format_action a;
   let co',ca',cb' = (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb)) in	
     V.from_list [("O", co'); ("A",ca'); ("B",cb')]
       

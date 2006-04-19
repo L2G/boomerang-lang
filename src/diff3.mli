@@ -1,19 +1,23 @@
 module type DIFF3ARGS = sig
   type elt
+  type action
+  val format_action: action -> unit
+  val has_conflict: action -> bool
   val eqv : elt -> elt -> bool
   val tostring : elt -> string
   val format : elt -> unit
+  val sync: Schema.t -> (elt option * elt option * elt option)
+         -> (action * elt option * elt option * elt option)
 end
 
-module Make(A: DIFF3ARGS) : 
-sig
-      
-  val sync : ((A.elt option * A.elt option * A.elt option)
-              -> ([`Conflict | `NoConflict] * A.elt option * A.elt option * A.elt option))  
-                                                                (* elt sync *)
-          -> bool                                               (* log? *)
-          -> (A.elt list * A.elt list * A.elt list)             (* inputs *)
-          -> ([`Conflict | `NoConflict] * A.elt list * A.elt list * A.elt list)
-                                                                (* outputs *)
-
+module type DIFF3RES = sig
+  type elt 
+  type action
+  val format_action: action -> unit
+  val has_conflict: action -> bool
+  val sync : Schema.t
+          -> (elt list * elt list * elt list)
+          -> (action * elt list * elt list * elt list)
 end
+
+module Make(A: DIFF3ARGS) : DIFF3RES with type elt = A.elt
