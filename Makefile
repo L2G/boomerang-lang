@@ -20,17 +20,16 @@ DOWNLOADDIR=$(WEBDIR)/download
 ## Tarball export - to be run by harmony@halfdome.cis.upenn.edu
 
 EXPORTNAME=harmony-$(shell date "+20%y%m%d")
-TMP=/tmp
-TMPDIR=$(TMP)/$(EXPORTNAME)
+EXPORTDIR=/tmp/$(EXPORTNAME)
 
 tar: 
 	echo \\draftfalse > $(DOCDIR)/temp.tex
 	$(MAKE) -C $(DOCDIR) main.pdf
-	rm -rf $(TMPDIR)
-	(cd $(TMP); svn export file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
-	cp $(DOCDIR)/main.pdf $(TMPDIR)/doc/manual.pdf
-	(cd $(TMP); tar zcvf $(EXPORTNAME).tar.gz $(EXPORTNAME))
-	mv $(TMP)/$(EXPORTNAME).tar.gz $(DOWNLOADDIR)
+	rm -rf $(EXPORTDIR)
+	(cd $(EXPORTDIR)/..; svn export file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
+	cp $(DOCDIR)/main.pdf $(EXPORTDIR)/doc/manual.pdf
+	(cd $(EXPORTDIR)/..; tar zcvf $(EXPORTNAME).tar.gz $(EXPORTNAME))
+	mv $(EXPORTDIR/../$(EXPORTNAME).tar.gz $(DOWNLOADDIR)
 
 ###########################################################################
 ## Web Install - to be run by harmony@halfdome.cis.upenn.edu

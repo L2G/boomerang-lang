@@ -399,6 +399,9 @@ let color s ?(bold=false) c =
 let is_dir f =
   try (Unix.stat f).Unix.st_kind = Unix.S_DIR with _ -> false
 
+let is_file f =
+  try (Unix.stat f).Unix.st_kind = Unix.S_REG with _ -> false
+
 (* mkdir_forsure : string -> unit *)
 let mkdir_forsure d = if not (is_dir d) then Unix.mkdir d 0o0755
 
@@ -425,6 +428,8 @@ let in_dir d f =
   let res = f () in
   Unix.chdir cwd;
   res
+
+
 
 let rec remove_file_or_dir d =
   if not (Sys.file_exists d) then () else
@@ -458,7 +463,7 @@ let read file =
   if file = "-" then
     read_chan stdin
   else 
-    let chan = open_in file in
+    let chan = open_in_bin file in
     try
       let r = read_chan chan in
       close_in chan;
@@ -471,7 +476,7 @@ let write file s =
   if file = "-" then
     output_string stdout s
   else 
-    let chan = open_out file in
+    let chan = open_out_bin file in
     try
       output_string chan s;
       close_out chan

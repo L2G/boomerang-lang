@@ -102,7 +102,7 @@ let find_filename basename exts =
               basename 
               (if String.length ext = 0 then "" else ".")
               ext in 
-              if Sys.file_exists fn then Some fn
+              if Sys.file_exists fn && Misc.is_file fn then Some fn
               else k ()
           in
           let rec inner_loop = function
@@ -111,7 +111,7 @@ let find_filename basename exts =
             inner_loop exts              
         end
   in
-    loop ((Prefs.read paths) @ focalpath)
+    loop ((Safelist.rev (Prefs.read paths) @ focalpath))
       
 (* load modules dynamically *)
 (* backpatch hack *)

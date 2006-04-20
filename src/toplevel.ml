@@ -137,10 +137,20 @@ let runcmd cmd =
   if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
 
 let cp_or_del f g =
-  if Sys.file_exists f
-  then runcmd (Printf.sprintf "cp %s %s" f g)
-  else if Sys.file_exists g then runcmd (Printf.sprintf "rm %s" g)
-  
+  if Sys.file_exists g then Sys.remove g;
+  if Sys.file_exists f then 
+    begin 
+      (* slurp in f, write to g *)
+      let inc = open_in_bin f in
+      let len = in_channel_length inc in
+      let buf = String.make len '\000' in
+        really_input inc buf 0 len;
+        close_in inc;
+        let outc = open_out_bin g in
+          output outc buf 0 len;
+          close_out outc
+    end
+
 (* Top-level boilerplate *)
 
 type 'a filetype = Unknown | Meta | UserType of 'a

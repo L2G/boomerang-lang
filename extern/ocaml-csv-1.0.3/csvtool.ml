@@ -130,7 +130,7 @@ let () =
 
   (* Set up the output file. *)
   let chan =
-    if output_file <> "" then open_out output_file
+    if output_file <> "" then open_out_bin output_file
     else stdout in
 
   (match cmd with

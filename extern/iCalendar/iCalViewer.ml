@@ -9,8 +9,8 @@ let try_finalize f x e y =
 
 let ics2meta icsf metaf = 
   let go () = 
-    let inc = open_in icsf in
-    let outc = open_out metaf in 
+    let inc = open_in_bin icsf in
+    let outc = open_out_bin metaf in 
     let close () = close_in inc; close_out outc in
       try_finalize (ICalendar.iCalReader inc) outc close () 
   in
@@ -18,8 +18,8 @@ let ics2meta icsf metaf =
 
 let meta2ics metaf icsf = 
   let go () = 
-    let inc = open_in metaf in
-    let outc = open_out icsf in 
+    let inc = open_in_bin metaf in
+    let outc = open_out_bin icsf in 
     let close () = close_in inc; close_out outc in
       try_finalize (ICalendar.iCalWriter inc) outc close () 
   in

@@ -37,7 +37,7 @@
      created_files := (outname
                        ^ (if !created_files <> "" then " " else "")
                        ^ !created_files);
-     let o = open_out outname in
+     let o = open_out_bin outname in
        if (Buffer.length old) <> 0 then
          (output_string o ("DO printingoff" ^ !terminator ^ "\n");
           Buffer.output_buffer o old;
@@ -115,7 +115,7 @@ rule lex = parse
 
   let fcl_of_src fn = 
     reset ();
-    let fchan = open_in fn in
+    let fchan = open_in_bin fn in
     let fcl_string = lex (Lexing.from_channel fchan) in 
     let _ = close_in fchan in 
       Buffer.contents current

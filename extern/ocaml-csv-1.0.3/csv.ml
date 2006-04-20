@@ -211,7 +211,7 @@ let load_in ?separator chan =
   List.rev !csv
 
 let load ?separator filename =
-  let chan = open_in filename in
+  let chan = open_in_bin filename in
   let csv = load_in ?separator chan in
   close_in chan;
   csv 
@@ -378,7 +378,7 @@ let print ?separator csv =
   save_out ?separator stdout csv; flush stdout
 
 let save ?separator file csv =
-  let chan = open_out file in
+  let chan = open_out_bin file in
   save_out ?separator chan csv;
   close_out chan
 

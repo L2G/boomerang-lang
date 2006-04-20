@@ -15,15 +15,15 @@ let bookmarktype2string = function
 let moz2xml f fpre =
   if Sys.file_exists f then
     let fc = open_in f in
-    let fprec = open_out fpre in 
+    let fprec = open_out_bin fpre in 
       Moz2xml.go fc fprec;
       close_in fc;
       close_out fprec
 
 let xml2moz fpost f =
   if Sys.file_exists fpost then
-    let fpostc = open_in fpost in 
-    let fc = open_out f in 
+    let fpostc = open_in_bin fpost in 
+    let fc = open_out_bin f in 
       Xml2moz.go fpostc fc;
       close_in fpostc;
       close_out fc

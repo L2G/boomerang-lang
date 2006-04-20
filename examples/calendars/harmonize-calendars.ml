@@ -1,13 +1,13 @@
 let read_ics f ftmp = 
-  let fc = open_in f in
-  let ftmpc = open_out ftmp in 
+  let fc = open_in_bin f in
+  let ftmpc = open_out_bin ftmp in 
     ICalendar.iCalReader fc ftmpc;
     close_in fc; 
     close_out ftmpc
       
 let write_ics f ftmp = 
   let fc = open_in f in 
-  let ftmpc = open_out ftmp in 
+  let ftmpc = open_out_bin ftmp in 
     ICalendar.iCalWriter fc ftmpc;
     close_in fc;
     close_out ftmpc

@@ -150,6 +150,9 @@ val safe_hash_add : ('a,'b) Hashtbl.t -> 'a -> 'b -> unit
 val is_dir : string -> bool
 (** [is_dir f] evaluates to true iff the file at location f is a directory *)
 
+val is_file : string -> bool
+(** [is_file f] evaluates to true iff the file at location f is a regular file *)
+
 val mkdir_forsure : string -> unit
 (** [mkdir_forsure d] checks if a directory exists.  If not, it tries to make it. *)
 
