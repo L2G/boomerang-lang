@@ -6,7 +6,7 @@
 # $Id$
 
 SUBDIRS = src lenses examples tools doc
-SUBDIRSCLEANONLY = experimental visual papers extern
+SUBDIRSCLEANONLY = experimental visual papers extern html
 
 TOP = .
 include $(TOP)/Top.Makefile
@@ -26,10 +26,11 @@ tar:
 	echo \\draftfalse > $(DOCDIR)/temp.tex
 	$(MAKE) -C $(DOCDIR) main.pdf
 	rm -rf $(EXPORTDIR)
-	(cd $(EXPORTDIR)/..; svn export file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
+	mkdir $(EXPORTDIR)
+	(cd $(EXPORTDIR)/..; svn export --force file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
 	cp $(DOCDIR)/main.pdf $(EXPORTDIR)/doc/manual.pdf
 	(cd $(EXPORTDIR)/..; tar zcvf $(EXPORTNAME).tar.gz $(EXPORTNAME))
-	mv $(EXPORTDIR/../$(EXPORTNAME).tar.gz $(DOWNLOADDIR)
+	mv $(EXPORTDIR)/../$(EXPORTNAME).tar.gz $(DOWNLOADDIR)
 
 ###########################################################################
 ## Web Install - to be run by harmony@halfdome.cis.upenn.edu
