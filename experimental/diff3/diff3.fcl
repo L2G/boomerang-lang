@@ -16,11 +16,29 @@ let good (t:tree) : tree =
   {O = t, A = t, B = t}
 
 sync with id at (List.T Any)
+  { O = [a,a],
+    A = [a,b],
+    B = [a,c], log }
+  = 
+   ?
+
+(*
+sync with id at (List.T Any)
+  { O = [a,b,c],
+    A = [a,b,C],
+    B = [A,b,c] }
+  = 
+  ?
+*)
+ 
+sync with id at (List.T Any)
   { O = [{a={x=A,y=B}}],
     A = [{a={x=C,y=B}}],
     B = [{a={x=A,y=D}}] }
   = 
-  ?
+  { A = [{a = {x = {C}, y = {D}}}],
+    B = [{a = {x = {C}, y = {D}}}],
+    O = [{a = {x = {C}, y = {D}}}]}
  
 sync with id at (List.T Any)
   { O = [a,b,c,d],
@@ -45,8 +63,3 @@ sync with id at (List.T Any)
     A = [a,b],
     B = [a,c] }
  
-
-
-
-
-

@@ -203,10 +203,11 @@ val string_of_t : t -> string
 val show_diffs : t -> t -> unit
 (** Shows the differences between the two trees passed as arguments. *)
 
-(** {2 Formatting of error messages} *)
-(**  A type for easy formatting of error messages *)
-type msg = [`String of string | `Name of Name.t | `Break | `Space | `SpaceOrIndent | `Tree of t
-           | `Tree_opt of t option | `Prim of (unit -> unit) 
+(** {2 Formatting of error and status messages} *)
+(**  A type for easy formatting of error and status messages *)
+type msg = [`String of string | `Name of Name.t | `Break | `Space | `SpaceOrIndent
+           | `Tree of t | `Tree_opt of t option
+           | `Prim of (unit -> unit) 
            | `Open_box | `Open_vbox | `Close_box ]
 
 (* exception Error of msg list *)

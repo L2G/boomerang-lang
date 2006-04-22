@@ -20,19 +20,31 @@ module type DIFF3RES = sig
           -> (action * elt list * elt list * elt list)
 end
 
+(***********************************************************************)
+
 let debug = Trace.debug "diff3"
 
 module Make(A: DIFF3ARGS) = struct
 
-open Printf
-
 type elt = A.elt
 
-(* FOR NOW... *)
-type action = A.action list
-let format_action a = Format.printf "<DIFF3 ACTIONS...>"
-let print_elt e = eprintf "%s" (A.tostring e)
-let has_conflict a = false
+type action = ((unit->unit) * (unit->bool)) list 
+
+let format_action acts =
+  Format.printf "@[<hv 1>[";
+  let rec loop = function
+      [] -> ()
+    | [(a,h)] -> a()
+    | (a,h)::rest -> a(); Format.printf ",@,"; loop rest
+  in loop (Safelist.rev acts);
+  Format.printf "]@]"
+
+let has_conflict acts = Safelist.exists (fun (_,hc) -> hc()) acts
+
+let confl () = true
+let noconfl () = false
+
+(*************************************)
 
 type lcs_type = Top | Diag | Left 
 
@@ -47,31 +59,37 @@ let rec unzip3 = function
       (x::xs,y::ys,z::zs)
   | [] -> ([],[],[])
 
+let rec unzip4 = function
+    (x,y,z,w)::l ->
+      let (xs,ys,zs,ws) = unzip4 l in
+      (x::xs,y::ys,z::zs,w::ws)
+  | [] -> ([],[],[],[])
+
 let the = function None -> assert false | Some x -> x
 
 let print_list l =
-  eprintf "[";
+  Printf.eprintf "[";
   let rec loop l = match l with
     [] -> ()
-  | [e] -> eprintf "%s" (A.tostring e)
-  | e::es -> eprintf "%s" (A.tostring e); eprintf ", "; loop es
+  | [e] -> Printf.eprintf "%s" (A.tostring e)
+  | e::es -> Printf.eprintf "%s" (A.tostring e); Printf.eprintf ", "; loop es
   in loop l;
-  eprintf "]"
+  Printf.eprintf "]"
 
 let sync elt_schema (o,a,b) =
   debug (fun () ->
-    eprintf "Inputs:\n";
-    eprintf "          o = "; print_list o; eprintf "\n"; 
-    eprintf "          a = "; print_list a; eprintf "\n"; 
-    eprintf "          b = "; print_list b; eprintf "\n"); 
+    Printf.eprintf "Inputs:\n";
+    Printf.eprintf "          o = "; print_list o; Printf.eprintf "\n"; 
+    Printf.eprintf "          a = "; print_list a; Printf.eprintf "\n"; 
+    Printf.eprintf "          b = "; print_list b; Printf.eprintf "\n"); 
   let len_a = Safelist.length a in 
   let len_b = Safelist.length b in
   let len_o = Safelist.length o in
   let arr_a = Array.of_list a in
   let arr_b = Array.of_list b in
   let arr_o = Array.of_list o in 
-  (* initialize comp_oa [i,j] = true iff arr_o[i]=arr_o[j]: *)
   let make_comp arr_1 arr_2 = 
+    (* set comp_oa [i,j] to true iff arr_o[i]=arr_o[j]... *)
     let comp = Array.make_matrix (Array.length arr_1) (Array.length arr_2) true in 
     Array.iteri 
       (fun i x -> 
@@ -123,9 +141,9 @@ let sync elt_schema (o,a,b) =
             else common_lines tl lines_ob  l in
   let same_lines_oab =
     Safelist.append (common_lines same_lines_oa same_lines_ob []) [(-1,-1,-1)] in 
-  let (x, (o',a',b')) =
+  let (x, (acts,o',a',b')) =
     Safelist.fold_left    
-      (fun ((eo,ea,eb),(o',a',b')) (so,sa,sb) ->
+      (fun ((eo,ea,eb),(acts,o',a',b')) (so,sa,sb) ->
          let rec find_diff io ia jo ja comp = 
            if (io=jo) then
              not (ia==ja) (* file o has no more lines *)
@@ -152,49 +170,55 @@ let sync elt_schema (o,a,b) =
            let len_onew = Safelist.length onew in 
            let len_anew = Safelist.length anew in 
            let len_bnew = Safelist.length bnew in 
-           debug (fun() -> eprintf "o="; print_list onew;
-                           eprintf "\na="; print_list anew;
-                           eprintf "\nb="; print_list bnew;
-                           eprintf "\n");
+           debug (fun() -> Printf.eprintf "o="; print_list onew;
+                           Printf.eprintf "\na="; print_list anew;
+                           Printf.eprintf "\nb="; print_list bnew;
+                           Printf.eprintf "\n");
            if len_onew = len_anew && len_onew = len_bnew then begin
              (* Recursively synchronize, element by element *)
-             let (onew', anew', bnew') =
-               unzip3 
+             let (subacts, onew', anew', bnew') =
+               unzip4
                  (Safelist.map
                     (fun (o,a,b) ->
                        let (a, oo', oa', ob') =
                          A.sync elt_schema (Some o,Some a,Some b) in
-                       (* TODO: do something with a! *)
-                       (the oo', the oa', the ob'))
+                       (a, the oo', the oa', the ob'))
                     (zip3 (onew, anew, bnew))) in
-             ((so,sa,sb),(onew'@o',anew'@a',bnew'@b'))
+             let act () =
+               Format.printf 
+                 "@[<v 2>Recursing on the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]@,"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb);
+               (* This is going to produce some funny strings of commas... *)
+               Safelist.iter
+                 (fun a -> A.format_action a; Format.printf ",@,")
+                 subacts in
+             let hc () = Safelist.exists A.has_conflict subacts in
+             ((so,sa,sb),((act,hc)::acts,onew'@o',anew'@a',bnew'@b'))
            end else begin
-             (* FIX *)
-             if true then Format.printf 
-               "@[<v 2>The chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@ is in conflict@]@\n"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb);
-             ((so,sa,sb),(onew@o',anew@a',bnew@b'))
+             let act () = Format.printf 
+               "@[<v 2>The chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@ is in conflict@]"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb) in
+             ((so,sa,sb),((act,confl)::acts,onew@o',anew@a',bnew@b'))
            end
          end else if is_diff_oa then begin   
            let o'= add_lines sa ea arr_a o' in 
            let a'= add_lines sa ea arr_a a' in 
            let b'= add_lines sa ea arr_a b' in
-           if true then Format.printf
-             "@[<v 2>Only a is different in the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]@\n"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb);
-           ((so,sa,sb),(o',a',b'))        
+           let act () = Format.printf
+             "@[<v 2>Only a is different in the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb) in
+           ((so,sa,sb),((act,noconfl)::acts,o',a',b'))        
          end else begin
            (* Only b is different or else all same*) 
            let o'= add_lines sb eb arr_b o' in 
            let a'= add_lines sb eb arr_b a' in 
            let b'= add_lines sb eb arr_b b' in  
-           if true then
+           let act () = 
              if is_diff_ob then Format.printf
-               "@[<v 2>Only b is different in the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]@\n"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb);
-         ((so,sa,sb),(o',a',b'))      
+               "@[<v 2>Only b is different in the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb) in
+           ((so,sa,sb),((act,noconfl)::acts,o',a',b'))      
          end)
-      ((len_o,len_a,len_b),([],[],[]))
+      ((len_o,len_a,len_b),([],[],[],[]))
       same_lines_oab 
   in
-    ([],o',a',b')
+    (acts,o',a',b')
 
 end (* functor Make *)
 
