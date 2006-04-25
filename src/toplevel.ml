@@ -89,6 +89,10 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       let ba = Misc.map_option (Lens.get lensb) b in
       (o, a, b, Sync.sync s (oa, aa, ba))
     in
+  let log_out s p n = Trace.log (String.sub s p n) in
+  let log_flush () = () in
+  Format.set_formatter_output_functions log_out log_flush;
+  Sync.format_action act;
   Format.print_newline();
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
