@@ -159,6 +159,13 @@ let cp_or_del f g =
 
 type 'a filetype = Unknown | Meta | UserType of 'a
 
+let errfile =
+  Prefs.createString "errfile"
+    ""
+    "Error file name"
+    "By default, error messages will be printed on stderr.
+     Set this preference to append them to the named file."
+
 let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens () =
   let usageMsg = 
       "Usage:\n"
@@ -172,6 +179,14 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
 
   (* Deal with command line *)
   Prefs.parseCmdLine usageMsg;
+  let errfilename = Prefs.read errfile in
+  if errfilename != "" then
+    Util.convertUnixErrorsToFatal "toplevel" (fun() ->
+      let fd = Unix.openfile errfilename
+          [Unix.O_WRONLY; Unix.O_APPEND; Unix.O_CREAT] 0o600 in
+      Unix.dup2 fd Unix.stderr;
+      Unix.close fd;
+    );
   debug (fun() -> Prefs.dumpPrefsToStderr() );
 
   (* Run unit tests if requested *)
