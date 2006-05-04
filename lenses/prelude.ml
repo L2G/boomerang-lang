@@ -206,6 +206,40 @@ let invert_lib =
   mk_lfun "lens" invert_qid (fun l -> Value.L (invert l))
 let _ = register_native invert_qid "lens -> lens" invert_lib
 
+(* ITER *)
+(* iterate a bijective lens *)
+let iter_qid = "Native.Prelude.iter"
+let iter acc data start stop l = 
+  { get = (fun c -> 
+             let rec get_loop v = 
+               if V.equal (V.get_required v data) stop then 
+                 V.get_required v acc
+               else get_loop (l.get v) in                
+             let v = V.set (V.set V.empty data (Some c)) acc (Some start) in
+               get_loop v);
+    put = (fun a _ -> 
+             let rec put_loop v = 
+               if V.equal (V.get_required v acc) start then 
+                 V.get_required v data
+               else put_loop (l.put v None) in 
+             let v = V.set (V.set V.empty data (Some stop)) acc (Some a) in 
+               put_loop v)
+  }
+
+let iter_lib = 
+  mk_nfun "name -> tree -> tree -> lens -> lens" iter_qid
+    (fun acc -> 
+       mk_nfun "tree -> tree -> lens -> lens" iter_qid 
+         (fun data -> 
+            mk_vfun "tree -> lens -> lens" iter_qid
+              (fun start ->
+                 mk_vfun "lens -> lens" iter_qid
+                   (fun stop ->
+                      mk_lfun "lens" iter_qid
+                        (fun l -> Value.L (iter acc data start stop l))))))
+    
+let _ = register_native iter_qid "name -> name -> tree -> tree -> lens -> lens" iter_lib
+
 (******************)
 (* Generic Lenses *)
 (******************)
