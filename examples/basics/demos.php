@@ -46,13 +46,8 @@ text demos are particularly recommended.
 </ul>
 </p>
 
-<div class="red"><i>These demos are still very much under development.
-Please let us (harmony-hackers at lists dot seas dot upenn dot edu)
-know what you think!</i></div>
-
-<div clas="red"><b>These demos depend on a browser with full support
-for JavaScript and CSS. Note that using Internet Explorer is NOT recommended!
-</b></div>
+<div>(These demos require a browser with full support for JavaScript
+and CSS. In particular, Internet Explorer is not recommended.)  </div>
 
 XXX;
 savedemo();

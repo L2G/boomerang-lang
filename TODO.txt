@@ -38,8 +38,8 @@ IMMEDIATE BUG:
 
    but then I have a weird "List.combine error".
 
-
 BCP TASKS
+* more of the demos should display the sync output
 * implement harmonize-unorderedlines (maybe as the next!)
 * remove ordering from structuredtext (optionally)
 * make Unison permit missing archives (and ask)
@@ -64,24 +64,21 @@ BCP TASKS
   also look in subdirectories (maybe!)
 * why does - not work as an output file for csv (but works for meta, e.g.)?
 * tidy this file
+* change the structured text lens so that it adds dummy headers all the time
 
-SOMEBODY TASKS
+NATE TASKS
 * do the hack to make a control key for running the demo
 * decommission and delete the /visual subdirectory
-* change the structured text lens so that it adds dummy headers all the time
-* change implementation of sync alg to eliminate delete/delete conflicts,
-  as discussed by Alan
 * assertion failure should print a line number  (is this done already?)
   - make native assert function take a string arg
   - make parser recognize assert keyword specially and supply fileinfo
     as string
+
+SOMEBODY TASKS
 * put LGPL notice in all files
   and make sure GPL is stated correctly for CSV module
 
 TIDYING
-move papers, notes, old, etc. to a separate, private svn repository
-* The Sync module exports a bunch of stuff that looks internal -- is it needed
-  by the sync visualizer, perhaps?  Otherwise let's drop it.
 * renaming: hoist becomes hoist_unique
 
 LENSES

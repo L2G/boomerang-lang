@@ -7,6 +7,7 @@ $demo["default_h"] = 200;
 $demo["schema"] = "Structuredtext.NestedListOfValues";
 $demo["r1format"] = $demo["r2format"] = "txt";
 $demo["l1"] = $demo["l2"] = "Structuredtext.file_with_simple_star_headers";
+$demo["output_d"] = "block";
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
