@@ -333,20 +333,22 @@ if(!$splash) {
 
   debug("OUTPUT", $output);
 
-  if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file) 
-      && !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
+  if (file_exists($newarfile) 
+   && file_exists($newr1file) 
+   && file_exists($newr2file) 
+   && !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
     array_splice($icons, 0, 1);
-    $ar = filecontents($newarfile);
-    debug("updating r1 from", $newr1file);
-    $r1 = filecontents($newr1file);
-    $r2 = filecontents($newr2file);
   } else {
     $error = true;
     $body_background = "#ffdddd";
     $surtitle_text = "Error";
   }
 
-# generate abstract versions of the two (new) replicas
+  $ar = filecontents($newarfile);
+  $r1 = filecontents($newr1file);
+  $r2 = filecontents($newr2file);
+
+  # generate abstract versions of the two (new) replicas
   $getcmd = $cmdbase 
     . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
     . (!empty($l1) ? "-lensr1 $lensModule.l1 " : "")
@@ -358,7 +360,9 @@ if(!$splash) {
     . (!empty($l2) ? "-lensr1 $lensModule.l2 " : "")
     . "2>&1";
   $a2 = shell_exec($getcmd);
-}
+
+
+ }
 #TODO here: remove temporary files!!
 
 ##
