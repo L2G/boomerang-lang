@@ -1,5 +1,8 @@
 open Error 
 
+(* A hack, to turn off logging by default (what is the right way to do this? *)
+let _ = Prefs.set Trace.logging false
+
 let _ = 
   (* initialize required but not directly referenced modules *)
   Compiler.init();
@@ -107,7 +110,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
 
 (* Common preferences *)
 
-let rest = Prefs.createStringList "rest" "*stuff" ""
+let rest = Prefs.createStringList "rest" "*no docs needed" ""
 
 let r1pref = Prefs.createString "r1" "" "first replica to synchronize" ""
 
@@ -179,15 +182,17 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
 
   (* Deal with command line *)
   Prefs.parseCmdLine usageMsg;
+
+  (* Open error logging file, if specified *)
   let errfilename = Prefs.read errfile in
-  if errfilename != "" then
-    Util.convertUnixErrorsToFatal "toplevel" (fun() ->
-      let fd = Unix.openfile errfilename
-          [Unix.O_WRONLY; Unix.O_APPEND; Unix.O_CREAT] 0o600 in
-      Unix.dup2 fd Unix.stderr;
-      Unix.close fd;
-    );
-  debug (fun() -> Prefs.dumpPrefsToStderr() );
+  if errfilename <> "" then
+    Util.convertUnixErrorsToFatal ("toplevel: opening " ^ errfilename)
+      (fun() ->
+         let fd = Unix.openfile errfilename
+             [Unix.O_WRONLY; Unix.O_APPEND; Unix.O_CREAT] 0o600 in
+         Unix.dup2 fd Unix.stderr;
+         Unix.close fd);
+  debug (fun() -> Prefs.dumpPrefsToStderr());
 
   (* Run unit tests if requested *)
   if Prefs.read check_pref <> [] then

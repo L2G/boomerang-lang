@@ -12,7 +12,7 @@ $home = getcwd();
 ############################
 # Configuration parameters #
 ############################
-#$enabledebug = TRUE;
+# $enabledebug = TRUE;
 $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
@@ -308,7 +308,7 @@ if(!$splash) {
 
   $cmdbase = 
     "export HOME=./; "
-    . "export FOCALPATH=.:../../lenses:/$tempdir;"
+    . "export FOCALPATH=.:../../lenses:$tempdir;"
     . "./$democmd $flags";
 
   debug("R1", $r1);
