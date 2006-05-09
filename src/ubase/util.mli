@@ -1,6 +1,6 @@
 (* $I1: Unison file synchronizer: src/ubase/util.mli $ *)
-(* $I2: Last modified by bcpierce on Sun, 18 Aug 2002 08:50:53 -0400 $ *)
-(* $I3: Copyright 1999-2002 (see COPYING for details) $ *)
+(* $I2: Last modified by vouillon on Mon, 14 Jun 2004 16:38:56 -0400 $ *)
+(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
 
 (* Miscellaneous utility functions and datatypes *)
 
@@ -30,6 +30,10 @@ type confirmation =
    Succeeded
  | Failed of string
 
+val printException : exn -> string
+
+val process_status_to_string : Unix.process_status -> string
+
 (* ---------------------------------------------------------------------- *)
 (* Strings *)
 
@@ -48,6 +52,7 @@ val startswith : string -> string -> bool
 val endswith : string -> string -> bool
 val findsubstring : string -> string -> int option
 val replacesubstring : string -> string -> string -> string
+val replacesubstrings : string -> (string * string) list -> string
 val concatmap : string -> ('a -> string) -> 'a list -> string
 val trimWhitespace : string -> string
 val splitIntoWords : string -> char -> string list
@@ -60,7 +65,6 @@ val padto : int -> string -> string
 (* Architecture *)
 val osType : [`Unix | `Win32]
 val isCygwin: bool    (* osType will be `Win32 in this case *)
-val isOSX: bool       (* osType will be `Unix in this case *)
 
 (* Options *)
 val extractValueFromOption : 'a option -> 'a
@@ -99,3 +103,6 @@ val fileInUnisonDir : string -> string
 (* Format and print messages on the standard error stream, being careful to
    flush the stream after each one *)
 val msg : ('a, out_channel, unit) format -> 'a
+
+(* Set the info line *)
+val set_infos : string -> unit

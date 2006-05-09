@@ -1,6 +1,6 @@
 (* $I1: Unison file synchronizer: src/ubase/rx.ml $ *)
-(* $I2: Last modified by bcpierce on Sun, 24 Mar 2002 11:24:03 -0500 $ *)
-(* $I3: Copyright 1999-2002 (see COPYING for details) $ *)
+(* $I2: Last modified by vouillon on Fri, 28 May 2004 16:07:27 -0400 $ *)
+(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
 (*
   Inspired by some code and algorithms from Mark William Hopkins
   (regexp.tar.gz, available in the comp.compilers file archive)
@@ -12,7 +12,7 @@ Missing POSIX features
 - Collating sequences
 *)
 
-type u =
+type v =
     Cst of int list
   | Alt of u list
   | Seq of u list
@@ -21,8 +21,26 @@ type u =
   | Int of u list
   | Dif of u * u
 
-let epsilon = Seq []
-let empty = Alt []
+and u = { desc : v; hash : int }
+
+(****)
+
+let hash x =
+  match x with
+    Cst l -> List.fold_left (fun h i -> h + 757 * i) 0 l
+  | Alt l -> 199 * List.fold_left (fun h y -> h + 883 * y.hash) 0 l
+  | Seq l -> 821 * List.fold_left (fun h y -> h + 883 * y.hash) 0 l
+  | Rep (y, i, Some j) -> 197 * y.hash + 137 * i + j
+  | Rep (y, i, None) -> 197 * y.hash + 137 * i + 552556457
+  | Bol -> 165160782
+  | Eol -> 152410806
+  | Int l -> 71 * List.fold_left (fun h y -> h + 883 * y.hash) 0 l
+  | Dif (y, z) -> 379 * y.hash + 563 * z.hash
+
+let make x = {desc = x; hash = hash x}
+
+let epsilon = make (Seq [])
+let empty = make (Alt [])
 
 (**** Printing ****)
 
@@ -34,7 +52,7 @@ let print_list sep print l =
   | v::r -> print v; List.iter (fun v -> sep (); print v) r
 
 let rec print n t =
-  match t with
+  match t.desc with
     Cst l ->
       open_box 1; print_string "[";
       print_list print_space print_int l;
@@ -60,24 +78,24 @@ let rec print n t =
 (**** Constructors for regular expressions *)
 
 let seq2 x y =
-  match x, y with
-    Alt [], _ | _, Alt [] -> Alt []
-  | Seq [], s             -> s
-  | r, Seq []             -> r
-  | Seq r, Seq s          -> Seq (r @ s)
-  | Seq r, s              -> Seq (r @ [s])
-  | r, Seq s              -> Seq (r :: s)
-  | r, s                  -> Seq [r; s]
+  match x.desc, y.desc with
+    Alt [], _ | _, Alt [] -> empty
+  | Seq [], s             -> y
+  | r, Seq []             -> x
+  | Seq r, Seq s          -> make (Seq (r @ s))
+  | Seq r, _              -> make (Seq (r @ [y]))
+  | _, Seq s              -> make (Seq (x :: s))
+  | r, s                  -> make (Seq [x; y])
 
 let seq l = List.fold_right seq2 l epsilon
 
-let seq' l = match l with [] -> epsilon | [x] -> x | _ -> Seq l
+let seq' l = match l with [] -> epsilon | [x] -> x | _ -> make (Seq l)
 
 let rec alt_merge r s =
   match r, s with
     [], _ -> s
   | _, [] -> r
-  | Seq (x::m) :: s, Seq (y::n) :: r when x = y ->
+  | {desc = Seq (x::m)} :: s, {desc = Seq (y::n)} :: r when x = y ->
       alt_merge (seq2 x (alt2 (seq' m) (seq' n))::s) r
   | x :: r', y :: s' ->
       let c = compare x y in
@@ -88,21 +106,21 @@ let rec alt_merge r s =
 and alt2 x y =
   let c = compare x y in
   if c = 0 then x else
-  match x, y with
-    Alt [], s             -> s
-  | r, Alt []             -> r
-  | Alt r, Alt s          -> Alt (alt_merge r s)
-  | Alt [r], s when r = s -> s
-  | r, Alt [s] when r = s -> r
-  | Alt r, s              -> Alt (alt_merge r [s])
-  | r, Alt s              -> Alt (alt_merge [r] s)
+  match x.desc, y.desc with
+    Alt [], _             -> y
+  | _, Alt []             -> x
+  | Alt r, Alt s          -> make (Alt (alt_merge r s))
+  | Alt [r], _ when r = y -> y
+  | _, Alt [s] when x = s -> x
+  | Alt r, _              -> make (Alt (alt_merge r [y]))
+  | _, Alt s              -> make (Alt (alt_merge [x] s))
   | Seq (r::m), Seq (s::n) when r = s -> seq2 r (alt2 (seq' m) (seq' n))
-  | r, s                  -> if c < 0 then Alt [r; s] else Alt [s; r]
+  | _, _                  -> make (if c < 0 then Alt [x; y] else Alt [y; x])
 
 let alt l = List.fold_right alt2 l empty
 
 let rep x i j =
-  match x with
+  match x.desc with
     Alt [] when i > 0 -> empty
   | Alt [] | Seq []   -> epsilon
   | _                 ->
@@ -110,20 +128,20 @@ let rep x i j =
         _, Some 0 -> epsilon
       | 0, Some 1 -> alt2 epsilon x
       | 1, Some 1 -> x
-      | _         -> Rep (x, i, j)
+      | _         -> make (Rep (x, i, j))
 
 let rec int2 x y =
   let c = compare x y in
   if c = 0 then x else
-  match x, y with
-    Int [], s             -> s
-  | r, Int []             -> r
-  | Int r, Int s          -> Int (alt_merge r s)
-  | Int [r], s when r = s -> s
-  | r, Int [s] when r = s -> r
-  | Int r, s              -> Int (alt_merge r [s])
-  | r, Int s              -> Int (alt_merge [r] s)
-  | r, s                  -> if c < 0 then Int [r; s] else Int [s; r]
+  match x.desc, y.desc with
+    Int [], _             -> y
+  | _, Int []             -> x
+  | Int r, Int s          -> make (Int (alt_merge r s))
+  | Int [r], _ when r = y -> y
+  | _, Int [s] when s = x -> x
+  | Int r, _              -> make (Int (alt_merge r [y]))
+  | _, Int s              -> make (Int (alt_merge [x] s))
+  | _, _                  -> make (if c < 0 then Int [x; y] else Int [y; x])
 
 let int l = List.fold_right int2 l empty
 
@@ -131,11 +149,11 @@ let cst c = Cst [Char.code c]
 
 let rec dif x y =
   if x = y then empty else
-  match x, y with
+  match x.desc, y.desc with
     Dif (x1, y1), _ -> dif x1 (alt2 y1 y)
-  | Alt [], _       -> Alt []
+  | Alt [], _       -> empty
   | _, Alt []       -> x 
-  | _               -> Dif (x, y)
+  | _               -> make (Dif (x, y))
 
 (**** Computation of the next states of an automata ****)
 
@@ -154,11 +172,19 @@ let combine top bot op f l =
   in
   combine top l
 
-let h = Hashtbl.create 101
+module ReTbl =
+  Hashtbl.Make
+    (struct
+       type t = u
+       let equal x y = x.hash = y.hash && x = y
+       let hash x = x.hash
+     end)
+
+let h = ReTbl.create 101
 let rec contains_epsilon pos x =
-try Hashtbl.find h x with Not_found ->
+try ReTbl.find h x with Not_found ->
 let res =
-  match x with
+  match x.desc with
     Cst _         -> never
   | Alt l         -> combine never always (lor) (contains_epsilon pos) l
   | Seq l         -> combine always never (land) (contains_epsilon pos) l
@@ -170,9 +196,17 @@ let res =
   | Dif (y, z)    -> contains_epsilon pos y land
                      (lnot (contains_epsilon pos z))
 in
-Hashtbl.add h x res; res
+ReTbl.add h x res; res
 
-let diff_cache = Hashtbl.create 101
+module DiffTbl =
+  Hashtbl.Make
+    (struct
+       type t = int * u
+       let equal ((c : int), x) (d, y) = c = d && x.hash = y.hash && x = y
+       let hash (c, x) = x.hash + 11 * c
+     end)
+
+let diff_cache = DiffTbl.create 101
 
 let rec delta_seq nl pos c l =
   match l with
@@ -189,10 +223,10 @@ let rec delta_seq nl pos c l =
         rdx
 
 and delta nl pos c x =
-let p = (x, c) in
-try Hashtbl.find diff_cache p with Not_found ->
+let p = (c, x) in
+try DiffTbl.find diff_cache p with Not_found ->
 let res =
-  match x with
+  match x.desc with
     Cst l -> if List.mem c l then epsilon else empty
   | Alt l -> alt (List.map (delta nl pos c) l)
   | Seq l -> delta_seq nl pos c l
@@ -204,7 +238,7 @@ let res =
   | Int l -> int (List.map (delta nl pos c) l)
   | Dif (y, z) -> dif (delta nl pos c y) (delta nl pos c z)
 in
-Hashtbl.add diff_cache p res;
+DiffTbl.add diff_cache p res;
 res
 
 (**** String matching ****)
@@ -220,7 +254,7 @@ type rx =
   { initial : state;
     categ   : int array;
     ncat    : int;
-    states  : (u, state) Hashtbl.t }
+    states  : state ReTbl.t }
 
 let unknown =
   { valid = false; next = [||]; desc = empty ; pos = Pos_bol; final = false }
@@ -234,10 +268,10 @@ let mk_state ncat pos desc =
 
 let find_state states ncat pos desc =
   try
-    Hashtbl.find states desc
+    ReTbl.find states desc
   with Not_found ->
     let st = mk_state ncat pos desc in
-    Hashtbl.add states desc st;
+    ReTbl.add states desc st;
     st
 
 let rec validate s i l rx cat st c =
@@ -307,7 +341,7 @@ let match_pref rx s p =
   if l0 >= 0 then Some (l0 - p) else None
 
 let mk_rx init categ ncat =
-  let states = Hashtbl.create 97 in
+  let states = ReTbl.create 97 in
   { initial = find_state states ncat Pos_bol init;
     categ = categ;
     ncat = ncat;
@@ -456,12 +490,12 @@ let rec trans_seq cache c r rem =
 
 and translate cache c r =
   match r with
-    Set s -> Cst (trans_set cache c s)
+    Set s -> make (Cst (trans_set cache c s))
   | Alternative l -> alt (List.map (translate cache c) l)
   | Sequence l -> trans_seq cache c r epsilon
   | Repeat (r', i, j) -> rep (translate cache c r') i j
-  | Beg_of_line -> Bol
-  | End_of_line -> Eol
+  | Beg_of_line -> make Bol
+  | End_of_line -> make Eol
   | Intersection l -> int (List.map (translate cache c) l)
   | Difference (r', r'') -> dif (translate cache c r') (translate cache c r'')
 

@@ -1,6 +1,6 @@
 (* $I1: Unison file synchronizer: src/ubase/safelist.ml $ *)
 (* $I2: Last modified by vouillon on Tue, 16 Apr 2002 10:32:38 -0400 $ *)
-(* $I3: Copyright 1999-2002 (see COPYING for details) $ *)
+(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
 
 let filterBoth f l =
   let rec loop r1 r2 = function
@@ -107,7 +107,7 @@ let combine l1 l2 =
   let rec loop acc = function
     ([], []) -> List.rev acc
   | (a1::l1r, a2::l2r) -> loop ((a1, a2)::acc) (l1r,l2r)
-  | (_, _) -> invalid_arg "Safelist.combine"
+  | (_, _) -> invalid_arg "Util.combine"
   in
     loop [] (l1,l2)
 

@@ -1,6 +1,6 @@
 (* $I1: Unison file synchronizer: src/ubase/util.ml $ *)
-(* $I2: Last modified by bcpierce on Sat, 24 Aug 2002 08:55:40 -0400 $ *)
-(* $I3: Copyright 1999-2002 (see COPYING for details) $ *)
+(* $I2: Last modified by bcpierce on Sat, 27 Nov 2004 09:22:40 -0500 $ *)
+(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
 
 (*****************************************************************************)
 (*                        CASE INSENSITIVE COMPARISON                        *)
@@ -42,7 +42,22 @@ let stringSetFromList l =
 (*                    Debugging / error messages                             *)
 (*****************************************************************************)
 
-let msg f = Uprintf.eprintf (fun () -> flush stderr) f
+let infos = ref ""
+
+let clear_infos () =
+  if !infos <> "" then begin
+    print_string "\r";
+    print_string (String.make (String.length !infos) ' ');
+    print_string "\r";
+    flush stdout
+  end
+let show_infos () =
+  if !infos <> "" then begin print_string !infos; flush stdout end
+let set_infos s =
+  if s <> !infos then begin clear_infos (); infos := s; show_infos () end
+
+let msg f =
+  clear_infos (); Uprintf.eprintf (fun () -> flush stderr; show_infos ()) f
 
 let msg : ('a, out_channel, unit) format -> 'a = msg
 
@@ -105,6 +120,12 @@ let encodeException m kind e =
       debug "exn"
         (fun() -> msg "Converting a Not_found to %s:\n%s\n" kindStr s);
       reraise s
+  | Invalid_argument a ->
+      let s = "Invalid_argument("^a^") raised in " ^ m
+              ^ " (this indicates a bug!)" in
+      debug "exn"
+        (fun() -> msg "Converting an Invalid_argument to %s:\n%s\n" kindStr s);
+      reraise s
   | Sys_error(s) ->
       let s = "Error in " ^ m ^ ":\n" ^ s in
       debug "exn"
@@ -139,6 +160,11 @@ let convertUnixErrorsToExn m f n e =
       let s = "Not_found raised in " ^ m
               ^ " (this indicates a bug!)" in
         debug "exn" (fun() -> msg "Converting a Not_found to %s:\n%s\n" n s);
+        raise (e s)
+  | End_of_file ->
+      let s = "End_of_file exception raised in " ^ m
+              ^ " (this indicates a bug!)" in
+        debug "exn" (fun() -> msg "Converting an End_of_file to %s:\n%s\n" n s);
         raise (e s)
   | Sys_error(s) ->
       let s = "Error in " ^ m ^ ":\n" ^ s in
@@ -186,6 +212,14 @@ let ignoreTransientErrors thunk =
   with
     Transient(s) -> ()
 
+let printException e =
+  try
+    raise e
+  with
+    Transient s -> s
+  | Fatal s -> s
+  | e -> Printexc.to_string e
+
 (* Safe version of Unix getenv -- raises a comprehensible error message if
    called with an env variable that doesn't exist                            *)
 let safeGetenv var =
@@ -195,6 +229,11 @@ let safeGetenv var =
        try Unix.getenv var
        with Not_found ->
          raise (Fatal ("Environment variable " ^ var ^ " not found")))
+
+let process_status_to_string = function
+    Unix.WEXITED i   -> Printf.sprintf "Exited with status %d" i
+  | Unix.WSIGNALED i -> Printf.sprintf "Killed by signal %d" i
+  | Unix.WSTOPPED i  -> Printf.sprintf "Stopped by signal %d" i
 
 (*****************************************************************************)
 (*                         OS TYPE                                           *)
@@ -207,33 +246,6 @@ let osType =
   | other              -> raise (Fatal ("Unkown OS: " ^ other))
 
 let isCygwin = (Sys.os_type = "Cygwin")
-
-let isOSX =
-  osType <> `Win32
-  &&
-  try 
-    let c = Unix.open_process_in "uname" in
-    let l = input_line c in
-    close_in c;
-    match l with
-      "Darwin" -> true
-    | "linux" | "Linux" | "FreeBSD" | "SunOS" -> false
-    | _ ->
-        Printf.printf
-         "Warning: 'uname' returned unrecognized result (%s) in Util.isOSX.\n"
-          l;
-        Printf.printf "I'll assume this is NOT an OSX machine.\n";
-        Printf.printf "(If that's correct, then this warning is harmless.)\n";
-        flush stdout;
-        false
-  with _ ->
-    begin
-      (* Is it correct to trap all exceptions like that? (Remember that this
-         gets executed during startup...) *)
-      Printf.printf "Warning: failure when finding 'uname' in Util.isOSX\n";
-      flush stdout;
-      false
-    end
 
 (*****************************************************************************)
 (*                      MISCELLANEOUS                                        *)
@@ -251,14 +263,28 @@ let time () =
   convertUnixErrorsToTransient "time" Unix.time
 
 let time2string timef =
-  let time = localtime timef in
-  Printf.sprintf
-    "%2d:%.2d on %2d %3s, %4d"
-    time.Unix.tm_hour
-    time.Unix.tm_min
-    time.Unix.tm_mday
-    (monthname time.Unix.tm_mon)
-    (time.Unix.tm_year + 1900)
+  try
+    let time = localtime timef in
+(* Old-style:
+    Printf.sprintf
+      "%2d:%.2d:%.2d on %2d %3s, %4d"
+      time.Unix.tm_hour
+      time.Unix.tm_min
+      time.Unix.tm_sec
+      time.Unix.tm_mday
+      (monthname time.Unix.tm_mon)
+      (time.Unix.tm_year + 1900)
+*)
+    Printf.sprintf
+      "%4d-%02d-%02d at %2d:%.2d:%.2d"
+      (time.Unix.tm_year + 1900)
+      (time.Unix.tm_mon + 1)
+      time.Unix.tm_mday
+      time.Unix.tm_hour
+      time.Unix.tm_min
+      time.Unix.tm_sec
+  with Transient _ ->
+    "(invalid date)"
 
 let percentageOfTotal current total =
   (int_of_float ((float current) *. 100.0 /. (float total)))
@@ -279,8 +305,8 @@ let option2string (prt: 'a -> string) = function
 
 let truncateString string length =
   let actualLength = String.length string in
-  if actualLength <= length then
-    string^(String.make (length - actualLength) ' ')
+  if actualLength <= length then string^(String.make (length - actualLength) ' ')
+  else if actualLength < 3 then string
   else (String.sub string 0 (length - 3))^ "..."
 
 let findsubstring s1 s2 =
@@ -300,6 +326,11 @@ let rec replacesubstring s fromstring tostring =
       let afterpos = i + (String.length fromstring) in
       let after = String.sub s afterpos ((String.length s) - afterpos) in
       before ^ tostring ^ (replacesubstring after fromstring tostring)
+
+let replacesubstrings s pairs =
+  Safelist.fold_left 
+    (fun s' (froms,tos) -> replacesubstring s' froms tos)
+    s pairs
 
 let startswith s1 s2 =
   let l1 = String.length s1 in
@@ -362,19 +393,20 @@ let padto n s = s ^ (String.make (max 0 (n - String.length s)) ' ')
 (*****************************************************************************)
 
 let fileInHomeDir n =
-  match osType with
-    `Win32 ->
-      let dirString =
-        try Unix.getenv "USERPROFILE" (* Windows NT/2K *)
-        with Not_found ->
-        try Unix.getenv "HOME" (* Windows 9x with Cygwin HOME set *)
-        with Not_found ->
-        try Unix.getenv "UNISON" (* Use UNISON dir if none of
-                                    the above are set *)
-        with Not_found -> "c:/" (* Default *) in
-      Filename.concat dirString n
-  | `Unix ->
-      Filename.concat (safeGetenv "HOME") n
+  if (osType = `Unix) || isCygwin then
+    Filename.concat (safeGetenv "HOME") n
+  else if osType = `Win32 then
+    let dirString =
+      try Unix.getenv "HOME" (* Windows 9x with Cygwin HOME set *)
+      with Not_found ->
+      try Unix.getenv "USERPROFILE" (* Windows NT/2K standard *)
+      with Not_found ->
+      try Unix.getenv "UNISON" (* Use UNISON dir if it is set *)
+      with Not_found ->
+      "c:/" (* Default *) in
+    Filename.concat dirString n
+  else
+    assert false (* osType can't be anything else *)
 
 (*****************************************************************************)
 (*           "Upcall" for building pathnames in the .unison dir              *)

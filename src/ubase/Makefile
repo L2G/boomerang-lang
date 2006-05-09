@@ -1,10 +1,11 @@
 NAME = ubase
 
 OBJECTS  = \
-  safelist.cmo uprintf.cmo util.cmo uarg.cmo prefs.cmo trace.cmo rx.cmo
+  safelist.cmo uprintf.cmo util.cmo uarg.cmo prefs.cmo trace.cmo rx.cmo \
+  myMap.cmo
 
-OCAMLC = ocamlfind ocamlc -g
-OCAMLOPT = ocamlfind ocamlopt
+OCAMLC = ocamlfind ocamlc -g 
+OCAMLOPT = ocamlfind ocamlopt 
 OCAMLDEP = ocamldep
 
 XOBJECTS = $(OBJECTS:cmo=cmx)
@@ -49,8 +50,5 @@ uninstall:
 	ocamlfind remove $(NAME)
 
 clean::
-	rm -f *.cmi *.cmo *.cmx *.cma *.cmxa *.a *.o *~ 
-
-test:
-
+	rm -f *.cmi *.cmo *.cmx *.cma *.cmxa *.a *.o *~ *.bak
 

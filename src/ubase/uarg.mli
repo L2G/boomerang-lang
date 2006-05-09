@@ -10,7 +10,7 @@
 (***********************************************************************)
 (* Slightly modified version by BCP for Unixon, July 1999 *)
 
-(* $Id: uarg.mli,v 1.1 2005/04/11 18:37:12 jnfoster Exp $ *)
+(* $Id: uarg.mli 1.1 Sun, 24 Mar 2002 11:24:03 -0500 bcpierce $ *)
 
 (* Module [Uarg]: parsing of command line arguments *)
 

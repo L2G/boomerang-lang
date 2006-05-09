@@ -1,6 +1,6 @@
 (* $I1: Unison file synchronizer: src/ubase/trace.mli $ *)
-(* $I2: Last modified by bcpierce on Sun, 24 Mar 2002 11:24:03 -0500 $ *)
-(* $I3: Copyright 1999-2002 (see COPYING for details) $ *)
+(* $I2: Last modified by bcpierce on Mon, 15 Sep 2003 11:46:03 -0400 $ *)
+(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
 
 (* ---------------------------------------------------------------------- *)
 (* Debugging support *)
@@ -61,6 +61,7 @@ val messageForwarder : (msg -> unit) option ref
    can turn it off by default *)
 val logging : bool Prefs.t
 
+
 (* ---------------------------------------------------------------------- *)
 (* Messages *)
 
@@ -94,6 +95,9 @@ type timer
 
 (* Create a new timer, print a description, and start it ticking *)
 val startTimer : string -> timer
+
+(* Create a new timer without printing a description *)
+val startTimerQuietly : string -> timer
 
 (* Display the current time on a timer (and its description) *)
 val showTimer : timer -> unit

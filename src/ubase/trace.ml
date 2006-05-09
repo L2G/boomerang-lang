@@ -1,6 +1,6 @@
 (* $I1: Unison file synchronizer: src/ubase/trace.ml $ *)
-(* $I2: Last modified by bcpierce on Sat, 10 Aug 2002 09:39:41 -0400 $ *)
-(* $I3: Copyright 1999-2002 (see COPYING for details) $ *)
+(* $I2: Last modified by bcpierce on Mon, 15 Sep 2003 11:46:03 -0400 $ *)
+(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
 
 (* ---------------------------------------------------------------------- *)
 (* Debugging messages *)
@@ -34,7 +34,8 @@ let enabled modname =
   let m = Prefs.read debugmods in
   m <> [] && (   (modname = "")
               || (Safelist.mem "verbose" m)
-              || (Safelist.mem "all" m && modname <> "verbose")
+              || ((Safelist.mem "all" m || Safelist.mem "-all" m)
+                    && modname <> "verbose")
               || (Safelist.mem modname m))
 
 let enable modname onoff =
@@ -59,7 +60,7 @@ let debug modname thunk =
     flush stderr
   end
 
-(* Set the debugPrinter variable in the Util module so that other modules
+(* We set the debugPrinter variable in the Util module so that other modules
    lower down in the module dependency graph (so that they can't just
    import Trace) can also print debugging messages. *)
 let _ = Util.debugPrinter := Some(debug)
@@ -71,29 +72,33 @@ let _ = Util.debugPrinter := Some(debug)
 let logging =
   Prefs.createBool "log" true
     "record actions in file specified by logfile preference"
-    "When this flag is set, Unison will log all changes to the filesystems 
-     on a file." 
-    
+    "When this flag is set, Unison will log all changes to the filesystems
+     on a file."
+
 let logfile =
   Prefs.createString "logfile"
     (Util.fileInHomeDir "unison.log")
     "Log file name"
-    "By default, logging messages will be appended to the file 
-     \\verb|unison.log| in your HOME directory.  Set this preference if 
+    "By default, logging messages will be appended to the file
+     \\verb|unison.log| in your HOME directory.  Set this preference if
      you prefer another file."
-    
+
 let logch = ref None
 
-let getLogch() =
+let rec getLogch() =
   Util.convertUnixErrorsToFatal "getLogch" (fun() ->
   match !logch with
     None ->
-      let ch = open_out_gen 
-                 [Open_wronly; Open_append; Open_creat] 0o600
-                 (Prefs.read logfile) in
-      logch := Some(ch);
-      ch 
-  | Some(ch) -> ch)
+      let file = Prefs.read logfile in
+      let ch =
+        open_out_gen [Open_wronly; Open_append; Open_creat] 0o600 file in
+      logch := Some (ch, file);
+      ch
+  | Some(ch, file) ->
+      if Prefs.read logfile = file then ch else begin
+        close_out ch;
+        logch := None; getLogch ()
+      end)
 
 let sendLogMsgsToStderr = ref true
 
@@ -180,6 +185,12 @@ let gettime () = Unix.gettimeofday()
 let startTimer desc =
   if Prefs.read(printTimers) then
     (message (desc ^ "..."); (desc, gettime()))
+  else
+    (desc,0.0)
+
+let startTimerQuietly desc =
+  if Prefs.read(printTimers) then
+    (desc, gettime())
   else
     (desc,0.0)
 
