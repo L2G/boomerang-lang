@@ -1,205 +1,99 @@
 --- THINGS TO DO ---
 
-IMMEDIATE BUG:
-
-   I think the problem is here, in harmonize-addresses.ml:
-
-   let _ =
-     let read_tbl =
-       let fixup_header s =
-         (* This is pretty inefficient!! *)
-         let lines = Util.splitIntoWords s '\n' in
-
-   if I understand the following correctly (in ubase/util.ml):
-
-   let splitIntoWords (s:string) (c:char) =
-     let rec inword acc start pos =
-       if pos >= String.length(s) || s.[pos] = c then
-         betweenwords ((String.sub s start (pos-start)) :: acc) pos
-       else inword acc start (pos+1)
-     and betweenwords acc pos =
-       if pos >= (String.length s) then (Safelist.rev acc)
-       else if s.[pos]=c then betweenwords acc (pos+1)
-       else inword acc pos pos
-     in betweenwords [] 0
-
-   consecutive separators are just dismissed. The "correct" implementation may be:
-
-   let splitIntoWords (s:string) (c:char) =
-     let rec inword acc start pos =
-       if pos >= String.length(s) || s.[pos] = c then
-         betweenwords ((String.sub s start (pos-start)) :: acc) pos
-       else inword acc start (pos+1)
-     and betweenwords acc pos =
-       if pos >= (String.length s) then (Safelist.rev acc)
-       else if s.[pos]=c then betweenwords (""::acc) (pos+1)
-       else inword acc pos pos
-     in betweenwords [] 0
-
-   but then I have a weird "List.combine error".
-
-BCP TASKS
-* more of the demos should display the sync output
-* implement harmonize-unorderedlines (maybe as the next!)
-* remove ordering from structuredtext (optionally)
-* make Unison permit missing archives (and ask)
-* look at structured text bug (with split, I guess?)
+BUGS
+* I think the problem is here, in harmonize-addresses.ml:
+    let _ =
+      let read_tbl =
+        let fixup_header s =
+          (* This is pretty inefficient!! *)
+          let lines = Util.splitIntoWords s '\n' in
+  if I understand the following correctly (in ubase/util.ml):
+    let splitIntoWords (s:string) (c:char) =
+      let rec inword acc start pos =
+        if pos >= String.length(s) || s.[pos] = c then
+          betweenwords ((String.sub s start (pos-start)) :: acc) pos
+        else inword acc start (pos+1)
+      and betweenwords acc pos =
+        if pos >= (String.length s) then (Safelist.rev acc)
+        else if s.[pos]=c then betweenwords acc (pos+1)
+        else inword acc pos pos
+      in betweenwords [] 0
+  consecutive separators are just dismissed. The "correct" implementation 
+  may be:
+    let splitIntoWords (s:string) (c:char) =
+      let rec inword acc start pos =
+        if pos >= String.length(s) || s.[pos] = c then
+          betweenwords ((String.sub s start (pos-start)) :: acc) pos
+        else inword acc start (pos+1)
+      and betweenwords acc pos =
+        if pos >= (String.length s) then (Safelist.rev acc)
+        else if s.[pos]=c then betweenwords (""::acc) (pos+1)
+        else inword acc pos pos
+      in betweenwords [] 0
+  but then I have a weird "List.combine error".
 * The line 
     <?xml version="1.0" encoding="UTF-8"?>
   at the beginning of a plist file causes an error in PXP
-* Dicts in plists should be represented unordered, not as lists
+  ===> Check if this is still the case; if so, email Gerd(?)
 * Try running harmonize-addresses with empty args -- bad error mesg!
 * Doing "make clean" at the top level followed by "make" in 
   examples/addresses fails  (in general, makefiles are a bit messed up)
+  ===> This should be fixed, but needs checked [Nate]
+* Bug: in structured text demo, try completely emptying a replica
+* why does - not work as an output file for csv (but works for meta, e.g.)?
+
+FOCAL PROGRAMMING / DEMOS
+** Get bookmark (and ical) demo ready for export and put them out on the
+   harmony webpage
+** Make it possible to run Harmony in "check" mode from the web interface
+* more of the demos should display the sync output
+* do the hack to make a control key for running the demo [Nate]
+* Dicts in plists should be represented unordered, not as lists
+* move Thang's general concat into List module
+* change the structured text lens so that it adds dummy headers all the
+  time [bcp]
+
+UNISON INTEGRATION
+* make Unison permit missing archives (after confirming that it's OK)
 * check for bad unison behavior
     make conflicting changes to todo.txt
     run unison/harmony twice
     note that second time no differences are reported!
-* Bug: in structured text demo, try completely emptying a replica
-* make front end interpret a plain .fcl file as a check command
-* some of the options (logfile, addprefsto) don't make sense for Harmony
-  and should be suppressed
-* move Thang's general concat into List module
-* the code in Registry that searches for files along the search path should
-  also look in subdirectories (maybe!)
-* why does - not work as an output file for csv (but works for meta, e.g.)?
-* tidy this file
-* change the structured text lens so that it adds dummy headers all the time
+  ==> Recheck and fix
 
-NATE TASKS
-* do the hack to make a control key for running the demo
-* decommission and delete the /visual subdirectory
-* assertion failure should print a line number  (is this done already?)
-  - make native assert function take a string arg
-  - make parser recognize assert keyword specially and supply fileinfo
-    as string
-
-SOMEBODY TASKS
-* put LGPL notice in all files
-  and make sure GPL is stated correctly for CSV module
+SMALL IMPROVEMENTS
+*** make front end interpret a plain .fcl file as a check command
+*** some of the options (logfile, addprefsto) don't make sense for Harmony
+    and should be suppressed
+* make native assert function take a string arg
 
 TIDYING
-* renaming: hoist becomes hoist_unique
+*** send commit messages for trunk to harmony-hackers  [Nate]
+*** make sure GPL/whatever is stated correctly for external modules
+* put LGPL notice in all files
 
 LENSES
-* find or write external palm to XML parser and writer
-* find or write external iCalendar to XML parser and writer
-* get calendar lenses (ICal, ICalendar and PalmDatebook) working again
-   - deal correctly with alignment (via lenses)
-   - move iCalendar handling into a separate program
-   - use pilotlink for datebook handling
 * new primitive:  hoistAny (which acts like hoist except that it doesn't
                     care what name the edge it's clipping out has; takes a
                     default name for the put case)
+   also hoist becomes hoist_unique
+* think about / implement / write down 
+     swap
+     join-all
+     swap_consecutive_kids   
+     swap_immediate_kids   [Nate]
+* remove iter in favor of primitive fold_left (or reverse)  [Nate]
 
 SYNC ALGORITHM
-* Improve printing of everything
-* Delete/delete conflicts should maybe be removed
-* memoize equality checks
-* push synchronization down to atomic or equally changed
-   -  more generally, tidy the sync algorithm
-
-LOW PRIORITY
-sync visualizer: need to show output even in conflict cases
+** Improve printing of everything, especially list sync  [bcp]
+* memoize equality checks  (probably useful at some point, but not 
+  high priority)
 
 THINGS TO THINK ABOUT LATER
-* check on funding possibilities for Harmony Eclipse plug-in 
 * Check "Set-Oriented Transformers," Srivastava, DBPL 2001
-* Write down ideas from work with Martin at POPL
-* Another list encoding idea: translate list to set, noting position inside data
-      List of a b c  ==>  { a = 1  b = 2  c = 3 }
 * Contact Doug Terry and Make Dahlin (UT Austin) and check out their current
   related research.  
 
-DOCUMENTATION
-move installation instructions for tidy and lablgtk2 from src/INSTALL to elsewhere
-move src/INSTALL to top level
-
-____________________________________________________________________________
-NOTE FROM MICHAEL -- HAVE WE DEALT WITH THIS?
-
-   > I meant to ask this before: In the new INSTALL instructions for
-   > OSX QUICK START it says to 
-   > "set (in Makefile.conf)
-   >   export INCDIRS := /sw/include"
-   > First, shouldn't it say "(in OCamlMakefile)" instead of
-   > Makefile.conf?
-   
-   Don't think so -- OCamlMakefile is something imported from outside and we
-   want to be able to overwrite it with newer versions.
-   
-OK.  There is no file Makefile.conf in harmony4/src, and I assume
-the comment wasn't for Makefile.conf in pcre --- so into which
-file should we put in "export INCDIRS ..." and "export LIBDIRS
-..."?  (I know what needs to be done, I just don't know where it
-should be done).
-
-_________________________________________________________________________
-
-FIRST RELEASE ANNOUNCEMENT LIST ('*' indicates preview tarball sent)
-* trevor
-* jerome
-* plclub
-* lambda kids 
-* Nathan Whitehead
-* Perdita Stevens
-* Unison hackers and users lists
-* Arnaud Sahuguet
-  Jerome Simeon
-  martin hofmann
-  Daniel Spoonhauer
-  Alain Frisch
-  peter sewell
-  james cheney
-  Peter Buneman
-  Penn db group
-  Norman Ramsey
-
-PUBLIC RELEASE ANNOUNCEMENT LIST
-  Tokyo people
-  Pascal Molli and group
-  Serge Abiteboul
-  Srivastava
-  christophe koch
-
-____________________________________________________________________________
-HARMONY SUMMER 2005 PLANS
-=========================
-
-Major issues: 
-  - finding more easy demos
-  - getting the implementation really going
-
-Major topics:  
-  * Finishing Focal compiler (Nate)
-      - no more research on lenses right now!
-      - performance tuning
-      - (eventually, replace types backend with sheaves automata to support inter, diff)
-  * Rewrite visualizers in Swing or as Emacs front-ends :-)
-  * Simple(!) user interface
-  * Unison integration
-  * Many demos
-      - easy ones: bookmarks (first); bibtex (XML only!); 
-        simple structured text?; iTunes? generic HTML/XML? bibtex?
-          - simple XML file formats
-          - no alignment issues
-          - no fancy lens primitives
-          - modest amounts of data
-      - hard ones: 
-          - calendar (make alignment into a lens!) 
-            check out IETF Calendaring and Scheduling Working Group!
-            redo alignment stuff as lenses
-            reimplement in Focal
-            however: very probably better not to deal with non-XML data at all!
-                     (conversion to and from XML should be an external process, and
-                      Harmony itself should not help)
-            GROUP calendar demo
-          - address book (vcard-ish)
-              - maybe including sync'ing with cell phones
-          - but make sure these don't get on the critical path!
-      - maybe some of the driver scripts should be written in Perl/Python
-  * Packaging and configuration
-      - no backups
-  * Documentation
-      - documentation of lenses should be generated from source code (both ocaml
-        and focal)
+DEMO IDEAS
+* bibtex (XML only!); 
+* group calendar 
