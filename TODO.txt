@@ -64,7 +64,6 @@ SMALL IMPROVEMENTS
 * make native assert function take a string arg
 
 TIDYING
-*** send commit messages for trunk to harmony-hackers  [Nate]
 *** make sure GPL/whatever is stated correctly for external modules
 * put LGPL notice in all files
 
