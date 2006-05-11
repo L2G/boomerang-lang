@@ -36,9 +36,6 @@ BUGS
   at the beginning of a plist file causes an error in PXP
   ===> Check if this is still the case; if so, email Gerd(?)
 * Try running harmonize-addresses with empty args -- bad error mesg!
-* Doing "make clean" at the top level followed by "make" in 
-  examples/addresses fails  (in general, makefiles are a bit messed up)
-  ===> This should be fixed, but needs checked [Nate]
 * Bug: in structured text demo, try completely emptying a replica
 * why does - not work as an output file for csv (but works for meta, e.g.)?
 
@@ -47,7 +44,6 @@ FOCAL PROGRAMMING / DEMOS
    harmony webpage
 ** Make it possible to run Harmony in "check" mode from the web interface
 * more of the demos should display the sync output
-* do the hack to make a control key for running the demo [Nate]
 * Dicts in plists should be represented unordered, not as lists
 * move Thang's general concat into List module
 * change the structured text lens so that it adds dummy headers all the
