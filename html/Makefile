@@ -64,11 +64,12 @@ harmony-misc.html: bcp.bib jnf.bib
 
 ###
 # FIXME: want index.html to also depend on $(WEBDIR)/download
-index.html: index.php header.php footer.php harmony-papers.html harmony-talks.html harmony-misc.html
-	cp $? $(CGIDIR)/
+INDEX_SRC=index.php header.php footer.php harmony-papers.html harmony-talks.html harmony-misc.html
+index.html: $(INDEX_SRC) $(WEBDIR)/download/*.tar.gz
+	cp $(INDEX_SRC) $(CGIDIR)/
 	chmod 755 $(CGIDIR)/$<
 	wget -O $@ $(CGIURL)/index.php
-	(cd $(CGIDIR); rm $?)
+	(cd $(CGIDIR); rm $(INDEX_SRC))
 
 clean::
 	rm -f *.bib *.keys *.html

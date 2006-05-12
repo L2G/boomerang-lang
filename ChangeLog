@@ -1,0 +1,24 @@
+CHANGES FROM VERSION
+
+Demo, website, and Makefile cleanups:
+
+  * added Javascript key board shortcuts to the web demo. 
+       - C-S runs the synchronizer
+       - C-h-r resets the demo
+       - C-h-e toggles expert mode
+       - C-h-i toggles showing instructions
+       - C-h-a toggles showing abstract trees
+       - C-h-c toggles showing concrete trees
+       - C-h-l toggles showing lenses
+       - C-h-t toggles showing schema
+       - C-h-o toggles showing the archive
+       - C-h-h toggles showing harmony output
+
+  * added instructions for anonymous SVN access to website
+
+  * tidied Makefile for exporting (now done nightly)
+
+  * stole unison's Makefile code for updating a ChangeLog. please
+    commit to trunk using "make checkin", after editing the file
+    logmsg.
+-------------------------------

@@ -19,30 +19,42 @@ DOWNLOADDIR=$(WEBDIR)/download
 ###########################################################################
 ## Tarball export - to be run by harmony@halfdome.cis.upenn.edu
 
-EXPORTNAME=harmony-$(shell date "+20%y%m%d")
+ifdef HARMONY_BUILD_TAG
+REAL_HARMONY_BUILD_TAG=-$(HARMONY_BUILD_TAG)
+else
+REAL_HARMONY_BUILD_TAG=
+endif
+
+EXPORTNAME=harmony$(REAL_HARMONY_BUILD_TAG)-$(shell date "+20%y%m%d")
 EXPORTDIR=/tmp/$(EXPORTNAME)
 
-tar: 
-	echo \\draftfalse > $(DOCDIR)/temp.tex
-	$(MAKE) -C $(DOCDIR) main.pdf
+checkin: logmsg remembernews
+	svn commit --file logmsg
+	$(RM) logmsg
+
+remembernews: logmsg
+	echo "CHANGES FROM VERSION" $(VERSION) > /tmp/ChangeLog.tmp
+	echo >> /tmp/ChangeLog.tmp
+	cat logmsg >> /tmp/ChangeLog.tmp
+	echo >> /tmp/ChangeLog.tmp
+	echo "-------------------------------" >> /tmp/ChangeLog.tmp
+	-cat ChangeLog >> /tmp/ChangeLog.tmp
+	mv -f /tmp/ChangeLog.tmp ChangeLog
+
+export: 
 	rm -rf $(EXPORTDIR)
 	mkdir $(EXPORTDIR)
 	(cd $(EXPORTDIR)/..; svn export --force file:///mnt/saul/plclub1/svnroot/harmony/trunk $(EXPORTNAME))
+	echo \\draftfalse > $(DOCDIR)/temp.tex
+	$(MAKE) -C $(DOCDIR) main.pdf
 	cp $(DOCDIR)/main.pdf $(EXPORTDIR)/doc/manual.pdf
 	(cd $(EXPORTDIR)/..; tar zcvf $(EXPORTNAME).tar.gz $(EXPORTNAME))
+	rm -f $(DOWNLOADDIR)/harmony-nightly*.tar.gz
 	mv $(EXPORTDIR)/../$(EXPORTNAME).tar.gz $(DOWNLOADDIR)
-
-###########################################################################
-## Web Install - to be run by harmony@halfdome.cis.upenn.edu
-web:
-	echo \\draftfalse > $(DOCDIR)/temp.tex
+	rm -fr $(EXPORTDIR)
 	$(MAKE) all
 	cp $(DOCDIR)/main.pdf $(DOCDIR)/manual.pdf
 	$(MAKE) -C html
 	cp -r html/* doc $(WEBDIR)
 	cp -r src lenses examples extern $(WEBDIR)/cgi-bin/
 	chmod -R 755 $(WEBDIR)
-
-export:
-	$(MAKE) tar
-	$(MAKE) web

@@ -1,3 +1,11 @@
+<?php
+function hsize($size) {
+   if($size == 0) { return("0 Bytes"); }
+   $filesizename = array(" Bytes", " KB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB");
+   return round($size/pow(1024, ($i = floor(log($size, 1024)))), 2) . $filesizename[$i];
+}
+?>
+
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
  "http://www.w3.org/TR/1999/REC-html401-19991224/loose.dtd">
 <HTML>

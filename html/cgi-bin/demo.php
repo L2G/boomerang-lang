@@ -12,7 +12,7 @@ $home = getcwd();
 ############################
 # Configuration parameters #
 ############################
-# $enabledebug = TRUE;
+#$enabledebug = TRUE;
 $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
@@ -177,16 +177,26 @@ $default_wide_w = $d_default_wide_w ? $d_default_wide_w : ($default_w * 2 + 10);
 $default_h = $d_default_h ? $d_default_h : 175;
 
 $elements = 
-  array("instr"  => array("title" => "Instructions", "w" => $default_wide_w, "d" => "block", "text" => false),
-        "r1"     => array("title" => "Replica #1",   "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
-        "r2"     => array("title" => "Replica #2",   "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
-        "l1"     => array("title" => "Lens #1",      "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
-        "l2"     => array("title" => "Lens #2",      "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
-        "a1"     => array("title" => "Abstract #1",  "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
-        "a2"     => array("title" => "Abstract #2",  "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
-        "ar"     => array("title" => "Archive",      "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true,),
-        "schema" => array("title" => "Schema",       "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false,),
-        "output" => array("title" => "Output",       "h" => $default_h, "w" => $default_wide_w, "d" => "none", "text" => true,  "ro" => true,)
+  array("instr"  => array("title" => "Instructions", 
+                          "w" => $default_wide_w, "d" => "block", "text" => false),
+        "r1"     => array("title" => "Replica #1",   
+                          "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
+        "r2"     => array("title" => "Replica #2",   
+                          "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
+        "l1"     => array("title" => "Lens #1",      
+                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
+        "l2"     => array("title" => "Lens #2",      
+                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
+        "a1"     => array("title" => "Abstract #1",  
+                           "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
+        "a2"     => array("title" => "Abstract #2",  
+                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
+        "ar"     => array("title" => "Archive",      
+                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true,),
+        "schema" => array("title" => "Schema",       
+                           "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false,),
+        "output" => array("title" => "Output",       
+                          "h" => $default_h, "w" => $default_wide_w, "d" => "none", "text" => true,  "ro" => true,)
       );
 
 $expert_icon = $expert ? "expertoff" : "experton";
@@ -194,19 +204,31 @@ $expert_desc = $expert ? "Turn Expert Mode Off" : "Turn Expert Mode On";
              
 $icons = 
   array("error"    => array("desc" => "Error", "dummy" => true),
-        $expert_icon => array("desc" => $expert_desc),
+        $expert_icon => array("desc" => $expert_desc,   
+                              "key" => "e"),
         "clear"    => array("desc" => "&nbsp;", "dummy" => true),
-        "sync"     => array("desc" => "Synchronize Replicas" ),
-        "reset"    => array("desc" => "Reset Demo"),
-        "prev"     => array("desc" => "Previous Demo"),
-        "next"     => array("desc" => "Next Demo"),
-        "instr"    => array("desc" => "Show Instructions",   "shows" => array("instr")),
-        "replica"  => array("desc" => "Show Replicas",       "shows" => array("r1", "r2")),
-        "abstract" => array("desc" => "Show Abstract Trees", "shows" => array("a1", "a2")),  
-        "schema"   => array("desc" => "Show Schema",         "shows" => array("schema")),
-        "archive"  => array("desc" => "Show Archive",        "shows" => array("ar")),
-        "lens"     => array("desc" => "Show Lenses",         "shows" => array("l1","l2")),
-        "output"   => array("desc" => "Show Harmony Output", "shows" => array("output"))
+        "sync"     => array("desc" => "Synchronize Replicas",    
+                            "key" => "s"),
+        "reset"    => array("desc" => "Reset Demo",                   
+                            "key" => "r"),
+        "prev"     => array("desc" => "Previous Demo",                                    
+                            "key" => "p"),
+        "next"     => array("desc" => "Next Demo",  
+                            "key" => "n"),
+        "instr"    => array("desc" => "Show Instructions",   "shows" => array("instr"),    
+                            "key" => "i"),
+        "replica"  => array("desc" => "Show Replicas",       "shows" => array("r1", "r2"),
+                            "key" => "c"),
+        "abstract" => array("desc" => "Show Abstract Trees", "shows" => array("a1", "a2"), 
+                            "key" => "a"),  
+        "schema"   => array("desc" => "Show Schema",         "shows" => array("schema"),
+                            "key" => "t"),
+        "archive"  => array("desc" => "Show Archive",        "shows" => array("ar"), 
+                            "key" => "o"),
+        "lens"     => array("desc" => "Show Lenses",         "shows" => array("l1","l2"), 
+                            "key" => "l"),
+        "output"   => array("desc" => "Show Harmony Output", "shows" => array("output"), 
+                            "key" => "h")
       );
 
 if ($demonumber == 1) { 
@@ -308,7 +330,7 @@ if(!$splash) {
 
   $cmdbase = 
     "export HOME=./; "
-    . "export FOCALPATH=.:../../lenses:$tempdir;"
+    . "export FOCALPATH=.:../../lenses:/$tempdir;"
     . "./$democmd $flags";
 
   debug("R1", $r1);
@@ -333,22 +355,20 @@ if(!$splash) {
 
   debug("OUTPUT", $output);
 
-  if (file_exists($newarfile) 
-   && file_exists($newr1file) 
-   && file_exists($newr2file) 
-   && !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
+  if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file) 
+      && !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
     array_splice($icons, 0, 1);
+    $ar = filecontents($newarfile);
+    debug("updating r1 from", $newr1file);
+    $r1 = filecontents($newr1file);
+    $r2 = filecontents($newr2file);
   } else {
     $error = true;
     $body_background = "#ffdddd";
     $surtitle_text = "Error";
   }
 
-  $ar = filecontents($newarfile);
-  $r1 = filecontents($newr1file);
-  $r2 = filecontents($newr2file);
-
-  # generate abstract versions of the two (new) replicas
+# generate abstract versions of the two (new) replicas
   $getcmd = $cmdbase 
     . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
     . (!empty($l1) ? "-lensr1 $lensModule.l1 " : "")
@@ -360,9 +380,7 @@ if(!$splash) {
     . (!empty($l2) ? "-lensr1 $lensModule.l2 " : "")
     . "2>&1";
   $a2 = shell_exec($getcmd);
-
-
- }
+}
 #TODO here: remove temporary files!!
 
 ##
@@ -394,18 +412,19 @@ foreach ($elements as $k=>$v) {
 
   $ELEMENT_functions = $ELEMENT_functions
     #resize function
-    . "function $k" . "_resize(e){" 
-    . "return resize(e, {s:document.getElementById(\"$k\").style," 
-    . "h:document.theform.$k" . "_h," 
-    . "w:document.theform.$k" . "_w" 
+    . " function $k" . "_resize(e){" 
+    . " return resize(e, {s:document.getElementById(\"$k\").style," 
+    . " h:document.theform.$k" . "_h," 
+    . " w:document.theform.$k" . "_w" 
     . ($v["text"] ? ", t:document.getElementById(\"$k" . "_text\").style" : "") 
-    . "});}"
+    . " });}"
     #hide function
-    . "function $k" . "_hide(e){"
-    . "document.theform.$k" . "_d.value = \"none\";"
-    . "document.getElementById(\"$k\").style.display = \"none\";"
-    . "if(!i[\"$icon\"]){i[\"$icon\"] = true;"
-    . "document.getElementById(\"{$icon}_icon\").style.display = \"inline\";}}";
+    . " function $k" . "_hide(e){"
+    . " document.theform.$k" . "_d.value = \"none\";"
+    . " document.getElementById(\"$k\").style.display = \"none\";"
+    . " if(!i[\"$icon\"]){i[\"$icon\"] = true;"
+    . " document.getElementById(\"{$icon}_icon\").style.display = \"inline\";}}"
+    ;
 
   $ELEMENT_init = $ELEMENT_init
     . "document.getElementById(\"{$k}_grip\").addEventListener(\"mousedown\", $k" . "_resize, true);"
@@ -418,7 +437,8 @@ foreach ($elements as $k=>$v) {
        ("s=document.getElementById(\"{$k}_text\").style;"
         . "if(document.theform.{$k}_w.value){s.width=document.theform.$k" . "_w.value + 'px';}"
         . "if(document.theform.{$k}_h.value){s.height=(document.theform.$k" . "_h.value - $text_height_diff)+ 'px';}")
-       : "");
+       : "")
+    ;
 
   eval("\$k_val=\$$k;");
   debug("$k", $k_val);
@@ -438,13 +458,14 @@ foreach ($elements as $k=>$v) {
 ##
 # ICON loop
 ##
-$sep = "";
+$sep = $sep_actions = "";
 $ICON_array = "";
 $ICON_functions = "";
 $ICON_html = "";
 $ICON_init = "";
+$ICON_actions = "";
 foreach($icons as $i=>$v) {
-  global $ICON_array, $ICON_functions, $ICON_html, $ICON_init;
+  global $sep, $sep_actions, $ICON_array, $ICON_functions, $ICON_html, $ICON_init, $ICON_actions;
 
   # calculate active icons
   $icons[$i]['active'] = $v['active'] = "false";
@@ -468,23 +489,38 @@ foreach($icons as $i=>$v) {
 
   # javascript functions
   $show_code = "";
+  $hide_code = "";
   if($v['shows']) {
     foreach($v["shows"] as $d) {
       $show_code = $show_code 
-        . "document.theform.$d" . "_d.value = \"block\";"
-        . "document.getElementById(\"$d\").style.display = \"block\";";
+        . "document.theform.{$d}_d.value = \"block\";"
+        . "document.getElementById(\"{$d}\").style.display = \"block\";";
+      $hide_code = $hide_code . "{$d}_hide();";
     }
   }
   $ICON_functions = $ICON_functions
     . ($v["shows"] ? 
-       "function $i" . "_click(){"
-       . "hide_st();"
-       . "i[\"$i\"]=false;"
-       . "document.getElementById(\"{$i}_icon\").style.display=\"none\";"
-       . $show_code 
-       . "}" : "")
+       " function ${i}_click() {"
+       . " hide_st();"
+       . " i[\"$i\"]=false;"
+       . " document.getElementById(\"{$i}_icon\").style.display=\"none\";"
+       . $show_code
+       . " } "
+       . " function {$i}_toggle() { "
+       . " if(i[\"$i\"]) { {$i}_click(); }"
+       . " else { "
+       . $hide_code
+       . " }"
+       . " }"
+       : "")
     . "function {$i}_over(e){show_st(\"$i\");}";
-  
+   
+  #Keystroke Actions 
+  if($v['key']) { 
+    $i_code = $v['shows'] ? "{$i}_toggle" : "{$i}_click";
+    $ICON_actions = $ICON_actions . "{$sep_actions} '{$v['key']}':{$i_code}";
+    $sep_actions = ",";
+  }
   # HTML
   $src = "images/icons/" . ($v['file'] ? $v['file'] : $i) . ".png";
   $desc = $v['desc'] ? $v['desc'] : "&nbsp;";
@@ -633,6 +669,8 @@ var x=0;
 var y=0;
 var c=null;
 var i={ $ICON_array };
+var actions={ $ICON_actions };
+
 function is(){ var n=0; for(j in i){ if(i[j]) n++ } return n; }
 function idx(j){ var n=0; for(k in i){ if(k==j) return n; if(i[j]) n++; } return -1; }
 function resize(e, r) {  
@@ -692,20 +730,41 @@ function show_st(j) {
   }
 }
 function hide_st() { var s = document.getElementById("surtitle"); s.style.textAlign = "left"; s.innerHTML="$surtitle_text"; }
-function sync_click() { go_submit("sync"); }
-function reset_click() { go_submit("reset"); }
-function next_click() { go_submit("next"); }
-function prev_click() { go_submit("prev"); }
-function experton_click() { go_submit("expert"); }
-function expertoff_click() { go_submit("expert"); }
+function sync_click() { sync_over(); go_submit("sync"); }
+function reset_click() { reset_over(); go_submit("reset"); }
+function next_click() { next_over(); go_submit("next"); }
+function prev_click() { prev_over(); go_submit("prev"); }
+function experton_click() { experton_over(); go_submit("expert"); }
+function expertoff_click() { expertoff_over(); go_submit("expert"); }
 function select_demo_group() { go_submit("select_group"); }
 function select_demo_number() { go_submit("select_number"); }
-function go_submit(s) { document.theform.submitter.value = s; document.theform.submit(); }
+function go_submit(s) { 
+  document.theform.submitter.value = s; 
+  document.theform.submit(); 
+}
+
+var ctrl_hot = false;
+function go_keystroke(k) { 
+  var c = String.fromCharCode(k.keyCode).toLowerCase();
+  if(ctrl_hot) {
+    var a = actions[c];
+    if (a) { a(); }  
+    ctrl_hot = false;
+  } else if(k.ctrlKey) {
+    if(c == 'h') {
+      ctrl_hot = true; 
+    } else if (c == 's') {      
+      sync_click(); 
+      ctrl_hot = false; 
+    } 
+  }
+}
 
 function load() {
   var s;
   document.addEventListener("mouseup", m_up, true);
   document.addEventListener("mousemove", m_move, true);
+  document.onkeydown = go_keystroke;
   for(j in i) {if(i[j]){document.getElementById(j+'_icon').style.display='inline';}}
   hide_st();
   $ICON_init 
@@ -717,7 +776,7 @@ ENDJAVASCRIPT;
 
 # strip redundant whitespace from CSS and javascript
 $css = compress($css);
-$js = compress($js);
+#$js = compress($js);
 $demogroupname = $alldemos[$demogroup]['demogroupname'];
 
 ##
