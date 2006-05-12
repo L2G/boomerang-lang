@@ -13,11 +13,26 @@ include $(TOP)/Top.Makefile
 
 all: buildsubdirs
 
-WEBDIR = $(HOME)/html/
-DOWNLOADDIR=$(WEBDIR)/download
+###########################################################################
+## SVN Commit -- append msg to ChangeLog
+checkin: logmsg remembernews
+	svn commit --file logmsg
+	$(RM) logmsg
+
+remembernews: logmsg
+	echo "CHANGES FROM VERSION" `date` > /tmp/ChangeLog.tmp
+	echo >> /tmp/ChangeLog.tmp
+	cat logmsg >> /tmp/ChangeLog.tmp
+	echo >> /tmp/ChangeLog.tmp
+	echo "-------------------------------" >> /tmp/ChangeLog.tmp
+	-cat ChangeLog >> /tmp/ChangeLog.tmp
+	mv -f /tmp/ChangeLog.tmp ChangeLog
+
 
 ###########################################################################
 ## Tarball export - to be run by harmony@halfdome.cis.upenn.edu
+WEBDIR = $(HOME)/html/
+DOWNLOADDIR=$(WEBDIR)/download
 
 ifdef HARMONY_BUILD_TAG
 REAL_HARMONY_BUILD_TAG=-$(HARMONY_BUILD_TAG)
@@ -27,19 +42,6 @@ endif
 
 EXPORTNAME=harmony$(REAL_HARMONY_BUILD_TAG)-$(shell date "+20%y%m%d")
 EXPORTDIR=/tmp/$(EXPORTNAME)
-
-checkin: logmsg remembernews
-	svn commit --file logmsg
-	$(RM) logmsg
-
-remembernews: logmsg
-	echo "CHANGES FROM VERSION" `svnversion . | cut -f2 -d :` > /tmp/ChangeLog.tmp
-	echo >> /tmp/ChangeLog.tmp
-	cat logmsg >> /tmp/ChangeLog.tmp
-	echo >> /tmp/ChangeLog.tmp
-	echo "-------------------------------" >> /tmp/ChangeLog.tmp
-	-cat ChangeLog >> /tmp/ChangeLog.tmp
-	mv -f /tmp/ChangeLog.tmp ChangeLog
 
 export: 
 	rm -rf $(EXPORTDIR)
