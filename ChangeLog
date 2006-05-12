@@ -1,3 +1,18 @@
+CHANGES FROM VERSION 1670
+
+Fixed version # tracking in ChangeLog, turning on mailing of commit
+messages to harmony-hackers again.
+
+To harmony-hackers: you may notice that revision #s do not go up
+consecutively. The reason is that /trunk is only one directory in a
+larger repository that contains our research papers etc. Commits to
+those other directories bump up the revision # but do not send mail to
+this list. Sorry :( 
+
+I may also occasionally turn off the the mail hooks when I'm debugging
+the commit scripts (to avoid spamming you all with uninteresting
+messages).
+-------------------------------
 CHANGES FROM VERSION 1667$
 
 Fixed ChangeLog so that versioning info gets added to commit messages. 
