@@ -33,7 +33,7 @@ checkin: logmsg remembernews
 	$(RM) logmsg
 
 remembernews: logmsg
-	echo "CHANGES FROM VERSION" $(VERSION) > /tmp/ChangeLog.tmp
+	echo "CHANGES FROM VERSION" `svnversion . | cut -f2 -d :` > /tmp/ChangeLog.tmp
 	echo >> /tmp/ChangeLog.tmp
 	cat logmsg >> /tmp/ChangeLog.tmp
 	echo >> /tmp/ChangeLog.tmp
