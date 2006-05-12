@@ -19,15 +19,17 @@ checkin: logmsg remembernews
 	svn commit --file logmsg
 	$(RM) logmsg
 
+VERSION=$(shell Sed .version -e "s/[^R]*R[^:]*: //" -e "s/ .*//")
+DATE=$(shell date)
 remembernews: logmsg
-	echo "CHANGES FROM VERSION" `date` > /tmp/ChangeLog.tmp
+	echo "CHANGES FROM VERSION" $(VERSION) > /tmp/ChangeLog.tmp
+	echo "\$$Revision$$" $(shell date) > .version
 	echo >> /tmp/ChangeLog.tmp
 	cat logmsg >> /tmp/ChangeLog.tmp
 	echo >> /tmp/ChangeLog.tmp
 	echo "-------------------------------" >> /tmp/ChangeLog.tmp
 	-cat ChangeLog >> /tmp/ChangeLog.tmp
 	mv -f /tmp/ChangeLog.tmp ChangeLog
-
 
 ###########################################################################
 ## Tarball export - to be run by harmony@halfdome.cis.upenn.edu

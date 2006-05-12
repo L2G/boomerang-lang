@@ -1,4 +1,11 @@
-CHANGES FROM VERSION
+CHANGES FROM VERSION 1667$
+
+Fixed ChangeLog so that versioning info gets added to commit messages. 
+
+This is a little bit useless because (a) we don't have a numbering scheme beyond SVN revision #s and (b) those #s are global for the whole repository, not just for trunk, so they won't always be consecutive. However, they give folks a reference for changes to trunk.
+
+-------------------------------
+CHANGES FROM VERSION 1659
 
 Demo, website, and Makefile cleanups:
 
@@ -21,4 +28,3 @@ Demo, website, and Makefile cleanups:
   * stole unison's Makefile code for updating a ChangeLog. please
     commit to trunk using "make checkin", after editing the file
     logmsg.
--------------------------------
