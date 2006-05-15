@@ -1,3 +1,7 @@
+CHANGES FROM VERSION 1671
+
+Housekeeping / tidying
+-------------------------------
 CHANGES FROM VERSION 1670
 
 Fixed version # tracking in ChangeLog, turning on mailing of commit
@@ -13,12 +17,15 @@ I may also occasionally turn off the the mail hooks when I'm debugging
 the commit scripts (to avoid spamming you all with uninteresting
 messages).
 -------------------------------
-CHANGES FROM VERSION 1667$
+CHANGES FROM VERSION 1667
 
 Fixed ChangeLog so that versioning info gets added to commit messages. 
 
-This is a little bit useless because (a) we don't have a numbering scheme beyond SVN revision #s and (b) those #s are global for the whole repository, not just for trunk, so they won't always be consecutive. However, they give folks a reference for changes to trunk.
-
+This is a little bit useless because (a) we don't have a numbering
+scheme beyond SVN revision #s and (b) those #s are global for the
+whole repository, not just for trunk, so they won't always be
+consecutive.  However, they give folks a reference for changes to
+trunk.
 -------------------------------
 CHANGES FROM VERSION 1659
 

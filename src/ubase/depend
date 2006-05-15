@@ -1,5 +1,3 @@
-myMap.cmo: myMap.cmi 
-myMap.cmx: myMap.cmi 
 prefs.cmo: util.cmi uarg.cmi safelist.cmi prefs.cmi 
 prefs.cmx: util.cmx uarg.cmx safelist.cmx prefs.cmi 
 rx.cmo: rx.cmi 

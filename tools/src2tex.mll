@@ -34,7 +34,6 @@
   let count = ref 0
   let runeg() =
      count := !count + 1;
-     let outname = !basename ^ "." ^ (string_of_int !count) in
      let old_needsVerbatim = !needsVerbatim in
      needsVerbatim := false; checkVerb();
      pr ("\\showout{" ^ !basename ^ "." ^ (string_of_int !count) ^ "}\n");
