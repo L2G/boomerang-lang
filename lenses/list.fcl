@@ -143,21 +143,6 @@ argument list in both directions.  \finish{Some explanation needed.}
 ##test reverse \ [] [{1},{2},{3}] = []
 ##test reverse \ [{3},{2},{1}] [] = [{1},{2},{3}]
 
-#* let fast_reverse : lens = 
-#*   let a : name = "acc" in 
-#*   let d : name = "data" in 
-#*   let reverse_step : lens =
-#*         xfork {`d} {`d,`HD} (hoist d; xfork {`TL} {`d} (hoist TL; plunge d) id) id;
-#*         xfork {`a,`HD} {`a} (rename a TL; plunge a) id in
-#*   iter a d [] [] reverse_step 
-
-#*test fast_reverse / \ [] = []
-#*test fast_reverse / \ [{1},{2},{3}] = [{3},{2},{1}]
-
-##test fast_reverse \ [] missing = []
-##test fast_reverse \ [] [{1},{2},{3}] = []
-##test fast_reverse \ [{3},{2},{1}] [] = [{1},{2},{3}]
-
 \LENSSECTION{concat2} The bijective lens @concat2 sep@ transforms (in the \GET{}
 direction) a list of two lists into a single list consisting of the elements
 of the two given lists appended together and separated by @sep@ (which must

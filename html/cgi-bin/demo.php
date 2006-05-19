@@ -355,13 +355,16 @@ if(!$splash) {
 
   debug("OUTPUT", $output);
 
-  if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file) 
-      && !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
-    array_splice($icons, 0, 1);
+  if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
     $ar = filecontents($newarfile);
-    debug("updating r1 from", $newr1file);
     $r1 = filecontents($newr1file);
     $r2 = filecontents($newr2file);
+  } else {
+    $error = true;
+  }
+  
+  if ($error || !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
+    array_splice($icons, 0, 1);
   } else {
     $error = true;
     $body_background = "#ffdddd";

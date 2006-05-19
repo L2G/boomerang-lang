@@ -641,8 +641,3 @@ the value returned by the command.
 
 ##let fmodify : (name -> name -> lens) = Native.Prelude.fmodify
 
-\LENSSECTION{iter}
-The function @iter acc data start stop l@ iterates a bijective lens @l@. 
-
-##let iter : (name -> name -> tree -> tree -> lens -> lens) = Native.Prelude.iter
-
