@@ -2,6 +2,7 @@
 
 $demogroupname = "Structured text";
 $demo["democmd"] = "../../src/harmony";
+$demo["flags"] = "-diff3";
 $demo["forcer1"] = true;
 $demo["default_h"] = 200;
 $demo["schema"] = "Structuredtext.NestedListOfValues";

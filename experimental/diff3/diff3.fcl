@@ -6,19 +6,21 @@ let a : tree = {a}
 let b : tree = {b}
 let c : tree = {c}
 let d : tree = {d}
+let e : tree = {e}
 let x : tree = {x}
 let A : tree = {A}
 let B : tree = {B}
 let C : tree = {C}
 let D : tree = {D}
+let E : tree = {E}
 
 let good (t:tree) : tree =
   {O = t, A = t, B = t}
 
 sync with id at (List.T Any)
-  { O = [a,a],
-    A = [a,b],
-    B = [a,c], log }
+  { O = [a,b,c,d,e],
+    A = [a,b,C,d,e],
+    B = [a,b,c,d,e], log }
   = 
    ?
 

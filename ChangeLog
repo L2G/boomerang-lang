@@ -1,3 +1,8 @@
+CHANGES FROM VERSION
+
+* List sync printing is now working pretty well
+
+-------------------------------
 CHANGES FROM VERSION 1672
 
 Fix another small bug in web demo. It was not updating the replicas or

@@ -56,13 +56,13 @@ let rec has_conflict a =
 
 let format_copy s = function
   | Adding v ->
-     V.format_msg [`Open_box; `String " Add ("; `String s; `String ")";
+     V.format_msg [`Open_box; `String "Add ("; `String s; `String ")";
                    `SpaceOrIndent; `Tree v; `Close_box]
   | Deleting v ->
-     V.format_msg [`Open_box; `String " Delete ("; `String s; `String ")";
+     V.format_msg [`Open_box; `String "Delete ("; `String s; `String ")";
                    `SpaceOrIndent; `Tree v; `Close_box]
   | Replacing (vold,vnew) ->
-     V.format_msg [`Open_box; `String " Replace ("; `String s; `String ")";
+     V.format_msg [`Open_box; `String "Replace ("; `String s; `String ")";
                    `SpaceOrIndent; `Tree vold; `Space; `String "with";
                    `SpaceOrIndent; `Tree vnew; `Close_box]
 	

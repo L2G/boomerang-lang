@@ -331,7 +331,7 @@ if(!$splash) {
   $cmdbase = 
     "export HOME=./; "
     . "export FOCALPATH=.:../../lenses:/$tempdir;"
-    . "./$democmd $flags";
+    . "./$democmd $flags ";
 
   debug("R1", $r1);
   debug("R1FILE", $r1file);

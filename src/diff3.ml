@@ -28,15 +28,22 @@ module Make(A: DIFF3ARGS) = struct
 
 type elt = A.elt
 
-type action = ((unit->unit) * (unit->bool)) list 
+type action = ((unit->unit) option * (unit->bool)) list 
 
 let format_action acts =
   Format.printf "@[<hv 1>[";
-  let rec loop = function
-      [] -> ()
-    | [(a,h)] -> a()
-    | (a,h)::rest -> a(); Format.printf ",@,"; loop rest
-  in loop (Safelist.rev acts);
+  let rec loop printdots l =
+    let doit = function
+        None -> true
+      | Some f ->
+          if printdots then Format.printf "...,@,";
+          f(); Format.printf ",@,";
+          false in
+    match l with 
+      [] -> if printdots then Format.printf "..."
+    | [(a,h)] -> if (doit a) || printdots then Format.printf "..."
+    | (a,h)::rest -> loop (doit a) rest 
+  in loop false (Safelist.rev acts);
   Format.printf "]@]"
 
 let has_conflict acts = Safelist.exists (fun (_,hc) -> hc()) acts
@@ -102,24 +109,23 @@ let sync elt_schema (o,a,b) =
   let make_match_list comp l_o l_a =  
     let lcs_oa = Array.make_matrix (l_o+1) (l_a+1) 0 in 
     let lcs_aux = Array.make_matrix (l_o+1) (l_a+1) Diag in 
-    let _ =
-      Array.iteri 
-        (fun i x -> 
-           if (i=0) then ()  
-           else Array.iteri 
-             (fun j y ->
-                if (j=0) then () 
-                else if comp.(i-1).(j-1) then 
-                  let _ = lcs_aux.(i).(j) <- Diag in 
-                  lcs_oa.(i).(j) <- lcs_oa.(i-1).(j-1) + 1 
-                  else if (lcs_oa.(i-1).(j) > lcs_oa.(i).(j-1)) then  
-                    let _ = lcs_aux.(i).(j) <- Top in
-                    lcs_oa.(i).(j) <- lcs_oa.(i-1).(j) 
-                else
-                  let _ = lcs_aux.(i).(j) <- Left in
-                  lcs_oa.(i).(j) <- lcs_oa.(i).(j-1))
-             lcs_oa.(i)) 
-      lcs_oa in
+    Array.iteri 
+      (fun i x -> 
+         if (i=0) then ()  
+         else Array.iteri 
+           (fun j y ->
+              if (j=0) then () 
+              else if comp.(i-1).(j-1) then 
+                let _ = lcs_aux.(i).(j) <- Diag in 
+                lcs_oa.(i).(j) <- lcs_oa.(i-1).(j-1) + 1 
+                else if (lcs_oa.(i-1).(j) > lcs_oa.(i).(j-1)) then  
+                  let _ = lcs_aux.(i).(j) <- Top in
+                  lcs_oa.(i).(j) <- lcs_oa.(i-1).(j) 
+              else
+                let _ = lcs_aux.(i).(j) <- Left in
+                lcs_oa.(i).(j) <- lcs_oa.(i).(j-1))
+           lcs_oa.(i)) 
+      lcs_oa;
     let rec find_matches i j l = 
       if (i=0) or (j=0) then l
       else match lcs_aux.(i).(j) with  
@@ -153,6 +159,7 @@ let sync elt_schema (o,a,b) =
              (not comp.(io).(ia))  ||  (find_diff (io+1) (ia+1) jo ja comp) in
          let is_diff_oa = find_diff (so+1) (sa+1) eo ea comp_oa in 
          let is_diff_ob = find_diff (so+1) (sb+1) eo eb comp_ob in 
+
          let get_lines sl el arr =
            let isfirst = (sl = -1) in 
            let len = if isfirst then el-sl-1 else el-sl in  
@@ -162,11 +169,35 @@ let sync elt_schema (o,a,b) =
                Array.to_list (Array.init len (fun i -> arr.(start+i)))
              else 
                [] in
-         let add_lines sl el arr dest = (get_lines sl el arr) @ dest in
+
+         let header s =
+           Format.printf "Elements %d-%d in archive, %d-%d in r1, %d-%d in r2:@,"
+             (so+2) eo (sa+2) (ea) (sb+2) (eb) in
+         (* let header s =
+           Format.printf "@[<v 0>%s in the chunk consisting of" s;
+           Format.printf "@    %d lines from %d-%d in archive,"
+             (eo-so-1) (so+2) eo;
+           Format.printf "@    %d lines from %d-%d in replica 1,"
+             (ea-sa-1) (sa+2) (ea);
+           Format.printf "@    %d lines from %d-%d in replica 2...@]@,"
+             (eb-sb-1) (sb+2) (eb) in *)
+
+         let showchange s nw ol =
+           let rec list_change_lines m = function
+               [] -> ()
+             | [e]     -> Format.printf "%s (%s) " m s; A.format e
+             | e::rest -> Format.printf "%s (%s) " m s; A.format e;
+                          Format.printf ",@,"; list_change_lines m rest in
+           if nw = [] then list_change_lines "Delete" ol
+           else if ol=[] then list_change_lines "Add" nw 
+           else list_change_lines "Change" nw 
+in
+
+         let onew = get_lines so eo arr_o in 
+         let anew = get_lines sa ea arr_a in 
+         let bnew = get_lines sb eb arr_b in  
+
          if is_diff_oa && is_diff_ob then begin
-           let onew = get_lines so eo arr_o in 
-           let anew = get_lines sa ea arr_a in 
-           let bnew = get_lines sb eb arr_b in  
            let len_onew = Safelist.length onew in 
            let len_anew = Safelist.length anew in 
            let len_bnew = Safelist.length bnew in 
@@ -185,35 +216,28 @@ let sync elt_schema (o,a,b) =
                        (a, the oo', the oa', the ob'))
                     (zip3 (onew, anew, bnew))) in
              let act () =
-               Format.printf 
-                 "@[<v 2>Recursing on the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]@,"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb);
+               header "Reconciling changes line by line";
                (* This is going to produce some funny strings of commas... *)
+               Format.printf "   (Length = %d)@," len_onew;
                Safelist.iter
                  (fun a -> A.format_action a; Format.printf ",@,")
                  subacts in
              let hc () = Safelist.exists A.has_conflict subacts in
-             ((so,sa,sb),((act,hc)::acts,onew'@o',anew'@a',bnew'@b'))
+             ((so,sa,sb),((Some act,hc)::acts,onew'@o',anew'@a',bnew'@b'))
            end else begin
-             let act () = Format.printf 
-               "@[<v 2>The chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@ is in conflict@]"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb) in
-             ((so,sa,sb),((act,confl)::acts,onew@o',anew@a',bnew@b'))
+             let act () = header "Synchronizing line by line" in
+             ((so,sa,sb),((Some act,confl)::acts,onew@o',anew@a',bnew@b'))
            end
          end else if is_diff_oa then begin   
-           let o'= add_lines sa ea arr_a o' in 
-           let a'= add_lines sa ea arr_a a' in 
-           let b'= add_lines sa ea arr_a b' in
-           let act () = Format.printf
-             "@[<v 2>Only a is different in the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb) in
-           ((so,sa,sb),((act,noconfl)::acts,o',a',b'))        
+           let act () = header "Replica 1 changed"; showchange "-->" anew bnew in
+           ((so,sa,sb),((Some act,noconfl)::acts,anew@o',anew@a',anew@b'))        
          end else begin
-           (* Only b is different or else all same*) 
-           let o'= add_lines sb eb arr_b o' in 
-           let a'= add_lines sb eb arr_b a' in 
-           let b'= add_lines sb eb arr_b b' in  
-           let act () = 
-             if is_diff_ob then Format.printf
-               "@[<v 2>Only b is different in the chunk consisting of@ %d lines from %d - %d in file O,@ %d lines from %d - %d in file A,@ %d lines from %d - %d in file B@]"  (eo-so-1) (so+2) eo   (ea-sa-1)  (sa+2) (ea) (eb - sb -1) (sb+2) (eb) in
-           ((so,sa,sb),((act,noconfl)::acts,o',a',b'))      
+           (* Only b is different or else all three are the same *) 
+           let act = 
+             if is_diff_ob then
+               Some (fun()-> header "Replica 2 changed"; showchange "<--" bnew anew)
+             else None in
+           ((so,sa,sb),((act,noconfl)::acts,bnew@o',bnew@a',bnew@b'))      
          end)
       ((len_o,len_a,len_b),([],[],[],[]))
       same_lines_oab 
