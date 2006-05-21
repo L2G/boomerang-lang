@@ -1,0 +1,10 @@
+(* Unit tests for diff3 sync algorithm *)
+
+module Listexamples =
+
+sync with List.explode at (List.T Value)
+  { O = "abcde",
+    A = "abcde",
+    B = "abcde" }
+  = ?
+      
