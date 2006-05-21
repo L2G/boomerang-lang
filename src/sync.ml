@@ -21,7 +21,7 @@ module rec Internal :
             -> action * V.t option * V.t option * V.t option
   end = struct
 
-let diff3 = Prefs.createBool "diff3" false
+let diff3 = Prefs.createBool "diff3" true
   "Use diff3 algorithm to synchronize lists"
   "Use diff3 algorithm to synchronize lists"
 

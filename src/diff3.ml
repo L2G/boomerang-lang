@@ -32,18 +32,19 @@ type action = ((unit->unit) option * (unit->bool)) list
 
 let format_action acts =
   Format.printf "@[<hv 1>[";
-  let rec loop printdots l =
-    let doit = function
-        None -> true
-      | Some f ->
-          if printdots then Format.printf "...,@,";
-          f(); Format.printf ",@,";
-          false in
-    match l with 
-      [] -> if printdots then Format.printf "..."
-    | [(a,h)] -> if (doit a) || printdots then Format.printf "..."
-    | (a,h)::rest -> loop (doit a) rest 
-  in loop false (Safelist.rev acts);
+  let rec loop first_elt skipping = function
+      [] -> ()
+    | (None, _) :: rest ->
+        if not skipping then begin
+          if not first_elt then Format.printf ",@,";
+          Format.printf "..."
+        end;
+        loop false true rest
+    | (Some f, _) :: rest ->
+        if not first_elt then Format.printf ",@,";
+        f();
+        loop false false rest
+  in loop true false acts;
   Format.printf "]@]"
 
 let has_conflict acts = Safelist.exists (fun (_,hc) -> hc()) acts
@@ -171,8 +172,9 @@ let sync elt_schema (o,a,b) =
                [] in
 
          let header s =
-           Format.printf "Elements %d-%d in archive, %d-%d in r1, %d-%d in r2:@,"
-             (so+2) eo (sa+2) (ea) (sb+2) (eb) in
+           Format.printf
+            "-- Elements %d-%d in archive, %d-%d in replica 1, %d-%d in replica 2: --@,"
+            (so+2) eo (sa+2) (ea) (sb+2) (eb) in
          (* let header s =
            Format.printf "@[<v 0>%s in the chunk consisting of" s;
            Format.printf "@    %d lines from %d-%d in archive,"
@@ -217,11 +219,14 @@ in
                     (zip3 (onew, anew, bnew))) in
              let act () =
                header "Reconciling changes line by line";
-               (* This is going to produce some funny strings of commas... *)
-               Format.printf "   (Length = %d)@," len_onew;
-               Safelist.iter
-                 (fun a -> A.format_action a; Format.printf ",@,")
-                 subacts in
+               (* Format.printf "   (Length = %d)@," len_onew; *)
+               let rec loop first = function
+                   [] -> ()
+                 | a::rest ->
+                     if not first then Format.printf ",@,";
+                     A.format_action a;
+                     loop false rest in
+               loop true subacts in
              let hc () = Safelist.exists A.has_conflict subacts in
              ((so,sa,sb),((Some act,hc)::acts,onew'@o',anew'@a',bnew'@b'))
            end else begin

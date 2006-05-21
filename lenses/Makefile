@@ -17,7 +17,6 @@ test:: $(GENERATEDFCLFILES)
 	$(HARMONY) -check Prelude -test Prelude 
 	$(HARMONY) -check Units -test Units
 	$(HARMONY) -check List -test List
-	$(HARMONY) -check Spinelist -test Spinelist
 	$(HARMONY) -check Xml -test Xml
 	$(HARMONY) -check Plist -test Plist
 	$(HARMONY) -check Relational -test Relational

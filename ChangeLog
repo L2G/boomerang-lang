@@ -1,5 +1,23 @@
 CHANGES FROM VERSION
 
+* Finished printing for list sync (modulo one small off-by-one bug
+  that I need to talk to Keshav about)
+
+* Since the diff3-based list sync seems to be working now, I've turned
+  it on by default; to disable it again, pass '-diff3=false' on the
+  command line.
+
+* Deleted the Spinelist module (which was a hack to get around the
+  lack of proper list sync)
+
+* Moved the Xmi examples to /experimental (they are a bit dubious
+  anyway, and now some test cases are breaking)
+
+
+
+-------------------------------
+CHANGES FROM VERSION
+
 * List sync printing is now working pretty well
 
 -------------------------------

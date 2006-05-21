@@ -17,10 +17,10 @@ let E : tree = {E}
 let good (t:tree) : tree =
   {O = t, A = t, B = t}
 
-sync with id at (List.T Any)
+sync with id at (List.T Value)
   { O = [a,b,c,d,e],
-    A = [a,b,C,d,e],
-    B = [a,b,c,d,e], log }
+    A = [D,b,C,d,e],
+    B = [E,b,c,d,E], log }
   = 
    ?
 
