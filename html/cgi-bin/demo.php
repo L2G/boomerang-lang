@@ -77,6 +77,7 @@ function get_demos_from ($subdir) {
 get_demos_from("basics");
 $alldemos[] = array("header" => "Tutorials");
 get_demos_from("addresses");
+get_demos_from("listexamples");
 get_demos_from("structuredtext");
 get_demos_from("lenses");
 $alldemos[] = array("header" => "Expert");

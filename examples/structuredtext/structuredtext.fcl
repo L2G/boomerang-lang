@@ -12,7 +12,8 @@ let MaybeComplete (H:schema) : schema = Complete H | Incomplete H
 let ParsedList (H:schema) : schema = List.Cons (MaybeComplete H) (List.T (Complete H))
 
 let TailComplete (H:schema) : schema = List.Cons Any (List.Cons (List.Cons H Any) Any)
-let HeadSingletonAndTailNonempty : schema = List.Cons (List.Cons Any List.Nil) (List.Cons Any Any)
+let HeadSingletonAndTailNonempty : schema =
+  List.Cons (List.Cons Any List.Nil) (List.Cons Any Any)
 
 (******************************************************************************)
 (* Generic low-level functionality *)
@@ -138,7 +139,6 @@ let file_with_all_caps_headers : lens = List.lines; caps_headers
 let file_with_star_headers : lens = List.lines; star_headers
 let file_with_simple_star_headers : lens = List.lines; simple_star_headers
 let file_with_combined_headers : lens = List.lines; combined_headers
-
 
 (******************************************************************************)
 (* Sync tests *)

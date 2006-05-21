@@ -121,7 +121,7 @@ cleanall:
 
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
 	@for i in $(SUBDIRS); do \
-	   echo \
+	   echo ;\
 	   echo "###### testing $(CWD)/$$i ######"; \
 	   $(MAKE) -C $$i test;  \
 	   if [ $$? -ne 0 ]; then exit $$?; fi; \
