@@ -7,7 +7,10 @@ let b : tree = {b}
 let c : tree = {c}
 let d : tree = {d}
 let e : tree = {e}
+let f : tree = {f}
+let g : tree = {g}
 let x : tree = {x}
+let y : tree = {y}
 let A : tree = {A}
 let B : tree = {B}
 let C : tree = {C}
@@ -17,10 +20,20 @@ let E : tree = {E}
 let good (t:tree) : tree =
   {O = t, A = t, B = t}
 
+(* First example, showing funny off-by-one printing bug *)
 sync with id at (List.T Value)
   { O = [a,b,c,d,e],
     A = [D,b,C,d,e],
     B = [E,b,c,d,E], log }
+  = 
+   ?
+
+(* More complex example, also illustrating a funny behavior (why is there a change
+   action listed for 'c'?) *)
+sync with id at (List.T Value)
+  { O = [a,b,c,d,e,f,g],
+    A = [x,b,x,x,c,d,e,f,g],
+    B = [y,b,c,f,g], log }
   = 
    ?
 
