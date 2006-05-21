@@ -154,9 +154,6 @@ In one replica, add </tt>FOO</tt> after </tt>one</tt> (on the same line) and </t
 replicas after synchronization and in the summary printed by Harmony of what
 it has done.
 <p>
-(Yes, we know we need to working on making Harmony's output easier to
-understand!)
-<p>
 At this point, the first and third lines are known to be synchronized and
 can be further edited; changes made just in one replica will be propagated
 to the other.  The second line, on the other hand, is in conflict and will
@@ -184,56 +181,6 @@ XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
 * HEADER
-one
-two
-three
-XXX;
-savedemo();
-# ---------------------------------------------------------
-
-##############################################################################
-
-# ---------------------------------------------------------
-$demo["instr"] = <<<XXX
-For our last experiment with structured text, let's have a look at some
-subtleties that arise from Harmony's rather simplistic treatment of lists.
-<p>
-First, observe that, if we change the list structure only in one replica,
-there is never any difficulty.  
-<p>
-Try adding a line of lowercase characters between <tt>one</tt> and <tt>two</tt> below in
-just one of the replicas and see what happens when you sync.
-<p>
-Next, note that if lines get added to both replicas <em>in the same way</em>, there
-is also no problem.
-<p>
-Try adding the same new line to both replicas between <tt>one</tt> and <tt>two</tt>.  See
-what happens.
-<p>
-However, things are not quite so nice if both the same list in both replicas
-is edited.  Try adding another new line to both replicas between <tt>one</tt> and
-<tt>two</tt>.  Moreover, add <tt>FOO</tt> to the line <tt>three</tt> in one of the replicas.  See
-what happens.  (Probably less than you expected.)
-<p>
-Delete the <tt>FOO</tt> and re-sync to repair the conflict.  (The <tt>EQUAL</tt>
-report signals that Harmony has detected and remembered that the replicas
-are now equal.)
-<p>
-Finally, try adding another new line between <tt>one</tt> and <tt>two</tt> in one replica 
-and add a new line at the very end in the other.  Re-sync.  Were you
-surprised?  (If not, try it again!)  
-<p>
-The lesson is that Harmony should be used on list-structured data only with
-great care.  When changes are non-overlapping all will be well.  But when
-the same parts of a list structure are changed in both replicas,
-counter-intuitive behavior can result.  We are investigating how to address
-this issue.
-<p>
-This ends the structured text demo.  
-XXX;
-# ---------------------------------------------------------
-$demo["r1"] = <<<XXX
-* HEAD
 one
 two
 three

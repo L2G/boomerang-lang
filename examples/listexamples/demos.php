@@ -22,11 +22,14 @@ such as CVS and Subversion).
 
 Try the following on the text files below (which are being parsed as lists of lines): 
 <ol>
-<li> Change <tt>a</tt> to <tt>FOO</tt> in replica 1 and to to <tt>BAR</tt> in replica 2.
 <li> Insert a few new lines between <tt>b</tt> and <tt>c</tt> in replica 1.
 <li> Delete <tt>d</tt> and <tt>e</tt> in replica 2.
 <li> In both replicas, change <tt>g</tt> to <tt>G</tt>.
 </ol>
+
+Now synchronize.  Notice that all the changes get propagated
+successfully, even though the insertions and deletions change the
+absolute positions of the "corresponding" lines in the replicas.
 
 XXX;
 # ---------------------------------------------------------
