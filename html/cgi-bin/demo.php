@@ -5,7 +5,7 @@
 #
 # demo.php - Live web demo
 ################################################################
-# $Id: demo.php 1188 2006-01-18 23:50:17Z jnfoster $
+# $Id$
 
 $home = getcwd();
 
@@ -578,6 +578,12 @@ body {
   background: $body_background;
   font-family: arial, sans-serif;
   font-size: small;
+}
+#section {
+  font-size: x-large;
+  font-weight: bold;
+  text-align: center;
+  padding-bottom: 10;
 }
 #header {
   position:relative;

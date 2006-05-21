@@ -219,6 +219,8 @@ SAF;
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
+<div id="section">Bookmarks</div>
+
 <p>
 This demo shows how we can use Harmony to synchronize bookmark data
 between the Mozilla Firefox and Safari web browsers. Each browser uses

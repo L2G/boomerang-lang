@@ -5,6 +5,8 @@ $demogroupname = "Playground";
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
+<div id="section">Playground</div>
+
 This page provides "raw" access to the lenses and sychronization
 facilities of Harmony.  You can use it to experiment with the
 synchronization algorithm and/or with writing your own lenses.

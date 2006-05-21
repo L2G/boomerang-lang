@@ -10,6 +10,8 @@ $demo["schema"] = "Addr.AddrBook";
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
+<div id="section">Address Books</div>
+        
 <p> We've built Harmony instances (i.e., appropriate lenses plus a
 little bit of top-level "glue") for address book data in two different
 formats: an XML variant of the popular vCard format, and

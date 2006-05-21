@@ -12,6 +12,8 @@ $demo["output_d"] = "block";
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
+<div id="section">Lists</div>
+
 Harmony's synchronization algorithm handles <i>lists</i> specially,
 using the same alignment algorithm as the popular <tt>diff3</tt>
 command-line utility (which is also used by version management systems

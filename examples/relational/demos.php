@@ -6,6 +6,8 @@ $demo["r1_h"] = $demo["r2_h"] = 250;
 # ---------------------------------------------------------
 $demo["instr"] = <<<HTML
 
+<div id="section">Relational Lenses</div>
+
 <h3>Encoding Relations</h3>
 
 <p> The <code>Relational</code> module contains lenses for manipulating

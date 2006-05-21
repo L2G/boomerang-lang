@@ -12,6 +12,9 @@ $demo["r1format"] = $demo["r2format"] = "ics";
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
+
+<div id="section">Calendars</div>
+
 This demo shows how Harmony can be used to synchronize calendar files
 between organizers that use the iCalendar format (e.g., iCal on
 MacOS/X, Evolution or kOrganizer on Linux systems, Outlook on

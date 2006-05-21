@@ -12,6 +12,8 @@ $demo["output_d"] = "block";
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
+<div id="section">Structured Text</div>
+
 <p>
 This first example of structured text synchronization 
 illustrates the basic ideas with just one level of structure.

@@ -15,7 +15,10 @@ $demo["l2"] = "id";
 ############################################################
 
 $demo["instr"] = <<<XXX
-<p>This tutorial gives a quick introduction to lens programming in Focal.</p>
+
+<div id="section">Lens Programming</div>
+
+<p>The following screens give a quick  tutorial introduction to lens programming in Focal.</p> 
 
 <p>A lens is a bi-directional transformation that maps <i>between</i>
 sets of trees. Formally, a lens between concrete format <i>C</i> and
