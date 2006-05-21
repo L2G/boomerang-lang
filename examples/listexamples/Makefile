@@ -3,7 +3,7 @@
 # harmony@lists.seas.upenn.edu                                     #
 ####################################################################
 
-# $Id: Makefile 413 2005-06-07 19:18:34Z bcpierce $
+# $Id$
 
 TOP = ../..
 include $(TOP)/Top.Makefile
