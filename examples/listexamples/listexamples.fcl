@@ -8,39 +8,41 @@ let noconflict (t:tree) : tree =
 (* ------------------------------------------------------------------- *)
 (* Some counter-intuitive and/or wrong test cases *)
 
-(* First example, showing corrent result but funny off-by-one printing bug *)
+(* First example, showing correct result but funny off-by-one printing bug *)
 sync with List.explode at (List.T Value)
    { O = {abcde},
      A = {DbCde},
-     B = {EbcdE}, log }
+     B = {EbcdE}
+     (* , log *) }    (* uncomment to see the problem *)
   = {O = {abCdE},
      A = {DbCdE},
      B = {EbCdE}}
 
-(* More complex example, also illustrating a funny behavior (why is there a change
-   action listed for 'c'?) *)
+(* Another example, also illustrating the funny behavior *)
 sync with List.explode at (List.T Value)
    { O = {abcdefg},
-     A = {xbxxcdefg},
-     B = {xbcfg}, log }
+     A = {abxxcdefg},
+     B = {abcfg}, log }
   = ?
 
-(*
-sync with id at (List.T Value)
-  { O = [a,b,c,d,e,f,g],
-    A = [x,b,x,x,c,d,e,f,g],
-    B = [y,b,c,f,g], log }
-  = 
-   ?
-*)
-
-(* Overlapping deletions (this result is a bit non-intuitive -- should be fixed!) *)
+(* Overlapping deletions (this result is a bit non-intuitive and doesn't match
+   the regular sync algorithm's behavior on overlapping deletions --
+   should be fixed!) *)
 sync with List.explode at (List.T Value)
    { O = {abcde},
      A = {acde},
      B = {ade} }
   = {A = {acde},
      B = {ade},
+     O = {abcde}}
+
+(* Conflicting additions (because different lengths) *)
+sync with List.explode at (List.T Value)
+   { O = {abcde},
+     A = {Xabcde},
+     B = {XXabcde} }
+  = {A = {Xabcde},
+     B = {XXabcde},
      O = {abcde}}
 
 (* ------------------------------------------------------------------- *)
@@ -65,27 +67,6 @@ sync with List.explode at (List.T Value)
      A = {XXabcde},
      B = {XXabcde} }
   = noconflict {XXabcde}
-
-(* Conflicting additions (because different lengths) *)
-sync with List.explode at (List.T Value)
-   { O = {abcde},
-     A = {Xabcde},
-     B = {XXabcde} }
-  = {A = {Xabcde},
-     B = {XXabcde},
-     O = {abcde}}
-
-sync with List.explode at (List.T Value)
-   { O = {abcde},
-     A = {abcde},
-     B = {abcde} }
-  = noconflict {abcde}
-
-sync with List.explode at (List.T Value)
-   { O = {abcde},
-     A = {abcde},
-     B = {abcde} }
-  = noconflict {abcde}
 
 (* Combination of changes and conflicts *)
 sync with List.explode at (List.T Value)

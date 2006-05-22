@@ -84,6 +84,13 @@ let print_list l =
   in loop l;
   Printf.eprintf "]"
 
+let format_list l =
+  let rec loop l = match l with
+    [] -> ()
+  | [e] -> A.format e
+  | e::es -> A.format e; Format.printf ",@ "; loop es
+  in loop l
+
 let sync elt_schema (o,a,b) =
   debug (fun () ->
     Printf.eprintf "Inputs:\n";
@@ -230,7 +237,10 @@ in
              let hc () = Safelist.exists A.has_conflict subacts in
              ((so,sa,sb),((Some act,hc)::acts,onew'@o',anew'@a',bnew'@b'))
            end else begin
-             let act () = header "Synchronizing line by line" in
+             let act () =
+               header "Conflict";
+               Format.printf "@[<hv 4>Conflict between@ "; format_list anew;
+               Format.printf "@]@ @[<hv 4>and@ "; format_list bnew; Format.printf "@]" in
              ((so,sa,sb),((Some act,confl)::acts,onew@o',anew@a',bnew@b'))
            end
          end else if is_diff_oa then begin   
