@@ -409,6 +409,8 @@ foreach ($elements as $k=>$v) {
   $elements[$k]['w'] = $v['w'] = pick(get_post_data($k . "_w"), demoparam($k . "_w"), $v['w']);
   $elements[$k]['d'] = $v['d'] = pick(get_post_data($k . "_d"), demoparam($k . "_d"), $v['d']);
 
+  $elements[$k]['title'] = $v['title'] = pick(false, demoparam($k . "_title"), $v['title']);
+
   $icon = "";
   foreach($icons as $i=>$w) { if($w["shows"] && in_array($k, $w["shows"])) { $icon = $i; break; } }
 
@@ -445,7 +447,7 @@ foreach ($elements as $k=>$v) {
     ;
 
   eval("\$k_val=\$$k;");
-  debug("$k", $k_val);
+  
   $ELEMENT_html = $ELEMENT_html
     . "<div class=\"box\" id=\"$k\">"
     . "<div class=\"title\">{$v['title']}<div class=\"min\" id=\"$k" . "_min\"></div></div>"

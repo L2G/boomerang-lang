@@ -12,13 +12,17 @@ $demo["l2_d"] = $demo["a1_d"] = $demo["a2_d"] = "none";
 $demo["forcer1"] = true;
 $demo["l2"] = "id";
 
+$demo["r1_title"] = "Concrete";
+$demo["r2_title"] = "Abstract";
+$demo["l1_title"] = "Lens";
+
 ############################################################
 
 $demo["instr"] = <<<XXX
 
 <div id="section">Lens Programming</div>
 
-<p>The following screens give a quick  tutorial introduction to lens programming in Focal.</p> 
+<p>The following screens give a quick tutorial introduction to lens programming in Focal.</p> 
 
 <p>A lens is a bi-directional transformation that maps <i>between</i>
 sets of trees. Formally, a lens between concrete format <i>C</i> and
@@ -38,15 +42,11 @@ found in the <a href="../doc/main.pdf">Harmony Manual</a>.
 </p>
 
 <p>
-This demo is setup so that the tree in "Replica #1" represents the
-concrete tree and the one in "Replica #2" represents the abstract
-tree.
-
-To start, edit the tree in the replica to add a new child
-named <tt>c</tt> with a subtree <tt>{3}</tt> to the first replica
+To start, add a new child named <tt>c</tt> with a 
+subtree <tt>{3}</tt> to the concrete tree
 (i.e., add '<tt>, c={3}</tt>' just before the closing curly
 brace). Click the "Synchronize" button; your change will be 
-reflected in the in the second replica.
+reflected in the in the abstract tree.
 </p>
 XXX;
 # ---------------------------------------------------------
@@ -66,12 +66,12 @@ and then press "Synchronize". The <tt>filter</tt> lens takes a set of
 names as its first element and prunes away all of the children that do
 not belong to the set.  Notice that the <tt>b</tt> child, and its
 subtree, have been filtered away.  You will see the
-tree <tt>{a={1},c={3}}</tt> in the second replica.
+tree <tt>{a={1},c={3}}</tt> in the abstract tree.
 </p>
 
 <p>
 Try adding a child named <tt>d</tt> (pointing to a
-tree </tt>{4}</tt>) to the first replica, and press "Synchronize"
+tree </tt>{4}</tt>) to the concrete tree, and press "Synchronize"
 again. You will see that the <tt>d</tt> child is also filtered
 away.
 </p>
@@ -94,11 +94,11 @@ example, let's explore the put-back component of the <tt>filter</tt> lens.
 </p>
 
 <p>
-First, modify the <i>second</i> replica, by deleting the
+First, modify the <i>abstract</i> tree, by deleting the
 child <tt>c={3}</tt> and updating the child under <tt>a</tt>
 to <tt>{5}</tt>. Now click "Synchronize". 
 
-You should see a new concrete tree in the first replica with the
+You should see a new concrete tree in the concrete tree with the
 updated value for a, c missing, and with the subtrees under b and d
 carried over like this: <tt>{a = {5}, b = {2}, d = {4}}</tt>.
 </p>
@@ -115,10 +115,10 @@ savedemo();
 
 $demo["instr"] = <<<XXX
 <p>
-Now let's play with some XML trees. In the first replica, you see a
-simple document in the familiar, concrete XML syntax. The second
-replica shows the same tree, in Harmony's internal tree
-representation, and printed concretely as "meta".</p>
+Now let's play with some XML trees. In the concrete tree, you see a
+simple document in the familiar, concrete XML syntax. The abstract tree 
+shows the same tree, in Harmony's internal tree representation, and 
+printed concretely as "meta".</p>
 
 <p>
 Change the lens definition from <tt>id</tt> to <tt>Xml.squash</tt> and
@@ -166,10 +166,9 @@ savedemo();
 
 $demo["instr"] = <<<XXX
 <p>
-Now update the abstract tree in the second replica to <tt>goodbye,
+Now update the abstract tree to <tt>goodbye,
 cruel world</tt> and click "Synchronize". Notice how this change is
-re-inserted into the structure of the XML document in the first
-replica.
+re-inserted into the structure of the XML document in the concrete tree.
 </p>
 
 <p>

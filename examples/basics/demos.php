@@ -12,6 +12,7 @@ $demo["arformat"] = "meta";
 # ---------------------------------------------------------
 $demo["splash"] = true;
 unset($demo["instr_w"]);
+$demo["instr_title"] = "Welcome";
 $demo["instr"] = <<<XXX
 <center><h2>Welcome to Harmony!</h2></center>
 
