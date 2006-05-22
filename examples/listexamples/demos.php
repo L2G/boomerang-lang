@@ -20,7 +20,7 @@ command-line utility (which is also used by version management systems
 such as CVS and Subversion).
 <p>
 
-Try the following on the text files below (which are being parsed as lists of lines): 
+Try the following on the text files below: 
 <ol>
 <li> Insert a few new lines between <tt>b</tt> and <tt>c</tt> in replica 1.
 <li> Delete <tt>d</tt> and <tt>e</tt> in replica 2.

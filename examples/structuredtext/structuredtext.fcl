@@ -135,16 +135,16 @@ schema NestedListOfValues = List.T (NonListValue | NestedListOfValues)
 (******************************************************************************)
 (* Some useful instances packaged for invoking from the command line... *)
 
-let file_with_all_caps_headers : lens = List.lines; caps_headers
-let file_with_star_headers : lens = List.lines; star_headers
-let file_with_simple_star_headers : lens = List.lines; simple_star_headers
-let file_with_combined_headers : lens = List.lines; combined_headers
+let text_with_all_caps_headers : lens = List.lines; caps_headers
+let text_with_star_headers : lens = List.lines; star_headers
+let text_with_simple_star_headers : lens = List.lines; simple_star_headers
+let text_with_combined_headers : lens = List.lines; combined_headers
 
 (******************************************************************************)
 (* Sync tests *)
 
 (* Successful propagation of non-conflicting changes *)
-sync with file_with_star_headers at NestedListOfValues
+sync with text_with_star_headers at NestedListOfValues
   { O = {"* HEADER
         |** SUBHEADER
         |text
@@ -171,7 +171,7 @@ sync with file_with_star_headers at NestedListOfValues
     {O=res, A=res, B=res})
 
 (* A header conflict *)
-sync with file_with_star_headers at NestedListOfValues
+sync with text_with_star_headers at NestedListOfValues
   { O = {"* HEADER
          |** SUBHEADER
          |text"},

@@ -130,7 +130,7 @@ let sync lo la lb typ orig =
   let (ao',aa',ab') = match (ao',aa',ab') with 
       Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') 
     | _ -> assert false in
-  if log then Sync.format_action a;
+  if log then begin Sync.format_action a; Format.printf "@\n" end;
   let co',ca',cb' = (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb)) in	
     V.from_list [("O", co'); ("A",ca'); ("B",cb')]
       

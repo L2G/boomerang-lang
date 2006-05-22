@@ -8,9 +8,9 @@ let chooseAbstractSchema types = "Structuredtext.NestedListOfValues"
 
 let chooseLens t schema =
   if Prefs.read simplified then
-    "Structuredtext.file_with_simple_star_headers"
+    "Structuredtext.text_with_simple_star_headers"
   else
-    "Structuredtext.file_with_combined_headers"
+    "Structuredtext.text_with_combined_headers"
 ;;
 
 Toplevel.toplevel

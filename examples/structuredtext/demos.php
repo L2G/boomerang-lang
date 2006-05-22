@@ -2,60 +2,74 @@
 
 $demogroupname = "Structured text";
 $demo["democmd"] = "../../src/harmony";
-$demo["flags"] = "-diff3";
 $demo["forcer1"] = true;
 $demo["default_h"] = 200;
-$demo["schema"] = "Structuredtext.NestedListOfValues";
 $demo["r1format"] = $demo["r2format"] = "txt";
-$demo["l1"] = $demo["l2"] = "Structuredtext.file_with_simple_star_headers";
 $demo["output_d"] = "block";
+$demo["a1_d"] = $demo["a2_d"] = "block";
+$demo["a1_h"] = $demo["a2_h"] = 150;
+$demo["l1_d"] = $demo["l2_d"] = "block";
+$demo["l1_h"] = $demo["l2_h"] = 50;
+
+$demo["schema"] = "List.T Value";
+$demo["l1"] = $demo["l2"] = "List.lines";
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 <div id="section">Structured Text</div>
 
-<p>
-This first example of structured text synchronization 
-illustrates the basic ideas with just one level of structure.
-</p>
+Harmony can be used to synchronize text files in a wide variety of
+ways.  The most basic of these, illustrated in the previous part of
+the demo ("Lists"), parses a text file into a simple list of lines.  
 
 <p>
-Try adding a few new lines below <tt>SECOND PART</tt>
-in one replica and below <tt>THIRD PART</tt> in the other.   
-</p>
+
+This can be seen by displaying the abstract versions of the replicas,
+as we have done below.  
+
+<p>
+
+(To be completely precise, what happens is that the text file is first
+loaded into a concrete tree structure with just a single edge
+containing the whole contents of the file as its label.  This tree is
+then passed through a lens called <tt>List.lines</tt>, which splits
+the single edge label at each newline character.  This can be seen, if
+you like, by clicking on the "Show lenses" icon in the row of tools at
+the top of the screen.)
 
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
-* FIRST PART
-
-* SECOND PART
-
-* THIRD PART
+a
+b
+d
+c
+e
+f
+g
 XXX;
 savedemo();
 # ---------------------------------------------------------
 
 ##############################################################################
 
+$demo["schema"] = "Structuredtext.NestedListOfValues";
+$demo["l1"] = $demo["l2"] = "Structuredtext.text_with_simple_star_headers";
+
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
+
+<p> A more interesting way to deal with text is to parse it up into a
+hierarchical structure.  
+
 <p>
-This time, instead of synchronizing one structured text file with another
-one, we're showing the "abstract tree" that results from applying the
-structured text lens to a concrete structured text file.
-<p>
-The second replica is stored as a simple textual dump of Harmony's internal
-tree representation.  During synchronization, the lens applied to the file
-(called r2.meta) is the identity lens -- i.e., r2.meta stores exactly the
-abstract tree obtained from r1.txt.  You can see that the abstract schema
+
+The abstract schema
 for synchronizing simple structured text files consists of a list of blocks,
 where each block is itself a list whose first element is a header line.
 <p>
 Try this now: add a new section header (a line beginning with a star) to the
 first replica and see where it winds up in the abstract tree.  
-<p>
-Then go on to the next part of the demo.
 XXX;
 # ---------------------------------------------------------
 $demo["r1"] = <<<XXX
@@ -65,9 +79,6 @@ $demo["r1"] = <<<XXX
 
 * THIRD PART
 XXX;
-# ---------------------------------------------------------
-$demo["l2"] = "id";
-$demo["r2format"] = "meta";
 savedemo();
 # ---------------------------------------------------------
 
@@ -77,8 +88,8 @@ savedemo();
 # 
 # (This is achieved by dropping the
 # -simplified flag on the command line to harmonize-structuredtext, which
-# causes the lens Structuredtext.file_with_combined_headers to be used instead
-# of Structuredtext.file_with_simple_star_headers, as can be seen by a quick
+# causes the lens Structuredtext.text_with_combined_headers to be used instead
+# of Structuredtext.text_with_simple_star_headers, as can be seen by a quick
 # look at harmonize-structuredtext.ml.  These lenses, in turn, are defined in
 # the Focal source file structuredtext.fcl -- this involves some pretty tricky
 # lens programming, though, so don't be discouraged if that file doesn't make
@@ -87,7 +98,7 @@ savedemo();
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
 
-<p> For this next part (and the following ones), we are using a more
+<p> Now let's use a more
 sophisticated lens to map from the concrete text file to the abstract
 tree.
         
@@ -98,10 +109,9 @@ consisting entirely of capital letters and spaces.
 <p> Note, also, that levels can be "skipped".  In this case, empty
 headers for all the missing levels are automatically inserted.
 
-<p> Try editing the abstract tree and changing the first <tt>""</tt>
-header to a <tt>"* FOO"</tt> (don't forget the space after the star).
-See what happens when the abstract tree is pushed back down into the
-concrete text format.
+<p> 
+Try making some changes in different parts of the two replicas and seeing
+what happens when they are synchronized.
 
 XXX;
 # ---------------------------------------------------------
@@ -121,31 +131,13 @@ para
 para
 XXX;
 # ---------------------------------------------------------
-$demo["l1"] = "Structuredtext.file_with_combined_headers";
+$demo["l1"] = $demo["l2"] = "Structuredtext.text_with_combined_headers";
 savedemo();
 # ---------------------------------------------------------
 
-##############################################################################
-
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
-Now we are ready to go back to synchronizing one text file with another,
-this time using more deeply structured trees.
-<p>
-Try making some changes in different parts of the two replicas and seeing
-what happens when they are synchronized.
-XXX;
-# ---------------------------------------------------------
-$demo["r2format"] = $demo["r1format"];
-$demo["l2"] = $demo["l1"];
-savedemo();
-# ---------------------------------------------------------
-
-##############################################################################
-
-# ---------------------------------------------------------
-$demo["instr"] = <<<XXX
-Now let's try something a bit more interesting: experimenting with
+Finally, let's try something a bit more interesting: experimenting with
 conflicts.
 <p>
 In one replica, add </tt>FOO</tt> after </tt>one</tt> (on the same line) and </tt>BAR</tt> after

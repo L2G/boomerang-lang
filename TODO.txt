@@ -1,6 +1,7 @@
 --- THINGS TO DO ---
 
 BUGS
+* The output in the 4th structured text demo looks completely wrong!
 * I think the problem is here, in harmonize-addresses.ml:
     let _ =
       let read_tbl =
