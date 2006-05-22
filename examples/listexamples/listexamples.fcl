@@ -12,8 +12,7 @@ let noconflict (t:tree) : tree =
 sync with List.explode at (List.T Value)
    { O = {abcde},
      A = {DbCde},
-     B = {EbcdE}
-     (* , log *) }    (* uncomment to see the problem *)
+     B = {EbcdE}, log }
   = {O = {abCdE},
      A = {DbCdE},
      B = {EbCdE}}
@@ -22,7 +21,7 @@ sync with List.explode at (List.T Value)
 sync with List.explode at (List.T Value)
    { O = {abcdefg},
      A = {abxxcdefg},
-     B = {abcfg}, log }
+     B = {abcfg} }
   = ?
 
 (* Overlapping deletions (this result is a bit non-intuitive and doesn't match

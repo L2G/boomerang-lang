@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 2005/05/24 13:53:45 rich Exp $
+# $Id$
 
 PACKAGE		:= ocaml-csv
 VERSION		:= 1.0.3

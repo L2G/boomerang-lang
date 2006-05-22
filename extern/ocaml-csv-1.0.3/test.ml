@@ -1,4 +1,4 @@
-(* $Id: test.ml,v 1.1 2003/12/17 16:05:08 rich Exp $ *)
+(* $Id$ *)
 
 open Printf
 open Csv

@@ -1,6 +1,6 @@
 (* csv.ml - comma separated values parser
  *
- * $Id: csv.ml,v 1.5 2005/02/17 15:51:47 rich Exp $
+ * $Id$
  *)
 
 (* The format of CSV files:

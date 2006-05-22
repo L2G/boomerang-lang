@@ -1,5 +1,5 @@
 (* Handy tool for managing CSV files.
- * $Id: csvtool.ml,v 1.1 2005/05/24 13:52:50 rich Exp $
+ * $Id$
  *)
 
 open Printf

@@ -1,5 +1,5 @@
 (* See also 'test.ml' for examples, and 'csv.mli' for documentation.
- * $Id: example.ml,v 1.1 2005/02/17 15:51:47 rich Exp $ *)
+ * $Id$ *)
 
 open Printf
 open Csv
