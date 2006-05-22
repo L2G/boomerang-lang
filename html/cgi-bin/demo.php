@@ -763,10 +763,11 @@ function go_keystroke(k) {
   } else if(k.ctrlKey) {
     if(c == 'h') {
       ctrl_hot = true; 
+      document.theform.hot_accesskey.focus();
     } else if (c == 's') {      
       sync_click(); 
       ctrl_hot = false; 
-    } 
+    }
   }
 }
 
@@ -805,6 +806,8 @@ print <<<ENDHTML
 </head>
 <body onload="load()">
   <form method="post" name="theform">
+    <input type="hidden" value="" name="sync_accesskey" accesskey="s">
+    <input type="hidden" value="" name="hot_accesskey" accesskey="x">
     <input type="hidden" value="" name="submitter"/>
     <input type ="hidden" value="$expert_str" name="expert"/>
     <div id="header">

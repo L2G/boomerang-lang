@@ -180,7 +180,9 @@ let sync elt_schema (o,a,b) =
          [] in
       *)
 	 let get_lines sl el arr =
-           let len = if el - sl in 
+           let isfirst = (sl = -1) in
+           let len = el - sl in 
+           let start = if isfirst then 0 else sl in 
              if (len > 0) then 
                (* BCP: Next line is hideous... *)
                Array.to_list (Array.init len (fun i -> arr.(start+i)))
@@ -210,14 +212,14 @@ let sync elt_schema (o,a,b) =
              else if ol=[] then list_change_lines "Add" nw 
              else list_change_lines "Change" nw 
 	 in
-         let onew = get_lines so+1 eo arr_o in 
-         let anew = get_lines sa+1 ea arr_a in 
-         let bnew = get_lines sb+1 eb arr_b in  
+         let onew = get_lines (so+1) eo arr_o in 
+         let anew = get_lines (sa+1) ea arr_a in 
+         let bnew = get_lines (sb+1) eb arr_b in  
            
 	 (* so, eo are the matching line numbers - so the differing lines are
 	    so+1, so+2 ...eo-1  - 
 	    When finally adding the lines to reconciled version, we need to add the common line too *)
-         let common = if (sb=-1) then [] else get_lines sb+1 eb arr_b in    
+         let common = if (sb = -1) then [] else get_lines (sb+1) eb arr_b in    
            if is_diff_oa && is_diff_ob then begin
              let len_onew = Safelist.length onew in 
              let len_anew = Safelist.length anew in 
