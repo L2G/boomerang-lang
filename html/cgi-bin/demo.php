@@ -225,11 +225,11 @@ $icons =
         "schema"   => array("desc" => "Show Schema",         "shows" => array("schema"),
                             "key" => "t"),
         "archive"  => array("desc" => "Show Archive",        "shows" => array("ar"), 
-                            "key" => "o"),
+                            "key" => "x"),
         "lens"     => array("desc" => "Show Lenses",         "shows" => array("l1","l2"), 
                             "key" => "l"),
         "output"   => array("desc" => "Show Harmony Output", "shows" => array("output"), 
-                            "key" => "h")
+                            "key" => "o")
       );
 
 if ($demonumber == 1) { 
@@ -758,18 +758,8 @@ function go_submit(s) {
 var ctrl_hot = false;
 function go_keystroke(k) { 
   var c = String.fromCharCode(k.keyCode).toLowerCase();
-  if(ctrl_hot) {
-    var a = actions[c];
-    if (a) { a(); }  
-    ctrl_hot = false;
-  } else if(k.ctrlKey) {
-    if(c == 'h') {
-      ctrl_hot = true; 
-      document.theform.hot_accesskey.focus();
-    } else if (c == 's') {      
-      sync_click(); 
-      ctrl_hot = false; 
-    }
+  if(ctrl_hot && c == 's') {
+    sync_click();     
   }
 }
 
