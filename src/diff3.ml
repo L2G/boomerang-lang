@@ -168,24 +168,13 @@ let diff3_sync elt_schema (o,a,b) =
          let is_diff_oa = find_diff (so+1) (sa+1) eo ea comp_oa in 
          let is_diff_ob = find_diff (so+1) (sb+1) eo eb comp_ob in 
 
-      (* old code not needed    
-	 let get_lines sl el arr =
-         let isfirst = (sl = -1) in 
-         let len = if isfirst then el-sl-1 else el-sl in  
-         let start = if isfirst then 0 else sl in  
-         if (len > 0) then 
-         (* BCP: Next line is hideous... *)
-         Array.to_list (Array.init len (fun i -> arr.(start+i)))
-             else 
-         [] in
-      *)
 	 let get_lines sl el arr =
            let len = el - sl in 
-             if (len > 0) then 
-               (* BCP: Next line is hideous... *)
-               Array.to_list (Array.init len (fun i -> arr.(sl+i)))
-             else 
-               [] in
+           if (len > 0) then 
+             (* BCP: Next line is hideous... *)
+             Array.to_list (Array.init len (fun i -> arr.(sl+i)))
+           else 
+             [] in
 
          let header s =
            Format.printf
@@ -215,8 +204,8 @@ let diff3_sync elt_schema (o,a,b) =
          let bnew = get_lines (sb+1) eb arr_b in  
            
 	 (* so, eo are the matching line numbers - so the differing lines are
-	    so+1, so+2 ...eo-1  - 
-	    When finally adding the lines to reconciled version, we need to add the common line too *)
+	    so+1, so+2 ... eo-1.  When finally adding the lines to reconciled
+            version, we need to add the common line too *)
          let common = if (sb = -1) then [] else get_lines sb (sb+1) arr_b in 
            if is_diff_oa && is_diff_ob then begin
              let len_onew = Safelist.length onew in 

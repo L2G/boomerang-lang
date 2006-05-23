@@ -6,23 +6,7 @@ let noconflict (t:tree) : tree =
   {O = t, A = t, B = t}
 
 (* ------------------------------------------------------------------- *)
-(* Some counter-intuitive and/or wrong test cases *)
-
-(* First example, showing correct result but funny off-by-one printing bug *)
-sync with List.explode at (List.T Value)
-   { O = {abcde},
-     A = {DbCde},
-     B = {EbcdE}, log }
-  = {O = {abCdE},
-     A = {DbCdE},
-     B = {EbCdE}}
-
-(* Another example, also illustrating the funny behavior *)
-sync with List.explode at (List.T Value)
-   { O = {abcdefg},
-     A = {abxxcdefg},
-     B = {abcfg} }
-  = ?
+(* Some counter-intuitive test cases *)
 
 (* Overlapping deletions (this result is a bit non-intuitive and doesn't match
    the regular sync algorithm's behavior on overlapping deletions --
@@ -45,6 +29,7 @@ sync with List.explode at (List.T Value)
      O = {abcde}}
 
 (* ------------------------------------------------------------------- *)
+(* Some intuitive ones *)
 
 (* No changes *)
 sync with List.explode at (List.T Value)
@@ -67,6 +52,13 @@ sync with List.explode at (List.T Value)
      B = {XXabcde} }
   = noconflict {XXabcde}
 
+(* An addition and a deletion *)
+sync with List.explode at (List.T Value)
+   { O = {abcdefg},
+     A = {abxxcdefg},
+     B = {abcfg} }
+  = noconflict {abxxcfg}
+
 (* Combination of changes and conflicts *)
 sync with List.explode at (List.T Value)
    { O = {abcde},
@@ -76,3 +68,12 @@ sync with List.explode at (List.T Value)
      B = {YbHELLOcdE},
      O = {abHELLOcdE}}
       
+(* More like that *)
+sync with List.explode at (List.T Value)
+   { O = {abcde},
+     A = {DbCde},
+     B = {EbcdE}}
+  = {O = {abCdE},
+     A = {DbCdE},
+     B = {EbCdE}}
+

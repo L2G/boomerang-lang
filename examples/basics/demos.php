@@ -47,7 +47,7 @@ text demos are particularly recommended.
 </p>
 
 <div>(These demos require a browser with full support for JavaScript
-and CSS. In particular, Internet Explorer is not recommended.)  </div>
+and CSS. Internet Explorer is not recommended.)  </div>
 
 XXX;
 savedemo();
