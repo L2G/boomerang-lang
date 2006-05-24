@@ -1,0 +1,19 @@
+module Cycleexamples =
+
+let noconflict (t:tree) : tree =
+  {O = t, A = t, B = t}
+
+(* No changes *)
+sync with List.explode at (List.T Value)
+   { O = {abcde},
+     A = {abcde},
+     B = {abcde} }
+  = noconflict {abcde}
+
+(* Single change on one side *)
+sync with List.explode at (List.T Value)
+   { O = {abcde},
+     A = {deabc},
+     B = {abcde} }
+  = noconflict {deabc}
+
