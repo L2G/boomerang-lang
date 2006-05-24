@@ -32,22 +32,23 @@ B2HFLAGS = -dl \
            --named-field sources 'source code' \
            --reverse-sort --sort-by-date
 
-BCP_BIB=../../writing/papers/onlybcpshouldmodify/bcp.bib
+bcp.bib:
+	wget -O bcp.bib http://www.cis.upenn.edu/~bcpierce/papers/bcp.bib
 
 jnf.bib: 
 	wget -O jnf.bib http://www.cis.upenn.edu/~jnfoster/papers/jnf.bib
 
-harmony-papers.html: $(BCP_BIB) jnf.bib
+harmony-papers.html: bcp.bib jnf.bib 
 	bib2bib -ob harmony-papers.bib -oc harmony-papers.keys\
           -c '(keys:"harmony") & (($$type="INPROCEEDINGS") | ($$type="ARTICLE") | ($$type="TECHREPORT"))' $?
 	bibtex2html -o harmony-papers $(B2HFLAGS) -citefile harmony-papers.keys harmony-papers.bib
 
-harmony-talks.html: $(BCP_BIB) jnf.bib
+harmony-talks.html: bcp.bib jnf.bib
 	bib2bib -ob harmony-talks.bib -oc harmony-talks.keys\
           -c '(keys:"harmony") & (note:"talk\|keynote")' $?
 	bibtex2html -o harmony-talks $(B2HFLAGS) -citefile harmony-talks.keys harmony-talks.bib
 
-harmony-misc.html: $(BCP_BIB) jnf.bib
+harmony-misc.html: bcp.bib jnf.bib 
 	bib2bib -ob harmony-misc.bib -oc harmony-misc.keys -c 'keys:"'harmony'"' \
           -c '(keys:"harmony") & ($$type <> "INPROCEEDINGS") & ($$type <> "ARTICLE") & ($$type <> "TECHREPORT") & !(note:"talk\|keynote")' $?
 	bibtex2html -o harmony-misc $(B2HFLAGS) -citefile harmony-misc.keys harmony-misc.bib

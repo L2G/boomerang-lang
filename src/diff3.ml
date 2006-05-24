@@ -438,7 +438,7 @@ end
 
 (* ---------------------------------------------------------------------- *)
 
-let cycle = Prefs.createBool "cycle" true
+let cycle = Prefs.createBool "cycle" false
   "Use cycle merge algorithm to synchronize lists"
   "Use cycle merge algorithm to synchronize lists"
 
