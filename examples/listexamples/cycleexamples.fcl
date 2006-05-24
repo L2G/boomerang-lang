@@ -17,3 +17,41 @@ sync with List.explode at (List.T Value)
      B = {abcde} }
   = noconflict {deabc}
 
+(* Single change on both sides *)
+sync with List.explode at (List.T Value)
+   { O = {abcdef},
+     A = {fbcdea},
+     B = {adcbef} }
+  = noconflict {fdcbea}
+
+
+(* More interesting change on both sides *)
+sync with List.explode at (List.T Value)
+   { O = {abcdef},
+     A = {acbdef},
+     B = {defabc} }
+  = noconflict {defacb}
+
+
+
+(* Conflicting + non-conflicting changes *)
+sync with List.explode at (List.T Value)
+   { O = {abcdef},
+     A = {fbdcea},
+     B = {abcdfe} }
+  = noconflict {abdcef} 
+
+
+(* Conflicting changes *)
+sync with List.explode at (List.T Value)
+   { O = {abcdef},
+     A = {fbcdea},
+     B = {abcdfe} }
+  = noconflict {abcdef} 
+
+
+
+
+
+
+
