@@ -336,7 +336,8 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 	    let min = getmin cycle pos_end in 
 	    let max = getmax cycle pos_start in
 	    let offset = (Hashtbl.find index_tbl_a2 pos_start) - pos_start in 
-	      if (offset < 0) ||  not (is_block index_tbl_a2 min max  offset true) then 
+	      if (offset < 0) ||  not (is_block index_tbl_a2 min max  offset true) then  
+		(*  if (not (is_block index_tbl_a2 min max  offset true)) then *)
 		false 
 	      else  begin 
 		debug ( fun () ->
@@ -386,7 +387,8 @@ end
 	    let min = getmin cycle pos_end in 
 	    let max = getmax cycle pos_start in
 	    let offset = (Hashtbl.find index_tbl_a1 pos_start) - pos_start in 
-	      if (offset < 0) ||  not (is_block index_tbl_a1 min max  offset true) then 
+	      if (offset < 0) ||  not (is_block index_tbl_a1 min max  offset true) then  
+		(*		if (not (is_block index_tbl_a2 min max  offset true)) then *)
 		false 
 	      else begin
 		debug ( fun () -> 
