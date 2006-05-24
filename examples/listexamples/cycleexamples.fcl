@@ -24,6 +24,12 @@ sync with List.explode at (List.T Value)
      B = {adcbef} }
   = noconflict {fdcbea}
 
+(*Block move *)
+sync with List.explode at (List.T Value)
+   { O = {abcdefghi},
+     A = {ghiabcdef},
+     B = {defabcghi} }
+  = noconflict {ghidefabc}
 
 (* More interesting change on both sides *)
 sync with List.explode at (List.T Value)
@@ -33,6 +39,16 @@ sync with List.explode at (List.T Value)
   = noconflict {defacb}
 
 
+(* This example fails test because we only consider blocks with positive offset 
+So e,f swap is disallowed causing later swaps of b and c with e and f to be disallowed 
+*)
+(* 
+sync with List.explode at (List.T Value)
+   { O = {abcdef},
+     A = {abcdfe},
+     B = {defabc} }
+  = noconflict {dfeacb}
+*)
 
 (* Conflicting + non-conflicting changes *)
 sync with List.explode at (List.T Value)
@@ -52,10 +68,5 @@ sync with List.explode at (List.T Value)
   =  { A =  {fbcdea} ,
          B  = {abcdfe} ,
         O = {abcdef} }
-
-
-
-
-
 
 
