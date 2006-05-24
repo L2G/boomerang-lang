@@ -417,7 +417,7 @@ end
     let rec findcycles l =
       if ( (findcycle_a1 1) || (findcycle_a2 1)) then findcycles l else () in 
     let _ = findcycles archive in 
-    let o' = Hashtbl.fold (fun x y  l -> List.append l  [Hashtbl.find orig_contents_tbl x] ) final_index_tbl [] in 
+    let o' = Hashtbl.fold (fun x y  l -> List.append l  [Hashtbl.find orig_contents_tbl y] ) final_index_tbl [] in 
     let a' = Hashtbl.fold (fun x y  l -> 
 			     List.append l 
 			       [
