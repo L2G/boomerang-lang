@@ -39,16 +39,6 @@ sync with List.explode at (List.T Value)
   = noconflict {defacb}
 
 
-(* This example fails test because we only consider blocks with positive offset 
-So e,f swap is disallowed causing later swaps of b and c with e and f to be disallowed 
-*)
-(* 
-sync with List.explode at (List.T Value)
-   { O = {abcdef},
-     A = {abcdfe},
-     B = {defabc} }
-  = noconflict {dfeacb}
-*)
 
 (* Conflicting + non-conflicting changes *)
 sync with List.explode at (List.T Value)
