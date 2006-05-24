@@ -23,6 +23,12 @@ all: makeharmonylib nc
 temp: 
 	harmonize-structuredtext -ar test-tasks.txt -r1 test-unisonmerge1-tasks.txt -r2 test-unisonmerge2-tasks.txt -newar foo.tmp -newr1 bar.tmp -newr2 baz.tmp
 
+temp1: 
+	make -C ../../src
+	-rm harmonize-structuredtext harmonize-structuredtext.cmx
+	make
+	./harmonize-structuredtext -ar TODO-o.txt -r1 TODO-a.txt -r2 TODO-b.txt -newar TODO-o.txt.tmp -newr1 TODO-a.txt.tmp -newr2 TODO-b.txt.tmp
+
 test::
 	$(HARMONY) -check Structuredtext -test-all
 

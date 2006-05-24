@@ -190,6 +190,16 @@ let diff3_sync elt_schema (o,a,b) =
               (eb-sb-1) (sb+2) (eb) in *)
 
          let showchange s nw ol =
+             if nw = [] then begin
+               Format.printf "Delete: @["; format_list ol; Format.printf "@]"
+             end else if ol=[] then begin
+               Format.printf "Add: @["; format_list nw; Format.printf "@]"
+             end else begin
+               Format.printf "Change: @["; format_list ol; Format.printf "@]@,";
+               Format.printf "    to: @["; format_list nw; Format.printf "@]";
+             end in
+
+         (* let showchange s nw ol =
            let rec list_change_lines m = function
                [] -> ()
              | [e]     -> Format.printf "%s (%s) " m s; A.format e
@@ -197,8 +207,8 @@ let diff3_sync elt_schema (o,a,b) =
                  Format.printf ",@,"; list_change_lines m rest in
              if nw = [] then list_change_lines "Delete" ol
              else if ol=[] then list_change_lines "Add" nw 
-             else list_change_lines "Change" nw 
-	 in
+             else list_change_lines "Change" nw in *)
+
          let onew = get_lines (so+1) eo arr_o in 
          let anew = get_lines (sa+1) ea arr_a in 
          let bnew = get_lines (sb+1) eb arr_b in  
