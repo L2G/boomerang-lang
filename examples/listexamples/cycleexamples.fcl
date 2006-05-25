@@ -38,6 +38,20 @@ sync with List.explode at (List.T Value)
      B = {defabc} }
   = noconflict {defacb}
 
+(* Block with negative offset *)
+sync with List.explode at (List.T Value)
+  { O = {abcdef},
+    A = {abcdfe},
+    B = {defabc} }
+ = noconflict {dfeabc} 
+
+(* Its interesting to run in debug mode and see the order in which cycles become activated - from inner to outer boundary *)
+sync with List.explode at (List.T Value)
+  { O = {abcdefgh},
+    A = {hbfdecga},
+    B = {agcedfbh} }
+ = noconflict {hgfedcba} 
+
 
 
 (* Conflicting + non-conflicting changes *)
