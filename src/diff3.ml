@@ -336,10 +336,8 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 	    let min = getmin cycle pos_end in 
 	    let max = getmax cycle pos_start in
 	    let offset = (Hashtbl.find index_tbl_a2 pos_start) - pos_start in 
-	      if (offset < 0) ||  not (is_block index_tbl_a2 min max  offset true) then  
-		(*  if (not (is_block index_tbl_a2 min max  offset true)) then *)
-		false 
-	      else  begin 
+	      if  (is_block index_tbl_a2 min max  offset true) then  
+	  begin 
 		debug ( fun () ->
 			     Printf.eprintf "Active cycle with source in replica 1. The elements in cycle are :(value, index in modified archive, index in A1) \n"  ;
 			     List.iter 
@@ -370,7 +368,8 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 		let _ = apply_cycle cycle pos_start in 
 		  (* let _ = Hashtbl.iter iter_print final_index_tbl in *)
 		  true
-end 
+	  end 
+	      else false 
       in
 	if (id < (List.length archive)) then 
           if (check_cycle id (Hashtbl.find  index_tbl_a1 id) ) 
@@ -387,10 +386,8 @@ end
 	    let min = getmin cycle pos_end in 
 	    let max = getmax cycle pos_start in
 	    let offset = (Hashtbl.find index_tbl_a1 pos_start) - pos_start in 
-	      if (offset < 0) ||  not (is_block index_tbl_a1 min max  offset true) then  
-		(*		if (not (is_block index_tbl_a2 min max  offset true)) then *)
-		false 
-	      else begin
+	      if  (is_block index_tbl_a1 min max  offset true) then  
+		begin
 		debug ( fun () -> 
 		  Printf.eprintf "Active cycle with source in replica 2. The elements in cycle are :(value, index in modified archive, index in A2) \n"  ;
 		    List.iter
@@ -419,7 +416,8 @@ end
 		in
 		let _ = apply_cycle cycle pos_start in
 		  true 
-	      end      
+		end
+	      else false       
       in
 	if (id < (List.length archive)) then 
           if (check_cycle id (Hashtbl.find  index_tbl_a2 id) ) 
