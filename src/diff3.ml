@@ -286,11 +286,19 @@ let rec getmax l max = match l with
   | [] -> max 
 
  
+exception Duplicate_element 
+
+let print_block pos elt1 elt2 len = 
+if len=1 then Printf.printf "%s at position %d" (A.tostring elt1) pos 
+else
+  Printf.printf "[%s..%s] at postion [%d..%d]   " (A.tostring elt1) (A.tostring elt2) pos (pos+len-1)  
+
 
 let cycle_merge_sync elt_schema (archive, a1, a2) =
   if (List.length archive !=  List.length a1) || (List.length archive !=  List.length a2) 
   then raise Not_same_length 
   else
+    let list_size = List.length archive in 
     let get_index x l =
       (* get index of x in list l *) 
       let rec f id l =
@@ -302,29 +310,38 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
     in 
       (* Index_tbl holds corresponding index in a1 and a2 *)
     let final_index_tbl = Hashtbl.create (2* (List.length archive)) in 
-    let orig_contents_tbl = Hashtbl.create (2* (List.length archive)) in 
-    let index_tbl_a1 = Hashtbl.create (2* (List.length archive)) in
-    let rev_index_tbl_a1 = Hashtbl.create (2* (List.length archive)) in
-    let index_tbl_a2 = Hashtbl.create (2*(List.length archive)) in
-    let rev_index_tbl_a2 = Hashtbl.create (2* (List.length archive)) in
+    let orig_contents_tbl = Hashtbl.create (2* (list_size)) in 
+    let index_tbl_a1 = Hashtbl.create (2* (list_size)) in
+    let rev_index_tbl_a1 = Hashtbl.create (2* (list_size)) in
+    let index_tbl_a2 = Hashtbl.create (2*(list_size)) in
+    let rev_index_tbl_a2 = Hashtbl.create (2* (list_size)) in
     let _ =  List.fold_left 
       (fun id x ->  
 	 let _ = Hashtbl.add final_index_tbl  id id in 
 	 let _ = Hashtbl.add orig_contents_tbl  id x in 
 	 let y = get_index x a1 in 
 	 let _ = Hashtbl.add index_tbl_a1  id y in 
-	 let _ = Hashtbl.add rev_index_tbl_a1  y id in
+	 let _ = if (Hashtbl.mem rev_index_tbl_a1 y) then  raise Duplicate_element else 
+	   Hashtbl.add rev_index_tbl_a1  y id in
 	 let y = get_index x a2 in 
 	 let _ = Hashtbl.add index_tbl_a2  id y in
-	 let _ = Hashtbl.add rev_index_tbl_a2  y id in	   
+	 let _ = if (Hashtbl.mem rev_index_tbl_a2 y) then  raise Duplicate_element else
+	   Hashtbl.add rev_index_tbl_a2  y id in	   
 	   id+1)
       1 archive in
+(* If an element is duplicated in A but not in O, Element_not_found will be raised - so no need to check for duplicates in A (or B) *)
     let rec getcycle table h t l =  
       let newt = Hashtbl.find table t in 
 	if newt=h then  l else getcycle table h newt (newt::l) 
-    in
+    in 
     let rec is_block table h t off result = 
       if t<h then result else result && (is_block table h (t-1) off (((Hashtbl.find table t) - t) = off)) 
+    in
+    let rec is_cycle cycle head tbl = match cycle with
+		      h::t -> if ((Hashtbl.find tbl h) = head) 
+		      then  is_cycle t h tbl 
+		      else false 
+		    | [] -> true 
     in
       (* find cycles with source in Archive 1 *)
     let rec findcycle_a1 id = 
@@ -336,98 +353,138 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 	    let min = getmin cycle pos_end in 
 	    let max = getmax cycle pos_start in
 	    let offset = (Hashtbl.find index_tbl_a2 pos_start) - pos_start in 
-	      if  (is_block index_tbl_a2 min max  offset true) then  
-	  begin 
-		debug ( fun () ->
-			     Printf.eprintf "Active cycle with source in replica 1. The elements in cycle are :(value, index in modified archive, index in A1) \n"  ;
-			     List.iter 
-			       (fun x -> 
-				  let y = Hashtbl.find rev_index_tbl_a1 x in   
-				    Printf.eprintf "(%s, %d %d)" 
-				      (A.tostring  (Hashtbl.find orig_contents_tbl y)) y  x)  cycle );
-(*		  let _ = Printf.printf "\n"  *)
-		let tmp_tbl = Hashtbl.create (2* (List.length archive)) in
-		let _ = List.iter 
-		  (fun x -> Hashtbl.add tmp_tbl x (Hashtbl.find final_index_tbl x)) cycle 
-		in
-		let rec apply_cycle cycle head = match cycle with
-		    h::t -> 
-		      (
-			let _ = Hashtbl.replace rev_index_tbl_a1 h h in
-			let _ = Hashtbl.replace index_tbl_a1 h h in
-   			  (* 
-			     let _ = Hashtbl.replace index_tbl_a2 h (h +offset) in
-			     let _ = Hashtbl.replace rev_index_tbl_a2 (h+offset) h in 
-			  *) 
-			let mod_index_h = Hashtbl.find tmp_tbl h in
-			let _ = Hashtbl.replace final_index_tbl head mod_index_h in
-			  apply_cycle t h 
-		      )
-		  | [] -> () 
-		in
-		let _ = apply_cycle cycle pos_start in 
-		  (* let _ = Hashtbl.iter iter_print final_index_tbl in *)
-		  true
-	  end 
+	      if (is_block index_tbl_a2 min max  offset true) then  
+		begin
+		  let rec get_block_len cycle len min max = 
+		    if (max > list_size) then len else 
+		      let cycle = List.map (fun x -> x+1) cycle in 
+			if not (is_cycle cycle (pos_start+len) index_tbl_a1) then  len 
+			else 
+			if (is_block index_tbl_a2 min max  offset true) then  
+			  get_block_len cycle (len+1) (min+1) (max+1)
+			else len 
+		  in
+		  let block_len = get_block_len cycle 1 (min+1) (max+1)  in 
+		  let str = if block_len=1 then "elements" else "blocks" in 
+		  let _ = Printf.printf "Active cycle with source in replica 1. The cycle consists of following %s in cyclic order \n" str in 
+		  let _ = List.iter
+		    (fun x -> 
+		       let y = Hashtbl.find rev_index_tbl_a1 x in 
+		       let elt1 =   Hashtbl.find orig_contents_tbl y in
+		       let elt2 =   Hashtbl.find orig_contents_tbl (y+block_len-1) in
+                         print_block y elt1 elt2 block_len 
+		    )
+		    cycle in
+		  let _ = Printf.printf"\n" in 
+		  let tmp_tbl = Hashtbl.create (2* (list_size)) in
+		  let _ = List.iter 
+		    (fun x -> Hashtbl.add tmp_tbl x (Hashtbl.find final_index_tbl x)) cycle 
+		  in
+		  let rec apply_cycle cycle head = match cycle with
+		      h::t -> 
+			begin
+			  let mod_index_h = Hashtbl.find tmp_tbl h in
+			  let rec change_tables len = 
+			    if (len > -1) then  
+			      begin
+				let _ = Hashtbl.replace rev_index_tbl_a1 (h+len) (h+len) in
+				let _ = Hashtbl.replace index_tbl_a1 (h+len) (h+len) in
+				let _ = Hashtbl.replace final_index_tbl (head+len) (mod_index_h+len) in
+				  change_tables (len-1) 
+			      end
+			    else
+			      () 
+			  in
+			  let _ = change_tables (block_len-1) in  
+			    apply_cycle t h  
+			end
+		    | [] -> () 
+		  in 
+
+		  let _ = apply_cycle cycle pos_start in 
+		    (* let _ = Hashtbl.iter iter_print final_index_tbl in *)
+		    true 
+		end
 	      else false 
       in
-	if (id < (List.length archive)) then 
+	if (id < (list_size)) then 
           if (check_cycle id (Hashtbl.find  index_tbl_a1 id) ) 
 	  then true else findcycle_a1 (id+1) 
 	else false 
     in
-
+ 
     let rec findcycle_a2 id = 
-      let check_cycle pos_start pos_a2 = 
+     let check_cycle pos_start pos_a2 = 
 	let pos_end = Hashtbl.find rev_index_tbl_a2 pos_start in
 	  if (pos_end <= pos_start) || (pos_a2  <= pos_start) then false
-	  else
+	  else 
 	    let cycle = getcycle index_tbl_a2 pos_start pos_a2 [pos_a2;pos_start] in 
 	    let min = getmin cycle pos_end in 
 	    let max = getmax cycle pos_start in
 	    let offset = (Hashtbl.find index_tbl_a1 pos_start) - pos_start in 
-	      if  (is_block index_tbl_a1 min max  offset true) then  
+	      if (is_block index_tbl_a1 min max  offset true) then  
 		begin
-		debug ( fun () -> 
-		  Printf.eprintf "Active cycle with source in replica 2. The elements in cycle are :(value, index in modified archive, index in A2) \n"  ;
-		    List.iter
-		      (fun x -> 
-			 let y = Hashtbl.find rev_index_tbl_a2 x in   
-			   Printf.eprintf "(%s, %d %d)" 
-			     (A.tostring ( Hashtbl.find orig_contents_tbl y)) y  x)  cycle );
-(*		      let _ = Printf.printf "\n"  *) 
-		let tmp_tbl = Hashtbl.create (2* (List.length archive)) in
-		let _ = List.iter 
-		  (fun x -> Hashtbl.add tmp_tbl x (Hashtbl.find final_index_tbl x)) cycle in
-		let rec apply_cycle cycle head = match cycle with
-		    h::t -> 
-		      (
-			let _ = Hashtbl.replace rev_index_tbl_a2 h h in
-			let _ = Hashtbl.replace index_tbl_a2 h h in
-   			  (* 
-			     let _ = Hashtbl.replace index_tbl_a1 h (h +offset) in
-			     let _ = Hashtbl.replace rev_index_tbl_a1 (h+offset) h in 
-			  *) 
-			let mod_index_h = Hashtbl.find tmp_tbl h in
-			let _ = Hashtbl.replace final_index_tbl head mod_index_h in
-			  apply_cycle t h 
-		      )
-		  | [] -> () 
-		in
-		let _ = apply_cycle cycle pos_start in
-		  true 
+		  let rec get_block_len cycle len min max = 
+		    if (max > list_size) then len else 
+		      let cycle = List.map (fun x -> x+1) cycle in 
+			if not (is_cycle cycle (pos_start+len) index_tbl_a2) then  len 
+			else 
+			  if (is_block index_tbl_a1 min max  offset true) then  
+			    get_block_len cycle (len+1) (min+1) (max+1)
+			  else len 
+		  in
+		  let block_len = get_block_len cycle 1 (min+1) (max+1)  in 
+		  let str = if block_len=1 then "elements" else "blocks" in 
+		  let _ = Printf.printf "Active cycle with source in replica 2. The cycle consists of following %s in cyclic order \n" str in 
+		  let _ = List.iter
+		    (fun x -> 
+		       let y = Hashtbl.find rev_index_tbl_a2 x in 
+		       let elt1 =   Hashtbl.find orig_contents_tbl y in
+		       let elt2 =   Hashtbl.find orig_contents_tbl (y+block_len-1) in
+                         print_block y elt1 elt2 block_len 
+		    )
+		    cycle in
+		  let _ = Printf.printf"\n" in 
+		  let tmp_tbl = Hashtbl.create (2* (list_size)) in
+		  let _ = List.iter 
+		    (fun x -> Hashtbl.add tmp_tbl x (Hashtbl.find final_index_tbl x)) cycle 
+		  in
+		  let rec apply_cycle cycle head = match cycle with
+		      h::t -> 
+			begin
+			  let mod_index_h = Hashtbl.find tmp_tbl h in
+			  let rec change_tables len = 
+			    if (len > -1) then  
+			      begin
+				let _ = Hashtbl.replace rev_index_tbl_a2 (h+len) (h+len) in
+				let _ = Hashtbl.replace index_tbl_a2 (h+len) (h+len) in
+				let _ = Hashtbl.replace final_index_tbl (head+len) (mod_index_h+len) in
+				  change_tables (len-1) 
+			      end
+			    else
+			      () 
+			  in
+			  let _ = change_tables (block_len-1) in  
+			    apply_cycle t h  
+			end
+		    | [] -> () 
+		  in 
+
+		  let _ = apply_cycle cycle pos_start in 
+		    (* let _ = Hashtbl.iter iter_print final_index_tbl in *)
+		    true 
 		end
-	      else false       
+	      else false 
       in
-	if (id < (List.length archive)) then 
+	if (id < (list_size)) then 
           if (check_cycle id (Hashtbl.find  index_tbl_a2 id) ) 
 	  then true else findcycle_a2 (id+1) 
 	else false 
-    in
+    in 
+
     let rec findcycles l =
-      if ( (findcycle_a1 1) || (findcycle_a2 1)) then findcycles l else () in 
+      if ( (findcycle_a1 1) || (findcycle_a2 1)) then findcycles l else () in  
     let _ = findcycles archive in 
-    let o' = Hashtbl.fold (fun x y  l -> List.append l  [Hashtbl.find orig_contents_tbl y] ) final_index_tbl [] in 
     let a' = Hashtbl.fold (fun x y  l -> 
 			     List.append l 
 			       [
@@ -435,7 +492,7 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 				   (Hashtbl.find final_index_tbl y) 
 			       ] 
 			  )
-      index_tbl_a1 [] in 
+      rev_index_tbl_a1 [] in 
     let b' = Hashtbl.fold (fun x y  l -> 
 			     List.append l 
 			       [
@@ -443,10 +500,57 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 				   (Hashtbl.find final_index_tbl y) 
 			       ] 
 			  )
-      index_tbl_a2 [] in 
-      ([], o',a',b')
+      rev_index_tbl_a2 [] in  
+      (* add a check if a'=b' in which case set o'=a' *)
+    let o' = Hashtbl.fold (fun x y  l -> List.append l  [Hashtbl.find orig_contents_tbl y] ) final_index_tbl [] in 
+    let o' = if (not (o' =a')) &  (a'=b') then 
+	let _ = Printf.printf "Setting o'=a' since a'=b' "  in
+	a'  
+    else o'  
+    in 
+   let rec print_conflicts pos tbl = 
+      if pos > list_size then () 
+      else
+	let pos_rep = Hashtbl.find tbl pos in 
+	  if  (pos_rep = pos) then print_conflicts (pos +1) tbl 
+	  else
+	    (
+	      let rec get_block_len pos len offset = 
+		if (pos > list_size) then len 
+		else
+		  ( 
+		    let pos_rep = Hashtbl.find tbl pos in 
+		      if ((pos_rep - pos) = offset) then 
+			get_block_len (pos+1) (len+1) offset 
+		      else len  
+		  )
+	      in
+	      let block_len = get_block_len (pos +1) 1 (pos_rep - pos) in
+	      let elt1 =   Hashtbl.find orig_contents_tbl pos in
+	      let elt2 =  Hashtbl.find orig_contents_tbl (pos + block_len-1) in 
+	      let _ = Printf.printf "\n" in 
+              let _ =   print_block pos elt1 elt2 block_len in  
+	      let _ = Printf.printf " moved to position " in
+	      let _ = if block_len =1 
+	      then 
+		Printf.printf "%d " pos_rep 
+	      else
+		Printf.printf "[%d..%d]" pos_rep (pos_rep + block_len -1) 
+	      in
+		print_conflicts (pos+block_len) tbl 
+	    )
+   in
+   let _ = if not (o' = a') then 
+     let _ = Printf.printf "\n The following changes from o' to a' can not be reconciled \n" in 
+       print_conflicts 1 index_tbl_a1 
+   in
+   let _ = if not (o' = b') then 
+     let _ = Printf.printf "\nThe following changes from o' to b' can not be reconciled \n" in 
+       print_conflicts 1 index_tbl_a2 in 
+ ([], o',a',b')
 
 (* ---------------------------------------------------------------------- *)
+
 
 let cycle = Prefs.createBool "cycle" false
   "Use cycle merge algorithm to synchronize lists"
