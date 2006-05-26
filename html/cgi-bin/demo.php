@@ -755,10 +755,9 @@ function go_submit(s) {
   document.theform.submit(); 
 }
 
-var ctrl_hot = false;
 function go_keystroke(k) { 
   var c = String.fromCharCode(k.keyCode).toLowerCase();
-  if(ctrl_hot && c == 's') {
+  if(k.ctrlKey && c == 's') {
     sync_click();     
   }
 }
