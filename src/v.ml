@@ -360,6 +360,8 @@ let format_msg l =
         Format.printf "%s" (Misc.whack k); loop r
     | `Break :: r ->
         Format.printf "@,"; loop r
+    | `Newline :: r -> 
+        Format.print_newline (); loop r
     | `Space :: r ->
         Format.printf "@ "; loop r
     | `SpaceOrIndent :: r ->
@@ -387,7 +389,7 @@ let format_msg l =
   loop l;
   Format.printf "@,@]"
 
-let rec format_raw ((VI m) as v) =
+let rec format_raw (VI m) =
   Name.Map.dump 
     (fun ks -> ks)
     Misc.whack 
@@ -412,9 +414,9 @@ let format_msg_as_string msg =
 let string_of_t v = 
   format_to_string (fun () -> format_t v)
     
-type msg = [ `String of string | `Name of Name.t | `Break | `Space | `SpaceOrIndent | `Tree of t
-           | `Tree_opt of t option | `Prim of unit -> unit
-           | `Open_box | `Open_vbox | `Close_box ]
+type msg = [ `String of string | `Name of Name.t | `Newline | `Break | `Space 
+           | `SpaceOrIndent | `Tree of t | `Tree_opt of t option 
+           | `Prim of unit -> unit | `Open_box | `Open_vbox | `Close_box ]
 
 let error_msg l = raise (Error.Harmony_error (fun () -> format_msg l))
   

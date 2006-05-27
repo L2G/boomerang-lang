@@ -6,6 +6,22 @@
 # $Id$
 
 TOP = ../..
+include $(TOP)/Top.Makefile
+
+all: makeharmonylib native-code
+
+RESULT = harmonize-structuredtext
+SOURCES = harmonize-structuredtext.ml 
+
+INCDIRS += $(SRCDIR) $(SRCDIR)/ubase
+LIBS += harmony
+
+test::
+	$(HARMONY) -check Structuredtext -test Structuredtext
+
+include $(OCAMLMAKEFILE)
+
+#################################################
 
 DEMO1 = R1ORIG=demo1r1.txt        R2FORMAT=txt     HARMONYFLAGS=-simplified   
 DEMO2 = R1ORIG=demo2r1.txt        R2FORMAT=meta    HARMONYFLAGS=-simplified   
@@ -17,27 +33,7 @@ DEMO6 = R1ORIG=example6.txt       R2FORMAT=txt
 # Just for testing:
 DEMO9 = R1ORIG=demo1r1.txt       
 
-all: makeharmonylib nc
-
 # Testing a bug -- nuke later
 temp: 
 	harmonize-structuredtext -ar test-tasks.txt -r1 test-unisonmerge1-tasks.txt -r2 test-unisonmerge2-tasks.txt -newar foo.tmp -newr1 bar.tmp -newr2 baz.tmp
-
-temp1: 
-	make -C ../../src
-	-rm harmonize-structuredtext harmonize-structuredtext.cmx
-	make
-	./harmonize-structuredtext -ar TODO-o.txt -r1 TODO-a.txt -r2 TODO-b.txt -newar TODO-o.txt.tmp -newr1 TODO-a.txt.tmp -newr2 TODO-b.txt.tmp
-
-test::
-	$(HARMONY) -check Structuredtext -test-all
-
-include $(TOP)/Top.Makefile
-
-RESULT = harmonize-structuredtext
-SOURCES = harmonize-structuredtext.ml 
-LIBS += harmony
-
-include $(OCAMLMAKEFILE)
-
 

@@ -1,4 +1,3 @@
-
 (* ----------------------------------------------------------------------- *)
 (* Basic Definitions *)
 
@@ -96,27 +95,3 @@ let memoize_lens l =
 		 let a' = V.Hash.find memotable c in
 		   if a' == a then c else put l a co
 	       with Not_found -> put l a co)
-      
-
-(* (\* ----------------------------------------------------------------------- *\) *)
-(* (\* Recursive lenses *\) *)
-
-(* (\* We might be able to improve performance by doing the hashing eagerly *)
-(*    instead of waiting till lookup time... *\) *)
-(* let definitions = Hashtbl.create 1 *)
-
-(* (\* Note that we do a bit of memoization here... *\) *)
-(* let define ?(hashtable=definitions) n l = *)
-(*   if Hashtbl.mem hashtable n then *)
-(*     error [`String "A lens named "; `String n; `String " is already defined"] *)
-(*   else Hashtbl.add hashtable n (Value.memoize_lens l) *)
-
-
-(* (\* A convenient way to create a recursive lens without giving it a meaningful name *\) *)
-(* let nextid = ref 0 *)
-(* let fix f = *)
-(*   let n = "fix" ^ (string_of_int !nextid) in *)
-(*   nextid := !nextid + 1; *)
-(*   let l = f n in *)
-(*   define n l; *)
-(*   l *)

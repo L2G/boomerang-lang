@@ -13,13 +13,13 @@ RESULT = harmonize-relational
 all: $(RESULT)
 
 $(RESULT):
-	ln -s $(TOP)/src/harmony $(RESULT)
+	ln -s $(SRCDIR)/harmony $(RESULT)
 
 clean::
 	rm -rf $(RESULT)
 
 test:: 
-	$(HARMONY) -check Database -test-all
+	$(HARMONY) -check Database -test Database
 
 
 

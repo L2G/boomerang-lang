@@ -12,7 +12,8 @@ include $(TOP)/Top.Makefile
 STATIC = 1
 RESULT = harmony
 SOURCES = $(COMMON_SOURCES) harmony.ml 
-OCAMLLDFLAGS = -linkpkg
+OCAMLLDFLAGS = -cc g++
+OCAMLCPFLAGS = a
 
 all: TAGS
 
@@ -26,23 +27,34 @@ tags:
 # EXTERNAL TOOLS AND LIBS #
 ###########################
 
-all: $(SRCDIR)/bakery.ml \
+
+GENERATED_AND_EXTERNAL_NATIVE=$(SRCDIR)/bakery.ml \
      $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa \
+     $(EXTERNDIR)/omega/ocaml/omega.cmxa
 
-native-code: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa\
+GENERATED_AND_EXTERNAL_BYTECODE=$(GENERATED_AND_EXTERNAL_NATIVE:%.cmxa=%.cma)
 
-native-code-library: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa\
+all: native-code
 
-LIBS += $(EXTERNDIR)/ocaml-csv-1.0.3/csv
+native-code: $(GENERATED_AND_EXTERNAL_NATIVE)
 
-profiling: 
-	$(MAKE) profiling-native-code
+native-code-library: $(GENERATED_AND_EXTERNAL_NATIVE)
+
+profiling-native-code: $(GENERATED_AND_EXTERNAL_NATIVE)
+
+profiling-byte-code: $(GENERATED_AND_EXTERNAL_NATIVE)
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+
+$(EXTERNDIR)/omega/ocaml/omega.cma:
+	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
+
+$(EXTERNDIR)/omega/ocaml/omega.cmxa:
+	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
 
 $(SRCDIR)/baker: $(SRCDIR)/baker.ml
 	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^
@@ -78,8 +90,10 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
 	       treedb.mli treedb.ml csvdb.mli csvdb.ml \
                surveyor.mli surveyor.ml \
                syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
+               presburger.mli presburger.ml \
+               env.mli env.ml \
                schema.mli schema.ml \
-               value.mli value.ml env.mli env.ml bakery.ml \
+               value.mli value.ml bakery.ml \
                registry.mli registry.ml \
 	       diff3.mli diff3.ml sync.mli sync.ml \
                compiler.mli compiler.ml 

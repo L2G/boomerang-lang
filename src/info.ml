@@ -22,19 +22,19 @@ let string_of_t = function
 (* merge_inc : t -> t -> t
  *     merge two locations; includes the endpoints *)
 let merge_inc = 
-  function I (fn,pos1,_) -> 
+  function I (fn,pos1,_) as i1 -> 
     begin 
       function I (_,_,pos2) -> I (fn,pos1,pos2)
-	| m -> m
+	| m -> i1
     end
-    | m -> (fun _ -> m)
+    | m -> function I _ as i2 -> i2 | _ -> m
 	
 (* merge_exc : t -> t -> t
  *     merge two locations; excludes the endpoints *)
 let merge_exc = 
-  function I (fn,_,pos1) -> 
+  function I (fn,_,pos1) as i1 -> 
     begin 
       function I (_,pos2,_) -> I (fn,pos1,pos2)
-	| _ -> assert false (* FIXME: throw some exception *)
+	| _ -> i1
     end
-    | _ -> assert false
+    | m -> function I _ as i2 -> i2 | _ -> m

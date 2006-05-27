@@ -6,14 +6,20 @@
 (*                                                                  *)
 (********************************************************************)
 (* $Id$ *)
-  
+
+type l_chk = Schema.t -> Schema.t
+type lens_checker =     
+    BIJ of l_chk * l_chk (* we need both directions for bijective lenses to check invert *)
+  | VWB of l_chk
+  | WB of l_chk
+
 type t = 
-    N of Name.t                 (* names *)
-  | L of (V.t, V.t) Lens.t      (* lenses *)      
-  | S of Schema.t               (* schemas *)
-  | V of V.t                    (* trees *)
-  | F of Syntax.sort * (t -> t) (* functions *)
-  | D of Syntax.sort * Syntax.qid (* dummy values *)
+    N of Name.t                           (* names *)
+  | L of (V.t, V.t) Lens.t * lens_checker (* lenses *)
+  | S of Schema.t                         (* schemas *)
+  | V of V.t                              (* trees *)
+  | F of Syntax.sort * (t -> t)           (* functions *)
+  | D of Syntax.sort * Syntax.qid         (* dummies *)
 
 let sort_of_t = function
    N _    -> Syntax.SName    
@@ -28,7 +34,7 @@ let rec format_t = function
     N(n)   -> Format.printf "@[%s]" (Misc.whack n)
   | S(s)   -> Schema.format_t s
   | V(v)   -> V.format_t v
-  | L(l)   -> Format.printf "@[%s]" "<lens>"
+  | L(l,c)   -> Format.printf "@[%s]" "<lens>"
   | F(s,_) -> 
       Format.printf "@[%s" "<";
       Syntax.format_sort s;
@@ -76,30 +82,11 @@ let focal_type_error i es v =
   raise (Error.Harmony_error
 	   (fun () -> Format.printf "%s: run-time sort error"
               (Info.string_of_t i)))
-        
-
-  (* FIXME 
-     ; "expected %s, found %s in %s."
-     (Info.string_of_t i)
-     (Syntax.string_of_sort es)
-     (Syntax.string_of_sort (sort_of_t v))
-     (string_of_t v)))
-  *)
-    
-(* [schema_of_tree v] yields the singleton [Value.ty] containing [v] *)
-let rec schema_of_tree v =
-  let i = Info.M "schema coerced from view" in
-    Schema.mk_cat 
-      i
-      (V.fold  
-         (fun k vk ts -> (Schema.mk_atom i k (schema_of_tree vk))::ts)
-         v
-         [])
-
+            
 let get_schema i v = 
   match v with 
       S s -> s 
-    | V v -> schema_of_tree v
+    | V v -> Schema.t_of_tree v
     | _ -> focal_type_error i Syntax.SSchema v
 	
 let get_name i v = 
@@ -114,13 +101,15 @@ let get_tree i v =
 	
 let get_lens i v = 
   match v with
-      L l -> l
+      L(l,c) -> (l,c)
     | _ -> focal_type_error i Syntax.SLens v
 
 let mk_schema_fun return_sort msg f = 
   F(Syntax.SArrow(Syntax.SSchema,return_sort),
     fun v -> f (get_schema (Info.M msg) v))
 let mk_sfun s = mk_schema_fun (parse_sort s)
+
+let mk_checker = mk_sfun "schema"
   
 let mk_name_fun return_sort msg f = 
   F(Syntax.SArrow(Syntax.SName,return_sort),
@@ -144,36 +133,6 @@ let mk_fun_fun arg_sort return_sort msg f =
 let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
 
 let is_dummy = function D _ -> true | _ -> false
-
-(* (\* coerce: precondition is s1 <: s2 *\) *)
-(* let coerce s1 s2 =  *)
-(*   let err s1 s2 =  *)
-(*     focal_type_error  *)
-(*       s1  *)
-(*       (Printf.sprintf "in coercion from %s to %s"  *)
-(* 	 (Syntax.string_of_sort s1)  *)
-(* 	 (Syntax.string_of_sort s2))  *)
-(*   in match s1,s2 with *)
-(*       _ when s1 = s2                  -> (fun v -> x) *)
-(*     | STree,SType                     -> (fun V vi -> T (type_of_tree vi)  *)
-(* 					  | _ -> err s1 s2) *)
-(*     | SArrow(s11,s12),SArrow(s21,s22) -> (fun F f -> *)
-(* 					    let c f' = fun x -> (coerce s12 s22) (f' ((coerce s22 s11) x)) in *)
-(* 					      F (c f) *)
-(* 					  | _ -> err s1 s2) *)
-(*     | _ -> err s1 s2 *)	
-(* let rec lift_fun s f msg = match s1 with *)
-(*     SName          -> F(function N _ as v -> f v *)
-(* 			  | _ -> focal_type_error s msg) *)
-(*   | SLens          -> F(function L _ as v -> f v *)
-(* 			  | _ -> focal_type_error s msg) *)
-(*   | SType          -> F(function T _ as v -> f v *)
-(* 			  | V vi -> f (T (type_of_tree vi)) *)
-(* 			  | _ -> focal_type_error s msg) *)
-(*   | STree          -> F(function V _ as v -> f v *)
-(* 			  | _ -> focal_type_error s msg) *)
-(*   | SArrow(s1,s2)  -> F(function F _ as v -> f v *)
-(* 			  | _ -> focal_type_error s msg) *)
 
 (* dummy value generator *)
 let rec dummy s q = D(s,q) 
@@ -199,9 +158,3 @@ let memoize v = match v with
 			fx
 		    end)) 
   | _ -> v
-
-(*   match v with  *)
-(*       N _ -> v *)
-(*     | S _ -> v *)
-(*     | V _ -> v *)
-(*     | L l -> L (Lens.memoize_lens l)  *)

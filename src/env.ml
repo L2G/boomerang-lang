@@ -6,51 +6,64 @@
 (***************************************)
 (* $Id $ *)
 
-(* finite maps whose keys are Syntax.qids *)
-module EMap = 
-  Mapplus.Make(
-    struct
-      type t = Syntax.qid
-      let compare = Syntax.qid_compare
-      let to_string = Syntax.string_of_qid 
-    end)
-module QidMap = EMap.Map
-module QidSet = EMap.KeySet
 
-type 'a t = ('a ref) QidMap.t
+module type S = 
+  sig 
+    type key
     
-(* the empty environment *)
-let empty () : 'a t = QidMap.empty
+    type 'a t
+    (** Abstract type of environments *)
 
-(* produce env[q->v]; yields a NEW env *)
-let update ev q r = (QidMap.add q (ref r) ev)
-  
-(* produce env[q:=v]; yields the SAME env 
-   unless q is not in env; then it uses update to give a NEW env *)
-let overwrite ev q r =
-  try 
-    (QidMap.find q ev):=r; 
-    ev 
-  with Not_found ->
-    update ev q r
+    val empty : unit -> 'a t 
+    (** [empty ()] yields a fresh environment. *)
+
+    val update : 'a t -> key -> 'a -> 'a t
+    (** [update ev q r] extends [ev] with a binding for [qid] and
+        [rv]. Returns a new environment *)
+
+    val lookup : 'a t -> key -> 'a option
+    (** [lookup ev q] returns an option representing the binding for [q]
+        in [ev]. *)
       
-let lookup ev q = 
-  try 
-    Some !(QidMap.find q ev)
-  with Not_found -> None
-    
-let format_t ev format_r = 
-  Format.printf "{@[";  
-  let _ = 
-    QidMap.fold (fun q r acco -> 
-		   Format.printf "@[%s=@[" (Syntax.string_of_qid q);
-                   format_r (!r);
-                   Format.printf "]";
-                   if acco <> None then Format.printf ",";
-                   Format.printf "]@ ";
-                   Some ())
-      ev
-      None in            
-    Format.printf "]}"
+    val format_t : 'a t -> ('a -> unit) -> unit
+    (** [format_t format_r ev] pretty prints [ev] using format_r. *)
+  
+    val iter : (key -> 'a -> unit) -> 'a t -> unit
+    (** [iter f ev] iterates f over every element of [ev] *)
+  end
 
-let iter f = QidMap.iter (fun q rvr -> f q (!rvr))
+module Make(Key:Mapplus.OrderedType) = struct
+  module EMap = Mapplus.Make(Key)
+  module KeyMap = EMap.Map
+  module KeySet = EMap.KeySet
+    
+  type key = Key.t
+  type 'a t = 'a KeyMap.t
+      
+  (* the empty environment *)
+  let empty () : 'a t = KeyMap.empty
+    
+  (* produce env[q->v]; yields a NEW env *)
+  let update ev k v = KeyMap.add k v ev
+        
+  let lookup ev k = 
+    try 
+      Some (KeyMap.find k ev)
+    with Not_found -> None
+      
+  let format_t ev format_r = 
+    Format.printf "{@[";  
+    let _ = 
+      KeyMap.fold (fun k v acco -> 
+		     Format.printf "@[%s=@[" (Key.to_string k);
+                     format_r v;
+                     Format.printf "]";
+                     if acco <> None then Format.printf ",";
+                     Format.printf "]@ ";
+                     Some ())
+        ev
+        None in            
+      Format.printf "]}"
+        
+  let iter f = KeyMap.iter (fun k v -> f k v)
+end

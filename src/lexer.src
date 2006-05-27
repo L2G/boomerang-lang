@@ -47,13 +47,12 @@ and the following keywords and symbols are reserved and are not valid as identif
 
 \begin{center}
 \begin{tabular}{llllllllll}
-  @and@    & @assert@ & @at@     & @begin@  & @end@    & @error@  & @fun@    & @in@    & 
-  @lens@   & @let@ \\
-  @missing@ & @module@ & @name@   & @open@  & @protect@ & @sync@   & @test@   & @tree@   & @schema@  &
-  @with@\\
+  @and@    & @assert@ & @at@     & @begin@  & @end@    & @error@  & @fun@    & @in@      &  @lens@   & @let@ \\
+  @missing@ & @module@ & @name@   & @open@  & @protect@ & @sync@   & @test@   & @tree@   & @schema@  & @with@\\
+  @check@ \\
   @->@ & @(@  & @)@  & @;@  & @.@  & @*@  & @!@  & @|@  & @=@  & @{@\\
   @}@  & @[@  & @]@  & @,@  & @:@  & @\@ & @/@  & @,@  & @:@  & @+@\\
-  @?@  & @`@ \\
+  @?@  & @`@  & @~@  & @-@  & @&@  & @<->@\\
 \end{tabular}
 \end{center}
 #{#}
@@ -135,6 +134,7 @@ let _ =
     (fun (kw,tok) -> Hashtbl.add keywords kw tok )
   [ "and", (fun i -> AND i)
   ; "assert", (fun i -> ASSERT i)
+  ; "check", (fun i -> CHECK i)
   ; "at", (fun i -> AT i)
   ; "begin", (fun i -> BEGIN i)
   ; "end", (fun i -> END i)
@@ -164,6 +164,7 @@ let string = '"' [^'"']* '"'
 rule main = parse
 | whitespace        { main lexbuf }
 | "->"              { ARROW (info lexbuf) }
+| "<->"             { DARROW (info lexbuf) }
 | "("               { LPAREN (info lexbuf) }
 | ")"               { RPAREN (info lexbuf) }
 | ";"               { SEMI (info lexbuf) }

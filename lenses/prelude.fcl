@@ -17,7 +17,6 @@ let hoist : (name -> lens) = Native.Prelude.hoist
 let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
 let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
-let wmap : ((name -> lens) -> lens) = Native.Prelude.wmap
 #{@}
 
 \subsection{Predefined Schemas}
@@ -31,8 +30,7 @@ A ``keyed'' tree consists of a single name pointing to some subtree.
 #*let KeyedTree (X:schema) : schema = {!=X}
 
 \LENSSECTION{Value}
-The schema @Value@ describes trees with just one child pointing to an empty
-tree:
+The schema @Value@ describes trees with just one child pointing to an empty tree:
 #*schema Value = KeyedTree {}
 
 \LENSSECTION{NonNullValue}
@@ -151,24 +149,11 @@ lens @fork@ packages this case for convenience:
 ##test (fork {x} (const {b} {b}) id) \ {b} {x} = error
 
 \LENSSECTION{bfork}
-Sometimes, you would like to use a forking lens but you do not know 
-anything about the names of the immediate children, or else there are so
-many of them that you don't want to (or cannot) list them all. In that
-case, if you {\emph know} that there exists a schema @A@ such that
-for every possible child name, either it will always point to a tree
-in @A@, or it will always point to a tree that is {\emph not} in A,
-then you can use @bfork@. In the \GET{} direction, @bfork@ lets you split
-the concrete view according to the structure of the children, rather than
-their names. In the \PUT{} way, you give, like @xfork@, a set of
-names to split the abstract view.  (You may wonder why we use a set 
-of names in the \PUT{} way and not a schema like in the \GET{} way.
-This is just an arbitrary choice assuming that once you have
-the concrete view split the way you wanted, you can reorganize it or
-plunge it under some name so that you do not need to match against
-the structure of the chilren anymore. One could imagine at least two other
-versions of @bfork@---one with schemas both ways, and one with a 
-schema in the \PUT{} way only, but we have not had the need for such
-lenses for now.)
+Another way to divide a tree is using a {\em schema}. The lens @bfork C pa@ 
+splits the concrete view into one tree whose children all lead to subtrees 
+belonging to @C@, and another whose children all lead to subtrees belonging to 
+@not C@. The \PUT{} function, divides the abstract tree using a set of names 
+like @xfork@.
 
 ##let bfork : (schema -> tree -> lens -> lens -> lens) = Native.Prelude.bfork
 
@@ -406,26 +391,6 @@ The lens @mapn n l@ performs @l@ just on the child named @n@.
 #*test (mapn "a" (const {x} {new})) / {a={b},c} = {a={x},c}
 #*test (mapn "a" (const {x} {new})) \ {a={x},c} missing = {a={new},c}
 
-#@\LENSSECTION{wmap} 
-%
-The @wmap@ combinator is a generalized variant of @map@ that can apply a
-{\em different} lens to each subtree.  Its argument is a function from names
-to lenses (see Section~\ref{sec:functionsfromnamestolenses}).  
-#*test (wmap (fun (y:name) -> plunge y)) / {a,b={foo}} = {a={a}, b={b={foo}}}
-#*test (wmap { a -> const {x} {new}, b -> plunge "n" }) 
-#*        / {a,b={foo}} 
-#*        = {a={x}, b={n={foo}}}
-
-##test (wmap { y -> const {a} {b}}) / {} = {}
-##test (wmap { y -> const {a} {b}}) \ {} missing = {}
-##test (wmap { y -> const {a} {b}}) \ {} {1,2,3} = {}
-##test (wmap { y -> const {a} {b}}) / {x, y={1,2,3}} = {x, y={a}}
-##test (wmap { y -> const {a} {b}}) \ {x, y={a}} missing = {x, y={b}}
-##test (wmap { y -> const {a} {b}}) \ {x={a}} {x,y=[{1},{2},{3}]} = {x={a}}
-##test (wmap { y -> const {a} {b}}) \ {y={a}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}]}
-##test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}], z={c}}
-
-
 \subsection{Conditional Lenses}
 
 \LENSSECTION{ccond} 
@@ -627,10 +592,6 @@ schema if none is specified explicitly.
 
 \subsection{Miscellaneous}
 
-\LENSSECTION{invert}
-The function @invert@ maps a bijective lens @l@ to a bijective lens whose
-\GET{} is the \PUT{} of @l@ and vice versa.
-
 \LENSSECTION{fconst}
 The lens @fconst v cmd@ behaves exactly like @const@, except that instead of
 using a default tree @d@ in the case of creation, it executes @cmd@ and uses 
@@ -640,4 +601,8 @@ the value returned by the command.
 #*test (fconst {} "echo youpi") \ {} missing = { "youpi" }
 
 ##let fmodify : (name -> name -> lens) = Native.Prelude.fmodify
+
+\LENSSECTION{invert}
+The function @invert@ maps a bijective lens @l@ to a bijective lens whose
+\GET{} is the \PUT{} of @l@ and vice versa.
 

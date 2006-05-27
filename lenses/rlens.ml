@@ -266,7 +266,7 @@ let ojoin dl dr pl pr b =
     let rev_join (c1, c2) =
       let lflds = R.fields c1
       and rflds = R.fields c2 in
-      let shflds = list_inter lflds rflds in
+      (* (* NOT USED: JNF *) let shflds = list_inter lflds rflds in *)
       let additions =
         (* records that were inserted into the abstract view *)
         a --~ (c1 ***~ c2)

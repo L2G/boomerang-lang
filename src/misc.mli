@@ -6,8 +6,20 @@ val enum : 'a list -> (int * 'a) list
 (** [enum l] returns a list of pairs [(K,lK)] where the elements [lK] of the list [l]
     are associated with their position in [l] (starting at O). *)
 
+val map_index_filter: (int -> 'a -> 'b option) -> 'a list -> 'b list 
+(** [map_index_filter f l] implements
+    [map (fun (Some x) -> x) 
+      (filter ((<>) None)
+        (map f (enum l)))] in a single pass 
+
+    that is, f is provided with the index of each element and may
+    discard choose which elements to retain using an option *)
+
+val dict_cmp: ('a -> 'a -> int) -> 'a list -> 'a list -> int
+(** [dict_cmp cmp l1 l2] lifts the comparison [cmp] to lists *)
+
 val uniq : 'a list -> bool
-(** [uniq l] returns [true] if and only if all the elements in [l] are different. *)
+  (** [uniq l] returns [true] if and only if all the elements in [l] are different. *)
 
 val union : 'a list -> 'a list -> 'a list
 (** [union l1 l2] appends the list [l1] to [l2]. Elements that were already in [l2]
@@ -212,4 +224,8 @@ val concat_f_list : string -> ('a -> string) -> 'a list -> string
   
 val format_list : (unit, Format.formatter, unit) format -> ('a -> unit) -> 'a list -> unit
   (** [format_list sep f l] formats [l] using [f] to format elements and
+      calls [sep] between elements *)
+
+val fformat_list : Format.formatter -> (unit, Format.formatter, unit) format -> ('a -> unit) -> 'a list -> unit
+  (** [fformat_list fmtr sep f l] formats [l] using [f] on [fmtr] to format elements and
       calls [sep] between elements *)

@@ -25,40 +25,39 @@ module Mozilla =
     xfork { `List.HD } { "name" }
       (hoist List.HD; rename "H3" "name")
       (hoist List.TL; List.hd []; rename "DL" "contents");
-    wmap { "name" ->  focus Xml.CHILDREN {}; List.hd []; hoist Xml.PCDATA,
-             "contents" -> hoist Xml.CHILDREN; List.map item }
+    mapn "name" (focus Xml.CHILDREN {}; List.hd []; hoist Xml.PCDATA);
+    mapn "contents" (hoist Xml.CHILDREN; List.map (protect item))
       
   and link : lens = 
     List.hd [];
     rename "A" "link"; 
-    wmap { "link" ->
-             begin 
-               filter { "HREF", "FEEDURL", `Xml.CHILDREN } {};
-               xfork { `Xml.CHILDREN } { "name" }
-                 (focus Xml.CHILDREN {};
-                  List.hd [];
-                  rename Xml.PCDATA "name")
-                 (acond { "FEEDURL"=Any, "HREF"=Any } { "feed"=Any }
-                    (filter { "FEEDURL" } {};
-                     rename "FEEDURL" "feed")
-                    (rename "HREF" "url");                 
-                  acond { "feed"=Any } ({"f"}::{"e"}::{"e"}::{"d"}::Any)
-                    (hoist "feed";
-                     List.explode;
-                     List.tl { "h" };
-                     List.tl { "t" };
-                     List.tl { "t" };
-                     List.tl { "p" };
-                     plunge List.TL; add List.HD { "d" };
-                     plunge List.TL; add List.HD { "e" };
-                     plunge List.TL; add List.HD { "e" };
-                     plunge List.TL; add List.HD { "f" })
-                    (hoist "url";
-                     List.explode);
-                  List.implode;
-                  plunge "url")
-             end
-         }
+    mapn "link"
+      begin 
+        filter { "HREF", "FEEDURL", `Xml.CHILDREN } {};
+        xfork { `Xml.CHILDREN } { "name" }
+          (focus Xml.CHILDREN {};
+           List.hd [];
+           rename Xml.PCDATA "name")
+          (acond { "FEEDURL"=Any, "HREF"=Any } { "feed"=Any }
+             (filter { "FEEDURL" } {};
+              rename "FEEDURL" "feed")
+             (rename "HREF" "url");                 
+           acond { "feed"=Any } ({"f"}::{"e"}::{"e"}::{"d"}::Any)
+             (hoist "feed";
+              List.explode;
+              List.tl { "h" };
+              List.tl { "t" };
+              List.tl { "t" };
+              List.tl { "p" };
+              plunge List.TL; add List.HD { "d" };
+              plunge List.TL; add List.HD { "e" };
+              plunge List.TL; add List.HD { "e" };
+              plunge List.TL; add List.HD { "f" })
+             (hoist "url";
+              List.explode);
+           List.implode;
+           plunge "url")
+      end
       
   let l1 : lens = 
     List.hd [];
@@ -81,7 +80,7 @@ module Mozilla =
   let l2 : lens = 
     let filter_seps : lens = 
       List.filter ({"contents" = Any, "name" = Any} | { "link" = Any }) { "separator" } {};
-      List.map (wmap { "contents" -> filter_seps })
+      List.map (mapn "contents" (protect filter_seps))
     in
       l1; map filter_seps
 

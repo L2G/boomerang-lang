@@ -19,8 +19,8 @@ val string_of_t : t -> string
   
 val merge_inc : t -> t -> t
 (** [merge_inc i1 i2] merges the locations [i1] and [i2] into a new
-    location; includes the endpoints. Only defined for [I]. *)
+    location; includes the endpoints. *)
 
 val merge_exc : t -> t -> t
 (** [merge_exc i1 i2] merges the locations [i1] and [i2] into a new
-    location; excludes the endpoints. Only defined for [I]. *)
+    location; excludes the endpoints. *)

@@ -30,7 +30,7 @@ test continue / \ [{x}, [{y}], [{z}]] = [[{x},{y}], [{z}]]
 test continue / \ [{x}, []] = [[{x}]]
 
 (* Called when the first element satisfies the predicate.  Starts a new "head list". *) 
-let start_fresh : lens = wmap { `List.HD -> plunge List.HD; add List.TL [] }
+let start_fresh : lens = mapn List.HD (plunge List.HD; add List.TL [])
 test start_fresh / \ [{x}, [{y}], [{z}]] = [[{x}], [{y}], [{z}]]
 test start_fresh / \ [{x},[]] = [[{x}],[]]
 
@@ -62,16 +62,15 @@ let FirstElementNonNull : schema =
 let l (H:schema) : lens =
   List.map List.explode;
   parse_list_with_headers H;
-  wmap { `List.HD ->
-    acond (FirstElementIn H) FirstElementNonNull
-      (id)
-      (plunge List.TL;
-       add List.HD [])
-  };
+  mapn List.HD
+    (acond (FirstElementIn H) FirstElementNonNull
+       (id)
+       (plunge List.TL;
+        add List.HD []));
   List.map (List.map List.implode)
 
 (* Use l for the top level structure and then continue with l' on the sub-lists *)
-let l_with (S:schema) (l':lens) : lens = l S; List.map (wmap {`List.TL -> l'})
+let l_with (S:schema) (l':lens) : lens = l S; List.map (mapn List.TL l')
 
 (* A variant that also flattens its result *)
 (*

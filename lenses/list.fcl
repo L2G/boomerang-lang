@@ -80,7 +80,9 @@ a list.  In the \PUT{} direction, the resulting list will have the same
 length as the abstract argument; if the abstract argument is longer than the
 concrete one, then the elements at the end will be \PUT{} into @missing@.
 
-#*let map (l:lens) : lens = wmap { `HD -> l, `TL -> (map l) }
+#*let map (l:lens) : lens = 
+#*  mapn HD l;
+#*  mapn TL (protect (map l))
 
 #*test (map (const {b} {c})) / [] = []
 #*test (map (const {b} {c})) / [{1},{2},{3}] = [{b},{b},{b}]
@@ -98,7 +100,7 @@ list, until the abstract tree is exactly @init@. For that reason, note
 that @l@ must not return @init@.
 
 #*let fold_right (init:tree) (l:lens) : lens =
-#*  wmap {`TL -> fold_right init l};
+#*  mapn TL (protect (fold_right init l));
 #*  acond [] init
 #*    (const init [])
 #*    l
@@ -130,10 +132,10 @@ argument list in both directions.  \finish{Some explanation needed.}
 #*         xfork {`old_HD, `TL} {`TL}
 #*           (rename old_HD HD;
 #*            plunge TL;
-#*            wmap { `TL -> rotate })
+#*            mapn TL (protect rotate))
 #*           id) 
 #*  in
-#*    wmap { `TL -> reverse }; 
+#*    mapn TL (protect reverse);
 #*    rotate
 
 #*test reverse / \ [] = []
@@ -151,7 +153,7 @@ abstract list is split (at the single occurrence of @sep@) into a pair of
 concrete lists.  \finish{Explain how it works.}
 #*let concat2 (sep:name) : lens = 
 #*  acond ([]::Any) ({`sep={}}::Any)
-#*    (wmap { `HD -> const {`sep} [] , `TL -> hd []})
+#*    (mapn HD (const {`sep} []); mapn TL (hd []))
 #*    (fork {`TL} id (hoist HD; rename TL "tmp");
 #*     fork {`HD} id (rename "tmp" HD; protect (concat2 sep); plunge TL))
 
@@ -161,39 +163,6 @@ concrete lists.  \finish{Explain how it works.}
 #*                     = [{u},{" "},{p},{e},{n},{n}]
 #*test (concat2 " ") / \ [[{u},{n},{i},{v}],[{p},{e},{n},{n}]] 
 #*                     = [{u},{n},{i},{v},{" "},{p},{e},{n},{n}]      
-
-#{#}
-(* let concat : lens = *)
-(*   let concat_aux : lens = *)
-(*     xfork {`HD} {`HD, "x"} *)
-(*       (hoist HD; rename TL "x") *)
-(*       id; *)
-(*     xfork {"x", `TL} {`TL} *)
-(*       (rename "x" HD; plunge TL; *)
-(*        wmap {`TL -> concat1}) *)
-(*       id *)
-(* *)      
-(*   and concat1: lens = *)
-(*     acond < []::Any > < {" "}::Any > *)
-(*       (fork {`HD} *)
-(*       (map (rename NIL " ")) *)
-(*       (wmap {`TL -> concat2})) *)
-(*       (plunge "_"; wmap { "_" -> concat_aux}; hoist "_") *)
-(* *)            
-(*   and concat2: lens = *)
-(*     ccond < [] > *)
-(*       id *)
-(*       (acond < [`Any] > < List { ! \ (" ") = `Any} > *)
-(*          (focus HD {`TL = []} ) *)
-(*          (plunge "_"; wmap { "_" -> concat1}; hoist "_")) *)
-(*   in concat1 *)
-(* test concat / [] = error (\* FIXME: wrong *\) *)
-(* test concat / [[a]] = [a, " "] *)
-(* test concat \ [a, " "] missing = [[a],[]] (\* FIXME: wrong ??? *\) *)
-(* test concat \ [] missing = error (\* FIXME: wrong *\) *)
-(* test concat \ [{u},{n},{i},{v},{" "},{o},{f},{" "},{p},{e},{n},{n}] [[{u},{n},{i},{v}]] =  [[{u},{n},{i},{v}],o,f," ",{p},{e},{n},{n}] (\* FIXME: wrong *\) *)
-(* test concat / [[{u},{n},{i},{v}],[o,f],[{p},{e},{n},{n}]] = [{u},{n},{i},{v},{" "},{o},{f},{" "},{p},{e},{n},{n}] *)
-#{@}
 
 \LENSSECTION{groupby2} The bijective lens @groupby2@ takes a list (in the
 \GET{} direction) and yields a list of lists, all of whose elements are of
@@ -235,7 +204,7 @@ in~\cite{Focal2005}.
 ##(* Begin by defining a simple filter whose GET direction is what we want
 ##   but whose PUT direction is not. *)
 let simple_filter (E:schema) : lens = 
-  wmap { `TL -> simple_filter E };
+  mapn TL (protect (simple_filter E));
   ccond  (E::Any)
     (tl {"error"})
     id
@@ -245,19 +214,19 @@ let filter (D:schema) (E:schema) (some_D:tree) : lens =
   let append (v:tree) : lens =
     acond [] [Any]
       (const v {})
-      (wmap { `TL -> append v })
+      (mapn TL (protect (append v)))
   in
   let filter_aux (D:schema) (E:schema) (some_D:tree) : lens = 
     cond_ff (T E) []  (D::(T D))
-      (plunge "_"; wmap { "_" -> filter E D {} }; hoist "_")
+      (protect (filter E D {}))
       (append [some_D])
       (const [] [])
       (inner_filter)
   and inner_filter : lens =
 ##  (* this Any used to be a List containing at least one D *)
     ccond (E::Any) 
-      (wmap { `TL -> inner_filter }; tl {"error"})
-      (wmap { `TL -> filter_aux D E some_D } )
+      (mapn TL (protect inner_filter); tl {"error"})
+      (mapn TL (protect (filter_aux D E some_D)))
   in
     filter_aux D E some_D
 #{@}
@@ -378,8 +347,8 @@ single characters.
 
 #*test implode / \ [{f},{o},{c},{a},{l}] = {focal}
 
-\LENSSECTION{split} The lens @split@ converts a @Value@ to a list of
-values by splitting it at newline characters.
+\LENSSECTION{split} The lens @split k@ converts a @Value@ to a list of
+values by splitting it at @k@ characters.
 ##let split (k:name) : lens = Native.Prelude.split k
 
 \LENSSECTION{unsplit} The lens @unsplit@ reverses the action of @split@.

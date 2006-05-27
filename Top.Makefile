@@ -51,13 +51,16 @@ OCAMLMAKEFILE = $(SRCDIR)/OCamlMakefile
 PACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
 YFLAGS = -v 
 OCAMLFLAGS = -dtypes -rectypes
-OCAMLCPFLAGS = f
+OCAMLCPFLAGS = a
+OCAMLLDFLAGS = -cc g++
 
-LIBS += csv 
+LIBS=csv omega
 
-LIBDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
-INCDIRS = $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
+LIBDIRS = $(EXTERNDIR)/ocaml-csv-1.0.3/ \
+          $(EXTERNDIR)/omega/ocaml/
 
+INCDIRS = $(EXTERNDIR)/ocaml-csv-1.0.3 \
+          $(EXTERNDIR)/omega/ocaml
 
 $(SRCDIR)/harmony.cmxa: 
 	$(MAKE) -C $(SRCDIR) native-code-library
@@ -147,12 +150,6 @@ buildtags:
 
 ####################################################################
 # Personalization
-
 # Load file of individual harmony flags from home dir (if present)
 
 -include $(HOME)/.harmony.mk
-
-# Benjamin, please include things like this in your ~/.harmony.mk file instead :-)
-#
-# export BCPDEPFLAGS = -I $(SRCDIR) -I $(SRCDIR)/ubase $(EXTERNDIR)/ocaml-csv-1.0.3
-#

@@ -56,7 +56,7 @@ let check m =
 (*******)
 let get lens c_fn o_fn = 
   let cvo = read_tree c_fn in
-  let lens = lookup_lens lens in
+  let lens,_ = lookup_lens lens in
   let av = match cvo with
     | Some cv -> Lens.get lens cv
     | None -> failwith (Printf.sprintf "Concrete tree file %s is missing." c_fn) 
@@ -73,9 +73,9 @@ let forcer1 = Prefs.createBool "forcer1" false "overwrite r2 and archive with r1
 (********)
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let s = lookup_schema s in 
-  let lenso = lookup_lens lenso in
-  let lensa = lookup_lens lensa in 
-  let lensb = lookup_lens lensb in         
+  let lenso,_ = lookup_lens lenso in
+  let lensa,_ = lookup_lens lensa in 
+  let lensb,_ = lookup_lens lensb in         
   let forcer1 = Prefs.read forcer1 in
   let (o, a, b, (act, oa', aa', ba')) =
     if forcer1 then begin
@@ -198,6 +198,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   if Prefs.read check_pref <> [] then
     begin
       Safelist.iter check (Prefs.read check_pref);
+      Presburger.print_stats ();Format.print_flush();
       if Prefs.read rest = [] then exit 0
     end;
 
@@ -336,7 +337,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   (* Clean up *)
   (fun () -> 
     (* cleanupTempFiles() *)
-      Format.print_flush ()
+     Format.print_flush ();
   )
   
 let toplevel progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens =

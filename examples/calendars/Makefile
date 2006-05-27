@@ -16,7 +16,7 @@ include $(TOP)/Top.Makefile
 STATIC=1
 RESULT = harmonize-calendars
 SOURCES = $(CWD)/harmonize-calendars.ml 
-INCDIRS += $(EXTERNDIR)/iCalendar
+INCDIRS += $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/iCalendar
 LIBDIRS += $(EXTERNDIR)/iCalendar
 LIBS += harmony iCalViewer
 
@@ -34,4 +34,4 @@ include $(OCAMLMAKEFILE)
 test:: buildharmony unit-tests 
 
 unit-tests:
-	$(HARMONY) -check ICalendar -test-all
+	$(HARMONY) -check ICalendar -test ICalendar

@@ -32,34 +32,36 @@
 
   (* mk_compose2 exp *)
   let mk_compose2_exp i e1 e2 = 
-    EApp(i, EApp(i, EVar(i, compose2_qid i),e1),e2)
+    EApp(i, EApp(i, EVar(i, compose2_qid i,false),e1),e2)
       
   (* mk_get_exp *)
   let mk_get_exp i l c = 
-    EApp(i, EApp(i, EVar(i, get_qid i), l), c)
+    EApp(i, EApp(i, EVar(i, get_qid i,false), l), c)
 
   (* mk_put_exp *)
   let mk_put_exp i l a co = 
     match co with 
-        None -> EApp(i, EApp(i, EVar(i, create_qid i), l), a)
-      | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i), l), a), c)
+        None -> EApp(i, EApp(i, EVar(i, create_qid i, false), l), a)
+      | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i,false), l), a), c)
           
   (* mk_sync_exp *)
   let mk_sync_exp i lo la lb t v = 
-    EApp(i,EApp(i,EApp(i,EApp(i,EApp(i,EVar(i,sync_qid i),lo),la),lb),t),v)
+    EApp(i,EApp(i,EApp(i,EApp(i,EApp(i,EVar(i,sync_qid i,false),lo),la),lb),t),v)
       
   (* mk_empty_tree *)
   let mk_empty_tree i = ECat(i,[])
+
+  let mk_any_exp i = EVar(i,any_qid i,false)
 
 %}
 
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
-%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA ASSERT PROTECT
-%token <Info.t> LENS TREE TYPE NAME ARROW BACKTICK
+%token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA ASSERT CHECK PROTECT
+%token <Info.t> LENS TREE TYPE NAME ARROW DARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LBRACKBAR RBRACKBAR LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
-%token <Info.t> STAR BANG BAR PLUS QMARK
+%token <Info.t> STAR BANG BAR PLUS MINUS TILDE AMPERSAND QMARK
 
 %start modl sort qid 
 %type <Syntax.modl> modl
@@ -332,14 +334,34 @@ composeexp:
 
 #{@}
 
-<BarExp> ::= <BarExp> \lit{@|@} <PlusExp>
-        \alt <PlusExp>
+<BarExp> ::= <BarExp> \lit{@|@} <AndExp>
+        \alt <AndExp>
 
 #{#}
 
 barexp:
-  | barexp BAR plusexp                       { EUnion(me $1 $3,[$1;$3]) }
-  | plusexp                                  { $1 }
+  | barexp BAR interexp                      { EUnion(me $1 $3,[$1;$3]) }
+  | interexp                                 { $1 }
+
+#{@}
+
+<InterExp> ::= <InterExp> \lit{@&@} <MinusExp>
+         \alt <MinusExp>
+#{#}
+
+interexp:
+  | interexp AMPERSAND minusexp              { EInter(me $1 $3,[$1;$3]) }
+  | minusexp                                 { $1 }
+
+#{@}
+<MinusExp> ::= <MinusExp> \lit{@+@} <PlusExp>
+         \alt <PlusExp>
+
+#{#}
+
+minusexp:
+  | minusexp MINUS plusexp                    { EMinus(me $1 $3, $1, $3) }
+  | plusexp                                   { $1 }
 
 #{@}
 <PlusExp> ::= <PlusExp> \lit{@+@} <ConsExp>
@@ -350,7 +372,6 @@ barexp:
 plusexp:
   | plusexp PLUS consexp                     { ECat(me $1 $3, [$1; $3]) }
   | consexp                                  { $1 }
-
 
 #{@}
 
@@ -379,7 +400,7 @@ appexp:
 
 <AExp> ::= <String>
       \alt <QId>
-      \alt \lit{@{@} <MapList> \lit{@}@}
+      \alt \lit{@~@} <AExp>
       \alt \lit{@{@} <TreeEltList> \lit{@}@}
       \alt \lit{@[@} <ExpList> \lit{@]@}
       \alt \lit{@[|@} <ExpList> \lit{@|]@}
@@ -388,21 +409,17 @@ appexp:
       \alt \lit{@protect@} <AExp>
       \alt \lit{@assert@} <AExp>
 
-<Map> ::= <QuotedName> \lit{@->@} <Exp>
-
-<MapList> ::= <Map>
-         \alt <Map> \lit{@,@} <MapList>
-
 #{#}
 
 aexp:
   | STRING                                   { EName(info_of_id $1,$1) }
-  | qid                                      { EVar(info_of_qid $1,$1) }
+  | qid                                      { EVar(info_of_qid $1,$1,false) }
+  | TILDE aexp                               { let i = me2 $1 $2 in EMinus(i,mk_any_exp i,$2) }
   | LPAREN exp RPAREN                        { $2 }
   | BEGIN exp END                            { $2 }
   | ASSERT aexp                              { EAssert(me2 $1 $2, $2) }
+  | CHECK aexp COLON aexp DARROW aexp        { ECheckLens(me2 $1 $6, $2,$4,$6) }
   | PROTECT aexp                             { EProtect(me2 $1 $2, $2) }
-  | LBRACE map_list RBRACE                   { EMap(m $1 $3, $2) }
   | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }
   | LBRACK exp_list RBRACK                   { Safelist.fold_right
                                                  (fun ti acc -> 
@@ -414,16 +431,7 @@ aexp:
                                                     ESpineCons(me ti acc,ti,acc))
                                                  $2
                                                  (ENil($3))}      
-
-map:
-  | quoted_name ARROW exp                    { ($1,$3) }
-
-/* maps must be non-empty to avoid overlap with schemas and trees */
-map_list:
-  | map                                      { [$1] }
-  | map COMMA map_list                       { $1::$3 }
-      
-
+     
 #{@}
 
 <TreeElt> ::= <QuotedName>

@@ -19,9 +19,8 @@ let flatten_to_bush : lens =
   List.map 
     (ccond { "contents"=Contents, "name"=Value } 
        (pivot "name"; map (hoist "contents"; protect (flatten_to_bush)); plunge "folders")
-       (rename "link" "links"; wmap { "links" -> pivot "url"; map (hoist "name") }));
+       (rename "link" "links"; mapn "links" (pivot "url"; map (hoist "name"))));
   List.flatten;
-  wmap { "folders" -> List.flatten; map (List.hd []),
-           "links" -> List.flatten; map (List.hd []) }
+  mapp {"folders", "links"} (List.flatten; map (List.hd []))
     
 let flatten_bookmarks : lens = map flatten_to_bush

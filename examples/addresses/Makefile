@@ -18,8 +18,10 @@ include $(TOP)/Top.Makefile
 
 RESULT = harmonize-addresses
 SOURCES = $(CWD)/harmonize-addresses.ml 
-# EXTRADEPS += addr.fcl
 LIBS += harmony
+
+INCDIRS += $(SRCDIR) $(SRCDIR)/ubase
+
 
 reinstall: addr.fcl 	
 	-rm -f $(RESULT)
@@ -36,7 +38,7 @@ include $(OCAMLMAKEFILE)
 test:: buildharmony unit-tests 
 
 unit-tests:
-	$(HARMONY) -check Addr -test-all
+	$(HARMONY) -check Addr -test Addr
 
 
 

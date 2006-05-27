@@ -38,12 +38,45 @@ let format_rv rv =
 	
 (* --------------- Focal library -------------- *)
 
+(* state *)
+module type REnvSig = 
+sig
+  type t
+  val empty : unit -> t
+  val lookup : t -> Syntax.qid -> rv option
+  val update : t -> Syntax.qid -> rv -> t
+  val overwrite : t -> Syntax.qid -> rv -> unit
+  val iter : (Syntax.qid -> rv -> unit) -> t -> unit
+end
+    
+module REnv : REnvSig = 
+struct
+  module M = Env.Make(struct
+                        type t = Syntax.qid
+                        let compare = Syntax.qid_compare
+                        let to_string = Syntax.string_of_qid
+                      end) 
+  type t = (rv ref) M.t
+  let empty = M.empty
+  let lookup e q = match M.lookup e q with 
+      Some r -> Some (!r)
+    | None -> None
+  let update e q v = M.update e q (ref v)
+  let overwrite e q v = 
+    match M.lookup e q with 
+        Some r -> r:=v
+      | None -> raise (Error.Harmony_error
+                         (fun () -> Format.printf "Registry.overwrite: %s not found" 
+                           (Syntax.string_of_qid q)))
+  let iter f e = M.iter (fun q rvr -> f q (!rvr)) e 
+end
+
+let loaded = ref []
+
+let library : REnv.t ref = ref (REnv.empty ())
+
 (* constants *)
 let pre_ctx = List.map Value.parse_qid ["Prelude"]
-
-(* state *)
-let loaded = ref []
-let library : (rv Env.t) ref = ref (Env.empty ())
 
 (* utilities *)
 let get_library () = !library
@@ -61,7 +94,7 @@ let reset () =
 (* --------------- Registration functions -------------- *)
 	  
 (* register a value *)
-let register q r = library := (Env.update (!library) q r)
+let register q r = library := (REnv.update (!library) q r)
   
 (* register a native value *)
 let register_native qs ss v = 
@@ -70,7 +103,7 @@ let register_native qs ss v =
     register q (s,v)
 	  
 (* register a whole (rv Env.t) in m *)
-let register_env ev m = Env.iter (fun q r -> register (Syntax.dot m q) r) ev
+let register_env ev m = REnv.iter (fun q r -> register (Syntax.dot m q) r) ev
 
 (* --------------- Lookup functions -------------- *)
 
@@ -121,10 +154,10 @@ let compile_fcl_str_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is n
 let load ns = 
   (* helper, when we know which compiler function to use *)
   let go comp source = 
-    verbose (fun () -> Format.eprintf "@[loading %s ...@]@\n%!" source);
+    verbose (fun () -> Format.eprintf "[@[loading %s ...@]]@\n%!" source);
     loaded := ns::(!loaded);
     comp ();
-    verbose (fun () -> Format.eprintf "@[loaded %s@]@\n%!" source) in      
+    verbose (fun () -> Format.eprintf "[@[loaded %s@]]@\n%!" source) in      
   let uncapped = String.uncapitalize ns in
     if (Safelist.mem ns (!loaded)) then true
     else begin
@@ -164,7 +197,7 @@ let lookup_library_ctx nctx q =
        (Env.to_string !library string_of_rv)
        )
        in *)
-    let try_lib () = Env.lookup !library q2 in
+    let try_lib () = REnv.lookup !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
 	  Some r -> Some r

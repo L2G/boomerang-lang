@@ -44,7 +44,7 @@ that denote the special tags used by the XML viewer.
 The encoding of XML described above is expressed by the following schemas: 
 #*schema Pcdata = {`PCDATA = NonNullValue}
 #*schema XmlElt = {! \ `PCDATA = {`CHILDREN = T,             (* subelts *)
-#*                             *\`CHILDREN = Value }}        (* attrs *)
+#*                                *\`CHILDREN = Value }}     (* attrs *)
 #*                | Pcdata
 #*and T = List.T XmlElt
 (Note that the value under @PCDATA@ is never the empty string: our XML
@@ -70,20 +70,17 @@ all the ordering from an XML structure, leaving a ``bush'' of schema
 #{*}
 let ATTRS : name = "@attrs"
 schema FlattenedXML = { ?`PCDATA = (List.T NonNullValue),
-                        ?`ATTRS = {!=Value,*=Value},
-                        *\`PCDATA,`ATTRS = (List.T FlattenedXML) }
+                        ?`ATTRS = {!*=Value},
+                        * \ (`PCDATA,`ATTRS) = (List.T FlattenedXML) }
 #{@}
 
 The recursive definition of @flatten@ uses an auxiliary lens 
 #{*}
 let flatten : lens = 
-  plunge "TEMP"; 
-  wmap { TEMP -> 
-    assert T;
-    List.map flatten_elt;
-    List.flatten; 
-    assert FlattenedXML };
-  hoist "TEMP"
+  assert T;
+  List.map (protect flatten_elt);
+  List.flatten; 
+  assert FlattenedXML
 
 and flatten_elt : lens = 
   assert XmlElt;
@@ -91,14 +88,10 @@ and flatten_elt : lens =
     id
     (map (acond {`CHILDREN=Any} {*\`ATTRS=Any}
             (* no attributes: *)
-            (wmap {`CHILDREN -> flatten}; hoist CHILDREN)
+            (hoist CHILDREN; protect flatten)
             (* one or more attributes: *)
-            (fork {`CHILDREN} 
-              (wmap {`CHILDREN -> flatten})
-              (plunge ATTRS);
-             fork {`ATTRS}
-               id
-               (hoist CHILDREN))))
+            (fork {`CHILDREN} (map (protect flatten)) (plunge ATTRS);
+             fork {`ATTRS} id (hoist CHILDREN))))
 #{@}
 
 #*test flatten_elt /
@@ -160,7 +153,7 @@ let squash_flattened : lens =
     id
     (fork {`PCDATA} 
       (map (List.hd []))
-      (wmap (fun (n:name) -> List.hd []; squash_flattened)));
+      (map (List.hd []; protect squash_flattened)));
   assert SquashedXML
 #{@}
 

@@ -3,6 +3,8 @@ open Syntax
 open Registry
 open Value
 
+let no_checker = WB(fun _ -> Lens.error [`String "relational lenses are unchecked"])
+
 (* List sorting *)
 let listsort =
   let getfun c =
@@ -11,11 +13,10 @@ let listsort =
   let putfun a co =
     match co with
     | None -> a
-    | Some(c) -> if a = getfun c then c else a
-  in
-  Lens.native getfun putfun
-
-let () = register_native "Native.listsort" "lens" (L(listsort))
+    | Some(c) -> if a = getfun c then c else a in
+    Lens.native getfun putfun
+      
+let () = register_native "Native.listsort" "lens" (L(listsort,no_checker))
 
 let lift_to_opt f xo =
   match xo with
@@ -40,7 +41,7 @@ let make_binary_lib fclname lens =
   mk_nfun "name -> name -> lens" fclname 
     (fun n1 -> mk_nfun "name -> lens" fclname
        (fun n2 -> mk_nfun "lens" fclname
-	  (fun n3 -> L(lens n1 n2 n3))))
+	  (fun n3 -> L(lens n1 n2 n3,no_checker))))
 
 let register_binary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> lens"
@@ -176,7 +177,7 @@ let lift_unary dblens src dst =
 let make_unary_lib fclname lens =
   mk_nfun "name -> lens" fclname
     (fun n1 -> mk_nfun "lens" fclname
-       (fun n2 -> L(lens n1 n2)))
+       (fun n2 -> L(lens n1 n2,no_checker)))
 
 let register_name_name_unary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> name -> lens" (

@@ -23,6 +23,28 @@ let enum l =
 	    (fun (i,acc) k -> (i+1,(i,k)::acc))
 	    (0,[]) l))
 
+(* map, where the mapped function is 
+    (1) provided with the zero-indexed index of each elt and 
+    (2) may filter entries by returning None
+*)
+let map_index_filter f l = 
+  let rec aux (n,acc) = function
+      [] -> (n,acc)
+    | h::t -> let acc' = match f n h with 
+          None -> acc
+        | Some b -> b::acc in
+        aux (n+1,acc') t in
+    Safelist.rev (snd (aux (0,[]) l))
+
+let rec dict_cmp cmp l1 l2 = match l1,l2 with
+    [],[] -> 0
+  | _,[] -> 1
+  | [],_ -> -1
+  | h1::t1,h2::t2 -> 
+      let c = cmp h1 h2 in
+        if c <> 0 then c
+        else dict_cmp cmp t1 t2 
+
 (* returns true iff elements of l are unique *)
 let uniq l =
   let rec loop = function
@@ -586,7 +608,7 @@ let concat_list sep l =
     
 let concat_f_list sep f l = concat_list sep (Safelist.map f l)
   
-let format_list sep f l =
+let fformat_list fmtr sep f l =
   let extract_thk = function 
       Some thk -> thk
     | None -> (fun () -> ()) in
@@ -596,7 +618,7 @@ let format_list sep f l =
       (fun x y -> 
          Some (fun () -> 
                  extract_thk x ();
-                 Format.printf sep;
+                 Format.fprintf fmtr sep;
                  extract_thk y ()))
       (fun x -> x = None)
       None
@@ -604,3 +626,5 @@ let format_list sep f l =
       l
   in
     extract_thk thko ()
+
+let format_list sep f l = fformat_list Format.std_formatter sep f l

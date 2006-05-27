@@ -11,7 +11,7 @@ include $(TOP)/Top.Makefile
 all: test
 
 test:: 
-	$(HARMONY) -check Main -test-all
+	$(HARMONY) -check Main -test Main
 
 get:
 	$(HARMONY) test.xml -lensr1 Main.l 

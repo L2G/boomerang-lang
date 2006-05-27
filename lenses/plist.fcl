@@ -26,26 +26,25 @@ over the plist structure and perform an appropriate transformation at each
 node.  
 #{*}
 let plist_object_lens : lens =
-  wmap { "dict" -> dict_lens,
-         "array" -> array_lens,
-         "string" -> leaf_lens,
-         "integer" -> leaf_lens }
+  mapn "dict" (protect dict_lens);
+  mapn "array" (protect array_lens);
+  mapp {"string","integer"} (protect leaf_lens)
 
 and array_lens : lens =
-  wmap {`Xml.CHILDREN -> List.map plist_object_lens};
+  mapn Xml.CHILDREN (List.map (protect plist_object_lens));
   hoist Xml.CHILDREN
 
 and dict_lens : lens =
-  wmap {`Xml.CHILDREN ->
-          List.groupby2;
-          List.map (keypair_lens; pivot List.HD; map (focus List.TL {}; List.hd []));
-          List.flatten;
-          map (List.hd [])};
+  mapn Xml.CHILDREN
+    (List.groupby2;
+     List.map (protect keypair_lens; pivot List.HD; map (focus List.TL {}; List.hd []));
+     List.flatten;
+     map (List.hd []));
   hoist Xml.CHILDREN
 
 and keypair_lens : lens =
-  wmap { `(List.HD) -> hoist "key"; leaf_lens, 
-         `(List.TL) -> wmap { `(List.HD) -> plist_object_lens } }
+  mapn List.HD (hoist "key"; protect leaf_lens);
+  mapn List.TL (mapn List.HD (protect plist_object_lens))
 
 and leaf_lens : lens =
   hoist Xml.CHILDREN;

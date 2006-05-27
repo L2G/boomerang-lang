@@ -47,6 +47,7 @@ val put_qid : Info.t -> qid
 val sync_qid : Info.t -> qid
 val cons_qid : Info.t -> qid
 val nil_qid : Info.t -> qid
+val any_qid : Info.t -> qid
 val type_of_tree_qid : Info.t -> qid
 
 (** {2 Datatypes for Focal abstract syntax } *)
@@ -62,20 +63,22 @@ type param = PDef of Info.t * id * sort
 type exp = 
     EApp of Info.t * exp * exp
   | EAssert of Info.t * exp 
+  | ECheckLens of Info.t * exp * exp * exp
   | EAtom of Info.t * exp * exp 
   | ECat of Info.t * exp list 
   | ECons of Info.t * exp * exp 
   | ESpineCons of Info.t * exp * exp 
   | EFun of Info.t * param list * sort option * exp 
   | ELet of Info.t * binding list * exp
-  | EMap of Info.t * (exp * exp) list
   | EName of Info.t * id
   | ENil of Info.t 
   | EProtect of Info.t * exp 
   | ESchema of Info.t * schema_binding list * exp 
   | EUnion of Info.t * exp list
-  | EVar of Info.t * qid
+  | EVar of Info.t * qid * bool
   | EWild of Info.t * exp list * int * bool * exp
+  | EInter of Info.t * exp list
+  | EMinus of Info.t * exp * exp
 
 and binding = BDef of Info.t * id * param list * sort * exp
 

@@ -11,7 +11,7 @@ RESULT = harmonize-basics
 all: $(RESULT)
 
 $(RESULT):
-	ln -s $(TOP)/src/harmony $(RESULT)
+	ln -s $(SRCDIR)/harmony $(RESULT)
 
 clean::
 	rm -rf $(RESULT)

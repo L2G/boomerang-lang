@@ -13,6 +13,8 @@ include $(TOP)/Top.Makefile
 
 RESULT = harmonize-plist
 SOURCES = harmonize-plist.ml 
+
+INCDIRS += $(SRCDIR) $(SRCDIR)/ubase
 LIBS += harmony
 
 include $(OCAMLMAKEFILE)

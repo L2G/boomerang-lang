@@ -7,9 +7,15 @@
 (** Run-time representations of Focal values *)
 
 (** The type of run-time representations of values *)
+type l_chk = Schema.t -> Schema.t
+type lens_checker =     
+    BIJ of l_chk * l_chk (* we need both directions for bijective lenses to check invert *)
+  | VWB of l_chk
+  | WB of l_chk
+
 type t = 
-    N of Name.t                 (* names *)
-  | L of (V.t, V.t) Lens.t      (* lenses *)      
+    N of Name.t                           (* names *)
+  | L of (V.t, V.t) Lens.t * lens_checker (* lenses *)
   | S of Schema.t               (* schemas *)
   | V of V.t                    (* trees *)
   | F of Syntax.sort * (t -> t) (* functions *)
@@ -30,7 +36,7 @@ val get_schema : Info.t -> t -> Schema.t
 val get_tree : Info.t -> t -> V.t
 (** [get_tree i v] extracts the [V.t] from [v]. Prints an error message at [i] on failure. *)
 
-val get_lens : Info.t -> t -> (V.t, V.t) Lens.t
+val get_lens : Info.t -> t -> (V.t, V.t) Lens.t * lens_checker
 (** [get_lens i v] extracts the [(V.t, V.t) Lens.t] from [v]. Prints an error message at [i] on failure. *)
 
 val get_name : Info.t -> t -> Name.t
@@ -45,7 +51,7 @@ val mk_nfun : string -> string -> (Name.t -> t) -> t
 val mk_vfun : string -> string -> (V.t -> t) -> t
 (** [mk_vfun return_sort msg f] create a function from trees to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
 
-val mk_lfun : string -> string -> ((V.t,V.t) Lens.t -> t) -> t
+val mk_lfun : string -> string -> ((V.t,V.t) Lens.t * lens_checker -> t) -> t
 (** [mk_lfun return_sort msg f] create a function from lenses to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
 
 val mk_ffun : string -> string -> string -> ((t -> t) -> t) -> t

@@ -54,7 +54,7 @@ let debug modname thunk =
       else "" in
     if time<>"" || s<>"" || modname<>"" then begin
       let time = if time="" || (s=""&&modname="") then time else time^": " in
-      Printf.eprintf "[%s%s%s] " time s modname
+        Printf.eprintf "%![%s%s%s] %!" time s modname
       end;
     thunk();
     flush stderr

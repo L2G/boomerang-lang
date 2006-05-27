@@ -254,7 +254,7 @@ let rec sync s (oo, ao, bo) =
             (* BCP: Following line is bogus -- assumes that all lists are
                homogeneous and just takes the type of the first element as the
                type of all elements.  But what, exactly, should we do instead?? *)
-            match Schema.project s V.hd_tag with
+            match Schema.project V.hd_tag s with
               None -> assert false (* Not a list schema? *)
             | Some ss -> ss in
           let (a,ol',ll',rl') = D3.sync elt_schema (ol,ll,rl) in
@@ -269,7 +269,7 @@ let rec sync s (oo, ao, bo) =
           let acts, arbinds, lbinds, rbinds =            
             Name.Set.fold
               (fun k (actacc, aracc, lacc, racc) ->
-                 let tk = match Schema.project s k with
+                 let tk = match Schema.project k s with
                      None ->
                        (* Can't happen, since every child k is in        *)
                        (* either dom(a) or dom(b), both of which are in  *)
@@ -295,8 +295,8 @@ let rec sync s (oo, ao, bo) =
             (V.from_list arbinds),
             (V.from_list lbinds),
             (V.from_list rbinds)   in
-          let a'_in_tdoms = Schema.dom_member a' s in
-          let b'_in_tdoms = Schema.dom_member b' s in
+          let a'_in_tdoms = Schema.dom_member (V.dom a') s in
+          let b'_in_tdoms = Schema.dom_member (V.dom b') s in
           if a'_in_tdoms && b'_in_tdoms then
               (GoDown(Safelist.fold_left
                         (fun acc (k, act) -> Name.Map.add k act acc)

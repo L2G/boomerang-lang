@@ -23,15 +23,25 @@ val format_rv : rv -> unit
 
 (** {2 Library} *)
 
-val pre_ctx : Syntax.qid list
+module REnv : sig 
+  type t
+  val empty : unit -> t
+  val lookup : t -> Syntax.qid -> rv option
+  val update : t -> Syntax.qid -> rv -> t
+  val overwrite : t -> Syntax.qid -> rv -> unit
+  val iter : (Syntax.qid -> rv -> unit) -> t -> unit
+end
 
 val reset : unit -> unit
 (** Resets the library. *)
 
-val get_library : unit -> rv Env.t
+val pre_ctx : Syntax.qid list
+(** the initial naming context, i.e., [''Prelude''] *)
+
+val get_library : unit -> REnv.t
 (** Returns the library, as an environment. *)
 
-val register_env : rv Env.t -> Syntax.qid -> unit
+val register_env : REnv.t -> Syntax.qid -> unit
 (** ?? *)
 
 val register_native : string -> string -> Value.t -> unit

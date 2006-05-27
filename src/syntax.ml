@@ -83,6 +83,7 @@ let put_qid i = mk_pre_qid i "put"
 let sync_qid i = mk_pre_qid i "_sync" (* can't write "sync" because it's a token :( *)
 let cons_qid i = mk_pre_qid i "Cons"
 let nil_qid i = mk_pre_qid i "Nil"
+let any_qid i = mk_pre_qid i "Any"
 let type_of_tree_qid i = mk_pre_qid i "type_of_tree"
 
 (* abstract syntax *)
@@ -102,21 +103,23 @@ type param = PDef of i * id * sort
 type exp = 
     EApp of i  * exp * exp
   | EAssert of i * exp 
+  | ECheckLens of i * exp * exp * exp
   | EAtom of i * exp * exp 
   | ECat of i * exp list 
   | ECons of i * exp * exp 
   | ESpineCons of i * exp * exp 
   | EFun of i * param list * sort option * exp 
   | ELet of i * binding list * exp
-  | EMap of i * (exp * exp) list
   | EName of i * id
   | ENil of i
   | EProtect of i * exp 
   | ESchema of i * schema_binding list * exp 
   | EUnion of i * exp list
-  | EVar of i * qid
+  | EVar of i * qid * bool
   | EWild of i * exp list * int * bool * exp
-      
+  | EInter of i * exp list
+  | EMinus of i * exp * exp
+
 (* bindings *)
 and binding = BDef of i * id * param list * sort * exp
 
@@ -148,6 +151,7 @@ let info_of_qid = function (_,id) -> info_of_id id
 let info_of_exp = function
     EApp(i,_,_)    -> i
   | EAssert(i,_)   -> i
+  | ECheckLens(i,_,_,_) -> i
   | EAtom(i,_,_)   -> i
   | ECat(i,_)      -> i
   | ECons(i,_,_)   -> i
@@ -156,12 +160,13 @@ let info_of_exp = function
   | ELet(i,_,_)    -> i
   | EName(i,_)     -> i
   | ENil(i)        -> i
-  | EMap(i,_)      -> i
   | EProtect(i,_)  -> i
   | ESchema(i,_,_) -> i 
   | EUnion(i,_t)   -> i
-  | EVar(i,_)      -> i
+  | EVar(i,_,_)    -> i
   | EWild(i,_,_,_,_) -> i
+  | EMinus(i,_,_)    -> i
+  | EInter(i,_)      -> i
 
 let info_of_binding (BDef(i,_,_,_,_)) = i
 let info_of_bindings bs = 
@@ -214,18 +219,18 @@ let rec format_exp_aux mode e0 = match e0 with
         if mode.app then Format.printf "(";
         (* some special formatting for infix operators, etc. *)
         begin match e1 with 
-            EApp(_,EVar(_,q),e12)
+            EApp(_,EVar(_,q,_),e12)
               when string_of_qid q = "Native.Prelude.compose2" ->
                 format_exp_aux { mode with app = false } e12;
                 Format.printf ";@ ";
                 format_exp_aux { mode with app = false } e2
-          | EVar(_,q) when string_of_qid q = "Native.Prelude.get" ->
+          | EVar(_,q,_) when string_of_qid q = "Native.Prelude.get" ->
               format_exp_aux { mode with app = true} e2;
               Format.printf "@ /"                
-          | EVar(_,q) when string_of_qid q = "Native.Prelude.put" -> 
+          | EVar(_,q,_) when string_of_qid q = "Native.Prelude.put" -> 
               format_exp_aux { mode with app = true } e2;
               Format.printf "@ \\"
-          | EApp(_,EVar(_,q),e12) 
+          | EApp(_,EVar(_,q,_),e12) 
               when string_of_qid q = "Native.Prelude.create" -> 
               format_exp_aux { mode with app = true } e12;
                 Format.printf "@ \\@ ";
@@ -240,8 +245,18 @@ let rec format_exp_aux mode e0 = match e0 with
         Format.printf "@]"
   | EAssert(_,e) ->       
       let mode = { mode with cat = false } in
-        Format.printf "@[<2>assert"; format_exp_aux mode e; Format.printf "@]"
-                                                        
+        Format.printf "@[<2>assert@ "; format_exp_aux mode e; Format.printf "@]"
+      
+  | ECheckLens(_,e1,e2,e3) ->       
+      let mode = { mode with cat = false } in
+        Format.printf "@[<2>check@ ("; 
+        format_exp_aux mode e1; 
+        Format.printf ") : ";
+        format_exp_aux mode e2;
+        Format.printf "@ <->@ ";
+        format_exp_aux mode e3;
+        Format.printf "@]"      
+                                                  
   | EAtom(_,n,e)    -> 
       let imode = { mode with cat = false } in
         Format.printf "@[<2>"; 
@@ -317,14 +332,6 @@ let rec format_exp_aux mode e0 = match e0 with
       Format.printf "@ ->@ "; 
       format_exp_aux mode e;
       Format.printf "@]"
-  | EMap(_,ms) -> 
-      let mode = { mode with cat = false } in   
-      Format.printf "{@[<2>";
-      Misc.format_list 
-        ",@, " 
-        (fun (e1,e2) -> format_exp_aux mode e1; Format.printf " ->@ "; format_exp_aux mode e2) 
-        ms;
-      Format.printf "@]}"
   | ELet(_,bs,e) ->
       let mode = { mode with cat = false } in 
       Format.printf "@[<2>";
@@ -351,7 +358,19 @@ let rec format_exp_aux mode e0 = match e0 with
         Format.printf "@[<2>(";
         Misc.format_list "@ |@ " (format_exp_aux mode) es;
         Format.printf ")@]"
-  | EVar(_,x) -> 
+  | EInter(_,es) -> 
+      let mode = { mode with cat = false } in 
+        Format.printf "@[<2>(";
+        Misc.format_list "@ &@ " (format_exp_aux mode) es;
+        Format.printf ")@]"
+  | EMinus(_,e1,e2) -> 
+      let mode = { mode with cat = false } in 
+        Format.printf "@[<2>(";
+        format_exp_aux mode e1;
+        Format.printf "@ -@ ";
+        format_exp_aux mode e2;
+        Format.printf ")@]"
+  | EVar(_,x,_) -> 
       Format.printf "@[%s@]" (string_of_qid x)
   | EWild(_,f,l,u,e)  ->
       let rec format_n_bangs n = match n with 
