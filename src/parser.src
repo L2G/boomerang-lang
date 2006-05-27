@@ -202,6 +202,7 @@ test_res:
 
 \begin{grammar}
 <Binding> ::= <Ident> (<Ident>\lit{@:@}<Sort>)+ \lit{@:@} <ASort> \lit{@=@} <Exp>
+         \alt <Ident> (<Ident>\lit{@:@}<Sort>)+ \lit{@:@} <AExp> \lit{<->} <AExp> \lit{@=@} <Exp>
 
 <BindingList> ::= <Binding> 
              \alt <Binding> \lit{and} <BindingList>
@@ -230,8 +231,19 @@ binding_list:
   | binding                                  { [$1] }
 
 binding:    
-  | IDENT param_list COLON asort EQUAL exp   { BDef(mie $1 $6,$1,$2,snd $4,$6) }
-
+  | IDENT param_list COLON asort EQUAL exp            { BDef(mie $1 $6,$1,$2,snd $4,$6) }
+  | IDENT param_list COLON aexp DARROW aexp EQUAL exp { let i = mie $1 $8 in 
+                                                        let i4 = info_of_exp $4 in
+                                                        let i6 = info_of_exp $6 in
+                                                        let c = id_of_string i4 (fresh "_CONCRETE") in
+                                                        let a = id_of_string i6 (fresh "_ABSTRACT") in
+                                                        let c_var = EVar(i4,qid_of_id c,false) in 
+                                                        let a_var = EVar(i6,qid_of_id a,false) in                                                           
+                                                        let bs = [BDef(i4,c,[],SSchema,$4); BDef(i6,a,[],SSchema,$6)] in
+                                                        let e = ELet(i,bs, ECheckLens(i,$8,c_var,a_var)) in
+                                                        let s = SRecLens(c_var,a_var) in 
+                                                          BDef(mie $1 $8,$1,$2,s,e) }
+      
 schema_binding_list:
   | schema_binding AND schema_binding_list   { $1::$3 }
   | schema_binding                           { [$1] }
@@ -419,7 +431,7 @@ aexp:
   | BEGIN exp END                            { $2 }
   | ASSERT aexp                              { EAssert(me2 $1 $2, $2) }
   | CHECK aexp COLON aexp DARROW aexp        { ECheckLens(me2 $1 $6, $2,$4,$6) }
-  | PROTECT aexp                             { EProtect(me2 $1 $2, $2) }
+  | PROTECT aexp                             { EProtect(me2 $1 $2, $2, None) }
   | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }
   | LBRACK exp_list RBRACK                   { Safelist.fold_right
                                                  (fun ti acc -> 

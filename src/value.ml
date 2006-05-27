@@ -102,7 +102,7 @@ let get_tree i v =
 let get_lens i v = 
   match v with
       L(l,c) -> (l,c)
-    | _ -> focal_type_error i Syntax.SLens v
+    | _ -> focal_type_error i (Syntax.SLens) v
 
 let mk_schema_fun return_sort msg f = 
   F(Syntax.SArrow(Syntax.SSchema,return_sort),

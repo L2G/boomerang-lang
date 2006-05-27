@@ -50,17 +50,21 @@ val nil_qid : Info.t -> qid
 val any_qid : Info.t -> qid
 val type_of_tree_qid : Info.t -> qid
 
+(** Fresh variable generation *)
+val fresh : string -> string
+
 (** {2 Datatypes for Focal abstract syntax } *)
 type sort = 
     SName 
   | SLens 
+  | SRecLens of (exp * exp)
   | SSchema  
   | STree   
   | SArrow of sort * sort
 
-type param = PDef of Info.t * id * sort
+and param = PDef of Info.t * id * sort
 
-type exp = 
+and exp = 
     EApp of Info.t * exp * exp
   | EAssert of Info.t * exp 
   | ECheckLens of Info.t * exp * exp * exp
@@ -72,7 +76,7 @@ type exp =
   | ELet of Info.t * binding list * exp
   | EName of Info.t * id
   | ENil of Info.t 
-  | EProtect of Info.t * exp 
+  | EProtect of Info.t * exp * sort option
   | ESchema of Info.t * schema_binding list * exp 
   | EUnion of Info.t * exp list
   | EVar of Info.t * qid * bool

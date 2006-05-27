@@ -19,7 +19,7 @@ clean::
 	rm -rf $(RESULT)
 
 test::
-	$(HARMONY) -check Cycleexamples -test-all -cycle
 	$(HARMONY) -check Listexamples -test-all
+#	$(HARMONY) -check Cycleexamples -test-all -cycle
 
 

@@ -154,9 +154,10 @@ let rec subsort u v = match u,v with
       let b1 = subsort s21 s11  in
       let b2 = subsort s12 s22 in 
 	b1 && b2
+  | SRecLens(_),SLens -> true
+  | SLens,SRecLens(_) -> true
   | STree,SSchema  -> true
-  | _ when u = v -> true
-  | _            -> false
+  | _ -> u=v
 
 let rec expect_sort_exp msg sev expected_sort e =
   let i = info_of_exp e in
@@ -197,9 +198,9 @@ and check_exp sev e0 = match e0 with
         (SLens, new_e0)
 
   | ECheckLens(i,e1,e2,e3) ->
-      let _,new_e1 = expect_sort_exp "check lens lens" sev SLens e1 in 
-      let _,new_e2 = expect_sort_exp "check lens schema" sev SSchema e2 in  
-      let _,new_e3 = expect_sort_exp "check lens schema" sev SSchema e3 in 
+      let _,new_e1 = expect_sort_exp "check lens" sev SLens e1 in 
+      let _,new_e2 = expect_sort_exp "check schema #1" sev SSchema e2 in  
+      let _,new_e3 = expect_sort_exp "check schema #1" sev SSchema e3 in 
       let new_e0 = ECheckLens(i,new_e1,new_e2,new_e3) in
 	(SLens,new_e0)
 
@@ -275,14 +276,14 @@ and check_exp sev e0 = match e0 with
       let e0_sort, new_e = check_exp bsev e in
       let new_e0 = ELet(i, new_bs, new_e) in
 	(e0_sort, new_e0)
-	 	  
+
   | EName(i,x) -> (SName, EName(i, x))
       
   | ENil(i) -> (STree, ENil(i))
       
-  | EProtect(i,e) -> 
-      let _, new_e = expect_sort_exp "protect" sev SLens e in
-        (SLens, EProtect(i,new_e))
+  | EProtect(i,e,_) -> 
+      let e0_sort,new_e = expect_sort_exp "protect" sev SLens e in
+        (e0_sort, EProtect(i,new_e, Some(e0_sort)))
           
   | ESchema(i,ss,e) ->
       let ssev,_,new_ss = check_schema_bindings sev ss in
@@ -452,7 +453,7 @@ let check_module m0 =
 
 (* --------------- expressions ------------- *)
 let rec compile_exp cev e0 = match e0 with
-  | EApp(i,e1,e2) -> 	
+  | EApp(i,e1,e2) ->
       let e1_rv = compile_exp cev e1 in
       let e2_rv = compile_exp cev e2 in
       let v1 = v_of_rv e1_rv in
@@ -647,7 +648,7 @@ let rec compile_exp cev e0 = match e0 with
 	  STree
 	  (Value.V (V.empty_list))
 
-    | EProtect(i,e) -> 
+    | EProtect(i,e,Some s) -> 
         (* call by need lenses: evaluate the lens the first time it is
            needed, then backpatch the ref cell so that subsequent
            applications of the lens require no further evaluation.  *)
@@ -661,10 +662,26 @@ let rec compile_exp cev e0 = match e0 with
         in
         let get c = Lens.get (fst (fetch_lens ())) c in
         let put a co = Lens.put (fst (fetch_lens ())) a co in
-        let checker = Value.WB(fun c -> run_error i (fun () -> "protect lenses are unchecked")) in
+        let checker = match s with 
+            SRecLens(e1,e2) -> 
+              let c1 = compile_exp_schema cev e1 in 
+              let a = compile_exp_schema cev e2 in 
+                Value.WB(fun c -> 
+                           if not (Schema.equivalent c c1) 
+                           then run_error i (fun () -> 
+                                               Format.printf "protect: expected@ ";
+                                               Schema.format_t c1;
+                                               Format.printf "@ found@ ";
+                                               Schema.format_t c)
+                           else a)
+          | _ -> Value.WB(fun c -> run_error i (fun () -> "unchecked protect")) in          
           mk_rv 
-            SLens
+            s
             (Value.L (Lens.native get put, checker))
+
+    | EProtect(i,_,_) ->
+	run_error i (fun () -> Format.printf "@[unannotated protect@]")
+
             
     | ESchema(i,ss,e) ->         
         let scev,_ = compile_schema_bindings cev ss in 
@@ -775,7 +792,7 @@ and compile_schema_bindings cev sbinds =
   let scev,i_rev,fresh_xs_rev,names_rev = Safelist.fold_left
     (fun (scev,i_rev,fresh_xs_rev,names_rev) (SDef(i,x,e)) ->
        let q_x = qid_of_id x in
-       let fresh_x = Schema.fresh (Syntax.string_of_id x) in
+       let fresh_x = fresh (string_of_id x) in
        let scev' = CEnv.update scev q_x
          (mk_rv SSchema (Value.S (Schema.mk_var fresh_x))) in            
          (scev', i::i_rev,fresh_x::fresh_xs_rev, q_x::names_rev))

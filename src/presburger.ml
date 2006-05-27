@@ -507,8 +507,9 @@ let rec f2omega g o f = match f with
         f2omega g' exists_o f1;
         OmegaLibrary.finalize exists_o
 
+let rec wrap n f = if n < 0 then f else wrap (n-1) (mkExists f)
+
 let close f = 
-  let rec wrap n f = if n < 0 then f else wrap (n-1) (mkExists f) in
   let xs = fvs_t f in 
     if IntSet.is_empty xs then f 
     else wrap (IntSet.max_elt xs) f

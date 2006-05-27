@@ -11,6 +11,7 @@
 let (@) = Safelist.append
 let sprintf = Printf.sprintf
 let debug = Trace.debug "schema" 
+let fresh = Syntax.fresh
 module NS = Name.Set
 module NM = Name.Map 
 module P = Presburger
@@ -53,7 +54,7 @@ type elt = loc * state
 
 (* syntactic reprsentations of schemas *)
 type syn_t = 
-    Var of string
+    Var of state 
   | Atom of Name.t * syn_t 
   | Wild of Name.Set.t * int * bool * syn_t
   | Cat of syn_t list
@@ -110,7 +111,7 @@ let fformat_elt fmtr e0 = match e0 with
       Format.fprintf fmtr "]"
       
 let rec fformat_syn_t fmtr syn_t0 = match syn_t0 with 
-    Var(x) -> Format.fprintf fmtr "%s" x
+    Var(x) -> fformat_state fmtr x
   | Atom(n,t) -> 
       Format.fprintf fmtr "@[{%s=" n;
       fformat_syn_t fmtr t;
@@ -146,36 +147,34 @@ let rec fformat_syn_t fmtr syn_t0 = match syn_t0 with
   | Restrict(t,ns,b) -> 
       Format.fprintf fmtr "Restrict(";
       fformat_syn_t fmtr t;
-      Format.fprintf fmtr ",%s[%s])"
-        (if b then "" else "not ")
+      Format.fprintf fmtr ",%s{%s})"
+        (if b then "" else "~")
         (Misc.concat_list "," (Name.Set.elements ns))
-          
-      
-   
+                   
 let fformat_t fmtr t0 = match t0 with
     V(x) -> fformat_state fmtr x
-  | F(p,e,syn) -> fformat_syn_t fmtr syn 
-      (* Format.fprintf fmtr "F[@[";
-         Presburger.fformat_t fmtr p;
-         Format.fprintf fmtr "@]@,.@[";
-         Misc.fformat_list fmtr "@,," 
-         (fun (d,e) -> Format.fprintf fmtr "n%d=" d; fformat_elt fmtr e) 
-         (Misc.map_index_filter (fun n ei -> Some (n,ei)) e);
-         Format.fprintf fmtr "@]]" *)
+  | F(p,e,syn) -> fformat_syn_t fmtr syn
+      (* Format.fprintf fmtr "@\n DEBUG: F[@[";
+      Presburger.fformat_t fmtr p;
+      Format.fprintf fmtr "@]@,.@[";
+      Misc.fformat_list fmtr "@,," 
+        (fun (d,e) -> Format.fprintf fmtr "n%d=" d; fformat_elt fmtr e) 
+        (Misc.map_index_filter (fun n ei -> Some (n,ei)) e);
+      Format.fprintf fmtr "@]]@\n" *)
       
 let format_elt = fformat_elt Format.std_formatter
 let format_t = fformat_t Format.std_formatter
 
-let syn_of_t = function
-    V(x) -> Var(string_of_state x) 
-  | F(_,_,si) -> si
+let string_of_t t0 = 
+  let buf = Buffer.create 20 in 
+  let fmtr = Format.formatter_of_buffer buf in 
+    fformat_t fmtr t0;
+    Format.pp_print_flush fmtr ();
+    Buffer.contents buf
 
-(* --------------- fresh variables generation ----------------- *)
-let fresh_map : ((int NM.t) ref) = ref NM.empty
-let fresh x = 
-  let n = NM.safe_find x (!fresh_map) 0 in 
-    fresh_map := NM.add x (n + 1) (!fresh_map);
-    let res = sprintf "_%s_%d" x n in res
+let syn_of_t t0 = match t0 with
+    V(x) -> Var(x)
+  | F(_,_,si) -> si
 
 (* --------------- maps, sets, environments ------------------ *)
 type this_t = t (* hack! *)
@@ -184,12 +183,7 @@ module TMapplus = Mapplus.Make(
   struct
     type t = this_t
     let compare = compare
-    let to_string t0 = 
-      let buf = Buffer.create 20 in 
-      let fmtr = Format.formatter_of_buffer buf in 
-        fformat_t fmtr t0;
-        Format.pp_print_flush fmtr (); 
-        Buffer.contents buf
+    let to_string = string_of_t
   end)
 module TSet = TMapplus.KeySet
 module TMap = TMapplus.Map   
@@ -327,7 +321,7 @@ let truth,truth_formula,truth_basis =
   let xtruth = "T" in
   let ftruth = P.mkGe(P.mkVar 0) P.zero in
   let btruth = [anyE] in
-  let syn_truth = Wild(Name.Set.empty,0,true,Var(xtruth)) in
+  let syn_truth = Wild(Name.Set.empty,0,true,Var(True)) in
     update_tvar xtruth (F(ftruth, btruth,syn_truth));
     (xtruth,ftruth,btruth)
 let truth_cs = cset_of_tvar truth
@@ -337,7 +331,7 @@ let empty,empty_formula,empty_basis =
   let xempty = "{}" in
   let fempty = P.mkEq(P.mkVar 0) P.zero in
   let bempty = [anyE] in
-  let syn_empty = Wild(Name.Set.empty, 0, false, Var(truth)) in
+  let syn_empty = Wild(Name.Set.empty, 0, false, Var(EmptyView)) in
     update_tvar xempty (F(fempty, bempty,syn_empty));
     (xempty,fempty,bempty)
 let empty_cs = cset_of_tvar empty
@@ -347,7 +341,7 @@ let non_empty,non_empty_formula,non_empty_basis =
   let xnon_empty = "T-{}" in
   let fnon_empty = P.mkGt(P.mkVar 0) P.zero in
   let bnon_empty = [anyE] in
-  let syn_non_empty = Wild(Name.Set.empty,1,true,Var(truth)) in
+  let syn_non_empty = Wild(Name.Set.empty,1,true,Var(NonEmptyView)) in    
     update_tvar xnon_empty (F(fnon_empty, bnon_empty,syn_non_empty));
     (xnon_empty,fnon_empty,bnon_empty)
 let non_empty_cs = cset_of_tvar non_empty
@@ -706,11 +700,11 @@ let rec get_atom t0 = match t0 with
     end
   | F(p,e,_) -> begin
       match e,P.get_atom p with 
-          [(Single n,True);(CoFinite f,True)],Some g ->            
+          [(Single n,True);(CoFinite f,_)],Some g ->            
             if NS.cardinal f=1 && NS.choose f=n
             then Some(n,g,True,False)
             else None
-        | [(Single n,x);(Single m,y);(CoFinite f,ctruth)],Some g -> 
+        | [(Single n,x);(Single m,y);(CoFinite f,True)],Some g -> 
             if n=m &&NS.cardinal f=1 && NS.choose f=n then 
               match neg_state x,y with
                   True,True                    
@@ -747,7 +741,7 @@ let mk_cat_fast atms =
                    ::(P.substitute [0,P.mkVar pos] g)
                    ::pacc,
                    (Single n,y)::(Single n,x)::eacc) in
-          let sacc' = Atom(n,Var(string_of_state x))::sacc in
+          let sacc' = Atom(n,Var(x))::sacc in
             aux (pos',fs',pacc',eacc',sacc') rest in      
     let p,e,syns = aux (0,NS.empty,[],[],[]) atms in
       F(P.mkAnd p,e,Cat(syns))
@@ -948,17 +942,16 @@ let rec dom_member ns t0 =
              (new_vars,nmap,vmap))
         ns 
         (0,NM.empty,IM.empty)in
-      let rec aux_sum acc = function [] -> acc | h::t -> aux_sum (P.mkSum (P.mkVar h) acc) t in
-        
-      let f1 = NM.fold (fun _ xl acc -> (P.mkEq (aux_sum P.zero xl) P.one)::acc) nmap []in
+      let rec aux_sum acc = function [] -> acc | h::t -> aux_sum (P.mkSum (P.mkVar h) acc) t in        
+      let f1 = NM.fold (fun _ xl acc -> (P.mkEq (aux_sum P.zero xl) P.one)::acc) nmap [] in
       let subst = IM.fold (fun x xl acc -> (x+new_vars, aux_sum P.zero xl)::acc) vmap [] in
       let formula = P.mkAnd (P.substitute subst (P.shift_t new_vars p)::f1) in
         P.fast_sat formula (P.Valuation.create ((Safelist.length e) + new_vars) 0 true)
   in
     (* Format.printf "DOM_MEMBER {%s}" (ns2str "," ns);
-    format_t t0;
-    Format.printf " = %b" res;
-    Format.print_newline (); *)
+       format_t t0;
+       Format.printf " = %b" res;
+       Format.print_newline (); *)
     res
 
 (* --- project --- *)
@@ -999,11 +992,12 @@ let rec project_all t0 = match t0 with
   | V(False) | V(EmptyView) -> Some (V(False))
   | V(CS(s)) -> project_all (lookup_cset_required s)
   | F(p,e,_) -> 
+      let e_length = Safelist.length e in
       let _,ok,reso = Safelist.fold_left
         (fun (pos,ok,reso) (_,x) -> 
            if not ok then (pos,ok,reso) 
-           else let pi_val = P.Valuation.create (pos+1) 0 true in 
-             P.Valuation.bump pi_val pos;             
+           else let pi_val = P.Valuation.create e_length 0 true in 
+             P.Valuation.bump pi_val pos; 
              if not (P.fast_sat p pi_val) then (pos+1,ok,reso)
              else match reso with 
                  None   -> (pos+1,true,Some x)
@@ -1028,12 +1022,13 @@ let inject t0 t1 =
       Single(n) -> (true,NS.singleton n) 
     | CoFinite(ns) -> (false,ns) in
   let p,e = expose t0 in 
+  let e_length = Safelist.length e in
   let x_t1 = state_of_t t1 in
   let x_neg_t1 = neg_state x_t1 in 
   let _,x_count,subst,formulas,basis,covered = Safelist.fold_left
     (fun acc (l,x) -> 
        let pos,x_pos,subst,formulas,basis,covered = acc in
-       let pi_val = P.Valuation.create (pos+1) 0 true in 
+       let pi_val = P.Valuation.create e_length 0 true in 
          P.Valuation.bump pi_val pos;
          if not (P.fast_sat p pi_val) then (pos+1,x_pos,(pos,P.zero)::subst,formulas,basis,covered)
          else 
@@ -1074,25 +1069,46 @@ let inject t0 t1 =
       
 let restrict ns t0 = 
   let restrict_aux (p,e) syn = 
-    (* first, rewrite p and e so that no ns intersect a CoFinite element of e 
-     * we can use refine to do this *)
+    (* (1) rewrite p and e so that no ns intersect a CoFinite element of e *)
     let ns_e = NS.fold (fun ni acc -> (Single(ni),True)::acc) ns [CoFinite(ns),True] in
-    let (_,subst),e' = refine_bases ns_e e in
-    let _,ns_cnstr,neg_ns_cnstr = Safelist.fold_left 
-      (fun (pos,ns_cnstr,neg_ns_cnstr) ei -> 
-         let eq_z = P.mkEq (P.mkVar pos) P.zero in
+    let (_,subst),basis = refine_bases ns_e e in
+    let basis_length = Safelist.length basis in
+    let formula = P.substitute subst p in
+      
+    (* (2) fold over the basis and construct schema restricted to ns, neg(ns) *)
+    let _,(ns_xs,ns_basis_rev,ns_fs,ns_covered),(neg_ns_xs,neg_ns_basis_rev,neg_ns_fs) = Safelist.fold_left
+      (fun (pos,ns_acc,neg_ns_acc) ei ->
+         let ns_hit n ei = 
+           let ns_pos,ns_basis,ns_fs,covered = ns_acc in              
+           let fi = P.mkEq (P.mkVar pos) (P.mkVar ns_pos) in 
+             (pos+1,
+              (ns_pos+1,ei::ns_basis, fi::ns_fs,NS.add n covered),
+              neg_ns_acc) in 
+         let neg_ns_hit ei = 
+           let neg_ns_pos,neg_ns_basis,neg_ns_fs = neg_ns_acc in              
+           let fi = P.mkEq (P.mkVar pos) (P.mkVar neg_ns_pos) in 
+             (pos+1,
+              ns_acc,
+              (neg_ns_pos+1,ei::neg_ns_basis,fi::neg_ns_fs)) in
+           
            match ei with
-               Single(n),_ ->              
-                 if NS.mem n ns then (pos+1,ns_cnstr,eq_z::neg_ns_cnstr)
-                 else (pos+1,eq_z::ns_cnstr,neg_ns_cnstr)
-             | CoFinite(_),_ -> 
-                 (* because we refined, we know that ns is excluded
-                    from ei *)
-                 (pos,eq_z::ns_cnstr,neg_ns_cnstr))
-      (0,[],[]) e' in
-    let p' = P.substitute subst p in
-    let restr_ns = F(P.mkAnd (p'::ns_cnstr),e',Restrict(syn,ns,true)) in
-    let restr_neg_ns = F(P.mkAnd (p'::neg_ns_cnstr),e',Restrict(syn,ns,false)) in
+               Single(n),_ -> 
+                 if NS.mem n ns then ns_hit n ei
+                 else neg_ns_hit ei
+           | CoFinite(_),_ -> neg_ns_hit ei)
+      (0,(basis_length,[],[],NS.empty),(basis_length,[],[]))
+      basis in
+      
+    (* (3) add a CoFinite component for all the uncovered ns *)
+    let ns_basis = Safelist.rev ((CoFinite(ns_covered),True)::ns_basis_rev) in
+    let neg_ns_basis = Safelist.rev neg_ns_basis_rev in 
+    let ns_cofinite_f = P.mkEq (P.mkVar ns_xs) P.zero in
+      
+    (* (4) construct the forumlas, bases *)
+    let ns_f = P.wrap (basis_length-1) (P.mkAnd (formula::ns_cofinite_f::ns_fs)) in
+    let neg_ns_f = P.wrap (basis_length-1) (P.mkAnd (formula::neg_ns_fs)) in
+    let restr_ns = F(ns_f,ns_basis,Restrict(syn,ns,true)) in
+    let restr_neg_ns = F(neg_ns_f,neg_ns_basis,Restrict(syn,ns,false)) in
       (restr_ns, restr_neg_ns) in
     match t0 with 
         V(x) -> begin match x with 
@@ -1105,7 +1121,7 @@ let restrict ns t0 =
 let mk_spine_cons t0 t1 = 
   let res = 
     (* must have t0 <= ![T] *)
-    let skinny = F(P.mkEq (P.mkVar 0) P.one,[anyE],Wild(Name.Set.empty,1,false,Var(truth))) in
+    let skinny = F(P.mkEq (P.mkVar 0) P.one,[anyE],Wild(Name.Set.empty,1,false,Var(True))) in
       if not (subschema t0 skinny) then 
         raise (Error.Harmony_error
                  (fun () -> 

@@ -368,7 +368,9 @@ let map (l,c) =
     let mk_map_checker ck c = 
       match Schema.project_all c with
           None -> error [`String map_qid; `Space;
-                         `String "may only be checked with schemas that have a consistent subschema"]
+                         `String "expected schema with consistent subschema"; `Space;
+                         `String "found:"; `Space;
+                         `Prim (fun () -> Schema.format_t c)]
         | Some c1 -> 
             let a1 = ck c1 in 
               Schema.inject c a1 in  
@@ -1139,7 +1141,7 @@ let split sep =
     let value = Schema.mk_wild Name.Set.empty 1 false (Schema.mk_cat []) in
     let mk_value_list c =
       let x = split_qid ^ "generated value list" in
-      let fresh_x = Schema.fresh x in 
+      let fresh_x = Syntax.fresh x in 
       let x_t = Schema.mk_var fresh_x in
         Schema.mark_tvars [x,Info.M x];
         Schema.update fresh_x (Schema.mk_union [nil;cons c x_t]);

@@ -86,21 +86,29 @@ let nil_qid i = mk_pre_qid i "Nil"
 let any_qid i = mk_pre_qid i "Any"
 let type_of_tree_qid i = mk_pre_qid i "type_of_tree"
 
-(* abstract syntax *)
+(* --------------- fresh variables generation ----------------- *)
+let fresh_map : ((int Name.Map.t) ref) = ref Name.Map.empty
+let fresh x = 
+  let n = Name.Map.safe_find x (!fresh_map) 0 in 
+    fresh_map := Name.Map.add x (n + 1) (!fresh_map);
+    let res = sprintf "_%s_%d" x n in res
+
+(* ---------------- abstract syntax ---------------------- *)
 
 (* sorts *)
 type sort = 
     SName 
-  | SLens  
+  | SLens
+  | SRecLens of (exp * exp) 
   | SSchema   
   | STree    
   | SArrow of sort * sort
       
 (* parameters *)
-type param = PDef of i * id * sort
+and param = PDef of i * id * sort
 
 (* expressions *)
-type exp = 
+and exp = 
     EApp of i  * exp * exp
   | EAssert of i * exp 
   | ECheckLens of i * exp * exp * exp
@@ -112,7 +120,7 @@ type exp =
   | ELet of i * binding list * exp
   | EName of i * id
   | ENil of i
-  | EProtect of i * exp 
+  | EProtect of i * exp * sort option
   | ESchema of i * schema_binding list * exp 
   | EUnion of i * exp list
   | EVar of i * qid * bool
@@ -149,24 +157,24 @@ let info_of_list (e2i:'a -> Info.t) (i:Info.t) (l: 'a list) : Info.t = Safelist.
 let info_of_id = function (i,_) -> i
 let info_of_qid = function (_,id) -> info_of_id id
 let info_of_exp = function
-    EApp(i,_,_)    -> i
-  | EAssert(i,_)   -> i
-  | ECheckLens(i,_,_,_) -> i
-  | EAtom(i,_,_)   -> i
-  | ECat(i,_)      -> i
-  | ECons(i,_,_)   -> i
-  | ESpineCons(i,_,_)   -> i
-  | EFun(i,_,_,_)  -> i
-  | ELet(i,_,_)    -> i
-  | EName(i,_)     -> i
-  | ENil(i)        -> i
-  | EProtect(i,_)  -> i
-  | ESchema(i,_,_) -> i 
-  | EUnion(i,_t)   -> i
-  | EVar(i,_,_)    -> i
-  | EWild(i,_,_,_,_) -> i
-  | EMinus(i,_,_)    -> i
-  | EInter(i,_)      -> i
+    EApp(i,_,_) 
+  | EAssert(i,_) 
+  | ECheckLens(i,_,_,_) 
+  | EAtom(i,_,_)
+  | ECat(i,_)  
+  | ECons(i,_,_)
+  | ESpineCons(i,_,_) 
+  | EFun(i,_,_,_)     
+  | ELet(i,_,_)       
+  | EName(i,_)        
+  | ENil(i)           
+  | EProtect(i,_,_)   
+  | ESchema(i,_,_)    
+  | EUnion(i,_)  
+  | EVar(i,_,_)   
+  | EWild(i,_,_,_,_)
+  | EMinus(i,_,_)   
+  | EInter(i,_) -> i    
 
 let info_of_binding (BDef(i,_,_,_,_)) = i
 let info_of_bindings bs = 
@@ -185,11 +193,18 @@ let id_of_param = function PDef(_,x,_) -> x
 let sort_of_param = function PDef(_,_,s) -> s
 
 (* ---------------- pretty printing --------------- *)
+type format_mode = { app : bool; cat : bool }
+
 (* sorts *)
-let format_sort s0 = 
+let rec format_sort s0 = 
   let rec format_sort_aux parens = function
       SName         -> Format.printf "name"
     | SLens         -> Format.printf "lens"
+    | SRecLens(e1,e2) -> 
+        let mode = { cat=false; app=false } in 
+          format_exp_aux mode e1;
+          Format.printf "<->";
+          format_exp_aux mode e2
     | SSchema       -> Format.printf "schema"
     | STree         -> Format.printf "tree"
     | SArrow(s1,s2) -> 
@@ -204,15 +219,13 @@ let format_sort s0 =
     Format.printf "@]"
           
 (* params *)
-let format_param (PDef(_,i,s)) = 
+and format_param (PDef(_,i,s)) = 
   Format.printf "@[%s:" (string_of_id i); 
   format_sort s; 
   Format.printf "@]"
 
-type format_mode = { app : bool; cat : bool }
-
 (* expressions *)
-let rec format_exp_aux mode e0 = match e0 with 
+and format_exp_aux mode e0 = match e0 with 
     EApp(_,e1,e2)   -> 
       let mode = { mode with cat = false } in   
         Format.printf "@[<2>"; 
@@ -343,7 +356,7 @@ let rec format_exp_aux mode e0 = match e0 with
       Format.printf "@[%s@]" (Misc.whack (string_of_id n))
   | ENil(_) -> 
       Format.printf "[]"
-  | EProtect(_,e) -> 
+  | EProtect(_,e,_) -> 
       let mode = { mode with cat = false } in 
         Format.printf "@[protect@ "; format_exp_aux mode e; Format.printf "@]"
   | ESchema(_,ss,e) -> 

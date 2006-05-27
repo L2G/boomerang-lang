@@ -98,3 +98,7 @@ test (
   test ((check (map (plunge "n")) 
            : {*=Any} <-> {!={n=Any}}) / {n={a}}) 
     = error
+
+  test (let l : (List.T {a}) <-> (List.T {a}) = 
+         fork {`List.TL } (map (protect l)) id 
+        in l / [{a},{a},{a}]) = error

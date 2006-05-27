@@ -10,7 +10,6 @@ val format_t : t -> unit
 
 (* -------------- state ------------------- *)
 
-val fresh : string -> string
 val mark_tvars : (string * Info.t) list -> unit
 val finalize : unit -> unit
 val update : string -> t -> unit
