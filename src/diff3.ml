@@ -315,6 +315,7 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
     let rev_index_tbl_a1 = Hashtbl.create (2* (list_size)) in
     let index_tbl_a2 = Hashtbl.create (2*(list_size)) in
     let rev_index_tbl_a2 = Hashtbl.create (2* (list_size)) in
+    let tmp_tbl = Hashtbl.create (2* (list_size)) in
     let _ =  List.fold_left 
       (fun id x ->  
 	 let _ = Hashtbl.add final_index_tbl  id id in 
@@ -343,6 +344,14 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 		      else false 
 		    | [] -> true 
     in
+
+ let rec store_tmp_tbl x len = 
+      if (len > -1) then 
+	let y = Hashtbl.find final_index_tbl (x+len) in 
+	let _ = Hashtbl.replace tmp_tbl (x+len)  y  in 
+	  store_tmp_tbl x (len-1) 
+      in  
+ 
       (* find cycles with source in Archive 1 *)
     let rec findcycle_a1 id = 
       let check_cycle pos_start pos_a1 = 
@@ -376,20 +385,22 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 		    )
 		    cycle in
 		  let _ = Printf.printf"\n" in 
-		  let tmp_tbl = Hashtbl.create (2* (list_size)) in
 		  let _ = List.iter 
-		    (fun x -> Hashtbl.add tmp_tbl x (Hashtbl.find final_index_tbl x)) cycle 
+		    (fun x -> 
+		       store_tmp_tbl x (block_len-1) 
+		    )  
+		    cycle 
 		  in
 		  let rec apply_cycle cycle head = match cycle with
 		      h::t -> 
 			begin
-			  let mod_index_h = Hashtbl.find tmp_tbl h in
 			  let rec change_tables len = 
 			    if (len > -1) then  
 			      begin
 				let _ = Hashtbl.replace rev_index_tbl_a1 (h+len) (h+len) in
 				let _ = Hashtbl.replace index_tbl_a1 (h+len) (h+len) in
-				let _ = Hashtbl.replace final_index_tbl (head+len) (mod_index_h+len) in
+				let _ = Hashtbl.replace final_index_tbl (head+len)
+				  (Hashtbl.find tmp_tbl (h+len)) in
 				  change_tables (len-1) 
 			      end
 			    else
@@ -445,20 +456,22 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 		    )
 		    cycle in
 		  let _ = Printf.printf"\n" in 
-		  let tmp_tbl = Hashtbl.create (2* (list_size)) in
 		  let _ = List.iter 
-		    (fun x -> Hashtbl.add tmp_tbl x (Hashtbl.find final_index_tbl x)) cycle 
+		    (fun x -> 
+		       store_tmp_tbl x (block_len-1) 
+		    )  
+		    cycle 
 		  in
 		  let rec apply_cycle cycle head = match cycle with
 		      h::t -> 
 			begin
-			  let mod_index_h = Hashtbl.find tmp_tbl h in
 			  let rec change_tables len = 
 			    if (len > -1) then  
 			      begin
 				let _ = Hashtbl.replace rev_index_tbl_a2 (h+len) (h+len) in
 				let _ = Hashtbl.replace index_tbl_a2 (h+len) (h+len) in
-				let _ = Hashtbl.replace final_index_tbl (head+len) (mod_index_h+len) in
+				let _ = Hashtbl.replace final_index_tbl (head+len)
+				  (Hashtbl.find tmp_tbl (h+len)) in
 				  change_tables (len-1) 
 			      end
 			    else
@@ -539,7 +552,23 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
 	      in
 		print_conflicts (pos+block_len) tbl 
 	    )
-   in
+   in 
+(************
+   let _ =     Printf.eprintf "Inputs:\n" in
+	   Printf.eprintf "          o = "; print_list archive; Printf.eprintf "\n"; 
+	   Printf.eprintf "          a = "; print_list a1; Printf.eprintf "\n"; 
+	   Printf.eprintf "          b = "; print_list a2; Printf.eprintf "\n"; 
+in
+
+   let _ =     Printf.eprintf "Outputs:\n" in 
+	   Printf.eprintf "          o = "; print_list o'; Printf.eprintf "\n"; 
+	   Printf.eprintf "          a = "; print_list a'; Printf.eprintf "\n"; 
+	   Printf.eprintf "          b = "; print_list b'; Printf.eprintf "\n"; 
+in
+*************)
+(** for BCP - add code for printing the input and output if you wish 
+Input is archive,a1,a2  Output is o',a',b'
+**)
    let _ = if not (o' = a') then 
      let _ = Printf.printf "\n The following changes from o' to a' can not be reconciled \n" in 
        print_conflicts 1 index_tbl_a1 

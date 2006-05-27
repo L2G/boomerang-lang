@@ -67,9 +67,9 @@ sync with List.explode at (List.T Value)
 (* Conflicting changes *)
 sync with List.explode at (List.T Value)
    { O = {abcdef},
-     A = {fbcdea},
+     A = {fbcdae},
      B = {abcdfe} }
-  =  { A =  {fbcdea} ,
+  =  { A =  {fbcdae} ,
          B  = {abcdfe} ,
         O = {abcdef} }
 
