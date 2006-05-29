@@ -256,9 +256,9 @@ schema_binding:
 \subsection{Sorts}
 
 % hacks to get arond grammar parsing; it gets confused on '<'.
-\def\bijarrow{@<~>@} 
-\def\vwbarrow{@<=>@} 
-\def\wbarrow{@<->@} 
+\def\bijarrow{@<<~>@} 
+\def\vwbarrow{@<<=>@} 
+\def\wbarrow{@<<->@} 
 
 \begin{grammar}
 <Sort> ::= <ASort> \lit{@->@} <Sort>

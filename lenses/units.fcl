@@ -81,24 +81,24 @@ test (
   test (member {n=Any,!\n=Any} {}) = false
 
   (* -------------- static checker tests --------------- *)
-  test ((check (hoist "n") : {n=Any} <-> Any) / {n={a}}) = {a}
-  test ((check (hoist "n") : {n=Any} <-> {*=Any}) / {n={a}}) = {a}
-  test ((check (hoist "n") : {n=Any} <-> {!=Any}) / {n={a}}) = error
-  test ((check (hoist "n") : {n=Any} <-> []) / {n={a}}) = error
-  test ((check (plunge "n") : Any <-> {n=Any}) / {n={a}}) = {n={n={a}}}
+  test ((check (hoist "n") : {n=Any} <<-> Any) / {n={a}}) = {a}
+  test ((check (hoist "n") : {n=Any} <<-> {*=Any}) / {n={a}}) = {a}
+  test ((check (hoist "n") : {n=Any} <<-> {!=Any}) / {n={a}}) = error
+  test ((check (hoist "n") : {n=Any} <<-> []) / {n={a}}) = error
+  test ((check (plunge "n") : Any <<-> {n=Any}) / {n={a}}) = {n={n={a}}}
 
   test ((check (map (plunge "n")) 
-           : {*=Any} <-> {*={n=Any}}) / {n={a}}) 
+           : {*=Any} <<-> {*={n=Any}}) / {n={a}}) 
     = {n={n={a}}}
 
   test ((check (map (plunge "n")) 
-           : {!=Any} <-> {!={n=Any}}) / {n={a}}) 
+           : {!=Any} <<-> {!={n=Any}}) / {n={a}}) 
     = {n={n={a}}}
 
   test ((check (map (plunge "n")) 
-           : {*=Any} <-> {!={n=Any}}) / {n={a}}) 
+           : {*=Any} <<-> {!={n=Any}}) / {n={a}}) 
     = error
 
-  test (let l : (List.T {a}) <-> (List.T {a}) = 
+  test (let l : (List.T {a}) <<-> (List.T {a}) = 
          fork {`List.TL } (map (protect l)) id 
         in l / [{a},{a},{a}]) = error
