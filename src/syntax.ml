@@ -99,10 +99,12 @@ let fresh x =
 type sort = 
     SName 
   | SLens
-  | SRecLens of (exp * exp) 
+  | SRecLens of (exp * lensarrow * exp) 
   | SSchema   
   | STree    
   | SArrow of sort * sort
+
+and lensarrow = Bij | Vwb | Wb
       
 (* parameters *)
 and param = PDef of i * id * sort
@@ -111,7 +113,7 @@ and param = PDef of i * id * sort
 and exp = 
     EApp of i  * exp * exp
   | EAssert of i * exp 
-  | ECheckLens of i * exp * exp * exp
+  | ECheckLens of i * exp * lensarrow * exp * exp
   | EAtom of i * exp * exp 
   | ECat of i * exp list 
   | ECons of i * exp * exp 
@@ -159,7 +161,7 @@ let info_of_qid = function (_,id) -> info_of_id id
 let info_of_exp = function
     EApp(i,_,_) 
   | EAssert(i,_) 
-  | ECheckLens(i,_,_,_) 
+  | ECheckLens(i,_,_,_,_) 
   | EAtom(i,_,_)
   | ECat(i,_)  
   | ECons(i,_,_)
@@ -196,14 +198,18 @@ let sort_of_param = function PDef(_,_,s) -> s
 type format_mode = { app : bool; cat : bool }
 
 (* sorts *)
+let format_lensarrow la = 
+  Format.printf "<%s>" 
+    (match la with Bij -> "~" | Vwb -> "=" | Wb -> "-")
+  
 let rec format_sort s0 = 
   let rec format_sort_aux parens = function
       SName         -> Format.printf "name"
     | SLens         -> Format.printf "lens"
-    | SRecLens(e1,e2) -> 
+    | SRecLens(e1,la,e2) -> 
         let mode = { cat=false; app=false } in 
           format_exp_aux mode e1;
-          Format.printf "<->";
+          format_lensarrow la;
           format_exp_aux mode e2
     | SSchema       -> Format.printf "schema"
     | STree         -> Format.printf "tree"
@@ -260,13 +266,13 @@ and format_exp_aux mode e0 = match e0 with
       let mode = { mode with cat = false } in
         Format.printf "@[<2>assert@ "; format_exp_aux mode e; Format.printf "@]"
       
-  | ECheckLens(_,e1,e2,e3) ->       
+  | ECheckLens(_,e1,la,e2,e3) ->       
       let mode = { mode with cat = false } in
         Format.printf "@[<2>check@ ("; 
         format_exp_aux mode e1; 
         Format.printf ") : ";
         format_exp_aux mode e2;
-        Format.printf "@ <->@ ";
+        format_lensarrow la;
         format_exp_aux mode e3;
         Format.printf "@]"      
                                                   

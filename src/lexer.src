@@ -164,7 +164,9 @@ let string = '"' [^'"']* '"'
 rule main = parse
 | whitespace        { main lexbuf }
 | "->"              { ARROW (info lexbuf) }
-| "<->"             { DARROW (info lexbuf) }
+| "<~>"             { BIJARROW (info lexbuf) }
+| "<=>"             { VWBARROW (info lexbuf) }
+| "<->"             { WBARROW (info lexbuf) }
 | "("               { LPAREN (info lexbuf) }
 | ")"               { RPAREN (info lexbuf) }
 | ";"               { SEMI (info lexbuf) }

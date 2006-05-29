@@ -54,10 +54,12 @@ val type_of_tree_qid : Info.t -> qid
 val fresh : string -> string
 
 (** {2 Datatypes for Focal abstract syntax } *)
+type lensarrow = Bij | Vwb | Wb
+
 type sort = 
     SName 
   | SLens 
-  | SRecLens of (exp * exp)
+  | SRecLens of (exp * lensarrow * exp)
   | SSchema  
   | STree   
   | SArrow of sort * sort
@@ -67,7 +69,7 @@ and param = PDef of Info.t * id * sort
 and exp = 
     EApp of Info.t * exp * exp
   | EAssert of Info.t * exp 
-  | ECheckLens of Info.t * exp * exp * exp
+  | ECheckLens of Info.t * exp * lensarrow * exp * exp
   | EAtom of Info.t * exp * exp 
   | ECat of Info.t * exp list 
   | ECons of Info.t * exp * exp 
@@ -126,6 +128,7 @@ val info_of_module : modl -> Info.t
 
 val string_of_id : id -> string
 val string_of_qid : qid -> string
+val format_lensarrow : lensarrow -> unit
 val format_sort : sort -> unit
 val format_param : param -> unit
 val format_exp : exp -> unit

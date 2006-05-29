@@ -197,13 +197,13 @@ and check_exp sev e0 = match e0 with
       let new_e0 = EAssert(i, new_e1) in
         (SLens, new_e0)
 
-  | ECheckLens(i,e1,e2,e3) ->
-      let _,new_e1 = expect_sort_exp "check lens" sev SLens e1 in 
-      let _,new_e2 = expect_sort_exp "check schema #1" sev SSchema e2 in  
-      let _,new_e3 = expect_sort_exp "check schema #1" sev SSchema e3 in 
-      let new_e0 = ECheckLens(i,new_e1,new_e2,new_e3) in
-	(SLens,new_e0)
-
+  | ECheckLens(i,e1,la,e2,e3) ->
+      let _,new_e1 = expect_sort_exp "check schema #1" sev SSchema e1 in  
+      let _,new_e2 = expect_sort_exp "check schema #1" sev SSchema e2 in 
+      let e0_sort,new_e3 = expect_sort_exp "check lens" sev SLens e3 in 
+      let new_e0 = ECheckLens(i,new_e1,la,new_e2,new_e3) in
+	(e0_sort,new_e0)
+          
     (* type atoms *)
     | EAtom(i,e1,e2) ->
 	let _,new_e1 = expect_sort_exp "atom name" sev SName e1 in
@@ -507,19 +507,40 @@ let rec compile_exp cev e0 = match e0 with
                          (match co with None -> () | Some c -> check_assert "put" c);
                          a),
                     checker))
-  | ECheckLens(i,e1,e2,e3) ->
-      let l,ck = compile_exp_lens cev e1 in 
-      let c = compile_exp_schema cev e2 in 
-      let ck_c = match ck with Value.BIJ(c2a,_) | Value.VWB(c2a) | Value.WB(c2a) -> c2a c in
-      let a = compile_exp_schema cev e3 in
-        if not (Schema.equivalent ck_c a) then 
+  | ECheckLens(i,e1,la,e2,e3) ->
+      let c = compile_exp_schema cev e1 in 
+      let a = compile_exp_schema cev e2 in
+      let l,ck = compile_exp_lens cev e3 in 
+      let _ = 
+        let ck_la = match ck with 
+            Value.BIJ(_) -> Bij
+          | Value.VWB(_) -> Vwb
+          | Value.WB(_) -> Wb in
+          match la,ck_la with 
+              Bij,Bij
+            | Vwb,Bij | Vwb,Vwb
+            | Wb,Bij | Wb,Vwb | Wb,Wb -> ()
+            | _ -> 
+                Lens.error [`String (Info.string_of_t i); `Space
+                           ; `String "lens type mismatch; expected:"; `Space
+                           ; `Prim (fun () -> Syntax.format_lensarrow la); `Space
+                           ; `String "but found: "; `Space
+                           ; `Prim (fun () -> Syntax.format_lensarrow ck_la); `Space] in
+      let assert_schema expected found = 
+        if not (Schema.equivalent expected found) then
 	  Lens.error [`String (Info.string_of_t i); `Space
                      ; `String "static lens type assertion failed; expected:"; `Space
-		     ; `Prim (fun () -> Schema.format_t a); `Space
+		     ; `Prim (fun () -> Schema.format_t expected); `Space
                      ; `String "but found:"; `Space
-		     ; `Prim (fun () -> Schema.format_t ck_c)]
-        else (mk_rv SLens (Value.L (l,ck)))
-
+		     ; `Prim (fun () -> Schema.format_t found)] in
+        (match ck with 
+             Value.BIJ(c2a,a2c) -> 
+               assert_schema (c2a c) a;
+               assert_schema (a2c a) c
+           | Value.VWB(c2a) | Value.WB(c2a) -> 
+               assert_schema (c2a c) a);
+        mk_rv SLens (Value.L (l,ck))
+                 
   | EAtom(i,e1,e2) ->
       let n = compile_exp_name cev e1 in
       let e2_rv = compile_exp cev e2 in
@@ -662,19 +683,26 @@ let rec compile_exp cev e0 = match e0 with
         in
         let get c = Lens.get (fst (fetch_lens ())) c in
         let put a co = Lens.put (fst (fetch_lens ())) a co in
-        let checker = match s with 
-            SRecLens(e1,e2) -> 
-              let c1 = compile_exp_schema cev e1 in 
-              let a = compile_exp_schema cev e2 in 
-                Value.WB(fun c -> 
-                           if not (Schema.equivalent c c1) 
-                           then run_error i (fun () -> 
-                                               Format.printf "protect: expected@ ";
-                                               Schema.format_t c1;
-                                               Format.printf "@ found@ ";
-                                               Schema.format_t c)
-                           else a)
-          | _ -> Value.WB(fun c -> run_error i (fun () -> "unchecked protect")) in          
+        let checker =           
+          let mk_checker e1 e2 = 
+            let expected = compile_exp_schema cev e1 in 
+            let result = compile_exp_schema cev e2 in 
+              (fun s -> 
+                 if not (Schema.equivalent s expected) 
+                 then run_error i (fun () -> 
+                                     Format.printf "protect: expected@ ";
+                                     Schema.format_t expected;
+                                     Format.printf "@ found@ ";
+                                     Schema.format_t s)
+                 else result) in             
+            match s with 
+                SRecLens(e1,la,e2) -> begin
+                  match la with 
+                      Bij -> Value.BIJ(mk_checker e1 e2, mk_checker e2 e1)
+                    | Vwb -> Value.VWB(mk_checker e1 e2)
+                    | Wb -> Value.WB(mk_checker e1 e2)                        
+                end                  
+              | _ -> Value.WB(fun c -> run_error i (fun () -> "unchecked protect")) in          
           mk_rv 
             s
             (Value.L (Lens.native get put, checker))
