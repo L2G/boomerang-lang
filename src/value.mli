@@ -43,27 +43,36 @@ val get_name : Info.t -> t -> Name.t
 (** [get_name i v] extracts the [Name.t] from [v]. Prints an error message at [i] on failure. *)
 
 val mk_sfun : string -> string -> (Schema.t -> t) -> t
-(** [mk_sfun return_sort msg f] create a function from schemas to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
+(** [mk_sfun return_sort msg f] create a function from schemas to
+  [return_sort] using [f], displaying [msg] if runtime failure occurs.
+  (The  [return_sort] is represented as a string rather than a Syntax.sort
+  for readability at call sites.) *)
 
 val mk_nfun : string -> string -> (Name.t -> t) -> t
-(** [mk_nfun return_sort msg f] create a function from names to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
+(** [mk_nfun return_sort msg f] creates a function from names to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
 
 val mk_vfun : string -> string -> (V.t -> t) -> t
-(** [mk_vfun return_sort msg f] create a function from trees to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
+(** [mk_vfun return_sort msg f] creates a function from trees to
+    [return_sort] using [f], displaying [msg] if runtime failure
+    occurs. *)
 
 val mk_lfun : string -> string -> ((V.t,V.t) Lens.t * lens_checker -> t) -> t
-(** [mk_lfun return_sort msg f] create a function from lenses to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
+(** [mk_lfun return_sort msg f] creates a function from lenses to
+    [return_sort] using [f], displaying [msg] if runtime failure
+    occurs. *)
 
 val mk_ffun : string -> string -> string -> ((t -> t) -> t) -> t
-(** [mk_ffun arg_sort return_sort msg f] create a function from functions of sort [arg_sort] to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
+(** [mk_ffun arg_sort return_sort msg f] creates a function from functions
+    of sort [arg_sort] to [return_sort] using [f], displaying [msg]
+    if a runtime failure occurs. *)
 
 val format_t : t -> unit
 (** [format_t v] pretty prints [v] *)
 
 val dummy : Syntax.sort -> Syntax.qid -> t
 (** [dummy s] returns a dummy value of sort [s]. For sorts, see [Syntax.sort].
-  @param the first optional argument is used as an error message for a dummy lens;
-  its default is "". *)
+    @param the first optional argument is used as an error message
+    for a dummy lens; the default is "". *)
 
 val is_dummy : t -> bool
 (** [is_dummy v] returns true iff [v] is a dummy value *)

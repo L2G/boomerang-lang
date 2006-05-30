@@ -2,6 +2,8 @@
 
 (** Relational databases are values of type [Relation.t Map.Make(String).t]. *)
 
+(* BCP: This module should be folded into the Relation module. *)
+
 val rcd_to_tree : (string * string) list -> V.t
 val tree_to_rcd : V.t -> (string * string) list
 val rel_to_tree : Relation.t -> V.t
