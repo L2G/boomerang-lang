@@ -117,7 +117,8 @@ OCAML_LINK_FLAGS += -cc g++
 ##############################################################################
 # Miscellaneous
 
-CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.o *.annot *.opt *.omc *.a *.cmxa *.output ._d .ncdi
+CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.o *.annot *.opt *.omc *.a *.cmxa *.output ._d ._ncdi TAGS 
+# what about .omakedb and omakedb.lock?
 
 clean:
 	$(CLEAN) $(SUBDIRS_OUT)
