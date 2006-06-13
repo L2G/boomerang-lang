@@ -13,7 +13,7 @@ clean:
      export
    if $(not $(equal $(LOCALFCLFILES)x, x))
        defaulttest: $(RESULT)
-           ./$(RESULT) $(LOCALFCLFILES)
+           ./$(RESULT) $(HARMONY_FLAGS) $(LOCALFCLFILES)
    if $(file-exists OMakefile)
      include OMakefile
      export

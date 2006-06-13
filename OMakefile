@@ -115,18 +115,31 @@ OCAMLFLAGS    = -dtypes -rectypes
 OCAML_LINK_FLAGS += -cc g++
 
 ##############################################################################
-# Miscellaneous
+# Settings for running Harmony
 
-CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.o *.annot *.opt *.omc *.a *.cmxa *.output ._d ._ncdi TAGS 
+HARMONY_FLAGS = -I . -I $(LENSESDIR)
+HARMONY = $(SRCDIR)/harmony $(HARMONY_FLAGS)
+
+##############################################################################
+# Cleanup
+
+CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.o *.annot *.opt *.omc *.a *.cmxa \
+                  *.output ._d ._ncdi TAGS 
 # what about .omakedb and omakedb.lock?
 
 clean:
 	$(CLEAN) $(SUBDIRS_OUT)
 
+##############################################################################
+# Focal files
+
 FCLFILES = \
   $(find $(EXAMPLESDIR) -name *.fcl) \
   $(find $(LENSESDIR) -name *.fcl) \
   $(find $(LENSESDIR) -name *.src) 
+
+##############################################################################
+# Translation of .src files
 
 SRC2F = $(TOOLSDIR)/src2f
 SRC2TEX = $(TOOLSDIR)/src2tex
