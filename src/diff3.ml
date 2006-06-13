@@ -272,9 +272,6 @@ let diff3_sync elt_schema (o,a,b) =
 
 (* ---------------------------------------------------------------------- *)
 
-(* BCP: Replace with Harmony_error *)
-exception Element_not_found
-
 let duplicate_element l e =
   raise (Error.Harmony_error (fun() ->
     Format.printf "@[Diff3.cycle_merge_sync: duplicate element@ "; (* A.format e; *)
@@ -318,7 +315,9 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
     (* get index of x in list l *) 
     let rec f id l =
       match l with
-          [] -> raise Element_not_found
+          [] -> raise (Error.Harmony_error (fun()->
+                  (* This is pretty uninformative: *)
+                  Format.printf "Cycle merge: Element %s  not found" (A.tostring x)))
         | h::t -> if h=x then id else f (id+1) t in
     f 1 l in 
 
@@ -332,8 +331,8 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
   let rev_index_tbl_array = Array.init 2 (fun _ -> Hashtbl.create (2 * (list_size))) in
   let rev_index_tbl i = rev_index_tbl_array.(i-1) in
 
-  (* If an element is duplicated in A but not in O, Element_not_found will be raised here,
-     so no need to check for duplicates in A (or B) *)
+  (* If an element is duplicated in A but not in O, an Element-not-found exception
+     will be raised here, so no need to check for duplicates in A (or B). *)
   ignore (
     List.fold_left 
       (fun id x ->  
@@ -434,10 +433,9 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
         else findcycle i (id+1) 
     else false in
 
-  (* BCP: This doesn't make any sense to me... *)
-  let rec findcycles l =
-    if ( (findcycle 1 1) || (findcycle 2 1)) then findcycles l else () in  
-  findcycles archive;
+  let rec findcycles () =
+    if ( (findcycle 1 1) || (findcycle 2 1)) then findcycles () else () in 
+  findcycles ();
 
   (* BCP: This is quite inefficient... *)
   let a' = Hashtbl.fold

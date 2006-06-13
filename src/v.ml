@@ -113,7 +113,9 @@ module Hash =
     struct
       type t = thist
       let equal = (==)                                (* Use physical equality test *)
-      let hash o = Hashtbl.hash (Obj.magic o : int)   (* Hash on physical addr *)
-      (* TODO: fix hash function *)
+      let hash = function
+        (* Hash on tag and physical addr *)
+        | Tree t -> Hashtbl.hash (1, (Obj.magic t : int))
+        | Db db -> Hashtbl.hash (1, (Obj.magic db : int))
     end)
 
