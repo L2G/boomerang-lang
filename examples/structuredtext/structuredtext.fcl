@@ -1,4 +1,4 @@
-module Structuredtext = 
+module Structuredtext =  
 
 (******************************************************************************)
 (* Schemas *)

@@ -17,8 +17,16 @@ OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 baker: baker.ml
 	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^
 
-bakery.ml: $(SRCDIR)/baker $(FCLFILES)
-	./$^ $(EXAMPLESDIR) $(LENSESDIR) > $@
+# If we are installing Harmony elsewhere, then we need to build a real
+# bakery.ml embedding all the focal files we might need.  But if we're
+# only going to run things in place, we can skip this step and avoid
+# recompiling Harmony whenever .fcl files change in the examples.
+if $(mem install, $(TARGETS))
+  bakery.ml: $(SRCDIR)/baker $(FCLFILES)
+    ./$^ $(EXAMPLESDIR) $(LENSESDIR) > $@
+else
+  bakery.ml: $(SRCDIR)/baker
+    ./$^ > $@
 
 $(EXTERNDIR)/omega/ocaml/omega.cma:
 	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
