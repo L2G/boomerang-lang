@@ -7,18 +7,9 @@
 (* $Id $ *)
 
 let debug = Trace.debug "registry"
+let verbose = Trace.debug "registry+"
 let sprintf = Printf.sprintf
 
-let verbose_flag =
-  Prefs.createBool "verbose" false
-    "display more information"
-    "display more information"
-let _ = Prefs.alias verbose_flag "v"
-
-let verbose thk = 
-  if (Prefs.read verbose_flag) then 
-    thk ()
-  else ()
 
 (* --------------- Registry values -------------- *)
 
@@ -35,7 +26,7 @@ let format_rv rv =
     Format.printf ":";
     Syntax.format_sort s;
     Format.printf "]"
-	
+
 (* --------------- Focal library -------------- *)
 
 (* state *)
@@ -48,7 +39,7 @@ sig
   val overwrite : t -> Syntax.qid -> rv -> unit
   val iter : (Syntax.qid -> rv -> unit) -> t -> unit
 end
-    
+
 module REnv : REnvSig = 
 struct
   module M = Env.Make(struct
@@ -80,7 +71,7 @@ let pre_ctx = List.map Value.parse_qid ["Prelude"]
 
 (* utilities *)
 let get_library () = !library
-  
+
 (* hack to reset library to native stuff in visualizer *)
 let old_library = ref None
 let reset () = 
@@ -88,20 +79,19 @@ let reset () =
   loaded := [];
   library := 
     match !old_library with 
-	Some l -> l
+        Some l -> l
       | None -> assert false
 
 (* --------------- Registration functions -------------- *)
-	  
+
 (* register a value *)
 let register q r = library := (REnv.update (!library) q r)
-  
+
 (* register a native value *)
-let register_native qs ss v = 
+let register_native qs s v = 
   let q = Value.parse_qid qs in
-  let s = Value.parse_sort ss in
     register q (s,v)
-	  
+
 (* register a whole (rv Env.t) in m *)
 let register_env ev m = REnv.iter (fun q r -> register (Syntax.dot m q) r) ev
 
@@ -127,25 +117,27 @@ let find_filename basename exts =
   let rec loop dirs = match dirs with
     | []    -> None
     | dir::drest ->
-        begin 
-          let try_fn ext k = 
-            let fn = sprintf "%s%s%s%s%s"
-              dir
-              (if dir.[String.length dir - 1] = '/' then "" else "/")
-              basename 
-              (if String.length ext = 0 then "" else ".")
-              ext in 
-              if Sys.file_exists fn && Misc.is_file fn then Some fn
-              else k ()
-          in
-          let rec inner_loop = function
-              [] -> try_fn "" (fun () -> loop drest)                
-            | ext::erest -> try_fn ext (fun () -> inner_loop erest) in
-            inner_loop exts              
-        end
+        let try_fn ext k = 
+          let fn = sprintf "%s%s%s%s%s"
+            dir
+            (if dir.[String.length dir - 1] = '/' then "" else "/")
+            basename 
+            (if String.length ext = 0 then "" else ".")
+            ext in 
+            if Sys.file_exists fn && Misc.is_file fn then begin
+              verbose (fun() -> Util.msg "%s found for %s\n" fn basename);
+              Some fn
+            end else begin
+              verbose (fun() -> Util.msg "%s not found\n" fn);
+              k ()
+            end in
+        let rec inner_loop = function
+            [] -> try_fn "" (fun () -> loop drest)                
+          | ext::erest -> try_fn ext (fun () -> inner_loop erest) in
+          inner_loop exts              
   in
     loop ((Safelist.rev (Prefs.read paths) @ focalpath))
-      
+
 (* load modules dynamically *)
 (* backpatch hack *)
 let compile_file_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
@@ -154,15 +146,15 @@ let compile_fcl_str_impl = ref (fun _ _ -> Format.eprintf "@[Focal compiler is n
 let load ns = 
   (* helper, when we know which compiler function to use *)
   let go comp source = 
-    verbose (fun () -> Format.eprintf "[@[loading %s ...@]]@\n%!" source);
+    debug (fun () -> Format.eprintf "[@[loading %s ...@]]@\n%!" source);
     loaded := ns::(!loaded);
     comp ();
-    verbose (fun () -> Format.eprintf "[@[loaded %s@]]@\n%!" source) in      
+    debug (fun () -> Format.eprintf "[@[loaded %s@]]@\n%!" source) in      
   let uncapped = String.uncapitalize ns in
     if (Safelist.mem ns (!loaded)) then true
     else begin
       match find_filename uncapped ["fcl"] with 
-	| None -> 
+        | None -> 
             begin
               try 
                 (* check for baked in source *)
@@ -173,15 +165,15 @@ let load ns =
                   true
               with Not_found -> false
             end
-	| Some fn ->
-	    go (fun () -> (!compile_file_impl) fn ns) fn; 
+        | Some fn ->
+            go (fun () -> (!compile_file_impl) fn ns) fn; 
             true
     end
-      
+
 let load_var q = match get_module_prefix q with 
   | None -> ()
   | Some n -> ignore (load (Syntax.string_of_id n))
-      
+
 (* lookup in a naming context *)
 let lookup_library_ctx nctx q = 
   let rec lookup_library_aux nctx q2 =       
@@ -200,15 +192,15 @@ let lookup_library_ctx nctx q =
     let try_lib () = REnv.lookup !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
-	  Some r -> Some r
-	| None -> 
-	    begin
-	      match load_var q2; try_lib () with
-		| Some r -> Some r
-		| None -> match nctx with 
-		    | []       -> None
-		    | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
-	    end
+          Some r -> Some r
+        | None -> 
+            begin
+              match load_var q2; try_lib () with
+                | Some r -> Some r
+                | None -> match nctx with 
+                    | []       -> None
+                    | o::orest -> lookup_library_aux orest (Syntax.dot o q) 
+            end
   in
     lookup_library_aux nctx q
 

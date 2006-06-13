@@ -20,8 +20,8 @@ let safe_hash_add tbl x y =
 let enum l =
   Safelist.rev
     (snd (Safelist.fold_left
-	    (fun (i,acc) k -> (i+1,(i,k)::acc))
-	    (0,[]) l))
+            (fun (i,acc) k -> (i+1,(i,k)::acc))
+            (0,[]) l))
 
 (* map, where the mapped function is 
     (1) provided with the zero-indexed index of each elt and 
@@ -119,7 +119,7 @@ let rev_and_flatten ll =
       [] -> acc
     | (l::ls) -> help (Safelist.append l acc) ls in
   help [] ll
-  
+
 let safeassoc alist =
   fun k ->
     (try
@@ -183,15 +183,15 @@ let escape (escapeChar: char -> string) s =
       let s' = String.create !n in   
       n := 0;
       for i = 0 to String.length s - 1 do 
-	let c = String.get s i in
-	let cEscaped = escapeChar c in
-	if String.length cEscaped = 1 then begin
-	  String.set s' !n c; incr n
-	end else
-	  for i = 0 to String.length cEscaped - 1 do begin
-	    String.set s' !n (String.get cEscaped i);
-	    incr n;
-	  end done
+        let c = String.get s i in
+        let cEscaped = escapeChar c in
+        if String.length cEscaped = 1 then begin
+          String.set s' !n c; incr n
+        end else
+          for i = 0 to String.length cEscaped - 1 do begin
+            String.set s' !n (String.get cEscaped i);
+            incr n;
+          end done
       done;
       s'
     end
@@ -218,27 +218,27 @@ let generic_unescape s =
   else
     let rec loop i n =
       if i >= String.length s then
-	n
+        n
       else if s.[i] = '\\' then
-	loop (i + 2) (n + 1)
+        loop (i + 2) (n + 1)
       else
-	loop (i + 1) (n + 1)
+        loop (i + 1) (n + 1)
     in
     let s' = String.create (loop 0 0) in
     let rec loop i i' = 
       if i >= String.length s then
-	()
+        ()
       else if s.[i] = '\\' then begin
-	s'.[i'] <- s.[i+1]; (* assumes that '\' always followed by a char *)
-	loop (i + 2) (i' + 1)
+        s'.[i'] <- s.[i+1]; (* assumes that '\' always followed by a char *)
+        loop (i + 2) (i' + 1)
       end else begin
-	s'.[i'] <- s.[i];
-	loop (i + 1) (i' + 1)
+        s'.[i'] <- s.[i];
+        loop (i + 1) (i' + 1)
       end
     in
     loop 0 0;
     s'
-      
+
 (* find c, skipping all the escaped characters, e.g., "\;" *)
 let rec index_rec_nonescape s i c = 
   if i >= String.length s then 
@@ -249,7 +249,7 @@ let rec index_rec_nonescape s i c =
     index_rec_nonescape s (i+2) c
   else
     index_rec_nonescape s (i+1) c
-      
+
 let split_nonescape c text = 
   let rec split start =
     try 
@@ -308,7 +308,7 @@ let rec replace_substrings s l =
     [] -> s
   | (sub,sub')::rest -> replace_substrings (replace_substring s sub sub') rest
 
-    
+
 let whack_chars s cl reverse =
   let esc_s = 
     Safelist.fold_right 
@@ -326,7 +326,7 @@ let whack_chars s cl reverse =
         Printf.sprintf "\"%s\"" esc_s 
       else 
         esc_s
-      
+
 let whack s =   
   if s = "" then "\"\"" 
   else whack_chars s [' '; '\n';'"'] false
@@ -348,22 +348,22 @@ let unescaped s =
     if (c = '\\') then
       let c2 = s.[i+1] in
       match c2 with
-	'\\' | '"' | '\'' -> (Buffer.add_char buf c2; loop (i+2))
+        '\\' | '"' | '\'' -> (Buffer.add_char buf c2; loop (i+2))
       | 'n' -> (Buffer.add_char buf '\n'; loop (i+2))
       | 'r' -> (Buffer.add_char buf '\r'; loop (i+2))
       | 't' -> (Buffer.add_char buf '\t'; loop (i+2))
       | 'b' -> (Buffer.add_char buf '\b'; loop (i+2))
       | _ ->
-	  let c3 = s.[i+2] in
-	  let c4 = s.[i+3] in
-	  let i2 = int_of_char(c2) - int_of_char('0') in
-	  let i3 = int_of_char(c3) - int_of_char('0') in
-	  let i4 = int_of_char(c4) - int_of_char('0') in
-	  if (i2 < 0 || i2 > 9 || i3 < 0 || i3 > 9 || i4 < 0 || i4 > 9) then
-	    raise (Error.Harmony_error (fun () -> Format.printf "Bad escape sequence in %s" (whack s)))
-	  else
-	    (Buffer.add_char buf 
-	      (char_of_int (i2 * 100 + i3 * 10 + i4)); loop (i+4))
+          let c3 = s.[i+2] in
+          let c4 = s.[i+3] in
+          let i2 = int_of_char(c2) - int_of_char('0') in
+          let i3 = int_of_char(c3) - int_of_char('0') in
+          let i4 = int_of_char(c4) - int_of_char('0') in
+          if (i2 < 0 || i2 > 9 || i3 < 0 || i3 > 9 || i4 < 0 || i4 > 9) then
+            raise (Error.Harmony_error (fun () -> Format.printf "Bad escape sequence in %s" (whack s)))
+          else
+            (Buffer.add_char buf 
+              (char_of_int (i2 * 100 + i3 * 10 + i4)); loop (i+4))
     else
       (Buffer.add_char buf c; loop (i+1)) in
   loop 0;
@@ -461,26 +461,26 @@ let rec remove_file_or_dir d =
       let r = try Some(Unix.readdir handle)
       with End_of_file -> None
         | Sys_error s -> raise (Error.Harmony_error(fun () -> Format.printf "Error reading %s (%s)" d s)) in
-	match r with
+        match r with
             Some f ->
               if f="." || f=".." then loop ()
               else begin
-		remove_file_or_dir (d^"/"^f);
-		loop ()
+                remove_file_or_dir (d^"/"^f);
+                loop ()
               end  
-	  | None ->
+          | None ->
               Unix.closedir handle;
               Unix.rmdir d
     in loop ()
   end else 
     Sys.remove d
-      
+
 let read_chan chan =
   let nbytes = in_channel_length chan in
   let string = String.create nbytes in
   really_input chan string 0 nbytes;
   string
-      
+
 let read file =
   if file = "-" then
     read_chan stdin
@@ -493,7 +493,7 @@ let read file =
     with exn ->
       close_in chan;
       raise exn
-      
+
 let write file s =
   if file = "-" then
     output_string stdout s
@@ -521,12 +521,12 @@ let backup_file_name path =
   let time_as_compact_str () =
     let time = Unix.localtime (Unix.time()) in
       Printf.sprintf
-	"%4d%02d%02d+%02d%02d" 
-	(time.Unix.tm_year + 1900)
-	(time.Unix.tm_mon + 1)
-	time.Unix.tm_mday
-	time.Unix.tm_hour
-	time.Unix.tm_min
+        "%4d%02d%02d+%02d%02d" 
+        (time.Unix.tm_year + 1900)
+        (time.Unix.tm_mon + 1)
+        time.Unix.tm_mday
+        time.Unix.tm_hour
+        time.Unix.tm_min
   in
   let t = time_as_compact_str () in
   let rec f i =
@@ -596,7 +596,7 @@ let concat fold sep is_empty empty pretty structure =
        else sep acc (pretty h))
     empty 
     structure 
-    
+
 let concat_list sep l = 
   concat
     Safelist.fold_left
@@ -605,9 +605,9 @@ let concat_list sep l =
     ""
     (fun x -> x)
     l
-    
+
 let concat_f_list sep f l = concat_list sep (Safelist.map f l)
-  
+
 let fformat_list fmtr sep f l =
   let extract_thk = function 
       Some thk -> thk

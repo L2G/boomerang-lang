@@ -6,7 +6,7 @@
 # $Id$
 
 SUBDIRS = src lenses examples tools doc
-SUBDIRSCLEANONLY = experimental visual papers extern html
+SUBDIRSCLEANONLY = extern
 
 TOP = .
 include $(TOP)/Top.Makefile

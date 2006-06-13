@@ -1,0 +1,5 @@
+LocalOCamlGeneratedFiles(moz2xml.ml xml2moz.ml)
+
+OCamlProgram($(RESULT), moz2xml xml2moz $(RESULT))
+
+test: defaulttest

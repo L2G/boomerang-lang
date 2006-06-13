@@ -1,0 +1,71 @@
+##############################################################################
+# Main results
+
+LocalOCamlGeneratedFiles($(GENERATED_SOURCES_BARE))
+
+RESULT = harmony
+RESULTS = harmony.cmxa $(RESULT)
+
+OCamlProgram($(RESULT), $(rootname $(SOURCES)))
+OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
+
+.DEFAULT: $(RESULTS)
+
+##############################################################################
+# Helper tools
+
+baker: baker.ml
+	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^
+
+bakery.ml: $(SRCDIR)/baker $(FCLFILES)
+	./$^ $(EXAMPLESDIR) $(LENSESDIR) > $@
+
+$(EXTERNDIR)/omega/ocaml/omega.cma:
+	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
+$(EXTERNDIR)/omega/ocaml/omega.cmxa:
+	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
+$(EXTERNDIR)/omega/ocaml/omegaLibrary.cmx:
+	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
+
+$(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx:
+	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+$(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmi:
+	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+
+# Override some auto-generated .SCANNER rules for externally built .cmx files
+.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o
+.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx
+.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmo
+.SCANNER: $(EXTERNDIR)/omega/ocaml/omegaLibrary.cmx
+.SCANNER: $(EXTERNDIR)/omega/ocaml/omegaLibrary.o
+.SCANNER: $(EXTERNDIR)/omega/ocaml/omegaLibrary.cmo
+
+##############################################################################
+# Testing
+
+test: $(RESULT)
+  ./$(RESULT) -unittests
+
+##############################################################################
+# Emacs TAGS file
+
+# TAGS: :value: $(REAL_SOURCES)
+# 	-etags $(REAL_SOURCES)
+
+TAGS: :value: $(REAL_SOURCES)
+   -etags $(in $(SRCDIR), $(REAL_SOURCES))
+
+.DEFAULT: TAGS
+
+##############################################################################
+# Miscellaneous
+
+clean:
+	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES_BARE) baker
+
+.SUBDIRS: ubase
+  clean: 
+    $(CLEAN) TAGS
+
+.PHONY: junk
+junk: .PHONY/$(LENSESDIR)/test

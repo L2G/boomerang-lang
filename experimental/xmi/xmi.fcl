@@ -101,7 +101,7 @@ let T (Contents : schema) : schema =
 	 ?verified = CData}
      })
 
-let toFlattenedContents (header : tree) : lens =
+let toFlattenedContents (header : view) : lens =
   List.hd [];
   hoist "XMI";
   focus Xml.CHILDREN {"xmi.version" = {"1.0"}};

@@ -1,5 +1,5 @@
 
-module R = Relation
+module R = Db.Relation
 
 (* Some relational lenses *)
 
@@ -62,7 +62,8 @@ let mk_lens opname get put =
   let dom ls =
     `Tree(V.from_list (List.map (fun x -> (x, V.empty)) ls))
   in
-  let trap_dom_errors f x y =
+  let trap_dom_errors f x y = f x y
+  (*
     try f x y with
     | R.Unequal_domains(d1, d2) ->
         Lens.error
@@ -71,20 +72,19 @@ let mk_lens opname get put =
           ; `Space; `String("is unequal to")
           ; `Space; dom d2
           ]
-    | R.Domain_excludes(d, a) ->
+    | R.Missing_attribute(a) ->
         Lens.error
           [ `String(opname^":")
-          ; `Space; dom d
-          ; `Space; `String("does not include")
+          ; `Space; `String("The domain does not include")
           ; `Space; `String(a)
           ]
-    | R.Domain_includes(d, a) ->
+    | R.Duplicate_attribute(a) ->
         Lens.error
           [ `String(opname^":")
-          ; `Space; dom d
-          ; `Space; `String("already contains")
+          ; `Space; `String("The domain already contains")
           ; `Space; `String(a)
           ]
+  *)
   in
   Lens.native ((trap_dom_errors (fun () -> get)) ()) (trap_dom_errors put)
 
@@ -180,6 +180,7 @@ let project p q d =
     c >>~ p
   and putfun a co =
     let c = match co with None -> R.create (R.fields a) | Some(c) -> c in
+    (*
     if false then begin
       prerr_endline "*** BEGIN PROJECT DEBUGGING ***";
       prerr_endline "Abstract view:";
@@ -190,6 +191,7 @@ let project p q d =
       R.dump_stderr (R.project p c);
       prerr_endline "**** END PROJECT DEBUGGING ****";
     end;
+    *)
     if R.equal a (c >>~ p) then
       c
     else

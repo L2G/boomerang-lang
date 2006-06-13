@@ -346,7 +346,7 @@ schema ICalendar_A = Components_A
 (* And this is more to give it a try from scratch *)
 (* one lens per schema variable above *)
 
-let domCompProp : tree = 
+let domCompProp : view = 
   { "action", "attach", "attendee", "categories", "class",
     "comment", "completed", "contact", "created", "daylightc", 
     "description", "dtend", "dtstamp", "dtstart", "due", "duration",
@@ -356,7 +356,7 @@ let domCompProp : tree =
     "summary", "transp", "trigger", "tzid", "tzname", "tzoffsetto",
     "tzoffsetfrom", "tzurl", "uid", "url", "xprop"}
 
-let domCompPropWoLastmod : tree = 
+let domCompPropWoLastmod : view = 
   { "action", "attach", "attendee", "categories", "class",
     "comment", "completed", "contact", "created", "daylightc", 
     "description", "dtend", "dtstamp", "dtstart", "due", "duration",

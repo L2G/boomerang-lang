@@ -16,7 +16,7 @@ type t = I of string * pos * pos | M of string
 
 val string_of_t : t -> string 
 (** [string_of_t] pretty prints a location for easy parsing by [compile-mode] in [emacs] *)
-  
+
 val merge_inc : t -> t -> t
 (** [merge_inc i1 i2] merges the locations [i1] and [i2] into a new
     location; includes the endpoints. *)

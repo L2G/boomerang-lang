@@ -5,8 +5,6 @@ module IntMap : Mapplus.SMap with type key_t = int and type key_set = IntSet.t
 type exp 
 type t
 
-val get_atom : t -> t option
-
 val fvs_t : t -> IntSet.t
 val shift_exp : int -> exp -> exp
 val shift_t : int -> t -> t
@@ -51,5 +49,4 @@ module Valuation : sig
 end
 
 val fast_sat : t -> Valuation.t -> bool
-
 val print_stats : unit -> unit

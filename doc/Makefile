@@ -8,9 +8,11 @@
 TOP = ..
 include $(TOP)/Top.Makefile
 
-SRCFILES += $(wildcard *.src) $(shell (cd $(SRCDIR); ls *.src))
+SRCFILES += $(wildcard *.src) $(shell (cd $(SRCDIR); ls *.src*))
 
-GENERATEDTEXFILES = $(patsubst %.src,tmp/%.tex, $(SRCFILES)) \
+GENERATEDTEXFILES = $(patsubst %.src,tmp/%.tex, \
+                    $(patsubst %.srcl,tmp/%.tex, \
+                    $(patsubst %.srcy,tmp/%.tex, $(SRCFILES)))) \
                     $(patsubst %.fcl,tmp/%.tex, $(FCLFILES))
 
 all: main.pdf main.ps
@@ -36,6 +38,12 @@ tmp/%.tex : $(LENSESDIR)/%.fcl $(SRC2TEX) tmp
 	$(SRC2TEX) $< > $@
 
 tmp/%.tex : $(SRCDIR)/%.src $(SRC2TEX) tmp
+	$(SRC2TEX) $< > $@
+
+tmp/%.tex : $(SRCDIR)/%.srcl $(SRC2TEX) tmp
+	$(SRC2TEX) $< > $@
+
+tmp/%.tex : $(SRCDIR)/%.srcy $(SRC2TEX) tmp
 	$(SRC2TEX) $< > $@
 
 tmp/%.tex : %.src $(SRC2TEX) tmp

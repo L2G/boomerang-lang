@@ -14,7 +14,7 @@ module Prelude =
 (* Documentation for these comes later, but we need to use them earlier: *)
 let invert : (lens -> lens) = Native.Prelude.invert
 let hoist : (name -> lens) = Native.Prelude.hoist
-let xfork : (tree -> tree -> lens -> lens -> lens) = Native.Prelude.xfork
+let xfork : (view -> view -> lens -> lens -> lens) = Native.Prelude.xfork
 let cond : (schema -> schema -> schema -> lens -> lens -> lens -> lens -> lens) = Native.Prelude.cond
 let acond : (schema -> schema -> lens -> lens -> lens) = Native.Prelude.acond
 #{@}
@@ -47,7 +47,7 @@ direction and its abstract argument unchanged in the \PUT{} direction.
 #*test id / \ {a={b}} = {a={b}}
 
 \LENSSECTION{const}
-##let const : (tree -> tree -> lens) = Native.Prelude.const
+##let const : (view -> view -> lens) = Native.Prelude.const
 The lens \LN{const} \(t\) \(d\)  always return the tree \(t\) in the \GET{} 
 direction. 
 #*test const {a} {b} / {} = {a}
@@ -76,7 +76,7 @@ $a$ into @missing@ and then @l@ to put the result into @missing@.)
 A similar test case using two instances of @const@ illustrates the strong
 schema constraint imposed by @const@ (the second argument of the
 second @const@ {\em must} be @{a}@).
-##test (id; id) /\ {a} = {a}
+##test (id; id) / \ {a} = {a}
 ##test (id; const {a} {d}) / {} = {a}
 #*test (const {a} {d}; const {b} {a}) / {} = {b}
 ##test (id; const {a} {b}) \ {a} missing = {b}
@@ -143,7 +143,7 @@ in the second set.
 \LENSSECTION{fork}
 Often, the two sets of names passed to @xfork@ are the same.  The derived
 lens @fork@ packages this case for convenience:
-#*let fork (p:tree) (l1:lens) (l2:lens) : lens = xfork p p l1 l2
+#*let fork (p:view) (l1:lens) (l2:lens) : lens = xfork p p l1 l2
 
 ##test (fork {x} (const {b} {x}) (const {b} {b})) / {x} = error
 ##test (fork {x} (const {b} {b}) id) \ {b} {x} = error
@@ -155,7 +155,7 @@ belonging to @C@, and another whose children all lead to subtrees belonging to
 @not C@. The \PUT{} function, divides the abstract tree using a set of names 
 like @xfork@.
 
-##let bfork : (schema -> tree -> lens -> lens -> lens) = Native.Prelude.bfork
+##let bfork : (schema -> view -> lens -> lens -> lens) = Native.Prelude.bfork
 
 #*test (bfork {!={}} {"tmp"} (const {tmp} {})
 #*     (fork {tmp} (const {} {}) id))
@@ -185,7 +185,7 @@ not exactly $n$.
 The derived lens @hoist_nonunique@ $n$ is a generalized variant of @hoist@ that
 removes the restriction that its concrete argument have domain exactly $n$.
 %
-#*let hoist_nonunique (n:name) (p:tree) : lens = xfork {`n} p (hoist n) id 
+#*let hoist_nonunique (n:name) (p:view) : lens = xfork {`n} p (hoist n) id 
 %
 It takes an extra argument, a set of names represented as a tree, specifying
 the possible names of top-level edges in the subtree reached under $n$,
@@ -217,7 +217,7 @@ is the exact inverse of @hoist n@.
 The @filter@ lens allows all but a given set of children (specified as a
 tree) to be projected away in the \GET{} direction and restored in the
 \PUT{} direction. 
-#*let filter (p:tree) (d:tree) : lens = fork p id (const {} d)
+#*let filter (p:view) (d:view) : lens = fork p id (const {} d)
 
 #*test (filter {x,y,z} {new}) / {x,y,a,b,c} = {x,y}
 #*test (filter {x,y,z} {new}) \ {x,z} {x,y,a,b,c} = {x,z,a,b,c}
@@ -234,7 +234,7 @@ the tree in the case where the \PUT{} part of @filter@ is applied to
 
 \LENSSECTION{focus}
 The lens @focus@ $n$ $d$, defined as
-#*let focus (n:name) (d:tree) : lens = filter {`n} d ; hoist n
+#*let focus (n:name) (d:view) : lens = filter {`n} d ; hoist n
 projects away all the top-level names except $n$ (restoring them in the
 \PUT{} direction) and then hoists the children of $n$ up to the top level. 
 #*test (focus "n" {new}) / {x={a},n={b={c}}} = {b={c}}
@@ -253,7 +253,7 @@ As for @filter@, the second argument is used when the \PUT{} direction of
 \LENSSECTION{prune}
 The lens @prune@ $n$ removes just the name $n$ in the \GET{} direction (if
 it is present) and restores it in the \PUT{} direction.
-#*let prune (n:name) (d:tree) : lens = fork {`n} (const {} {`n=d}) id
+#*let prune (n:name) (d:view) : lens = fork {`n} (const {} {`n=d}) id
 
 #*test (prune "n" {new}) / {} = {}
 #*test (prune "n" {new}) / {n={a},m={b}} = {m={b}}
@@ -269,7 +269,7 @@ it is present) and restores it in the \PUT{} direction.
 \LENSSECTION{add}
 The lens @add@ $n$ $v$ adds a new subtree $v$ named $n$ in the \GET{}
 direction and removes it in the \PUT{} direction.  
-#*let add (n:name) (v:tree) : lens = xfork {} {`n} (const {`n=v} {}) id
+#*let add (n:name) (v:view) : lens = xfork {} {`n} (const {`n=v} {}) id
 
 #*test (add "n" {x}) / \ {a={z}} = {a={z},n={x}}
 
@@ -375,7 +375,7 @@ the \PUT{} direction of @l@ is applied to corresponding subtrees.
 \LENSSECTION{mapp}
 The lens @mapp p l@ is just like @map l@ except that it ignores subtrees
 whose names are not in the set @p@ (which is specified as a tree).
-#*let mapp (p:tree) (l:lens) : lens = fork p (map l) id 
+#*let mapp (p:view) (l:lens) : lens = fork p (map l) id 
 
 #*test (mapp {a,b} (const {x} {new})) / {a={b},c} = {a={x},c}
 
@@ -390,6 +390,27 @@ The lens @mapn n l@ performs @l@ just on the child named @n@.
 
 #*test (mapn "a" (const {x} {new})) / {a={b},c} = {a={x},c}
 #*test (mapn "a" (const {x} {new})) \ {a={x},c} missing = {a={new},c}
+
+#@\LENSSECTION{wmap} 
+%
+The @wmap@ combinator is a generalized variant of @map@ that can apply a
+{\em different} lens to each subtree.  Its argument is a finite map from names
+to lenses (see Section~\ref{sec:functionsfromnamestolenses}).  
+
+##let wmap : (fmap -> lens) = Native.Prelude.wmap
+
+#*test (wmap { a -> const {x} {new}, b -> plunge "n" }) 
+#*        / {a,b={foo}} 
+#*        = {a={x}, b={n={foo}}}
+
+##test (wmap { y -> const {a} {b}}) / {} = {}
+##test (wmap { y -> const {a} {b}}) \ {} missing = {}
+##test (wmap { y -> const {a} {b}}) \ {} {1,2,3} = {}
+##test (wmap { y -> const {a} {b}}) / {x, y={1,2,3}} = {x, y={a}}
+##test (wmap { y -> const {a} {b}}) \ {x, y={a}} missing = {x, y={b}}
+##test (wmap { y -> const {a} {b}}) \ {x={a}} {x,y=[{1},{2},{3}]} = {x={a}}
+##test (wmap { y -> const {a} {b}}) \ {y={a}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}]}
+##test (wmap { y -> const {a} {b}}) \ {y={a}, z={c}} {x,y=[{1},{2},{3}]} = {y=[{1},{2},{3}], z={c}}
 
 \subsection{Conditional Lenses}
 
@@ -581,14 +602,14 @@ whole contents as a single name.
 The expression @load ekey blob@ parses the name @blob@ using the viewer
 identified by the encoding key @ekey@ (see Section~\ref{sec:encodingkeys})
 and yields a tree.  Section~\ref{sec:xml} shows some examples of its use.
-##let load : (name -> name -> tree) = Native.Prelude.load
+##let load : (name -> name -> view) = Native.Prelude.load
 
 \LENSSECTION{load_file}
 The expression @load_file name@ parses a file into a tree, using the encoding key
 specified as part of the file name or the default encoding key for this file
 schema if none is specified explicitly.  
 
-##let load_file : (name -> tree) = Native.Prelude.load_file
+##let load_file : (name -> view) = Native.Prelude.load_file
 
 \subsection{Miscellaneous}
 
@@ -597,7 +618,7 @@ The lens @fconst v cmd@ behaves exactly like @const@, except that instead of
 using a default tree @d@ in the case of creation, it executes @cmd@ and uses 
 the value returned by the command.
 
-##let fconst : (tree -> name -> lens) = Native.Prelude.fconst
+##let fconst : (view -> name -> lens) = Native.Prelude.fconst
 #*test (fconst {} "echo youpi") \ {} missing = { "youpi" }
 
 ##let fmodify : (name -> name -> lens) = Native.Prelude.fmodify

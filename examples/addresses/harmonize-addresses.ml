@@ -23,7 +23,9 @@ let _ =
         let x = Treedb.rel_to_tree (Csvdb.load_tbl fn) in
         Sys.remove fn;
         x) in
-  let write_tbl tr fn = Csvdb.save_tbl fn (Treedb.tree_to_rel tr) in
+  let write_tbl tr fn =
+    Csvdb.save_tbl fn
+      (Treedb.tree_to_rel (V.tree_of (Info.M fn) tr)) in
   let etest filename copt = (Misc.filename_extension filename = "csv") in
   let encoding = {
     Surveyor.description = "CSV containing Palm address book data";

@@ -49,4 +49,4 @@ let _ =
     loop args;
     Printf.printf "let items : (string,string) Hashtbl.t = Hashtbl.create %d\n" (Hashtbl.length srcs);
     Hashtbl.iter (fun s c -> Printf.printf "let _ = Hashtbl.add items \"%s\" \"%s\"\n%!" s c) srcs
-      
+

@@ -29,13 +29,13 @@ let qid_compare (qs1,x1) (qs2,x2) =
     | _,[]  -> 1
     | [],_  -> -1
     | (x1::t1),(x2::t2) -> 
-	let hd_compare = id_compare x1 x2 in
-	  if (hd_compare <> 0) then hd_compare 
-	  else ids_compare t1 t2
+        let hd_compare = id_compare x1 x2 in
+          if (hd_compare <> 0) then hd_compare 
+          else ids_compare t1 t2
   in
     ids_compare (qs1@[x1]) (qs2@[x2])
 let qid_equal q1 q2 = (qid_compare q1 q2 = 0)
-	
+
 let qid_prefix q1 q2 = 
   let (is1,i1) = q1 in
   let (is2,i2) = q2 in 
@@ -43,9 +43,9 @@ let qid_prefix q1 q2 =
   let il2 = is2 @ [i2] in
     ((Safelist.length il1) <= (Safelist.length il2)) 
     && (Safelist.for_all 
-	  (fun (i1,i2) -> id_equal i1 i2)
-	  (Safelist.combine il1 (Misc.take (Safelist.length il1) il2)))
-	
+          (fun (i1,i2) -> id_equal i1 i2)
+          (Safelist.combine il1 (Misc.take (Safelist.length il1) il2)))
+
 let string_of_id (_,i) = i
 let string_of_qid (qs,i) = 
   Printf.sprintf "%s%s"
@@ -101,11 +101,13 @@ type sort =
   | SLens
   | SRecLens of (exp * lensarrow * exp) 
   | SSchema   
-  | STree    
+  | SPred
+  | SView    
+  | SMap 
   | SArrow of sort * sort
 
 and lensarrow = Bij | Vwb | Wb
-      
+
 (* parameters *)
 and param = PDef of i * id * sort
 
@@ -117,9 +119,12 @@ and exp =
   | EAtom of i * exp * exp 
   | ECat of i * exp list 
   | ECons of i * exp * exp 
-  | ESpineCons of i * exp * exp 
+  | EDB of Info.t * Db.t
+  | EDBPred of Info.t * Db.Relation.Pred.t
+  | EDBSchema of Info.t * Dbschema.t
   | EFun of i * param list * sort option * exp 
   | ELet of i * binding list * exp
+  | EMap of i * (exp * exp) list
   | EName of i * id
   | ENil of i
   | EProtect of i * exp * sort option
@@ -146,10 +151,10 @@ type decl =
   | DMod of i * id * decl list 
   | DSchema of i * schema_binding list
   | DTest of i * exp * test_result
-       
+
 (* modules *)
 type modl = MDef of i * id * qid list * decl list
-  
+
 (* accessor functions *)
 let name_of_id (_,x) = x
 let id_of_binding (BDef(_,x,_,_,_)) = x
@@ -165,9 +170,12 @@ let info_of_exp = function
   | EAtom(i,_,_)
   | ECat(i,_)  
   | ECons(i,_,_)
-  | ESpineCons(i,_,_) 
+  | EDB(i,_)
+  | EDBPred(i,_)
+  | EDBSchema(i,_)
   | EFun(i,_,_,_)     
   | ELet(i,_,_)       
+  | EMap(i,_)
   | EName(i,_)        
   | ENil(i)           
   | EProtect(i,_,_)   
@@ -194,14 +202,17 @@ let info_of_schema_bindings ss =
 let id_of_param = function PDef(_,x,_) -> x
 let sort_of_param = function PDef(_,_,s) -> s
 
+(* infix arrow sort constructor *)
+let ( ^> ) s1 s2 = SArrow (s1, s2)
+
 (* ---------------- pretty printing --------------- *)
 type format_mode = { app : bool; cat : bool }
 
 (* sorts *)
 let format_lensarrow la = 
-  Format.printf "<%s>" 
+  Format.printf "<<%s>" 
     (match la with Bij -> "~" | Vwb -> "=" | Wb -> "-")
-  
+
 let rec format_sort s0 = 
   let rec format_sort_aux parens = function
       SName         -> Format.printf "name"
@@ -212,7 +223,9 @@ let rec format_sort s0 =
           format_lensarrow la;
           format_exp_aux mode e2
     | SSchema       -> Format.printf "schema"
-    | STree         -> Format.printf "tree"
+    | SPred         -> Format.printf "pred"
+    | SView         -> Format.printf "view"
+    | SMap          -> Format.printf "fmap"
     | SArrow(s1,s2) -> 
         if parens then Format.printf "(";
         format_sort_aux true s1; 
@@ -223,7 +236,7 @@ let rec format_sort s0 =
     Format.printf "@[<2>";
     format_sort_aux false s0;
     Format.printf "@]"
-          
+
 (* params *)
 and format_param (PDef(_,i,s)) = 
   Format.printf "@[%s:" (string_of_id i); 
@@ -265,17 +278,15 @@ and format_exp_aux mode e0 = match e0 with
   | EAssert(_,e) ->       
       let mode = { mode with cat = false } in
         Format.printf "@[<2>assert@ "; format_exp_aux mode e; Format.printf "@]"
-      
   | ECheckLens(_,e1,la,e2,e3) ->       
       let mode = { mode with cat = false } in
         Format.printf "@[<2>check@ ("; 
-        format_exp_aux mode e1; 
+        format_exp_aux mode e3; 
         Format.printf ") : ";
-        format_exp_aux mode e2;
+        format_exp_aux mode e1;
         format_lensarrow la;
-        format_exp_aux mode e3;
+        format_exp_aux mode e2;
         Format.printf "@]"      
-                                                  
   | EAtom(_,n,e)    -> 
       let imode = { mode with cat = false } in
         Format.printf "@[<2>"; 
@@ -315,29 +326,12 @@ and format_exp_aux mode e0 = match e0 with
                 Format.printf "]"
         end;
         Format.printf "@]"
-  | ESpineCons(_,e1,e2)  -> 
-      let mode = { mode with cat = false } in 
-        (* if we have a spine of spined cons cells, ending in [], print
-           it using list notation. Otherwise, use :|: *)
-      let rec get_list_elts acc = function
-          ENil(_) -> Some (Safelist.rev acc)
-        | ECons(_,e,e') -> get_list_elts (e::acc) e'
-        | _            -> None in
-        Format.printf "@["; 
-        begin
-          match get_list_elts [] e0 with 
-              None -> 
-                Format.printf "(";
-                format_exp_aux mode e1; 
-                Format.printf ":|:@,"; 
-                format_exp_aux mode e2;
-                Format.printf ")";
-            | Some el -> 
-                Format.printf "[|"; 
-                Misc.format_list ",@ " (format_exp_aux mode) el;
-                Format.printf "|]"
-        end;
-        Format.printf "@]"
+  | EDB(_,db)      -> 
+      Db.format_t db
+  | EDBPred(_,pred)      -> 
+      Format.printf "(where "; Db.Relation.Pred.format_t pred; Format.printf ")"
+  | EDBSchema(_,dbs)      -> 
+      Dbschema.format_t dbs
   | EFun(_,ps,so,e) -> 
       let mode = { mode with cat = false } in   
       Format.printf "@[<2>fun@ ";  
@@ -358,6 +352,14 @@ and format_exp_aux mode e0 = match e0 with
       Format.printf "@ in@ ";
       format_exp_aux mode e;
       Format.printf "@]"
+  | EMap(_,ms) -> 
+      let mode = { mode with cat = false } in   
+      Format.printf "{@[<2>";
+      Misc.format_list 
+        ",@, " 
+        (fun (e1,e2) -> format_exp_aux mode e1; Format.printf " ->@ "; format_exp_aux mode e2) 
+        ms;
+      Format.printf "@]}"
   | EName(_,n) -> 
       Format.printf "@[%s@]" (Misc.whack (string_of_id n))
   | ENil(_) -> 
@@ -410,7 +412,7 @@ and format_exp_aux mode e0 = match e0 with
         format_exp_aux imode e;
         if not mode.cat then Format.printf "}";
         Format.printf "@]" 
-          
+
 and format_exp e = format_exp_aux { app = false; cat = false } e
 
 and format_binding (BDef(_,x,ps,s,e)) = 

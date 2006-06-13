@@ -7,19 +7,25 @@
 (** Run-time representations of Focal values *)
 
 (** The type of run-time representations of values *)
-type l_chk = Schema.t -> Schema.t
-type lens_checker =     
-    BIJ of l_chk * l_chk (* we need both directions for bijective lenses to check invert *)
-  | VWB of l_chk
-  | WB of l_chk
+(*type l_chk = Schema.t -> Schema.t*)
+type ('a, 'b) lens_checker =     
+  | BIJ of ('a -> 'b) * ('b -> 'a) (* we need both directions for bijective lenses to check invert *)
+  | VWB of ('a -> 'b)
+  | WB of ('a -> 'b)
 
 type t = 
-    N of Name.t                           (* names *)
-  | L of (V.t, V.t) Lens.t * lens_checker (* lenses *)
-  | S of Schema.t               (* schemas *)
-  | V of V.t                    (* trees *)
-  | F of Syntax.sort * (t -> t) (* functions *)
-  | D of Syntax.sort * Syntax.qid (* dummy *)
+  | N of Name.t                                                (* names *)
+  | L of (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker (* lenses *)
+  | S of Schema.t                                              (* schemas *)
+  | P of Db.Relation.Pred.t                                    (* relational predicates *)
+  | V of V.t                                                   (* trees *)
+  | M of ((V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t (* fmaps *)
+  | F of Syntax.sort * (t -> t)                                (* functions *)
+  | D of Syntax.sort * Syntax.qid                              (* dummies *)
+
+val equal : t -> t -> bool
+(** Checks whether two values are equal.
+    @raise Error.Harmony_error on lenses, functions, and dummies. *)
 
 val parse_qid : string -> Syntax.qid
 (** Returns a [Syntax.qid] qualified name from a string *)
@@ -33,38 +39,65 @@ val focal_type_error : Info.t -> Syntax.sort -> t -> 'a
 val get_schema : Info.t -> t -> Schema.t
 (** [get_schema i v] extracts the [s] from [v], converting it from [V.t] if needed. Prints an error message at [i] on failure. *)
 
-val get_tree : Info.t -> t -> V.t
-(** [get_tree i v] extracts the [V.t] from [v]. Prints an error message at [i] on failure. *)
+val get_view : Info.t -> t -> V.t
+(** [get_view i v] extracts the [V.t] from [v]. Prints an error message at [i] on failure. *)
 
-val get_lens : Info.t -> t -> (V.t, V.t) Lens.t * lens_checker
+val get_tree : Info.t -> t -> Tree.t
+(** [get_tree i v] extracts the [Tree.t] from [v]. Prints an error message at [i] on failure. *)
+
+val get_lens : Info.t -> t -> (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker
 (** [get_lens i v] extracts the [(V.t, V.t) Lens.t] from [v]. Prints an error message at [i] on failure. *)
 
 val get_name : Info.t -> t -> Name.t
 (** [get_name i v] extracts the [Name.t] from [v]. Prints an error message at [i] on failure. *)
 
-val mk_sfun : string -> string -> (Schema.t -> t) -> t
+val get_fmap : Info.t -> t -> ((V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t
+(** [get_fmap i v] extracts the finite map from [v]. Prints an error message at [i] on failure. *)
+
+val mk_sfun : Syntax.sort -> string -> (Schema.t -> t) -> t
 (** [mk_sfun return_sort msg f] create a function from schemas to
   [return_sort] using [f], displaying [msg] if runtime failure occurs.
   (The  [return_sort] is represented as a string rather than a Syntax.sort
   for readability at call sites.) *)
 
-val mk_nfun : string -> string -> (Name.t -> t) -> t
+val mk_nfun : Syntax.sort -> string -> (Name.t -> t) -> t
 (** [mk_nfun return_sort msg f] creates a function from names to [return_sort] using [f], displaying [msg] if runtime failure occurs *)
 
-val mk_vfun : string -> string -> (V.t -> t) -> t
-(** [mk_vfun return_sort msg f] creates a function from trees to
+val mk_vfun : Syntax.sort -> string -> (V.t -> t) -> t
+(** [mk_vfun return_sort msg f] creates a function from views to
     [return_sort] using [f], displaying [msg] if runtime failure
     occurs. *)
 
-val mk_lfun : string -> string -> ((V.t,V.t) Lens.t * lens_checker -> t) -> t
+val mk_lfun : Syntax.sort -> string -> ((V.t,V.t) Lens.t * (Schema.t, Schema.t) lens_checker -> t) -> t
 (** [mk_lfun return_sort msg f] creates a function from lenses to
     [return_sort] using [f], displaying [msg] if runtime failure
     occurs. *)
 
-val mk_ffun : string -> string -> string -> ((t -> t) -> t) -> t
+val mk_fmfun : Syntax.sort -> string -> (((V.t,V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t -> t) -> t
+(** [mk_mfun return_sort msg f] creates a function from maps to
+    [return_sort] using [f], displaying [msg] if runtime failure
+    occurs. *)
+
+val mk_ffun : Syntax.sort -> Syntax.sort -> string -> ((t -> t) -> t) -> t
 (** [mk_ffun arg_sort return_sort msg f] creates a function from functions
     of sort [arg_sort] to [return_sort] using [f], displaying [msg]
     if a runtime failure occurs. *)
+
+val v_of_tree_lens :
+  (Tree.t, Tree.t) Lens.t * (Treeschema.t, Treeschema.t) lens_checker ->
+    (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker
+
+val v_of_db_lens :
+  (Db.t, Db.t) Lens.t * (Dbschema.t, Dbschema.t) lens_checker ->
+    (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker
+
+val tree_of_v_lens :
+  (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker ->
+    (Tree.t, Tree.t) Lens.t * (Treeschema.t, Treeschema.t) lens_checker
+
+val db_of_v_lens :
+  (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker ->
+    (Db.t, Db.t) Lens.t * (Dbschema.t, Dbschema.t) lens_checker
 
 val format_t : t -> unit
 (** [format_t v] pretty prints [v] *)

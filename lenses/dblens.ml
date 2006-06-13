@@ -1,5 +1,5 @@
 
-module Db = Map.Make(String)
+module Database = Map.Make(String)
 
 (* Functions to lift lenses on relations to lenses on databases *)
 
@@ -20,60 +20,60 @@ let table_exists fclname tblname =
 let lift_unary fclname lens src dst =
   let getfun c =
     let srctbl =
-      try Db.find src c with Not_found -> table_missing fclname src in
-    if dst <> src && Db.mem dst c then table_exists fclname dst;
-    Db.add dst (Lens.get lens srctbl)
-      (Db.remove src c)
+      try Database.find src c with Not_found -> table_missing fclname src in
+    if dst <> src && Database.mem dst c then table_exists fclname dst;
+    Database.add dst (Lens.get lens srctbl)
+      (Database.remove src c)
   and putfun a co =
     let dsttbl =
-      try Db.find dst a with Not_found -> table_missing fclname dst in
+      try Database.find dst a with Not_found -> table_missing fclname dst in
     let newtbl =
       match co with
       | None -> Lens.put lens dsttbl None
       | Some(c) ->
           let srctbl =
-            try Db.find src c with
+            try Database.find src c with
             | Not_found -> table_missing fclname src
           in
           Lens.put lens dsttbl (Some(srctbl))
     in
-    if src <> dst && Db.mem src a then table_exists fclname src;
-    Db.add src newtbl
-      (Db.remove dst a)
+    if src <> dst && Database.mem src a then table_exists fclname src;
+    Database.add src newtbl
+      (Database.remove dst a)
   in
   Lens.native getfun putfun
 
 let lift_binary fclname lens src1 src2 dst =
   let getfun c =
     let srctbl1 =
-      try Db.find src1 c with Not_found -> table_missing fclname src1 in
+      try Database.find src1 c with Not_found -> table_missing fclname src1 in
     let srctbl2 =
-      try Db.find src2 c with Not_found -> table_missing fclname src2 in
-    if dst <> src1 && dst <> src2 && Db.mem dst c then table_exists fclname dst;
-    Db.add dst (Lens.get lens (srctbl1, srctbl2))
-      (Db.remove src1
-        (Db.remove src2 c))
+      try Database.find src2 c with Not_found -> table_missing fclname src2 in
+    if dst <> src1 && dst <> src2 && Database.mem dst c then table_exists fclname dst;
+    Database.add dst (Lens.get lens (srctbl1, srctbl2))
+      (Database.remove src1
+        (Database.remove src2 c))
   and putfun a co =
     let dsttbl =
-      try Db.find dst a with Not_found -> table_missing fclname dst in
+      try Database.find dst a with Not_found -> table_missing fclname dst in
     let newtbl1, newtbl2 =
       match co with
       | None -> Lens.put lens dsttbl None
       | Some(c) ->
           let srctbl1 =
-            try Db.find src1 c with
+            try Database.find src1 c with
             | Not_found -> table_missing fclname src1
           and srctbl2 =
-            try Db.find src2 c with
+            try Database.find src2 c with
             | Not_found -> table_missing fclname src2
           in
           Lens.put lens dsttbl (Some((srctbl1, srctbl2)))
     in
-    if src1 <> dst && Db.mem src1 a then table_exists fclname src1;
-    if src2 <> dst && Db.mem src2 a then table_exists fclname src2;
-    Db.add src1 newtbl1
-      (Db.add src2 newtbl2
-        (Db.remove dst a))
+    if src1 <> dst && Database.mem src1 a then table_exists fclname src1;
+    if src2 <> dst && Database.mem src2 a then table_exists fclname src2;
+    Database.add src1 newtbl1
+      (Database.add src2 newtbl2
+        (Database.remove dst a))
   in
   Lens.native getfun putfun
 

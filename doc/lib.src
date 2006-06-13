@@ -19,11 +19,11 @@ of this paper includes full proofs that the definitions are ``well
 behaved,'' but the shorter conference version should be sufficient for
 getting up to speed with Focal programming.
 
-\input{tmp/prelude}
-\input{tmp/list}
+\inputtmp{prelude}
+\inputtmp{list}
 % We're not sure whether this is really working right...
-% \input{tmp/spinelist}
-\input{tmp/xml}
-\input{tmp/plist}
-\input{tmp/relational}
+% \inputtmp{spinelist}
+\inputtmp{xml}
+\inputtmp{plist}
+\inputtmp{relational}
 

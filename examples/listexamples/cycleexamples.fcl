@@ -1,6 +1,6 @@
 module Cycleexamples =
 
-let noconflict (t:tree) : tree =
+let noconflict (t:view) : view =
   {O = t, A = t, B = t}
 
 (* No changes *)
@@ -24,7 +24,7 @@ sync with List.explode at (List.T Value)
      B = {adcbef} }
   = noconflict {fdcbea}
 
-(*Block move *)
+(* Block move *)
 sync with List.explode at (List.T Value)
    { O = {abcdefghi},
      A = {ghiabcdef},
@@ -45,14 +45,13 @@ sync with List.explode at (List.T Value)
     B = {defabc} }
  = noconflict {dfeabc} 
 
-(* Its interesting to run in debug mode and see the order in which cycles become activated - from inner to outer boundary *)
+(* Its interesting to run in debug mode and see the order in which cycles become activated, 
+   from inner to outer boundary *)
 sync with List.explode at (List.T Value)
   { O = {abcdefgh},
     A = {hbfdecga},
     B = {agcedfbh} }
  = noconflict {hgfedcba} 
-
-
 
 (* Conflicting + non-conflicting changes *)
 sync with List.explode at (List.T Value)
@@ -60,9 +59,8 @@ sync with List.explode at (List.T Value)
      A = {fbdcea},
      B = {abcdfe} }
   =   { A =  {fbdcea} ,
-         B  = {abdcfe} ,
+        B  = {abdcfe} ,
         O = {abdcef} }
-
 
 (* Conflicting changes *)
 sync with List.explode at (List.T Value)
@@ -70,7 +68,7 @@ sync with List.explode at (List.T Value)
      A = {fbcdae},
      B = {abcdfe} }
   =  { A =  {fbcdae} ,
-         B  = {abcdfe} ,
-        O = {abcdef} }
+       B  = {abcdfe} ,
+       O = {abcdef} }
 
 

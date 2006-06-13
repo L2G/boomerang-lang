@@ -93,6 +93,9 @@ let Element (x:name) (attrs:schema) (content:schema) : schema =
    ... but we can't because Name is not projectable.  Instead, we write a more
    permissive schema and convince ourselves informally that, when inputs are presented
    in the format above, our lenses behave as we expect.
+
+
+  JNF: you can write this now, I believe...  14 Juin 2006
 *)
 
 let NameComponent : schema =
@@ -178,7 +181,7 @@ let use_name_as_key : lens =
   assert {! = {! = List.T Field}}
 
 (*
-let add_if_missing (n:name) (nullval:tree) : lens =
+let add_if_missing (n:name) (nullval:view) : lens =
   acond {*\`n=Any} {*\`n=Any, `n=nullval}
     (add n nullval)
     id
@@ -356,7 +359,7 @@ let alpha_labels : lens =
   rename_if_present "20" "Private";
   rename_if_present "21" "Category"
 
-let prune_if_null (n:name) (nullval:tree) : lens =
+let prune_if_null (n:name) (nullval:view) : lens =
   acond {`n=nullval, *\`n=Any}  {*\`n=Any}  
     (prune n nullval)
     id

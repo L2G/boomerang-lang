@@ -1,0 +1,146 @@
+##############################################################################
+# Harmony top-level OMakefile.
+
+.PHONY: clean test 
+
+##############################################################################
+# Sub-directories
+
+# (Should we generate this list automatically?)
+SUBDIRS = src lenses tools examples extern doc
+
+SRCDIR = $(dir src)
+LENSESDIR = $(dir lenses)
+TOOLSDIR = $(dir tools)
+EXAMPLESDIR = $(dir examples)
+EXTERNDIR = $(dir extern)
+DOCDIR = $(dir doc)
+
+# Set up for multi-architecture compilation, where build products go in 
+# separate directories.  (Partially implemented!)
+SUBDIRS_OUT = $(addsuffix .out, $(SUBDIRS))
+if $(defined MULTI)
+  SUBDIRS = $(SUBDIRS_OUT)
+  echo mkdir $(SUBDIRS)
+  mkdir $(SUBDIRS)
+  SRCDIR = $(dir src.out)
+  vmount(-l, src, src.out)
+  LENSESDIR = $(dir lenses.out)
+  vmount(-l, lenses, lenses.out)
+  TOOLSDIR = $(dir tools.out)
+  vmount(-l, tools, tools.out)
+  EXAMPLESDIR = $(dir examples.out)
+  vmount(-l, examples, examples.out)
+  DOCDIR = $(dir doc.out)
+  vmount(-l, doc, doc.out)
+  EXTERNDIR = $(dir extern.out)
+  vmount(-l, extern, extern.out)
+  export
+
+##############################################################################
+# Source files for base Harmony system
+
+UBASE_LIB_SOURCES[] = \
+    safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
+SRC2FCL_SOURCES[] = \
+    src2fcl.mll
+BASE_SOURCES[] = \
+    info.mli info.ml error.mli error.ml misc.mli misc.ml \
+    unittest.mli unittest.ml \
+    mapplus.mli mapplus.ml \
+    name.mli name.ml db.mli db.ml tree.ml tree.mli v.mli v.ml \
+    lens.mli lens.ml \
+    csvdb.mli csvdb.ml treedb.mli treedb.ml \
+    surveyor.mli surveyor.ml \
+    syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
+    presburger.mli presburger.ml \
+    env.mli env.ml \
+    treeschema.mli treeschema.ml dbschema.mli dbschema.ml \
+    schema.mli schema.ml \
+    value.mli value.ml bakery.ml \
+    registry.mli registry.ml \
+    diff3.mli diff3.ml sync.mli sync.ml \
+    compiler.mli compiler.ml \
+    metay.mly metal.mll viewers.ml
+
+NATIVE_LENS_SOURCES[] = \
+    prelude.ml relational.ml 
+
+TOPLEVEL_SOURCES = \
+    toplevel.ml 
+                 
+GENERATED_SOURCES_BARE = \
+    parser.ml parser.mli parser.mly lexer.mll lexer.ml bakery.ml metay.ml metal.ml
+GENERATED_SOURCES = $(addprefix $(SRCDIR)/, $(GENERATED_SOURCES_BARE))
+
+COMMON_SOURCES[] =
+    $(addprefix $(TOOLSDIR)/, $(SRC2FCL_SOURCES))
+    $(addprefix $(SRCDIR)/ubase/, $(UBASE_LIB_SOURCES))
+    $(addprefix $(SRCDIR)/, $(BASE_SOURCES))
+    $(addprefix $(LENSESDIR)/, $(NATIVE_LENS_SOURCES))
+    $(addprefix $(SRCDIR)/, $(TOPLEVEL_SOURCES))
+COMMON_SOURCES = $(file $(COMMON_SOURCES))
+
+SOURCES = $(COMMON_SOURCES) $(file $(SRCDIR)/harmony.ml)
+
+REAL_SOURCES = $(foreach $(file), $(set-diff $(SOURCES), $(GENERATED_SOURCES)))
+
+ICALENDAR_SOURCES_BARE[] = \
+   iCalendar_syntax.ml iCalendar_print.ml \
+   iCalendar_lextypes.ml iCalendarparse.mly \
+   iCalendarlex.mll ical.mli ical.ml \
+   iCalendar.mli iCalendar.ml
+
+ICALENDAR_SOURCES = \
+  $(foreach $(file), \
+      $(addprefix $(EXTERNDIR)/iCalendar/, $(ICALENDAR_SOURCES_BARE)))
+
+
+##############################################################################
+# Global compilation settings
+
+MAKE = make
+
+USE_OCAMLFIND = true
+if $(not $(OCAMLFIND_EXISTS))
+   eprintln(This project requires ocamlfind, but it was not found.)
+   eprintln(You need to install ocamlfind and run "omake --configure".)
+   exit 1
+OCAMLPACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
+
+OCAMLINCLUDES += $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/omega/ocaml $(EXTERNDIR)/ocaml-csv-1.0.3 $(TOOLSDIR) $(LENSESDIR)
+OCAML_OTHER_LIBS += omega csv
+
+OCAMLFLAGS    = -dtypes -rectypes 
+OCAML_LINK_FLAGS += -cc g++
+
+##############################################################################
+# Miscellaneous
+
+CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.o *.annot *.opt *.omc *.a *.cmxa *.output ._d .ncdi
+
+clean:
+	$(CLEAN) $(SUBDIRS_OUT)
+
+FCLFILES = \
+  $(find $(EXAMPLESDIR) -name *.fcl) \
+  $(find $(LENSESDIR) -name *.fcl) \
+  $(find $(LENSESDIR) -name *.src) 
+
+SRC2F = $(TOOLSDIR)/src2f
+SRC2TEX = $(TOOLSDIR)/src2tex
+
+%.mly: %.srcy $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@
+	chmod(-w, $@)
+
+%.mll: %.srcl $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@
+	chmod(-w, $@)
+
+##############################################################################
+# Include sub-directories
+
+.SUBDIRS: $(SUBDIRS)

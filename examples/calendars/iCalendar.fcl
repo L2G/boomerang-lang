@@ -299,7 +299,7 @@ and OffsetTime_A =
 
 schema ICalendar_A = Components_A
 
-let domCompProp : tree = 
+let domCompProp : view = 
   { "action", "attach", "attendee", "categories", "class",
     "comment", "completed", "contact", "created", "daylightc", 
     "description", "dtend", "dtstamp", "dtstart", "due", "duration",
@@ -309,7 +309,7 @@ let domCompProp : tree =
     "summary", "transp", "trigger", "tzid", "tzname", "tzoffsetto",
     "tzoffsetfrom", "tzurl", "uid", "url", "xprop"}
 
-let domCompPropWoLastmod : tree = 
+let domCompPropWoLastmod : view = 
   { "action", "attach", "attendee", "categories", "class",
     "comment", "completed", "contact", "created", "daylightc", 
     "description", "dtend", "dtstamp", "dtstart", "due", "duration",

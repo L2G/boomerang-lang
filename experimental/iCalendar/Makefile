@@ -53,4 +53,4 @@ get:
 	echo
 
 clean::
-	rm $(TMPC) $(DUM1) $(DUM2) updated.ics $(FINALC)
+	rm -rf $(TMPC) $(DUM1) $(DUM2) updated.ics $(FINALC)

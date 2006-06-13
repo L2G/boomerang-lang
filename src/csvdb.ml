@@ -1,6 +1,5 @@
 
-module Db = Map.Make (String)
-module Rel = Relation
+module Rel = Db.Relation
 
 let ( |> ) f g x =
   g (f x)
@@ -16,12 +15,11 @@ let list_to_rel tbl =
   | [] -> Rel.create []
   | flds :: rows ->
       let flds = trim_comment_prefix flds in
-      let rcds = List.map (fun x -> List.combine flds x) rows in
-      List.fold_right Rel.insert rcds (Rel.create flds)
+      List.fold_right Rel.insert_tuple rows (Rel.create flds)
 
 let rel_to_list rel =
   let accum rcd ls =
-    (snd (List.split rcd)) :: ls
+    (Name.Map.list_project (Rel.fields rel) rcd) :: ls
   in
   (Rel.fields rel) :: (Rel.fold accum rel [])
 
@@ -37,7 +35,7 @@ let load_db dir =
   let csvfiles = get_csvfiles dir in
   let tblnames = List.map Filename.chop_extension csvfiles in
   let tbls = List.map ((Filename.concat dir) |> load_tbl) csvfiles in
-  List.fold_right2 Db.add tblnames tbls Db.empty
+  List.fold_right2 Db.extend tblnames tbls Db.empty
 
 let add_comment_prefix_to_fields = function
     [] -> []
@@ -50,7 +48,7 @@ let save_tbl file tbl =
     Format.eprintf "@[Saving %d csv rows@\n@]" (List.length l);
     let l = add_comment_prefix_to_fields l in
       Csv.save file l
-        
+
 let save_db dir db =
   if not (Sys.file_exists dir) then Unix.mkdir dir 493;
   List.iter (fun x -> Sys.remove (Filename.concat dir x)) (get_csvfiles dir);

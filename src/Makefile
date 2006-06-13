@@ -84,19 +84,24 @@ UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
 
 SRC2FCL_SOURCES = src2fcl.mll
 BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
+	       unittest.mli unittest.ml \
                mapplus.mli mapplus.ml \
-               name.mli name.ml v.mli v.ml lens.mli lens.ml \
-               relation.mli relation.ml \
-	       treedb.mli treedb.ml csvdb.mli csvdb.ml \
+               name.mli name.ml db.mli db.ml tree.ml tree.mli v.mli v.ml \
+	       dbschema.mli dbschema.ml \
+               syntax.mli syntax.ml \
+	       lens.mli lens.ml \
+	       csvdb.mli csvdb.ml \
+	       treedb.mli treedb.ml \
                surveyor.mli surveyor.ml \
-               syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
                presburger.mli presburger.ml \
                env.mli env.ml \
-               schema.mli schema.ml \
+               treeschema.mli treeschema.ml \
+	       schema.mli schema.ml \
+	       parser.mly lexer.mli lexer.mll \
                value.mli value.ml bakery.ml \
                registry.mli registry.ml \
 	       diff3.mli diff3.ml sync.mli sync.ml \
-               compiler.mli compiler.ml 
+               compiler.mli compiler.ml \
 
 VIEWER_SOURCES = metay.mly metal.mll \
 		 viewers.ml
@@ -107,9 +112,11 @@ TOPLEVEL_SOURCES = toplevel.ml
 # PLUGINS #
 ###########
 
-RELATIONAL_SOURCES = rlens.mli rlens.ml \
-                     dblens.mli dblens.ml \
-                     relational.ml
+#RELATIONAL_SOURCES = rlens.mli rlens.ml \
+#                     dblens.mli dblens.ml \
+#                     relational.ml
+
+RELATIONAL_SOURCES = relational.ml
 
 NATIVE_LENS_SOURCES = prelude.ml \
                  $(RELATIONAL_SOURCES)

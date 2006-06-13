@@ -5,11 +5,11 @@ module Units =
 
   (* ------------- helper functions ------------- *)
   (* member test fashioned from the GET function of a (not-quite) lens :) *)
-  let true : tree = {T}  
-  let false : tree = {F}
-  let member (X:schema) (t:tree) : tree = 
+  let true : view = {T}  
+  let false : view = {F}
+  let member (X:schema) (t:view) : view = 
     (acond X true (const true {}) (const false {})) / t
-    
+
   (* ------------- contractiveness tests ------------- *)
   test (schema X = X in member X {}) = error
 
@@ -61,7 +61,7 @@ test (
   test (member { a = {} } { a = {} }) = true
   test (member { a = {} } { b = {} }) = false
   test (member { a = {}, b = {}} { a, b }) = true
-  
+
   (* wildcards *)
   test (member { a = {}, ! \ a = {}} { a, b }) = true
   test (member { a = {}, * \ a = {}} { a, b, c, d, e }) = true
@@ -71,7 +71,7 @@ test (
   test (member ({ a = {} } | { b = {} }) { b }) = true
   test (member ({ a = {} } | { b = {} }) { a,b }) = false
   test (member ({ a = {} } | { b = {} }) { c }) = false
-  
+
   (* recursive schemas *)
   test (schema X = { n = X } in member X {}) = false
   test (schema X = { n = X } | {} in member X {}) = true
@@ -99,6 +99,21 @@ test (
            : {*=Any} <<-> {!={n=Any}}) / {n={a}}) 
     = error
 
-  test (let l : (List.T {a}) <<-> (List.T {a}) = 
-         fork {`List.TL } (map (protect l)) id 
-        in l / [{a},{a},{a}]) = error
+  test (let l : (List.T {a}) <<-> (List.T {n={a}}) = 
+          wmap { `List.HD -> (plunge "n"), 
+                 `List.TL -> (protect l) } in
+          l / [{a},{a},{a}]) = [{n={a}},{n={a}},{n={a}}]
+
+  test (let l : (List.T {a} | List.T {b}) <<-> (List.T {n=({a}|{b})}) = 
+          wmap { `List.HD -> (plunge "n"), 
+                 `List.TL -> (protect l) } in
+          l / [{a},{a},{a}]) = error
+
+  test (let l : (List.T ({a}|{b})) <<-> (List.T {n=({a}|{b})}) = 
+          wmap { `List.HD -> (plunge "n"), 
+                 `List.TL -> (protect l) } in
+          l / [{a},{b},{a}]) = [{n={a}},{n={b}},{n={a}}]
+
+  test (let l : (List.T {a}) <<-> (List.T {b}) =
+          List.checked_map (rename "a" "b") {a} {b} in 
+          l / [{a},{a},{a}]) = [{b},{b},{b}]

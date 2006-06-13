@@ -213,15 +213,15 @@ val dynamic_bind : 'a ref -> 'a -> (unit -> 'b) -> 'b
 
 
 (** {2 Formatting} *)
-    
+
 val concat_list : string -> string list -> string
   (** [concat_list sep l] concatenates a string list using [sep] to
       separate elements *)
-  
+
 val concat_f_list : string -> ('a -> string) -> 'a list -> string
   (** [map_concat_list sep f l] maps f on the elements of [l] and
       concatenates the results, using [sep] to separate elements *)
-  
+
 val format_list : (unit, Format.formatter, unit) format -> ('a -> unit) -> 'a list -> unit
   (** [format_list sep f l] formats [l] using [f] to format elements and
       calls [sep] between elements *)

@@ -1,0 +1,30 @@
+clean:
+	$(CLEAN)
+
+.PHONY: defaulttest
+
+.SUBDIRS: $(subdirs P, .)
+   RESULT = harmonize-$(basename $(shell pwd))   
+   OCAML_LIBS = $(SRCDIR)/harmony
+   LOCALFCLFILES = $(glob *.fcl)
+   if $(equal $(LOCALFCLFILES), *.fcl)
+     LOCALFCLFILES = 
+     export
+   if $(not $(equal $(LOCALFCLFILES)x, x))
+       defaulttest: $(RESULT)
+           ./$(RESULT) $(LOCALFCLFILES)
+   if $(file-exists OMakefile)
+     include OMakefile
+     export
+   else
+     test: defaulttest
+     if $(file-exists $(RESULT).ml)
+       OCamlProgram($(RESULT), $(RESULT))
+     else
+       $(RESULT): $(SRCDIR)/harmony
+	  -rm -f $@
+          ln -s $< $@
+   clean:
+	$(CLEAN) $(RESULT)
+   .DEFAULT: $(RESULT)
+

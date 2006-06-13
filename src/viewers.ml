@@ -11,14 +11,13 @@ let metareader s =
     try 
       (Metay.tree Metal.token lexbuf) 
     with Parsing.Parse_error -> 
-	raise (Error.Harmony_error
-		 (fun () -> Format.printf "%s: syntax error in meta tree." 
-		    (Info.string_of_t (Metal.info lexbuf))))
-  in
-  let _ = Metal.finish () in
-    res
+        raise (Error.Harmony_error
+                 (fun () -> Format.printf "%s: syntax error in meta tree." 
+                    (Info.string_of_t (Metal.info lexbuf)))) in
+  Metal.finish();
+  res
 
-let metawriter = V.string_of_t
+let metawriter = Tree.string_of_t 
 
 let _ =
   let etest filename copt = Misc.filename_extension filename = "meta" in
@@ -27,9 +26,8 @@ let _ =
     Surveyor.encoding_test = etest;
     Surveyor.reader = Surveyor.simple_reader metareader;
     Surveyor.writer = Surveyor.simple_writer metawriter;
-  }
-  in
-    Surveyor.register_encoding "meta" encoding
+  } in
+  Surveyor.register_encoding "meta" encoding
 
 
 (******************************************************************************)
@@ -41,12 +39,12 @@ let _ =
   let encoding = {
     Surveyor.description = "one-big-blob format";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = Surveyor.simple_reader (fun s -> V.new_value s);
-    Surveyor.writer = Surveyor.simple_writer (fun s -> V.get_value s);
-  }
-  in
-    Surveyor.register_encoding "blob" encoding
+    Surveyor.reader = Surveyor.simple_reader (fun s -> Tree.new_value s);
+    Surveyor.writer = Surveyor.simple_writer (fun s -> Tree.get_value s);
+  } in
+  Surveyor.register_encoding "blob" encoding
 
+(*
 (******************************************************************************)
 (*                               CSV viewers                                  *)
 (******************************************************************************)
@@ -97,6 +95,7 @@ let _ =
   }
   in
     Surveyor.register_encoding "csvdb" encoding
+*)
 
 (******************************************************************************)
 (*                               XML viewer                                   *)
@@ -105,7 +104,7 @@ open Pxp_document
 open Pxp_yacc
 open Pxp_types
 
-let debug = Trace.debug "verbose"
+let debug = Trace.debug "viewers+"
 
 class warner =
   object 
@@ -115,11 +114,15 @@ class warner =
 
 let pcdata_tag = "@pcdata"
 let pcdata_tag_lib = Value.N pcdata_tag
-let _ = Registry.register_native "Native.Xml.pcdata_tag" "name" pcdata_tag_lib
+let _ =
+  Registry.register_native
+    "Native.Xml.pcdata_tag" Syntax.SName pcdata_tag_lib
 
 let children_tag = "@children"
 let children_tag_lib = Value.N children_tag
-let _ = Registry.register_native "Native.Xml.children_tag" "name" children_tag_lib
+let _ =
+  Registry.register_native
+    "Native.Xml.children_tag" Syntax.SName children_tag_lib
 
 let escapeXmlChar inAttr = function
     '&' -> "&amp;"
@@ -130,9 +133,9 @@ let escapeXmlChar inAttr = function
   | '\n' -> "\n" (* we don't want to escape carriage returns*)
   | c -> 
       if ((int_of_char c) >= 128) || ((int_of_char c) < 32) then 
-	Printf.sprintf "&#%d;" (int_of_char c)
+        Printf.sprintf "&#%d;" (int_of_char c)
       else
-	"-"
+        "-"
 let escapeXml inAttr = Misc.escape (escapeXmlChar inAttr)
 
 let rec xml2tree n =
@@ -162,33 +165,33 @@ let rec xml2tree n =
         Safelist.map
           (fun (k,a) ->
              match a with
-               Value s -> (k, V.new_value s)
+               Value s -> (k, Tree.new_value s)
              | _ -> assert false)
           n#attributes in
-      let kid_struct = V.structure_from_list kids in
-      V.set V.empty name (Some (
-                            V.set
-                            (V.from_list attrkids) 
+      let kid_struct = Tree.structure_from_list kids in
+      Tree.set Tree.empty name (Some (
+                            Tree.set
+                            (Tree.from_list attrkids) 
                             children_tag
                             (Some kid_struct)))
   | T_data ->
       let str = Util.trimWhitespace (n # data) in
       debug (fun () -> Format.printf "found string \"%s\"\n" (Misc.whack str));
-      V.set V.empty pcdata_tag (Some (V.new_value str))
+      Tree.set Tree.empty pcdata_tag (Some (Tree.new_value str))
   | _ -> assert false
 
 let generic_read_from rd =
   let config = { default_config with warner = new warner; 
-		 encoding = `Enc_utf8;
-		 drop_ignorable_whitespace = true} in 
+                 encoding = `Enc_utf8;
+                 drop_ignorable_whitespace = true} in 
   try 
     let docRoot = 
       parse_wfcontent_entity config rd default_spec in
-    V.structure_from_list [xml2tree docRoot]
+    Tree.structure_from_list [xml2tree docRoot]
   with
       e -> raise (Error.Harmony_error
-		    (fun () -> 
-		       Format.printf "%s" (Pxp_types.string_of_exn e)))
+                    (fun () -> 
+                       Format.printf "%s" (Pxp_types.string_of_exn e)))
 
 let strip_doctype = 
   Str.global_replace (Str.regexp "<!DOCTYPE[^>]*>") ""
@@ -199,37 +202,37 @@ let xmlreader ?(preproc = strip_doctype) s =
 let pcdata_only kids =
   Safelist.for_all
     (fun kid ->
-       let d = V.dom kid in
+       let d = Tree.dom kid in
        (Name.Set.cardinal d > 0) && (Name.Set.choose d = pcdata_tag))
     kids
 
 (* assumes v is a tree of the form produced by xml2tree above *)
 let rec dump_tag fmtr v =
-  (* V.format_msg [`String "enter dump_tag"; `Tree v]; *)
+  (* Tree.format_msg [`String "enter dump_tag"; `Tree v]; *)
   (* v should have one (singleton) child, which is the tag name *)
-  let dom = V.dom v in
+  let dom = Tree.dom v in
   if ((Name.Set.cardinal dom) <> 1) then
     V.error_msg [`String "dump_tag, should have 1 child ";
-		 `String (Printf.sprintf "(has %d): "
-			    (Name.Set.cardinal dom));
-		 `Tree v];
+                 `String (Printf.sprintf "(has %d): "
+                            (Name.Set.cardinal dom));
+                 `Tree v];
   let tag = Name.Set.choose dom in
   debug (fun() -> Format.printf "dump_tag %s @," (Misc.whack tag));
   if (tag = pcdata_tag) then
-    let data = V.get_value (V.get_required v tag) in
+    let data = Tree.get_value (Tree.get_required v tag) in
     debug (fun() -> Format.printf "dump_tag -- data %s @," (Misc.whack data));
     Format.fprintf fmtr "%s" (escapeXml false data) 
   else
-    let subv = V.get_required v tag in
+    let subv = Tree.get_required v tag in
     (* now, subv should have one children_tag child (a list of sub-elements)
        and may have some other children representing attributes of the tag *)
-    let kids_struct = V.get_required subv children_tag in
-    let kids = V.list_from_structure kids_struct in
+    let kids_struct = Tree.get_required subv children_tag in
+    let kids = Tree.list_from_structure kids_struct in
     let attrnames =
-      Name.Set.elements (Name.Set.remove children_tag (V.dom subv)) in
+      Name.Set.elements (Name.Set.remove children_tag (Tree.dom subv)) in
     let attrs =
       Safelist.map
-	(fun k -> (k, escapeXml true (V.get_value (V.get_required subv k))))
+        (fun k -> (k, escapeXml true (Tree.get_value (Tree.get_required subv k))))
         attrnames in
     Format.fprintf fmtr "@[<v2><%s" tag;
     Format.fprintf fmtr "@[<hv>";
@@ -239,7 +242,7 @@ let rec dump_tag fmtr v =
     if (kids <> []) then begin
       if not (pcdata_only kids) then Format.fprintf fmtr "@,";
       Misc.iter_with_sep (dump_tag fmtr)
-	(fun () -> Format.fprintf fmtr "@ ") kids;
+        (fun () -> Format.fprintf fmtr "@ ") kids;
     end;
     debug (fun() -> Format.printf "finished dump_tag %s @," (Misc.whack tag));
     Format.fprintf fmtr "@]";
@@ -247,13 +250,13 @@ let rec dump_tag fmtr v =
     Format.fprintf fmtr "</%s>" tag
 
 let dump_tree_as_pretty_xml fmtr v =
-  if V.is_empty v then
+  if Tree.is_empty v then
     begin
       debug (fun() -> Format.printf "writing out empty tree == empty file");
       Format.fprintf fmtr ""; 
     end
   else
-    let tags = V.list_from_structure v in
+    let tags = Tree.list_from_structure v in
     Format.fprintf fmtr "@[<v0>";
     Misc.iter_with_sep (dump_tag fmtr)
     (fun () -> Format.fprintf fmtr "@,") tags;

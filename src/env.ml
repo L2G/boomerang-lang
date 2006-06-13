@@ -10,7 +10,7 @@
 module type S = 
   sig 
     type key
-    
+
     type 'a t
     (** Abstract type of environments *)
 
@@ -24,10 +24,10 @@ module type S =
     val lookup : 'a t -> key -> 'a option
     (** [lookup ev q] returns an option representing the binding for [q]
         in [ev]. *)
-      
+
     val format_t : 'a t -> ('a -> unit) -> unit
     (** [format_t format_r ev] pretty prints [ev] using format_r. *)
-  
+
     val iter : (key -> 'a -> unit) -> 'a t -> unit
     (** [iter f ev] iterates f over every element of [ev] *)
   end
@@ -36,26 +36,26 @@ module Make(Key:Mapplus.OrderedType) = struct
   module EMap = Mapplus.Make(Key)
   module KeyMap = EMap.Map
   module KeySet = EMap.KeySet
-    
+
   type key = Key.t
   type 'a t = 'a KeyMap.t
-      
+
   (* the empty environment *)
   let empty () : 'a t = KeyMap.empty
-    
+
   (* produce env[q->v]; yields a NEW env *)
   let update ev k v = KeyMap.add k v ev
-        
+
   let lookup ev k = 
     try 
       Some (KeyMap.find k ev)
     with Not_found -> None
-      
+
   let format_t ev format_r = 
     Format.printf "{@[";  
     let _ = 
       KeyMap.fold (fun k v acco -> 
-		     Format.printf "@[%s=@[" (Key.to_string k);
+                     Format.printf "@[%s=@[" (Key.to_string k);
                      format_r v;
                      Format.printf "]";
                      if acco <> None then Format.printf ",";
@@ -64,6 +64,6 @@ module Make(Key:Mapplus.OrderedType) = struct
         ev
         None in            
       Format.printf "]}"
-        
+
   let iter f = KeyMap.iter (fun k v -> f k v)
 end

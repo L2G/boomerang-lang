@@ -17,10 +17,10 @@ type encoding = {
   writer: V.t -> string -> unit;(** writes data to the specified file *)
 }
 
-val simple_reader : (string -> V.t) -> (content_desc -> V.t)
+val simple_reader : (string -> Tree.t) -> (content_desc -> V.t)
 (** Convert a string-to-tree function to a reader. *)
 
-val simple_writer : (V.t -> string) -> V.t -> string -> unit
+val simple_writer : (Tree.t -> string) -> V.t -> string -> unit
 (** Convert a tree-to-string function to a writer. *)
 
 val register_encoding : encoding_key -> encoding -> unit

@@ -6,7 +6,7 @@ module type DIFF3ARGS = sig
   val eqv : elt -> elt -> bool
   val tostring : elt -> string
   val format : elt -> unit
-  val sync: Schema.t -> (elt option * elt option * elt option)
+  val sync: Treeschema.t -> (elt option * elt option * elt option)
          -> (action * elt option * elt option * elt option)
 end
 
@@ -15,7 +15,7 @@ module type DIFF3RES = sig
   type action
   val format_action: action -> unit
   val has_conflict: action -> bool
-  val sync : Schema.t
+  val sync : Treeschema.t
           -> (elt list * elt list * elt list)
           -> (action * elt list * elt list * elt list)
 end

@@ -1,0 +1,10 @@
+clean:
+  $(CLEAN)
+
+RESULT = iCalViewer
+GENERATED_SOURCES_BARE = iCalendarparse.mli iCalendarparse.ml iCalendarlex.ml 
+LocalOCamlGeneratedFiles($(GENERATED_SOURCES_BARE))
+
+OCamlProgram($(RESULT), $(rootname $(COMMON_SOURCES) $(ICALENDAR_SOURCES) iCalViewer.ml) $(RESULT))
+
+.DEFAULT: $(RESULT)

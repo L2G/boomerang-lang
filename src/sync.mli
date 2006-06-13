@@ -12,7 +12,7 @@ type action
 val equal: action
 val format_action: action -> unit
 val has_conflict: action -> bool
-val sync: Schema.t
-       -> (V.t option * V.t option * V.t option)
-       -> action * V.t option * V.t option * V.t option
+val sync: Treeschema.t
+       -> (Tree.t option * Tree.t option * Tree.t option)
+       -> action * Tree.t option * Tree.t option * Tree.t option
 

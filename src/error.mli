@@ -17,7 +17,7 @@ exception Harmony_error of (unit -> unit)
 
 val simple_error : string -> 'a
   (** [simple_error s] raises a [Harmony_error] that prints [s], which
-      should be a short, easily formatted string. *)
+      should be a short string. *)
 
 val exit_on_error : (unit -> 'a) -> 'a
   (** [exit_on_error f] runs [f ()] and handles errors by printing a

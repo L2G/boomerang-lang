@@ -17,7 +17,7 @@ val value_of_rv : rv -> Value.t
 
 val sort_of_rv : rv -> Syntax.sort
 (** [sort_of_rv r] returns the sort from [r]. *)
-    
+
 val format_rv : rv -> unit
 (** [format_rv r] pretty prints [r] *)
 
@@ -44,7 +44,7 @@ val get_library : unit -> REnv.t
 val register_env : REnv.t -> Syntax.qid -> unit
 (** ?? *)
 
-val register_native : string -> string -> Value.t -> unit
+val register_native : string -> Syntax.sort -> Value.t -> unit
 (** ?? *)
 
 val load : string -> bool

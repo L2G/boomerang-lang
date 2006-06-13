@@ -17,10 +17,10 @@ type encoding = {
 
 let simple_reader f c =
   match c with
-    FromString s -> f s
-  | FromFile s -> f (Misc.read s)
+    FromString s -> V.Tree (f s)
+  | FromFile s -> V.Tree (f (Misc.read s))
 
-let simple_writer f v filename = Misc.write filename (f v)
+let simple_writer f v filename = Misc.write filename (f (V.tree_of (Info.M "simple_writer") v))
 
 (* An encoding-keyed map. *)
 module EncodingKey : Map.OrderedType with type t = encoding_key =
@@ -37,7 +37,7 @@ module EVTKey : Map.OrderedType with type t = (encoding_key * type_desc ) =
     let compare = Pervasives.compare
   end
 module EVTMap = Map.Make (EVTKey)
-  
+
 let emap = ref EncodingMap.empty
 
 let register_encoding ekey erec = emap := EncodingMap.add ekey erec !emap
@@ -69,19 +69,19 @@ let parse_filename fn =
 let get_ekey eko fn contents_opt = 
   match eko with 
       Some ekey ->
-	begin 
-	  try 
-	    let _ = get_encoding ekey in ekey 
-	  with
-	    Not_found ->
+        begin 
+          try 
+            let _ = get_encoding ekey in ekey 
+          with
+            Not_found ->
               raise (Error.Harmony_error (fun () ->
                 Format.printf "unknown encoding key: %s\nKnown keys: %s" ekey (String.concat " " (get_all_encodings()))))
-	end
+        end
     | None -> 
-	match (find_encodings fn contents_opt) with
-	  | [ek] -> ek
-	  | []    -> raise (Error.Harmony_error (fun () -> Format.printf "No encoding for file '%s'" fn))
-	  | eks    -> raise (Error.Harmony_error (fun () -> Format.printf "More than one possible encoding for file '%s'" fn ))
+        match (find_encodings fn contents_opt) with
+          | [ek] -> ek
+          | []    -> raise (Error.Harmony_error (fun () -> Format.printf "No encoding for file '%s'" fn))
+          | eks    -> raise (Error.Harmony_error (fun () -> Format.printf "More than one possible encoding for file '%s'" fn ))
 
 let tree_of_file fn reader = 
   if Sys.file_exists fn then

@@ -18,29 +18,29 @@ open Info
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LBRACKPIPE RBRACKPIPE COMMA COLON EQUAL
 
 %start tree
-%type <V.t> tree
+%type <Tree.t> tree
 
 %%
 
 tree:
-  | atree COLON COLON tree         { V.cons $1 $4 }
+  | atree COLON COLON tree         { Tree.cons $1 $4 }
   | atree                          { $1 }
 
 atree: 
   | LBRACE treeelt_list RBRACE     { Safelist.fold_right 
-				       (fun v vacc -> V.concat vacc v) 
+				       (fun v vacc -> Tree.concat vacc v) 
 				       $2 
-				       V.empty 
+				       Tree.empty 
 				   }
   | LBRACK innertree_list RBRACK   { Safelist.fold_right 
-				       (fun v vacc -> V.cons v vacc) 
+				       (fun v vacc -> Tree.cons v vacc) 
 				       $2 
-				       V.empty_list
+				       Tree.empty_list
 				   }
   | LBRACKPIPE innertree_list RBRACKPIPE   { Safelist.fold_right 
-                                              (fun v vacc -> V.spined_cons v vacc) 
+                                              (fun v vacc -> Tree.spined_cons v vacc) 
                                               $2 
-                                              V.empty_list
+                                              Tree.empty_list
                                            }
   
 treeelt_list:
@@ -53,15 +53,15 @@ non_empty_treeelt_list:
 
  treeelt:
   | IDENT                          { let n = Syntax.string_of_id $1 in
-				       V.set V.empty n (Some V.empty)
+				       Tree.set Tree.empty n (Some Tree.empty)
 				   }
   | IDENT EQUAL innertree          { let n = Syntax.string_of_id $1 in
-				       V.set V.empty n (Some $3)
+				       Tree.set Tree.empty n (Some $3)
 				   }
 innertree:
   | tree                           { $1 }
   | IDENT                          { let n = Syntax.string_of_id $1 in 
-				       V.set V.empty n (Some V.empty)	  
+				       Tree.set Tree.empty n (Some Tree.empty)	  
 				   }
       
 innertree_list:

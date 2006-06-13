@@ -27,7 +27,7 @@ use these variables instead of the literal tags in Focal programming.
 \LENSSECTION{tags} 
 It is also convenient to have a tree whose domain is exactly these three
 names (for situations where we want to fork on these names, for example):
-#*let tags : tree = {`HD, `TL, `NIL}
+#*let tags : view = {`HD, `TL, `NIL}
 
 \LENSSECTION{Nil} 
 The schema @Nil@ denotes just the empty list.
@@ -55,7 +55,7 @@ yields a list consisting of its
 abstract argument as the head and the tail of its concrete argument as the
 tail.  When the concrete argument to \PUT{} is @missing@, it uses its
 default argument @d@ as the tail of the result list.
-#*let hd (d:tree) : lens = focus HD { `TL = d }
+#*let hd (d:view) : lens = focus HD { `TL = d }
 
 #*test (hd [{2}]) / [{1}] = {1}
 #*test (hd [{2}]) / [] = error
@@ -67,7 +67,7 @@ default argument @d@ as the tail of the result list.
 concrete argument in the \GET{} direction; in the \PUT{} direction, it
 recombines a new abstract tail with the original concrete head (or with @d@
 when the concrete argument to the \PUT{} is @missing@).
-#*let tl (d:tree) : lens = focus TL { `HD = d }
+#*let tl (d:view) : lens = focus TL { `HD = d }
 
 #*test (tl {}) / [{1},{2},{3}] = [{2},{3}]
 #*test (tl {}) \ [{2},{3}] missing = [{},{2},{3}]
@@ -81,14 +81,16 @@ length as the abstract argument; if the abstract argument is longer than the
 concrete one, then the elements at the end will be \PUT{} into @missing@.
 
 #*let map (l:lens) : lens = 
-#*  mapn HD l;
-#*  mapn TL (protect (map l))
+#*  wmap { `HD -> l, `TL -> (protect (map l)) }
 
 #*test (map (const {b} {c})) / [] = []
 #*test (map (const {b} {c})) / [{1},{2},{3}] = [{b},{b},{b}]
 #*test (map (const {b} {c})) \ [{b}] [{1},{2}] = [{1}]
 #*test (map (const {b} {c})) \ [{b},{b},{b}] [{1},{2}] = [{1},{2},{c}]
 #*test (map (const {b} {c})) \ [{b}] missing = [{c}]
+
+## let checked_map (l:lens) (C:schema) (A:schema) : (T C) <<-> (T A) = 
+##   wmap { `HD -> l, `TL -> (protect (checked_map l C A)) }
 
 \LENSSECTION{fold_right}
 The lens @fold_right init l@ is analogous to the familiar @fold_right@
@@ -99,7 +101,7 @@ $@l@ \lputn$ is recursively applied to the abstract tree and the concrete
 list, until the abstract tree is exactly @init@. For that reason, note
 that @l@ must not return @init@.
 
-#*let fold_right (init:tree) (l:lens) : lens =
+#*let fold_right (init:view) (l:lens) : lens =
 #*  mapn TL (protect (fold_right init l));
 #*  acond [] init
 #*    (const init [])
@@ -210,13 +212,13 @@ let simple_filter (E:schema) : lens =
     id
 
 ##(* filter: note that some_D must NOT belong to the schema E *)    
-let filter (D:schema) (E:schema) (some_D:tree) : lens =
-  let append (v:tree) : lens =
+let filter (D:schema) (E:schema) (some_D:view) : lens =
+  let append (v:view) : lens =
     acond [] [Any]
       (const v {})
       (mapn TL (protect (append v)))
   in
-  let filter_aux (D:schema) (E:schema) (some_D:tree) : lens = 
+  let filter_aux (D:schema) (E:schema) (some_D:view) : lens = 
     cond_ff (T E) []  (D::(T D))
       (protect (filter E D {}))
       (append [some_D])

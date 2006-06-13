@@ -2,7 +2,7 @@
 
 module Listexamples =
 
-let noconflict (t:tree) : tree =
+let noconflict (t:view) : view =
   {O = t, A = t, B = t}
 
 (* ------------------------------------------------------------------- *)

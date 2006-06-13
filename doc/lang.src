@@ -7,9 +7,9 @@
   embedded unit tests.  The concrete syntax is based on the
   fully-annotated, monomorphic core of OCaml.
 
-  \input{tmp/lexer}
+  \inputtmp{lexer}
   
-  \input{tmp/parser}
+  \inputtmp{parser}
   
   \section{Schemas} \label{sec:lang:schemas}
   

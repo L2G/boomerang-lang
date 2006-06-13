@@ -27,13 +27,13 @@
   let ms s1 s2 = m (fst s1) (fst s2)
   let mbs2 i1 bs2 = m i1 (info_of_bindings bs2)
   let mss2 i1 ss2 = m i1 (info_of_schema_bindings ss2)
-    
+
   (* helpers for easy syntax tree construction *)
 
   (* mk_compose2 exp *)
   let mk_compose2_exp i e1 e2 = 
     EApp(i, EApp(i, EVar(i, compose2_qid i,false),e1),e2)
-      
+
   (* mk_get_exp *)
   let mk_get_exp i l c = 
     EApp(i, EApp(i, EVar(i, get_qid i,false), l), c)
@@ -43,11 +43,11 @@
     match co with 
         None -> EApp(i, EApp(i, EVar(i, create_qid i, false), l), a)
       | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i,false), l), a), c)
-          
+
   (* mk_sync_exp *)
   let mk_sync_exp i lo la lb t v = 
     EApp(i,EApp(i,EApp(i,EApp(i,EApp(i,EVar(i,sync_qid i,false),lo),la),lb),t),v)
-      
+
   (* mk_empty_tree *)
   let mk_empty_tree i = ECat(i,[])
 
@@ -58,10 +58,12 @@
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
 %token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA ASSERT CHECK PROTECT
-%token <Info.t> LENS TREE TYPE NAME ARROW BIJARROW VWBARROW WBARROW BACKTICK
-%token <Info.t> LBRACE RBRACE LBRACK RBRACK LBRACKBAR RBRACKBAR LPAREN RPAREN
+%token <Info.t> LENS TREE TYPE NAME ARROW FMAP BIJARROW VWBARROW WBARROW BACKTICK
+%token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
 %token <Info.t> STAR BANG BAR PLUS MINUS TILDE AMPERSAND QMARK
+%token <Info.t> VEE WEDGE
+%token <Info.t> WHERE TRUE FALSE PRED
 
 %start modl sort qid 
 %type <Syntax.modl> modl
@@ -71,31 +73,31 @@
 %%
 
 #{@}
-  
+
 \renewcommand{\lit}[1]{\char96{}#1\char39{}}
 
 \section{Syntactic Structure}
-    
+
 This section gives the formal definition of Focal syntax, using an
 EBNF grammar. The productions for each syntactic category are followed
 by a brief, informal discussion. In the rules we adopt the following
 conventions:
 \begin{itemize}
-  
+
 \item Literals are written in a typewriter font and enclosed in single 
   quotes, like this: \lit{@module@};
-  
+
 \item Non-terminals are enclosed in angle brackets, like this:
   \synt{Exp}. 
-  
+
 \item Optional elements are enclosed in square brackets:
   \syntax{[\lit{@:@} <Sort>]};
-  
+
 \item Terms may be grouped using parentheses;
-  
+
 \item Repeated elements are specified using \syntax{*} (0 or
   more) and \syntax{+} (1 or more).
-  
+
 \end{itemize}
 #{#}
 
@@ -106,16 +108,16 @@ conventions:
 \begin{grammar}
 
 <CompilationUnit> ::= \lit{@module@} <Ident> \lit{@=@} (\lit{@open@} <Qid>)* <Decl>*
-  
+
 #{#}
 
 modl:
 | MODULE IDENT EQUAL opens decls EOF        { MDef(m $1 $6,$2,$4,$5) }
-    
+
 opens:
 | OPEN qid opens                           { $2::$3 }
 |                                          { [] }
-      
+
 #{@}
 
 <Decl> ::= \lit{@let@} <BindingList> 
@@ -143,7 +145,7 @@ signatures or sealing.
 The syntax includes several forms of unit tests (which are only tested when
 the system is run in testing mode; see Section~\ref{sec:cmdlineargs}).  
 The first form, @test@~$t_1$~@=@~$t_2$, checks that $t_1$ and $t_2$, which 
-must both be expressions of sort @tree@, evaluate to equal values. This 
+must both be expressions of sort @view@, evaluate to equal values. This 
 kind of test is often used to check the behavior of the \GET{} and \PUT{} 
 components of lenses, as in the following snippet: @test id / {} = {}@. 
 The second form, @ test@~$l_1$~@/\@~$t_1$~@=@~$t_3$, is shorthand for two tests
@@ -180,7 +182,7 @@ decls:
                                                let get_test = DTest(i, mk_get_exp i $2 $5, (Result $7)) in
                                                let put_test = DTest(i, mk_put_exp i $2 $7 None, (Result $5)) in
                                                  get_test::put_test::$8 }
-      
+
   | SYNC WITH aexp AT aexp aexp EQUAL 
       test_res decls                         { let i = m $1 (fst $8) in
                                                let sync_test = DTest(i, mk_sync_exp i $3 $3 $3 $5 $6, snd $8) in
@@ -190,7 +192,7 @@ decls:
                                                let sync_test = DTest(i, mk_sync_exp i $3 $4 $5 $7 $8, snd $10) in
                                                  sync_test::$11 }
   |                                          { [] }
-      
+
 test_res:
   | exp                                      { (info_of_exp $1, Result $1) }
   | ERROR                                    { ($1, ErrorResult) }
@@ -243,14 +245,14 @@ binding:
                                                            let e = ELet(i,bs, ECheckLens(i,c_var,$5,a_var,$8)) in
                                                            let s = SRecLens(c_var,$5,a_var) in 
                                                              BDef(mie $1 $8,$1,$2,s,e) }
-    
+
 schema_binding_list:
   | schema_binding AND schema_binding_list   { $1::$3 }
   | schema_binding                           { [$1] }
 
 schema_binding:
   | IDENT EQUAL exp                          { SDef(mie $1 $3, $1, $3) }
-      
+
 /* ---------------  sorts & params --------------- */
 #{@}
 \subsection{Sorts}
@@ -266,7 +268,7 @@ schema_binding:
 
 <ASort> ::= \lit{@lens@}
        \alt \lit{@name@}
-       \alt \lit{@tree@}
+       \alt \lit{@view@}
        \alt \lit{@schema@}
        \alt \lit{@(@} <Sort> \lit{@)@}
 
@@ -277,9 +279,9 @@ schema_binding:
 
 \noindent Focal does not yet have a full-blown lens type
 system. However, the compiler performs rudimentary sort checking. The
-sorts are @lens@, @name@, @tree@, @schema@, and function sorts, of the
+sorts are @lens@, @name@, @view@, @schema@, and function sorts, of the
 form $s_1$@->@$s_2$. The sort checker supports exactly one form of
-subtyping: it automatically promotes an expressions with sort tree to
+subtyping: it automatically promotes an expressions with sort view to
 the singleton schema containing that tree.
 
 #{#}
@@ -291,14 +293,16 @@ sort:
 asort:
   | LENS                                     { ($1, SLens) }
   | NAME                                     { ($1, SName) } 
-  | TREE                                     { ($1, STree) }
+  | TREE                                     { ($1, SView) }
   | SCHEMA                                   { ($1, SSchema) }
+  | PRED                                     { ($1, SPred) }
+  | FMAP                                     { ($1, SMap) }
   | LPAREN sort RPAREN                       { $2 }
 
 opt_sort:
   | COLON asort                              { Some (snd $2) }
   |                                          { None }
-      
+
 param_list:
   | param param_list                         { $1::$2 }
   |                                          { [] }
@@ -310,7 +314,7 @@ lensarrow:
   | BIJARROW                                 { Bij }
   | VWBARROW                                 { Vwb }
   | WBARROW                                  { Wb }
-    
+
 /* ---------------  expressions --------------- */
 #{@}
 \subsection{Expressions} \label{sec:parser:expressions}
@@ -337,7 +341,7 @@ exp:
            \alt <ComposeExp> \lit{@\@} <AExp> <AExp>
            \alt <ComposeExp> \lit{@\@} <AExp> \lit{@missing@}
            \alt <ComposeExp>
- 
+
 #{#}
 
 getputexp:
@@ -408,7 +412,6 @@ plusexp:
 #{#}
 consexp:
   | appexp COLON COLON consexp               { ECons(me $1 $4, $1, $4) }
-  | appexp COLON BAR COLON consexp           { ESpineCons(me $1 $5, $1, $5) }
   | appexp                                   { $1 }
 
 #{@}
@@ -427,6 +430,7 @@ appexp:
 <AExp> ::= <String>
       \alt <QId>
       \alt \lit{@~@} <AExp>
+      \alt \lit{@{@} <MapList> \lit{@}@}
       \alt \lit{@{@} <TreeEltList> \lit{@}@}
       \alt \lit{@[@} <ExpList> \lit{@]@}
       \alt \lit{@[|@} <ExpList> \lit{@|]@}
@@ -434,6 +438,11 @@ appexp:
       \alt \lit{@begin@} <Exp> \lit{@end@}
       \alt \lit{@protect@} <AExp>
       \alt \lit{@assert@} <AExp>
+
+<Map> ::= <QuotedName> \lit{@->@} <Exp>
+
+<MapList> ::= <Map>
+         \alt <Map> \lit{@,@} <MapList>
 
 #{#}
 
@@ -446,18 +455,26 @@ aexp:
   | ASSERT aexp                              { EAssert(me2 $1 $2, $2) }
   | CHECK aexp COLON aexp lensarrow aexp     { ECheckLens(me2 $1 $6,$4,$5,$6,$2) }
   | PROTECT aexp                             { EProtect(me2 $1 $2, $2, None) }
+  | WHERE apred                              { EDBPred($1,$2) }
+  | LBRACE map_list RBRACE                   { EMap(m $1 $3, $2) }
   | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }
+  | LBRACE LBRACE LBRACE db_contents
+    RBRACE RBRACE RBRACE                     { EDB($1,$4) }
+  | LBRACE LBRACE db_schema_contents
+    RBRACE RBRACE                            { EDBSchema($1, $3) }
   | LBRACK exp_list RBRACK                   { Safelist.fold_right
                                                  (fun ti acc -> 
                                                     ECons(me ti acc,ti,acc))
                                                  $2
                                                  (ENil($3))}      
-  | LBRACKBAR exp_list RBRACKBAR             { Safelist.fold_right
-                                                 (fun ti acc -> 
-                                                    ESpineCons(me ti acc,ti,acc))
-                                                 $2
-                                                 (ENil($3))}      
-     
+
+ map:
+   | quoted_name ARROW exp                    { ($1,$3) }
+
+ /* maps must be non-empty to avoid overlap with schemas and trees */
+ map_list:
+   | map                                      { [$1] }
+   | map COMMA map_list                       { $1::$3 }
 #{@}
 
 <TreeElt> ::= <QuotedName>
@@ -470,7 +487,95 @@ aexp:
 <TreeEltList> ::= <TreeElt>
              \alt <TreeElt> \lit{@,@} <TreeEltList>
 
+#{#}
+db_contents:
+  |                                           { Db.empty }
+  | IDENT LPAREN names RPAREN 
+    EQUAL LBRACE tuples RBRACE db_contents    { Db.extend (Syntax.name_of_id $1) 
+                                                  (Safelist.fold_right 
+                                                    Db.Relation.insert_tuple
+                                                    $7
+                                                    (Db.Relation.create $3))
+                                                   $9 }
+
+names:
+  |                                           { [] }
+  | IDENT                                     { [ Syntax.name_of_id $1 ] }
+  | IDENT COMMA names                         { (Syntax.name_of_id $1) :: $3 }
+
+tuples:
+  |                                           { [] }
+  | LPAREN names RPAREN                       { [ $2 ] }
+  | LPAREN names RPAREN COMMA tuples          { $2 :: $5 } 
+
+db_schema_contents: 
+  |                                           { Dbschema.base }
+  | IDENT LPAREN names RPAREN 
+    pred_and_fds                              { Dbschema.extend 
+                                                  (Syntax.name_of_id $1) 
+                                                  (Dbschema.Relschema.set_fdset
+                                                    (Dbschema.Relschema.set_pred 
+                                                      (Dbschema.Relschema.create 
+                                                         (Safelist.fold_right Name.Set.add $3 Name.Set.empty))
+                                                      (fst $5))
+                                                    (snd $5))
+                                                   Dbschema.base }
+  | IDENT LPAREN names RPAREN 
+    pred_and_fds 
+    COMMA db_schema_contents                  { Dbschema.extend 
+                                                  (Syntax.name_of_id $1) 
+                                                  (Dbschema.Relschema.set_fdset
+                                                    (Dbschema.Relschema.set_pred 
+                                                      (Dbschema.Relschema.create 
+                                                         (Safelist.fold_right Name.Set.add $3 Name.Set.empty))
+                                                      (fst $5))
+                                                    (snd $5))
+                                                   $7 }
+
+
+pred_and_fds:
+  |                                           { (Db.Relation.Pred.True, Dbschema.Relschema.Fd.Set.empty)  }
+  | WHERE pred                                { ($2, Dbschema.Relschema.Fd.Set.empty) }
+  | WITH LBRACE fds RBRACE                    { (Db.Relation.Pred.True, $3) }
+  | WHERE pred                                
+    WITH LBRACE fds RBRACE                    { ($2, $5) }
+  | WITH LBRACE fds RBRACE                    
+    WHERE pred                                { ($6, $3) }
+
+
+pred: 
+  | TILDE apred                               { Db.Relation.Pred.Not $2 }
+  | apred SLASH BACKSLASH apred               { Db.Relation.Pred.Conj ($1,$4) }
+  | apred BACKSLASH SLASH apred               { Db.Relation.Pred.Disj ($1,$4) }
+  | apred ARROW apred                         { Db.Relation.Pred.Impl ($1,$3) }
+  | apred                                     { $1 }
+
+apred: 
+  | TRUE                                      { Db.Relation.Pred.True }
+  | FALSE                                     { Db.Relation.Pred.False }
+  | IDENT EQUAL IDENT                         { Db.Relation.Pred.EqAttAtt 
+                                                  ((Syntax.name_of_id $1), (Syntax.name_of_id $3)) }
+  | IDENT EQUAL STRING                        { Db.Relation.Pred.EqAttVal 
+                                                  ((Syntax.name_of_id $1), (Syntax.name_of_id $3)) }
+  | LPAREN pred RPAREN                        { $2 }
+
+fds:
+  |                                           { Dbschema.Relschema.Fd.Set.empty }
+  | attribute_list ARROW attribute_list 
+    COMMA fds                                 { Dbschema.Relschema.Fd.Set.add ($1,$3) $5 }
+
+attribute_list: 
+  | IDENT                                     { Name.Set.singleton (Syntax.name_of_id $1) }
+  | LPAREN attribute_list_content RPAREN      { $2 }
+
+attribute_list_content: 
+  |                                           { Name.Set.empty }
+  | IDENT COMMA attribute_list_content        { Name.Set.add (Syntax.name_of_id $1) $3 }
+
+
+#{@}
 \end{grammar}
+\finish{Add database concrete syntax to grammar table!}
 
 Focal expressions are similar to OCaml expressions with only a few
 special forms for composing and applying lenses, and for writing down
@@ -486,7 +591,7 @@ are:
 \item get and put expressions, which apply the $\lgetn$ and $\lputn$
   components of a lens respectively. A get expression is written
   $e_1$~@/@~$e_2$, where $e_1$ has sort @lens@ and $e_2$ has sort
-  @tree@. Put expressions are written $e_1$~@\@~$e_2\;e_3$ or $e_1$~@\@~$e_2$~@missing@, if the concrete argument is missing.
+  @view@. Put expressions are written $e_1$~@\@~$e_2\;e_3$ or $e_1$~@\@~$e_2$~@missing@, if the concrete argument is missing.
 \item Lens composition, written $e_1$@;@$e_2$,
 \item Schema unions, written $e_1$~@|@~$e_2$,
 \item Tree and schema concatenations, written $e_1$~@+@~$e_2$,
@@ -499,9 +604,7 @@ are:
 \item Finite maps from names to lenses, written 
       @{@$n_1$@->L@~$e_1$@, @$\dots$@, @$n_k$@->L@~$e_k$@}@,      
       where each $n_i$ is a quoted name (see below) and $e_i$ is an
-      expression with sort lens. These maps are compiled into
-      functions that map the given names to lenses and all other names
-      to @id@.
+      expression with sort lens.
 \item Trees and schemas, written @{@~$t_1$@, @$\dots$@, @$t_k$@}@, where
   each $t_i$ is a ``tree element''; i.e., either a:
 \begin{itemize}
@@ -521,6 +624,14 @@ are:
 
 \end{itemize}
 \item Trees representing lists and list schemas, written @[@$e_1$@, @$\dots$@, @$e_n$@]@,
+
+\item Constant relational databases, written @{{ A_1(fields_1) = relation_1@,
+    $\ldots$, @A_m(fields_m) = relation_m}}@, where each @fields_i@ has the
+    form @x_1 ... x_k@, 
+    each @relation_i@ has the form
+    @{tuple_1,...,tuple_n}@, and @tuple_i@ has the form
+    @(y_1 ... y_n)@.  \finish{Also relational schemas.}
+
 \item Arbitrary expressions enclosed in parentheses (or equivalently,
   in @begin@ and @end@).
 
@@ -535,7 +646,7 @@ are:
   not belonging to @T@, then it prints a message to this effect and
   halts the interpreter.
 
-\item @assert@ expressions take an argument with sort @schema@ and yield a lens. 
+ @assert@ expressions take an argument with sort @schema@ and yield a lens. 
 The lens checks the trees, in both directions, for membership in the schema. If the
 membership test succeeds, then the entire expression behaves like the identity lens; 
 otherwise the lens prints an error message and halts. 
@@ -558,7 +669,7 @@ treeelt:
 bangs_opt:
   |                                          { 0 }
   | BANG bangs_opt                           { 1 + $2 }
-      
+
 /* --------------- schema helpers --------------- */
 #{@} 
 \subsection{Quoted Names}
@@ -566,7 +677,7 @@ bangs_opt:
 <QuotedName> ::= <Ident>
             \alt <String>
             \alt \lit{\char96} <AExp>
- 
+
 <QuotedNameList> ::= <QuotedName>
                 \alt <QuotedName> \lit{@,@} <QuotedNameList>
 
@@ -610,7 +721,7 @@ excepts_opt :
 except_list:
   | quoted_name                              { [$1] }
   | quoted_name COMMA except_list            { $1::$3 }
-      
+
 /* ---------------  identifiers --------------- */
 #{@} 
 \subsection{Qualified Identifiers}
@@ -632,5 +743,5 @@ qid:
 IDENT_or_STRING:
   | STRING                                  { $1 }
   | IDENT                                   { $1 }
-                                             
+
 

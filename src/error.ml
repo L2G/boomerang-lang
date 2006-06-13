@@ -11,7 +11,7 @@
 exception Harmony_error of (unit -> unit)
 
 let simple_error s = raise (Harmony_error (fun () -> Format.printf "%s" s))
-    
+
 (* fail_on_error : (unit -> 'a) -> 'a 
  *    simple error handling: print and exit. Used in the text UI *)
 let exit_on_error f = 

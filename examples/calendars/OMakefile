@@ -1,0 +1,5 @@
+OCAMLINCLUDES += $(EXTERNDIR)/iCalendar 
+
+OCamlProgram($(RESULT), $(rootname $(ICALENDAR_SOURCES)) $(RESULT))
+
+test: defaulttest

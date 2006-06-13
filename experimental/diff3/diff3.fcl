@@ -2,22 +2,22 @@ module Diff3 =
 
 (* Unit tests for list synchronization *)
 
-let a : tree = {a}
-let b : tree = {b}
-let c : tree = {c}
-let d : tree = {d}
-let e : tree = {e}
-let f : tree = {f}
-let g : tree = {g}
-let x : tree = {x}
-let y : tree = {y}
-let A : tree = {A}
-let B : tree = {B}
-let C : tree = {C}
-let D : tree = {D}
-let E : tree = {E}
+let a : view = {a}
+let b : view = {b}
+let c : view = {c}
+let d : view = {d}
+let e : view = {e}
+let f : view = {f}
+let g : view = {g}
+let x : view = {x}
+let y : view = {y}
+let A : view = {A}
+let B : view = {B}
+let C : view = {C}
+let D : view = {D}
+let E : view = {E}
 
-let good (t:tree) : tree =
+let good (t:view) : view =
   {O = t, A = t, B = t}
 
 (* First example, showing funny off-by-one printing bug *)

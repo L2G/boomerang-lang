@@ -11,34 +11,34 @@ let _ =
 
 let debug = Trace.debug "toplevel"
 
-(* FIX: This probably needs to be integrated with the new printing stuff *)
-let failwith s = prerr_endline s; exit 1
-
 let lookup qid_str = Registry.lookup_library (Value.parse_qid qid_str)
-      	  
+
 let lookup_lens qid_str =
   match lookup qid_str with
-      None -> failwith (Printf.sprintf "lens %s not found" qid_str)
+      None -> Error.simple_error (Printf.sprintf "lens %s not found" qid_str)
     | Some rv -> 
-	Value.get_lens 
-	  (Info.M (Printf.sprintf "%s is not a lens" qid_str))
-	  (Registry.value_of_rv rv)
+        Value.get_lens 
+          (Info.M (Printf.sprintf "%s is not a lens" qid_str))
+          (Registry.value_of_rv rv)
 
 let lookup_schema qid_str =
   match lookup qid_str with
-      None -> failwith (Printf.sprintf "schema %s not found" qid_str)
+      None -> Error.simple_error (Printf.sprintf "schema %s not found" qid_str)
     | Some rv -> 
-	Value.get_schema 
-	  (Info.M (Printf.sprintf "%s is not a schema" qid_str))
-	  (Registry.value_of_rv rv)
+        Value.get_schema 
+          (Info.M (Printf.sprintf "%s is not a schema" qid_str))
+          (Registry.value_of_rv rv)
 
 let read_tree fn = 
   if fn="" then None else 
   let (fn, ekeyo) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
-  Surveyor.tree_of_file fn (Surveyor.get_reader ekey)
-      
-let write_tree fn v = 
+  Misc.map_option (V.tree_of (Info.M "Toplevel.read_tree"))
+    (Surveyor.tree_of_file fn (Surveyor.get_reader ekey))
+
+let write_tree fn t = 
+  debug (fun()-> Util.msg "Writing back %s\n" fn);
+  let v = V.Tree t in
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
@@ -48,22 +48,27 @@ let write_tree fn v =
 (* CHECK *)
 (*********)
 let check m = 
-  if not (Registry.load m) then
-    failwith (Printf.sprintf "Error: could not find module %s\n" m)
-	      
+  let modname =
+    if Util.endswith m ".fcl" then
+      String.capitalize (Util.replacesubstring m ".fcl" "")
+    else m in
+  if not (Registry.load modname) then
+    Error.simple_error (Printf.sprintf "Error: could not find module %s\n" modname)
+
 (*******)
 (* GET *)
 (*******)
 let get lens c_fn o_fn = 
   let cvo = read_tree c_fn in
-  let lens,_ = lookup_lens lens in
+  let lens_v,_ = lookup_lens lens in
+  let lens = Lens.tree_of_v lens_v in
   let av = match cvo with
     | Some cv -> Lens.get lens cv
-    | None -> failwith (Printf.sprintf "Concrete tree file %s is missing." c_fn) 
+    | None -> Error.simple_error (Printf.sprintf "Concrete view file %s is missing." c_fn) 
   in
     write_tree o_fn av
 
-let signalconflicts = Prefs.createBool "signalconflicts" false "exit with status 1 (instead of 0) on conflicts" ""
+let signalconflicts = Prefs.createBool "signalconflicts" true "exit with status 1 (instead of 0) on conflicts" ""
 
 let forcer1 = Prefs.createBool "forcer1" false "overwrite r2 and archive with r1" ""
 
@@ -72,11 +77,17 @@ let forcer1 = Prefs.createBool "forcer1" false "overwrite r2 and archive with r1
 (* SYNC *)
 (********)
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
-  let s = lookup_schema s in 
-  let lenso,_ = lookup_lens lenso in
-  let lensa,_ = lookup_lens lensa in 
-  let lensb,_ = lookup_lens lensb in         
+  debug (fun() -> Util.msg "Synchronizing...\n");
+  let s = Schema.treeschema_of (Info.M "Toplevel.sync") (lookup_schema s) in 
+  debug (fun() -> Util.msg "Loading lenses...\n");
+  let lenso_v,_ = lookup_lens lenso in
+  let lensa_v,_ = lookup_lens lensa in 
+  let lensb_v,_ = lookup_lens lensb in         
+  let lenso = Lens.tree_of_v lenso_v in
+  let lensa = Lens.tree_of_v lensa_v in
+  let lensb = Lens.tree_of_v lensb_v in
   let forcer1 = Prefs.read forcer1 in
+  debug (fun() -> Util.msg "Loading files...\n");
   let (o, a, b, (act, oa', aa', ba')) =
     if forcer1 then begin
       let a = read_tree a_fn in
@@ -87,23 +98,31 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       let a = read_tree a_fn in
       let o = read_tree o_fn in
       let b = read_tree b_fn in
+      debug (fun() -> Util.msg "Applying GET functions (a)...\n");
       let aa = Misc.map_option (Lens.get lensa) a in
+      debug (fun() -> Util.msg "Applying GET functions (o)...\n");
       let oa = Misc.map_option (Lens.get lenso) o in
+      debug (fun() -> Util.msg "Applying GET functions (b)...\n");
       let ba = Misc.map_option (Lens.get lensb) b in
+      debug (fun() -> Util.msg "Synchronizing abstract trees...\n");
       (o, a, b, Sync.sync s (oa, aa, ba))
     in
   let log_out s p n = Trace.log (String.sub s p n) in
   let log_flush () = () in
+  debug (fun() -> Util.msg "Dumping actions...\n");
   Format.set_formatter_output_functions log_out log_flush;
   Sync.format_action act;
   Format.print_newline();
+  debug (fun() -> Util.msg "Applying PUT functions...\n");
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
+  debug (fun() -> Util.msg "Writing back results...\n");
+  debug (fun() -> match o' with None -> Util.msg "o' = None\n" | _ -> ());
   ignore (Misc.map_option (write_tree o'_fn) o');
   ignore (Misc.map_option (write_tree a'_fn) a');
   ignore (Misc.map_option (write_tree b'_fn) b');
-  if Sync.has_conflict act && Prefs.read signalconflicts then exit 1
+  if Sync.has_conflict act && Prefs.read signalconflicts then 1 else 0
 
 (**********************************************************************************)
 (* Infrastructure for custom top-level programs *)             
@@ -134,16 +153,19 @@ let schemapref = Prefs.createString "schema" "" "explicitly specified synchroniz
 let _ = Prefs.alias schemapref "s"
 
 let check_pref = Prefs.createStringList "check" "run unit tests for given module(s)" ""
-                   
+
 let dryrun = Prefs.createBool "dryrun" false "don't write any files" ""
+
+let unittests = Prefs.createBool "unittests" false "run internal unit tests (and do nothing else)" ""
 
 (* Running external commands *)
 
 let runcmd cmd = 
   debug (fun() -> Format.eprintf "%s\n" cmd);
-  if Sys.command cmd <> 0 then failwith ("Command failed: "^cmd)
+  if Sys.command cmd <> 0 then Error.simple_error ("Command failed: "^cmd)
 
 let cp_or_del f g =
+  debug (fun()-> Util.msg "Copying %s to %s\n" f g);
   if Sys.file_exists g then Sys.remove g;
   if Sys.file_exists f then 
     begin 
@@ -172,16 +194,25 @@ let errfile =
 let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens () =
   let usageMsg = 
       "Usage:\n"
-    ^ "    "^progName^" FILE [options]\n                                      dump"
-    ^ " or "^progName^" FILE FILE [options]                                   transform\n"
-    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE [more options]             sync (in place)\n"
-    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE                            sync\n"
-    ^ "                 -newar FILE -newr1 FILE -newr2 FILE [more options]\n"
+    ^ "    "^progName^" FILE [options]                              - dump\n"
+    ^ " or "^progName^" FILE FILE [options]                         - transform\n"
+    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE                  - sync\n"
+    ^ "                 -newar FILE -newr1 FILE -newr2 FILE\n"
+    ^ "                 [more options]\n"
+    ^ " or "^progName^" -ar FILE -r1 FILE -r2 FILE [more options]   - sync in place\n"
+    ^ "    "^progName^" FILE.fcl                                    - run unit tests\n"
     ^ "\n"
     ^ "Options:" in
 
   (* Deal with command line *)
   Prefs.parseCmdLine usageMsg;
+
+  (* Run internal unit tests if requested. *)
+  if Prefs.read unittests then
+    begin
+      Unittest.run ();
+      exit 0
+    end;
 
   (* Open error logging file, if specified *)
   let errfilename = Prefs.read errfile in
@@ -193,6 +224,13 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
          Unix.dup2 fd Unix.stderr;
          Unix.close fd);
   debug (fun() -> Prefs.dumpPrefsToStderr());
+
+  (* Handle command lines of the special form 'harmonize-blah f1.fcl ... fn.fcl' *)
+  if Safelist.for_all (fun s -> Util.endswith s ".fcl") (Prefs.read rest) then begin
+    Prefs.set check_pref ((Prefs.read check_pref) @ (Prefs.read rest));
+    Prefs.set rest [];
+    Prefs.set Compiler.test_all true;
+  end;
 
   (* Run unit tests if requested *)
   if Prefs.read check_pref <> [] then
@@ -231,7 +269,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   let newar = p newarpref in
   let newr1 = p newr1pref in
   let newr2 = p newr2pref in
-            
+
   (* Make sure we actually got some inputs *)
   if r1="" then begin Prefs.printUsage usageMsg; exit 999 end;
 
@@ -281,7 +319,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
         if d <> "" then d
         else match t with 
             Meta -> "Prelude.id"
-          | Unknown -> failwith ("-lens"^s^" preference must be specified explicitly")
+          | Unknown -> Error.simple_error
+                         ("-lens"^s^" preference must be specified explicitly")
           | UserType ut -> chooseLens ut schema in
   let arlens = choose arf "ar" lensarpref artype in
   let r1lens = choose r1f "r1" lensr1pref r1type in
@@ -319,10 +358,11 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
       let newr1temp = tempname newr1 in
       let newr2temp = tempname newr2 in
 
-      sync (enc artemp arenc) (enc r1temp r1enc) (enc r2temp r2enc)
+      let exitcode =
+        sync (enc artemp arenc) (enc r1temp r1enc) (enc r2temp r2enc)
            schema
            arlens r1lens r2lens
-           (enc newartemp arenc) (enc newr1temp r1enc) (enc newr2temp r2enc);
+           (enc newartemp arenc) (enc newr1temp r1enc) (enc newr2temp r2enc) in
 
       (* Postprocess *)
       let postprocess p fpost f =
@@ -332,17 +372,18 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
         | Some pfun -> pfun fpost f   in
       postprocess arpost newartemp newar;
       postprocess r1post newr1temp newr1;
-      postprocess r2post newr2temp newr2
+      postprocess r2post newr2temp newr2;
+      exit exitcode
     end)
   (* Clean up *)
   (fun () -> 
     (* cleanupTempFiles() *)
      Format.print_flush ();
   )
-  
+
 let toplevel progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens =
   Unix.handle_unix_error 
     (fun () -> Error.exit_on_error
                  (toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens))
     ()
-  
+

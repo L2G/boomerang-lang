@@ -1,10 +1,111 @@
+(*********************************************************)
+(* The Harmony Project                                   *)
+(* harmony@lists.seas.upenn.edu                          *)
+(*********************************************************)
+(* $Id$ *)
 
 open Syntax
 open Registry
 open Value
+open Lens
+
+module Rel = Db.Relation
 
 let no_checker = WB(fun _ -> Lens.error [`String "relational lenses are unchecked"])
 
+let error_on_missing (put : 'a -> 'b -> 'b) (a : 'a) (co : 'b option) : 'b =
+  match co with
+  | None ->
+      raise (Lens.error [`String "relatioinal lenses cannot be applied to
+        \"missing\""])
+  | Some c -> put a c
+
+let idlens_qid = "Native.Relational.id"
+let idlens =
+  let lens =
+    { get = (fun c -> c);
+      put = (fun a co -> a);
+    } in
+  (lens, no_checker)
+
+let idlens_lib =
+  let l, ck = idlens in
+  L (l, ck)
+
+let () = register_native idlens_qid (SLens) idlens_lib
+
+let db_replace r s (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
+  Db.extend s (f (Db.lookup r db)) (Db.remove r db)
+
+let rename_qid = "Native.Relational.rename"
+let rename r s m n =
+  let getfun c = db_replace r s (Rel.rename m n) c in
+  let putfun a co = db_replace s r (Rel.rename n m) a in
+  (native getfun putfun, no_checker)
+
+let rename_lib =
+  mk_nfun (SName ^> SName ^> SName ^> SLens) rename_qid (
+    fun r ->
+      mk_nfun (SName ^> SName ^> SLens) rename_qid (
+        fun s ->
+          mk_nfun (SName ^> SLens) rename_qid (
+            fun m ->
+              mk_nfun (SLens) rename_qid (
+                fun n ->
+                  let l, ck = Value.v_of_db_lens (rename r s m n) in
+                  Value.L (l, ck)))))
+let () =
+  register_native
+    rename_qid (SName ^> SName ^> SName ^> SName ^> SLens) rename_lib
+
+let drop_qid = "Native.Relational.drop"
+let drop rn sn att det dflt =
+  let rm x ls = List.filter (( <> ) x) ls in
+  let getfun c =
+    let flds = Rel.fields (Db.lookup rn c) in
+    db_replace rn sn (Rel.project (rm att flds)) c
+  in
+  let putfun a c =
+    let r = Db.lookup rn c in
+    let flds = Rel.fields r in
+    let f s =
+      let added = Rel.diff s (Rel.project (rm att flds) r) in
+      let rel_dflt = Rel.insert_tuple [ dflt ] (Rel.create [ att ]) in
+      let unrevised = Rel.union (Rel.join r s) (Rel.join added rel_dflt) in
+      let accum rcd =
+        Rel.insert (
+          Dbschema.Relschema.Fd.revise rcd r
+            (Tree.dom det, Name.Set.singleton att))
+      in
+      Rel.fold accum unrevised (Rel.create flds)
+    in
+    db_replace sn rn f a
+  in
+  (native getfun (error_on_missing putfun), no_checker)
+
+let drop_lib =
+  mk_nfun (SName ^> SName ^> SView ^> SName ^> SLens) drop_qid (
+    fun r ->
+      mk_nfun (SName ^> SView ^> SName ^> SLens) drop_qid (
+        fun s ->
+          mk_nfun (SView ^> SName ^> SLens) drop_qid (
+            fun att ->
+              mk_vfun (SName ^> SLens) drop_qid (
+                fun det ->
+                  mk_nfun (SLens) drop_qid (
+                    fun dflt ->
+                      let l, ck =
+                        Value.v_of_db_lens (
+                          drop r s att (V.tree_of (Info.M drop_qid) det) dflt
+                        )
+                      in
+                      Value.L (l, ck))))))
+let () =
+  register_native
+    drop_qid (SName ^> SName ^> SName ^> SView ^> SName ^> SLens) drop_lib
+
+
+(*
 (* List sorting *)
 let listsort =
   let getfun c =
@@ -15,7 +116,7 @@ let listsort =
     | None -> a
     | Some(c) -> if a = getfun c then c else a in
     Lens.native getfun putfun
-      
+
 let () = register_native "Native.listsort" "lens" (L(listsort,no_checker))
 
 let lift_to_opt f xo =
@@ -41,7 +142,7 @@ let make_binary_lib fclname lens =
   mk_nfun "name -> name -> lens" fclname 
     (fun n1 -> mk_nfun "name -> lens" fclname
        (fun n2 -> mk_nfun "lens" fclname
-	  (fun n3 -> L(lens n1 n2 n3,no_checker))))
+          (fun n3 -> L(lens n1 n2 n3,no_checker))))
 
 let register_binary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> lens"
@@ -68,10 +169,10 @@ let register_schema_schema_binary_dblens fclname dblens =
           lift_binary (dblens (schemas_to_bias_fun fclname s1 s2))))))
 
 let register_tree_tree_binary_dblens fclname dblens =
-  register_native fclname "tree -> tree -> name -> name -> name -> lens" (
-    mk_vfun "tree -> name -> name -> name -> lens" fclname 
+  register_native fclname "view -> view -> name -> name -> name -> lens" (
+    mk_vfun "view -> name -> name -> name -> lens" fclname 
       (fun t1 -> mk_vfun "name -> name -> name -> lens" fclname
-	 (fun t2 -> make_binary_lib fclname (lift_binary (dblens t1 t2))))
+         (fun t2 -> make_binary_lib fclname (lift_binary (dblens t1 t2))))
   )
 
 let () =
@@ -136,9 +237,9 @@ let () =
 let () =
   let fclname = "Native.Relational.ojoin" in
   register_native fclname
-  "tree -> tree -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" (
+  "view -> view -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" (
     mk_vfun
-    "tree -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
+    "view -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
       fun t1 ->
         mk_vfun
         "schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
@@ -183,7 +284,7 @@ let register_name_name_unary_dblens fclname dblens =
   register_native fclname "name -> name -> name -> name -> lens" (
     mk_nfun "name -> name -> name -> lens" fclname 
       (fun n1' -> mk_nfun "name -> name -> lens" fclname
-	 (fun n2' -> make_unary_lib fclname (lift_unary (dblens n1' n2'))))
+         (fun n2' -> make_unary_lib fclname (lift_unary (dblens n1' n2'))))
   )
 
 let register_schema_unary_dblens fclname dblens =
@@ -194,11 +295,11 @@ let register_schema_unary_dblens fclname dblens =
           fun rcd -> (Schema.member (Treedb.rcd_to_tree rcd)) s)))))
 
 let register_tree_tree_tree_unary_dblens fclname dblens =
-  register_native fclname "tree -> tree -> tree -> name -> name -> lens" (
-    mk_vfun "tree -> tree -> name -> name -> lens" fclname 
-      (fun v1 -> mk_vfun "tree -> name -> name -> lens" fclname
-	 (fun v2 -> mk_vfun "name -> name -> lens" fclname
-	    (fun v3 -> make_unary_lib fclname (lift_unary (dblens v1 v2 v3)))))
+  register_native fclname "view -> view -> view -> name -> name -> lens" (
+    mk_vfun "view -> view -> name -> name -> lens" fclname 
+      (fun v1 -> mk_vfun "view -> name -> name -> lens" fclname
+         (fun v2 -> mk_vfun "name -> name -> lens" fclname
+            (fun v3 -> make_unary_lib fclname (lift_unary (dblens v1 v2 v3)))))
   )
 
 (* Rename *)
@@ -227,4 +328,5 @@ let () =
           (tree_to_string_list keystree)
           (Treedb.tree_to_rel dflttree)
     )
+*)
 

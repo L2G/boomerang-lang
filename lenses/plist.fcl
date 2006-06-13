@@ -65,7 +65,7 @@ let l : lens =
   List.hd [];
   plist_object_lens
 #{@}
-    
+
 #{#}
 (* Bug: Adding
      |  <?xml version=\"1.0\" encoding=\"UTF-8\"?>

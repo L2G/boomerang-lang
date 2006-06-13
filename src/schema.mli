@@ -1,20 +1,23 @@
 (*********************************************************)
 (* The Harmony Project                                   *)
 (* harmony@lists.seas.upenn.edu                          *)
-(*                                                       *)
 (*********************************************************)
-(* $Id$ *)
+(* $Id: treeschema.mli 1756 2006-05-31 15:08:03Z bohannon $ *)
 
 type t 
 val format_t : t -> unit
 
-(* -------------- state ------------------- *)
+val treeschema : Treeschema.t -> t
+val dbschema : Dbschema.t -> t
+val treeschema_of : Info.t -> t -> Treeschema.t
+val dbschema_of : Info.t -> t -> Dbschema.t
 
-val mark_tvars : (string * Info.t) list -> unit
-val finalize : unit -> unit
-val update : string -> t -> unit
+(* -------------- generic operations --------------- *)
+val equivalent : t -> t -> bool
+val subschema : t -> t -> bool
+val member : V.t -> t -> bool
 
-(* -------------- constructors --------------- *)
+(* -------------- tree constructors --------------- *)
 val mk_any   : t
 val mk_atom  : Name.t -> t -> t
 val mk_cat   : t list -> t
@@ -26,17 +29,24 @@ val mk_isect : t list -> t
 val mk_diff  : t -> t -> t 
 val mk_nil   : t
 val mk_cons  : t -> t -> t
-val mk_spine_cons : t -> t -> t
 
-val t_of_tree : V.t -> t 
+val t_of_tree : Tree.t -> t 
 
-(* -------------- operations --------------- *)
+(* -------------- tree operations --------------- *)
 val empty : t -> bool
-val equivalent : t -> t -> bool
-val subschema : t -> t -> bool
-val member : V.t -> t -> bool
 val dom_member : Name.Set.t -> t -> bool
 val project : Name.t -> t -> t option
 val project_all : t -> t option
 val inject : t -> t -> t
+val inject_map : t -> Treeschema.t Name.Map.t -> t
 val restrict : Name.Set.t -> t -> t*t
+
+(* val extend : t -> Name.t -> Dbschema.Relschema.t -> t *)
+
+(* -------------- state ------------------- *)
+
+val mark_tvars : (string * Info.t) list -> unit
+val finalize : unit -> unit
+val update : string -> t -> unit
+
+

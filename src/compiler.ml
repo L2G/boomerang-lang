@@ -18,14 +18,14 @@ let v_of_rv = Registry.value_of_rv
 (* --------------- Unit tests --------------- *)
 
 (* unit tests either succeed, yielding a value, or fail with a msg *)
-type testresult = OK of V.t | Error of (unit -> unit)
+type testresult = OK of Value.t | Error of (unit -> unit)
 
 let tests = Prefs.createStringList
   "test"
   "run unit test for the specified module"
   "run unit tests for the specified module"
 let _ = Prefs.alias tests "t"
-  
+
 let test_all = Prefs.createBool "test-all" false
   "run unit tests for all modules"
   "run unit tests for all modules"
@@ -44,33 +44,33 @@ let no_assert = Prefs.createBool "no-assert" false
 
 (* --------------- Error Reporting --------------- *)
 let debug s_thk = Trace.debug "compiler" (fun () -> Format.eprintf "@[%s@\n%!@]" (s_thk ()))
-  
+
 let parse_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "@[%s: Parse error @\n" (Info.string_of_t i);
+           (fun () -> Format.printf "@[%s: Parse error @\n" (Info.string_of_t i);
               msg_thk ();
               Format.printf "@]"))
-      
+
 let sort_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> 
+           (fun () -> 
               Format.printf "@[%s: Sort checking error@\n" (Info.string_of_t i);
               msg_thk ();
               Format.printf "@]"))
-    
+
 let test_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "@[%s: Unit test failed @ " (Info.string_of_t i); 
+           (fun () -> Format.printf "@[%s: Unit test failed @ " (Info.string_of_t i); 
               msg_thk ();
               Format.printf "@]"))
-    
+
 let run_error i msg_thk = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "@[%s: Unexpected run-time error @\n" 
+           (fun () -> Format.printf "@[%s: Unexpected run-time error @\n" 
               (Info.string_of_t i);
               msg_thk ();
               Format.printf "@]"))
-          
+
 (* --------------- Environments --------------- *)
 module type CommonEnvSig = sig
   type t 
@@ -98,7 +98,7 @@ end
 
 module CEnv : CEnvSig = struct
   type t = Syntax.qid list * (Registry.REnv.t)
-      
+
   let empty () = ([], (Registry.REnv.empty ()))    
 
   (* getters and setters *)
@@ -106,13 +106,13 @@ module CEnv : CEnvSig = struct
   let set_ev cev ev = let (os,_) = cev in (os,ev)
   let get_ctx cev = let (os,_) = cev in os
   let set_ctx cev os = let (_,ev) = cev in (os,ev)
-				
+
   (* lookup from a cev, then from the library *)
   let lookup cev q = 
     match Registry.REnv.lookup (get_ev cev) q with
-	None -> Registry.lookup_library_ctx (get_ctx cev) q
+        None -> Registry.lookup_library_ctx (get_ctx cev) q
       | Some rv -> Some rv
-	  
+
   (* update a cev with a new rv *)
   let update cev q rv = 
     set_ev cev (Registry.REnv.update (get_ev cev) q rv)
@@ -121,7 +121,7 @@ module CEnv : CEnvSig = struct
   let overwrite cev q rv = 
     Registry.REnv.overwrite (get_ev cev) q rv
 end
-	
+
 module SCEnv : SCEnvSig = struct
   type t = CEnv.t
   let empty = CEnv.empty        
@@ -132,9 +132,9 @@ module SCEnv : SCEnvSig = struct
 
   let lookup sev q = 
     match CEnv.lookup sev q with
-	None -> None
+        None -> None
       | Some rv -> Some (s_of_rv rv)
-	  
+
   let update sev q s = 
     CEnv.update sev q (mk_rv s (Value.dummy s (Value.parse_qid "NONE")))
 end
@@ -149,14 +149,14 @@ let sort_of_params i ps s =
   Safelist.fold_right (fun p ts -> SArrow(sort_of_param p,ts))  ps s
 
 (* check if one sort is a subsort of another *)
-let rec subsort u v = match u,v with	
+let rec subsort u v = match u,v with        
     SArrow(s11,s12),SArrow(s21,s22) -> 
       let b1 = subsort s21 s11  in
       let b2 = subsort s12 s22 in 
-	b1 && b2
+        b1 && b2
   | SRecLens(_),SLens -> true
   | SLens,SRecLens(_) -> true
-  | STree,SSchema  -> true
+  | SView,SSchema  -> true
   | _ -> u=v
 
 let rec expect_sort_exp msg sev expected_sort e =
@@ -166,31 +166,31 @@ let rec expect_sort_exp msg sev expected_sort e =
       (e_sort,new_e)
     else
       sort_error i
-	(fun () -> 
+        (fun () -> 
            Format.printf "@[in %s:@ " msg;
            Syntax.format_sort expected_sort;
            Format.printf " expected@ but ";
            Syntax.format_sort e_sort;
            Format.printf "@ found@]")
-	
+
 (* EXPRESSIONS *)    
 and check_exp sev e0 = match e0 with
     (* applications *)
     EApp(i,e1,e2) -> begin
       match check_exp sev e1 with
-	  SArrow(param_sort,return_sort),new_e1 -> 
-	    let e2_sort,new_e2 = expect_sort_exp "application" sev param_sort e2 in
-	    let new_e0 = EApp(i, new_e1, new_e2) in 
-	      (return_sort, new_e0)
-	| e1_sort,_ -> 
-	    sort_error i 
-	      (fun () -> 
+          SArrow(param_sort,return_sort),new_e1 -> 
+            let e2_sort,new_e2 = expect_sort_exp "application" sev param_sort e2 in
+            let new_e0 = EApp(i, new_e1, new_e2) in 
+              (return_sort, new_e0)
+        | e1_sort,_ -> 
+            sort_error i 
+              (fun () -> 
                  Format.printf
-		   "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found";
+                   "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found";
                  Syntax.format_sort e1_sort;
                  Format.printf "@]")
     end
-      
+
   (* assertions *)
   | EAssert(i,e1) -> 
       let _,new_e1 = expect_sort_exp "assert schema" sev SSchema e1 in 
@@ -202,18 +202,18 @@ and check_exp sev e0 = match e0 with
       let _,new_e2 = expect_sort_exp "check schema #1" sev SSchema e2 in 
       let e0_sort,new_e3 = expect_sort_exp "check lens" sev SLens e3 in 
       let new_e0 = ECheckLens(i,new_e1,la,new_e2,new_e3) in
-	(e0_sort,new_e0)
-          
+        (e0_sort,new_e0)
+
     (* type atoms *)
     | EAtom(i,e1,e2) ->
-	let _,new_e1 = expect_sort_exp "atom name" sev SName e1 in
-	let e2_sort, new_e2 = expect_sort_exp "atom schema" sev SSchema e2 in
-	let new_e0 = EAtom(i, new_e1, new_e2) in
-	  (e2_sort, new_e0)
-	    
+        let _,new_e1 = expect_sort_exp "atom name" sev SName e1 in
+        let e2_sort, new_e2 = expect_sort_exp "atom schema" sev SSchema e2 in
+        let new_e0 = EAtom(i, new_e1, new_e2) in
+          (e2_sort, new_e0)
+
     | ECat(i,es) ->
         let merge_sorts s1 s2 = match s1,s2 with
-            STree,STree -> STree
+            SView,SView -> SView
           | _           -> SSchema in
         let rec check_lift_cats es = Safelist.fold_left
           (fun (es_sort,new_es_rev) ei -> match ei with
@@ -221,76 +221,86 @@ and check_exp sev e0 = match e0 with
                  let fs_sort, new_fs_rev = check_lift_cats fs in
                    (merge_sorts es_sort fs_sort, new_fs_rev@new_es_rev)
              | _ -> 
-	         let ei_sort, new_ei = 
-	           expect_sort_exp "concatenation (tree or schema)" sev SSchema ei in
-	           (merge_sorts es_sort ei_sort,new_ei::new_es_rev))
-	  (STree,[])
-	  es in
+                 let ei_sort, new_ei = 
+                   expect_sort_exp "concatenation (tree or schema)" sev SSchema ei in
+                   (merge_sorts es_sort ei_sort,new_ei::new_es_rev))
+          (SView,[])
+          es in
         let e0_sort,new_es_rev = check_lift_cats es in
-	let new_e0 = ECat(i, Safelist.rev new_es_rev) in
-	  (e0_sort, new_e0)
+        let new_e0 = ECat(i, Safelist.rev new_es_rev) in
+          (e0_sort, new_e0)
 
     | ECons(i,e1,e2) -> 
-	let e1_sort, new_e1 = expect_sort_exp "cons (tree or schema)" sev SSchema e1 in
-	let e2_sort, new_e2 = expect_sort_exp "cons (tree or schema)" sev SSchema e2 in
-	let e0_sort = 
-	  match e1_sort,e2_sort with
-	      STree,STree -> STree
-	    | _           -> SSchema in
-	let new_e0 = ECons(i, new_e1, new_e2) in
-	  (e0_sort, new_e0)
-	    
-    | ESpineCons(i,e1,e2) -> 
-	let e1_sort, new_e1 = expect_sort_exp "spine cons (tree or schema)" sev SSchema e1 in
-	let e2_sort, new_e2 = expect_sort_exp "spine cons (tree or schema)" sev SSchema e2 in
-	let e0_sort = 
-	  match e1_sort,e2_sort with
-	      STree,STree -> STree
-	    | _           -> SSchema in
-	let new_e0 = ESpineCons(i, new_e1, new_e2) in
-	  (e0_sort, new_e0)
-	    
+        let e1_sort, new_e1 = expect_sort_exp "cons (tree or schema)" sev SSchema e1 in
+        let e2_sort, new_e2 = expect_sort_exp "cons (tree or schema)" sev SSchema e2 in
+        let e0_sort = 
+          match e1_sort,e2_sort with
+              SView,SView -> SView
+            | _           -> SSchema in
+        let new_e0 = ECons(i, new_e1, new_e2) in
+          (e0_sort, new_e0)
+
+    | EDB(i, db) as e ->
+        (SView, e)
+
+    | EDBPred(i, pred) as e ->
+        (SPred, e)
+
+    | EDBSchema(i, dbs) as e ->
+        (SSchema, e)
+
     | EFun(i,[],_,_) -> 
-	run_error i (fun () -> Format.printf "@[function without parameters]")
-	
+        run_error i (fun () -> Format.printf "@[function without parameters]")
+
   | EFun(i,p1::p2::ps,return_sort_opt,body) ->
       (* multi-parameter function; rewrite to simple lambda *)
-      let new_body = EFun(i,p2::ps,return_sort_opt,body) in	    
-	check_exp sev (EFun(i,[p1],None,new_body))	    
-	  
+      let new_body = EFun(i,p2::ps,return_sort_opt,body) in            
+        check_exp sev (EFun(i,[p1],None,new_body))            
+
   | EFun(i,[p],return_sort_opt,body) ->
       let p_sort = sort_of_param p in
-      let p_id = id_of_param p in	  
+      let p_id = id_of_param p in          
       let body_sev = SCEnv.update sev (qid_of_id p_id) p_sort in
       let body_sort, new_body = 
-	match return_sort_opt with
-	    Some s -> expect_sort_exp "function body" body_sev s body
-	  | None   -> check_exp body_sev body
+        match return_sort_opt with
+            Some s -> expect_sort_exp "function body" body_sev s body
+          | None   -> check_exp body_sev body
       in
       let e0_sort = SArrow(p_sort, body_sort) in
       let new_e0 = EFun(i,[p], Some body_sort, new_body) in
-	(e0_sort, new_e0)
-	  
+        (e0_sort, new_e0)
+
   | ELet(i,bs,e) ->
       let bsev,_,new_bs = check_bindings sev bs in
       let e0_sort, new_e = check_exp bsev e in
       let new_e0 = ELet(i, new_bs, new_e) in
-	(e0_sort, new_e0)
+        (e0_sort, new_e0)
+
+  | EMap(i,ms) ->        
+      let new_ms = Safelist.map
+        (fun (n,l) -> 
+           let _,new_n = expect_sort_exp "map name" sev SName n in
+           let _,new_l = expect_sort_exp "map lens" sev SLens l in
+             (new_n, new_l))
+        ms in
+      let e0_sort = SMap in
+      let new_e0 = EMap(i, new_ms) in
+        (e0_sort, new_e0)
 
   | EName(i,x) -> (SName, EName(i, x))
-      
-  | ENil(i) -> (STree, ENil(i))
-      
+
+  | ENil(i) -> (SView, ENil(i))
+
   | EProtect(i,e,_) -> 
       let e0_sort,new_e = expect_sort_exp "protect" sev SLens e in
         (e0_sort, EProtect(i,new_e, Some(e0_sort)))
-          
+
   | ESchema(i,ss,e) ->
       let ssev,_,new_ss = check_schema_bindings sev ss in
       let e0_sort, new_e = check_exp ssev e in 
       let new_e0 = ESchema(i,new_ss,new_e) in
         (e0_sort, new_e0)
-          
+
   | EUnion(i,es) ->
       let rec check_lift_unions es = Safelist.fold_left 
         (fun acc ei -> match ei with 
@@ -317,52 +327,52 @@ and check_exp sev e0 = match e0 with
   | EVar(i,q,_) ->
       begin match SCEnv.lookup sev q with
           Some s -> (s,e0)
-	| None -> 
+        | None -> 
             sort_error i 
-	      (fun () -> 
+              (fun () -> 
                  Format.printf "@[%s is not bound@]"
-		   (string_of_qid q))
+                   (string_of_qid q))
       end
-        
+
   | EWild(i,es,l,u,e) ->
       let new_es = Safelist.map 
-	(fun ei -> snd (expect_sort_exp "wildcard exception list" sev SName ei))
-	es 
+        (fun ei -> snd (expect_sort_exp "wildcard exception list" sev SName ei))
+        es 
       in
       let _,new_e = expect_sort_exp "wildcard schema" sev SSchema e in
       let new_e0 = EWild(i,new_es,l,u,new_e) in
-	(SSchema, new_e0)
-          
-and check_bindings sev bs = 	    
+        (SSchema, new_e0)
+
+and check_bindings sev bs =             
   let bsev =
     Safelist.fold_left
       (fun bsev (BDef(i,f,xs,s,e)) ->
-	 SCEnv.update bsev 
+         SCEnv.update bsev 
            (qid_of_id f) 
            (sort_of_params i xs s))
       sev
       bs in
   let rec check_binding sev bi = match bi with 
       Syntax.BDef(i,f,[],s,e) -> 
-	let f_qid = qid_of_id f in
-	let e_sort, new_e = expect_sort_exp "let binding" sev s e in
-	let new_bi = Syntax.BDef(i, f, [], e_sort, new_e) in
-	  (SCEnv.update bsev f_qid e_sort, f_qid, new_bi)
+        let f_qid = qid_of_id f in
+        let e_sort, new_e = expect_sort_exp "let binding" sev s e in
+        let new_bi = Syntax.BDef(i, f, [], e_sort, new_e) in
+          (SCEnv.update bsev f_qid e_sort, f_qid, new_bi)
     | Syntax.BDef(i,f,ps,s,e) -> 
         (* rewrite bindings with parameters to plain ol' lambdas *)          
-	let new_e = EFun(i,ps,Some s,e) in
-	let new_s = sort_of_params i ps s in
+        let new_e = EFun(i,ps,Some s,e) in
+        let new_s = sort_of_params i ps s in
           check_binding sev (Syntax.BDef(i,f,[],new_s,new_e)) in
   let bsev,names_rev,new_bs_rev = Safelist.fold_left 
     (fun (bsev, names_rev,new_bs_rev) bi ->  
        let bsev, f_qid, new_bi = check_binding bsev bi in
-	 bsev, f_qid::names_rev, new_bi::new_bs_rev)
+         bsev, f_qid::names_rev, new_bi::new_bs_rev)
     (bsev,[],[])
     bs
   in
     (bsev, Safelist.rev names_rev, Safelist.rev new_bs_rev)
-      
-and check_schema_bindings sev ss = 	    
+
+and check_schema_bindings sev ss =             
   let ssev = 
     Safelist.fold_left
       (fun ssev (SDef(i,x,_)) -> SCEnv.update ssev (qid_of_id x) SSchema)
@@ -370,78 +380,78 @@ and check_schema_bindings sev ss =
       ss in
   let rec check_schema_binding sev si = match si with 
       Syntax.SDef(i,x,e) -> 
-	let x_qid = qid_of_id x in
+        let x_qid = qid_of_id x in
         let _, new_e = expect_sort_exp "schema binding" sev SSchema e in
-	let new_si = Syntax.SDef(i, x, new_e) in
-	  (SCEnv.update ssev x_qid SSchema, x_qid, new_si)
+        let new_si = Syntax.SDef(i, x, new_e) in
+          (SCEnv.update ssev x_qid SSchema, x_qid, new_si)
   in
   let ssev,names_rev,new_ss_rev = Safelist.fold_left 
     (fun (ssev, names_rev,new_ss_rev) si ->  
        let ssev, x_qid, new_si = check_schema_binding ssev si in
-	 ssev, x_qid::names_rev, new_si::new_ss_rev)
+         ssev, x_qid::names_rev, new_si::new_ss_rev)
     (ssev,[],[])
     ss
   in
     (ssev, Safelist.rev names_rev, Safelist.rev new_ss_rev)
-      
+
 (* type check a single declaration *)
 let rec check_decl sev m d0 = match d0 with
   | DLet(i,bs) -> 
       let new_sev, names, new_bs = check_bindings sev bs in
       let new_d0 = DLet(i, new_bs) in
-	(new_sev, names, new_d0)
-          
+        (new_sev, names, new_d0)
+
   | DMod(i,n,ds) ->
-      let n_qid = qid_of_id n in	
+      let n_qid = qid_of_id n in        
       let mn = Syntax.dot m n_qid in
       let m_sev,names,new_ds = check_module_aux sev mn ds in
       let new_sev, names_rev = Safelist.fold_left 
-	(fun (new_sev, names) q -> 
-	   match Registry.REnv.lookup (SCEnv.get_ev m_sev) q with
-	       None -> run_error i 
-		   (fun () -> 
-		      Format.printf "@[the compiled declaration for %s went missing@]"
-			(string_of_qid q))
-	       | Some q_rv ->
-		   let nq_dot_q = dot n_qid q in
-		     (SCEnv.update sev nq_dot_q (s_of_rv q_rv), nq_dot_q::names))
-	  (sev,[])
-	  names
-	in
-	let new_d0 = DMod(i,n,new_ds) in
-	  (new_sev, Safelist.rev names_rev, new_d0)
+        (fun (new_sev, names) q -> 
+           match Registry.REnv.lookup (SCEnv.get_ev m_sev) q with
+               None -> run_error i 
+                   (fun () -> 
+                      Format.printf "@[the compiled declaration for %s went missing@]"
+                        (string_of_qid q))
+               | Some q_rv ->
+                   let nq_dot_q = dot n_qid q in
+                     (SCEnv.update sev nq_dot_q (s_of_rv q_rv), nq_dot_q::names))
+          (sev,[])
+          names
+        in
+        let new_d0 = DMod(i,n,new_ds) in
+          (new_sev, Safelist.rev names_rev, new_d0)
 
     | DSchema(i,ss) ->
         let new_sev, names, new_ss = check_schema_bindings sev ss in
         let new_d0 = DSchema(i,ss) in
           (new_sev, names, new_d0)
 
-    | DTest(i,e,res) ->	
-	if not (check_test m) then (sev, [], d0)
-	else begin
-	  let _,new_e = expect_sort_exp "test expression" sev STree e in
-	  let new_res = 
-	    match res with 
-		ErrorResult -> ErrorResult
-  	      | PrintResult -> PrintResult
-	      | Result res -> 
-		  let _,new_res = expect_sort_exp "test result" sev STree res in
-		    Result(new_res) in
-	  let new_d0 = DTest(i,new_e, new_res) in
-	    (sev, [], new_d0)
-	end
-	  
+    | DTest(i,e,res) ->        
+        if not (check_test m) then (sev, [], d0)
+        else begin
+          let _,new_e = expect_sort_exp "test expression" sev SView e in
+          let new_res = 
+            match res with 
+                ErrorResult -> ErrorResult
+                | PrintResult -> PrintResult
+              | Result res -> 
+                  let _,new_res = expect_sort_exp "test result" sev SView res in
+                    Result(new_res) in
+          let new_d0 = DTest(i,new_e, new_res) in
+            (sev, [], new_d0)
+        end
+
 and check_module_aux sev m ds = 
   let new_sev, names, new_ds_rev = 
     Safelist.fold_left 
       (fun (sev, names, new_ds_rev) di ->
-	 let new_sev, new_names, new_di = check_decl sev m di in
-	   new_sev, names@new_names, new_di::new_ds_rev)
+         let new_sev, new_names, new_di = check_decl sev m di in
+           new_sev, names@new_names, new_di::new_ds_rev)
       (sev,[],[])
       ds
   in
     (new_sev, names, Safelist.rev new_ds_rev)
-      
+
 let check_module m0 = 
   let (Syntax.MDef(i,m,nctx,ds)) = m0 in
   let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Registry.pre_ctx) in
@@ -458,12 +468,12 @@ let rec compile_exp cev e0 = match e0 with
       let e2_rv = compile_exp cev e2 in
       let v1 = v_of_rv e1_rv in
       let v2 = v_of_rv e2_rv in
-	begin 
-	  match s_of_rv e1_rv with
-	    | SArrow(_,return_sort) -> 
-		begin match v1 with
-		    Value.F(_,f) -> mk_rv return_sort (f v2)
-		  | _   -> 
+        begin 
+          match s_of_rv e1_rv with
+            | SArrow(_,return_sort) -> 
+                begin match v1 with
+                    Value.F(_,f) -> mk_rv return_sort (f v2)
+                  | _   -> 
                       run_error 
                         i 
                         (fun () -> 
@@ -471,32 +481,33 @@ let rec compile_exp cev e0 = match e0 with
                              "@[expected function at left-hand side of application but found ";
                            Value.format_t v2;
                            Format.printf "@]")
-		end
-	    | s -> 
+                end
+            | s -> 
                 run_error i 
-		  (fun () -> 
+                  (fun () -> 
                      Format.printf
                        "@[expected function sort at left-hand side of application but found ";
                      Syntax.format_sort s;
                      Format.printf "@]")
-	end
+        end
 
   | EAssert(i,e1) ->
       let t = compile_exp_schema cev e1 in 
       let check_assert dir v = 
         if (not (Prefs.read no_assert)) then
           match Schema.member v t with
-	      true -> ()
+              true -> ()
             | false -> 
-	          Lens.error [`String (Info.string_of_t i); `Space;
+                  Lens.error [`String (Info.string_of_t i); `Space;
                               `String (sprintf "assert(%s): tree" dir); `Space;
-		              `Tree v; `Space;
-		              `String "is not a member of";  `Space;
-		              `Prim (fun () -> Schema.format_t t);
-		              (* `Space; `String "because"; `Space;
-		              `Tree v0; `Space;
-		              `String "is not a member of";  `Space;
-		              `Prim (fun () -> Schema.format_t t0) *)] in                    
+                              (* FIXME *)
+                              (*`Tree v;*) `Space;
+                              `String "is not a member of";  `Space;
+                              `Prim (fun () -> Schema.format_t t);
+                              (* `Space; `String "because"; `Space;
+                              `Tree v0; `Space;
+                              `String "is not a member of";  `Space;
+                              `Prim (fun () -> Schema.format_t t0) *)] in                    
       let checker = Value.BIJ ((fun c -> c),(fun a -> a)) in 
         mk_rv 
           SLens
@@ -528,146 +539,141 @@ let rec compile_exp cev e0 = match e0 with
                            ; `Prim (fun () -> Syntax.format_lensarrow ck_la); `Space] in
       let assert_schema expected found = 
         if not (Schema.equivalent expected found) then
-	  Lens.error [`String (Info.string_of_t i); `Space
+          Lens.error [`String (Info.string_of_t i); `Space
                      ; `String "static lens type assertion failed; expected:"; `Space
-		     ; `Prim (fun () -> Schema.format_t expected); `Space
+                     ; `Prim (fun () -> Schema.format_t expected); `Space
                      ; `String "but found:"; `Space
-		     ; `Prim (fun () -> Schema.format_t found)] in
+                     ; `Prim (fun () -> Schema.format_t found)] in
         (match ck with 
              Value.BIJ(c2a,a2c) -> 
-               assert_schema (c2a c) a;
-               assert_schema (a2c a) c
+               assert_schema a (c2a c);
+               assert_schema c (a2c a)
            | Value.VWB(c2a) | Value.WB(c2a) -> 
-               assert_schema (c2a c) a);
+               assert_schema a (c2a c));
         mk_rv SLens (Value.L (l,ck))
-                 
+
   | EAtom(i,e1,e2) ->
       let n = compile_exp_name cev e1 in
       let e2_rv = compile_exp cev e2 in
-	begin match v_of_rv e2_rv with
-	    Value.V v -> 
-	      mk_rv
-		STree
-		(Value.V (V.set V.empty n (Some v)))
-	  | Value.S s ->
+        begin match v_of_rv e2_rv with
+            Value.V (V.Tree t) -> 
+              mk_rv
+                SView
+                (Value.V (V.Tree (Tree.set Tree.empty n (Some t))))
+          | Value.S s ->
               let s = Schema.mk_atom n s in
-		mk_rv SSchema (Value.S s)
-	  | v -> run_error i
+                mk_rv SSchema (Value.S s)
+          | v -> run_error i
               (fun () -> 
                  Format.printf 
                    "@[expected schema or tree in atom but found ";
                  Value.format_t v;
                  Format.printf "@]")
-	end
-	  
+        end
+
     | ECat(i, es) ->
-	let e0_sort, vs_rev = 
-	  Safelist.fold_left 
-	    (fun (s,vs_rev) ei -> 		 
+        let e0_sort, vs_rev = 
+          Safelist.fold_left 
+            (fun (s,vs_rev) ei ->                  
                let ei_rv = compile_exp cev ei in 
-	       let v = v_of_rv ei_rv in
-		 match s, v with
-		     STree, (Value.V _) -> 
-		       (s, v::vs_rev)
-		   | STree, (Value.S _) ->
-		       (SSchema, 
-			v::(Safelist.map (fun v -> Value.S (Value.get_schema i v)) vs_rev))
-		   | SSchema, (Value.V _) 
-		   | SSchema, (Value.S _) ->
-		       (s, (Value.S (Value.get_schema i v))::vs_rev)
-		   | _ -> run_error i 
+               let v = v_of_rv ei_rv in
+                 match s, v with
+                     SView, (Value.V _) -> 
+                       (s, v::vs_rev)
+                   | SView, (Value.S _) ->
+                       (SSchema, 
+                        v::(Safelist.map (fun v -> Value.S (Value.get_schema i v)) vs_rev))
+                   | SSchema, (Value.V _) 
+                   | SSchema, (Value.S _) ->
+                       (s, (Value.S (Value.get_schema i v))::vs_rev)
+                   | _ -> run_error i 
                        (fun () -> 
-			  Format.printf "@[bogus value in ECat:";
+                          Format.printf "@[bogus value in ECat:";
                           Registry.format_rv ei_rv;
                           Format.printf "@]"))
-	    (STree,[])
-	    es in 
-	  begin
-	    match e0_sort with
-		STree -> 
-		  let vi = Safelist.fold_left
-		    (fun vacc v -> V.concat vacc (Value.get_tree i v))
-		    V.empty 
-		    (Safelist.rev vs_rev)
-		  in
-		    mk_rv STree (Value.V(vi))		      
-	      | SSchema ->                   
-		  let ts = Safelist.rev_map (Value.get_schema i) vs_rev in                    
+            (SView,[])
+            es in 
+          begin
+            match e0_sort with
+                SView -> 
+                  let vi = Safelist.fold_left
+                    (fun vacc v -> Tree.concat vacc (Value.get_tree i v))
+                    Tree.empty 
+                    (Safelist.rev vs_rev)
+                  in
+                    mk_rv SView (Value.V (V.Tree (vi)))                      
+              | SSchema ->                   
+                  let ts = Safelist.rev_map (Value.get_schema i) vs_rev in                    
                   let s = Schema.mk_cat ts in
- 		    mk_rv SSchema (Value.S s)
-	      | _ -> run_error i 
+                     mk_rv SSchema (Value.S s)
+              | _ -> run_error i 
                   (fun () -> 
                      Format.printf "@[unexpected sort in ECat: ";
                      Syntax.format_sort e0_sort;
                      Format.printf "@]")
-	  end
+          end
     | ECons(i,e1,e2) ->         
-	let e1_v = v_of_rv (compile_exp cev e1) in 
-	let e2_v = v_of_rv (compile_exp cev e2) in    
-	  begin match e1_v, e2_v with
-	      Value.V v1, Value.V v2     -> 
-		mk_rv STree (Value.V (V.cons v1 v2))
-	    | Value.V _, Value.S t ->
+        let e1_v = v_of_rv (compile_exp cev e1) in 
+        let e2_v = v_of_rv (compile_exp cev e2) in    
+          begin match e1_v, e2_v with
+              Value.V (V.Tree t1), Value.V (V.Tree t2)     -> 
+                mk_rv SView (Value.V (V.Tree (Tree.cons t1 t2)))
+            | Value.V _, Value.S t ->
                 let s = Schema.mk_cons (Value.get_schema i e1_v) t in
-	      	  mk_rv SSchema (Value.S s)
-	    | Value.S t, Value.V _ ->
+                        mk_rv SSchema (Value.S s)
+            | Value.S t, Value.V _ ->
                 let s = Schema.mk_cons t (Value.get_schema i e2_v) in
-	      	  mk_rv SSchema (Value.S s)
-	    | Value.S t1, Value.S t2 -> 
-		let s = Schema.mk_cons t1 t2 in 
-	      	  mk_rv SSchema (Value.S s)
-	    | _ -> run_error i (fun () -> Format.printf "@[expected tree or type in atom@]")
-	  end
-
-    | ESpineCons(i,e1,e2) ->         
-	let e1_v = v_of_rv (compile_exp cev e1) in 
-	let e2_v = v_of_rv (compile_exp cev e2) in    
-	  begin match e1_v, e2_v with
-	      Value.V v1, Value.V v2     -> 
-		mk_rv STree (Value.V (V.spined_cons v1 v2))
-	    | Value.V _, Value.S t ->
-                let s = Schema.mk_spine_cons (Value.get_schema i e1_v) t in
-	      	  mk_rv SSchema (Value.S s)
-	    | Value.S t, Value.V _ ->
-                let s = Schema.mk_spine_cons t (Value.get_schema i e2_v) in
-	      	  mk_rv SSchema (Value.S s)
-	    | Value.S t1, Value.S t2 -> 
-		let s = Schema.mk_spine_cons t1 t2 in 
-	      	  mk_rv SSchema (Value.S s)
-	    | _ -> run_error i (fun () -> Format.printf "@[expected tree or type in atom@]")
-	  end
+                        mk_rv SSchema (Value.S s)
+            | Value.S t1, Value.S t2 -> 
+                let s = Schema.mk_cons t1 t2 in 
+                        mk_rv SSchema (Value.S s)
+            | _ -> run_error i (fun () -> Format.printf "@[expected tree or type in atom@]")
+          end
 
     | EFun(i,[p],Some ret_sort,e) ->
-	(* fully-annotated, simple lambda *)
-	(* the actual implementation of f *)
-	let param_qid = qid_of_id (id_of_param p) in
-	let param_sort = sort_of_param p in
-	let f_sort = SArrow(param_sort, ret_sort) in
-	let f_impl v =
-	  let body_cev = 
-	    CEnv.update cev param_qid (mk_rv param_sort v) in
-	    v_of_rv (compile_exp body_cev e)
-	in
-	  mk_rv 
-	    f_sort
-	    (Value.F (f_sort, f_impl))
+        (* fully-annotated, simple lambda *)
+        (* the actual implementation of f *)
+        let param_qid = qid_of_id (id_of_param p) in
+        let param_sort = sort_of_param p in
+        let f_sort = SArrow(param_sort, ret_sort) in
+        let f_impl v =
+          let body_cev = 
+            CEnv.update cev param_qid (mk_rv param_sort v) in
+            v_of_rv (compile_exp body_cev e)
+        in
+          mk_rv 
+            f_sort
+            (Value.F (f_sort, f_impl))
 
     | EFun(i,_,_,_) -> 
-	run_error i (fun () -> Format.printf "@[unflattened or unannotated function@]")
-	  
+        run_error i (fun () -> Format.printf "@[unflattened or unannotated function@]")
+
     | ELet(i, bs,e) ->
-	let bcev,_ = compile_bindings cev bs in
-	  compile_exp bcev e	    
+        let bcev,_ = compile_bindings cev bs in
+          compile_exp bcev e            
+
+    | EMap(i, ms) ->
+        let ms_map = Safelist.fold_left
+          (fun ms_map (ne,le) ->
+             let n = compile_exp_name cev ne in
+             let l = compile_exp_lens cev le in
+               Name.Map.add n l ms_map)
+          Name.Map.empty ms
+        in
+        let map_value = Value.M(ms_map) in
+          mk_rv 
+            SMap
+            map_value
 
     | EName(i, x) -> 
-	mk_rv 
-	  SName 
-	  (Value.N (name_of_id x))
-	  
+        mk_rv 
+          SName 
+          (Value.N (name_of_id x))
+
     | ENil(i) -> 
-	mk_rv
-	  STree
-	  (Value.V (V.empty_list))
+        mk_rv
+          SView
+          (Value.V (V.Tree (Tree.empty_list)))
 
     | EProtect(i,e,Some s) -> 
         (* call by need lenses: evaluate the lens the first time it is
@@ -708,32 +714,32 @@ let rec compile_exp cev e0 = match e0 with
             (Value.L (Lens.native get put, checker))
 
     | EProtect(i,_,_) ->
-	run_error i (fun () -> Format.printf "@[unannotated protect@]")
+        run_error i (fun () -> Format.printf "@[unannotated protect@]")
 
-            
+
     | ESchema(i,ss,e) ->         
         let scev,_ = compile_schema_bindings cev ss in 
           compile_exp scev e 
 
     | EUnion(i, es) ->
-	let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in
+        let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in
         let s = Schema.mk_union ts in 
-	  mk_rv SSchema (Value.S s)
+          mk_rv SSchema (Value.S s)
 
     | EInter(i, es) ->
-	let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in
+        let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in
         let s = Schema.mk_isect ts in 
-	  mk_rv SSchema (Value.S s)
+          mk_rv SSchema (Value.S s)
 
     | EMinus(i,e1,e2) -> 
         let s1 = compile_exp_schema cev e1 in
         let s2 = compile_exp_schema cev e2 in
         let s = Schema.mk_diff s1 s2 in
-	  mk_rv SSchema (Value.S s)
+          mk_rv SSchema (Value.S s)
 
     | EVar(i,q,_) -> begin 
         match CEnv.lookup cev q with
-	    Some rv -> 
+            Some rv -> 
               if Value.is_dummy (v_of_rv rv) then 
                 (* for agreement with the paper semantics, we should
                    uncomment out the next line so that we diverge here
@@ -745,43 +751,49 @@ let rec compile_exp cev e0 = match e0 with
                      Format.printf "@[variable %s may not be used recursively@]"
                        (Syntax.string_of_qid q))
               else rv
-	  | None -> run_error 
-	      (info_of_exp e0)
-	        (fun () -> 
-		   Format.printf "@[unbound variable %s@]"
-		     (string_of_qid q))
+          | None -> run_error 
+              (info_of_exp e0)
+                (fun () -> 
+                   Format.printf "@[unbound variable %s@]"
+                     (string_of_qid q))
       end
 
     | EWild(i,es,l,u,e) ->
-	let f = 
+        let f = 
           Safelist.fold_left 
             (fun f ei -> Name.Set.add (compile_exp_name cev ei) f)
             Name.Set.empty 
             es in
-	let t = compile_exp_schema cev e in 
+        let t = compile_exp_schema cev e in 
         let s = Schema.mk_wild f l u t in
-	  mk_rv SSchema (Value.S s)
-	   
-(* compilation helpers when we know the sort *)	  	  	    
+          mk_rv SSchema (Value.S s)
+
+    | EDB(_,db) -> mk_rv SView (Value.V (V.Db db))
+
+    | EDBPred(_,pred) -> mk_rv SPred (Value.P pred)
+
+    | EDBSchema(_, dbs) -> mk_rv SSchema (Value.S (Schema.dbschema dbs))
+
+(* compilation helpers when we know the sort *)                                
 and compile_exp_name cev e =
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
-    Value.get_name i (v_of_rv e_rv)
-      
+  Value.get_name i (v_of_rv e_rv)
+
 and compile_exp_tree cev e =
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
-    Value.get_tree i (v_of_rv e_rv)
-      
+  Value.get_tree i (v_of_rv e_rv)
+
 and compile_exp_schema cev e =
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
-    Value.get_schema i (v_of_rv e_rv)
-      
+  Value.get_schema i (v_of_rv e_rv)
+
 and compile_exp_lens cev e = 
   let i = info_of_exp e in
   let e_rv = compile_exp cev e in
-    Value.get_lens i (v_of_rv e_rv)
+  Value.get_lens i (v_of_rv e_rv)
 
 and compile_bindings cev bs =
   (* collect up a CEnv that includes mappings for 
@@ -789,10 +801,10 @@ and compile_bindings cev bs =
   let bcev =
     Safelist.fold_left
       (fun bcev (BDef(i,f,xs,s,e)) ->
-	 let f_qid = qid_of_id f in
-	 let b_sort = (sort_of_params i xs s) in
-	 let dummy = Value.dummy b_sort (Syntax.qid_of_id f) in
-	   CEnv.update bcev f_qid (mk_rv b_sort dummy))
+         let f_qid = qid_of_id f in
+         let b_sort = (sort_of_params i xs s) in
+         let dummy = Value.dummy b_sort (Syntax.qid_of_id f) in
+           CEnv.update bcev f_qid (mk_rv b_sort dummy))
       cev
       bs in
 
@@ -800,10 +812,10 @@ and compile_bindings cev bs =
   let names_rev = Safelist.fold_left
     (fun names_rev bi -> match bi with 
          Syntax.BDef(i,f,[],s,e) ->
-	   let f_qid = qid_of_id f in
-	   let e_rv = compile_exp bcev e in
-	   let memoized_v = Value.memoize (v_of_rv e_rv) in
-	   let memoized_rv = mk_rv (s_of_rv e_rv) memoized_v in
+           let f_qid = qid_of_id f in
+           let e_rv = compile_exp bcev e in
+           let memoized_v = Value.memoize (v_of_rv e_rv) in
+           let memoized_rv = mk_rv (s_of_rv e_rv) memoized_v in
              CEnv.overwrite bcev f_qid memoized_rv;
              f_qid::names_rev
        | Syntax.BDef(i,_,_,_,_) -> run_error i 
@@ -812,7 +824,7 @@ and compile_bindings cev bs =
     bs
   in
     bcev, Safelist.rev names_rev
-      
+
 and compile_schema_bindings cev sbinds =
   (* pass 1: get a fresh schema variable for each bound name and update
      the compilation environment maps each bound name to the 
@@ -835,7 +847,7 @@ and compile_schema_bindings cev sbinds =
   let old_check_schemas = !check_schemas_cell in 
     check_schemas_cell := false;
     Schema.mark_tvars (Safelist.rev (Safelist.combine fresh_xs_rev i_rev));
-   
+
   (* pass 2: compile each schema expression and update the compilation
      environment so that every q_x points to the actual compiled
      schema not just a schema variable. *)
@@ -845,17 +857,17 @@ and compile_schema_bindings cev sbinds =
            Schema.update fresh_x s;
            CEnv.overwrite scev q_x (mk_rv SSchema (Value.S s)))
       annot_sbinds;
-  
+
     (* finalize schemas, if flag set *)
     check_schemas_cell := old_check_schemas;
     if (!check_schemas_cell) then Schema.finalize ();
-    
+
     (* result *)
     (scev, Safelist.rev names_rev)
-      
+
 (* type check a single declaration *)
 let rec compile_decl cev m di = 
-  let _ = Trace.debug "decl" (fun () -> 
+  let _ = Trace.debug "decl+" (fun () -> 
                                 Format.printf "@\n";
                                 Syntax.format_decl di; 
                                 Format.print_newline ()) in
@@ -867,64 +879,59 @@ let rec compile_decl cev m di =
       let m_cev, names = compile_module_aux cev mn ds in
       (* insert all the just-compiled names into the environment *)
       let new_cev, names_rev =
-	Safelist.fold_left
-	  (fun (cev, names) q ->
-	     match Registry.REnv.lookup (CEnv.get_ev m_cev) q with
-		 Some rv ->
-		   let nq_dot_q = dot nq q in
-		     (CEnv.update cev nq_dot_q rv, nq_dot_q::names)
-	       | None -> run_error i
-		   (fun () -> Format.printf "@[the compiled declaration for %s went missing@]"
-		      (string_of_qid q)))
-	  (cev,[])
-	  names
+        Safelist.fold_left
+          (fun (cev, names) q ->
+             match Registry.REnv.lookup (CEnv.get_ev m_cev) q with
+                 Some rv ->
+                   let nq_dot_q = dot nq q in
+                     (CEnv.update cev nq_dot_q rv, nq_dot_q::names)
+               | None -> run_error i
+                   (fun () -> Format.printf "@[the compiled declaration for %s went missing@]"
+                      (string_of_qid q)))
+          (cev,[])
+          names
       in
-	new_cev, Safelist.rev names_rev
+        new_cev, Safelist.rev names_rev
   | DSchema(i,ss) -> compile_schema_bindings cev ss
   | DTest(i,e,res) ->
       if check_test m then
-	begin
-	  let vo = 
-	    try
-	      OK (compile_exp_tree cev e)
-	    with (Error.Harmony_error(m)) -> Error m
-	  in
-	    match vo, res with 
-	      | OK v, PrintResult -> 
-		  V.format_msg [`Newline; `String "Test result:"; `Space; `Tree v];
-	      | Error m, PrintResult -> 
-		  V.format_msg [`Newline; `String "Test result: error"];
-                  m()
-	      | Error _, ErrorResult -> ()
-	      | OK v, Result res -> 
-		  let resv = compile_exp_tree cev res in
-		    if not (V.equal v resv) then
-		      test_error i 
-			(fun () -> 
-			   V.format_msg
-			     [`String "expected:"; `Space;
-			      `Tree resv;`Space;
-			      `String "found:"; `Space;
-			      `Tree v])
-	      | Error m, Result res -> 
-		  let resv = compile_exp_tree cev res in
-		    test_error i 
-		      (fun () -> 
-			 V.format_msg
-			   [`String "expected:"; `Space;
- 			    `Tree resv; `Space;
-			    `String "found error:"; `Space];
-			 m ())
-	
-	      | OK v, ErrorResult -> 
-		  test_error i 
-		    (fun () -> 
-		       V.format_msg
-			 [`String "expected error, found"; `Break;
- 			  `Tree v;])
-	end;
-      (cev, [])	
-	  
+        begin
+          let vo = 
+            try
+              OK (v_of_rv (compile_exp cev e))
+            with (Error.Harmony_error(m)) -> Error m
+          in
+            match vo, res with 
+              | OK v, PrintResult ->
+                  Format.printf "Test result:@ "; Value.format_t v; Format.printf "@\n"
+              | Error m, PrintResult -> 
+                  test_error i 
+                    (fun () ->
+                       V.format_msg [`String "Test result: error"; `Newline];
+                       m())
+              | Error _, ErrorResult -> ()
+              | OK v, Result res -> 
+                  let resv = v_of_rv (compile_exp cev res) in
+                    if not (Value.equal v resv) then
+                      test_error i 
+                        (fun () ->
+                           Format.printf "@\nExpected@ "; Value.format_t resv;
+                           Format.printf "@ but found@ "; Value.format_t v; Format.printf "@\n")
+              | Error m, Result res -> 
+                  let resv = v_of_rv (compile_exp cev res) in
+                    test_error i 
+                      (fun () ->
+                         Format.printf "@\nExpected@ "; Value.format_t resv; 
+                         Format.printf "@ but found an error:@ "; m(); Format.printf "@\n")
+
+              | OK v, ErrorResult -> 
+                  test_error i 
+                    (fun () ->
+                       Format.printf "@\nExpected an error@ "; 
+                       Format.printf "@ but found:@ "; Value.format_t v; Format.printf "@\n")
+        end;
+      (cev, [])        
+
 and compile_module_aux cev m ds = Safelist.fold_left
   (fun (cev, names) di ->
      let new_cev, new_names = compile_decl cev m di in
@@ -939,7 +946,7 @@ let compile_module m0 =
   let cev = CEnv.set_ctx (CEnv.empty ()) (nctx@Registry.pre_ctx) in
   let new_cev,_ = compile_module_aux cev mq ds in
     Registry.register_env (CEnv.get_ev new_cev) mq
-	      
+
 (* --------------- Exported functions --------------- *)
 
 (* parse an AST from a lexbuf *)
@@ -948,15 +955,15 @@ let parse_lexbuf lexbuf =
   with Parsing.Parse_error ->
     parse_error (Lexer.info lexbuf) 
       (fun () -> Format.printf "@[syntax error@]")
-      
+
 let m_check n m_str ast= 
   if n = m_str then ()
   else
     sort_error 
       (info_of_module ast)
       (fun () -> Format.printf "@[module %s must appear in a file named %s.src or %s.fcl.@]"
-	 m_str (String.uncapitalize m_str))
-      
+         m_str (String.uncapitalize m_str))
+
 (* end-to-end compilation of files *)
 let compile_lexbuf lexbuf n = 
   let ast = parse_lexbuf lexbuf in
@@ -982,7 +989,7 @@ let compile_fcl_str s n =
 let compile_src_str s n = compile_fcl_str (Src2fcl.fcl_of_src_str s) n
 
 let compile_file fn n = compile_fcl fn n 
-      
+
 (* ugly hack!! this thunk forces loading of this module when used via
    harmony.cmxa (which is occasionally dynamically linked) *)
 let init () = 

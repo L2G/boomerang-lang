@@ -25,16 +25,16 @@ let merge_inc =
   function I (fn,pos1,_) as i1 -> 
     begin 
       function I (_,_,pos2) -> I (fn,pos1,pos2)
-	| m -> i1
+        | m -> i1
     end
     | m -> function I _ as i2 -> i2 | _ -> m
-	
+
 (* merge_exc : t -> t -> t
  *     merge two locations; excludes the endpoints *)
 let merge_exc = 
   function I (fn,_,pos1) as i1 -> 
     begin 
       function I (_,pos2,_) -> I (fn,pos1,pos2)
-	| _ -> i1
+        | _ -> i1
     end
     | m -> function I _ as i2 -> i2 | _ -> m

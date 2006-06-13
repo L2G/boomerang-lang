@@ -107,7 +107,7 @@ let read_file inc =
   buf
 
 let iCalReader inc outc =
-  let s = V.string_of_t (Ical.view_from_icalendar (read (chars_from_str inc))) in
+  let s = Tree.string_of_t (Ical.view_from_icalendar (read (chars_from_str inc))) in
   Pervasives.output_string outc s
     
 let iCalWriter inc outc =

@@ -83,12 +83,12 @@ justinstall:
 
 FCLFILES = $(shell (cd $(LENSESDIR); ls *.fcl))
 
-%.mly: %.src $(SRC2F)
+%.mly: %.srcy $(SRC2F)
 	-rm -f $@
 	$(SRC2F) $< $@
 	chmod -w $@
 
-%.mll: %.src $(SRC2F)
+%.mll: %.srcl $(SRC2F)
 	-rm -f $@
 	$(SRC2F) $< $@
 	chmod -w $@
@@ -107,12 +107,16 @@ clean:: tidy
 	rm -rf *.aux *.bbl *.blg *.log *.dvi TAGS *.cmo *.cmi *.cmx *.o 
 	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do \
 	    echo "###### cleaning $(CWD)/$$i ######"; \
-	    $(MAKE) -C $$i clean; done
+	    $(MAKE) -C $$i clean || exit $?; done
 
 buildsubdirs:
-	@for i in $(SUBDIRS); do \
+	@res=0; \
+	 for i in $(SUBDIRS); do \
 	    echo "###### Building $(CWD)/$$i ######"; \
-	    $(MAKE) -C $$i; done
+	    $(MAKE) -C $$i; \
+	    if [ $$? -ne 0 ]; then res=1; break; fi; \
+        done; \
+	exit $$res
 
 
 tidy::
@@ -123,12 +127,14 @@ cleanall:
 	$(MAKE) -C $(TOP) clean
 
 test:: $(HARMONYBIN) $(GENERATEDFCLFILES) 
-	@for i in $(SUBDIRS); do \
+	@res=0; \
+	 for i in $(SUBDIRS); do \
 	   echo ;\
 	   echo "###### testing $(CWD)/$$i ######"; \
 	   $(MAKE) -C $$i test;  \
-	   if [ $$? -ne 0 ]; then exit $$?; fi; \
-	done
+	   if [ $$? -ne 0 ]; then res=1; break; fi; \
+        done; \
+	exit $$res
 
 buildharmony: 
 	@$(MAKE) -C $(SRCDIR) all

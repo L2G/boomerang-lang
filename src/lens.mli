@@ -14,15 +14,23 @@ type ('a, 'b) t = {
     parameterized by the types of the concrete and abstract domains. *)
 
 val get : ('a, 'b) t -> 'a -> 'b
-(** [get l c] returns the result of applying [l.get] to the tree [c]. *)
+(** [get l c] returns the result of applying [l.get] to the view [c]. *)
 
 val put : ('a, 'b) t -> 'b -> 'a option -> 'a
-(** [put l a c] returns the result of applying [l.put] to the abstract tree
+(** [put l a c] returns the result of applying [l.put] to the abstract view
     [a] and the concrete [c] *)
 
 val native : ('a -> 'b) -> ('b -> 'a option -> 'a) -> ('a, 'b) t
 (** Convert a pair of host-language functions (for which the
     programmer has manually checked the lens laws!) into a lens. *)
+
+val v_of_tree : (Tree.t, Tree.t) t -> (V.t, V.t) t
+
+val v_of_db : (Db.t, Db.t) t -> (V.t, V.t) t
+
+val tree_of_v : (V.t, V.t) t -> (Tree.t, Tree.t) t
+
+val db_of_v : (V.t, V.t) t -> (Db.t, Db.t) t
 
 (* ------------------------------------------------------------------------- *)
 (** {2 Memoization} *)

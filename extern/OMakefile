@@ -1,0 +1,6 @@
+clean:
+   $(CLEAN)
+   $(MAKE) -C ocaml-csv-1.0.3 clean
+   $(MAKE) -C omega clean
+
+.SUBDIRS: iCalendar

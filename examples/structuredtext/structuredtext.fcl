@@ -124,7 +124,7 @@ sync with caps_headers at (List.T Any)
     A = [{X},{a},{z}],
     B = [{X},{y},{b}] }
   =
-    (let res : tree = [{X},{a},{b}] in
+    (let res : view = [{X},{a},{b}] in
        { O=res, A=res, B=res })
 
 schema NonListValue = {! \ (`List.HD,`List.TL,`List.NIL) = {}}
@@ -138,6 +138,15 @@ let text_with_all_caps_headers : lens = List.lines; caps_headers
 let text_with_star_headers : lens = List.lines; star_headers
 let text_with_simple_star_headers : lens = List.lines; simple_star_headers
 let text_with_combined_headers : lens = List.lines; combined_headers
+
+(******************************************************************************)
+(* Lens tests *)
+
+test text_with_combined_headers / \
+  {"* FOO
+   |/home/bcpierce/1abcd/efgh
+   |"}
+= [[{"* FOO"}, [{""}, [{""}, [{""}, {"/home/bcpierce/1abcd/efgh"}, {""}]]]]]
 
 (******************************************************************************)
 (* Sync tests *)
@@ -161,7 +170,7 @@ sync with text_with_star_headers at NestedListOfValues
         |** ANOTHER NEW SUBHEADER
         |more text"}}
   =
-  (let res : tree = {"* HEADER
+  (let res : view = {"* HEADER
               |** NEW SUBHEADER
               |text
               |new text
@@ -191,4 +200,4 @@ sync with text_with_star_headers at NestedListOfValues
         |** DIFFERENT NEW SUBHEADER
         |text"}}
 
-       
+

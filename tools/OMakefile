@@ -1,0 +1,11 @@
+OCAML_OTHER_LIBS = 
+
+GENERATED_FILES = src2fcl.ml src2tex.ml
+OCamlGeneratedFiles($(GENERATED_FILES))
+
+OCamlProgram(src2tex, src2tex)
+OCamlProgram(src2f, src2fcl src2f)
+OCamlProgram(wrap, wrap)
+
+clean:
+  $(CLEAN) $(GENERATED_FILES) wrap src2tex src2f

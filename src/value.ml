@@ -7,25 +7,46 @@
 (********************************************************************)
 (* $Id$ *)
 
-type l_chk = Schema.t -> Schema.t
-type lens_checker =     
-    BIJ of l_chk * l_chk (* we need both directions for bijective lenses to check invert *)
-  | VWB of l_chk
-  | WB of l_chk
+open Syntax
+
+(*type l_chk = Schema.t -> Schema.t*)
+type ('a, 'b) lens_checker =     
+  | BIJ of ('a -> 'b) * ('b -> 'a) (* we need both directions for bijective lenses to check invert *)
+  | VWB of ('a -> 'b)
+  | WB of ('a -> 'b)
 
 type t = 
-    N of Name.t                           (* names *)
-  | L of (V.t, V.t) Lens.t * lens_checker (* lenses *)
-  | S of Schema.t                         (* schemas *)
-  | V of V.t                              (* trees *)
-  | F of Syntax.sort * (t -> t)           (* functions *)
-  | D of Syntax.sort * Syntax.qid         (* dummies *)
+  | N of Name.t                                                (* names *)
+  | L of (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker (* lenses *)
+  | S of Schema.t                                              (* schemas *)
+  | P of Db.Relation.Pred.t                                    (* relational predicates *)
+  | V of V.t                                                   (* trees *)
+  | M of ((V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t (* fmaps *)
+  | F of Syntax.sort * (t -> t)                                (* functions *)
+  | D of Syntax.sort * Syntax.qid                              (* dummies *)
+
+let equal v w =
+  match v, w with
+  | N n1, N n2 -> n1 = n2
+  | S s1, S s2 -> Schema.equivalent s1 s2
+  | V v1, V v2 -> V.equal v1 v2
+  | M m1, M m2 -> raise (Error.Harmony_error (fun () ->
+      Format.printf "Finite map values cannot be compared for equality."))
+  | L _, L _ -> raise (Error.Harmony_error (fun () ->
+      Format.printf "Lens values cannot be compared for equality."))
+  | F _, F _ -> raise (Error.Harmony_error (fun () ->
+      Format.printf "Function values cannot be compared for equality."))
+  | D _, D _ -> raise (Error.Harmony_error (fun () ->
+      Format.printf "Dummy values cannot be compared for equality."))
+  | _, _ -> false
 
 let sort_of_t = function
    N _    -> Syntax.SName    
  | L _    -> Syntax.SLens
  | S _    -> Syntax.SSchema
- | V _    -> Syntax.STree
+ | P _    -> Syntax.SPred
+ | V _    -> Syntax.SView
+ | M _    -> Syntax.SMap
  | F(s,_) -> s
  | D(s,_) -> s
 
@@ -33,8 +54,10 @@ let sort_of_t = function
 let rec format_t = function
     N(n)   -> Format.printf "@[%s]" (Misc.whack n)
   | S(s)   -> Schema.format_t s
+  | P(pred) -> Db.Relation.Pred.format_t pred
   | V(v)   -> V.format_t v
-  | L(l,c)   -> Format.printf "@[%s]" "<lens>"
+  | L(l,c) -> Format.printf "@[%s]" "<lens>"
+  | M(_)   -> Format.printf "@[%s]" "<fmap>"
   | F(s,_) -> 
       Format.printf "@[%s" "<";
       Syntax.format_sort s;
@@ -54,11 +77,11 @@ let parse_qid s =
     Lexer.setup "qid constant";
     let q = 
       try 
-	Parser.qid Lexer.main lexbuf 
+        Parser.qid Lexer.main lexbuf 
       with Parsing.Parse_error -> 
-	raise (Error.Harmony_error
-		 (fun () -> Format.printf "%s: syntax error in qualfied identifier." 
-		    (Info.string_of_t (Lexer.info lexbuf))))
+        raise (Error.Harmony_error
+                 (fun () -> Format.printf "%s: syntax error in qualfied identifier." 
+                    (Info.string_of_t (Lexer.info lexbuf))))
     in 
       Lexer.finish ();
       q
@@ -68,11 +91,11 @@ let parse_sort s =
     Lexer.setup "sort constant";
     let (i,st) = 
       try 
-	Parser.sort Lexer.main lexbuf 
+        Parser.sort Lexer.main lexbuf 
       with Parsing.Parse_error -> 
-	raise (Error.Harmony_error
-		 (fun () -> Format.printf "%s: syntax error in sort." 
-		    (Info.string_of_t (Lexer.info lexbuf))))
+        raise (Error.Harmony_error
+                 (fun () -> Format.printf "%s: syntax error in sort." 
+                    (Info.string_of_t (Lexer.info lexbuf))))
     in
       Lexer.finish ();
       st
@@ -80,57 +103,104 @@ let parse_sort s =
 (* errors *)
 let focal_type_error i es v = 
   raise (Error.Harmony_error
-	   (fun () -> Format.printf "%s: run-time sort error"
-              (Info.string_of_t i)))
-            
+           (fun () ->
+             Format.printf "%s: run-time sort error:@ " (Info.string_of_t i);
+             format_t v;
+             Format.printf "@ does not have sort@ ";
+             Syntax.format_sort es
+           ))
+
 let get_schema i v = 
   match v with 
       S s -> s 
-    | V v -> Schema.t_of_tree v
+    | V (V.Tree t) -> Schema.t_of_tree t
     | _ -> focal_type_error i Syntax.SSchema v
-	
+
 let get_name i v = 
   match v with 
       N n -> n 
     | _ -> focal_type_error i Syntax.SName v
 
+let get_view i v = 
+  match v with 
+      V v -> v 
+    | _ -> focal_type_error i Syntax.SView v
+
 let get_tree i v = 
   match v with 
-      V vi -> vi 
-    | _ -> focal_type_error i Syntax.STree v
-	
+      V (V.Tree t) -> t 
+    | V (V.Db _) ->
+        raise (Error.Harmony_error
+           (fun () ->
+             Format.printf "%s: run-time error:@ " (Info.string_of_t i);
+             Format.printf "expected a tree but found@ ";
+             format_t v
+           ))
+    | _ -> focal_type_error i Syntax.SView v
+
 let get_lens i v = 
   match v with
       L(l,c) -> (l,c)
     | _ -> focal_type_error i (Syntax.SLens) v
 
-let mk_schema_fun return_sort msg f = 
-  F(Syntax.SArrow(Syntax.SSchema,return_sort),
-    fun v -> f (get_schema (Info.M msg) v))
-let mk_sfun s = mk_schema_fun (parse_sort s)
+let get_fmap i v = 
+  match v with 
+      M(fm) -> fm
+    | _ -> focal_type_error i Syntax.SMap v
 
-let mk_checker = mk_sfun "schema"
-  
-let mk_name_fun return_sort msg f = 
-  F(Syntax.SArrow(Syntax.SName,return_sort),
-    fun v -> f (get_name (Info.M msg) v))
-let mk_nfun s = mk_name_fun (parse_sort s)
+let mk_sfun return_sort msg f = 
+  F (SSchema ^> return_sort, fun v -> f (get_schema (Info.M msg) v))
 
-let mk_tree_fun return_sort msg f = 
-  F(Syntax.SArrow(Syntax.STree,return_sort),
-    fun v -> f (get_tree (Info.M msg) v))
-let mk_vfun s = mk_tree_fun (parse_sort s)
+let mk_checker = mk_sfun SSchema
 
-let mk_lens_fun return_sort msg f = 
-  F(Syntax.SArrow(Syntax.SLens,return_sort),
-    fun v -> f (get_lens (Info.M msg) v))
-let mk_lfun s = mk_lens_fun (parse_sort s)
+let mk_nfun return_sort msg f = 
+  F (SName ^> return_sort, fun v -> f (get_name (Info.M msg) v))
 
-let mk_fun_fun arg_sort return_sort msg f =
-  F(Syntax.SArrow(arg_sort,return_sort),
-    function F (_,ff) -> f ff
-      | v         -> focal_type_error (Info.M msg) arg_sort v)
-let mk_ffun a s = mk_fun_fun (parse_sort a) (parse_sort s)
+let mk_vfun return_sort msg f = 
+  F (SView ^> return_sort, fun v -> f (get_view (Info.M msg) v))
+
+let mk_lfun return_sort msg f = 
+  F (SLens ^> return_sort, fun v -> f (get_lens (Info.M msg) v))
+
+let mk_ffun arg_sort return_sort msg f =
+  F (arg_sort ^> return_sort,
+      function F (_,ff) -> f ff
+             | v        -> focal_type_error (Info.M msg) arg_sort v)
+
+let coerce_lens_checker (desc : string) (lc : ('a, 'b) lens_checker) f f' g g'
+: ('c, 'd) lens_checker =
+  let i = Info.M desc in
+  match lc with
+  | BIJ (ck1, ck2) ->
+      BIJ ((fun s -> g i (ck1 (f' i s))), (fun s -> f i (ck2 (g' i s))))
+  | VWB ck -> VWB (fun s -> g i (ck (f' i s)))
+  | WB ck -> WB (fun s -> g i (ck (f' i s)))
+
+let tree i = Schema.treeschema
+let db i = Schema.dbschema
+
+let v_of_tree_lens (l, lc) =
+  Lens.v_of_tree l,
+  coerce_lens_checker "v_of_tree_lens"
+    lc tree Schema.treeschema_of tree Schema.treeschema_of
+
+let v_of_db_lens (l, lc) =
+  Lens.v_of_db l,
+  coerce_lens_checker "v_of_db_lens"
+    lc db Schema.dbschema_of db Schema.dbschema_of
+
+let tree_of_v_lens (l, lc) =
+  Lens.tree_of_v l,
+  coerce_lens_checker "tree_of_v_lens"
+    lc Schema.treeschema_of tree Schema.treeschema_of tree
+
+let db_of_v_lens (l, lc) =
+  Lens.db_of_v l,
+  coerce_lens_checker "db_of_v_lens"
+    lc Schema.dbschema_of db Schema.dbschema_of db
+
+let mk_fmfun return_sort msg f = 
+  F (SMap ^> return_sort, fun m -> f (get_fmap (Info.M msg) m))
 
 let is_dummy = function D _ -> true | _ -> false
 
@@ -146,15 +216,15 @@ module H =
       let equal = (==)                                (* Use physical equality test *)
       let hash o = Hashtbl.hash (Obj.magic o : int)   (* Hash on physical addr *)
     end)
-    
+
 let memoize v = match v with 
   | F(s,f) -> F (s, 
-		 let memotable = H.create 1 in
-		   (fun x -> try
-		      H.find memotable x
-		    with Not_found -> begin 
-		      let fx = f x in
-			H.add memotable x fx;
-			fx
-		    end)) 
+                 let memotable = H.create 1 in
+                   (fun x -> try
+                      H.find memotable x
+                    with Not_found -> begin 
+                      let fx = f x in
+                        H.add memotable x fx;
+                        fx
+                    end)) 
   | _ -> v

@@ -61,7 +61,9 @@ type sort =
   | SLens 
   | SRecLens of (exp * lensarrow * exp)
   | SSchema  
-  | STree   
+  | SPred
+  | SView 
+  | SMap  
   | SArrow of sort * sort
 
 and param = PDef of Info.t * id * sort
@@ -73,9 +75,12 @@ and exp =
   | EAtom of Info.t * exp * exp 
   | ECat of Info.t * exp list 
   | ECons of Info.t * exp * exp 
-  | ESpineCons of Info.t * exp * exp 
+  | EDB of Info.t * Db.t
+  | EDBPred of Info.t * Db.Relation.Pred.t
+  | EDBSchema of Info.t * Dbschema.t
   | EFun of Info.t * param list * sort option * exp 
   | ELet of Info.t * binding list * exp
+  | EMap of Info.t * (exp * exp) list
   | EName of Info.t * id
   | ENil of Info.t 
   | EProtect of Info.t * exp * sort option
@@ -100,7 +105,7 @@ type decl =
   | DMod of Info.t * id * decl list 
   | DSchema of Info.t * schema_binding list
   | DTest of Info.t * exp * test_result
-      
+
 type modl = MDef of Info.t * id * qid list * decl list
 
 (** {3 Utility functions } *)
@@ -110,6 +115,8 @@ val id_of_binding : binding -> id
 val id_of_modl : modl -> id
 val id_of_param : param -> id
 val sort_of_param : param -> sort
+val ( ^> ) : sort -> sort -> sort
+(** An infix version of the SArrow constructor. *)
 
 (** {3 Info getters } *)
 

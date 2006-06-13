@@ -84,7 +84,7 @@ void finalize_value(value v) {
 /* ops garbage collected values */
 struct custom_operations ops = {
   "libomega-ocaml.t", 
-  finalize_value, 
+  NULL, //finalize_value, 
   fail_compare, 
   fail_hash, 
   fail_serialize, 
