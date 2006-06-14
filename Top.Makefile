@@ -107,7 +107,7 @@ clean:: tidy
 	rm -rf *.aux *.bbl *.blg *.log *.dvi TAGS *.cmo *.cmi *.cmx *.o 
 	@for i in $(SUBDIRS) $(SUBDIRSCLEANONLY); do \
 	    echo "###### cleaning $(CWD)/$$i ######"; \
-	    $(MAKE) -C $$i clean || exit $?; done
+	    $(MAKE) -C $$i clean || exit $$?; done
 
 buildsubdirs:
 	@res=0; \
