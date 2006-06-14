@@ -116,6 +116,6 @@ module Hash =
       let hash = function
         (* Hash on tag and physical addr *)
         | Tree t -> Hashtbl.hash (1, (Obj.magic t : int))
-        | Db db -> Hashtbl.hash (1, (Obj.magic db : int))
+        | Db db -> Hashtbl.hash (2, (Obj.magic db : int))
     end)
 
