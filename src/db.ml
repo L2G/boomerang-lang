@@ -223,7 +223,127 @@ module Relation = struct
 
     let equiv p q = includes p q && includes q p
 
-    let normalize p = p
+    type eq_atom =
+      | TrueDNF
+      | FalseDNF
+      | AttAtt of Name.t * Name.t
+      | NotAttAtt of Name.t * Name.t
+      | AttVal of Name.t * Name.t
+      | NotAttVal of Name.t * Name.t
+
+    type dnf_clause = eq_atom list
+    type dnf_formula = dnf_clause list
+
+    let of_eq_atom = function
+      | TrueDNF -> True
+      | FalseDNF -> False
+      | AttAtt (a, b) -> EqAttAtt (a, b)
+      | NotAttAtt (a, b) -> Not (EqAttAtt (a, b))
+      | AttVal (a, x) -> EqAttVal (a, x)
+      | NotAttVal (a, x) -> Not (EqAttVal (a, x))
+
+    let of_dnf_clause (c : dnf_clause) : t =
+      List.fold_right
+        (fun p q -> Conj (p, q))
+        (List.map of_eq_atom c)
+        True
+
+    let of_dnf (f : dnf_formula) : t =
+      List.fold_right
+        (fun p q -> Disj (p, q))
+        (List.map of_dnf_clause f)
+        False
+
+    let dnf_conj_clause (c : dnf_clause) (f : dnf_formula) : dnf_formula =
+      List.map ((@) c) f
+
+    let dnf_conj (f1 : dnf_formula) (f2 : dnf_formula) : dnf_formula =
+      List.fold_right (fun c -> (@) (dnf_conj_clause c f2)) f1 []
+
+    let to_dnf (p : t) : dnf_formula =
+      let rec nnf : t -> t = function
+        | Not True -> False
+        | Not False -> True
+        | Not (Not p) -> nnf p
+        | Not (Conj (p, q)) -> Disj (nnf (Not p), nnf (Not q))
+        | Not (Disj (p, q)) -> Conj (nnf (Not p), nnf (Not q))
+        | Conj (p, q) -> Conj (nnf p, nnf q)
+        | Disj (p, q) -> Disj (nnf p, nnf q)
+        | Impl (p, q) -> Disj (nnf (Not p), nnf q)
+        | p -> p
+      in
+      let rec dnf = function
+        | True -> [ [] ]
+        | False -> []
+        | EqAttAtt (a, b) -> [ [ AttAtt (a, b) ] ]
+        | EqAttVal (a, x) -> [ [ AttVal (a, x) ] ]
+        | Not (EqAttAtt (a, b)) -> [ [ NotAttAtt (a, b) ] ]
+        | Not (EqAttVal (a, x)) -> [ [ NotAttVal (a, x) ] ]
+        | Disj (p, q) -> (dnf p) @ (dnf q)
+        | Conj (p, q) -> dnf_conj (dnf p) (dnf q)
+        | _ -> assert false (* only consider formulas in nnf *)
+      in
+      dnf (nnf p)
+
+    type eq_symbol =
+      | Att of Name.t
+      | Val of Name.t
+
+    let remove_att_clause (a : Name.t) (c : dnf_clause) : dnf_clause =
+      (* Returns a dnf_clause [c'] such that, forall [rcd],
+       *   [rcd] satisfies [c']
+       *     if and only if there exists a [v] for which
+       *   [rcd]::(a -> v) satisfies [c]
+       *)
+      if not (satisfiable (of_dnf_clause c)) then
+        [ FalseDNF ]
+      else
+        let cons x ls = x :: ls in
+        let equal_items =
+          (* Collect all the names and attributes to which a is equal. *)
+          List.fold_right (
+            function
+              | AttAtt (b, c) when b = a -> cons (Att c)
+              | AttAtt (c, b) when b = a -> cons (Att c)
+              | AttVal (b, x) when b = a -> cons (Val x)
+              | _ -> fun ls -> ls
+          ) c []
+        in
+        let c_ext =
+          (* Extend c with additional equality assertions. *)
+          List.fold_right2 (
+            fun item1 item2 ->
+              match item1, item2 with
+              | Att b, Att c -> cons (AttAtt (b, c))
+              | Att b, Val x -> cons (AttVal (b, x))
+              | Val x, Att b -> cons (AttVal (b, x))
+              | Val x, Val y -> if x <> y then assert false else fun c -> c
+              (* In this last case, if x <> y, then we must have had a = x and
+               * a = y in the original formula, which would mean that it would
+               * not be satisfiable and we would not be at this point. *)
+          ) ([ Att a ] @ equal_items) (equal_items @ [ Att a ]) c
+        in
+        (* Return the extended predicate while throwing away assertions that
+         * mention a. *)
+        List.filter (
+          function
+            | AttAtt (b, c) when b = a || c = a -> false
+            | NotAttAtt (b, c) when b = a || c = a -> false
+            | AttVal (b, x) when b = a -> false
+            | NotAttVal (b, x) when b = a -> false
+            | _ -> true
+        ) c_ext
+
+    let remove_att_formula (a : Name.t) : dnf_formula -> dnf_formula =
+      List.map (remove_att_clause a)
+
+    let project ns p =
+      of_dnf (
+        Name.Set.fold remove_att_formula
+          (Name.Set.diff (names p) ns)
+          (to_dnf p))
+
+    let normalize p = project (names p) p
 
   end
 

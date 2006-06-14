@@ -44,6 +44,10 @@ module Relation : sig
         be complete, i.e., it may return [false] when an answer of [true] would
         be appropriate. *)
 
+    val project : Name.Set.t -> t -> t
+    (** [project ns p] will be true for a record [rcd] over domain [ns] if and
+        only if there is some extension of [rcd] that satisfies [p]. *)
+
     val member : record -> t -> bool
     (** Check whether a record is a member of the set described by the
         predicate. *)
