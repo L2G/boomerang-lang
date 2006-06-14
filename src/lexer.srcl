@@ -190,7 +190,12 @@ rule main = parse
 | "\\"              { BACKSLASH (info lexbuf) }
 | "/"               { SLASH (info lexbuf) }
 | ","               { COMMA (info lexbuf) }
+| "<"               { LT (info lexbuf) }
+| ">"               { GT (info lexbuf) }
 | "+"               { PLUS (info lexbuf) }
+| "-"               { MINUS (info lexbuf) }
+| "~"               { TILDE (info lexbuf) }
+| "&"               { AMPERSAND (info lexbuf) }
 | "?"               { QMARK (info lexbuf) }
 | "`"               { BACKTICK (info lexbuf) }
 | "\""              { STRING (Syntax.mk_id (info lexbuf) (string lexbuf)) }

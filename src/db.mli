@@ -34,6 +34,10 @@ module Relation : sig
     val ranges_over : t -> Name.Set.t -> bool
     (** Check whether a predicate is compatible with a record domain. *)
 
+    val rename_att : Name.t -> Name.t -> t -> t
+    (** [rename_att a b p] returns a new predicate with the attribute [a]
+        replaced by the attribute [b]. *)
+
     val ignores : t -> Name.Set.t -> bool
     (** Check whether a predicate is indifferent about the values
         associated with the given attributes.  The function may not necessarily
@@ -91,8 +95,8 @@ module Relation : sig
   val select : Pred.t -> t -> t
   (** Create a new relation by selecting the records that satisfy the given
       predicate.
-      @raise Error.Harmony_error if the predicate does not range over the domain
-      of the relation.  *)
+      @raise Error.Harmony_error if the predicate does not range over the
+      domain of the relation.  *)
 
   val project : string list -> t -> t
   (** Create a new relation by projecting on the listed fields.
@@ -119,8 +123,7 @@ module Relation : sig
       *)
 
   val fields : t -> string list
-  (** Return the field names of a relation in the same order that they were
-      given to the function [create] or [project]. *)
+  (** Return the field names of a relation in their default order. *)
 
   val fold : (record -> 'a -> 'a) -> t -> 'a -> 'a
   (** Perform a fold operation over the records in a relation. *)

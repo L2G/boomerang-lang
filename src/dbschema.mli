@@ -10,6 +10,7 @@ module Relschema : sig
     type fd = Name.Set.t * Name.Set.t
     val format_fd : fd -> unit
     val ranges_over : fd -> Name.Set.t -> bool
+    val rename_att : Name.t -> Name.t -> fd -> fd
     val member : Db.Relation.t -> fd -> bool
     val revise :
       Db.Relation.record -> Db.Relation.t -> fd -> Db.Relation.record
@@ -19,9 +20,9 @@ module Relschema : sig
 
       val format_t : t -> unit
       val ranges_over : t -> Name.Set.t -> bool
+      val rename_att : Name.t -> Name.t -> t -> t
       val outputs : t -> Name.Set.t
       val member : Db.Relation.t -> t -> bool
-
       val revise :
         Db.Relation.record -> Db.Relation.t -> t -> Db.Relation.record
 
@@ -41,6 +42,7 @@ module Relschema : sig
   val format_t : t -> unit
   val create : Name.Set.t -> t
   val attributes : t -> Name.Set.t
+  val rename : Name.t -> Name.t -> t -> t
   val get_fdset : t -> Fd.Set.t
   val set_fdset : t -> Fd.Set.t -> t
   val get_pred : t -> Db.Relation.Pred.t
@@ -57,6 +59,7 @@ val base : t
 val extend : Name.t -> Relschema.t -> t -> t
 val remove : Name.t -> t -> t
 val lookup : Name.t -> t -> Relschema.t
+val mem : Name.t -> t -> bool
 
 val member : Db.t -> t -> bool
 val includes : t -> t -> bool

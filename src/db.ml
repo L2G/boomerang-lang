@@ -5,8 +5,6 @@
 (* $Id: treeschema.mli 1756 2006-05-31 15:08:03Z bohannon $ *)
 
 
-(*** Modules, Types, and Exceptions ***)
-
 open Unittest
 
 module NameListSet = Set.Make (
@@ -22,9 +20,12 @@ module NameListSet = Set.Make (
 let build_ns ls =
   List.fold_right Name.Set.add ls Name.Set.empty
 
+let format_name n =
+  Format.printf "%s" n
+
 let format_ns ns =
   Format.printf "@[{";
-  Misc.format_list ",@ " format_string (Name.Set.elements ns);
+  Misc.format_list ",@ " format_name (Name.Set.elements ns);
   Format.printf "}@]"
 
 
@@ -122,41 +123,6 @@ module Relation = struct
 
     let format_t p = format_t' p None Left
 
-    let () =
-      let p_ab = EqAttAtt ("A", "B") in
-      let p_cd = EqAttAtt ("C", "D") in
-      let p_b1 = EqAttVal ("B", "1") in
-      let p_c2 = EqAttVal ("C", "2") in
-      let p_conj1 = Conj (p_ab, Not p_b1) in
-      let p_conj2 = Conj (Not (Not p_cd), p_c2) in
-      let p_conj3 = Conj (p_conj1, p_conj2) in
-      let p_disj1 = Disj (p_cd, p_conj1) in
-      let p_disj2 = Disj (p_c2, Not p_b1) in
-      let p_disj3 = Disj (p_disj1, p_disj2) in
-      let p_impl1 = Impl (p_c2, Not p_ab) in
-      let p_impl2 = Impl (p_disj1, p_conj2) in
-      let p_impl3 = Impl (p_impl1, p_impl2) in
-      let p1 = Conj (p_impl1, p_disj2) in
-      let p2 = Disj (Not p_conj1, p_impl2) in
-      let p3 = Conj (Not p1, p2) in
-      let p4 = Not (Impl (p_conj2, p3)) in
-      add_test "Db.Relation.Pred.format_t.1"
-      (fun () ->
-        format_t p_conj1; Format.printf "@\n";
-        format_t p_conj2; Format.printf "@\n";
-        format_t p_conj3; Format.printf "@\n";
-        format_t p_disj1; Format.printf "@\n";
-        format_t p_disj2; Format.printf "@\n";
-        format_t p_disj3; Format.printf "@\n";
-        format_t p_impl1; Format.printf "@\n";
-        format_t p_impl2; Format.printf "@\n";
-        format_t p_impl3; Format.printf "@\n";
-        format_t p1; Format.printf "@\n";
-        format_t p2; Format.printf "@\n";
-        format_t p3; Format.printf "@\n";
-        format_t p4; Format.printf "@\n";
-      )
-
     let of_record rcd =
       Name.Map.fold (fun k v p -> Conj (EqAttVal (k, v), p)) rcd True
 
@@ -182,69 +148,21 @@ module Relation = struct
 
     let ranges_over p ns = Name.Set.subset (names p) ns
 
+    let subst a b c = if c = a then b else c
+
+    let rec rename_att a b = function
+      | True -> True
+      | False -> False
+      | EqAttAtt (c, d) -> EqAttAtt(subst a b c, subst a b d)
+      | EqAttVal (c, x) -> EqAttVal(subst a b c, x)
+      | Not p -> Not (rename_att a b p)
+      | Conj (p, q) -> Conj (rename_att a b p, rename_att a b q)
+      | Disj (p, q) -> Disj (rename_att a b p, rename_att a b q)
+      | Impl (p, q) -> Impl (rename_att a b p, rename_att a b q)
+
     let ignores p ns = Name.Set.equal ns (Name.Set.diff ns (names p))
       (* This function is written as a syntactic check here.  This is sound but
        * not complete.  A semantic check would be better. *)
-
-    let () =
-      let p1 = Disj (Conj (True, Impl (False, True)), Impl (True, False)) in
-      let p2 = Impl (EqAttVal ("C", "1"), EqAttAtt ("A", "D")) in
-      let p3 = Conj (p1, Disj (Not (EqAttVal ("A", "3")), p2)) in
-      let assert_eq_ns = assert_equal format_ns Name.Set.equal in
-      begin
-        add_test "Db.Relation.Pred.names.1"
-        (fun () ->
-          assert_eq_ns
-            Name.Set.empty
-            (names p1)
-        );
-        add_test "Db.Relation.Pred.names.2"
-        (fun () ->
-          assert_eq_ns
-            (build_ns ["A"; "C"; "D"])
-            (names p2)
-        );
-        add_test "Db.Relation.Pred.names.3"
-        (fun () ->
-          assert_eq_ns
-            (build_ns ["A"; "C"; "D"])
-            (names p3)
-        );
-        add_test "Db.Relation.Pred.values.1"
-        (fun () ->
-          assert_eq_ns
-            Name.Set.empty
-            (values p1)
-        );
-        add_test "Db.Relation.Pred.values.2"
-        (fun () ->
-          assert_eq_ns
-            (build_ns ["1"])
-            (values p2)
-        );
-        add_test "Db.Relation.Pred.values.3"
-        (fun () ->
-          assert_eq_ns
-            (build_ns ["1"; "3"])
-            (values p3)
-        );
-        add_test "Db.Relation.Pred.ranges_over.1"
-        (fun () ->
-          assert_true (ranges_over p1 Name.Set.empty)
-        );
-        add_test "Db.Relation.Pred.ranges_over.2"
-        (fun () ->
-          assert_true (ranges_over p1 (build_ns ["A"; "C"]))
-        );
-        add_test "Db.Relation.Pred.ranges_over.3"
-        (fun () ->
-          assert_false (ranges_over p3 (build_ns ["A"; "D"]))
-        );
-        add_test "Db.Relation.Pred.ranges_over.4"
-        (fun () ->
-          assert_true (ranges_over p3 (build_ns ["A"; "B"; "C"; "D"; "E"]))
-        );
-      end
 
     let rec member rcd = function
       | True -> true
@@ -328,24 +246,23 @@ module Relation = struct
   *)
 
 
-  (* FIXME: Replace these exception with Harmony_error *)
-  exception Unequal_domains of string list * string list
-  exception Duplicate_attribute of string
-  exception Missing_attribute of string
-
-
   (*** Formatting ***)
 
   let format_tuple t =
     Format.printf "@[<h 2>(";
-    Misc.format_list ",@ " format_string t;
+    Misc.format_list ",@ " format_name t;
     Format.printf ")@]"
 
   let format_t r =
-    Format.printf " = {@[<v>";
+    Format.printf "{@[<v>";
     format_tuple r.fldseq;
     if not (NameListSet.is_empty r.rows) then Format.printf "@ ";
     Misc.format_list "@ " format_tuple (NameListSet.elements r.rows);
+    Format.printf "}@]"
+
+  let format_t_data r =
+    Format.printf "{@[<v>";
+    Misc.format_list ",@ " format_tuple (NameListSet.elements r.rows);
     Format.printf "}@]"
 
 
@@ -390,7 +307,8 @@ module Relation = struct
           flds = build_ns flds;
           rows = NameListSet.empty }
     | Some fld ->
-        raise (Duplicate_attribute (fld))
+        raise (Error.Harmony_error (fun () ->
+          Format.printf "%s cannot be used twice as an attribute name." fld))
 
 
   (*** insert ***)
@@ -400,12 +318,19 @@ module Relation = struct
 
   let insert rcd r =
     if not (Name.Set.equal (Name.Map.domain rcd) r.flds) then
-      raise (Unequal_domains (Name.Set.elements (Name.Map.domain rcd), r.fldseq));
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "Cannot insert a record with domain@ ";
+        format_ns (Name.Map.domain rcd);
+        Format.printf "@ into a relation with domain@ ";
+        format_ns r.flds));
     {r with rows = NameListSet.add (listproj rcd r.fldseq) r.rows}
 
   let insert_tuple tup r =
     if List.length tup <> Name.Set.cardinal r.flds then
-      raise (Unequal_domains (r.fldseq, r.fldseq));
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "Cannot insert a tuple of length %d" (List.length tup);
+        Format.printf "@ into a relation with domain@ ";
+        format_ns r.flds));
     {r with rows = NameListSet.add tup r.rows}
 
 
@@ -423,10 +348,14 @@ module Relation = struct
   (*** rename ***)
 
   let rename m n r =
-    if not (List.mem m r.fldseq) then
-      raise (Missing_attribute (m));
-    if List.mem n r.fldseq && n <> m then
-      raise (Duplicate_attribute (n));
+    if not (Name.Set.mem m r.flds) then
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "%s is not in the domain@ " m;
+        format_ns r.flds));
+    if Name.Set.mem n r.flds && n <> m then
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "%s is already in the domain@ " n;
+        format_ns (Name.Set.remove m r.flds)));
     let swapname s = if s = m then n else s in
     let fldseq' = List.map swapname r.fldseq in
     {r with fldseq = fldseq'; flds = build_ns fldseq'}
@@ -452,25 +381,30 @@ module Relation = struct
       NameListSet.fold accum r.rows (create flds)
     with
     | Not_found ->
-        raise (Missing_attribute (
-          List.find (fun x -> not (List.mem x r.fldseq)) flds
-          ))
+        raise (Error.Harmony_error (fun () ->
+          format_ns (List.fold_right Name.Set.add flds Name.Set.empty);
+          Format.printf "@ is not a subset of the domain@ ";
+          format_ns r.flds))
 
 
   (*** union, inter, diff ***)
 
-  let lift_set_op op r1 r2 =
+  let lift_set_op msg op r1 r2 =
     if not (Name.Set.equal r1.flds r2.flds) then
-      raise (Unequal_domains (r1.fldseq, r2.fldseq));
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "%s:@ " msg;
+        format_ns r1.flds;
+        Format.printf "@ is not equal to the domain@ ";
+        format_ns r2.flds));
     if r1.fldseq = r2.fldseq then
       {r1 with rows = op r1.rows r2.rows}
     else
       let r3 = fold insert r2 (create r1.fldseq) in
       {r1 with rows = op r1.rows r3.rows}
 
-  let union = lift_set_op NameListSet.union
-  let inter = lift_set_op NameListSet.inter
-  let diff = lift_set_op NameListSet.diff
+  let union = lift_set_op "Db.Relation.union" NameListSet.union
+  let inter = lift_set_op "Db.Relation.inter" NameListSet.inter
+  let diff = lift_set_op "Db.Relation.diff" NameListSet.diff
 
 
   (*** join ***)
@@ -483,11 +417,17 @@ module Relation = struct
 
   let join r s =
     let iflds = Name.Set.inter r.flds s.flds in
+    let rflds = Name.Set.diff r.flds iflds in
+    let newseq = list_union r.fldseq s.fldseq in
     let accum rcd =
       let p = Pred.of_record (Name.Map.project iflds rcd) in
-      union (select p s)
+      let rcdrel =
+        fold (fun rcd' -> insert (Name.Map.combine rcd rcd'))
+          (select p s) (create newseq)
+      in
+      union rcdrel
     in
-    fold accum r (create (list_union r.fldseq s.fldseq))
+    fold accum r (create newseq)
 
 end
 
@@ -500,7 +440,9 @@ let format_t db =
   Name.Map.iter_with_sep
     (fun k rel -> 
       Format.printf "@[<hv3>%s" k;
-      Relation.format_t rel;
+      Relation.format_tuple (Relation.fields rel);
+      Format.printf " = ";
+      Relation.format_t_data rel;
       Format.printf "@]")
     (fun() -> Format.printf ",@ ")
     db;
@@ -516,11 +458,82 @@ let equal db1 db2 =
 let empty = Name.Map.empty
 let extend = Name.Map.add
 let remove = Name.Map.remove
-let lookup = Name.Map.find
 let fold = Name.Map.fold
+let lookup rn db =
+  try Name.Map.find rn db with
+  | Not_found ->
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "Db.lookup:@ ";
+        format_t db;
+        Format.printf "@ contains no relation named %s" rn))
 
 
 (*** Unit tests ***)
+
+let () =
+  let module P = Relation.Pred in
+  let p1 =
+    P.Disj (
+      P.Conj (P.True, P.Impl (P.False, P.True)),
+      P.Impl (P.True, P.False))
+  in
+  let p2 = P.Impl (P.EqAttVal ("C", "1"), P.EqAttAtt ("A", "D")) in
+  let p3 = P.Conj (p1, P.Disj (P.Not (P.EqAttVal ("A", "3")), p2)) in
+  let assert_eq_ns = assert_equal format_ns Name.Set.equal in
+  begin
+    add_test "Db.Relation.Pred.names.1"
+    (fun () ->
+      assert_eq_ns
+        Name.Set.empty
+        (P.names p1)
+    );
+    add_test "Db.Relation.Pred.names.2"
+    (fun () ->
+      assert_eq_ns
+        (build_ns ["A"; "C"; "D"])
+        (P.names p2)
+    );
+    add_test "Db.Relation.Pred.names.3"
+    (fun () ->
+      assert_eq_ns
+        (build_ns ["A"; "C"; "D"])
+        (P.names p3)
+    );
+    add_test "Db.Relation.Pred.values.1"
+    (fun () ->
+      assert_eq_ns
+        Name.Set.empty
+        (P.values p1)
+    );
+    add_test "Db.Relation.Pred.values.2"
+    (fun () ->
+      assert_eq_ns
+        (build_ns ["1"])
+        (P.values p2)
+    );
+    add_test "Db.Relation.Pred.values.3"
+    (fun () ->
+      assert_eq_ns
+        (build_ns ["1"; "3"])
+        (P.values p3)
+    );
+    add_test "Db.Relation.Pred.ranges_over.1"
+    (fun () ->
+      assert_true (P.ranges_over p1 Name.Set.empty)
+    );
+    add_test "Db.Relation.Pred.ranges_over.2"
+    (fun () ->
+      assert_true (P.ranges_over p1 (build_ns ["A"; "C"]))
+    );
+    add_test "Db.Relation.Pred.ranges_over.3"
+    (fun () ->
+      assert_false (P.ranges_over p3 (build_ns ["A"; "D"]))
+    );
+    add_test "Db.Relation.Pred.ranges_over.4"
+    (fun () ->
+      assert_true (P.ranges_over p3 (build_ns ["A"; "B"; "C"; "D"; "E"]))
+    );
+  end
 
 let () =
   let module R = Relation in
@@ -542,12 +555,14 @@ let () =
     (fun () ->
       assert_eq_t r2 r3
     );
+    (*
     add_test "Db.Relation.create.4"
     (fun () ->
       assert_exn (R.Duplicate_attribute ("A"))
       (* Whether "A" or "B" is reported as the duplicate is unspecified. *)
       (fun () -> ignore (R.create ["A"; "B"; "B"; "A"]))
     );
+    *)
     add_test "Db.Relation.insert.1"
     (fun () ->
       assert_eq_t
@@ -561,16 +576,20 @@ let () =
     (fun () ->
       assert_false (R.equal (R.create []) (R.insert Name.Map.empty (R.create [])))
     );
+    (*
     add_test "Db.Relation.insert.3"
     (fun () ->
       assert_exn (R.Unequal_domains (["A"], ["A"; "B"]))
       (fun () -> ignore (R.insert (Name.Map.from_list [("A", "1")]) r1))
     );
+    *)
+    (*
     add_test "Db.Relation.insert.4"
     (fun () ->
       assert_exn (R.Unequal_domains (["A"; "B"; "C"], ["A"; "B"]))
       (fun () -> ignore (R.insert (Name.Map.from_list [("A", "1"); ("B", "3"); ("C", "5")]) r1))
     );
+    *)
   end;
   let r =
     R.insert_tuple ["1"; "2"; "3"] (
@@ -586,6 +605,7 @@ let () =
             R.create ["A"; "C"; "X"]))))
         (R.rename "B" "X" r)
     );
+    (*
     add_test "Db.Relation.rename.2"
     (fun () ->
       assert_exn (R.Missing_attribute ("X"))
@@ -596,6 +616,7 @@ let () =
       assert_exn (R.Duplicate_attribute ("C"))
       (fun () -> ignore (R.rename"B" "C" r))
     );
+    *)
     add_test "Db.Relation.rename.4"
     (fun () ->
       assert_eq_t r (R.rename"B" "B" r)
@@ -612,6 +633,7 @@ let () =
     (fun () ->
       assert_eq_t (R.insert Name.Map.empty (R.create [])) (R.project [] r)
     );
+    (*
     add_test "Db.Relation.project.3"
     (fun () ->
       assert_exn (R.Missing_attribute ("X"))
@@ -627,6 +649,7 @@ let () =
       assert_exn (R.Duplicate_attribute ("A"))
       (fun () -> ignore (R.project ["A"; "A"; "B"] r))
     );
+    *)
   end;
   let r0 = R.create ["A"; "B"] in
   let r0' = R.create ["B"; "A"] in
@@ -673,11 +696,13 @@ let () =
       ; R.union r4' r3
       ]
     );
+    (*
     add_test "Db.Relation.union.3"
     (fun () ->
       assert_exn (R.Unequal_domains (["A"; "B"], ["A"]))
       (fun () -> ignore (R.union r5 (R.create ["A"])))
     );
+    *)
     add_test "Db.Relation.inter.1"
     (fun () ->
       List.iter (assert_eq_t r0)
@@ -696,11 +721,13 @@ let () =
       ; R.inter r4' r2
       ]
     );
+    (*
     add_test "Db.Relation.inter.3"
     (fun () ->
       assert_exn (R.Unequal_domains (["A"; "B"], ["A"]))
       (fun () -> ignore (R.inter r5 (R.create ["A"])))
     );
+    *)
     add_test "Db.Relation.diff.1"
     (fun () ->
       List.iter (assert_eq_t r0)
@@ -715,10 +742,12 @@ let () =
       ; R.diff r4 r3'
       ]
     );
+    (*
     add_test "Db.Relation.diff.3"
     (fun () ->
       assert_exn (R.Unequal_domains (["A"; "B"], ["A"]))
       (fun () -> ignore (R.diff r5 (R.create ["A"])))
     );
+    *)
   end;
 

@@ -10,6 +10,7 @@ open Value
 open Lens
 
 module Rel = Db.Relation
+module Relschema = Dbschema.Relschema
 
 let no_checker = WB(fun _ -> Lens.error [`String "relational lenses are unchecked"])
 
@@ -26,7 +27,7 @@ let idlens =
     { get = (fun c -> c);
       put = (fun a co -> a);
     } in
-  (lens, no_checker)
+  (lens, BIJ ((fun s -> s), (fun s -> s)))
 
 let idlens_lib =
   let l, ck = idlens in
@@ -37,11 +38,17 @@ let () = register_native idlens_qid (SLens) idlens_lib
 let db_replace r s (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
   Db.extend s (f (Db.lookup r db)) (Db.remove r db)
 
+let db_schema_replace r s (f : Relschema.t -> Relschema.t) (ds : Dbschema.t)
+: Dbschema.t =
+  Dbschema.extend s (f (Dbschema.lookup r ds)) (Dbschema.remove r ds)
+
 let rename_qid = "Native.Relational.rename"
 let rename r s m n =
   let getfun c = db_replace r s (Rel.rename m n) c in
   let putfun a co = db_replace s r (Rel.rename n m) a in
-  (native getfun putfun, no_checker)
+  let c2a = db_schema_replace r s (Relschema.rename m n) in
+  let a2c = db_schema_replace s r (Relschema.rename n m) in
+  (native getfun putfun, BIJ (c2a, a2c))
 
 let rename_lib =
   mk_nfun (SName ^> SName ^> SName ^> SLens) rename_qid (

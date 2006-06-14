@@ -29,9 +29,13 @@ module Relschema = struct
         in
       p src; Format.printf "->"; p trg
 
-    let names fd = Name.Set.union (fst fd) (snd fd)
+    let names (xs, ys) = Name.Set.union xs ys
 
     let ranges_over fd ns = Name.Set.subset (names fd) ns
+
+    let rename_att a b (xs, ys) =
+      (if Name.Set.mem a xs then Name.Set.add b (Name.Set.remove a xs) else xs),
+      (if Name.Set.mem a ys then Name.Set.add b (Name.Set.remove a ys) else ys)
 
     module NameListMap = Map.Make (
       struct
@@ -67,12 +71,12 @@ module Relschema = struct
       end with
       | Fd_conflict -> false
 
-    let revise rcd r fd =
+    let revise rcd r (xs, ys) =
       let s =
-        Rel.select (Rel.Pred.of_record (Name.Map.project (fst fd) rcd)) r
+        Rel.select (Rel.Pred.of_record (Name.Map.project xs rcd)) r
       in
       try
-        Name.Map.combine rcd (Name.Map.project (snd fd) (Rel.choose s))
+        Name.Map.combine rcd (Name.Map.project ys (Rel.choose s))
       with
       | Not_found -> rcd
 
@@ -105,6 +109,9 @@ module Relschema = struct
 
       let ranges_over fds ns = Name.Set.subset (names fds) ns
 
+      let rename_att a b fds =
+        fold (fun fd -> add (rename_att a b fd)) fds empty
+
       let member r fds = for_all (member r) fds
 
       let outputs fds =
@@ -132,14 +139,6 @@ module Relschema = struct
         fold (fun (xs, _) -> NodeSet.add xs)
           (filter (fun (_, ys) -> ys = ns) fds)
           NodeSet.empty
-
-      (*  Unnecessary, I think.
-      let adj_out (ns : Name.Set.t) (fds : t) : NodeSet.t =
-        (* Find all of the outgoing adjacent nodes. *)
-        fold (fun (_, ys) -> NodeSet.add ys)
-          (filter (fun (xs, _) -> xs = ns) fds)
-          NodeSet.empty
-      *)
 
       (* The first important criteria for tree-form-ness is that all of the
        * distinct nodes in a set of functional dependencies be mutually
@@ -204,97 +203,6 @@ module Relschema = struct
             raise (Error.Harmony_error (fun () ->
               Format.printf "Functional dependencies must be in tree form!"))
 
-      (* The tree structure now appears to be unnecessary.
-
-      type tree = Node of Name.Set.t * forest
-      and forest = tree list
-
-      let rec format_tree = function Node (xs, trs) ->
-        Format.printf "@[<v3>";
-        format_name_set xs;
-        Format.printf "@ ";
-        format_forest trs
-      and format_forest trs =
-        Misc.format_list "@ " format_tree trs;
-        Format.printf "@ "
-
-      let rec tree_nodes = function Node (ns, trs) ->
-        List.fold_right NodeSet.union
-          (List.map tree_nodes trs)
-          (NodeSet.singleton ns)
-
-      let rec choose_fd (trs : forest) : (fd * forest) =
-        match trs with
-        | [] -> raise Not_found
-        | (Node (xs, [])) :: rest -> choose_fd rest
-        | (Node (xs, (Node (ys, subtrs1) :: subtrs2))) :: rest ->
-            (xs, ys), (Node (ys, subtrs1) :: Node (xs, subtrs2) :: rest)
-
-      let rec seq_forest (trs : forest) : fd list =
-        try
-          let fd, trs' = choose_fd trs in
-          fd :: seq_forest trs'
-        with
-        | Not_found -> []
-
-      let rec find_root (ns : Name.Set.t) (fds : t) (visited : NodeSet.t)
-      : Name.Set.t =
-        if NodeSet.mem ns visited then raise Not_tree_form;
-        let parent_set = adj_in ns fds in
-        match NodeSet.cardinal parent_set with
-        | 0 -> ns
-        | 1 ->
-            find_root
-              (NodeSet.choose parent_set) fds (NodeSet.add ns visited)
-        | _ -> raise Not_tree_form
-
-      let rec mk_tree (root : Name.Set.t) (fds : t) (visited : NodeSet.t)
-      : tree =
-        (* Preconditions:
-         *   [fds] has the node property.
-         *   If [mk_tree] has been recursively called on [root] then [visited]
-         *     includes [root]. *)
-        if NodeSet.mem root visited then raise Not_tree_form;
-        let children =
-          List.map (fun x -> mk_tree x fds (NodeSet.add root visited))
-            (NodeSet.elements (adj_out root fds))
-        in
-        Node (root, children)
-
-      let trim (nodes : NodeSet.t) (fds : t) : t =
-        filter (
-          fun (xs, ys) ->
-            not (NodeSet.mem xs nodes) &&
-            not (NodeSet.mem ys nodes)
-        ) fds
-
-      let rec to_forest' fds : tree list =
-        try
-          let node, _  = choose fds in
-          let tree =
-            mk_tree (find_root node fds NodeSet.empty) fds NodeSet.empty
-          in
-          tree :: (to_forest' (trim (tree_nodes tree) fds))
-        with
-        | Not_found -> []
-
-      let to_forest fds =
-        try begin
-          if not (mutually_disjoint (fd_nodes fds)) then raise Not_tree_form;
-          if not (single_parent fds) then raise Not_tree_form;
-          to_forest' fds
-        end with
-        | Not_tree_form ->
-            raise (Error.Harmony_error (fun () ->
-              Format.printf "Functional dependencies must be in tree form!"))
-
-      let rec of_forest trs =
-        List.fold_right union (List.map of_tree trs) empty
-      and of_tree = function Node (node, trs) ->
-        let branches = List.map (function Node (xs, _) -> (node, xs)) trs in
-        union (of_forest trs) (List.fold_right add branches empty)
-
-      *)
 
       (* Unnecessary until we begin using semantic equality.
 
@@ -313,24 +221,35 @@ module Relschema = struct
   let format_t (ns, fds, pred) =
     Format.printf "("; Misc.format_list "," Format.print_string (Name.Set.elements ns);
     Format.printf ")";
-    if not (Rel.Pred.equiv pred Rel.Pred.True) then begin
-      Format.printf " where";
-      Rel.Pred.format_t (Rel.Pred.normalize pred)
+    if pred <> Rel.Pred.True then begin
+      Format.printf "@ where ";
+      Rel.Pred.format_t pred
     end; 
     if not (Fd.Set.is_empty fds) then begin
-      Format.printf " with";
+      Format.printf "@ with ";
       Fd.Set.format_t fds
     end
 
   let create ns = (ns, Fd.Set.empty, Rel.Pred.True)  
   let attributes (ns, fds, pred) = ns
+  let rename a b (ns, fds, pred) =
+    if not (Name.Set.mem a ns) then
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "Dbschema.Relschema.rename:@ ";
+        format_t (ns, fds, pred);
+        Format.printf "@ does not contain the attribute %s" a));
+    Name.Set.add b (Name.Set.remove a ns),
+    Fd.Set.rename_att a b fds,
+    Db.Relation.Pred.rename_att a b pred
   let get_fdset (ns, fds, pred) = fds
   let set_fdset (ns, fds, pred) fds' = (ns, fds', pred)
   let get_pred (ns, fds, pred) = pred
   let set_pred (ns, fds, pred) pred' = (ns, fds, pred')
   let member r (ns, fds, pred) = Fd.Set.member r fds
   let includes (ns1, fds1, pred1) (ns2, fds2, pred2) =
-    Fd.Set.subset fds2 fds1 && Rel.Pred.includes pred1 pred2
+    Name.Set.equal ns1 ns2 &&
+    Fd.Set.subset fds2 fds1 &&
+    Rel.Pred.includes pred1 pred2
   let equiv t1 t2 = includes t1 t2 && includes t2 t1
 end
 
@@ -350,7 +269,14 @@ let format_t dbs =
 let base = Name.Map.empty
 let extend = Name.Map.add
 let remove = Name.Map.remove
-let lookup = Name.Map.find
+let mem = Name.Map.mem
+let lookup rn ds =
+  try Name.Map.find rn ds with
+  | Not_found ->
+      raise (Error.Harmony_error (fun () ->
+        Format.printf "Dbschema.lookup:@ ";
+        format_t ds;
+        Format.printf "@ contains no relation named %s" rn))
 
 let member (d : Db.t) (ds : t) =
   try

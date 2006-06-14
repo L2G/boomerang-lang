@@ -182,7 +182,7 @@ let lookup_tvar_required x = match lookup_tvar x with
     Some t -> t
   | None -> raise (Error.Harmony_error 
                      (fun () -> Format.printf 
-                        "Schema.lookup_tvar_required: %s not found" x))
+                        "Treeschema.lookup_tvar_required: %s not found" x))
 
 (* pretty printing comes here; it only needs to know about tvars, but we need string_of_t 
 to instantiate Mapplus functor for full environments below *)
@@ -492,7 +492,7 @@ let finalize () =
     let c = NS.cardinal xs in
       raise (Error.Harmony_error 
                (fun () -> Format.printf 
-                  "schema variable%s%s%s at %s appears in a non-contractive position"
+                  "treeschema variable%s%s%s at %s appears in a non-contractive position"
                 (if c=1 then " " else "s [")              
                   (Misc.concat_list "," (NS.elements xs))
                   (if c=1 then "" else "]")
