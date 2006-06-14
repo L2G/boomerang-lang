@@ -12,7 +12,28 @@ open Lens
 module Rel = Db.Relation
 module Relschema = Dbschema.Relschema
 
-let no_checker = WB(fun _ -> Lens.error [`String "relational lenses are unchecked"])
+(*** General functions ***)
+
+let revise_rel_1 rel r fd =
+  let accum rcd = Rel.insert (Dbschema.Relschema.Fd.revise rcd r fd) in
+  Rel.fold accum rel (Rel.create (Rel.fields rel))
+
+let revise_rel rel r fds =
+  let accum rcd = Rel.insert (Dbschema.Relschema.Fd.Set.revise rcd r fds) in
+  Rel.fold accum rel (Rel.create (Rel.fields rel))
+
+let merge_rel rel r fds =
+  Rel.union (revise_rel rel r fds) r
+
+let db_replace rn sn (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
+  Db.extend sn (f (Db.lookup rn db)) (Db.remove rn db)
+
+let db_schema_replace rn sn (f : Relschema.t -> Relschema.t) (ds : Dbschema.t)
+: Dbschema.t =
+  Dbschema.extend sn (f (Dbschema.lookup rn ds)) (Dbschema.remove rn ds)
+
+let unchecked q = 
+  WB(fun s -> error [`String q; `Space; `String "is unchecked"])
 
 let error_on_missing (put : 'a -> 'b -> 'b) (a : 'a) (co : 'b option) : 'b =
   match co with
@@ -21,26 +42,7 @@ let error_on_missing (put : 'a -> 'b -> 'b) (a : 'a) (co : 'b option) : 'b =
         \"missing\""])
   | Some c -> put a c
 
-let idlens_qid = "Native.Relational.id"
-let idlens =
-  let lens =
-    { get = (fun c -> c);
-      put = (fun a co -> a);
-    } in
-  (lens, BIJ ((fun s -> s), (fun s -> s)))
-
-let idlens_lib =
-  let l, ck = idlens in
-  L (l, ck)
-
-let () = register_native idlens_qid (SLens) idlens_lib
-
-let db_replace r s (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
-  Db.extend s (f (Db.lookup r db)) (Db.remove r db)
-
-let db_schema_replace r s (f : Relschema.t -> Relschema.t) (ds : Dbschema.t)
-: Dbschema.t =
-  Dbschema.extend s (f (Dbschema.lookup r ds)) (Dbschema.remove r ds)
+(*** rename ***)
 
 let rename_qid = "Native.Relational.rename"
 let rename r s m n =
@@ -65,6 +67,21 @@ let () =
   register_native
     rename_qid (SName ^> SName ^> SName ^> SName ^> SLens) rename_lib
 
+(*** select ***)
+
+(*
+let select_qid = "Native.Relational.select"
+let select rn sn p =
+  let getfun c = db_replace rn sn (Rel.select p) in
+  let putfun a c =
+    let r = Db.lookup rn c in
+    let f s =
+      let r0 = merge_rel (Rel.select (Rel.Pred.Not p) r) s in
+      let xx = Rel.diff (Rel.select p r0) s in
+*)
+
+(*** drop ***)
+
 let drop_qid = "Native.Relational.drop"
 let drop rn sn att det dflt =
   let rm x ls = List.filter (( <> ) x) ls in
@@ -74,21 +91,15 @@ let drop rn sn att det dflt =
   in
   let putfun a c =
     let r = Db.lookup rn c in
-    let flds = Rel.fields r in
     let f s =
-      let added = Rel.diff s (Rel.project (rm att flds) r) in
+      let added = Rel.diff s (Rel.project (rm att (Rel.fields r)) r) in
       let rel_dflt = Rel.insert_tuple [ dflt ] (Rel.create [ att ]) in
       let unrevised = Rel.union (Rel.join r s) (Rel.join added rel_dflt) in
-      let accum rcd =
-        Rel.insert (
-          Dbschema.Relschema.Fd.revise rcd r
-            (Tree.dom det, Name.Set.singleton att))
-      in
-      Rel.fold accum unrevised (Rel.create flds)
+      revise_rel_1 unrevised r (Tree.dom det, Name.Set.singleton att)
     in
     db_replace sn rn f a
   in
-  (native getfun (error_on_missing putfun), no_checker)
+  (native getfun (error_on_missing putfun), unchecked drop_qid)
 
 let drop_lib =
   mk_nfun (SName ^> SName ^> SView ^> SName ^> SLens) drop_qid (

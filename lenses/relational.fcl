@@ -5,22 +5,6 @@
 
 ##module Relational =
 
-##let id : lens = Native.Relational.id
-
-#{*}
-let _ : lens =
-  check id : {{ R(A, B) }} <<~> {{ R(A, B) }}
-
-test id /
-  {{{ R(A, B) = {(1, 2)} }}}
-= {{{ R(A, B) = {(1, 2)} }}}
-
-test id \
-  {{{ }}}
-  {{{ R(A, B) = {(1, 2)} }}}
-= {{{ }}}
-#{@}
-
 ##let rename : (name -> name -> name -> name -> lens) = Native.Relational.rename
 
 #{*}
