@@ -102,6 +102,7 @@ type sort =
   | SRecLens of (exp * lensarrow * exp) 
   | SSchema   
   | SPred
+  | SFD
   | SView    
   | SMap 
   | SArrow of sort * sort
@@ -121,6 +122,7 @@ and exp =
   | ECons of i * exp * exp 
   | EDB of Info.t * Db.t
   | EDBPred of Info.t * Db.Relation.Pred.t
+  | EDBFD of Info.t * Dbschema.Relschema.Fd.Set.t
   | EDBSchema of Info.t * Dbschema.t
   | EFun of i * param list * sort option * exp 
   | ELet of i * binding list * exp

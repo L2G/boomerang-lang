@@ -18,6 +18,7 @@ type t =
   | L of (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker (* lenses *)
   | S of Schema.t                                              (* schemas *)
   | P of Db.Relation.Pred.t                                    (* relational predicates *)
+  | FD of Dbschema.Relschema.Fd.Set.t                          (* functional dependencies *)
   | V of V.t                                                   (* trees *)
   | M of ((V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t (* fmaps *)
   | F of Syntax.sort * (t -> t)                                (* functions *)

@@ -246,6 +246,9 @@ and check_exp sev e0 = match e0 with
     | EDBPred(i, pred) as e ->
         (SPred, e)
 
+    | EDBFD(i, fds) as e ->
+        (SFD, e)
+
     | EDBSchema(i, dbs) as e ->
         (SSchema, e)
 
@@ -771,6 +774,8 @@ let rec compile_exp cev e0 = match e0 with
     | EDB(_,db) -> mk_rv SView (Value.V (V.Db db))
 
     | EDBPred(_,pred) -> mk_rv SPred (Value.P pred)
+
+    | EDBFD(_,fds) -> mk_rv SFD (Value.FD fds)
 
     | EDBSchema(_, dbs) -> mk_rv SSchema (Value.S (Schema.dbschema dbs))
 

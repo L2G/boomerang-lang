@@ -20,6 +20,7 @@ type t =
   | L of (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker (* lenses *)
   | S of Schema.t                                              (* schemas *)
   | P of Db.Relation.Pred.t                                    (* relational predicates *)
+  | FD of Dbschema.Relschema.Fd.Set.t                          (* functional dependencies *)
   | V of V.t                                                   (* trees *)
   | M of ((V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t (* fmaps *)
   | F of Syntax.sort * (t -> t)                                (* functions *)
@@ -45,6 +46,7 @@ let sort_of_t = function
  | L _    -> Syntax.SLens
  | S _    -> Syntax.SSchema
  | P _    -> Syntax.SPred
+ | FD _   -> Syntax.SFD
  | V _    -> Syntax.SView
  | M _    -> Syntax.SMap
  | F(s,_) -> s
@@ -55,6 +57,7 @@ let rec format_t = function
     N(n)   -> Format.printf "@[%s]" (Misc.whack n)
   | S(s)   -> Schema.format_t s
   | P(pred) -> Db.Relation.Pred.format_t pred
+  | FD(fds) -> Dbschema.Relschema.Fd.Set.format_t fds
   | V(v)   -> V.format_t v
   | L(l,c) -> Format.printf "@[%s]" "<lens>"
   | M(_)   -> Format.printf "@[%s]" "<fmap>"

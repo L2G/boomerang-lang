@@ -62,7 +62,7 @@
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
 %token <Info.t> STAR BANG BAR LT GT PLUS MINUS TILDE AMPERSAND QMARK
-%token <Info.t> WHERE TRUE FALSE PRED
+%token <Info.t> WHERE TRUE FALSE PRED FDS
 
 %start modl sort qid 
 %type <Syntax.modl> modl
@@ -295,6 +295,7 @@ asort:
   | TREE                                     { ($1, SView) }
   | SCHEMA                                   { ($1, SSchema) }
   | PRED                                     { ($1, SPred) }
+  | FDS                                      { ($1, SFD) }
   | FMAP                                     { ($1, SMap) }
   | LPAREN sort RPAREN                       { $2 }
 
@@ -454,6 +455,7 @@ aexp:
   | ASSERT aexp                              { EAssert(me2 $1 $2, $2) }
   | CHECK aexp COLON aexp lensarrow aexp     { ECheckLens(me2 $1 $6,$4,$5,$6,$2) }
   | PROTECT aexp                             { EProtect(me2 $1 $2, $2, None) }
+  | WITH LBRACE fds RBRACE                   { EDBFD($1,$3) }
   | WHERE apred                              { EDBPred($1,$2) }
   | LBRACE map_list RBRACE                   { EMap(m $1 $3, $2) }
   | LBRACE treeelt_list RBRACE               { ECat(m $1 $3,$2) }

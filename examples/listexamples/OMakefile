@@ -1,0 +1,7 @@
+$(RESULT): $(SRCDIR)/harmony
+   rm $@
+   ln -s $< $@
+
+test: $(RESULT)
+   ./$(RESULT) $(HARMONY_FLAGS) listexamples.fcl
+   ./$(RESULT) $(HARMONY_FLAGS) cycleexamples.fcl -cycle

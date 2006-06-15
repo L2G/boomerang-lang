@@ -50,7 +50,7 @@ and the following keywords and symbols are reserved and are not valid as identif
 \begin{tabular}{llllllllll}
   @and@    & @assert@ & @at@     & @begin@  & @end@    & @error@  & @fun@    & @in@      &  @lens@   & @let@ \\
   @missing@ & @module@ & @name@   & @open@  & @protect@ & @sync@   & @test@   & @view@   & @schema@  & @with@\\
-  @check@ & @fmap@ & @where@ & @pred@ & @TRUE@ & @FALSE@  \\
+  @check@ & @fmap@ & @where@ & @pred@ & @fds@ & @TRUE@ & @FALSE@  \\
   @->@ & @(@  & @)@  & @;@  & @.@  & @*@  & @!@  & @|@  & @=@  & @{@\\
   @}@  & @[@  & @]@  & @,@  & @:@  & @\@ & @/@  & @,@  & @:@  & @+@\\
   @?@  & @`@  & @~@  & @-@  & @&@  & @<<~>@ & @<<=>@ & @<<->@\\
@@ -140,6 +140,7 @@ let _ =
   ; "check", (fun i -> CHECK i)
   ; "end", (fun i -> END i)
   ; "error", (fun i -> ERROR i)
+  ; "fds", (fun i -> FDS i)
   ; "fmap", (fun i -> FMAP i)
   ; "fun", (fun i -> FUN i)
   ; "FALSE", (fun i -> FALSE i)
