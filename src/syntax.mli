@@ -59,7 +59,7 @@ type lensarrow = Bij | Vwb | Wb
 type sort = 
     SName 
   | SLens 
-  | SRecLens of (exp * lensarrow * exp)
+  | SCheckedLens of (qid * lensarrow * qid)
   | SSchema  
   | SPred
   | SFD
@@ -109,6 +109,14 @@ type decl =
   | DTest of Info.t * exp * test_result
 
 type modl = MDef of Info.t * id * qid list * decl list
+
+(** {3 Constant Constructors} *)
+val mk_compose2_exp : Info.t -> exp -> exp -> exp 
+val mk_get_exp : Info.t -> exp -> exp -> exp 
+val mk_put_exp : Info.t -> exp -> exp -> exp option -> exp  
+val mk_sync_exp : Info.t -> exp -> exp -> exp -> exp -> exp -> exp
+val mk_empty_tree : Info.t -> exp 
+val mk_any_exp : Info.t -> exp 
 
 (** {3 Utility functions } *)
 

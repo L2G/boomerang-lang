@@ -4,8 +4,9 @@ module Bookmarks =
 
 (* abstract schema for heterogeneous synchronization *)
 schema Link   = { "name" = Value, "url"=Value }
-schema Folder = { "name" = Value, "contents" = Contents }     
-and Contents  = List.T (Folder | {"link" =  Link})
+schema Folder = { "name" = Value, "contents" = Contents }   
+and Item = Folder | { "link" = Link}   
+and Contents  = List.T Item
 schema Abstract = { "toolbar" = Contents, "bookmarks" = Contents }
 
 (* alternate "flattened" schema with flexible alignment *)

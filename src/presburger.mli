@@ -24,7 +24,7 @@ val mkNot : t -> t
 val mkOr : t list -> t
 val mkAnd : t list -> t
 val mkExists : t -> t
-val wrap : int -> t -> t
+val wrap : int -> t -> t 
 val mkEq : exp -> exp -> t
 val mkLt : exp -> exp -> t
 val mkLe : exp -> exp -> t

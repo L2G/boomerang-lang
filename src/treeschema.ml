@@ -400,6 +400,14 @@ let string_of_t t0 =
    environment, but lookups are slower when we have a simple type
    variable *)
 
+let format_low_level msg p e = 
+  Format.printf "%s @[p=@[" msg;
+  P.format_t p;
+  Format.printf "@]@, e=@[";
+  Misc.format_list "," (fun (r,x) -> R.format_t r; Format.printf "["; format_state x; Format.printf "]") e;
+  Format.printf "@]@]@\n" 
+
+
 module TMapplus = Mapplus.Make(
   struct
     type t = this_t
@@ -1411,17 +1419,20 @@ let restrict ns t0 =
     let basis_length = Safelist.length basis in
     let formula = P.substitute subst p in
 
+    Trace.debug "restrict+" 
+      (fun () -> format_low_level (sprintf "RESTRICT {%s}" (Misc.concat_list "," (NS.elements ns))) formula basis);
+
     (* (2) fold over the basis and construct schema restricted to ns, neg(ns) *)
     let _,(ns_xs,ns_basis_rev,ns_fs,ns_covered),(neg_ns_xs,neg_ns_basis_rev,neg_ns_fs) = Safelist.fold_left
       (fun (pos,ns_acc,neg_ns_acc) ei ->
          let ns_hit n ei = 
-           let ns_pos,ns_basis,ns_fs,covered = ns_acc in              
+           let ns_pos,ns_basis,ns_fs,covered = ns_acc in
            let fi = P.mkEq (P.mkVar pos) (P.mkVar ns_pos) in 
              (pos+1,
               (ns_pos+1,ei::ns_basis, fi::ns_fs,NS.add n covered),
               neg_ns_acc) in 
          let neg_ns_hit ei = 
-           let neg_ns_pos,neg_ns_basis,neg_ns_fs = neg_ns_acc in              
+           let neg_ns_pos,neg_ns_basis,neg_ns_fs = neg_ns_acc in
            let fi = P.mkEq (P.mkVar pos) (P.mkVar neg_ns_pos) in 
              (pos+1,
               ns_acc,
@@ -1434,17 +1445,30 @@ let restrict ns t0 =
              | None -> neg_ns_hit ei)
       (0,(basis_length,[],[],NS.empty),(basis_length,[],[]))
       basis in
-
-    (* (3) add a CoFinite component for all the uncovered ns *)
-    let ns_basis = Safelist.rev ((R.mk_cofinite (NS.elements ns_covered),True)::ns_basis_rev) in
-    let neg_ns_basis = Safelist.rev neg_ns_basis_rev in 
-    let ns_cofinite_f = P.mkEq (P.mkVar ns_xs) P.zero in
-
+      
+    (* (3) make both a basis *)
+    let ns_basis_rev,ns_fs = 
+      ((R.mk_cofinite (NS.elements ns_covered),True)::ns_basis_rev),
+      (P.mkEq (P.mkVar ns_xs) P.zero)::ns_fs in
+      
+    let _,neg_ns_basis_rev,neg_ns_fs = NS.fold 
+      (fun ni (x,b,fs) -> (x+1,(R.mk_singleton ni,True)::b, (P.mkEq (P.mkVar x) P.zero)::fs))
+      ns (neg_ns_xs,neg_ns_basis_rev,neg_ns_fs) in
+      
+    let ns_basis = Safelist.rev ns_basis_rev in 
+    let neg_ns_basis = Safelist.rev neg_ns_basis_rev in
+      
     (* (4) construct the forumlas, bases *)
-    let ns_f = P.wrap (basis_length-1) (P.mkAnd (formula::ns_cofinite_f::ns_fs)) in
-    let neg_ns_f = P.wrap (basis_length-1) (P.mkAnd (formula::neg_ns_fs)) in
+    let ns_f = P.wrap basis_length (P.mkAnd (formula::ns_fs)) in
+    let neg_ns_f = P.wrap basis_length (P.mkAnd (formula::neg_ns_fs)) in
     let restr_ns = F((ns_f,ns_basis),Restrict(syn,ns,true)) in
     let restr_neg_ns = F((neg_ns_f,neg_ns_basis),Restrict(syn,ns,false)) in
+
+      Trace.debug "restrict+" 
+        (fun () -> 
+           format_low_level (sprintf "NS RESULT {%s}" (Misc.concat_list "," (NS.elements ns))) ns_f ns_basis;
+           format_low_level (sprintf "NEG NS RESULT {%s}" (Misc.concat_list "," (NS.elements ns))) neg_ns_f neg_ns_basis);
+
       (restr_ns, restr_neg_ns) in
     match t0 with 
         V(x) -> begin match x with 

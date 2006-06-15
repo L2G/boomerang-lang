@@ -524,11 +524,21 @@ let xfork pcv pav (l1,c1) (l2,c2) =
                           `Tree c2'];
                  Tree.concat c1' c2')} in 
   let checker = 
-    let aux pc ck1 ck2 = 
-      fun s -> 
-        if Treeschema.empty s then s 
-        else let s_pc,s_neg_pc = Treeschema.restrict pc s in 
-          Treeschema.mk_cat[ck1 s_pc; ck2 s_neg_pc] in
+    let aux pc ck1 ck2 s = 
+      (* FIXME: need to check <= pa too! *)
+      if Treeschema.empty s then s 
+      else let s_pc,s_neg_pc = Treeschema.restrict pc s in 
+      let a1 = ck1 s_pc in 
+      let a2 = ck2 s_neg_pc in 
+      let res = Treeschema.mk_cat[a1; a2] in 
+        Trace.debug "xfork+"
+          (fun () -> 
+             Format.printf "C1="; Treeschema.format_t s_pc;
+             Format.printf "@\nC2="; Treeschema.format_t s_neg_pc;
+             Format.printf "@\nA1="; Treeschema.format_t a1;
+             Format.printf "@\nA2="; Treeschema.format_t a2;             
+             Format.printf "@\nRES="; Treeschema.format_t res);
+        res in
       match c1,c2 with
           BIJ(c2a,a2c),BIJ(c2a',a2c') -> 
             BIJ(aux dom_pcv c2a c2a', aux dom_pav a2c a2c')
@@ -641,15 +651,17 @@ let hoist k =
         (fun a _ -> 
            Tree.set Tree.empty k (Some a)) } in 
   let c2a c = 
-    match 
-      Treeschema.project k c, 
-      Treeschema.subschema c 
-        (Treeschema.mk_wild (Name.Set.empty) 1 false Treeschema.mk_any) 
-    with     
-        None,_ | _,false -> 
-          error [`String hoist_qid;`Space;
-                 `String "may only be used with schemas of the form {n=A}, for some A"]
-      | Some a,true -> a in 
+    if not (Treeschema.subschema c (Treeschema.mk_atom k Treeschema.mk_any)) then 
+      error [ `String hoist_qid;`Space
+            ; `String "expected subschema of {"
+            ; `String k; `String "=T}"; `Space 
+            ; `String "found"; `Space
+            ; `Prim (fun () -> Treeschema.format_t c)]
+    else match Treeschema.project k c with 
+        None -> 
+          Treeschema.format_t c;
+          assert false 
+      | Some a -> a in 
   let a2c a = Treeschema.mk_atom k a in
     (lens, BIJ(c2a,a2c))
 

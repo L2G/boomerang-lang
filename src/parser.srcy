@@ -27,32 +27,6 @@
   let ms s1 s2 = m (fst s1) (fst s2)
   let mbs2 i1 bs2 = m i1 (info_of_bindings bs2)
   let mss2 i1 ss2 = m i1 (info_of_schema_bindings ss2)
-
-  (* helpers for easy syntax tree construction *)
-
-  (* mk_compose2 exp *)
-  let mk_compose2_exp i e1 e2 = 
-    EApp(i, EApp(i, EVar(i, compose2_qid i,false),e1),e2)
-
-  (* mk_get_exp *)
-  let mk_get_exp i l c = 
-    EApp(i, EApp(i, EVar(i, get_qid i,false), l), c)
-
-  (* mk_put_exp *)
-  let mk_put_exp i l a co = 
-    match co with 
-        None -> EApp(i, EApp(i, EVar(i, create_qid i, false), l), a)
-      | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i,false), l), a), c)
-
-  (* mk_sync_exp *)
-  let mk_sync_exp i lo la lb t v = 
-    EApp(i,EApp(i,EApp(i,EApp(i,EApp(i,EVar(i,sync_qid i,false),lo),la),lb),t),v)
-
-  (* mk_empty_tree *)
-  let mk_empty_tree i = ECat(i,[])
-
-  let mk_any_exp i = EVar(i,any_qid i,false)
-
 %}
 
 %token <Info.t> EOF 
@@ -232,17 +206,20 @@ binding_list:
   | binding                                  { [$1] }
 
 binding:    
-  | IDENT param_list COLON asort EQUAL exp            { BDef(mie $1 $6,$1,$2,snd $4,$6) }
-  | IDENT param_list COLON aexp lensarrow aexp EQUAL exp { let i = mie $1 $8 in 
-                                                           let i4 = info_of_exp $4 in
-                                                           let i6 = info_of_exp $6 in
-                                                           let c = id_of_string i4 (fresh "_CONCRETE") in
-                                                           let a = id_of_string i6 (fresh "_ABSTRACT") in
-                                                           let c_var = EVar(i4,qid_of_id c,false) in 
-                                                           let a_var = EVar(i6,qid_of_id a,false) in 
-                                                           let bs = [BDef(i4,c,[],SSchema,$4); BDef(i6,a,[],SSchema,$6)] in
-                                                           let e = ELet(i,bs, ECheckLens(i,c_var,$5,a_var,$8)) in
-                                                           let s = SRecLens(c_var,$5,a_var) in 
+  | IDENT param_list COLON asort EQUAL exp               { BDef(mie $1 $6,$1,$2,snd $4,$6) }
+  | IDENT param_list COLON aexp lensarrow aexp EQUAL exp { let i : Info.t = mie $1 $8 in 
+                                                           let c_info = info_of_exp $4 in
+                                                           let a_info = info_of_exp $6 in
+                                                           let c_id = id_of_string c_info (fresh "_CONCRETE") in
+                                                           let a_id = id_of_string a_info (fresh "_ABSTRACT") in
+                                                           let c_qid = qid_of_id c_id in
+                                                           let a_qid = qid_of_id a_id in
+                                                           let c_var = EVar(c_info, c_qid, false) in 
+                                                           let a_var = EVar(a_info, a_qid, false) in 
+                                                           let bs = [ BDef(c_info,c_id,[],SSchema,$4)
+                                                                    ; BDef(a_info,a_id,[],SSchema,$6)] in
+                                                           let e = ELet(i,bs,ECheckLens(i,c_var,$5,a_var,$8)) in
+                                                           let s = SCheckedLens(c_qid,$5,a_qid) in 
                                                              BDef(mie $1 $8,$1,$2,s,e) }
 
 schema_binding_list:

@@ -117,3 +117,8 @@ test (
   test (let l : (List.T {a}) <<-> (List.T {b}) =
           List.checked_map (rename "a" "b") {a} {b} in 
           l / [{a},{a},{a}]) = [{b},{b},{b}]
+    
+  test (let l : ({a}::(List.T Any)) <<-> {a} = List.hd [] in l / [{a}]) = {a}
+
+  (* test dynamic type checking *)
+  test (let l : {a} <<-> {a} = id in l / {b}) = error

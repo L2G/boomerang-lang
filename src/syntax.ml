@@ -73,14 +73,20 @@ let qid_of_id id = [],id
 let id_of_string i s = (i,s)
 let dot (qs1,x1) (qs2,x2) = (qs1@(x1::qs2),x2)
 
-(* constants *)
+(* constants / helpers *)
 let native_prelude i = Safelist.map (mk_id i) ["Native"; "Prelude"]
+
 let mk_pre_qid i s = mk_qid (native_prelude i) (mk_id i s)
+
 let compose2_qid i = mk_pre_qid i "compose2"
+
 let get_qid i = mk_pre_qid i "get"
+
 let create_qid i = mk_pre_qid i "create"
 let put_qid i = mk_pre_qid i "put"
+        
 let sync_qid i = mk_pre_qid i "_sync" (* can't write "sync" because it's a token :( *)
+
 let cons_qid i = mk_pre_qid i "Cons"
 let nil_qid i = mk_pre_qid i "Nil"
 let any_qid i = mk_pre_qid i "Any"
@@ -99,8 +105,8 @@ let fresh x =
 type sort = 
     SName 
   | SLens
-  | SRecLens of (exp * lensarrow * exp) 
-  | SSchema   
+  | SCheckedLens of (qid * lensarrow * qid) 
+  | SSchema
   | SPred
   | SFD
   | SView    
@@ -156,6 +162,16 @@ type decl =
 
 (* modules *)
 type modl = MDef of i * id * qid list * decl list
+
+(* constant constructors *)
+let mk_compose2_exp i e1 e2 = EApp(i, EApp(i, EVar(i, compose2_qid i,false),e1),e2)
+let mk_get_exp i l c = EApp(i, EApp(i, EVar(i, get_qid i,false), l), c)
+let mk_put_exp i l a co = match co with 
+    None -> EApp(i, EApp(i, EVar(i, create_qid i, false), l), a)
+  | Some c -> EApp(i, EApp(i, EApp(i, EVar(i, put_qid i,false), l), a), c)
+let mk_sync_exp i lo la lb t v = EApp(i,EApp(i,EApp(i,EApp(i,EApp(i,EVar(i,sync_qid i,false),lo),la),lb),t),v)
+let mk_empty_tree i = ECat(i,[])
+let mk_any_exp i = EVar(i,any_qid i,false)
 
 (* accessor functions *)
 let name_of_id (_,x) = x
@@ -220,11 +236,10 @@ let rec format_sort s0 =
   let rec format_sort_aux parens = function
       SName         -> Format.printf "name"
     | SLens         -> Format.printf "lens"
-    | SRecLens(e1,la,e2) -> 
-        let mode = { cat=false; app=false } in 
-          format_exp_aux mode e1;
-          format_lensarrow la;
-          format_exp_aux mode e2
+    | SCheckedLens(q1,la,q2) -> 
+        Format.printf "%s" (string_of_qid q1);
+        format_lensarrow la;
+        Format.printf "%s" (string_of_qid q2)
     | SSchema       -> Format.printf "schema"
     | SPred         -> Format.printf "pred"
     | SFD           -> Format.printf "fds"

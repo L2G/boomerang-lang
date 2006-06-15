@@ -2,7 +2,7 @@
 (* The Harmony Project                                   *)
 (* harmony@lists.seas.upenn.edu                          *)
 (*                                                       *)
-(* presburger.ml - presburger arithmetic                 *)
+(* presburger.ml - presburger arithmetic constraints     *)
 (*********************************************************)
 (* $Id$ *)
 
@@ -19,7 +19,7 @@ module IntMap = IntMapplus.Map
 module IntSet = IntMapplus.KeySet
 
 (* -------------- abstract syntax ------------- *)
-(* exps are now only used for easy construction of EqZs and GeqZs. *)
+(* exps are only used for easy construction of EqZs and GeqZs. *)
 type exp = 
     Const of int
   | Var of int 
@@ -35,6 +35,7 @@ type t =
   | Exists of t
 
 (* --------------- utility functions --------------- *)
+(* --- free variables --- *)
 let rec fvs_t = function
     EqZ(ps_xs,_) | GeqZ(ps_xs,_) -> 
       Safelist.fold_left 
@@ -56,7 +57,7 @@ let rec fvs_t = function
         (fvs_t f)
         IntSet.empty 
 
-(* -- formatter -- *)
+(* --- formatter --- *)
 let rec fformat_exp_aux fmtr = function
     Const(n) -> Format.fprintf fmtr "%d" n
   | Var(x) -> Format.fprintf fmtr "n%d" x
@@ -69,16 +70,23 @@ let format_exp = fformat_exp_aux Format.std_formatter
 
 let rec fformat_t_aux fmtr g t0 = 
   let format_atom ps_xs opr c = 
-    if ps_xs = [] then Format.printf "0"
-    else
-      Misc.fformat_list fmtr "+"
-        (fun (pi,xi) -> 
-           Format.printf "%s%s"
-             (if pi=1 then "" else if pi=(-1) then "-" else (sprintf "%d*" pi))
-             ((snd g) xi))
-        ps_xs;
-    if c=0 then () else Format.printf "+%d" c;
-    Format.printf "%s0" opr in
+    let format_one (pi,xi) =              
+      Format.printf "%s%s"
+        (if pi=1 then "+" else if pi=(-1) then "-" else (sprintf "%d*" pi))
+        ((snd g) xi) in
+      match ps_xs with 
+          [] -> Format.printf "0=0"
+        | [(-1,x)] -> 
+            Format.printf "%s%s%d" ((snd g) x) opr c;
+        | [(1,x)] -> 
+            Format.printf "%s%s%d" ((snd g) x) opr (-1 * c);
+        | (p,x)::ps_xs -> 
+            Format.printf "%s%s"
+              (if p=1 then "" else if p=(-1) then "-" else (sprintf "%d*" p))
+              ((snd g) x);        
+            Misc.fformat_list fmtr "" format_one ps_xs;
+            if c=0 then () else Format.printf "+%d" c;
+            Format.printf "%s0" opr in
     match t0 with
         EqZ(ps_xs,c) -> format_atom ps_xs "=" c
       | GeqZ(ps_xs,c) -> format_atom ps_xs ">=" c
@@ -112,7 +120,7 @@ let fformat_t fmtr f =
 let format_t = fformat_t Format.std_formatter
 
 (* --------------- de Bruijn shifting -------------- *)
-(* cutoff *)
+(* --- shift with cutoff --- *)
 let rec shift_exp_aux n c e0 = match e0 with
     Const(n)   -> e0
   | Var(x)     -> if x < c then e0 else Var(x+n)
@@ -128,11 +136,11 @@ let rec shift_aux n c =
       | And(fs)       -> And(Safelist.map (shift_aux n c) fs)
       | Exists(f)     -> Exists(shift_aux n (c+1) f)
 
-(* plain shifting *)
+(* --- top-level shift operator --- *)
 let shift_exp n = shift_exp_aux n 0
 let shift_t n = shift_aux n 0
 
-(** substitute: -> list -> (int * exp list)  -> t -> t *)
+(* -------------- substitution -------------- *)
 let rec substitute_exp es e0 = match e0 with 
     Const(_) -> e0
   | Var(x) -> (try Safelist.assoc x es with Not_found -> e0)
@@ -143,12 +151,15 @@ let rec substitute es t0 =
       Const(n) -> (vacc, pi*n + cacc)
     | Var(x)   -> ((pi,x)::vacc, cacc)
     | Sum(e1,e2) -> mult (mult (vacc,cacc) pi e1) pi e2 in        
-  let substitute_ps_xs ps_xs c = Safelist.fold_left
-    (fun acc (pi,xi) ->
-       (try mult acc pi (Safelist.assoc xi es)
-        with Not_found -> let ps_xs,c = acc in ((pi,xi)::ps_xs,c)))
-    ([],c)
-    ps_xs in 
+  let substitute_ps_xs ps_xs c = 
+    let res_l,res_c = 
+      Safelist.fold_left
+        (fun acc (pi,xi) ->
+           (try mult acc pi (Safelist.assoc xi es)
+            with Not_found -> let ps_xs,c = acc in ((pi,xi)::ps_xs,c)))
+        ([],c)
+        ps_xs in 
+      Safelist.rev res_l, res_c in 
   let res = match t0 with
         EqZ(ps_xs,c) -> 
           let ps_xs',c' = substitute_ps_xs ps_xs c in
@@ -179,31 +190,23 @@ let rec substitute es t0 =
 (* --------------- constants --------------- *)
 
 let zero = Const(0)
-
 let one = Const(1)
-
 let tru = EqZ([],0)
-
 let fls = EqZ([],1)
 
 (* --------------- constructors --------------- *)
 
-(** mkConst: int -> exp *)
 let mkConst n = Const(n)
 
-(** mkVar: int -> exp *)
 let mkVar x = Var(x)
 
-(** mkSum: exp -> exp -> exp *)
 let mkSum e1 e2 = match e1,e2 with
     Const(0),_ -> e2
   | _,Const(0) -> e1
   | _ -> Sum(e1,e2)
 
-(** mkNot: t -> t *)
 let mkNot f = Not(f)
 
-(** mkOr  t -> t list -> t *)
 let mkOr fs = 
   if fs = [] then fls
   else
@@ -215,23 +218,24 @@ let mkOr fs =
       [] fs in
       Or(Safelist.rev fs')
 
-(** mkAnd  t -> t list -> t *)
 let mkAnd fs = 
   if fs = [] then tru
   else
     let fs' = Safelist.fold_left 
       (fun fs fi -> 
          match fi with
-             And(gs) -> gs @ fs
+
+             And(gs) -> (Safelist.rev gs) @ fs
            | _         -> fi::fs)
       []
       fs in
       And(Safelist.rev fs')
 
-(** mkExists: t -> t *)
 let mkExists f = Exists(f)
 
-(* helper *)
+let rec wrap n f = if n <= 0 then f else wrap (n-1) (mkExists f)
+
+(* --- helper function for constructing formulas from exps --- *)
 let rec mk_cnstr (vacc,cacc) polarity = function
     Const(c)   -> (vacc,(polarity * c) + cacc)
   | Var(x)     -> ((polarity,x)::vacc,cacc)
@@ -260,17 +264,25 @@ let mkGe e1 e2 =
   let ps_xs,c = mk_cnstr (mk_cnstr ([],0) 1 e1) (-1) e2 in
     GeqZ (ps_xs,c)
 
-let rec get_zeros f0 = match f0 with
+(* --- get_zeros: calculate a set of "obviously zero" variables from a
+   formula. NOT semantically complete--i.e., it's not the case that 
+   n in get_zeros(f) <=> every satisfying valuation of f has n=0 *)
+let rec get_zeros f0 = match f0 with    
     EqZ(ps_xs,c) -> 
-      if c = 0 then 
-        let _,zs = Safelist.fold_left 
-          (fun (ws,zs) (p,x) -> 
-             let wx = (IntMap.safe_find x ws 0) + p in
-               (IntMap.add x wx ws, if wx=0 then zs else IntSet.add x zs))
-          (IntMap.empty, IntSet.empty)
-          ps_xs in 
-          zs
-      else IntSet.empty
+      (* for constraints equal to zero, all variables must have the
+         same polarity *) 
+      let uniform_polarity l =
+        let res,_ = Safelist.fold_left 
+          (fun acc (p,_) ->              
+             match acc,p with 
+                 (false,_),_ -> acc
+               | (true,0),_ | (true,1),1 | (true,-1),-1 -> (true,p)
+               | _ -> (false,p))
+          (true,0) l in 
+          res in 
+        if c = 0 && uniform_polarity ps_xs then 
+          Safelist.fold_left (fun acc (_,xi) -> IntSet.add xi acc) IntSet.empty ps_xs
+        else IntSet.empty
   | GeqZ(_) -> IntSet.empty
   | Not(f) -> begin match f with
         Not(g) -> get_zeros g
@@ -291,69 +303,147 @@ let rec get_zeros f0 = match f0 with
         (IntSet.remove 0 (get_zeros f))
         IntSet.empty
 
-(** add2: t -> t -> t *)
+(* --------------- addition -------------- *)
+
+(* given two formulas, f1 and f2, a formula representing (f1+f2) can
+   be constructed by: 
+   
+   (1) instantiating each with fresh existentially-quantified
+   variables and
+   
+   (2) adding constraints that each original variable is equal to the
+   sum of the corresponding fresh variables. 
+
+   however, omega is limited to a fixed number of variables, so
+   whenever possible we try to avoid introducing unecessary
+   variables. for add, we can avoid introducing fresh variables for
+   variables that only appear in one formula, or for variables that
+   are "obviously zero" (adding to zero is the identity. *)
 let add2 f1 f2 =
+  (* calculate free variables *)
   let fv1,fv2 = fvs_t f1, fvs_t f2 in
+  let common_fvs = IntSet.inter fv1 fv2 in 
+
+  (* calculate the "obviously zero" variables *)
   let zs1,zs2 = get_zeros f1, get_zeros f2 in
-  let common_vars = IntSet.diff (IntSet.inter fv1 fv2) (IntSet.union zs1 zs2) in
-  let f1_zeroed = substitute (Safelist.map (fun z -> (z,zero)) (IntSet.elements zs1)) f1 in
-  let f2_zeroed = substitute (Safelist.map (fun z -> (z,zero)) (IntSet.elements (IntSet.diff zs2 zs1))) f2 in
-    if IntSet.is_empty common_vars then mkAnd[f1_zeroed;f2_zeroed]
+  
+  (* construct a formula equisatisfiable with f1 and f2 where some
+     "obviously zero" variables is instantiated with the constant
+     zero. we need to be careful: blindly substituting for ALL
+     obviously zero variables in both formulas would lose the
+     constraint entirely. thus, we only instantiate obviously zero
+     variables that (a) are free in both formulas, and (b) we
+     instantiate each obviously zero variable in at most one of f1 and
+     f2. *)
+  let f1_zeros = IntSet.inter common_fvs zs1 in 
+  let f1_zeroed = substitute (Safelist.map (fun z -> (z,zero)) (IntSet.elements f1_zeros)) f1 in
+  let f2_zeros = IntSet.inter common_fvs (IntSet.diff zs2 zs1) in 
+  let f2_zeroed = substitute (Safelist.map (fun z -> (z,zero)) (IntSet.elements f2_zeros)) f2 in   
+  let remaining_common_vars = IntSet.diff common_fvs (IntSet.union f1_zeros f2_zeros) in
+    Trace.debug "add+" 
+      (fun () -> 
+         Format.printf " --- Presburger.add --- @\nf1="; 
+         format_t f1; 
+         Format.printf "@\nf2="; 
+         format_t f2;
+         Format.printf "@\nZS1={%s} (ALL={%s})"  
+           (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements f1_zeros)))
+           (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements zs1)));
+         Format.printf "@\nZS2={%s} (ALL={%s})" 
+           (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements f2_zeros))) 
+           (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements zs2)));
+         Format.printf "@\nf1_zeroed: "; format_t f1_zeroed;
+         Format.printf "@\nf2_zeroed: "; format_t f2_zeroed;
+         Format.printf "@\nREMAINING_COMMON: {%s}" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_common_vars)));
+         Format.printf "@\n");
+    
+    (* next we recognize an easy common case: if f1_zeroed and
+       f2_zeroed have no remaining free variables in common, then
+       their sum is equivalent to their conjunction. *)
+    if IntSet.is_empty remaining_common_vars then 
+      let res = mkAnd[f1_zeroed;f2_zeroed] in 
+        (Trace.debug "add+" (fun () -> Format.printf "QUICK RES="; format_t res; Format.print_newline ()); 
+         res)
     else
-      let c = IntSet.cardinal common_vars in
+      (* otherwise, we fall back and introduce fresh quantified
+         variables for the remaining common variables as described
+         above. 
+         
+         because we use a debruijn encoding, calcuating the correct
+         instantiation requires a little arithmetic. variables
+         {0..c_common-1} are used to instantiate the common variables
+         in f1 and {c_common..2*c_common-1} for the common variables
+         in f2.  {2*c_common..2*c_common+c_1} are used to instantiate
+         the remaining non-shared variables in f1--at the end, when we
+         wrap up the formula with 2*c_common existentials, they will
+         point to the same variables; similarly
+         {2*c_common+c_1..2*c_common+c_1+(IntSet.cardinal
+         remaining_fv2)-1} are used to instantiate the remaining
+         non-shared variables in f2. *)
+      let c_common = IntSet.cardinal remaining_common_vars in
+      let remaining_fv1 = IntSet.diff fv1 f1_zeros in 
+      let c_1 = IntSet.cardinal remaining_fv1 in 
+      let remaining_fv2 = IntSet.diff fv2 f2_zeros in 
+      let remaining_fvs = IntSet.union remaining_fv1 remaining_fv2 in
+        Trace.debug "add+" 
+          (fun () -> 
+             Format.printf "REMAINING_FV1 {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fv1)));
+             Format.printf "REMAINING_FV2 {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fv2)));
+             Format.printf "REMAINING_FVS {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fvs)));
+             Format.printf "C_COMMON=%d, C_1=%d@\n" c_common c_1);        
+        let init_i1 = 0 in 
+        let init_o1 = 2 * c_common in 
+        let init_o2 = c_1 + (2 * c_common) in 
 
-      (* next we construct a triple of lists:         
-         - the first element is a list of the names of the vars used
-         to instantiate f1. these will be [0..c-1], but it is handy
-         to actually construct the list since we're iterating over
-         fvs anyways.
-
-         - similarly the second element is a list of the names of the vars 
-         used to instantiate f2, (i.e., [c,..,2c-1])
-
-         - the third element is a list associating each free var n in
-         fvs to options wrapping the variables used to instantiate
-         the variable formerly known as n in f1 and f2 respectively.
-         e.g., if n is in fvs(f1) and fvs(f2) and was instantiated
-         with var(ci) in f1 and var(cj) in f2 then 
-         (n, Some ci, Some cj) appears in assoc *)
-      let rec mk_assoc i1 i2 (vs1,vs2,assoc) = function
-          [] -> (List.rev vs1, List.rev vs2, List.rev assoc)
-        | n::rest -> 
-            let (vs1',i1',o1),(vs2',i2',o2) = match IntSet.mem n fv1,IntSet.mem n fv2
-            with true,true -> 
-              (((n,Var(i1))::vs1,i1+1,Some i1),
-               ((n,Var(i2))::vs2,i2+1,Some i2))
-              | true,false ->
-                  (((n,Var(i1))::vs1,i1+1,Some i1),
-                   ((n,Var(n+2*c))::vs2,i2,None))
-              | false,true ->
-                  (((n,Var(n+2*c))::vs1,i1,None),
-                   ((n,Var(i2))::vs2,i2+1,Some i2)) 
-              | false,false -> assert false in
-              mk_assoc i1' i2' (vs1',vs2',(n,o1,o2)::assoc) rest in
-      let f1_subst, f2_subst, assoc = 
-        mk_assoc 0 c ([],[],[]) (IntSet.elements common_vars) in
-
-      (* instantiate f1 and f2 with vars generated by mk_assoc *)
-      let f1_fresh,f2_fresh = substitute f1_subst f1_zeroed, substitute f2_subst f2_zeroed in
-
-      (* then, for each original free variable var(n_i) that they have
-         in common, add an equality between var(n_i) shifted by (2c)
-         and the sum of the vars corresponding to n in f1' and f2' *)
-      let rec mk_sums acc = function
-          [] -> Safelist.rev acc 
-        | (n,Some m1, Some m2)::rest ->
-            let e = mkEq (mkVar (n+2*c)) (mkSum (mkVar m1) (mkVar m2)) in
-              mk_sums (e::acc) rest 
-        | _::rest -> mk_sums acc rest in
-      let var_sums = mk_sums [] assoc in
-
-      (* finally, existentially the first c1+c2 variables *)
-      let rec mk_exists num f = if num=0 then f else mk_exists (num-1) (mkExists f) in
-
-        (* final result *)
-        mk_exists (2*c) (mkAnd (f1_fresh::f2_fresh::var_sums))
+        (* calculate instantiions for each formula and equalities, the
+           equality constraints between (shifted up values of)
+           variables common to both and corresponding pairs of fresh
+           existential variables *)
+        let _,_,f1_subst_rev,_,f2_subst_rev,equalities_rev = Safelist.fold_left 
+          (fun (i_pos,o1,s1,o2,s2,e) n -> 
+             match IntSet.mem n remaining_fv1, IntSet.mem n remaining_fv2 with 
+                 true,true -> 
+                   let x1 = mkVar i_pos in 
+                   let x2 = mkVar (i_pos+c_common) in 
+                   let n_shifted = mkVar (n+2*c_common) in 
+                   let i_pos' = i_pos + 1 in 
+                   let s1' = (n,x1)::s1 in 
+                   let s2' = (n,x2)::s2 in 
+                   let e' = (mkEq n_shifted (mkSum x1 x2))::e in
+                     (i_pos',o1,s1',o2,s2',e')
+               | true,false -> 
+                   let o1' = o1 + 1 in                  
+                   let s1' = (n,Var(o1))::s1 in 
+                     (i_pos,o1',s1',o2,s2,e)
+               | false,true -> 
+                   let o2' = o2 + 1 in 
+                   let s2' = (n,Var(o2))::s2 in 
+                     (i_pos,o1,s1,o2',s2',e)
+               | false,false -> assert false)
+          (init_i1,init_o1,[],init_o2,[],[])
+          (IntSet.elements remaining_fvs) in 
+          
+        (* instantiate f1 and f2 with vars generated by mk_assoc *)
+        let f1_subst = Safelist.rev f1_subst_rev in 
+        let f1_fresh = substitute f1_subst f1_zeroed in 
+        let f2_subst = Safelist.rev f2_subst_rev in 
+        let f2_fresh = substitute f2_subst f2_zeroed in
+        let equalities = Safelist.rev equalities_rev in 
+          
+          Trace.debug "add+"
+            (fun () -> 
+               Format.printf "F1_FRESH: ";
+               format_t f1_fresh;
+               Format.printf "@\nF2_FRESH: ";
+               format_t f2_fresh;
+               Format.printf "@\nEQUALITIES: "; 
+               Misc.format_list " & " format_t equalities;
+               Format.print_newline());
+          
+      (* final result *)
+          let res = wrap (2*c_common) (mkAnd (f1_fresh::f2_fresh::equalities)) in 
+            Trace.debug "add+" (fun () -> Format.printf "RES="; format_t res; Format.print_newline ());
+            res
 
 let add ts0 = match ts0 with 
     [] -> Error.simple_error "P.add: zero-length addition"
@@ -496,12 +586,11 @@ let rec f2omega g o f = match f with
         f2omega g' exists_o f1;
         OmegaLibrary.finalize exists_o
 
-let rec wrap n f = if n < 0 then f else wrap (n-1) (mkExists f)
 
 let close f = 
   let xs = fvs_t f in 
     if IntSet.is_empty xs then f 
-    else wrap (IntSet.max_elt xs) f
+    else wrap ((IntSet.max_elt xs)+1) f
 
 let empty_env n = raise 
   (Error.Harmony_error 

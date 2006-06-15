@@ -58,6 +58,27 @@ module Mozilla =
            List.implode;
            plunge "url")
       end
+
+  let CHeader : schema = {"H1" = {`Xml.CHILDREN=[{`Xml.PCDATA=Value}], 
+                          ?"LAST_MODIFIED"=Value}}
+
+  let CItem : schema = Any
+
+  let CRest : schema = [{ "DL"={`Xml.CHILDREN=(List.T CItem) }}]
+
+  let CBookmarks : schema = [{"DT"= {`Xml.CHILDREN=(CHeader::CRest)}}]
+
+  let TAbstract : schema = List.T CItem
+
+  let checked_l1 : CBookmarks <<-> TAbstract =
+    List.hd [];
+    hoist "DT";
+    hoist Xml.CHILDREN;
+    List.tl { "H1" = { `Xml.CHILDREN = [{`Xml.PCDATA = {Bookmarks}}]}};
+    List.hd [];
+    hoist "DL";
+    hoist Xml.CHILDREN
+    
       
   let l1 : lens = 
     List.hd [];
