@@ -174,6 +174,7 @@ let info_of_exp = function
   | ECons(i,_,_)
   | EDB(i,_)
   | EDBPred(i,_)
+  | EDBFD(i,_)
   | EDBSchema(i,_)
   | EFun(i,_,_,_)     
   | ELet(i,_,_)       
@@ -205,7 +206,7 @@ let id_of_param = function PDef(_,x,_) -> x
 let sort_of_param = function PDef(_,_,s) -> s
 
 (* infix arrow sort constructor *)
-let ( ^> ) s1 s2 = SArrow (s1, s2)
+let ( ^> ) s1 s2 = SArrow (s1,s2)
 
 (* ---------------- pretty printing --------------- *)
 type format_mode = { app : bool; cat : bool }
@@ -226,6 +227,7 @@ let rec format_sort s0 =
           format_exp_aux mode e2
     | SSchema       -> Format.printf "schema"
     | SPred         -> Format.printf "pred"
+    | SFD           -> Format.printf "fds"
     | SView         -> Format.printf "view"
     | SMap          -> Format.printf "fmap"
     | SArrow(s1,s2) -> 
@@ -331,7 +333,13 @@ and format_exp_aux mode e0 = match e0 with
   | EDB(_,db)      -> 
       Db.format_t db
   | EDBPred(_,pred)      -> 
-      Format.printf "(where "; Db.Relation.Pred.format_t pred; Format.printf ")"
+      Format.printf "(where ";
+      Db.Relation.Pred.format_t pred;
+      Format.printf ")"
+  | EDBFD(_,fds) ->
+      Format.printf "(with ";
+      Dbschema.Relschema.Fd.Set.format_t fds;
+      Format.printf ")"
   | EDBSchema(_,dbs)      -> 
       Dbschema.format_t dbs
   | EFun(_,ps,so,e) -> 

@@ -71,6 +71,8 @@ module Relschema = struct
       end with
       | Fd_conflict -> false
 
+    exception Not_tree_form
+
     let revise rcd r (xs, ys) =
       let s =
         Rel.select (Rel.Pred.of_record (Name.Map.project xs rcd)) r
@@ -187,21 +189,16 @@ module Relschema = struct
         find_from (choose fds) NodeSet.empty
 
       let revise rcd r fds =
-        try begin
-          if not (mutually_disjoint (fd_nodes fds)) then raise Not_tree_form;
-          if not (single_parent fds) then raise Not_tree_form;
-          let rec revise' rcd fds =
-            try
-              let fd = choose_rooted fds in
-              revise' (revise rcd r fd) (remove fd fds)
-            with
-            | Not_found -> rcd
-          in
-          revise' rcd fds
-        end with
-        | Not_tree_form ->
-            raise (Error.Harmony_error (fun () ->
-              Format.printf "Functional dependencies must be in tree form!"))
+        if not (mutually_disjoint (fd_nodes fds)) then raise Not_tree_form;
+        if not (single_parent fds) then raise Not_tree_form;
+        let rec revise' rcd fds =
+          try
+            let fd = choose_rooted fds in
+            revise' (revise rcd r fd) (remove fd fds)
+          with
+          | Not_found -> rcd
+        in
+        revise' rcd fds
 
 
       (* Unnecessary until we begin using semantic equality.
@@ -216,10 +213,14 @@ module Relschema = struct
     end
   end
 
+  exception Attribute_not_found of Name.t
+  exception Attribute_not_fresh of Name.t
+
   type t = Name.Set.t * Fd.Set.t * Rel.Pred.t
 
   let format_t (ns, fds, pred) =
-    Format.printf "("; Misc.format_list "," Format.print_string (Name.Set.elements ns);
+    Format.printf "(";
+    Misc.format_list "," Format.print_string (Name.Set.elements ns);
     Format.printf ")";
     if pred <> Rel.Pred.True then begin
       Format.printf "@ where ";
@@ -233,18 +234,26 @@ module Relschema = struct
   let create ns = (ns, Fd.Set.empty, Rel.Pred.True)  
   let attributes (ns, fds, pred) = ns
   let rename a b (ns, fds, pred) =
-    if not (Name.Set.mem a ns) then
-      raise (Error.Harmony_error (fun () ->
-        Format.printf "Dbschema.Relschema.rename:@ ";
-        format_t (ns, fds, pred);
-        Format.printf "@ does not contain the attribute %s" a));
-    Name.Set.add b (Name.Set.remove a ns),
-    Fd.Set.rename_att a b fds,
-    Db.Relation.Pred.rename_att a b pred
+    if not (Name.Set.mem a ns) then raise (Attribute_not_found a)
+    else if a <> b && Name.Set.mem b ns then raise (Attribute_not_fresh b)
+    else
+      Name.Set.add b (Name.Set.remove a ns),
+      Fd.Set.rename_att a b fds,
+      Rel.Pred.rename_att a b pred
   let get_fdset (ns, fds, pred) = fds
-  let set_fdset (ns, fds, pred) fds' = (ns, fds', pred)
+  let set_fdset (ns, fds, pred) fds' =
+    let diff = Name.Set.diff (Fd.Set.names fds') ns in
+    if Name.Set.cardinal diff > 0 then
+      raise (Attribute_not_found (Name.Set.choose diff))
+    else
+      (ns, fds', pred)
   let get_pred (ns, fds, pred) = pred
-  let set_pred (ns, fds, pred) pred' = (ns, fds, pred')
+  let set_pred (ns, fds, pred) pred' =
+    let diff = Name.Set.diff (Rel.Pred.names pred') ns in
+    if Name.Set.cardinal diff > 0 then
+      raise (Attribute_not_found (Name.Set.choose diff))
+    else
+      (ns, fds, pred')
   let member r (ns, fds, pred) = Fd.Set.member r fds
   let includes (ns1, fds1, pred1) (ns2, fds2, pred2) =
     Name.Set.equal ns1 ns2 &&
@@ -252,6 +261,8 @@ module Relschema = struct
     Rel.Pred.includes pred1 pred2
   let equiv t1 t2 = includes t1 t2 && includes t2 t1
 end
+
+exception Relname_not_found of Name.t
 
 type t = Relschema.t Name.Map.t
 
@@ -272,11 +283,7 @@ let remove = Name.Map.remove
 let mem = Name.Map.mem
 let lookup rn ds =
   try Name.Map.find rn ds with
-  | Not_found ->
-      raise (Error.Harmony_error (fun () ->
-        Format.printf "Dbschema.lookup:@ ";
-        format_t ds;
-        Format.printf "@ contains no relation named %s" rn))
+  | Not_found -> raise (Relname_not_found rn)
 
 let member (d : Db.t) (ds : t) =
   try

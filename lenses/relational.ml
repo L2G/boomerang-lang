@@ -25,12 +25,21 @@ let revise_rel rel r fds =
 let merge_rel rel r fds =
   Rel.union (revise_rel rel r fds) r
 
+let type_error msg =
+  raise (Error.Harmony_error (fun () ->
+    Format.printf "Type Error:@ %s@\n" msg))
+
 let db_replace rn sn (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
   Db.extend sn (f (Db.lookup rn db)) (Db.remove rn db)
 
-let db_schema_replace rn sn (f : Relschema.t -> Relschema.t) (ds : Dbschema.t)
-: Dbschema.t =
-  Dbschema.extend sn (f (Dbschema.lookup rn ds)) (Dbschema.remove rn ds)
+let db_schema_replace msg rn sn
+  (f : Relschema.t -> Relschema.t) (ds : Dbschema.t) : Dbschema.t =
+  if not (Dbschema.mem rn ds) then
+    type_error msg
+  else if sn <> rn && Dbschema.mem sn ds then
+    type_error msg
+  else
+    Dbschema.extend sn (f (Dbschema.lookup rn ds)) (Dbschema.remove rn ds)
 
 let unchecked q = 
   WB(fun s -> error [`String q; `Space; `String "is unchecked"])
@@ -48,8 +57,16 @@ let rename_qid = "Native.Relational.rename"
 let rename r s m n =
   let getfun c = db_replace r s (Rel.rename m n) c in
   let putfun a co = db_replace s r (Rel.rename n m) a in
-  let c2a = db_schema_replace r s (Relschema.rename m n) in
-  let a2c = db_schema_replace s r (Relschema.rename n m) in
+  let f m n s =
+    if not (Name.Set.mem m (Relschema.attributes s)) then
+      type_error rename_qid
+  else if n <> m && Name.Set.mem n (Relschema.attributes s) then
+    type_error rename_qid
+    else
+      Relschema.rename m n s
+  in
+  let c2a = db_schema_replace rename_qid r s (f m n) in
+  let a2c = db_schema_replace rename_qid s r (f n m) in
   (native getfun putfun, BIJ (c2a, a2c))
 
 let rename_lib =
@@ -99,6 +116,13 @@ let drop rn sn att det dflt =
     in
     db_replace sn rn f a
   in
+  (*
+  let c2a cs =
+    let f s =
+      if not (Name.Set.mem a (Relschema.attributes s)) then
+        type_error drop_qid
+      else
+  *)
   (native getfun (error_on_missing putfun), unchecked drop_qid)
 
 let drop_lib =

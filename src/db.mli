@@ -31,6 +31,9 @@ module Relation : sig
     (** Returns a predicate that describes the given record and all extensions
         of it. *)
 
+    val names : t -> Name.Set.t
+    (** Return all of the attribute names mentioned by the predicate. *)
+
     val ranges_over : t -> Name.Set.t -> bool
     (** Check whether a predicate is compatible with a record domain. *)
 

@@ -32,18 +32,8 @@ val mk_cons  : t -> t -> t
 
 val t_of_tree : Tree.t -> t 
 
-(* -------------- tree operations --------------- *)
-val empty : t -> bool
-val dom_member : Name.Set.t -> t -> bool
-val project : Name.t -> t -> t option
-val project_all : t -> t option
-val inject : t -> t -> t
-val inject_map : t -> Treeschema.t Name.Map.t -> t
-val restrict : Name.Set.t -> t -> t*t
-
-(* val extend : t -> Name.t -> Dbschema.Relschema.t -> t *)
-
 (* -------------- state ------------------- *)
+(* AWB: Should these be pushed down to the just the Treeschema interface? *)
 
 val mark_tvars : (string * Info.t) list -> unit
 val finalize : unit -> unit
