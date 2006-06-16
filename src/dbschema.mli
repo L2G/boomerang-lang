@@ -19,13 +19,6 @@ module Relschema : sig
     (** Checks whether the functional dependency makes sense over the given
         domain. *)
 
-    (*
-    val rename_att : Name.t -> Name.t -> fd -> fd
-    (** [rename_att a b fd] replaces [a] with [b] on both sides of the
-        functional dependency.  This operation is equivalent to removing [a]
-        from a side if [b] is already present on that side. *)
-    *)
-
     val member : Db.Relation.t -> fd -> bool
     (** [member r fd] checks whether [r] satisfies [fd]. *)
 
@@ -47,13 +40,6 @@ module Relschema : sig
       (** Checks whether the set of functional dependencies makes sense over
           the given domain. *)
 
-      (*
-      val rename_att : Name.t -> Name.t -> t -> t
-      (** [rename_att a b fd] replaces [a] with [b] on both sides of all
-          functional dependencies.  This operation is equivalent to removing
-          [a] from a side if [b] is already present on that side. *)
-      *)
-
       val outputs : t -> Name.Set.t
       (** Returns the set of attributes that appear on the right-hand side of a
           functional dependency in an essential way.
@@ -66,6 +52,10 @@ module Relschema : sig
       exception Not_tree_form
       (** Indicates that an operation was given a set of functional
           dependencies that was not in tree form. *)
+
+      val tree_form : t -> bool
+      (** Returns [true] if the set of functional dependencies is in tree form.
+          *)
 
       val revise :
         Db.Relation.record -> Db.Relation.t -> t -> Db.Relation.record

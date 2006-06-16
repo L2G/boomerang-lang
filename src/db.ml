@@ -160,7 +160,7 @@ module Relation = struct
       | Disj (p, q) -> Disj (rename_att a b p, rename_att a b q)
       | Impl (p, q) -> Impl (rename_att a b p, rename_att a b q)
 
-    let ignores p ns = Name.Set.equal ns (Name.Set.diff ns (names p))
+    let ignores p ns = Name.Set.is_empty (Name.Set.inter (names p) ns)
       (* This function is written as a syntactic check here.  This is sound but
        * not complete.  A semantic check would be better. *)
 

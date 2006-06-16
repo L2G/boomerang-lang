@@ -119,7 +119,7 @@ module Relschema = struct
       let outputs fds =
         (* FIXME: This actually implements the function "right"! *)
         List.fold_right
-          (fun x -> Name.Set.union (fst x))
+          (fun (xs, ys) -> Name.Set.union ys)
           (elements fds)
           Name.Set.empty
 
@@ -200,6 +200,18 @@ module Relschema = struct
         in
         revise' rcd fds
 
+      let tree_form fds =
+        let rec has_ceiling visited x =
+          not (NodeSet.mem x visited) &&
+          let parent_set = adj_in x fds in
+          NodeSet.is_empty parent_set ||
+          let y = NodeSet.choose parent_set in
+          has_ceiling (NodeSet.add x visited) y
+        in
+        let nodes = fd_nodes fds in
+        mutually_disjoint nodes &&
+        single_parent fds &&
+        NodeSet.for_all (has_ceiling NodeSet.empty) nodes
 
       (* Unnecessary until we begin using semantic equality.
 

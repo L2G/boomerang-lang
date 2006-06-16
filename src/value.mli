@@ -52,6 +52,14 @@ val get_lens : Info.t -> t -> (V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_chec
 val get_name : Info.t -> t -> Name.t
 (** [get_name i v] extracts the [Name.t] from [v]. Prints an error message at [i] on failure. *)
 
+val get_pred : Info.t -> t -> Db.Relation.Pred.t
+(** [get_pred i v] extracts the [Relation.Pred.t] from [v]. Prints an error
+message at [i] on failure. *)
+
+val get_fds : Info.t -> t -> Dbschema.Relschema.Fd.Set.t
+(** [get_fds i v] extracts the [Dbschema.Relschema.Fd.Set.t] from [v]. Prints
+an error message at [i] on failure. *)
+
 val get_fmap : Info.t -> t -> ((V.t, V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t
 (** [get_fmap i v] extracts the finite map from [v]. Prints an error message at [i] on failure. *)
 
@@ -73,6 +81,15 @@ val mk_lfun : Syntax.sort -> string -> ((V.t,V.t) Lens.t * (Schema.t, Schema.t) 
 (** [mk_lfun return_sort msg f] creates a function from lenses to
     [return_sort] using [f], displaying [msg] if runtime failure
     occurs. *)
+
+val mk_pfun : Syntax.sort -> string -> (Db.Relation.Pred.t -> t) -> t
+(** [mk_pfun return_sort msg f] creates a function from predicates to
+[return_sort] using [f], displaying [msg] if runtime failure occurs *)
+
+val mk_fdfun : Syntax.sort -> string -> (Dbschema.Relschema.Fd.Set.t -> t) -> t
+(** [mk_fdfun return_sort msg f] creates a function from sets of functional
+dependencies to [return_sort] using [f], displaying [msg] if runtime failure
+occurs *)
 
 val mk_fmfun : Syntax.sort -> string -> (((V.t,V.t) Lens.t * (Schema.t, Schema.t) lens_checker) Name.Map.t -> t) -> t
 (** [mk_mfun return_sort msg f] creates a function from maps to

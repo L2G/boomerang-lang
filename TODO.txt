@@ -1,6 +1,7 @@
 --- THINGS TO DO ---
 
 BUGS
+** Parser needs to catch exceptions thrown in Dbschema.ml.
 * fixes in examples/structuredtext/Makefile should be propagaged to other
   examples Makefiles
 * I think the problem is here, in harmonize-addresses.ml:

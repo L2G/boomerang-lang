@@ -146,6 +146,16 @@ let get_lens i v =
       L(l,c) -> (l,c)
     | _ -> focal_type_error i (Syntax.SLens) v
 
+let get_pred i v =
+  match v with
+  | P p -> p
+  | _ -> focal_type_error i (Syntax.SPred) v
+
+let get_fds i v =
+  match v with
+  | FD fds -> fds
+  | _ -> focal_type_error i (Syntax.SFD) v
+
 let get_fmap i v = 
   match v with 
       M(fm) -> fm
@@ -164,6 +174,12 @@ let mk_vfun return_sort msg f =
 
 let mk_lfun return_sort msg f = 
   F (SLens ^> return_sort, fun v -> f (get_lens (Info.M msg) v))
+
+let mk_pfun return_sort msg f =
+  F (SPred ^> return_sort, fun v -> f (get_pred (Info.M msg) v))
+
+let mk_fdfun return_sort msg f =
+  F (SPred ^> return_sort, fun v -> f (get_fds (Info.M msg) v))
 
 let mk_ffun arg_sort return_sort msg f =
   F (arg_sort ^> return_sort,
