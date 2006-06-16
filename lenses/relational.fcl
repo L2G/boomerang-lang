@@ -63,6 +63,11 @@ test select "R" with {A -> B} "S" where C = "1" \
                     (4, 4, 1),
                     (3, 2, 3)} }}}
 
+(* "Surprising" example from PODS paper. *)
+test select "R" with {A -> B} "S" where B = "2" \
+  {{{ S(A, B, C) = {(1, 2, 2)} }}}
+  {{{ R(A, B, C) = {(1, 1, 1)} }}}
+= {{{ R(A, B, C) = {(1, 2, 2)} }}}
 #{@}
 
 ##let drop : (name -> name -> name -> view -> name -> lens) = Native.Relational.drop
@@ -115,5 +120,46 @@ test drop "R" "S" "C" {B} "0" \
 = {{{ R(A, B, C) = {(1, 1, 3),
                     (2, 1, 3),
                     (2, 2, 0)} }}}
+#{@}
+
+##let join_dl : (name -> fds -> name -> fds -> name -> lens) = Native.Relational.join_dl
+
+#{*}
+let _ : lens =
+  check (join_dl "R" with {A -> (B,C)} "S" with {B -> (C,D)} "R") :
+  {{ R(A, B, C) with {A -> (B,C)},
+     S(B, C, D) with {B -> (C,D)} }}
+  <<->
+  {{ R(A, B, C, D) with {A -> (B,C), B -> (C,D)} }}
+
+test join_dl "R" with {} "S" with {B -> C} "T" /
+  {{{ R(A, B) = {(1, 1),
+                 (2, 1),
+                 (3, 3)}
+      S(B, C) = {(1, 1),
+                 (2, 4),
+                 (3, 9),
+                 (4, 16)} }}}
+= {{{ T(A, B, C) = {(1, 1, 1),
+                    (2, 1, 1),
+                    (3, 3, 9)} }}}
+
+test join_dl "R" with {} "S" with {B -> C} "T" \
+  {{{ T(A, B, C) = {(1, 1, 2),
+                    (3, 4, 9)} }}}
+  {{{ R(A, B) = {(1, 1),
+                 (2, 1),
+                 (3, 3)}
+      S(B, C) = {(1, 1),
+                 (2, 4),
+                 (3, 9),
+                 (4, 16)} }}}
+= {{{ R(A, B) = {(1, 1),
+                 (3, 4)}
+      S(B, C) = {(1, 2),
+                 (2, 4),
+                 (3, 9),
+                 (4, 9)} }}}
+
 #{@}
 

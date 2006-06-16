@@ -63,7 +63,9 @@ let db_schema_replace2
       Dbschema.format_t ds;
       Format.printf
         "@ has no relational schema associated with \"%s\"" sn);
-  db_schema_replace error rn tn (fun rs -> f rs (Dbschema.lookup sn ds)) ds
+  db_schema_replace error rn tn
+    (fun rs -> f rs (Dbschema.lookup sn ds))
+    (Dbschema.remove sn ds)
 
 let unchecked q = 
   WB(fun s -> error [`String q; `Space; `String "is unchecked"])
@@ -150,9 +152,11 @@ let select rn fds sn p =
           Pred.format_t p;
           Format.printf "@ constrains the outputs of@ ";
           Fd.Set.format_t fds1);
-      Relschema.set_pred (
-        Relschema.set_fdset (Relschema.create u) fds1
-      ) (Pred.Conj (p, q))
+      Relschema.set_fdset (
+        Relschema.set_pred (
+          Relschema.create u
+        ) (Pred.Conj (p, q))
+      ) fds1
     in
     db_schema_replace select_error rn sn f
   in
@@ -288,7 +292,6 @@ let joinl rn rfds sn sfds tn =
     let r1 = Rel.diff r0 (Rel.project u tx) in
     Db.extend rn r1 (Db.extend sn s0 (Db.remove tn a))
   in
-  (*
   let c2a =
     let f rs ss =
       let u = Relschema.attributes rs in
@@ -297,8 +300,52 @@ let joinl rn rfds sn sfds tn =
       let q = Relschema.get_pred ss in
       let rfds' = Relschema.get_fdset rs in
       let sfds' = Relschema.get_fdset ss in
-  *)
-  (native getfun (error_on_missing putfun), unchecked joinl_qid)
+      if rn = sn then
+        joinl_error (fun () ->
+          Format.printf "The source relations must be distinct.");
+      if not (Fd.Set.equal rfds rfds') then
+        joinl_error (fun () ->
+          Fd.Set.format_t rfds;
+          Format.printf "@ is not equal to@ ";
+          Fd.Set.format_t rfds');
+      if not (Fd.Set.equal sfds sfds') then
+        joinl_error (fun () ->
+          Fd.Set.format_t sfds;
+          Format.printf "@ is not equal to@ ";
+          Fd.Set.format_t sfds');
+      if not (Fd.Set.tree_form rfds) then
+        joinl_error (fun () ->
+          Fd.Set.format_t rfds;
+          Format.printf "@ is not in tree form");
+      if not (Fd.Set.tree_form sfds) then
+        joinl_error (fun () ->
+          Fd.Set.format_t sfds;
+          Format.printf "@ is not in tree form");
+      let fd = (Name.Set.inter u v, v) in
+      if not (Fd.Set.mem fd (Fd.Set.closure v sfds)) then
+        joinl_error (fun () ->
+          Fd.Set.format_t sfds;
+          Format.printf "@ does not entail the dependency@ ";
+          Fd.format_fd fd);
+      if not (Pred.ignores p (Fd.Set.outputs rfds)) then
+        joinl_error (fun () ->
+          Pred.format_t p;
+          Format.printf "@ constrains the outputs of@ ";
+          Fd.Set.format_t rfds);
+      if not (Pred.ignores q (Fd.Set.outputs sfds)) then
+        joinl_error (fun () ->
+          Pred.format_t q;
+          Format.printf "@ constrains the outputs of@ ";
+          Fd.Set.format_t sfds);
+      Relschema.set_fdset (
+        Relschema.set_pred (
+          Relschema.create (Name.Set.union u v)
+        ) (Pred.Conj (p, q))
+      ) (Fd.Set.union rfds sfds)
+    in
+    db_schema_replace2 joinl_error rn sn tn f
+  in
+  (native getfun (error_on_missing putfun), WB c2a)
 
 let joinl_lib =
   mk_nfun (SFD ^> SName ^> SFD ^> SName ^> SLens) joinl_qid (

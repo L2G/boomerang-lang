@@ -4,6 +4,8 @@
 (*********************************************************)
 (* $Id: treeschema.mli 1756 2006-05-31 15:08:03Z bohannon $ *)
 
+open Unittest
+
 module Rel = Db.Relation
 
 let compare_pair c1 c2 (x1, y1) (x2, y2) =
@@ -269,6 +271,38 @@ module Relschema = struct
         let fds' = augment u fds in
         if equal fds fds' then fds else closure u fds'
 
+      let () =
+        let build_ns ls = List.fold_right Name.Set.add ls Name.Set.empty in
+        let build_fd (xs, ys) = (build_ns xs, build_ns ys) in
+        let build_fdset ls = List.fold_right add (List.map build_fd ls) empty in
+        begin
+          add_test "Dbschema.Relschema.Fd.Set.closure_1" (
+            fun () ->
+              assert_equal format_t equal
+                (build_fdset
+                  [ ([], [])
+                  ; (["A"], [])
+                  ; (["A"], ["A"])
+                  ]
+                )
+                (closure (build_ns ["A"]) (
+                  build_fdset []
+                ))
+          );
+          (* Too big to actually write the expected return value.
+          add_test "Dbschema.Relschema.Fd.Set.closure_2" (
+            fun () ->
+              assert_equal format_t equal
+                (build_fdset
+                  [ ([], [])
+                  ]
+                )
+                (closure (build_ns ["A"; "B"; "C"; "D"]) (
+                  build_fdset [(["A"], ["B"]); (["B";"C"], ["D"])]
+                ))
+          )
+          *)
+        end
 
       (* Unnecessary until we begin using semantic equality.
 
