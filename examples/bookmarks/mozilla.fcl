@@ -9,25 +9,43 @@ module Mozilla =
 
   schema MAbstract = { "toolbar" = MContents, "bookmarks" = MContents }
   
-(* item processes a single entity--either an <HR> separator, a link,
-   or a nested folder--within a bookmark folder *)
+
+  schema CHeader = {"H1" = {`Xml.CHILDREN=[{`Xml.PCDATA=Value}], 
+                          ?"LAST_MODIFIED"=Value}}
+    
+  and CRest = [{ "DL"={`Xml.CHILDREN=(List.T CItem) }}]
+  
+  and CBookmarks = [{"DT"= {`Xml.CHILDREN=(CHeader::CRest)}}]
+  
+  and CLink = [{"A"={`Xml.CHILDREN=[{`Xml.PCDATA=Value}],
+                     "HREF"=Value,
+                     "FEEDURL"=Value,                          
+                            "ICON"=Value,
+                     "LAST_CHARSET"=Value,
+                     "SHORTCUTURL"=Value}}]
+  and CFolder = [{"H3"=Any}, {"DL"= Any}] 
+  and CSeparator = {"HR" = {`Xml.CHILDREN=[]}}
+  (* schema CItem = CSeparator | CFolder | CLink  *)
+  and CItem = Any
+  
+  (* item processes a single entity--either an <HR> separator, a link,
+     or a nested folder--within a bookmark folder *)
   let item : lens = 
     acond {"HR" = Any} MSeparator
-      (const { "separator" = {} } {"HR" = {"@children" = []}})
-      (schema CFolder = [{"H3" = Any },{"DL" = Any}] in
-        hoist "DT";
-        hoist Xml.CHILDREN;
-        acond CFolder Bookmarks.Folder
-          (protect (folder))
-          (protect (link)))
-
+      (const { "separator" = {} } {"HR" = {`Xml.CHILDREN = []}})
+      (hoist "DT";
+       hoist Xml.CHILDREN;
+       acond CFolder Bookmarks.Folder
+         (protect (folder))
+         (protect (link)))
+      
   and folder : lens = 
     xfork { `List.HD } { "name" }
       (hoist List.HD; rename "H3" "name")
       (hoist List.TL; List.hd []; rename "DL" "contents");
     mapn "name" (focus Xml.CHILDREN {}; List.hd []; hoist Xml.PCDATA);
     mapn "contents" (hoist Xml.CHILDREN; List.map (protect item))
-      
+
   and link : lens = 
     List.hd [];
     rename "A" "link"; 
@@ -35,7 +53,7 @@ module Mozilla =
       begin 
         filter { "HREF", "FEEDURL", `Xml.CHILDREN } {};
         xfork { `Xml.CHILDREN } { "name" }
-          (focus Xml.CHILDREN {};
+          (hoist Xml.CHILDREN;
            List.hd [];
            rename Xml.PCDATA "name")
           (acond { "FEEDURL"=Any, "HREF"=Any } { "feed"=Any }
@@ -59,14 +77,6 @@ module Mozilla =
            plunge "url")
       end
 
-  let CHeader : schema = {"H1" = {`Xml.CHILDREN=[{`Xml.PCDATA=Value}], 
-                          ?"LAST_MODIFIED"=Value}}
-
-  let CItem : schema = Any
-
-  let CRest : schema = [{ "DL"={`Xml.CHILDREN=(List.T CItem) }}]
-
-  let CBookmarks : schema = [{"DT"= {`Xml.CHILDREN=(CHeader::CRest)}}]
 
   let TAbstract : schema = List.T CItem
 
