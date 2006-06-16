@@ -1,5 +1,6 @@
 $(RESULT): $(SRCDIR)/harmony
-   rm $@
+   if $(file-exists $@)
+     rm $@
    ln -s $< $@
 
 test: $(RESULT)

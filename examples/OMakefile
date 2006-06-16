@@ -23,7 +23,8 @@ clean:
        OCamlProgram($(RESULT), $(RESULT))
      else
        $(RESULT): $(SRCDIR)/harmony
-	  -rm -f $@
+	  if $(file-exists $@)
+            rm -f $@
           ln -s $< $@
    clean:
 	$(CLEAN) $(RESULT) $(GENERATED_FILES)
