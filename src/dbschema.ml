@@ -213,9 +213,65 @@ module Relschema = struct
         single_parent fds &&
         NodeSet.for_all (has_ceiling NodeSet.empty) nodes
 
+      let augment u fds =
+        (* a little list monad *)
+        let return a = [a] in
+        let rec ( >>= ) m k =
+          match m with
+          | [] -> []
+          | a :: x -> (k a) @ (x >>= k)
+        in
+        let rec sublists ls =
+          match ls with
+          | [] -> return []
+          | x :: xs ->
+              [ [x]; [] ] >>= fun fst ->
+              sublists xs  >>= fun rest ->
+              return (fst @ rest)
+        in
+        let build_ns ls = List.fold_right Name.Set.add ls Name.Set.empty in
+        let subsets ns = List.map build_ns (sublists (Name.Set.elements ns)) in
+        let u_subsets = subsets u in
+        let fdlist = elements fds in
+
+        let refl : fd list =
+          u_subsets >>= fun x ->
+          subsets x >>= fun y ->
+          return (x, y)
+        in
+
+        let expl : fd list =
+          elements (
+            filter (
+              fun (xs, ys) -> Name.Set.subset (Name.Set.union xs ys) u
+            ) fds
+          )
+        in
+
+        let aug : fd list =
+          u_subsets >>= fun z ->
+          fdlist    >>= fun (x, y) ->
+          return (Name.Set.union x z, Name.Set.union y z)
+        in
+
+        let trans : fd list =
+          fdlist >>= fun (x, y1) ->
+          fdlist >>= fun (y2, z) ->
+          if Name.Set.equal y1 y2 then
+            return (x, z)
+          else
+            []
+        in
+
+        List.fold_right add (expl @ refl @ aug @ trans) empty
+
+      let rec closure u fds =
+        let fds' = augment u fds in
+        if equal fds fds' then fds else closure u fds'
+
+
       (* Unnecessary until we begin using semantic equality.
 
-      let closure fds = fds   (* WRITE ME! *)
       let minimal fds = fds   (* WRITE ME! *)
       let includes fds1 fds2 = false   (* WRITE ME! *)
       let equiv fds1 fds2 = includes fds1 fds2 && includes fds2 fds1

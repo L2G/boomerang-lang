@@ -65,9 +65,13 @@ module Relschema : sig
           @raise Not_tree_form if [fds] is not in tree form.
           *)
 
+      val closure : Name.Set.t -> t -> t
+      (** [closure u fds] returns the set of all functional dependencies that
+          are implied by the [fds] over the universe of attributes [u].  The
+          result is undefined if [ranges_over u fds] is false. *)
+
       (* Unnecessary until we begin using semantic equality.
 
-      val closure : t -> t
       val minimal : t -> t
       val includes : t -> t -> bool
       val equiv : t -> t -> bool

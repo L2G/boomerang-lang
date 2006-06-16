@@ -27,12 +27,17 @@ let revise_rel rel r fds =
 let merge_rel rel r fds =
   Rel.union (revise_rel rel r fds) r
 
-let type_error (print_msg : unit -> unit) : 'a =
+let mk_type_error (msg : string) (printer : unit -> unit) : 'a =
   raise (Error.Harmony_error (fun () ->
-    Format.printf "Type Error:@ "; print_msg ()))
+    Format.printf "type error:@ %s:@ " msg;
+    printer ()))
 
 let db_replace rn sn (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
   Db.extend sn (f (Db.lookup rn db)) (Db.remove rn db)
+
+let db_replace2 rn sn tn (f : Rel.t -> Rel.t -> Rel.t) (db : Db.t) : Db.t =
+  Db.extend tn (f (Db.lookup rn db) (Db.lookup sn db))
+    (Db.remove rn (Db.remove sn db))
 
 let db_schema_replace
   (error : (unit -> unit) -> 'a) (rn : Name.t) (sn : Name.t)
@@ -41,14 +46,24 @@ let db_schema_replace
     error (fun () ->
       Dbschema.format_t ds;
       Format.printf
-        "@ has no relational schema associated with \"%s\"" rn)
-  else if sn <> rn && Dbschema.mem sn ds then
+        "@ has no relational schema associated with \"%s\"" rn);
+  if sn <> rn && Dbschema.mem sn ds then
     error (fun () ->
       Dbschema.format_t ds;
       Format.printf
-        "@ already has a relational schema associated with \"%s\"" rn)
-  else
-    Dbschema.extend sn (f (Dbschema.lookup rn ds)) (Dbschema.remove rn ds)
+        "@ already has a relational schema associated with \"%s\"" rn);
+  Dbschema.extend sn (f (Dbschema.lookup rn ds)) (Dbschema.remove rn ds)
+
+let db_schema_replace2
+  (error : (unit -> unit) -> 'a) (rn : Name.t) (sn : Name.t) (tn : Name.t)
+  (f : Relschema.t -> Relschema.t -> Relschema.t) (ds : Dbschema.t)
+  : Dbschema.t =
+  if not (Dbschema.mem sn ds) then
+    error (fun () ->
+      Dbschema.format_t ds;
+      Format.printf
+        "@ has no relational schema associated with \"%s\"" sn);
+  db_schema_replace error rn tn (fun rs -> f rs (Dbschema.lookup sn ds)) ds
 
 let unchecked q = 
   WB(fun s -> error [`String q; `Space; `String "is unchecked"])
@@ -63,8 +78,7 @@ let error_on_missing (put : 'a -> 'b -> 'b) (a : 'a) (co : 'b option) : 'b =
 (*** rename ***)
 
 let rename_qid = "Native.Relational.rename"
-let rename_error printer =
-  type_error (fun () -> Format.printf "%s:@ " rename_qid; printer ())
+let rename_error = mk_type_error rename_qid
 let rename rn sn att att' =
   let getfun c = db_replace rn sn (Rel.rename att att') c in
   let putfun a co = db_replace sn rn (Rel.rename att' att) a in
@@ -105,8 +119,7 @@ let () =
 (*** select ***)
 
 let select_qid = "Native.Relational.select"
-let select_error printer =
-  type_error (fun () -> Format.printf "%s:@ " select_qid; printer ())
+let select_error = mk_type_error select_qid
 let select rn fds sn p =
   let getfun c = db_replace rn sn (Rel.select p) c in
   let putfun a c =
@@ -165,8 +178,7 @@ let () =
 (*** drop ***)
 
 let drop_qid = "Native.Relational.drop"
-let drop_error printer =
-  type_error (fun () -> Format.printf "%s:@ " drop_qid; printer ())
+let drop_error = mk_type_error drop_qid
 let drop rn sn att det dflt =
   let rm x ls = List.filter (( <> ) x) ls in
   let getfun c =
@@ -255,229 +267,55 @@ let () =
   register_native
     drop_qid (SName ^> SName ^> SName ^> SView ^> SName ^> SLens) drop_lib
 
+(*** join_dl ***)
 
-(*
-(* List sorting *)
-let listsort =
+let joinl_qid = "Native.Relational.join_dl"
+let joinl_error = mk_type_error joinl_qid
+let joinl rn rfds sn sfds tn =
   let getfun c =
-    V.structure_from_list (List.sort V.compare (V.list_from_structure c))
+    Db.extend tn (Rel.join (Db.lookup rn c) (Db.lookup sn c))
+      (Db.remove rn (Db.remove sn c))
   in
-  let putfun a co =
-    match co with
-    | None -> a
-    | Some(c) -> if a = getfun c then c else a in
-    Lens.native getfun putfun
-
-let () = register_native "Native.listsort" "lens" (L(listsort,no_checker))
-
-let lift_to_opt f xo =
-  match xo with
-  | None -> None
-  | Some(x) -> Some(f x)
-
-
-(* Binary relational lenses *)
-
-let lift_binary dblens src1 src2 dst =
-  let getfun c =
-    let dbc = Treedb.tree_to_db c in
-    Treedb.db_to_tree (Lens.get (dblens src1 src2 dst) dbc)
-  and putfun a co =
-    let dba = Treedb.tree_to_db a in
-    let dbco = lift_to_opt Treedb.tree_to_db co in
-    Treedb.db_to_tree (Lens.put (dblens src1 src2 dst) dba dbco)
+  let putfun a c =
+    let r = Db.lookup rn c in
+    let s = Db.lookup sn c in
+    let t = Db.lookup tn a in
+    let u = Rel.fields r in
+    let v = Rel.fields s in
+    let r0 = merge_rel r (Rel.project u t) rfds in
+    let s0 = merge_rel s (Rel.project v t) sfds in
+    let tx = Rel.diff (Rel.join r0 s0) t in
+    let r1 = Rel.diff r0 (Rel.project u tx) in
+    Db.extend rn r1 (Db.extend sn s0 (Db.remove tn a))
   in
-  Lens.native getfun putfun
+  (*
+  let c2a =
+    let f rs ss =
+      let u = Relschema.attributes rs in
+      let v = Relschema.attributes ss in
+      let p = Relschema.get_pred rs in
+      let q = Relschema.get_pred ss in
+      let rfds' = Relschema.get_fdset rs in
+      let sfds' = Relschema.get_fdset ss in
+  *)
+  (native getfun (error_on_missing putfun), unchecked joinl_qid)
 
-let make_binary_lib fclname lens =
-  mk_nfun "name -> name -> lens" fclname 
-    (fun n1 -> mk_nfun "name -> lens" fclname
-       (fun n2 -> mk_nfun "lens" fclname
-          (fun n3 -> L(lens n1 n2 n3,no_checker))))
-
-let register_binary_dblens fclname dblens =
-  register_native fclname "name -> name -> name -> lens"
-    (make_binary_lib fclname (lift_binary dblens))
-
-let schemas_to_bias_fun fclname sl sr rcd =
-  let tr = Treedb.rcd_to_tree rcd in
-  let l = Schema.member tr sl
-  and r = Schema.member tr sr in
-  if l && r then Rlens.Both
-  else if l then Rlens.Left
-  else if r then Rlens.Right
-  else Lens.error
-    [ `String(fclname^":")
-    ; `Space; `String("schemas provided do not include")
-    ; `Space; `Tree(tr)
-    ]
-
-let register_schema_schema_binary_dblens fclname dblens =
-  register_native fclname "schema -> schema -> name -> name -> name -> lens" (
-    mk_sfun "schema -> name -> name -> name -> lens" fclname (
-      fun s1 -> mk_sfun "name -> name -> name -> lens" fclname (
-        fun s2 -> make_binary_lib fclname (
-          lift_binary (dblens (schemas_to_bias_fun fclname s1 s2))))))
-
-let register_tree_tree_binary_dblens fclname dblens =
-  register_native fclname "view -> view -> name -> name -> name -> lens" (
-    mk_vfun "view -> name -> name -> name -> lens" fclname 
-      (fun t1 -> mk_vfun "name -> name -> name -> lens" fclname
-         (fun t2 -> make_binary_lib fclname (lift_binary (dblens t1 t2))))
-  )
-
+let joinl_lib =
+  mk_nfun (SFD ^> SName ^> SFD ^> SName ^> SLens) joinl_qid (
+    fun rn ->
+      mk_fdfun (SName ^> SFD ^> SName ^> SLens) joinl_qid (
+        fun rfds ->
+          mk_nfun (SFD ^> SName ^> SLens) joinl_qid (
+            fun sn ->
+              mk_fdfun (SName ^> SLens) joinl_qid (
+                fun sfds ->
+                  mk_nfun (SLens) joinl_qid (
+                    fun tn ->
+                      let l, ck =
+                        Value.v_of_db_lens (joinl rn rfds sn sfds tn)
+                      in
+                      Value.L (l, ck))))))
 let () =
-  register_schema_schema_binary_dblens
-    "Native.Relational.union" Dblens.union
-
-let () =
-  register_schema_schema_binary_dblens
-    "Native.Relational.inter" Dblens.inter
-
-let () =
-  register_schema_schema_binary_dblens
-    "Native.Relational.diff" Dblens.diff
-
-(* Union *)
-(*
-let () = register_binary_dblens "Native.Relational.union" Dblens.union
-let () = register_binary_dblens "Native.Relational.unionl" Dblens.unionl
-let () = register_binary_dblens "Native.Relational.unionr" Dblens.unionr
-*)
-    (*
-(* Intersection *)
-let () = register_binary_dblens "Native.Relational.inter" Dblens.inter
-let () = register_binary_dblens "Native.Relational.interl" Dblens.interl
-let () = register_binary_dblens "Native.Relational.interr" Dblens.interr
-
-(* Difference *)
-let () = register_binary_dblens "Native.Relational.diff" Dblens.diff
-let () = register_binary_dblens "Native.Relational.diffl" Dblens.diffl
-let () = register_binary_dblens "Native.Relational.diffr" Dblens.diffr
-    *)
-
-    (*
-(* Join *)
-let () = register_binary_dblens "Native.Relational.join" Dblens.join
-let () = register_binary_dblens "Native.Relational.joinl" Dblens.joinl
-let () = register_binary_dblens "Native.Relational.joinr" Dblens.joinr
-*)
-let () =
-  register_schema_schema_binary_dblens
-    "Native.Relational.ijoin" Dblens.ijoin
-
-    (*
-(* Outer join *)
-let () =
-  register_tree_tree_binary_dblens "Native.Relational.ojoin" (
-    fun dv1 dv2 ->
-      Dblens.ojoin (Treedb.tree_to_rel dv1) (Treedb.tree_to_rel dv2)
-  )
-let () =
-  register_tree_tree_binary_dblens "Native.Relational.ojoinl" (
-    fun dv1 dv2 ->
-      Dblens.ojoinl (Treedb.tree_to_rel dv1) (Treedb.tree_to_rel dv2)
-  )
-let () =
-  register_tree_tree_binary_dblens "Native.Relational.ojoinr" (
-    fun dv1 dv2 ->
-      Dblens.ojoinr (Treedb.tree_to_rel dv1) (Treedb.tree_to_rel dv2)
-  )
-*)
-
-let () =
-  let fclname = "Native.Relational.ojoin" in
-  register_native fclname
-  "view -> view -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" (
-    mk_vfun
-    "view -> schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
-      fun t1 ->
-        mk_vfun
-        "schema -> schema -> schema -> schema -> name -> name -> name -> lens" fclname (
-          fun t2 ->
-            mk_sfun "schema -> schema -> schema -> name -> name -> name -> lens" fclname (
-              fun s1 ->
-                mk_sfun "schema -> schema -> name -> name -> name -> lens" fclname (
-                  fun s2 ->
-                    mk_sfun "schema -> name -> name -> name -> lens" fclname (
-                      fun s3 ->
-                        mk_sfun "name -> name -> name -> lens" fclname (
-                          fun s4 -> make_binary_lib fclname (
-                            lift_binary (
-                              Dblens.ojoin
-                                (Treedb.tree_to_rel t1)
-                                (Treedb.tree_to_rel t2)
-                                (fun r -> Schema.member (Treedb.rcd_to_tree r) s1)
-                                (fun r -> Schema.member (Treedb.rcd_to_tree r) s2)
-                                (schemas_to_bias_fun fclname s3 s4)
-                            )))))))))
-
-
-(* Unary relational lenses *)
-
-let lift_unary dblens src dst =
-  let getfun c =
-    let dbc = Treedb.tree_to_db c in
-    Treedb.db_to_tree (Lens.get (dblens src dst) dbc)
-  and putfun a co =
-    let dba = Treedb.tree_to_db a in
-    let dbco = lift_to_opt Treedb.tree_to_db co in
-    Treedb.db_to_tree (Lens.put (dblens src dst) dba dbco)
-  in
-  Lens.native getfun putfun
-
-let make_unary_lib fclname lens =
-  mk_nfun "name -> lens" fclname
-    (fun n1 -> mk_nfun "lens" fclname
-       (fun n2 -> L(lens n1 n2,no_checker)))
-
-let register_name_name_unary_dblens fclname dblens =
-  register_native fclname "name -> name -> name -> name -> lens" (
-    mk_nfun "name -> name -> name -> lens" fclname 
-      (fun n1' -> mk_nfun "name -> name -> lens" fclname
-         (fun n2' -> make_unary_lib fclname (lift_unary (dblens n1' n2'))))
-  )
-
-let register_schema_unary_dblens fclname dblens =
-  register_native fclname "schema -> name -> name -> lens" (
-    mk_sfun "name -> name -> lens" fclname (
-      fun s -> make_unary_lib fclname (
-        lift_unary (dblens (
-          fun rcd -> (Schema.member (Treedb.rcd_to_tree rcd)) s)))))
-
-let register_tree_tree_tree_unary_dblens fclname dblens =
-  register_native fclname "view -> view -> view -> name -> name -> lens" (
-    mk_vfun "view -> view -> name -> name -> lens" fclname 
-      (fun v1 -> mk_vfun "view -> name -> name -> lens" fclname
-         (fun v2 -> mk_vfun "name -> name -> lens" fclname
-            (fun v3 -> make_unary_lib fclname (lift_unary (dblens v1 v2 v3)))))
-  )
-
-(* Rename *)
-let () =
-  register_name_name_unary_dblens
-    "Native.Relational.rename" Dblens.rename
-
-(* Select *)
-let () =
-  register_schema_unary_dblens
-    "Native.Relational.select" Dblens.select
-let () =
-  register_name_name_unary_dblens
-    "Native.Relational.select_eq" Dblens.select_eq
-
-(* Project *)
-let tree_to_string_list v =
-  Name.Set.elements (V.dom v)
-
-let () =
-  register_tree_tree_tree_unary_dblens
-    "Native.Relational.project" (
-      fun fldstree keystree dflttree ->
-        Dblens.project
-          (tree_to_string_list fldstree)
-          (tree_to_string_list keystree)
-          (Treedb.tree_to_rel dflttree)
-    )
-*)
+  register_native
+    joinl_qid (SName ^> SFD ^> SName ^> SFD ^> SName ^> SLens) joinl_lib
 
