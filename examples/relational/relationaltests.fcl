@@ -26,8 +26,9 @@ let origschema : schema =
 
 let targetschema : schema =
   {{
-     Albums(Album, Quantity) with {Album -> Quantity}, 
-     Tracks(Track, Date, Rating, Album) with {Track -> Date, Track -> Rating}
+     Tracks3(Track, Rating, Album, Quantity)
+       with {Album -> Quantity, Track -> Rating}
+       where (Quantity <> "0" /\ (Quantity <> "1" /\ Quantity <> "2"))
   }}
 
 let l1 : lens = 
