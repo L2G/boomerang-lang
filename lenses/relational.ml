@@ -160,7 +160,7 @@ let select rn fds sn p =
         select_error (fun () ->
           Fd.Set.format_t fds;
           Format.printf "@ is not in tree form");
-      if not (Pred.ignores p (Fd.Set.outputs fds1)) then
+      if not (Pred.ignores q (Fd.Set.outputs fds1)) then
         select_error (fun () ->
           Pred.format_t q;
           Format.printf "@ constrains the outputs of@ ";
