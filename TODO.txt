@@ -63,7 +63,9 @@ FOCAL SYNTAX
   a more uniform syntax -- e.g., where *all* variables everywhere would be
   marked in some way, like $x or `x.  Then a bare identifier would be a
   constant in all contexts.  The $ or ` notation would also serve for
-  anti-quotation of larger expressions, as in $(l foo) or `(l foo).
+  anti-quotation of larger expressions, as in $(l foo) or `(l foo).  
+* Another concrete syntax issue I just learned the hard way: The predicate
+  (Quantity <> 0) does not mean what you think it does at the moment 
 * Add concrete syntax for "long strings" (for big unit tests), in the
   style of bash/perl/etc:   <<<XXX ... XXX  
 

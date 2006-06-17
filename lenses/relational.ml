@@ -33,7 +33,14 @@ let mk_type_error (msg : string) (printer : unit -> unit) : 'a =
     printer ()))
 
 let db_replace rn sn (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
-  Db.extend sn (f (Db.lookup rn db)) (Db.remove rn db)
+  let orig =
+    try 
+      Db.lookup rn db
+    with Not_found ->
+      raise (Error.Harmony_error (fun() ->
+        Format.printf "Db.db_replace: database@ "; Db.format_t db; Format.printf "@ has no relation %s" rn))
+    in
+  Db.extend sn (f orig) (Db.remove rn db)
 
 let db_replace2 rn sn tn (f : Rel.t -> Rel.t -> Rel.t) (db : Db.t) : Db.t =
   Db.extend tn (f (Db.lookup rn db) (Db.lookup sn db))
@@ -123,7 +130,13 @@ let () =
 let select_qid = "Native.Relational.select"
 let select_error = mk_type_error select_qid
 let select rn fds sn p =
-  let getfun c = db_replace rn sn (Rel.select p) c in
+  let getfun c =
+    let f r =
+      try Rel.select p r
+      with Not_found -> raise (Error.Harmony_error (fun()->
+        Format.printf "select: Rel.select failed for@ "; Db.Relation.Pred.format_t p; 
+        Format.printf "in@ "; Db.Relation.format_t r)) in
+    db_replace rn sn f c in
   let putfun a c =
     let r = Db.lookup rn c in
     let f s =
