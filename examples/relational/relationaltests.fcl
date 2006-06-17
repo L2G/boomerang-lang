@@ -53,5 +53,22 @@ let _ : lens = check l : origschema <<-> targetschema
 let view3 : view =
   l / orig
 
-test view3
-  = ?
+let newtarget : view =
+  {{{ Tracks3(Track, Rating, Album, Quantity) =
+        {(Lovesong, 5, Disintegration, 7),
+         (Lulluby, 4, Show, 3)} }}}
+
+(* This is the example from the dblenses paper: *)
+test l \ newtarget orig = 
+  {{{ Albums(Album, Quantity) =
+           {(Disintegration, 7),
+            (Galore, 1),
+            (Paris, 4),
+            (Show, 3),
+            (Wish, 5)},
+      Tracks(Track, Date, Rating, Album) =
+           {(Lovesong, 1989, 5, Disintegration),
+            (Lovesong, 1989, 5, Galore),
+            (Lulluby, 1989, 4, Galore),
+            (Lulluby, 1989, 4, Show)} }}}
+
