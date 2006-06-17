@@ -239,9 +239,7 @@ let drop rn sn att det dflt =
           Format.printf "@ does not include the record@ ";
           Format.printf "{%s = \"%s\"}" att dflt);
       let fds = Relschema.get_fdset s in
-      let fds' =
-        Fd.Set.filter (fun fd -> Fd.ranges_over fd u') fds
-      in
+      let fds' = Fd.Set.filter (fun fd -> Fd.ranges_over fd u') fds in
       let fds_att = Fd.Set.diff fds fds' in
       let valid_split =
         if Name.Set.equal detset attset then
@@ -250,15 +248,15 @@ let drop rn sn att det dflt =
           Fd.Set.cardinal fds_att = 1 &&
           Fd.Set.for_all (
             fun (xs, ys) ->
-              Name.Set.equal xs detset && Name.Set.equal ys attset) fds_att
-      in
+              Name.Set.equal xs detset && Name.Set.equal ys attset)
+            fds_att in
       if not valid_split then
         drop_error (fun () ->
+          Format.printf "Invalid split:@ ";
           Fd.Set.format_t fds_att;
           Format.printf "@ is not equivalent to@ ";
           Fd.Set.format_t (Fd.Set.singleton (detset, attset)));
-      Relschema.set_pred (Relschema.set_fdset (Relschema.create u') fds') p'
-    in
+      Relschema.set_pred (Relschema.set_fdset (Relschema.create u') fds') p' in
     db_schema_replace drop_error rn sn f
   in
   (native getfun (error_on_missing putfun), WB c2a)

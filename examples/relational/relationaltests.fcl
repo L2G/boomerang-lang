@@ -24,6 +24,12 @@ let origschema : schema =
      Tracks(Track, Date, Rating, Album) with {Track -> (Date,Rating)}
   }}
 
+let targetschema : schema =
+  {{
+     Albums(Album, Quantity) with {Album -> Quantity}, 
+     Tracks(Track, Date, Rating, Album) with {Track -> (Date,Rating)}
+  }}
+
 let l1 : lens = 
   Relational.join_dl "Tracks" with {Track -> (Date,Rating)}
     "Albums" with {Album -> Quantity}
@@ -39,8 +45,12 @@ let l3 : lens =
   Relational.select "Tracks2" with {Album -> Quantity} "Tracks3"
     where (Quantity <> "0" /\ (Quantity <> "1" /\ Quantity <> "2"))
 
+let l : lens = (l1;l2;l3)
+
+let _ : lens = check l : origschema <<-> targetschema
+
 let view3 : view =
-  (l1;l2;l3) / orig
+  l / orig
 
 test view3
   = ?

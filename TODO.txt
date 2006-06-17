@@ -52,6 +52,7 @@ FOCAL PROGRAMMING / DEMOS
   time [bcp]
 * Implement a "typeof" primitive that takes a lens and a source schema and
   calculates the target schema
+* Add a > predicate so that we can express the dblenses example more directly
 
 FOCAL SYNTAX 
 * Perhaps we should make '-' an illegal character in (unquoted) identifiers
