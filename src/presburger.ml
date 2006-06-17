@@ -26,31 +26,97 @@ type exp =
   | Sum of exp * exp 
 
 (* formulas, represented in de Bruijn notation *)
-type t = 
-    EqZ of (int * int) list * int
-  | GeqZ of (int * int) list * int
-  | Not of t
-  | Or of t list
-  | And of t list
-  | Exists of t
+module rec F : sig 
+  type t = 
+      EqZ of int IntMap.t * int
+    | GeqZ of int IntMap.t * int
+    | Not of t 
+    | Or of TSet.t
+    | And of TSet.t
+    | Exists of t
+  val compare : t -> t -> int 
+end = struct
+  type t = 
+      EqZ of int IntMap.t * int
+    | GeqZ of int IntMap.t * int
+    | Not of t
+    | Or of TSet.t
+    | And of TSet.t
+    | Exists of t
+  let rec compare t1 t2 = match t1,t2 with 
+      EqZ(vs1,c1),EqZ(vs2,c2) 
+    | GeqZ(vs1,c1),GeqZ(vs2,c2)
+        -> 
+        let cmp1 = Pervasives.compare c1 c2 in         
+          if cmp1 <> 0 then cmp1 
+          else 
+            let cmp2, dom1 = IntMap.fold 
+              (fun xi w1 (cmp,dom1) -> 
+                 let dom1' = IntSet.add xi dom1 in 
+                 let cmp' = 
+                   if cmp <> 0 then cmp
+                   else 
+                     try 
+                       let w2 = IntMap.find xi vs2 in 
+                         Pervasives.compare w1 w2
+                     with Not_found -> -1 in 
+                   (cmp',dom1'))
+              vs1 (0,IntSet.empty) in 
+              if cmp2 <> 0 then cmp2 
+              else 
+                let dom2 = IntMap.domain vs2 in 
+                  IntSet.compare dom1 dom2
+    | Not(t1),Not(t2) | Exists(t1),Exists(t2) -> 
+        compare t1 t2
+    | Or(ts1),Or(ts2) | And(ts1),And(ts2) -> 
+        TSet.compare ts1 ts2    
+    | EqZ(_),_  -> -1
+    | _,EqZ(_)  -> 1
+    | GeqZ(_),_ -> -1
+    | _,GeqZ(_) -> 1
+    | Not(_),_   -> -1
+    | _,Not(_)   -> 1
+    | Or(_),_   -> -1
+    | _,Or(_)   -> 1
+    | And(_),_   -> -1
+    | _,And(_)   -> 1          
+end 
+and TSet : Set.S with type elt = F.t = 
+  Set.Make(
+    struct
+      type t = F.t
+      let compare = F.compare
+    end)
+
+open F
+type t = F.t
+
+let map_set fold add empty f s = fold 
+  (fun ei acc -> add (f ei) acc) 
+  s
+  empty
+
+let map_map fold add empty f m = fold 
+  (fun k v acc -> let k',v' = f k v in add k' v' acc)
+  m
+  empty
+
+let map_int_set = map_set IntSet.fold IntSet.add IntSet.empty 
+let map_int_map = map_map IntMap.fold IntMap.add IntMap.empty
+let map_t_set = map_set TSet.fold TSet.add TSet.empty
 
 (* --------------- utility functions --------------- *)
 (* --- free variables --- *)
 let rec fvs_t = function
-    EqZ(ps_xs,_) | GeqZ(ps_xs,_) -> 
-      Safelist.fold_left 
-        (fun u (_,xi) -> IntSet.add xi u) 
-        IntSet.empty
-        ps_xs
-
+    EqZ(vs,_) | GeqZ(vs,_) -> IntMap.domain vs 
+          
   | Not(f)    -> fvs_t f
 
-  | Or(fs) | And(fs) -> 
-      Safelist.fold_left 
-        (fun vs fi -> IntSet.union (fvs_t fi) vs)
-        IntSet.empty        
+  | Or(fs) | And(fs) -> TSet.fold 
+      (fun fi fvs -> IntSet.union (fvs_t fi) fvs)
         fs
-
+        IntSet.empty        
+        
   | Exists(f)    -> 
       IntSet.fold 
         (fun x s -> if (x <> 0) then (IntSet.add (x-1) s) else s) 
@@ -67,40 +133,60 @@ let rec fformat_exp_aux fmtr = function
       fformat_exp_aux fmtr e2
 
 let format_exp = fformat_exp_aux Format.std_formatter
-
+  
 let rec fformat_t_aux fmtr g t0 = 
-  let format_atom ps_xs opr c = 
-    let format_one (pi,xi) =              
-      Format.printf "%s%s"
-        (if pi=1 then "+" else if pi=(-1) then "-" else (sprintf "%d*" pi))
-        ((snd g) xi) in
-      match ps_xs with 
-          [] -> Format.printf "0=0"
-        | [(-1,x)] -> 
-            Format.printf "%s%s%d" ((snd g) x) opr c;
-        | [(1,x)] -> 
-            Format.printf "%s%s%d" ((snd g) x) opr (-1 * c);
-        | (p,x)::ps_xs -> 
-            Format.printf "%s%s"
-              (if p=1 then "" else if p=(-1) then "-" else (sprintf "%d*" p))
-              ((snd g) x);        
-            Misc.fformat_list fmtr "" format_one ps_xs;
-            if c=0 then () else Format.printf "+%d" c;
-            Format.printf "%s0" opr in
-    match t0 with
-        EqZ(ps_xs,c) -> format_atom ps_xs "=" c
-      | GeqZ(ps_xs,c) -> format_atom ps_xs ">=" c
+  let format_constraint vs opr c = 
+(*     let _ =  *)
+(*       if false then ( *)
+(*       Format.printf " DEBUG("; *)
+(*       IntMap.iter_with_sep  *)
+(*         (fun xi wi -> Format.printf "%dn%d" wi xi) *)
+(*         (fun () -> Format.printf "+") *)
+(*         vs; *)
+(*       Format.printf ",%d) " c) in *)
+    let non_neg, neg = IntMap.partition (fun _ wi -> wi >= 0) vs in 
+    let pos, zero = IntMap.partition (fun _ wi -> wi > 0) non_neg in 
+    let pos_empty = IntSet.is_empty (IntMap.domain pos) in 
+    let neg_empty = IntSet.is_empty (IntMap.domain neg) in 
+      if pos_empty && neg_empty then 
+        Format.fprintf fmtr "%d=%d" 
+          (if c >=0 then c else 0)
+          (if c < 0 then -c else 0)
+      else 
+        begin 
+          if pos_empty then Format.fprintf fmtr "%d" (if c >= 0 then c else 0)
+          else (IntMap.iter_with_sep 
+                  (fun xi wi -> Format.printf "%sn%d" 
+                     (if wi=1 then "" else sprintf "%d" wi) xi)
+                  (fun () -> Format.printf "+")
+                  pos;
+                if c > 0 then Format.fprintf fmtr "+%d" c);
+          Format.fprintf fmtr "%s" opr;
+          if neg_empty then Format.fprintf fmtr "%d" (if c < 0 then -c else 0) 
+          else 
+            (IntMap.iter_with_sep 
+               (fun xi wi -> Format.printf "%sn%d" 
+                  (if wi=(-1) then "" else sprintf "%d" (-wi)) xi)
+               (fun () -> Format.printf "+")
+               neg;
+             if c < 0 then Format.fprintf fmtr "%d" (-c))
+        end in 
+    match t0 with        
+        EqZ(vs,c) -> format_constraint vs "=" c
+      
+      | GeqZ(vs,c) -> format_constraint vs ">=" c
+          
       | Not(f1) -> 
           Format.fprintf fmtr "!("; 
           fformat_t_aux fmtr g f1;
           Format.fprintf fmtr ")"
       | Or(fs) ->
           Format.fprintf fmtr "(";
-          Misc.fformat_list fmtr  " | " (fformat_t_aux fmtr g) fs;
+          Misc.fformat_list fmtr  " | " (fformat_t_aux fmtr g) (TSet.elements fs);
           Format.fprintf fmtr ")";
       | And(fs) ->
           Format.fprintf fmtr "(";
-          Misc.fformat_list fmtr " & " (fformat_t_aux fmtr g) fs;
+          Misc.fformat_list fmtr " & " (fformat_t_aux fmtr g) (TSet.elements fs);
           Format.fprintf fmtr ")"
       | Exists(f1) -> 
           let next (qd,g) = (qd+1,fun n->if n=0 then sprintf "x%d" qd else g (n-1)) in
@@ -124,75 +210,102 @@ let format_t = fformat_t Format.std_formatter
 let rec shift_exp_aux n c e0 = match e0 with
     Const(n)   -> e0
   | Var(x)     -> if x < c then e0 else Var(x+n)
-  | Sum(e1,e2) -> Sum(shift_exp_aux n c e1, shift_exp_aux n c e2)      
+  | Sum(e1,e2) -> Sum(shift_exp_aux n c e1, shift_exp_aux n c e2)
 
 let rec shift_aux n c = 
-  let shift_snd = Safelist.map (fun (p,x)->(p,if x<c then x else x+n)) in
+  let shift_var x wi = 
+    let y = if x < 0 then -x else x in 
+    let pre_res = if y<c then y else y+n in 
+      if x < 0 then (-pre_res,wi) else (pre_res,wi) in 
     function 
-        EqZ(ps_xs,c)  -> EqZ(shift_snd ps_xs, c)
-      | GeqZ(ps_xs,c) -> GeqZ(shift_snd ps_xs, c)
-      | Not(f)        -> Not(shift_aux n c f)
-      | Or(fs)        -> Or(Safelist.map (shift_aux n c) fs)
-      | And(fs)       -> And(Safelist.map (shift_aux n c) fs)
-      | Exists(f)     -> Exists(shift_aux n (c+1) f)
+        EqZ(vs,c)  -> EqZ(map_int_map shift_var vs, c)
+      | GeqZ(vs,c) -> GeqZ(map_int_map shift_var vs, c)
+      | Not(f)     -> Not(shift_aux n c f)
+      | Or(fs)     -> Or(map_t_set (shift_aux n c) fs)
+      | And(fs)    -> And(map_t_set (shift_aux n c) fs)
+      | Exists(f)  -> Exists(shift_aux n (c+1) f)
 
 (* --- top-level shift operator --- *)
 let shift_exp n = shift_exp_aux n 0
-let shift_t n = shift_aux n 0
-
+let shift_t n f = 
+  Format.printf "SHIFT: "; 
+  format_t f;
+  let res = shift_aux n 0 f in 
+    Format.printf " -> ";
+    format_t res; 
+    res
+    
 (* -------------- substitution -------------- *)
+let combine_constraints (vs1,c1) (vs2,c2) = 
+  let vs' = IntSet.fold 
+    (fun xi vs' -> 
+       let w1 = IntMap.safe_find xi vs1 0 in 
+       let w2 = IntMap.safe_find xi vs2 0 in 
+         IntMap.add xi (w1+w2) vs')
+    (IntSet.union (IntMap.domain vs1) (IntMap.domain vs2))
+    IntMap.empty in 
+  let c' = c1+c2 in 
+    (vs',c')
+  
+let rec constraint_of_exp is_lhs = function 
+    Const(n) -> 
+      (IntMap.empty,if is_lhs then n else -n)
+  | Var(x) -> 
+      (IntMap.add x (if is_lhs then 1 else -1) IntMap.empty, 0)
+  | Sum(e1,e2) -> 
+      combine_constraints 
+        (constraint_of_exp is_lhs e1)
+        (constraint_of_exp is_lhs e2)
+
 let rec substitute_exp es e0 = match e0 with 
     Const(_) -> e0
   | Var(x) -> (try Safelist.assoc x es with Not_found -> e0)
   | Sum(e1,e2) -> Sum(substitute_exp es e1,substitute_exp es e2)
-
+        
 let rec substitute es t0 = 
-  let rec mult (vacc,cacc) pi e0 = match e0 with
-      Const(n) -> (vacc, pi*n + cacc)
-    | Var(x)   -> ((pi,x)::vacc, cacc)
-    | Sum(e1,e2) -> mult (mult (vacc,cacc) pi e1) pi e2 in        
-  let substitute_ps_xs ps_xs c = 
-    let res_l,res_c = 
-      Safelist.fold_left
-        (fun acc (pi,xi) ->
-           (try mult acc pi (Safelist.assoc xi es)
-            with Not_found -> let ps_xs,c = acc in ((pi,xi)::ps_xs,c)))
-        ([],c)
-        ps_xs in 
-      Safelist.rev res_l, res_c in 
+  (* Format.printf "@\n--- SUBSTITUTE ---@\nSUBS={";
+  Misc.format_list "," (fun (xi,ei) ->  Format.printf "n%d->" xi; format_exp ei;) es;
+  Format.printf "}@\nt0=";
+  format_t t0; 
+  Format.print_newline (); *)
+  let substitute_constraint (vs,c) = 
+    let mult (vs,c) n = (map_int_map (fun xi wi -> (xi,n*wi)) vs, c*n) in 
+      IntMap.fold 
+        (fun xi wi acc ->
+           try 
+             combine_constraints
+               (mult (constraint_of_exp true (Safelist.assoc xi es)) wi)
+               acc
+           with Not_found -> 
+             let (vs,c) = acc in
+               (IntMap.add xi wi vs,c))
+        vs 
+        (IntMap.empty,c) in
   let res = match t0 with
-        EqZ(ps_xs,c) -> 
-          let ps_xs',c' = substitute_ps_xs ps_xs c in
-            EqZ(ps_xs',c')
-      | GeqZ(ps_xs,c) -> 
-          let ps_xs',c' = substitute_ps_xs ps_xs c in
-            GeqZ(ps_xs',c')
-      | Not(f)       -> Not(substitute es f)
-      | Or(fs)       -> Or(Safelist.map (substitute es) fs)
-      | And(fs)      -> And(Safelist.map (substitute es) fs)
-      | Exists(f)    ->
-          let shifted_es = Safelist.map 
-            (fun (x,e) -> (x+1, shift_exp 1 e)) es in
-            Exists(substitute shifted_es f)
-  in
+      EqZ(vs,c) -> 
+        let vs',c' = substitute_constraint (vs,c) in 
+          EqZ(vs',c')
+    | GeqZ(vs,c) -> 
+        let vs',c' = substitute_constraint (vs,c) in 
+          GeqZ(vs',c')
+    | Not(f)       -> Not(substitute es f)
+    | Or(fs)       -> Or(map_t_set (substitute es) fs)
+    | And(fs)      -> And(map_t_set (substitute es) fs)
+    | Exists(f)    ->
+        let shifted_es = Safelist.map 
+          (fun (x,e) -> (x+1, shift_exp 1 e)) es in
+          Exists(substitute shifted_es f) in 
+(*     Format.printf "RES="; *)
+(*     format_t res; *)
 (*     Format.print_newline (); *)
-(*     Format.printf "SUBSTITUTE"; Format.print_newline(); *)
-(*     Format.printf " es=["; begin *)
-(*       Misc.format_list ","  *)
-(*         (fun (x,e) -> Format.printf "n%d->" x; format_exp e)  *)
-(*         es;  *)
-(*       Format.printf "]"; *)
-(*       Format.print_newline() end; *)
-(*     Format.printf " t0="; format_t t0; Format.print_newline(); *)
-(*     Format.printf "res="; format_t res; Format.print_newline(); *)
     res
-
+            
 (* --------------- constants --------------- *)
 
 let zero = Const(0)
 let one = Const(1)
-let tru = EqZ([],0)
-let fls = EqZ([],1)
+let tru = EqZ(IntMap.empty,0)
+let fls = EqZ(IntMap.empty,1)
 
 (* --------------- constructors --------------- *)
 
@@ -211,90 +324,72 @@ let mkOr fs =
   if fs = [] then fls
   else
     let fs' = Safelist.fold_left 
-      (fun fs fi -> 
+      (fun acc fi -> 
          (match fi with
-              Or(gs) -> gs @ fs
-            | _         -> fi::fs))
-      [] fs in
-      Or(Safelist.rev fs')
+              Or(gs) -> TSet.union gs acc
+            | _      -> TSet.add fi acc))
+      TSet.empty fs in
+      Or(fs')
 
 let mkAnd fs = 
   if fs = [] then tru
   else
     let fs' = Safelist.fold_left 
-      (fun fs fi -> 
-         match fi with
-
-             And(gs) -> (Safelist.rev gs) @ fs
-           | _         -> fi::fs)
-      []
-      fs in
-      And(Safelist.rev fs')
+      (fun acc fi -> 
+         (match fi with
+              And(gs) -> TSet.union gs acc
+            | _      -> TSet.add fi acc))
+      TSet.empty fs in
+      And(fs')
 
 let mkExists f = Exists(f)
-
+  
 let rec wrap n f = if n <= 0 then f else wrap (n-1) (mkExists f)
 
 (* --- helper function for constructing formulas from exps --- *)
-let rec mk_cnstr (vacc,cacc) polarity = function
-    Const(c)   -> (vacc,(polarity * c) + cacc)
-  | Var(x)     -> ((polarity,x)::vacc,cacc)
-  | Sum(e1,e2) -> mk_cnstr (mk_cnstr (vacc,cacc) polarity e1) polarity e2
-
 let mkEq e1 e2 = 
-  let ps_xs,c = mk_cnstr (mk_cnstr ([],0) 1 e1) (-1) e2 in 
-    EqZ(ps_xs,c)
-
-let mkLt e1 e2 = 
-  let ps_xs,c = mk_cnstr (mk_cnstr ([],0) 1 e2) (-1) e1 in 
-    GeqZ(ps_xs,c-1)
-
-(** mkLe: exp -> exp -> t *)
-let mkLe e1 e2 = 
-  let ps_xs,c = mk_cnstr (mk_cnstr ([],0) 1 e2) (-1) e1 in 
-    GeqZ(ps_xs,c)
-
-(** mkGt: exp -> exp -> t *)
-let mkGt e1 e2 = 
-  let ps_xs,c = mk_cnstr (mk_cnstr ([],0) 1 e1) (-1) e2 in
-    GeqZ (ps_xs,c-1)
-
-(** mkGe: exp -> exp -> t *)
+  let res1 = constraint_of_exp true e1 in 
+  let res2 = constraint_of_exp false e2 in
+  let vs,c = combine_constraints res1 res2 in 
+    EqZ(vs,c) 
 let mkGe e1 e2 = 
-  let ps_xs,c = mk_cnstr (mk_cnstr ([],0) 1 e1) (-1) e2 in
-    GeqZ (ps_xs,c)
-
+  let res1 = constraint_of_exp true e1 in 
+  let res2 = constraint_of_exp false e2 in
+  let vs,c = combine_constraints res1 res2 in 
+    GeqZ(vs,c)
+      
+let mkGt e1 e2 = 
+  let res1 = constraint_of_exp true e1 in   
+  let vs2,c2 = constraint_of_exp false e2 in     
+  let vs,c = combine_constraints res1 (vs2,c2-1) in 
+    GeqZ(vs,c)
+      
+let mkLt e1 e2 = mkGt e2 e1
+let mkLe e1 e2 = mkGe e2 e1
+  
 (* --- get_zeros: calculate a set of "obviously zero" variables from a
    formula. NOT semantically complete--i.e., it's not the case that 
    n in get_zeros(f) <=> every satisfying valuation of f has n=0 *)
 let rec get_zeros f0 = match f0 with    
-    EqZ(ps_xs,c) -> 
-      (* for constraints equal to zero, all variables must have the
-         same polarity *) 
-      let uniform_polarity l =
-        let res,_ = Safelist.fold_left 
-          (fun acc (p,_) ->              
-             match acc,p with 
-                 (false,_),_ -> acc
-               | (true,0),_ | (true,1),1 | (true,-1),-1 -> (true,p)
-               | _ -> (false,p))
-          (true,0) l in 
-          res in 
-        if c = 0 && uniform_polarity ps_xs then 
-          Safelist.fold_left (fun acc (_,xi) -> IntSet.add xi acc) IntSet.empty ps_xs
+    EqZ(vs,c) -> 
+      if c = 0 then 
+        if IntMap.for_all (fun wi -> wi > 0) vs 
+          || IntMap.for_all (fun wi -> wi < 0) vs 
+        then IntMap.domain vs
         else IntSet.empty
+      else IntSet.empty
   | GeqZ(_) -> IntSet.empty
   | Not(f) -> begin match f with
         Not(g) -> get_zeros g
       | _        -> IntSet.empty
     end
-  | Or(fs) ->
-      begin match Safelist.map get_zeros fs with
+  | Or(fs) -> 
+      begin match TSet.fold (fun fi acc -> (get_zeros fi)::acc) fs [] with
           [] -> IntSet.empty
         | h::t -> Safelist.fold_left IntSet.inter h t
       end
   | And(fs) ->
-      begin match Safelist.map get_zeros fs with
+      begin match TSet.fold (fun fi acc -> (get_zeros fi)::acc) fs [] with
           [] -> IntSet.empty
         | h::t -> Safelist.fold_left IntSet.union h t
       end
@@ -478,7 +573,7 @@ module BitVector = struct
     if x < 0 or x > 1 then 
       raise (Invalid_argument 
                (Printf.sprintf 
-                  "Valuation.set: cannot set bit %d to %d" n x));
+                  "BitVector.set: cannot set bit %d to %d" n x));
     let (idx,j) = pos n in
     let new_vn =   
       if x=0 then (Array.unsafe_get v.data idx) land (Array.unsafe_get neg_masks j) 
@@ -556,13 +651,13 @@ end
 
 (* ---- OMEGA ---- *)    
 let rec f2omega g o f = match f with 
-    EqZ(ps_xs,c) ->
-      let ps_vs = Safelist.map (fun (pi,xi) -> (pi, (snd g) xi)) ps_xs in
-        OmegaLibrary.add_eq o ps_vs c
+    EqZ(vs,c) ->
+      let l = IntMap.fold (fun xi wi acc -> (wi, (snd g) xi)::acc) vs [] in
+        OmegaLibrary.add_eq o l c
 
-  | GeqZ(ps_xs,c) ->
-      let ps_vs = Safelist.map (fun (pi,xi) -> (pi, (snd g) xi)) ps_xs in
-        OmegaLibrary.add_geq o ps_vs c
+  | GeqZ(vs,c) ->
+      let l = IntMap.fold (fun xi wi acc -> (wi, (snd g) xi)::acc) vs [] in
+        OmegaLibrary.add_geq o l c
 
   | Not(f1) -> 
       let not_o = OmegaLibrary.add_not o in
@@ -571,12 +666,12 @@ let rec f2omega g o f = match f with
 
   | Or(fs) ->
       let or_o = OmegaLibrary.add_or o in 
-        Safelist.iter (f2omega g or_o) fs;
+        TSet.iter (f2omega g or_o) fs;
         OmegaLibrary.finalize or_o
 
   | And(fs) ->
       let and_o = OmegaLibrary.add_and o in 
-        Safelist.iter (f2omega g and_o) fs;
+        TSet.iter (f2omega g and_o) fs;
         OmegaLibrary.finalize and_o
 
   | Exists(f1) -> 
@@ -616,7 +711,7 @@ module TCache = Hashtbl.Make(
 module VCache = Hashtbl.Make(
   struct
     type t = Valuation.t
-    let equal f1 f2 = compare f1 f2 = 0
+    let equal v1 v2 = Pervasives.compare v1 v2 = 0 (* BOGOSITY *)
     let hash = Hashtbl.hash 
   end)  
 

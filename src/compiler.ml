@@ -543,7 +543,13 @@ let rec compile_exp cev e0 = match e0 with
                      ; `Prim (fun () -> Schema.format_t expected); `Space
                      ; `String "but found:"; `Space
                      ; `Prim (fun () -> Schema.format_t found)] in
-        (match ck with
+        (Trace.debug "checker+"
+           (fun () -> Format.printf "--- CHECKING ";
+              Schema.format_t c_schema; 
+              Syntax.format_lensarrow la;
+              Schema.format_t a_schema;
+              Format.printf "---@\n%!");
+         match ck with
              Value.BIJ(c2a,a2c) -> 
                check_schema a_schema (c2a c_schema);
                check_schema c_schema (a2c a_schema)

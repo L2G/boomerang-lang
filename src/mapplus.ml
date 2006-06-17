@@ -19,6 +19,7 @@ module type SMap = sig
   val iter: (key_t -> 'a -> unit) -> 'a t -> unit
   val iter_with_sep: (key_t -> 'a -> unit) -> (unit -> unit) -> 'a t -> unit
   val filter: (key_t -> 'a -> bool) -> 'a t -> 'a t
+  val partition: (key_t -> 'a -> bool) -> 'a t -> 'a t * 'a t
   val map: ('a -> 'b) -> 'a t -> 'b t
   val mapi: (key_t -> 'a -> 'b) -> 'a t -> 'b t
   val fold: (key_t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
@@ -96,6 +97,9 @@ module Make(Ord: OrderedType) = struct
     let mapi f (m, d) = M.mapi f m, d
     let fold f (m, _) = M.fold f m
     let filter f m = fold (fun k v m -> if f k v then add k v m else m) m empty
+    let partition f m = fold (fun k v (ym,nm) -> 
+                                if f k v then (add k v ym,nm) 
+                                else (ym,add k v nm)) m (empty,empty)  
     let project ks = filter (fun k v -> KeySet.mem k ks)
     let list_project kls m = List.map (fun k -> find k m) kls
     let for_alli f s =

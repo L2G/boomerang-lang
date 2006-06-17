@@ -1142,13 +1142,14 @@ let member v t0 =
 
         (* final result: check if the formula is satisfiable *)
         let res = not_falsified && P.fast_sat p counts in
-          if print then Trace.debug "member" 
-            (fun () -> 
-               Format.printf "MEMBER (%d)" (!total_member_tests - old_tmts);
-               Format.printf "@\n v : "; Tree.format_t v;
-               Format.printf "@\nt0 : "; format_t t0;
-               Format.printf "@\n  = %b" res;
-               Format.print_newline ());
+          if print then 
+            Trace.debug "member" 
+              (fun () -> 
+                 Format.printf "MEMBER (%d)" (!total_member_tests - old_tmts);
+                 Format.printf "@\n v : "; Tree.format_t v;
+                 Format.printf "@\nt0 : "; format_t t0;
+                 Format.printf "@\n  = %b" res;
+                 Format.print_newline ());
           res in 
     aux true v t0
 

@@ -73,6 +73,8 @@ module type SMap = sig
 
   val filter: (key_t -> 'a -> bool) -> 'a t -> 'a t
 
+  val partition: (key_t -> 'a -> bool) -> 'a t -> 'a t * 'a t
+
   val map: ('a -> 'b) -> 'a t -> 'b t
     (** [map f m] returns a map with same domain as [m], where the
         associated value [a] of all bindings of [m] has been
