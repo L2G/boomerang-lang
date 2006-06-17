@@ -162,7 +162,7 @@ let select rn fds sn p =
           Format.printf "@ is not in tree form");
       if not (Pred.ignores p (Fd.Set.outputs fds1)) then
         select_error (fun () ->
-          Pred.format_t p;
+          Pred.format_t q;
           Format.printf "@ constrains the outputs of@ ";
           Fd.Set.format_t fds1);
       Relschema.set_fdset (
