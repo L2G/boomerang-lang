@@ -64,6 +64,7 @@ SMALL IMPROVEMENTS
     style of bash/perl/etc:   <<<XXX ... XXX  
 *** some of the options (logfile, addprefsto) don't make sense for Harmony
     and should be suppressed
+** finish "omake install"
 * make native assert function take a string arg
 
 TIDYING

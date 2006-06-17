@@ -432,16 +432,16 @@ let rec check_decl sev m d0 = match d0 with
     | DTest(i,e,res) ->        
         if not (check_test m) then (sev, [], d0)
         else begin
-          let _,new_e = expect_sort_exp "test expression" sev SView e in
+          let e_sort,new_e = check_exp sev e in
           let new_res = 
             match res with 
-                ErrorResult -> ErrorResult
-                | PrintResult -> PrintResult
-              | Result res -> 
-                  let _,new_res = expect_sort_exp "test result" sev SView res in
-                    Result(new_res) in
+              ErrorResult -> ErrorResult
+            | PrintResult -> PrintResult
+            | Result res -> 
+                let _,new_res = expect_sort_exp "test result" sev e_sort res in
+                Result(new_res) in
           let new_d0 = DTest(i,new_e, new_res) in
-            (sev, [], new_d0)
+          (sev, [], new_d0)
         end
 
 and check_module_aux sev m ds = 
@@ -914,42 +914,41 @@ let rec compile_decl cev m di =
         new_cev, Safelist.rev names_rev
   | DSchema(i,ss) -> compile_schema_bindings cev ss
   | DTest(i,e,res) ->
-      if check_test m then
-        begin
-          let vo = 
-            try
-              OK (v_of_rv (compile_exp cev e))
-            with (Error.Harmony_error(m)) -> Error m
-          in
-            match vo, res with 
-              | OK v, PrintResult ->
-                  Format.printf "Test result:@ "; Value.format_t v; Format.printf "@\n"
-              | Error m, PrintResult -> 
-                  test_error i 
-                    (fun () ->
-                       V.format_msg [`String "Test result: error"; `Newline];
-                       m())
-              | Error _, ErrorResult -> ()
-              | OK v, Result res -> 
-                  let resv = v_of_rv (compile_exp cev res) in
-                    if not (Value.equal v resv) then
-                      test_error i 
-                        (fun () ->
-                           Format.printf "@\nExpected@ "; Value.format_t resv;
-                           Format.printf "@ but found@ "; Value.format_t v; Format.printf "@\n")
-              | Error m, Result res -> 
-                  let resv = v_of_rv (compile_exp cev res) in
+      if check_test m then begin
+        let vo = 
+          try
+            OK (v_of_rv (compile_exp cev e))
+          with (Error.Harmony_error(m)) -> Error m
+        in
+          match vo, res with 
+            | OK v, PrintResult ->
+                Format.printf "Test result:@ "; Value.format_t v; Format.printf "@\n"
+            | Error m, PrintResult -> 
+                test_error i 
+                  (fun () ->
+                     V.format_msg [`String "Test result: error"; `Newline];
+                     m())
+            | Error _, ErrorResult -> ()
+            | OK v, Result res -> 
+                let resv = v_of_rv (compile_exp cev res) in
+                  if not (Value.equal v resv) then
                     test_error i 
                       (fun () ->
-                         Format.printf "@\nExpected@ "; Value.format_t resv; 
-                         Format.printf "@ but found an error:@ "; m(); Format.printf "@\n")
-
-              | OK v, ErrorResult -> 
+                         Format.printf "@\nExpected@ "; Value.format_t resv;
+                         Format.printf "@ but found@ "; Value.format_t v; Format.printf "@\n")
+            | Error m, Result res -> 
+                let resv = v_of_rv (compile_exp cev res) in
                   test_error i 
                     (fun () ->
-                       Format.printf "@\nExpected an error@ "; 
-                       Format.printf "@ but found:@ "; Value.format_t v; Format.printf "@\n")
-        end;
+                       Format.printf "@\nExpected@ "; Value.format_t resv; 
+                       Format.printf "@ but found an error:@ "; m(); Format.printf "@\n")
+
+            | OK v, ErrorResult -> 
+                test_error i 
+                  (fun () ->
+                     Format.printf "@\nExpected an error@ "; 
+                     Format.printf "@ but found:@ "; Value.format_t v; Format.printf "@\n")
+      end;
       (cev, [])        
 
 and compile_module_aux cev m ds = Safelist.fold_left

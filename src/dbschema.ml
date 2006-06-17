@@ -181,7 +181,7 @@ module Relschema = struct
         (* Raises Not_found if [fds] is empty. *)
         let rec find_from (x, y) visited =
           if NodeSet.mem x visited then raise Not_tree_form;
-          let parent_set = adj_in x fds in
+          (* let parent_set = adj_in x fds in *)
           try
             find_from
               (NodeSet.choose (adj_in x fds), x) (NodeSet.add x visited)

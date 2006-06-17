@@ -32,7 +32,7 @@
 %token <Info.t> EOF 
 %token <Syntax.id> IDENT STRING
 %token <Info.t> LET IN FUN AND MODULE BEGIN END OPEN SCHEMA ASSERT CHECK PROTECT
-%token <Info.t> LENS TREE TYPE NAME ARROW FMAP BIJARROW VWBARROW WBARROW BACKTICK
+%token <Info.t> LENS VIEW TYPE NAME ARROW FMAP BIJARROW VWBARROW WBARROW BACKTICK
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH PRINT TEST SYNC WITH AT ERROR MISSING
 %token <Info.t> STAR BANG BAR LT GT PLUS MINUS TILDE AMPERSAND QMARK
@@ -102,6 +102,8 @@ opens:
       \alt \lit{@sync@} \lit{@with@} <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
       \alt \lit{@sync@} \lit{@with@} <AExp> <AExp> <AExp> \lit{@at@} <AExp> <AExp> \lit{@=@} <AExp>
 \end{grammar}
+\finish{Add @test schema@ alternatives}
+
 
 \noindent A Focal compilation unit contains a single module
 declaration, such as @module Foo@, that must appear in a file named
@@ -269,7 +271,7 @@ sort:
 asort:
   | LENS                                     { ($1, SLens) }
   | NAME                                     { ($1, SName) } 
-  | TREE                                     { ($1, SView) }
+  | VIEW                                     { ($1, SView) }
   | SCHEMA                                   { ($1, SSchema) }
   | PRED                                     { ($1, SPred) }
   | FDS                                      { ($1, SFD) }
@@ -469,12 +471,17 @@ aexp:
 db_contents:
   |                                           { Db.empty }
   | IDENT LPAREN names RPAREN 
-    EQUAL LBRACE tuples RBRACE db_contents    { Db.extend (Syntax.name_of_id $1) 
+    EQUAL LBRACE tuples RBRACE 
+    opt_comma db_contents                     { Db.extend (Syntax.name_of_id $1) 
                                                   (Safelist.fold_right 
                                                     Db.Relation.insert_tuple
                                                     $7
                                                     (Db.Relation.create $3))
-                                                   $9 }
+                                                   $10 }
+
+opt_comma:
+  |                                           { () }
+  | COMMA                                     { () }
 
 names:
   |                                           { [] }
@@ -484,7 +491,7 @@ names:
 tuples:
   |                                           { [] }
   | LPAREN names RPAREN                       { [ $2 ] }
-  | LPAREN names RPAREN COMMA tuples          { $2 :: $5 } 
+  | LPAREN names RPAREN opt_comma tuples      { $2 :: $5 } 
 
 db_schema_contents: 
   |                                           { Dbschema.base }

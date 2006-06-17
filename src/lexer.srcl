@@ -155,7 +155,7 @@ let _ =
   ; "protect", (fun i -> PROTECT i)
   ; "sync", (fun i -> SYNC i)
   ; "test", (fun i -> TEST i)
-  ; "view", (fun i -> TREE i)
+  ; "view", (fun i -> VIEW i)
   ; "TRUE", (fun i -> TRUE i)
   ; "schema", (fun i -> SCHEMA i)
   ; "where", (fun i -> WHERE i)    
