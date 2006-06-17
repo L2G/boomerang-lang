@@ -29,7 +29,7 @@ module Relschema = struct
         else
           format_name_set s
         in
-      p src; Format.printf "->"; p trg
+      p src; Format.printf " -> "; p trg
 
     let names (xs, ys) = Name.Set.union xs ys
 

@@ -490,7 +490,6 @@ names:
 
 tuples:
   |                                           { [] }
-  | LPAREN names RPAREN                       { [ $2 ] }
   | LPAREN names RPAREN opt_comma tuples      { $2 :: $5 } 
 
 db_schema_contents: 
@@ -560,7 +559,7 @@ attribute_list:
 
 attribute_list_content: 
   |                                           { Name.Set.empty }
-  | IDENT                                     { Name.Set.singleton (Syntax.name_of_id $1) }
+  | IDENT                                     { Name.Set.singleton (Syntax.name_of_id $1) } 
   | IDENT COMMA attribute_list_content        { Name.Set.add (Syntax.name_of_id $1) $3 }
 
 

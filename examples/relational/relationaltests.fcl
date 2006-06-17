@@ -1,0 +1,47 @@
+module Relationaltests =
+
+let orig : view =
+  {{{
+    Albums (Album,           Quantity) = {
+           (Disintegration,  6       )
+           (Show,            3       )
+           (Galore,          1       )
+           (Paris,           4       )
+           (Wish,            5       )   }
+
+    Tracks (Track,    Date, Rating, Album) = {
+           (Lulluby,  1989, 3,      Galore)
+           (Lulluby,  1989, 3,      Show) 
+           (Lovesong, 1989, 5,      Galore)
+           (Lovesong, 1989, 5,      Paris)
+           (Trust,    1992, 4,      Wish)
+    }
+  }}} 
+
+let origschema : schema =
+  {{
+     Albums(Album, Quantity) with {Album -> Quantity}, 
+     Tracks(Track, Date, Rating, Album) with {Track -> (Date,Rating)}
+  }}
+
+let l1 : lens = 
+  Relational.join_dl "Tracks" with {Track -> (Date,Rating)}
+    "Albums" with {Album -> Quantity}
+      "Tracks1" 
+
+let view1 : view =
+  l1 / orig
+
+let l2 : lens =
+  Relational.drop "Tracks1" "Tracks2" "Date" {Track} "unknown"
+
+let l3 : lens =
+  Relational.select "Tracks2" with {Album -> Quantity} "Tracks3"
+    where (Quantity <> 0 /\ (Quantity <> 1 /\ Quantity <> 2))
+
+let view3 : view =
+  (l1;l2;l3) / orig
+
+test view3
+  = ?
+            

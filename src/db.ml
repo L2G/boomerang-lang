@@ -537,7 +537,7 @@ module Relation = struct
 
   let join r s =
     let iflds = Name.Set.inter r.flds s.flds in
-    let rflds = Name.Set.diff r.flds iflds in
+    (* let rflds = Name.Set.diff r.flds iflds in *)
     let newseq = list_union r.fldseq s.fldseq in
     let accum rcd =
       let p = Pred.of_record (Name.Map.project iflds rcd) in
@@ -559,9 +559,9 @@ let format_t db =
   Format.printf "@[<hv4>{{{ ";
   Name.Map.iter_with_sep
     (fun k rel -> 
-      Format.printf "@[<hv3>%s" k;
+      Format.printf "%s@[<v -1>" k;
       Relation.format_tuple (Relation.fields rel);
-      Format.printf " = ";
+      Format.printf " =@ ";
       Relation.format_t_data rel;
       Format.printf "@]")
     (fun() -> Format.printf ",@ ")

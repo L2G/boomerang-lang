@@ -24,6 +24,7 @@ clean:
      else
        $(RESULT): $(SRCDIR)/harmony
 	  if $(file-exists $@)
+	    echo rm -f $@
             rm -f $@
           ln -s $< $@
    clean:

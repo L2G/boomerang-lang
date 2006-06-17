@@ -50,6 +50,22 @@ FOCAL PROGRAMMING / DEMOS
 * move Thang's general concat into List module
 * change the structured text lens so that it adds dummy headers all the
   time [bcp]
+* Implement a "typeof" primitive that takes a lens and a source schema and
+  calculates the target schema
+
+FOCAL SYNTAX 
+* Perhaps we should make '-' an illegal character in (unquoted) identifiers
+  -- or perhaps just at the end of identifiers -- so that Album->Quantity
+  does not get mis-lexed!  (Or perhaps the lexer can recognize this special case?)
+* BCP: I am getting more and more annoyed with the way we write string
+  constants sometimes with quotes and sometimes without (and the
+  corresponding backquote syntax, etc.).  Makes me really start to wish for
+  a more uniform syntax -- e.g., where *all* variables everywhere would be
+  marked in some way, like $x or `x.  Then a bare identifier would be a
+  constant in all contexts.  The $ or ` notation would also serve for
+  anti-quotation of larger expressions, as in $(l foo) or `(l foo).
+* Add concrete syntax for "long strings" (for big unit tests), in the
+  style of bash/perl/etc:   <<<XXX ... XXX  
 
 UNISON INTEGRATION
 * make Unison permit missing archives (after confirming that it's OK).
@@ -60,11 +76,9 @@ UNISON INTEGRATION
   ==> Recheck and fix
 
 SMALL IMPROVEMENTS
-*** Add concrete syntax for "long strings" (for big unit tests), in the
-    style of bash/perl/etc:   <<<XXX ... XXX  
-*** some of the options (logfile, addprefsto) don't make sense for Harmony
-    and should be suppressed
 ** finish "omake install"
+* some of the options (logfile, addprefsto) don't make sense for Harmony
+  and should be suppressed
 * make native assert function take a string arg
 
 TIDYING
