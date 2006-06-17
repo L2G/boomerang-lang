@@ -21,17 +21,17 @@ let orig : view =
 let origschema : schema =
   {{
      Albums(Album, Quantity) with {Album -> Quantity}, 
-     Tracks(Track, Date, Rating, Album) with {Track -> (Date,Rating)}
+     Tracks(Track, Date, Rating, Album) with {Track -> Date, Track -> Rating}
   }}
 
 let targetschema : schema =
   {{
      Albums(Album, Quantity) with {Album -> Quantity}, 
-     Tracks(Track, Date, Rating, Album) with {Track -> (Date,Rating)}
+     Tracks(Track, Date, Rating, Album) with {Track -> Date, Track -> Rating}
   }}
 
 let l1 : lens = 
-  Relational.join_dl "Tracks" with {Track -> (Date,Rating)}
+  Relational.join_dl "Tracks" with {Track -> Date, Track -> Rating}
     "Albums" with {Album -> Quantity}
       "Tracks1" 
 
@@ -42,7 +42,7 @@ let l2 : lens =
   Relational.drop "Tracks1" "Tracks2" "Date" {Track} "unknown"
 
 let l3 : lens =
-  Relational.select "Tracks2" with {Album -> Quantity} "Tracks3"
+  Relational.select "Tracks2" with {Album -> Quantity, Track -> Rating} "Tracks3"
     where (Quantity <> "0" /\ (Quantity <> "1" /\ Quantity <> "2"))
 
 let l : lens = (l1;l2;l3)
