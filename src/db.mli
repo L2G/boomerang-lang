@@ -146,6 +146,7 @@ end
 type t
 
 val format_t : t -> unit
+val string_of_t : t -> string
 val equal : t -> t -> bool
 val empty : t
 val extend : Name.t -> Relation.t -> t -> t

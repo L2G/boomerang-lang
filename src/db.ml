@@ -568,6 +568,8 @@ let format_t db =
     db;
   Format.printf "@] }}}"
 
+let string_of_t db = Misc.format_to_string (fun () -> format_t db)
+
 let equal db1 db2 =
   Name.Set.equal (Name.Map.domain db1) (Name.Map.domain db2) &&
   Name.Set.for_all

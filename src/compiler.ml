@@ -122,6 +122,10 @@ module CEnv : CEnvSig = struct
     Registry.REnv.overwrite (get_ev cev) q rv
 end
 
+(* Export *)
+type cenv = CEnv.t
+let empty_cenv() = CEnv.empty()
+
 module SCEnv : SCEnvSig = struct
   type t = CEnv.t
   let empty = CEnv.empty        

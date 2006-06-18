@@ -4,6 +4,7 @@
 
 (* viewer for "meta" format, a simple concrete syntax for trees *)
 
+(* OLD -- NUKE
 let metareader s =
   let _ = Metal.setup "meta string" in
   let lexbuf = Lexing.from_string s in        
@@ -16,8 +17,23 @@ let metareader s =
                     (Info.string_of_t (Metal.info lexbuf)))) in
   Metal.finish();
   res
+*)
 
-let metawriter = Tree.string_of_t 
+let metareader s =
+  let _ = Lexer.setup "meta string" in
+  let lexbuf = Lexing.from_string s in        
+  let e = 
+    try 
+      (Parser.exp Lexer.main lexbuf) 
+    with Parsing.Parse_error -> 
+        raise (Error.Harmony_error
+                 (fun () -> Format.printf "%s: syntax error in meta file." 
+                    (Info.string_of_t (Lexer.info lexbuf)))) in
+  Lexer.finish();
+  let res = Compiler.compile_exp (Compiler.empty_cenv ()) e in
+  Value.get_v (Info.M "<meta string>") (Registry.value_of_rv res)
+
+let metawriter = V.string_of_t 
 
 let _ =
   let etest filename copt = Misc.filename_extension filename = "meta" in
@@ -39,8 +55,8 @@ let _ =
   let encoding = {
     Surveyor.description = "one-big-blob format";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = Surveyor.simple_reader (fun s -> Tree.new_value s);
-    Surveyor.writer = Surveyor.simple_writer (fun s -> Tree.get_value s);
+    Surveyor.reader = Surveyor.simple_tree_reader (fun s -> Tree.new_value s);
+    Surveyor.writer = Surveyor.simple_tree_writer (fun s -> Tree.get_value s);
   } in
   Surveyor.register_encoding "blob" encoding
 
@@ -276,8 +292,8 @@ let _ =
   let encoding = {
     Surveyor.description = "XML";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = Surveyor.simple_reader xmlreader;
-    Surveyor.writer = Surveyor.simple_writer xmlwriter;
+    Surveyor.reader = Surveyor.simple_tree_reader xmlreader;
+    Surveyor.writer = Surveyor.simple_tree_writer xmlwriter;
   }
   in
   Surveyor.register_encoding "xml" encoding

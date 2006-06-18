@@ -15,7 +15,7 @@ let _ =
         then Safelist.tl allbutfirst
         else allbutfirst in
       String.concat "\n" (goodheader :: body) in
-    Surveyor.simple_reader
+    Surveyor.simple_tree_reader
       (fun s -> 
         let (fn, ouch) = Filename.open_temp_file "harmony" ".csv" in
         output_string ouch (fixup_header s);

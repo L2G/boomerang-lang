@@ -15,6 +15,9 @@ val format_t : t -> unit
 (** The datum passed to [format] is formatted to a string and printed to the
     standard output. *)
 
+val string_of_t : t -> string
+(** [string_of_t v] returns the formatted string representing [v] without actually printing it. *)
+
 val equal : t -> t -> bool
 (** [equal v1 v2] is true if v1 and v2 are the same. *)
 

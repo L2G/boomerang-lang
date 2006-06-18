@@ -8,20 +8,32 @@ clean:
    OCAML_LIBS = $(SRCDIR)/harmony
    LOCALFCLFILES = $(glob *.fcl)
    GENERATED_FILES = 
+   EXTRAS = 
    if $(equal $(LOCALFCLFILES), *.fcl)
-     LOCALFCLFILES = 
-     export
+       LOCALFCLFILES = 
+       export
    if $(not $(equal $(LOCALFCLFILES)x, x))
        defaulttest: $(RESULT)
          ./$(RESULT) $(HARMONY_FLAGS) $(LOCALFCLFILES)
+   # Override definition of 'rule' function so that we can see what rules 
+   # get defined by the inner OMakefile
+   old-rule = $(rule)
+   NEWTARGETS[] =
+   rule(multiple, target, pattern, sources, options, body) =
+       NEWTARGETS[] += $(target)
+       old-rule($(multiple), $(target), $(pattern), $(sources), $(options), $(body))
+       export
+   # Load inner OMakefile
    if $(file-exists OMakefile)
-     include OMakefile
-     export
+       include OMakefile
+       export
+   rule = $(old-rule)
+   # Define some targets, in light of what it gave us
+   if $(not $(mem test, $(NEWTARGETS)))
+       test: defaulttest
+   if $(file-exists $(RESULT).ml)
+       OCamlProgram($(RESULT), $(rootname $(GENERATED_FILES)) $(EXTRAS) $(RESULT))
    else
-     test: defaulttest
-     if $(file-exists $(RESULT).ml)
-       OCamlProgram($(RESULT), $(RESULT))
-     else
        $(RESULT): $(SRCDIR)/harmony
 	  if $(file-exists $@)
 	    echo rm -f $@

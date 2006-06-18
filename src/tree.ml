@@ -334,17 +334,6 @@ let split p v =
 (* let same_root_sort v1 v2 = *)
 (*   Name.Set.equal (dom v1) (dom v2) *)
 
-let format_to_string f =
-  let out,flush = Format.get_formatter_output_functions () in
-  let buf = Buffer.create 64 in
-    Format.set_formatter_output_functions 
-      (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
-    f ();
-    Format.print_flush();
-    let s = Buffer.contents buf in
-      Format.set_formatter_output_functions out flush;
-      s
-
 let rec format_raw (VI m) =
   Name.Map.dump 
     (fun ks -> ks)
@@ -353,8 +342,7 @@ let rec format_raw (VI m) =
     (fun (VI m) -> Name.Map.is_empty m)
     m  
 
-let string_of_t v = 
-  format_to_string (fun () -> format_t v)
+let string_of_t v = Misc.format_to_string (fun () -> format_t v)
 
 let pathchange path m v =
   Format.printf "%s: %s@,"

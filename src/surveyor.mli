@@ -11,16 +11,22 @@ type content_desc =
   | FromFile of string
 
 type encoding = {
-  description: string;          (** "long" description *)
+  description: string;          (** long (human-readable) description *)
   encoding_test: encoding_test; (** id function *)
   reader: content_desc -> V.t;  (** reads data in the given encoding *)
   writer: V.t -> string -> unit;(** writes data to the specified file *)
 }
 
-val simple_reader : (string -> Tree.t) -> (content_desc -> V.t)
+val simple_reader : (string -> V.t) -> (content_desc -> V.t)
+(** Convert a string-to-V.t function to a reader. *)
+
+val simple_writer : (V.t -> string) -> V.t -> string -> unit
+(** Convert a V.t-to-string function to a writer. *)
+
+val simple_tree_reader : (string -> Tree.t) -> (content_desc -> V.t)
 (** Convert a string-to-tree function to a reader. *)
 
-val simple_writer : (Tree.t -> string) -> V.t -> string -> unit
+val simple_tree_writer : (Tree.t -> string) -> V.t -> string -> unit
 (** Convert a tree-to-string function to a writer. *)
 
 val register_encoding : encoding_key -> encoding -> unit

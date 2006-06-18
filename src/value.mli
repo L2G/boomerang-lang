@@ -40,8 +40,8 @@ val focal_type_error : Info.t -> Syntax.sort -> t -> 'a
 val get_schema : Info.t -> t -> Schema.t
 (** [get_schema i v] extracts the [s] from [v], converting it from [V.t] if needed. Prints an error message at [i] on failure. *)
 
-val get_view : Info.t -> t -> V.t
-(** [get_view i v] extracts the [V.t] from [v]. Prints an error message at [i] on failure. *)
+val get_v : Info.t -> t -> V.t
+(** [get_v i v] extracts the [V.t] from [v]. Prints an error message at [i] on failure. *)
 
 val get_tree : Info.t -> t -> Tree.t
 (** [get_tree i v] extracts the [Tree.t] from [v]. Prints an error message at [i] on failure. *)

@@ -1,5 +1,3 @@
-OCamlProgram($(RESULT), $(RESULT))
-
 .PHONY: temp temp2
 
 temp: $(RESULT)

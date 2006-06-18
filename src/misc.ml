@@ -167,6 +167,17 @@ let map2opt f xs ys =
 
 (* ------------- String/Char utilities --------------- *)
 
+let format_to_string f =
+  let out,flush = Format.get_formatter_output_functions () in
+  let buf = Buffer.create 64 in
+    Format.set_formatter_output_functions 
+      (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
+    f ();
+    Format.print_flush();
+    let s = Buffer.contents buf in
+      Format.set_formatter_output_functions out flush;
+      s
+
 (* Based on String.escape 
  *)
 let escape (escapeChar: char -> string) s =

@@ -12,6 +12,10 @@ let format_t = function
   | Tree t -> Tree.format_t t
   | Db d -> Db.format_t d
 
+let string_of_t = function
+  | Tree t -> Tree.string_of_t t
+  | Db d -> Db.string_of_t d
+
 let tree_of i = function
     Tree t -> t
   | Db db -> raise (Error.Harmony_error (fun() ->

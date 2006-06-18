@@ -124,7 +124,7 @@ let get_name i v =
       N n -> n 
     | _ -> focal_type_error i Syntax.SName v
 
-let get_view i v = 
+let get_v i v = 
   match v with 
       V v -> v 
     | _ -> focal_type_error i Syntax.SView v
@@ -170,7 +170,7 @@ let mk_nfun return_sort msg f =
   F (SName ^> return_sort, fun v -> f (get_name (Info.M msg) v))
 
 let mk_vfun return_sort msg f = 
-  F (SView ^> return_sort, fun v -> f (get_view (Info.M msg) v))
+  F (SView ^> return_sort, fun v -> f (get_v (Info.M msg) v))
 
 let mk_lfun return_sort msg f = 
   F (SLens ^> return_sort, fun v -> f (get_lens (Info.M msg) v))

@@ -55,6 +55,7 @@ FOCAL PROGRAMMING / DEMOS
 * Add a > predicate so that we can express the dblenses example more directly
 
 FOCAL SYNTAX 
+** Need to document all the recent additions (databases, etc.)
 * Perhaps we should make '-' an illegal character in (unquoted) identifiers
   -- or perhaps just at the end of identifiers -- so that Album->Quantity
   does not get mis-lexed!  (Or perhaps the lexer can recognize this special case?)
@@ -79,6 +80,7 @@ UNISON INTEGRATION
   ==> Recheck and fix
 
 SMALL IMPROVEMENTS
+** metay and metal should be dead code now -- delete
 ** finish "omake install"
 * some of the options (logfile, addprefsto) don't make sense for Harmony
   and should be suppressed

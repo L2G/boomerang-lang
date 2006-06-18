@@ -15,12 +15,19 @@ type encoding = {
   writer: V.t -> string -> unit;     (** writes data to the specified file *)
 }
 
-let simple_reader f c =
+let simple_tree_reader f c =
   match c with
     FromString s -> V.Tree (f s)
   | FromFile s -> V.Tree (f (Misc.read s))
 
-let simple_writer f v filename = Misc.write filename (f (V.tree_of (Info.M "simple_writer") v))
+let simple_tree_writer f v filename = Misc.write filename (f (V.tree_of (Info.M "simple_writer") v))
+
+let simple_reader f c =
+  match c with
+    FromString s -> f s
+  | FromFile s -> f (Misc.read s)
+
+let simple_writer f v filename = Misc.write filename (f v)
 
 (* An encoding-keyed map. *)
 module EncodingKey : Map.OrderedType with type t = encoding_key =

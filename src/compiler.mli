@@ -15,3 +15,8 @@ val init : unit -> unit
 
 (* This is exposed so that it can be set from the Toplevel *)
 val test_all : bool Prefs.t   
+
+(* This is exposed so that it can be used by the meta viewer *)
+type cenv
+val empty_cenv : unit -> cenv
+val compile_exp : cenv -> Syntax.exp -> Registry.rv
