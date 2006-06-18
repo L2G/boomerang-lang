@@ -164,11 +164,24 @@ module Relation = struct
       (* This function is written as a syntactic check here.  This is sound but
        * not complete.  A semantic check would be better. *)
 
+    (* FIXME: put more info in error message. *)
+    let assert_mem msg att rcd =
+      if not (Name.Set.mem att (Name.Map.domain rcd)) then
+        raise (Error.Harmony_error (fun () ->
+          Format.printf "%s:@ " msg;
+          Format.printf "%s is mentioned in the predicate@ " att;
+          Format.printf "but is not in the domain of the record."))
+
     let rec member rcd = function
       | True -> true
       | False -> false
-      | EqAttAtt (a, b) -> (Name.Map.find a rcd) = (Name.Map.find b rcd)
-      | EqAttVal (a, v) -> (Name.Map.find a rcd) = v
+      | EqAttAtt (a, b) ->
+          assert_mem "Db.Relation.Pred.member" a rcd;
+          assert_mem "Db.Relation.Pred.member" b rcd;
+          (Name.Map.find a rcd) = (Name.Map.find b rcd)
+      | EqAttVal (a, v) ->
+          assert_mem "Db.Relation.Pred.member" a rcd;
+          (Name.Map.find a rcd) = v
       | Not p -> not (member rcd p)
       | Conj (p, q) -> (member rcd p) && (member rcd q)
       | Disj (p, q) -> (member rcd p) || (member rcd q)
