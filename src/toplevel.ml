@@ -34,11 +34,24 @@ let read_tree fn =
   let (fn, ekeyo) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekeyo fn None in
   Misc.map_option (V.tree_of (Info.M "Toplevel.read_tree"))
-    (Surveyor.tree_of_file fn (Surveyor.get_reader ekey))
+    (Surveyor.v_of_file fn (Surveyor.get_reader ekey))
 
 let write_tree fn t = 
   debug (fun()-> Util.msg "Writing back %s\n" fn);
   let v = V.Tree t in
+  if fn="" then () else 
+  let (fn, ekey) = Surveyor.parse_filename fn in
+  let ekey = Surveyor.get_ekey ekey fn None in
+  (Surveyor.get_writer ekey) v fn  
+
+let read_view fn = 
+  if fn="" then None else 
+  let (fn, ekeyo) = Surveyor.parse_filename fn in
+  let ekey = Surveyor.get_ekey ekeyo fn None in
+  Surveyor.v_of_file fn (Surveyor.get_reader ekey)
+
+let write_view fn v = 
+  debug (fun()-> Util.msg "Writing back %s\n" fn);
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
@@ -76,53 +89,97 @@ let forcer1 = Prefs.createBool "forcer1" false "overwrite r2 and archive with r1
 (********)
 (* SYNC *)
 (********)
-let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
+let is_tree = function
+  | Some(V.Tree _) -> true
+  | _ -> false
+      
+let is_db = function
+  | Some(V.Db _) -> true
+  | _ -> false
+      
+let v_of_tree = Misc.map_option (fun t -> V.Tree t)
+let v_of_db = Misc.map_option (fun t -> V.Db t)
+let tree_of_v = Misc.map_option (fun v -> V.tree_of (Info.M "sync") v)
+let db_of_v = Misc.map_option (fun v -> V.db_of (Info.M "sync") v)
+
+type combined_action =
+  | SyncAct of Sync.action
+  | DbAct of bool * (unit->unit)
+      
+let has_conflict = function
+  | SyncAct act -> Sync.has_conflict act
+  | DbAct (b,f) -> b
+      
+let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn = 
   debug (fun() -> Util.msg "Synchronizing...\n");
-  let s = Schema.treeschema_of (Info.M "Toplevel.sync") (lookup_schema s) in 
+  let s = lookup_schema s in 
   debug (fun() -> Util.msg "Loading lenses...\n");
-  let lenso_v,_ = lookup_lens lenso in
-  let lensa_v,_ = lookup_lens lensa in 
-  let lensb_v,_ = lookup_lens lensb in         
-  let lenso = Lens.tree_of_v lenso_v in
-  let lensa = Lens.tree_of_v lensa_v in
-  let lensb = Lens.tree_of_v lensb_v in
+  let lenso,_ = lookup_lens lenso in
+  let lensa,_ = lookup_lens lensa in 
+  let lensb,_ = lookup_lens lensb in         
   let forcer1 = Prefs.read forcer1 in
   debug (fun() -> Util.msg "Loading files...\n");
   let (o, a, b, (act, oa', aa', ba')) =
     if forcer1 then begin
-      let a = read_tree a_fn in
+      let a = read_view a_fn in
       let aa = Misc.map_option (Lens.get lensa) a in
-      (a, a, a, (Sync.equal, aa, aa, aa))
+      (a, a, a, (SyncAct Sync.equal, aa, aa, aa))
     end
     else 
-      let a = read_tree a_fn in
-      let o = read_tree o_fn in
-      let b = read_tree b_fn in
-      debug (fun() -> Util.msg "Applying GET functions (a)...\n");
-      let aa = Misc.map_option (Lens.get lensa) a in
+      let a = read_view a_fn in
+      let o = read_view o_fn in
+      let b = read_view b_fn in
       debug (fun() -> Util.msg "Applying GET functions (o)...\n");
       let oa = Misc.map_option (Lens.get lenso) o in
+      debug (fun() -> Util.msg "Applying GET functions (a)...\n");
+      let aa = Misc.map_option (Lens.get lensa) a in
       debug (fun() -> Util.msg "Applying GET functions (b)...\n");
       let ba = Misc.map_option (Lens.get lensb) b in
-      debug (fun() -> Util.msg "Synchronizing abstract trees...\n");
-      (o, a, b, Sync.sync s (oa, aa, ba))
+      debug (fun() -> Util.msg "Synchronizing...\n");
+      let any_tree = is_tree oa || is_tree aa || is_tree ba in
+      let any_db = is_db oa || is_db aa || is_db ba in
+      if any_tree && any_db then
+        Error.simple_error "Cannot synchronize a mixture of trees and databases"
+      else if any_tree then
+        let (act,o',a',b') =
+          Sync.sync (Schema.treeschema_of (Info.M "sync") s)
+                    (tree_of_v oa, tree_of_v aa, tree_of_v ba) in
+        (o, a, b, (SyncAct act, v_of_tree o', v_of_tree a', v_of_tree b'))
+      else
+        (* A very simplistic stub DB synchronizer: *)
+        if a=b then
+          (o, a, b,
+           (DbAct (false, (fun()-> Format.printf "EQUAL")), a, a, b))
+        else if a=o then
+          (o, a, b,
+           (DbAct (false, (fun()-> Format.printf "Propagate changes from second replica to first")), b, b, b))
+        else if b=o then
+          (o, a, b,
+           (DbAct (false, (fun()-> Format.printf "Propagate changes from first replica to second")), a, a, a))
+        else 
+          (o, a, b,
+           (DbAct (true, (fun()-> Format.printf "Cannot (yet) synchronize databases when both have changed")), o, a, b))
     in
   let log_out s p n = Trace.log (String.sub s p n) in
   let log_flush () = () in
   debug (fun() -> Util.msg "Dumping actions...\n");
   Format.set_formatter_output_functions log_out log_flush;
-  Sync.format_action act;
+  begin match act with
+  | SyncAct a -> Sync.format_action a
+  | DbAct (b,a) -> a()
+  end;
   Format.print_newline();
+  (* FIX: We should now set the formatting functions BACK to what they were! *)
   debug (fun() -> Util.msg "Applying PUT functions...\n");
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
   debug (fun() -> Util.msg "Writing back results...\n");
   debug (fun() -> match o' with None -> Util.msg "o' = None\n" | _ -> ());
-  ignore (Misc.map_option (write_tree o'_fn) o');
-  ignore (Misc.map_option (write_tree a'_fn) a');
-  ignore (Misc.map_option (write_tree b'_fn) b');
-  if Sync.has_conflict act && Prefs.read signalconflicts then 1 else 0
+  ignore (Misc.map_option (write_view o'_fn) o');
+  ignore (Misc.map_option (write_view a'_fn) a');
+  ignore (Misc.map_option (write_view b'_fn) b');
+  if has_conflict act && Prefs.read signalconflicts then 1 else 0
 
 (**********************************************************************************)
 (* Infrastructure for custom top-level programs *)             

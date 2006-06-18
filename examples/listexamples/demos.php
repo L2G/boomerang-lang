@@ -6,6 +6,8 @@ $demo["forcer1"] = true;
 $demo["default_h"] = 200;
 $demo["schema"] = "List.T Value";
 $demo["r1format"] = $demo["r2format"] = "txt";
+$demo["r1_title"] = "Database";
+$demo["r1_title"] = "View";
 $demo["l1"] = $demo["l2"] = "List.lines";
 $demo["output_d"] = "block";
 

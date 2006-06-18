@@ -90,7 +90,7 @@ let get_ekey eko fn contents_opt =
           | []    -> raise (Error.Harmony_error (fun () -> Format.printf "No encoding for file '%s'" fn))
           | eks    -> raise (Error.Harmony_error (fun () -> Format.printf "More than one possible encoding for file '%s'" fn ))
 
-let tree_of_file fn reader = 
+let v_of_file fn reader = 
   if Sys.file_exists fn then
     Some (Util.convertUnixErrorsToFatal "Harmony" ( fun () -> reader (FromFile fn)))
   else
