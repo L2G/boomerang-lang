@@ -177,7 +177,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   debug (fun() -> Util.msg "to a...\n");
   let a' = Misc.map_option (fun a' -> 
-debug (fun() -> Format.printf "Putting\n");
+debug (fun() -> Format.printf "%!Putting\n");
 V.format_t a';
 debug (fun() -> Format.printf "\ninto\n");
 debug (fun() -> match a with None -> Util.msg "MISSING\n" | Some x -> V.format_t x);

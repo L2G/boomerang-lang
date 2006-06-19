@@ -186,7 +186,7 @@ let probe msg =
                Format.printf "@,@]";
                Format.print_flush ();
                a)} in
-    (lens,id_checker)
+    (lens, VWB (fun s -> s))
 
 let probe_lib = mk_nfun (SLens) probe_qid 
   (fun n -> 
