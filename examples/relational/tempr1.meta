@@ -1,0 +1,12 @@
+{{{ Albums(Album, Quantity) =
+         {(Disintegration, 6),
+          (Galore, 1),
+          (Paris, 4),
+          (Show, 3),
+          (Wish, 5)},
+    Tracks(Track, Date, Rating, Album) =
+         {(Lovesong, 1989, 5, Galore),
+          (Lovesong, 1989, 5, Paris),
+          (Lulluby, 1989, 3, Galore),
+          (Lulluby, 1989, 3, Show),
+          (Trust, 1992, 4, Wish)} }}}

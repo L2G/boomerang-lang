@@ -20,34 +20,40 @@ data.  This site is a live demo of some of Harmony's features.
 
 <ul> 
 
-<li>If you are new to Harmony, press the "Next" button above, 
+<li>If you are <b>new to Harmony</b>, press the "Next" button above, 
 <img height="18" width="18" src="images/icons/next.png" alt="Next button"/>, 
 for a quick introduction to this demo interface and a brief tour of Harmony's 
 basic architecture.
 
 <li> If you're already familiar with the basic ideas of Harmony and
-want to experiment with some more sophisticated demos, choose one of the 
+want to experiment with some <b>more sophisticated demos</b>, choose one of the 
 "Tutorial" demos from the pull-down menu above.  (Some additional demos are 
 available under "Expert" demos. Documentation for these is minimal, but you 
-are welcome to play with them.)
+may enjoy playing with them.)
 
 <li>If you are familiar with our paper, <i>Combinators for
 Bi-Directional Tree Transformations: A Linguistic Approach to the View
 Update Problem</i> (POPL 2005, available <a
 href="../#Focal2005">here</a>),
-and want to play with lenses, choose "Lens Programming" for a short tutorial.
+and want to <b>play with lenses</b>, choose "Lens Programming" for a short tutorial.
 
 <li>If you are familiar with our paper, <i>Exploiting Schemas in Data
 Synchronization</i> (DBPL 2005, available <a
 href="../#SYNC2005">here</a>),
-and want to see some interesting examples of the use of schemas to
+and want to see some interesting examples of the <b>use of schemas</b> to
 guide the synchronization process, the address book and structured
 text demos are particularly recommended.
+
+<li> Our recent work on <b>lenses for relational databases</b>, described in 
+our paper <i>Relational Lenses: A language for defining 
+                  updateable views</i> (PODS 2006, available <a
+href="../#BohannonPierceVaughan">here</a>), is illustrated in the 
+tutorial section on "Relational Lenses." 
 </ul>
 </p>
 
-<div>(These demos require a browser with full support for JavaScript
-and CSS. Internet Explorer is not recommended.)  </div>
+<div>These demos require a browser with full support for JavaScript
+and CSS.  (Internet Explorer, in particular, is known not to work.)  </div>
 
 XXX;
 savedemo();

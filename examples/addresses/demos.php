@@ -1,6 +1,6 @@
 <?
 $demogroupname = "Address books";
-$demo["democmd"] = "../../src/harmony";
+$demo["democmd"] = "./harmonize-addresses";
 $demo["forcer1"] = true;
 $demo["default_h"] = 300;
 $demo["schema"] = "Addr.AddrBook";

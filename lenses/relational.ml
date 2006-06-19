@@ -80,7 +80,7 @@ let unchecked q =
 let error_on_missing (put : 'a -> 'b -> 'b) (a : 'a) (co : 'b option) : 'b =
   match co with
   | None ->
-      raise (Lens.error [`String "relatioinal lenses cannot be applied to
+      raise (Lens.error [`String "relational lenses cannot be applied to
         \"missing\""])
   | Some c -> put a c
 

@@ -12,7 +12,7 @@ $home = getcwd();
 ############################
 # Configuration parameters #
 ############################
-#$enabledebug = TRUE;
+$enabledebug = TRUE;
 $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
@@ -80,10 +80,10 @@ get_demos_from("addresses");
 get_demos_from("listexamples");
 get_demos_from("structuredtext");
 get_demos_from("lenses");
+get_demos_from("relational");
 $alldemos[] = array("header" => "Expert");
 get_demos_from("bookmarks");
 get_demos_from("calendars");
-get_demos_from("relational");
 #get_demos_from("xmi");
 get_demos_from("rawsync");
 get_demos_from("talkdemos");

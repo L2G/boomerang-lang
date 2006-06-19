@@ -1,0 +1,23 @@
+module Templenses =
+let l1 : lens = 
+probe "hello";
+Relational.join_dl "Tracks" with {Track -> Date, Track -> Rating}
+  "Albums" with {Album -> Quantity}
+    "Tracks1" ;
+probe "h1"
+;
+Relational.drop "Tracks1" "Tracks2" "Date" {Track} "unknown date";
+probe "h2"
+;
+Relational.select "Tracks2" with {Album -> Quantity, Track -> Rating} "Tracks3"
+  where (Quantity <> "0" /\ (Quantity <> "1" /\ Quantity <> "2"));
+probe "goodbye"
+
+let l2 : lens = 
+id
+
+let la : lens = 
+Prelude.id
+
+schema S = 
+List.T Value

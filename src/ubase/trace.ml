@@ -31,17 +31,19 @@ let runningasserver = ref false
 let debugging() = (Prefs.read debugmods) <> []
 
 let enabled modname =
-  let modnamebase,plus =
-    if Util.endswith modname "+" then (Util.replacesubstring modname "+" "", true)
-    else (modname, false) in
   let m = Prefs.read debugmods in
-  m <> [] && (   (modname = "")
-              || (Safelist.mem "verbose" m)
-              || (Safelist.mem "all+" m)
-              || (Safelist.mem "all+" m)
-              || (Safelist.mem "all" m && not plus)
-              || (Safelist.mem modname m)
-              || (Safelist.mem modnamebase m && not plus)
+  m <> [] && (   (* tracing labeled "" is always enabled *)
+                 (modname = "")
+              || (* '-debug verbose' enables everything *)
+                 (Safelist.mem "verbose" m)
+              || (* '-debug all+' likewise *)
+                 (Safelist.mem "all+" m)
+              || (* '-debug all' enables all tracing not marked + *)
+                 (Safelist.mem "all" m && not (Util.endswith modname "+"))
+              || (* '-debug m' enables m and '-debug m+' enables m+ *)
+                 (Safelist.mem modname m)
+              || (* '-debug m+' also enables m *)
+                 (Safelist.mem (modname ^ "+") m)
              )
 
 let enable modname onoff =

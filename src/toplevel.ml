@@ -72,14 +72,13 @@ let check m =
 (* GET *)
 (*******)
 let get lens c_fn o_fn = 
-  let cvo = read_tree c_fn in
-  let lens_v,_ = lookup_lens lens in
-  let lens = Lens.tree_of_v lens_v in
+  let cvo = read_view c_fn in
+  let lens,_ = lookup_lens lens in
   let av = match cvo with
     | Some cv -> Lens.get lens cv
     | None -> Error.simple_error (Printf.sprintf "Concrete view file %s is missing." c_fn) 
   in
-    write_tree o_fn av
+    write_view o_fn av
 
 let signalconflicts = Prefs.createBool "signalconflicts" true "exit with status 1 (instead of 0) on conflicts" ""
 
@@ -141,38 +140,50 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       if any_tree && any_db then
         Error.simple_error "Cannot synchronize a mixture of trees and databases"
       else if any_tree then
-        let (act,o',a',b') =
+        let (act,oa',aa',ba') =
           Sync.sync (Schema.treeschema_of (Info.M "sync") s)
                     (tree_of_v oa, tree_of_v aa, tree_of_v ba) in
-        (o, a, b, (SyncAct act, v_of_tree o', v_of_tree a', v_of_tree b'))
+        (o, a, b, (SyncAct act, v_of_tree oa', v_of_tree aa', v_of_tree ba'))
       else
         (* A very simplistic stub DB synchronizer: *)
-        if a=b then
+        let eq xo yo = match xo,yo with Some x, Some y -> V.equal x y | _ -> false in
+        if eq aa ba then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "EQUAL")), a, a, b))
-        else if a=o then
+           (DbAct (false, (fun()-> Format.printf "EQUAL")), aa, aa, aa))
+        else if eq aa oa then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "Propagate changes from second replica to first")), b, b, b))
-        else if b=o then
+           (DbAct (false, (fun()-> Format.printf "Propagate changes from second replica to first")), ba, ba, ba))
+        else if eq ba oa then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "Propagate changes from first replica to second")), a, a, a))
+           (DbAct (false, (fun()-> Format.printf "Propagate changes from first replica to second")), aa, aa, aa))
         else 
           (o, a, b,
-           (DbAct (true, (fun()-> Format.printf "Cannot (yet) synchronize databases when both have changed")), o, a, b))
+           (DbAct (true, (fun()-> Format.printf "Cannot (yet) synchronize databases when both have changed")), oa, aa, ba))
     in
   let log_out s p n = Trace.log (String.sub s p n) in
   let log_flush () = () in
   debug (fun() -> Util.msg "Dumping actions...\n");
+  Format.print_flush();
+  let out,flush = Format.get_formatter_output_functions () in
   Format.set_formatter_output_functions log_out log_flush;
   begin match act with
   | SyncAct a -> Sync.format_action a
   | DbAct (b,a) -> a()
   end;
-  Format.print_newline();
-  (* FIX: We should now set the formatting functions BACK to what they were! *)
+  Format.print_flush();
+  Format.set_formatter_output_functions out flush;
   debug (fun() -> Util.msg "Applying PUT functions...\n");
+  debug (fun() -> Util.msg "to o...\n");
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
-  let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
+  debug (fun() -> Util.msg "to a...\n");
+  let a' = Misc.map_option (fun a' -> 
+debug (fun() -> Format.printf "Putting\n");
+V.format_t a';
+debug (fun() -> Format.printf "\ninto\n");
+debug (fun() -> match a with None -> Util.msg "MISSING\n" | Some x -> V.format_t x);
+            Lens.put lensa a' a) aa' in
+Format.print_flush();
+  debug (fun() -> Util.msg "to b...\n");
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
   debug (fun() -> Util.msg "Writing back results...\n");
   debug (fun() -> match o' with None -> Util.msg "o' = None\n" | _ -> ());
