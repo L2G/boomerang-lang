@@ -1,6 +1,6 @@
-(* $I1: Unison file synchronizer: src/ubase/trace.mli $ *)
-(* $I2: Last modified by bcpierce on Mon, 15 Sep 2003 11:46:03 -0400 $ *)
-(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
+(* Unison file synchronizer: src/ubase/trace.mli *)
+(* $Id$ *)
+(* Copyright 1999-2006 (see COPYING for details) *)
 
 (* ---------------------------------------------------------------------- *)
 (* Debugging support *)
@@ -26,6 +26,10 @@ val enable : string -> bool -> unit
 (* When running in server mode, we use this ref to know to indicate this in
    debugging messages *)
 val runningasserver : bool ref
+
+(* Tell the Trace module which local stream to use for tracing and
+   debugging messages *)
+val redirect : [`Stdout | `Stderr | `FormatStdout] -> unit 
 
 (* ---------------------------------------------------------------------- *)
 (* Tracing *)
@@ -60,7 +64,6 @@ val messageForwarder : (msg -> unit) option ref
 (* Allow outside access to the logging preference, so that the main program
    can turn it off by default *)
 val logging : bool Prefs.t
-
 
 (* ---------------------------------------------------------------------- *)
 (* Messages *)

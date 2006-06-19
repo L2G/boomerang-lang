@@ -1,13 +1,17 @@
 open Error 
 
-(* A hack, to turn off logging by default (what is the right way to do this? *)
-let _ = Prefs.set Trace.logging false
-
 let _ = 
   (* initialize required but not directly referenced modules *)
   Compiler.init();
   Viewers.init();
   Prelude.init()
+
+(* A hack, to turn off logging by default (what is the right way to do this? *)
+let _ = Prefs.set Trace.logging false
+
+(* Tell the Trace module that all tracing and debugging output should go to
+   the standard formatting stream. *)
+let _ = Trace.redirect `FormatStdout
 
 let debug = Trace.debug "toplevel"
 
@@ -176,13 +180,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   debug (fun() -> Util.msg "to o...\n");
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
   debug (fun() -> Util.msg "to a...\n");
-  let a' = Misc.map_option (fun a' -> 
-debug (fun() -> Format.printf "%!Putting\n");
-V.format_t a';
-debug (fun() -> Format.printf "\ninto\n");
-debug (fun() -> match a with None -> Util.msg "MISSING\n" | Some x -> V.format_t x);
-            Lens.put lensa a' a) aa' in
-Format.print_flush();
+  let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
   debug (fun() -> Util.msg "to b...\n");
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
   debug (fun() -> Util.msg "Writing back results...\n");

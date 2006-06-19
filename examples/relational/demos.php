@@ -15,7 +15,7 @@ $demo["l2_d"] = false;
 $demo["l2_title"] = "(This should not be visible)";
 $demo["r1_shows"] = true;
 $demo["l2"] = "id";
-$demo["output_d"] = "block";
+$demo["output_d"] = false;
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX

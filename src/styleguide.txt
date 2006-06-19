@@ -1,0 +1,61 @@
+STYLE GUIDELINES FOR HARMONY CODEBASE
+=====================================
+
+PRINTING
+
+  - ALL output goes to stdout via a formatting stream (e.g., Format.printf).
+    Nothing goes directly to stdout (e.g., Printf.printf).  Nothing goes to
+    stderr, except very special things like usage messages which are going
+    to be followed by an exit.
+
+  - Util.msg (from ubase) sends things to stderr, so it should not be used
+
+  - Format.print_newline and Format.print_flush both close all open boxes;
+    they should *never* be called by Harmony (except at the very end at the
+    top level, just before exiting).  Ditto Format.printf "... \n ..."
+    (we're not actually sure what this does, but it doesn't seem to play
+    nice).
+
+    Format.force_newline and Format.printf "... @\n ..." are OK.
+
+
+================================================================================
+
+SOME NOTES ON HOW PRINTING WORKS IN HARMONY
+
+There are lots of different primitives for displaying stuff:
+
+  - Format.printf
+
+      Used all over the place, both in regular printing and in debugging code
+
+  - Printf.printf (and similar stuff involving stdout)
+
+      Not used, except for Misc.write in case its argument is "-" (which
+      seems OK)
+
+  - Printf.eprintf (and similar stuff involving stderr) and Util.msg, which
+    prints to stderr using Uprintf module.
+
+      Printf.eprintf is used by the Uargs module for dumping usage
+      information, just before exiting.  This is probably OK.
+
+      Also used in a couple of places (e.g., Registry) for fatal errors
+      during startup indicating bugs.  Probably OK.
+
+      Used (e.g., by Registry and Compiler) inside of 'debug' calls.
+
+      diff3.print_list, which is called by debugging stuff
+
+  - Format.eprintf
+
+      used in Toplevel
+
+  - Trace.log
+
+      Used in one place (in Toplevel); dumps messages both to stderr and to
+      a log file
+
+  - Trace.debug
+
+      Currently prints [modname] to stderr -- needs to be fixed.

@@ -1,6 +1,6 @@
-(* $I1: Unison file synchronizer: src/ubase/trace.ml $ *)
-(* $I2: Last modified by bcpierce on Mon, 15 Sep 2003 11:46:03 -0400 $ *)
-(* $I3: Copyright 1999-2004 (see COPYING for details) $ *)
+(* Unison file synchronizer: src/ubase/trace.ml *)
+(* $Id$ *)
+(* Copyright 1999-2006 (see COPYING for details) *)
 
 (* ---------------------------------------------------------------------- *)
 (* Debugging messages *)
@@ -51,6 +51,12 @@ let enable modname onoff =
   let m' = if onoff then (modname::m) else (Safelist.remove modname m) in
   Prefs.set debugmods m'
 
+type trace_printer_choices = [`Stdout | `Stderr | `FormatStdout]
+
+let traceprinter = ref (`Stdout : trace_printer_choices)
+
+let redirect x = (traceprinter := x)
+
 let debug modname thunk =
   if enabled modname then begin
     let s = if !runningasserver then "server: " else "" in
@@ -62,7 +68,10 @@ let debug modname thunk =
       else "" in
     if time<>"" || s<>"" || modname<>"" then begin
       let time = if time="" || (s=""&&modname="") then time else time^": " in
-      Printf.eprintf "[%s%s%s] " time s modname
+      match !traceprinter with
+      | `Stdout -> Printf.printf "[%s%s%s] " time s modname
+      | `Stderr -> Printf.eprintf "[%s%s%s] " time s modname
+      | `FormatStdout -> Format.printf "[%s%s%s] " time s modname
       end;
     thunk();
     flush stderr

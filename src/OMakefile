@@ -12,6 +12,16 @@ OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 .DEFAULT: $(RESULTS)
 
 ##############################################################################
+# Ubase library
+
+# Make sure that the contents of the ubase library are copied from 
+# the ubase sources in the Unison distribution.  
+if $(equal $(USER), bcpierce) 
+  foreach (f, $(glob ubase/*.ml ubase/*.mli ubase/Makefile))
+    $(f): $(HOME)/current/unison/trunk/src/$(f)
+      cp $< $@
+
+##############################################################################
 # Helper tools
 
 baker: baker.ml

@@ -18,7 +18,7 @@ $home = getcwd();
 ############################
 # Configuration parameters #
 ############################
-$enabledebug = TRUE;
+# $enabledebug = TRUE;
 $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
