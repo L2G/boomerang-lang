@@ -576,5 +576,5 @@ let lastmod_lens : lens =
   fmodify "hour" "date +%H"; fmodify "minute" "date +%M"; fmodify "second" "date +%S"
     
 let l_stamps : lens =
-  icalendar_lens (mapn "dtstamp" dtstamp_lens);
-  map (map lastmod_lens)
+    icalendar_lens (mapn "dtstamp" dtstamp_lens);
+    map (map lastmod_lens)

@@ -20,7 +20,7 @@ let metareader s =
 *)
 
 let metareader s =
-  let _ = Lexer.setup "meta string" in
+  let _ = Lexer.setup "<meta string>" in
   let lexbuf = Lexing.from_string s in        
   let e = 
     try 

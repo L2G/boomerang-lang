@@ -24,12 +24,15 @@ schema SafAbstract = List.T Item
 (* --------------- lenses --------------- *)    
 (* recursively applies item to all children, and    *)
 (* puts the data under a link, folder, or proxy key *)
-let children : lens =   
-  List.map (protect item; 
-            pivot "WebBookmarkType";
-            rename_if_present "WebBookmarkTypeLeaf" "link";
-            rename_if_present "WebBookmarkTypeList" "folder";
-            rename_if_present "WebBookmarkTypeProxy" "proxy")
+let children : lens = 
+  wmap { "array" -> 
+           List.map 
+             (protect item; 
+              pivot "WebBookmarkType";
+              rename_if_present "WebBookmarkTypeLeaf" "link";
+              rename_if_present "WebBookmarkTypeList" "folder";
+              rename_if_present "WebBookmarkTypeProxy" "proxy")};
+  hoist "array"
     
 and item : lens = 
   hoist "dict";
@@ -42,10 +45,15 @@ and item : lens =
     id;
 
   (* hoist values and recursively applies children or item if needed *)
-  mapn "Children" (protect children);
-  mapn "URIDictionary" (protect item);
-  mapp {"URLString", "WebBookmarkType",
-        "title", "Title", "BLANK" } (hoist "string")
+  wmap { 
+    "Children" -> protect children,
+    "URIDictionary" -> protect item,
+    "URLString" -> hoist "string",
+    "WebBookmarkType" -> hoist "string",
+    "title" -> hoist "string",
+    "Title" -> hoist "string",
+    "BLANK" -> hoist "string"
+  }
     
 (* l is for homogeneous synchronization of safari bookmarks *)
 let l : lens =
@@ -65,24 +73,24 @@ let l : lens =
 let tidy : lens =  
   let tidy_folder : lens = 
     rename "Children" "contents"; 
-    mapn "contents" (protect tidy);
+    wmap {"contents" -> protect tidy }; 
     rename "Title" "name"; 
     filter {"name", "contents"} {} in  
   let tidy_link : lens =
     rename "URLString" "url";
-    mapn "URIDictionary" (rename "title" "name"; filter {"BLANK", "name"} {});
+    wmap  { "URIDictionary" -> (rename "title" "name"; filter {"BLANK", "name"} {})};
     hoist_nonunique "URIDictionary" {"name", "BLANK"};
     merge "url" "BLANK";
     filter {"name", "url"} {} in
   
   let skip_proxies : lens =
     ccond ({"proxy"=Any}::Any) 
-      (mapn List.TL (protect skip_proxies); List.tl {"proxy"={}})
-      (mapn List.TL (protect skip_proxies))
+      (wmap { `List.TL -> protect skip_proxies }; List.tl {"proxy"={}})
+      (wmap { `List.TL -> protect skip_proxies})
   in
     skip_proxies;
-    List.map (mapn "folder" tidy_folder;
-              mapn "link" tidy_link;
+    List.map (wmap { "folder" -> protect tidy_folder, 
+                     "link" -> tidy_link};
               acond { "link" = Any } { "link" = Any }
                 id
                 (hoist "folder"))
@@ -100,5 +108,3 @@ let l2 : lens = l; tidy;
 
 (* l3 uses the unordered schema Bookmarks.BushAbstract *)
 let l3 : lens = l2; Bookmarks.flatten_bookmarks
-
-

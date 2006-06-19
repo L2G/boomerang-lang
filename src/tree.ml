@@ -127,7 +127,7 @@ let rec format_kids m format_rec =
 and format_t_pretty v =
   let rec format_aux ((VI m) as v) inner = 
     let format_list_member kid =
-      if is_value kid then Format.printf "%s" (format_str (get_value kid))
+      if is_value kid then Format.printf "{%s}" (format_str (get_value kid))
       else format_aux kid true in
     if is_list v then begin
       let rec loop = function

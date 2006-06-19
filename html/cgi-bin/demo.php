@@ -395,6 +395,11 @@ function run_demo($demogroup, $demonumber) {
 
   #SKIP HTML generation in testing mode
   if($test) { 
+    put_file("${demogroup}-${demonumber}-ar", $ar);
+    put_file("${demogroup}-${demonumber}-r1", $r1);
+    put_file("${demogroup}-${demonumber}-r2", $r2);
+    put_file("${demogroup}-${demonumber}-a1", $a1);
+    put_file("${demogroup}-${demonumber}-a2", $a2);
     echo "Web demo {$demogroup}-{$demonumber}\t[   OK   ]\n";
     return; 
   }
