@@ -7,6 +7,12 @@
 ################################################################
 # $Id$
 
+$test = false;
+if(!empty($argv)) {
+  foreach($argv as $argi) { 
+    if ("-test" == $argi) { $test = true; }
+  }
+}
 $home = getcwd();
 
 ############################
@@ -44,7 +50,6 @@ $min_width = 100;
 $min_height = 75;
 
 $reset = false;
-$error = false;
 $body_background = "#eeeeee";
 $surtitle_text = "&nbsp;";
 
@@ -108,474 +113,471 @@ if ($submitter == "sync") {
   $reset = true;
 } else if ($submitter == "next") {
   $reset = true;
-  if (!empty($alldemos[$demogroup][$demonumber+1])) {
-    $demonumber = $demonumber+1;
-  } else {
-    reset($alldemos);
-    while (current($alldemos) and key($alldemos) !== $demogroup) {
-      next($alldemos);
-    }
-    next($alldemos);
-    $temp = current($alldemos); $temp2 = $temp["header"];
-    while (!empty($temp2)) { $temp = next($alldemos); $temp2 = $temp["header"]; }
-    if (current($alldemos)) {
-      $demogroup = key($alldemos);
-      $demonumber = 1;
-    } else {
-      $shownextparterror = "<br><b>No more demos</b>";
-    }
-  }
+  next_demo();
 } else if ($submitter == "prev") {
   $reset = true;
   if (!empty($alldemos[$demogroup][$demonumber-1])) {
     $demonumber--;
   } else {
-    $shownextparterror = "<br><b>No Previous demos</b>";
+    $no_next_demo = "<br><b>No Previous demos</b>";
   }
 } else if ($submitter == "expert") {
   #toggle expert mode
   $expert = $expert ? false : true;
 }
 
-chdir($demogroup);
+#######################
+# RUN DEMO OR TEST
+######################
+if($test) {
+  $demogroup = $defaultdemogroup;
+  $demonumber = 1;
+  while(empty($no_next_demo)) {
+    chdir($home);
+    chdir("examples");
+    run_demo($demogroup, $demonumber);
+    next_demo();
+  }
+ } else {
+  run_demo($demogroup, $demonumber);
+ }
 
-##################
-# Read Demo Data #
-##################
+function run_demo($demogroup, $demonumber) {
+  global $home,$alldemos, $test,
+    $text_height_diff,$icon_width,$min_width,$min_height,$body_background,$surtitle_text,
+    $r1, $r2, $l1, $l2, $ar, $schema, $expert, $reset;
 
-function demoparam($n) {
-  global $demogroup, $demonumber, $alldemos;
-  return $alldemos[$demogroup][$demonumber][$n];
-}
+  chdir($demogroup);
+  $error = false;
 
-$instr = demoparam("instr");
-$splash = demoparam("splash");
-$r1format = demoparam("r1format");
-$r2format = demoparam("r2format");
-$arformat = demoparam("arformat");
-$la = demoparam("la");
-$flags = demoparam("flags");
-$democmd = demoparam("democmd");
+  if($test) { $reset = true; }
 
-$d_forcer1 = demoparam("forcer1");
-$d_r1 = demoparam("r1");
-$d_r2 = demoparam("r2");
-$d_ar = demoparam("ar");
-$d_l1 = demoparam("l1");
-$d_l2 = demoparam("l2");
-$d_la = demoparam("la");
-$d_schema = demoparam("schema");
-$d_default_w = demoparam("default_w");
-$d_default_wide_w = demoparam("default_wide_w");
-$d_default_h = demoparam("default_h");
+  ##################
+  # Read Demo Data #
+  ##################
+  $instr = demoparam("instr");
+  $splash = demoparam("splash");
+  $r1format = demoparam("r1format");
+  $r2format = demoparam("r2format");
+  $arformat = demoparam("arformat");
+  $la = demoparam("la");
+  $flags = demoparam("flags");
+  $democmd = demoparam("democmd");
+  
+  $d_forcer1 = demoparam("forcer1");
+  $d_r1 = demoparam("r1");
+  $d_r2 = demoparam("r2");
+  $d_ar = demoparam("ar");
+  $d_l1 = demoparam("l1");
+  $d_l2 = demoparam("l2");
+  $d_la = demoparam("la");
+  $d_schema = demoparam("schema");
+  $d_default_w = demoparam("default_w");
+  $d_default_wide_w = demoparam("default_wide_w");
+  $d_default_h = demoparam("default_h");
 
-#####################
-# Set Up Parameters #
-#####################
+  #####################
+  # Set Up Parameters #
+  #####################
 
-$default_w = $d_default_w ? $d_default_w : 450;
-$default_wide_w = $d_default_wide_w ? $d_default_wide_w : ($default_w * 2 + 10);
-$default_h = $d_default_h ? $d_default_h : 175;
-
-$elements = 
-  array("instr"  => array("title" => "Instructions", 
-                          "w" => $default_wide_w, "d" => "block", "text" => false),
-        "r1"     => array("title" => "Replica #1",   
-                          "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
-        "r2"     => array("title" => "Replica #2",   
-                          "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
-        "l1"     => array("title" => "Lens #1",      
-                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
-        "l2"     => array("title" => "Lens #2",      
-                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
-        "a1"     => array("title" => "Abstract #1",  
-                           "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
-        "a2"     => array("title" => "Abstract #2",  
-                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
-        "ar"     => array("title" => "Archive",      
-                          "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true,),
-        "schema" => array("title" => "Schema",       
-                           "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false,),
-        "output" => array("title" => "Output",       
-                          "h" => $default_h, "w" => $default_wide_w, "d" => "none", "text" => true,  "ro" => true,)
-      );
-
-$expert_icon = $expert ? "expertoff" : "experton";
-$expert_desc = $expert ? "Turn Expert Mode Off" : "Turn Expert Mode On";
+  $default_w = $d_default_w ? $d_default_w : 450;
+  $default_wide_w = $d_default_wide_w ? $d_default_wide_w : ($default_w * 2 + 10);
+  $default_h = $d_default_h ? $d_default_h : 175;
+  
+  $elements = 
+    array("instr"  => array("title" => "Instructions", 
+                            "w" => $default_wide_w, "d" => "block", "text" => false),
+          "r1"     => array("title" => "Replica #1",   
+                            "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
+          "r2"     => array("title" => "Replica #2",   
+                            "h" => $default_h, "w" => $default_w, "d" => "block", "text" => true, "ro" => false),
+          "l1"     => array("title" => "Lens #1",      
+                            "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
+          "l2"     => array("title" => "Lens #2",      
+                            "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false),
+          "a1"     => array("title" => "Abstract #1",  
+                            "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
+          "a2"     => array("title" => "Abstract #2",  
+                            "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true),
+          "ar"     => array("title" => "Archive",      
+                            "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => true,),
+          "schema" => array("title" => "Schema",       
+                            "h" => $default_h, "w" => $default_w, "d" => "none", "text" => true,  "ro" => false,),
+          "output" => array("title" => "Output",       
+                            "h" => $default_h, "w" => $default_wide_w, "d" => "none", "text" => true,  "ro" => true,)
+          );
+  
+  $expert_icon = $expert ? "expertoff" : "experton";
+  $expert_desc = $expert ? "Turn Expert Mode Off" : "Turn Expert Mode On";
              
-$icons = 
-  array("error"    => array("desc" => "Error", "dummy" => true),
-        $expert_icon => array("desc" => $expert_desc,   
-                              "key" => "e"),
-        "clear"    => array("desc" => "&nbsp;", "dummy" => true),
-        "sync"     => array("desc" => "Synchronize Replicas",    
-                            "key" => "s"),
-        "reset"    => array("desc" => "Reset Demo",                   
-                            "key" => "r"),
-        "prev"     => array("desc" => "Previous Demo",                                    
-                            "key" => "p"),
-        "next"     => array("desc" => "Next Demo",  
-                            "key" => "n"),
-        "instr"    => array("desc" => "Show Instructions",   "shows" => array("instr"),    
-                            "key" => "i"),
-        "replica"  => array("desc" => "Show Replicas",       "shows" => array("r1", "r2"),
-                            "key" => "c"),
-        "abstract" => array("desc" => "Show Abstract Trees", "shows" => array("a1", "a2"), 
-                            "key" => "a"),  
-        "schema"   => array("desc" => "Show Schema",         "shows" => array("schema"),
-                            "key" => "t"),
-        "archive"  => array("desc" => "Show Archive",        "shows" => array("ar"), 
-                            "key" => "x"),
-        "lens"     => array("desc" => "Show Lenses",         "shows" => array("l1","l2"), 
-                            "key" => "l"),
-        "output"   => array("desc" => "Show Harmony Output", "shows" => array("output"), 
-                            "key" => "o")
-      );
+  $icons = 
+    array("error"    => array("desc" => "Error", "dummy" => true),
+          $expert_icon => array("desc" => $expert_desc,   
+                                "key" => "e"),
+          "clear"    => array("desc" => "&nbsp;", "dummy" => true),
+          "sync"     => array("desc" => "Synchronize Replicas",    
+                              "key" => "s"),
+          "reset"    => array("desc" => "Reset Demo",                   
+                              "key" => "r"),
+          "prev"     => array("desc" => "Previous Demo",                                    
+                              "key" => "p"),
+          "next"     => array("desc" => "Next Demo",  
+                              "key" => "n"),
+          "instr"    => array("desc" => "Show Instructions",   "shows" => array("instr"),    
+                              "key" => "i"),
+          "replica"  => array("desc" => "Show Replicas",       "shows" => array("r1", "r2"),
+                              "key" => "c"),
+          "abstract" => array("desc" => "Show Abstract Trees", "shows" => array("a1", "a2"), 
+                              "key" => "a"),  
+          "schema"   => array("desc" => "Show Schema",         "shows" => array("schema"),
+                              "key" => "t"),
+          "archive"  => array("desc" => "Show Archive",        "shows" => array("ar"), 
+                              "key" => "x"),
+          "lens"     => array("desc" => "Show Lenses",         "shows" => array("l1","l2"), 
+                              "key" => "l"),
+          "output"   => array("desc" => "Show Harmony Output", "shows" => array("output"), 
+                              "key" => "o")
+          );
 
-if ($demonumber == 1) { 
-  if ($splash) { 
-    $icons = array_splice($icons, 6,2); 
-  } else {
-    array_splice($icons, 5, 1); 
-  } 
-} else if ($splash) { 
-  $icons = array_splice($icons, 5, 3); 
-}
-if($splash) { $elements = array_slice($elements, 0, 1); }
-
-if ($reset) {
-  $r1 = $d_r1;
-  $r2 = $d_r2;
-  $ar = $d_ar;
-  $l1 = $d_l1;
-  $l2 = $d_l2;
-  $schema = $d_schema;
-  $forcer1 = $d_forcer1;
-}
-$l1 = $l1 ? $l1 : "Prelude.id";
-$l2 = $l2 ? $l2 : "Prelude.id";
-$la = $la ? $la : "Prelude.id";
-$schema = $schema ? $schema : "Prelude.Any";
-
-debug("REALR1", $r1);
-
-###########
-# Logging #
-###########
-
-if($enablelogging) {
-  /* BEWARE: gethost will hang a few seconds if offline */
-  $remote = 
-    ($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"] == "127.0.0.1")
-    ? "localhost"
-    : trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
-  $browser = $_SERVER['HTTP_USER_AGENT'];
-  $date = date("Y/m/j G:i:s T");
-  $logmsg = "$date  $remote  ($demogroup / $demonumber) $browser\n";
-  foreach ($logfile_locations as $name) {
-    $handle = @fopen($name, 'a');
-    if ($handle) {
-      echodebug ("Log message written to $name");
-      fwrite($handle, $logmsg);
-      fclose($handle);
+  if ($demonumber == 1) { 
+    if ($splash) { 
+      $icons = array_splice($icons, 6,2); 
     } else {
-      echodebug ("Could not open $name");
+      array_splice($icons, 5, 1); 
+    } 
+  } else if ($splash) { 
+    $icons = array_splice($icons, 5, 3); 
+  }
+  if($splash) { $elements = array_slice($elements, 0, 1); }
+  
+  if ($reset) {
+    $r1 = $d_r1;
+    $r2 = $d_r2;
+    $ar = $d_ar;
+    $l1 = $d_l1;
+    $l2 = $d_l2;
+    $schema = $d_schema;
+    $forcer1 = $d_forcer1;
+  }
+  $l1 = $l1 ? $l1 : "Prelude.id";
+  $l2 = $l2 ? $l2 : "Prelude.id";
+  $la = $la ? $la : "Prelude.id";
+  $schema = $schema ? $schema : "Prelude.Any";
+  
+  ###########
+  # Logging #
+  ###########
+
+    if($enablelogging && !$test) {
+      /* BEWARE: gethost will hang a few seconds if offline */
+      $remote = 
+        ($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"] == "127.0.0.1")
+        ? "localhost"
+        : trim(gethost($GLOBALS["HTTP_SERVER_VARS"]["REMOTE_ADDR"]));
+      $browser = $_SERVER['HTTP_USER_AGENT'];
+      $date = date("Y/m/j G:i:s T");
+      $logmsg = "$date  $remote  ($demogroup / $demonumber) $browser\n";
+      foreach ($logfile_locations as $name) {
+        $handle = @fopen($name, 'a');
+        if ($handle) {
+          echodebug ("Log message written to $name");
+          fwrite($handle, $logmsg);
+          fclose($handle);
+        } else {
+          echodebug ("Could not open $name");
+        }
+      }
     }
+  
+  ###############  
+  # Run Harmony #
+  ###############
+
+    if(!$splash) {
+      if (empty($democmd)) $democmd = "harmonize-" . $demogroup;
+      $tempbasename = "h" . posix_getpid() . str_replace(array(" ","."),"",microtime());
+      $tempdir = "/tmp";
+      $tempbase = "$tempdir/$tempbasename";
+      
+      if (empty($arformat)) $arformat = "meta";
+      
+      $r1file = $tempbase . "r1." . $r1format;
+      $r2file = $tempbase . "r2." . $r2format;
+      $arfile = $tempbase . "ar." . $arformat;
+      $newr1file = $tempbase . "newr1." . $r1format;
+      $newr2file = $tempbase . "newr2." . $r2format;
+      $newarfile = $tempbase . "newar." . $arformat;
+      
+      put_file($r1file, $r1);
+      put_file($r2file, $r2);
+      put_file($arfile, $ar);
+      
+      $lensmodule = $tempbasename . "lens";
+      $lensModule = ucfirst($lensmodule);
+      $lensfile = "$tempdir/$lensmodule.fcl";
+      $lensfilecontents = 
+        "module $lensModule =\n"
+        . "let l1 : lens = \n"
+        . "# 0 \"NOFILEHERE\"\n"
+        . $l1 . "\n\n"
+        . "let l2 : lens = \n"
+        . "# 0 \"NOFILEHERE\"\n"
+        . $l2 . "\n\n"
+        . "let la : lens = \n"
+        . "# 0 \"NOFILEHERE\"\n"
+        . $la . "\n\n"
+        . "schema S = \n"
+        . "# 0 \"<schema>\"\n"
+        . $schema . "\n";
+      put_file($lensfile, $lensfilecontents);
+      
+      if (!file_exists($democmd)) {
+        abort("Executable " . $democmd . " not found in " . getcwd(),"");
+      }
+      
+      $cmdbase = 
+        "export HOME=./; "
+        . "export FOCALPATH=.:../../lenses:/$tempdir;"
+        . "./$democmd $flags ";
+      
+      
+      $cmd = 
+        $cmdbase 
+        . "-r1 $r1file "
+        . "-r2 $r2file "
+        . "-ar $arfile "
+        . "-lensr1 $lensModule.l1 "
+        . "-lensr2 $lensModule.l2 "
+        . "-lensar $lensModule.la "
+        . "-newar $newarfile " 
+        . "-newr1 $newr1file " 
+        . "-newr2 $newr2file " 
+        . "-schema $lensModule.S "
+        . ($forcer1 ? "-forcer1 " : "")
+        . "2>&1";
+      $output = shell_exec($cmd);
+      
+      if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
+        $ar = filecontents($newarfile);
+        $r1 = filecontents($newr1file);
+        $r2 = filecontents($newr2file);
+      } else {
+        $error = true;
+        testabort($cmd);
+      }
+      
+      if ($error || !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
+        array_splice($icons, 0, 1);
+      } else {
+        $error = true;
+        $body_background = "#ffdddd";
+        $surtitle_text = "Error";
+      }
+      
+   # generate abstract versions of the two (new) replicas
+      $getcmd = $cmdbase 
+        . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
+        . (!empty($l1) ? "-lensr1 $lensModule.l1 " : "")
+        . "2>&1";
+      $a1 = shell_exec($getcmd);
+      if(empty($a1)) { testabort($getcmd); }
+
+      $getcmd = 
+        $cmdbase 
+        . (file_exists($newr2file) ? "$newr2file " : "$r2file ")
+        . (!empty($l2) ? "-lensr1 $lensModule.l2 " : "")
+        . "2>&1";
+
+      $a2 = shell_exec($getcmd);
+      if(empty($a2)) { testabort($getcmd); }
+    }
+  #TODO here: remove temporary files!!
+
+  #SKIP HTML generation in testing mode
+  if($test) { 
+    echo "Web demo {$demogroup}-{$demonumber}\t[   OK   ]\n";
+    return; 
   }
-}
 
-###############
-# Run Harmony #
-###############
-if(!$splash) {
-  if (empty($democmd)) $democmd = "harmonize-" . $demogroup;
-  $tempbasename = "h" . posix_getpid() . str_replace(array(" ","."),"",microtime());
-  $tempdir = "/tmp";
-  $tempbase = "$tempdir/$tempbasename";
+  ##
+  # ELEMENTS loop
+  ##
+  $ELEMENT_functions = "";
+  $ELEMENT_init = "";
+  $ELEMENT_html = "";
+  foreach ($elements as $k=>$v) {
+    global $ELEMENT_functions, $ELEMENT_init, $ELEMENT_html;
+    # pick data from form, demo, and static array
+    $elements[$k]['h'] = $v['h'] = pick(get_post_data($k . "_h"), demoparam($k . "_h"), $v['h']);
+    $elements[$k]['w'] = $v['w'] = pick(get_post_data($k . "_w"), demoparam($k . "_w"), $v['w']);
+    $elements[$k]['d'] = $v['d'] = pick(get_post_data($k . "_d"), demoparam($k . "_d"), $v['d']); 
 
-  if (empty($arformat)) $arformat = "meta";
+    $elements[$k]['title'] = $v['title'] = pick(false, demoparam($k . "_title"), $v['title']) ;
 
-  $r1file = $tempbase . "r1." . $r1format;
-  $r2file = $tempbase . "r2." . $r2format;
-  $arfile = $tempbase . "ar." . $arformat;
-  $newr1file = $tempbase . "newr1." . $r1format;
-  $newr2file = $tempbase . "newr2." . $r2format;
-  $newarfile = $tempbase . "newar." . $arformat;
+    $icon = "";
+    foreach($icons as $i=>$w) { if($w["shows"] && in_array($k, $w["shows"])) { $icon = $i; break; } }
 
-  put_file($r1file, $r1);
-  put_file($r2file, $r2);
-  put_file($arfile, $ar);
+    if($k == "output" && $error) { $elements[$k]['d'] = $v['d'] = "block"; }
 
-  $lensmodule = $tempbasename . "lens";
-  $lensModule = ucfirst($lensmodule);
-  $lensfile = "$tempdir/$lensmodule.fcl";
-  $lensfilecontents = 
-    "module $lensModule =\n"
-    . "let l1 : lens = \n"
-    . "# 0 \"NOFILEHERE\"\n"
-    . $l1 . "\n\n"
-    . "let l2 : lens = \n"
-    . "# 0 \"NOFILEHERE\"\n"
-    . $l2 . "\n\n"
-    . "let la : lens = \n"
-    . "# 0 \"NOFILEHERE\"\n"
-    . $la . "\n\n"
-    . "schema S = \n"
-    . "# 0 \"<schema>\"\n"
-    . $schema . "\n";
-  put_file($lensfile, $lensfilecontents);
-
-  if (!file_exists($democmd)) {
-    abort("Executable " . $democmd . " not found in " . getcwd(),"");
-  }
-
-  $cmdbase = 
-    "export HOME=./; "
-    . "export FOCALPATH=.:../../lenses:/$tempdir;"
-    . "./$democmd $flags ";
-
-  debug("R1", $r1);
-  debug("R1FILE", $r1file);
-
-  $cmd = 
-    $cmdbase 
-    . "-r1 $r1file "
-    . "-r2 $r2file "
-    . "-ar $arfile "
-    . "-lensr1 $lensModule.l1 "
-    . "-lensr2 $lensModule.l2 "
-    . "-lensar $lensModule.la "
-    . "-newar $newarfile " 
-    . "-newr1 $newr1file " 
-    . "-newr2 $newr2file " 
-    . "-schema $lensModule.S "
-    . ($forcer1 ? "-forcer1 " : "")
-    . "2>&1";
-  debug ('$cmd',$cmd);
-  $output = shell_exec($cmd);
-
-  debug("OUTPUT", $output);
-
-  if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
-    $ar = filecontents($newarfile);
-    $r1 = filecontents($newr1file);
-    $r2 = filecontents($newr2file);
-  } else {
-    $error = true;
+    $ELEMENT_functions = $ELEMENT_functions
+      #resize function
+      . " function $k" . "_resize(e){" 
+      . " return resize(e, {s:document.getElementById(\"$k\").style," 
+      . " h:document.theform.$k" . "_h," 
+      . " w:document.theform.$k" . "_w" 
+      . ($v["text"] ? ", t:document.getElementById(\"$k" . "_text\").style" : "") 
+      . " });}"
+     #hide function
+      . " function $k" . "_hide(e){"
+      . " document.theform.$k" . "_d.value = \"none\";"
+      . " document.getElementById(\"$k\").style.display = \"none\";"
+      . " if(!i[\"$icon\"]){i[\"$icon\"] = true;"
+      . " document.getElementById(\"{$icon}_icon\").style.display = \"inline\";}}"
+      ;
+    
+    $ELEMENT_init = $ELEMENT_init
+      . "document.getElementById(\"{$k}_grip\").addEventListener(\"mousedown\", $k" . "_resize, true);"
+      . "document.getElementById(\"{$k}_min\").addEventListener(\"click\", $k" . "_hide, true);"
+      . "s=document.getElementById(\"$k\").style;"
+      . "s.display=document.theform.{$k}_d.value;"
+      . "if(document.theform.{$k}_w.value){s.width=document.theform.$k" . "_w.value + 'px';}"
+      . "if(document.theform.{$k}_h.value){s.height=document.theform.$k" . "_h.value + 'px';}"
+      . ($v['text'] ?
+         ("s=document.getElementById(\"{$k}_text\").style;"
+          . "if(document.theform.{$k}_w.value){s.width=document.theform.$k" . "_w.value + 'px';}"
+          . "if(document.theform.{$k}_h.value){s.height=(document.theform.$k" . "_h.value - $text_height_diff)+ 'px';}")
+         : "")
+      ;
+    
+    eval("\$k_val=\$$k;");
+    
+    $ELEMENT_html = $ELEMENT_html
+      . "<div class=\"box\" id=\"$k\">"
+      . "<div class=\"title\">{$v['title']}<div class=\"min\" id=\"$k" . "_min\"></div></div>"
+      . "<div>" . ($v["text"] 
+                   ? "<textarea name=\"{$k}_text\" id=\"{$k}_text\"" . ($v["ro"] ? " readonly" : "") . ">$k_val</textarea>" 
+                   : "<p>$k_val</p>") 
+      . " </div>"
+      . "<div class=\"grip\" id=\"{$k}_grip\"></div></div>"
+      . "<input type=\"hidden\" name=\"$k" . "_w\" value=\"{$v['w']}\">"
+      . "<input type=\"hidden\" name=\"$k" . "_h\" value=\"{$v['h']}\">"
+      . "<input type=\"hidden\" name=\"$k" . "_d\" value=\"{$v['d']}\">";
   }
   
-  if ($error || !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
-    array_splice($icons, 0, 1);
-  } else {
-    $error = true;
-    $body_background = "#ffdddd";
-    $surtitle_text = "Error";
-  }
-
-# generate abstract versions of the two (new) replicas
-  $getcmd = $cmdbase 
-    . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
-    . (!empty($l1) ? "-lensr1 $lensModule.l1 " : "")
-    . "2>&1";
-  $a1 = shell_exec($getcmd);
-  $getcmd = 
-    $cmdbase 
-    . (file_exists($newr2file) ? "$newr2file " : "$r2file ")
-    . (!empty($l2) ? "-lensr1 $lensModule.l2 " : "")
-    . "2>&1";
-  $a2 = shell_exec($getcmd);
-}
-#TODO here: remove temporary files!!
-
-##
-# ELEMENTS loop
-##
-function pick($f, $d, $s) { 
-  global $expert, $reset;
-  if($expert) { return $f ? $f : ($d ? $d : $s); }
-  else {
-    if($reset) { return $d ? $d : $s; } //ignore form data, it's bogus
-    return $f ? $f : ($d ? $d : $s);
-  }
-}
-
-$ELEMENT_functions = "";
-$ELEMENT_init = "";
-$ELEMENT_html = "";
-foreach ($elements as $k=>$v) {
-  global $ELEMENT_functions, $ELEMENT_init, $ELEMENT_html;
-  # pick data from form, demo, and static array
-  $elements[$k]['h'] = $v['h'] = pick(get_post_data($k . "_h"), demoparam($k . "_h"), $v['h']);
-  $elements[$k]['w'] = $v['w'] = pick(get_post_data($k . "_w"), demoparam($k . "_w"), $v['w']);
-  $elements[$k]['d'] = $v['d'] = pick(get_post_data($k . "_d"), demoparam($k . "_d"), $v['d']);
-
-  $elements[$k]['title'] = $v['title'] = pick(false, demoparam($k . "_title"), $v['title']);
-
-  $icon = "";
-  foreach($icons as $i=>$w) { if($w["shows"] && in_array($k, $w["shows"])) { $icon = $i; break; } }
-
-  if($k == "output" && $error) { $elements[$k]['d'] = $v['d'] = "block"; }
-
-  $ELEMENT_functions = $ELEMENT_functions
-    #resize function
-    . " function $k" . "_resize(e){" 
-    . " return resize(e, {s:document.getElementById(\"$k\").style," 
-    . " h:document.theform.$k" . "_h," 
-    . " w:document.theform.$k" . "_w" 
-    . ($v["text"] ? ", t:document.getElementById(\"$k" . "_text\").style" : "") 
-    . " });}"
-    #hide function
-    . " function $k" . "_hide(e){"
-    . " document.theform.$k" . "_d.value = \"none\";"
-    . " document.getElementById(\"$k\").style.display = \"none\";"
-    . " if(!i[\"$icon\"]){i[\"$icon\"] = true;"
-    . " document.getElementById(\"{$icon}_icon\").style.display = \"inline\";}}"
-    ;
-
-  $ELEMENT_init = $ELEMENT_init
-    . "document.getElementById(\"{$k}_grip\").addEventListener(\"mousedown\", $k" . "_resize, true);"
-    . "document.getElementById(\"{$k}_min\").addEventListener(\"click\", $k" . "_hide, true);"
-    . "s=document.getElementById(\"$k\").style;"
-    . "s.display=document.theform.{$k}_d.value;"
-    . "if(document.theform.{$k}_w.value){s.width=document.theform.$k" . "_w.value + 'px';}"
-    . "if(document.theform.{$k}_h.value){s.height=document.theform.$k" . "_h.value + 'px';}"
-    . ($v['text'] ?
-       ("s=document.getElementById(\"{$k}_text\").style;"
-        . "if(document.theform.{$k}_w.value){s.width=document.theform.$k" . "_w.value + 'px';}"
-        . "if(document.theform.{$k}_h.value){s.height=(document.theform.$k" . "_h.value - $text_height_diff)+ 'px';}")
-       : "")
-    ;
-
-  eval("\$k_val=\$$k;");
-  
-  $ELEMENT_html = $ELEMENT_html
-    . "<div class=\"box\" id=\"$k\">"
-    . "<div class=\"title\">{$v['title']}<div class=\"min\" id=\"$k" . "_min\"></div></div>"
-    . "<div>" . ($v["text"] 
-                  ? "<textarea name=\"{$k}_text\" id=\"{$k}_text\"" . ($v["ro"] ? " readonly" : "") . ">$k_val</textarea>" 
-                  : "<p>$k_val</p>") 
-             . " </div>"
-    . "<div class=\"grip\" id=\"{$k}_grip\"></div></div>"
-    . "<input type=\"hidden\" name=\"$k" . "_w\" value=\"{$v['w']}\">"
-    . "<input type=\"hidden\" name=\"$k" . "_h\" value=\"{$v['h']}\">"
-    . "<input type=\"hidden\" name=\"$k" . "_d\" value=\"{$v['d']}\">";
-}
-
-##
-# ICON loop
-##
-$sep = $sep_actions = "";
-$ICON_array = "";
-$ICON_functions = "";
-$ICON_html = "";
-$ICON_init = "";
-$ICON_actions = "";
-foreach($icons as $i=>$v) {
-  global $sep, $sep_actions, $ICON_array, $ICON_functions, $ICON_html, $ICON_init, $ICON_actions;
-
+  ##
+  # ICON loop
+  ##
+  $sep = $sep_actions = "";
+  $ICON_array = "";
+  $ICON_functions = "";
+  $ICON_html = "";
+  $ICON_init = "";
+  $ICON_actions = "";
+  foreach($icons as $i=>$v) {
+    global $sep, $sep_actions, $ICON_array, $ICON_functions, $ICON_html, $ICON_init, $ICON_actions;
+    
   # calculate active icons
-  $icons[$i]['active'] = $v['active'] = "false";
-  if(! $v['shows']) { $icons[$i]['active'] = $v['active'] = "true"; } else {
-    foreach($v['shows'] as $d) {      
-      if($elements[$d]['d'] == "none") { $icons[$i]['active'] = $v['active'] = "true"; break; }
+    $icons[$i]['active'] = $v['active'] = "false";
+    if(! $v['shows']) { $icons[$i]['active'] = $v['active'] = "true"; } else {
+      foreach($v['shows'] as $d) {      
+        if($elements[$d]['d'] == "none") { $icons[$i]['active'] = $v['active'] = "true"; break; }
+      }
+    }
+    
+    if($i == "outut" && $error) { $icons['output']['active'] = $v['active'] = "false"; }
+    
+    # javascript array
+    $ICON_array = $ICON_array . "{$sep}\"$i\":{$v['active']}";
+    $sep = ",";
+
+    # javascript initialization
+    $ICON_init = $ICON_init 
+      . "document.getElementById(\"{$i}_icon\").addEventListener(\"mouseover\", {$i}_over, true);"
+      . "document.getElementById(\"{$i}_icon\").addEventListener(\"mouseout\", hide_st, true);"
+      . ($v["dummy"] ? "" : "document.getElementById(\"{$i}_icon\").addEventListener(\"click\", {$i}_click, true);");
+    
+    # javascript functions
+    $show_code = "";
+    $hide_code = "";
+    if($v['shows']) {
+      foreach($v["shows"] as $d) {
+        $show_code = $show_code 
+          . "document.theform.{$d}_d.value = \"block\";"
+          . "document.getElementById(\"{$d}\").style.display = \"block\";";
+        $hide_code = $hide_code . "{$d}_hide();";
+      }
+    }
+    $ICON_functions = $ICON_functions
+      . ($v["shows"] ? 
+         " function {$i}_click() {"
+         . " hide_st();"
+         . " i[\"$i\"]=false;"
+         . " document.getElementById(\"{$i}_icon\").style.display=\"none\";"
+         . $show_code
+         . " } "
+         . " function {$i}_toggle() { "
+         . " if(i[\"$i\"]) { {$i}_click(); }"
+         . " else { "
+         . $hide_code
+         . " }"
+         . " }"
+         : "")
+      . "function {$i}_over(e){show_st(\"$i\");}";
+     
+   #Keystroke Actions 
+    if($v['key']) { 
+      $i_code = $v['shows'] ? "{$i}_toggle" : "{$i}_click";
+      $ICON_actions = $ICON_actions . "{$sep_actions} '{$v['key']}':{$i_code}";
+      $sep_actions = ",";
+    }
+   # HTML
+    $src = "images/icons/" . ($v['file'] ? $v['file'] : $i) . ".png";
+    $desc = $v['desc'] ? $v['desc'] : "&nbsp;";
+    $ICON_html = $ICON_html . "<img id=\"$i" . "_icon\" class=\"hide\" src=\"$src\" alt=\"$desc\">"; 
+  }
+  
+  ##
+  # SELECTOR loop
+  ##
+    $SELECT_html = 
+    "<select name=\"demogroup\" onchange=\"select_demo_group()\">"
+    . "<optgroup label=\"Overview\">";
+  foreach ($alldemos as $k=>$v) {    
+    if(!empty($v["header"])) {
+      $SELECT_html = $SELECT_html 
+        . "</optgroup>"
+        . "<optgroup label=\"" . $v["header"] . "\">";
+    } else {     
+      $SELECT_html = $SELECT_html
+        . "<option " 
+        . (($k == $demogroup) ? "selected " : "") 
+        . "value=\"$k\">" 
+        . $v["demogroupname"] . "</option>";
     }
   }
-
-  if($i == "outut" && $error) { $icons['output']['active'] = $v['active'] = "false"; }
-
-  # javascript array
-  $ICON_array = $ICON_array . "{$sep}\"$i\":{$v['active']}";
-  $sep = ",";
-
-  # javascript initialization
-  $ICON_init = $ICON_init 
-    . "document.getElementById(\"{$i}_icon\").addEventListener(\"mouseover\", {$i}_over, true);"
-    . "document.getElementById(\"{$i}_icon\").addEventListener(\"mouseout\", hide_st, true);"
-    . ($v["dummy"] ? "" : "document.getElementById(\"{$i}_icon\").addEventListener(\"click\", {$i}_click, true);");
-
-  # javascript functions
-  $show_code = "";
-  $hide_code = "";
-  if($v['shows']) {
-    foreach($v["shows"] as $d) {
-      $show_code = $show_code 
-        . "document.theform.{$d}_d.value = \"block\";"
-        . "document.getElementById(\"{$d}\").style.display = \"block\";";
-      $hide_code = $hide_code . "{$d}_hide();";
-    }
-  }
-  $ICON_functions = $ICON_functions
-    . ($v["shows"] ? 
-       " function ${i}_click() {"
-       . " hide_st();"
-       . " i[\"$i\"]=false;"
-       . " document.getElementById(\"{$i}_icon\").style.display=\"none\";"
-       . $show_code
-       . " } "
-       . " function {$i}_toggle() { "
-       . " if(i[\"$i\"]) { {$i}_click(); }"
-       . " else { "
-       . $hide_code
-       . " }"
-       . " }"
-       : "")
-    . "function {$i}_over(e){show_st(\"$i\");}";
-   
-  #Keystroke Actions 
-  if($v['key']) { 
-    $i_code = $v['shows'] ? "{$i}_toggle" : "{$i}_click";
-    $ICON_actions = $ICON_actions . "{$sep_actions} '{$v['key']}':{$i_code}";
-    $sep_actions = ",";
-  }
-  # HTML
-  $src = "images/icons/" . ($v['file'] ? $v['file'] : $i) . ".png";
-  $desc = $v['desc'] ? $v['desc'] : "&nbsp;";
-  $ICON_html = $ICON_html . "<img id=\"$i" . "_icon\" class=\"hide\" src=\"$src\" alt=\"$desc\">"; 
-}
-
-##
-# SELECTOR loop
-##
-$SELECT_html = 
-  "<select name=\"demogroup\" onchange=\"select_demo_group()\">"
-  . "<optgroup label=\"Overview\">";
-foreach ($alldemos as $k=>$v) {
-  global $SELECT_html;
-  if(!empty($v["header"])) {
+  $SELECT_html = $SELECT_html
+    . "</optgroup>"
+    . "</select>"
+    . "<select name=\"demonumber\" onchange=\"select_demo_number()\">'";
+  for($i = 1; !empty($alldemos[$demogroup][$i]); $i++) {
     $SELECT_html = $SELECT_html 
-      . "</optgroup>"
-      . "<optgroup label=\"" . $v["header"] . "\">";
-  } else {     
-    $SELECT_html = $SELECT_html
-      . "<option " 
-      . (($k == $demogroup) ? "selected " : "") 
-      . "value=\"$k\">" 
-      . $v["demogroupname"] . "</option>";
+      . "<option "
+      . (($i == $demonumber) ? "selected " : "")
+      . "value=\"$i\">$i</option>";
   }
-}
-$SELECT_html = $SELECT_html
-  . "</optgroup>"
-  . "</select>"
-  . "<select name=\"demonumber\" onchange=\"select_demo_number()\">'";
-for($i = 1; !empty($alldemos[$demogroup][$i]); $i++) {
- $SELECT_html = $SELECT_html 
-   . "<option "
-   . (($i == $demonumber) ? "selected " : "")
-   . "value=\"$i\">$i</option>";
-}
-$SELECT_html = $SELECT_html . "</select>";
+  $SELECT_html = $SELECT_html . "</select>";
 
-############
-# Response #
-############
-$debugout = $enabledebug ? join("<br>\n",$debuglog) . "\n" : "\n";
+  ############
+  # Response #
+  ############
+  $debugout = $enabledebug ? join("<br>\n",$debuglog) . "\n" : "\n";
 
-$expert_str = $expert ? "true" : "false";
+  $expert_str = $expert ? "true" : "false";
 
-##
-# Style Sheet
-##
-$css = <<<CSS
+  ##
+  # Style Sheet
+  ##
+  $css = <<<CSS
 body {
   background: $body_background;
   font-family: arial, sans-serif;
@@ -676,7 +678,7 @@ CSS;
 ##
 # Javascript
 ##
-$js = <<<ENDJAVASCRIPT
+  $js = <<<ENDJAVASCRIPT
 var x=0;
 var y=0;
 var c=null;
@@ -777,14 +779,14 @@ $ICON_functions
 ENDJAVASCRIPT;
 
 # strip redundant whitespace from CSS and javascript
-$css = compress($css);
-#$js = compress($js);
-$demogroupname = $alldemos[$demogroup]['demogroupname'];
+ $css = compress($css);
+ #$js = compress($js);
+ $demogroupname = $alldemos[$demogroup]['demogroupname'];
 
-##
-# HTML OUTPUT
-##
-print <<<ENDHTML
+  ##
+  # HTML OUTPUT
+  ##
+  print <<<ENDHTML
 <html>
 <head>
 <title>Harmony - $demogroupname</title>
@@ -817,10 +819,45 @@ print <<<ENDHTML
 </body>
 </html>
 ENDHTML;
+}
 
 ###################################
 # Misc Functions #
 ###################################
+function next_demo() {
+  global $alldemos, $demogroup, $demonumber, $no_next_demo;
+  if (!empty($alldemos[$demogroup][$demonumber+1])) {
+    $demonumber = $demonumber+1;
+  } else {
+    reset($alldemos);
+    while (current($alldemos) and key($alldemos) !== $demogroup) {
+      next($alldemos);
+    }
+    next($alldemos);
+    $temp = current($alldemos); $temp2 = $temp["header"];
+    while (!empty($temp2)) { $temp = next($alldemos); $temp2 = $temp["header"]; }
+    if (current($alldemos)) {
+      $demogroup = key($alldemos);
+      $demonumber = 1;
+    } else {
+      $no_next_demo = "<br><b>No more demos</b>";
+    }
+  }
+}
+
+function pick($f, $d, $s) { 
+  global $expert, $reset;
+  if($expert) { return $f ? $f : ($d ? $d : $s); }
+  else {
+    if($reset) { return $d ? $d : $s; } //ignore form data, it's bogus
+    return $f ? $f : ($d ? $d : $s);
+  }
+}
+
+function demoparam($n) {
+  global $demogroup, $demonumber, $alldemos;
+  return $alldemos[$demogroup][$demonumber][$n];
+}
 
 function compress($t) { return preg_replace('/\s+/', ' ', $t);}
 
@@ -867,9 +904,20 @@ function filecontents($filename) {
 }
 
 function abort($mesg, $more) {
+  global $test;
+  if($test) { testabort($mesg . "\n". $more); }
   echo "<h2>Oops: " . $mesg . "</h2>\n";
   echo $more;
   exit(0);
+}
+
+function testabort($msg) {
+  global $test, $demogroup, $demonumber;
+  if ($test) {
+    echo "Web demo {$demogroup}-{$demonumber}\t[ FAILED ]\n";  
+    echo $msg . "\n";
+    exit(1);
+  }
 }
 
 function show($data, $func = "print_r", $return_str = false){

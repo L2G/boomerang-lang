@@ -360,9 +360,9 @@ let mkGe e1 e2 =
       
 let mkGt e1 e2 = 
   let res1 = constraint_of_exp true e1 in   
-  let vs2,c2 = constraint_of_exp false e2 in     
-  let vs,c = combine_constraints res1 (vs2,c2-1) in 
-    GeqZ(vs,c)
+  let res2 = constraint_of_exp false e2 in     
+  let vs,c = combine_constraints res1 res2 in 
+    GeqZ(vs,c-1)
       
 let mkLt e1 e2 = mkGt e2 e1
 let mkLe e1 e2 = mkGe e2 e1
@@ -373,10 +373,14 @@ let mkLe e1 e2 = mkGe e2 e1
 let rec get_zeros f0 = match f0 with    
     EqZ(vs,c) -> 
       if c = 0 then 
-        if IntMap.for_all (fun wi -> wi > 0) vs 
-          || IntMap.for_all (fun wi -> wi < 0) vs 
-        then IntMap.domain vs
-        else IntSet.empty
+        match IntMap.fold 
+          (fun xi wi acc -> match acc with 
+               (false,_)         -> acc
+             | (true,None)       -> (true, Some (IntSet.add xi IntSet.empty, wi > 0))
+             | (true,Some(zs,p)) -> ((wi > 0) = p,Some (IntSet.add xi zs, p)))
+          vs (true,None)  
+        with false,_ | _,None -> IntSet.empty
+          | true,Some(zs,_) -> zs
       else IntSet.empty
   | GeqZ(_) -> IntSet.empty
   | Not(f) -> begin match f with
