@@ -139,6 +139,17 @@ FCLFILES = \
   $(find $(LENSESDIR) -name *.src) 
 
 ##############################################################################
+# TAGS
+
+# This doesn't give quite as much as we'd like (leaves out the examples)
+TAGS: $(SRCDIR)/harmony
+  etags $(dependencies-proper $*)
+
+# This doesn't work:
+# TAGS: 
+#   etags $(filter-proper-targets $(ls R, .))
+
+##############################################################################
 # Translation of .src files
 
 SRC2F = $(TOOLSDIR)/src2f

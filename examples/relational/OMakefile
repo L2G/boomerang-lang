@@ -1,0 +1,3 @@
+temp: $(RESULT)
+  ./harmonize-relational -I . -I ../../lenses -r1 tempr1.meta -r2 tempr2.meta -ar tempar.meta -lensr1 Templenses.l1 -lensr2 Templenses.l2 -lensar Templenses.la -schema Templenses.S -dryrun -debug toplevel+
+
