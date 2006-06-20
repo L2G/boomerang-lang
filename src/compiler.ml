@@ -43,7 +43,7 @@ let no_assert = Prefs.createBool "no-assert" false
   "don't check assertions"
 
 (* --------------- Error Reporting --------------- *)
-let debug s_thk = Trace.debug "compiler" (fun () -> Format.eprintf "@[%s@\n%!@]" (s_thk ()))
+let debug s_thk = Trace.debug "compiler" (fun () -> Format.printf "@[%s@\n%!@]" (s_thk ()))
 
 let parse_error i msg_thk = 
   raise (Error.Harmony_error

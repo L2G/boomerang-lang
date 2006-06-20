@@ -181,7 +181,7 @@ let format_to_string f =
 (* Based on String.escape 
  *)
 let escape (escapeChar: char -> string) s =
-  debug (fun () -> Format.printf "escape: %s\n" s);
+  debug (fun () -> Format.printf "escape: %s@\n" s);
   let n = ref 0 in
     for i = 0 to String. length s - 1 do
       let l = String.length (escapeChar (String.get s i)) in
@@ -207,7 +207,7 @@ let escape (escapeChar: char -> string) s =
       s'
     end
   in
-  debug(fun () -> Format.printf "escape returns %s\n" result);
+  debug(fun () -> Format.printf "escape returns %s@\n" result);
   result
 
 (* \ -> \\; x -> \x (for all x in escapedchars) *)

@@ -82,7 +82,7 @@ let get_ekey eko fn contents_opt =
           with
             Not_found ->
               raise (Error.Harmony_error (fun () ->
-                Format.printf "unknown encoding key: %s\nKnown keys: %s" ekey (String.concat " " (get_all_encodings()))))
+                Format.printf "unknown encoding key: %s@\nKnown keys: %s" ekey (String.concat " " (get_all_encodings()))))
         end
     | None -> 
         match (find_encodings fn contents_opt) with

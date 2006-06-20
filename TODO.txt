@@ -92,10 +92,6 @@ SMALL IMPROVEMENTS
 TIDYING
 *** make sure GPL/whatever is stated correctly for external modules
 * put LGPL notice in all files
-*** Fix printing:
-      - change Printf.eprintf to Format.printf in Registry, Compiler, and Diff3
-      - change Format.eprintf to Format.printf 
-      - fix Trace module to expose a variable for the printer for log and debug
 
 LENSES
 * new primitive:  hoistAny (which acts like hoist except that it doesn't

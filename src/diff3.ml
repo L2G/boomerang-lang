@@ -75,15 +75,6 @@ let rec unzip4 = function
 
 let the = function None -> assert false | Some x -> x
 
-let print_list l =
-  Printf.eprintf "[";
-  let rec loop l = match l with
-    [] -> ()
-  | [e] -> Printf.eprintf "%s" (A.tostring e)
-  | e::es -> Printf.eprintf "%s" (A.tostring e); Printf.eprintf ", "; loop es
-  in loop l;
-  Printf.eprintf "]"
-
 let format_list l =
   let rec loop l = match l with
     [] -> ()
@@ -93,10 +84,10 @@ let format_list l =
 
 let diff3_sync elt_schema (o,a,b) =
   debug (fun () ->
-           Printf.eprintf "Inputs:\n";
-           Printf.eprintf "          o = "; print_list o; Printf.eprintf "\n"; 
-           Printf.eprintf "          a = "; print_list a; Printf.eprintf "\n"; 
-           Printf.eprintf "          b = "; print_list b; Printf.eprintf "\n"); 
+           Format.printf "Inputs:@\n";
+           Format.printf "          o = "; format_list o; Format.printf "@\n"; 
+           Format.printf "          a = "; format_list a; Format.printf "@\n"; 
+           Format.printf "          b = "; format_list b; Format.printf "@\n"); 
   let len_a = Safelist.length a in 
   let len_b = Safelist.length b in
   let len_o = Safelist.length o in
@@ -221,10 +212,10 @@ let diff3_sync elt_schema (o,a,b) =
              let len_onew = Safelist.length onew in 
              let len_anew = Safelist.length anew in 
              let len_bnew = Safelist.length bnew in 
-               debug (fun() -> Printf.eprintf "o="; print_list onew;
-                        Printf.eprintf "\na="; print_list anew;
-                        Printf.eprintf "\nb="; print_list bnew;
-                        Printf.eprintf "\n");
+               debug (fun() -> Format.printf "o="; format_list onew;
+                               Format.printf "@\na="; format_list anew;
+                               Format.printf "@\nb="; format_list bnew;
+                               Format.printf "@\n");
                if len_onew = len_anew && len_onew = len_bnew then begin
                  (* Recursively synchronize, element by element *)
                  let (subacts, onew', anew', bnew') =

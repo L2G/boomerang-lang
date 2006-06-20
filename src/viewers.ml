@@ -157,24 +157,24 @@ let escapeXml inAttr = Misc.escape (escapeXmlChar inAttr)
 let rec xml2tree n =
   match n # node_type with
     T_element name -> 
-      debug (fun () -> Format.printf "in element \"%s\"\n" name);
+      debug (fun () -> Format.printf "in element \"%s\"@\n" name);
       let kids = 
         match n#sub_nodes with
-          [] -> debug (fun () -> Format.printf "zero subnodes\n"); []
+          [] -> debug (fun () -> Format.printf "zero subnodes@\n"); []
         | [n'] when n'#node_type=T_data && Misc.is_blank n'#data ->
-            debug (fun () -> Format.printf "skipping blank PCDATA\n");
+            debug (fun () -> Format.printf "skipping blank PCDATA@\n");
             []
         | [n'] ->
-            debug (fun () -> Format.printf "one nonblank subnode, recursing\n");
+            debug (fun () -> Format.printf "one nonblank subnode, recursing@\n");
             [xml2tree n']
         | ns ->
             let rec loop acc = function
                 [] -> Safelist.rev acc
               | n'::ns when n'#node_type=T_data && Misc.is_blank n'#data ->
-                  debug (fun () -> Format.printf "skipping blank PCDATA\n");
+                  debug (fun () -> Format.printf "skipping blank PCDATA@\n");
                   loop acc ns 
               | n'::ns ->
-                  debug (fun () -> Format.printf "NOT skipping blank PCDATA\n");
+                  debug (fun () -> Format.printf "NOT skipping blank PCDATA@\n");
                   loop ((xml2tree n')::acc) ns in
             loop [] ns in 
       let attrkids =
@@ -192,7 +192,7 @@ let rec xml2tree n =
                             (Some kid_struct)))
   | T_data ->
       let str = Util.trimWhitespace (n # data) in
-      debug (fun () -> Format.printf "found string \"%s\"\n" (Misc.whack str));
+      debug (fun () -> Format.printf "found string \"%s\"@\n" (Misc.whack str));
       Tree.set Tree.empty pcdata_tag (Some (Tree.new_value str))
   | _ -> assert false
 
@@ -282,7 +282,7 @@ let xmlwriter v =
   let buf = Buffer.create 20 in
   let fmtr = Format.formatter_of_buffer buf in
   dump_tree_as_pretty_xml fmtr v;
-  Format.fprintf fmtr "\n@.";
+  Format.fprintf fmtr "@\n@.";
   Buffer.contents buf
 
 let _ =

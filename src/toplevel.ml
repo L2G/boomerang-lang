@@ -41,7 +41,7 @@ let read_tree fn =
     (Surveyor.v_of_file fn (Surveyor.get_reader ekey))
 
 let write_tree fn t = 
-  debug (fun()-> Util.msg "Writing back %s\n" fn);
+  debug (fun()-> Format.printf "Writing back %s@\n" fn);
   let v = V.Tree t in
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
@@ -55,7 +55,7 @@ let read_view fn =
   Surveyor.v_of_file fn (Surveyor.get_reader ekey)
 
 let write_view fn v = 
-  debug (fun()-> Util.msg "Writing back %s\n" fn);
+  debug (fun()-> Format.printf "Writing back %s@\n" fn);
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
@@ -70,7 +70,7 @@ let check m =
       String.capitalize (Util.replacesubstring m ".fcl" "")
     else m in
   if not (Registry.load modname) then
-    Error.simple_error (Printf.sprintf "Error: could not find module %s\n" modname)
+    Error.simple_error (Printf.sprintf "Error: could not find module %s@\n" modname)
 
 (*******)
 (* GET *)
@@ -114,14 +114,14 @@ let has_conflict = function
   | DbAct (b,f) -> b
       
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn = 
-  debug (fun() -> Util.msg "Synchronizing...\n");
+  debug (fun() -> Format.printf "Synchronizing...@\n");
   let s = lookup_schema s in 
-  debug (fun() -> Util.msg "Loading lenses...\n");
+  debug (fun() -> Format.printf "Loading lenses...@\n");
   let lenso,_ = lookup_lens lenso in
   let lensa,_ = lookup_lens lensa in 
   let lensb,_ = lookup_lens lensb in         
   let forcer1 = Prefs.read forcer1 in
-  debug (fun() -> Util.msg "Loading files...\n");
+  debug (fun() -> Format.printf "Loading files...@\n");
   let (o, a, b, (act, oa', aa', ba')) =
     if forcer1 then begin
       let a = read_view a_fn in
@@ -132,13 +132,13 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       let a = read_view a_fn in
       let o = read_view o_fn in
       let b = read_view b_fn in
-      debug (fun() -> Util.msg "Applying GET functions (o)...\n");
+      debug (fun() -> Format.printf "Applying GET functions (o)...@\n");
       let oa = Misc.map_option (Lens.get lenso) o in
-      debug (fun() -> Util.msg "Applying GET functions (a)...\n");
+      debug (fun() -> Format.printf "Applying GET functions (a)...@\n");
       let aa = Misc.map_option (Lens.get lensa) a in
-      debug (fun() -> Util.msg "Applying GET functions (b)...\n");
+      debug (fun() -> Format.printf "Applying GET functions (b)...@\n");
       let ba = Misc.map_option (Lens.get lensb) b in
-      debug (fun() -> Util.msg "Synchronizing...\n");
+      debug (fun() -> Format.printf "Synchronizing...@\n");
       let any_tree = is_tree oa || is_tree aa || is_tree ba in
       let any_db = is_db oa || is_db aa || is_db ba in
       if any_tree && any_db then
@@ -166,7 +166,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
     in
   let log_out s p n = Trace.log (String.sub s p n) in
   let log_flush () = () in
-  debug (fun() -> Util.msg "Dumping actions...\n");
+  debug (fun() -> Format.printf "Dumping actions...@\n");
   Format.print_flush();
   let out,flush = Format.get_formatter_output_functions () in
   Format.set_formatter_output_functions log_out log_flush;
@@ -176,15 +176,15 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   end;
   Format.print_flush();
   Format.set_formatter_output_functions out flush;
-  debug (fun() -> Util.msg "Applying PUT functions...\n");
-  debug (fun() -> Util.msg "to o...\n");
+  debug (fun() -> Format.printf "Applying PUT functions...@\n");
+  debug (fun() -> Format.printf "to o...@\n");
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
-  debug (fun() -> Util.msg "to a...\n");
+  debug (fun() -> Format.printf "to a...@\n");
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
-  debug (fun() -> Util.msg "to b...\n");
+  debug (fun() -> Format.printf "to b...@\n");
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
-  debug (fun() -> Util.msg "Writing back results...\n");
-  debug (fun() -> match o' with None -> Util.msg "o' = None\n" | _ -> ());
+  debug (fun() -> Format.printf "Writing back results...@\n");
+  debug (fun() -> match o' with None -> Format.printf "o' = None@\n" | _ -> ());
   ignore (Misc.map_option (write_view o'_fn) o');
   ignore (Misc.map_option (write_view a'_fn) a');
   ignore (Misc.map_option (write_view b'_fn) b');
@@ -227,11 +227,11 @@ let unittests = Prefs.createBool "unittests" false "run internal unit tests (and
 (* Running external commands *)
 
 let runcmd cmd = 
-  debug (fun() -> Format.eprintf "%s\n" cmd);
+  debug (fun() -> Format.printf "%s@\n" cmd);
   if Sys.command cmd <> 0 then Error.simple_error ("Command failed: "^cmd)
 
 let cp_or_del f g =
-  debug (fun()-> Util.msg "Copying %s to %s\n" f g);
+  debug (fun()-> Format.printf "Copying %s to %s@\n" f g);
   if Sys.file_exists g then Sys.remove g;
   if Sys.file_exists f then 
     begin 
@@ -272,6 +272,9 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
 
   (* Deal with command line *)
   Prefs.parseCmdLine usageMsg;
+
+  (* Make sure that nobody tries to write to stderr, just for hygiene *)
+  close_out stderr;
 
   (* Run internal unit tests if requested. *)
   if Prefs.read unittests then

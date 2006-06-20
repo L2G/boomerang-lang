@@ -21,7 +21,7 @@ PRINTING
 
 ================================================================================
 
-SOME NOTES ON HOW PRINTING WORKS IN HARMONY
+SOME MORE DETAILED NOTES ON HOW PRINTING WORKS IN HARMONY
 
 There are lots of different primitives for displaying stuff:
 
@@ -32,7 +32,7 @@ There are lots of different primitives for displaying stuff:
   - Printf.printf (and similar stuff involving stdout)
 
       Not used, except for Misc.write in case its argument is "-" (which
-      seems OK)
+      seems OK).  
 
   - Printf.eprintf (and similar stuff involving stderr) and Util.msg, which
     prints to stderr using Uprintf module.
@@ -40,22 +40,7 @@ There are lots of different primitives for displaying stuff:
       Printf.eprintf is used by the Uargs module for dumping usage
       information, just before exiting.  This is probably OK.
 
-      Also used in a couple of places (e.g., Registry) for fatal errors
-      during startup indicating bugs.  Probably OK.
-
-      Used (e.g., by Registry and Compiler) inside of 'debug' calls.
-
-      diff3.print_list, which is called by debugging stuff
-
   - Format.eprintf
 
-      used in Toplevel
+      Not used
 
-  - Trace.log
-
-      Used in one place (in Toplevel); dumps messages both to stderr and to
-      a log file
-
-  - Trace.debug
-
-      Currently prints [modname] to stderr -- needs to be fixed.

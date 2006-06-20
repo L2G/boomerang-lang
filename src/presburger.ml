@@ -228,11 +228,9 @@ let rec shift_aux n c =
 (* --- top-level shift operator --- *)
 let shift_exp n = shift_exp_aux n 0
 let shift_t n f = 
-  Format.printf "SHIFT: "; 
-  format_t f;
+  Trace.debug "presburger+" (fun() -> Format.printf "SHIFT: "; format_t f);
   let res = shift_aux n 0 f in 
-    Format.printf " -> ";
-    format_t res; 
+    Trace.debug "presburger+" (fun() -> Format.printf " -> "; format_t res); 
     res
     
 (* -------------- substitution -------------- *)
