@@ -156,13 +156,13 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
            (DbAct (false, (fun()-> Format.printf "EQUAL")), aa, aa, aa))
         else if eq aa oa then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "Propagate changes from second replica to first")), ba, ba, ba))
+           (DbAct (false, (fun()-> Format.printf "<====")), ba, ba, ba))
         else if eq ba oa then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "Propagate changes from first replica to second")), aa, aa, aa))
+           (DbAct (false, (fun()-> Format.printf "====>")), aa, aa, aa))
         else 
           (o, a, b,
-           (DbAct (true, (fun()-> Format.printf "Cannot (yet) synchronize databases when both have changed")), oa, aa, ba))
+           (DbAct (true, (fun()-> Format.printf "ERROR: Cannot (yet) synchronize databases when both have changed")), oa, aa, ba))
     in
   let log_out s p n = Trace.log (String.sub s p n) in
   let log_flush () = () in
@@ -274,7 +274,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   Prefs.parseCmdLine usageMsg;
 
   (* Make sure that nobody tries to write to stderr, just for hygiene *)
-  close_out stderr;
+  (* close_out stderr; *)
 
   (* Run internal unit tests if requested. *)
   if Prefs.read unittests then

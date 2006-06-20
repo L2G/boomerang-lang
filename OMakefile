@@ -131,6 +131,12 @@ clean:
 	$(CLEAN) $(SUBDIRS_OUT)
 
 ##############################################################################
+# Testing
+
+test: .PHONY/$(EXAMPLESDIR)/test
+  php html/cgi-bin/demo.php -test
+
+##############################################################################
 # Focal files
 
 FCLFILES = \

@@ -3,15 +3,6 @@
 (* Copyright 1999-2006 (see COPYING for details) *)
 
 (* ---------------------------------------------------------------------- *)
-(* Choosing where messages go *)
-
-type trace_printer_choices = [`Stdout | `Stderr | `FormatStdout]
-
-let traceprinter = ref (`Stdout : trace_printer_choices)
-
-let redirect x = (traceprinter := x)
-
-(* ---------------------------------------------------------------------- *)
 (* Debugging messages *)
 
 let debugmods =
@@ -59,6 +50,12 @@ let enable modname onoff =
   let m = Prefs.read debugmods in
   let m' = if onoff then (modname::m) else (Safelist.remove modname m) in
   Prefs.set debugmods m'
+
+type trace_printer_choices = [`Stdout | `Stderr | `FormatStdout]
+
+let traceprinter = ref (`Stdout : trace_printer_choices)
+
+let redirect x = (traceprinter := x)
 
 let debug modname thunk =
   if enabled modname then begin
@@ -123,16 +120,8 @@ let rec getLogch() =
 let sendLogMsgsToStderr = ref true
 
 let writeLog s =
-  if !sendLogMsgsToStderr then begin
-      match !traceprinter with
-      | `Stdout -> Printf.printf "%s" s
-      | `Stderr -> Util.msg "%s" s
-      | `FormatStdout -> Format.printf "%s " s
-  end else debug "" (fun() -> 
-      match !traceprinter with
-      | `Stdout -> Printf.printf "%s" s
-      | `Stderr -> Util.msg "%s" s
-      | `FormatStdout -> Format.printf "%s " s);
+  if !sendLogMsgsToStderr then Util.msg "%s" s
+  else debug "" (fun() -> Util.msg "%s" s);
   if Prefs.read logging then begin
     let ch = getLogch() in
     output_string ch s;

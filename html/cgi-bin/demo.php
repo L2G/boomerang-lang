@@ -25,6 +25,18 @@ $defaultdemogroup = "basics";
 
 $logfile_locations = array("$home/webdemo.log");
 
+#####################
+# Unit testing mode #
+#####################
+
+$test = false;
+if(!empty($argv)) {
+  foreach($argv as $argi) { 
+    if ("-test" == $argi) { $test = true; }
+  }
+}
+$home = getcwd();
+
 ##################
 # Load Form Data #
 ##################
@@ -145,7 +157,8 @@ if($test) {
 function run_demo($demogroup, $demonumber) {
   global $home,$alldemos, $test,
     $text_height_diff,$icon_width,$min_width,$min_height,$body_background,$surtitle_text,
-    $r1, $r2, $l1, $l2, $ar, $schema, $expert, $reset;
+    $r1, $r2, $l1, $l2, $ar, $schema, $expert, $reset, $debuglog, $enablelogging, $enabledebug,
+    $logfile_locations;
 
   chdir($demogroup);
   $error = false;
@@ -340,7 +353,6 @@ function run_demo($demogroup, $demonumber) {
         . "export FOCALPATH=.:../../lenses:/$tempdir;"
         . "./$democmd $flags ";
       
-      
       $cmd = 
         $cmdbase 
         . "-r1 $r1file "
@@ -356,6 +368,7 @@ function run_demo($demogroup, $demonumber) {
         . ($forcer1 ? "-forcer1 " : "")
         . "2>&1";
       $output = shell_exec($cmd);
+      debug ('$output',$output);
       
       if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
         $ar = filecontents($newarfile);
@@ -382,14 +395,14 @@ function run_demo($demogroup, $demonumber) {
       $a1 = shell_exec($getcmd);
       if(empty($a1)) { testabort($getcmd); }
 
-      $getcmd = 
+      $getcmd2 = 
         $cmdbase 
         . (file_exists($newr2file) ? "$newr2file " : "$r2file ")
         . (!empty($l2) ? "-lensr1 $lensModule.l2 " : "")
         . "2>&1";
-
-      $a2 = shell_exec($getcmd);
-      if(empty($a2)) { testabort($getcmd); }
+      debug ('$getcmd2',$getcmd2);
+      $a2 = shell_exec($getcmd2);
+      if(empty($a2)) { testabort($getcmd2); }
     }
   #TODO here: remove temporary files!!
 

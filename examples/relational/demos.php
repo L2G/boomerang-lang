@@ -3,19 +3,19 @@
 $demogroupname = "Relational Lenses";
 
 $demo["democmd"] = "./harmonize-relational";
-$demo["forcer1"] = true;
 $demo["schema"] = "List.T Value";
 $demo["r1format"] = $demo["r2format"] = "meta";
+$demo["forcer1"] = true;
 $demo["default_h"] = 200;
 $demo["r1_title"] = "Database";
 $demo["r2_title"] = "View";
 $demo["l1_title"] = "Lens";
 $demo["l1_d"] = true;
 $demo["l2_d"] = false;
-$demo["l2_title"] = "(This should not be visible)";
+$demo["l2_title"] = "(Not needed)";
 $demo["r1_shows"] = true;
 $demo["l2"] = "id";
-$demo["output_d"] = false;
+$demo["output_d"] = "block";
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
@@ -32,7 +32,6 @@ databases---often known as the <i>view update problem</i>.
 The examples in this section are drawn from the paper <i>Relational
 Lenses: A language for defining updateable views</i> (PODS 2006,
 available <a href="../#BohannonPierceVaughan">here</a>).  
-
 XXX;
 $demo["splash"] = true;
 savedemo();
@@ -87,6 +86,7 @@ they are reflected in the database.
 
 XXX;
 
+$demo["forcer1"] = true;
 $demo["l1"] = <<<XXX
 Relational.join_dl "Tracks" with {Track -> Date, Track -> Rating}
   "Albums" with {Album -> Quantity}
