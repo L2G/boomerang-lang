@@ -367,6 +367,7 @@ function run_demo($demogroup, $demonumber) {
         . "-schema $lensModule.S "
         . ($forcer1 ? "-forcer1 " : "")
         . "2>&1";
+      debug ('$cmd',$cmd);
       $output = shell_exec($cmd);
       debug ('$output',$output);
       
@@ -387,12 +388,14 @@ function run_demo($demogroup, $demonumber) {
         $surtitle_text = "Error";
       }
       
-   # generate abstract versions of the two (new) replicas
-      $getcmd = $cmdbase 
+      # generate abstract versions of the two (new) replicas
+      $getcmd1 = $cmdbase 
         . (file_exists($newr1file) ? "$newr1file " : "$r1file ")
         . (!empty($l1) ? "-lensr1 $lensModule.l1 " : "")
         . "2>&1";
-      $a1 = shell_exec($getcmd);
+      debug ('$getcmd1',$getcmd1);
+      $a1 = shell_exec($getcmd1);
+      debug ('$a2',$a2);
       if(empty($a1)) { testabort($getcmd); }
 
       $getcmd2 = 
@@ -402,6 +405,7 @@ function run_demo($demogroup, $demonumber) {
         . "2>&1";
       debug ('$getcmd2',$getcmd2);
       $a2 = shell_exec($getcmd2);
+      debug ('$a2',$a2);
       if(empty($a2)) { testabort($getcmd2); }
     }
   #TODO here: remove temporary files!!

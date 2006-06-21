@@ -164,18 +164,11 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
           (o, a, b,
            (DbAct (true, (fun()-> Format.printf "ERROR: Cannot (yet) synchronize databases when both have changed")), oa, aa, ba))
     in
-  let log_out s p n = Trace.log (String.sub s p n) in
-  let log_flush () = () in
   debug (fun() -> Format.printf "Dumping actions...@\n");
-  Format.print_flush();
-  let out,flush = Format.get_formatter_output_functions () in
-  Format.set_formatter_output_functions log_out log_flush;
-  begin match act with
-  | SyncAct a -> Sync.format_action a
-  | DbAct (b,a) -> a()
-  end;
-  Format.print_flush();
-  Format.set_formatter_output_functions out flush;
+  Trace.log (Misc.format_to_string (fun() -> 
+     match act with
+     | SyncAct a -> Sync.format_action a
+     | DbAct (b,a) -> a()));
   debug (fun() -> Format.printf "Applying PUT functions...@\n");
   debug (fun() -> Format.printf "to o...@\n");
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
