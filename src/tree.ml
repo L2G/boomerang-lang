@@ -61,7 +61,7 @@ let new_value s = set empty s (Some empty)
 
 let field_value k s = set empty k (Some (new_value s))
 
-(* --------------- lists and spined lists --------------- *)
+(* --------------- lists --------------- *)
 let cons v1 v2 = create_star [(hd_tag, Some v1); (tl_tag, Some v2)]
 
 let empty_list = create_star [(nil_tag, Some empty)]
@@ -81,25 +81,6 @@ let rec is_list v =
        (match get v tl_tag with
             None -> false (* can't happen *)
           | Some tl -> is_list tl))
-
-(* the following only works with a non-empty spined list *)
-let get_spine_name v =
-  Name.Set.choose (Name.Set.remove hd_tag (dom v))
-
-let rec is_spined_list v = 
-  is_empty_list v || 
-    (let domain = dom v in
-       (Name.Set.cardinal domain = 2) &&
-       (Name.Set.mem hd_tag domain) &&
-       (let tl = get_spine_name v in
-          (tl <> tl_tag) &&
-          (tl <> nil_tag) &&
-          (match get v tl with
-             | None -> false (* can't happen *)
-             | Some tl -> is_spined_list tl)))
-
-(* let head v = get_required v hd_tag *)
-(* let tail v = get_required v tl_tag *)
 
 (* ### Not tail recursive! *)
 let rec structure_from_list = function
@@ -137,14 +118,6 @@ and format_t_pretty v =
       Format.printf "[@[<hv0>";
       loop (list_from_structure v);
       Format.printf "@]]"
-    end else if is_spined_list v then begin
-      let rec loop = function
-          [] -> ()
-        | [kid] -> format_list_member kid 
-        | kid::rest -> format_list_member kid; Format.printf ",@ "; loop rest in
-      Format.printf "[|@[<hv0>";
-      loop (list_from_spined_structure v);
-      Format.printf "@]|]"
     end else begin
       if (is_value v && inner) then
         Format.printf "{%s}" (format_str (get_value v))
@@ -182,22 +155,6 @@ and list_from_structure v =
   in
     loop [] v 
 
-and list_from_spined_structure v =
-  if not (is_spined_list v) then
-    raise (Error.Harmony_error 
-             (fun () -> 
-                Format.printf "Tree.list_from_spined_structure:@ ";
-                format_t v;
-                Format.printf "@ is not a spined list!"));
-  let rec loop acc v' = 
-    if is_empty_list v' then Safelist.rev acc else
-      let tl = get_spine_name v' in
-      loop
-        ((set empty tl (get v' hd_tag)) :: acc)
-        (get_required v' tl)
-  in
-    loop [] v 
-
 and get_required ?(msg="") ((VI m) as v) k = 
   let msg2 = if msg = "" then "" else msg ^ ": " in
   try 
@@ -225,17 +182,6 @@ let singleton_dom v =
                                   Format.printf "Tree.singleton_dom: tree with several children";
                                   format_t v));
     Name.Set.choose d
-
-let spined_cons v1 v2 =
-  let tl = singleton_dom v1 in
-    if (tl = tl_tag) || (tl = nil_tag) || (tl = hd_tag) then
-      raise (Error.Harmony_error 
-               (fun () -> 
-                  Format.printf "Tree.spined_cons:@ ";
-                  format_t v1;
-                  Format.printf "@ is using a forbidden name as key!"));
-  create_star [(hd_tag, get v1 tl); (tl, Some v2)]
-
 
 type desc =
     Tree of (Name.t * desc) list

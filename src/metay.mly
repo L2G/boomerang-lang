@@ -37,11 +37,6 @@ atree:
 				       $2 
 				       Tree.empty_list
 				   }
-  | LBRACKPIPE innertree_list RBRACKPIPE   { Safelist.fold_right 
-                                              (fun v vacc -> Tree.spined_cons v vacc) 
-                                              $2 
-                                              Tree.empty_list
-                                           }
   
 treeelt_list:
   |                                { [] }

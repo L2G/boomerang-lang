@@ -173,7 +173,6 @@ let format_to_string f =
     Format.set_formatter_output_functions 
       (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
     f ();
-    Format.print_flush();
     let s = Buffer.contents buf in
       Format.set_formatter_output_functions out flush;
       s
