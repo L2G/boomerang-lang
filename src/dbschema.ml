@@ -6,6 +6,8 @@
 
 open Unittest
 
+let debug = Trace.debug "dbschema"
+
 module Rel = Db.Relation
 
 let compare_pair c1 c2 (x1, y1) (x2, y2) =
@@ -356,7 +358,7 @@ module Relschema = struct
       raise (Attribute_not_found (Name.Set.choose diff))
     else
       (ns, fds, pred')
-  let member r (ns, fds, pred) = Fd.Set.member r fds
+  let member r (ns, fds, pred) = Fd.Set.member r fds && Db.Relation.satisfies r pred
   let includes (ns1, fds1, pred1) (ns2, fds2, pred2) =
     Name.Set.equal ns1 ns2 &&
     Fd.Set.subset fds2 fds1 &&
@@ -391,7 +393,8 @@ let member (d : Db.t) (ds : t) =
   try
     Name.Set.for_all
       (fun n ->
-        (Relschema.member (Db.lookup n d) (Name.Map.find n ds)))
+         Db.mem n d
+         && (Relschema.member (Db.lookup n d) (Name.Map.find n ds)))
       (Name.Map.domain ds)
   with
   | Not_found -> false

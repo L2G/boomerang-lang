@@ -446,8 +446,10 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   )
 
 let toplevel progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens =
-  Unix.handle_unix_error 
-    (fun () -> Error.exit_on_error
-                 (toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens))
-    ()
-
+  try
+    Unix.handle_unix_error 
+      (fun () -> Error.exit_on_error
+                   (toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens))
+      ()
+  with
+      e -> Printf.printf "Uncaught exception %s" (Printexc.to_string e); exit 999

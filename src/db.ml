@@ -420,6 +420,10 @@ module Relation = struct
     Name.Map.from_list (List.combine r.fldseq (NameListSet.choose r.rows))
 
 
+  (*** satisfies ***)
+
+  let satisfies r p = fold (fun rcd res -> res && Pred.member rcd p) r true
+
   (*** create ***)
 
   let find_dup (ls : string list) : string option =
@@ -594,6 +598,7 @@ let empty = Name.Map.empty
 let extend = Name.Map.add
 let remove = Name.Map.remove
 let fold = Name.Map.fold
+let mem rn db = Name.Map.mem rn db
 let lookup rn db =
   try Name.Map.find rn db with
   | Not_found ->

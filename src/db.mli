@@ -81,6 +81,9 @@ module Relation : sig
       unimportant (except for printing).
       @raise Error.Harmony_error if the list contains duplicate strings. *)
 
+  val satisfies : t -> Pred.t -> bool
+  (** Check whether a relation satisfies a predicate. *)
+
   val insert : record -> t -> t
   (** Add a record to a relation.  The record must have the correct set of
       fields.
@@ -151,6 +154,7 @@ val equal : t -> t -> bool
 val empty : t
 val extend : Name.t -> Relation.t -> t -> t
 val remove : Name.t -> t -> t
+val mem : Name.t -> t -> bool
 val lookup : Name.t -> t -> Relation.t
 val fold : (Name.t -> Relation.t -> 'a -> 'a) -> t -> 'a -> 'a
 

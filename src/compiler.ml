@@ -517,9 +517,9 @@ let rec compile_exp cev e0 = match e0 with
         mk_rv 
           SLens
           (Value.L (Lens.native 
-                      (fun c -> check_assert i "assert(get)" t c; c)
+                      (fun c -> check_assert i "assert (get)" t c; c)
                       (fun a co -> 
-                         check_assert i "assert(put)" t a; 
+                         check_assert i "assert (put)" t a; 
                          (match co with None -> () | Some c -> check_assert i "assert(put)" t c);
                          a),
                     checker))
