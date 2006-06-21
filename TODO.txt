@@ -1,6 +1,12 @@
 --- THINGS TO DO ---
 
-BUGS
+BUGS 
+
+*** Misc.format_to_string is very broken. In fact, I think the whole
+    concept is bogus, given the way that Format works. Better is to
+    change each format_t function to take a formatter as an
+    argument. Then format_to_string simply calls the right fformat
+    string with a formatter created from a fresh buffer.
 ** Parser needs to catch exceptions thrown in Dbschema.ml.
 * fixes in examples/structuredtext/Makefile should be propagaged to other
   examples Makefiles
