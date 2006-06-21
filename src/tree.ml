@@ -95,32 +95,32 @@ let format_str s =
     if s' = "" then "\"\"" else s'
 
 let rec format_kids m format_rec =
-  Format.printf "{@[<hv0>";
+  Util.format "{@[<hv0>";
   Name.Map.iter_with_sep
     (fun k kid -> 
-      Format.printf "@[<hv1>%s =@ " (format_str k);
+      Util.format "@[<hv1>%s =@ " (format_str k);
       format_rec kid;
-      Format.printf "@]")
-    (fun() -> Format.printf ",@ ")
+      Util.format "@]")
+    (fun() -> Util.format ",@ ")
     m;
-  Format.printf "@]}"
+  Util.format "@]}"
 
 and format_t_pretty v =
   let rec format_aux ((VI m) as v) inner = 
     let format_list_member kid =
-      if is_value kid then Format.printf "{%s}" (format_str (get_value kid))
+      if is_value kid then Util.format "{%s}" (format_str (get_value kid))
       else format_aux kid true in
     if is_list v then begin
       let rec loop = function
           [] -> ()
         | [kid] -> format_list_member kid
-        | kid::rest -> format_list_member kid; Format.printf ",@ "; loop rest in
-      Format.printf "[@[<hv0>";
+        | kid::rest -> format_list_member kid; Util.format ",@ "; loop rest in
+      Util.format "[@[<hv0>";
       loop (list_from_structure v);
-      Format.printf "@]]"
+      Util.format "@]]"
     end else begin
       if (is_value v && inner) then
-        Format.printf "{%s}" (format_str (get_value v))
+        Util.format "{%s}" (format_str (get_value v))
       else format_kids m (fun kid -> format_aux kid true)
     end in
   format_aux v false
@@ -146,9 +146,9 @@ and list_from_structure v =
   if not (is_list v) then
     raise (Error.Harmony_error 
              (fun () -> 
-                Format.printf "Tree.list_from_structure:@ ";
+                Util.format "Tree.list_from_structure:@ ";
                 format_t v;
-                Format.printf "@ is not a list!"));
+                Util.format "@ is not a list!"));
   let rec loop acc v' = 
     if is_empty_list v' then Safelist.rev acc else
       loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
@@ -161,16 +161,16 @@ and get_required ?(msg="") ((VI m) as v) k =
     Name.Map.find k m
   with Not_found -> 
     raise (Error.Harmony_error 
-             (fun () -> Format.printf "%sget_required %s failed on " msg2 (Misc.whack k);
+             (fun () -> Util.format "%sget_required %s failed on " msg2 (Misc.whack k);
                 format_t v))
 
 and get_value v =
   if (is_value v) then (Name.Set.choose (dom v))
   else raise (Error.Harmony_error 
                     (fun () -> 
-                       Format.printf "Tree.get_value";
+                       Util.format "Tree.get_value";
                        format_t v;
-                       Format.printf "is not a value!"))
+                       Util.format "is not a value!"))
 
 
 let list_length v = Safelist.length (list_from_structure v)
@@ -179,7 +179,7 @@ let singleton_dom v =
   let d = dom v in
   if Name.Set.cardinal d <> 1 then
     raise (Error.Harmony_error (fun () -> 
-                                  Format.printf "Tree.singleton_dom: tree with several children";
+                                  Util.format "Tree.singleton_dom: tree with several children";
                                   format_t v));
     Name.Set.choose d
 
@@ -260,7 +260,7 @@ let concat v1 v2 =
   | Invalid_argument _ -> raise 
                            ( Error.Harmony_error 
                                (fun () -> 
-                                  Format.printf "Tree.concat: domain collision between the following two trees:";
+                                  Util.format "Tree.concat: domain collision between the following two trees:";
                                   format_t v1;
                                   format_t v2))
 
@@ -288,15 +288,15 @@ let rec format_raw (VI m) =
     (fun (VI m) -> Name.Map.is_empty m)
     m  
 
-let string_of_t v = Misc.format_to_string (fun () -> format_t v)
+let string_of_t v = Util.format_to_string (fun () -> format_t v)
 
 let pathchange path m v =
-  Format.printf "%s: %s@,"
+  Util.format "%s: %s@,"
     (String.concat "/" (Safelist.rev (Safelist.map Misc.whack path)))
     m;
-  Format.printf "  @[";
+  Util.format "  @[";
   format_t v;
-  Format.printf "@]@,"
+  Util.format "@]@,"
 
 let rec show_diffs_inner v u path =
   let vkids = dom v in
@@ -313,9 +313,9 @@ let rec show_diffs_inner v u path =
     allkids
 
 let rec show_diffs v u =
-  Format.printf "@[<v0>";
+  Util.format "@[<v0>";
   show_diffs_inner v u [];
-  Format.printf "@]"
+  Util.format "@]"
 
 (* CK's old pretty printer for trees *)
 (* let rec pretty_print ((VI (_,m)) as v) = *)
@@ -325,7 +325,7 @@ let rec show_diffs v u =
 (*         match lst with *)
 (*             [] -> () *)
 (*           | [kid] -> pp kid  *)
-(*           | kid::rest -> pp kid; Format.printf ",@ "; loop pp rest  *)
+(*           | kid::rest -> pp kid; Util.format ",@ "; loop pp rest  *)
 (*       in *)
 (*       let rec pp v =  *)
 (*         if is_value v then  *)
@@ -334,43 +334,43 @@ let rec show_diffs v u =
 (*           pretty_print v *)
 (*       in *)
 (*       let lst = list_from_structure v in *)
-(*         Format.printf "[@[<hv0>"; *)
+(*         Util.format "[@[<hv0>"; *)
 (*         loop pp lst; *)
-(*         Format.printf "@]]" *)
+(*         Util.format "@]]" *)
 (*     end  *)
 (*   else  *)
 (*     begin *)
 (*       if (is_value v) then  *)
 (*         begin (\* A value *\) *)
-(*           Format.printf "{%s}" (Misc.whack (get_value v)) *)
+(*           Util.format "{%s}" (Misc.whack (get_value v)) *)
 (*         end *)
 (*       else  *)
 (*         begin  *)
 (*           if (Name.Map.for_all (fun kid -> is_empty kid) m) then *)
 (*             begin (\* All entries are values - so print only labels *\) *)
-(*               Format.printf "{@[<hv0>"; *)
+(*               Util.format "{@[<hv0>"; *)
 (*               Name.Map.iter_with_sep *)
-(*                 (fun k kid -> Format.printf "%s" (Misc.whack k)) *)
-(*                 (fun() -> Format.printf ",@ ") *)
+(*                 (fun k kid -> Util.format "%s" (Misc.whack k)) *)
+(*                 (fun() -> Util.format ",@ ") *)
 (*                 m;               *)
-(*               Format.printf "@]}"; *)
+(*               Util.format "@]}"; *)
 (*             end *)
 (*           else  *)
 (*             begin (\* Not all entres are values *\) *)
-(*               Format.printf "@[<hv0>"; *)
-(*               Format.printf "{@[<hv0>"; *)
+(*               Util.format "@[<hv0>"; *)
+(*               Util.format "{@[<hv0>"; *)
 (*               (\* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *\) *)
 (*               Name.Map.iter_with_sep *)
 (*                 (fun k kid ->  *)
-(*                    Format.printf "@[<hv0>%s =@ " (Misc.whack k); *)
+(*                    Util.format "@[<hv0>%s =@ " (Misc.whack k); *)
 (*                    pretty_print kid; *)
-(*                    Format.printf "@]") *)
-(*                 (fun() -> (Format.printf ",";Format.force_newline ())) *)
+(*                    Util.format "@]") *)
+(*                 (fun() -> (Util.format ",";Format.force_newline ())) *)
 (*                 m; *)
-(*               Format.printf "@]"; *)
+(*               Util.format "@]"; *)
 (*               (\* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *\) *)
-(*               Format.printf "}"; *)
-(*               Format.printf "@]"; *)
+(*               Util.format "}"; *)
+(*               Util.format "@]"; *)
 (*             end *)
 (*         end *)
 (*     end  *)

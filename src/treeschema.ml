@@ -21,6 +21,7 @@ module type SRegExp = sig
   type t 
   val mk_singleton : Name.t -> t
   val mk_cofinite : Name.t list -> t
+  (* NUKE: *)
   val fformat_t : Format.formatter -> t -> unit
   val format_t : t -> unit
   val isect : t -> t -> t option
@@ -181,7 +182,7 @@ let lookup_tvar x = TVarEnv.lookup (!delta_tvar) x
 let lookup_tvar_required x = match lookup_tvar x with 
     Some t -> t
   | None -> raise (Error.Harmony_error 
-                     (fun () -> Format.printf 
+                     (fun () -> Util.format 
                         "Treeschema.lookup_tvar_required: %s not found" x))
 
 (* pretty printing comes here; it only needs to know about tvars, but we need string_of_t 
@@ -195,7 +196,7 @@ let fformat_syn_t fmtr syn_t0 =
       [] -> acc
     | x::xs -> begin match x with 
           Var(CS s) -> 
-            (* Format.printf "NEW VAR: %s@\n" (string_of_cset s);*)
+            (* Util.format "NEW VAR: %s@\n" (string_of_cset s);*)
             let s_tvars = CSet.fold 
               (fun (is,ds) acc -> NS.union is (NS.union ds acc)) 
               s NS.empty in
@@ -232,20 +233,20 @@ let fformat_syn_t fmtr syn_t0 =
         Format.fprintf fmtr "@[";
         if mode <> FSimpleCat then Format.fprintf fmtr "{"; 
         (match l,u with 
-             0,true -> Format.printf "*"
+             0,true -> Util.format "*"
            | n,b -> 
-               for i=1 to n do Format.printf "!" done; 
-               if b then Format.printf "*");
+               for i=1 to n do Util.format "!" done; 
+               if b then Util.format "*");
         if not (Name.Set.is_empty f) then
-          (Format.printf "\\(@[";
+          (Util.format "\\(@[";
            Misc.fformat_list fmtr ",@ " 
              (Format.fprintf fmtr "%s") 
              (Safelist.map Misc.whack (Name.Set.elements f));
-           Format.printf "@])");
-        Format.printf "=@,";
+           Util.format "@])");
+        Util.format "=@,";
         format_one FNone t;
         if mode <> FSimpleCat then Format.fprintf fmtr "}"; 
-        Format.printf "@]" 
+        Util.format "@]" 
     | Cat(ts)    -> 
         let is_atoms = Safelist.for_all 
           (function Atom(_) | Wild(_) -> true | _ -> false) ts in 
@@ -328,7 +329,7 @@ let fformat_t fmtr t0 = match t0 with
        Trace.debug "schema-formulas" 
          begin           
            let thk () = 
-             Format.print_newline ();
+             Util.format "@\n";
              let rec collect acc = function
                  []    -> acc 
                | V(CS s)::xs -> 
@@ -401,11 +402,11 @@ let string_of_t t0 =
    variable *)
 
 let format_low_level msg p e = 
-  Format.printf "%s @[p=@[" msg;
+  Util.format "%s @[p=@[" msg;
   P.format_t p;
-  Format.printf "@]@, e=@[";
-  Misc.format_list "," (fun (r,x) -> R.format_t r; Format.printf "["; format_state x; Format.printf "]") e;
-  Format.printf "@]@]@\n" 
+  Util.format "@]@, e=@[";
+  Misc.format_list "," (fun (r,x) -> R.format_t r; Util.format "["; format_state x; Util.format "]") e;
+  Util.format "@]@]@\n" 
 
 
 module TMapplus = Mapplus.Make(
@@ -499,7 +500,7 @@ let finalize () =
   let contractive_error i xs = 
     let c = NS.cardinal xs in
       raise (Error.Harmony_error 
-               (fun () -> Format.printf 
+               (fun () -> Util.format 
                   "treeschema variable%s%s%s at %s appears in a non-contractive position"
                 (if c=1 then " " else "s [")              
                   (Misc.concat_list "," (NS.elements xs))
@@ -715,7 +716,7 @@ and lookup_cset_required cxs = match lookup_cset cxs with
     Some t -> t
   | None -> raise 
       (Error.Harmony_error 
-         (fun () -> Format.printf 
+         (fun () -> Util.format 
             "Treeschema.lookup_cset_required: %s not found"
             (string_of_cset cxs))) 
 
@@ -965,16 +966,16 @@ let rec empty_aux print (es,nes) t0 =
   let b_res,_,_ = res in 
     Trace.debug "treeschema+" 
       (fun () -> 
-         Format.printf "@\nEMPTY AUX %b " b_res; 
+         Util.format "@\nEMPTY AUX %b " b_res; 
          format_t t0;
          if print then begin
-           Format.printf "@\nes=@[";
+           Util.format "@\nes=@[";
            Misc.format_list "@\n" format_t (TSet.elements es);
-           Format.printf "@]@\nnes=@[";
+           Util.format "@]@\nnes=@[";
            Misc.format_list "@\n" format_t (TSet.elements nes);
-           Format.printf "@]@\n";
+           Util.format "@]@\n";
          end
-         else Format.print_newline ());
+         else Util.format "@\n");
     res
         
 and check_empty (es,nes) (p,e) = 
@@ -1032,7 +1033,7 @@ and check_empty (es,nes) (p,e) =
             else 
               empties (es,TSet.add fake_t0 nes') (pos+1) xrest in
     let es',nes' = empties (es,nes) 0 sub_formulas in
-      Trace.debug "treeschema+" (fun () -> Format.printf "z_val: "; P.Valuation.format_t z_val; Format.print_newline ());
+      Trace.debug "treeschema+" (fun () -> Util.format "z_val: "; P.Valuation.format_t z_val; Util.format "@\n");
       let checked_formula = (P.mkAnd (formula::ft_constraints)) in      
         (* check satisfiability of formula ft, zero constraints *)
         (not (P.fast_sat checked_formula z_val),es',nes'),formula,basis in
@@ -1040,25 +1041,25 @@ and check_empty (es,nes) (p,e) =
   let b_res,_,_ = real_res in
     Trace.debug "treeschema+"
       (fun () -> 
-         Format.printf "--- CHECK_EMPTY --- %b" b_res;
-         Format.printf "@\n(p,e) = "; 
+         Util.format "--- CHECK_EMPTY --- %b" b_res;
+         Util.format "@\n(p,e) = "; 
          P.format_t formula; 
-         Format.printf ","; 
-         (Misc.format_list "," (fun (r,x) -> R.format_t r; Format.printf "["; format_state x; Format.printf "]") basis);
-         Format.printf "@\nes=@[";
+         Util.format ","; 
+         (Misc.format_list "," (fun (r,x) -> R.format_t r; Util.format "["; format_state x; Util.format "]") basis);
+         Util.format "@\nes=@[";
          Misc.format_list "@\n" format_t (TSet.elements es);
-         Format.printf "@]@\nnes=@[";
+         Util.format "@]@\nnes=@[";
          Misc.format_list "@\n" format_t (TSet.elements nes);
-         Format.printf "@]@\n";
-         Format.print_newline ());
+         Util.format "@]@\n";
+         Util.format "@\n");
     real_res
 
 let empty t0 = 
   Trace.debug "treeschema+"
     (fun () -> 
-       Format.printf ">>> START EMPTY@\n  @[";
+       Util.format ">>> START EMPTY@\n  @[";
        format_t t0;
-       Format.print_newline ());
+       Util.format "@\n");
   let res = 
     let t0_empty,new_empties,new_non_empties = 
       empty_aux true (!empties,!non_empties) t0 in
@@ -1068,9 +1069,9 @@ let empty t0 =
     
     Trace.debug "treeschema+"
       (fun () -> 
-         Format.printf "@]@\n<<<EMPTY %b\t" res;
+         Util.format "@]@\n<<<EMPTY %b\t" res;
          format_t t0;
-         Format.print_newline ());
+         Util.format "@\n");
     res
   
 let subschema t0 t1 = empty (mk_diff t0 t1)
@@ -1145,11 +1146,11 @@ let member v t0 =
           if print then 
             Trace.debug "member" 
               (fun () -> 
-                 Format.printf "MEMBER (%d)" (!total_member_tests - old_tmts);
-                 Format.printf "@\n v : "; Tree.format_t v;
-                 Format.printf "@\nt0 : "; format_t t0;
-                 Format.printf "@\n  = %b" res;
-                 Format.print_newline ());
+                 Util.format "MEMBER (%d)" (!total_member_tests - old_tmts);
+                 Util.format "@\n v : "; Tree.format_t v;
+                 Util.format "@\nt0 : "; format_t t0;
+                 Util.format "@\n  = %b" res;
+                 Util.format "@\n");
           res in 
     aux true v t0
 
@@ -1190,10 +1191,10 @@ let rec dom_member ns t0 =
       let formula = P.mkAnd (P.substitute subst (P.shift_t new_vars p)::f1) in
         P.fast_sat formula (P.Valuation.create ((Safelist.length e) + new_vars) 0 true)
   in
-    (* Format.printf "DOM_MEMBER {%s}" (ns2str "," ns);
+    (* Util.format "DOM_MEMBER {%s}" (ns2str "," ns);
        format_t t0;
-       Format.printf " = %b" res;
-       Format.print_newline (); *)
+       Util.format " = %b" res;
+       Util.format "@\n"; *)
     res
 
 (* --- project --- *)

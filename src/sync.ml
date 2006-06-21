@@ -87,11 +87,11 @@ let rec format_raw = function
         (fun x -> format_raw x)
         (fun _ -> false)
         m
-  | MarkEqual -> Format.printf "EQUAL"
+  | MarkEqual -> Util.format "EQUAL"
   | DeleteConflict (v0,v) ->
-      Format.printf "DELETE CONFLICT@,  @[";
+      Util.format "DELETE CONFLICT@,  @[";
       Tree.show_diffs v0 v;
-      Format.printf "@]@,"
+      Util.format "@]@,"
   | ListSync a -> D3.format_action a
   | ListConflict (lv,rv) -> format_list_conflict lv rv
   | CopyLeftToRight c -> format_copy "-->" c
@@ -114,34 +114,34 @@ let rec format_pretty = function
   | GoDown(m) ->
       if is_cons m then begin
         (* Special case for lists *)
-        Format.printf "[@[<hv0>";
+        Util.format "[@[<hv0>";
         format_cons 0 m
       end else begin
         (* Default case *)
         let prch (n,ch) = 
           let prf() =
-              Format.printf "@["; format_pretty ch; Format.printf "@]" in
-          Format.printf "@[<hv1>%s =@ " (Misc.whack n);
+              Util.format "@["; format_pretty ch; Util.format "@]" in
+          Util.format "@[<hv1>%s =@ " (Misc.whack n);
           prf();
-          Format.printf "@]" in
-        Format.printf "{@[<hv0>";
+          Util.format "@]" in
+        Util.format "{@[<hv0>";
         let binds = Safelist.map (fun k -> (k, Name.Map.find k m))
                       (Name.Set.elements (Name.Map.domain m)) in
         let binds = Safelist.filter (fun (k,e) -> e <> MarkEqual) binds in
         (* Here, we should check for a replacement and treat it special! *)
         Misc.iter_with_sep
           prch
-          (fun()-> Format.printf ","; Format.print_break 1 0)
+          (fun()-> Util.format ",@;<1 0>")
           binds;
-        Format.printf "@]}"
+        Util.format "@]}"
       end 
   | MarkEqual ->
       (* By construction, this case can only be invoked at the root *)
-      Format.printf "EQUAL"
+      Util.format "EQUAL"
   | DeleteConflict (v0,v) ->
-      Format.printf "DELETE CONFLICT@,  @[";
+      Util.format "DELETE CONFLICT@,  @[";
       Tree.show_diffs v0 v;
-      Format.printf "@]@,"
+      Util.format "@]@,"
   | CopyLeftToRight c -> format_copy "-->" c
   | CopyRightToLeft c -> format_copy "<--" c
   | ListSync a -> D3.format_action a
@@ -151,8 +151,8 @@ let rec format_pretty = function
 and format_cons equal_hd_count m =
   let dump_hd_count n =
     if n = 0 then ()
-    else if n = 1 then Format.printf "..." 
-    else Format.printf "...(%d)..." n in
+    else if n = 1 then Util.format "..." 
+    else Util.format "...(%d)..." n in
   let hd_action = (try Name.Map.find Tree.hd_tag m with Not_found -> MarkEqual) in
   let tl_tag =
     begin
@@ -166,17 +166,17 @@ and format_cons equal_hd_count m =
                         | _ -> true) in
   begin (* format the head and/or an appropriate separator, as needed *)
     match (hd_interesting, tl_interesting) with
-    | true,true -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Format.printf ",@ ");
-                   format_pretty hd_action; Format.printf ";@ "
-    | false,true -> dump_hd_count (equal_hd_count+1); Format.printf ";@ ";
-    | true,false -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Format.printf ",@ ");
-                    format_pretty hd_action; Format.printf ",@ "
+    | true,true -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Util.format ",@ ");
+                   format_pretty hd_action; Util.format ";@ "
+    | false,true -> dump_hd_count (equal_hd_count+1); Util.format ";@ ";
+    | true,false -> if equal_hd_count > 0 then (dump_hd_count equal_hd_count; Util.format ",@ ");
+                    format_pretty hd_action; Util.format ",@ "
     | false,false -> ()
   end;
   match tl_action with
   | GoDown(m) -> format_cons (if hd_interesting then 0 else equal_hd_count+1) m
-  | MarkEqual -> Format.printf "...]@]"
-  | a -> format_pretty a; Format.printf "]@]"
+  | MarkEqual -> Util.format "...]@]"
+  | a -> format_pretty a; Util.format "]@]"
 
 let format_action v =
   if Prefs.read Tree.raw then format_raw v

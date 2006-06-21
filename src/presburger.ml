@@ -138,12 +138,12 @@ let rec fformat_t_aux fmtr g t0 =
   let format_constraint vs opr c = 
 (*     let _ =  *)
 (*       if false then ( *)
-(*       Format.printf " DEBUG("; *)
+(*       Util.format " DEBUG("; *)
 (*       IntMap.iter_with_sep  *)
-(*         (fun xi wi -> Format.printf "%dn%d" wi xi) *)
-(*         (fun () -> Format.printf "+") *)
+(*         (fun xi wi -> Util.format "%dn%d" wi xi) *)
+(*         (fun () -> Util.format "+") *)
 (*         vs; *)
-(*       Format.printf ",%d) " c) in *)
+(*       Util.format ",%d) " c) in *)
     let non_neg, neg = IntMap.partition (fun _ wi -> wi >= 0) vs in 
     let pos, zero = IntMap.partition (fun _ wi -> wi > 0) non_neg in 
     let pos_empty = IntSet.is_empty (IntMap.domain pos) in 
@@ -156,18 +156,18 @@ let rec fformat_t_aux fmtr g t0 =
         begin 
           if pos_empty then Format.fprintf fmtr "%d" (if c >= 0 then c else 0)
           else (IntMap.iter_with_sep 
-                  (fun xi wi -> Format.printf "%sn%d" 
+                  (fun xi wi -> Util.format "%sn%d" 
                      (if wi=1 then "" else sprintf "%d" wi) xi)
-                  (fun () -> Format.printf "+")
+                  (fun () -> Util.format "+")
                   pos;
                 if c > 0 then Format.fprintf fmtr "+%d" c);
           Format.fprintf fmtr "%s" opr;
           if neg_empty then Format.fprintf fmtr "%d" (if c < 0 then -c else 0) 
           else 
             (IntMap.iter_with_sep 
-               (fun xi wi -> Format.printf "%sn%d" 
+               (fun xi wi -> Util.format "%sn%d" 
                   (if wi=(-1) then "" else sprintf "%d" (-wi)) xi)
-               (fun () -> Format.printf "+")
+               (fun () -> Util.format "+")
                neg;
              if c < 0 then Format.fprintf fmtr "%d" (-c))
         end in 
@@ -197,7 +197,7 @@ let rec fformat_t_aux fmtr g t0 =
             | f -> 
                 Format.fprintf fmtr ".";
                 fformat_t_aux fmtr g f in
-            Format.printf "EX x%d" (fst g);
+            Util.format "EX x%d" (fst g);
             format_exs (next g) f1
 
 let fformat_t fmtr f = 
@@ -228,9 +228,9 @@ let rec shift_aux n c =
 (* --- top-level shift operator --- *)
 let shift_exp n = shift_exp_aux n 0
 let shift_t n f = 
-  Trace.debug "presburger+" (fun() -> Format.printf "SHIFT: "; format_t f);
+  Trace.debug "presburger+" (fun() -> Util.format "SHIFT: "; format_t f);
   let res = shift_aux n 0 f in 
-    Trace.debug "presburger+" (fun() -> Format.printf " -> "; format_t res); 
+    Trace.debug "presburger+" (fun() -> Util.format " -> "; format_t res); 
     res
     
 (* -------------- substitution -------------- *)
@@ -261,11 +261,11 @@ let rec substitute_exp es e0 = match e0 with
   | Sum(e1,e2) -> Sum(substitute_exp es e1,substitute_exp es e2)
         
 let rec substitute es t0 = 
-  (* Format.printf "@\n--- SUBSTITUTE ---@\nSUBS={";
-  Misc.format_list "," (fun (xi,ei) ->  Format.printf "n%d->" xi; format_exp ei;) es;
-  Format.printf "}@\nt0=";
+  (* Util.format "@\n--- SUBSTITUTE ---@\nSUBS={";
+  Misc.format_list "," (fun (xi,ei) ->  Util.format "n%d->" xi; format_exp ei;) es;
+  Util.format "}@\nt0=";
   format_t t0; 
-  Format.print_newline (); *)
+  Util.format "@\n"; *)
   let substitute_constraint (vs,c) = 
     let mult (vs,c) n = (map_int_map (fun xi wi -> (xi,n*wi)) vs, c*n) in 
       IntMap.fold 
@@ -293,9 +293,9 @@ let rec substitute es t0 =
         let shifted_es = Safelist.map 
           (fun (x,e) -> (x+1, shift_exp 1 e)) es in
           Exists(substitute shifted_es f) in 
-(*     Format.printf "RES="; *)
+(*     Util.format "RES="; *)
 (*     format_t res; *)
-(*     Format.print_newline (); *)
+(*     Util.format "@\n"; *)
     res
             
 (* --------------- constants --------------- *)
@@ -439,27 +439,27 @@ let add2 f1 f2 =
   let remaining_common_vars = IntSet.diff common_fvs (IntSet.union f1_zeros f2_zeros) in
     Trace.debug "add+" 
       (fun () -> 
-         Format.printf " --- Presburger.add --- @\nf1="; 
+         Util.format " --- Presburger.add --- @\nf1="; 
          format_t f1; 
-         Format.printf "@\nf2="; 
+         Util.format "@\nf2="; 
          format_t f2;
-         Format.printf "@\nZS1={%s} (ALL={%s})"  
+         Util.format "@\nZS1={%s} (ALL={%s})"  
            (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements f1_zeros)))
            (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements zs1)));
-         Format.printf "@\nZS2={%s} (ALL={%s})" 
+         Util.format "@\nZS2={%s} (ALL={%s})" 
            (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements f2_zeros))) 
            (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements zs2)));
-         Format.printf "@\nf1_zeroed: "; format_t f1_zeroed;
-         Format.printf "@\nf2_zeroed: "; format_t f2_zeroed;
-         Format.printf "@\nREMAINING_COMMON: {%s}" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_common_vars)));
-         Format.printf "@\n");
+         Util.format "@\nf1_zeroed: "; format_t f1_zeroed;
+         Util.format "@\nf2_zeroed: "; format_t f2_zeroed;
+         Util.format "@\nREMAINING_COMMON: {%s}" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_common_vars)));
+         Util.format "@\n");
     
     (* next we recognize an easy common case: if f1_zeroed and
        f2_zeroed have no remaining free variables in common, then
        their sum is equivalent to their conjunction. *)
     if IntSet.is_empty remaining_common_vars then 
       let res = mkAnd[f1_zeroed;f2_zeroed] in 
-        (Trace.debug "add+" (fun () -> Format.printf "QUICK RES="; format_t res; Format.print_newline ()); 
+        (Trace.debug "add+" (fun () -> Util.format "QUICK RES="; format_t res; Util.format "@\n"); 
          res)
     else
       (* otherwise, we fall back and introduce fresh quantified
@@ -484,10 +484,10 @@ let add2 f1 f2 =
       let remaining_fvs = IntSet.union remaining_fv1 remaining_fv2 in
         Trace.debug "add+" 
           (fun () -> 
-             Format.printf "REMAINING_FV1 {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fv1)));
-             Format.printf "REMAINING_FV2 {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fv2)));
-             Format.printf "REMAINING_FVS {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fvs)));
-             Format.printf "C_COMMON=%d, C_1=%d@\n" c_common c_1);        
+             Util.format "REMAINING_FV1 {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fv1)));
+             Util.format "REMAINING_FV2 {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fv2)));
+             Util.format "REMAINING_FVS {%s}@\n" (Misc.concat_list "," (Safelist.map string_of_int (IntSet.elements remaining_fvs)));
+             Util.format "C_COMMON=%d, C_1=%d@\n" c_common c_1);        
         let init_i1 = 0 in 
         let init_o1 = 2 * c_common in 
         let init_o2 = c_1 + (2 * c_common) in 
@@ -529,17 +529,17 @@ let add2 f1 f2 =
           
           Trace.debug "add+"
             (fun () -> 
-               Format.printf "F1_FRESH: ";
+               Util.format "F1_FRESH: ";
                format_t f1_fresh;
-               Format.printf "@\nF2_FRESH: ";
+               Util.format "@\nF2_FRESH: ";
                format_t f2_fresh;
-               Format.printf "@\nEQUALITIES: "; 
+               Util.format "@\nEQUALITIES: "; 
                Misc.format_list " & " format_t equalities;
-               Format.print_newline());
+               Util.format "@\n");
           
       (* final result *)
           let res = wrap (2*c_common) (mkAnd (f1_fresh::f2_fresh::equalities)) in 
-            Trace.debug "add+" (fun () -> Format.printf "RES="; format_t res; Format.print_newline ());
+            Trace.debug "add+" (fun () -> Util.format "RES="; format_t res; Util.format "@\n");
             res
 
 let add ts0 = match ts0 with 
@@ -589,11 +589,11 @@ module BitVector = struct
       Array.unsafe_set v.data idx (v_idx lor (Array.unsafe_get masks j))
 
   let format_t v = 
-    Format.printf "[";
+    Util.format "[";
     for i=0 to v.length-1 do       
-      Format.printf "%d%s" (get v i) (if i=v.length-1 then "" else ",")
+      Util.format "%d%s" (get v i) (if i=v.length-1 then "" else ",")
     done;
-    Format.printf "]"
+    Util.format "]"
 
 end
 
@@ -639,14 +639,14 @@ module Valuation = struct
 
   let format_t v = 
     let concat l = List.fold_left (fun a e -> if a="" then e else Printf.sprintf "%s,%s" e a) "" l in
-      Format.printf "{ bit_data="; 
+      Util.format "{ bit_data="; 
       BitVector.format_t v.bit_data;
-      Format.printf ", int_data=[%s], mem_data="
+      Util.format ", int_data=[%s], mem_data="
         (concat (List.map string_of_int (Array.to_list v.int_data)));
       (match v.mem_data with
-           None -> Format.printf "None";
+           None -> Util.format "None";
          | Some mems -> BitVector.format_t mems);
-      Format.printf  " }@\n%!" 
+      Util.format  " }@\n%!" 
 
 let _ = Callback.register "Valuation.get_bpi" (fun () -> BitVector.bpi)
 end
@@ -692,7 +692,7 @@ let close f =
 let empty_env n = raise 
   (Error.Harmony_error 
      (fun () ->
-        Format.printf "Presburger.satisfiable: unknown variable: n%d" n))
+        Util.format "Presburger.satisfiable: unknown variable: n%d" n))
 
 let satisfiable f = 
   let omega_init_g = (0, empty_env) in    
@@ -740,7 +740,7 @@ let fast_sat f vs =
                      raise 
                        (Error.Harmony_error 
                           (fun () ->
-                             Format.printf "Presburger.fast_sat: unknown variable: n%d" k))                     
+                             Util.format "Presburger.fast_sat: unknown variable: n%d" k))                     
                 ) o f;
         OmegaLibrary.finalize o;
         TCache.add omega_cache f res;
@@ -752,7 +752,7 @@ let fast_sat f vs =
     with Not_found ->
       incr l2_misses;
       let sat = OmegaLibrary.fast_sat o vs in        
-        (* Format.printf "res=%b@\n%!" sat; *)
+        (* Util.format "res=%b@\n%!" sat; *)
         VCache.add l2 vs sat;
         sat
 
@@ -767,15 +767,15 @@ let print_stats () =
     (0,0,0) in
     Trace.debug "cache"
       (fun () ->           
-           Format.printf "--- Presburger cache stats ---@\n";
-           Format.printf "total queries: %d@\n" (!l2_hits + !l2_misses);
-           Format.printf "l1_cache@\n";
-           Format.printf "\tentries\t\t: %d@\n" l1_entries;
-           Format.printf "\thit rate\t: %.3f%s@\n" (mk_pct l1_hits l1_misses) "%";
-           Format.printf "l2_cache@\n";
-           Format.printf "\taverage entries\t: %.3f@\n" ((float_of_int l2_total_entries) /. (float_of_int l2_number));
-           Format.printf "\thit rate\t: %.2f%s" (mk_pct l2_hits l2_misses) "%";
-           Format.print_newline ())
+           Util.format "--- Presburger cache stats ---@\n";
+           Util.format "total queries: %d@\n" (!l2_hits + !l2_misses);
+           Util.format "l1_cache@\n";
+           Util.format "\tentries\t\t: %d@\n" l1_entries;
+           Util.format "\thit rate\t: %.3f%s@\n" (mk_pct l1_hits l1_misses) "%";
+           Util.format "l2_cache@\n";
+           Util.format "\taverage entries\t: %.3f@\n" ((float_of_int l2_total_entries) /. (float_of_int l2_number));
+           Util.format "\thit rate\t: %.2f%s" (mk_pct l2_hits l2_misses) "%";
+           Util.format "@\n")
 
 (*          let bytes2str b = 
            let thresh = 1024 in
@@ -801,12 +801,12 @@ let print_stats () =
          (acc1,ai::l2))
     ((true,0,0,0,[]),[])
     a in
-(*     Format.printf "@\n --- array2fingerprint ---@\n";
-    Format.printf "a=[%s]@\n"
+(*     Util.format "@\n --- array2fingerprint ---@\n";
+    Util.format "a=[%s]@\n"
       (Misc.concat_list "," (Safelist.map string_of_int (Array.to_list a)));
-    Format.printf "fingerprint=((%d,%d),[%s])@\n" 
+    Util.format "fingerprint=((%d,%d),[%s])@\n" 
       n bv (Misc.concat_list "," (Safelist.map string_of_int l1));
-    Format.printf "to_list=[%s]@\n"
+    Util.format "to_list=[%s]@\n"
       (Misc.concat_list "," (Safelist.map string_of_int (Safelist.rev l2_rev)));
 *)
     ((n::bv::l1),(Safelist.rev l2_rev))

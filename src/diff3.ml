@@ -31,21 +31,21 @@ type elt = A.elt
 type action = ((unit->unit) option * (unit->bool)) list 
 
 let format_action acts =
-  Format.printf "@[<hv 1>[";
+  Util.format "@[<hv 1>[";
   let rec loop first_elt skipping = function
       [] -> ()
     | (None, _) :: rest ->
         if not skipping then begin
-          if not first_elt then Format.printf ",@,";
-          Format.printf "..."
+          if not first_elt then Util.format ",@,";
+          Util.format "..."
         end;
         loop false true rest
     | (Some f, _) :: rest ->
-        if not first_elt then Format.printf ",@,";
+        if not first_elt then Util.format ",@,";
         f();
         loop false false rest
   in loop true false acts;
-  Format.printf "]@]"
+  Util.format "]@]"
 
 let has_conflict acts = Safelist.exists (fun (_,hc) -> hc()) acts
 
@@ -79,15 +79,15 @@ let format_list l =
   let rec loop l = match l with
     [] -> ()
   | [e] -> A.format e
-  | e::es -> A.format e; Format.printf ",@ "; loop es
+  | e::es -> A.format e; Util.format ",@ "; loop es
   in loop l
 
 let diff3_sync elt_schema (o,a,b) =
   debug (fun () ->
-           Format.printf "Inputs:@\n";
-           Format.printf "          o = "; format_list o; Format.printf "@\n"; 
-           Format.printf "          a = "; format_list a; Format.printf "@\n"; 
-           Format.printf "          b = "; format_list b; Format.printf "@\n"); 
+           Util.format "Inputs:@\n";
+           Util.format "          o = "; format_list o; Util.format "@\n"; 
+           Util.format "          a = "; format_list a; Util.format "@\n"; 
+           Util.format "          b = "; format_list b; Util.format "@\n"); 
   let len_a = Safelist.length a in 
   let len_b = Safelist.length b in
   let len_o = Safelist.length o in
@@ -168,34 +168,34 @@ let diff3_sync elt_schema (o,a,b) =
              [] in
 
          let header s =
-           Format.printf
+           Util.format
              "-- Elements %d-%d in archive, %d-%d in replica 1, %d-%d in replica 2: --@,"
              (so+2) eo (sa+2) (ea) (sb+2) (eb) in
            (* let header s =
-              Format.printf "@[<v 0>%s in the chunk consisting of" s;
-              Format.printf "@    %d lines from %d-%d in archive,"
+              Util.format "@[<v 0>%s in the chunk consisting of" s;
+              Util.format "@    %d lines from %d-%d in archive,"
               (eo-so-1) (so+2) eo;
-              Format.printf "@    %d lines from %d-%d in replica 1,"
+              Util.format "@    %d lines from %d-%d in replica 1,"
               (ea-sa-1) (sa+2) (ea);
-              Format.printf "@    %d lines from %d-%d in replica 2...@]@,"
+              Util.format "@    %d lines from %d-%d in replica 2...@]@,"
               (eb-sb-1) (sb+2) (eb) in *)
 
          let showchange s nw ol =
              if nw = [] then begin
-               Format.printf "Delete (%s): @[" s; format_list ol; Format.printf "@]"
+               Util.format "Delete (%s): @[" s; format_list ol; Util.format "@]"
              end else if ol=[] then begin
-               Format.printf "Add (%s): @[" s; format_list nw; Format.printf "@]"
+               Util.format "Add (%s): @[" s; format_list nw; Util.format "@]"
              end else begin
-               Format.printf "Replace (%s): @[" s; format_list ol; Format.printf "@]@,";
-               Format.printf "         with: @["; format_list nw; Format.printf "@]";
+               Util.format "Replace (%s): @[" s; format_list ol; Util.format "@]@,";
+               Util.format "         with: @["; format_list nw; Util.format "@]";
              end in
 
          (* let showchange s nw ol =
            let rec list_change_lines m = function
                [] -> ()
-             | [e]     -> Format.printf "%s (%s) " m s; A.format e
-             | e::rest -> Format.printf "%s (%s) " m s; A.format e;
-                 Format.printf ",@,"; list_change_lines m rest in
+             | [e]     -> Util.format "%s (%s) " m s; A.format e
+             | e::rest -> Util.format "%s (%s) " m s; A.format e;
+                 Util.format ",@,"; list_change_lines m rest in
              if nw = [] then list_change_lines "Delete" ol
              else if ol=[] then list_change_lines "Add" nw 
              else list_change_lines "Change" nw in *)
@@ -212,10 +212,10 @@ let diff3_sync elt_schema (o,a,b) =
              let len_onew = Safelist.length onew in 
              let len_anew = Safelist.length anew in 
              let len_bnew = Safelist.length bnew in 
-               debug (fun() -> Format.printf "o="; format_list onew;
-                               Format.printf "@\na="; format_list anew;
-                               Format.printf "@\nb="; format_list bnew;
-                               Format.printf "@\n");
+               debug (fun() -> Util.format "o="; format_list onew;
+                               Util.format "@\na="; format_list anew;
+                               Util.format "@\nb="; format_list bnew;
+                               Util.format "@\n");
                if len_onew = len_anew && len_onew = len_bnew then begin
                  (* Recursively synchronize, element by element *)
                  let (subacts, onew', anew', bnew') =
@@ -228,11 +228,11 @@ let diff3_sync elt_schema (o,a,b) =
                         (zip3 (onew, anew, bnew))) in
                  let act () =
                    header "Reconciling changes line by line";
-                   (* Format.printf "   (Length = %d)@," len_onew; *)
+                   (* Util.format "   (Length = %d)@," len_onew; *)
                    let rec loop first = function
                        [] -> ()
                      | a::rest ->
-                         if not first then Format.printf ",@,";
+                         if not first then Util.format ",@,";
                          A.format_action a;
                          loop false rest in
                      loop true subacts in
@@ -241,8 +241,8 @@ let diff3_sync elt_schema (o,a,b) =
                end else begin
                  let act () =
                    header "Conflict";
-                   Format.printf "@[<hv 4>Conflict between@ "; format_list anew;
-                   Format.printf "@]@ @[<hv 4>and@ "; format_list bnew; Format.printf "@]" in
+                   Util.format "@[<hv 4>Conflict between@ "; format_list anew;
+                   Util.format "@]@ @[<hv 4>and@ "; format_list bnew; Util.format "@]" in
                    ((so,sa,sb),((Some act,confl)::acts,common@onew@o',common@anew@a',common@bnew@b'))
                end
            end else if is_diff_oa then begin   
@@ -265,9 +265,9 @@ let diff3_sync elt_schema (o,a,b) =
 
 let duplicate_element l e =
   raise (Error.Harmony_error (fun() ->
-    Format.printf "@[Diff3.cycle_merge_sync: duplicate element@ "; (* A.format e; *)
-    Format.printf "@ in list@ "; format_list l;
-    Format.printf "@]"))
+    Util.format "@[Diff3.cycle_merge_sync: duplicate element@ "; (* A.format e; *)
+    Util.format "@ in list@ "; format_list l;
+    Util.format "@]"))
 
 let rec getmin l min = match l with
     h::t -> if (h < min) then getmin t h else getmin t min
@@ -279,9 +279,9 @@ let rec getmax l max = match l with
 
 let print_block pos elt1 elt2 len = 
   if len=1 then
-    Format.printf "%s at position %d" (A.tostring elt1) pos 
+    Util.format "%s at position %d" (A.tostring elt1) pos 
   else
-    Format.printf "[%s..%s] at postion [%d..%d]"
+    Util.format "[%s..%s] at postion [%d..%d]"
       (A.tostring elt1) (A.tostring elt2) pos (pos+len-1)  
 
 let cycle_merge_sync elt_schema (archive, a1, a2) =
@@ -296,10 +296,10 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
   (* Check that all inputs are the same length *)
   if (List.length archive !=  List.length a1) || (List.length archive !=  List.length a2) 
   then raise (Error.Harmony_error (fun() ->
-         Format.printf "@[Diff3.cycle_merge_sync: Lists@ "; format_list archive;
-         Format.printf "@ and@ "; format_list a1;
-         Format.printf "@ and@ "; format_list a2;
-         Format.printf "@ are not the same length@]"));
+         Util.format "@[Diff3.cycle_merge_sync: Lists@ "; format_list archive;
+         Util.format "@ and@ "; format_list a1;
+         Util.format "@ and@ "; format_list a2;
+         Util.format "@ are not the same length@]"));
   let list_size = List.length archive in 
 
   let get_index x l =
@@ -308,7 +308,7 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
       match l with
           [] -> raise (Error.Harmony_error (fun()->
                   (* This is pretty uninformative: *)
-                  Format.printf "Cycle merge: Element %s  not found" (A.tostring x)))
+                  Util.format "Cycle merge: Element %s  not found" (A.tostring x)))
         | h::t -> if h=x then id else f (id+1) t in
     f 1 l in 
 
@@ -383,17 +383,17 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
           let block_len = get_block_len cycle 1 (min+1) (max+1)  in 
           let str = if block_len=1 then "elements" else "blocks" in
           emit (fun()->
-            Format.printf "@[<v3>Found active cycle in replica %d, " i;
-            Format.printf "consisting of the following %s in cyclic order:@ " str;
+            Util.format "@[<v3>Found active cycle in replica %d, " i;
+            Util.format "consisting of the following %s in cyclic order:@ " str;
             List.iter
               (fun x -> 
                  let y = Hashtbl.find (rev_index_tbl i) x in 
                  let elt1 = Hashtbl.find orig_contents_tbl y in
                  let elt2 = Hashtbl.find orig_contents_tbl (y+block_len-1) in
                  print_block y elt1 elt2 block_len;
-                 Format.printf "@ ")
+                 Util.format "@ ")
               cycle;
-              Format.printf "@]@,");
+              Util.format "@]@,");
           List.iter (fun x -> store_tmp_tbl x (block_len-1)) cycle;
           let rec apply_cycle cycle head =
             match cycle with
@@ -444,7 +444,7 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
              final_index_tbl [] in 
   let o' =
     if (not (o'=a')) && (a'=b') then begin
-      emit (fun()-> Format.printf "Setting o'=a' since a'=b'");
+      emit (fun()-> Util.format "Setting o'=a' since a'=b'");
       a'
     end else o' in
 
@@ -463,24 +463,24 @@ let cycle_merge_sync elt_schema (archive, a1, a2) =
       let elt1 = Hashtbl.find orig_contents_tbl pos in
       let elt2 = Hashtbl.find orig_contents_tbl (pos + block_len - 1) in 
       print_block pos elt1 elt2 block_len;
-      Format.printf " moved to position ";
+      Util.format " moved to position ";
       if block_len = 1 
-        then Format.printf "%d " pos_rep 
-        else Format.printf "[%d..%d]" pos_rep (pos_rep + block_len - 1);
-      Format.printf "@ ";
+        then Util.format "%d " pos_rep 
+        else Util.format "[%d..%d]" pos_rep (pos_rep + block_len - 1);
+      Util.format "@ ";
       print_conflicts (pos+block_len) tbl
       end in
 
   if not (o' = a') then
     emit_conflict (fun() ->
-      Format.printf "The following changes from o' to a' cannot be reconciled:@ ";
+      Util.format "The following changes from o' to a' cannot be reconciled:@ ";
       print_conflicts 1 (index_tbl 1);
-      Format.printf "@,");
+      Util.format "@,");
   if not (o' = b') then
     emit_conflict (fun() ->     
-      Format.printf "The following changes from o' to b' cannot be reconciled:@ ";
+      Util.format "The following changes from o' to b' cannot be reconciled:@ ";
       print_conflicts 1 (index_tbl 2);
-      Format.printf "@,");
+      Util.format "@,");
 
   let acts = List.rev (!acts_rev) in
   let dumpit () = Safelist.iter (fun f -> f()) acts in

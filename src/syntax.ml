@@ -229,99 +229,99 @@ type format_mode = { app : bool; cat : bool }
 
 (* sorts *)
 let format_lensarrow la = 
-  Format.printf "<<%s>" 
+  Util.format "<<%s>" 
     (match la with Bij -> "~" | Vwb -> "=" | Wb -> "-")
 
 let rec format_sort s0 = 
   let rec format_sort_aux parens = function
-      SName         -> Format.printf "name"
-    | SLens         -> Format.printf "lens"
+      SName         -> Util.format "name"
+    | SLens         -> Util.format "lens"
     | SCheckedLens(q1,la,q2) -> 
-        Format.printf "%s" (string_of_qid q1);
+        Util.format "%s" (string_of_qid q1);
         format_lensarrow la;
-        Format.printf "%s" (string_of_qid q2)
-    | SSchema       -> Format.printf "schema"
-    | SPred         -> Format.printf "pred"
-    | SFD           -> Format.printf "fds"
-    | SView         -> Format.printf "view"
-    | SMap          -> Format.printf "fmap"
+        Util.format "%s" (string_of_qid q2)
+    | SSchema       -> Util.format "schema"
+    | SPred         -> Util.format "pred"
+    | SFD           -> Util.format "fds"
+    | SView         -> Util.format "view"
+    | SMap          -> Util.format "fmap"
     | SArrow(s1,s2) -> 
-        if parens then Format.printf "(";
+        if parens then Util.format "(";
         format_sort_aux true s1; 
-        Format.printf "@ ->@ "; 
+        Util.format "@ ->@ "; 
         format_sort_aux false s2; 
-        if parens then Format.printf ")"
+        if parens then Util.format ")"
   in 
-    Format.printf "@[<2>";
+    Util.format "@[<2>";
     format_sort_aux false s0;
-    Format.printf "@]"
+    Util.format "@]"
 
 (* params *)
 and format_param (PDef(_,i,s)) = 
-  Format.printf "@[%s:" (string_of_id i); 
+  Util.format "@[%s:" (string_of_id i); 
   format_sort s; 
-  Format.printf "@]"
+  Util.format "@]"
 
 (* expressions *)
 and format_exp_aux mode e0 = match e0 with 
     EApp(_,e1,e2)   -> 
       let mode = { mode with cat = false } in   
-        Format.printf "@[<2>"; 
-        if mode.app then Format.printf "(";
+        Util.format "@[<2>"; 
+        if mode.app then Util.format "(";
         (* some special formatting for infix operators, etc. *)
         begin match e1 with 
             EApp(_,EVar(_,q,_),e12)
               when string_of_qid q = "Native.Prelude.compose2" ->
                 format_exp_aux { mode with app = false } e12;
-                Format.printf ";@ ";
+                Util.format ";@ ";
                 format_exp_aux { mode with app = false } e2
           | EVar(_,q,_) when string_of_qid q = "Native.Prelude.get" ->
               format_exp_aux { mode with app = true} e2;
-              Format.printf "@ /"                
+              Util.format "@ /"                
           | EVar(_,q,_) when string_of_qid q = "Native.Prelude.put" -> 
               format_exp_aux { mode with app = true } e2;
-              Format.printf "@ \\"
+              Util.format "@ \\"
           | EApp(_,EVar(_,q,_),e12) 
               when string_of_qid q = "Native.Prelude.create" -> 
               format_exp_aux { mode with app = true } e12;
-                Format.printf "@ \\@ ";
+                Util.format "@ \\@ ";
                 format_exp_aux { mode with app = true } e2;
-                Format.printf "@ missing"                
+                Util.format "@ missing"                
           | _ -> 
               format_exp_aux { mode with app = false } e1; 
-              Format.printf "@ "; 
+              Util.format "@ "; 
               format_exp_aux { mode with app = true } e2
         end;
-        if mode.app then Format.printf ")";
-        Format.printf "@]"
+        if mode.app then Util.format ")";
+        Util.format "@]"
   | EAssert(_,e) ->       
       let mode = { mode with cat = false } in
-        Format.printf "@[<2>assert@ "; format_exp_aux mode e; Format.printf "@]"
+        Util.format "@[<2>assert@ "; format_exp_aux mode e; Util.format "@]"
   | ECheckLens(_,e1,la,e2,e3) ->       
       let mode = { mode with cat = false } in
-        Format.printf "@[<2>check@ ("; 
+        Util.format "@[<2>check@ ("; 
         format_exp_aux mode e3; 
-        Format.printf ") : ";
+        Util.format ") : ";
         format_exp_aux mode e1;
         format_lensarrow la;
         format_exp_aux mode e2;
-        Format.printf "@]"      
+        Util.format "@]"      
   | EAtom(_,n,e)    -> 
       let imode = { mode with cat = false } in
-        Format.printf "@[<2>"; 
-        if not mode.cat then Format.printf "{";
+        Util.format "@[<2>"; 
+        if not mode.cat then Util.format "{";
         format_exp_aux imode n; 
-        Format.printf "=@,"; 
+        Util.format "=@,"; 
         format_exp_aux imode e; 
-        if not mode.cat then Format.printf "}";
-        Format.printf "@]"
+        if not mode.cat then Util.format "}";
+        Util.format "@]"
   | ECat(_,es)      -> 
-      Format.printf "{@[<1>"; 
+      Util.format "{@[<1>"; 
       Misc.format_list 
         ",@ "
         (format_exp_aux { mode with cat = true })
         es; 
-      Format.printf "@]}"
+      Util.format "@]}"
   | ECons(_,e1,e2)  -> 
       let mode = { mode with cat = false } in 
         (* if we have a spine of cons cells, ending in [], print
@@ -330,169 +330,169 @@ and format_exp_aux mode e0 = match e0 with
           ENil(_) -> Some (Safelist.rev acc)
         | ECons(_,e,e') -> get_list_elts (e::acc) e'
         | _            -> None in
-        Format.printf "@["; 
+        Util.format "@["; 
         begin
           match get_list_elts [] e0 with 
               None -> 
-                Format.printf "(";
+                Util.format "(";
                 format_exp_aux mode e1; 
-                Format.printf "::@,"; 
+                Util.format "::@,"; 
                 format_exp_aux mode e2;
-                Format.printf ")";
+                Util.format ")";
             | Some el -> 
-                Format.printf "["; 
+                Util.format "["; 
                 Misc.format_list ",@ " (format_exp_aux mode) el;
-                Format.printf "]"
+                Util.format "]"
         end;
-        Format.printf "@]"
+        Util.format "@]"
   | EDB(_,db)      -> 
       Db.format_t db
   | EDBPred(_,pred)      -> 
-      Format.printf "(where ";
+      Util.format "(where ";
       Db.Relation.Pred.format_t pred;
-      Format.printf ")"
+      Util.format ")"
   | EDBFD(_,fds) ->
-      Format.printf "(with ";
+      Util.format "(with ";
       Dbschema.Relschema.Fd.Set.format_t fds;
-      Format.printf ")"
+      Util.format ")"
   | EDBSchema(_,dbs)      -> 
       Dbschema.format_t dbs
   | EFun(_,ps,so,e) -> 
       let mode = { mode with cat = false } in   
-      Format.printf "@[<2>fun@ ";  
+      Util.format "@[<2>fun@ ";  
       Misc.format_list 
         "@ "
         format_param 
         ps;
       (match so with 
            None -> ()
-         | Some s -> Format.printf " : "; format_sort s);
-      Format.printf "@ ->@ "; 
+         | Some s -> Util.format " : "; format_sort s);
+      Util.format "@ ->@ "; 
       format_exp_aux mode e;
-      Format.printf "@]"
+      Util.format "@]"
   | ELet(_,bs,e) ->
       let mode = { mode with cat = false } in 
-      Format.printf "@[<2>";
+      Util.format "@[<2>";
       format_bindings bs;
-      Format.printf "@ in@ ";
+      Util.format "@ in@ ";
       format_exp_aux mode e;
-      Format.printf "@]"
+      Util.format "@]"
   | EMap(_,ms) -> 
       let mode = { mode with cat = false } in   
-      Format.printf "{@[<2>";
+      Util.format "{@[<2>";
       Misc.format_list 
         ",@, " 
-        (fun (e1,e2) -> format_exp_aux mode e1; Format.printf " ->@ "; format_exp_aux mode e2) 
+        (fun (e1,e2) -> format_exp_aux mode e1; Util.format " ->@ "; format_exp_aux mode e2) 
         ms;
-      Format.printf "@]}"
+      Util.format "@]}"
   | EName(_,n) -> 
-      Format.printf "@[%s@]" (Misc.whack (string_of_id n))
+      Util.format "@[%s@]" (Misc.whack (string_of_id n))
   | ENil(_) -> 
-      Format.printf "[]"
+      Util.format "[]"
   | EProtect(_,e,_) -> 
       let mode = { mode with cat = false } in 
-        Format.printf "@[protect@ "; format_exp_aux mode e; Format.printf "@]"
+        Util.format "@[protect@ "; format_exp_aux mode e; Util.format "@]"
   | ESchema(_,ss,e) -> 
       let mode = { mode with cat = false } in 
-        Format.printf "@[<2>";
+        Util.format "@[<2>";
         format_schema_bindings ss;
-        Format.printf "@ in@ ";
+        Util.format "@ in@ ";
         format_exp_aux mode e;
-        Format.printf "@]"
+        Util.format "@]"
   | EUnion(_,es) -> 
       let mode = { mode with cat = false } in 
-        Format.printf "@[<2>(";
+        Util.format "@[<2>(";
         Misc.format_list "@ |@ " (format_exp_aux mode) es;
-        Format.printf ")@]"
+        Util.format ")@]"
   | EInter(_,es) -> 
       let mode = { mode with cat = false } in 
-        Format.printf "@[<2>(";
+        Util.format "@[<2>(";
         Misc.format_list "@ &@ " (format_exp_aux mode) es;
-        Format.printf ")@]"
+        Util.format ")@]"
   | EMinus(_,e1,e2) -> 
       let mode = { mode with cat = false } in 
-        Format.printf "@[<2>(";
+        Util.format "@[<2>(";
         format_exp_aux mode e1;
-        Format.printf "@ -@ ";
+        Util.format "@ -@ ";
         format_exp_aux mode e2;
-        Format.printf ")@]"
+        Util.format ")@]"
   | EVar(_,x,_) -> 
-      Format.printf "@[%s@]" (string_of_qid x)
+      Util.format "@[%s@]" (string_of_qid x)
   | EWild(_,f,l,u,e)  ->
       let rec format_n_bangs n = match n with 
           0 -> ()
-        | n -> Format.printf "!"; format_n_bangs (n-1) in                
-        Format.printf "@[";
-        if not mode.cat then Format.printf "{";
+        | n -> Util.format "!"; format_n_bangs (n-1) in                
+        Util.format "@[";
+        if not mode.cat then Util.format "{";
         let imode = { mode with cat = false } in 
           (match l,u with 
-               0,true -> Format.printf "*"
-             | n,true -> format_n_bangs n; Format.printf "*"
+               0,true -> Util.format "*"
+             | n,true -> format_n_bangs n; Util.format "*"
              | n,false -> format_n_bangs n);
           if f <> [] then 
-          (Format.printf "\\(@[";
+          (Util.format "\\(@[";
            Misc.format_list ",@ " (format_exp_aux imode) f;
-           Format.printf "@])");
-        Format.printf "=@,";
+           Util.format "@])");
+        Util.format "=@,";
         format_exp_aux imode e;
-        if not mode.cat then Format.printf "}";
-        Format.printf "@]" 
+        if not mode.cat then Util.format "}";
+        Util.format "@]" 
 
 and format_exp e = format_exp_aux { app = false; cat = false } e
 
 and format_binding (BDef(_,x,ps,s,e)) = 
-  Format.printf "@[<2>%s" (string_of_id x);
-  if ps <> [] then Format.printf "@ "; 
-  Misc.format_list "@ " (fun pi -> Format.printf "("; format_param pi; Format.printf ")") ps;
-  Format.printf "@ :@ ";
+  Util.format "@[<2>%s" (string_of_id x);
+  if ps <> [] then Util.format "@ "; 
+  Misc.format_list "@ " (fun pi -> Util.format "("; format_param pi; Util.format ")") ps;
+  Util.format "@ :@ ";
   format_sort s;
-  Format.printf "@ =@ ";
+  Util.format "@ =@ ";
   format_exp e;
-  Format.printf "@]"
+  Util.format "@]"
 
 and format_bindings bs = 
-  Format.printf "@[let "; 
+  Util.format "@[let "; 
   Misc.format_list "@\nand " format_binding bs;
-  Format.printf "@]"
+  Util.format "@]"
 
 and format_schema_binding(SDef(_,x,e)) = 
-  Format.printf "@[<2>%s =@ " (string_of_id x);
+  Util.format "@[<2>%s =@ " (string_of_id x);
   format_exp e;
-  Format.printf "@]"
+  Util.format "@]"
 
 and format_schema_bindings ss = 
-  Format.printf "@[schema "; 
+  Util.format "@[schema "; 
   Misc.format_list "@\nand " format_schema_binding ss;
-  Format.printf "@]"
+  Util.format "@]"
 
 and format_decl = function
   | DLet(i,bs) -> format_bindings bs
   | DMod(_,i,ds) -> 
-      Format.printf "@[module %s =@\n  @[" (string_of_id i);
+      Util.format "@[module %s =@\n  @[" (string_of_id i);
       Misc.format_list "@\n" format_decl ds;
-      Format.printf "@]end@]"
+      Util.format "@]end@]"
   | DSchema(i,ss) -> format_schema_bindings ss
   | DTest(_,e,tr) -> 
-      Format.printf "@[<2>test@ ";
-      Format.printf "@[";
+      Util.format "@[<2>test@ ";
+      Util.format "@[";
       format_exp e;
-      Format.printf "@ =@ ";
+      Util.format "@ =@ ";
       (match tr with 
-           ErrorResult -> Format.printf "error"
-         | PrintResult -> Format.printf "?"
+           ErrorResult -> Util.format "error"
+         | PrintResult -> Util.format "?"
          | Result e2   -> format_exp e2);
-      Format.printf "@]@]"
+      Util.format "@]@]"
 
 let id_of_modl (MDef(_,m,_,_)) = m
 let info_of_module (MDef(i,_,_,_)) = i
 
 let format_module (MDef(_,i,qs,ds)) = 
-  Format.printf "@[module %s =@\n  @[" (string_of_id i);
+  Util.format "@[module %s =@\n  @[" (string_of_id i);
   if qs <> [] then 
     Misc.format_list 
       "@\n" 
-      (fun qi -> Format.printf "open %s" (string_of_qid qi)) 
+      (fun qi -> Util.format "open %s" (string_of_qid qi)) 
       qs;
   Misc.format_list "@\n" format_decl ds;
-  Format.print_newline ();
-  Format.printf "@\n@]@]"
+  Util.format "@\n";
+  Util.format "@\n@]@]"

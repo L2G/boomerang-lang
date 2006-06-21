@@ -3,20 +3,15 @@ STYLE GUIDELINES FOR HARMONY CODEBASE
 
 PRINTING
 
-  - ALL output goes to stdout via a formatting stream (e.g., Format.printf).
-    Nothing goes directly to stdout (e.g., Printf.printf).  Nothing goes to
-    stderr, except very special things like usage messages which are going
-    to be followed by an exit.
+  - ALL output goes via the low-level formatting function Util.format.
+    Nothing goes directly to stdout (e.g., Printf.printf), or to the
+    standard stdout formatter (Format.printf).  Nothing from Format is
+    called directly.  Nothing goes to stderr, except very special things
+    like usage messages which are going to be followed by an exit.
 
   - Util.msg (from ubase) sends things to stderr, so it should not be used
+    either 
 
-  - Format.print_newline and Format.print_flush both close all open boxes;
-    they should *never* be called by Harmony (except at the very end at the
-    top level, just before exiting).  Ditto Format.printf "... \n ..."
-    (we're not actually sure what this does, but it doesn't seem to play
-    nice).
-
-    Format.force_newline and Format.printf "... @\n ..." are OK.
 
 
 ================================================================================

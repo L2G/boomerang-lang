@@ -113,27 +113,27 @@ module Make(Ord: OrderedType) = struct
       (* ### dump is probably broken, need to fix it *)
     let dump sortf name_formatter f iep u = 
       let prch (n,ch) = 
-        let prf() = Format.printf "@["; f ch; Format.printf "@]" in
+        let prf() = Util.format "@["; f ch; Util.format "@]" in
         let s = name_formatter n in
           (*       if (s = "" || s = "\"\"") then *)
           (*        prf()*)
           (*       else*)
           if iep ch then
-            Format.printf "%s" s
+            Util.format "%s" s
           else begin
-            Format.printf "@[<hv1>%s =@ " s;
+            Util.format "@[<hv1>%s =@ " s;
             prf();
-            Format.printf "@]"
+            Util.format "@]"
           end
       in
-        Format.printf "{@[<hv0>";
+        Util.format "{@[<hv0>";
         let binds = Safelist.map (fun k -> (k, find k u))
           (sortf (KeySet.elements (domain u))) in
         Misc.iter_with_sep
           prch
-          (fun()-> Format.printf ","; Format.print_break 1 0)
+          (fun()-> Util.format ",@;<1 0>")
           binds;
-        Format.printf "@]}"
+        Util.format "@]}"
 
   end (* module Map *)
 end (* module Make *)

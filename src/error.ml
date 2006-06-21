@@ -10,7 +10,7 @@
    print a message using the Format functions *)
 exception Harmony_error of (unit -> unit)
 
-let simple_error s = raise (Harmony_error (fun () -> Format.printf "%s" s))
+let simple_error s = raise (Harmony_error (fun () -> Util.format "%s" s))
 
 (* fail_on_error : (unit -> 'a) -> 'a 
  *    simple error handling: print and exit. Used in the text UI *)
@@ -19,5 +19,5 @@ let exit_on_error f =
     f ()
   with Harmony_error msg -> 
     msg ();
-    Format.print_newline ();
+    Util.format "@\n";
     exit 1

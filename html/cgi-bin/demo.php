@@ -396,7 +396,7 @@ function run_demo($demogroup, $demonumber) {
       debug ('$getcmd1',$getcmd1);
       $a1 = shell_exec($getcmd1);
       debug ('$a2',$a2);
-      if(empty($a1)) { testabort($getcmd); }
+      if(empty($a1)) { testabort($getcmd1); }
 
       $getcmd2 = 
         $cmdbase 

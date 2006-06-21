@@ -29,7 +29,7 @@ let merge_rel rel r fds =
 
 let mk_type_error (msg : string) (printer : unit -> unit) : 'a =
   raise (Error.Harmony_error (fun () ->
-    Format.printf "type error:@ %s:@ " msg;
+    Util.format "type error:@ %s:@ " msg;
     printer ()))
 
 let db_replace rn sn (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
@@ -38,7 +38,7 @@ let db_replace rn sn (f : Rel.t -> Rel.t) (db : Db.t) : Db.t =
       Db.lookup rn db
     with Not_found ->
       raise (Error.Harmony_error (fun() ->
-        Format.printf "Db.db_replace: database@ "; Db.format_t db; Format.printf "@ has no relation %s" rn))
+        Util.format "Db.db_replace: database@ "; Db.format_t db; Util.format "@ has no relation %s" rn))
     in
   Db.extend sn (f orig) (Db.remove rn db)
 
@@ -52,12 +52,12 @@ let db_schema_replace
   if not (Dbschema.mem rn ds) then
     error (fun () ->
       Dbschema.format_t ds;
-      Format.printf
+      Util.format
         "@ has no relational schema associated with \"%s\"" rn);
   if sn <> rn && Dbschema.mem sn ds then
     error (fun () ->
       Dbschema.format_t ds;
-      Format.printf
+      Util.format
         "@ already has a relational schema associated with \"%s\"" rn);
   Dbschema.extend sn (f (Dbschema.lookup rn ds)) (Dbschema.remove rn ds)
 
@@ -68,7 +68,7 @@ let db_schema_replace2
   if not (Dbschema.mem sn ds) then
     error (fun () ->
       Dbschema.format_t ds;
-      Format.printf
+      Util.format
         "@ has no relational schema associated with \"%s\"" sn);
   db_schema_replace error rn tn
     (fun rs -> f rs (Dbschema.lookup sn ds))
@@ -99,12 +99,12 @@ let rename rn sn att att' =
         let rs = Dbschema.lookup rn ds in
         rename_error (fun () ->
           Relschema.format_t rs;
-          Format.printf "@ does not contain the attribute \"%s\"" n)
+          Util.format "@ does not contain the attribute \"%s\"" n)
     | Relschema.Attribute_not_fresh n ->
         let rs = Dbschema.lookup rn ds in
         rename_error (fun () ->
           Relschema.format_t rs;
-          Format.printf "@ already contains the attribute \"%s\"" n)
+          Util.format "@ already contains the attribute \"%s\"" n)
   in
   let c2a = rename_schema rn sn att att' in
   let a2c = rename_schema sn rn att' att in
@@ -134,8 +134,8 @@ let select rn fds sn p =
     let f r =
       try Rel.select p r
       with Not_found -> raise (Error.Harmony_error (fun()->
-        Format.printf "select: Rel.select failed for@ "; Db.Relation.Pred.format_t p; 
-        Format.printf "in@ "; Db.Relation.format_t r)) in
+        Util.format "select: Rel.select failed for@ "; Db.Relation.Pred.format_t p; 
+        Util.format "in@ "; Db.Relation.format_t r)) in
     db_replace rn sn f c in
   let putfun a c =
     let r = Db.lookup rn c in
@@ -154,16 +154,16 @@ let select rn fds sn p =
       if not (Fd.Set.equal fds fds1) then
         select_error (fun () ->
           Fd.Set.format_t fds;
-          Format.printf "@ is not equal to@ ";
+          Util.format "@ is not equal to@ ";
           Fd.Set.format_t fds1);
       if not (Fd.Set.tree_form fds1) then
         select_error (fun () ->
           Fd.Set.format_t fds;
-          Format.printf "@ is not in tree form");
+          Util.format "@ is not in tree form");
       if not (Pred.ignores q (Fd.Set.outputs fds1)) then
         select_error (fun () ->
           Pred.format_t q;
-          Format.printf "@ constrains the outputs of@ ";
+          Util.format "@ constrains the outputs of@ ";
           Fd.Set.format_t fds1);
       Relschema.set_fdset (
         Relschema.set_pred (
@@ -220,7 +220,7 @@ let drop rn sn att det dflt =
       if not (Name.Set.mem att u) then
         drop_error (fun () ->
           Relschema.format_t s;
-          Format.printf "@ does not contain then attribute %s" att);
+          Util.format "@ does not contain then attribute %s" att);
       let u' = Name.Set.remove att u in
       let p = Relschema.get_pred s in
       let p' = Pred.project u' p in
@@ -228,16 +228,16 @@ let drop rn sn att det dflt =
       if not (Pred.equiv p (Pred.Conj (p', p_att))) then
         drop_error (fun () ->
           Pred.format_t p;
-          Format.printf "@ cannot be decomposed into@ ";
+          Util.format "@ cannot be decomposed into@ ";
           Pred.format_t p';
-          Format.printf "@ and@ ";
+          Util.format "@ and@ ";
           Pred.format_t p_att);
       let rcd_dflt = Name.Map.add att dflt Name.Map.empty in
       if not (Pred.member rcd_dflt (Pred.project attset p)) then
         drop_error (fun () ->
           Pred.format_t p_att;
-          Format.printf "@ does not include the record@ ";
-          Format.printf "{%s = \"%s\"}" att dflt);
+          Util.format "@ does not include the record@ ";
+          Util.format "{%s = \"%s\"}" att dflt);
       let fds = Relschema.get_fdset s in
       let fds' = Fd.Set.filter (fun fd -> Fd.ranges_over fd u') fds in
       let fds_att = Fd.Set.diff fds fds' in
@@ -252,9 +252,9 @@ let drop rn sn att det dflt =
             fds_att in
       if not valid_split then
         drop_error (fun () ->
-          Format.printf "Invalid split:@ ";
+          Util.format "Invalid split:@ ";
           Fd.Set.format_t fds_att;
-          Format.printf "@ is not equivalent to@ ";
+          Util.format "@ is not equivalent to@ ";
           Fd.Set.format_t (Fd.Set.singleton (detset, attset)));
       Relschema.set_pred (Relschema.set_fdset (Relschema.create u') fds') p' in
     db_schema_replace drop_error rn sn f
@@ -313,40 +313,40 @@ let joinl rn rfds sn sfds tn =
       let sfds' = Relschema.get_fdset ss in
       if rn = sn then
         joinl_error (fun () ->
-          Format.printf "The source relations must be distinct.");
+          Util.format "The source relations must be distinct.");
       if not (Fd.Set.equal rfds rfds') then
         joinl_error (fun () ->
           Fd.Set.format_t rfds;
-          Format.printf "@ is not equal to@ ";
+          Util.format "@ is not equal to@ ";
           Fd.Set.format_t rfds');
       if not (Fd.Set.equal sfds sfds') then
         joinl_error (fun () ->
           Fd.Set.format_t sfds;
-          Format.printf "@ is not equal to@ ";
+          Util.format "@ is not equal to@ ";
           Fd.Set.format_t sfds');
       if not (Fd.Set.tree_form rfds) then
         joinl_error (fun () ->
           Fd.Set.format_t rfds;
-          Format.printf "@ is not in tree form");
+          Util.format "@ is not in tree form");
       if not (Fd.Set.tree_form sfds) then
         joinl_error (fun () ->
           Fd.Set.format_t sfds;
-          Format.printf "@ is not in tree form");
+          Util.format "@ is not in tree form");
       let fd = (Name.Set.inter u v, v) in
       if not (Fd.Set.mem fd (Fd.Set.closure v sfds)) then
         joinl_error (fun () ->
           Fd.Set.format_t sfds;
-          Format.printf "@ does not entail the dependency@ ";
+          Util.format "@ does not entail the dependency@ ";
           Fd.format_fd fd);
       if not (Pred.ignores p (Fd.Set.outputs rfds)) then
         joinl_error (fun () ->
           Pred.format_t p;
-          Format.printf "@ constrains the outputs of@ ";
+          Util.format "@ constrains the outputs of@ ";
           Fd.Set.format_t rfds);
       if not (Pred.ignores q (Fd.Set.outputs sfds)) then
         joinl_error (fun () ->
           Pred.format_t q;
-          Format.printf "@ constrains the outputs of@ ";
+          Util.format "@ constrains the outputs of@ ";
           Fd.Set.format_t sfds);
       Relschema.set_fdset (
         Relschema.set_pred (

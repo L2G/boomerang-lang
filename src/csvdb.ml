@@ -44,7 +44,7 @@ let add_comment_prefix_to_fields = function
 
 let save_tbl file tbl =
   let l = rel_to_list tbl in
-    (* Format.printf "@[Saving %d csv rows@\n@]" (List.length l); *)
+    (* Util.format "@[Saving %d csv rows@\n@]" (List.length l); *)
     let l = add_comment_prefix_to_fields l in
       Csv.save file l
 

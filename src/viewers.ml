@@ -13,7 +13,7 @@ let metareader s =
       (Metay.tree Metal.token lexbuf) 
     with Parsing.Parse_error -> 
         raise (Error.Harmony_error
-                 (fun () -> Format.printf "%s: syntax error in meta tree." 
+                 (fun () -> Util.format "%s: syntax error in meta tree." 
                     (Info.string_of_t (Metal.info lexbuf)))) in
   Metal.finish();
   res
@@ -27,7 +27,7 @@ let metareader s =
       (Parser.exp Lexer.main lexbuf) 
     with Parsing.Parse_error -> 
         raise (Error.Harmony_error
-                 (fun () -> Format.printf "%s: syntax error in meta file." 
+                 (fun () -> Util.format "%s: syntax error in meta file." 
                     (Info.string_of_t (Lexer.info lexbuf)))) in
   Lexer.finish();
   let res = Compiler.compile_exp (Compiler.empty_cenv ()) e in
@@ -95,7 +95,7 @@ let _ =
     match cd with
     | Surveyor.FromString(s) ->
       raise (Error.Harmony_error (fun () -> 
-        Format.printf "%s" "Cannot view a string as a database"))
+        Util.format "%s" "Cannot view a string as a database"))
     | Surveyor.FromFile(fn) ->
         Treedb.db_to_tree (Csvdb.load_db fn)
   in
@@ -157,24 +157,24 @@ let escapeXml inAttr = Misc.escape (escapeXmlChar inAttr)
 let rec xml2tree n =
   match n # node_type with
     T_element name -> 
-      debug (fun () -> Format.printf "in element \"%s\"@\n" name);
+      debug (fun () -> Util.format "in element \"%s\"@\n" name);
       let kids = 
         match n#sub_nodes with
-          [] -> debug (fun () -> Format.printf "zero subnodes@\n"); []
+          [] -> debug (fun () -> Util.format "zero subnodes@\n"); []
         | [n'] when n'#node_type=T_data && Misc.is_blank n'#data ->
-            debug (fun () -> Format.printf "skipping blank PCDATA@\n");
+            debug (fun () -> Util.format "skipping blank PCDATA@\n");
             []
         | [n'] ->
-            debug (fun () -> Format.printf "one nonblank subnode, recursing@\n");
+            debug (fun () -> Util.format "one nonblank subnode, recursing@\n");
             [xml2tree n']
         | ns ->
             let rec loop acc = function
                 [] -> Safelist.rev acc
               | n'::ns when n'#node_type=T_data && Misc.is_blank n'#data ->
-                  debug (fun () -> Format.printf "skipping blank PCDATA@\n");
+                  debug (fun () -> Util.format "skipping blank PCDATA@\n");
                   loop acc ns 
               | n'::ns ->
-                  debug (fun () -> Format.printf "NOT skipping blank PCDATA@\n");
+                  debug (fun () -> Util.format "NOT skipping blank PCDATA@\n");
                   loop ((xml2tree n')::acc) ns in
             loop [] ns in 
       let attrkids =
@@ -192,7 +192,7 @@ let rec xml2tree n =
                             (Some kid_struct)))
   | T_data ->
       let str = Util.trimWhitespace (n # data) in
-      debug (fun () -> Format.printf "found string \"%s\"@\n" (Misc.whack str));
+      debug (fun () -> Util.format "found string \"%s\"@\n" (Misc.whack str));
       Tree.set Tree.empty pcdata_tag (Some (Tree.new_value str))
   | _ -> assert false
 
@@ -207,7 +207,7 @@ let generic_read_from rd =
   with
       e -> raise (Error.Harmony_error
                     (fun () -> 
-                       Format.printf "%s" (Pxp_types.string_of_exn e)))
+                       Util.format "%s" (Pxp_types.string_of_exn e)))
 
 let strip_doctype = 
   Str.global_replace (Str.regexp "<!DOCTYPE[^>]*>") ""
@@ -233,10 +233,10 @@ let rec dump_tag fmtr v =
                             (Name.Set.cardinal dom));
                  `Tree v];
   let tag = Name.Set.choose dom in
-  debug (fun() -> Format.printf "dump_tag %s @," (Misc.whack tag));
+  debug (fun() -> Util.format "dump_tag %s @," (Misc.whack tag));
   if (tag = pcdata_tag) then
     let data = Tree.get_value (Tree.get_required v tag) in
-    debug (fun() -> Format.printf "dump_tag -- data %s @," (Misc.whack data));
+    debug (fun() -> Util.format "dump_tag -- data %s @," (Misc.whack data));
     Format.fprintf fmtr "%s" (escapeXml false data) 
   else
     let subv = Tree.get_required v tag in
@@ -260,7 +260,7 @@ let rec dump_tag fmtr v =
       Misc.iter_with_sep (dump_tag fmtr)
         (fun () -> Format.fprintf fmtr "@ ") kids;
     end;
-    debug (fun() -> Format.printf "finished dump_tag %s @," (Misc.whack tag));
+    debug (fun() -> Util.format "finished dump_tag %s @," (Misc.whack tag));
     Format.fprintf fmtr "@]";
     if not (pcdata_only kids) then Format.fprintf fmtr "@,";
     Format.fprintf fmtr "</%s>" tag
@@ -268,7 +268,7 @@ let rec dump_tag fmtr v =
 let dump_tree_as_pretty_xml fmtr v =
   if Tree.is_empty v then
     begin
-      debug (fun() -> Format.printf "writing out empty tree == empty file");
+      debug (fun() -> Util.format "writing out empty tree == empty file");
       Format.fprintf fmtr ""; 
     end
   else

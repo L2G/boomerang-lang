@@ -16,6 +16,7 @@ $demo["l2_title"] = "(Not needed)";
 $demo["r1_shows"] = true;
 $demo["l2"] = "id";
 $demo["output_d"] = "block";
+$demo["output_w"] = 450;
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX
@@ -70,15 +71,19 @@ fewer than three copies.
 <p> 
 
 The program in the "Lens" pane is composed from three primitive
-operations: a join, a projection (which we write "drop"), and a
-selection.  Each of the primitives carries annotations describing its
-"local" update translation policy.
+operations: a join, a projection (which we write "drop," because it
+projects away just one field at a time), and a selection.  Each of the
+primitives carries annotations describing its "local" update
+translation policy.  At the top is an "assert" records the expected
+schema of the source database, and at the bottom is another "assert"
+that records the schema of the view.
 
 <p>
 
-The following pages break this lens down into its parts.  But to get
-started, let's try making a few changes to the view and seeing how
-they are reflected in the database.
+The following pages break this lens down into its components and
+examines their behavior separately.  But to get started, let's try
+making a few changes to the view and seeing how they are reflected in
+the database.
 
 <ul>
 <li> ...
@@ -88,14 +93,35 @@ XXX;
 
 $demo["forcer1"] = true;
 $demo["l1"] = <<<XXX
+(* Schema of source database: *)
+assert
+  {{
+     Albums(Album, Quantity) with {Album -> Quantity}, 
+     Tracks(Track, Date, Rating, Album) with {Track -> Date, Track -> Rating}
+  }} ;
+
+(* Join Tracks with Albums to yield a new relation Tracks1 *)
 Relational.join_dl "Tracks" with {Track -> Date, Track -> Rating}
   "Albums" with {Album -> Quantity}
-    "Tracks1" 
-;
-Relational.drop "Tracks1" "Tracks2" "Date" {Track} "unknown date"
-;
+  "Tracks1" ;
+
+(* Drop the Date column from Tracks1 to yield a new relation Tracks2.  
+   Use "unknown track" as the default value when new tuples are created 
+   in the view.*)
+Relational.drop "Tracks1" "Tracks2" "Date" {Track} "unknown date" ;
+
+(* Select just tuples with quantity greater than 2, yielding a new
+   relation Tracks3. *)
 Relational.select "Tracks2" with {Album -> Quantity, Track -> Rating} "Tracks3"
-  where (Quantity <> "0" /\ (Quantity <> "1" /\ Quantity <> "2"))
+  where (Quantity <> "0" /\ (Quantity <> "1" /\ Quantity <> "2")) ;
+
+(* Schema of the final view: *)
+assert
+  {{
+     Tracks3(Track, Rating, Album, Quantity)
+       with {Album -> Quantity, Track -> Rating}
+       where (Quantity <> "0" /\ (Quantity <> "1" /\ Quantity <> "2"))
+  }}
 XXX;
 $demo["r1"] = <<<XXX
   {{{

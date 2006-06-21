@@ -19,18 +19,18 @@ let string_of_t = function
 let tree_of i = function
     Tree t -> t
   | Db db -> raise (Error.Harmony_error (fun() ->
-                     Format.printf "@[Run-time error at %s:@ expected a tree but found a database:@ "
+                     Util.format "@[Run-time error at %s:@ expected a tree but found a database:@ "
                        (Info.string_of_t i);
                      Db.format_t db;
-                     Format.printf "@]"))
+                     Util.format "@]"))
 
 let db_of i = function
     Db db -> db
   | Tree t -> raise (Error.Harmony_error (fun() ->
-                     Format.printf "@[Run-time error at %s:@ expected a database but found a tree:@ "
+                     Util.format "@[Run-time error at %s:@ expected a database but found a tree:@ "
                        (Info.string_of_t i);
                      Tree.format_t t;
-                     Format.printf "@]"))
+                     Util.format "@]"))
 
 let equal v w =
   match v, w with
@@ -42,24 +42,24 @@ let equal v w =
 (* TODO: rewrite error message formatting nicely *)
 
 let format_tree_option = function
-    None -> Format.printf "NONE";
+    None -> Util.format "NONE";
   | Some v -> Tree.format_t v
 
 let format_msg l = 
   let rec loop = function
     | [] -> ()
     | `String s :: r ->
-        Format.printf "%s" s; loop r
+        Util.format "%s" s; loop r
     | `Name k :: r ->
-        Format.printf "%s" (Misc.whack k); loop r
+        Util.format "%s" (Misc.whack k); loop r
     | `Break :: r ->
-        Format.printf "@,"; loop r
+        Util.format "@,"; loop r
     | `Newline :: r -> 
-        Format.print_newline (); loop r
+        Util.format "@\n"; loop r
     | `Space :: r ->
-        Format.printf "@ "; loop r
+        Util.format "@ "; loop r
     | `SpaceOrIndent :: r ->
-        Format.printf "@;<1 2>"; loop r
+        Util.format "@;<1 2>"; loop r
     | `V v :: r ->
         format_t v;
         loop r
@@ -76,32 +76,21 @@ let format_msg l =
         f ();
         loop r
     | `Open_box :: r ->
-        Format.printf "@[<hv2>";
+        Util.format "@[<hv2>";
         loop r
     | `Open_vbox :: r ->
-        Format.printf "@[<v2>";
+        Util.format "@[<v2>";
         loop r
     | `Close_box :: r ->
-        Format.printf "@]";
+        Util.format "@]";
         loop r
   in
-  Format.printf "@[<hv0>";
+  Util.format "@[<hv0>";
   loop l;
-  Format.printf "@,@]"
-
-let format_to_string f =
-  let out,flush = Format.get_formatter_output_functions () in
-  let buf = Buffer.create 64 in
-    Format.set_formatter_output_functions 
-      (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
-    f ();
-    Format.print_flush();
-    let s = Buffer.contents buf in
-      Format.set_formatter_output_functions out flush;
-      s
+  Util.format "@,@]"
 
 let format_msg_as_string msg = 
-  format_to_string (fun () -> format_msg msg)
+  Util.format_to_string (fun () -> format_msg msg)
 
 type msg = [`String of string | `Name of Name.t | `Newline | `Break | `Space 
            | `SpaceOrIndent | `Tree of Tree.t | `Tree_opt of Tree.t option

@@ -65,7 +65,7 @@ let read fn =
       Misc.read fn 
     with 
         _ -> raise (Error.Harmony_error 
-                      (fun () -> Format.printf "%s : error reading %s" read_qid fn))
+                      (fun () -> Util.format "%s : error reading %s" read_qid fn))
 let read_lib =
   mk_nfun (SName) read_qid (fun fn -> Value.N (read fn))
 let _ = register_native read_qid (SName ^> SName) read_lib
@@ -146,7 +146,7 @@ let sync lo_v la_v lb_v typ_v orig_v =
   let (ao',aa',ab') = match (ao',aa',ab') with 
       Some(ao'),Some(aa'),Some(ab') -> (ao',aa',ab') 
     | _ -> assert false in
-  if log then begin Sync.format_action a; Format.printf "@\n" end;
+  if log then begin Sync.format_action a; Util.format "@\n" end;
   let co',ca',cb' = (Lens.put lo ao' (Some co), Lens.put la aa' (Some ca), Lens.put lb ab' (Some cb)) in
   V.Tree (Tree.from_list [("O", co'); ("A",ca'); ("B",cb')])
 
@@ -169,22 +169,20 @@ let probe_qid = "Native.Prelude.probe"
 let probe msg = 
   let lens = 
     { get = (fun c ->
-               Format.printf "@,@[<v0>%s (get) @,  " msg;
+               Util.format "@,@[<v0>%s (get) @,  " msg;
                V.format_t c;
-               Format.printf "@,@]";
-               Format.print_flush ();
+               Util.format "@,@]@\n";
                c);
       put = (fun a co ->     
-               Format.printf "@,@[<v0>%s (put) @,  " msg;
+               Util.format "@,@[<v0>%s (put) @,  " msg;
                V.format_t a;
-               Format.printf "@ into@   ";
+               Util.format "@ into@   ";
                begin
                  match co with
-                     None -> Format.printf "MISSING";
+                     None -> Util.format "MISSING";
                    | Some c -> V.format_t c
                end;
-               Format.printf "@,@]";
-               Format.print_flush ();
+               Util.format "@,@]@\n";
                a)} in
     (lens, VWB (fun s -> s))
 
@@ -203,8 +201,8 @@ let time() =
   Printf.sprintf "%.1f" total
 let progress msg = 
   let lens = 
-    { get = (fun c -> Format.printf "@,[->%s %s]@," (time()) msg; c);
-      put = (fun a co -> Format.printf "@,[<-%s %s]@," (time()) msg; a)} in
+    { get = (fun c -> Util.format "@,[->%s %s]@," (time()) msg; c);
+      put = (fun a co -> Util.format "@,[<-%s %s]@," (time()) msg; a)} in
     (lens,id_checker)
 let progress_lib = mk_nfun (SLens) progress_qid 
   (fun n -> 
@@ -533,11 +531,11 @@ let xfork pcv pav (l1,c1) (l2,c2) =
       let res = Treeschema.mk_cat[a1; a2] in 
         Trace.debug "xfork+"
           (fun () -> 
-             Format.printf "C1="; Treeschema.format_t s_pc;
-             Format.printf "@\nC2="; Treeschema.format_t s_neg_pc;
-             Format.printf "@\nA1="; Treeschema.format_t a1;
-             Format.printf "@\nA2="; Treeschema.format_t a2;             
-             Format.printf "@\nRES="; Treeschema.format_t res);
+             Util.format "C1="; Treeschema.format_t s_pc;
+             Util.format "@\nC2="; Treeschema.format_t s_neg_pc;
+             Util.format "@\nA1="; Treeschema.format_t a1;
+             Util.format "@\nA2="; Treeschema.format_t a2;             
+             Util.format "@\nRES="; Treeschema.format_t res);
         res in
       match c1,c2 with
           BIJ(c2a,a2c),BIJ(c2a',a2c') -> 

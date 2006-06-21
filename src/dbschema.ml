@@ -13,9 +13,9 @@ let compare_pair c1 c2 (x1, y1) (x2, y2) =
   if d <> 0 then d else c2 y1 y2
 
 let format_name_set ns =
-  Format.printf "(";
-  Misc.format_list "," Format.print_string (Name.Set.elements ns);
-  Format.printf ")"
+  Util.format "(";
+  Misc.format_list "," (Util.format "%s") (Name.Set.elements ns);
+  Util.format ")"
 
 module Relschema = struct
 
@@ -25,11 +25,11 @@ module Relschema = struct
     let format_fd (src, trg) =
       let p s =
         if Name.Set.cardinal s = 1 then
-          Format.print_string (Name.Set.choose s)
+          Util.format "%s" (Name.Set.choose s)
         else
           format_name_set s
         in
-      p src; Format.printf " -> "; p trg
+      p src; Util.format " -> "; p trg
 
     let names (xs, ys) = Name.Set.union xs ys
 
@@ -104,9 +104,9 @@ module Relschema = struct
                first := false;
                f k)
             fds in
-        Format.printf "@[<hv1>{";
-        iter_with_sep format_fd (fun() -> Format.printf ",@ ") fds;
-        Format.printf "}"
+        Util.format "@[<hv1>{";
+        iter_with_sep format_fd (fun() -> Util.format ",@ ") fds;
+        Util.format "}"
 
       let names fds =
         fold (fun x -> Name.Set.union (names x)) fds Name.Set.empty
@@ -321,15 +321,15 @@ module Relschema = struct
   type t = Name.Set.t * Fd.Set.t * Rel.Pred.t
 
   let format_t (ns, fds, pred) =
-    Format.printf "(";
-    Misc.format_list "," Format.print_string (Name.Set.elements ns);
-    Format.printf ")";
+    Util.format "(";
+    Misc.format_list "," (Util.format "%s") (Name.Set.elements ns);
+    Util.format ")";
     if pred <> Rel.Pred.True then begin
-      Format.printf "@ where ";
+      Util.format "@ where ";
       Rel.Pred.format_t pred
     end; 
     if not (Fd.Set.is_empty fds) then begin
-      Format.printf "@ with ";
+      Util.format "@ with ";
       Fd.Set.format_t fds
     end
 
@@ -369,15 +369,15 @@ exception Relname_not_found of Name.t
 type t = Relschema.t Name.Map.t
 
 let format_t dbs =
-  Format.printf "@[<hv3>{{ ";
+  Util.format "@[<hv3>{{ ";
   Name.Map.iter_with_sep
     (fun k rel -> 
-      Format.printf "@[<hv3>%s" k;
+      Util.format "@[<hv3>%s" k;
       Relschema.format_t rel;
-      Format.printf "@]")
-    (fun() -> Format.printf ",@ ")
+      Util.format "@]")
+    (fun() -> Util.format ",@ ")
     dbs;
-  Format.printf "@] }}"
+  Util.format "@] }}"
 
 let base = Name.Map.empty
 let extend = Name.Map.add

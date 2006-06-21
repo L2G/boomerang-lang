@@ -52,18 +52,18 @@ module Make(Key:Mapplus.OrderedType) = struct
     with Not_found -> None
 
   let format_t ev format_r = 
-    Format.printf "{@[";  
+    Util.format "{@[";  
     let _ = 
       KeyMap.fold (fun k v acco -> 
-                     Format.printf "@[%s=@[" (Key.to_string k);
+                     Util.format "@[%s=@[" (Key.to_string k);
                      format_r v;
-                     Format.printf "]";
-                     if acco <> None then Format.printf ",";
-                     Format.printf "]@ ";
+                     Util.format "]";
+                     if acco <> None then Util.format ",";
+                     Util.format "]@ ";
                      Some ())
         ev
         None in            
-      Format.printf "]}"
+      Util.format "]}"
 
   let iter f = KeyMap.iter (fun k v -> f k v)
 end

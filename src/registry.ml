@@ -21,11 +21,11 @@ let value_of_rv (s,v) = v
 let sort_of_rv (s,v) = s
 let format_rv rv = 
   let (s,v) = rv in    
-    Format.printf "@[";
+    Util.format "@[";
     Value.format_t v;
-    Format.printf ":";
+    Util.format ":";
     Syntax.format_sort s;
-    Format.printf "]"
+    Util.format "]"
 
 (* --------------- Focal library -------------- *)
 
@@ -57,7 +57,7 @@ struct
     match M.lookup e q with 
         Some r -> r:=v
       | None -> raise (Error.Harmony_error
-                         (fun () -> Format.printf "Registry.overwrite: %s not found" 
+                         (fun () -> Util.format "Registry.overwrite: %s not found" 
                            (Syntax.string_of_qid q)))
   let iter f e = M.iter (fun q rvr -> f q (!rvr)) e 
 end
@@ -125,10 +125,10 @@ let find_filename basename exts =
             (if String.length ext = 0 then "" else ".")
             ext in 
             if Sys.file_exists fn && Misc.is_file fn then begin
-              verbose (fun() -> Format.printf "%s found for %s@\n" fn basename);
+              verbose (fun() -> Util.format "%s found for %s@\n" fn basename);
               Some fn
             end else begin
-              verbose (fun() -> Format.printf "%s not found@\n" fn);
+              verbose (fun() -> Util.format "%s not found@\n" fn);
               k ()
             end in
         let rec inner_loop = function
@@ -140,16 +140,16 @@ let find_filename basename exts =
 
 (* load modules dynamically *)
 (* backpatch hack *)
-let compile_file_impl = ref (fun _ _ -> Format.printf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
-let compile_fcl_str_impl = ref (fun _ _ -> Format.printf "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
+let compile_file_impl = ref (fun _ _ -> Util.format "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
+let compile_fcl_str_impl = ref (fun _ _ -> Util.format "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
 
 let load ns = 
   (* helper, when we know which compiler function to use *)
   let go comp source = 
-    debug (fun () -> Format.printf "[@[loading %s ...@]]@\n%!" source);
+    debug (fun () -> Util.format "[@[loading %s ...@]]@\n%!" source);
     loaded := ns::(!loaded);
     comp ();
-    debug (fun () -> Format.printf "[@[loaded %s@]]@\n%!" source) in      
+    debug (fun () -> Util.format "[@[loaded %s@]]@\n%!" source) in      
   let uncapped = String.uncapitalize ns in
     if (Safelist.mem ns (!loaded)) then true
     else begin
@@ -178,12 +178,12 @@ let load_var q = match get_module_prefix q with
 let lookup_library_ctx nctx q = 
   let rec lookup_library_aux nctx q2 =       
 
-    (* Format.printf "lookup_library_aux %s in [%s] from %s "
+    (* Util.format "lookup_library_aux %s in [%s] from %s "
       (Syntax.string_of_qid q2)
       (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
       (Env.to_string !library string_of_rv);
     *)
-    (* let _ = debug (fun () -> Format.printf "lookup_library_aux %s in [%s] from %s "
+    (* let _ = debug (fun () -> Util.format "lookup_library_aux %s in [%s] from %s "
        (Syntax.string_of_qid q2)
        (Misc.concat_list ", " (Safelist.map Syntax.string_of_qid nctx))
        (Env.to_string !library string_of_rv)

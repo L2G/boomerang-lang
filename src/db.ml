@@ -21,12 +21,12 @@ let build_ns ls =
   List.fold_right Name.Set.add ls Name.Set.empty
 
 let format_name n =
-  Format.printf "%s" n
+  Util.format "%s" n
 
 let format_ns ns =
-  Format.printf "@[{";
+  Util.format "@[{";
   Misc.format_list ",@ " format_name (Name.Set.elements ns);
-  Format.printf "}@]"
+  Util.format "}@]"
 
 
 (*** Relations ***)
@@ -58,68 +58,68 @@ module Relation = struct
       (*  [format_t' p par pos] formats [p] nicely in the context of being the
           [pos] child of its (optional) parent [par]. *)
       match p, par with
-      | True, _ -> Format.printf "TRUE"
-      | False, _ -> Format.printf "FALSE"
+      | True, _ -> Util.format "TRUE"
+      | False, _ -> Util.format "FALSE"
       | Not (EqAttAtt (a, b)), Some (Not _) ->
-          Format.printf "@[(%s <> %s)@]" a b
+          Util.format "@[(%s <> %s)@]" a b
       | Not (EqAttAtt (a, b)), _ ->
-          Format.printf "@[%s <> %s@]" a b
+          Util.format "@[%s <> %s@]" a b
       | Not (EqAttVal (a, v)), Some (Not _) ->
-          Format.printf "@[(%s <> \"%s\")@]" a v
+          Util.format "@[(%s <> \"%s\")@]" a v
       | Not (EqAttVal (a, v)), _ ->
-          Format.printf "@[%s <> \"%s\"@]" a v
-      | EqAttAtt (a, b), _ -> Format.printf "@[%s = %s@]" a b
-      | EqAttVal (a, v), _ -> Format.printf "@[%s = \"%s\"@]" a v
+          Util.format "@[%s <> \"%s\"@]" a v
+      | EqAttAtt (a, b), _ -> Util.format "@[%s = %s@]" a b
+      | EqAttVal (a, v), _ -> Util.format "@[%s = \"%s\"@]" a v
       | Not q, _ ->
-          Format.printf "@[~ ";
+          Util.format "@[~ ";
           format_t' q (Some p) Left;
-          Format.printf "@]"
+          Util.format "@]"
       | Conj (q, r), Some (Not _) ->
           (* paren needed *)
-          Format.printf "@[(";
+          Util.format "@[(";
           format_t' q (Some p) Left;
-          Format.printf "@ /\\@ ";
+          Util.format "@ /\\@ ";
           format_t' r (Some p) Right;
-          Format.printf ")@]"
+          Util.format ")@]"
       | Conj (q, r), _ ->
           (* no paren *)
-          Format.printf "@[";
+          Util.format "@[";
           format_t' q (Some p) Left;
-          Format.printf "@ /\\@ ";
+          Util.format "@ /\\@ ";
           format_t' r (Some p) Right;
-          Format.printf "@]"
+          Util.format "@]"
       | Disj (q, r), Some (Not _)
       | Disj (q, r), Some (Conj (_, _)) ->
           (* paren needed *)
-          Format.printf "@[(";
+          Util.format "@[(";
           format_t' q (Some p) Left;
-          Format.printf "@ \\/@ ";
+          Util.format "@ \\/@ ";
           format_t' r (Some p) Right;
-          Format.printf ")@]"
+          Util.format ")@]"
       | Disj (q, r), _ ->
           (* no paren *)
-          Format.printf "@[";
+          Util.format "@[";
           format_t' q (Some p) Left;
-          Format.printf "@ \\/@ ";
+          Util.format "@ \\/@ ";
           format_t' r (Some p) Right;
-          Format.printf "@]"
+          Util.format "@]"
       | Impl (q, r), Some (Not _)
       | Impl (q, r), Some (Conj (_, _))
       | Impl (q, r), Some (Disj (_, _))
       | Impl (q, r), Some (Impl (_, _)) when pos = Left ->
           (* paren needed *)
-          Format.printf "@[(";
+          Util.format "@[(";
           format_t' q (Some p) Left;
-          Format.printf "@ -> @ ";
+          Util.format "@ -> @ ";
           format_t' r (Some p) Right;
-          Format.printf ")@]"
+          Util.format ")@]"
       | Impl (q, r), _ ->
           (* no paren *)
-          Format.printf "@[";
+          Util.format "@[";
           format_t' q (Some p) Left;
-          Format.printf "@ ->@ ";
+          Util.format "@ ->@ ";
           format_t' r (Some p) Right;
-          Format.printf "@]"
+          Util.format "@]"
 
     let format_t p = format_t' p None Left
 
@@ -168,9 +168,9 @@ module Relation = struct
     let assert_mem msg att rcd =
       if not (Name.Set.mem att (Name.Map.domain rcd)) then
         raise (Error.Harmony_error (fun () ->
-          Format.printf "%s:@ " msg;
-          Format.printf "%s is mentioned in the predicate@ " att;
-          Format.printf "but is not in the domain of the record."))
+          Util.format "%s:@ " msg;
+          Util.format "%s is mentioned in the predicate@ " att;
+          Util.format "but is not in the domain of the record."))
 
     let rec member rcd = function
       | True -> true
@@ -382,21 +382,21 @@ module Relation = struct
   (*** Formatting ***)
 
   let format_tuple t =
-    Format.printf "@[<h 2>(";
+    Util.format "@[<h 2>(";
     Misc.format_list ",@ " format_name t;
-    Format.printf ")@]"
+    Util.format ")@]"
 
   let format_t r =
-    Format.printf "{@[<v>";
+    Util.format "{@[<v>";
     format_tuple r.fldseq;
-    if not (NameListSet.is_empty r.rows) then Format.printf "@ ";
+    if not (NameListSet.is_empty r.rows) then Util.format "@ ";
     Misc.format_list "@ " format_tuple (NameListSet.elements r.rows);
-    Format.printf "}@]"
+    Util.format "}@]"
 
   let format_t_data r =
-    Format.printf "{@[<v>";
+    Util.format "{@[<v>";
     Misc.format_list ",@ " format_tuple (NameListSet.elements r.rows);
-    Format.printf "}@]"
+    Util.format "}@]"
 
 
   (*** fields ***)
@@ -441,7 +441,7 @@ module Relation = struct
           rows = NameListSet.empty }
     | Some fld ->
         raise (Error.Harmony_error (fun () ->
-          Format.printf "%s cannot be used twice as an attribute name." fld))
+          Util.format "%s cannot be used twice as an attribute name." fld))
 
 
   (*** insert ***)
@@ -452,17 +452,17 @@ module Relation = struct
   let insert rcd r =
     if not (Name.Set.equal (Name.Map.domain rcd) r.flds) then
       raise (Error.Harmony_error (fun () ->
-        Format.printf "Cannot insert a record with domain@ ";
+        Util.format "Cannot insert a record with domain@ ";
         format_ns (Name.Map.domain rcd);
-        Format.printf "@ into a relation with domain@ ";
+        Util.format "@ into a relation with domain@ ";
         format_ns r.flds));
     {r with rows = NameListSet.add (listproj rcd r.fldseq) r.rows}
 
   let insert_tuple tup r =
     if List.length tup <> Name.Set.cardinal r.flds then
       raise (Error.Harmony_error (fun () ->
-        Format.printf "Cannot insert a tuple of length %d" (List.length tup);
-        Format.printf "@ into a relation with domain@ ";
+        Util.format "Cannot insert a tuple of length %d" (List.length tup);
+        Util.format "@ into a relation with domain@ ";
         format_ns r.flds));
     {r with rows = NameListSet.add tup r.rows}
 
@@ -483,11 +483,11 @@ module Relation = struct
   let rename m n r =
     if not (Name.Set.mem m r.flds) then
       raise (Error.Harmony_error (fun () ->
-        Format.printf "%s is not in the domain@ " m;
+        Util.format "%s is not in the domain@ " m;
         format_ns r.flds));
     if Name.Set.mem n r.flds && n <> m then
       raise (Error.Harmony_error (fun () ->
-        Format.printf "%s is already in the domain@ " n;
+        Util.format "%s is already in the domain@ " n;
         format_ns (Name.Set.remove m r.flds)));
     let swapname s = if s = m then n else s in
     let fldseq' = List.map swapname r.fldseq in
@@ -516,7 +516,7 @@ module Relation = struct
     | Not_found ->
         raise (Error.Harmony_error (fun () ->
           format_ns (List.fold_right Name.Set.add flds Name.Set.empty);
-          Format.printf "@ is not a subset of the domain@ ";
+          Util.format "@ is not a subset of the domain@ ";
           format_ns r.flds))
 
 
@@ -525,9 +525,9 @@ module Relation = struct
   let lift_set_op msg op r1 r2 =
     if not (Name.Set.equal r1.flds r2.flds) then
       raise (Error.Harmony_error (fun () ->
-        Format.printf "%s:@ " msg;
+        Util.format "%s:@ " msg;
         format_ns r1.flds;
-        Format.printf "@ is not equal to the domain@ ";
+        Util.format "@ is not equal to the domain@ ";
         format_ns r2.flds));
     if r1.fldseq = r2.fldseq then
       {r1 with rows = op r1.rows r2.rows}
@@ -569,19 +569,19 @@ end
 type t = Relation.t Name.Map.t
 
 let format_t db =
-  Format.printf "@[<hv4>{{{ ";
+  Util.format "@[<hv4>{{{ ";
   Name.Map.iter_with_sep
     (fun k rel -> 
-      Format.printf "%s@[<v -1>" k;
+      Util.format "%s@[<v -1>" k;
       Relation.format_tuple (Relation.fields rel);
-      Format.printf " =@ ";
+      Util.format " =@ ";
       Relation.format_t_data rel;
-      Format.printf "@]")
-    (fun() -> Format.printf ",@ ")
+      Util.format "@]")
+    (fun() -> Util.format ",@ ")
     db;
-  Format.printf "@] }}}"
+  Util.format "@] }}}"
 
-let string_of_t db = Misc.format_to_string (fun () -> format_t db)
+let string_of_t db = Util.format_to_string (fun () -> format_t db)
 
 let equal db1 db2 =
   Name.Set.equal (Name.Map.domain db1) (Name.Map.domain db2) &&
@@ -598,9 +598,9 @@ let lookup rn db =
   try Name.Map.find rn db with
   | Not_found ->
       raise (Error.Harmony_error (fun () ->
-        Format.printf "Db.lookup:@ ";
+        Util.format "Db.lookup:@ ";
         format_t db;
-        Format.printf "@ contains no relation named %s" rn))
+        Util.format "@ contains no relation named %s" rn))
 
 
 (*** Unit tests ***)

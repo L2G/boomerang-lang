@@ -167,20 +167,10 @@ let map2opt f xs ys =
 
 (* ------------- String/Char utilities --------------- *)
 
-let format_to_string f =
-  let out,flush = Format.get_formatter_output_functions () in
-  let buf = Buffer.create 64 in
-    Format.set_formatter_output_functions 
-      (fun s p n -> Buffer.add_substring buf s p n) (fun () -> ());
-    f ();
-    let s = Buffer.contents buf in
-      Format.set_formatter_output_functions out flush;
-      s
-
 (* Based on String.escape 
  *)
 let escape (escapeChar: char -> string) s =
-  debug (fun () -> Format.printf "escape: %s@\n" s);
+  debug (fun () -> Util.format "escape: %s@\n" s);
   let n = ref 0 in
     for i = 0 to String. length s - 1 do
       let l = String.length (escapeChar (String.get s i)) in
@@ -206,7 +196,7 @@ let escape (escapeChar: char -> string) s =
       s'
     end
   in
-  debug(fun () -> Format.printf "escape returns %s@\n" result);
+  debug(fun () -> Util.format "escape returns %s@\n" result);
   result
 
 (* \ -> \\; x -> \x (for all x in escapedchars) *)
@@ -370,7 +360,7 @@ let unescaped s =
           let i3 = int_of_char(c3) - int_of_char('0') in
           let i4 = int_of_char(c4) - int_of_char('0') in
           if (i2 < 0 || i2 > 9 || i3 < 0 || i3 > 9 || i4 < 0 || i4 > 9) then
-            raise (Error.Harmony_error (fun () -> Format.printf "Bad escape sequence in %s" (whack s)))
+            raise (Error.Harmony_error (fun () -> Util.format "Bad escape sequence in %s" (whack s)))
           else
             (Buffer.add_char buf 
               (char_of_int (i2 * 100 + i3 * 10 + i4)); loop (i+4))
@@ -470,7 +460,7 @@ let rec remove_file_or_dir d =
     let rec loop () =
       let r = try Some(Unix.readdir handle)
       with End_of_file -> None
-        | Sys_error s -> raise (Error.Harmony_error(fun () -> Format.printf "Error reading %s (%s)" d s)) in
+        | Sys_error s -> raise (Error.Harmony_error(fun () -> Util.format "Error reading %s (%s)" d s)) in
         match r with
             Some f ->
               if f="." || f=".." then loop ()
@@ -618,6 +608,26 @@ let concat_list sep l =
 
 let concat_f_list sep f l = concat_list sep (Safelist.map f l)
 
+let format_list sep f l =
+  let extract_thk = function 
+      Some thk -> thk
+    | None -> (fun () -> ()) in
+  let thko =
+    concat
+      Safelist.fold_left
+      (fun x y -> 
+         Some (fun () -> 
+                 extract_thk x ();
+                 Util.format sep;
+                 extract_thk y ()))
+      (fun x -> x = None)
+      None
+      (fun x -> Some (fun () -> f x))
+      l
+  in
+    extract_thk thko ()
+
+(* SHOULD BE NUKED SOON *)
 let fformat_list fmtr sep f l =
   let extract_thk = function 
       Some thk -> thk
@@ -637,4 +647,4 @@ let fformat_list fmtr sep f l =
   in
     extract_thk thko ()
 
-let format_list sep f l = fformat_list Format.std_formatter sep f l
+

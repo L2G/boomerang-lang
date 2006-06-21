@@ -32,13 +32,13 @@ let equal v w =
   | S s1, S s2 -> Schema.equivalent s1 s2
   | V v1, V v2 -> V.equal v1 v2
   | M m1, M m2 -> raise (Error.Harmony_error (fun () ->
-      Format.printf "Finite map values cannot be compared for equality."))
+      Util.format "Finite map values cannot be compared for equality."))
   | L _, L _ -> raise (Error.Harmony_error (fun () ->
-      Format.printf "Lens values cannot be compared for equality."))
+      Util.format "Lens values cannot be compared for equality."))
   | F _, F _ -> raise (Error.Harmony_error (fun () ->
-      Format.printf "Function values cannot be compared for equality."))
+      Util.format "Function values cannot be compared for equality."))
   | D _, D _ -> raise (Error.Harmony_error (fun () ->
-      Format.printf "Dummy values cannot be compared for equality."))
+      Util.format "Dummy values cannot be compared for equality."))
   | _, _ -> false
 
 let sort_of_t = function
@@ -54,21 +54,21 @@ let sort_of_t = function
 
 (* pretty print *)
 let rec format_t = function
-    N(n)   -> Format.printf "@[%s]" (Misc.whack n)
+    N(n)   -> Util.format "@[%s]" (Misc.whack n)
   | S(s)   -> Schema.format_t s
   | P(pred) -> Db.Relation.Pred.format_t pred
   | FD(fds) -> Dbschema.Relschema.Fd.Set.format_t fds
   | V(v)   -> V.format_t v
-  | L(l,c) -> Format.printf "@[%s]" "<lens>"
-  | M(_)   -> Format.printf "@[%s]" "<fmap>"
+  | L(l,c) -> Util.format "@[%s]" "<lens>"
+  | M(_)   -> Util.format "@[%s]" "<fmap>"
   | F(s,_) -> 
-      Format.printf "@[%s" "<";
+      Util.format "@[%s" "<";
       Syntax.format_sort s;
-      Format.printf " fun%s]" ">"
+      Util.format " fun%s]" ">"
   | D(s,q) -> 
-      Format.printf "@[%s" "<";
+      Util.format "@[%s" "<";
       Syntax.format_sort s;
-      Format.printf " dummy for %s%s]" 
+      Util.format " dummy for %s%s]" 
         (Syntax.string_of_qid q) ">"
 
 (*random helpers *)
@@ -83,7 +83,7 @@ let parse_qid s =
         Parser.qid Lexer.main lexbuf 
       with Parsing.Parse_error -> 
         raise (Error.Harmony_error
-                 (fun () -> Format.printf "%s: syntax error in qualfied identifier." 
+                 (fun () -> Util.format "%s: syntax error in qualfied identifier." 
                     (Info.string_of_t (Lexer.info lexbuf))))
     in 
       Lexer.finish ();
@@ -97,7 +97,7 @@ let parse_sort s =
         Parser.sort Lexer.main lexbuf 
       with Parsing.Parse_error -> 
         raise (Error.Harmony_error
-                 (fun () -> Format.printf "%s: syntax error in sort." 
+                 (fun () -> Util.format "%s: syntax error in sort." 
                     (Info.string_of_t (Lexer.info lexbuf))))
     in
       Lexer.finish ();
@@ -107,9 +107,9 @@ let parse_sort s =
 let focal_type_error i es v = 
   raise (Error.Harmony_error
            (fun () ->
-             Format.printf "%s: run-time sort error:@ " (Info.string_of_t i);
+             Util.format "%s: run-time sort error:@ " (Info.string_of_t i);
              format_t v;
-             Format.printf "@ does not have sort@ ";
+             Util.format "@ does not have sort@ ";
              Syntax.format_sort es
            ))
 
@@ -135,8 +135,8 @@ let get_tree i v =
     | V (V.Db _) ->
         raise (Error.Harmony_error
            (fun () ->
-             Format.printf "%s: run-time error:@ " (Info.string_of_t i);
-             Format.printf "expected a tree but found@ ";
+             Util.format "%s: run-time error:@ " (Info.string_of_t i);
+             Util.format "expected a tree but found@ ";
              format_t v
            ))
     | _ -> focal_type_error i Syntax.SView v

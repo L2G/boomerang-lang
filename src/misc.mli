@@ -90,10 +90,6 @@ val map2opt : ('a option -> 'b option -> 'c) -> 'a list -> 'b list -> 'c list
 
 (** {2 String utility functions} *)
 
-val format_to_string : (unit -> unit) -> string 
-(** [format_to_string f] runs [f] in a context where the Format functions are redirected to
-    a string, which it returns. *)
-
 val escape : (char -> string) -> string -> string
 (** [escape escapeChar s] returns [s] where every char in [s] has been escaped with [escapeChar]. *)
 
@@ -230,6 +226,7 @@ val format_list : (unit, Format.formatter, unit) format -> ('a -> unit) -> 'a li
   (** [format_list sep f l] formats [l] using [f] to format elements and
       calls [sep] between elements *)
 
+(* NUKE SOON: *)
 val fformat_list : Format.formatter -> (unit, Format.formatter, unit) format -> ('a -> unit) -> 'a list -> unit
   (** [fformat_list fmtr sep f l] formats [l] using [f] on [fmtr] to format elements and
       calls [sep] between elements *)

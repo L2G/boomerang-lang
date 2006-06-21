@@ -41,7 +41,7 @@ let read_tree fn =
     (Surveyor.v_of_file fn (Surveyor.get_reader ekey))
 
 let write_tree fn t = 
-  debug (fun()-> Format.printf "Writing back %s@\n" fn);
+  debug (fun()-> Util.format "Writing back %s@\n" fn);
   let v = V.Tree t in
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
@@ -55,7 +55,7 @@ let read_view fn =
   Surveyor.v_of_file fn (Surveyor.get_reader ekey)
 
 let write_view fn v = 
-  debug (fun()-> Format.printf "Writing back %s@\n" fn);
+  debug (fun()-> Util.format "Writing back %s@\n" fn);
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
@@ -114,14 +114,14 @@ let has_conflict = function
   | DbAct (b,f) -> b
       
 let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn = 
-  debug (fun() -> Format.printf "Synchronizing...@\n");
+  debug (fun() -> Util.format "Synchronizing...@\n");
   let s = lookup_schema s in 
-  debug (fun() -> Format.printf "Loading lenses...@\n");
+  debug (fun() -> Util.format "Loading lenses...@\n");
   let lenso,_ = lookup_lens lenso in
   let lensa,_ = lookup_lens lensa in 
   let lensb,_ = lookup_lens lensb in         
   let forcer1 = Prefs.read forcer1 in
-  debug (fun() -> Format.printf "Loading files...@\n");
+  debug (fun() -> Util.format "Loading files...@\n");
   let (o, a, b, (act, oa', aa', ba')) =
     if forcer1 then begin
       let a = read_view a_fn in
@@ -132,13 +132,13 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
       let a = read_view a_fn in
       let o = read_view o_fn in
       let b = read_view b_fn in
-      debug (fun() -> Format.printf "Applying GET functions (o)...@\n");
+      debug (fun() -> Util.format "Applying GET functions (o)...@\n");
       let oa = Misc.map_option (Lens.get lenso) o in
-      debug (fun() -> Format.printf "Applying GET functions (a)...@\n");
+      debug (fun() -> Util.format "Applying GET functions (a)...@\n");
       let aa = Misc.map_option (Lens.get lensa) a in
-      debug (fun() -> Format.printf "Applying GET functions (b)...@\n");
+      debug (fun() -> Util.format "Applying GET functions (b)...@\n");
       let ba = Misc.map_option (Lens.get lensb) b in
-      debug (fun() -> Format.printf "Synchronizing...@\n");
+      debug (fun() -> Util.format "Synchronizing...@\n");
       let any_tree = is_tree oa || is_tree aa || is_tree ba in
       let any_db = is_db oa || is_db aa || is_db ba in
       if any_tree && any_db then
@@ -153,31 +153,31 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
         let eq xo yo = match xo,yo with Some x, Some y -> V.equal x y | _ -> false in
         if eq aa ba then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "EQUAL")), aa, aa, aa))
+           (DbAct (false, (fun()-> Util.format "EQUAL")), aa, aa, aa))
         else if eq aa oa then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "<====")), ba, ba, ba))
+           (DbAct (false, (fun()-> Util.format "<====")), ba, ba, ba))
         else if eq ba oa then
           (o, a, b,
-           (DbAct (false, (fun()-> Format.printf "====>")), aa, aa, aa))
+           (DbAct (false, (fun()-> Util.format "====>")), aa, aa, aa))
         else 
           (o, a, b,
-           (DbAct (true, (fun()-> Format.printf "ERROR: Cannot (yet) synchronize databases when both have changed")), oa, aa, ba))
+           (DbAct (true, (fun()-> Util.format "ERROR: Cannot (yet) synchronize databases when both have changed")), oa, aa, ba))
     in
-  debug (fun() -> Format.printf "Dumping actions...@\n");
-  Trace.log (Misc.format_to_string (fun() -> 
+  debug (fun() -> Util.format "Dumping actions...@\n");
+  Trace.log (Util.format_to_string (fun() -> 
      match act with
      | SyncAct a -> Sync.format_action a
      | DbAct (b,a) -> a()));
-  debug (fun() -> Format.printf "Applying PUT functions...@\n");
-  debug (fun() -> Format.printf "to o...@\n");
+  debug (fun() -> Util.format "Applying PUT functions...@\n");
+  debug (fun() -> Util.format "to o...@\n");
   let o' = Misc.map_option (fun o' -> Lens.put lenso o' (if forcer1 then None else o)) oa' in
-  debug (fun() -> Format.printf "to a...@\n");
+  debug (fun() -> Util.format "to a...@\n");
   let a' = Misc.map_option (fun a' -> Lens.put lensa a' a) aa' in
-  debug (fun() -> Format.printf "to b...@\n");
+  debug (fun() -> Util.format "to b...@\n");
   let b' = Misc.map_option (fun b' -> Lens.put lensb b' (if forcer1 then None else b)) ba' in
-  debug (fun() -> Format.printf "Writing back results...@\n");
-  debug (fun() -> match o' with None -> Format.printf "o' = None@\n" | _ -> ());
+  debug (fun() -> Util.format "Writing back results...@\n");
+  debug (fun() -> match o' with None -> Util.format "o' = None@\n" | _ -> ());
   ignore (Misc.map_option (write_view o'_fn) o');
   ignore (Misc.map_option (write_view a'_fn) a');
   ignore (Misc.map_option (write_view b'_fn) b');
@@ -220,11 +220,11 @@ let unittests = Prefs.createBool "unittests" false "run internal unit tests (and
 (* Running external commands *)
 
 let runcmd cmd = 
-  debug (fun() -> Format.printf "%s@\n" cmd);
+  debug (fun() -> Util.format "%s@\n" cmd);
   if Sys.command cmd <> 0 then Error.simple_error ("Command failed: "^cmd)
 
 let cp_or_del f g =
-  debug (fun()-> Format.printf "Copying %s to %s@\n" f g);
+  debug (fun()-> Util.format "Copying %s to %s@\n" f g);
   if Sys.file_exists g then Sys.remove g;
   if Sys.file_exists f then 
     begin 
@@ -276,6 +276,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
       exit 0
     end;
 
+  (* BCP: Not sure if this still makes sense, since we are uniformly sending
+     errors to stdout now *)
   (* Open error logging file, if specified *)
   let errfilename = Prefs.read errfile in
   if errfilename <> "" then
@@ -298,7 +300,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   if Prefs.read check_pref <> [] then
     begin
       Safelist.iter check (Prefs.read check_pref);
-      Presburger.print_stats ();Format.print_flush();
+      Presburger.print_stats ();
       if Prefs.read rest = [] then exit 0
     end;
 
@@ -440,7 +442,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   (* Clean up *)
   (fun () -> 
     (* cleanupTempFiles() *)
-     Format.print_flush ();
+     Util.flush ();
   )
 
 let toplevel progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens =

@@ -20,25 +20,25 @@ let dbschema d = D d
 let treeschema_of i = function
     T ts -> ts
   | D dbs -> raise (Error.Harmony_error (fun() ->
-                     Format.printf "@[Run-time error at %s:@ expected a tree schema but found a database schema:@ "
+                     Util.format "@[Run-time error at %s:@ expected a tree schema but found a database schema:@ "
                        (Info.string_of_t i);
                      Dbschema.format_t dbs;
-                     Format.printf "@]"))
+                     Util.format "@]"))
 
 let dbschema_of i = function
     D db -> db
   | T ts -> raise (Error.Harmony_error (fun() ->
-                     Format.printf "@[Run-time error at %s:@ expected a database schema but found a tree schema:@ "
+                     Util.format "@[Run-time error at %s:@ expected a database schema but found a tree schema:@ "
                        (Info.string_of_t i);
                      Treeschema.format_t ts;
-                     Format.printf "@]"))
+                     Util.format "@]"))
 
 let treeschema_of_internal m1 m2 = function
   | T s -> s
   | D s -> raise (Error.Harmony_error
-             (fun () -> Format.printf "@[%s requires %s but found: @ " m1 m2;
+             (fun () -> Util.format "@[%s requires %s but found: @ " m1 m2;
               Dbschema.format_t s;
-              Format.printf "@]"))
+              Util.format "@]"))
 
 let t1 m f =
   fun s -> f (treeschema_of_internal m "a tree schema" s)

@@ -82,13 +82,13 @@ let get_ekey eko fn contents_opt =
           with
             Not_found ->
               raise (Error.Harmony_error (fun () ->
-                Format.printf "unknown encoding key: %s@\nKnown keys: %s" ekey (String.concat " " (get_all_encodings()))))
+                Util.format "unknown encoding key: %s@\nKnown keys: %s" ekey (String.concat " " (get_all_encodings()))))
         end
     | None -> 
         match (find_encodings fn contents_opt) with
           | [ek] -> ek
-          | []    -> raise (Error.Harmony_error (fun () -> Format.printf "No encoding for file '%s'" fn))
-          | eks    -> raise (Error.Harmony_error (fun () -> Format.printf "More than one possible encoding for file '%s'" fn ))
+          | []    -> raise (Error.Harmony_error (fun () -> Util.format "No encoding for file '%s'" fn))
+          | eks    -> raise (Error.Harmony_error (fun () -> Util.format "More than one possible encoding for file '%s'" fn ))
 
 let v_of_file fn reader = 
   if Sys.file_exists fn then

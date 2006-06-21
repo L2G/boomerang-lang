@@ -43,33 +43,33 @@ let no_assert = Prefs.createBool "no-assert" false
   "don't check assertions"
 
 (* --------------- Error Reporting --------------- *)
-let debug s_thk = Trace.debug "compiler" (fun () -> Format.printf "@[%s@\n%!@]" (s_thk ()))
+let debug s_thk = Trace.debug "compiler" (fun () -> Util.format "@[%s@\n%!@]" (s_thk ()))
 
 let parse_error i msg_thk = 
   raise (Error.Harmony_error
-           (fun () -> Format.printf "@[%s: Parse error @\n" (Info.string_of_t i);
+           (fun () -> Util.format "@[%s: Parse error @\n" (Info.string_of_t i);
               msg_thk ();
-              Format.printf "@]"))
+              Util.format "@]"))
 
 let sort_error i msg_thk = 
   raise (Error.Harmony_error
            (fun () -> 
-              Format.printf "@[%s: Sort checking error@\n" (Info.string_of_t i);
+              Util.format "@[%s: Sort checking error@\n" (Info.string_of_t i);
               msg_thk ();
-              Format.printf "@]"))
+              Util.format "@]"))
 
 let test_error i msg_thk = 
   raise (Error.Harmony_error
-           (fun () -> Format.printf "@[%s: Unit test failed @ " (Info.string_of_t i); 
+           (fun () -> Util.format "@[%s: Unit test failed @ " (Info.string_of_t i); 
               msg_thk ();
-              Format.printf "@]"))
+              Util.format "@]"))
 
 let run_error i msg_thk = 
   raise (Error.Harmony_error
-           (fun () -> Format.printf "@[%s: Unexpected run-time error @\n" 
+           (fun () -> Util.format "@[%s: Unexpected run-time error @\n" 
               (Info.string_of_t i);
               msg_thk ();
-              Format.printf "@]"))
+              Util.format "@]"))
 
 (* --------------- Environments --------------- *)
 module type CommonEnvSig = sig
@@ -171,11 +171,11 @@ let rec expect_sort_exp msg sev expected_sort e =
     else
       sort_error i
         (fun () -> 
-           Format.printf "@[in %s:@ " msg;
+           Util.format "@[in %s:@ " msg;
            Syntax.format_sort expected_sort;
-           Format.printf " expected@ but ";
+           Util.format " expected@ but ";
            Syntax.format_sort e_sort;
-           Format.printf "@ found@]")
+           Util.format "@ found@]")
 
 (* EXPRESSIONS *)    
 and check_exp sev e0 = match e0 with
@@ -189,10 +189,10 @@ and check_exp sev e0 = match e0 with
         | e1_sort,_ -> 
             sort_error i 
               (fun () -> 
-                 Format.printf
+                 Util.format
                    "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found";
                  Syntax.format_sort e1_sort;
-                 Format.printf "@]")
+                 Util.format "@]")
     end
 
   (* assertions *)
@@ -257,7 +257,7 @@ and check_exp sev e0 = match e0 with
         (SSchema, e)
 
     | EFun(i,[],_,_) -> 
-        run_error i (fun () -> Format.printf "@[function without parameters]")
+        run_error i (fun () -> Util.format "@[function without parameters]")
 
   | EFun(i,p1::p2::ps,return_sort_opt,body) ->
       (* multi-parameter function; rewrite to simple lambda *)
@@ -337,7 +337,7 @@ and check_exp sev e0 = match e0 with
         | None -> 
             sort_error i 
               (fun () -> 
-                 Format.printf "@[%s is not bound@]"
+                 Util.format "@[%s is not bound@]"
                    (string_of_qid q))
       end
 
@@ -417,7 +417,7 @@ let rec check_decl sev m d0 = match d0 with
            match Registry.REnv.lookup (SCEnv.get_ev m_sev) q with
                None -> run_error i 
                    (fun () -> 
-                      Format.printf "@[the compiled declaration for %s went missing@]"
+                      Util.format "@[the compiled declaration for %s went missing@]"
                         (string_of_qid q))
                | Some q_rv ->
                    let nq_dot_q = dot n_qid q in
@@ -497,18 +497,18 @@ let rec compile_exp cev e0 = match e0 with
                       run_error 
                         i 
                         (fun () -> 
-                           Format.printf
+                           Util.format
                              "@[expected function at left-hand side of application but found ";
                            Value.format_t v2;
-                           Format.printf "@]")
+                           Util.format "@]")
                 end
             | s -> 
                 run_error i 
                   (fun () -> 
-                     Format.printf
+                     Util.format
                        "@[expected function sort at left-hand side of application but found ";
                      Syntax.format_sort s;
-                     Format.printf "@]")
+                     Util.format "@]")
         end
 
   | EAssert(i,e1) ->
@@ -548,11 +548,11 @@ let rec compile_exp cev e0 = match e0 with
                      ; `String "but found:"; `Space
                      ; `Prim (fun () -> Schema.format_t found)] in
         (Trace.debug "checker+"
-           (fun () -> Format.printf "--- CHECKING ";
+           (fun () -> Util.format "--- CHECKING ";
               Schema.format_t c_schema; 
               Syntax.format_lensarrow la;
               Schema.format_t a_schema;
-              Format.printf "---@\n%!");
+              Util.format "---@\n%!");
          match ck with
              Value.BIJ(c2a,a2c) -> 
                check_schema a_schema (c2a c_schema);
@@ -583,10 +583,10 @@ let rec compile_exp cev e0 = match e0 with
                 mk_rv SSchema (Value.S s)
           | v -> run_error i
               (fun () -> 
-                 Format.printf 
+                 Util.format 
                    "@[expected schema or tree in atom but found ";
                  Value.format_t v;
-                 Format.printf "@]")
+                 Util.format "@]")
         end
 
     | ECat(i, es) ->
@@ -606,9 +606,9 @@ let rec compile_exp cev e0 = match e0 with
                        (s, (Value.S (Value.get_schema i v))::vs_rev)
                    | _ -> run_error i 
                        (fun () -> 
-                          Format.printf "@[bogus value in ECat:";
+                          Util.format "@[bogus value in ECat:";
                           Registry.format_rv ei_rv;
-                          Format.printf "@]"))
+                          Util.format "@]"))
             (SView,[])
             es in 
           begin
@@ -626,9 +626,9 @@ let rec compile_exp cev e0 = match e0 with
                      mk_rv SSchema (Value.S s)
               | _ -> run_error i 
                   (fun () -> 
-                     Format.printf "@[unexpected sort in ECat: ";
+                     Util.format "@[unexpected sort in ECat: ";
                      Syntax.format_sort e0_sort;
-                     Format.printf "@]")
+                     Util.format "@]")
           end
     | ECons(i,e1,e2) ->         
         let e1_v = v_of_rv (compile_exp cev e1) in 
@@ -645,7 +645,7 @@ let rec compile_exp cev e0 = match e0 with
             | Value.S t1, Value.S t2 -> 
                 let s = Schema.mk_cons t1 t2 in 
                         mk_rv SSchema (Value.S s)
-            | _ -> run_error i (fun () -> Format.printf "@[expected tree or type in atom@]")
+            | _ -> run_error i (fun () -> Util.format "@[expected tree or type in atom@]")
           end
 
     | EFun(i,[p],Some ret_sort,e) ->
@@ -664,7 +664,7 @@ let rec compile_exp cev e0 = match e0 with
             (Value.F (f_sort, f_impl))
 
     | EFun(i,_,_,_) -> 
-        run_error i (fun () -> Format.printf "@[unflattened or unannotated function@]")
+        run_error i (fun () -> Util.format "@[unflattened or unannotated function@]")
 
     | ELet(i, bs,e) ->
         let bcev,_ = compile_bindings cev bs in
@@ -714,9 +714,9 @@ let rec compile_exp cev e0 = match e0 with
                  if not (Schema.equivalent s expected) 
                  then run_error i 
                    (fun () -> 
-                      Format.printf "protect: expected@ ";
+                      Util.format "protect: expected@ ";
                       Schema.format_t expected;
-                      Format.printf "@ found@ ";
+                      Util.format "@ found@ ";
                       Schema.format_t s)
                  else result) in
             match s with 
@@ -732,7 +732,7 @@ let rec compile_exp cev e0 = match e0 with
             (Value.L (Lens.native get put, checker))
 
     | EProtect(i,_,_) ->
-        run_error i (fun () -> Format.printf "@[unannotated protect@]")
+        run_error i (fun () -> Util.format "@[unannotated protect@]")
 
 
     | ESchema(i,ss,e) ->         
@@ -766,13 +766,13 @@ let rec compile_exp cev e0 = match e0 with
                 (* let rec diverge () = diverge () in diverge () *)
                 run_error (info_of_exp e0)
                   (fun () -> 
-                     Format.printf "@[variable %s may not be used recursively@]"
+                     Util.format "@[variable %s may not be used recursively@]"
                        (Syntax.string_of_qid q))
               else rv
           | None -> run_error 
               (info_of_exp e0)
                 (fun () -> 
-                   Format.printf "@[unbound variable %s@]"
+                   Util.format "@[unbound variable %s@]"
                      (string_of_qid q))
       end
 
@@ -802,7 +802,7 @@ and lookup_qid_schema cev q =
           Some rv -> v_of_rv rv 
         | None -> run_error i             
             (fun () -> 
-               Format.printf "@[unbound schema %s@]"
+               Util.format "@[unbound schema %s@]"
                  (string_of_qid q)))
 
 and compile_exp_name cev e =
@@ -849,7 +849,7 @@ and compile_bindings cev bs =
              CEnv.overwrite bcev f_qid memoized_rv;
              f_qid::names_rev
        | Syntax.BDef(i,_,_,_,_) -> run_error i 
-           (fun () -> Format.printf "@[unflattened binding@]"))
+           (fun () -> Util.format "@[unflattened binding@]"))
     []
     bs
   in
@@ -898,9 +898,9 @@ and compile_schema_bindings cev sbinds =
 (* type check a single declaration *)
 let rec compile_decl cev m di = 
   let _ = Trace.debug "decl+" (fun () -> 
-                                Format.printf "@\n";
+                                Util.format "@\n";
                                 Syntax.format_decl di; 
-                                Format.print_newline ()) in
+                                Util.format "@\n") in
     match di with
   | DLet(i,bs) -> compile_bindings cev bs 
   | DMod(i,n,ds) ->
@@ -916,7 +916,7 @@ let rec compile_decl cev m di =
                    let nq_dot_q = dot nq q in
                      (CEnv.update cev nq_dot_q rv, nq_dot_q::names)
                | None -> run_error i
-                   (fun () -> Format.printf "@[the compiled declaration for %s went missing@]"
+                   (fun () -> Util.format "@[the compiled declaration for %s went missing@]"
                       (string_of_qid q)))
           (cev,[])
           names
@@ -932,7 +932,7 @@ let rec compile_decl cev m di =
         in
           match vo, res with 
             | OK v, PrintResult ->
-                Format.printf "Test result:@ "; Value.format_t v; Format.printf "@\n"
+                Util.format "Test result:@ "; Value.format_t v; Util.format "@\n"
             | Error m, PrintResult -> 
                 test_error i 
                   (fun () ->
@@ -944,20 +944,20 @@ let rec compile_decl cev m di =
                   if not (Value.equal v resv) then
                     test_error i 
                       (fun () ->
-                         Format.printf "@\nExpected@ "; Value.format_t resv;
-                         Format.printf "@ but found@ "; Value.format_t v; Format.printf "@\n")
+                         Util.format "@\nExpected@ "; Value.format_t resv;
+                         Util.format "@ but found@ "; Value.format_t v; Util.format "@\n")
             | Error m, Result res -> 
                 let resv = v_of_rv (compile_exp cev res) in
                   test_error i 
                     (fun () ->
-                       Format.printf "@\nExpected@ "; Value.format_t resv; 
-                       Format.printf "@ but found an error:@ "; m(); Format.printf "@\n")
+                       Util.format "@\nExpected@ "; Value.format_t resv; 
+                       Util.format "@ but found an error:@ "; m(); Util.format "@\n")
 
             | OK v, ErrorResult -> 
                 test_error i 
                   (fun () ->
-                     Format.printf "@\nExpected an error@ "; 
-                     Format.printf "@ but found:@ "; Value.format_t v; Format.printf "@\n")
+                     Util.format "@\nExpected an error@ "; 
+                     Util.format "@ but found:@ "; Value.format_t v; Util.format "@\n")
       end;
       (cev, [])        
 
@@ -983,14 +983,14 @@ let parse_lexbuf lexbuf =
   try Parser.modl Lexer.main lexbuf 
   with Parsing.Parse_error ->
     parse_error (Lexer.info lexbuf) 
-      (fun () -> Format.printf "@[syntax error@]")
+      (fun () -> Util.format "@[syntax error@]")
 
 let m_check n m_str ast= 
   if n = m_str then ()
   else
     sort_error 
       (info_of_module ast)
-      (fun () -> Format.printf "@[module %s must appear in a file named %s.src or %s.fcl.@]"
+      (fun () -> Util.format "@[module %s must appear in a file named %s.src or %s.fcl.@]"
          m_str (String.uncapitalize m_str))
 
 (* end-to-end compilation of files *)
