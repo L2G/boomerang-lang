@@ -3,6 +3,10 @@
 
 .PHONY: clean test temp temp1 temp2
 
+# This is needed only for the TAGS command; should be removed after the next
+# OMake release (it's to get around a bug)
+# BYTE_ENABLED = TRUE
+
 ##############################################################################
 # Sub-directories
 
@@ -148,12 +152,14 @@ FCLFILES = \
 # TAGS
 
 # This doesn't give quite as much as we'd like (leaves out the examples)
-TAGS: $(SRCDIR)/harmony
-  etags $(dependencies-proper $*)
+# TAGS: $(SRCDIR)/harmony
+#  etags $(dependencies-proper $*)
 
-# This doesn't work:
+# ALLFILES = $(ls R, .)
+# SOURCEFILES = $(set-diff $(ALLFILES), $(filter-proper-targets $(ALLFILES)))
+
 # TAGS: 
-#   etags $(filter-proper-targets $(ls R, .))
+#   etags $(SOURCEFILES)
 
 ##############################################################################
 # Translation of .src files
