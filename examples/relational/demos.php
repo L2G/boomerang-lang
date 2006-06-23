@@ -14,7 +14,7 @@ $demo["r2_h"] = 160;
 $demo["l1_title"] = "Lens";
 $demo["l1_d"] = true;
 $demo["l1_h"] = 520;
-$demo["l2_d"] = true;
+$demo["l2_d"] = false;
 $demo["l2_title"] = "(Not used)";
 $demo["r1_shows"] = true;
 $demo["l2"] = "id";
@@ -24,9 +24,9 @@ $demo["output_h"] = 60;
 
 
 $demo["element_order"] = 
-    array("instr", "l1", "r1", "r2", "output");
+    array("instr", "l1", "r1", "r2", "output", "a2", "l2", "schema", "ar", "a1");
 
-# "a2", "l2", "schema", "ar", "a1"
+# 
 
 # ---------------------------------------------------------
 $demo["instr"] = <<<XXX

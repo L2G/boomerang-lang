@@ -7,18 +7,10 @@
 ################################################################
 # $Id$
 
-$test = false;
-if(!empty($argv)) {
-  foreach($argv as $argi) { 
-    if ("-test" == $argi) { $test = true; }
-  }
-}
-$home = getcwd();
-
 ############################
 # Configuration parameters #
 ############################
-#$enabledebug = TRUE;
+# $enabledebug = TRUE;
 $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
