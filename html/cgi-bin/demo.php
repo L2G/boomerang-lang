@@ -18,7 +18,7 @@ $home = getcwd();
 ############################
 # Configuration parameters #
 ############################
-# $enabledebug = TRUE;
+#$enabledebug = TRUE;
 $enablelogging = TRUE;
 
 $defaultdemogroup = "basics";
@@ -188,6 +188,7 @@ function run_demo($demogroup, $demonumber) {
   $d_default_w = demoparam("default_w");
   $d_default_wide_w = demoparam("default_wide_w");
   $d_default_h = demoparam("default_h");
+  $d_element_order = demoparam("element_order");
 
   #####################
   # Set Up Parameters #
@@ -219,6 +220,9 @@ function run_demo($demogroup, $demonumber) {
           "output" => array("title" => "Output",       
                             "h" => $default_h, "w" => $default_wide_w, "d" => "none", "text" => true,  "ro" => true,)
           );
+  $default_element_order = array_keys($elements);
+  
+  $element_order = $d_element_order ? $d_element_order : array_keys($elements);
   
   $expert_icon = $expert ? "expertoff" : "experton";
   $expert_desc = $expert ? "Turn Expert Mode Off" : "Turn Expert Mode On";
@@ -290,7 +294,7 @@ function run_demo($demogroup, $demonumber) {
       $browser = $_SERVER['HTTP_USER_AGENT'];
       $date = date("Y/m/j G:i:s T");
       $logmsg = "$date  $remote  ($demogroup / $demonumber) $browser\n";
-      foreach ($logfile_locations as $name) {
+      foreach($logfile_locations as $name) {
         $handle = @fopen($name, 'a');
         if ($handle) {
           echodebug ("Log message written to $name");
@@ -427,22 +431,26 @@ function run_demo($demogroup, $demonumber) {
   $ELEMENT_functions = "";
   $ELEMENT_init = "";
   $ELEMENT_html = "";
-  foreach ($elements as $k=>$v) {
+  foreach($element_order as $k) {
     global $ELEMENT_functions, $ELEMENT_init, $ELEMENT_html;
+    
+    if(!$elements[$k]) { continue; }
+    $v = $elements[$k];
+    
     # pick data from form, demo, and static array
     $elements[$k]['h'] = $v['h'] = pick(get_post_data($k . "_h"), demoparam($k . "_h"), $v['h']);
     $elements[$k]['w'] = $v['w'] = pick(get_post_data($k . "_w"), demoparam($k . "_w"), $v['w']);
     $elements[$k]['d'] = $v['d'] = pick(get_post_data($k . "_d"), demoparam($k . "_d"), $v['d']); 
-
+    
     $elements[$k]['title'] = $v['title'] = pick(false, demoparam($k . "_title"), $v['title']) ;
-
+    
     $icon = "";
     foreach($icons as $i=>$w) { if($w["shows"] && in_array($k, $w["shows"])) { $icon = $i; break; } }
-
+    
     if($k == "output" && $error) { $elements[$k]['d'] = $v['d'] = "block"; }
-
+    
     $ELEMENT_functions = $ELEMENT_functions
-      #resize function
+    #resize function
       . " function $k" . "_resize(e){" 
       . " return resize(e, {s:document.getElementById(\"$k\").style," 
       . " h:document.theform.$k" . "_h," 
@@ -564,7 +572,7 @@ function run_demo($demogroup, $demonumber) {
     $SELECT_html = 
     "<select name=\"demogroup\" onchange=\"select_demo_group()\">"
     . "<optgroup label=\"Overview\">";
-  foreach ($alldemos as $k=>$v) {    
+  foreach($alldemos as $k=>$v) {    
     if(!empty($v["header"])) {
       $SELECT_html = $SELECT_html 
         . "</optgroup>"
@@ -802,7 +810,7 @@ ENDJAVASCRIPT;
 
 # strip redundant whitespace from CSS and javascript
  $css = compress($css);
- #$js = compress($js);
+ $js = compress($js);
  $demogroupname = $alldemos[$demogroup]['demogroupname'];
 
   ##
