@@ -16,7 +16,9 @@ let compare_pair c1 c2 (x1, y1) (x2, y2) =
 
 let format_name_set ns =
   Util.format "(";
-  Misc.format_list "," (Util.format "%s") (Name.Set.elements ns);
+  Misc.format_list ","
+    (fun s -> Util.format "%s" (Misc.whack_ident s))
+    (Name.Set.elements ns);
   Util.format ")"
 
 module Relschema = struct
@@ -27,7 +29,7 @@ module Relschema = struct
     let format_fd (src, trg) =
       let p s =
         if Name.Set.cardinal s = 1 then
-          Util.format "%s" (Name.Set.choose s)
+          Util.format "%s" (Misc.whack_ident (Name.Set.choose s))
         else
           format_name_set s
         in
@@ -324,7 +326,9 @@ module Relschema = struct
 
   let format_t (ns, fds, pred) =
     Util.format "(";
-    Misc.format_list "," (Util.format "%s") (Name.Set.elements ns);
+    Misc.format_list ","
+      (fun s -> Util.format "%s" (Misc.whack_ident s))
+      (Name.Set.elements ns);
     Util.format ")";
     if pred <> Rel.Pred.True then begin
       Util.format "@ where ";
@@ -374,7 +378,7 @@ let format_t dbs =
   Util.format "@[<hv3>{{ ";
   Name.Map.iter_with_sep
     (fun k rel -> 
-      Util.format "@[<hv3>%s" k;
+      Util.format "@[<hv3>%s" (Misc.whack_ident k);
       Relschema.format_t rel;
       Util.format "@]")
     (fun() -> Util.format ",@ ")

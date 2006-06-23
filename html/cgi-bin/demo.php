@@ -59,7 +59,7 @@ debug ('$_REQUEST', $_REQUEST);
 $text_height_diff = 21; 
 $icon_width = 36;
 $min_width = 100;
-$min_height = 75;
+$min_height = 7;
 
 $reset = false;
 $body_background = "#eeeeee";

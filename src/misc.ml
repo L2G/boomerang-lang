@@ -308,7 +308,6 @@ let rec replace_substrings s l =
     [] -> s
   | (sub,sub')::rest -> replace_substrings (replace_substring s sub sub') rest
 
-
 let whack_chars s cl reverse =
   let esc_s = 
     Safelist.fold_right 
@@ -316,9 +315,10 @@ let whack_chars s cl reverse =
       [("\n","\\n");("\"","\\\"");("\\", "\\\\\\\\")]
       s in
     if reverse then
-      try String.iter
-        (fun c -> if not (List.mem c cl) then raise Not_found)
-        esc_s;
+      try
+        String.iter
+          (fun c -> if not (List.mem c cl) then raise Not_found)
+          esc_s;
         esc_s
       with Not_found -> Printf.sprintf "\"%s\"" esc_s
     else
@@ -332,13 +332,15 @@ let whack s =
   else whack_chars s [' '; '\n';'"'] false
 
 let whack_ident s = 
-  whack_chars s
-    ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'; 'k'; 'l'; 'm'; 'o';
-     'n'; 'p'; 'q'; 'r'; 's'; 't'; 'u'; 'v'; 'w'; 'x'; 'y'; 'z'; 'A'; 'B';
-     'C'; 'D'; 'E'; 'F'; 'G'; 'H'; 'I'; 'J'; 'K'; 'L'; 'M'; 'O'; 'N'; 'P';
-     'Q'; 'R'; 'S'; 'T'; 'U'; 'V'; 'W'; 'X'; 'Y'; 'Z'; '0'; '1'; '2'; '3';
-     '4'; '5'; '6'; '7'; '8'; '9'; '0'; '\''; '_'; '-'; '@']
-    true
+  let s' =
+    whack_chars s
+      ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'; 'i'; 'j'; 'k'; 'l'; 'm'; 'o';
+       'n'; 'p'; 'q'; 'r'; 's'; 't'; 'u'; 'v'; 'w'; 'x'; 'y'; 'z'; 'A'; 'B';
+       'C'; 'D'; 'E'; 'F'; 'G'; 'H'; 'I'; 'J'; 'K'; 'L'; 'M'; 'O'; 'N'; 'P';
+       'Q'; 'R'; 'S'; 'T'; 'U'; 'V'; 'W'; 'X'; 'Y'; 'Z'; '0'; '1'; '2'; '3';
+       '4'; '5'; '6'; '7'; '8'; '9'; '0'; '\''; '_'; '-'; '@']
+      true in
+  if s' = "" then "\"\"" else s'
 
 let unescaped s =
   let buf = Buffer.create (String.length s) in

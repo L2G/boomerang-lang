@@ -21,7 +21,7 @@ let build_ns ls =
   List.fold_right Name.Set.add ls Name.Set.empty
 
 let format_name n =
-  Util.format "%s" n
+  Util.format "%s" (Misc.whack_ident n)
 
 let format_ns ns =
   Util.format "@[{";
@@ -61,15 +61,15 @@ module Relation = struct
       | True, _ -> Util.format "TRUE"
       | False, _ -> Util.format "FALSE"
       | Not (EqAttAtt (a, b)), Some (Not _) ->
-          Util.format "@[(%s <> %s)@]" a b
+          Util.format "@[(%s <> %s)@]" (Misc.whack_ident a) (Misc.whack_ident b)
       | Not (EqAttAtt (a, b)), _ ->
-          Util.format "@[%s <> %s@]" a b
+          Util.format "@[%s <> %s@]" (Misc.whack_ident a) (Misc.whack_ident b)
       | Not (EqAttVal (a, v)), Some (Not _) ->
           Util.format "@[(%s <> \"%s\")@]" a v
       | Not (EqAttVal (a, v)), _ ->
           Util.format "@[%s <> \"%s\"@]" a v
-      | EqAttAtt (a, b), _ -> Util.format "@[%s = %s@]" a b
-      | EqAttVal (a, v), _ -> Util.format "@[%s = \"%s\"@]" a v
+      | EqAttAtt (a, b), _ -> Util.format "@[%s = %s@]" (Misc.whack_ident a) (Misc.whack_ident b)
+      | EqAttVal (a, v), _ -> Util.format "@[%s = \"%s\"@]" (Misc.whack_ident a) (Misc.whack_ident v)
       | Not q, _ ->
           Util.format "@[~ ";
           format_t' q (Some p) Left;
@@ -576,7 +576,7 @@ let format_t db =
   Util.format "@[<hv4>{{{ ";
   Name.Map.iter_with_sep
     (fun k rel -> 
-      Util.format "%s@[<v -1>" k;
+      Util.format "%s@[<v -1>" (Misc.whack_ident k);
       Relation.format_tuple (Relation.fields rel);
       Util.format " =@ ";
       Relation.format_t_data rel;

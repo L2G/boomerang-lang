@@ -90,15 +90,11 @@ let rec structure_from_list = function
 (* -------------- pretty printing --------------- *)
 let raw = Prefs.createBool "raw" false "Dump trees in 'raw' form" ""
 
-let format_str s =
-  let s' = Misc.whack_ident s in
-    if s' = "" then "\"\"" else s'
-
 let rec format_kids m format_rec =
   Util.format "{@[<hv0>";
   Name.Map.iter_with_sep
     (fun k kid -> 
-      Util.format "@[<hv1>%s =@ " (format_str k);
+      Util.format "@[<hv1>%s =@ " (Misc.whack_ident k);
       format_rec kid;
       Util.format "@]")
     (fun() -> Util.format ",@ ")
@@ -108,7 +104,7 @@ let rec format_kids m format_rec =
 and format_t_pretty v =
   let rec format_aux ((VI m) as v) inner = 
     let format_list_member kid =
-      if is_value kid then Util.format "{%s}" (format_str (get_value kid))
+      if is_value kid then Util.format "{%s}" (Misc.whack_ident (get_value kid))
       else format_aux kid true in
     if is_list v then begin
       let rec loop = function
@@ -120,7 +116,7 @@ and format_t_pretty v =
       Util.format "@]]"
     end else begin
       if (is_value v && inner) then
-        Util.format "{%s}" (format_str (get_value v))
+        Util.format "{%s}" (Misc.whack_ident (get_value v))
       else format_kids m (fun kid -> format_aux kid true)
     end in
   format_aux v false

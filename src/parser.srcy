@@ -471,7 +471,7 @@ aexp:
 #{#}
 db_contents:
   |                                           { Db.empty }
-  | IDENT LPAREN names RPAREN 
+  | IDENT_or_STRING LPAREN names RPAREN 
     EQUAL LBRACE tuples RBRACE 
     opt_comma db_contents                     { Db.extend (Syntax.name_of_id $1) 
                                                   (Safelist.fold_right 
@@ -479,15 +479,14 @@ db_contents:
                                                     $7
                                                     (Db.Relation.create $3))
                                                    $10 }
-
 opt_comma:
   |                                           { () }
   | COMMA                                     { () }
 
 names:
   |                                           { [] }
-  | IDENT                                     { [ Syntax.name_of_id $1 ] }
-  | IDENT COMMA names                         { (Syntax.name_of_id $1) :: $3 }
+  | IDENT_or_STRING                           { [ Syntax.name_of_id $1 ] }
+  | IDENT_or_STRING COMMA names               { (Syntax.name_of_id $1) :: $3 }
 
 tuples:
   |                                           { [] }
@@ -495,7 +494,7 @@ tuples:
 
 db_schema_contents: 
   |                                           { Dbschema.base }
-  | IDENT LPAREN names RPAREN 
+  | IDENT_or_STRING LPAREN names RPAREN 
     pred_and_fds                              { Dbschema.extend 
                                                   (Syntax.name_of_id $1) 
                                                   (Dbschema.Relschema.set_fdset
@@ -505,7 +504,7 @@ db_schema_contents:
                                                       (fst $5))
                                                     (snd $5))
                                                    Dbschema.base }
-  | IDENT LPAREN names RPAREN 
+  | IDENT_or_STRING LPAREN names RPAREN 
     pred_and_fds 
     COMMA db_schema_contents                  { Dbschema.extend 
                                                   (Syntax.name_of_id $1) 
@@ -538,13 +537,13 @@ pred:
 apred: 
   | TRUE                                      { Db.Relation.Pred.True }
   | FALSE                                     { Db.Relation.Pred.False }
-  | IDENT EQUAL IDENT                         { Db.Relation.Pred.EqAttAtt 
+  | IDENT_or_STRING EQUAL IDENT_or_STRING     { Db.Relation.Pred.EqAttAtt 
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $3)) }
-  | IDENT LT GT IDENT                         { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttAtt 
+  | IDENT_or_STRING LT GT IDENT_or_STRING     { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttAtt 
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $4))) }
-  | IDENT EQUAL STRING                        { Db.Relation.Pred.EqAttVal 
+  | IDENT_or_STRING EQUAL STRING              { Db.Relation.Pred.EqAttVal 
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $3)) }
-  | IDENT LT GT STRING                        { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttVal
+  | IDENT_or_STRING LT GT STRING              { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttVal
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $4))) }
   | LPAREN pred RPAREN                        { $2 }
 
@@ -555,13 +554,13 @@ fds:
     COMMA fds                                 { Dbschema.Relschema.Fd.Set.add ($1,$3) $5 }
 
 attribute_list: 
-  | IDENT                                     { Name.Set.singleton (Syntax.name_of_id $1) }
+  | IDENT_or_STRING                           { Name.Set.singleton (Syntax.name_of_id $1) }
   | LPAREN attribute_list_content RPAREN      { $2 }
 
 attribute_list_content: 
   |                                           { Name.Set.empty }
-  | IDENT                                     { Name.Set.singleton (Syntax.name_of_id $1) } 
-  | IDENT COMMA attribute_list_content        { Name.Set.add (Syntax.name_of_id $1) $3 }
+  | IDENT_or_STRING                           { Name.Set.singleton (Syntax.name_of_id $1) } 
+  | IDENT_or_STRING COMMA attribute_list_content { Name.Set.add (Syntax.name_of_id $1) $3 }
 
 
 #{@}
