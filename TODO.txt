@@ -74,6 +74,7 @@ FOCAL SYNTAX
   (Quantity <> 0) does not mean what you think it does at the moment 
 * Add concrete syntax for "long strings" (for big unit tests), in the
   style of bash/perl/etc:   <<<XXX ... XXX  
+* Generalize predicate grammar to allow n-ary conjunctions and disjunctions
 
 UNISON INTEGRATION
 * make Unison permit missing archives (after confirming that it's OK).
