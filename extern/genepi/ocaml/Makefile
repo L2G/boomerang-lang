@@ -15,21 +15,41 @@ BUILDDIR=$(GENEPIDIR)/build
 THISDIR=$(GENEPIDIR)/ocaml
 
 #########################
-# C++ compiler settings
+# C compiler settings
 CC = gcc
 CFLAGS= -O3
 
-all: interface.o
+all: $(BUILDDIR)/genepi.cma $(BUILDDIR)/genepi.cmxa
 
-#########################
-#include paths
-GENEPI_INCLUDES=-I $(BUILDDIR)/include/genepi
-OCAML_INCLUDES=-I $(shell ocamlc -where)
-INCLUDES=$(GENEPI_INCLUDES) $(OCAML_INCLUDES)
+##
+# C Libraries
+## 
+GENEPI_LIBS=$(foreach l,genepi ccl sataf prestaf,$(BUILDDIR)/lib/lib$(l).a) \
+            $(BUILDDIR)/lib/fast-plugins/libprestaf2fast.so
 
-COMMON_LIBS= -linterface -L$(THISDIR) \
-             -lomega -L$(OMEGADIR)/omega_lib/obj \
-             -lstdc++
+$(BUILDDIR)/lib/libgenepi.a:
+	(cd $(GENEPIDIR)/src/genepi-1-0; \
+         ./do-build --make-install --install-dir $(BUILDDIR); \
+         ranlib $@)
+
+$(BUILDDIR)/lib/libccl.a:
+	(cd $(GENEPIDIR)/src/ccl-1-1; \
+         ./do-build --make-install --install-dir $(BUILDDIR); \
+         ranlib $@)
+
+$(BUILDDIR)/lib/libsataf.a:
+	(cd $(GENEPIDIR)/src/sataf-1-1; \
+         ./do-build --make-install --install-dir $(BUILDDIR); \
+         ranlib $@)
+
+$(BUILDDIR)/lib/libprestaf.a:
+	(cd $(GENEPIDIR)/src/prestaf-1-2; \
+         ./do-build --make-install --install-dir $(BUILDDIR); \
+         ranlib $@)
+
+$(BUILDDIR)/lib/fast-plugins/libprestaf2fast.so:
+	(cd $(GENEPIDIR)/src/prestaf2fast-1-0; \
+         ./do-build --make-install --install-dir $(BUILDDIR))
 
 ##################################################
 # libinterface.a:
@@ -38,11 +58,35 @@ COMMON_LIBS= -linterface -L$(THISDIR) \
 #    C interface
 ##################################################
 
-interface.o: interface.cpp
+GENEPI_INCLUDES=-I $(BUILDDIR)/include/genepi
+OCAML_INCLUDES=-I $(shell ocamlc -where)
+INCLUDES=$(GENEPI_INCLUDES) $(OCAML_INCLUDES)
+
+interface.o: interface.c
 	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDES)
 
 $(THISDIR)/libinterface.a: interface.o
 	$(AR) cr $@ interface.o
+
+#########################
+#include paths
+COMMON_DEPS=$(GENEPI_LIBS) $(THISDIR)/libinterface.a
+
+COMMON_LIBS= -linterface -L$(THISDIR) \
+             -lccl -lsataf -lgenepi -lprestaf \
+             -L$(BUILDDIR)/lib
+
+genepiLibrary.cmo: genepiLibrary.ml
+	ocamlc -c genepiLibrary.ml
+
+$(BUILDDIR)/genepi.cma: $(COMMON_DEPS) genepiLibrary.cmo
+	ocamlmklib -custom -o genepi genepiLibrary.cmo $(COMMON_LIBS)
+
+genepiLibrary.cmx: genepiLibrary.ml
+	ocamlopt -c genepiLibrary.ml
+
+$(BUILDDIR)/genepi.cmxa: $(COMMON_DEPS) genepiLibrary.cmx
+	ocamlmklib -custom -o genepi genepiLibrary.cmx $(COMMON_LIBS)
 
 ##################################################
 # utility targets

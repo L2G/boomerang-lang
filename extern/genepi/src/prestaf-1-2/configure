@@ -1,0 +1,667 @@
+#! /bin/sh
+
+# This program is taken from the Mec V project
+
+# $Id: configure,v 1.12 2006/02/01 07:33:24 point Exp $
+
+# parse options
+quiet_mode="no"
+archname="unknown-arch"
+install_dir="$HOME/mvtsi-dev"
+
+while test $# -gt 0; do
+   case "$1" in
+       --arch) 
+	   archname="$2"
+	   echo "Setting arch to ${archname}"
+	   shift
+	   ;;
+
+       --install-dir) 
+	   install_dir="$2"
+	   if [ "x${install_dir}" = "x" ] ; then
+	       echo "invalid installation directory '${install_dir}'"
+	       exit 1
+	   else
+	       echo "Setting installation directory to ${install_dir}"
+	   fi
+	   shift
+	   ;;
+
+       --quiet) 
+	   echo "Enabling quiet mode"
+	   quiet_mode="yes"
+	   ;;
+       --help)
+	   echo "USAGE: $0 [options]"
+	   echo "--help : print this help message."
+	   echo "--install-dir dir : specify that the package must be installed in the directory 'dir'."
+	   echo "--quiet : generates Makefile with '@' preventing verbose compilation."
+	   exit 0
+	   ;;
+
+       *) 
+	   echo >&2 invalid option "$1"
+	   exit 1
+	   ;;
+   esac
+   shift
+done
+
+MAKEFILE_NAME=Makefile
+POSSIBLE_HEADERS_DIRS="/usr/local/include"
+POSSIBLE_LIBS_DIRS="/usr/local/lib /usr/pkg/lib /sw/lib"
+
+temp_dir=${TMPDIR:-/tmp}/mec-conf.$$
+test_source=${temp_dir}/try.c
+test_exec=${temp_dir}/try
+src_location_test_file=prestaf-formula.h
+tmp_makefile=${temp_dir}/TMPMakefile
+
+trap "rm -rf ${temp_dir}" 0 2 15
+
+if mkdir ${temp_dir}; then :; else
+	echo "can't get temporary space in ${temp_dir}"
+	exit 1
+fi
+
+cflags="-g -O3"
+cppflags="-D_XOPEN_SOURCE=500 -I\${srcdir} -I."
+
+compute_names() {
+	source_files="${source_files} $1"
+	source="$1"
+	case "$1" in
+	'${srcdir}'*)
+		rel_source=`echo "$1" | sed -e "s;^\\${srcdir}\/;;"`;;
+	*)
+		rel_source="$1"
+		autogen_sources="${autogen_sources} $1";;
+	esac
+
+	object="`echo "${rel_source}" | sed -e 's;.*/;;' -e 's;\.c$;.o;'`"
+	object_files="${object_files} ${object}"
+	pobject="`echo "${object}" | sed -e 's;\.o$;.po;'`"
+	pobject_files="${pobject_files} ${pobject}"
+}
+
+compile_rule() {
+	echo "
+${object}: ${source}
+	@ echo compile \"${source}\"
+	\${CC} -c -o ${object} \${CFLAGS} \${CPPFLAGS} ${source}
+${pobject}: ${source}
+	@ echo compile \"${source}\"
+	\${CC} -pg -c -o ${pobject} \${CFLAGS} \${CPPFLAGS} ${source}
+"
+}
+
+rel_libprestaf_source_files="
+add-variable-automaton.c
+linear-constraint-automaton.c
+prestaf-formula.c
+prestaf-predicate.c
+quantifier-automaton.c
+apply-automaton.c
+                 "
+rel_testers_source_files="
+testers/prestaf-interp.c
+"
+rel_testers_main_source_files="
+testers/prestaf.c \
+"
+
+# need_program prog var
+need_program() {
+    progvar="$1"
+    shift
+    printf 'Checking for %s... ' "$progvar"
+    need_program__prog=""
+    
+    while [ $# -gt 0 ]; do
+	type $1 >/dev/null 2>&1 && need_program__prog=`type $1` && break
+	shift
+    done
+    
+    case x"${need_program__prog}" in
+	x)
+	    echo not found. FATAL
+	    exit 1
+	    ;;
+	*)
+	    eval $progvar=$1
+	    echo ${need_program__prog}
+	    ;;
+    esac
+}
+
+look_for_program() {
+    progvar="$1"
+    shift
+    printf 'Checking for %s... ' "$progvar"
+    need_program__prog=""
+    
+    while [ $# -gt 0 ]; do
+	type $1 >/dev/null 2>&1 && need_program__prog=`type $1` && break
+	shift
+    done
+    
+    case x"${need_program__prog}" in
+	x)
+	    echo not found.
+	    return 1
+	    ;;
+	*)
+	    eval $progvar=$1
+	    echo ${need_program__prog}
+	    return 0
+	    ;;
+    esac
+}
+
+# test_preprocessor additional_cppflags
+test_preprocessor() {
+    if ${cc} -E - $cppflags $* < $test_source > /dev/null 2>&1; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+# test_compile additional_cflags
+test_compile() {
+    if ${cc} -o ${test_exec} $cppflags $* $test_source > /dev/null 2>&1;
+	then
+	return 0
+    else
+	return 1
+    fi
+}
+
+# test_linker additional_ldflags
+test_linker() {
+	if ${cc} -o ${test_exec} $test_source $* > /dev/null 2>&1; then
+	    return 0
+	else
+	    return 1
+	fi
+}
+
+# check_for_header header.h
+check_for_header() {
+    printf 'Checking for <%s>... ' $1
+    cat > $test_source <<EOF
+#include <stdio.h>
+#include <$1>
+EOF
+    if test_preprocessor; then
+	echo found.
+	return 0
+    fi
+    for d in $POSSIBLE_HEADERS_DIRS; do
+	if test_preprocessor -I$d; then
+	    echo found in $d.
+	    cppflags="$cppflags -I$d"
+	    return 0
+	fi
+    done
+    
+    echo not found.
+    return 1
+}
+
+# check_for_type 
+check_for_type() {
+    type=$1
+    shift
+    printf 'Checking for type '%s'... ' ${type}
+    cat > $test_source <<EOF
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+int main(int argc, char **argv) { 
+${type} a;
+return 0;
+}
+EOF
+    if test_compile $*; then
+	echo found.
+	cppflags="${cppflags} $*"
+	return 0
+    fi
+
+    echo "not found."
+    return 1
+}
+
+# check_for_func func additional_ldflags
+check_for_func() {
+    func=$1
+    shift
+    printf 'Checking for %s with %s... ' $func "$*"
+    cat > $test_source <<EOF
+int main() { $func(); return 0; }
+EOF
+    if test_linker $*; then
+	ldflags="$ldflags $*"
+	echo found.
+	return 0
+    fi
+    for d in $POSSIBLE_LIBS_DIRS; do
+	if test_linker -L$d $*; then
+	    echo found in $d.
+	    ldflags="$ldflags -L$d $*"
+	    return 0
+	fi
+    done
+    
+    echo not found.
+    return 1
+}
+
+# check_for_va_copy
+check_for_va_copy() {
+    printf 'Checking for va_copy()... '
+	cat > $test_source <<EOF
+#include <stdarg.h>
+int foo(int param, ...) {
+    va_list a1;
+    va_list a2;
+
+    va_start(a1, param);
+    my_va_copy(a2,a1);
+    va_end(a2);
+    va_end(a1);
+}
+int main(int argc, char *argv[]) {
+    foo(1, "foo");
+}
+EOF
+	if test_compile -Dmy_va_copy=__va_copy; then
+	    echo found __va_copy
+	    return 1
+	elif test_compile -Dmy_va_copy=va_copy; then
+	    echo found
+	elif test_compile -Dmy_va_copy=va_copy -D_ISOC99_SOURCE; then
+	    cppflags="$cppflags -D_ISOC99_SOURCE"
+	    echo found with -D_ISOC99_SOURCE
+	elif test_compile -Dmy_va_copy=va_copy -D__EXTENSIONS__; then
+	    cppflags="$cppflags -D__EXTENSIONS__"
+	    echo found with -D__EXTENSIONS__
+	else
+	    echo not found
+	    return 0
+	fi
+	
+	cppflags="$cppflags -DHAVE_VA_COPY"
+	return 1
+}
+
+check_for_32bits() {
+    printf 'Checking for 32 bits architecture... '
+    cat > $test_source <<EOF
+int main(int argc, char *argv[]) {
+    return (sizeof(void*)==4)?0:1;
+}
+EOF
+    if test_compile;  then
+	if ${test_exec}; then
+	    cppflags="${cppflags} -DARCH32"
+	    echo "found 32bits" 
+	else
+	    echo "found 64bits"
+	    cppflags="${cppflags} -DARCH64"
+	fi
+    else
+	echo "unknown. 32 bits assumed"
+	cppflags="${cppflags} -DARCH32"
+    fi
+}
+
+printf 'Checking where distribution is... '
+
+for srcdir in . ../src ../../src ../../../src ; do
+    test -f ${srcdir}/${src_location_test_file} && break
+done
+
+if [ ! -f ${srcdir}/${src_location_test_file} ]; then
+    echo >&2 $0: can\'t find distribution
+    exit 1
+fi
+
+echo found in ${srcdir}
+
+topdir="${srcdir}/.."
+
+POSSIBLE_HEADERS_DIRS="${POSSIBLE_HEADERS_DIRS} ${install_dir}/include/ccl ${install_dir}/include/sataf"
+
+POSSIBLE_LIBS_DIRS="${POSSIBLE_LIBS_DIRS} ${install_dir}/lib"
+
+if [ ${srcdir} = . ]; then
+	echo WARNING: you should consider building from a subdirectory
+fi
+
+printf 'Checking whether make is GNU make... '
+if (make -v | grep GNU) >/dev/null 2>&1; then
+	make_is_gnu_make=yes;
+	MAKEFILE_NAME=GNUmakefile;
+else
+	make_is_gnu_make=no;
+fi
+echo ${make_is_gnu_make}
+
+cat >${tmp_makefile} <<EOF
+# This file was automatically generated by the following command:
+# $0 $*
+
+EOF
+
+need_program lex flex
+need_program yacc yacc byacc
+need_program cc cc gcc
+need_program ar ar
+
+if check_for_type uint8_t ; then
+    cppflags="${cppflags} -DHAVE_STDINT"
+else 
+    if check_for_header stdint.h ; then
+        cppflags="${cppflags} -DHAVE_STDINT_H"
+    fi
+fi
+
+check_for_32bits
+
+if look_for_program ranlib ranlib ; then
+    :
+else
+    ranlib=":"
+fi
+
+if look_for_program doxygen doxygen ; then
+    :
+else
+    doxygen=:
+    echo "can't find the Doxygen program."
+    echo "no documentation rules will be generated."    
+fi
+
+if check_for_header ccl-init.h ; then
+    if check_for_func ccl_terminate -lccl ; then
+	:
+    else
+	echo "can't find libccl."
+	exit 1
+    fi
+else
+    echo "can't find libccl header file."
+    exit 1
+fi
+
+if check_for_header sataf.h ; then
+    if check_for_func sataf_terminate -lsataf -lccl; then
+	:
+    else
+	echo "can't find libsataf."
+	exit 1
+    fi
+else
+    echo "can't find libsataf header file."
+    exit 1
+fi
+
+printf "Generating ${MAKEFILE_NAME} rules... "
+
+source_files=""
+object_files=""
+pobject_files=""
+autogen_sources=""
+dependencies=""
+for source in ${rel_libprestaf_source_files} ; do
+    compute_names "\${srcdir}/${source}"
+    dependencies="
+`compile_rule` ${dependencies}"
+done
+
+libprestaf_source_files=${source_files}
+libprestaf_object_files=${object_files}
+libprestaf_pobject_files=${pobject_files}
+
+source_files=""
+object_files=""
+pobject_files=""
+for source in ${rel_testers_source_files} ; do
+    compute_names "\${srcdir}/${source}"
+    dependencies="
+`compile_rule` ${dependencies}"
+done
+
+compute_names prestaf-lexer.c
+dependencies="${dependencies}
+prestaf-lexer.c: \${srcdir}/testers/prestaf-lexer.lex prestaf-syntax.tab.h
+	@ echo compile \${srcdir}/testers/prestaf-lexer.lex
+	\${LEX} -Pprestaf_ -oprestaf-lexer.c \${srcdir}/testers/prestaf-lexer.lex
+ `compile_rule`"
+
+compute_names prestaf-syntax.tab.c
+dependencies="${dependencies}
+prestaf-syntax.tab.c prestaf-syntax.tab.h: \${srcdir}/testers/prestaf-syntax.yacc
+	@ echo compile \${srcdir}/testers/prestaf-syntax.yacc
+	\${YACC} -d -p prestaf_ -b prestaf-syntax \${srcdir}/testers/prestaf-syntax.yacc 
+	sed -e 's/yy/yyprestaf/g' prestaf-syntax.tab.c > prestaf-syntax-tmp.tab.c
+	mv prestaf-syntax-tmp.tab.c prestaf-syntax.tab.c
+ `compile_rule`"
+
+clean_files="${clean_files} prestaf-lexer.c prestaf-syntax.tab.c prestaf-syntax.tab.h"
+clean_files="${clean_files} prestaf-syntax.output"
+
+testers_source_files=${source_files}
+testers_object_files=${object_files}
+testers_pobject_files=${pobject_files}
+
+source_files=""
+object_files=""
+pobject_files=""
+for source in ${rel_testers_main_source_files} ; do
+    compute_names "\${srcdir}/${source}"
+    dependencies="
+`compile_rule` ${dependencies}"
+done
+main_testers_source_files=${source_files}
+main_testers_object_files=${object_files}
+main_testers_pobject_files=${pobject_files}
+
+source_files="${libprestaf_source_files} ${testers_source_files} ${main_testers_source_files}"
+master_source_files="${source_files}"
+
+master_source_files="${master_source_files} \${srcdir}/prestaf-lexer.lex"
+master_source_files="${master_source_files} \${srcdir}/prestaf-syntax.yacc"
+
+if [ "${doxygen}" != ":" ] ; then
+    docdir="${install_dir}/doc"
+    tagfiles=""
+    if [ -f ${docdir}/ccl/ccl.tag -a -d ${docdir}/ccl/html ] ; then
+	tagfiles="$tagfiles ${docdir}/ccl/ccl.tag=${docdir}/ccl/html"
+    fi
+
+    if [ -f ${docdir}/sataf/sataf.tag -a -d ${docdir}/sataf/html ] ; then
+	tagfiles="$tagfiles ${docdir}/sataf/sataf.tag=${docdir}/sataf/html"
+    fi
+    doxygen_input_dir=`echo ${srcdir} | sed -e 's/\//@!/g'`
+    tagfiles=`echo ${tagfiles} | sed -e 's/\//@!/g'`
+
+    ${doxygen} -s -g - | sed \
+	-e 's/^PROJECT_NAME .*=.*/PROJECT_NAME=PresTAF/g' \
+	-e 's/^FULL_PATH_NAMES .*=.*/FULL_PATH_NAMES=NO/g' \
+	-e 's/^SHOW_DIRECTORIES .*=.*/SHOW_DIRECTORIES=NO/g' \
+	-e 's/^OUTPUT_DIRECTORY .*=.*/OUTPUT_DIRECTORY=doc/g' \
+	-e 's/^OPTIMIZE_OUTPUT_FOR_C .*=.*/OPTIMIZE_OUTPUT_FOR_C=YES/g' \
+	-e 's/^EXCLUDE_PATTERNS .*=.*/EXCLUDE_PATTERNS=testers*/g' \
+	-e "s/^INPUT .*=.*/INPUT=${doxygen_input_dir}/g" \
+	-e "s/^FILE_PATTERNS .*=.*/FILE_PATTERNS=prestaf-*.h/g" \
+	-e 's/^PREDEFINED .*=.*/PREDEFINED =CCL_EXTERN=/g' \
+	-e 's/^MACRO_EXPANSION .*=.*/MACRO_EXPANSION = YES/g' \
+	-e 's/^EXPAND_ONLY_PREDEF .*=.*/EXPAND_ONLY_PREDEF = YES/g' \
+	-e 's/^GENERATE_TAGFILE .*=.*/GENERATE_TAGFILE = doc@!prestaf.tag/g' \
+	-e "s/^TAGFILES .*=.*/TAGFILES = ${tagfiles}/g" \
+	-e "s/^DETAILS_AT_TOP .*=.*/DETAILS_AT_TOP = YES/g" \
+	-e 's/@!/\//g' \
+	> doxygen.cfg
+fi
+
+echo done
+
+cat >>${tmp_makefile} <<EOF
+srcdir=		${srcdir}
+CPPFLAGS=	${cppflags}
+#CPPFLAGS+=	-DDEBUG
+CFLAGS=		${cflags}
+CFLAGS+=	-W -Wall -ansi -Wno-unused
+#CFLAGS+=	-Werror
+LDFLAGS=	${ldflags}
+#LDFLAGS+=	-L/usr/pkg/lib -lefence		# for maintainer
+
+CC=		  ${cc}
+LEX=		  ${lex}
+YACC=		  ${yacc}
+#YFLAGS=           -v
+YACC+=            \${YFLAGS} 
+AR=               ${ar}
+ARFLAGS=          r
+DOXYGEN=          ${doxygen}
+DOXYFLAGS=        
+
+INSTALL_DIR=      ${install_dir}
+INSTALL_H_DIR=    prestaf
+INSTALL_DOC_DIR= \${INSTALL_H_DIR}
+SRCS=		  ${source_files}
+MASTER_SRCS=	  ${master_source_files}
+LIBPRESTAF_OBJS=  ${libprestaf_object_files}
+LIBPRESTAF_POBJS= ${libprestaf_pobject_files}
+TESTERS_OBJS=	  ${testers_object_files}
+TESTERS_POBJS=	  ${testers_pobject_files}
+MAIN_TEST_OBJS=	  ${main_testers_object_files}
+MAIN_TEST_POBJS=  ${main_testers_pobject_files}
+
+DISTRIB_NAME=     prestaf
+DISTRIB_DIR=      \${DISTRIB_NAME}-${archname}
+DISTRIB_FILE=     \${DISTRIB_NAME}-${archname}.tar.gz
+DISTRIB_DOC=      \${DISTRIB_NAME}-doc.tar.gz
+
+LIBTARGETS=     lib\${DISTRIB_NAME}.a lib\${DISTRIB_NAME}-prof.a 
+BINTARGETS=     \${DISTRIB_NAME}
+TARGETS=        \${BINTARGETS} \${LIBTARGETS} 
+
+CLEANFILES=	${clean_files} \
+                \${LIBPRESTAF_OBJS} \${LIBPRESTAF_POBJS} \
+                \${TESTERS_OBJS} \${TESTERS_POBJS} \
+                \${MAIN_TEST_OBJS} \${MAIN_TEST_POBJS}
+
+CLEANDIRFILES=	.depend \${DISTRIB_FILE} \${TARGETS} doc \${DISTRIB_DIR} \
+                prestaf prestaf-prof
+
+all: \${TARGETS} 
+
+libprestaf.a: \${LIBPRESTAF_OBJS}
+	\${AR} \${ARFLAGS} libprestaf.a \${LIBPRESTAF_OBJS}
+	${ranlib} libprestaf.a
+
+libprestaf-prof.a: \${LIBPRESTAF_POBJS}
+	\${AR} \${ARFLAGS} libprestaf-prof.a \${LIBPRESTAF_POBJS}
+	${ranlib} libprestaf-prof.a
+
+prestaf : libprestaf.a \${TESTERS_OBJS} prestaf.o
+	@ echo Building prestaf
+	\${CC} -o prestaf \${TESTERS_OBJS} prestaf.o -l prestaf -L. \${LDFLAGS}
+
+prestaf-prof : libprestaf-prof.a \${TESTERS_POBJS} prestaf.po
+	@ echo Building prestaf-prof
+	\${CC} -pg -o prestaf-prof \${TESTERS_POBJS} prestaf.po  \
+         -lprestaf-prof -L. -lsataf-prof \${LDFLAGS}
+
+tags: \${MASTER_SRCS}
+	ctags \${MASTER_SRCS}
+
+TAGS: \${MASTER_SRCS}
+	etags \${MASTER_SRCS}
+
+.PHONY: depend
+depend: .depend
+
+.depend: ${autogen_sources}
+	@ echo update dependencies
+	\$(CC) -M \${CPPFLAGS} \${SRCS} | \
+		sed -e 's/^\(.*\)\.o:/.depend \1.o \1.po:/'  >.depend
+
+.PHONY: lint
+lint: \${SRCS}
+	lint -chapbxzF \${CPPFLAGS} \${SRCS}
+
+.PHONY: clean
+clean:
+	-rm -fr \${CLEANFILES}
+
+.PHONY: cleandir
+cleandir: clean
+	-rm -fr \${CLEANDIRFILES}
+
+.PHONY: distrib
+distrib: \${DISTRIB_FILE} 
+
+\${DISTRIB_FILE} : \${TARGETS} docs
+	@ echo Building \${DISTRIB_FILE}
+	rm -fr \${DISTRIB_DIR}
+	mkdir \${DISTRIB_DIR} && mkdir \${DISTRIB_DIR}/include && \
+        mkdir \${DISTRIB_DIR}/include/\${INSTALL_H_DIR} && \
+        mkdir \${DISTRIB_DIR}/lib && mkdir \${DISTRIB_DIR}/bin
+	cp \${BINTARGETS} \${DISTRIB_DIR}/bin
+	cp \${LIBTARGETS} \${DISTRIB_DIR}/lib
+	cp ${srcdir}/*.h \${DISTRIB_DIR}/include/\${INSTALL_H_DIR}/
+	if test -d doc ; then cp -R doc \${DISTRIB_DIR}/ ; fi
+	tar cf - \${DISTRIB_DIR}/ | gzip -9c > \${DISTRIB_FILE}
+	rm -fr \${DISTRIB_DIR}
+
+.PHONY: distrib-doc
+distrib-doc: \${DISTRIB_DOC} 
+
+\${DISTRIB_DOC} : docs
+	@ echo Building \${DISTRIB_DOC}
+	if test -d doc ; then tar cf - doc | gzip -9c > \${DISTRIB_DOC}; fi
+
+.PHONY: install
+install: \${TARGETS} docs
+	test -d \${INSTALL_DIR} || mkdir \${INSTALL_DIR}
+	test -d \${INSTALL_DIR}/bin || mkdir \${INSTALL_DIR}/bin
+	test -d \${INSTALL_DIR}/include || mkdir \${INSTALL_DIR}/include
+	test -d \${INSTALL_DIR}/include/\${INSTALL_H_DIR} || \
+                mkdir \${INSTALL_DIR}/include/\${INSTALL_H_DIR}
+	test -d \${INSTALL_DIR}/lib || mkdir \${INSTALL_DIR}/lib
+	cp \${LIBTARGETS} \${INSTALL_DIR}/lib
+	cp \${BINTARGETS} \${INSTALL_DIR}/bin
+	cp ${srcdir}/*.h \${INSTALL_DIR}/include/\${INSTALL_H_DIR}/
+	if test -d doc ; then \
+          test -d \${INSTALL_DIR}/doc || mkdir \${INSTALL_DIR}/doc ; \
+          rm -fr \${INSTALL_DIR}/doc/\${INSTALL_DOC_DIR}/; \
+          cp -R doc \${INSTALL_DIR}/doc/\${INSTALL_DOC_DIR}/ ; \
+        fi
+
+.PHONY: docs
+docs:
+	\${DOXYGEN} \${DOXYFLAGS} doxygen.cfg
+
+${dependencies}
+EOF
+
+if [ ${make_is_gnu_make} = yes ]; then
+	cat >>${tmp_makefile} <<EOF
+
+-include .depend
+EOF
+fi
+
+if [ "${quiet_mode}" = "no" ] ; then
+    mv ${tmp_makefile} ${MAKEFILE_NAME}
+else
+    sed -e 's/^	/	@ /g' ${tmp_makefile} > ${MAKEFILE_NAME}
+fi
+
+echo Configuration done.

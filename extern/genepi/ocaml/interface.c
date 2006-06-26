@@ -127,7 +127,7 @@ int *vals_to_ints(value xs, int xs_length) {
   return xs_int;  
 }
 
-value GENEPI_mk_linear_constraint(value xs, value c) {
+value GENEPI_linear_constraint(value xs, value c) {
   CAMLparam2(xs,c);
   
   int xs_length = length(xs);
@@ -174,4 +174,10 @@ value GENEPI_is_empty(value s) {
   } else {
     CAMLreturn(Val_false);
   }
+}
+
+value GENEPI_print(value s) {
+  CAMLparam1(s);
+  genepi_set_display_data_structure(VALUE_TO_SET(s), stdout);
+  CAMLreturn(Val_unit);
 }
