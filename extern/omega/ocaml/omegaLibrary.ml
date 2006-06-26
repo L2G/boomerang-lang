@@ -1,13 +1,12 @@
 
 type t
 type var
-external empty : int -> bool -> t = "OMEGA_empty"
-external copy : t -> t = "OMEGA_copy"
-external num_vars : t -> int = "OMEGA_num_vars"
+external empty : int -> t = "OMEGA_empty"
+external empty : int -> t = "OMEGA_empty"
 external get_var : t -> int -> var = "OMEGA_get_var"
 external add_exists : t -> string -> (t * var) = "OMEGA_add_exists"
 external add_and : t -> t = "OMEGA_add_and"
-external add_or : t ->  t = "OMEGA_add_or"
+external add_or : t -> t = "OMEGA_add_or"
 external add_not : t -> t = "OMEGA_add_not"
 external add_geq : t -> (int * var) list -> int -> unit = "OMEGA_add_geq"
 external add_eq : t -> (int * var) list -> int -> unit = "OMEGA_add_eq"
