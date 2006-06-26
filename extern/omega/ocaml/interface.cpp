@@ -28,7 +28,7 @@ extern "C" {
 
 /* garbage collection params */
 #define GC_MIN 1
-#define GC_MAX 5000
+#define GC_MAX 1000
 
 /* tag constants */
 #define REL 1
@@ -84,7 +84,7 @@ void finalize_value(value v) {
 /* ops garbage collected values */
 struct custom_operations ops = {
   "libomega-ocaml.t", 
-  NULL, //finalize_value, 
+  finalize_value, 
   fail_compare, 
   fail_hash, 
   fail_serialize, 
@@ -105,19 +105,20 @@ extern "C" {
 
 /* --------------- c functions --------------- */
 
-/* OMEGA_empty : int -> t 
- * s = OMEGA_empty(n):
+/* OMEGA_empty : int -> bool -> t 
+ * s = OMEGA_empty(n,gc):
  *   pre: n >= 0
  *   post: s is a new relation (set) with n output variables
+ *         that is garbage collected iff gc
  */
-  value OMEGA_empty(value vs) {
+  value OMEGA_empty(value vs, value gc) {
     CAMLparam1(vs);
     CAMLlocal1(res);
-
+    
     int vs_int = Int_val(vs);
-
+    
     /* allocate res_t */
-    res=alloc_custom(&ops,sizeof(t),1,GC_MAX);
+    res=alloc_custom(Bool_val(gc) ? &ops : &ops_no_finalize, sizeof(t), 1, GC_MAX);
     t *res_t = (t *)Data_custom_val(res);
 
     /* intialize res_t */
@@ -125,6 +126,41 @@ extern "C" {
     res_t->tag = REL;
 
     CAMLreturn(res);
+  }
+
+  /* OMEGA_copy : t -> t 
+   * s = OMEGA_copy(f):
+   *   pre: f is a top-level relation
+   *   post: s is a copy of f
+   */
+  value OMEGA_copy(value f) {    
+    CAMLparam1(f);
+    CAMLlocal1(res);    
+    t *f_t = (t *)Data_custom_val(f);
+    if(f_t -> tag == REL) {
+      res=alloc_custom(&ops,sizeof(t),GC_MIN,GC_MAX);
+      t *res_t=(t *)Data_custom_val(res);
+      res_t->data.relation = new Relation(*f_t->data.relation);
+      res_t->tag = REL;
+      CAMLreturn(res);
+    } else {
+      caml_invalid_argument("copy: argument must be a top-level relation");
+    }
+  }
+
+  /* OMEGA_num_vars : t -> int 
+   * n = OMEGA_num_vars(s)
+   *   pre: s is a relation with n variables
+   *   post: n is the number of variables of s
+   */
+  value OMEGA_num_vars(value s) {
+    CAMLparam1(s);
+    t *s_t = (t *)Data_custom_val(s);
+    if(s_t -> tag == REL) {
+      CAMLreturn(Val_int(s_t->data.relation->n_set()));
+    } else {
+      caml_invalid_argument("num_vars: argument must be a top-level relation");
+    }
   }
 
   /* OMEGA_get_var : t -> int -> var
@@ -403,6 +439,7 @@ extern "C" {
    */
   value OMEGA_finalize(value s) {
     CAMLparam1(s);
+    CAMLreturn(Val_unit);
     t *s_t = (t *)Data_custom_val(s);
     
     /* just finalize whatever structure we have */
@@ -537,7 +574,7 @@ extern "C" {
       /* finally, check s_copy for satisfiability */
       CAMLreturn(Val_bool(s_copy.is_satisfiable()));
     } else {
-      caml_invalid_argument("fast_sat: argument must be top-level relation");
+      caml_invalid_argument("fast_sat: argument must be a top-level relation");
     }
   }
 

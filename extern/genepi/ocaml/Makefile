@@ -19,7 +19,7 @@ THISDIR=$(GENEPIDIR)/ocaml
 CC = gcc
 CFLAGS= -O3
 
-all: $(BUILDDIR)/genepi.cma $(BUILDDIR)/genepi.cmxa
+all: $(THISDIR)/genepi.cma $(THISDIR)/genepi.cmxa
 
 ##
 # C Libraries
@@ -79,14 +79,14 @@ COMMON_LIBS= -linterface -L$(THISDIR) \
 genepiLibrary.cmo: genepiLibrary.ml
 	ocamlc -c genepiLibrary.ml
 
-$(BUILDDIR)/genepi.cma: $(COMMON_DEPS) genepiLibrary.cmo
+$(THISDIR)/genepi.cma: $(COMMON_DEPS) genepiLibrary.cmo
 	ocamlmklib -custom -o genepi genepiLibrary.cmo $(COMMON_LIBS)
 
 genepiLibrary.cmx: genepiLibrary.ml
 	ocamlopt -c genepiLibrary.ml
 
-$(BUILDDIR)/genepi.cmxa: $(COMMON_DEPS) genepiLibrary.cmx
-	ocamlmklib -custom -o genepi genepiLibrary.cmx $(COMMON_LIBS)
+$(THISDIR)/genepi.cmxa: $(COMMON_DEPS) genepiLibrary.cmx
+	ocamlmklib -custom -o genepi genepiLibrary.cmx $(COMMON_LIBS);
 
 ##################################################
 # utility targets

@@ -514,23 +514,18 @@ CLEANDIRFILES=	.depend \${DISTRIB_FILE} \${TARGETS} doc \${DISTRIB_DIR} \
 all: \${TARGETS} 
 
 ifeq (${archname}, darwin-powerpc)
-libprestaf2fast.so : \${OBJS} 
-	@ echo Building libprestaf2fast.so 
-	libtool -o libprestaf2fast.so \${OBJS} \${LDFLAGS_JUST_PRESTAF}
-
-libprestaf2fast-prof.so : \${POBJS}
-	@ echo Building libprestaf2fast-prof.so 
-	libtool -o libprestaf2fast.so \${POBJS}  \${LDFLAGS_JUST_PRESTAF}
-
+SHARED_FLAGS=-bundle
 else
+SHARED_FLAGS=-shared -fPIC
+endif
+
 libprestaf2fast.so : \${OBJS} 
 	@ echo Building libprestaf2fast.so 
-	\${CC} -o libprestaf2fast.so -shared -fPIC \${OBJS} \${LDFLAGS}
+	\${CC} -o libprestaf2fast.so \${SHARED_FLAGS} -fPIC \${OBJS} \${LDFLAGS}
 
 libprestaf2fast-prof.so : \${POBJS}
 	@ echo Building libprestaf2fast-prof.so 
-	\${CC} -pg -o libprestaf2fast.so -shared -fPIC \${POBJS}  \${LDFLAGS}
-endif
+	\${CC} -pg -o libprestaf2fast.so \${SHARED_FLAGS} -fPIC \${POBJS}  \${LDFLAGS}
 
 tags: \${MASTER_SRCS}
 	ctags \${MASTER_SRCS}

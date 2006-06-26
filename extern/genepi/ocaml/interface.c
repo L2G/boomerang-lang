@@ -9,6 +9,7 @@
 /* --------------- includes --------------- */
 /* standard headers */
 #include <stdio.h>
+#include <stdlib.h>
   
 /* caml headers */
 #include <caml/mlvalues.h>
@@ -72,7 +73,20 @@ struct custom_operations ops_no_finalize = {
 /* --------------- c functions --------------- */
 
 int GENEPI_flags = 0;
-const genepi_engine *engine = NULL;
+
+#define PLUGIN_PATH "GENEPI_PLUGIN_PATH"
+#define DEFAULT_ENGINE "GENEPI_DEFAULT_ENGINE"
+
+const genepi_engine *load_engine(const char *name) {
+  int num_engines = 0;
+  int i = 0;
+  genepi_engine **engines = genepi_loader_get_engines(&num_engines);
+  for(i = 0; i < num_engines; i++) {
+    if( strcmp(engines[i]->name,name) == 0 )
+      return engines[i];
+  }
+  return NULL;
+}
 
 /* GENEPI_init : unit -> unit 
  * () = GENEPI_init():
@@ -82,9 +96,28 @@ const genepi_engine *engine = NULL;
 value GENEPI_init(value u) { 
   CAMLparam1(u);
 
+  const char *path = getenv(PLUGIN_PATH);
+  const char *default_engine = getenv(DEFAULT_ENGINE);
+
+  if(path == NULL) {
+    fprintf(stderr, "Environment variable %s must be set\n", PLUGIN_PATH);
+    exit(1);
+  }
+
+  if(default_engine == NULL) {
+    fprintf(stderr, "Environment variable %s must be set\n", DEFAULT_ENGINE);
+    exit(1);
+  }
+
   genepi_loader_init();
+  genepi_loader_load_directory(path);
+  const genepi_engine * engine = load_engine(default_engine);
+  if(engine == NULL) {
+    fprintf(stderr, "Could not find a GENEPI engine\n");
+    exit(1);    
+  }  
+  genepi_set_engine(engine);
   genepi_set_init();
-  engine = genepi_get_engine();
   CAMLreturn(Val_unit);
 }
 
