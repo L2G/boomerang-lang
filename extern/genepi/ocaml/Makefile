@@ -24,8 +24,7 @@ all: $(THISDIR)/genepi.cma $(THISDIR)/genepi.cmxa
 ##
 # C Libraries
 ## 
-GENEPI_LIBS=$(foreach l,genepi ccl sataf prestaf,$(BUILDDIR)/lib/lib$(l).a) \
-            $(BUILDDIR)/lib/fast-plugins/libprestaf2fast.so
+GENEPI_LIBS=$(foreach l,genepi ccl sataf prestaf prestaf2fast,$(BUILDDIR)/lib/lib$(l).a) \
 
 $(BUILDDIR)/lib/libgenepi.a:
 	(cd $(GENEPIDIR)/src/genepi-1-0; \
@@ -47,7 +46,7 @@ $(BUILDDIR)/lib/libprestaf.a:
          ./do-build --make-install --install-dir $(BUILDDIR); \
          ranlib $@)
 
-$(BUILDDIR)/lib/fast-plugins/libprestaf2fast.so:
+$(BUILDDIR)/lib/libprestaf2fast.a:
 	(cd $(GENEPIDIR)/src/prestaf2fast-1-0; \
          ./do-build --make-install --install-dir $(BUILDDIR))
 
@@ -58,7 +57,7 @@ $(BUILDDIR)/lib/fast-plugins/libprestaf2fast.so:
 #    C interface
 ##################################################
 
-GENEPI_INCLUDES=-I $(BUILDDIR)/include/genepi
+GENEPI_INCLUDES=-I $(BUILDDIR)/include -I $(BUILDDIR)/include/genepi
 OCAML_INCLUDES=-I $(shell ocamlc -where)
 INCLUDES=$(GENEPI_INCLUDES) $(OCAML_INCLUDES)
 
@@ -73,7 +72,8 @@ $(THISDIR)/libinterface.a: interface.o
 COMMON_DEPS=$(GENEPI_LIBS) $(THISDIR)/libinterface.a
 
 COMMON_LIBS= -linterface -L$(THISDIR) \
-             -lccl -lsataf -lgenepi -lprestaf \
+             -lprestaf2fast -lprestaf -lsataf -lccl \
+             -lgenepi \
              -L$(BUILDDIR)/lib
 
 genepiLibrary.cmo: genepiLibrary.ml

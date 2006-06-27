@@ -9,7 +9,6 @@
 /* --------------- includes --------------- */
 /* standard headers */
 #include <stdio.h>
-#include <stdlib.h>
   
 /* caml headers */
 #include <caml/mlvalues.h>
@@ -20,8 +19,8 @@
 #include <caml/callback.h>
 
 /* GENEPI headers */
-#include "genepi.h"
-#include "genepi-loader.h"
+#include "genepi/genepi.h"
+#include "prestaf2fast/prestaf2fast.h"
 
 #define VALUE_TO_SET(s) ((genepi_set *)s)
 #define SET_TO_VALUE(s) ((value)s)
@@ -74,20 +73,6 @@ struct custom_operations ops_no_finalize = {
 
 int GENEPI_flags = 0;
 
-#define PLUGIN_PATH "GENEPI_PLUGIN_PATH"
-#define DEFAULT_ENGINE "GENEPI_DEFAULT_ENGINE"
-
-const genepi_engine *load_engine(const char *name) {
-  int num_engines = 0;
-  int i = 0;
-  genepi_engine **engines = genepi_loader_get_engines(&num_engines);
-  for(i = 0; i < num_engines; i++) {
-    if( strcmp(engines[i]->name,name) == 0 )
-      return engines[i];
-  }
-  return NULL;
-}
-
 /* GENEPI_init : unit -> unit 
  * () = GENEPI_init():
  *   pre: none
@@ -95,27 +80,7 @@ const genepi_engine *load_engine(const char *name) {
  */
 value GENEPI_init(value u) { 
   CAMLparam1(u);
-
-  const char *path = getenv(PLUGIN_PATH);
-  const char *default_engine = getenv(DEFAULT_ENGINE);
-
-  if(path == NULL) {
-    fprintf(stderr, "Environment variable %s must be set\n", PLUGIN_PATH);
-    exit(1);
-  }
-
-  if(default_engine == NULL) {
-    fprintf(stderr, "Environment variable %s must be set\n", DEFAULT_ENGINE);
-    exit(1);
-  }
-
-  genepi_loader_init();
-  genepi_loader_load_directory(path);
-  const genepi_engine * engine = load_engine(default_engine);
-  if(engine == NULL) {
-    fprintf(stderr, "Could not find a GENEPI engine\n");
-    exit(1);    
-  }  
+  genepi_engine * engine = genepi_plugin_init();
   genepi_set_engine(engine);
   genepi_set_init();
   CAMLreturn(Val_unit);
@@ -129,10 +94,7 @@ value GENEPI_init(value u) {
  */
 value GENEPI_terminate(value u) {
   CAMLparam1(u);
-
   genepi_set_terminate(GENEPI_flags);
-  genepi_loader_terminate();
-    
   CAMLreturn(Val_unit);
 }
 
