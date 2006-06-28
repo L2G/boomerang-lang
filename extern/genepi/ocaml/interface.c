@@ -82,7 +82,7 @@ value GENEPI_init(value u) {
   CAMLparam1(u);
   genepi_engine * engine = genepi_plugin_init();
   genepi_set_engine(engine);
-  genepi_set_init();
+  genepi_set_init();  
   CAMLreturn(Val_unit);
 }
 
@@ -122,6 +122,16 @@ int *vals_to_ints(value xs, int xs_length) {
   return xs_int;  
 }
 
+value GENEPI_top(value n) {
+  CAMLparam1(n);
+  CAMLreturn(SET_TO_VALUE(genepi_set_top(Int_val(n))));
+}
+
+value GENEPI_bot(value n) {
+  CAMLparam1(n);
+  CAMLreturn(SET_TO_VALUE(genepi_set_bot(Int_val(n))));
+}
+
 value GENEPI_linear_constraint(value xs, value c) {
   CAMLparam2(xs,c);
   
@@ -129,9 +139,7 @@ value GENEPI_linear_constraint(value xs, value c) {
   int *xs_int = vals_to_ints(xs, xs_length);
   int c_int = Int_val(c);
   genepi_set *res = genepi_set_linear_equality(xs_int, xs_length, c_int);
-  
   free(xs_int);
-
   CAMLreturn(SET_TO_VALUE(res));
 }
 
@@ -161,7 +169,7 @@ value GENEPI_project(value s1, value xs) {
 
   CAMLreturn(SET_TO_VALUE(res));
 }
-  
+
 value GENEPI_is_empty(value s) { 
   CAMLparam1(s);
   if(genepi_set_is_empty(VALUE_TO_SET(s))) { 
@@ -169,10 +177,4 @@ value GENEPI_is_empty(value s) {
   } else {
     CAMLreturn(Val_false);
   }
-}
-
-value GENEPI_print(value s) {
-  CAMLparam1(s);
-  genepi_set_display_data_structure(VALUE_TO_SET(s), stdout);
-  CAMLreturn(Val_unit);
 }
