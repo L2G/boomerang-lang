@@ -383,7 +383,8 @@ cat >${tmp_makefile} <<EOF
 
 EOF
 
-need_program cc gcc
+need_program cc gcc cc gcc
+need_program ar ar
 
 if check_for_type uint8_t ; then
     cppflags="${cppflags} -DHAVE_STDINT"
@@ -394,6 +395,12 @@ else
 fi
 
 check_for_32bits
+
+if look_for_program ranlib ranlib ; then 
+    :
+else
+    ranlib=":"
+fi
 
 if check_for_header dfa.h ; then
     :
@@ -479,6 +486,8 @@ AR=               ${ar}
 ARFLAGS=          r
 
 INSTALL_DIR=      ${install_dir}
+INSTALL_H_DIR=    mona2fast
+
 PLUGINS_INSTALL_DIR=\${INSTALL_DIR}/lib/fast-plugins
 CFLAGS+= -DFAST_PLUGINS_INSTALL_DIRECTORY=\"\${PLUGINS_INSTALL_DIR}\"
 INSTALL_DOC_DIR=  fast-plugins
@@ -492,21 +501,29 @@ DISTRIB_DIR=      \${DISTRIB_NAME}-${archname}
 DISTRIB_FILE=     \${DISTRIB_NAME}-${archname}.tar.gz
 DISTRIB_DOC=    \${DISTRIB_NAME}-doc.tar.gz
 
-TARGETS=        libmona2fast.so 
+TARGETS=        lib\${DISTRIB_NAME}.a lib\${DISTRIB_NAME}-prof.a
 
 CLEANFILES=	${clean_files} \${OBJS} \${POBJS} 
 CLEANDIRFILES=	.depend \${DISTRIB_FILE} \${TARGETS} doc \${DISTRIB_DIR} \
-                TAGS libmona2fast-prof.so libraries
+                TAGS libraries
 
 all: \${TARGETS} 
 
-libmona2fast.so : \${OBJS} 
-	@ echo Building libmona2fast.so 
-	\${CC} -o libmona2fast.so -shared -fPIC \${OBJS} \${LDFLAGS}
+libmona2fast-prof.a: \${OBJS}
+	\${AR} \${ARFLAGS} libmona2fast-prof.a \${OBJS}
+	${ranlib} libmona2fast-prof.a
 
-libmona2fast-prof.so : \${POBJS}
-	@ echo Building libmona2fast-prof.so 
-	\${CC} -pg -o libmona2fast.so -shared -fPIC \${POBJS}  \${LDFLAGS}
+libmona2fast.a: \${OBJS}
+	\${AR} \${ARFLAGS} libmona2fast.a \${OBJS}
+	${ranlib} libmona2fast.a
+
+# libmona2fast.so : \${OBJS} 
+# 	@ echo Building libmona2fast.so 
+# 	\${CC} -o libmona2fast.so -shared -fPIC \${OBJS} \${LDFLAGS}
+
+# libmona2fast-prof.so : \${POBJS}
+# 	@ echo Building libmona2fast-prof.so 
+# 	\${CC} -pg -o libmona2fast.so -shared -fPIC \${POBJS}  \${LDFLAGS}
 
 tags: \${MASTER_SRCS}
 	ctags \${MASTER_SRCS}
@@ -540,9 +557,10 @@ distrib: \${DISTRIB_FILE}
 \${DISTRIB_FILE} : \${TARGETS} docs
 	@ echo Building \${DISTRIB_FILE}
 	rm -fr D\${DISTRIB_DIR}
-	mkdir \${DISTRIB_DIR} && mkdir \${DISTRIB_DIR}/lib
-	mkdir \${DISTRIB_DIR}/lib/fast-plugins
-	cp \${TARGETS} \${DISTRIB_DIR}/lib/fast-plugins
+	mkdir \${DISTRIB_DIR} && mkdir \${DISTRIB_DIR}/include && \
+	mkdir \${DISTRIB_DIR}/lib 
+	cp \${TARGETS} \${DISTRIB_DIR}/lib
+	cp ${srcdir}/*.h \${DISTRIB_DIR}/include/\${INSTALL_H_DIR}
 	if test -d doc ; then cp -R doc \${DISTRIB_DIR}/ ; fi
 	tar cf - \${DISTRIB_DIR}/ | gzip -9c > \${DISTRIB_FILE}
 	rm -fr \${DISTRIB_DIR}
@@ -557,9 +575,17 @@ distrib-doc: \${DISTRIB_DOC}
 .PHONY: install
 install: \${TARGETS} docs
 	test -d \${INSTALL_DIR} || mkdir \${INSTALL_DIR}
+	Test -d \${INSTALL_DIR}/include || mkdir \${INSTALL_DIR}/include
+	test -d \${INSTALL_DIR}/include/\${INSTALL_H_DIR} || \
+            mkdir \${INSTALL_DIR}/include/\${INSTALL_H_DIR}
 	test -d \${INSTALL_DIR}/lib || mkdir \${INSTALL_DIR}/lib
-	test -d \${INSTALL_DIR}/lib/fast-plugins || mkdir \${INSTALL_DIR}/lib/fast-plugins
-	cp \${TARGETS} \${INSTALL_DIR}/lib/fast-plugins/
+	cp \${TARGETS} \${INSTALL_DIR}/lib
+	cp ${srcdir}/*.h \${INSTALL_DIR}/include/\${INSTALL_H_DIR}/
+	if test -d doc ; then \
+          test -d \${INSTALL_DIR}/doc || mkdir \${INSTALL_DIR}/doc ; \
+          rm -fr \${INSTALL_DIR}/doc/\${INSTALL_DOC_DIR}/; \
+          cp -R doc \${INSTALL_DIR}/doc/\${INSTALL_DOC_DIR}/ ; \
+        fi
 
 .PHONY: docs
 docs:

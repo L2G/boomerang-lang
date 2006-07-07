@@ -20,57 +20,13 @@
 
 /* GENEPI headers */
 #include "genepi/genepi.h"
-#include "prestaf2fast/prestaf2fast.h"
+
+extern genepi_engine * genepi_plugin_init(void);
 
 #define VALUE_TO_SET(s) ((genepi_set *)s)
 #define SET_TO_VALUE(s) ((value)s)
 
 /* --------------- constants and structs --------------- */
-
-/* garbage collection params */
-#define GC_MIN 1
-#define GC_MAX 1000
-
-/* --------------- custom ops --------------- */
-int fail_compare(value v1, value v2) {
-  caml_invalid_argument("genepi_interface: cannot compare GENEPI data structures");
-}
-long fail_hash(value v) {
-  caml_invalid_argument("genepi_interface: cannot hash GENEPI data structures");
-}
-void fail_serialize(value v, unsigned long *w32, unsigned long *w64) {
-  caml_invalid_argument("genepi_interface: cannot serialize GENEPI data structures");
-}
-unsigned long fail_deserialize(void *dst) {
-  caml_invalid_argument("genepi_interface: cannot deserialize GENEPI data structures");
-}
-
-void finalize_genepi(value v) {
-  return;
-}
-
-/* ops garbage collected values */
-struct custom_operations ops = {
-  "libgenepi-ocaml.t", 
-  finalize_genepi, 
-  fail_compare, 
-  fail_hash, 
-  fail_serialize, 
-  fail_deserialize
-};
-
-/* ops for non-garbage collected values */
-struct custom_operations ops_no_finalize = {
-  "libgenepi-ocaml.t without finalization", 
-  NULL,
-  fail_compare, 
-  fail_hash, 
-  fail_serialize, 
-  fail_deserialize
-};
-
-/* --------------- c functions --------------- */
-
 int GENEPI_flags = 0;
 
 /* GENEPI_init : unit -> unit 
@@ -177,4 +133,9 @@ value GENEPI_is_empty(value s) {
   } else {
     CAMLreturn(Val_false);
   }
+}
+
+value GENEPI_width(value s) {
+  CAMLparam1(s);
+  CAMLreturn(Val_int(genepi_set_get_width(VALUE_TO_SET(s))));
 }
