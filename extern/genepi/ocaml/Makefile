@@ -75,10 +75,10 @@ $(THISDIR)/libgenepi-interface.a: interface.o
 #include paths
 COMMON_DEPS=$(GENEPI_LIBS) $(THISDIR)/libgenepi-interface.a
 
-#             -lmona2fast -ldfa -lbdd -lmem \
+#             -lprestaf2fast -lprestaf -lsataf -lccl \
 
 COMMON_LIBS= -lgenepi-interface \
-             -lprestaf2fast -lprestaf -lsataf -lccl \
+             -lmona2fast -ldfa -lbdd -lmem \
              -lgenepi \
              -L$(THISDIR) -L$(BUILDDIR)/lib
 

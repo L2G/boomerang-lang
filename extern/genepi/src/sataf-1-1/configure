@@ -391,13 +391,7 @@ else
     ranlib=":"
 fi
 
-if look_for_program doxygen doxygen ; then
-    :
-else
-    doxygen=":"
-    echo "can't find the Doxygen program."
-    echo "no documentation rules will be generated."    
-fi
+doxygen=":"
 
 if check_for_header ccl-init.h ; then
     if check_for_func ccl_terminate -lccl ; then

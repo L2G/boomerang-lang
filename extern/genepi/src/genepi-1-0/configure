@@ -390,13 +390,7 @@ else
     ranlib=":"
 fi
 
-if look_for_program doxygen doxygen ; then
-    :
-else
-    doxygen=":"    
-    echo "can't find the Doxygen program."
-    echo "no documentation rules will be generated."    
-fi
+doxygen=":"    
 
 printf "Generating ${MAKEFILE_NAME} rules... "
 

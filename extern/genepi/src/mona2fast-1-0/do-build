@@ -99,7 +99,7 @@ cp mona-1.4.7.tar.gz ${build_dir}
 cd ${build_dir}
 tar -zxf mona-1.4.7.tar.gz
 cd mona-1.4
-./configure --prefix ${install_dir} --enable-malloc
+./configure --prefix ${install_dir} 
 (cd DFA ; make; cp libdfa.a ${install_dir}/lib)
 (cd BDD ; make; cp libbdd.a ${install_dir}/lib)
 (cd Mem ; make; cp libmem.a ${install_dir}/lib)

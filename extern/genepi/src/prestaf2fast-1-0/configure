@@ -451,13 +451,7 @@ else
     exit 1
 fi
 
-if look_for_program doxygen doxygen ; then
-    :
-else
-    doxygen=:
-    echo "can't find the Doxygen program."
-    echo "no documentation rules will be generated."    
-fi
+doxygen=:
 
 printf "Generating ${MAKEFILE_NAME} rules... "
 
@@ -587,7 +581,7 @@ distrib-doc: \${DISTRIB_DOC}
 .PHONY: install
 install: \${TARGETS} docs
 	test -d \${INSTALL_DIR} || mkdir \${INSTALL_DIR}
-	Test -d \${INSTALL_DIR}/include || mkdir \${INSTALL_DIR}/include
+	test -d \${INSTALL_DIR}/include || mkdir \${INSTALL_DIR}/include
 	test -d \${INSTALL_DIR}/include/\${INSTALL_H_DIR} || \
             mkdir \${INSTALL_DIR}/include/\${INSTALL_H_DIR}
 	test -d \${INSTALL_DIR}/lib || mkdir \${INSTALL_DIR}/lib
