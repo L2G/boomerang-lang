@@ -3,7 +3,6 @@ open Error
 let _ = 
   (* initialize required but not directly referenced modules *)
   Compiler.init();
-  Presburger.init();
   Viewers.init();
   Prelude.init()
 
@@ -303,7 +302,6 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     begin
       Safelist.iter check (Prefs.read check_pref);
       Presburger.print_stats ();
-      Treeschema.print_stats ();
       if Prefs.read rest = [] then exit 0
     end;
 
