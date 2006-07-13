@@ -3,6 +3,7 @@ open Error
 let _ = 
   (* initialize required but not directly referenced modules *)
   Compiler.init();
+  Presburger.init();
   Viewers.init();
   Prelude.init()
 
@@ -290,17 +291,19 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   debug (fun() -> Prefs.dumpPrefsToStderr());
 
   (* Handle command lines of the special form 'harmonize-blah f1.fcl ... fn.fcl' *)
-  if Safelist.for_all (fun s -> Util.endswith s ".fcl") (Prefs.read rest) then begin
-    Prefs.set check_pref ((Prefs.read check_pref) @ (Prefs.read rest));
-    Prefs.set rest [];
-    Prefs.set Compiler.test_all true;
-  end;
+  let rest_pref = Prefs.read rest in     
+    if rest_pref <> [] && Safelist.for_all (fun s -> Util.endswith s ".fcl") rest_pref then begin
+        Prefs.set check_pref ((Prefs.read check_pref) @ rest_pref);
+        Prefs.set rest [];
+        Prefs.set Compiler.test_all true;
+      end;
 
   (* Run unit tests if requested *)
   if Prefs.read check_pref <> [] then
     begin
       Safelist.iter check (Prefs.read check_pref);
       Presburger.print_stats ();
+      Treeschema.print_stats ();
       if Prefs.read rest = [] then exit 0
     end;
 
