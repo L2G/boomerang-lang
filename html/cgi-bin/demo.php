@@ -17,6 +17,8 @@ $defaultdemogroup = "basics";
 
 $logfile_locations = array("$home/webdemo.log");
 
+$written_files = array();
+
 #####################
 # Unit testing mode #
 #####################
@@ -140,10 +142,12 @@ if($test) {
     chdir($home);
     chdir("examples");
     run_demo($demogroup, $demonumber);
+    cleanup();
     next_demo();
   }
  } else {
   run_demo($demogroup, $demonumber);
+  cleanup();
  }
 
 function run_demo($demogroup, $demonumber) {
@@ -846,6 +850,13 @@ ENDHTML;
 ###################################
 # Misc Functions #
 ###################################
+function cleanup() {
+  global $written_files;
+  foreach($written_files as $file) {
+    unlink($file);
+  }
+}
+
 function next_demo() {
   global $alldemos, $demogroup, $demonumber, $no_next_demo;
   if (!empty($alldemos[$demogroup][$demonumber+1])) {
@@ -889,6 +900,8 @@ function array_insert (&$array, $position, $insert_array) {
 }
 
 function put_file ($name, $contents) {
+  global $written_files;
+  array_push($written_files, $name);
   $handle = fopen($name, 'w');
   if ($handle) {
     fwrite($handle, $contents);
@@ -896,12 +909,6 @@ function put_file ($name, $contents) {
   } else {
     echodebug ("Could not open $name");
   }  
-}
-
-function append_file ($name, $contents) {
-  $handle = fopen($name, 'a');
-  fwrite($handle, $contents);
-  fclose($handle);
 }
 
 function listdir($dirname=".") {
