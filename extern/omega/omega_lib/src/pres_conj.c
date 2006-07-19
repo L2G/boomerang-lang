@@ -111,6 +111,7 @@ void Conjunct::rm_color_constrs() {
   problem->nEQs = eqs;
 }
 
+const char* get_var_name(unsigned int col, void * void_conj);
 
 
 //
