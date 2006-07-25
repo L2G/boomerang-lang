@@ -347,10 +347,13 @@ function run_demo($demogroup, $demonumber) {
       if (!file_exists($democmd)) {
         abort("Executable " . $democmd . " not found in " . getcwd(),"");
       }
-      
-      $cmdbase = 
-        "export HOME=./; "
-        . "export FOCALPATH=.:../../lenses:/$tempdir;"
+ 
+     $cets_lib_path = "/usr/lib/gcc/i586-suse-linux/4.0.2";
+
+     $cmdbase = 
+          (file_exists($cets_lib_path) ? "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$cets_lib_path " : "")
+        . "export HOME=./; "
+        . "export FOCALPATH=.:../../lenses:/$tempdir; "
         . "./$democmd $flags ";
       
       $cmd = 
