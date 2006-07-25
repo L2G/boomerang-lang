@@ -537,13 +537,13 @@ pred:
 apred: 
   | TRUE                                      { Db.Relation.Pred.True }
   | FALSE                                     { Db.Relation.Pred.False }
-  | IDENT_or_STRING EQUAL IDENT_or_STRING     { Db.Relation.Pred.EqAttAtt 
+  | IDENT EQUAL IDENT                         { Db.Relation.Pred.EqAttAtt 
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $3)) }
-  | IDENT_or_STRING LT GT IDENT_or_STRING     { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttAtt 
+  | IDENT LT GT IDENT                         { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttAtt 
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $4))) }
-  | IDENT_or_STRING EQUAL STRING              { Db.Relation.Pred.EqAttVal 
+  | IDENT EQUAL STRING                        { Db.Relation.Pred.EqAttVal 
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $3)) }
-  | IDENT_or_STRING LT GT STRING              { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttVal
+  | IDENT LT GT STRING                        { Db.Relation.Pred.Not (Db.Relation.Pred.EqAttVal
                                                   ((Syntax.name_of_id $1), (Syntax.name_of_id $4))) }
   | LPAREN pred RPAREN                        { $2 }
 

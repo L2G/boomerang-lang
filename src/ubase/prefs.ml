@@ -214,7 +214,7 @@ let scanCmdLine usage =
          Uarg.Bool _   -> Uarg.Bool   (fun b -> insert name (string_of_bool b))
        | Uarg.Int _    -> Uarg.Int    (fun i -> insert name (string_of_int i))
        | Uarg.String _ -> Uarg.String (fun s -> insert name s)
-       | _            -> assert false);
+       | _             -> assert false);
   !m
 
 (*****************************************************************************)
@@ -225,7 +225,7 @@ let string2bool name = function
    "true"  -> true 
  | "false" -> false
  | other   -> raise (Util.Fatal (name^" expects a boolean value, but \n"^other
-                                ^ " is not a boolean value : "))
+                                ^ " is not a boolean"))
 
 let string2int name string =
  try
@@ -234,24 +234,34 @@ let string2int name string =
    raise (Util.Fatal (name ^ " expects an integer value, but\n" 
                  ^ string ^ " is not an integer"))
 
-(* return_value ::= (filename, lineno, varname, value)*                      *)
-let rec readAFile filename: (string * int * string * string) list =
+(* Takes a filename and returns a list of "parsed lines" containing
+      (filename, lineno, varname, value)
+   in the same order as in the file. *)
+let rec readAFile filename : (string * int * string * string) list =
   let chan =
     try open_in (profilePathname filename)
     with Sys_error _ ->
-      raise(Util.Fatal(Printf.sprintf
-        "Preference file %s not found" filename)) in
-  let rec loop lines lineNum =
+      raise(Util.Fatal(Printf.sprintf "Preference file %s not found" filename)) in
+  let rec loop lines =
     match (try Some(input_line chan) with End_of_file -> None) with
-      None -> (close_in chan; Safelist.rev lines)
-    | Some(theLine) ->
+      None -> close_in chan; parseLines filename lines
+    | Some(theLine) -> loop (theLine::lines) in
+  loop []
+
+(* Takes a list of strings in reverse order and yields a list of "parsed lines"
+   in correct order *)
+and parseLines filename lines = 
+  let rec loop lines lineNum res =
+    match lines with
+      [] -> res
+    | theLine :: rest ->
         if theLine = "" || theLine.[0]='#' then
-          loop lines (lineNum + 1)
+          loop rest (lineNum+1) res
         else if Util.startswith theLine "include " then
           match Util.splitIntoWords theLine ' ' with
             [_;f] ->
-              let sublines = Safelist.rev (readAFile f) in
-              loop (Safelist.append sublines lines) (lineNum + 1)
+              let sublines = readAFile f in
+              loop rest (lineNum+1) (Safelist.append sublines res)
           | _ -> raise (Util.Fatal(Printf.sprintf
 				     "File \"%s\", line %d:\nGarbled 'include' directive: %s" 
 				     filename lineNum theLine))
@@ -259,39 +269,43 @@ let rec readAFile filename: (string * int * string * string) list =
           let pos = String.index theLine '=' in
           let varName = Util.trimWhitespace (String.sub theLine 0 pos) in
           let theResult =
-            Util.trimWhitespace (String.sub theLine (pos + 1)
+            Util.trimWhitespace (String.sub theLine (pos+1)
                               (String.length theLine - pos - 1)) in
-          loop ((filename, lineNum, varName, theResult)::lines) (lineNum + 1)
+          loop rest (lineNum+1) ((filename, lineNum, varName, theResult)::res)
         with Not_found -> (* theLine does not contain '=' *)
           raise(Util.Fatal(Printf.sprintf
 			     "File \"%s\", line %d:\nGarbled line (no '='):\n%s" filename lineNum theLine)) in
-  loop [] 1
+  loop lines 1 []
+
+let processLines lines =
+  Safelist.iter
+    (fun (fileName, lineNum, varName,theResult) ->
+       try
+         let _, theFunction, _ = Util.StringMap.find varName !prefs in
+         match theFunction with
+           Uarg.Bool boolFunction ->
+             boolFunction (string2bool varName theResult)
+         | Uarg.Int intFunction ->
+             intFunction (string2int varName theResult)
+         | Uarg.String stringFunction ->
+             stringFunction theResult
+         | _ -> assert false
+       with Not_found ->
+         raise (Util.Fatal ("File \""^ fileName ^ "\", line " ^ 
+                            string_of_int lineNum ^ ": `" ^
+                            varName ^ "' is not a valid option"))
+       | IllegalValue str -> 
+           raise(Util.Fatal("File \""^ fileName ^ "\", line " ^ 
+                            string_of_int lineNum ^ ": " ^ str)))
+    lines
 
 let loadTheFile () =
   match !profileName with
     None -> ()
-  | Some(n) -> 
-      let lines = readAFile n in
-      Safelist.iter
-        (fun (fileName, lineNum, varName,theResult) ->
-           try
-             let _, theFunction, _ = Util.StringMap.find varName !prefs in
-             match theFunction with
-               Uarg.Bool boolFunction ->
-                 boolFunction (string2bool varName theResult)
-             | Uarg.Int intFunction ->
-                 intFunction (string2int varName theResult)
-             | Uarg.String stringFunction ->
-                 stringFunction theResult
-             | _ -> assert false
-           with Not_found ->
-             raise (Util.Fatal ("File \""^ fileName ^ "\", line " ^ 
-				string_of_int lineNum ^ ": `" ^
-                                varName ^ "' is not a valid option"))
-           | IllegalValue str -> 
-               raise(Util.Fatal("File \""^ fileName ^ "\", line " ^ 
-				string_of_int lineNum ^ ": " ^ str)))
-        lines
+  | Some(n) -> processLines(readAFile n)
+
+let loadStrings l =
+  processLines (parseLines "<internal>" l)
 
 (*****************************************************************************)
 (*                            Printing                                       *)
