@@ -98,17 +98,3 @@ type msg = [`String of string | `Name of Name.t | `Newline | `Break | `Space
            | `Prim of (unit -> unit) | `Open_box | `Open_vbox | `Close_box ]
 
 let error_msg l = raise (Error.Harmony_error (fun () -> format_msg l))
-
-(* Hashes of trees *)
-type thist = t (* hack to avoid cyclic type in Hash functor application *)
-module Hash =
-  Hashtbl.Make(
-    struct
-      type t = thist
-      let equal = (==)                                (* Use physical equality test *)
-      let hash = function
-        (* Hash on tag and physical addr *)
-        | Tree t -> Hashtbl.hash (1, (Obj.magic t : int))
-        | Db db -> Hashtbl.hash (2, (Obj.magic db : int))
-    end)
-

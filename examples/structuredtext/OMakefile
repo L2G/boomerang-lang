@@ -1,7 +1,5 @@
-.PHONY: temp temp2
+.PHONY: experiment
 
-temp: $(RESULT)
-	./harmonize-structuredtext $(HARMONY_FLAGS) -ar junk.txt -r1 junk.txt -r2 junk.txt -newar temp-o.txt.tmp -newr1 temp-a.txt.tmp -newr2 temp-b.txt.tmp -debug toplevel
-
-temp2: $(RESULT)
-	./harmonize-structuredtext $(HARMONY_FLAGS) -ar temp-o.txt -r1 temp-a.txt -r2 temp-b.txt -newar temp-o.txt.tmp -newr1 temp-a.txt.tmp -newr2 temp-b.txt.tmp -debug toplevel
+experiment:
+	foreach(i, 10 20 40 80 160 320 640)
+		$(echo "hi")

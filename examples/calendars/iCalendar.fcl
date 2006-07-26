@@ -299,6 +299,53 @@ and OffsetTime_A =
 
 schema ICalendar_A = Components_A
 
+(* (\* this is just a trick to temporary *not* use CompProps ('tis too slow) or Params *\) *)
+(* and CompProp_A : schema = Any *)
+(* and Params_A : schema = Any *)
+
+(*-------------------------------------------------------------------------*)
+(* ok this is roughly a try of straight Alan's lens translation into Focal *)
+(* let promote (m: name) (n: name) : lens =  *)
+(*   xfork {m} {m,n}  *)
+(*     (hoist m; fork {n} id (plunge m)) *)
+(*     id *)
+
+(* let event_with_xharm : lens = *)
+(*   xfork {xprop} {xprop, harm_uid, harm_props} *)
+(*     (mapp {xprop} (\** extract and list_fork here *\) id; *)
+(*      promote "xprop" "harm_uid"; *)
+(*      promote "xprop" "harm_props") *)
+(*     id *)
+
+(* let event_without_xharm : lens = *)
+(*   (\** pfew lotsa stuff to translate here *\) *)
+(*   id *)
+
+(* let icalendar : lens = *)
+(*   List.hd []; *)
+(*   focus "components" *)
+(*     { calprops = { prodid = { val = { "Harmony" }}, *)
+(* 		   version = { val = { "2.0" }}}}; *)
+
+(*   List.map *)
+(*     (acond { type = {"Timezonec"}, val = Any } { type = {"Timezonec"}, val = Any } *)
+(*        (mapp {val} (rename "tzid" "uid")) *)
+(*        (mapp {val} *)
+(* 	  ( mapp {props} *)
+(* 	     ( acond *)
+(* 		{ xprop =  *)
+(* 		  Append  *)
+(* 		    Any  *)
+(* 		    ({ "name" = { "X-HARMONY-ID" }, * \ "name" = Any}::(List.T Any)) *)
+(* 		}  *)
+(* 		{ harm_uid = Any } *)
+(* 		event_with_xharm *)
+(* 		event_without_xharm)))) *)
+
+(*-------------------------------------------------------------------------*)
+(* And this is more to give it a try from scratch *)
+(* one lens per schema variable above *)
+
 let domCompProp : view = 
   { "action", "attach", "attendee", "categories", "class",
     "comment", "completed", "contact", "created", "daylightc", 
@@ -334,8 +381,9 @@ let icalendar_lens (filtering: lens): lens =
 (* and XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList} *)
 and xplistplusval_lens (l: lens) : lens =
   assert (XPListPlusVal Any);
-  mapn "val" l; mapn "xplist" (protect xplist_lens);
-  acond { val = Value, ?xplist = Any } { ! = {?xplist = XPList_A}}
+  wmap { "val" -> l, 
+         "xplist" -> protect xplist_lens };
+  acond { "val" = Value, ?"xplist" = Any } { ! = {?"xplist" = XPList_A}}
     (pivot "val")
     id;
   assert (XPListPlusVal_A Any)
@@ -347,8 +395,7 @@ and xplist_lens : lens =
     (pivot "name";
      map (hoist "val"; List.flatten; map (List.hd [])));
   List.flatten;
-  map (List.hd []); (** check that !! this assumes that the same name does'nt 
-		      appear twice in a xplist *)
+  map (List.hd []); (** check that !! this assumes that the same name doesn't appear twice in a xplist *)
   assert XPList_A
     
 (* and XProp : schema = List.T {"name" = Value, val = Value, ?params = Params} *)
@@ -359,7 +406,28 @@ and xprop_lens : lens =
   List.flatten;
   map (List.hd []); (** same remark as above *)
   assert XProp_A
-
+    
+(* and Params : schema = { ?altrepparam = Value, *)
+(* 			?cnparam = Value, *)
+(* 			?cutypeparam = Value, *)
+(* 			?delfromparam = List.T Value, *)
+(* 			?deltoparam = List.T Value, *)
+(* 			?dirparam = Value, *)
+(* 			?encodingparam = Value,  *)
+(* 			?fmttypeparam = Value, *)
+(* 			?langparam = Value, *)
+(* 			?memberparam = List.T Value, *)
+(* 			?partstatparam = Value, *)
+(* 			?rangeparam = Value, *)
+(* 			?reltypeparam = Value, *)
+(* 			?roleparam = Value, *)
+(* 			?rsvpparam = Bool, *)
+(* 			?sentbyparam = Value, *)
+(* 			?trigrelparam = Value, *)
+(* 			?tzidparam = { global = Bool, val = Value}, *)
+(* 			?valuetypeparam = Value, *)
+(* 			?xplist = XPList *)
+(* 		      } *)
 and params_lens : lens =
   assert Params;
   mapp {delfromparam, deltoparam, memberparam}
@@ -383,52 +451,132 @@ and components_lens (filtering: lens) : lens =
 	  (mapp {val} (protect (timezonec_lens filtering))));
      pivot "type"; map (hoist "val"));
   List.flatten;
-  mapn "Eventc" (List.map (hoist_nonunique "props" domCompProp; pivot "uid");
-		 List.flatten; map (List.hd []));
-  mapn "Todoc" (List.map (hoist_nonunique "props" domCompProp; pivot "uid");
-		List.flatten; map (List.hd []));
-  mapn "Timezonec" (List.map (pivot "tzid"); List.flatten; map (List.hd []));
+  wmap { "Eventc" -> (List.map (hoist_nonunique "props" domCompProp;
+				pivot "uid");
+		      List.flatten; map (List.hd [])),
+         "Todoc" -> (List.map (hoist_nonunique "props" domCompProp;
+			       pivot "uid");
+		     List.flatten; map (List.hd [])),
+         "Timezonec" -> (List.map (pivot "tzid"); List.flatten; map (List.hd []))};
   assert Components_A
     
 (* and Eventc : schema = {props = CompProp, ?alarms = List.T CompProp} *)
 and eventc_lens (filtering: lens) : lens =
   assert Eventc;
-  mapn "props" (compprop_lens filtering);
-  mapn "alarms" (List.map (compprop_lens filtering));
+  wmap { "props" -> protect (compprop_lens filtering),
+         "alarms" -> protect (List.map (compprop_lens filtering)) };
   assert Eventc_A
 
 (* and Todoc : schema = {props = CompProp, ?alarms = List.T CompProp} *)
 and todoc_lens (filtering: lens) : lens =
   assert Todoc;
-  mapn "props" (compprop_lens filtering);
-  mapn "alarms" (List.map (compprop_lens filtering));
+  wmap { "props" -> protect (compprop_lens filtering),
+         "alarms" -> protect (List.map (compprop_lens filtering))};
   assert Todoc_A
 	
+(* and CompProp =  *)
+(*       { ?action = XPListPlusVal Value, *)
+(* 	?attach = List.T (ParamsPlusVal ({ "AttUri" = Value } | { "AttBinary" = Value})), *)
+(* 	?attendee = List.T (ParamsPlusVal Value), *)
+(* 	?categories = List.T (ParamsPlusVal (List.T Value)), *)
+(* 	?"class" = XPListPlusVal Value, *)
+(* 	?comment = List.T (ParamsPlusVal Value), *)
+(* 	?completed = XPListPlusVal DateTime, *)
+(* 	?contact = List.T (ParamsPlusVal Value), *)
+(* 	?created = XPListPlusVal DateTime, *)
+(* 	?daylightc = List.T CompProp, *)
+(* 	?description = ParamsPlusVal Value, *)
+(* 	?dtend = ParamsPlusVal DtPval, *)
+(* 	?dtstamp = ParamsPlusVal DtPval, *)
+(* 	?dtstart = ParamsPlusVal DtPval, *)
+(* 	?due = ParamsPlusVal DtPval, *)
+(* 	?duration = XPListPlusVal Duration, *)
+(* 	?exdate = List.T (ParamsPlusVal (List.T DtPval)), *)
+(* 	?exrule = List.T (XPListPlusVal Recur), *)
+(* 	?geo = Geo, *)
+(* 	?lastmod = XPListPlusVal DateTime, *)
+(* 	?location = ParamsPlusVal Value, *)
+(* 	?organizer = ParamsPlusVal Value, *)
+(* 	?percent = XPListPlusVal Value, *)
+(* 	?priority = XPListPlusVal Value, *)
+(* 	?rdate = List.T (ParamsPlusVal (List.T DtPval)), *)
+(* 	?recurid = ParamsPlusVal DtPval, *)
+(* 	?related_to = List.T (ParamsPlusVal Value), *)
+(* 	?repeat = XPListPlusVal Value, *)
+(* 	?resources = List.T (ParamsPlusVal (List.T Value)), *)
+(* 	?rrule =  List.T (XPListPlusVal Recur), *)
+(* 	?rstatus = List.T RStatus, *)
+(* 	?seq = XPListPlusVal Value, *)
+(* 	?standardc = List.T CompProp, *)
+(* 	?status = XPListPlusVal Value, *)
+(* 	?summary = ParamsPlusVal Value, *)
+(* 	?transp = XPListPlusVal Value, *)
+(* 	?trigger = ParamsPlusVal DtPval, *)
+(* 	?tzid = TzID, *)
+(* 	?tzname = List.T (ParamsPlusVal Value), *)
+(* 	?tzoffsetto = XPListPlusVal OffsetTime, *)
+(* 	?tzoffsetfrom = XPListPlusVal OffsetTime, *)
+(* 	?tzurl = XPListPlusVal Value, *)
+(* 	?uid = XPListPlusVal Value, *)
+(* 	?url = XPListPlusVal Value, *)
+(* 	?xprop = XProp *)
+(*       } *)
 and compprop_lens (filtering: lens) : lens =
    assert CompProp;
-   mapp {"description","location","organizer","summary"} (paramsplusval_lens id);
-   mapp { "action","class","percent","priority","repeat","seq","status","transp","tzurl","uid","url"} (xplistplusval_lens id);
-   mapp {"dtend","dtstamp","dtstart","due","recurid","trigger"} (paramsplusval_lens dtpval_lens);
-   mapp {"completed","created","lastmod"} (xplistplusval_lens datetime_lens);
-   mapp {"tzoffsetto","tzoffsetfrom"} (xplistplusval_lens offsettime_lens);
-   mapn "duration" (xplistplusval_lens duration_lens);
-   mapp {"attach","attendee","comment","contact","related_to","tzname"} (List.map (paramsplusval_lens id));
-   mapp {"categories","resources"} (List.map (paramsplusval_lens (List.flatten; map (List.hd []))));
-   mapp {"daylightc","standardc"} (List.map (compprop_lens filtering));
-   mapp {"exdate","rdate"} (List.map (paramsplusval_lens (List.map dtpval_lens)));
-   mapn "rstatus" (List.map rstatus_lens);
-   mapp {"exrule","rrule"} (List.map (xplistplusval_lens recur_lens));
-   mapn "geo" geo_lens;
-   mapn "tzid" tzid_lens;
-   mapn "xprop" xprop_lens;
-   filtering;
-   assert CompProp_A
+   wmap {
+	   "action" -> protect (xplistplusval_lens id),
+	   "attach" -> protect (List.map (paramsplusval_lens id)),
+	   "attendee" -> protect (List.map (paramsplusval_lens id)),
+	   "categories" -> protect (List.map (paramsplusval_lens (List.flatten; map (List.hd [])))),
+	   "class" -> protect (xplistplusval_lens id),
+	   "comment" -> protect (List.map (paramsplusval_lens id)),
+           "completed" -> protect (xplistplusval_lens datetime_lens),
+	   "contact" -> protect (List.map (paramsplusval_lens id)),
+	   "created" -> protect (xplistplusval_lens datetime_lens),
+	   "daylightc" -> protect (List.map (compprop_lens filtering)),
+	   "description" -> protect (paramsplusval_lens id),
+	   "dtend" -> protect (paramsplusval_lens dtpval_lens),
+	   "dtstamp" -> protect (paramsplusval_lens dtpval_lens),
+           "dtstart" -> protect (paramsplusval_lens dtpval_lens),
+           "due" -> protect (paramsplusval_lens dtpval_lens),
+	   "duration" -> protect (xplistplusval_lens duration_lens),
+	   "exdate" -> protect (List.map (paramsplusval_lens (List.map dtpval_lens))),
+	   "exrule" -> protect (List.map (xplistplusval_lens recur_lens)),
+	   "geo" -> protect (geo_lens),
+	   "lastmod" -> protect (xplistplusval_lens datetime_lens),
+	   "location" -> protect (paramsplusval_lens id),
+	   "organizer" -> protect (paramsplusval_lens id),
+           "percent" -> protect (xplistplusval_lens id),
+	   "priority" -> protect (xplistplusval_lens id),
+	   "rdate" -> protect (List.map (paramsplusval_lens (List.map dtpval_lens))),
+	   "recurid" -> protect (paramsplusval_lens dtpval_lens),
+	   "related_to" -> protect (List.map (paramsplusval_lens id)),
+	   "repeat" -> protect (xplistplusval_lens id),
+	   "resources" -> protect (List.map (paramsplusval_lens (List.flatten; map (List.hd [])))),
+	   "rrule" -> protect (List.map (xplistplusval_lens recur_lens)),
+	   "rstatus" -> protect (List.map rstatus_lens),
+	   "seq" -> protect (xplistplusval_lens id),
+	   "standardc" -> protect (List.map (compprop_lens filtering)),
+	   "status" -> protect (xplistplusval_lens id),
+	   "summary" -> protect (paramsplusval_lens id),
+	   "transp" -> protect (xplistplusval_lens id),
+	   "trigger" -> protect (paramsplusval_lens dtpval_lens),
+	   "tzid" -> protect (tzid_lens),
+	   "tzname" -> protect (List.map (paramsplusval_lens id)),
+	   "tzoffsetto" -> protect (xplistplusval_lens offsettime_lens),
+	   "tzoffsetfrom" -> protect (xplistplusval_lens offsettime_lens),
+	   "tzurl" -> protect (xplistplusval_lens id),
+	   "uid" -> protect (xplistplusval_lens id),
+	   "url" -> protect (xplistplusval_lens id),
+	   "xprop" -> protect (xprop_lens)
+	 };
+  filtering;
+  assert CompProp_A
 
 (* and ParamsPlusVal (T : schema) : schema = { val = T, ?params = Params} *)
 and paramsplusval_lens (l: lens) : lens =
   assert (ParamsPlusVal Any);
-  mapn "val" l;
-  mapn "params" (params_lens);
+  wmap { "val" -> l, "params" -> protect params_lens};
   acond {val = Value, ?params = Params} {! = {?params = Params_A}}
 	(pivot "val")
 	id;
@@ -449,9 +597,9 @@ and datetime_lens : lens =
 (*       { "DurationVal" = Duration} *)
 and dtpval_lens : lens =
   assert DtPval; 
-  mapn "DateTimeVal" datetime_lens;
-  mapn  "PeriodVal" (protect period_lens);
-  mapn "DurationVal" (protect duration_lens);
+  wmap { "DateTimeVal" -> protect datetime_lens,
+         "PeriodVal"   -> protect period_lens,
+         "DurationVal" -> protect duration_lens};
   assert DtPval_A
 (** rename everything to one single date here ?
    then I have to have different schemas inside
@@ -462,14 +610,15 @@ and dtpval_lens : lens =
 (*       { "PeriodStart" = { start = DateTime, duration = Duration}} *)
 and period_lens : lens =
   assert Period;
-  mapn "PeriodExplicit" (map datetime_lens);
-  mapn "PeriodStart" (mapn "Start" datetime_lens; mapn "duration" (protect duration_lens));
+  wmap { "PeriodExplicit" -> map (protect datetime_lens),
+    "PeriodStart" -> wmap { "start" -> protect datetime_lens, 
+                            "duration" -> protect duration_lens}};
   assert Period_A
 	
 (* and Duration : schema = { negative = Bool, length = DurLength } *)
 and duration_lens : lens =
   assert Duration;
-  mapp {"length"} (protect durlength_lens);
+  mapp {length} (protect durlength_lens);
   assert Duration_A
 
 (* and DurLength : schema =  *)
@@ -500,12 +649,14 @@ and durlength_lens : lens =
 (*       } *)
 and recur_lens : lens =
   assert Recur;
-  mapp { "bysecond", "byminute", "byhour", "bymonthday",
-	 "byyearday", "byweekno", "bymonth", "bysetpos"}
+  mapp { bysecond, byminute, byhour, bymonthday,
+	 byyearday, byweekno, bymonth, bysetpos}
 	(List.flatten; map (List.hd []));
-  mapn "byday" (List.map (protect bydayelt_lens));
-  mapn "bytext" (pivot "name"; map (hoist "val"));
-  mapn "end" (acond {count=Value} {count=Value} id (map dtpval_lens));
+  wmap { "byday" -> protect (List.map bydayelt_lens),
+         "bytext" -> (pivot "name"; map (hoist "val")),
+         "end" -> (acond {count = Value} {count = Value}
+		   id (map dtpval_lens))
+       };
   assert Recur_A
 
 (* and ByDayElt : schema = { weekday = Value, ?which = Value} *)
@@ -517,15 +668,15 @@ and bydayelt_lens : lens =
 (* and Geo : schema = { latitude = Value, longitude = Value, ?xplist = XPList} *)
 and geo_lens : lens =
   assert Geo;
-  mapp {"xplist"} xplist_lens;
+  mapp {xplist} xplist_lens;
   assert Geo_A
 	
 (* and RStatus : schema =  *)
 (*       { code = List.T Value, text = Value, ?extdata = Value, ?params = Params} *)
 and rstatus_lens : lens =
   assert RStatus;
-  mapn "code" (List.flatten; map (List.hd []));
-  mapn "params" params_lens;
+  wmap { "code" -> (List.flatten; map (List.hd [])), 
+         "params" -> protect params_lens };
   assert RStatus_A
 	
 (* and TzID : schema = { global = Bool, val = Value, ?xplist = XPList } *)
@@ -555,26 +706,31 @@ let l : lens =
 (* lens filtering away dtstamps and lastmods
    and updating them as appropriate on the putback *)
 let dtstamp_lens : lens =
-  mapn "val"
-    (mapn "DateTimeVal" 
-       (mapn "date"
-	  (mapn "day" (fconst {} "date +%d");
-	   mapn "month" (fconst {} "date +%m");
-	   mapn "year" (fconst {} "date +%Y"))));
-  mapn "time"
-    (mapn "hour" (fconst {} "date +%H");
-     mapn "minute" (fconst {} "date +%M");
-     mapn "second" (fconst {} "date +%S"))
+  wmap { "val" ->
+    wmap { "DateTimeVal" -> 
+      wmap { "date" ->
+	wmap {
+	"day" -> fconst {} "date +%d",
+	  "month" -> fconst {} "date +%m",
+	    "year" -> fconst {} "date +%Y"
+      },
+	"time" -> 
+	  wmap {
+	  "hour" -> fconst {} "date +%H",
+	    "minute" -> fconst {} "date +%M",
+	      "second" -> fconst {} "date +%S"
+	} }}}
 
 let lastmod_lens : lens =
-  mapn "lastmod"
-    ((focus "val" {}; hoist_nonunique "date" {"day", "month", "year"};
-      hoist_nonunique "time" {"hour", "minute", "second", "zulu"};
-      prune "zulu" {"#true"}));
+  wmap { "lastmod" -> 
+    (focus "val" {}; hoist_nonunique "date" {"day", "month", "year"};
+     hoist_nonunique "time" {"hour", "minute", "second", "zulu"};
+     prune "zulu" {"#true"})};
   hoist_nonunique "lastmod" {"day", "month", "year", "hour", "minute", "second"};
   fmodify "day" "date +%d"; fmodify "month" "date +%m"; fmodify "year" "date +%Y";
   fmodify "hour" "date +%H"; fmodify "minute" "date +%M"; fmodify "second" "date +%S"
     
 let l_stamps : lens =
-    icalendar_lens (mapn "dtstamp" dtstamp_lens);
-    map (map lastmod_lens)
+  icalendar_lens 
+    (wmap {"dtstamp" -> dtstamp_lens});
+  map (map lastmod_lens)

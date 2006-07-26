@@ -26,3 +26,11 @@ module Hash = Hashtbl.Make(
     let equal = (==)
     let hash o = Hashtbl.hash (Obj.magic o : int)
   end)
+
+module SetHash = Hashtbl.Make(
+    struct
+      type t = Set.t 
+      let equal = (==)
+      let hash s = (Obj.magic s : int)
+    end)
+

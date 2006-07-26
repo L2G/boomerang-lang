@@ -1,91 +1,102 @@
-(* Trees are the synchronizer's most basic abstraction. *)   
+(*********************************************************)
+(* The Harmony Project                                   *)
+(* harmony@lists.seas.upenn.edu                          *)
+(*                                                       *)
+(* tree.ml - unordered, unranked trees                   *)
+(*********************************************************)
+(* $Id$ *)
 
-(* the bool indicates if the tree is well formed *)
-type t = VI of t Name.Map.t
+type t = { map:t Name.Map.t; hash:int}
+
+let hash t0 = t0.hash
+
+let rec pm_format m =
+  Util.format "{";
+  ignore (Name.Map.fold 
+             (fun k tk fst ->
+               if not fst then Util.format ", ";
+               Util.format "%s=" (Misc.whack k);
+               pm_format tk.map;
+               false)
+             m true);
+  Util.format "}"
+
+let mk_t = 
+  let module M = Memo.Make(
+    struct
+      let name = "Tree.mk_t"
+      type arg = (t Name.Map.t)
+      type res = t 
+      let format_arg _ = ()
+      let format_res _ = ()
+      let hash m = Name.Map.fold (fun k tk a -> 379 * (Hashtbl.hash k) + 563 * tk.hash + a) m 0                
+      let equal m1 m2 = 
+        (m1 == m2) ||
+          (let d1 = Name.Map.domain m1 in          
+             (Name.Set.equal d1 (Name.Map.domain m2))
+             && (Name.Set.for_all (fun n -> (Name.Map.find n m1) == (Name.Map.find n m2)) d1))
+      let f m = { map=m; hash=hash m} 
+      let init_size = 1543
+    end) in 
+    M.memoized
 
 let nil_tag = "nil"
 let hd_tag = "hd"
 let tl_tag = "tl"
 
 (* --------------- creators --------------- *)
-let empty = VI Name.Map.empty
+let empty = mk_t Name.Map.empty
 
-let set_unsafe (VI m) k kid =
-  match kid with
-  | None -> VI (Name.Map.remove k m)
-  | Some v -> VI (Name.Map.add k v m)
+let set t0 k = function
+  | None   -> mk_t (Name.Map.remove k t0.map)
+  | Some v -> mk_t (Name.Map.add k v t0.map)
 
-let set v k kid = set_unsafe v k kid 
-
-let set_star v binds =
-   Safelist.fold_left (fun vacc (k,kid) -> set_unsafe vacc k kid) v binds
-
-(* TODO: check how we can unify create_star and from_list *)
-let create_star binds = set_star empty binds
-
-let from_list vl = VI (Name.Map.from_list vl)
+let from_list vl = mk_t (Name.Map.from_list vl)
 
 (* --------------- accessors --------------- *)
-let dom (VI m) = Name.Map.domain m
+let dom t0 = Name.Map.domain t0.map
 
-let is_empty v = Name.Set.is_empty (dom v)
+let is_empty t0 = Name.Set.is_empty (dom t0)
 
-let get (VI m) k = 
-  try
-    Some (Name.Map.find k m)
-  with
-  | Not_found -> None
+let get t0 k = 
+  try Some (Name.Map.find k t0.map)
+  with Not_found -> None
 
-(* -------------- singletons, values, fields --------------- *)
-(* let singleton k v = set empty k (Some v) *)
-(* let is_singleton v = Name.Set.cardinal (dom v) = 1 *)
-
+(* -------------- values --------------- *)
 (* v is a value if it has one child, and that child is [Tree.empty] *)
-let is_value v =
-  let d = dom v in 
+let is_value t0 =
+  let d = dom t0 in 
     (Name.Set.cardinal d = 1) &&
-      (match get v (Name.Set.choose d) with
+    (match get t0 (Name.Set.choose d) with
          None -> false (* can't happen *)
-      | Some vk -> is_empty vk)
+       | Some tk -> is_empty tk)
 
-let new_value s = set empty s (Some empty)
-
-(* let get_field_value v k = get_value (get_required v k) *)
-
-(* let get_field_value_option v k = *)
-(*   match get v k with *)
-(*     Some v' -> Some(get_value v') *)
-(*   | None -> None *)
-
-(* let set_field_value v k s = set v k (Some (new_value s)) *)
-
-let field_value k s = set empty k (Some (new_value s))
-
+let mk_value k = set empty k (Some empty)
+      
 (* --------------- lists --------------- *)
-let cons v1 v2 = create_star [(hd_tag, Some v1); (tl_tag, Some v2)]
+let cons t1 t2 = from_list [(hd_tag, t1); (tl_tag, t2)]
 
-let empty_list = create_star [(nil_tag, Some empty)]
+let cons_dom = Name.Set.add hd_tag (Name.Set.add tl_tag Name.Set.empty)
+let nil_dom = Name.Set.add nil_tag Name.Set.empty
 
-let is_cons v = Name.Set.equal
-                  (dom v)
-                  (Name.Set.add hd_tag
-                     (Name.Set.add tl_tag Name.Set.empty))
+let empty_list = mk_value nil_tag
 
-let is_empty_list v = Name.Set.equal
-                        (dom v) 
-                        (Name.Set.add nil_tag Name.Set.empty)
+let is_cons t0 = Name.Set.equal (dom t0) (cons_dom)
+    
+let is_empty_list t0 = Name.Set.equal (dom t0) nil_dom
 
-let rec is_list v = 
-  is_empty_list v || 
-    (is_cons v &&
-       (match get v tl_tag with
+let rec is_list t0 = 
+  is_empty_list t0 || 
+    (is_cons t0 &&
+        (match get t0 tl_tag with
             None -> false (* can't happen *)
           | Some tl -> is_list tl))
 
-(* ### Not tail recursive! *)
-let rec structure_from_list = function
-  | [] -> empty_list
-  | v :: vs -> cons v (structure_from_list vs)
+let rec structure_from_list ts = 
+  let rec aux acc = function
+    | [] -> acc
+    | t::rest -> aux (cons t acc) rest in 
+  aux empty_list (Safelist.rev ts)
 
 (* -------------- pretty printing --------------- *)
 let raw = Prefs.createBool "raw" false "Dump trees in 'raw' form" ""
@@ -94,89 +105,88 @@ let rec format_kids m format_rec =
   Util.format "{@[<hv0>";
   Name.Map.iter_with_sep
     (fun k kid -> 
-      Util.format "@[<hv1>%s =@ " (Misc.whack_ident k);
+      Util.format "@[<hv1>%s=" (Misc.whack_ident k);
       format_rec kid;
       Util.format "@]")
-    (fun() -> Util.format ",@ ")
+    (fun() -> Util.format ", ")
     m;
   Util.format "@]}"
 
-and format_t_pretty v =
-  let rec format_aux ((VI m) as v) inner = 
+and format_t_pretty t0 =
+  let rec format_aux t1 inner = 
     let format_list_member kid =
       if is_value kid then Util.format "{%s}" (Misc.whack_ident (get_value kid))
       else format_aux kid true in
-    if is_list v then begin
+    if is_list t1 then begin
       let rec loop = function
           [] -> ()
         | [kid] -> format_list_member kid
-        | kid::rest -> format_list_member kid; Util.format ",@ "; loop rest in
+        | kid::rest -> format_list_member kid; Util.format ", "; loop rest in
       Util.format "[@[<hv0>";
-      loop (list_from_structure v);
+      loop (list_from_structure t1);
       Util.format "@]]"
     end else begin
-      if (is_value v && inner) then
-        Util.format "{%s}" (Misc.whack_ident (get_value v))
-      else format_kids m (fun kid -> format_aux kid true)
+      if (is_value t1 && inner) then Util.format "{%s}" (Misc.whack_ident (get_value t1))
+      else format_kids t1.map (fun k -> format_aux k true)
     end in
-  format_aux v false
+  format_aux t0 false
 
-and format_t_raw (VI m) =
+and format_t_raw t0 =
   Name.Map.dump 
     (fun ks -> ks)
     Misc.whack 
-    (fun (VI m) -> format_kids m format_t_raw) 
-    (fun (VI m) -> Name.Map.is_empty m)
-    m
+    (fun t1 -> format_kids t1.map format_t_raw)
+    is_empty 
+    t0.map
 
-and format_t v =
-  if Prefs.read raw then format_t_raw v
-  else format_t_pretty v
+and format_t t0 =
+  if Prefs.read raw then format_t_raw t0
+  else format_t_pretty t0
 
 (* --------------- easy access / building --------------- *)
-
 (* Note that these are all in the same mutual recursion, so that we can use the
    formatting stuff to print error messages in the next few functions! *)
 
-and list_from_structure v =
-  if not (is_list v) then
+and list_from_structure t0 =
+  if not (is_list t0) then
     raise (Error.Harmony_error 
              (fun () -> 
                 Util.format "Tree.list_from_structure:@ ";
-                format_t v;
+                format_t t0;
                 Util.format "@ is not a list!"));
-  let rec loop acc v' = 
-    if is_empty_list v' then Safelist.rev acc else
-      loop ((get_required v' hd_tag) :: acc) (get_required v' tl_tag)
-  in
-    loop [] v 
+  let rec loop acc t1' = 
+    if is_empty_list t1' then Safelist.rev acc else
+      loop ((get_required t1' hd_tag) :: acc) (get_required t1' tl_tag) in
+  loop [] t0
 
-and get_required ?(msg="") ((VI m) as v) k = 
-  let msg2 = if msg = "" then "" else msg ^ ": " in
-  try 
-    Name.Map.find k m
+and get_required ?(msg="") t0 k = 
+  try Name.Map.find k t0.map
   with Not_found -> 
     raise (Error.Harmony_error 
-             (fun () -> Util.format "%sget_required %s failed on " msg2 (Misc.whack k);
-                format_t v))
+             (fun () -> 
+		Util.format "%sget_required %s failed on " 
+		(if msg="" then "" else msg ^ ": ")
+		(Misc.whack k);
+                format_t t0))
 
-and get_value v =
-  if (is_value v) then (Name.Set.choose (dom v))
-  else raise (Error.Harmony_error 
-                    (fun () -> 
-                       Util.format "Tree.get_value";
-                       format_t v;
-                       Util.format "is not a value!"))
+and get_value t0 =
+  if (is_value t0) then (Name.Set.choose (dom t0))
+  else raise 
+    (Error.Harmony_error 
+       (fun () -> 
+          Util.format "Tree.get_value ";
+          format_t t0;
+          Util.format " is not a value!"))
 
 
-let list_length v = Safelist.length (list_from_structure v)
+let list_length t0 = Safelist.length (list_from_structure t0)
 
-let singleton_dom v =
-  let d = dom v in
-  if Name.Set.cardinal d <> 1 then
-    raise (Error.Harmony_error (fun () -> 
-                                  Util.format "Tree.singleton_dom: tree with several children";
-                                  format_t v));
+let singleton_dom t0 =
+  let d = dom t0 in
+    if Name.Set.cardinal d <> 1 then
+      raise (Error.Harmony_error (fun () -> 
+        Util.format "Tree.singleton_dom: tree with several children";
+        format_t t0));
     Name.Set.choose d
 
 type desc =
@@ -188,7 +198,7 @@ type desc =
 
 let rec from_desc = function
     E -> empty
-  | Val k -> new_value k
+  | Val k -> mk_value k
   | L vl -> structure_from_list (Safelist.map from_desc vl)
   | Tree l -> from_list (Safelist.map (fun (k,d) -> (k, from_desc d)) l) 
   | In v -> v
@@ -198,175 +208,88 @@ let rec from_desc = function
  * Utility functions
  *)
 
-let rec equal v1 v2 =
-  if v1 == v2 then true else
-  let names = dom v1 in
-  Name.Set.equal names (dom v2) &&
+let rec equal t1 t2 = t1 == t2
+
+(*
+  (t1 == t2) ||
+  (let names = dom t1 in
+  Name.Set.equal names (dom t2) &&
   Name.Set.for_all
-    (fun n -> equal (get_required v1 n) (get_required v2 n)) 
+  (fun n -> equal (get_required t1 n) (get_required t2 n)) 
+  names) *)
+
+let rec included_in t1 t2 =
+  if t1 == t2 then true else
+  let names = dom t1 in
+  Name.Set.subset names (dom t2) &&
+  Name.Set.for_all
+    (fun n -> included_in (get_required t1 n) (get_required t2 n)) 
     names
 
-let rec included_in v1 v2 =
-  if v1 == v2 then true else
-  let names = dom v1 in
-  Name.Set.subset names (dom v2) &&
-  Name.Set.for_all
-    (fun n -> included_in (get_required v1 n) (get_required v2 n)) 
-    names
-
-(* let equal_opt v1o v2o = *)
-(*   match v1o, v2o with *)
-(*     None, None -> true *)
-(*   | Some v1, Some v2 -> equal v1 v2 *)
-(*   | _, _ -> false *)
-
-let rec compare v1 v2 =
-  let dv1, dv2 = dom v1, dom v2 in
-  let dcmp = Name.Set.compare dv1 dv2 in
+let rec compare t1 t2 =
+  let dt1, dt2 = dom t1, dom t2 in
+  let dcmp = Name.Set.compare dt1 dt2 in
   if dcmp <> 0 then dcmp else
   List.fold_left
     (fun acc n ->
       if acc <> 0 then acc else
-      compare (get_required v1 n) (get_required v2 n))
+      compare (get_required t1 n) (get_required t2 n))
     0
-    (Name.Set.elements dv1)
+    (Name.Set.elements dt1)
 
-let fold f (VI m) c = Name.Map.fold f m c
+let fold f t0 c = Name.Map.fold f t0.map c
 
-(* let map f v = *)
-(*     fold (fun k vk vacc -> set_unsafe vacc k (f vk)) v empty *)
+let to_list t0 =
+  Safelist.rev (fold (fun n k acc -> (n,k) :: acc) t0 [])
 
-(* let mapi f v = *)
-(*     fold (fun k vk vacc -> set_unsafe vacc k (f k vk)) v empty *)
-
-(* let for_all f = function VI (_,v) -> *)
-(*   Name.Map.for_all f v *)
-
-(* let for_alli f = function VI (_,v) -> *)
-(*   Name.Map.for_alli f v *)
-
-let to_list v =
-  Safelist.rev (fold (fun n k acc -> (n,k) :: acc) v [])
-
-let concat v1 v2 =
-  let binds = (to_list v1) @ (to_list v2) in
+let concat t1 t2 =
+  let binds = (to_list t1) @ (to_list t2) in
   try
     from_list binds
   with
-  | Invalid_argument _ -> raise 
-                           ( Error.Harmony_error 
-                               (fun () -> 
-                                  Util.format "Tree.concat: domain collision between the following two trees:";
-                                  format_t v1;
-                                  format_t v2))
+  | Invalid_argument _ -> 
+      raise 
+        ( Error.Harmony_error 
+            (fun () -> 
+               Util.format "Tree.concat: domain collision between the following two trees:";
+               format_t t1;
+               format_t t2))
 
-(* let iter f (VI (_,m)) = Name.Map.iter f m *)
-
-let split p v =
+let split p t0 =
   let binds1,binds2 =
     fold
-      (fun k kv (v1acc,v2acc) ->
-        if p k then
-          ((k,Some kv)::v1acc,v2acc)
-        else
-          (v1acc, (k,Some kv)::v2acc))
-      v ([],[]) in
-  (create_star binds1, create_star binds2)
+      (fun k tk (t1acc,t2acc) ->
+        if p k then ((k,tk)::t1acc,t2acc)
+        else (t1acc,(k,tk)::t2acc))
+      t0 ([],[]) in
+    (from_list binds1, from_list binds2)
 
-(* let same_root_sort v1 v2 = *)
-(*   Name.Set.equal (dom v1) (dom v2) *)
+let string_of_t t0 = Util.format_to_string (fun () -> format_t t0)
 
-let rec format_raw (VI m) =
-  Name.Map.dump 
-    (fun ks -> ks)
-    Misc.whack 
-    (fun x -> format_raw x) 
-    (fun (VI m) -> Name.Map.is_empty m)
-    m  
-
-let string_of_t v = Util.format_to_string (fun () -> format_t v)
-
-let pathchange path m v =
+let pathchange path m t0 =
   Util.format "%s: %s@,"
     (String.concat "/" (Safelist.rev (Safelist.map Misc.whack path)))
     m;
   Util.format "  @[";
-  format_t v;
+  format_t t0;
   Util.format "@]@,"
 
-let rec show_diffs_inner v u path =
-  let vkids = dom v in
-  let ukids = dom u in
-  let allkids = Name.Set.union vkids ukids in
+let rec show_diffs_inner t1 t2 path =
+  let t1_kids = dom t1 in
+  let t2_kids = dom t1 in
+  let all_kids = Name.Set.union t1_kids t2_kids in
   Name.Set.iter
     (fun k ->
-       let path = k::path in
-       match (get v k, get u k) with
-         None, None -> assert false
-       | Some vk, None -> pathchange path "deleted value" vk
-       | None, Some uk -> pathchange path "created with value" uk
-       | Some vk, Some uk -> show_diffs_inner vk uk path)
-    allkids
+      let path = k::path in
+        match (get t1 k, get t2 k) with
+            None, None -> assert false
+          | Some t1k, None -> pathchange path "deleted value" t1k
+          | None, Some t2k -> pathchange path "created with value" t2k
+          | Some t1k, Some t2k -> show_diffs_inner t1k t2k path)
+    all_kids
 
-let rec show_diffs v u =
+let rec show_diffs t1 t2 =
   Util.format "@[<v0>";
-  show_diffs_inner v u [];
+  show_diffs_inner t1 t2 [];
   Util.format "@]"
 
-(* CK's old pretty printer for trees *)
-(* let rec pretty_print ((VI (_,m)) as v) = *)
-(*   if is_list v then  *)
-(*     begin (\* A list *\) *)
-(*       let rec loop pp lst =  *)
-(*         match lst with *)
-(*             [] -> () *)
-(*           | [kid] -> pp kid  *)
-(*           | kid::rest -> pp kid; Util.format ",@ "; loop pp rest  *)
-(*       in *)
-(*       let rec pp v =  *)
-(*         if is_value v then  *)
-(*           Format.print_string (get_value v) *)
-(*         else  *)
-(*           pretty_print v *)
-(*       in *)
-(*       let lst = list_from_structure v in *)
-(*         Util.format "[@[<hv0>"; *)
-(*         loop pp lst; *)
-(*         Util.format "@]]" *)
-(*     end  *)
-(*   else  *)
-(*     begin *)
-(*       if (is_value v) then  *)
-(*         begin (\* A value *\) *)
-(*           Util.format "{%s}" (Misc.whack (get_value v)) *)
-(*         end *)
-(*       else  *)
-(*         begin  *)
-(*           if (Name.Map.for_all (fun kid -> is_empty kid) m) then *)
-(*             begin (\* All entries are values - so print only labels *\) *)
-(*               Util.format "{@[<hv0>"; *)
-(*               Name.Map.iter_with_sep *)
-(*                 (fun k kid -> Util.format "%s" (Misc.whack k)) *)
-(*                 (fun() -> Util.format ",@ ") *)
-(*                 m;               *)
-(*               Util.format "@]}"; *)
-(*             end *)
-(*           else  *)
-(*             begin (\* Not all entres are values *\) *)
-(*               Util.format "@[<hv0>"; *)
-(*               Util.format "{@[<hv0>"; *)
-(*               (\* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *\) *)
-(*               Name.Map.iter_with_sep *)
-(*                 (fun k kid ->  *)
-(*                    Util.format "@[<hv0>%s =@ " (Misc.whack k); *)
-(*                    pretty_print kid; *)
-(*                    Util.format "@]") *)
-(*                 (fun() -> (Util.format ",";Format.force_newline ())) *)
-(*                 m; *)
-(*               Util.format "@]"; *)
-(*               (\* REMOVE?: if (Name.Map.size m) > 1 then Format.force_newline () else (); *\) *)
-(*               Util.format "}"; *)
-(*               Util.format "@]"; *)
-(*             end *)
-(*         end *)
-(*     end  *)

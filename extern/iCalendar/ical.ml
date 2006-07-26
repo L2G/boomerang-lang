@@ -63,8 +63,8 @@ let print_illformed_exc s vl =
   (`String s) :: (`Break) :: (List.map (fun v -> `Tree v) vl)
 
 let view_from_bool = function
-  | true -> Tree.new_value "#true"
-  | false -> Tree.new_value "#false"
+  | true -> Tree.mk_value "#true"
+  | false -> Tree.mk_value "#false"
 
 let bool_from_view v =
   match Tree.get_value v with
@@ -77,9 +77,9 @@ let viewpair_from_xplist = function
   | x -> ["xplist", 
               Tree.structure_from_list
                 (Safelist.map ( fun (s, sl) ->
-                                Tree.from_list [ "name", Tree.new_value s;
+                                Tree.from_list [ "name", Tree.mk_value s;
                                               "val" , Tree.structure_from_list 
-                                                        (Safelist.map Tree.new_value sl)
+                                                        (Safelist.map Tree.mk_value sl)
                                             ]
                               )
                               x
@@ -103,39 +103,39 @@ let viewpair_from_allparams a =
   let l = Safelist.flatten [
     (match a.altrepparam with
      | None -> []
-     | Some s -> ["altrepparam", Tree.new_value s]
+     | Some s -> ["altrepparam", Tree.mk_value s]
     );
     (match a.cnparam with
      | None -> []
-     | Some s -> ["cnparam", Tree.new_value s]
+     | Some s -> ["cnparam", Tree.mk_value s]
     );
     (match a.cutypeparam with
     | None -> []
     | Some ct ->
-        ["cutypeparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_cutype ct)]
+        ["cutypeparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_cutype ct)]
     );
     (match a.delfromparam with
     | [] -> []
     | l ->
-        ["delfromparam", Tree.structure_from_list (Safelist.map Tree.new_value l)]
+        ["delfromparam", Tree.structure_from_list (Safelist.map Tree.mk_value l)]
     );
     (match a.deltoparam with
     | [] -> []
     | l ->
-        ["deltoparam", Tree.structure_from_list (Safelist.map Tree.new_value l)]
+        ["deltoparam", Tree.structure_from_list (Safelist.map Tree.mk_value l)]
     );
     (match a.dirparam with
      | None -> []
-     | Some s -> ["dirparam", Tree.new_value s]
+     | Some s -> ["dirparam", Tree.mk_value s]
     );
     (match a.encodingparam with
     | None -> []
     | Some en ->
-        ["encodingparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_encoding en)]
+        ["encodingparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_encoding en)]
     );
     (match a.fmttypeparam with
      | None -> []
-     | Some s -> ["fmttypeparam", Tree.new_value s]
+     | Some s -> ["fmttypeparam", Tree.mk_value s]
     );
     (match a.fbtypeparam with
      | None -> []
@@ -143,32 +143,32 @@ let viewpair_from_allparams a =
     );
     (match a.langparam with
      | None -> []
-     | Some s -> ["langparam", Tree.new_value s]
+     | Some s -> ["langparam", Tree.mk_value s]
     );
     (match a.memberparam with
     | [] -> []
     | l ->
-        ["memberparam", Tree.structure_from_list (Safelist.map Tree.new_value l)]
+        ["memberparam", Tree.structure_from_list (Safelist.map Tree.mk_value l)]
     );
     (match a.partstatparam with
     | None -> []
     | Some pa ->
-        ["partstatparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_partstat pa)]
+        ["partstatparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_partstat pa)]
     );
     (match a.rangeparam with
     | None -> []
     | Some ra ->
-        ["rangeparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_range ra)]
+        ["rangeparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_range ra)]
     );
     (match a.reltypeparam with
     | None -> []
     | Some ra ->
-        ["reltypeparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_reltypeparam ra)]
+        ["reltypeparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_reltypeparam ra)]
     );
     (match a.roleparam with
     | None -> []
     | Some ra ->
-        ["roleparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_role ra)]
+        ["roleparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_role ra)]
     );
     (match a.rsvpparam with
      | None -> []
@@ -176,21 +176,21 @@ let viewpair_from_allparams a =
     );
     (match a.sentbyparam with
      | None -> []
-     | Some s -> ["sentbyparam", Tree.new_value s]
+     | Some s -> ["sentbyparam", Tree.mk_value s]
     );
     (match a.trigrelparam with
     | None -> []
     | Some ra ->
-        ["trigrelparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_trigrel ra)]
+        ["trigrelparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_trigrel ra)]
     );
     (match a.tzidparam with
      | None -> []
-     | Some (b,t) -> ["tzidparam", Tree.from_list ["global", view_from_bool b; "val", Tree.new_value t]]
+     | Some (b,t) -> ["tzidparam", Tree.from_list ["global", view_from_bool b; "val", Tree.mk_value t]]
     );
     (match a.valuetypeparam with
     | None -> []
     | Some va ->
-        ["valuetypeparam", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_valuetype va)]
+        ["valuetypeparam", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_valuetype va)]
     );
     viewpair_from_xplist a.xplist
   ]
@@ -315,8 +315,8 @@ let view_from_attach a =
   Tree.from_list
     (("val", 
         match a.attachval with
-        | AttBinary b -> Tree.from_list ["AttBinary", Tree.new_value b]
-        | AttUri    u -> Tree.from_list ["AttUri", Tree.new_value u])
+        | AttBinary b -> Tree.from_list ["AttBinary", Tree.mk_value b]
+        | AttUri    u -> Tree.from_list ["AttUri", Tree.mk_value u])
      :: 
      (viewpair_from_allparams a.attachparam))
       
@@ -335,7 +335,7 @@ let attach_from_view v =
 	
 let view_from_attendee a =
   Tree.from_list
-    (("val", Tree.new_value a.attendeeval)
+    (("val", Tree.mk_value a.attendeeval)
      :: 
      (viewpair_from_allparams a.attendeeparam))
       
@@ -347,7 +347,7 @@ let attendee_from_view v =
 
 let view_from_categories c =
   Tree.from_list
-    (("val", Tree.structure_from_list (Safelist.map Tree.new_value c.categoriesval))
+    (("val", Tree.structure_from_list (Safelist.map Tree.mk_value c.categoriesval))
      :: 
      (viewpair_from_allparams c.categoriesparam))
       
@@ -359,7 +359,7 @@ let categories_from_view v =
 
 let view_from_comment a =
   Tree.from_list
-    (("val", Tree.new_value a.commenttext)
+    (("val", Tree.mk_value a.commenttext)
      :: 
      (viewpair_from_allparams a.commentparam))
       
@@ -371,7 +371,7 @@ let comment_from_view v =
     
 let view_from_contact a =
   Tree.from_list
-    (("val", Tree.new_value a.contacttext)
+    (("val", Tree.mk_value a.contacttext)
      :: 
      (viewpair_from_allparams a.contactparam))
       
@@ -383,9 +383,9 @@ let contact_from_view v =
 
 let view_from_date { year = y; month = m; day = d} =
   Tree.from_list [
-    "year", Tree.new_value (Printf.sprintf "%04d" y);
-    "month", Tree.new_value (Printf.sprintf "%02d" m);
-    "day", Tree.new_value (Printf.sprintf "%02d" d)
+    "year", Tree.mk_value (Printf.sprintf "%04d" y);
+    "month", Tree.mk_value (Printf.sprintf "%02d" m);
+    "day", Tree.mk_value (Printf.sprintf "%02d" d)
   ]
 
 let date_from_view v =
@@ -398,9 +398,9 @@ let date_from_view v =
     
 let view_from_time { hour = h; minute = m; second = s; zulu = z } =
   Tree.from_list [
-    "hour", Tree.new_value (Printf.sprintf "%02d" h);
-    "minute", Tree.new_value (Printf.sprintf "%02d" m);
-    "second", Tree.new_value (Printf.sprintf "%02d" s);
+    "hour", Tree.mk_value (Printf.sprintf "%02d" h);
+    "minute", Tree.mk_value (Printf.sprintf "%02d" m);
+    "second", Tree.mk_value (Printf.sprintf "%02d" s);
     "zulu", view_from_bool z
     ]
 
@@ -433,7 +433,7 @@ let dtxp_from_view v =
   
 let view_from_description d =
   Tree.from_list
-    (("val", Tree.new_value d.desctext)
+    (("val", Tree.mk_value d.desctext)
      :: 
      (viewpair_from_allparams d.descparam))
       
@@ -444,9 +444,9 @@ let description_from_view v =
     })
     
 let view_from_dur_time { dur_hour = h; dur_minute = m; dur_second = s } =
-  Tree.from_list ["hour", Tree.new_value (string_of_int h);
-               "minute", Tree.new_value (string_of_int m);
-               "second", Tree.new_value (string_of_int s)]
+  Tree.from_list ["hour", Tree.mk_value (string_of_int h);
+               "minute", Tree.mk_value (string_of_int m);
+               "second", Tree.mk_value (string_of_int s)]
 
 let dur_time_from_view v =
   Error.exit_on_error ( fun () ->
@@ -456,8 +456,8 @@ let dur_time_from_view v =
     })
 
 let view_from_dur_date = function
-  | i, None -> Tree.from_list ["Day", Tree.new_value (string_of_int i)]
-  | i, Some t -> Tree.from_list ["Day", Tree.new_value (string_of_int i); "Time", view_from_dur_time t]
+  | i, None -> Tree.from_list ["Day", Tree.mk_value (string_of_int i)]
+  | i, Some t -> Tree.from_list ["Day", Tree.mk_value (string_of_int i); "Time", view_from_dur_time t]
 
 let dur_date_from_view v =
   Error.exit_on_error ( fun () ->
@@ -468,7 +468,7 @@ let dur_date_from_view v =
       )
     
 let  view_from_dur_length = function
-  | DurWeek d -> Tree.from_list ["DurWeek", Tree.new_value (string_of_int d)]
+  | DurWeek d -> Tree.from_list ["DurWeek", Tree.mk_value (string_of_int d)]
   | DurTime t -> Tree.from_list ["DurTime", view_from_dur_time t]
   | DurDate d -> Tree.from_list ["DurDate", view_from_dur_date d]
 
@@ -552,7 +552,7 @@ let dtpl_from_view v =
 
 let viewpair_from_recur_end = function
   | RecUntil d -> ["end", (Tree.from_list ["until", view_from_dtpval d])]
-  | RecCount i -> ["end", (Tree.from_list ["count", Tree.new_value (string_of_int i)])]
+  | RecCount i -> ["end", (Tree.from_list ["count", Tree.mk_value (string_of_int i)])]
   | RecNone -> []
 
 let recur_end_from_view v =
@@ -567,10 +567,10 @@ let recur_end_from_view v =
   
 let view_from_bydayelt (i, w) =
   Tree.from_list (
-    ("weekday", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_weekday w)) ::
+    ("weekday", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_weekday w)) ::
     (match i with
     | None -> []
-    | Some i -> ["which", Tree.new_value (string_of_int i)]))
+    | Some i -> ["which", Tree.mk_value (string_of_int i)]))
 
 let bydayelt_from_view v =
   Error.exit_on_error ( fun () ->
@@ -583,44 +583,44 @@ let bydayelt_from_view v =
 
 let view_from_recur r =
   Tree.from_list (Safelist.flatten [
-    ["freq", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_freq r.recur_freq)];
+    ["freq", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_freq r.recur_freq)];
     (viewpair_from_recur_end r.recur_end);
     (match r.recur_interval with
     | None -> []
-    | Some i -> ["interval", Tree.new_value (string_of_int i)]);
+    | Some i -> ["interval", Tree.mk_value (string_of_int i)]);
     (match r.recur_bysec with
     | [] -> []
-    | l -> ["bysecond", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["bysecond", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_bymin with
     | [] -> []
-    | l -> ["byminute", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["byminute", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_byhour with
     | [] -> []
-    | l -> ["byhour", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["byhour", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_byday with
     | [] -> []
     | l -> ["byday", Tree.structure_from_list (Safelist.map view_from_bydayelt l)]);
     (match r.recur_bymonthday with
     | [] -> []
-    | l -> ["bymonthday", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["bymonthday", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_byyearday with
     | [] -> []
-    | l -> ["byyearday", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["byyearday", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_byweekno with
     | [] -> []
-    | l -> ["byweekno", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["byweekno", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_bymonth with
     | [] -> []
-    | l -> ["bymonth", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["bymonth", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_bysetpos with
     | [] -> []
-    | l -> ["bysetpos", Tree.structure_from_list (Safelist.map (fun e -> Tree.new_value (string_of_int e)) l)]);
+    | l -> ["bysetpos", Tree.structure_from_list (Safelist.map (fun e -> Tree.mk_value (string_of_int e)) l)]);
     (match r.recur_wkstart with
     | None -> []
-    | Some w -> ["wkstart", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_weekday w)]);
+    | Some w -> ["wkstart", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_weekday w)]);
     (match r.recur_bytext with
     | None -> []
-    | Some (n,t) -> ["bytext", Tree.from_list ["name", Tree.new_value n; "val", Tree.new_value t]])
+    | Some (n,t) -> ["bytext", Tree.from_list ["name", Tree.mk_value n; "val", Tree.mk_value t]])
   ])
 
 let recur_from_view v =
@@ -679,7 +679,7 @@ let recur_from_view v =
     })
 let view_from_location l =
   Tree.from_list
-    (("val", Tree.new_value l.loctext)
+    (("val", Tree.mk_value l.loctext)
      :: 
      (viewpair_from_allparams l.locparam))
       
@@ -691,7 +691,7 @@ let location_from_view v =
 
 let view_from_organizer o =
   Tree.from_list
-    (("val", Tree.new_value o.org_cal_address)
+    (("val", Tree.mk_value o.org_cal_address)
      :: 
      (viewpair_from_allparams o.orgparam))
       
@@ -715,7 +715,7 @@ let recurid_from_view v =
     
 let view_from_related_to r =
   Tree.from_list
-    (("val", Tree.new_value r.relatedtotext)
+    (("val", Tree.mk_value r.relatedtotext)
      :: 
      (viewpair_from_allparams r.relatedtoparam))
       
@@ -727,7 +727,7 @@ let related_to_from_view v =
 
 let view_from_resources r =
   Tree.from_list
-    (("val", Tree.structure_from_list (Safelist.map Tree.new_value r.resourcesval))
+    (("val", Tree.structure_from_list (Safelist.map Tree.mk_value r.resourcesval))
      :: 
      (viewpair_from_allparams r.resourcesparam))
       
@@ -740,11 +740,11 @@ let resources_from_view v =
 let view_from_rstatus r =
   Tree.from_list
   (Safelist.flatten [
-    ["code", Tree.structure_from_list (Safelist.map (fun c -> Tree.new_value (string_of_int c)) r.statcode)];
-    ["text", Tree.new_value r.stattext];
+    ["code", Tree.structure_from_list (Safelist.map (fun c -> Tree.mk_value (string_of_int c)) r.statcode)];
+    ["text", Tree.mk_value r.stattext];
     (match r.extdata with
     | None -> []
-    | Some t -> ["extdata", Tree.new_value t]);
+    | Some t -> ["extdata", Tree.mk_value t]);
     (viewpair_from_allparams r.rstatparam)])
       
 let rstatus_from_view v =
@@ -761,7 +761,7 @@ let rstatus_from_view v =
 
 let view_from_summary s =
   Tree.from_list
-    (("val", Tree.new_value s.sumtext)
+    (("val", Tree.mk_value s.sumtext)
      :: 
      (viewpair_from_allparams s.sumparam))
       
@@ -785,7 +785,7 @@ let trigger_from_view v =
 
 let view_from_tzname t =
   Tree.from_list
-    (("val", Tree.new_value t.tznameval)
+    (("val", Tree.mk_value t.tznameval)
      :: 
      (viewpair_from_allparams t.tznameparam))
       
@@ -797,9 +797,9 @@ let tzname_from_view v =
 
 let view_from_offset_time { positive = p; off_h = h; off_m = m; off_s = s } =
   Tree.from_list ["positive", view_from_bool p;
-               "hour", Tree.new_value (string_of_int h);
-               "minute", Tree.new_value (string_of_int m);
-               "second", Tree.new_value (string_of_int s)]
+               "hour", Tree.mk_value (string_of_int h);
+               "minute", Tree.mk_value (string_of_int m);
+               "second", Tree.mk_value (string_of_int s)]
 
 let offset_time_from_view v =
   Error.exit_on_error ( fun () ->
@@ -815,7 +815,7 @@ let rec view_from_comp_prop c =
     | None -> []
     | Some (xpl, act) ->
         [ "action", Tree.from_list (("val", 
-                                     Tree.new_value (ICalendar_print.tostring ICalendar_print.print_actionval act))
+                                     Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_actionval act))
                                :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_attach with
     | [] -> []
@@ -830,7 +830,7 @@ let rec view_from_comp_prop c =
     | None -> []
     | Some (xpl, cl) ->
         [ "class", Tree.from_list (("val", 
-                                     Tree.new_value (ICalendar_print.tostring ICalendar_print.print_classval cl))
+                                     Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_classval cl))
                                :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_comment with
     | [] -> []
@@ -890,8 +890,8 @@ let rec view_from_comp_prop c =
     (match c.comp_geo with
     | None -> []
     | Some (xpl, (lat, lon)) ->
-        [ "geo", Tree.from_list (    ("latitude", Tree.new_value (string_of_float lat))
-                               :: ("longitude", Tree.new_value (string_of_float lon))
+        [ "geo", Tree.from_list (    ("latitude", Tree.mk_value (string_of_float lat))
+                               :: ("longitude", Tree.mk_value (string_of_float lon))
                                :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_lastmod with
     | None -> []
@@ -907,12 +907,12 @@ let rec view_from_comp_prop c =
     (match c.comp_percent with
     | None -> []
     | Some (xpl,p) -> 
-	[ "percent", Tree.from_list (("val", Tree.new_value (string_of_int p))
+	[ "percent", Tree.from_list (("val", Tree.mk_value (string_of_int p))
                                   :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_priority with
     | None -> []
     | Some (xpl, p) ->
-        [ "priority", Tree.from_list (("val", Tree.new_value (string_of_int p))
+        [ "priority", Tree.from_list (("val", Tree.mk_value (string_of_int p))
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_rdate with
     | [] -> []
@@ -926,7 +926,7 @@ let rec view_from_comp_prop c =
     (match c.comp_repeat with
     | None -> []
     | Some (xpl, r) ->
-        [ "repeat", Tree.from_list (("val", Tree.new_value (string_of_int r))
+        [ "repeat", Tree.from_list (("val", Tree.mk_value (string_of_int r))
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_resources with
     | [] -> []
@@ -945,7 +945,7 @@ let rec view_from_comp_prop c =
     (match c.comp_seq with
     | None -> []
     | Some (xpl, r) ->
-        [ "seq", Tree.from_list (("val", Tree.new_value (string_of_int r))
+        [ "seq", Tree.from_list (("val", Tree.mk_value (string_of_int r))
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_standardc with
     | [] -> []
@@ -953,7 +953,7 @@ let rec view_from_comp_prop c =
     (match c.comp_status with
     | None -> []
     | Some (xpl, r) ->
-        [ "status", Tree.from_list (("val", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_status_val r))
+        [ "status", Tree.from_list (("val", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_status_val r))
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_summary with
     | None -> []
@@ -962,7 +962,7 @@ let rec view_from_comp_prop c =
     (match c.comp_transp with
     | None -> []
     | Some (xpl, r) ->
-        [ "transp", Tree.from_list (("val", Tree.new_value (ICalendar_print.tostring ICalendar_print.print_transvalue r))
+        [ "transp", Tree.from_list (("val", Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_transvalue r))
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_trigger with
     | None -> []
@@ -971,7 +971,7 @@ let rec view_from_comp_prop c =
     | None -> []
     | Some (xpl, glob, v) ->
         [ "tzid", Tree.from_list (    ("global", view_from_bool glob)
-                               :: ("val", Tree.new_value v)
+                               :: ("val", Tree.mk_value v)
                                :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_tzname with
     | [] -> []
@@ -989,17 +989,17 @@ let rec view_from_comp_prop c =
     (match c.comp_tzurl with
     | None -> []
     | Some (xpl, o) ->
-        [ "tzurl", Tree.from_list (("val", Tree.new_value o)
+        [ "tzurl", Tree.from_list (("val", Tree.mk_value o)
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_uid with
     | None -> []
     | Some (xpl, o) ->
-        [ "uid", Tree.from_list (("val", Tree.new_value o)
+        [ "uid", Tree.from_list (("val", Tree.mk_value o)
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_url with
     | None -> []
     | Some (xpl, o) ->
-        [ "url", Tree.from_list (("val", Tree.new_value o)
+        [ "url", Tree.from_list (("val", Tree.mk_value o)
                                    :: (viewpair_from_xplist xpl)) ]);
     (match c.comp_xprop with
     | [] -> []
@@ -1009,9 +1009,9 @@ let rec view_from_comp_prop c =
             (Safelist.map
                (fun (name, params, s) -> Tree.from_list   
                                                 (Safelist.flatten
-                                                  [ [ "name", Tree.new_value name ];
+                                                  [ [ "name", Tree.mk_value name ];
                                                     viewpair_from_allparams params;
-                                                    [ "val", Tree.new_value s ]
+                                                    [ "val", Tree.mk_value s ]
                                                   ])
                 )
                c.comp_xprop
@@ -1295,17 +1295,17 @@ let component_list_from_view_opt = function
       
 let view_from_component = function
   | Eventc { event_comp = c; event_alarms = a } ->
-      Tree.from_list ["type", Tree.new_value "Eventc";
+      Tree.from_list ["type", Tree.mk_value "Eventc";
                    "val",  Tree.from_list (("props", view_from_comp_prop c) ::
                                         (viewpair_from_component_list "alarms" a))
     ]
   | Todoc { todo_comp = c; todo_alarms = a } ->
-      Tree.from_list ["type", Tree.new_value "Todoc";
+      Tree.from_list ["type", Tree.mk_value "Todoc";
 		    "val", Tree.from_list (("props", view_from_comp_prop c) ::
 					(viewpair_from_component_list "alarms" a))
 		  ]
   | Timezonec v ->
-      Tree.from_list ["type", Tree.new_value "Timezonec";
+      Tree.from_list ["type", Tree.mk_value "Timezonec";
                    "val",  view_from_comp_prop v]
 
 let component_from_view v =
@@ -1326,20 +1326,20 @@ let components_from_view v = Safelist.map component_from_view (Tree.list_from_st
 let view_from_calprops p =
   let l = Safelist.flatten [
     (match p.prodid with
-    | xpl, s -> ["prodid", Tree.from_list (("val", Tree.new_value s) :: (viewpair_from_xplist xpl)) ]);
+    | xpl, s -> ["prodid", Tree.from_list (("val", Tree.mk_value s) :: (viewpair_from_xplist xpl)) ]);
     (match p.version with
-    | xpl, s -> ["version", Tree.from_list (("val", Tree.new_value s) :: (viewpair_from_xplist xpl)) ]);
+    | xpl, s -> ["version", Tree.from_list (("val", Tree.mk_value s) :: (viewpair_from_xplist xpl)) ]);
     (match p.calscale with
     | None -> []
     | Some (xpl, cv) ->
         ["calscale", Tree.from_list (("val", 
-                                   Tree.new_value (ICalendar_print.tostring ICalendar_print.print_calvalue cv))
+                                   Tree.mk_value (ICalendar_print.tostring ICalendar_print.print_calvalue cv))
 				  :: (viewpair_from_xplist xpl))
         ]);
     (match p.imethod with
     | None -> []
     | Some (xpl, s) ->
-        ["method", Tree.from_list (("val", Tree.new_value s) ::
+        ["method", Tree.from_list (("val", Tree.mk_value s) ::
                                 (viewpair_from_xplist xpl))
         ]);
     (match p.xprop with
@@ -1350,9 +1350,9 @@ let view_from_calprops p =
             (Safelist.map
                (fun (name, params, s) -> Tree.from_list   
                                                 (Safelist.flatten
-                                                  [ [ "name", Tree.new_value name ];
+                                                  [ [ "name", Tree.mk_value name ];
                                                     viewpair_from_allparams params;
-                                                    [ "val", Tree.new_value s ]
+                                                    [ "val", Tree.mk_value s ]
                                                   ])
                 )
                p.xprop

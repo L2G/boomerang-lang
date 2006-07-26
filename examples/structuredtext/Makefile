@@ -35,6 +35,11 @@ temp2:
 	make
 	./harmonize-structuredtext -ar temp-o.txt -r1 temp-a.txt -r2 temp-b.txt -newar temp-o.txt.tmp -newr1 temp-a.txt.tmp -newr2 temp-b.txt.tmp -debug all -debug registry+
 
+test-prof: 
+	$(HARMONY) -ar junk.txt -r1 junk.txt -r2 junk.txt \
+        -lensr1 Structuredtext.text_with_combined_headers -lensr2 Structuredtext.text_with_combined_headers -lensar Structuredtext.text_with_combined_headers \
+        -dryrun
+
 test::
 	$(HARMONY) -check Structuredtext -test-all
 

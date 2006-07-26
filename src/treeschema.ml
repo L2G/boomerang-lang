@@ -7,22 +7,24 @@
 (*************************************************************)
 (* $Id$ *)
 
-(* -------------- imports / abbreviations -------------- *)
+(* -------------- imports / abbreviations / instantiations -------------- *)
 let (@) = Safelist.append
 let sprintf = Printf.sprintf
 let debug = Trace.debug "schema" 
 let fresh = Syntax.fresh
+
 module NS = Name.Set
 module NM = Name.Map 
 module P = Presburger
-module IM = P.IntMap
+module IM = Int.Map
+module IS = Int.Set
+module ISS = Int.SetSet
 
+(* ---- regular expression module ---- *)
 module type SRegExp = sig 
   type t 
   val mk_singleton : Name.t -> t
   val mk_cofinite : Name.t list -> t
-  (* NUKE: *)
-  val fformat_t : Format.formatter -> t -> unit
   val format_t : t -> unit
   val isect : t -> t -> t option
   val finite_domain : t -> Name.Set.t option
@@ -35,11 +37,10 @@ end
 
 module RegExp : SRegExp = struct
   type t = Single of Name.t | CoFinite of NS.t
-  let fformat_t fmtr = function 
-      Single(n)    -> Format.fprintf fmtr "@[%s@]" (Misc.whack n)
-    | (CoFinite ns) -> Format.fprintf fmtr "@[~{%s}@]" 
+  let format_t = function 
+      Single(n)    -> Util.format "@[%s@]" (Misc.whack n)
+    | (CoFinite ns) -> Util.format "@[~{%s}@]" 
         (Misc.concat_list "," (Safelist.map Misc.whack (NS.elements ns)))
-  let format_t = fformat_t Format.std_formatter
   let mk_singleton n = Single(n)
   let mk_cofinite l = 
     let ns = Safelist.fold_left 
@@ -66,11 +67,24 @@ module RegExp : SRegExp = struct
       Single m -> m=n
     | CoFinite ns -> not (NS.mem n ns)
 end 
-
 module R = RegExp
 
-(* --------------- schema representation --------------- *)
+(* --- helper functions ---- *)  
+let map_opt o f = match o with
+    None -> None
+  | Some a -> Some (f a)
 
+let map_opto o f = match o with
+    None -> None
+  | Some a -> (f a)
+
+let zero_of_var xi = P.mkEq P.zero (P.mkVar xi) 
+let one_of_var xi = P.mkEq P.one (P.mkVar xi) 
+let sum_of_int_list l = P.mkSum (Safelist.map P.mkVar l)
+let sum_of_int_set s = P.mkSum (Int.Set.fold (fun ei a -> P.mkVar ei::a) s [])
+let sum_of_int_state_list l = P.mkSum (Safelist.map (fun (xi,_) -> P.mkVar xi) l) 
+
+(* --------------- schema representation --------------- *)
 (* to handle recursive definitions, we need to be able to represent
  * intersections, differences, and unions of types symbolically. the
  * algorithms in this module build and manipulate an implicit automaton
@@ -99,10 +113,44 @@ module CSet = Set.Make(
 (* automaton states either one of several common constants, or a CSet.t *)
 type state = True | False | EmptyView | NonEmptyView | CS of CSet.t
 
+let compare_state s1 s2 = match s1,s2 with
+    True,True | False,False | EmptyView,EmptyView | NonEmptyView,NonEmptyView -> 0
+  | CS x1, CS x2 -> CSet.compare x1 x2
+  | True,_ -> -1
+  | _,True -> 1
+  | False,_ -> -1
+  | _,False -> -1
+  | EmptyView,_ -> -1
+  | _, EmptyView -> 1
+  | NonEmptyView,_ -> -1
+  | _,NonEmptyView -> 1
+
+(* sets of states, int * states *)
+module StateSet = Set.Make(
+  struct
+    type t = state
+    let compare = compare_state 
+  end)
+module SS = StateSet
+
+module IntStateSet = Set.Make(
+  struct
+    type t = int * state
+    let compare (i1,s1) (i2,s2) = 
+      let cmp1 = compare i1 i2 in 
+        if cmp1 <> 0 then cmp1 
+        else compare_state s1 s2
+  end)
+module IStS = IntStateSet      
+
 (* an element is a pair of a location and a state *)
 type elt = R.t * state
 
-(* syntactic reprsentations of schemas *)
+(* the datatype for schemas is either a variable given by a state, or
+   a counting formula over a proper basis *)
+type u = V of state | F of (Presburger.t * elt list) 
+
+(* syntactic reprsentations of schemas--used for pretty-printing*)
 type syn_t = 
     Var of state 
   | Atom of Name.t * syn_t 
@@ -115,9 +163,38 @@ type syn_t =
   | Inject of syn_t * syn_t
   | InjectMap of syn_t * (syn_t Name.Map.t)
 
-(* the type t of schemas is either a variable given by a state, or a a
-   counting formula over a proper basis *)
-type t = V of state | F of (Presburger.t * elt list) * syn_t
+(* counterexamples returned from member tests *)
+type counterexample = 
+    Domain of Name.Set.t 
+  | Child of Name.t * Tree.t
+                          
+(* result of a single step of a member test *)
+type member_step = 
+    StepYes 
+  | StepNo of counterexample 
+  | StepMaybe of Name.t * (Tree.t -> member_step)
+  
+(* final result of a member test *)
+type member_result = Yes | No of counterexample
+
+type t = { def : u; 
+           hash : int; 
+           syn : syn_t; 
+           first_step : Name.Set.t -> member_step; 
+           member : Tree.t -> member_result }
+
+let hash t0 = t0.hash
+
+let t_hash_mix = ref 0
+
+let compare_t t0 t1 = match t0.def,t1.def with
+    V(s1),V(s2)     -> compare s1 s2
+  | F(f1,es1),F(f2,es2) -> 
+      let cmp1 = P.compare_t f1 f2 in 
+        if cmp1 <> 0 then cmp1
+        else Misc.dict_cmp compare es1 es2
+  | V(_),F(_)       -> -1
+  | F(_),V(_)       -> 1
 
 (* --------------- conversions / simple operations --------------- *)
 let cset_of_cvar cx = CSet.singleton cx
@@ -127,11 +204,26 @@ let is_cvar s = CSet.cardinal s = 1
 let is_tvar s = (is_cvar s) && 
   let (is,ds) = CSet.choose s in
     (NS.cardinal is = 1) && (NS.is_empty ds)
-let is_var = function V _ -> true | _ -> false
+let is_var t0 = match t0.def with V _ -> true | _ -> false
 
-let syn_of_t t0 = match t0 with
-    V(x) -> Var(x)
-  | F(_,si) -> si
+let syn_of_t t0 = t0.syn
+
+(* ----- primitive type environment ------ *)
+module TVarEnv = Env.Make(
+  struct
+    type t = tvar
+    let compare = Pervasives.compare
+    let to_string x = x
+  end)
+
+let delta_tvar : (t TVarEnv.t ref) = ref (TVarEnv.empty ())
+let update_tvar x t = delta_tvar := (TVarEnv.update (!delta_tvar) x t)
+let lookup_tvar x = TVarEnv.lookup (!delta_tvar) x
+let lookup_tvar_required x = match lookup_tvar x with 
+    Some t -> t
+  | None -> raise (Error.Harmony_error 
+                     (fun () -> Util.format 
+                        "Treeschema.lookup_tvar_required: %s not found" x))
 
 (* --------------- formatting --------------- *)
 let string_of_cvar (is,ds) = 
@@ -157,40 +249,103 @@ let string_of_state s0 = match s0 with
   | NonEmptyView -> "T-{}"
   | CS s         -> string_of_cset s
 
-let fformat_state fmtr s0 = Format.fprintf fmtr "%s" (string_of_state s0)
-let format_state = fformat_state Format.std_formatter
+let format_state s0 = Util.format "%s" (string_of_state s0)
 
-let fformat_elt fmtr (r,x) = 
-  R.fformat_t fmtr r;
-  Format.fprintf fmtr "[";
-  fformat_state fmtr x;
-  Format.fprintf fmtr "]"
-
-(* --------------- maps, sets, environments, formatting ------------------ *)
-type this_t = t (* hack! *)
-
-module TVarEnv = Env.Make(
-  struct
-    type t = tvar
-    let compare = compare
-    let to_string x = x
-  end)
-
-let delta_tvar : (t TVarEnv.t ref) = ref (TVarEnv.empty ())
-let update_tvar x t = delta_tvar := (TVarEnv.update (!delta_tvar) x t)
-let lookup_tvar x = TVarEnv.lookup (!delta_tvar) x
-let lookup_tvar_required x = match lookup_tvar x with 
-    Some t -> t
-  | None -> raise (Error.Harmony_error 
-                     (fun () -> Util.format 
-                        "Treeschema.lookup_tvar_required: %s not found" x))
+let format_elt (r,x) = 
+  R.format_t r;
+  Util.format "[";
+  format_state x;
+  Util.format "]"
 
 (* pretty printing comes here; it only needs to know about tvars, but we need string_of_t 
 to instantiate Mapplus functor for full environments below *)
-
 type format_mode = FCat | FSimpleCat | FUnion | FInter | FNone
 
-let fformat_syn_t fmtr syn_t0 = 
+let rec format_one_syn mode = function
+    Var(x) -> format_state x
+  | Atom(n,t) -> 
+      Util.format "@[";
+      if mode <> FSimpleCat then Util.format "{"; 
+      Util.format "%s=" (Misc.whack n);
+      format_one_syn FNone t;
+      if mode <> FSimpleCat then Util.format "}";
+      Util.format "@]"
+  | Wild(f,l,u,t) -> 
+      Util.format "@[";
+      if mode <> FSimpleCat then Util.format "{";         
+      (match l,u with
+          0,true -> Util.format "*"
+        | n,b -> 
+            for i=1 to n do Util.format "!" done; 
+            if b then Util.format "*");
+      if not (Name.Set.is_empty f) then
+        (Util.format "~{@[";
+         Misc.format_list ",@ " 
+           (Util.format "%s") 
+           (Safelist.map Misc.whack (Name.Set.elements f));
+         Util.format "@]}");
+      Util.format "=@,";
+      format_one_syn FNone t;
+      if mode <> FSimpleCat then Util.format "}"; 
+      Util.format "@]" 
+  | Cat(ts)    -> 
+      let is_atoms = Safelist.for_all 
+        (function Atom(_) | Wild(_) -> true | _ -> false) ts in 
+        Util.format "@[";
+        (match mode,is_atoms with 
+            FSimpleCat, true | FCat,false -> ()
+          | _,true -> Util.format "{"            
+          | _ -> Util.format "(");
+        (if is_atoms then Misc.format_list ",@ " 
+          else Misc.format_list " +@ ") 
+          (format_one_syn (if is_atoms then FSimpleCat else FCat)) ts;
+        (match mode,is_atoms with 
+            FSimpleCat, true | FCat,false -> ()
+          | _,true -> Util.format "}"            
+          | _ -> Util.format ")");            
+        Util.format "@]"
+  | Union(ts)  -> 
+      Util.format "@[";
+      if mode <> FUnion then Util.format "("; 
+      Misc.format_list " |@ " (format_one_syn FUnion) ts;
+      if mode <> FUnion then Util.format ")";
+      Util.format "@]"
+  | Isect(ts)  ->
+      Util.format "@[";
+      if mode <> FInter then Util.format "("; 
+      Misc.format_list " &@ " (format_one_syn FInter) ts;
+      if mode <> FInter then Util.format ")";
+      Util.format "@]"
+  | Neg(t)     -> 
+      Util.format "~"; 
+      format_one_syn FNone t;
+  | Inject(t1,t2) -> 
+      Util.format "Inject(";
+      format_one_syn FNone t1;
+      Util.format ",@ ";
+      format_one_syn FNone t2;
+      Util.format ")"
+  | InjectMap(t1,tms) -> 
+      Util.format "InjectMap(";
+      format_one_syn FNone t1;
+      Util.format ",@ @[{";
+      let tms_size = NM.size tms in 
+      let _ = NM.fold 
+        (fun ni ti count -> 
+          Util.format "%s -> " (Misc.whack ni);
+          format_one_syn FNone ti;
+          if count < tms_size - 1 then Util.format ",@ ";
+          succ count)
+        tms 0 in 
+        Util.format "}@])"
+  | Restrict(t,ns,b) -> 
+      Util.format "Restrict(";
+      format_one_syn FNone t;
+      Util.format ",%s{%s})"
+        (if b then "" else "~")
+        (Misc.concat_list "," (Name.Set.elements ns)) 
+  
+let format_syn_t syn_t0 = 
   (* gather up all the tvars mentioned in a syn_t *)
   let rec collect acc = function
       [] -> acc
@@ -220,187 +375,100 @@ let fformat_syn_t fmtr syn_t0 =
             let tms = NM.fold (fun _ ti acc -> ti::acc) tm [] in
               collect acc (t1::tms@xs)
       end in
-  let rec format_one mode = function
-      Var(x) -> fformat_state fmtr x
-    | Atom(n,t) -> 
-        Format.fprintf fmtr "@[";
-        if mode <> FSimpleCat then Format.fprintf fmtr "{"; 
-        Format.fprintf fmtr "%s=" (Misc.whack n);
-        format_one FNone t;
-        if mode <> FSimpleCat then Format.fprintf fmtr "}";
-        Format.fprintf fmtr "@]"
-    | Wild(f,l,u,t) -> 
-        Format.fprintf fmtr "@[";
-        if mode <> FSimpleCat then Format.fprintf fmtr "{"; 
-        (match l,u with 
-             0,true -> Util.format "*"
-           | n,b -> 
-               for i=1 to n do Util.format "!" done; 
-               if b then Util.format "*");
-        if not (Name.Set.is_empty f) then
-          (Util.format "\\(@[";
-           Misc.fformat_list fmtr ",@ " 
-             (Format.fprintf fmtr "%s") 
-             (Safelist.map Misc.whack (Name.Set.elements f));
-           Util.format "@])");
-        Util.format "=@,";
-        format_one FNone t;
-        if mode <> FSimpleCat then Format.fprintf fmtr "}"; 
-        Util.format "@]" 
-    | Cat(ts)    -> 
-        let is_atoms = Safelist.for_all 
-          (function Atom(_) | Wild(_) -> true | _ -> false) ts in 
-        Format.fprintf fmtr "@[";
-          (match mode,is_atoms with 
-               FSimpleCat, true | FCat,false -> ()
-             | _,true -> Format.fprintf fmtr "{"            
-             | _ -> Format.fprintf fmtr "(");
-          (if is_atoms then Misc.fformat_list fmtr ",@ " 
-           else Misc.fformat_list fmtr " +@ ") 
-            (format_one (if is_atoms then FSimpleCat else FCat)) ts;
-          (match mode,is_atoms with 
-               FSimpleCat, true | FCat,false -> ()
-             | _,true -> Format.fprintf fmtr "}"            
-             | _ -> Format.fprintf fmtr ")");            
-          Format.fprintf fmtr "@]"
-    | Union(ts)  -> 
-        Format.fprintf fmtr "@[";
-        if mode <> FUnion then Format.fprintf fmtr "("; 
-        Misc.fformat_list fmtr " |@ " (format_one FUnion) ts;
-        if mode <> FUnion then Format.fprintf fmtr ")";
-        Format.fprintf fmtr "@]"
-    | Isect(ts)  ->
-        Format.fprintf fmtr "@[";
-        if mode <> FInter then Format.fprintf fmtr "("; 
-        Misc.fformat_list fmtr " &@ " (format_one FInter) ts;
-        if mode <> FInter then Format.fprintf fmtr ")";
-        Format.fprintf fmtr "@]"
-    | Neg(t)     -> 
-        Format.fprintf fmtr "~"; 
-        format_one FNone t;
-    | Inject(t1,t2) -> 
-        Format.fprintf fmtr "Inject(";
-        format_one FNone t1;
-        Format.fprintf fmtr ",@ ";
-        format_one FNone t2;
-        Format.fprintf fmtr ")"
-    | InjectMap(t1,tms) -> 
-        Format.fprintf fmtr "InjectMap(";
-        format_one FNone t1;
-        Format.fprintf fmtr ",@ @[{";
-        let tms_size = NM.size tms in 
-        let _ = NM.fold 
-          (fun ni ti count -> 
-             Format.fprintf fmtr "%s -> " (Misc.whack ni);
-             format_one FNone ti;
-             if count < tms_size - 1 then Format.fprintf fmtr ",@ ";
-             succ count)
-          tms 0 in 
-          Format.fprintf fmtr "}@])"
-    | Restrict(t,ns,b) -> 
-        Format.fprintf fmtr "Restrict(";
-        format_one FNone t;
-        Format.fprintf fmtr ",%s{%s})"
-          (if b then "" else "~")
-          (Misc.concat_list "," (Name.Set.elements ns)) in          
-
   (* main formatter *)
   let var_map = collect NM.empty [syn_t0] in
-    Format.fprintf fmtr "@[@[<2>";
-    format_one FNone syn_t0;
-    Format.fprintf fmtr "@]";
+    Util.format "@[@[<2>";
+    format_one_syn FNone syn_t0;
+    Util.format "@]";
     if not (NM.is_empty var_map) then 
       begin 
-        Format.fprintf fmtr "@\nwhere @[";
+        Util.format "@\nwhere @[";
         let _ = NM.fold (fun tvi syn_tvi first -> 
-                           if not first then Format.fprintf fmtr "@\n";
-                           Format.fprintf fmtr "@[<2>%s@ =@ " tvi;
-                           format_one FNone syn_tvi;
-                           Format.fprintf fmtr "@]";
+                           if not first then Util.format "@\n";
+                           Util.format "@[<2>%s@ =@ " tvi;
+                           format_one_syn FNone syn_tvi;
+                           Util.format "@]";
                            false)
           var_map true in
-          Format.fprintf fmtr "@]"
+          Util.format "@]"
       end;
-    Format.fprintf fmtr "@]"
+    Util.format "@]"
 
-let fformat_t fmtr t0 = match t0 with
-    V(x) -> fformat_state fmtr x
-   | F((p,e),syn) -> fformat_syn_t fmtr syn;
-       Trace.debug "schema-formulas" 
-         begin           
-           let thk () = 
-             Util.format "@\n";
-             let rec collect acc = function
-                 []    -> acc 
-               | V(CS s)::xs -> 
-                   let s_tvars = CSet.fold 
-                     (fun (is,ds) acc -> NS.union is (NS.union ds acc)) 
-                     s NS.empty in
-                   let new_vars = NS.diff s_tvars (NM.domain acc) in 
-                   let new_acc,new_xs = NS.fold 
-                     (fun tvi (new_acc,new_xs) -> 
-                        let ti = lookup_tvar_required tvi in 
-                          (NM.add tvi ti new_acc, ti::new_xs))
-                     new_vars (acc,xs) in
-                     collect new_acc new_xs
-               | V(_)::xs -> collect acc xs
-               | F((_,e),_)::xs -> 
-                   collect acc ((Safelist.map (fun (_,x) -> V(x)) e)@xs) 
-             in
-             let format_one = function
-                 V(s) -> 
-                   Format.fprintf fmtr "V["; 
-                   format_state s; 
-                   Format.fprintf fmtr "]"
-               | F((p,e),_) -> 
-                   Format.fprintf fmtr "F[@[";
-                   Presburger.fformat_t fmtr p;
-                   Format.fprintf fmtr "@]@,.@[";
-                   Misc.fformat_list fmtr ",@ " 
-                     (fun (d,e) -> Format.fprintf fmtr "n%d=" d; fformat_elt fmtr e) 
-                     (Misc.map_index_filter (fun n ei -> Some (n,ei)) e);
-                   Format.fprintf fmtr "@]]" in
-             let vmap = collect NM.empty [t0] in
-               Format.fprintf fmtr "@[@[<2>";
-               format_one t0;
-               Format.fprintf fmtr "@]";
-               if not (NM.is_empty vmap) then 
-                 begin 
-                   Format.fprintf fmtr "@\nwhere @[";
-                   let _ = NM.fold 
-                     (fun tvi ti first -> 
-                        if not first then Format.fprintf fmtr "@\n";
-                        Format.fprintf fmtr "@[<2>%s@ =@ " tvi;
-                        format_one ti;
-                        Format.fprintf fmtr "@]";
+let format_one_u = function 
+    V(s) -> 
+      Util.format "V["; 
+      format_state s; 
+      Util.format "]"
+  | F((p,e)) -> 
+      Util.format "F[@[";
+      Presburger.format_t p;
+      Util.format ".";
+      Misc.format_list ",@ " 
+	(fun (d,e) -> Util.format "n%d=" d; format_elt e) 
+	(Misc.map_index_filter (fun n ei -> Some (n,ei)) e);
+      Util.format "@]]" 
+
+let format_one t0 = format_one_syn FNone t0.syn
+  
+let format_t t0 = 
+  format_syn_t t0.syn;
+  Trace.debug "schema-formulas+" 
+    (fun () -> 
+       Util.format "@\n";
+       let rec collect acc = function
+           []    -> acc 
+         | V(CS s)::xs -> 
+             let s_tvars = CSet.fold 
+               (fun (is,ds) acc -> NS.union is (NS.union ds acc)) 
+               s NS.empty in
+             let new_vars = NS.diff s_tvars (NM.domain acc) in 
+             let new_acc,new_xs = NS.fold 
+               (fun tvi (new_acc,new_xs) -> 
+		  let ti = lookup_tvar_required tvi in                   
+		  let di = ti.def in 
+		    (NM.add tvi di new_acc, di::new_xs))
+		new_vars (acc,xs) in
+               collect new_acc new_xs
+         | V(_)::xs -> collect acc xs
+         | F(_,e)::xs -> collect acc ((Safelist.map (fun (_,x) -> V(x)) e)@xs) in
+       let d0 = t0.def in 
+       let vmap = collect NM.empty [d0] in
+         Util.format "@[@[<2>";
+         format_one_u d0;
+         Util.format "@]";
+         if not (NM.is_empty vmap) then 
+           begin 
+             Util.format "@\nwhere @[";
+             let _ = NM.fold 
+                       (fun tvi ti first -> 
+                          if not first then Util.format "@\n";
+                        Util.format "@[<2>%s@ =@ " tvi;
+                        format_one_u ti;
+                        Util.format "@]";
                         false)
                      vmap true in
-                     Format.fprintf fmtr "@]"
+                     Util.format "@]"
                  end;
-               Format.fprintf fmtr "@]"
-           in
-             thk
-         end
+               Util.format "@]")
 
-             
+let format_counterexample = function 
+    Domain d -> 
+      Util.format "Domain({";
+      Misc.format_list "," (fun s -> Util.format "%s" (Misc.whack s)) (NS.elements d);
+      Util.format "})";
+  | Child(ni,vi) -> 
+      Util.format "Child(%s=" (Misc.whack ni); 
+      Tree.format_t vi; 
+      Util.format ")" 
+let format_member_step = function
+    StepYes -> Util.format "StepYes"
+  | StepNo(ce) -> Util.format "StepNo("; format_counterexample ce; Util.format ")"
+  | StepMaybe(ni,_) -> Util.format "StepMayube(%s,<fun>)" ni
 
-let format_elt = fformat_elt Format.std_formatter
-let format_t = fformat_t Format.std_formatter
-
-let string_of_t t0 = 
-  let buf = Buffer.create 20 in 
-  let fmtr = Format.formatter_of_buffer buf in 
-    fformat_t fmtr t0;
-    Format.pp_print_flush fmtr ();
-    Buffer.contents buf
-
-(* we maintain two environments: 
-   - delta_tvar maps tvars to ts
-   - delta_tvar maps compound type states to ts
-   we could (and did, in an earlier version) use a unified
-   environment, but lookups are slower when we have a simple type
-   variable *)
-
+let format_member_result = function
+    Yes -> Util.format "Yes"
+  | No(ce) -> Util.format "No("; format_counterexample ce; Util.format ")"
+    
 let format_low_level msg p e = 
   Util.format "%s @[p=@[" msg;
   P.format_t p;
@@ -409,18 +477,14 @@ let format_low_level msg p e =
   Util.format "@]@]@\n" 
 
 
-module TMapplus = Mapplus.Make(
-  struct
-    type t = this_t
-    let compare t0 t1 = match t0,t1 with
-        V(s1),V(s2)     -> compare s1 s2
-      | F(f1,_),F(f2,_) -> compare f1 f2
-      | V(_),F(_)       -> -1
-      | F(_),V(_)       -> 1
-    let to_string = string_of_t
-  end)
-module TSet = TMapplus.KeySet
-module TMap = TMapplus.Map   
+(* --------------- maps, sets, environments, formatting ------------------ *)
+(* we maintain two environments: 
+   - delta_tvar maps tvars to ts
+   - delta_tvar maps compound type states to ts
+   we could (and did, in an earlier version) use a unified
+   environment, but lookups are slower when we have a simple type
+   variable *)
+
 
 module CSetEnv = Env.Make(
   struct
@@ -450,16 +514,6 @@ let lookup_vars fld lkup s = fld
 
 let lookup_tvars = lookup_vars NS.fold lookup_tvar 
 
-(* helper for lookup functions: the same as Misc.map_option, but more
-   readable with option arg first! *)
-let map_opt o f = match o with
-    None -> None
-  | Some a -> Some (f a)
-
-let map_opto o f = match o with
-    None -> None
-  | Some a -> (f a)
-
 (* ----------------- support for recursive definitions --------------------- *)
 
 (* when we compile nested recursive schemas, we sometimes need to
@@ -480,8 +534,8 @@ let marked_cset xs cxs = CSet.fold
   (fun ysi u -> NS.union (marked_cvar xs ysi) u)
   cxs NS.empty
 let marked_ts = Safelist.fold_left
-  (fun u ti -> match ti
-   with V(CS(s)) -> NS.union (marked_cset (NM.domain (!marked_tvars_cell)) s) u
+  (fun u ti -> match ti.def with 
+       V(CS(s)) -> NS.union (marked_cset (NM.domain (!marked_tvars_cell)) s) u
      | _ -> u)
   NS.empty
 
@@ -510,11 +564,14 @@ let finalize () =
   let check_contractive () = NM.fold
     (fun x io () -> 
        match io,lookup_tvar x with 
-           None,_ -> ()
-         | Some i, Some (V(CS s)) -> 
-             let xs = marked_cset (NM.domain !marked_tvars_cell) s in
-               if not (NS.is_empty xs) then contractive_error i xs
-         | _ -> ())
+           Some i, Some t -> begin 
+	     match t.def with 
+		 V(CS s) -> 
+		   let xs = marked_cset (NM.domain !marked_tvars_cell) s in
+		     if not (NS.is_empty xs) then contractive_error i xs
+               | _ -> () 
+	   end
+	 | _ -> ())
     (!marked_tvars_cell) 
     () in
 
@@ -530,76 +587,29 @@ let finalize () =
     cleanup ()
 
 (* -------------- constants ----------------- *)
+let xtruth = "T" 
+let truth_cset = cset_of_tvar xtruth
+
+(* hack *)
+let truth_cell = ref None
+let get_truth () = match !truth_cell with 
+    None -> assert false
+  | Some t -> t
+let falsity_cell = ref None
+let get_falsity () = match !falsity_cell with
+    None -> assert false
+  | Some t -> t
+
+let xempty_view = "{}" 
+let empty_view_cset = cset_of_tvar xempty_view
+
+let xnon_empty_view = "T-{}" 
+let non_empty_view_cset = cset_of_tvar xnon_empty_view
+
 let anyE = (R.mk_cofinite [],True)
-
-(* true, the largest schema *)
-let truth,truth_formula,truth_basis = 
-  let xtruth = "T" in
-  let ftruth = P.mkGe(P.mkVar 0) P.zero in
-  let btruth = [anyE] in
-  let syn_truth = Wild(Name.Set.empty,0,true,Var(True)) in
-    update_tvar xtruth (F((ftruth, btruth),syn_truth));
-    (xtruth,ftruth,btruth)
-let truth_cs = cset_of_tvar truth
-
-(* empty, the singleton schema containing V.empty *)
-let empty,empty_formula,empty_basis = 
-  let xempty = "{}" in
-  let fempty = P.mkEq(P.mkVar 0) P.zero in
-  let bempty = [anyE] in
-  let syn_empty = Wild(Name.Set.empty, 0, false, Var(EmptyView)) in
-    update_tvar xempty (F((fempty, bempty),syn_empty));
-    (xempty,fempty,bempty)
-let empty_cs = cset_of_tvar empty
-
-(* non_empty, the schema T-{} *)
-let non_empty,non_empty_formula,non_empty_basis = 
-  let xnon_empty = "T-{}" in
-  let fnon_empty = P.mkGt(P.mkVar 0) P.zero in
-  let bnon_empty = [anyE] in
-  let syn_non_empty = Wild(Name.Set.empty,1,true,Var(NonEmptyView)) in    
-    update_tvar xnon_empty (F((fnon_empty, bnon_empty),syn_non_empty));
-    (xnon_empty,fnon_empty,bnon_empty)
-let non_empty_cs = cset_of_tvar non_empty
-
-(* --- convert a t to a state ----- *)
-
-(* when we create an atom or a wildcard from a subschema t, we need to
-   create a basis over t. as elements are defined using states, we need
-   to find a state representing t. if we already have a variable x
-   representing t, then we use it. otherwise we generate a fresh x and
-   bind it to t in delta_tvar *)
-
-(* JNF-CHECK: hosing (==) by keeping syntactic representation
-   alongside semantical one? *)
-module THash = Hashtbl.Make(
-  struct
-    type t = this_t
-    let equal t1 t0 = match t1,t0 with 
-        V(s1),V(s2)     -> (s1 = s2)
-      | F(f1,_),F(f2,_) -> (f1 == f2)
-      | _               -> false
-    let hash = function
-        V(s1)   -> Hashtbl.hash s1
-      | F(f1,_) -> Hashtbl.hash (Obj.magic f1 : int)
-  end)
-
-let varcache : (state THash.t) = THash.create 17
-
-let state_of_t t0 = match t0 with 
-    V(x) -> x
-  | F((p,e),syn_t) -> 
-      try 
-        THash.find varcache t0
-      with Not_found ->
-        let n = fresh "_GEN" in             
-        let x = CS(cset_of_tvar n) in
-          update_tvar n t0;
-          THash.add varcache t0 x;          
-          x
+let anyE_basis = [anyE]
 
 (* -------------- easy syntactic ops on cvars and csets ----------------- *)
-
 (* these operations depend on and maintain these invariants. 
  * let (es,ds) be a cvar:
  *    - if T is in es, then es = {T}
@@ -611,8 +621,8 @@ let state_of_t t0 = match t0 with
 let neg_cvar (es,ds) =  
   let u1 = NS.fold 
     (fun ei u -> 
-       if ei = truth then u 
-       else CSet.add (NS.singleton truth, NS.singleton ei) 
+       if ei = xtruth then u 
+       else CSet.add (NS.singleton xtruth, NS.singleton ei) 
          u)
     es 
     CSet.empty in
@@ -621,7 +631,7 @@ let neg_cvar (es,ds) =
 let rec neg_cset cxs = CSet.fold 
   (fun cx cxs_neg -> isect_cset (neg_cvar cx) cxs_neg) 
   cxs
-  truth_cs
+  truth_cset
 
 and neg_state = function
     True -> False
@@ -638,8 +648,8 @@ and isect_cvar (es1,ds1) cxs =
     (fun (es2,ds2) u -> 
        let es = 
          (* remove T from es if (es1 U es2) <> 0 *)
-         if NS.mem truth es1 then es2
-         else if NS.mem truth es2 then es1
+         if NS.mem xtruth es1 then es2
+         else if NS.mem xtruth es2 then es1
          else NS.union es1 es2 in
        let ds = NS.union ds1 ds2 in
          (* skip this element if (es & ds <> 0) *)
@@ -680,8 +690,8 @@ let union_state x0 x1 = match x0,x1 with
   | NonEmptyView, NonEmptyView -> NonEmptyView 
   | EmptyView,NonEmptyView | NonEmptyView,EmptyView -> True
   (* might be able to do better here... *)
-  | EmptyView,CS s | CS s,EmptyView       -> CS(union_cset empty_cs s)
-  | NonEmptyView,CS s | CS s,NonEmptyView -> CS(union_cset non_empty_cs s)
+  | EmptyView,CS s | CS s,EmptyView       -> CS(union_cset empty_view_cset s)
+  | NonEmptyView,CS s | CS s,NonEmptyView -> CS(union_cset non_empty_view_cset s)
   | CS s1, CS s2                          -> CS(union_cset s1 s2)
 
 (* ----- mutually recursive definitions of lookups/refinements/constructors ------ *)
@@ -721,15 +731,16 @@ and lookup_cset_required cxs = match lookup_cset cxs with
             (string_of_cset cxs))) 
 
 (* expopse the formula and basis of a schema *)
-and expose = function
-    V(x) -> begin match x with 
-        True         -> truth_formula, truth_basis
-      | False        -> P.mkNot truth_formula, truth_basis
-      | EmptyView    -> empty_formula, empty_basis
-      | NonEmptyView -> non_empty_formula, empty_basis
-      | CS s         -> expose (lookup_cset_required s)
-    end
-  | F((pi,ei),_) -> (pi,ei)
+and expose t0 = 
+  let truth_formula = P.mkGe (P.mkVar 0) P.zero in
+  let empty_view_formula = P.mkEq (P.mkVar 0) P.zero in
+    match t0.def with
+        V(True)         -> truth_formula, anyE_basis
+      | V(False)        -> P.mkNot truth_formula, anyE_basis
+      | V(EmptyView)    -> empty_view_formula, anyE_basis
+      | V(NonEmptyView) -> P.mkNot empty_view_formula, anyE_basis
+      | V(CS s)         -> expose (lookup_cset_required s)
+      | F(pi,ei)        -> (pi,ei)
 
 (* refine two bases: returns a pair of substitutions for formulas
    written over [e1] and [e2] and a common basis *)
@@ -753,17 +764,10 @@ and refine_bases e1 e2 =
     ((0,0),(IM.empty,IM.empty),[])
     e1 in
 
-  (* mk_sum: make a sum of variables from a list of ints *)
-  let mk_sum l = 
-    let rec aux acc = function
-        [] -> acc
-      | sh::st -> aux (P.mkSum (P.mkVar sh) acc) st in
-      aux P.zero l in
-
   let p1_subst = Misc.map_index_filter
-    (fun i _ -> Some (i, mk_sum (IM.safe_find i vmap1 []))) e1 in
+    (fun i _ -> Some (i, sum_of_int_list (IM.safe_find i vmap1 []))) e1 in
   let p2_subst = Misc.map_index_filter
-    (fun j _ -> Some (j, mk_sum (IM.safe_find j vmap2 []))) e2 in
+    (fun j _ -> Some (j, sum_of_int_list (IM.safe_find j vmap2 []))) e2 in
 
     (* refine_bases result: new instantiations, new basis *)
     ((p1_subst, p2_subst), Safelist.rev common_basis_rev) 
@@ -794,9 +798,9 @@ and refine ts =
     (* refine final result *)
     (ps, common_basis) 
 
-and mk_neg t0 = match t0 with 
-    V(x) -> V(neg_state x)
-  | F((p,e),syn_t) -> F((P.mkNot p,e),Neg(syn_t))
+and mk_neg t0 = match t0.def with 
+    V(x) -> t_of_state (neg_state x)
+  | F(p,e) -> make_t (F(P.mkNot p,e)) (Neg t0.syn)
 
 and mk_diff t1 t2 = mk_isect [t1; mk_neg t2]
 
@@ -813,7 +817,9 @@ and gen_mk mk_ps mk_syns cset_from_vars_opt ts =
   let go () = 
     let ps,e = refine ts in
     let p = mk_ps ps in
-      F((p,e),mk_syns (Safelist.map syn_of_t ts)) in
+    let u = F(p,e) in 
+    let s = mk_syns (Safelist.map syn_of_t ts) in 
+      make_t u s in 
 
   (* first, calculate the marked vars in ts *)
   let marked_xs = marked_ts ts in
@@ -822,53 +828,270 @@ and gen_mk mk_ps mk_syns cset_from_vars_opt ts =
       match cset_from_vars_opt, (Safelist.for_all is_var ts) with
           (* case 1a: and  all ts are vars and cset_from_vars_opt is Some(f) 
            *   then we make a variable directly *)
-          Some f, true -> V (f ts)
+          Some f, true -> t_of_state (f ts)
           (* case 1b: some ts are not vars and/or cset_from_vars_opt is None 
            *          then we use go () to make the type *)
         | _ -> go ()
 
     (* case 2: if some ts have marked vars, add go to delayed work *)
     else 
-      begin let x = fresh "_GEN" in
+      begin let x = fresh "_GEND" in
         add_delayed x (fun () -> update_tvar x (go ()));
-        V(cstate_of_tvar x)
+        t_of_state (cstate_of_tvar x)
       end
 
 and mk_isect = function
     (* knock off a few easy cases *)
-    [] -> V(True)
+    [] -> get_truth ()
   | [ti] -> ti
   | ts -> 
       gen_mk
         P.mkAnd 
         (fun ss -> Isect(ss))
         (Some (fun vs -> Safelist.fold_left 
-                 (fun acc -> function 
+                 (fun acc ti -> match ti.def with
                       V(xi) -> isect_state acc xi | 
-                          _ -> assert false) True vs)) 
+                        _ -> assert false) True vs))
         ts
 
 and mk_union = function
     (* knock off a few easy cases *)
-    [] -> V(False)
+    [] -> get_falsity ()
   | [ti] -> ti
   | ts -> 
       gen_mk 
         P.mkOr
         (fun ss -> Union(ss))
         (Some (fun vs -> Safelist.fold_left 
-                 (fun acc -> function 
+                 (fun acc ti -> match ti.def with
                       V(xi) -> union_state acc xi 
                     | _ -> assert false) False vs))
         ts
 
+(* member functions *)
+and mk_first_step u0 = match u0 with
+  | V(True)          -> (fun ns -> StepYes)
+  | V(False)         -> (fun ns -> StepNo(Domain ns))
+  | V(EmptyView)     -> (fun ns -> if NS.is_empty ns then StepYes else StepNo(Domain ns))
+  | V(NonEmptyView)  -> (fun ns -> if NS.is_empty ns then StepNo(Domain ns) else StepYes)
+  | V(CS s)          -> (fun ns -> (lookup_cset_required s).first_step ns)
+  | F(formula,basis) -> (fun ns -> 
+      Trace.debug "member-detailed+" 
+        (fun () -> 
+          Util.format "first_step ";
+          format_one_u u0;
+          Util.format " {";
+          Misc.format_list "," (Util.format "%s") (NS.elements ns);
+          Util.format "}@\n");
+      
+      (* collect variables *)
+      let num_vars,all_vars = Safelist.fold_left 
+        (fun (x,s) _ -> (x+1,IS.add x s)) 
+        (0,Int.Set.empty) basis in 
+      let obvious_zeros = P.easy_zeros formula in 
+          
+      (* collect possibly-matching elements, var mapping, number of fresh vars *)
+      let nl,vmap,fresh = NS.fold 
+        (fun ni (nl,vmap,fresh) -> 
+          let _,(nis,vmap',fresh') = Safelist.fold_left (fun (basis_pos,acc) (r,x) ->
+            let basis_pos' = basis_pos+1 in 
+            let acc' = 
+              if x = False 
+                || not (R.mem ni r) 
+                || Int.Set.mem basis_pos obvious_zeros then acc
+              else
+                let nis,vmap,fresh = acc in 
+                let vmap' = Int.Map.add basis_pos (fresh::Int.Map.safe_find basis_pos vmap []) vmap in 
+                let nis' = (fresh,x)::nis in 
+                let fresh' = fresh+1 in 
+                  (nis',vmap',fresh') in
+              (basis_pos',acc'))
+            (0,([],vmap,fresh)) basis in 
+            ((ni,nis)::nl,vmap',fresh'))
+        ns
+        ([],Int.Map.empty,num_vars) in
+        
+      let zeros = Int.Set.diff all_vars (Int.Map.domain vmap) in
+        
+      (* optimization: remove fresh variables for i with vcounts(i) = 1 *)
+      let fresh_map,vmap = IM.fold (fun basis_pos fresh_vars acc ->
+        match fresh_vars with
+            [freshi] ->
+              let (fm,vm) = acc in
+                (IM.add freshi basis_pos fm, IM.remove basis_pos vm)
+          | _        -> acc)
+        vmap (Int.Map.empty,vmap) in
+        
+      (* this rev_map is crticial--it puts the nl, which specifies
+         the order that children are checked, back in alphabetical
+         order. later on, we could optimize further, but for lists
+         we definitely want hd checked before tl! *)
+      let nl = Safelist.rev_map 
+        (fun (ni,nis) -> (ni, Safelist.map (fun (n,s) -> (IM.safe_find n fresh_map n,s)) nis)) nl in
+
+      let zero_constraint = P.mkEq P.zero (sum_of_int_set zeros) in 
+      let and_one_constraints = Safelist.fold_left (fun acc (_,nis) -> P.mkEq P.one (sum_of_int_state_list nis)::acc) [zero_constraint] nl in 
+      let and_var_equalities = Int.Map.fold (fun xi xil acc -> P.mkEq (P.mkVar xi) (sum_of_int_list xil)::acc) vmap and_one_constraints in 
+      let formula' = P.mkAnd (formula::and_var_equalities) in
+      let rec next_step f = function
+          [] -> StepYes
+        | (ni,[(xi,si)])::nrest -> 
+            StepMaybe(ni, 
+                      (fun vi -> 
+			 (* optimization: can just do the member test and skip satisifiability test here... *)			 
+			 Trace.debug "member-detailed+" 
+		         (fun () -> 
+		            Util.format "CHECK_VI %s " ni;
+		            Tree.format_t vi;
+		            Util.format "@\n");
+			 if member_state_with_counterexample si vi = Yes then next_step f nrest
+			 else StepNo(Child(ni,vi))))
+              
+        | (ni,nis)::nrest -> 
+            StepMaybe(ni, 
+                      (fun vi -> 
+			 Trace.debug "member-detailed+" 
+		         (fun () -> 
+		            Util.format "CHECK_VI %s " ni;
+		            Tree.format_t vi;
+		            Util.format "@\n");
+			 let found,fs = Safelist.fold_left
+	                   (fun (found,fs) (xi,si) -> 
+			      if found then (found, zero_of_var xi::fs)
+			      else if member_state_with_counterexample si vi = Yes then                       
+				(true,one_of_var xi::fs)
+		              else 
+				(false,zero_of_var xi::fs))
+                           (false,[f]) nis in 
+		         if not found then StepNo(Child(ni,vi)) 
+		         else 
+			   let f' = P.mkAnd fs in 
+                             if P.satisfiable f' then next_step f' nrest
+                             else StepNo(Child(ni,vi)))) in
+                       
+        (* --- result --- *)
+        if P.satisfiable formula' then next_step formula' nl
+        else StepNo(Domain ns)) 
+
+and member_state_with_counterexample s0 = match s0 with 
+    True         -> (fun v -> Yes)
+  | False        -> (fun v -> No(Domain(Tree.dom v)))
+  | EmptyView    -> (fun v -> if Tree.is_empty v then Yes else No(Domain(Tree.dom v)))
+  | NonEmptyView -> (fun v -> if Tree.is_empty v then No(Domain(Tree.dom v)) else Yes)
+  | CS s         -> (fun v -> (lookup_cset_required s).member v)
+
+and mk_member first_step_u0 u0 = match u0 with
+    V(s) -> member_state_with_counterexample s
+  | F(formula,basis) -> (fun v -> 
+      let rec loop mr0 = 
+        Trace.debug "member-detailed+" 
+          (fun () -> 
+            Util.format "MEMBER LOOP "; 
+            format_member_step mr0; 
+            Util.format "@\n");
+        match mr0 with
+            StepYes -> Yes
+          | StepNo(ce) -> No(ce)
+          | StepMaybe(ni,check_vi) -> loop (check_vi (Tree.get_required v ni)) in 
+        loop (first_step_u0 (Tree.dom v)))
+
+(* ----- type t ------ *)
+and make_t u s = 
+  let first_step_u0 = 
+    let module M = Memo.Make2(
+      struct
+        type arg = Name.Set.t
+        type res = member_step
+        let name = "Treeschema.first_step"
+        let f = mk_first_step u 
+        let init_size = 3
+        let format_arg d = Util.format "{%s}" (Misc.concat_list "," (NS.elements d))
+        let format_res = format_member_step
+        let hash = Hashtbl.hash
+        let equal' = (==)
+        let hash' = Hashtbl.hash
+        let equal = Name.Set.equal
+      end) in 
+    M.memoized in
+
+  let member_u0 = 
+    let module M = Memo.Make(
+      struct
+        type arg = Tree.t
+        type res = member_result
+        let name = "Treeschema.member"
+        let f = mk_member first_step_u0 u 
+        let init_size = 3
+        let format_arg = Tree.format_t
+        let format_res = format_member_result
+        let hash = Tree.hash
+        let equal = (==)
+        let hash' = Tree.hash
+        let equal' = Tree.equal 
+      end) in 
+    M.memoized in
+
+    (* result *)
+    incr t_hash_mix;
+    { def=u;
+      hash= 73 * !t_hash_mix + 19 * Hashtbl.hash u; 
+      syn=s;    
+      first_step = first_step_u0;
+      member = member_u0 }
+
+and t_of_state s = make_t (V s) (Var s)
+
+(* --- more constants --- *)
+(* truth, the most inclusive schema--contains every tree *)
+let truth = 
+  let truth = t_of_state(True) in 
+    update_tvar xtruth truth;
+    truth_cell := Some truth;
+    truth
+       
+(* falsity, the snobbiest schema--contains no trees *)
+let falsity = 
+  let falsity = t_of_state(False) in 
+    falsity_cell := Some falsity;
+    falsity
+
+(* empty_view, the singleton schema containing the tree {} *)
+let empty_view =
+  let empty_view = t_of_state(EmptyView) in 
+    update_tvar xempty_view empty_view;
+    empty_view 
+
+(* when we create an atom or a wildcard from a subschema t, we need to
+   create a basis over t. as elements are defined using states, we
+   need to find a state representing t. *)
+let state_of_t = 
+  let module M = Memo.Make(
+    struct
+      type arg = t
+      type res = state
+      let name = "Treeschema.state_of_t"
+      let f t0 = match t0.def with
+          V(s) -> s
+        | _ -> 
+            let n = fresh "_GEN" in 
+            let x = CS(cset_of_tvar n) in 
+              update_tvar n t0;
+              x 
+      let init_size = 389
+      let format_arg t0 = format_one t0
+      let format_res = format_state
+      let hash t = t.hash
+      let equal = (==)
+    end) in 
+    M.memoized
+
 (* ------------ simple constructors -------------*)
 
-let mk_any = V(True)
+let mk_any = truth
 
-let mk_empty = V(False)
+let mk_empty = falsity
 
-let mk_var x = V(cstate_of_tvar x)
+let mk_var x = t_of_state (cstate_of_tvar x)
 
 let mk_atom n t = 
   let x = state_of_t t in 
@@ -886,8 +1109,9 @@ let mk_atom n t =
     [(R.mk_singleton n,x);
      (R.mk_singleton n,neg_state x);
      (R.mk_cofinite [n], True)] in
-    F((P.mkAnd ps,e),syn) 
-
+  let u = F(P.mkAnd ps,e) in 
+    make_t u syn
+      
 let mk_wild f l u t = 
   let x = state_of_t t in   
   let syn = Wild(f,l,u,syn_of_t t) in
@@ -915,54 +1139,71 @@ let mk_wild f l u t =
        ((R.mk_cofinite (NS.elements f), neg_state x)
         ::(R.mk_cofinite (NS.elements f), x)
         ::fin_es_rev)) in
-    F((P.mkAnd (Safelist.rev ps_rev), Safelist.rev e_rev),syn)
+  let u = F(P.mkAnd (Safelist.rev ps_rev), Safelist.rev e_rev) in 
+    make_t u syn
 
 let rec mk_cat = function
-    [] -> V(EmptyView)
+    [] -> empty_view
   | [t1] -> t1
-  | ts -> gen_mk P.add (fun ts -> Cat(ts)) None ts
+  | ts -> gen_mk P.add (fun ss -> Cat(ss)) None ts
 
 (* list schemas *)
 let mk_nil = mk_cat [mk_atom Tree.nil_tag (mk_cat [])]
 let mk_cons h t = mk_cat [mk_atom Tree.hd_tag h; mk_atom  Tree.tl_tag t]
 
+let mk_list i t =
+  (* check that we are not calling this while the tvar marking stuff
+     is already in use, e.g., from inside the compiler *)
+  assert (NM.is_empty !marked_tvars_cell);
+  let fresh_x = Syntax.fresh "_LIST" in 
+  let x_t = mk_var fresh_x in
+  mark_tvars [fresh_x,i];
+  update_tvar fresh_x (mk_union [mk_nil; mk_cons t x_t]);
+  finalize ();        
+  x_t
 
-(* [schema_of_tree v] yields the singleton [Value.ty] containing [v] *)
-module TreeHash = Hashtbl.Make(
-struct
-  type t = Tree.t
+module T_of_TreeMemo = Memo.MakeLater(struct
+  type arg = Tree.t
+  type res = t
+  let name = "Treeschema.t_of_tree"
+  let init_size = 389
+  let format_arg = Tree.format_t
+  let format_res = format_one
+  let hash = Tree.hash
   let equal = (==)
-  let hash o = (Obj.magic o : int)
+  let hash' = Tree.hash
+  let equal' = Tree.equal
 end)
-let treecache = TreeHash.create 31
-let rec t_of_tree v = 
-  try TreeHash.find treecache v
-  with Not_found -> 
-    let s = mk_cat
-      (Tree.fold (fun k vk ts -> (mk_atom k (t_of_tree vk))::ts) v []) in 
-      TreeHash.add treecache v s;
-      s      
-    
+let rec bare_t_of_tree v = mk_cat (Tree.fold (fun k vk ts -> (mk_atom k (t_of_tree vk))::ts) v [])
+and t_of_tree v = T_of_TreeMemo.memoize bare_t_of_tree v
+         
 (* --------------- operations ----------------------*)
 
 (* --- empty test --- *)
 (* cached emptiness results *)
+
+type this_t = t (* hack! *)
+module TSet = Set.Make(struct
+    type t = this_t
+    let compare = compare_t
+  end)
+
 let (empties,non_empties) = (ref TSet.empty, ref TSet.empty)
 
 let rec empty_aux print (es,nes) t0 = 
-  let res = if TSet.mem t0 es then (true,es,nes)
-  else if TSet.mem t0 nes then (false,es,nes)
-  else 
-    let t0_empty,es',nes' = match t0 with
-        V(x) -> begin match x with
-            True | EmptyView | NonEmptyView -> (false,es,nes)
-          | False -> (true,es,nes)
-          | CS s  -> empty_aux false (TSet.add t0 es,nes) (lookup_cset_required s)
-        end 
-      | F((p,e),_) -> check_empty (es,nes) (p,e) in
-      if t0_empty then (true,TSet.add t0 es',nes')
-      else (false,es,TSet.add t0 nes)
-  in
+  let res = 
+    if TSet.mem t0 es then (true,es,nes)
+    else if TSet.mem t0 nes then (false,es,nes)
+    else 
+      let t0_empty,es',nes' = match t0.def with
+          V(x) -> begin match x with
+              True | EmptyView | NonEmptyView -> (false,es,nes)
+            | False -> (true,es,nes)
+            | CS s  -> empty_aux false (TSet.add t0 es,nes) (lookup_cset_required s)
+            end 
+        | F(p,e) -> check_empty (es,nes) (p,e) in
+        if t0_empty then (true,TSet.add t0 es',nes')
+        else (false,es,TSet.add t0 nes) in
   let b_res,_,_ = res in 
     Trace.debug "treeschema+" 
       (fun () -> 
@@ -1003,8 +1244,8 @@ and check_empty (es,nes) (p,e) =
             match R.singleton_domain r with 
                 None -> aux (pos+1, nmap, x::facc) rest 
               | Some n -> 
-                  let old_sum = NM.safe_find n nmap (P.mkConst 0) in 
-                  let new_nmap = NM.add n (P.mkSum (P.mkVar pos) old_sum) nmap in
+                 let old_sum = NM.safe_find n nmap (P.mkConst 0) in 
+                  let new_nmap = NM.add n (P.mkSum [P.mkVar pos; old_sum]) nmap in
                     aux (pos+1, new_nmap, x::facc) rest 
           end in
       let _,nmap,facc = aux (0,NM.empty,[]) es in 
@@ -1017,26 +1258,21 @@ and check_empty (es,nes) (p,e) =
       (fun _ sum acc -> P.mkLe sum P.one::acc)
       nmap [] in
       
-    (* valuation representing elements that must be zero *)
-    let z_val = P.Valuation.create (Safelist.length sub_formulas) 0 true in
-      
     (* determine which are empty/non-empty *)
-    let rec empties (es,nes) pos = function
-        []   -> (es,nes)
+    let rec empties (fs,es,nes) pos = function
+        []   -> (fs,es,nes)
       | x::xrest -> 
-          let fake_t0 = V(x) in
+          let fake_t0 = t_of_state x in
           let (b,es',nes') = empty_aux false (es,nes) fake_t0 in
             if b then begin 
-              P.Valuation.zonk z_val pos;
-              empties (TSet.add fake_t0 es', nes') (pos+1) xrest
+              let fs' = (P.mkEq (P.mkVar pos) P.zero)::fs in 
+                empties (fs',TSet.add fake_t0 es', nes') (pos+1) xrest
             end
             else 
-              empties (es,TSet.add fake_t0 nes') (pos+1) xrest in
-    let es',nes' = empties (es,nes) 0 sub_formulas in
-      Trace.debug "treeschema+" (fun () -> Util.format "z_val: "; P.Valuation.format_t z_val; Util.format "@\n");
-      let checked_formula = (P.mkAnd (formula::ft_constraints)) in      
-        (* check satisfiability of formula ft, zero constraints *)
-        (not (P.fast_sat checked_formula z_val),es',nes'),formula,basis in
+              empties (fs,es,TSet.add fake_t0 nes') (pos+1) xrest in
+    let ft_zero_constraints,es',nes' = empties (ft_constraints,es,nes) 0 sub_formulas in      
+    let checked_formula = (P.mkAnd (formula::ft_zero_constraints)) in            
+      (not (P.satisfiable checked_formula),es',nes'),formula,basis in
   let real_res,formula,basis = res in
   let b_res,_,_ = real_res in
     Trace.debug "treeschema+"
@@ -1054,7 +1290,7 @@ and check_empty (es,nes) (p,e) =
          Util.format "@\n");
     real_res
 
-let empty t0 = 
+let is_empty t0 = 
   Trace.debug "treeschema+"
     (fun () -> 
        Util.format ">>> START EMPTY@\n  @[";
@@ -1070,105 +1306,32 @@ let empty t0 =
     Trace.debug "treeschema+"
       (fun () -> 
          Util.format "@]@\n<<<EMPTY %b\t" res;
-         format_t t0;
+         format_one t0;
          Util.format "@\n");
     res
   
-let subschema t0 t1 = empty (mk_diff t0 t1)
+let subschema t0 t1 = is_empty (mk_diff t0 t1)
 
 let equivalent t0 t1 = subschema t0 t1 && subschema t1 t0
 
-(* --- member --- *)
-let total_member_tests = ref 0
-let member v t0 = 
-  let rec aux print v t0 = match t0 with
-    V(x) -> begin match x with 
-        True -> true
-      | False -> false
-      | EmptyView -> Tree.is_empty v
-      | NonEmptyView -> not (Tree.is_empty v)
-      | CS s -> aux print v (lookup_cset_required s) 
-    end
-  | F((p,e),_) -> 
-      let old_tmts = !total_member_tests in
-        incr total_member_tests;
-        (* count the basis elts that the elts of v belongs to *)
-        (* this code is critical. we use an Array.t for speed *)
-        let nbits,nints = Safelist.fold_left 
-          (fun (b,i) (r,x) -> 
-             if i>0 then (b,succ i)
-             else if R.is_singleton r then (succ b, i)
-             else (b, succ i))
-          (0,0) 
-          e in
-        let counts = P.Valuation.create nbits nints false in
-        let not_falsified = Tree.fold
-          (fun ni vni mem_so_far ->
-             let rec count_elts pos mem_so_far = function
-                 [] -> assert false (* can't happen, because e is a basis *)
-               | (r,x)::t -> 
-                   let yes () = P.Valuation.bump counts pos in
-                   let no mem_res = count_elts (pos+1) mem_res t in
-                   let on_match mem_fun = function
-                       EmptyView    -> 
-                         if Tree.is_empty vni then (yes (); mem_fun true)
-                         else no (mem_fun false)
-                     | True         -> yes (); mem_fun true
-                     | False        -> no (mem_fun false)
-                     | NonEmptyView -> 
-                         if Tree.is_empty vni then no (mem_fun false) 
-                         else (yes (); mem_fun true)
-                     | CS s         -> 
-                         if aux false vni (lookup_cset_required s) 
-                         then (yes (); mem_fun true)
-                         else no (mem_fun false) in
-                     (* note: could short circuit out of this when false *)
-                     if not mem_so_far then false 
-                     else begin 
-                       if R.is_singleton r then 
-                         let mk_mem_fun b = 
-                           let v = P.Valuation.create nbits nints true in
-                             if b then P.Valuation.bump v pos
-                             else P.Valuation.zonk v pos;
-                             P.fast_sat p v 
-                         in
-                           if R.mem ni r then on_match mk_mem_fun x
-                           else no true
-                       else 
-                         if R.mem ni r then on_match (fun _ -> true) x
-                         else no true
-                     end
-             in count_elts 0 mem_so_far e)
-          v true in
-
-        (* final result: check if the formula is satisfiable *)
-        let res = not_falsified && P.fast_sat p counts in
-          if print then 
-            Trace.debug "member" 
-              (fun () -> 
-                 Util.format "MEMBER (%d)" (!total_member_tests - old_tmts);
-                 Util.format "@\n v : "; Tree.format_t v;
-                 Util.format "@\nt0 : "; format_t t0;
-                 Util.format "@\n  = %b" res;
-                 Util.format "@\n");
-          res in 
-    aux true v t0
-
+(* -------------------------- member testing --------------------------------------*)
+(* JNF: this is the slow, direct version. later we should merge it to
+   use setup_member and a loop... *)
 (* --- dom_member --- *)            
 let rec dom_member ns t0 = 
-  let res = match t0 with
+  let res = match t0.def with
     V(x) -> begin match x with 
         True -> true
       | False -> false
       | EmptyView -> NS.is_empty ns
       | NonEmptyView -> not (NS.is_empty ns)
       | CS s -> dom_member ns (lookup_cset_required s)
-    end
-  | F((p,e),_) -> 
-      let (new_vars,nmap,vmap) = NS.fold
-        (fun k (new_vars,nmap,vmap) -> 
-           let _,new_vars,nmap,vmap = Safelist.fold_left 
-             (fun (pos,new_vars,nmap,vmap) (r,x) -> 
+      end
+    | F(p,e) -> 
+        let (new_vars,nmap,vmap) = NS.fold
+          (fun k (new_vars,nmap,vmap) -> 
+            let _,new_vars,nmap,vmap = Safelist.fold_left 
+              (fun (pos,new_vars,nmap,vmap) (r,x) -> 
                 let yes () = 
                   let nmap' = NM.add k (new_vars::(NM.safe_find k nmap [])) nmap in
                   let vmap' = IM.add pos (new_vars::(IM.safe_find pos vmap [])) vmap in
@@ -1177,70 +1340,86 @@ let rec dom_member ns t0 =
                 let on_match = function
                     True | EmptyView | NonEmptyView -> yes ()
                   | False -> no ()
-                  | CS s  -> if empty (lookup_cset_required s) then no () else yes () in
+                  | CS s  -> if is_empty (lookup_cset_required s) then no () else yes () in
                   if R.mem k r then on_match x else no ())
-             (0,new_vars,nmap,vmap) 
-             e in
-             (* result of Safelist.fold_left *)
-             (new_vars,nmap,vmap))
-        ns 
-        (0,NM.empty,IM.empty)in
-      let rec aux_sum acc = function [] -> acc | h::t -> aux_sum (P.mkSum (P.mkVar h) acc) t in        
-      let f1 = NM.fold (fun _ xl acc -> (P.mkEq (aux_sum P.zero xl) P.one)::acc) nmap [] in
-      let subst = IM.fold (fun x xl acc -> (x+new_vars, aux_sum P.zero xl)::acc) vmap [] in
-      let formula = P.mkAnd (P.substitute subst (P.shift_t new_vars p)::f1) in
-        P.fast_sat formula (P.Valuation.create ((Safelist.length e) + new_vars) 0 true)
+              (0,new_vars,nmap,vmap) 
+              e in
+              (* result of Safelist.fold_left *)
+              (new_vars,nmap,vmap))
+          ns 
+          (0,NM.empty,IM.empty)in        
+        let f1 = NM.fold (fun _ xl acc -> (P.mkEq (sum_of_int_list xl) P.one)::acc) nmap [] in
+        let subst = IM.fold (fun x xl acc -> (x+new_vars, sum_of_int_list xl)::acc) vmap [] in
+        let formula = P.mkAnd (P.substitute subst (P.shift_t new_vars p)::f1) in
+          P.satisfiable formula 
   in
     (* Util.format "DOM_MEMBER {%s}" (ns2str "," ns);
        format_t t0;
        Util.format " = %b" res;
        Util.format "@\n"; *)
     res
+          
+let total_member = ref 0
 
+let member_with_counterexample v t0 = t0.member v
+
+let member v t0 = 
+  incr total_member;
+  let enter_debug () = 
+    Util.format ">>> MEMBER";
+    Util.format "@\n v : "; Tree.format_t v;
+    Util.format "@\nt0 : "; format_one t0;
+    Util.format "@\n%!" in 
+
+    Trace.debug "member+" enter_debug;
+    
+    let res = match member_with_counterexample v t0 with
+	Yes   -> true
+      | No(_) -> false in 
+           
+  let exit_debug () =        
+    Util.format "<<< MEMBER";
+    Util.format "@\n v : "; Tree.format_t v;
+    Util.format "@\nt0 : "; format_one t0;
+    Util.format "@\n  = %b@\n%!" res in 
+
+    Trace.debug "member+" exit_debug;
+    res
+      
 (* --- project --- *)
-let rec project k t0 = match t0 with
-    V(True) | V(NonEmptyView) -> Some(V(True))
-  | V(False) | V(EmptyView)   -> None
+let rec project k t0 = match t0.def with
+    V(True) | V(NonEmptyView) -> truth
+  | V(False) | V(EmptyView)   -> falsity
   | V(CS(s)) -> project k (lookup_cset_required s)
-  | F((p,e),_)   ->           
-      let e_length = Safelist.length e in
+  | F(p,e)   ->
       let eks = Misc.map_index_filter
         (fun pos (r,x) -> 
-           if R.mem k r then 
-             let pi_val = P.Valuation.create e_length 0 true in 
-               P.Valuation.bump pi_val pos;
-               if P.fast_sat p pi_val then
-                 match x with 
-                     True | EmptyView | NonEmptyView | CS _ -> Some (V x)
-                   | False -> None
-               else None
+           if R.mem k r && (P.satisfiable (P.mkAnd [p; P.mkEq (P.mkVar pos) P.one])) then
+             match x with 
+                 True | EmptyView | NonEmptyView | CS _ -> Some (t_of_state x)
+               | False -> None
            else None)
         e in
-      let t = mk_union eks in 
-        if empty t then None 
-        else Some t 
+      mk_union eks
 
-let rec project_all t0 = match t0 with 
-    V(True) | V(NonEmptyView) -> Some (V(True))
-  | V(False) | V(EmptyView) -> Some (V(False))
+let rec project_all t0 = match t0.def with 
+    V(True) | V(NonEmptyView) -> Some (truth)
+  | V(False) | V(EmptyView) -> Some (falsity)
   | V(CS(s)) -> project_all (lookup_cset_required s)
-  | F((p,e),_) -> 
-      let e_length = Safelist.length e in
+  | F(p,e) -> 
       let _,ok,reso = Safelist.fold_left
         (fun (pos,ok,reso) (_,x) -> 
            if not ok then (pos,ok,reso) 
-           else let pi_val = P.Valuation.create e_length 0 true in 
-             P.Valuation.bump pi_val pos; 
-             if not (P.fast_sat p pi_val) then (pos+1,ok,reso)
+           else if not (P.satisfiable (P.mkAnd [p; P.mkEq (P.mkVar pos) P.one])) then 
+               (pos+1,ok,reso)
              else match reso with 
                  None   -> (pos+1,true,Some x)
                | Some y -> 
-                   if equivalent (V(x)) (V(y)) then (pos+1,true,Some y)
+                   if equivalent (t_of_state x) (t_of_state y) then (pos+1,true,Some y)
                    else (pos+1,false,None))
         (0,true,None)
         e in
-        if ok then map_opt reso (fun x -> V(x)) else None
-
+      if ok then map_opt reso t_of_state else None
 
 (* quick & dirty hack: finite/cofinite name sets *)
 let r2fds r = match R.finite_domain r with 
@@ -1250,6 +1429,7 @@ let r2fds r = match R.finite_domain r with
           Some ns -> (false,ns)
         | _ -> assert false
     end           
+
 let fds_union fds1 fds2 = 
   match fds1,fds2 with
       (true,ns1),(true,ns2)                           -> (true,NS.union ns1 ns2)
@@ -1284,18 +1464,17 @@ let complete_basis_rev x_count formulas basis_rev = function
    
 let inject t0 t1 =   
   let formula,basis = expose t0 in 
-  let basis_length = Safelist.length basis in 
-
+    
   (* construct states, or a map to states *)
   let y_t1 = state_of_t t1 in
   let y_neg_t1 = neg_state y_t1 in 
-
+    
   (* construt new basis, new formulas, etc. *)
   let _,x_count,subst,formulas,basis_rev,covered = Safelist.fold_left
     (fun acc (r,x) -> 
        let pos,x_pos,subst,formulas,basis,covered = acc in
        let pos' = pos+1 in                     
-       let do_zero () = 
+       let do_zero () =            
          (* zero out this position, don't cover it *)
          (pos',x_pos,(pos,P.zero)::subst,formulas,basis,covered) in 
        let do_found () = 
@@ -1314,35 +1493,30 @@ let inject t0 t1 =
                (pos',x_pos',subst',formulas',basis',covered') in 
          
        let pos_satisfiable = 
-         let pi_val = P.Valuation.create basis_length 0 true in            
-           if R.is_singleton r then 
-             (P.Valuation.bump pi_val pos;
-              P.fast_sat formula pi_val)
+         let pos_var = P.mkVar pos in 
+           if R.is_singleton r then (P.satisfiable (P.mkAnd [formula; P.mkEq pos_var P.one]))
            else 
-             let pos_var = P.mkVar pos in 
-             let constr_formula = P.mkAnd [P.mkGt pos_var P.zero; formula] in
+             let constr_formula = P.mkAnd [formula; P.mkGt pos_var P.zero] in               
                match R.finite_domain r with 
                    Some ns -> 
                      let lt_constr = P.mkLe pos_var (P.mkConst (NS.cardinal ns)) in
-                       P.fast_sat 
-                         (P.mkAnd [ lt_constr; constr_formula ])
-                         pi_val
-                 | None -> P.fast_sat constr_formula pi_val in 
-
-         if (fds_isect_regexp covered r) (* only correct because of proj_all *) 
-           || not pos_satisfiable then do_zero ()
+                       P.satisfiable (P.mkAnd [ lt_constr; constr_formula ])                         
+                 | None -> P.satisfiable constr_formula in 
+         if (fds_isect_regexp covered r) || not pos_satisfiable then do_zero ()
          else do_found ())
     (0,0,[],[],[],(true,NS.empty))
     basis in
-
+    
   (* add some zero-d elements to make this a basis *)
   let formulas,basis_rev = complete_basis_rev x_count formulas basis_rev covered in
+
+  (* inject result *)
   let res_formula = P.mkAnd ((P.substitute subst formula)::formulas) in
-  let res_basis = Safelist.rev basis_rev in 
+  let res_basis = Safelist.rev basis_rev in     
   let res_syn = Inject(syn_of_t t0, syn_of_t t1) in
-    (* inject result *)
-    F((res_formula,res_basis),res_syn)
-      
+  let res_u =  F(res_formula,res_basis) in 
+    make_t res_u res_syn		  
+          
 let inject_map t0 fm = 
   let basis, basis_length, formula = 
     let p,e = expose t0 in       
@@ -1354,7 +1528,7 @@ let inject_map t0 fm =
     let basis_length = Safelist.length basis in
     let formula = P.substitute subst p in
       basis, basis_length, formula in 
-
+    
   (* map from names to state pairs *)
   let y_fm = NM.fold 
     (fun ni ti acc -> 
@@ -1362,7 +1536,7 @@ let inject_map t0 fm =
        let y_neg_ti = neg_state y_ti in 
          NM.add ni (y_ti,y_neg_ti) acc)
     fm NM.empty in 
-
+    
   (* construct new basis, new formulas, etc. *)
   let _,x_count,subst,formulas,basis_rev,covered = Safelist.fold_left
     (fun acc (r,x) -> 
@@ -1399,7 +1573,7 @@ let inject_map t0 fm =
                 with Not_found -> do_skip ()))
     (0,0,[],[],[],(true,NS.empty))
     basis in
-
+    
   (* add some zero-d elements to make this a basis *)
   let formulas,basis_rev = complete_basis_rev x_count formulas basis_rev covered in 
   let res_formula = P.mkAnd ((P.substitute subst formula)::formulas) in
@@ -1408,7 +1582,8 @@ let inject_map t0 fm =
     InjectMap(syn_of_t t0, 
               NM.fold (fun ni ti acc -> NM.add ni (syn_of_t ti) acc) fm NM.empty) in
     (* inject map result *)
-    F((res_formula,res_basis),res_syn)
+  let res_u = F(res_formula,res_basis) in 
+    make_t res_u res_syn
       
 let restrict ns t0 = 
   (* FIX LATER: see if we can avoid refining once we have full RegExp functionality *)
@@ -1463,21 +1638,61 @@ let restrict ns t0 =
     (* (4) construct the forumlas, bases *)
     let ns_f = P.wrap basis_length (P.mkAnd (formula::ns_fs)) in
     let neg_ns_f = P.wrap basis_length (P.mkAnd (formula::neg_ns_fs)) in
-    let restr_ns = F((ns_f,ns_basis),Restrict(syn,ns,true)) in
-    let restr_neg_ns = F((neg_ns_f,neg_ns_basis),Restrict(syn,ns,false)) in
-
+    let restr_syn = Restrict(syn,ns,true) in
+    let restr_u = F(ns_f,ns_basis) in 
+    let restr_t = make_t restr_u restr_syn in 
+    let restr_neg_syn = Restrict(syn,ns,false) in
+    let restr_neg_u = F(neg_ns_f,neg_ns_basis) in 
+    let restr_neg_t = make_t restr_neg_u restr_neg_syn in 
       Trace.debug "restrict+" 
         (fun () -> 
            format_low_level (sprintf "NS RESULT {%s}" (Misc.concat_list "," (NS.elements ns))) ns_f ns_basis;
            format_low_level (sprintf "NEG NS RESULT {%s}" (Misc.concat_list "," (NS.elements ns))) neg_ns_f neg_ns_basis);
+      (restr_t, restr_neg_t) in
+    match t0.def with 
+        V(False)     -> (falsity, falsity)
+      | V(EmptyView) -> (empty_view, empty_view)
+      | _            -> restrict_aux (expose t0) (syn_of_t t0)
 
-      (restr_ns, restr_neg_ns) in
-    match t0 with 
-        V(x) -> begin match x with 
-            False | EmptyView -> (V(x),V(x))
-          | _ -> restrict_aux (expose t0) (syn_of_t t0)
-        end
-      | F((p,e),syn) -> restrict_aux (p,e) syn
+let is_list t =
+  let i = Info.M "is_list" in
+     equivalent t (mk_list i falsity)
+  || (let elt = project Tree.hd_tag t in
+      not (is_empty elt) && equivalent t (mk_list i elt))
 
 (* external exports *)
 let update = update_tvar
+
+(* (* debug setup member *) *)          
+(*           Trace.debug "member+" (fun () ->  *)
+(*             let ns2str s = sprintf "{%s}" (Misc.concat_list "," (NS.elements s)) in  *)
+(*             let is2str s = sprintf "{%s}" (Misc.concat_list "," (Safelist.map string_of_int (IS.elements s))) in  *)
+(*             let p2str f = Util.format_to_string (fun () -> P.format_t f) in  *)
+(*             let format_nl x =  *)
+(*               Util.format "["; *)
+(*               Misc.format_list ","  *)
+(*                 (fun (ni,nis) ->  *)
+(*                   Util.format "(%s,[" ni; *)
+(*                   Misc.format_list "," (fun (xi,si) -> Util.format "(%d,%s)" xi (string_of_state si)) nis; *)
+(*                   Util.format "])";) x;           *)
+(*               Util.format "]" in  *)
+(*             let format_vmap vm =  *)
+(*               Util.format "{"; *)
+(*               ignore (Int.Map.fold  *)
+(*                          (fun xi xs sep ->  *)
+(*                            if sep then Util.format ","; *)
+(*                            Util.format "%d->[" xi; *)
+(*                            Misc.format_list "," (Util.format "%d") xs; *)
+(*                            Util.format "]"; *)
+(*                            true) *)
+(*                          vm false); *)
+(*               Util.format "}" in  *)
+              
+(*               Util.format "SETUP_MEMBER %s %s@\n" (ns2str ns) (p2str formula); *)
+(*               Util.format "OBVIOUS_ZEROS: %s@\n" (is2str obvious_zeros); *)
+              
+(*               Util.format "ZEROS: %s" (is2str zeros); *)
+(*               Util.format "@\nNL: "; format_nl nl; *)
+(*               Util.format "@\nVMAP: "; format_vmap vmap; *)
+(*               Util.format "@\n"); *)
+          

@@ -212,6 +212,15 @@ val dynamic_bind : 'a ref -> 'a -> (unit -> 'b) -> 'b
 (** [dynamic_bind d v f] executes [f] with [d] containing [v], and then restores [d]'s original value. *)
 
 
+(** {2 Numeric} *)
+val divide : int -> int -> float
+  (** [divide n d] returns a float representing n /. d and 0.0 if d=0. *)
+
+val percent : int -> int -> float
+  (** [percent n d] returns a float representing n /. d, suitable for
+      printing as a percentage *)
+
+
 (** {2 Formatting} *)
 
 val concat_list : string -> string list -> string

@@ -70,7 +70,7 @@ let check m =
       String.capitalize (Util.replacesubstring m ".fcl" "")
     else m in
   if not (Registry.load modname) then
-    Error.simple_error (Printf.sprintf "Error: could not find module %s@\n" modname)
+    raise (Error.Harmony_error (fun () -> Util.format "Error: could not find module %s@\n" modname))
 
 (*******)
 (* GET *)
@@ -125,8 +125,9 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   let (o, a, b, (act, oa', aa', ba')) =
     if forcer1 then begin
       let a = read_view a_fn in
-      let aa = Misc.map_option (Lens.get lensa) a in
-      (a, a, a, (SyncAct Sync.equal, aa, aa, aa))
+	debug (fun () -> Util.format "Applying GET functions (a)...@\n");
+	let aa = Misc.map_option (Lens.get lensa) a in	  
+	  (a, a, a, (SyncAct Sync.equal, aa, aa, aa))
     end
     else 
       let a = read_view a_fn in
@@ -301,7 +302,11 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   if Prefs.read check_pref <> [] then
     begin
       Safelist.iter check (Prefs.read check_pref);
-      Presburger.print_stats ();
+      Memo.format_stats ();
+      Trace.debug "member-total+" 
+	(fun () -> 
+	   Util.format "Treeschema.total_member: %d@\n" !Treeschema.total_member);
+      Presburger.finish ();
       if Prefs.read rest = [] then exit 0
     end;
 
@@ -438,6 +443,12 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
       postprocess arpost newartemp newar;
       postprocess r1post newr1temp newr1;
       postprocess r2post newr2temp newr2;
+      Memo.format_stats ();
+      Trace.debug "member-total+" 
+	(fun () -> 
+	   Util.format "Treeschema.total_member: %d@\n" !Treeschema.total_member);
+      Presburger.finish ();
+
       exit exitcode
     end)
   (* Clean up *)

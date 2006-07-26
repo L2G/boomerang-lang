@@ -33,7 +33,7 @@ INSTALLDIR = $(HOME)/bin
 
 LENSPATH = -I $(LENSESDIR) -I $(CWD)
 HARMONYBIN = $(SRCDIR)/harmony 
-HARMONY = $(HARMONYBIN) $(HARMONYFLAGS) $(LENSPATH)
+HARMONY = $(HARMONYBIN) $(HARMONY_FLAGS) $(LENSPATH)
 
 $(HARMONYBIN):
 	$(MAKE) -C $(SRCDIR)
@@ -52,15 +52,14 @@ PACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8"
 YFLAGS = -v 
 OCAMLFLAGS = -dtypes -rectypes
 OCAMLCPFLAGS = a
-OCAMLLDFLAGS = -cc g++
 
-LIBS=csv omega
+LIBS=csv genepi
 
 LIBDIRS = $(EXTERNDIR)/ocaml-csv-1.0.3/ \
-          $(EXTERNDIR)/omega/ocaml/
+          $(EXTERNDIR)/genepi/ocaml/
 
 INCDIRS = $(EXTERNDIR)/ocaml-csv-1.0.3 \
-          $(EXTERNDIR)/omega/ocaml
+          $(EXTERNDIR)/genepi/ocaml
 
 $(SRCDIR)/harmony.cmxa: 
 	$(MAKE) -C $(SRCDIR) native-code-library

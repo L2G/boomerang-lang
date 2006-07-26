@@ -587,6 +587,10 @@ let dynamic_bind d v f =
     raise e
   end 
 
+(* ------------- Numeric utilities ------------------*)
+let divide num den = if den = 0 then 0.0 else (float_of_int num /. float_of_int den)
+let percent num den = 100.0 *. (divide num den)
+  
 (* ------------- Pretty printing utilities --------------- *)
 
 let concat fold sep is_empty empty pretty structure = 

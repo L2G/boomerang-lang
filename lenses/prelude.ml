@@ -358,24 +358,20 @@ let map (l,c) =
                  Tree.fold
                    (fun k ck bindacc ->
                       let ck' = (l.get ck) in
-                        ((k,Some ck')::bindacc))
+                        ((k,ck')::bindacc))
                    c [] in
-                 Tree.create_star binds);
+                 Tree.from_list binds);
       put =
         (* we can do a type-based optimization here, but i haven't done it -JNF *)
         (fun a co ->
            let c = match co with None -> Tree.empty | Some c -> c in
             let cbinds = Tree.fold
              (fun k vk bindacc ->
-                (k,
-                 begin match (Tree.get c k),(Tree.get a k) with
-                   | Some ck, Some ak -> Some ((l.put ak (Some ck)))
-                   | Some ck, None -> None
-                   | None, Some ak -> Some ((l.put ak None))
-                   | _ -> assert false 
-                 end)::bindacc)
-               a [] in
-             Tree.create_star cbinds)} in 
+                match Tree.get a k with
+		  | None -> bindacc
+                  | Some ak -> (k, l.put ak (Tree.get c k))::bindacc)
+             a [] in
+             Tree.from_list cbinds)} in 
   let checker = 
     let mk_map_checker ck c = 
       match Treeschema.project_all c with
@@ -420,23 +416,19 @@ let wmap fm =
              (fun k ck bindacc ->
                 let lens = lookup k in 
                 let ck' = (lens.get ck) in
-                  ((k,Some ck')::bindacc))
+                  ((k,ck')::bindacc))
              c [] in
-             Tree.create_star binds);
+             Tree.from_list binds);
         put =
           (fun a co -> 
              let c = match co with None -> Tree.empty | Some c -> c in
              let cbinds = Tree.fold
                (fun k vk bindacc ->
-                  (k,
-                   begin match (Tree.get c k),(Tree.get a k) with
-                     | Some ck, Some ak -> Some ((lookup k).put ak (Some ck))
-                     | Some ck, None -> None
-                     | None, Some ak -> Some ((lookup k).put ak None)
-                     | _ -> assert false
-                   end)::bindacc)
-                 a [] in
-               Tree.create_star cbinds) } in 
+		  match Tree.get a k with
+		    | None -> bindacc
+                    | Some ak -> (k, (lookup k).put ak (Tree.get c k))::bindacc)
+		  a [] in
+             Tree.from_list cbinds) } in
   let checker =     
     let empty_view_schema = Treeschema.mk_cat [] in 
     let mk_wmap_checker ck_get s = 
@@ -524,7 +516,7 @@ let xfork pcv pav (l1,c1) (l2,c2) =
   let checker = 
     let aux pc ck1 ck2 s = 
       (* FIXME: need to check <= pa too! *)
-      if Treeschema.empty s then s 
+      if Treeschema.is_empty s then s 
       else let s_pc,s_neg_pc = Treeschema.restrict pc s in 
       let a1 = ck1 s_pc in 
       let a2 = ck2 s_neg_pc in 
@@ -655,11 +647,7 @@ let hoist k =
             ; `String k; `String "=T}"; `Space 
             ; `String "found"; `Space
             ; `Prim (fun () -> Treeschema.format_t c)]
-    else match Treeschema.project k c with 
-        None -> 
-          Treeschema.format_t c;
-          assert false 
-      | Some a -> a in 
+    else Treeschema.project k c in 
   let a2c a = Treeschema.mk_atom k a in
     (lens, BIJ(c2a,a2c))
 
@@ -841,7 +829,7 @@ let cond_impl c1 a1 a2 f21o f12o (lt,ct) (lf,cf) =
       match ct,cf with
           BIJ(c2a,a2c),BIJ(c2a',a2c') ->               
             (* the cond is bijective iff a1 and a2 are disjoint *)
-            if Treeschema.empty (Treeschema.mk_isect [a1;a2]) then 
+            if Treeschema.is_empty (Treeschema.mk_isect [a1;a2]) then 
               let ck_a2c a = 
                 let a_inter_a1 = Treeschema.mk_isect [a;a1] in 
                 let a_inter_a2 = Treeschema.mk_isect [a;a2] in 
@@ -1044,25 +1032,24 @@ let pivot k =
                        ; `String "of this tree should not exist:"; `Space
                        ; `Tree w]
                else
-                 Tree.set w k (Some (Tree.new_value ak))
+                 Tree.set w k (Some (Tree.mk_value ak))
         )} in
   let checker = 
-    let mk_skinny s = Treeschema.mk_wild Name.Set.empty 1 false s in 
-    let value = mk_skinny (Treeschema.mk_cat []) in 
+    let mk_bang s = Treeschema.mk_wild Name.Set.empty 1 false s in 
+    let value = mk_bang (Treeschema.mk_cat []) in 
     let c2a c = 
       let c_k,c_rest = Treeschema.restrict (Name.Set.singleton k) c in
-      let _ = 
-        let err () = error [`String pivot_qid; `Space
-                           ; `String "may only be used with a shema that has a child"; `Space
-                           ; `Name k; `Space
-                           ; `String "leading to a value"] in          
-          match Treeschema.project k c_k with
-              None -> err ()
-            | Some c_k -> 
-                if not (Treeschema.equivalent c_k value) then err () in
-        mk_skinny c_rest in 
+      let t = Treeschema.mk_atom k value in
+      if not (Treeschema.subschema c_k t) then 
+        error [`String pivot_qid; `Space
+               ; `String "expected a schema with a child"; `Space
+               ; `Name k; `Space
+               ; `String "leading to a value, but found"; `Space
+               ; `Prim (fun () -> Treeschema.format_t c)]
+      else
+        mk_bang c_rest in 
     let a2c a = 
-      if not (Treeschema.subschema a (mk_skinny Treeschema.mk_any)) then 
+      if not (Treeschema.subschema a (mk_bang Treeschema.mk_any)) then 
         error [`String pivot_qid; `Space
               ; `String "may only be used with a shema of the form {!=A}"];
       match (Treeschema.project_all a) with 
@@ -1253,7 +1240,7 @@ let explode =
       "" -> []
     | s -> 
         let sh = String.sub s 0 1 and st = String.sub s 1 (String.length s - 1) in
-        (Tree.new_value sh)::(tree_of_string msg st)
+        (Tree.mk_value sh)::(tree_of_string msg st)
   and string_of_tree msg = function
       [] -> ""
     | a::q -> 
@@ -1278,7 +1265,7 @@ let explode =
              (* here is the string we have to 'explode' *)
              Tree.structure_from_list (tree_of_string "get" k)
         );
-      put = (fun a _ -> Tree.new_value (string_of_tree "put" (Tree.list_from_structure a)))
+      put = (fun a _ -> Tree.mk_value (string_of_tree "put" (Tree.list_from_structure a)))
     } in 
     (lens, unchecked explode_qid)
 
@@ -1299,7 +1286,7 @@ let split sep =
     { get = (fun c ->
                if not (Tree.is_value c) then
                  error [`String ("Native.Prelude.split (get) : expecting exactly one child :"); `Tree c];
-               Tree.structure_from_list (Safelist.map Tree.new_value (Misc.split_nonescape sepchar (Tree.get_value c))));
+               Tree.structure_from_list (Safelist.map Tree.mk_value (Misc.split_nonescape sepchar (Tree.get_value c))));
       put = (fun a c ->
                let split = Safelist.map Tree.get_value (Tree.list_from_structure a) in
                  if split=[] then
@@ -1310,37 +1297,27 @@ let split sep =
                              `String sep; `String "': ";
                              `Tree a])
                    split;
-                 Tree.new_value (String.concat sep split)) } in 
+                 Tree.mk_value (String.concat sep split)) } in 
   let checker =
     let value = Treeschema.mk_wild Name.Set.empty 1 false (Treeschema.mk_cat []) in
-    let mk_value_list c =
-      let x = split_qid ^ "generated value list" in
-      let fresh_x = Syntax.fresh x in 
-      let x_t = Treeschema.mk_var fresh_x in
-        Treeschema.mark_tvars [x,Info.M x];
-        Treeschema.update fresh_x (Treeschema.mk_union [nil;cons c x_t]);
-        Treeschema.finalize ();        
-        x_t in
     let c2a c = 
       if not (Treeschema.subschema c value) then error 
         [`String split_qid; `Space;
          `String "may only be used with concrete schema that is a subschema of {!={}}"];
-      mk_value_list c in
+      Treeschema.mk_list (Info.M split_qid) value in
     let a2c a = 
-      if not (Treeschema.subschema a (mk_value_list value)) then error
+      if not (Treeschema.subschema a (Treeschema.mk_list (Info.M split_qid) value)) then error
         [`String split_qid; `Space;
          `String "may only be used with the abstract schema (List.T {!={}})"];
-      match Treeschema.project hd_tag a with 
-          None -> assert false;
-        | Some sub_value -> sub_value in 
-      BIJ(c2a,a2c) in
-    (lens, checker)
+      Treeschema.project hd_tag a in 
+    BIJ(c2a,a2c) in
+  (lens, checker)
 
 let split_lib =
   mk_nfun (SLens) split_qid
     (fun k -> 
        let l,ck = Value.v_of_tree_lens (split k) in
-         Value.L (l,ck))
+       Value.L (l,ck))
 let _ = register_native split_qid (SName ^> SLens) split_lib
 
 (* split an even list in half *)
@@ -1418,7 +1395,7 @@ let fconst v d =
                  match co with
                    | None -> 
                        (match output_from d with
-                            Some name -> Tree.new_value name
+                            Some name -> Tree.mk_value name
                           | None -> error [`String (fconst_qid ^ "(put): cmd");
                                            `String d;
                                            `String "returned with non-zero value"])
@@ -1455,7 +1432,7 @@ let fmodify n cmd =
                        else begin
                          match output_from cmd with
                              Some value -> 
-                               Tree.set a n (Some (Tree.new_value value))
+                               Tree.set a n (Some (Tree.mk_value value))
                            | None ->
                                error [`String (fmodify_qid ^ "(put): cmd");
                                       `String cmd;
@@ -1464,7 +1441,7 @@ let fmodify n cmd =
                  | None ->
                      match output_from cmd with
                          Some value -> 
-                           Tree.set a n (Some (Tree.new_value value))
+                           Tree.set a n (Some (Tree.mk_value value))
                        | None ->
                            error [`String (fmodify_qid ^ "(put): cmd");
                                   `String cmd;

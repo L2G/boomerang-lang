@@ -264,7 +264,7 @@ function run_demo($demogroup, $demonumber) {
   if($splash) { $elements = array_slice($elements, 0, 1); }
   
   if ($reset) {
-    $r1 = $d_r1;
+    $r1 = $d_r1; 
     $r2 = $d_r2;
     $ar = $d_ar;
     $l1 = $d_l1;
@@ -373,8 +373,8 @@ function run_demo($demogroup, $demonumber) {
       debug ('$cmd',$cmd);
       $output = shell_exec($cmd);
       debug ('$output',$output);
-      
-      if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
+
+     if (file_exists($newarfile) && file_exists($newr1file) && file_exists($newr2file)) {
         $ar = filecontents($newarfile);
         $r1 = filecontents($newr1file);
         $r2 = filecontents($newr2file);
@@ -383,7 +383,7 @@ function run_demo($demogroup, $demonumber) {
         testabort($cmd);
       }
       
-      if ($error || !preg_match('/Conflict/', $output)) { #HACK!! check exit code instead
+      if ($error || !preg_match('/Conflict/', $output)) { #HACK! check exit code instead
         array_splice($icons, 0, 1);
       } else {
         $error = true;
@@ -411,15 +411,15 @@ function run_demo($demogroup, $demonumber) {
       debug ('$a2',$a2);
       if(empty($a2)) { testabort($getcmd2); }
     }
-  #TODO here: remove temporary files!!
 
   #SKIP HTML generation in testing mode
   if($test) { 
-    put_file("${demogroup}-${demonumber}-ar", $ar);
-    put_file("${demogroup}-${demonumber}-r1", $r1);
-    put_file("${demogroup}-${demonumber}-r2", $r2);
-    put_file("${demogroup}-${demonumber}-a1", $a1);
-    put_file("${demogroup}-${demonumber}-a2", $a2);
+#    put_file("$home/out/${demogroup}-${demonumber}-out", $output);
+#    put_file("$home/out/${demogroup}-${demonumber}-ar", $ar);
+#    put_file("$home/out/${demogroup}-${demonumber}-r1", $r1);
+#    put_file("$home/out/${demogroup}-${demonumber}-r2", $r2);
+#    put_file("$home/out/${demogroup}-${demonumber}-a1", $a1);
+#    put_file("$home/out/${demogroup}-${demonumber}-a2", $a2);
     echo "Web demo {$demogroup}-{$demonumber}\t[   OK   ]\n";
     return; 
   }
@@ -858,6 +858,7 @@ function cleanup() {
   foreach($written_files as $file) {
     unlink($file);
   }
+  $written_files = array();
 }
 
 function next_demo() {

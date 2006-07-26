@@ -50,6 +50,10 @@ val match_substring : t -> string -> bool
    the matched prefix. *)
 val match_prefix : t -> string -> int -> int option
 
+val is_finite : t -> bool
+
+val init : unit -> unit
+
 (* Errors that can be raised during the parsing of Posix regular
    expressions *)
 exception Parse_error

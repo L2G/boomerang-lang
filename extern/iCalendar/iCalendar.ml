@@ -112,18 +112,19 @@ let iCalReader inc outc =
     
 let iCalWriter inc outc =
   let ic =
-    let s = read_file inc in
-    let _ = Metal.setup "meta string" in
+    let s = read_file inc in 
+    let _ = Lexer.setup "<meta string>" in
     let lexbuf = Lexing.from_string s in        
-    let res = 
+    let e = 
       try 
-	(Metay.tree Metal.token lexbuf) 
+        (Parser.exp Lexer.main lexbuf) 
       with Parsing.Parse_error -> 
-	raise (Error.Harmony_error
-		 (fun () -> Format.printf "%s: syntax error." 
-		     (Info.string_of_t (Lexer.info lexbuf))))
-    in
-    let _ = Metal.finish () in
+        raise (Error.Harmony_error
+                  (fun () -> Util.format "%s: syntax error in meta file." 
+                    (Info.string_of_t (Lexer.info lexbuf)))) in
+    Lexer.finish();
+    let e_rv = Compiler.compile_exp (Compiler.empty_cenv ()) e in
+    let res = Value.get_tree (Info.M "<meta string>") (Registry.value_of_rv e_rv) in          
       Ical.icalendar_from_view res in
-    write outc false ic
+  write outc false ic
       

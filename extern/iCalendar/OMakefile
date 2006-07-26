@@ -5,6 +5,6 @@ LocalOCamlGeneratedFiles($(GENERATED_SOURCES_BARE))
 OCamlProgram($(RESULT), $(rootname $(COMMON_SOURCES) $(ICALENDAR_SOURCES) iCalViewer.ml) $(RESULT))
 
 clean:
-  $(CLEAN) $(GENERATED_SOURCES_BARE)
+  $(CLEAN) $(GENERATED_SOURCES_BARE) $(RESULT)
 
 .DEFAULT: $(RESULT)

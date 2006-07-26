@@ -32,7 +32,12 @@ module type S =
     (** [iter f ev] iterates f over every element of [ev] *)
   end
 
-module Make(Key:Mapplus.OrderedType) = struct
+module type PrintableOrderedType = sig 
+  include Set.OrderedType
+  val to_string : t -> string 
+end
+
+module Make(Key:PrintableOrderedType) = struct
   module EMap = Mapplus.Make(Key)
   module KeyMap = EMap.Map
   module KeySet = EMap.KeySet

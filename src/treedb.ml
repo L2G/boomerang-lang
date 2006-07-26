@@ -1,7 +1,7 @@
 
 let rcd_to_tree rcd =
   Name.Map.fold
-    (fun k s t -> Tree.set t k (Some (Tree.new_value s))) rcd Tree.empty
+    (fun k s t -> Tree.set t k (Some (Tree.mk_value s))) rcd Tree.empty
 
 let tree_to_rcd tree =
   Tree.fold

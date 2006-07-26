@@ -38,12 +38,12 @@ else
   bakery.ml: $(SRCDIR)/baker
     ./$^ > $@
 
-$(EXTERNDIR)/omega/ocaml/omega.cma:
-	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
-$(EXTERNDIR)/omega/ocaml/omega.cmxa:
-	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
-$(EXTERNDIR)/omega/ocaml/omegaLibrary.cmx:
-	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepi.cma:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepi.cmxa:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmx:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
@@ -54,9 +54,9 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmi:
 .SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o
 .SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx
 .SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmo
-.SCANNER: $(EXTERNDIR)/omega/ocaml/omegaLibrary.cmx
-.SCANNER: $(EXTERNDIR)/omega/ocaml/omegaLibrary.o
-.SCANNER: $(EXTERNDIR)/omega/ocaml/omegaLibrary.cmo
+.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmx
+.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.o
+.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmo
 
 ##############################################################################
 # Testing

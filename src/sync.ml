@@ -21,10 +21,6 @@ module rec Internal :
             -> action * Tree.t option * Tree.t option * Tree.t option
   end = struct
 
-let diff3 = Prefs.createBool "diff3" true
-  "Use diff3 algorithm to synchronize lists"
-  "Use diff3 algorithm to synchronize lists"
-
 let debug = Trace.debug "sync"
 
 type copy_value =
@@ -39,7 +35,6 @@ type action =
   | CopyLeftToRight of copy_value
   | CopyRightToLeft of copy_value
   | ListSync of D3.action
-  | ListConflict of Tree.t * Tree.t
   | GoDown of action Name.Map.t
 
 let equal = MarkEqual
@@ -49,7 +44,6 @@ let rec has_conflict a =
       SchemaConflict _ | DeleteConflict _  -> true
     | MarkEqual | CopyLeftToRight _ | CopyRightToLeft _ -> false
     | ListSync a -> D3.has_conflict a 
-    | ListConflict _ -> true
     | GoDown(m) -> Name.Map.fold 
         (fun k a' c -> c || has_conflict a')
         m false
@@ -73,12 +67,6 @@ let format_schema_conflict t lv rv =
                 ; `Break; `Tree lv; `Break; `Tree rv
                 ; `Close_box] )
 
-let format_list_conflict lv rv =
-  V.format_msg ([`Open_vbox
-     ; `String "List conflict (synchronizing a list with a non-list) between"
-     ; `Break; `Tree lv; `Space; `String "and"; `Space; `Tree rv
-     ; `Close_box] )
-
 let rec format_raw = function
   | SchemaConflict (t,lv,rv) ->
       format_schema_conflict t lv rv
@@ -93,7 +81,6 @@ let rec format_raw = function
       Tree.show_diffs v0 v;
       Util.format "@]@,"
   | ListSync a -> D3.format_action a
-  | ListConflict (lv,rv) -> format_list_conflict lv rv
   | CopyLeftToRight c -> format_copy "-->" c
   | CopyRightToLeft c -> format_copy "<--" c
 
@@ -145,7 +132,6 @@ let rec format_pretty = function
   | CopyLeftToRight c -> format_copy "-->" c
   | CopyRightToLeft c -> format_copy "<--" c
   | ListSync a -> D3.format_action a
-  | ListConflict (lv,rv) -> format_list_conflict lv rv
 
 (* BCP: This can be deleted after we commit to the new list sync stuff *)
 and format_cons equal_hd_count m =
@@ -178,9 +164,7 @@ and format_cons equal_hd_count m =
   | MarkEqual -> Util.format "...]@]"
   | a -> format_pretty a; Util.format "]@]"
 
-let format_action v =
-  if Prefs.read Tree.raw then format_raw v
-  else format_pretty v
+let format_action = format_pretty
 
 (*********************************************************************************)
 
@@ -242,7 +226,11 @@ let rec sync s (oo, ao, bo) =
             (CopyRightToLeft (Replacing (lv,rv)), Some rv, Some rv, Some rv)
           else 
             (CopyLeftToRight (Replacing (rv,lv)), Some lv, Some lv, Some lv)
-        else if Tree.is_list lv && Tree.is_list rv && Prefs.read diff3 then 
+        else if (* The first two conditions are redundant, strictly speaking
+                   (they are implied by the last), but they are faster to check *)
+                ((Tree.is_cons lv) || (Tree.is_empty_list lv))
+             && ((Tree.is_cons rv) || (Tree.is_empty_list rv))
+             && Treeschema.is_list s then 
           (* Call the diff3 module to handle list sync: *)
           let ll = Tree.list_from_structure lv in
           let rl = Tree.list_from_structure rv in
@@ -250,35 +238,21 @@ let rec sync s (oo, ao, bo) =
                      None -> []
                    | Some ov ->
                        if Tree.is_list ov then Tree.list_from_structure ov else [] in
-          let elt_schema =
-            (* BCP: Following line is bogus -- assumes that all lists are
-               homogeneous and just takes the type of the first element as the
-               type of all elements.  But what, exactly, should we do instead?? *)
-            match Treeschema.project Tree.hd_tag s with
-              None -> assert false (* Not a list schema? *)
-            | Some ss -> ss in
+          let elt_schema = Treeschema.project Tree.hd_tag s in
           let (a,ol',ll',rl') = D3.sync elt_schema (ol,ll,rl) in
           (ListSync a,
            Some (Tree.structure_from_list ol'),
            Some (Tree.structure_from_list ll'),
            Some (Tree.structure_from_list rl'))
-        else if (Tree.is_list lv || Tree.is_list rv) && Prefs.read diff3 then 
-          (ListConflict (lv,rv), oo, ao, bo)
         else
           let lrkids = Name.Set.union (Tree.dom lv) (Tree.dom rv) in
           let acts, arbinds, lbinds, rbinds =            
             Name.Set.fold
               (fun k (actacc, aracc, lacc, racc) ->
-                 let tk = match Treeschema.project k s with
-                     None ->
-                       (* Can't happen, since every child k is in        *)
-                       (* either dom(a) or dom(b), both of which are in  *)
-                       (* T, as we just checked. For debugging, here's a *)
-                       (* helpful error message:                         *)
-                       Lens.error [`String "synchronization bug: type "
-                             ; `Prim (fun () -> Treeschema.format_t s)
-                             ; `String " cannot be projected on "; `String k]
-                   | Some tk -> tk   in
+                 let tk = Treeschema.project k s in
+                 (* Note that tk cannot be empty, since every child k is in *)
+                 (* either dom(a) or dom(b), both of which are in  *)
+                 (* T, as we just checked. *)
                  let act, o', a', b' =
                    sync 
                      tk

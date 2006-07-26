@@ -34,7 +34,6 @@ val db_of_v : (V.t, V.t) t -> (Db.t, Db.t) t
 
 (* ------------------------------------------------------------------------- *)
 (** {2 Memoization} *)
-val rate : unit -> float
 val memoize_lens : (V.t, V.t) t -> (V.t, V.t) t
 (** [memoize_lens l] returns a memoized version of [l]. *)
 

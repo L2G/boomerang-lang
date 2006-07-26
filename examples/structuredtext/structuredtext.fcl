@@ -82,7 +82,7 @@ let l_unordered_with (S:schema) (l':lens) : lens = l_unordered S; List.map (wmap
 (* Some specific useful instances... *)
 
 let CapLetter : schema = {A}|{B}|{C}|{D}|{E}|{F}|{G}|{H}|{I}|{J}|{K}|{L}|{M}|{N}|{O}
-                        |{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z}
+                        |{P}|{Q}|{R}|{S}|{T}|{U}|{V}|{W}|{X}|{Y}|{Z} 
 let AllCapsList : schema = List.NonEmptyList (CapLetter|{" "})
 		  
 let caps_headers : lens = l AllCapsList

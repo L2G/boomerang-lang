@@ -30,5 +30,10 @@ module type S = sig
     val iter : (key -> 'a -> unit) -> 'a t -> unit
   end
 
-module Make(Key:Mapplus.OrderedType)  : S
+module type PrintableOrderedType = sig 
+  include Set.OrderedType
+  val to_string : t -> string
+end
+
+module Make(Key:PrintableOrderedType)  : S
   with type key = Key.t

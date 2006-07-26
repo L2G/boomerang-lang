@@ -10,6 +10,7 @@ $demo["r1format"] = $demo["r2format"] = "xml";
 $demo["arformat"] = "meta";
 
 # ---------------------------------------------------------
+$demo["element_order"] = array("instr");
 $demo["splash"] = true;
 unset($demo["instr_w"]);
 $demo["instr"] = <<<XXX

@@ -579,8 +579,8 @@ let rec compile_exp cev e0 = match e0 with
                 SView
                 (Value.V (V.Tree (Tree.set Tree.empty n (Some t))))
           | Value.S s ->
-              let s = Schema.mk_atom n s in
-                mk_rv SSchema (Value.S s)
+              let s = Schema.treeschema (Treeschema.mk_atom n (Schema.treeschema_of i s)) in
+              mk_rv SSchema (Value.S s)
           | v -> run_error i
               (fun () -> 
                  Util.format 
@@ -622,7 +622,8 @@ let rec compile_exp cev e0 = match e0 with
                     mk_rv SView (Value.V (V.Tree (vi)))                      
               | SSchema ->                   
                   let ts = Safelist.rev_map (Value.get_schema i) vs_rev in                    
-                  let s = Schema.mk_cat ts in
+                  let s = Schema.treeschema
+                            (Treeschema.mk_cat (Safelist.map (Schema.treeschema_of i) ts)) in
                      mk_rv SSchema (Value.S s)
               | _ -> run_error i 
                   (fun () -> 
@@ -637,14 +638,23 @@ let rec compile_exp cev e0 = match e0 with
               Value.V (V.Tree t1), Value.V (V.Tree t2)     -> 
                 mk_rv SView (Value.V (V.Tree (Tree.cons t1 t2)))
             | Value.V _, Value.S t ->
-                let s = Schema.mk_cons (Value.get_schema i e1_v) t in
-                        mk_rv SSchema (Value.S s)
+                let s = Schema.treeschema
+                          (Treeschema.mk_cons
+                             (Schema.treeschema_of i (Value.get_schema i e1_v))
+                             (Schema.treeschema_of i t)) in
+                mk_rv SSchema (Value.S s)
             | Value.S t, Value.V _ ->
-                let s = Schema.mk_cons t (Value.get_schema i e2_v) in
-                        mk_rv SSchema (Value.S s)
+                let s = Schema.treeschema
+                          (Treeschema.mk_cons
+                             (Schema.treeschema_of i t)
+                             (Schema.treeschema_of i (Value.get_schema i e2_v))) in
+                mk_rv SSchema (Value.S s)
             | Value.S t1, Value.S t2 -> 
-                let s = Schema.mk_cons t1 t2 in 
-                        mk_rv SSchema (Value.S s)
+                let s = Schema.treeschema
+                          (Treeschema.mk_cons
+                             (Schema.treeschema_of i t1)
+                             (Schema.treeschema_of i t2)) in 
+                mk_rv SSchema (Value.S s)
             | _ -> run_error i (fun () -> Util.format "@[expected tree or type in atom@]")
           end
 
@@ -734,26 +744,28 @@ let rec compile_exp cev e0 = match e0 with
     | EProtect(i,_,_) ->
         run_error i (fun () -> Util.format "@[unannotated protect@]")
 
-
     | ESchema(i,ss,e) ->         
         let scev,_ = compile_schema_bindings cev ss in 
-          compile_exp scev e 
+        compile_exp scev e 
 
     | EUnion(i, es) ->
         let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in
-        let s = Schema.mk_union ts in 
-          mk_rv SSchema (Value.S s)
+        let s = Schema.treeschema (Treeschema.mk_union (Safelist.map (Schema.treeschema_of i) ts)) in 
+        mk_rv SSchema (Value.S s)
 
     | EInter(i, es) ->
         let ts = Safelist.map (fun ei -> compile_exp_schema cev ei) es in
-        let s = Schema.mk_isect ts in 
-          mk_rv SSchema (Value.S s)
+        let s = Schema.treeschema (Treeschema.mk_isect (Safelist.map (Schema.treeschema_of i) ts)) in 
+        mk_rv SSchema (Value.S s)
 
     | EMinus(i,e1,e2) -> 
         let s1 = compile_exp_schema cev e1 in
         let s2 = compile_exp_schema cev e2 in
-        let s = Schema.mk_diff s1 s2 in
-          mk_rv SSchema (Value.S s)
+        let s = Schema.treeschema
+                  (Treeschema.mk_diff
+                     (Schema.treeschema_of i s1)
+                     (Schema.treeschema_of i s2)) in
+        mk_rv SSchema (Value.S s)
 
     | EVar(i,q,_) -> begin 
         match CEnv.lookup cev q with
@@ -783,8 +795,8 @@ let rec compile_exp cev e0 = match e0 with
             Name.Set.empty 
             es in
         let t = compile_exp_schema cev e in 
-        let s = Schema.mk_wild f l u t in
-          mk_rv SSchema (Value.S s)
+        let s = Schema.treeschema (Treeschema.mk_wild f l u (Schema.treeschema_of i t)) in
+        mk_rv SSchema (Value.S s)
 
     | EDB(_,db) -> mk_rv SView (Value.V (V.Db db))
 
@@ -864,7 +876,7 @@ and compile_schema_bindings cev sbinds =
        let q_x = qid_of_id x in
        let fresh_x = fresh (string_of_id x) in
        let scev' = CEnv.update scev q_x
-         (mk_rv SSchema (Value.S (Schema.mk_var fresh_x))) in            
+         (mk_rv SSchema (Value.S (Schema.treeschema (Treeschema.mk_var fresh_x)))) in            
          (scev', i::i_rev,fresh_x::fresh_xs_rev, q_x::names_rev))
     (cev,[],[],[])
     sbinds in    
@@ -876,21 +888,22 @@ and compile_schema_bindings cev sbinds =
      - don't finish delayed work in compiling (we'll do that ourselves if needed) *)
   let old_check_schemas = !check_schemas_cell in 
     check_schemas_cell := false;
-    Schema.mark_tvars (Safelist.rev (Safelist.combine fresh_xs_rev i_rev));
+    Treeschema.mark_tvars (Safelist.rev (Safelist.combine fresh_xs_rev i_rev));
 
   (* pass 2: compile each schema expression and update the compilation
      environment so that every q_x points to the actual compiled
      schema not just a schema variable. *)
     Safelist.iter
-      (fun ((fresh_x,q_x),SDef(_,_,e)) ->
-         let s = compile_exp_schema scev e in 
-           Schema.update fresh_x s;
-           CEnv.overwrite scev q_x (mk_rv SSchema (Value.S s)))
+      (fun ((fresh_x,q_x),SDef(i,_,e)) ->
+         let s = compile_exp_schema scev e in
+         if Schema.is_treeschema s then
+           Treeschema.update fresh_x (Schema.treeschema_of i s);
+         CEnv.overwrite scev q_x (mk_rv SSchema (Value.S s)))
       annot_sbinds;
 
     (* finalize schemas, if flag set *)
     check_schemas_cell := old_check_schemas;
-    if (!check_schemas_cell) then Schema.finalize ();
+    if (!check_schemas_cell) then Treeschema.finalize ();
 
     (* result *)
     (scev, Safelist.rev names_rev)

@@ -55,7 +55,7 @@ let _ =
   let encoding = {
     Surveyor.description = "one-big-blob format";
     Surveyor.encoding_test = etest;
-    Surveyor.reader = Surveyor.simple_tree_reader (fun s -> Tree.new_value s);
+    Surveyor.reader = Surveyor.simple_tree_reader (fun s -> Tree.mk_value s);
     Surveyor.writer = Surveyor.simple_tree_writer (fun s -> Tree.get_value s);
   } in
   Surveyor.register_encoding "blob" encoding
@@ -181,7 +181,7 @@ let rec xml2tree n =
         Safelist.map
           (fun (k,a) ->
              match a with
-               Value s -> (k, Tree.new_value s)
+               Value s -> (k, Tree.mk_value s)
              | _ -> assert false)
           n#attributes in
       let kid_struct = Tree.structure_from_list kids in
@@ -193,7 +193,7 @@ let rec xml2tree n =
   | T_data ->
       let str = Util.trimWhitespace (n # data) in
       debug (fun () -> Util.format "found string \"%s\"@\n" (Misc.whack str));
-      Tree.set Tree.empty pcdata_tag (Some (Tree.new_value str))
+      Tree.set Tree.empty pcdata_tag (Some (Tree.mk_value str))
   | _ -> assert false
 
 let generic_read_from rd =

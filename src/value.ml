@@ -116,7 +116,7 @@ let focal_type_error i es v =
 let get_schema i v = 
   match v with 
       S s -> s 
-    | V (V.Tree t) -> Schema.t_of_tree t
+    | V (V.Tree t) -> Schema.treeschema (Treeschema.t_of_tree t)
     | _ -> focal_type_error i Syntax.SSchema v
 
 let get_name i v = 
@@ -227,23 +227,23 @@ let is_dummy = function D _ -> true | _ -> false
 let rec dummy s q = D(s,q) 
 
 (* MEMOIZATION *)
-type thist = t (* HACK! *)
-module H =
-  Hashtbl.Make(
-    struct
-      type t = thist
-      let equal = (==)                                (* Use physical equality test *)
-      let hash o = Hashtbl.hash (Obj.magic o : int)   (* Hash on physical addr *)
-    end)
 
-let memoize v = match v with 
-  | F(s,f) -> F (s, 
-                 let memotable = H.create 1 in
-                   (fun x -> try
-                      H.find memotable x
-                    with Not_found -> begin 
-                      let fx = f x in
-                        H.add memotable x fx;
-                        fx
-                    end)) 
-  | _ -> v
+let memoize = function
+    F(s,f) -> 
+      let module M = Memo.Make(
+	struct 
+	  type arg = t
+	  type res = t
+	  let format_arg = format_t 
+	  let format_res = format_t
+	  let hash = function
+	    | V(V.Tree(t))   -> Tree.hash t
+	    | S(Schema.T(s)) -> Treeschema.hash s
+	    | o              -> Hashtbl.hash o
+	  let equal = (==)
+	  let name = "Value.memoize"
+	  let init_size = 1
+	  let f = f
+	end) in 
+	F(s,M.memoized)
+  | v -> v

@@ -37,15 +37,7 @@ module type S =
 
 (* ---------------------------------------------------------------------- *)
 
-module type OrderedType = sig
-  type t 
-  val compare : t -> t -> int
-  val to_string : t -> string
-end
-
-(* ---------------------------------------------------------------------- *)
-
-module Make(Ord: OrderedType) = struct
+module Make(Ord:Set.OrderedType) = struct
 
   module M = Map.Make(Ord)
   module KeySet = Set.Make(Ord)
@@ -72,18 +64,15 @@ module Make(Ord: OrderedType) = struct
         (m, d)
     let remove x (m, d) = (M.remove x m, KeySet.remove x d)
     let mem x (m, _) = M.mem x m
-    let from_list key_value_list = 
-      let rec loop acc = function
-          [] -> acc
-        | (k, v)::rest ->
-            loop
-              (if mem k acc then 
-                 raise
-                   (Invalid_argument
-                      ("Mapplus.from_list: repeated key '"^(Ord.to_string k)^"' in list [" ^ (String.concat ", " (Safelist.map (fun (k,_) -> Ord.to_string k) key_value_list)) ^ "]"))
-               else add k v acc) rest
-      in
-        loop empty key_value_list
+    let from_list l = 
+      snd (Safelist.fold_left 
+             (fun (pos,acc) (k,v) -> 
+                if mem k acc then 
+                  raise 
+                    (Invalid_argument 
+                       (Printf.sprintf "Mapplus.from_list: repeated key at %d" pos))
+                else (pos+1,add k v acc))
+             (0,empty) l)
     let iter f (m, _) = M.iter f m
     let iter_with_sep f sep (m, _) =
       let first = ref true in

@@ -40,9 +40,3 @@ val format_msg_as_string : msg list -> string
 val error_msg : msg list -> 'a
 (** @raise Error with the message list passed as argument *)
 
-(* --------------------------------------------------------------------- *)
-(**{2 Pre-built hashtables of trees} *)
-
-(** Hash tables with trees as keys *)
-module Hash : Hashtbl.S with type key = t
-

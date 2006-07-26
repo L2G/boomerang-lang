@@ -7,6 +7,9 @@ type t
 (** A [Tree.t] is a tree of names.  Formally, a [Tree.t] can be thought of as a
     partial function from [Name.t]'s to [Tree.t]'s. *)
 
+val hash : t -> int
+(** hash function for Tree.t *)
+
 (* --------------------------------------------------------------------- *)
 (**{2 Accessors} *)
 
@@ -42,7 +45,7 @@ val set : t -> Name.t -> t option -> t
 (** [set v k kid] sets the children under name [k] in [v] to [t] if [kid = Some t],
     and removes any previously existing entry under [k] if [kid = None] *)
 
-val create_star : (Name.t * t option) list -> t
+(* val create_star : (Name.t * t option) list -> t *)
 (** [create_star binds = set_star empty binds] *)
 
 (** A description type for trees. A tree can then be created from a description using [from_desc] *)
@@ -72,20 +75,10 @@ val included_in : t -> t -> bool
 val compare : t -> t -> int
 (** [compare v1 v2] can be used as a comparison function on trees. *)
 
-(* val is_singleton : t -> bool *)
-(* (\** [is_singleton v] returns true if [dom v] only has one element, and false otherwise. *\) *)
-
-(* val same_root_sort : t -> t -> bool *)
-(* (\** [same_root_sort v u] returns true if the domains of [v] and [u] are equal. *\) *)
-
-
 (* --------------------------------------------------------------------- *)
 (** {2 Special forms of trees} *)
 
-(* val singleton : Name.t -> t -> t *)
-(* (\** [singleton n v] returns a new tree with [n] mapping to [v]. *\) *)
-
-val new_value : Name.t -> t
+val mk_value : Name.t -> t
 (** Returns a value made from the given name.  A value is a tree with a
     single child and no grandchildren. *)
 
@@ -95,23 +88,6 @@ val get_value : t -> Name.t
 
 val is_value : t -> bool
 (** Test whether a tree is a value. *)
-
-(* val get_field_value : t -> Name.t -> Name.t *)
-(* (\** [get_field_value v k] assumes that [v] has a child named [k], and that [k] is a value ; returns this value. *)
-(*     @raise Illformed if there is no child named [k], or if it is not a value *\) *)
-
-(* val get_field_value_option : t -> Name.t -> Name.t option *)
-(* (\** [get_field_value v k] returns [None] if [v] does not have a child named *)
-(*     [k], otherwise returns [Some (get_field_value v k)] *)
-(*     @raise Illformed if [v] has a child named [k], but [k] is not a value *\) *)    
-
-(* val set_field_value : t -> Name.t -> Name.t -> t *)
-(* (\** [set_field_value v k s] creates a value from [s], and stores it under *)
-(*     [k] in [v] *\) *)
-
-val field_value : Name.t -> Name.t -> t
-(** [field_value k s] creates a value from [s], stores it under [k] and returns the
-    corresponding tree *)
 
 (* --------------------------------------------------------------------- *)
 (** {2 Trees representing lists} *)
@@ -124,6 +100,9 @@ val empty_list : t
 
 val is_empty_list : t -> bool
 (** [is_empty_list v] returns true if and only if [v] is the tree representing the empy list. *)
+
+val is_cons : t -> bool
+(** [is_cons v] returns true if and only if [v] is a tree representing a cons cell. *)
 
 val structure_from_list : t list -> t
 (** [structure_from_list tl] returns the tree representing the list of trees [tl] *)
@@ -145,35 +124,13 @@ val tl_tag : Name.t
 val nil_tag : Name.t
 (** The tag name for the empty list *)
 
-
 (* --------------------------------------------------------------------- *)
 (** {2 Utility functions} *)
-
-(* val map : (t -> (t option)) -> t -> t *)
-(* (\** [map f v] returns a tree with same domain as [v], where the associated value [a] of all *)
-(*     bindings of [v] has been replaced by the result of the application of [f] to [a]. The  *)
-(*     bindings are passed to [f] in increasing order with respect to the alphabetical order *)
-(*     on the names in the domain *\) *)
-
-(* val mapi : (Name.t -> t -> (t option)) -> t -> t *)
-(* (\** Same as [map], but the function receives as arguments both the name and the associated *)
-(*     tree for each child in the tree. *\) *)
-
-(* val for_all : (t -> bool) -> t -> bool *)
-(* (\** returns true if the given predicate is true for all child trees *\) *)
-
-(* val for_alli : (Name.t -> t -> bool) -> t -> bool *)
-(* (\** returns true if the given predicate is true for all name&child tree pairs *\) *)
 
 val fold : (Name.t -> t -> 'a -> 'a) -> t -> 'a -> 'a
 (** [fold f v] a computes [(f kN tN ... (f k1 t1 a)...)], where [k1 ... kN] are
     the names of all children in [v]  (in increasing order), and [t1 ... tN]
     are the associated trees. *)
-
-(* val iter : (Name.t -> t -> unit) -> t -> unit *)
-(* (\** [iter f v] applies [f] to all children in [v]. [f] receives the name as first *)
-(*     argument, and the associated tree as second argument. The names are passed to *)
-(*     [f] in alphabetical order. *\) *)
 
 val split : (Name.t -> bool) -> t -> t * t
 (** [split p v] splits the tree [v] according to the predicate [p] on names.
@@ -199,4 +156,3 @@ val string_of_t : t -> string
 
 val show_diffs : t -> t -> unit
 (** Shows the differences between the two trees passed as arguments. *)
-

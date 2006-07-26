@@ -250,6 +250,13 @@ type state =
             final : bool;
             desc : u }
 
+let rec format_state s = 
+  Util.format "{ valid=%b, pos=%s, final=%b, desc=@[" s.valid (if s.pos = Pos_bol then "BOL" else "OTHER") s.final;
+  print 1 s.desc;
+  Util.format "@],@, next=@[[";
+  Array.iter (fun si -> format_state si; Util.format ", ") s.next;
+  Util.format "]@] }@\n";
+  
 type rx =
   { initial : state;
     categ   : int array;
@@ -302,6 +309,43 @@ let match_str rx s =
   let l = String.length s in
   if l = 0 then rx.initial.final else
   loop s 0 l rx rx.categ rx.initial
+
+module StateSet = Set.Make(
+  struct
+    type t = state
+    let compare s1 s2 = 
+      let d1 = s1.desc in 
+      let d2 = s2.desc in 
+        if d1.hash = d2.hash && d1 = d2 then 0 
+        else compare d1 d2
+  end)
+
+let rec rx_finite rx = 
+  let cat = rx.categ in 
+  let rec process_state (ok,grey,black) st = 
+    Util.format "PROCESS STATE: "; format_state st; Util.format "@\n";
+    if not ok || StateSet.mem st black then (ok,grey,black)
+    else if StateSet.mem st grey then (false,grey,black)
+    else 
+      let grey' = StateSet.add st grey in 
+      let (ok',grey',black') = 
+        Array.fold_left 
+          (fun (ok,g,b) ci -> 
+             Util.format "CI=%d " ci;
+             let go = process_state (ok,grey',black) in
+             let c = Array.unsafe_get cat ci in 
+             let st' = Array.unsafe_get st.next c in 
+               if not st'.valid then 
+                 let nl = cat.(Char.code '\n') in
+                 let desc = delta nl st.pos c st.desc in
+                 let st' = find_state rx.states rx.ncat (if c = nl then Pos_bol else Pos_other) desc in
+                   st.next.(c) <- st';
+                   go st'
+               else go st') 
+          (ok,grey,black) cat in 
+        (ok',StateSet.remove st grey', StateSet.add st black') in 
+  let (ok,_,_) = process_state (true,StateSet.empty,StateSet.empty) rx.initial in 
+    ok
 
 (* Combining the final and valid fields may make things slightly faster
    (one less memory access) *)
@@ -562,6 +606,18 @@ let match_string t s = match_str (force t) s
 let match_substring t s = match_str (force' t) s
 let match_prefix t s p = match_pref (force t) s p
 
+(* let rec rx_finite = function *)
+(*     Set(_) -> true *)
+(*   | Sequence(xs) -> true *)
+(*   | Alternative(xs) -> true *)
+(*   | Repeat(_,_,None) -> false *)
+(*   | Repeat(x,_,_) -> rx_finite x  *)
+(*   | Beg_of_line | End_of_line -> true *)
+(*   | Intersection(xs) -> true *)
+(*   | Difference(x1,x2) -> true *)
+
+let rec is_finite t = rx_finite (force t)
+
 let uppercase =
   cunion (cseq 'A' 'Z') (cunion (cseq '\192' '\214') (cseq '\216' '\222'))
 
@@ -818,3 +874,14 @@ let glob' nodot s = wrap (glob_parse (if nodot then Beg else Mid) s)
 let glob s = glob' true s
 let globx' nodot s = alt (List.map (glob' nodot) (explode s))
 let globx s = globx' true s
+
+let test_finite s = 
+  Util.format "TESTING %s@\n" s;
+  let res = is_finite (wrap (parse s)) in
+    Util.format "DONE %s = %b@\n" s res;
+    res
+
+let init () = 
+  assert (test_finite "a");
+  assert (not (test_finite "a*"));
+  assert (test_finite "a")

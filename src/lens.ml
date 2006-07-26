@@ -78,32 +78,31 @@ let tracepoint s l =
     }
 
 (* memoization stuff *)
-let hits = ref 0
-let misses = ref 0
-let rate () = 100.0 *. (float_of_int !hits) /. (float_of_int !misses)
 let memoize_lens l = 
-  let memotable = V.Hash.create 1 in        
+  let module M = Memo.Make(
+    struct
+      type arg = V.t 
+      type res = V.t
+      let format_arg = V.format_t
+      let format_res = V.format_t
+      let name = "Lens.memoize_lens"
+      let init_size = 1
+      let hash v = match v with 
+	  V.Tree t -> 199 * Tree.hash t
+	| V.Db b   -> 821 * Hashtbl.hash b
+      let equal = (==)
+      let f = get l 
+    end) in 
     (* We use memo information in both directions -- to
        short-circuit a get when we see it for the second time, and
        also to avoid computing the put when we can see what its
        result must be from the GetPut law *)
-    native 
-      (fun c -> 
-         try
-           let r = V.Hash.find memotable c in
-           let _ = incr hits in
-             r
-         with Not_found -> begin
-           incr misses;
-           let a = get l c in
-             V.Hash.add memotable c a;
-             a
-         end)
-      (fun a co -> 
-         match co with
-             None -> put l a None
-           | Some c ->
-               try
-                 let a' = V.Hash.find memotable c in
-                   if a' == a then c else put l a co
-               with Not_found -> put l a co)
+    native
+      M.memoized
+      (fun a co -> match co with 
+	   None -> put l a None
+	 | Some c -> begin 
+	     match M.find c with 
+		 Some a' -> if a' == a then c else put l a co
+	       | None    -> put l a co 
+	   end)

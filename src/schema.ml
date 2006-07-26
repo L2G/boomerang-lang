@@ -40,6 +40,14 @@ let treeschema_of_internal m1 m2 = function
               Dbschema.format_t s;
               Util.format "@]"))
 
+let is_treeschema = function
+  | T _ -> true
+  | D _ -> false
+
+let is_dbschema = function
+  | T _ -> false
+  | D _ -> true
+
 let t1 m f =
   fun s -> f (treeschema_of_internal m "a tree schema" s)
 
@@ -75,41 +83,4 @@ let member v s =
   | V.Tree t, T ts -> Treeschema.member t ts
   | V.Db d, D ds -> Dbschema.member d ds
   | _, _ -> false
-
-let mark_tvars = Treeschema.mark_tvars
-let finalize = Treeschema.finalize
-let update s = t1 "update" (Treeschema.update s)
-
-let mk_any = T (Treeschema.mk_any)
-let mk_atom n s = T (t1 "atom schema" (Treeschema.mk_atom n) s)
-let mk_cat l = T (tlist "concatenation of schemas" Treeschema.mk_cat l)
-let mk_union l = T (tlist "union of schemas" Treeschema.mk_union l)
-let mk_var n = T (Treeschema.mk_var n)
-let mk_wild ns k b s = T (t1 "wildcard schema" (Treeschema.mk_wild ns k b) s)
-let mk_neg s = T (t1 "schema negation" Treeschema.mk_neg s)
-let mk_isect l = T (tlist "intersection of schemas" Treeschema.mk_isect l)
-let mk_diff s1 s2 = T (t2 "difference of schemas" Treeschema.mk_diff s1 s2)
-let mk_nil = T (Treeschema.mk_nil)
-let mk_cons s1 s2 = T (t2 "cons" Treeschema.mk_cons s1 s2)
-let t_of_tree t = T (Treeschema.t_of_tree t)
-
-let msg = "[INTERNAL ERROR]"
-
-let empty = t1 msg Treeschema.empty
-let dom_member ns = t1 msg (Treeschema.dom_member ns)
-
-let lift_option f x =
-  match x with
-  | None -> None
-  | Some y -> Some (f y)
-
-let project n s = lift_option (fun s -> T s) (t1 msg (Treeschema.project n) s)
-let project_all s = lift_option (fun s -> T s) (t1 msg (Treeschema.project_all) s)
-
-let inject s1 s2 = T (t2 "inject" Treeschema.inject s1 s2)
-let inject_map s1 fm = T (tfm "inject_map" Treeschema.inject_map s1 fm)
-
-let restrict ns s =
-  let s1, s2 = t1 msg (Treeschema.restrict ns) s in 
-  (T s1, T s2)
 

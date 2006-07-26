@@ -63,7 +63,7 @@ if mkdir ${temp_dir}; then :; else
 	exit 1
 fi
 
-cflags="-g -O3"
+cflags="-O3 -Wall -fno-common"
 cppflags="-D_XOPEN_SOURCE=500 -I\${srcdir} -I."
 
 compute_names() {
@@ -414,7 +414,7 @@ srcdir=		${srcdir}
 CPPFLAGS=	${cppflags}
 #CPPFLAGS+=	-DDEBUG
 CFLAGS=		${cflags}
-CFLAGS+=	-W -Wall -ansi -Wno-unused
+CFLAGS+=	-W -Wall -ansi -Wno-unused 
 #CFLAGS+=	-Werror
 LDFLAGS=	${ldflags}
 #LDFLAGS+=	-L/usr/pkg/lib -lefence		# for maintainer

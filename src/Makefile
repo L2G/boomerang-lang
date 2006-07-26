@@ -12,7 +12,6 @@ include $(TOP)/Top.Makefile
 STATIC = 1
 RESULT = harmony
 SOURCES = $(COMMON_SOURCES) harmony.ml 
-OCAMLLDFLAGS = -cc g++
 OCAMLCPFLAGS = a
 
 all: TAGS
@@ -30,7 +29,7 @@ tags:
 
 GENERATED_AND_EXTERNAL_NATIVE=$(SRCDIR)/bakery.ml \
      $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa \
-     $(EXTERNDIR)/omega/ocaml/omega.cmxa
+     $(EXTERNDIR)/genepi/ocaml/genepi.cmxa
 
 GENERATED_AND_EXTERNAL_BYTECODE=$(GENERATED_AND_EXTERNAL_NATIVE:%.cmxa=%.cma)
 
@@ -42,7 +41,7 @@ native-code-library: $(GENERATED_AND_EXTERNAL_NATIVE)
 
 profiling-native-code: $(GENERATED_AND_EXTERNAL_NATIVE)
 
-profiling-byte-code: $(GENERATED_AND_EXTERNAL_NATIVE)
+profiling-byte-code: $(GENERATED_AND_EXTERNAL_BYTECODE)
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
@@ -50,11 +49,11 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cma:
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
-$(EXTERNDIR)/omega/ocaml/omega.cma:
-	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepi.cma:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 
-$(EXTERNDIR)/omega/ocaml/omega.cmxa:
-	$(MAKE) -C $(EXTERNDIR)/omega/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepi.cmxa:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 
 $(SRCDIR)/baker: $(SRCDIR)/baker.ml
 	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^
@@ -76,7 +75,7 @@ endif
 # UBASE #
 #########
 
-UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml
+UBASE_LIB_SOURCES = safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml rx.ml
 
 #########################
 # BASE/COMPILER SOURCES #
@@ -86,7 +85,9 @@ SRC2FCL_SOURCES = src2fcl.mll
 BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
 	       unittest.mli unittest.ml \
                mapplus.mli mapplus.ml \
-               name.mli name.ml db.mli db.ml tree.ml tree.mli v.mli v.ml \
+	       name.mli name.ml int.mli int.ml \
+               memo.mli memo.ml \
+               db.mli db.ml tree.ml tree.mli v.mli v.ml \
 	       dbschema.mli dbschema.ml \
                syntax.mli syntax.ml \
 	       lens.mli lens.ml \
@@ -103,8 +104,7 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
 	       diff3.mli diff3.ml sync.mli sync.ml \
                compiler.mli compiler.ml \
 
-VIEWER_SOURCES = metay.mly metal.mll \
-		 viewers.ml
+VIEWER_SOURCES = viewers.ml
 
 TOPLEVEL_SOURCES = toplevel.ml  
 

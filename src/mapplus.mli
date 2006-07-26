@@ -120,14 +120,6 @@ module type S =
 
 (* ----- *)
 
-module type OrderedType = sig
-  type t 
-  val compare : t -> t -> int
-  val to_string : t -> string
-end
-
-(* ----- *)
-
-module Make (Ord : OrderedType) : S 
+module Make (Ord : Set.OrderedType) : S 
   with type key = Ord.t and type KeySet.elt = Ord.t
 

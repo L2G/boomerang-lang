@@ -6,7 +6,7 @@
 TOP = ..
 include $(TOP)/Top.Makefile
 
-TARGETS = src2tex src2f wrap
+TARGETS = src2tex src2f wrap dump_oracle
 
 all:  $(TARGETS)
 
@@ -24,6 +24,9 @@ src2f: src2fcl.ml src2f.ml
 	@rm -f $@
 	ocamllex $<
 	@chmod -w $@
+
+dump_oracle : % : %.ml
+	ocamlopt -o $@ $<
 
 wrap: wrap.ml
 	ocamlfind ocamlopt -package unix -linkpkg -o $@ $<

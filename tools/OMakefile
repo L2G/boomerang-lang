@@ -6,6 +6,7 @@ OCamlGeneratedFiles($(GENERATED_FILES))
 OCamlProgram(src2tex, src2tex)
 OCamlProgram(src2f, src2fcl src2f)
 OCamlProgram(wrap, wrap)
+OCamlProgram(dump_oracle, dump_oracle)
 
 clean:
-  $(CLEAN) $(GENERATED_FILES) wrap src2tex src2f
+  $(CLEAN) $(GENERATED_FILES) wrap src2tex src2f dump_oracle

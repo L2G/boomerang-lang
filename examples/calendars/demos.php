@@ -1,6 +1,7 @@
 <?
 
 $demogroupname = "Calendars";
+$demo["flags"] = "-no-assert";
 $demo["default_h"] = 100;
 $demo["r1_h"] = $demo["r2_h"] = 300;
 $demo["forcer1"] = true;
