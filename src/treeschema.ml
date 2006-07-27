@@ -23,7 +23,7 @@ module ISS = Int.SetSet
 (* ---- regular expression module ---- *)
 module type SRegExp = sig 
   type t 
-  val mk_singleton : Name.t -> t
+  val mk_finite : Name.t list -> t
   val mk_cofinite : Name.t list -> t
   val format_t : t -> unit
   val isect : t -> t -> t option
@@ -36,35 +36,54 @@ module type SRegExp = sig
 end
 
 module RegExp : SRegExp = struct
-  type t = Single of Name.t | CoFinite of NS.t
+  type t = Finite of Name.Set.t | CoFinite of Name.Set.t
   let format_t = function 
-      Single(n)    -> Util.format "@[%s@]" (Misc.whack n)
+      Finite(ns)    -> Util.format "@[{%s}@]" 
+        (Misc.concat_list "," (Safelist.map Misc.whack (NS.elements ns)))
     | (CoFinite ns) -> Util.format "@[~{%s}@]" 
         (Misc.concat_list "," (Safelist.map Misc.whack (NS.elements ns)))
-  let mk_singleton n = Single(n)
+  let mk_singleton n = 
+    Finite(Name.Set.singleton n)
+  let mk_finite l = 
+    let ns = Safelist.fold_left
+      (fun acc ni -> NS.add ni acc)
+      NS.empty l in 
+      Finite(ns)
   let mk_cofinite l = 
     let ns = Safelist.fold_left 
       (fun acc ni -> NS.add ni acc) 
       NS.empty l in 
       CoFinite(ns)
   let isect r1 r2 = match r1,r2 with
-      (Single n1),(Single n2)       -> if (n1=n2) then Some(r1) else None
-    | (CoFinite ns1),(CoFinite ns2) -> Some(CoFinite (NS.union ns1 ns2))
-    | (Single n), (CoFinite ns)     -> if NS.mem n ns then None else Some r1
-    | (CoFinite ns), (Single n)     -> if NS.mem n ns then None else Some r2
+      (Finite ns1),(Finite ns2) ->
+        let ns = NS.inter ns1 ns2 in 
+          if NS.is_empty ns then None
+          else Some(Finite ns)
+    | (CoFinite ns1),(CoFinite ns2) -> 
+        Some(CoFinite (NS.union ns1 ns2))
+    | (Finite nsf), (CoFinite nscf)
+    | (CoFinite nscf), (Finite nsf) -> 
+        let ns = NS.diff nsf nscf in
+          if NS.is_empty ns then None
+          else Some(Finite ns)
+        
   let finite_domain = function
-      Single n -> Some (NS.singleton n)
+      Finite ns -> Some (ns)
     | _ -> None
   let cofinite_domain = function
       CoFinite ns -> Some ns
     | _ -> None
-  let is_singleton = function Single _ -> true | _ -> false
-  let is_finite = is_singleton
+  let is_singleton = function 
+      Finite ns -> NS.cardinal ns = 1 
+    | _ -> false
+  let is_finite = function
+      Finite _ -> true
+    | _ -> false
   let singleton_domain = function
-      Single n -> Some n 
+      Finite ns -> if NS.cardinal ns = 1 then Some(NS.choose ns) else None
     | _ -> None
   let mem n = function 
-      Single m -> m=n
+      Finite ns   -> NS.mem n ns
     | CoFinite ns -> not (NS.mem n ns)
 end 
 module R = RegExp
@@ -1100,14 +1119,14 @@ let mk_atom n t =
     if x = True then
       [P.mkEq (P.mkVar 0) P.one;
        P.mkEq (P.mkVar 1) P.zero],
-      [(R.mk_singleton n,True);
+      [(R.mk_finite [n],True);
        (R.mk_cofinite [n], True)]
     else
       [P.mkEq (P.mkVar 0) P.one;
        P.mkEq (P.mkVar 1) P.zero;
        P.mkEq (P.mkVar 2) P.zero],
-    [(R.mk_singleton n,x);
-     (R.mk_singleton n,neg_state x);
+    [(R.mk_finite [n],x);
+     (R.mk_finite [n],neg_state x);
      (R.mk_cofinite [n], True)] in
   let u = F(P.mkAnd ps,e) in 
     make_t u syn
@@ -1120,8 +1139,8 @@ let mk_wild f l u t =
   let cof_pos,fin_ps_rev,fin_es_rev = NS.fold 
     (fun ni (pos,ps,es) -> 
        (pos+1,
-        (P.mkEq (P.mkVar pos) P.zero)::ps,
-        (R.mk_singleton ni,True)::es))
+       (P.mkEq (P.mkVar pos) P.zero)::ps,
+       (R.mk_finite [ni],True)::es))
     f
     (0,[],[]) in
 
@@ -1230,7 +1249,7 @@ and check_empty (es,nes) (p,e) =
          | None -> acc)
       NS.empty e in 
     let dummy_basis = NS.fold 
-      (fun ni db -> (R.mk_singleton ni, True)::db)
+      (fun ni db -> (R.mk_finite [ni], True)::db)
       finite_names [R.mk_cofinite (NS.elements finite_names),True] in 
     let (_,subst),basis = refine_bases dummy_basis e in 
     let formula = P.substitute subst p in
@@ -1380,7 +1399,7 @@ let member v t0 =
   let exit_debug () =        
     Util.format "<<< MEMBER";
     Util.format "@\n v : "; Tree.format_t v;
-    Util.format "@\nt0 : "; format_one t0;
+    Util.format "@\nt0 : "; format_t t0;
     Util.format "@\n  = %b@\n%!" res in 
 
     Trace.debug "member+" exit_debug;
@@ -1441,7 +1460,7 @@ let fds_mem n = function
   | (false,ns1) -> not (NS.mem n ns1)  
   
 let fds_isect_regexp fds r = match fds with
-    (true,ns1) -> NS.fold (fun n b -> b || (R.isect (R.mk_singleton n) r = None)) ns1 false
+    (true,ns1) -> NS.fold (fun n b -> b || (R.isect (R.mk_finite [n]) r = None)) ns1 false
   | (false,ns1) -> R.isect (R.mk_cofinite (NS.elements ns1)) r = None  
 
 let complete_basis_rev x_count formulas basis_rev = function
@@ -1452,7 +1471,7 @@ let complete_basis_rev x_count formulas basis_rev = function
         let _,formulas,basis_rev = NS.fold
           (fun ni (x_pos,formulas,basis_rev) -> 
              (x_pos+1,P.mkEq (P.mkVar x_pos) P.zero::formulas,
-              (R.mk_singleton ni,True)::basis_rev))
+              (R.mk_finite [ni],True)::basis_rev))
           ns
           (x_count,formulas,basis_rev) in 
           formulas,basis_rev
@@ -1522,7 +1541,7 @@ let inject_map t0 fm =
     let p,e = expose t0 in       
     let ns = NM.domain fm in 
     let ns_e = NS.fold 
-      (fun ni acc -> (R.mk_singleton ni,True)::acc) 
+      (fun ni acc -> (R.mk_finite [ni],True)::acc) 
       ns [R.mk_cofinite (NS.elements ns),True] in
     let (_,subst),basis = refine_bases ns_e e in
     let basis_length = Safelist.length basis in
@@ -1589,7 +1608,7 @@ let restrict ns t0 =
   (* FIX LATER: see if we can avoid refining once we have full RegExp functionality *)
   let restrict_aux (p,e) syn = 
     (* (1) rewrite p and e so that no ns intersect a CoFinite element of e *)
-    let ns_e = NS.fold (fun ni acc -> (R.mk_singleton ni,True)::acc) 
+    let ns_e = NS.fold (fun ni acc -> (R.mk_finite [ni],True)::acc) 
       ns 
       [R.mk_cofinite (NS.elements ns),True] in
     let (_,subst),basis = refine_bases ns_e e in
@@ -1629,7 +1648,7 @@ let restrict ns t0 =
       (P.mkEq (P.mkVar ns_xs) P.zero)::ns_fs in
       
     let _,neg_ns_basis_rev,neg_ns_fs = NS.fold 
-      (fun ni (x,b,fs) -> (x+1,(R.mk_singleton ni,True)::b, (P.mkEq (P.mkVar x) P.zero)::fs))
+      (fun ni (x,b,fs) -> (x+1,(R.mk_finite [ni],True)::b, (P.mkEq (P.mkVar x) P.zero)::fs))
       ns (neg_ns_xs,neg_ns_basis_rev,neg_ns_fs) in
       
     let ns_basis = Safelist.rev ns_basis_rev in 
