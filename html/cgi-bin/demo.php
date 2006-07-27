@@ -627,7 +627,7 @@ body {
 }
 #logo { 
   position:absolute;
-  top:0px; left:0px
+  top:0px; left:0px;
   margin:0px;
   height:49px;
   width:190px;

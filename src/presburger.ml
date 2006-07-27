@@ -421,16 +421,16 @@ let mkOr =
     let name = "Presburger.mkOr"
     let f ts = match ts with
         [] -> fls
+      | [h] -> h
       | _  -> 
           let ts' = 
             let rec loop acc = function
                 [] -> Safelist.rev acc 
               | h::t -> begin match h.def.e with 
                     Or(hs) -> loop acc (hs@t)
-                  | _ -> 
-                      (* let addr = (Obj.magic h : int) in 
-                        if Int.Set.mem addr seen then loop seen acc t
-                        else *) loop (* (Int.Set.add addr seen) *) (h::acc) t 
+                  | _ ->
+                      if h==fls then loop acc t 
+                      else loop (h::acc) t
                 end in 
               loop [] ts in 
             t_of_e(Or(ts'))
@@ -450,9 +450,8 @@ let mkAnd =
               | h::t -> begin match h.def.e with 
                     And(hs) -> loop acc (hs@t)
                   | _ -> 
-                      (* let addr = (Obj.magic h : int) in 
-                        if Int.Set.mem addr seen then loop seen acc t
-                        else *) loop (h::acc) t 
+                      if h==tru then loop acc t
+                      else loop (h::acc) t
                 end in 
               loop [] ts in 
             t_of_e(And(ts'))

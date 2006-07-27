@@ -60,6 +60,8 @@ XXX;
 savedemo();
 
 ##############################################################################
+unset($demo["element_order"]);
+unset($demo["splash"]);
 $demo["default_h"] = 100;
 $demo["default_wide_w"] = 910;
 $demo["default_w"] = ($demo["default_wide_w"] - 10) / 2;
@@ -86,7 +88,6 @@ Press "Next" to continue with the next demo.
 
 XXX;
 # ---------------------------------------------------------
-$demo["splash"] = false;
 $demo["forcer1"] = true;
 $demo["ar_w"] = $demo["default_wide_w"];
 $demo["ar_d"] = "block";

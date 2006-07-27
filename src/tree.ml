@@ -105,10 +105,10 @@ let rec format_kids m format_rec =
   Util.format "{@[<hv0>";
   Name.Map.iter_with_sep
     (fun k kid -> 
-      Util.format "@[<hv1>%s=" (Misc.whack_ident k);
+      Util.format "@[<hv1>%s=@ " (Misc.whack_ident k);
       format_rec kid;
       Util.format "@]")
-    (fun() -> Util.format ", ")
+    (fun() -> Util.format ",@ ")
     m;
   Util.format "@]}"
 
@@ -121,7 +121,7 @@ and format_t_pretty t0 =
       let rec loop = function
           [] -> ()
         | [kid] -> format_list_member kid
-        | kid::rest -> format_list_member kid; Util.format ", "; loop rest in
+        | kid::rest -> format_list_member kid; Util.format ",@ "; loop rest in
       Util.format "[@[<hv0>";
       loop (list_from_structure t1);
       Util.format "@]]"
