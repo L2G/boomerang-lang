@@ -87,9 +87,11 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                mapplus.mli mapplus.ml \
 	       name.mli name.ml int.mli int.ml \
                memo.mli memo.ml \
-               db.mli db.ml tree.ml tree.mli v.mli v.ml \
+               db.mli db.ml \
 	       dbschema.mli dbschema.ml \
                syntax.mli syntax.ml \
+	       parser.mly lexer.mli lexer.mll \
+               tree.ml tree.mli v.mli v.ml \
 	       lens.mli lens.ml \
 	       csvdb.mli csvdb.ml \
 	       treedb.mli treedb.ml \
@@ -98,7 +100,6 @@ BASE_SOURCES = info.mli info.ml error.mli error.ml misc.mli misc.ml \
                env.mli env.ml \
                treeschema.mli treeschema.ml \
 	       schema.mli schema.ml \
-	       parser.mly lexer.mli lexer.mll \
                value.mli value.ml bakery.ml \
                registry.mli registry.ml \
 	       diff3.mli diff3.ml sync.mli sync.ml \
