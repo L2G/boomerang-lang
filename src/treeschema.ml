@@ -27,6 +27,7 @@ module type SRegExp = sig
   val mk_cofinite : Name.t list -> t
   val format_t : t -> unit
   val isect : t -> t -> t option
+  val union : t -> t -> t
   val finite_domain : t -> Name.Set.t option
   val cofinite_domain : t -> Name.Set.t option
   val is_singleton : t -> bool
@@ -54,6 +55,11 @@ module RegExp : SRegExp = struct
       (fun acc ni -> NS.add ni acc) 
       NS.empty l in 
       CoFinite(ns)
+  let union r1 r2 = match r1,r2 with
+      (Finite ns1),(Finite ns2)     -> Finite(NS.union ns1 ns2)
+    | (CoFinite ns1),(CoFinite ns2) -> CoFinite(NS.inter ns1 ns2)
+    | (Finite nsf),(CoFinite nscf)
+    | (CoFinite nscf),(Finite nsf)  -> CoFinite(NS.diff nscf nsf)
   let isect r1 r2 = match r1,r2 with
       (Finite ns1),(Finite ns2) ->
         let ns = NS.inter ns1 ns2 in 
@@ -102,6 +108,7 @@ let one_of_var xi = P.mkEq P.one (P.mkVar xi)
 let sum_of_int_list l = P.mkSum (Safelist.map P.mkVar l)
 let sum_of_int_set s = P.mkSum (Int.Set.fold (fun ei a -> P.mkVar ei::a) s [])
 let sum_of_int_state_list l = P.mkSum (Safelist.map (fun (xi,_) -> P.mkVar xi) l) 
+let ns_of_n_list nl = Safelist.fold_left (fun a ni -> NS.add ni a) NS.empty nl
 
 (* --------------- schema representation --------------- *)
 (* to handle recursive definitions, we need to be able to represent
@@ -172,16 +179,17 @@ type u = V of state | F of (Presburger.t * elt list)
 (* syntactic reprsentations of schemas--used for pretty-printing*)
 type syn_t = 
     Var of state 
-  | Atom of Name.t * syn_t 
-  | Wild of Name.Set.t * int * bool * syn_t
-  | Cat of syn_t list
-  | Union of syn_t list
-  | Isect of syn_t list
-  | Neg of syn_t
-  | Restrict of syn_t * Name.Set.t * bool
-  | Inject of syn_t * syn_t
-  | InjectMap of syn_t * (syn_t Name.Map.t)
-
+    | AtomCats of Name.Set.t * syn_t 
+    | AtomAlts of Name.Set.t * syn_t 
+    | Wild of Name.Set.t * int * bool * syn_t
+    | Cat of syn_t list
+    | Union of syn_t list
+    | Isect of syn_t list
+    | Neg of syn_t
+    | Restrict of syn_t * Name.Set.t * bool
+    | Inject of syn_t * syn_t
+    | InjectMap of syn_t * (syn_t Name.Map.t)
+        
 (* counterexamples returned from member tests *)
 type counterexample = 
     Domain of Name.Set.t 
@@ -282,13 +290,28 @@ type format_mode = FCat | FSimpleCat | FUnion | FInter | FNone
 
 let rec format_one_syn mode = function
     Var(x) -> format_state x
-  | Atom(n,t) -> 
+  | AtomCats(ns,t) -> 
+      let c = Name.Set.cardinal ns in 
       Util.format "@[";
       if mode <> FSimpleCat then Util.format "{"; 
-      Util.format "%s=" (Misc.whack n);
+      if c <> 1 then Util.format "(";
+      Misc.format_list "," (fun n -> Util.format "%s" (Misc.whack n)) (Name.Set.elements ns);
+      if c <> 1 then Util.format ")";
       format_one_syn FNone t;
       if mode <> FSimpleCat then Util.format "}";
       Util.format "@]"
+
+  | AtomAlts(ns,t) -> 
+      let c = Name.Set.cardinal ns in 
+      Util.format "@[";
+      if mode <> FSimpleCat then Util.format "{"; 
+      if c <> 1 then Util.format "(";
+      Misc.format_list "|" (fun n -> Util.format "%s" (Misc.whack n)) (Name.Set.elements ns);
+      if c <> 1 then Util.format ")";
+      format_one_syn FNone t;
+      if mode <> FSimpleCat then Util.format "}";
+      Util.format "@]"
+
   | Wild(f,l,u,t) -> 
       Util.format "@[";
       if mode <> FSimpleCat then Util.format "{";         
@@ -309,7 +332,7 @@ let rec format_one_syn mode = function
       Util.format "@]" 
   | Cat(ts)    -> 
       let is_atoms = Safelist.for_all 
-        (function Atom(_) | Wild(_) -> true | _ -> false) ts in 
+        (function AtomCats(_) | AtomAlts(_) | Wild(_) -> true | _ -> false) ts in 
         Util.format "@[";
         (match mode,is_atoms with 
             FSimpleCat, true | FCat,false -> ()
@@ -370,7 +393,6 @@ let format_syn_t syn_t0 =
       [] -> acc
     | x::xs -> begin match x with 
           Var(CS s) -> 
-            (* Util.format "NEW VAR: %s@\n" (string_of_cset s);*)
             let s_tvars = CSet.fold 
               (fun (is,ds) acc -> NS.union is (NS.union ds acc)) 
               s NS.empty in
@@ -386,7 +408,7 @@ let format_syn_t syn_t0 =
 
         | Cat(ts) | Union(ts) | Isect(ts) -> collect acc (ts@xs)
 
-        | Atom(_,t) | Wild(_,_,_,t) | Neg(t) 
+        | AtomCats(_,t) | AtomAlts(_,t) | Wild(_,_,_,t) | Neg(t) 
         | Restrict(t,_,_) -> collect acc (t::xs)
         | Inject(t1,t2) -> 
             collect acc (t1::t2::xs)
@@ -411,7 +433,7 @@ let format_syn_t syn_t0 =
           var_map true in
           Util.format "@]"
       end;
-    Util.format "@]"
+    Util.format "@]@\n"
 
 let format_one_u = function 
     V(s) -> 
@@ -715,6 +737,32 @@ let union_state x0 x1 = match x0,x1 with
 
 (* ----- mutually recursive definitions of lookups/refinements/constructors ------ *)
 
+let compress p es = 
+  let num_offsets = Safelist.length es in 
+    let offsets = Array.make num_offsets 0 in 
+    let _,es_annot_rev = Safelist.fold_left 
+      (fun (pos,acc) (r,x) -> (pos+1,(pos,r,x,P.easy_var_value pos p)::acc)) (0,[]) es in        
+    let es_annot = Safelist.rev es_annot_rev in 
+    let rec loop sub acc = function
+        []                    -> (P.substitute sub p, Safelist.rev acc)
+      | (i,ri,xi,None)::es    -> 
+          let sub' = (i,P.mkVar (i-offsets.(i)))::sub in 
+          let acc' = (ri,xi)::acc in 
+            loop sub' acc' es
+      | (i,ri,xi,Some vi)::es ->
+          let ok = if vi=0 then (fun v -> v=0) else (fun v -> v > 0) in 
+          let matches,misses = Safelist.partition 
+            (fun (_,_,y,vo) -> match vo with
+                None -> false | Some v -> ok v && compare_state xi y = 0) es in
+            let subms,vms,rms = Safelist.fold_left 
+              (fun (suba,va,ra) (j,rj,_,vjo) -> match vjo with None -> assert false | Some vj -> 
+                for k=j+1 to num_offsets-1 do offsets.(k) <- offsets.(k) + 1 done; 
+                ((j,P.mkConst vj)::suba,va+vj,R.union ra rj)) ([],0,R.mk_finite []) matches in 
+            let sub' = (i,P.mkSum [P.mkVar (i-offsets.(i)); P.mkConst (-vms)])::subms @ sub in 
+            let acc' = (R.union ri rms,xi)::acc in 
+              loop sub' acc' misses in 
+      loop [] [] es_annot
+
 (* lookup_cvar: if we've already expanded this cvar, return it;
    otherwise, calculate the expansion and add it to delta *)
 let rec lookup_cvar cx = match CSetEnv.lookup (!delta) (cset_of_cvar cx) with 
@@ -836,6 +884,12 @@ and gen_mk mk_ps mk_syns cset_from_vars_opt ts =
   let go () = 
     let ps,e = refine ts in
     let p = mk_ps ps in
+(*     let p',e' = compress p e in *)
+(*     let u = F(p',e') in  *)
+(*       Trace.debug "compress+" (fun () ->  *)
+(*         Util.format "BARE="; format_one_u (F(p,e));  *)
+(*         Util.format "@\nCOMPRESSED="; format_one_u u;  *)
+(*         Util.format "@\n"); *)
     let u = F(p,e) in 
     let s = mk_syns (Safelist.map syn_of_t ts) in 
       make_t u s in 
@@ -1112,24 +1166,45 @@ let mk_empty = falsity
 
 let mk_var x = t_of_state (cstate_of_tvar x)
 
-let mk_atom n t = 
+let mk_atom_alts ns t = 
   let x = state_of_t t in 
-  let syn = Atom(n,syn_of_t t) in
+  let syn = AtomAlts(ns_of_n_list ns,syn_of_t t) in
   let (ps,e) = 
     if x = True then
       [P.mkEq (P.mkVar 0) P.one;
        P.mkEq (P.mkVar 1) P.zero],
-      [(R.mk_finite [n],True);
-       (R.mk_cofinite [n], True)]
+      [(R.mk_finite ns,True);
+       (R.mk_cofinite ns, True)]
     else
       [P.mkEq (P.mkVar 0) P.one;
        P.mkEq (P.mkVar 1) P.zero;
        P.mkEq (P.mkVar 2) P.zero],
-    [(R.mk_finite [n],x);
-     (R.mk_finite [n],neg_state x);
-     (R.mk_cofinite [n], True)] in
+    [(R.mk_finite ns,x);
+     (R.mk_finite ns,neg_state x);
+     (R.mk_cofinite ns, True)] in
   let u = F(P.mkAnd ps,e) in 
     make_t u syn
+
+let mk_atom_cats ns t = 
+  let x = state_of_t t in 
+  let syn = AtomCats(ns_of_n_list ns,syn_of_t t) in
+  let (ps,e) = 
+    if x = True then
+      [P.mkEq (P.mkVar 0) (P.mkConst (Safelist.length ns));
+       P.mkEq (P.mkVar 1) P.zero],
+      [(R.mk_finite ns,True);
+       (R.mk_cofinite ns, True)]
+    else
+      [P.mkEq (P.mkVar 0) (P.mkConst (Safelist.length ns));
+       P.mkEq (P.mkVar 1) P.zero;
+       P.mkEq (P.mkVar 2) P.zero],
+    [(R.mk_finite ns,x);
+     (R.mk_finite ns,neg_state x);
+     (R.mk_cofinite ns, True)] in
+  let u = F(P.mkAnd ps,e) in 
+    make_t u syn
+
+let mk_atom n t = mk_atom_cats [n] t
       
 let mk_wild f l u t = 
   let x = state_of_t t in   
@@ -1164,11 +1239,11 @@ let mk_wild f l u t =
 let rec mk_cat = function
     [] -> empty_view
   | [t1] -> t1
-  | ts -> gen_mk P.add (fun ss -> Cat(ss)) None ts
-
+  | ts -> gen_mk P.add (fun ss -> Cat(ss)) None ts 
+        
 (* list schemas *)
-let mk_nil = mk_cat [mk_atom Tree.nil_tag (mk_cat [])]
-let mk_cons h t = mk_cat [mk_atom Tree.hd_tag h; mk_atom  Tree.tl_tag t]
+let mk_nil = mk_cat [mk_atom_cats [Tree.nil_tag] (mk_cat [])]
+let mk_cons h t = mk_cat [mk_atom_cats [Tree.hd_tag] h; mk_atom_cats [Tree.tl_tag] t]
 
 let mk_list i t =
   (* check that we are not calling this while the tvar marking stuff
@@ -1193,7 +1268,7 @@ module T_of_TreeMemo = Memo.MakeLater(struct
   let hash' = Tree.hash
   let equal' = Tree.equal
 end)
-let rec bare_t_of_tree v = mk_cat (Tree.fold (fun k vk ts -> (mk_atom k (t_of_tree vk))::ts) v [])
+let rec bare_t_of_tree v = mk_cat (Tree.fold (fun k vk ts -> (mk_atom_cats [k] (t_of_tree vk))::ts) v [])
 and t_of_tree v = T_of_TreeMemo.memoize bare_t_of_tree v
          
 (* --------------- operations ----------------------*)

@@ -29,18 +29,20 @@ val finalize : unit -> unit
 val update : string -> t -> unit
 
 (* -------------- constructors --------------- *)
-val mk_any   : t
-val mk_empty : t
-val mk_atom  : Name.t -> t -> t
-val mk_cat   : t list -> t
-val mk_union : t list -> t
-val mk_var   : string -> t
-val mk_wild  : Name.Set.t -> int -> bool -> t -> t
-val mk_neg   : t -> t
-val mk_isect : t list -> t
-val mk_diff  : t -> t -> t 
-val mk_nil   : t
-val mk_cons  : t -> t -> t
+val mk_any       : t
+val mk_empty     : t
+val mk_atom      : Name.t -> t -> t
+val mk_atom_cats : Name.t list -> t -> t
+val mk_atom_alts : Name.t list -> t -> t
+val mk_cat       : t list -> t
+val mk_union     : t list -> t
+val mk_var       : string -> t
+val mk_wild      : Name.Set.t -> int -> bool -> t -> t
+val mk_neg       : t -> t
+val mk_isect     : t list -> t
+val mk_diff      : t -> t -> t 
+val mk_nil       : t
+val mk_cons      : t -> t -> t
 
 (* Generate a schema for lists of the given schema. *)
 val mk_list  : Info.t -> t -> t

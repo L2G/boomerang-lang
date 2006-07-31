@@ -35,6 +35,7 @@ val mkGt : exp -> exp -> t
 val mkGe : exp -> exp -> t
 
 val format_t : t -> unit
+val format_exp : exp -> unit
 
 val satisfiable : t -> bool
 
@@ -56,6 +57,8 @@ val substitute : (int * exp) list -> t -> t
    satisfying t1 plus a vector satisfying t2 plys ...
    plus a vector satisfying tn. *)
 val add : t list -> t
+
+val easy_var_value : int -> t -> int option
 
 (* Find a set of variables that are "obviously zero" in
    any satisfying valuation.  (For example, after a basis

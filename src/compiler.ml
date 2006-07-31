@@ -208,14 +208,33 @@ and check_exp sev e0 = match e0 with
       let new_e0 = ECheckLens(i,new_e1,la,new_e2,new_e3) in
         (e0_sort,new_e0)
 
-    (* type atoms *)
-    | EAtom(i,e1,e2) ->
-        let _,new_e1 = expect_sort_exp "atom name" sev SName e1 in
-        let e2_sort, new_e2 = expect_sort_exp "atom schema" sev SSchema e2 in
-        let new_e0 = EAtom(i, new_e1, new_e2) in
-          (e2_sort, new_e0)
+  | EAtomCats(i,es,e2) ->
+      let num_es,new_es_rev = Safelist.fold_left 
+        (fun (len,acc) ei -> 
+          let _,new_ei = expect_sort_exp "atom name" sev SName ei in 
+            (len+1,new_ei::acc))
+        (0,[]) es in 
+      let e2_sort,new_e2 = expect_sort_exp "atom (tree or schema)" sev SSchema e2 in 
+      let new_e0 = EAtomCats(i,Safelist.rev new_es_rev,new_e2) in 
+      let e0_sort = match num_es,e2_sort with 
+          1,SView -> SView 
+        | _       -> SSchema in 
+        (e0_sort, new_e0)
 
-    | ECat(i,es) ->
+  | EAtomAlts(i,es,e2) ->
+      let num_es,new_es_rev = Safelist.fold_left 
+        (fun (len,acc) ei -> 
+          let _,new_ei = expect_sort_exp "atom name" sev SName ei in 
+            (len+1,new_ei::acc))
+        (0,[]) es in 
+      let e2_sort,new_e2 = expect_sort_exp "atom (tree or schema)" sev SSchema e2 in 
+      let new_e0 = EAtomAlts(i,Safelist.rev new_es_rev,new_e2) in 
+      let e0_sort = match num_es,e2_sort with 
+          1,SView -> SView 
+        | _       -> SSchema in 
+        (e0_sort, new_e0)
+
+  | ECat(i,es) ->
         let merge_sorts s1 s2 = match s1,s2 with
             SView,SView -> SView
           | _           -> SSchema in
@@ -569,8 +588,7 @@ let rec compile_exp cev e0 = match e0 with
                    Lens.put l a co),
               ck))
 
-
-  | EAtom(i,e1,e2) ->
+  | EAtomCats(i,[e1],e2) | EAtomAlts(i,[e1],e2) ->
       let n = compile_exp_name cev e1 in
       let e2_rv = compile_exp cev e2 in
         begin match v_of_rv e2_rv with
@@ -588,6 +606,18 @@ let rec compile_exp cev e0 = match e0 with
                  Value.format_t v;
                  Util.format "@]")
         end
+
+  | EAtomCats(i,es,e2) ->
+      let ns = Safelist.map (compile_exp_name cev) es in 
+      let s = compile_exp_schema cev e2 in
+      let s_res = Schema.treeschema (Treeschema.mk_atom_cats ns (Schema.treeschema_of i s)) in
+        mk_rv SSchema (Value.S s_res)
+          
+  | EAtomAlts(i,es,e2) ->
+      let ns = Safelist.map (compile_exp_name cev) es in 
+      let s = compile_exp_schema cev e2 in
+      let s_res = Schema.treeschema (Treeschema.mk_atom_alts ns (Schema.treeschema_of i s)) in
+        mk_rv SSchema (Value.S s_res)
 
     | ECat(i, es) ->
         let e0_sort, vs_rev = 

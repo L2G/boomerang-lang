@@ -22,6 +22,7 @@
   let me e1 e2 = m (info_of_exp e1) (info_of_exp e2)
   let me1 e1 i2 = m (info_of_exp e1) i2
   let me2 i1 e2 = m i1 (info_of_exp e2)
+  let ml es = Safelist.fold_left me2 (Info.M "Parser.ml") es
   let mie x1 e2 = m (info_of_id x1) (info_of_exp e2)
   let mis x1 s1 = m (info_of_id x1) (fst s1)
   let ms s1 s2 = m (fst s1) (fst s2)
@@ -630,7 +631,7 @@ are:
   an eager strategy.
 
 \item @assert@ expressions, which behave like the identity lens but
-  performs some run-time type checking. If the \GET{} function of
+  perform some run-time type checking. If the \GET{} function of
   @assert T@ is invoked with a concrete argument not belonging to the
   schema @T@ or its \PUT{} direction is invoked with either argument
   not belonging to @T@, then it prints a message to this effect and
@@ -646,11 +647,13 @@ otherwise the lens prints an error message and halts.
 
 #{#}
 treeelt:
-  | quoted_name                              { let i = info_of_exp $1 in 
-                                                 EAtom(i, $1, mk_empty_tree i) }
-  | quoted_name EQUAL exp                    { EAtom(me $1 $3,$1,$3) }
-  | QMARK quoted_name EQUAL exp              { let i = me2 $1 $4 in 
-                                                 EUnion(i, [ECat(i,[]); EAtom(i,$2,$4)]) }
+  | quoted_name                              { let i = info_of_exp $1 in EAtomCats(i, [$1], mk_empty_tree i) }
+  | quoted_name EQUAL exp                    { let i = me $1 $3 in EAtomCats(i, [$1], $3) }
+  | LPAREN non_empty_quoted_name_list RPAREN           { let i = m $1 $3 in EAtomCats(i, $2, mk_empty_tree i) }
+  | LPAREN non_empty_quoted_name_list RPAREN EQUAL exp { EAtomCats(me2 $1 $5,$2,$5) }
+  | LPAREN non_empty_non_singleton_quoted_name_alts RPAREN           { let i = m $1 $3 in EAtomAlts(i, $2, mk_empty_tree i) }
+  | LPAREN non_empty_non_singleton_quoted_name_alts RPAREN EQUAL exp { EAtomAlts(me2 $1 $5,$2,$5) }
+  | QMARK quoted_name EQUAL exp              { let i = me2 $1 $4 in EUnion(i, [ECat(i,[]); EAtomCats(i,[$2],$4)]) }
   | bangs_opt STAR excepts_opt EQUAL exp     { EWild (me2 $2 $5,$3,$1,true,$5) }
   | PLUS excepts_opt EQUAL exp               { EWild(me2 $1 $4,$2,1,true,$4) }
   | BANG bangs_opt excepts_opt EQUAL exp     { EWild(me2 $1 $5,$3,($2 + 1),false,$5) }
@@ -704,13 +707,20 @@ non_empty_exp_list:
   | exp COMMA non_empty_exp_list             { $1::$3 }
 
 excepts_opt :
-  | BACKSLASH LPAREN except_list RPAREN      { $3 }
-  | BACKSLASH except_list                    { $2 }
-  |                                          { [] }
+  | BACKSLASH LPAREN non_empty_quoted_name_list RPAREN { $3 }
+  | BACKSLASH non_empty_quoted_name_list               { $2 }
+  |                                                    { [] }
 
-except_list:
-  | quoted_name                              { [$1] }
-  | quoted_name COMMA except_list            { $1::$3 }
+non_empty_quoted_name_list:
+  | quoted_name                                             { [$1] }
+  | quoted_name COMMA non_empty_quoted_name_list            { $1::$3 }
+
+non_empty_non_singleton_quoted_name_alts:
+  | quoted_name BAR non_empty_quoted_name_alts              { $1::$3 }
+
+non_empty_quoted_name_alts: 
+  | quoted_name                                             { [$1] }
+  | quoted_name BAR non_empty_quoted_name_alts              { $1::$3 }
 
 /* ---------------  identifiers --------------- */
 #{@} 

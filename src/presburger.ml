@@ -113,11 +113,6 @@ and format_t_bare t0 = format_e_bare t0.def.e
 
 let format_t = format_t_aux init_g
 
-(* hack for module instantiations *)
-type this_t = t
-
-(* hack! *)
-
 let hash_list = Safelist.fold_left (fun a ti -> 883 * ti.def.hash + a) 0 
 let hash_map m = Int.Map.fold (fun x w a -> 757 * (x+1) + a) m 0 
 let hash_const c = 563 * c
@@ -354,7 +349,9 @@ let mkSum es =
   with [] -> Const(0)
     | es' -> Sum(es')
 
-(* --- formulas --- *)
+
+(* hash consing infrastructure *)
+type this_t = t
 module HC_BASE = struct
   type res = this_t
   let format_res = format_t 
@@ -690,6 +687,40 @@ let add ts0 = match ts0 with
     [] -> Error.simple_error "P.add: zero-length addition"
   | t::ts -> Safelist.fold_left (fun s ti -> add2 s ti) t ts 
 
+let rec easy_var_value x t0 = match t0.def.e with
+    EqZ(vs,c)  ->       
+      (try 
+          let cx = Int.Map.find x vs in 
+            (match Int.Set.cardinal (Int.Map.domain vs), cx with
+                1,1  -> Some (-c)
+              | 1,-1 -> Some c
+              | _    -> None)
+        with Not_found -> None)
+  | Not(t1) -> easy_var_value x t1
+  | Or(ts) -> 
+      let _,res = Safelist.fold_left 
+        (fun acc ti -> 
+          match acc,easy_var_value x ti with
+              (false,_),Some vi       -> (true,Some vi)
+            | (false,_),None          -> (false,None)
+            | (true,None),_           -> acc
+            | (true,_),None           -> (true,None)
+            | (true,Some ra), Some vi -> if vi = ra then acc else (true,None))
+        (false,None) ts in 
+        res
+  | And(ts) -> 
+      let _,res = Safelist.fold_left 
+        (fun acc ti -> 
+          match acc,easy_var_value x ti with
+              (false,_),Some vi       -> (true,Some vi)
+            | (false,_),None          -> (false,None)
+            | (true,None),_           -> acc
+            | (true,_),None           -> acc
+            | (true,Some ra), Some vi -> if vi = ra then acc else (true,None))
+        (false,None) ts in 
+        res
+
+  | Ex(t1) -> easy_var_value (x+1) t1
 
 (* oracle infrastructure *)
 let oracle_baked = Prefs.createBool "oracle-baked" false "Use compiled-in oracle" ""

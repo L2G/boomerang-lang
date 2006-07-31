@@ -73,7 +73,8 @@ and exp =
     EApp of Info.t * exp * exp
   | EAssert of Info.t * exp 
   | ECheckLens of Info.t * exp * lensarrow * exp * exp
-  | EAtom of Info.t * exp * exp 
+  | EAtomCats of Info.t * exp list * exp 
+  | EAtomAlts of Info.t * exp list * exp 
   | ECat of Info.t * exp list 
   | ECons of Info.t * exp * exp 
   | EDB of Info.t * Db.t

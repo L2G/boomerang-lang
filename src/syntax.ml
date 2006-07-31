@@ -123,7 +123,8 @@ and exp =
     EApp of i  * exp * exp
   | EAssert of i * exp 
   | ECheckLens of i * exp * lensarrow * exp * exp
-  | EAtom of i * exp * exp 
+  | EAtomCats of i * exp list * exp 
+  | EAtomAlts of i * exp list * exp 
   | ECat of i * exp list 
   | ECons of i * exp * exp 
   | EDB of Info.t * Db.t
@@ -185,7 +186,8 @@ let info_of_exp = function
     EApp(i,_,_) 
   | EAssert(i,_) 
   | ECheckLens(i,_,_,_,_) 
-  | EAtom(i,_,_)
+  | EAtomCats(i,_,_)
+  | EAtomAlts(i,_,_)
   | ECat(i,_)  
   | ECons(i,_,_)
   | EDB(i,_)
@@ -306,11 +308,30 @@ and format_exp_aux mode e0 = match e0 with
         format_lensarrow la;
         format_exp_aux mode e2;
         Util.format "@]"      
-  | EAtom(_,n,e)    -> 
+  | EAtomCats(_,ns,e)    -> 
       let imode = { mode with cat = false } in
         Util.format "@[<2>"; 
         if not mode.cat then Util.format "{";
-        format_exp_aux imode n; 
+        (match ns with 
+            [n] -> format_exp_aux imode n 
+          | _  -> 
+              Util.format "("; 
+              Misc.format_list "," (format_exp_aux imode) ns; 
+              Util.format ")");
+        Util.format "=@,"; 
+        format_exp_aux imode e; 
+        if not mode.cat then Util.format "}";
+        Util.format "@]"
+  | EAtomAlts(_,ns,e)    -> 
+      let imode = { mode with cat = false } in
+        Util.format "@[<2>"; 
+        if not mode.cat then Util.format "{";
+        (match ns with 
+            [n] -> format_exp_aux imode n 
+          | _  -> 
+              Util.format "("; 
+              Misc.format_list "|" (format_exp_aux imode) ns; 
+              Util.format ")");
         Util.format "=@,"; 
         format_exp_aux imode e; 
         if not mode.cat then Util.format "}";
