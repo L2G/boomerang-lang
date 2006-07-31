@@ -3,29 +3,36 @@ module ICalendar =
 
 (*-------------------------------------------------------------------------*)
 (* Concrete Schemas *)
+
+let List_Value : schema = List.T Value 
+
 let Bool : schema = {"#true" = {}} | {"#false" = {}}
 
-let XPList : schema = List.T ({"name" = Value, val = List.T Value})
+let XPList : schema = List.T ({"name" = Value, val = List_Value})
     
 let Params : schema = 
   { ?(altrepparam, cnparam, cutypeparam, dirparam, encodingparam,
       fmttypeparam, langparam, partstatparam, rangeparam, reltypeparam,
       roleparam, sentbyparam, trigrelparam, valuetypeparam) = Value,
-    ?(delfromparam,deltoparam, memberparam) = List.T Value,
+    ?(delfromparam,deltoparam, memberparam) = List_Value,
     ?rsvpparam = Bool,
     ?tzidparam = { global = Bool, val = Value},
     ?xplist = XPList
   }
 
 let XPListPlusVal (T : schema) : schema = {val = T, ?xplist = XPList}
+
+let XPListPlusVal_Value : schema = XPListPlusVal Value
     
 let ParamsPlusVal (T : schema) : schema = {val = T, ?params = Params}
+
+let ParamsPlusVal_Value : schema = ParamsPlusVal Value
 	
 schema ICalendar = [{calprops = CalProps, components = Any}] | []
     
 and CalProps = 
-  { (prodid,version) = XPListPlusVal Value,
-    ?(calscale,method) = XPListPlusVal Value,
+  { (prodid,version) = XPListPlusVal_Value,
+    ?(calscale,method) = XPListPlusVal_Value,
     ?xprop = XProp}
     
 and XProp = List.T {"name" = Value, val = Value, ?params = Params}
@@ -34,21 +41,21 @@ and Components =
   let Timezonec : schema = CompProp in
   List.T ({val = Eventc | Timezonec | Todoc , type = ({Eventc} | {Timezonec} | {Todoc})})
     
-and Eventc = {props = CompProp, ?alarms = List.T CompProp}
+and Eventc = {props = CompProp, ?alarms = List_CompProp}
 
-and Todoc = {props = CompProp, ?alarms = List.T CompProp}
+and Todoc = {props = CompProp, ?alarms = List_CompProp}
 	
 and CompProp = 
   { 
-    ?(action,class,percent,priority,repeat,seq,status,transp,tzurl,uid,lurl) = XPListPlusVal Value,
+    ?(action,class,percent,priority,repeat,seq,status,transp,tzurl,uid,lurl) = XPListPlusVal_Value,
     ?(completed, created, lastmod) = XPListPlusVal DateTime,
-    ?(attendee,comment,contact,related_to,tzname) = List.T (ParamsPlusVal Value),
+    ?(attendee,comment,contact,related_to,tzname) = List.T (ParamsPlusVal_Value),
     ?(dtend,dtstamp,dtstart,due,recurid,trigger) = ParamsPlusVal DtPval,
     ?(tzoffsetto,tzoffsetfrom) = XPListPlusVal OffsetTime,
-    ?(description,location,organizer,summary) = ParamsPlusVal Value,
+    ?(description,location,organizer,summary) = ParamsPlusVal_Value,
     ?attach = List.T (ParamsPlusVal ({ "AttUri" = Value } | { "AttBinary" = Value})),
-    ?(categories,resources) = List.T (ParamsPlusVal (List.T Value)),   
-    ?(daylightc,standardc) = List.T CompProp,
+    ?(categories,resources) = List.T (ParamsPlusVal (List_Value)),   
+    ?(daylightc,standardc) = List_CompProp,
     ?duration = XPListPlusVal Duration,
     ?(exdate,rdate) = List.T (ParamsPlusVal (List.T DtPval)),
     ?(exrule,rrule) = List.T (XPListPlusVal Recur),
@@ -57,6 +64,8 @@ and CompProp =
     ?tzid = TzID,
     ?xprop = XProp
   }	
+
+and List_CompProp = List.T CompProp
 
 and DateTime = 
       { date = {(year,month,day) = Value},
@@ -83,7 +92,7 @@ and DurLength =
 and Recur = 
       { freq = Value,
 	?(interval,wkstart) = Value,
-	?(bysecond,byminute,byhour,bymonthday,byyearday,byweekno,bymonth,bysetpos) = List.T Value,
+	?(bysecond,byminute,byhour,bymonthday,byyearday,byweekno,bymonth,bysetpos) = List_Value,
 	?byday = List.T ByDayElt,
 	?bytext = { ("name",val) = Value},
 	?"end" = { count = Value } | { until = DtPval }
@@ -93,7 +102,7 @@ and ByDayElt = { weekday = Value, ?which = Value}
 	
 and Geo = { (latitude,longitude) = Value, ?xplist = XPList}
 	
-and RStatus = { code = List.T Value, text = Value, ?extdata = Value, ?params = Params}
+and RStatus = { code = List_Value, text = Value, ?extdata = Value, ?params = Params}
 	
 and TzID = { global = Bool, val = Value, ?xplist = XPList }
 	
@@ -115,7 +124,7 @@ schema Params_A = {
 
 let XPListPlusVal_A (T : schema) : schema =
   { val = T, ?xplist = XPList_A} | {!\val,xplist = XPList_A}
-    
+
 let ParamsPlusVal_A (T : schema) : schema =
   { val = T, ?params = Params_A} | {!\val,params = {?params = Params_A}}
   
@@ -123,18 +132,18 @@ schema XProp_A = { * = {val = Value, ?params = Params_A}}
 
 and Components_A = 
   let Timezonec_A : schema = CompProp_A in
-  {?(Eventc,Todoc) = { * = (CompProp_A + {?alarms = List.T CompProp_A})},
+  {?(Eventc,Todoc) = { * = (CompProp_A + {?alarms = List_CompProp_A})},
    ?Timezonec = { * = Timezonec_A}}
     
-and Eventc_A = { props = CompProp_A, ?alarms = List.T CompProp_A}
+and Eventc_A = { props = CompProp_A, ?alarms = List_CompProp_A}
 
-and Todoc_A = { props = CompProp_A, ?alarms = List.T CompProp_A}
+and Todoc_A = { props = CompProp_A, ?alarms = List_CompProp_A}
     
 and CompProp_A =
       { ?(action,"class",percent,priority,status,transp,seq,repeat,tzurl,uid,url) = XPListPlusVal_A Value,	
 	?(completed,created) = XPListPlusVal_A DateTime_A,
 	?(attendee,comment,contact,tzname) = List.T (ParamsPlusVal_A Value),
-	?(daylightc,standardc) = List.T CompProp_A,
+	?(daylightc,standardc) = List_CompProp_A,
 	?(description,location,organizer,summary) = ParamsPlusVal_A Value,
 	?(dtend,dtstart,due,recurid,trigger) =   ParamsPlusVal_A DtPval_A,
 	?(tzoffsetto,tzoffsetfrom) = XPListPlusVal_A OffsetTime_A,
@@ -152,6 +161,8 @@ and CompProp_A =
 	?tzid = TzID_A,
 	?xprop = XProp_A
       }
+
+and List_CompProp_A = List.T CompProp_A
 
 and DateTime_A = 
   { date = { (year,month,day) = (Value | {}) },
@@ -351,8 +362,7 @@ and paramsplusval_lens (l: lens) : lens =
   assert (ParamsPlusVal Any);
   wmap { "val" -> l, "params" -> protect params_lens};
   acond {val = Value, ?params = Params} {! = {?params = Params_A}}
-	(pivot "val")
-	id;
+	(pivot "val") id;
   assert (ParamsPlusVal_A Any)
 	
 and datetime_lens : lens =
@@ -373,13 +383,13 @@ and dtpval_lens : lens =
 and period_lens : lens =
   assert Period;
   wmap { "PeriodExplicit" -> map (protect datetime_lens),
-    "PeriodStart" -> wmap { "start" -> protect datetime_lens, 
-                            "duration" -> protect duration_lens}};
+         "PeriodStart"    -> wmap { "start"    -> protect datetime_lens, 
+                                    "duration" -> protect duration_lens } };
   assert Period_A
 	
 and duration_lens : lens =
   assert Duration;
-  mapp {length} (protect durlength_lens);
+  wmap { "length" -> protect durlength_lens };
   assert Duration_A
 
 and durlength_lens : lens =
@@ -406,7 +416,7 @@ and bydayelt_lens : lens =
 	
 and geo_lens : lens =
   assert Geo;
-  mapp {xplist} xplist_lens;
+  wmap { "xplist" -> xplist_lens };
   assert Geo_A
 	
 and rstatus_lens : lens =

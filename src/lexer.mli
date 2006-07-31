@@ -28,3 +28,6 @@ val info : Lexing.lexbuf -> Info.t
 
 val main : Lexing.lexbuf -> Parser.token
 (** [main lexbuf] lexes [Parser.token]s from [lexbuf] *)
+
+val keywords : (string,Info.t -> Parser.token) Hashtbl.t
+(** [keywords] contains all Focal keywords *)

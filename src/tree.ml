@@ -10,12 +10,24 @@ type t = { map:t Name.Map.t; hash:int}
 
 let hash t0 = t0.hash
 
+let keyword_f f n =   
+  let is_keyword = 
+    try 
+      let _ = Hashtbl.find Lexer.keywords n in 
+        true 
+    with Not_found -> false in 
+    if is_keyword then Printf.sprintf "\"%s\"" n
+    else f n
+
+let keyword_whack = keyword_f Misc.whack
+let keyword_whack_ident = keyword_f Misc.whack_ident
+
 let rec pm_format m =
   Util.format "{";
   ignore (Name.Map.fold 
              (fun k tk fst ->
                if not fst then Util.format ", ";
-               Util.format "%s=" (Misc.whack k);
+               Util.format "%s=" (keyword_whack k);
                pm_format tk.map;
                false)
              m true);
@@ -27,8 +39,8 @@ let mk_t =
       let name = "Tree.mk_t"
       type arg = (t Name.Map.t)
       type res = t 
-      let format_arg _ = ()
-      let format_res _ = ()
+      let format_arg = pm_format
+      let format_res _ = Util.format "Tree.t"
       let hash m = Name.Map.fold (fun k tk a -> 379 * (Hashtbl.hash k) + 563 * tk.hash + a) m 0                
       let equal m1 m2 = 
         (m1 == m2) ||
@@ -105,7 +117,7 @@ let rec format_kids m format_rec =
   Util.format "{@[<hv0>";
   Name.Map.iter_with_sep
     (fun k kid -> 
-      Util.format "@[<hv1>%s=@ " (Misc.whack_ident k);
+      Util.format "@[<hv1>%s=@ " (keyword_whack_ident k);
       format_rec kid;
       Util.format "@]")
     (fun() -> Util.format ",@ ")
@@ -115,7 +127,7 @@ let rec format_kids m format_rec =
 and format_t_pretty t0 =
   let rec format_aux t1 inner = 
     let format_list_member kid =
-      if is_value kid then Util.format "{%s}" (Misc.whack_ident (get_value kid))
+      if is_value kid then Util.format "{%s}" (keyword_whack_ident (get_value kid))
       else format_aux kid true in
     if is_list t1 then begin
       let rec loop = function
@@ -126,7 +138,7 @@ and format_t_pretty t0 =
       loop (list_from_structure t1);
       Util.format "@]]"
     end else begin
-      if (is_value t1 && inner) then Util.format "{%s}" (Misc.whack_ident (get_value t1))
+      if (is_value t1 && inner) then Util.format "{%s}" (keyword_whack_ident (get_value t1))
       else format_kids t1.map (fun k -> format_aux k true)
     end in
   format_aux t0 false
@@ -134,7 +146,7 @@ and format_t_pretty t0 =
 and format_t_raw t0 =
   Name.Map.dump 
     (fun ks -> ks)
-    Misc.whack 
+    keyword_whack 
     (fun t1 -> format_kids t1.map format_t_raw)
     is_empty 
     t0.map
@@ -166,7 +178,7 @@ and get_required ?(msg="") t0 k =
              (fun () -> 
 		Util.format "%sget_required %s failed on " 
 		(if msg="" then "" else msg ^ ": ")
-		(Misc.whack k);
+		(keyword_whack k);
                 format_t t0))
 
 and get_value t0 =
@@ -268,7 +280,7 @@ let string_of_t t0 = Util.format_to_string (fun () -> format_t t0)
 
 let pathchange path m t0 =
   Util.format "%s: %s@,"
-    (String.concat "/" (Safelist.rev (Safelist.map Misc.whack path)))
+    (String.concat "/" (Safelist.rev (Safelist.map keyword_whack path)))
     m;
   Util.format "  @[";
   format_t t0;

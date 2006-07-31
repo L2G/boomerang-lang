@@ -298,6 +298,7 @@ let rec format_one_syn mode = function
       if c <> 1 then Util.format "(";
       Misc.format_list "," (fun n -> Util.format "%s" (Misc.whack n)) (Name.Set.elements ns);
       if c <> 1 then Util.format ")";
+      Util.format "=";
       format_one_syn FNone t;
       if mode <> FSimpleCat then Util.format "}";
       Util.format "@]"
@@ -309,6 +310,7 @@ let rec format_one_syn mode = function
       if c <> 1 then Util.format "(";
       Misc.format_list "|" (fun n -> Util.format "%s" (Misc.whack n)) (Name.Set.elements ns);
       if c <> 1 then Util.format ")";
+      Util.format "=";
       format_one_syn FNone t;
       if mode <> FSimpleCat then Util.format "}";
       Util.format "@]"

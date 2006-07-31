@@ -322,10 +322,10 @@ let whack_chars s cl reverse =
         esc_s
       with Not_found -> Printf.sprintf "\"%s\"" esc_s
     else
-      if (Safelist.exists (fun c -> String.contains s c) cl) then 
-        Printf.sprintf "\"%s\"" esc_s 
-      else 
-        esc_s
+        if (Safelist.exists (fun c -> String.contains s c) cl) then 
+          Printf.sprintf "\"%s\"" esc_s 
+        else 
+          esc_s
 
 let whack s =   
   if s = "" then "\"\"" 
