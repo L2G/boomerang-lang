@@ -32,7 +32,7 @@ val update : string -> t -> unit
 val mk_any       : t
 val mk_empty     : t
 val mk_atom      : Name.t -> t -> t
-val mk_atom_cats : Name.t list -> t -> t
+val mk_atom_cats : bool -> Name.t list -> t -> t
 val mk_atom_alts : Name.t list -> t -> t
 val mk_cat       : t list -> t
 val mk_union     : t list -> t

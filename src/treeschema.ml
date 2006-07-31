@@ -179,7 +179,7 @@ type u = V of state | F of (Presburger.t * elt list)
 (* syntactic reprsentations of schemas--used for pretty-printing*)
 type syn_t = 
     Var of state 
-    | AtomCats of Name.Set.t * syn_t 
+    | AtomCats of bool * Name.Set.t * syn_t 
     | AtomAlts of Name.Set.t * syn_t 
     | Wild of Name.Set.t * int * bool * syn_t
     | Cat of syn_t list
@@ -290,10 +290,11 @@ type format_mode = FCat | FSimpleCat | FUnion | FInter | FNone
 
 let rec format_one_syn mode = function
     Var(x) -> format_state x
-  | AtomCats(ns,t) -> 
+  | AtomCats(opt,ns,t) -> 
       let c = Name.Set.cardinal ns in 
       Util.format "@[";
       if mode <> FSimpleCat then Util.format "{"; 
+      if opt then Util.format "?";
       if c <> 1 then Util.format "(";
       Misc.format_list "," (fun n -> Util.format "%s" (Misc.whack n)) (Name.Set.elements ns);
       if c <> 1 then Util.format ")";
@@ -408,7 +409,7 @@ let format_syn_t syn_t0 =
 
         | Cat(ts) | Union(ts) | Isect(ts) -> collect acc (ts@xs)
 
-        | AtomCats(_,t) | AtomAlts(_,t) | Wild(_,_,_,t) | Neg(t) 
+        | AtomCats(_,_,t) | AtomAlts(_,t) | Wild(_,_,_,t) | Neg(t) 
         | Restrict(t,_,_) -> collect acc (t::xs)
         | Inject(t1,t2) -> 
             collect acc (t1::t2::xs)
@@ -1185,17 +1186,18 @@ let mk_atom_alts ns t =
   let u = F(P.mkAnd ps,e) in 
     make_t u syn
 
-let mk_atom_cats ns t = 
+let mk_atom_cats opt ns t = 
   let x = state_of_t t in 
-  let syn = AtomCats(ns_of_n_list ns,syn_of_t t) in
+  let syn = AtomCats(opt,ns_of_n_list ns,syn_of_t t) in
+  let cnstr = if opt then P.mkLe else P.mkEq in 
   let (ps,e) = 
     if x = True then
-      [P.mkEq (P.mkVar 0) (P.mkConst (Safelist.length ns));
+      [cnstr (P.mkVar 0) (P.mkConst (Safelist.length ns));
        P.mkEq (P.mkVar 1) P.zero],
       [(R.mk_finite ns,True);
        (R.mk_cofinite ns, True)]
     else
-      [P.mkEq (P.mkVar 0) (P.mkConst (Safelist.length ns));
+      [cnstr (P.mkVar 0) (P.mkConst (Safelist.length ns));
        P.mkEq (P.mkVar 1) P.zero;
        P.mkEq (P.mkVar 2) P.zero],
     [(R.mk_finite ns,x);
@@ -1204,7 +1206,7 @@ let mk_atom_cats ns t =
   let u = F(P.mkAnd ps,e) in 
     make_t u syn
 
-let mk_atom n t = mk_atom_cats [n] t
+let mk_atom n t = mk_atom_cats false [n] t
       
 let mk_wild f l u t = 
   let x = state_of_t t in   
@@ -1242,8 +1244,8 @@ let rec mk_cat = function
   | ts -> gen_mk P.add (fun ss -> Cat(ss)) None ts 
         
 (* list schemas *)
-let mk_nil = mk_cat [mk_atom_cats [Tree.nil_tag] (mk_cat [])]
-let mk_cons h t = mk_cat [mk_atom_cats [Tree.hd_tag] h; mk_atom_cats [Tree.tl_tag] t]
+let mk_nil = mk_cat [mk_atom Tree.nil_tag (mk_cat [])]
+let mk_cons h t = mk_cat [mk_atom Tree.hd_tag h; mk_atom Tree.tl_tag t]
 
 let mk_list i t =
   (* check that we are not calling this while the tvar marking stuff
@@ -1268,7 +1270,7 @@ module T_of_TreeMemo = Memo.MakeLater(struct
   let hash' = Tree.hash
   let equal' = Tree.equal
 end)
-let rec bare_t_of_tree v = mk_cat (Tree.fold (fun k vk ts -> (mk_atom_cats [k] (t_of_tree vk))::ts) v [])
+let rec bare_t_of_tree v = mk_cat (Tree.fold (fun k vk ts -> (mk_atom k (t_of_tree vk))::ts) v [])
 and t_of_tree v = T_of_TreeMemo.memoize bare_t_of_tree v
          
 (* --------------- operations ----------------------*)

@@ -48,22 +48,8 @@ test add_to_list_if_present "n" "l" \ {l=[{6}]} {n={""},l=[{5}]} = {n={6}, l=[]}
 (* Abstract schema *)                          
 
 let Addr : schema =
-  {
-    Company = Value,
-    Title = Value,
-    Phone = { Home=List.T Value,
-              Work=List.T Value,
-              Email=List.T Value,
-              Fax=List.T Value,
-              Mobile=List.T Value,
-              Other=List.T Value},
-    Address = Value,
-    City = Value,
-    Note = Value,
-    State = Value,
-    Zip = Value,
-    Country = Value,
-    Category = Value
+  { (Company,Title,Address,City,Note,State,Zip,Country,Category) = Value,
+    Phone = { (Home,Work,Email,Fax,Mobile,Other)=List.T Value }
   }
 
 let AddrBook : schema = {* = {* = List.T Addr}}

@@ -123,7 +123,7 @@ and exp =
     EApp of i  * exp * exp
   | EAssert of i * exp 
   | ECheckLens of i * exp * lensarrow * exp * exp
-  | EAtomCats of i * exp list * exp 
+  | EAtomCats of i * bool * exp list * exp 
   | EAtomAlts of i * exp list * exp 
   | ECat of i * exp list 
   | ECons of i * exp * exp 
@@ -186,7 +186,7 @@ let info_of_exp = function
     EApp(i,_,_) 
   | EAssert(i,_) 
   | ECheckLens(i,_,_,_,_) 
-  | EAtomCats(i,_,_)
+  | EAtomCats(i,_,_,_)
   | EAtomAlts(i,_,_)
   | ECat(i,_)  
   | ECons(i,_,_)
@@ -308,10 +308,11 @@ and format_exp_aux mode e0 = match e0 with
         format_lensarrow la;
         format_exp_aux mode e2;
         Util.format "@]"      
-  | EAtomCats(_,ns,e)    -> 
+  | EAtomCats(_,opt,ns,e)    -> 
       let imode = { mode with cat = false } in
         Util.format "@[<2>"; 
         if not mode.cat then Util.format "{";
+        if opt then Util.format "?";
         (match ns with 
             [n] -> format_exp_aux imode n 
           | _  -> 
