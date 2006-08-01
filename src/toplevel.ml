@@ -1,5 +1,10 @@
 open Error 
 
+let exit x = 
+  Memo.format_stats ();
+  Presburger.finish ();      
+  exit x
+
 let _ = 
   (* initialize required but not directly referenced modules *)
   Compiler.init();
@@ -302,11 +307,6 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   if Prefs.read check_pref <> [] then
     begin
       Safelist.iter check (Prefs.read check_pref);
-      Memo.format_stats ();
-      Trace.debug "member-total+" 
-	(fun () -> 
-	   Util.format "Treeschema.total_member: %d@\n" !Treeschema.total_member);
-      Presburger.finish ();
       if Prefs.read rest = [] then exit 0
     end;
 
@@ -421,7 +421,8 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
 
     (* Do it *)
     if r2="" then begin
-      get r1lens (enc r1temp r1enc) (enc "-" "meta")
+      get r1lens (enc r1temp r1enc) (enc "-" "meta");
+      exit 0
     end else begin
       (* Make up temporary output file names *)
       let newartemp = tempname newar in
@@ -443,12 +444,6 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
       postprocess arpost newartemp newar;
       postprocess r1post newr1temp newr1;
       postprocess r2post newr2temp newr2;
-      Memo.format_stats ();
-      Trace.debug "member-total+" 
-	(fun () -> 
-	   Util.format "Treeschema.total_member: %d@\n" !Treeschema.total_member);
-      Presburger.finish ();
-
       exit exitcode
     end)
   (* Clean up *)

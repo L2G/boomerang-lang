@@ -132,12 +132,12 @@ let hash_e e0 =
   tag_code * subelt_code
       
 let equal_constraint (m1,c1) (m2,c2) = 
-  (c1=c2)
+  ((c1=c2)
   && (Int.Set.equal (Int.Map.domain m1) (Int.Map.domain m2))
   && (Int.Map.fold
          (fun k1 v1 a -> 
            a && (try v1 = Int.Map.find k1 m2 with Not_found -> false))
-         m1 true) 
+         m1 true))
     
 let rec equal_list ts1 ts2 = 
   let rec loop acc l1 l2 = match acc,l1,l2 with 
@@ -222,6 +222,7 @@ let easy_zeros t = t.zeros
 
 (* ---- translation to C library structure ---- *)    
 let rec g_of_e e0 width = 
+  Trace.debug "compile+" (fun () -> Util.format "COMPILING %d " width; format_e e0; Util.format "@\n");
   let s = match e0 with
       EqZ(vs,c) -> 
         let rec loop i acc =           
@@ -310,14 +311,16 @@ let rec fvs_t t = match t.def.e with
     
 (* -------------- constraints -------------- *)
 let combine_constraints (vs1,c1) (vs2,c2) = 
+  let pre_c = c1+c2 in 
+  let c',neg = if pre_c > 0 then (-pre_c,true) else (pre_c,false) in 
   let vs' = Int.Set.fold 
     (fun xi vs' -> 
        let we1 = Int.Map.safe_find xi vs1 0 in 
-       let we2 = Int.Map.safe_find xi vs2 0 in 
-         Int.Map.add xi (we1+we2) vs')
+       let we2 = Int.Map.safe_find xi vs2 0 in
+       let w' = if neg then -1 * (we1 + we2) else we1+we2 in 
+         Int.Map.add xi w' vs')
     (Int.Set.union (Int.Map.domain vs1) (Int.Map.domain vs2))
     Int.Map.empty in 
-  let c' = c1+c2 in 
     (vs',c')
 
 let rec constraint_of_exp is_lhs = function 
@@ -804,7 +807,7 @@ let satisfiable t =
       end in 
     Trace.debug "satisfiable+"
       (fun () ->
-        format_t_bare t; 
+        format_t t; 
         Util.format "@\n";
         Util.format " = %b@\n" res);
     res

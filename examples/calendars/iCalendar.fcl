@@ -35,7 +35,7 @@ and CalProps =
     ?(calscale,method) = XPListPlusVal_Value,
     ?xprop = XProp}
     
-and XProp = List.T {"name" = Value, val = Value, ?params = Params}
+and XProp = List.T {("name","val") = Value, ?params = Params}
     
 and Components = 
   let Timezonec : schema = CompProp in
@@ -150,13 +150,12 @@ and CompProp_A =
 	?(exdate,rdate) = List.T (ParamsPlusVal_A (List.T DtPval_A)),
 	?(exrule,rrule) = List.T (XPListPlusVal_A Recur_A),
 	?attach = List.T (ParamsPlusVal_A ({ "AttUri" = Value } | { "AttBinary" = Value})),
-        ?categories = List.T (ParamsPlusVal_A { * = {} }),
-	?dtstamp = (ParamsPlusVal_A DtPval_A) | {},
+        ?(categories,resources) = List.T (ParamsPlusVal_A { * = {} }),
 	?duration = XPListPlusVal_A Duration_A,
-	?geo = Geo_A,
+	?dtstamp = (ParamsPlusVal_A DtPval_A) | {},
 	?lastmod = (XPListPlusVal_A DateTime_A) | {},
+	?geo = Geo_A,
 	?related_to = List.T (ParamsPlusVal_A Value),
-	?resources = List.T (ParamsPlusVal_A { * = {}}),
 	?rstatus = List.T RStatus_A,
 	?tzid = TzID_A,
 	?xprop = XProp_A

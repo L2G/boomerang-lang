@@ -1457,12 +1457,9 @@ let rec dom_member ns t0 =
        Util.format "@\n"; *)
     res
           
-let total_member = ref 0
-
 let member_with_counterexample v t0 = t0.member v
 
 let member v t0 = 
-  incr total_member;
   let enter_debug () = 
     Util.format ">>> MEMBER";
     Util.format "@\n v : "; Tree.format_t v;

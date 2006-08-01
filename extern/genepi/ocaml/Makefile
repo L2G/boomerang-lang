@@ -24,11 +24,8 @@ all: $(THISDIR)/genepi.cma $(THISDIR)/genepi.cmxa
 ##
 # C Libraries
 ## 
-
-# ccl sataf prestaf prestaf2fast
-# mona2fast
-
-GENEPI_LIBS=$(foreach l,genepi ccl sataf prestaf prestaf2fast,$(BUILDDIR)/lib/lib$(l).a) \
+#GENEPI_LIBS=$(foreach l,genepi ccl sataf prestaf prestaf2fast,$(BUILDDIR)/lib/lib$(l).a) 
+GENEPI_LIBS=$(foreach l,genepi mona2fast,$(BUILDDIR)/lib/lib$(l).a) 
 
 $(BUILDDIR)/lib/libgenepi.a:
 	(cd $(GENEPIDIR)/src/genepi-1-0; \
@@ -83,7 +80,7 @@ COMMON_DEPS=$(GENEPI_LIBS) $(THISDIR)/libgenepi-interface.a
 #             -lmona2fast -ldfa -lbdd -lmem \
 
 COMMON_LIBS= -lgenepi-interface \
-             -lprestaf2fast -lprestaf -lsataf -lccl \
+             -lmona2fast -ldfa -lbdd -lmem \
              -lgenepi \
              -L$(THISDIR) -L$(BUILDDIR)/lib
 
