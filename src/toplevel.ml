@@ -282,8 +282,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
       exit 0
     end;
 
-  (* BCP: Not sure if this still makes sense, since we are uniformly sending
-     errors to stdout now *)
+  (* BCP: Not sure if this still makes sense, since we are uniformly sending errors to stdout now *)
   (* Open error logging file, if specified *)
   let errfilename = Prefs.read errfile in
   if errfilename <> "" then
@@ -421,8 +420,9 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
 
     (* Do it *)
     if r2="" then begin
-      get r1lens (enc r1temp r1enc) (enc "-" "meta");
-      exit 0
+	debug (fun () -> Util.format "Applying GET function to r1...@\n");
+        get r1lens (enc r1temp r1enc) (enc "-" "meta");
+        exit 0
     end else begin
       (* Make up temporary output file names *)
       let newartemp = tempname newar in

@@ -11,21 +11,6 @@ let _ = GenepiLibrary.init ()
 
 let sprintf = Printf.sprintf
 
-type str = { str_data: string; str_hash: int }
-let mk_str = 
-  let module M = Memo.Make(struct
-    type arg = string
-    type res = str
-    let format_arg = Util.format "%s"
-    let format_res s = Util.format "%s" s.str_data
-    let hash = Hashtbl.hash
-    let equal = (=)
-    let name = "Presburger.mk_str"
-    let f s = { str_data=s; str_hash=Hashtbl.hash s }
-    let init_size = 503
-  end) in 
-  M.memoized
-
 (* ------------------------ abstract syntax ------------------------ *)
 (* exps: used only for easy construction of EqZs. *)
 type exp = 
@@ -43,7 +28,7 @@ type e =
     | And of t list
     | Ex of t
   and f = { e:e; hash:int } 
-  and t = { def:f; width:int; zeros:Int.Set.t; comp:int -> g; s:unit -> str}
+  and t = { def:f; width:int; zeros:Int.Set.t; comp:int -> g }
 
 (* --- formatter --- *)
 let rec format_exp = function
@@ -303,19 +288,6 @@ let t_of_f f0 =
     { def = f0; 
       width=width_e f0.e; 
       zeros=easy_zeros_e f0.e;     
-      s= 
-        (let module M = Memo.Make(struct
-          type arg = unit
-          type res = str
-          let name = "Presburger.s"
-          let f () = mk_str (Util.format_to_string (fun () -> format_e f0.e))
-          let init_size = 1
-          let format_arg () = Util.format "()"
-          let format_res s0 = Util.format "%s" s0.str_data
-          let hash () = 1
-          let equal () () = true
-        end) in 
-        M.memoized);
       comp=
         let module M = Memo.Make(struct
           type arg = int
@@ -794,9 +766,9 @@ let oracle_compile = Prefs.createBool "oracle-compile" false "Consult oracle and
 
 (* oracle state *)
 module Oracle = Hashtbl.Make(struct
-  type t = str
-  let hash s0 = s0.str_hash
-  let equal = (==)
+  type t = string
+  let hash = Hashtbl.hash
+  let equal = (=)
 end)
 let oracle = Oracle.create 267
 let oracle_initialized = ref false  
@@ -806,7 +778,7 @@ let initialize_oracle () =
   let inc = open_in_bin (Prefs.read oracle_file) in 
     try 
       while true do       
-        let s = mk_str (input_value inc : string) in 
+        let s = (input_value inc : string) in 
         let b = (input_value inc : bool) in 
           Oracle.add oracle s b
       done
@@ -816,26 +788,19 @@ let initialize_oracle () =
       
 let sat_oracle t = 
   if not !oracle_initialized then initialize_oracle ();
-  Oracle.find oracle (t.s ())
+  Oracle.find oracle (Util.format_to_string (fun () -> format_t t))
     
-module BakedOracle = struct
-  let data = ref []
-  let next () = 
-    let res = List.hd !data in 
-      data := List.tl !data;
-      res
-end
-
 let sat_genepi t = 
   let g = t.comp t.width in 
     g.empty ()
     
 let satisfiable t =   
   let res = 
-    if Prefs.read oracle_compile then ignore (t.comp t.width);      
-    if Prefs.read oracle_baked then BakedOracle.next () 
-    else if Prefs.read oracle_file <> "" then 
-      try sat_oracle t with Not_found -> sat_genepi t
+    if Prefs.read oracle_file <> "" then 
+      begin 
+        if Prefs.read oracle_compile then ignore (t.comp t.width);      
+        try sat_oracle t with Not_found -> sat_genepi t
+      end
     else sat_genepi t in 
   let dump_file = Prefs.read oracle_dump_file in 
     if dump_file <> "" then 

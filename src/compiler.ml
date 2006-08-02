@@ -766,7 +766,7 @@ let rec compile_exp cev e0 = match e0 with
                     | Vwb -> Value.VWB(mk_checker q1 q2)
                     | Wb -> Value.WB(mk_checker q1 q2)                        
                 end
-              | _ -> Value.WB(fun c -> run_error i (fun () -> "unchecked protect")) in          
+              | _ -> Value.WB(fun c -> run_error i (fun () -> "unchecked protect")) in
           mk_rv 
             s
             (Value.L (Lens.native get put, checker))
