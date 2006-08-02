@@ -2,27 +2,23 @@
 module Mozilla =  
 
   (* abstract schemas for homogeneous synchronization *)
-  schema MLink = { "link" = { "name" = Value, "url" = Value }}
+  schema MLink = { "link" = { ("name","url") = Value }}
   schema MSeparator  = { "separator" = {} }
   schema MFolder = { "name" = Value, "contents" = MContents }
   and MContents =  List.T (MSeparator | MLink | MFolder)
 
-  schema MAbstract = { "toolbar" = MContents, "bookmarks" = MContents }
+  schema MAbstract = { ("toolbar", "bookmarks") = MContents }
   
 
   schema CHeader = {"H1" = {`Xml.CHILDREN=[{`Xml.PCDATA=Value}], 
-                          ?"LAST_MODIFIED"=Value}}
+                    ?"LAST_MODIFIED"=Value}}
     
   and CRest = [{ "DL"={`Xml.CHILDREN=(List.T CItem) }}]
   
   and CBookmarks = [{"DT"= {`Xml.CHILDREN=(CHeader::CRest)}}]
   
   and CLink = [{"A"={`Xml.CHILDREN=[{`Xml.PCDATA=Value}],
-                     "HREF"=Value,
-                     "FEEDURL"=Value,                          
-                            "ICON"=Value,
-                     "LAST_CHARSET"=Value,
-                     "SHORTCUTURL"=Value}}]
+                ("HREF","FEEDURL","ICON","LAST_CHARSET","SHORTCUTURL")=Value}}]
   and CFolder = [{"H3"=Any}, {"DL"= Any}] 
   and CSeparator = {"HR" = {`Xml.CHILDREN=[]}}
   (* schema CItem = CSeparator | CFolder | CLink  *)
@@ -56,7 +52,7 @@ module Mozilla =
           (hoist Xml.CHILDREN;
            List.hd [];
            rename Xml.PCDATA "name")
-          (acond { "FEEDURL"=Any, "HREF"=Any } { "feed"=Any }
+          (acond { ("FEEDURL","HREF")=Any } { "feed"=Any }
              (filter { "FEEDURL" } {};
               rename "FEEDURL" "feed")
              (rename "HREF" "url");                 
@@ -78,6 +74,7 @@ module Mozilla =
       end
 
 
+(*
   let TAbstract : schema = List.T CItem
 
   let checked_l1 : CBookmarks <<-> TAbstract =
@@ -88,7 +85,7 @@ module Mozilla =
     List.hd [];
     hoist "DL";
     hoist Xml.CHILDREN
-    
+*)    
       
   let l1 : lens = 
     List.hd [];
@@ -110,7 +107,7 @@ module Mozilla =
   (* l2 filters away the separator items *)
   let l2 : lens = 
     let filter_seps : lens = 
-      List.filter ({"contents" = Any, "name" = Any} | { "link" = Any }) { "separator" } {};
+      List.filter ({("contents","name") = Any } | { "link" = Any }) { "separator" } {};
       List.map (mapn "contents" (protect filter_seps))
     in
       l1; map filter_seps

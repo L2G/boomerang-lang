@@ -278,8 +278,8 @@ let find_best w =
           | Some (wa,_) -> 
               if wa < w then 
                 if wh < w && wh > wa then Some h else acc
-              else
-                if wh < w || wh > wa then Some h else acc in 
+              else None (*
+                if wh < w || wh > wa then Some h else acc *) in 
         loop acc' t in 
     loop None 
       
