@@ -11,6 +11,21 @@ let _ = GenepiLibrary.init ()
 
 let sprintf = Printf.sprintf
 
+type str = { str_data: string; str_hash: int }
+let mk_str = 
+  let module M = Memo.Make(struct
+    type arg = string
+    type res = str
+    let format_arg = Util.format "%s"
+    let format_res s = Util.format "%s" s.str_data
+    let hash = Hashtbl.hash
+    let equal = (=)
+    let name = "Presburger.mk_str"
+    let f s = { str_data=s; str_hash=Hashtbl.hash s }
+    let init_size = 503
+  end) in 
+  M.memoized
+
 (* ------------------------ abstract syntax ------------------------ *)
 (* exps: used only for easy construction of EqZs. *)
 type exp = 
@@ -27,8 +42,8 @@ type e =
     | Or of t list
     | And of t list
     | Ex of t
-  and f = { e : e; hash : int } 
-  and t = { def : f; width: int; zeros : Int.Set.t; comp : int -> g }
+  and f = { e:e; hash:int } 
+  and t = { def:f; width:int; zeros:Int.Set.t; comp:int -> g; s:unit -> str}
 
 (* --- formatter --- *)
 let rec format_exp = function
@@ -278,7 +293,7 @@ let find_best w =
           | Some (wa,_) -> 
               if wa < w then 
                 if wh < w && wh > wa then Some h else acc
-              else 
+              else
                 if wh < w || wh > wa then Some h else acc in 
         loop acc' t in 
     loop None 
@@ -288,6 +303,19 @@ let t_of_f f0 =
     { def = f0; 
       width=width_e f0.e; 
       zeros=easy_zeros_e f0.e;     
+      s= 
+        (let module M = Memo.Make(struct
+          type arg = unit
+          type res = str
+          let name = "Presburger.s"
+          let f () = mk_str (Util.format_to_string (fun () -> format_e f0.e))
+          let init_size = 1
+          let format_arg () = Util.format "()"
+          let format_res s0 = Util.format "%s" s0.str_data
+          let hash () = 1
+          let equal () () = true
+        end) in 
+        M.memoized);
       comp=
         let module M = Memo.Make(struct
           type arg = int
@@ -453,21 +481,20 @@ let mkOr =
   let module M = Memo.Make(struct
     include HC_TS_BASE
     let name = "Presburger.mkOr"
-    let f ts = match ts with
-        [] -> fls
-      | [h] -> h
-      | _  -> 
-          let ts' = 
-            let rec loop acc = function
-                [] -> Safelist.rev acc 
-              | h::t -> begin match h.def.e with 
-                    Or(hs) -> loop acc (hs@t)
-                  | _ ->
-                      if h==fls then loop acc t 
-                      else loop (h::acc) t
-                end in 
-              loop [] ts in 
-            t_of_e(Or(ts'))
+    let f ts = 
+      let rec loop acc = function
+          [] -> Safelist.rev acc 
+        | h::t -> begin match h.def.e with 
+              Or(hs) -> loop acc (hs@t)
+            | _ ->
+                if h==fls then loop acc t 
+                else if h==tru then [tru] 
+                else loop (h::acc) t
+          end in 
+        match loop [] ts with
+            []  -> fls
+          | [h] -> h
+          | ts' -> t_of_e(Or(ts'))
   end) in
   M.memoized 
 
@@ -475,20 +502,20 @@ let mkAnd =
   let module M = Memo.Make(struct
     include HC_TS_BASE
     let name = "Presburger.mkAnd"
-    let f ts = match ts with
-        [] -> tru
-      | _  -> 
-          let ts' = 
-            let rec loop acc = function
-                [] -> Safelist.rev acc 
-              | h::t -> begin match h.def.e with 
-                    And(hs) -> loop acc (hs@t)
-                  | _ -> 
-                      if h==tru then loop acc t
-                      else loop (h::acc) t
-                end in 
-              loop [] ts in 
-            t_of_e(And(ts'))
+    let f ts = 
+      let rec loop acc = function
+          [] -> Safelist.rev acc 
+        | h::t -> begin match h.def.e with 
+              And(hs) -> loop acc (hs@t)
+            | _ -> 
+                if h==tru then loop acc t
+                else if h==fls then [fls] 
+                else loop (h::acc) t
+          end in 
+        match loop [] ts with 
+            [] -> tru
+          | [h] -> h
+          | ts'   -> t_of_e(And(ts'))
   end) in 
   M.memoized
 
@@ -764,51 +791,33 @@ let oracle_baked = Prefs.createBool "oracle-baked" false "Use compiled-in oracle
 let oracle_file = Prefs.createString "oracle" "" "Use xxx as an oracle" ""
 let oracle_dump_file = Prefs.createString "oracle-dump" "" "Create an oracle in xxx" ""
 let oracle_compile = Prefs.createBool "oracle-compile" false "Consult oracle and compile Presburger formulas to Genepi" ""
-let oracle_loop = Prefs.createInt "oracle-loop" 0 "Perform oracle operations n times, to increase granularity of timers" ""
 
 (* oracle state *)
 module Oracle = Hashtbl.Make(struct
-  type t = string
-  let hash = Hashtbl.hash
-  let equal = (=)
+  type t = str
+  let hash s0 = s0.str_hash
+  let equal = (==)
 end)
 let oracle = Oracle.create 267
 let oracle_initialized = ref false  
-let discounted_time = ref 0.0
 let oracle_outc_opt = ref None
 
 let initialize_oracle () = 
-  let start = Sys.time () in
-  let go () = 
-    let inc = open_in_bin (Prefs.read oracle_file) in 
-      try 
-        while true do       
-          let s = (input_value inc : string) in 
-          let b = (input_value inc : bool) in 
-            Oracle.add oracle s b
-        done
-      with End_of_file -> close_in inc in 
-    
-    for i=1 to (Prefs.read oracle_loop) do Oracle.clear oracle; go () done; 
-    go ();
-    discounted_time := !discounted_time +. (Sys.time () -. start);
-    oracle_initialized := true 
+  let inc = open_in_bin (Prefs.read oracle_file) in 
+    try 
+      while true do       
+        let s = mk_str (input_value inc : string) in 
+        let b = (input_value inc : bool) in 
+          Oracle.add oracle s b
+      done
+    with End_of_file -> 
+      close_in inc;
+      oracle_initialized := true 
       
 let sat_oracle t = 
   if not !oracle_initialized then initialize_oracle ();
-  let start = Sys.time () in  
-  let go () = 
-    let k = Util.format_to_string (fun () -> format_t t) in 
-      try Oracle.find oracle k 
-      with Not_found -> raise 
-        (Error.Harmony_error
-            (fun () -> Util.format "No entry for %s in oracle %s" 
-              k (Prefs.read oracle_file))) in    
-    for i=1 to (Prefs.read oracle_loop) do ignore (go ()) done;
-    let res = go () in 
-      discounted_time := !discounted_time +. (Sys.time () -. start);
-      res
-
+  Oracle.find oracle (t.s ())
+    
 module BakedOracle = struct
   let data = ref []
   let next () = 
@@ -817,28 +826,29 @@ module BakedOracle = struct
       res
 end
 
+let sat_genepi t = 
+  let g = t.comp t.width in 
+    g.empty ()
+    
 let satisfiable t =   
   let res = 
     if Prefs.read oracle_compile then ignore (t.comp t.width);      
     if Prefs.read oracle_baked then BakedOracle.next () 
-    else if Prefs.read oracle_file <> "" then sat_oracle t
-    else begin
-        let g = t.comp t.width in 
-        let res = g.empty () in
-        let dump_file = Prefs.read oracle_dump_file in 
-          if dump_file <> "" then 
-            begin
-              let outc = match !oracle_outc_opt with 
-                  Some outc -> outc 
-                | _ -> 
-                    let outc = open_out_bin dump_file in 
-                      oracle_outc_opt := Some outc;
-                      outc in 
-                output_value outc (Util.format_to_string (fun () -> format_t t));
-                output_value outc res 
-            end;
-          res
-      end in 
+    else if Prefs.read oracle_file <> "" then 
+      try sat_oracle t with Not_found -> sat_genepi t
+    else sat_genepi t in 
+  let dump_file = Prefs.read oracle_dump_file in 
+    if dump_file <> "" then 
+      begin
+        let outc = match !oracle_outc_opt with 
+            Some outc -> outc 
+          | _ -> 
+              let outc = open_out_bin dump_file in 
+                oracle_outc_opt := Some outc;
+                outc in 
+          output_value outc (Util.format_to_string (fun () -> format_t t));
+          output_value outc res 
+      end;
     Trace.debug "satisfiable+"
       (fun () ->
         format_t t; 
@@ -847,8 +857,7 @@ let satisfiable t =
     res
         
 let finish () = 
-  if Prefs.read oracle_file <> "" then 
-    Util.format "Discounted time: %.2f seconds@\n" !discounted_time;
   match !oracle_outc_opt with 
     | Some outc -> close_out outc
     | _ -> ()
+        

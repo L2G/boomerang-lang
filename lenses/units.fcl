@@ -80,6 +80,27 @@ test (
 
   test (member {n=Any,!\n=Any} {}) = false
 
+  (* -------------- sync tests ------------------------ *)
+  sync with id at { "a" = Value, "b" = Value } {
+      O = { "a"={1}, "b"={1} },
+      A = { "a"={1}, "b"={2} },
+      B = { "a"={1}, "b"={3} }
+    } = {
+      O = { "a"={1}, "b"={1} },
+      A = { "a"={1}, "b"={2} },
+      B = { "a"={1}, "b"={3} }
+    }
+
+  sync with id at { ("a","b") = Value } {
+      O = { "a"={1}, "b"={1} },
+      A = { "a"={1}, "b"={2} },
+      B = { "a"={1}, "b"={3} }
+    } = {
+      O = { "a"={1}, "b"={1} },
+      A = { "a"={1}, "b"={2} },
+      B = { "a"={1}, "b"={3} }
+    } 
+    
   (* -------------- static checker tests --------------- *)
   test ((check (hoist "n") : {n=Any} <<-> Any) / {n={a}}) = {a}
   test ((check (hoist "n") : {n=Any} <<-> {*=Any}) / {n={a}}) = {a}

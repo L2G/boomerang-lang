@@ -1489,13 +1489,11 @@ let rec project k t0 = match t0.def with
   | F(p,e)   ->
       let eks = Misc.map_index_filter
         (fun pos (r,x) -> 
-           if R.mem k r && (P.satisfiable (P.mkAnd [p; P.mkEq (P.mkVar pos) P.one])) then
-             match x with 
-                 True | EmptyView | NonEmptyView | CS _ -> Some (t_of_state x)
-               | False -> None
-           else None)
+          if x <> False && R.mem k r && (P.satisfiable (P.mkAnd [p; P.mkGt (P.mkVar pos) P.zero])) then
+            Some (t_of_state x)        
+          else None)
         e in
-      mk_union eks
+        mk_union eks
 
 let rec project_all t0 = match t0.def with 
     V(True) | V(NonEmptyView) -> Some (truth)
@@ -1505,16 +1503,16 @@ let rec project_all t0 = match t0.def with
       let _,ok,reso = Safelist.fold_left
         (fun (pos,ok,reso) (_,x) -> 
            if not ok then (pos,ok,reso) 
-           else if not (P.satisfiable (P.mkAnd [p; P.mkEq (P.mkVar pos) P.one])) then 
-               (pos+1,ok,reso)
-             else match reso with 
-                 None   -> (pos+1,true,Some x)
-               | Some y -> 
-                   if equivalent (t_of_state x) (t_of_state y) then (pos+1,true,Some y)
-                   else (pos+1,false,None))
+           else if not (P.satisfiable (P.mkAnd [p; P.mkGt (P.mkVar pos) P.zero])) then 
+             (pos+1,ok,reso)
+           else match reso with 
+               None   -> (pos+1,true,Some x)
+             | Some y -> 
+                 if equivalent (t_of_state x) (t_of_state y) then (pos+1,true,Some y)
+                 else (pos+1,false,None))
         (0,true,None)
         e in
-      if ok then map_opt reso t_of_state else None
+        if ok then map_opt reso t_of_state else None
 
 (* quick & dirty hack: finite/cofinite name sets *)
 let r2fds r = match R.finite_domain r with 
