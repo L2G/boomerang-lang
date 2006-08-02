@@ -188,6 +188,8 @@ let width_e e0 = match e0 with
   | Or(ts) | And(ts)   -> Safelist.fold_left (fun w ti -> max w ti.width) 0 ts 
           
 let width t = t.width
+
+let rec add_to_list n x l = if n < 1 then l else add_to_list (n-1) x (x::l)
   
 (* --- easy_zeros: calculate a set of "obviously zero" variables from a
    formula. NOT semantically complete--i.e., it's not the case that 
@@ -221,41 +223,44 @@ let easy_zeros_e = function
 let easy_zeros t = t.zeros
 
 (* ---- translation to C library structure ---- *)    
-let rec g_of_e e0 width = 
+let rec s_of_e e0 width = 
   Trace.debug "compile+" (fun () -> Util.format "COMPILING %d " width; format_e e0; Util.format "@\n");
-  let s = match e0 with
-      EqZ(vs,c) -> 
-        let rec loop i acc =           
-          if i < 0 then acc 
-          else loop (i-1) ((Int.Map.safe_find i vs 0)::acc) in
-          GenepiLibrary.linear_constraint (loop (width-1) []) (-c)
-            
-    | Not(f1) -> GenepiLibrary.complement(genepi_set_of_t f1 width)
+  match e0 with
+    EqZ(vs,c) -> 
+      let rec loop i acc =           
+        if i < 0 then acc 
+        else loop (i-1) ((Int.Map.safe_find i vs 0)::acc) in
+        GenepiLibrary.linear_constraint (loop (width-1) []) (-c)
+          
+  | Not(f1) -> GenepiLibrary.complement(genepi_set_of_t f1 width)
+      
+  | Or(fs) -> 
+      Safelist.fold_left 
+        (fun gs fi -> GenepiLibrary.union (genepi_set_of_t fi width) gs)
+        (GenepiLibrary.bot width)
+        fs 
         
-    | Or(fs) -> 
-        Safelist.fold_left 
-          (fun gs fi -> GenepiLibrary.union (genepi_set_of_t fi width) gs)
-          (GenepiLibrary.bot width)
-          fs 
-          
-    | And(fs) ->
-        Safelist.fold_left
-          (fun gs fi -> GenepiLibrary.intersection (genepi_set_of_t fi width) gs)
-          (GenepiLibrary.top width)
-          fs 
-          
-    | Ex(f1) ->       
-        let rec zeros i acc = if i<1 then acc else zeros (i-1) (0::acc) in 
-        let x0_sel = 1::(zeros width []) in
-        let f1 = genepi_set_of_t f1 (width+1) in 
-          GenepiLibrary.project f1 x0_sel in 
-  { set=s; 
+  | And(fs) ->
+      Safelist.fold_left
+        (fun gs fi -> GenepiLibrary.intersection (genepi_set_of_t fi width) gs)
+        (GenepiLibrary.top width)
+        fs 
+        
+  | Ex(f1) ->       
+      let x0_sel = 1::(add_to_list width 0 []) in
+      let f1 = genepi_set_of_t f1 (width+1) in 
+        GenepiLibrary.project f1 x0_sel 
+  
+and genepi_set_of_t t width = (t.comp width).set
+  
+let g_of_s s0 =   
+  { set=s0; 
     empty=
       let module M = Memo.Make(struct
         type arg = unit
         type res = bool
         let name = "Presburger.empty"
-        let f () = not (GenepiLibrary.is_empty s)
+        let f () = not (GenepiLibrary.is_empty s0)
         let init_size = 1
         let format_arg () = Util.format "()"
         let format_res = Util.format "%b"
@@ -264,25 +269,54 @@ let rec g_of_e e0 width =
       end) in 
       M.memoized }
 
-and genepi_set_of_t t width = (t.comp width).set
+let find_best w = 
+  let rec loop acc = function
+      [] -> acc 
+    | (wh,_) as h::t -> 
+        let acc' = match acc with 
+            None -> Some h
+          | Some (wa,_) -> 
+              if wa < w then 
+                if wh < w && wh > wa then Some h else acc
+              else 
+                if wh < w || wh > wa then Some h else acc in 
+        loop acc' t in 
+    loop None 
       
 let t_of_f f0 = 
-  { def = f0; 
-    width=width_e f0.e; 
-    zeros=easy_zeros_e f0.e; 
-    comp=
-      let module M = Memo.Make(struct
-        type arg = int
-        type res = g
-        let name = "Presburger.compile"
-        let f = (g_of_e f0.e)
-        let init_size = 5
-        let format_res g = Util.format "<genepi_set : "; format_e f0.e; Util.format ">"
-        let format_arg = Util.format "%d"
-        let hash = Hashtbl.hash
-        let equal = (=)
-      end) in 
-      M.memoized }
+  let compiled = ref [] in 
+    { def = f0; 
+      width=width_e f0.e; 
+      zeros=easy_zeros_e f0.e;     
+      comp=
+        let module M = Memo.Make(struct
+          type arg = int
+          type res = g
+          let name = "Presburger.compile"
+          let f width = 
+            let s0 = match find_best width !compiled with 
+                None -> s_of_e f0.e width
+              | Some (w1,s_w1) ->  
+                  Trace.debug "compile+" 
+                    (fun () -> 
+                      Util.format "RESIZING from %d to %d " w1 width; 
+                      format_e f0.e; 
+                      Util.format "@\n");
+                  if w1 < width then 
+                    let sel = add_to_list w1 0 (add_to_list (width-w1) 1 []) in 
+                      GenepiLibrary.inv_project s_w1 sel 
+                  else
+                    let sel = add_to_list width 0 (add_to_list (w1-width) 1 []) in 
+                      GenepiLibrary.project s_w1 sel in
+              compiled := (width,s0)::!compiled;            
+              g_of_s s0
+          let init_size = 5
+          let format_res g = Util.format "<genepi_set : "; format_e f0.e; Util.format ">"
+          let format_arg = Util.format "%d"
+          let hash = Hashtbl.hash
+          let equal = (=)
+        end) in 
+        M.memoized }
     
 let t_of_e e = t_of_f { e=e; hash=hash_e e }
 

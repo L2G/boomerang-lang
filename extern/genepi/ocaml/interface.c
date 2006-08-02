@@ -126,6 +126,18 @@ value GENEPI_project(value s1, value xs) {
   CAMLreturn(SET_TO_VALUE(res));
 }
 
+value GENEPI_inv_project(value s1, value xs) {
+  CAMLparam2(s1,xs);
+  
+  int xs_length = length(xs);
+  int *xs_int = vals_to_ints(xs, xs_length);
+  genepi_set *res = genepi_set_invproject(VALUE_TO_SET(s1), xs_int, xs_length);
+  
+  free(xs_int);
+
+  CAMLreturn(SET_TO_VALUE(res));
+}
+
 value GENEPI_is_empty(value s) { 
   CAMLparam1(s);
   if(genepi_set_is_empty(VALUE_TO_SET(s))) { 

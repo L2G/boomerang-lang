@@ -9,6 +9,7 @@ external intersection : t -> t -> t = "GENEPI_intersection"
 external union : t -> t -> t = "GENEPI_union"
 external complement : t -> t = "GENEPI_complement"
 external project : t -> int list -> t = "GENEPI_project"
+external inv_project : t -> int list -> t = "GENEPI_inv_project"
 external is_empty : t -> bool = "GENEPI_is_empty"
 external width : t -> int = "GENEPI_width"
 
