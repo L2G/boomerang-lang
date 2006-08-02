@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/sh -e
 
 #
 # Program taken from the Mec V project

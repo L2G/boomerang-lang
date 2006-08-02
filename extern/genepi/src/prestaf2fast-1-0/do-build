@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/sh -e
 
 # FAST Enhanced Release, an accelerated symbolic model-checker. 
 # Copyright (C) 2005-2006 Jerome Leroux (coordinator), Sebastien Bardin, 

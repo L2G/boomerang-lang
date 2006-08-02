@@ -26,6 +26,16 @@
 #include <stdlib.h>
 #include "genepi.h"
 
+#ifndef RTLD_LOCAL
+/* RTLD_LOCAL not defined - assume it's not supported (e.g. Cygwin) and
+ * substitute 0.  Would like to #warn about this but that's not ANSI.
+ * Probably safe enough since it's used here with RTLD_LAZY, so if there's a
+ * *real* problem, like RTLD stuff not being present, RTLD_LAZY will throw a
+ * proper error.
+ */
+#define RTLD_LOCAL 0
+#endif
+
 			/* --------------- */
 
 static void **lib_handlers = NULL;

@@ -28,31 +28,31 @@ all: $(THISDIR)/genepi.cma $(THISDIR)/genepi.cmxa
 GENEPI_LIBS=$(foreach l,genepi mona2fast,$(BUILDDIR)/lib/lib$(l).a) 
 
 $(BUILDDIR)/lib/libgenepi.a:
-	(cd $(GENEPIDIR)/src/genepi-1-0; \
-         ./do-build --make-install --install-dir $(BUILDDIR); \
+	(cd $(GENEPIDIR)/src/genepi-1-0 && \
+         ./do-build --make-install --install-dir $(BUILDDIR) && \
          ranlib $@)
 
 $(BUILDDIR)/lib/libccl.a:
-	(cd $(GENEPIDIR)/src/ccl-1-1; \
-         ./do-build --make-install --install-dir $(BUILDDIR); \
+	(cd $(GENEPIDIR)/src/ccl-1-1 && \
+         ./do-build --make-install --install-dir $(BUILDDIR) && \
          ranlib $@)
 
 $(BUILDDIR)/lib/libsataf.a:
-	(cd $(GENEPIDIR)/src/sataf-1-1; \
-         ./do-build --make-install --install-dir $(BUILDDIR); \
+	(cd $(GENEPIDIR)/src/sataf-1-1 && \
+         ./do-build --make-install --install-dir $(BUILDDIR) && \
          ranlib $@)
 
 $(BUILDDIR)/lib/libprestaf.a:
-	(cd $(GENEPIDIR)/src/prestaf-1-2; \
-         ./do-build --make-install --install-dir $(BUILDDIR); \
+	(cd $(GENEPIDIR)/src/prestaf-1-2 && \
+         ./do-build --make-install --install-dir $(BUILDDIR) && \
          ranlib $@)
 
 $(BUILDDIR)/lib/libprestaf2fast.a:
-	(cd $(GENEPIDIR)/src/prestaf2fast-1-0; \
+	(cd $(GENEPIDIR)/src/prestaf2fast-1-0 && \
          ./do-build --make-install --install-dir $(BUILDDIR))
 
 $(BUILDDIR)/lib/libmona2fast.a:
-	(cd $(GENEPIDIR)/src/mona2fast-1-0; \
+	(cd $(GENEPIDIR)/src/mona2fast-1-0 && \
          ./do-build --make-install --install-dir $(BUILDDIR))
 
 ##################################################
@@ -94,7 +94,7 @@ genepiLibrary.cmx: genepiLibrary.ml
 	ocamlopt -c genepiLibrary.ml
 
 $(THISDIR)/genepi.cmxa: $(COMMON_DEPS) genepiLibrary.cmx
-	ocamlmklib -custom -o genepi genepiLibrary.cmx $(COMMON_LIBS);
+	ocamlmklib -custom -o genepi genepiLibrary.cmx $(COMMON_LIBS)
 
 ##################################################
 # utility targets
