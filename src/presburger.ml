@@ -21,6 +21,9 @@ type exp =
 type g = { set : GenepiLibrary.t; empty : unit -> bool }
 
 (* formulas, represented in de Bruijn notation *)
+
+type possible_value = Definite of int | Unknown | Nothing
+
 type e = 
     EqZ of int Int.Map.t * int
     | Not of t
@@ -28,9 +31,14 @@ type e =
     | And of t list
     | Ex of t
   and f = { e:e; hash:int } 
-  and t = { def:f; width:int; zeros:Int.Set.t; comp:int -> g }
+  and t = { def:f; width:int; zeros: unit -> Int.Set.t; values: int -> possible_value; comp:int -> g }
 
 (* --- formatter --- *)
+let format_possible_value = function
+    Definite(c) -> Util.format "Definite(%d)" c
+  | Unknown     -> Util.format "Unknown"
+  | Nothing     -> Util.format "Nothing"
+
 let rec format_exp = function
     Const(n) -> Util.format "%d" n
   | Var(x) -> Util.format "n%d" x
@@ -199,28 +207,58 @@ let easy_zeros_e = function
       if c = 0 then match Int.Map.fold 
           (fun xi wi acc -> match acc with 
               (false,_)         -> acc
-            | (true,None)       -> (true, Some (Int.Set.add xi Int.Set.empty, wi > 0))
-            | (true,Some(zs,p)) -> ((wi > 0) = p,Some (Int.Set.add xi zs, p)))
+            | (true,None)       -> (true, Some(Int.Set.add xi Int.Set.empty, wi > 0))
+            | (true,Some(zs,p)) -> ((wi > 0)=p, Some (Int.Set.add xi zs, p)))
           vs (true,None)  
         with false,_ | _,None -> Int.Set.empty
           | true,Some(zs,_) -> zs
       else Int.Set.empty
   | Not(t1) -> begin match t1.def.e with 
-        Not(t2) -> t2.zeros
+        Not(t2) -> t2.zeros ()
       | _ -> Int.Set.empty
     end
   | Or(ts) -> begin match ts with
         [] -> Int.Set.empty
-      | t1::trest -> Safelist.fold_left (fun a ti -> Int.Set.inter ti.zeros a) t1.zeros trest     
+      | t1::trest -> Safelist.fold_left (fun a ti -> Int.Set.inter (ti.zeros ()) a) (t1.zeros ()) trest     
     end
-  | And(ts) -> Safelist.fold_left (fun a ti -> Int.Set.union ti.zeros a) Int.Set.empty ts
+  | And(ts) -> Safelist.fold_left (fun a ti -> Int.Set.union (ti.zeros ()) a) Int.Set.empty ts
   | Ex(t1) -> 
       Int.Set.fold 
         (fun xi a -> Int.Set.add (xi-1) a)
-        (Int.Set.remove 0 (t1.zeros))
+        (Int.Set.remove 0 (t1.zeros ()))
         Int.Set.empty
+
+let easy_zeros t = t.zeros ()
+
+let rec easy_var_value_e e0 x = match e0 with
+    EqZ(vs,c)  ->       
+      (try 
+          let cx = Int.Map.find x vs in 
+            (match Int.Set.cardinal (Int.Map.domain vs), cx with
+                1,1  -> Definite (-c)
+              | 1,-1 -> Definite c
+              | _    -> Unknown)
+        with Not_found -> Nothing)
+
+  | Not(t1) -> (match t1.def.e with 
+        Not(t2) -> t2.values x
+      | _      -> (match t1.values x with 
+            Nothing -> Nothing
+          | _       -> Unknown))
+
+  | Or(ts) | And(ts) -> Safelist.fold_left 
+      (fun acc ti -> 
+        match acc with
+            Nothing    -> ti.values x
+          | Unknown  -> Unknown
+          | Definite i -> 
+              (match ti.values x with 
+                  Nothing -> acc
+                | Unknown -> Unknown
+                | Definite j -> if i=j then acc else Unknown))
+        Nothing ts
         
-let easy_zeros t = t.zeros
+  | Ex(t1) -> t1.values (x+1)
 
 (* ---- translation to C library structure ---- *)    
 let rec s_of_e e0 width = 
@@ -288,7 +326,35 @@ let t_of_f f0 =
   let compiled = ref [] in 
     { def = f0; 
       width=width_e f0.e; 
-      zeros=easy_zeros_e f0.e;     
+      zeros=
+        (let module M = Memo.Make(struct
+          type arg = unit
+          type res = Int.Set.t
+          let name = "Presburger.easy_zeros"
+          let f () = easy_zeros_e f0.e
+          let init_size = 1
+          let format_arg () = Util.format "()"
+          let format_res s = 
+            Util.format "{"; 
+            Misc.format_list "," (Util.format "%d") (Int.Set.elements s);
+            Util.format "}"
+          let hash () = 1
+          let equal () () = true
+        end) in 
+        M.memoized);            
+      values=
+        (let module M = Memo.Make(struct
+          type arg = int
+          type res = possible_value
+          let name = "Presburger.values"
+          let f x = easy_var_value_e f0.e x
+          let init_size = 1
+          let format_arg = Util.format "%d"
+          let format_res = format_possible_value
+          let hash = Hashtbl.hash
+          let equal = (=)
+        end) in 
+        M.memoized);            
       comp=
         let module M = Memo.Make(struct
           type arg = int
@@ -727,41 +793,6 @@ let add ts0 = match ts0 with
     [] -> Error.simple_error "P.add: zero-length addition"
   | t::ts -> Safelist.fold_left (fun s ti -> add2 s ti) t ts 
 
-let rec easy_var_value x t0 = match t0.def.e with
-    EqZ(vs,c)  ->       
-      (try 
-          let cx = Int.Map.find x vs in 
-            (match Int.Set.cardinal (Int.Map.domain vs), cx with
-                1,1  -> Some (-c)
-              | 1,-1 -> Some c
-              | _    -> None)
-        with Not_found -> None)
-  | Not(t1) -> easy_var_value x t1
-  | Or(ts) -> 
-      let _,res = Safelist.fold_left 
-        (fun acc ti -> 
-          match acc,easy_var_value x ti with
-              (false,_),Some vi       -> (true,Some vi)
-            | (false,_),None          -> (false,None)
-            | (true,None),_           -> acc
-            | (true,_),None           -> (true,None)
-            | (true,Some ra), Some vi -> if vi = ra then acc else (true,None))
-        (false,None) ts in 
-        res
-  | And(ts) -> 
-      let _,res = Safelist.fold_left 
-        (fun acc ti -> 
-          match acc,easy_var_value x ti with
-              (false,_),Some vi       -> (true,Some vi)
-            | (false,_),None          -> (false,None)
-            | (true,None),_           -> acc
-            | (true,_),None           -> acc
-            | (true,Some ra), Some vi -> if vi = ra then acc else (true,None))
-        (false,None) ts in 
-        res
-
-  | Ex(t1) -> easy_var_value (x+1) t1
-
 (* oracle infrastructure *)
 let oracle_file = Prefs.createString "oracle" "" "Use xxx as an oracle" ""
 let oracle_dump_file = Prefs.createString "oracle-dump" "" "Create an oracle in xxx" ""
@@ -823,7 +854,15 @@ let satisfiable t =
         Util.format "@\n";
         Util.format " = %b@\n" res);
     res
-        
+
+let is_non_zero t0 x = 
+  not (Int.Set.mem x (easy_zeros t0))
+  && match t0.values x with
+      Definite c -> c > 0
+    | Nothing    -> false
+    | Unknown  -> satisfiable (mkAnd [t0; mkGt (mkVar x) zero])
+    
+(* called from Toplevel after all processing has completed *)
 let finish () = 
   match !oracle_outc_opt with 
     | Some outc -> close_out outc

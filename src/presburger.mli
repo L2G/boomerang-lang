@@ -58,12 +58,13 @@ val substitute : (int * exp) list -> t -> t
    plus a vector satisfying tn. *)
 val add : t list -> t
 
-val easy_var_value : int -> t -> int option
-
 (* Find a set of variables that are "obviously zero" in
    any satisfying valuation.  (For example, after a basis
    has been refined, there will typically be many variables
    that are obviously zero-valued.) *)
 val easy_zeros : t -> Int.Set.t
+
+(* determine if a variable is non-zero *)
+val is_non_zero : t -> int -> bool 
 
 val finish : unit -> unit

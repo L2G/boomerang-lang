@@ -253,8 +253,9 @@ let lookup_tvar_required x = match lookup_tvar x with
                         "Treeschema.lookup_tvar_required: %s not found" x))
 
 (* --------------- formatting --------------- *)
+let ns2str sep s = Misc.concat_list sep (NS.elements s) 
+
 let string_of_cvar (is,ds) = 
-  let ns2str sep s = Misc.concat_list sep (NS.elements s) in    
     sprintf "%s%s" 
       (if NS.is_empty is then "0" else 
          if NS.cardinal is = 1 then (NS.choose is) 
@@ -740,32 +741,6 @@ let union_state x0 x1 = match x0,x1 with
 
 (* ----- mutually recursive definitions of lookups/refinements/constructors ------ *)
 
-let compress p es = 
-  let num_offsets = Safelist.length es in 
-    let offsets = Array.make num_offsets 0 in 
-    let _,es_annot_rev = Safelist.fold_left 
-      (fun (pos,acc) (r,x) -> (pos+1,(pos,r,x,P.easy_var_value pos p)::acc)) (0,[]) es in        
-    let es_annot = Safelist.rev es_annot_rev in 
-    let rec loop sub acc = function
-        []                    -> (P.substitute sub p, Safelist.rev acc)
-      | (i,ri,xi,None)::es    -> 
-          let sub' = (i,P.mkVar (i-offsets.(i)))::sub in 
-          let acc' = (ri,xi)::acc in 
-            loop sub' acc' es
-      | (i,ri,xi,Some vi)::es ->
-          let ok = if vi=0 then (fun v -> v=0) else (fun v -> v > 0) in 
-          let matches,misses = Safelist.partition 
-            (fun (_,_,y,vo) -> match vo with
-                None -> false | Some v -> ok v && compare_state xi y = 0) es in
-            let subms,vms,rms = Safelist.fold_left 
-              (fun (suba,va,ra) (j,rj,_,vjo) -> match vjo with None -> assert false | Some vj -> 
-                for k=j+1 to num_offsets-1 do offsets.(k) <- offsets.(k) + 1 done; 
-                ((j,P.mkConst vj)::suba,va+vj,R.union ra rj)) ([],0,R.mk_finite []) matches in 
-            let sub' = (i,P.mkSum [P.mkVar (i-offsets.(i)); P.mkConst (-vms)])::subms @ sub in 
-            let acc' = (R.union ri rms,xi)::acc in 
-              loop sub' acc' misses in 
-      loop [] [] es_annot
-
 (* lookup_cvar: if we've already expanded this cvar, return it;
    otherwise, calculate the expansion and add it to delta *)
 let rec lookup_cvar cx = match CSetEnv.lookup (!delta) (cset_of_cvar cx) with 
@@ -775,10 +750,10 @@ let rec lookup_cvar cx = match CSetEnv.lookup (!delta) (cset_of_cvar cx) with
         map_opto (lookup_tvars is)
           (fun tis -> map_opt (lookup_tvars ds)
              (fun tds -> 
-                let t = mk_diff (mk_isect tis) (mk_union tds) in 
-                  update_cvar cx t;
-                  t))
-
+               let t = mk_diff (mk_isect tis) (mk_union tds) in 
+                 update_cvar cx t;
+                 t))
+          
 and lookup_cvars cxs = lookup_vars CSet.fold lookup_cvar cxs
 
 (* lookup_cset: if we've already expanded this cset, return it;
@@ -916,7 +891,7 @@ and gen_mk mk_ps mk_syns cset_from_vars_opt ts =
         t_of_state (cstate_of_tvar x)
       end
 
-and mk_isect = function
+and mk_isect ts = match Safelist.filter (fun ti -> ti.def <> V(True)) ts with
     (* knock off a few easy cases *)
     [] -> get_truth ()
   | [ti] -> ti
@@ -925,9 +900,9 @@ and mk_isect = function
         P.mkAnd 
         (fun ss -> Isect(ss))
         (Some (fun vs -> Safelist.fold_left 
-                 (fun acc ti -> match ti.def with
-                      V(xi) -> isect_state acc xi | 
-                        _ -> assert false) True vs))
+          (fun acc ti -> match ti.def with
+              V(xi) -> isect_state acc xi | 
+                  _ -> assert false) True vs))
         ts
 
 and mk_union = function
@@ -1417,6 +1392,11 @@ let equivalent t0 t1 = subschema t0 t1 && subschema t1 t0
    use setup_member and a loop... *)
 (* --- dom_member --- *)            
 let rec dom_member ns t0 = 
+  Trace.debug "dom_member+" 
+    (fun () -> 
+      Util.format ">>> DOM_MEMBER {%s}" (ns2str "," ns);
+      format_t t0;
+      Util.format "@\n");
   let res = match t0.def with
     V(x) -> begin match x with 
         True -> true
@@ -1451,49 +1431,65 @@ let rec dom_member ns t0 =
         let formula = P.mkAnd (P.substitute subst (P.shift_t new_vars p)::f1) in
           P.satisfiable formula 
   in
-    (* Util.format "DOM_MEMBER {%s}" (ns2str "," ns);
-       format_t t0;
-       Util.format " = %b" res;
-       Util.format "@\n"; *)
+    Trace.debug "dom_member+" 
+      (fun () -> 
+        Util.format "<<< DOM_MEMBER {%s}" (ns2str "," ns);
+        format_t t0;
+        Util.format " = %b" res;
+        Util.format "@\n");
     res
           
 let member_with_counterexample v t0 = t0.member v
 
 let member v t0 = 
-  let enter_debug () = 
-    Util.format ">>> MEMBER";
+  let debug_preamble arr () = 
+    Util.format "%s MEMBER" arr;
     Util.format "@\n v : "; Tree.format_t v;
-    Util.format "@\nt0 : "; format_one t0;
-    Util.format "@\n%!" in 
+    Util.format "@\nt0 : "; format_t t0 in 
+  let enter_debug () = 
+    debug_preamble ">>>" ();
+    Util.format "@\n" in
 
-    Trace.debug "member+" enter_debug;
+  let exit_debug res () = 
+    debug_preamble "<<<" (); 
+    Util.format "= %b@\n" res in 
     
+    Trace.debug "member+" enter_debug;    
     let res = match member_with_counterexample v t0 with
 	Yes   -> true
       | No(_) -> false in 
-           
-  let exit_debug () =        
-    Util.format "<<< MEMBER";
-    Util.format "@\n v : "; Tree.format_t v;
-    Util.format "@\nt0 : "; format_t t0;
-    Util.format "@\n  = %b@\n%!" res in 
-
-    Trace.debug "member+" exit_debug;
+    Trace.debug "member+" (exit_debug res);
     res
       
 (* --- project --- *)
-let rec project k t0 = match t0.def with
-    V(True) | V(NonEmptyView) -> truth
-  | V(False) | V(EmptyView)   -> falsity
-  | V(CS(s)) -> project k (lookup_cset_required s)
-  | F(p,e)   ->
-      let eks = Misc.map_index_filter
-        (fun pos (r,x) -> 
-          if x <> False && R.mem k r && (P.satisfiable (P.mkAnd [p; P.mkGt (P.mkVar pos) P.zero])) then
-            Some (t_of_state x)        
-          else None)
-        e in
-        mk_union eks
+let rec project k t0 =
+  let debug_preamble arr () = 
+    Util.format "%s PROJECT" arr;
+    Util.format "@\n k : %s" k;
+    Util.format "@\nt0 : "; format_t t0 in 
+  let enter_debug () = 
+    debug_preamble ">>>" ();
+    Util.format "@\n" in 
+  let exit_debug res () = 
+    debug_preamble "<<<" ();
+    Util.format " = "; format_t res;
+    Util.format "@\n" in 
+
+    Trace.debug "project+" enter_debug;
+    let res = match t0.def with
+        V(True) | V(NonEmptyView) -> truth
+      | V(False) | V(EmptyView)   -> falsity
+      | V(CS(s)) -> project k (lookup_cset_required s)
+      | F(p,e)   ->
+          let eks = Misc.map_index_filter
+            (fun pos (r,x) -> 
+              if x <> False && R.mem k r && P.is_non_zero p pos then
+                Some (t_of_state x)        
+              else None)
+            e in
+            mk_union eks in 
+    Trace.debug "project+" (exit_debug res);
+    res
 
 let rec project_all t0 = match t0.def with 
     V(True) | V(NonEmptyView) -> Some (truth)

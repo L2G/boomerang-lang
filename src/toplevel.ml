@@ -18,7 +18,7 @@ let _ = Prefs.set Trace.logging false
    the standard formatting stream. *)
 let _ = Trace.redirect `FormatStdout
 
-let debug = Trace.debug "toplevel"
+let debug thk = Trace.debug "toplevel" (fun () -> thk (); Util.format "%!")
 
 let lookup qid_str = Registry.lookup_library (Value.parse_qid qid_str)
 
