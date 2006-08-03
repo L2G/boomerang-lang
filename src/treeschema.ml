@@ -199,7 +199,7 @@ type counterexample =
 type member_step = 
     StepYes 
   | StepNo of counterexample 
-  | StepMaybe of Name.t * (Tree.t -> member_step)
+  | StepMaybe of Name.t * (Tree.t option -> member_step)
   
 (* final result of a member test *)
 type member_result = Yes | No of counterexample
@@ -208,8 +208,9 @@ type t = { def : u;
            hash : int; 
            syn : syn_t; 
            first_step : Name.Set.t -> member_step; 
-           member : Tree.t -> member_result }
-
+           member : Tree.t -> member_result;
+           dom_member : Name.Set.t -> member_result }
+    
 let hash t0 = t0.hash
 
 let t_hash_mix = ref 0
@@ -222,6 +223,15 @@ let compare_t t0 t1 = match t0.def,t1.def with
         else Misc.dict_cmp compare es1 es2
   | V(_),F(_)       -> -1
   | F(_),V(_)       -> 1
+
+(* cached emptiness results *)
+type this_t = t (* hack! *)
+module TSet = Set.Make(struct
+    type t = this_t
+    let compare = compare_t
+  end)
+let empties = ref TSet.empty
+let non_empties = ref TSet.empty
 
 (* --------------- conversions / simple operations --------------- *)
 let cset_of_cvar cx = CSet.singleton cx
@@ -529,8 +539,6 @@ let format_low_level msg p e =
    we could (and did, in an earlier version) use a unified
    environment, but lookups are slower when we have a simple type
    variable *)
-
-
 module CSetEnv = Env.Make(
   struct
     type t = CSet.t
@@ -990,39 +998,52 @@ and mk_first_step u0 = match u0 with
       let rec next_step f = function
           [] -> StepYes
         | (ni,[(xi,si)])::nrest -> 
+            (* optimization: can just do the member test and skip satisifiability test here... *)			 
             StepMaybe(ni, 
-                      (fun vi -> 
-			 (* optimization: can just do the member test and skip satisifiability test here... *)			 
-			 Trace.debug "member-detailed+" 
-		         (fun () -> 
-		            Util.format "CHECK_VI %s " ni;
-		            Tree.format_t vi;
-		            Util.format "@\n");
-			 if member_state_with_counterexample si vi = Yes then next_step f nrest
-			 else StepNo(Child(ni,vi))))
-              
+                     (function 
+                       | None -> 
+                           if is_empty_state si then StepNo(Child(ni, Tree.empty))
+                           else next_step f nrest
+                       | Some vi ->                            
+			   Trace.debug "member-detailed+" 
+		             (fun () -> 
+		               Util.format "CHECK_VI %s " ni;
+		               Tree.format_t vi;
+		               Util.format "@\n");
+			   if member_state_with_counterexample si vi = Yes then next_step f nrest
+			   else StepNo(Child(ni,vi))))              
         | (ni,nis)::nrest -> 
             StepMaybe(ni, 
-                      (fun vi -> 
-			 Trace.debug "member-detailed+" 
-		         (fun () -> 
-		            Util.format "CHECK_VI %s " ni;
-		            Tree.format_t vi;
-		            Util.format "@\n");
-			 let found,fs = Safelist.fold_left
-	                   (fun (found,fs) (xi,si) -> 
-			      if found then (found, zero_of_var xi::fs)
-			      else if member_state_with_counterexample si vi = Yes then                       
-				(true,one_of_var xi::fs)
-		              else 
-				(false,zero_of_var xi::fs))
-                           (false,[f]) nis in 
-		         if not found then StepNo(Child(ni,vi)) 
-		         else 
-			   let f' = P.mkAnd fs in 
+                     (function 
+                       | None -> 
+                           let fs = Safelist.fold_left 
+                             (fun acc (xi,si) -> 
+                               let fi = P.mkEq (P.mkVar xi) (if is_empty_state si then P.zero else P.one) in 
+                                 fi::acc)
+                             [] nis in 
+                           let f' = P.mkAnd (f::fs) in
                              if P.satisfiable f' then next_step f' nrest
-                             else StepNo(Child(ni,vi)))) in
-                       
+                             else StepNo(Child(ni,Tree.empty))                       
+                       | Some vi -> 
+		           Trace.debug "member-detailed+" 
+		             (fun () -> 
+		               Util.format "CHECK_VI %s " ni;
+		               Tree.format_t vi;
+		               Util.format "@\n");
+			   let found,fs = Safelist.fold_left
+	                     (fun (found,fs) (xi,si) -> 
+			       if found then (found, zero_of_var xi::fs)
+			       else if member_state_with_counterexample si vi = Yes then                       
+				 (true,one_of_var xi::fs)
+		               else 
+				 (false,zero_of_var xi::fs))
+                             (false,[f]) nis in 
+		             if not found then StepNo(Child(ni,vi)) 
+		             else 
+			       let f' = P.mkAnd fs in 
+                                 if P.satisfiable f' then next_step f' nrest
+                                 else StepNo(Child(ni,vi)))) in
+        
         (* --- result --- *)
         if P.satisfiable formula' then next_step formula' nl
         else StepNo(Domain ns)) 
@@ -1046,8 +1067,151 @@ and mk_member first_step_u0 u0 = match u0 with
         match mr0 with
             StepYes -> Yes
           | StepNo(ce) -> No(ce)
-          | StepMaybe(ni,check_vi) -> loop (check_vi (Tree.get_required v ni)) in 
+          | StepMaybe(ni,check_vi) -> loop (check_vi (Some (Tree.get_required v ni))) in 
         loop (first_step_u0 (Tree.dom v)))
+
+and dom_member_state_with_counterexample s0 = match s0 with
+    True         -> (fun ns -> Yes)
+  | False        -> (fun ns -> No(Domain(ns)))
+  | EmptyView    -> (fun ns -> if Name.Set.is_empty ns then Yes else No(Domain(ns)))
+  | NonEmptyView -> (fun ns -> if Name.Set.is_empty ns then No(Domain(ns)) else Yes)
+  | CS s         -> (fun ns -> (lookup_cset_required s).dom_member ns)
+
+and mk_dom_member first_step_u0 u0 = match u0 with
+    V(s) -> dom_member_state_with_counterexample s
+  | F(formula,basis) -> (fun ns -> 
+      let rec loop mr0 = 
+        match mr0 with 
+            StepYes -> Yes
+          | StepNo(ce) -> No(ce)
+          | StepMaybe(ni,check_vi) -> loop (check_vi None) in 
+      loop (first_step_u0 ns))
+
+and empty_aux print (es,nes) t0 = 
+  let res = 
+    if TSet.mem t0 es then (true,es,nes)
+    else if TSet.mem t0 nes then (false,es,nes)
+    else 
+      let t0_empty,es',nes' = match t0.def with
+          V(x) -> begin match x with
+              True | EmptyView | NonEmptyView -> (false,es,nes)
+            | False -> (true,es,nes)
+            | CS s  -> empty_aux false (TSet.add t0 es,nes) (lookup_cset_required s)
+            end 
+        | F(p,e) -> check_empty (es,nes) (p,e) in
+        if t0_empty then (true,TSet.add t0 es',nes')
+        else (false,es,TSet.add t0 nes) in
+  let b_res,_,_ = res in 
+    Trace.debug "treeschema+" 
+      (fun () -> 
+         Util.format "@\nEMPTY AUX %b " b_res; 
+         format_t t0;
+         if print then begin
+           Util.format "@\nes=@[";
+           Misc.format_list "@\n" format_t (TSet.elements es);
+           Util.format "@]@\nnes=@[";
+           Misc.format_list "@\n" format_t (TSet.elements nes);
+           Util.format "@]@\n";
+         end
+         else Util.format "@\n");
+    res
+        
+and check_empty (es,nes) (p,e) = 
+  (* FIX LATER: we can avoid computing this refinement in (we hope)
+     many common cases *)
+  (* (1) refine so that each finite R.t is a singleton *)
+  let res = 
+    let finite_names = Safelist.fold_left 
+      (fun acc (ri,_) -> match R.finite_domain ri with 
+           Some ns -> NS.union ns acc 
+         | None -> acc)
+      NS.empty e in 
+    let dummy_basis = NS.fold 
+      (fun ni db -> (R.mk_finite [ni], True)::db)
+      finite_names [R.mk_cofinite (NS.elements finite_names),True] in 
+    let (_,subst),basis = refine_bases dummy_basis e in 
+    let formula = P.substitute subst p in
+      
+    (* construct a sum of vars and set of names mentioned in finite
+       elts, and all the sub_formulas *)
+    let collect es = 
+      let rec aux (pos, nmap, facc) = function 
+          [] -> (pos, nmap, Safelist.rev facc)
+        | (r,x)::rest -> begin
+            match R.singleton_domain r with 
+                None -> aux (pos+1, nmap, x::facc) rest 
+              | Some n -> 
+                 let old_sum = NM.safe_find n nmap (P.mkConst 0) in 
+                  let new_nmap = NM.add n (P.mkSum [P.mkVar pos; old_sum]) nmap in
+                    aux (pos+1, new_nmap, x::facc) rest 
+          end in
+      let _,nmap,facc = aux (0,NM.empty,[]) es in 
+        (nmap,facc) in
+      
+    let nmap, sub_formulas = collect basis in 
+      
+    (* add constraint that these are feature trees *)
+    let ft_constraints = NM.fold 
+      (fun _ sum acc -> P.mkLe sum P.one::acc)
+      nmap [] in
+      
+    (* determine which are empty/non-empty *)
+    let rec empties (fs,es,nes) pos = function
+        []   -> (fs,es,nes)
+      | x::xrest -> 
+          let fake_t0 = t_of_state x in
+          let (b,es',nes') = empty_aux false (es,nes) fake_t0 in
+            if b then begin 
+              let fs' = (P.mkEq (P.mkVar pos) P.zero)::fs in 
+                empties (fs',TSet.add fake_t0 es', nes') (pos+1) xrest
+            end
+            else 
+              empties (fs,es,TSet.add fake_t0 nes') (pos+1) xrest in
+    let ft_zero_constraints,es',nes' = empties (ft_constraints,es,nes) 0 sub_formulas in      
+    let checked_formula = (P.mkAnd (formula::ft_zero_constraints)) in            
+      (not (P.satisfiable checked_formula),es',nes'),formula,basis in
+  let real_res,formula,basis = res in
+  let b_res,_,_ = real_res in
+    Trace.debug "treeschema+"
+      (fun () -> 
+         Util.format "--- CHECK_EMPTY --- %b" b_res;
+         Util.format "@\n(p,e) = "; 
+         P.format_t formula; 
+         Util.format ","; 
+         (Misc.format_list "," (fun (r,x) -> R.format_t r; Util.format "["; format_state x; Util.format "]") basis);
+         Util.format "@\nes=@[";
+         Misc.format_list "@\n" format_t (TSet.elements es);
+         Util.format "@]@\nnes=@[";
+         Misc.format_list "@\n" format_t (TSet.elements nes);
+         Util.format "@]@\n";
+         Util.format "@\n");
+    real_res
+
+and is_empty t0 = 
+  Trace.debug "treeschema+"
+    (fun () -> 
+       Util.format ">>> START EMPTY@\n  @[";
+       format_t t0;
+       Util.format "@\n");
+  let res = 
+    let t0_empty,new_empties,new_non_empties = 
+      empty_aux true (!empties,!non_empties) t0 in
+      empties := new_empties;
+      non_empties := new_non_empties;
+      t0_empty in 
+    
+    Trace.debug "treeschema+"
+      (fun () -> 
+         Util.format "@]@\n<<<EMPTY %b\t" res;
+         format_one t0;
+         Util.format "@\n");
+    res
+
+and is_empty_state s0 = match s0 with 
+    True | EmptyView | NonEmptyView -> false
+  | False -> true
+  | CS cs -> is_empty (lookup_cset_required cs)
+
 
 (* ----- type t ------ *)
 and make_t u s = 
@@ -1085,13 +1249,31 @@ and make_t u s =
       end) in 
     M.memoized in
 
+  let dom_member_u0 = 
+    let module M = Memo.Make(
+      struct
+        type arg = Name.Set.t
+        type res = member_result
+        let name = "Treeschema.dom_member"
+        let f = mk_dom_member first_step_u0 u 
+        let init_size = 3
+        let format_arg ns = Util.format "%s" (ns2str "," ns)
+        let format_res = format_member_result
+        let hash = Hashtbl.hash
+        let equal = (==)
+        let hash' = Hashtbl.hash
+        let equal' ns1 ns2 = Name.Set.compare ns1 ns2 = 0
+      end) in 
+    M.memoized in
+
     (* result *)
     incr t_hash_mix;
     { def=u;
       hash= 73 * !t_hash_mix + 19 * Hashtbl.hash u; 
       syn=s;    
       first_step = first_step_u0;
-      member = member_u0 }
+      member = member_u0;
+      dom_member = dom_member_u0 }
 
 and t_of_state s = make_t (V s) (Var s)
 
@@ -1254,194 +1436,12 @@ let rec bare_t_of_tree v = mk_cat (Tree.fold (fun k vk ts -> (mk_atom k (t_of_tr
 and t_of_tree v = T_of_TreeMemo.memoize bare_t_of_tree v
          
 (* --------------- operations ----------------------*)
-
-(* --- empty test --- *)
-(* cached emptiness results *)
-
-type this_t = t (* hack! *)
-module TSet = Set.Make(struct
-    type t = this_t
-    let compare = compare_t
-  end)
-
-let (empties,non_empties) = (ref TSet.empty, ref TSet.empty)
-
-let rec empty_aux print (es,nes) t0 = 
-  let res = 
-    if TSet.mem t0 es then (true,es,nes)
-    else if TSet.mem t0 nes then (false,es,nes)
-    else 
-      let t0_empty,es',nes' = match t0.def with
-          V(x) -> begin match x with
-              True | EmptyView | NonEmptyView -> (false,es,nes)
-            | False -> (true,es,nes)
-            | CS s  -> empty_aux false (TSet.add t0 es,nes) (lookup_cset_required s)
-            end 
-        | F(p,e) -> check_empty (es,nes) (p,e) in
-        if t0_empty then (true,TSet.add t0 es',nes')
-        else (false,es,TSet.add t0 nes) in
-  let b_res,_,_ = res in 
-    Trace.debug "treeschema+" 
-      (fun () -> 
-         Util.format "@\nEMPTY AUX %b " b_res; 
-         format_t t0;
-         if print then begin
-           Util.format "@\nes=@[";
-           Misc.format_list "@\n" format_t (TSet.elements es);
-           Util.format "@]@\nnes=@[";
-           Misc.format_list "@\n" format_t (TSet.elements nes);
-           Util.format "@]@\n";
-         end
-         else Util.format "@\n");
-    res
-        
-and check_empty (es,nes) (p,e) = 
-  (* FIX LATER: we can avoid computing this refinement in (we hope)
-     many common cases *)
-  (* (1) refine so that each finite R.t is a singleton *)
-  let res = 
-    let finite_names = Safelist.fold_left 
-      (fun acc (ri,_) -> match R.finite_domain ri with 
-           Some ns -> NS.union ns acc 
-         | None -> acc)
-      NS.empty e in 
-    let dummy_basis = NS.fold 
-      (fun ni db -> (R.mk_finite [ni], True)::db)
-      finite_names [R.mk_cofinite (NS.elements finite_names),True] in 
-    let (_,subst),basis = refine_bases dummy_basis e in 
-    let formula = P.substitute subst p in
-      
-    (* construct a sum of vars and set of names mentioned in finite
-       elts, and all the sub_formulas *)
-    let collect es = 
-      let rec aux (pos, nmap, facc) = function 
-          [] -> (pos, nmap, Safelist.rev facc)
-        | (r,x)::rest -> begin
-            match R.singleton_domain r with 
-                None -> aux (pos+1, nmap, x::facc) rest 
-              | Some n -> 
-                 let old_sum = NM.safe_find n nmap (P.mkConst 0) in 
-                  let new_nmap = NM.add n (P.mkSum [P.mkVar pos; old_sum]) nmap in
-                    aux (pos+1, new_nmap, x::facc) rest 
-          end in
-      let _,nmap,facc = aux (0,NM.empty,[]) es in 
-        (nmap,facc) in
-      
-    let nmap, sub_formulas = collect basis in 
-      
-    (* add constraint that these are feature trees *)
-    let ft_constraints = NM.fold 
-      (fun _ sum acc -> P.mkLe sum P.one::acc)
-      nmap [] in
-      
-    (* determine which are empty/non-empty *)
-    let rec empties (fs,es,nes) pos = function
-        []   -> (fs,es,nes)
-      | x::xrest -> 
-          let fake_t0 = t_of_state x in
-          let (b,es',nes') = empty_aux false (es,nes) fake_t0 in
-            if b then begin 
-              let fs' = (P.mkEq (P.mkVar pos) P.zero)::fs in 
-                empties (fs',TSet.add fake_t0 es', nes') (pos+1) xrest
-            end
-            else 
-              empties (fs,es,TSet.add fake_t0 nes') (pos+1) xrest in
-    let ft_zero_constraints,es',nes' = empties (ft_constraints,es,nes) 0 sub_formulas in      
-    let checked_formula = (P.mkAnd (formula::ft_zero_constraints)) in            
-      (not (P.satisfiable checked_formula),es',nes'),formula,basis in
-  let real_res,formula,basis = res in
-  let b_res,_,_ = real_res in
-    Trace.debug "treeschema+"
-      (fun () -> 
-         Util.format "--- CHECK_EMPTY --- %b" b_res;
-         Util.format "@\n(p,e) = "; 
-         P.format_t formula; 
-         Util.format ","; 
-         (Misc.format_list "," (fun (r,x) -> R.format_t r; Util.format "["; format_state x; Util.format "]") basis);
-         Util.format "@\nes=@[";
-         Misc.format_list "@\n" format_t (TSet.elements es);
-         Util.format "@]@\nnes=@[";
-         Misc.format_list "@\n" format_t (TSet.elements nes);
-         Util.format "@]@\n";
-         Util.format "@\n");
-    real_res
-
-let is_empty t0 = 
-  Trace.debug "treeschema+"
-    (fun () -> 
-       Util.format ">>> START EMPTY@\n  @[";
-       format_t t0;
-       Util.format "@\n");
-  let res = 
-    let t0_empty,new_empties,new_non_empties = 
-      empty_aux true (!empties,!non_empties) t0 in
-      empties := new_empties;
-      non_empties := new_non_empties;
-      t0_empty in 
-    
-    Trace.debug "treeschema+"
-      (fun () -> 
-         Util.format "@]@\n<<<EMPTY %b\t" res;
-         format_one t0;
-         Util.format "@\n");
-    res
   
 let subschema t0 t1 = is_empty (mk_diff t0 t1)
 
 let equivalent t0 t1 = subschema t0 t1 && subschema t1 t0
 
 (* -------------------------- member testing --------------------------------------*)
-(* JNF: this is the slow, direct version. later we should merge it to
-   use setup_member and a loop... *)
-(* --- dom_member --- *)            
-let rec dom_member ns t0 = 
-  Trace.debug "dom_member+" 
-    (fun () -> 
-      Util.format ">>> DOM_MEMBER {%s}" (ns2str "," ns);
-      format_t t0;
-      Util.format "@\n");
-  let res = match t0.def with
-    V(x) -> begin match x with 
-        True -> true
-      | False -> false
-      | EmptyView -> NS.is_empty ns
-      | NonEmptyView -> not (NS.is_empty ns)
-      | CS s -> dom_member ns (lookup_cset_required s)
-      end
-    | F(p,e) -> 
-        let (new_vars,nmap,vmap) = NS.fold
-          (fun k (new_vars,nmap,vmap) -> 
-            let _,new_vars,nmap,vmap = Safelist.fold_left 
-              (fun (pos,new_vars,nmap,vmap) (r,x) -> 
-                let yes () = 
-                  let nmap' = NM.add k (new_vars::(NM.safe_find k nmap [])) nmap in
-                  let vmap' = IM.add pos (new_vars::(IM.safe_find pos vmap [])) vmap in
-                    (pos+1, new_vars+1, nmap', vmap') in
-                let no () = (pos+1, new_vars, nmap, vmap) in
-                let on_match = function
-                    True | EmptyView | NonEmptyView -> yes ()
-                  | False -> no ()
-                  | CS s  -> if is_empty (lookup_cset_required s) then no () else yes () in
-                  if R.mem k r then on_match x else no ())
-              (0,new_vars,nmap,vmap) 
-              e in
-              (* result of Safelist.fold_left *)
-              (new_vars,nmap,vmap))
-          ns 
-          (0,NM.empty,IM.empty)in        
-        let f1 = NM.fold (fun _ xl acc -> (P.mkEq (sum_of_int_list xl) P.one)::acc) nmap [] in
-        let subst = IM.fold (fun x xl acc -> (x+new_vars, sum_of_int_list xl)::acc) vmap [] in
-        let formula = P.mkAnd (P.substitute subst (P.shift_t new_vars p)::f1) in
-          P.satisfiable formula 
-  in
-    Trace.debug "dom_member+" 
-      (fun () -> 
-        Util.format "<<< DOM_MEMBER {%s}" (ns2str "," ns);
-        format_t t0;
-        Util.format " = %b" res;
-        Util.format "@\n");
-    res
-          
 let member_with_counterexample v t0 = t0.member v
 
 let member v t0 = 
@@ -1462,6 +1462,28 @@ let member v t0 =
 	Yes   -> true
       | No(_) -> false in 
     Trace.debug "member+" (exit_debug res);
+    res
+
+let dom_member_with_counterexample v t0 = t0.dom_member v
+
+let dom_member ns t0 = 
+  let debug_preamble arr () = 
+    Util.format "%s DOM_MEMBER" arr;
+    Util.format "@\n ns : %s" (ns2str "," ns);
+    Util.format "@\nt0 : "; format_t t0 in 
+  let enter_debug () = 
+    debug_preamble ">>>" ();
+    Util.format "@\n" in
+
+  let exit_debug res () = 
+    debug_preamble "<<<" (); 
+    Util.format "= %b@\n" res in 
+    
+    Trace.debug "dom_member+" enter_debug;    
+    let res = match dom_member_with_counterexample ns t0 with
+	Yes   -> true
+      | No(_) -> false in 
+    Trace.debug "dom_member+" (exit_debug res);
     res
       
 (* --- project --- *)
