@@ -215,7 +215,7 @@ let hash t0 = t0.hash
 
 let t_hash_mix = ref 0
 
-let compare_t t0 t1 = match t0.def,t1.def with
+let compare_u u0 u1 = match u0,u1 with
     V(s1),V(s2)     -> compare s1 s2
   | F(f1,es1),F(f2,es2) -> 
       let cmp1 = P.compare_t f1 f2 in 
@@ -226,12 +226,12 @@ let compare_t t0 t1 = match t0.def,t1.def with
 
 (* cached emptiness results *)
 type this_t = t (* hack! *)
-module TSet = Set.Make(struct
-    type t = this_t
-    let compare = compare_t
+module USet = Set.Make(struct
+    type t = u
+    let compare = compare_u
   end)
-let empties = ref TSet.empty
-let non_empties = ref TSet.empty
+let empties = ref USet.empty
+let non_empties = ref USet.empty
 
 (* --------------- conversions / simple operations --------------- *)
 let cset_of_cvar cx = CSet.singleton cx
@@ -457,7 +457,7 @@ let format_one_u = function
   | F((p,e)) -> 
       Util.format "F[@[";
       Presburger.format_t p;
-      Util.format ".";
+      Util.format ".@ ";
       Misc.format_list ",@ " 
 	(fun (d,e) -> Util.format "n%d=" d; format_elt e) 
 	(Misc.map_index_filter (fun n ei -> Some (n,ei)) e);
@@ -1065,7 +1065,9 @@ and mk_member first_step_u0 u0 = match u0 with
             format_member_step mr0; 
             Util.format "@\n");
         match mr0 with
-            StepYes -> Yes
+            StepYes -> 
+	      non_empties := USet.add u0 !non_empties;
+	      Yes
           | StepNo(ce) -> No(ce)
           | StepMaybe(ni,check_vi) -> loop (check_vi (Some (Tree.get_required v ni))) in 
         loop (first_step_u0 (Tree.dom v)))
@@ -1089,28 +1091,28 @@ and mk_dom_member first_step_u0 u0 = match u0 with
 
 and empty_aux print (es,nes) t0 = 
   let res = 
-    if TSet.mem t0 es then (true,es,nes)
-    else if TSet.mem t0 nes then (false,es,nes)
+    if USet.mem t0.def es then (true,es,nes)
+    else if USet.mem t0.def nes then (false,es,nes)
     else 
       let t0_empty,es',nes' = match t0.def with
           V(x) -> begin match x with
               True | EmptyView | NonEmptyView -> (false,es,nes)
             | False -> (true,es,nes)
-            | CS s  -> empty_aux false (TSet.add t0 es,nes) (lookup_cset_required s)
+            | CS s  -> empty_aux false (USet.add t0.def es,nes) (lookup_cset_required s)
             end 
         | F(p,e) -> check_empty (es,nes) (p,e) in
-        if t0_empty then (true,TSet.add t0 es',nes')
-        else (false,es,TSet.add t0 nes) in
+        if t0_empty then (true,USet.add t0.def es',nes')
+        else (false,es,USet.add t0.def nes) in
   let b_res,_,_ = res in 
-    Trace.debug "treeschema+" 
+    Trace.debug "empty-detailed+"
       (fun () -> 
          Util.format "@\nEMPTY AUX %b " b_res; 
          format_t t0;
          if print then begin
            Util.format "@\nes=@[";
-           Misc.format_list "@\n" format_t (TSet.elements es);
+           Misc.format_list "@\n" format_one_u (USet.elements es);
            Util.format "@]@\nnes=@[";
-           Misc.format_list "@\n" format_t (TSet.elements nes);
+           Misc.format_list "@\n" format_one_u (USet.elements nes);
            Util.format "@]@\n";
          end
          else Util.format "@\n");
@@ -1159,20 +1161,20 @@ and check_empty (es,nes) (p,e) =
     let rec empties (fs,es,nes) pos = function
         []   -> (fs,es,nes)
       | x::xrest -> 
-          let fake_t0 = t_of_state x in
-          let (b,es',nes') = empty_aux false (es,nes) fake_t0 in
+          let fake_u0 = V(x) in 
+          let (b,es',nes') = empty_aux false (es,nes) (t_of_state x) in
             if b then begin 
               let fs' = (P.mkEq (P.mkVar pos) P.zero)::fs in 
-                empties (fs',TSet.add fake_t0 es', nes') (pos+1) xrest
+                empties (fs',USet.add fake_u0 es', nes') (pos+1) xrest
             end
             else 
-              empties (fs,es,TSet.add fake_t0 nes') (pos+1) xrest in
+              empties (fs,es,USet.add fake_u0 nes') (pos+1) xrest in
     let ft_zero_constraints,es',nes' = empties (ft_constraints,es,nes) 0 sub_formulas in      
     let checked_formula = (P.mkAnd (formula::ft_zero_constraints)) in            
       (not (P.satisfiable checked_formula),es',nes'),formula,basis in
   let real_res,formula,basis = res in
   let b_res,_,_ = real_res in
-    Trace.debug "treeschema+"
+    Trace.debug "empty-detailed+"
       (fun () -> 
          Util.format "--- CHECK_EMPTY --- %b" b_res;
          Util.format "@\n(p,e) = "; 
@@ -1180,18 +1182,18 @@ and check_empty (es,nes) (p,e) =
          Util.format ","; 
          (Misc.format_list "," (fun (r,x) -> R.format_t r; Util.format "["; format_state x; Util.format "]") basis);
          Util.format "@\nes=@[";
-         Misc.format_list "@\n" format_t (TSet.elements es);
+         Misc.format_list "@\n" format_one_u (USet.elements es);
          Util.format "@]@\nnes=@[";
-         Misc.format_list "@\n" format_t (TSet.elements nes);
+         Misc.format_list "@\n" format_one_u (USet.elements nes);
          Util.format "@]@\n";
          Util.format "@\n");
     real_res
 
 and is_empty t0 = 
-  Trace.debug "treeschema+"
+  Trace.debug "empty+"
     (fun () -> 
-       Util.format ">>> START EMPTY@\n  @[";
-       format_t t0;
+       Util.format ">>> EMPTY@\n  @[";
+       format_one_u t0.def;
        Util.format "@\n");
   let res = 
     let t0_empty,new_empties,new_non_empties = 
@@ -1200,10 +1202,10 @@ and is_empty t0 =
       non_empties := new_non_empties;
       t0_empty in 
     
-    Trace.debug "treeschema+"
+    Trace.debug "empty+"
       (fun () -> 
          Util.format "@]@\n<<<EMPTY %b\t" res;
-         format_one t0;
+         format_one_u t0.def;
          Util.format "@\n");
     res
 
@@ -1211,7 +1213,6 @@ and is_empty_state s0 = match s0 with
     True | EmptyView | NonEmptyView -> false
   | False -> true
   | CS cs -> is_empty (lookup_cset_required cs)
-
 
 (* ----- type t ------ *)
 and make_t u s = 
@@ -1448,7 +1449,7 @@ let member v t0 =
   let debug_preamble arr () = 
     Util.format "%s MEMBER" arr;
     Util.format "@\n v : "; Tree.format_t v;
-    Util.format "@\nt0 : "; format_t t0 in 
+    Util.format "@\nt0 : "; format_one_u t0.def in 
   let enter_debug () = 
     debug_preamble ">>>" ();
     Util.format "@\n" in
@@ -1469,8 +1470,8 @@ let dom_member_with_counterexample v t0 = t0.dom_member v
 let dom_member ns t0 = 
   let debug_preamble arr () = 
     Util.format "%s DOM_MEMBER" arr;
-    Util.format "@\n ns : %s" (ns2str "," ns);
-    Util.format "@\nt0 : "; format_t t0 in 
+    Util.format "@\n ns : {%s}" (ns2str "," ns);
+    Util.format "@\nt0 : "; format_one_u t0.def in 
   let enter_debug () = 
     debug_preamble ">>>" ();
     Util.format "@\n" in
@@ -1491,13 +1492,13 @@ let rec project k t0 =
   let debug_preamble arr () = 
     Util.format "%s PROJECT" arr;
     Util.format "@\n k : %s" k;
-    Util.format "@\nt0 : "; format_t t0 in 
+    Util.format "@\nt0 : "; format_one_u t0.def in 
   let enter_debug () = 
     debug_preamble ">>>" ();
     Util.format "@\n" in 
   let exit_debug res () = 
     debug_preamble "<<<" ();
-    Util.format " = "; format_t res;
+    Util.format " = "; format_one_u res.def;
     Util.format "@\n" in 
 
     Trace.debug "project+" enter_debug;

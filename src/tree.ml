@@ -117,7 +117,7 @@ let rec format_kids m format_rec =
   Util.format "{@[<hv0>";
   Name.Map.iter_with_sep
     (fun k kid -> 
-      Util.format "@[<hv1>%s=@ " (keyword_whack_ident k);
+      Util.format "@[<hv1>%s=@," (keyword_whack_ident k);
       format_rec kid;
       Util.format "@]")
     (fun() -> Util.format ",@ ")
