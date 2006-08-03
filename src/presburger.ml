@@ -277,11 +277,12 @@ let find_best w =
             None -> Some h
           | Some (wa,_) -> 
               if wa < w then 
-                if wh < w && wh > wa then Some h else acc
-              else None (*
-                if wh < w || wh > wa then Some h else acc *) in 
+                if wh < w && wh > wa then Some h 
+                else acc
+              else if wh < w || wh > wa then Some h 
+              else acc in
         loop acc' t in 
-    loop None 
+  loop None 
       
 let t_of_f f0 = 
   let compiled = ref [] in 
@@ -311,7 +312,10 @@ let t_of_f f0 =
               compiled := (width,s0)::!compiled;            
               g_of_s s0
           let init_size = 5
-          let format_res g = Util.format "<genepi_set : "; format_e f0.e; Util.format ">"
+          let format_res g = 
+            Util.format "<genepi_set : "; 
+            format_e f0.e; 
+            Util.format ">"
           let format_arg = Util.format "%d"
           let hash = Hashtbl.hash
           let equal = (=)
@@ -759,7 +763,6 @@ let rec easy_var_value x t0 = match t0.def.e with
   | Ex(t1) -> easy_var_value (x+1) t1
 
 (* oracle infrastructure *)
-let oracle_baked = Prefs.createBool "oracle-baked" false "Use compiled-in oracle" ""
 let oracle_file = Prefs.createString "oracle" "" "Use xxx as an oracle" ""
 let oracle_dump_file = Prefs.createString "oracle-dump" "" "Create an oracle in xxx" ""
 let oracle_compile = Prefs.createBool "oracle-compile" false "Consult oracle and compile Presburger formulas to Genepi" ""
@@ -824,5 +827,5 @@ let satisfiable t =
 let finish () = 
   match !oracle_outc_opt with 
     | Some outc -> close_out outc
-    | _ -> ()
+    | None -> ()
         
