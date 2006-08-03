@@ -1510,47 +1510,24 @@ let rec project_all t0 = match t0.def with
         e in
         if ok then map_opt reso t_of_state else None
 
-(* quick & dirty hack: finite/cofinite name sets *)
-let r2fds r = match R.finite_domain r with 
-    Some ns -> (true,ns)
-  | _ -> begin
-      match R.cofinite_domain r with 
-          Some ns -> (false,ns)
-        | _ -> assert false
-    end           
-
-let fds_union fds1 fds2 = 
-  match fds1,fds2 with
-      (true,ns1),(true,ns2)                           -> (true,NS.union ns1 ns2)
-    | (true,ns1),(false,ns2) | (false,ns2),(true,ns1) -> (false,NS.diff ns2 ns1)
-    | (false,ns1),(false,ns2)                         -> (false,NS.inter ns1 ns2) 
-  
-let fds_mem n = function
-    (true,ns1) -> NS.mem n ns1
-  | (false,ns1) -> not (NS.mem n ns1)  
-  
-let fds_isect_regexp fds r = match fds with
-    (true,ns1) -> NS.fold (fun n b -> b || (R.isect (R.mk_finite [n]) r = None)) ns1 false
-  | (false,ns1) -> R.isect (R.mk_cofinite (NS.elements ns1)) r = None  
-
-let complete_basis_rev x_count formulas basis_rev = function
-    (* if covered is a cofinite set *)
-    (false,ns) -> 
-      if NS.is_empty ns then formulas,basis_rev
-      else
-        let _,formulas,basis_rev = NS.fold
-          (fun ni (x_pos,formulas,basis_rev) -> 
-             (x_pos+1,P.mkEq (P.mkVar x_pos) P.zero::formulas,
-              (R.mk_finite [ni],True)::basis_rev))
-          ns
-          (x_count,formulas,basis_rev) in 
-          formulas,basis_rev
-            
-  (* covered is a finite set *)
-  | (true,ns) -> 
-      (P.mkEq (P.mkVar x_count) P.zero::formulas,
-       ((R.mk_cofinite (NS.elements ns),True)::basis_rev)) 
-   
+let complete_basis_rev x_count formulas basis_rev covered = 
+  match R.finite_domain covered with 
+      Some ns -> 
+        (P.mkEq (P.mkVar x_count) P.zero::formulas,
+        ((R.mk_cofinite (NS.elements ns),True)::basis_rev)) 
+    | None -> match R.cofinite_domain covered with 
+          None -> assert false
+        | Some ns -> 
+            if NS.is_empty ns then formulas,basis_rev
+            else
+              let _,formulas,basis_rev = NS.fold
+                (fun ni (x_pos,formulas,basis_rev) -> 
+                  (x_pos+1,P.mkEq (P.mkVar x_pos) P.zero::formulas,
+                  (R.mk_finite [ni],True)::basis_rev))
+                ns
+                (x_count,formulas,basis_rev) in 
+                formulas,basis_rev
+               
 let inject t0 t1 =   
   let formula,basis = expose t0 in 
     
@@ -1568,7 +1545,7 @@ let inject t0 t1 =
          (pos',x_pos,(pos,P.zero)::subst,formulas,basis,covered) in 
        let do_found () = 
          (* replace this position with y y_neg *)
-         let covered' = fds_union covered (r2fds r) in
+         let covered' = R.union covered r in
            if y_neg_t1 = False then 
              let x_pos' = x_pos+1 in 
              let subst' = (pos,P.mkVar x_pos)::subst in 
@@ -1591,9 +1568,9 @@ let inject t0 t1 =
                      let lt_constr = P.mkLe pos_var (P.mkConst (NS.cardinal ns)) in
                        P.satisfiable (P.mkAnd [ lt_constr; constr_formula ])                         
                  | None -> P.satisfiable constr_formula in 
-         if (fds_isect_regexp covered r) || not pos_satisfiable then do_zero ()
+         if (R.isect covered r <> None) || not pos_satisfiable then do_zero ()
          else do_found ())
-    (0,0,[],[],[],(true,NS.empty))
+    (0,0,[],[],[],R.mk_finite [])
     basis in
     
   (* add some zero-d elements to make this a basis *)
@@ -1637,10 +1614,10 @@ let inject_map t0 fm =
          let x_pos' = x_pos+1 in 
          let subst' = (pos,P.mkVar x_pos)::subst in 
          let basis' = (r,x)::basis in 
-         let covered' = fds_union covered (r2fds r) in
+         let covered' = R.union covered r in
            (pos',x_pos',subst',formulas,basis',covered') in 
        let do_found y y_neg = 
-         let covered' = fds_union covered (r2fds r) in
+         let covered' = R.union covered r in 
            if y_neg = False then 
              let x_pos' = x_pos+1 in 
              let subst' = (pos,P.mkVar x_pos)::subst in 
@@ -1657,10 +1634,10 @@ let inject_map t0 fm =
            | None -> do_skip ()
            | Some n -> 
                (try let y,y_neg = NM.find n y_fm in 
-                  if fds_mem n covered then do_zero ()
+                  if R.mem n covered then do_zero ()
                   else do_found y y_neg
                 with Not_found -> do_skip ()))
-    (0,0,[],[],[],(true,NS.empty))
+    (0,0,[],[],[],R.mk_finite [])
     basis in
     
   (* add some zero-d elements to make this a basis *)
