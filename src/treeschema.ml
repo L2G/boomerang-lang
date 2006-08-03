@@ -750,7 +750,10 @@ let rec lookup_cvar cx = match CSetEnv.lookup (!delta) (cset_of_cvar cx) with
         map_opto (lookup_tvars is)
           (fun tis -> map_opt (lookup_tvars ds)
              (fun tds -> 
-               let t = mk_diff (mk_isect tis) (mk_union tds) in 
+               let t = 
+                 (* SEMANTICALLY [mk_diff (mk_isect tis) (mk_union tds)] *)
+                 (* but inlining mk_diff and the mk_neg(mk_union(tds)) *)
+                 mk_isect (Safelist.fold_left (fun acc ti -> mk_neg ti::acc) tis tds) in                 
                  update_cvar cx t;
                  t))
           
