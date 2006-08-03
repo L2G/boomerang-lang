@@ -16,7 +16,8 @@ module rec Internal :
     val equal: action
     val has_conflict: action -> bool
     val format_action: action -> unit
-    val sync : Treeschema.t
+    val sync : bool 
+            -> Treeschema.t            
             -> (Tree.t option * Tree.t option * Tree.t option)
             -> action * Tree.t option * Tree.t option * Tree.t option
   end = struct
@@ -186,31 +187,31 @@ let assert_member v t =
                ; `Prim (fun () -> Treeschema.format_t t)]
   end 
 
-let rec sync s (oo, ao, bo) = 
+let rec sync check_member s (oo, ao, bo) = 
   match (oo, ao, bo) with
     | _, None, None       ->
         (MarkEqual, None, None, None)
     | None, None, Some rv -> 
-        assert_member rv s;
+        if check_member then assert_member rv s;
         (CopyRightToLeft (Adding rv), Some rv, Some rv, Some rv)
     | None, Some lv, None -> 
-        assert_member lv s; 
+        if check_member then assert_member lv s; 
         (CopyLeftToRight (Adding lv), Some lv, Some lv, Some lv)
     | Some arv, None, Some rv ->
-        assert_member rv s;
+        if check_member then assert_member rv s;
         if Tree.included_in rv arv then 
           (CopyLeftToRight (Deleting rv), None, None, None)
         else 
           (DeleteConflict(arv,rv), oo, ao, bo)
     | Some arv, Some lv, None ->
-        assert_member lv s;
+        if check_member then assert_member lv s;
         if Tree.included_in lv arv then 
           (CopyRightToLeft (Deleting lv), None, None, None)
         else 
           (DeleteConflict(arv,lv), oo, ao, bo)
     | _, Some lv, Some rv ->
-        assert_member lv s;
-        assert_member rv s;
+        if check_member then assert_member lv s;
+        if check_member then assert_member rv s;
         (* BCP [Oct 05]: The following test could give us a nasty
            n^2 behavior in deep (and narrow) trees. *)
         if Tree.equal lv rv then begin
@@ -254,7 +255,8 @@ let rec sync s (oo, ao, bo) =
                  (* either dom(a) or dom(b), both of which are in  *)
                  (* T, as we just checked. *)
                  let act, o', a', b' =
-                   sync 
+                   sync
+                     false
                      tk
                      ((match oo with None -> None | Some av -> Tree.get av k),
                       (Tree.get lv k),
@@ -291,7 +293,7 @@ and D3Args : Diff3.DIFF3ARGS with type elt = Tree.t
   let eqv = Tree.equal
   let format = Tree.format_t
   let tostring = Tree.string_of_t
-  let sync = Internal.sync
+  let sync = Internal.sync false
 end
 
 and D3 : Diff3.DIFF3RES with type elt = Tree.t =
@@ -299,7 +301,7 @@ Diff3.Make(D3Args)
 
 (* Extract top-level definitions from the Internal module and re-export *)
 type action = Internal.action
-let sync = Internal.sync
+let sync = Internal.sync true
 let format_action = Internal.format_action
 let has_conflict = Internal.has_conflict
 let equal = Internal.equal
