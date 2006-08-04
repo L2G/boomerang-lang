@@ -103,11 +103,11 @@ let map_opto o f = match o with
     None -> None
   | Some a -> (f a)
 
-let zero_of_var xi = P.mkEq P.zero (P.mkVar xi) 
-let one_of_var xi = P.mkEq P.one (P.mkVar xi) 
+let zero_of_varo xio = match xio with None -> P.fls | Some xi -> P.mkEq P.zero (P.mkVar xi) 
+let one_of_varo xio = match xio with None -> P.tru | Some xi -> P.mkEq P.one (P.mkVar xi) 
 let sum_of_int_list l = P.mkSum (Safelist.map P.mkVar l)
 let sum_of_int_set s = P.mkSum (Int.Set.fold (fun ei a -> P.mkVar ei::a) s [])
-let sum_of_int_state_list l = P.mkSum (Safelist.map (fun (xi,_) -> P.mkVar xi) l) 
+let sum_of_int_opt_state_list l = P.mkSum (Safelist.map (function (None,_) -> P.one | (Some xi,_) -> P.mkVar xi) l)
 let ns_of_n_list nl = Safelist.fold_left (fun a ni -> NS.add ni a) NS.empty nl
 
 (* --------------- schema representation --------------- *)
@@ -974,30 +974,84 @@ and mk_first_step u0 = match u0 with
         ([],Int.Map.empty,num_vars) in
         
       let zeros = Int.Set.diff all_vars (Int.Map.domain vmap) in
-        
-      (* optimization: remove fresh variables for i with vcounts(i) = 1 *)
-      let fresh_map,vmap = IM.fold (fun basis_pos fresh_vars acc ->
-        match fresh_vars with
-            [freshi] ->
-              let (fm,vm) = acc in
-                (IM.add freshi basis_pos fm, IM.remove basis_pos vm)
-          | _        -> acc)
-        vmap (Int.Map.empty,vmap) in
-        
-      (* this rev_map is crticial--it puts the nl, which specifies
-         the order that children are checked, back in alphabetical
-         order. later on, we could optimize further, but for lists
-         we definitely want hd checked before tl! *)
-      let nl = Safelist.rev_map 
-        (fun (ni,nis) -> (ni, Safelist.map (fun (n,s) -> (IM.safe_find n fresh_map n,s)) nis)) nl in
 
+(*       let _ = 
+	Util.format "NL: ["; 
+	Misc.format_list "," (fun (ni,nis) -> 
+				Util.format "(%s,[" ni;
+				Misc.format_list "," (fun (xi,si) -> (Util.format "(n%d,%s)" xi (string_of_state si))) nis;
+				Util.format "])") nl;
+	Util.format "]@\nVMAP: {";
+	Int.Map.iter_with_sep 
+	  (fun basis_pos fresh_vars -> 
+	     Util.format "n%d -> [" basis_pos;
+	     Misc.format_list "+" (Util.format "n%d") fresh_vars;
+	     Util.format "]") 
+	  (fun () -> Util.format ",") vmap;
+	Util.format "}@\n";	  
+      in 
+*)
+
+      (* optimization #1: remove fresh variables for kids that only match one basis element *)
+      let fresh_subst = 
+	Safelist.fold_left 
+	  (fun fs (ni,nis) -> match nis with 
+	       [(fresh,_)] -> (Int.Map.add fresh None fs)
+	     | _           -> fs)
+	  Int.Map.empty nl in
+        
+      (* optimization #2: remove any other fresh variables for that are the only fresh var for an original var *)
+      let fresh_subst = 
+	IM.fold 
+	  (fun basis_pos fresh_vars fresh_subst -> 
+	     match fresh_vars with
+		 [freshi] ->
+		   if Int.Map.mem freshi fresh_subst then fresh_subst
+		   else Int.Map.add freshi (Some basis_pos) fresh_subst
+	       | _ -> fresh_subst)
+	  vmap fresh_subst in 
+        
+      let nlo = 
+	Safelist.rev_map
+	  (fun (ni,nis) -> (ni,Safelist.map (fun (n,s) -> (IM.safe_find n fresh_subst (Some n), s)) nis))
+	  nl in 
+
+      let ves = 
+	IM.fold 
+	  (fun basis_pos fresh_vars acc -> 
+	     (basis_pos, Safelist.map (fun fi -> match IM.safe_find fi fresh_subst (Some fi) with
+					   None -> P.one
+					 | Some v -> P.mkVar v) fresh_vars)::acc)
+	  vmap [] in 
+
+(*
+      let _ = 
+	Util.format "NLO: ["; 
+	Misc.format_list "," (fun (ni,nis) -> 
+				Util.format "(%s,[" ni;
+				Misc.format_list "," 
+				  (fun (xio,si) -> 
+				     (Util.format "(%s,%s)" 
+					(match xio with None -> "None" | Some d -> Printf.sprintf "n%d" d) 
+					(string_of_state si))) nis;
+				Util.format "])") nlo;
+	Util.format "]@\nVES: {";
+	Misc.format_list ","
+	  (fun (basis_pos, es) -> 
+	     Util.format "n%d -> [" basis_pos;
+	     Misc.format_list "+" P.format_exp es;
+	     Util.format "]") ves;
+	Util.format "}@\n";	  
+      in 
+*)	
       let zero_constraint = P.mkEq P.zero (sum_of_int_set zeros) in 
-      let and_one_constraints = Safelist.fold_left (fun acc (_,nis) -> P.mkEq P.one (sum_of_int_state_list nis)::acc) [zero_constraint] nl in 
-      let and_var_equalities = Int.Map.fold (fun xi xil acc -> P.mkEq (P.mkVar xi) (sum_of_int_list xil)::acc) vmap and_one_constraints in 
+      let and_one_constraints = Safelist.fold_left (fun acc (_,nis) -> P.mkEq P.one (sum_of_int_opt_state_list nis)::acc) [zero_constraint] nlo in 
+      let and_var_equalities = Safelist.fold_left (fun acc (xi,el) -> (P.mkEq (P.mkVar xi) (P.mkSum el))::acc) and_one_constraints ves in 
       let formula' = P.mkAnd (formula::and_var_equalities) in
+      let _ = Trace.debug "member-detailed+" (fun () -> Util.format "FORMULA': "; P.format_t formula'; Util.format "@\n") in
       let rec next_step f = function
           [] -> StepYes
-        | (ni,[(xi,si)])::nrest -> 
+        | (ni,[(None,si)])::nrest -> 
             (* optimization: can just do the member test and skip satisifiability test here... *)			 
             StepMaybe(ni, 
                      (function 
@@ -1017,8 +1071,10 @@ and mk_first_step u0 = match u0 with
                      (function 
                        | None -> 
                            let fs = Safelist.fold_left 
-                             (fun acc (xi,si) -> 
-                               let fi = P.mkEq (P.mkVar xi) (if is_empty_state si then P.zero else P.one) in 
+                             (fun acc (xio,si) -> 
+                               let fi = P.mkEq 
+					  (match xio with None -> P.one | Some xi -> P.mkVar xi) 
+					  (if is_empty_state si then P.zero else P.one) in 
                                  fi::acc)
                              [] nis in 
                            let f' = P.mkAnd (f::fs) in
@@ -1032,11 +1088,11 @@ and mk_first_step u0 = match u0 with
 		               Util.format "@\n");
 			   let found,fs = Safelist.fold_left
 	                     (fun (found,fs) (xi,si) -> 
-			       if found then (found, zero_of_var xi::fs)
+			       if found then (found, zero_of_varo xi::fs)
 			       else if member_state_with_counterexample si vi = Yes then                       
-				 (true,one_of_var xi::fs)
+				 (true,one_of_varo xi::fs)
 		               else 
-				 (false,zero_of_var xi::fs))
+				 (false,zero_of_varo xi::fs))
                              (false,[f]) nis in 
 		             if not found then StepNo(Child(ni,vi)) 
 		             else 
@@ -1045,7 +1101,7 @@ and mk_first_step u0 = match u0 with
                                  else StepNo(Child(ni,vi)))) in
         
         (* --- result --- *)
-        if P.satisfiable formula' then next_step formula' nl
+        if P.satisfiable formula' then next_step formula' nlo
         else StepNo(Domain ns)) 
 
 and member_state_with_counterexample s0 = match s0 with 
