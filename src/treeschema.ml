@@ -13,6 +13,8 @@ let sprintf = Printf.sprintf
 let debug = Trace.debug "schema" 
 let fresh = Syntax.fresh
 
+let member_granularity = Prefs.createInt "member-granularity" 1 "Controls granularity of satisfiability testing in member tests" ""
+
 module NS = Name.Set
 module NM = Name.Map 
 module P = Presburger
@@ -227,9 +229,9 @@ let compare_u u0 u1 = match u0,u1 with
 (* cached emptiness results *)
 type this_t = t (* hack! *)
 module USet = Set.Make(struct
-    type t = u
-    let compare = compare_u
-  end)
+  type t = u
+  let compare = compare_u
+end)
 let empties = ref USet.empty
 let non_empties = ref USet.empty
 
@@ -975,47 +977,34 @@ and mk_first_step u0 = match u0 with
         
       let zeros = Int.Set.diff all_vars (Int.Map.domain vmap) in
 
-(*       let _ = 
-	Util.format "NL: ["; 
-	Misc.format_list "," (fun (ni,nis) -> 
-				Util.format "(%s,[" ni;
-				Misc.format_list "," (fun (xi,si) -> (Util.format "(n%d,%s)" xi (string_of_state si))) nis;
-				Util.format "])") nl;
-	Util.format "]@\nVMAP: {";
-	Int.Map.iter_with_sep 
-	  (fun basis_pos fresh_vars -> 
-	     Util.format "n%d -> [" basis_pos;
-	     Misc.format_list "+" (Util.format "n%d") fresh_vars;
-	     Util.format "]") 
-	  (fun () -> Util.format ",") vmap;
-	Util.format "}@\n";	  
-      in 
-*)
-
       (* optimization #1: remove fresh variables for kids that only match one basis element *)
+      (* when fresh_subst is applied below, we replace these vars with P.one *)
       let fresh_subst = 
 	Safelist.fold_left 
 	  (fun fs (ni,nis) -> match nis with 
-	       [(fresh,_)] -> (Int.Map.add fresh None fs)
-	     | _           -> fs)
+	      [(fresh,_)] -> (Int.Map.add fresh None fs)
+	    | _           -> fs)
 	  Int.Map.empty nl in
         
-      (* optimization #2: remove any other fresh variables for that are the only fresh var for an original var *)
+      (* optimization #2: remove any remaining fresh variables for that are the only fresh var for an original var *)
+      (* when fresh_subst is applied below, we replace these vars with the corresponding original var *)
       let fresh_subst = 
 	IM.fold 
 	  (fun basis_pos fresh_vars fresh_subst -> 
-	     match fresh_vars with
-		 [freshi] ->
-		   if Int.Map.mem freshi fresh_subst then fresh_subst
-		   else Int.Map.add freshi (Some basis_pos) fresh_subst
-	       | _ -> fresh_subst)
+	    match fresh_vars with
+		[freshi] ->
+		  if Int.Map.mem freshi fresh_subst then fresh_subst
+		  else Int.Map.add freshi (Some basis_pos) fresh_subst
+	      | _ -> fresh_subst)
 	  vmap fresh_subst in 
         
       let nlo = 
 	Safelist.rev_map
-	  (fun (ni,nis) -> (ni,Safelist.map (fun (n,s) -> (IM.safe_find n fresh_subst (Some n), s)) nis))
+	  (fun (ni,nis) -> 
+            (ni, Safelist.map 
+              (fun (n,s) -> (IM.safe_find n fresh_subst (Some n), s)) nis))
 	  nl in 
-
+  
       let ves = 
 	IM.fold 
 	  (fun basis_pos fresh_vars acc -> 
@@ -1024,61 +1013,34 @@ and mk_first_step u0 = match u0 with
 					 | Some v -> P.mkVar v) fresh_vars)::acc)
 	  vmap [] in 
 
-(*
-      let _ = 
-	Util.format "NLO: ["; 
-	Misc.format_list "," (fun (ni,nis) -> 
-				Util.format "(%s,[" ni;
-				Misc.format_list "," 
-				  (fun (xio,si) -> 
-				     (Util.format "(%s,%s)" 
-					(match xio with None -> "None" | Some d -> Printf.sprintf "n%d" d) 
-					(string_of_state si))) nis;
-				Util.format "])") nlo;
-	Util.format "]@\nVES: {";
-	Misc.format_list ","
-	  (fun (basis_pos, es) -> 
-	     Util.format "n%d -> [" basis_pos;
-	     Misc.format_list "+" P.format_exp es;
-	     Util.format "]") ves;
-	Util.format "}@\n";	  
-      in 
-*)	
       let zero_constraint = P.mkEq P.zero (sum_of_int_set zeros) in 
       let and_one_constraints = Safelist.fold_left (fun acc (_,nis) -> P.mkEq P.one (sum_of_int_opt_state_list nis)::acc) [zero_constraint] nlo in 
       let and_var_equalities = Safelist.fold_left (fun acc (xi,el) -> (P.mkEq (P.mkVar xi) (P.mkSum el))::acc) and_one_constraints ves in 
       let formula' = P.mkAnd (formula::and_var_equalities) in
-      let _ = Trace.debug "member-detailed+" (fun () -> Util.format "FORMULA': "; P.format_t formula'; Util.format "@\n") in
-      let rec next_step f = function
+      let rec next_step i f = function
           [] -> StepYes
-        | (ni,[(None,si)])::nrest -> 
+        | (ni,[(_,si)])::nrest -> 
             (* optimization: can just do the member test and skip satisifiability test here... *)			 
             StepMaybe(ni, 
                      (function 
                        | None -> 
                            if is_empty_state si then StepNo(Child(ni, Tree.empty))
-                           else next_step f nrest
+                           else next_step i f nrest
                        | Some vi ->                            
 			   Trace.debug "member-detailed+" 
-		             (fun () -> 
-		               Util.format "CHECK_VI %s " ni;
-		               Tree.format_t vi;
-		               Util.format "@\n");
-			   if member_state_with_counterexample si vi = Yes then next_step f nrest
-			   else StepNo(Child(ni,vi))))              
+		             (fun () -> Util.format "CHECK_VI %s " ni; Tree.format_t vi; Util.format "@\n");
+			   if member_state_with_counterexample si vi = Yes then next_step i f nrest
+			   else StepNo(Child(ni,vi))))                            
         | (ni,nis)::nrest -> 
             StepMaybe(ni, 
                      (function 
                        | None -> 
                            let fs = Safelist.fold_left 
                              (fun acc (xio,si) -> 
-                               let fi = P.mkEq 
-					  (match xio with None -> P.one | Some xi -> P.mkVar xi) 
-					  (if is_empty_state si then P.zero else P.one) in 
-                                 fi::acc)
+                               (if is_empty_state si then zero_of_varo xio else one_of_varo xio)::acc)
                              [] nis in 
                            let f' = P.mkAnd (f::fs) in
-                             if P.satisfiable f' then next_step f' nrest
+                             if P.satisfiable f' then next_step (i+1) f' nrest
                              else StepNo(Child(ni,Tree.empty))                       
                        | Some vi -> 
 		           Trace.debug "member-detailed+" 
@@ -1097,11 +1059,11 @@ and mk_first_step u0 = match u0 with
 		             if not found then StepNo(Child(ni,vi)) 
 		             else 
 			       let f' = P.mkAnd fs in 
-                                 if P.satisfiable f' then next_step f' nrest
+                                 if P.satisfiable f' then next_step (i+1) f' nrest
                                  else StepNo(Child(ni,vi)))) in
         
-        (* --- result --- *)
-        if P.satisfiable formula' then next_step formula' nlo
+        (* result *)
+        if P.satisfiable formula' then next_step 1 formula' nlo
         else StepNo(Domain ns)) 
 
 and member_state_with_counterexample s0 = match s0 with 
@@ -1811,36 +1773,3 @@ let is_list t =
 (* external exports *)
 let update = update_tvar
 
-(* (* debug setup member *) *)          
-(*           Trace.debug "member+" (fun () ->  *)
-(*             let ns2str s = sprintf "{%s}" (Misc.concat_list "," (NS.elements s)) in  *)
-(*             let is2str s = sprintf "{%s}" (Misc.concat_list "," (Safelist.map string_of_int (IS.elements s))) in  *)
-(*             let p2str f = Util.format_to_string (fun () -> P.format_t f) in  *)
-(*             let format_nl x =  *)
-(*               Util.format "["; *)
-(*               Misc.format_list ","  *)
-(*                 (fun (ni,nis) ->  *)
-(*                   Util.format "(%s,[" ni; *)
-(*                   Misc.format_list "," (fun (xi,si) -> Util.format "(%d,%s)" xi (string_of_state si)) nis; *)
-(*                   Util.format "])";) x;           *)
-(*               Util.format "]" in  *)
-(*             let format_vmap vm =  *)
-(*               Util.format "{"; *)
-(*               ignore (Int.Map.fold  *)
-(*                          (fun xi xs sep ->  *)
-(*                            if sep then Util.format ","; *)
-(*                            Util.format "%d->[" xi; *)
-(*                            Misc.format_list "," (Util.format "%d") xs; *)
-(*                            Util.format "]"; *)
-(*                            true) *)
-(*                          vm false); *)
-(*               Util.format "}" in  *)
-              
-(*               Util.format "SETUP_MEMBER %s %s@\n" (ns2str ns) (p2str formula); *)
-(*               Util.format "OBVIOUS_ZEROS: %s@\n" (is2str obvious_zeros); *)
-              
-(*               Util.format "ZEROS: %s" (is2str zeros); *)
-(*               Util.format "@\nNL: "; format_nl nl; *)
-(*               Util.format "@\nVMAP: "; format_vmap vmap; *)
-(*               Util.format "@\n"); *)
-          

@@ -30,9 +30,9 @@ type e =
     | Or of t list
     | And of t list
     | Ex of t
-  and f = { e:e; hash:int } 
-  and t = { def:f; width:int; zeros: unit -> Int.Set.t; values: int -> possible_value; comp:int -> g }
-
+and f = { e:e; hash:int } 
+and t = { uid:int; def:f; width:int; zeros: unit -> Int.Set.t; values: int -> possible_value; comp:int -> g }
+    
 (* --- formatter --- *)
 let format_possible_value = function
     Definite(c) -> Util.format "Definite(%d)" c
@@ -47,6 +47,10 @@ let rec format_exp = function
 let init_g = (0,sprintf "n%d")
 
 let format_constraint_aux g (vs,c) = 
+  (* Util.format "{";
+  Int.Map.iter_with_sep 
+    (fun xi wi -> Util.format "%d*%s" wi ((snd g) xi)) (fun () -> Util.format "+") vs;
+  Util.format "+%d=0}" c; *)
   let non_neg, neg = Int.Map.partition (fun _ wi -> wi >= 0) vs in 
   let pos, zero = Int.Map.partition (fun _ wi -> wi > 0) non_neg in 
   let pos_empty = Int.Set.is_empty (Int.Map.domain pos) in 
@@ -78,7 +82,7 @@ let format_constraint_aux g (vs,c) =
               neg;
            if c < 0 then Util.format "+%d" (-c))
       end 
-
+    
 let format_constraint = format_constraint_aux init_g
 
 let rec format_e_aux g e0 = match e0 with
@@ -321,10 +325,13 @@ let find_best w =
               else acc in
         loop acc' t in 
   loop None 
+
+let uid_cell = ref 0 
       
 let t_of_f f0 = 
   let compiled = ref [] in 
-    { def = f0; 
+    { uid = (incr uid_cell; !uid_cell);
+      def = f0; 
       width=width_e f0.e; 
       zeros=
         (let module M = Memo.Make(struct
@@ -413,30 +420,34 @@ let rec fvs_t t = match t.def.e with
         (fvs_t t)
         Int.Set.empty 
     
-(* -------------- constraints -------------- *)
-let combine_constraints (vs1,c1) (vs2,c2) = 
-  let pre_c = c1+c2 in 
-  let c',neg = if pre_c > 0 then (-pre_c,true) else (pre_c,false) in 
+(* constraints *)
+let add_constraints (vs1,c1) (vs2,c2) = 
+  let c' = c1+c2 in 
   let vs' = Int.Set.fold 
-    (fun xi vs' -> 
-       let we1 = Int.Map.safe_find xi vs1 0 in 
-       let we2 = Int.Map.safe_find xi vs2 0 in
-       let w' = if neg then -1 * (we1 + we2) else we1+we2 in 
-         Int.Map.add xi w' vs')
+    (fun xi vs -> 
+      let we1 = Int.Map.safe_find xi vs1 0 in 
+      let we2 = Int.Map.safe_find xi vs2 0 in
+      let w' = we1+we2 in (* if neg then -(we1+we2) else we1+we2 in *)
+        if w'=0 then vs else Int.Map.add xi w' vs)        
     (Int.Set.union (Int.Map.domain vs1) (Int.Map.domain vs2))
-    Int.Map.empty in 
+    Int.Map.empty in
     (vs',c')
 
-let rec constraint_of_exp is_lhs = function 
-    Const(n) -> 
-      (Int.Map.empty,if is_lhs then n else -n)
-  | Var(x) -> 
-      (Int.Map.add x (if is_lhs then 1 else -1) Int.Map.empty, 0)
+let mult_constraint (vs,c) n = 
+  let vs' = Int.Map.fold (fun xi wi vs -> Int.Map.add xi (n*wi) vs)
+    vs Int.Map.empty in 
+    (vs',c*n)
+    
+let neg_constraint c = mult_constraint c (-1)
+
+let rec constraint_of_exp = function 
+    Const(n) -> (Int.Map.empty,n)
+  | Var(x) -> (Int.Map.add x 1 Int.Map.empty, 0)
   | Sum([]) -> (Int.Map.empty,0)
   | Sum(eh::es) -> 
       Safelist.fold_left 
-        (fun c ei -> combine_constraints c (constraint_of_exp is_lhs ei))
-        (constraint_of_exp is_lhs eh)
+        (fun c ei -> add_constraints c (constraint_of_exp ei))
+        (constraint_of_exp eh)
         es
             
 (* --------------- constructors --------------- *)
@@ -500,9 +511,9 @@ let mkEqZ_from_constraint =
 
 let mkEq e1 e2 = 
   mkEqZ_from_constraint 
-    (combine_constraints 
-        (constraint_of_exp true e1)
-        (constraint_of_exp false e2))
+    (add_constraints 
+        (constraint_of_exp e1)
+        (neg_constraint (constraint_of_exp e2)))
 
 (* --------------- constants --------------- *)
 
@@ -524,16 +535,19 @@ let mkOr =
     include HC_TS_BASE
     let name = "Presburger.mkOr"
     let f ts = 
-      let rec loop acc = function
-          [] -> Safelist.rev acc 
-        | h::t -> begin match h.def.e with 
-              Or(hs) -> loop acc (hs@t)
-            | _ ->
-                if h==fls then loop acc t 
-                else if h==tru then [tru] 
-                else loop (h::acc) t
-          end in 
-        match loop [] ts with
+      let rec loop seen acc = function
+        | [] -> Safelist.rev acc 
+        | h::t -> 
+            if Int.Set.mem h.uid seen then loop seen acc t
+            else if h==fls then loop seen acc t
+            else if h==tru then [tru]
+            else 
+              let seen' = Int.Set.add h.uid seen in 
+                begin match h.def.e with 
+                    Or(hs) -> loop seen' acc (hs@t)
+                  | _ -> loop seen' (h::acc) t
+                end in 
+        match loop Int.Set.empty [] ts with
             []  -> fls
           | [h] -> h
           | ts' -> t_of_e(Or(ts'))
@@ -545,20 +559,23 @@ let mkAnd =
     include HC_TS_BASE
     let name = "Presburger.mkAnd"
     let f ts = 
-      let rec loop acc = function
+      let rec loop seen acc = function
           [] -> Safelist.rev acc 
-        | h::t -> begin match h.def.e with 
-              And(hs) -> loop acc (hs@t)
-            | _ -> 
-                if h==tru then loop acc t
-                else if h==fls then [fls] 
-                else loop (h::acc) t
-          end in 
-        match loop [] ts with 
-            [] -> tru
+        | h::t ->             
+            if Int.Set.mem h.uid seen then loop seen acc t
+            else if h==tru then loop seen acc t
+            else if h==fls then [fls]
+            else 
+              let seen' = Int.Set.add h.uid seen in 
+                begin match h.def.e with 
+                    And(hs) -> loop seen' acc (hs@t)
+                  | _ -> loop seen' (h::acc) t
+                end in 
+        match loop Int.Set.empty [] ts with
+            []  -> tru
           | [h] -> h
-          | ts'   -> t_of_e(And(ts'))
-  end) in 
+          | ts' -> t_of_e(And(ts'))
+  end) in
   M.memoized
 
 let mkEx = 
@@ -577,11 +594,11 @@ let close f = wrap (width f) f
        
 let mkGe e1 e2 = 
   let shift_map m = Int.Map.fold (fun xi wi a -> Int.Map.add (xi+1) wi a) m Int.Map.empty in
-  let vs1,c1 = constraint_of_exp true e1 in 
-  let vs2,c2 = constraint_of_exp false e2 in 
+  let vs1,c1 = constraint_of_exp e1 in 
+  let vs2,c2 = neg_constraint (constraint_of_exp e2) in 
   let vs1' = Int.Map.add 0 0 (shift_map vs1) in 
   let vs2' = Int.Map.add 0 (-1) (shift_map vs2) in 
-  let (vs,c) = combine_constraints (vs1',c1) (vs2',c2) in 
+  let (vs,c) = add_constraints (vs1',c1) (vs2',c2) in 
   let t1 = mkEqZ_from_constraint (vs,c) in 
     mkEx t1
       
@@ -626,12 +643,11 @@ let rec substitute_exp s e0 = match e0 with
         
 let rec substitute es t0 = 
   let substitute_constraint (vs,c) = 
-    let mult (vs,c) n = (map_int_map (fun xi wi -> (xi,n*wi)) vs, c*n) in 
       Int.Map.fold 
         (fun xi wi (vs,c) ->
            try 
-             combine_constraints
-               (mult (constraint_of_exp true (Safelist.assoc xi es)) wi)
+             add_constraints
+               (mult_constraint (constraint_of_exp (Safelist.assoc xi es)) wi)
                (vs,c)
            with Not_found -> 
              (Int.Map.add xi wi vs,c))
@@ -793,6 +809,22 @@ let add ts0 = match ts0 with
     [] -> Error.simple_error "P.add: zero-length addition"
   | t::ts -> Safelist.fold_left (fun s ti -> add2 s ti) t ts 
 
+let satisfiable t = 
+  let res = (t.comp t.width).empty () in 
+    Trace.debug "satisfiable+" (fun () -> format_t t; Util.format " = %b@\n" res);
+    res
+
+let is_non_zero t0 x = 
+  not (Int.Set.mem x (easy_zeros t0))
+  && match t0.values x with
+      Definite c -> c > 0
+    | Nothing    -> false
+    | Unknown  -> satisfiable (mkAnd [t0; mkGt (mkVar x) zero])
+    
+(* called from Toplevel after all processing has completed *)
+let finish () = ()
+       
+(*       
 (* oracle infrastructure *)
 let oracle_file = Prefs.createString "oracle" "" "Use xxx as an oracle" ""
 let oracle_dump_file = Prefs.createString "oracle-dump" "" "Create an oracle in xxx" ""
@@ -823,12 +855,10 @@ let initialize_oracle () =
 let sat_oracle t = 
   if not !oracle_initialized then initialize_oracle ();
   Oracle.find oracle (Util.format_to_string (fun () -> format_t t))
+
+let sat_genepi t = (t.comp t.width).empty ()
     
-let sat_genepi t = 
-  let g = t.comp t.width in 
-    g.empty ()
-    
-let satisfiable t =   
+let old_satisfiable t = 
   let res = 
     if Prefs.read oracle_file <> "" then 
       begin 
@@ -848,23 +878,10 @@ let satisfiable t =
           output_value outc (Util.format_to_string (fun () -> format_t t));
           output_value outc res 
       end;
-    Trace.debug "satisfiable+"
-      (fun () ->
-        format_t t; 
-        Util.format "@\n";
-        Util.format " = %b@\n" res);
     res
 
-let is_non_zero t0 x = 
-  not (Int.Set.mem x (easy_zeros t0))
-  && match t0.values x with
-      Definite c -> c > 0
-    | Nothing    -> false
-    | Unknown  -> satisfiable (mkAnd [t0; mkGt (mkVar x) zero])
-    
-(* called from Toplevel after all processing has completed *)
-let finish () = 
+let finish () =
   match !oracle_outc_opt with 
     | Some outc -> close_out outc
     | None -> ()
-        
+*)
