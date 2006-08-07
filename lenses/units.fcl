@@ -146,11 +146,7 @@ test (
 
   (* Conrad's Performance testing for sync operations *)
   module Performance = 
-    let s : schema = {
-        * = {
-            (F0,F1,F2,F3,F4) = Value
-          }
-      }
+    let s : schema = { * = { (F0,F1,F2,F3,F4) = Value } }
       
   (* Values for the fields are F<n>v<id>[om] --- <n> being the field number,
    * <id> being the record number, "o" meaning original value, "m" modified

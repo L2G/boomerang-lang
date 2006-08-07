@@ -13,8 +13,6 @@ let sprintf = Printf.sprintf
 let debug = Trace.debug "schema" 
 let fresh = Syntax.fresh
 
-let member_granularity = Prefs.createInt "member-granularity" 1 "Controls granularity of satisfiability testing in member tests" ""
-
 module NS = Name.Set
 module NM = Name.Map 
 module P = Presburger

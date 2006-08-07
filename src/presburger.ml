@@ -427,7 +427,7 @@ let add_constraints (vs1,c1) (vs2,c2) =
     (fun xi vs -> 
       let we1 = Int.Map.safe_find xi vs1 0 in 
       let we2 = Int.Map.safe_find xi vs2 0 in
-      let w' = we1+we2 in (* if neg then -(we1+we2) else we1+we2 in *)
+      let w' = we1+we2 in 
         if w'=0 then vs else Int.Map.add xi w' vs)        
     (Int.Set.union (Int.Map.domain vs1) (Int.Map.domain vs2))
     Int.Map.empty in
@@ -439,6 +439,18 @@ let mult_constraint (vs,c) n =
     (vs',c*n)
     
 let neg_constraint c = mult_constraint c (-1)
+
+let normalize_constraint (vs,c) = 
+  let c',multiplier = if c < 0 then (-c,-1) else (c,1) in 
+  let vs',_,_ = Int.Map.fold 
+    (fun xi wi (vs,can_flip,multiplier) -> 
+      let wi',multiplier' =
+        if can_flip && wi > 0 then (wi,1)
+        else (multiplier * wi, multiplier) in 
+      let vs' = Int.Map.add xi wi' vs in 
+        (vs',false,multiplier'))
+    vs (Int.Map.empty,c=0,multiplier) in 
+    (vs',c')
 
 let rec constraint_of_exp = function 
     Const(n) -> (Int.Map.empty,n)
@@ -504,7 +516,9 @@ let mkEqZ_from_constraint =
     let hash = hash_constraint
     let equal = equal_constraint
     let name = "Presburger.mk_EqZ"
-    let f (vs,c) = t_of_e (EqZ(vs,c))
+    let f (vs,c) = 
+      let vs',c' = normalize_constraint (vs,c) in 
+        t_of_e (EqZ(vs',c'))
     let init_size = 137
   end) in 
   M.memoized
