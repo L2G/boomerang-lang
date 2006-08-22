@@ -52,7 +52,7 @@ the data being reconciled.</p>
 <p>
 An extensive set of live demos and tutorials on the features of
 Harmony can be found 
-<a href="http://alliance.seas.upenn.edu/~harmony/cgi-bin/demo.cgi">here</a>.
+<a href="http://alliance.seas.upenn.edu/~harmony/cgi-bin/demo.php">here</a>.
 </p>
 </div>
 
