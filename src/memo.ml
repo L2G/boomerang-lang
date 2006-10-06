@@ -6,8 +6,17 @@
 (***************************************************)
 (* $Id$ *)
 
-let memo_both = Prefs.createBool "memo-both" false "Simulate both hash tables in Memo module" ""
-let memo_alt = Prefs.createBool "memo-alt" false "If possibel, use alternate hash/equal functions in Memo module" ""
+let memo_off = Prefs.createBool "memo-off" false
+  "skip memoization"
+  "skip memoization"
+
+let memo_both = Prefs.createStringList "memo-both" 
+  "simulate both equality functions"
+  "simulate both equality functions"
+
+let memo_alt = Prefs.createStringList "memo-alt" 
+  "use alternate equality function"
+  "use alternate equality function"
 
 type stats_t = 
     { get_length : unit -> int;
@@ -364,6 +373,8 @@ let register2 name stats =
     all_stats := Name.Map.add name (stds,stats::alts) !all_stats
 
 let gen_memoize name format_arg format_res find add get_table alto = 
+  if (Prefs.read memo_off) then (fun f arg -> f arg) 
+  else
   match alto with
       None -> 
 	(fun f arg -> 
@@ -375,7 +386,7 @@ let gen_memoize name format_arg format_res find add get_table alto =
 	
     | Some(f2,a2,gt2) -> 
 	(fun f arg -> 
-	   if Prefs.read memo_both then 	   
+	   if Safelist.mem name (Prefs.read memo_both) then 
 	     begin 
 	       let t2 = gt2 () in
 		 try ignore (f2 t2 arg) 
@@ -423,7 +434,7 @@ module MakeBase(M:MemoType) = struct
 end
 
 module MakeBase2(M:MemoType2) = struct
-  let alt_hash = Prefs.read memo_alt 
+  let alt_hash = Safelist.mem M.name (Prefs.read memo_alt) 
   module H = Hashtblplus.Make(struct
     type t = M.arg
     let hash = if alt_hash then M.hash' else M.hash
