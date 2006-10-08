@@ -22,22 +22,23 @@ type g = { set : GenepiLibrary.t; empty : unit -> bool }
 
 (* formulas, represented in de Bruijn notation *)
 
-type possible_value = Definite of int | Unknown | Nothing
+type bound = Eq | Lt | Gt 
+type simple_constraint = (bound * int) 
 
 type e = 
     EqZ of int Int.Map.t * int
     | Not of t
     | Or of t list
     | And of t list
-    | Ex of t
+    | Exists of t
 and f = { e:e; hash:int } 
-and t = { uid:int; def:f; width:int; zeros: unit -> Int.Set.t; values: int -> possible_value; comp:int -> g }
+and t = { uid:int; def:f; width:int; constraints: simple_constraint Int.Map.t; comp:int -> g }
     
 (* --- formatter --- *)
-let format_possible_value = function
-    Definite(c) -> Util.format "Definite(%d)" c
-  | Unknown     -> Util.format "Unknown"
-  | Nothing     -> Util.format "Nothing"
+let format_simple_constraint (b,c) = 
+  Util.format "%s%d" 
+    (match b with Eq -> "=" | Lt -> "<" | Gt -> ">")
+    c
 
 let rec format_exp = function
     Const(n) -> Util.format "%d" n
@@ -46,11 +47,14 @@ let rec format_exp = function
   
 let init_g = (0,sprintf "n%d")
 
+(* 
+ * Util.format "{";
+ * Int.Map.iter_with_sep 
+ * (fun xi wi -> Util.format "%d*%s" wi ((snd g) xi)) (fun () -> Util.format "+") vs;
+ * Util.format "+%d=0}" c; 
+ *)
+  
 let format_constraint_aux g (vs,c) = 
-  (* Util.format "{";
-  Int.Map.iter_with_sep 
-    (fun xi wi -> Util.format "%d*%s" wi ((snd g) xi)) (fun () -> Util.format "+") vs;
-  Util.format "+%d=0}" c; *)
   let non_neg, neg = Int.Map.partition (fun _ wi -> wi >= 0) vs in 
   let pos, zero = Int.Map.partition (fun _ wi -> wi > 0) non_neg in 
   let pos_empty = Int.Set.is_empty (Int.Map.domain pos) in 
@@ -99,10 +103,10 @@ let rec format_e_aux g e0 = match e0 with
       Util.format "(";
       Misc.format_list " & " (format_t_aux g) ts;
       Util.format ")"
-  | Ex(t1) -> 
+  | Exists(t1) -> 
       let next (qd,gm) = (qd+1,fun n->if n=0 then sprintf "x%d" qd else gm (n-1)) in
       let rec format_exs g t = match t.def.e with
-          Ex(t1) -> 
+          Exists(t1) -> 
             Util.format ",x%d" (fst g);
             format_exs (next g) t1
         | _ -> 
@@ -115,12 +119,11 @@ and format_t_aux g t0 = format_e_aux g t0.def.e
 let format_e = format_e_aux init_g
 
 let rec format_e_bare = function
-    EqZ(vs,c) -> Util.format "("; Int.Map.iter (fun x w -> Util.format "%d*x%d" w x) vs; Util.format "+ %d = 0)" c
+    EqZ(vs,c) -> Util.format "("; ignore (Int.Map.fold (fun x w a -> if a then Util.format "+"; Util.format "%d*x%d" w x;true) vs false); Util.format "+ %d = 0)" c
   | Not(t1) -> Util.format "~("; format_t_bare t1; Util.format ")";
   | Or(ts) -> Util.format "("; Misc.format_list "|" format_t_bare ts; Util.format ")"
   | And(ts) -> Util.format "("; Misc.format_list "&" format_t_bare ts; Util.format ")"
-  | Ex(t1) -> Util.format "EX("; format_t_bare t1; Util.format ")"
-
+  | Exists(t1) -> Util.format "EX("; format_t_bare t1; Util.format ")"
 and format_t_bare t0 = format_e_bare t0.def.e
 
 let format_t = format_t_aux init_g
@@ -134,11 +137,11 @@ let hash_tag = function
   | Or(_)     -> 199
   | EqZ(_)    -> 1
   | And(_)    -> 821
-  | Ex(_)     -> 379
+  | Exists(_)     -> 379
 let hash_e e0 = 
   let tag_code = hash_tag e0 in 
   let subelt_code = match e0 with
-      Not(t) | Ex (t) -> t.def.hash
+      Not(t) | Exists (t) -> t.def.hash
     | Or(ts) | And(ts) -> hash_list ts
     | EqZ(m,c) -> hash_constraint(m,c) in 
   tag_code * subelt_code
@@ -162,7 +165,7 @@ let rec equal_list ts1 ts2 =
 and equal_e e1 e2 = match e1,e2 with
     EqZ(vs1,c1),EqZ(vs2,c2) -> equal_constraint (vs1,c1) (vs2,c2)
   | Or(ts1), Or(ts2) | And(ts1), And(ts2) -> equal_list ts1 ts2
-  | Not(t1),Not(t2) | Ex(t1),Ex(t2) -> equal_e t1.def.e t2.def.e 
+  | Not(t1),Not(t2) | Exists(t1),Exists(t2) -> equal_e t1.def.e t2.def.e 
   | _ -> false
 
 let rec compare_t t1 t2 = match t1.def.e,t2.def.e with
@@ -179,7 +182,7 @@ let rec compare_t t1 t2 = match t1.def.e,t2.def.e with
                      m1 0)
   | Or(ts1),Or(ts2) | And(ts1), And(ts2) ->
       Misc.dict_cmp compare_t ts1 ts2
-  | Not(t1),Not(t2) | Ex(t1),Ex(t2) -> compare_t t1 t2
+  | Not(t1),Not(t2) | Exists(t1),Exists(t2) -> compare_t t1 t2
   | EqZ(_),_ -> -1
   | _,EqZ(_) -> 1
   | Or(_),_ -> -1
@@ -196,73 +199,87 @@ let width_e e0 = match e0 with
         (fun xi _ w -> max ((if xi<0 then (-xi) else xi)+1) w)
         m 0
   | Not(t) -> t.width
-  | Ex(t) -> t.width-1
+  | Exists(t) -> t.width-1
   | Or(ts) | And(ts)   -> Safelist.fold_left (fun w ti -> max w ti.width) 0 ts 
           
 let width t = t.width
 
 let rec add_to_list n x l = if n < 1 then l else add_to_list (n-1) x (x::l)
   
-(* --- easy_zeros: calculate a set of "obviously zero" variables from a
-   formula. NOT semantically complete--i.e., it's not the case that 
-   n in get_zeros(f) <=> every satisfying valuation of f has n=0 *)
-let easy_zeros_e = function
+let easy_constraints = function
     EqZ(vs,c) -> 
-      if c = 0 then match Int.Map.fold 
-          (fun xi wi acc -> match acc with 
-              (false,_)         -> acc
-            | (true,None)       -> (true, Some(Int.Set.add xi Int.Set.empty, wi > 0))
-            | (true,Some(zs,p)) -> ((wi > 0)=p, Some (Int.Set.add xi zs, p)))
-          vs (true,None)  
-        with false,_ | _,None -> Int.Set.empty
-          | true,Some(zs,_) -> zs
-      else Int.Set.empty
-  | Not(t1) -> begin match t1.def.e with 
-        Not(t2) -> t2.zeros ()
-      | _ -> Int.Set.empty
-    end
-  | Or(ts) -> begin match ts with
-        [] -> Int.Set.empty
-      | t1::trest -> Safelist.fold_left (fun a ti -> Int.Set.inter (ti.zeros ()) a) (t1.zeros ()) trest     
-    end
-  | And(ts) -> Safelist.fold_left (fun a ti -> Int.Set.union (ti.zeros ()) a) Int.Set.empty ts
-  | Ex(t1) -> 
-      Int.Set.fold 
-        (fun xi a -> Int.Set.add (xi-1) a)
-        (Int.Set.remove 0 (t1.zeros ()))
-        Int.Set.empty
-
-let easy_zeros t = t.zeros ()
-
-let rec easy_var_value_e e0 x = match e0 with
-    EqZ(vs,c)  ->       
-      (try 
-          let cx = Int.Map.find x vs in 
-            (match Int.Set.cardinal (Int.Map.domain vs), cx with
-                1,1  -> Definite (-c)
-              | 1,-1 -> Definite c
-              | _    -> Unknown)
-        with Not_found -> Nothing)
-
-  | Not(t1) -> (match t1.def.e with 
-        Not(t2) -> t2.values x
-      | _      -> (match t1.values x with 
-            Nothing -> Nothing
-          | _       -> Unknown))
-
-  | Or(ts) | And(ts) -> Safelist.fold_left 
-      (fun acc ti -> 
-        match acc with
-            Nothing    -> ti.values x
-          | Unknown  -> Unknown
-          | Definite i -> 
-              (match ti.values x with 
-                  Nothing -> acc
-                | Unknown -> Unknown
-                | Definite j -> if i=j then acc else Unknown))
-        Nothing ts
+      let d = Int.Map.domain vs in 
+        begin match Int.Set.cardinal d,c with 
+            1,_ -> 
+              let x = Int.Set.choose d in 
+              let w = Int.Map.find x vs in 
+                (match w with  
+                  | 1  -> Int.Map.add x (Eq,-c) Int.Map.empty
+                  | -1 -> Int.Map.add x (Eq,c) Int.Map.empty
+                  | _  -> Int.Map.empty)
+          | _,0 -> 
+              let same_polarity = match Int.Map.fold 
+                  (fun _ wi acco -> 
+                    match acco with 
+                        None         -> Some(true,wi>0)
+                      | Some(ok,pos) -> Some(ok && (wi=0 || (pos && wi>0) || (not pos && wi<0)), pos))
+                  vs None with None -> true | Some(ok,_) -> ok in 
+                if same_polarity then 
+                  Int.Map.fold 
+                    (fun xi wi acc -> if wi <> 0 then Int.Map.add xi (Eq,0) acc else acc) 
+                    vs Int.Map.empty 
+                else Int.Map.empty
+          | _ -> Int.Map.empty 
+        end
+  | Not(t1) -> 
+      (match t1.def.e with 
+          Not(t2) -> t2.constraints
+        | _ -> Int.Map.empty)
+  | Or(ts) -> 
+      let _,res = Safelist.fold_left
+        (fun (fst,acc) ti -> 
+          if fst then (false,ti.constraints)
+          else 
+            let acc_dom = Int.Map.domain acc in 
+              (false,
+              Int.Map.filter 
+                (fun xi ci -> (Int.Set.mem xi acc_dom) 
+                  && (Int.Map.find xi acc) = ci)
+                ti.constraints))
+        (true,Int.Map.empty)
+        ts in
+      res
         
-  | Ex(t1) -> t1.values (x+1)
+  | And(ts) -> Safelist.fold_left
+      (fun acc ti -> 
+        Int.Map.filter 
+          (fun xi ci -> (Int.Map.safe_find xi acc ci) = ci)
+          (Int.Map.combine acc ti.constraints))
+        Int.Map.empty
+        ts 
+
+  | Exists(t1) -> 
+      let default () =
+        Int.Map.fold (fun xi ci acc -> Int.Map.add (xi-1) ci acc) 
+          (Int.Map.remove 0 t1.constraints)
+          Int.Map.empty in 
+        begin
+          match t1.def.e with 
+            | EqZ(vs,c) -> 
+                let d = Int.Map.domain vs in 
+                  if Int.Set.cardinal d = 2 && Int.Set.mem 0 d then
+                    let x = Int.Set.choose (Int.Set.remove 0 d) in 
+                    let w0,wx = Int.Map.find 0 vs, Int.Map.find x vs in 
+                    let x = x -1 in (* because x is under quantifier!*)
+                      match w0,wx with 
+                        | 1,1   -> if -c-1 >= 2 then Int.Map.add x (Lt,-c+1) Int.Map.empty else Int.Map.empty
+                        | -1,-1 -> if c-1 >= 2 then Int.Map.add x (Lt,c-1) Int.Map.empty else Int.Map.empty
+                        | 1,-1  -> if c-1 > 0 then Int.Map.add x (Gt,c-1) Int.Map.empty else Int.Map.empty
+                        | -1,1  -> if -c-1 > 0 then Int.Map.add x (Gt,-c-1) Int.Map.empty else Int.Map.empty
+                        | _ -> default ()                      
+                  else default ()
+            | _ -> default ()
+        end
 
 (* ---- translation to C library structure ---- *)    
 let rec s_of_e e0 width = 
@@ -288,7 +305,7 @@ let rec s_of_e e0 width =
         (GenepiLibrary.top width)
         fs 
         
-  | Ex(f1) ->       
+  | Exists(f1) ->       
       let x0_sel = 1::(add_to_list width 0 []) in
       let f1 = genepi_set_of_t f1 (width+1) in 
         GenepiLibrary.project f1 x0_sel 
@@ -333,35 +350,17 @@ let t_of_f f0 =
     { uid = (incr uid_cell; !uid_cell);
       def = f0; 
       width=width_e f0.e; 
-      zeros=
-        (let module M = Memo.Make(struct
-          type arg = unit
-          type res = Int.Set.t
-          let name = "Presburger.easy_zeros"
-          let f () = easy_zeros_e f0.e
-          let init_size = 1
-          let format_arg () = Util.format "()"
-          let format_res s = 
-            Util.format "{"; 
-            Misc.format_list "," (Util.format "%d") (Int.Set.elements s);
-            Util.format "}"
-          let hash () = 1
-          let equal () () = true
-        end) in 
-        M.memoized);            
-      values=
-        (let module M = Memo.Make(struct
-          type arg = int
-          type res = possible_value
-          let name = "Presburger.values"
-          let f x = easy_var_value_e f0.e x
-          let init_size = 1
-          let format_arg = Util.format "%d"
-          let format_res = format_possible_value
-          let hash = Hashtbl.hash
-          let equal = (=)
-        end) in 
-        M.memoized);            
+      constraints=easy_constraints f0.e;
+(*         (let fcs cs = *)
+(*           Format.printf "{"; *)
+(*            ignore (Int.Map.fold (fun xi ci acc -> *)
+(*             if not acc then Format.printf ", "; *)
+(*             Format.printf "n%d" xi; format_simple_constraint ci; false) *)
+(*             cs true); *)
+(*           Format.printf "}" in           *)
+(*         let cs = easy_constraints f0.e in *)
+(*           Format.printf "F0: "; format_e f0.e; Format.printf "\t\t\t"; format_e_bare f0.e;  *)
+(*           Format.printf "@\nCS: "; fcs cs; Format.printf "@\n@\n"; cs); *)
       comp=
         let module M = Memo.Make(struct
           type arg = int
@@ -414,11 +413,15 @@ let rec fvs_t t = match t.def.e with
         Int.Set.empty
         ts
         
-  | Ex(t)    -> 
+  | Exists(t)    -> 
       Int.Set.fold 
         (fun x s -> if (x <> 0) then (Int.Set.add (x-1) s) else s) 
         (fvs_t t)
         Int.Set.empty 
+
+let easy_zeros t =
+  Int.Map.domain
+    (Int.Map.filter (fun _ ci -> ci = (Eq,0)) t.constraints)
     
 (* constraints *)
 let add_constraints (vs1,c1) (vs2,c2) = 
@@ -596,7 +599,7 @@ let mkEx =
   let module M = Memo.Make(struct
     include HC_T_BASE
     let name = "Presburger.mkEx"
-    let f t1 = t_of_e (Ex(t1)) 
+    let f t1 = t_of_e (Exists(t1)) 
   end) in 
   M.memoized 
   
@@ -640,7 +643,7 @@ let rec shift_aux n c t0 =
          | Not(t1)    -> Not(shift_aux n c t1)
          | Or(ts)     -> Or(Safelist.map (shift_aux n c) ts)
          | And(ts)    -> And(Safelist.map (shift_aux n c) ts)
-         | Ex(t1) -> Ex(shift_aux n (c+1) t1))
+         | Exists(t1) -> Exists(shift_aux n (c+1) t1))
              
 (* --- top-level shift operator --- *)
 let shift_exp n = shift_exp_aux n 0
@@ -672,7 +675,7 @@ let rec substitute es t0 =
       | Not(t1) -> mkNot(substitute es t1)
       | Or(ts)  -> mkOr(Safelist.map (substitute es) ts)
       | And(ts) -> mkAnd(Safelist.map (substitute es) ts)
-      | Ex(t1) ->
+      | Exists(t1) ->
           let shifted_es = Safelist.map 
             (fun (x,e) -> (x+1, shift_exp 1 e)) es in
             mkEx(substitute shifted_es t1)
@@ -829,11 +832,12 @@ let satisfiable t =
     res
 
 let is_non_zero t0 x = 
-  not (Int.Set.mem x (easy_zeros t0))
-  && match t0.values x with
-      Definite c -> c > 0
-    | Nothing    -> false
-    | Unknown  -> satisfiable (mkAnd [t0; mkGt (mkVar x) zero])
+  try match Int.Map.find x t0.constraints with
+      (Eq,0) -> false
+    | (Eq,_) -> true
+    | (Gt,_) -> true
+    | _ -> satisfiable (mkAnd [t0; mkGt (mkVar x) zero])
+  with  Not_found -> satisfiable (mkAnd [t0; mkGt (mkVar x) zero])
     
 (* called from Toplevel after all processing has completed *)
 let finish () = ()
