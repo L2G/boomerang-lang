@@ -37,7 +37,7 @@ $home = getcwd();
 # Load Form Data #
 ##################
 
-function get_post_data ($s) { return str_replace("\r","",stripslashes($_REQUEST[$s])); }
+function get_post_data ($s) { return str_replace("\r","",$_REQUEST[$s]); }
 
 $submitter = $_REQUEST['submitter'];
 $r1 = get_post_data('r1_text');
