@@ -4,15 +4,15 @@ type filename = string
 type contents = string
 type encoding_test = filename -> contents option -> bool
 
-type content_desc =
+type source_desc =
     FromString of string
   | FromFile of string
 
 type encoding = {
   description: string;               (** "long" description *)
   encoding_test: encoding_test;      (** id function *)
-  reader: content_desc -> V.t;       (** reads data in the given encoding *)
-  writer: V.t -> string -> unit;     (** writes data to the specified file *)
+  reader: source_desc -> V.t;       (** reads data in the given encoding *)
+  writer: V.t -> string;            (** converts tree to a string *)
 }
 
 let simple_tree_reader f c =
@@ -20,7 +20,8 @@ let simple_tree_reader f c =
     FromString s -> V.Tree (f s)
   | FromFile s -> V.Tree (f (Misc.read s))
 
-let simple_tree_writer f v filename = Misc.write filename (f (V.tree_of (Info.M "simple_writer") v))
+let simple_tree_writer f v filename = 
+  Misc.write filename (f (V.tree_of (Info.M "simple_writer") v))
 
 let simple_reader f c =
   match c with

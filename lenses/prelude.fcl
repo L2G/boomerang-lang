@@ -604,6 +604,12 @@ identified by the encoding key @ekey@ (see Section~\ref{sec:encodingkeys})
 and yields a tree.  Section~\ref{sec:xml} shows some examples of its use.
 ##let load : (name -> name -> view) = Native.Prelude.load
 
+\LENSSECTION{save}
+The expression @save ekey v@ converts the view @v@ using the viewer
+identified by the encoding key @ekey@ (see Section~\ref{sec:encodingkeys})
+and yields a view. 
+##let save : (name -> view -> name) = Native.Prelude.save
+
 \LENSSECTION{load_file}
 The expression @load_file name@ parses a file into a tree, using the encoding key
 specified as part of the file name or the default encoding key for this file

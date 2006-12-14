@@ -41,7 +41,7 @@ let _ =
     Surveyor.description = "ASCII tree format";
     Surveyor.encoding_test = etest;
     Surveyor.reader = Surveyor.simple_reader metareader;
-    Surveyor.writer = Surveyor.simple_writer metawriter;
+    Surveyor.writer = metawriter;
   } in
   Surveyor.register_encoding "meta" encoding
 
@@ -56,7 +56,7 @@ let _ =
     Surveyor.description = "one-big-blob format";
     Surveyor.encoding_test = etest;
     Surveyor.reader = Surveyor.simple_tree_reader (fun s -> Tree.mk_value s);
-    Surveyor.writer = Surveyor.simple_tree_writer (fun s -> Tree.get_value s);
+    Surveyor.writer = (fun s -> Tree.get_value (V.tree_of (Info.M "blob writer") s));
   } in
   Surveyor.register_encoding "blob" encoding
 
@@ -282,7 +282,7 @@ let xmlwriter v =
   let buf = Buffer.create 20 in
   let fmtr = Format.formatter_of_buffer buf in
   dump_tree_as_pretty_xml fmtr v;
-  Format.fprintf fmtr "@\n@.";
+  Format.fprintf fmtr "@?";
   Buffer.contents buf
 
 let _ =
@@ -293,7 +293,7 @@ let _ =
     Surveyor.description = "XML";
     Surveyor.encoding_test = etest;
     Surveyor.reader = Surveyor.simple_tree_reader xmlreader;
-    Surveyor.writer = Surveyor.simple_tree_writer xmlwriter;
+    Surveyor.writer = (fun v -> xmlwriter (V.tree_of (Info.M "xml writer") v));
   }
   in
   Surveyor.register_encoding "xml" encoding

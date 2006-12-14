@@ -2,7 +2,7 @@
     databases. *)
 
 val load_tbl : string (*filename*) -> Db.Relation.t
-val save_tbl : string (*filename*) -> Db.Relation.t -> unit
+val save_tbl : Db.Relation.t -> string
 
 val load_db : string (*filename*) -> Db.t
-val save_db : string (*filename*) -> Db.t -> unit
+val save_db : string -> Db.t -> unit

@@ -42,11 +42,13 @@ let add_comment_prefix_to_fields = function
   | []::rest -> []::rest
   | (f::flds)::rest -> (("# "^f) :: flds) :: rest
 
-let save_tbl file tbl =
+let save_tbl tbl =
   let l = rel_to_list tbl in
     (* Util.format "@[Saving %d csv rows@\n@]" (List.length l); *)
     let l = add_comment_prefix_to_fields l in
-      Csv.save file l
+    let buf = Buffer.create 100 in
+      Csv.save_buf buf l;
+      Buffer.contents buf
 
 let save_db dir db =
   if not (Sys.file_exists dir) then Unix.mkdir dir 493;

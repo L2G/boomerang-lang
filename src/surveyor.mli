@@ -6,24 +6,24 @@ type encoding_test = string -> string option -> bool
 (** [encoding_test filename contents] is true if the supplied information
     indicates a file of some encoding. *)
 
-type content_desc =
+type source_desc =
     FromString of string
   | FromFile of string
 
 type encoding = {
   description: string;          (** long (human-readable) description *)
   encoding_test: encoding_test; (** id function *)
-  reader: content_desc -> V.t;  (** reads data in the given encoding *)
-  writer: V.t -> string -> unit;(** writes data to the specified file *)
+  reader: source_desc -> V.t;  (** reads data in the given encoding *)
+  writer: V.t -> string;       (** converts data to a string *)
 }
 
-val simple_reader : (string -> V.t) -> (content_desc -> V.t)
+val simple_reader : (string -> V.t) -> (source_desc -> V.t)
 (** Convert a string-to-V.t function to a reader. *)
 
 val simple_writer : (V.t -> string) -> V.t -> string -> unit
 (** Convert a V.t-to-string function to a writer. *)
 
-val simple_tree_reader : (string -> Tree.t) -> (content_desc -> V.t)
+val simple_tree_reader : (string -> Tree.t) -> (source_desc -> V.t)
 (** Convert a string-to-tree function to a reader. *)
 
 val simple_tree_writer : (Tree.t -> string) -> V.t -> string -> unit
@@ -46,10 +46,10 @@ val get_encoding : encoding_key -> encoding
 (** [get_encoding k] gets the encoding associated with [k]. *)
 *)
 
-val get_reader : encoding_key -> content_desc -> V.t
+val get_reader : encoding_key -> source_desc -> V.t
 (** [get_reader k] gets the reader associated with [k]. *)
 
-val get_writer : encoding_key -> V.t -> string -> unit
+val get_writer : encoding_key -> V.t -> string
 (** [get_writer k] gets the writer associated with [k]. *)
 
 val get_description : encoding_key -> string
@@ -64,6 +64,8 @@ val parse_filename : string -> string * (string option)
 val get_ekey : string option -> string -> string option -> encoding_key
 (** [get_ekey eko fn contents_opt] returns eko if it is registered or else looks up the encoding for fn and contents *)
 
-val v_of_file : string -> (content_desc -> V.t) -> V.t option
-(** Given a filename [fn] and a reader [r], [v_of_file fn r] reads the contents of the file, pass it to the reader, and returns the result. If an error was encountered, [None] is returned. *)
+val v_of_file : string -> (source_desc -> V.t) -> V.t option
+  (** Given a filename [fn] and a reader [r], [v_of_file fn r] reads the
+      contents of the file, pass it to the reader, and returns the
+      result. If an error was encountered, [None] is returned. *)
 

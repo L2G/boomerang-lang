@@ -318,7 +318,7 @@ let rec replacesubstring s fromstring tostring =
 let replacesubstrings s spec =
   List.fold_right (fun (f,t) s -> replacesubstring s f t) spec s
 
-let save_out ?(separator = ',') chan csv =
+let save_buf ?(separator = ',') buf csv =
   (* Quote a single CSV field. *)
   let quote_field field =
     if String.contains field separator ||
@@ -370,9 +370,14 @@ let save_out ?(separator = ',') chan csv =
 
   let separator = String.make 1 separator in
   List.iter (fun line ->
-	       output_string chan (String.concat separator
+	       Buffer.add_string buf (String.concat separator
 				     (List.map quote_field line));
-	       output_char chan '\n') csv
+            Buffer.add_char buf '\n') csv
+
+let save_out ?separator chan csv = 
+  let buf = Buffer.create 100 in 
+    save_buf ?separator buf csv;
+    Buffer.output_buffer chan buf
 
 let print ?separator csv =
   save_out ?separator stdout csv; flush stdout

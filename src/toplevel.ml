@@ -51,7 +51,7 @@ let write_tree fn t =
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
-  (Surveyor.get_writer ekey) v fn  
+  Surveyor.simple_writer (Surveyor.get_writer ekey) v fn  
 
 let read_view fn = 
   if fn="" then None else 
@@ -64,7 +64,7 @@ let write_view fn v =
   if fn="" then () else 
   let (fn, ekey) = Surveyor.parse_filename fn in
   let ekey = Surveyor.get_ekey ekey fn None in
-  (Surveyor.get_writer ekey) v fn  
+  Surveyor.simple_writer (Surveyor.get_writer ekey) v fn  
 
 (*********)
 (* CHECK *)

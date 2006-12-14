@@ -112,6 +112,9 @@ val associate : string list -> t -> (string * string) list list
 val print : ?separator:char -> t -> unit
 (** Print string list list - same as [save_out stdout] *)
 
+val save_buf : ?separator:char -> Buffer.t -> t -> unit
+(** Save string list list to a Buffer.t. *)
+
 val save_out : ?separator:char -> out_channel -> t -> unit
 (** Save string list list to a channel. *)
 

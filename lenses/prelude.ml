@@ -81,6 +81,17 @@ let load_lib =
               (fun blob -> Value.V (load ekey blob)))
 let _ = register_native load_qid (SName ^> SName ^> SView) load_lib
 
+(* save *)  
+let save_qid = "Native.Prelude.save"
+let save ekey tree = 
+  let ekey = Surveyor.get_ekey (Some ekey) "" None in
+    (Surveyor.get_writer ekey) tree 
+let save_lib =
+  mk_nfun (SView ^> SName) save_qid
+  (fun ekey -> mk_vfun (SName) save_qid
+              (fun tree -> Value.N (save ekey tree)))
+let _ = register_native save_qid (SName ^> SView ^> SName) save_lib
+
 (* load_file *)
 let load_file_qid = "Native.Prelude.load_file"
 let load_file fn = 

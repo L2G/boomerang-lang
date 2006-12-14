@@ -54,21 +54,21 @@ let sort_of_t = function
 
 (* pretty print *)
 let rec format_t = function
-    N(n)   -> Util.format "@[%s]" (Misc.whack n)
+    N(n)   -> Util.format "@[%s@]" (Misc.whack n)
   | S(s)   -> Schema.format_t s
   | P(pred) -> Db.Relation.Pred.format_t pred
   | FD(fds) -> Dbschema.Relschema.Fd.Set.format_t fds
   | V(v)   -> V.format_t v
-  | L(l,c) -> Util.format "@[%s]" "<lens>"
-  | M(_)   -> Util.format "@[%s]" "<fmap>"
+  | L(l,c) -> Util.format "@[%s@]" "<lens>"
+  | M(_)   -> Util.format "@[%s@]" "<fmap>"
   | F(s,_) -> 
       Util.format "@[%s" "<";
       Syntax.format_sort s;
-      Util.format " fun%s]" ">"
+      Util.format " fun%s@]" ">"
   | D(s,q) -> 
       Util.format "@[%s" "<";
       Syntax.format_sort s;
-      Util.format " dummy for %s%s]" 
+      Util.format " dummy for %s%s@]" 
         (Syntax.string_of_qid q) ">"
 
 (*random helpers *)
