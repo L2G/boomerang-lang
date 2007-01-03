@@ -287,6 +287,9 @@ Left over elements of the concrete list are deleted from the result.
 #*test flatten \ {a=[{1}], b=[{2}]} 
 #*               [{b={1}}, {a={2}}, {a={3}}] 
 #*             = [{b={2}}, {a={1}}]
+Note that @flatten@ does not obey PutPut:
+#* test flatten \ {a=[{}], b=[{}]} [{a},{b}] = [{a},{b}]
+#* test flatten \ {a=[{}], b=[{}]} ( flatten \ {b=[{}]} [{a},{b}]) = [{b},{a}]
 
 The \LN{flatten} lens is in fact built from the \LN{flatten_op} lens operator,
 as @flatten = flatten_op id@.
