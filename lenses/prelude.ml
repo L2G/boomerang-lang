@@ -643,7 +643,7 @@ let hoist k =
              or (Name.Set.choose (Tree.dom c)) <> k then
                error [`String hoist_qid
                      ; `String "(get): expecting exactly one child named"
-                     ; `Break
+                     ; `Space
                      ; `Name k
                      ; `Break
                      ; `Tree c];
