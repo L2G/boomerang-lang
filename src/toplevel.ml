@@ -89,8 +89,6 @@ let get lens c_fn o_fn =
   in
     write_view o_fn av
 
-let signalconflicts = Prefs.createBool "signalconflicts" true "exit with status 1 (instead of 0) on conflicts" ""
-
 let forcer1 = Prefs.createBool "forcer1" false "overwrite r2 and archive with r1" ""
 
 
@@ -187,7 +185,7 @@ let sync o_fn a_fn b_fn s lenso lensa lensb o'_fn a'_fn b'_fn =
   ignore (Misc.map_option (write_view o'_fn) o');
   ignore (Misc.map_option (write_view a'_fn) a');
   ignore (Misc.map_option (write_view b'_fn) b');
-  if has_conflict act && Prefs.read signalconflicts then 1 else 0
+  if has_conflict act then 1 else 0
 
 (**********************************************************************************)
 (* Infrastructure for custom top-level programs *)             
