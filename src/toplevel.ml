@@ -314,7 +314,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     | [r1] -> Prefs.set r1pref r1
     | [r2;r1] -> Prefs.set r1pref r1; Prefs.set r2pref r2
     | [] -> ()
-    | _ -> Prefs.printUsage usageMsg; exit 999
+    | _ -> Prefs.printUsage usageMsg; exit 2
   end;
 
   (* Make up an archive name if none was provided *)
@@ -340,7 +340,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
   let newr2 = p newr2pref in
 
   (* Make sure we actually got some inputs *)
-  if r1="" then begin Prefs.printUsage usageMsg; exit 999 end;
+  if r1="" then begin Prefs.printUsage usageMsg; exit 2 end;
 
   (* Figure out encodings, types, and pre/postprocessing requirements *)
   let encoding f =
@@ -459,4 +459,4 @@ let toplevel progName archNameUniquifier chooseEncoding chooseAbstractSchema cho
                    (toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema chooseLens))
       ()
   with
-      e -> Printf.printf "Uncaught exception %s" (Printexc.to_string e); exit 999
+      e -> Printf.printf "Uncaught exception %s" (Printexc.to_string e); exit 2

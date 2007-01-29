@@ -140,8 +140,8 @@ let find_filename basename exts =
 
 (* load modules dynamically *)
 (* backpatch hack *)
-let compile_file_impl = ref (fun _ _ -> Util.format "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
-let compile_fcl_str_impl = ref (fun _ _ -> Util.format "@[Focal compiler is not linked! Exiting...@]"; exit 1)  
+let compile_file_impl = ref (fun _ _ -> Util.format "@[Focal compiler is not linked! Exiting...@]"; exit 2)  
+let compile_fcl_str_impl = ref (fun _ _ -> Util.format "@[Focal compiler is not linked! Exiting...@]"; exit 2)  
 
 let load ns = 
   (* helper, when we know which compiler function to use *)

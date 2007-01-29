@@ -20,4 +20,4 @@ let exit_on_error f =
   with Harmony_error msg -> 
     msg ();
     Util.format "@\n";
-    exit 1
+    exit 2
