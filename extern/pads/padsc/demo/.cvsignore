@@ -1,0 +1,6 @@
+linux.i386
+sgi.mips3
+sol8.sun4
+darwin.ppc
+cygwin.i386
+wsl.c wsl.h wsl.xsd accum wsl-accum

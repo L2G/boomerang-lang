@@ -1,0 +1,136 @@
+=========================================
+  Building, Intalling, and Testing
+   the PADS/ML Compiler and Library
+=========================================
+
+Below is a listing of each directory within the PADS/ML root directory
+and a brief description of each:
+
+  compiler - source files for PADS/ML compiler.
+  runtime  - source files for PADS/ML runtime. These are the modules
+    referenced by generated code.
+     padsc_interface - source files for ocaml interface to PADS/C runtime.
+  examples - 
+     pml - PADS/ML descriptions
+     gen - empty directory for generated code
+     data - sample data sets for descriptions
+     tests - simple tests for descriptions
+  arch - for each architecture on which PADS/ML is compiled, a different 
+     subdirectory is created to store the architecture-specific files.
+     The make process will automatically determine the architecture
+     and creat an appropriately-named subdirectory into which to install
+     compiled files. Currently, in any given architecture-specific directory,
+     there is only a lib directory, which contains interface and library 
+     files for use in compiling examples. 
+  mk - assorted utility make files.
+  scratch - scratch space for testing and distributing ideas. Only present in CVS,
+    not the distribution.
+  scripts - assorted scripts used in making and managing the system.
+
+NOTE:
+   
+   PADS/ML has been tested on the following architectures:
+
+   Redhat Enterprise Linux 3, 32 bit, x86.
+   RedHat Linux 4, 64 bit, x86.
+   OS X 10.3, PowerPC
+   OS X 10.4, Intel
+
+STEP 1: Download and install dependencies.
+
+   In order to get started, you first need to download and install the
+   following software:
+
+     - PADS/C. Available at www.padsproj.org. Make sure to use release
+       1.03 or later.
+
+       N.B. If you are using release 1.03 you must patch it before
+       building. After unpacking the PADS/ML tarball, call
+
+         scripts/patch.sh <pads-c-home>
+
+       from the PADS/ML home directory (the directory in which this
+       README file is found). After calling patch.sh, you should
+       follow the regular directions in the README.
+
+       Note: PADS/ML only needs the runtime libraries of
+       PADS/C. Therefore, if you are *only* interested in PADS/ML, you
+       can skip the steps associated with building the PADS/C
+       compiler. In particular, you won't need to install "sml" and
+       "make padsc_lib" will be sufficient (instead of the more
+       general "make").
+
+     - Objective Caml, available from caml.inria.fr or from
+       godi.ocaml-programming.de. GODI includes a package management system 
+       for ocaml in addition to the standard distribution.
+
+     - camlidl, available at http://caml.inria.fr/pub/old_caml_site/camlidl/. 
+
+     - XMLlight, http://tech.motion-twin.com/xmllight.
+
+STEP 2: Setting environment variables.
+
+   After installing the above software, set the following variables to
+   their appropriate values in your shell initializaion file:
+
+   PADS_HOME : the root directory of your PADS/C distribution. This
+	       variable should already be set by the PADS/C installation.
+
+   PML_HOME : the root directory of your PADS/ML distribution. This
+	      should be the same directory as the on in which this README 
+	      resides.
+
+   XMLLIGHT_LIB_DIR : the installation directory for XMLlight. If unset, will
+		    default to $PML_HOME/arch/<your-arch>/xml
+   OCAML_BIN_DIR : the location of the ocaml binaries
+   OCAML_LIB_DIR : the location of the ocaml libraries
+
+   CAMLIDL_LIB_DIR : the location of the camlidl libraries. This variable
+		     is often the same as OCAML_LIB_DIR.
+
+   Make sure that the ocaml binaries are accessible from your PATH. The
+   camlidl binary should either be accessible from your PATH or its full
+   path should be specified in variable CAMLIDL. An example setting for
+   these variables, using the bash shell:
+
+   export PML_HOME=$HOME/projects/padsml
+   export OCAML_BIN_DIR=/usr/local/bin/
+   export OCAML_LIB_DIR=/usr/local/lib/ocaml/
+   export CAMLIDL_LIB_DIR=$OCAML_LIB_DIR
+
+STEP 3: Building and installing.
+
+   Next, in the root PADS/ML directory, run
+
+     make install
+
+   or, to just make all the files, without installing them:
+
+     make all
+
+STEP 4: Testing the pads/ml compiler.
+
+   To test that the pads/ml compiler works on all of the supplied examples,
+   do the following from the pads/ml root directory:
+
+     cd examples/tests
+     make all
+
+   The make command will compile and run all of the example
+   programs. It will produce a lot of ouput, so it is recommended to
+   redirect the output to a file.
+
+   To process particular example, try:
+
+     make <example-name>
+
+   For example, "make sirius" will compile and run "test_sirius". To do this 
+   manually, try:
+
+     make test_sirius
+     <your-arch>/test_sirius ../data/sirius.txt
+
+   It will output the parsed data together with the parse descriptors using 
+   the debugging tool (found in examples/tools/debug_tool.ml). Notice that this
+   particular sample of sirius data has two errors in it.
+

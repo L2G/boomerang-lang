@@ -1,0 +1,11 @@
+@article{steele,
+  author = "Guy Steele",
+  title = {A Foo for Quuxing Bars},
+  year = 1981,
+}
+
+@incollection{wadler,
+  author = "Phil Wadler",
+  title = {No Punny Stuff},
+  year = 1987,
+}

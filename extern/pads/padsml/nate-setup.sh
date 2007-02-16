@@ -1,0 +1,10 @@
+export PADS_HOME=`pwd`/../padsc/
+export PML_HOME=`pwd`
+source $PADS_HOME/scripts/DO_SETENV.sh
+export XMLLIGHT_LIB_DIR=/usr/local/lib/ocaml/pkg-lib/xml-light
+export OCAML_LIB_DIR=/usr/local/lib/ocaml/std-lib
+export OCAML_BIN_DIR=/usr/local/bin
+export CAMLIDL_LIB_DIR=/usr/local/lib/ocaml/std-lib
+export HARMONY_HOME=/Users/nate/shared/harmony/trunk/src/
+export HARMONY_LIB=$HARMONY_HOME/harmony.cma
+export HARMONY_LIB_OPT=$HARMONY_HOME/harmony.cmxa
