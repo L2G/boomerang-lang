@@ -10,8 +10,6 @@
 (***********************************************************************)
 (* Slightly modified version by BCP for Unixon, July 1999 *)
 
-(* $Id$ *)
-
 (* Module [Uarg]: parsing of command line arguments *)
 
 (* This module provides a general mechanism for extracting options and

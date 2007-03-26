@@ -1,5 +1,4 @@
 (* Unison file synchronizer: src/ubase/prefs.ml *)
-(* $Id$ *)
 (* $I3: Copyright 1999-2002 (see COPYING for details) $ *)
 
 let debug = Util.debug "prefs"
@@ -318,7 +317,7 @@ let listVisiblePrefs () =
          if String.length fulldoc > 0 then begin
            (name, pspec, fulldoc) :: l
          end else l) !prefs [] in
-  Safelist.stable_sort (fun (name1,_,_) (name2,_,_) -> compare name2 name1) l
+  Safelist.stable_sort (fun (name1,_,_) (name2,_,_) -> compare name1 name2) l
 
 let printFullDocs () =
   Printf.eprintf "\\begin{description}\n";

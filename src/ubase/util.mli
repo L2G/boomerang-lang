@@ -1,6 +1,5 @@
 (* Unison file synchronizer: src/ubase/util.mli *)
-(* $Id$ *)
-(* Copyright 1999-2006 (see COPYING for details) *)
+(* Copyright 1999-2007 (see COPYING for details) *)
 
 (* Miscellaneous utility functions and datatypes *)
 
@@ -51,7 +50,7 @@ val truncateString : string -> int -> string
 val startswith : string -> string -> bool
 val endswith : string -> string -> bool
 val findsubstring : string -> string -> int option
-val replacesubstring : string -> string -> string -> string
+val replacesubstring : string -> string -> string -> string (* IN,FROM,TO *)
 val replacesubstrings : string -> (string * string) list -> string
 val concatmap : string -> ('a -> string) -> 'a list -> string
 val trimWhitespace : string -> string
@@ -76,6 +75,7 @@ val percentageOfTotal :
   int ->     (* current value *)
   int ->     (* total value *)
   int        (* percentage of total *)
+val monthname : int -> string
 val percent2string : float -> string
 val fileInHomeDir : string -> string
 

@@ -1,6 +1,5 @@
 (* Unison file synchronizer: src/ubase/util.ml *)
-(* $Id$ *)
-(* Copyright 1999-2006 (see COPYING for details) *)
+(* Copyright 1999-2007 (see COPYING for details) *)
 
 (*****************************************************************************)
 (*                        CASE INSENSITIVE COMPARISON                        *)
@@ -260,7 +259,7 @@ let osType =
   match Sys.os_type with
     "Win32" | "Cygwin" -> `Win32
   | "Unix"             -> `Unix
-  | other              -> raise (Fatal ("Unkown OS: " ^ other))
+  | other              -> raise (Fatal ("Unknown OS: " ^ other))
 
 let isCygwin = (Sys.os_type = "Cygwin")
 

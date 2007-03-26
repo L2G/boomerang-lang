@@ -121,12 +121,10 @@ EOF;
       <li><a href="http://www.cis.upenn.edu/~bohannon/">Aaron Bohannon</a></li>
       <li><a href="http://www.cis.upenn.edu/~jnfoster/">Nate Foster</a></li>
       <li><a href="http://www.cis.upenn.edu/~sanjeev">Sanjeev Khanna</a></li>
-      <li><a href="http://www.cis.upenn.edu/~kkunal">Keshav Kunal</a></li> 
     </ul>
     </td><td>
     <ul>
       <li><a href="http://www.cis.upenn.edu/~bcpierce/">Benjamin C. Pierce</a> (project leader)</li>      <li><a href="http://sardes.inrialpes.fr/~aschmitt/">Alan Schmitt</a></li>
-      <li><a href="http://www.seas.upenn.edu/~vaughan2/">Jeff Vaughan</a></li>
     </ul>
     </td></tr></table>
   </div>
@@ -138,7 +136,9 @@ EOF;
       <li>Malo Denielou</li>
       <li><a href="http://www.cis.upenn.edu/~mbgreen">Michael Greenwald</a>
       <li>Owen Gunden</li>
+      <li><a href="http://www.cis.upenn.edu/~kkunal">Keshav Kunal</a></li> 
       <li><a href="http://www.seas.upenn.edu/~lescuyer">St&eacute;phane Lescuyer</a></li>
+      <li><a href="http://www.seas.upenn.edu/~vaughan2/">Jeff Vaughan</a></li>
     </ul>
     </td><td>
     <ul>

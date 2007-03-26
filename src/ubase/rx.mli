@@ -1,6 +1,5 @@
 (* Unison file synchronizer: src/ubase/rx.mli *)
-(* $Id$ *)
-(* Copyright 1999-2006 (see COPYING for details) *)
+(* Copyright 1999-2007 (see COPYING for details) *)
 
 type t
 
@@ -49,10 +48,6 @@ val match_substring : t -> string -> bool
    string starting at a given position.  Return the length of
    the matched prefix. *)
 val match_prefix : t -> string -> int -> int option
-
-val is_finite : t -> bool
-
-val init : unit -> unit
 
 (* Errors that can be raised during the parsing of Posix regular
    expressions *)

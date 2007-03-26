@@ -1,6 +1,5 @@
 (* Unison file synchronizer: src/ubase/trace.ml *)
-(* $Id$ *)
-(* Copyright 1999-2006 (see COPYING for details) *)
+(* Copyright 1999-2007 (see COPYING for details) *)
 
 (* ---------------------------------------------------------------------- *)
 (* Choosing where messages go *)
@@ -200,6 +199,12 @@ let statusDetail s =
   displayMessage (StatusMinor, ss)
 
 let log s = displayMessage (Log, s)
+
+let logverbose s =
+  let temp = !sendLogMsgsToStderr in
+  sendLogMsgsToStderr := !sendLogMsgsToStderr && not (Prefs.read terse);
+  displayMessage (Log, s);
+  sendLogMsgsToStderr := temp 
 
 (* ---------------------------------------------------------------------- *)
 (* Timing *)
