@@ -550,6 +550,13 @@ let set str =
   done;
   wrap (Set !s)
 
+let negset str = 
+  let s = ref [] in 
+  for i = 0 to String.length str - 1 do
+    s := cunion (csingle str.[i]) !s
+  done;
+    wrap (Set (cnegate 0 255 !s))
+
 let str s =
   let l = ref [] in
   for i = String.length s - 1 downto 0 do
