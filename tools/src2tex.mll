@@ -303,6 +303,15 @@ rule lex = parse
     else
       lex lexbuf
   }
+| '\n' ([' ' '\t']* as w) '|' { 
+    newLine := false; pc lexbuf (Lexing.lexeme_char lexbuf 0); 
+      let n = String.length w in 
+        for i=0 to n-1 do 
+          pc lexbuf w.[i]
+        done;
+        pc lexbuf ' ';
+      lex lexbuf
+  }
 | _ {
     newLine := false; pc lexbuf (Lexing.lexeme_char lexbuf 0); lex lexbuf
   }
