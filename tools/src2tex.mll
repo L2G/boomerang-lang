@@ -67,7 +67,7 @@
 	match c with
 	  '_' -> pr "{\\char95}"
 	| '#' -> pr "{\\char35}"
-	| ' ' -> pr "{\\TTSPACE}"
+	| ' ' -> pr "{ }"
 	| '$' -> pr "{\\char36}"
 	| '%' -> pr "{\\char37}"
 	| '&' -> pr "{\\char38}"
@@ -312,6 +312,7 @@ rule lex = parse
         pc lexbuf ' ';
       lex lexbuf
   }
+
 | _ {
     newLine := false; pc lexbuf (Lexing.lexeme_char lexbuf 0); lex lexbuf
   }
