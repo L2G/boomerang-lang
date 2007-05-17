@@ -87,6 +87,12 @@ val map_option : ('a -> 'b) -> 'a option -> 'b option
 val map2opt : ('a option -> 'b option -> 'c) -> 'a list -> 'b list -> 'c list
 (** [map2opt] is similar to [List.map2] but the function expects options, so the two lists do not have to be of the same size. *)
 
+(** {2 Alternative utility functions } *)
+type ('a,'b) alternative = Left of 'a | Right of 'b
+
+val map_left : ('a,'b) alternative -> ('a -> ('a,'b) alternative) -> ('a,'b) alternative
+
+val map_right : ('a,'b) alternative -> ('b -> ('a,'b) alternative) -> ('a,'b) alternative
 
 (** {2 String utility functions} *)
 

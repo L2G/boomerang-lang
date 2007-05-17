@@ -165,6 +165,17 @@ let map2opt f xs ys =
     | x::xs,y::ys -> loop ((f (Some x) (Some y))::acc) (xs,ys) in
   loop [] (xs,ys)
 
+(* ------------- Alternative utilities --------------- *)
+type ('a,'b) alternative = Left of 'a | Right of 'b
+
+let map_left alt f = match alt with 
+  | Left l -> f l
+  | r -> r
+      
+let map_right alt1 f = match alt1 with
+  | Right r -> f r
+  | l -> l
+
 (* ------------- String/Char utilities --------------- *)
 
 (* Based on String.escape 
