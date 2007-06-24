@@ -16,10 +16,10 @@ OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 
 # Make sure that the contents of the ubase library are copied from 
 # the ubase sources in the Unison distribution.  
-if $(equal $(USER), bcpierce) 
-  foreach (f, $(glob ubase/*.ml ubase/*.mli ubase/Makefile))
-    $(f): $(HOME)/current/unison/trunk/src/$(f)
-      cp $< $@
+#if $(equal $(USER), bcpierce) 
+#  foreach (f, $(glob ubase/*.ml ubase/*.mli ubase/Makefile))
+#    $(f): $(HOME)/current/unison/trunk/src/$(f)
+#      cp $< $@
 
 ##############################################################################
 # Helper tools
@@ -32,31 +32,37 @@ baker: baker.ml
 # only going to run things in place, we can skip this step and avoid
 # recompiling Harmony whenever .fcl files change in the examples.
 if $(mem install, $(TARGETS))
-  bakery.ml: $(SRCDIR)/baker $(FCLFILES)
-    ./$^ $(EXAMPLESDIR) $(LENSESDIR) > $@
+  $(SRCDIR)/bakery.ml: $(SRCDIR)/baker $(FCLFILES)
+    $< $(EXAMPLESDIR) $(LENSESDIR) > $@
 else
-  bakery.ml: $(SRCDIR)/baker
-    ./$^ > $@
+  $(SRCDIR)/bakery.ml: $(SRCDIR)/baker
+    $< > $@
 
 $(EXTERNDIR)/genepi/ocaml/genepi.cma:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepi.cmx:
 	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 $(EXTERNDIR)/genepi/ocaml/genepi.cmxa:
 	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmx:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepiLibrary.o:
 	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmi:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+$(EXTERNDIR)/ocaml-csv-1.0.3/csv.o:
+	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
 # Override some auto-generated .SCANNER rules for externally built .cmx files
-.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o
-.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx
-.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmo
-.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmx
-.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.o
-.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmo
+#.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o
+#.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx
+#.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmo
+#.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmx
+#.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.o
+#.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmo
 
 ##############################################################################
 # Testing
@@ -79,7 +85,7 @@ TAGS: :value: $(REAL_SOURCES)
 # Miscellaneous
 
 clean:
-	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES_BARE) baker
+	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES_BARE) baker bakery.cmo
 
 .SUBDIRS: ubase
   clean: 

@@ -5,7 +5,7 @@
 
 # This is needed only for the TAGS command; should be removed after the next
 # OMake release (it's to get around a bug)
-# BYTE_ENABLED = TRUE
+BYTE_ENABLED = TRUE
 
 ##############################################################################
 # Sub-directories
@@ -113,7 +113,7 @@ if $(not $(OCAMLFIND_EXISTS))
    eprintln(This project requires ocamlfind, but it was not found.)
    eprintln(You need to install ocamlfind and run "omake --configure".)
    exit 1
-OCAMLPACKS = "netstring,unix,str,pxp,pxp-engine,pxp-lex-utf8" 
+OCAMLPACKS = netstring unix str pxp pxp-engine pxp-lex-utf8
 
 OCAMLINCLUDES += $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/genepi/ocaml $(EXTERNDIR)/ocaml-csv-1.0.3 $(TOOLSDIR) $(LENSESDIR)
 OCAML_OTHER_LIBS += genepi csv

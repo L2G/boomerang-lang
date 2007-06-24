@@ -16,7 +16,7 @@ GENERATEDTEXFILES = $(foreach $(tmpname), $(SOURCEFILES))
 ##############################################################################
 
 main.pdf: $(GENERATEDTEXFILES)
-	@$(MAKE) pdf
+	$(MAKE) pdf
 
 pdf:
 	pdflatex main
@@ -25,7 +25,7 @@ pdf:
 	pdflatex main
 
 main.ps: $(GENERATEDTEXFILES)
-	@$(MAKE) ps
+	$(MAKE) ps
 
 ps:
 	latex main
