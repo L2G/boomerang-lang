@@ -3,14 +3,14 @@
 
 LocalOCamlGeneratedFiles($(GENERATED_SOURCES_BARE))
 
-RESULT = harmony
+RESULT = harmony 
 RESULTS = harmony.cmxa $(RESULT)
 
 OCamlProgram($(RESULT), $(rootname $(SOURCES)))
 OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 
 .DEFAULT: $(RESULTS)
-
+.SUBDIRS: boomerang
 ##############################################################################
 # Ubase library
 
