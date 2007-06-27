@@ -1,0 +1,164 @@
+(* --------------- iTunes --------------- *)
+
+(* --- WHITESPACE --- *)
+let opt_ws_nl = del_def /[\n \t]*/ "\n"
+let opt_ws_nl2 = del_def /[\n \t]*/ "\n  "
+let opt_ws_nl4 = del_def /[\n \t]*/ "\n    "
+let opt_ws = del /[ \n\t]*/ 
+let opt_st = del /[ \t]*/
+let opt_nl = set /\n?/ "\n"
+
+(* --- XML --- *)
+(* xml tags *)
+let xo (t:string) = "<" ^ t ^ ">"
+let xc (t:string) = "</" ^ t ^ ">"
+(* wrap a lens, delete xml tags *)
+let w (t:string) (l:lens) = (del (xo t)) . l . (del (xc t))
+
+(* --- PLIST --- *)
+let mk_l (tag:string) (dr:regexp) (kl:lens) (dl:regexp -> lens) =
+  opt_ws_nl2 . w "key" kl . opt_ws . w tag (dl dr) 
+
+let bool_l (kl:lens) (t:lens) (f:lens) =
+  opt_ws_nl2  . w "key" kl . opt_ws . (("<true/>" <-> "" . t) | ("<false/>" <-> "" . f))
+
+let integer_l = mk_l "integer" /[0-9]*/
+let string_l = mk_l "string" /[^\n<]*/
+let date_l = mk_l "date" /[0-9]{4} . - . [0-9]{2} . - . [0-9]{2} . T . [0-9]{2} . : . [0-9]{2} . : . [0-9]{2} . Z/
+let data_l = mk_l "data" /[^\n<]*/
+
+let any = /[^\n<]*/
+let unk = "UNKNOWN"
+let del_r (r:regexp) = del_def r unk
+
+let del_integer (r:regexp) = integer_l (del r) (fun (r:regexp) -> del r)
+let del_opt_integer (r:regexp) = (del_integer r)?
+let del_string (r:regexp) = (string_l (del r) (fun (r:regexp) -> del r))?
+let del_opt_string (r:regexp) = (del_string r)?
+let del_date (r:regexp) = (date_l (del r) (fun (r:regexp) -> del r))?
+let del_opt_date (r:regexp) = (del_date r)?
+let del_bool (r:regexp) = (bool_l (del r) "" "")?
+let del_opt_bool (r:regexp) = (del_bool r)?
+
+(* --- PLAYLIST ENTRY ---- *)
+let chunk = 
+  begin
+  opt_ws . w "key" (key (del any)) .
+  opt_ws_nl . del (xo "dict") . 
+  del_opt_integer "Track ID" . 
+  string_l ("Name" . ins "   : ") (fun (r:regexp) -> r . ins "\n") . 
+  string_l ("Artist" . ins " : ") (fun (r:regexp) -> r . ins "\n") . 
+  del_opt_string "Composer" . 
+  string_l ("Album" . ins "  : ") (fun (r:regexp) -> r . ins "\n") . 
+  del_opt_string "Genre" . 
+  del_opt_string "Kind" . 
+  del_opt_integer "Size" . 
+  del_opt_integer "Total Time" . 
+  del_opt_integer "Disc Number" . 
+  del_opt_integer "Disc Count" . 
+  del_opt_integer "Track Number" . 
+  del_opt_integer "Track Count" . 
+  del_opt_integer "Year" . 
+  del_opt_date "Date Modified" .
+  del_opt_date "Date Added" . 
+  del_opt_integer "Bit Rate" .
+  del_opt_integer "Sample Rate" . 
+  del_opt_integer "Play Count" . 
+  del_opt_integer "Play Date" . 
+  del_opt_date "Play Date UTC" . 
+  del_opt_integer "Normalization" . 
+  del_opt_bool "Compilation" . 
+  del_opt_string "Persistent ID" . 
+  del_opt_string "Track Type" . 
+  del_opt_integer "File Type" . 
+  del_opt_integer "File Creator" . 
+  del_opt_string "Location" . 
+  del_opt_integer "File Folder Count" . 
+  del_opt_integer "Library Folder Count" . 
+  opt_ws_nl . del (xc "dict") 
+  end
+default "
+<key>0000</key>
+<dict>
+  <key>Track ID</key><integer>0000</integer>
+  <key>Name</key><string>UNKNOWN</string>
+  <key>Artist</key><string>UNKNOWN</string>
+  <key>Composer</key><string>UNKNOWN</string>
+  <key>Album</key><string>UNKNOWN</string>
+  <key>Genre</key><string>UNKNOWN</string>
+  <key>Kind</key><string>UNKNOWN</string>
+  <key>Size</key><integer>0</integer>
+  <key>Total Time</key><integer>0</integer>
+  <key>Disc Number</key><integer>0</integer>
+  <key>Disc Count</key><integer>0</integer>
+  <key>Track Number</key><integer>0</integer>
+  <key>Track Count</key><integer>0</integer>
+  <key>Year</key><integer>1970</integer>
+  <key>Date Modified</key><date>1970-01-01T00:00:00Z</date>
+  <key>Date Added</key><date>1970-01-01T00:00:00Z</date>
+  <key>Bit Rate</key><integer>0</integer>
+  <key>Sample Rate</key><integer>0</integer>
+  <key>Play Count</key><integer>0</integer>
+  <key>Play Date</key><integer>0</integer>
+  <key>Play Date UTC</key><date>1970-01-01T00:00:00Z</date>
+  <key>Normalization</key><integer>0</integer>
+  <key>Persistent ID</key><string>UNKNOWN</string>
+  <key>Track Type</key><string>UNKNOWN</string>
+  <key>File Type</key><integer>0</integer>
+  <key>File Creator</key><integer>0</integer>
+  <key>Location</key><string>UNKNOWN</string>
+  <key>File Folder Count</key><integer>0</integer>
+  <key>Library Folder Count</key><integer>0</integer>
+</dict>"
+
+let del_metadata = 
+    del_string any 
+  | del_integer any
+  | del_date any
+  | del_bool any
+
+let del_playlist_item = 
+  opt_ws . del (xo "dict") . 
+  integer_l (del any) (fun (r:regexp) -> del r) . 
+  opt_ws . del (xc "dict") 
+
+let del_playlist = 
+  opt_ws_nl2 . (del (xo "array")) . 
+  opt_ws_nl2 . del (xo "dict") . 
+  (opt_ws_nl4 . del_metadata)* . 
+  opt_ws_nl4 . w "key" (del "Playlist Items") . 
+  opt_ws_nl4 . del (xo "array") . 
+  del_playlist_item* . 
+  opt_ws_nl4 . del (xc "array") . 
+  opt_ws_nl2 . del (xc "dict") . 
+  opt_ws_nl2. del (xc "array")
+
+(* main lenses *)
+let library = 
+  del 
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+    |<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+    |<plist version=\"1.0\">" .
+    opt_ws_nl . (del (xo "dict")) .
+    opt_ws . (del_metadata . opt_ws)* . 
+    opt_ws_nl . w "key" (del "Tracks") .
+    opt_ws_nl . del (xo "dict") . 
+      ( opt_ws | [chunk] . (ins "\n" . [chunk])* ) . 
+    opt_ws_nl . del (xc "dict") .  
+    opt_ws_nl2 . w "key" (del "Playlists") .
+      del_playlist .
+    opt_ws_nl . del (xc "dict") .
+    opt_ws_nl . del (xc "plist") . 
+    opt_ws   
+
+test library get (read "lib.xml") = ?
+
+test library create 
+"Name   : Bruch: Scottish Fantasy, Op. 46 - Einleitung - Grave
+|Artist : Maxim Fedotov, Dmitry Yablonsky; Russian Philharmonic Orchestra
+|Album  : Bruch: Scottish Fantasy, Op. 46, Serenade, Op. 75
+|
+|Name   : Bruch: Scottish Fantasy, Op. 46 - Adagio Cantabile
+|Artist : Maxim Fedotov, Dmitry Yablonsky; Russian Philharmonic Orchestra
+|Album  : Bruch: Scottish Fantasy, Op. 46, Serenade, Op. 75
+|" = ?

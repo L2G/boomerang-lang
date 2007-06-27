@@ -1,0 +1,114 @@
+(* ----------- business cards ----------- *)
+let del_ws = delete_def /[ \n\t]*/ "\n"
+
+let URI = /[^"\n]*/
+let field (xml:string) (ascii:string) = 
+  del_ws . ("<"^xml^">") <-> (ascii^" ") . 
+  /[^\n<]*/ . ("</"^xml^">") <-> "\n" 
+
+match _ with 
+  del_ws . "<card>"<->"" .
+  field "name" "N" .
+  field "title" "T" .
+  field "email" "E" .
+  field "phone" "P" .
+  del_ws . "<logo uri=\"" <-> "L " . URI . "\"/>" <-> "\n" .
+  del_ws . "</card>" <-> "" 
+default "
+        |  <card>
+        |    <name>UNKNOWN</name>
+        |    <title>UNKNOWN</title>
+        |    <email>UNKNOWN</email>
+        |    <phone>UNKNOWN</phone>
+        |    <logo uri=\"UNKNOWN\"/>
+        |  </card>"
+             
+let cards = "<cards>" <-> "" . [_]* . del_ws . "</cards>" <-> ""
+
+test cards get put
+  "<cards>
+  |</cards>" 
+= 
+  ""
+test cards get put
+  "<cards>
+  |  <card>
+  |    <name>John Doe</name>
+  |    <title>CEO, Widget Inc.</title>
+  |    <email>jdoe@widget.com</email>
+  |    <phone>(202) 555-1414</phone>
+  |    <logo uri=\"http://www.widget.com/~jdoe/john.png\"/>
+  |  </card>
+  |</cards>"
+=
+  "N John Doe
+  |T CEO, Widget Inc.
+  |E jdoe@widget.com
+  |P (202) 555-1414
+  |L http://www.widget.com/~jdoe/john.png
+  |"
+
+test cards create
+  "N John Doe
+  |T CEO, Widget Inc.
+  |E jdoe@widget.com
+  |P (202) 555-1414
+  |L http://www.widget.com/~jdoe/john.png
+  |N Jane Brown
+  |T CEO, Doohickey Inc.
+  |E jane@doohickey.com
+  |P (202) 555-1515
+  |L http://www.doohickey.com/~jane/me.png
+  |" 
+= "<cards>
+  |  <card>
+  |    <name>John Doe</name>
+  |    <title>CEO, Widget Inc.</title>
+  |    <email>jdoe@widget.com</email>
+  |    <phone>(202) 555-1414</phone>
+  |    <logo uri=\"http://www.widget.com/~jdoe/john.png\"/>
+  |  </card>
+  |  <card>
+  |    <name>Jane Brown</name>
+  |    <title>CEO, Doohickey Inc.</title>
+  |    <email>jane@doohickey.com</email>
+  |    <phone>(202) 555-1515</phone>
+  |    <logo uri=\"http://www.doohickey.com/~jane/me.png\"/>
+  |  </card>
+  |</cards>"
+
+test cards put
+  "N John Doe
+  |T CEO, Widget Inc.
+  |E jdoe@widget.com
+  |P (202) 555-1414
+  |L http://www.widget.com/~jdoe/john.png
+  |" 
+
+  "<cards>
+  |       <card>
+  |             <name></name>
+  |             <title></title>
+  |             <email></email>
+  |             <phone></phone>
+  |             <logo uri=\"\"/>
+  |       </card>
+  |</cards>" 
+= 
+  "<cards>
+  |       <card>
+  |             <name>John Doe</name>
+  |             <title>CEO, Widget Inc.</title>
+  |             <email>jdoe@widget.com</email>
+  |             <phone>(202) 555-1414</phone>
+  |             <logo uri=\"http://www.widget.com/~jdoe/john.png\"/>
+  |       </card>
+  |</cards>"
+
+test cards create
+  "N John Doe
+  |T CEO, Widget Inc.
+  |E jdoe@widget.com
+  |P (202) 555-1414
+  |L http://www.widget.com/~jdoe/john.png
+  |" = ?

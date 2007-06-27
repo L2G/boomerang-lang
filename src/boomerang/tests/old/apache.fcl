@@ -1,0 +1,20 @@
+let IP = /([0-9]{1,3} . \.){3} . [0-9]{1,33}/ 
+let HOST = /[a-zA-Z0-9.\-_]*/
+let STRING = /" . [^"]* . "/   (* " *)
+
+let line = 
+ del IP . 
+ del /\ -\ / .
+ ins "HOST  : " . cp HOST . 
+ del /\ -\ / . 
+ del /\[ . [^\]]* . ]\ / .
+ ins "\nTARGET: " . cp STRING . 
+ (del /\ . `STRING /){2} . 
+ cp /\n/
+
+test line get 
+"195.93.102.69 - cache-prs-ac05.proxy.aol.com - [01/Apr/2007:08:27:28 -700] \"GET http://www.cis.upenn.edu/~jnfoster/ HTTP/1.1\" \"http://images.google.fr/imgres?imgurl=http://www.cis.upenn.edu/~jnfoster/pics/mansard.jpg&imgrefurl=http://www.cis.upenn.edu/~jnfoster/&h=418&w=313&sz=27&hl=fr&start=10&tbnid=XUuXMGH65TZNtM:&tbnh=125&tbnw=94&prev=/images%3Fq%3Dmansard%26gbv%3D2%26svnum%3D10%26hl%3Dfr%26ie%3DUTF-8%26oe%3DISO-8859-1\" \"Mozilla/4.0 (compatible; MSIE 7.0; AOL 9.0; Windows NT 5.1; .NET CLR 1.0.3705)\"" = ?
+
+let lines = / / | line . (ins "\n" . line)*
+
+test lines get (read "apache.log") = ?
