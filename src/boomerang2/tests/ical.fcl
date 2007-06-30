@@ -1,0 +1,305 @@
+let TEXT : regexp = [^\r\n]* | ([^\r\n]* . "\r\n " . [^\r\n]* )
+let NL : regexp = [\r\n] | "\r\n"
+    
+let PROP : regexp = 
+   "VERSION" | "PRODID" | "CALSCALE" | "METHOD" | "URL" | "RECURRENCE-ID"
+  | "DUE" | "DTEND" | "DTSTAMP" | "DURATION" | "ATTACH" | "ATTENDEE" | "CATEGORIES" | "COMMENT"
+  | "CONTACT" | "EXDATE" | "EXRULE" | "RSTATUS" | "RELATED-TO" | "DESCRIPTION"
+  | "RESOURCES" | "RDATE" | "RRULE" | "ACTION" | "TRIGGER" | "REPEAT" | "SEQUENCE" | "LOCATION" 
+  | "TZID" | "TZURL" | "TZOFFSETTO" | "TZOFFSETFROM"| "TZNAME"| "LAST-MODIFIED"
+  | ("X-" . ([^:]* ))
+
+let month : clens = 
+    "01" <-> "Jan"
+  | "02" <-> "Feb"
+  | "03" <-> "Mar"
+  | "04" <-> "Apr"
+  | "05" <-> "May"
+  | "06" <-> "Jun"
+  | "07" <-> "Jul"
+  | "08" <-> "Aug"
+  | "09" <-> "Sep"
+  | "10" <-> "Oct"
+  | "11" <-> "Nov"
+  | "12" <-> "Dec"
+
+let date : clens =  
+  cp [0-9]{4} . 
+  ins " " . month . 
+  ins " " . cp [0-9]{2} . 
+  "T" <-> " " . 
+  cp [0-9]{2} . 
+  (ins ":" . cp [0-9]{2}){2}
+
+let calprops : clens = del ((PROP . ":" . TEXT . NL)* )
+
+let APROP : regexp = 
+      ("DTSTART:" . TEXT . NL)
+    | (PROP . (";" . ([^:]* ))? . ":" . TEXT . NL)
+
+let allprops : clens = del APROP* 
+
+let eventc = 
+  let dtstart = del ("DTSTART;" . ([^:]* ) . ":") . date . (NL <-> "\n") in 
+  let summary = del "SUMMARY:" . TEXT . (NL <-> "\n") in
+  let uid = del "UID:" . key TEXT . (NL <-> "\n") in 
+  let uid_l = uid . allprops in 
+  let dt_l = dtstart . allprops in 
+  let sum_l = summary . allprops in 
+    ( allprops . ((dt_l . sum_l) ~ uid_l)
+    | allprops . (dt_l ~ uid_l) . sum_l
+    | allprops . uid_l . dt_l . sum_l
+    | allprops . uid_l . (sum_l ~ dt_l)
+    | allprops . (sum_l ~ (uid_l . dt_l))
+    | allprops . (sum_l ~ (dt_l ~ uid_l)))
+
+let event = 
+   del ("BEGIN:VEVENT" . NL) . 
+   eventc . 
+   del (("BEGIN:VALARM" . NL . (APROP* ) . "END:VALARM" . NL)* ).
+   del ("END:VEVENT" . NL)
+
+let timezone = 
+  del ("BEGIN:VTIMEZONE" . NL . 
+       (APROP 
+       | ("BEGIN:STANDARD" . NL . (APROP* ) . "END:STANDARD" . NL)
+       | ("BEGIN:DAYLIGHT" . NL . (APROP* ) . "END:DAYLIGHT" . NL))* .  
+       "END:VTIMEZONE") . 
+  NL <-> "TIMEZONE\n"
+
+let todo = ("BEGIN:VTODO" . NL . APROP* . "END:VTODO" . NL) <-> "TODO\n"
+
+let chunk = event | timezone | todo
+
+let components = "" | <chunk> . ((ins "\n" . <chunk>)* )
+
+let ical = 
+  del ("BEGIN:VCALENDAR" . NL) . 
+  calprops . 
+  components . 
+  del ("END:VCALENDAR" . NL)
+
+(* source iCalendar *)
+let c = 
+  "BEGIN:VCALENDAR
+  |VERSION:2.0
+  |X-WR-CALNAME:Work
+  |PRODID:-//Apple Computer\\, Inc//iCal 2.0//EN
+  |X-WR-RELCALID:10AC3F85-857B-47EB-A0CD-337E63C93624
+  |X-WR-TIMEZONE:US/Eastern
+  |CALSCALE:GREGORIAN
+  |METHOD:PUBLISH
+  |BEGIN:VTIMEZONE
+  |TZID:US/Eastern
+  |LAST-MODIFIED:20070424T135554Z
+  |BEGIN:STANDARD
+  |DTSTART:20041031T060000
+  |TZOFFSETTO:-0500
+  |TZOFFSETFROM:+0000
+  |TZNAME:EST
+  |END:STANDARD
+  |BEGIN:DAYLIGHT
+  |DTSTART:20050403T010000
+  |TZOFFSETTO:-0400
+  |TZOFFSETFROM:-0500
+  |TZNAME:EDT
+  |END:DAYLIGHT
+  |END:VTIMEZONE
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20070117T090000
+  |LOCATION:Nice
+  |DTEND;TZID=US/Eastern:20070119T170000
+  |SUMMARY:POPL Conference
+  |UID:0A8790C6-4896-4399-B13C-2A7C71A3D388
+  |SEQUENCE:3
+  |DTSTAMP:20061205T210039Z
+  |END:VEVENT
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20050213T230000
+  |DTEND;TZID=US/Eastern:20050214T000000
+  |SUMMARY:ICALP Deadline
+  |UID:B29AC30C-230C-486D-BC01-4DB1F4DF6F4D
+  |SEQUENCE:1
+  |DTSTAMP:20050129T025549Z
+  |END:VEVENT
+  |BEGIN:VEVENT
+  |LOCATION:Levine 312
+  |DTSTAMP:20060109T174725Z
+  |UID:FBF88968-1A01-4F69-A8C9-7B975C39180C
+  |SEQUENCE:7
+  |DTSTART;TZID=US/Eastern:20060113T121500
+  |SUMMARY:PLClub Seminar
+  |DTEND;TZID=US/Eastern:20060113T133000
+  |RRULE:FREQ=WEEKLY;INTERVAL=1
+  |END:VEVENT
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20061206T133000
+  |DTEND;TZID=US/Eastern:20061206T150000
+  |SUMMARY:MATH 502 Final
+  |UID:35170F4A-9878-4B5E-B55D-8A4958618FCC
+  |SEQUENCE:2
+  |DTSTAMP:20061205T205802Z
+  |END:VEVENT
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20061208T150000
+  |DTEND;TZID=US/Eastern:20061208T164500
+  |SUMMARY:WPE II Defense
+  |UID:1DE538BC-F31F-455B-8D1C-D45652781066
+  |SEQUENCE:2
+  |DTSTAMP:20061205T205752Z
+  |END:VEVENT
+  |END:VCALENDAR
+  |"
+
+(* view computed by the lens. note that:
+
+   - the VTIMEZONE block is condensed down to a single line
+   'TIMEZONE'. this marker is used by the PUT function to determine
+   where it should restore the discarded data.
+
+   - order of UID/DTSTART/SUMMARY data is canonicalized. 
+*)
+test ical get c = 
+  "TIMEZONE
+  |
+  |0A8790C6-4896-4399-B13C-2A7C71A3D388
+  |2007 Jan 17 09:00:00
+  |POPL Conference
+  |
+  |B29AC30C-230C-486D-BC01-4DB1F4DF6F4D
+  |2005 Feb 13 23:00:00
+  |ICALP Deadline
+  |
+  |FBF88968-1A01-4F69-A8C9-7B975C39180C
+  |2006 Jan 13 12:15:00
+  |PLClub Seminar
+  |
+  |35170F4A-9878-4B5E-B55D-8A4958618FCC
+  |2006 Dec 06 13:30:00
+  |MATH 502 Final
+  |
+  |1DE538BC-F31F-455B-8D1C-D45652781066
+  |2006 Dec 08 15:00:00
+  |WPE II Defense
+  |"
+
+(* now let's try an update:
+   - swap the order of first two entries
+   - delete the subsequent two entries
+   - change the date on last entry
+*)
+test ical put 
+  "TIMEZONE
+  |
+  |B29AC30C-230C-486D-BC01-4DB1F4DF6F4D
+  |2005 Feb 13 23:00:00
+  |ICALP Deadline
+  |
+  |0A8790C6-4896-4399-B13C-2A7C71A3D388
+  |2007 Jan 17 09:00:00
+  |POPL Conference
+  |
+  |1DE538BC-F31F-455B-8D1C-D45652781066
+  |2006 Dec 09 14:30:00
+  |WPE II Defense
+  |"
+    into c = 
+  "BEGIN:VCALENDAR
+  |VERSION:2.0
+  |X-WR-CALNAME:Work
+  |PRODID:-//Apple Computer\\, Inc//iCal 2.0//EN
+  |X-WR-RELCALID:10AC3F85-857B-47EB-A0CD-337E63C93624
+  |X-WR-TIMEZONE:US/Eastern
+  |CALSCALE:GREGORIAN
+  |METHOD:PUBLISH
+  |BEGIN:VTIMEZONE
+  |TZID:US/Eastern
+  |LAST-MODIFIED:20070424T135554Z
+  |BEGIN:STANDARD
+  |DTSTART:20041031T060000
+  |TZOFFSETTO:-0500
+  |TZOFFSETFROM:+0000
+  |TZNAME:EST
+  |END:STANDARD
+  |BEGIN:DAYLIGHT
+  |DTSTART:20050403T010000
+  |TZOFFSETTO:-0400
+  |TZOFFSETFROM:-0500
+  |TZNAME:EDT
+  |END:DAYLIGHT
+  |END:VTIMEZONE
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20050213T230000
+  |DTEND;TZID=US/Eastern:20050214T000000
+  |SUMMARY:ICALP Deadline
+  |UID:B29AC30C-230C-486D-BC01-4DB1F4DF6F4D
+  |SEQUENCE:1
+  |DTSTAMP:20050129T025549Z
+  |END:VEVENT
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20070117T090000
+  |LOCATION:Nice
+  |DTEND;TZID=US/Eastern:20070119T170000
+  |SUMMARY:POPL Conference
+  |UID:0A8790C6-4896-4399-B13C-2A7C71A3D388
+  |SEQUENCE:3
+  |DTSTAMP:20061205T210039Z
+  |END:VEVENT
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20061209T143000
+  |DTEND;TZID=US/Eastern:20061208T164500
+  |SUMMARY:WPE II Defense
+  |UID:1DE538BC-F31F-455B-8D1C-D45652781066
+  |SEQUENCE:2
+  |DTSTAMP:20061205T205752Z
+  |END:VEVENT
+  |END:VCALENDAR
+  |"
+
+(* now let's try another update:
+   - delete all but last entry
+   - move TIMEZONE to end
+*)
+test ical put 
+  "1DE538BC-F31F-455B-8D1C-D45652781066
+  |2006 Dec 09 14:30:00
+  |WPE II Defense
+  |
+  |TIMEZONE
+  |"
+into c = 
+  "BEGIN:VCALENDAR
+  |VERSION:2.0
+  |X-WR-CALNAME:Work
+  |PRODID:-//Apple Computer\\, Inc//iCal 2.0//EN
+  |X-WR-RELCALID:10AC3F85-857B-47EB-A0CD-337E63C93624
+  |X-WR-TIMEZONE:US/Eastern
+  |CALSCALE:GREGORIAN
+  |METHOD:PUBLISH
+  |BEGIN:VEVENT
+  |DTSTART;TZID=US/Eastern:20061209T143000
+  |DTEND;TZID=US/Eastern:20061208T164500
+  |SUMMARY:WPE II Defense
+  |UID:1DE538BC-F31F-455B-8D1C-D45652781066
+  |SEQUENCE:2
+  |DTSTAMP:20061205T205752Z
+  |END:VEVENT
+  |BEGIN:VTIMEZONE
+  |TZID:US/Eastern
+  |LAST-MODIFIED:20070424T135554Z
+  |BEGIN:STANDARD
+  |DTSTART:20041031T060000
+  |TZOFFSETTO:-0500
+  |TZOFFSETFROM:+0000
+  |TZNAME:EST
+  |END:STANDARD
+  |BEGIN:DAYLIGHT
+  |DTSTART:20050403T010000
+  |TZOFFSETTO:-0400
+  |TZOFFSETFROM:-0500
+  |TZNAME:EDT
+  |END:DAYLIGHT
+  |END:VTIMEZONE
+  |END:VCALENDAR
+  |"
+

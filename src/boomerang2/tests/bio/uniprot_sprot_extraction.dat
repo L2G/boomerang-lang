@@ -1,0 +1,492 @@
+ID   104K_THEAN              Reviewed;         893 AA.
+AC   Q4U9M9;
+DT   18-APR-2006, integrated into UniProtKB/Swiss-Prot.
+DT   05-JUL-2005, sequence version 1.
+DT   20-FEB-2007, entry version 10.
+DE   104 kDa microneme-rhoptry antigen precursor (p104).
+GN   ORFNames=TA08425;
+OS   Theileria annulata.
+OC   Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Piroplasmida;
+OC   Theileriidae; Theileria.
+OX   NCBI_TaxID=5874;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Ankara;
+RX   PubMed=15994557; DOI=10.1126/science.1110418;
+RA   Pain A., Renauld H., Berriman M., Murphy L., Yeats C.A., Weir W.,
+RA   Kerhornou A., Aslett M., Bishop R., Bouchier C., Cochet M.,
+RA   Coulson R.M.R., Cronin A., de Villiers E.P., Fraser A., Fosker N.,
+RA   Gardner M., Goble A., Griffiths-Jones S., Harris D.E., Katzer F.,
+RA   Larke N., Lord A., Maser P., McKellar S., Mooney P., Morton F.,
+RA   Nene V., O'Neil S., Price C., Quail M.A., Rabbinowitsch E.,
+RA   Rawlings N.D., Rutter S., Saunders D., Seeger K., Shah T., Squares R.,
+RA   Squares S., Tivey A., Walker A.R., Woodward J., Dobbelaere D.A.E.,
+RA   Langsley G., Rajandream M.A., McKeever D., Shiels B., Tait A.,
+RA   Barrell B.G., Hall N.;
+RT   "Genome of the host-cell transforming parasite Theileria annulata
+RT   compared with T. parva.";
+RL   Science 309:131-133(2005).
+CC   -!- SUBCELLULAR LOCATION: Cell membrane; lipid-anchor; GPI-anchor
+CC       (Potential). Note=In microneme/rhoptry complexes (By similarity).
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
+DR   InterPro; IPR007480; DUF529.
+DR   Pfam; PF04385; FAINT; 4.
+KW   Complete proteome; GPI-anchor; Lipoprotein; Membrane; Repeat; Signal;
+KW   Sporozoite.
+FT   SIGNAL        1     19       Potential.
+FT   CHAIN        20    873       104 kDa microneme-rhoptry antigen.
+FT                                /FTId=PRO_0000232680.
+FT   PROPEP      874    893       Removed in mature form (Potential).
+FT                                /FTId=PRO_0000232681.
+FT   COMPBIAS    215    220       Poly-Leu.
+FT   COMPBIAS    486    683       Lys-rich.
+FT   COMPBIAS    854    859       Poly-Arg.
+FT   LIPID       873    873       GPI-anchor amidated aspartate
+FT                                (Potential).
+SQ   SEQUENCE   893 AA;  101921 MW;  2F67CEB3B02E7AC1 CRC64;
+     MKFLVLLFNI LCLFPILGAD ELVMSPIPTT DVQPKVTFDI NSEVSSGPLY LNPVEMAGVK
+     YLQLQRQPGV QVHKVVEGDI VIWENEEMPL YTCAIVTQNE VPYMAYVELL EDPDLIFFLK
+     EGDQWAPIPE DQYLARLQQL RQQIHTESFF SLNLSFQHEN YKYEMVSSFQ HSIKMVVFTP
+     KNGHICKMVY DKNIRIFKAL YNEYVTSVIG FFRGLKLLLL NIFVIDDRGM IGNKYFQLLD
+     DKYAPISVQG YVATIPKLKD FAEPYHPIIL DISDIDYVNF YLGDATYHDP GFKIVPKTPQ
+     CITKVVDGNE VIYESSNPSV ECVYKVTYYD KKNESMLRLD LNHSPPSYTS YYAKREGVWV
+     TSTYIDLEEK IEELQDHRST ELDVMFMSDK DLNVVPLTNG NLEYFMVTPK PHRDIIIVFD
+     GSEVLWYYEG LENHLVCTWI YVTEGAPRLV HLRVKDRIPQ NTDIYMVKFG EYWVRISKTQ
+     YTQEIKKLIK KSKKKLPSIE EEDSDKHGGP PKGPEPPTGP GHSSSESKEH EDSKESKEPK
+     EHGSPKETKE GEVTKKPGPA KEHKPSKIPV YTKRPEFPKK SKSPKRPESP KSPKRPVSPQ
+     RPVSPKSPKR PESLDIPKSP KRPESPKSPK RPVSPQRPVS PRRPESPKSP KSPKSPKSPK
+     VPFDPKFKEK LYDSYLDKAA KTKETVTLPP VLPTDESFTH TPIGEPTAEQ PDDIEPIEES
+     VFIKETGILT EEVKTEDIHS ETGEPEEPKR PDSPTKHSPK PTGTHPSMPK KRRRSDGLAL
+     STTDLESEAG RILRDPTGKI VTMKRSKSFD DLTTVREKEH MGAEIRKIVV DDDGTEADDE
+     DTHPSKEKHL STVRRRRPRP KKSSKSSKPR KPDSAFVPSI IFIFLVSLIV GIL
+//
+ID   104K_THEPA              Reviewed;         924 AA.
+AC   P15711; Q4N2B5;
+DT   01-APR-1990, integrated into UniProtKB/Swiss-Prot.
+DT   01-APR-1990, sequence version 1.
+DT   01-MAY-2007, entry version 34.
+DE   104 kDa microneme-rhoptry antigen precursor (p104).
+GN   OrderedLocusNames=TP04_0437;
+OS   Theileria parva.
+OC   Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Piroplasmida;
+OC   Theileriidae; Theileria.
+OX   NCBI_TaxID=5875;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [GENOMIC DNA].
+RC   STRAIN=Muguga;
+RX   MEDLINE=90158697; PubMed=1689460; DOI=10.1016/0166-6851(90)90007-9;
+RA   Iams K.P., Young J.R., Nene V., Desai J., Webster P., Ole-Moiyoi O.K.,
+RA   Musoke A.J.;
+RT   "Characterisation of the gene encoding a 104-kilodalton microneme-
+RT   rhoptry protein of Theileria parva.";
+RL   Mol. Biochem. Parasitol. 39:47-60(1990).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Muguga;
+RX   PubMed=15994558; DOI=10.1126/science.1110439;
+RA   Gardner M.J., Bishop R., Shah T., de Villiers E.P., Carlton J.M.,
+RA   Hall N., Ren Q., Paulsen I.T., Pain A., Berriman M., Wilson R.J.M.,
+RA   Sato S., Ralph S.A., Mann D.J., Xiong Z., Shallom S.J., Weidman J.,
+RA   Jiang L., Lynn J., Weaver B., Shoaibi A., Domingo A.R., Wasawo D.,
+RA   Crabtree J., Wortman J.R., Haas B., Angiuoli S.V., Creasy T.H., Lu C.,
+RA   Suh B., Silva J.C., Utterback T.R., Feldblyum T.V., Pertea M.,
+RA   Allen J., Nierman W.C., Taracha E.L.N., Salzberg S.L., White O.R.,
+RA   Fitzhugh H.A., Morzaria S., Venter J.C., Fraser C.M., Nene V.;
+RT   "Genome sequence of Theileria parva, a bovine pathogen that transforms
+RT   lymphocytes.";
+RL   Science 309:134-137(2005).
+CC   -!- SUBCELLULAR LOCATION: Cell membrane; lipid-anchor; GPI-anchor
+CC       (Potential). Note=In microneme/rhoptry complexes.
+CC   -!- DEVELOPMENTAL STAGE: Sporozoite antigen.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; M29954; AAA18217.1; -; Unassigned_DNA.
+DR   EMBL; AAGK01000004; EAN31789.1; -; Genomic_DNA.
+DR   PIR; A44945; A44945.
+DR   InterPro; IPR007480; DUF529.
+DR   Pfam; PF04385; FAINT; 4.
+DR   PRINTS; PR01217; PRICHEXTENSN.
+KW   Complete proteome; GPI-anchor; Lipoprotein; Membrane; Repeat; Signal;
+KW   Sporozoite.
+FT   SIGNAL        1     19       Potential.
+FT   CHAIN        20    904       104 kDa microneme-rhoptry antigen.
+FT                                /FTId=PRO_0000046081.
+FT   PROPEP      905    924       Removed in mature form (Potential).
+FT                                /FTId=PRO_0000232679.
+FT   COMPBIAS    508    753       Pro-rich.
+FT   COMPBIAS    880    883       Poly-Arg.
+FT   LIPID       904    904       GPI-anchor amidated aspartate
+FT                                (Potential).
+SQ   SEQUENCE   924 AA;  103626 MW;  289B4B554A61870E CRC64;
+     MKFLILLFNI LCLFPVLAAD NHGVGPQGAS GVDPITFDIN SNQTGPAFLT AVEMAGVKYL
+     QVQHGSNVNI HRLVEGNVVI WENASTPLYT GAIVTNNDGP YMAYVEVLGD PNLQFFIKSG
+     DAWVTLSEHE YLAKLQEIRQ AVHIESVFSL NMAFQLENNK YEVETHAKNG ANMVTFIPRN
+     GHICKMVYHK NVRIYKATGN DTVTSVVGFF RGLRLLLINV FSIDDNGMMS NRYFQHVDDK
+     YVPISQKNYE TGIVKLKDYK HAYHPVDLDI KDIDYTMFHL ADATYHEPCF KIIPNTGFCI
+     TKLFDGDQVL YESFNPLIHC INEVHIYDRN NGSIICLHLN YSPPSYKAYL VLKDTGWEAT
+     THPLLEEKIE ELQDQRACEL DVNFISDKDL YVAALTNADL NYTMVTPRPH RDVIRVSDGS
+     EVLWYYEGLD NFLVCAWIYV SDGVASLVHL RIKDRIPANN DIYVLKGDLY WTRITKIQFT
+     QEIKRLVKKS KKKLAPITEE DSDKHDEPPE GPGASGLPPK APGDKEGSEG HKGPSKGSDS
+     SKEGKKPGSG KKPGPAREHK PSKIPTLSKK PSGPKDPKHP RDPKEPRKSK SPRTASPTRR
+     PSPKLPQLSK LPKSTSPRSP PPPTRPSSPE RPEGTKIIKT SKPPSPKPPF DPSFKEKFYD
+     DYSKAASRSK ETKTTVVLDE SFESILKETL PETPGTPFTT PRPVPPKRPR TPESPFEPPK
+     DPDSPSTSPS EFFTPPESKR TRFHETPADT PLPDVTAELF KEPDVTAETK SPDEAMKRPR
+     SPSEYEDTSP GDYPSLPMKR HRLERLRLTT TEMETDPGRM AKDASGKPVK LKRSKSFDDL
+     TTVELAPEPK ASRIVVDDEG TEADDEETHP PEERQKTEVR RRRPPKKPSK SPRPSKPKKP
+     KKPDSAYIPS ILAILVVSLI VGIL
+//
+ID   108_SOLLC               Reviewed;         102 AA.
+AC   Q43495;
+DT   15-JUL-1999, integrated into UniProtKB/Swiss-Prot.
+DT   01-NOV-1996, sequence version 1.
+DT   01-MAY-2007, entry version 40.
+DE   Protein 108 precursor.
+OS   Solanum lycopersicum (Tomato) (Lycopersicon esculentum).
+OC   Eukaryota; Viridiplantae; Streptophyta; Embryophyta; Tracheophyta;
+OC   Spermatophyta; Magnoliophyta; eudicotyledons; core eudicotyledons;
+OC   asterids; lamiids; Solanales; Solanaceae; Solanoideae; Solaneae;
+OC   Solanum; Lycopersicon.
+OX   NCBI_TaxID=4081;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA].
+RC   STRAIN=cv. VF36; TISSUE=Anther;
+RX   MEDLINE=94143497; PubMed=8310077; DOI=10.1104/pp.101.4.1413;
+RA   Chen R., Smith A.G.;
+RT   "Nucleotide sequence of a stamen- and tapetum-specific gene from
+RT   Lycopersicon esculentum.";
+RL   Plant Physiol. 101:1413-1413(1993).
+CC   -!- TISSUE SPECIFICITY: Stamen- and tapetum-specific.
+CC   -!- SIMILARITY: Belongs to the A9/FIL1 family.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; Z14088; CAA78466.1; -; mRNA.
+DR   PIR; S26409; S26409.
+DR   UniGene; Les.3896; -.
+DR   InterPro; IPR003612; LTP/seed_store/tryp_amyl_inhib.
+DR   Pfam; PF00234; Tryp_alpha_amyl; 1.
+DR   SMART; SM00499; AAI; 1.
+KW   Signal.
+FT   SIGNAL        1     30       Potential.
+FT   CHAIN        31    102       Protein 108.
+FT                                /FTId=PRO_0000000238.
+FT   DISULFID     41     77       By similarity.
+FT   DISULFID     51     66       By similarity.
+FT   DISULFID     67     92       By similarity.
+FT   DISULFID     79     99       By similarity.
+SQ   SEQUENCE   102 AA;  10576 MW;  CFBAA1231C3A5E92 CRC64;
+     MASVKSSSSS SSSSFISLLL LILLVIVLQS QVIECQPQQS CTASLTGLNV CAPFLVPGSP
+     TASTECCNAV QSINHDCMCN TMRIAAQIPA QCNLPPLSCS AN
+//
+ID   10KD_VIGUN              Reviewed;          75 AA.
+AC   P18646;
+DT   01-NOV-1990, integrated into UniProtKB/Swiss-Prot.
+DT   01-NOV-1990, sequence version 1.
+DT   01-MAY-2007, entry version 43.
+DE   10 kDa protein precursor (Clone PSAS10).
+OS   Vigna unguiculata (Cowpea).
+OC   Eukaryota; Viridiplantae; Streptophyta; Embryophyta; Tracheophyta;
+OC   Spermatophyta; Magnoliophyta; eudicotyledons; core eudicotyledons;
+OC   rosids; eurosids I; Fabales; Fabaceae; Papilionoideae; Phaseoleae;
+OC   Vigna.
+OX   NCBI_TaxID=3917;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA].
+RC   TISSUE=Cotyledon;
+RX   MEDLINE=91355865; PubMed=2103443;
+RA   Ishibashi N., Yamauchi D., Minamikawa T.;
+RT   "Stored mRNA in cotyledons of Vigna unguiculata seeds: nucleotide
+RT   sequence of cloned cDNA for a stored mRNA and induction of its
+RT   synthesis by precocious germination.";
+RL   Plant Mol. Biol. 15:59-64(1990).
+CC   -!- FUNCTION: This protein is required for germination.
+CC   -!- SIMILARITY: Belongs to the plant defensin family.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; X16877; CAA34760.1; -; mRNA.
+DR   PIR; S11156; S11156.
+DR   HSSP; P81929; 1JKZ.
+DR   InterPro; IPR008176; Gamma-thionin.
+DR   InterPro; IPR003614; Knot1.
+DR   Gene3D; G3DSA:3.30.30.10; G3DSA:3.30.30.10; 1.
+DR   Pfam; PF00304; Gamma-thionin; 1.
+DR   SMART; SM00505; Knot1; 1.
+DR   PROSITE; PS00940; GAMMA_THIONIN; 1.
+KW   Germination; Signal.
+FT   SIGNAL        1     24       Potential.
+FT   CHAIN        25     75       10 kDa protein.
+FT                                /FTId=PRO_0000007058.
+FT   DISULFID     31     75       By similarity.
+FT   DISULFID     42     63       By similarity.
+FT   DISULFID     48     69       By similarity.
+FT   DISULFID     52     71       By similarity.
+SQ   SEQUENCE   75 AA;  8523 MW;  6D72D9D238CF7650 CRC64;
+     MEKKSIAGLC FLFLVLFVAQ EVVVQSEAKT CENLVDTYRG PCFTTGSCDD HCKNKEHLLS
+     GRCRDDVRCW CTRNC
+//
+ID   110KD_PLAKN             Reviewed;         296 AA.
+AC   P13813;
+DT   01-JAN-1990, integrated into UniProtKB/Swiss-Prot.
+DT   01-JAN-1990, sequence version 1.
+DT   20-FEB-2007, entry version 33.
+DE   110 kDa antigen (PK110) (Fragment).
+OS   Plasmodium knowlesi.
+OC   Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Haemosporida;
+OC   Plasmodium; Plasmodium (Plasmodium).
+OX   NCBI_TaxID=5850;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA].
+RX   MEDLINE=88039002; PubMed=2444886; DOI=10.1016/0166-6851(87)90007-7;
+RA   Perler F.B., Moon A.M., Qiang B.Q., Meda M., Dalton M., Card C.,
+RA   Schmidt-Ullrich R., Wallach D., Lynch J., Donelson J.E.;
+RT   "Cloning and characterization of an abundant Plasmodium knowlesi
+RT   antigen which cross reacts with Gambian sera.";
+RL   Mol. Biochem. Parasitol. 25:185-193(1987).
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; M19152; AAA29471.1; -; mRNA.
+DR   PIR; A54527; A54527.
+DR   InterPro; IPR004829; Csurface_antigen.
+DR   ProDom; PD153432; Csurface_antigen; 2.
+KW   Malaria; Repeat.
+FT   CHAIN        <1    296       110 kDa antigen.
+FT                                /FTId=PRO_0000217176.
+FT   REPEAT      132    143       1; approximate.
+FT   REPEAT      144    155       2; approximate.
+FT   REPEAT      156    167       3.
+FT   REPEAT      168    179       4; approximate.
+FT   REPEAT      180    191       5.
+FT   REPEAT      192    203       6; approximate.
+FT   REPEAT      204    215       7.
+FT   REPEAT      216    227       8.
+FT   REPEAT      228    239       9.
+FT   REPEAT      240    251       10.
+FT   REPEAT      252    263       11.
+FT   REPEAT      264    275       12.
+FT   REPEAT      276    287       13; approximate.
+FT   REPEAT      288    293       14; truncated.
+FT   REGION      132    296       13.5 X 12 AA approximate tandem repeats
+FT                                of E-E-T-Q-K-T-V-E-P-E-Q-T.
+FT   NON_TER       1      1
+SQ   SEQUENCE   296 AA;  34077 MW;  B0D7CD175C7A3625 CRC64;
+     FNSNMLRGSV CEEDVSLMTS IDNMIEEIDF YEKEIYKGSH SGGVIKGMDY DLEDDENDED
+     EMTEQMVEEV ADHITQDMID EVAHHVLDNI THDMAHMEEI VHGLSGDVTQ IKEIVQKVNV
+     AVEKVKHIVE TEETQKTVEP EQIEETQNTV EPEQTEETQK TVEPEQTEET QNTVEPEQIE
+     ETQKTVEPEQ TEEAQKTVEP EQTEETQKTV EPEQTEETQK TVEPEQTEET QKTVEPEQTE
+     ETQKTVEPEQ TEETQKTVEP EQTEETQKTV EPEQTEETQN TVEPEPTQET QNTVEP
+//
+ID   11S2_SESIN              Reviewed;         459 AA.
+AC   Q9XHP0;
+DT   06-DEC-2005, integrated into UniProtKB/Swiss-Prot.
+DT   01-NOV-1999, sequence version 1.
+DT   01-MAY-2007, entry version 31.
+DE   11S globulin seed storage protein 2 precursor (11S globulin seed
+DE   storage protein II) (alpha-globulin) [Contains: 11S globulin seed
+DE   storage protein 2 acidic chain (11S globulin seed storage protein II
+DE   acidic chain); 11S globulin seed storage protein 2 basic chain (11S
+DE   globulin seed storage protein II basic chain)].
+OS   Sesamum indicum (Oriental sesame) (Gingelly).
+OC   Eukaryota; Viridiplantae; Streptophyta; Embryophyta; Tracheophyta;
+OC   Spermatophyta; Magnoliophyta; eudicotyledons; core eudicotyledons;
+OC   asterids; lamiids; Lamiales; Pedaliaceae; Sesamum.
+OX   NCBI_TaxID=4182;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [MRNA].
+RC   STRAIN=cv. Tainan 1; TISSUE=Seed;
+RX   MEDLINE=20074970; PubMed=10606554; DOI=10.1021/jf990366z;
+RA   Tai S.S.K., Wu L.S.H., Chen E.C.F., Tzen J.T.C.;
+RT   "Molecular cloning of 11S globulin and 2S albumin, the two major seed
+RT   storage proteins in sesame.";
+RL   J. Agric. Food Chem. 47:4932-4938(1999).
+CC   -!- FUNCTION: Seed storage protein.
+CC   -!- SUBUNIT: Hexamer; each subunit is composed of an acidic and a
+CC       basic chain derived from a single precursor and linked by a
+CC       disulfide bond (By similarity).
+CC   -!- SIMILARITY: Belongs to the 11S seed storage protein (globulins)
+CC       family.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; AF091842; AAD42944.1; -; mRNA.
+DR   HSSP; P04776; 1FXZ.
+DR   GO; GO:0042735; C:protein body; NAS:UniProtKB.
+DR   GO; GO:0045735; F:nutrient reservoir activity; NAS:UniProtKB.
+DR   GO; GO:0051259; P:protein oligomerization; NAS:UniProtKB.
+DR   InterPro; IPR006045; Cupin_1.
+DR   InterPro; IPR011051; Cupin_RmlC_type.
+DR   InterPro; IPR014710; RmlC-like_jellyroll.
+DR   InterPro; IPR006044; Seedstore11s_pln.
+DR   Gene3D; G3DSA:2.60.120.10; RmlC-like_jellyroll; 2.
+DR   Pfam; PF00190; Cupin_1; 2.
+DR   PRINTS; PR00439; 11SGLOBULIN.
+DR   PROSITE; PS00305; 11S_SEED_STORAGE; 1.
+KW   Seed storage protein; Signal; Storage protein.
+FT   SIGNAL        1     21       Potential.
+FT   CHAIN        22    277       11S globulin seed storage protein 2
+FT                                acidic chain (By similarity).
+FT                                /FTId=PRO_0000043209.
+FT   CHAIN       278    459       11S globulin seed storage protein 2 basic
+FT                                chain (By similarity).
+FT                                /FTId=PRO_0000043210.
+FT   DISULFID     34     67       Potential.
+FT   DISULFID    110    284       Interchain (between acidic and basic
+FT                                chains) (By similarity).
+SQ   SEQUENCE   459 AA;  51830 MW;  E852F6C47B319200 CRC64;
+     MVAFKFLLAL SLSLLVSAAI AQTREPRLTQ GQQCRFQRIS GAQPSLRIQS EGGTTELWDE
+     RQEQFQCAGI VAMRSTIRPN GLSLPNYHPS PRLVYIERGQ GLISIMVPGC AETYQVHRSQ
+     RTMERTEASE QQDRGSVRDL HQKVHRLRQG DIVAIPSGAA HWCYNDGSED LVAVSINDVN
+     HLSNQLDQKF RAFYLAGGVP RSGEQEQQAR QTFHNIFRAF DAELLSEAFN VPQETIRRMQ
+     SEEEERGLIV MARERMTFVR PDEEEGEQEH RGRQLDNGLE ETFCTMKFRT NVESRREADI
+     FSRQAGRVHV VDRNKLPILK YMDLSAEKGN LYSNALVSPD WSMTGHTIVY VTRGDAQVQV
+     VDHNGQALMN DRVNQGEMFV VPQYYTSTAR AGNNGFEWVA FKTTGSPMRS PLAGYTSVIR
+     AMPLQVITNS YQISPNQAQA LKMNRGSQSF LLSPGGRRS
+//
+ID   ZZZ3_MOUSE              Reviewed;         910 AA.
+AC   Q6KAQ7; Q3TMK6; Q3V189;
+DT   15-MAY-2007, integrated into UniProtKB/Swiss-Prot.
+DT   15-MAY-2007, sequence version 2.
+DT   15-MAY-2007, entry version 17.
+DE   Zinc finger ZZ-type-containing protein 3.
+GN   Name=Zzz3;
+OS   Mus musculus (Mouse).
+OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
+OC   Mammalia; Eutheria; Euarchontoglires; Glires; Rodentia; Sciurognathi;
+OC   Muroidea; Muridae; Murinae; Mus.
+OX   NCBI_TaxID=10090;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORM 1).
+RC   TISSUE=Embryonic tail;
+RX   PubMed=15449545; DOI=10.1093/dnares/11.2.127;
+RA   Okazaki N., Kikuno R., Ohara R., Inamoto S., Koseki H., Hiraoka S.,
+RA   Saga Y., Kitamura H., Nakagawa T., Nagase T., Ohara O., Koga H.;
+RT   "Prediction of the coding sequences of mouse homologues of FLJ genes:
+RT   the complete nucleotide sequences of 110 mouse FLJ-homologous cDNAs
+RT   identified by screening of terminal sequences of cDNA clones randomly
+RT   sampled from size-fractionated libraries.";
+RL   DNA Res. 11:127-135(2004).
+RN   [2]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA] (ISOFORMS 2 AND 3).
+RC   STRAIN=C57BL/6J; TISSUE=Head, and Lung;
+RX   PubMed=16141072; DOI=10.1126/science.1112014;
+RA   Carninci P., Kasukawa T., Katayama S., Gough J., Frith M.C., Maeda N.,
+RA   Oyama R., Ravasi T., Lenhard B., Wells C., Kodzius R., Shimokawa K.,
+RA   Bajic V.B., Brenner S.E., Batalov S., Forrest A.R., Zavolan M.,
+RA   Davis M.J., Wilming L.G., Aidinis V., Allen J.E.,
+RA   Ambesi-Impiombato A., Apweiler R., Aturaliya R.N., Bailey T.L.,
+RA   Bansal M., Baxter L., Beisel K.W., Bersano T., Bono H., Chalk A.M.,
+RA   Chiu K.P., Choudhary V., Christoffels A., Clutterbuck D.R.,
+RA   Crowe M.L., Dalla E., Dalrymple B.P., de Bono B., Della Gatta G.,
+RA   di Bernardo D., Down T., Engstrom P., Fagiolini M., Faulkner G.,
+RA   Fletcher C.F., Fukushima T., Furuno M., Futaki S., Gariboldi M.,
+RA   Georgii-Hemming P., Gingeras T.R., Gojobori T., Green R.E.,
+RA   Gustincich S., Harbers M., Hayashi Y., Hensch T.K., Hirokawa N.,
+RA   Hill D., Huminiecki L., Iacono M., Ikeo K., Iwama A., Ishikawa T.,
+RA   Jakt M., Kanapin A., Katoh M., Kawasawa Y., Kelso J., Kitamura H.,
+RA   Kitano H., Kollias G., Krishnan S.P., Kruger A., Kummerfeld S.K.,
+RA   Kurochkin I.V., Lareau L.F., Lazarevic D., Lipovich L., Liu J.,
+RA   Liuni S., McWilliam S., Madan Babu M., Madera M., Marchionni L.,
+RA   Matsuda H., Matsuzawa S., Miki H., Mignone F., Miyake S., Morris K.,
+RA   Mottagui-Tabar S., Mulder N., Nakano N., Nakauchi H., Ng P.,
+RA   Nilsson R., Nishiguchi S., Nishikawa S., Nori F., Ohara O.,
+RA   Okazaki Y., Orlando V., Pang K.C., Pavan W.J., Pavesi G., Pesole G.,
+RA   Petrovsky N., Piazza S., Reed J., Reid J.F., Ring B.Z., Ringwald M.,
+RA   Rost B., Ruan Y., Salzberg S.L., Sandelin A., Schneider C.,
+RA   Schoenbach C., Sekiguchi K., Semple C.A., Seno S., Sessa L., Sheng Y.,
+RA   Shibata Y., Shimada H., Shimada K., Silva D., Sinclair B.,
+RA   Sperling S., Stupka E., Sugiura K., Sultana R., Takenaka Y., Taki K.,
+RA   Tammoja K., Tan S.L., Tang S., Taylor M.S., Tegner J., Teichmann S.A.,
+RA   Ueda H.R., van Nimwegen E., Verardo R., Wei C.L., Yagi K.,
+RA   Yamanishi H., Zabarovsky E., Zhu S., Zimmer A., Hide W., Bult C.,
+RA   Grimmond S.M., Teasdale R.D., Liu E.T., Brusic V., Quackenbush J.,
+RA   Wahlestedt C., Mattick J.S., Hume D.A., Kai C., Sasaki D., Tomaru Y.,
+RA   Fukuda S., Kanamori-Katayama M., Suzuki M., Aoki J., Arakawa T.,
+RA   Iida J., Imamura K., Itoh M., Kato T., Kawaji H., Kawagashira N.,
+RA   Kawashima T., Kojima M., Kondo S., Konno H., Nakano K., Ninomiya N.,
+RA   Nishio T., Okada M., Plessy C., Shibata K., Shiraki T., Suzuki S.,
+RA   Tagami M., Waki K., Watahiki A., Okamura-Oho Y., Suzuki H., Kawai J.,
+RA   Hayashizaki Y.;
+RT   "The transcriptional landscape of the mammalian genome.";
+RL   Science 309:1559-1563(2005).
+CC   -!- SUBCELLULAR LOCATION: Nucleus (By similarity).
+CC   -!- ALTERNATIVE PRODUCTS:
+CC       Event=Alternative splicing; Named isoforms=3;
+CC       Name=1;
+CC         IsoId=Q6KAQ7-1; Sequence=Displayed;
+CC       Name=2;
+CC         IsoId=Q6KAQ7-2; Sequence=VSP_025514, VSP_025517;
+CC         Note=No experimental confirmation available;
+CC       Name=3;
+CC         IsoId=Q6KAQ7-3; Sequence=VSP_025515, VSP_025516, VSP_025518;
+CC         Note=No experimental confirmation available;
+CC   -!- SIMILARITY: Contains 1 HTH myb-type DNA-binding domain.
+CC   -!- SIMILARITY: Contains 1 ZZ-type zinc finger.
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; AK131150; BAD21400.1; -; mRNA.
+DR   EMBL; AK132612; BAE21262.1; -; mRNA.
+DR   EMBL; AK165882; BAE38435.1; -; mRNA.
+DR   UniGene; Mm.379292; -.
+DR   SMR; Q6KAQ7; 820-888.
+DR   Ensembl; ENSMUSG00000039068; Mus musculus.
+DR   MGI; MGI:1920453; Zzz3.
+DR   InterPro; IPR012287; Homeodomain-rel.
+DR   InterPro; IPR001005; Myb_DNA_bd.
+DR   InterPro; IPR000433; Znf_ZZ.
+DR   Gene3D; G3DSA:1.10.10.60; Homeodomain-rel; 1.
+DR   Pfam; PF00249; Myb_DNA-binding; 1.
+DR   Pfam; PF00569; ZZ; 1.
+DR   SMART; SM00717; SANT; 1.
+DR   SMART; SM00291; ZnF_ZZ; 1.
+DR   PROSITE; PS51294; HTH_MYB; 1.
+DR   PROSITE; PS01357; ZF_ZZ_1; 1.
+DR   PROSITE; PS50135; ZF_ZZ_2; 1.
+KW   Alternative splicing; DNA-binding; Metal-binding; Nuclear protein;
+KW   Transcription; Transcription regulation; Zinc; Zinc-finger.
+FT   CHAIN         1    910       Zinc finger ZZ-type-containing protein 3.
+FT                                /FTId=PRO_0000287496.
+FT   DOMAIN      654    714       HTH myb-type.
+FT   DNA_BIND    687    710       H-T-H motif (By similarity).
+FT   ZN_FING     824    874       ZZ-type.
+FT   VAR_SEQ       1    501       Missing (in isoform 2).
+FT                                /FTId=VSP_025514.
+FT   VAR_SEQ       1    496       Missing (in isoform 3).
+FT                                /FTId=VSP_025515.
+FT   VAR_SEQ     497    509       FESDHVALKHNKD -> MLGSEVLVQHFNS (in
+FT                                isoform 3).
+FT                                /FTId=VSP_025516.
+FT   VAR_SEQ     502    509       VALKHNKD -> MIDLWLYS (in isoform 2).
+FT                                /FTId=VSP_025517.
+FT   VAR_SEQ     605    605       Missing (in isoform 3).
+FT                                /FTId=VSP_025518.
+SQ   SEQUENCE   910 AA;  102307 MW;  2E67A6E0043CC79B CRC64;
+     MVGTCHSMAA SRSTRVTRST VGLNGLDESF CGRTLRNRSI AHPEEISSHS QVRSRSPKKR
+     AEPVPTQKGT NNGRTSDVRQ QSARDSWVSP RKRRLSSSEK DDLERQALES CERRQAEPAP
+     PVFKNIKRCL RAEATNSSEE DSPVKPDKEP GEHRRIVVDH DADFQGAKRA CRCLILDDCE
+     KREVKKVNVS EEGPLNAAVV EEITGYLTVN GVDDSDSAVI NCDDCQPDGN TKQNNPGSCV
+     LQEESVAGDG DSETQTSVFC GSRKEDSCID HFVPCTKSDV QVKLEDHKLV TACLPVERRN
+     QLTAESASGP VSEIQSSLRD SEEEVDVVGD SSASKEQCNE NSSNPLDTGS ERMPVSGEPE
+     LSSILDCVSA QMTSLSEPQE HRYTLRTSPR RAALARSSPT KTTSPYRENG QLEETNLSPQ
+     ETNTTVSDHV SESPTDPAEV PQDGKVLCCD SENYGSEGLS KPPSEARVNI GHLPSAKESA
+     SQHTAEEEDD DPDVYYFESD HVALKHNKDY QRLLQTIAVL EAQRSQAVQD LESLGKHQRE
+     ALKNPIGFVE KLQKKADIGL PYPQRVVQLP EIMWDQYTNS LGNFEREFKH RKRHTRRVKL
+     VFDKVGLPAR PKSPLDPKKD GESLSYSMLP LSDGPEGSHN RPQMIRGRLC DDSKPETFNQ
+     LWTVEEQKKL EQLLLKYPPE EVESRRWQKI ADELGNRTAK QVASRVQKYF IKLTKAGIPV
+     PGRTPNLYIY SRKSSTSRRQ HPLNKHLFKP STFMTSHEPP VYMDEDDDRS CLHSHMSTAA
+     EEASDEESIP IIYRSLPEYK ELLQFKKLKK QKLQQMQAES GFVQHVGFKC DNCGVEPIQG
+     VRWHCQDCPP EMSLDFCDSC SDCPHETDIH KEDHQLEPVY KSETFLDRDY CVSQGTSYSY
+     LDPNYFPANR
+//

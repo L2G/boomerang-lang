@@ -1,0 +1,60 @@
+default "b" = "B"
+
+let l = key k in bind k=copy (rx "a*") . < "b" : delete (rx "B*") "B">
+let k = l . copy (rx ",") . l . insert "," . erase "(" . l . erase ")" . insert "," . l
+test k / "aB,aaBB(aaaBBB)aaaaBBBB" = "a,aa,aaa,aaaa"
+test k \ "aa,a,aaaa,aaa" "aB,aaBB(aaaBBB)aaaaBBBB" = "aaBB,aB(aaaaBBBB)aaaBBB"
+
+let N = rx "[a-zA-Z0-9]*"
+default "_" = "DEFAULT"
+let pre_l = key n in bind n=copy N . erase "," . <delete N "DEFAULT"> 
+let l = "" | pre_l . (":" ~ "#" . pre_l)* 
+
+test l / "" = ""
+test l / "M1,N1:M2,N2" = "M1#M2"
+test l \ "M2#M1" "M1,N1:M2,N2" = "M2,N2:M1,N1"
+
+default "_" = "DEFAULT"
+let V = rx "[a-zA-Z0-9]*"
+let NL = rx "\n"
+let l_bare = (key n in < (erase "Name:" . [bind n = copy V] . erase ", Email:" . delete V "DEFAULT" . "\n")
+                        |(erase "Email:" . delete V "DEFAULT" . erase ", Nom:" . [bind n = copy V] . "\n")> )*
+
+let l_pad = (key n in < (pad "L" . erase "Name:" . [bind n = copy V] . erase ", Email:" . delete V "DEFAULT" . "\n")
+                       |(pad "R" . erase "Email:" . delete V "DEFAULT" . erase ", Nom:" . [bind n = copy V] . "\n")> )*
+
+let c =
+  "Name:JNF, Email:jnfoster
+  |Email:bohannon, Nom:AWB
+  |" 
+
+test l_bare / c = l_pad / c
+test l_bare / c = 
+  "JNF
+  |AWB
+  |"
+
+
+test l_bare \ 
+  "AWB
+  |JNF
+  |"
+
+  "Name:JNF, Email:jnfoster
+  |Email:bohannon, Nom:AWB
+  |" 
+= "Name:AWB, Email:bohannon
+  |Email:jnfoster, Nom:JNF
+  |"
+
+test l_pad \ 
+  "AWB
+  |JNF
+  |"
+
+  "Name:JNF, Email:jnfoster
+  |Email:bohannon, Nom:AWB
+  |" 
+= "Email:bohannon, Nom:AWB
+  |Name:JNF, Email:jnfoster
+  |"

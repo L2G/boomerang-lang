@@ -1,0 +1,99 @@
+=========================
+CSV
+=========================
+"Nom formaté","Nom","Prénom","Prénoms supplémentaires","Préfixes honorifiques","Suffixes honorifiques","Pseudonyme","Anniversaire","Rue de l'adresse personnelle","Ville de l'adresse personnelle","État de l'adresse personnelle","Code postal de l'adresse personnelle","Pays de l'adresse personnelle","Libellé de l'adresse personnelle","Rue de l'adresse professionnelle","Ville de l'adresse professionnelle","État de l'adresse professionnelle","Code postal de l'adresse professionnelle","Pays de l'adresse professionnelle","Libellé de l'adresse professionnelle","Téléphone personnel","Téléphone professionnel","Téléphone mobile","Fax personnel","Fax professionnel","Téléphone de voiture","ISDN","Messager de poche","Adresse électronique","Logiciel de messagerie","Titre","Rôle","Organisation","Note","Page d'accueil","Département","Profession","Nom de l'assistant(e)","Nom du supérieur","Nom du partenaire","Bureau","Adresse de MI","Fête","Journal"
+"Ann Onyme","Onyme","Ann","","Docteur","","","1984-05-29","56 bd champs Elysee","Paris","Parisiene","75003","France","","1234, Walnut St","Philadelphia","","","États Unis","","0148345267","+33148567890","+1 215 234 6543","","","","","","someone@nobody.com","","","Director","UPenn","A fake person to test some format.\n\nSome commentaries....","http://myblog.org","Computer Sciences","","","","","512","cantfindthat@hotmail.com","",""
+
+=========================
+LDIF
+=========================
+dn: cn=Ann Onyme,mail=someone@nobody.com
+givenname: Ann
+sn: Onyme
+cn: Ann Onyme
+uid: Ila9Dzc99z
+mail: someone@nobody.com
+telephonenumber: +33148567890
+homephone: 0148345267
+mobile: +1 215 234 6543
+cellphone: +1 215 234 6543
+streethomeaddress: 56 bd champs Elysee
+homepostaladdress: 56 bd champs Elysee
+mozillahomelocalityname: Paris
+mozillahomestate: Parisiene
+mozillahomepostalcode: 75003
+mozillahomecountryname: France
+locality: Philadelphia
+streetaddress: 1234, Walnut St
+postaladdress: 1234, Walnut St
+countryname:: w4l0YXRzIFVuaXM=
+l: Philadelphia
+c:: w4l0YXRzIFVuaXM=
+vocation: Docteur
+ou: Director
+o: UPenn
+organization: UPenn
+organizationname: UPenn
+department: Computer Sciences
+workurl: http://myblog.org
+homeurl: http://myblog.org
+description:: QSBmYWtlIHBlcnNvbiB0byB0ZXN0IHNvbWUgZm9ybWF0LgoKU29tZSBjb2
+ 1tZW50YXJpZXMuLi4u
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+
+=======================
+vCard 2.1
+=======================
+BEGIN:VCARD
+ADR;TYPE=work;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:;;1234\, Walnut St;Ph
+ iladelphia;;;=C3=89tats Unis
+ADR;TYPE=home;TYPE=pref:32451 CEDEX;;56 bd champs Elysee;Paris;Parisiene;75
+ 003;France
+BDAY:1984-05-29T00:00:00Z
+EMAIL:someone@nobody.com
+FN:Ann Onyme
+N:Onyme;Ann;;Docteur;
+NOTE;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:A fake person to test some for
+ mat.\n\nSome commentaries....
+ORG:UPenn
+ROLE:Director
+TEL;TYPE=WORK:+33148567890
+TEL;TYPE=HOME:0148345267
+TEL;TYPE=CELL:+1 215 234 6543
+UID:Ila9Dzc99z
+URL:http://myblog.org
+VERSION:2.1
+X-KADDRESSBOOK-X-Department:Computer Sciences
+X-KADDRESSBOOK-X-IMAddress:cantfindthat@hotmail.com
+X-KADDRESSBOOK-X-Office:512
+END:VCARD
+
+==========================
+vCard 3.0
+==========================
+BEGIN:VCARD
+ADR;TYPE=work:;;1234\, Walnut St;Philadelphia;;;États Unis
+ADR;TYPE=home;TYPE=pref:32451 CEDEX;;56 bd champs Elysee;Paris;Parisiene;75
+ 003;France
+BDAY:1984-05-29T00:00:00Z
+CLASS:PUBLIC
+EMAIL:someone@nobody.com
+FN:Ann Onyme
+N:Onyme;Ann;;Docteur;
+NOTE:A fake person to test some format.\n\nSome commentaries....
+ORG:UPenn
+ROLE:Director
+TEL;TYPE=WORK:+33148567890
+TEL;TYPE=HOME:0148345267
+TEL;TYPE=CELL:+1 215 234 6543
+UID:Ila9Dzc99z
+URL:http://myblog.org
+VERSION:3.0
+X-KADDRESSBOOK-X-Department:Computer Sciences
+X-KADDRESSBOOK-X-IMAddress:cantfindthat@hotmail.com
+X-KADDRESSBOOK-X-Office:512
+END:VCARD
+
+ 

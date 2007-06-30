@@ -1,0 +1,154 @@
+let N = [a-zA-Z ]*
+let E = [a-zA-Z@.]*
+
+(* First version of a lens that extracts just the name from a
+   Name/Email string *)
+let del_email = 
+  del "Name:" . 
+  N . 
+  del (", Email:" . E) 
+
+(* Extract all the names from a LIST of Name/Emails *)
+let del_emails = "" | del_email . ("\n" . del_email)* 
+
+(* Get direction works fine *)
+test del_emails get
+  (* Getting from... *)
+    "Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+    |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+= 
+  (* ... yields: *)
+  "Benjamin Pierce
+  |Steve Zdancewic"
+
+(* Putback works as expected if we add names to the end *)
+test del_emails put
+   (* Putting back... *)
+     "Benjamin C Pierce
+     |Steve Zdancewic
+     |Mike Hicks"
+into
+     "Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+     |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+= 
+   (* ...yields: *)
+     "Name:Benjamin C Pierce, Email:bcpierce@cis.upenn.edu
+     |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu
+     |Name:Mike Hicks, Email:"
+
+(* but in general, it restores emails by position :-/ *)
+test del_emails put
+   (* Putting back... *)
+     "Steve Zdancewic
+     |Benjamin Pierce
+     |Mike Hicks"
+into
+     "Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+     |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+ = 
+   (* ...yields: *)
+     "Name:Steve Zdancewic, Email:bcpierce@cis.upenn.edu
+     |Name:Benjamin Pierce, Email:stevez@cis.upenn.edu
+     |Name:Mike Hicks, Email:"
+
+(* ----------------------------------------------------------------- *)
+(* A better version where names act like keys to match up deld
+   emails. *)
+
+let keyed_del_email = 
+  del "Name:" . 
+  key N . 
+  del_def (", Email:" . E) ", Email:UNKNOWN" 
+
+let keyed_del_emails = "" | <keyed_del_email> . ("\n" . <keyed_del_email>)*
+
+(* Getting behaves the same as above. *)
+test keyed_del_emails get
+  (* Getting from... *)
+    "Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+    |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+= 
+  (* ... yields: *)
+    "Benjamin Pierce
+    |Steve Zdancewic"
+
+(* Putback restores emails using the name as a key *)
+test keyed_del_emails put
+   (* Putting back... *)
+     "Steve Zdancewic
+     |Benjamin Pierce
+     |Mike Hicks"
+into
+     "Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+     |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+ = 
+   (* ...yields: *)
+     "Name:Steve Zdancewic, Email:stevez@cis.upenn.edu
+     |Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+     |Name:Mike Hicks, Email:UNKNOWN"
+(* ----------------------------------------------------------------- *)
+
+(* Unions present a special challenge: common projected data needs to
+   flow across the union. This example shows a fragment of a lens for
+   processing bibiographic data where each entry either represents a
+   single authors of a list of co-authors with email addresses. *)
+
+let chunk = 
+  key N . 
+  del_def (", Email:" . E) ", Email:UNKNOWN"
+
+let author_coauthor = "" | "Author:" . <chunk> | "CoAuthor:" . <chunk> . ("\nCoAuthor:" . <chunk>)*
+
+(* Getting simply projects emails *)
+test author_coauthor get
+   (* Getting from... *)
+      "Author:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
+  = 
+   (* ...yields: *)
+      "Author:Benjamin Pierce"
+
+test author_coauthor get
+   (* Getting from... *)
+     "CoAuthor:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+     |CoAuthor:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+  = 
+    (* ...yields: *)
+     "CoAuthor:Benjamin Pierce
+     |CoAuthor:Steve Zdancewic"
+
+
+(* Putting back restores email for matching author/co-author *)
+(* First, two co-authors put back into a single author *)
+test author_coauthor put
+  (* Putting back... *)
+    "CoAuthor:Steve Zdancewic
+    |CoAuthor:Benjamin Pierce"
+into
+    "Author:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
+ =
+  (* ...yields: *)
+    "CoAuthor:Steve Zdancewic, Email:UNKNOWN
+    |CoAuthor:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
+
+(* Second, a single author put back into a list of co-authors *)    
+test author_coauthor put
+  (* Putting back... *)
+    "Author:Steve Zdancewic"
+into
+    "CoAuthor:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+    |CoAuthor:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+ = 
+  (* ...yields: *)
+    "Author:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+
+test author_coauthor . (";\n" . author_coauthor)* put
+  (* Putting back... *)
+    "Author:Steve Zdancewic;
+    |Author:Benjamin Pierce"
+into
+    "CoAuthor:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
+    |CoAuthor:Steve Zdancewic, Email:stevez@cis.upenn.edu"
+  = 
+   (* yields: *)
+     "Author:Steve Zdancewic, Email:stevez@cis.upenn.edu;
+     |Author:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
