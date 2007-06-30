@@ -5,11 +5,11 @@ let E = [a-zA-Z@.]*
    Name/Email string *)
 let del_email = 
   del "Name:" . 
-  N . 
+  cp N . 
   del (", Email:" . E) 
 
 (* Extract all the names from a LIST of Name/Emails *)
-let del_emails = "" | del_email . ("\n" . del_email)* 
+let del_emails = cp "" | del_email . ("\n" . del_email)* 
 
 (* Get direction works fine *)
 test del_emails get

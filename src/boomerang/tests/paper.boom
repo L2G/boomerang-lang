@@ -1,0 +1,78 @@
+(* The examples from the introduction of the resourceful lenses paper... *)
+
+(* Some useful regular expressions *)
+
+let ALPHA = [A-Za-z ]+
+let YEAR = [?0-9].[?0-9].[?0-9].[?0-9]
+let YEARS = YEAR . "-" . YEAR
+
+(* A simple classic lens for composers *)
+
+let c = ALPHA . ", " . 
+        del (YEARS . ", ") .
+        ALPHA
+
+let cs = "" | c . ("\n" . c)* 
+
+test cs get 
+  "Jean Sibelius, 1865-1957, Finnish
+   |Aaron Copland, 1910-1990, American
+   |Benjamin Britten, 1913-1976, English"
+--->
+  "Jean Sibelius, Finnish
+  |Aaron Copland, American
+  |Benjamin Britten, English"
+
+(* Some PUTs work fine... *)
+
+test cs put 
+   "Jean Sibelius, Finnish
+   |Aaron Copland, American
+   |Benjamin Britten, British
+   |Erik Satie, French"
+into
+   "Jean Sibelius, 1865-1957, Finnish
+   |Aaron Copland, 1910-1990, American
+   |Benjamin Britten, 1913-1976, English"
+---> 
+   "Jean Sibelius, 1865-1957, Finnish
+   |Aaron Copland, 1910-1990, American
+   |Benjamin Britten, 1913-1976, British
+   |Erik Satie, 0000-0000, French"
+
+(* but other PUTs yield mangled results: *)
+
+test cs put 
+   "Jean Sibelius, Finnish
+   |Benjamin Britten, British"
+into
+   "Jean Sibelius, 1865-1957, Finnish
+   |Aaron Copland, 1910-1990, American
+   |Benjamin Britten, 1913-1976, English"
+---> 
+   "Jean Sibelius, 1865-1957, Finnish
+   |Benjamin Britten, 1910-1990, British"
+
+(* To get the behavior we want, we mark re-orderable 
+   chunks (with '<chunk>') and, within each chunk, specify
+   (with 'key') how to calculate a key *)
+
+let chunk = 
+  key ALPHA . ", " . 
+  del YEARS . del ", " .
+  ALPHA
+
+let cs = "" | <chunk> . ("\n" . <chunk>)* 
+
+(* This works better: *)
+
+test cs put 
+   "Jean Sibelius, Finnish
+   |Benjamin Britten, British"
+into
+   "Jean Sibelius, 1865-1957, Finnish
+   |Aaron Copland, 1910-1990, American
+   |Benjamin Britten, 1913-1976, English"
+=
+   "Jean Sibelius, 1865-1957, Finnish
+   |Benjamin Britten, 1913-1976, British"
