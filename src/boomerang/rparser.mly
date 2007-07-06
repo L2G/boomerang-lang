@@ -829,7 +829,6 @@ aexp:
         let i = m $1 $3 in 
           (i,
           (fun se -> 
-            Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);
             expect_sort i2 "in match expression:" V.SKLens (V.lookup i2 se x2);            
             V.SSLens),
           (fun ve ->             
