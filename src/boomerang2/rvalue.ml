@@ -19,21 +19,12 @@ let lookup i e s = match Renv.lookup e s with
 (* module imports and abbreviations *)
 module L = Rlenses
 module CN = L.Canonizer
-module RL = L.RLens
-module KL = L.KLens
-module SL = L.SLens
-module CL = L.CLens
+module DL = L.DLens
 module RS = Rstring
 
 (* function abbreviations *)
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append 
-
-(* uids *)
-let uid_cell = ref 0 
-let uid () = 
-  incr uid_cell;
-  !uid_cell
 
 (* sorts *)
 (* the base sorts are string, regexp, and the four kinds of lenses;
@@ -42,10 +33,7 @@ type s =
     SString      (* strings *)
     | SRegexp    (* regular expressions *)
     | SCanonizer (* canonizers *)
-    | SRLens     (* R-lenses *)
-    | SKLens     (* K-lenses *)
-    | SSLens     (* S-lenses *)
-    | SCLens     (* C-lenses : "classic" lenses *)
+    | SDLens     (* D-lenses *)
     | SFunction of s * s option  (* functions and arg sort; optionally a return-sort *)
 
 (* infix notation for writing function sorts *)
@@ -53,13 +41,10 @@ let ( ^> ) s1 s2 = SFunction(s1,Some s2)
 
 (* run-time values; correspond to each sort *)
 type t = 
-      S of Info.t * int * RS.t 
-    | R of Info.t * int * L.r
-    | CN of Info.t * int * CN.t
-    | RL of Info.t * int * RL.t
-    | KL of Info.t * int * KL.t
-    | SL of Info.t * int * SL.t
-    | CL of Info.t * int * CL.t
+      S of Info.t * RS.t 
+    | R of Info.t * L.r
+    | CN of Info.t * CN.t
+    | DL of Info.t * DL.t
     | F of Info.t * s * (Info.t -> t -> t)
 
 (* mk_dummy: s -> t
@@ -71,13 +56,10 @@ type t =
  *)
 let rec mk_dummy = 
   let i = Info.M "dummy" in function
-      SString -> S(i,0,RS.empty)
-    | SRegexp -> R(i,0,L.rx_str false RS.empty) 
-    | SCanonizer -> CN(i,0,CL.canonizer_of_t (CL.copy i (L.rx_epsilon)))
-    | SRLens -> RL(i,0,RL.t_of_slens (SL.t_of_clens (CL.copy i (L.rx_epsilon))))
-    | SCLens -> CL(i,0,CL.copy i (L.rx_epsilon))
-    | SKLens -> KL(i,0,(KL.t_of_clens (CL.copy i (L.rx_epsilon))))
-    | SSLens -> SL(i,0,(SL.t_of_clens (CL.copy i (L.rx_epsilon))))
+      SString -> S(i,RS.empty)
+    | SRegexp -> R(i,L.rx_str false RS.empty) 
+    | SCanonizer -> CN(i,DL.canonizer_of_t i (DL.copy i (L.rx_epsilon)))
+    | SDLens -> DL(i,(DL.copy i (L.rx_epsilon)))
     | SFunction(s1,Some s2) -> F(i,s1,(fun _ _ -> mk_dummy s2))
     | SFunction(s1,None) -> 
         F(i,s1,(fun _ _ -> 
@@ -89,30 +71,12 @@ let rec mk_dummy =
  * [info_of_t t] returns the lexing info associated to a run-time value 
  *)
 let info_of_t = function 
-  | S(i,_,_) -> i
-  | R(i,_,_) -> i
-  | CN(i,_,_) -> i
-  | RL(i,_,_) -> i
-  | CL(i,_,_) -> i
-  | KL(i,_,_) -> i
-  | SL(i,_,_) -> i
+  | S(i,_) -> i
+  | R(i,_) -> i
+  | CN(i,_) -> i
+  | DL(i,_) -> i
   | F(i,_,_) -> i
 
-(* uid_of_t : t -> Uid.t 
- *
- * [uid_of_t t] returns the uid associated to a run-time value 
- *)
-let uid_of_t = function 
-  | S(_,u,_) -> u
-  | R(_,u,_) -> u
-  | CN(_,u,_) -> u
-  | RL(_,u,_) -> u
-  | CL(_,u,_) -> u
-  | KL(_,u,_) -> u
-  | SL(_,u,_) -> u
-  | F(_) -> 
-      raise (Error.Harmony_error (fun () -> 
-        Util.format "Pvalue.uid_of_t with function type"))
 (* sort_of_t : t -> s
  * 
  * [sort_of_t t] returns the sort of a run-time value; note that for
@@ -122,10 +86,7 @@ let rec sort_of_t = function
     S(_) -> SString
   | R(_) -> SRegexp
   | CN(_) -> SCanonizer
-  | RL(_) -> SRLens
-  | CL(_) -> SCLens
-  | KL(_) -> SKLens
-  | SL(_) -> SSLens
+  | DL(_) -> SDLens
   | F(i,s1,f) -> SFunction(s1,None) 
 
 (* string_of_sort : s -> string
@@ -136,24 +97,18 @@ let rec string_of_sort = function
     SString -> "string"
   | SRegexp -> "regexp"
   | SCanonizer -> "canonizer"
-  | SRLens -> "rlens"
-  | SKLens -> "klens"
-  | SSLens -> "slens"
-  | SCLens -> "clens"
+  | SDLens -> "dlens"
   | SFunction(s1,None) -> sprintf "(%s -> ?)" (string_of_sort s1) 
   | SFunction(s1,Some s2) -> sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
 
 let is_lens_sort = function
-    SRLens | SKLens | SSLens | SCLens -> true
+    SDLens -> true
   | _ -> false
 
 let get_lens_sorts = function
-  | S(_,_,s)   -> let r = L.rx_str false s in r,r
-  | R(_,_,r)   -> r,r 
-  | RL(_,_,rl) -> RL.ctype rl, RL.atype rl
-  | KL(_,_,kl) -> KL.ctype kl, KL.atype kl
-  | SL(_,_,sl) -> SL.ctype sl, SL.atype sl
-  | CL(_,_,cl) -> CL.ctype cl, CL.atype cl
+  | S(_,s)   -> let r = L.rx_str false s in r,r
+  | R(_,r)   -> r,r 
+  | DL(_,rl) -> DL.ctype rl, DL.atype rl
   | v -> 
       raise (Error.Harmony_error (fun () -> 
         Util.format "Pvalue.get_lens_sorts: cannot get lens sorts from %s" 
@@ -168,24 +123,9 @@ let rec subsort u v = match u,v with
   (* subsorts of regexp *)
   | SString,SRegexp -> true
 
-  (* subsorts of R-lenses *)
-  | SString,SRLens -> true
-  | SRegexp,SRLens -> true
-  | SSLens,SRLens -> true
-  | SCLens,SRLens -> true
-
-  (* subsorts of K-lenses *)
-  | SString,SKLens -> true
-  | SRegexp,SKLens -> true
-  | SCLens,SKLens -> true
-
-  (* subsorts of S-lenses *)  
-  | SString,SSLens -> true
-  | SRegexp,SSLens -> true
-  | SCLens,SSLens -> true
-
-  | SString,SCLens -> true
-  | SRegexp,SCLens -> true
+  (* subsorts of D-lenses *)
+  | SString,SDLens -> true
+  | SRegexp,SDLens -> true
 
   (* subsorts of functions *)
   | SFunction(s11,Some s12),SFunction(s21,Some s22) -> 
@@ -219,7 +159,7 @@ let conversion_error i s1 v1 =
  * sort. [i] is used to report errors.
 *)
 let get_s v i = match v with
-    S(_,_,s) -> s
+    S(_,s) -> s
   | _ -> conversion_error i SString v
 
 (* get_r: t -> Info.t -> L.rx.t
@@ -229,23 +169,21 @@ let get_s v i = match v with
  * sort. [i] is used to report errors.  
  *)
 let get_r v i = match v with
-    R(_,_,r) -> r
-  | S(_,_,s) -> L.rx_str false s
+    R(_,r) -> r
+  | S(_,s) -> L.rx_str false s
   | _ -> conversion_error i SRegexp v
 
-(* get_rl: t -> Info.t -> L.PLens.t
+(* get_Dl: t -> Info.t -> L.DLens.t
  * 
  * [get_rl v i] returns the R-lens that [v] represents, or throws an
  * exception if [v] is a run-time value representing a different
  * sort. [i] is used to report errors.  
  *)
-let get_rl v i = match v with 
-  | S(_,_,s) -> RL.t_of_slens (SL.t_of_clens (CL.copy i (L.rx_str false s)))
-  | R(_,_,r) -> RL.t_of_slens (SL.t_of_clens (CL.copy i r))
-  | RL(_,_,rl) -> rl
-  | SL(_,_,sl) -> RL.t_of_slens sl
-  | CL(_,_,cl) -> RL.t_of_clens cl
-  | _ -> conversion_error i SRLens v
+let get_dl v i = match v with 
+  | S(_,s) -> DL.copy i (L.rx_str false s)
+  | R(_,r) -> DL.copy i r
+  | DL(_,rl) -> rl
+  | _ -> conversion_error i SDLens v
 
 (* get_cn: t -> Info.t -> CN.t
  * 
@@ -254,46 +192,9 @@ let get_rl v i = match v with
  * sort. [i] is used to report errors.  
  *)
 let get_cn v i = match v with 
-  | CN(_,_,cn) -> cn
+  | CN(_,cn) -> cn
   | _ -> conversion_error i SCanonizer v
 
-(* get_kl: t -> Info.t -> L.CLens.t
- * 
- * [get_kl v i] returns the K-lens that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  
- *)
-let get_kl v i = match v with 
-  | S(_,_,s)  -> KL.t_of_clens (CL.copy i (L.rx_str false s))
-  | R(_,_,r)  -> KL.t_of_clens (CL.copy i r)
-  | KL(_,_,kl) -> kl
-  | CL(_,_,cl) -> KL.t_of_clens cl
-  | _ -> conversion_error i SKLens v
-
-(* get_cl: t -> Info.t -> L.CLens.t
- * 
- * [get_sl v i] returns the B-lens that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  
- *)
-let get_sl v i = match v with 
-  | S(_,_,s)  -> SL.t_of_clens (CL.copy i (L.rx_str false s))
-  | R(_,_,r)  -> SL.t_of_clens (CL.copy i r)
-  | SL(_,_,sl) -> sl
-  | CL(_,_,cl) -> SL.t_of_clens cl
-  | _ -> conversion_error i SSLens v
-
-(* get_cl: t -> Info.t -> L.CLens.t
- * 
- * [get_rl v i] returns the B-lens that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  
- *)
-let get_cl v i = match v with 
-  | S(_,_,s) -> CL.copy i (L.rx_str false s)
-  | R(_,_,r) -> CL.copy i r
-  | CL(_,_,cl) -> cl
-  | _ -> conversion_error i SCLens v
 
 (* get_f: t -> Info.t -> (t -> t) 
  * 
@@ -333,31 +234,7 @@ let mk_rfun i f = F(i,SRegexp,(fun i v -> f i (get_r v i)))
  * function that expects its argument to actually be an [SRLens]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_rlfun i f = F(i,SRLens,(fun i v -> f i (get_rl v i)))
-
-(* mk_slfun: Info.t -> (L.SSLens.t -> t) -> (t -> t)
- * 
- * [mk_slfun i f] takes a [L.SSLens.t -> t] function and yields a [t -> t]
- * function that expects its argument to actually be an [SSLens]. [i] is
- * used to report errors when the argument has a different sort.
- *)
-let mk_slfun i f = F(i,SSLens,(fun i v -> f i (get_sl v i)))
-
-(* mk_klfun: Info.t -> (L.KLens.t -> t) -> (t -> t)
- * 
- * [mk_klfun i f] takes a [L.KLens.t -> t] function and yields a [t -> t]
- * function that expects its argument to actually be an [SKLens]. [i] is
- * used to report errors when the argument has a different sort.
- *)
-let mk_klfun i f = F(i,SKLens,(fun i v -> f i (get_kl v i)))
-
-(* mk_clfun: Info.t -> (L.CLens.t -> t) -> (t -> t)
- * 
- * [mk_clfun i f] takes a [L.CLens.t -> t] function and yields a [t -> t]
- * function that expects its argument to actually be an [SCLens]. [i] is
- * used to report errors when the argument has a different sort.
- *)
-let mk_clfun i f = F(i,SCLens,(fun i v -> f i (get_cl v i)))
+let mk_dlfun i f = F(i,SDLens,(fun i v -> f i (get_dl v i)))
 
 
 (* mk_cnfun: Info.t -> (CN.t -> t) -> (t -> t)

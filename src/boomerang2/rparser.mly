@@ -235,89 +235,52 @@ let do_binary_op op_msg exp1 exp2 merge =
 let concat_merge = 
   [ (V.SString, V.SString,
     (fun _ _ -> V.SString),
-    (fun i v1 v2 -> V.S(i,V.uid (),RS.append (V.get_s v1 i) (V.get_s v2 i))))
+    (fun i v1 v2 -> V.S(i,RS.append (V.get_s v1 i) (V.get_s v2 i))))
   ; (V.SRegexp, V.SRegexp,
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_seq (V.get_r v1 i) (V.get_r v2 i))))
+    (fun i v1 v2 -> V.R(i,L.rx_seq (V.get_r v1 i) (V.get_r v2 i))))
   ; (V.SCanonizer, V.SCanonizer,
     (fun _ _ -> V.SCanonizer),
-    (fun i v1 v2 -> V.CN(i, V.uid (),L.Canonizer.concat i (V.get_cn v1 i) (V.get_cn v2 i))))
-  ; (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.concat i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.concat i (V.get_kl v1 i) (V.get_kl v2 i))))
-  ; (V.SSLens, V.SSLens, 
-    (fun _ _ -> V.SSLens),
-    (fun i v1 v2 -> V.SL(i,V.uid (),L.SLens.concat i (V.get_sl v1 i) (V.get_sl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.concat i (V.get_rl v1 i) (V.get_rl v2 i))))
+    (fun i v1 v2 -> V.CN(i, L.Canonizer.concat i (V.get_cn v1 i) (V.get_cn v2 i))))
+  ; (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.concat i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 let swap_merge = 
-  [ (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.swap i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.swap i (V.get_kl v1 i) (V.get_kl v2 i))))
-  ; (V.SSLens, V.SSLens, 
-    (fun _ _ -> V.SSLens),
-    (fun i v1 v2 -> V.SL(i,V.uid (),L.SLens.swap i (V.get_sl v1 i) (V.get_sl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.swap i (V.get_rl v1 i) (V.get_rl v2 i))))
+  [ (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.swap i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 let union_merge = 
   [ (V.SRegexp, V.SRegexp,
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_alt (V.get_r v1 i) (V.get_r v2 i))))
+    (fun i v1 v2 -> V.R(i,L.rx_alt (V.get_r v1 i) (V.get_r v2 i))))
   ; (V.SCanonizer, V.SCanonizer,
     (fun _ _ -> V.SCanonizer),
-    (fun i v1 v2 -> V.CN(i, V.uid (),L.Canonizer.union i (V.get_cn v1 i) (V.get_cn v2 i))))
-  ; (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.union i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.union i (V.get_kl v1 i) (V.get_kl v2 i))))
-  ; (V.SSLens, V.SSLens, 
-    (fun _ _ -> V.SSLens),
-    (fun i v1 v2 -> V.SL(i,V.uid (),L.SLens.union i (V.get_sl v1 i) (V.get_sl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.union i (V.get_rl v1 i) (V.get_rl v2 i))))
-
+    (fun i v1 v2 -> V.CN(i, L.Canonizer.union i (V.get_cn v1 i) (V.get_cn v2 i))))
+  ; (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.union i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 let compose_merge = 
-  [ (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.compose i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SCLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.compose_kc i (V.get_kl v1 i) (V.get_cl v2 i))))
-  ; (V.SCLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.compose_ck i (V.get_cl v1 i) (V.get_kl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.compose i (V.get_rl v1 i) (V.get_rl v2 i))))
+  [ (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.compose i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 
 let minus_merge = 
   [ (V.SRegexp, V.SRegexp, 
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_diff (V.get_r v1 i) (V.get_r v2 i)))) ]
+    (fun i v1 v2 -> V.R(i,L.rx_diff (V.get_r v1 i) (V.get_r v2 i)))) ]
 
 let inter_merge = 
   [ (V.SRegexp, V.SRegexp, 
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_inter (V.get_r v1 i) (V.get_r v2 i)))) ]
+    (fun i v1 v2 -> V.R(i,L.rx_inter (V.get_r v1 i) (V.get_r v2 i)))) ]
       
 (* ----- helper functions for checking and compiling functions ----- *)
 (* mk_fun_chker : 
@@ -341,7 +304,7 @@ let inter_merge =
 let mk_fun_chker i params sorto chk_body =
   (fun se -> 
     (* first, construct 
-     *   - an environment, [se'], from [se] that includes the 
+     *   - an environment, [se'], from [se] that indludes the 
      *     parameters and their sorts 
      * 
      *   - a function, [mk_s], that takes the sort of the body
@@ -357,14 +320,14 @@ let mk_fun_chker i params sorto chk_body =
 
     (* type check the body in the new env *)
     let body_s = chk_body se' in 
-      (* optionally, check that the body has its declared sort *)
+      (* optionally, check that the body has its dedlared sort *)
       (match sorto with 
         | Some (Misc.Left Some (expected_sort)) -> 
             expect_sort i "" expected_sort body_s
         | Some (Misc.Right _) -> 
             (* defer precise checking until later *)
             if V.is_lens_sort body_s then () 
-            else expect_sort i "" V.SCLens body_s
+            else expect_sort i "" V.SDLens body_s
         | _ -> ());
       (* finally, return the function sort *)
       mk_s body_s)
@@ -440,7 +403,7 @@ let test_fail i expected_str found_str =
 %}
 
 %token <Info.t> EOF
-%token <Info.t> STRING REGEXP CLENS KLENS SLENS RLENS CANONIZER
+%token <Info.t> STRING REGEXP DLENS KLENS SLENS RLENS CANONIZER
 %token <Info.t * string> STR IDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE ARROW  DARROW LONGARROW LONGDARROW
@@ -450,30 +413,30 @@ let test_fail i expected_str found_str =
 
 %start top
 %type <Rvalue.s Rvalue.Renv.t * (Rvalue.t * bool) Rvalue.Renv.t -> Rvalue.s Rvalue.Renv.t * (Rvalue.t * bool) Rvalue.Renv.t> top
-%type <Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env> decls
+%type <Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env> dedls
 %type <Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)> exp
 %%
 
 /* rather than producing an AST, this parser computes V.ts directly. 
  * 
- * therefore, parsing a top-level declaration produces a function that 
+ * therefore, parsing a top-level dedlaration produces a function that 
  * takes two envs, one for sorts and another for values, and produces 
  * two envs of the same kinds, updated with any bindings introduced in 
- * that declaration. 
+ * that dedlaration. 
  * 
  * parsing an expression produces an Info.t, a "checking" function from 
  * sort envs to sorts, and a "compiling" function from value envs to 
  * values. 
  * 
- * these are reflected in the type declarations above.
+ * these are reflected in the type dedlarations above.
  */
 
-/* --------- DECLARATIONS ---------- */
+/* --------- DEDLARATIONS ---------- */
 top: 
-  | decls EOF                               { $1 }
+  | dedls EOF                               { $1 }
 
-decls:      
-  | LET IDENT param_list opt_sort EQUAL exp decls 
+dedls:      
+  | LET IDENT param_list opt_sort EQUAL exp dedls 
       { (fun (se,ve) -> 
         let i2,x2 = $2 in 
         let i6,chk6,comp6 = $6 in                                                    
@@ -483,10 +446,10 @@ decls:
           $7 (se',ve')) }
 
 /* --- unit tests --- */    
-  | TEST exp eq_arrow QMARK decls                  
+  | TEST exp eq_arrow QMARK dedls                  
       { (fun (se,ve) ->
         let i2,chk2,comp2 = $2 in 
-          expect_sort i2 "in test declaration:" V.SString (chk2 se);
+          expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
           let s2 = V.get_s (comp2 ve) i2 in 
             Util.format "@[Test Result: @[";
             L.nlify_str s2;
@@ -494,36 +457,36 @@ decls:
 	    Util.flush ();
             $5 (se,ve)) }
       
-  | TEST exp eq_arrow exp decls                 
+  | TEST exp eq_arrow exp dedls                 
       {  (fun (se,ve) ->
         let i2,chk2,comp2 = $2 in 
         let i4,chk4,comp4 = $4 in 
         let i = m i2 i4 in 
-          expect_sort i2 "in test declaration:" V.SString (chk2 se);
-          expect_sort i4 "in test declaration:" V.SString (chk4 se);
+          expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
+          expect_sort i4 "in test dedlaration:" V.SString (chk4 se);
           let s2 = V.get_s (comp2 ve) i2 in 
           let s4 = V.get_s (comp4 ve) i4 in 
             if (RS.to_string s2) <> (RS.to_string s4) then test_fail i s4 s2;
             $5 (se,ve)) }
       
-  | TEST exp eq_arrow ERROR decls                
+  | TEST exp eq_arrow ERROR dedls                
       {  (fun (se,ve) ->
         let i2,chk2,comp2 = $2 in 
         let i = m i2 $4 in 
-          expect_sort i2 "in test declaration:" V.SString (chk2 se);
+          expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
           (try test_fail i (RS.of_string "error") (V.get_s (comp2 ve) i2)
             with Error.Harmony_error _ -> ());
           $5 (se,ve)) }
       
-  | TEST composeexp GET PUT exp eq_darrow exp decls 
+  | TEST composeexp GET PUT exp eq_darrow exp dedls 
       { (fun (se,ve) -> 
         let i2,chk2,comp2 = $2 in 
         let i5,chk5,comp5 = $5 in 
         let i7,chk7,comp7 = $7 in 
         let i = m i2 i7 in 
-          expect_sort i2 "in test declaration:" V.SRLens (chk2 se);
-          expect_sort i5 "in test declaration:" V.SString (chk5 se);
-          expect_sort i7 "in test declaration:" V.SString (chk7 se);
+          expect_sort i2 "in test dedlaration:" V.SDLens (chk2 se);
+          expect_sort i5 "in test dedlaration:" V.SString (chk5 se);
+          expect_sort i7 "in test dedlaration:" V.SString (chk7 se);
           let l2 = V.get_rl (comp2 ve) i2 in 
           let s5 = V.get_s  (comp5 ve) i5 in 
           let s7 = V.get_s (comp7 ve) i7 in 
@@ -533,7 +496,7 @@ decls:
             if (RS.to_string c) <> (RS.to_string s5) then test_fail i s5 c;
             $8 (se,ve)) }
 
-  | TEST exp COLON sort_spec decls
+  | TEST exp COLON sort_spec dedls
       { (fun (se,ve) -> 
         let i2,chk2,comp2 = $2 in
         let v2 = comp2 ve in 
@@ -552,10 +515,10 @@ decls:
                     (Info.string_of_t i2) 
                     (V.string_of_sort s2)
             | Misc.Left(Some s) -> 
-                expect_sort i2 "in test type declaration:" s s2
+                expect_sort i2 "in test type dedlaration:" s s2
             | Misc.Right((_,c_compo),(_,a_compo)) -> 
                 if not (V.is_lens_sort s2) then 
-                    sort_error i2 "in test type declaration:"
+                    sort_error i2 "in test type dedlaration:"
                       "lens sort" (V.string_of_sort s2)
                 else
                   let c_found,a_found = V.get_lens_sorts v2 in 
@@ -610,7 +573,7 @@ gpexp:
           (fun ve -> 
             let l1 = V.get_rl (comp1 ve) i1 in 
             let s3 = V.get_s (comp3 ve) i3 in                                                  
-              V.S (i,V.uid (),L.RLens.get l1 s3))) }
+              V.S (i,L.RLens.get l1 s3))) }
 
   | composeexp put aexp INTO aexp        
       { let i1,chk1,comp1 = $1 in 
@@ -627,7 +590,7 @@ gpexp:
             let l1 = V.get_rl (comp1 ve) i1 in 
             let s3 = V.get_s (comp3 ve) i3 in
             let s5 = V.get_s (comp5 ve) i5 in
-              V.S (i,V.uid (),L.RLens.put l1 s3 s5))) }
+              V.S (i,L.RLens.put l1 s3 s5))) }
       
   | composeexp create aexp               
       { let i1,chk1,comp1 = $1 in 
@@ -641,7 +604,7 @@ gpexp:
           (fun ve -> 
             let l1 = V.get_rl (comp1 ve) i1 in 
             let s2 = V.get_s (comp3 ve) i3 in                                                  
-              V.S (i,V.uid (),L.RLens.create l1 s2))) }
+              V.S (i,L.RLens.create l1 s2))) }
   | composeexp                         
       { $1 }
 
@@ -737,7 +700,7 @@ texp:
           (fun se -> 
             expect_sort i1 "in set expression:" V.SRegexp (chk1 se);
             expect_sort i3 "in set expression:" V.SString (chk3 se);
-            V.SCLens),
+            V.SDLens),
           (fun ve -> 
             let f1 = V.get_f (fst (V.lookup i ve "set")) i in 
             let v1 = comp1 ve in 
@@ -760,7 +723,7 @@ rexp:
               match s1 with
                 | V.SString | V.SRegexp -> V.SRegexp
                 | V.SCanonizer -> V.SCanonizer
-                | V.SCLens -> V.SCLens 
+                | V.SDLens -> V.SDLens 
                 | V.SKLens -> V.SKLens
                 | V.SSLens -> V.SSLens
                 | V.SRLens -> V.SRLens
@@ -779,17 +742,17 @@ rexp:
             let mk_star v1 = 
               match V.sort_of_t v1 with
                 | V.SString | V.SRegexp -> 
-                    V.R(i,V.uid (),L.rx_rep (V.get_r v1 i) (0,None))
+                    V.R(i,L.rx_rep (V.get_r v1 i) (0,None))
                 | V.SCanonizer -> 
-                    V.CN(i,V.uid (),L.Canonizer.star i (V.get_cn v1 i))
-                | V.SCLens -> 
-                    V.CL(i,V.uid (),L.CLens.star i (V.get_cl v1 i))
+                    V.CN(i,L.Canonizer.star i (V.get_cn v1 i))
+                | V.SDLens -> 
+                    V.DL(i,L.DLens.star i (V.get_dl v1 i))
                 | V.SKLens -> 
-                    V.KL(i,V.uid (),L.KLens.star i (V.get_kl v1 i))
+                    V.KL(i,L.KLens.star i (V.get_kl v1 i))
                 | V.SSLens -> 
-                    V.SL(i,V.uid (),L.SLens.star i (V.get_sl v1 i))
+                    V.SL(i,L.SLens.star i (V.get_sl v1 i))
                 | V.SRLens -> 
-                    V.RL(i,V.uid (),L.RLens.star i (V.get_rl v1 i))
+                    V.RL(i,L.RLens.star i (V.get_rl v1 i))
                 | s -> 
                     sort_error i "in kleene-star expression:"
                       "string, regexp, or lens sort"
@@ -835,7 +798,7 @@ aexp:
           (fun ve ->             
             let v2 = fst (V.lookup i2 ve x2) in 
             let u = V.uid_of_t v2 in 
-              V.SL(i,V.uid (),L.SLens.smatch i x2 u (V.get_kl v2 i2)))) }
+              V.SL(i,L.SLens.smatch i x2 u (V.get_kl v2 i2)))) }
 
   | IDENT                               
       { let i,x = $1 in 
@@ -846,26 +809,26 @@ aexp:
               (match is_decl,V.sort_of_t v1 with
                 | true,V.SRegexp ->                     
                     let r = V.get_r v1 i in 
-                      V.R(i,V.uid (),L.rx_set_str r x)
+                      V.R(i,L.rx_set_str r x)
                 | _ -> v1))) }
 
   | CSET                                
       { let i1,s1 = $1 in 
           (i1,
           (fun se -> V.SRegexp),
-          (fun ve -> V.R(i1,V.uid (),L.rx_set (parse_cset s1)))) }
+          (fun ve -> V.R(i1,L.rx_set (parse_cset s1)))) }
 
   | NSET                                
       { let i1,s1 = $1 in 
           (i1,
           (fun se -> V.SRegexp),
-          (fun ve -> V.R(i1,V.uid (),L.rx_negset (parse_cset s1)))) }
+          (fun ve -> V.R(i1,L.rx_negset (parse_cset s1)))) }
 
   | STR 
       { let i,s = $1 in 
           (i, 
           (fun se -> V.SString),
-          (fun ve -> V.S(i,V.uid (),RS.of_string s))) }
+          (fun ve -> V.S(i,RS.of_string s))) }
       
   | LPAREN exp RPAREN                   
       { let (_,se,ve) = $2 in (m $1 $3, se,ve) }
@@ -891,8 +854,8 @@ asort:
   | CANONIZER
       { V.SCanonizer }
 
-  | CLENS  
-      { V.SCLens }
+  | DLENS  
+      { V.SDLens }
 
   | KLENS  
       { V.SKLens }

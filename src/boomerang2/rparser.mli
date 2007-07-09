@@ -2,7 +2,7 @@ type token =
   | EOF of (Info.t)
   | STRING of (Info.t)
   | REGEXP of (Info.t)
-  | CLENS of (Info.t)
+  | DLENS of (Info.t)
   | KLENS of (Info.t)
   | SLENS of (Info.t)
   | RLENS of (Info.t)

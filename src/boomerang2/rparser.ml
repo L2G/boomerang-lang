@@ -2,7 +2,7 @@ type token =
   | EOF of (Info.t)
   | STRING of (Info.t)
   | REGEXP of (Info.t)
-  | CLENS of (Info.t)
+  | DLENS of (Info.t)
   | KLENS of (Info.t)
   | SLENS of (Info.t)
   | RLENS of (Info.t)
@@ -296,89 +296,52 @@ let do_binary_op op_msg exp1 exp2 merge =
 let concat_merge = 
   [ (V.SString, V.SString,
     (fun _ _ -> V.SString),
-    (fun i v1 v2 -> V.S(i,V.uid (),RS.append (V.get_s v1 i) (V.get_s v2 i))))
+    (fun i v1 v2 -> V.S(i,RS.append (V.get_s v1 i) (V.get_s v2 i))))
   ; (V.SRegexp, V.SRegexp,
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_seq (V.get_r v1 i) (V.get_r v2 i))))
+    (fun i v1 v2 -> V.R(i,L.rx_seq (V.get_r v1 i) (V.get_r v2 i))))
   ; (V.SCanonizer, V.SCanonizer,
     (fun _ _ -> V.SCanonizer),
-    (fun i v1 v2 -> V.CN(i, V.uid (),L.Canonizer.concat i (V.get_cn v1 i) (V.get_cn v2 i))))
-  ; (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.concat i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.concat i (V.get_kl v1 i) (V.get_kl v2 i))))
-  ; (V.SSLens, V.SSLens, 
-    (fun _ _ -> V.SSLens),
-    (fun i v1 v2 -> V.SL(i,V.uid (),L.SLens.concat i (V.get_sl v1 i) (V.get_sl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.concat i (V.get_rl v1 i) (V.get_rl v2 i))))
+    (fun i v1 v2 -> V.CN(i, L.Canonizer.concat i (V.get_cn v1 i) (V.get_cn v2 i))))
+  ; (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.concat i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 let swap_merge = 
-  [ (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.swap i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.swap i (V.get_kl v1 i) (V.get_kl v2 i))))
-  ; (V.SSLens, V.SSLens, 
-    (fun _ _ -> V.SSLens),
-    (fun i v1 v2 -> V.SL(i,V.uid (),L.SLens.swap i (V.get_sl v1 i) (V.get_sl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.swap i (V.get_rl v1 i) (V.get_rl v2 i))))
+  [ (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.swap i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 let union_merge = 
   [ (V.SRegexp, V.SRegexp,
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_alt (V.get_r v1 i) (V.get_r v2 i))))
+    (fun i v1 v2 -> V.R(i,L.rx_alt (V.get_r v1 i) (V.get_r v2 i))))
   ; (V.SCanonizer, V.SCanonizer,
     (fun _ _ -> V.SCanonizer),
-    (fun i v1 v2 -> V.CN(i, V.uid (),L.Canonizer.union i (V.get_cn v1 i) (V.get_cn v2 i))))
-  ; (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.union i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.union i (V.get_kl v1 i) (V.get_kl v2 i))))
-  ; (V.SSLens, V.SSLens, 
-    (fun _ _ -> V.SSLens),
-    (fun i v1 v2 -> V.SL(i,V.uid (),L.SLens.union i (V.get_sl v1 i) (V.get_sl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.union i (V.get_rl v1 i) (V.get_rl v2 i))))
-
+    (fun i v1 v2 -> V.CN(i, L.Canonizer.union i (V.get_cn v1 i) (V.get_cn v2 i))))
+  ; (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.union i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 let compose_merge = 
-  [ (V.SCLens, V.SCLens, 
-    (fun _ _ -> V.SCLens),
-    (fun i v1 v2 -> V.CL(i,V.uid (),L.CLens.compose i (V.get_cl v1 i) (V.get_cl v2 i))))
-  ; (V.SKLens, V.SCLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.compose_kc i (V.get_kl v1 i) (V.get_cl v2 i))))
-  ; (V.SCLens, V.SKLens, 
-    (fun _ _ -> V.SKLens),
-    (fun i v1 v2 -> V.KL(i,V.uid (),L.KLens.compose_ck i (V.get_cl v1 i) (V.get_kl v2 i))))
-  ; (V.SRLens, V.SRLens, 
-    (fun _ _ -> V.SRLens),
-    (fun i v1 v2 -> V.RL(i,V.uid (),L.RLens.compose i (V.get_rl v1 i) (V.get_rl v2 i))))
+  [ (V.SDLens, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.compose i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
 
 let minus_merge = 
   [ (V.SRegexp, V.SRegexp, 
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_diff (V.get_r v1 i) (V.get_r v2 i)))) ]
+    (fun i v1 v2 -> V.R(i,L.rx_diff (V.get_r v1 i) (V.get_r v2 i)))) ]
 
 let inter_merge = 
   [ (V.SRegexp, V.SRegexp, 
     (fun _ _ -> V.SRegexp),
-    (fun i v1 v2 -> V.R(i,V.uid (),L.rx_inter (V.get_r v1 i) (V.get_r v2 i)))) ]
+    (fun i v1 v2 -> V.R(i,L.rx_inter (V.get_r v1 i) (V.get_r v2 i)))) ]
       
 (* ----- helper functions for checking and compiling functions ----- *)
 (* mk_fun_chker : 
@@ -402,7 +365,7 @@ let inter_merge =
 let mk_fun_chker i params sorto chk_body =
   (fun se -> 
     (* first, construct 
-     *   - an environment, [se'], from [se] that includes the 
+     *   - an environment, [se'], from [se] that indludes the 
      *     parameters and their sorts 
      * 
      *   - a function, [mk_s], that takes the sort of the body
@@ -418,14 +381,14 @@ let mk_fun_chker i params sorto chk_body =
 
     (* type check the body in the new env *)
     let body_s = chk_body se' in 
-      (* optionally, check that the body has its declared sort *)
+      (* optionally, check that the body has its dedlared sort *)
       (match sorto with 
         | Some (Misc.Left Some (expected_sort)) -> 
             expect_sort i "" expected_sort body_s
         | Some (Misc.Right _) -> 
             (* defer precise checking until later *)
             if V.is_lens_sort body_s then () 
-            else expect_sort i "" V.SCLens body_s
+            else expect_sort i "" V.SDLens body_s
         | _ -> ());
       (* finally, return the function sort *)
       mk_s body_s)
@@ -498,7 +461,7 @@ let test_fail i expected_str found_str =
     let l = min n (min 10 (n - !r + 5)) in
     Util.format "Differs at character %d, around \"%s\"@\n" 
       !r (String.sub expected m l)
-# 502 "rparser.ml"
+# 465 "rparser.ml"
 let yytransl_const = [|
     0|]
 
@@ -506,7 +469,7 @@ let yytransl_block = [|
     0 (* EOF *);
   257 (* STRING *);
   258 (* REGEXP *);
-  259 (* CLENS *);
+  259 (* DLENS *);
   260 (* KLENS *);
   261 (* SLENS *);
   262 (* RLENS *);
@@ -874,7 +837,7 @@ let yynames_block = "\
   EOF\000\
   STRING\000\
   REGEXP\000\
-  CLENS\000\
+  DLENS\000\
   KLENS\000\
   SLENS\000\
   RLENS\000\
@@ -936,9 +899,9 @@ let yyact = [|
     let _1 = (Parsing.peek_val __caml_parser_env 1 : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env) in
     let _2 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 473 "rparser.mly"
+# 436 "rparser.mly"
                                             ( _1 )
-# 942 "rparser.ml"
+# 905 "rparser.ml"
                : Rvalue.s Rvalue.Renv.t * (Rvalue.t * bool) Rvalue.Renv.t -> Rvalue.s Rvalue.Renv.t * (Rvalue.t * bool) Rvalue.Renv.t))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 6 : Info.t) in
@@ -949,7 +912,7 @@ let yyact = [|
     let _6 = (Parsing.peek_val __caml_parser_env 1 : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)) in
     let _7 = (Parsing.peek_val __caml_parser_env 0 : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env) in
     Obj.repr(
-# 477 "rparser.mly"
+# 440 "rparser.mly"
       ( (fun (se,ve) -> 
         let i2,x2 = _2 in 
         let i6,chk6,comp6 = _6 in                                                    
@@ -957,7 +920,7 @@ let yyact = [|
         let se' = Renv.update se x2 ((mk_fun_chker i _3 _4 chk6) se) in 
         let ve' = Renv.update ve x2 (((mk_fun_comper i x2 _3 _4 comp6) ve), true) in 
           _7 (se',ve')) )
-# 961 "rparser.ml"
+# 924 "rparser.ml"
                : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : Info.t) in
@@ -966,17 +929,17 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env) in
     Obj.repr(
-# 487 "rparser.mly"
+# 450 "rparser.mly"
       ( (fun (se,ve) ->
         let i2,chk2,comp2 = _2 in 
-          expect_sort i2 "in test declaration:" V.SString (chk2 se);
+          expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
           let s2 = V.get_s (comp2 ve) i2 in 
             Util.format "@[Test Result: @[";
             L.nlify_str s2;
             Util.format "@]@]@\n";
 	    Util.flush ();
             _5 (se,ve)) )
-# 980 "rparser.ml"
+# 943 "rparser.ml"
                : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : Info.t) in
@@ -985,18 +948,18 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env) in
     Obj.repr(
-# 498 "rparser.mly"
+# 461 "rparser.mly"
       (  (fun (se,ve) ->
         let i2,chk2,comp2 = _2 in 
         let i4,chk4,comp4 = _4 in 
         let i = m i2 i4 in 
-          expect_sort i2 "in test declaration:" V.SString (chk2 se);
-          expect_sort i4 "in test declaration:" V.SString (chk4 se);
+          expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
+          expect_sort i4 "in test dedlaration:" V.SString (chk4 se);
           let s2 = V.get_s (comp2 ve) i2 in 
           let s4 = V.get_s (comp4 ve) i4 in 
             if (RS.to_string s2) <> (RS.to_string s4) then test_fail i s4 s2;
             _5 (se,ve)) )
-# 1000 "rparser.ml"
+# 963 "rparser.ml"
                : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : Info.t) in
@@ -1005,15 +968,15 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env) in
     Obj.repr(
-# 510 "rparser.mly"
+# 473 "rparser.mly"
       (  (fun (se,ve) ->
         let i2,chk2,comp2 = _2 in 
         let i = m i2 _4 in 
-          expect_sort i2 "in test declaration:" V.SString (chk2 se);
+          expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
           (try test_fail i (RS.of_string "error") (V.get_s (comp2 ve) i2)
             with Error.Harmony_error _ -> ());
           _5 (se,ve)) )
-# 1017 "rparser.ml"
+# 980 "rparser.ml"
                : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 7 : Info.t) in
@@ -1025,15 +988,15 @@ let yyact = [|
     let _7 = (Parsing.peek_val __caml_parser_env 1 : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)) in
     let _8 = (Parsing.peek_val __caml_parser_env 0 : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env) in
     Obj.repr(
-# 519 "rparser.mly"
+# 482 "rparser.mly"
       ( (fun (se,ve) -> 
         let i2,chk2,comp2 = _2 in 
         let i5,chk5,comp5 = _5 in 
         let i7,chk7,comp7 = _7 in 
         let i = m i2 i7 in 
-          expect_sort i2 "in test declaration:" V.SRLens (chk2 se);
-          expect_sort i5 "in test declaration:" V.SString (chk5 se);
-          expect_sort i7 "in test declaration:" V.SString (chk7 se);
+          expect_sort i2 "in test dedlaration:" V.SRLens (chk2 se);
+          expect_sort i5 "in test dedlaration:" V.SString (chk5 se);
+          expect_sort i7 "in test dedlaration:" V.SString (chk7 se);
           let l2 = V.get_rl (comp2 ve) i2 in 
           let s5 = V.get_s  (comp5 ve) i5 in 
           let s7 = V.get_s (comp7 ve) i7 in 
@@ -1042,7 +1005,7 @@ let yyact = [|
             if (RS.to_string g) <> (RS.to_string s7) then test_fail i s7 g;
             if (RS.to_string c) <> (RS.to_string s5) then test_fail i s5 c;
             _8 (se,ve)) )
-# 1046 "rparser.ml"
+# 1009 "rparser.ml"
                : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : Info.t) in
@@ -1051,7 +1014,7 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : 'sort_spec) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env) in
     Obj.repr(
-# 537 "rparser.mly"
+# 500 "rparser.mly"
       ( (fun (se,ve) -> 
         let i2,chk2,comp2 = _2 in
         let v2 = comp2 ve in 
@@ -1070,10 +1033,10 @@ let yyact = [|
                     (Info.string_of_t i2) 
                     (V.string_of_sort s2)
             | Misc.Left(Some s) -> 
-                expect_sort i2 "in test type declaration:" s s2
+                expect_sort i2 "in test type dedlaration:" s s2
             | Misc.Right((_,c_compo),(_,a_compo)) -> 
                 if not (V.is_lens_sort s2) then 
-                    sort_error i2 "in test type declaration:"
+                    sort_error i2 "in test type dedlaration:"
                       "lens sort" (V.string_of_sort s2)
                 else
                   let c_found,a_found = V.get_lens_sorts v2 in 
@@ -1085,13 +1048,13 @@ let yyact = [|
                         (if c_compo = None then L.string_of_r c_found else c_str)
                         (if a_compo = None then L.string_of_r a_found else a_str));          
           _5 (se,ve)) )
-# 1089 "rparser.ml"
+# 1052 "rparser.ml"
                : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env))
 ; (fun __caml_parser_env ->
     Obj.repr(
-# 573 "rparser.mly"
+# 536 "rparser.mly"
       ( (fun (se,ve) -> (se,ve)) )
-# 1095 "rparser.ml"
+# 1058 "rparser.ml"
                : Rvalue.s env * (Rvalue.t * bool) env -> Rvalue.s env * (Rvalue.t * bool) env))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 7 : Info.t) in
@@ -1103,7 +1066,7 @@ let yyact = [|
     let _7 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _8 = (Parsing.peek_val __caml_parser_env 0 : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)) in
     Obj.repr(
-# 580 "rparser.mly"
+# 543 "rparser.mly"
       ( let i2,x2 = _2 in 
         let i6,chk6,comp6 = _6 in 
         let i8,chk8,comp8 = _8 in 
@@ -1111,7 +1074,7 @@ let yyact = [|
           (i,
           (fun se -> chk8 (Renv.update se x2 ((mk_fun_chker i _3 _4 chk6) se))),
           (fun ve -> comp8 (Renv.update ve x2 (((mk_fun_comper i x2 _3 _4 comp6) ve), true)))) )
-# 1115 "rparser.ml"
+# 1078 "rparser.ml"
                : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : Info.t) in
@@ -1120,28 +1083,28 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)) in
     Obj.repr(
-# 589 "rparser.mly"
+# 552 "rparser.mly"
       ( let i5,chk5,comp5 = _5 in 
         let ps = _2::_3 in 
         let i = m _1 i5 in 
           (i,
           (fun se -> (mk_fun_chker i ps None chk5) se),
           (fun ve -> ((mk_fun_comper i "anonymous function" ps None comp5) ve))) )
-# 1131 "rparser.ml"
+# 1094 "rparser.ml"
                : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'gpexp) in
     Obj.repr(
-# 597 "rparser.mly"
+# 560 "rparser.mly"
       ( _1 )
-# 1138 "rparser.ml"
+# 1101 "rparser.ml"
                : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'composeexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : 'get) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'aexp) in
     Obj.repr(
-# 602 "rparser.mly"
+# 565 "rparser.mly"
       ( let i1,chk1,comp1 = _1 in 
         let i3,chk3,comp3 = _3 in                                           
         let i = m i1 i3 in 
@@ -1153,8 +1116,8 @@ let yyact = [|
           (fun ve -> 
             let l1 = V.get_rl (comp1 ve) i1 in 
             let s3 = V.get_s (comp3 ve) i3 in                                                  
-              V.S (i,V.uid (),L.RLens.get l1 s3))) )
-# 1158 "rparser.ml"
+              V.S (i,L.RLens.get l1 s3))) )
+# 1121 "rparser.ml"
                : 'gpexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : 'composeexp) in
@@ -1163,7 +1126,7 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : 'aexp) in
     Obj.repr(
-# 616 "rparser.mly"
+# 579 "rparser.mly"
       ( let i1,chk1,comp1 = _1 in 
         let i3,chk3,comp3 = _3 in 
         let i5,chk5,comp5 = _5 in 
@@ -1178,15 +1141,15 @@ let yyact = [|
             let l1 = V.get_rl (comp1 ve) i1 in 
             let s3 = V.get_s (comp3 ve) i3 in
             let s5 = V.get_s (comp5 ve) i5 in
-              V.S (i,V.uid (),L.RLens.put l1 s3 s5))) )
-# 1183 "rparser.ml"
+              V.S (i,L.RLens.put l1 s3 s5))) )
+# 1146 "rparser.ml"
                : 'gpexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'composeexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : 'create) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'aexp) in
     Obj.repr(
-# 633 "rparser.mly"
+# 596 "rparser.mly"
       ( let i1,chk1,comp1 = _1 in 
         let i3,chk3,comp3 = _3 in 
         let i = m i1 i3 in 
@@ -1198,133 +1161,133 @@ let yyact = [|
           (fun ve -> 
             let l1 = V.get_rl (comp1 ve) i1 in 
             let s2 = V.get_s (comp3 ve) i3 in                                                  
-              V.S (i,V.uid (),L.RLens.create l1 s2))) )
-# 1203 "rparser.ml"
+              V.S (i,L.RLens.create l1 s2))) )
+# 1166 "rparser.ml"
                : 'gpexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'composeexp) in
     Obj.repr(
-# 646 "rparser.mly"
+# 609 "rparser.mly"
       ( _1 )
-# 1210 "rparser.ml"
+# 1173 "rparser.ml"
                : 'gpexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'composeexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'bexp) in
     Obj.repr(
-# 651 "rparser.mly"
+# 614 "rparser.mly"
       ( do_binary_op "in compose expression" _1 _3 compose_merge )
-# 1219 "rparser.ml"
+# 1182 "rparser.ml"
                : 'composeexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'bexp) in
     Obj.repr(
-# 654 "rparser.mly"
+# 617 "rparser.mly"
       ( _1 )
-# 1226 "rparser.ml"
+# 1189 "rparser.ml"
                : 'composeexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'bexp2) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'iexp) in
     Obj.repr(
-# 659 "rparser.mly"
+# 622 "rparser.mly"
       ( do_binary_op "in union expression" _1 _3 union_merge )
-# 1235 "rparser.ml"
+# 1198 "rparser.ml"
                : 'bexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'mexp) in
     Obj.repr(
-# 662 "rparser.mly"
+# 625 "rparser.mly"
       ( _1 )
-# 1242 "rparser.ml"
+# 1205 "rparser.ml"
                : 'bexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'bexp2) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'iexp) in
     Obj.repr(
-# 666 "rparser.mly"
+# 629 "rparser.mly"
       ( do_binary_op "in union expression" _1 _3 union_merge )
-# 1251 "rparser.ml"
+# 1214 "rparser.ml"
                : 'bexp2))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'iexp) in
     Obj.repr(
-# 669 "rparser.mly"
+# 632 "rparser.mly"
       ( _1 )
-# 1258 "rparser.ml"
+# 1221 "rparser.ml"
                : 'bexp2))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'mexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'iexp) in
     Obj.repr(
-# 674 "rparser.mly"
+# 637 "rparser.mly"
       ( do_binary_op "in minus expression" _1 _3 minus_merge )
-# 1267 "rparser.ml"
+# 1230 "rparser.ml"
                : 'mexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'iexp) in
     Obj.repr(
-# 677 "rparser.mly"
+# 640 "rparser.mly"
       ( _1 )
-# 1274 "rparser.ml"
+# 1237 "rparser.ml"
                : 'mexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'iexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'sexp) in
     Obj.repr(
-# 682 "rparser.mly"
+# 645 "rparser.mly"
       ( do_binary_op "in intersection expression" _1 _3 inter_merge )
-# 1283 "rparser.ml"
+# 1246 "rparser.ml"
                : 'iexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'sexp) in
     Obj.repr(
-# 685 "rparser.mly"
+# 648 "rparser.mly"
       ( _1 )
-# 1290 "rparser.ml"
+# 1253 "rparser.ml"
                : 'iexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'sexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'cexp) in
     Obj.repr(
-# 691 "rparser.mly"
+# 654 "rparser.mly"
       ( do_binary_op "in swap expression" _1 _3 swap_merge )
-# 1299 "rparser.ml"
+# 1262 "rparser.ml"
                : 'sexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'cexp) in
     Obj.repr(
-# 694 "rparser.mly"
+# 657 "rparser.mly"
       ( _1 )
-# 1306 "rparser.ml"
+# 1269 "rparser.ml"
                : 'sexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'cexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'appexp) in
     Obj.repr(
-# 699 "rparser.mly"
+# 662 "rparser.mly"
       ( do_binary_op "in concat expression" _1 _3 concat_merge )
-# 1315 "rparser.ml"
+# 1278 "rparser.ml"
                : 'cexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'appexp) in
     Obj.repr(
-# 702 "rparser.mly"
+# 665 "rparser.mly"
       ( _1 )
-# 1322 "rparser.ml"
+# 1285 "rparser.ml"
                : 'cexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 1 : 'appexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 0 : 'texp) in
     Obj.repr(
-# 707 "rparser.mly"
+# 670 "rparser.mly"
       ( let i1,chk1,comp1 = _1 in 
         let i2,chk2,comp2 = _2 in 
         let i = m i1 i2 in 
@@ -1344,21 +1307,21 @@ let yyact = [|
           (fun ve -> 
             let f1 = V.get_f (comp1 ve) i1 in
               f1 i2 (comp2 ve))) )
-# 1348 "rparser.ml"
+# 1311 "rparser.ml"
                : 'appexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'texp) in
     Obj.repr(
-# 728 "rparser.mly"
+# 691 "rparser.mly"
       ( _1 )
-# 1355 "rparser.ml"
+# 1318 "rparser.ml"
                : 'appexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'texp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'rexp) in
     Obj.repr(
-# 733 "rparser.mly"
+# 696 "rparser.mly"
       ( let i1,chk1,comp1 = _1 in 
         let i3,chk3,comp3 = _3 in 
         let i = m i1 i3 in 
@@ -1366,27 +1329,27 @@ let yyact = [|
           (fun se -> 
             expect_sort i1 "in set expression:" V.SRegexp (chk1 se);
             expect_sort i3 "in set expression:" V.SString (chk3 se);
-            V.SCLens),
+            V.SDLens),
           (fun ve -> 
             let f1 = V.get_f (fst (V.lookup i ve "set")) i in 
             let v1 = comp1 ve in 
             let f2 = V.get_f (f1 i1 v1) i in 
             let v3 = comp3 ve in 
               f2 i3 v3)) )
-# 1377 "rparser.ml"
+# 1340 "rparser.ml"
                : 'texp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'rexp) in
     Obj.repr(
-# 748 "rparser.mly"
+# 711 "rparser.mly"
       ( _1 )
-# 1384 "rparser.ml"
+# 1347 "rparser.ml"
                : 'texp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 1 : 'aexp) in
     let _2 = (Parsing.peek_val __caml_parser_env 0 : 'rep) in
     Obj.repr(
-# 754 "rparser.mly"
+# 717 "rparser.mly"
       ( let i1,chk1,comp1 = _1 in 
         let i2,(min,maxo) = _2 in     
         let i = m i1 i2 in 
@@ -1396,7 +1359,7 @@ let yyact = [|
               match s1 with
                 | V.SString | V.SRegexp -> V.SRegexp
                 | V.SCanonizer -> V.SCanonizer
-                | V.SCLens -> V.SCLens 
+                | V.SDLens -> V.SDLens 
                 | V.SKLens -> V.SKLens
                 | V.SSLens -> V.SSLens
                 | V.SRLens -> V.SRLens
@@ -1415,17 +1378,17 @@ let yyact = [|
             let mk_star v1 = 
               match V.sort_of_t v1 with
                 | V.SString | V.SRegexp -> 
-                    V.R(i,V.uid (),L.rx_rep (V.get_r v1 i) (0,None))
+                    V.R(i,L.rx_rep (V.get_r v1 i) (0,None))
                 | V.SCanonizer -> 
-                    V.CN(i,V.uid (),L.Canonizer.star i (V.get_cn v1 i))
-                | V.SCLens -> 
-                    V.CL(i,V.uid (),L.CLens.star i (V.get_cl v1 i))
+                    V.CN(i,L.Canonizer.star i (V.get_cn v1 i))
+                | V.SDLens -> 
+                    V.DL(i,L.DLens.star i (V.get_dl v1 i))
                 | V.SKLens -> 
-                    V.KL(i,V.uid (),L.KLens.star i (V.get_kl v1 i))
+                    V.KL(i,L.KLens.star i (V.get_kl v1 i))
                 | V.SSLens -> 
-                    V.SL(i,V.uid (),L.SLens.star i (V.get_sl v1 i))
+                    V.SL(i,L.SLens.star i (V.get_sl v1 i))
                 | V.SRLens -> 
-                    V.RL(i,V.uid (),L.RLens.star i (V.get_rl v1 i))
+                    V.RL(i,L.RLens.star i (V.get_rl v1 i))
                 | s -> 
                     sort_error i "in kleene-star expression:"
                       "string, regexp, or lens sort"
@@ -1455,21 +1418,21 @@ let yyact = [|
                           else a.(i) <- mk_cat v1 a.(pred i);
                         done;
                         Safelist.fold_left mk_union v0 (Safelist.tl (Array.to_list a)))) )
-# 1459 "rparser.ml"
+# 1422 "rparser.ml"
                : 'rexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'aexp) in
     Obj.repr(
-# 823 "rparser.mly"
+# 786 "rparser.mly"
       ( _1 )
-# 1466 "rparser.ml"
+# 1429 "rparser.ml"
                : 'rexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : Info.t) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t * string) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 828 "rparser.mly"
+# 791 "rparser.mly"
       ( let i2,x2 = _2 in 
         let i = m _1 _3 in 
           (i,
@@ -1480,13 +1443,13 @@ let yyact = [|
           (fun ve ->             
             let v2 = fst (V.lookup i2 ve x2) in 
             let u = V.uid_of_t v2 in 
-              V.SL(i,V.uid (),L.SLens.smatch i x2 u (V.get_kl v2 i2)))) )
-# 1485 "rparser.ml"
+              V.SL(i,L.SLens.smatch i x2 u (V.get_kl v2 i2)))) )
+# 1448 "rparser.ml"
                : 'aexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t * string) in
     Obj.repr(
-# 841 "rparser.mly"
+# 804 "rparser.mly"
       ( let i,x = _1 in 
           (i,
           (fun se -> V.lookup i se x),
@@ -1495,173 +1458,173 @@ let yyact = [|
               (match is_decl,V.sort_of_t v1 with
                 | true,V.SRegexp ->                     
                     let r = V.get_r v1 i in 
-                      V.R(i,V.uid (),L.rx_set_str r x)
+                      V.R(i,L.rx_set_str r x)
                 | _ -> v1))) )
-# 1501 "rparser.ml"
+# 1464 "rparser.ml"
                : 'aexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t * string) in
     Obj.repr(
-# 853 "rparser.mly"
+# 816 "rparser.mly"
       ( let i1,s1 = _1 in 
           (i1,
           (fun se -> V.SRegexp),
-          (fun ve -> V.R(i1,V.uid (),L.rx_set (parse_cset s1)))) )
-# 1511 "rparser.ml"
+          (fun ve -> V.R(i1,L.rx_set (parse_cset s1)))) )
+# 1474 "rparser.ml"
                : 'aexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t * string) in
     Obj.repr(
-# 859 "rparser.mly"
+# 822 "rparser.mly"
       ( let i1,s1 = _1 in 
           (i1,
           (fun se -> V.SRegexp),
-          (fun ve -> V.R(i1,V.uid (),L.rx_negset (parse_cset s1)))) )
-# 1521 "rparser.ml"
+          (fun ve -> V.R(i1,L.rx_negset (parse_cset s1)))) )
+# 1484 "rparser.ml"
                : 'aexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t * string) in
     Obj.repr(
-# 865 "rparser.mly"
+# 828 "rparser.mly"
       ( let i,s = _1 in 
           (i, 
           (fun se -> V.SString),
-          (fun ve -> V.S(i,V.uid (),RS.of_string s))) )
-# 1531 "rparser.ml"
+          (fun ve -> V.S(i,RS.of_string s))) )
+# 1494 "rparser.ml"
                : 'aexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : Info.t) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 871 "rparser.mly"
+# 834 "rparser.mly"
       ( let (_,se,ve) = _2 in (m _1 _3, se,ve) )
-# 1540 "rparser.ml"
+# 1503 "rparser.ml"
                : 'aexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : Info.t) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t * (Rvalue.s env -> Rvalue.s) * ((Rvalue.t * bool) env -> Rvalue.t)) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 874 "rparser.mly"
+# 837 "rparser.mly"
       ( let (_,se,ve) = _2 in (m _1 _3, se,ve) )
-# 1549 "rparser.ml"
+# 1512 "rparser.ml"
                : 'aexp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'asort) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'sort) in
     Obj.repr(
-# 879 "rparser.mly"
+# 842 "rparser.mly"
       ( V.SFunction(_1,Some _3) )
-# 1558 "rparser.ml"
+# 1521 "rparser.ml"
                : 'sort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'asort) in
     Obj.repr(
-# 882 "rparser.mly"
+# 845 "rparser.mly"
       ( _1 )
-# 1565 "rparser.ml"
+# 1528 "rparser.ml"
                : 'sort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 886 "rparser.mly"
+# 849 "rparser.mly"
       ( V.SString )
-# 1572 "rparser.ml"
+# 1535 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 889 "rparser.mly"
+# 852 "rparser.mly"
       ( V.SRegexp )
-# 1579 "rparser.ml"
+# 1542 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 892 "rparser.mly"
+# 855 "rparser.mly"
       ( V.SCanonizer )
-# 1586 "rparser.ml"
+# 1549 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 895 "rparser.mly"
-      ( V.SCLens )
-# 1593 "rparser.ml"
+# 858 "rparser.mly"
+      ( V.SDLens )
+# 1556 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 898 "rparser.mly"
+# 861 "rparser.mly"
       ( V.SKLens )
-# 1600 "rparser.ml"
+# 1563 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 901 "rparser.mly"
+# 864 "rparser.mly"
       ( V.SSLens )
-# 1607 "rparser.ml"
+# 1570 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 904 "rparser.mly"
+# 867 "rparser.mly"
       ( V.SRLens )
-# 1614 "rparser.ml"
+# 1577 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : Info.t) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : 'sort) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 907 "rparser.mly"
+# 870 "rparser.mly"
       ( _2 )
-# 1623 "rparser.ml"
+# 1586 "rparser.ml"
                : 'asort))
 ; (fun __caml_parser_env ->
     Obj.repr(
-# 911 "rparser.mly"
+# 874 "rparser.mly"
       ( None )
-# 1629 "rparser.ml"
+# 1592 "rparser.ml"
                : 'opt_sort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _2 = (Parsing.peek_val __caml_parser_env 0 : 'sort_spec) in
     Obj.repr(
-# 914 "rparser.mly"
+# 877 "rparser.mly"
       ( Some _2 )
-# 1637 "rparser.ml"
+# 1600 "rparser.ml"
                : 'opt_sort))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 918 "rparser.mly"
+# 881 "rparser.mly"
       ( Misc.Left (None) )
-# 1644 "rparser.ml"
+# 1607 "rparser.ml"
                : 'sort_spec))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'sort) in
     Obj.repr(
-# 921 "rparser.mly"
+# 884 "rparser.mly"
       ( Misc.Left (Some _1) )
-# 1651 "rparser.ml"
+# 1614 "rparser.ml"
                : 'sort_spec))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'qmark_or_exp) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : 'qmark_or_exp) in
     Obj.repr(
-# 924 "rparser.mly"
+# 887 "rparser.mly"
       ( Misc.Right(_1,_3) )
-# 1660 "rparser.ml"
+# 1623 "rparser.ml"
                : 'sort_spec))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 930 "rparser.mly"
+# 893 "rparser.mly"
       ( (* '?' is used when you do not want to type check
 	   one of the the types. For example if you wrote a 
 	   definition of the abstract domain and want to verifiy
@@ -1669,29 +1632,29 @@ let yyact = [|
 	   but you don't want to explicitly write the definition of
 	   all the concrete domains *)
 	let i = _1 in (i, None))
-# 1673 "rparser.ml"
+# 1636 "rparser.ml"
                : 'qmark_or_exp))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : 'rexp) in
     Obj.repr(
-# 939 "rparser.mly"
+# 902 "rparser.mly"
       ( let i1,chk2,comp1 = _1 in 
           (i1, Some (fun ve -> comp1 ve)) )
-# 1681 "rparser.ml"
+# 1644 "rparser.ml"
                : 'qmark_or_exp))
 ; (fun __caml_parser_env ->
     Obj.repr(
-# 945 "rparser.mly"
+# 908 "rparser.mly"
       ( [] )
-# 1687 "rparser.ml"
+# 1650 "rparser.ml"
                : 'param_list))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 1 : 'param) in
     let _2 = (Parsing.peek_val __caml_parser_env 0 : 'param_list) in
     Obj.repr(
-# 947 "rparser.mly"
+# 910 "rparser.mly"
       ( _1 :: _2 )
-# 1695 "rparser.ml"
+# 1658 "rparser.ml"
                : 'param_list))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : Info.t) in
@@ -1700,39 +1663,39 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : 'sort) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 951 "rparser.mly"
+# 914 "rparser.mly"
       ( let i,x = _2 in (i,x,_4) )
-# 1706 "rparser.ml"
+# 1669 "rparser.ml"
                : 'param))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 957 "rparser.mly"
+# 920 "rparser.mly"
       ( (_1, (0, None)) )
-# 1713 "rparser.ml"
+# 1676 "rparser.ml"
                : 'rep))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 960 "rparser.mly"
+# 923 "rparser.mly"
       ( (_1, (1, None)) )
-# 1720 "rparser.ml"
+# 1683 "rparser.ml"
                : 'rep))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 963 "rparser.mly"
+# 926 "rparser.mly"
       ( (_1, (0,Some 1)) )
-# 1727 "rparser.ml"
+# 1690 "rparser.ml"
                : 'rep))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : Info.t) in
     let _2 = (Parsing.peek_val __caml_parser_env 1 : Info.t * int) in
     let _3 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 966 "rparser.mly"
+# 929 "rparser.mly"
       ( let i = m _1 _3 in let _,n = _2 in (i, (n,Some n)) )
-# 1736 "rparser.ml"
+# 1699 "rparser.ml"
                : 'rep))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 3 : Info.t) in
@@ -1740,9 +1703,9 @@ let yyact = [|
     let _3 = (Parsing.peek_val __caml_parser_env 1 : Info.t) in
     let _4 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 969 "rparser.mly"
+# 932 "rparser.mly"
       ( let i = m _1 _3 in let _,n = _2 in (i, (n,None)) )
-# 1746 "rparser.ml"
+# 1709 "rparser.ml"
                : 'rep))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 4 : Info.t) in
@@ -1751,79 +1714,79 @@ let yyact = [|
     let _4 = (Parsing.peek_val __caml_parser_env 1 : Info.t * int) in
     let _5 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 972 "rparser.mly"
+# 935 "rparser.mly"
       ( let i = m _1 _5 in let _,n2 = _2 in let _,n4 = _4 in (i, (n2, Some n4)) )
-# 1757 "rparser.ml"
+# 1720 "rparser.ml"
                : 'rep))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 977 "rparser.mly"
+# 940 "rparser.mly"
       ( _1 )
-# 1764 "rparser.ml"
+# 1727 "rparser.ml"
                : 'eq_arrow))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 980 "rparser.mly"
+# 943 "rparser.mly"
       ( _1 )
-# 1771 "rparser.ml"
+# 1734 "rparser.ml"
                : 'eq_arrow))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 984 "rparser.mly"
+# 947 "rparser.mly"
       ( _1 )
-# 1778 "rparser.ml"
+# 1741 "rparser.ml"
                : 'eq_darrow))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 987 "rparser.mly"
+# 950 "rparser.mly"
       ( _1 )
-# 1785 "rparser.ml"
+# 1748 "rparser.ml"
                : 'eq_darrow))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 991 "rparser.mly"
+# 954 "rparser.mly"
       ( _1 )
-# 1792 "rparser.ml"
+# 1755 "rparser.ml"
                : 'get))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 994 "rparser.mly"
+# 957 "rparser.mly"
       ( _1 )
-# 1799 "rparser.ml"
+# 1762 "rparser.ml"
                : 'get))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 998 "rparser.mly"
+# 961 "rparser.mly"
       ( _1 )
-# 1806 "rparser.ml"
+# 1769 "rparser.ml"
                : 'put))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 1001 "rparser.mly"
+# 964 "rparser.mly"
       ( _1 )
-# 1813 "rparser.ml"
+# 1776 "rparser.ml"
                : 'put))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 1005 "rparser.mly"
+# 968 "rparser.mly"
       ( _1 )
-# 1820 "rparser.ml"
+# 1783 "rparser.ml"
                : 'create))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 0 : Info.t) in
     Obj.repr(
-# 1008 "rparser.mly"
+# 971 "rparser.mly"
       ( _1 )
-# 1827 "rparser.ml"
+# 1790 "rparser.ml"
                : 'create))
 (* Entry top *)
 ; (fun __caml_parser_env -> raise (Parsing.YYexit (Parsing.peek_val __caml_parser_env 0)))
