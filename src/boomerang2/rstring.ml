@@ -16,9 +16,13 @@ struct
   module IM = Int.Map
   let map_repr = ref IM.empty
   let map_special = ref SM.empty
-    
-  let char_code_min = 0
-  let char_code_max = 255
+
+  let char_int_min = 0
+  let char_int_max = 255
+  let char_code_min = char_int_min
+  let char_code_max = char_int_max
+
+
 
   let next_special = ref char_code_max
   type sym = int
@@ -127,8 +131,10 @@ module IM = Int.Map
 let map_repr = ref IM.empty
 let map_special = ref SM.empty
   
-let char_code_min = 0
-let char_code_max = 255
+let char_int_min = Int_array.char_int_min
+let char_int_max = Int_array.char_int_max
+let char_code_min = Int_array.char_code_min
+let char_code_max = Int_array.char_code_max
   
 let next_special = ref char_code_max
 type sym = int

@@ -314,7 +314,15 @@ let lift_rr i n t1 t2 f = (fun x y ->
       type_error i t2 n (split_bad_prefix t2 y)
     else (f x y))
 
-let lift_rd i n t1 t2 f = 
+let lift_rsd i n t1 st2 f = (fun x y z ->     
+    if not (Erx.match_str t1.rx x) then 
+      type_error i t1 n (split_bad_prefix t1 x)
+    else if not (st2 y) then 
+      assert false
+    else (f x y z))
+
+
+let lift_rd i n t1 f = 
   (fun x y ->     
     if not (Erx.match_str t1.rx x) then 
       type_error i t1 n (split_bad_prefix t1 x)
@@ -363,10 +371,70 @@ let string_of_key_atom = function
 
 module KMap = SMap 
 
+(* tags *) 
+type tag = RS.t 
+module TMap = SMap
+
+(* skeletons *)
+type skeleton = 
+  | S_string of string
+  | S_concat of (skeleton * skeleton)
+  | S_star of skeleton list
+  | S_box of tag
+  | S_compose of (skeleton * skeleton)
+
+let string_of_skel = function
+  | S_string s -> s
+  | _ -> assert false
+
+let fst_concat_of_skel = function
+  | S_concat (s,_) -> s
+  | _ -> assert false
+
+let snd_concat_of_skel = function
+  | S_concat (_, s) -> s
+  | _ -> assert false
+
+let lst_of_skel = function
+  | S_star sl -> sl
+  | _ -> assert false
+
 (* dictionaries *)
-type dict = ((RS.t list) KMap.t) SMap.t
-let empty_dict = SMap.empty
-  
+type dict = 
+  | D_empty
+  | D of (((skeleton * dict) list) KMap.t) TMap.t
+
+(* dictionaries type type. At each level, we need to check that for
+   one tag, there is only one unique id for this tag *)
+type uid = int
+let current_uid = ref 0
+let next_uid () = 
+  incr current_uid;
+  !current_uid
+
+type dict_type = 
+    uid TMap.t
+
+exception Incompatilbe_dict_type of tag
+let fusion_dict_type dt1 dt2 = 
+  TMap.fold 
+    (fun t u acc ->
+       if !(TMap.mem t dt2) || (TMap.find t dt2 = u) then
+	 TMap.add t u acc
+       else raise Incompatilbe_dict_type t) dt1 dt2
+
+let safe_fusion_dict_type dt1 dt2 i = 
+  try 
+    fusion_dict_type dt1 dt2 
+  with
+    | Incompatilbe_dict_type t -> 
+	raise (Error.Harmony_error 
+		 (fun () -> 
+		    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
+		    Util.format "The taf %s is used twice with different lenses@]@\n" RS.to_string t;))
+
+
+(*
 let format_dict d = 
   Util.format "{";
   ignore (SMap.fold (fun t km is_fst -> 
@@ -381,6 +449,9 @@ let format_dict d =
     false)
     d true);
   Util.format "}"
+*)
+
+
 
 (* helper: combine maps with merge. 
    Mapplus's combine is (combine fold find add (curry fst)) *)
@@ -391,7 +462,7 @@ let combine fold find add merge m1 m2 =
 
 (* smash two dictionaries *)
 let (++) d1 d2 = 
-  combine SMap.fold SMap.find SMap.add 
+  combine TMap.fold TMap.find TMap.add 
     (fun km1 km2 -> 
       (combine KMap.fold KMap.find KMap.add 
           (fun kl1 kl2 -> kl1 @ kl2)
@@ -425,6 +496,7 @@ let do_split_thread split f1 f2 combine = (fun x y ->
   let x2,y2 = f2 x2 y1 in 
     (combine x1 x2, y2))
 
+
 (* utilities for iterating *)
 let star_loop t f x = 
   Safelist.fold_left
@@ -435,6 +507,11 @@ let branch t f1 f2 =
   (fun x -> 
     if Erx.match_str t.rx x then f1 x 
     else f2 x) 
+
+let branch2 t f1 f2 = 
+  (fun x y ->
+     if Erx.match_str t.rx x then f1 x y 
+     else f2 x y)
 
 (* common stuff *)
 let chk_concat i n t1 t2 = 
@@ -568,43 +645,59 @@ let combine_rel r1 r2 = match r1,r2 with
   | Identity,Identity -> Identity 
   | _                 -> Unknown
 
-(* -------------------- CLASSIC LENSES -------------------- *)
-module CLens = struct    
+(* -------------------- DICTIONARY LENSES -------------------- *)
+module DLens = struct    
   type t = 
       { (* --- meta data --- *)
-        info : Info.t;                       (* parsing info *)
-        string: string;                      (* pretty printer *)
+        info : Info.t;                          (* parsing info *)
+        string: string;                         (* pretty printer *)
         (* --- types --- *)
-        ctype : r;                           (* concrete type *)
-        atype : r;                           (* abstract type *)           
-        crel: rel;                           (* concrete equiv rel type *)
-        arel: rel;                           (* abstract equiv rel type *)
+        ctype : r;                              (* concrete type *)
+        atype : r;                              (* abstract type *)
+        dtype : dict_type;                      (* dictionary type *)
+	stype : skeleton -> bool                (* given a skeleton, returns if it is part
+						   of the skeleton type of the lens*)
+        crel: rel;                              (* concrete equiv rel type *)
+        arel: rel;                              (* abstract equiv rel type *)
         (* --- core --- *)
-        get: RS.t -> RS.t;                   (* get function *)
-        put: RS.t -> RS.t -> RS.t;           (* put function *)
-        create: RS.t -> RS.t                 (* create function *)
+        get: RS.t -> RS.t;                      (* get function *)
+        put: RS.t -> skeleton -> dict -> (RS.t, dict);  (* put function *)
+	parse: RS.t -> (skeleton * dict)        (* parse function *)
+        create: RS.t -> dict -> (RS.t, dict)    (* create function *)
+	(* --- hack --- *)
+        uid: uid
       }
 
-  let info cl = cl.info
-  let string cl = cl.string
-  let ctype cl = cl.ctype
-  let atype cl = cl.atype
-  let crel cl = cl.crel
-  let arel cl = cl.arel
-  let get cl = cl.get
-  let put cl = cl.put
-  let create cl = cl.create
+  let info dl = dl.info
+  let string dl = dl.string
+  let ctype dl = dl.ctype
+  let atype dl = dl.atype
+  let stype dl = dl.stype
+  let dtype dl = dl.dtype
+  let crel dl = dl.crel
+  let arel dl = dl.arel
+  let get dl = dl.get
+  let put dl = dl.put
+  let parse dl = dl.parse
+  let create dl = dl.create
+  let uid dl = dl.uid
 
-  let mk_t i s ct at cr ar g p c = 
+
+  let mk_t i s ct at dt st cr ar g put parse c uid = 
     { info = i;
       string = s;
       ctype = ct;
       atype = at;
+      dtype = dt;
+      stype = st;
       crel = cr;
       arel = ar;
       get = g;
-      put = p;
-      create = c }
+      put = put;
+      parse = parse;
+      create = c; 
+      uid = uid;
+    }
 
   let determinize_clens cl =
     {cl with 
@@ -616,15 +709,23 @@ module CLens = struct
     let n = sprintf "cp (%s)" (r.str) in 
     let ct = r in 
     let at = r in
+    let dt = TMap.empty in
+    let st = function
+      | S_string s -> Erx.match_str r.rx
+      | _ -> false in
       { info = i;
         string = n;
         ctype = ct;
         atype = at;
+	dtype = dt;
+	stype = st;
         crel = Identity;
         arel = Identity;
         get = lift_r i (get_str n) ct (fun c -> c);
-        put = lift_rr i (put_str n) at ct (fun a _ -> a);
-        create = lift_r i (create_str n) at (fun a -> a);
+        put = lift_rsd i (put_str n) at st (fun a _ d -> (a,d));
+        parse = lift_r i (parse_str n) ct (fun c -> (S_string c, Empty_Dict)); 
+	create = lift_rd i (create_str n) at (fun a d -> a,d);
+	uid = next_uid ();
       }
 
   (* ---------- const ---------- *)
@@ -634,6 +735,10 @@ module CLens = struct
     let n = sprintf "const (%s) \"%s\" \"%s\"" (r.str) (whack u) (whack def) in 
     let ct = r in 
     let at = rx_str false u_str in
+    let dt = TMap.empty in
+    let st = function
+      | S_string s -> Erx.match_str r.rx
+      | _ -> false in
     let () = 
       if not (Erx.match_str r.rx def_str) then 
         static_error i n 
@@ -642,113 +747,143 @@ module CLens = struct
         string = n;
         ctype = ct;
         atype = at;
+	dtype = dt;
+	stype = st;
         crel = Identity;
         arel = Identity;
         get = lift_r i (get_str n) ct (fun c -> u_str);
-        put = lift_rr i (put_str n) at ct (fun a c -> c);
-        create = lift_r i (create_str n) at (fun a -> def_str);
+        put = lift_rsd i (put_str n) at st (fun _ s d -> (string_of_skel s, d) );
+	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, Empty_Dict));  
+        create = lift_rd i (create_str n) at (fun a d -> (def_str,d));
+	uid = next_uid ();
       }
 
   (* ---------- concat ---------- *)
-  let concat i cl1 cl2 = 
-    let n = sprintf "%s . %s" cl1.string cl2.string in 
-    let ct = rx_seq cl1.ctype cl2.ctype in 
-    let at = rx_seq cl1.atype cl2.atype in 
-      (* type checking *)
-      chk_concat i n cl1.ctype cl2.ctype;
-      chk_concat i n cl1.atype cl2.atype;
-      (* lens *) 
+  let concat i dl1 dl2 = 
+    let n = sprintf "%s . %s" dl1.string dl2.string in 
+    let ct = rx_seq dl1.ctype dl2.ctype in 
+    let at = rx_seq dl1.atype dl2.atype in 
+    (* type checking *)
+    chk_concat i n dl1.ctype dl2.ctype;
+    chk_concat i n dl1.atype dl2.atype;
+    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+    let st = function
+      | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
+      | _ -> false in
+    (* lens *) 
       { info = i; 
         string = n;
         ctype = ct;
         atype = at;
-        crel = combine_rel cl1.crel cl2.crel;
-        arel = combine_rel cl1.arel cl2.arel;
+	dtype = dt;
+	stype = st;
+        crel = combine_rel dl1.crel dl2.crel;
+        arel = combine_rel dl1.arel dl2.arel;
         get = lift_r i (get_str n) ct 
-          (do_split (split cl1.ctype cl2.ctype)
-              cl1.get cl2.get
+          (do_split (split dl1.ctype dl2.ctype)
+              dl1.get dl2.get
               (^));
-        put = lift_rr i n at ct (fun a c -> 
-          (do_split (split2 cl1.atype cl2.atype cl1.ctype cl2.ctype)
-              (fun (a,c) -> cl1.put a c)
-              (fun (a,c) -> cl2.put a c)
-              (^)) (a,c));
-        create = lift_r i n at 
-          (do_split (split cl1.atype cl2.atype)
-              cl1.create cl2.create
-              (^)); }          
+        put = lift_rsd i (put_str n) at st (fun a s d -> 
+          let a1,a2 = split dl1.atype dl2.atype a in 
+	  let c1,d1 = dl1.put a1 (fst_concat_of_skel s) d in
+	  let c2,d2 = dl2.put a2 (snd_concat_of_skel s) d1 in
+	    (c1 ^ c2, d2));
+	parse = lift_r i (parse_str n) ct (fun c->
+          let c1, c2 = split dl1.ctype dl2.ctype c in
+	  let s1, d1 = dl1.parse c1 in
+	  let s2, d2 = dl2.parse c2 in
+	    (S_concat (s1, s2), d1 ++ d2));
+	create = lift_rd i n at (fun a d ->
+          let a1, a2 = split dl1.atype dl2.atype a in
+	  let c1, d1 = dl1.create a1 d in
+	  let c2, d2 = dl2.create a2 d1 in
+	  (c1 ^ c2, d2));
+	uid = next_uid ();}          
 
-  let union i cl1 cl2 = 
+  let union i dl1 dl2 = 
     (* utilities *)
-    let bare_get = branch cl1.ctype cl1.get cl2.get in
-    let n = sprintf "(%s|%s)" cl1.string cl2.string in 
-    let at = rx_alt cl1.atype cl2.atype in 
-    let ct = rx_alt cl1.ctype cl2.ctype in 
-      chk_disjoint i n cl1.ctype cl2.ctype;
+    let bare_get = branch dl1.ctype dl1.get dl2.get in
+    let n = sprintf "(%s|%s)" dl1.string dl2.string in 
+    let at = rx_alt dl1.atype dl2.atype in 
+    let ct = rx_alt dl1.ctype dl2.ctype in 
+    chk_disjoint i n dl1.ctype dl2.ctype;
+    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+    let st s = dl1.stype s || dl2.stype s in
       { info = i;
         string = n;
         ctype = ct; 
         atype = at;
-        crel = combine_rel cl1.crel cl2.crel;
-        arel = combine_rel cl1.arel cl2.arel;
-        get = lift_r i n ct bare_get;
-        put = lift_rr i n at ct (fun a c -> 
-          match Erx.match_str cl1.atype.rx a, 
-            Erx.match_str cl2.atype.rx a,
-            Erx.match_str cl1.ctype.rx c with
-              | true,_,true  -> cl1.put a c
-              | _,true,false -> cl2.put a c
-              | true,false,false -> cl1.create a  
-              | false,true,true  -> cl2.create a 
+	dtype = dt;
+	stype = st;
+	crel = combine_rel dl1.crel dl2.crel;
+        arel = combine_rel dl1.arel dl2.arel;
+        get = lift_r i (get_str n) ct bare_get;
+        put = lift_rsd i (put_str n) at st (fun a s d -> 
+          match Erx.match_str dl1.atype.rx a, 
+            Erx.match_str dl2.atype.rx a,
+            dl1.stype s with
+              | true,_,true  -> dl1.put a s d
+              | _,true,false -> dl2.put a s d
+              | true,false,false -> dl1.create a d 
+              | false,true,true  -> dl2.create a d
               | false,false,_    -> assert false);
-        create = lift_r i (create_str n) at 
-          (branch cl1.atype cl1.create cl2.create);        
+	parse =  lift_r i (parse_str n) ct 
+	           (branch dl1.ctype dl1.parse dl2.parse); 
+        create = lift_rd i (create_str n) at 
+          (branch2 dl1.atype dl1.create dl2.create);        
+	uid = next_uid ();
       }
 
-  let star i cl1 = 
+  let star i dl1 = 
     (* body *)
     let min = 0 in
     let maxo = None in
     let reps = (min,maxo) in 
-    let ct = rx_rep cl1.ctype reps in 
-    let at = rx_rep cl1.atype reps in 
-    let n = sprintf "(%s)%s" cl1.string (string_of_reps reps) in
-      chk_iterate i n cl1.ctype min maxo;
-      chk_iterate i n cl1.atype min maxo;
+    let ct = rx_rep dl1.ctype reps in 
+    let at = rx_rep dl1.atype reps in 
+    let dt = dl1.dtype in
+    let st = function
+      | S_star sl -> Safelist.fold_left (fun b s -> b && dl1.stype s) true sl
+      | _ -> false in
+    let n = sprintf "(%s)%s" dl1.string (string_of_reps reps) in
+      chk_iterate i n dl1.ctype min maxo;
+      chk_iterate i n dl1.atype min maxo;
       { info = i;
         string = n;
         ctype = ct;
         atype = at;
-        crel = cl1.crel;
-        arel = cl1.arel;
-        get = lift_r i (get_str n) ct (star_loop cl1.ctype cl1.get);
-        put = lift_rr i (put_str n) at ct (fun a c -> 
+	dtype = dt;
+	stype = st;
+        crel = dl1.crel;
+        arel = dl1.arel;
+        get = lift_r i (get_str n) ct (star_loop dl1.ctype dl1.get);
+        put = lift_rsd i (put_str n) at ct (fun a s d -> 
 	  let rec loop al kl buf = match al,kl with
               [],_ -> buf 
             | a1::at,[] -> 
-	        let buf' = buf ^ (cl1.create a1) in
+	        let buf' = buf ^ (dl1.create a1) in
 		  loop at [] buf'
             | a1::at,c1::ct -> 
-                let buf' = buf ^ (cl1.put a1 c1) in
+                let buf' = buf ^ (dl1.put a1 c1) in
 		  loop at ct buf' in 
             loop 
-              (Erx.unambig_star_split cl1.atype.rx a)
-              (Erx.unambig_star_split cl1.ctype.rx c)
+              (Erx.unambig_star_split dl1.atype.rx a)
+              (Erx.unambig_star_split dl1.ctype.rx c)
 	      RS.empty);
         create = lift_r i (create_str n) at 
-          (star_loop cl1.atype cl1.create); 
+          (star_loop dl1.atype dl1.create); 
       }
 
-  let probe i tag cl1 = 
-    let n = sprintf "probe \"%s\" (%s)" (whack tag) cl1.string in 
-      { cl1 with 
+  let probe i tag dl1 = 
+    let n = sprintf "probe \"%s\" (%s)" (whack tag) dl1.string in 
+      { dl1 with 
         info = i;
         string = n;
         get = (fun c -> 
           Util.format "%s GET:@\n  [@[" tag;
           nlify_str c;
           Util.format "@]]@\n --> ";
-          let a = cl1.get c in 
+          let a = dl1.get c in 
             Util.format "[@[";
             nlify_str a;
             Util.format "@]]@\n";
@@ -759,7 +894,7 @@ module CLens = struct
           Util.format "@]]@\n  [@[";
           nlify_str c;
           Util.format "@]]@\n --> ";
-          let c' = cl1.put a c in             
+          let c' = dl1.put a c in             
             Util.format "[@[";
             nlify_str c';
             Util.format "@]]@\n";
@@ -768,76 +903,76 @@ module CLens = struct
           Util.format "%s CREATE:@\n  [@[" tag;
           nlify_str a;
           Util.format "@]]@\n --> ";
-          let c' = cl1.create a in             
+          let c' = dl1.create a in             
             Util.format "[@[";
             nlify_str c';
             Util.format "@]]@\n";
             c'); }
         
   (* non-standard lenses *)
-  let swap i cl1 cl2 = 
-    let at = rx_seq cl2.atype cl1.atype in 
-    let ct = rx_seq cl1.ctype cl2.ctype in  
-    let n = sprintf "swap (%s) (%s)" cl1.string cl2.string in 
+  let swap i dl1 dl2 = 
+    let at = rx_seq dl2.atype dl1.atype in 
+    let ct = rx_seq dl1.ctype dl2.ctype in  
+    let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
       (* type check *)
-      chk_concat i n cl1.ctype cl2.ctype;
-      chk_concat i n cl2.atype cl1.atype;
+      chk_concat i n dl1.ctype dl2.ctype;
+      chk_concat i n dl2.atype dl1.atype;
       { info = i;
         string = n;
         ctype = ct; 
         atype = at;
-        crel = combine_rel cl1.crel cl2.crel;
-        arel = combine_rel cl1.arel cl2.arel;
+        crel = combine_rel dl1.crel dl2.crel;
+        arel = combine_rel dl1.arel dl2.arel;
         get = lift_r i n ct (fun c -> 
-            let c1,c2 = split cl1.ctype cl2.ctype c in 
-              (cl2.get c2) ^ (cl1.get c1));
+            let c1,c2 = split dl1.ctype dl2.ctype c in 
+              (dl2.get c2) ^ (dl1.get c1));
         put = lift_rr i (put_str n) at ct (fun a c -> 
-          let a2,a1 = split cl2.atype cl1.atype a in 
-          let c1,c2 = split cl1.ctype cl2.ctype c in 
-          let c2' = cl2.put a2 c2 in 
-          let c1' = cl1.put a1 c1 in 
+          let a2,a1 = split dl2.atype dl1.atype a in 
+          let c1,c2 = split dl1.ctype dl2.ctype c in 
+          let c2' = dl2.put a2 c2 in 
+          let c1' = dl1.put a1 c1 in 
             (c1' ^ c2'));
         create = lift_r i (create_str n) at (fun a -> 
-          let a2,a1 = split cl2.atype cl1.atype a in          
-          let c2' = cl2.create a2 in 
-          let c1' = cl1.create a1 in 
+          let a2,a1 = split dl2.atype dl1.atype a in          
+          let c2' = dl2.create a2 in 
+          let c1' = dl1.create a1 in 
             (c1' ^ c2')); }
         
-  let compose i cl1 cl2 = 
-    let n = sprintf "%s; %s" cl1.string cl2.string in 
-    let ct = cl1.ctype in
-    let at = cl2.atype in 
-    (match cl1.arel,cl2.crel with
+  let compose i dl1 dl2 = 
+    let n = sprintf "%s; %s" dl1.string dl2.string in 
+    let ct = dl1.ctype in
+    let at = dl2.atype in 
+    (match dl1.arel,dl2.crel with
       | Identity,Identity -> ()
       | _ -> 
           let s = sprintf "the composition of %s and %s is ill-typed: %s"            
-            cl1.string cl2.string 
+            dl1.string dl2.string 
             "the middle relations must both be the identity" in 
             static_error i n s);
-    let equiv, f_suppl = check_rx_equiv cl1.atype cl2.ctype in
+    let equiv, f_suppl = check_rx_equiv dl1.atype dl2.ctype in
       if not equiv then
         begin
 	  let s =(sprintf "the composition of %s and %s is ill-typed:"
-		     cl1.string cl2.string)in
+		     dl1.string dl2.string)in
 	    static_error i n ~suppl:f_suppl s 
         end;
     { info = i; 
       string = n;
       ctype = ct;      
       atype = at;
-      crel = cl1.crel;
-      arel = cl2.arel;
-      get = lift_r i (get_str n) ct (fun c -> cl2.get (cl1.get c));
-      put = lift_rr i n at ct (fun a c -> cl1.put (cl2.put a (cl1.get c)) c);
-      create = lift_r i n at (fun a -> cl1.create (cl2.create a));
+      crel = dl1.crel;
+      arel = dl2.arel;
+      get = lift_r i (get_str n) ct (fun c -> dl2.get (dl1.get c));
+      put = lift_rr i n at ct (fun a c -> dl1.put (dl2.put a (dl1.get c)) c);
+      create = lift_r i n at (fun a -> dl1.create (dl2.create a));
     }
 
-  let default i def cl1 = 
-    let n = sprintf "default %s %s" (RS.to_string def) cl1.string in 
-    let at = cl1.atype in 
-      { cl1 with
+  let default i def dl1 = 
+    let n = sprintf "default %s %s" (RS.to_string def) dl1.string in 
+    let at = dl1.atype in 
+      { dl1 with
         create = lift_r i (create_str n) at (fun a -> 
-          cl1.put a def);
+          dl1.put a def);
       }
 
   let filter i rd rk =
@@ -975,7 +1110,7 @@ module CLens = struct
       (fun a c -> 
 	 let concat_list l = 
 	   (Safelist.fold_left (^) RS.empty l) in
-	 let rec loop acc cl aasl absl = match (cl, aasl, absl) with
+	 let rec loop acc dl aasl absl = match (dl, aasl, absl) with
 	   | [], aasl, absl -> acc ^ (concat_list aasl) ^ (concat_list absl)
 	   | _, [], absl -> acc ^ (concat_list absl)
 	   | _ , aasl, [] -> acc ^ (concat_list aasl)
@@ -986,8 +1121,8 @@ module CLens = struct
 	 let aas, abs = match Erx.unambig_split ras.rx rbs.rx a with Some r -> r | None -> assert false in
 	 let aasl = Erx.unambig_star_split ra.rx aas in
 	 let absl = Erx.unambig_star_split rb.rx abs in
-	 let cl = Erx.unambig_star_split raob.rx c in
-	   loop RS.empty cl aasl absl) in
+	 let dl = Erx.unambig_star_split raob.rx c in
+	   loop RS.empty dl aasl absl) in
     let create = lift_r i n at (fun a -> a) in
       { info = i; 
         string = n;
@@ -1101,23 +1236,23 @@ module CLens = struct
       }	
 
   (* Q-lens stuff *)
-  let canonizer_of_t cl1 = 
+  let canonizer_of_t dl1 = 
     Canonizer.mk_t 
-      cl1.info
-      (sprintf "canonizer_of_lens(%s)" cl1.string)
-      cl1.ctype
-      cl1.atype
-      cl1.get
-      cl1.create
+      dl1.info
+      (sprintf "canonizer_of_lens(%s)" dl1.string)
+      dl1.ctype
+      dl1.atype
+      dl1.get
+      dl1.create
 
-  let quotient_c i cn1 cl1 = 
-    let n = sprintf "qc (%s) (%s)" (Canonizer.string cn1) cl1.string in 
+  let quotient_c i cn1 dl1 = 
+    let n = sprintf "qc (%s) (%s)" (Canonizer.string cn1) dl1.string in 
     let ct = Canonizer.rtype cn1 in 
-    let at = cl1.atype in 
+    let at = dl1.atype in 
     let cn_ctype = Canonizer.ctype cn1 in 
-    let cls = Canonizer.cls cn1 in 
+    let dls = Canonizer.dls cn1 in 
     let rep = Canonizer.rep cn1 in 
-    let equiv, f_suppl = check_rx_equiv cn_ctype cl1.ctype in
+    let equiv, f_suppl = check_rx_equiv cn_ctype dl1.ctype in
       if not equiv then
         begin
 	  let s =sprintf "%s is BOGUS!-typed:" n in 
@@ -1128,23 +1263,23 @@ module CLens = struct
       ctype = ct;
       atype = at;
       crel = Unknown;
-      arel = cl1.arel;
+      arel = dl1.arel;
       get = lift_r i (get_str n) ct (fun c -> 
-        cl1.get (cls c));
+        dl1.get (dls c));
       put = lift_rr i (put_str n) at ct (fun a c -> 
-        rep (cl1.put a (cls c)));
+        rep (dl1.put a (dls c)));
       create = lift_r i (create_str n) at (fun a -> 
-        rep (cl1.create a));
+        rep (dl1.create a));
     }
 
-  let quotient_a i cn1 cl1 = 
-    let n = sprintf "qa (%s) (%s)" (Canonizer.string cn1) cl1.string in 
-    let ct = cl1.ctype in 
+  let quotient_a i cn1 dl1 = 
+    let n = sprintf "qa (%s) (%s)" (Canonizer.string cn1) dl1.string in 
+    let ct = dl1.ctype in 
     let at = Canonizer.rtype cn1 in 
     let cn_ct = Canonizer.ctype cn1 in 
-    let cls = Canonizer.cls cn1 in 
+    let dls = Canonizer.dls cn1 in 
     let rep = Canonizer.rep cn1 in 
-    let equiv, f_suppl = check_rx_equiv cl1.atype cn_ct in
+    let equiv, f_suppl = check_rx_equiv dl1.atype cn_ct in
       if not equiv then
         begin
 	  let s =sprintf "%s is ill-typed:@," n in 
@@ -1154,14 +1289,14 @@ module CLens = struct
       string = n;
       ctype = ct;
       atype = at;
-      crel = cl1.crel;
+      crel = dl1.crel;
       arel = Unknown;
       get = lift_r i (get_str n) ct (fun c -> 
-        rep (cl1.get c));
+        rep (dl1.get c));
       put = lift_rr i (put_str n) at ct (fun a c -> 
-        cl1.put (cls a) c);
+        dl1.put (dls a) c);
       create = lift_r i (create_str n) at (fun a -> 
-        cl1.create (cls a));
+        dl1.create (dls a));
     }
 end
 
@@ -1209,25 +1344,25 @@ module KLens = struct
       key = k;
     }
 
-  let t_of_clens cl1 = 
-    let i = CLens.info cl1 in 
-    let n = CLens.string cl1 in 
-    let at = CLens.atype cl1 in
+  let t_of_dlens dl1 = 
+    let i = DLens.info dl1 in 
+    let n = DLens.string dl1 in 
+    let at = DLens.atype dl1 in
       { info = i;
         string = n;
-        ctype = CLens.ctype cl1;
+        ctype = DLens.ctype dl1;
         atype = at;
-        crel = CLens.crel cl1;
-        arel = CLens.arel cl1;
-        get = CLens.get cl1;
-        put = CLens.put cl1;
-        create = CLens.create cl1;
+        crel = DLens.crel dl1;
+        arel = DLens.arel dl1;
+        get = DLens.get dl1;
+        put = DLens.put dl1;
+        create = DLens.create dl1;
         key = lift_r i (key_str n) at (fun a ->
           RS.empty);
       }
 
-  let clens_of_t kl1 = 
-    CLens.mk_t 
+  let dlens_of_t kl1 = 
+    DLens.mk_t 
       kl1.info
       kl1.string
       kl1.ctype
@@ -1245,7 +1380,7 @@ module KLens = struct
       key = lift_r i (key_str n) at (fun a -> a); }
               
   let concat i kl1 kl2 = 
-    let kl12 = t_of_clens (CLens.concat i (clens_of_t kl1) (clens_of_t kl2)) in 
+    let kl12 = t_of_dlens (DLens.concat i (dlens_of_t kl1) (dlens_of_t kl2)) in 
       { kl12 with
         key = lift_r i (key_str kl12.string) kl12.atype
           (do_split (split kl1.atype kl2.atype)
@@ -1254,7 +1389,7 @@ module KLens = struct
       }
 
   let swap i kl1 kl2 = 
-    let kl21 = t_of_clens (CLens.swap i (clens_of_t kl1) (clens_of_t kl2)) in 
+    let kl21 = t_of_dlens (DLens.swap i (dlens_of_t kl1) (dlens_of_t kl2)) in 
       { kl21 with
         key = lift_r i (key_str kl21.string) kl21.atype
           (do_split (split kl2.atype kl1.atype)
@@ -1263,7 +1398,7 @@ module KLens = struct
       }
 
   let union i kl1 kl2 = 
-    let kl1u2 = t_of_clens (CLens.union i (clens_of_t kl1) (clens_of_t kl2)) in 
+    let kl1u2 = t_of_dlens (DLens.union i (dlens_of_t kl1) (dlens_of_t kl2)) in 
       { kl1u2 with
         key = lift_r i (key_str kl1u2.string) kl1u2.atype (fun a -> 
           match 
@@ -1278,24 +1413,24 @@ module KLens = struct
                   if RS.compare k1 k2 = 0 then k1 else RS.empty); }
         
   let star i kl1 = 
-    let kl1s = t_of_clens (CLens.star i (clens_of_t kl1)) in 
+    let kl1s = t_of_dlens (DLens.star i (dlens_of_t kl1)) in 
       { kl1s with 
         key = lift_r i (key_str kl1s.string) kl1s.atype 
           (star_loop kl1.atype kl1.key); }
 
-  let compose_kc i kl1 cl2 = 
-    let kl1c2 = t_of_clens (CLens.compose i (clens_of_t kl1) cl2) in 
+  let compose_kc i kl1 dl2 = 
+    let kl1c2 = t_of_dlens (DLens.compose i (dlens_of_t kl1) dl2) in 
       { kl1c2 with
         key = lift_r i kl1c2.string kl1c2.atype (fun a -> 
-          kl1.key ((CLens.create cl2) a)); }
+          kl1.key ((DLens.create dl2) a)); }
         
-  let compose_ck i cl1 kl2 = 
-    let kl1c2 = t_of_clens (CLens.compose i cl1 (clens_of_t kl2)) in
+  let compose_ck i dl1 kl2 = 
+    let kl1c2 = t_of_dlens (DLens.compose i dl1 (dlens_of_t kl2)) in
       { kl1c2 with
         key = lift_r i kl1c2.string kl1c2.atype (fun a -> kl2.key a); }
 
   let probe i tag kl1 = 
-    let kl1p = t_of_clens (CLens.probe i tag (clens_of_t kl1)) in 
+    let kl1p = t_of_dlens (DLens.probe i tag (dlens_of_t kl1)) in 
       { kl1p with 
         key = (fun a -> 
           Util.format "%s KEY:@\n  [@[" tag;
@@ -1316,17 +1451,17 @@ module KLens = struct
       }
 
   let quotient_c i cn1 kl1 = 
-    let kl1q = t_of_clens (CLens.quotient_c i cn1 (clens_of_t kl1)) in 
+    let kl1q = t_of_dlens (DLens.quotient_c i cn1 (dlens_of_t kl1)) in 
       { kl1q with
         key = kl1.key }
 
   let quotient_a i cn1 kl1 = 
-    let kl1q = t_of_clens (CLens.quotient_a i cn1 (clens_of_t kl1)) in 
-    let cls = Canonizer.cls cn1 in 
+    let kl1q = t_of_dlens (DLens.quotient_a i cn1 (dlens_of_t kl1)) in 
+    let dls = Canonizer.dls cn1 in 
     let at = kl1q.atype in 
       { kl1q with
         key = lift_r i (key_str kl1q.string) at (fun a -> 
-          kl1.key (cls a)); }      
+          kl1.key (dls a)); }      
 end
 
 (* -------------------- SKELETON LENSES -------------------- *)
@@ -1372,34 +1507,34 @@ module SLens = struct
   let create sl = sl.create
   let parse sl = sl.parse
 
-  let t_of_clens cl1 = 
-    let i = CLens.info cl1 in 
-    let n = CLens.string cl1 in 
-    let ct = CLens.ctype cl1 in
-    let at = CLens.atype cl1 in
-    let st = CLens.ctype cl1 in
+  let t_of_dlens dl1 = 
+    let i = DLens.info dl1 in 
+    let n = DLens.string dl1 in 
+    let ct = DLens.ctype dl1 in
+    let at = DLens.atype dl1 in
+    let st = DLens.ctype dl1 in
       { info = i;
         string = n;
         ctype = ct;
         atype = at;
         stype = st;
-        crel = CLens.crel cl1;
-        arel = CLens.arel cl1;
+        crel = DLens.crel dl1;
+        arel = DLens.arel dl1;
         chunk = ref None;
-        get = CLens.get cl1;
+        get = DLens.get dl1;
         put = lift_rrx i (put_str n) at ct (fun a s d -> 
-          ((CLens.put cl1 a s),d));
+          ((DLens.put dl1 a s),d));
         create = lift_rx i (create_str n) at (fun a d -> 
-          ((CLens.create cl1) a, d));
+          ((DLens.create dl1) a, d));
         parse = lift_r i (parse_str n) ct (fun c -> (c,empty_dict));
       }
 
-  let clens_of_t sl1 = 
+  let dlens_of_t sl1 = 
     let i = sl1.info in 
     let n = sl1.string in 
     let ct = sl1.ctype in 
     let at = sl1.atype in 
-      CLens.mk_t 
+      DLens.mk_t 
         i n ct at 
         sl1.crel sl1.arel
         sl1.get
@@ -1677,7 +1812,7 @@ module SLens = struct
     let at = sl1.atype in 
     let st = sl1.stype in 
     let cn_ctype = Canonizer.ctype cn1 in 
-    let cls = Canonizer.cls cn1 in 
+    let dls = Canonizer.dls cn1 in 
     let rep = Canonizer.rep cn1 in 
     let equiv, f_suppl = check_rx_equiv cn_ctype sl1.ctype in
       if not equiv then
@@ -1694,7 +1829,7 @@ module SLens = struct
       arel = sl1.arel;
       chunk = sl1.chunk;
       get = lift_r i (get_str n) ct (fun c -> 
-        sl1.get (cls c));
+        sl1.get (dls c));
       put = lift_rrx i (put_str n) at st (fun a s d -> 
         let c',d = sl1.put a s d in 
         (rep c', d));
@@ -1702,7 +1837,7 @@ module SLens = struct
         let c,d = sl1.create a d in 
         (rep c, d));
       parse = lift_r i (parse_str n) ct (fun c -> 
-        sl1.parse (cls c));
+        sl1.parse (dls c));
     }
                                         
 
@@ -1712,7 +1847,7 @@ module SLens = struct
     let at = Canonizer.rtype cn1 in 
     let st = sl1.stype in 
     let cn_ct = Canonizer.ctype cn1 in 
-    let cls = Canonizer.cls cn1 in 
+    let dls = Canonizer.dls cn1 in 
     let rep = Canonizer.rep cn1 in 
     let equiv, f_suppl = check_rx_equiv sl1.atype cn_ct in
       if not equiv then
@@ -1731,9 +1866,9 @@ module SLens = struct
       get = lift_r i (get_str n) ct (fun c -> 
         rep (sl1.get c));
       put = lift_rrx i (put_str n) at st (fun a s d -> 
-        sl1.put (cls a) s d);
+        sl1.put (dls a) s d);
       create = lift_r i (create_str n) at (fun a d -> 
-        sl1.create (cls a) d);
+        sl1.create (dls a) d);
       parse = lift_r i (parse_str n) ct (fun c -> 
         sl1.parse c);
     }
@@ -1786,25 +1921,25 @@ module RLens = struct
           fst (SLens.create sl1 a empty_dict));
         equiv = (fun _ _ -> assert false); }
         
-  let t_of_clens cl1 = 
-    let i = CLens.info cl1 in 
-    let n = CLens.string cl1 in 
-    let ct = CLens.ctype cl1 in 
-    let at = CLens.atype cl1 in 
+  let t_of_dlens dl1 = 
+    let i = DLens.info dl1 in 
+    let n = DLens.string dl1 in 
+    let ct = DLens.ctype dl1 in 
+    let at = DLens.atype dl1 in 
       { info = i;
         string = n;
         ctype = ct;
         atype = at;
-        crel = CLens.crel cl1;
-        arel = CLens.arel cl1;
-        get = CLens.get cl1;
-        put = CLens.put cl1;
-        create = CLens.create cl1;
+        crel = DLens.crel dl1;
+        arel = DLens.arel dl1;
+        get = DLens.get dl1;
+        put = DLens.put dl1;
+        create = DLens.create dl1;
         equiv = (fun c c' -> RS.compare c c' = 0);
       }
 
-  let clens_of_t rl1 = 
-    CLens.mk_t 
+  let dlens_of_t rl1 = 
+    DLens.mk_t 
       rl1.info
       rl1.string
       rl1.ctype
@@ -1816,16 +1951,16 @@ module RLens = struct
       rl1.create
 
   let concat i rl1 rl2 = 
-    t_of_clens (CLens.concat i (clens_of_t rl1) (clens_of_t rl2)) 
+    t_of_dlens (DLens.concat i (dlens_of_t rl1) (dlens_of_t rl2)) 
 
   let swap i pl1 pl2 = 
-    t_of_clens (CLens.swap i (clens_of_t pl1) (clens_of_t pl2))
+    t_of_dlens (DLens.swap i (dlens_of_t pl1) (dlens_of_t pl2))
 
   let union i pl1 pl2 = 
-    t_of_clens (CLens.union i (clens_of_t pl1) (clens_of_t pl2)) 
+    t_of_dlens (DLens.union i (dlens_of_t pl1) (dlens_of_t pl2)) 
         
   let star i pl1 = 
-    t_of_clens (CLens.star i (clens_of_t pl1)) 
+    t_of_dlens (DLens.star i (dlens_of_t pl1)) 
 
   let compose i pl1 pl2 = 
     (* body *)
@@ -1864,15 +1999,15 @@ module RLens = struct
       }
 
   let probe i tag pl1 = 
-    t_of_clens (CLens.probe i tag (clens_of_t pl1))
+    t_of_dlens (DLens.probe i tag (dlens_of_t pl1))
 
   let default i def pl1 = 
-    t_of_clens (CLens.default i def (clens_of_t pl1))
+    t_of_dlens (DLens.default i def (dlens_of_t pl1))
 
   let quotient_c i cn1 rl1 =
-    t_of_clens (CLens.quotient_c i cn1 (clens_of_t rl1))
+    t_of_dlens (DLens.quotient_c i cn1 (dlens_of_t rl1))
 
   let quotient_a i cn1 rl1 =
-    t_of_clens (CLens.quotient_a i cn1 (clens_of_t rl1))
+    t_of_dlens (DLens.quotient_a i cn1 (dlens_of_t rl1))
 
 end

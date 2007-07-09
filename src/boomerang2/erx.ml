@@ -156,8 +156,7 @@ module NFA = struct
   *)
   module T = Crm.Make(struct 
     include QS 
-    let format_elt = Util.format "%d" 
-  end)
+  end)(Rstring)
 
 
 (* --- limits for the "heuristic" --- *)

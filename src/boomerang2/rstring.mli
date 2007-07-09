@@ -8,6 +8,8 @@
 
 (* the type of the "characters" of the "strings" *)
 type sym
+val char_int_min : int
+val char_int_max : int
 val char_code_min : sym
 val char_code_max : sym
 val is_upper : sym -> bool

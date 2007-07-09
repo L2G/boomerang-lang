@@ -1,21 +1,30 @@
-module RS = Rstring
-
-module M = Map.Make (struct 
-  type t = (RS.sym * RS.sym)
-  let (<=) = RS.leq
-  let (<) = RS.l
-  let compare ((a,b):(RS.sym * RS.sym)) (c, d) : int =
-    if ((a <= c) && (c <= b)) || ((a <= d) && ((d <= b) || (c <= a))) then
-      0
-    else if b < c then - 1 else 1
-end)
 open Char    
 
-module Make(SS : 
-  sig 
-    include Set.S 
-    val format_elt : elt -> unit
-  end) = struct
+module Make(SS : Set.S)
+  (RS:sig
+     type sym
+     val char_code_min : sym
+     val char_code_max : sym 
+     val leq : sym -> sym -> bool
+     val l : sym -> sym -> bool
+     val compare_sym : sym -> sym -> int
+     val pred : sym -> sym
+     val succ : sym -> sym
+   end)
+= 
+struct
+  module M = 
+    Map.Make 
+      (struct 
+	 type t = (RS.sym * RS.sym)
+	 let (<=) = RS.leq
+	 let (<) = RS.l
+	 let compare ((a,b):(RS.sym * RS.sym)) (c, d) : int =
+	   if ((a <= c) && (c <= b)) || ((a <= d) && ((d <= b) || (c <= a))) then
+	     0
+	   else if b < c then - 1 else 1
+       end)
+      
   type t = SS.t M.t
 
   let find = M.find 
@@ -29,32 +38,6 @@ module Make(SS :
 
   let map = M.map
   let iter = M.iter
-
-(*  let format_map fold format_key format_val map = 
-    Format.printf "{@[";
-    ignore 
-      (fold (fun k v not_fst -> 
-        if not_fst then Format.printf "@\n"; 
-        format_key k;
-        Format.printf "->";
-        format_val v; 
-        true) map false);
-    Format.printf "@]}"
-      
-  let format_set fold format_sym set = 
-    Format.printf "{@[";
-    ignore 
-      (fold (fun e not_fst -> 
-        if not_fst then Format.printf ","; 
-        format_sym e; 
-        true) set false);
-    Format.printf "@]}"
-      
-  let format t = format_map M.fold 
-    (fun (a,b) -> Util.format "[%s-%s]" (repr a) (repr b))
-    (format_set SS.fold SS.format_sym)
-    t
-*)
 
   
   let intersect keep (a,b) ns m f = 
