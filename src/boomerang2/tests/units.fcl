@@ -8,21 +8,21 @@
 
 (*let zap = ARG1 . ins "END OF FILE"*)
 
-let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}"
-let cl2 = smash_clens cl1
+(*let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}" *)
+(*let cl2 = smash_clens cl1
 test cl2 get "{LOOJ} {W}eaving {LOOM} into {J}ava" = ? 
 test cl2 put 
 "LOOJ Weaving loom into Java" into 
 "{L}{O}{O}{J} {W}eaving {LOOM} into {J}ava" = ? 
+*)
+test "---- DONE ----" get "---- DONE ----" = "---- DONE ----"
 
-test "---- DONE ----" get "---- DONE ----" = ?
-
-test lowercase [a-zA-Z ]+ get "LOOJ Weaving LOOM into Java" = ?
+(*test lowercase [a-zA-Z ]+ get "LOOJ Weaving LOOM into Java" = ?
 test lowercase [@-[ a-z]+ put 
   "looj weaving loom into java" 
 into 
   "LOOJ Weaving LOOM into JAVA" = ?
-
+*)
 let foo = "foo"
 let bar = del "bar"
 let foobar = foo . bar
@@ -36,7 +36,7 @@ let chunk = "Last Name" <-> "LAST NAME"
 test ("First Name " . ("Last Name" ; <chunk>)) get "First Name Last Name" 
 = "First Name LAST NAME"
 
-let opt (l:clens) (C:regexp) (A:regexp) : C? <-> A? = (l | "")
+let opt (l:dlens) (C:regexp) (A:regexp) : C? <-> A? = (l | "")
 test opt ("A" <-> "BB") "A" "BB" get "A" = "BB"
 
 let l = "A" ~ ("B" ~ "C") 
@@ -187,7 +187,7 @@ test (string_of_regexp ((bmin . balt)?))=
                      <<<(bmin . balt)?>>>
 
 
-let me = move_end [ab] [CD]
+(*let me = move_end [ab] [CD]
 
 test me get "abbababbabbbCababbaa" = 
               "abbababbabbbababbaaC"
@@ -199,3 +199,4 @@ test me put  "abbababbabbbababbaaD"
 test me put  "abbabaaD"
 	  into "aaaaaaaaaCaa" = 
                "abbabaaD"
+*)

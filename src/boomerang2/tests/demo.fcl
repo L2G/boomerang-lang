@@ -58,7 +58,7 @@ into
 let keyed_del_email = 
   del "Name:" . 
   key N . 
-  del_def (", Email:" . E) ", Email:UNKNOWN" 
+  default (del (", Email:" . E)) ", Email:UNKNOWN" 
 
 let keyed_del_emails = "" | <keyed_del_email> . ("\n" . <keyed_del_email>)*
 
@@ -95,7 +95,7 @@ into
 
 let chunk = 
   key N . 
-  del_def (", Email:" . E) ", Email:UNKNOWN"
+  default (del(", Email:" . E)) ", Email:UNKNOWN"
 
 let author_coauthor = "" | "Author:" . <chunk> | "CoAuthor:" . <chunk> . ("\nCoAuthor:" . <chunk>)*
 

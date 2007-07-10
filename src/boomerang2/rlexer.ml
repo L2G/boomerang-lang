@@ -88,13 +88,10 @@ let _ =
     ; ("string", (fun i -> STRING i))
     ; ("regexp", (fun i -> REGEXP i))
     ; ("canonizer", (fun i -> CANONIZER i))
-    ; ("clens", (fun i -> CLENS i))
-    ; ("klens", (fun i -> KLENS i))
-    ; ("slens", (fun i -> SLENS i))
-    ; ("rlens", (fun i -> RLENS i))
+    ; ("dlens", (fun i -> DLENS i))
     ]
 
-# 98 "rlexer.ml"
+# 95 "rlexer.ml"
 let __ocaml_lex_tables = {
   Lexing.lex_base = 
    "\000\000\215\255\217\255\218\255\079\000\098\000\221\255\222\255\
@@ -337,216 +334,216 @@ let rec main lexbuf =
 and __ocaml_lex_main_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 105 "rlexer.mll"
+# 102 "rlexer.mll"
                      ( main lexbuf )
-# 343 "rlexer.ml"
+# 340 "rlexer.ml"
 
   | 1 ->
-# 106 "rlexer.mll"
+# 103 "rlexer.mll"
                      ( LPAREN(info lexbuf) )
-# 348 "rlexer.ml"
+# 345 "rlexer.ml"
 
   | 2 ->
-# 107 "rlexer.mll"
+# 104 "rlexer.mll"
                      ( RPAREN(info lexbuf) )
-# 353 "rlexer.ml"
+# 350 "rlexer.ml"
 
   | 3 ->
-# 108 "rlexer.mll"
+# 105 "rlexer.mll"
                      ( SEMI(info lexbuf) )
-# 358 "rlexer.ml"
+# 355 "rlexer.ml"
 
   | 4 ->
-# 109 "rlexer.mll"
+# 106 "rlexer.mll"
                      ( DOTGET(info lexbuf) )
-# 363 "rlexer.ml"
+# 360 "rlexer.ml"
 
   | 5 ->
-# 110 "rlexer.mll"
+# 107 "rlexer.mll"
                      ( DOTPUT(info lexbuf) )
-# 368 "rlexer.ml"
+# 365 "rlexer.ml"
 
   | 6 ->
-# 111 "rlexer.mll"
+# 108 "rlexer.mll"
                      ( DOTCREATE(info lexbuf) )
-# 373 "rlexer.ml"
+# 370 "rlexer.ml"
 
   | 7 ->
-# 112 "rlexer.mll"
+# 109 "rlexer.mll"
                      ( DOTCREATE(info lexbuf) )
-# 378 "rlexer.ml"
+# 375 "rlexer.ml"
 
   | 8 ->
-# 113 "rlexer.mll"
+# 110 "rlexer.mll"
                      ( DOT(info lexbuf) )
-# 383 "rlexer.ml"
+# 380 "rlexer.ml"
 
   | 9 ->
-# 114 "rlexer.mll"
+# 111 "rlexer.mll"
                      ( AMPERSAND(info lexbuf) )
-# 388 "rlexer.ml"
+# 385 "rlexer.ml"
 
   | 10 ->
-# 115 "rlexer.mll"
+# 112 "rlexer.mll"
                      ( STAR(info lexbuf) )
-# 393 "rlexer.ml"
+# 390 "rlexer.ml"
 
   | 11 ->
-# 116 "rlexer.mll"
+# 113 "rlexer.mll"
                      ( MINUS(info lexbuf) )
-# 398 "rlexer.ml"
+# 395 "rlexer.ml"
 
   | 12 ->
-# 117 "rlexer.mll"
+# 114 "rlexer.mll"
                      ( PLUS(info lexbuf) )
-# 403 "rlexer.ml"
+# 400 "rlexer.ml"
 
   | 13 ->
-# 118 "rlexer.mll"
+# 115 "rlexer.mll"
                      ( BANG(info lexbuf) )
-# 408 "rlexer.ml"
+# 405 "rlexer.ml"
 
   | 14 ->
-# 119 "rlexer.mll"
+# 116 "rlexer.mll"
                      ( ARROW(info lexbuf) )
-# 413 "rlexer.ml"
+# 410 "rlexer.ml"
 
   | 15 ->
-# 120 "rlexer.mll"
+# 117 "rlexer.mll"
                      ( LONGARROW(info lexbuf) )
-# 418 "rlexer.ml"
+# 415 "rlexer.ml"
 
   | 16 ->
-# 121 "rlexer.mll"
+# 118 "rlexer.mll"
                      ( LONGDARROW(info lexbuf) )
-# 423 "rlexer.ml"
+# 420 "rlexer.ml"
 
   | 17 ->
-# 122 "rlexer.mll"
+# 119 "rlexer.mll"
                      ( DARROW(info lexbuf) )
-# 428 "rlexer.ml"
+# 425 "rlexer.ml"
 
   | 18 ->
-# 123 "rlexer.mll"
+# 120 "rlexer.mll"
                      ( BAR(info lexbuf) )
-# 433 "rlexer.ml"
+# 430 "rlexer.ml"
 
   | 19 ->
-# 124 "rlexer.mll"
+# 121 "rlexer.mll"
                      ( EQUAL(info lexbuf) )
-# 438 "rlexer.ml"
+# 435 "rlexer.ml"
 
   | 20 ->
-# 125 "rlexer.mll"
+# 122 "rlexer.mll"
                      ( LBRACE(info lexbuf) )
-# 443 "rlexer.ml"
+# 440 "rlexer.ml"
 
   | 21 ->
-# 126 "rlexer.mll"
+# 123 "rlexer.mll"
                      ( RBRACE(info lexbuf) )
-# 448 "rlexer.ml"
+# 445 "rlexer.ml"
 
   | 22 ->
-# 127 "rlexer.mll"
+# 124 "rlexer.mll"
                      ( CSET(info lexbuf, cset lexbuf) )
-# 453 "rlexer.ml"
+# 450 "rlexer.ml"
 
   | 23 ->
-# 128 "rlexer.mll"
+# 125 "rlexer.mll"
                      ( NSET(info lexbuf, cset lexbuf) )
-# 458 "rlexer.ml"
+# 455 "rlexer.ml"
 
   | 24 ->
-# 129 "rlexer.mll"
+# 126 "rlexer.mll"
                      ( LANGLE(info lexbuf) )
-# 463 "rlexer.ml"
+# 460 "rlexer.ml"
 
   | 25 ->
-# 130 "rlexer.mll"
+# 127 "rlexer.mll"
                      ( STR(info lexbuf,bare lexbuf) )
-# 468 "rlexer.ml"
+# 465 "rlexer.ml"
 
   | 26 ->
-# 131 "rlexer.mll"
+# 128 "rlexer.mll"
                      ( RANGLE(info lexbuf) )
-# 473 "rlexer.ml"
+# 470 "rlexer.ml"
 
   | 27 ->
-# 132 "rlexer.mll"
+# 129 "rlexer.mll"
                      ( COMMA(info lexbuf) )
-# 478 "rlexer.ml"
+# 475 "rlexer.ml"
 
   | 28 ->
-# 133 "rlexer.mll"
+# 130 "rlexer.mll"
                      ( COLON(info lexbuf) )
-# 483 "rlexer.ml"
+# 480 "rlexer.ml"
 
   | 29 ->
-# 134 "rlexer.mll"
+# 131 "rlexer.mll"
                      ( HAT(info lexbuf) )
-# 488 "rlexer.ml"
+# 485 "rlexer.ml"
 
   | 30 ->
-# 135 "rlexer.mll"
+# 132 "rlexer.mll"
                      ( TILDE(info lexbuf) )
-# 493 "rlexer.ml"
+# 490 "rlexer.ml"
 
   | 31 ->
-# 136 "rlexer.mll"
+# 133 "rlexer.mll"
                      ( BACKSLASH(info lexbuf) )
-# 498 "rlexer.ml"
+# 495 "rlexer.ml"
 
   | 32 ->
-# 137 "rlexer.mll"
+# 134 "rlexer.mll"
                      ( COMMA(info lexbuf) )
-# 503 "rlexer.ml"
+# 500 "rlexer.ml"
 
   | 33 ->
-# 138 "rlexer.mll"
+# 135 "rlexer.mll"
                      ( QMARK(info lexbuf) )
-# 508 "rlexer.ml"
+# 505 "rlexer.ml"
 
   | 34 ->
-# 139 "rlexer.mll"
+# 136 "rlexer.mll"
                      ( STR (info lexbuf, string lexbuf) )
-# 513 "rlexer.ml"
+# 510 "rlexer.ml"
 
   | 35 ->
 
   let ident = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 140 "rlexer.mll"
+# 137 "rlexer.mll"
                                        ( 
       try let kw = Hashtbl.find keywords ident in
           kw (info lexbuf)
       with Not_found -> IDENT (info lexbuf, ident) )
-# 523 "rlexer.ml"
+# 520 "rlexer.ml"
 
   | 36 ->
 
   let integ = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 144 "rlexer.mll"
+# 141 "rlexer.mll"
                      ( INT(info lexbuf, int_of_string integ) )
-# 530 "rlexer.ml"
+# 527 "rlexer.ml"
 
   | 37 ->
-# 145 "rlexer.mll"
+# 142 "rlexer.mll"
                      ( newline lexbuf; main lexbuf )
-# 535 "rlexer.ml"
+# 532 "rlexer.ml"
 
   | 38 ->
-# 146 "rlexer.mll"
+# 143 "rlexer.mll"
                      ( EOF(info lexbuf) )
-# 540 "rlexer.ml"
+# 537 "rlexer.ml"
 
   | 39 ->
-# 147 "rlexer.mll"
+# 144 "rlexer.mll"
                      ( comment lexbuf; main lexbuf )
-# 545 "rlexer.ml"
+# 542 "rlexer.ml"
 
   | 40 ->
-# 148 "rlexer.mll"
+# 145 "rlexer.mll"
                      ( error lexbuf "unknown token" )
-# 550 "rlexer.ml"
+# 547 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_main_rec lexbuf __ocaml_lex_state
 
@@ -555,29 +552,29 @@ and cset lexbuf =
 and __ocaml_lex_cset_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 151 "rlexer.mll"
+# 148 "rlexer.mll"
                      ( "\\\\" ^ cset lexbuf )
-# 561 "rlexer.ml"
+# 558 "rlexer.ml"
 
   | 1 ->
-# 152 "rlexer.mll"
+# 149 "rlexer.mll"
                      ( "]" ^ cset lexbuf )
-# 566 "rlexer.ml"
+# 563 "rlexer.ml"
 
   | 2 ->
-# 153 "rlexer.mll"
+# 150 "rlexer.mll"
                      ( "" )
-# 571 "rlexer.ml"
+# 568 "rlexer.ml"
 
   | 3 ->
-# 154 "rlexer.mll"
+# 151 "rlexer.mll"
                      ( newline lexbuf; "\n" ^ cset lexbuf )
-# 576 "rlexer.ml"
+# 573 "rlexer.ml"
 
   | 4 ->
-# 155 "rlexer.mll"
+# 152 "rlexer.mll"
                      ( let s = lexeme lexbuf in s ^ cset lexbuf )
-# 581 "rlexer.ml"
+# 578 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_cset_rec lexbuf __ocaml_lex_state
 
@@ -586,34 +583,34 @@ and string lexbuf =
 and __ocaml_lex_string_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 158 "rlexer.mll"
+# 155 "rlexer.mll"
                 ( let s = escape lexbuf in s ^ string lexbuf )
-# 592 "rlexer.ml"
+# 589 "rlexer.ml"
 
   | 1 ->
-# 159 "rlexer.mll"
+# 156 "rlexer.mll"
                 ( "" )
-# 597 "rlexer.ml"
+# 594 "rlexer.ml"
 
   | 2 ->
-# 160 "rlexer.mll"
+# 157 "rlexer.mll"
                           ( newline lexbuf; "\n" ^ string lexbuf )
-# 602 "rlexer.ml"
+# 599 "rlexer.ml"
 
   | 3 ->
-# 161 "rlexer.mll"
+# 158 "rlexer.mll"
                 ( newline lexbuf; let s = lexeme lexbuf in s ^ string lexbuf )
-# 607 "rlexer.ml"
+# 604 "rlexer.ml"
 
   | 4 ->
-# 162 "rlexer.mll"
+# 159 "rlexer.mll"
                 ( error lexbuf "unmatched '\"'")
-# 612 "rlexer.ml"
+# 609 "rlexer.ml"
 
   | 5 ->
-# 163 "rlexer.mll"
+# 160 "rlexer.mll"
                 ( let s = lexeme lexbuf in s ^ string lexbuf )
-# 617 "rlexer.ml"
+# 614 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_string_rec lexbuf __ocaml_lex_state
 
@@ -622,27 +619,27 @@ and bare lexbuf =
 and __ocaml_lex_bare_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 166 "rlexer.mll"
+# 163 "rlexer.mll"
                    ( newline lexbuf; 
                      let s = lexeme lexbuf in 
                      let n = String.length s - 1 in 
                        bare_indent n lexbuf )
-# 631 "rlexer.ml"
+# 628 "rlexer.ml"
 
   | 1 ->
-# 170 "rlexer.mll"
+# 167 "rlexer.mll"
                    ( "" )
-# 636 "rlexer.ml"
+# 633 "rlexer.ml"
 
   | 2 ->
-# 171 "rlexer.mll"
+# 168 "rlexer.mll"
                    ( error lexbuf "unmatched '<<<'" )
-# 641 "rlexer.ml"
+# 638 "rlexer.ml"
 
   | 3 ->
-# 172 "rlexer.mll"
+# 169 "rlexer.mll"
                    ( let s = lexeme lexbuf in s ^ bare_raw lexbuf )
-# 646 "rlexer.ml"
+# 643 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_bare_rec lexbuf __ocaml_lex_state
 
@@ -651,29 +648,29 @@ and bare_indent_spaces n expected lexbuf =
 and __ocaml_lex_bare_indent_spaces_rec n expected lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 175 "rlexer.mll"
+# 172 "rlexer.mll"
                      ( if expected=0 then let s = lexeme lexbuf in s ^ bare_indent n lexbuf 
                        else bare_indent_spaces n (pred expected) lexbuf )
-# 658 "rlexer.ml"
+# 655 "rlexer.ml"
 
   | 1 ->
-# 178 "rlexer.mll"
+# 175 "rlexer.mll"
                          ( "" )
-# 663 "rlexer.ml"
+# 660 "rlexer.ml"
 
   | 2 ->
-# 179 "rlexer.mll"
+# 176 "rlexer.mll"
                      ( newline lexbuf; let s = lexeme lexbuf in s ^ bare_indent_spaces n n lexbuf )
-# 668 "rlexer.ml"
+# 665 "rlexer.ml"
 
   | 3 ->
-# 180 "rlexer.mll"
+# 177 "rlexer.mll"
                      ( if expected=0 then 
                          let s = lexeme lexbuf in 
                            s ^ bare_indent n lexbuf 
                        else
                          error lexbuf (sprintf "expecting %d spaces after newline in string" n) )
-# 677 "rlexer.ml"
+# 674 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_bare_indent_spaces_rec n expected lexbuf __ocaml_lex_state
 
@@ -682,26 +679,26 @@ and bare_indent n lexbuf =
 and __ocaml_lex_bare_indent_rec n lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 187 "rlexer.mll"
+# 184 "rlexer.mll"
                          ( newline lexbuf; "" )
-# 688 "rlexer.ml"
+# 685 "rlexer.ml"
 
   | 1 ->
-# 188 "rlexer.mll"
+# 185 "rlexer.mll"
                      ( newline lexbuf; 
                        let s = lexeme lexbuf in 
                        s ^ bare_indent_spaces n n lexbuf )
-# 695 "rlexer.ml"
+# 692 "rlexer.ml"
 
   | 2 ->
-# 191 "rlexer.mll"
+# 188 "rlexer.mll"
                      ( error lexbuf "unmatched '>>>'" )
-# 700 "rlexer.ml"
+# 697 "rlexer.ml"
 
   | 3 ->
-# 192 "rlexer.mll"
+# 189 "rlexer.mll"
                      ( let s = lexeme lexbuf in s ^ bare_indent n lexbuf )
-# 705 "rlexer.ml"
+# 702 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_bare_indent_rec n lexbuf __ocaml_lex_state
 
@@ -710,24 +707,24 @@ and bare_raw lexbuf =
 and __ocaml_lex_bare_raw_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 195 "rlexer.mll"
+# 192 "rlexer.mll"
                 ( "" )
-# 716 "rlexer.ml"
+# 713 "rlexer.ml"
 
   | 1 ->
-# 196 "rlexer.mll"
+# 193 "rlexer.mll"
                 ( newline lexbuf; let s = lexeme lexbuf in s ^ bare_raw lexbuf )
-# 721 "rlexer.ml"
+# 718 "rlexer.ml"
 
   | 2 ->
-# 197 "rlexer.mll"
+# 194 "rlexer.mll"
                 ( error lexbuf "unmatched '<<<'" )
-# 726 "rlexer.ml"
+# 723 "rlexer.ml"
 
   | 3 ->
-# 198 "rlexer.mll"
+# 195 "rlexer.mll"
                 ( let s = lexeme lexbuf in s ^ bare_raw lexbuf )
-# 731 "rlexer.ml"
+# 728 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_bare_raw_rec lexbuf __ocaml_lex_state
 
@@ -736,44 +733,44 @@ and escape lexbuf =
 and __ocaml_lex_escape_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 201 "rlexer.mll"
+# 198 "rlexer.mll"
                 ( "'" )
-# 742 "rlexer.ml"
+# 739 "rlexer.ml"
 
   | 1 ->
-# 202 "rlexer.mll"
+# 199 "rlexer.mll"
                 ( "\"" )
-# 747 "rlexer.ml"
+# 744 "rlexer.ml"
 
   | 2 ->
-# 203 "rlexer.mll"
+# 200 "rlexer.mll"
                 ( "\\" )
-# 752 "rlexer.ml"
+# 749 "rlexer.ml"
 
   | 3 ->
-# 204 "rlexer.mll"
+# 201 "rlexer.mll"
                 ( "\008" )
-# 757 "rlexer.ml"
+# 754 "rlexer.ml"
 
   | 4 ->
-# 205 "rlexer.mll"
+# 202 "rlexer.mll"
                 ( "\010" )
-# 762 "rlexer.ml"
+# 759 "rlexer.ml"
 
   | 5 ->
-# 206 "rlexer.mll"
+# 203 "rlexer.mll"
                 ( "\013" )
-# 767 "rlexer.ml"
+# 764 "rlexer.ml"
 
   | 6 ->
-# 207 "rlexer.mll"
+# 204 "rlexer.mll"
                 ( "\009" )
-# 772 "rlexer.ml"
+# 769 "rlexer.ml"
 
   | 7 ->
-# 208 "rlexer.mll"
+# 205 "rlexer.mll"
                 ( error lexbuf "in string escape sequence" )
-# 777 "rlexer.ml"
+# 774 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_escape_rec lexbuf __ocaml_lex_state
 
@@ -782,29 +779,29 @@ and comment lexbuf =
 and __ocaml_lex_comment_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 211 "rlexer.mll"
+# 208 "rlexer.mll"
                    ( comment lexbuf; comment lexbuf )
-# 788 "rlexer.ml"
+# 785 "rlexer.ml"
 
   | 1 ->
-# 212 "rlexer.mll"
+# 209 "rlexer.mll"
                    ( () )
-# 793 "rlexer.ml"
+# 790 "rlexer.ml"
 
   | 2 ->
-# 213 "rlexer.mll"
+# 210 "rlexer.mll"
                    ( newline lexbuf; comment lexbuf )
-# 798 "rlexer.ml"
+# 795 "rlexer.ml"
 
   | 3 ->
-# 214 "rlexer.mll"
+# 211 "rlexer.mll"
                    ( error lexbuf "unmatched '(*'" )
-# 803 "rlexer.ml"
+# 800 "rlexer.ml"
 
   | 4 ->
-# 215 "rlexer.mll"
+# 212 "rlexer.mll"
                    ( comment lexbuf )
-# 808 "rlexer.ml"
+# 805 "rlexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; __ocaml_lex_comment_rec lexbuf __ocaml_lex_state
 

@@ -60,18 +60,18 @@ let xml_space (space:string) = ins space
 
 (* a usefull lense to deal with data that become attributes in the XML file.
  * [space] is a string of spaces to be insert after the attribute. Usely "" or " "*)
-let xml_attribute (name:string) (content:clens) (space:string) = 
+let xml_attribute (name:string) (content:dlens) (space:string) = 
   ins (name."=\"") . content . ins ("\"" ). (xml_space space)
 
 (* a usefull lense to deal with data that become pcdata in the XML file.
  * [spaces] is a string of spaces used for the indentation *)
-let xml_tag (spaces:string) (name:string) (content:clens) = 
+let xml_tag (spaces:string) (name:string) (content:dlens) = 
   xml_space spaces .ins ("<" . name . ">") . content . ins ("</" .name.">\n")
 
-let xml_tag_with_att (spaces:string) (name:string) (attribute:string) (content:clens) = 
+let xml_tag_with_att (spaces:string) (name:string) (attribute:string) (content:dlens) = 
   xml_space spaces . ins ("<" . name ." ". attribute. ">") . content . ins ("</" .name.">\n")
 
-let xml_tag_with_single_att (spaces:string) (name:string) (name_att:string) (content_att:clens) = 
+let xml_tag_with_single_att (spaces:string) (name:string) (name_att:string) (content_att:dlens) = 
   xml_space spaces . ins ("<" . name . " " . name_att . "=\"") . content_att . ins "\"/>"
 
 let xml_opening_tag (spaces:string) (name:string) = 
@@ -125,9 +125,8 @@ test date get "20-FEB-2007" = "2007-02-20"
 (* we don't use xml_tag, because we have a k-lens *)
 let ID = del_beg_line "ID" .xml_space "  ". ins  "<name>" . key ([^ \n]+) . ( del "\n" | del (" ".[^\n]* . "\n")) . ins "</name>\n"
 
-let id = clens_of_klens ID
 
-test id get 
+test ID get 
 <<<
 ID   104K_THEAN              Reviewed;         893 AA.
 
@@ -217,17 +216,17 @@ DT   20-FEB-2007, entry version 10.
 (******* DE line ********)
 
 (* ds is the deleting spaces lens to be used*)
-let name_prot (spaces:string) (ds:clens) = 
+let name_prot (spaces:string) (ds:dlens) = 
   xml_tag spaces  "name" (escape_name [;()[\]] ) . ds
 
-let complete_name_prot (spaces:string) (ds:clens) = 
-  let paren_name (dsp:clens) = 
+let complete_name_prot (spaces:string) (ds:dlens) = 
+  let paren_name (dsp:dlens) = 
     del "(" . name_prot spaces del_spaces . del ")" . dsp in
   (name_prot spaces "") . 
   ( (del_spaces_bis . (paren_name del_spaces_bis)* . (paren_name ds))
   | ds)
 
-let special_name (tag:string) (spaces:string) (ds:clens) = 
+let special_name (tag:string) (spaces:string) (ds:dlens) = 
   let name = complete_name_prot (spaces . "  ") ds in
   xml_opening_tag spaces  tag  .
   name . 
@@ -312,21 +311,21 @@ DE   Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate N-acet
 (******* Special DE line ********)
 
 (* ds is the deleting spaces lens to be used*)
-let name_prot (spaces:string) (ds:clens) = 
+let name_prot (spaces:string) (ds:dlens) = 
   ins (spaces . "<name>") . (s_escape_name [\n;()[\]] "DE") . ds .
   ins "</name>\n" 
 
 let del_DE_spaces = s_del_spaces "DE"
 let del_DE_spaces_bis = s_del_spaces_bis "DE"
 
-let complete_name_prot (spaces:string) (ds:clens) = 
-  let paren_name (dsp:clens) = 
+let complete_name_prot (spaces:string) (ds:dlens) = 
+  let paren_name (dsp:dlens) = 
     del "(" . name_prot spaces del_DE_spaces . del ")" . dsp in
   (name_prot spaces "") . 
   ( (del_DE_spaces_bis . (paren_name del_DE_spaces_bis)* . (paren_name ds))
   | ds)
 
-let special_name (tag:string) (spaces:string) (ds:clens) = 
+let special_name (tag:string) (spaces:string) (ds:dlens) = 
   let name = complete_name_prot (spaces . "  ") ds in
   ins (spaces . "<" . tag . ">\n") .
   name . 
@@ -479,7 +478,7 @@ GN   OrderedLocusNames=b1237, c1701, z2013, ECs1739;
 (******* OS line ********)
 
 (* ds is the deleting spaces lens to be used*)
-let name_org (spaces:string) (ds:clens) (type:string) = 
+let name_org (spaces:string) (ds:dlens) (type:string) = 
   xml_tag_with_att spaces "name" ("type=\"" . type ."\"") (escape_name [;()[\]])
 
 let name_and_syn_org (spaces:string) = 
@@ -1045,7 +1044,7 @@ RL   (er) Plant Gene Register PGR95-051.
   </reference>
 >>>
 
-(*
+
 
 (****** CC line ******)
 
@@ -1086,7 +1085,7 @@ let eoC =
 
 
 
-let classic_CC_lines (corres:clens) = 
+let classic_CC_lines (corres:dlens) = 
   del_beg_line "CC" . del "-!-" . del_spaces_bis .
   ins "  <comment type=\"" . corres . ins "\"" . del ":" . del_spaces_bis .
   ((CC_content . note?) ~ (eoC? . ins ">\n")).
@@ -2327,4 +2326,3 @@ test KW get
 
  
 
-*)

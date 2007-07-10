@@ -8,7 +8,7 @@ let E = "\\end{document}".all
 
 
 let chunk_subsection =
-default_klens
+default
   (del "\\subsection{". ins "**".
   key Title.
   del "}".
@@ -16,11 +16,11 @@ default_klens
   const "" "\n" "")
 "\\subsection{NO NAME}\n***TO BE WRITTEN***\n\n" 
 
-let extract_subsections = clens_of_rlens (<chunk_subsection>*)
+let extract_subsections = <chunk_subsection>*
 
 
 let chunk_section =
-default_klens
+default
   (del "\\section{". ins "*".
   key Title.
   del "}".

@@ -87,10 +87,7 @@ let _ =
     ; ("string", (fun i -> STRING i))
     ; ("regexp", (fun i -> REGEXP i))
     ; ("canonizer", (fun i -> CANONIZER i))
-    ; ("clens", (fun i -> CLENS i))
-    ; ("klens", (fun i -> KLENS i))
-    ; ("slens", (fun i -> SLENS i))
-    ; ("rlens", (fun i -> RLENS i))
+    ; ("dlens", (fun i -> DLENS i))
     ]
 }
 

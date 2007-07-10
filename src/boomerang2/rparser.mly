@@ -487,11 +487,11 @@ dedls:
           expect_sort i2 "in test dedlaration:" V.SDLens (chk2 se);
           expect_sort i5 "in test dedlaration:" V.SString (chk5 se);
           expect_sort i7 "in test dedlaration:" V.SString (chk7 se);
-          let l2 = V.get_rl (comp2 ve) i2 in 
+          let l2 = V.get_dl (comp2 ve) i2 in 
           let s5 = V.get_s  (comp5 ve) i5 in 
           let s7 = V.get_s (comp7 ve) i7 in 
-          let g = L.RLens.get l2 s5 in 
-          let c = L.RLens.create l2 s7 in  
+          let g = L.DLens.get l2 s5 in 
+          let c = L.DLens.rcreate_of_dl l2 s7 in  
             if (RS.to_string g) <> (RS.to_string s7) then test_fail i s7 g;
             if (RS.to_string c) <> (RS.to_string s5) then test_fail i s5 c;
             $8 (se,ve)) }
@@ -567,13 +567,13 @@ gpexp:
         let i = m i1 i3 in 
           (i, 
           (fun se -> 
-            expect_sort i1 "in get expression:" V.SRLens (chk1 se);
+            expect_sort i1 "in get expression:" V.SDLens (chk1 se);
             expect_sort i3 "in get expression:" V.SString (chk3 se);
             V.SString),
           (fun ve -> 
-            let l1 = V.get_rl (comp1 ve) i1 in 
+            let l1 = V.get_dl (comp1 ve) i1 in 
             let s3 = V.get_s (comp3 ve) i3 in                                                  
-              V.S (i,L.RLens.get l1 s3))) }
+              V.S (i,L.DLens.get l1 s3))) }
 
   | composeexp put aexp INTO aexp        
       { let i1,chk1,comp1 = $1 in 
@@ -582,15 +582,15 @@ gpexp:
         let i = m i1 i5 in 
           (i, 
           (fun se -> 
-            expect_sort i1 "in put expression:" V.SRLens (chk1 se);
+            expect_sort i1 "in put expression:" V.SDLens (chk1 se);
             expect_sort i3 "in put expression:" V.SString (chk3 se);
             expect_sort i5 "in put expression:" V.SString (chk5 se);
             V.SString),
           (fun ve ->                                                
-            let l1 = V.get_rl (comp1 ve) i1 in 
+            let l1 = V.get_dl (comp1 ve) i1 in 
             let s3 = V.get_s (comp3 ve) i3 in
             let s5 = V.get_s (comp5 ve) i5 in
-              V.S (i,L.RLens.put l1 s3 s5))) }
+              V.S (i,L.DLens.rput_of_dl l1 s3 s5))) }
       
   | composeexp create aexp               
       { let i1,chk1,comp1 = $1 in 
@@ -598,13 +598,13 @@ gpexp:
         let i = m i1 i3 in 
           (i, 
           (fun se -> 
-            expect_sort i1 "in create expression:" V.SRLens (chk1 se);
+            expect_sort i1 "in create expression:" V.SDLens (chk1 se);
             expect_sort i3 "in create expression:" V.SString (chk3 se);
             V.SString),
           (fun ve -> 
-            let l1 = V.get_rl (comp1 ve) i1 in 
+            let l1 = V.get_dl (comp1 ve) i1 in 
             let s2 = V.get_s (comp3 ve) i3 in                                                  
-              V.S (i,L.RLens.create l1 s2))) }
+              V.S (i,L.DLens.rcreate_of_dl l1 s2))) }
   | composeexp                         
       { $1 }
 
@@ -724,9 +724,6 @@ rexp:
                 | V.SString | V.SRegexp -> V.SRegexp
                 | V.SCanonizer -> V.SCanonizer
                 | V.SDLens -> V.SDLens 
-                | V.SKLens -> V.SKLens
-                | V.SSLens -> V.SSLens
-                | V.SRLens -> V.SRLens
                 | s -> 
                     sort_error i "in kleene-star expression:"
                       "string, regexp, or lens sort"
@@ -747,12 +744,6 @@ rexp:
                     V.CN(i,L.Canonizer.star i (V.get_cn v1 i))
                 | V.SDLens -> 
                     V.DL(i,L.DLens.star i (V.get_dl v1 i))
-                | V.SKLens -> 
-                    V.KL(i,L.KLens.star i (V.get_kl v1 i))
-                | V.SSLens -> 
-                    V.SL(i,L.SLens.star i (V.get_sl v1 i))
-                | V.SRLens -> 
-                    V.RL(i,L.RLens.star i (V.get_rl v1 i))
                 | s -> 
                     sort_error i "in kleene-star expression:"
                       "string, regexp, or lens sort"
@@ -792,13 +783,12 @@ aexp:
         let i = m $1 $3 in 
           (i,
           (fun se -> 
-            Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);
-            expect_sort i2 "in match expression:" V.SKLens (V.lookup i2 se x2);            
-            V.SSLens),
+            (*Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);*)
+            expect_sort i2 "in match expression:" V.SDLens (V.lookup i2 se x2);            
+            V.SDLens),
           (fun ve ->             
             let v2 = fst (V.lookup i2 ve x2) in 
-            let u = V.uid_of_t v2 in 
-              V.SL(i,L.SLens.smatch i x2 u (V.get_kl v2 i2)))) }
+              V.DL(i,L.DLens.smatch i (RS.of_string x2) (V.get_dl v2 i2)))) }
 
   | IDENT                               
       { let i,x = $1 in 
@@ -856,15 +846,6 @@ asort:
 
   | DLENS  
       { V.SDLens }
-
-  | KLENS  
-      { V.SKLens }
-
-  | SLENS  
-      { V.SSLens }
-
-  | RLENS  
-      { V.SRLens }
 
   | LPAREN sort RPAREN                  
       { $2 }
