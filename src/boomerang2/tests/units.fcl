@@ -200,3 +200,93 @@ test me put  "abbabaaD"
 	  into "aaaaaaaaaCaa" = 
                "abbabaaD"
 *)
+
+
+
+(* probleme with convertion between type :-\ *)
+let a1 = "a"
+
+(* a new lense is created from the *string* a1 each time, so a unique id is generated *)
+test (<a1> . <a1>) get "aa" = error 
+test (<a1:a1> . <a2:a1>) get "aa" = "aa"
+
+let a3 = cp "a"
+test (<a3>.<a3>) get "aa" = "aa"
+
+
+(* dictionaries are (not) shared *)
+
+let l = key [a-z]* . del [0-9]{4}
+
+(* dictionaries are shared *)
+test (<l> ."\n". <l>) put 
+<<<
+foo
+bar
+>>>
+into 
+<<<
+bar1234
+foo5678
+>>>
+=
+<<<
+foo5678
+bar1234
+>>>
+
+
+(* dictionaries are *not* shared *)
+test (<tag1:l> ."\n". <tag2:l>) put 
+<<<
+foo
+bar
+>>>
+into 
+<<<
+bar1234
+foo5678
+>>>
+=
+<<<
+foo0000
+bar0000
+>>>
+
+
+
+
+
+
+(***** strange things... ****)
+
+  let alpha = [a-z]
+let alpha2 = alpha{2}
+let strange_chunk = key alpha2 . del alpha2
+
+let strange = (<strange_chunk> . <strange_chunk>);<strange_chunk>
+
+test strange get "aabbccdd" = "aa"
+
+test strange put "zz" into "aabbccdd" = "zzaaaacc"
+
+(*** even more strange ***)
+
+let chunk = key alpha{3} . del [0-9]{2}
+
+let normal_def = 
+default <chunk> "zzz42"
+
+let strange_def = 
+default <chunk> "foo42"
+
+
+let normal_l = normal_def*. "," . normal_def
+let strange_l = strange_def* ."," .strange_def
+
+(* swaping of values *) 
+test normal_l put "bar,foo" into "foo11,bar22"= "bar22,foo11"
+test strange_l put "bar,foo" into "foo11,bar22"= "bar22,foo11"
+
+test normal_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo11"
+test strange_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo42"
