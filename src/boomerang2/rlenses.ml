@@ -435,7 +435,7 @@ let safe_fusion_dict_type i dt1 dt2 =
 	raise (Error.Harmony_error 
 		 (fun () -> 
 		    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-		    Util.format "The tag %s is used twice with different lenses@]@\n" (RS.to_string t);))
+		    Util.format "The tag \"%s\" is used twice with different lenses@]@\n" (RS.to_string t);))
 
 
 (*
@@ -725,6 +725,11 @@ module DLens = struct
     {dl with 
        ctype = determinize dl.ctype; 
        atype = determinize dl.atype}
+
+  let forgetkey dl = 
+    {dl with
+       key = (fun _ -> RS.empty);
+       uid = next_uid();}
 
   let canonizer_of_t i dl = 
     Canonizer.mk_t 

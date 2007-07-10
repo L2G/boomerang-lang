@@ -112,6 +112,11 @@ let prelude_spec =
      SDLens ^> SDLens,
      mk_dlfun (Info.M "determinize built-in") (fun i cl ->
        DL(i, DL.determinize_dlens cl)))
+
+  ; ("forgetkey",
+     SDLens ^> SDLens,
+     mk_dlfun (Info.M "forgetkey built-in") (fun i cl ->
+       DL(i, DL.forgetkey cl)))
    ]
       
 let init_env = 

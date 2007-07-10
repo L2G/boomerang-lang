@@ -788,7 +788,23 @@ aexp:
             V.SDLens),
           (fun ve ->             
             let v2 = fst (V.lookup i2 ve x2) in 
-              V.DL(i,L.DLens.smatch i (RS.of_string x2) (V.get_dl v2 i2)))) }
+              V.DL(i,L.DLens.smatch i (RS.empty) (V.get_dl v2 i2)))) }
+
+  | LANGLE IDENT COLON IDENT RANGLE
+      { (* the first IDENT is the tag to be used for the match
+	   the second is the name of the lense to be matched *)
+	let i2,x2 = $2 in 
+	let i4,x4 = $4 in
+        let i = m $1 $5 in 
+          (i,
+          (fun se -> 
+            (*Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);*)
+            expect_sort i4 "in match expression:" V.SDLens (V.lookup i4 se x4);            
+            V.SDLens),
+          (fun ve ->             
+            let v4 = fst (V.lookup i4 ve x4) in 
+              V.DL(i,L.DLens.smatch i (RS.of_string x2) (V.get_dl v4 i4)))) }
+
 
   | IDENT                               
       { let i,x = $1 in 
