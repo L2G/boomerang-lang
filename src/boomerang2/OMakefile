@@ -13,5 +13,7 @@ OCamlProgram($(RESULT), $(rootname $(BOOMERANG_SOURCES)))
 
 .DEFAULT: $(RESULT)
 
+CLEAN += rparser.ml rparser.mli rlexer.ml
+
 clean:
 	$(CLEAN) $(RESULT) 
