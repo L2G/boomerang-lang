@@ -14,7 +14,7 @@ module M =
   Mapplus.Make(
     struct
       type t = int
-      let compare = compare
+      let compare x y  = if x < y then -1 else if x = y then 0 else 1
       let to_string = string_of_int
     end)
 
@@ -33,6 +33,6 @@ module Hash =
   Hashtbl.Make(
     struct
       type t = int
-      let equal = (=)
-      let hash = Hashtbl.hash
+      let equal (x:int) (y:int) = (x = y)
+      let hash (x:int) = Hashtbl.hash x
     end)
