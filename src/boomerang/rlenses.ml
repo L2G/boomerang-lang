@@ -1092,4 +1092,69 @@ module DLens = struct
 	uid = next_uid ();
       }
 
+
+
+  let filter i rd rk =
+    let n = sprintf "filter %s %s" rd.str rk.str in
+    chk_disjoint i n rd rk;
+    let ru = rx_alt rd rk in
+    chk_iterate i n ru 0 None;
+    chk_iterate i n rk 0 None;
+    let ct = rx_rep ru (0,None) in
+    let at = rx_rep rk (0,None) in
+    let dt = TMap.empty in
+    let st = function
+      | S_string s -> Erx.match_str ct.rx s
+      | _ -> false in
+    let get = lift_r i (get_str n) ct 
+      (fun c ->
+        let rec loop acc = function 
+          | [] -> acc
+          | h :: t -> 
+              if Erx.match_str rd.rx h then 
+                loop acc t
+              else 
+                loop (acc ^ h) t in
+        let lc = Erx.unambig_star_split ct.rx c in
+        loop RS.empty lc) in
+    let put = lift_rsd i (put_str n) at st
+      (fun a s d ->
+        let c = string_of_skel s in
+        let rec loop acc lc la = match lc,la with
+          | [], [] -> acc
+          | [], ha :: ta -> loop (acc ^ ha) [] ta
+          | hc :: tc, [] -> 
+              if Erx.match_str rd.rx hc then
+                loop (acc ^ hc) tc []
+              else
+                loop acc tc []
+          | hc :: tc, ha :: ta -> 
+              if Erx.match_str rd.rx hc then
+                loop (acc ^ hc) tc la
+              else
+                loop (acc ^ ha) tc ta in
+        let lc = Erx.unambig_star_split ct.rx c in
+        let la = Erx.unambig_star_split at.rx a in
+          (loop RS.empty lc la, d)) in
+    let create = lift_rd i n at (fun a d -> (a,d)) in
+    let parse = lift_r i n ct (fun c -> (S_string c, D_empty))in
+      { info = i; 
+        string = n;
+        ctype = ct;
+        atype = at;
+        dtype = dt;
+	stype = st;
+	crel = Identity;
+        arel = Identity;
+        get = get;
+        put = put;
+        create = create;
+	parse = parse;
+	key = lift_r i n at (fun _ -> RS.empty);
+	uid = next_uid ();
+      }
+
+
+
+
 end

@@ -117,6 +117,13 @@ let prelude_spec =
      SDLens ^> SDLens,
      mk_dlfun (Info.M "forgetkey built-in") (fun i cl ->
        DL(i, DL.forgetkey cl)))
+
+  ; ("filter",
+     SRegexp ^> SRegexp ^> SDLens,
+     mk_rfun(Info.M "filter built-in") (fun i r1 ->
+       mk_rfun i (fun i r2 ->
+		    DL(i,DL.filter i r1 r2))))
+  
    ]
       
 let init_env = 

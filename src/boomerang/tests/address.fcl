@@ -11,8 +11,8 @@
 (* -------------------------------------------------------------------- *)
 (* A useful derived lens *)
 
-let filterwith (both: regexp) (l: klens) =
-  filter (both - (ctype_klens l)) (ctype_klens l) ; l*
+let filterwith (both: regexp) (l: dlens) =
+  filter (both - (ctype l)) (ctype l) ; l*
 
 (* -------------------------------------------------------------------- *)
 
@@ -160,7 +160,7 @@ let remove_item_numbers : ? <-> Field_unnumbered* =
 
 let chunk : ? <-> AbsAddr =
   del "BEGIN:VCARD" . del NL . del "VERSION:3.0" . del NL .  
-  (key name) . del NL .
+  (name; key (atype name)) . del NL .
   (remove_item_numbers ;
    filterwith
      Field_unnumbered
@@ -178,6 +178,7 @@ let samplevcard =
     FN:Andy Patroni
     X-ABUID:827704A0-38A3-4034-84BF-BADFB87EB1E2\:ABPerson
     END:VCARD
+    
   >>>
 
 test vcard create "Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)" = ?
@@ -194,6 +195,7 @@ into
     item2.EMAIL;type=INTERNET;type=pref:foo
     item2.X-ABLabel:E-mail
     END:VCARD
+    
   >>> = ?
 
 test vcard get samplevcard = "Andy Patroni, 6106236713 (w)"
@@ -271,6 +273,7 @@ let samplevcards =
     FN:Andrew Black
     X-ABUID:A9BA5924-5A64-4D46-A40F-A0BC86073232\:ABPerson
     END:VCARD
+    
   >>>
   
 test vcards get samplevcards = 
@@ -282,12 +285,14 @@ test vcards get samplevcards =
     Bistro de Vent
     Biswas, Goutam
     Black, Andrew
+    
   >>>
 
 test vcards put 
   <<<
     Andy Patroni, 6106236713 (w), fubar (note)
     Pierce, Benjamin C., 215 898-6222 (w), 215 732-4684 (h), 215 266-9001 (c)
+    
   >>>
 into samplevcards = 
   <<<
@@ -308,6 +313,7 @@ into samplevcards =
     TEL;type=CELL:215 266-9001
     X-ABUID:87B85E7E-AB0F-4819-8647-0BD532019144\:ABPerson
     END:VCARD
+    
   >>>
 
 (* test vcards get (read "/home/bcpierce/Desktop/vCards.vcf") = ? *)
@@ -315,12 +321,7 @@ into samplevcards =
 (* -------------------------------------------------- *)
 (* Generic XML stuff *)
 
-let element (tag:string) (body:klens) =
-  del "<" . del tag . del ">" . 
-  body . 
-  del "</" . del tag . del ">" . ws
-
-let selement (tag:string) (body:slens) =
+let element (tag:string) (body:dlens) =
   del "<" . del tag . del ">" . 
   body . 
   del "</" . del tag . del ">" . ws
@@ -358,7 +359,7 @@ let tel =
 let chunk = 
   element "vcard" 
     (ws .
-     element "n" (key name) . 
+     element "n" (name; (key (atype name))) . 
      tel*)
 
 let foo = 
@@ -373,7 +374,7 @@ let vcard = <chunk>
 
 test vcard get foo = "foo, bar, 12345 (h), 12345 (c), hello world (note)"
 
-let xcard = ws . selement "xcard" (ws . (vcard . ins "\n") * )
+let xcard = ws . element "xcard" (ws . (vcard . ins "\n") * )
 
 let samplexcards = 
      "<xcard>
