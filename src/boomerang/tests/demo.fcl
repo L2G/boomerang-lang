@@ -152,3 +152,53 @@ into
    (* yields: *)
      "Author:Steve Zdancewic, Email:stevez@cis.upenn.edu;
      |Author:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
+
+
+
+(*** Q-lenses ***)
+let xml_space (space:string) = qconst "" " "* space ""
+let xml_nl = qconst "" ((("\n" | " ")*."\n")?) "\n" ""
+
+let xml_tag (spaces:string) (name:string) (content:dlens) = 
+  xml_space spaces .ins ("<" . name . ">") . content . ins ("</" .name.">"). xml_nl
+
+let chunk = xml_tag "  " "leaf" (key [a-z]+ . del [0-9]*)
+let ql = 
+  xml_space "" . ins "<root>". xml_nl .
+    (<chunk>. (del "\n" . <chunk>)*)? .
+  xml_space "" . ins "</root>"
+
+test ql get 
+<<<
+foo42
+bar51
+>>> = 
+<<<
+<root>
+  <leaf>foo</leaf>
+  <leaf>bar</leaf>
+</root>
+>>>
+
+
+(* adding extra spaces at the end of lines, removing or addind newlines, etc*)
+test ql put 
+<<<
+<root>
+    <leaf>bar</leaf>  
+  <leaf>zoo</leaf>  <leaf>foo</leaf> 
+  <leaf>barfoo</leaf> 
+     
+</root>
+>>>
+into
+<<<
+foo42
+bar51
+>>> = 
+<<<
+bar51
+zoo
+foo42
+barfoo
+>>>

@@ -41,6 +41,14 @@ let prelude_spec =
         mk_sfun i (fun i s2 -> 
         DL(i,DL.const i r1 s1 s2)))))
 
+  ; ("qconst",
+    SRegexp ^> SRegexp ^> SString ^> SString ^> SDLens,
+    mk_rfun (Info.M "const built-in") (fun i r1 -> 
+      mk_rfun i (fun i r2 ->
+        mk_sfun i (fun i s1 -> 
+          mk_sfun i (fun i s2 -> 
+          DL(i,DL.qconst i r1 r2 s1 s2))))))
+
   ; ("del",
     SRegexp ^> SDLens,
     mk_rfun (Info.M "del built-in") (fun i r1 -> 

@@ -56,7 +56,7 @@ let s_escape_name (char:regexp) (flag:string) =
   | esc_space (* or an (improbable) single char string *)
 
 (* xml_space will become a q-lense that prints space, but accepte in the putback any number of spaces*)
-let xml_space (space:string) = ins space
+let xml_space (space:string) = qconst "" " "* space ""
 
 (* a usefull lense to deal with data that become attributes in the XML file.
  * [space] is a string of spaces to be insert after the attribute. Usely "" or " "*)
@@ -160,12 +160,12 @@ AC   Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q96KV0; Q96KV1;
 >>>
 
 test AC put
-<<<  <accession>Q92892</accession>
-  <accession>Q92893</accession>
-  <accession>Q92894</accession>
+<<<<accession>Q92892</accession>
+<accession>Q92893</accession>
+ <accession>Q92894</accession>
   <accession>Q92895</accession>
   <accession>Q93053</accession>
-  <accession>Q96KU9</accession>
+ <accession>Q96KU9</accession>
   <accession>Q96KV0</accession>
   <accession>Q96KV1</accession>
   <accession>Q99605</accession>
@@ -179,7 +179,7 @@ AC   Q99605;
 "AC   Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q96KV0; Q96KV1; Q99605;
 "
 
-
+(*
 
 (**** DT line ****)
 
@@ -196,7 +196,7 @@ let DT =
   del ", sequence version " . (default (del [0-9]* ) "1") . del ".\n".
   del_beg_line "DT" . 
   xml_attribute "modified" date " " .
-    del ", entry version " . xml_attribute "version" ([0-9]*) "" . ins ">\n" . del ".\n"
+    del ", entry version " . xml_attribute "version" ([0-9]* ) "" . ins ">\n" . del ".\n"
   
 
 test DT get 
@@ -2326,3 +2326,4 @@ test KW get
 
  
 
+	*)

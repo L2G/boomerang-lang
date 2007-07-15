@@ -802,6 +802,44 @@ module DLens = struct
 	uid = next_uid ();
       }
 
+
+  (* ---------- qconst ---------- *)
+  let qconst i rc ra u_str def_str =
+    let u = RS.to_string u_str in
+    let def = RS.to_string def_str in
+    let n = sprintf "qconst (%s) (%s) \"%s\" \"%s\"" (rc.str) (ra.str) (whack u) (whack def) in 
+    let ct = rc in 
+    let at = ra in
+    let dt = TMap.empty in
+    let st = function
+      | S_string s -> Erx.match_str rc.rx s
+      | _ -> false in
+    let () = 
+      if not (Erx.match_str ra.rx u_str) then 
+        static_error i n 
+          (sprintf "%s does not belong to %s" def ra.str) in 
+    let () = 
+      if not (Erx.match_str rc.rx def_str) then 
+        static_error i n 
+          (sprintf "%s does not belong to %s" def rc.str) in 
+      { info = i;
+        string = n;
+        ctype = ct;
+        atype = at;
+	dtype = dt;
+	stype = st;
+        crel = Identity;
+        arel = Unknown;
+        get = lift_r i (get_str n) ct (fun c -> u_str);
+        put = lift_rsd i (put_str n) at st (fun _ s d -> (string_of_skel s, d) );
+	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, D_empty));  
+        create = lift_rd i (create_str n) at (fun a d -> (def_str,d));
+	key = lift_r i n at (fun _ -> RS.empty);
+	uid = next_uid ();
+      }
+
+
+
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 
     let n = sprintf "%s . %s" dl1.string dl2.string in 
