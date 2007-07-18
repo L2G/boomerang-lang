@@ -1,19 +1,22 @@
+(* Some useful regular expressions *)
 let N = [a-zA-Z ]*
 let E = [a-zA-Z@.]*
 
-(* First version of a lens that extracts just the name from a
-   Name/Email string *)
+(* ----------------------------------------------------------------- *)
+(* Basic lenses *)
+
+(* A basic lens that extracts just the name from a Name/Email string *)
 let del_email = 
   del "Name:" . 
-  N . 
+  cp N . 
   del (", Email:" . E) 
 
-(* Extract all the names from a LIST of Name/Emails *)
+(* Extract ALL the names from a LIST of Name/Emails *)
 let del_emails = "" | del_email . ("\n" . del_email)* 
 
-(* Get direction works fine *)
+(* Test the GET direction *)
 test del_emails get
-  (* Getting from... *)
+  (* GETting from... *)
     "Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
     |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu"
 = 
@@ -21,7 +24,7 @@ test del_emails get
   "Benjamin Pierce
   |Steve Zdancewic"
 
-(* Putback works as expected if we add names to the end *)
+(* Test the PUT direction (adding names at the end) *)
 test del_emails put
    (* Putting back... *)
      "Benjamin C Pierce
@@ -36,7 +39,12 @@ into
      |Name:Steve Zdancewic, Email:stevez@cis.upenn.edu
      |Name:Mike Hicks, Email:"
 
-(* but in general, it restores emails by position :-/ *)
+(* [break for semantics...] *)
+
+(* ----------------------------------------------------------------- *)
+(* A fly in the ointment... *)
+
+(* In general, PUT restores emails by position :-/ *)
 test del_emails put
    (* Putting back... *)
      "Steve Zdancewic
@@ -52,15 +60,16 @@ into
      |Name:Mike Hicks, Email:"
 
 (* ----------------------------------------------------------------- *)
-(* A better version where names act like keys to match up deld
-   emails. *)
+(* Dictionary lenses *)
 
+(* A better version where names act like keys to match up deleted emails. *)
 let keyed_del_email = 
   del "Name:" . 
   key N . 
-  default (del (", Email:" . E)) ", Email:UNKNOWN" 
+  del (", Email:" . E) 
 
-let keyed_del_emails = "" | <keyed_del_email> . ("\n" . <keyed_del_email>)*
+let keyed_del_emails = ""
+    | <keyed_del_email> . ("\n" . <keyed_del_email>)*
 
 (* Getting behaves the same as above. *)
 test keyed_del_emails get
@@ -85,7 +94,7 @@ into
    (* ...yields: *)
      "Name:Steve Zdancewic, Email:stevez@cis.upenn.edu
      |Name:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
-     |Name:Mike Hicks, Email:UNKNOWN"
+     |Name:Mike Hicks, Email:"
 (* ----------------------------------------------------------------- *)
 
 (* Unions present a special challenge: common projected data needs to
@@ -95,18 +104,14 @@ into
 
 let chunk = 
   key N . 
-  default (del(", Email:" . E)) ", Email:UNKNOWN"
+  del (", Email:" . E) 
 
-let author_coauthor = "" | "Author:" . <chunk> | "CoAuthor:" . <chunk> . ("\nCoAuthor:" . <chunk>)*
+let author_coauthor =
+       cp ""
+     | cp "Author:" . <chunk>
+     | cp "CoAuthor:" . <chunk> . (cp "\nCoAuthor:" . <chunk>)*
 
-(* Getting simply projects emails *)
-test author_coauthor get
-   (* Getting from... *)
-      "Author:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
-  = 
-   (* ...yields: *)
-      "Author:Benjamin Pierce"
-
+(* GET simply projects emails *)
 test author_coauthor get
    (* Getting from... *)
      "CoAuthor:Benjamin Pierce, Email:bcpierce@cis.upenn.edu
@@ -116,9 +121,8 @@ test author_coauthor get
      "CoAuthor:Benjamin Pierce
      |CoAuthor:Steve Zdancewic"
 
-
 (* Putting back restores email for matching author/co-author *)
-(* First, two co-authors put back into a single author *)
+(* First, let's try two co-authors put back into a single author *)
 test author_coauthor put
   (* Putting back... *)
     "CoAuthor:Steve Zdancewic
@@ -127,7 +131,7 @@ into
     "Author:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
  =
   (* ...yields: *)
-    "CoAuthor:Steve Zdancewic, Email:UNKNOWN
+    "CoAuthor:Steve Zdancewic, Email:
     |CoAuthor:Benjamin Pierce, Email:bcpierce@cis.upenn.edu"
 
 (* Second, a single author put back into a list of co-authors *)    

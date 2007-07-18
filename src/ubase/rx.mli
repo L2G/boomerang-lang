@@ -32,7 +32,6 @@ val eol : t                            (* End of line *)
 val any : t                            (* Any character *)
 val notnl : t                          (* Any character but a newline *)
 val set : string -> t                  (* Any character of the string *)
-val negset : string -> t               (* Any character but those in the string *)
 val inter : t list -> t                (* All subexpressions must match *)
 val diff : t -> t -> t                 (* The first expression matches
                                           but not the second *)
