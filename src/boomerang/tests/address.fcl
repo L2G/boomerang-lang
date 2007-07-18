@@ -86,7 +86,7 @@ let name : ? <-> GlobalName =
       unescNonEmptyStr [,;:] 
     ; escNonEmptyStr [,] 
     ; ( del TelMarker+ | 
-        NonEmptyName . del TelMarker*) in
+        NonEmptyName . del TelMarker* ) in
   let familyname : ? <-> Name = 
      del "N:" . escName in
   familyname . (del ";" | ";" <-> ", " . escNonEmptyName ) . del ";;;" 
@@ -360,7 +360,7 @@ let chunk =
   element "vcard" 
     (ws .
      element "n" (name; (key (atype name))) . 
-     tel*)
+     tel* )
 
 let foo = 
   "<vcard>

@@ -739,7 +739,7 @@ rexp:
             let mk_star v1 = 
               match V.sort_of_t v1 with
                 | V.SString | V.SRegexp -> 
-                    V.R(i,L.rx_rep (V.get_r v1 i) (0,None))
+                    V.R(i,L.rx_star (V.get_r v1 i))
                 | V.SCanonizer -> 
                     V.CN(i,L.Canonizer.star i (V.get_cn v1 i))
                 | V.SDLens -> 

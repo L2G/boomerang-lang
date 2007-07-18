@@ -179,7 +179,7 @@ AC   Q99605;
 "AC   Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q96KV0; Q96KV1; Q99605;
 "
 
-(*
+
 
 (**** DT line ****)
 
@@ -1413,7 +1413,6 @@ test DR get
 
 
 (**** KW line ****)
-(* New problem : No idea of the corespondance between keywords and ids.. *)
 
 (* correspondance betweed keywords and ids. *)
 
@@ -2326,4 +2325,4 @@ test KW get
 
  
 
-	*)
+

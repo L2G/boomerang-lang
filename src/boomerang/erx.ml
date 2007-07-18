@@ -158,8 +158,14 @@ module NFA = struct
     include QS 
   end)(Rstring)
 
+  (* --- type to keep track of the (un)ambiguity of automata --- *)
 
-(* --- limits for the "heuristic" --- *)
+  type ambiguity = 
+      Amb_unambig
+    | Amb_unknown
+    | Amb_ambig of RS.t
+
+  (* --- limits for the "heuristic" --- *)
   let h_det = 0
   let h_trim = 0
   let h_reverse = 0 
@@ -171,6 +177,7 @@ module NFA = struct
       { init : QS.t;
 	final : QS.t;
         trans : T.t array;
+	mutable ambiguity : ambiguity; 
 	mutable det : t heurist;
 	mutable trim : t heurist;
 	mutable reverse : t heurist;
@@ -206,6 +213,7 @@ module NFA = struct
     | _ -> true
 
   let reset_heur t =
+    t.ambiguity <- Amb_unknown;
     t.det <- Heur 0;
     t.trim <- Heur 0;
     t.reverse <- Heur 0;
@@ -281,6 +289,7 @@ module NFA = struct
   let rec empty = 
     { init = QS.empty;
       final = QS.empty;
+      ambiguity = Amb_unambig;
       trans = array_make 0 T.empty;
       det = More empty;
       trim = More empty;
@@ -300,6 +309,7 @@ module NFA = struct
       { init = epsilon_init;
 	trans = epsilon_trans;
         final = epsilon_final;
+	ambiguity = Amb_unambig;
 	det = More epsilon;
 	trim = More epsilon;
 	reverse = More epsilon;
@@ -325,7 +335,8 @@ module NFA = struct
       { init = t.init;
         trans = a;
         final = t.final;
-        det = Heur 0;
+        ambiguity = Amb_unknown;
+	det = Heur 0;
         trim = Heur 0;
         reverse = Heur 0;
         star = Heur 0 }
@@ -350,6 +361,7 @@ module NFA = struct
       { init = t.init;
         trans = a;
         final = t.final;
+	ambiguity = Amb_unknown;
         det = Heur 0;
         trim = Heur 0;
         reverse = Heur 0;
@@ -376,6 +388,7 @@ module NFA = struct
 	     let tr = { init = t.final;
 			final = t.init;
 			trans = a;
+			ambiguity = Amb_unknown;
 			det = Heur 0;
 			trim = Heur 0;
 			reverse = More t;
@@ -577,6 +590,7 @@ module NFA = struct
 		   let tt = { init = trim_init;
 			      final = trim_final;
 			      trans = trim_trans;
+			      ambiguity = Amb_unknown;
 			      det = Heur 0;
 			      trim = Heur 0;
 			      reverse = Heur 0;
@@ -625,6 +639,7 @@ module NFA = struct
 	{ init = sq0;
 	  final = sq1;
 	  trans = trans;
+	  ambiguity = Amb_unambig;
 	  det = Heur 0;
 	  trim = Heur 0;
 	  reverse = Heur 0;
@@ -679,6 +694,7 @@ module NFA = struct
       { init = t1.init;
 	trans = seq_trans;
         final = seq_final;
+	ambiguity = Amb_unknown;
 	det = Heur 0;
 	trim = Heur 0;
 	reverse = Heur 0;
@@ -705,6 +721,7 @@ module NFA = struct
       { init = QS.singleton 0;
         final = QS.singleton n;
         trans = a;
+	ambiguity = Amb_unambig;
 	det = Heur 0;
 	trim = Heur 0;
 	reverse = Heur 0;
@@ -737,47 +754,49 @@ module NFA = struct
       { init = alt_init;
 	trans = alt_trans;
         final = alt_final;
+	ambiguity = Amb_unknown;
 	det = Heur 0;
 	trim = Heur 0;
 	reverse = Heur 0;
 	star = Heur 0 }
 
-  (* mk_rep: int -> int option -> t -> t
+  (* mk_star:  t -> t
    *  
-   * [mk_rep i jo t] is the automaton accepting the 
-   * (i,jo) repetition of [t].
+   * [mk_star t] is the automaton accepting 
+   * [t]*.
    *)    
-  let rec mk_rep i jo t = match i, jo with
-    | 0, None ->  
-	(match t.star with
-	   | More ts -> ts
-	   | _ ->
-               (let star_trans = 
-		  let a = Array.copy t.trans in 
+  let rec mk_star t = (*match i, jo with
+    | 0, None ->*)  
+    match t.star with
+      | More ts -> ts
+      | _ ->
+          (let star_trans = 
+	     let a = Array.copy t.trans in 
 
-		  (* calculate initial transitions from t *)
-		  let trans_init = QS.fold 
-		    (fun q acc -> T.union acc a.(q)) 
-		    t.init T.empty in
+	     (* calculate initial transitions from t *)
+	     let trans_init = QS.fold 
+	       (fun q acc -> T.union acc a.(q)) 
+	       t.init T.empty in
 
-		    (* add initial transitions to transitions from final
-		     * states 
-		     *)
-		    QS.iter (fun si -> a.(si) <- T.union trans_init a.(si)) t.final;
-		    a in 
-		let ts =  debuging_trim dt_rep
-		  { init = t.init;
-		    trans = star_trans;
-		    final = QS.union t.init t.final;
-		    det = Heur 0;
-		    trim = Heur 0;
-		    reverse = Heur 0;
-		    star = Heur 0 } in
-		  ts.star <- More ts;
-		  if heur_star (t) then t.star <- More ts;
-		  ts
-	       )) 
-    | i, None -> 
+	       (* add initial transitions to transitions from final
+		* states 
+		*)
+	       QS.iter (fun si -> a.(si) <- T.union trans_init a.(si)) t.final;
+	       a in 
+	   let ts =  debuging_trim dt_rep
+	     { init = t.init;
+	       trans = star_trans;
+	       final = QS.union t.init t.final;
+	       ambiguity = Amb_unknown;
+	       det = Heur 0;
+	       trim = Heur 0;
+	       reverse = Heur 0;
+	       star = Heur 0 } in
+	     ts.star <- More ts;
+	     if heur_star (t) then t.star <- More ts;
+	     ts
+	  ) 
+(*    | i, None -> 
         if (i < 0) then 
           raise (Invalid_argument "Minimum number of repetitions must be positive");
         mk_seq t (mk_rep (i-1) None t)
@@ -786,6 +805,7 @@ module NFA = struct
 	 { init = t.init;
 	   final = QS.union t.init t.final;
 	   trans = Array.copy t.trans;
+	   ambiguity = Amb_unknown;
 	   det = Heur 0;
 	   trim = Heur 0;
 	   reverse = Heur 0;
@@ -802,7 +822,7 @@ module NFA = struct
 	if (j < i) then 
           raise (Invalid_argument "Maximum number of repetition must be greater than the minimum repetitions.");
         mk_seq t (mk_rep (i -1) (Some (j - 1)) t)           
-
+*)
 
 
 
@@ -881,6 +901,7 @@ module NFA = struct
                 { init = QS.singleton q0;
 		  final = dfa_finals;
 		  trans = a;
+		  ambiguity = Amb_unambig;
 		  det = Heur 0;
 		  trim = Heur 0;
 		  reverse = Heur 0;
@@ -965,6 +986,7 @@ module NFA = struct
          { init = t1t2_inits;
 	    final = t1t2_finals;
 	    trans = a;
+	    ambiguity = Amb_unknown;
 	    det = Heur 0;
 	    trim = Heur 0;
 	    reverse = Heur 0;
@@ -1002,6 +1024,7 @@ module NFA = struct
 	{ final = final';
 	  init = init';
 	  trans = a;
+	  ambiguity = Amb_unknown;
 	  det = Heur 0;
 	  trim = Heur 0;
 	  reverse = Heur 0;
@@ -1140,7 +1163,11 @@ module NFA = struct
   let length_of_int = Sys.word_size - 2
     
   let ambiguous_word t = 
-    let n = num_states t in
+    match t.ambiguity with
+      | Amb_unambig -> None
+      | Amb_ambig s -> Some s
+      | Amb_unknown ->
+    (let n = num_states t in
     (* helper functions *)
     (* cross_states: QS.elt -> QS.elt -> QS.elt
     * 
@@ -1273,8 +1300,13 @@ module NFA = struct
           rev_init_alt
           queue)in 
       match alt with 
-          Misc.Left l -> Some (str_of_list l)
-        | Misc.Right r -> None
+        | Misc.Left l -> 
+	    let s = str_of_list l in
+	      t.ambiguity <- Amb_ambig s;
+	      Some (str_of_list l)
+        | Misc.Right r -> 
+	    t.ambiguity <- Amb_unambig;
+	    None)
 	    
 
   let unambig_star t = 
@@ -1295,6 +1327,7 @@ module NFA = struct
 	 let tp = { init = dt.init; (* recognize L+ *)
 		    final = dt.final;
 		    trans = Array.copy a;
+		    ambiguity = Amb_unknown;
 		    det = Heur 0;
 		    trim = Heur 0;
 		    reverse = Heur 0;
@@ -1302,6 +1335,7 @@ module NFA = struct
 	 let tq = { init = QS.singleton n; 
 		    final = tp.final;
 		    trans = Array.append tp.trans (array_make 1 T.empty);
+		    ambiguity = Amb_unknown;
 		    det = Heur 0;
 		    trim = Heur 0;
 		    reverse = Heur 0;
@@ -1448,6 +1482,14 @@ module NFA = struct
 	| None -> false
 	| Some q -> QS.mem q t.final
     end)
+
+  let mk_unambig t = 
+    match t.ambiguity with
+      | Amb_unambig -> t
+      | _ -> determinize t
+
+  let define_to_be_unambig t =
+    t.ambiguity <- Amb_unambig
 	  
 end
 
@@ -1465,8 +1507,7 @@ let mk_str = N.mk_str
 let mk_alt = N.mk_alt
 let mk_seq = N.mk_seq
 let mk_cset = N.mk_cset
-let mk_rep = N.mk_rep
-let mk_star = mk_rep 0 None
+let mk_star = N.mk_star
 let mk_inter = N.mk_inter
 let mk_complement = N.mk_complement
 let mk_diff = N.mk_diff
@@ -1476,6 +1517,8 @@ let mk_uppercase = N.mk_uppercase
 let ambiguous_word = N.ambiguous_word
 let determinize = N.determinize
 let trim = N.trim ~loged:false
+let mk_unambig = N.mk_unambig
+let define_to_be_unambig = N.define_to_be_unambig
 
 (* operations *)
 
@@ -1509,18 +1552,18 @@ let example_of_dss dss =
     ((RS.sub s 0 i1, RS.sub s i1 (n-i1)),
     (RS.sub s 0 i2, RS.sub s i2 (n-i2)))
 
-type not_ambig = NA_true | NA_false of dual_single_split
+type not_ambig = NA_true of N.t | NA_false of dual_single_split
 
 let is_ambiguous t = match N.ambiguous_word t with
     None -> (true,RS.empty)
   | Some s -> (false,s)
 
 let unambig_seq t1 t2 = 
-  let t1' = determinize t1 in
-  let t2' = determinize t2 in
+  let t1' = mk_unambig t1 in
+  let t2' = mk_unambig t2 in
   let t = mk_seq t1' t2' in
   let res, s = is_ambiguous t in
-    if res then NA_true else
+    if res then NA_true t else
       (let is1 = match_prefix t1' s in 
        let t2r = mk_reverse t2' in
        let is2, _ = match_reverse_prefix t2r s in
@@ -1538,7 +1581,7 @@ type dual_multi_split = { dms_example : RS.t;
 			  dms_cut1 : int list;
 			  dms_cut2 : int list}
 
-type not_star_ambig = NSA_true | NSA_empty_word | NSA_false | NSA_false_ce of dual_multi_split
+type not_star_ambig = NSA_true of t| NSA_empty_word | NSA_false | NSA_false_ce of dual_multi_split
 
 
 let example_of_dms dms =
@@ -1568,46 +1611,35 @@ let example_of_dms dms =
                        (RS.append s1 
                            (RS.append (RS.of_string "\nAND\n") s2))))
 
-let rec unambig_rep t b eo = 
-  match eo with 
-    | None ->
-	(match N.unambig_star t with
-	   | None -> NSA_true
-	   | Some (_, _, true) -> NSA_empty_word
-	   | Some (s, p, false) ->
-	       (let n = RS.length s in
-		let rev = mk_reverse (mk_star t) in
-		let is, _ = match_reverse_prefix rev s in
-		  assert (IS.mem 0 is);
-		  let rec loop i front can_split acc = 
-		    let acc', front', cs' = 
-		      if i < p then (acc, front, can_split) 
-		      else if i = p then 
-			(assert ((not (N.QS.is_empty (N.QS.inter (N.final t) front))) && (IS.mem i is));
-			 if can_split then (i :: acc, init t, true) 
-			 else (acc, front, true))
-		      else if (* i > p &&*)((not (N.QS.is_empty (N.QS.inter (N.final t) front)))) && (IS.mem i is ) then (i :: acc, init t, true)
-		      else (acc, front, true) in
-		      if i = n then  Safelist.rev acc' else
-			loop (i + 1) (next t front' (RS.get s i)) cs' acc' in
-		  let cl1 = loop 0 (init t) true [] in
-		  let cl2 = loop 0 (init t) false [] in
-		    NSA_false_ce { dms_example = s;
-				dms_cut1 = cl1;
-				dms_cut2 = cl2;
-			      }))
-    | Some e -> 
-	(if e = b then NSA_true
-	 else if (b = 0) && (e = 1) then (if not (N.QS.is_empty (N.QS.inter (N.final t) (init t))) then NSA_empty_word else NSA_true)
-	 else match unambig_rep t b None with
-	   | NSA_true -> NSA_true
-	   | NSA_empty_word -> NSA_empty_word
-	   | NSA_false_ce ce as res -> 
-               let l1 = Safelist.length ce.dms_cut1 in
-	       let l2 = Safelist.length ce.dms_cut2 in
-               if (b <= l1) && (b <= l2) && (l1 <= e) && (l2 <= e) then res
-	       else assert false
-	   | NSA_false -> assert false)
+let rec unambig_star t = 
+  match N.unambig_star t with
+    | None -> 
+	let ts = mk_star t in
+	  
+	  NSA_true ts
+    | Some (_, _, true) -> NSA_empty_word
+    | Some (s, p, false) ->
+	(let n = RS.length s in
+	 let rev = mk_reverse (mk_star t) in
+	 let is, _ = match_reverse_prefix rev s in
+	   assert (IS.mem 0 is);
+	   let rec loop i front can_split acc = 
+	     let acc', front', cs' = 
+	       if i < p then (acc, front, can_split) 
+	       else if i = p then 
+		 (assert ((not (N.QS.is_empty (N.QS.inter (N.final t) front))) && (IS.mem i is));
+		  if can_split then (i :: acc, init t, true) 
+		  else (acc, front, true))
+	       else if (* i > p &&*)((not (N.QS.is_empty (N.QS.inter (N.final t) front)))) && (IS.mem i is ) then (i :: acc, init t, true)
+	       else (acc, front, true) in
+	       if i = n then  Safelist.rev acc' else
+		 loop (i + 1) (next t front' (RS.get s i)) cs' acc' in
+	   let cl1 = loop 0 (init t) true [] in
+	   let cl2 = loop 0 (init t) false [] in
+	     NSA_false_ce { dms_example = s;
+			    dms_cut1 = cl1;
+			    dms_cut2 = cl2;
+			  })
 
 
 let equiv = N.equiv

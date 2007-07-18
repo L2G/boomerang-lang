@@ -260,15 +260,20 @@ bar0000
 
 (***** strange things... ****)
 
-  let alpha = [a-z]
-let alpha2 = alpha{2}
-let strange_chunk = key alpha2 . del alpha2
+let alpha = [a-z]
+let strange_chunk = key alpha . del alpha
 
 let strange = (<strange_chunk> . <strange_chunk>);<strange_chunk>
 
-test strange get "aabbccdd" = "aa"
+test strange get "abcd" = "a"
 
-test strange put "zz" into "aabbccdd" = "zzaaaacc"
+test strange put "z" into "abcd" = "zaac"
+
+let strange = (<bis:strange_chunk> . <bis:strange_chunk>);<strange_chunk>
+
+test strange get "abcd" = "a"
+
+test strange put "z" into "abcd" = "zaab"
 
 (*** even more strange ***)
 
@@ -303,4 +308,3 @@ let l3 = "d" <-> "aa"
 
 test (l1.l2 | l1.l3) get "ac" = "aa"
 test (l1.(l2|l3)) get "ac" = error
-

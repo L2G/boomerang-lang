@@ -9,14 +9,14 @@ val mk_str : bool -> Rstring.t -> t
 val mk_cset : bool -> (Rstring.sym * Rstring.sym) list -> t
 val mk_alt : t -> t -> t
 val mk_seq : t -> t -> t
-val mk_rep : int -> int option -> t -> t
+val mk_star : t -> t
 val mk_complement : t -> t
 val mk_diff : t -> t -> t
 val mk_inter : t -> t -> t
 val mk_reverse : t -> t
 val mk_lowercase : t -> t
 val mk_uppercase : t -> t
-    
+
 (* operations *)
 val representative : t -> Rstring.t (* raises Not_found *)
 val is_empty : t -> bool
@@ -30,7 +30,7 @@ type dual_single_split = { dss_example : Rstring.t;
 
 val example_of_dss : dual_single_split -> (Rstring.t * Rstring.t) * (Rstring.t * Rstring.t)
 
-type not_ambig = NA_true | NA_false of dual_single_split
+type not_ambig = NA_true of t | NA_false of dual_single_split
 
 type dual_multi_split = { dms_example : Rstring.t;
 			  dms_cut1 : int list;
@@ -38,12 +38,11 @@ type dual_multi_split = { dms_example : Rstring.t;
 
 val example_of_dms : dual_multi_split -> Rstring.t
 
-type not_star_ambig = NSA_true | NSA_empty_word | NSA_false | NSA_false_ce of dual_multi_split
+type not_star_ambig = NSA_true of t | NSA_empty_word | NSA_false | NSA_false_ce of dual_multi_split
 
 
-val ambiguous_word : t -> Rstring.t option
 val unambig_seq : t -> t -> not_ambig
-val unambig_rep : t -> int -> int option -> not_star_ambig
+val unambig_star : t -> not_star_ambig
 
 val match_str : t -> Rstring.t -> bool
 val match_prefix : t -> Rstring.t -> Rint.Set.t

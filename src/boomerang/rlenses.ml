@@ -8,6 +8,7 @@
 
 (* abbreviations from other modules *)
 module RS = Rstring
+let string_concat = (^)
 let (^) = RS.append
 let (@) = Safelist.append
 let sprintf = Printf.sprintf
@@ -222,10 +223,10 @@ let rx_set_str r1 s =
   { r1 with str = s; rank = Uexp; }
       
 (* XXX: if max < min, then Erx will raise an Invalid_argument exception *)
-let rx_rep r1 (min,maxo) =
-  let s1 = if need_par_left r1.rank Rexp then sprintf "(%s)" r1.str else r1.str in
-  { str = sprintf "%s%s" s1 (string_of_reps (min,maxo));
-    rx = Erx.mk_rep min maxo r1.rx;
+let rx_star r1 =
+  let s1 = if need_par_left r1.rank Rexp then sprintf "(%s)*" r1.str else string_concat r1.str "*" in
+  { str = s1;
+    rx = Erx.mk_star r1.rx;
     rank = Rexp}
 
 let rx_diff r1 r2 =
@@ -522,44 +523,56 @@ let branch2 t f1 f2 =
      else f2 x y)
 
 (* common stuff *)
-let chk_concat i n t1 t2 = 
+let rx_unambig_seq i n r1 r2 = 
   if not (Prefs.read no_type_check) then( 
-  match Erx.unambig_seq t1.rx t2.rx with
-      Erx.NA_true -> ()
-    | Erx.NA_false dss ->
-        let (s1,s2),(s1',s2') = Erx.example_of_dss dss in 
-          static_error i n 
-            (sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" \"%s\" \nand\n\"%s\" \"%s\""
-                t1.str t2.str 
-                (RS.to_string s1) (RS.to_string s2) 
-                (RS.to_string s1') (RS.to_string s2')))
+    match Erx.unambig_seq r1.rx r2.rx with
+      |	Erx.NA_true rxseq -> 
+	  let str = concat_repr r1 r2 "." Cexp in
+	    { str = str; 
+	      rx = rxseq;
+	      rank = Cexp}
+      | Erx.NA_false dss ->
+          let (s1,s2),(s1',s2') = Erx.example_of_dss dss in 
+            static_error i n 
+              (sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" \"%s\" \nand\n\"%s\" \"%s\""
+                 r1.str r2.str 
+                 (RS.to_string s1) (RS.to_string s2) 
+                 (RS.to_string s1') (RS.to_string s2')))
+  else rx_seq r1 r2
 
-let chk_iterate i n t1 min maxo = 
+let rx_unambig_star i n r1 = 
   if not (Prefs.read no_type_check) then( 
-  match Erx.unambig_rep t1.rx min maxo with
-      Erx.NSA_true -> ()
-    | Erx.NSA_empty_word -> 
-        static_error i n 
-          (sprintf "the iteration of %s is ambiguous: \"\""
-              t1.str)
-    | Erx.NSA_false -> 
-        static_error i n 
-          (sprintf "the iteration of %s is ambiguous"
-              t1.str)
-    | Erx.NSA_false_ce dms -> 
-        static_error i n 
-          (sprintf "the iteration of %s is ambiguous: \n\"%s\""
-              t1.str
-              (RS.to_string (Erx.example_of_dms dms))))
-        
-let chk_disjoint i n t1 t2 = 
+    match Erx.unambig_star r1.rx with
+	Erx.NSA_true rxstar ->
+	  let s1 = if need_par_left r1.rank Rexp then sprintf "(%s)*" r1.str else string_concat r1.str "*" in
+	    { str = s1;
+	      rx = rxstar;
+	      rank = Rexp}
+      | Erx.NSA_empty_word -> 
+          static_error i n 
+            (sprintf "the iteration of %s is ambiguous: \"\""
+               r1.str)
+      | Erx.NSA_false -> 
+          static_error i n 
+            (sprintf "the iteration of %s is ambiguous"
+               r1.str)
+      | Erx.NSA_false_ce dms -> 
+          static_error i n 
+            (sprintf "the iteration of %s is ambiguous: \n\"%s\""
+               r1.str
+               (RS.to_string (Erx.example_of_dms dms))))
+  else rx_star r1
+    
+let rx_disjoint_alt i n t1 t2 = 
   if not (Prefs.read no_type_check) then( 
   let t1ut2 = Erx.mk_inter t1.rx t2.rx in 
     if not (Erx.is_empty t1ut2) then
       static_error i n 
         (sprintf "the intersection of %s and %s is non-empty: \"%s\""
             t1.str t2.str
-            (RS.to_string (Erx.representative t1ut2))))
+            (RS.to_string (Erx.representative t1ut2)))
+    else rx_alt t1 t2)
+  else rx_alt t1 t2
 
 
 (* -------------------- CANONIZERS -------------------- *)
@@ -594,9 +607,8 @@ module Canonizer = struct
   (* add primitives ... *)
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
-    let rt = rx_seq cn1.rtype cn2.rtype in 
+    let rt = rx_unambig_seq i n cn1.rtype cn2.rtype in 
     let ct = rx_seq cn1.ctype cn2.ctype in 
-    chk_concat i n cn1.rtype cn2.rtype;
     { info = i;
       string = n;
       rtype = rt;
@@ -611,9 +623,8 @@ module Canonizer = struct
 
   let union i cn1 cn2 = 
     let n = sprintf "union (%s) (%s)" cn1.string cn2.string in 
-    let rt = rx_alt cn1.rtype cn2.rtype in 
+    let rt = rx_disjoint_alt i n cn1.rtype cn2.rtype in 
     let ct = rx_alt cn1.ctype cn2.ctype in 
-    chk_disjoint i n cn1.rtype cn2.rtype;
     { info = i;
       string = n;
       rtype = rt;
@@ -624,12 +635,8 @@ module Canonizer = struct
 
   let star i cn1 = 
     let n = sprintf "(%s)*" cn1.string in 
-    let min = 0 in
-    let maxo = None in
-    let reps = (min,maxo) in 
-    let rt = rx_rep cn1.rtype reps in 
-    let ct = rx_rep cn1.ctype reps in 
-      chk_iterate i n cn1.rtype min maxo;      
+    let rt = rx_unambig_star i n cn1.rtype in 
+    let ct = rx_star cn1.ctype in 
     { info = i;
       string = n;
       rtype = rt;
@@ -843,11 +850,8 @@ module DLens = struct
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 
     let n = sprintf "%s . %s" dl1.string dl2.string in 
-    let ct = rx_seq dl1.ctype dl2.ctype in 
-    let at = rx_seq dl1.atype dl2.atype in 
-    (* type checking *)
-    chk_concat i n dl1.ctype dl2.ctype;
-    chk_concat i n dl1.atype dl2.atype;
+    let ct = rx_unambig_seq i n dl1.ctype dl2.ctype in 
+    let at = rx_unambig_seq i n dl1.atype dl2.atype in 
     let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
     let st = function
       | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
@@ -890,8 +894,7 @@ module DLens = struct
     let bare_get = branch dl1.ctype dl1.get dl2.get in
     let n = sprintf "(%s|%s)" dl1.string dl2.string in 
     let at = rx_alt dl1.atype dl2.atype in 
-    let ct = rx_alt dl1.ctype dl2.ctype in 
-    chk_disjoint i n dl1.ctype dl2.ctype;
+    let ct = rx_disjoint_alt i n  dl1.ctype dl2.ctype in 
       (**** We still need to check equality of keys ***)
     let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
     let st s = dl1.stype s || dl2.stype s in
@@ -924,22 +927,17 @@ module DLens = struct
 
   let star i dl1 = 
     (* body *)
-    let min = 0 in
-    let maxo = None in
-    let reps = (min,maxo) in 
-    let ct = rx_rep dl1.ctype reps in 
-    let at = rx_rep dl1.atype reps in 
+    let n = sprintf "(%s)*" dl1.string in
+    let ct = rx_unambig_star i n dl1.ctype in 
+    let at = rx_unambig_star i n dl1.atype in 
     let dt = dl1.dtype in
     let st = function
       | S_star sl -> Safelist.fold_left (fun b s -> b && dl1.stype s) true sl
       | _ -> false in
-    let n = sprintf "(%s)%s" dl1.string (string_of_reps reps) in
-      chk_iterate i n dl1.ctype min maxo;
-      chk_iterate i n dl1.atype min maxo;
       { info = i;
-        string = n;
-        ctype = ct;
-        atype = at;
+	string = n;
+	ctype = ct;
+	atype = at;
 	dtype = dt;
 	stype = st;
         crel = dl1.crel;
@@ -982,47 +980,44 @@ module DLens = struct
 
   (* non-standard lenses *)
   let swap i dl1 dl2 = 
-    let at = rx_seq dl2.atype dl1.atype in 
-    let ct = rx_seq dl1.ctype dl2.ctype in 
+    let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
+    let at = rx_unambig_seq i n dl2.atype dl1.atype in 
+    let ct = rx_unambig_seq i n dl1.ctype dl2.ctype in 
     let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
     let st = function
       | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
       | _ -> false in
-    let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
-    (* type check *)
-    chk_concat i n dl1.ctype dl2.ctype;
-    chk_concat i n dl2.atype dl1.atype;
-      { info = i;
-        string = n;
-        ctype = ct; 
-        atype = at;
-	dtype = dt;
-	stype = st;
-        crel = combine_rel dl1.crel dl2.crel;
-        arel = combine_rel dl1.arel dl2.arel;
-        get = lift_r i n ct (fun c -> 
-            let c1,c2 = split dl1.ctype dl2.ctype c in 
-              (dl2.get c2) ^ (dl1.get c1));
-        put = lift_rsd i (put_str n) at st (fun a s d -> 
-          let a2,a1 = split dl2.atype dl1.atype a in 
-          let c2,d1 = dl2.put a2 (snd_concat_of_skel s) d in 
-          let c1,d2 = dl1.put a1 (fst_concat_of_skel s) d1 in 
-            (c1 ^ c2, d2));
-        create = lift_rd i (create_str n) at (fun a d -> 
-          let a2,a1 = split dl2.atype dl1.atype a in          
-          let c2,d1 = dl2.create a2 d in 
-          let c1,d2 = dl1.create a1 d1 in 
-            (c1 ^ c2, d2));
-        parse = lift_r i (parse_str n) ct (fun c ->
+     { info = i;
+      string = n;
+      ctype = ct; 
+      atype = at;
+      dtype = dt;
+      stype = st;
+      crel = combine_rel dl1.crel dl2.crel;
+      arel = combine_rel dl1.arel dl2.arel;
+      get = lift_r i n ct (fun c -> 
           let c1,c2 = split dl1.ctype dl2.ctype c in 
-          let s2,d2 = dl2.parse c2 in 
-          let s1,d1 = dl1.parse c1 in 
-            (S_concat (s1,s2), d2++d1)); 
-	key = lift_r i n at (fun a ->
-          let a2, a1 = split dl2.atype dl1.atype a in
-	    (dl2.key a2) ^ (dl1.key a1));
-	uid = next_uid ();
-      }
+            (dl2.get c2) ^ (dl1.get c1));
+      put = lift_rsd i (put_str n) at st (fun a s d -> 
+        let a2,a1 = split dl2.atype dl1.atype a in 
+        let c2,d1 = dl2.put a2 (snd_concat_of_skel s) d in 
+        let c1,d2 = dl1.put a1 (fst_concat_of_skel s) d1 in 
+          (c1 ^ c2, d2));
+      create = lift_rd i (create_str n) at (fun a d -> 
+        let a2,a1 = split dl2.atype dl1.atype a in          
+        let c2,d1 = dl2.create a2 d in 
+        let c1,d2 = dl1.create a1 d1 in 
+          (c1 ^ c2, d2));
+      parse = lift_r i (parse_str n) ct (fun c ->
+        let c1,c2 = split dl1.ctype dl2.ctype c in 
+        let s2,d2 = dl2.parse c2 in 
+        let s1,d1 = dl1.parse c1 in 
+          (S_concat (s1,s2), d2++d1)); 
+      key = lift_r i n at (fun a ->
+        let a2, a1 = split dl2.atype dl1.atype a in
+	  (dl2.key a2) ^ (dl1.key a1));
+      uid = next_uid ();
+     }
         
   let compose i dl1 dl2 = 
     let n = sprintf "%s; %s" dl1.string dl2.string in 
@@ -1134,12 +1129,9 @@ module DLens = struct
 
   let filter i rd rk =
     let n = sprintf "filter %s %s" rd.str rk.str in
-    chk_disjoint i n rd rk;
-    let ru = rx_alt rd rk in
-    chk_iterate i n ru 0 None;
-    chk_iterate i n rk 0 None;
-    let ct = rx_rep ru (0,None) in
-    let at = rx_rep rk (0,None) in
+    let ru = rx_disjoint_alt i n rd rk in
+    let ct = rx_unambig_star i n ru in
+    let at = rx_unambig_star i n rk in
     let dt = TMap.empty in
     let st = function
       | S_string s -> Erx.match_str ct.rx s
