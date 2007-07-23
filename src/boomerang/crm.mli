@@ -11,13 +11,14 @@ module Make
      val succ : sym -> sym
    end): 
 sig
-  type t 
+  type 'a ext
+  type t = S.t ext
   val empty : t 
   val single_trans : RS.sym -> S.elt -> t
   val map : (S.t -> S.t) -> t -> t
   val iter : ((RS.sym * RS.sym) -> S.t -> unit ) ->t -> unit
   val is_empty: t -> bool
-  val fold : ((RS.sym * RS.sym) -> S.t -> 'a -> 'a) -> t -> 'a -> 'a
+  val fold : ((RS.sym * RS.sym) -> 'b -> 'a -> 'a) -> 'b ext -> 'a -> 'a
   val add : (RS.sym * RS.sym) -> S.t -> t -> t
   val add_elt : RS.sym -> S.t -> t -> t
   val rem : (RS.sym * RS.sym) -> t -> t
@@ -30,4 +31,5 @@ sig
   val safe_find_elt : RS.sym -> t -> S.t -> S.t
   val isect_range : (RS.sym * RS.sym) -> (RS.sym * RS.sym) -> (RS.sym * RS.sym) option
   val product : (S.t -> S.t -> S.t) -> t -> t -> t
+  val ext_product : (S.t -> S.t -> 'a) -> t -> t -> ('a -> 'a -> 'a) -> 'a ext
 end

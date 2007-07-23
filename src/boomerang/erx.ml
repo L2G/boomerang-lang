@@ -220,6 +220,10 @@ module NFA = struct
     t.star <- Heur 0;
     t
         
+
+  let define_to_be_unambig t =
+    t.ambiguity <- Amb_unambig
+
   (* initial set of states *)
   let init t = t.init
   let final t = t.final
@@ -487,6 +491,16 @@ module NFA = struct
     let pop = Queue.pop
     let fold = QS.fold
     let next = q_succ 
+  end)
+
+
+  module QPairBFS = GraphTraverse(struct
+    type q = QPS.elt
+    type p = QPS.elt Queue.t
+    let is_empty = Queue.is_empty
+    let copy = Queue.copy
+    let push = Queue.push
+    let pop = Queue.pop
   end)
 
   module IQSBFS = GraphTraverse(struct
@@ -937,6 +951,8 @@ module NFA = struct
       try QPM.find qp !assoc_cell
       with Not_found -> 
         let n = !n_cell in 
+	  if n < 0 then  raise (Error.Harmony_error 
+            (fun () -> Util.format "@[Failed to create a so big cross-product automaton@]"));
           assoc_cell := QPM.add qp n !assoc_cell;
           incr n_cell;
           Queue.add (n,qp) queue;
@@ -1167,7 +1183,7 @@ module NFA = struct
       | Amb_unambig -> None
       | Amb_ambig s -> Some s
       | Amb_unknown ->
-    (let n = num_states t in
+    ((*let n = num_states t in*)
     (* helper functions *)
     (* cross_states: QS.elt -> QS.elt -> QS.elt
     * 
@@ -1178,7 +1194,8 @@ module NFA = struct
     let rec cross_states q1 q2 = 
       if q1 > q2 then 
 	cross_states q2 q1
-      else begin
+      else (q1,q2)
+(*begin
 	let to_big = Error.Harmony_error 
 	  (fun () -> Util.format "@[Failed to type check a so big automaton@]") in
 	(* computation of q1 * n + q2, with checking for overflow *)
@@ -1192,15 +1209,15 @@ module NFA = struct
 	      raise to_big
 	end else
 	  raise to_big
-      end in
+      end *)in
     (* uncross_states: QS.elt -> QS.elt * QS.elt
      * 
      *   [uncross_states q12] is the inverse of [cross_states] and
      *     computes a pair [(q1,q2)].  
      *)
     let uncross_states q12 = 
-      let q1 = q12 / n in
-      let q2 = q12 mod n in
+      let q1 = fst q12 (*q12 / n*) in
+      let q2 = snd q12 (*q12 mod n*) in
         if q1 <= q2 then (q1, q2) else (q2, q1) in 
     (* qs_product QS.t -> QS.t -> QS.t 
      * 
@@ -1210,52 +1227,52 @@ module NFA = struct
       QS.fold (fun qi acci -> 
         QS.fold (fun qj accj -> 
 	  if qi <= qj then 
-            QS.add (cross_states qi qj) accj
+            QPS.add (cross_states qi qj) accj
 	  else accj)
 	  s2 acci)
-        s1 QS.empty in
+        s1 QPS.empty in
       
     (* PHASE I: 
      *   calculate accessible states (qi,qj) in square of t,
      *   and a word (represented as a list of chars) that reaches
      *   (qi,qj). represented as a (char list) QM.t
      *)
-    let queue = Queue.create () in 
+    let qp_queue = Queue.create () in 
     let init_map = 
       QS.fold (fun qi acci ->
 	QS.fold (fun qj accj ->
 	  if qi <= qj then 
 	    begin
 	      let qij = cross_states qi qj in
-		Queue.push qij queue;
-		QM.add qij [] accj
+		Queue.push qij qp_queue;
+		QPM.add qij [] accj
             end
           else accj)
 	  t.init acci)
-        t.init QM.empty in
+        t.init QPM.empty in
     let acc_map = 
-      QBFS.go_always_bare 
+      QPairBFS.go_always_bare 
         (fun qij pool acc -> 
-          let lij = QM.find qij acc in 
+          let lij = QPM.find qij acc in 
           let qi,qj = uncross_states qij in 
-          let qij_trans = T.product qs_product t.trans.(qi) t.trans.(qj) in 
+          let qij_trans = T.ext_product qs_product t.trans.(qi) t.trans.(qj) QPS.union in 
             T.fold (fun (c1,_) qs acct -> 
               let lij' = c1::lij in 
-	        QS.fold
+	        QPS.fold
 		  (fun qkl acc ->
-		    if QM.mem qkl acc then acc
+		    if QPM.mem qkl acc then acc
 		    else begin 
-                      QBFS.add qkl pool;
-                      QM.add qkl lij' acc
+                      QPairBFS.add qkl pool;
+                      QPM.add qkl lij' acc
                     end)
 		  qs acct)
 	      qij_trans acc)
         init_map
-        queue in
+        qp_queue in
    (* PHASE II: look for path from pair of initial states to pair of
     * final states that is not entirely on the diagonal.
     *)
-    Queue.clear queue;
+    let queue = Queue.create () in
     let t_rev = mk_reverse t in
     (* check an easy case and push t_rev's init states onto queue *) 
     let rev_init_alt = QS.fold (fun qi alt -> Misc.map_right alt (fun acc -> 
@@ -1264,8 +1281,8 @@ module NFA = struct
         QS.fold (fun qj alt -> Misc.map_right alt (fun _ -> 
           let qij = cross_states qi qj in 
             (* easy case: accessible final states (qi,qj) with qi<>qj *)                  
-            if qi < qj && QM.mem qij acc_map then 
-              let lij = QM.find qij acc_map in                 
+            if qi < qj && QPM.mem qij acc_map then 
+              let lij = QPM.find qij acc_map in                 
                 Misc.Left (Safelist.rev lij)
             else alt))
           t_rev.init alt'))
@@ -1290,8 +1307,8 @@ module NFA = struct
                     else acc in
                     QS.fold (fun qj alt -> Misc.map_right alt (fun _ -> 
                       let qij = cross_states qi qj in 
-                        if qi < qj && QM.mem qij acc_map then                             
-                          let l1 = QM.find qij acc_map in 
+                        if qi < qj && QPM.mem qij acc_map then                             
+                          let l1 = QPM.find qij acc_map in 
                             Misc.Left (Safelist.rev l1 @ lqd')
                         else alt))
                     qs (Misc.Right acc')))
@@ -1310,7 +1327,7 @@ module NFA = struct
 	    
 
   let unambig_star t = 
-    if not (QS.is_empty (QS.inter t.init t.final)) then Some (RS.empty, -1, true) else
+    if not (QS.is_empty (QS.inter t.init t.final)) then Misc.Left (RS.empty, -1, true) else
       (let tt = trim t in
        let dt = determinize tt in
        let n = Array.length dt.trans in
@@ -1351,13 +1368,16 @@ module NFA = struct
 		else acc)
 	     tq.final None in
 	   match res with
-	     | None -> None
+	     | None -> 
+		 let ts = mk_star dt in
+		   define_to_be_unambig ts;
+		   Misc.Right ts
 	     | Some (inter, q) ->
 		 let t' = reset_heur {dt with final = QS.singleton q} in
 		   try 
 		     let beg_word = representative t' in
 		     let end_word = representative inter in
-		       Some (beg_word^end_word, RS.length beg_word, false)
+		       Misc.Left (beg_word^end_word, RS.length beg_word, false)
 		   with
 		     | Not_found -> assert false)
 		
@@ -1488,8 +1508,7 @@ module NFA = struct
       | Amb_unambig -> t
       | _ -> determinize t
 
-  let define_to_be_unambig t =
-    t.ambiguity <- Amb_unambig
+
 	  
 end
 
@@ -1613,12 +1632,10 @@ let example_of_dms dms =
 
 let rec unambig_star t = 
   match N.unambig_star t with
-    | None -> 
-	let ts = mk_star t in
-	  
-	  NSA_true ts
-    | Some (_, _, true) -> NSA_empty_word
-    | Some (s, p, false) ->
+    | Misc.Right ts -> 
+	NSA_true ts
+    | Misc.Left (_, _, true) -> NSA_empty_word
+    | Misc.Left (s, p, false) ->
 	(let n = RS.length s in
 	 let rev = mk_reverse (mk_star t) in
 	 let is, _ = match_reverse_prefix rev s in
