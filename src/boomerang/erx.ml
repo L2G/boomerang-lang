@@ -1391,7 +1391,11 @@ module NFA = struct
       val is_final : t -> frontier -> bool
     end) = 
   struct
-    open Front    
+    include Front
+    (*let init = Front.init
+    let next = Front.next
+    let is_empty = Front.is_empty
+    let is_final = Front.is_final*)
     let match_str t s =
       let n = RS.length s in
       let rec loop frontier i =
@@ -1472,7 +1476,7 @@ module NFA = struct
       let init t =
 	let i = t.init in
 	  if QS.is_empty i then None 
-	  else begin
+  	  else begin
 	    (*XXXXXX Debugging version XXXXXXXXX*)
 	    let r = QS.choose i in
 	      assert (QS.is_empty (QS.remove r i));
@@ -1509,7 +1513,32 @@ module NFA = struct
       | _ -> determinize t
 
 
-	  
+  (*** easy splitability ****)
+
+
+  (* two trimed automata wich are unambiguously concatenable are said
+   * to be easily slitable if after having read a word recognized by
+   * t1, if we try to continue in t1 by reading a word recognized by
+   * t2, we go out of t1 before the end of this word. A way to check
+   * that is by testing if there is a common word in t1' and t2, where
+   * t1' is t1 with t1.final as initial states, and all the states as
+   * final states *)
+  let easily_splitable t1 t2 = 
+    let t1 = trim t1 in
+    let t2 =  trim t2 in
+    let init' = final t1 in
+    let rec loop n acc = 
+      if n < 0 then acc 
+      else loop (n - 1) (QS.add n acc) in
+    let final' = loop ((num_states t1) - 1) QS.empty in
+    let t1' = 
+      reset_heur
+	{ t1 with
+	    init = init';
+	    final = final'} in
+      is_empty (mk_inter t1' t2)
+      
+      
 end
 
 
@@ -1719,4 +1748,86 @@ let print_multi_split lst s =
     loop 0 true lst
 
 let print_split i s = print_multi_split [i] s
+
+
+
+
+
+
+(***** Easy splitability *****)
+
+let easily_splitable = N.easily_splitable
+
+let easy_seq t1 t2 = 
+  match unambig_seq t1 t2 with 
+    | NA_true t -> if N.easily_splitable t1 t2 then Some t else None
+    | NA_false _ -> None
+
+let easy_star t1 = 
+  match unambig_star t1 with 
+    | NSA_true t -> if N.easily_splitable t1 t1 then Some t else None
+    | _ -> None
+
+
+
+module W = Wic
+
+(* reference to keep track of the maximum size of buffers. (May be)
+ * usefull for kleenestar, to directly create a buffer of a "good" size
+ *)
+
+let max_buff_size = ref 80
+
+let set_max_size i = 
+  if i > !max_buff_size then
+    max_buff_size := i
+
+let buff_size () = !max_buff_size
+
+
+(* easy_split : t -> W.t -> (RS.t option * W.t)
+
+   [easy_split t wic] returns a "string" containing the first longest
+   match form the wrapped in channel wic or None if no string has been
+   matched. It also returns a new wic that should be use for the next
+   match
+
+   We take t to be deterministic because if a lense is used in a
+   streaming way, it has good chance to be used a lot of time. The
+   module Matching_dfa is opened for this reason *)
+
+open N.Matching_dfa
+
+let easy_split t wic = 
+  let t = determinize (trim t) in
+  let b = Buffer.create (buff_size ()) in
+    (* fill the buffer ! 
+
+       * f is the frontier,
+       * lp the last position of matching*)
+  let rec fill_buffer f lp = 
+    if is_empty f then lp else begin
+    let lp' =  if is_final t f then Buffer.length b else lp in
+    match W.read_char wic with
+      | None -> lp'
+      | Some c -> 
+	  Buffer.add_char b c;
+	  let sym = RS.of_char c in
+	  fill_buffer (next t f sym) lp'
+    end in
+  let lp = fill_buffer (init t) (-1) in
+  set_max_size (Buffer.length b);
+  if lp = -1 then (* no match found *) 
+    (None, W.append_buff b wic)
+  else begin
+    let result = RS.of_string (Buffer.sub b 0 lp) in
+    let rest = 
+      if lp < (Buffer.length b) then 
+	Buffer.sub b lp ((Buffer.length b) - lp)
+      else 
+	"" in
+    let b' = Buffer.create (buff_size ()) in
+    Buffer.add_string b' rest;
+    (Some result, W.append_buff b' wic)
+  end
 

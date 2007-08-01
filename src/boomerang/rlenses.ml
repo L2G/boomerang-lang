@@ -8,6 +8,9 @@
 
 (* abbreviations from other modules *)
 module RS = Rstring
+(* input and output*)
+module I = Wic
+module O = Woc
 let string_concat = (^)
 let (^) = RS.append
 let (@) = Safelist.append
@@ -18,8 +21,8 @@ let no_check = Prefs.createBool "no-check" false
   "don't type check lens arguments"
 
 let no_type_check = Prefs.createBool "no-type-check" false
-  "don't type check concatenation, alternative and repetition of lenses. To be used with precotion !"
-  "don't type check concatenation, alternative and repetition of lenses. To be used with precotion !"
+  "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
+  "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
 
 (* -------------------- utilities -------------------- *)
 let lst_replace = [("\n","\\n");("\t","\\t");("\"","\\\"");("\\", "\\\\")]
@@ -291,6 +294,13 @@ let type_error i t s1 (s3l,s3r,approx) =
     nlify_str s3r; 
     Util.format "@]]@]@\n"))
 
+let split_error i t pos nf =
+  raise (Error.Harmony_error (fun () -> 
+    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
+    Util.format "  Cannot file any string in @\nT=@[%s@]@\n@\n" t.str;    
+    Util.format "  in the %s file at posistion %d@]" nf pos;))
+
+
 let static_error i n ?(suppl =  id) msg = 
   raise (Error.Harmony_error(fun () -> 
     Util.format "@[%s: static error in@\n" (Info.string_of_t i);
@@ -404,79 +414,6 @@ let comp_of_skel = function
   | S_comp sc -> sc
   | _ -> assert false
 
-(* dictionaries *)
-type dict = 
-  | D_empty
-  | D of (((skeleton * dict) list) KMap.t) TMap.t
-
-(* dictionaries type type. At each level, we need to check that for
-   one tag, there is only one unique id for this tag *)
-type uid = int
-let current_uid = ref 0
-let next_uid () = 
-  incr current_uid;
-  !current_uid
-
-type dict_type = 
-    uid TMap.t
-
-exception Incompatilbe_dict_type of tag
-let fusion_dict_type dt1 dt2 = 
-  TMap.fold 
-    (fun t u acc ->
-       if (not (TMap.mem t dt2)) || (TMap.find t dt2 = u) then
-	 TMap.add t u acc
-       else raise (Incompatilbe_dict_type t)) dt1 dt2
-
-let safe_fusion_dict_type i dt1 dt2 = 
-  try 
-    fusion_dict_type dt1 dt2 
-  with
-    | Incompatilbe_dict_type t -> 
-	raise (Error.Harmony_error 
-		 (fun () -> 
-		    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-		    Util.format "The tag \"%s\" is used twice with different lenses@]@\n" (RS.to_string t);))
-
-
-(*
-let format_dict d = 
-  Util.format "{";
-  ignore (SMap.fold (fun t km is_fst -> 
-    Util.format "%s%s={" (if is_fst then "" else ", ") (whack (RS.to_string t));
-    ignore (KMap.fold (fun ki cl is_fst -> 
-      Util.format "%s%s=[" (if is_fst then "" else ", ") (whack (RS.to_string ki));
-      ignore (Safelist.fold_left (fun b cj -> Util.format "%s%s" (if b then "" else ",") (RS.to_string cj); false) true cl);
-      Util.format "]";
-      false) 
-      km true);
-    Util.format "}";
-    false)
-    d true);
-  Util.format "}"
-*)
-
-
-
-(* helper: combine maps with merge. 
-   Mapplus's combine is (combine fold find add (curry fst)) *)
-let combine fold find add merge m1 m2 = 
-  fold (fun k v -> 
-    add k (try merge v (find k m2) with Not_found -> v))
-    m1 m2  
-
-(* smash two dictionaries *)
-let (++) d1 d2 = match (d1,d2) with
-  | D_empty, D_empty -> D_empty
-  | D_empty, d
-  | d, D_empty -> d
-  | D d1', D d2' ->
-      D (combine TMap.fold TMap.find TMap.add 
-	   (fun km1 km2 -> 
-	      (combine KMap.fold KMap.find KMap.add 
-		 (fun kl1 kl2 -> kl1 @ kl2)
-		 km1 km2))
-	   d1' d2')
 
 (* utilities for splitting *)
 let split t1 t2 s = 
@@ -540,6 +477,20 @@ let rx_unambig_seq i n r1 r2 =
                  (RS.to_string s1') (RS.to_string s2')))
   else rx_seq r1 r2
 
+
+(* to be modified. Need to add counter example *)
+let rx_easy_seq i n r1 r2 = 
+  if not (Prefs.read no_type_check) then(
+    let rseq = rx_unambig_seq i n r1 r2 in
+    if Erx.easily_splitable r1.rx r2.rx then
+      rseq
+    else
+      static_error i n 
+	(sprintf "the concatenation of %s and %s is not easy.\n"
+           r1.str r2.str)
+  )
+  else rx_seq r1 r2
+
 let rx_unambig_star i n r1 = 
   if not (Prefs.read no_type_check) then( 
     match Erx.unambig_star r1.rx with
@@ -562,7 +513,20 @@ let rx_unambig_star i n r1 =
                r1.str
                (RS.to_string (Erx.example_of_dms dms))))
   else rx_star r1
-    
+
+let rx_easy_star i n r1 = 
+  if not (Prefs.read no_type_check) then( 
+    let rstar = rx_unambig_star i n r1 in
+    if Erx.easily_splitable r1.rx r1.rx then 
+      rstar
+    else 
+      static_error i n 
+        (sprintf "the iteration of %s is not easy."
+           r1.str))
+  else rx_star r1
+
+
+
 let rx_disjoint_alt i n t1 t2 = 
   if not (Prefs.read no_type_check) then( 
   let t1ut2 = Erx.mk_inter t1.rx t2.rx in 
@@ -573,6 +537,13 @@ let rx_disjoint_alt i n t1 t2 =
             (RS.to_string (Erx.representative t1ut2)))
     else rx_alt t1 t2)
   else rx_alt t1 t2
+
+(*** hack for uid ***)
+type uid = int
+let current_uid = ref 0
+let next_uid () = 
+  incr current_uid;
+  !current_uid
 
 
 (* -------------------- CANONIZERS -------------------- *)
@@ -662,15 +633,87 @@ let combine_rel r1 r2 = match r1,r2 with
 
 (* -------------------- DICTIONARY LENSES -------------------- *)
 module DLens = struct    
+
+(* dictionaries *)
+type dict = 
+  | D_empty
+  | D of (((skeleton * dict) list) KMap.t) TMap.t
+
+
+(* dictionaries type type. At each level, we need to check that for
+   one tag, there is only one unique id for this tag *)
+
+type dict_type = 
+    uid TMap.t
+
+exception Incompatilbe_dict_type of tag
+let fusion_dict_type dt1 dt2 = 
+  TMap.fold 
+    (fun t u acc ->
+       if (not (TMap.mem t dt2)) || (TMap.find t dt2 = u) then
+	 TMap.add t u acc
+       else raise (Incompatilbe_dict_type t)) dt1 dt2
+
+let safe_fusion_dict_type i dt1 dt2 = 
+  try 
+    fusion_dict_type dt1 dt2 
+  with
+    | Incompatilbe_dict_type t -> 
+	raise (Error.Harmony_error 
+		 (fun () -> 
+		    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
+		    Util.format "The tag \"%s\" is used twice with different lenses@]@\n" (RS.to_string t);))
+
+
+(*
+let format_dict d = 
+  Util.format "{";
+  ignore (SMap.fold (fun t km is_fst -> 
+    Util.format "%s%s={" (if is_fst then "" else ", ") (whack (RS.to_string t));
+    ignore (KMap.fold (fun ki cl is_fst -> 
+      Util.format "%s%s=[" (if is_fst then "" else ", ") (whack (RS.to_string ki));
+      ignore (Safelist.fold_left (fun b cj -> Util.format "%s%s" (if b then "" else ",") (RS.to_string cj); false) true cl);
+      Util.format "]";
+      false) 
+      km true);
+    Util.format "}";
+    false)
+    d true);
+  Util.format "}"
+*)
+
+
+
+(* helper: combine maps with merge. 
+   Mapplus's combine is (combine fold find add (curry fst)) *)
+let combine fold find add merge m1 m2 = 
+  fold (fun k v -> 
+    add k (try merge v (find k m2) with Not_found -> v))
+    m1 m2  
+
+(* smash two dictionaries *)
+let (++) d1 d2 = match (d1,d2) with
+  | D_empty, D_empty -> D_empty
+  | D_empty, d
+  | d, D_empty -> d
+  | D d1', D d2' ->
+      D (combine TMap.fold TMap.find TMap.add 
+	   (fun km1 km2 -> 
+	      (combine KMap.fold KMap.find KMap.add 
+		 (fun kl1 kl2 -> kl1 @ kl2)
+		 km1 km2))
+	   d1' d2')
+
+
   type t = 
       { (* --- meta data --- *)
-        info : Info.t;                          (* parsing info *)
+        info: Info.t;                           (* parsing info *)
         string: string;                         (* pretty printer *)
         (* --- types --- *)
-        ctype : r;                              (* concrete type *)
-        atype : r;                              (* abstract type *)
-        dtype : dict_type;                      (* dictionary type *)
-	stype : skeleton -> bool;               (* given a skeleton, returns if it is part
+        ctype: r;                               (* concrete type *)
+        atype: r;                               (* abstract type *)
+        dtype: dict_type;                       (* dictionary type *)
+	stype: skeleton -> bool;                (* given a skeleton, returns if it is part
 						   of the skeleton type of the lens*)
         crel: rel;                              (* concrete equiv rel type *)
         arel: rel;                              (* abstract equiv rel type *)
@@ -1185,6 +1228,81 @@ module DLens = struct
       }
 
 
+
+
+end
+
+
+
+(* -------------------- STREAMING LENSES -------------------- *)
+module StLens = struct    
+
+  module D = DLens
+
+  let dcrx dl = dl.D.ctype.rx
+  let darx dl = dl.D.atype.rx
+
+  type st_dict_entry = 
+      { lens: DLens.t;
+	pos_in_file: int;
+	nbr_to_remove: int;
+	nbr_left: int}
+
+  type st_dict = 
+    | SD_empty
+    | SD of ((st_dict_entry list) KMap.t) TMap.t
+
+  type slens_elt = 
+      S_dl of DLens.t (* a dlens, as is *)
+    | S_sdl of DLens.t (* a dlens, stared *)
+
+  type t = 
+      { (* --- meta data --- *)
+        info : Info.t;                          (* parsing info *)
+        string: string;                         (* pretty printer *)
+	(* --- type --- *)
+	ctype: r;
+	atype: r;
+	(* core *)
+	list: slens_elt list;
+	(* --- hack --- *)
+	uid: uid
+      }
+
+  let info stl = stl.info
+  let string stl = stl.string
+  let ctype stl = stl.ctype
+  let atype stl = stl.atype
+  let list stl = stl.list
+  let uid stl = stl.uid
+
+  let mk_t i s ct at l uid = 
+    { info = i;
+      string = s;
+      ctype = ct;
+      atype = at;
+      list = l;
+      uid = uid;
+    }
+
+      
+  let rec get wic woc = function
+    | [] -> ()
+    | S_dl dl :: t ->
+      (let pos = I.pos_file wic in
+       match Erx.easy_split (dcrx dl) wic with 
+	 | None, _ -> split_error dl.D.info dl.D.ctype pos "concrete"
+	 | Some c, wic' ->
+	     let a = dl.D.get c in
+	     let woc' = O.write_string woc (RS.to_string a) in
+	     get wic' woc' t)
+    | S_sdl dl :: t as sl->
+	(match Erx.easy_split (dcrx dl) wic with 
+	 | None, wic' -> get wic' woc t
+	 | Some c, wic' ->
+	     let a = dl.D.get c in
+	     let woc' = O.write_string woc (RS.to_string a) in
+	     get wic' woc' sl)
 
 
 end

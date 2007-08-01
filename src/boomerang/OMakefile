@@ -4,7 +4,7 @@ OCAML_LIBS += $(SRCDIR)/harmony
 RESULT = boomerang
 RESULTS = $(RESULT)
 
-BOOMERANG_SOURCES[] = wic.ml rint.ml rstring.ml \
+BOOMERANG_SOURCES[] = wic.ml woc.ml rint.ml rstring.ml \
                       crm.ml erx.ml \
                       rlenses.ml rvalue.ml rparser.mly rlexer.mll \
                       main.ml

@@ -841,6 +841,39 @@ aexp:
 
   | BEGIN exp END                       
       { let (_,se,ve) = $2 in (m $1 $3, se,ve) }
+  | stlens
+      {$1}
+
+/* ------- ST-LENSES -------- */
+stlens
+  | LANGLE BAR stlenslist
+      { let i1 = $1 in
+	let i3,l = $3 in
+	let i = m i1 i3 in
+	  (i,
+	  (fun se -> V.SStLens),
+	  (fun ve -> V.StL(i,L.StLens.of_list l)))}
+stlenslist
+  | endstlenslist
+      {$1}
+  | ident colstlenslist
+      { let i2, l = $2 in
+	let i1, x = $1 in
+	  (i2, (L.StLens.S_sdl 
+	(i,
+          (fun se -> 
+            (*Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);*)
+            expect_sort i2 "in match expression:" V.SDLens (V.lookup i2 se x2);            
+            V.SDLens),
+          (fun ve ->             
+            let v2 = fst (V.lookup i2 ve x2) in 
+              V.DL(i,L.DLens.smatch i (RS.empty) (V.get_dl v2 i2)))) }
+
+endstlenslist
+  | BAR RANGLE
+      { let i2 = $2 in
+	  (i2, [])}
+
 
 /* --------- SORTS ---------- */
 sort: 

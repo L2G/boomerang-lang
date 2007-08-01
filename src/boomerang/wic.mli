@@ -1,5 +1,8 @@
 type t
-val buff_size : unit -> int
-val new_t : Buffer.t -> in_channel -> t
-val read_char : t -> char
+val is_empty : t -> bool
+val create : Buffer.t -> in_channel -> t
+val t_of_buffer : Buffer.t -> t
+val t_of_string : string -> t
+val read_char : t -> char option
 val append_buff : Buffer.t -> t -> t
+val pos_file : t -> int

@@ -20,6 +20,7 @@ let lookup i e s = match Renv.lookup e s with
 module L = Rlenses
 module CN = L.Canonizer
 module DL = L.DLens
+module StL = L.StLens
 module RS = Rstring
 
 (* function abbreviations *)
@@ -34,6 +35,7 @@ type s =
     | SRegexp    (* regular expressions *)
     | SCanonizer (* canonizers *)
     | SDLens     (* D-lenses *)
+    | SStLens    (* Streaming lenses *)
     | SFunction of s * s option  (* functions and arg sort; optionally a return-sort *)
 
 (* infix notation for writing function sorts *)
@@ -45,6 +47,7 @@ type t =
     | R of Info.t * L.r
     | CN of Info.t * CN.t
     | DL of Info.t * DL.t
+    | StL of Info.t * StL.t
     | F of Info.t * s * (Info.t -> t -> t)
 
 (* mk_dummy: s -> t
@@ -60,6 +63,7 @@ let rec mk_dummy =
     | SRegexp -> R(i,L.rx_str false RS.empty) 
     | SCanonizer -> CN(i,DL.canonizer_of_t i (DL.copy i (L.rx_epsilon)))
     | SDLens -> DL(i,(DL.copy i (L.rx_epsilon)))
+    | SStLens -> assert false (* to be done, if usefull*) 
     | SFunction(s1,Some s2) -> F(i,s1,(fun _ _ -> mk_dummy s2))
     | SFunction(s1,None) -> 
         F(i,s1,(fun _ _ -> 
@@ -75,6 +79,7 @@ let info_of_t = function
   | R(i,_) -> i
   | CN(i,_) -> i
   | DL(i,_) -> i
+  | StL(i,_) -> i
   | F(i,_,_) -> i
 
 (* sort_of_t : t -> s
@@ -87,6 +92,7 @@ let rec sort_of_t = function
   | R(_) -> SRegexp
   | CN(_) -> SCanonizer
   | DL(_) -> SDLens
+  | StL(_) -> SStLens
   | F(i,s1,f) -> SFunction(s1,None) 
 
 (* string_of_sort : s -> string
@@ -98,6 +104,7 @@ let rec string_of_sort = function
   | SRegexp -> "regexp"
   | SCanonizer -> "canonizer"
   | SDLens -> "dlens"
+  | SStLens -> "streaming lens"
   | SFunction(s1,None) -> sprintf "(%s -> ?)" (string_of_sort s1) 
   | SFunction(s1,Some s2) -> sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
 
@@ -108,7 +115,8 @@ let is_lens_sort = function
 let get_lens_sorts = function
   | S(_,s)   -> let r = L.rx_str false s in r,r
   | R(_,r)   -> r,r 
-  | DL(_,rl) -> DL.ctype rl, DL.atype rl
+  | DL(_,dl) -> DL.ctype dl, DL.atype dl
+  | StL(_, stl) -> StL.ctype stl, StL.atype stl
   | v -> 
       raise (Error.Harmony_error (fun () -> 
         Util.format "Pvalue.get_lens_sorts: cannot get lens sorts from %s" 
@@ -173,17 +181,27 @@ let get_r v i = match v with
   | S(_,s) -> L.rx_str false s
   | _ -> conversion_error i SRegexp v
 
-(* get_Dl: t -> Info.t -> L.DLens.t
+(* get_dl: t -> Info.t -> L.DLens.t
  * 
- * [get_rl v i] returns the R-lens that [v] represents, or throws an
+ * [get_dl v i] returns the D-lens that [v] represents, or throws an
  * exception if [v] is a run-time value representing a different
  * sort. [i] is used to report errors.  
  *)
 let get_dl v i = match v with 
   | S(_,s) -> DL.copy i (L.rx_str false s)
   | R(_,r) -> DL.copy i r
-  | DL(_,rl) -> rl
+  | DL(_,dl) -> dl
   | _ -> conversion_error i SDLens v
+
+(* get_stl: t -> Info.t -> L.StLens.t
+ * 
+ * [get_stl v i] returns the Streaming-lens that [v] represents, or
+ * throws an exception if [v] is a run-time value representing a
+ * different sort. [i] is used to report errors.  
+ *)
+let get_stl v i = match v with 
+  | StL(_,stl) -> stl
+  | _ -> conversion_error i SStLens v
 
 (* get_cn: t -> Info.t -> CN.t
  * 
@@ -228,14 +246,21 @@ let mk_sfun i f = F(i,SString,(fun i v -> f i (get_s v i)))
  *)
 let mk_rfun i f = F(i,SRegexp,(fun i v -> f i (get_r v i)))
 
-(* mk_rlfun: Info.t -> (L.RLens.t -> t) -> (t -> t)
+(* mk_dlfun: Info.t -> (L.DLens.t -> t) -> (t -> t)
  * 
- * [mk_rlfun i f] takes a [L.RLens.t -> t] function and yields a [t -> t]
- * function that expects its argument to actually be an [SRLens]. [i] is
+ * [mk_dlfun i f] takes a [L.DLens.t -> t] function and yields a [t -> t]
+ * function that expects its argument to actually be an [SDLens]. [i] is
  * used to report errors when the argument has a different sort.
  *)
 let mk_dlfun i f = F(i,SDLens,(fun i v -> f i (get_dl v i)))
 
+(* mk_stlfun: Info.t -> (L.StLens.t -> t) -> (t -> t)
+ * 
+ * [mk_dlfun i f] takes a [L.DLens.t -> t] function and yields a [t -> t]
+ * function that expects its argument to actually be an [SDLens]. [i] is
+ * used to report errors when the argument has a different sort.
+ *)
+let mk_slfun i f = F(i,SStLens,(fun i v -> f i (get_stl v i)))
 
 (* mk_cnfun: Info.t -> (CN.t -> t) -> (t -> t)
  * 
