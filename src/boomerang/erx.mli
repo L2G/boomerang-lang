@@ -59,11 +59,10 @@ val print_split : int -> Rstring.t -> unit
 val epsilon : t
 val empty : t
 
-val easily_splitable : t -> t -> bool
 
-val easy_seq : t -> t -> t option
+val easy_seq : t -> t -> bool
 
-val easy_star : t-> t option
+val easy_star : t-> bool
 
 val easy_split : t -> Wic.t -> (Rstring.t option * Wic.t)
 

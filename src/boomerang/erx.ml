@@ -1524,18 +1524,35 @@ module NFA = struct
    * t1' is t1 with t1.final as initial states, and all the states as
    * final states *)
   let easily_splitable t1 t2 = 
-    let t1 = trim t1 in
-    let t2 =  trim t2 in
-    let init' = final t1 in
-    let rec loop n acc = 
-      if n < 0 then acc 
-      else loop (n - 1) (QS.add n acc) in
-    let final' = loop ((num_states t1) - 1) QS.empty in
+    let t1 = determinize (trim t1) in
+    let n = num_states t1 in
+    let p = n + 1 in 
+    let trans' = Array.make (p + 1) T.empty in
+      (* all transition in the initial automaton are in the new one*)
+    for i = 0 to n -1 do
+      trans'.(i) <- t1.trans.(i)
+    done;
+      (* n has all the transitions from any final state *)
+    trans'.(n) <- QS.fold (fun f acc -> T.union acc t1.trans.(f)) t1.final T.empty;
+    let ps = QS.singleton p in
+    (* p is looping on itself by reading any char *)
+    trans'.(p) <- T.add (RS.char_code_min, RS.char_code_max) ps T.empty;
+    (* from every final state, can go to p by reading any char *)
+    QS.iter (fun f -> trans'.(f) <- T.add (RS.char_code_min, RS.char_code_max) ps trans'.(f)) t1.final;
+    let init' = QS.singleton n in
+    let rec loop i acc = 
+      if i < 0 then acc 
+      else loop (i - 1) (QS.add i acc) in
+    let final' = loop (n - 1) ps in
     let t1' = 
-      reset_heur
-	{ t1 with
-	    init = init';
-	    final = final'} in
+      { init = init';
+	final = final';
+	trans = trans';
+	ambiguity = Amb_unknown;
+	det = Heur 0;
+	trim = Heur 0;
+	reverse = Heur 0;
+	star = Heur 0;} in
       is_empty (mk_inter t1' t2)
       
       
@@ -1756,18 +1773,12 @@ let print_split i s = print_multi_split [i] s
 
 (***** Easy splitability *****)
 
-let easily_splitable = N.easily_splitable
 
 let easy_seq t1 t2 = 
-  match unambig_seq t1 t2 with 
-    | NA_true t -> if N.easily_splitable t1 t2 then Some t else None
-    | NA_false _ -> None
+  N.easily_splitable t1 t2 
 
 let easy_star t1 = 
-  match unambig_star t1 with 
-    | NSA_true t -> if N.easily_splitable t1 t1 then Some t else None
-    | _ -> None
-
+  (not (match_str t1 Rstring.empty) && N.easily_splitable t1 t1)
 
 
 module W = Wic

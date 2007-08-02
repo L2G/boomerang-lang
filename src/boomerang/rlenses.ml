@@ -480,17 +480,12 @@ let rx_unambig_seq i n r1 r2 =
 
 (* to be modified. Need to add counter example *)
 let rx_easy_seq i n r1 r2 = 
-  if not (Prefs.read no_type_check) then(
-    let rseq = rx_unambig_seq i n r1 r2 in
-    if Erx.easily_splitable r1.rx r2.rx then
-      rseq
-    else
-      static_error i n 
-	(sprintf "the concatenation of %s and %s is not easy.\n"
-           r1.str r2.str)
-  )
-  else rx_seq r1 r2
-
+  if (not (Prefs.read no_type_check) && not (Erx.easy_seq r1.rx r2.rx)) then
+    static_error i n 
+      (sprintf "the concatenation of %s and %s is not easy.\n"
+         r1.str r2.str);
+  rx_seq r1 r2
+    
 let rx_unambig_star i n r1 = 
   if not (Prefs.read no_type_check) then( 
     match Erx.unambig_star r1.rx with
@@ -515,15 +510,11 @@ let rx_unambig_star i n r1 =
   else rx_star r1
 
 let rx_easy_star i n r1 = 
-  if not (Prefs.read no_type_check) then( 
-    let rstar = rx_unambig_star i n r1 in
-    if Erx.easily_splitable r1.rx r1.rx then 
-      rstar
-    else 
-      static_error i n 
-        (sprintf "the iteration of %s is not easy."
-           r1.str))
-  else rx_star r1
+  if (not (Prefs.read no_type_check) && not (Erx.easy_star r1.rx)) then
+    static_error i n 
+      (sprintf "the iteration of %s is not easy."
+         r1.str);
+  rx_star r1
 
 
 
@@ -1268,6 +1259,42 @@ module StLens = struct
 	(* --- hack --- *)
 	uid: uid
       }
+  let of_list l i =
+    let rec aux ct at l = 
+      match (ct, at, l) with
+	| None, None, [] -> (* the list was empty *)
+	    static_error i "" "The list to build a streaming-lens should not be empty"
+	| None, None, (i, S_dl dl)::t ->
+	    let (ct', at', l') = aux (Some dl.D.ctype) (Some dl.D.atype) t in
+	    (ct', at', (S_dl dl)::l')
+	| None, None, (i, S_sdl dl)::t ->
+	    let cts = rx_easy_star i "easy star of concrete" dl.D.ctype in
+	    let ats = rx_easy_star i "easy star of abstract" dl.D.atype in
+	    let (ct', at', l') = aux (Some cts) (Some ats) t in
+	    (ct', at', (S_sdl dl)::l')
+	| None, _, _
+	| _, None, _ -> assert false
+	| Some ct, Some at, [] -> (ct, at, [])
+	| Some ct, Some at, (i, S_dl dl)::t ->
+	    let ctc = rx_easy_seq i "easy concat of concrete" ct dl.D.ctype in
+	    let atc = rx_easy_seq i "easy concat of abstract"at dl.D.atype in
+	    let (ct', at', l') = aux (Some ctc) (Some atc) t in
+	    (ct', at', (S_dl dl)::l')
+	| Some ct, Some at, (i, S_sdl dl)::t ->
+	    let cts = rx_easy_star i "easy star of concrete" dl.D.ctype in
+	    let ats = rx_easy_star i "easy star of abstract" dl.D.atype in
+	    let ctc = rx_easy_seq i "easy concat of concrete" ct cts in
+	    let atc = rx_easy_seq i "easy concat of abstract"at ats in
+	    let (ct', at', l') = aux (Some ctc) (Some atc) t in
+	      (ct', at', (S_sdl dl)::l') in
+    let (ct, at, list) = aux None None l in
+    { info = i;
+      string = "";
+      ctype = ct;
+      atype = at;
+      list = list;
+      uid = next_uid ()}
+
 
   let info stl = stl.info
   let string stl = stl.string
@@ -1276,33 +1303,26 @@ module StLens = struct
   let list stl = stl.list
   let uid stl = stl.uid
 
-  let mk_t i s ct at l uid = 
-    { info = i;
-      string = s;
-      ctype = ct;
-      atype = at;
-      list = l;
-      uid = uid;
-    }
-
       
-  let rec get wic woc = function
-    | [] -> ()
-    | S_dl dl :: t ->
-      (let pos = I.pos_file wic in
-       match Erx.easy_split (dcrx dl) wic with 
-	 | None, _ -> split_error dl.D.info dl.D.ctype pos "concrete"
-	 | Some c, wic' ->
-	     let a = dl.D.get c in
-	     let woc' = O.write_string woc (RS.to_string a) in
-	     get wic' woc' t)
-    | S_sdl dl :: t as sl->
-	(match Erx.easy_split (dcrx dl) wic with 
-	 | None, wic' -> get wic' woc t
-	 | Some c, wic' ->
-	     let a = dl.D.get c in
-	     let woc' = O.write_string woc (RS.to_string a) in
-	     get wic' woc' sl)
-
+  let get wic woc stl =
+    let rec aux wic woc = function
+      | [] -> ()
+      | S_dl dl :: t ->
+	  (let pos = I.pos_file wic in
+	     match Erx.easy_split (dcrx dl) wic with 
+	       | None, _ -> split_error dl.D.info dl.D.ctype pos "concrete"
+	       | Some c, wic' ->
+		   let a = dl.D.get c in
+		   let woc' = O.write_string woc (RS.to_string a) in
+		     aux wic' woc' t)
+      | S_sdl dl :: t as sl->
+	  (match Erx.easy_split (dcrx dl) wic with 
+	     | None, wic' -> aux wic' woc t
+	     | Some c, wic' ->
+		 let a = dl.D.get c in
+		 let woc' = O.write_string woc (RS.to_string a) in
+		   aux wic' woc' sl) in
+    aux wic woc stl.list
+	    
 
 end

@@ -1,0 +1,48 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Androuet;;;;
+FN:Androuet
+NOTE:(01) 42 89 95 00  41 rue d'Amsterdam  M. Liege  (cheese restaurant near St. Lazare\, Paris)  rather expensive and fancy and pungent (300FF/person)
+X-ABUID:A5695B7A-5931-4A63-8308-ANOTHERIDENT0\:ABPerson
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:New York Restaurants;;;;
+FN:New York Restaurants
+NOTE:two best mexican in nyc (according to Scot\, IIRC)\n  rosa mexicana\n  zarela's
+X-ABUID:D40A8D20-F5E8-47E1-983E-D331E92C6F8B\:ABPerson
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Pierce;Benjamin C.;;;
+FN:Benjamin C. Pierce
+TEL;type=HOME;type=pref:215 732-4684
+TEL;type=CELL:215 266-9001
+TEL;type=WORK:215 898-6222
+X-ABUID:87B85E7E-AB0F-4819-8647-0BD532019144\:ABPerson
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Andy Patroni;;;;
+FN:Andy Patroni
+TEL;type=WORK;type=pref:6106236713
+X-ABUID:827704A0-38A3-4034-84BF-BADFB87EB1E2\:ABPerson
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Bistro de Vent;;;;
+FN:Bistro de Vent
+X-ABUID:F00ABF1D-8DC0-4C3C-98ED-2BC33FA8D90C\:ABPerson
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Biswas;Goutam;;;
+FN:Goutam Biswas
+X-ABUID:5BEAD7E0-AFF8-42AB-BD38-9A741CD64E20\:ABPerson
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+N:Black;Andrew;;;
+FN:Andrew Black
+X-ABUID:A9BA5924-5A64-4D46-A40F-A0BC86073232\:ABPerson
+END:VCARD

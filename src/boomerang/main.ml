@@ -194,16 +194,27 @@ let _ =
       if l <> "" then 
         begin          
           if o = "" then bad_cmdline ();
-          let dl = get_dl (fst (lookup i env l)) i in     
-            match Prefs.read cpref, Prefs.read apref with
-              | "","" -> bad_cmdline ()
-              | c,"" -> 
-                  write_result ((DL.get dl) (fs_of_file c))
-              | "",a -> 
-                  write_result ((DL.rcreate_of_dl dl) (fs_of_file a))
-              | c,a  -> 
-                  write_result ((DL.rput_of_dl dl) (fs_of_file a) (fs_of_file c))       
-        end;
+	  match fst (lookup i env l) with
+	    | StL (_, stl) ->
+		( match Prefs.read cpref, Prefs.read apref with
+		    | "","" -> bad_cmdline ()
+		    | c,"" -> 
+			let buf = Buffer.create 80 in 
+			let wic = Wic.create buf (open_in_bin c) in
+			let woc = Woc.t_of_channel (if o = "" then stdout else open_out_bin o) in
+			  Rlenses.StLens.get wic woc stl
+		    | _ -> assert false)
+	    | x ->
+		(let dl = get_dl x i in     
+		   match Prefs.read cpref, Prefs.read apref with
+		     | "","" -> bad_cmdline ()
+		     | c,"" -> 
+			 write_result ((DL.get dl) (fs_of_file c))
+		     | "",a -> 
+			 write_result ((DL.rcreate_of_dl dl) (fs_of_file a))
+		     | c,a  -> 
+			 write_result ((DL.rput_of_dl dl) (fs_of_file a) (fs_of_file c)))       
+	end;
     with 
       | Error.Harmony_error(thk) -> thk (); exit 1
       | x -> Erx.print_stat_trim(); raise x);

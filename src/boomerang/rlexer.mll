@@ -124,8 +124,10 @@ rule main = parse
 | "["                { CSET(info lexbuf, cset lexbuf) }
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }
+| "<|"               { LANGLEBAR(info lexbuf)}
 | "<<<"              { STR(info lexbuf,bare lexbuf) }
 | ">"                { RANGLE(info lexbuf) }
+| "|>"               { BARRANGLE(info lexbuf) }
 | ","                { COMMA(info lexbuf) }
 | ":"                { COLON(info lexbuf) }
 | "^"                { HAT(info lexbuf) }

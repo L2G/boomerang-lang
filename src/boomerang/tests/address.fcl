@@ -181,8 +181,22 @@ let samplevcard =
     
   >>>
 
-test vcard create "Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)" = ?
+let vcardnl = vcard . ins "\n"
+let stvcard = <|vcardnl *|>
 
+test vcard create "Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)" = 
+<<<
+             BEGIN:VCARD
+             VERSION:3.0
+             N:Foo;Jean-Paul;;;
+             item1.EMAIL;type=INTERNET;type=pref:jean-paul.courbebaisse@education.gouv.fr
+             item1.X-ABLabel:E-mail
+             TEL;type=HOME:1234567
+             item2.EMAIL;type=INTERNET;type=pref:bar
+             item2.X-ABLabel:E-mail
+             END:VCARD
+             
+>>>
 test vcard put "Foo, Jean-Paul, bar (e)" 
 into
   <<<
@@ -196,7 +210,16 @@ into
     item2.X-ABLabel:E-mail
     END:VCARD
     
-  >>> = ?
+  >>> = 
+<<<
+             BEGIN:VCARD
+             VERSION:3.0
+             N:Foo;Jean-Paul;;;
+             item1.EMAIL;type=INTERNET;type=pref:bar
+             item1.X-ABLabel:E-mail
+             END:VCARD
+             
+>>>
 
 test vcard get samplevcard = "Andy Patroni, 6106236713 (w)"
 
