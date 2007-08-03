@@ -6,3 +6,4 @@ val t_of_string : string -> t
 val read_char : t -> char option
 val append_buff : Buffer.t -> t -> t
 val pos_file : t -> int
+val seek_in : t -> int -> t

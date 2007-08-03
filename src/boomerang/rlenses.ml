@@ -625,17 +625,93 @@ let combine_rel r1 r2 = match r1,r2 with
 (* -------------------- DICTIONARY LENSES -------------------- *)
 module DLens = struct    
 
-(* dictionaries *)
-type dict = 
-  | D_empty
-  | D of (((skeleton * dict) list) KMap.t) TMap.t
+(* classical dictionaries *)
+type cdict = 
+  | CD_empty
+  | CD of (((skeleton * cdict) list) KMap.t) TMap.t
 
+(* streaming dictionary *)
+and sdict_entry = 
+    { lens: t;
+      pos_in_file: int;
+      nbr_to_remove: int;
+      nbr_left: int}
+
+and sdict = 
+  | SD_empty
+  | SD of ((sdict_entry list) KMap.t) TMap.t
+   
+and dict = 
+  | CDict of cdict
+  | SDict of (Wic.t * sdict)
 
 (* dictionaries type type. At each level, we need to check that for
    one tag, there is only one unique id for this tag *)
 
-type dict_type = 
+and dict_type = 
     uid TMap.t
+
+
+and t = 
+    { (* --- meta data --- *)
+      info: Info.t;                           (* parsing info *)
+      string: string;                         (* pretty printer *)
+      (* --- types --- *)
+      ctype: r;                               (* concrete type *)
+      atype: r;                               (* abstract type *)
+      dtype: dict_type;                       (* dictionary type *)
+      stype: skeleton -> bool;                (* given a skeleton, returns if it is part
+						 of the skeleton type of the lens*)
+      crel: rel;                              (* concrete equiv rel type *)
+      arel: rel;                              (* abstract equiv rel type *)
+      (* --- core --- *)
+      get: RS.t -> RS.t;                      (* get function *)
+      put: RS.t -> skeleton -> dict -> (RS.t * dict);  (* put function *)
+      parse: RS.t -> (skeleton * cdict);      (* parse function *)
+      create: RS.t -> dict -> (RS.t * dict);  (* create function *)
+      key: RS.t -> RS.t;                      (* key function *)
+      (* --- hack --- *)
+      uid: uid
+    }
+
+
+(* lookup function in dictionnaries of both type *)
+let lookup tag k = function 
+  | CDict CD_empty | SDict (_, SD_empty) -> None
+  | CDict (CD d) ->
+      (let km = try TMap.find tag d with Not_found -> KMap.empty in
+       try 
+       (match KMap.find k km with 
+	  | c::kl -> Some (c, CDict (CD (TMap.add tag (KMap.add k kl km) d)))
+	  | [] -> None)
+       with Not_found -> None)
+  | SDict (wic, (SD d)) ->
+      (let km = try TMap.find tag d with Not_found -> KMap.empty in
+       try 
+       (match KMap.find k km with 
+	  | c::kl -> 
+	      (let wic' = Wic.seek_in wic c.pos_in_file in
+	      match Erx.easy_split c.lens.ctype.rx wic' with
+		| None, _ -> assert false
+		| Some str, wic'' -> 
+		    (match c.lens.parse str with
+		       | _, CD_empty -> assert false
+		       | _, CD cd ->
+			   (try 
+			      let l = KMap.find k (TMap.find tag cd) in
+			      let res = Safelist.nth l c.nbr_to_remove in
+			      let kl' = 
+				if c.nbr_left = 0 
+				then kl 
+				else {c with nbr_to_remove = c.nbr_to_remove + 1; nbr_left = c.nbr_left + 1} :: kl in
+				Some (res, SDict (wic', SD (TMap.add tag (KMap.add k kl' km) d)))
+			    with
+			      | Not_found -> assert false
+			      | Failure "nth" -> assert false)))
+	  | [] -> None)
+        with Not_found -> None)
+
+
 
 exception Incompatilbe_dict_type of tag
 let fusion_dict_type dt1 dt2 = 
@@ -656,25 +732,6 @@ let safe_fusion_dict_type i dt1 dt2 =
 		    Util.format "The tag \"%s\" is used twice with different lenses@]@\n" (RS.to_string t);))
 
 
-(*
-let format_dict d = 
-  Util.format "{";
-  ignore (SMap.fold (fun t km is_fst -> 
-    Util.format "%s%s={" (if is_fst then "" else ", ") (whack (RS.to_string t));
-    ignore (KMap.fold (fun ki cl is_fst -> 
-      Util.format "%s%s=[" (if is_fst then "" else ", ") (whack (RS.to_string ki));
-      ignore (Safelist.fold_left (fun b cj -> Util.format "%s%s" (if b then "" else ",") (RS.to_string cj); false) true cl);
-      Util.format "]";
-      false) 
-      km true);
-    Util.format "}";
-    false)
-    d true);
-  Util.format "}"
-*)
-
-
-
 (* helper: combine maps with merge. 
    Mapplus's combine is (combine fold find add (curry fst)) *)
 let combine fold find add merge m1 m2 = 
@@ -682,41 +739,32 @@ let combine fold find add merge m1 m2 =
     add k (try merge v (find k m2) with Not_found -> v))
     m1 m2  
 
-(* smash two dictionaries *)
-let (++) d1 d2 = match (d1,d2) with
-  | D_empty, D_empty -> D_empty
-  | D_empty, d
-  | d, D_empty -> d
-  | D d1', D d2' ->
-      D (combine TMap.fold TMap.find TMap.add 
+(* smash two classic dictionaries *)
+let (++) cd1 cd2 = match (cd1,cd2) with
+  | CD_empty, CD_empty -> CD_empty
+  | CD_empty, cd
+  | cd, CD_empty -> cd
+  | CD d1', CD d2' ->
+      CD (combine TMap.fold TMap.find TMap.add 
 	   (fun km1 km2 -> 
 	      (combine KMap.fold KMap.find KMap.add 
 		 (fun kl1 kl2 -> kl1 @ kl2)
 		 km1 km2))
 	   d1' d2')
 
+(* smash two streaming dictionaries *)
+let (+++) sd1 sd2 = match (sd1,sd2) with
+  | SD_empty, SD_empty -> SD_empty
+  | SD_empty, sd
+  | sd, SD_empty -> sd
+  | SD d1', SD d2' ->
+      SD (combine TMap.fold TMap.find TMap.add 
+	   (fun km1 km2 -> 
+	      (combine KMap.fold KMap.find KMap.add 
+		 (fun kl1 kl2 -> kl1 @ kl2)
+		 km1 km2))
+	   d1' d2')
 
-  type t = 
-      { (* --- meta data --- *)
-        info: Info.t;                           (* parsing info *)
-        string: string;                         (* pretty printer *)
-        (* --- types --- *)
-        ctype: r;                               (* concrete type *)
-        atype: r;                               (* abstract type *)
-        dtype: dict_type;                       (* dictionary type *)
-	stype: skeleton -> bool;                (* given a skeleton, returns if it is part
-						   of the skeleton type of the lens*)
-        crel: rel;                              (* concrete equiv rel type *)
-        arel: rel;                              (* abstract equiv rel type *)
-        (* --- core --- *)
-        get: RS.t -> RS.t;                      (* get function *)
-        put: RS.t -> skeleton -> dict -> (RS.t * dict);  (* put function *)
-	parse: RS.t -> (skeleton * dict);       (* parse function *)
-        create: RS.t -> dict -> (RS.t * dict);  (* create function *)
-        key: RS.t -> RS.t;                      (* key function *)
-	(* --- hack --- *)
-        uid: uid
-      }
 
   let info dl = dl.info
   let string dl = dl.string
@@ -755,11 +803,11 @@ let (++) d1 d2 = match (d1,d2) with
   let rput_of_dl dl = 
     fun a c -> 
       let s,d = dl.parse c in
-	fst (dl.put a s d)
+	fst (dl.put a s (CDict d))
 
   let rcreate_of_dl dl = 
     fun a ->
-      fst (dl.create a D_empty)
+      fst (dl.create a (CDict CD_empty))
 
 
   let determinize_dlens dl =
@@ -801,7 +849,7 @@ let (++) d1 d2 = match (d1,d2) with
         arel = Identity;
         get = lift_r i (get_str n) ct (fun c -> c);
         put = lift_rsd i (put_str n) at st (fun a _ d -> (a,d));
-        parse = lift_r i (parse_str n) ct (fun c -> (S_string c, D_empty)); 
+        parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty)); 
 	create = lift_rd i (create_str n) at (fun a d -> a,d);
 	key = lift_r i n at (fun _ -> RS.empty);
 	uid = next_uid ();
@@ -837,7 +885,7 @@ let (++) d1 d2 = match (d1,d2) with
         arel = Identity;
         get = lift_r i (get_str n) ct (fun c -> u_str);
         put = lift_rsd i (put_str n) at st (fun _ s d -> (string_of_skel s, d) );
-	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, D_empty));  
+	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty));  
         create = lift_rd i (create_str n) at (fun a d -> (def_str,d));
 	key = lift_r i n at (fun _ -> RS.empty);
 	uid = next_uid ();
@@ -873,7 +921,7 @@ let (++) d1 d2 = match (d1,d2) with
         arel = Unknown;
         get = lift_r i (get_str n) ct (fun c -> u_str);
         put = lift_rsd i (put_str n) at st (fun _ s d -> (string_of_skel s, d) );
-	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, D_empty));  
+	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty));  
         create = lift_rd i (create_str n) at (fun a d -> (def_str,d));
 	key = lift_r i n at (fun _ -> RS.empty);
 	uid = next_uid ();
@@ -1003,7 +1051,7 @@ let (++) d1 d2 = match (d1,d2) with
 	    let buf' = s1::buf  in
 	    let d' = d ++ d1 in
 	      (buf', d'))
-            ([], D_empty)
+            ([], CD_empty)
             (Erx.unambig_star_split dl1.ctype.rx c) in
 	  (S_star (Safelist.rev sl), d));
 	key = lift_r i (key_str n) at 
@@ -1102,6 +1150,9 @@ let (++) d1 d2 = match (d1,d2) with
       uid = next_uid();
     }
 
+
+
+ 
   let default i def dl1 = 
     let n = sprintf "default %s %s" (RS.to_string def) dl1.string in 
     let at = dl1.atype in 
@@ -1112,7 +1163,8 @@ let (++) d1 d2 = match (d1,d2) with
     let s,d = dl1.parse def in
       { dl1 with
         create = lift_rd i (create_str n) at (fun a d' -> 
-          dl1.put a s (d ++ d'));
+          (* dl1.put a s (d ++ d')); *) (***** To be fixed !! Doesn't work with a match inside *****)
+	  dl1. put a s d');
 	uid = next_uid ();
       }
 
@@ -1125,15 +1177,6 @@ let (++) d1 d2 = match (d1,d2) with
       | S_box b -> (RS.compare tag b) = 0
       | _ -> false in
     let dt = TMap.add tag dl1.uid TMap.empty in
-    let lookup k = function 
-      | D_empty -> None
-      | D d ->
-	  (let km = try TMap.find tag d with Not_found -> KMap.empty in
-             try 
-               (match KMap.find k km with 
-		  | c::kl -> Some (c, D (TMap.add tag (KMap.add k kl km) d))
-		  | [] -> None)
-             with Not_found -> None) in 
       { info = i;
         string = n;
         ctype = ct;
@@ -1144,17 +1187,17 @@ let (++) d1 d2 = match (d1,d2) with
         arel = dl1.arel;
         get = lift_r i (get_str n) ct (fun c -> dl1.get c);
         put = lift_rsd i (put_str n) at st (fun a _ d -> 
-          match lookup (dl1.key a) d with
-              Some((s',d'),d'') -> (fst (dl1.put a s' d'),d'')
-            | None       -> (fst (dl1.create a D_empty), d));
+          match lookup tag (dl1.key a) d with
+              Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
+            | None       -> (fst (dl1.create a (CDict CD_empty)), d));
         create = lift_rx i (create_str n) at (fun a d -> 
-          match lookup (dl1.key a) d with
-              Some((s',d'),d'') -> (fst (dl1.put a s' d'),d'')
-            | None       -> (fst (dl1.create a D_empty), d));
+          match lookup tag (dl1.key a) d with
+              Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
+            | None       -> (fst (dl1.create a (CDict CD_empty)), d));
         parse = lift_r i (parse_str n) ct (fun c -> 
           let s,d = dl1.parse c in
           let d' = TMap.add tag (KMap.add (dl1.key (dl1.get c)) [(s,d)] KMap.empty) TMap.empty in 
-            (S_box tag,D d'));
+            (S_box tag, CD d'));
 	key = dl1.key;
 	uid = next_uid ();
       }
@@ -1201,7 +1244,7 @@ let (++) d1 d2 = match (d1,d2) with
         let la = Erx.unambig_star_split at.rx a in
           (loop RS.empty lc la, d)) in
     let create = lift_rd i n at (fun a d -> (a,d)) in
-    let parse = lift_r i n ct (fun c -> (S_string c, D_empty))in
+    let parse = lift_r i n ct (fun c -> (S_string c, CD_empty))in
       { info = i; 
         string = n;
         ctype = ct;
@@ -1233,15 +1276,6 @@ module StLens = struct
   let dcrx dl = dl.D.ctype.rx
   let darx dl = dl.D.atype.rx
 
-  type st_dict_entry = 
-      { lens: DLens.t;
-	pos_in_file: int;
-	nbr_to_remove: int;
-	nbr_left: int}
-
-  type st_dict = 
-    | SD_empty
-    | SD of ((st_dict_entry list) KMap.t) TMap.t
 
   type slens_elt = 
       S_dl of DLens.t (* a dlens, as is *)
@@ -1260,34 +1294,34 @@ module StLens = struct
 	uid: uid
       }
   let of_list l i =
-    let rec aux ct at l = 
-      match (ct, at, l) with
-	| None, None, [] -> (* the list was empty *)
+    let rec aux ct at dt l = 
+      match (ct, at, dt, l) with
+	| None, None, _,  [] -> (* the list was empty *)
 	    static_error i "" "The list to build a streaming-lens should not be empty"
-	| None, None, (i, S_dl dl)::t ->
-	    let (ct', at', l') = aux (Some dl.D.ctype) (Some dl.D.atype) t in
+	| None, None, _, (i, S_dl dl)::t ->
+	    let (ct', at', l') = aux (Some dl.D.ctype) (Some dl.D.atype) (dl.D.dtype) t in
 	    (ct', at', (S_dl dl)::l')
-	| None, None, (i, S_sdl dl)::t ->
+	| None, None, _, (i, S_sdl dl)::t ->
 	    let cts = rx_easy_star i "easy star of concrete" dl.D.ctype in
 	    let ats = rx_easy_star i "easy star of abstract" dl.D.atype in
-	    let (ct', at', l') = aux (Some cts) (Some ats) t in
+	    let (ct', at', l') = aux (Some cts) (Some ats) dl.D.dtype t in
 	    (ct', at', (S_sdl dl)::l')
-	| None, _, _
-	| _, None, _ -> assert false
-	| Some ct, Some at, [] -> (ct, at, [])
-	| Some ct, Some at, (i, S_dl dl)::t ->
+	| None, _, _, _
+	| _, None, _, _ -> assert false
+	| Some ct, Some at, _, [] -> (ct, at, [])
+	| Some ct, Some at, dt, (i, S_dl dl)::t ->
 	    let ctc = rx_easy_seq i "easy concat of concrete" ct dl.D.ctype in
 	    let atc = rx_easy_seq i "easy concat of abstract"at dl.D.atype in
-	    let (ct', at', l') = aux (Some ctc) (Some atc) t in
+	    let (ct', at', l') = aux (Some ctc) (Some atc) (D.fusion_dict_type dt dl.D.dtype) t in
 	    (ct', at', (S_dl dl)::l')
-	| Some ct, Some at, (i, S_sdl dl)::t ->
+	| Some ct, Some at, dt, (i, S_sdl dl)::t ->
 	    let cts = rx_easy_star i "easy star of concrete" dl.D.ctype in
 	    let ats = rx_easy_star i "easy star of abstract" dl.D.atype in
 	    let ctc = rx_easy_seq i "easy concat of concrete" ct cts in
 	    let atc = rx_easy_seq i "easy concat of abstract"at ats in
-	    let (ct', at', l') = aux (Some ctc) (Some atc) t in
+	    let (ct', at', l') = aux (Some ctc) (Some atc) (D.fusion_dict_type dt dl.D.dtype) t in
 	      (ct', at', (S_sdl dl)::l') in
-    let (ct, at, list) = aux None None l in
+    let (ct, at, list) = aux None None TMap.empty l in
     { info = i;
       string = "";
       ctype = ct;

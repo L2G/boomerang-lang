@@ -118,3 +118,13 @@ let append_buff buff t =
     | None -> t_of_buffer buff
 
 let pos_file t = t.pos_file
+
+let seek_in wic n = 
+  match wic.channel with 
+    | None -> raise (Invalid_argument "Wic with no channel")
+    | Some ic ->
+	seek_in ic n;
+	{wic with
+	   saved_char = None;
+	   orig = Chann;
+	   pos_file = n}
