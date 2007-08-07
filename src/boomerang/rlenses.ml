@@ -297,7 +297,7 @@ let type_error i t s1 (s3l,s3r,approx) =
 let split_error i t pos nf =
   raise (Error.Harmony_error (fun () -> 
     Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-    Util.format "  Cannot file any string in @\nT=@[%s@]@\n@\n" t.str;    
+    Util.format "  Cannot find any string in @\nT=@[%s@]@\n@\n" t.str;    
     Util.format "  in the %s file at posistion %d@]" nf pos;))
 
 
@@ -641,9 +641,14 @@ and sdict =
   | SD_empty
   | SD of ((sdict_entry list) KMap.t) TMap.t
    
+(* ddict stands for double dict. Used for default *)
+and ddict = {provisory_dict:dict;
+	     main_dict:dict;}
+
 and dict = 
   | CDict of cdict
   | SDict of (Wic.t * sdict)
+  | DDict of ddict
 
 (* dictionaries type type. At each level, we need to check that for
    one tag, there is only one unique id for this tag *)
@@ -676,7 +681,7 @@ and t =
 
 
 (* lookup function in dictionnaries of both type *)
-let lookup tag k = function 
+let rec lookup tag k = function 
   | CDict CD_empty | SDict (_, SD_empty) -> None
   | CDict (CD d) ->
       (let km = try TMap.find tag d with Not_found -> KMap.empty in
@@ -710,7 +715,14 @@ let lookup tag k = function
 			      | Failure "nth" -> assert false)))
 	  | [] -> None)
         with Not_found -> None)
-
+  | DDict dd ->
+      (match lookup tag k dd.provisory_dict with
+	 | None -> (* not found in the provisory dictionnary, look in the other one*)
+	     (match lookup tag k dd.main_dict with
+		| None -> None
+		| Some (r, d) -> Some (r, DDict {dd with main_dict = d}))
+	 | Some (r, d) -> Some (r, DDict {dd with provisory_dict = d}))
+	
 
 
 exception Incompatilbe_dict_type of tag
@@ -1163,9 +1175,15 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
     let s,d = dl1.parse def in
       { dl1 with
         create = lift_rd i (create_str n) at (fun a d' -> 
-          (* dl1.put a s (d ++ d')); *) (***** To be fixed !! Doesn't work with a match inside *****)
-	  dl1. put a s d');
-	uid = next_uid ();
+          (* changing of behavior for former D-lenses ! Information
+	   * are added to the dictionnary only for the time of the
+	   * create and are then removed. This modification was needed
+	   * because of the streaming lenses and the two type of
+	   * dictionnaries that could not be smached together anymore*)
+          match dl1.put a s (DDict {provisory_dict = CDict d; main_dict = d'}) with
+	    | res, DDict dd -> (res, dd.main_dict)
+	    | _ -> assert false);
+	  uid = next_uid ();
       }
 
 
@@ -1187,17 +1205,17 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
         arel = dl1.arel;
         get = lift_r i (get_str n) ct (fun c -> dl1.get c);
         put = lift_rsd i (put_str n) at st (fun a _ d -> 
-          match lookup tag (dl1.key a) d with
-              Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
-            | None       -> (fst (dl1.create a (CDict CD_empty)), d));
+	   match lookup tag (dl1.key a) d with
+	       Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
+	     | None       -> (fst (dl1.create a (CDict CD_empty)), d));
         create = lift_rx i (create_str n) at (fun a d -> 
-          match lookup tag (dl1.key a) d with
-              Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
-            | None       -> (fst (dl1.create a (CDict CD_empty)), d));
+	  match lookup tag (dl1.key a) d with
+	      Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
+	    | None       -> (fst (dl1.create a (CDict CD_empty)), d));
         parse = lift_r i (parse_str n) ct (fun c -> 
-          let s,d = dl1.parse c in
-          let d' = TMap.add tag (KMap.add (dl1.key (dl1.get c)) [(s,d)] KMap.empty) TMap.empty in 
-            (S_box tag, CD d'));
+	  let s,d = dl1.parse c in
+	  let d' = TMap.add tag (KMap.add (dl1.key (dl1.get c)) [(s,d)] KMap.empty) TMap.empty in 
+	    (S_box tag, CD d'));
 	key = dl1.key;
 	uid = next_uid ();
       }
@@ -1215,34 +1233,34 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
       | _ -> false in
     let get = lift_r i (get_str n) ct 
       (fun c ->
-        let rec loop acc = function 
-          | [] -> acc
-          | h :: t -> 
-              if Erx.match_str rd.rx h then 
-                loop acc t
-              else 
-                loop (acc ^ h) t in
-        let lc = Erx.unambig_star_split ct.rx c in
-        loop RS.empty lc) in
+         let rec loop acc = function 
+           | [] -> acc
+           | h :: t -> 
+               if Erx.match_str rd.rx h then 
+                 loop acc t
+               else 
+                 loop (acc ^ h) t in
+         let lc = Erx.unambig_star_split ct.rx c in
+           loop RS.empty lc) in
     let put = lift_rsd i (put_str n) at st
       (fun a s d ->
-        let c = string_of_skel s in
-        let rec loop acc lc la = match lc,la with
-          | [], [] -> acc
-          | [], ha :: ta -> loop (acc ^ ha) [] ta
-          | hc :: tc, [] -> 
-              if Erx.match_str rd.rx hc then
-                loop (acc ^ hc) tc []
-              else
-                loop acc tc []
-          | hc :: tc, ha :: ta -> 
-              if Erx.match_str rd.rx hc then
-                loop (acc ^ hc) tc la
-              else
-                loop (acc ^ ha) tc ta in
-        let lc = Erx.unambig_star_split ct.rx c in
-        let la = Erx.unambig_star_split at.rx a in
-          (loop RS.empty lc la, d)) in
+         let c = string_of_skel s in
+         let rec loop acc lc la = match lc,la with
+           | [], [] -> acc
+           | [], ha :: ta -> loop (acc ^ ha) [] ta
+           | hc :: tc, [] -> 
+               if Erx.match_str rd.rx hc then
+                 loop (acc ^ hc) tc []
+               else
+                 loop acc tc []
+           | hc :: tc, ha :: ta -> 
+               if Erx.match_str rd.rx hc then
+                 loop (acc ^ hc) tc la
+               else
+                 loop (acc ^ ha) tc ta in
+         let lc = Erx.unambig_star_split ct.rx c in
+         let la = Erx.unambig_star_split at.rx a in
+           (loop RS.empty lc la, d)) in
     let create = lift_rd i n at (fun a d -> (a,d)) in
     let parse = lift_r i n ct (fun c -> (S_string c, CD_empty))in
       { info = i; 
@@ -1272,9 +1290,9 @@ end
 module StLens = struct    
 
   module D = DLens
-
-  let dcrx dl = dl.D.ctype.rx
-  let darx dl = dl.D.atype.rx
+  open D
+  let dcrx dl = dl.ctype.rx
+  let darx dl = dl.atype.rx
 
 
   type slens_elt = 
@@ -1312,14 +1330,14 @@ module StLens = struct
 	| Some ct, Some at, dt, (i, S_dl dl)::t ->
 	    let ctc = rx_easy_seq i "easy concat of concrete" ct dl.D.ctype in
 	    let atc = rx_easy_seq i "easy concat of abstract"at dl.D.atype in
-	    let (ct', at', l') = aux (Some ctc) (Some atc) (D.fusion_dict_type dt dl.D.dtype) t in
+	    let (ct', at', l') = aux (Some ctc) (Some atc) (fusion_dict_type dt dl.dtype) t in
 	    (ct', at', (S_dl dl)::l')
 	| Some ct, Some at, dt, (i, S_sdl dl)::t ->
 	    let cts = rx_easy_star i "easy star of concrete" dl.D.ctype in
 	    let ats = rx_easy_star i "easy star of abstract" dl.D.atype in
 	    let ctc = rx_easy_seq i "easy concat of concrete" ct cts in
 	    let atc = rx_easy_seq i "easy concat of abstract"at ats in
-	    let (ct', at', l') = aux (Some ctc) (Some atc) (D.fusion_dict_type dt dl.D.dtype) t in
+	    let (ct', at', l') = aux (Some ctc) (Some atc) (fusion_dict_type dt dl.dtype) t in
 	      (ct', at', (S_sdl dl)::l') in
     let (ct, at, list) = aux None None TMap.empty l in
     { info = i;
@@ -1346,17 +1364,116 @@ module StLens = struct
 	     match Erx.easy_split (dcrx dl) wic with 
 	       | None, _ -> split_error dl.D.info dl.D.ctype pos "concrete"
 	       | Some c, wic' ->
-		   let a = dl.D.get c in
+		   let a = dl.get c in
 		   let woc' = O.write_string woc (RS.to_string a) in
 		     aux wic' woc' t)
       | S_sdl dl :: t as sl->
 	  (match Erx.easy_split (dcrx dl) wic with 
 	     | None, wic' -> aux wic' woc t
 	     | Some c, wic' ->
-		 let a = dl.D.get c in
+		 let a = dl.get c in
 		 let woc' = O.write_string woc (RS.to_string a) in
 		   aux wic' woc' sl) in
     aux wic woc stl.list
 	    
 
+  let create wic woc stl = 
+    let rec aux wic woc = function
+      | [] -> ()
+      | S_dl dl :: t ->
+	  (let pos = I.pos_file wic in
+	     match Erx.easy_split (darx dl) wic with 
+	       | None, _ -> split_error dl.D.info dl.D.atype pos "abstract"
+	       | Some a, wic' ->
+		   let c, _ = dl.create a (CDict CD_empty) in
+		   let woc' = O.write_string woc (RS.to_string c) in
+		     aux wic' woc' t)
+      | S_sdl dl :: t as sl->
+	  (match Erx.easy_split (darx dl) wic with 
+	     | None, wic' -> aux wic' woc t
+	     | Some a, wic' ->
+		 let c, _ = dl.create a (CDict CD_empty) in
+		 let woc' = O.write_string woc (RS.to_string c) in
+		   aux wic' woc' sl) in
+    aux wic woc stl.list
+
+
+  let parse wic stl =
+    let sd_of_cd dl pos = function 
+      | CD_empty -> SD_empty
+      | CD cd ->
+	  SD (TMap.fold (fun tag km acc ->
+            let km' = KMap.fold (fun k l acc' ->
+			let entry = {lens = dl;
+				     pos_in_file = pos;
+				     nbr_to_remove = 0;
+				     nbr_left = Safelist.length l}in
+			KMap.add k [entry] acc') km KMap.empty in
+	    TMap.add tag km' acc) cd TMap.empty) in
+    let rec aux dict wic = function
+      | [] -> dict
+      | S_dl dl :: t ->
+	  (let pos = I.pos_file wic in
+	   match Erx.easy_split (dcrx dl) wic with 
+	     | None, _ -> split_error dl.D.info dl.D.atype pos "concrete"
+	     | Some c, wic' ->
+		 let _, cd = dl.parse c in
+		 let sd = sd_of_cd dl pos cd in
+		 aux (dict +++ sd) wic' t)
+      | S_sdl dl :: t as sl ->
+	  (let pos = I.pos_file wic in
+	   match Erx.easy_split (dcrx dl) wic with 
+	     | None, wic' -> aux dict wic' t
+	     | Some c, wic' ->
+		 let _, cd = dl.parse c in
+		 let sd = sd_of_cd dl pos cd in
+		 aux (dict +++ sd) wic' sl) in
+    let sd = aux SD_empty wic stl.list in
+    SDict (wic, sd)
+
+  let put wicc wica woc dict stl = 
+    (* function to create the rest of a star lens *)
+    let rec end_star_a wica woc dl dict = 
+      match Erx.easy_split (darx dl) wica with 
+	| None, wica' -> (wica', woc, dict) 
+	| Some a, wica' ->
+	    let c, dict' = dl.create a dict in
+	    let woc' = O.write_string woc (RS.to_string c) in
+	      end_star_a wica' woc' dl dict' in
+    let rec end_star_c wicc dl = (* to be improved *)
+      match Erx.easy_split (dcrx dl) wicc with 
+	| None, wicc' -> wicc' 
+	| Some _, wicc' -> end_star_c wicc' dl in
+    let rec aux wicc wica woc dict = function
+      | [] -> ()
+      | S_dl dl :: t ->
+	  (let posc = I.pos_file wicc in
+	   let posa = I.pos_file wica in
+	     match Erx.easy_split (dcrx dl) wicc, Erx.easy_split (darx dl) wica with 
+	       | (None,_), _ -> split_error dl.D.info dl.D.ctype posc "concrete"
+	       | _, (None,_) -> split_error dl.D.info dl.D.atype posa "abstract"
+	       | (Some c, wicc'),(Some a, wica') ->
+		   let s, _ = dl.parse c in
+		   let c', dict'  = dl.put a s dict in
+		   let woc' = O.write_string woc (RS.to_string c') in
+		     aux wicc' wica' woc' dict' t)
+      | S_sdl dl :: t as sl->
+	  (match Erx.easy_split (dcrx dl) wicc, Erx.easy_split (darx dl) wica with 
+	     | (None, wicc'), (None, wica') -> aux wicc' wica' woc dict t (*nothing left*)
+	     | (None, wicc'), (Some a, wica') -> (* no more concrete, go for creation *)
+		 let c, dict' = dl.create a dict in
+		 let woc' = O.write_string woc (RS.to_string c) in
+		 let (wica'', woc'', dict'') = end_star_a wica' woc' dl dict' in
+		   aux wicc' wica'' woc'' dict'' t
+	     | (Some _, wicc'), (None, wica') -> (* no more abstract, go for the next lens *)
+		 let wicc'' = end_star_c wicc' dl in
+		   aux wicc'' wica' woc dict t 
+	     | (Some c, wicc'), (Some a, wica') ->
+		 let s, _ = dl.parse c in
+		 let c', dict' = dl.put a s dict  in
+		 let woc' = O.write_string woc (RS.to_string c') in
+		   aux wicc' wica' woc' dict' sl) in
+      aux wicc wica woc dict stl.list
+
+   
 end

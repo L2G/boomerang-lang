@@ -193,8 +193,7 @@ let _ =
     let l = Prefs.read lpref in 
       if l <> "" then 
         begin          
-          if o = "" then bad_cmdline ();
-	  match fst (lookup i env l) with
+          match fst (lookup i env l) with
 	    | StL (_, stl) ->
 		( match Prefs.read cpref, Prefs.read apref with
 		    | "","" -> bad_cmdline ()
@@ -203,9 +202,24 @@ let _ =
 			let wic = Wic.create buf (open_in_bin c) in
 			let woc = Woc.t_of_channel (if o = "" then stdout else open_out_bin o) in
 			  Rlenses.StLens.get wic woc stl
-		    | _ -> assert false)
+		    | "", a -> 
+			let buf = Buffer.create 80 in 
+			let wic = Wic.create buf (open_in_bin a) in
+			let woc = Woc.t_of_channel (if o = "" then stdout else open_out_bin o) in
+			  Rlenses.StLens.create wic woc stl
+		    | c, a -> 
+			let buf = Buffer.create 80 in 
+			let wic = Wic.create buf (open_in_bin c) in
+			let dict = Rlenses.StLens.parse wic stl in 
+			let bufc = Buffer.create 80 in 			
+			let wicc = Wic.create bufc (open_in_bin c) in
+			let bufa = Buffer.create 80 in
+			let wica = Wic.create bufa (open_in_bin a) in
+			let woc = Woc.t_of_channel (if o = "" then stdout else open_out_bin o) in
+			  Rlenses.StLens.put wicc wica woc dict stl)
 	    | x ->
-		(let dl = get_dl x i in     
+		(if o = "" then bad_cmdline ();
+		 let dl = get_dl x i in     
 		   match Prefs.read cpref, Prefs.read apref with
 		     | "","" -> bad_cmdline ()
 		     | c,"" -> 
