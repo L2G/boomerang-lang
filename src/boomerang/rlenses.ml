@@ -706,7 +706,7 @@ let rec lookup tag k = function
 			      let l = KMap.find k (TMap.find tag cd) in
 			      let res = Safelist.nth l c.nbr_to_remove in
 			      let kl' = 
-				if c.nbr_left = 0 
+				if c.nbr_left = 1 
 				then kl 
 				else {c with nbr_to_remove = c.nbr_to_remove + 1; nbr_left = c.nbr_left + 1} :: kl in
 				Some (res, SDict (wic', SD (TMap.add tag (KMap.add k kl' km) d)))
