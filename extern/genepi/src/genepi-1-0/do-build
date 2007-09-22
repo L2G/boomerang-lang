@@ -29,14 +29,10 @@ install_dir="$HOME/mvtsi-dev"
 configure_args=""
 
 TOLOWER="tr '[A-Z]' '[a-z]'"
+VALIDCHARSET="tr -c -d '[a-z0-9_]'"
 cpu=`(uname -p 2>/dev/null || uname -m 2>/dev/null || echo unknown) | \
-	${TOLOWER}`
-os=`uname -s | ${TOLOWER}`
-
-case "$cpu" in
-    unknown)
-	cpu=`uname -m | ${TOLOWER}` ;;
-esac
+    ${TOLOWER} | ${VALIDCHARSET}`
+os=`uname -s | ${TOLOWER} | ${VALIDCHARSET}`
 
 while test $# -gt 0; do
    case "$1" in
