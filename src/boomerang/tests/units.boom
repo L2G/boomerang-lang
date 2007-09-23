@@ -275,7 +275,7 @@ test strange get "abcd" = "a"
 
 test strange put "z" into "abcd" = "zaab"
 
-(*** even more strange ***)
+(*** not strange anymore ***)
 
 let chunk = key alpha{3} . del [0-9]{2}
 
@@ -294,7 +294,7 @@ test normal_l put "bar,foo" into "foo11,bar22"= "bar22,foo11"
 test strange_l put "bar,foo" into "foo11,bar22"= "bar22,foo11"
 
 test normal_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo11"
-test strange_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo42"
+test strange_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo11" (* use to be "bar22bar00,foo42"*)
 
 
 
