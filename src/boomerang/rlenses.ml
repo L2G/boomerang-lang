@@ -904,7 +904,7 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
       }
 
 
-  (* ---------- qconst ---------- *)
+  (* ---------- quotient const ---------- *)
   let qconst i rc ra u_str def_str =
     let u = RS.to_string u_str in
     let def = RS.to_string def_str in
@@ -1278,6 +1278,100 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 	key = lift_r i n at (fun _ -> RS.empty);
 	uid = next_uid ();
       }
+
+
+  (* left quotient of a dlens by a canonizer. I don't know if we
+     should check if the dlens is not already a q-lens. *)
+
+  let left_quot i cn dl = 
+    let n = sprintf "left quotient of %s by %s" dl.string (Canonizer.string cn) in
+      (* the "class type" of the canonizer has to be equal to the
+	 concrete type of the lens *)
+    let equiv, f_suppl = check_rx_equiv (Canonizer.ctype cn) dl.ctype in
+      if not equiv then
+        begin
+	  let s =sprintf "the %s is ill-typed:" n in
+	    static_error i n ~suppl:f_suppl s 
+        end;
+    let ct = Canonizer.rtype cn in
+    let at = dl.atype in
+    let dt = dl.dtype in
+    let st = dl.stype in
+    let cls = Canonizer.cls cn in
+    let rep = Canonizer.rep cn in
+    { info = i; 
+      string = n;
+      ctype = ct;      
+      atype = at;
+      dtype = dt;
+      stype = st;
+      crel = Unknown;
+      arel = dl.arel;
+      get = lift_r i (get_str n) ct 
+	(fun c -> dl.get(cls c));
+      put = lift_rsd i n at st (*useless lift_rsd ...*)
+	(fun a s d ->
+	  let cc, d = dl.put a s d in
+	  (rep cc, d));
+      create = lift_rd i n at
+	(fun a d ->
+	  let cc, d = dl.create a d in
+	  (rep cc, d));
+      parse = lift_r i n ct
+	(fun c ->
+	  let cc = cls c in
+	  dl.parse cc);
+      key = dl.key;
+      uid = next_uid();
+    }
+
+
+
+  (* right quotient of a dlens by a canonizer. I don't know if we
+     should check if the dlens is not already a q-lens. *)
+
+  let right_quot i dl cn= 
+    let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
+      (* the "class type" of the canonizer has to be equal to the
+	 abstract type of the lens *)
+    let equiv, f_suppl = check_rx_equiv (Canonizer.ctype cn) dl.atype in
+      if not equiv then
+        begin
+	  let s =sprintf "the %s is ill-typed:" n in
+	    static_error i n ~suppl:f_suppl s 
+        end;
+    let ct = dl.ctype in
+    let at = Canonizer.rtype cn in
+    let dt = dl.dtype in
+    let st = dl.stype in
+    let cls = Canonizer.cls cn in
+    let rep = Canonizer.rep cn in
+    { info = i; 
+      string = n;
+      ctype = ct;      
+      atype = at;
+      dtype = dt;
+      stype = st;
+      crel = dl.crel;
+      arel = Unknown;
+      get = lift_r i (get_str n) ct 
+	(fun c -> rep (dl.get c));
+      put = lift_rsd i n at st 
+	(fun a s d ->
+	  let ac = cls a in
+	  dl.put ac s d);
+      create = lift_rd i n at
+	(fun a d ->
+	  let ac = cls a in
+	  dl.create ac d);
+      parse = dl.parse;
+
+      (* BIG QUESTION ABOUT LENS LAWS*)
+      (* I'm not 100% convinced about this implementation and about
+	 the fact it ensure the conservation of the laws *)
+      key = (fun a -> dl.key (cls a));
+      uid = next_uid();
+    }
 
 
 

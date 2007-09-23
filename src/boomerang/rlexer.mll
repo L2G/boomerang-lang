@@ -136,6 +136,8 @@ rule main = parse
 | ","                { COMMA(info lexbuf) }
 | "?"                { QMARK(info lexbuf) }
 | "\""               { STR (info lexbuf, string lexbuf) }
+| ">/"               { RANGLESLASH(info lexbuf) }
+| "/<"               { SLASHLANGLE(info lexbuf) }
 | id_char_first id_char_rest* as ident { 
       try let kw = Hashtbl.find keywords ident in
           kw (info lexbuf)

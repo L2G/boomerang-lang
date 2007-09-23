@@ -271,6 +271,17 @@ let compose_merge =
     (fun i v1 v2 -> V.DL(i,L.DLens.compose i (V.get_dl v1 i) (V.get_dl v2 i))))
   ]
 
+let left_quotient_merge = 
+  [ (V.SCanonizer, V.SDLens, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.left_quot i (V.get_cn v1 i) (V.get_dl v2 i))))
+  ]
+
+let right_quotient_merge = 
+  [ (V.SDLens, V.SCanonizer, 
+    (fun _ _ -> V.SDLens),
+    (fun i v1 v2 -> V.DL(i,L.DLens.right_quot i (V.get_dl v1 i) (V.get_cn v2 i))))
+  ]
 
 let minus_merge = 
   [ (V.SRegexp, V.SRegexp, 
@@ -415,7 +426,7 @@ type st_ident =
 %token <Info.t * string> STR IDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE LANGLEBAR BARRANGLE RANGLE   
-%token <Info.t> ARROW DARROW LONGARROW LONGDARROW
+%token <Info.t> ARROW DARROW LONGARROW LONGDARROW RANGLESLASH SLASHLANGLE
 %token <Info.t> CREATE BEGIN END FUN LET IN TEST INTO SEMI COMMA DOT EQUAL COLON BACKSLASH  
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS HAT TILDE AMPERSAND QMARK 
 %token <Info.t> MATCH WITH GET PUT DOTGET DOTPUT DOTCREATE ERROR
@@ -441,347 +452,370 @@ type st_ident =
   */
 
   /* --------- DEDLARATIONS ---------- */
-  top: 
-		    | dedls EOF                               { $1 }
+top: 
+  | dedls EOF      
+      { $1 }
+dedls:      
+  | LET IDENT param_list opt_sort EQUAL exp dedls 
+      { (fun (se,ve) -> 
+	let i2,x2 = $2 in 
+	let i6,chk6,comp6 = $6 in                                                    
+	let i = m $1 i6 in 
+	let se' = Renv.update se x2 ((mk_fun_chker i $3 $4 chk6) se) in 
+	let ve' = Renv.update ve x2 (((mk_fun_comper i x2 $3 $4 comp6) ve), true) in 
+	$7 (se',ve')) }
 
-			dedls:      
-		    | LET IDENT param_list opt_sort EQUAL exp dedls 
-			{ (fun (se,ve) -> 
-			     let i2,x2 = $2 in 
-			     let i6,chk6,comp6 = $6 in                                                    
-			     let i = m $1 i6 in 
-			     let se' = Renv.update se x2 ((mk_fun_chker i $3 $4 chk6) se) in 
-			     let ve' = Renv.update ve x2 (((mk_fun_comper i x2 $3 $4 comp6) ve), true) in 
-			       $7 (se',ve')) }
+/* --- unit tests --- */    
+  | TEST exp eq_arrow QMARK dedls                  
+      { (fun (se,ve) ->
+	let i2,chk2,comp2 = $2 in 
+	expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
+	let s2 = V.get_s (comp2 ve) i2 in 
+	Util.format "@[Test Result: @[";
+	L.nlify_str s2;
+	Util.format "@]@]@\n";
+	Util.flush ();
+	$5 (se,ve)) }
+      
+  | TEST exp eq_arrow exp dedls                 
+      {  (fun (se,ve) ->
+	let i2,chk2,comp2 = $2 in 
+	let i4,chk4,comp4 = $4 in 
+	let i = m i2 i4 in 
+	expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
+	expect_sort i4 "in test dedlaration:" V.SString (chk4 se);
+	let s2 = V.get_s (comp2 ve) i2 in 
+	let s4 = V.get_s (comp4 ve) i4 in 
+	if (RS.to_string s2) <> (RS.to_string s4) then test_fail i s4 s2;
+	  $5 (se,ve)) }
+      
+  | TEST exp eq_arrow ERROR dedls                
+      {  (fun (se,ve) ->
+	let i2,chk2,comp2 = $2 in 
+	let i = m i2 $4 in 
+	expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
+	(try test_fail i (RS.of_string "error") (V.get_s (comp2 ve) i2)
+	  with Error.Harmony_error _ -> ());
+	$5 (se,ve)) }
+      
+  | TEST lqexp GET PUT exp eq_darrow exp dedls 
+      { (fun (se,ve) -> 
+	let i2,chk2,comp2 = $2 in 
+	let i5,chk5,comp5 = $5 in 
+	let i7,chk7,comp7 = $7 in 
+	let i = m i2 i7 in 
+	expect_sort i2 "in test dedlaration:" V.SDLens (chk2 se);
+	expect_sort i5 "in test dedlaration:" V.SString (chk5 se);
+	expect_sort i7 "in test dedlaration:" V.SString (chk7 se);
+	let l2 = V.get_dl (comp2 ve) i2 in 
+	let s5 = V.get_s  (comp5 ve) i5 in 
+	let s7 = V.get_s (comp7 ve) i7 in 
+	let g = L.DLens.get l2 s5 in 
+	let c = L.DLens.rcreate_of_dl l2 s7 in  
+	if (RS.to_string g) <> (RS.to_string s7) then test_fail i s7 g;
+	if (RS.to_string c) <> (RS.to_string s5) then test_fail i s5 c;
+	$8 (se,ve)) }
 
-		      /* --- unit tests --- */    
-		    | TEST exp eq_arrow QMARK dedls                  
-			{ (fun (se,ve) ->
-			     let i2,chk2,comp2 = $2 in 
-			       expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
-			       let s2 = V.get_s (comp2 ve) i2 in 
-				 Util.format "@[Test Result: @[";
-				 L.nlify_str s2;
-				 Util.format "@]@]@\n";
-				 Util.flush ();
-				 $5 (se,ve)) }
-			
-		    | TEST exp eq_arrow exp dedls                 
-			{  (fun (se,ve) ->
-			      let i2,chk2,comp2 = $2 in 
-			      let i4,chk4,comp4 = $4 in 
-			      let i = m i2 i4 in 
-				expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
-				expect_sort i4 "in test dedlaration:" V.SString (chk4 se);
-				let s2 = V.get_s (comp2 ve) i2 in 
-				let s4 = V.get_s (comp4 ve) i4 in 
-				  if (RS.to_string s2) <> (RS.to_string s4) then test_fail i s4 s2;
-				  $5 (se,ve)) }
-			
-		    | TEST exp eq_arrow ERROR dedls                
-			{  (fun (se,ve) ->
-			      let i2,chk2,comp2 = $2 in 
-			      let i = m i2 $4 in 
-				expect_sort i2 "in test dedlaration:" V.SString (chk2 se);
-				(try test_fail i (RS.of_string "error") (V.get_s (comp2 ve) i2)
-				 with Error.Harmony_error _ -> ());
-				$5 (se,ve)) }
-			
-		    | TEST composeexp GET PUT exp eq_darrow exp dedls 
-			{ (fun (se,ve) -> 
-			     let i2,chk2,comp2 = $2 in 
-			     let i5,chk5,comp5 = $5 in 
-			     let i7,chk7,comp7 = $7 in 
-			     let i = m i2 i7 in 
-			       expect_sort i2 "in test dedlaration:" V.SDLens (chk2 se);
-			       expect_sort i5 "in test dedlaration:" V.SString (chk5 se);
-			       expect_sort i7 "in test dedlaration:" V.SString (chk7 se);
-			       let l2 = V.get_dl (comp2 ve) i2 in 
-			       let s5 = V.get_s  (comp5 ve) i5 in 
-			       let s7 = V.get_s (comp7 ve) i7 in 
-			       let g = L.DLens.get l2 s5 in 
-			       let c = L.DLens.rcreate_of_dl l2 s7 in  
-				 if (RS.to_string g) <> (RS.to_string s7) then test_fail i s7 g;
-				 if (RS.to_string c) <> (RS.to_string s5) then test_fail i s5 c;
-				 $8 (se,ve)) }
+  | TEST exp COLON sort_spec dedls
+      { (fun (se,ve) -> 
+	let i2,chk2,comp2 = $2 in
+	let v2 = comp2 ve in 
+	let s2 = chk2 se in 
+	(match $4 with
+	  | Misc.Left(None) -> 
+	      if V.is_lens_sort s2 then 
+		let c_found,a_found = V.get_lens_sorts v2 in 
+		  Util.format "@[<2>Test Result (at %s): %s with type @[%s <-> %s@]@]@\n"                        
+		    (Info.string_of_t i2)        
+		    (V.string_of_sort s2)
+		    (L.string_of_r c_found)
+		    (L.string_of_r a_found)
+	      else
+		Util.format "@[<2>Test Result (at %s): @[%s@]@]@\n" 
+		  (Info.string_of_t i2) 
+		  (V.string_of_sort s2)
+	  | Misc.Left(Some s) -> 
+	      expect_sort i2 "in test type dedlaration:" s s2
+	  | Misc.Right((_,c_compo),(_,a_compo)) -> 
+	      if not (V.is_lens_sort s2) then 
+		sort_error i2 "in test type dedlaration:"
+		  "lens sort" (V.string_of_sort s2)
+	      else
+		let c_found,a_found = V.get_lens_sorts v2 in 
+		let c_str,a_str = check_precise_lens_type i2 c_found a_found c_compo a_compo ve in 
+		if c_compo = None || a_compo = None then 
+		  Util.format "@[<2>Test Result (at %s): %s with type @[%s <-> %s@]@]@\n"                        
+		    (Info.string_of_t i2)        
+		    (V.string_of_sort s2)
+		    (if c_compo = None then L.string_of_r c_found else c_str)
+		    (if a_compo = None then L.string_of_r a_found else a_str));          
+	  $5 (se,ve)) }
 
-		    | TEST exp COLON sort_spec dedls
-			{ (fun (se,ve) -> 
-			     let i2,chk2,comp2 = $2 in
-			     let v2 = comp2 ve in 
-			     let s2 = chk2 se in 
-			       (match $4 with
-				  | Misc.Left(None) -> 
-				      if V.is_lens_sort s2 then 
-					let c_found,a_found = V.get_lens_sorts v2 in 
-					  Util.format "@[<2>Test Result (at %s): %s with type @[%s <-> %s@]@]@\n"                        
-					    (Info.string_of_t i2)        
-					    (V.string_of_sort s2)
-					    (L.string_of_r c_found)
-					    (L.string_of_r a_found)
-				      else
-					Util.format "@[<2>Test Result (at %s): @[%s@]@]@\n" 
-					  (Info.string_of_t i2) 
-					  (V.string_of_sort s2)
-				  | Misc.Left(Some s) -> 
-				      expect_sort i2 "in test type dedlaration:" s s2
-				  | Misc.Right((_,c_compo),(_,a_compo)) -> 
-				      if not (V.is_lens_sort s2) then 
-					sort_error i2 "in test type dedlaration:"
-					  "lens sort" (V.string_of_sort s2)
-				      else
-					let c_found,a_found = V.get_lens_sorts v2 in 
-					let c_str,a_str = check_precise_lens_type i2 c_found a_found c_compo a_compo ve in 
-					  if c_compo = None || a_compo = None then 
-					    Util.format "@[<2>Test Result (at %s): %s with type @[%s <-> %s@]@]@\n"                        
-					      (Info.string_of_t i2)        
-					      (V.string_of_sort s2)
-					      (if c_compo = None then L.string_of_r c_found else c_str)
-					      (if a_compo = None then L.string_of_r a_found else a_str));          
-			       $5 (se,ve)) }
-
-		      /* --- empty decaration --- */      
-		    |                                             
-			{ (fun (se,ve) -> (se,ve)) }
-
-
-		      /* --------- EXPRESSIONS ---------- */      
-		      /* top-level expressions expressions */
-			  exp:
-		    | LET IDENT param_list opt_sort EQUAL exp IN exp 
-			{ let i2,x2 = $2 in 
-			  let i6,chk6,comp6 = $6 in 
-			  let i8,chk8,comp8 = $8 in 
-			  let i = m $1 i8 in 
-			    (i,
-			     (fun se -> chk8 (Renv.update se x2 ((mk_fun_chker i $3 $4 chk6) se))),
-			     (fun ve -> comp8 (Renv.update ve x2 (((mk_fun_comper i x2 $3 $4 comp6) ve), true)))) }
-
-		    | FUN param param_list ARROW exp      
-			{ let i5,chk5,comp5 = $5 in 
-			  let ps = $2::$3 in 
-			  let i = m $1 i5 in 
-			    (i,
-			     (fun se -> (mk_fun_chker i ps None chk5) se),
-			     (fun ve -> ((mk_fun_comper i "anonymous function" ps None comp5) ve))) }
-			
-		    | gpexp                               
-			{ $1 }
-
-		      /* "get put" expressions */
-			gpexp: 
-		    | composeexp get aexp               
-			{ let i1,chk1,comp1 = $1 in 
-			  let i3,chk3,comp3 = $3 in                                           
-			  let i = m i1 i3 in 
-			    (i, 
-			     (fun se -> 
-				expect_sort i1 "in get expression:" V.SDLens (chk1 se);
-				expect_sort i3 "in get expression:" V.SString (chk3 se);
-				V.SString),
-			     (fun ve -> 
-				let l1 = V.get_dl (comp1 ve) i1 in 
-				let s3 = V.get_s (comp3 ve) i3 in                                                  
-				  V.S (i,L.DLens.get l1 s3))) }
-
-		    | composeexp put aexp INTO aexp        
-			{ let i1,chk1,comp1 = $1 in 
-			  let i3,chk3,comp3 = $3 in 
-			  let i5,chk5,comp5 = $5 in 
-			  let i = m i1 i5 in 
-			    (i, 
-			     (fun se -> 
-				expect_sort i1 "in put expression:" V.SDLens (chk1 se);
-				expect_sort i3 "in put expression:" V.SString (chk3 se);
-				expect_sort i5 "in put expression:" V.SString (chk5 se);
-				V.SString),
-			     (fun ve ->                                                
-				let l1 = V.get_dl (comp1 ve) i1 in 
-				let s3 = V.get_s (comp3 ve) i3 in
-				let s5 = V.get_s (comp5 ve) i5 in
-				  V.S (i,L.DLens.rput_of_dl l1 s3 s5))) }
-			
-		    | composeexp create aexp               
-			{ let i1,chk1,comp1 = $1 in 
-			  let i3,chk3,comp3 = $3 in 
-			  let i = m i1 i3 in 
-			    (i, 
-			     (fun se -> 
-				expect_sort i1 "in create expression:" V.SDLens (chk1 se);
-				expect_sort i3 "in create expression:" V.SString (chk3 se);
-				V.SString),
-			     (fun ve -> 
-				let l1 = V.get_dl (comp1 ve) i1 in 
-				let s2 = V.get_s (comp3 ve) i3 in                                                  
-				  V.S (i,L.DLens.rcreate_of_dl l1 s2))) }
-		    | composeexp                         
-			{ $1 }
-
-		      /* "compose" expressions */
-			composeexp:
-		    | composeexp SEMI bexp                
-			{ do_binary_op "in compose expression" $1 $3 compose_merge }
-			
-		    | bexp
-			{ $1 }
-
-		      /* "bar" expressions */
-			bexp:
-		    | bexp2 BAR iexp 
-			{ do_binary_op "in union expression" $1 $3 union_merge }
-
-		    | mexp
-			{ $1 }
-
-			bexp2:
-		    | bexp2 BAR iexp
-			{ do_binary_op "in union expression" $1 $3 union_merge }
-
-		    | iexp
-			{ $1 }
-
-		      /* "minus" expressions */
-			mexp:
-		    | mexp MINUS iexp
-			{ do_binary_op "in minus expression" $1 $3 minus_merge }
-
-		    | iexp 
-			{ $1 }
-
-		      /* "inter" expressions */
-			iexp:
-		    | iexp AMPERSAND sexp
-			{ do_binary_op "in intersection expression" $1 $3 inter_merge }
-
-		    | sexp 
-			{ $1 }
+/* --- empty decaration --- */      
+  |                                             
+      { (fun (se,ve) -> (se,ve)) }
 
 
-		      /* "swap" expressions */
-			sexp:
-		    | sexp TILDE cexp                     
-			{ do_binary_op "in swap expression" $1 $3 swap_merge }
+/* --------- EXPRESSIONS ---------- */      
+/* top-level expressions expressions */
+exp:
+  | LET IDENT param_list opt_sort EQUAL exp IN exp 
+      { let i2,x2 = $2 in 
+      let i6,chk6,comp6 = $6 in 
+      let i8,chk8,comp8 = $8 in 
+      let i = m $1 i8 in 
+      (i,
+       (fun se -> chk8 (Renv.update se x2 ((mk_fun_chker i $3 $4 chk6) se))),
+       (fun ve -> comp8 (Renv.update ve x2 (((mk_fun_comper i x2 $3 $4 comp6) ve), true)))
+      ) }
 
-		    | cexp
-			{ $1 }
+  | FUN param param_list ARROW exp      
+      { let i5,chk5,comp5 = $5 in 
+      let ps = $2::$3 in 
+      let i = m $1 i5 in 
+      (i,
+       (fun se -> (mk_fun_chker i ps None chk5) se),
+       (fun ve -> ((mk_fun_comper i "anonymous function" ps None comp5) ve))
+      ) }
+      
+  | gpexp                               
+      { $1 }
 
-		      /* "concat" expressions */
-			cexp:
-		    | cexp DOT appexp                     
-			{ do_binary_op "in concat expression" $1 $3 concat_merge }
+/* "get put" expressions */
+gpexp: 
+  | lqexp get aexp               
+      { let i1,chk1,comp1 = $1 in 
+      let i3,chk3,comp3 = $3 in                                           
+      let i = m i1 i3 in 
+      (i, 
+       (fun se -> 
+	 expect_sort i1 "in get expression:" V.SDLens (chk1 se);
+	 expect_sort i3 "in get expression:" V.SString (chk3 se);
+	 V.SString),
+       (fun ve -> 
+	 let l1 = V.get_dl (comp1 ve) i1 in 
+	 let s3 = V.get_s (comp3 ve) i3 in                                                  
+	 V.S (i,L.DLens.get l1 s3))
+      ) }
 
-		    | appexp                              
-			{ $1 }
+  | lqexp put aexp INTO aexp        
+      { let i1,chk1,comp1 = $1 in 
+      let i3,chk3,comp3 = $3 in 
+      let i5,chk5,comp5 = $5 in 
+      let i = m i1 i5 in 
+      (i, 
+       (fun se -> 
+	 expect_sort i1 "in put expression:" V.SDLens (chk1 se);
+	 expect_sort i3 "in put expression:" V.SString (chk3 se);
+	 expect_sort i5 "in put expression:" V.SString (chk5 se);
+	 V.SString),
+       (fun ve ->                                                
+	 let l1 = V.get_dl (comp1 ve) i1 in 
+	 let s3 = V.get_s (comp3 ve) i3 in
+	 let s5 = V.get_s (comp5 ve) i5 in
+	 V.S (i,L.DLens.rput_of_dl l1 s3 s5))
+      ) }
+      
+  | lqexp create aexp               
+      { let i1,chk1,comp1 = $1 in 
+      let i3,chk3,comp3 = $3 in 
+      let i = m i1 i3 in 
+      (i, 
+       (fun se -> 
+	 expect_sort i1 "in create expression:" V.SDLens (chk1 se);
+	 expect_sort i3 "in create expression:" V.SString (chk3 se);
+	 V.SString),
+       (fun ve -> 
+	 let l1 = V.get_dl (comp1 ve) i1 in 
+	 let s2 = V.get_s (comp3 ve) i3 in                                                  
+	 V.S (i,L.DLens.rcreate_of_dl l1 s2))
+      ) }
+  | lqexp                         
+      { $1 }
 
-		      /* "application" expressions */
-			appexp:
-		    | appexp texp                         
-			{ let i1,chk1,comp1 = $1 in 
-			  let i2,chk2,comp2 = $2 in 
-			  let i = m i1 i2 in 
-			    (i, 
-			     (fun se -> 
-				match chk1 se with 
-				  | V.SFunction(s11,Some s12) -> 
-				      expect_sort i "in application expression:" s11 (chk2 se);
-				      s12
-				  | V.SFunction(s11,None) -> chk2 se
-				  | s1 -> 
-				      sort_error 
-					i1
-					"in application expression" 
-					"function" 
-					(V.string_of_sort s1)),
-			     (fun ve -> 
-				let f1 = V.get_f (comp1 ve) i1 in
-				  f1 i2 (comp2 ve))) }
+/* "left quotient" expression */
+lqexp:
+  | composeexp RANGLESLASH rqexp
+      { do_binary_op "in left quotient expression" $1 $3 left_quotient_merge}
+  | rqexp
+      {$1}
 
-		    | texp                                
-			{ $1 }
+/* "rigth quotient" expression */
+rqexp:
+  | composeexp SLASHLANGLE composeexp
+      { do_binary_op "in right quotient expression" $1 $3 right_quotient_merge}
+  | composeexp
+      {$1}
 
-		      /* "translate" expressions */
-			texp:
-		    | texp DARROW rexp
-			{ let i1,chk1,comp1 = $1 in 
-			  let i3,chk3,comp3 = $3 in 
-			  let i = m i1 i3 in 
-			    (i, 
-			     (fun se -> 
-				expect_sort i1 "in set expression:" V.SRegexp (chk1 se);
-				expect_sort i3 "in set expression:" V.SString (chk3 se);
-				V.SDLens),
-			     (fun ve -> 
-				let f1 = V.get_f (fst (V.lookup i ve "set")) i in 
-				let v1 = comp1 ve in 
-				let f2 = V.get_f (f1 i1 v1) i in 
-				let v3 = comp3 ve in 
-				  f2 i3 v3)) }
-		    | rexp                                
-			{ $1 }
 
-			
-		      /* "repetition" expressions */
-			rexp:
-		    | aexp rep                            
-			{ let i1,chk1,comp1 = $1 in 
-			  let i2,(min,maxo) = $2 in     
-			  let i = m i1 i2 in 
-			    (i,
-			     (fun se -> 
-				let s1 = chk1 se in 
-				  match s1 with
-				    | V.SString | V.SRegexp -> V.SRegexp
-				    | V.SCanonizer -> V.SCanonizer
-				    | V.SDLens -> V.SDLens 
-				    | s -> 
-					sort_error i "in kleene-star expression:"
-					  "string, regexp, or lens sort"
-					  (V.string_of_sort s)), 
-			     (fun ve -> 
-				(* desugar finite repetitions *)            
-            let mk_cat v1 v2 = binary_op_value i "in concat expresion" v1 v2 concat_merge in 
-            let mk_union v1 v2 = binary_op_value i "in union expresion" v1 v2 union_merge in 
-            let rec mk_cats l acc = function
-                0 -> acc
-              | 1 -> mk_cat l acc
-              | n -> mk_cats l (mk_cat l acc) (pred n) in 
-            let mk_star v1 = 
-              match V.sort_of_t v1 with
-                | V.SString | V.SRegexp -> 
-                    V.R(i,L.rx_star (V.get_r v1 i))
-                | V.SCanonizer -> 
-                    V.CN(i,L.Canonizer.star i (V.get_cn v1 i))
-                | V.SDLens -> 
-                    V.DL(i,L.DLens.star i (V.get_dl v1 i))
-                | s -> 
-                    sort_error i "in kleene-star expression:"
-                      "string, regexp, or lens sort"
-                      (V.string_of_sort s) in 
-            let epsilon = fst (V.lookup i ve "epsilon") in 
-            let v1 = comp1 ve in 
-              match min,maxo with 
-                  0,None -> mk_star v1 
-                | n,None -> mk_cats v1 (mk_star v1) n
-                | 0,Some 0 -> epsilon 
-                | 0,Some 1 -> mk_union epsilon v1
-                | m,Some n -> 
-                    if m > n then
-                      raise (Error.Harmony_error (fun () -> 
-                        Util.format "@[%s: error in repetition %d > %d"
-                          (Info.string_of_t i) 
-                          m n)) 
-                    else if m=n then 
-                      mk_cats v1 v1 (pred m)
-                    else
-                      let v0 = if m=0 then epsilon else mk_cats v1 v1 (pred m) in 
-                      let k = n - m + 1 in 
-                      let a = Array.make k v0 in 
-                        a.(0) <- v0;
-                        for i=1 to (pred k) do 
-                          if i=1 && m=0 then a.(i) <- v1 
-                          else a.(i) <- mk_cat v1 a.(pred i);
-                        done;
-                        Safelist.fold_left mk_union v0 (Safelist.tl (Array.to_list a)))) }
+/* "compose" expressions */
+composeexp:
+  | composeexp SEMI bexp                
+      { do_binary_op "in compose expression" $1 $3 compose_merge }
+      
+  | bexp
+      { $1 }
+      
+      
+/* "bar" expressions */
+bexp:
+  | bexp2 BAR iexp 
+      { do_binary_op "in union expression" $1 $3 union_merge }
+
+  | mexp
+      { $1 }
+
+bexp2:
+  | bexp2 BAR iexp
+      { do_binary_op "in union expression" $1 $3 union_merge }
+
+  | iexp
+      { $1 }
+
+/* "minus" expressions */
+mexp:
+  | mexp MINUS iexp
+      { do_binary_op "in minus expression" $1 $3 minus_merge }
+
+  | iexp 
+      { $1 }
+
+/* "inter" expressions */
+iexp:
+  | iexp AMPERSAND sexp
+      { do_binary_op "in intersection expression" $1 $3 inter_merge }
+
+  | sexp 
+      { $1 }
+
+
+/* "swap" expressions */
+sexp:
+  | sexp TILDE cexp                     
+      { do_binary_op "in swap expression" $1 $3 swap_merge }
+
+  | cexp
+      { $1 }
+
+/* "concat" expressions */
+cexp:
+  | cexp DOT appexp                     
+      { do_binary_op "in concat expression" $1 $3 concat_merge }
+
+  | appexp                              
+      { $1 }
+
+/* "application" expressions */
+appexp:
+  | appexp texp                         
+      { let i1,chk1,comp1 = $1 in 
+      let i2,chk2,comp2 = $2 in 
+      let i = m i1 i2 in 
+      (i, 
+       (fun se -> 
+	 match chk1 se with 
+	   | V.SFunction(s11,Some s12) -> 
+	       expect_sort i "in application expression:" s11 (chk2 se);
+	       s12
+	   | V.SFunction(s11,None) -> chk2 se
+	   | s1 -> 
+	       sort_error 
+		 i1
+		 "in application expression" 
+		 "function" 
+		 (V.string_of_sort s1)),
+       (fun ve -> 
+	 let f1 = V.get_f (comp1 ve) i1 in
+	   f1 i2 (comp2 ve))
+      ) }
+
+  | texp                                
+      { $1 }
+
+/* "translate" expressions */
+texp:
+  | texp DARROW rexp
+      { let i1,chk1,comp1 = $1 in 
+      let i3,chk3,comp3 = $3 in 
+      let i = m i1 i3 in 
+      (i, 
+       (fun se -> 
+	 expect_sort i1 "in set expression:" V.SRegexp (chk1 se);
+	 expect_sort i3 "in set expression:" V.SString (chk3 se);
+	 V.SDLens),
+       (fun ve -> 
+	 let f1 = V.get_f (fst (V.lookup i ve "set")) i in 
+	 let v1 = comp1 ve in 
+	 let f2 = V.get_f (f1 i1 v1) i in 
+	 let v3 = comp3 ve in 
+	 f2 i3 v3)
+      ) }
+  | rexp                                
+      { $1 }
+
+      
+/* "repetition" expressions */
+rexp:
+  | aexp rep                            
+      { let i1,chk1,comp1 = $1 in 
+      let i2,(min,maxo) = $2 in     
+      let i = m i1 i2 in 
+      (i,
+       (fun se -> 
+	 let s1 = chk1 se in 
+	   match s1 with
+	     | V.SString | V.SRegexp -> V.SRegexp
+	     | V.SCanonizer -> V.SCanonizer
+	     | V.SDLens -> V.SDLens 
+	     | s -> 
+		 sort_error i "in kleene-star expression:"
+		   "string, regexp, or lens sort"
+		   (V.string_of_sort s)), 
+       (fun ve -> 
+	 (* desugar finite repetitions *)            
+         let mk_cat v1 v2 = binary_op_value i "in concat expresion" v1 v2 concat_merge in 
+         let mk_union v1 v2 = binary_op_value i "in union expresion" v1 v2 union_merge in 
+         let rec mk_cats l acc = function
+             0 -> acc
+           | 1 -> mk_cat l acc
+           | n -> mk_cats l (mk_cat l acc) (pred n) in 
+         let mk_star v1 = 
+           match V.sort_of_t v1 with
+             | V.SString | V.SRegexp -> 
+                 V.R(i,L.rx_star (V.get_r v1 i))
+             | V.SCanonizer -> 
+                 V.CN(i,L.Canonizer.star i (V.get_cn v1 i))
+             | V.SDLens -> 
+                 V.DL(i,L.DLens.star i (V.get_dl v1 i))
+             | s -> 
+                 sort_error i "in kleene-star expression:"
+                   "string, regexp, or lens sort"
+                   (V.string_of_sort s) in 
+         let epsilon = fst (V.lookup i ve "epsilon") in 
+         let v1 = comp1 ve in 
+           match min,maxo with 
+               0,None -> mk_star v1 
+             | n,None -> mk_cats v1 (mk_star v1) n
+             | 0,Some 0 -> epsilon 
+             | 0,Some 1 -> mk_union epsilon v1
+             | m,Some n -> 
+                 if m > n then
+                   raise (Error.Harmony_error (fun () -> 
+                     Util.format "@[%s: error in repetition %d > %d"
+                       (Info.string_of_t i) 
+                       m n)) 
+                 else if m=n then 
+                   mk_cats v1 v1 (pred m)
+                 else
+                   let v0 = if m=0 then epsilon else mk_cats v1 v1 (pred m) in 
+                   let k = n - m + 1 in 
+                   let a = Array.make k v0 in 
+                   a.(0) <- v0;
+                   for i=1 to (pred k) do 
+                     if i=1 && m=0 then a.(i) <- v1 
+                     else a.(i) <- mk_cat v1 a.(pred i);
+                   done;
+                   Safelist.fold_left mk_union v0 (Safelist.tl (Array.to_list a)))) }
   | aexp                                
       { $1 }
             
@@ -790,14 +824,15 @@ aexp:
   | LANGLE IDENT RANGLE
       { let i2,x2 = $2 in 
         let i = m $1 $3 in 
-          (i,
-          (fun se -> 
-            (*Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);*)
-            expect_sort i2 "in match expression:" V.SDLens (V.lookup i2 se x2);            
-            V.SDLens),
-          (fun ve ->             
-            let v2 = fst (V.lookup i2 ve x2) in 
-              V.DL(i,L.DLens.smatch i (RS.empty) (V.get_dl v2 i2)))) }
+        (i,
+         (fun se -> 
+           (*Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);*)
+           expect_sort i2 "in match expression:" V.SDLens (V.lookup i2 se x2);            
+           V.SDLens),
+         (fun ve ->             
+           let v2 = fst (V.lookup i2 ve x2) in 
+           V.DL(i,L.DLens.smatch i (RS.empty) (V.get_dl v2 i2)))
+	) }
 
   | LANGLE IDENT COLON IDENT RANGLE
       { (* the first IDENT is the tag to be used for the match
@@ -805,45 +840,50 @@ aexp:
 	let i2,x2 = $2 in 
 	let i4,x4 = $4 in
         let i = m $1 $5 in 
-          (i,
-          (fun se -> 
-            (*Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);*)
-            expect_sort i4 "in match expression:" V.SDLens (V.lookup i4 se x4);            
-            V.SDLens),
-          (fun ve ->             
-            let v4 = fst (V.lookup i4 ve x4) in 
-              V.DL(i,L.DLens.smatch i (RS.of_string x2) (V.get_dl v4 i4)))) }
+        (i,
+         (fun se -> 
+           (*Util.format "FOUND MATCH %s@\n" (Info.string_of_t i);*)
+           expect_sort i4 "in match expression:" V.SDLens (V.lookup i4 se x4);            
+           V.SDLens),
+         (fun ve ->             
+           let v4 = fst (V.lookup i4 ve x4) in 
+           V.DL(i,L.DLens.smatch i (RS.of_string x2) (V.get_dl v4 i4)))
+	) }
 
 
   | IDENT                               
       { let i,x = $1 in 
-          (i,
-          (fun se -> V.lookup i se x),
-          (fun ve -> 
-            let v1,is_decl = V.lookup i ve x in 
-              (match is_decl,V.sort_of_t v1 with
-                | true,V.SRegexp ->                     
-                    let r = V.get_r v1 i in 
-                      V.R(i,L.rx_set_str r x)
-                | _ -> v1))) }
+        (i,
+         (fun se -> V.lookup i se x),
+         (fun ve -> 
+           let v1,is_decl = V.lookup i ve x in 
+             (match is_decl,V.sort_of_t v1 with
+               | true,V.SRegexp ->                     
+                   let r = V.get_r v1 i in 
+                     V.R(i,L.rx_set_str r x)
+               | _ -> v1))
+	) }
 
   | CSET                                
       { let i1,s1 = $1 in 
-          (i1,
-          (fun se -> V.SRegexp),
-          (fun ve -> V.R(i1,L.rx_set (parse_cset s1)))) }
+        (i1,
+         (fun se -> V.SRegexp),
+         (fun ve -> V.R(i1,L.rx_set (parse_cset s1)))
+	) }
 
   | NSET                                
       { let i1,s1 = $1 in 
-          (i1,
-          (fun se -> V.SRegexp),
-          (fun ve -> V.R(i1,L.rx_negset (parse_cset s1)))) }
+        (i1,
+         (fun se -> V.SRegexp),
+         (fun ve -> V.R(i1,L.rx_negset (parse_cset s1)))
+	) }
 
   | STR 
       { let i,s = $1 in 
-          (i, 
-          (fun se ->  V.SString),
-          (fun ve -> V.S(i,RS.of_string s))) }
+        (i, 
+         (fun se ->  V.SString),
+         (fun ve -> V.S(i,RS.of_string s))
+	) }
       
   | LPAREN exp RPAREN                   
       { let (_,se,ve) = $2 in (m $1 $3, se,ve) }
@@ -857,26 +897,27 @@ aexp:
 stlens:
   | LANGLEBAR stlenslist
       { let i1 = $1 in
-	let i2,l = $2 in
-	let i = m i1 i2 in
-	  (i,
-	  (fun se -> 
-	     Safelist.iter
-	       (function
-		  | i,ST_star x 
-		  | i,ST_as_is x -> expect_sort i "in match expression:" V.SDLens (V.lookup i se x))
-	       l;
-	     V.SStLens),
-	  (fun ve -> 
-	     let rec aux = function
-	       | [] -> []
-	       | (i, ST_as_is x)::t -> 
-		   let v = fst (V.lookup i ve x) in
-		     (i, L.StLens.S_dl (V.get_dl v i)) :: (aux t)
-	       | (i, ST_star x)::t -> 
-		   let v = fst (V.lookup i ve x) in
-		     (i, L.StLens.S_sdl (V.get_dl v i)) :: (aux t) in
-	     V.StL(i, L.StLens.of_list (aux l) i)))}
+      let i2,l = $2 in
+      let i = m i1 i2 in
+      (i,
+       (fun se -> 
+	 Safelist.iter
+	   (function
+	     | i,ST_star x 
+	     | i,ST_as_is x -> expect_sort i "in match expression:" V.SDLens (V.lookup i se x))
+	   l;
+	 V.SStLens),
+       (fun ve -> 
+	 let rec aux = function
+	   | [] -> []
+	   | (i, ST_as_is x)::t -> 
+	       let v = fst (V.lookup i ve x) in
+	       (i, L.StLens.S_dl (V.get_dl v i)) :: (aux t)
+	   | (i, ST_star x)::t -> 
+	       let v = fst (V.lookup i ve x) in
+	       (i, L.StLens.S_sdl (V.get_dl v i)) :: (aux t) in
+	 V.StL(i, L.StLens.of_list (aux l) i))
+      )}
 
 
 stlenslist:
@@ -900,7 +941,7 @@ colstlenslist:
 endstlenslist:
   | BARRANGLE
       { let i1 = $1 in
-	  (i1, [])}
+	(i1, [])}
 
 
 /* --------- SORTS ---------- */
@@ -958,7 +999,7 @@ qmark_or_exp:
 
   | rexp
       { let i1,chk2,comp1 = $1 in 
-          (i1, Some (fun ve -> comp1 ve)) }
+        (i1, Some (fun ve -> comp1 ve)) }
 
 /* --------- PARAMETERS ---------- */
 param_list:

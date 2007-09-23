@@ -131,7 +131,12 @@ let prelude_spec =
      mk_rfun(Info.M "filter built-in") (fun i r1 ->
        mk_rfun i (fun i r2 ->
 		    DL(i,DL.filter i r1 r2))))
-  
+
+  ; ("lowercase",
+     SRegexp ^> SRegexp,
+     mk_rfun(Info.M "lowercase built-in") (fun i r1 ->
+       R(i, L.rx_lowercase r1)))
+
    ]
       
 let init_env = 
