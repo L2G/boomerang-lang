@@ -1,6 +1,5 @@
 
 
-
 (**** deleting space lenses *****)
 
 (* del spaces. Default = "" *)
@@ -11,24 +10,8 @@ let del_spaces_bis = del " "+ | ""
 
 (* delete the begining of lines. ("DE   ") *)
 let del_beg_line (tag:string) = 
-  del tag . (default (del " "*) "   ")
+  del tag . del "   "
 
-
-(* some lenses to deal with multi-line stuffs in a clasical way *)
-
-(* special new line *)
-let snl (flag:string) = ("\n".flag."   ")
-
-(* special space *)
-let ssp (flag:string) = 
-  " " | (snl flag) <-> " "
-
-(* special space deleting *)
-let s_del_spaces (flag:string) = 
-  del " "* | del (snl flag)
-
-let s_del_spaces_bis (flag:string) = 
-  del " "+ | "" | del (snl flag)
 
 
 (***** XML escaping *****)
@@ -39,49 +22,85 @@ let xml_esc (chars:regexp)=
   | "<" <-> "&lt;"
   | "&" <-> "&amp;"
 
-(* escaping of a "name", that does not contain any of the chars in "char" 
- * and neither starts or finishes with a new line *)
+(* escaping of a "name", that does not contain any of the chars in
+ * "char" and neither starts or finishes with spaces *)
 
 let escape_name (chars:regexp) = 
   let esc = xml_esc chars in
-  let esc_space = xml_esc (chars | " ") in
-    (esc_space . esc* . esc_space) (* a long string wich begin and end with a non space char *)
-  | esc_space (* or an (improbable) single char string *)
+  let esc_nospace = xml_esc (chars | " ") in
+    (esc_nospace . esc* . esc_nospace) (* a long string wich begin and end with a non space char *)
+  | esc_nospace (* or an (improbable) single char string *)
 
-(* a special escape name, to deal with multi-line stuffs *)
-let s_escape_name (char:regexp) (flag:string) = 
-  let esc_space = xml_esc (char | " ") in
-  let esc = esc_space | (ssp flag) in
-    (esc_space . esc* . esc_space) (* a long string wich begin and end with a non space char *)
-  | esc_space (* or an (improbable) single char string *)
 
-(* xml_space will become a q-lense that prints space, but accepte in the putback any number of spaces*)
-let xml_space (space:string) = qconst "" " "* space ""
+(* [xml_space space] is a q-lense that prints [space], but accepte in
+ * the putback any number of spaces. Usefull for the identation.*)
+let xml_spaces (space:string) = qconst "" " "* space ""
+let xml_space = xml_spaces " "
+let xml_fs = qconst "" (" " . " "*) " " "" (* force space *)
+let xml_os = xml_spaces "" (* stands for optional space *)
 
-(* a usefull lense to deal with data that become attributes in the XML file.
- * [space] is a string of spaces to be insert after the attribute. Usely "" or " "*)
+(* [xml_nl] is a q-lense that prints one new line character '\n' but
+   accepte any sequence of newline and/or spaces in the put
+   direction. This sequence necesseraly end by a '\n' to permit the
+   next lens to begin with a [xml_space] *)
+let xml_nl = qconst "" ((("\n" | " ")*."\n")?) "\n" ""
+
+let xml_lt = ins "<" . xml_os
+let xml_lts = ins "</" . xml_os
+let xml_gt = ins ">"
+let xml_sgt = ins "/>"
+
+
+(* [xml_attribute name content space] deal with data that become
+ * attributes in the XML file.  
+ *
+ * [name] is the name of the attribute
+ * [content] is the lens dealing with the content
+ * [space] is a string of spaces to be insert after the
+ * attribute. Usualy "" or " " (if the attribute is or not the last
+ * one) *)
+
 let xml_attribute (name:string) (content:dlens) (space:string) = 
-  ins (name."=\"") . content . ins ("\"" ). (xml_space space)
+  ins name . 
+  xml_os . ins "=" .xml_os .ins "\"" .  (* "=\"" *)
+  content . ins "\"" . (xml_spaces space)
 
-(* a usefull lense to deal with data that become pcdata in the XML file.
- * [spaces] is a string of spaces used for the indentation *)
+(* <name>content</name> \n *)
+
 let xml_tag (spaces:string) (name:string) (content:dlens) = 
-  xml_space spaces .ins ("<" . name . ">") . content . ins ("</" .name.">\n")
+  xml_spaces spaces . 
+  xml_lt . ins name . xml_os . xml_gt . (* <name> *)
+    content . 
+  xml_lts . ins name . xml_os . xml_gt . xml_nl (* </name> *)
+
+(* <name attribute>content</name> \n *)
 
 let xml_tag_with_att (spaces:string) (name:string) (attribute:string) (content:dlens) = 
-  xml_space spaces . ins ("<" . name ." ". attribute. ">") . content . ins ("</" .name.">\n")
+  xml_spaces spaces . 
+  xml_lt . ins name . xml_fs . ins attribute . xml_os . xml_gt . (* <name attribute> *)
+    content . 
+  xml_lts. ins name. xml_os . xml_gt . xml_nl (* </name>\n *)
+
+(* <name name_att="content_att"/>\n *)
 
 let xml_tag_with_single_att (spaces:string) (name:string) (name_att:string) (content_att:dlens) = 
-  xml_space spaces . ins ("<" . name . " " . name_att . "=\"") . content_att . ins "\"/>"
+  xml_spaces spaces . 
+  xml_lt . ins name . xml_fs . 
+  ins name_att . xml_os . ins "=" . xml_os . ins "\"" . 
+    content_att . 
+  ins "\"" . xml_os . xml_sgt . xml_nl
 
+(* <name>\n*)
 let xml_opening_tag (spaces:string) (name:string) = 
-  xml_space spaces . ins ("<" . name . ">\n")
+  xml_spaces spaces . xml_lt . ins name . xml_os . xml_gt. xml_nl 
 
+(* <name attribute> *)
 let xml_opening_tag_with_att (spaces:string) (name:string) (attribute:string)  = 
-  xml_space spaces . ins ("<" . name . " " . attribute . ">\n")
+  xml_spaces spaces . xml_lt . ins name . xml_fs . ins attribute . xml_os . xml_gt . xml_nl
 
+(* </name> *)
 let xml_closing_tag (spaces:string) (name:string) = 
-  xml_space spaces . ins ("</" . name . ">\n")
+  xml_spaces spaces . xml_lts . ins name. xml_os . xml_gt . xml_nl 
 
 
 
@@ -123,7 +142,7 @@ test date get "20-FEB-2007" = "2007-02-20"
 (*** ID line ***)
 
 (* we don't use xml_tag, because we have a k-lens *)
-let ID = del_beg_line "ID" .xml_space "  ". ins  "<name>" . key ([^ \n]+) . ( del "\n" | del (" ".[^\n]* . "\n")) . ins "</name>\n"
+let ID = del_beg_line "ID" .xml_spaces "  ". ins  "<name>" . key ([^ \n]+) . ( del "\n" | del (" ".[^\n]* . "\n")) . ins "</name>\n"
 
 
 test ID get 
@@ -308,111 +327,6 @@ DE   Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate N-acet
 
 
 
-(******* Special DE line ********)
-
-(* ds is the deleting spaces lens to be used*)
-let name_prot (spaces:string) (ds:dlens) = 
-  ins (spaces . "<name>") . (s_escape_name [\n;()[\]] "DE") . ds .
-  ins "</name>\n" 
-
-let del_DE_spaces = s_del_spaces "DE"
-let del_DE_spaces_bis = s_del_spaces_bis "DE"
-
-let complete_name_prot (spaces:string) (ds:dlens) = 
-  let paren_name (dsp:dlens) = 
-    del "(" . name_prot spaces del_DE_spaces . del ")" . dsp in
-  (name_prot spaces "") . 
-  ( (del_DE_spaces_bis . (paren_name del_DE_spaces_bis)* . (paren_name ds))
-  | ds)
-
-let special_name (tag:string) (spaces:string) (ds:dlens) = 
-  let name = complete_name_prot (spaces . "  ") ds in
-  ins (spaces . "<" . tag . ">\n") .
-  name . 
-  ins (spaces . "</" . tag . ">\n")
-
-let complete_special_name (tag:string) (flat_tag:string) = 
-  let name = special_name tag "  " "" in
-    del ("[" . flat_tag . ":") . del_DE_spaces_bis . 
-    (name . del_DE_spaces .del ";" . del_DE_spaces_bis)* .
-      name . del_DE_spaces . del "]"
-
-    
-let DE_special = 
-  let name = complete_name_prot "  " "" in
-  let name_includes  = complete_special_name "domain" "Includes" in
-  let name_contains = complete_special_name "component" "Contains" in
-    del_beg_line "DE" . name .
-    (del_DE_spaces_bis . name_includes)? .
-    (del_DE_spaces_bis . name_contains)? .
-    del_DE_spaces . del ".\n"
-    
-
-test DE_special get 
-<<<
-DE   Arginine biosynthesis bifunctional
-DE   protein argJ [Includes: Glutamate
-DE   N-acetyltransferase (EC 2.3.1.35) (Ornithine
-DE   acetyltransferase) (Ornithine transacetylase) (OATase); Amino-acid
-DE   acetyltransferase (EC 2.3.1.1) (N-acetylglutamate synthase)
-DE   (AGS)] [Contains: Arginine biosynthesis bifunctional protein argJ
-DE   alpha chain; Arginine biosynthesis bifunctional protein argJ beta chain].
-
->>> = 
-"  <name>Arginine biosynthesis bifunctional protein argJ</name>
-  <domain>
-    <name>Glutamate N-acetyltransferase</name>
-    <name>EC 2.3.1.35</name>
-    <name>Ornithine acetyltransferase</name>
-    <name>Ornithine transacetylase</name>
-    <name>OATase</name>
-  </domain>
-  <domain>
-    <name>Amino-acid acetyltransferase</name>
-    <name>EC 2.3.1.1</name>
-    <name>N-acetylglutamate synthase</name>
-    <name>AGS</name>
-  </domain>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
-  </component>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
-  </component>
-"
-
-
-(* check we deal well with spaces at creation *)
-test DE_special create 
-"  <name>Arginine biosynthesis bifunctional protein argJ</name>
-  <domain>
-    <name>Glutamate N-acetyltransferase</name>
-    <name>EC 2.3.1.35</name>
-    <name>Ornithine acetyltransferase</name>
-    <name>Ornithine transacetylase</name>
-    <name>OATase</name>
-  </domain>
-  <domain>
-    <name>Amino-acid acetyltransferase</name>
-    <name>EC 2.3.1.1</name>
-    <name>N-acetylglutamate synthase</name>
-    <name>AGS</name>
-  </domain>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
-  </component>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
-  </component>
-"
-=
-<<<
-DE   Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate N-acetyltransferase (EC 2.3.1.35) (Ornithine acetyltransferase) (Ornithine transacetylase) (OATase); Amino-acid acetyltransferase (EC 2.3.1.1) (N-acetylglutamate synthase) (AGS)] [Contains: Arginine biosynthesis bifunctional protein argJ alpha chain; Arginine biosynthesis bifunctional protein argJ beta chain].
-
->>>
-
-
-
 (****** GN line *******)
 
 
@@ -515,7 +429,7 @@ let Plas_line =
 
 let OG_other_lines = 
   del_beg_line "OG" . 
-  xml_space "  " . ins "<geneLocation type=\"" .
+  xml_spaces "  " . ins "<geneLocation type=\"" .
   ( "Hydrogenosome." <-> "hydrogenosome"
   | "Mitochondrion." <-> "mitochondrion"
   | "Nucleomorph." <-> "nucleomorph"
@@ -585,7 +499,7 @@ OC   Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Piroplasmida; Theileriidae
 (* still the problem of the key="i" where i is incremented *)
 let OX = 
   del_beg_line "OX" . del "NCBI_TaxID=" . 
-  xml_space "    " . ins "<dbReference type=\"NCBI Taxonomy\" key=\"1\" " .
+  xml_spaces "    " . ins "<dbReference type=\"NCBI Taxonomy\" key=\"1\" " .
   xml_attribute "id" ([0-9]* ) "" . ins "/>\n" . del ";\n"
 
 test OX get 
@@ -601,7 +515,7 @@ test OX get
 let one_OH_line = 
   del_beg_line "OH" . xml_opening_tag_with_att "  " "organism" "key=\"1\"" .
   ( (del "NCBI_TaxID=" .
-     xml_space "    " . ins "<dbReference type=\"NCBI Taxonomy\" key=\"1\" ".
+     xml_spaces "    " . ins "<dbReference type=\"NCBI Taxonomy\" key=\"1\" ".
      xml_attribute "id" ([0-9]* . del ";") "" . ins "/>\n". del_spaces_bis)
    ~( name_and_syn_org "    ")) . 
   xml_closing_tag "  " "organism"
@@ -678,7 +592,7 @@ test OS_OG_OC_OX_OH get
  * to centralise the external treatment of "key" in the abstract*)
 let RN = 
   del_beg_line "RN" . del "[".
-  xml_space "  " . ins "<reference " . 
+  xml_spaces "  " . ins "<reference " . 
   xml_attribute "key" (default ([0-9]* ) "1") "" . ins ">\n". del"]\n"
 
 let RP = 
@@ -766,7 +680,7 @@ test RC create
 let RX = 
   let name = escape_name [;] in
   let aux (tag:string) = 
-    del (tag . "=") . xml_space "      " . ins ("<dbReference type=\"" . tag . "\" key=\"\" ") .
+    del (tag . "=") . xml_spaces "      " . ins ("<dbReference type=\"" . tag . "\" key=\"\" ") .
     xml_attribute "id" name "". ins"/>\n" . del ";" in
   let medline = aux "MEDLINE" in
   let pubmed = aux "PubMed" in
@@ -788,7 +702,7 @@ test RX get
 
 let RG = 
   let one_cons = 
-    xml_space "        " . ins "<consortium " . xml_attribute "name" (escape_name [;]) "". ins "/>\n" . del ";" in	
+    xml_spaces "        " . ins "<consortium " . xml_attribute "name" (escape_name [;]) "". ins "/>\n" . del ";" in	
   del_beg_line "RG" . 
     (one_cons . del_spaces_bis)* . one_cons . del "\n"
 
@@ -802,7 +716,7 @@ test RG get
 
 let RA = 
   let auth = 
-    xml_space "        " . ins "<person " . xml_attribute "name"(escape_name [,;]) "" . ins "/>\n" in
+    xml_spaces "        " . ins "<person " . xml_attribute "name"(escape_name [,;]) "" . ins "/>\n" in
   del_beg_line "RA" . (auth . del "," . del_spaces_bis)* . auth . del";\n"
 
 
@@ -902,7 +816,7 @@ RL   (er) Invest. Ophthalmol. Vis. Sci. 43:ARVO E-Abstract 791(2002).
 
 let electro = 
   del "(er)" . del_spaces_bis . 
-  xml_space "    " . ins "<citation type=\"online journal article\" name=\" ".
+  xml_spaces "    " . ins "<citation type=\"online journal article\" name=\" ".
   (([^ \n""].[^\n""]* ) - (("Worm Breeder's Gazette" | "Plant Gene Register"). [^\n""]* )).
   ins "\">\n" . del ".\n"
 
@@ -920,7 +834,7 @@ let book =
     xml_attribute "name" (escape_name "\"") "" . ins ">\n" . del "\n"in
   let rest = 
     del "," . del_spaces_bis . del "pp." .
-    xml_space "    "  . ins "<citation " . 
+    xml_spaces "    "  . ins "<citation " . 
     (xml_attribute "volume" number " " . del ":")? .
     xml_attribute "first" number " " .  del "-" .
     xml_attribute "last" number " " . del"," . del_spaces_bis . 
@@ -933,12 +847,12 @@ let book =
     
 let unpub = 
     del "Unpublished observations" . del_spaces_bis . 
-    xml_space "    " . ins "<citation type=\"unpublished observations\" date=\"" .
+    xml_spaces "    " . ins "<citation type=\"unpublished observations\" date=\"" .
     partial_date . ins ">\n" . del "\n"
 
 let thesis = 
   del "Thesis" . del_spaces_bis .
-  xml_space "    " . ins "<citation type=\"thesis\" " .
+  xml_spaces "    " . ins "<citation type=\"thesis\" " .
   xml_attribute "date" (del "(" . [0-9]{4} . del "),") " ". del_spaces_bis .
   xml_attribute "institute" (escape_name "\"") " " . del "," . del_spaces_bis .
   xml_attribute "country" (escape_name [,:""]) "" . del ".\n" . (* countries 
@@ -949,14 +863,14 @@ let thesis =
 
 let patent = 
   del "Patent number" . del_spaces_bis . 
-  xml_space "    " . ins "<citation type=\"patent\" " . 
+  xml_spaces "    " . ins "<citation type=\"patent\" " . 
   xml_attribute "number" (escape_name "\"") " " . del "," . del_spaces_bis . 
   xml_attribute "date" (del "(" . date . del ")") "" . del ".\n" . ins ">\n"
 
 
 let submited = 
   del "Submitted" . del_spaces_bis . 
-  xml_space "    " . ins "<citation type=\"submission\" " . 
+  xml_spaces "    " . ins "<citation type=\"submission\" " . 
   xml_attribute "date" (del "(" . partial_date . del ")") " " . del_spaces_bis . del "to " .
   xml_attribute "db" ("Swiss-Prot" 
                  | (del "the " . ( "EMBL/GenBank/DDBJ databases" 
@@ -977,9 +891,9 @@ let Rlines =
   (RN . 
     (
       (RP_RC_RX ~ ((RG_RA ~ RT?)  ~ RL)) 
-    | (xml_space "    " . ins "<citation type=\"online journal article\" name=\"Plant Gene Register\">\n" .
+    | (xml_spaces "    " . ins "<citation type=\"online journal article\" name=\"Plant Gene Register\">\n" .
        (RP_RC_RX ~ (RG_RA_RT . pgr)))
-    | (xml_space "    " . ins "<citation type=\"online journal article\" name=\"Worm Breeder's Gazette\">\n" .
+    | (xml_spaces "    " . ins "<citation type=\"online journal article\" name=\"Worm Breeder's Gazette\">\n" .
        (RP_RC_RX ~ (RG_RA_RT . mbg)))
     ).
     xml_closing_tag "  " "reference")*
