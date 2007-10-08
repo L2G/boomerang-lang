@@ -50,6 +50,9 @@ let xml_lts = ins "</" . xml_os
 let xml_gt = ins ">"
 let xml_sgt = ins "/>"
 
+let xml_begin_open_tag (spaces:string) (name:string) = 
+  xml_spaces spaces . 
+  xml_lt . ins name
 
 (* [xml_attribute name content space] deal with data that become
  * attributes in the XML file.  
@@ -141,9 +144,9 @@ test date get "20-FEB-2007" = "2007-02-20"
 
 (*** ID line ***)
 
-(* we don't use xml_tag, because we have a k-lens *)
-let ID = del_beg_line "ID" .xml_spaces "  ". ins  "<name>" . key ([^ \n]+) . ( del "\n" | del (" ".[^\n]* . "\n")) . ins "</name>\n"
-
+let ID = 
+  let content = key ([^ \n]+) . ( del "\n" | del (" ".[^\n]* . "\n")) in
+    del_beg_line "ID" . xml_tag "  " "name" content
 
 test ID get 
 <<<
@@ -202,20 +205,19 @@ AC   Q99605;
 
 (**** DT line ****)
 
-
-
 let DT = 
   del_beg_line "DT" .
-  ins "<entry ".
+  xml_begin_open_tag "" "entry" . xml_fs .
   xml_attribute "created" date " ".
   del ", integrated into UniProtKB/" . 
   xml_attribute "dataset" (escape_name ["".]) " " . del ".\n" .
-    (* deleting the line that has no equivalent in the xml file *)
+    (* deleting the line that has no equivalent in the xml file *) 
   del_beg_line "DT" . (default (del (ctype date)) "01-JAN-1000") . 
-  del ", sequence version " . (default (del [0-9]* ) "1") . del ".\n".
+  del ", sequence version " . (default (del [0-9]* ) "1") . del ".\n" .
   del_beg_line "DT" . 
   xml_attribute "modified" date " " .
-    del ", entry version " . xml_attribute "version" ([0-9]* ) "" . ins ">\n" . del ".\n"
+  del ", entry version " . xml_attribute "version" ([0-9]* ) "" . 
+  xml_gt. xml_nl . del ".\n"
   
 
 test DT get 
@@ -301,23 +303,19 @@ test DE create
 "  <name>Arginine biosynthesis bifunctional protein argJ</name>
   <domain>
     <name>Glutamate N-acetyltransferase</name>
-    <name>EC 2.3.1.35</name>
-    <name>Ornithine acetyltransferase</name>
-    <name>Ornithine transacetylase</name>
+       <name>EC 2.3.1.35</name>
+    <name>Ornithine acetyltransferase</name>   <name>Ornithine transacetylase</name>
     <name>OATase</name>
   </domain>
   <domain>
-    <name>Amino-acid acetyltransferase</name>
-    <name>EC 2.3.1.1</name>
+    <name>Amino-acid acetyltransferase</name>    <name>EC 2.3.1.1</name>
     <name>N-acetylglutamate synthase</name>
     <name>AGS</name>
   </domain>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
+  <component>    <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
   </component>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
-  </component>
+  <component>    <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
+  </component>  
 "
 =
 <<<
