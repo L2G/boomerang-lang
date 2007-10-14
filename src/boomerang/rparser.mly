@@ -390,7 +390,7 @@ let test_fail i expected_str found_str =
   let expected = RS.to_string expected_str in
   let found = RS.to_string found_str in
   let r = ref (-1) in 
-  (* compute index where the two strings differ *)
+    (* compute index where the two strings differ *)
   let rec loop ok = 
     try 
       if not ok then ()
@@ -398,25 +398,35 @@ let test_fail i expected_str found_str =
         (incr r;
          loop (expected.[!r] = found.[!r])) 
     with Invalid_argument _ -> () in 
-    loop true;    
+  loop true;    
     (* print error message *)
-    Util.format "@[%s: test failed@\n  expected: [@["
-      (Info.string_of_t i);
-    L.nlify expected;
-    Util.format "@]]@\n but found: [@[";
-    L.nlify found;
-    Util.format "@]]@\n";
-    let m = max 0 (!r - 5) in
-    let n = String.length expected in
-    let l = min n (min 10 (n - !r + 5)) in
-    Util.format "Differs at character %d, around \"%s\"@\n" 
-      !r (String.sub expected m l)
+  Util.format "@[%s: test failed@\n  expected: [@["
+    (Info.string_of_t i);
+  L.nlify expected;
+  Util.format "@]]@\n but found: [@[";
+  L.nlify found;
+  Util.format "@]]@\n";
+  let m = max 0 (!r - 5) in
+  let n = String.length expected in
+  let l = min n (min 10 (n - !r + 5)) in
+  Util.format "Differs at character %d, around \"%s\"@\n" 
+    !r (String.sub expected m l)
 
 (* type for differenciate ident of lenses to be taken "as is" or to be
    stared in the definitions of streaming lenses*)
 type st_ident = 
     ST_as_is of string
   | ST_star of string
+
+
+(* helper function for bar exp list *)
+let split_list l = 
+  let rec aux acc1 acc2 = function
+    | [] -> (acc1, acc2)
+    | [h] -> (h::acc1, acc2)
+    | h1::h2::t -> aux (h1::acc1)  (h2::acc2) t in
+    aux [] [] l
+
 
 
 %}
@@ -662,7 +672,7 @@ bexp:
   | bexp2 BAR iexp 
       { do_binary_op "in union expression" $1 $3 union_merge }
 
-  | mexp
+  | bexplist
       { $1 }
 
 bexp2:
@@ -671,6 +681,41 @@ bexp2:
 
   | iexp
       { $1 }
+
+/* "bar" list expressions */
+bexplist:
+  | LBRACE bexplistcontent
+      { let i, l = $2 in
+        let rec do_union = function
+	  | [] -> raise (Error.Harmony_error
+	     (fun () -> 
+	       Util.format "@[%s: a union list should not be empty@]@\n"
+		 (Info.string_of_t i)))
+	  | [t] -> t 
+	  | l' ->
+	      let l1, l2 = split_list l' in
+	      let x1 = do_union l1 in
+	      let x2 = do_union l2 in
+	    do_binary_op "in union expression" x1 x2 union_merge in
+	do_union l
+      }
+  | mexp
+      { $1 }
+bexplistcontent:
+  | endbexplist
+      {$1}
+  | iexp barbexplistcontent
+      { let i1, chk1, comp1 = $1 in
+        let i2, l = $2 in
+	(m i1 i2, (i1, chk1, comp1)::l)}
+barbexplistcontent:
+  | endbexplist
+      { $1 }
+  | BAR bexplistcontent
+      { $2 }
+endbexplist:
+  | RBRACE
+      { ($1, []) }
 
 /* "minus" expressions */
 mexp:
