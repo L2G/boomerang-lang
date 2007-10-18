@@ -2,14 +2,19 @@ OCAMLPACKS += num
 OCAML_LIBS += $(SRCDIR)/harmony 
 
 RESULT = boomerang
-RESULTS = $(RESULT)
+UNIBOOM = uniboom
+
+RESULTS = $(RESULT) $(UNIBOOM)
 
 BOOMERANG_SOURCES[] = wic.ml woc.ml rint.ml rstring.ml \
                       crm.ml erx.ml \
                       rlenses.ml rvalue.ml rparser.mly rlexer.mll \
                       main.ml
 
+UNIBOOM_SOURCES[] = uniboom.ml
+
 OCamlProgram($(RESULT), $(rootname $(BOOMERANG_SOURCES)))
+OCamlProgram($(UNIBOOM), $(rootname $(UNIBOOM_SOURCES)))
 
 .DEFAULT: $(RESULT)
 

@@ -166,7 +166,7 @@ let opref = Prefs.createString "o" "" "output file" ""
 let setpref = Prefs.createStringList "set" "command-line arguments" ""
 
 let usageMsg = 
-    "usage: boomerang -l NAME -o FILE -c FILE [-a FILE] [-set x=y ...] FILE.fcl ... \n"
+    "usage: boomerang -l NAME -c FILE [-a FILE] [-o FILE -set x=y ...] FILE.fcl ... \n"
  
 let bad_cmdline () = 
   Prefs.printUsage usageMsg; 
@@ -194,7 +194,9 @@ let _ =
     let i = Info.M "Top-level loop" in 
     let fs_of_file f = RS.of_string (Misc.read f) in 
     let o = Prefs.read opref in 
-    let write_result fs = Misc.write o (RS.to_string fs) in 
+    let write_result fs = 
+      if o <> "" then Misc.write o (RS.to_string fs) 
+      else Util.format "%s" (RS.to_string fs) in 
     let l = Prefs.read lpref in 
       if l <> "" then 
         begin          
@@ -223,8 +225,7 @@ let _ =
 			let woc = Woc.t_of_channel (if o = "" then stdout else open_out_bin o) in
 			  Rlenses.StLens.put wicc wica woc dict stl)
 	    | x ->
-		(if o = "" then bad_cmdline ();
-		 let dl = get_dl x i in     
+		(let dl = get_dl x i in     
 		   match Prefs.read cpref, Prefs.read apref with
 		     | "","" -> bad_cmdline ()
 		     | c,"" -> 
