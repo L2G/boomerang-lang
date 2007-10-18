@@ -74,7 +74,7 @@ let c_pref = Prefs.createStringList "concrete" "concrete" "abstract"
 let a_pref = Prefs.createStringList "abstract" "abstract" "abstract"
 
 let () = 
-  Prefs.profileName := Some "uniboom";
+  Prefs.profileName := Some "default";
   Prefs.parseCmdLine usage;
   Prefs.loadTheFile ()
 
