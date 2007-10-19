@@ -92,7 +92,7 @@ let main () =
   if cl_len <> al_len then 
     Error.simple_error "Error: number of concrete and abstract replicas differs"
   else if cl_len <> ll_len then 
-    Error.simple_error "Error: number of replicas and lenses differs"
+    Error.simple_error "Error: number of replicas and lenses differs";
       
   let rec loop ll cl al = match ll,cl,al with 
     | [],[],[] -> ()
