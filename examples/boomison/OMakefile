@@ -1,0 +1,8 @@
+RESULT = boomison
+
+RESULTS = $(RESULT)
+
+BOOMISON_SOURCES[] = main.ml
+
+OCamlProgram($(RESULT), $(rootname $(BOOMISON_SOURCES)))
+
