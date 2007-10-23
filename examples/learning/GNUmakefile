@@ -41,6 +41,8 @@ clean:
 veryclean: clean
 	rm -f *~ \#*
 
+test:
+
 .depend: GNUmakefile $(MLI_FILES) $(ML_FILES)
 	ocamldep $(MLI_FILES) $(ML_FILES) > $@
 

@@ -1,0 +1,11 @@
+RESULT = learn
+
+RESULTS = $(RESULT)
+
+LEARNING_SOURCES[] = lex.ml hist.ml oracle.ml struct.ml driver.ml
+
+OCAML_OTHER_LIBS = str
+
+OCamlProgram($(RESULT), $(rootname $(LEARNING_SOURCES)))
+
+.DEFAULT: $(RESULTS)
