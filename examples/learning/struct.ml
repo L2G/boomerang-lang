@@ -117,15 +117,17 @@ let cost s =
     (ct s) +. (cd s)
 
 let lowest_cost ss =
-  let hd::ss = ss in
-    List.fold_left
-      (fun (min_score, min_s) s ->
-	 let score = cost s in
-	   if score < min_score
-	   then (score, s)
-	   else (min_score, min_s))
-      (cost hd, hd)
-      ss
+  match ss with
+      hd::ss ->
+	List.fold_left
+	  (fun (min_score, min_s) s ->
+	     let score = cost s in
+	       if score < min_score
+	       then (score, s)
+	       else (min_score, min_s))
+	  (cost hd, hd)
+	  ss
+    | [] -> failwith "Can't compute lowest cost of empty list -- why is struct rewriting without any rules?"
 
 (**
    convert a prophecy into a structured type
@@ -231,21 +233,25 @@ let common_variant_suffix s =
 		    | _ -> raise Not_found)
 	       variants)
 	in
-	let suffix_chunks, hd::suffixes  = List.split suffixes in
-	  if List.for_all (equal hd) suffixes
-	  then
-	    (* we have to erase all of the chunks in each prefix
-	       struct, since there's no (convenient) way to remove the
-	       suffix *)
-	    let variants = 
-	      List.map 
-		(fun prefix -> 
-		   Structure (List.map (fun (_, fs) -> [], fs) prefix))
-		prefixes 
-	    in
-	      Structure [([], Union (List.map (fun v -> [], v) variants)); 
-			 (List.concat suffix_chunks, hd)]
-	  else s
+	  begin
+	    match List.split suffixes with
+		suffix_chunks, hd::suffixes ->
+		  if List.for_all (equal hd) suffixes
+		  then
+		    (* we have to erase all of the chunks in each prefix
+		       struct, since there's no (convenient) way to remove the
+		       suffix *)
+		    let variants = 
+		      List.map 
+			(fun prefix -> 
+			   Structure (List.map (fun (_, fs) -> [], fs) prefix))
+			prefixes 
+		    in
+		      Structure [([], Union (List.map (fun v -> [], v) variants)); 
+				 (List.concat suffix_chunks, hd)]
+		  else s
+	      | _, [] -> s
+	  end
     | _ -> s
 
 let combine_structs s =
@@ -282,7 +288,11 @@ let data_independent_rules : rewrite_rule list =
    combine_constants]
 
 let strings_for_chunk c =
-  List.map (function | Lex.RegexToken (s, _) -> s) c
+  List.map 
+    (function 
+       | Lex.RegexToken (s, _) -> s
+       | Lex.MetaToken _ -> failwith "No metatokens should exist at this stage") 
+    c
 
 let constant_strings s =
   match s with
@@ -327,8 +337,8 @@ let refine s =
       (refine_for data
 	 (refine_for structure s))
 
-let _ = 
-  let s = Structure [([], Constant "foo")] in
-  let s' = refine s in
-    print_endline ("TR: " ^ (to_string s) ^ " to " ^ (to_string s'));
-    print_endline ((string_of_float (cost s)) ^ ", " ^ (string_of_float (cost s')))
+(* let _ =  *)
+(*   let s = Structure [([], Constant "foo")] in *)
+(*   let s' = refine s in *)
+(*     print_endline ("TR: " ^ (to_string s) ^ " to " ^ (to_string s')); *)
+(*     print_endline ((string_of_float (cost s)) ^ ", " ^ (string_of_float (cost s'))) *)

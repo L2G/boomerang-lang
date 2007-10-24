@@ -1,31 +1,56 @@
-open Oracle
+let show_structure strings =
+  let chunk_string s = Lex.parse_chunk s Lex.delimiter_table Lex.regex_table in
+  let chunks = List.map chunk_string strings in
+  let s = Struct.discover chunks in
+  let s' = Struct.refine s in
+    print_endline ("Cost before refinement: " ^ (string_of_float (Struct.cost s)));
+    print_endline ("Cost after refinement:  " ^ (string_of_float (Struct.cost s')));
+    print_endline (Struct.to_string s');
+    print_newline ()
 
-let _ = 
-  let show_structure strings =
-    let parse_chunk c = Lex.parse_chunk c Lex.delimiter_table Lex.regex_table in
-    let chunks = List.map parse_chunk strings in
-    let s = Struct.discover chunks in
-    let s' = Struct.refine s in
-      print_endline ("Cost before refinement: " ^ (string_of_float (Struct.cost s)));
-      print_endline ("Cost after refinement:  " ^ (string_of_float (Struct.cost s')));
-      print_endline (Struct.to_string s');
-      print_newline ()
+let input_lines ic =
+  let rec iter ic cs =
+    try iter ic ((input_line ic)::cs)
+    with End_of_file -> List.rev cs
   in
-    show_structure ["123";"456";"789";"123451432"];
-    show_structure ["(123)";"(456)";"(789)";"(123451432)"];
-    show_structure ["(123abc)";"(456abc)";"(789abc)";"(123451432abc)"];
-    show_structure ["{abc}--"; "1234"; "5678"; "9101"; "{def}--"];
-    show_structure ["abc--";"123}}}"];
-    show_structure ["{abc}--"; "{def}--"; "{foo}--"; "{bar}--"];
-    show_structure ["{abc}--"; "{def}--"; "--{foo}"; "--{bar}"];
-    show_structure ["1,2,3|"; 
-		    "4,5,,baz,|"; 
-		    "bar,,,5|"; 
-		    "12,,bibble,,,15|"; 
-		    "15,0,3,4,1,foo|"; 
-		    "30,,5,,,5,,,25,,,-3|"; 
-		    ",,,quux|"];
-    show_structure ["1,2,3,4,5"; "10,3,49"; "12,55,0,0,60,10,3"; "1,1,2,3,5,8,13,21,34,55,89"];
-    show_structure [""; "1,2,3,4,5"; "10,3,49"; "12,55,0,0,60,10,3"; "1,1,2,3,5,8,13,21,34,55,89"];
-    show_structure ["|abc--"; "|def--"; "|ghi--"; "|123--"; "|456--"]
-      
+    iter ic []
+
+(* given a list of files, a chunk_fun produces a list of strings --
+   chunks for the lexer *)
+type chunk_fun = in_channel list -> Lex.chunk list
+
+let chunk_by_line ics =
+  let chunks = List.map input_lines ics
+  in
+    List.concat chunks
+
+let chunk_by_file ics =
+  List.map 
+    (fun ic -> 
+       String.concat "\n" (input_lines ic))
+    ics
+
+open Arg
+
+let chunk_fun : chunk_fun ref = ref chunk_by_line
+let input_files : string list ref = ref []
+
+let arg_spec = 
+  [("--by-line", Unit (fun () -> chunk_fun := chunk_by_line), 
+    "Chunk the given input file(s) by line (default)");
+   
+   ("--by-file", Unit (fun () -> chunk_fun := chunk_by_file), 
+    "Chunk the input by file -- more than one file must be specified!")]
+
+let arg_spec = align arg_spec
+let parse_argv_input_files filename = input_files := filename::!input_files
+
+let run () = 
+  Arg.parse arg_spec parse_argv_input_files "";
+  let ics = List.map open_in !input_files in
+  let strings = !chunk_fun ics in
+    show_structure strings
+
+let _ = run ()
+  
+
