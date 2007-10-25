@@ -1,0 +1,22 @@
+OCAMLPACKS += num
+OCAML_LIBS += $(SRCDIR)/harmony 
+
+RESULT = boomerang
+
+RESULTS = $(RESULT)
+
+BOOMERANG_SOURCES[] = wic.ml woc.ml rint.ml rstring.ml \
+                      crm.ml erx.ml \
+                      rlenses.ml \
+                      rsyntax.ml rparser.mly rlexer.mll rvalue.ml \
+	              rregistry.ml rcompiler.ml rdriver.ml \
+                      main.ml
+
+OCamlProgram($(RESULT), $(rootname $(BOOMERANG_SOURCES)))
+
+.DEFAULT: $(RESULT)
+
+CLEAN += rparser.ml rparser.mli rlexer.ml
+
+clean:
+	$(CLEAN) $(RESULT) 

@@ -10,7 +10,7 @@ OCamlProgram($(RESULT), $(rootname $(SOURCES)))
 OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 
 .DEFAULT: $(RESULTS)
-# .SUBDIRS: boomerang
+.SUBDIRS: boomerang boomerang-ng
 ##############################################################################
 # Ubase library
 
