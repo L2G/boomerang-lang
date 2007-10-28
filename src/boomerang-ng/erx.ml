@@ -8,7 +8,7 @@
 
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append
-module RS = Rstring
+module RS = Bstring
 let (^) = RS.append
 open Num
 
@@ -156,7 +156,7 @@ module NFA = struct
   *)
   module T = Crm.Make(struct 
     include QS 
-  end)(Rstring)
+  end)(Bstring)
 
   (* --- type to keep track of the (un)ambiguity of automata --- *)
 
@@ -323,7 +323,7 @@ module NFA = struct
     let trans = t.trans in 
     let n = Array.length trans in 
     let a = array_make n T.empty in 
-    let az_cr = (RS.of_char 'A', RS.of_char 'Z') in 
+    let az_cr = (RS.sym_of_char 'A', RS.sym_of_char 'Z') in 
       for i=0 to pred n do
         let ti = 
           T.fold (fun cr qs acc -> 
@@ -349,7 +349,7 @@ module NFA = struct
     let trans = t.trans in 
     let n = Array.length trans in 
     let a = array_make n T.empty in 
-    let az_cr = (RS.of_char 'a', RS.of_char 'z') in 
+    let az_cr = (RS.sym_of_char 'a', RS.sym_of_char 'z') in 
       for i=0 to pred n do
         let ti = 
           T.fold (fun cr qs acc -> 
@@ -1069,11 +1069,11 @@ module NFA = struct
    *)
   let representative t =     
     let n = num_states t in 
-    let a = array_make n (true,-1,RS.of_int 0) in 
+    let a = array_make n (true,-1,RS.sym_of_int 0) in 
     let queue = Queue.create () in 
     QS.iter (fun qi -> 
       Queue.push qi queue;
-      a.(qi) <- (false,-1,RS.of_int 0))
+      a.(qi) <- (false,-1,RS.sym_of_int 0))
       t.init;
     let qo = 
       QBFS.go_bare
@@ -1161,7 +1161,7 @@ module NFA = struct
 
   let str_of_list l = 
     let n = Safelist.length l in
-    let a = RS.make n (RS.of_int 0) in
+    let a = RS.make n (RS.sym_of_int 0) in
     let rec loop i = function
       | [] -> a
       | c::rest ->
@@ -1657,9 +1657,9 @@ let example_of_dms dms =
       Safelist.fold_left RS.append 
         RS.empty 
         [acc; 
-         RS.of_string "[";
+         RS.t_of_string "[";
          RS.sub s i0 (i1-i0);
-         RS.of_string "]"]))    
+         RS.t_of_string "]"]))    
     (0,RS.empty) dms.dms_cut1 in 
   let _,s2 = Safelist.fold_left 
     (fun (i0,acc) i1 -> 
@@ -1667,14 +1667,14 @@ let example_of_dms dms =
        Safelist.fold_left RS.append 
          RS.empty
          [acc; 
-          RS.of_string "[";
+          RS.t_of_string "[";
           RS.sub s i0 (i1-i0);
-          RS.of_string "]"]))    
+          RS.t_of_string "]"]))    
     (0,RS.empty) dms.dms_cut2 in 
-    RS.append (RS.of_string "[") 
-      (RS.append s (RS.append (RS.of_string "]\nSPLITS INTO\n") 
+    RS.append (RS.t_of_string "[") 
+      (RS.append s (RS.append (RS.t_of_string "]\nSPLITS INTO\n") 
                        (RS.append s1 
-                           (RS.append (RS.of_string "\nAND\n") s2))))
+                           (RS.append (RS.t_of_string "\nAND\n") s2))))
 
 let rec unambig_star t = 
   match N.unambig_star t with
@@ -1755,13 +1755,13 @@ let print_multi_split lst s =
   let rec loop i fst = function 
     | [] -> 
 	(if not fst then print_char '^';
-	 Printf.printf "\"%s\"" (RS.to_string (RS.sub s i (n - i))))
+	 Printf.printf "\"%s\"" (RS.string_of_t (RS.sub s i (n - i))))
     | j :: tl -> 
 	(if not fst then print_char '^';
 	 if j < n  then 
-	   (Printf.printf "\"%s\"" (RS.to_string(RS.sub s i (j - i)));
+	   (Printf.printf "\"%s\"" (RS.string_of_t(RS.sub s i (j - i)));
 	    loop j false tl)
-	 else Printf.printf "\"%s\"" (RS.to_string(RS.sub s i (n - i)))) in
+	 else Printf.printf "\"%s\"" (RS.string_of_t(RS.sub s i (n - i)))) in
     loop 0 true lst
 
 let print_split i s = print_multi_split [i] s
@@ -1778,7 +1778,7 @@ let easy_seq t1 t2 =
   N.easily_splitable t1 t2 
 
 let easy_star t1 = 
-  (not (match_str t1 Rstring.empty) && N.easily_splitable t1 t1)
+  (not (match_str t1 Bstring.empty) && N.easily_splitable t1 t1)
 
 
 module W = Wic
@@ -1823,7 +1823,7 @@ let easy_split t wic =
       | None -> lp'
       | Some c -> 
 	  Buffer.add_char b c;
-	  let sym = RS.of_char c in
+	  let sym = RS.sym_of_char c in
 	  fill_buffer (next t f sym) lp'
     end in
   let lp = fill_buffer (init t) (-1) in
@@ -1831,7 +1831,7 @@ let easy_split t wic =
   if lp = -1 then (* no match found *) 
     (None, W.append_buff b wic)
   else begin
-    let result = RS.of_string (Buffer.sub b 0 lp) in
+    let result = RS.t_of_string (Buffer.sub b 0 lp) in
     let rest = 
       if lp < (Buffer.length b) then 
 	Buffer.sub b lp ((Buffer.length b) - lp)

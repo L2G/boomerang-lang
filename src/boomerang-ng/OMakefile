@@ -5,18 +5,21 @@ RESULT = boomerang
 
 RESULTS = $(RESULT)
 
-BOOMERANG_SOURCES[] = wic.ml woc.ml rint.ml rstring.ml \
+BOOMERANG_SOURCES[] = wic.ml woc.ml rint.ml bstring.ml \
                       crm.ml erx.ml \
-                      rlenses.ml \
-                      rsyntax.ml rparser.mly rlexer.mll rvalue.ml \
-	              rregistry.ml rcompiler.ml rdriver.ml \
+                      bimports.ml berror.ml bregexp.ml blenses.ml \
+                      bsyntax.ml bparser.mly blexer.mll bvalue.ml \
+	              bregistry.ml bcompiler.ml bdriver.ml \
                       main.ml
 
 OCamlProgram($(RESULT), $(rootname $(BOOMERANG_SOURCES)))
 
+TAGS: :value: $(BOOMERANG_SOURCES)
+   -etags $(BOOMERANG_SOURCES)
+
 .DEFAULT: $(RESULT)
 
-CLEAN += rparser.ml rparser.mli rlexer.ml
+CLEAN += bparser.ml bparser.mli blexer.ml
 
 clean:
 	$(CLEAN) $(RESULT) 

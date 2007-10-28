@@ -35,9 +35,9 @@ struct
       if diff = 0 then 0
       else if diff < 0 then -1 
       else (*if diff > 0 then *) 1
-  let of_char = Char.code
-  let of_int = fun x -> x
-  let to_int = fun x -> x
+  let sym_of_char = Char.code
+  let sym_of_int = fun x -> x
+  let int_of_sym = fun x -> x
 
   let succ = succ
   let pred = pred
@@ -80,7 +80,7 @@ struct
 	       else loop (succ i) in
 	   loop 0)
 
-  let of_string s = 
+  let t_of_string s = 
     let n = String.length s in
     let a = Array.make n 0 in
       for i = 0 to (pred n) do
@@ -88,7 +88,7 @@ struct
       done;
       a
 
-  let to_string a = 
+  let string_of_t a = 
     let n = Array.length a in
     let rec loop_length i l = 
       if i = n then l else
@@ -164,9 +164,9 @@ let compare_sym i1 i2 =
     if diff = 0 then 0
     else if diff < 0 then -1 
     else (*if diff > 0 then *) 1
-let of_char = Char.code
-let of_int = fun x -> x
-let to_int = fun x -> x
+let sym_of_char = Char.code
+let sym_of_int = fun x -> x
+let int_of_sym = fun x -> x
   
 let succ = succ
 let pred = pred
@@ -221,10 +221,10 @@ let compare (t1:t) (t2:t) =
 	comp s1 (String.length s1) String.get Char.code a2 (Array.length a2) Array.get id
           
 
-let of_string s =
+let t_of_string s =
   ref (FString s)
 
-let to_string t = match !t with
+let string_of_t t = match !t with
   | FString s -> s
   | FArray a -> 
       (let n = Array.length a in

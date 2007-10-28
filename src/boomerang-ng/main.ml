@@ -1,14 +1,14 @@
 (* --- provenance lenses --- *)
 (* Nate Foster <jnfoster@cis.upenn.edu> *)
 
-open Rvalue 
-open Rsyntax
-module L = Rlenses.DLens
-module R = Rlenses
-module RS = Rstring
+open Bvalue 
+open Bsyntax
+module L = Blenses.DLens
+module R = Bregexp
+module RS = Bstring
 let (^) = Pervasives.(^)
 
-let _ = Rdriver.init ()
+let _ = Bdriver.init ()
 
 let exit x = 
   Memo.format_stats ();
@@ -24,13 +24,13 @@ let wrap_rep i msg r =
       Util.format "%s: %s: cannot calculate representative; %s is empty."
         (Info.string_of_t i)
         msg
-        (R.string_of_r r)))
+        (R.string_of_t r)))
 
 let prelude_spec =
   [ ("ins",
     SString ^> SLens,
     mk_sfun (Info.M "ins built-in") (fun i s1 -> 
-      L(i,L.const i (R.rx_epsilon) s1 RS.empty)))
+      L(i,L.const i (R.epsilon) s1 RS.empty)))
 
   ; ("cp",
     SRegexp ^> SLens,
@@ -65,11 +65,11 @@ let prelude_spec =
 
   ; ("epsilon",
     SRegexp,
-    R(Info.M "epsilon built-in",R.rx_epsilon))
+    R(Info.M "epsilon built-in",R.epsilon))
 
   ; ("empty",
     SRegexp,
-    R(Info.M "empty",R.rx_empty))
+    R(Info.M "empty",R.empty))
 
   ; ("key",
      SRegexp ^> SLens,
@@ -79,24 +79,24 @@ let prelude_spec =
   ; ("read",
      SString ^> SString,
      mk_sfun (Info.M "read built-in") (fun i s1 -> 
-       S(i,RS.of_string (Misc.read (RS.to_string s1)))))
+       S(i,RS.t_of_string (Misc.read (RS.string_of_t s1)))))
 
   ; ("tr",
     SString ^> SString ^> SLens,
     mk_sfun (Info.M "translate built-in") (fun i s1 -> 
       mk_sfun i (fun i s2 -> 
-        L(i,L.const i (R.rx_str false s1) s2 s1))))
+        L(i,L.const i (R.str false s1) s2 s1))))
 
   ; ("string_of_regexp",
      SRegexp ^> SString ,
      mk_rfun(Info.M "string_of_regexp built-in") (fun i r1 ->
-      S(i, RS.of_string (R.string_of_r r1))))
+      S(i, RS.t_of_string (R.string_of_t r1))))
 
   ; ("equal_rx",
      SRegexp ^> SRegexp ^> SString ,
      mk_rfun(Info.M "equal_rx built-in") (fun i r1 ->
        mk_rfun i (fun i r2 ->
-	 S(i, RS.of_string(string_of_bool (R.rx_equiv r1 r2))))))
+	 S(i, RS.t_of_string(string_of_bool (R.equiv r1 r2))))))
 
   ; ("set",
     SRegexp ^> SString ^> SLens,
@@ -133,13 +133,13 @@ let prelude_spec =
   ; ("lowercase",
      SRegexp ^> SRegexp,
      mk_rfun(Info.M "lowercase built-in") (fun i r1 ->
-       R(i, R.rx_lowercase r1)))
+       R(i, R.lowercase r1)))
    ]
       
 let () = 
   Safelist.iter 
     (fun (x,s,v) -> 
-      Rregistry.register_native 
+      Bregistry.register_native 
         (sprintf "Prelude.%s"  x) 
         s v)
     prelude_spec
@@ -170,20 +170,20 @@ let _ =
             Error.simple_error (sprintf "can't set %s" arg) in 
         let x = String.sub arg 0 eq in 
         let y = String.sub arg (succ eq) (String.length arg - eq -1) in 
-        Rregistry.register_native x SString (S(i,RS.of_string y)))
+        Bregistry.register_native x SString (S(i,RS.t_of_string y)))
       (Prefs.read setpref) in 
     let i = Info.M "Top-level loop" in 
-    let fs_of_file f = RS.of_string (Misc.read f) in 
+    let fs_of_file f = RS.t_of_string (Misc.read f) in 
     let o = Prefs.read opref in 
     let write_result fs = 
-      if o <> "" then Misc.write o (RS.to_string fs) 
-      else Util.format "%s" (RS.to_string fs) in 
+      if o <> "" then Misc.write o (RS.string_of_t fs) 
+      else Util.format "%s" (RS.string_of_t fs) in 
     let l_str = Prefs.read lpref in 
       if l_str <> "" then 
         begin          
-          let lens = match Rregistry.lookup_library (Rvalue.parse_qid l_str) with
+          let lens = match Bregistry.lookup_library (Bvalue.parse_qid l_str) with
             | None -> Error.simple_error (sprintf "can't find %s" l_str)
-            | Some rv -> Rvalue.get_l (Rregistry.value_of_rv rv) i in 
+            | Some rv -> Bvalue.get_l (Bregistry.value_of_rv rv) i in 
 	  match Prefs.read cpref, Prefs.read apref with
 	    | "","" -> bad_cmdline ()
 	    | c,"" -> 

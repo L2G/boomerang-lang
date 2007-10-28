@@ -1,5 +1,5 @@
 {
-open Rparser
+open Bparser
 
 module LE = Lexing
 
@@ -13,33 +13,33 @@ let sprintf = Printf.sprintf
 let info_stk = ref []
 
 let filename () = match !info_stk with 
-    [] -> Error.simple_error "Rlexer.filename : info stack is empty."
+    [] -> Error.simple_error "Blexer.filename : info stack is empty."
   | (fn,_,_)::_ -> fn
 
 let lineno () = match !info_stk with 
-    [] -> Error.simple_error "Rlexer.lineno : info stack is empty."
+    [] -> Error.simple_error "Blexer.lineno : info stack is empty."
   | (_,l,_)::_ -> l
 
 let linestart () = match !info_stk with 
-    [] -> Error.simple_error "Rlexer.linestart : info stack is empty."
+    [] -> Error.simple_error "Blexer.linestart : info stack is empty."
   | (_,_,c)::_ -> c
 
 let set_filename fn = match !info_stk with 
-    [] -> Error.simple_error "Rlexer.set_filename : info stack is empty."
+    [] -> Error.simple_error "Blexer.set_filename : info stack is empty."
   | (_,l,c)::t -> info_stk := (fn,l,c)::t
 
 let set_lineno l = match !info_stk with 
-    [] -> Error.simple_error "Rlexer.set_lineno : info stack is empty."
+    [] -> Error.simple_error "Blexer.set_lineno : info stack is empty."
   | (fn,_,c)::t -> info_stk := (fn,l,c)::t
 
 let set_linestart c = match !info_stk with 
-    [] -> Error.simple_error "Rlexer.set_linestart : info stack is empty."
+    [] -> Error.simple_error "Blexer.set_linestart : info stack is empty."
   | (fn,l,_)::t -> info_stk := (fn,l,c)::t
 
 let setup fn = info_stk := (fn,1,0)::!info_stk
 
 let finish () = match !info_stk with
-    [] -> Error.simple_error "Rlexer.finish : info stack is empty."
+    [] -> Error.simple_error "Blexer.finish : info stack is empty."
   | _::t -> info_stk := t
 
 let newline lexbuf : unit = 

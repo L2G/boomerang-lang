@@ -22,9 +22,9 @@ val leq : sym -> sym -> bool
 val l : sym -> sym -> bool
 val succ : sym -> sym
 val pred : sym -> sym
-val of_char : char -> sym
-val of_int : int -> sym
-val to_int : sym -> int
+val sym_of_char : char -> sym
+val sym_of_int : int -> sym
+val int_of_sym : sym -> int
 val repr : sym -> string (* raises Not_found *)
 val escaped_repr : sym -> string (* raises Not_found *)
 val size_of_repr : sym -> int (* raises Not_found *)
@@ -34,8 +34,8 @@ val new_special : string -> sym
 type t
 val empty : t
 val compare : t -> t -> int
-val of_string : string -> t
-val to_string : t -> string
+val t_of_string : string -> t
+val string_of_t : t -> string
 val make : int -> sym -> t
 val length : t -> int
   

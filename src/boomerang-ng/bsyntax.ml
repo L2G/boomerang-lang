@@ -13,7 +13,7 @@ let sprintf = Printf.sprintf
 (* parsing info *)
 type i = Info.t
 
-(* qualified identifiers *)
+(* identifiers and qualified identifiers *)
 type id = i * string
 type qid = id list * id
 
@@ -25,7 +25,7 @@ let qid_of_id id = [],id
 let qid_dot (qs1,x1) (qs2,x2) = (qs1@(x1::qs2),x2)
 let qid_compare (qs1,x1) (qs2,x2) = 
   let rec ids_compare xs1 xs2 = match xs1,xs2 with
-      [],[] -> 0
+    | [],[] -> 0
     | _,[]  -> 1
     | [],_  -> -1
     | (x1::t1),(x2::t2) -> 
@@ -57,10 +57,10 @@ let string_of_qid (qs,i) =
 
 (* sorts, parameters, expressions *)
 type sort = 
-    | SString    (* strings *)
-    | SRegexp    (* regular expressions *)
-    | SLens     (* D-lenses *)
-    | SFunction of sort * sort
+    | SString                  (* strings *)
+    | SRegexp                  (* regular expressions *)
+    | SLens                    (* lenses *)
+    | SFunction of sort * sort (* funtions *)
 
 and param = Param of i * id * sort
 
@@ -74,8 +74,8 @@ and exp =
     | ELet of i * binding * exp
 
     (* regular operations *)
-    | EString of i * Rstring.t
-    | ECSet of i * bool * (Rstring.sym * Rstring.sym) list 
+    | EString of i * Bstring.t
+    | ECSet of i * bool * (Bstring.sym * Bstring.sym) list 
     | EUnion of i * exp * exp
     | ECat of i * exp * exp 
     | EStar of i * exp
@@ -84,7 +84,7 @@ and exp =
     | EInter of i * exp * exp
 
    (* boomerang expressions *)
-    | EMatch of i * Rstring.t * qid
+    | EMatch of i * Bstring.t * qid
 
 (* declarations *)
 type test_result =

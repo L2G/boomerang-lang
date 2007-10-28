@@ -7,7 +7,8 @@
 (* $Id$ *)
 
 (* abbreviations from other modules *)
-module RS = Rstring
+module R = Bregexp
+module RS = Bstring
 (* input and output*)
 module I = Wic
 module O = Woc
@@ -20,10 +21,6 @@ let no_check = Prefs.createBool "no-check" false
   "don't type check lens arguments" 
   "don't type check lens arguments"
 
-let no_type_check = Prefs.createBool "no-type-check" false
-  "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
-  "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
-
 (* -------------------- utilities -------------------- *)
 let lst_replace = [("\n","\\n");("\t","\\t");("\"","\\\"");("\\", "\\\\")]
 let lst_regexp_replace = Safelist.map (fun (p,r) -> (Str.regexp p, r)) lst_replace
@@ -32,233 +29,7 @@ let whack s =
     (fun (p, r) s -> Str.global_replace p r s)
     lst_regexp_replace s
     
-(* format a string, converting newlines to @\n *)
-let nlify s = Misc.format_list "@\n" 
-  (Util.format "%s") 
-  (Misc.split_nonescape '\n' s)
 
-let nlify_str s = nlify (RS.to_string s)
-
-(* split a string according to a regexp *)
-
-let string_of_reps = function
-  | (0,None) -> "*" 
-  | (0,Some 1) -> "?"
-  | (1,None) -> "+"
-  | (i,None) -> sprintf "{%d,}" i
-  | (i,Some j) -> if i=j then sprintf "{%d}" i else sprintf "{%d,%d}" i j
-
-
-
-(* definitions of different ranks. 
- *)
-type type_exp = 
-  | Bexp (* bar *)
-  | Mexp (* minus *)
-  | Iexp (* inter *)
-  | Sexp (* swap *)
-  | Cexp (* concat *)
-  | Rexp (* rep *)
-  | Uexp (* unique. A string or an ident *)
-      
-(* need_par_left e1 e2 determines if you need to put parenthesis around exp of type e1 when you
- * create an expression of type e2 with e1 on the left
- *)
- 
-let need_par_left e1 e2 = match e1,e2 with
-  | Uexp, _ -> false
-  | _, Uexp -> assert false
-  | Rexp, _ -> false
-  | _, Rexp -> true
-  | Cexp, _ -> false
-  | _, Cexp -> true
-  | Sexp, _ -> false
-  | _, Sexp -> true
-  | Iexp, _ -> false
-  | _, Iexp -> true
-  | Bexp, Mexp
-  | Mexp, Bexp -> true
-  | Mexp, Mexp -> false
-  | Bexp, Bexp -> false
-
-(* need_par_right e1 e2 determines if you need to put parenthesis around exp of type e1 when you
- * create an expression of type e2 with e1 on the right
- *)
- 
-let need_par_right e1 e2 = match e1,e2 with
-  | Uexp, _ -> false
-  | _, Uexp -> assert false
-  | _, Rexp -> true
-  | Rexp, _ -> false
-  | _, Cexp -> true
-  | Cexp, _ -> false
-  | _, Sexp -> true
-  | Sexp, _ -> false
-  | _, Iexp -> true
-  | Iexp, _ -> false
-  | Bexp, Mexp
-  | Mexp, Bexp -> true
-  | Mexp, Mexp -> true
-  | Bexp, Bexp -> true
-
-
-(* -------------------- Erxs -------------------- *)
-(* Erx.ts, extended with strings for printing, representatives *)
-(* The "rank" field is for pretty printing purposes *)
-type r = { str : string; rx : Erx.t; rank : type_exp }
-
-let string_of_r r = r.str
-
-let rx_equiv r1 r2 = 
-  Erx.equiv r1.rx r2.rx
-
-let rep r = Erx.representative r.rx 
-
-let determinize r = {r with rx = Erx.determinize r.rx}
-
-let id = fun x -> x
-
-let check_rx_equiv r1 r2 =
-  if rx_equiv r1 r2 then (true,id)
-  else (false,
-        fun() ->
-          let printrep s1 s2 n1 n2 =
-            try
-              let v = Erx.representative (Erx.mk_diff s1.rx s2.rx) in
-              Util.format "value \"%s\"@\nis in the %s but not the %s@ "
-                (RS.to_string v) n1 n2
-            with Not_found -> () in
-          Util.format "%s <> %s@\n" r1.str r2.str;
-          printrep r1 r2 "first" "second";
-          printrep r2 r1 "second" "first"
-       )
-        
-let concat_repr r1 r2 concat_symb rc =
-  let s1' = if need_par_left r1.rank rc then sprintf "(%s)" r1.str else r1.str in
-  let s2' = if need_par_right r2.rank rc then sprintf "(%s)" r2.str else r2.str in
-  sprintf "%s %s %s" s1' concat_symb s2'
-    
-
-let rx_epsilon = 
-  { str = "epsilon"; 
-    rx = Erx.epsilon;
-    rank = Uexp}
-
-let rx_empty = 
-  { str = "empty";
-    rx = Erx.empty;
-    rank = Uexp}
-
-(* two functions for a quick test of equality.
- * to be used only for pretty printing *)
-let is_rx_epsilon r =
-  r.rx == Erx.epsilon
-
-let is_rx_empty r = 
-  r.rx == Erx.empty
-
-let rx_box e = 
-  let st = RS.repr e in
-    { str = st;
-      rx = Erx.mk_str false (RS.make 1 e);
-      rank = Uexp
-    }
-
-let str_of_cl cl = 
-  let buf = Buffer.create 17 in 
-  let to_str fs = Char.escaped (Char.chr (RS.to_int fs)) in
-    Safelist.iter 
-      (fun (c1,c2) -> 
-        if c1=c2 then 
-          Buffer.add_string buf (to_str c1)
-        else 
-          (Buffer.add_string buf (to_str c1);
-           Buffer.add_char buf '-';
-           Buffer.add_string buf (to_str c2)))
-      cl;
-    Buffer.contents buf
-
-let rx_set cl = 
-  { str = sprintf "[%s]" (str_of_cl cl);
-    rx = Erx.mk_cset true cl;
-    rank = Uexp
-  }
-
-let rx_negset cl = 
-  { str = sprintf "[^%s]" (str_of_cl cl);
-    rx = Erx.mk_cset false cl;
-    rank = Uexp
-  }
-  
-let rx_str ignore_case s = 
-  let s_string = String.escaped (RS.to_string s) in
-    { str = sprintf "%s\"%s\"%s" 
-        (if ignore_case then "ignore_case(" else "")
-        (whack s_string)
-        (if ignore_case then ")" else "");      
-      rx = Erx.mk_str ignore_case s;
-      rank = Uexp}
-
-let rx_seq r1 r2 = 
-  if is_rx_empty r1 || is_rx_empty r2 then rx_empty
-  else if is_rx_epsilon r1 then r2 
-  else if is_rx_epsilon r2 then r1
-  else let str = concat_repr r1 r2 "." Cexp in
-    { str = str; 
-      rx = Erx.mk_seq r1.rx r2.rx;
-      rank = Cexp}
-
-let rx_alt r1 r2 = 
-  if is_rx_empty r1 then r2
-  else if is_rx_empty r2 then r1
-  else 
-  let add_qmark s r = if need_par_left r Rexp then sprintf "(%s)?" s else sprintf "%s?" s in
-  let str = 
-    if is_rx_epsilon r1 then add_qmark r2.str r2.rank 
-    else if is_rx_epsilon r2 then add_qmark r1.str r1.rank
-    else concat_repr r1 r2 "|" Bexp in
-  { str = str; 
-    rx = Erx.mk_alt r1.rx r2.rx;
-    rank = Bexp
-  }
-
-let rx_set_str r1 s = 
-  { r1 with str = s; rank = Uexp; }
-      
-(* XXX: if max < min, then Erx will raise an Invalid_argument exception *)
-let rx_star r1 =
-  let s1 = if need_par_left r1.rank Rexp then sprintf "(%s)*" r1.str else string_concat r1.str "*" in
-  { str = s1;
-    rx = Erx.mk_star r1.rx;
-    rank = Rexp}
-
-let rx_diff r1 r2 =
-  if is_rx_empty r1 then rx_empty 
-  else if is_rx_empty r2 then r1
-  else let str = concat_repr r1 r2 "-" Mexp in
-  let r = Erx.mk_diff r1.rx r2.rx in 
-    { str = str;
-      rx = r; 
-      rank = Mexp}
-      
-let rx_inter r1 r2 =
-  if is_rx_empty r1 || is_rx_empty r2 then rx_empty
-  else let r = Erx.mk_inter r1.rx r2.rx in 
-  let str = concat_repr r1 r2 "&" Iexp in
-    { str = str;
-      rx = r; 
-      rank = Iexp} 
-      
-let rx_lowercase r1 = 
-  { str = sprintf "lowercase(%s)" r1.str;
-    rx = Erx.mk_lowercase r1.rx;
-    rank = Uexp }
-
-let rx_uppercase r1 = 
-  { str = sprintf "uppercase(%s)" r1.str;
-    rx = Erx.mk_uppercase r1.rx;
-    rank = Uexp }
-    
 let get_str n = sprintf "%s get" n
 let put_str n = sprintf "%s put" n
 let create_str n = sprintf "%s create" n
@@ -266,68 +37,23 @@ let parse_str n = sprintf "%s parse" n
 let cls_str n = sprintf "%s cls" n
 let rep_str n = sprintf "%s rep" n
 let key_str n = sprintf "%s key" n
-
-let split_bad_prefix t s = 
-  try 
-    let is, approx = Erx.find_exit_automaton t.rx s in
-    let i = Rint.Set.max_elt is in 
-    let s1 = RS.sub s 0 i in 
-    let s2 = RS.sub s i ((RS.length s) - i) in 
-      (s1,s2,approx)
-  with
-    | Not_found -> (RS.empty, s,false)
-
-(* type checking wrappers *)
-let type_error i t s1 (s3l,s3r,approx) =
-  raise (Error.Harmony_error (fun () -> 
-    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-    Util.format "  T=@[%s@]@\n@\n" t.str;    
-    Util.format "  @["; 
-    nlify s1;
-    Util.format "@]@\n@\n";
-    Util.format "  [@["; 
-    nlify_str s3l; 
-    if approx then
-      Util.format "@]]@\n<<AROUND HERE>>@\n  [@["
-    else
-      Util.format "@]]@\n<<HERE>>@\n  [@[";
-    nlify_str s3r; 
-    Util.format "@]]@]@\n"))
-
-let split_error i t pos nf =
-  raise (Error.Harmony_error (fun () -> 
-    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-    Util.format "  Cannot find any string in @\nT=@[%s@]@\n@\n" t.str;    
-    Util.format "  in the %s file at posistion %d@]" nf pos;))
-
-
-let static_error i n ?(suppl =  id) msg = 
-  raise (Error.Harmony_error(fun () -> 
-    Util.format "@[%s: static error in@\n" (Info.string_of_t i);
-    Util.format "  @["; 
-    nlify n;
-    Util.format "@]@\n@\n";
-    Util.format "  [@["; 
-    nlify msg; 
-    suppl ();
-    Util.format "@]]@\n"))
     
 let lift_r i n t1 f =  
   (fun x ->     
-    if not (Erx.match_str t1.rx x) then 
-      type_error i t1 n (split_bad_prefix t1 x)
+    if not (R.match_str t1 x) then 
+      Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
     else (f x))
     
 let lift_rr i n t1 t2 f = (fun x y ->     
-    if not (Erx.match_str t1.rx x) then 
-      type_error i t1 n (split_bad_prefix t1 x)
-    else if not (Erx.match_str t2.rx y) then 
-      type_error i t2 n (split_bad_prefix t2 y)
+    if not (R.match_str t1 x) then 
+      Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
+    else if not (R.match_str t2 y) then 
+      Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t2 y)
     else (f x y))
 
 let lift_rsd i n t1 st2 f = (fun x y z ->     
-    if not (Erx.match_str t1.rx x) then 
-      type_error i t1 n (split_bad_prefix t1 x)
+    if not (R.match_str t1 x) then 
+      Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
     else if not (st2 y) then 
       assert false
     else (f x y z))
@@ -335,30 +61,30 @@ let lift_rsd i n t1 st2 f = (fun x y z ->
 
 let lift_rd i n t1 f = 
   (fun x y ->     
-    if not (Erx.match_str t1.rx x) then 
-      type_error i t1 n (split_bad_prefix t1 x)
+    if not (R.match_str t1 x) then 
+      Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
     else (f x y))
 
 let lift_rrd i n t1 t2 t3 f = 
   (fun x y z ->     
-    if not (Erx.match_str t1.rx x) then 
-      type_error i t1 n (split_bad_prefix t1 x)
-    else if not (Erx.match_str t2.rx y) then 
-      type_error i t2 n (split_bad_prefix t2 y)
+    if not (R.match_str t1 x) then 
+      Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
+    else if not (R.match_str t2 y) then 
+      Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t2 y)
     else (f x y z))
 
 let lift_rx i n t1 f = 
   (fun x y ->     
-    if not (Erx.match_str t1.rx x) then 
-      type_error i t1 n (split_bad_prefix t1 x)
+    if not (R.match_str t1 x) then 
+      Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
     else (f x y))
 
 let lift_rrx i n t1 t2 f = 
   (fun x y z ->     
-    if not (Erx.match_str t1.rx x) then 
-      type_error i t1 n (split_bad_prefix t1 x)
-    else if not (Erx.match_str t2.rx y) then 
-      type_error i t2 n (split_bad_prefix t1 y)
+    if not (R.match_str t1 x) then 
+      Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
+    else if not (R.match_str t2 y) then 
+      Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t1 y)
     else (f x y z))
 
 (* string maps *)
@@ -377,8 +103,8 @@ type key_atom =
     Var of Info.t * RS.t
     | Const of Info.t * RS.t
 let string_of_key_atom = function
-    Var(_,x) -> RS.to_string x
-  | Const(_,s) -> sprintf "\"%s\"" (whack (RS.to_string s)) 
+  | Var(_,x) -> RS.string_of_t x
+  | Const(_,s) -> sprintf "\"%s\"" (whack (RS.string_of_t s)) 
 
 module KMap = SMap 
 
@@ -417,13 +143,13 @@ let comp_of_skel = function
 
 (* utilities for splitting *)
 let split t1 t2 s = 
-  match Erx.unambig_split t1.rx t2.rx s with
-      None -> assert false
+  match R.unambig_split t1 t2 s with
+    | None -> assert false
     | Some s1s2 -> s1s2 
 
 let split_one choose t1 t2 s = 
   let n = RS.length s in 
-  let i = choose (Erx.split_positions t1.rx t2.rx s) in 
+  let i = choose (R.split_positions t1 t2 s) in 
     (RS.sub s 0 i, RS.sub s i (n-i))
 
 (* utils *)
@@ -447,87 +173,17 @@ let do_split_thread split f1 f2 combine = (fun x y ->
 let star_loop t f x = 
   Safelist.fold_left
     (fun acc xi -> RS.append acc (f xi))
-    RS.empty (Erx.unambig_star_split t.rx x) 
+    RS.empty (R.unambig_star_split t x) 
 
 let branch t f1 f2 = 
   (fun x -> 
-    if Erx.match_str t.rx x then f1 x 
+    if R.match_str t x then f1 x 
     else f2 x) 
 
 let branch2 t f1 f2 = 
   (fun x y ->
-     if Erx.match_str t.rx x then f1 x y 
+     if R.match_str t x then f1 x y 
      else f2 x y)
-
-(* common stuff *)
-let rx_unambig_seq i n r1 r2 = 
-  if not (Prefs.read no_type_check) then( 
-    match Erx.unambig_seq r1.rx r2.rx with
-      |	Erx.NA_true rxseq -> 
-	  let str = concat_repr r1 r2 "." Cexp in
-	    { str = str; 
-	      rx = rxseq;
-	      rank = Cexp}
-      | Erx.NA_false dss ->
-          let (s1,s2),(s1',s2') = Erx.example_of_dss dss in 
-            static_error i n 
-              (sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" \"%s\" \nand\n\"%s\" \"%s\""
-                 r1.str r2.str 
-                 (RS.to_string s1) (RS.to_string s2) 
-                 (RS.to_string s1') (RS.to_string s2')))
-  else rx_seq r1 r2
-
-
-(* to be modified. Need to add counter example *)
-let rx_easy_seq i n r1 r2 = 
-  if (not (Prefs.read no_type_check) && not (Erx.easy_seq r1.rx r2.rx)) then
-    static_error i n 
-      (sprintf "the concatenation of %s and %s is not easy.\n"
-         r1.str r2.str);
-  rx_seq r1 r2
-    
-let rx_unambig_star i n r1 = 
-  if not (Prefs.read no_type_check) then( 
-    match Erx.unambig_star r1.rx with
-	Erx.NSA_true rxstar ->
-	  let s1 = if need_par_left r1.rank Rexp then sprintf "(%s)*" r1.str else string_concat r1.str "*" in
-	    { str = s1;
-	      rx = rxstar;
-	      rank = Rexp}
-      | Erx.NSA_empty_word -> 
-          static_error i n 
-            (sprintf "the iteration of %s is ambiguous: \"\""
-               r1.str)
-      | Erx.NSA_false -> 
-          static_error i n 
-            (sprintf "the iteration of %s is ambiguous"
-               r1.str)
-      | Erx.NSA_false_ce dms -> 
-          static_error i n 
-            (sprintf "the iteration of %s is ambiguous: \n\"%s\""
-               r1.str
-               (RS.to_string (Erx.example_of_dms dms))))
-  else rx_star r1
-
-let rx_easy_star i n r1 = 
-  if (not (Prefs.read no_type_check) && not (Erx.easy_star r1.rx)) then
-    static_error i n 
-      (sprintf "the iteration of %s is not easy."
-         r1.str);
-  rx_star r1
-
-
-
-let rx_disjoint_alt i n t1 t2 = 
-  if not (Prefs.read no_type_check) then( 
-  let t1ut2 = Erx.mk_inter t1.rx t2.rx in 
-    if not (Erx.is_empty t1ut2) then
-      static_error i n 
-        (sprintf "the intersection of %s and %s is non-empty: \"%s\""
-            t1.str t2.str
-            (RS.to_string (Erx.representative t1ut2)))
-    else rx_alt t1 t2)
-  else rx_alt t1 t2
 
 (*** hack for uid ***)
 type uid = int
@@ -544,8 +200,8 @@ module Canonizer = struct
         info: Info.t;
         string: string;
         (* --- types --- *)
-        rtype : r;
-        ctype : r;
+        rtype : R.t;
+        ctype : R.t;
         (* --- core functions --- *)
         cls : RS.t -> RS.t;                  (* class function *)
         rep : RS.t -> RS.t                   (* representative function *)
@@ -569,8 +225,8 @@ module Canonizer = struct
   (* add primitives ... *)
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
-    let rt = rx_unambig_seq i n cn1.rtype cn2.rtype in 
-    let ct = rx_seq cn1.ctype cn2.ctype in 
+    let rt = R.unambig_seq i n cn1.rtype cn2.rtype in 
+    let ct = R.seq cn1.ctype cn2.ctype in 
     { info = i;
       string = n;
       rtype = rt;
@@ -585,8 +241,8 @@ module Canonizer = struct
 
   let union i cn1 cn2 = 
     let n = sprintf "union (%s) (%s)" cn1.string cn2.string in 
-    let rt = rx_disjoint_alt i n cn1.rtype cn2.rtype in 
-    let ct = rx_alt cn1.ctype cn2.ctype in 
+    let rt = R.disjoint_alt i n cn1.rtype cn2.rtype in 
+    let ct = R.alt cn1.ctype cn2.ctype in 
     { info = i;
       string = n;
       rtype = rt;
@@ -597,8 +253,8 @@ module Canonizer = struct
 
   let star i cn1 = 
     let n = sprintf "(%s)*" cn1.string in 
-    let rt = rx_unambig_star i n cn1.rtype in 
-    let ct = rx_star cn1.ctype in 
+    let rt = R.unambig_star i n cn1.rtype in 
+    let ct = R.star cn1.ctype in 
     { info = i;
       string = n;
       rtype = rt;
@@ -662,8 +318,8 @@ and t =
       info: Info.t;                           (* parsing info *)
       string: string;                         (* pretty printer *)
       (* --- types --- *)
-      ctype: r;                               (* concrete type *)
-      atype: r;                               (* abstract type *)
+      ctype: R.t;                             (* concrete type *)
+      atype: R.t;                             (* abstract type *)
       dtype: dict_type;                       (* dictionary type *)
       stype: skeleton -> bool;                (* given a skeleton, returns if it is part
 						 of the skeleton type of the lens*)
@@ -696,7 +352,7 @@ let rec lookup tag k = function
        (match KMap.find k km with 
 	  | c::kl -> 
 	      (let wic' = Wic.seek_in wic c.pos_in_file in
-	      match Erx.easy_split c.lens.ctype.rx wic' with
+	      match R.easy_split c.lens.ctype wic' with
 		| None, _ -> assert false
 		| Some str, wic'' -> 
 		    (match c.lens.parse str with
@@ -741,7 +397,7 @@ let safe_fusion_dict_type i dt1 dt2 =
 	raise (Error.Harmony_error 
 		 (fun () -> 
 		    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-		    Util.format "The tag \"%s\" is used twice with different lenses@]@\n" (RS.to_string t);))
+		    Util.format "The tag \"%s\" is used twice with different lenses@]@\n" (RS.string_of_t t);))
 
 
 (* helper: combine maps with merge. 
@@ -824,8 +480,8 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 
   let determinize_dlens dl =
     {dl with 
-       ctype = determinize dl.ctype; 
-       atype = determinize dl.atype}
+       ctype = R.determinize dl.ctype; 
+       atype = R.determinize dl.atype}
 
   let forgetkey dl = 
     {dl with
@@ -844,28 +500,28 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 
   (* ---------- copy ---------- *)
   let copy i r = 
-    let n = sprintf "cp (%s)" (r.str) in 
+    let n = sprintf "cp (%s)" (R.string_of_t r) in 
     let ct = r in 
     let at = r in
     let dt = TMap.empty in
     let st = function
-      | S_string s -> Erx.match_str r.rx s
+      | S_string s -> R.match_str r s
       | _ -> false in
-      { info = i;
-        string = n;
-        ctype = ct;
-        atype = at;
-	dtype = dt;
-	stype = st;
-        crel = Identity;
-        arel = Identity;
-        get = lift_r i (get_str n) ct (fun c -> c);
-        put = lift_rsd i (put_str n) at st (fun a _ d -> (a,d));
-        parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty)); 
-	create = lift_rd i (create_str n) at (fun a d -> a,d);
-	key = lift_r i n at (fun _ -> RS.empty);
-	uid = next_uid ();
-      }
+    { info = i;
+      string = n;
+      ctype = ct;
+      atype = at;
+      dtype = dt;
+      stype = st;
+      crel = Identity;
+      arel = Identity;
+      get = lift_r i (get_str n) ct (fun c -> c);
+      put = lift_rsd i (put_str n) at st (fun a _ d -> (a,d));
+      parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty)); 
+      create = lift_rd i (create_str n) at (fun a d -> a,d);
+      key = lift_r i n at (fun _ -> RS.empty);
+      uid = next_uid ();
+    }
 
   let key i r = 
     let c = copy i r in
@@ -874,19 +530,19 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 
   (* ---------- const ---------- *)
   let const i r u_str def_str =
-    let u = RS.to_string u_str in
-    let def = RS.to_string def_str in
-    let n = sprintf "const (%s) \"%s\" \"%s\"" (r.str) (whack u) (whack def) in 
+    let u = RS.string_of_t u_str in
+    let def = RS.string_of_t def_str in
+    let n = sprintf "const (%s) \"%s\" \"%s\"" (R.string_of_t r) (whack u) (whack def) in 
     let ct = r in 
-    let at = rx_str false u_str in
+    let at = R.str false u_str in
     let dt = TMap.empty in
     let st = function
-      | S_string s -> Erx.match_str r.rx s
+      | S_string s -> R.match_str r s
       | _ -> false in
     let () = 
-      if not (Erx.match_str r.rx def_str) then 
-        static_error i n 
-          (sprintf "%s does not belong to %s" def r.str) in 
+      if not (R.match_str r def_str) then 
+        Berror.static_error i n 
+          (sprintf "%s does not belong to %s" def (R.string_of_t r)) in 
       { info = i;
         string = n;
         ctype = ct;
@@ -906,23 +562,23 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 
   (* ---------- quotient const ---------- *)
   let qconst i rc ra u_str def_str =
-    let u = RS.to_string u_str in
-    let def = RS.to_string def_str in
-    let n = sprintf "qconst (%s) (%s) \"%s\" \"%s\"" (rc.str) (ra.str) (whack u) (whack def) in 
+    let u = RS.string_of_t u_str in
+    let def = RS.string_of_t def_str in
+    let n = sprintf "qconst (%s) (%s) \"%s\" \"%s\"" (R.string_of_t rc) (R.string_of_t ra) (whack u) (whack def) in 
     let ct = rc in 
     let at = ra in
     let dt = TMap.empty in
     let st = function
-      | S_string s -> Erx.match_str rc.rx s
+      | S_string s -> R.match_str rc s
       | _ -> false in
     let () = 
-      if not (Erx.match_str ra.rx u_str) then 
-        static_error i n 
-          (sprintf "%s does not belong to %s" def ra.str) in 
+      if not (R.match_str ra u_str) then 
+        Berror.static_error i n 
+          (sprintf "%s does not belong to %s" def (R.string_of_t ra)) in 
     let () = 
-      if not (Erx.match_str rc.rx def_str) then 
-        static_error i n 
-          (sprintf "%s does not belong to %s" def rc.str) in 
+      if not (R.match_str rc def_str) then 
+        Berror.static_error i n 
+          (sprintf "%s does not belong to %s" def (R.string_of_t rc)) in 
       { info = i;
         string = n;
         ctype = ct;
@@ -944,8 +600,8 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 
     let n = sprintf "%s . %s" dl1.string dl2.string in 
-    let ct = rx_unambig_seq i n dl1.ctype dl2.ctype in 
-    let at = rx_unambig_seq i n dl1.atype dl2.atype in 
+    let ct = R.unambig_seq i n dl1.ctype dl2.ctype in 
+    let at = R.unambig_seq i n dl1.atype dl2.atype in 
     let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
     let st = function
       | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
@@ -987,8 +643,8 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
     (* utilities *)
     let bare_get = branch dl1.ctype dl1.get dl2.get in
     let n = sprintf "(%s|%s)" dl1.string dl2.string in 
-    let at = rx_alt dl1.atype dl2.atype in 
-    let ct = rx_disjoint_alt i n  dl1.ctype dl2.ctype in 
+    let at = R.alt dl1.atype dl2.atype in 
+    let ct = R.disjoint_alt i n  dl1.ctype dl2.ctype in 
       (**** We still need to check equality of keys ***)
     let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
     let st s = dl1.stype s || dl2.stype s in
@@ -1002,8 +658,8 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
         arel = combine_rel dl1.arel dl2.arel;
         get = lift_r i (get_str n) ct bare_get;
         put = lift_rsd i (put_str n) at st (fun a s d -> 
-          match Erx.match_str dl1.atype.rx a, 
-            Erx.match_str dl2.atype.rx a,
+          match R.match_str dl1.atype a, 
+            R.match_str dl2.atype a,
             dl1.stype s with
               | true,_,true  -> dl1.put a s d
               | _,true,false -> dl2.put a s d
@@ -1022,8 +678,8 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
   let star i dl1 = 
     (* body *)
     let n = sprintf "(%s)*" dl1.string in
-    let ct = rx_unambig_star i n dl1.ctype in 
-    let at = rx_unambig_star i n dl1.atype in 
+    let ct = R.unambig_star i n dl1.ctype in 
+    let at = R.unambig_star i n dl1.atype in 
     let dt = dl1.dtype in
     let st = function
       | S_star sl -> Safelist.fold_left (fun b s -> b && dl1.stype s) true sl
@@ -1047,7 +703,7 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 		let c1, d1 = dl1.put a1 s1 d in 
 		  loop at st (buf ^ c1) d1 in 
             loop 
-              (Erx.unambig_star_split dl1.atype.rx a)
+              (R.unambig_star_split dl1.atype a)
               (lst_of_skel s)
 	      RS.empty
 	      d);
@@ -1056,7 +712,7 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
             let c1,d' = dl1.create a1 d in 
             let buf' = RS.append buf c1 in
               (buf', d'))
-            (RS.empty, d) (Erx.unambig_star_split dl1.atype.rx a));
+            (RS.empty, d) (R.unambig_star_split dl1.atype a));
 	parse = lift_r i (parse_str n) ct (fun c ->
           let (sl, d) = Safelist.fold_left (fun (buf, d) c1 -> 
             let s1,d1 = dl1.parse c1 in
@@ -1064,7 +720,7 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 	    let d' = d ++ d1 in
 	      (buf', d'))
             ([], CD_empty)
-            (Erx.unambig_star_split dl1.ctype.rx c) in
+            (R.unambig_star_split dl1.ctype c) in
 	  (S_star (Safelist.rev sl), d));
 	key = lift_r i (key_str n) at 
           (star_loop dl1.atype dl1.key);
@@ -1075,8 +731,8 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
   (* non-standard lenses *)
   let swap i dl1 dl2 = 
     let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
-    let at = rx_unambig_seq i n dl2.atype dl1.atype in 
-    let ct = rx_unambig_seq i n dl1.ctype dl2.ctype in 
+    let at = R.unambig_seq i n dl2.atype dl1.atype in 
+    let ct = R.unambig_seq i n dl1.ctype dl2.ctype in 
     let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
     let st = function
       | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
@@ -1127,13 +783,13 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
           let s = sprintf "the composition of %s and %s is ill-typed: %s"            
             dl1.string dl2.string 
             "the middle relations must both be the identity" in 
-            static_error i n s);
-    let equiv, f_suppl = check_rx_equiv dl1.atype dl2.ctype in
+            Berror.static_error i n s);
+    let equiv, f_suppl = R.check_equiv dl1.atype dl2.ctype in
       if not equiv then
         begin
 	  let s =(sprintf "the composition of %s and %s is ill-typed:"
 		     dl1.string dl2.string)in
-	    static_error i n ~suppl:f_suppl s 
+	    Berror.static_error i n ~suppl:f_suppl s 
         end;
     { info = i; 
       string = n;
@@ -1162,16 +818,13 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
       uid = next_uid();
     }
 
-
-
- 
   let default i def dl1 = 
-    let n = sprintf "default %s %s" (RS.to_string def) dl1.string in 
+    let n = sprintf "default %s %s" (RS.string_of_t def) dl1.string in 
     let at = dl1.atype in 
     let () = 
-      if not (Erx.match_str dl1.ctype.rx def) then 
-        static_error i n 
-          (sprintf "%s does not belong to %s" (RS.to_string def) dl1.ctype.str) in 
+      if not (R.match_str dl1.ctype def) then 
+        Berror.static_error i n 
+          (sprintf "%s does not belong to %s" (RS.string_of_t def) (R.string_of_t dl1.ctype)) in 
     let s,d = dl1.parse def in
       { dl1 with
         create = lift_rd i (create_str n) at (fun a d' -> 
@@ -1223,24 +876,24 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
 
 
   let filter i rd rk =
-    let n = sprintf "filter %s %s" rd.str rk.str in
-    let ru = rx_disjoint_alt i n rd rk in
-    let ct = rx_unambig_star i n ru in
-    let at = rx_unambig_star i n rk in
+    let n = sprintf "filter %s %s" (R.string_of_t rd) (R.string_of_t rk) in 
+    let ru = R.disjoint_alt i n rd rk in
+    let ct = R.unambig_star i n ru in
+    let at = R.unambig_star i n rk in
     let dt = TMap.empty in
     let st = function
-      | S_string s -> Erx.match_str ct.rx s
+      | S_string s -> R.match_str ct s
       | _ -> false in
     let get = lift_r i (get_str n) ct 
       (fun c ->
          let rec loop acc = function 
            | [] -> acc
            | h :: t -> 
-               if Erx.match_str rd.rx h then 
+               if R.match_str rd h then 
                  loop acc t
                else 
                  loop (acc ^ h) t in
-         let lc = Erx.unambig_star_split ct.rx c in
+         let lc = R.unambig_star_split ct c in
            loop RS.empty lc) in
     let put = lift_rsd i (put_str n) at st
       (fun a s d ->
@@ -1249,17 +902,17 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
            | [], [] -> acc
            | [], ha :: ta -> loop (acc ^ ha) [] ta
            | hc :: tc, [] -> 
-               if Erx.match_str rd.rx hc then
+               if R.match_str rd hc then
                  loop (acc ^ hc) tc []
                else
                  loop acc tc []
            | hc :: tc, ha :: ta -> 
-               if Erx.match_str rd.rx hc then
+               if R.match_str rd hc then
                  loop (acc ^ hc) tc la
                else
                  loop (acc ^ ha) tc ta in
-         let lc = Erx.unambig_star_split ct.rx c in
-         let la = Erx.unambig_star_split at.rx a in
+         let lc = R.unambig_star_split ct c in
+         let la = R.unambig_star_split at a in
            (loop RS.empty lc la, d)) in
     let create = lift_rd i n at (fun a d -> (a,d)) in
     let parse = lift_r i n ct (fun c -> (S_string c, CD_empty))in
@@ -1287,11 +940,11 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
     let n = sprintf "left quotient of %s by %s" dl.string (Canonizer.string cn) in
       (* the "class type" of the canonizer has to be equal to the
 	 concrete type of the lens *)
-    let equiv, f_suppl = check_rx_equiv (Canonizer.ctype cn) dl.ctype in
+    let equiv, f_suppl = R.check_equiv (Canonizer.ctype cn) dl.ctype in
       if not equiv then
         begin
 	  let s =sprintf "the %s is ill-typed:" n in
-	    static_error i n ~suppl:f_suppl s 
+	    Berror.static_error i n ~suppl:f_suppl s 
         end;
     let ct = Canonizer.rtype cn in
     let at = dl.atype in
@@ -1334,11 +987,11 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
     let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
       (* the "class type" of the canonizer has to be equal to the
 	 abstract type of the lens *)
-    let equiv, f_suppl = check_rx_equiv (Canonizer.ctype cn) dl.atype in
+    let equiv, f_suppl = R.check_equiv (Canonizer.ctype cn) dl.atype in
       if not equiv then
         begin
 	  let s =sprintf "the %s is ill-typed:" n in
-	    static_error i n ~suppl:f_suppl s 
+	    Berror.static_error i n ~suppl:f_suppl s 
         end;
     let ct = dl.ctype in
     let at = Canonizer.rtype cn in
@@ -1385,9 +1038,8 @@ module StLens = struct
 
   module D = DLens
   open D
-  let dcrx dl = dl.ctype.rx
-  let darx dl = dl.atype.rx
-
+  let dcrx dl = dl.ctype
+  let darx dl = dl.atype
 
   type slens_elt = 
       S_dl of DLens.t (* a dlens, as is *)
@@ -1398,8 +1050,8 @@ module StLens = struct
         info : Info.t;                          (* parsing info *)
         string: string;                         (* pretty printer *)
 	(* --- type --- *)
-	ctype: r;
-	atype: r;
+	ctype: R.t;
+	atype: R.t;
 	(* core *)
 	list: slens_elt list;
 	(* --- hack --- *)
@@ -1409,28 +1061,28 @@ module StLens = struct
     let rec aux ct at dt l = 
       match (ct, at, dt, l) with
 	| None, None, _,  [] -> (* the list was empty *)
-	    static_error i "" "The list to build a streaming-lens should not be empty"
+	    Berror.static_error i "" "The list to build a streaming-lens should not be empty"
 	| None, None, _, (i, S_dl dl)::t ->
 	    let (ct', at', l') = aux (Some dl.D.ctype) (Some dl.D.atype) (dl.D.dtype) t in
 	    (ct', at', (S_dl dl)::l')
 	| None, None, _, (i, S_sdl dl)::t ->
-	    let cts = rx_easy_star i "easy star of concrete" dl.D.ctype in
-	    let ats = rx_easy_star i "easy star of abstract" dl.D.atype in
+	    let cts = R.easy_star i "easy star of concrete" dl.D.ctype in
+	    let ats = R.easy_star i "easy star of abstract" dl.D.atype in
 	    let (ct', at', l') = aux (Some cts) (Some ats) dl.D.dtype t in
 	    (ct', at', (S_sdl dl)::l')
 	| None, _, _, _
 	| _, None, _, _ -> assert false
 	| Some ct, Some at, _, [] -> (ct, at, [])
 	| Some ct, Some at, dt, (i, S_dl dl)::t ->
-	    let ctc = rx_easy_seq i "easy concat of concrete" ct dl.D.ctype in
-	    let atc = rx_easy_seq i "easy concat of abstract"at dl.D.atype in
+	    let ctc = R.easy_seq i "easy concat of concrete" ct dl.D.ctype in
+	    let atc = R.easy_seq i "easy concat of abstract"at dl.D.atype in
 	    let (ct', at', l') = aux (Some ctc) (Some atc) (fusion_dict_type dt dl.dtype) t in
 	    (ct', at', (S_dl dl)::l')
 	| Some ct, Some at, dt, (i, S_sdl dl)::t ->
-	    let cts = rx_easy_star i "easy star of concrete" dl.D.ctype in
-	    let ats = rx_easy_star i "easy star of abstract" dl.D.atype in
-	    let ctc = rx_easy_seq i "easy concat of concrete" ct cts in
-	    let atc = rx_easy_seq i "easy concat of abstract"at ats in
+	    let cts = R.easy_star i "easy star of concrete" dl.D.ctype in
+	    let ats = R.easy_star i "easy star of abstract" dl.D.atype in
+	    let ctc = R.easy_seq i "easy concat of concrete" ct cts in
+	    let atc = R.easy_seq i "easy concat of abstract"at ats in
 	    let (ct', at', l') = aux (Some ctc) (Some atc) (fusion_dict_type dt dl.dtype) t in
 	      (ct', at', (S_sdl dl)::l') in
     let (ct, at, list) = aux None None TMap.empty l in
@@ -1448,25 +1100,24 @@ module StLens = struct
   let atype stl = stl.atype
   let list stl = stl.list
   let uid stl = stl.uid
-
       
   let get wic woc stl =
     let rec aux wic woc = function
       | [] -> ()
       | S_dl dl :: t ->
 	  (let pos = I.pos_file wic in
-	     match Erx.easy_split (dcrx dl) wic with 
-	       | None, _ -> split_error dl.D.info dl.D.ctype pos "concrete"
+	     match R.easy_split (dcrx dl) wic with 
+	       | None, _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.ctype) pos "concrete"
 	       | Some c, wic' ->
 		   let a = dl.get c in
-		   let woc' = O.write_string woc (RS.to_string a) in
+		   let woc' = O.write_string woc (RS.string_of_t a) in
 		     aux wic' woc' t)
       | S_sdl dl :: t as sl->
-	  (match Erx.easy_split (dcrx dl) wic with 
+	  (match R.easy_split (dcrx dl) wic with 
 	     | None, wic' -> aux wic' woc t
 	     | Some c, wic' ->
 		 let a = dl.get c in
-		 let woc' = O.write_string woc (RS.to_string a) in
+		 let woc' = O.write_string woc (RS.string_of_t a) in
 		   aux wic' woc' sl) in
     aux wic woc stl.list
 	    
@@ -1476,21 +1127,20 @@ module StLens = struct
       | [] -> ()
       | S_dl dl :: t ->
 	  (let pos = I.pos_file wic in
-	     match Erx.easy_split (darx dl) wic with 
-	       | None, _ -> split_error dl.D.info dl.D.atype pos "abstract"
+	     match R.easy_split (darx dl) wic with 
+	       | None, _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.atype) pos "abstract"
 	       | Some a, wic' ->
 		   let c, _ = dl.create a (CDict CD_empty) in
-		   let woc' = O.write_string woc (RS.to_string c) in
+		   let woc' = O.write_string woc (RS.string_of_t c) in
 		     aux wic' woc' t)
       | S_sdl dl :: t as sl->
-	  (match Erx.easy_split (darx dl) wic with 
+	  (match R.easy_split (darx dl) wic with 
 	     | None, wic' -> aux wic' woc t
 	     | Some a, wic' ->
 		 let c, _ = dl.create a (CDict CD_empty) in
-		 let woc' = O.write_string woc (RS.to_string c) in
+		 let woc' = O.write_string woc (RS.string_of_t c) in
 		   aux wic' woc' sl) in
     aux wic woc stl.list
-
 
   let parse wic stl =
     let sd_of_cd dl pos = function 
@@ -1508,15 +1158,15 @@ module StLens = struct
       | [] -> dict
       | S_dl dl :: t ->
 	  (let pos = I.pos_file wic in
-	   match Erx.easy_split (dcrx dl) wic with 
-	     | None, _ -> split_error dl.D.info dl.D.atype pos "concrete"
+	   match R.easy_split (dcrx dl) wic with 
+	     | None, _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.atype) pos "concrete"
 	     | Some c, wic' ->
 		 let _, cd = dl.parse c in
 		 let sd = sd_of_cd dl pos cd in
 		 aux (dict +++ sd) wic' t)
       | S_sdl dl :: t as sl ->
 	  (let pos = I.pos_file wic in
-	   match Erx.easy_split (dcrx dl) wic with 
+	   match R.easy_split (dcrx dl) wic with 
 	     | None, wic' -> aux dict wic' t
 	     | Some c, wic' ->
 		 let _, cd = dl.parse c in
@@ -1528,14 +1178,14 @@ module StLens = struct
   let put wicc wica woc dict stl = 
     (* function to create the rest of a star lens *)
     let rec end_star_a wica woc dl dict = 
-      match Erx.easy_split (darx dl) wica with 
+      match R.easy_split (darx dl) wica with 
 	| None, wica' -> (wica', woc, dict) 
 	| Some a, wica' ->
 	    let c, dict' = dl.create a dict in
-	    let woc' = O.write_string woc (RS.to_string c) in
+	    let woc' = O.write_string woc (RS.string_of_t c) in
 	      end_star_a wica' woc' dl dict' in
     let rec end_star_c wicc dl = (* to be improved *)
-      match Erx.easy_split (dcrx dl) wicc with 
+      match R.easy_split (dcrx dl) wicc with 
 	| None, wicc' -> wicc' 
 	| Some _, wicc' -> end_star_c wicc' dl in
     let rec aux wicc wica woc dict = function
@@ -1543,20 +1193,20 @@ module StLens = struct
       | S_dl dl :: t ->
 	  (let posc = I.pos_file wicc in
 	   let posa = I.pos_file wica in
-	     match Erx.easy_split (dcrx dl) wicc, Erx.easy_split (darx dl) wica with 
-	       | (None,_), _ -> split_error dl.D.info dl.D.ctype posc "concrete"
-	       | _, (None,_) -> split_error dl.D.info dl.D.atype posa "abstract"
+	     match R.easy_split (dcrx dl) wicc, R.easy_split (darx dl) wica with 
+	       | (None,_), _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.ctype) posc "concrete"
+	       | _, (None,_) -> Berror.split_error dl.D.info (R.string_of_t dl.D.atype) posa "abstract"
 	       | (Some c, wicc'),(Some a, wica') ->
 		   let s, _ = dl.parse c in
 		   let c', dict'  = dl.put a s dict in
-		   let woc' = O.write_string woc (RS.to_string c') in
+		   let woc' = O.write_string woc (RS.string_of_t c') in
 		     aux wicc' wica' woc' dict' t)
       | S_sdl dl :: t as sl->
-	  (match Erx.easy_split (dcrx dl) wicc, Erx.easy_split (darx dl) wica with 
+	  (match R.easy_split (dcrx dl) wicc, R.easy_split (darx dl) wica with 
 	     | (None, wicc'), (None, wica') -> aux wicc' wica' woc dict t (*nothing left*)
 	     | (None, wicc'), (Some a, wica') -> (* no more concrete, go for creation *)
 		 let c, dict' = dl.create a dict in
-		 let woc' = O.write_string woc (RS.to_string c) in
+		 let woc' = O.write_string woc (RS.string_of_t c) in
 		 let (wica'', woc'', dict'') = end_star_a wica' woc' dl dict' in
 		   aux wicc' wica'' woc'' dict'' t
 	     | (Some _, wicc'), (None, wica') -> (* no more abstract, go for the next lens *)
@@ -1565,9 +1215,7 @@ module StLens = struct
 	     | (Some c, wicc'), (Some a, wica') ->
 		 let s, _ = dl.parse c in
 		 let c', dict' = dl.put a s dict  in
-		 let woc' = O.write_string woc (RS.to_string c') in
+		 let woc' = O.write_string woc (RS.string_of_t c') in
 		   aux wicc' wica' woc' dict' sl) in
       aux wicc wica woc dict stl.list
-
-   
 end

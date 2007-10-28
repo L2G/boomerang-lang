@@ -8,9 +8,9 @@
 (* $Id$ *)
 
 (* ----- module and type imports and abbreviations ----- *)
-module RS = Rstring
-module L = Rlenses 
-open Rsyntax
+module RS = Bstring
+module L = Blenses 
+open Bsyntax
 
 let sprintf = Printf.sprintf
 let (@) = Safelist.append
@@ -51,15 +51,15 @@ let parse_cset s =
     let do_get () = let r = s.[!i] in incr i; r in 
       if accept '\\' then 
         match do_get () with
-          | '^' -> (RS.of_char '^')
-          | '-' -> (RS.of_char '-')
-          | 'b' -> (RS.of_char '\008')
-          | 'n' -> (RS.of_char '\010')
-          | 'r' -> (RS.of_char '\013')
-          | 't' -> (RS.of_char '\009')
-          | '\\' -> (RS.of_char '\\')
+          | '^' -> (RS.sym_of_char '^')
+          | '-' -> (RS.sym_of_char '-')
+          | 'b' -> (RS.sym_of_char '\008')
+          | 'n' -> (RS.sym_of_char '\010')
+          | 'r' -> (RS.sym_of_char '\013')
+          | 't' -> (RS.sym_of_char '\009')
+          | '\\' -> (RS.sym_of_char '\\')
           | _   -> err () 
-      else RS.of_char (do_get ()) in 
+      else RS.sym_of_char (do_get ()) in 
   let next () = if eos () then err () else get () in 
   let rec go acc = 
     if eos () then Safelist.rev acc
@@ -101,8 +101,8 @@ let mk_fun_sorto i params bsorto =
 %token <Info.t> MATCH WITH GET PUT DOTGET DOTPUT DOTCREATE ERROR
 
 %start modl qid
-%type <Rsyntax.modl> modl
-%type <Rsyntax.qid> qid
+%type <Bsyntax.modl> modl
+%type <Bsyntax.qid> qid
 %%
 
 /* --------- MODULES ---------- */
@@ -256,7 +256,7 @@ aexp:
       { EMatch(m $1 $3,RS.empty, $2) }
 
   | LANGLE IDENT COLON qid RANGLE
-      { EMatch(m $1 $3,RS.of_string (snd $2), $4) }
+      { EMatch(m $1 $3,RS.t_of_string (snd $2), $4) }
 
   | IDENT                               
       { mk_var $1 }
@@ -271,7 +271,7 @@ aexp:
 
   | STR 
       { let i,s = $1 in 
-        EString(i,RS.of_string s) }
+        EString(i,RS.t_of_string s) }
       
   | LPAREN exp RPAREN
       { $2 }

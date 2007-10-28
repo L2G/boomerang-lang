@@ -7,10 +7,10 @@
 (* $Id$ *)
 
 (* module imports and abbreviations *)
-module S = Rsyntax
-module L = Rlenses.DLens
-module R = Rlenses
-module RS = Rstring
+module S = Bsyntax
+module L = Blenses.DLens
+module R = Bregexp
+module RS = Bstring
 
 (* function abbreviations *)
 let sprintf = Printf.sprintf 
@@ -19,7 +19,7 @@ let (@) = Safelist.append
 (* run-time values; correspond to each sort *)
 type t = 
     | S of Info.t * RS.t 
-    | R of Info.t * R.r
+    | R of Info.t * R.t
     | L of Info.t * L.t
     | F of Info.t * S.sort * (Info.t -> t -> t)
 
@@ -38,8 +38,8 @@ let rec mk_dummy =
   let i = Info.M "dummy" in 
   function
     | S.SString -> S(i,RS.empty)
-    | S.SRegexp -> R(i,R.rx_str false RS.empty) 
-    | S.SLens -> L(i,(L.copy i (R.rx_epsilon)))
+    | S.SRegexp -> R(i,R.str false RS.empty) 
+    | S.SLens -> L(i,(L.copy i (R.epsilon)))
     | S.SFunction(s1,s2) -> F(i,s1,(fun _ _ -> mk_dummy s2))
 
 (* info_of_t : t -> Info.t 
@@ -92,7 +92,7 @@ let get_s v i = match v with
  *)
 let get_r v i = match v with
     R(_,r) -> r
-  | S(_,s) -> R.rx_str false s
+  | S(_,s) -> R.str false s
   | _ -> conversion_error i S.SRegexp v
 
 (* get_dl: t -> Info.t -> L.DLens.t
@@ -102,7 +102,7 @@ let get_r v i = match v with
  * sort. [i] is used to report errors.  
  *)
 let get_l v i = match v with 
-  | S(_,s) -> L.copy i (R.rx_str false s)
+  | S(_,s) -> L.copy i (R.str false s)
   | R(_,r) -> L.copy i r
   | L(_,l) -> l
   | _ -> conversion_error i S.SLens v
@@ -149,15 +149,15 @@ let mk_lfun i f = F(i,S.SLens,(fun i v -> f i (get_l v i)))
 
 let parse_qid s = 
   let lexbuf = Lexing.from_string s in
-    Rlexer.setup "qid constant";
+    Blexer.setup "qid constant";
     let q = 
-      try Rparser.qid Rlexer.main lexbuf 
+      try Bparser.qid Blexer.main lexbuf 
       with Parsing.Parse_error -> 
         raise 
           (Error.Harmony_error
               (fun () -> Util.format "%s: syntax error in qualfied identifier." 
                 (Info.string_of_t (Lexer.info lexbuf))))
     in 
-    Rlexer.finish ();
+    Blexer.finish ();
     q
   

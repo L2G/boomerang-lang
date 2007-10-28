@@ -11,7 +11,7 @@ let debug = Trace.debug "registry"
 let verbose = Trace.debug "registry+"
 
 (* --------------- Registry values -------------- *)
-type rv = Rsyntax.sort * Rvalue.t
+type rv = Bsyntax.sort * Bvalue.t
 
 (* utility functions *)
 let make_rv s v = (s,v)
@@ -20,8 +20,8 @@ let sort_of_rv (s,v) = s
 let format_rv rv = 
   let (s,v) = rv in    
     Util.format "@[";
-    Rvalue.format v;
-    Util.format ": %s" (Rsyntax.string_of_sort s);
+    Bvalue.format v;
+    Util.format ": %s" (Bsyntax.string_of_sort s);
     Util.format "]"
 
 (* --------------- Focal library -------------- *)
@@ -31,18 +31,18 @@ module type REnvSig =
 sig
   type t
   val empty : unit -> t
-  val lookup : t -> Rsyntax.qid -> rv option
-  val update : t -> Rsyntax.qid -> rv -> t
-  val overwrite : t -> Rsyntax.qid -> rv -> unit
-  val iter : (Rsyntax.qid -> rv -> unit) -> t -> unit
+  val lookup : t -> Bsyntax.qid -> rv option
+  val update : t -> Bsyntax.qid -> rv -> t
+  val overwrite : t -> Bsyntax.qid -> rv -> unit
+  val iter : (Bsyntax.qid -> rv -> unit) -> t -> unit
 end
 
 module REnv : REnvSig = 
 struct
   module M = Env.Make(struct
-                        type t = Rsyntax.qid
-                        let compare = Rsyntax.qid_compare
-                        let to_string = Rsyntax.string_of_qid
+                        type t = Bsyntax.qid
+                        let compare = Bsyntax.qid_compare
+                        let to_string = Bsyntax.string_of_qid
                       end) 
   type t = (rv ref) M.t
   let empty = M.empty
@@ -55,7 +55,7 @@ struct
         Some r -> r:=v
       | None -> raise (Error.Harmony_error
                          (fun () -> Util.format "Registry.overwrite: %s not found" 
-                           (Rsyntax.string_of_qid q)))
+                           (Bsyntax.string_of_qid q)))
   let iter f e = M.iter (fun q rvr -> f q (!rvr)) e 
 end
 
@@ -64,7 +64,7 @@ let loaded = ref []
 let library : REnv.t ref = ref (REnv.empty ())
 
 (* constants *)
-let pre_ctx = List.map Rvalue.parse_qid ["Prelude"]
+let pre_ctx = List.map Bvalue.parse_qid ["Prelude"]
 
 (* utilities *)
 let get_library () = !library
@@ -86,11 +86,11 @@ let register q r = library := (REnv.update (!library) q r)
 
 (* register a native value *)
 let register_native qs s v = 
-  let q = Rvalue.parse_qid qs in
+  let q = Bvalue.parse_qid qs in
     register q (s,v)
 
 (* register a whole (rv Env.t) in m *)
-let register_env ev m = REnv.iter (fun q r -> register (Rsyntax.qid_dot m q) r) ev
+let register_env ev m = REnv.iter (fun q r -> register (Bsyntax.qid_dot m q) r) ev
 
 (* --------------- Lookup functions -------------- *)
 
@@ -106,7 +106,7 @@ let boompath =
 
 (* get the filename that a module is stored at *)
 let get_module_prefix q = 
-  match Rsyntax.qid_qualifiers q with 
+  match Bsyntax.qid_qualifiers q with 
     | [] -> None
     | n::_ -> Some n
 
@@ -169,20 +169,20 @@ let load ns =
 
 let load_var q = match get_module_prefix q with 
   | None -> ()
-  | Some n -> ignore (load (Rsyntax.string_of_id n))
+  | Some n -> ignore (load (Bsyntax.string_of_id n))
 
 (* lookup in a naming context *)
 let lookup_library_ctx nctx q = 
   let rec lookup_library_aux nctx q2 =       
 
     (* Util.format "lookup_library_aux %s in [%s] from %s "
-      (Rsyntax.string_of_qid q2)
-      (Misc.concat_list ", " (Safelist.map Rsyntax.string_of_qid nctx))
+      (Bsyntax.string_of_qid q2)
+      (Misc.concat_list ", " (Safelist.map Bsyntax.string_of_qid nctx))
       (Env.to_string !library string_of_rv);
     *)
     (* let _ = debug (fun () -> Util.format "lookup_library_aux %s in [%s] from %s "
-       (Rsyntax.string_of_qid q2)
-       (Misc.concat_list ", " (Safelist.map Rsyntax.string_of_qid nctx))
+       (Bsyntax.string_of_qid q2)
+       (Misc.concat_list ", " (Safelist.map Bsyntax.string_of_qid nctx))
        (Env.to_string !library string_of_rv)
        )
        in *)
@@ -196,7 +196,7 @@ let lookup_library_ctx nctx q =
                 | Some r -> Some r
                 | None -> match nctx with 
                     | []       -> None
-                    | o::orest -> lookup_library_aux orest (Rsyntax.qid_dot o q) 
+                    | o::orest -> lookup_library_aux orest (Bsyntax.qid_dot o q) 
             end
   in
     lookup_library_aux nctx q

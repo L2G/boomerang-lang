@@ -6,25 +6,25 @@
 (****************************************************************)
 (* $Id$ *)
 
-open Rsyntax
-module RS = Rstring
-module R = Rlenses
-module L = Rlenses.DLens
-module V = Rvalue
+open Bsyntax
+module RS = Bstring
+module R = Bregexp
+module L = Blenses.DLens
+module V = Bvalue
 
 (* --------------- Imports --------------- *)
 let sprintf = Printf.sprintf  
 let (@) = Safelist.append
 
-let s_of_rv = Rregistry.sort_of_rv 
-let v_of_rv = Rregistry.value_of_rv 
+let s_of_rv = Bregistry.sort_of_rv 
+let v_of_rv = Bregistry.value_of_rv 
 let p_of_rv rv = (s_of_rv rv, v_of_rv rv)
-let mk_rv = Rregistry.make_rv
+let mk_rv = Bregistry.make_rv
 
 (* --------------- Unit tests --------------- *)
 
 (* unit tests either succeed, yielding a value, or fail with a msg *)
-type testresult = OK of Rvalue.t | Error of (unit -> unit)
+type testresult = OK of Bvalue.t | Error of (unit -> unit)
 
 let tests = Prefs.createStringList
   "test"
@@ -40,7 +40,7 @@ let test_all = Prefs.createBool "test-all" false
    '-test-all' or '-test m' are set *)
 let check_test m = 
   Safelist.fold_left 
-    (fun r qs -> r or (qid_prefix (Rvalue.parse_qid qs) m))
+    (fun r qs -> r or (qid_prefix (Bvalue.parse_qid qs) m))
     (Prefs.read test_all)
     (Prefs.read tests)
 
@@ -78,20 +78,20 @@ sig
   type t 
   type v
   val empty : unit -> t
-  val get_ev : t -> Rregistry.REnv.t
-  val set_ev : t -> Rregistry.REnv.t -> t
-  val get_ctx : t -> Rsyntax.qid list
-  val set_ctx : t -> Rsyntax.qid list -> t
-  val lookup : t -> Rsyntax.qid -> v option
-  val update : t -> Rsyntax.qid -> v -> t
+  val get_ev : t -> Bregistry.REnv.t
+  val set_ev : t -> Bregistry.REnv.t -> t
+  val get_ctx : t -> Bsyntax.qid list
+  val set_ctx : t -> Bsyntax.qid list -> t
+  val lookup : t -> Bsyntax.qid -> v option
+  val update : t -> Bsyntax.qid -> v -> t
 end
 
 
-module CEnv : CEnvSig with type v = (Rsyntax.sort * Rvalue.t)= struct
-  type t = Rsyntax.qid list * (Rregistry.REnv.t)
-  type v = Rsyntax.sort * Rvalue.t  
+module CEnv : CEnvSig with type v = (Bsyntax.sort * Bvalue.t)= struct
+  type t = Bsyntax.qid list * (Bregistry.REnv.t)
+  type v = Bsyntax.sort * Bvalue.t  
 
-  let empty () = ([], (Rregistry.REnv.empty ()))    
+  let empty () = ([], (Bregistry.REnv.empty ()))    
 
   (* getters and setters *)
   let get_ev cev = let (_,ev) = cev in ev
@@ -100,9 +100,9 @@ module CEnv : CEnvSig with type v = (Rsyntax.sort * Rvalue.t)= struct
   let set_ctx cev os = let (_,ev) = cev in (os,ev)
 
   (* lookup from a cev, then from the library *)
-  let lookup cev q = match Rregistry.REnv.lookup (get_ev cev) q with
+  let lookup cev q = match Bregistry.REnv.lookup (get_ev cev) q with
     | None -> 
-        begin match Rregistry.lookup_library_ctx (get_ctx cev) q with
+        begin match Bregistry.lookup_library_ctx (get_ctx cev) q with
           | None -> None
           | Some rv -> Some (p_of_rv rv)
         end
@@ -110,16 +110,16 @@ module CEnv : CEnvSig with type v = (Rsyntax.sort * Rvalue.t)= struct
 
   (* update a cev with a new rv *)
   let update cev q (s,v) = 
-    set_ev cev (Rregistry.REnv.update (get_ev cev) q (mk_rv s v))
+    set_ev cev (Bregistry.REnv.update (get_ev cev) q (mk_rv s v))
 end
 
 
 type cenv = CEnv.t
 let empty_cenv () = CEnv.empty ()
 
-module SCEnv : CEnvSig with type v = Rsyntax.sort = struct
+module SCEnv : CEnvSig with type v = Bsyntax.sort = struct
   type t = CEnv.t
-  type v = Rsyntax.sort 
+  type v = Bsyntax.sort 
 
   let empty = CEnv.empty        
   let get_ev = CEnv.get_ev
@@ -131,7 +131,7 @@ module SCEnv : CEnvSig with type v = Rsyntax.sort = struct
     | None -> None
     | Some (s,_) -> Some s
   let update sev q s = 
-    CEnv.update sev q (s,Rvalue.mk_dummy s)
+    CEnv.update sev q (s,Bvalue.mk_dummy s)
 end
 
 (* --------------- Checker --------------- *)
@@ -196,8 +196,8 @@ let expect_sort i msg expected found =
     sort_error i
       (fun () -> 
         Util.format "@[in %s:@ %s@ expected@ but@ %s@ found@]" msg
-          (Rsyntax.string_of_sort expected)
-          (Rsyntax.string_of_sort found))
+          (Bsyntax.string_of_sort expected)
+          (Bsyntax.string_of_sort found))
 
 let rec expect_sort_exp msg sev expected_sort e =
   let i = info_of_exp e in
@@ -228,7 +228,7 @@ and check_exp sev e0 = match e0 with
               (fun () -> 
                 Util.format
                   "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found %s@]"
-                  (Rsyntax.string_of_sort e1_sort))
+                  (Bsyntax.string_of_sort e1_sort))
       end
 
   | EFun(i,p,ret_sorto,body) ->
@@ -307,11 +307,11 @@ let rec check_decl sev m = function
         (bsev,[qid_of_id x],new_d)
   | DMod(i,n,ds) ->
       let n_qid = qid_of_id n in        
-      let mn = Rsyntax.qid_dot m n_qid in
+      let mn = Bsyntax.qid_dot m n_qid in
       let m_sev,names,new_ds= check_module_aux sev mn ds in
       let n_sev, names_rev = Safelist.fold_left 
         (fun (n_sev, names) q -> 
-          match Rregistry.REnv.lookup (SCEnv.get_ev m_sev) q with
+          match Bregistry.REnv.lookup (SCEnv.get_ev m_sev) q with
               None -> run_error i 
                 (fun () -> 
                   Util.format "@[declaration for %s missing@]"
@@ -347,8 +347,8 @@ and check_module_aux sev m ds =
 
 let check_module = function
   | Mod(i,m,nctx,ds) -> 
-      let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Rregistry.pre_ctx) in
-      let _,_,new_ds = check_module_aux sev (Rsyntax.qid_of_id m) ds in 
+      let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Bregistry.pre_ctx) in
+      let _,_,new_ds = check_module_aux sev (Bsyntax.qid_of_id m) ds in 
       Mod(i,m,nctx,new_ds)
 
 (* --------------- Compiler --------------- *)
@@ -361,7 +361,7 @@ let do_assert i msg rx s =
           (fun () -> 
             Util.format "%s: %s does not belong to"
               (Info.string_of_t i)
-              (RS.to_string s);
+              (RS.string_of_t s);
             Erx.format rx)
 
 (* helper to manage coercions for binary operations *)
@@ -394,7 +394,7 @@ let rec compile_exp cev e0 = match e0 with
       let s1,v1 = compile_exp cev e1 in
       let s2,v2 = compile_exp cev e2 in
       begin match s1,v1 with
-        | SFunction(_,ret_sort),Rvalue.F(_,_,f) -> 
+        | SFunction(_,ret_sort),Bvalue.F(_,_,f) -> 
             (ret_sort, (f i v2))
         | _   -> 
             run_error i 
@@ -416,7 +416,7 @@ let rec compile_exp cev e0 = match e0 with
         let p_sort = sort_of_param p in
         let body_cev = CEnv.update cev p_qid (p_sort, v) in
           snd (compile_exp body_cev e) in 
-      (f_sort, (Rvalue.F (i, p_sort, f_impl)))
+      (f_sort, (Bvalue.F (i, p_sort, f_impl)))
 
   | EFun(i,_,_,_) -> 
       run_error i 
@@ -424,11 +424,11 @@ let rec compile_exp cev e0 = match e0 with
           Util.format 
             "@[compiler bug: function has no sort!@]")
 
-  | EString(i,s) -> (SString,Rvalue.S(i,s))
+  | EString(i,s) -> (SString,Bvalue.S(i,s))
 
-  | ECSet(i,true,cs) -> (SRegexp,Rvalue.R (i, R.rx_set cs))
+  | ECSet(i,true,cs) -> (SRegexp,Bvalue.R (i, R.set cs))
 
-  | ECSet(i,false,cs) -> (SRegexp,Rvalue.R (i, R.rx_negset cs))
+  | ECSet(i,false,cs) -> (SRegexp,Bvalue.R (i, R.negset cs))
 
   | ECat(i,e1,e2) ->
       let concat_merge = 
@@ -437,7 +437,7 @@ let rec compile_exp cev e0 = match e0 with
             V.S(i,RS.append (V.get_s v1 i) (V.get_s v2 i))))
         ; (SRegexp,SRegexp,SRegexp,
           (fun i v1 v2 -> 
-            V.R(i,R.rx_seq (V.get_r v1 i) (V.get_r v2 i))))
+            V.R(i,R.seq (V.get_r v1 i) (V.get_r v2 i))))
         ; (SLens,SLens,SLens,
           (fun i v1 v2 -> 
             V.L(i,L.concat i (V.get_l v1 i) (V.get_l v2 i)))) ] in 
@@ -449,7 +449,7 @@ let rec compile_exp cev e0 = match e0 with
       let union_merge = 
         [ (SRegexp,SRegexp,SRegexp,
           (fun i v1 v2 -> 
-            V.R(i,R.rx_alt (V.get_r v1 i) (V.get_r v2 i))))            
+            V.R(i,R.alt (V.get_r v1 i) (V.get_r v2 i))))            
         ; (SLens,SLens,SLens,
           (fun i v1 v2 -> 
             V.L(i,L.union i (V.get_l v1 i) (V.get_l v2 i)))) ] in 
@@ -461,7 +461,7 @@ let rec compile_exp cev e0 = match e0 with
       let s1,v1 = compile_exp cev e1 in 
       begin match s1 with
         | SString | SRegexp -> 
-            (SRegexp,V.R(i,R.rx_star (V.get_r v1 i)))
+            (SRegexp,V.R(i,R.star (V.get_r v1 i)))
         | SLens -> 
             (SLens,V.L(i,L.star i (V.get_l v1 i)))
         | _ -> 
@@ -472,7 +472,7 @@ let rec compile_exp cev e0 = match e0 with
   | EMatch(i,t,q) -> 
       begin match CEnv.lookup cev q with
         | Some (_,v) -> 
-            let l = Rvalue.get_l v i in 
+            let l = Bvalue.get_l v i in 
             (SLens,V.L(i,L.smatch i t l))
         | None -> 
             run_error 
@@ -495,7 +495,7 @@ let rec compile_exp cev e0 = match e0 with
       let diff_merge = 
         [ (SRegexp, SRegexp, SRegexp, 
           (fun i v1 v2 -> 
-            V.R(i,R.rx_diff (V.get_r v1 i) (V.get_r v2 i)))) ] in 
+            V.R(i,R.diff (V.get_r v1 i) (V.get_r v2 i)))) ] in 
       do_binop i "diff" diff_merge
         (compile_exp cev e1)
         (compile_exp cev e2)
@@ -504,7 +504,7 @@ let rec compile_exp cev e0 = match e0 with
       let inter_merge = 
         [ (SRegexp, SRegexp, SRegexp, 
           (fun i v1 v2 -> 
-            V.R(i,R.rx_inter (V.get_r v1 i) (V.get_r v2 i)))) ] in 
+            V.R(i,R.inter (V.get_r v1 i) (V.get_r v2 i)))) ] in 
       do_binop i "inter" inter_merge
         (compile_exp cev e1)
         (compile_exp cev e2)
@@ -526,7 +526,7 @@ let rec compile_decl cev m = function
       let n_cev,names_rev = 
         Safelist.fold_left
           (fun (n_cev, names) q ->
-            match Rregistry.REnv.lookup (CEnv.get_ev m_cev) q with
+            match Bregistry.REnv.lookup (CEnv.get_ev m_cev) q with
               | Some rv ->
                   let nq = qid_dot n_qid q in
                   (CEnv.update cev nq (p_of_rv rv), nq::names)
@@ -546,7 +546,7 @@ let rec compile_decl cev m = function
           match vo,tr with 
             | OK v, TestShow ->
                 Util.format "Test result:@ "; 
-                Rvalue.format v; 
+                Bvalue.format v; 
                 Util.format "@\n"
             | Error m, TestShow -> 
                 test_error i 
@@ -556,17 +556,17 @@ let rec compile_decl cev m = function
             | Error _, TestError -> ()
             | OK v, TestValue res -> 
                 let resv = snd (compile_exp cev res) in
-                  if not (Rvalue.equal v resv) then
+                  if not (Bvalue.equal v resv) then
                     test_error i 
                       (fun () ->
-                        Util.format "@\nExpected@ "; Rvalue.format resv;
-                        Util.format "@ but found@ "; Rvalue.format v; 
+                        Util.format "@\nExpected@ "; Bvalue.format resv;
+                        Util.format "@ but found@ "; Bvalue.format v; 
                         Util.format "@\n")
             | Error m, TestValue res -> 
                 let resv = snd (compile_exp cev res) in
                   test_error i 
                     (fun () ->
-                      Util.format "@\nExpected@ "; Rvalue.format resv; 
+                      Util.format "@\nExpected@ "; Bvalue.format resv; 
                       Util.format "@ but found an error:@ "; 
                       m (); 
                       Util.format "@\n")
@@ -575,7 +575,7 @@ let rec compile_decl cev m = function
                   (fun () ->
                     Util.format "@\nExpected an error@ "; 
                     Util.format "@ but found:@ "; 
-                    Rvalue.format v; 
+                    Bvalue.format v; 
                     Util.format "@\n")
         end;
       (cev, [])
@@ -591,6 +591,6 @@ and compile_mod_aux cev m ds =
 let compile_module = function
   | Mod(i,m,nctx,ds) -> 
       let m_qid = qid_of_id m in
-      let cev = CEnv.set_ctx (CEnv.empty ()) (nctx@Rregistry.pre_ctx) in
+      let cev = CEnv.set_ctx (CEnv.empty ()) (nctx@Bregistry.pre_ctx) in
       let new_cev,_ = compile_mod_aux cev m_qid ds in
-      Rregistry.register_env (CEnv.get_ev new_cev) m_qid
+      Bregistry.register_env (CEnv.get_ev new_cev) m_qid
