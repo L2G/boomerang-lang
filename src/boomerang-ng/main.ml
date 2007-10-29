@@ -159,42 +159,49 @@ let bad_cmdline () =
   exit 2 
 
 let _ =   
-  (try 
-    Prefs.parseCmdLine usageMsg;
-    let i = Info.M "command-line argument string" in 
-    let () = Safelist.iter 
-      (fun arg -> 
-        let eq = 
-          try String.index arg '='
-          with Not_found -> 
-            Error.simple_error (sprintf "can't set %s" arg) in 
-        let x = String.sub arg 0 eq in 
-        let y = String.sub arg (succ eq) (String.length arg - eq -1) in 
-        Bregistry.register_native x SString (S(i,RS.t_of_string y)))
-      (Prefs.read setpref) in 
-    let i = Info.M "Top-level loop" in 
-    let fs_of_file f = RS.t_of_string (Misc.read f) in 
-    let o = Prefs.read opref in 
-    let write_result fs = 
-      if o <> "" then Misc.write o (RS.string_of_t fs) 
-      else Util.format "%s" (RS.string_of_t fs) in 
-    let l_str = Prefs.read lpref in 
-      if l_str <> "" then 
-        begin          
-          let lens = match Bregistry.lookup_library (Bvalue.parse_qid l_str) with
-            | None -> Error.simple_error (sprintf "can't find %s" l_str)
-            | Some rv -> Bvalue.get_l (Bregistry.value_of_rv rv) i in 
-	  match Prefs.read cpref, Prefs.read apref with
-	    | "","" -> bad_cmdline ()
-	    | c,"" -> 
-		write_result ((L.get lens) (fs_of_file c))
-	    | "",a -> 
-		write_result ((L.rcreate_of_dl lens) (fs_of_file a))
-	    | c,a  -> 
-		write_result ((L.rput_of_dl lens) (fs_of_file a) (fs_of_file c))
-        end;
-    with 
-      | Error.Harmony_error(thk) -> thk (); exit 1
-      | x -> Erx.print_stat_trim(); raise x);
+  begin 
+    try 
+      Prefs.parseCmdLine usageMsg;
+      let i = Info.M "command-line argument string" in 
+      let () = Safelist.iter 
+        (fun arg -> 
+          let eq = 
+            try String.index arg '='
+            with Not_found -> 
+              Error.simple_error (sprintf "can't set %s" arg) in 
+          let x = String.sub arg 0 eq in 
+          let y = String.sub arg (succ eq) (String.length arg - eq -1) in 
+            Bregistry.register_native x SString (S(i,RS.t_of_string y)))
+        (Prefs.read setpref) in 
+      let i = Info.M "Top-level loop" in 
+      let fs_of_file f = RS.t_of_string (Misc.read f) in 
+      let o = Prefs.read opref in 
+      let write_result fs = 
+        if o <> "" then Misc.write o (RS.string_of_t fs) 
+        else Util.format "%s" (RS.string_of_t fs) in 
+      let l_str = Prefs.read lpref in 
+        if l_str <> "" then 
+          begin          
+            let lens = match Bregistry.lookup_library (Bvalue.parse_qid l_str) with
+              | None -> Error.simple_error (sprintf "can't find %s" l_str)
+              | Some rv -> Bvalue.get_l (Bregistry.value_of_rv rv) i in 
+	      match Prefs.read cpref, Prefs.read apref with
+	        | "","" -> bad_cmdline ()
+	        | c,"" -> 
+		    write_result ((L.get lens) (fs_of_file c))
+	        | "",a -> 
+		    write_result ((L.rcreate_of_dl lens) (fs_of_file a))
+	        | c,a  -> 
+		    write_result ((L.rput_of_dl lens) (fs_of_file a) (fs_of_file c))
+          end
+    with
+      | Error.Harmony_error(thk) -> 
+          ( try thk () with Error.Harmony_error(thk2) -> 
+            Util.format "THK2: "; thk2 ());
+          exit 1
+      | x -> 
+          (Erx.print_stat_trim(); raise x)
+  end;
   Erx.print_stat_trim ();
   exit 0
+    

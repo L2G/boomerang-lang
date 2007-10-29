@@ -154,8 +154,11 @@ let rec subsort u v = match u,v with
 
 let rec join i u v = match u,v with 
   | SString,SRegexp -> SRegexp
+  | SRegexp,SString -> SRegexp
   | SString,SLens -> SLens
+  | SLens,SString -> SLens
   | SRegexp,SLens -> SLens
+  | SLens,SRegexp -> SLens
   | SFunction(s11,s12),SFunction(s21,s22) -> 
       begin 
         try SFunction(meet i s11 s12,join i s21 s22) 
@@ -164,15 +167,21 @@ let rec join i u v = match u,v with
             (string_of_sort u)
             (string_of_sort v))
       end
-  | _ -> run_error i
-      (fun () -> Util.format "%s and %s do not join"
-        (string_of_sort u)
-        (string_of_sort v))
+  | _ -> 
+      if u=v then u 
+      else
+        run_error i
+          (fun () -> Util.format "%s and %s do not join"
+            (string_of_sort u)
+            (string_of_sort v))
          
 and meet i u v = match u,v with
   | SString,SRegexp -> SString
-  | SString,SLens -> SLens
+  | SRegexp,SString -> SString
+  | SString,SLens -> SString
+  | SLens,SString -> SString
   | SRegexp,SLens -> SRegexp
+  | SLens,SRegexp -> SRegexp
   | SFunction(s11,s12),SFunction(s21,s22) -> 
       begin 
         try SFunction(join i s11 s12,meet i s21 s22) 
@@ -254,13 +263,25 @@ and check_exp sev e0 = match e0 with
   | ECSet(_) -> 
       (SRegexp,e0)
 
-  | EUnion(i,e1,e2) 
-  | ECat(i,e1,e2) -> 
+  | EUnion(i,e1,e2) ->
       let e1_sort,new_e1 = expect_sort_exp "union" sev SLens e1 in 
       let e2_sort,new_e2 = expect_sort_exp "union" sev SLens e2 in 
       let e0_sort = join i e1_sort e2_sort in 
+      let new_e0 = EUnion(i,new_e1,new_e2) in 
+      (e0_sort,new_e0)
+
+  | ECat(i,e1,e2) -> 
+      let e1_sort,new_e1 = expect_sort_exp "cat" sev SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "cat" sev SLens e2 in 
+      let e0_sort = join i e1_sort e2_sort in 
       let new_e0 = ECat(i,new_e1,new_e2) in 
       (e0_sort,new_e0)
+
+  | ETrans(i,e1,e2) -> 
+      let e1_sort,new_e1 = expect_sort_exp "cat" sev SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "cat" sev SString e2 in 
+      let new_e0 = ETrans(i,new_e1,new_e2) in 
+      (SLens,new_e0)
 
   | EStar(i,e) -> 
       let e_sort,new_e = expect_sort_exp "kleene-star" sev SLens e in 
@@ -444,6 +465,22 @@ let rec compile_exp cev e0 = match e0 with
       do_binop i "concat" concat_merge 
         (compile_exp cev e1)
         (compile_exp cev e2)
+
+  | ETrans(i,e1,e2) -> 
+      let _,v1 = compile_exp cev e1 in 
+      let _,v2 = compile_exp cev e2 in 
+      let set_name = "Prelude.set" in 
+      let set_qid = V.parse_qid set_name in 
+      let set_f = match CEnv.lookup cev set_qid with
+        | Some (_,set_v) -> 
+            V.get_f set_v i
+        | None -> 
+            run_error 
+              (info_of_exp e0)
+              (fun () -> Util.format "@[%s is not bound@]" set_name) in 
+      let set_f2 = V.get_f (set_f i v1) i in 
+      let set_l3 = V.get_l (set_f2 i v2) i in 
+      (SLens,V.L(i,set_l3))
 
   | EUnion(i,e1,e2) -> 
       let union_merge = 

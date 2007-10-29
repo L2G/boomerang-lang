@@ -151,13 +151,14 @@ let parse_qid s =
   let lexbuf = Lexing.from_string s in
     Blexer.setup "qid constant";
     let q = 
-      try Bparser.qid Blexer.main lexbuf 
-      with Parsing.Parse_error -> 
-        raise 
-          (Error.Harmony_error
-              (fun () -> Util.format "%s: syntax error in qualfied identifier." 
-                (Info.string_of_t (Lexer.info lexbuf))))
-    in 
-    Blexer.finish ();
-    q
-  
+      try Bparser.qid Blexer.main lexbuf
+      with 
+        | _ -> 
+            raise 
+              (Error.Harmony_error
+                  (fun () -> 
+                    Util.format "%s: syntax error in qualfied identifier %s." 
+                      (Info.string_of_t (Blexer.info lexbuf))
+                      s)) in 
+      Blexer.finish ();                    
+      q

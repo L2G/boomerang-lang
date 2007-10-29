@@ -30,13 +30,12 @@ let me e1 e2 = m (info_of_exp e1) (info_of_exp e2)
 let mk_var i = EVar(info_of_id i,qid_of_id i)
 
 (* error *)
-let syntax_error i msg_thk = 
+let syntax_error i msg = 
   raise 
     (Error.Harmony_error
-        (fun () -> Util.format "@[%s: Syntax error @\n" (Info.string_of_t i);
-          msg_thk ();
-          Util.format "@]"))
-
+        (fun () -> Util.format "@[%s: Syntax error: %s @\n@]" 
+          (Info.string_of_t i)
+          msg))
 
 (* ----- helper functions for parsing cset ----- *)
 (* parse_cset: string -> FS.elt list *)
@@ -205,13 +204,19 @@ cexp:
 
 /* application expressions */
 appexp:
-  | appexp rexp                         
+  | appexp texp                         
       { EApp(me $1 $2, $1, $2) } 
 
-  | rexp
+  | texp
       { $1 }
 
 /* translate expressions -- snipped JNF */
+texp:
+  | texp DARROW rexp
+      { ETrans(me $1 $3, $1, $3) }
+  | rexp                                
+      { $1 }
+
       
 /* repeated expressions */
 rexp:
@@ -234,7 +239,7 @@ rexp:
           | m,Some n -> 
               if m > n then
                 syntax_error i 
-                  (fun () -> Util.format "error in repetition %d > %d" m n)
+                  (sprintf "error in repetition %d > %d" m n)
               else if m=n then 
                 mk_cats $1 $1 (pred m)
               else (* n > m *)

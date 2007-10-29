@@ -85,6 +85,7 @@ and exp =
 
    (* boomerang expressions *)
     | EMatch of i * Bstring.t * qid
+    | ETrans of i * exp * exp
 
 (* declarations *)
 type test_result =
@@ -111,6 +112,7 @@ let info_of_exp = function
   | ECSet (i,_,_) -> i
   | EUnion (i,_,_) -> i
   | ECat (i,_,_) -> i
+  | ETrans (i,_,_) -> i
   | EStar (i,_) -> i
   | ECompose (i,_,_) -> i
   | EDiff (i,_,_) -> i
