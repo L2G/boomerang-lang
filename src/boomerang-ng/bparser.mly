@@ -153,10 +153,22 @@ exp:
         let f = mk_fun i $3 $5 in 
         EFun(i,$2,None,f) }
       
-  | composeexp                               
+  | gpexp                               
       { $1 }
 
 /* "get put" expressions -- snipped JNF*/
+gpexp: 
+  | composeexp get aexp
+      { let i = me $1 $3 in 
+        EApp(i, EApp(i, EVar(i, mk_prelude_qid "get"), $1), $3) }
+  | composeexp put aexp INTO aexp        
+      { let i = me $1 $3 in 
+        EApp(i, EApp(i, EVar(i, mk_prelude_qid "put"), $1), $3) }
+  | composeexp create aexp               
+      { let i = me $1 $3 in 
+        EApp(i, EApp(i, EVar(i, mk_prelude_qid "create"), $1), $3) }
+  | composeexp
+      { $1 } 
 
 /* compose expressions */
 composeexp:
@@ -165,8 +177,7 @@ composeexp:
       
   | bexp
       { $1 }
-      
-      
+            
 /* bar expressions */
 bexp:
   | bexp BAR iexp 

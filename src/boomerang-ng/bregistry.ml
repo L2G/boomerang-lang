@@ -84,10 +84,10 @@ let reset () =
 (* register a value *)
 let register q r = library := (REnv.update (!library) q r)
 
+let register_native_qid q s v = register q (s,v)
+
 (* register a native value *)
-let register_native qs s v = 
-  let q = Bvalue.parse_qid qs in
-    register q (s,v)
+let register_native qs s v = register_native_qid (Bvalue.parse_qid qs) s v
 
 (* register a whole (rv Env.t) in m *)
 let register_env ev m = REnv.iter (fun q r -> register (Bsyntax.qid_dot m q) r) ev

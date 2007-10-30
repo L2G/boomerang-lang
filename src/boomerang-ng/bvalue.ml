@@ -25,7 +25,11 @@ type t =
 
 let equal v1 v2 = false
 
-let format = function _ -> Util.format "UNIMPLEMENTED"
+let format = function
+  | S(_,rs) -> Util.format "%s" (RS.string_of_t rs)
+  | R(_,r)  -> Util.format "%s" (R.string_of_t r)
+  | L(_,l)  -> Util.format "%s" (L.string l)
+  | F(_,_,f)  -> Util.format "<function>"
 
 (* mk_dummy: s -> t
  * 

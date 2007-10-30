@@ -44,6 +44,9 @@ val get_library : unit -> REnv.t
 val register_env : REnv.t -> Bsyntax.qid -> unit
 (** ?? *)
 
+val register_native_qid: Bsyntax.qid -> Bsyntax.sort -> Bvalue.t -> unit
+(** ?? *)
+
 val register_native : string -> Bsyntax.sort -> Bvalue.t -> unit
 (** ?? *)
 

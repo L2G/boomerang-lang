@@ -229,7 +229,8 @@ and check_exp sev e0 = match e0 with
   | EApp(i,e1,e2) -> 
       begin match check_exp sev e1 with
         | SFunction(param_sort,return_sort), new_e1 -> 
-            let e2_sort,new_e2 = expect_sort_exp "application" sev param_sort e2 in 
+            let e2_sort,new_e2 = check_exp sev e2 in 
+            let _ = expect_sort i "application" param_sort e2_sort in 
             let new_e0 = EApp(i, new_e1, new_e2) in 
             (return_sort, new_e0)
         | e1_sort,_ -> 
@@ -242,7 +243,7 @@ and check_exp sev e0 = match e0 with
 
   | EFun(i,p,ret_sorto,body) ->
       let p_sort = sort_of_param p in
-      let p_id = id_of_param p in          
+      let p_id = id_of_param p in
       let body_sev = SCEnv.update sev (qid_of_id p_id) p_sort in
       let body_sort,new_body = match ret_sorto with
         | Some s -> expect_sort_exp "function body" body_sev s body
@@ -266,7 +267,7 @@ and check_exp sev e0 = match e0 with
   | EUnion(i,e1,e2) ->
       let e1_sort,new_e1 = expect_sort_exp "union" sev SLens e1 in 
       let e2_sort,new_e2 = expect_sort_exp "union" sev SLens e2 in 
-      let e0_sort = join i e1_sort e2_sort in 
+      let e0_sort = join i (join i e1_sort e2_sort) SRegexp in 
       let new_e0 = EUnion(i,new_e1,new_e2) in 
       (e0_sort,new_e0)
 

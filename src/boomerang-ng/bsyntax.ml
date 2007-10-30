@@ -17,6 +17,10 @@ type i = Info.t
 type id = i * string
 type qid = id list * id
 
+let mk_prelude_qid s = 
+  let i = Info.M (sprintf "%s built-in" s) in 
+  ([i,"Prelude"],(i,s))
+
 let info_of_id (i,_) = i
 let string_of_id (_,x) = x
 let id_compare (_,x1) (_,x2) = compare x1 x2
