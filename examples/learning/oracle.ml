@@ -34,6 +34,7 @@ let string_of_chunks_list (ls : chunks list) : string =
 let string_of_prophecy p =
   match p with
       BaseProphecy t -> "BaseProphecy(" ^ (Lex.string_of_token t) ^ ")"
+    | EmptyProphecy -> "EmptyProphecy"
     | StructProphecy fields -> 
 	"StructProphecy" ^ (string_of_chunks_list fields)
     | ListProphecy (preamble, entries, postamble) ->
@@ -108,7 +109,9 @@ let check_for_identical_chunks (cs : chunks) _ : prophecy option =
 	(* pull out the subchunks... *)
 	let extract_sub_chunks chunk =
 	  List.map 
-	    (function Lex.MetaToken(_, sub_chunks, _, _) -> sub_chunks) 
+	    (function 
+	       | Lex.MetaToken(_, sub_chunks, _, _) -> sub_chunks
+	       | Lex.RegexToken(_, _) -> failwith "bug in all_chunks_equal: first was a MetaToken, later found RegexToken") 
 	    chunk
 	in
 	let sub_chunks = List.concat (List.map extract_sub_chunks cs) in

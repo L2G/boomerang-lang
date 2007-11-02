@@ -1,9 +1,9 @@
 let show_structure strings =
-  let chunk_string s = Lex.parse_chunk s Lex.delimiter_table Lex.regex_table in
-  let chunks = List.map chunk_string strings in
+  let chunks = List.map Lex.parse_chunk strings in
   let s = Struct.discover chunks in
   let s' = Struct.refine s in
     print_endline ("Cost before refinement: " ^ (string_of_float (Struct.cost s)));
+    print_endline (Struct.to_string s);
     print_endline ("Cost after refinement:  " ^ (string_of_float (Struct.cost s')));
     print_endline (Struct.to_string s');
     print_newline ()

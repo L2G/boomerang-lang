@@ -99,7 +99,7 @@ let cost s =
       | Union [(_, v)] -> cd v
       | Union variants -> 
 	  (log (float_of_int (List.length variants))) +. ((for_each cd) variants)
-      | Regex (_, re_name) -> float_of_int (Lex.regex_length re_name)
+      | Regex (_, re_name) -> float_of_int (Regexp.regexp_length re_name)
       | Constant _ -> 0.0
       | Empty
       | Void -> 0.0 (* to encourage the transformation into these types *)
@@ -109,7 +109,7 @@ let cost s =
 	Structure fields -> (for_each ct) fields
       | Sequence (_, elt_s) -> ct elt_s
       | Union variants -> (for_each cd) variants
-      | Regex (_, re_name) -> float_of_int (Lex.regex_length re_name)
+      | Regex (_, re_name) -> float_of_int (Regexp.regexp_length re_name)
       | Constant s -> float_of_int (String.length s)
       | Empty
       | Void -> 0.0

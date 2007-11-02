@@ -2,7 +2,7 @@ RESULT = learn
 
 RESULTS = $(RESULT)
 
-LEARNING_SOURCES[] = lex.ml hist.ml oracle.ml struct.ml driver.ml
+LEARNING_SOURCES[] = regexp.ml lex.ml hist.ml oracle.ml struct.ml driver.ml
 
 OCAML_OTHER_LIBS = str
 
