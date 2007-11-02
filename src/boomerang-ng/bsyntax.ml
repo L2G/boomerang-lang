@@ -146,4 +146,5 @@ let rec string_of_sort = function
   | SFunction(s1,s2) -> 
       sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
 
-      
+let string_of_param p = string_of_id (id_of_param p)
+

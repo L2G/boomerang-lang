@@ -65,9 +65,9 @@ let test_error i msg_thk =
               msg_thk ();
               Util.format "@]"))
 
-let run_error i msg_thk = 
+let run_error i msg msg_thk = 
   raise (Error.Harmony_error
-           (fun () -> Util.format "@[%s: Unexpected run-time error @\n" 
+           (fun () -> Util.format "@[%s: Unexpected run-time error @\n"
               (Info.string_of_t i);
               msg_thk ();
               Util.format "@]"))
@@ -162,7 +162,7 @@ let rec join i u v = match u,v with
   | SFunction(s11,s12),SFunction(s21,s22) -> 
       begin 
         try SFunction(meet i s11 s12,join i s21 s22) 
-        with _ -> run_error i 
+        with _ -> run_error i "join" 
           (fun () -> Util.format "%s and %s do not join"
             (string_of_sort u)
             (string_of_sort v))
@@ -170,7 +170,7 @@ let rec join i u v = match u,v with
   | _ -> 
       if u=v then u 
       else
-        run_error i
+        run_error i "join"
           (fun () -> Util.format "%s and %s do not join"
             (string_of_sort u)
             (string_of_sort v))
@@ -185,7 +185,7 @@ and meet i u v = match u,v with
   | SFunction(s11,s12),SFunction(s21,s22) -> 
       begin 
         try SFunction(join i s11 s12,meet i s21 s22) 
-        with _ -> run_error i 
+        with _ -> run_error i "meet" 
           (fun () -> Util.format "%s and %s do not meet"
             (string_of_sort u)
             (string_of_sort v))
@@ -193,7 +193,7 @@ and meet i u v = match u,v with
   | _ -> 
       if u=v then u 
       else 
-        run_error i 
+        run_error i "meet"
           (fun () -> Util.format "%s and %s do not meet"
             (string_of_sort u)
             (string_of_sort v))
@@ -290,8 +290,8 @@ and check_exp sev e0 = match e0 with
       (e_sort, new_e0) 
 
   | EDiff(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "union" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "union" sev SLens e2 in       
+      let e1_sort,new_e1 = expect_sort_exp "union" sev SRegexp e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "union" sev SRegexp e2 in       
       let new_e0 = EDiff(i,new_e1,new_e2) in 
       (SRegexp,new_e0)
 
@@ -334,7 +334,7 @@ let rec check_decl sev m = function
       let n_sev, names_rev = Safelist.fold_left 
         (fun (n_sev, names) q -> 
           match Bregistry.REnv.lookup (SCEnv.get_ev m_sev) q with
-              None -> run_error i 
+              None -> run_error i "check_decl"
                 (fun () -> 
                   Util.format "@[declaration for %s missing@]"
                     (string_of_qid q))
@@ -379,7 +379,7 @@ let do_assert i msg rx s =
   if (not (Prefs.read no_assert)) then
     match Erx.match_str rx s with
       | true -> ()
-      | false -> run_error i 
+      | false -> run_error i "do_assert"
           (fun () -> 
             Util.format "%s: %s does not belong to"
               (Info.string_of_t i)
@@ -389,11 +389,11 @@ let do_assert i msg rx s =
 (* helper to manage coercions for binary operations *)
 let do_binop i msg merge (s1,v1) (s2,v2) = 
   let rec aux = function
-    | [] -> run_error i 
-        (fun () -> Util.format "%s: %s no case for %s and %s"
-          (Info.string_of_t i)
+    | [] -> run_error i "do_binop" 
+        (fun () -> Util.format "no case for %s and %s in %s"
           (string_of_sort s1)
-          (string_of_sort s2))
+          (string_of_sort s2)
+          msg)
     | (s1',s2',s,f)::rest -> 
         if subsort s1 s1' && subsort s2 s2' then (s,f i v1 v2)
         else aux rest in 
@@ -405,8 +405,7 @@ let rec compile_exp cev e0 = match e0 with
       begin match CEnv.lookup cev q with
         | Some rv -> rv
         | None -> 
-            run_error 
-              (info_of_exp e0)
+            run_error (info_of_exp e0) "compile_exp"
                 (fun () -> 
                   Util.format "@[%s is not bound@]"
                     (string_of_qid q))
@@ -419,7 +418,7 @@ let rec compile_exp cev e0 = match e0 with
         | SFunction(_,ret_sort),Bvalue.F(_,_,f) -> 
             (ret_sort, (f i v2))
         | _   -> 
-            run_error i 
+            run_error i "compile_exp"
               (fun () -> 
                 Util.format
                   "@[expected function in left-hand side of application but found %s"
@@ -441,7 +440,7 @@ let rec compile_exp cev e0 = match e0 with
       (f_sort, (Bvalue.F (i, p_sort, f_impl)))
 
   | EFun(i,_,_,_) -> 
-      run_error i 
+      run_error i "compile_exp"
         (fun () -> 
           Util.format 
             "@[compiler bug: function has no sort!@]")
@@ -476,8 +475,7 @@ let rec compile_exp cev e0 = match e0 with
         | Some (_,set_v) -> 
             V.get_f set_v i
         | None -> 
-            run_error 
-              (info_of_exp e0)
+            run_error (info_of_exp e0) "compile_exp" 
               (fun () -> Util.format "@[%s is not bound@]" set_name) in 
       let set_f2 = V.get_f (set_f i v1) i in 
       let set_l3 = V.get_l (set_f2 i v2) i in 
@@ -513,8 +511,7 @@ let rec compile_exp cev e0 = match e0 with
             let l = Bvalue.get_l v i in 
             (SLens,V.L(i,L.smatch i t l))
         | None -> 
-            run_error 
-              (info_of_exp e0)
+            run_error (info_of_exp e0) "compile_exp" 
               (fun () -> 
                 Util.format "@[%s is not bound@]"
                   (string_of_qid q))
@@ -569,7 +566,7 @@ let rec compile_decl cev m = function
                   let nq = qid_dot n_qid q in
                   (CEnv.update cev nq (p_of_rv rv), nq::names)
               | None -> 
-                  run_error i
+                  run_error i "compile_decl" 
                     (fun () -> Util.format "@[compiled declaration for %s missing@]"
                       (string_of_qid q)))
           (cev,[])

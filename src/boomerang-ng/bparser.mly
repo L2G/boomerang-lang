@@ -74,9 +74,9 @@ let parse_cset s =
     go []
       
 let mk_fun i params body = 
-  Safelist.fold_left
-    (fun f p -> (EFun(i,p,None,f)))
-    body params
+  Safelist.fold_right
+    (fun p f -> (EFun(i,p,None,f)))
+    params body 
     
 let mk_fun_sorto i params bsorto = 
   Safelist.fold_left
@@ -207,27 +207,26 @@ iexp:
 
 /* concat expressions */
 cexp:
-  | cexp DOT appexp                     
+  | cexp DOT texp                     
       { ECat(me $1 $3, $1, $3) } 
 
-  | appexp                              
+  | texp                              
+      { $1 }
+
+/* translate expressions */
+texp:
+  | texp DARROW appexp
+      { ETrans(me $1 $3, $1, $3) }
+  | appexp                                
       { $1 }
 
 /* application expressions */
 appexp:
-  | appexp texp                         
+  | appexp rexp                         
       { EApp(me $1 $2, $1, $2) } 
 
-  | texp
+  | rexp
       { $1 }
-
-/* translate expressions -- snipped JNF */
-texp:
-  | texp DARROW rexp
-      { ETrans(me $1 $3, $1, $3) }
-  | rexp                                
-      { $1 }
-
       
 /* repeated expressions */
 rexp:
