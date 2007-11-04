@@ -1,0 +1,116 @@
+module CoqSrc = 
+
+  let nl = "\n"
+  let dnl : string = nl{2}
+  let ws = [ \n\t] 
+
+  let any = [^]*
+  let anyp = [^]+
+
+  let comment_open = "(*"  
+  let comment_close = "*)" 
+  let comment (s:string) = comment_open . s . comment_close 
+
+  let containing (r:regexp) = any . r . any
+  let but (r1:regexp) (r2:regexp) = r1 - (containing r2)
+  let any_but (r:regexp) = but any r
+  let anyp_but (r:regexp) = but anyp r
+
+  let any_but_dot = [^.]*
+  let any_but_dot_nl = any_but ".\n"
+
+  let admitted_from = comment " ADMITTED " 
+  let admitted_to = comment " FILL IN HERE (and delete \"Admitted\") " . " " . "Admitted." 
+  let admitted = 
+    admitted_from <-> admitted_to . 
+    del (but any "Qed." . "Qed.")
+
+  let admitted_opt_from = comment " ADMITTEDOPT " 
+  let admitted_opt_to = comment " OPTIONAL EXERCISE " . " " . "Admitted." 
+  let admitted_opt = 
+    admitted_opt_from <-> admitted_opt_to . 
+    del (but any "Qed." . "Qed.")
+
+  let lemma = 
+    ("Lemma " | "Theorem" ). 
+    key [^:]+ . ":" .
+    but any "Proof." . 
+    "Proof." .
+    but any ( admitted_from | admitted_to 
+            | admitted_opt_from | admitted_opt_to
+            | "Qed.") . 
+    (admitted | admitted_opt | "Qed.")
+
+  let exercise_from = comment " EXERCISE "
+  let exercise_to =  "FILL IN HERE"
+  let exercise_follows_from = comment " EXERCISE FOLLOWS "
+  let exercise_follows_to = comment " FILL IN HERE "
+  let exercise = 
+    ( (exercise_from . (but (any . nl) dnl) . nl) <-> (exercise_to . dnl)
+    | (exercise_follows_from . (but (any . nl) dnl) . nl) <-> (exercise_follows_to . dnl))
+
+  let definition = 
+    ("Inductive " | "Definition " | "Fixpoint " | "Notation " | "Ltac") . 
+    key [^:]+ . ":" . 
+    ( but any 
+        (".\n" 
+        | exercise_from | containing exercise_to
+        | exercise_follows_from | exercise_follows_to) ) . 
+    ( exercise | ".\n")
+
+test definition get 
+   "Definition one_no (b1:yesno) (b2:yesno) : yesno :=
+   |  (* EXERCISE FOLLOWS *)
+   |  match b1 with
+   |  | yes => swap_yesno b2
+   |  | no => yes
+   |  end.
+   |
+   |" = ?
+      
+  let declaration = 
+    ("Eval" | "Check" | "Require" | "Open" | "Export" | "Tactic") . 
+    any_but_dot . "." 
+
+  let definition = lemma | definition | declaration 
+
+  let hide = 
+    let p1 = but (nl . any . [^\n] . nl) dnl in 
+    let p2 = [^\n]+ in 
+    del (comment_open . " HIDE " . comment_close) . 
+    (p1 | p2) <-> "(* HIDDEN *)" . 
+    nl
+
+  let lecture_open_from = comment " OPEN COMMENT IN LECTURE "
+  let lecture_open_to =  " <------ remove this comment"
+  let lecture_close_from = comment " CLOSE COMMENT IN LECTURE "
+  let lecture_close_to = "remove this comment ------> "
+  let lecture = 
+      lecture_open_from <-> (comment_open . lecture_open_to) 
+    | lecture_close_from <-> (lecture_close_to . comment_close)
+
+  let special_comment = hide | lecture 
+
+  let comment = 
+    let comment_tag = comment_open | comment_close in 
+    let inner_nested = but ([^)] . any)? comment_tag in 
+    let inner_atomic = but any comment_tag in 
+    (comment_open . 
+    (inner_atomic | (inner_atomic . comment_open . inner_nested . comment_close)* . inner_atomic) . 
+    comment_close)
+    - 
+    ( comment " HIDE " | comment " HIDDEN "
+    | admitted_from | admitted_to 
+    | admitted_opt_from | admitted_opt_to
+    | lecture_open_from | containing lecture_open_to 
+    | lecture_close_from | containing lecture_close_to )
+
+let modl = 
+  "Module " .
+  key any_but_dot . "." . 
+  (ws | definition | comment | special_comment)* .
+  "End " . any_but_dot . "."
+    
+let item = ws | definition | comment | special_comment | modl
+    
+let l = <item>*

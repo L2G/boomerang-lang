@@ -1,0 +1,3 @@
+concrete = lec07Master.v
+abstract = homework01.v
+lens = -I . -l CoqSrc.l 

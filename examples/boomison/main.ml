@@ -4,7 +4,7 @@ let name = "boomison"
 
 let () = Util.supplyFileInUnisonDirFn (fun s -> sprintf "./.%s/%s" name s)
 
-let debug s = Trace.debug "uniboom" (fun () -> Util.format "%s" s)
+let debug s = Trace.debug name (fun () -> Util.format "%s" s)
 
 let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n) 
 let tmp_fn n = Util.fileInUnisonDir (sprintf ".#%s-tmp" n) 
@@ -12,6 +12,7 @@ let tmp_fn n = Util.fileInUnisonDir (sprintf ".#%s-tmp" n)
 let go l c_fn a_fn = 
   let o_fn = archive_fn c_fn in 
   let cp fn1 fn2 = Misc.write fn2 (Misc.read fn1) in 
+  let rm fn1 = Misc.remove_file_or_dir fn1 in 
   let eq fn1 fn2 = Misc.read fn1 = Misc.read fn2 in 
   let get c a = ignore (Sys.command (sprintf "boomerang -c %s -o %s %s" c a l)) in 
   let put a o c = ignore (Sys.command (sprintf "boomerang -a %s -c %s -o %s %s" a o c l)) in 
@@ -25,19 +26,19 @@ let go l c_fn a_fn =
         (* if c exists but a does not, set a to GET c *)
         cp c_fn o_fn;
         get c_fn a_fn;
-        debug (sprintf "%s -- get(%s) --> %s\n" c_fn l a_fn)
+        debug (sprintf "(lens: %s) %s -- get --> %s\n" l c_fn a_fn)
           
     | true,false,true ->
         (* if c does not exist but a and o do, set c to PUT a o *)        
         put a_fn o_fn c_fn;
         cp c_fn o_fn;
-        debug (sprintf "(%s,%s) -- put(%s) --> %s\n" a_fn o_fn l c_fn)
+        debug (sprintf "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn)
           
     | false,false,true ->
         (* if c and o do not exist but a does, set c to CRT a *)        
         crt a_fn c_fn;
         cp c_fn o_fn;
-        debug (sprintf "%s -- create(%s) --> %s\n" a_fn l c_fn)
+        debug (sprintf "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn)
 
     | false,true,true -> 
         (* if c and a exist but o does not and a <> GET c then conflict *)
@@ -46,7 +47,8 @@ let go l c_fn a_fn =
         if eq a_fn t_fn then
           cp c_fn o_fn
         else 
-          debug (sprintf "%s --> conflict <-- %s\n" c_fn a_fn)
+          debug (sprintf "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
+        rm t_fn
 
     | true,true,true -> 
         (* otherwise, c, a, and o exist:
@@ -58,13 +60,14 @@ let go l c_fn a_fn =
         if eq a_fn t_fn then 
           (get c_fn a_fn;
            cp c_fn o_fn;
-           debug (sprintf "%s -- get(%s) --> %s\n" c_fn l a_fn))
+           debug (sprintf "(lens: %s) %s -- get --> %s\n" l c_fn a_fn))
         else if eq c_fn o_fn then 
           (put a_fn o_fn c_fn;
            cp c_fn o_fn;
-           debug (sprintf "(%s,%s) -- put(%s) --> %s\n" a_fn o_fn l c_fn))
+           debug (sprintf "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn))
         else 
-          debug (sprintf "%s --> conflict <-- %s\n" c_fn a_fn)
+          debug (sprintf "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
+        rm t_fn
             
 let usage = sprintf "%s [options]" name
 
