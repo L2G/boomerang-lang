@@ -335,4 +335,4 @@ let _ =
 		      else "not lensable"))
     delimiter_table
 
-(* let _ = Bsyntax.EString (M "foo", "testing") *)
+let _ = Bsyntax.EString (Info.M "foo", Bstring.t_of_string "testing")
