@@ -3,21 +3,24 @@ OCAML_LIBS += $(SRCDIR)/harmony
 
 RESULT = boomerang
 
-RESULTS = $(RESULT)
+RESULTS = boomerang.cmxa $(RESULT)
 
-BOOMERANG_SOURCES[] = wic.ml woc.ml rint.ml bstring.ml \
-                      crm.ml erx.ml \
-                      bimports.ml berror.ml bregexp.ml blenses.ml \
-                      bsyntax.ml bparser.mly blexer.mll bvalue.ml \
-	              bregistry.ml bcompiler.ml bdriver.ml \
-                      main.ml
+BOOMERANG_LIBRARY_SOURCES[] = \
+   wic.ml woc.ml rint.ml bstring.ml \
+   crm.ml erx.ml \
+   bimports.ml berror.ml bregexp.ml blenses.ml \
+   bsyntax.ml bparser.mly blexer.mll bvalue.ml \
+   bregistry.ml bcompiler.ml bdriver.ml
 
+BOOMERANG_SOURCES[] = $(BOOMERANG_LIBRARY_SOURCES) main.ml
+
+OCamlLibrary($(RESULT), $(rootname $(BOOMERANG_LIBRARY_SOURCES)))
 OCamlProgram($(RESULT), $(rootname $(BOOMERANG_SOURCES)))
 
 TAGS: :value: $(BOOMERANG_SOURCES)
    -etags $(BOOMERANG_SOURCES)
 
-.DEFAULT: $(RESULT)
+.DEFAULT: $(RESULTS)
 
 CLEAN += bparser.ml bparser.mli blexer.ml
 

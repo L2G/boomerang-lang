@@ -5,7 +5,7 @@
 
 # This is needed only for the TAGS command; should be removed after the next
 # OMake release (it's to get around a bug)
-BYTE_ENABLED = TRUE
+# BYTE_ENABLED = TRUE
 
 ##############################################################################
 # Sub-directories
@@ -14,6 +14,7 @@ BYTE_ENABLED = TRUE
 SUBDIRS = src lenses tools examples extern doc
 
 SRCDIR = $(dir src)
+BOOMERANGNGDIR = $(dir src/boomerang-ng)
 LENSESDIR = $(dir lenses)
 TOOLSDIR = $(dir tools)
 EXAMPLESDIR = $(dir examples)
