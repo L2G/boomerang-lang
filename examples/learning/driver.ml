@@ -8,13 +8,13 @@ let show_structure strings =
     print_endline (Struct.to_string s');
     print_newline ()
 
-let output_lens strings =
+let lens_as_string strings mod_name lines_name =
   let chunks = List.map Lex.parse_chunk strings in
   let s = Struct.discover chunks in
   let s' = Struct.refine s in
-    (* TODO specify module/lens name *)
-  let l_module = Lenses.struct_to_module s' "learned" "l" in 
-    Bsyntax.format_module l_module
+    (* TODO specify lens name *)
+  let l_module = Lenses.struct_to_module s' mod_name "l" lines_name in 
+    Util.format_to_string (fun () -> Bsyntax.format_module l_module)
 
 let input_lines ic =
   let rec iter ic cs =
@@ -42,16 +42,20 @@ open Arg
 
 let chunk_fun : chunk_fun ref = ref chunk_by_line
 let input_files : string list ref = ref []
+let output_file : string option ref = ref None
 
 let arg_spec = 
   [("--by-line", Unit (fun () -> chunk_fun := chunk_by_line), 
     "Chunk the given input file(s) by line (default)");
    
    ("--by-file", Unit (fun () -> chunk_fun := chunk_by_file), 
-    "Chunk the input by file -- more than one file must be specified!")]
+    "Chunk the input by file -- more than one file must be specified!");
+
+   ("-o", String (fun f -> output_file := Some f), "Where to output the lens source (defaults to STDOUT)")]
 
 let arg_spec = align arg_spec
-let parse_argv_input_files filename = input_files := filename::!input_files
+let parse_argv_input_files filename = 
+  input_files := filename::!input_files
 
 let usage_msg = "learn [OPTIONS] [files ...]"
 
@@ -62,7 +66,17 @@ let run () =
   else
     let ics = List.map open_in !input_files in
     let strings = !chunk_fun ics in
-      output_lens strings
+    let get_lens mod_name =
+      lens_as_string strings mod_name (if !chunk_fun == chunk_by_line
+				       then Some "lines"
+				       else None)
+    in
+      match !output_file with
+	  None -> print_string (get_lens "learned")
+	| Some f ->
+	    let oc = open_out f in
+	      output_string oc (get_lens (Filename.chop_extension f));
+	      close_out oc
 
 let _ = run ()
   

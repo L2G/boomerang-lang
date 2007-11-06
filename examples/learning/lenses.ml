@@ -31,7 +31,7 @@ let rec struct_to_lens s =
 
     | Void -> failwith "cannot convert void to a lens" (* or, [] *)
 
-let struct_to_module s mod_name l_name =
+let struct_to_module s mod_name l_name lines_name =
   let let_binding re_name =
     DLet (i, 
 	  Bind (i, 
@@ -51,4 +51,19 @@ let struct_to_module s mod_name l_name =
 			      None (* no sort *),
 			      struct_to_lens s))
   in
-    Mod (i, mk_id mod_name, [], token_decls @ [lens_decl])
+    (* let lines = (l_name . "\n")* *)
+  let lens_decls = 
+    match lines_name with
+	Some lines_name ->
+	  let lines_decl = DLet (i,
+				 Bind (i,
+				       mk_id lines_name,
+				       None (* no sort *),
+				       EStar(i, ECat(i, 
+						     EVar(i, mk_unqid_of_name l_name), 
+						     EString(i, Bstring.t_of_string "\n")))))
+	  in
+	    [lens_decl; lines_decl]
+      | None -> [lens_decl]
+  in
+    Mod (i, mk_id mod_name, [], token_decls @ lens_decls)
