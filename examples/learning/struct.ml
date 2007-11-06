@@ -87,6 +87,31 @@ let to_string s =
   in
     to_string s ""
 
+let rec tokens s =
+  let concat_unique lss =
+    let rec merge ls1 ls2 =
+      List.fold_left 
+	(fun ls2 v ->
+	   if List.mem v ls2
+	   then ls2
+	   else v::ls2)
+	ls2 ls1
+    in
+      List.fold_left merge [] lss
+  in
+  match s with
+      Structure fields ->
+	let ts = List.map (fun (_, s) -> tokens s) fields in
+	  concat_unique ts
+    | Sequence (_, s) -> tokens s
+    | Union variants ->
+	let ts = List.map (fun (_, s) -> tokens s) variants in
+	  concat_unique ts
+    | Regex (_, name) -> [name]
+    | Constant _
+    | Empty
+    | Void -> []
+
 let cost s =
   let for_each f css =
     List.fold_left (fun sum (_, sub_s) -> sum +. (f sub_s)) 0.0 css

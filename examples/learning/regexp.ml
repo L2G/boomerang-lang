@@ -68,9 +68,14 @@ type match_prefix = match_token * string
 let match_prefix (s : string) (p : string) (tag : string -> 'a) : match_prefix option =
   if Str.string_partial_match (Str.regexp ("\\("^ p ^"\\)")) s 0
   then 
-    let token = tag (Str.matched_string s) in
-    let left_over = Str.string_after s (Str.match_end ()) in
-      Some (token, left_over) 
+    let matched = Str.matched_string s in
+      if matched <> ""
+      then 
+	let token = tag matched in
+	let left_over = Str.string_after s (Str.match_end ()) in
+	  Some (token, left_over) 
+      else
+	None
   else None
 
 (** tries to match a prefix of the given string with the start or end
@@ -115,71 +120,24 @@ let find_regexp_match s = find_match s regexp_table regexp_match
 (** REGEXP PARSING, from ocaml 3.09 otherlibs/str/str.ml *)
 
 (** Representation of character sets **)
-
 module Charset =
   struct
-    type t = string (* of length 32 *)
+       (* negated * ranges *)
+    type t = bool * (char * char) list 
 
-    let empty = String.make 32 '\000'
-    let full = String.make 32 '\255'
+    let empty = (false, [])
+    let full = (true, [])
 
-    let make_empty () = String.make 32 '\000'
+      (* N.B. no check is done to see whether this range is already
+	 included *)
+    let add_range (neg, ranges) c1 c2 =
+      (neg, (c1, c2)::ranges)
 
-    let add s c =
-      let i = Char.code c in
-      s.[i lsr 3] <- Char.chr(Char.code s.[i lsr 3] lor (1 lsl (i land 7)))
+    let add s c = add_range s c c
 
-    let add_range s c1 c2 =
-      for i = Char.code c1 to Char.code c2 do add s (Char.chr i) done
+    let singleton c = add empty c
 
-    let singleton c =
-      let s = make_empty () in add s c; s
-
-    let range c1 c2 =
-      let s = make_empty () in add_range s c1 c2; s
-
-    let complement s =
-      let r = String.create 32 in
-      for i = 0 to 31 do
-        r.[i] <- Char.chr(Char.code s.[i] lxor 0xFF)
-      done;
-      r
-
-    let union s1 s2 =
-      let r = String.create 32 in
-      for i = 0 to 31 do
-        r.[i] <- Char.chr(Char.code s1.[i] lor Char.code s2.[i])
-      done;
-      r
-
-    let disjoint s1 s2 =
-      try
-        for i = 0 to 31 do
-          if Char.code s1.[i] land Char.code s2.[i] <> 0 then raise Exit
-        done;
-        true
-      with Exit ->
-        false
-
-    let iter fn s =
-      for i = 0 to 31 do
-        let c = Char.code s.[i] in
-        if c <> 0 then
-          for j = 0 to 7 do
-            if c land (1 lsl j) <> 0 then fn (Char.chr ((i lsl 3) + j))
-          done
-      done
-
-    let expand s =
-      let r = String.make 256 '\000' in
-      iter (fun c -> r.[Char.code c] <- '\001') s;
-      r
-
-    let fold_case s =
-      let r = make_empty() in
-      iter (fun c -> add r (Char.lowercase c); add r (Char.uppercase c)) s;
-      r
-
+    let complement (neg, ranges) = (not neg, ranges)
   end
 
 (** Abstract syntax tree for regular expressions *)
@@ -293,20 +251,20 @@ let parse_re s =
     then let (c, j) = regexpclass1 (i+1) in (Charset.complement c, j)
     else regexpclass1 i
   and regexpclass1 i =
-    let c = Charset.make_empty() in
-    let j = regexpclass2 c i i in
-    (c, j)
+    let c = Charset.empty in
+    let (c, j) = regexpclass2 c i i in
+      (c, j)
   and regexpclass2 c start i =
     if i >= len then failwith "[ class not closed by ]";
-    if s.[i] = ']' && i > start then i+1 else begin
+    if s.[i] = ']' && i > start then (c, i+1) else begin
       let c1 = s.[i] in
       if i+2 < len && s.[i+1] = '-' && s.[i+2] <> ']' then begin
         let c2 = s.[i+2] in
-        Charset.add_range c c1 c2;
-        regexpclass2 c start (i+3)
+	let c = Charset.add_range c c1 c2 in
+          regexpclass2 c start (i+3)
       end else begin
-        Charset.add c c1;
-        regexpclass2 c start (i+1)
+        let c = Charset.add c c1 in
+          regexpclass2 c start (i+1)
       end
     end in
 
@@ -319,20 +277,66 @@ let lensable re_str =
       true
   with exn -> false
 
-let _ =
-  List.iter 
-    (fun (name, re) ->
-       print_string name; print_string ": ";
-       print_endline (if lensable re
-		      then "lensable"
-		      else "not lensable"))
-    regexp_table;
-  List.iter
-    (fun (name, (l, r)) ->
-              print_string name; print_string ": ";
-       print_endline (if lensable l && lensable r
-		      then "lensable"
-		      else "not lensable"))
-    delimiter_table
+open Bsyntax
 
-let _ = Bsyntax.EString (Info.M "foo", Bstring.t_of_string "testing")
+(* dummy parse info *)
+let i = Info.M "regular expression"
+
+let rec re_to_lens re =
+  match re with
+      Char c -> EString (i, Bstring.make 1 (Bstring.sym_of_char c))
+    | String s -> EString (i, Bstring.t_of_string s)
+
+    | CharClass (neg, ranges) ->
+	let sym_ranges = 
+	  List.map 
+	    (fun (c1, c2) -> 
+	       Bstring.sym_of_char c1, Bstring.sym_of_char c2)
+	    ranges
+	in
+	  ECSet (i, neg, sym_ranges)	  
+
+    | Seq [] -> failwith "empty seq"
+    | Seq [re] -> re_to_lens re
+    | Seq (re::res) -> ECat (i, re_to_lens re, re_to_lens (Seq res))
+
+    | Alt (re1, re2) -> EUnion (i, re_to_lens re1, re_to_lens re2)
+    | Star re -> EStar (i, re_to_lens re)
+    | Plus re -> (* (re)+ ==> re . (re)* 
+		    TODO let l = re in
+		           l . (l)* 
+		 *)
+	let l = re_to_lens re in
+	  ECat (i, l, EStar (i, l))
+    | Option re -> EUnion (i, EString (i, Bstring.t_of_string ""), re_to_lens re)
+    | Group (_, re) -> re_to_lens re
+
+(* do we need this?  these should always get replaced with constants... *)
+let delimiter_to_lens name = 
+  let l, r = List.assoc name delimiter_table in
+    re_to_lens (parse_re l), re_to_lens (parse_re r)
+
+let regexp_to_lens name =
+  let re = List.assoc name regexp_table in
+    re_to_lens (parse_re re)
+
+(*
+let _ =
+  let format_re_lens re_str = 
+    Bsyntax.format_exp (re_to_lens (parse_re re_str)) 
+  in
+    List.iter 
+      (fun (name, re) ->
+	 Util.format "@[%s:@ " name;
+	 format_re_lens re;
+	 Util.format "@]@\n")
+      regexp_table;
+    List.iter
+      (fun (name, (l, r)) ->
+	 Util.format "@[%s:@ " name;
+	 format_re_lens l;
+	 Util.format ",@ ";
+	 format_re_lens r;
+	 Util.format "@]@\n")
+      delimiter_table
+*)

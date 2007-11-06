@@ -148,3 +148,144 @@ let rec string_of_sort = function
 
 let string_of_param p = string_of_id (id_of_param p)
 
+(* TODO only use parens when necessary *)
+let rec format_sort s =
+  match s with
+      SString -> Util.format "string"
+
+    | SRegexp -> Util.format "regexp"
+
+    | SLens -> Util.format "lens"
+
+    | SFunction(s1, s2) ->
+	Util.format "(";
+	format_sort s1;
+	Util.format "@ ->@";
+	format_sort s2;
+	Util.format ")"
+
+and format_param (Param (_, id, s)) =
+  Util.format "@[%s:" (string_of_id id);
+  format_sort s;
+  Util.format "@]"
+
+and format_binding (Bind (_, id, s, e)) =
+  Util.format "@[<2>%s" (string_of_id id);
+  (match s with
+       Some s -> Util.format "@ :@ "; format_sort s
+     | None -> ());
+  Util.format "@ =@ ";
+  format_exp e;
+  Util.format "@]"
+
+and format_exp e =
+  let format_binary_exp sep e1 e2 =
+	Util.format "@[<2>(";
+	format_exp e1;
+	Util.format ")@ %s@ (" sep;
+	format_exp e2;
+	Util.format ")@]"
+  in
+  match e with
+      EApp (_, e1, e2) ->
+	Util.format "@[<2>(";
+	format_exp e1;
+	Util.format "@ ";
+	format_exp e2;
+	Util.format ")@]"
+
+    | EVar (_, qid) ->
+	Util.format "@[%s@]" (string_of_qid qid)
+
+    | EFun (_, p, s, e) ->
+	(* TODO does this really take only one parameter? *)
+	Util.format "@[<2>fun@ ";
+	format_param p;
+	(match s with
+	     Some s -> Util.format " : "; format_sort s
+	   | None -> ());
+	Util.format "@ ->@ ";
+	format_exp e;
+	Util.format "@]";
+
+    | ELet (_, b, e) ->
+	Util.format "@[<2>let@ ";
+	format_binding b;
+	Util.format "@ in@ ";
+	format_exp e;
+	Util.format "@]";
+
+    | EString (_, s) ->
+	Util.format "@[\"%s\"@]" (Bstring.escaped (Bstring.string_of_t s))
+
+    | ECSet (_, negated, ranges) ->
+	Util.format "@[[";
+	(if negated
+	 then Util.format "^"
+	 else ());
+	Misc.format_list ""
+	  (fun (first, last) ->
+	     if Bstring.compare_sym first last = 0
+	     then Util.format "%s" (Bstring.escaped_repr first)
+	     else Util.format "%s-%s" 
+	       (Bstring.escaped_repr first)
+	       (Bstring.escaped_repr last))
+	  ranges;
+	  Util.format "]@]"
+
+    | EUnion (_, e1, e2) -> format_binary_exp "|" e1 e2
+
+    | ECat (_, e1, e2) -> format_binary_exp "." e1 e2
+
+    | EStar (_, e) ->
+	Util.format "@[<2>(";
+	format_exp e;
+	Util.format ")*@]"
+
+    | ECompose (_, e1, e2) -> format_binary_exp ";" e1 e2
+
+    | EDiff (_, e1, e2) -> format_binary_exp "-" e1 e2
+
+    | EInter (_, e1, e2) -> format_binary_exp "&" e1 e2
+
+    | EMatch (_, s, qid) ->
+	Util.format "@[<2><%s" (string_of_qid qid);
+	let s = Bstring.string_of_t s in
+	  (if s <> ""
+	   then Util.format "@ :@ %s" s);
+	  Util.format ">@]"
+
+    | ETrans (_, e1, e2) -> format_binary_exp "<->" e1 e2
+
+and format_test_result tr =
+  match tr with
+      TestValue e -> format_exp e
+    | TestError -> Util.format "@[<2>error@]"
+
+    | TestShow -> Util.format "@[<2>?@]"
+
+and format_decl d =
+  match d with
+      DLet (_, b) ->
+	Util.format "@[let@ ";
+	format_binding b;
+	Util.format "@]"
+
+    | DMod (i, id, ds) ->
+	format_module (Mod (i, id, [], ds))
+
+    | DTest (_, e, tr) ->
+	Util.format"@[<2>test@ @[";
+	format_exp e;
+	Util.format "@ =@ ";
+	format_test_result tr;
+	Util.format "@]@]"
+and format_module (Mod (_, id, qs, ds)) =
+  Util.format "@[module %s =@\n  @[" (string_of_id id);
+  if qs <> [] then 
+    Misc.format_list "@\n" 
+      (fun qid -> Util.format "open %s" (string_of_qid qid))
+      qs;
+  Misc.format_list "@\n" format_decl ds;
+  Util.format "@\n@]@\n@]"
+

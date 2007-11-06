@@ -23,3 +23,6 @@ val find_delimiter_match : string -> match_prefix option
 (** tries to match a prefix of the given string with the given regex,
     tagging any matches as RegexMatch *)
 val find_regexp_match : string -> match_prefix option
+
+(** given a regexp name (from a Regex structure token), converts it to a lens *)
+val regexp_to_lens : string -> Bsyntax.exp

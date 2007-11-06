@@ -24,8 +24,10 @@ type t =
     (* failure, e.g., Union [] *)
   | Void
 
-
 val to_string : t -> string
+
+(** returns a list of all regex tokens used in the structure *)
+val tokens : t -> string list
 
 (** computes the number of bits necessary to transmit data matching a
     description

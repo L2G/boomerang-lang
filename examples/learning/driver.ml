@@ -8,6 +8,14 @@ let show_structure strings =
     print_endline (Struct.to_string s');
     print_newline ()
 
+let output_lens strings =
+  let chunks = List.map Lex.parse_chunk strings in
+  let s = Struct.discover chunks in
+  let s' = Struct.refine s in
+    (* TODO specify module/lens name *)
+  let l_module = Lenses.struct_to_module s' "learned" "l" in 
+    Bsyntax.format_module l_module
+
 let input_lines ic =
   let rec iter ic cs =
     try iter ic ((input_line ic)::cs)
@@ -45,12 +53,16 @@ let arg_spec =
 let arg_spec = align arg_spec
 let parse_argv_input_files filename = input_files := filename::!input_files
 
+let usage_msg = "learn [OPTIONS] [files ...]"
+
 let run () = 
-  Arg.parse arg_spec parse_argv_input_files "";
-  let ics = List.map open_in !input_files in
-  let strings = !chunk_fun ics in
-    show_structure strings
+  Arg.parse arg_spec parse_argv_input_files usage_msg;
+  if !input_files = []
+  then Arg.usage arg_spec usage_msg
+  else
+    let ics = List.map open_in !input_files in
+    let strings = !chunk_fun ics in
+      output_lens strings
 
 let _ = run ()
   
-

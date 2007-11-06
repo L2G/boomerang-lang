@@ -1,13 +1,13 @@
 # we need to link with boomerang-ng
-OCAMLINCLUDES += $(BOOMERANGNGDIR)
-OCAML_LIBS = $(BOOMERANGNGDIR)/boomerang
+OCAMLINCLUDES += $(BOOMERANGNGDIR) $(SRCDIR)
+OCAML_LIBS = $(SRCDIR)/harmony $(BOOMERANGNGDIR)/boomerang
 
 OCAML_OTHER_LIBS = str
 
 RESULT = learn
 RESULTS = $(RESULT)
 
-LEARNING_SOURCES[] = regexp.ml lex.ml hist.ml oracle.ml struct.ml driver.ml
+LEARNING_SOURCES[] = regexp.ml lex.ml hist.ml oracle.ml struct.ml lenses.ml driver.ml
 
 OCamlProgram($(RESULT), $(rootname $(LEARNING_SOURCES)))
 
