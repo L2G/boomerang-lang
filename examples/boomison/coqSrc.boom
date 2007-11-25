@@ -1,86 +1,82 @@
 module CoqSrc = 
 
+  (* ---------- GENERIC DEFINITIONS ---------- *)
+  (* any string *)
+  let any : regexp = [^]*
+  (* any non-empty string *)
+  let anyne : regexp = [^]+
+  (* any string containing r *)
+  let containing (r:regexp) = any . r . any
+  (* any string in r1 not containing an occurrence of r2 *)
+  let but (r1:regexp) (r2:regexp) = r1 - (containing r2)
+  (* any string not containing an occurrence of r *)
+  let any_but (r:regexp) = but any r
+  (* any non-empty string not containing an occurrence of r *)
+  let anyne_but (r:regexp) = but anyne r
+  (* any string not containing "." *)
+  let any_but_dot = [^.]*
+  (* any string not containing ".\n" *)
+  let any_but_dot_nl = any_but ".\n"
+  (* any string not containing "Qed." *)
+  let any_but_qed_dot = any_but "Qed."
+
+  (* ---------- CONSTANTS ----------- *)
+  (* newline *)
   let nl = "\n"
+  (* double newline *)
   let dnl : string = nl{2}
-  let ws = [ \n\t] 
-
-  let any = [^]*
-  let anyp = [^]+
-
+  (* not a newline *)
+  let not_nl = [^\n]
+  (* whitespace *)
+  let ws = [ \n\t]      
+  (* open comment *)
   let comment_open = "(*"  
+  (* close comment *)
   let comment_close = "*)" 
+  (* comment with body s *)
   let comment (s:string) = comment_open . s . comment_close 
 
-  let containing (r:regexp) = any . r . any
-  let but (r1:regexp) (r2:regexp) = r1 - (containing r2)
-  let any_but (r:regexp) = but any r
-  let anyp_but (r:regexp) = but anyp r
-
-  let any_but_dot = [^.]*
-  let any_but_dot_nl = any_but ".\n"
-
+  (* ---------- HELPER LENSES ---------- *)
   let admitted_from = comment " ADMITTED " 
   let admitted_to = comment " FILL IN HERE (and delete \"Admitted\") " . " " . "Admitted." 
-  let admitted = 
-    admitted_from <-> admitted_to . 
-    del (but any "Qed." . "Qed.")
-
   let admitted_opt_from = comment " ADMITTEDOPT " 
   let admitted_opt_to = comment " OPTIONAL EXERCISE " . " " . "Admitted." 
-  let admitted_opt = 
-    admitted_opt_from <-> admitted_opt_to . 
-    del (but any "Qed." . "Qed.")
-
-  let lemma = 
-    ("Lemma " | "Theorem" ). 
-    key [^:]+ . ":" .
-    but any "Proof." . 
-    "Proof." .
-    but any ( admitted_from | admitted_to 
-            | admitted_opt_from | admitted_opt_to
-            | "Qed.") . 
-    (admitted | admitted_opt | "Qed.")
+  let admitted = 
+    ( admitted_from <-> admitted_to 
+    | admitted_opt_from <-> admitted_opt_to ) . 
+    del (any_but_qed_dot . "Qed.")
 
   let exercise_from = comment " EXERCISE "
   let exercise_to =  "FILL IN HERE"
   let exercise_follows_from = comment " EXERCISE FOLLOWS "
   let exercise_follows_to = comment " FILL IN HERE "
   let exercise = 
-    ( (exercise_from . (but (any . nl) dnl) . nl) <-> (exercise_to . dnl)
-    | (exercise_follows_from . (but (any . nl) dnl) . nl) <-> (exercise_follows_to . dnl))
+    ( exercise_from <-> exercise_to
+    | exercise_follows_from <-> exercise_follows_to) . 
+    del (but (any . nl) ( dnl | comment " HIDE " | "End ")) . nl
+
+  (* ---------- DECLARATIONS ---------- *)
+  let proposition = 
+    ("Lemma " | "Theorem" ). 
+    key [^:]+ . ":" .
+    but any "Proof." . 
+    "Proof." .
+    but any 
+      ( admitted_from | admitted_to 
+      | admitted_opt_from | admitted_opt_to
+      | "Qed.") . 
+    (admitted | "Qed.")
 
   let definition = 
     ("Inductive " | "Definition " | "Fixpoint " | "Notation " | "Ltac") . 
     key [^:]+ . ":" . 
-    ( but any 
-        (".\n" 
-        | exercise_from | containing exercise_to
-        | exercise_follows_from | exercise_follows_to) ) . 
+    but any 
+      ( exercise_from | containing exercise_to
+      | exercise_follows_from | exercise_follows_to
+      | ".\n" ) . 
     ( exercise | ".\n")
 
-test definition get 
-   "Definition one_no (b1:yesno) (b2:yesno) : yesno :=
-   |  (* EXERCISE FOLLOWS *)
-   |  match b1 with
-   |  | yes => swap_yesno b2
-   |  | no => yes
-   |  end.
-   |
-   |" = ?
-      
-  let declaration = 
-    ("Eval" | "Check" | "Require" | "Open" | "Export" | "Tactic") . 
-    any_but_dot . "." 
-
-  let definition = lemma | definition | declaration 
-
-  let hide = 
-    let p1 = but (nl . any . [^\n] . nl) dnl in 
-    let p2 = [^\n]+ in 
-    del (comment_open . " HIDE " . comment_close) . 
-    (p1 | p2) <-> "(* HIDDEN *)" . 
-    nl
-
+  (* ---------- COMMENTS ---------- *)
   let lecture_open_from = comment " OPEN COMMENT IN LECTURE "
   let lecture_open_to =  " <------ remove this comment"
   let lecture_close_from = comment " CLOSE COMMENT IN LECTURE "
@@ -89,7 +85,7 @@ test definition get
       lecture_open_from <-> (comment_open . lecture_open_to) 
     | lecture_close_from <-> (lecture_close_to . comment_close)
 
-  let special_comment = hide | lecture 
+  let special_comment = lecture 
 
   let comment = 
     let comment_tag = comment_open | comment_close in 
@@ -99,18 +95,34 @@ test definition get
     (inner_atomic | (inner_atomic . comment_open . inner_nested . comment_close)* . inner_atomic) . 
     comment_close)
     - 
-    ( comment " HIDE " | comment " HIDDEN "
+    ( comment " HIDE " 
     | admitted_from | admitted_to 
     | admitted_opt_from | admitted_opt_to
     | lecture_open_from | containing lecture_open_to 
     | lecture_close_from | containing lecture_close_to )
 
-let modl = 
-  "Module " .
-  key any_but_dot . "." . 
-  (ws | definition | comment | special_comment)* .
-  "End " . any_but_dot . "."
+  let hide = 
+    let p1 = but (nl . any . not_nl . nl) dnl in 
+    let p2 = not_nl+ in 
+    del (comment_open . " HIDE " . comment_close . (p1|p2) . nl)
+
+  (* ---------- MAIN DEFINITIONS ---------- *)
+  let declaration = 
+    ("Eval" | "Check" | "Require" | "Open" | "Export" | "Tactic") . 
+    any_but_dot . "." 
+
+  let pre_body = proposition | definition | declaration | comment
+
+  let body_hide = pre_body . (del ws* . hide)? . ws*
+
+  let body = body_hide | special_comment . ws*
+
+  let modl = 
+    "Module " .
+    key [^.]+ . "." . ws* . 
+    <body>* .
+    "End " . any_but_dot . "."
+      
+  let item = body | modl . ws*
     
-let item = ws | definition | comment | special_comment | modl
-    
-let l = <item>*
+  let l = <item>*
