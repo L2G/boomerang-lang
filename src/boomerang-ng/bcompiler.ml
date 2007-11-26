@@ -582,12 +582,13 @@ let rec compile_decl cev m = function
             | OK v, TestShow ->
                 Util.format "Test result:@ "; 
                 Bvalue.format v; 
-                Util.format "@\n"
+                Util.format "@\n%!"
             | Error m, TestShow -> 
                 test_error i 
                   (fun () -> 
                     Util.format "Test result: error";
-                    m ())
+                    m (); 
+                    Util.format "%!")
             | Error _, TestError -> ()
             | OK v, TestValue res -> 
                 let resv = snd (compile_exp cev res) in
@@ -596,7 +597,7 @@ let rec compile_decl cev m = function
                       (fun () ->
                         Util.format "@\nExpected@ "; Bvalue.format resv;
                         Util.format "@ but found@ "; Bvalue.format v; 
-                        Util.format "@\n")
+                        Util.format "@\n%!")
             | Error m, TestValue res -> 
                 let resv = snd (compile_exp cev res) in
                   test_error i 
@@ -604,14 +605,14 @@ let rec compile_decl cev m = function
                       Util.format "@\nExpected@ "; Bvalue.format resv; 
                       Util.format "@ but found an error:@ "; 
                       m (); 
-                      Util.format "@\n")
+                      Util.format "@\n%!")
             | OK v, TestError -> 
                 test_error i 
                   (fun () ->
                     Util.format "@\nExpected an error@ "; 
                     Util.format "@ but found:@ "; 
                     Bvalue.format v; 
-                    Util.format "@\n")
+                    Util.format "@\n%!")
         end;
       (cev, [])
         
