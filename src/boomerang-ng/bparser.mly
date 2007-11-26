@@ -163,7 +163,7 @@ gpexp:
         EApp(i, EApp(i, EVar(i, mk_prelude_qid "get"), $1), $3) }
   | composeexp put aexp INTO aexp        
       { let i = me $1 $3 in 
-        EApp(i, EApp(i, EVar(i, mk_prelude_qid "put"), $1), $3) }
+        EApp(i, EApp(i, EApp(i, EVar(i, mk_prelude_qid "put"), $1), $3), $5) }
   | composeexp create aexp               
       { let i = me $1 $3 in 
         EApp(i, EApp(i, EVar(i, mk_prelude_qid "create"), $1), $3) }

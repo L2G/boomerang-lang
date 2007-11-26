@@ -209,6 +209,17 @@ let _ =
 	        | c,a  -> 
 		    write_result ((L.rput_of_dl lens) (fs_of_file a) (fs_of_file c))
           end
+        else 
+          let extension = ".boom" in 
+          Safelist.iter
+            (fun f -> 
+               let modname = 
+                 if Util.endswith f extension then 
+                   String.capitalize (Util.replacesubstring f extension "") 
+                 else f in 
+               if not (Bregistry.load modname) then 
+                 Error.simple_error (sprintf "can't find %s" modname))
+            (Prefs.read rest)
     with
       | Error.Harmony_error(thk) -> 
           ( try thk () with Error.Harmony_error(thk2) -> 
