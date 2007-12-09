@@ -1,111 +1,13 @@
 ##############################################################################
 # Harmony top-level OMakefile.
 
+# Phony targets that don't produce files
 .PHONY: clean test temp temp1 temp2
 
-# This is needed only for the TAGS command; should be removed after the next
-# OMake release (it's to get around a bug)
-# BYTE_ENABLED = TRUE
-
 ##############################################################################
-# Sub-directories
+# OMake configuration
 
-# (Should we generate this list automatically?)
-SUBDIRS = src lenses tools examples extern doc
-
-SRCDIR = $(dir src)
-BOOMERANGNGDIR = $(dir src/boomerang-ng)
-LENSESDIR = $(dir lenses)
-TOOLSDIR = $(dir tools)
-EXAMPLESDIR = $(dir examples)
-EXTERNDIR = $(dir extern)
-DOCDIR = $(dir doc)
-
-# Set up for multi-architecture compilation, where build products go in 
-# separate directories.  (Partially implemented!)
-SUBDIRS_OUT = $(addsuffix .out, $(SUBDIRS))
-if $(defined MULTI)
-  SUBDIRS = $(SUBDIRS_OUT)
-  echo mkdir $(SUBDIRS)
-  mkdir $(SUBDIRS)
-  SRCDIR = $(dir src.out)
-  vmount(-l, src, src.out)
-  LENSESDIR = $(dir lenses.out)
-  vmount(-l, lenses, lenses.out)
-  TOOLSDIR = $(dir tools.out)
-  vmount(-l, tools, tools.out)
-  EXAMPLESDIR = $(dir examples.out)
-  vmount(-l, examples, examples.out)
-  DOCDIR = $(dir doc.out)
-  vmount(-l, doc, doc.out)
-  EXTERNDIR = $(dir extern.out)
-  vmount(-l, extern, extern.out)
-  export
-
-##############################################################################
-# Source files for base Harmony system
-
-UBASE_LIB_SOURCES[] = \
-    safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml rx.ml
-SRC2FCL_SOURCES[] = \
-    src2fcl.mll
-BASE_SOURCES[] = \
-    info.mli info.ml error.mli error.ml misc.mli misc.ml \
-    unittest.mli unittest.ml \
-    mapplus.mli mapplus.ml \
-    name.mli name.ml int.mli int.ml \
-    memo.mli memo.ml \
-    db.mli db.ml tree.ml tree.mli v.mli v.ml \
-    lens.mli lens.ml \
-    csvdb.mli csvdb.ml treedb.mli treedb.ml \
-    surveyor.mli surveyor.ml \
-    syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
-    presburger.mli presburger.ml \
-    env.mli env.ml \
-    treeschema.mli treeschema.ml dbschema.mli dbschema.ml \
-    schema.mli schema.ml \
-    value.mli value.ml bakery.ml \
-    registry.mli registry.ml \
-    diff3.mli diff3.ml sync.mli sync.ml \
-    compiler.mli compiler.ml \
-    viewers.ml
-
-NATIVE_LENS_SOURCES[] = \
-    prelude.ml relational.ml 
-
-TOPLEVEL_SOURCES = \
-    toplevel.ml 
-                 
-GENERATED_SOURCES_BARE = \
-    parser.ml parser.mli parser.mly lexer.mll lexer.ml bakery.ml 
-
-GENERATED_SOURCES = $(addprefix $(SRCDIR)/, $(GENERATED_SOURCES_BARE))
-
-COMMON_SOURCES[] =
-    $(addprefix $(TOOLSDIR)/, $(SRC2FCL_SOURCES))
-    $(addprefix $(SRCDIR)/ubase/, $(UBASE_LIB_SOURCES))
-    $(addprefix $(SRCDIR)/, $(BASE_SOURCES))
-    $(addprefix $(LENSESDIR)/, $(NATIVE_LENS_SOURCES))
-    $(addprefix $(SRCDIR)/, $(TOPLEVEL_SOURCES))
-COMMON_SOURCES = $(file $(COMMON_SOURCES))
-
-SOURCES = $(COMMON_SOURCES) $(file $(SRCDIR)/harmony.ml)
-
-REAL_SOURCES = $(foreach $(file), $(set-diff $(SOURCES), $(GENERATED_SOURCES)))
-
-ICALENDAR_SOURCES_BARE[] = \
-   iCalendar_syntax.ml iCalendar_print.ml \
-   iCalendar_lextypes.ml iCalendarparse.mly \
-   iCalendarlex.mll ical.mli ical.ml \
-   iCalendar.mli iCalendar.ml
-
-ICALENDAR_SOURCES = \
-  $(foreach $(file), \
-      $(addprefix $(EXTERNDIR)/iCalendar/, $(ICALENDAR_SOURCES_BARE)))
-
-
-##############################################################################
-# Global compilation settings
+BYTE_ENABLED = TRUE
 
 MAKE = make
 
@@ -115,9 +17,6 @@ if $(not $(OCAMLFIND_EXISTS))
    eprintln(You need to install ocamlfind and run "omake --configure".)
    exit 1
 OCAMLPACKS = netstring unix str pxp pxp-engine pxp-lex-utf8
-
-OCAMLINCLUDES += $(SRCDIR) $(SRCDIR)/ubase $(EXTERNDIR)/genepi/ocaml $(EXTERNDIR)/ocaml-csv-1.0.3 $(TOOLSDIR) $(LENSESDIR)
-OCAML_OTHER_LIBS += genepi csv
 
 OCAMLFLAGS    = -dtypes -rectypes 
 
@@ -133,51 +32,27 @@ if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
 	export
 
 ##############################################################################
-# Settings for running Harmony
+# Sub-directories
 
-HARMONY_FLAGS = -I . -I $(LENSESDIR)
-if $(defined-env HARMONY_FLAGS) 
-  HARMONY_FLAGS += $(getenv HARMONY_FLAGS)
-  export
+# (Should we generate this list automatically?)
+SUBDIRS = common boomerang
 
-HARMONY = $(SRCDIR)/harmony $(HARMONY_FLAGS)
+COMMONDIR = $(dir common)
+TOOLSDIR = $(COMMONDIR)/tools
+UBASEDIR = $(COMMONDIR)/ubase
+HBASEDIR = $(COMMONDIR)/hbase
+FOCALDIR = $(dir focal)
+BOOMERANGDIR = $(dir boomerang)
 
 ##############################################################################
 # Cleanup
 
-CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.o *.annot *.opt *.omc *.a *.cmxa \
+CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.cmo *.o *.annot *.opt *.omc *.a *.cmxa \
                   *.output ._d ._ncdi TAGS 
 # what about .omakedb and omakedb.lock?
 
 clean:
 	$(CLEAN) $(SUBDIRS_OUT)
-
-##############################################################################
-# Testing
-
-test: .PHONY/$(EXAMPLESDIR)/test
-  php html/cgi-bin/demo.php -test
-
-##############################################################################
-# Focal files
-
-FCLFILES = \
-  $(find $(EXAMPLESDIR) -name *.fcl) \
-  $(find $(LENSESDIR) -name *.fcl) \
-  $(find $(LENSESDIR) -name *.src) 
-
-##############################################################################
-# TAGS
-
-# This doesn't give quite as much as we'd like (leaves out the examples)
-# TAGS: $(SRCDIR)/harmony
-#  etags $(dependencies-proper $*)
-
-# ALLFILES = $(ls R, .)
-# SOURCEFILES = $(set-diff $(ALLFILES), $(filter-proper-targets $(ALLFILES)))
-
-# TAGS: 
-#   etags $(SOURCEFILES)
 
 ##############################################################################
 # Translation of .src files

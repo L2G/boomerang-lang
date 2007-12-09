@@ -1,0 +1,149 @@
+##############################################################################
+# Focal / Sync OMakefile.
+
+##############################################################################
+# Sub-directories
+
+# (Should we generate this list automatically?)
+SUBDIRS = src lenses tools examples extern doc
+
+SRCDIR = $(dir src)
+LENSESDIR = $(dir lenses)
+TOOLSDIR = $(dir tools)
+EXAMPLESDIR = $(dir examples)
+EXTERNDIR = $(dir extern)
+DOCDIR = $(dir doc)
+
+##############################################################################
+# Source files for base Focal / Sync system
+
+UBASE_LIB_SOURCES[] = \
+    safelist.ml uprintf.ml util.ml uarg.ml prefs.ml trace.ml rx.ml
+SRC2FCL_SOURCES[] = \
+    src2fcl.mll
+BASE_SOURCES[] = \
+    info.mli info.ml error.mli error.ml misc.mli misc.ml \
+    unittest.mli unittest.ml \
+    mapplus.mli mapplus.ml \
+    name.mli name.ml int.mli int.ml \
+    memo.mli memo.ml \
+    db.mli db.ml tree.ml tree.mli v.mli v.ml \
+    lens.mli lens.ml \
+    csvdb.mli csvdb.ml treedb.mli treedb.ml \
+    surveyor.mli surveyor.ml \
+    syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
+    presburger.mli presburger.ml \
+    env.mli env.ml \
+    treeschema.mli treeschema.ml dbschema.mli dbschema.ml \
+    schema.mli schema.ml \
+    value.mli value.ml bakery.ml \
+    registry.mli registry.ml \
+    diff3.mli diff3.ml sync.mli sync.ml \
+    compiler.mli compiler.ml \
+    viewers.ml
+
+NATIVE_LENS_SOURCES[] = \
+    prelude.ml relational.ml 
+
+TOPLEVEL_SOURCES = \
+    toplevel.ml 
+
+GENERATED_SOURCES_BARE = \
+    parser.ml parser.mli parser.mly lexer.mll lexer.ml bakery.ml 
+
+GENERATED_SOURCES = $(addprefix $(SRCDIR)/, $(GENERATED_SOURCES_BARE))
+
+COMMON_SOURCES[] =
+    $(addprefix $(TOOLSDIR)/, $(SRC2FCL_SOURCES))
+    $(addprefix $(SRCDIR)/ubase/, $(UBASE_LIB_SOURCES))
+    $(addprefix $(SRCDIR)/, $(BASE_SOURCES))
+    $(addprefix $(LENSESDIR)/, $(NATIVE_LENS_SOURCES))
+    $(addprefix $(SRCDIR)/, $(TOPLEVEL_SOURCES))
+COMMON_SOURCES = $(file $(COMMON_SOURCES))
+
+SOURCES = $(COMMON_SOURCES) $(file $(SRCDIR)/harmony.ml)
+
+REAL_SOURCES = $(foreach $(file), $(set-diff $(SOURCES), $(GENERATED_SOURCES)))
+
+ICALENDAR_SOURCES_BARE[] = \
+   iCalendar_syntax.ml iCalendar_print.ml \
+   iCalendar_lextypes.ml iCalendarparse.mly \
+   iCalendarlex.mll ical.mli ical.ml \
+   iCalendar.mli iCalendar.ml
+
+ICALENDAR_SOURCES = \
+  $(foreach $(file), \
+      $(addprefix $(EXTERNDIR)/iCalendar/, $(ICALENDAR_SOURCES_BARE)))
+
+
+##############################################################################
+# Global compilation settings
+
+
+##############################################################################
+# Settings for running Harmony
+
+HARMONY_FLAGS = -I . -I $(LENSESDIR)
+if $(defined-env HARMONY_FLAGS) 
+  HARMONY_FLAGS += $(getenv HARMONY_FLAGS)
+  export
+
+HARMONY = $(SRCDIR)/harmony $(HARMONY_FLAGS)
+
+##############################################################################
+# Cleanup
+
+CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.o *.annot *.opt *.omc *.a *.cmxa \
+                  *.output ._d ._ncdi TAGS 
+# what about .omakedb and omakedb.lock?
+
+clean:
+	$(CLEAN) $(SUBDIRS_OUT)
+
+##############################################################################
+# Testing
+
+test: .PHONY/$(EXAMPLESDIR)/test
+  php html/cgi-bin/demo.php -test
+
+##############################################################################
+# Focal files
+
+FCLFILES = \
+  $(find $(EXAMPLESDIR) -name *.fcl) \
+  $(find $(LENSESDIR) -name *.fcl) \
+  $(find $(LENSESDIR) -name *.src) 
+
+##############################################################################
+# TAGS
+
+# This doesn't give quite as much as we'd like (leaves out the examples)
+# TAGS: $(SRCDIR)/harmony
+#  etags $(dependencies-proper $*)
+
+# ALLFILES = $(ls R, .)
+# SOURCEFILES = $(set-diff $(ALLFILES), $(filter-proper-targets $(ALLFILES)))
+
+# TAGS: 
+#   etags $(SOURCEFILES)
+
+##############################################################################
+# Translation of .src files
+
+SRC2F = $(TOOLSDIR)/src2f
+SRC2TEX = $(TOOLSDIR)/src2tex
+
+%.mly: %.srcy $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@
+	chmod(-w, $@)
+
+%.mll: %.srcl $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@
+	chmod(-w, $@)
+
+##############################################################################
+# Include sub-directories
+
+.SUBDIRS: $(SUBDIRS)

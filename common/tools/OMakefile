@@ -1,6 +1,5 @@
-OCAML_OTHER_LIBS = 
-
 GENERATED_FILES = src2fcl.ml src2tex.ml
+
 OCamlGeneratedFiles($(GENERATED_FILES))
 
 OCamlProgram(src2tex, src2tex)
