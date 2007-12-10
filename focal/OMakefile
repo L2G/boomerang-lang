@@ -10,6 +10,9 @@ SRCDIR = $(dir src)
 LENSESDIR = $(dir lenses)
 EXAMPLESDIR = $(dir examples)
 EXTERNDIR = $(dir extern)
+GENEPIDIR = $(EXTERNDIR)/genepi/ocaml/
+CSVDIR = $(EXTERNDIR)/ocaml-csv-1.0.3/
+
 DOCDIR = $(dir doc)
 
 ##############################################################################

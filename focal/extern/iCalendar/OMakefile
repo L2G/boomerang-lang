@@ -1,5 +1,13 @@
-OCAML_LIBS += $(FOCALDIR)/src/harmony
-OCAMLINCLUDES += $(FOCALDIR)/src
+OCAML_LIBS += \
+  $(UBASEDIR)/ubase \
+  $(HBASEDIR)/hbase \
+  $(GENEPIDIR)/genepi \
+  $(FOCALDIR)/src/harmony
+
+OCAMLINCLUDES += \
+  $(UBASEDIR) \
+  $(HBASEDIR) \
+  $(FOCALDIR)/src
 
 RESULT = iCalViewer
 

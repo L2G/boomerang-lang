@@ -7,7 +7,9 @@ OCAML_OTHER_LIBS += genepi csv
 
 OCAML_LIBS += \
   $(UBASEDIR)/ubase \
-  $(HBASEDIR)/hbase
+  $(HBASEDIR)/hbase \
+  $(GENEPIDIR)/genepi \
+  $(CSVDIR)/csv
 
 OCAMLINCLUDES += \
   $(UBASEDIR) \
@@ -78,6 +80,8 @@ else
 
 $(EXTERNDIR)/genepi/ocaml/genepi.cma:
 	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
+$(EXTERNDIR)/genepi/ocaml/genepi.a:
+	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 $(EXTERNDIR)/genepi/ocaml/genepi.cmx:
 	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 $(EXTERNDIR)/genepi/ocaml/genepi.cmxa:
@@ -87,6 +91,10 @@ $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmx:
 $(EXTERNDIR)/genepi/ocaml/genepiLibrary.o:
 	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
 
+$(EXTERNDIR)/ocaml-csv-1.0.3/csv.a:
+	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
+$(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmxa:
+	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmi:

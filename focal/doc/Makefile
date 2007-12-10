@@ -5,8 +5,14 @@
 
 # $Id$
 
-TOP = ..
-include $(TOP)/Top.Makefile
+TOOLSDIR=$(shell pwd)/../../common/tools
+SRC2TEX =$(TOOLSDIR)/src2tex
+
+FOCALDIR = $(shell pwd)/..
+SRCDIR = $(FOCALDIR)/src
+LENSESDIR = $(FOCALDIR)/lenses
+
+FCLFILES = $(shell (cd $(LENSESDIR); ls *.fcl))
 
 SRCFILES += $(wildcard *.src) $(shell (cd $(SRCDIR); ls *.src*))
 
@@ -33,6 +39,9 @@ ps:
 	latex main
 	-bibtex main
 	dvips -tletter -omain.ps main
+
+$(SRC2TEX):
+	omake $(SRC2TEX)
 
 tmp/%.tex : $(LENSESDIR)/%.fcl $(SRC2TEX) tmp
 	$(SRC2TEX) $< > $@
