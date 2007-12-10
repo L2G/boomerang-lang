@@ -1,33 +1,25 @@
 OCAMLPACKS += num 
 
 OCAML_LIBS += $(UBASEDIR)/ubase $(HBASEDIR)/hbase
-OCAMLINCLUDES += $(UBASEDIR) $(HBASEDIR) $(TOOLSDIR)
+OCAMLINCLUDES += $(UBASEDIR) $(HBASEDIR)
 
 RESULT = boomerang
-
 RESULTS = boomerang.cmxa $(RESULT)
 
-BOOMERANG_RAW_SOURCES[] = \
+.DEFAULT: $(RESULTS)
+
+BOOMERANG_LIBRARY_SOURCES[] = \
    wic.ml woc.ml rint.ml bstring.ml \
    crm.ml erx.ml \
    bimports.ml berror.ml bregexp.ml blenses.ml \
    bsyntax.ml bparser.mly blexer.mll bvalue.ml \
    bakery.ml bregistry.ml bcompiler.ml bdriver.ml
 
-SRC2FCL_SOURCES[] = \
-    src2fcl.mll
-
-BOOMERANG_LIBRARY_SOURCES[] = \
-    $(addprefix $(TOOLSDIR)/, $(SRC2FCL_SOURCES)) \
-    $(BOOMERANG_RAW_SOURCES)
-
 BOOMERANG_SOURCES[] = \
     $(BOOMERANG_LIBRARY_SOURCES) main.ml
 
 OCamlLibrary($(RESULT), $(rootname $(BOOMERANG_LIBRARY_SOURCES)))
 OCamlProgram($(RESULT), $(rootname $(BOOMERANG_SOURCES)))
-
-.DEFAULT: $(RESULTS)
 
 CLEAN += bparser.ml bparser.mli blexer.ml
 

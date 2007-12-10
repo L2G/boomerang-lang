@@ -1,41 +1,79 @@
 ##############################################################################
 # Main results
 
-LocalOCamlGeneratedFiles($(GENERATED_SOURCES_BARE))
+OCAMLPACKS += netstring unix str pxp pxp-engine pxp-lex-utf8
+
+OCAML_OTHER_LIBS += genepi csv
+
+OCAML_LIBS += \
+  $(UBASEDIR)/ubase \
+  $(HBASEDIR)/hbase
+
+OCAMLINCLUDES += \
+  $(UBASEDIR) \
+  $(HBASEDIR) \
+  $(EXTERNDIR)/genepi/ocaml \
+  $(EXTERNDIR)/ocaml-csv-1.0.3 \
+  $(SRCDIR) \
+  $(LENSESDIR)
 
 RESULT = harmony 
 RESULTS = harmony.cmxa $(RESULT)
 
-OCamlProgram($(RESULT), $(rootname $(SOURCES)))
+##############################################################################
+# 
+BASE_SOURCES[] = \
+    unittest.mli unittest.ml \
+    db.mli db.ml tree.ml tree.mli v.mli v.ml \
+    lens.mli lens.ml \
+    csvdb.mli csvdb.ml treedb.mli treedb.ml \
+    surveyor.mli surveyor.ml \
+    syntax.mli syntax.ml parser.mly lexer.mli lexer.mll \
+    presburger.mli presburger.ml \
+    treeschema.mli treeschema.ml dbschema.mli dbschema.ml \
+    schema.mli schema.ml \
+    value.mli value.ml bakery.ml \
+    registry.mli registry.ml \
+    diff3.mli diff3.ml sync.mli sync.ml \
+    compiler.mli compiler.ml \
+    viewers.ml
+
+NATIVE_LENS_SOURCES[] = \
+    prelude.ml relational.ml 
+
+TOPLEVEL_SOURCES = \
+    toplevel.ml 
+
+GENERATED_SOURCES_BARE = \
+    parser.ml parser.mli parser.mly lexer.mll lexer.ml bakery.ml 
+
+GENERATED_SOURCES = $(addprefix $(SRCDIR)/, $(GENERATED_SOURCES_BARE))
+
+COMMON_SOURCES[] =
+    $(addprefix $(SRCDIR)/, $(BASE_SOURCES))
+    $(addprefix $(LENSESDIR)/, $(NATIVE_LENS_SOURCES))
+    $(addprefix $(SRCDIR)/, $(TOPLEVEL_SOURCES))
+COMMON_SOURCES = $(file $(COMMON_SOURCES))
+
+SOURCES = $(COMMON_SOURCES) $(file $(SRCDIR)/harmony.ml)
+
 OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
+OCamlProgram($(RESULT), $(rootname $(SOURCES)))
 
 .DEFAULT: $(RESULTS)
-.SUBDIRS: boomerang boomerang-ng
-##############################################################################
-# Ubase library
-
-# Make sure that the contents of the ubase library are copied from 
-# the ubase sources in the Unison distribution.  
-#if $(equal $(USER), bcpierce) 
-#  foreach (f, $(glob ubase/*.ml ubase/*.mli ubase/Makefile))
-#    $(f): $(HOME)/current/unison/trunk/src/$(f)
-#      cp $< $@
 
 ##############################################################################
 # Helper tools
-
-baker: baker.ml
-	ocamlfind ocamlopt -package unix -linkpkg -o $@ $^
 
 # If we are installing Harmony elsewhere, then we need to build a real
 # bakery.ml embedding all the focal files we might need.  But if we're
 # only going to run things in place, we can skip this step and avoid
 # recompiling Harmony whenever .fcl files change in the examples.
 if $(mem install, $(TARGETS))
-  $(SRCDIR)/bakery.ml: $(SRCDIR)/baker $(FCLFILES)
+  $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker $(FCLFILES)
     $< $(EXAMPLESDIR) $(LENSESDIR) > $@
 else
-  $(SRCDIR)/bakery.ml: $(SRCDIR)/baker
+  $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker
     ./$< > $@
 
 $(EXTERNDIR)/genepi/ocaml/genepi.cma:
@@ -56,14 +94,6 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmi:
 $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
-# Override some auto-generated .SCANNER rules for externally built .cmx files
-#.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o
-#.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmx
-#.SCANNER: $(EXTERNDIR)/ocaml-csv-1.0.3/csv.cmo
-#.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmx
-#.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.o
-#.SCANNER: $(EXTERNDIR)/genepi/ocaml/genepiLibrary.cmo
-
 ##############################################################################
 # Testing
 
@@ -71,25 +101,8 @@ test: $(RESULT)
   ./$(RESULT) -unittests
 
 ##############################################################################
-# Emacs TAGS file
-
-# TAGS: :value: $(REAL_SOURCES)
-# 	-etags $(REAL_SOURCES)
-
-TAGS: :value: $(REAL_SOURCES)
-   -etags $(in $(SRCDIR), $(REAL_SOURCES))
-
-.DEFAULT: TAGS
-
-##############################################################################
 # Miscellaneous
 
 clean:
 	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES_BARE) baker bakery.cmo
 
-.SUBDIRS: ubase
-  clean: 
-    $(CLEAN) TAGS
-
-.PHONY: junk
-junk: .PHONY/$(LENSESDIR)/test

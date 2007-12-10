@@ -1,7 +1,0 @@
-test: $(SRCDIR)/harmony
-  foreach (x, $(glob *.fcl))
-    echo Testing $(x)...
-    $(HARMONY) $(x)
-
-clean:
-  $(CLEAN)

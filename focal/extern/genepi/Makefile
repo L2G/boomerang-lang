@@ -4,18 +4,18 @@
 ####################################################################
 # $Id$
 
-#########################
-# include top-level Harmony Makefile,
-# setup some useful directory definitions
-TOP=../..
-include $(TOP)/Top.Makefile
 SUBDIRS = ocaml
 SUBDIRSCLEANONLY = src
 
-GENEPIDIR=$(EXTERNDIR)/genepi
+GENEPIDIR=.
 BUILDDIR=$(GENEPIDIR)/build
+SRCDIR=$(GENEPIDIR)/src
 
-all: buildsubdirs
+all:
+	$(MAKE) -C $(SRCDIR); \
+  if [ $$? -ne 0 ]; then res=1; break; fi; \
+  exit $$res
 
-clean::
-	rm -fr $(BUILDDIR)
+clean:
+	rm -fr $(BUILDDIR); \
+	$(MAKE) -C ocaml clean || exit $$?

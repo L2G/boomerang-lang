@@ -1,10 +1,21 @@
+OCAML_LIBS += $(FOCALDIR)/src/harmony
+OCAMLINCLUDES += $(FOCALDIR)/src
+
 RESULT = iCalViewer
-GENERATED_SOURCES_BARE = iCalendarparse.mli iCalendarparse.ml iCalendarlex.ml 
-LocalOCamlGeneratedFiles($(GENERATED_SOURCES_BARE))
-
-OCamlProgram($(RESULT), $(rootname $(COMMON_SOURCES) $(ICALENDAR_SOURCES) iCalViewer.ml) $(RESULT))
-
-clean:
-  $(CLEAN) $(GENERATED_SOURCES_BARE) $(RESULT)
 
 .DEFAULT: $(RESULT)
+
+GENERATED_SOURCES = iCalendarparse.mli iCalendarparse.ml iCalendarlex.ml 
+LocalOCamlGeneratedFiles($(GENERATED_SOURCES))
+
+ICALENDAR_SOURCES[] = \
+   iCalendar_syntax.ml iCalendar_print.ml \
+   iCalendar_lextypes.ml iCalendarparse.mly \
+   iCalendarlex.mll ical.mli ical.ml \
+   iCalendar.mli iCalendar.ml
+
+OCamlProgram($(RESULT), $(rootname $(ICALENDAR_SOURCES) iCalViewer.ml) $(RESULT))
+
+clean:
+  $(CLEAN) $(GENERATED_SOURCES) $(RESULT)
+

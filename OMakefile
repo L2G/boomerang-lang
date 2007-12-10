@@ -34,25 +34,16 @@ if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
 ##############################################################################
 # Sub-directories
 
-# (Should we generate this list automatically?)
-SUBDIRS = common boomerang
+SUBDIRS = common focal boomerang
 
 COMMONDIR = $(dir common)
 TOOLSDIR = $(COMMONDIR)/tools
 UBASEDIR = $(COMMONDIR)/ubase
 HBASEDIR = $(COMMONDIR)/hbase
+
 FOCALDIR = $(dir focal)
+
 BOOMERANGDIR = $(dir boomerang)
-
-##############################################################################
-# Cleanup
-
-CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.cmo *.o *.annot *.opt *.omc *.a *.cmxa \
-                  *.output ._d ._ncdi TAGS 
-# what about .omakedb and omakedb.lock?
-
-clean:
-	$(CLEAN) $(SUBDIRS_OUT)
 
 ##############################################################################
 # Translation of .src files
@@ -69,6 +60,16 @@ SRC2TEX = $(TOOLSDIR)/src2tex
 	-rm -f $@
 	$(SRC2F) $< $@
 	chmod(-w, $@)
+
+##############################################################################
+# Cleanup
+
+CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.cmo *.o *.annot *.opt *.omc *.a *.cmxa \
+                  *.output ._d ._ncdi TAGS 
+# what about .omakedb and omakedb.lock?
+
+clean:
+	$(CLEAN) 
 
 ##############################################################################
 # Include sub-directories

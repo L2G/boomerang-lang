@@ -1,11 +1,15 @@
-GENERATED_FILES = src2fcl.ml src2tex.ml
+
+OCAML_LIBS += $(HBASEDIR)/hbase 
+OCAMLINCLUDES += $(HBASEDIR) 
+
+GENERATED_FILES = src2tex.ml
 
 OCamlGeneratedFiles($(GENERATED_FILES))
 
 OCamlProgram(src2tex, src2tex)
-OCamlProgram(src2f, src2fcl src2f)
+OCamlProgram(src2f, src2f)
 OCamlProgram(wrap, wrap)
-OCamlProgram(dump_oracle, dump_oracle)
+OCamlProgram(baker, $(HBASEDIR)/baker)
 
 clean:
-  $(CLEAN) $(GENERATED_FILES) wrap src2tex src2f dump_oracle
+  $(CLEAN) $(GENERATED_FILES) wrap src2tex src2f

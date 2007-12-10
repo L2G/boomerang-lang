@@ -4,13 +4,7 @@
 ####################################################################
 # $Id$
 
-#########################
-# include top-level Harmony Makefile,
-# setup some useful directory definitions
-TOP=../../..
-include $(TOP)/Top.Makefile
-
-GENEPIDIR=$(EXTERNDIR)/genepi
+GENEPIDIR=$(shell pwd)/..
 BUILDDIR=$(GENEPIDIR)/build
 THISDIR=$(GENEPIDIR)/ocaml
 

@@ -1,8 +1,14 @@
-# we need to link with boomerang-ng
-OCAMLINCLUDES += $(BOOMERANGNGDIR) $(SRCDIR)
-OCAML_LIBS = $(SRCDIR)/harmony $(BOOMERANGNGDIR)/boomerang
+OCAMLINCLUDES += \
+  $(UBASEDIR) \
+  $(HBASEDIR) \
+  $(BOOMERANGDIR)/src
 
-OCAML_OTHER_LIBS = str
+OCAML_LIBS += \
+  $(UBASEDIR)/ubase \
+  $(HBASEDIR)/hbase \
+  $(BOOMERANGDIR)/src/boomerang
+
+OCAML_OTHER_LIBS += str
 
 RESULT = learn
 RESULTS = $(RESULT)
