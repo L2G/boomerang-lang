@@ -2,6 +2,7 @@ open Error
 
 let exit x = 
   Memo.format_stats ();
+  Treeschema.format_stats ();
   Presburger.finish ();      
   exit x
 
@@ -419,7 +420,7 @@ let toplevel' progName archNameUniquifier chooseEncoding chooseAbstractSchema ch
     (* Do it *)
     if r2="" then begin
 	debug (fun () -> Util.format "Applying GET function to r1...@\n");
-        get r1lens (enc r1temp r1enc) (enc "-" "meta");
+        get r1lens (enc r1temp r1enc) (enc "/dev/null" "meta");
         exit 0
     end else begin
       (* Make up temporary output file names *)

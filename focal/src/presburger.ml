@@ -518,7 +518,7 @@ let mkEqZ_from_constraint =
     let format_arg = format_constraint
     let hash = hash_constraint
     let equal = equal_constraint
-    let name = "Presburger.mk_EqZ"
+    let name = "Presburger.alloc"
     let f (vs,c) = 
       let vs',c' = normalize_constraint (vs,c) in 
         t_of_e (EqZ(vs',c'))
@@ -542,7 +542,7 @@ let fls = mkEq zero one
 let mkNot = 
   let module M = Memo.Make(struct
     include HC_T_BASE
-    let name = "Presburger.mkNot"
+    let name = "Presburger.alloc"
     let f t1 = t_of_e (Not(t1))
   end) in 
   M.memoized
@@ -550,7 +550,7 @@ let mkNot =
 let mkOr = 
   let module M = Memo.Make(struct
     include HC_TS_BASE
-    let name = "Presburger.mkOr"
+    let name = "Presburger.alloc"
     let f ts = 
       let rec loop seen acc = function
         | [] -> Safelist.rev acc 
@@ -574,7 +574,7 @@ let mkOr =
 let mkAnd = 
   let module M = Memo.Make(struct
     include HC_TS_BASE
-    let name = "Presburger.mkAnd"
+    let name = "Presburger.alloc"
     let f ts = 
       let rec loop seen acc = function
           [] -> Safelist.rev acc 
@@ -598,7 +598,7 @@ let mkAnd =
 let mkEx = 
   let module M = Memo.Make(struct
     include HC_T_BASE
-    let name = "Presburger.mkEx"
+    let name = "Presburger.alloc"
     let f t1 = t_of_e (Exists(t1)) 
   end) in 
   M.memoized 

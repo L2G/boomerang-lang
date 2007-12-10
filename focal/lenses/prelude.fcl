@@ -212,6 +212,11 @@ is the exact inverse of @hoist n@.
 ## test (plunge "n") \ {a} {} = error
 ## test (plunge "n") \ {n,a} missing = error
 
+#* let smash : (name -> lens) = Native.Prelude.smash
+## test (smash ":") / {} = {}
+## test (smash ":") / { p1={s1={a}, s2={b}}, p2={s3={c}}} = {"p1:s1"={a}, "p1:s2"={b}, "p2:s3"={c}}
+## test (smash ":") \ {} missing = {}
+## test (smash ":") \ {"p1:s1"={a}, "p1:s2"={b}, "p2:s3"={c}} missing = { p1={s1={a}, s2={b}}, p2={s3={c}}}
 
 \LENSSECTION{filter}
 The @filter@ lens allows all but a given set of children (specified as a

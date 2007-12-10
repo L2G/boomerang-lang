@@ -669,6 +669,53 @@ let hoist_lib =
       Value.L (l,ck))    
 let _ = register_native hoist_qid (SName ^> SLens) hoist_lib
 
+(* SMASH *)
+let smash_qid = "Native.Prelude.smash"
+let smash s =
+  if String.length s <> 1 then 
+    error [`String smash_qid
+          ; `String "expecting single-character separator"
+          ; `Break
+          ; `Name s];
+  let sep = s.[0] in     
+  let lens = 
+    { get = 
+        (fun c ->
+          Tree.fold (fun k1 ck1 acc -> 
+            Name.Set.fold (fun ki acc -> 
+              Tree.set acc (k1 ^ s ^ ki) 
+                (Some (Tree.get_required ck1 ki)))                  
+              (Tree.dom ck1) acc)
+            c Tree.empty);
+      put = 
+        (fun a _ -> 
+          let m = Tree.fold (fun k ak acc -> 
+            let k1,k2 = 
+              try 
+                let i = String.index k sep in 
+                let k1 = String.sub k 0 i in 
+                let k2 = String.sub k (i+1) (String.length k - i -1) in 
+                  (k1,k2)  
+              with Not_found -> 
+                error [`String smash_qid
+                      ; `String "(put): could not find separator"; `Space
+                      ; `String s; `Space 
+                      ; `String "in child"; `Space 
+                      ; `String k] in 
+              Name.Map.add k1 (Tree.set (Name.Map.safe_find k1 acc Tree.empty) k2 (Some ak)) acc)
+            a Name.Map.empty in 
+          Name.Map.fold (fun k tk acc -> Tree.set acc k (Some tk)) m Tree.empty) } in 
+    (lens, unchecked smash_qid)
+
+let smash_lib = 
+  mk_nfun (SLens) smash_qid 
+    (fun s -> 
+      let l,ck = Value.v_of_tree_lens (smash s) in 
+      Value.L (l,ck))    
+let _ = register_native smash_qid (SName ^> SLens) smash_lib
+
+
+
 (******************)
 (* Copy and Merge *)
 (******************)

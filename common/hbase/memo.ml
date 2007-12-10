@@ -7,6 +7,10 @@
 (* $Id$ *)
 
 let memo_off = Prefs.createBool "memo-off" false
+  "no memoization"
+  "no memoization"
+
+let memo_skip = Prefs.createStringList "memo-skip" 
   "skip memoization"
   "skip memoization"
 
@@ -17,6 +21,10 @@ let memo_both = Prefs.createStringList "memo-both"
 let memo_alt = Prefs.createStringList "memo-alt" 
   "use alternate equality function"
   "use alternate equality function"
+
+let memo_csv = Prefs.createBool "memo-csv" false
+  "dump memoization stats in CSV"
+  "dump memoization stats as CSV"
 
 type stats_t = 
     { get_length : unit -> int;
@@ -373,8 +381,6 @@ let register2 name stats =
     all_stats := Name.Map.add name (stds,stats::alts) !all_stats
 
 let gen_memoize name format_arg format_res find add get_table alto = 
-  if (Prefs.read memo_off) then (fun f arg -> f arg) 
-  else
   match alto with
       None -> 
 	(fun f arg -> 
@@ -465,7 +471,11 @@ module Make(M:MemoFun) = struct
       None -> None 
     | Some t -> (try Some (H.find t a) with Not_found -> None)
     
-  let memoized = gen_memoize M.name M.format_arg M.format_res H.find H.add get_table None M.f
+  let memoized = 
+    let mzd = gen_memoize M.name M.format_arg M.format_res H.find H.add get_table None M.f in
+      (fun arg -> 
+	 if (Prefs.read memo_off || Safelist.mem M.name (Prefs.read memo_skip)) then M.f arg
+	 else mzd arg)
 end
 
 module Make2(M:MemoFun2) = struct
@@ -493,10 +503,15 @@ module Make2(M:MemoFun2) = struct
       None -> None 
     | Some t -> (try Some (H.find t a) with Not_found -> None)
 
-  let memoized = gen_memoize M.name M.format_arg M.format_res 
-		   H.find H.add get_table 
-		   (Some (H2.find, H2.add, get_table2)) 
-		   M.f
+  let memoized =       
+    let mzd = 
+      gen_memoize M.name M.format_arg M.format_res 
+	H.find H.add get_table 
+	(Some (H2.find, H2.add, get_table2)) 
+	M.f in
+      (fun arg -> 
+	 if (Prefs.read memo_off || Safelist.mem M.name (Prefs.read memo_skip)) then M.f arg
+	 else mzd arg)
 end
 
 module MakeLater(M:MemoType) = struct
@@ -515,8 +530,10 @@ module MakeLater(M:MemoType) = struct
       None -> None 
     | Some t -> (try Some (H.find t a) with Not_found -> None)
 
-  let memoize = gen_memoize M.name M.format_arg M.format_res 
-		  H.find H.add get_table None
+  let memoize f =
+    if (Prefs.read memo_off || Safelist.mem M.name (Prefs.read memo_skip)) then f 
+    else gen_memoize M.name M.format_arg M.format_res 
+      H.find H.add get_table None f
 end
   
 module MakeLater2(M:MemoType2) = struct
@@ -544,16 +561,20 @@ module MakeLater2(M:MemoType2) = struct
       None -> None 
     | Some t -> (try Some (H.find t a) with Not_found -> None)
 	      
-  let memoize f = gen_memoize M.name M.format_arg M.format_res 
-		    H.find H.add get_table 
-		    (Some (H2.find, H2.add, get_table2)) 
-		    f
+  let memoize f = 
+      if (Prefs.read memo_off || Safelist.mem M.name (Prefs.read memo_skip)) then f 
+      else 
+	gen_memoize M.name M.format_arg M.format_res 
+	  H.find H.add get_table 
+	  (Some (H2.find, H2.add, get_table2)) 
+	  f
 end
 
 (* ---- printing ----- *)
 let format_stats () = 
   Trace.debug "memo+"
     (fun () ->
+      let csv = Prefs.read memo_csv in 
       let headers = [ "NAME"; "HITS"; "MISSES"; "NUMBER"; "RATE"; "AVG LEN"; "AVG BUCKET LEN"; "AVG RESIZES"] in 
       let columns = Safelist.length headers in 
       let widths = Array.make columns 0 in    
@@ -590,26 +611,34 @@ let format_stats () =
         Safelist.iter (fun r -> Safelist.iteri (fun i (_,n) -> widths.(i) <- max widths.(i) n) r) (headers_widths::rows_widths);
         let total_width = Array.fold_left (+) 0 widths + 3 * columns in 
         let format_spacer () = 
-          Util.format "@\n";
-          Util.format "+";
-          for i=1 to total_width-1 do Util.format "-" done;
-          Util.format "+" in 
+          if not csv then 
+            begin
+              Util.format "@\n";
+              Util.format "+";
+              for i=1 to total_width-1 do Util.format "-" done;
+              Util.format "+"  
+            end in
         let format_top () = 
-          let s = "MEMOIZATION STATISTICS " in 
-          let l = (total_width + 1 - (String.length s)) / 2 in 
-          let r = total_width + 1 - l in 
-            Util.format "@\n";
-            for i=1 to l do Util.format " " done;
-            Util.format "%s" s;
-            for i=1 to r do Util.format " " done in
+          if not csv then 
+            begin 
+              let s = "MEMOIZATION STATISTICS " in 
+              let l = (total_width + 1 - (String.length s)) / 2 in 
+              let r = total_width + 1 - l in 
+                Util.format "@\n";
+                for i=1 to l do Util.format " " done;
+                Util.format "%s" s;
+                for i=1 to r do Util.format " " done
+            end in
 
         let format_row r = 
           Util.format "@\n";
           Safelist.iteri (fun i (s,n) ->             
-            Util.format "| %s" s;
-            for i=1 to (widths.(i) - n + 1) do Util.format " " done)
+            if not csv then Util.format "| "; 
+            if csv && i <> 0 then Util.format ",";
+            Util.format "%s" s;
+            if not csv then for j=1 to (widths.(i) - n + 1) do Util.format " " done)
             r;
-          Util.format "|" in
+          if not csv then Util.format "|" in
             
           (* main printing loop *)
           format_top (); 
