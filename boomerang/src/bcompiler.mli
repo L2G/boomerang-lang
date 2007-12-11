@@ -14,19 +14,15 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/src/rint.ml                                                      *)
-(* Boomerang ordered int                                                       *)
+(* /boomerang/src/compiler.mli                                                 *)
+(* Boomerang type checker and interpreter interface                            *)
 (* $Id$                                                                        *)
 (*******************************************************************************)
 
-module OrderedInt =
-struct 
-  type t = int
-  let compare (x:int) (y:int) = 
-    if x = y then 0
-    else if x < y then -1 
-    else  1
-end
+val test_all : bool Prefs.t
 
-module Map = Map.Make(OrderedInt)
-module Set = Set.Make(OrderedInt)
+val sort_error : Info.t -> (unit -> unit) -> unit
+
+val check_module: Bsyntax.modl -> Bsyntax.modl
+
+val compile_module: Bsyntax.modl -> unit

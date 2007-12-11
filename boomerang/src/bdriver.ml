@@ -1,3 +1,24 @@
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/src/bdriver.ml                                                   *)
+(* Boomerang compiler driver                                                   *)
+(* $Id$                                                                        *)
+(*******************************************************************************)
+
 open Bsyntax
 open Bcompiler
 
@@ -13,10 +34,12 @@ let parse_lexbuf lexbuf =
 let m_check n m_str ast= 
   if n = m_str then ()
   else
+    let m_low = String.uncapitalize m_str in 
     sort_error 
       (info_of_module ast)
-      (fun () -> Util.format "@[module %s must appear in a file named %s.src or %s.boom.@]"
-        m_str (String.uncapitalize m_str))
+      (fun () -> 
+         Util.format "@[module %s must appear in a file named %s.src or %s.boom.@]"
+           m_str m_low m_low)
       
 (* end-to-end compilation of files *)
 let compile_lexbuf lexbuf n = 

@@ -1,17 +1,28 @@
-(*************************************************************)
-(* The Harmony Project                                       *)
-(* harmony@lists.seas.upenn.edu                              *)
-(*                                                           *)
-(* lenses.ml : resourceful lenses                            *)
-(*************************************************************)
-(* $Id$ *)
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/src/blenses.ml                                                   *)
+(* Boomerang lens combinators                                                  *)
+(* $Id$                                                                        *)
+(*******************************************************************************)
 
 (* abbreviations from other modules *)
 module R = Bregexp
 module RS = Bstring
-(* input and output*)
-module I = Wic
-module O = Woc
+
 let string_concat = (^)
 let (^) = RS.append
 let (@) = Safelist.append
@@ -285,17 +296,6 @@ module DLens = struct
 type cdict = 
   | CD_empty
   | CD of (((skeleton * cdict) list) KMap.t) TMap.t
-
-(* streaming dictionary *)
-and sdict_entry = 
-    { lens: t;
-      pos_in_file: int;
-      nbr_to_remove: int;
-      nbr_left: int}
-
-and sdict = 
-  | SD_empty
-  | SD of ((sdict_entry list) KMap.t) TMap.t
    
 (* ddict stands for double dict. Used for default *)
 and ddict = {provisory_dict:dict;
@@ -303,14 +303,12 @@ and ddict = {provisory_dict:dict;
 
 and dict = 
   | CDict of cdict
-  | SDict of (Wic.t * sdict)
   | DDict of ddict
 
 (* dictionaries type type. At each level, we need to check that for
    one tag, there is only one unique id for this tag *)
 
-and dict_type = 
-    uid TMap.t
+and dict_type = uid TMap.t
 
 
 and t = 
@@ -338,7 +336,7 @@ and t =
 
 (* lookup function in dictionnaries of both type *)
 let rec lookup tag k = function 
-  | CDict CD_empty | SDict (_, SD_empty) -> None
+  | CDict CD_empty -> None 
   | CDict (CD d) ->
       (let km = try TMap.find tag d with Not_found -> KMap.empty in
        try 
@@ -346,31 +344,6 @@ let rec lookup tag k = function
 	  | c::kl -> Some (c, CDict (CD (TMap.add tag (KMap.add k kl km) d)))
 	  | [] -> None)
        with Not_found -> None)
-  | SDict (wic, (SD d)) ->
-      (let km = try TMap.find tag d with Not_found -> KMap.empty in
-       try 
-       (match KMap.find k km with 
-	  | c::kl -> 
-	      (let wic' = Wic.seek_in wic c.pos_in_file in
-	      match R.easy_split c.lens.ctype wic' with
-		| None, _ -> assert false
-		| Some str, wic'' -> 
-		    (match c.lens.parse str with
-		       | _, CD_empty -> assert false
-		       | _, CD cd ->
-			   (try 
-			      let l = KMap.find k (TMap.find tag cd) in
-			      let res = Safelist.nth l c.nbr_to_remove in
-			      let kl' = 
-				if c.nbr_left = 1 
-				then kl 
-				else {c with nbr_to_remove = c.nbr_to_remove + 1; nbr_left = c.nbr_left + 1} :: kl in
-				Some (res, SDict (wic', SD (TMap.add tag (KMap.add k kl' km) d)))
-			    with
-			      | Not_found -> assert false
-			      | Failure "nth" -> assert false)))
-	  | [] -> None)
-        with Not_found -> None)
   | DDict dd ->
       (match lookup tag k dd.provisory_dict with
 	 | None -> (* not found in the provisory dictionnary, look in the other one*)
@@ -419,20 +392,6 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 		 (fun kl1 kl2 -> kl1 @ kl2)
 		 km1 km2))
 	   d1' d2')
-
-(* smash two streaming dictionaries *)
-let (+++) sd1 sd2 = match (sd1,sd2) with
-  | SD_empty, SD_empty -> SD_empty
-  | SD_empty, sd
-  | sd, SD_empty -> sd
-  | SD d1', SD d2' ->
-      SD (combine TMap.fold TMap.find TMap.add 
-	   (fun km1 km2 -> 
-	      (combine KMap.fold KMap.find KMap.add 
-		 (fun kl1 kl2 -> kl1 @ kl2)
-		 km1 km2))
-	   d1' d2')
-
 
   let info dl = dl.info
   let string dl = dl.string
@@ -1025,197 +984,4 @@ let (+++) sd1 sd2 = match (sd1,sd2) with
       key = (fun a -> dl.key (cls a));
       uid = next_uid();
     }
-
-
-
-
-end
-
-
-
-(* -------------------- STREAMING LENSES -------------------- *)
-module StLens = struct    
-
-  module D = DLens
-  open D
-  let dcrx dl = dl.ctype
-  let darx dl = dl.atype
-
-  type slens_elt = 
-      S_dl of DLens.t (* a dlens, as is *)
-    | S_sdl of DLens.t (* a dlens, stared *)
-
-  type t = 
-      { (* --- meta data --- *)
-        info : Info.t;                          (* parsing info *)
-        string: string;                         (* pretty printer *)
-	(* --- type --- *)
-	ctype: R.t;
-	atype: R.t;
-	(* core *)
-	list: slens_elt list;
-	(* --- hack --- *)
-	uid: uid
-      }
-  let of_list l i =
-    let rec aux ct at dt l = 
-      match (ct, at, dt, l) with
-	| None, None, _,  [] -> (* the list was empty *)
-	    Berror.static_error i "" "The list to build a streaming-lens should not be empty"
-	| None, None, _, (i, S_dl dl)::t ->
-	    let (ct', at', l') = aux (Some dl.D.ctype) (Some dl.D.atype) (dl.D.dtype) t in
-	    (ct', at', (S_dl dl)::l')
-	| None, None, _, (i, S_sdl dl)::t ->
-	    let cts = R.easy_star i "easy star of concrete" dl.D.ctype in
-	    let ats = R.easy_star i "easy star of abstract" dl.D.atype in
-	    let (ct', at', l') = aux (Some cts) (Some ats) dl.D.dtype t in
-	    (ct', at', (S_sdl dl)::l')
-	| None, _, _, _
-	| _, None, _, _ -> assert false
-	| Some ct, Some at, _, [] -> (ct, at, [])
-	| Some ct, Some at, dt, (i, S_dl dl)::t ->
-	    let ctc = R.easy_seq i "easy concat of concrete" ct dl.D.ctype in
-	    let atc = R.easy_seq i "easy concat of abstract"at dl.D.atype in
-	    let (ct', at', l') = aux (Some ctc) (Some atc) (fusion_dict_type dt dl.dtype) t in
-	    (ct', at', (S_dl dl)::l')
-	| Some ct, Some at, dt, (i, S_sdl dl)::t ->
-	    let cts = R.easy_star i "easy star of concrete" dl.D.ctype in
-	    let ats = R.easy_star i "easy star of abstract" dl.D.atype in
-	    let ctc = R.easy_seq i "easy concat of concrete" ct cts in
-	    let atc = R.easy_seq i "easy concat of abstract"at ats in
-	    let (ct', at', l') = aux (Some ctc) (Some atc) (fusion_dict_type dt dl.dtype) t in
-	      (ct', at', (S_sdl dl)::l') in
-    let (ct, at, list) = aux None None TMap.empty l in
-    { info = i;
-      string = "";
-      ctype = ct;
-      atype = at;
-      list = list;
-      uid = next_uid ()}
-
-
-  let info stl = stl.info
-  let string stl = stl.string
-  let ctype stl = stl.ctype
-  let atype stl = stl.atype
-  let list stl = stl.list
-  let uid stl = stl.uid
-      
-  let get wic woc stl =
-    let rec aux wic woc = function
-      | [] -> ()
-      | S_dl dl :: t ->
-	  (let pos = I.pos_file wic in
-	     match R.easy_split (dcrx dl) wic with 
-	       | None, _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.ctype) pos "concrete"
-	       | Some c, wic' ->
-		   let a = dl.get c in
-		   let woc' = O.write_string woc (RS.string_of_t a) in
-		     aux wic' woc' t)
-      | S_sdl dl :: t as sl->
-	  (match R.easy_split (dcrx dl) wic with 
-	     | None, wic' -> aux wic' woc t
-	     | Some c, wic' ->
-		 let a = dl.get c in
-		 let woc' = O.write_string woc (RS.string_of_t a) in
-		   aux wic' woc' sl) in
-    aux wic woc stl.list
-	    
-
-  let create wic woc stl = 
-    let rec aux wic woc = function
-      | [] -> ()
-      | S_dl dl :: t ->
-	  (let pos = I.pos_file wic in
-	     match R.easy_split (darx dl) wic with 
-	       | None, _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.atype) pos "abstract"
-	       | Some a, wic' ->
-		   let c, _ = dl.create a (CDict CD_empty) in
-		   let woc' = O.write_string woc (RS.string_of_t c) in
-		     aux wic' woc' t)
-      | S_sdl dl :: t as sl->
-	  (match R.easy_split (darx dl) wic with 
-	     | None, wic' -> aux wic' woc t
-	     | Some a, wic' ->
-		 let c, _ = dl.create a (CDict CD_empty) in
-		 let woc' = O.write_string woc (RS.string_of_t c) in
-		   aux wic' woc' sl) in
-    aux wic woc stl.list
-
-  let parse wic stl =
-    let sd_of_cd dl pos = function 
-      | CD_empty -> SD_empty
-      | CD cd ->
-	  SD (TMap.fold (fun tag km acc ->
-            let km' = KMap.fold (fun k l acc' ->
-			let entry = {lens = dl;
-				     pos_in_file = pos;
-				     nbr_to_remove = 0;
-				     nbr_left = Safelist.length l}in
-			KMap.add k [entry] acc') km KMap.empty in
-	    TMap.add tag km' acc) cd TMap.empty) in
-    let rec aux dict wic = function
-      | [] -> dict
-      | S_dl dl :: t ->
-	  (let pos = I.pos_file wic in
-	   match R.easy_split (dcrx dl) wic with 
-	     | None, _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.atype) pos "concrete"
-	     | Some c, wic' ->
-		 let _, cd = dl.parse c in
-		 let sd = sd_of_cd dl pos cd in
-		 aux (dict +++ sd) wic' t)
-      | S_sdl dl :: t as sl ->
-	  (let pos = I.pos_file wic in
-	   match R.easy_split (dcrx dl) wic with 
-	     | None, wic' -> aux dict wic' t
-	     | Some c, wic' ->
-		 let _, cd = dl.parse c in
-		 let sd = sd_of_cd dl pos cd in
-		 aux (dict +++ sd) wic' sl) in
-    let sd = aux SD_empty wic stl.list in
-    SDict (wic, sd)
-
-  let put wicc wica woc dict stl = 
-    (* function to create the rest of a star lens *)
-    let rec end_star_a wica woc dl dict = 
-      match R.easy_split (darx dl) wica with 
-	| None, wica' -> (wica', woc, dict) 
-	| Some a, wica' ->
-	    let c, dict' = dl.create a dict in
-	    let woc' = O.write_string woc (RS.string_of_t c) in
-	      end_star_a wica' woc' dl dict' in
-    let rec end_star_c wicc dl = (* to be improved *)
-      match R.easy_split (dcrx dl) wicc with 
-	| None, wicc' -> wicc' 
-	| Some _, wicc' -> end_star_c wicc' dl in
-    let rec aux wicc wica woc dict = function
-      | [] -> ()
-      | S_dl dl :: t ->
-	  (let posc = I.pos_file wicc in
-	   let posa = I.pos_file wica in
-	     match R.easy_split (dcrx dl) wicc, R.easy_split (darx dl) wica with 
-	       | (None,_), _ -> Berror.split_error dl.D.info (R.string_of_t dl.D.ctype) posc "concrete"
-	       | _, (None,_) -> Berror.split_error dl.D.info (R.string_of_t dl.D.atype) posa "abstract"
-	       | (Some c, wicc'),(Some a, wica') ->
-		   let s, _ = dl.parse c in
-		   let c', dict'  = dl.put a s dict in
-		   let woc' = O.write_string woc (RS.string_of_t c') in
-		     aux wicc' wica' woc' dict' t)
-      | S_sdl dl :: t as sl->
-	  (match R.easy_split (dcrx dl) wicc, R.easy_split (darx dl) wica with 
-	     | (None, wicc'), (None, wica') -> aux wicc' wica' woc dict t (*nothing left*)
-	     | (None, wicc'), (Some a, wica') -> (* no more concrete, go for creation *)
-		 let c, dict' = dl.create a dict in
-		 let woc' = O.write_string woc (RS.string_of_t c) in
-		 let (wica'', woc'', dict'') = end_star_a wica' woc' dl dict' in
-		   aux wicc' wica'' woc'' dict'' t
-	     | (Some _, wicc'), (None, wica') -> (* no more abstract, go for the next lens *)
-		 let wicc'' = end_star_c wicc' dl in
-		   aux wicc'' wica' woc dict t 
-	     | (Some c, wicc'), (Some a, wica') ->
-		 let s, _ = dl.parse c in
-		 let c', dict' = dl.put a s dict  in
-		 let woc' = O.write_string woc (RS.string_of_t c') in
-		   aux wicc' wica' woc' dict' sl) in
-      aux wicc wica woc dict stl.list
 end

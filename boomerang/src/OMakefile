@@ -13,10 +13,6 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public
-# License along with this library; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ##############################################################################
 # trunk/boomerang/src/OMakefile
 # Boomerang build                   
@@ -43,9 +39,9 @@ RESULTS = boomerang.cmxa $(RESULT)
 # Sources
 
 BOOMERANG_BASE_SOURCES[] = \
-   wic.ml woc.ml rint.ml bstring.ml \
+   rint.ml bstring.ml \
    crm.ml erx.ml \
-   bimports.ml berror.ml bregexp.ml blenses.ml \
+   berror.ml bregexp.ml blenses.ml \
    bsyntax.ml bparser.mly blexer.mll bvalue.ml \
    bakery.ml bregistry.ml bcompiler.ml bdriver.ml \
    toplevel.ml

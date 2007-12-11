@@ -1,10 +1,23 @@
-(*********************************************************)
-(* The Harmony Project                                   *)
-(* harmony@lists.seas.upenn.edu                          *)
-(*                                                       *)
-(* erx.ml - regular expressions                          *)
-(*********************************************************)
-(* $Id: erx.ml 3062 2007-06-15 17:05:43Z apilki $ *)
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/src/erx.ml                                                       *)
+(* Extended regexps                                                            *)
+(* $Id$                                                                        *)
+(*******************************************************************************)
 
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append
@@ -1766,79 +1779,10 @@ let print_multi_split lst s =
 
 let print_split i s = print_multi_split [i] s
 
-
-
-
-
-
 (***** Easy splitability *****)
-
 
 let easy_seq t1 t2 = 
   N.easily_splitable t1 t2 
 
 let easy_star t1 = 
   (not (match_str t1 Bstring.empty) && N.easily_splitable t1 t1)
-
-
-module W = Wic
-
-(* reference to keep track of the maximum size of buffers. (May be)
- * usefull for kleenestar, to directly create a buffer of a "good" size
- *)
-
-let max_buff_size = ref 80
-
-let set_max_size i = 
-  if i > !max_buff_size then
-    max_buff_size := i
-
-let buff_size () = !max_buff_size
-
-
-(* easy_split : t -> W.t -> (RS.t option * W.t)
-
-   [easy_split t wic] returns a "string" containing the first longest
-   match form the wrapped in channel wic or None if no string has been
-   matched. It also returns a new wic that should be use for the next
-   match
-
-   We take t to be deterministic because if a lense is used in a
-   streaming way, it has good chance to be used a lot of time. The
-   module Matching_dfa is opened for this reason *)
-
-open N.Matching_dfa
-
-let easy_split t wic = 
-  let t = determinize (trim t) in
-  let b = Buffer.create (buff_size ()) in
-    (* fill the buffer ! 
-
-       * f is the frontier,
-       * lp the last position of matching*)
-  let rec fill_buffer f lp = 
-    if is_empty f then lp else begin
-    let lp' =  if is_final t f then Buffer.length b else lp in
-    match W.read_char wic with
-      | None -> lp'
-      | Some c -> 
-	  Buffer.add_char b c;
-	  let sym = RS.sym_of_char c in
-	  fill_buffer (next t f sym) lp'
-    end in
-  let lp = fill_buffer (init t) (-1) in
-  set_max_size (Buffer.length b);
-  if lp = -1 then (* no match found *) 
-    (None, W.append_buff b wic)
-  else begin
-    let result = RS.t_of_string (Buffer.sub b 0 lp) in
-    let rest = 
-      if lp < (Buffer.length b) then 
-	Buffer.sub b lp ((Buffer.length b) - lp)
-      else 
-	"" in
-    let b' = Buffer.create (buff_size ()) in
-    Buffer.add_string b' rest;
-    (Some result, W.append_buff b' wic)
-  end
-

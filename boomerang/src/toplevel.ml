@@ -1,0 +1,310 @@
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/src/toplevel.ml                                                  *)
+(* Boomerang front-end                                                         *)
+(* $Id$                                                                        *)
+(*******************************************************************************)
+
+(* imports *)
+module L = Blenses.DLens
+module BS = Bstring
+open Error 
+
+let sprintf = Printf.sprintf
+
+let () = 
+  (* initialize unison state (sets directory name) *)
+  Util.supplyFileInUnisonDirFn (fun s -> sprintf "./.%s/%s" "boomerang" s);
+  (* turn off logging *)
+  Prefs.set Trace.logging false;
+  (* redirect tracing and debugging output to stdout *)
+  Trace.redirect `FormatStdout;
+  (* hack to ensure that Boomerang compiler gets linked *)
+  Bdriver.init()
+    
+let exit x = 
+  Memo.format_stats ();
+  exit x
+
+let debug thk = Trace.debug "toplevel" (fun () -> thk (); Util.format "%!")
+
+let lookup qid_str = Bregistry.lookup_library (Bvalue.parse_qid qid_str)
+
+let lookup_lens qid_str =
+  match lookup qid_str with
+      None -> Error.simple_error (Printf.sprintf "lens %s not found" qid_str)
+    | Some rv -> 
+        Bvalue.get_l 
+          (Bregistry.value_of_rv rv)
+          (Info.M (Printf.sprintf "%s is not a lens" qid_str))
+          
+let read_string fn = 
+  debug (fun () -> Util.format "Reading %s@\n" fn);
+  if fn="" then None else 
+  Some (Misc.read fn)
+
+let write_string fn s = 
+  debug (fun () -> Util.format "Writing back %s@\n" fn);
+  if fn="" then () else 
+  Misc.write fn s
+
+(*********)
+(* CHECK *)
+(*********)
+let check m = 
+  let modname =
+    if Util.endswith m ".boom" then
+      String.capitalize (Misc.replace_suffix m ".boom" "")
+    else m in
+  if not (Bregistry.load modname) then
+    raise (Error.Harmony_error 
+             (fun () -> 
+                Util.format "Error: could not find module %s@\n" modname))
+
+(*******)
+(* GET *)
+(*******)
+let get l_n c_fn o_fn = 
+  let co = read_string c_fn in
+  let l = lookup_lens l_n in
+  let a = match co with
+    | Some c -> L.get l (BS.t_of_string c)
+    | None -> Error.simple_error (Printf.sprintf "Concrete file %s is missing." c_fn) 
+  in
+    write_string o_fn (BS.string_of_t a);
+    0
+
+(*******)
+(* PUT *)
+(*******)
+let put l_n a_fn c_fn o_fn = 
+  let ao = read_string a_fn in
+  let co = read_string c_fn in
+  let l = lookup_lens l_n in  
+  let c' = match ao,co with 
+    | Some a, Some c -> L.rput_of_dl l (BS.t_of_string a) (BS.t_of_string c)
+    | Some a, None   -> L.rcreate_of_dl l (BS.t_of_string a) 
+    | None,_ -> Error.simple_error (Printf.sprintf "Abstract file %s is missing." a_fn) 
+  in
+    write_string o_fn (BS.string_of_t c');
+    0
+
+(**********)
+(* CREATE *)
+(**********)
+let create l_n a_fn o_fn = 
+  let ao = read_string a_fn in
+  let l = lookup_lens l_n in
+  let c = match ao with 
+    | Some a -> L.rcreate_of_dl l (BS.t_of_string a) 
+    | None -> Error.simple_error (Printf.sprintf "Abstract file %s is missing." a_fn) 
+  in
+    write_string o_fn (BS.string_of_t c);
+    0
+
+(********)
+(* SYNC *)
+(********)
+let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
+let tmp_fn n = Util.fileInUnisonDir (sprintf ".#%s-tmp" n)
+let sync l c_fn a_fn o_fn = 
+  let cp fn1 fn2 = Misc.write fn2 (Misc.read fn1) in 
+  let rm fn1 = Misc.remove_file_or_dir fn1 in 
+  let eq fn1 fn2 = Misc.read fn1 = Misc.read fn2 in 
+  let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in 
+  match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with 
+    | _,false,false -> 
+        (* if neither c nor a exists, clear o and return *)
+        Misc.remove_file_or_dir o_fn;
+        0
+
+    | _,true,false -> 
+        (* if c exists but a does not, set a to GET c *)
+        debug (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
+        cp c_fn o_fn;
+        ignore (get l c_fn a_fn);
+        0
+          
+    | true,false,true ->
+        (* if c does not exist but a and o do, set c and o to PUT a o *)        
+        debug (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
+        ignore (put l a_fn o_fn c_fn);
+        cp c_fn o_fn;
+        0
+    
+    | false,false,true ->
+        (* if c and o do not exist but a does, set c and o to CREATE a *)        
+        debug (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
+        ignore (create l a_fn c_fn);
+        cp c_fn o_fn;
+        0
+
+    | false,true,true -> 
+        (* if c and a exist but o does not and a <> GET c then conflict; otherwise set o to c *)
+        let t_fn = tmp_fn a_fn in 
+        ignore (get l c_fn t_fn);
+        if eq a_fn t_fn then
+          cp c_fn o_fn
+        else 
+          debug (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
+        rm t_fn;
+        0
+
+    | true,true,true -> 
+        (* otherwise, c, a, and o exist:
+           - if c=o, set c to PUT a o
+           - else if a=GET o set a to GET c
+           - otherwise conflict *)
+        let t_fn = tmp_fn a_fn in 
+        ignore (get l o_fn t_fn);
+        if eq a_fn t_fn then 
+          begin 
+            debug (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
+            ignore (get l c_fn a_fn);
+            cp c_fn o_fn;
+            rm t_fn;
+            0
+          end
+        else if eq c_fn o_fn then 
+          begin 
+            debug (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
+            ignore (put l a_fn o_fn c_fn);
+            cp c_fn o_fn;
+            rm t_fn;
+            0
+          end            
+        else 
+          begin 
+            debug (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
+            1
+          end
+
+let rest = Prefs.createStringList "rest" "*no docs needed" ""
+
+let opref =  Prefs.createString "o" "" "output" ""
+let lpref = Prefs.createString "l" "" "lens" ""
+
+let l_pref = Prefs.createStringList "lens" "lens" "lens"
+let c_pref = Prefs.createStringList "concrete" "concrete" "abstract"
+let a_pref = Prefs.createStringList "abstract" "abstract" "abstract"
+
+let check_pref = Prefs.createStringList "check" "run unit tests for given module(s)" ""
+
+let dryrun = Prefs.createBool "dryrun" false "don't write any files" ""
+
+let toplevel' progName () = 
+  let usageMsg = 
+    "Usage:\n"
+    ^ "    "^progName^" [get] FILE [options]               - transform via GET\n"
+    ^ "    "^progName^" [put] FILE FILE [options]          - transform via PUT\n"
+    ^ "    "^progName^" create FILE [options]              - transform via CREATE\n"
+    ^ "    "^progName^" sync [FILE] FILE FILE [options]    - synchronize\n"
+    ^ "    "^progName^" [profilename]                      - synchronize using profile\n"
+    ^ "    "^progName^" FILE.boom [FILE.boom...]           - run unit tests\n"
+    ^ "\n"
+    ^ "Options:" in 
+
+  let sync_profile profile_name = 
+    Prefs.profileName := Some profile_name;
+    let profile_fn = Prefs.profilePathname profile_name in       
+      if Sys.file_exists profile_fn then 
+        Prefs.loadTheFile ()
+      else if profile_name = "default" then 
+        begin 
+          Prefs.printUsage usageMsg; 
+          exit 2
+        end
+      else
+        Error.simple_error 
+          (sprintf "Error: profile file %s does not exist" profile_fn);
+      let ll = Prefs.read l_pref in 
+      let cl = Prefs.read c_pref in
+      let al = Prefs.read a_pref in 
+      let ll_len = Safelist.length ll in 
+      let cl_len = Safelist.length cl in
+      let al_len = Safelist.length al in
+        if cl_len <> al_len then 
+          Error.simple_error "Error: number of concrete and abstract replicas differs"
+        else if cl_len <> ll_len then 
+          Error.simple_error "Error: number of replicas and lenses differs";
+        let rec loop ll cl al exitcode = match ll,cl,al with 
+          | [],[],[] -> exitcode
+          | l::lrest,c::crest,a::arest ->         
+              loop lrest crest arest (sync l c a "")
+          | _ -> assert false in 
+          loop ll cl al 0 in 
+  
+  let get_lens () = 
+    let l = Prefs.read lpref in 
+      if l="" then 
+        Error.simple_error "-l preference must be specified explicitly"
+      else l in 
+  let get_out () = 
+    let o = Prefs.read opref in 
+      if o="" then "-"
+      else o in 
+
+  Prefs.parseCmdLine usageMsg;
+
+  let rest_pref = Safelist.rev (Prefs.read rest) in 
+
+  (* run unit tests *)
+  if Prefs.read check_pref <> [] then
+    begin
+      Safelist.iter check (Prefs.read check_pref);
+      if Prefs.read rest = [] then exit 0
+    end;
+  Util.finalize 
+    (fun () -> 
+       if rest_pref <> [] && Safelist.for_all (fun s -> Util.endswith s ".boom") rest_pref then 
+         begin
+           Prefs.set Bcompiler.test_all true;
+           Safelist.iter check rest_pref;
+           0
+         end
+       else 
+         begin 
+           match rest_pref with
+             | [] -> sync_profile "default"
+             | [arg] -> 
+                 if Util.endswith arg ".prf" then 
+                   sync_profile (Misc.replace_suffix arg ".prf" "")
+                 else
+                   get (get_lens ()) arg (get_out ())
+             | ["get"; arg] -> 
+                 get (get_lens ()) arg (get_out ())
+             | ["create"; arg] -> 
+                 create (get_lens ()) arg (get_out ())
+             | [arg1; arg2] | ["put"; arg1; arg2] -> 
+                 put (get_lens ()) arg1 arg2 (get_out ())
+             | ["sync"; arg1; arg2; arg3] | [arg1; arg2; arg3] -> 
+                 sync (get_lens ()) arg1 arg2 arg3       
+             | _ -> 
+                 Prefs.printUsage usageMsg; 
+                 exit 2
+         end)
+    (fun () -> Util.flush ())
+    
+let toplevel progName =
+  try
+    exit 
+      (Unix.handle_unix_error 
+         (fun () -> Error.exit_on_error (toplevel' progName))
+         ())
+  with e -> 
+    Printf.printf "Uncaught exception %s" (Printexc.to_string e); 
+    exit 2

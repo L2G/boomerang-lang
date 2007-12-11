@@ -14,19 +14,12 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/src/rint.ml                                                      *)
-(* Boomerang ordered int                                                       *)
+(* /boomerang/src/toplevel.mli                                                 *)
+(* Boomerang front-end interface                                               *)
 (* $Id$                                                                        *)
 (*******************************************************************************)
 
-module OrderedInt =
-struct 
-  type t = int
-  let compare (x:int) (y:int) = 
-    if x = y then 0
-    else if x < y then -1 
-    else  1
-end
-
-module Map = Map.Make(OrderedInt)
-module Set = Set.Make(OrderedInt)
+val toplevel :
+  (* Name of the current program *)
+  string ->              
+  unit
