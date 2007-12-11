@@ -47,6 +47,7 @@ val new_special : string -> sym
 type t
 val empty : t
 val compare : t -> t -> int
+val equal : t -> t -> bool
 val t_of_string : string -> t
 val string_of_t : t -> string
 val make : int -> sym -> t

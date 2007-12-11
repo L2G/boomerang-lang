@@ -233,7 +233,8 @@ let compare (t1:t) (t2:t) =
 	comp a1 (Array.length a1) Array.get id s2 (String.length s2) String.get Char.code
     | FString s1, FArray a2 ->
 	comp s1 (String.length s1) String.get Char.code a2 (Array.length a2) Array.get id
-          
+
+let equal t1 t2 = compare t1 t2 = 0          
 
 let t_of_string s =
   ref (FString s)

@@ -54,14 +54,12 @@ let lookup_lens qid_str =
           
 let read_string fn = 
   debug (fun () -> Util.format "Reading %s@\n" fn);
-  if fn="" then None else 
-  Some (Misc.read fn)
+  BS.t_of_string (Misc.read fn)
 
 let write_string fn s = 
   debug (fun () -> Util.format "Writing back %s@\n" fn);
-  if fn="" then () else 
-  Misc.write fn s
-
+  Misc.write fn (BS.string_of_t s)
+    
 (*********)
 (* CHECK *)
 (*********)
@@ -75,56 +73,36 @@ let check m =
              (fun () -> 
                 Util.format "Error: could not find module %s@\n" modname))
 
+let get_str l_n c = L.get (lookup_lens l_n) c
+let put_str l_n a c = L.rput_of_dl (lookup_lens l_n) a c
+let create_str l_n a = L.rcreate_of_dl (lookup_lens l_n) a
+
 (*******)
 (* GET *)
 (*******)
 let get l_n c_fn o_fn = 
-  let co = read_string c_fn in
-  let l = lookup_lens l_n in
-  let a = match co with
-    | Some c -> L.get l (BS.t_of_string c)
-    | None -> Error.simple_error (Printf.sprintf "Concrete file %s is missing." c_fn) 
-  in
-    write_string o_fn (BS.string_of_t a);
-    0
+  write_string o_fn (get_str l_n (read_string c_fn));
+  0
 
 (*******)
 (* PUT *)
 (*******)
 let put l_n a_fn c_fn o_fn = 
-  let ao = read_string a_fn in
-  let co = read_string c_fn in
-  let l = lookup_lens l_n in  
-  let c' = match ao,co with 
-    | Some a, Some c -> L.rput_of_dl l (BS.t_of_string a) (BS.t_of_string c)
-    | Some a, None   -> L.rcreate_of_dl l (BS.t_of_string a) 
-    | None,_ -> Error.simple_error (Printf.sprintf "Abstract file %s is missing." a_fn) 
-  in
-    write_string o_fn (BS.string_of_t c');
-    0
+  write_string o_fn (put_str l_n (read_string a_fn) (read_string c_fn));
+  0
 
 (**********)
 (* CREATE *)
 (**********)
 let create l_n a_fn o_fn = 
-  let ao = read_string a_fn in
-  let l = lookup_lens l_n in
-  let c = match ao with 
-    | Some a -> L.rcreate_of_dl l (BS.t_of_string a) 
-    | None -> Error.simple_error (Printf.sprintf "Abstract file %s is missing." a_fn) 
-  in
-    write_string o_fn (BS.string_of_t c);
-    0
+  write_string o_fn (create_str l_n (read_string a_fn));
+  0
 
 (********)
 (* SYNC *)
 (********)
 let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
-let tmp_fn n = Util.fileInUnisonDir (sprintf ".#%s-tmp" n)
 let sync l c_fn a_fn o_fn = 
-  let cp fn1 fn2 = Misc.write fn2 (Misc.read fn1) in 
-  let rm fn1 = Misc.remove_file_or_dir fn1 in 
-  let eq fn1 fn2 = Misc.read fn1 = Misc.read fn2 in 
   let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in 
   match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with 
     | _,false,false -> 
@@ -135,56 +113,63 @@ let sync l c_fn a_fn o_fn =
     | _,true,false -> 
         (* if c exists but a does not, set a to GET c *)
         debug (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
-        cp c_fn o_fn;
-        ignore (get l c_fn a_fn);
-        0
+        let c = read_string c_fn in 
+          write_string o_fn c;
+          write_string a_fn (get_str l c);
+          0
           
     | true,false,true ->
         (* if c does not exist but a and o do, set c and o to PUT a o *)        
         debug (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-        ignore (put l a_fn o_fn c_fn);
-        cp c_fn o_fn;
-        0
+        let a = read_string a_fn in
+        let o = read_string o_fn in 
+        let c' = put_str l a o in 
+          write_string c_fn c';
+          write_string o_fn c';
+          0
     
     | false,false,true ->
         (* if c and o do not exist but a does, set c and o to CREATE a *)        
         debug (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
-        ignore (create l a_fn c_fn);
-        cp c_fn o_fn;
-        0
+        let a = read_string a_fn in 
+        let c' = create_str l a in 
+          write_string c_fn c';
+          write_string o_fn c';
+          0
 
     | false,true,true -> 
         (* if c and a exist but o does not and a <> GET c then conflict; otherwise set o to c *)
-        let t_fn = tmp_fn a_fn in 
-        ignore (get l c_fn t_fn);
-        if eq a_fn t_fn then
-          cp c_fn o_fn
-        else 
-          debug (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
-        rm t_fn;
+        let a = read_string a_fn in 
+        let c = read_string c_fn in 
+        let a' = get_str l c in 
+        if BS.equal a a' then 
+          write_string o_fn c
+        else
+          debug (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
         0
 
     | true,true,true -> 
         (* otherwise, c, a, and o exist:
-           - if c=o, set c to PUT a o
-           - else if a=GET o set a to GET c
-           - otherwise conflict *)
-        let t_fn = tmp_fn a_fn in 
-        ignore (get l o_fn t_fn);
-        if eq a_fn t_fn then 
+           - if a=GET o set a to GET c and o to c;
+           - else if c=o, set c and o to PUT a o;
+           - otherwise conflict. *)
+        let o = read_string o_fn in
+        let c = read_string c_fn in 
+        let a = read_string a_fn in 
+        let a' = get_str l o in 
+        if BS.equal a a' then 
           begin 
-            debug (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
-            ignore (get l c_fn a_fn);
-            cp c_fn o_fn;
-            rm t_fn;
+            debug (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
+            write_string a_fn (get_str l c);
+            write_string o_fn c;
             0
           end
-        else if eq c_fn o_fn then 
+        else if BS.equal c o then
           begin 
             debug (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-            ignore (put l a_fn o_fn c_fn);
-            cp c_fn o_fn;
-            rm t_fn;
+            let c' = put_str l a o in 
+            write_string c_fn c';
+            write_string o_fn c';
             0
           end            
         else 
