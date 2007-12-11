@@ -41,6 +41,7 @@ let exit x =
   exit x
 
 let debug thk = Trace.debug "toplevel" (fun () -> thk (); Util.format "%!")
+let debug_sync thk = Trace.debug "sync" (fun () -> thk (); Util.format "%!")
 
 let lookup qid_str = Bregistry.lookup_library (Bvalue.parse_qid qid_str)
 
@@ -107,12 +108,13 @@ let sync l o_fn c_fn a_fn =
   match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with 
     | _,false,false -> 
         (* if neither c nor a exists, clear o and return *)
+        debug_sync (fun () -> Util.format "replicas %s and %s missing; removing archive %s@\n" c_fn a_fn o_fn);
         Misc.remove_file_or_dir o_fn;
         0
 
     | _,true,false -> 
         (* if c exists but a does not, set a to GET c *)
-        debug (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
+        debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
         let c = read_string c_fn in 
           write_string o_fn c;
           write_string a_fn (get_str l c);
@@ -120,7 +122,7 @@ let sync l o_fn c_fn a_fn =
           
     | true,false,true ->
         (* if c does not exist but a and o do, set c and o to PUT a o *)        
-        debug (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
+        debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
         let a = read_string a_fn in
         let o = read_string o_fn in 
         let c' = put_str l a o in 
@@ -130,7 +132,7 @@ let sync l o_fn c_fn a_fn =
     
     | false,false,true ->
         (* if c and o do not exist but a does, set c and o to CREATE a *)        
-        debug (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
+        debug_sync (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
         let a = read_string a_fn in 
         let c' = create_str l a in 
           write_string c_fn c';
@@ -144,12 +146,12 @@ let sync l o_fn c_fn a_fn =
         let a' = get_str l c in 
         if BS.equal a a' then 
           begin
-            debug (fun () -> Util.format "(lens: %s) setting %s to %s" l o_fn c_fn);
+            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s" l o_fn c_fn);
             write_string o_fn c
           end
         else
-          debug (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
-        0
+          debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
+          0
 
     | true,true,true -> 
         (* otherwise, c, a, and o exist:
@@ -162,14 +164,14 @@ let sync l o_fn c_fn a_fn =
         let a' = get_str l o in 
         if BS.equal a a' then 
           begin 
-            debug (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
+            debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
             write_string a_fn (get_str l c);
             write_string o_fn c;
             0
           end
         else if BS.equal c o then
           begin 
-            debug (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
+            debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
             let c' = put_str l a o in 
             write_string c_fn c';
             write_string o_fn c';
@@ -177,50 +179,50 @@ let sync l o_fn c_fn a_fn =
           end            
         else 
           begin 
-            debug (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
+            debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
             1
           end
 
 let rest = Prefs.createStringList "rest" "*no docs needed" ""
 
-let opref =  Prefs.createString "o" "" "output" ""
-let lpref = Prefs.createString "l" "" "lens" ""
+let o_pref = Prefs.createString     "output" "" "output" ""
+let l_pref = Prefs.createStringList "lens"      "lens"          "" 
+let c_pref = Prefs.createStringList "concrete"  "concrete file" ""
+let a_pref = Prefs.createStringList "abstract"  "abstract file" ""
 
-let l_pref = Prefs.createStringList "lens" "lens" "lens"
-let c_pref = Prefs.createStringList "concrete" "concrete" "abstract"
-let a_pref = Prefs.createStringList "abstract" "abstract" "abstract"
+let _ = Prefs.alias o_pref "o" 
+let _ = Prefs.alias l_pref "l" 
+let _ = Prefs.alias c_pref "c" 
+let _ = Prefs.alias a_pref "a" 
 
 let check_pref = Prefs.createStringList "check" "run unit tests for given module(s)" ""
 
-let dryrun = Prefs.createBool "dryrun" false "don't write any files" ""
-
 let toplevel' progName () = 
-  let usageMsg = 
+  let baseUsageMsg = 
     "Usage:\n"
-    ^ "    "^progName^" [get] C            [options] - get\n"
-    ^ "    "^progName^" [put] A C          [options] - put\n"
-    ^ "    "^progName^" create A           [options] - create\n"
-    ^ "    "^progName^" sync O A C         [options] - sync\n"
-    ^ "    "^progName^" [profilename]      [options] - sync\n"
-    ^ "    "^progName^" F.boom [F.boom...] [options] - run unit tests\n"
-    ^ "\n"
-    ^ "Options:" in 
+    ^ "    "^progName^" [get] l C          [options]     : get\n"
+    ^ " or "^progName^" [put] l A C        [options]     : put\n"
+    ^ " or "^progName^" create l A         [options]     : create\n"
+    ^ " or "^progName^" sync l O C A       [options]     : sync\n"
+    ^ " or "^progName^" [profilename]      [options]     : sync from profile\n"
+    ^ " or "^progName^" F.boom [F.boom...] [options]     : run unit tests\n"
+    ^ "\n" in 
+  let shortUsageMsg = 
+    baseUsageMsg 
+    ^ "For a list of options, type \"" ^progName^ " -help\".\n" in 
+  let usageMsg = baseUsageMsg ^ "Options:" in 
+
+  let bad_cmdline () = Util.format "%s" shortUsageMsg; exit 2 in 
 
   let sync_profile profile_name = 
     Prefs.profileName := Some profile_name;
     let profile_fn = Prefs.profilePathname profile_name in       
       if Sys.file_exists profile_fn then 
         Prefs.loadTheFile ()
-      else if profile_name = "default" then 
-        begin 
-          Prefs.printUsage usageMsg; 
-          exit 2
-        end
-      else
-        Error.simple_error 
-          (sprintf "Error: profile file %s does not exist" profile_fn);
+      else if profile_name = "default" then bad_cmdline ()
+      else Error.simple_error (sprintf "Error: profile file %s does not exist" profile_fn);
       let ll = Prefs.read l_pref in 
-      let cl = Prefs.read c_pref in
+      let cl = Prefs.read c_pref in 
       let al = Prefs.read a_pref in 
       let ll_len = Safelist.length ll in 
       let cl_len = Safelist.length cl in
@@ -236,54 +238,86 @@ let toplevel' progName () =
           | _ -> assert false in 
           loop ll cl al 0 in 
   
-  let get_lens () = 
-    let l = Prefs.read lpref in 
-      if l="" then 
-        Error.simple_error "-l preference must be specified explicitly"
-      else l in 
-  let get_out () = 
-    let o = Prefs.read opref in 
-      if o="" then "-"
-      else o in 
-
+  (* Parse command-line options *)
   Prefs.parseCmdLine usageMsg;
-
+  
+  (* Read preferences *)
+  let ll = Safelist.rev (Prefs.read l_pref) in 
+  let cl = Safelist.rev (Prefs.read c_pref) in 
+  let al = Safelist.rev (Prefs.read a_pref) in 
+  let o = Prefs.read o_pref in
   let rest_pref = Safelist.rev (Prefs.read rest) in 
 
-  (* run unit tests *)
+  (* run unit tests if needed *)
   if Prefs.read check_pref <> [] then
     begin
       Safelist.iter check (Prefs.read check_pref);
       if Prefs.read rest = [] then exit 0
     end;
   Util.finalize 
-    (fun () -> 
-       if rest_pref <> [] && Safelist.for_all (fun s -> Util.endswith s ".boom") rest_pref then 
+  (fun () -> 
+     if rest_pref <> [] && 
+       Safelist.for_all (fun s -> Util.endswith s ".boom") rest_pref then 
          begin
+           (* barf on spurious command line options?! *)
            Prefs.set Bcompiler.test_all true;
            Safelist.iter check rest_pref;
            0
          end
-       else 
-         begin 
-           let rest_pref = match rest_pref with 
-             | []        -> ["default"]
-             | [arg]     -> 
-                 if Util.endswith arg ".prf" then [Misc.replace_suffix arg ".prf" ""]
-                 else ["get"; arg]
-             | ["create";_] -> rest_pref
-             | [_;_] -> "put"::rest_pref 
-             | _ -> rest_pref in 
-           match rest_pref with
-             | [prf]                      -> sync_profile prf
-             | ["get"; c_fn]              -> get (get_lens ()) c_fn (get_out ())
-             | ["create"; a_fn]           -> create (get_lens ()) a_fn (get_out ())
-             | ["put"; a_fn; c_fn]        -> put (get_lens ()) a_fn c_fn (get_out ())
-             | ["sync"; o_fn; c_fn; a_fn] -> sync (get_lens ()) o_fn a_fn c_fn
-             | _ -> 
-                 Prefs.printUsage usageMsg; 
-                 exit 2
-         end)
+     else begin 
+       let rest_pref,ll,cl,al,o = match rest_pref,ll,cl,al,o with 
+         (* sync profile *)
+         | [],[],[],[],""    -> ["default"],[],[],[],""
+         | [arg],[],[],[],"" -> 
+             if not (Util.endswith arg ".prf") then bad_cmdline ()
+             else [Misc.replace_suffix arg ".prf" ""],[],[],[],""
+         (* get *)
+         | [l;c_fn],[],[],[],o
+         | [c_fn],[l],[],[],o 
+         | ["get"],[l],[c_fn],[],o
+         | ["get"; c_fn],[l],[],[],o   
+         | ["get"; l],[],[c_fn],[],o   
+         | ["get"; l; c_fn],[],[],[],o -> 
+             (* *)
+             ["get"],[l],[c_fn],[],o             
+         (* create *)
+         | ["create"],[l],[],[a_fn],o
+         | ["create"; l],[],[],[a_fn],o
+         | ["create"; a_fn],[l],[],[],o 
+         | ["create"; l; a_fn],[],[],[],o ->
+             (* *)
+             ["create"],[l],[],[a_fn],o
+         (* put *)
+         | [l; a_fn; c_fn],[],[],[],o 
+         | [a_fn; c_fn],[l],[],[],o 
+         | ["put"],[l],[c_fn],[a_fn],o
+         | ["put"; a_fn; c_fn],[l],[],[],o 
+         | ["put"; l],[],[c_fn],[a_fn],o -> 
+             (* *)
+             ["put"],[l],[c_fn],[a_fn],o
+         (* sync *)
+         | [l; o_fn; c_fn; a_fn],[],[],[],"" 
+         | ["sync"; l; o_fn; c_fn; a_fn],[],[],[],"" 
+         | ["sync"; o_fn; c_fn; a_fn],[l],[],[],"" -> 
+             (* *)
+             ["sync"],[l],[c_fn],[a_fn],o_fn
+         | _ -> 
+             Util.format "FOUND: [%s],[%s],[%s][%s],%s@\n"
+               (Misc.concat_list "," rest_pref)
+               (Misc.concat_list "," ll)
+               (Misc.concat_list "," cl)
+               (Misc.concat_list "," al)
+               o;
+             bad_cmdline () in 
+       let o_fn = if o="" then "-" else o in 
+       match rest_pref,ll,cl,al with
+         | [prf],[],[],[]             -> sync_profile prf
+         | ["get"],[l],[c_fn],[]      -> get l c_fn o_fn
+         | ["create"],[l],[],[a_fn]   -> create l a_fn o_fn
+         | ["put"],[l],[c_fn],[a_fn]  -> put l a_fn c_fn o_fn
+         | ["sync"],[l],[c_fn],[a_fn] -> sync l o_fn c_fn a_fn
+         | _ -> assert false
+     end)
     (fun () -> Util.flush ())
     
 let toplevel progName =
