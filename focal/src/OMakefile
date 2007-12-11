@@ -1,9 +1,7 @@
 ##############################################################################
-# Main results
+# Library configuration
 
 OCAMLPACKS += netstring unix str pxp pxp-engine pxp-lex-utf8
-
-OCAML_OTHER_LIBS += genepi csv
 
 OCAML_LIBS += \
   $(UBASEDIR)/ubase \
@@ -19,11 +17,17 @@ OCAMLINCLUDES += \
   $(SRCDIR) \
   $(LENSESDIR)
 
+##############################################################################
+# Main results
+
 RESULT = harmony 
 RESULTS = harmony.cmxa $(RESULT)
 
+.DEFAULT: $(RESULTS)
+
 ##############################################################################
-# 
+# Sources 
+
 BASE_SOURCES[] = \
     unittest.mli unittest.ml \
     db.mli db.ml tree.ml tree.mli v.mli v.ml \
@@ -62,8 +66,6 @@ SOURCES = $(COMMON_SOURCES) $(file $(SRCDIR)/harmony.ml)
 OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 OCamlProgram($(RESULT), $(rootname $(SOURCES)))
 
-.DEFAULT: $(RESULTS)
-
 ##############################################################################
 # Helper tools
 
@@ -77,6 +79,9 @@ if $(mem install, $(TARGETS))
 else
   $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker
     ./$< > $@
+
+##############################################################################
+# Override scanner for external libraries
 
 $(EXTERNDIR)/genepi/ocaml/genepi.cma:
 	$(MAKE) -C $(EXTERNDIR)/genepi/ocaml/
@@ -103,14 +108,11 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o:
 	$(MAKE) -C $(EXTERNDIR)/ocaml-csv-1.0.3
 
 ##############################################################################
-# Testing
-
-test: $(RESULT)
-  ./$(RESULT) -unittests
-
-##############################################################################
 # Miscellaneous
 
 clean:
 	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES_BARE) baker bakery.cmo
+
+test: $(RESULT)
+  ./$(RESULT) -unittests
 

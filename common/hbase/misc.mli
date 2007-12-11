@@ -132,6 +132,9 @@ val trimLeadingSpaces : string -> string
 val replace_substring : string -> string -> string -> string
 (** [replace_substring s froms tos] returns [s] where all occurrences of [froms] have been replaced by [tos]. *)
 
+val replace_suffix : string -> string -> string -> string
+(** [replace_suffix s froms tos] returns [(s'^tos)] if [s=s'^froms] and [s] otherwise *)
+
 val replace_substrings : string -> (string * string) list -> string
 (** [replace_substrings] is similar to [replace_substring], but iterates on a list of substitution. The leftmost substitution is applied first. *)
 

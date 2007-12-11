@@ -314,6 +314,15 @@ let rec replace_substring s fromstring tostring =
       let after = String.sub s afterpos ((String.length s) - afterpos) in
       before ^ tostring ^ (replace_substring after fromstring tostring)
 
+let rec replace_suffix s froms tos = 
+  let s_len = String.length s in 
+  let froms_len = String.length froms in 
+  let pref_len = s_len - froms_len in 
+    if pref_len >= 0 then
+      (String.sub s 0 pref_len) ^ tos
+    else
+      raise Not_found
+        
 let rec replace_substrings s l =
   match l with
     [] -> s

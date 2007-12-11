@@ -70,3 +70,4 @@ val dom_member : Name.Set.t -> t -> bool
 (* [is_list t] yields true if [t] is equivalent to List(s) for some s *)
 val is_list  : t -> bool
 
+val format_stats : unit -> unit

@@ -1833,3 +1833,4 @@ let is_list t =
 (* external exports *)
 let update = update_tvar
 
+let format_stats () = ()
