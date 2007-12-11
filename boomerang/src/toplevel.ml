@@ -102,7 +102,7 @@ let create l_n a_fn o_fn =
 (* SYNC *)
 (********)
 let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
-let sync l c_fn a_fn o_fn = 
+let sync l o_fn c_fn a_fn = 
   let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in 
   match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with 
     | _,false,false -> 
@@ -143,7 +143,10 @@ let sync l c_fn a_fn o_fn =
         let c = read_string c_fn in 
         let a' = get_str l c in 
         if BS.equal a a' then 
-          write_string o_fn c
+          begin
+            debug (fun () -> Util.format "(lens: %s) setting %s to %s" l o_fn c_fn);
+            write_string o_fn c
+          end
         else
           debug (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
         0
@@ -194,12 +197,12 @@ let dryrun = Prefs.createBool "dryrun" false "don't write any files" ""
 let toplevel' progName () = 
   let usageMsg = 
     "Usage:\n"
-    ^ "    "^progName^" [get] FILE [options]               - transform via GET\n"
-    ^ "    "^progName^" [put] FILE FILE [options]          - transform via PUT\n"
-    ^ "    "^progName^" create FILE [options]              - transform via CREATE\n"
-    ^ "    "^progName^" sync [FILE] FILE FILE [options]    - synchronize\n"
-    ^ "    "^progName^" [profilename]                      - synchronize using profile\n"
-    ^ "    "^progName^" FILE.boom [FILE.boom...]           - run unit tests\n"
+    ^ "    "^progName^" [get] C            [options] - get\n"
+    ^ "    "^progName^" [put] A C          [options] - put\n"
+    ^ "    "^progName^" create A           [options] - create\n"
+    ^ "    "^progName^" sync O A C         [options] - sync\n"
+    ^ "    "^progName^" [profilename]      [options] - sync\n"
+    ^ "    "^progName^" F.boom [F.boom...] [options] - run unit tests\n"
     ^ "\n"
     ^ "Options:" in 
 
@@ -229,7 +232,7 @@ let toplevel' progName () =
         let rec loop ll cl al exitcode = match ll,cl,al with 
           | [],[],[] -> exitcode
           | l::lrest,c::crest,a::arest ->         
-              loop lrest crest arest (sync l c a "")
+              loop lrest crest arest (sync l "" c a)
           | _ -> assert false in 
           loop ll cl al 0 in 
   
@@ -263,21 +266,20 @@ let toplevel' progName () =
          end
        else 
          begin 
+           let rest_pref = match rest_pref with 
+             | []        -> ["default"]
+             | [arg]     -> 
+                 if Util.endswith arg ".prf" then [Misc.replace_suffix arg ".prf" ""]
+                 else ["get"; arg]
+             | ["create";_] -> rest_pref
+             | [_;_] -> "put"::rest_pref 
+             | _ -> rest_pref in 
            match rest_pref with
-             | [] -> sync_profile "default"
-             | [arg] -> 
-                 if Util.endswith arg ".prf" then 
-                   sync_profile (Misc.replace_suffix arg ".prf" "")
-                 else
-                   get (get_lens ()) arg (get_out ())
-             | ["get"; arg] -> 
-                 get (get_lens ()) arg (get_out ())
-             | ["create"; arg] -> 
-                 create (get_lens ()) arg (get_out ())
-             | [arg1; arg2] | ["put"; arg1; arg2] -> 
-                 put (get_lens ()) arg1 arg2 (get_out ())
-             | ["sync"; arg1; arg2; arg3] | [arg1; arg2; arg3] -> 
-                 sync (get_lens ()) arg1 arg2 arg3       
+             | [prf]                      -> sync_profile prf
+             | ["get"; c_fn]              -> get (get_lens ()) c_fn (get_out ())
+             | ["create"; a_fn]           -> create (get_lens ()) a_fn (get_out ())
+             | ["put"; a_fn; c_fn]        -> put (get_lens ()) a_fn c_fn (get_out ())
+             | ["sync"; o_fn; c_fn; a_fn] -> sync (get_lens ()) o_fn a_fn c_fn
              | _ -> 
                  Prefs.printUsage usageMsg; 
                  exit 2
