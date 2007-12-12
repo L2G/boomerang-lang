@@ -36,7 +36,17 @@ type t =
     | L of Info.t * L.t
     | F of Info.t * S.sort * (Info.t -> t -> t)
 
-let equal v1 v2 = false
+let equal v1 v2 = match v1,v2 with
+  | S(_,s1), S(_,s2) -> 
+      RS.equal s1 s2
+  | R(_,r1), R(_,r2) -> 
+      R.equiv r1 r2
+  | L _, L _ -> 
+      Error.simple_error (sprintf "Cannot test equality of lenses.")
+  | F _, F _ -> 
+      Error.simple_error (sprintf "Cannot test equality of functions.")
+  | _, _ -> 
+      Error.simple_error (sprintf "Cannot test equality of values with different sorts.")
 
 let format = function
   | S(_,rs) -> Util.format "%s" (RS.string_of_t rs)

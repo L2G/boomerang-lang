@@ -154,7 +154,7 @@ let compile_file_impl = ref (fun _ _ -> Util.format "@[Boomerang compiler is not
 let compile_boom_str_impl = ref (fun _ _ -> Util.format "@[Boomerang compiler is not linked! Exiting...@]"; exit 2)  
 
 let load ns = 
-  (* helper, when we know which compiler function to use *)
+  (* helper, when we know which compiler function to use *)  
   let go comp source = 
     debug (fun () -> Util.format "[@[loading %s ...@]]@\n%!" source);
     loaded := ns::(!loaded);
@@ -163,7 +163,7 @@ let load ns =
   let uncapped = String.uncapitalize ns in
     if (Safelist.mem ns (!loaded)) then true
     else begin
-      match find_filename uncapped ["boom"] with 
+      match find_filename uncapped ["boom"; "src"] with 
         | None -> 
             begin
               try 

@@ -70,12 +70,14 @@ let check m =
   let modname =
     if Util.endswith m ".boom" then
       String.capitalize (Misc.replace_suffix m ".boom" "")
+    else if Util.endswith m ".src" then 
+      String.capitalize (Misc.replace_suffix m ".src" "")
     else m in
   if not (Bregistry.load modname) then
     raise (Error.Harmony_error 
              (fun () -> 
                 Util.format "Error: could not find module %s@\n" modname))
-
+      
 let get_str l_n c = L.get (lookup_lens l_n) c
 let put_str l_n a c = L.rput_of_dl (lookup_lens l_n) a c
 let create_str l_n a = L.rcreate_of_dl (lookup_lens l_n) a
@@ -259,13 +261,15 @@ let toplevel' progName () =
   Util.finalize 
   (fun () -> 
      if rest_pref <> [] && 
-       Safelist.for_all (fun s -> Util.endswith s ".boom") rest_pref then 
-         begin
-           (* barf on spurious command line options?! *)
-           Prefs.set Bcompiler.test_all true;
-           Safelist.iter check rest_pref;
-           0
-         end
+       (Safelist.for_all 
+          (fun s -> (Util.endswith s ".boom" || Util.endswith s ".src"))
+          rest_pref)
+     then begin
+       (* barf on spurious command line options?! *)
+       Prefs.set Bcompiler.test_all true;
+       Safelist.iter check rest_pref;
+       0
+     end
      else begin 
        let rest_pref,ll,cl,al,o = match rest_pref,ll,cl,al,o with 
          (* sync profile *)
@@ -294,7 +298,8 @@ let toplevel' progName () =
          | [a_fn; c_fn],[l],[],[],o 
          | ["put"],[l],[c_fn],[a_fn],o
          | ["put"; a_fn; c_fn],[l],[],[],o 
-         | ["put"; l],[],[c_fn],[a_fn],o -> 
+         | ["put"; l],[],[c_fn],[a_fn],o
+         | ["put"; l; a_fn; c_fn],[],[],[],o -> 
              (* *)
              ["put"],[l],[c_fn],[a_fn],o
          (* sync *)
