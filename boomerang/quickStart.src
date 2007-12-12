@@ -19,8 +19,8 @@ Installation
 
 3. Set the $BOOMPATH environment variable to '.'. 
 
-   In Bash, type 'export BOOMPATH=.'
-   In Csh , type 'setenv BOOMPATH .'
+   In Bash, type 'export BOOMPATH="."'
+   In Csh , type 'setenv BOOMPATH "."'
 
 Simple Lens Programming
 -----------------------
@@ -33,7 +33,7 @@ lines are ignored by the Boomerang interpreter.
 
 You can run the Boomerang interpreter from the command-line like this:
 
-  % boomerang QuickStart.src
+  % boomerang quickStart.src
 
 You should see several lines of output beginning like this
 
@@ -335,7 +335,7 @@ comp-orig.txt:
 and run
 
   % boomerang sync \
-      QuickStart comps_cmdline \
+      QuickStart.comps_cmdline \
       comps-orig.txt \
       comps-conc.txt \
       comps-abs.txt \

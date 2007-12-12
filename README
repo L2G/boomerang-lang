@@ -6,19 +6,25 @@
 OVERVIEW
 -------
 
-Views are usually discussed in the context of databases, but actually
-appear in a host of applications across many diverse areas of
-computing.  In many application, is necessary to apply an update to
-the view, and have that update be reflected on the source.
-Unfortunately, the view update problem remains largely unsolved;
-except in very simple cases, views are read-only.  Our goal is to
-develop languages in which programmers can specify both how to
-calculate a view, and how to translate updates to a view back to the
-source. We call these bidirectional programs lenses.
+Harmony is framework for defining, updating, and synchronizing
+views over strings, trees, and relations.  It can be used, for
+example, to synchronize the bookmark files of several different web
+browsers, to convert address books represented in vCard to CSV, and to
+map between BiBTeX and RIS-formatted bibliographic databases.
 
-This directory contains the sources for Harmony itself, together with
-a collection of sample instances that define updatable views over a
-variety of specific data formats.
+A central theme of the project is bringing ideas from programming
+languages to bear on a set of problems more commonly regarded as
+belonging to the purview of databases. Views are usually discussed in
+the context of databases, but actually arise in a host of applications
+across many diverse areas of computing.  In many of these
+applications, is necessary to apply an update to the view, and have
+the update be reflected back on the source. Unfortunately, the view
+update problem remains largely unsolved; except in very simple cases,
+views are read-only.  Our goal is to develop programming languages in
+which programmers can specify both how to calculate a view, and how to
+translate updates to a view back to the source, and to use these
+bidirectional programs--called lenses--to build converters and
+synchronizers for a variety of real-world data formats.
 
 COPYING
 -------
@@ -35,7 +41,7 @@ Harmony consists of two similar but distinct source trees.
 
 * Boomerang: our current work is focused on a lens language for string
   data. To get started with see the QuickStart file in
-  boomerang/QuickStart.src.
+  boomerang/quickStart.src.
 
 * Focal: previously we developed lenses and synchronization algorithms
   for trees and relations. See the Quick Start chapter in the Harmony
