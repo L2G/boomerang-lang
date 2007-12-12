@@ -5,8 +5,7 @@
 
 # $Id$
 
-TOP=../
-include $(TOP)/Top.Makefile 
+HOME=..
 
 all: index.html related.html
 
