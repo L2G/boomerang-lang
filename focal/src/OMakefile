@@ -23,7 +23,7 @@ OCAMLINCLUDES += \
 RESULT = harmony 
 RESULTS = harmony.cmxa $(RESULT)
 
-.DEFAULT: $(RESULTS)
+.DEFAULT: $(BINDIR)/$(RESULT)
 
 ##############################################################################
 # Sources 
@@ -65,6 +65,9 @@ SOURCES = $(COMMON_SOURCES) $(file $(SRCDIR)/harmony.ml)
 
 OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 OCamlProgram($(RESULT), $(rootname $(SOURCES)))
+
+$(BINDIR)/$(RESULT): $(RESULT)
+	cp $< $@
 
 ##############################################################################
 # Helper tools

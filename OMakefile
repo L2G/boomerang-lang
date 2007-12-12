@@ -2,12 +2,12 @@
 # Harmony top-level OMakefile.
 
 # Phony targets that don't produce files
-.PHONY: clean test temp temp1 temp2
+.PHONY: clean veryclean test temp temp1 temp2
 
 ##############################################################################
 # OMake configuration
 
-BYTE_ENABLED = TRUE
+NATIVE_ENABLED = TRUE
 
 MAKE = make
 
@@ -16,7 +16,6 @@ if $(not $(OCAMLFIND_EXISTS))
    eprintln(This project requires ocamlfind, but it was not found.)
    eprintln(You need to install ocamlfind and run "omake --configure".)
    exit 1
-OCAMLPACKS = netstring unix str pxp pxp-engine pxp-lex-utf8
 
 OCAMLFLAGS    = -dtypes -rectypes 
 
@@ -36,6 +35,7 @@ if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
 
 SUBDIRS = common focal boomerang
 
+BINDIR = $(dir bin)
 COMMONDIR = $(dir common)
 TOOLSDIR = $(COMMONDIR)/tools
 UBASEDIR = $(COMMONDIR)/ubase
@@ -66,10 +66,16 @@ SRC2TEX = $(TOOLSDIR)/src2tex
 
 CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.cmo *.o *.annot *.opt *.omc *.a *.cmxa \
                   *.output ._d ._ncdi TAGS 
+
+VERYCLEAN = $(CLEAN) $(BINDIR)/*
+
 # what about .omakedb and omakedb.lock?
 
 clean:
 	$(CLEAN) 
+
+veryclean: clean
+	$(VERYCLEAN)
 
 ##############################################################################
 # Include sub-directories

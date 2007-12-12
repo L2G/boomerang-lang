@@ -4,6 +4,8 @@
 ##############################################################################
 # Sub-directories
 
+OCAMLPACKS = netstring unix str pxp pxp-engine pxp-lex-utf8
+
 SUBDIRS = src lenses examples extern doc
 
 SRCDIR = $(dir src)

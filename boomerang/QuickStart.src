@@ -4,7 +4,7 @@
 Installation 
 ------------
 
-1. Download or build Boomerang binary:
+1. Download or build the Boomerang binary:
 
   * Pre-compiled Boomerang binaries are available for Linux (x86), Mac
     OS X (x86 and PPC), and Windows (Cygwin).
@@ -12,13 +12,15 @@ Installation
   * To build Boomerang from source, grab the most recent tarball and
     follow the instructions in boomerang/INSTALL.txt
 
-2. Move the 'boomerang' binary to a directory in your $PATH
-   environment variable.
+2. Add trunk/bin to your $PATH environment variable. 
+   
+   In Bash, type 'export PATH=$PATH:/path/to/trunk/bin'
+   In Csh, type 'setenv PATH {$PATH}:/path/to/trunk/bin'
 
 3. Set the $BOOMPATH environment variable to '.'. 
 
-   For Bash users, type 'export BOOMPATH=.'
-   For Csh users, type 'setenv BOOMPATH .'
+   In Bash, type 'export BOOMPATH=.'
+   In Csh , type 'setenv BOOMPATH .'
 
 Simple Lens Programming
 -----------------------
@@ -346,7 +348,7 @@ Boomerang propagates the edit
 Next Steps
 ----------
 
-In the boomerang/examples directory, you can find some of the larger
+In the boomerang/examples directory, you can find some of the other
 Boomerang programs we have written:
   
   demo.boom   : a collection of simple unit tests
@@ -354,8 +356,9 @@ Boomerang programs we have written:
   bibtex.boom : BiBTeX and RIS-formatted bibliographies
   coqSrc.boom : Coq teaching files with/without solutions 
 
-We continue adding to these examples as we tidy and package our
-code... and we hope you'll let us know about the lenses you write!
+We will continue adding to this set of examples as we tidy and package our
+code... and we hope you'll write and let us know about the lenses
+you write!
 
 Community
 ---------
@@ -364,3 +367,4 @@ Please subscribe to the harmony-hackers mailing list!
 
     http://lists.seas.upenn.edu/mailman/listinfo/harmony-hackers
 
+Feature requests, bug reports, and general discussion are all welcome.
