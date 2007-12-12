@@ -59,7 +59,7 @@ Harmony is composed of two largely distinct systems:
 </ul></p>
 
 <h2>Binary Distribution</h2>
-<p>We offer pre-compiled binaries for Linux (x86), OS X (x86 and PPC), and Window (Cygwin):
+<p>We offer pre-compiled Boomerang binaries for Linux (x86), OS X (x86 and PPC), and Window (Cygwin):
 <table class="spaced" style="margin:7px 0px;">    
 <?php
 $dh = opendir("../download");
