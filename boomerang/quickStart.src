@@ -26,12 +26,13 @@ Simple Lens Programming
 -----------------------
 
 Now let’s roll up our sleeves and write a few lenses. We will start
-with some very simple lenses to illustrate the We will work with this
-text file, which is a literate Boomerang source file. Every line in
-this file that begins with '#*' marks a piece of Boomerang code; other
-lines are ignored by the Boomerang interpreter.
+with some very simple lenses that demonstrate how to interact with the
+Boomerang system. The source file we will work with is this very text
+file, which is literate Boomerang code. Every line in this file that
+begins with '#*' marks a piece of Boomerang code, and all other lines
+are ignored by the Boomerang interpreter.
 
-You can run the Boomerang interpreter from the command-line like this:
+You can run the Boomerang interpreter from the command line like this:
 
   % boomerang quickStart.src
 
