@@ -1,7 +1,0 @@
-(* test of streaming *)
-
-let l1 = ins "blabla\n"
-let l2 = [0-9]* . del "a" . (del (([0-9]* . "b")* )) . ins "\n"
-let l3 = ins "end"
-
-let l = <|l1; l2*; l3|>

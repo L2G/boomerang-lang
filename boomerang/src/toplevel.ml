@@ -36,13 +36,14 @@ let () =
   (* hack to ensure that Boomerang compiler gets linked *)
   Bdriver.init()
     
-let exit x = 
-  Memo.format_stats ();
-  exit x
+let exit x = exit x
 
+(* Debugging *)
 let debug thk = Trace.debug "toplevel" (fun () -> thk (); Util.format "%!")
+
 let debug_sync thk = Trace.debug "sync" (fun () -> thk (); Util.format "%!")
 
+(* Registry lookup helpers *)
 let lookup qid_str = Bregistry.lookup_library (Bvalue.parse_qid qid_str)
 
 let lookup_lens qid_str =
@@ -52,7 +53,8 @@ let lookup_lens qid_str =
         Bvalue.get_l 
           (Bregistry.value_of_rv rv)
           (Info.M (Printf.sprintf "%s is not a lens" qid_str))
-          
+
+(* Filesystem helpers *)          
 let read_string fn = 
   debug (fun () -> Util.format "Reading %s@\n" fn);
   BS.t_of_string (Misc.read fn)

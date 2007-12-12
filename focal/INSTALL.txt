@@ -19,11 +19,11 @@ Follow installation instructions.  Then issue the commands:
 
   godi_console perform -build godi-ocaml-all
   godi_console perform -build godi-pxp
+  godi_console perform -build godi-omake
 
-Now go to the directory where you unpacked the Harmony tarball, type 'make',
+Now go to the directory where you unpacked the Harmony tarball, type 'omake',
 and you should end up with a harmony binary in the /src directory (as well
-as binaries for each instance XXX in examples/XXX).  Type 'make test' and
-you should see all the regression tests run.
+as binaries for each instance XXX in examples/XXX).  
 
   +--------------------------+
   | BUILDING HARMONY BY HAND |
@@ -36,68 +36,41 @@ installed.
 make sure that, at each step, you first do 'make uninstall' or
 whatever to remove the previous version.]
 
-GNU make    Should already be installed on most systems these days
-
 ocaml       http://caml.inria.fr/ocaml/distrib.html.  
             OCaml 3.09 or later is needed.
 
-            QUICK START ON OSX:
-              sudo fink install ocaml
+OMake       http://omake.metaprl.org/
 
 findlib     versions from 0.8.1 to 1.0.4 have been tested.
 	    findlib can be downloaded from
             http://www.ocaml-programming.de/packages/
 
-            QUICK START:
-              ./configure; make all opt; sudo make install; make clean
-
 pcre        http://www.pcre.org
             Tested with version 4.5.
-
-            OSX QUICK START:
-              fink install pcre
 
             (Note that installing pcre using Fink means that pcre is
               installed in a ``non-standard place'', and your
               pcre-ocaml installation below must follow the
               corresponding instructions.)
 
-            QUICK START FOR OTHER OPERATING SYSTEMS: 
-              ./configure; make; sudo make install
-
 pcre-ocaml  http://www.ocaml.info/home/ocaml_sources.html
             Tested with version 5.09
-
-            QUICK START FOR OSX: 
-                make STATIC=1; sudo make install STATIC=1
 
               If you used Fink to install pcre, then you will need to add the lines
                   export INCDIRS := /sw/include
                   export LIBDIRS := /sw/lib
                to Makefile.conf before doing this.
 
-            (For other operating systems, you may or may not need the STATIC=1 stuff.)
-
 equeue      http://www.ocaml-programming.de/packages/
             Tested with version 2.1.3
-
-            QUICK START: 
-               ./configure; make all opt; sudo make install
 
 ocamlnet    http://www.ocaml-programming.de/packages/
             Tested with version 1.1.1
             
-            QUICK START: 
-               cd src; ./configure; make all opt; sudo make install
-
 pxp         Tested with version 1.1.5.
             http://www.ocaml-programming.de/packages/
 
-            QUICK START: 
-                ./configure; make all opt; sudo make install
-
 That's it!  Only seven dependencies!
 
-Now, simply type 'make' and you should end up with a harmony binary.
-Type 'make test' and you should see all the regression tests run.
+Now, simply type 'omake' and you should end up with a harmony binary.
 

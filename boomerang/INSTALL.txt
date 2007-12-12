@@ -1,0 +1,49 @@
+ +-----------------------------------+
+ | BOOMERANG INSTALLATION INSTRUCTIONS |
+ +-----------------------------------+
+
+To build Boomerang from source, you need OCaml and OMake.  These can
+either be installed using GODI (suggested method) or manually (only
+slightly more difficult).
+
+ +--------------------------------+
+ | GODI INSTALLATION INSTRUCTIONS |
+ +--------------------------------+
+
+The simplest way to install the prerequisites needed by Boomerang is
+via the Godi package manager for OCaml. Download godi from
+
+  http://godi.ocaml-programming.de/
+
+Follow installation instructions.  Then issue the commands:
+ 
+  godi_console perform -build godi-ocaml-all
+  godi_console perform -build godi-omake
+
+Now go to the boomerang directory, type 'omake', and you should end up
+with a boomerang binary in the src directory.
+
+  +----------------------------+
+  | BUILDING BOOMERANG BY HAND |
+  +----------------------------+
+
+They are specified here in the order in which they should be
+installed.
+
+[Note: If you get tangled up and need to start this process again,
+make sure that, at each step, you first do 'make uninstall' or
+whatever to remove the previous version.]
+
+ocaml       http://caml.inria.fr/ocaml/distrib.html.  
+            OCaml 3.09 or later is needed.
+
+OMake       http://omake.metaprl.org/
+
+findlib     versions from 0.8.1 to 1.0.4 have been tested.
+	    findlib can be downloaded from
+            http://www.ocaml-programming.de/packages/
+
+That's it!  Only three dependencies!
+
+Now, simply type 'omake' and you should end up with a harmony binary.
+

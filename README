@@ -1,40 +1,47 @@
 
-  HARMONY: A GENERIC SYNCHRONIZATION FRAMEWORK
-       http://www.seas.upenn.edu/~harmony
+  HARMONY: A FRAMEWORK FOR DEFINING, UPDATING, AND SYNCHRONIZING VIEWS
+
+                 http://www.seas.upenn.edu/~harmony
 
 OVERVIEW
 -------
 
-Increased reliance on optimistic data replication has led to
-burgeoning interest in tools and frameworks for synchronizing
-disconnected updates to replicated data.  To better understand the
-issues underlying the design of generic and heterogeneous
-synchronizers, we have implemented an experimental framework, called
-Harmony, that can be used to build synchronizers for tree-structured
-data stored in a variety of concrete formats, in particular XML.
+Views are usually discussed in the context of databases, but actually
+appear in a host of applications across many diverse areas of
+computing.  In many application, is necessary to apply an update to
+the view, and have that update be reflected on the source.
+Unfortunately, the view update problem remains largely unsolved;
+except in very simple cases, views are read-only.  Our goal is to
+develop languages in which programmers can specify both how to
+calculate a view, and how to translate updates to a view back to the
+source. We call these bidirectional programs lenses.
 
 This directory contains the sources for Harmony itself, together with
-a collection of sample Harmony instances that can be used to
-synchronize a variety of specific data formats.
-
+a collection of sample instances that define updatable views over a
+variety of specific data formats.
 
 COPYING
 -------
 
 Harmony is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2 of the License, or (at your
-option) any later version.  See the file COPYING for more information.
-
+under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation. See the file COPYING for more
+information.
 
 GETTING STARTED
 ---------------
 
-See the Quick Start chapter in the Harmony Programmer's Manual
-(doc/manual.pdf).  (If you want to get started compiling things right
-away and read while that is chugging away, have a look at
-src/INSTALL.)
+Harmony consists of two similar but distinct source trees.
 
+* Boomerang: our current work is focused on a lens language for string
+  data. To get started with see the QuickStart file in
+  boomerang/QuickStart.src.
+
+* Focal: previously we developed lenses and synchronization algorithms
+  for trees and relations. See the Quick Start chapter in the Harmony
+  Programmer's Manual (doc/manual.pdf). (If you want to get started
+  compiling things right away and read while that is chugging away,
+  have a look at src/INSTALL.)
 
 MAILING LIST
 ------------
