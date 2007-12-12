@@ -1,0 +1,4 @@
+OCAMLINCLUDES += $(SRCDIR) $(UBASEDIR) $(HBASEDIR)
+
+clean:
+	$(CLEAN)
