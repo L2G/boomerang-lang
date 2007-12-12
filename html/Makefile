@@ -5,8 +5,6 @@
 
 # $Id$
 
-HOME=..
-
 all: index.html related.html
 
 WEBDIR=$(HOME)/html
