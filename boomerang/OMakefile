@@ -2,5 +2,4 @@
 SRCDIR = $(dir src)
 LENSESDIR = $(dir lenses)
 
-
 .SUBDIRS: src lenses

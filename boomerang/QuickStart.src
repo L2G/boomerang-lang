@@ -6,21 +6,18 @@ Installation
 
 1. Download or build the Boomerang binary:
 
-  * Pre-compiled Boomerang binaries are available for Linux (x86), Mac
-    OS X (x86 and PPC), and Windows (Cygwin).
+  * Tarballs containing pre-compiled Boomerang binaries are available
+    for Linux (x86), Mac OS X (x86 and PPC), and Windows (Cygwin).
  
-  * To build Boomerang from source, grab the most recent tarball and
-    follow the instructions in boomerang/INSTALL.txt
+  * Alternatively, to build Boomerang from source, grab the most
+    recent tarball and follow the instructions in
+    boomerang/INSTALL.txt
 
-2. Add trunk/bin to your $PATH environment variable. 
+2. Add the directory containing trunk/bin to your $PATH environment 
+   variable.
    
    In Bash, type 'export PATH=$PATH:/path/to/trunk/bin'
    In Csh, type 'setenv PATH {$PATH}:/path/to/trunk/bin'
-
-3. Set the $BOOMPATH environment variable to '.'. 
-
-   In Bash, type 'export BOOMPATH="."'
-   In Csh , type 'setenv BOOMPATH "."'
 
 Simple Lens Programming
 -----------------------

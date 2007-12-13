@@ -1,5 +1,4 @@
 TOP	:= ../..
-include $(TOP)/Top.Makefile
 
 SRC := ../../src
 
@@ -14,9 +13,8 @@ SOURCES = $(COMMON_SOURCES)  iCalendar_syntax.ml iCalendar_print.ml \
 		 iCalendar.mli iCalendar.ml \
 		 iCalViewer.ml
 
-all: makeharmonylib native-code
+all: native-code
 
 clean::
 	rm -rf *.output
 
-include $(OCAMLMAKEFILE)

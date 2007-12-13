@@ -67,6 +67,8 @@ OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 OCamlProgram($(RESULT), $(rootname $(SOURCES)))
 
 $(BINDIR)/$(RESULT): $(RESULT)
+	if $(not $(file-exists $(BINDIR)))
+		mkdir $(BINDIR)
 	cp $< $@
 
 ##############################################################################

@@ -40,14 +40,14 @@ GETTING STARTED
 Harmony consists of two similar but distinct source trees.
 
 * Boomerang: our current work is focused on a lens language for string
-  data. To get started with see the QuickStart file in
-  boomerang/quickStart.src.
+  data. To get started with Boomerang, see the QuickStart file in
+  boomerang/QuickStart.src.
 
 * Focal: previously we developed lenses and synchronization algorithms
   for trees and relations. See the Quick Start chapter in the Harmony
-  Programmer's Manual (doc/manual.pdf). (If you want to get started
-  compiling things right away and read while that is chugging away,
-  have a look at src/INSTALL.)
+  Programmer's Manual (focal/doc/manual.pdf). (If you want to get
+  started compiling things right away and read while that is chugging
+  away, have a look at focal/src/INSTALL.)
 
 MAILING LIST
 ------------

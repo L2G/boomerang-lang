@@ -115,7 +115,7 @@ let _ = Prefs.alias paths "I"
 
 let boompath =
   try Util.splitIntoWords (Unix.getenv "BOOMPATH") ':'
-  with Not_found -> []
+  with Not_found -> ["."]
 
 (* get the filename that a module is stored at *)
 let get_module_prefix q = 
@@ -160,15 +160,15 @@ let load ns =
     loaded := ns::(!loaded);
     comp ();
     debug (fun () -> Util.format "[@[loaded %s@]]@\n%!" source) in      
-  let uncapped = String.uncapitalize ns in
+  let go_wrap m = 
     if (Safelist.mem ns (!loaded)) then true
     else begin
-      match find_filename uncapped ["boom"; "src"] with 
+      match find_filename m ["boom"; "src"] with 
         | None -> 
             begin
               try 
                 (* check for baked in source *)
-                let str = Hashtbl.find Bakery.items uncapped in 
+                let str = Hashtbl.find Bakery.items m in 
                   go (fun () -> 
                         (!compile_boom_str_impl) str ns) 
                     (sprintf "<baked source for %s>" ns);
@@ -177,9 +177,11 @@ let load ns =
             end
         | Some fn ->
             go (fun () -> (!compile_file_impl) fn ns) fn; 
-            true
-    end
-
+            true 
+    end in 
+    if go_wrap ns then true
+    else go_wrap (String.uncapitalize ns)
+      
 let load_var q = match get_module_prefix q with 
   | None -> ()
   | Some n -> ignore (load (Bsyntax.string_of_id n))

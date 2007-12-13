@@ -32,7 +32,7 @@ clean:
    if $(not $(mem test, $(NEWTARGETS)))
        test: defaulttest
    if $(file-exists $(RESULT).ml)
-       OCamlProgramInstall("binary", $(BINDIR), $(RESULT), $(rootname $(GENERATED_FILES)) $(EXTRAS) $(RESULT))
+       OCamlProgram($(RESULT), $(rootname $(GENERATED_FILES)) $(EXTRAS) $(RESULT))
    else
        $(RESULT): $(SRCDIR)/harmony
 	  if $(file-exists $@)
@@ -44,5 +44,7 @@ clean:
    LocalOCamlGeneratedFiles($(GENERATED_FILES))
    .DEFAULT: $(BINDIR)/$(RESULT)
    $(BINDIR)/$(RESULT): $(RESULT)
+	if $(not $(file-exists $(BINDIR)))
+		mkdir $(BINDIR)
 	cp $< $@
 
