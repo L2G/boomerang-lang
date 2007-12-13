@@ -1,3 +1,5 @@
-# OCAMLINCLUDES += $(EXTERNDIR)/iCalendar 
-# EXTRAS += $(rootname $(ICALENDAR_SOURCES))
+OCAML_LIBS += $(EXTERNDIR)/iCalendar/iCalendar
+OCAMLINCLUDES += $(EXTERNDIR)/iCalendar
+
+#EXTRAS += $(rootname $(ICALENDAR_SOURCES))
 

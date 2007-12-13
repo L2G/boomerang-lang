@@ -10,8 +10,9 @@ OCAMLINCLUDES += \
   $(FOCALDIR)/src
 
 RESULT = iCalViewer
+RESULTS = iCalendar.cmxa $(RESULT)
 
-.DEFAULT: $(RESULT)
+.DEFAULT: $(RESULTS)
 
 GENERATED_SOURCES = iCalendarparse.mli iCalendarparse.ml iCalendarlex.ml 
 LocalOCamlGeneratedFiles($(GENERATED_SOURCES))
@@ -22,7 +23,8 @@ ICALENDAR_SOURCES[] = \
    iCalendarlex.mll ical.mli ical.ml \
    iCalendar.mli iCalendar.ml
 
-OCamlProgram($(RESULT), $(rootname $(ICALENDAR_SOURCES) iCalViewer.ml) $(RESULT))
+OCamlProgram($(RESULT), $(rootname $(ICALENDAR_SOURCES)) $(RESULT))
+OCamlLibrary(iCalendar, $(rootname $(ICALENDAR_SOURCES)))
 
 clean:
   $(CLEAN) $(GENERATED_SOURCES) $(RESULT)

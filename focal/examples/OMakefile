@@ -4,8 +4,22 @@ clean:
 .PHONY: defaulttest
 
 .SUBDIRS: $(subdirs P, .)
-   RESULT = harmonize-$(basename $(shell pwd))   
-   OCAML_LIBS = $(SRCDIR)/harmony
+   RESULT = harmonize-$(basename $(absname $(CWD)))
+
+   OCAML_LIBS += \
+     $(UBASEDIR)/ubase \
+     $(HBASEDIR)/hbase \
+     $(GENEPIDIR)/genepi \
+     $(CSVDIR)/csv \
+     $(SRCDIR)/harmony
+
+   OCAMLINCLUDES += \
+     $(UBASEDIR) \
+     $(HBASEDIR) \
+     $(EXTERNDIR)/genepi/ocaml \
+     $(EXTERNDIR)/ocaml-csv-1.0.3 \
+     $(SRCDIR)
+
    LOCALFCLFILES = $(glob *.fcl)
    GENERATED_FILES = 
    EXTRAS = 
@@ -36,17 +50,16 @@ clean:
    else
        $(RESULT): $(SRCDIR)/harmony
 	  if $(file-exists $@)
-	    echo rm -f $@
             rm -f $@
-          ln -s $< $@
+          ln-or-cp $< $@
    clean:
 	$(CLEAN) $(RESULT) $(GENERATED_FILES)
    LocalOCamlGeneratedFiles($(GENERATED_FILES))
    .DEFAULT: $(BINDIR)/$(RESULT)
-   $(BINDIR)/$(RESULT): $(RESULT)
+   $(BINDIR)/$(RESULT): $(BINDIR)/harmony $(RESULT)
 	if $(not $(file-exists $(BINDIR)))
 		mkdir $(BINDIR)
 	if $(file-exists $(RESULT).ml)
-		cp $< $@
+		cp $(RESULT) $@
 	else
-		cp $(RESULT) $(BINDIR)/$(RESULT)
+		ln-or-cp $(BINDIR)/harmony $@
