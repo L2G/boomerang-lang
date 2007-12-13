@@ -16,6 +16,9 @@ all:
   if [ $$? -ne 0 ]; then res=1; break; fi; \
   exit $$res
 
+SUBDIRS=ocaml src
+
 clean:
-	rm -fr $(BUILDDIR); \
-	$(MAKE) -C ocaml clean || exit $$?
+	rm -fr $(BUILDDIR)
+	@for i in $(SUBDIRS); do \
+	    $(MAKE) -C $$i clean || exit $$?; done

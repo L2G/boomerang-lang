@@ -9,6 +9,9 @@
 
 NATIVE_ENABLED = TRUE
 
+if $(equal $(OSTYPE), Linux)
+	OCAMLOPTFLAGS += -ccopt static
+
 MAKE = make
 
 USE_OCAMLFIND = true

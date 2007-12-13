@@ -46,5 +46,7 @@ clean:
    $(BINDIR)/$(RESULT): $(RESULT)
 	if $(not $(file-exists $(BINDIR)))
 		mkdir $(BINDIR)
-	cp $< $@
-
+	if $(file-exists $(RESULT).ml)
+		cp $< $@
+	else
+		cp $(RESULT) $(BINDIR)/$(RESULT)
