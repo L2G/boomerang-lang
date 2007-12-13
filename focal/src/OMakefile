@@ -78,7 +78,7 @@ $(BINDIR)/$(RESULT): $(RESULT)
 # bakery.ml embedding all the focal files we might need.  But if we're
 # only going to run things in place, we can skip this step and avoid
 # recompiling Harmony whenever .fcl files change in the examples.
-if $(mem install, $(TARGETS))
+if $(defined BAKE)
   $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker $(FCLFILES)
     $< $(EXAMPLESDIR) $(LENSESDIR) > $@
 else
