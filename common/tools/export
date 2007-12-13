@@ -1,0 +1,21 @@
+#!/bin/sh -x
+
+if [ -z $1 ] 
+then
+  echo "usage: export arch";
+  exit 1
+fi
+
+DIR="harmony-"`date "+20%y%m%d"`"-$1-binary"
+
+svn export svn+ssh://harmony@eniac-l.cis.upenn.edu/mnt/eclipse/plclub1/svnroot/harmony/trunk/
+mv trunk $DIR
+cd $DIR
+omake
+omake clean
+cd ../
+tar zcvf $DIR.tar.gz $DIR
+chmod 755 $DIR.tar.gz
+scp $DIR.tar.gz harmony@eniac-l.seas.upenn.edu:html/download/
+rm -fr $DIR
+rm $DIR.tar.gz
