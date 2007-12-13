@@ -8,7 +8,6 @@
 # OMake configuration
 
 NATIVE_ENABLED = TRUE
-BYTE_ENABLED = TRUE
 
 if $(equal $(OSTYPE), Linux)
 	OCAMLOPTFLAGS += -ccopt static

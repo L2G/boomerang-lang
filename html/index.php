@@ -46,11 +46,6 @@ variety of real-world data formats.</p>
 <div class="content">
 <div class="title">Distribution<div class="top">[<a href="#top">Top</a>]</div></div>
 <p>
-Harmony is free software; you can redistribute it and/or modify it
-under the terms of the GNU Lesser General Public License as published
-by the Free Software Foundation.
-</p>
-<p>
 Harmony is composed of two largely distinct systems: 
 <ul>
 <li><strong>Boomerang:</strong> our current work, which focuses on lenses for string data.</li>
@@ -59,7 +54,7 @@ Harmony is composed of two largely distinct systems:
 </ul></p>
 
 <h2>Binary Distribution</h2>
-<p>We offer pre-compiled Boomerang binaries for Linux (x86), OS X (x86 and PPC), and Window (Cygwin):
+<p>We distribute pre-compiled binaries for Linux (x86), OS X (x86 and PPC), and Window (Cygwin):
 <table class="spaced" style="margin:7px 0px;">    
 <?php
 $dh = opendir("../download");
@@ -93,11 +88,12 @@ foreach($files as $f=>$t) {
 EOF;
 }
 ?>
-</table></dd>
+</table>
 </p>
 
 <h2>Source Distribution</h2>
 <p>
+We also distribute the Harmony sources: 
 <table class="spaced" style="margin:7px 0px;">    
 <?php
 $dh = opendir("../download");
@@ -131,7 +127,10 @@ foreach($files as $f=>$t) {
 EOF;
 }
 ?>
-</table></dd>
+</table>
+Harmony is free software; you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation.
 </p>
 
 <h2>Subversion Access</h2>
