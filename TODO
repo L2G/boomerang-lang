@@ -1,0 +1,11 @@
+BOOMERANG
+---------
+ - Implicitly use BOOMPATH to "." when no environment variable is defined. 
+ - Registry should search for filename, then lowercased filename. 
+ - Add code to barf when -l -c -a etc. options passed in module checking mode.
+
+PACKAGING (Nate)
+----------------
+ - Figure out how to statically link to PCRE from GODI.
+ - Track down encoding bug in Focal web demos.
+ - Fix Makefile bugs in focal/extern/*
