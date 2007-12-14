@@ -1,1 +1,4 @@
 .SUBDIRS: ubase hbase tools
+
+clean:
+	$(CLEAN)

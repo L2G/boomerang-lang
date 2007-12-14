@@ -1,7 +1,3 @@
 BOOMERANG
 ---------
  - Add code to barf when -l -c -a etc. options passed in module checking mode.
-
-PACKAGING (Nate)
-----------------
- - Track down encoding bug in Focal web demos.

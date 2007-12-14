@@ -31,9 +31,9 @@ OCAMLINCLUDES += $(UBASEDIR) $(HBASEDIR)
 # Main results
 
 RESULT = boomerang
-RESULTS = boomerang.cmxa $(RESULT)
+RESULTS = boomerang.cmxa $(RESULT)$(EXE)
 
-.DEFAULT: $(BINDIR)/$(RESULT)
+.DEFAULT: $(BINDIR)/$(RESULT)$(EXE)
 
 ##############################################################################
 # Sources
@@ -62,7 +62,7 @@ BOOMERANG_SOURCES = $(BOOMERANG_LIBRARY_SOURCES) boomerang.ml
 OCamlLibrary($(RESULT), $(rootname $(BOOMERANG_LIBRARY_SOURCES)))
 OCamlProgram($(RESULT), $(rootname $(BOOMERANG_SOURCES)))
 
-$(BINDIR)/$(RESULT): $(RESULT)
+$(BINDIR)/$(RESULT)$(EXE): $(RESULT)$(EXE)
 	if $(not $(file-exists $(BINDIR)))
 		mkdir $(BINDIR)
 	cp $< $@

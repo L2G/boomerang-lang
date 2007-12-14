@@ -1,6 +1,5 @@
 
 RESULT = ubase
-
 RESULTS = $(RESULT).cmxa
 
 UBASE_LIBRARY_SOURCES[] = \
@@ -12,4 +11,4 @@ OCamlLibrary($(RESULT), $(rootname $(UBASE_LIBRARY_SOURCES)))
 .DEFAULT: $(RESULTS)
 
 clean: 
-	$(CLEAN) $(RESULT)
+	$(CLEAN) $(RESULTS)

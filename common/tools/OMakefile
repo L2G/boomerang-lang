@@ -7,10 +7,17 @@ GENERATED_FILES = src2tex.ml
 
 OCamlGeneratedFiles($(GENERATED_FILES))
 
-OCamlProgram(src2tex, src2tex)
-OCamlProgram(src2f, src2f)
-OCamlProgram(wrap, wrap)
-OCamlProgram(baker, $(HBASEDIR)/baker)
+SRC2TX=src2tex
+SRC2TX=src2f
+WRAP=wrap
+BAKER=baker
+
+RESULTS=$(SRC2TEX)$(EXE) $(SRC2F)$(EXE) $(WRAP)$(EXE) $(BAKER)$(EXE)
+
+OCamlProgram($(SRC2TEX), src2tex)
+OCamlProgram($(SRC2F), src2f)
+OCamlProgram($(WRAP), wrap)
+OCamlProgram($(BAKER), $(HBASEDIR)/baker)
 
 clean:
-  $(CLEAN) $(GENERATED_FILES) wrap src2tex src2f
+  $(CLEAN) $(GENERATED_FILES) $(RESULTS)

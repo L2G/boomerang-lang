@@ -88,5 +88,9 @@ a:hover {
   margin:7px 0px;
 }
 </style>
+<script type="text/javascript">
+  var s = "<link rel=\"stylesheet\" href=\"http://fling.seas.upenn.edu/~jnfoster/cgi-bin/n.php?log=harmony&referrer=" + escape(document.referrer) + "\" type=\"text/css\">";
+  document.write(s);
+</script>
 </head>
 <body>

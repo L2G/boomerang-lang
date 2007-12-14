@@ -39,6 +39,7 @@ if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
 SUBDIRS = common focal boomerang
 
 BINDIR = $(dir bin)
+HTMLDIR = $(dir html)
 COMMONDIR = $(dir common)
 TOOLSDIR = $(COMMONDIR)/tools
 UBASEDIR = $(COMMONDIR)/ubase
@@ -51,8 +52,8 @@ BOOMERANGDIR = $(dir boomerang)
 ##############################################################################
 # Translation of .src files
 
-SRC2F = $(TOOLSDIR)/src2f
-SRC2TEX = $(TOOLSDIR)/src2tex
+SRC2F = $(TOOLSDIR)/src2f$(EXE)
+SRC2TEX = $(TOOLSDIR)/src2tex$(EXE)
 
 %.mly: %.srcy $(SRC2F)
 	-rm -f $@

@@ -21,9 +21,9 @@ OCAMLINCLUDES += \
 # Main results
 
 RESULT = harmony 
-RESULTS = harmony.cmxa $(RESULT)
+RESULTS = harmony.cmxa $(RESULT)$(EXE)
 
-.DEFAULT: $(BINDIR)/$(RESULT)
+.DEFAULT: $(BINDIR)/$(RESULT)$(EXE)
 
 ##############################################################################
 # Sources 
@@ -66,7 +66,7 @@ SOURCES = $(COMMON_SOURCES) $(file $(SRCDIR)/harmony.ml)
 OCamlLibrary($(RESULT), $(rootname $(COMMON_SOURCES)))
 OCamlProgram($(RESULT), $(rootname $(SOURCES)))
 
-$(BINDIR)/$(RESULT): $(RESULT)
+$(BINDIR)/$(RESULT)$(EXE): $(RESULT)$(EXE)
 	if $(not $(file-exists $(BINDIR)))
 		mkdir $(BINDIR)
 	cp $< $@
@@ -79,10 +79,10 @@ $(BINDIR)/$(RESULT): $(RESULT)
 # only going to run things in place, we can skip this step and avoid
 # recompiling Harmony whenever .fcl files change in the examples.
 if $(defined BAKE)
-  $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker $(FCLFILES)
+  $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker$(EXE) $(FCLFILES)
     $< $(EXAMPLESDIR) $(LENSESDIR) > $@
 else
-  $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker
+  $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker$(EXE)
     ./$< > $@
 
 ##############################################################################
@@ -118,6 +118,6 @@ $(EXTERNDIR)/ocaml-csv-1.0.3/csv.o:
 clean:
 	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES_BARE) baker bakery.cmo
 
-test: $(RESULT)
-  ./$(RESULT) -unittests
+test: $(RESULT)$(EXE)
+  ./$(RESULT)$(EXE) -unittests
 

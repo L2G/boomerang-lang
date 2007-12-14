@@ -27,8 +27,8 @@ clean:
        LOCALFCLFILES = 
        export
    if $(not $(equal $(LOCALFCLFILES)x, x))
-       defaulttest: $(RESULT)
-         ./$(RESULT) $(HARMONY_FLAGS) $(LOCALFCLFILES)
+       defaulttest: $(RESULT)$(EXE)
+         ./$(RESULT)$(EXE) $(HARMONY_FLAGS) $(LOCALFCLFILES)
    # Override definition of 'rule' function so that we can see what rules 
    # get defined by the inner OMakefile
    old-rule = $(rule)
@@ -48,18 +48,18 @@ clean:
    if $(file-exists $(RESULT).ml)
        OCamlProgram($(RESULT), $(rootname $(GENERATED_FILES)) $(EXTRAS) $(RESULT))
    else
-       $(RESULT): $(SRCDIR)/harmony
+       $(RESULT)$(EXE): $(SRCDIR)/harmony$(EXE)
 	  if $(file-exists $@)
             rm -f $@
           ln-or-cp $< $@
    clean:
-	$(CLEAN) $(RESULT) $(GENERATED_FILES)
+	$(CLEAN) $(RESULTS) $(GENERATED_FILES)
    LocalOCamlGeneratedFiles($(GENERATED_FILES))
-   .DEFAULT: $(BINDIR)/$(RESULT)
-   $(BINDIR)/$(RESULT): $(BINDIR)/harmony $(RESULT)
+   .DEFAULT: $(BINDIR)/$(RESULT)$(EXE)
+   $(BINDIR)/$(RESULT): $(BINDIR)/harmony$(EXE) $(RESULT)$(EXE)
 	if $(not $(file-exists $(BINDIR)))
 		mkdir $(BINDIR)
 	if $(file-exists $(RESULT).ml)
-		cp $(RESULT) $@
+		cp $(RESULT)$(EXE) $@
 	else
-		ln-or-cp $(BINDIR)/harmony $@
+		ln-or-cp $(BINDIR)/harmony$(EXE) $@
