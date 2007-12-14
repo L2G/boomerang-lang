@@ -7,8 +7,8 @@ GENERATED_FILES = src2tex.ml
 
 OCamlGeneratedFiles($(GENERATED_FILES))
 
-SRC2TX=src2tex
-SRC2TX=src2f
+SRC2TEX=src2tex
+SRC2F=src2f
 WRAP=wrap
 BAKER=baker
 

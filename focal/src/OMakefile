@@ -20,7 +20,7 @@ OCAMLINCLUDES += \
 ##############################################################################
 # Main results
 
-RESULT = harmony 
+RESULT = harmony
 RESULTS = harmony.cmxa $(RESULT)$(EXE)
 
 .DEFAULT: $(BINDIR)/$(RESULT)$(EXE)

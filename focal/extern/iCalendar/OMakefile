@@ -10,7 +10,7 @@ OCAMLINCLUDES += \
   $(FOCALDIR)/src
 
 RESULT = iCalViewer
-RESULTS = iCalendar.cmxa $(RESULT)
+RESULTS = iCalendar.cmxa $(RESULT)$(EXE)
 
 .DEFAULT: $(RESULTS)
 
