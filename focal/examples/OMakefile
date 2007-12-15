@@ -53,7 +53,7 @@ clean:
             rm -f $@
           ln-or-cp $< $@
    clean:
-	$(CLEAN) $(RESULTS) $(GENERATED_FILES)
+	$(CLEAN) $(RESULT) $(GENERATED_FILES)
    LocalOCamlGeneratedFiles($(GENERATED_FILES))
    .DEFAULT: $(BINDIR)/$(RESULT)$(EXE)
    $(BINDIR)/$(RESULT)$(EXE): $(BINDIR)/harmony$(EXE) $(RESULT)$(EXE)
