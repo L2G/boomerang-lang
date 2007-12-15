@@ -9,6 +9,7 @@ fi
 DIR="harmony-"`date "+20%y%m%d"`"-$1-binary"
 
 svn export svn+ssh://harmony@eniac-l.seas.upenn.edu/mnt/eclipse/plclub1/svnroot/harmony/trunk/
+cp trunk/common/tools/harmony-export .
 mv trunk $DIR
 cd $DIR
 omake
