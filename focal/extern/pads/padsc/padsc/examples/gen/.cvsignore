@@ -1,7 +1,0 @@
-*.c *.h *.mk
-*.pxml
-cpygen_crs.c.good
-*.xms
-SETASIDE
-*.xsd
-PREV
