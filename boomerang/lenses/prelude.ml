@@ -28,7 +28,8 @@ let prelude_spec =
       mk_sfun i (fun i s1 -> 
         mk_sfun i (fun i s2 -> 
           S(i,L.rput_of_dl l1 s1 s2)))))
-  ; (mk_prelude_qid "crt", 
+
+  ; (mk_prelude_qid "create", 
     SLens ^> SString ^> SString,
     mk_lfun (Info.M "crt built-in") (fun i l1 -> 
       mk_sfun i (fun i s1 -> 
@@ -110,6 +111,13 @@ let prelude_spec =
     mk_rfun (Info.M "set built-in") (fun i r1 -> 
       mk_sfun i (fun i s1 ->         
         L(i,L.const i r1 s1 (wrap_rep i "set built-in" r1)))))
+
+
+  ; (mk_prelude_qid "swap",
+    SLens ^> SLens ^> SLens,
+    mk_lfun (Info.M "swap built-in") (fun i l1 -> 
+      mk_lfun i (fun i l2 ->         
+        L(i,L.swap i l1 l2))))
 
   ; (mk_prelude_qid "ctype",
      SLens ^> SRegexp, 

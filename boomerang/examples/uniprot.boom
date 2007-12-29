@@ -1,4 +1,4 @@
-
+module Uniprot = 
 
 (**** deleting space lenses *****)
 
@@ -66,12 +66,12 @@ let xml_begin_open_tag (spaces:string) (name:string) =
 
 (* name="content" *)
 
-let xml_attribute_no_space (name:string) (content:dlens) = 
+let xml_attribute_no_space (name:string) (content:lens) = 
   ins name . 
   xml_os . ins "=" .xml_os .ins "\"" .  (* "=\"" *)
   content . ins "\""
 
-let xml_attribute (name:string) (content:dlens) (space:string) = 
+let xml_attribute (name:string) (content:lens) (space:string) = 
   xml_attribute_no_space name content . xml_spaces space
 
 let xml_simple_attribute (name:string) (content:string) = 
@@ -79,12 +79,12 @@ let xml_simple_attribute (name:string) (content:string) =
   xml_os . ins "=" .xml_os .ins "\"" .  (* "=\"" *)
   ins content . ins "\""
 
-let xml_concat_attributes (att1:dlens) (att2:dlens) = 
+let xml_concat_attributes (att1:lens) (att2:lens) = 
   att1 . xml_space . att2
 
 (* <name>content</name> \n *)
 
-let xml_tag (spaces:string) (name:string) (content:dlens) = 
+let xml_tag (spaces:string) (name:string) (content:lens) = 
   xml_spaces spaces . 
   xml_lt . ins name . xml_os . xml_gt . (* <name> *)
     content . 
@@ -94,7 +94,7 @@ let xml_tag (spaces:string) (name:string) (content:dlens) =
 (* !!! attribute is a lens that insert the attribute. It's to deal
    with spaces !!!*)
 
-let xml_tag_with_att (spaces:string) (name:string) (attribute:dlens) (content:dlens) = 
+let xml_tag_with_att (spaces:string) (name:string) (attribute:lens) (content:lens) = 
   xml_spaces spaces . 
     xml_lt . ins name . xml_fs . attribute . xml_os . xml_gt . (* <name attribute> *)
     content . 
@@ -102,7 +102,7 @@ let xml_tag_with_att (spaces:string) (name:string) (attribute:dlens) (content:dl
 
 (* <name name_att="content_att"/>\n *)
 
-let xml_tag_with_single_att (spaces:string) (name:string) (name_att:string) (content_att:dlens) = 
+let xml_tag_with_single_att (spaces:string) (name:string) (name_att:string) (content_att:lens) = 
   xml_spaces spaces . 
   xml_lt . ins name . xml_fs . 
   ins name_att . xml_os . ins "=" . xml_os . ins "\"" . 
@@ -119,9 +119,9 @@ let xml_opening_tag (spaces:string) (name:string) =
 
 
 (* <name attribute>(\n)? *)
-let xml_opening_tag_with_att_no_nl (spaces:string) (name:string) (attribute:dlens)  = 
+let xml_opening_tag_with_att_no_nl (spaces:string) (name:string) (attribute:lens)  = 
   xml_spaces spaces . xml_lt . ins name . xml_fs . attribute . xml_gt
-let xml_opening_tag_with_att (spaces:string) (name:string) (attribute:dlens)  = 
+let xml_opening_tag_with_att (spaces:string) (name:string) (attribute:lens)  = 
   xml_opening_tag_with_att_no_nl spaces name attribute . xml_nl
 
 (* </name>(\n)? *)
@@ -133,8 +133,8 @@ let xml_closing_tag (spaces:string) (name:string) =
 
 
 (* several "date" lenses *)
-let month =
-  { "JAN" <-> "01"
+let month = 
+  ( "JAN" <-> "01"
   | "FEB" <-> "02"
   | "MAR" <-> "03"
   | "APR" <-> "04"
@@ -145,8 +145,7 @@ let month =
   | "SEP" <-> "09"
   | "OCT" <-> "10"
   | "NOV" <-> "11"
-  | "DEC" <-> "12"}
- 
+  | "DEC" <-> "12" )
 
 (* full date *)
 let date = 
@@ -263,17 +262,17 @@ DT   20-FEB-2007, entry version 10.
 (******* DE line ********)
 
 (* ds is the deleting spaces lens to be used*)
-let name_prot (spaces:string) (ds:dlens) = 
+let name_prot (spaces:string) (ds:lens) = 
   xml_tag spaces  "name" (escape_name [;()[\]] ) . ds
 
-let complete_name_prot (spaces:string) (ds:dlens) = 
-  let paren_name (dsp:dlens) = 
+let complete_name_prot (spaces:string) (ds:lens) = 
+  let paren_name (dsp:lens) = 
     del "(" . name_prot spaces del_spaces . del ")" . dsp in
   (name_prot spaces "") . 
   ( (del_spaces_bis . (paren_name del_spaces_bis)* . (paren_name ds))
   | ds)
 
-let special_name (tag:string) (spaces:string) (ds:dlens) = 
+let special_name (tag:string) (spaces:string) (ds:lens) = 
   let name = complete_name_prot (spaces . "  ") ds in
   xml_opening_tag spaces  tag  .
   name . 
@@ -416,7 +415,7 @@ GN   OrderedLocusNames=b1237, c1701, z2013, ECs1739;
 (******* OS line ********)
 
 (* ds is the deleting spaces lens to be used*)
-let name_org (spaces:string) (ds:dlens) (type:string) = 
+let name_org (spaces:string) (ds:lens) (type:string) = 
   xml_tag_with_att spaces "name" (xml_simple_attribute "type" type) (escape_name [;()[\]])
 
 let name_and_syn_org (spaces:string) = 
@@ -949,9 +948,7 @@ let submited =
 (*** !!!!! pgr and mbg has to be treated separatly !!! ****)
 let RL = 
   del_beg_line "RL" .
-  (journal_citation | electro | book | unpub | thesis | patent | submited)
-
-
+  ( journal_citation | electro | book | unpub | thesis | patent | submited )
 
 let Rlines = 
   let RP_RC_RX = (RP . RC?) ~ (RX? . xml_closing_tag "    " "citation") in 
@@ -1026,11 +1023,7 @@ RL   (er) Plant Gene Register PGR95-051.
   </reference>
 >>>
 
-
-
 (****** CC line ******)
-
-
 (* New pb with strong composition type : I would like to filter
  * strings that do not finish with "(By similarity)" and/or 
  * do not contain Note:. But for that, I can't just compose with the
@@ -1038,11 +1031,10 @@ RL   (er) Plant Gene Register PGR95-051.
  * possible to build by hand the entire regexp, but I choose here to 
  * banish <> and & from comentaries for now. To be fixed *)
 
-
 let ends_of_CC = 
-  ("(By similarity)"
-  |"(Potential)"
-  |"(Probable)")
+  ( "(By similarity)"
+  | "(Potential)"
+  | "(Probable)" )
 
 let CC_content_type =
   let chars = [^<>&\n]* in
@@ -1065,22 +1057,17 @@ let note =
 let eoC = 
   del_spaces_bis . xml_space . 
   xml_attribute "status"  
-    ("(By similarity)" <-> "By similarity"
-    |"(Potential)" <-> "Potential"
-    |"(Probable)" <-> "Probable") ""
-    
+    ( "(By similarity)" <-> "By similarity"
+    | "(Potential)" <-> "Potential"
+    | "(Probable)" <-> "Probable" ) ""
 
-
-
-let classic_CC_lines (corres:dlens) = 
+let classic_CC_lines (corres:lens) = 
   del_beg_line "CC" . del "-!-" . del_spaces_bis .
   xml_begin_open_tag "  " "comment" . xml_fs .
   xml_attribute_no_space "type" corres . 
   del ":" . del_spaces_bis .
   ((CC_content . note?) ~ (eoC? . xml_gt . xml_nl)).
   xml_closing_tag "  " "comment" . del ".\n"
-
-
 
 let corres_allergen = 
     "ALLERGEN" <-> "allergen"
@@ -1089,7 +1076,7 @@ let CC_allergen =
   classic_CC_lines corres_allergen
 
 let corres_biotech_to_induc =
-  {"BIOTECHNOLOGY" <-> "biotechnology"
+  ( "BIOTECHNOLOGY" <-> "biotechnology"
   | "CATALYTIC ACTIVITY" <-> "catalytic activity"
   | "CAUTION" <-> "caution"
   | "COFACTOR" <-> "cofactor"
@@ -1098,31 +1085,30 @@ let corres_biotech_to_induc =
   | "DOMAIN" <-> "domain"
   | "ENZYME REGULATION" <-> "enzyme regulation"
   | "FUNCTION" <-> "function"
-  | "INDUCTION" <-> "induction"}
+  | "INDUCTION" <-> "induction" )
 
 let CC_biotech_to_induc = 
   classic_CC_lines corres_biotech_to_induc
 
 
 let corres_misc_to_rna = 
-  {"MISCELLANEOUS" <-> "miscellaneous"
+  ( "MISCELLANEOUS" <-> "miscellaneous"
   | "PATHWAY" <-> "pathway"
   | "PHARMACEUTICAL" <-> "pharmaceutical"
   | "POLYMORPHISM" <-> "polymorphism"
   | "PTM" <-> "PTM"
-  | "RNA EDITING" <-> "RNA editing"}
+  | "RNA EDITING" <-> "RNA editing" )
 
 let CC_misc_to_rna = 
   classic_CC_lines corres_misc_to_rna
 
 
-
 let corres_simi_to_toxic = 
-  {"SIMILARITY" <-> "similarity"
+  ( "SIMILARITY" <-> "similarity"
   | "SUBCELLULAR LOCATION" <-> "subcellular location"
   | "SUBUNIT" <-> "subunit"
   | "TISSUE SPECIFICITY" <-> "tissue specificity"
-  | "TOXIC DOSE" <-> "toxic dose"}
+  | "TOXIC DOSE" <-> "toxic dose" )
 
 let CC_simi_to_toxic =
   classic_CC_lines corres_simi_to_toxic
@@ -1180,7 +1166,6 @@ test biophy_prop get
     </kinetics>
   </comment>
 >>>
-
 
 
 let interaction = 
@@ -1403,7 +1388,6 @@ let DR =
   xml_attribute "id" content "" . ins ">\n  </dbReference>\n".
   del (";". [^\n;]* )* . del ".\n"
 
-
 test DR get
 <<<DR   EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
 >>> 
@@ -1412,13 +1396,12 @@ test DR get
   </dbReference>
 >>>
 
-
 (**** KW line ****)
 
 (* correspondance betweed keywords and ids. *)
 
 let corres_kw_id = 
-  { "2Fe-2S" <-> "KW-0001\">2Fe-2S"
+  ( "2Fe-2S" <-> "KW-0001\">2Fe-2S"
   | "3D-structure" <-> "KW-0002\">3D-structure"
   | "3Fe-4S" <-> "KW-0003\">3Fe-4S"
   | "4Fe-4S" <-> "KW-0004\">4Fe-4S"
@@ -2305,10 +2288,7 @@ let corres_kw_id =
   | "Zinc-finger" <-> "KW-0863\">Zinc-finger"
   | "Zinc" <-> "KW-0862\">Zinc"
   | "Zinc transport" <-> "KW-0864\">Zinc transport"
-  | "Zymogen" <-> "KW-0865\">Zymogen"}
-
-
-
+  | "Zymogen" <-> "KW-0865\">Zymogen" )
 
 let KW = 
   let keyword = 
@@ -2327,8 +2307,3 @@ test KW get
   <keyword id="KW-0865">Zymogen</keyword>
   <keyword id="KW-0001">2Fe-2S</keyword>
 >>>
-
- 
-    
-
-

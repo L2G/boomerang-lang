@@ -209,14 +209,20 @@ mexp:
 
 /* inter expressions */
 iexp:
-  | iexp AMPERSAND cexp
+  | iexp AMPERSAND sexp
       { EInter(me $1 $3, $1, $3) } 
 
-  | cexp 
+  | sexp 
       { $1 }
 
 
-/* swap expressions -- snipped JNF */
+sexp:
+  | sexp TILDE cexp
+      { let i = me $1 $3 in 
+        EApp(i, EApp(i, EVar(i, mk_prelude_qid "swap"), $1), $3) }
+
+  | cexp 
+      { $1 }
 
 /* concat expressions */
 cexp:
