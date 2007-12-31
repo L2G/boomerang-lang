@@ -160,8 +160,41 @@ let balt = "one" | "the other"
 let bseq = bs . balt
 let bmin = [abc] - [a]
 test (string_of_regexp (empty . bseq) ) = 
-                       "empty"
+  "empty"
 
+test (string_of_regexp (bs | bseq . balt)) = 
+  <<<"One string" | bseq . balt>>>
+
+test (string_of_regexp (bmin . bseq | balt)) = 
+  <<<bmin . bseq | balt>>>
+
+test (string_of_regexp (bmin & bseq . balt)) = 
+  <<<bmin & bseq . balt>>>
+
+
+test (string_of_regexp (bmin . bseq | balt*)) =
+  <<<bmin . bseq | balt*>>>
+
+test (string_of_regexp ((bmin . balt)*))=
+  <<<(bmin . balt)*>>>
+
+test (string_of_regexp (bseq . (bmin . balt)))=
+  <<<bseq . (bmin . balt)>>>
+
+test (string_of_regexp (bseq | ([abc] - [ab])))=
+  <<<bseq | ([abc] - [ab])>>>
+
+test (string_of_regexp ((bseq | [abc]) - [ab]))=
+  <<<(bseq | [abc]) - [ab]>>>
+
+test (string_of_regexp ((bmin . balt){1,3}))=
+  <<<bmin . balt | bmin . balt . (bmin . balt) | bmin . balt . (bmin . balt . (bmin . balt))>>>
+      
+test (string_of_regexp ((bmin . balt){2,}))=
+  <<<bmin . balt . (bmin . balt . (bmin . balt)*)>>>
+    
+test (string_of_regexp ((bmin . balt)?))=
+  <<<"" | bmin . balt>>>
 
 (*let me = move_end [ab] [CD]
 
@@ -176,6 +209,7 @@ test me put  "abbabaaD"
 	  into "aaaaaaaaaCaa" = 
                "abbabaaD"
 *)
+
 
 
 

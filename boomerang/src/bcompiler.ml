@@ -100,7 +100,7 @@ sig
 end
 
 
-module CEnv : CEnvSig with type v = (Bsyntax.sort * Bvalue.t)= struct
+module CEnv : CEnvSig with type v = (Bsyntax.sort * Bvalue.t) = struct
   type t = Bsyntax.qid list * (Bregistry.REnv.t)
   type v = Bsyntax.sort * Bvalue.t  
 
@@ -416,6 +416,11 @@ let do_binop i msg merge (s1,v1) (s2,v2) =
 let rec compile_exp cev e0 = match e0 with
   | EVar(i,q) -> 
       begin match CEnv.lookup cev q with
+        | Some(SRegexp,v) -> 
+            let x = (Bsyntax.string_of_qid q) in 
+            let r' = Bregexp.set_str (Bvalue.get_r v i) x in
+            let rv' = SRegexp, Bvalue.R(i,r') in 
+            rv'
         | Some rv -> rv
         | None -> 
             run_error (info_of_exp e0) "compile_exp"

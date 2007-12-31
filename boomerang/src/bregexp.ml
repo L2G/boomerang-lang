@@ -115,8 +115,7 @@ let check_equiv r1 r2 =
 let concat_repr r1 r2 concat_symb rc =
   let s1' = if need_par_left r1.rank rc then sprintf "(%s)" r1.str else r1.str in
   let s2' = if need_par_right r2.rank rc then sprintf "(%s)" r2.str else r2.str in
-  sprintf "%s %s %s" s1' concat_symb s2'
-    
+  sprintf "%s %s %s" s1' concat_symb s2'    
 
 let epsilon = 
   { str = "epsilon"; 
@@ -173,7 +172,7 @@ let str ignore_case s =
   let s_string = String.escaped (S.string_of_t s) in
     { str = sprintf "%s\"%s\"%s" 
         (if ignore_case then "ignore_case(" else "")
-        (Misc.whack s_string)
+        s_string
         (if ignore_case then ")" else "");      
       rx = Erx.mk_str ignore_case s;
       rank = Aexp}

@@ -276,12 +276,11 @@ rexp:
                   if i=0 then us
                   else 
                     let vi1 = mk_cat $1 vi in 
-                    aux (vi1, mk_union vi1 us) (pred i) in 
+                    aux (vi1, mk_union us vi1) (pred i) in 
                 let v1 = 
                   if m=0 then epsilon
                   else mk_cats $1 $1 (pred m) in 
                 aux (v1,v1) (n-m) }
-
 
   | aexp                                
       { $1 }
