@@ -366,7 +366,15 @@ let rec check_decl sev m = function
             | TestShow -> tr
             | TestValue e2 -> 
                 let _,new_e2 = expect_sort_exp "test result" sev e1_sort e2 in 
-                TestValue (new_e2) in 
+                TestValue (new_e2) 
+            | TestSort _ -> tr
+            | TestLensType(e21o,e22o) -> 
+                let chk_eo = function
+                  | None -> None
+                  | Some e -> 
+                      let _,new_e = expect_sort_exp "test type" sev SRegexp e in 
+                        Some new_e in 
+                TestLensType(chk_eo e21o, chk_eo e22o) in 
         let new_d = DTest(i,new_e1,new_tr) in 
         (sev,[],new_d)
                  
@@ -614,7 +622,53 @@ let rec compile_decl cev m = function
                 Util.format "Test result:@ "; 
                 Bvalue.format v; 
                 Util.format "@\n%!"
-            | Error m, TestShow -> 
+            | OK v, TestSort(Some s) -> 
+                if not (s = Bvalue.sort_of_t v) then 
+                  test_error i
+                    (fun () -> 
+                       Util.format "@\nExpected@ "; Bsyntax.format_sort s;
+                       Util.format "@ but found@ "; Bvalue.format v; 
+                       Util.format "@\n%!")
+            | OK v, TestSort None -> 
+                Util.format "Test sort:@ ";
+                Bsyntax.format_sort (Bvalue.sort_of_t v);
+                Util.format "@\n%!"
+            | OK v, TestLensType(e1o,e2o) -> 
+                if not (Bvalue.sort_of_t v = SLens) then 
+                  test_error i 
+                    (fun () -> 
+                       Util.format "@\nExpected@ "; Bsyntax.format_sort SLens;
+                       Util.format "@ but found@ "; Bvalue.format v;
+                       Util.format "@\n%!");
+                let l = Bvalue.get_l v i in 
+                let c,a = L.ctype l,L.atype l in 
+                let chk_eo r = function
+                  | None -> true,"?"
+                  | Some e -> 
+                      let expected = Bvalue.get_r (snd (compile_exp cev e)) i in 
+                      (R.equiv r expected, R.string_of_t expected) in 
+                let c_ok,c_str = chk_eo c e1o in 
+                let a_ok,a_str = chk_eo a e2o in 
+                  if c_ok && a_ok then 
+                    (if e1o = None || e2o = None then 
+                      begin 
+                        Util.format "Test type:@ ";
+                        Util.format "@[<2>%s <-> %s@]" (R.string_of_t c) (R.string_of_t a);
+                        Util.format "@\n%!"
+                      end)
+                  else
+                    begin
+                  test_error i 
+                    (fun () -> 
+                       Util.format "@\nExpected@ "; 
+                       Util.format "@[<2>%s <-> %s@]" c_str a_str;
+                       Util.format "@ but found@ "; 
+                       Util.format "@[<2>%s <-> %s@]" (R.string_of_t c) (R.string_of_t a);
+                       Util.format "@\n%!");
+                    end                      
+            | Error m, TestShow 
+            | Error m, TestSort _ 
+            | Error m, TestLensType _ -> 
                 test_error i 
                   (fun () -> 
                     Util.format "Test result: error";

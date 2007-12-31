@@ -17,7 +17,7 @@
 (*******************************************************************************)
 (* /boomerang/src/parser.mly                                                   *)
 (* Boomerang parser                                                            *)
-(* $Id$                                                                        *)
+(* $Id$ *)
 (*******************************************************************************)
 
 (* ----- module and type imports and abbreviations ----- *)
@@ -140,6 +140,12 @@ decls:
   | TEST exp eq_arrow test_res decls
       { let i,tr = $4 in 
         DTest(m $1 i,$2,tr)::$5 }
+
+  | TEST exp COLON sort_spec decls
+      { DTest(m $1 $3,$2,$4)::$5 }
+
+  | TEST exp COLON ERROR decls 
+      { DTest(m $1 $4,$2,TestError)::$5 }
       
   | { [] }
 
@@ -315,6 +321,30 @@ aexp:
       { $2 }
 
 /* --------- SORTS ---------- */
+sort_spec:
+   | QMARK 
+       { TestSort None }
+   
+   | sort 
+       { TestSort (Some $1) }
+
+   | qmark_or_exp DARROW qmark_or_exp
+       { TestLensType ($1,$3) }
+
+qmark_or_exp:
+   | QMARK      
+
+      { (* '?' is used when you do not want to type check
+	   one of the the types. For example if you wrote a 
+	   definition of the abstract domain and want to verifiy
+	   that your different lenses go to this abstract domain 
+	   but you don't want to explicitly write the definition of
+	   all the concrete domains *)
+	None }
+
+  | rexp
+      { Some $1 }
+
 sort: 
   | asort ARROW sort                    
       { SFunction($1,$3) }

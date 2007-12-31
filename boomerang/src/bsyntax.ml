@@ -109,6 +109,8 @@ type test_result =
     | TestValue of exp
     | TestError
     | TestShow
+    | TestSort of sort option
+    | TestLensType of (exp option * exp option)
 
 type decl = 
     | DLet of i * binding  
@@ -272,10 +274,26 @@ and format_exp e =
 
 and format_test_result tr =
   match tr with
-      TestValue e -> format_exp e
-    | TestError -> Util.format "@[<2>error@]"
-
-    | TestShow -> Util.format "@[<2>?@]"
+    | TestValue e -> 
+        Util.format "= @[<2>" ; 
+        format_exp e;
+        Util.format "@]";
+    | TestError -> Util.format "= @[<2>error@]"
+    | TestShow -> Util.format "= @[<2>?@]"
+    | TestSort(None) -> Util.format ": @[<2>?@]"
+    | TestSort(Some s) -> 
+        Util.format ": @[<2>";
+        format_sort s;
+        Util.format "@]"
+    | TestLensType(e1o,e2o) -> 
+        let format_eo = function
+          | None -> Util.format "?"
+          | Some e1 -> format_exp e1 in 
+        Util.format ": @[<2>";
+        format_eo e1o;
+        Util.format " <-> ";
+        format_eo e2o;
+        Util.format "@]"
 
 and format_decl d =
   match d with
