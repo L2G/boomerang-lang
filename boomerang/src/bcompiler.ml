@@ -502,9 +502,22 @@ let rec compile_exp cev e0 = match e0 with
         ; (SLens,SLens,SLens,
           (fun i v1 v2 -> 
             V.L(i,L.union i (V.get_l v1 i) (V.get_l v2 i)))) ] in 
-      do_binop i "union" union_merge
-        (compile_exp cev e1)
-        (compile_exp cev e2)
+      let rec flatten_unions = function
+        | EUnion(i,e1,e2) -> (flatten_unions e1) @ (flatten_unions e2)
+        | e -> [e] in
+      let rec split n l acc = match n,l with
+        | 0,_ | _,[] -> (Safelist.rev acc,l)
+        | _,h::t -> split (pred n) t (h::acc) in 
+      let rec aux = function
+        | [] -> assert false
+        | [e1] -> compile_exp cev e1
+        | l -> 
+            let mid = (succ (List.length l)) / 2 in 
+            let l1,l2 = split mid l [] in 
+              do_binop i "union" union_merge
+                (aux l1)
+                (aux l2) in 
+      aux (flatten_unions e0)
 
   | EStar(i,e1) -> 
       let s1,v1 = compile_exp cev e1 in 
