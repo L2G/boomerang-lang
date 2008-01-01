@@ -149,6 +149,23 @@ let prelude_spec =
      SRegexp ^> SRegexp,
      mk_rfun(Info.M "lowercase built-in") (fun i r1 ->
        R(i, R.lowercase r1)))
+
+  ; (mk_prelude_qid "canonizer_of_lens",
+     SLens ^> SCanonizer,
+     mk_lfun (Info.M "canonizer_of_lens built-in") (fun i l1 -> 
+       C(i,L.canonizer_of_t i l1)))
+
+  ; (mk_prelude_qid "left_quot",
+     SCanonizer ^> SLens ^> SLens,
+     mk_cfun (Info.M "left_quot built-in") (fun i c1 ->                                              
+       mk_lfun i (fun i l1 -> 
+         L(i,L.left_quot i c1 l1))))
+
+  ; (mk_prelude_qid "right_quot",
+     SLens ^> SCanonizer ^> SLens,
+     mk_lfun (Info.M "right_quot built-in") (fun i l1 ->                                              
+       mk_cfun i (fun i c1 -> 
+         L(i,L.right_quot i l1 c1))))
    ]
       
 let () = 

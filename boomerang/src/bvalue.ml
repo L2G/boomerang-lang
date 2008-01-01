@@ -21,8 +21,9 @@
 
 (* module imports and abbreviations *)
 module S = Bsyntax
-module L = Blenses.DLens
 module R = Bregexp
+module L = Blenses.DLens
+module C = Blenses.Canonizer
 module RS = Bstring
 
 (* function abbreviations *)
@@ -34,6 +35,7 @@ type t =
     | S of Info.t * RS.t 
     | R of Info.t * R.t
     | L of Info.t * L.t
+    | C of Info.t * C.t
     | F of Info.t * S.sort * (Info.t -> t -> t)
 
 let equal v1 v2 = match v1,v2 with
@@ -43,6 +45,8 @@ let equal v1 v2 = match v1,v2 with
       R.equiv r1 r2
   | L _, L _ -> 
       Error.simple_error (sprintf "Cannot test equality of lenses.")
+  | C _, C _ -> 
+      Error.simple_error (sprintf "Cannot test equality of canonizers.")
   | F _, F _ -> 
       Error.simple_error (sprintf "Cannot test equality of functions.")
   | _, _ -> 
@@ -52,6 +56,7 @@ let format = function
   | S(_,rs) -> Util.format "%s" (RS.string_of_t rs)
   | R(_,r)  -> Util.format "%s" (R.string_of_t r)
   | L(_,l)  -> Util.format "%s" (L.string l)
+  | C(_,c)  -> Util.format "%s" (C.string c)
   | F(_,_,f)  -> Util.format "<function>"
 
 (* mk_dummy: s -> t
@@ -67,6 +72,7 @@ let rec mk_dummy =
     | S.SString -> S(i,RS.empty)
     | S.SRegexp -> R(i,R.str false RS.empty) 
     | S.SLens -> L(i,(L.copy i (R.epsilon)))
+    | S.SCanonizer -> C(i,L.canonizer_of_t i (L.copy i R.epsilon))
     | S.SFunction(s1,s2) -> F(i,s1,(fun _ _ -> mk_dummy s2))
 
 (* info_of_t : t -> Info.t 
@@ -77,6 +83,7 @@ let info_of_t = function
   | S(i,_) -> i
   | R(i,_) -> i
   | L(i,_) -> i
+  | C(i,_) -> i
   | F(i,_,_) -> i
 
 (* sort_of_t : t -> s
@@ -88,6 +95,7 @@ let rec sort_of_t = function
   | S(_) -> S.SString
   | R(_) -> S.SRegexp
   | L(_) -> S.SLens
+  | C(_) -> S.SCanonizer
   | F(i,s1,f) -> 
     (* DANGER! Only safe because lambda language is terminating! *)
     S.SFunction(s1, sort_of_t (f i (mk_dummy s1)))
@@ -122,9 +130,9 @@ let get_r v i = match v with
   | S(_,s) -> R.str false s
   | _ -> conversion_error i S.SRegexp v
 
-(* get_dl: t -> Info.t -> L.DLens.t
+(* get_l: t -> Info.t -> L.DLens.t
  * 
- * [get_dl v i] returns the D-lens that [v] represents, or throws an
+ * [get_l v i] returns the D-lens that [v] represents, or throws an
  * exception if [v] is a run-time value representing a different
  * sort. [i] is used to report errors.  
  *)
@@ -133,6 +141,15 @@ let get_l v i = match v with
   | R(_,r) -> L.copy i r
   | L(_,l) -> l
   | _ -> conversion_error i S.SLens v
+
+(* get_c: t -> Info.t -> C.t
+ * 
+ * [get_dl v i] returns the canonizer that [v] represents, or throws an
+ * exception if [v] is a run-time value representing a different
+ * sort. [i] is used to report errors. *)
+let get_c v i = match v with 
+  | C(_,c) -> c
+  | _ -> conversion_error i S.SCanonizer v
 
 (* get_f: t -> Info.t -> (t -> t) 
  * 
@@ -173,6 +190,14 @@ let mk_rfun i f = F(i,S.SRegexp,(fun i v -> f i (get_r v i)))
  * used to report errors when the argument has a different sort.
  *)
 let mk_lfun i f = F(i,S.SLens,(fun i v -> f i (get_l v i)))
+
+(* mk_cfun: Info.t -> (C.t -> t) -> (t -> t)
+ * 
+ * [mk_cfun i f] takes a [C.t -> t] function and yields a [t -> t]
+ * function that expects its argument to actually be an [SCanonizer]. [i] is
+ * used to report errors when the argument has a different sort.
+ *)
+let mk_cfun i f = F(i,S.SCanonizer,(fun i v -> f i (get_c v i)))
 
 let parse_qid s = 
   let lexbuf = Lexing.from_string s in

@@ -77,6 +77,7 @@ type sort =
     | SString                  (* strings *)
     | SRegexp                  (* regular expressions *)
     | SLens                    (* lenses *)
+    | SCanonizer               (* canonizers *)
     | SFunction of sort * sort (* funtions *)
 
 and param = Param of i * id * sort
@@ -158,6 +159,7 @@ let rec string_of_sort = function
   | SString -> "string"
   | SRegexp -> "regexp"
   | SLens -> "lens"
+  | SCanonizer -> "canonizer"
   | SFunction(s1,s2) -> 
       sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
 
@@ -171,6 +173,8 @@ let rec format_sort s =
     | SRegexp -> Util.format "regexp"
 
     | SLens -> Util.format "lens"
+
+    | SCanonizer -> Util.format "canonizer"
 
     | SFunction(s1, s2) ->
 	Util.format "(";

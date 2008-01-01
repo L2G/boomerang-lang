@@ -298,8 +298,8 @@ type cdict =
   | CD of (((skeleton * cdict) list) KMap.t) TMap.t
    
 (* ddict stands for double dict. Used for default *)
-and ddict = {provisory_dict:dict;
-	     main_dict:dict;}
+and ddict = { provisory_dict:dict;
+	      main_dict:dict; }
 
 and dict = 
   | CDict of cdict
@@ -309,7 +309,6 @@ and dict =
    one tag, there is only one unique id for this tag *)
 
 and dict_type = uid TMap.t
-
 
 and t = 
     { (* --- meta data --- *)
