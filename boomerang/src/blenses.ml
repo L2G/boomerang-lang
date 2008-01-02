@@ -912,7 +912,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     let rep = Canonizer.rep cn in
     { info = i; 
       string = n;
-      ctype = ct;      
+      ctype = ct;
       atype = at;
       dtype = dt;
       stype = st;
@@ -920,7 +920,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       arel = dl.arel;
       get = lift_r i (get_str n) ct 
 	(fun c -> dl.get(cls c));
-      put = lift_rsd i n at st (*useless lift_rsd ...*)
+      put = lift_rsd i n at st (* useless lift_rsd ... *)
 	(fun a s d ->
 	  let cc, d = dl.put a s d in
 	  (rep cc, d));
@@ -936,11 +936,8 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       uid = next_uid();
     }
 
-
-
   (* right quotient of a dlens by a canonizer. I don't know if we
      should check if the dlens is not already a q-lens. *)
-
   let right_quot i dl cn= 
     let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
       (* the "class type" of the canonizer has to be equal to the

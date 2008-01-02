@@ -135,10 +135,10 @@ let find_filename basename exts =
             (if String.length ext = 0 then "" else ".")
             ext in 
             if Sys.file_exists fn && Misc.is_file fn then begin
-              verbose (fun() -> Util.format "%s found for %s@\n" fn basename);
+              verbose (fun () -> Util.format "%s found for %s@\n" fn basename);
               Some fn
             end else begin
-              verbose (fun() -> Util.format "%s not found@\n" fn);
+              verbose (fun () -> Util.format "%s not found@\n" fn);
               k ()
             end in
         let rec inner_loop = function

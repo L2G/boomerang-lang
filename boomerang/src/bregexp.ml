@@ -84,14 +84,22 @@ let need_par_right e1 e2 = match e1,e2 with
 
 (* Erx.ts, extended with strings for printing, representatives *)
 (* The "rank" field is for pretty printing purposes *)
-type t = { str : string; rx : Erx.t; rank : type_exp }
-
+type t = { str : string;
+           mutable rep: S.t option;
+           rx : Erx.t; 
+           rank : type_exp }
+    
 let string_of_t r = r.str
 
 let equiv r1 r2 = 
   Erx.equiv r1.rx r2.rx
 
-let rep r = Erx.representative r.rx 
+let rep r = match r.rep with 
+  | None -> 
+      let s = Erx.representative r.rx in 
+        r.rep <- Some s;
+        s
+  | Some s -> s
 
 let determinize r = {r with rx = Erx.determinize r.rx}
 
@@ -119,11 +127,13 @@ let concat_repr r1 r2 concat_symb rc =
 
 let epsilon = 
   { str = "epsilon"; 
+    rep = Some (S.t_of_string "");
     rx = Erx.epsilon;
     rank = Aexp}
 
 let empty = 
   { str = "empty";
+    rep = None;
     rx = Erx.empty;
     rank = Aexp}
 
@@ -138,6 +148,7 @@ let is_empty r =
 let box e = 
   let st = S.repr e in
     { str = st;
+      rep = None;
       rx = Erx.mk_str false (S.make 1 e);
       rank = Aexp
     }
@@ -158,12 +169,17 @@ let str_of_cl cl =
 
 let set cl = 
   { str = sprintf "[%s]" (str_of_cl cl);
+    rep = 
+      (match cl with 
+         | (h,_)::_ -> Some (S.make 1 h)
+         | _ -> None);
     rx = Erx.mk_cset true cl;
     rank = Aexp
   }
 
 let negset cl = 
   { str = sprintf "[^%s]" (str_of_cl cl);
+    rep = None;
     rx = Erx.mk_cset false cl;
     rank = Aexp
   }
@@ -174,6 +190,7 @@ let str ignore_case s =
         (if ignore_case then "ignore_case(" else "")
         s_string
         (if ignore_case then ")" else "");      
+      rep = Some s;
       rx = Erx.mk_str ignore_case s;
       rank = Aexp}
 
@@ -183,6 +200,7 @@ let seq r1 r2 =
   else if is_epsilon r2 then r1
   else let str = concat_repr r1 r2 "." Cexp in
     { str = str; 
+      rep = None;
       rx = Erx.mk_seq r1.rx r2.rx;
       rank = Cexp}
 
@@ -196,6 +214,7 @@ let alt r1 r2 =
     else if is_epsilon r2 then add_qmark r1.str r1.rank
     else concat_repr r1 r2 "|" Bexp in
   { str = str; 
+    rep = r1.rep;
     rx = Erx.mk_alt r1.rx r2.rx;
     rank = Bexp
   }
@@ -207,6 +226,7 @@ let set_str r1 s =
 let star r1 =
   let s1 = if need_par_left r1.rank Rexp then sprintf "(%s)*" r1.str else string_concat r1.str "*" in
   { str = s1;
+    rep = Some (S.t_of_string "");
     rx = Erx.mk_star r1.rx;
     rank = Rexp}
 
@@ -216,6 +236,7 @@ let diff r1 r2 =
   else let str = concat_repr r1 r2 "-" Mexp in
   let r = Erx.mk_diff r1.rx r2.rx in 
     { str = str;
+      rep = None;
       rx = r; 
       rank = Mexp}
       
@@ -224,16 +245,19 @@ let inter r1 r2 =
   else let r = Erx.mk_inter r1.rx r2.rx in 
   let str = concat_repr r1 r2 "&" Iexp in
     { str = str;
+      rep = None;
       rx = r; 
       rank = Iexp} 
       
 let lowercase r1 = 
   { str = sprintf "lowercase(%s)" r1.str;
+    rep = None;
     rx = Erx.mk_lowercase r1.rx;
     rank = Aexp }
 
 let uppercase r1 = 
   { str = sprintf "uppercase(%s)" r1.str;
+    rep = None;
     rx = Erx.mk_uppercase r1.rx;
     rank = Aexp }
 
@@ -268,7 +292,8 @@ let unambig_seq i n r1 r2 =
       |	Erx.NA_true rxseq -> 
 	  let str = concat_repr r1 r2 "." Cexp in
 	    { str = str; 
-	      rx = rxseq;
+	      rep = None;
+              rx = rxseq;
 	      rank = Cexp}
       | Erx.NA_false dss ->
           let (s1,s2),(s1',s2') = Erx.example_of_dss dss in 
@@ -294,7 +319,8 @@ let unambig_star i n r1 =
 	Erx.NSA_true rxstar ->
 	  let s1 = if need_par_left r1.rank Rexp then sprintf "(%s)*" r1.str else string_concat r1.str "*" in
 	    { str = s1;
-	      rx = rxstar;
+	      rep = None;
+              rx = rxstar;
 	      rank = Rexp}
       | Erx.NSA_empty_word -> 
           Berror.static_error i n 

@@ -23,6 +23,7 @@ open Bsyntax
 module RS = Bstring
 module R = Bregexp
 module L = Blenses.DLens
+module C = Blenses.Canonizer
 module V = Bvalue
 
 (* --------------- Imports --------------- *)
@@ -210,21 +211,31 @@ and meet i u v = match u,v with
           (fun () -> Util.format "%s and %s do not meet"
             (string_of_sort u)
             (string_of_sort v))
+
+let expect_sorts i msg expecteds found =
+  let rec aux = function 
+    | [] -> 
+        sort_error i
+          (fun () -> 
+             Util.format "@[in %s:@ %s@ expected@ but@ %s@ found@]" msg
+               (Misc.concat_list " or " (Safelist.map Bsyntax.string_of_sort expecteds))
+               (Bsyntax.string_of_sort found))
+    | h::t -> 
+        if subsort found h then (h,found)
+        else aux t in 
+  aux expecteds
       
-
-let expect_sort i msg expected found = 
-  if subsort found expected then found
-  else
-    sort_error i
-      (fun () -> 
-        Util.format "@[in %s:@ %s@ expected@ but@ %s@ found@]" msg
-          (Bsyntax.string_of_sort expected)
-          (Bsyntax.string_of_sort found))
-
-let rec expect_sort_exp msg sev expected_sort e =
+let rec expect_sorts_exp msg sev expecteds e =
   let i = info_of_exp e in
   let found_sort,new_e = check_exp sev e in 
-  let e_sort = expect_sort i msg expected_sort found_sort in 
+  let f_sort,e_sort = expect_sorts i msg expecteds found_sort in 
+  (f_sort,e_sort,new_e)
+
+and expect_sort i msg expected found = 
+  snd (expect_sorts i msg [expected] found)
+
+and expect_sort_exp msg sev expected e = 
+  let (_,e_sort,new_e) = expect_sorts_exp msg sev [expected] e in 
   (e_sort,new_e)
 
 (* check expressions *)    
@@ -278,45 +289,47 @@ and check_exp sev e0 = match e0 with
       (SRegexp,e0)
 
   | EUnion(i,e1,e2) ->
-      let e1_sort,new_e1 = expect_sort_exp "union" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "union" sev SLens e2 in 
-      let e0_sort = join i (join i e1_sort e2_sort) SRegexp in 
+      let f1_sort,e1_sort,new_e1 = expect_sorts_exp "union" sev [SLens;SCanonizer] e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "union" sev f1_sort e2 in 
+      let e0_sort = match join i e1_sort e2_sort with
+        | SString -> SRegexp
+        | s -> s in 
       let new_e0 = EUnion(i,new_e1,new_e2) in 
       (e0_sort,new_e0)
 
   | ECat(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "cat" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "cat" sev SLens e2 in 
+      let f1_sort,e1_sort,new_e1 = expect_sorts_exp "concat" sev [SLens;SCanonizer] e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "concat" sev f1_sort e2 in 
       let e0_sort = join i e1_sort e2_sort in 
       let new_e0 = ECat(i,new_e1,new_e2) in 
       (e0_sort,new_e0)
 
   | ETrans(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "cat" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "cat" sev SString e2 in 
+      let e1_sort,new_e1 = expect_sort_exp "trans" sev SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "trans" sev SString e2 in 
       let new_e0 = ETrans(i,new_e1,new_e2) in 
       (SLens,new_e0)
 
   | EStar(i,e) -> 
-      let e_sort,new_e = expect_sort_exp "kleene-star" sev SLens e in 
+      let _,e_sort,new_e = expect_sorts_exp "kleene-star" sev [SLens;SCanonizer] e in 
       let new_e0 = EStar(i,new_e) in 
       (e_sort, new_e0) 
 
   | EDiff(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "union" sev SRegexp e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "union" sev SRegexp e2 in       
+      let e1_sort,new_e1 = expect_sort_exp "diff" sev SRegexp e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "diff" sev SRegexp e2 in       
       let new_e0 = EDiff(i,new_e1,new_e2) in 
       (SRegexp,new_e0)
 
   | EInter(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "union" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "union" sev SLens e2 in       
+      let e1_sort,new_e1 = expect_sort_exp "diff" sev SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "diff" sev SLens e2 in       
       let new_e0 = EInter(i,new_e1,new_e2) in 
       (SRegexp,new_e0)
 
   | ECompose(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "union" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "union" sev SLens e2 in       
+      let e1_sort,new_e1 = expect_sort_exp "compose" sev SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "compose" sev SLens e2 in       
       let new_e0 = ECompose(i,new_e1,new_e2) in 
       (SLens,new_e0)
 
@@ -487,7 +500,10 @@ let rec compile_exp cev e0 = match e0 with
             V.R(i,R.seq (V.get_r v1 i) (V.get_r v2 i))))
         ; (SLens,SLens,SLens,
           (fun i v1 v2 -> 
-            V.L(i,L.concat i (V.get_l v1 i) (V.get_l v2 i)))) ] in 
+            V.L(i,L.concat i (V.get_l v1 i) (V.get_l v2 i)))) 
+        ; (SCanonizer,SCanonizer,SCanonizer,
+          (fun i v1 v2 -> 
+            V.C(i,C.concat i (V.get_c v1 i) (V.get_c v2 i)))) ] in 
       do_binop i "concat" concat_merge 
         (compile_exp cev e1)
         (compile_exp cev e2)
@@ -514,7 +530,10 @@ let rec compile_exp cev e0 = match e0 with
             V.R(i,R.alt (V.get_r v1 i) (V.get_r v2 i))))            
         ; (SLens,SLens,SLens,
           (fun i v1 v2 -> 
-            V.L(i,L.union i (V.get_l v1 i) (V.get_l v2 i)))) ] in 
+            V.L(i,L.union i (V.get_l v1 i) (V.get_l v2 i))))
+        ; (SCanonizer,SCanonizer,SCanonizer,
+          (fun i v1 v2 -> 
+            V.C(i,C.union i (V.get_c v1 i) (V.get_c v2 i)))) ] in 
       let rec flatten_unions = function
         | EUnion(i,e1,e2) -> (flatten_unions e1) @ (flatten_unions e2)
         | e -> [e] in
@@ -539,6 +558,8 @@ let rec compile_exp cev e0 = match e0 with
             (SRegexp,V.R(i,R.star (V.get_r v1 i)))
         | SLens -> 
             (SLens,V.L(i,L.star i (V.get_l v1 i)))
+        | SCanonizer -> 
+            (SCanonizer,V.C(i,C.star i (V.get_c v1 i)))
         | _ -> 
             ignore (expect_sort i "kleene-star" SLens s1);
             assert false
@@ -623,7 +644,7 @@ let rec compile_decl cev m = function
                 Bvalue.format v; 
                 Util.format "@\n%!"
             | OK v, TestSort(Some s) -> 
-                if not (s = Bvalue.sort_of_t v) then 
+                if not (subsort (Bvalue.sort_of_t v) s) then 
                   test_error i
                     (fun () -> 
                        Util.format "@\nExpected@ "; Bsyntax.format_sort s;
@@ -634,7 +655,7 @@ let rec compile_decl cev m = function
                 Bsyntax.format_sort (Bvalue.sort_of_t v);
                 Util.format "@\n%!"
             | OK v, TestLensType(e1o,e2o) -> 
-                if not (Bvalue.sort_of_t v = SLens) then 
+                if not (subsort (Bvalue.sort_of_t v) SLens) then 
                   test_error i 
                     (fun () -> 
                        Util.format "@\nExpected@ "; Bsyntax.format_sort SLens;

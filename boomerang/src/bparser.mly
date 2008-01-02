@@ -103,7 +103,7 @@ let mk_fun_sorto i params bsorto =
 
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN 
-%token <Info.t> STRING REGEXP LENS
+%token <Info.t> STRING REGEXP LENS CANONIZER
 %token <Info.t * string> STR IDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE LANGLEBAR BARRANGLE RANGLE   
@@ -367,6 +367,9 @@ asort:
 
   | LENS  
       { SLens }
+
+  | CANONIZER
+      { SCanonizer }
 
   | LPAREN sort RPAREN                  
       { $2 }
