@@ -655,33 +655,6 @@ let RP =
   xml_tag "    " "scope" (escape_name "") . del ".\n"
 
 
-
-(* the order is not the one precised in the documentation, but the one in the file.*)
-
-(* the documentation contains a contradiction : 
-
-
-The currently defined tokens and their order in the RC line are:
-
-    STRAIN
-    TISSUE
-    TRANSPOSON
-    PLASMID 
-
-
-Example : 
-
-RC   PLASMID=R1 (R7268); TRANSPOSON=Tn3;
-
-So I decided to take the order : 
-    STRAIN
-    TISSUE
-    PLASMID 
-    TRANSPOSON
-
-Since TISSUE never occures with plasmid or transposon, i'm not sure of it's position
-*)
-
 let RC = 
   let n = escape_name [,;] in
   let name (tag:string) = xml_tag "      " tag n in
@@ -693,10 +666,10 @@ let RC =
   let tissue = global "tissue" "TISSUE" in
   let plasmid = global "plasmid" "PLASMID" in
   let transposon = global "transposon" "TRANSPOSON" in
-  let final_tissue = (strain . del_spaces_bis)? . tissue in
-  let final_plasmid = ((strain | final_tissue) . del_spaces_bis)? . plasmid in
-  let final_transposon = ((strain | final_tissue | final_plasmid) . del_spaces_bis)? . transposon in
-  let all = strain | final_tissue | final_plasmid | final_transposon in
+  let final_plasmid = (strain . del_spaces_bis)? . plasmid in
+  let final_transposon = ((strain | final_plasmid) . del_spaces_bis)? . transposon in
+  let final_tissue = ((strain | final_plasmid | final_transposon) . del_spaces_bis)? . tissue in
+  let all = strain | final_plasmid | final_transposon | final_tissue in
   del_beg_line "RC" . xml_opening_tag "    " "source" . 
      all . del "\n" . xml_closing_tag "    " "source"
 
@@ -1227,8 +1200,7 @@ test interaction get
   </comment>
 >>>
 
-
-
+	      
 let alt_prod = 
   let event = 
     xml_tag_with_single_att "    " "event" "type" 
@@ -1256,18 +1228,18 @@ let alt_prod =
 	 xml_simple_attribute "type" "described" . xml_space .
 	 xml_attribute "ref" (("VSP_" . [0-9]*. del"," . " ")* . "VSP_" . [0-9]* ) "" .
 	xml_sgt . xml_nl)) .del ";" in
-    ins "    <isoform>\n" . 
+    xml_opening_tag "    " "isoform" . 
     ((xml_tag "      " "name" (del "Name=" . [0-9]+ . del ";") . del_spaces_bis .
       syno?
      ) ~
      (xml_tag "      " "id" (del "IsoId=" . escape_name [\n;]. del ";") . del_spaces_bis)) .
     sequence .
     (del_spaces_bis . xml_tag "      " "note" (del "Note=" . escape_name [\n;] . del ";"))?.
-    ins "    </isoform>\n" in
+    xml_closing_tag "    " "isoform" in
   del_beg_line "CC" . del "-!- ALTERNATIVE PRODUCTS:" . del_spaces_bis .
-  ins "  <comment type=\"alternative products\">\n" . 
+  xml_opening_tag_with_att "  " "comment" (xml_simple_attribute "type" "alternative products") . 
   events . comment? . (name . del_spaces_bis)* . name . 
-  ins "  </comment>\n" . del "\n"
+  xml_closing_tag "  " "comment" . del "\n"
 
 
 test alt_prod get
@@ -1295,21 +1267,21 @@ test alt_prod get
 
 let mass_spec = 
   let num = ([0-9]* . ("." . [0-9]* )?) in
-  del_beg_line "CC" . del "-!- MASS SPECTROMETRY:" . del_spaces_bis .
-  ins "  <comment type=\"mass spectrometry\" " . 
+  del_beg_line "CC" . del "-!- MASS SPECTROMETRY:" . del_spaces_bis . 
+  xml_begin_open_tag "  " "comment" . xml_space . xml_simple_attribute "type" "mass spectrometry" . xml_space .
   del "MW=" . xml_attribute "mass" num " " . del ";" .del_spaces_bis.
   (del "MW_ERR=". xml_attribute "error" num  " " . del ";" . del_spaces_bis)? .
-  del "METHOD=" . xml_attribute "method" (escape_name [\n;""]) "" . del ";" . del_spaces_bis. ins ">\n".
-  ins "    <location>\n" . del "RANGE=".
-  ( "?" <-> "      <begin status=\"unknown\"/>\n"
-  | (ins "      <begin position=\"" . num . ins "\"/>\n")).
+  del "METHOD=" . xml_attribute "method" (escape_name [\n;""]) "" . del ";" . del_spaces_bis. xml_gt . xml_nl .
+  xml_opening_tag "    " "location" . del "RANGE=".
+  ( (del "?" . xml_tag_with_single_att "      " "begin" "status" (ins "unknown")) 
+  | (xml_tag_with_single_att "      " "begin" "position" num)).
   del "-" .
-  ( "?" <-> "      <end status=\"unknown\"/>\n"
-  | (ins "      <end position=\"" . num . ins "\"/>\n")).
-  ins "    </location>\n".
+  ( (del "?" . xml_tag_with_single_att "      " "end" "status" (ins "unknown"))
+  | (xml_tag_with_single_att "      " "end" "position" num )).
+  xml_closing_tag "    " "location".
   del ";" . del_spaces_bis . del "NOTE=" .
   xml_tag "    " "note" (escape_name [\n""]).
-  ins "  </comment>\n". del".\n"
+  xml_closing_tag "  " "comment". del".\n"
 
 test mass_spec get 
 <<<CC   -!- MASS SPECTROMETRY: MW=29440; MW_ERR=2; METHOD=MALDI; RANGE=1-255; NOTE=Ref.2.
@@ -1329,11 +1301,13 @@ test mass_spec get
 let seq_caution =
   let content = escape_name [\n;] in
   let caution = 
-    ins "  <comment type=\"caution\">\n    <text>" .
+    xml_opening_tag_with_att "  " "comment" (xml_simple_attribute "type" "caution").
+    xml_opening_tag_no_nl "    " "text" .
     "Sequence=" . content. "; Type=" . content . ";" .
-    (" Positions=" . content .";")? . 
+    (" Positions=" . content .";")? .
     (" Note=" . content . ";")? .
-    ins "</text>\n  </comment>\n" in
+    xml_closing_tag "" "text" . 
+    xml_closing_tag "  " "comment" in
     del_beg_line "CC" . del "-!- SEQUENCE CAUTION:" . del_spaces_bis .
       (caution . del_spaces_bis)* . caution . del"\n"
 
@@ -1354,11 +1328,11 @@ test seq_caution get
 let web = 
   let content = escape_name [\n;] in
   del_beg_line "CC" . del "-!- WEB RESOURCE:" . del_spaces_bis .
-  ins "  <comment type=\"online information\" " .
-  xml_attribute "name" (del "NAME=" . (escape_name [\n;""])) "" . ins">\n" .
+  xml_begin_open_tag "  " "comment" .xml_space . xml_simple_attribute "type" "online information" . xml_space .
+  xml_attribute "name" (del "NAME=" . (escape_name [\n;""])) "" . xml_gt . xml_nl .
   (( del ";" . del_spaces_bis . xml_tag "    " "note" (del "NOTE=" . content))? ~
-   ( del ";" . del_spaces_bis . del "URL=\"" . ins "    <link uri=\"" . content . ins "\"/>\n" . del "\"")?).
-  ins "  </comment>\n" . del ".\n"
+   ( del ";" . del_spaces_bis . del "URL=\"" . xml_tag_with_single_att "    " "link" "uri" content . del "\"")?).
+  xml_closing_tag "  " "comment" . del ".\n"
 
 
 test web get 
@@ -1376,6 +1350,17 @@ let CC =
   mass_spec* . CC_misc_to_rna* . seq_caution . CC_simi_to_toxic* . web* 
 
 
+
+
+
+
+
+
+
+
+
+
+
 (****** DR lines ******)
 
 (*** for now, DR is far from being complete. To many cases (one for each data base...) !*)
@@ -1384,17 +1369,135 @@ let DR =
   let content = escape_name [\n;""] in
   del_beg_line "DR" . ins "  <dbReference " . 
   xml_attribute "type" content " ". del ";" . del_spaces_bis .
-  ins "key=\"\" ".
+  xml_attribute "key" qone " ".
   xml_attribute "id" content "" . ins ">\n  </dbReference>\n".
   del (";". [^\n;]* )* . del ".\n"
+
+let content_DR = escape_name [\n;""]
+
+let beg_DR (lst_db:regexp) = 
+  xml_attribute "type" lst_db " ". del ";" . del_spaces_bis .
+  xml_attribute "key" qone " ".
+  xml_attribute "id" content_DR ""
+
+let optional_DR_2 (lst_db:regexp) (type:string) = 
+  beg_DR lst_db . 
+   (del "; -" . xml_sgt . xml_nl) 
+ | (xml_gt . xml_space . 
+    del "; " . 
+    xml_begin_open_tag "    " "property" . xml_space . 
+    xml_attribute "value" content_DR " " .
+    xml_simple_attribute "type" "entry name". xml_sgt . xml_nl .
+    xml_closing_tag "  " "dbReference")
+
+
+let DR_2_1 =
+  optional_DR_2 ( "HIV" | "InterPro" | "PIR" | "PRINTS" | "REBASE")
+    "entry name"
+
+let DR_2_1 =
+  optional_DR_2 ("Gene3D" | "PANTHER" | "Pfam" 
+  | "ProDom" | "SMART" | "TIGRFAMs") 
+    "entry name"
+
+let DR_2_2 = 
+  optional_DR_2 "PDB" "method"
+
+let DR_2_3 = 
+  optional_DR_2 ("DictyBase" | "EcoGene" | "FlyBase" | "HGNC" | "MGI" | "RGD" | "SGD" 
+        | "StyGene" | "SubtiList" | "WormBase" | "ZFIN" ) "gene designation"
+
+let DR_2_4 = 
+  optional_DR_2 "GO" "term"
+
+let DR_2_5 = 
+  optional_DR_2 "HAMAP" "flag"
+
+let DR_2_6 = 
+  optional_DR_2 "ECO2DBASE" "edition"
+
+let DR_2_7 = 
+  optional_DR_2 ("Cornea-2DPAGE" | "DOSAC-COBS-2DPAGE" | "HSC-2DPAGE" | "REPRODUCTION-2DPAGE" 
+        | "SWISS-2DPAGE") "organism name"
+
+let DR_2_8 = 
+  optional_DR_2 "Ensembl" "organism name"
+
+let DR_2_9 = 
+  optional_DR_2 "PIRSF" "entry name"
+  
+
+(* no AARHUS exemple found *)
+(*let DR_2_10 = 
+  optional_DR_2 "AARHUS/GHENT-2DPAGE" "" *)
+  
+let DR_2_11 = 
+  optional_DR_2 "WormPep" "accession"
+  
+let DR_2_12 = 
+  beg_DR ("AGD" | "ANU-2DPAGE" | "ArrayExpress" | "BioCyc" | "CleanEx" 
+        | "COMPLUYEAST-2DPAGE" | "CYGD" | "DIP" | "DisProt" | "EchoBASE" 
+	| "GeneDB_Spombe" | "GeneID" | "GlycoSuiteDB" | "Gramene" | "H-InvDB" 
+	| "HPA" | "IntAct" | "KEGG" | "LegioList" | "Leproma" | "LinkHub" 
+	| "ListiList" | "MaizeGDB" | "MEROPS" | "MypuList" | "OGP" | "PeptideAtlas" 
+	| "PharmGKB" | "PHCI-2DPAGE" | "PhosSite" | "PhotoList" | "PMMA-2DPAGE" 
+	| "PptaseDB" | "PseudoCAP" | "Rat-heart-2DPAGE" | "RefSeq" | "SagaList" 
+	| "Siena-2DPAGE" | "TAIR" | "TIGR" | "TRANSFAC" | "TubercuList or UniGene") .
+  del "; -." . xml_sgt . xml_nl
+
+let DR_2_13 = 
+  optional_DR_2 "HSSP" "PDB accession"
+    
+let DR_2_14 = 
+  optional_DR_2 "GeneFarm" "family number"
+    
+let DR_2_15 = 
+  optional_DR_2 "SMR" "residue range"
+  
+let DR_2_16 = 
+  optional_DR_2 "MIM" "type"
+  
+(* for now, the second identifier seems to be dropped away. I'm waiting for an answer of the uniprot help list *)
+
+(*let DR_2_17 = 
+  optional_DR_2 "Orphanet" ""*)
+  
+let DR_2_18 = 
+  optional_DR_2 "GenomeReviews" "gene designation"
+  
+let DR_2_19 = 
+  optional_DR_2 "GermOnline" "organism name"
+  
+let DR_2_20 = 
+  optional_DR_2 "PeroxiBase" "entry name"
+  
+let DR_2_21 = 
+  optional_DR_2 "Reactome" "pathway name"
+  
+let DR_2_22 = 
+  optional_DR_2 "DrugBank" "generic name"
+  
+
+
+
+
+
 
 test DR get
 <<<DR   EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
 >>> 
 =
-<<<  <dbReference type="EMBL" key="" id="CR940353">
+<<<  <dbReference type="EMBL" key="1" id="CR940353">
   </dbReference>
 >>>
+
+
+
+
+
+
+
+
 
 (**** KW line ****)
 
