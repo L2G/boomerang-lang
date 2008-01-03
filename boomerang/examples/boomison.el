@@ -22,38 +22,72 @@
 ;; import Common Lisp package
 (require 'cl)
 
-(defun create-view (c a l)
-  "Edit a view of FILENAME, using L"
-  (interactive "FConcrete file: \nFAbstract file: \nsLens: ")
+(defun refresh (f fbuf)
+  "Refresh FILENAME"
+  (save-window-excursion 
+    (switch-to-buffer fbuf) 
+    (erase-buffer)
+    (insert-file-contents f)))
+
+(defun boomison (source view lens)
+  "Create a view of FILENAME using L"
+  (interactive "FSource: \nFView: \nsLens: ")
   (lexical-let* 
-      ((cfile c)
-       (afile a)
-       (ofile  (make-temp-name cfile))
-       (boomerangcmd (concat "boomerang" " " "sync" " " l " " ofile " " cfile " " afile))
+      ((archive (make-temp-name source))
+       (sourcebuf (find-file-noselect source))
+       (viewbuf (find-file-noselect view)))
+    (message "Mapping %s to %s wrt %s" source view (make-temp-name source))
+    (boomison-sync lens archive source sourcebuf view viewbuf)))
+
+(defun boomison-sync (lens archive source sourcebuf view viewbuf)
+  (message "BOOMISON-SYNC %s %s %s %s" lens archive source view)
+  (lexical-let* 
+      ((lens lens)
+       (archive archive)
+       (source source)
+       (sourcebuf sourcebuf)
+       (view view)
+       (viewbuf viewbuf)
+       (boomcmd (concat "boomerang" " " "sync" " " lens " " 
+                        archive " " source " " view
+                        " " "-debug sync"))
        (errbuf (get-buffer-create "*boomerang output*")))
-    (message "Creating view of %s..." cfile)
-    (message "Boomerangcmd: %s" boomerangcmd)
+    (message "boomcmd: %s" boomcmd)
+    ;; save source and view
+    (save-window-excursion
+      (switch-to-buffer sourcebuf)
+      (write-region (point-min) (point-max) source nil nil nil))
+    (save-window-excursion
+      (switch-to-buffer viewbuf)
+      (write-region (point-min) (point-max) view nil nil nil))
+    ;; clear error buffer
     (save-window-excursion 
       (switch-to-buffer errbuf) 
       (erase-buffer))
-    (call-process 
-      shell-file-name
-      nil
-      (list errbuf t)
-      nil
-      shell-command-switch boomerangcmd)
-    (if (> (buffer-size errbuf) 0) 
-        (progn
-          (switch-to-buffer-other-window errbuf)
-          (error "Boomerang produced non-empty output!"))
-      (if (not (file-exists-p afile))
-          (error "Boomerang (%s) did not create file %s" boomerangcmd afile)
-        (progn
-          (add-hook 'local-write-file-hooks 
-             (lambda () (message "Running Boomerang")))
-          (find-file cfile)
-          (find-file afile)
-          (switch-to-buffer-other-window (get-buffer cfile))
-          (message "Created view of %s." cfile)
-       )))))
-
+    ;; run boomerang
+    (call-process
+     shell-file-name
+     nil
+     (list errbuf t)
+     nil
+     shell-command-switch boomcmd)
+    ;; check for errors
+    ;;(if (> (buffer-size errbuf) 0) 
+    ;;    (progn
+    ;;      (switch-to-buffer-other-window errbuf)
+    ;;      (error "Boomerang produced non-empty output!"))
+    ;; if no errors, check for empty view 
+    (if (not (file-exists-p view))
+        (error "Boomerang did not create %s" view)
+    ;;  if no errors, and view exists, freshen buffers
+    (progn
+      (refresh source sourcebuf)
+      (refresh view viewbuf)
+      (switch-to-buffer sourcebuf)
+      (add-hook 'local-write-file-hooks
+         (lambda () (boomison-sync lens archive source sourcebuf view viewbuf)))
+      (switch-to-buffer-other-window viewbuf)
+      (add-hook 'local-write-file-hooks
+         (lambda () (boomison-sync lens archive source sourcebuf view viewbuf)))
+      (message "Created %s from %s." view source)
+      ))))
