@@ -32,8 +32,19 @@ let escape_name (chars:regexp) =
   | esc_nospace (* or an (improbable) single char string *)
 
 
+(* escaping of a "name", that does not contain any of the chars in
+ * "char" and neither starts or finishes with spaces of is the single
+ * char contained in [diff] (must be a single char !)*)
+let escape_name_diff (chars:regexp) (diff:string) = 
+  let esc = xml_esc chars in
+  let esc_nospace = xml_esc (chars | " ") in
+  let esc_nospace_unique = xml_esc (chars | " " | diff) in
+    (esc_nospace . esc* . esc_nospace) (* a long string wich begin and end with a non space char *)
+  | esc_nospace_unique (* or an (improbable) single char string *)
+
+
 (* [xml_space space] is a q-lense that prints [space], but accepte in
- * the putback any number of spaces. Usefull for the identation.*)
+ * the putback any number of paces. Usefull for the identation.*)
 let xml_spaces (space:string) = qconst "" " "* space ""
 let xml_space = xml_spaces " "
 let xml_fs = qconst "" (" " . " "*) " " "" (* force space *)
@@ -53,7 +64,7 @@ let xml_sgt = ins "/>"
 (* "  <name" *)
 let xml_begin_open_tag (spaces:string) (name:string) = 
   xml_spaces spaces . 
-  xml_lt . ins name
+  xml_lt . ins name . xml_fs
 
 (* [xml_attribute name content space] deal with data that become
  * attributes in the XML file.  
@@ -162,7 +173,14 @@ let partial_date =
 test date get "20-FEB-2007" = "2007-02-20"
 
 
+(* produce a "1" but accept any-number in the putback or create
+   direction*)
+let qone = qconst "" ([0-9]* ) "1" "" 
 
+
+
+
+(*
 
 (*** definitions of lenses for each type of line ****)
 
@@ -232,7 +250,7 @@ AC   Q99605;
 
 let DT = 
   del_beg_line "DT" .
-  xml_begin_open_tag "" "entry" . xml_fs .
+  xml_begin_open_tag "" "entry" . 
   xml_attribute "created" date " ".
   del ", integrated into UniProtKB/" . 
   xml_attribute "dataset" (escape_name ["".]) " " . del ".\n" .
@@ -529,15 +547,10 @@ OC   Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Piroplasmida; Theileriidae
 *)
   (* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX*)
 
-(* produce a "1" but accept any-number in the putback or create
-   direction*)
-let qone = qconst "" ([0-9]* ) "1" "" 
-
 
 let OX = 
   del_beg_line "OX" . del "NCBI_TaxID=" . 
   xml_begin_open_tag "    " "dbReference" .
-  xml_fs.
   xml_concat_attributes 
     (xml_simple_attribute "type" "NCBI Taxonomy")
     (xml_attribute "key" qone " ") .
@@ -566,7 +579,7 @@ test OX create
 let one_OH_line = 
   del_beg_line "OH" . xml_opening_tag_with_att "  " "organism" (xml_attribute "key" qone "") .
   ( (del "NCBI_TaxID=" .
-     xml_begin_open_tag "    " "dbReference" . xml_fs.
+     xml_begin_open_tag "    " "dbReference" . 
      xml_concat_attributes 
        (xml_simple_attribute "type" "NCBI Taxonomy")
        (xml_attribute "key" qone " ") .
@@ -647,7 +660,7 @@ test OS_OG_OC_OX_OH get
  * to centralise the external treatment of "key" in the abstract*)
 let RN = 
   del_beg_line "RN" . del "[".
-  xml_begin_open_tag "  " "reference" . xml_fs . 
+  xml_begin_open_tag "  " "reference" . 
   xml_attribute "key" (default ([0-9]* ) "1") "" . xml_gt . xml_nl .del"]\n"
 
 let RP = 
@@ -709,7 +722,7 @@ let RX =
   let name = escape_name [;] in
   let aux (tag:string) = 
     del (tag . "=") . 
-    xml_begin_open_tag "      " "dbReference". xml_fs.
+    xml_begin_open_tag "      " "dbReference".
     xml_concat_attributes 
       (xml_simple_attribute "type" tag)
       (xml_attribute "key" qone " ") .
@@ -812,7 +825,7 @@ let journal_citation =
   | esc_space in  (* or an (improbable) single char string *)
   let number = default [0-9]* "0" in
   let year = [0-9]{4} in
-  xml_begin_open_tag "    " "citation" . xml_fs .
+  xml_begin_open_tag "    " "citation" . 
   xml_simple_attribute "type" "journal article" . xml_space. 
   xml_attribute "name" name " " . del " " . del_spaces .
   xml_attribute "volume" number " " . del ":" .
@@ -851,7 +864,7 @@ RL   (er) Invest. Ophthalmol. Vis. Sci. 43:ARVO E-Abstract 791(2002).
 
 let electro = 
   del "(er)" . del_spaces_bis . 
-  xml_begin_open_tag "    " "citation" . xml_fs.
+  xml_begin_open_tag "    " "citation" . 
   xml_simple_attribute "type" "online journal article" .
   xml_attribute "name" (([^ \n""].[^\n""]* ) - (("Worm Breeder's Gazette" | "Plant Gene Register"). [^\n""]* )) "".
   xml_gt . xml_nl . del ".\n"
@@ -870,7 +883,7 @@ let book =
     xml_attribute "name" (escape_name "\"") "" . xml_gt . xml_nl . del "\n"in
   let rest = 
     del "," . del_spaces_bis . del "pp." .
-    xml_begin_open_tag "    " "citation" . xml_fs . 
+    xml_begin_open_tag "    " "citation" . 
     (xml_attribute "volume" number " " . del ":")? .
     xml_attribute "first" number " " .  del "-" .
     xml_attribute "last" number " " . del"," . del_spaces_bis . 
@@ -883,13 +896,13 @@ let book =
     
 let unpub = 
     del "Unpublished observations" . del_spaces_bis . 
-    xml_begin_open_tag "    " "citation" . xml_fs .
+    xml_begin_open_tag "    " "citation" . 
     xml_simple_attribute "type" "unpublished observations" . xml_space .
     xml_attribute "date" partial_date  "". xml_gt . xml_nl . del "\n"
 
 let thesis = 
   del "Thesis" . del_spaces_bis .
-  xml_begin_open_tag "    " "citation" . xml_fs .
+  xml_begin_open_tag "    " "citation" . 
   xml_simple_attribute "type" "thesis" . xml_space .
   xml_attribute "date" (del "(" . [0-9]{4} . del "),") " ". del_spaces_bis .
   xml_attribute "institute" (escape_name "\"") " " . del "," . del_spaces_bis .
@@ -901,7 +914,7 @@ let thesis =
 
 let patent = 
   del "Patent number" . del_spaces_bis . 
-  xml_begin_open_tag "    " "citation" . xml_fs .
+  xml_begin_open_tag "    " "citation" . 
   xml_simple_attribute "type" "patent" . xml_space . 
   xml_attribute "number" (escape_name "\"") " " . del "," . del_spaces_bis . 
   xml_attribute "date" (del "(" . date . del ")") "" . del ".\n" . xml_gt . xml_nl
@@ -909,7 +922,7 @@ let patent =
 
 let submited = 
   del "Submitted" . del_spaces_bis . 
-  xml_begin_open_tag "    " "citation" . xml_fs .
+  xml_begin_open_tag "    " "citation" . 
   xml_simple_attribute "type" "submission" . xml_space . 
   xml_attribute "date" (del "(" . partial_date . del ")") " " . del_spaces_bis . del "to " .
   xml_attribute "db" ("Swiss-Prot" 
@@ -1036,7 +1049,7 @@ let eoC =
 
 let classic_CC_lines (corres:lens) = 
   del_beg_line "CC" . del "-!-" . del_spaces_bis .
-  xml_begin_open_tag "  " "comment" . xml_fs .
+  xml_begin_open_tag "  " "comment" . 
   xml_attribute_no_space "type" corres . 
   del ":" . del_spaces_bis .
   ((CC_content . note?) ~ (eoC? . xml_gt . xml_nl)).
@@ -1164,7 +1177,7 @@ let interaction =
     xml_tag "    " "experiments" (del "NbExp=" . [0-9]+ .del "; ")) ~
     (del "IntAct=" . xml_tag_with_single_att "    " "interactant" "intactId" prot .
      del ", " . 
-     xml_begin_open_tag "    " "interactant" . xml_space .
+     xml_begin_open_tag "    " "interactant" . 
      xml_attribute "intactId" prot "" )). del ";" . 
     xml_closing_tag "  " "comment" in
   del_beg_line "CC" . del "-!- INTERACTION:" . del_spaces_bis .
@@ -1224,7 +1237,7 @@ let alt_prod =
              ("Displayed" <-> "displayed"
 	     | "External" <-> "external"
 	     | "Not described" <-> "not described")
-      | (xml_begin_open_tag "      " "sequence" . xml_fs .
+      | (xml_begin_open_tag "      " "sequence" . 
 	 xml_simple_attribute "type" "described" . xml_space .
 	 xml_attribute "ref" (("VSP_" . [0-9]*. del"," . " ")* . "VSP_" . [0-9]* ) "" .
 	xml_sgt . xml_nl)) .del ";" in
@@ -1268,7 +1281,7 @@ test alt_prod get
 let mass_spec = 
   let num = ([0-9]* . ("." . [0-9]* )?) in
   del_beg_line "CC" . del "-!- MASS SPECTROMETRY:" . del_spaces_bis . 
-  xml_begin_open_tag "  " "comment" . xml_space . xml_simple_attribute "type" "mass spectrometry" . xml_space .
+  xml_begin_open_tag "  " "comment" . xml_simple_attribute "type" "mass spectrometry" . xml_space .
   del "MW=" . xml_attribute "mass" num " " . del ";" .del_spaces_bis.
   (del "MW_ERR=". xml_attribute "error" num  " " . del ";" . del_spaces_bis)? .
   del "METHOD=" . xml_attribute "method" (escape_name [\n;""]) "" . del ";" . del_spaces_bis. xml_gt . xml_nl .
@@ -1328,7 +1341,7 @@ test seq_caution get
 let web = 
   let content = escape_name [\n;] in
   del_beg_line "CC" . del "-!- WEB RESOURCE:" . del_spaces_bis .
-  xml_begin_open_tag "  " "comment" .xml_space . xml_simple_attribute "type" "online information" . xml_space .
+  xml_begin_open_tag "  " "comment" . xml_simple_attribute "type" "online information" . xml_space .
   xml_attribute "name" (del "NAME=" . (escape_name [\n;""])) "" . xml_gt . xml_nl .
   (( del ";" . del_spaces_bis . xml_tag "    " "note" (del "NOTE=" . content))? ~
    ( del ";" . del_spaces_bis . del "URL=\"" . xml_tag_with_single_att "    " "link" "uri" content . del "\"")?).
@@ -1354,7 +1367,7 @@ let CC =
 
 
 
-
+  *)
 
 
 
@@ -1365,53 +1378,68 @@ let CC =
 
 (*** for now, DR is far from being complete. To many cases (one for each data base...) !*)
 
-let DR = 
-  let content = escape_name [\n;""] in
-  del_beg_line "DR" . ins "  <dbReference " . 
-  xml_attribute "type" content " ". del ";" . del_spaces_bis .
-  xml_attribute "key" qone " ".
-  xml_attribute "id" content "" . ins ">\n  </dbReference>\n".
-  del (";". [^\n;]* )* . del ".\n"
 
-let content_DR = escape_name [\n;""]
+let content_DR = escape_name_diff [\n;""] "-"
 
 let beg_DR (lst_db:regexp) = 
   xml_attribute "type" lst_db " ". del ";" . del_spaces_bis .
   xml_attribute "key" qone " ".
   xml_attribute "id" content_DR ""
 
+let DR_property (type:string) = 
+  del "; " . 
+  xml_begin_open_tag "    " "property" . 
+  xml_attribute "value" content_DR " " .
+  xml_simple_attribute "type" type . xml_sgt . xml_nl
+
 let optional_DR_2 (lst_db:regexp) (type:string) = 
   beg_DR lst_db . 
-   (del "; -" . xml_sgt . xml_nl) 
- | (xml_gt . xml_space . 
-    del "; " . 
-    xml_begin_open_tag "    " "property" . xml_space . 
-    xml_attribute "value" content_DR " " .
-    xml_simple_attribute "type" "entry name". xml_sgt . xml_nl .
-    xml_closing_tag "  " "dbReference")
+   ((del "; -" . xml_sgt . xml_nl) 
+ | (xml_gt . xml_nl .
+    DR_property type .
+    xml_closing_tag "  " "dbReference"))
 
+let optional_DR_3 (lst_db:regexp) (type1:string) (type2:string) = 
+  beg_DR lst_db . 
+    ((del "; -; -" . xml_sgt . xml_nl) 
+  | (xml_gt . xml_nl . 
+     ((DR_property type1 . (DR_property type2 | del "; -")) |(del "; -" . DR_property type2)).  
+     xml_closing_tag "  " "dbReference"))
+
+let optional_DR_4 (lst_db:regexp) (type1:string) (type2:string) (type3:string)= 
+  beg_DR lst_db . 
+    ((del "; -; -; -" . xml_sgt . xml_nl) 
+  | (xml_gt . xml_nl . 
+     (
+       (DR_property type1 . (DR_property type2 | del "; -") . (DR_property type3 | del "; -")) 
+      |(del "; -" . DR_property type2 . (DR_property type3 | del "; -"))
+      |(del "; -; -" . DR_property type3 )).
+     xml_closing_tag "  " "dbReference"))
 
 let DR_2_1 =
   optional_DR_2 ( "HIV" | "InterPro" | "PIR" | "PRINTS" | "REBASE")
     "entry name"
 
-let DR_2_1 =
-  optional_DR_2 ("Gene3D" | "PANTHER" | "Pfam" 
+let DR_2_1_3_1 =
+  optional_DR_3 ("Gene3D" | "PANTHER" | "Pfam" 
   | "ProDom" | "SMART" | "TIGRFAMs") 
-    "entry name"
+    "entry name" "match status"
 
-let DR_2_2 = 
-  optional_DR_2 "PDB" "method"
+let DR_2_2_3_3_4_1 = 
+  optional_DR_4 "PDB" "method" "resolution" "chains"
 
-let DR_2_3 = 
+
+(* !!! pb with HGNC ! the XML file has "entry name" instead of "gene designation" !!! *)
+let DR_2_3 =
   optional_DR_2 ("DictyBase" | "EcoGene" | "FlyBase" | "HGNC" | "MGI" | "RGD" | "SGD" 
         | "StyGene" | "SubtiList" | "WormBase" | "ZFIN" ) "gene designation"
 
-let DR_2_4 = 
-  optional_DR_2 "GO" "term"
+let DR_2_4_3_2 = 
+  optional_DR_3 "GO" "term" "evidence"
 
-let DR_2_5 = 
-  optional_DR_2 "HAMAP" "flag"
+(* look at DR   HAMAP; MF_01546; atypical; 1. *)
+let DR_2_5_3_1 = 
+  optional_DR_3 "HAMAP" "flag" "match status"
 
 let DR_2_6 = 
   optional_DR_2 "ECO2DBASE" "edition"
@@ -1423,8 +1451,8 @@ let DR_2_7 =
 let DR_2_8 = 
   optional_DR_2 "Ensembl" "organism name"
 
-let DR_2_9 = 
-  optional_DR_2 "PIRSF" "entry name"
+let DR_2_9_3_1 = 
+  optional_DR_3 "PIRSF" "entry name" "match status"
   
 
 (* no AARHUS exemple found *)
@@ -1443,7 +1471,7 @@ let DR_2_12 =
 	| "PharmGKB" | "PHCI-2DPAGE" | "PhosSite" | "PhotoList" | "PMMA-2DPAGE" 
 	| "PptaseDB" | "PseudoCAP" | "Rat-heart-2DPAGE" | "RefSeq" | "SagaList" 
 	| "Siena-2DPAGE" | "TAIR" | "TIGR" | "TRANSFAC" | "TubercuList or UniGene") .
-  del "; -." . xml_sgt . xml_nl
+  del "; -" . xml_sgt . xml_nl
 
 let DR_2_13 = 
   optional_DR_2 "HSSP" "PDB accession"
@@ -1477,20 +1505,61 @@ let DR_2_21 =
 let DR_2_22 = 
   optional_DR_2 "DrugBank" "generic name"
   
+let DR_EMBL = 
+  optional_DR_4 "EMBL" "protein sequence ID" "status" "molecule type"
+
+let DR_PROSITE = 
+  optional_DR_3 "PROSITE" "entry name" "match status"
+
+let DR = 
+  del_beg_line "DR" . xml_begin_open_tag "  " "dbReference" . 
+  (DR_2_1 | DR_2_1_3_1 | DR_2_2_3_3_4_1 | DR_2_3 | DR_2_4_3_2 | DR_2_5_3_1 
+ | DR_2_6 | DR_2_7 | DR_2_8 | DR_2_9_3_1 | DR_2_11 | DR_2_12 | DR_2_13
+ | DR_2_14 | DR_2_15 | DR_2_16 | DR_2_18 | DR_2_19 | DR_2_20 | DR_2_21 
+ | DR_2_22 | DR_EMBL | DR_PROSITE).
+  del ".\n"
+
+let DRs = DR*
 
 
+test DR* get
+<<<
+   DR   EMBL; X83467; CAA58470.1; -; Genomic_DNA.
+   DR   EMBL; X83468; CAA58470.1; JOINED; Genomic_DNA.
+   DR   PROSITE; PS00940; GAMMA_THIONIN; 1.
+   DR   EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
+   DR   KEGG; tan:TA08425; -.
+   DR   InterPro; IPR007480; DUF529.
+   DR   Pfam; PF04385; FAINT; 4.
 
-
-
-
-test DR get
-<<<DR   EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
 >>> 
-=
-<<<  <dbReference type="EMBL" key="1" id="CR940353">
+= 
+<<<  <dbReference type="EMBL" key="1" id="X83467">
+    <property value="CAA58470.1" type="protein sequence ID"/>
+    <property value="Genomic_DNA" type="molecule type"/>
+  </dbReference>
+  <dbReference type="EMBL" key="1" id="X83468">
+    <property value="CAA58470.1" type="protein sequence ID"/>
+    <property value="JOINED" type="status"/>
+    <property value="Genomic_DNA" type="molecule type"/>
+  </dbReference>
+  <dbReference type="PROSITE" key="1" id="PS00940">
+    <property value="GAMMA_THIONIN" type="entry name"/>
+    <property value="1" type="match status"/>
+  </dbReference>
+  <dbReference type="EMBL" key="1" id="CR940353">
+    <property value="CAI76474.1" type="protein sequence ID"/>
+    <property value="Genomic_DNA" type="molecule type"/>
+  </dbReference>
+  <dbReference type="KEGG" key="1" id="tan:TA08425"/>
+  <dbReference type="InterPro" key="1" id="IPR007480">
+    <property value="DUF529" type="entry name"/>
+  </dbReference>
+  <dbReference type="Pfam" key="1" id="PF04385">
+    <property value="FAINT" type="entry name"/>
+    <property value="4" type="match status"/>
   </dbReference>
 >>>
-
 
 
 
