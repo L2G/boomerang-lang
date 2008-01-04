@@ -165,27 +165,35 @@ let sync l o_fn c_fn a_fn =
         let o = read_string o_fn in
         let c = read_string c_fn in 
         let a = read_string a_fn in 
-        let a' = get_str l o in 
+        let a' = get_str l c in 
         if BS.equal a a' then 
           begin 
-            debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
-            write_string a_fn (get_str l c);
+            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s" l o_fn c_fn);
             write_string o_fn c;
             0
           end
-        else if BS.equal c o then
-          begin 
-            debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-            let c' = put_str l a o in 
-            write_string c_fn c';
-            write_string o_fn c';
-            0
-          end            
-        else 
-          begin 
-            debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
-            1
-          end
+        else
+          let a' = get_str l o in 
+            if BS.equal a a' then 
+              begin 
+                debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
+                write_string a_fn (get_str l c);
+                write_string o_fn c;
+                0
+              end
+            else if BS.equal c o then
+              begin 
+                debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
+                let c' = put_str l a o in 
+                  write_string c_fn c';
+                  write_string o_fn c';
+                  0
+              end            
+            else 
+              begin 
+                debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
+                1
+              end
 
 let rest = Prefs.createStringList "rest" "*no docs needed" ""
 
