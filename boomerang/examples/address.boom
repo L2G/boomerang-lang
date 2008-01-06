@@ -1,3 +1,5 @@
+module Address = 
+
 (* Some notes about the Apple Address Book application:
      - \ characters do NOT round-trip: It will read a vCard containing
        \\Manchester and write it out as \Manchester
@@ -11,7 +13,7 @@
 (* -------------------------------------------------------------------- *)
 (* A useful derived lens *)
 
-let filterwith (both: regexp) (l: dlens) =
+let filterwith (both: regexp) (l: lens) =
   filter (both - (ctype l)) (ctype l) ; l*
 
 (* -------------------------------------------------------------------- *)
@@ -38,7 +40,7 @@ let unescchar (c:regexp) =
 let escstr (c:regexp) =  (* BETTER : ? <-> (EscapedStr c) *)
   let r = EscapedStr c in
   let l = escchar c in
-  let l' : ? <-> r =  (* FIX: ? <-> (EscapedStr c) *)
+  let l' (* : ? <-> r *) =  (* FIX: ? <-> (EscapedStr c) *)
     l* in
   l'
 let unescstr (c:regexp) = (unescchar c)*
@@ -80,18 +82,18 @@ let formatname =
     escstr [,]
   ; Name . del TelMarker*
 
-let name : ? <-> GlobalName =
+let name (* : ? <-> GlobalName *) = 
   let escName = unescstr [,;:]; formatname in
-  let escNonEmptyName : ? <-> Name =
+  let escNonEmptyName (* : ? <-> Name *) =
       unescNonEmptyStr [,;:] 
     ; escNonEmptyStr [,] 
     ; ( del TelMarker+ | 
         NonEmptyName . del TelMarker* ) in
-  let familyname : ? <-> Name = 
+  let familyname (* : ? <-> Name *) = 
      del "N:" . escName in
   familyname . (del ";" | ";" <-> ", " . escNonEmptyName ) . del ";;;" 
 
-test name get "N:Pierce;Benjamin C.;;;" = ?
+test name get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
 
 let formattel = escstr [,]
 
@@ -145,7 +147,7 @@ let NumberedItem (n:string) =
 let Field_unnumbered =
   Field - (NumberedItem "1" | NumberedItem "2" | NumberedItem "3")
 
-let remove_item_numbers : ? <-> Field_unnumbered* =
+let remove_item_numbers (* : ? <-> Field_unnumbered* *) =
   let delItemNumber (n:string) = "item" . del n . "." . NonNL . NL .
                                  "item" . del n . "." . NonNL . NL in
   let Stuff = Field - ("item" . NonNL . NL . "item" . NonNL . NL) in
@@ -160,7 +162,7 @@ let remove_item_numbers : ? <-> Field_unnumbered* =
     Field_unnumbered* 
   | Field_unnumbered* 
 
-let chunk : ? <-> AbsAddr =
+let chunk (* : ? <-> AbsAddr *) =
   del "BEGIN:VCARD" . del NL . del "VERSION:3.0" . del NL .  
   (name; key (atype name)) . del NL .
   (remove_item_numbers ;
@@ -184,7 +186,8 @@ let samplevcard =
   >>>
 
 let vcardnl = vcard . ins "\n"
-let stvcard = <|vcardnl *|>
+
+(* let stvcard = <|vcardnl *|> *)
 
 test vcard create "Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)" = 
 <<<
@@ -346,7 +349,8 @@ into samplevcards =
 (* -------------------------------------------------- *)
 (* Generic XML stuff *)
 
-let element (tag:string) (body:dlens) =
+(* 
+let element (tag:string) (body:lens) =
   del "<" . del tag . del ">" . 
   body . 
   del "</" . del tag . del ">" . ws
@@ -358,10 +362,13 @@ let special =
 
 (* Parses and unquotes pcdata, including all whitespace *)
 let pcdata =
-  let Normal = StringNotContaining [&<>\r] in
+  let R = [&<>\r] in 
+  let Normal = StringNotContaining R in 
   Normal . (special . Normal)*
 
-let PCDATA = StringNotContaining [<>\r]
+let PCDATA = 
+  let R = [<>\r] in 
+  StringNotContaining R
 
 (* -------------------------------------------------- *)
 (* BCP's strange personal variant of XCard *)
@@ -429,7 +436,7 @@ Doe, Sally, 792-8134 (h), 732-4684 (h), hello\, world ! Question : nice wheather
 >>>             
 
 (* test xcard get (read "/home/bcpierce/current/z/addresses.txt") = ? *)
-
+*)
 
 (* TO DO:
 
