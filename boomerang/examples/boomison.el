@@ -27,88 +27,69 @@
   "Create a VIEW of SOURCE using LENS"
   (interactive "FSource: \nFView: \nsLens: ")
   (lexical-let* 
-      ((source source)
-       (view view)
-       (lens lens)
-       ;; setup archive
+      (;; synchronization archive
        (archive (make-temp-name source))
-       ;; setup buffers
-       (sourcebuf (find-file-noselect source t nil nil))
-       (viewbuf (find-file-noselect view t nil nil))
-       ;; setup windows
-       (sourcewin (selected-window))
-       (viewwin (split-window))
-       ;; function to run-on-save
-       (boomfun (lambda () 
-                  (save-file source sourcebuf)
-                  (save-file view viewbuf)
-                  (run-boomerang lens archive source sourcebuf view viewbuf))))
-    (progn 
-      ;; setup source
-      (set-window-buffer sourcewin sourcebuf)
-      (set-buffer sourcebuf)
-      (add-hook 'local-write-file-hooks boomfun)
-      ;; setup view
-      (set-window-buffer viewwin viewbuf)
-      (set-buffer viewbuf)
-      (add-hook 'local-write-file-hooks boomfun)
-      ;; do initial sync
-      (run-boomerang lens archive source sourcebuf view viewbuf))))
-
-(defun save-file (f fbuf)
-  (progn
-    (save-window-excursion
-      (switch-to-buffer fbuf)
-      (write-region (point-min) (point-max) f nil t nil))))
-
-(defun refresh-file (f fbuf)
-  "Refresh FILENAME"
-  (save-window-excursion
-    (set-buffer fbuf) 
-    (erase-buffer)
-    (insert-file-contents f)
-    (set-buffer-modified-p nil)))
-
-(defun run-boomerang (lens archive source sourcebuf view viewbuf)
-  (lexical-let* 
-      ((lens lens)
-       (archive archive)
-       (source source)
-       (sourcebuf sourcebuf)
-       (view view)
-       (viewbuf viewbuf)
+       ;; boomerang command-line invocation
        (boomcmd (concat "boomerang" " " "sync" " " lens " " 
                         archive " " source " " view
                         " " "-debug sync"))
-       (errbuf (get-buffer-create "*boomerang output*")))
-    ;; clear error buffer
+       ;; source and view buffers
+       (sourcebuf (find-file-noselect source t nil nil))
+       (viewbuf (find-file-noselect view t nil nil))
+       ;; function to run on save
+       (boom-go (lambda () 
+                  (progn
+                    (boom-save-buffer sourcebuf)
+                    (boom-save-buffer viewbuf)
+                    (boom-run boomcmd sourcebuf viewbuf)))))
+    ;; main body
+    (progn 
+      ;; setup source
+      (setup-win (selected-window) sourcebuf boom-go)
+      ;; setup view
+      (setup-win (split-window) viewbuf boom-go)
+      ;; do initial sync
+      (boom-run boomcmd sourcebuf viewbuf))))
+
+(defun setup-win (win buf fun)
+  (progn
+    (set-window-buffer win buf)
+    (set-buffer buf)
+    (add-hook 'local-write-file-hooks fun)))
+
+(defun boom-save-buffer (buf)
+  (save-window-excursion
+    (switch-to-buffer buf)
+    (write-region (point-min) (point-max) (buffer-file-name) nil t nil)))
+
+(defun boom-refresh-buffer (buf)
+  (save-window-excursion
+    (switch-to-buffer buf) 
+    (erase-buffer)
+    (insert-file-contents (buffer-file-name))
+    (set-buffer-modified-p nil)))
+
+(defun boom-run (boomcmd sourcebuf viewbuf)
+  (lexical-let ((boombuf (get-buffer-create "*boomerang output*")))
+    ;; clear boomerang buffer
     (save-window-excursion 
-      (switch-to-buffer errbuf) 
+      (switch-to-buffer boombuf)
       (erase-buffer))
     ;; run boomerang
-    (if (eq 
-        (call-process 
-         shell-file-name nil 
-         (list errbuf t) nil 
-         shell-command-switch boomcmd)
-        1)
-    (progn
-      (switch-to-buffer-other-window errbuf)
-      (error "Boomerang produced a conflict!"))
-    ;; check for errors
-    ;;(if (> (buffer-size errbuf) 0) 
-    ;;    (progn
-    ;;      (switch-to-buffer-other-window errbuf)
-    ;;      (error "Boomerang produced non-empty output!"))
-    (if (not (file-exists-p view))
-      ;; if no errors, check for empty view 
-      (error "Boomerang failed to create %s" view)
-      ;;  otherwise freshen buffers
+    (if (eq (call-process 
+             shell-file-name nil 
+             (list boombuf t) nil 
+             shell-command-switch boomcmd)
+            1)
+      ;; if a conflict, show error buffer
       (progn
-        ;; refresh source
+        (switch-to-buffer-other-window boombuf)
+        (error "Boomerang produced a conflict!"))
+      ;; otherwise freshen source and view buffers
+      (progn
         (let ((old-pnt (point)))
-          (refresh-file source sourcebuf)
-          (refresh-file view viewbuf)
+          (boom-refresh-buffer sourcebuf)
+          (boom-refresh-buffer viewbuf)
           (goto-char old-pnt))
-      (message "Created %s from %s." view source)
-      )))))
+        (message "Created %s from %s." (buffer-file-name viewbuf) (buffer-file-name sourcebuf))
+        ))))

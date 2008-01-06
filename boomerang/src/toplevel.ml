@@ -151,11 +151,14 @@ let sync l o_fn c_fn a_fn =
         if BS.equal a a' then 
           begin
             debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s" l o_fn c_fn);
-            write_string o_fn c
+            write_string o_fn c;
+            0
           end
         else
-          debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
-          0
+          begin 
+            debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
+            1
+          end
 
     | true,true,true -> 
         (* otherwise, c, a, and o exist:
