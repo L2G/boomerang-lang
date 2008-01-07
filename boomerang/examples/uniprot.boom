@@ -248,21 +248,27 @@ AC   Q99605;
 
 (**** DT line ****)
 
-let DT = 
+let fst_DT = 
   del_beg_line "DT" .
   xml_begin_open_tag "" "entry" . 
   xml_attribute "created" date " ".
   del ", integrated into UniProtKB/" . 
-  xml_attribute "dataset" (escape_name ["".]) " " . del ".\n" .
-    (* deleting the line that has no equivalent in the xml file *) 
-  del_beg_line "DT" . (default (del (ctype date)) "01-JAN-1000") . 
-  del ", sequence version " . (default (del [0-9]* ) "1") . del ".\n" .
+  xml_attribute "dataset" (escape_name ["".]) " " . del ".\n" 
+
+let snd_DT = 
+  (* this second line is reflected at the end, in the <sequence> tag *)
+  del_beg_line "DT" . 
+  xml_attribute "modified" date " " ~ 
+  (del ", sequence version " . xml_attribute "version" [0-9]* " ") . del ".\n"
+
+let thd_DT = 
   del_beg_line "DT" . 
   xml_attribute "modified" date " " .
   del ", entry version " . xml_attribute "version" ([0-9]* ) "" . 
   xml_gt. xml_nl . del ".\n"
   
 
+(*
 test DT get 
 <<<
 DT   18-APR-2006, integrated into UniProtKB/Swiss-Prot.
@@ -274,7 +280,7 @@ DT   20-FEB-2007, entry version 10.
 <entry created="2006-04-18" dataset="Swiss-Prot" modified="2007-02-20" version="10">
 
 >>>
-
+*)
 
 
 (******* DE line ********)
@@ -297,19 +303,20 @@ let special_name (tag:string) (spaces:string) (ds:lens) =
   xml_closing_tag spaces tag
 
 let complete_special_name (tag:string) (flat_tag:string) = 
-  let name = special_name tag "  " "" in
+  let name = special_name tag "    " "" in
     del ("[" . flat_tag . ":") . del_spaces_bis . 
     (name . del_spaces .del ";" . del_spaces_bis)* .
       name . del_spaces . del "]"
 
     
 let DE = 
-  let name = complete_name_prot "  " "" in
+  let name = complete_name_prot "    " "" in
   let name_includes  = complete_special_name "domain" "Includes" in
   let name_contains = complete_special_name "component" "Contains" in
-    del_beg_line "DE" . name .
+    del_beg_line "DE" . xml_opening_tag "  " "protein" .name .
     (del_spaces_bis . name_includes)? .
-    (del_spaces_bis . name_contains)? . del ".\n"
+    (del_spaces_bis . name_contains)? . 
+    xml_closing_tag "  " "protein" . del ".\n"
     
 
 test DE get 
@@ -318,32 +325,35 @@ DE   Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate N-acet
 
 >>>
  = 
-"  <name>Arginine biosynthesis bifunctional protein argJ</name>
-  <domain>
-    <name>Glutamate N-acetyltransferase</name>
-    <name>EC 2.3.1.35</name>
-    <name>Ornithine acetyltransferase</name>
-    <name>Ornithine transacetylase</name>
-    <name>OATase</name>
-  </domain>
-  <domain>
-    <name>Amino-acid acetyltransferase</name>
-    <name>EC 2.3.1.1</name>
-    <name>N-acetylglutamate synthase</name>
-    <name>AGS</name>
-  </domain>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
-  </component>
-  <component>
-    <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
-  </component>
-"
+<<<  <protein>
+    <name>Arginine biosynthesis bifunctional protein argJ</name>
+    <domain>
+      <name>Glutamate N-acetyltransferase</name>
+      <name>EC 2.3.1.35</name>
+      <name>Ornithine acetyltransferase</name>
+      <name>Ornithine transacetylase</name>
+      <name>OATase</name>
+    </domain>
+    <domain>
+      <name>Amino-acid acetyltransferase</name>
+      <name>EC 2.3.1.1</name>
+      <name>N-acetylglutamate synthase</name>
+      <name>AGS</name>
+    </domain>
+    <component>
+      <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
+    </component>
+    <component>
+      <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
+    </component>
+  </protein>
+>>>
 
 
 (* check we deal well with spaces at creation *)
 test DE create 
-"  <name>Arginine biosynthesis bifunctional protein argJ</name>
+<<< <protein>
+  <name>Arginine biosynthesis bifunctional protein argJ</name>
   <domain>
     <name>Glutamate N-acetyltransferase</name>
        <name>EC 2.3.1.35</name>
@@ -358,8 +368,8 @@ test DE create
   <component>    <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
   </component>
   <component>    <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
-  </component>  
-"
+  </component>    </protein>
+>>>
 =
 <<<
 DE   Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate N-acetyltransferase (EC 2.3.1.35) (Ornithine acetyltransferase) (Ornithine transacetylase) (OATase); Amino-acid acetyltransferase (EC 2.3.1.1) (N-acetylglutamate synthase) (AGS)] [Contains: Arginine biosynthesis bifunctional protein argJ alpha chain; Arginine biosynthesis bifunctional protein argJ beta chain].
@@ -890,7 +900,7 @@ let book =
     xml_attribute "publisher" (escape_name ["",]) " " . del "," . del_spaces_bis . 
     xml_attribute "city" (escape_name [,""]) " " . del " " . del_spaces .
     xml_attribute "date" (del "(" . year . del ")") "" in
-  del "(In)" . del_spaces_bis . (editors ~ (title ~ rest))
+  del "(In)" . del_spaces_bis . (editors ~ (title ~ rest)) . del "\n"
 
 
     
@@ -1064,7 +1074,6 @@ let CC_allergen =
 let corres_biotech_to_induc =
   ( "BIOTECHNOLOGY" <-> "biotechnology"
   | "CATALYTIC ACTIVITY" <-> "catalytic activity"
-  | "CAUTION" <-> "caution"
   | "COFACTOR" <-> "cofactor"
   | "DEVELOPMENTAL STAGE" <-> "developmental stage"
   | "DISEASE" <-> "disease"
@@ -1276,7 +1285,7 @@ test alt_prod get
   </comment>
 >>>
 
-(* CP *)
+
 
 let mass_spec = 
   let num = ([0-9]* . ("." . [0-9]* )?) in
@@ -1359,22 +1368,17 @@ test web get
 
 
 let CC =
-  CC_allergen . alt_prod . biophy_prop .CC_biotech_to_induc*. interaction . 
-  mass_spec* . CC_misc_to_rna* . seq_caution . CC_simi_to_toxic* . web* 
+  CC_allergen? . alt_prod? . biophy_prop? .CC_biotech_to_induc*. interaction? .
+  mass_spec* . CC_misc_to_rna* . seq_caution? . CC_simi_to_toxic* . web*
 
 
-
-
-
-
+	   
 
 
 
 
 
 (****** DR lines ******)
-
-(*** for now, DR is far from being complete. To many cases (one for each data base...) !*)
 
 
 let content_DR = escape_name_diff [\n;""] "-"
@@ -1517,10 +1521,10 @@ let DR =
  | DR_2_22 | DR_EMBL | DR_PROSITE).
   del ".\n"
 
-let DRs = DR*
 
 
-test DRs get
+
+test DR* get
 <<<
    DR   EMBL; X83467; CAA58470.1; -; Genomic_DNA.
    DR   EMBL; X83468; CAA58470.1; JOINED; Genomic_DNA.
@@ -2588,7 +2592,7 @@ let normal_FT =
      | "TURN    " <-> "turn"
      | "UNSURE  " <-> "unsure residue"
      | "ZN_FING " <-> "zinc finger region") " ".
-  del " " . (FT_bounds ~ ((del "       " . FT_descr ~ FT_id)? . xml_sgt . xml_nl)) . 
+  del " " . (FT_bounds ~ ((del "       " . FT_descr ~ FT_id)? . xml_gt . xml_nl)) . 
   xml_closing_tag "  " "feature" . del "\n"
 
 
@@ -2603,7 +2607,7 @@ let FT_with_var =
     | "CONFLICT" <-> "sequence conflict"
     | "VARIANT " <-> "sequence variant"
     | "VAR_SEQ " <-> "splice variant") " ".
-  del " " . ((FT_bounds ~ (del "       " . FT_orig_var)) ~ ((del " " . FT_descr ~ FT_id)? . xml_sgt . xml_nl)) . 
+  del " " . ((FT_bounds ~ (del "       " . FT_orig_var)) ~ ((del " " . FT_descr ~ FT_id)? . xml_gt . xml_nl)) . 
   xml_closing_tag "  " "feature" . del "\n"
 
 
@@ -2620,25 +2624,25 @@ test FT* get
     FT   VAR_SEQ     243    244       Missing (in isoform 2). /FTId=VSP_008971.
 
 >>> = 
-<<<  <feature type="chain" id="PRO_0000032028" description="11S globulin gamma chain"/>
+<<<  <feature type="chain" id="PRO_0000032028" description="11S globulin gamma chain">
     <location>
       <begin position="22"/>
       <end position="296"/>
     </location>
   </feature>
-  <feature type="strand" />
+  <feature type="strand" >
     <location>
       <begin position="197"/>
       <end position="202"/>
     </location>
   </feature>
-  <feature type="disulfide bond" description="Interchain (between gamma and delta chains) (Potential)"/>
+  <feature type="disulfide bond" description="Interchain (between gamma and delta chains) (Potential)">
     <location>
       <begin position="124"/>
       <end position="303"/>
     </location>
   </feature>
-  <feature type="sequence conflict" description="(in Ref. 2)"/>
+  <feature type="sequence conflict" description="(in Ref. 2)">
     <original>S</original>
     <variation>E</variation>
     <location>
@@ -2646,7 +2650,7 @@ test FT* get
       <end position="27"/>
     </location>
   </feature>
-  <feature type="splice variant" id="VSP_008971" description="(in isoform 2)"/>
+  <feature type="splice variant" id="VSP_008971" description="(in isoform 2)">
     <location>
       <begin position="243"/>
       <end position="244"/>
@@ -2739,15 +2743,19 @@ DICHEVLTLL
 *)
 
 
-let SQ = 
+let beg_SQ = 
   del_beg_line "SQ" . del "SEQUENCE   ".
-  xml_begin_open_tag "  " "sequence" .
+  xml_begin_open_tag "  " "sequence"
+
+let end_SQ = 
   ((xml_attribute "length" [0-9]+ " " . del " AA;  ") ~ (xml_attribute "mass" [0-9]+ " " . del " MW;  ")).
   xml_attribute "checksum" [0-9A-Z]+ "" . del " CRC64;\n" . xml_gt .
-  del "     " . ([A-Z]{10} . del " ")* . [A-Z]{1,10} .
+  (del "    " . (del " " . [A-Z]{10}){6} . del "\n")* . 
+  del "    " . (del " " . [A-Z]{10}){0,5} .  del " " . [A-Z]{1,10} .
   xml_closing_tag "" "sequence" . del "\n//\n"
 
 
+(*
 test SQ get 
 <<<SQ   SEQUENCE   214 AA;  24608 MW;  0B98AEF8CBCC7AD3 CRC64;
      SNNELTNEER NLLSVAYKNV VGARRSSWRV ISSIEQKTEG SERKQQMAKD YREKIEKELK DICHEVLTLL DKFLIPKATT AESKVFYLKM KGDYYRYLAE VATGDERQKV IEESQRAYND KDSTLIMQLL RDNLTLWTSD TGGDDDANAP DEHQ
@@ -2764,3 +2772,238 @@ test SQ create
      SNNELTNEER NLLSVAYKNV VGARRSSWRV ISSIEQKTEG SERKQQMAKD YREKIEKELK DICHEVLTLL DKFLIPKATT AESKVFYLKM KGDYYRYLAE VATGDERQKV IEESQRAYND KDSTLIMQLL RDNLTLWTSD TGGDDDANAP DEHQ
 //
 >>>
+*)
+
+
+
+
+
+
+(* final assembly *)
+let uniprot_entry = 
+  ID . AC? . fst_DT . 
+  (snd_DT ~ ( thd_DT . DE . GN . OS_OG_OC_OX_OH . Rlines . CC . 
+	     del "CC   -----------------------------------------------------------------------\n" . 
+	     del "CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms\n" .
+	     del "CC   Distributed under the Creative Commons Attribution-NoDerivs License\n" .
+	     del "CC   -----------------------------------------------------------------------\n" .
+	     DR* . PE? . KW? . FT* . beg_SQ)) .
+  end_SQ   . xml_closing_tag "" "entry"
+ 
+
+
+test uniprot_entry get 
+<<<ID   104K_THEAN              Reviewed;         893 AA.
+AC   Q4U9M9;
+DT   18-APR-2006, integrated into UniProtKB/Swiss-Prot.
+DT   05-JUL-2005, sequence version 1.
+DT   23-OCT-2007, entry version 14.
+DE   104 kDa microneme/rhoptry antigen precursor (p104).
+GN   ORFNames=TA08425;
+OS   Theileria annulata.
+OC   Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Piroplasmida; Theileriidae; Theileria.
+OX   NCBI_TaxID=5874;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Ankara;
+RX   PubMed=15994557; DOI=10.1126/science.1110418;
+RA   Pain A., Renauld H., Berriman M., Murphy L., Yeats C.A., Weir W., Kerhornou A., Aslett M., Bishop R., Bouchier C., Cochet M., Coulson R.M.R., Cronin A., de Villiers E.P., Fraser A., Fosker N., Gardner M., Goble A., Griffiths-Jones S., Harris D.E., Katzer F., Larke N., Lord A., Maser P., McKellar S., Mooney P., Morton F., Nene V., O'Neil S., Price C., Quail M.A., Rabbinowitsch E., Rawlings N.D., Rutter S., Saunders D., Seeger K., Shah T., Squares R., Squares S., Tivey A., Walker A.R., Woodward J., Dobbelaere D.A.E., Langsley G., Rajandream M.A., McKeever D., Shiels B., Tait A., Barrell B.G., Hall N.;
+RT   "Genome of the host-cell transforming parasite Theileria annulata compared with T. parva.";
+RL   Science 309:131-133(2005).
+CC   -!- SUBCELLULAR LOCATION: Cell membrane; Lipid-anchor, GPI-anchor (Potential). Note=In microneme/rhoptry complexes (By similarity).
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
+DR   EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
+DR   KEGG; tan:TA08425; -.
+DR   InterPro; IPR007480; DUF529.
+DR   Pfam; PF04385; FAINT; 4.
+PE   3: Inferred from homology;
+KW   Complete proteome; Glycoprotein; GPI-anchor; Lipoprotein; Membrane; Repeat; Signal; Sporozoite.
+FT   SIGNAL        1     19       Potential.
+FT   CHAIN        20    873       104 kDa microneme/rhoptry antigen. /FTId=PRO_0000232680.
+FT   PROPEP      874    893       Removed in mature form (Potential). /FTId=PRO_0000232681.
+FT   COMPBIAS    215    220       Poly-Leu.
+FT   COMPBIAS    486    683       Lys-rich.
+FT   COMPBIAS    854    859       Poly-Arg.
+FT   LIPID       873    873       GPI-anchor amidated aspartate (Potential).
+SQ   SEQUENCE   893 AA;  101921 MW;  2F67CEB3B02E7AC1 CRC64;
+     MKFLVLLFNI LCLFPILGAD ELVMSPIPTT DVQPKVTFDI NSEVSSGPLY LNPVEMAGVK
+     YLQLQRQPGV QVHKVVEGDI VIWENEEMPL YTCAIVTQNE VPYMAYVELL EDPDLIFFLK
+     EGDQWAPIPE DQYLARLQQL RQQIHTESFF SLNLSFQHEN YKYEMVSSFQ HSIKMVVFTP
+     KNGHICKMVY DKNIRIFKAL YNEYVTSVIG FFRGLKLLLL NIFVIDDRGM IGNKYFQLLD
+     DKYAPISVQG YVATIPKLKD FAEPYHPIIL DISDIDYVNF YLGDATYHDP GFKIVPKTPQ
+     CITKVVDGNE VIYESSNPSV ECVYKVTYYD KKNESMLRLD LNHSPPSYTS YYAKREGVWV
+     TSTYIDLEEK IEELQDHRST ELDVMFMSDK DLNVVPLTNG NLEYFMVTPK PHRDIIIVFD
+     GSEVLWYYEG LENHLVCTWI YVTEGAPRLV HLRVKDRIPQ NTDIYMVKFG EYWVRISKTQ
+     YTQEIKKLIK KSKKKLPSIE EEDSDKHGGP PKGPEPPTGP GHSSSESKEH EDSKESKEPK
+     EHGSPKETKE GEVTKKPGPA KEHKPSKIPV YTKRPEFPKK SKSPKRPESP KSPKRPVSPQ
+     RPVSPKSPKR PESLDIPKSP KRPESPKSPK RPVSPQRPVS PRRPESPKSP KSPKSPKSPK
+     VPFDPKFKEK LYDSYLDKAA KTKETVTLPP VLPTDESFTH TPIGEPTAEQ PDDIEPIEES
+     VFIKETGILT EEVKTEDIHS ETGEPEEPKR PDSPTKHSPK PTGTHPSMPK KRRRSDGLAL
+     STTDLESEAG RILRDPTGKI VTMKRSKSFD DLTTVREKEH MGAEIRKIVV DDDGTEADDE
+     DTHPSKEKHL STVRRRRPRP KKSSKSSKPR KPDSAFVPSI IFIFLVSLIV GIL
+//
+>>> = ?
+
+
+
+
+(*<<<
+<entry version="14" modified="2007-10-23" dataset="Swiss-Prot" created="2006-04-18">
+  <accession>Q4U9M9</accession>
+  <name>104K_THEAN</name>
+  <protein>
+    <name>104 kDa microneme/rhoptry antigen precursor</name>
+    <name>p104</name>
+  </protein>
+  <gene>
+    <name type="ORF">TA08425</name>
+  </gene>
+  <organism key="1">
+    <name type="scientific">Theileria annulata</name>
+    <dbReference type="NCBI Taxonomy" key="" id="5874"/>
+    <lineage>
+      <taxon>Eukaryota</taxon>
+      <taxon>Alveolata</taxon>
+      <taxon>Apicomplexa</taxon>
+      <taxon>Aconoidasida</taxon>
+      <taxon>Piroplasmida</taxon>
+      <taxon>Theileriidae</taxon>
+      <taxon>Theileria</taxon>
+    </lineage>
+  </organism>
+  <reference key="">
+    <citation volume="309" type="journal article" name="Science" last="133" first="131" date="2005">
+      <title>Genome of the host-cell transforming parasite Theileria annulata compared with T. parva.</title>
+      <authorList>
+        <person name="Pain A."/>
+        <person name="Renauld H."/>
+        <person name="Berriman M."/>
+        <person name="Murphy L."/>
+        <person name="Yeats C.A."/>
+        <person name="Weir W."/>
+        <person name="Kerhornou A."/>
+        <person name="Aslett M."/>
+        <person name="Bishop R."/>
+        <person name="Bouchier C."/>
+        <person name="Cochet M."/>
+        <person name="Coulson R.M.R."/>
+        <person name="Cronin A."/>
+        <person name="de Villiers E.P."/>
+        <person name="Fraser A."/>
+        <person name="Fosker N."/>
+        <person name="Gardner M."/>
+        <person name="Goble A."/>
+        <person name="Griffiths-Jones S."/>
+        <person name="Harris D.E."/>
+        <person name="Katzer F."/>
+        <person name="Larke N."/>
+        <person name="Lord A."/>
+        <person name="Maser P."/>
+        <person name="McKellar S."/>
+        <person name="Mooney P."/>
+        <person name="Morton F."/>
+        <person name="Nene V."/>
+        <person name="O'Neil S."/>
+        <person name="Price C."/>
+        <person name="Quail M.A."/>
+        <person name="Rabbinowitsch E."/>
+        <person name="Rawlings N.D."/>
+        <person name="Rutter S."/>
+        <person name="Saunders D."/>
+        <person name="Seeger K."/>
+        <person name="Shah T."/>
+        <person name="Squares R."/>
+        <person name="Squares S."/>
+        <person name="Tivey A."/>
+        <person name="Walker A.R."/>
+        <person name="Woodward J."/>
+        <person name="Dobbelaere D.A.E."/>
+        <person name="Langsley G."/>
+        <person name="Rajandream M.A."/>
+        <person name="McKeever D."/>
+        <person name="Shiels B."/>
+        <person name="Tait A."/>
+        <person name="Barrell B.G."/>
+        <person name="Hall N."/>
+      </authorList>
+      <dbReference type="DOI" key="1" id="10.1126/science.1110418"/>
+      <dbReference type="PubMed" key="1" id="15994557"/>
+    </citation>
+    <scope>NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA]</scope>
+    <source>
+      <strain>Ankara</strain>
+    </source>
+  </reference>
+  <comment type="subcellular location" status="By similarity">
+    <text>Cell membrane; Lipid-anchor, GPI-anchor (Potential). Note=In microneme/rhoptry complexes.</text>
+  </comment>
+  <dbReference type="EMBL" key="1" id="CR940353">
+    <property value="CAI76474.1" type="protein sequence ID"/>
+    <property value="Genomic_DNA" type="molecule type"/>
+  </dbReference>
+  <dbReference type="KEGG" key="1" id="tan:TA08425"/>
+  <dbReference type="InterPro" key="1" id="IPR007480">
+    <property value="DUF529" type="entry name"/>
+  </dbReference>
+  <dbReference type="Pfam" key="1" id="PF04385">
+    <property value="FAINT" type="entry name"/>
+    <property value="4" type="match status"/>
+  </dbReference>
+  <proteinExistence type="Inferred from homology"/>
+  <keyword id="KW-0181">Complete proteome</keyword>
+  <keyword id="KW-0325">Glycoprotein</keyword>
+  <keyword id="KW-0336">GPI-anchor</keyword>
+  <keyword id="KW-0449">Lipoprotein</keyword>
+  <keyword id="KW-0472">Membrane</keyword>
+  <keyword id="KW-0677">Repeat</keyword>
+  <keyword id="KW-0732">Signal</keyword>
+  <keyword id="KW-0748">Sporozoite</keyword>
+  <feature type="signal peptide" status="potential">
+    <location>
+      <begin position="1"/>
+      <end position="19"/>
+    </location>
+  </feature>
+  <feature type="chain" id="PRO_0000232680" description="104 kDa microneme/rhoptry antigen">
+    <location>
+      <begin position="20"/>
+      <end position="873"/>
+    </location>
+  </feature>
+  <feature type="propeptide" status="potential" id="PRO_0000232681" description="Removed in mature form">
+    <location>
+      <begin position="874"/>
+      <end position="893"/>
+    </location>
+  </feature>
+  <feature type="compositionally biased region" description="Poly-Leu">
+    <location>
+      <begin position="215"/>
+      <end position="220"/>
+    </location>
+  </feature>
+  <feature type="compositionally biased region" description="Lys-rich">
+    <location>
+      <begin position="486"/>
+      <end position="683"/>
+    </location>
+  </feature>
+  <feature type="compositionally biased region" description="Poly-Arg">
+    <location>
+      <begin position="854"/>
+      <end position="859"/>
+    </location>
+  </feature>
+  <feature type="lipid moiety-binding region" status="potential" description="GPI-anchor amidated aspartate">
+    <location>
+      <position position="873"/>
+    </location>
+  </feature>
+  <sequence version="1" modified="2005-07-05" mass="101921" length="893" checksum="2F67CEB3B02E7AC1">MKFLVLLFNILCLFPILGADELVMSPIPTTDVQPKVTFDINSEVSSGPLYLNPVEMAGVKYLQLQRQPGVQVHKVVEGDIVIWENEEMPLYTCAIVTQNEVPYMAYVELLEDPDLIFFLKEGDQWAPIPEDQYLARLQQLRQQIHTESFFSLNLSFQHENYKYEMVSSFQHSIKMVVFTPKNGHICKMVYDKNIRIFKALYNEYVTSVIGFFRGLKLLLLNIFVIDDRGMIGNKYFQLLDDKYAPISVQGYVATIPKLKDFAEPYHPIILDISDIDYVNFYLGDATYHDPGFKIVPKTPQCITKVVDGNEVIYESSNPSVECVYKVTYYDKKNESMLRLDLNHSPPSYTSYYAKREGVWVTSTYIDLEEKIEELQDHRSTELDVMFMSDKDLNVVPLTNGNLEYFMVTPKPHRDIIIVFDGSEVLWYYEGLENHLVCTWIYVTEGAPRLVHLRVKDRIPQNTDIYMVKFGEYWVRISKTQYTQEIKKLIKKSKKKLPSIEEEDSDKHGGPPKGPEPPTGPGHSSSESKEHEDSKESKEPKEHGSPKETKEGEVTKKPGPAKEHKPSKIPVYTKRPEFPKKSKSPKRPESPKSPKRPVSPQRPVSPKSPKRPESLDIPKSPKRPESPKSPKRPVSPQRPVSPRRPESPKSPKSPKSPKSPKVPFDPKFKEKLYDSYLDKAAKTKETVTLPPVLPTDESFTHTPIGEPTAEQPDDIEPIEESVFIKETGILTEEVKTEDIHSETGEPEEPKRPDSPTKHSPKPTGTHPSMPKKRRRSDGLALSTTDLESEAGRILRDPTGKIVTMKRSKSFDDLTTVREKEHMGAEIRKIVVDDDGTEADDEDTHPSKEKHLSTVRRRRPRPKKSSKSSKPRKPDSAFVPSIIFIFLVSLIVGIL</sequence>
+</entry>
+
+>>>
+	       *)
