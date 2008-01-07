@@ -33,7 +33,11 @@
        (boomcmd (concat "boomerang" " " "sync" " " lens " " 
                         archive " " source " " view
                         " " "-debug sync"))
-       ;; source and view buffers
+       ;; setup boomerang output buffer 
+       (boombuf (get-buffer-create "*boomerang output*"))
+       ;; run boomerang once, save exit code
+       (boomexit (boom-run boomcmd boombuf))
+       ;; setup source and view buffers
        (sourcebuf (find-file-noselect source t nil nil))
        (viewbuf (find-file-noselect view t nil nil))
        ;; function to run on save
@@ -41,15 +45,21 @@
                   (progn
                     (boom-save-buffer sourcebuf)
                     (boom-save-buffer viewbuf)
-                    (boom-run boomcmd sourcebuf viewbuf)))))
+                    (boom-refresh boomcmd boombuf sourcebuf viewbuf)))))
     ;; main body
-    (progn 
-      ;; setup source
-      (setup-win (selected-window) sourcebuf boom-go)
-      ;; setup view
-      (setup-win (split-window) viewbuf boom-go)
-      ;; do initial sync
-      (boom-run boomcmd sourcebuf viewbuf))))
+    (if (eq boomexit 0) 
+      (progn
+        ;; cleanup windows
+        (delete-other-windows)
+        ;; setup boomison output
+        (set-window-buffer (split-window (selected-window) (- (window-height) 5) nil) boombuf)
+        ;; setup source
+        (setup-win (selected-window) sourcebuf boom-go)
+        ;; setup view
+        (setup-win (split-window-horizontally) viewbuf boom-go))
+      (progn 
+        (switch-to-buffer boombuf)
+        (error "Error: boomerang exited with status %d" boomexit)))))
 
 (defun setup-win (win buf fun)
   (progn
@@ -65,31 +75,31 @@
 (defun boom-refresh-buffer (buf)
   (save-window-excursion
     (switch-to-buffer buf) 
+    (clear-visited-file-modtime)
     (erase-buffer)
     (insert-file-contents (buffer-file-name))
     (set-buffer-modified-p nil)))
 
-(defun boom-run (boomcmd sourcebuf viewbuf)
-  (lexical-let ((boombuf (get-buffer-create "*boomerang output*")))
+(defun boom-run (boomcmd boombuf)
+  (call-process
+   shell-file-name nil
+   (list boombuf t) nil
+   shell-command-switch boomcmd))
+
+(defun boom-refresh (boomcmd boombuf sourcebuf viewbuf)
     ;; clear boomerang buffer
     (save-window-excursion 
       (switch-to-buffer boombuf)
       (erase-buffer))
     ;; run boomerang
-    (if (eq (call-process 
-             shell-file-name nil 
-             (list boombuf t) nil 
-             shell-command-switch boomcmd)
-            1)
-      ;; if a conflict, show error buffer
+    (let ((boomexit (boom-run boomcmd boombuf)))
+      (if (eq boomexit 0)
+          ;; if no errors, refresh buffer
+          (let ((old-pnt (point)))            
+            (boom-refresh-buffer sourcebuf)
+            (boom-refresh-buffer viewbuf)
+            (goto-char old-pnt))
+      ;; otherwise, show boomerang buffer
       (progn
-        (switch-to-buffer-other-window boombuf)
-        (error "Boomerang produced a conflict!"))
-      ;; otherwise freshen source and view buffers
-      (progn
-        (let ((old-pnt (point)))
-          (boom-refresh-buffer sourcebuf)
-          (boom-refresh-buffer viewbuf)
-          (goto-char old-pnt))
-        (message "Created %s from %s." (buffer-file-name viewbuf) (buffer-file-name sourcebuf))
-        ))))
+        (switch-to-buffer boombuf)
+        (error "Error: boomerang exited with status %d" boomexit)))))

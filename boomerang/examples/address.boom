@@ -349,16 +349,17 @@ into samplevcards =
 (* -------------------------------------------------- *)
 (* Generic XML stuff *)
 
-(* 
 let element (tag:string) (body:lens) =
   del "<" . del tag . del ">" . 
   body . 
   del "</" . del tag . del ">" . ws
 
+
 let special =
     "&lt;" <-> "<"
   | "&gt;" <-> ">"
   | "&amp;" <-> "&"
+
 
 (* Parses and unquotes pcdata, including all whitespace *)
 let pcdata =
@@ -373,7 +374,7 @@ let PCDATA =
 (* -------------------------------------------------- *)
 (* BCP's strange personal variant of XCard *)
 
-let name : ? <-> GlobalName =
+let name (* : ? <-> GlobalName *) = 
   let n = pcdata ; formatname in
     n
   | (ws . element "family" n . ("" | ins ", " . element "given" n))
@@ -436,7 +437,6 @@ Doe, Sally, 792-8134 (h), 732-4684 (h), hello\, world ! Question : nice wheather
 >>>             
 
 (* test xcard get (read "/home/bcpierce/current/z/addresses.txt") = ? *)
-*)
 
 (* TO DO:
 
