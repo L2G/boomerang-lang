@@ -82,7 +82,7 @@ let formatname =
     escstr [,]
   ; Name . del TelMarker*
 
-let name (* : ? <-> GlobalName *) = 
+let name : ? <-> GlobalName = 
   let escName = unescstr [,;:]; formatname in
   let escNonEmptyName (* : ? <-> Name *) =
       unescNonEmptyStr [,;:] 
@@ -94,28 +94,24 @@ let name (* : ? <-> GlobalName *) =
   familyname . (del ";" | ";" <-> ", " . escNonEmptyName ) . del ";;;" 
 
 test name get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
-
 let formattel = escstr [,]
 
-let tel' (w1:string) (w2:string) =
-  "TEL;" <-> ", " . 
+let field' (w0:string) (w1:string) (w2:string) =
+  (w0 . ";") <-> ", " . 
   del "type=" . del w1 .
+  del (";" . "type=" . [A-Z]+)* . 
   ("" | del ";type=pref") .
   del ":" . 
   (unescstr [;,:]; formattel) .
   ins " (" . ins w2 . ins ")" .
   del NL
 
-let CTel = "TEL;type=" .
-           ("WORK" | "HOME" | "CELL" | "EMAIL") . ";type=pref"? . ":" .
-           (EscapedStr [,]) .
-           NL
+let tel' = field' "TEL"
 
 let tel =
     tel' "WORK" "w"
   | tel' "HOME" "h"
   | tel' "CELL" "c"
-  | tel' "EMAIL" "e"
 
 let formatnote = escstr [,]
 
@@ -132,7 +128,9 @@ let abemail =
   del "item.X-ABLabel:E-mail" . del NL .
   ins " (e)" 
 
-let entry = abemail | tel | note
+let email = field' "EMAIL" "INTERNET" "e"
+
+let entry =  abemail | email | tel | note
 
 let ItemLine = "item" . NonNL . NL
 let Line = [^ ] . NonNL . NL . (" " . NonNL . NL)*
@@ -147,7 +145,7 @@ let NumberedItem (n:string) =
 let Field_unnumbered =
   Field - (NumberedItem "1" | NumberedItem "2" | NumberedItem "3")
 
-let remove_item_numbers (* : ? <-> Field_unnumbered* *) =
+let remove_item_numbers : ? <-> Field_unnumbered* =
   let delItemNumber (n:string) = "item" . del n . "." . NonNL . NL .
                                  "item" . del n . "." . NonNL . NL in
   let Stuff = Field - ("item" . NonNL . NL . "item" . NonNL . NL) in
@@ -162,7 +160,7 @@ let remove_item_numbers (* : ? <-> Field_unnumbered* *) =
     Field_unnumbered* 
   | Field_unnumbered* 
 
-let chunk (* : ? <-> AbsAddr *) =
+let chunk : ? <-> AbsAddr =
   del "BEGIN:VCARD" . del NL . del "VERSION:3.0" . del NL .  
   (name; key (atype name)) . del NL .
   (remove_item_numbers ;
@@ -184,10 +182,6 @@ let samplevcard =
     END:VCARD
     
   >>>
-
-let vcardnl = vcard . ins "\n"
-
-(* let stvcard = <|vcardnl *|> *)
 
 test vcard create "Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)" = 
 <<<
@@ -374,7 +368,7 @@ let PCDATA =
 (* -------------------------------------------------- *)
 (* BCP's strange personal variant of XCard *)
 
-let name (* : ? <-> GlobalName *) = 
+let name : ? <-> GlobalName = 
   let n = pcdata ; formatname in
     n
   | (ws . element "family" n . ("" | ins ", " . element "given" n))

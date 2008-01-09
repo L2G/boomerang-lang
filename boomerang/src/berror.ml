@@ -60,3 +60,10 @@ let split_error i t pos nf =
     Util.format "@[%s: type error in@\n" (Info.string_of_t i);
     Util.format "  Cannot find any string in @\nT=@[%s@]@\n@\n" t;
     Util.format "  in the %s file at posistion %d@]" nf pos;))
+
+let sort_error i msg_thk = 
+  raise (Error.Harmony_error
+           (fun () -> 
+              Util.format "@[%s: Sort checking error@\n" (Info.string_of_t i);
+              msg_thk ();
+              Util.format "@]"))

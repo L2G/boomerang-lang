@@ -21,8 +21,6 @@
 
 val test_all : bool Prefs.t
 
-val sort_error : Info.t -> (unit -> unit) -> unit
-
 val check_module: Bsyntax.modl -> Bsyntax.modl
 
 val compile_module: Bsyntax.modl -> unit

@@ -20,6 +20,7 @@
 (*******************************************************************************)
 
 open Bsyntax
+open Berror
 module RS = Bstring
 module R = Bregexp
 module L = Blenses.DLens
@@ -65,13 +66,6 @@ let no_assert = Prefs.createBool "no-assert" false
 (* --------------- Error Reporting --------------- *)
 let debug s_thk = 
   Trace.debug "compiler" (fun () -> Util.format "@[%s@\n%!@]" (s_thk ()))
-
-let sort_error i msg_thk = 
-  raise (Error.Harmony_error
-           (fun () -> 
-              Util.format "@[%s: Sort checking error@\n" (Info.string_of_t i);
-              msg_thk ();
-              Util.format "@]"))
 
 let test_error i msg_thk = 
   raise (Error.Harmony_error

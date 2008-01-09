@@ -26,3 +26,6 @@ val static_error : Info.t -> string -> ?suppl:(unit->unit) -> string -> 'a
 val type_error : Info.t -> string -> string -> Bstring.t * Bstring.t * bool -> 'a
 
 val split_error : Info.t -> string -> int -> string -> 'a
+
+val sort_error : Info.t -> (unit -> unit) -> 'a
+

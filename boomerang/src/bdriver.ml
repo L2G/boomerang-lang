@@ -35,7 +35,7 @@ let m_check n m_str ast=
   if n = m_str then ()
   else
     let m_low = String.uncapitalize m_str in 
-    sort_error 
+    Berror.sort_error 
       (info_of_module ast)
       (fun () -> 
          Util.format "@[module %s must appear in a file named %s.src or %s.boom.@]"

@@ -332,7 +332,27 @@ and t =
       uid: uid
     }
 
+let assert_lens_type i l co ao = 
+  if not (Prefs.read no_check) then 
+    begin 
+      let check_rx s = function
+        | None -> true
+        | Some r -> R.equiv r s in     
+        if not ((check_rx l.ctype co) && (check_rx l.atype ao)) then 
+          Berror.sort_error i 
+            (fun () -> 
+               Util.format "expected @[<2>%s <-> %s@]@ but@ found @[<2>%s <-> %s@]"
+                 (match co with None -> "?" | Some c -> R.string_of_t c)
+                 (match ao with None -> "?" | Some a -> R.string_of_t a)
+                 (R.string_of_t l.ctype)
+                 (R.string_of_t l.atype))
+    end;
+  l
 
+let assert_lens_ctype i l c = assert_lens_type i l (Some c) None
+
+let assert_lens_atype i l a = assert_lens_type i l None (Some a)
+   
 (* lookup function in dictionnaries of both type *)
 let rec lookup tag k = function 
   | CDict CD_empty -> None 

@@ -348,11 +348,15 @@ Next Steps
 
 In the boomerang/examples directory, you can find some of the other
 Boomerang programs we have written:
-  
-  demo.boom   : a collection of simple unit tests
-  addr.boom   : vCard and CSV address books
-  bibtex.boom : BiBTeX and RIS-formatted bibliographies
-  coqSrc.boom : Coq teaching files with/without solutions 
+
+  demo.boom    : a simple demo, similar to composers lens
+  addr.boom    : vCard and CSV address books
+  bibtex.boom  : BiBTeX and RIS-formatted bibliographies
+  coqSrc.boom  : Coq teaching files with/without solutions 
+  uniprot.boom : UniProtKB / SwissProt lens
+  units.boom   : unit tests
+  boomison.el  : an Emacs mode for running Boomerang on a source and view  
+               : try it out by typing M-x boomison
 
 We will continue adding to this set of examples as we tidy and package our
 code... and we hope you'll write and let us know about the lenses

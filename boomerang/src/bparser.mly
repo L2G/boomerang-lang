@@ -134,6 +134,13 @@ decls:
         let so = mk_fun_sorto i $3 $4 in 
         DLet(i,Bind(i,$2,so,f))::$7 }
 
+  | LET IDENT param_list COLON precise_lens_type EQUAL exp decls
+      { let i = me2 $1 $7 in 
+        let f = mk_fun i $3 $7 in 
+        let so = mk_fun_sorto i $3 (Some SLens) in 
+        let e = $5 $4 f in 
+        DLet(i,Bind(i,$2,so,e))::$8 }
+
   | MODULE IDENT EQUAL decls END decls 
       { DMod(m $1 $5,$2,$4)::$6 }
 
@@ -166,6 +173,13 @@ exp:
         let f = mk_fun i $3 $6 in 
         let so = mk_fun_sorto i $3 $4 in 
         ELet(i,Bind(i,$2,so,f),$8) }
+
+  | LET IDENT param_list COLON precise_lens_type EQUAL exp IN exp
+      { let i = m $1 $8 in 
+        let f = mk_fun i $3 $7 in 
+        let so = mk_fun_sorto i $3 (Some SLens) in 
+        let e = $5 $4 f in 
+        ELet(i,Bind(i,$2,so,e),$9) }
 
   | FUN param param_list ARROW exp
       { let i = me2 $1 $5 in 
@@ -330,6 +344,21 @@ sort_spec:
 
    | qmark_or_exp DARROW qmark_or_exp
        { TestLensType ($1,$3) }
+
+precise_lens_type:
+   | qmark_or_exp DARROW qmark_or_exp 
+       { match $1,$3 with 
+           | None,None -> (fun i e -> e)
+           | Some c,None -> 
+               (fun i e -> 
+                  EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_ctype"),c),e))
+           | None,Some a -> 
+               (fun i e -> 
+                  EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_atype"),a),e))
+           | Some c, Some a -> 
+               (fun i e -> 
+                  EApp(i,EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert"),c),a),e))
+       }
 
 qmark_or_exp:
    | QMARK      

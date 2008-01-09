@@ -129,6 +129,25 @@ let prelude_spec =
      mk_lfun (Info.M "atype built-in") (fun i cl ->
        R(i, L.atype cl)))
 
+  ; (mk_prelude_qid "assert",
+     SRegexp ^> SRegexp ^> SLens ^> SLens,
+     mk_rfun (Info.M "assert built-in") (fun i c -> 
+       mk_rfun i (fun i a -> 
+         mk_lfun i (fun i l -> 
+           L(i,L.assert_lens_type i l (Some c) (Some a))))))
+
+  ; (mk_prelude_qid "assert_ctype",
+     SRegexp ^> SLens ^> SLens,
+     mk_rfun (Info.M "assert_ctype built-in") (fun i c -> 
+       mk_lfun i (fun i l -> 
+           L(i,L.assert_lens_ctype i l c))))
+
+  ; (mk_prelude_qid "assert_atype",
+     SRegexp ^> SLens ^> SLens,
+     mk_rfun (Info.M "assert_atype built-in") (fun i a -> 
+       mk_lfun i (fun i l -> 
+           L(i,L.assert_lens_atype i l a))))
+
   ; (mk_prelude_qid "determinize",
      SLens ^> SLens,
      mk_lfun (Info.M "determinize built-in") (fun i cl ->
