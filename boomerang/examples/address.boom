@@ -19,11 +19,13 @@ let filterwith (both: regexp) (l: lens) =
 (* -------------------------------------------------------------------- *)
 
 let Any = [^]*
+let AnyP = [^]+
 
 let WS = [ \n\t]*
 let ws = del WS
 
 let StringNotContaining (r:regexp) : regexp = Any - (Any . r . Any)
+let NonEmptyStringNotContaining (r:regexp) : regexp = AnyP - (Any . r. Any)
 
 (* -------------------------------------------------------------------- *)
 
@@ -31,6 +33,14 @@ let EscapedStr (R:regexp) : regexp =
   let Normal = StringNotContaining ([\n\\\r] | R) in
   let Esc = "\\" . ([\\n] | R) in
   Normal . (Esc . Normal)* 
+
+let NonEmptyEscapedStr (R:regexp) : regexp = 
+  let NonEmptyNormal = NonEmptyStringNotContaining ([\n\\\r] | R) in 
+  let Normal = StringNotContaining ([\n\\\r] | R) in 
+  let Esc = "\\" . ([\\n] | R) in 
+    NonEmptyNormal . (Esc . Normal)*
+  | (Esc . Normal)+
+  
 
 let escchar (c:regexp) =
   (ins "\\" . (c | "\\")) | "\n" <-> "\\n" | ([^\\\n\r] - c)
@@ -63,7 +73,8 @@ test (escchar [,])* get "a,b" = "a\\,b"
 let TelTags = [hwce] | "note"
 let TelMarker = " (" . TelTags . ")"
 
-let Name = (EscapedStr [,]) - ( Any . TelMarker )
+let Name = (NonEmptyEscapedStr [,]) - ( Any . TelMarker )
+
 let NonEmptyName = Name - ""
 let Family = Name
 let Given = Name
@@ -79,8 +90,29 @@ let NonNL = StringNotContaining [\n\r]
 let Names = Name . ("" | ", " . Name)
 
 let formatname =
-    escstr [,]
-  ; Name . del TelMarker*
+  (escstr [,] . 
+     ( "n"
+     | [^)n,\n\r\\] 
+     | [^,\n\r\\] . "n"
+     | "\\," | "\\\\"
+     | [^hwce,\n\r\\] . ")" 
+     | [^(,\n\r\\] . [hwc] . ")" 
+     | [^ ,\n\r\\] . "(" . [hwce] .")" 
+     | [^t(,\n\r\\] . "e)" 
+     | [^o,\n\r\\] . "te)" 
+     | [^n,\n\r\\] . "ote)" 
+     | [^(,\n\r\\] . "note)" 
+     | [^ ,\n\r\\] . "(note)" 
+     | "\\,)" | "\\,n" | "\\\\)" | "\\n" )
+   | "n" 
+   | ")" 
+   | [hwce] . ")" 
+   | "te)" 
+   | "ote)"
+   | "note)"
+   | "(note)" 
+   | "(" . [hwce] . ")" )
+  ; Name 
 
 let name : ? <-> GlobalName = 
   let escName = unescstr [,;:]; formatname in
@@ -343,11 +375,18 @@ into samplevcards =
 (* -------------------------------------------------- *)
 (* Generic XML stuff *)
 
-let element (tag:string) (body:lens) =
+let nl0 = ""
+let nl1 = "\n  "
+let nl2 = "\n    "
+let nl3 = "\n      "
+let nl4 = "\n        "
+
+let element (spaces:string) (tag:string) (body:lens) =
+  (default ws spaces) . 
   del "<" . del tag . del ">" . 
   body . 
-  del "</" . del tag . del ">" . ws
-
+  (default ws spaces) . 
+  del "</" . del tag . del ">"
 
 let special =
     "&lt;" <-> "<"
@@ -358,23 +397,21 @@ let special =
 (* Parses and unquotes pcdata, including all whitespace *)
 let pcdata =
   let R = [&<>\r] in 
+  let NonEmptyNormal = NonEmptyStringNotContaining R in   
   let Normal = StringNotContaining R in 
-  Normal . (special . Normal)*
-
-let PCDATA = 
-  let R = [<>\r] in 
-  StringNotContaining R
+  ( NonEmptyNormal . (special . Normal)*
+  | (special . Normal)+ )
 
 (* -------------------------------------------------- *)
 (* BCP's strange personal variant of XCard *)
 
 let name : ? <-> GlobalName = 
-  let n = pcdata ; formatname in
+  let n = pcdata; formatname in
     n
-  | (ws . element "family" n . ("" | ins ", " . element "given" n))
+  | (element nl3 "family" n . ("" | ins ", " . element nl3 "given" n))
 
 let tel' (full:string) (short:string) = 
-  ins ", " . element full (pcdata; formattel . ins (" (" . short . ")"))
+  ins ", " . element nl3 full (pcdata; formattel . ins (" (" . short . ")"))
 
 let tel = 
     tel' "tel-home" "h"
@@ -384,9 +421,8 @@ let tel =
   | tel' "note"     "note"
 
 let chunk = 
-  element "vcard" 
-    (ws .
-     element "n" (name; (key (atype name))) . 
+  element nl1 "vcard" 
+    (element nl2 "n" (name; (key (atype name))) . 
      tel* )
 
 let foo = 
@@ -394,41 +430,37 @@ let foo =
       <n><family>foo</family><given>bar</given></n>
       <tel-home>12345</tel-home>
       <tel-cell>12345</tel-cell>
-      <note>hello world</note>
-   </vcard>"
+      <note>hello world</note></vcard>"
 
 let vcard = <chunk>
 
 test vcard get foo = "foo, bar, 12345 (h), 12345 (c), hello world (note)"
 
-let xcard = ws . element "xcard" (ws . (vcard . ins "\n") * )
+let xcard = element nl0 "xcard" ((vcard . ins "\n") * )
 
 let samplexcards = 
      "<xcard>
      | <vcard>
      |   <n>Charles Addams</n>
-     |   <note>goodbye world</note>
-     | </vcard>
+     |   <note>goodbye world</note></vcard>
      | <vcard>
      |   <n><family>Doe</family><given>John</given></n>
      |   <note>hello world</note>
      |   <tel-home>792-8134</tel-home>
-     |   <tel-home>732-4684</tel-home>
-     | </vcard>
+     |   <tel-home>732-4684</tel-home></vcard>
      | <vcard>
      |   <n><family>Doe</family><given>Sally</given></n>
      |   <tel-home>792-8134</tel-home>
      |   <tel-home>732-4684</tel-home>
-     |   <note>hello, world ! Question : nice wheather ? (no ?)</note>
-     | </vcard>
-     |</xcard>
-     |"
+     |   <note>hello, world ! Question : nice wheather ? (no ?)</note></vcard></xcard>"
 
 test xcard get samplexcards =
 <<<Charles Addams, goodbye world (note)
 Doe, John, hello world (note), 792-8134 (h), 732-4684 (h)
 Doe, Sally, 792-8134 (h), 732-4684 (h), hello\, world ! Question : nice wheather ? (no ?) (note)
 >>>             
+
+test xcard create "Foster, Nate, 267.342.1099 (h)\n" = ?
 
 (* test xcard get (read "/home/bcpierce/current/z/addresses.txt") = ? *)
 
