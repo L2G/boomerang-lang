@@ -31,28 +31,27 @@ let NonEmptyStringNotContaining (r:regexp) : regexp = AnyP - (Any . r. Any)
 
 let EscapedStr (R:regexp) : regexp =
   let Normal = StringNotContaining ([\n\\\r] | R) in
-  let Esc = "\\" . ([\\n] | R) in
+  let Esc = "\\" . ([\\nr] | R) in
   Normal . (Esc . Normal)* 
 
 let NonEmptyEscapedStr (R:regexp) : regexp = 
   let NonEmptyNormal = NonEmptyStringNotContaining ([\n\\\r] | R) in 
   let Normal = StringNotContaining ([\n\\\r] | R) in 
-  let Esc = "\\" . ([\\n] | R) in 
+  let Esc = "\\" . ([\\nr] | R) in 
     NonEmptyNormal . (Esc . Normal)*
   | (Esc . Normal)+
   
 
 let escchar (c:regexp) =
-  (ins "\\" . (c | "\\")) | "\n" <-> "\\n" | ([^\\\n\r] - c)
+  (ins "\\" . (c | "\\")) | "\n" <-> "\\n" | "\r" <-> "\\r" | ([^\\\n\r] - c)
 let unescchar (c:regexp) = 
-  (del "\\" . (c | "\\")) | "\\n" <-> "\n" | ([^\\\n\r] - c)
+  (del "\\" . (c | "\\")) | "\\n" <-> "\n" | "\\r" <-> "\r" | ([^\\\n\r] - c)
 
-let escstr (c:regexp) =  (* BETTER : ? <-> (EscapedStr c) *)
-  let r = EscapedStr c in
+let escstr (c:regexp) = (* BETTER : ? <-> (EscapedStr c) *)
+  (*let r = EscapedStr c in*)
   let l = escchar c in
-  let l' (* : ? <-> r *) =  (* FIX: ? <-> (EscapedStr c) *)
-    l* in
-  l'
+    assert_atype (EscapedStr c) (l*)
+
 let unescstr (c:regexp) = (unescchar c)*
 
 let escNonEmptyStr (c:regexp) = (escchar c)+
@@ -90,6 +89,31 @@ let NonNL = StringNotContaining [\n\r]
 let Names = Name . ("" | ", " . Name)
 
 let formatname =
+  (* illegal characters *)
+  let ic (r:regexp) = 
+    ([^,\n\r\\] - r) | "\\" <-> "\\\\" | "," <-> "\\," | "\n" <-> "\\n" | "\r" <-> "\\r"  in
+  (( escstr [,] . 
+      ( (ic ")")
+      | (ic [hwce]) . ")"
+      | (ic ("t" | "(")) . "e)"
+      | (ic "(") . [hwc] . ")"
+      | (ic " ") . ("(" . [hwce] . ")")
+      | (ic "o") . "te)"
+      | (ic "n") . "ote)"
+      | (ic "(") . "note)"
+      | (ic " ") . "(note)"
+(*      | ((ins "\\" . ([,] | "\\")) | "\n" <-> "\\n" | "\r" <-> "\\r" ) *)
+      ))
+   | ")" 
+   | [hwce] . ")" 
+   | "te)" 
+   | "ote)"
+   | "note)"
+   | "(note)" 
+   | "(" . [hwce] . ")" )
+ ; Name
+
+ (*
   (escstr [,] . 
      ( "n"
      | [^)n,\n\r\\] 
@@ -112,7 +136,9 @@ let formatname =
    | "note)"
    | "(note)" 
    | "(" . [hwce] . ")" )
-  ; Name 
+  ; Name *)
+
+
 
 let name : ? <-> GlobalName = 
   let escName = unescstr [,;:]; formatname in
@@ -405,10 +431,11 @@ let pcdata =
 (* -------------------------------------------------- *)
 (* BCP's strange personal variant of XCard *)
 
-let name : ? <-> GlobalName = 
-  let n = pcdata; formatname in
+let name : lens = 
+  assert_atype GlobalName
+  (let n = pcdata; formatname in
     n
-  | (element nl3 "family" n . ("" | ins ", " . element nl3 "given" n))
+  | (element nl3 "family" n . ("" | ins ", " . element nl3 "given" n)))
 
 let tel' (full:string) (short:string) = 
   ins ", " . element nl3 full (pcdata; formattel . ins (" (" . short . ")"))
