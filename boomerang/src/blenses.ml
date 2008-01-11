@@ -333,6 +333,7 @@ and t =
     }
 
 let assert_lens_type i l co ao = 
+	(* shouldn'd be no-assert ? *)
   if not (Prefs.read no_check) then 
     begin 
       let check_rx s = function
