@@ -150,7 +150,7 @@ let sync l o_fn c_fn a_fn =
         let a' = get_str l c in 
         if BS.equal a a' then 
           begin
-            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s" l o_fn c_fn);
+            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
             write_string o_fn c;
             0
           end
@@ -171,7 +171,7 @@ let sync l o_fn c_fn a_fn =
         let a' = get_str l c in 
         if BS.equal a a' then 
           begin 
-            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s" l o_fn c_fn);
+            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
             write_string o_fn c;
             0
           end
@@ -197,6 +197,17 @@ let sync l o_fn c_fn a_fn =
                 debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
                 1
               end
+              
+let refresh p_fn l o_fn c_fn a_fn = 
+  let go () = Util.format "%d\n%!" (sync l o_fn c_fn a_fn) in 
+  go ();
+  while true do 
+    let ch = open_in p_fn in 
+    let _ = input_line ch in 
+    let _ = close_in ch in 
+    go () 
+  done;
+    0
 
 let rest = Prefs.createStringList "rest" "*no docs needed" ""
 
@@ -319,21 +330,17 @@ let toplevel' progName () =
          | ["sync"; o_fn; c_fn; a_fn],[l],[],[],"" -> 
              (* *)
              ["sync"],[l],[c_fn],[a_fn],o_fn
-         | _ -> 
-             Util.format "FOUND: [%s],[%s],[%s][%s],%s@\n"
-               (Misc.concat_list "," rest_pref)
-               (Misc.concat_list "," ll)
-               (Misc.concat_list "," cl)
-               (Misc.concat_list "," al)
-               o;
-             bad_cmdline () in 
+         | ["refresh"; p; l; o_fn; c_fn; a_fn],[],[],[],"" -> 
+             ["refresh"],[p;l],[c_fn],[a_fn],o_fn 
+         | _ -> bad_cmdline () in 
        let o_fn = if o="" then "-" else o in 
        match rest_pref,ll,cl,al with
-         | [prf],[],[],[]             -> sync_profile prf
-         | ["get"],[l],[c_fn],[]      -> get l c_fn o_fn
-         | ["create"],[l],[],[a_fn]   -> create l a_fn o_fn
-         | ["put"],[l],[c_fn],[a_fn]  -> put l a_fn c_fn o_fn
-         | ["sync"],[l],[c_fn],[a_fn] -> sync l o_fn c_fn a_fn
+         | [prf],[],[],[]               -> sync_profile prf
+         | ["get"],[l],[c_fn],[]        -> get l c_fn o_fn
+         | ["create"],[l],[],[a_fn]     -> create l a_fn o_fn
+         | ["put"],[l],[c_fn],[a_fn]    -> put l a_fn c_fn o_fn
+         | ["sync"],[l],[c_fn],[a_fn]   -> sync l o_fn c_fn a_fn
+         | ["refresh"],[p_fn;l],[c_fn],[a_fn] -> refresh p_fn l o_fn c_fn a_fn
          | _ -> assert false
      end)
     (fun () -> Util.flush ())
