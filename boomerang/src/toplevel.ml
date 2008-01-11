@@ -205,7 +205,8 @@ let refresh p_fn l o_fn c_fn a_fn =
     let ch = open_in p_fn in 
     let _ = input_line ch in 
     let _ = close_in ch in 
-    go () 
+    try go ()
+    with Error.Harmony_error (err) -> err ()
   done;
     0
 

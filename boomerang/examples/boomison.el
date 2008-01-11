@@ -23,20 +23,16 @@
 (require 'cl)
 
 ;; main function
-(defun boomison (source view lens)
-  "Create a VIEW of SOURCE using LENS"
-  (interactive "FSource: \nFView: \nsLens: ")
+(defun boomison (source view)
+  "Create a VIEW of SOURCE"
+  (interactive "FSource: \nFView: ")
   (lexical-let* 
       (;; synchronization archive
        (archive (make-temp-name source))
-       ;; boomerang command-line invocation
-       (boomcmd (concat "boomerang" " " "sync" " " lens " " 
-                        archive " " source " " view
-                        " " "-debug sync"))
        ;; setup boomerang output buffer 
        (boombuf (get-buffer-create "*boomerang output*"))
        ;; run boomerang once, save exit code
-       (boomexit (boom-run boomcmd boombuf))
+       (boomexit (boom-run boombuf))
        ;; setup source and view buffers
        (sourcebuf (find-file-noselect source t nil nil))
        (viewbuf (find-file-noselect view t nil nil))
@@ -45,7 +41,7 @@
                   (progn
                     (boom-save-buffer sourcebuf)
                     (boom-save-buffer viewbuf)
-                    (boom-refresh boomcmd boombuf sourcebuf viewbuf)))))
+                    (boom-refresh boombuf sourcebuf viewbuf)))))
     ;; main body
     (if (eq boomexit 0) 
       (progn
@@ -80,19 +76,21 @@
     (insert-file-contents (buffer-file-name))
     (set-buffer-modified-p nil)))
 
-(defun boom-run (boomcmd boombuf)
-  (call-process
-   shell-file-name nil
-   (list boombuf t) nil
-   shell-command-switch boomcmd))
+(defun boom-run (boombuf)
+  (progn
+    (call-process "boom-write")
+    (call-process
+     shell-file-name nil
+     (list boombuf t) nil
+     shell-command-switch "boom-read")))
 
-(defun boom-refresh (boomcmd boombuf sourcebuf viewbuf)
+(defun boom-refresh (boombuf sourcebuf viewbuf)
     ;; clear boomerang buffer
     (save-window-excursion 
       (switch-to-buffer boombuf)
       (erase-buffer))
     ;; run boomerang
-    (let ((boomexit (boom-run boomcmd boombuf)))
+    (let ((boomexit (boom-run boombuf)))
       (if (eq boomexit 0)
           ;; if no errors, refresh buffer
           (let ((old-pnt (point)))            
