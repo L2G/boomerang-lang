@@ -391,7 +391,7 @@ into samplevcards =
 (* -------------------------------------------------- *)
 (* Generic XML stuff *)
 
-let nl0 = ""
+let nl0 = "\n"
 let nl1 = nl0 . "  "
 let nl2 = nl1 . "  "
 let nl3 = nl2 . "  "
@@ -399,30 +399,31 @@ let nl4 = nl3 . "  "
 
 let del_xml_nl_var (def:string) = default ((del WS . del "\n") | "") def
 
-let del_xml_nl = del_xml_nl_var "\n"
+let del_xml_nl (def:string) = del_xml_nl_var (def . "\n")
 
 let single_line_elt (spaces:string) (tag:string) (body:lens) = 
-  default (del " "*) spaces .
+  default (del WS) spaces .
   del ("<" . tag . ">") . body . 
-  del ("</" . tag .">") . del_xml_nl
+  del ("</" . tag .">") 
 
 (* the body deal with its newlines at its end *)
 
 let multi_line_elt_no_nl (spaces:string) (tag:string) (body:lens) = 
-  default (del " "*) spaces .
-  del ("<" . tag . ">") . del_xml_nl .
-  body .
+  del ("<" . tag . ">") .
+  body . 
+  default (del WS) spaces . 
   del ("</" . tag .">") 
 
 let multi_line_elt  (spaces:string) (tag:string) (body:lens) = 
-  (multi_line_elt_no_nl spaces tag body) . del_xml_nl
+  default (del WS) spaces .
+  (multi_line_elt_no_nl spaces tag body) 
 
 let special = 
   ( "&lt;" <-> "<" 
   | "&gt;" <-> ">" 
   | "&amp;" <-> "&")    
-let R = [&<>]  
-let Normal = StringNotContaining R  
+let R = [&<>]
+let Normal = StringNotContaining R
 let unescpcdata = Normal . (special . Normal)*  
   
 let gene_pcdata = gene_esc [^] (fun (c:regexp) -> unescpcdata) [] [] []
@@ -434,13 +435,13 @@ let pcdata = unescpcdata
 
 let name : lens = 
   let n = gene_pcdata; formatnotemptyname in 
-  ( single_line_elt nl3 "n" n
-  | (multi_line_elt nl3 "n" 
+  ( single_line_elt nl2 "n" n
+  | (multi_line_elt nl2 "n" 
        (single_line_elt nl3 "family" n . 
           ("" | ins ", " . single_line_elt nl3 "given" n))))
 
 let tel' (full:string) (short:string) = 
-  ins ", " . single_line_elt nl3 full (pcdata ; formattel . ins (" (" . short . ")"))
+  ins ", " . single_line_elt nl2 full (pcdata ; formattel . ins (" (" . short . ")"))
 
 let tel = 
     tel' "tel-home" "h"
@@ -449,8 +450,7 @@ let tel =
   | tel' "email"    "e"
   | tel' "note"     "note"
 
-let chunk = 
-  multi_line_elt nl1 "vcard" ((name; key (atype name)) . tel* . del [ \t]* )
+let chunk = multi_line_elt nl1 "vcard" ((name; key (atype name)) . tel* )
 
 let foo = 
   "<vcard>
@@ -480,17 +480,28 @@ let samplexcards =
      |   <n><family>Doe</family><given>Sally</given></n>
      |   <tel-home>792-8134</tel-home>
      |   <tel-home>732-4684</tel-home>
-     |   <note>hello, world ! Question : nice wheather ? (no ?)</note></vcard></xcard>"
+     |   <note>hello, world ! Question : nice weather ? (no ?)</note>
+     | </vcard>
+     |</xcard>"
 
 test xcard get samplexcards =
 <<<Charles Addams, goodbye world (note)
 Doe, John, hello world (note), 792-8134 (h), 732-4684 (h)
-Doe, Sally, 792-8134 (h), 732-4684 (h), hello\, world ! Question : nice wheather ? (no ?) (note)
+Doe, Sally, 792-8134 (h), 732-4684 (h), hello\, world ! Question : nice weather ? (no ?) (note)
 >>>             
 
-test xcard create "Foster, Nate, 267.342.1099 (h)\n" = ?
-
-(* test xcard get (read "/home/bcpierce/current/z/addresses.txt") = ? *)
+test xcard create "Foster, Nate, 267.342.1099 (h)\n" = 
+<<<
+<xcard>
+  <vcard>
+    <n>
+      <family>Foster</family>
+      <given>Nate</given>
+    </n>
+    <tel-home>267.342.1099</tel-home>
+  </vcard>
+</xcard>
+>>>
 
 (* TO DO:
 
