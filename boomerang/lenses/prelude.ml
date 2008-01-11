@@ -54,7 +54,7 @@ let prelude_spec =
 
   ; (mk_prelude_qid "qconst",
     SRegexp ^> SRegexp ^> SString ^> SString ^> SLens,
-    mk_rfun (Info.M "const built-in") (fun i r1 -> 
+    mk_rfun (Info.M "qconst built-in") (fun i r1 -> 
       mk_rfun i (fun i r2 ->
         mk_sfun i (fun i s1 -> 
           mk_sfun i (fun i s2 -> 

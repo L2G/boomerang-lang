@@ -40,17 +40,22 @@ let NonEmptyEscapedStr (R:regexp) : regexp =
   let Esc = "\\" . ([\\nr] | R) in 
     NonEmptyNormal . (Esc . Normal)*
   | (Esc . Normal)+
-  
 
-let escchar (c:regexp) =
-  (ins "\\" . (c | "\\")) | "\n" <-> "\\n" | "\r" <-> "\\r" | ([^\\\n\r] - c)
+
+let escchar (c:regexp) = 
+  ( (ins "\\" . (c | "\\"))
+  | ("\n" <-> "\\n" | "\r" <-> "\\r")
+  | ([^\n\r\\] - c))
+
 let unescchar (c:regexp) = 
-  (del "\\" . (c | "\\")) | "\\n" <-> "\n" | "\\r" <-> "\r" | ([^\\\n\r] - c)
+  ( (del "\\" . (c | "\\")) 
+  | ("\\n" <-> "\n" | "\\r" <-> "\r")
+  | ([^\n\r\\] - c))
 
 let escstr (c:regexp) = (* BETTER : ? <-> (EscapedStr c) *)
   (*let r = EscapedStr c in*)
   let l = escchar c in
-    assert_atype (EscapedStr c) (l*)
+  assert_atype (EscapedStr c) (l*)
 
 let unescstr (c:regexp) = (unescchar c)*
 
@@ -75,8 +80,8 @@ let TelMarker = " (" . TelTags . ")"
 let Name = (NonEmptyEscapedStr [,]) - ( Any . TelMarker )
 
 let NonEmptyName = Name - ""
-let Family = Name
-let Given = Name
+let Family = NonEmptyName
+let Given = NonEmptyName
 let GlobalName = Family . (", " . Given)?
   
 let Tel = ", " . (EscapedStr [,]) . TelMarker
@@ -86,69 +91,54 @@ let AbsAddr = GlobalName . Tel*
 let NL = "\r"? . "\n"
 let NonNL = StringNotContaining [\n\r]
 
-let Names = Name . ("" | ", " . Name)
-
-let formatname =
+(* legchars is the set of legal characters
+   escf is the lens that does the generic escaping
+   escl is the lens that escape or unescape
+   escc is the set of chars that are delt by escl
+   empty should be "" if we want to accept the empty string of [] if we don't *)
+let gene_esc (legchars:regexp) (escf:regexp -> lens) (escl:lens) (escc:regexp) (empty:regexp) = 
   (* illegal characters *)
-  let ic (r:regexp) = 
-    ([^,\n\r\\] - r) | "\\" <-> "\\\\" | "," <-> "\\," | "\n" <-> "\\n" | "\r" <-> "\\r"  in
-  (( escstr [,] . 
-      ( (ic ")")
-      | (ic [hwce]) . ")"
-      | (ic ("t" | "(")) . "e)"
-      | (ic "(") . [hwc] . ")"
-      | (ic " ") . ("(" . [hwce] . ")")
-      | (ic "o") . "te)"
-      | (ic "n") . "ote)"
-      | (ic "(") . "note)"
-      | (ic " ") . "(note)"
-(*      | ((ins "\\" . ([,] | "\\")) | "\n" <-> "\\n" | "\r" <-> "\\r" ) *)
-      ))
-   | ")" 
-   | [hwce] . ")" 
-   | "te)" 
-   | "ote)"
-   | "note)"
-   | "(note)" 
-   | "(" . [hwce] . ")" )
- ; Name
+  let ic (r:regexp) = ((legchars - escc) - r) | escl  in
+  let l = 
+    (( escf escc . 
+         ( (ic ")")
+         | (ic [hwce]) . ")"
+         | (ic ("t" | "(")) . "e)"
+         | (ic "(") . [hwc] . ")"
+         | (ic " ") . ("(" . [hwce] . ")")
+         | (ic "o") . "te)"
+         | (ic "n") . "ote)"
+         | (ic "(") . "note)"
+         | (ic " ") . "(note)"))
+    | ")" 
+    | [hwce] . ")" 
+    | "te)" 
+    | "ote)"
+    | "note)"
+    | "(note)" 
+    | "(" . [hwce] . ")" ) in 
+  (l | empty)
+      
+let gene_format = gene_esc [^\n\r\\] 
 
- (*
-  (escstr [,] . 
-     ( "n"
-     | [^)n,\n\r\\] 
-     | [^,\n\r\\] . "n"
-     | "\\," | "\\\\"
-     | [^hwce,\n\r\\] . ")" 
-     | [^(,\n\r\\] . [hwc] . ")" 
-     | [^ ,\n\r\\] . "(" . [hwce] .")" 
-     | [^t(,\n\r\\] . "e)" 
-     | [^o,\n\r\\] . "te)" 
-     | [^n,\n\r\\] . "ote)" 
-     | [^(,\n\r\\] . "note)" 
-     | [^ ,\n\r\\] . "(note)" 
-     | "\\,)" | "\\,n" | "\\\\)" | "\\n" )
-   | "n" 
-   | ")" 
-   | [hwce] . ")" 
-   | "te)" 
-   | "ote)"
-   | "note)"
-   | "(note)" 
-   | "(" . [hwce] . ")" )
-  ; Name *)
+let esc_format = ("\\" <-> "\\\\" | "," <-> "\\," | "\n" <-> "\\n" | "\r" <-> "\\r")
 
+let formatnotemptyname : ? <-> Name = gene_format escstr esc_format  [,] []
 
+let formatname = gene_format escstr esc_format [,] ""
+
+let unesc_format = ("\\\\" <-> "\\" | "\\," <-> "," | "\\:" <-> ":" | "\\;" <-> ";" | "\\n" <-> "\n" | "\\r" <-> "\r")
+
+let unformatnotemptyname = 
+  gene_format unescstr unesc_format [,;:] []
+
+let unformatname = 
+  gene_format unescstr unesc_format [,;:] ""
 
 let name : ? <-> GlobalName = 
-  let escName = unescstr [,;:]; formatname in
-  let escNonEmptyName (* : ? <-> Name *) =
-      unescNonEmptyStr [,;:] 
-    ; escNonEmptyStr [,] 
-    ; ( del TelMarker+ | 
-        NonEmptyName . del TelMarker* ) in
-  let familyname (* : ? <-> Name *) = 
-     del "N:" . escName in
+  let escName = unformatname ; formatname in
+  let escNonEmptyName (* : ? <-> Name *) = unformatnotemptyname ; formatnotemptyname in
+  let familyname (* : ? <-> Name *) = del "N:" . escNonEmptyName in
   familyname . (del ";" | ";" <-> ", " . escNonEmptyName ) . del ";;;" 
 
 test name get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
@@ -218,7 +208,7 @@ let remove_item_numbers : ? <-> Field_unnumbered* =
     Field_unnumbered* 
   | Field_unnumbered* 
 
-let chunk : ? <-> AbsAddr =
+let chunk : ? <-> AbsAddr = 
   del "BEGIN:VCARD" . del NL . del "VERSION:3.0" . del NL .  
   (name; key (atype name)) . del NL .
   (remove_item_numbers ;
@@ -402,43 +392,55 @@ into samplevcards =
 (* Generic XML stuff *)
 
 let nl0 = ""
-let nl1 = "\n  "
-let nl2 = "\n    "
-let nl3 = "\n      "
-let nl4 = "\n        "
+let nl1 = nl0 . "  "
+let nl2 = nl1 . "  "
+let nl3 = nl2 . "  "
+let nl4 = nl3 . "  "
 
-let element (spaces:string) (tag:string) (body:lens) =
-  (default ws spaces) . 
-  del "<" . del tag . del ">" . 
-  body . 
-  (default ws spaces) . 
-  del "</" . del tag . del ">"
+let del_xml_nl_var (def:string) = default ((del WS . del "\n") | "") def
 
-let special =
-    "&lt;" <-> "<"
-  | "&gt;" <-> ">"
-  | "&amp;" <-> "&"
+let del_xml_nl = del_xml_nl_var "\n"
 
+let single_line_elt (spaces:string) (tag:string) (body:lens) = 
+  default (del " "*) spaces .
+  del ("<" . tag . ">") . body . 
+  del ("</" . tag .">") . del_xml_nl
 
-(* Parses and unquotes pcdata, including all whitespace *)
-let pcdata =
-  let R = [&<>\r] in 
-  let NonEmptyNormal = NonEmptyStringNotContaining R in   
-  let Normal = StringNotContaining R in 
-  ( NonEmptyNormal . (special . Normal)*
-  | (special . Normal)+ )
+(* the body deal with its newlines at its end *)
+
+let multi_line_elt_no_nl (spaces:string) (tag:string) (body:lens) = 
+  default (del " "*) spaces .
+  del ("<" . tag . ">") . del_xml_nl .
+  body .
+  del ("</" . tag .">") 
+
+let multi_line_elt  (spaces:string) (tag:string) (body:lens) = 
+  (multi_line_elt_no_nl spaces tag body) . del_xml_nl
+
+let special = 
+  ( "&lt;" <-> "<" 
+  | "&gt;" <-> ">" 
+  | "&amp;" <-> "&")    
+let R = [&<>]  
+let Normal = StringNotContaining R  
+let unescpcdata = Normal . (special . Normal)*  
+  
+let gene_pcdata = gene_esc [^] (fun (c:regexp) -> unescpcdata) [] [] []
+
+let pcdata = unescpcdata
 
 (* -------------------------------------------------- *)
 (* BCP's strange personal variant of XCard *)
 
 let name : lens = 
-  assert_atype GlobalName
-  (let n = pcdata; formatname in
-    n
-  | (element nl3 "family" n . ("" | ins ", " . element nl3 "given" n)))
+  let n = gene_pcdata; formatnotemptyname in 
+  ( single_line_elt nl3 "n" n
+  | (multi_line_elt nl3 "n" 
+       (single_line_elt nl3 "family" n . 
+          ("" | ins ", " . single_line_elt nl3 "given" n))))
 
 let tel' (full:string) (short:string) = 
-  ins ", " . element nl3 full (pcdata; formattel . ins (" (" . short . ")"))
+  ins ", " . single_line_elt nl3 full (pcdata ; formattel . ins (" (" . short . ")"))
 
 let tel = 
     tel' "tel-home" "h"
@@ -448,22 +450,21 @@ let tel =
   | tel' "note"     "note"
 
 let chunk = 
-  element nl1 "vcard" 
-    (element nl2 "n" (name; (key (atype name))) . 
-     tel* )
+  multi_line_elt nl1 "vcard" ((name; key (atype name)) . tel* . del [ \t]* )
 
 let foo = 
   "<vcard>
       <n><family>foo</family><given>bar</given></n>
       <tel-home>12345</tel-home>
       <tel-cell>12345</tel-cell>
-      <note>hello world</note></vcard>"
+      <note>hello world</note>
+   </vcard>"
 
 let vcard = <chunk>
 
 test vcard get foo = "foo, bar, 12345 (h), 12345 (c), hello world (note)"
 
-let xcard = element nl0 "xcard" ((vcard . ins "\n") * )
+let xcard = multi_line_elt_no_nl nl0 "xcard" ((vcard . ins "\n") * )
 
 let samplexcards = 
      "<xcard>

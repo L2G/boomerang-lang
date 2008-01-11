@@ -336,16 +336,23 @@ let assert_lens_type i l co ao =
   if not (Prefs.read no_check) then 
     begin 
       let check_rx s = function
-        | None -> true
-        | Some r -> R.equiv r s in     
-        if not ((check_rx l.ctype co) && (check_rx l.atype ao)) then 
-          Berror.sort_error i 
-            (fun () -> 
-               Util.format "expected @[<2>%s <-> %s@]@ but@ found @[<2>%s <-> %s@]"
-                 (match co with None -> "?" | Some c -> R.string_of_t c)
-                 (match ao with None -> "?" | Some a -> R.string_of_t a)
-                 (R.string_of_t l.ctype)
-                 (R.string_of_t l.atype))
+        | None -> None
+        | Some r -> 
+            let equiv, f_suppl = R.check_equiv r s in 
+            if equiv then None else Some (f_suppl) in
+      match check_rx l.ctype co, check_rx l.atype ao with 
+        | None, None -> ()
+        | Some f, _ | _, Some f ->
+            (* FIX: say which of C and A this comes from *)
+            Berror.static_error i "assert_lens_type" ~suppl:f
+            (Util.format_to_string  
+               (fun () -> 
+                  Util.format 
+                    "expected @[<2>%s@ <->@ %s@]@ but@ found @[<2>%s@ <->@ %s@]"
+                    (match co with None -> "?" | Some c -> R.string_of_t c)
+                    (match ao with None -> "?" | Some a -> R.string_of_t a)
+                    (R.string_of_t l.ctype)
+                    (R.string_of_t l.atype)))
     end;
   l
 

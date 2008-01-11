@@ -148,7 +148,10 @@ rule main = parse
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }
 | "<|"               { LANGLEBAR(info lexbuf)}
-| "<<<"              { STR(info lexbuf,bare lexbuf) }
+| "<<<"              { let i1 = info lexbuf in 
+                       let i2,s = bare "" lexbuf in 
+                       let i = Info.merge_inc i1 i2 in 
+                       STR(i,s) }
 | ">"                { RANGLE(info lexbuf) }
 | "|>"               { BARRANGLE(info lexbuf) }
 | ","                { COMMA(info lexbuf) }
@@ -158,7 +161,10 @@ rule main = parse
 | "\\"               { BACKSLASH(info lexbuf) }
 | ","                { COMMA(info lexbuf) }
 | "?"                { QMARK(info lexbuf) }
-| "\""               { STR (info lexbuf, string lexbuf) }
+| "\""               { let i1 = info lexbuf in 
+                       let i2,s = string "" lexbuf in 
+                       let i = Info.merge_inc i1 i2 in 
+                       STR(i,s) }
 | ">/"               { RANGLESLASH(info lexbuf) }
 | "/<"               { SLASHLANGLE(info lexbuf) }
 | id_char_first id_char_rest* as ident { 
@@ -178,48 +184,55 @@ and cset = parse
   | "\n"             { newline lexbuf; "\n" ^ cset lexbuf }
   | _                { let s = lexeme lexbuf in s ^ cset lexbuf }
 
-and string = parse
-| "\\"          { let s = escape lexbuf in s ^ string lexbuf }
-| "\""          { "" }
-| newline [' ' '\t']* "|" { newline lexbuf; "\n" ^ string lexbuf }
-| newline       { newline lexbuf; let s = lexeme lexbuf in s ^ string lexbuf }
+and string acc = parse
+| "\\"          { let s = escape lexbuf in 
+                  string (acc ^ s) lexbuf }
+| "\""          { (info lexbuf,acc) }
+| newline [' ' '\t']* "|" { newline lexbuf; 
+                            string (acc ^ "\n") lexbuf}
+| newline       { newline lexbuf; 
+                  string (acc ^ lexeme lexbuf) lexbuf }
 | eof           { error lexbuf "unmatched '\"'"}
-| _             { let s = lexeme lexbuf in s ^ string lexbuf }
+| _             { string (acc ^ lexeme lexbuf) lexbuf }
 
-and bare = parse
+and bare acc = parse
   | newline [' ']* { newline lexbuf; 
                      let s = lexeme lexbuf in 
                      let n = String.length s - 1 in 
-                       bare_indent n lexbuf }
-  | ">>>"          { "" }
+                     bare_indent acc n lexbuf }
+  | ">>>"          { (info lexbuf,acc) }
   | eof            { error lexbuf "unmatched '<<<'" }
-  | _              { let s = lexeme lexbuf in s ^ bare_raw lexbuf }
+  | _              { bare_raw (acc ^ lexeme lexbuf) lexbuf }
 
-and bare_indent_spaces n expected = parse
-  | [' ']            { if expected=0 then let s = lexeme lexbuf in s ^ bare_indent n lexbuf 
-                       else bare_indent_spaces n (pred expected) lexbuf }
+and bare_indent_spaces acc n expected = parse
+  | [' ']            { if expected=0 then 
+                         bare_indent (acc ^ lexeme lexbuf) n lexbuf
+                       else 
+                         bare_indent_spaces acc n (pred expected) lexbuf }
   (* XXX: should we check that the number of spaces is <= n? *)
-  | newline [' ']* ">>>" { "" } 
-  | newline          { newline lexbuf; let s = lexeme lexbuf in s ^ bare_indent_spaces n n lexbuf }
+  | newline [' ']* ">>>" { newline lexbuf;
+                           (info lexbuf,acc) } 
+  | newline          { newline lexbuf; 
+                       bare_indent_spaces (acc ^ lexeme lexbuf) n n lexbuf }
   | _                { if expected=0 then 
-                         let s = lexeme lexbuf in 
-                           s ^ bare_indent n lexbuf 
+                         bare_indent (acc ^ lexeme lexbuf) n lexbuf 
                        else
                          error lexbuf (sprintf "expecting %d spaces after newline in string" n) }
 
-and bare_indent n = parse
-  | newline [' ']* ">>>" { newline lexbuf; "" }
+and bare_indent acc n = parse
+  | newline [' ']* ">>>" { newline lexbuf; 
+                           (info lexbuf,acc) }
   | newline          { newline lexbuf; 
-                       let s = lexeme lexbuf in 
-                       s ^ bare_indent_spaces n n lexbuf }
+                       bare_indent_spaces (acc ^ lexeme lexbuf) n n lexbuf }
   | eof              { error lexbuf "unmatched '>>>'" }
-  | _                { let s = lexeme lexbuf in s ^ bare_indent n lexbuf }
+  | _                { bare_indent (acc ^ lexeme lexbuf) n lexbuf }
   
-and bare_raw = parse
-  | ">>>"       { "" }
-  | newline     { newline lexbuf; let s = lexeme lexbuf in s ^ bare_raw lexbuf }
+and bare_raw acc = parse
+  | ">>>"       { (info lexbuf,acc) }
+  | newline     { newline lexbuf; 
+                  bare_raw (acc ^ lexeme lexbuf) lexbuf }
   | eof         { error lexbuf "unmatched '<<<'" }
-  | _           { let s = lexeme lexbuf in s ^ bare_raw lexbuf }
+  | _           { bare_raw (acc ^ lexeme lexbuf) lexbuf }
 
 and escape = parse
 | "'"           { "'" }
