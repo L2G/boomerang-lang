@@ -1,3 +1,24 @@
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/examples/address.boom                                            *)
+(* VCard, XCard, CSV address books lens                                        *)
+(* $Id$ *)
+(*******************************************************************************)
+
 module Address = 
 
 (* Some notes about the Apple Address Book application:
@@ -11,137 +32,129 @@ module Address =
 *)
 
 (* -------------------------------------------------------------------- *)
-(* A useful derived lens *)
-
-let filterwith (both: regexp) (l: lens) =
-  filter (both - (ctype l)) (ctype l) ; l*
-
-(* -------------------------------------------------------------------- *)
-
-let Any = [^]*
-let AnyP = [^]+
-
-let WS = [ \n\t]*
-let ws = del WS
+(* GENERIC HELPERS *)
+let Any : regexp = [^]*
+let AnyP : regexp = [^]+
 
 let StringNotContaining (r:regexp) : regexp = Any - (Any . r . Any)
 let NonEmptyStringNotContaining (r:regexp) : regexp = AnyP - (Any . r. Any)
 
-(* -------------------------------------------------------------------- *)
-
-let EscapedStr (R:regexp) : regexp =
-  let Normal = StringNotContaining ([\n\\\r] | R) in
-  let Esc = "\\" . ([\\nr] | R) in
-  Normal . (Esc . Normal)* 
-
-let NonEmptyEscapedStr (R:regexp) : regexp = 
-  let NonEmptyNormal = NonEmptyStringNotContaining ([\n\\\r] | R) in 
-  let Normal = StringNotContaining ([\n\\\r] | R) in 
-  let Esc = "\\" . ([\\nr] | R) in 
-    NonEmptyNormal . (Esc . Normal)*
-  | (Esc . Normal)+
-
-
-let escchar (c:regexp) = 
-  ( (ins "\\" . (c | "\\"))
-  | ("\n" <-> "\\n" | "\r" <-> "\\r")
-  | ([^\n\r\\] - c))
-
-let unescchar (c:regexp) = 
-  ( (del "\\" . (c | "\\")) 
-  | ("\\n" <-> "\n" | "\\r" <-> "\r")
-  | ([^\n\r\\] - c))
-
-let escstr (c:regexp) = (* BETTER : ? <-> (EscapedStr c) *)
-  (*let r = EscapedStr c in*)
-  let l = escchar c in
-  assert_atype (EscapedStr c) (l*)
-
-let unescstr (c:regexp) = (unescchar c)*
-
-let escNonEmptyStr (c:regexp) = (escchar c)+
-let unescNonEmptyStr (c:regexp) = (unescchar c)+
-
-test (unescchar empty)* get "\n" = error
-
-test (unescchar empty)* get "abc" = "abc"
-test (unescchar empty)* get "\\\\" = "\\"
-test (unescchar empty)* get "\\n" = "\n"
-test (unescchar [,])* get "\\," = ","
-
-test (escchar empty)* get "a\nb\\c" = "a\\nb\\\\c"
-test (escchar [,])* get "a,b" = "a\\,b"
-
-(* -------------------------------------------------------------------- *)
-
-let TelTags = [hwce] | "note"
-let TelMarker = " (" . TelTags . ")"
-
-let Name = (NonEmptyEscapedStr [,]) - ( Any . TelMarker )
-
-let NonEmptyName = Name - ""
-let Family = NonEmptyName
-let Given = NonEmptyName
-let GlobalName = Family . (", " . Given)?
-  
-let Tel = ", " . (EscapedStr [,]) . TelMarker
-
-let AbsAddr = GlobalName . Tel* 
+let WS : regexp = [ \n\t]*
+let ws : lens = del WS
 
 let NL = "\r"? . "\n"
 let NonNL = StringNotContaining [\n\r]
 
-(* legchars is the set of legal characters
-   escf is the lens that does the generic escaping
-   escl is the lens that escape or unescape
-   escc is the set of chars that are delt by escl
-   empty should be "" if we want to accept the empty string of [] if we don't *)
-let gene_esc (legchars:regexp) (escf:regexp -> lens) (escl:lens) (escc:regexp) (empty:regexp) = 
-  (* illegal characters *)
-  let ic (r:regexp) = ((legchars - escc) - r) | escl  in
-  let l = 
-    (( escf escc . 
-         ( (ic ")")
-         | (ic [hwce]) . ")"
-         | (ic ("t" | "(")) . "e)"
-         | (ic "(") . [hwc] . ")"
-         | (ic " ") . ("(" . [hwce] . ")")
-         | (ic "o") . "te)"
-         | (ic "n") . "ote)"
-         | (ic "(") . "note)"
-         | (ic " ") . "(note)"))
-    | ")" 
-    | [hwce] . ")" 
-    | "te)" 
-    | "ote)"
-    | "note)"
-    | "(note)" 
-    | "(" . [hwce] . ")" ) in 
-  (l | empty)
-      
-let gene_format = gene_esc [^\n\r\\] 
+let filterwith (both: regexp) (l: lens) : lens = 
+  filter (both - (ctype l)) (ctype l) ; l*
 
-let esc_format = ("\\" <-> "\\\\" | "," <-> "\\," | "\n" <-> "\\n" | "\r" <-> "\\r")
+(* -------------------------------------------------------------------- *)
+(* ESCAPING *)
 
-let formatnotemptyname : ? <-> Name = gene_format escstr esc_format  [,] []
+let Special : regexp = [\n\r\\]
+let NonSpecial : regexp = [^\n\r\\]
+let EscapedSpecial : regexp = [\\nr]
 
-let formatname = gene_format escstr esc_format [,] ""
+let EscapedStr (R:regexp) : regexp =
+  let Normal = StringNotContaining (Special | R) in
+  let Escaped = "\\" . (EscapedSpecial | R) in
+  Normal . (Escaped . Normal)* 
 
-let unesc_format = ("\\\\" <-> "\\" | "\\," <-> "," | "\\:" <-> ":" | "\\;" <-> ";" | "\\n" <-> "\n" | "\\r" <-> "\r")
+let NonEmptyEscapedStr (R:regexp) : regexp = 
+  let Normal = StringNotContaining (Special | R) in 
+  let NonEmptyNormal = Normal - "" in 
+  let Escaped = "\\" . (EscapedSpecial | R) in 
+  let EscapedNormal = Escaped . Normal in 
+  NonEmptyNormal . EscapedNormal* | EscapedNormal+
 
-let unformatnotemptyname = 
-  gene_format unescstr unesc_format [,;:] []
+let escspecial : lens = ("\n" <-> "\\n" | "\r" <-> "\\r")
 
-let unformatname = 
-  gene_format unescstr unesc_format [,;:] ""
+let escchar (c:regexp) : lens = 
+  ( (ins "\\" . (c | "\\"))
+  | escspecial
+  | (NonSpecial - c))
 
-let name : ? <-> GlobalName = 
-  let escName = unformatname ; formatname in
-  let escNonEmptyName (* : ? <-> Name *) = unformatnotemptyname ; formatnotemptyname in
-  let familyname (* : ? <-> Name *) = del "N:" . escNonEmptyName in
+let unescchar (c:regexp) : lens = invert (escchar c)
+
+let escstr (c:regexp) : { ? <-> ? } = (escchar c)*
+
+let unescstr (c:regexp) : { EscapedStr c <-> ? } = (unescchar c)*
+
+let escNonEmptyStr (c:regexp) : { ? <-> NonEmptyEscapedStr c } = (escchar c)+
+let unescNonEmptyStr (c:regexp) : { NonEmptyEscapedStr c <-> ? } = (unescchar c)+
+
+(* unit tests for escaping *)
+test (unescchar empty)* get "\n" = error
+test (unescchar empty)* get "abc" = "abc"
+test (unescchar empty)* get "\\\\" = "\\"
+test (unescchar empty)* get "\\n" = "\n"
+test (unescchar [,])* get "\\," = ","
+test (escchar empty)* get "a\nb\\c" = "a\\nb\\\\c"
+test (escchar [,])* get "a,b" = "a\\,b"
+
+(* -------------------------------------------------------------------- *)
+(* TELEPHONE AND NAMES *)
+
+let TelTags : regexp = [hwce] | "note"
+let TelMarker : regexp = " (" . TelTags . ")"
+let Tel : regexp = ", " . (EscapedStr [,]) . TelMarker
+
+let Name : regexp = (NonEmptyEscapedStr [,]) - ( Any . TelMarker )
+let NonEmptyName : regexp = Name - ""
+let Family : regexp = NonEmptyName
+let Given : regexp = NonEmptyName
+let GlobalName : regexp = Family . (", " . Given)?
+  
+let AbsAddr = GlobalName . Tel* 
+
+let escaper (legal:regexp) (esc:regexp -> lens) (l:lens) (c:regexp) = 
+  let mk_suffix (r:regexp) : lens = (legal - (r | c)) | l  in
+  let suffix : lens = 
+    ( (mk_suffix ")")
+    | (mk_suffix [hwce]) . ")"
+    | (mk_suffix [t(])   . "e)"
+    | (mk_suffix [(])    . ( [hwc] . ")" | "note)" )
+    | (mk_suffix [ ])    . ("(" . TelTags . ")")
+    | (mk_suffix [o])    . "te)"
+    | (mk_suffix [n])    . "ote)" ) in 
+  ( esc c . suffix
+  | ")" 
+  | [hwce] . ")" 
+  | "te)" 
+  | "ote)"
+  | "note)"
+  | "(note)" 
+  | "(" . [hwce] . ")")
+            
+let formatter : (regexp -> lens) -> lens -> regexp -> lens = 
+  escaper [^\n\r\\] 
+
+let formatspecial : lens = 
+  ( "\\" <-> "\\\\" 
+  | "," <-> "\\," 
+  | "\n" <-> "\\n" 
+  | "\r" <-> "\\r")
+    
+let unformatspecial : lens = 
+  ( invert formatspecial
+  | "\\:" <-> ":" 
+  | "\\;" <-> ";" ) 
+
+let formatnotemptyname : { ? <-> Name } = 
+  formatter escstr formatspecial  [,]
+
+let unformatnotemptyname : lens = 
+  formatter unescstr unformatspecial [,;:]
+  
+let name : { ? <-> GlobalName } = 
+  let escNonEmptyName (* : ? <-> Name *) = 
+    unformatnotemptyname ; formatnotemptyname in
+  let familyname (* : ? <-> Name *) = 
+    del "N:" . escNonEmptyName in
   familyname . (del ";" | ";" <-> ", " . escNonEmptyName ) . del ";;;" 
 
 test name get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
+
 let formattel = escstr [,]
 
 let field' (w0:string) (w1:string) (w2:string) =
@@ -193,7 +206,7 @@ let NumberedItem (n:string) =
 let Field_unnumbered =
   Field - (NumberedItem "1" | NumberedItem "2" | NumberedItem "3")
 
-let remove_item_numbers : ? <-> Field_unnumbered* =
+let remove_item_numbers : { ? <-> Field_unnumbered* } = 
   let delItemNumber (n:string) = "item" . del n . "." . NonNL . NL .
                                  "item" . del n . "." . NonNL . NL in
   let Stuff = Field - ("item" . NonNL . NL . "item" . NonNL . NL) in
@@ -208,7 +221,7 @@ let remove_item_numbers : ? <-> Field_unnumbered* =
     Field_unnumbered* 
   | Field_unnumbered* 
 
-let chunk : ? <-> AbsAddr = 
+let chunk : { ? <-> AbsAddr } = 
   del "BEGIN:VCARD" . del NL . del "VERSION:3.0" . del NL .  
   (name; key (atype name)) . del NL .
   (remove_item_numbers ;
@@ -426,7 +439,7 @@ let R = [&<>]
 let Normal = StringNotContaining R
 let unescpcdata = Normal . (special . Normal)*  
   
-let gene_pcdata = gene_esc [^] (fun (c:regexp) -> unescpcdata) [] [] []
+let format_pcdata = escaper [^] (fun (c:regexp) -> unescpcdata) [] []
 
 let pcdata = unescpcdata
 
@@ -434,11 +447,11 @@ let pcdata = unescpcdata
 (* BCP's strange personal variant of XCard *)
 
 let name : lens = 
-  let n = gene_pcdata; formatnotemptyname in 
+  let n = format_pcdata; formatnotemptyname in 
   ( single_line_elt nl2 "n" n
   | (multi_line_elt nl2 "n" 
        (single_line_elt nl3 "family" n . 
-          ("" | ins ", " . single_line_elt nl3 "given" n))))
+       ("" | ins ", " . single_line_elt nl3 "given" n))))
 
 let tel' (full:string) (short:string) = 
   ins ", " . single_line_elt nl2 full (pcdata ; formattel . ins (" (" . short . ")"))

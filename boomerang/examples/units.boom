@@ -21,6 +21,14 @@
 
 module Units = 
 
+let x : { ? <-> ? } = [^]*
+
+type mytype = A | B of string * regexp
+
+let x = B ("nate", "foster")
+let y = A
+test x,y : mytype * mytype
+
 (*let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}" *)
 (*let cl2 = smash_clens cl1
 test cl2 get "{LOOJ} {W}eaving {LOOM} into {J}ava" = ? 

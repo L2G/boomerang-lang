@@ -92,18 +92,29 @@ let mk_fun i params body =
     params body 
     
 let mk_fun_sorto i params bsorto = 
-  Safelist.fold_left
-    (fun so p -> match so with 
+  Safelist.fold_right
+    (fun p so -> match so with 
       | None -> None
       | Some s -> Some (SFunction(sort_of_param p,s)))
-    bsorto
     params
+    bsorto
 
+let mk_assert = function
+  | None,None -> (fun i e -> e)
+  | Some c,None -> 
+      (fun i e -> 
+         EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_ctype"),c),e))
+  | None,Some a -> 
+      (fun i e -> 
+         EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_atype"),a),e))
+  | Some c, Some a -> 
+      (fun i e -> 
+         EApp(i,EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert"),c),a),e))
 %}
 
 %token <Info.t> EOF
-%token <Info.t> MODULE OPEN 
-%token <Info.t> STRING REGEXP LENS CANONIZER
+%token <Info.t> MODULE OPEN OF TYPE 
+%token <Info.t> STRING REGEXP LENS CANONIZER UNIT
 %token <Info.t * string> STR IDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE LANGLEBAR BARRANGLE RANGLE   
@@ -128,18 +139,22 @@ opens:
 
 /* --------- DECLARATIONS ---------- */
 decls:      
-  | LET IDENT param_list opt_sort EQUAL exp decls
-      { let i = me2 $1 $6 in 
-        let f = mk_fun i $3 $6 in 
-        let so = mk_fun_sorto i $3 $4 in 
-        DLet(i,Bind(i,$2,so,f))::$7 }
+  | TYPE IDENT EQUAL dtsort_list decls
+      { let i = m $1 $3 in 
+        DType(i,$2,SSum($4))::$5 }
 
-  | LET IDENT param_list COLON precise_lens_type EQUAL exp decls
+  | LET IDENT param_list EQUAL exp decls
+      { let i = me2 $1 $5 in 
+        let f = mk_fun i $3 $5 in 
+        let so = mk_fun_sorto i $3 None in 
+        DLet(i,Bind(i,$2,so,f))::$6 }
+
+  | LET IDENT param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
-        let f = mk_fun i $3 $7 in 
-        let so = mk_fun_sorto i $3 (Some SLens) in 
-        let e = $5 $4 f in 
-        DLet(i,Bind(i,$2,so,e))::$8 }
+        let s,ef = $5 in 
+        let f = mk_fun i $3 (ef $4 $7) in 
+        let so = mk_fun_sorto i $3 (Some s) in 
+        DLet(i,Bind(i,$2,so,f))::$8 }
 
   | MODULE IDENT EQUAL decls END decls 
       { DMod(m $1 $5,$2,$4)::$6 }
@@ -148,7 +163,7 @@ decls:
       { let i,tr = $4 in 
         DTest(m $1 i,$2,tr)::$5 }
 
-  | TEST exp COLON sort_spec decls
+  | TEST exp COLON test_type decls
       { DTest(m $1 $3,$2,$4)::$5 }
 
   | TEST exp COLON ERROR decls 
@@ -166,20 +181,32 @@ test_res:
   | exp 
       { (info_of_exp $1, TestValue $1) }
 
+test_type:
+  | QMARK 
+      { TestSort None }
+      
+  | sort 
+      { TestSort (Some $1) }
+      
+  | lens_type 
+      { TestLensType $1 }
+
 /* --------- EXPRESSIONS ---------- */      
 exp:
-  | LET IDENT param_list opt_sort EQUAL exp IN exp
-      { let i = m $1 $7 in 
-        let f = mk_fun i $3 $6 in 
-        let so = mk_fun_sorto i $3 $4 in 
-        ELet(i,Bind(i,$2,so,f),$8) }
+  | LET IDENT param_list EQUAL exp IN exp
+      { let i = m $1 $6 in 
+        let f = mk_fun i $3 $5 in 
+        let so = mk_fun_sorto i $3 None in 
+        ELet(i,Bind(i,$2,so,f),$7) 
+      }
 
-  | LET IDENT param_list COLON precise_lens_type EQUAL exp IN exp
+  | LET IDENT param_list COLON decl_sort EQUAL exp IN exp
       { let i = m $1 $8 in 
-        let f = mk_fun i $3 $7 in 
-        let so = mk_fun_sorto i $3 (Some SLens) in 
-        let e = $5 $4 f in 
-        ELet(i,Bind(i,$2,so,e),$9) }
+        let s,ef = $5 in 
+        let f = mk_fun i $3 (ef $4 $7) in 
+        let so = mk_fun_sorto i $3 (Some s) in 
+        ELet(i,Bind(i,$2,so,f),$9) 
+      }
 
   | FUN param param_list ARROW exp
       { let i = me2 $1 $5 in 
@@ -205,9 +232,17 @@ gpexp:
 
 /* compose expressions */
 composeexp:
-  | composeexp SEMI bexp                
+  | composeexp SEMI pexp
       { ECompose(me $1 $3, $1, $3) }
       
+  | pexp
+      { $1 }
+
+/* product expressions */
+pexp:
+  | pexp COMMA bexp
+      { EPair(me $1 $3, $1, $3) }
+
   | bexp
       { $1 }
             
@@ -235,7 +270,7 @@ iexp:
   | sexp 
       { $1 }
 
-
+/* swap expressions */
 sexp:
   | sexp TILDE cexp
       { let i = me $1 $3 in 
@@ -327,6 +362,9 @@ aexp:
   | STR 
       { let i,s = $1 in 
         EString(i,RS.t_of_string s) }
+
+  | LPAREN RPAREN
+      { EUnit(m $1 $2) }
       
   | LPAREN exp RPAREN
       { $2 }
@@ -335,58 +373,22 @@ aexp:
       { $2 }
 
 /* --------- SORTS ---------- */
-sort_spec:
-   | QMARK 
-       { TestSort None }
-   
-   | sort 
-       { TestSort (Some $1) }
-
-   | qmark_or_exp DARROW qmark_or_exp
-       { TestLensType ($1,$3) }
-
-precise_lens_type:
-   | qmark_or_exp DARROW qmark_or_exp 
-       { match $1,$3 with 
-           | None,None -> (fun i e -> e)
-           | Some c,None -> 
-               (fun i e -> 
-                  EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_ctype"),c),e))
-           | None,Some a -> 
-               (fun i e -> 
-                  EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_atype"),a),e))
-           | Some c, Some a -> 
-               (fun i e -> 
-                  EApp(i,EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert"),c),a),e))
-       }
-
-qmark_or_exp:
-   | QMARK      
-
-      { (* '?' is used when you do not want to type check
-	   one of the the types. For example if you wrote a 
-	   definition of the abstract domain and want to verifiy
-	   that your different lenses go to this abstract domain 
-	   but you don't want to explicitly write the definition of
-	   all the concrete domains *)
-	None }
-
-  | rexp
-      { Some $1 }
-
 sort: 
-  | asort ARROW sort                    
+  | psort ARROW sort
       { SFunction($1,$3) }
 
-  | asort                               
+  | psort
       { $1 }
 
-opt_sort:
-  | COLON sort 
-      { Some $2 }
-  | 
-      { None }
+/* product sorts */
+psort:
+  | psort STAR asort
+      { SProduct($1,$3) }
 
+  | asort
+      { $1 }
+
+/* atomic sorts */
 asort:
   | STRING 
       { SString }
@@ -400,8 +402,55 @@ asort:
   | CANONIZER
       { SCanonizer }
 
-  | LPAREN sort RPAREN                  
+  | UNIT
+      { SUnit }
+
+  | IDENT
+      { SVar (qid_of_id $1) }
+      
+  | LPAREN sort RPAREN
       { $2 }
+
+/* sort test specifications */
+decl_sort:
+  | sort 
+      { ($1, (fun i e -> e)) }
+
+  | lens_type
+      { (SLens, mk_assert $1) }
+
+/* lens types */
+lens_type:
+  | LBRACE qmark_or_exp DARROW qmark_or_exp RBRACE
+      { ($2,$4) }
+
+qmark_or_exp:
+   | QMARK
+       { None }
+
+   | appexp
+       { Some $1 }
+
+/* data type sorts */
+dtsort:
+  | IDENT
+      { let _,s = $1 in 
+        (s,None) }
+
+  | IDENT OF sort
+      { let _,s = $1 in 
+        (s,Some $3) }
+
+dtsort_list:
+  | dtsort dtsort_list2
+      { $1 :: $2 }
+
+dtsort_list2:
+  | 
+      { [] }
+  
+  | BAR dtsort dtsort_list2
+      { $2 :: $3 }
 
 /* --------- QUALIFIED IDENTIFIERS ---------- */
 qid:

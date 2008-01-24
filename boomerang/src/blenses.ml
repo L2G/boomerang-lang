@@ -16,7 +16,7 @@
 (*******************************************************************************)
 (* /boomerang/src/blenses.ml                                                   *)
 (* Boomerang lens combinators                                                  *)
-(* $Id$                                                                        *)
+(* $Id$ *)
 (*******************************************************************************)
 
 (* abbreviations from other modules *)
@@ -26,6 +26,7 @@ module RS = Bstring
 let string_concat = (^)
 let (^) = RS.append
 let (@) = Safelist.append
+
 let sprintf = Printf.sprintf
 
 let no_check = Prefs.createBool "no-check" false 
@@ -40,7 +41,6 @@ let whack s =
     (fun (p, r) s -> Str.global_replace p r s)
     lst_regexp_replace s
     
-
 let get_str n = sprintf "%s get" n
 let put_str n = sprintf "%s put" n
 let create_str n = sprintf "%s create" n
@@ -68,7 +68,6 @@ let lift_rsd i n t1 st2 f = (fun x y z ->
     else if not (st2 y) then 
       assert false
     else (f x y z))
-
 
 let lift_rd i n t1 f = 
   (fun x y ->     
@@ -188,21 +187,20 @@ let star_loop t f x =
 
 let branch t f1 f2 = 
   (fun x -> 
-    if R.match_str t x then f1 x 
-    else f2 x) 
+     if R.match_str t x then f1 x 
+     else f2 x) 
 
 let branch2 t f1 f2 = 
   (fun x y ->
      if R.match_str t x then f1 x y 
      else f2 x y)
-
-(*** hack for uid ***)
+    
+(* -------------------- UIDs --------------------- *)
 type uid = int
 let current_uid = ref 0
 let next_uid () = 
   incr current_uid;
   !current_uid
-
 
 (* -------------------- CANONIZERS -------------------- *)
 module Canonizer = struct
@@ -484,6 +482,24 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       (rcreate_of_dl dl)
 
 
+  (* invert -- only for bijective lenses! *)
+  let invert i dl = 
+    let n = sprintf "invert (%s)" dl.string in 
+    let ct = dl.atype in
+    let at = dl.ctype in 
+      { dl with 
+          info = i;
+          string = n;
+          ctype = ct;
+          atype = at;
+          get = lift_r i (get_str n) ct (fun c -> fst (dl.create c (CDict CD_empty)));
+          put = lift_rsd i (put_str n) at dl.stype (fun a _ d -> (dl.get a,d));
+          parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty));
+          create = lift_rd i (create_str n) at (fun a d -> (dl.get a,d));
+          key = lift_r i n at (fun a -> dl.key (dl.get a));
+          uid = next_uid ();
+      }
+          
   (* ---------- copy ---------- *)
   let copy i r = 
     let n = sprintf "cp (%s)" (R.string_of_t r) in 
@@ -860,7 +876,6 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       }
 
 
-
   let filter i rd rk =
     let n = sprintf "filter %s %s" (R.string_of_t rd) (R.string_of_t rk) in 
     let ru = R.disjoint_alt i n rd rk in
@@ -966,7 +981,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 
   (* right quotient of a dlens by a canonizer. I don't know if we
      should check if the dlens is not already a q-lens. *)
-  let right_quot i dl cn= 
+  let right_quot i dl cn = 
     let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
       (* the "class type" of the canonizer has to be equal to the
 	 abstract type of the lens *)

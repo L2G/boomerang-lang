@@ -74,11 +74,15 @@ let string_of_qid (qs,i) =
 
 (* sorts, parameters, expressions *)
 type sort = 
-    | SString                  (* strings *)
-    | SRegexp                  (* regular expressions *)
-    | SLens                    (* lenses *)
-    | SCanonizer               (* canonizers *)
-    | SFunction of sort * sort (* funtions *)
+    | SString                      (* strings *)
+    | SRegexp                      (* regular expressions *)
+    | SLens                        (* lenses *)
+    | SCanonizer                   (* canonizers *)
+    | SFunction of sort * sort     (* funtions *)
+    | SVar of qid                  (* variables *)
+    | SUnit                        (* unit *)
+    | SProduct of sort * sort      (* products *)
+    | SSum of (string * sort option) list (* sums *)
 
 and param = Param of i * id * sort
 
@@ -91,6 +95,10 @@ and exp =
     | EFun of i * param * sort option * exp 
     | ELet of i * binding * exp
 
+    (* with products, units, sums *)
+    | EUnit of i
+    | EPair of i * exp * exp
+        
     (* regular operations *)
     | EString of i * Bstring.t
     | ECSet of i * bool * (Bstring.sym * Bstring.sym) list 
@@ -115,9 +123,10 @@ type test_result =
 
 type decl = 
     | DLet of i * binding  
+    | DType of i * id * sort
     | DMod of i * id * decl list 
     | DTest of i * exp * test_result
-
+        
 (* modules *)
 type modl = Mod of i * id * qid list * decl list
 
@@ -128,6 +137,8 @@ let info_of_exp = function
   | EVar (i,_) -> i
   | EFun (i,_,_,_) -> i
   | ELet (i,_,_) -> i
+  | EUnit(i)     -> i
+  | EPair(i,_,_) -> i
   | EString (i,_) -> i
   | ECSet (i,_,_) -> i
   | EUnion (i,_,_) -> i
@@ -151,20 +162,6 @@ let sort_of_param = function
 let id_of_param = function
   | Param(_,x,_) -> x
 
-(* string_of_sort : s -> string
- *
- * [string_of_sort s] produces a string representing [s] 
- *)
-let rec string_of_sort = function
-  | SString -> "string"
-  | SRegexp -> "regexp"
-  | SLens -> "lens"
-  | SCanonizer -> "canonizer"
-  | SFunction(s1,s2) -> 
-      sprintf "(%s -> %s)" (string_of_sort s1) (string_of_sort s2)
-
-let string_of_param p = string_of_id (id_of_param p)
-
 (* TODO only use parens when necessary *)
 let rec format_sort s =
   match s with
@@ -179,9 +176,27 @@ let rec format_sort s =
     | SFunction(s1, s2) ->
 	Util.format "(";
 	format_sort s1;
-	Util.format "@ ->@";
+	Util.format "@ ->@ ";
 	format_sort s2;
 	Util.format ")"
+
+    | SUnit -> Util.format "unit"
+    | SProduct(s1,s2) -> 
+        Util.format "@[<2>";
+        format_sort s1;
+        Util.format "@ *@ ";
+        format_sort s2;
+        Util.format "@]"
+    | SSum(vl) -> 
+        Misc.format_list " | "
+          (fun (l,s) -> match s with
+             | None -> Util.format "%s" l
+             | Some s -> 
+                 Util.format "(%s@ " l;
+                 format_sort s;
+                 Util.format ")")
+          vl
+    | SVar(q) -> Util.format "%s" (string_of_qid q)
 
 and format_param (Param (_, id, s)) =
   Util.format "@[%s:" (string_of_id id);
@@ -233,6 +248,15 @@ and format_exp e =
 	Util.format "@ in@ ";
 	format_exp e;
 	Util.format "@]";
+
+    | EUnit _ -> Util.format "()"
+
+    | EPair(_,e1,e2) -> 
+        Util.format "@[<2>(";
+        format_exp e1;
+        Util.format ",";
+        format_exp e2;
+        Util.format ")@]"
 
     | EString (_, s) ->
 	Util.format "@[\"%s\"@]" (Bstring.escaped (Bstring.string_of_t s))
@@ -306,6 +330,12 @@ and format_decl d =
 	format_binding b;
 	Util.format "@]"
 
+    | DType(_,x,s) -> 
+        Util.format "@[type@ %s@ =@ "
+          (string_of_id x);
+        format_sort s;
+        Util.format "@]"        
+
     | DMod (i, id, ds) ->
 	format_module (Mod (i, id, [], ds))
 
@@ -323,4 +353,12 @@ and format_module (Mod (_, id, qs, ds)) =
       qs;
   Misc.format_list "@\n" format_decl ds;
   Util.format "@\n@]@\n@]"
+
+(* string_of_sort : s -> string
+ *
+ * [string_of_sort s] produces a string representing [s] 
+ *)
+let string_of_sort s = Util.format_to_string (fun () -> format_sort s)
+
+let string_of_param p = Util.format_to_string (fun () -> format_param p)
 

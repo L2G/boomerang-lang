@@ -39,7 +39,7 @@ let mk_rv = Bregistry.make_rv
 (* --------------- Unit tests --------------- *)
 
 (* unit tests either succeed, yielding a value, or fail with a msg *)
-type testresult = OK of Bvalue.t | Error of (unit -> unit)
+type testresult = OK of Bsyntax.sort * Bvalue.t | Error of (unit -> unit)
 
 let tests = Prefs.createStringList
   "test"
@@ -94,10 +94,21 @@ sig
   val update : t -> Bsyntax.qid -> v -> t
 end
 
+module TEnv = struct 
+  module M = Env.Make(struct
+                        type t = Bsyntax.id
+                        let compare = Bsyntax.id_compare
+                        let to_string = Bsyntax.string_of_id
+                      end)
+  type t = Bsyntax.sort M.t
+  let empty = M.empty 
+  let lookup = M.lookup
+  let update = M.update
+end
 
 module CEnv : CEnvSig with type v = (Bsyntax.sort * Bvalue.t) = struct
   type t = Bsyntax.qid list * (Bregistry.REnv.t)
-  type v = Bsyntax.sort * Bvalue.t  
+  type v = Bsyntax.sort * Bvalue.t
 
   let empty () = ([], (Bregistry.REnv.empty ()))    
 
@@ -139,7 +150,7 @@ module SCEnv : CEnvSig with type v = Bsyntax.sort = struct
     | None -> None
     | Some (s,_) -> Some s
   let update sev q s = 
-    CEnv.update sev q (s,Bvalue.mk_dummy s)
+    CEnv.update sev q (s,Bvalue.Unt (Info.M "dummy"))
 end
 
 (* --------------- Checker --------------- *)
@@ -158,7 +169,14 @@ let rec subsort u v = match u,v with
       let b1 = subsort s21 s11  in
       let b2 = subsort s12 s22 in 
         b1 && b2
-  | _ -> u=v
+  | SProduct(s11,s12),SProduct(s21,s22) -> 
+      let b1 = subsort s11 s21  in
+      let b2 = subsort s12 s22 in 
+        b1 && b2     
+  | SVar x, SVar y -> 
+      qid_equal x y
+  | _ -> 
+      u=v
 
 let rec join i u v = match u,v with 
   | SString,SRegexp -> SRegexp
@@ -174,6 +192,14 @@ let rec join i u v = match u,v with
           (fun () -> Util.format "%s and %s do not join"
             (string_of_sort u)
             (string_of_sort v))
+      end
+  | SProduct(s11,s12),SProduct(s21,s22) -> 
+      begin 
+        try SProduct(join i s11 s12,join i s21 s22) 
+        with _ -> run_error i "join" 
+          (fun () -> Util.format "%s and %s do not join"
+             (string_of_sort u)
+             (string_of_sort v))
       end
   | _ -> 
       if u=v then u 
@@ -193,6 +219,14 @@ and meet i u v = match u,v with
   | SFunction(s11,s12),SFunction(s21,s22) -> 
       begin 
         try SFunction(join i s11 s12,meet i s21 s22) 
+        with _ -> run_error i "meet" 
+          (fun () -> Util.format "%s and %s do not meet"
+            (string_of_sort u)
+            (string_of_sort v))
+      end
+  | SProduct(s11,s12),SProduct(s21,s22) -> 
+      begin 
+        try SProduct(meet i s11 s12,meet i s21 s22) 
         with _ -> run_error i "meet" 
           (fun () -> Util.format "%s and %s do not meet"
             (string_of_sort u)
@@ -219,21 +253,21 @@ let expect_sorts i msg expecteds found =
         else aux t in 
   aux expecteds
       
-let rec expect_sorts_exp msg sev expecteds e =
+let rec expect_sorts_exp msg evs expecteds e =
   let i = info_of_exp e in
-  let found_sort,new_e = check_exp sev e in 
+  let found_sort,new_e = check_exp evs e in 
   let f_sort,e_sort = expect_sorts i msg expecteds found_sort in 
   (f_sort,e_sort,new_e)
 
 and expect_sort i msg expected found = 
   snd (expect_sorts i msg [expected] found)
 
-and expect_sort_exp msg sev expected e = 
-  let (_,e_sort,new_e) = expect_sorts_exp msg sev [expected] e in 
+and expect_sort_exp msg evs expected e = 
+  let (_,e_sort,new_e) = expect_sorts_exp msg evs [expected] e in 
   (e_sort,new_e)
 
 (* check expressions *)    
-and check_exp sev e0 = match e0 with
+and check_exp ((tev,sev) as evs) e0 = match e0 with
   | EVar(i,q) ->
       begin match SCEnv.lookup sev q with
         | Some s -> (s,e0)
@@ -245,9 +279,9 @@ and check_exp sev e0 = match e0 with
       end
 
   | EApp(i,e1,e2) -> 
-      begin match check_exp sev e1 with
+      begin match check_exp evs e1 with
         | SFunction(param_sort,return_sort), new_e1 -> 
-            let e2_sort,new_e2 = check_exp sev e2 in 
+            let e2_sort,new_e2 = check_exp evs e2 in 
             let _ = expect_sort i "application" param_sort e2_sort in 
             let new_e0 = EApp(i, new_e1, new_e2) in 
             (return_sort, new_e0)
@@ -264,17 +298,27 @@ and check_exp sev e0 = match e0 with
       let p_id = id_of_param p in
       let body_sev = SCEnv.update sev (qid_of_id p_id) p_sort in
       let body_sort,new_body = match ret_sorto with
-        | Some s -> expect_sort_exp "function body" body_sev s body
-        | None   -> check_exp body_sev body in        
+        | Some s -> expect_sort_exp "function body" (tev,body_sev) s body
+        | None   -> check_exp (tev,body_sev) body in        
       let e0_sort = SFunction(p_sort,body_sort) in 
       let new_e0 = EFun(i,p,Some body_sort,new_body) in 
       (e0_sort, new_e0)
 
   | ELet(i,b,e) ->
-      let bsev,_,new_b = check_binding sev b in 
-      let e_sort,new_e = check_exp bsev e in 
+      let bevs,_,new_b = check_binding evs b in 
+      let e0_sort,new_e = check_exp bevs e in 
       let new_e0 = ELet(i, new_b, new_e) in 
-      (e_sort, new_e0)
+      (e0_sort, new_e0)
+
+  | EUnit(_) -> 
+      (SUnit,e0)
+
+  | EPair(i,e1,e2) -> 
+      let e1_sort,new_e1 = check_exp evs e1 in 
+      let e2_sort,new_e2 = check_exp evs e2 in 
+      let e0_sort = SProduct(e1_sort,e2_sort) in 
+      let new_e0 = EPair(i,new_e1,new_e2) in 
+      (e0_sort,new_e0)
 
   | EString(_,_) -> 
       (SString,e0)
@@ -283,8 +327,8 @@ and check_exp sev e0 = match e0 with
       (SRegexp,e0)
 
   | EUnion(i,e1,e2) ->
-      let f1_sort,e1_sort,new_e1 = expect_sorts_exp "union" sev [SLens;SCanonizer] e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "union" sev f1_sort e2 in 
+      let f1_sort,e1_sort,new_e1 = expect_sorts_exp "union" evs [SLens;SCanonizer] e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "union" evs f1_sort e2 in 
       let e0_sort = match join i e1_sort e2_sort with
         | SString -> SRegexp
         | s -> s in 
@@ -292,38 +336,38 @@ and check_exp sev e0 = match e0 with
       (e0_sort,new_e0)
 
   | ECat(i,e1,e2) -> 
-      let f1_sort,e1_sort,new_e1 = expect_sorts_exp "concat" sev [SLens;SCanonizer] e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "concat" sev f1_sort e2 in 
+      let f1_sort,e1_sort,new_e1 = expect_sorts_exp "concat" evs [SLens;SCanonizer] e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "concat" evs f1_sort e2 in 
       let e0_sort = join i e1_sort e2_sort in 
       let new_e0 = ECat(i,new_e1,new_e2) in 
       (e0_sort,new_e0)
 
   | ETrans(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "trans" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "trans" sev SString e2 in 
+      let e1_sort,new_e1 = expect_sort_exp "trans" evs SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "trans" evs SString e2 in 
       let new_e0 = ETrans(i,new_e1,new_e2) in 
       (SLens,new_e0)
 
   | EStar(i,e) -> 
-      let _,e_sort,new_e = expect_sorts_exp "kleene-star" sev [SLens;SCanonizer] e in 
+      let _,e_sort,new_e = expect_sorts_exp "kleene-star" evs [SLens;SCanonizer] e in 
       let new_e0 = EStar(i,new_e) in 
       (e_sort, new_e0) 
 
   | EDiff(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "diff" sev SRegexp e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "diff" sev SRegexp e2 in       
+      let e1_sort,new_e1 = expect_sort_exp "diff" evs SRegexp e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "diff" evs SRegexp e2 in       
       let new_e0 = EDiff(i,new_e1,new_e2) in 
       (SRegexp,new_e0)
 
   | EInter(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "diff" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "diff" sev SLens e2 in       
+      let e1_sort,new_e1 = expect_sort_exp "diff" evs SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "diff" evs SLens e2 in       
       let new_e0 = EInter(i,new_e1,new_e2) in 
       (SRegexp,new_e0)
 
   | ECompose(i,e1,e2) -> 
-      let e1_sort,new_e1 = expect_sort_exp "compose" sev SLens e1 in 
-      let e2_sort,new_e2 = expect_sort_exp "compose" sev SLens e2 in       
+      let e1_sort,new_e1 = expect_sort_exp "compose" evs SLens e1 in 
+      let e2_sort,new_e2 = expect_sort_exp "compose" evs SLens e2 in       
       let new_e0 = ECompose(i,new_e1,new_e2) in 
       (SLens,new_e0)
 
@@ -331,74 +375,92 @@ and check_exp sev e0 = match e0 with
       (* fixme: check that this match is used consistently! *)
       (SLens,e0)
         
-and check_binding sev = function
+and check_binding ((tev,sev) as evs) = function
   | Bind(i,x,so,e) -> 
       let x_qid = qid_of_id x in 
       let e_sort,new_e = match so with 
-        | None -> check_exp sev e 
-        | Some s -> expect_sort_exp "let" sev s e in 
+        | None -> check_exp evs e 
+        | Some s -> expect_sort_exp "let" evs s e in 
       let bsev = SCEnv.update sev x_qid e_sort in 
       let new_b = Bind(i,x,Some e_sort,new_e) in 
-      (bsev,x,new_b)
+      ((tev,bsev),x,new_b)
 
 (* type check a single declaration *)
-let rec check_decl sev m = function 
+let rec check_decl ((tev,sev) as evs) m = function 
   | DLet(i,b) -> 
-      let bsev,x,new_b = check_binding sev b in 
+      let bevs,x,new_b = check_binding evs b in 
       let new_d = DLet(i,new_b) in 
-        (bsev,[qid_of_id x],new_d)
+        (bevs,[qid_of_id x],new_d)
   | DMod(i,n,ds) ->
       let n_qid = qid_of_id n in        
       let mn = Bsyntax.qid_dot m n_qid in
-      let m_sev,names,new_ds= check_module_aux sev mn ds in
+      let (m_tev,m_sev),names,new_ds= check_module_aux evs mn ds in
       let n_sev, names_rev = Safelist.fold_left 
         (fun (n_sev, names) q -> 
-          match Bregistry.REnv.lookup (SCEnv.get_ev m_sev) q with
+           match Bregistry.REnv.lookup (SCEnv.get_ev m_sev) q with
               None -> run_error i "check_decl"
                 (fun () -> 
                   Util.format "@[declaration for %s missing@]"
                     (string_of_qid q))
             | Some q_rv ->
                 let nq_dot_q = qid_dot n_qid q in
-                (SCEnv.update n_sev nq_dot_q (s_of_rv q_rv), nq_dot_q::names))
+                  (SCEnv.update n_sev nq_dot_q (s_of_rv q_rv), nq_dot_q::names))
         (sev,[])
         names in 
       let new_d = DMod(i,n,new_ds) in 
-      (n_sev,Safelist.rev names_rev,new_d)
+      ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
-    | DTest(i,e1,tr) -> 
-        let e1_sort,new_e1 = check_exp sev e1 in
-        let new_tr = match tr with 
-            | TestError -> tr
-            | TestShow -> tr
-            | TestValue e2 -> 
-                let _,new_e2 = expect_sort_exp "test result" sev e1_sort e2 in 
-                TestValue (new_e2) 
-            | TestSort _ -> tr
-            | TestLensType(e21o,e22o) -> 
-                let chk_eo = function
-                  | None -> None
-                  | Some e -> 
-                      let _,new_e = expect_sort_exp "test type" sev SRegexp e in 
-                        Some new_e in 
-                TestLensType(chk_eo e21o, chk_eo e22o) in 
-        let new_d = DTest(i,new_e1,new_tr) in 
-        (sev,[],new_d)
-                 
-and check_module_aux sev m ds = 
-  let m_sev, names, new_ds_rev = 
+  | DType(i,x,s) as d -> 
+      let new_sev = match s with 
+        | SSum(vl) -> 
+            let qx = Bsyntax.qid_of_id x in 
+            Safelist.fold_left 
+              (fun sev (l,so) -> 
+                 let ql = Bsyntax.qid_of_id (i,l) in 
+                 let sx = Bsyntax.SVar qx in 
+                 let s = match so with 
+                   | None -> sx
+                   | Some s -> Bsyntax.SFunction (s,sx) in
+                 SCEnv.update sev ql s)
+              sev vl
+        | _ -> sev in 
+      let new_tev = TEnv.update tev x s in 
+      ((new_tev,new_sev),[],d)
+      
+  | DTest(i,e1,tr) -> 
+      let e1_sort,new_e1 = check_exp evs e1 in
+      let new_tr = match tr with 
+        | TestError -> tr
+        | TestShow -> tr
+        | TestValue e2 -> 
+            let _,new_e2 = expect_sort_exp "test result" evs e1_sort e2 in 
+              TestValue (new_e2) 
+        | TestSort _ -> tr
+        | TestLensType(e21o,e22o) -> 
+            let chk_eo = function
+              | None -> None
+              | Some e -> 
+                  let _,new_e = expect_sort_exp "test type" evs SRegexp e in 
+                    Some new_e in 
+              TestLensType(chk_eo e21o, chk_eo e22o) in 
+      let new_d = DTest(i,new_e1,new_tr) in 
+      (evs,[],new_d)
+          
+and check_module_aux evs m ds = 
+  let m_evs, names, new_ds_rev = 
     Safelist.fold_left 
-      (fun (sev, names, new_ds_rev) di -> 
-        let m_sev,new_names,new_di = check_decl sev m di in
-        m_sev, names@new_names,new_di::new_ds_rev)
-      (sev,[],[])
+      (fun (evs, names, new_ds_rev) di -> 
+        let m_evs,new_names,new_di = check_decl evs m di in
+          m_evs, names@new_names,new_di::new_ds_rev)
+      (evs,[],[])
       ds in
-  (m_sev, names, Safelist.rev new_ds_rev)
+  (m_evs, names, Safelist.rev new_ds_rev)
 
 let check_module = function
   | Mod(i,m,nctx,ds) -> 
+      let tev = TEnv.empty () in 
       let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Bregistry.pre_ctx) in
-      let _,_,new_ds = check_module_aux sev (Bsyntax.qid_of_id m) ds in 
+      let _,_,new_ds = check_module_aux (tev,sev) (Bsyntax.qid_of_id m) ds in 
       Mod(i,m,nctx,new_ds)
 
 (* --------------- Compiler --------------- *)
@@ -434,7 +496,7 @@ let rec compile_exp cev e0 = match e0 with
         | Some(SRegexp,v) -> 
             let x = (Bsyntax.string_of_qid q) in 
             let r' = Bregexp.set_str (Bvalue.get_r v i) x in
-            let rv' = SRegexp, Bvalue.R(i,r') in 
+            let rv' = SRegexp, Bvalue.Rx(i,r') in 
             rv'
         | Some rv -> rv
         | None -> 
@@ -448,7 +510,7 @@ let rec compile_exp cev e0 = match e0 with
       let s1,v1 = compile_exp cev e1 in
       let s2,v2 = compile_exp cev e2 in
       begin match s1,v1 with
-        | SFunction(_,ret_sort),Bvalue.F(_,_,f) -> 
+        | SFunction(_,ret_sort),Bvalue.Fun(_,_,f) -> 
             (ret_sort, (f i v2))
         | _   -> 
             run_error i "compile_exp"
@@ -470,7 +532,7 @@ let rec compile_exp cev e0 = match e0 with
         let p_sort = sort_of_param p in
         let body_cev = CEnv.update cev p_qid (p_sort, v) in
           snd (compile_exp body_cev e) in 
-      (f_sort, (Bvalue.F (i, p_sort, f_impl)))
+      (f_sort, (Bvalue.Fun (i, p_sort, f_impl)))
 
   | EFun(i,_,_,_) -> 
       run_error i "compile_exp"
@@ -478,26 +540,33 @@ let rec compile_exp cev e0 = match e0 with
           Util.format 
             "@[compiler bug: function has no sort!@]")
 
-  | EString(i,s) -> (SString,Bvalue.S(i,s))
+  | EUnit i -> (SUnit,Bvalue.Unt i)
 
-  | ECSet(i,true,cs) -> (SRegexp,Bvalue.R (i, R.set cs))
+  | EPair(i,e1,e2) -> 
+      let s1,v1 = compile_exp cev e1 in 
+      let s2,v2 = compile_exp cev e2 in 
+      (SProduct(s1,s2),Bvalue.Par(i,v1,v2))
 
-  | ECSet(i,false,cs) -> (SRegexp,Bvalue.R (i, R.negset cs))
+  | EString(i,s) -> (SString,Bvalue.Str(i,s))
+
+  | ECSet(i,true,cs) -> (SRegexp,Bvalue.Rx (i, R.set cs))
+
+  | ECSet(i,false,cs) -> (SRegexp,Bvalue.Rx (i, R.negset cs))
 
   | ECat(i,e1,e2) ->
       let concat_merge = 
         [ (SString,SString,SString,
           (fun i v1 v2 -> 
-            V.S(i,RS.append (V.get_s v1 i) (V.get_s v2 i))))
+            V.Str(i,RS.append (V.get_s v1 i) (V.get_s v2 i))))
         ; (SRegexp,SRegexp,SRegexp,
           (fun i v1 v2 -> 
-            V.R(i,R.seq (V.get_r v1 i) (V.get_r v2 i))))
+            V.Rx(i,R.seq (V.get_r v1 i) (V.get_r v2 i))))
         ; (SLens,SLens,SLens,
           (fun i v1 v2 -> 
-            V.L(i,L.concat i (V.get_l v1 i) (V.get_l v2 i)))) 
+            V.Lns(i,L.concat i (V.get_l v1 i) (V.get_l v2 i)))) 
         ; (SCanonizer,SCanonizer,SCanonizer,
           (fun i v1 v2 -> 
-            V.C(i,C.concat i (V.get_c v1 i) (V.get_c v2 i)))) ] in 
+            V.Can(i,C.concat i (V.get_c v1 i) (V.get_c v2 i)))) ] in 
       do_binop i "concat" concat_merge 
         (compile_exp cev e1)
         (compile_exp cev e2)
@@ -515,19 +584,19 @@ let rec compile_exp cev e0 = match e0 with
               (fun () -> Util.format "@[%s is not bound@]" set_name) in 
       let set_f2 = V.get_f (set_f i v1) i in 
       let set_l3 = V.get_l (set_f2 i v2) i in 
-      (SLens,V.L(i,set_l3))
+      (SLens,V.Lns(i,set_l3))
 
   | EUnion(i,e1,e2) -> 
       let union_merge = 
         [ (SRegexp,SRegexp,SRegexp,
           (fun i v1 v2 -> 
-            V.R(i,R.alt (V.get_r v1 i) (V.get_r v2 i))))            
+            V.Rx(i,R.alt (V.get_r v1 i) (V.get_r v2 i))))            
         ; (SLens,SLens,SLens,
           (fun i v1 v2 -> 
-            V.L(i,L.union i (V.get_l v1 i) (V.get_l v2 i))))
+            V.Lns(i,L.union i (V.get_l v1 i) (V.get_l v2 i))))
         ; (SCanonizer,SCanonizer,SCanonizer,
           (fun i v1 v2 -> 
-            V.C(i,C.union i (V.get_c v1 i) (V.get_c v2 i)))) ] in 
+            V.Can(i,C.union i (V.get_c v1 i) (V.get_c v2 i)))) ] in 
       let rec flatten_unions = function
         | EUnion(i,e1,e2) -> (flatten_unions e1) @ (flatten_unions e2)
         | e -> [e] in
@@ -549,11 +618,11 @@ let rec compile_exp cev e0 = match e0 with
       let s1,v1 = compile_exp cev e1 in 
       begin match s1 with
         | SString | SRegexp -> 
-            (SRegexp,V.R(i,R.star (V.get_r v1 i)))
+            (SRegexp,V.Rx(i,R.star (V.get_r v1 i)))
         | SLens -> 
-            (SLens,V.L(i,L.star i (V.get_l v1 i)))
+            (SLens,V.Lns(i,L.star i (V.get_l v1 i)))
         | SCanonizer -> 
-            (SCanonizer,V.C(i,C.star i (V.get_c v1 i)))
+            (SCanonizer,V.Can(i,C.star i (V.get_c v1 i)))
         | _ -> 
             ignore (expect_sort i "kleene-star" SLens s1);
             assert false
@@ -563,7 +632,7 @@ let rec compile_exp cev e0 = match e0 with
       begin match CEnv.lookup cev q with
         | Some (_,v) -> 
             let l = Bvalue.get_l v i in 
-            (SLens,V.L(i,L.smatch i t l))
+            (SLens,V.Lns(i,L.smatch i t l))
         | None -> 
             run_error (info_of_exp e0) "compile_exp" 
               (fun () -> 
@@ -575,7 +644,7 @@ let rec compile_exp cev e0 = match e0 with
       let compose_merge = 
         [ (SLens, SLens,SLens,
           (fun i v1 v2 -> 
-            V.L(i,L.compose i (V.get_l v1 i) (V.get_l v2 i)))) ] in 
+            V.Lns(i,L.compose i (V.get_l v1 i) (V.get_l v2 i)))) ] in 
     do_binop i "compose" compose_merge
       (compile_exp cev e1)
       (compile_exp cev e2)
@@ -584,7 +653,7 @@ let rec compile_exp cev e0 = match e0 with
       let diff_merge = 
         [ (SRegexp, SRegexp, SRegexp, 
           (fun i v1 v2 -> 
-            V.R(i,R.diff (V.get_r v1 i) (V.get_r v2 i)))) ] in 
+            V.Rx(i,R.diff (V.get_r v1 i) (V.get_r v2 i)))) ] in 
       do_binop i "diff" diff_merge
         (compile_exp cev e1)
         (compile_exp cev e2)
@@ -593,7 +662,7 @@ let rec compile_exp cev e0 = match e0 with
       let inter_merge = 
         [ (SRegexp, SRegexp, SRegexp, 
           (fun i v1 v2 -> 
-            V.R(i,R.inter (V.get_r v1 i) (V.get_r v2 i)))) ] in 
+            V.Rx(i,R.inter (V.get_r v1 i) (V.get_r v2 i)))) ] in 
       do_binop i "inter" inter_merge
         (compile_exp cev e1)
         (compile_exp cev e2)
@@ -609,6 +678,24 @@ let rec compile_decl cev m = function
   | DLet(i,b) -> 
       let bcev,x_qid = compile_binding cev b in
       (bcev,[x_qid])
+  | DType(i,x,s) -> 
+      let qx = Bsyntax.qid_of_id x in 
+      let new_cev = match s with 
+        | SSum(vl) -> 
+            let sx = Bsyntax.SVar qx in 
+              Safelist.fold_left 
+                (fun cev (l,so) -> 
+                   let ql = Bsyntax.qid_of_id (i,l) in 
+                   let rv = match so with 
+                     | None -> (sx,V.Vnt(i,qx,l,None))
+                     | Some s -> 
+                         let sf = Bsyntax.SFunction(s,sx) in 
+                         (sf,V.Fun(i,s,(fun i v -> V.Vnt(i,qx,l,Some v)))) in 
+                   CEnv.update cev ql rv)
+              cev vl 
+        | _ -> cev in
+      (new_cev,[qx])
+
   | DMod(i,n,ds) ->
       let n_qid = qid_dot m (qid_of_id n) in 
       let m_cev, names = compile_mod_aux cev n_qid ds in
@@ -630,25 +717,26 @@ let rec compile_decl cev m = function
       if check_test m then 
         begin
           let vo = 
-            try OK (snd (compile_exp cev e))
+            try let s,v = compile_exp cev e in 
+            OK(s,v)
             with (Error.Harmony_error(m)) -> Error m in 
           match vo,tr with 
-            | OK v, TestShow ->
+            | OK (_,v), TestShow ->
                 Util.format "Test result:@ "; 
                 Bvalue.format v; 
                 Util.format "@\n%!"
-            | OK v, TestSort(Some s) -> 
-                if not (subsort (Bvalue.sort_of_t v) s) then 
+            | OK (s0,v), TestSort(Some s) -> 
+                if not (subsort s0 s) then
                   test_error i
                     (fun () -> 
                        Util.format "@\nExpected@ "; Bsyntax.format_sort s;
-                       Util.format "@ but found@ "; Bvalue.format v; 
+                       Util.format "@ but found@ "; Bsyntax.format_sort s0; 
                        Util.format "@\n%!")
-            | OK v, TestSort None -> 
+            | OK(_,v), TestSort None -> 
                 Util.format "Test sort:@ ";
                 Bsyntax.format_sort (Bvalue.sort_of_t v);
                 Util.format "@\n%!"
-            | OK v, TestLensType(e1o,e2o) -> 
+            | OK(_,v), TestLensType(e1o,e2o) -> 
                 if not (subsort (Bvalue.sort_of_t v) SLens) then 
                   test_error i 
                     (fun () -> 
@@ -690,7 +778,7 @@ let rec compile_decl cev m = function
                     m (); 
                     Util.format "%!")
             | Error _, TestError -> ()
-            | OK v, TestValue res -> 
+            | OK(_,v), TestValue res -> 
                 let resv = snd (compile_exp cev res) in
                   if not (Bvalue.equal v resv) then
                     test_error i 
@@ -706,7 +794,7 @@ let rec compile_decl cev m = function
                       Util.format "@ but found an error:@ "; 
                       m (); 
                       Util.format "@\n%!")
-            | OK v, TestError -> 
+            | OK(_,v), TestError -> 
                 test_error i 
                   (fun () ->
                     Util.format "@\nExpected an error@ "; 

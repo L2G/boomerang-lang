@@ -111,6 +111,9 @@ let _ =
     ; ("regexp", (fun i -> REGEXP i))
     ; ("lens", (fun i -> LENS i))
     ; ("canonizer", (fun i -> CANONIZER i))
+    ; ("unit", (fun i -> UNIT i))
+    ; ("type", (fun i -> TYPE i))
+    ; ("of", (fun i -> OF i))
     ]
 }
 
