@@ -25,11 +25,16 @@ let x : { ? <-> ? } = [^]*
 
 type mytype = A | B of regexp
 
-let x = B [nate]
+let x = B "nate"
 
-let y = match x with B z -> (z . "foster", "penn" | "upenn") | A -> ("","")
+let y = match x with | A -> ("","") | B z -> (z . " " . "foster", "levine 561")
 
+let z = match y with (x,y) -> x
+
+test y = ?
 test y : ?
+test z : ?
+test "<< " . z . " >>" = ?
 
 (*let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}" *)
 (*let cl2 = smash_clens cl1

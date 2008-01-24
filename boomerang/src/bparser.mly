@@ -234,7 +234,8 @@ gpexp:
 /* case expressions */
 cexp:
   | MATCH composeexp WITH pat_list
-      { ECase(m $1 $3,$2,$4) }
+      { let i4,pl = $4 in 
+        ECase(m $1 i4,$2,pl) }
 
   | composeexp
       { $1 }
@@ -254,10 +255,10 @@ pexp:
 
   | bexp
       { $1 }
-            
+
 /* bar expressions */
 bexp:
-  | bexp BAR iexp 
+  | bexp BAR mexp 
       { EUnion(me $1 $3,$1,$3) }
 
   | mexp
@@ -383,35 +384,37 @@ aexp:
 
 /* --------- PATTERNS ---------- */
 pat: 
-  | IDENT IDENT ARROW aexp 
-      { PVnt($1,Some $2),$4 }
+  | IDENT ARROW mexp 
+      { (me2 (fst $1) $3, PVnt($1,None),$3) }
 
-  | IDENT ARROW aexp 
-      { PVnt($1,None),$3 }
+  | IDENT IDENT ARROW mexp
+      { (me2 (fst $1) $4, PVnt($1,Some $2),$4) }
 
-  | IDENT COMMA IDENT ARROW aexp 
-      { PPar($1,$3),$5 }
+  | IDENT COMMA IDENT ARROW mexp 
+      { (me2 (fst $1) $5, PPar($1,$3),$5) }
 
-  | LPAREN IDENT COMMA IDENT RPAREN ARROW aexp 
-      { PPar($2,$4),$7 }
+  | LPAREN IDENT COMMA IDENT RPAREN ARROW mexp
+      { (me2 $1 $7, PPar($2,$4),$7) }
 
 pat_list:
-  | opt_bar pat pat_list2
-      { $2::$3 }
+  | pat pat_list2
+      { let (i1,p,e) = $1 in 
+        let (i2,l) = $2 i1 in 
+        (m i1 i2, (p,e)::l) }
+
+  | BAR pat pat_list2
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (m $1 i2, (p,e)::l) }
 
 pat_list2:
   | 
-      { [] }
-
+      { (fun i -> (i,[])) }
+        
   | BAR pat pat_list2
-      { $2::$3 }
-
-opt_bar:
-  | 
-      { () }
-
-  | BAR
-      { () }
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (fun _ -> (m $1 i2, (p,e)::l)) }
 
 /* --------- SORTS ---------- */
 sort: 

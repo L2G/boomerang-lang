@@ -39,7 +39,7 @@ let mk_rv = Bregistry.make_rv
 (* --------------- Unit tests --------------- *)
 
 (* unit tests either succeed, yielding a value, or fail with a msg *)
-type testresult = OK of Bsyntax.sort * Bvalue.t | Error of (unit -> unit)
+type testresult = OK of sort * Bvalue.t | Error of (unit -> unit)
 
 let tests = Prefs.createStringList
   "test"
@@ -88,28 +88,28 @@ sig
   val empty : unit -> t
   val get_ev : t -> Bregistry.REnv.t
   val set_ev : t -> Bregistry.REnv.t -> t
-  val get_ctx : t -> Bsyntax.qid list
-  val set_ctx : t -> Bsyntax.qid list -> t
-  val lookup : t -> Bsyntax.qid -> v option
-  val update : t -> Bsyntax.qid -> v -> t
+  val get_ctx : t -> qid list
+  val set_ctx : t -> qid list -> t
+  val lookup : t -> qid -> v option
+  val update : t -> qid -> v -> t
 end
 
 module TEnv = struct 
   module M = Env.Make(struct
-                        type t = Bsyntax.qid
-                        let compare = Bsyntax.qid_compare
-                        let to_string = Bsyntax.string_of_qid
+                        type t = qid
+                        let compare = qid_compare
+                        let to_string = string_of_qid
                       end)
-  type s = (Bsyntax.id * sort option) list
+  type s = (id * sort option) list
   type t = s M.t
   let empty : unit -> t = M.empty 
-  let lookup : t -> Bsyntax.qid -> s option = M.lookup
-  let update : t -> Bsyntax.qid -> s -> t = M.update
+  let lookup : t -> qid -> s option = M.lookup
+  let update : t -> qid -> s -> t = M.update
 end
 
-module CEnv : CEnvSig with type v = (Bsyntax.sort * Bvalue.t) = struct
-  type t = Bsyntax.qid list * (Bregistry.REnv.t)
-  type v = Bsyntax.sort * Bvalue.t
+module CEnv : CEnvSig with type v = (sort * Bvalue.t) = struct
+  type t = qid list * (Bregistry.REnv.t)
+  type v = sort * Bvalue.t
 
   let empty () = ([], (Bregistry.REnv.empty ()))    
 
@@ -137,9 +137,9 @@ end
 type cenv = CEnv.t
 let empty_cenv () = CEnv.empty ()
 
-module SCEnv : CEnvSig with type v = Bsyntax.sort = struct
+module SCEnv : CEnvSig with type v = sort = struct
   type t = CEnv.t
-  type v = Bsyntax.sort 
+  type v = sort 
 
   let empty = CEnv.empty        
   let get_ev = CEnv.get_ev
@@ -247,8 +247,8 @@ let expect_sorts i msg expecteds found =
         sort_error i
           (fun () -> 
              Util.format "@[in %s:@ %s@ expected@ but@ %s@ found@]" msg
-               (Misc.concat_list " or " (Safelist.map Bsyntax.string_of_sort expecteds))
-               (Bsyntax.string_of_sort found))
+               (Misc.concat_list " or " (Safelist.map string_of_sort expecteds))
+               (string_of_sort found))
     | h::t -> 
         if subsort found h then (h,found)
         else aux t in 
@@ -291,7 +291,7 @@ and check_exp ((tev,sev) as evs) e0 = match e0 with
               (fun () -> 
                 Util.format
                   "@[expected@ arrow@ sort@ in@ left-hand@ side@ of@ application@ but@ found %s@]"
-                  (Bsyntax.string_of_sort e1_sort))
+                  (string_of_sort e1_sort))
       end
 
   | EFun(i,p,ret_sorto,body) ->
@@ -322,67 +322,74 @@ and check_exp ((tev,sev) as evs) e0 = match e0 with
       (e0_sort,new_e0)
 
   | ECase(i,e1,pl) -> 
+      let err0 p = sort_error i (fun () -> Util.format p) in 
+      let err1 p s = sort_error i (fun () -> Util.format p s) in 
+      let err2 p s1 s2 = sort_error i (fun () -> Util.format p s1 s2) in 
       let e1_sort,new_e1 = check_exp evs e1 in 
-      begin match e1_sort with 
-        (* variant case *)
+      begin match e1_sort with         
         | SVar x ->
-            (* lookup the sum type *)
+            (* variants -- lookup type *)
             let sl = match TEnv.lookup tev x with 
-              | None -> 
-                  sort_error i 
-                    (fun () -> Util.format "@[%s is not bound@]" (string_of_qid x))
-              | Some sl -> sl in 
-            let sl_bare = Safelist.map (fun (l,so) -> (Bsyntax.string_of_id l,so)) sl in 
-            (* check each pattern *)
+              | Some sl -> sl 
+              | None -> err1 "@[%s is not bound@]" (string_of_qid x) in 
+            (* "bare" sl -- identifiers -> strings for easy lookup as assoc list *)
+            let sl_bare = Safelist.map (fun (l,so) -> (string_of_id l,so)) sl in 
+            (* check the patterns *)
             let cs,sorto,new_pl_rev = Safelist.fold_left 
               (fun (cs,sorto,acc) (pi,ei) -> match pi with
-                 | PVnt(l,xo) ->
-                     let l_bare = Bsyntax.string_of_id l in 
-                     begin try
-                       let ei_sort,new_ei = 
-                         match xo,Safelist.assoc l_bare cs with
-                           | None,None -> check_exp evs ei
-                           | Some x,Some si -> 
-                               let ei_sev = SCEnv.update sev (qid_of_id x) si in
+                 | PVnt(l,xo) -> begin
+                     let l_bare = string_of_id l in 
+                     try 
+                       let ei_sort,new_ei = match xo,Safelist.assoc l_bare cs with
+                         | None,None -> check_exp evs ei
+                         | Some x,Some si -> 
+                             (* update with binding for x *)
+                             let ei_sev = SCEnv.update sev (qid_of_id x) si in
                                check_exp (tev,ei_sev) ei 
-                           | None,Some _ -> 
-                               sort_error i 
-                                 (fun () -> 
-                                    Util.format "@[the constructor %s expects an argument@]" 
-                                      l_bare)
-                           | Some _,None -> 
-                               sort_error i 
-                                 (fun () -> 
-                                    Util.format "@[the constructor %s expects no arguments@]" 
-                                      l_bare) in
-                     let sort = match sorto with
+                         | None,Some _ -> err1 "@[constructor %s expects an argument@]" l_bare
+                         | Some _,None -> err1 "@[the constructor %s expects no arguments@]" l_bare in 
+                       let sort = match sorto with
                          | None -> ei_sort
                          | Some sort -> 
-                             try join i ei_sort sort
-                             with Error.Harmony_error _ -> 
-                               sort_error i 
-                                 (fun () -> 
-                                    Util.format "@[patterns have different sorts: %s and %s@]"
-                                      (Bsyntax.string_of_sort sort)
-                                      (Bsyntax.string_of_sort ei_sort)) in 
-                     (Safelist.remove_assoc l_bare cs,Some sort, (pi,new_ei)::acc)
-                     with Not_found -> 
-                       sort_error i (fun () -> Util.format "@[unknown case: %s@]" l_bare)
-                     end
-                 | _ -> sort_error i (fun () -> Util.format "@[expected@ variant@ pattern@]"))
+                             (* check that all branches have compatible sorts *)
+                             try join i ei_sort sort with _ -> 
+                               err2 "@[patterns have different sorts: %s and %s@]"
+                                 (string_of_sort sort)
+                                 (string_of_sort ei_sort) in 
+                       let new_cs = Safelist.remove_assoc l_bare cs in 
+                       let new_sorto = Some sort in 
+                       let new_acc = (pi,new_ei)::acc in 
+                       (new_cs,new_sorto,new_acc) 
+                     with Not_found -> err1 "@[unknown case: %s@]" l_bare
+                   end
+                 | _ -> err0 "@[expected@ variant@ pattern@]")
               (sl_bare,None,[]) pl in 
-            let () = match cs with 
-                [] -> ()
-              | (l,_)::_ -> 
-                  Util.format "@[%s: Warning: this pattern-match is not exhaustive.@\n" 
-                    (Info.string_of_t i);
-                  Util.format "Here is a pattern that is not matched: %s@]@\n" l in 
+            (* check for coverage *)
+            (match cs with 
+               | [] -> ()
+               | (l,_)::_ -> 
+                   Util.format "@[%s: Warning: this pattern-match is not exhaustive.@\n" 
+                     (Info.string_of_t i);
+                   Util.format "Here is a pattern that is not matched: %s@]@\n" l);
             let e0_sort = match sorto with 
-              | None -> assert false
+              | None -> err0 "@[empty sum@]"
               | Some s -> s in 
             let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev) in 
             (e0_sort,new_e0)
-        | _ -> assert false
+        | SProduct(s1,s2) -> 
+            begin match pl with 
+              | [PPar(x,y),e] -> 
+                  (* update with binding for x *)
+                  let e_sev = 
+                    SCEnv.update 
+                      (SCEnv.update sev (qid_of_id x) s1)
+                      (qid_of_id y) s2 in 
+                  let e_sort,new_e = check_exp (tev,e_sev) e in                     
+                  let new_e0 = ECase(i,new_e1,[PPar(x,y),new_e]) in 
+                  e_sort,new_e0
+              | _ -> err0 "@[expected@ pair@ pattern@]" 
+            end
+        | s -> err1 "@[unexpected@ sort@ in@ pattern@ match:@ %s@]" (string_of_sort s)
       end
 
   | EString(_,_) -> 
@@ -458,7 +465,7 @@ let rec check_decl ((tev,sev) as evs) m = function
         (bevs,[qid_of_id x],new_d)
   | DMod(i,n,ds) ->
       let n_qid = qid_of_id n in        
-      let mn = Bsyntax.qid_dot m n_qid in
+      let mn = qid_dot m n_qid in
       let (m_tev,m_sev),names,new_ds= check_module_aux evs mn ds in
       let n_sev, names_rev = Safelist.fold_left 
         (fun (n_sev, names) q -> 
@@ -476,14 +483,14 @@ let rec check_decl ((tev,sev) as evs) m = function
       ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
   | DType(i,x,sl) as d -> 
-      let qx = Bsyntax.qid_of_id x in 
-      let sx = Bsyntax.SVar qx in
+      let qx = qid_of_id x in 
+      let sx = SVar qx in
       let new_sev = Safelist.fold_left 
         (fun sev (l,so) -> 
-           let ql = Bsyntax.qid_of_id l in 
+           let ql = qid_of_id l in 
            let s = match so with 
              | None -> sx
-             | Some s -> Bsyntax.SFunction (s,sx) in
+             | Some s -> SFunction (s,sx) in
              SCEnv.update sev ql s)
         sev sl in 
       let new_tev = TEnv.update tev qx sl in 
@@ -522,7 +529,7 @@ let check_module = function
   | Mod(i,m,nctx,ds) -> 
       let tev = TEnv.empty () in 
       let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Bregistry.pre_ctx) in
-      let _,_,new_ds = check_module_aux (tev,sev) (Bsyntax.qid_of_id m) ds in 
+      let _,_,new_ds = check_module_aux (tev,sev) (qid_of_id m) ds in 
       Mod(i,m,nctx,new_ds)
 
 (* --------------- Compiler --------------- *)
@@ -556,7 +563,7 @@ let rec compile_exp cev e0 = match e0 with
   | EVar(i,q) -> 
       begin match CEnv.lookup cev q with
         | Some(SRegexp,v) -> 
-            let x = (Bsyntax.string_of_qid q) in 
+            let x = (string_of_qid q) in 
             let r' = Bregexp.set_str (Bvalue.get_r v i) x in
             let rv' = SRegexp, Bvalue.Rx(i,r') in 
             rv'
@@ -610,21 +617,42 @@ let rec compile_exp cev e0 = match e0 with
       (SProduct(s1,s2),Bvalue.Par(i,v1,v2))
 
   | ECase(i,e1,pl) -> 
+      let err0 p = run_error i "compile_exp" (fun () -> Util.format p) in
+      let err1 p s = run_error i "compile_exp" (fun () -> Util.format p s) in         
       let s1,v1 = compile_exp cev e1 in 
-      let li,vio = Bvalue.get_v v1 i in 
-      let pi,ei = 
-        try Safelist.find 
-          (fun (p,e) -> match p with 
-             | PVnt(l,_) -> li = (string_of_id l)
-             | _ -> false)
-          pl 
-        with Not_found -> run_error i "compile_exp"
-          (fun () -> Util.format "@[no case for %s!@]" li) in 
-      let ei_cev = match pi,vio with 
-        | PVnt(_,None),None -> cev
-        | PVnt(_,Some x),Some vi -> CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t vi,vi) 
-        | _ -> assert false in 
-      compile_exp ei_cev ei
+      begin match s1 with 
+        | SVar _ -> 
+            (* variant case *)
+            let li,vio = Bvalue.get_v v1 i in 
+            let li_bare = string_of_id li in 
+            let pi,ei = 
+              try Safelist.find 
+                (fun (p,e) -> match p with 
+                   | PVnt(l,_) -> id_equal li l
+                   | _ -> false) pl
+              with Not_found -> err1 "@[match@ failure %s@]" li_bare in 
+            (* update environment *)
+            let ei_cev = match pi,vio with 
+              | PVnt(_,None),None -> cev
+              | PVnt(_,Some x),Some vi -> 
+                  CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t vi,vi) 
+              | PVnt(_,None),Some _ -> err1 "@[expected@ no@ argument@ for@ %s@]" li_bare
+              | PVnt(_,Some _),None -> err1 "@[expected@ argument@ for@ %s@]" li_bare
+              | _ -> assert false in 
+            compile_exp ei_cev ei
+        | SProduct(s1,s2) -> 
+            let v11,v12 = Bvalue.get_p v1 i in 
+            let x,y,e = match pl with 
+              | [PPar(x,y),e] -> x,y,e
+              | _ -> err0 "@[unexpected@ match@ failure@]" in 
+            let e_cev = 
+              CEnv.update 
+                (CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t v11,v11))
+                (qid_of_id y) 
+                (Bvalue.sort_of_t v12,v12) in 
+            compile_exp e_cev e 
+        | s -> err1 "@[unexpected@ sort:@ %s@]" (string_of_sort s)
+      end
 
   | EString(i,s) -> (SString,Bvalue.Str(i,s))
 
@@ -749,7 +777,7 @@ let rec compile_exp cev e0 = match e0 with
       
 and compile_binding cev = function
   | Bind(i,x,so,e) -> 
-      let x_qid = qid_of_id x in
+      let x_qid = qid_of_id x in 
       let rv = compile_exp cev e in 
       (CEnv.update cev x_qid rv,x_qid)
 
@@ -758,16 +786,16 @@ let rec compile_decl cev m = function
       let bcev,x_qid = compile_binding cev b in
       (bcev,[x_qid])
   | DType(i,x,sl) -> 
-      let qx = Bsyntax.qid_of_id x in 
-      let sx = Bsyntax.SVar qx in 
+      let qx = qid_of_id x in 
+      let sx = SVar qx in 
       let new_cev = Safelist.fold_left 
         (fun cev (l,so) -> 
-           let ql = Bsyntax.qid_of_id l in 
+           let ql = qid_of_id l in 
            let rv = match so with 
-             | None -> (sx,V.Vnt(i,qx,snd l,None))
+             | None -> (sx,V.Vnt(i,qx,l,None))
              | Some s -> 
-                 let sf = Bsyntax.SFunction(s,sx) in 
-                   (sf,V.Fun(i,s,sx,(fun i v -> V.Vnt(i,qx,snd l,Some v)))) in 
+                 let sf = SFunction(s,sx) in 
+                   (sf,V.Fun(i,s,sx,(fun i v -> V.Vnt(i,qx,l,Some v)))) in 
              CEnv.update cev ql rv)
         cev sl in 
       (new_cev,[qx])
@@ -805,18 +833,16 @@ let rec compile_decl cev m = function
                 if not (subsort s0 s) then
                   test_error i
                     (fun () -> 
-                       Util.format "@\nExpected@ "; Bsyntax.format_sort s;
-                       Util.format "@ but found@ "; Bsyntax.format_sort s0; 
+                       Util.format "@\nExpected@ "; format_sort s;
+                       Util.format "@ but found@ "; format_sort s0; 
                        Util.format "@\n%!")
-            | OK(_,v), TestSort None -> 
-                Util.format "Test sort:@ ";
-                Bsyntax.format_sort (Bvalue.sort_of_t v);
-                Util.format "@\n%!"
+            | OK(s0,v), TestSort None -> 
+                Util.format "Test sort:@ %s@\n%!" (string_of_sort s0);
             | OK(_,v), TestLensType(e1o,e2o) -> 
                 if not (subsort (Bvalue.sort_of_t v) SLens) then 
                   test_error i 
                     (fun () -> 
-                       Util.format "@\nExpected@ "; Bsyntax.format_sort SLens;
+                       Util.format "@\nExpected@ "; format_sort SLens;
                        Util.format "@ but found@ "; Bvalue.format v;
                        Util.format "@\n%!");
                 let l = Bvalue.get_l v i in 
