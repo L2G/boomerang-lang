@@ -174,12 +174,16 @@ let rec subsort u v = match u,v with
       let b1 = subsort s11 s21  in
       let b2 = subsort s12 s22 in 
         b1 && b2     
-  | SVar x, SVar y -> 
-      qid_equal x y
-  | _ -> 
-      u=v
+  | SVar x, SVar y -> qid_equal x y
+  | _ -> u=v
 
-let rec join i u v = match u,v with 
+let rec join i u v = 
+  let err () = 
+    run_error i "join"
+      (fun () -> Util.format "%s and %s do not join"
+         (string_of_sort u)
+         (string_of_sort v)) in 
+  match u,v with 
   | SString,SRegexp -> SRegexp
   | SRegexp,SString -> SRegexp
   | SString,SLens -> SLens
@@ -202,15 +206,16 @@ let rec join i u v = match u,v with
              (string_of_sort u)
              (string_of_sort v))
       end
-  | _ -> 
-      if u=v then u 
-      else
-        run_error i "join"
-          (fun () -> Util.format "%s and %s do not join"
-            (string_of_sort u)
-            (string_of_sort v))
+  | SVar x, SVar y -> if qid_equal x y then u else err ()
+  | _ -> if u=v then u else err ()
          
-and meet i u v = match u,v with
+and meet i u v = 
+  let err () = 
+    run_error i "meet"
+      (fun () -> Util.format "%s and %s do not meet"
+         (string_of_sort u)
+         (string_of_sort v)) in       
+  match u,v with
   | SString,SRegexp -> SString
   | SRegexp,SString -> SString
   | SString,SLens -> SString
@@ -233,13 +238,8 @@ and meet i u v = match u,v with
             (string_of_sort u)
             (string_of_sort v))
       end
-  | _ -> 
-      if u=v then u 
-      else 
-        run_error i "meet"
-          (fun () -> Util.format "%s and %s do not meet"
-            (string_of_sort u)
-            (string_of_sort v))
+  | SVar x,SVar y -> if qid_equal x y then u else err ()
+  | _ -> if u=v then u else err ()
 
 let expect_sorts i msg expecteds found =
   let rec aux = function 

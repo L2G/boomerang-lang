@@ -233,7 +233,7 @@ gpexp:
 
 /* case expressions */
 cexp:
-  | MATCH composeexp WITH pat_list
+  | MATCH composeexp WITH branch_list
       { let i4,pl = $4 in 
         ECase(m $1 i4,$2,pl) }
 
@@ -383,35 +383,46 @@ aexp:
       { $2 }
 
 /* --------- PATTERNS ---------- */
-pat: 
-  | IDENT ARROW mexp 
-      { (me2 (fst $1) $3, PVnt($1,None),$3) }
+branch: 
+  | pat ARROW mexp 
+      { let i1,p = $1 in 
+        (me2 i1 $3, p, $3) }
 
-  | IDENT IDENT ARROW mexp
-      { (me2 (fst $1) $4, PVnt($1,Some $2),$4) }
+pat:      
+  | IDENT COMMA IDENT
+      { let i1,_ = $1 in 
+        let i3,_ = $3 in 
+        (m i1 i3, PPar($1,$3)) }
 
-  | IDENT COMMA IDENT ARROW mexp 
-      { (me2 (fst $1) $5, PPar($1,$3),$5) }
+  | IDENT IDENT
+      { let i1,_ = $1 in 
+        let i2,_ = $2 in 
+        (m i1 i2, PVnt($1,Some $2)) }
 
-  | LPAREN IDENT COMMA IDENT RPAREN ARROW mexp
-      { (me2 $1 $7, PPar($2,$4),$7) }
+  | IDENT 
+      { let i,_ = $1 in 
+        (i, PVnt($1,None)) }
 
-pat_list:
-  | pat pat_list2
+  | LPAREN pat RPAREN
+      { let _,p = $2 in 
+        (m $1 $3, p) }
+
+branch_list:
+  | branch branch_list2
       { let (i1,p,e) = $1 in 
         let (i2,l) = $2 i1 in 
         (m i1 i2, (p,e)::l) }
 
-  | BAR pat pat_list2
+  | BAR branch branch_list2
       { let (i1,p,e) = $2 in 
         let (i2,l) = $3 i1 in 
         (m $1 i2, (p,e)::l) }
 
-pat_list2:
+branch_list2:
   | 
       { (fun i -> (i,[])) }
         
-  | BAR pat pat_list2
+  | BAR branch branch_list2
       { let (i1,p,e) = $2 in 
         let (i2,l) = $3 i1 in 
         (fun _ -> (m $1 i2, (p,e)::l)) }

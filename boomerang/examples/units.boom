@@ -27,14 +27,28 @@ type mytype = A | B of regexp
 
 let x = B "nate"
 
+type StringList = Nil | Cons of string * StringList
+
+let l = Cons("nate", Cons ("foster", Nil))
+
+let hd (l:StringList) (def:string) = 
+  match l with 
+    | Cons c1 -> (match c1 with (h1,t1) -> h1)
+    | Nil -> def
+
+let tl (l:StringList) (def:StringList) = 
+  match l with 
+    | Cons c1 -> (match c1 with (h1,t1) -> t1)
+    | Nil -> def
+    
+test "ln1 is: [" . (hd l "") . "]" = "ln1 is: [nate]"
+test "ln2 is: [" . (hd (tl l Nil) "") . "]" = "ln2 is: [foster]"
+
 let y = match x with | A -> ("","") | B z -> (z . " " . "foster", "levine 561")
 
 let z = match y with (x,y) -> x
 
-test y = ?
-test y : ?
-test z : ?
-test "<< " . z . " >>" = ?
+test "<< " . z . " >>" = "<< nate foster >>"
 
 (*let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}" *)
 (*let cl2 = smash_clens cl1

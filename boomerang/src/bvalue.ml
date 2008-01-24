@@ -75,9 +75,10 @@ let rec format = function
       Util.format ",@ ";
       format v2;
       Util.format ")@]"
-  | Vnt(_,_,l,vo)    -> 
+  | Vnt(_,_,l,None) -> Util.format "%s" (S.string_of_id l)
+  | Vnt(_,_,l,Some v) ->  
       Util.format "@[(%s@ " (S.string_of_id l);
-      (match vo with None -> () | Some v -> format v);
+      format v;
       Util.format ")@]"        
         
 (* info_of_t : t -> Info.t 
