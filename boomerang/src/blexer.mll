@@ -106,6 +106,7 @@ let _ =
     ; ("crt", (fun i -> CREATE i))
     ; ("match", (fun i -> MATCH i))
     ; ("with", (fun i -> WITH i))
+    ; ("with", (fun i -> WITH i))
     ; ("error", (fun i -> ERROR i))
     ; ("string", (fun i -> STRING i))
     ; ("regexp", (fun i -> REGEXP i))

@@ -36,7 +36,7 @@ type t =
     | Rx of Info.t * R.t
     | Lns of Info.t * L.t
     | Can of Info.t * C.t
-    | Fun of Info.t * S.sort * (Info.t -> t -> t)    
+    | Fun of Info.t * S.sort * S.sort * (Info.t -> t -> t)    
     | Unt of Info.t
     | Par of Info.t * t * t
     | Vnt of Info.t * S.qid * string * t option
@@ -67,7 +67,7 @@ let rec format = function
   | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
   | Can(_,c)     -> Util.format "%s" (C.string c)
-  | Fun(_,_,f)   -> Util.format "<function>"
+  | Fun(_,_,_,f)   -> Util.format "<function>"
   | Unt(_)       -> Util.format "()"
   | Par(_,v1,v2) -> 
       Util.format "@[(";
@@ -79,28 +79,6 @@ let rec format = function
       Util.format "@[(%s@ " l;
       (match vo with None -> () | Some v -> format v);
       Util.format "@]"        
-
-(* mk_dummy: s -> t
- * 
- * make a dummy run-time value from a sort.
- * 
- * note that in the function case, the constructed function is a
- * constant raising an exception when the result type is not known 
- *)
-let rec mk_dummy = 
-  let i = Info.M "dummy" in 
-  function
-    | S.SString          -> Str(i,RS.empty)
-    | S.SRegexp          -> Rx(i,R.str false RS.empty) 
-    | S.SLens            -> Lns(i,(L.copy i (R.epsilon)))
-    | S.SCanonizer       -> Can(i,L.canonizer_of_t i (L.copy i R.epsilon))
-    | S.SFunction(s1,s2) -> Fun(i,s1,(fun _ _ -> mk_dummy s2))
-    | S.SProduct(s1,s2)  -> Par(i,mk_dummy s1,mk_dummy s2)
-    | S.SUnit            -> Unt i
-    | S.SSum(vl)         -> 
-        Error.simple_error (sprintf "Cannot make dummy for sum")
-    | S.SVar(_)          -> 
-        Error.simple_error (sprintf "Cannot make dummy for type variable")
         
 (* info_of_t : t -> Info.t 
  *
@@ -111,7 +89,7 @@ let info_of_t = function
   | Rx(i,_)      -> i
   | Lns(i,_)     -> i
   | Can(i,_)     -> i
-  | Fun(i,_,_)   -> i
+  | Fun(i,_,_,_)   -> i
   | Unt(i)       -> i
   | Par(i,_,_)   -> i
   | Vnt(i,_,_,_) -> i
@@ -122,16 +100,14 @@ let info_of_t = function
  * functions, we only compute the argument type 
  *)
 let rec sort_of_t = function
-  | Str(_) -> S.SString
-  | Rx(_)  -> S.SRegexp
-  | Lns(_) -> S.SLens
-  | Can(_) -> S.SCanonizer
-  | Fun(i,s1,f) -> 
-    (* DANGER! Only safe because lambda language is terminating! *)
-    S.SFunction(s1, sort_of_t (f i (mk_dummy s1)))
-  | Unt(_)        -> S.SUnit
-  | Par(_,v1,v2)  -> S.SProduct(sort_of_t v1,sort_of_t v2)
-  | Vnt(_,q,_,_) -> S.SVar(q)
+  | Str(_)         -> S.SString
+  | Rx(_)          -> S.SRegexp
+  | Lns(_)         -> S.SLens
+  | Can(_)         -> S.SCanonizer
+  | Fun(i,s1,s2,f) -> S.SFunction(s1,s2)
+  | Unt(_)         -> S.SUnit
+  | Par(_,v1,v2)   -> S.SProduct(sort_of_t v1,sort_of_t v2)
+  | Vnt(_,q,_,_)   -> S.SVar(q)
 
 (* --------- conversions between run-time values ---------- *)
 let conversion_error i s1 v1 = 
@@ -190,46 +166,94 @@ let get_c v i = match v with
  * sort. [i] is used to report errors.  
  *)
 let get_f v i = match v with
-  | Fun(_,_,f) -> f
+  | Fun(_,_,_,f) -> f
   | _ ->
       Error.simple_error 
         (sprintf "%s: expected function, but found %s" 
             (Info.string_of_t i) 
             (S.string_of_sort (sort_of_t v)))
+
+(* get_u: t -> Info.t -> ()
+ * 
+ * [get_u v i] returns the unit that [v] represents, or throws an
+ * exception if [v] is a run-time value representing a different
+ * sort. [i] is used to report errors.  
+ *)
+let get_u v i = match v with
+  | Unt(_) -> ()
+  | _ ->
+      Error.simple_error 
+        (sprintf "%s: expected unit, but found %s" 
+           (Info.string_of_t i) 
+           (S.string_of_sort (sort_of_t v)))
+
+(* get_p: t -> Info.t -> t * t
+ * 
+ * [get_p v i] returns the pair that [v] represents, or throws an
+ * exception if [v] is a run-time value representing a different
+ * sort. [i] is used to report errors.  *)
+let get_p v i = match v with
+  | Par(_,v1,v2) -> (v1,v2)
+  | _ ->
+      Error.simple_error 
+        (sprintf "%s: expected pair, but found %s" 
+           (Info.string_of_t i) 
+           (S.string_of_sort (sort_of_t v)))
+
+(* get_v: t -> Info.t -> string * t
+ * 
+ * [get_v v i] returns the variant that [v] represents, or throws an
+ * exception if [v] is a run-time value representing a different
+ * sort. [i] is used to report errors.  *)
+let get_v v i = match v with
+  | Vnt(_,_,l,v) -> (l,v)
+  | _ ->
+      Error.simple_error 
+        (sprintf "%s: expected variant, but found %s" 
+           (Info.string_of_t i) 
+           (S.string_of_sort (sort_of_t v)))
         
 (* --------- constructors for functions on run-time values ---------- *)
 
 (* mk_sfun: Info.t -> (RS.t -> t) -> (t -> t)
  * 
- * [mk_sfun i f] takes a [RS.t -> t] function and yields a [t -> t]
+ * [mk_sfun i s f] takes a [RS.t -> t] function and yields a [t -> t]
  * function that expects its argument to actually be an [SString]. [i] is
  * used to report errors when the argument has a different sort. 
  *)
-let mk_sfun i f = Fun(i,S.SString,(fun i v -> f i (get_s v i)))
+let mk_sfun i s f = Fun(i,S.SString,s,(fun i v -> f i (get_s v i)))
 
 (* mk_rfun: Info.t -> (L.rx.t -> t) -> (t -> t)
  * 
- * [mk_rfun i f] takes a [L.rx.t -> t] function and yields a [t -> t]
+ * [mk_rfun i s f] takes a [L.rx.t -> t] function and yields a [t -> t]
  * function that expects its argument to actually be a [SRegexp]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_rfun i f = Fun(i,S.SRegexp,(fun i v -> f i (get_r v i)))
+let mk_rfun i s f = Fun(i,S.SRegexp,s,(fun i v -> f i (get_r v i)))
 
 (* mk_lfun: Info.t -> (L.Lens.t -> t) -> (t -> t)
  * 
- * [mk_lfun i f] takes a [L.Lens.t -> t] function and yields a [t -> t]
+ * [mk_lfun i s f] takes a [L.Lens.t -> t] function and yields a [t -> t]
  * function that expects its argument to actually be an [SLens]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_lfun i f = Fun(i,S.SLens,(fun i v -> f i (get_l v i)))
+let mk_lfun i s f = Fun(i,S.SLens,s,(fun i v -> f i (get_l v i)))
 
 (* mk_cfun: Info.t -> (C.t -> t) -> (t -> t)
  * 
- * [mk_cfun i f] takes a [C.t -> t] function and yields a [t -> t]
+ * [mk_cfun i s f] takes a [C.t -> t] function and yields a [t -> t]
  * function that expects its argument to actually be an [SCanonizer]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_cfun i f = Fun(i,S.SCanonizer,(fun i v -> f i (get_c v i)))
+let mk_cfun i s f = Fun(i,S.SCanonizer,s,(fun i v -> f i (get_c v i)))
+
+(* mk_ufun: Info.t -> (() -> t) -> (t -> t)
+ * 
+ * [mk_ufun i s f] takes a [() -> t] function and yields a [t -> t]
+ * function that expects its argument to actually be an [SUnit]. [i] is
+ * used to report errors when the argument has a different sort.
+ *)
+let mk_ufun i s f = Fun(i,S.SUnit,s,(fun i v -> f i (get_u v i)))
 
 let parse_qid s = 
   let lexbuf = Lexing.from_string s in

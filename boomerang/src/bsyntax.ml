@@ -82,7 +82,6 @@ type sort =
     | SVar of qid                  (* variables *)
     | SUnit                        (* unit *)
     | SProduct of sort * sort      (* products *)
-    | SSum of (string * sort option) list (* sums *)
 
 and param = Param of i * id * sort
 
@@ -98,6 +97,7 @@ and exp =
     (* with products, units, sums *)
     | EUnit of i
     | EPair of i * exp * exp
+    | ECase of i * exp * (pat * exp) list
         
     (* regular operations *)
     | EString of i * Bstring.t
@@ -113,6 +113,10 @@ and exp =
     | EMatch of i * Bstring.t * qid
     | ETrans of i * exp * exp
 
+and pat = 
+  | PVnt of id * id option
+  | PPar of id * id 
+
 (* declarations *)
 type test_result =
     | TestValue of exp
@@ -123,7 +127,7 @@ type test_result =
 
 type decl = 
     | DLet of i * binding  
-    | DType of i * id * sort
+    | DType of i * id * (id * sort option) list 
     | DMod of i * id * decl list 
     | DTest of i * exp * test_result
         
@@ -133,22 +137,23 @@ type modl = Mod of i * id * qid list * decl list
 let (^>) s1 s2 = SFunction(s1,s2)
 
 let info_of_exp = function    
-  | EApp (i,_,_) -> i
-  | EVar (i,_) -> i
-  | EFun (i,_,_,_) -> i
-  | ELet (i,_,_) -> i
-  | EUnit(i)     -> i
-  | EPair(i,_,_) -> i
-  | EString (i,_) -> i
-  | ECSet (i,_,_) -> i
-  | EUnion (i,_,_) -> i
-  | ECat (i,_,_) -> i
-  | ETrans (i,_,_) -> i
-  | EStar (i,_) -> i
+  | EApp (i,_,_)     -> i
+  | EVar (i,_)       -> i
+  | EFun (i,_,_,_)   -> i
+  | ELet (i,_,_)     -> i
+  | EUnit(i)         -> i
+  | EPair(i,_,_)     -> i
+  | ECase(i,_,_)     -> i
+  | EString (i,_)    -> i
+  | ECSet (i,_,_)    -> i
+  | EUnion (i,_,_)   -> i
+  | ECat (i,_,_)     -> i
+  | ETrans (i,_,_)   -> i
+  | EStar (i,_)      -> i
   | ECompose (i,_,_) -> i
-  | EDiff (i,_,_) -> i
-  | EInter (i,_,_) -> i
-  | EMatch (i,_,_) -> i
+  | EDiff (i,_,_)    -> i
+  | EInter (i,_,_)   -> i
+  | EMatch (i,_,_)   -> i
       
 let info_of_module = function
   | Mod(i,_,_,_) -> i
@@ -187,16 +192,18 @@ let rec format_sort s =
         Util.format "@ *@ ";
         format_sort s2;
         Util.format "@]"
-    | SSum(vl) -> 
-        Misc.format_list " | "
-          (fun (l,s) -> match s with
-             | None -> Util.format "%s" l
-             | Some s -> 
-                 Util.format "(%s@ " l;
-                 format_sort s;
-                 Util.format ")")
-          vl
     | SVar(q) -> Util.format "%s" (string_of_qid q)
+
+and format_pat = function
+  | PPar(x,y) -> 
+      Util.format "@[<2>(%s,@,%s)@]" 
+        (string_of_id x)
+        (string_of_id y)
+  | PVnt(l,None) -> Util.format "%s" (string_of_id l)
+  | PVnt(l,Some x) ->  
+      Util.format "@[<2>(%s@ %s)@]" 
+        (string_of_id l)
+        (string_of_id x)
 
 and format_param (Param (_, id, s)) =
   Util.format "@[%s:" (string_of_id id);
@@ -257,6 +264,20 @@ and format_exp e =
         Util.format ",";
         format_exp e2;
         Util.format ")@]"
+
+    | ECase(_,e1,pl) -> 
+        Util.format "@[<2>match@ ";
+        format_exp e1;
+        Util.format "@ with@ ";
+        Misc.format_list "@ |@ "
+          (fun (p,e) -> 
+             Util.format "@[<2>@ ";
+             format_pat p;
+             Util.format "@ ->@ ";
+             format_exp e;
+             Util.format "@]")
+          pl;
+        Util.format "@]"
 
     | EString (_, s) ->
 	Util.format "@[\"%s\"@]" (Bstring.escaped (Bstring.string_of_t s))
@@ -330,10 +351,16 @@ and format_decl d =
 	format_binding b;
 	Util.format "@]"
 
-    | DType(_,x,s) -> 
-        Util.format "@[type@ %s@ =@ "
-          (string_of_id x);
-        format_sort s;
+    | DType(_,x,sl) ->  
+        Util.format "@[type@ %s@ =@ " (string_of_id x);
+        Misc.format_list " | "
+          (fun (l,s) -> match s with
+             | None -> Util.format "%s" (string_of_id l)
+             | Some s -> 
+                 Util.format "(%s@ " (string_of_id l);
+                 format_sort s;
+                 Util.format ")")
+          sl;
         Util.format "@]"        
 
     | DMod (i, id, ds) ->

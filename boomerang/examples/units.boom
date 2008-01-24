@@ -23,11 +23,13 @@ module Units =
 
 let x : { ? <-> ? } = [^]*
 
-type mytype = A | B of string * regexp
+type mytype = A | B of regexp
 
-let x = B ("nate", "foster")
-let y = A
-test x,y : mytype * mytype
+let x = B [nate]
+
+let y = match x with B z -> (z . "foster", "penn" | "upenn") | A -> ("","")
+
+test y : ?
 
 (*let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}" *)
 (*let cl2 = smash_clens cl1

@@ -119,9 +119,10 @@ let mk_assert = function
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE LANGLEBAR BARRANGLE RANGLE   
 %token <Info.t> ARROW DARROW LONGARROW LONGDARROW RANGLESLASH SLASHLANGLE
-%token <Info.t> CREATE BEGIN END FUN LET IN TEST INTO SEMI COMMA DOT EQUAL COLON BACKSLASH  
+%token <Info.t> CREATE BEGIN END FUN LET IN TEST INTO MATCH WITH
+%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH  
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS HAT TILDE AMPERSAND QMARK 
-%token <Info.t> MATCH WITH GET PUT DOTGET DOTPUT DOTCREATE ERROR
+%token <Info.t> GET PUT DOTGET DOTPUT DOTCREATE ERROR
 
 %start modl qid
 %type <Bsyntax.modl> modl
@@ -141,7 +142,7 @@ opens:
 decls:      
   | TYPE IDENT EQUAL dtsort_list decls
       { let i = m $1 $3 in 
-        DType(i,$2,SSum($4))::$5 }
+        DType(i,$2,$4)::$5 }
 
   | LET IDENT param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
@@ -159,7 +160,7 @@ decls:
   | MODULE IDENT EQUAL decls END decls 
       { DMod(m $1 $5,$2,$4)::$6 }
 
-  | TEST exp eq_arrow test_res decls
+  | TEST exp EQUAL test_res decls
       { let i,tr = $4 in 
         DTest(m $1 i,$2,tr)::$5 }
 
@@ -218,17 +219,25 @@ exp:
 
 /* "get put" expressions -- snipped JNF*/
 gpexp: 
-  | composeexp get aexp
+  | cexp get aexp
       { let i = me $1 $3 in 
         EApp(i, EApp(i, EVar(i, mk_prelude_qid "get"), $1), $3) }
-  | composeexp put aexp INTO aexp        
+  | cexp put aexp INTO aexp        
       { let i = me $1 $3 in 
         EApp(i, EApp(i, EApp(i, EVar(i, mk_prelude_qid "put"), $1), $3), $5) }
-  | composeexp create aexp               
+  | cexp create aexp               
       { let i = me $1 $3 in 
         EApp(i, EApp(i, EVar(i, mk_prelude_qid "create"), $1), $3) }
-  | composeexp
+  | cexp
       { $1 } 
+
+/* case expressions */
+cexp:
+  | MATCH composeexp WITH pat_list
+      { ECase(m $1 $3,$2,$4) }
+
+  | composeexp
+      { $1 }
 
 /* compose expressions */
 composeexp:
@@ -272,16 +281,16 @@ iexp:
 
 /* swap expressions */
 sexp:
-  | sexp TILDE cexp
+  | sexp TILDE catexp
       { let i = me $1 $3 in 
         EApp(i, EApp(i, EVar(i, mk_prelude_qid "swap"), $1), $3) }
 
-  | cexp 
+  | catexp 
       { $1 }
 
 /* concat expressions */
-cexp:
-  | cexp DOT texp                     
+catexp:
+  | catexp DOT texp                     
       { ECat(me $1 $3, $1, $3) } 
 
   | texp                              
@@ -339,7 +348,7 @@ rexp:
 
   | aexp                                
       { $1 }
-            
+
 /* atomic expressions */
 aexp:
   | LANGLE qid RANGLE
@@ -371,6 +380,38 @@ aexp:
 
   | BEGIN exp END                       
       { $2 }
+
+/* --------- PATTERNS ---------- */
+pat: 
+  | IDENT IDENT ARROW aexp 
+      { PVnt($1,Some $2),$4 }
+
+  | IDENT ARROW aexp 
+      { PVnt($1,None),$3 }
+
+  | IDENT COMMA IDENT ARROW aexp 
+      { PPar($1,$3),$5 }
+
+  | LPAREN IDENT COMMA IDENT RPAREN ARROW aexp 
+      { PPar($2,$4),$7 }
+
+pat_list:
+  | opt_bar pat pat_list2
+      { $2::$3 }
+
+pat_list2:
+  | 
+      { [] }
+
+  | BAR pat pat_list2
+      { $2::$3 }
+
+opt_bar:
+  | 
+      { () }
+
+  | BAR
+      { () }
 
 /* --------- SORTS ---------- */
 sort: 
@@ -434,12 +475,10 @@ qmark_or_exp:
 /* data type sorts */
 dtsort:
   | IDENT
-      { let _,s = $1 in 
-        (s,None) }
+      { ($1,None) }
 
   | IDENT OF sort
-      { let _,s = $1 in 
-        (s,Some $3) }
+      { ($1,Some $3) }
 
 dtsort_list:
   | dtsort dtsort_list2
@@ -490,20 +529,6 @@ rep:
       { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, Some n4)) }
 
 /* --------- MISC SYMBOLS ---------- */
-eq_arrow:
-  | EQUAL                               
-      { $1 }
-
-  | LONGARROW                           
-      { $1 }
-
-eq_darrow:
-  | EQUAL                               
-      { $1 }
-
-  | LONGDARROW                          
-      { $1 }
-
 get:
   | GET                                 
       { $1 }

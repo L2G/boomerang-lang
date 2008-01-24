@@ -96,14 +96,15 @@ end
 
 module TEnv = struct 
   module M = Env.Make(struct
-                        type t = Bsyntax.id
-                        let compare = Bsyntax.id_compare
-                        let to_string = Bsyntax.string_of_id
+                        type t = Bsyntax.qid
+                        let compare = Bsyntax.qid_compare
+                        let to_string = Bsyntax.string_of_qid
                       end)
-  type t = Bsyntax.sort M.t
-  let empty = M.empty 
-  let lookup = M.lookup
-  let update = M.update
+  type s = (Bsyntax.id * sort option) list
+  type t = s M.t
+  let empty : unit -> t = M.empty 
+  let lookup : t -> Bsyntax.qid -> s option = M.lookup
+  let update : t -> Bsyntax.qid -> s -> t = M.update
 end
 
 module CEnv : CEnvSig with type v = (Bsyntax.sort * Bvalue.t) = struct
@@ -320,6 +321,70 @@ and check_exp ((tev,sev) as evs) e0 = match e0 with
       let new_e0 = EPair(i,new_e1,new_e2) in 
       (e0_sort,new_e0)
 
+  | ECase(i,e1,pl) -> 
+      let e1_sort,new_e1 = check_exp evs e1 in 
+      begin match e1_sort with 
+        (* variant case *)
+        | SVar x ->
+            (* lookup the sum type *)
+            let sl = match TEnv.lookup tev x with 
+              | None -> 
+                  sort_error i 
+                    (fun () -> Util.format "@[%s is not bound@]" (string_of_qid x))
+              | Some sl -> sl in 
+            let sl_bare = Safelist.map (fun (l,so) -> (Bsyntax.string_of_id l,so)) sl in 
+            (* check each pattern *)
+            let cs,sorto,new_pl_rev = Safelist.fold_left 
+              (fun (cs,sorto,acc) (pi,ei) -> match pi with
+                 | PVnt(l,xo) ->
+                     let l_bare = Bsyntax.string_of_id l in 
+                     begin try
+                       let ei_sort,new_ei = 
+                         match xo,Safelist.assoc l_bare cs with
+                           | None,None -> check_exp evs ei
+                           | Some x,Some si -> 
+                               let ei_sev = SCEnv.update sev (qid_of_id x) si in
+                               check_exp (tev,ei_sev) ei 
+                           | None,Some _ -> 
+                               sort_error i 
+                                 (fun () -> 
+                                    Util.format "@[the constructor %s expects an argument@]" 
+                                      l_bare)
+                           | Some _,None -> 
+                               sort_error i 
+                                 (fun () -> 
+                                    Util.format "@[the constructor %s expects no arguments@]" 
+                                      l_bare) in
+                     let sort = match sorto with
+                         | None -> ei_sort
+                         | Some sort -> 
+                             try join i ei_sort sort
+                             with Error.Harmony_error _ -> 
+                               sort_error i 
+                                 (fun () -> 
+                                    Util.format "@[patterns have different sorts: %s and %s@]"
+                                      (Bsyntax.string_of_sort sort)
+                                      (Bsyntax.string_of_sort ei_sort)) in 
+                     (Safelist.remove_assoc l_bare cs,Some sort, (pi,new_ei)::acc)
+                     with Not_found -> 
+                       sort_error i (fun () -> Util.format "@[unknown case: %s@]" l_bare)
+                     end
+                 | _ -> sort_error i (fun () -> Util.format "@[expected@ variant@ pattern@]"))
+              (sl_bare,None,[]) pl in 
+            let () = match cs with 
+                [] -> ()
+              | (l,_)::_ -> 
+                  Util.format "@[%s: Warning: this pattern-match is not exhaustive.@\n" 
+                    (Info.string_of_t i);
+                  Util.format "Here is a pattern that is not matched: %s@]@\n" l in 
+            let e0_sort = match sorto with 
+              | None -> assert false
+              | Some s -> s in 
+            let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev) in 
+            (e0_sort,new_e0)
+        | _ -> assert false
+      end
+
   | EString(_,_) -> 
       (SString,e0)
 
@@ -410,21 +475,18 @@ let rec check_decl ((tev,sev) as evs) m = function
       let new_d = DMod(i,n,new_ds) in 
       ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
-  | DType(i,x,s) as d -> 
-      let new_sev = match s with 
-        | SSum(vl) -> 
-            let qx = Bsyntax.qid_of_id x in 
-            Safelist.fold_left 
-              (fun sev (l,so) -> 
-                 let ql = Bsyntax.qid_of_id (i,l) in 
-                 let sx = Bsyntax.SVar qx in 
-                 let s = match so with 
-                   | None -> sx
-                   | Some s -> Bsyntax.SFunction (s,sx) in
-                 SCEnv.update sev ql s)
-              sev vl
-        | _ -> sev in 
-      let new_tev = TEnv.update tev x s in 
+  | DType(i,x,sl) as d -> 
+      let qx = Bsyntax.qid_of_id x in 
+      let sx = Bsyntax.SVar qx in
+      let new_sev = Safelist.fold_left 
+        (fun sev (l,so) -> 
+           let ql = Bsyntax.qid_of_id l in 
+           let s = match so with 
+             | None -> sx
+             | Some s -> Bsyntax.SFunction (s,sx) in
+             SCEnv.update sev ql s)
+        sev sl in 
+      let new_tev = TEnv.update tev qx sl in 
       ((new_tev,new_sev),[],d)
       
   | DTest(i,e1,tr) -> 
@@ -510,7 +572,7 @@ let rec compile_exp cev e0 = match e0 with
       let s1,v1 = compile_exp cev e1 in
       let s2,v2 = compile_exp cev e2 in
       begin match s1,v1 with
-        | SFunction(_,ret_sort),Bvalue.Fun(_,_,f) -> 
+        | SFunction(_,ret_sort),Bvalue.Fun(_,_,_,f) -> 
             (ret_sort, (f i v2))
         | _   -> 
             run_error i "compile_exp"
@@ -532,7 +594,7 @@ let rec compile_exp cev e0 = match e0 with
         let p_sort = sort_of_param p in
         let body_cev = CEnv.update cev p_qid (p_sort, v) in
           snd (compile_exp body_cev e) in 
-      (f_sort, (Bvalue.Fun (i, p_sort, f_impl)))
+      (f_sort, (Bvalue.Fun (i,p_sort,ret_sort,f_impl)))
 
   | EFun(i,_,_,_) -> 
       run_error i "compile_exp"
@@ -546,6 +608,23 @@ let rec compile_exp cev e0 = match e0 with
       let s1,v1 = compile_exp cev e1 in 
       let s2,v2 = compile_exp cev e2 in 
       (SProduct(s1,s2),Bvalue.Par(i,v1,v2))
+
+  | ECase(i,e1,pl) -> 
+      let s1,v1 = compile_exp cev e1 in 
+      let li,vio = Bvalue.get_v v1 i in 
+      let pi,ei = 
+        try Safelist.find 
+          (fun (p,e) -> match p with 
+             | PVnt(l,_) -> li = (string_of_id l)
+             | _ -> false)
+          pl 
+        with Not_found -> run_error i "compile_exp"
+          (fun () -> Util.format "@[no case for %s!@]" li) in 
+      let ei_cev = match pi,vio with 
+        | PVnt(_,None),None -> cev
+        | PVnt(_,Some x),Some vi -> CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t vi,vi) 
+        | _ -> assert false in 
+      compile_exp ei_cev ei
 
   | EString(i,s) -> (SString,Bvalue.Str(i,s))
 
@@ -678,22 +757,19 @@ let rec compile_decl cev m = function
   | DLet(i,b) -> 
       let bcev,x_qid = compile_binding cev b in
       (bcev,[x_qid])
-  | DType(i,x,s) -> 
+  | DType(i,x,sl) -> 
       let qx = Bsyntax.qid_of_id x in 
-      let new_cev = match s with 
-        | SSum(vl) -> 
-            let sx = Bsyntax.SVar qx in 
-              Safelist.fold_left 
-                (fun cev (l,so) -> 
-                   let ql = Bsyntax.qid_of_id (i,l) in 
-                   let rv = match so with 
-                     | None -> (sx,V.Vnt(i,qx,l,None))
-                     | Some s -> 
-                         let sf = Bsyntax.SFunction(s,sx) in 
-                         (sf,V.Fun(i,s,(fun i v -> V.Vnt(i,qx,l,Some v)))) in 
-                   CEnv.update cev ql rv)
-              cev vl 
-        | _ -> cev in
+      let sx = Bsyntax.SVar qx in 
+      let new_cev = Safelist.fold_left 
+        (fun cev (l,so) -> 
+           let ql = Bsyntax.qid_of_id l in 
+           let rv = match so with 
+             | None -> (sx,V.Vnt(i,qx,snd l,None))
+             | Some s -> 
+                 let sf = Bsyntax.SFunction(s,sx) in 
+                   (sf,V.Fun(i,s,sx,(fun i v -> V.Vnt(i,qx,snd l,Some v)))) in 
+             CEnv.update cev ql rv)
+        cev sl in 
       (new_cev,[qx])
 
   | DMod(i,n,ds) ->
