@@ -29,19 +29,18 @@ type string_list = Nil | Cons of string * string_list
 
 let l = Cons("nate", Cons ("foster", Nil))
 
-let hd (l:string_list) (def:string) = 
+let hd (l:string_list) (def:string) : string = 
   match l with 
-    | Cons c1 -> (match c1 with (h1,t1) -> h1)
+    | Cons (h1,t1) -> h1
     | Nil -> def
 
-let tl (l:string_list) (def:string_list) = 
+let tl (l:string_list) (def:string_list) : string_list = 
   match l with 
-    | Cons c1 -> (match c1 with (h1,t1) -> t1)
+    | Cons (h1,t1) -> t1
     | Nil -> def
     
 test "ln1 is: [" . hd l "" . "]" = "ln1 is: [nate]"
 test "ln2 is: [" . (hd (tl l Nil) "") . "]" = "ln2 is: [foster]"
-
 
 let x = B "nate"
 
@@ -52,6 +51,10 @@ test y = ("nate foster", "levine 561")
 let z = match y with (x,y) -> x
 
 test "<< " . z . " >>" = "<< nate foster >>"
+
+let a,b = ("nate","foster") 
+test a = "nate"
+test b = "foster"
 
 (*let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}" *)
 (*let cl2 = smash_clens cl1

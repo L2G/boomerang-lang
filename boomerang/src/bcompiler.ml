@@ -453,21 +453,31 @@ and check_exp ((tev,sev) as evs) e0 = match e0 with
       (SLens,e0)
         
 and check_binding ((tev,sev) as evs) = function
-  | Bind(i,x,so,e) -> 
-      let x_qid = qid_of_id x in 
+  | Bind(i,p,so,e) -> 
       let e_sort,new_e = match so with 
         | None -> check_exp evs e 
         | Some s -> expect_sort_exp "let" evs s e in 
-      let bsev = SCEnv.update sev x_qid e_sort in 
-      let new_b = Bind(i,x,Some e_sort,new_e) in 
-      ((tev,bsev),x,new_b)
+      let bindso = static_match i tev p e_sort in 
+      let bsev,xs_rev = match bindso with 
+        | None -> sort_error i 
+            (fun () -> Util.format "@[pattern %s and sort %s do not match@]" 
+               (string_of_pat p) 
+               (string_of_sort e_sort))
+        | Some binds -> 
+            Safelist.fold_left 
+              (fun (bsev,xs) (x,s) -> 
+                 let qx = qid_of_id x in 
+                 (SCEnv.update bsev qx s, qx::xs)) 
+              (sev,[]) binds in 
+      let new_b = Bind(i,p,Some e_sort,new_e) in 
+      ((tev,bsev),Safelist.rev xs_rev,new_b)
 
 (* type check a single declaration *)
 let rec check_decl ((tev,sev) as evs) m = function 
   | DLet(i,b) -> 
-      let bevs,x,new_b = check_binding evs b in 
+      let bevs,xs,new_b = check_binding evs b in 
       let new_d = DLet(i,new_b) in 
-        (bevs,[qid_of_id x],new_d)
+      (bevs,xs,new_d)
   | DMod(i,n,ds) ->
       let n_qid = qid_of_id n in        
       let mn = qid_dot m n_qid in
@@ -631,7 +641,8 @@ let rec compile_exp cev e0 = match e0 with
                | Some l -> l,ei) in 
       let binds,ei = find_match pl in 
       let ei_cev = Safelist.fold_left 
-        (fun cev (x,v) -> CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t v,v))
+        (fun ei_cev (x,v) -> 
+           CEnv.update ei_cev (qid_of_id x) (Bvalue.sort_of_t v,v))
         cev binds in 
       compile_exp ei_cev ei
 
@@ -757,15 +768,26 @@ let rec compile_exp cev e0 = match e0 with
 
       
 and compile_binding cev = function
-  | Bind(i,x,so,e) -> 
-      let x_qid = qid_of_id x in 
-      let rv = compile_exp cev e in 
-      (CEnv.update cev x_qid rv,x_qid)
+  | Bind(i,p,so,e) -> 
+      let s,v = compile_exp cev e in 
+      let bindso = dynamic_match i p v in 
+      let bcev,xs_rev = match bindso with 
+        | None -> run_error i "compile binding" 
+            (fun () -> Util.format "@[pattern %s and value %s do not match@]" 
+               (string_of_pat p) 
+               (V.string_of_t v))
+        | Some binds -> 
+            Safelist.fold_left 
+              (fun (bcev,xs) (x,v) -> 
+                 let qx = qid_of_id x in 
+                 (CEnv.update bcev qx (s,v), qx::xs))
+              (cev,[]) binds in 
+      (bcev,Safelist.rev xs_rev)
 
 let rec compile_decl cev m = function
   | DLet(i,b) -> 
-      let bcev,x_qid = compile_binding cev b in
-      (bcev,[x_qid])
+      let bcev,xs = compile_binding cev b in
+      (bcev,xs)
   | DType(i,x,sl) -> 
       let qx = qid_of_id x in 
       let sx = SVar qx in 

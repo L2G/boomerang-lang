@@ -85,7 +85,7 @@ type sort =
 
 and param = Param of i * id * sort
 
-and binding = Bind of i * id * sort option * exp
+and binding = Bind of i * pat * sort option * exp
 
 and exp = 
     (* lambda calculus *)
@@ -200,7 +200,7 @@ let rec format_sort s =
 and format_pat = function
   | PWld -> Util.format "_"
   | PUnt -> Util.format "()"
-  | PVar x -> Util.format "$%s" (string_of_id x)
+  | PVar x -> Util.format "%s" (string_of_id x)
   | PPar(p1,p2) -> 
       Util.format "@[<2>(";
       format_pat p1;
@@ -218,8 +218,9 @@ and format_param (Param (_, id, s)) =
   format_sort s;
   Util.format "@]"
 
-and format_binding (Bind (_, id, s, e)) =
-  Util.format "@[<2>%s" (string_of_id id);
+and format_binding (Bind (_, x, s, e)) =
+  Util.format "@[<2>";
+  format_pat x;
   (match s with
        Some s -> Util.format "@ :@ "; format_sort s
      | None -> ());

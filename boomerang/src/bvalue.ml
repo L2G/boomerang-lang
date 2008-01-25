@@ -80,6 +80,8 @@ let rec format = function
       Util.format "@[(%s@ " (S.string_of_id l);
       format v;
       Util.format ")@]"        
+
+let string_of_t v = Util.format_to_string (fun () -> format v)
         
 (* info_of_t : t -> Info.t 
  *

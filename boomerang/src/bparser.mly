@@ -110,6 +110,16 @@ let mk_assert = function
   | Some c, Some a -> 
       (fun i e -> 
          EApp(i,EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert"),c),a),e))
+
+let fixup_pat = function
+  | _,PVnt(x,None) -> PVar(x)
+  | _,p -> p 
+
+let check_pat i p params = match p,params with 
+  | PVar _,_ -> ()
+  | _,_::_ -> syntax_error i "illegal pattern" 
+  | _ -> ()  
+
 %}
 
 %token <Info.t> EOF
@@ -144,18 +154,22 @@ decls:
       { let i = m $1 $3 in 
         DType(i,$2,$4)::$5 }
 
-  | LET ident param_list EQUAL exp decls
+  | LET ppat param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
+        let p = fixup_pat $2 in 
+        let () = check_pat i p $3 in 
         let f = mk_fun i $3 $5 in 
         let so = mk_fun_sorto i $3 None in 
-        DLet(i,Bind(i,$2,so,f))::$6 }
+        DLet(i,Bind(i,p,so,f))::$6 }
 
-  | LET ident param_list COLON decl_sort EQUAL exp decls
+  | LET ppat param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
+        let p = fixup_pat $2 in 
+        let () = check_pat i p $3 in 
         let s,ef = $5 in 
         let f = mk_fun i $3 (ef $4 $7) in 
         let so = mk_fun_sorto i $3 (Some s) in 
-        DLet(i,Bind(i,$2,so,f))::$8 }
+        DLet(i,Bind(i,p,so,f))::$8 }
 
   | MODULE ident EQUAL decls END decls 
       { DMod(m $1 $5,$2,$4)::$6 }
@@ -194,19 +208,23 @@ test_type:
 
 /* --------- EXPRESSIONS ---------- */      
 exp:
-  | LET ident param_list EQUAL exp IN exp
+  | LET ppat param_list EQUAL exp IN exp
       { let i = m $1 $6 in 
+        let p = fixup_pat $2 in 
+        let () = check_pat i p $3 in 
         let f = mk_fun i $3 $5 in 
         let so = mk_fun_sorto i $3 None in 
-        ELet(i,Bind(i,$2,so,f),$7) 
+        ELet(i,Bind(i,p,so,f),$7) 
       }
 
-  | LET ident param_list COLON decl_sort EQUAL exp IN exp
+  | LET ppat param_list COLON decl_sort EQUAL exp IN exp
       { let i = m $1 $8 in 
+        let p = fixup_pat $2 in 
+        let () = check_pat i p $3 in 
         let s,ef = $5 in 
         let f = mk_fun i $3 (ef $4 $7) in 
         let so = mk_fun_sorto i $3 (Some s) in 
-        ELet(i,Bind(i,$2,so,f),$9) 
+        ELet(i,Bind(i,p,so,f),$9) 
       }
 
   | FUN param param_list ARROW exp
@@ -389,23 +407,19 @@ branch:
         (me2 i1 $3, p, $3) }
 
 pat:      
-  | pat COMMA vpat
-      { let i1,p1 = $1 in 
-        let i2,p2 = $3 in 
-        (m i1 i2, PPar(p1,p2)) }
-
-  | vpat
-      { $1 }
-
-vpat:
-  | UIDENT
-      { let i1,_ = $1 in 
-        (i1, PVnt($1,None)) }
-
-  | UIDENT apat
+  | UIDENT ppat
       { let i1,_ = $1 in 
         let i2,p2 = $2 in 
         (m i1 i2, PVnt($1,Some p2)) }
+
+  | ppat
+      { $1 }
+
+ppat:
+  | ppat COMMA apat
+      { let i1,p1 = $1 in 
+        let i2,p2 = $3 in 
+        (m i1 i2, PPar(p1,p2)) }
 
   | apat
       { $1 }
@@ -416,6 +430,10 @@ apat:
 
   | LPAREN RPAREN
       { (m $1 $2, PUnt) }
+
+  | UIDENT
+      { let i1,_ = $1 in 
+        (i1, PVnt($1,None)) }
       
   | LIDENT
       { let i,_ = $1 in 
@@ -533,7 +551,7 @@ param_list:
   | param param_list
       { $1 :: $2 }
 
-  | 
+  |
       { [] }
 
 param: 
