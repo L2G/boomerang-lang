@@ -115,13 +115,13 @@ let mk_assert = function
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
 %token <Info.t> STRING REGEXP LENS CANONIZER UNIT
-%token <Info.t * string> STR IDENT CSET NSET
+%token <Info.t * string> STR UIDENT LIDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE LANGLEBAR BARRANGLE RANGLE   
 %token <Info.t> ARROW DARROW LONGARROW LONGDARROW RANGLESLASH SLASHLANGLE
 %token <Info.t> CREATE BEGIN END FUN LET IN TEST INTO MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH  
-%token <Info.t> STAR RLUS BANG BAR PLUS MINUS HAT TILDE AMPERSAND QMARK 
+%token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> GET PUT DOTGET DOTPUT DOTCREATE ERROR
 
 %start modl qid
@@ -131,7 +131,7 @@ let mk_assert = function
 
 /* --------- MODULES ---------- */
 modl: 
-  | MODULE IDENT EQUAL opens decls EOF
+  | MODULE ident EQUAL opens decls EOF
       { Mod(m $1 $6,$2,$4,$5) }
 opens:
   | OPEN qid opens  
@@ -140,24 +140,24 @@ opens:
 
 /* --------- DECLARATIONS ---------- */
 decls:      
-  | TYPE IDENT EQUAL dtsort_list decls
+  | TYPE LIDENT EQUAL dtsort_list decls
       { let i = m $1 $3 in 
         DType(i,$2,$4)::$5 }
 
-  | LET IDENT param_list EQUAL exp decls
+  | LET ident param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
         let f = mk_fun i $3 $5 in 
         let so = mk_fun_sorto i $3 None in 
         DLet(i,Bind(i,$2,so,f))::$6 }
 
-  | LET IDENT param_list COLON decl_sort EQUAL exp decls
+  | LET ident param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
         let s,ef = $5 in 
         let f = mk_fun i $3 (ef $4 $7) in 
         let so = mk_fun_sorto i $3 (Some s) in 
         DLet(i,Bind(i,$2,so,f))::$8 }
 
-  | MODULE IDENT EQUAL decls END decls 
+  | MODULE ident EQUAL decls END decls 
       { DMod(m $1 $5,$2,$4)::$6 }
 
   | TEST exp EQUAL test_res decls
@@ -194,14 +194,14 @@ test_type:
 
 /* --------- EXPRESSIONS ---------- */      
 exp:
-  | LET IDENT param_list EQUAL exp IN exp
+  | LET ident param_list EQUAL exp IN exp
       { let i = m $1 $6 in 
         let f = mk_fun i $3 $5 in 
         let so = mk_fun_sorto i $3 None in 
         ELet(i,Bind(i,$2,so,f),$7) 
       }
 
-  | LET IDENT param_list COLON decl_sort EQUAL exp IN exp
+  | LET ident param_list COLON decl_sort EQUAL exp IN exp
       { let i = m $1 $8 in 
         let s,ef = $5 in 
         let f = mk_fun i $3 (ef $4 $7) in 
@@ -355,10 +355,10 @@ aexp:
   | LANGLE qid RANGLE
       { EMatch(m $1 $3,RS.empty, $2) }
 
-  | LANGLE IDENT COLON qid RANGLE
+  | LANGLE ident COLON qid RANGLE
       { EMatch(m $1 $3,RS.t_of_string (snd $2), $4) }
 
-  | IDENT                               
+  | ident                               
       { mk_var $1 }
 
   | CSET                                
@@ -389,24 +389,42 @@ branch:
         (me2 i1 $3, p, $3) }
 
 pat:      
-  | IDENT COMMA IDENT
-      { let i1,_ = $1 in 
-        let i3,_ = $3 in 
-        (m i1 i3, PPar($1,$3)) }
+  | pat COMMA vpat
+      { let i1,p1 = $1 in 
+        let i2,p2 = $3 in 
+        (m i1 i2, PPar(p1,p2)) }
 
-  | IDENT IDENT
-      { let i1,_ = $1 in 
-        let i2,_ = $2 in 
-        (m i1 i2, PVnt($1,Some $2)) }
+  | vpat
+      { $1 }
 
-  | IDENT 
+vpat:
+  | UIDENT
+      { let i1,_ = $1 in 
+        (i1, PVnt($1,None)) }
+
+  | UIDENT apat
+      { let i1,_ = $1 in 
+        let i2,p2 = $2 in 
+        (m i1 i2, PVnt($1,Some p2)) }
+
+  | apat
+      { $1 }
+
+apat:
+  | UNDERLINE 
+      { ($1, PWld) }
+
+  | LPAREN RPAREN
+      { (m $1 $2, PUnt) }
+      
+  | LIDENT
       { let i,_ = $1 in 
-        (i, PVnt($1,None)) }
+        (i,PVar($1)) }
 
   | LPAREN pat RPAREN
       { let _,p = $2 in 
         (m $1 $3, p) }
-
+      
 branch_list:
   | branch branch_list2
       { let (i1,p,e) = $1 in 
@@ -460,7 +478,7 @@ asort:
   | UNIT
       { SUnit }
 
-  | IDENT
+  | LIDENT
       { SVar (qid_of_id $1) }
       
   | LPAREN sort RPAREN
@@ -488,10 +506,10 @@ qmark_or_exp:
 
 /* data type sorts */
 dtsort:
-  | IDENT
+  | UIDENT
       { ($1,None) }
 
-  | IDENT OF sort
+  | UIDENT OF sort
       { ($1,Some $3) }
 
 dtsort_list:
@@ -505,10 +523,10 @@ dtsort_list2:
   | BAR dtsort dtsort_list2
       { $2 :: $3 }
 
-/* --------- QUALIFIED IDENTIFIERS ---------- */
+/* --------- QUALIFIED identIFIERS ---------- */
 qid:
-  | IDENT                                    { qid_of_id ($1) }
-  | qid DOT IDENT                            { qid_dot $1 (qid_of_id $3) }
+  | ident                                    { qid_of_id ($1) }
+  | qid DOT ident                            { qid_dot $1 (qid_of_id $3) }
 
 /* --------- PARAMETERS ---------- */
 param_list:
@@ -519,7 +537,7 @@ param_list:
       { [] }
 
 param: 
-  | LPAREN IDENT COLON sort RPAREN
+  | LPAREN ident COLON sort RPAREN
       { Param(fst $2,$2,$4) }
 
 /* --------- REPETITIONS ---------- */
@@ -543,6 +561,13 @@ rep:
       { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, Some n4)) }
 
 /* --------- MISC SYMBOLS ---------- */
+ident:
+  | LIDENT
+      { $1 }
+
+  | UIDENT
+      { $1 }
+
 get:
   | GET                                 
       { $1 }

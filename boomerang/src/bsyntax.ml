@@ -114,8 +114,11 @@ and exp =
     | ETrans of i * exp * exp
 
 and pat = 
-  | PVnt of id * id option
-  | PPar of id * id 
+  | PWld 
+  | PUnt
+  | PVar of id 
+  | PVnt of id * pat option
+  | PPar of pat * pat
 
 (* declarations *)
 type test_result =
@@ -195,15 +198,20 @@ let rec format_sort s =
     | SVar(q) -> Util.format "%s" (string_of_qid q)
 
 and format_pat = function
-  | PPar(x,y) -> 
-      Util.format "@[<2>(%s,@,%s)@]" 
-        (string_of_id x)
-        (string_of_id y)
+  | PWld -> Util.format "_"
+  | PUnt -> Util.format "()"
+  | PVar x -> Util.format "$%s" (string_of_id x)
+  | PPar(p1,p2) -> 
+      Util.format "@[<2>(";
+      format_pat p1;
+      Util.format ",@,";
+      format_pat p2;
+      Util.format ")@]";
   | PVnt(l,None) -> Util.format "%s" (string_of_id l)
-  | PVnt(l,Some x) ->  
-      Util.format "@[<2>(%s@ %s)@]" 
-        (string_of_id l)
-        (string_of_id x)
+  | PVnt(l,Some p1) ->  
+      Util.format "@[<2>(%s@ " (string_of_id l);
+      format_pat p1;
+      Util.format ")@]"
 
 and format_param (Param (_, id, s)) =
   Util.format "@[%s:" (string_of_id id);
@@ -389,3 +397,4 @@ let string_of_sort s = Util.format_to_string (fun () -> format_sort s)
 
 let string_of_param p = Util.format_to_string (fun () -> format_param p)
 
+let string_of_pat p = Util.format_to_string (fun () -> format_pat p)

@@ -241,6 +241,50 @@ and meet i u v =
   | SVar x,SVar y -> if qid_equal x y then u else err ()
   | _ -> if u=v then u else err ()
 
+(* pattern matching *)
+(* helper: check if a sort matches a pattern; return bindings for variables *)
+let rec static_match i tev p s = match p,s with 
+  | PWld,_ -> Some []
+  | PVar x,_ -> Some [(x,s)] 
+  | PUnt,SUnit -> Some []
+  | PVnt(li,pio),SVar x -> 
+      begin match TEnv.lookup tev x with
+        | None -> sort_error i (fun () -> Util.format "@[%s is not bound@]" (string_of_qid x))
+        | Some sl -> 
+            let rec aux = function
+              | [] -> None
+              | (lj,sjo)::rest -> 
+                  if (id_equal li lj) then 
+                    (match pio,sjo with 
+                       | None,None -> Some []
+                       | Some pi,Some sj -> static_match i tev pi sj
+                       | _ -> sort_error i (fun () -> Util.format "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_id li)))
+                  else aux rest in 
+              aux sl
+      end
+  | PPar(p1,p2),SProduct(s1,s2) -> 
+      (match static_match i tev p1 s1, static_match i tev p2 s2 with 
+         | Some l1, Some l2 -> Some (l1 @ l2) 
+         | _ -> None)
+  | _ -> None 
+
+let rec dynamic_match i p v = match p,v with 
+  | PWld,_ -> Some []
+  | PVar x,_ -> Some [(x,v)]
+  | PUnt,V.Unt(_) -> Some []
+  | PVnt(li,pio),V.Vnt(_,_,lj,vjo) -> 
+      if (id_equal li lj) then 
+        (match pio,vjo with 
+           | None,None -> Some []
+           | Some pi,Some vj -> dynamic_match i pi vj
+           | _ -> run_error i "dynamic match" (fun () -> Util.format "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_id li)))
+      else None
+  | PPar(p1,p2),V.Par(_,v1,v2) -> 
+      (match dynamic_match i p1 v1,dynamic_match i p2 v2 with 
+         | Some l1,Some l2 -> Some (l1 @ l2)
+         | _ -> None)
+  | _ -> None 
+
 let expect_sorts i msg expecteds found =
   let rec aux = function 
     | [] -> 
@@ -323,74 +367,35 @@ and check_exp ((tev,sev) as evs) e0 = match e0 with
 
   | ECase(i,e1,pl) -> 
       let err0 p = sort_error i (fun () -> Util.format p) in 
-      let err1 p s = sort_error i (fun () -> Util.format p s) in 
       let err2 p s1 s2 = sort_error i (fun () -> Util.format p s1 s2) in 
       let e1_sort,new_e1 = check_exp evs e1 in 
-      begin match e1_sort with         
-        | SVar x ->
-            (* variants -- lookup type *)
-            let sl = match TEnv.lookup tev x with 
-              | Some sl -> sl 
-              | None -> err1 "@[%s is not bound@]" (string_of_qid x) in 
-            (* "bare" sl -- identifiers -> strings for easy lookup as assoc list *)
-            let sl_bare = Safelist.map (fun (l,so) -> (string_of_id l,so)) sl in 
-            (* check the patterns *)
-            let cs,sorto,new_pl_rev = Safelist.fold_left 
-              (fun (cs,sorto,acc) (pi,ei) -> match pi with
-                 | PVnt(l,xo) -> begin
-                     let l_bare = string_of_id l in 
-                     try 
-                       let ei_sort,new_ei = match xo,Safelist.assoc l_bare cs with
-                         | None,None -> check_exp evs ei
-                         | Some x,Some si -> 
-                             (* update with binding for x *)
-                             let ei_sev = SCEnv.update sev (qid_of_id x) si in
-                               check_exp (tev,ei_sev) ei 
-                         | None,Some _ -> err1 "@[constructor %s expects an argument@]" l_bare
-                         | Some _,None -> err1 "@[the constructor %s expects no arguments@]" l_bare in 
-                       let sort = match sorto with
-                         | None -> ei_sort
-                         | Some sort -> 
-                             (* check that all branches have compatible sorts *)
-                             try join i ei_sort sort with _ -> 
-                               err2 "@[patterns have different sorts: %s and %s@]"
-                                 (string_of_sort sort)
-                                 (string_of_sort ei_sort) in 
-                       let new_cs = Safelist.remove_assoc l_bare cs in 
-                       let new_sorto = Some sort in 
-                       let new_acc = (pi,new_ei)::acc in 
-                       (new_cs,new_sorto,new_acc) 
-                     with Not_found -> err1 "@[unknown case: %s@]" l_bare
-                   end
-                 | _ -> err0 "@[expected@ variant@ pattern@]")
-              (sl_bare,None,[]) pl in 
-            (* check for coverage *)
-            (match cs with 
-               | [] -> ()
-               | (l,_)::_ -> 
-                   Util.format "@[%s: Warning: this pattern-match is not exhaustive.@\n" 
-                     (Info.string_of_t i);
-                   Util.format "Here is a pattern that is not matched: %s@]@\n" l);
-            let e0_sort = match sorto with 
-              | None -> err0 "@[empty sum@]"
-              | Some s -> s in 
-            let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev) in 
-            (e0_sort,new_e0)
-        | SProduct(s1,s2) -> 
-            begin match pl with 
-              | [PPar(x,y),e] -> 
-                  (* update with binding for x *)
-                  let e_sev = 
-                    SCEnv.update 
-                      (SCEnv.update sev (qid_of_id x) s1)
-                      (qid_of_id y) s2 in 
-                  let e_sort,new_e = check_exp (tev,e_sev) e in                     
-                  let new_e0 = ECase(i,new_e1,[PPar(x,y),new_e]) in 
-                  e_sort,new_e0
-              | _ -> err0 "@[expected@ pair@ pattern@]" 
-            end
-        | s -> err1 "@[unexpected@ sort@ in@ pattern@ match:@ %s@]" (string_of_sort s)
-      end
+      let sorto,new_pl_rev = Safelist.fold_left 
+        (fun (sorto,new_pl_rev) (pi,ei) -> 
+           match static_match i tev pi e1_sort with 
+             | None -> 
+                 err2 "@[pattern %s and sort %s do not match@]" 
+                   (string_of_pat pi) 
+                   (string_of_sort e1_sort)
+             | Some binds -> 
+                 let ei_sev = Safelist.fold_left 
+                   (fun ei_sev (xj,sj) -> SCEnv.update ei_sev (qid_of_id xj) sj)
+                   sev binds in 
+                 let ei_sort,new_ei = check_exp (tev,ei_sev) ei in
+                 let sort = match sorto with 
+                   | None -> ei_sort 
+                   | Some sort -> 
+                       (* check that branches have compatible sorts *)
+                       try join i ei_sort sort with _ -> 
+                         err2 "@[branches have different sorts: %s and %s@]"
+                           (string_of_sort sort)
+                           (string_of_sort ei_sort) in 
+                 (Some sort,(pi,new_ei)::new_pl_rev))
+        (None,[]) pl in 
+      let e0_sort = match sorto with 
+        | None -> err0 "@[empty sum@]"
+        | Some s -> s in 
+      let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev) in 
+        (e0_sort,new_e0)
 
   | EString(_,_) -> 
       (SString,e0)
@@ -617,42 +622,18 @@ let rec compile_exp cev e0 = match e0 with
       (SProduct(s1,s2),Bvalue.Par(i,v1,v2))
 
   | ECase(i,e1,pl) -> 
-      let err0 p = run_error i "compile_exp" (fun () -> Util.format p) in
-      let err1 p s = run_error i "compile_exp" (fun () -> Util.format p s) in         
       let s1,v1 = compile_exp cev e1 in 
-      begin match s1 with 
-        | SVar _ -> 
-            (* variant case *)
-            let li,vio = Bvalue.get_v v1 i in 
-            let li_bare = string_of_id li in 
-            let pi,ei = 
-              try Safelist.find 
-                (fun (p,e) -> match p with 
-                   | PVnt(l,_) -> id_equal li l
-                   | _ -> false) pl
-              with Not_found -> err1 "@[match@ failure %s@]" li_bare in 
-            (* update environment *)
-            let ei_cev = match pi,vio with 
-              | PVnt(_,None),None -> cev
-              | PVnt(_,Some x),Some vi -> 
-                  CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t vi,vi) 
-              | PVnt(_,None),Some _ -> err1 "@[expected@ no@ argument@ for@ %s@]" li_bare
-              | PVnt(_,Some _),None -> err1 "@[expected@ argument@ for@ %s@]" li_bare
-              | _ -> assert false in 
-            compile_exp ei_cev ei
-        | SProduct(s1,s2) -> 
-            let v11,v12 = Bvalue.get_p v1 i in 
-            let x,y,e = match pl with 
-              | [PPar(x,y),e] -> x,y,e
-              | _ -> err0 "@[unexpected@ match@ failure@]" in 
-            let e_cev = 
-              CEnv.update 
-                (CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t v11,v11))
-                (qid_of_id y) 
-                (Bvalue.sort_of_t v12,v12) in 
-            compile_exp e_cev e 
-        | s -> err1 "@[unexpected@ sort:@ %s@]" (string_of_sort s)
-      end
+      let rec find_match = function
+        | [] -> run_error i "compile_exp" (fun () -> Util.format "@[match@ failure@]")
+        | (pi,ei)::rest -> 
+            (match dynamic_match i pi v1 with 
+               | None -> find_match rest
+               | Some l -> l,ei) in 
+      let binds,ei = find_match pl in 
+      let ei_cev = Safelist.fold_left 
+        (fun cev (x,v) -> CEnv.update cev (qid_of_id x) (Bvalue.sort_of_t v,v))
+        cev binds in 
+      compile_exp ei_cev ei
 
   | EString(i,s) -> (SString,Bvalue.Str(i,s))
 

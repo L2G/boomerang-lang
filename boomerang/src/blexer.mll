@@ -138,6 +138,7 @@ rule main = parse
 | "&"                { AMPERSAND(info lexbuf) }
 | "*"                { STAR(info lexbuf) }
 | "-"                { MINUS(info lexbuf) }
+| "_"                { UNDERLINE(info lexbuf) }
 | "+"                { PLUS(info lexbuf) }
 | "!"                { BANG(info lexbuf) }
 | "->"               { ARROW(info lexbuf) }
@@ -174,7 +175,9 @@ rule main = parse
 | id_char_first id_char_rest* as ident { 
       try let kw = Hashtbl.find keywords ident in
           kw (info lexbuf)
-      with Not_found -> IDENT (info lexbuf, ident) }
+      with Not_found -> 
+        if Char.uppercase ident.[0] = ident.[0] then UIDENT (info lexbuf, ident)
+        else LIDENT (info lexbuf, ident) }
 | int_char+ as integ { INT(info lexbuf, int_of_string integ) }
 | newline            { newline lexbuf; main lexbuf }
 | eof                { EOF(info lexbuf) } 
