@@ -21,7 +21,10 @@
 
 module Units = 
 
-let x : { ? <-> ? } = [^]*
+let Any = [^]*
+
+let x : { ? <-> ? } = cp Any 
+test x : { Any <-> Any* }
 
 type mytype = A | B of regexp | C of unit
 

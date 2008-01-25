@@ -780,7 +780,7 @@ and compile_binding cev = function
             Safelist.fold_left 
               (fun (bcev,xs) (x,v) -> 
                  let qx = qid_of_id x in 
-                 (CEnv.update bcev qx (s,v), qx::xs))
+                 (CEnv.update bcev qx (V.sort_of_t v,v), qx::xs))
               (cev,[]) binds in 
       (bcev,Safelist.rev xs_rev)
 

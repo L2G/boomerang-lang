@@ -111,9 +111,12 @@ let mk_assert = function
       (fun i e -> 
          EApp(i,EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert"),c),a),e))
 
-let fixup_pat = function
-  | _,PVnt(x,None) -> PVar(x)
-  | _,p -> p 
+let rec fixup_pat i = function
+  | PVnt(_,Some _) -> syntax_error i "illegal pattern"
+  | PVnt(x,None) -> PVar(x)
+  | PPar(p1,p2)  -> PPar(fixup_pat i p1, fixup_pat i p2)
+  | p -> p 
+
 
 let check_pat i p params = match p,params with 
   | PVar _,_ -> ()
@@ -156,7 +159,7 @@ decls:
 
   | LET ppat param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
-        let p = fixup_pat $2 in 
+        let p = fixup_pat i (snd $2) in 
         let () = check_pat i p $3 in 
         let f = mk_fun i $3 $5 in 
         let so = mk_fun_sorto i $3 None in 
@@ -164,7 +167,7 @@ decls:
 
   | LET ppat param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
-        let p = fixup_pat $2 in 
+        let p = fixup_pat i (snd $2) in 
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
         let f = mk_fun i $3 (ef $4 $7) in 
@@ -210,7 +213,7 @@ test_type:
 exp:
   | LET ppat param_list EQUAL exp IN exp
       { let i = m $1 $6 in 
-        let p = fixup_pat $2 in 
+        let p = fixup_pat i (snd $2) in 
         let () = check_pat i p $3 in 
         let f = mk_fun i $3 $5 in 
         let so = mk_fun_sorto i $3 None in 
@@ -219,7 +222,7 @@ exp:
 
   | LET ppat param_list COLON decl_sort EQUAL exp IN exp
       { let i = m $1 $8 in 
-        let p = fixup_pat $2 in 
+        let p = fixup_pat i (snd $2) in 
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
         let f = mk_fun i $3 (ef $4 $7) in 
