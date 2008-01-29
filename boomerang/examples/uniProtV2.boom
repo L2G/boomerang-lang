@@ -1,0 +1,89 @@
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/examples/uniProtV2.boom                                          *)
+(* UniProtKB <-> SwissProt lens                                                *)
+(* $Id$ *)
+(*******************************************************************************)
+
+module UniProtV2 = 
+
+(* --------------------------------------------------------------------------- *)
+(* XML HELPER FUNCTIONS *)
+
+let NL = "\n"
+let WS = [ \n\t]*
+let WSP = [ \n\t]+
+let ws = [ \t]*
+let wsp = [ \t]+
+
+(* nlX: X^th amount of whitespace; used as defaults when creating XML *)
+let nl0 = "\n"
+let nl1 = nl0 . "  "
+let nl2 = nl1 . "  "
+let nl3 = nl2 . "  "
+let nl4 = nl3 . "  "
+
+(* single_line_elt: helper for processing a single-line XML element
+     o spaces: default whitespace before the element
+     o tag: the element's tag
+     o body: lens for handling the children
+*)
+let single_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
+  default (del WS) spaces .
+  del ("<" . tag . ">") . 
+  body . 
+  del ("</" . tag .">") 
+
+(* multi_line_elt_nl_nl: helper for processing a multi-line XML element 
+   o spaces: default whitespace after the element
+   o tag: the element's tag
+   o body: lens for handling the children 
+*)
+let multi_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
+  default (del WS) spaces .
+  del ("<" . tag . ">") .
+  body . 
+  default (del WS) spaces . 
+  del ("</" . tag .">") 
+
+(* ins_rx: insert a regular language; uses a canonizer *)
+let ins_rx (R:regexp) (def:string) = 
+  right_quot 
+    (ins def)
+    (canonizer_of_lens (const R def def))
+
+(* --------------------------------------------------------------------------- *)
+(* ID line *)
+let id_line : lens = 
+  let NAME : regexp = [A-Z0-9_]{1,12} in  
+  let STATUS : regexp = wsp . ("Reviewed" | "Unreviewed") . ";" in 
+  let LENGTH : regexp = wsp . [0-9]+ . " AA" in 
+  let def : string = " Unreviewed; 000 AA" in 
+  ins "ID " . 
+  single_line_elt nl1 "name" 
+    (key NAME . 
+     ins_rx (STATUS . LENGTH) def . 
+     ins NL)
+
+(* unit tests *)
+test id_line create 
+  "ID Q5JU06_HUMAN Reviewed; 280 AA\n" 
+= "\n  <name>Q5JU06_HUMAN</name>"
+
+test id_line get 
+  "<name>Q56J06_HUMAN</name>" = 
+  "ID Q56J06_HUMAN Unreviewed; 000 AA\n"
