@@ -190,7 +190,20 @@ let prelude_spec =
      mk_lfun (Info.M "right_quot built-in") (SCanonizer ^> SLens) (fun i l1 ->                                              
        mk_cfun i SLens (fun i c1 -> 
          Lns(i,L.right_quot i l1 c1))))
+
+  ; (mk_prelude_qid "cls",
+     SCanonizer ^> SString ^> SString,
+     mk_cfun (Info.M "cls built-in") (SString ^> SString) (fun i c1 -> 
+       mk_sfun i SString (fun i s1 -> 
+         Str(i,C.cls c1 s1))))                          
+
+  ; (mk_prelude_qid "rep",
+     SCanonizer ^> SString ^> SString,
+     mk_cfun (Info.M "rep built-in") (SString ^> SString) (fun i c1 -> 
+       mk_sfun i SString (fun i s1 -> 
+         Str(i,C.rep c1 s1))))                          
    ]
+
       
 let () = 
   Safelist.iter 

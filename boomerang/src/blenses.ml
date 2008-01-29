@@ -230,7 +230,7 @@ module Canonizer = struct
       cls = c;
       rep = r; 
     }
-      
+
   (* add primitives ... *)
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
@@ -244,7 +244,7 @@ module Canonizer = struct
         (do_split (split cn1.rtype cn2.rtype)
             cn1.cls cn2.cls (^));
       rep = lift_r i (rep_str n) ct 
-        (do_split ((split_one Rint.Set.min_elt) cn1.ctype cn2.ctype)
+        (do_split ((split_one Rint.Set.max_elt) cn1.ctype cn2.ctype)
             cn1.rep cn2.rep (^));
     }
 
@@ -260,10 +260,10 @@ module Canonizer = struct
       rep = lift_r i (rep_str n) ct (branch cn1.ctype cn1.rep cn2.rep);
     }
 
-  let star i cn1 = 
-    let n = sprintf "(%s)*" cn1.string in 
-    let rt = R.unambig_star i n cn1.rtype in 
-    let ct = R.star cn1.ctype in 
+  let star i cn1 =
+    let n = sprintf "(%s)*" cn1.string in
+    let rt = R.unambig_star i n cn1.rtype in
+    let ct = R.star cn1.ctype in
     { info = i;
       string = n;
       rtype = rt;
@@ -274,14 +274,13 @@ module Canonizer = struct
         let rec loop cl acc = 
           if RS.length cl = 0 then acc
           else
-            let cl1,clrest = (split_one Rint.Set.min_elt) cn1.ctype ct cl in 
+            let cl1,clrest = (split_one Rint.Set.max_elt) cn1.ctype ct cl in 
               loop clrest (acc ^ (cn1.rep cl1)) in 
         loop cl RS.empty);
     }
 end
 
 (* simple sort checking for relations *)
-(* we only track if it is the identity *)
 type rel = Identity | Unknown
 let combine_rel r1 r2 = match r1,r2 with 
   | Identity,Identity -> Identity 
@@ -445,13 +444,12 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       get = g;
       put = put;
       parse = parse;
-      create = c; 
+      create = c;
       key = k;
       uid = uid;
     }
 
-(* pseudo rlenses function *)
-
+  (* pseudo rlenses function *)
   let rput_of_dl dl = 
     fun a c -> 
       let s,d = dl.parse c in
@@ -461,17 +459,18 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     fun a ->
       fst (dl.create a (CDict CD_empty))
 
-
   let determinize_dlens dl =
-    {dl with 
-       ctype = R.determinize dl.ctype; 
-       atype = R.determinize dl.atype}
+    { dl with 
+        ctype = R.determinize dl.ctype; 
+        atype = R.determinize dl.atype
+    }
 
   let forgetkey dl = 
-    {dl with
-       key = (fun _ -> RS.empty);
-       uid = next_uid();}
-
+    { dl with
+        key = (fun _ -> RS.empty);
+        uid = next_uid();
+    }
+      
   let canonizer_of_t i dl = 
     Canonizer.mk_t 
       i
@@ -480,7 +479,6 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       dl.atype
       dl.get
       (rcreate_of_dl dl)
-
 
   (* invert -- only for bijective lenses! *)
   let invert i dl = 
