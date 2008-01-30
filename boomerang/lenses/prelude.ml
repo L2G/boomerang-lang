@@ -57,14 +57,6 @@ let prelude_spec =
         mk_sfun i SLens (fun i s2 -> 
         Lns(i,L.const i r1 s1 s2)))))
 
-  ; (mk_prelude_qid "qconst",
-    SRegexp ^> SRegexp ^> SString ^> SString ^> SLens,
-    mk_rfun (Info.M "qconst built-in") (SRegexp ^> SString ^> SString ^> SLens) (fun i r1 -> 
-      mk_rfun i (SString ^> SString ^> SLens) (fun i r2 ->
-        mk_sfun i (SString ^> SLens) (fun i s1 -> 
-          mk_sfun i SLens (fun i s2 -> 
-            Lns(i,L.qconst i r1 r2 s1 s2))))))
-
   ; (mk_prelude_qid "del",
     SRegexp ^> SLens,
     mk_rfun (Info.M "del built-in") SLens (fun i r1 -> 

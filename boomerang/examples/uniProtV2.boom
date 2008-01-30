@@ -22,28 +22,72 @@
 module UniProtV2 = 
 
 (* --------------------------------------------------------------------------- *)
-(* XML HELPER FUNCTIONS *)
+(* GENERIC HELPER FUNCTIONS *)
 
-let NL = "\n"
-let WS = [ \n]*
-let WSP = [ \n]+
-let s = [ ]*
-let sp = [ ]+
+(* [bracket s] encloses [s] in bracket. *) 
+let bracket (s:string) : string = "[" . s . "]" 
 
-(* nlX: X^th amount of whitespace; used as defaults when creating XML *)
+(* [qconst C A a c]: is like [const C a c], but accepts all of [A] in
+   the PUT/CREATE direction. *)
+let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
+  right_quot     
+    (const C a c)
+    (canonizer_of_lens (const A a a))
+
+(* [qins E e] is like [ins e], but accepts all of [E] in the
+   PUT/CREATE direction *)
+let qins (E:regexp) (e:string) : { "" <-> E } = 
+  qconst "" E e "" 
+
+(* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
+   direction. *)
+let qdel (E:regexp) (e:string) : { E <-> "" } = 
+  left_quot 
+    (canonizer_of_lens (default (del E) e))
+    ""
+
+(* unit tests *)
+test bracket (qdel [A-Z]+ "ZZZ" get "ABC") = "[]"
+test bracket (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "[ZZZ]"
+  
+(* --------------------------------------------------------------------------- *)
+(* CONSTANTS *)
+
+(* [NL] newline *)
+let NL :string = "\n"
+
+(* [WS] whitespace *)
+let WS : regexp = [ \n]*
+
+(* [WSP] positive whitespace *)
+let WSP : regexp = [ \n]+
+
+(* [S] space *)
+let S : regexp = [ ]*
+
+(* [SP] positive space *)
+let SP : regexp = [ ]+
+
+(* [DIGIT] digit *)
+let DIGIT : regexp = [0-9]
+
+(* [nlX]: X^th amount of whitespace--used to canonize XML *)
 let nl0 = "\n"
 let nl1 = nl0 . "  "
 let nl2 = nl1 . "  "
 let nl3 = nl2 . "  "
 let nl4 = nl3 . "  "
 
+(* --------------------------------------------------------------------------- *)
+(* XML helper functions *)
+
 (* single_line_elt: helper for processing a single-line XML element
-     o spaces: default whitespace before the element
-     o tag: the element's tag
-     o body: lens for handling the children
+   o spaces: default whitespace before the element
+   o tag: the element's tag
+   o body: lens for handling the children
 *)
 let single_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
-  default (del WS) spaces .
+  qdel WS spaces . 
   del ("<" . tag . ">") . 
   body . 
   del ("</" . tag .">") 
@@ -54,79 +98,119 @@ let single_line_elt (spaces:string) (tag:string) (body:lens) : lens =
    o body: lens for handling the children 
 *)
 let multi_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
-  default (del WS) spaces .
+  qdel WS spaces . 
   del ("<" . tag . ">") .
   body . 
-  default (del WS) spaces . 
+  qdel WS spaces . 
   del ("</" . tag .">") 
 
-(* ins_rx: insert a regular language; uses a canonizer *)
-let ins_rx (R:regexp) (def:string) = 
-  right_quot 
-    (ins def)
-    (canonizer_of_lens (const R def def))
-
 let tag (t:string) : lens = 
-  ins_rx (t . sp) (t . "    ")
-
+  qins (t . SP) (t . "    ")
+    
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
-let id_line : lens = 
-  let NAME : regexp = [A-Z0-9_]{1,12} in  
-  let STATUS : regexp = sp . ("Reviewed" | "Unreviewed") . ";" in 
-  let LENGTH : regexp = sp . [0-9]+ . " AA" in 
-  let def : string = " Unreviewed; 000 AA" in 
+let id_tag : string = "ID"
+let id_data : regexp = [A-Z0-9_]{1,12}
+let id_xml : lens = 
+  let STATUS : regexp = SP . ("Reviewed" | "Unreviewed") . ";" in 
+  let LENGTH : regexp = SP . DIGIT+ . " AA" in 
+  let def_sl : string = " Unreviewed; 000 AA" in 
   tag "ID" . 
   single_line_elt nl1 "name" 
-    (key NAME .  
-     ins_rx (STATUS . LENGTH) def . 
+    (key id_data .
+     qins (STATUS . LENGTH) def_sl . 
      ins NL)
+let id_line : lens = id_xml 
 
 (* unit tests *)
-test id_line create 
-  "ID Q5JU06_HUMAN Reviewed; 280 AA\n" 
-= "\n  <name>Q5JU06_HUMAN</name>"
-
 test id_line get 
   "<name>Q56J06_HUMAN</name>" = 
   "ID    Q56J06_HUMAN Unreviewed; 000 AA\n"
 
+test id_line create 
+  "ID Q5JU06_HUMAN Reviewed; 280 AA\n" 
+= "\n  <name>Q5JU06_HUMAN</name>"
+
+
 (* --------------------------------------------------------------------------- *)
 (* AC line *)
-let ac_pre : string = "AC    " 
+let ac_tag : string = "AC"
 let ac_data : regexp = [A-Z0-9]{6} 
 let ac_entry : regexp = ac_data . ";" 
 let ac_xml : lens = (single_line_elt nl1 "accession" (ac_data . ins "; "))+
-let ac_cn : canonizer = 
-  (canonizer_of_lens 
-     (del ac_pre . 
-        (ac_entry . sp <-> " " ){1,8} . 
-        del NL))+
+let ac_cn : canonizer =
+  let aux : lens = 
+    del (ac_tag . SP) . 
+    (ac_entry . SP <-> " "){0,7} . 
+    (ac_entry . S <-> " ") . 
+    del NL in 
+  (canonizer_of_lens aux)+
+let ac_line : lens =
+  right_quot ac_xml ac_cn
 
-let ac_line = right_quot ac_xml ac_cn
+(* unit tests *)
+test ac_line get "<accession>Q21234</accession>" = "AC Q21234;\n" 
 
-test ac_line get 
-  "<accession>Q92892</accession>
-  | <accession>Q92893</accession>
-  | <accession>Q92894</accession>
-  | <accession>Q92895</accession>
-  | <accession>Q93053</accession>
-  | <accession>Q96KU9</accession>
-  |<accession>Q96KV0</accession>
-  |<accession>Q93053</accession>
-  |<accession>Q96KU9</accession>
-  |<accession>Q96KV0</accession>
-  |<accession>Q93053</accession>
-  |<accession>Q96KU9</accession>
-  |<accession>Q96KV0</accession>
-  |<accession>Q93053</accession>
-  |<accession>Q96KU9</accession>
-  |<accession>Q96KV0</accession>
-  |<accession>Q96KV1</accession>" = ?
+let ac_9 = 
+  "
+  |  <accession>Q92892</accession>
+  |  <accession>Q92893</accession>
+  |  <accession>Q92894</accession>
+  |  <accession>Q92895</accession>
+  |  <accession>Q93053</accession>
+  |  <accession>Q96KU9</accession>
+  |  <accession>Q96KV0</accession>
+  |  <accession>Q93053</accession>
+  |  <accession>Q96KU9</accession>" 
+
+test ac_line get ac_9
+= 
+  "AC Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q96KV0; Q93053;
+  |AC Q96KU9;
+  |"
 
 test ac_line create
-  "AC    Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q96KV0; Q93053; 
-  |AC    Q96KV0; Q93053; Q96KU9; 
-  |AC    Q96KV0; Q93053; Q96KU9; Q96KV0; 
-  |AC    Q96KV1; 
-  |" = ?
+  "AC Q92892; Q92893; Q92894;
+  |AC    Q92895;   Q93053; Q96KU9; Q96KV0;  Q93053;
+  |AC Q96KU9;  
+  |"
+= ac_9
+
+test ac_line put
+  "AC    Q21234; QJNF12;
+  |"
+into
+  "<accession>Q92892</accession>
+  |  <accession>Q92893</accession>
+  |      <accession>Q92894</accession>
+  | <accession>Q92895</accession>"
+= 
+  "
+  |  <accession>Q21234</accession>
+  |  <accession>QJNF12</accession>" 
+ 
+(* --------------------------------------------------------------------------- *)
+(* DT line *)
+
+(* [date] maps between aphanumeric and numeric dates *)
+let date : lens = 
+  let day : regexp = DIGIT{2} in 
+  let month : lens = 
+    ( "01" <-> "JAN" 
+    | "02" <-> "FEB" 
+    | "03" <-> "MAR" 
+    | "04" <-> "APR" 
+    | "05" <-> "MAY" 
+    | "06" <-> "JUN" 
+    | "07" <-> "JUL" 
+    | "08" <-> "AUG" 
+    | "09" <-> "SEP" 
+    | "10" <-> "OCT" 
+    | "11" <-> "NOV" 
+    | "12" <-> "DEC" ) in       
+  let year : regexp = DIGIT{4} in 
+    default
+      (year ~ (("-" . month . "-") ~ day))        
+      "1900-01-01"  
+
+test date get "2009-01-20" = "20-JAN-2009"

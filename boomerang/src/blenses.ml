@@ -559,44 +559,6 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	uid = next_uid ();
       }
 
-
-  (* ---------- quotient const ---------- *)
-  let qconst i rc ra u_str def_str =
-    let u = RS.string_of_t u_str in
-    let def = RS.string_of_t def_str in
-    let n = sprintf "qconst (%s) (%s) \"%s\" \"%s\"" (R.string_of_t rc) (R.string_of_t ra) (whack u) (whack def) in 
-    let ct = rc in 
-    let at = ra in
-    let dt = TMap.empty in
-    let st = function
-      | S_string s -> R.match_str rc s
-      | _ -> false in
-    let () = 
-      if not (R.match_str ra u_str) then 
-        Berror.static_error i n 
-          (sprintf "%s does not belong to %s" def (R.string_of_t ra)) in 
-    let () = 
-      if not (R.match_str rc def_str) then 
-        Berror.static_error i n 
-          (sprintf "%s does not belong to %s" def (R.string_of_t rc)) in 
-      { info = i;
-        string = n;
-        ctype = ct;
-        atype = at;
-	dtype = dt;
-	stype = st;
-        crel = Identity;
-        arel = Unknown;
-        get = lift_r i (get_str n) ct (fun c -> u_str);
-        put = lift_rsd i (put_str n) at st (fun _ s d -> (string_of_skel s, d) );
-	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty));  
-        create = lift_rd i (create_str n) at (fun a d -> (def_str,d));
-	key = lift_r i n at (fun _ -> RS.empty);
-	uid = next_uid ();
-      }
-
-
-
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 
     let n = sprintf "%s . %s" dl1.string dl2.string in 
