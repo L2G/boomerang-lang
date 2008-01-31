@@ -349,18 +349,98 @@ Next Steps
 In the boomerang/examples directory, you can find some of the other
 Boomerang programs we have written:
 
-  demo.boom    : a simple demo, similar to composers lens
-  addr.boom    : vCard and CSV address books
-  bibtex.boom  : BiBTeX and RIS-formatted bibliographies
-  coqSrc.boom  : Coq teaching files with/without solutions 
-  uniprot.boom : UniProtKB / SwissProt lens
-  units.boom   : unit tests
-  boomison.el  : an Emacs mode for running Boomerang on a source and view  
-               : try it out by typing M-x boomison
+  demo.boom      : a simple demo, similar to composers lens
+  addresses.boom : vCard and CSV address books
+  bibtex.boom    : BiBTeX and RIS-formatted bibliographies
+  coqSrc.boom    : Coq teaching files with/without solutions 
+  uniprot.boom   : UniProtKB / SwissProt lens
+  units.boom     : unit tests
 
 We will continue adding to this set of examples as we tidy and package our
 code... and we hope you'll write and let us know about the lenses
 you write!
+
+Boomison
+--------
+
+The trunk/boomerang/examples/boomison.el file is a simple editing
+interface for developing views in Boomerang. You can try it with our
+lenses for adddress books as follows. 
+
+First, launch emacs in a shell environment where $PATH includes the
+directory with the boomerang binary (trunk/bin) and $BOOMPATH includes
+the directories with the .boom files for the lenses you want to use
+(trunk/boomerang/examples/).
+
+Next, load the Elisp file by typing
+
+  M-x load-file
+
+and then pointing the interactive prompt to boomison.el.
+
+Start Boomison by typing
+
+  M-x boomison
+
+Then enter the filenames addr.vcf for the source, addr.csv for the
+view, and Address.vcards for the lens.
+
+Boomison will set up three windows--one for the source (which should
+be empty, unless addr.vcf already exists), one for the view (which
+should also be empty), and one for Boomerang's output, which should
+contain a line like the following:
+
+[sync] (lens: Address.vcards) setting archive
+/Users/nate/shared/harmony/trunk/boomerang/examples/addr.vcf601Fic to
+concrete replica
+/Users/nate/shared/harmony/trunk/boomerang/examples/addr.vcf
+
+Whenever you save either buffer, by typing 
+
+  C-x-s
+
+Boomison runs boomerang in the background, and propagates your
+changes from source to view, or vice versa. 
+
+Try this out by adding a line to addr.csv as follows (omit the leading spaces):
+
+  Nate Foster, 267.342.1099 (c), jnfoster@cis.upenn.edu (e)
+
+and save. After a few seconds, you should see the following in addr.vcf:
+
+  BEGIN:VCARD
+  VERSION:3.0
+  N:Nate Foster;;;;
+  TEL;type=CELL:267.342.1099
+  item.EMAIL;type=INTERNET;type=pref:jnfoster@cis.upenn.edu
+  item.X-ABLabel:E-mail
+  END:VCARD
+  
+Note that if you make a mistake--e.g., forget to include a newline
+after the inserted line in addr.vcf--boomerang may exit with an
+error:
+
+  [sync] (lens: Address.vcards)
+  /Users/nate/shared/harmony/trunk/boomerang/examples/addr.vcf <-- put
+  -- /Users/nate/shared/harmony/trunk/boomerang/examples/addr.csv
+  /Users/nate/shared/harmony/trunk/boomerang/examples/addr.vcf601NsL
+  File "./Address.boom", line 423, characters 21-47: type error in
+
+  ...
+
+    []
+  <<HERE>>
+    [Nate Foster, 267.342.1099 (c), jnfoster@cis.upenn.edu (e)]
+
+Similarly, if you edit both sides boomerang may exit with a conflict
+
+  [sync] (lens: Address.vcards)
+  /Users/nate/shared/harmony/trunk/boomerang/examples/addr.vcf -->
+  conflict <--
+  /Users/nate/shared/harmony/trunk/boomerang/examples/addr.csv
+
+In either case, you should edit the buffers to correct the
+error/conflict, and save again.
 
 Community
 ---------
