@@ -345,16 +345,27 @@ let de_xml : lens =
 
 let sp : canonizer = canonizer_of_lens (SP <-> " ")
 let nl : canonizer = canonizer_of_lens (SP <-> "\n")
-let A10= canonizer_of_lens A{10}
-let A9 = canonizer_of_lens A{9}
-let A8 = canonizer_of_lens A{8}
-let A7 = canonizer_of_lens A{7}
-let A6 = canonizer_of_lens A{6}
-let A5 = canonizer_of_lens A{5}
-let A4 = canonizer_of_lens A{4}
-let A3 = canonizer_of_lens A{3}
-let A2 = canonizer_of_lens A{2}
-let A1 = canonizer_of_lens A
+
+let A1 = (canonizer_of_lens A)
+let A2 = A1.A1
+let A3 = A2.A1
+let A4 = A3.A1
+let A5 = A4.A1
+let A6 = A5.A1
+let A7 = A6.A1
+let A8 = A7.A1
+let A9 = A8.A1
+let A10 = A9.A1
+let A11 = A10.A1
+let A12 = A11.A1
+let A13 = A12.A1
+let A14 = A13.A1
+let A15 = A14.A1
+let A16 = A15.A1
+let A17 = A16.A1
+let A18 = A17.A1
+let A19 = A18.A1
+let A20 = A19.A1
 
 let cp1 : canonizer = 
     A1 
@@ -412,16 +423,185 @@ let cp10 : canonizer =
   | A3 . sp . cp6 
   | A2 . sp . cp7 
   | A1 . sp . cp8
-
+let cp11 : canonizer = 
+    A11 
+  | A9 . sp . cp1
+  | A8 . sp . cp2
+  | A7 . sp . cp3 
+  | A6 . sp . cp4 
+  | A5 . sp . cp5 
+  | A4 . sp . cp6 
+  | A3 . sp . cp7 
+  | A2 . sp . cp8 
+  | A1 . sp . cp9
+let cp12 : canonizer = 
+    A12 
+  | A10 . sp . cp1
+  | A9 . sp . cp2
+  | A8 . sp . cp3 
+  | A7 . sp . cp4 
+  | A6 . sp . cp5 
+  | A5 . sp . cp6 
+  | A4 . sp . cp7 
+  | A3 . sp . cp8 
+  | A2 . sp . cp9
+  | A1 . sp . cp10
+let cp13 : canonizer = 
+    A13 
+  | A11 . sp . cp1
+  | A10 . sp . cp2
+  | A9  . sp . cp3 
+  | A8  . sp . cp4 
+  | A7  . sp . cp5 
+  | A6  . sp . cp6 
+  | A5  . sp . cp7 
+  | A4  . sp . cp8 
+  | A3  . sp . cp9
+  | A2  . sp . cp10
+  | A1  . sp . cp11
+let cp14 : canonizer = 
+    A14 
+  | A12 . sp . cp1
+  | A11 . sp . cp2
+  | A10 . sp . cp3 
+  | A9  . sp . cp4 
+  | A8  . sp . cp5 
+  | A7  . sp . cp6 
+  | A6  . sp . cp7 
+  | A5  . sp . cp8 
+  | A4  . sp . cp9
+  | A3  . sp . cp10
+  | A2  . sp . cp11
+  | A1  . sp . cp12
+let cp15 : canonizer = 
+    A15
+  | A13 . sp . cp1
+  | A12 . sp . cp2
+  | A11 . sp . cp3 
+  | A10 . sp . cp4  
+  | A9  . sp . cp5 
+  | A8  . sp . cp6 
+  | A7  . sp . cp7 
+  | A6  . sp . cp8 
+  | A5  . sp . cp9 
+  | A4  . sp . cp10
+  | A3  . sp . cp11
+  | A2  . sp . cp12
+  | A1  . sp . cp13
+let cp16: canonizer = 
+    A16
+  | A14 . sp . cp1
+  | A13 . sp . cp2
+  | A12 . sp . cp3 
+  | A11 . sp . cp4  
+  | A10 . sp . cp5 
+  | A9  . sp . cp6 
+  | A8  . sp . cp7 
+  | A7  . sp . cp8 
+  | A6  . sp . cp9 
+  | A5  . sp . cp10
+  | A4  . sp . cp11
+  | A3  . sp . cp12
+  | A2  . sp . cp13
+  | A1  . sp . cp14
+let cp17: canonizer = 
+    A17
+  | A15 . sp . cp1
+  | A14 . sp . cp2
+  | A13 . sp . cp3 
+  | A12 . sp . cp4  
+  | A11 . sp . cp5 
+  | A10 . sp . cp6 
+  | A9  . sp . cp7  
+  | A8  . sp . cp8 
+  | A7  . sp . cp9 
+  | A6  . sp . cp10
+  | A5  . sp . cp11
+  | A4  . sp . cp12
+  | A3  . sp . cp13
+  | A2  . sp . cp14
+  | A1  . sp . cp15
+let cp18: canonizer = 
+    A18
+  | A16 . sp . cp1
+  | A15 . sp . cp2
+  | A14 . sp . cp3 
+  | A13 . sp . cp4  
+  | A12 . sp . cp5 
+  | A11 . sp . cp6 
+  | A10 . sp . cp7
+  | A9  . sp . cp8   
+  | A8  . sp . cp9 
+  | A7  . sp . cp10
+  | A6  . sp . cp11
+  | A5  . sp . cp12
+  | A4  . sp . cp13
+  | A3  . sp . cp14
+  | A2  . sp . cp15
+  | A1  . sp . cp16
+let cp19: canonizer = 
+    A19
+  | A17 . sp . cp1
+  | A16 . sp . cp2
+  | A15 . sp . cp3 
+  | A14 . sp . cp4  
+  | A13 . sp . cp5 
+  | A12 . sp . cp6 
+  | A11 . sp . cp7
+  | A10 . sp . cp8
+  | A9  . sp . cp9 
+  | A8  . sp . cp10 
+  | A7  . sp . cp11
+  | A6  . sp . cp12
+  | A5  . sp . cp13
+  | A4  . sp . cp14
+  | A3  . sp . cp15
+  | A2  . sp . cp16
+  | A1  . sp . cp17
+let cp20: canonizer = 
+    A20
+  | A18 . sp . cp1
+  | A17 . sp . cp2
+  | A16 . sp . cp3 
+  | A15 . sp . cp4  
+  | A14 . sp . cp5 
+  | A13 . sp . cp6 
+  | A12 . sp . cp7
+  | A11 . sp . cp8
+  | A10 . sp . cp9
+  | A9  . sp . cp10 
+  | A8  . sp . cp11 
+  | A7  . sp . cp12
+  | A6  . sp . cp13
+  | A5  . sp . cp14
+  | A4  . sp . cp15
+  | A3  . sp . cp16
+  | A2  . sp . cp17
+  | A1  . sp . cp18
 let cn : canonizer = 
   let aux : canonizer = 
     canonizer_of_lens (del "DE") . 
     sp . 
-    (cp10 | cp9 | cp8 | cp7 | cp6 | cp5 | cp4 | cp3 | cp2 | cp1) . 
+    ( cp20 | cp19 | cp18 | cp17 | cp16 | cp15 | cp14 | cp13 | cp12 | cp11 
+    | cp10 | cp9 | cp8 | cp7 | cp6 | cp5 | cp4 | cp3 | cp2 | cp1) . 
     canonizer_of_lens (del NL) in 
   aux+
 
 test rep cn " alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner" = ?
+
+test cls cn  
+ "DE a b c d e
+ |DE f
+ |DE g
+ |DE h
+ |DE i
+ |DE j
+ |DE k
+ |DE l m n o p
+ |DE q r s t u
+ |DE u v w x y
+ |DE z
+ |" = ?
 
 test de_xml get 
   "<protein>
