@@ -1,5 +1,10 @@
 module Uniprot = 
 
+let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
+  right_quot     
+    (const C a c)
+    (canonizer_of_lens (const A a a))
+
 (**** deleting space lenses *****)
 
 (* del spaces. Default = "" *)
@@ -266,7 +271,10 @@ let thd_DT =
   xml_attribute "modified" date " " .
   del ", entry version " . xml_attribute "version" ([0-9]* ) "" . 
   xml_gt. xml_nl . del ".\n"
-  
+
+test snd_DT get 
+"DT   05-JUL-2005, sequence version 1.\n" = ?
+
 
 (*
 test DT get 
@@ -444,8 +452,8 @@ GN   OrderedLocusNames=b1237, c1701, z2013, ECs1739;
 (******* OS line ********)
 
 (* ds is the deleting spaces lens to be used*)
-let name_org (spaces:string) (ds:lens) (type:string) = 
-  xml_tag_with_att spaces "name" (xml_simple_attribute "type" type) (escape_name [;()[\]])
+let name_org (spaces:string) (ds:lens) (ty:string) = 
+  xml_tag_with_att spaces "name" (xml_simple_attribute "type" ty) (escape_name [;()[\]])
 
 let name_and_syn_org (spaces:string) = 
   name_org spaces "" "scientific" .
@@ -1389,17 +1397,17 @@ let beg_DR (lst_db:regexp) =
   xml_attribute "key" qone " ".
   xml_attribute "id" content_DR ""
 
-let DR_property (type:string) = 
+let DR_property (ty:string) = 
   del "; " . 
   xml_begin_open_tag "    " "property" . 
   xml_attribute "value" content_DR " " .
-  xml_simple_attribute "type" type . xml_sgt . xml_nl
+  xml_simple_attribute "type" ty . xml_sgt . xml_nl
 
-let optional_DR_2 (lst_db:regexp) (type:string) = 
+let optional_DR_2 (lst_db:regexp) (ty:string) = 
   beg_DR lst_db . 
    ((del "; -" . xml_sgt . xml_nl) 
  | (xml_gt . xml_nl .
-    DR_property type .
+    DR_property ty .
     xml_closing_tag "  " "dbReference"))
 
 let optional_DR_3 (lst_db:regexp) (type1:string) (type2:string) = 

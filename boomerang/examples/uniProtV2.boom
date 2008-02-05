@@ -24,6 +24,77 @@ module UniProtV2 =
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)
 
+(* booleans / conditionals *)
+type bool = True | False
+
+let cond (b:bool) (l1:lens) (l2:lens) = match b with True -> l1 | False -> l2
+
+(* sorting *)
+let sort2 (R1:regexp) (R2:regexp) : lens = 
+  ( R1 . R2
+  | R2 ~ R1)
+
+test sort2 "a" "b" get "ab" = "ab"
+test sort2 "a" "b" get "ba" = "ab"
+
+let sort3 (R1:regexp) (R2:regexp) (R3:regexp) : lens = 
+  let s23 : lens = sort2 R2 R3 in 
+  ( R1 . s23
+  | (R2 ~ R1) . R3
+  | R3 ~ (R1 . R2)
+  | s23 ~ R1 )
+
+test sort3 "a" "b" "c" get "abc" = "abc"
+test sort3 "a" "b" "c" get "acb" = "abc"
+test sort3 "a" "b" "c" get "bac" = "abc"
+test sort3 "a" "b" "c" get "bca" = "abc"
+test sort3 "a" "b" "c" get "cab" = "abc"
+test sort3 "a" "b" "c" get "cba" = "abc"
+
+let sort4 (R1:regexp) (R2:regexp) (R3:regexp) (R4:regexp) : lens = 
+  let s12 : lens = sort2 R1 R2 in 
+  let s23 : lens = sort2 R2 R3 in 
+  let s34 : lens = sort2 R3 R4 in 
+  let s123 : lens = sort3 R1 R2 R3 in 
+  let s234 : lens = sort3 R2 R3 R4 in 
+  let f1324 : lens = R1 . (R3 ~ R2) . R4 in 
+  ( R1 . s234 
+  | s234 ~ R1
+  | ((R2 . R3) ~ R1) . R4
+  | (R2 ~ R1) . s34 
+  | (R3 ~ s12) . R4
+  | R4 ~ (R1 . s23)
+  | R4 ~ ((R2 ~ R1) . R3)
+  | R4 ~ (R3 ~ (R1 . R2))
+  | (R3 . R4) ~ (R1 . R2) 
+  | ( (R2 . R4) ~ (R1 . R3); f1324 )
+  | ( (R3 ~ R1) . (R4 ~ R2); f1324 ) )
+
+test sort4 "a" "b" "c" "d" get "abcd" = "abcd"
+test sort4 "a" "b" "c" "d" get "abdc" = "abcd"
+test sort4 "a" "b" "c" "d" get "acbd" = "abcd"
+test sort4 "a" "b" "c" "d" get "acdb" = "abcd"
+test sort4 "a" "b" "c" "d" get "adbc" = "abcd"
+test sort4 "a" "b" "c" "d" get "adcb" = "abcd"
+test sort4 "a" "b" "c" "d" get "bacd" = "abcd"
+test sort4 "a" "b" "c" "d" get "badc" = "abcd"
+test sort4 "a" "b" "c" "d" get "bcad" = "abcd"
+test sort4 "a" "b" "c" "d" get "bcda" = "abcd"
+test sort4 "a" "b" "c" "d" get "bdac" = "abcd"
+test sort4 "a" "b" "c" "d" get "bdca" = "abcd"
+test sort4 "a" "b" "c" "d" get "cabd" = "abcd"
+test sort4 "a" "b" "c" "d" get "cadb" = "abcd"
+test sort4 "a" "b" "c" "d" get "cbad" = "abcd"
+test sort4 "a" "b" "c" "d" get "cbda" = "abcd"
+test sort4 "a" "b" "c" "d" get "cdab" = "abcd"
+test sort4 "a" "b" "c" "d" get "cdba" = "abcd"
+test sort4 "a" "b" "c" "d" get "dabc" = "abcd"
+test sort4 "a" "b" "c" "d" get "dacb" = "abcd"
+test sort4 "a" "b" "c" "d" get "dbac" = "abcd"
+test sort4 "a" "b" "c" "d" get "dbca" = "abcd"
+test sort4 "a" "b" "c" "d" get "dcab" = "abcd"
+test sort4 "a" "b" "c" "d" get "dcba" = "abcd"
+
 (* [bracket s] encloses [s] in bracket. *) 
 let bracket (s:string) : string = "[" . s . "]" 
 
@@ -214,3 +285,44 @@ let date : lens =
       "1900-01-01"  
 
 test date get "2009-01-20" = "20-JAN-2009"
+
+let xml_attr_open (spaces:string) (tag:string) : lens = 
+  del ("<" . tag) 
+
+let xml_attr_close : lens = 
+  del ("/>" | ">") 
+
+let (entry_cn,entry_xml) : canonizer * lens = 
+  let entry_tag : string = "entry" in 
+  let DATE : regexp = ctype date in 
+  let STRING : regexp = [A-Za-z\-]+ in 
+  let NUMBER : regexp = [0-9]+ in 
+  (* helpers *)
+  let cp_ws (R:regexp) : lens = WS . R in 
+  let del_ws (R:regexp) : lens = WS <-> " " . R in 
+  let attr  (s:string) (R:regexp) : regexp = s . "=\"" . R . "\"" in 
+  (* definitions *)
+  let R1 = attr "created" DATE in 
+  let R2 = attr "dataset" STRING in
+  let R3 = attr "modified" DATE in
+  let R4 = attr "version" NUMBER in 
+  let cn = canonizer_of_lens (
+    xml_attr_open nl1 entry_tag . 
+    (sort4 (cp_ws R1) (cp_ws R2) (cp_ws R3) (cp_ws R4);
+     del_ws R1 . del_ws R2 . del_ws R3 . del_ws R4 ) . 
+    xml_attr_close) in 
+  let dt1a = tag "DT" . date . ins ", " in
+  let dt1b = ins "integrated into UniprotKB/" . [A-Za-z\-]+ . ins "." . ins NL in
+  let dt3a = tag "DT" . date . ins ", " in
+  let dt3b = ins "entry version" . qins S " " . [0-9]+ . ins ". " . ins NL in
+  let xml_attr (name:string) (l:lens) = del (" " . name . "=\"") . l . del "\"" in 
+  let xml = 
+    xml_attr "created" dt1a . 
+    xml_attr "dataset" dt1b .  
+    xml_attr "modified" dt3a . 
+    xml_attr "version" dt3b in 
+  cn,xml
+
+let entry_line = left_quot entry_cn entry_xml
+
+test entry_line get "<entry created=\"2006-04-18\" version=\"15\"   dataset=\"Swiss-Prot\"   modified=\"2007-02-20\"/>" = ?
