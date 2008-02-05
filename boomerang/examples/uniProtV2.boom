@@ -326,3 +326,124 @@ let (entry_cn,entry_xml) : canonizer * lens =
 let entry_line = left_quot entry_cn entry_xml
 
 test entry_line get "<entry created=\"2006-04-18\" version=\"15\"   dataset=\"Swiss-Prot\"   modified=\"2007-02-20\"/>" = ?
+
+ 
+(* --------------------------------------------------------------------------- *)
+(* DE line *)
+
+let A: regexp = [A-Za-z0-9\-.] 
+let ALPHA : regexp = A.(A | " ")*
+let de_xml : lens = 
+  let name : lens = single_line_elt nl2 "name" ALPHA in 
+  let domain: lens = multi_line_elt nl2 "domain" (name . (ins " (". name . ins ")")* ) in 
+  let component: lens = multi_line_elt nl2 "component" (name . (ins " (". name . ins ")")* ) in 
+  tag "DE" . 
+  multi_line_elt nl1 "protein" 
+    (name . 
+     (ins " [Includes: " . domain. (ins "; " . domain)+ . ins "]")? . 
+     (ins " [Contains: " . component. (ins "; " . component)+ . ins "]")? )
+
+let sp : canonizer = canonizer_of_lens (SP <-> " ")
+let nl : canonizer = canonizer_of_lens (SP <-> "\n")
+let A10= canonizer_of_lens A{10}
+let A9 = canonizer_of_lens A{9}
+let A8 = canonizer_of_lens A{8}
+let A7 = canonizer_of_lens A{7}
+let A6 = canonizer_of_lens A{6}
+let A5 = canonizer_of_lens A{5}
+let A4 = canonizer_of_lens A{4}
+let A3 = canonizer_of_lens A{3}
+let A2 = canonizer_of_lens A{2}
+let A1 = canonizer_of_lens A
+
+let cp1 : canonizer = 
+    A1 
+let cp2 : canonizer = 
+    A2  
+let cp3 : canonizer = 
+    A3 
+  | A1 . sp . cp1 
+let cp4 : canonizer = 
+    A4 
+  | A2 . sp . cp1 
+  | A1 . sp . cp2 
+let cp5 : canonizer = 
+    A5 
+  | A3 . sp . cp1 
+  | A2 . sp . cp2 
+  | A1 . sp . cp3 
+let cp6 : canonizer = 
+    A6 
+  | A4 . sp . cp1 
+  | A3 . sp . cp2 
+  | A2 . sp . cp3 
+  | A1 . sp . cp4 
+let cp7 : canonizer = 
+    A7 
+  | A5 . sp . cp1 
+  | A4 . sp . cp2 
+  | A3 . sp . cp3 
+  | A2 . sp . cp4 
+  | A1 . sp . cp5
+let cp8 : canonizer = 
+    A8 
+  | A6 . sp . cp1 
+  | A5 . sp . cp2 
+  | A4 . sp . cp3 
+  | A3 . sp . cp4 
+  | A2 . sp . cp5 
+  | A1 . sp . cp6
+let cp9 : canonizer = 
+    A9 
+  | A7 . sp . cp1
+  | A6 . sp . cp2 
+  | A5 . sp . cp3 
+  | A4 . sp . cp4 
+  | A3 . sp . cp5 
+  | A2 . sp . cp6 
+  | A1 . sp . cp7                  
+let cp10 : canonizer = 
+    A10 
+  | A8 . sp . cp1
+  | A7 . sp . cp2 
+  | A6 . sp . cp3 
+  | A5 . sp . cp4 
+  | A4 . sp . cp5 
+  | A3 . sp . cp6 
+  | A2 . sp . cp7 
+  | A1 . sp . cp8
+
+let cn : canonizer = 
+  let aux : canonizer = 
+    canonizer_of_lens (del "DE") . 
+    sp . 
+    (cp10 | cp9 | cp8 | cp7 | cp6 | cp5 | cp4 | cp3 | cp2 | cp1) . 
+    canonizer_of_lens (del NL) in 
+  aux+
+
+test rep cn " alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner" = ?
+
+test de_xml get 
+  "<protein>
+  |     <name>Arginine biosynthesis bifunctional protein argJ</name>
+  |     <domain>
+  |       <name>Glutamate N-acetyltransferase</name>
+  |       <name>EC 2.3.1.35</name>
+  |       <name>Ornithine acetyltransferase</name>
+  |       <name>Ornithine transacetylase</name>
+  |       <name>OATase</name>
+  |     </domain>
+  |     <domain>
+  |       <name>Amino-acid acetyltransferase</name>
+  |       <name>EC 2.3.1.1</name>
+  |       <name>N-acetylglutamate synthase</name>
+  |       <name>AGS</name>
+  |     </domain>
+  |     <component>
+  |       <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
+  |     </component>
+  |     <component>
+  |       <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
+  |     </component>
+  |   </protein>" = ?
+
