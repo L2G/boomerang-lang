@@ -21,6 +21,22 @@
 
 module UniProtV2 = 
 
+let cn : canonizer = columnize [a-z] [ ] "\n"
+test cls cn "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner" = ? 
+test rep cn 
+  "alpha bravo charlie
+  |delta echo foxtrot
+  |golf hotel india
+  |juliet kilo lima
+  |mike november oscar
+  |papa quebec romeo
+  |sierra tango unicorn
+  |victor whiskey xray
+  |yankee zulu zero one
+  |two tree four five
+  |six seven eight
+  |niner" = ?
+
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)
 
@@ -343,6 +359,7 @@ let de_xml : lens =
      (ins " [Includes: " . domain. (ins "; " . domain)+ . ins "]")? . 
      (ins " [Contains: " . component. (ins "; " . component)+ . ins "]")? )
 
+(* 
 let sp : canonizer = canonizer_of_lens (SP <-> " ")
 let nl : canonizer = canonizer_of_lens (SP <-> "\n")
 
@@ -602,6 +619,7 @@ test cls cn
  |DE u v w x y
  |DE z
  |" = ?
+*)
 
 test de_xml get 
   "<protein>

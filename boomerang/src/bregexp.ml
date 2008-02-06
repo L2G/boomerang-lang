@@ -202,7 +202,17 @@ let seq r1 r2 =
     { str = str; 
       rep = None;
       rx = Erx.mk_seq r1.rx r2.rx;
-      rank = Cexp}
+      rank = Cexp }
+
+let rec iter r1 n = 
+  if n=0 then epsilon
+  else if n=1 then r1
+  else if n=2 then seq r1 r1
+  else 
+    let double_r1 = iter r1 (n/2) in 
+    seq 
+      (if n mod 2 = 0 then epsilon else r1)
+      (seq double_r1 double_r1)
 
 let alt r1 r2 = 
   if is_empty r1 then r2

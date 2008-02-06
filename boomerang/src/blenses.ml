@@ -232,6 +232,68 @@ module Canonizer = struct
     }
 
   (* add primitives ... *)
+  let columnize i k w s nl = 
+    let n = sprintf "columnize (%d) (%s) (%s) (%s)" k (R.string_of_t w) (R.string_of_t s) (RS.string_of_t nl) in 
+    let rt = 
+      R.diff
+        (R.star (R.alt w s)) 
+        (R.iter w (succ k)) in
+    let ct = 
+      R.diff
+        (R.star (R.alt (R.alt w s) (R.str false nl)))
+        (R.iter (R.alt w s) (succ k)) in 
+    { info = i;
+      string = n;
+      rtype = rt;
+      ctype = ct;
+      cls = lift_r i (cls_str n) rt 
+        (fun c -> 
+           let len = RS.length c in 
+           let is_sp i = R.match_str s (RS.make 1 (RS.get c i)) in 
+           let set_nl i = RS.set c i (RS.get nl 0) in 
+           let rec loop (total_len,line_len,last_space_opt) =              
+(*              Util.format "LOOP: %d %d (%s) %s@\n" *)
+(*                total_len *)
+(*                line_len *)
+(*                (if total_len >= len then "LAST"  *)
+(*                 else (RS.repr (RS.get c total_len))) *)
+(*                (match last_space_opt with *)
+(*                   | None -> "NONE" *)
+(*                   | Some i -> *)
+(*                       Format.sprintf "[%d,%s]" i (RS.repr (RS.get c i))); *)
+             if total_len >= len then ()
+             else 
+               let last_space_opt' = 
+                 if is_sp total_len then Some total_len
+                 else last_space_opt in 
+               let line_len',last_space_opt'' = 
+                 if line_len > k then
+                   match last_space_opt' with 
+                     | None -> assert false
+                     | Some i -> 
+                         set_nl i;
+                         (total_len - i, None)
+                 else
+                   (succ line_len, last_space_opt') in 
+               loop (succ total_len, line_len',last_space_opt'') in 
+           loop (0,0,None);
+           c);
+      rep = lift_r i (rep_str n) ct 
+        (fun c -> 
+           let sp = RS.get (R.rep s) 0 in 
+           let is_nl i = R.match_str (R.str false nl) (RS.make 1 (RS.get c i)) in 
+           let set_sp i = RS.set c i sp in 
+           let len = RS.length c in 
+           let rec loop total_len = 
+             if total_len >= len then ()
+             else 
+               begin
+                 if is_nl total_len then set_sp total_len;
+                 loop (succ total_len)
+               end in 
+           loop 0;
+           c) }
+                 
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
     let rt = R.unambig_seq i n cn1.rtype cn2.rtype in 
