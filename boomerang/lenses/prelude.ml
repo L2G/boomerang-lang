@@ -194,7 +194,7 @@ let prelude_spec =
      mk_rfun (Info.M "columnize built-in") (SRegexp ^> SString ^> SCanonizer) (fun i w -> 
        mk_rfun i (SString ^> SCanonizer) (fun i s -> 
          mk_sfun i SCanonizer (fun i nl -> 
-           Can(i,C.columnize i 20 w s nl)))))                                                                                 
+           Can(i,C.columnize i 80 w s nl)))))                                                                                 
 
   ; (mk_prelude_qid "rep",
      SCanonizer ^> SString ^> SString,

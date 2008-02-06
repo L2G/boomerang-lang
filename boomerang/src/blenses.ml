@@ -232,16 +232,16 @@ module Canonizer = struct
     }
 
   (* add primitives ... *)
-  let columnize i k w s nl = 
-    let n = sprintf "columnize (%d) (%s) (%s) (%s)" k (R.string_of_t w) (R.string_of_t s) (RS.string_of_t nl) in 
-    let rt = 
-      R.diff
-        (R.star (R.alt w s)) 
-        (R.iter w (succ k)) in
-    let ct = 
-      R.diff
-        (R.star (R.alt (R.alt w s) (R.str false nl)))
-        (R.iter (R.alt w s) (succ k)) in 
+  let columnize i k r s nl = 
+    let n = sprintf "columnize (%d) (%s) (%s) (%s)" k (R.string_of_t r) (R.string_of_t s) (RS.string_of_t nl) in 
+    let r_nl = R.str false nl in 
+    let any = R.negset [] in 
+    let no_s = R.diff any s in 
+    let no_s_nl = R.diff any (R.alt s r_nl) in 
+    let gt_k_no_s = R.iter no_s (succ k) in 
+    let gt_k_no_s_nl = R.iter no_s_nl (succ k) in 
+    let rt = R.diff r gt_k_no_s in 
+    let ct = R.diff r gt_k_no_s_nl in 
     { info = i;
       string = n;
       rtype = rt;

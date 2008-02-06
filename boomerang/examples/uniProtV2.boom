@@ -21,7 +21,7 @@
 
 module UniProtV2 = 
 
-let cn : canonizer = columnize [a-z] [ ] "\n"
+let cn : canonizer = columnize [a-z\n ]+ [ ] "\n"
 test cls cn "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner" = ? 
 test rep cn 
   "alpha bravo charlie
