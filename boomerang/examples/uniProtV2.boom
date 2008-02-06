@@ -21,21 +21,13 @@
 
 module UniProtV2 = 
 
-let cn : canonizer = columnize [a-z\n ]+ [ ] "\n"
-test cls cn "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner" = ? 
-test rep cn 
-  "alpha bravo charlie
-  |delta echo foxtrot
-  |golf hotel india
-  |juliet kilo lima
-  |mike november oscar
-  |papa quebec romeo
-  |sierra tango unicorn
-  |victor whiskey xray
-  |yankee zulu zero one
-  |two tree four five
-  |six seven eight
-  |niner" = ?
+let cn : canonizer = columnize [a-z0-9 ]+ " " "\n"
+let l : lens = 
+  let ANY : regexp = [^]* in
+  ([a-z0-9 ]+ - (ANY . [a-z0-9]{81} . ANY))
+
+test right_quot l cn get 
+"alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner 12345678901234567890123456789012345678901234567890123456789012345678901234567890" = ? 
 
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)

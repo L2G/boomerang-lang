@@ -271,6 +271,12 @@ let uppercase r1 =
     rx = Erx.mk_uppercase r1.rx;
     rank = Aexp }
 
+let extend r1 s1 s2 = 
+  { str = sprintf "extend(%s,%s,%s)" r1.str (S.repr s1) (S.repr s2);
+    rep = r1.rep;
+    rx = Erx.extend r1.rx s1 s2;
+    rank = Aexp }
+
 let match_str r s = Erx.match_str r.rx s
 
 let unambig_split r1 r2 s = Erx.unambig_split r1.rx r2.rx s

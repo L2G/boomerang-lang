@@ -384,6 +384,32 @@ module NFA = struct
         reverse = Heur 0;
         star = Heur 0 }
 
+  let extend t old_sym new_sym = 
+    let trans = t.trans in 
+    let n = Array.length trans in 
+    let a = array_make n T.empty in 
+    let old_cr = (old_sym,old_sym) in 
+    let new_cr = (new_sym,new_sym) in 
+      for i=0 to pred n do
+        let ti = 
+          T.fold (fun cr qs acc -> 
+                    match T.isect_range cr old_cr with 
+                      | None -> T.add cr qs acc
+                      | Some _ -> 
+                          let acc1 = T.add cr qs acc in 
+                          T.add new_cr qs acc1)
+            trans.(i) T.empty in 
+          a.(i) <- ti
+      done;
+      { init = t.init;
+        trans = a;
+        final = t.final;
+        ambiguity = Amb_unknown;
+        det = Heur 0;
+        trim = Heur 0;
+        reverse = Heur 0;
+        star = Heur 0 }
+                          
   (* mk_reverse: t -> t
    *  
    * [mk_reverse t] is the automaton accepting the 
@@ -1592,6 +1618,7 @@ let mk_diff = N.mk_diff
 let mk_reverse = N.mk_reverse
 let mk_lowercase = N.mk_lowercase
 let mk_uppercase = N.mk_uppercase
+let extend = N.extend
 let ambiguous_word = N.ambiguous_word
 let determinize = N.determinize
 let trim = N.trim ~loged:false

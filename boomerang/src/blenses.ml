@@ -233,34 +233,40 @@ module Canonizer = struct
 
   (* add primitives ... *)
   let columnize i k r s nl = 
-    let n = sprintf "columnize (%d) (%s) (%s) (%s)" k (R.string_of_t r) (R.string_of_t s) (RS.string_of_t nl) in 
-    let r_nl = R.str false nl in 
-    let any = R.negset [] in 
-    let no_s = R.diff any s in 
-    let no_s_nl = R.diff any (R.alt s r_nl) in 
-    let gt_k_no_s = R.iter no_s (succ k) in 
-    let gt_k_no_s_nl = R.iter no_s_nl (succ k) in 
-    let rt = R.diff r gt_k_no_s in 
-    let ct = R.diff r gt_k_no_s_nl in 
+    let n = sprintf "columnize %d (%s) (%s) (%s)" k (R.string_of_t r) (RS.string_of_t s) (RS.string_of_t nl) in 
+    let s_sym = RS.get s 0 in 
+    let nl_sym = RS.get nl 0 in 
+    let no_s = R.negset [(s_sym,s_sym)] in 
+    let any = R.star (R.negset []) in 
+    let containing r = R.seq any (R.seq r any) in 
+    let gt_k_no_s = containing (R.iter no_s (succ k)) in 
+    let r_extended = R.extend r s_sym nl_sym in 
+    let ct = R.diff r gt_k_no_s in
+    let rt = R.diff r_extended gt_k_no_s in 
     { info = i;
       string = n;
       rtype = rt;
       ctype = ct;
       cls = lift_r i (cls_str n) rt 
         (fun c -> 
+           let is_nl i = (RS.compare_sym nl_sym (RS.get c i) = 0) in 
+           let set_sp i = RS.set c i s_sym in 
            let len = RS.length c in 
-           let is_sp i = R.match_str s (RS.make 1 (RS.get c i)) in 
-           let set_nl i = RS.set c i (RS.get nl 0) in 
+           let rec loop total_len = 
+             if total_len >= len then ()
+             else 
+               begin
+                 if is_nl total_len then set_sp total_len;
+                 loop (succ total_len)
+               end in 
+           loop 0;
+           c);
+      rep = lift_r i (rep_str n) ct 
+        (fun c -> 
+           let len = RS.length c in 
+           let is_sp i = (RS.compare_sym s_sym (RS.get c i) = 0) in 
+           let set_nl i = RS.set c i nl_sym in 
            let rec loop (total_len,line_len,last_space_opt) =              
-(*              Util.format "LOOP: %d %d (%s) %s@\n" *)
-(*                total_len *)
-(*                line_len *)
-(*                (if total_len >= len then "LAST"  *)
-(*                 else (RS.repr (RS.get c total_len))) *)
-(*                (match last_space_opt with *)
-(*                   | None -> "NONE" *)
-(*                   | Some i -> *)
-(*                       Format.sprintf "[%d,%s]" i (RS.repr (RS.get c i))); *)
              if total_len >= len then ()
              else 
                let last_space_opt' = 
@@ -277,21 +283,6 @@ module Canonizer = struct
                    (succ line_len, last_space_opt') in 
                loop (succ total_len, line_len',last_space_opt'') in 
            loop (0,0,None);
-           c);
-      rep = lift_r i (rep_str n) ct 
-        (fun c -> 
-           let sp = RS.get (R.rep s) 0 in 
-           let is_nl i = R.match_str (R.str false nl) (RS.make 1 (RS.get c i)) in 
-           let set_sp i = RS.set c i sp in 
-           let len = RS.length c in 
-           let rec loop total_len = 
-             if total_len >= len then ()
-             else 
-               begin
-                 if is_nl total_len then set_sp total_len;
-                 loop (succ total_len)
-               end in 
-           loop 0;
            c) }
                  
   let concat i cn1 cn2 = 
