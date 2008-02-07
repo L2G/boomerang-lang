@@ -25,12 +25,13 @@ module UniProtV2 =
 let bracket (s:string) : string = "[" . s . "]" 
 
 let cn : canonizer = columnize [a-z0-9 ]+ " " "\n"
-let l : lens = 
-  let ANY : regexp = [^]* in
-  ([a-z0-9 ]+ (* - (ANY . [a-z0-9]{81} . ANY) *) )
 
-test (right_quot l cn get 
-  "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner 12345678901234567890123456789012345678901234567890123456789012345678901234567890123")
+test   
+  let R : regexp = [a-z0-9 ]+ in 
+  let cn : canonizer = columnize R " " "\n" in 
+  let l : lens = right_quot R cn in 
+  l get
+  "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner 12345678901234567890123456789012345678901234567890123456789012345678901234567890123"
 = 
   "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike
   |november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee
@@ -468,3 +469,46 @@ test gn_line get
   |GN  and
   |GN  Name=Jon99Ciii; Synonyms=SER5;
   |GN  OrderedLocusNames=c1701; ORFNames=CG15519;"
+
+(* --------------------------------------------------------------------------- *)
+(* OS line *)
+let os_xml : lens = 
+  let os_any_name (ty:string) (pre:string) (post:string) : lens = 
+    xml_open nl1 "name" . 
+    xml_attr "type" (del ty) . 
+    xml_close . 
+    ins pre . 
+    ALPHA . 
+    ins post . 
+    xml_tag_close "name" in     
+  let os_scientific : lens = os_any_name "scientific" "" "" in 
+  let os_common : lens = os_any_name "common" "(" ")" in 
+  let os_syn : lens = os_any_name "synonym" "(" ")" in 
+  let os_names : lens = 
+    os_scientific .
+    ins " " . 
+    os_common . 
+    (ins " " . os_syn+)? . 
+    ins "." in
+  tag "OS" .
+  os_names*
+     
+let os_cn : canonizer = columnize (atype os_xml) " " "\nOS  "
+let os_line : lens = right_quot os_xml os_cn 
+
+test os_line get 
+  "<name type=\"scientific\">Solanum lycopersicum</name>
+  |<name type=\"common\">Tomato</name>
+  |<name type=\"synonym\">Lycopersicon esculentum</name>" 
+= 
+"OS  Solanum lycopersicum (Tomato) (Lycopersicon esculentum)."
+
+test os_line create
+  "OS  Passer domesticus (House sparrow)."
+=
+  "
+  |  <name type=\"scientific\">Passer domesticus</name>
+  |  <name type=\"common\">House sparrow</name>"
+
+(* --------------------------------------------------------------------------- *)
+(* OG line *)
