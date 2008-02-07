@@ -277,7 +277,7 @@ module Canonizer = struct
            let aux_buf = Buffer.create k in 
            let is_sp ci = (RS.compare_sym s_sym ci = 0) in             
            let do_line () = 
-             if Buffer.length buf <> 0 then 
+             if Buffer.length buf <> 0 && Buffer.length line_buf <> 0 then 
                Buffer.add_string buf (RS.string_of_t nl);
              Buffer.add_buffer buf line_buf;
              Buffer.reset line_buf in 
