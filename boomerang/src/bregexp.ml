@@ -272,7 +272,7 @@ let uppercase r1 =
     rank = Aexp }
 
 let extend r1 s1 s2 = 
-  { str = sprintf "extend(%s,%s,%s)" r1.str (S.repr s1) (S.repr s2);
+  { str = sprintf "extend(%s,%s,%s)" r1.str (S.repr s1) (S.string_of_t s2);
     rep = r1.rep;
     rx = Erx.extend r1.rx s1 s2;
     rank = Aexp }

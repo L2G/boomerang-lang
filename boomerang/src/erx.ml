@@ -384,31 +384,46 @@ module NFA = struct
         reverse = Heur 0;
         star = Heur 0 }
 
-  let extend t old_sym new_sym = 
-    let trans = t.trans in 
-    let n = Array.length trans in 
-    let a = array_make n T.empty in 
+  let extend t old_sym new_str = 
+    let trans_len = Array.length t.trans in 
+    let new_str_len = RS.length new_str in 
+    let add_transition q (cr,qs) acc = 
+      let crm = try QM.find q acc with Not_found -> T.empty in 
+      let crm' = T.add cr qs crm in 
+      QM.add q crm' acc in 
+    let mk_transitions in_state next_state acc qs =
+      let rec aux i in_state next_state acc =
+        let ci_sym = RS.get new_str i in 
+        let new_cr = (ci_sym,ci_sym) in         
+          if i = pred new_str_len then             
+            (next_state,add_transition in_state (new_cr,qs) acc)
+          else
+            aux (succ i) next_state (succ next_state) (add_transition in_state (new_cr,QS.singleton next_state) acc) in 
+        aux 0 in_state next_state acc in
     let old_cr = (old_sym,old_sym) in 
-    let new_cr = (new_sym,new_sym) in 
-      for i=0 to pred n do
-        let ti = 
-          T.fold (fun cr qs acc -> 
-                    match T.isect_range cr old_cr with 
-                      | None -> T.add cr qs acc
-                      | Some _ -> 
-                          let acc1 = T.add cr qs acc in 
-                          T.add new_cr qs acc1)
-            trans.(i) T.empty in 
-          a.(i) <- ti
-      done;
-      { init = t.init;
-        trans = a;
-        final = t.final;
-        ambiguity = Amb_unknown;
-        det = Heur 0;
-        trim = Heur 0;
-        reverse = Heur 0;
-        star = Heur 0 }
+    let rec loop i (n,acc) =       
+      if i=trans_len then (n,acc)
+      else
+        let n',acc' = T.fold 
+          (fun cr qs (n,acc) -> 
+             match T.isect_range cr old_cr with 
+               | None -> (n,add_transition i (cr,qs) acc)
+               | Some _ ->                       
+                   let acc' = add_transition i (cr,qs) acc in 
+                   mk_transitions i n acc' qs)
+          t.trans.(i) (n,acc) in
+        loop (succ i) (n',acc') in
+    let n,trans_map = loop 0 (trans_len,QM.empty) in 
+    let a = array_make n T.empty in 
+    QM.iter (fun i crm -> a.(i) <- crm) trans_map;
+    { init = t.init;
+      trans = a;
+      final = t.final;
+      ambiguity = Amb_unknown;
+      det = Heur 0;
+      trim = Heur 0;
+      reverse = Heur 0;
+      star = Heur 0 }
                           
   (* mk_reverse: t -> t
    *  

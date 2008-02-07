@@ -21,13 +21,16 @@
 
 module UniProtV2 = 
 
+(* [bracket s] encloses [s] in bracket. *) 
+let bracket (s:string) : string = "[" . s . "]" 
+
 let cn : canonizer = columnize [a-z0-9 ]+ " " "\n"
 let l : lens = 
   let ANY : regexp = [^]* in
-  ([a-z0-9 ]+ - (ANY . [a-z0-9]{81} . ANY))
+  ([a-z0-9 ]+ (* - (ANY . [a-z0-9]{81} . ANY) *) )
 
-test right_quot l cn get 
-  "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner 12345678901234567890123456789012345678901234567890123456789012345678901234567890" 
+test (right_quot l cn get 
+  "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner 12345678901234567890123456789012345678901234567890123456789012345678901234567890")
 =
   "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike
   |november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee
@@ -108,9 +111,6 @@ test sort4 "a" "b" "c" "d" get "dbca" = "abcd"
 test sort4 "a" "b" "c" "d" get "dcab" = "abcd"
 test sort4 "a" "b" "c" "d" get "dcba" = "abcd"
 
-(* [bracket s] encloses [s] in bracket. *) 
-let bracket (s:string) : string = "[" . s . "]" 
-
 (* [qconst C A a c]: is like [const C a c], but accepts all of [A] in
    the PUT/CREATE direction. *)
 let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
@@ -189,7 +189,7 @@ let multi_line_elt (spaces:string) (tag:string) (body:lens) : lens =
   del ("</" . tag .">") 
 
 let tag (t:string) : lens = 
-  qins (t . SP) (t . "    ")
+  qins (t . SP) (t . "  ")
     
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
@@ -209,7 +209,7 @@ let id_line : lens = id_xml
 (* unit tests *)
 test id_line get 
   "<name>Q56J06_HUMAN</name>" = 
-  "ID    Q56J06_HUMAN Unreviewed; 000 AA\n"
+  "ID  Q56J06_HUMAN Unreviewed; 000 AA\n"
 
 test id_line create 
   "ID Q5JU06_HUMAN Reviewed; 280 AA\n" 
@@ -350,14 +350,14 @@ let de_xml : lens =
   let name : lens = single_line_elt nl2 "name" ALPHA in 
   let domain: lens = multi_line_elt nl2 "domain" (name . (ins " (". name . ins ")")* ) in 
   let component: lens = multi_line_elt nl2 "component" (name . (ins " (". name . ins ")")* ) in 
-  tag "DE" . 
-  multi_line_elt nl1 "protein" 
+    tag "DE" .
+    multi_line_elt nl1 "protein" 
     (name . 
      (ins " [Includes: " . domain. (ins "; " . domain)+ . ins "]")? . 
      (ins " [Contains: " . component. (ins "; " . component)+ . ins "]")? )
+let de_cn : canonizer = columnize (atype de_xml) " " "\nDE  "
 
-
-test de_xml get 
+test right_quot de_xml de_cn get
   "<protein>
   |     <name>Arginine biosynthesis bifunctional protein argJ</name>
   |     <domain>

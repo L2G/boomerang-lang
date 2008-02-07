@@ -235,56 +235,71 @@ module Canonizer = struct
   let columnize i k r s nl = 
     let n = sprintf "columnize %d (%s) (%s) (%s)" k (R.string_of_t r) (RS.string_of_t s) (RS.string_of_t nl) in 
     let s_sym = RS.get s 0 in 
-    let nl_sym = RS.get nl 0 in 
-    let no_s = R.negset [(s_sym,s_sym)] in 
-    let any = R.star (R.negset []) in 
-    let containing r = R.seq any (R.seq r any) in 
-    let gt_k_no_s = containing (R.iter no_s (succ k)) in 
-    let r_extended = R.extend r s_sym nl_sym in 
-    let ct = R.diff r gt_k_no_s in
-    let rt = R.diff r_extended gt_k_no_s in 
+    let nl_len = RS.length nl in 
+    let r_extended = R.extend r s_sym nl in 
+      (* 
+         let ct = R.diff r gt_k_no_s in
+         let rt = R.diff r_extended gt_k_no_s in 
+         let no_s = R.negset [(s_sym,s_sym)] in 
+         let any = R.star (R.negset []) in 
+         let containing r = R.seq any (R.seq r any) in 
+         let gt_k_no_s = containing (R.iter no_s (succ k)) in     
+      *)
+    let ct = r in 
+    let rt = r_extended in 
     { info = i;
       string = n;
       rtype = rt;
       ctype = ct;
       cls = lift_r i (cls_str n) rt 
         (fun c -> 
-           let is_nl i = (RS.compare_sym nl_sym (RS.get c i) = 0) in 
-           let set_sp i = RS.set c i s_sym in 
-           let len = RS.length c in 
-           let rec loop total_len = 
-             if total_len >= len then ()
-             else 
-               begin
-                 if is_nl total_len then set_sp total_len;
-                 loop (succ total_len)
-               end in 
-           loop 0;
-           c);
+           let c_len = RS.length c in 
+           let buf = Buffer.create c_len in 
+           let is_nl i = 
+             let rec aux j = 
+               if j=nl_len then true
+               else
+                 (i+j < c_len) 
+                 && ((RS.get c (i+j)) = (RS.get nl j))
+                 && (aux (succ j)) in 
+               aux 0 in 
+           for i=0 to c_len do
+             if is_nl i then Buffer.add_string buf (RS.string_of_t s)
+             else Buffer.add_string buf (RS.repr (RS.get c i))
+           done;
+           RS.t_of_string (Buffer.contents buf));
+
       rep = lift_r i (rep_str n) ct 
         (fun c -> 
-           let len = RS.length c in 
-           let is_sp i = (RS.compare_sym s_sym (RS.get c i) = 0) in 
-           let set_nl i = RS.set c i nl_sym in 
-           let rec loop (total_len,line_len,last_space_opt) =              
-             if total_len >= len then ()
-             else 
-               let last_space_opt' = 
-                 if is_sp total_len then Some total_len
-                 else last_space_opt in 
-               let line_len',last_space_opt'' = 
-                 if line_len > k then
-                   match last_space_opt' with 
-                     | None -> assert false
-                     | Some i -> 
-                         set_nl i;
-                         (total_len - i, None)
-                 else
-                   (succ line_len, last_space_opt') in 
-               loop (succ total_len, line_len',last_space_opt'') in 
-           loop (0,0,None);
-           c) }
-                 
+           let c_len = RS.length c in 
+           let buf = Buffer.create c_len in 
+           let line_buf = Buffer.create k in 
+           let aux_buf = Buffer.create k in 
+           let is_sp ci = (RS.compare_sym s_sym ci = 0) in             
+           let do_line () = 
+             if Buffer.length buf <> 0 then 
+               Buffer.add_string buf (RS.string_of_t nl);
+             Buffer.add_buffer buf line_buf;
+             Buffer.reset line_buf in 
+           let do_space () =  
+             if Buffer.length line_buf <> 0 then 
+               Buffer.add_string line_buf (RS.repr s_sym);            
+             Buffer.add_buffer line_buf aux_buf;
+             Buffer.reset aux_buf in 
+           let rec loop i =              
+             if Buffer.length line_buf + Buffer.length aux_buf > k then
+               do_line ();
+             if i = c_len then 
+               (do_space (); 
+                do_line ())
+             else
+               (let ci = RS.get c i in
+                if is_sp ci then do_space ()
+                else Buffer.add_string aux_buf (RS.repr ci);
+                loop (succ i)) in 
+           loop 0;
+           RS.t_of_string (Buffer.contents buf)) }
+                   
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
     let rt = R.unambig_seq i n cn1.rtype cn2.rtype in 
