@@ -37,7 +37,7 @@ val mk_inter : t -> t -> t
 val mk_reverse : t -> t
 val mk_lowercase : t -> t
 val mk_uppercase : t -> t
-val extend : t -> Bstring.sym -> Bstring.t -> t
+val expand : t -> Bstring.sym -> Bstring.t -> t
 
 (* operations *)
 val representative : t -> Bstring.t (* raises Not_found *)

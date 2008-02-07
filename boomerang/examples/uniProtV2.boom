@@ -347,12 +347,13 @@ test entry_line get "<entry created=\"2006-04-18\" version=\"15\"   dataset=\"Sw
 let A: regexp = [A-Za-z0-9\-.] 
 let ALPHA : regexp = A.(A | " ")*
 let de_xml : lens = 
-  let name : lens = single_line_elt nl2 "name" ALPHA in 
-  let domain: lens = multi_line_elt nl2 "domain" (name . (ins " (". name . ins ")")* ) in 
-  let component: lens = multi_line_elt nl2 "component" (name . (ins " (". name . ins ")")* ) in 
+  let name2 : lens = single_line_elt nl2 "name" ALPHA in 
+  let name3 : lens = single_line_elt nl3 "name" ALPHA in 
+  let domain: lens = multi_line_elt nl2 "domain" (name3 . (ins " (". name3 . ins ")")* ) in 
+  let component: lens = multi_line_elt nl2 "component" (name3 . (ins " (". name3 . ins ")")* ) in 
     tag "DE" .
     multi_line_elt nl1 "protein" 
-    (name . 
+    (name2 . 
      (ins " [Includes: " . domain. (ins "; " . domain)+ . ins "]")? . 
      (ins " [Contains: " . component. (ins "; " . component)+ . ins "]")? )
 let de_cn : canonizer = columnize (atype de_xml) " " "\nDE  "
@@ -369,7 +370,7 @@ test right_quot de_xml de_cn get
   |     </domain>
   |     <domain>
   |       <name>Amino-acid acetyltransferase</name>
-  |       <name>EC 2.3.1.1</name>
+  |         <name>EC 2.3.1.1</name>
   |       <name>N-acetylglutamate synthase</name>
   |       <name>AGS</name>
   |     </domain>
@@ -381,3 +382,10 @@ test right_quot de_xml de_cn get
   |     </component>
   |   </protein>" = ?
 
+test right_quot de_xml de_cn create 
+ "DE  Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate
+ |DE  N-acetyltransferase (EC 2.3.1.35) (Ornithine acetyltransferase) (Ornithine
+ |DE  transacetylase) (OATase); Amino-acid acetyltransferase (EC 2.3.1.1)
+ |DE  (N-acetylglutamate synthase) (AGS)] [Contains: Arginine biosynthesis bifunctional
+ |DE  protein argJ alpha chain; Arginine biosynthesis bifunctional protein argJ beta
+ |DE  chain]" = ?

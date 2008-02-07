@@ -384,47 +384,65 @@ module NFA = struct
         reverse = Heur 0;
         star = Heur 0 }
 
-  let extend t old_sym new_str = 
+  (* [expand t old_sym new_str] expands the language accepted by t in
+     the following way: wherever [old_sym] was accepted, [old_sym] or
+     [new_str] is accepted. *)
+  let expand t old_sym new_str = 
     let trans_len = Array.length t.trans in 
     let new_str_len = RS.length new_str in 
+    (* helper: add a transition from [q] on [cr] to [qs] to [acc] *)
     let add_transition q (cr,qs) acc = 
       let crm = try QM.find q acc with Not_found -> T.empty in 
-      let crm' = T.add cr qs crm in 
-      QM.add q crm' acc in 
-    let mk_transitions in_state next_state acc qs =
+      QM.add q (T.add cr qs crm) acc in 
+      (* helper: add transitions for new_str.
+         - in_state: the incoming state
+         - next_state: index of next unallocated state
+         - acc: map from states to transitions
+         - qs: the set of states that the outgoing transition should hit.
+      *)
+    let mk_transitions in_state next_state acc qs =           
+      (* loop over new_str, adding internal transitions on symbols. *)
       let rec aux i in_state next_state acc =
         let ci_sym = RS.get new_str i in 
         let new_cr = (ci_sym,ci_sym) in         
           if i = pred new_str_len then             
+            (* final transition goes to qs *)
             (next_state,add_transition in_state (new_cr,qs) acc)
           else
-            aux (succ i) next_state (succ next_state) (add_transition in_state (new_cr,QS.singleton next_state) acc) in 
+            let acc' = add_transition in_state (new_cr,QS.singleton next_state) acc in 
+            aux (succ i) next_state (succ next_state) acc' in
         aux 0 in_state next_state acc in
+    (* main *)
     let old_cr = (old_sym,old_sym) in 
+    (* loop over old states *)
     let rec loop i (n,acc) =       
       if i=trans_len then (n,acc)
       else
         let n',acc' = T.fold 
           (fun cr qs (n,acc) -> 
+             (* split each old transition by old_sym *)
              match T.isect_range cr old_cr with 
                | None -> (n,add_transition i (cr,qs) acc)
                | Some _ ->                       
+                   (* keep old transitions *)
                    let acc' = add_transition i (cr,qs) acc in 
+                   (* add new transitions on new_str *)
                    mk_transitions i n acc' qs)
           t.trans.(i) (n,acc) in
-        loop (succ i) (n',acc') in
+          loop (succ i) (n',acc') in
     let n,trans_map = loop 0 (trans_len,QM.empty) in 
     let a = array_make n T.empty in 
+    (* finally, populate array from trans_map *)
     QM.iter (fun i crm -> a.(i) <- crm) trans_map;
-    { init = t.init;
-      trans = a;
-      final = t.final;
-      ambiguity = Amb_unknown;
-      det = Heur 0;
-      trim = Heur 0;
-      reverse = Heur 0;
-      star = Heur 0 }
-                          
+      { init = t.init;
+        trans = a;
+        final = t.final;
+        ambiguity = Amb_unknown;
+        det = Heur 0;
+        trim = Heur 0;
+        reverse = Heur 0;
+        star = Heur 0 }
+        
   (* mk_reverse: t -> t
    *  
    * [mk_reverse t] is the automaton accepting the 
@@ -1633,7 +1651,7 @@ let mk_diff = N.mk_diff
 let mk_reverse = N.mk_reverse
 let mk_lowercase = N.mk_lowercase
 let mk_uppercase = N.mk_uppercase
-let extend = N.extend
+let expand = N.expand
 let ambiguous_word = N.ambiguous_word
 let determinize = N.determinize
 let trim = N.trim ~loged:false

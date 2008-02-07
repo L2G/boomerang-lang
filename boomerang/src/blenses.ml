@@ -236,17 +236,9 @@ module Canonizer = struct
     let n = sprintf "columnize %d (%s) (%s) (%s)" k (R.string_of_t r) (RS.string_of_t s) (RS.string_of_t nl) in 
     let s_sym = RS.get s 0 in 
     let nl_len = RS.length nl in 
-    let r_extended = R.extend r s_sym nl in 
-      (* 
-         let ct = R.diff r gt_k_no_s in
-         let rt = R.diff r_extended gt_k_no_s in 
-         let no_s = R.negset [(s_sym,s_sym)] in 
-         let any = R.star (R.negset []) in 
-         let containing r = R.seq any (R.seq r any) in 
-         let gt_k_no_s = containing (R.iter no_s (succ k)) in     
-      *)
+    let r_expanded = R.expand r s_sym nl in 
     let ct = r in 
-    let rt = r_extended in 
+    let rt = r_expanded in 
     { info = i;
       string = n;
       rtype = rt;
@@ -263,10 +255,16 @@ module Canonizer = struct
                  && ((RS.get c (i+j)) = (RS.get nl j))
                  && (aux (succ j)) in 
                aux 0 in 
-           for i=0 to c_len do
-             if is_nl i then Buffer.add_string buf (RS.string_of_t s)
-             else Buffer.add_string buf (RS.repr (RS.get c i))
-           done;
+           let rec loop i = 
+             if i = c_len then ()
+             else
+               if is_nl i then 
+                 (Buffer.add_string buf (RS.string_of_t s);
+                  loop (i + nl_len))
+               else 
+                 (Buffer.add_string buf (RS.repr (RS.get c i));
+                  loop (succ i)) in 
+           loop 0;
            RS.t_of_string (Buffer.contents buf));
 
       rep = lift_r i (rep_str n) ct 
