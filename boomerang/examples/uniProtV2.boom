@@ -221,21 +221,20 @@ test id_line create
 let ac_tag : string = "AC"
 let ac_data : regexp = [A-Z0-9]{6} 
 let ac_entry : regexp = ac_data . ";" 
-let ac_xml : lens = (single_line_elt nl1 "accession" (ac_data . ins "; "))+
-let ac_cn : canonizer =
-  let aux : lens = 
-    del (ac_tag . SP) . 
-    (ac_entry . SP <-> " "){0,7} . 
-    (ac_entry . S <-> " ") . 
-    del NL in 
-  (canonizer_of_lens aux)+
-let ac_line : lens =
-  right_quot ac_xml ac_cn
+let ac_xml : lens =  
+  let ac_elt (sep:string) : lens = 
+    single_line_elt nl1 "accession" (ac_data . qins (sep . S) sep) in 
+  tag "AC" . 
+  (ac_elt "; ")* . (ac_elt ";")
+let ac_cn : canonizer = columnize (atype ac_xml) " " "\nAC  "
+let ac_line : lens = right_quot ac_xml ac_cn
 
 (* unit tests *)
-test ac_line get "<accession>Q21234</accession>" = "AC Q21234;\n" 
+test ac_line get 
+  "<accession>Q21234</accession>" 
+= "AC  Q21234;" 
 
-let ac_9 = 
+let ac_sample : string = 
   "
   |  <accession>Q92892</accession>
   |  <accession>Q92893</accession>
@@ -243,26 +242,27 @@ let ac_9 =
   |  <accession>Q92895</accession>
   |  <accession>Q93053</accession>
   |  <accession>Q96KU9</accession>
+  |  <accession>Q93053</accession>
   |  <accession>Q96KV0</accession>
+  |  <accession>Q93053</accession>
+  |  <accession>Q93053</accession>
   |  <accession>Q93053</accession>
   |  <accession>Q96KU9</accession>" 
 
-test ac_line get ac_9
+test ac_line get ac_sample
 = 
-  "AC Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q96KV0; Q93053;
-  |AC Q96KU9;
-  |"
+  "AC  Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q93053; Q96KV0; Q93053;
+  |AC  Q93053; Q93053; Q96KU9;"
 
 test ac_line create
-  "AC Q92892; Q92893; Q92894;
-  |AC    Q92895;   Q93053; Q96KU9; Q96KV0;  Q93053;
-  |AC Q96KU9;  
-  |"
-= ac_9
+  "AC    Q92892; Q92893; Q92894; Q92895; 
+  |AC         Q93053; Q96KU9; Q93053; Q96KV0; Q93053;
+  |AC  Q93053;   Q93053; 
+  |AC  Q96KU9;"
+= ac_sample
 
 test ac_line put
-  "AC    Q21234; QJNF12;
-  |"
+  "AC    Q21234; QJNF12;"
 into
   "<accession>Q92892</accession>
   |  <accession>Q92893</accession>
@@ -299,11 +299,17 @@ let date : lens =
 
 test date get "2009-01-20" = "20-JAN-2009"
 
-let xml_attr_open (spaces:string) (tag:string) : lens = 
+let xml_open (spaces:string) (tag:string) : lens = 
+  qdel WS spaces . 
   del ("<" . tag) 
 
-let xml_attr_close : lens = 
-  del ("/>" | ">") 
+let xml_tag_close (tag:string) : lens = del ("</" . tag . ">")
+
+let xml_close : lens = del (">")
+
+let xml_single_close : lens = del ("/>" | ">") 
+
+let xml_attr (name:string) (l:lens) = del (" " . name . "=\"") . l . del "\"" 
 
 let (entry_cn,entry_xml) : canonizer * lens = 
   let entry_tag : string = "entry" in 
@@ -320,26 +326,28 @@ let (entry_cn,entry_xml) : canonizer * lens =
   let R3 = attr "modified" DATE in
   let R4 = attr "version" NUMBER in 
   let cn = canonizer_of_lens (
-    xml_attr_open nl1 entry_tag . 
+    xml_open nl1 entry_tag . 
     (sort4 (cp_ws R1) (cp_ws R2) (cp_ws R3) (cp_ws R4);
      del_ws R1 . del_ws R2 . del_ws R3 . del_ws R4 ) . 
-    xml_attr_close) in 
+    xml_single_close) in 
   let dt1a = tag "DT" . date . ins ", " in
   let dt1b = ins "integrated into UniprotKB/" . [A-Za-z\-]+ . ins "." . ins NL in
   let dt3a = tag "DT" . date . ins ", " in
-  let dt3b = ins "entry version" . qins S " " . [0-9]+ . ins ". " . ins NL in
-  let xml_attr (name:string) (l:lens) = del (" " . name . "=\"") . l . del "\"" in 
+  let dt3b = ins "entry version" . qins S " " . [0-9]+ . ins "." in
   let xml = 
     xml_attr "created" dt1a . 
     xml_attr "dataset" dt1b .  
     xml_attr "modified" dt3a . 
     xml_attr "version" dt3b in 
-  cn,xml
+  (cn,xml)
 
 let entry_line = left_quot entry_cn entry_xml
 
-test entry_line get "<entry created=\"2006-04-18\" version=\"15\"   dataset=\"Swiss-Prot\"   modified=\"2007-02-20\"/>" = ?
-
+test entry_line get 
+  "<entry created=\"2006-04-18\" version=\"15\"   dataset=\"Swiss-Prot\"   modified=\"2007-02-20\"/>"
+= 
+  "DT  18-APR-2006, integrated into UniprotKB/Swiss-Prot.
+  |DT  20-FEB-2007, entry version 15."
  
 (* --------------------------------------------------------------------------- *)
 (* DE line *)
@@ -358,29 +366,40 @@ let de_xml : lens =
      (ins " [Contains: " . component. (ins "; " . component)+ . ins "]")? )
 let de_cn : canonizer = columnize (atype de_xml) " " "\nDE  "
 
+let de_sample : string = 
+  "
+  |  <protein>
+  |    <name>Arginine biosynthesis bifunctional protein argJ</name>
+  |    <domain>
+  |      <name>Glutamate N-acetyltransferase</name>
+  |      <name>EC 2.3.1.35</name>
+  |      <name>Ornithine acetyltransferase</name>
+  |      <name>Ornithine transacetylase</name>
+  |      <name>OATase</name>
+  |    </domain>
+  |    <domain>
+  |      <name>Amino-acid acetyltransferase</name>
+  |      <name>EC 2.3.1.1</name>
+  |      <name>N-acetylglutamate synthase</name>
+  |      <name>AGS</name>
+  |    </domain>
+  |    <component>
+  |      <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
+  |    </component>
+  |    <component>
+  |      <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
+  |    </component>
+  |  </protein>"
+
 test right_quot de_xml de_cn get
-  "<protein>
-  |     <name>Arginine biosynthesis bifunctional protein argJ</name>
-  |     <domain>
-  |       <name>Glutamate N-acetyltransferase</name>
-  |       <name>EC 2.3.1.35</name>
-  |       <name>Ornithine acetyltransferase</name>
-  |       <name>Ornithine transacetylase</name>
-  |       <name>OATase</name>
-  |     </domain>
-  |     <domain>
-  |       <name>Amino-acid acetyltransferase</name>
-  |         <name>EC 2.3.1.1</name>
-  |       <name>N-acetylglutamate synthase</name>
-  |       <name>AGS</name>
-  |     </domain>
-  |     <component>
-  |       <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
-  |     </component>
-  |     <component>
-  |       <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
-  |     </component>
-  |   </protein>" = ?
+  de_sample 
+=
+ "DE  Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate
+ |DE  N-acetyltransferase (EC 2.3.1.35) (Ornithine acetyltransferase) (Ornithine
+ |DE  transacetylase) (OATase); Amino-acid acetyltransferase (EC 2.3.1.1)
+ |DE  (N-acetylglutamate synthase) (AGS)] [Contains: Arginine biosynthesis bifunctional
+ |DE  protein argJ alpha chain; Arginine biosynthesis bifunctional protein argJ beta
+ |DE  chain]"
 
 test right_quot de_xml de_cn create 
  "DE  Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate
@@ -388,4 +407,64 @@ test right_quot de_xml de_cn create
  |DE  transacetylase) (OATase); Amino-acid acetyltransferase (EC 2.3.1.1)
  |DE  (N-acetylglutamate synthase) (AGS)] [Contains: Arginine biosynthesis bifunctional
  |DE  protein argJ alpha chain; Arginine biosynthesis bifunctional protein argJ beta
- |DE  chain]" = ?
+ |DE  chain]"
+=
+ de_sample
+
+(* --------------------------------------------------------------------------- *)
+(* GN line *)
+
+let gn_xml : lens = 
+  let gn_any_name (ty:string) (pre:string) (post:string) : lens = 
+    xml_open nl2 "name" . 
+    xml_attr "type" (del ty) . 
+    xml_close . 
+    ins pre . 
+    ALPHA . 
+    ins post . 
+    xml_tag_close "name" in     
+  let gn_primary : lens = gn_any_name "primary" "Name=" "" in 
+  let gn_fst_syn : lens = gn_any_name "synonym" "Synonyms=" "" in 
+  let gn_syn : lens = gn_any_name "synonym" ", " "" in 
+  let gn_fst_ordered_locus : lens = gn_any_name "ordered locus" "OrderedLocusNames=" "" in 
+  let gn_ordered_locus : lens = gn_any_name "ordered locus" ", " "" in 
+  let gn_fst_orf : lens = gn_any_name "ORF" "ORFNames=" "" in 
+  let gn_orf : lens = gn_any_name "ORF" ", " "" in 
+  let gn_names : lens = 
+    gn_primary .
+    ins "; " . 
+    gn_fst_syn . gn_syn* .
+    ins "; " . 
+    gn_fst_ordered_locus . gn_ordered_locus* . 
+    ins "; " . 
+    gn_fst_orf . gn_orf* . 
+    ins ";" in
+  let gn_elt : lens = 
+    tag "GN" .
+    multi_line_elt nl1 "gene" gn_names in 
+    gn_elt . (ins "\n" . tag "GN" . ins "and\n" . gn_elt)*
+     
+let gn_cn : canonizer = columnize (atype gn_xml) " " "\nGN  "
+let gn_line : lens = right_quot gn_xml gn_cn 
+
+test gn_line get 
+  "<gene>
+    <name type=\"primary\">Jon99Ciii</name>
+    <name type=\"synonym\">SER5</name>
+    <name type=\"synonym\">Ser99Db</name>
+    <name type=\"ordered locus\">b1237</name>
+    <name type=\"ordered locus\">c1701</name>
+    <name type=\"ORF\">CG15519</name>
+  </gene>
+  <gene>
+    <name type=\"primary\">Jon99Ciii</name>
+    <name type=\"synonym\">SER5</name>
+    <name type=\"ordered locus\">c1701</name>
+    <name type=\"ORF\">CG15519</name>
+  </gene>" 
+= 
+  "GN  Name=Jon99Ciii; Synonyms=SER5, Ser99Db; OrderedLocusNames=b1237, c1701;
+  |GN  ORFNames=CG15519;
+  |GN  and
+  |GN  Name=Jon99Ciii; Synonyms=SER5;
+  |GN  OrderedLocusNames=c1701; ORFNames=CG15519;"
