@@ -145,11 +145,20 @@ test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
 (* --------------------------------------------------------------------------- *)
 (* CONSTANTS *)
 
+(* [ANY] any string *)
+let ANY : regexp = [^]*
+
+(* [containing R] any string containing [R] *)
+let containing (R:regexp) : regexp = ANY . R . ANY
+
 (* [NL] newline *)
 let NL :string = "\n"
 
 (* [WS] whitespace *)
 let WS : regexp = [ \n]*
+
+(* [NWS] not white space *)
+let NWS : regexp = [^ \n]
 
 (* [WSP] positive whitespace *)
 let WSP : regexp = [ \n]+
@@ -167,9 +176,9 @@ let qnl : lens = qins (S.NL) "\n"
 (* [DIGIT] digit *)
 let DIGIT : regexp = [0-9]
 
-let A : regexp = [A-Za-z0-9\-.!'[\]/] 
-let AP : regexp = [A-Za-z0-9\-.!'[\]/()] 
-let AC : regexp = [A-Za-z0-9\-.!'[\]/:] 
+let A : regexp = [A-Za-z0-9\-.!='[\]/] 
+let AP : regexp = [A-Za-z0-9\-.!='[\]/()] 
+let AC : regexp = [A-Za-z0-9\-.!='[\]/:] 
 let ALPHA : regexp = A.(A | " ")*.A
 let ALPHAP : regexp = AP.(AP | " ")*.AP
 let ALPHAC : regexp = AC.(AC | " ")*.AC
@@ -237,7 +246,7 @@ let xml_attr1_elt (spaces:string) (tag:string) (name:string) (value:lens) (body:
   qdel WS spaces . 
   xml_close_tag tag 
 
-let xml_simple_attr1_elt (spaces:string) (tag:string) (name:string) (value:lens) (body:lens) : lens = 
+let xml_attr1_simple_elt (spaces:string) (tag:string) (name:string) (value:lens) (body:lens) : lens = 
   xml_open spaces tag . 
   xml_attr name value . 
   xml_close . 
@@ -355,7 +364,7 @@ into
 (* DT line *)
 
 (* [date] maps between aphanumeric and numeric dates *)
-let date : lens = 
+let date,partial_date : lens * lens = 
   let day : regexp = DIGIT{2} in 
   let month : lens = 
     ( "01" <-> "JAN" 
@@ -371,11 +380,15 @@ let date : lens =
     | "11" <-> "NOV" 
     | "12" <-> "DEC" ) in       
   let year : regexp = DIGIT{4} in 
-    default
+    (default
       (year ~ (("-" . month . "-") ~ day))        
-      "1900-01-01"  
+      "1900-01-01",
+     default
+       (year ~ (del "-" . month . ins "-"))
+       "1900-01")
 
 test date get "2009-01-20" = "20-JAN-2009"
+test partial_date get "2009-01" = "JAN-2009" 
 
 let (entry_cn,entry_xml) : canonizer * lens = 
   let entry_tag : string = "entry" in 
@@ -477,7 +490,7 @@ test right_quot de_xml de_cn create
 
 let gn_xml : lens = 
   let gn_any_name (ty:string) (pre:string) (post:string) : lens = 
-    xml_simple_attr1_elt nl2 "name" "type" (del ty) (ins pre . ALPHA . ins post) in 
+    xml_attr1_simple_elt nl2 "name" "type" (del ty) (ins pre . ALPHA . ins post) in 
   let gn_primary : lens = gn_any_name "primary" "Name=" "" in 
   let gn_fst_syn : lens = gn_any_name "synonym" "Synonyms=" "" in 
   let gn_syn : lens = gn_any_name "synonym" ", " "" in 
@@ -528,7 +541,7 @@ test gn_line get
 (* OS line *)
 let names_xml (spaces:string) : lens = 
   let any_name (ty:string) (pre:string) (post:string) : lens = 
-    xml_simple_attr1_elt spaces "name" "type" (del ty) (ins pre . ALPHA . ins post) in 
+    xml_attr1_simple_elt spaces "name" "type" (del ty) (ins pre . ALPHA . ins post) in 
   let scientific : lens = any_name "scientific" "" "" in 
   let common : lens = any_name "common" "(" ")" in 
   let syn : lens = any_name "synonym" "(" ")" in 
@@ -786,18 +799,20 @@ test os_og_oc_ox_oh_block create
 (* RN line *)
 let rn_xml : lens = 
   tag "RN" . 
-  xml_attr1_elt_no_body nl1 "reference" "key" (brackets NUMBER) 
+  xml_open nl1 "reference" . 
+  xml_attr "key" (brackets NUMBER) . 
+  xml_close 
 let rn_line : lens = rn_xml
 test rn_line create 
   "RN [1]"  = 
   "
-  |  <reference key=\"1\"/>" 
+  |  <reference key=\"1\">" 
 
 (* --------------------------------------------------------------------------- *)
 (* RP line *)
 let rp_xml : lens = 
   tag "RP" . 
-  xml_simple_elt nl1 "scope" ALPHA . 
+  xml_simple_elt nl2 "scope" ALPHA . 
   ins "." 
 let rp_cn : canonizer = 
   columnize (atype rp_xml) " " "\nRP  "
@@ -807,13 +822,13 @@ test rp_line create
   "RP   NUCLEOTIDE SEQUENCE [GENOMIC DNA]." 
 = 
   "
-  |  <scope>NUCLEOTIDE SEQUENCE [GENOMIC DNA]</scope>"
+  |    <scope>NUCLEOTIDE SEQUENCE [GENOMIC DNA]</scope>"
 
 (* --------------------------------------------------------------------------- *)
 (* RC line *)
 let rc_xml : lens = 
   let aux (xml:string) (ascii:string) : lens = 
-    let l : lens = xml_simple_elt nl2 xml ALPHAP in 
+    let l : lens = xml_simple_elt nl3 xml ALPHAP in 
     ins ascii . 
     ins "=" . 
     l . 
@@ -829,7 +844,7 @@ let rc_xml : lens =
   let final_tissue : lens = ((strain | final_plasmid | final_transposon) . qsp)? . tissue in 
   let all = strain | final_tissue | final_plasmid | final_transposon in 
   tag "RC" . 
-  xml_elt nl1 "source" all 
+  xml_elt nl2 "source" all 
 
 let rc_cn : canonizer = 
   columnize (atype rc_xml) " " "\nRC  "
@@ -840,22 +855,22 @@ test rc_line create
   "RC   STRAIN=AL.012, AZ.026, AZ.180, DC.005, GA.039, GA2181, IL.014, and IL2.17;" 
 = 
   "
-  |  <source>
-  |    <strain>AL.012</strain>
-  |    <strain>AZ.026</strain>
-  |    <strain>AZ.180</strain>
-  |    <strain>DC.005</strain>
-  |    <strain>GA.039</strain>
-  |    <strain>GA2181</strain>
-  |    <strain>IL.014</strain>
-  |    <strain>IL2.17</strain>
-  |  </source>"
+  |    <source>
+  |      <strain>AL.012</strain>
+  |      <strain>AZ.026</strain>
+  |      <strain>AZ.180</strain>
+  |      <strain>DC.005</strain>
+  |      <strain>GA.039</strain>
+  |      <strain>GA2181</strain>
+  |      <strain>IL.014</strain>
+  |      <strain>IL2.17</strain>
+  |    </source>"
 
 test rc_line get
-  "    <source>
-  |      <plasmid>R1 (R7268)</plasmid>
-  |      <transposon>Tn3</transposon>
-  |    </source>" 
+  "      <source>
+  |        <plasmid>R1 (R7268)</plasmid>
+  |        <transposon>Tn3</transposon>
+  |      </source>" 
 = 
   "RC  PLASMID=R1 (R7268); TRANSPPSON=Tn3;" 
 
@@ -863,7 +878,7 @@ test rc_line get
 (* RX line *)
 let rx_xml : lens = 
   let aux (db:string) : lens = 
-    let l : lens = xml_attr3_elt_no_body nl1 "dbReference" 
+    let l : lens = xml_attr3_elt_no_body nl2 "dbReference" 
       "type" (del db)
       "key" (del NUMBER) 
       "id" ALPHAP in 
@@ -885,14 +900,14 @@ test rx_line create
   "RX   MEDLINE=90158697; PubMed=1689460; DOI=10.1016/0166-6851(90)90007-9;" 
 =
    "
-   |  <dbReference type=\"MEDLINE\" key=\"0\" id=\"90158697\"/>
-   |  <dbReference type=\"PubMed\" key=\"0\" id=\"1689460\"/>
-   |  <dbReference type=\"DOI\" key=\"0\" id=\"10.1016/0166-6851(90)90007-9\"/>" 
+   |    <dbReference type=\"MEDLINE\" key=\"0\" id=\"90158697\"/>
+   |    <dbReference type=\"PubMed\" key=\"0\" id=\"1689460\"/>
+   |    <dbReference type=\"DOI\" key=\"0\" id=\"10.1016/0166-6851(90)90007-9\"/>" 
 
 test rx_line get 
-   "   <dbReference type=\"DOI\" key=\"1\" id=\"10.1016/0166-6851(90)90007-9\"/>
-   |   <dbReference type=\"MEDLINE\" key=\"1\" id=\"90158697\"/>
-   |   <dbReference type=\"PubMed\" key=\"1\" id=\"1689460\"/>"
+   "     <dbReference type=\"DOI\" key=\"1\" id=\"10.1016/0166-6851(90)90007-9\"/>
+   |     <dbReference type=\"MEDLINE\" key=\"1\" id=\"90158697\"/>
+   |     <dbReference type=\"PubMed\" key=\"1\" id=\"1689460\"/>"
 =
   "RX  DOI=10.1016/0166-6851(90)90007-9; MEDLINE=90158697; PubMed=1689460;"
 
@@ -900,7 +915,7 @@ test rx_line get
 (* RG line *)
 let rg_xml : lens = 
   tag "RG" . 
-  xml_attr1_elt_no_body nl1 "consortium" "name" ALPHA .
+  xml_attr1_elt_no_body nl3 "consortium" "name" ALPHA .
   ins ";" 
 let rg_cn : canonizer = 
   columnize (atype rg_xml) " " "\nRG  "
@@ -910,7 +925,7 @@ test rg_line create
   "RG  The C. elegans sequencing consortium;" 
 = 
   "
-  |  <consortium name=\"The C. elegans sequencing consortium\"/>"
+  |      <consortium name=\"The C. elegans sequencing consortium\"/>"
 
 (* --------------------------------------------------------------------------- *)
 (* RA line *)
@@ -918,7 +933,7 @@ let person (spaces:string) : lens = xml_attr1_elt_no_body spaces "person" "name"
 
 let ra_xml : lens = 
   tag "RA" . 
-  xml_elt nl1 "authorList" (person nl2 . (ins "," . qsp . person nl2)* ) .
+  person nl3 . (ins "," . qsp . person nl3)* .
   ins ";" 
 
 let ra_cn : canonizer = 
@@ -927,15 +942,13 @@ let ra_line : lens = right_quot ra_xml ra_cn
 
 test ra_line get 
   "
-   |  <authorList>
-   |    <person name=\"Iams K.P.\"/>
-   |    <person name=\"Young J.R.\"/>
-   |    <person name=\"Nene V.\"/>
-   |    <person name=\"Desai J.\"/>
-   |    <person name=\"Webster P.\"/>
-   |    <person name=\"Ole-Moiyoi O.K.\"/>
-   |    <person name=\"Musoke A.J.\"/>
-   |  </authorList>"
+   |      <person name=\"Iams K.P.\"/>
+   |      <person name=\"Young J.R.\"/>
+   |      <person name=\"Nene V.\"/>
+   |      <person name=\"Desai J.\"/>
+   |      <person name=\"Webster P.\"/>
+   |      <person name=\"Ole-Moiyoi O.K.\"/>
+   |      <person name=\"Musoke A.J.\"/>"
 =
   "RA  Iams K.P., Young J.R., Nene V., Desai J., Webster P., Ole-Moiyoi O.K.,
   |RA  Musoke A.J.;"
@@ -944,22 +957,21 @@ test ra_line create
   "RA   Iams K.P., Young J.R., Nene V., Desai J., Webster P., Ole-Moiyoi O.K., Musoke A.J.;"
 =
   "
-   |  <authorList>
-   |    <person name=\"Iams K.P.\"/>
-   |    <person name=\"Young J.R.\"/>
-   |    <person name=\"Nene V.\"/>
-   |    <person name=\"Desai J.\"/>
-   |    <person name=\"Webster P.\"/>
-   |    <person name=\"Ole-Moiyoi O.K.\"/>
-   |    <person name=\"Musoke A.J.\"/>
-   |  </authorList>"
+   |      <person name=\"Iams K.P.\"/>
+   |      <person name=\"Young J.R.\"/>
+   |      <person name=\"Nene V.\"/>
+   |      <person name=\"Desai J.\"/>
+   |      <person name=\"Webster P.\"/>
+   |      <person name=\"Ole-Moiyoi O.K.\"/>
+   |      <person name=\"Musoke A.J.\"/>"
 
 (* --------------------------------------------------------------------------- *)
 (* RT line *)
 
 let rt_xml : lens = 
   tag "RT" . 
-  xml_simple_elt nl1 "title" (quotes (ALPHAC . [.!]))
+  xml_simple_elt nl2 "title" (quotes (ALPHAC . [.!])) . 
+  ins ";"
 
 let rt_cn : canonizer = 
   columnize (atype rt_xml) " " "\nRT  " 
@@ -969,13 +981,13 @@ test rt_line get
   "
   |  <title>Boomerang: resourceful lenses for ordered data.</title>" 
 =
-  "RT  \"Boomerang: resourceful lenses for ordered data.\""
+  "RT  \"Boomerang: resourceful lenses for ordered data.\";"
 
 test rt_line create
-  "RT  \"Regulation of nitrogen metabolism in Bacillus subtilis: vive la difference!\"" 
+  "RT  \"Regulation of nitrogen metabolism in Bacillus subtilis: vive la difference!\";" 
 = 
   "
-  |  <title>Regulation of nitrogen metabolism in Bacillus subtilis: vive la difference!</title>"
+  |    <title>Regulation of nitrogen metabolism in Bacillus subtilis: vive la difference!</title>"
 
 (* --------------------------------------------------------------------------- *)
 (* RL line *)
@@ -988,11 +1000,11 @@ let journal_xml : lens =
   xml_attr "first" (NUMBER . ins "-") . 
   xml_attr "last" (NUMBER ) . 
   xml_attr "date" (braces NUMBER) . 
-  xml_close . 
+  xml_slash_close . 
   ins "." 
 
 test journal_xml get 
-"<citation type=\"journal article\" name=\"Science\" volume=\"309\" first=\"131\" last=\"133\" date=\"2005\">" 
+"<citation type=\"journal article\" name=\"Science\" volume=\"309\" first=\"131\" last=\"133\" date=\"2005\"/>" 
 =
 "Science 309:131-133(2005)."
 
@@ -1000,11 +1012,11 @@ let electronic_xml : lens =
   xml_open nl1 "citation" . 
   xml_attr "type" (del "online journal article" . ins "(er)" . qsp) . 
   xml_attr "name" ALPHA . 
-  xml_close . 
+  xml_slash_close . 
   ins "." 
 
 test electronic_xml get
-  "<citation type=\"online journal article\" name=\"Plant Gene Register PGR98-023\">" 
+  "<citation type=\"online journal article\" name=\"Plant Gene Register PGR98-023\"/>" 
 = 
   "(er) Plant Gene Register PGR98-023."
 
@@ -1050,3 +1062,246 @@ test book_xml create
 |    </editorList>
 |  </citation>"
 
+let unpublished_xml : lens = 
+  ins "Unpublished observations" . qsp . 
+  xml_open nl1 "citation" . 
+  xml_attr "type" (del "unpulished observations") . 
+  xml_attr "date" (braces partial_date) . 
+  xml_slash_close . 
+  ins "." 
+
+test unpublished_xml create 
+  "Unpublished observations (JAN-2009)." 
+= 
+  "
+  |  <citation type=\"unpulished observations\" date=\"2009-01\"/>"
+
+let thesis_xml : lens = 
+  ins "Thesis" . qsp . 
+  xml_open nl1 "citation" . 
+  xml_attr "type" (del "thesis") . 
+  xml_attr "date" (braces NUMBER . ins "," . qsp) . 
+  xml_attr "institute" (ALPHA . ins "," . qsp) . 
+  xml_attr "country" (ALPHA) . 
+  xml_slash_close . 
+  ins "." 
+
+test thesis_xml create 
+  "Thesis (1977), University of Geneva, Switzerland." 
+= 
+  "
+  |  <citation type=\"thesis\" date=\"1977\" institute=\"University of Geneva\" country=\"Switzerland\"/>"
+
+let patent_xml : lens = 
+  ins "Patent number" . qsp . 
+  xml_open nl1 "citation" . 
+  xml_attr "type" (del "patent") . 
+  xml_attr "number" (ALPHA . ins "," . qsp) . 
+  xml_attr "date" date . 
+  xml_slash_close . 
+  ins "." 
+
+test patent_xml create
+  "Patent number WO9010703, 20-SEP-1990." 
+= 
+  "
+  |  <citation type=\"patent\" number=\"WO9010703\" date=\"1990-09-20\"/>"
+
+let submitted_xml : lens = 
+  ins "Submitted" . qsp . 
+  xml_open nl1 "citation" . 
+  xml_attr "type" (del "submission") . 
+  xml_attr "date" (braces partial_date) . 
+  qsp . ins "to" . qsp . 
+  xml_attr "db"
+    ("the EMBL/GenBank/DDBJ databases"
+    |"UniProtKB"
+    |"the PDB data bank"
+    |"the PIR data bank") . 
+  xml_slash_close . 
+  ins "." 
+
+test submitted_xml create 
+  "Submitted (OCT-1995) to the EMBL/GenBank/DDBJ databases." 
+= 
+  "
+  |  <citation type=\"submission\" date=\"1995-10\" db=\"the EMBL/GenBank/DDBJ databases\"/>"
+
+let rl_xml : lens = 
+  tag "RL" . 
+  (journal_xml | electronic_xml | book_xml | unpublished_xml | thesis_xml | submitted_xml) 
+let rl_cn : canonizer = 
+  columnize (atype rl_xml) " " "\nRL  "
+let rl_line : lens = 
+  right_quot rl_xml rl_cn 
+
+(* --------------------------------------------------------------------------- *)
+(* Reference block *)
+
+let rp_rc_rx_block : lens = 
+  (terminate rx_line)? ~
+  (terminate rp_line . 
+  (terminate rc_line)? )
+
+let rg_ra_block : lens = 
+  xml_elt nl2 "authorList" 
+    ( terminate rg_line
+    | (terminate ra_line) . 
+      (terminate rg_line)? )  
+
+let rg_ra_rt_block : lens = 
+  (terminate rt_line)? ~ rg_ra_block 
+
+let reference_block : lens = 
+  (terminate rn_line) . 
+  (rg_ra_rt_block ~ 
+   rp_rc_rx_block) . 
+  qdel WS nl1 . 
+  xml_close_tag "reference"
+
+test reference_block create
+  "RN   [1]
+  |RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+  |RC   STRAIN=Ankara;
+  |RX   PubMed=15994557; DOI=10.1126/science.1110418;
+  |RA   Pain A., Renauld H.;
+  |RT   \"Genome of the host-cell transforming parasite Theileria annulata compared with T. parva.\";
+  |" 
+=
+  "
+  |  <reference key=\"1\">
+  |    <title>Genome of the host-cell transforming parasite Theileria annulata compared with T. parva.</title>
+  |    <authorList>
+  |      <person name=\"Pain A.\"/>
+  |      <person name=\"Renauld H.\"/>
+  |    </authorList>
+  |    <dbReference type=\"PubMed\" key=\"0\" id=\"15994557\"/>
+  |    <dbReference type=\"DOI\" key=\"0\" id=\"10.1126/science.1110418\"/>
+  |    <scope>NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA]</scope>
+  |    <source>
+  |      <strain>Ankara</strain>
+  |    </source>
+  |  </reference>"
+  
+(* --------------------------------------------------------------------------- *)
+(* CC line *)
+
+let cc_status : lens = 
+  xml_attr "status"     
+    ( "By similarity" <-> "(By similarity)"
+    | "Potential"     <-> "(Potential)"    
+    | "Probable"      <-> "(Probable)" )
+
+let CC_DATA : regexp = (NWS . ANY  . NWS) - (containing ([<>&\n] | "-!-" | atype cc_status))
+
+let cc_generic_xml (ty:lens) : lens = 
+  tag "CC" . 
+  ins "-!-" . qsp . 
+  xml_open nl1 "comment" . 
+  xml_attr "type" ty . 
+  ((cc_status? . xml_close) ~
+  (ins ":" . qsp . CC_DATA)) . 
+  xml_close_tag "comment" . 
+  ins "." 
+
+let cc_unstructured_xml : lens = 
+  cc_generic_xml
+    ( "allergen"             <-> "ALLERGEN"
+    | "biotechnology"        <->  "BIOTECHNOLOGY"       
+    | "catalytic activity"   <->  "CATALYTIC ACTIVITY"  
+    | "cofactor"             <->  "COFACTOR"            
+    | "developmental stage"  <->  "DEVELOPMENTAL STAGE" 
+    | "disease"              <->  "DISEASE"             
+    | "domain"               <->  "DOMAIN"              
+    | "enzyme regulation"    <->  "ENZYME REGULATION"   
+    | "function"             <->  "FUNCTION"            
+    | "induction"            <->  "INDUCTION"           
+    | "miscellaneous"        <->  "MISCELLANEOUS"       
+    | "pathway"              <->  "PATHWAY"             
+    | "pharmaceutical"       <->  "PHARMACEUTICAL"      
+    | "polymorphism"         <->  "POLYMORPHISM"        
+    | "PTM"                  <->  "PTM"                 
+    | "RNA editing"          <->  "RNA EDITING"         
+    | "similarity"           <->  "SIMILARITY"          
+    | "subcellular location" <->  "SUBCELLULAR LOCATION"
+    | "subunit"              <->  "SUBUNIT"             
+    | "tissue specificity"   <->  "TISSUE SPECIFICITY"  
+    | "toxic dose"           <->  "TOXIC DOSE" )
+
+test cc_unstructured_xml create 
+  ("CC   -!- ALLERGEN: Causes an allergic reaction in human. Binds to IgE. " . 
+   "Partially heat-labile allergen that may cause both respiratory and " . 
+   "food-allergy symptoms in patients with the bird-egg syndrome.") = 
+  "
+  |  <comment type=\"allergen\">Causes an allergic reaction in human. Binds to IgE. Partially heat-labile allergen that may cause both respiratory and food-allergy symptoms in patients with the bird-egg syndrome</comment>"
+
+let cc_biophysicochemical_properties_xml : lens = 
+  let absorption : lens = 
+    ins " Absorption: " .
+    xml_elt nl2 "absorption"
+      (xml_simple_elt nl3 "max" (ins "Abs(max)=" . ALPHAP . ins "; ") . qsp . 
+       xml_simple_elt nl3 "text" (ins "Note=" . ALPHAP . ins ";")) in 
+  let kinetic_parameters : lens = 
+    ins " Kinetic parameters: " . 
+    xml_elt nl2 "kinetics" 
+      (xml_simple_elt nl3 "KM" (ins "KM=" . ALPHAP . ins "; ") . qsp . 
+       xml_simple_elt nl3 "Vmax" (ins "Vmax=" . ALPHAP . ins "; ") . qsp . 
+       xml_simple_elt nl3 "text" (ins "Note=" . ALPHAP . ins ";"))  in 
+  let generic (xml:string) (ascii:string) : lens = 
+    ins " " . ins ascii . ins ": " . 
+    xml_elt nl2 xml (ALPHAP . ins ";" . qsp ) in 
+  let ph_dependence : lens = 
+    generic "phDependence" "pH dependence" in
+  let redox_potential : lens = 
+    generic "redoxPotential" "Redox potential" in
+  let temperature_dependence : lens = 
+    generic "temperatureDependence" "Temperature dependence" in       
+  tag "CC" . 
+  ins "-!-" . qins WS "" . 
+  xml_open nl1 "comment" . 
+  xml_attr "type" ("biophysicochemical properties" <-> "BIOPHYSICOCHEMICAL PROPERTIES") . 
+  xml_close . 
+  ins ":"  . qsp . 
+  absorption? . 
+  kinetic_parameters? . 
+  ph_dependence? . 
+  redox_potential? . 
+  temperature_dependence? . 
+  qdel WS nl1 . 
+  xml_close_tag "comment" 
+
+test cc_biophysicochemical_properties_xml get 
+"  <comment type=\"biophysicochemical properties\">
+    <absorption>
+      <max>465 nm</max>
+      <text>The above maximum is for the oxidized form. Shows a maximal peak at 330 nm in the reduced form. These absorption peaks are for the tryptophylquinone cofactor</text>
+    </absorption>
+    <kinetics>
+      <KM>5.4 uM for tyramine</KM>
+      <Vmax>17 umol/min/mg enzyme</Vmax>
+      <text>The enzyme is substrate inhibited at high substrate concentrations (Ki=1.08 mM for tyramine)</text>
+    </kinetics>
+  </comment>" 
+= 
+  "CC  -!-BIOPHYSICOCHEMICAL PROPERTIES:  Absorption: Abs(max)=465 nm;  Note=The above maximum is for the oxidized form. Shows a maximal peak at 330 nm in the reduced form. These absorption peaks are for the tryptophylquinone cofactor; Kinetic parameters: KM=5.4 uM for tyramine;  Vmax=17 umol/min/mg enzyme;  Note=The enzyme is substrate inhibited at high substrate concentrations (Ki=1.08 mM for tyramine);"
+
+(* 
+let cc_interaction_xml : lens = 
+  let interactant : lens = 
+    ( xml_attr1_elt_no_body nl2 "interactant" "interactId" ALPHA 
+    | xml_attr1_elt nl2 "interactant" "interactId" 
+in 
+  let interaction : lens = 
+    xml_open nl1 "interaction" . 
+    xml_attr "type" (del "interaction") . 
+    xml_close . 
+    (* PROLOG *)
+    tag "CC" . 
+    ins "-!-" . qins WS "" . 
+    ins "INTERACTION: "  .
+    (* MAIN *)
+    interaction* .   
+    (* EPILOGUE *)
+    qdel WS nl1 . 
+    xml_close_tag "comment" 
+*)
