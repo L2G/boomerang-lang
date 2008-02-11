@@ -910,8 +910,6 @@ let book =
     xml_attribute "city" (escape_name [,""]) " " . del " " . del_spaces .
     xml_attribute "date" (del "(" . year . del ")") "" in
   del "(In)" . del_spaces_bis . (editors ~ (title ~ rest)) . del "\n"
-
-
     
 let unpub = 
     del "Unpublished observations" . del_spaces_bis . 
@@ -1009,7 +1007,7 @@ RT   "The rps16, accD, psaI, ORF 203, ORF 151, ORF 103, ORF 229 and petA gene cl
 RL   (er) Plant Gene Register PGR95-051.
 
 >>>
-=
+= 
 <<<  <reference key="1">
     <citation type="online journal article" name="Plant Gene Register">
       <title>The rps16, accD, psaI, ORF 203, ORF 151, ORF 103, ORF 229 and petA gene cluster in the chloroplast genome of soybean.</title>
@@ -1027,6 +1025,7 @@ RL   (er) Plant Gene Register PGR95-051.
     </source>
   </reference>
 >>>
+
 
 (****** CC line ******)
 (* New pb with strong composition type : I would like to filter
