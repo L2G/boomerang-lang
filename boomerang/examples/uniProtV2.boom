@@ -175,14 +175,16 @@ let qnl : lens = qins (S.NL) "\n"
 
 (* [DIGIT] digit *)
 let DIGIT : regexp = [0-9]
+let FDIGIT : regexp = [0-9]
 
 let A : regexp = [A-Za-z0-9\-.!='[\]/] 
 let AP : regexp = [A-Za-z0-9\-.!='[\]/()] 
-let AC : regexp = [A-Za-z0-9\-.!='[\]/:] 
+let AC : regexp = [A-Za-z0-9\-.!='[\]/:,] 
 let ALPHA : regexp = A | A.(A | " ")*.A
 let ALPHAP : regexp = AP | AP.(AP | " ")*.AP
 let ALPHAC : regexp = AC | AC.(AC | " ")*.AC
 let NUMBER : regexp = DIGIT+ 
+let FNUMBER : regexp = DIGIT* . "."? . DIGIT+ 
 
 
 (* [nlX]: X^th amount of whitespace--used to canonize XML *)
@@ -1200,6 +1202,10 @@ test reference_block create
 (* --------------------------------------------------------------------------- *)
 (* CC line *)
 
+let cc_break : lens = ins "\nCC      "  
+
+let cc_fix (l:lens) : lens = right_quot l (columnize (atype l) "; " ";\nCC      ") 
+
 let cc_status : lens = 
   xml_attr "status"     
     ( "By similarity" <-> "(By similarity)"
@@ -1342,7 +1348,6 @@ test interaction get
 "CC      Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;" 
 
 let cc_interaction_xml : lens =        
-  let break : string = "\nCC" . "      " in 
   tag "CC" . 
   ins "-!- " . qins WS "" . 
   ins "INTERACTION:" . qins WS "\n" .
@@ -1509,7 +1514,6 @@ let cc_alternative_products_line : lens =
         "type" (del "described")
         "ref"  (vsp . (ins "," . qsp . vsp)* )) . 
     ins ";" in 
-  let break : lens = ins "\nCC      " in 
   let synonyms : lens = 
     let s : lens = xml_simple_elt nl3 "name" ALPHA in
     ins "Synonyms=" . 
@@ -1528,17 +1532,16 @@ let cc_alternative_products_line : lens =
         sequence . 
         (generic "note" "Note")? 
       end in 
-  let fix (l:lens) : lens = right_quot l (columnize (atype l) "; " ";\nCC       ") in 
   tag "CC" . 
   ins "-!-" . qsp . 
   ins "ALTERNATIVE_PRODUCTS:" . 
-  break . 
+  cc_break . 
   xml_attr1_elt nl1 "comment" "type" (del "alternative products") 
     begin 
-      fix (events . qsp . 
+      cc_fix (events . qsp . 
            named_isos . qsp . 
            (generic "comment" "Comment")? ) . 
-      (break . fix name)*
+      (cc_break . cc_fix name)*
     end
 
 test cc_alternative_products_line get
@@ -1561,6 +1564,68 @@ test cc_alternative_products_line get
 = 
   "CC  -!- ALTERNATIVE_PRODUCTS:
   |CC      Event=Alternative splicing; Named isoforms=0;
-  |CC        Comment=This is a rather lengthy comment.;
+  |CC       Comment=This is a rather lengthy comment.;
   |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
   |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;"
+  
+let cc_mass_spectrometry_xml : lens = 
+  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ins ";" . qsp) in 
+  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ins ";" . qsp) in
+  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ins ";" . qsp) in
+  let src : lens = qins (WSP . "Source=" . ALPHAC . ";")? "" in 
+  tag "CC" . 
+  ins "-!-" . qsp . 
+  ins "MASS SPECTROMETRY:" . 
+  qsp . 
+  xml_open nl1 "comment" .
+  xml_attr "type" (del "mass spectrometry") . 
+  mass . 
+  err? . 
+  meth . 
+  xml_close . 
+  ins "Range=" . 
+  xml_open nl2 "location" . 
+  ( (xml_attr "sequence" (qsp . braces ALPHA))? ~    
+    (xml_close . 
+     xml_attr1_elt_no_body nl3 "begin" "position" NUMBER . 
+     ins "-" . 
+     xml_attr1_elt_no_body nl3 "end" "position" NUMBER) ) . 
+  qdel WS nl2 . 
+  xml_close_tag "location" . 
+  ins ";" . qsp . 
+  ins "Note=" . 
+  xml_simple_elt nl2 "note" ALPHAC . 
+  ins ";" . 
+  qdel WS nl1 . 
+  xml_close_tag "comment" . 
+  src
+
+let cc_mass_spectrometry_line : lens = 
+  cc_fix cc_mass_spectrometry_xml
+
+test cc_mass_spectrometry_line create
+  "CC   -!- MASS SPECTROMETRY: Mass=23290.2; Mass_error=2.9; Method=Electrospray;
+  |CC       Range=16-214 (P04653-2); Note=Allele D, with 6 phosphate groups;
+  |CC       Source=PubMed:7601973;" 
+=
+  "
+  |  <comment type=\"mass spectrometry\" mass=\"23290.2\" error=\"2.9\" method=\"Electrospray\">
+  |    <location sequence=\"P04653-2\">
+  |      <begin position=\"16\"/>
+  |      <end position=\"214\"/>
+  |    </location>
+  |    <note>Allele D, with 6 phosphate groups</note>
+  |  </comment>"
+  
+test cc_mass_spectrometry_line get 
+  "  <comment type=\"mass spectrometry\" mass=\"29440\" error=\"2\" method=\"MALDI\">
+  |      <location>
+  |        <begin position=\"1\"/>
+  |        <end position=\"255\"/>
+  |      </location>
+  |      <note>Ref.2</note>
+  |    </comment>" 
+= 
+  "CC  -!- MASS SPECTROMETRY: Mass=29440; Mass_error=2; Method=MALDI; Range=1-255;
+  |CC       Note=Ref.2;"
+
