@@ -1629,3 +1629,63 @@ test cc_mass_spectrometry_line get
   "CC  -!- MASS SPECTROMETRY: Mass=29440; Mass_error=2; Method=MALDI; Range=1-255;
   |CC       Note=Ref.2;"
 
+let cc_sequence_caution_xml : lens = 
+  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ins ";" . qsp) in 
+  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ins ";" . qsp) in
+  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ins ";" . qsp) in
+  tag "CC" . 
+  ins "-!-" . qsp . 
+  ins "SEQUENCE CAUTION:" . 
+  cc_break . 
+  xml_attr1_elt nl1 "comment" "type" (del "sequence caution") 
+    begin
+      ((ins "Type=" . 
+       xml_open nl2 "conflict" . 
+       xml_attr "type"
+         ( "frameshift" <-> "Frameshift"
+         | "erroneous initiation" <-> "Erroneous initiation"             
+         | "erroneous termination" <-> "Erroneous termination" 
+         | "erroneous gene model prediction" <-> "Erroneous gene model prediction"
+         | "erroneous translation" <-> "Erroneous translation"
+         | "miscellaneous discrepancy" <-> "Miscellaneous discrepancy") . 
+       xml_close . 
+       ins ";") ~
+      (ins "Sequence=" . 
+       xml_attr3_elt_no_body nl2 "sequence"
+         "resource" (del ("EMBL-CDS" | "EMBL"))
+         "id" (ALPHA) 
+         "version" (ins "." . NUMBER) . 
+       ins ";" . qsp)) . 
+     qdel WS nl2 . 
+     xml_close_tag "conflict" . 
+     (qins ("Positions=Several;" . WSP)? "" 
+     | ins "Positions=" . 
+       xml_elt nl2 "location"
+         begin           
+           let p : lens = xml_attr1_elt_no_body nl3 "position" "position" (NUMBER) in 
+           p . (ins "," . qsp . p)* 
+         end . 
+       ins ";" . qsp) . 
+     (ins "Note=" . 
+     xml_simple_elt nl2 "note" ALPHA . 
+     ins ";")?
+    end
+
+let cc_sequence_caution_line : lens = 
+  cc_fix cc_sequence_caution_xml
+
+test cc_sequence_caution_line get
+  "<comment type=\"sequence caution\">
+  |<conflict type=\"erroneous termination\">
+  |<sequence resource=\"EMBL-CDS\" id=\"AAN42076\" version=\"1\"/>
+  |</conflict>
+  |<location>
+  |<position position=\"273\"/>
+  |</location>
+  |<note>Translated as Gln.</note>
+  |</comment>" 
+= 
+  "CC  -!- SEQUENCE CAUTION:
+  |CC      Sequence=AAN42076.1; Type=Erroneous termination;
+  |CC      Positions=273; Note=Translated as Gln.;" 
+
