@@ -250,6 +250,19 @@ let xml_attr1_elt (spaces:string) (tag:string) (name:string) (value:lens) (body:
   qdel WS spaces . 
   xml_close_tag tag 
 
+let xml_attr2_elt (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (body:lens) : lens = 
+  xml_open spaces tag . 
+  sort2 
+    (xml_attr name1 value1) 
+    (xml_attr name2 value2) . 
+  xml_close . 
+  body . 
+  qdel WS spaces . 
+  xml_close_tag tag 
+
 let xml_attr1_simple_elt (spaces:string) (tag:string) (name:string) (value:lens) (body:lens) : lens = 
   xml_open spaces tag . 
   xml_attr name value . 
@@ -1207,12 +1220,13 @@ let cc_break : lens = ins "\nCC      "
 let cc_fix (l:lens) : lens = right_quot l (columnize (atype l) "; " ";\nCC      ") 
 
 let cc_status : lens = 
-  xml_attr "status"     
-    ( "By similarity" <-> "(By similarity)"
-    | "Potential"     <-> "(Potential)"    
-    | "Probable"      <-> "(Probable)" )
+  xml_attr "status"
+    ( "by similarity" <-> " (By similarity)"
+    | "potential"     <-> " (Potential)"    
+    | "probable"      <-> " (Probable)" )
 
-let CC_DATA : regexp = (NWS . ANY  . NWS) - (containing ([<>&\n] | "-!-" | atype cc_status))
+let CC_DATA : regexp = 
+  (NWS . ANY  . NWS) - (containing ([<>&\n] | "-!-") | ANY . (atype cc_status | ".")) 
 
 let cc_generic_xml (ty:lens) : lens = 
   tag "CC" . 
@@ -1249,11 +1263,17 @@ let cc_unstructured_xml : lens =
     | "toxic dose"           <->  "TOXIC DOSE" )
 
 test cc_unstructured_xml create 
-  ("CC   -!- ALLERGEN: Causes an allergic reaction in human. Binds to IgE. " . 
+  ("CC   -!- ALLERGEN: Causes an allergic reaction in humans. Binds to IgE. " . 
    "Partially heat-labile allergen that may cause both respiratory and " . 
    "food-allergy symptoms in patients with the bird-egg syndrome.") = 
   "
-  |  <comment type=\"allergen\">Causes an allergic reaction in human. Binds to IgE. Partially heat-labile allergen that may cause both respiratory and food-allergy symptoms in patients with the bird-egg syndrome</comment>"
+  |  <comment type=\"allergen\">Causes an allergic reaction in humans. Binds to IgE. Partially heat-labile allergen that may cause both respiratory and food-allergy symptoms in patients with the bird-egg syndrome</comment>"
+
+test cc_unstructured_xml create
+  "CC    -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity)." 
+= 
+  "
+  |  <comment type=\"subcellular location\" status=\"by similarity\">Golgi apparatus</comment>" 
 
 let cc_biophysicochemical_properties_xml : lens = 
   let absorption : lens = 
@@ -1520,10 +1540,11 @@ let cc_alternative_products_line : lens =
     s . (ins "," . qsp . s)* .
     ins ";" in
   let name : lens =     
+    let id : lens = xml_simple_elt nl3 "id" (ALPHA) in
     xml_elt nl2 "isoform" 
       begin 
         ((ins "IsoId=" . 
-          xml_simple_elt nl3 "id" (ALPHA) . 
+          id . (ins "," . qsp . id)* . 
           ins ";" . qsp ) ~
          (ins "Name=" . 
           xml_simple_elt nl3 "name" (ALPHA) . 
@@ -1689,3 +1710,94 @@ test cc_sequence_caution_line get
   |CC      Sequence=AAN42076.1; Type=Erroneous termination;
   |CC      Positions=273; Note=Translated as Gln.;" 
 
+let cc_web_resource_xml : lens = 
+  tag "CC" . 
+  ins "-!-" . qsp . 
+  ins "WEB RESOURCE:" . 
+  xml_attr2_elt nl1 "comment" 
+    "type" (del "online information") 
+    "name" (ins "Name=" . ALPHA . ins ";" . qsp)
+    begin
+      let url : lens = 
+        ins "URL=" . 
+          xml_attr1_elt_no_body nl2 "link" "uri" (quotes ALPHAC) . 
+          ins ";" in 
+      let note : lens = 
+        ins "Note=" . 
+        xml_simple_elt nl2 "note" ALPHA . 
+        ins ";" . qsp in 
+      url ~ note
+    end
+
+let cc_web_resource_line : lens = 
+  cc_fix cc_web_resource_xml
+
+test cc_web_resource_line get
+  "<comment type=\"online information\" name=\"IARC TP53 mutation database\">
+  |<link uri=\"http://www-p53.iarc.fr/\"/>
+  |<note>Somatic and germline TP53 mutations in human cancers</note>
+  |</comment>" 
+= 
+  "CC  -!- WEB RESOURCE:Name=IARC TP53 mutation database;
+  |CC       Note=Somatic and germline TP53 mutations in human cancers;
+  |CC       URL=\"http://www-p53.iarc.fr/\";" 
+
+test cc_web_resource_line create
+  "CC  -!- WEB RESOURCE:Name=IARC TP53 mutation database;
+  |CC       Note=Somatic and germline TP53 mutations in human cancers;
+  |CC       URL=\"http://www-p53.iarc.fr/\";" 
+= 
+  "
+  |  <comment type=\"online information\" name=\"IARC TP53 mutation database\">
+  |    <link uri=\"http://www-p53.iarc.fr/\"/>
+  |    <note>Somatic and germline TP53 mutations in human cancers</note>
+  |  </comment>" 
+
+let cc_block : lens = 
+  let non_interaction : lens = 
+      ( cc_unstructured_xml 
+      | cc_biophysicochemical_properties_xml     
+      | cc_alternative_products_line 
+      | cc_mass_spectrometry_line 
+      | cc_sequence_caution_line 
+      | cc_web_resource_line) . ins "\n" in 
+    ( cc_interaction_xml . ins "\n"
+    | non_interaction*
+    | (non_interaction* . cc_interaction_xml . ins "\n" . non_interaction)+ )
+
+test cc_block create
+  "CC  -!- ALTERNATIVE_PRODUCTS:
+  |CC      Event=Alternative splicing; Named isoforms=2;
+  |CC         Comment=Additional isoforms seem to exist;
+  |CC      Name=1; Synonyms=Ash-L;
+  |CC         IsoId=P62993-1, P29354-1;
+  |CC         Sequence=Displayed;
+  |CC      Name=GRB3-3;
+  |CC         IsoId=P62993-2, P29354-2;
+  |CC         Sequence=VSP_001839;
+  |CC   -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity).
+  |CC   -!- DOMAIN: The SH3 domains mediate interaction with SHB.
+  |CC   -!- SIMILARITY: Belongs to the GRB2/sem-5/DRK family.
+  |" 
+= 
+  "
+  |  <comment type=\"alternative products\">
+  |    <event type=\"alternative splicing\"/>
+  |    <comment>Additional isoforms seem to exist</comment>
+  |    <isoform>
+  |      <id>P62993-1</id>
+  |      <id>P29354-1</id>
+  |      <name>1</name>
+  |      <name>Ash-L</name>
+  |    <sequence type=\"displayed\"/>
+  |    </isoform>
+  |    <isoform>
+  |      <id>P62993-2</id>
+  |      <id>P29354-2</id>
+  |      <name>GRB3-3</name>
+  |    <sequence type=\"described\" ref=\"VSP_001839\"/>
+  |    </isoform>
+  |  </comment>
+  |  <comment type=\"subcellular location\" status=\"by similarity\">Golgi apparatus</comment>
+  |  <comment type=\"domain\">The SH3 domains mediate interaction with SHB</comment>
+  |  <comment type=\"similarity\">Belongs to the GRB2/sem-5/DRK family</comment>"
