@@ -29,7 +29,49 @@ test x : { Any <-> Any* }
 let bracket (s:string) = "(" . s . ")" 
 test count [A-Z] get "ABCDEFG" = "7"
 test count [A-Z] put "4" into "ABCDEFG" = "ABCD"
-test count [A-Z] create "10" = "AAAAAAAAAA"
+test count [A-Z] create "0" = ""
+test count [A-Z] create "5" = "AAAAA"
+
+let upper : lens = 
+  ( "a" <-> "A"  
+  | "b" <-> "B"   
+  | "c" <-> "C"   
+  | "d" <-> "D"   
+  | "e" <-> "E"   
+  | "f" <-> "F"   
+  | "g" <-> "G"   
+  | "h" <-> "H"   
+  | "i" <-> "I"   
+  | "j" <-> "J"      
+  | "k" <-> "K"   
+  | "l" <-> "L"   
+  | "m" <-> "M"   
+  | "n" <-> "N"   
+  | "o" <-> "O"   
+  | "p" <-> "P"   
+  | "q" <-> "Q"   
+  | "r" <-> "R"   
+  | "s" <-> "S"   
+  | "t" <-> "T"   
+  | "u" <-> "U"   
+  | "v" <-> "V"   
+  | "w" <-> "W"   
+  | "x" <-> "X"   
+  | "y" <-> "Y"   
+  | "z" <-> "Z" 
+  | [^a-zA-Z])
+
+let cp_upper = ins "[" . duplicate ([^A-Z] . ins ":") upper . ins "]"  
+test cp_upper* get "nate" = "[n:N][a:A][t:T][e:E]" 
+test cp_upper* create "[n:N][a:A][t:T][e:E]" = "nate"
+
+let length (R:regexp) : lens = 
+  ins "(" . 
+  duplicate (R* ) (ins "," . count R) . 
+  ins ")" 
+
+test length [A-Z] get "ABCD" = "(ABCD,4)"
+test length [A-Z] put "(ABCD,6)" into "ABCDEF" = "ABCD"
 
 type mytype = A | B of regexp | C of unit
 

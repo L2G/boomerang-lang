@@ -1795,7 +1795,7 @@ let unambig_split t1 t2 s =
       let i = IS.choose inter in 
         assert (IS.is_empty (IS.remove i inter));
         Some (RS.sub s 0 i,
-             RS.sub s i ((RS.length s) - i))
+              RS.sub s i ((RS.length s) - i))
 
 let unambig_star_split_ints t s = 
   let rev = mk_reverse (mk_star t) in

@@ -126,6 +126,7 @@ module TMap = SMap
 type skeleton = 
   | S_string of RS.t
   | S_concat of (skeleton * skeleton)
+  | S_dup of (skeleton * skeleton)
   | S_star of skeleton list
   | S_box of tag
   | S_comp of (skeleton * skeleton)
@@ -142,6 +143,14 @@ let snd_concat_of_skel = function
   | S_concat (_, s) -> s
   | _ -> assert false
 
+let fst_dup_of_skel = function
+  | S_dup (s,_) -> s
+  | _ -> assert false
+
+let snd_dup_of_skel = function
+  | S_dup (_, s) -> s
+  | _ -> assert false
+      
 let lst_of_skel = function
   | S_star sl -> sl
   | _ -> assert false
@@ -952,7 +961,51 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	uid = next_uid ();
       }
 
-
+  let duplicate i dl1 dl2 = 
+    let n = sprintf "duplicate (%s) (%s)" dl1.string dl2.string in 
+    let ct = 
+      let equiv, f_suppl = R.check_equiv dl1.ctype dl2.ctype in
+      if not equiv then
+        begin
+	  let s =sprintf "%s is ill-typed:" n in
+	  Berror.static_error i n ~suppl:f_suppl s 
+        end;
+      dl1.ctype in 
+    let at = R.unambig_seq i n dl1.atype dl2.atype in 
+    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+    let st = function
+      | S_dup (s1, s2) -> dl1.stype s1 && dl2.stype s2
+      | _ -> false in
+    (* lens *) 
+    { info = i; 
+      string = n;
+      ctype = ct;
+      atype = at;
+      dtype = dt;
+      stype = st;
+      crel = combine_rel dl1.crel dl2.crel;
+      arel = Unknown;
+      get = lift_r i (get_str n) ct 
+        (fun c -> (dl1.get c) ^ (dl2.get c));
+      put = lift_rsd i (put_str n) at st (fun a s d -> 
+         let a1,a2 = split dl1.atype dl2.atype a in 
+	 let c1,d1 = dl1.put a1 (fst_dup_of_skel s) d in
+	 let _,d2 = dl2.put a2 (snd_dup_of_skel s) d1 in
+	 (c1, d2));
+      parse = lift_r i (parse_str n) ct (fun c->
+	 let s1, d1 = dl1.parse c in
+	 let s2, d2 = dl2.parse c in
+	 (S_dup (s1,s2), d1 ++ d2));
+      create = lift_rd i n at (fun a d ->
+         let a1, a2 = split dl1.atype dl2.atype a in
+	 let c1, d1 = dl1.create a1 d in
+	 let _, d2 = dl2.create a2 d1 in
+	  (c1, d2));
+      key = lift_r i n at (fun a ->
+         let a1,a2 = split dl1.atype dl2.atype a in
+	 (dl1.key a1) ^ (dl2.key a2));
+      uid = next_uid (); }
+        
   let filter i rd rk =
     let n = sprintf "filter %s %s" (R.string_of_t rd) (R.string_of_t rk) in 
     let ru = R.disjoint_alt i n rd rk in

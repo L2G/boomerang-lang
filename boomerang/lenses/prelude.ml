@@ -81,6 +81,12 @@ let prelude_spec =
      mk_rfun (Info.M "key built-in") SLens (fun i r -> 
        Lns(i,L.key i r)))
 
+  ; (mk_prelude_qid "duplicate",
+    SLens ^> SLens ^> SLens,
+    mk_lfun (Info.M "duplicate built-in") (SLens ^> SLens) (fun i l1 -> 
+      mk_lfun i SLens (fun i l2 ->         
+        Lns(i,L.duplicate i l1 l2))))
+
   ; (mk_prelude_qid "count",
      SRegexp ^> SLens,
      mk_rfun (Info.M "count built-in") SLens (fun i r -> 
@@ -113,7 +119,6 @@ let prelude_spec =
     mk_rfun (Info.M "set built-in") (SString ^> SLens) (fun i r1 -> 
       mk_sfun i SLens (fun i s1 ->         
         Lns(i,L.const i r1 s1 (wrap_rep i "set built-in" r1)))))
-
 
   ; (mk_prelude_qid "swap",
     SLens ^> SLens ^> SLens,
