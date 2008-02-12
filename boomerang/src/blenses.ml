@@ -593,7 +593,6 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     let c = copy i r in
       {c with key = lift_r i c.string c.atype (fun a -> a)}
 
-
   (* ---------- const ---------- *)
   let const i r u_str def_str =
     let u = RS.string_of_t u_str in
@@ -624,6 +623,58 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	key = lift_r i n at (fun _ -> RS.empty);
 	uid = next_uid ();
       }
+
+  let count i r = 
+    let n = sprintf "count(%s)" (R.string_of_t r) in
+    let ct = R.unambig_star i n r in 
+    let ao,at = 
+      try         
+        let s = RS.sym_of_char in 
+        let zero = R.str false (RS.t_of_string "0") in
+        let digit = R.set [(s '0',s '9')] in 
+        let pos_digit = R.set [(s '1', s '9')] in 
+        let positive = R.seq pos_digit (R.star digit) in 
+        let number = R.alt zero positive in 
+        (Some (R.rep r), number) 
+      with Not_found -> 
+        (None,R.str false (RS.t_of_string "0")) in 
+    let dt = TMap.empty in 
+    let st = function
+      | S_string s -> R.match_str ct s
+      | _ -> false in
+    let rec uncount n cl acc = 
+      if n=0 then acc
+      else 
+        let ch,ct = match ao,cl with 
+          | Some a,[] -> a,[]
+          | Some _,h::t    -> h,t 
+          | _ -> assert false in 
+        uncount (pred n) ct (RS.append acc ch) in
+    { info = i;
+      string = n;
+      ctype = ct;
+      atype = at;
+      dtype = dt;
+      stype = st;
+      crel = Identity;
+      arel = Identity;
+      get = lift_r i (get_str n) ct (fun c -> 
+        let n = Safelist.length (R.unambig_star_split r c) in 
+        RS.t_of_string (string_of_int n)); 
+      put = lift_rsd i (put_str n) at st 
+        (fun a s d -> 
+           let cl = R.unambig_star_split r (string_of_skel s) in 
+           let n = int_of_string (RS.string_of_t a) in 
+           (uncount n cl RS.empty,d));
+      create = lift_rd i (create_str n) at 
+        (fun a d -> 
+           let n = int_of_string (RS.string_of_t a) in 
+           (uncount n [] RS.empty,d)); 
+      parse = lift_r i (parse_str n) ct 
+        (fun c -> (S_string c, CD_empty)); 
+      key = lift_r i (key_str n) at (fun _ -> RS.empty);
+      uid = next_uid ();
+    }
 
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 

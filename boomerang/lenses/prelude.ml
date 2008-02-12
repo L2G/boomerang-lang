@@ -81,6 +81,11 @@ let prelude_spec =
      mk_rfun (Info.M "key built-in") SLens (fun i r -> 
        Lns(i,L.key i r)))
 
+  ; (mk_prelude_qid "count",
+     SRegexp ^> SLens,
+     mk_rfun (Info.M "count built-in") SLens (fun i r -> 
+       Lns(i,L.count i r)))
+
   ; (mk_prelude_qid "read",
      SString ^> SString,
      mk_sfun (Info.M "read built-in") SString (fun i s1 -> 

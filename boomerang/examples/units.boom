@@ -26,6 +26,11 @@ let Any = [^]*
 let x : { ? <-> ? } = cp Any 
 test x : { Any <-> Any* }
 
+let bracket (s:string) = "(" . s . ")" 
+test count [A-Z] get "ABCDEFG" = "7"
+test count [A-Z] put "4" into "ABCDEFG" = "ABCD"
+test count [A-Z] create "10" = "AAAAAAAAAA"
+
 type mytype = A | B of regexp | C of unit
 
 type string_list = Nil | Cons of string * string_list
