@@ -1251,7 +1251,7 @@ let alt_prod =
     let sequence = 
       del "Sequence=" .
       (xml_tag_with_single_att "      " "sequence" "type" 
-             ("Displayed" <-> "displayed"
+              ("Displayed" <-> "displayed"
 	     | "External" <-> "external"
 	     | "Not described" <-> "not described")
       | (xml_begin_open_tag "      " "sequence" . 

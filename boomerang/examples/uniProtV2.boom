@@ -179,9 +179,9 @@ let DIGIT : regexp = [0-9]
 let A : regexp = [A-Za-z0-9\-.!='[\]/] 
 let AP : regexp = [A-Za-z0-9\-.!='[\]/()] 
 let AC : regexp = [A-Za-z0-9\-.!='[\]/:] 
-let ALPHA : regexp = A.(A | " ")*.A
-let ALPHAP : regexp = AP.(AP | " ")*.AP
-let ALPHAC : regexp = AC.(AC | " ")*.AC
+let ALPHA : regexp = A | A.(A | " ")*.A
+let ALPHAP : regexp = AP | AP.(AP | " ")*.AP
+let ALPHAC : regexp = AC | AC.(AC | " ")*.AC
 let NUMBER : regexp = DIGIT+ 
 
 
@@ -191,6 +191,8 @@ let nl1 = nl0 . "  "
 let nl2 = nl1 . "  "
 let nl3 = nl2 . "  "
 let nl4 = nl3 . "  "
+let nl5 = nl4 . "  "
+let nl6 = nl5 . "  "
 
 (* --------------------------------------------------------------------------- *)
 (* XML functions *)
@@ -206,7 +208,7 @@ let xml_open_tag (spaces:string) (tag:string) : lens =
   xml_open spaces tag . 
   xml_close
 
-let xml_slash_close : lens = del ("/>" | ">")
+let xml_slash_close : lens = del ("/>")
 
 let xml_close_tag (tag:string) : lens = del ("</" . tag . ">")
 
@@ -253,6 +255,20 @@ let xml_attr1_simple_elt (spaces:string) (tag:string) (name:string) (value:lens)
   body . 
   xml_close_tag tag 
 
+let xml_attr1_elt_no_body (spaces:string) (tag:string) (name:string) (value:lens) : lens = 
+  xml_open spaces tag . 
+  xml_attr name value . 
+  xml_slash_close
+
+let xml_attr2_elt_no_body (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) : lens = 
+  xml_open spaces tag . 
+  sort2
+    (xml_attr name1 value1) 
+    (xml_attr name2 value2) . 
+  xml_slash_close 
+
 let xml_attr3_elt_no_body (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
@@ -264,16 +280,14 @@ let xml_attr3_elt_no_body (spaces:string) (tag:string)
     (xml_attr name3 value3) .
   xml_slash_close 
 
-let xml_attr1_elt_no_body (spaces:string) (tag:string) (name:string) (value:lens) : lens = 
-  xml_open spaces tag . 
-  xml_attr name value . 
-  xml_slash_close
-
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
 
 let tag (t:string) : lens = 
   qins (t . SP) (t . "  ")
+
+let default_tag (t:string) (d:string) : lens = 
+  qins (t . SP) (t . d) 
 
 let terminate (l:lens) : lens = l . qnl 
 
@@ -1257,7 +1271,7 @@ let cc_biophysicochemical_properties_xml : lens =
   let temperature_dependence : lens = 
     generic "temperatureDependence" "Temperature dependence" in       
   tag "CC" . 
-  ins "-!-" . qins WS "" . 
+  ins "-!-" . qsp . 
   xml_open nl1 "comment" . 
   xml_attr "type" ("biophysicochemical properties" <-> "BIOPHYSICOCHEMICAL PROPERTIES") . 
   xml_close . 
@@ -1283,25 +1297,270 @@ test cc_biophysicochemical_properties_xml get
     </kinetics>
   </comment>" 
 = 
-  "CC  -!-BIOPHYSICOCHEMICAL PROPERTIES:  Absorption: Abs(max)=465 nm;  Note=The above maximum is for the oxidized form. Shows a maximal peak at 330 nm in the reduced form. These absorption peaks are for the tryptophylquinone cofactor; Kinetic parameters: KM=5.4 uM for tyramine;  Vmax=17 umol/min/mg enzyme;  Note=The enzyme is substrate inhibited at high substrate concentrations (Ki=1.08 mM for tyramine);"
+  "CC  -!- BIOPHYSICOCHEMICAL PROPERTIES:  Absorption: Abs(max)=465 nm;  Note=The above maximum is for the oxidized form. Shows a maximal peak at 330 nm in the reduced form. These absorption peaks are for the tryptophylquinone cofactor; Kinetic parameters: KM=5.4 uM for tyramine;  Vmax=17 umol/min/mg enzyme;  Note=The enzyme is substrate inhibited at high substrate concentrations (Ki=1.08 mM for tyramine);"
 
-(* 
-let cc_interaction_xml : lens = 
-  let interactant : lens = 
-    ( xml_attr1_elt_no_body nl2 "interactant" "interactId" ALPHA 
-    | xml_attr1_elt nl2 "interactant" "interactId" 
-in 
-  let interaction : lens = 
-    xml_open nl1 "interaction" . 
-    xml_attr "type" (del "interaction") . 
+let interaction : lens = 
+  let experiments : lens = 
+    ins "NbExp=" . 
+    xml_simple_elt nl2 "experiments" NUMBER . 
+    ins ";" . qsp in
+  let self_rest : lens = 
+    ins "Self" . 
+    xml_slash_close .     
+    xml_simple_elt nl2 "organismsDiffer" (del "false") in
+  let id_rest : lens = 
     xml_close . 
-    (* PROLOG *)
-    tag "CC" . 
-    ins "-!-" . qins WS "" . 
-    ins "INTERACTION: "  .
-    (* MAIN *)
-    interaction* .   
-    (* EPILOGUE *)
-    qdel WS nl1 . 
-    xml_close_tag "comment" 
-*)
+    xml_simple_elt nl3 "id" ALPHA . 
+    ins ":" . 
+    (xml_simple_elt nl3 "label" ALPHA | ins "-") . 
+    qdel WS nl2 . 
+    xml_close_tag "interactant" . 
+    xml_simple_elt nl2 "organismsDiffer" ( del "true". qsp . ins "(xeno)" | del "false") in    
+  default_tag "CC" "      " . 
+  xml_attr1_elt nl1 "comment" "type" (del "interaction") 
+    begin  
+      ( ins "IntAct=" . 
+        xml_attr1_elt_no_body nl2 "interactant" "intactId" ALPHA . 
+        ins "," . qsp . 
+        xml_open nl2 "interactant" . 
+        xml_attr "intactId" ALPHA . 
+        ins ";") ~
+      (( self_rest | id_rest ) . 
+       ins ";" . qsp .
+      experiments)
+    end
+
+test interaction get 
+"  <comment type=\"interaction\">
+    <interactant intactId=\"EBI-1043398\"/>
+    <interactant intactId=\"EBI-1050185\">
+      <id>Q8NBH6</id>
+    </interactant>
+    <organismsDiffer>false</organismsDiffer>
+    <experiments>1</experiments>
+  </comment>" = 
+"CC      Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;" 
+
+let cc_interaction_xml : lens =        
+  let break : string = "\nCC" . "      " in 
+  tag "CC" . 
+  ins "-!- " . qins WS "" . 
+  ins "INTERACTION:" . qins WS "\n" .
+  (interaction . qins WS "\n")* . interaction  
+
+test cc_interaction_xml get 
+"  <comment type=\"interaction\">
+    <interactant intactId=\"EBI-1043398\"/>
+    <interactant intactId=\"EBI-1043398\"/>
+    <organismsDiffer>false</organismsDiffer>
+    <experiments>1</experiments>
+  </comment>
+  <comment type=\"interaction\">
+    <interactant intactId=\"EBI-1043398\"/>
+    <interactant intactId=\"EBI-1050185\">
+      <id>Q8NBH6</id>
+    </interactant>
+    <organismsDiffer>false</organismsDiffer>
+    <experiments>1</experiments>
+  </comment>
+  <comment type=\"interaction\">
+    <interactant intactId=\"EBI-1043398\"/>
+    <interactant intactId=\"EBI-350350\">
+      <id>P21266</id>
+      <label>GSTM3</label>
+    </interactant>
+    <organismsDiffer>false</organismsDiffer>
+    <experiments>1</experiments>
+  </comment>" 
+= 
+  "CC  -!- INTERACTION:
+  |CC      Self; NbExp=1; IntAct=EBI-1043398, EBI-1043398;
+  |CC      Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;
+  |CC      P21266:GSTM3; NbExp=1; IntAct=EBI-1043398, EBI-350350;"
+
+test cc_interaction_xml create
+  "CC   -!- INTERACTION:
+  |CC       Self; NbExp=1; IntAct=EBI-476263, EBI-476263;
+  |CC       P31749:AKT1; NbExp=2; IntAct=EBI-476263, EBI-296087;
+  |CC       Q9UER7:DAXX; NbExp=3; IntAct=EBI-476263, EBI-77321;
+  |CC       P25445:FAS; NbExp=1; IntAct=EBI-476263, EBI-494743;
+  |CC       P15626:Gstm2 (xeno); NbExp=1; IntAct=EBI-476263, EBI-1209729;
+  |CC       P09211:GSTP1; NbExp=1; IntAct=EBI-476263, EBI-353467;
+  |CC       Q9WTR2:Map3k6 (xeno); NbExp=1; IntAct=EBI-476263, EBI-1254790;
+  |CC       O08815:Slk (xeno); NbExp=1; IntAct=EBI-476263, EBI-986112;
+  |CC       Q12933:TRAF2; NbExp=1; IntAct=EBI-476263, EBI-355744;
+  |CC       P63104:YWHAZ; NbExp=1; IntAct=EBI-476263, EBI-347088;" 
+= 
+  "
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-296087\">
+  |      <id>P31749</id>
+  |      <label>AKT1</label>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>2</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-77321\">
+  |      <id>Q9UER7</id>
+  |      <label>DAXX</label>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>3</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-494743\">
+  |      <id>P25445</id>
+  |      <label>FAS</label>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-1209729\">
+  |      <id>P15626</id>
+  |      <label>Gstm2</label>
+  |    </interactant>
+  |    <organismsDiffer>true</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-353467\">
+  |      <id>P09211</id>
+  |      <label>GSTP1</label>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-1254790\">
+  |      <id>Q9WTR2</id>
+  |      <label>Map3k6</label>
+  |    </interactant>
+  |    <organismsDiffer>true</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-986112\">
+  |      <id>O08815</id>
+  |      <label>Slk</label>
+  |    </interactant>
+  |    <organismsDiffer>true</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-355744\">
+  |      <id>Q12933</id>
+  |      <label>TRAF2</label>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-476263\"/>
+  |    <interactant intactId=\"EBI-347088\">
+  |      <id>P63104</id>
+  |      <label>YWHAZ</label>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>"
+
+let cc_alternative_products_line : lens = 
+  let event : lens = 
+    xml_attr1_elt_no_body nl2 "event" "type" 
+      ( "alternative promoter"    <-> "Alternative promoter usage" 
+      | "alternative splicing"    <-> "Alternative splicing"       
+      | "alternative initiation"  <-> "Alternative initiation"     
+      | "ribosomal frameshifting" <-> "Ribosomal frameshifting") in 
+  let events : lens = 
+    ins "Event=" . 
+    event . (ins "," . qsp . event)* . 
+    ins ";" in
+  let named_isos : lens = 
+    ins "Named isoforms=" . qins NUMBER "0" . 
+    ins ";" in
+  let generic (xml:string) (ascii:string) : lens = 
+    ins ascii . ins "=" . 
+    xml_simple_elt nl2 xml ALPHA . 
+    ins ";" in 
+  let sequence : lens = 
+    let vsp : lens = "VSP_" . NUMBER in 
+    ins "Sequence=" . 
+    ( xml_attr1_elt_no_body nl2 "sequence" "type"
+        ( "displayed"     <-> "Displayed"
+        | "external"      <-> "External"
+        | "not described" <-> "Not described")
+    | xml_attr2_elt_no_body nl2 "sequence" 
+        "type" (del "described")
+        "ref"  (vsp . (ins "," . qsp . vsp)* )) . 
+    ins ";" in 
+  let break : lens = ins "\nCC      " in 
+  let synonyms : lens = 
+    let s : lens = xml_simple_elt nl3 "name" ALPHA in
+    ins "Synonyms=" . 
+    s . (ins "," . qsp . s)* .
+    ins ";" in
+  let name : lens =     
+    xml_elt nl2 "isoform" 
+      begin 
+        ((ins "IsoId=" . 
+          xml_simple_elt nl3 "id" (ALPHA) . 
+          ins ";" . qsp ) ~
+         (ins "Name=" . 
+          xml_simple_elt nl3 "name" (ALPHA) . 
+          ins ";" . qsp . 
+          (synonyms . qsp )? )) . 
+        sequence . 
+        (generic "note" "Note")? 
+      end in 
+  let fix (l:lens) : lens = right_quot l (columnize (atype l) "; " ";\nCC       ") in 
+  tag "CC" . 
+  ins "-!-" . qsp . 
+  ins "ALTERNATIVE_PRODUCTS:" . 
+  break . 
+  xml_attr1_elt nl1 "comment" "type" (del "alternative products") 
+    begin 
+      fix (events . qsp . 
+           named_isos . qsp . 
+           (generic "comment" "Comment")? ) . 
+      (break . fix name)*
+    end
+
+test cc_alternative_products_line get
+  "<comment type=\"alternative products\">
+  |     <event type=\"alternative splicing\"/>
+  |     <comment>This is a rather lengthy comment.</comment>
+  |     <isoform>
+  |       <id>P48347-1</id>
+  |       <name>1</name>
+  |       <name>D</name>
+  |       <name>E</name>
+  |       <sequence type=\"displayed\"/>
+  |     </isoform>
+  |     <isoform>
+  |       <id>P48347-2</id>
+  |       <name>2</name>
+  |       <sequence type=\"described\" ref=\"VSP_008972\"/>
+  |     </isoform>
+  |   </comment>" 
+= 
+  "CC  -!- ALTERNATIVE_PRODUCTS:
+  |CC      Event=Alternative splicing; Named isoforms=0;
+  |CC        Comment=This is a rather lengthy comment.;
+  |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
+  |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;"
