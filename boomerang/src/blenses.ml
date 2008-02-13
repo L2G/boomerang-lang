@@ -241,31 +241,36 @@ module Canonizer = struct
     }
 
   (* add primitives ... *)
-  let columnize i k r s nl = 
+  let columnize i k r s nl =     
     let n = sprintf "columnize %d (%s) (%s) (%s)" k (R.string_of_t r) (RS.string_of_t s) (RS.string_of_t nl) in 
-    let s_sym = RS.get s 0 in 
-    let nl_len = RS.length nl in 
-    let r_expanded = R.expand r s_sym nl in 
-    let ct = 
+    let () = 
       let any = R.star (R.negset []) in 
       let contains_nl = R.seq any (R.seq (R.str false nl) any) in 
-      let r_contains_nl = not (R.is_empty (R.inter r contains_nl)) in 
+      let r_contains_nl = not (R.is_empty (R.inter r contains_nl)) in      
+      if RS.length s != 1 then 
+        Berror.static_error i n 
+          (sprintf "%s must have length 1@\n"
+             (RS.string_of_t s));
       if r_contains_nl then 
         Berror.static_error i n 
           (sprintf "%s contains %s"
              (R.string_of_t r)
-             (RS.string_of_t nl));
-        r in 
+             (RS.string_of_t nl)) in       
+    let s_len = RS.length s in 
+    let nl_len = RS.length nl in 
+    let r_expanded = R.expand r (RS.get s 0) nl in 
+    let ct = r in 
     let rt = r_expanded in 
-    let is_nl c i = 
+    let matches s c i = 
+      let s_len = RS.length s in 
       let c_len = RS.length c in 
       let rec aux j = 
-        if j=nl_len then true
+        if j=s_len then true
         else
           (i+j < c_len) 
-          && ((RS.get c (i+j)) = (RS.get nl j))
+          && ((RS.get c (i+j)) = (RS.get s j))
           && (aux (succ j)) in 
-        aux 0 in       
+        aux 0 in 
     { info = i;
       string = n;
       rtype = rt;
@@ -277,7 +282,7 @@ module Canonizer = struct
            let rec loop i = 
              if i = c_len then ()
              else
-               if is_nl c i then 
+               if matches nl c i then 
                  (Buffer.add_string buf (RS.string_of_t s);
                   loop (i + nl_len))
                else 
@@ -292,7 +297,6 @@ module Canonizer = struct
            let buf = Buffer.create c_len in 
            let line_buf = Buffer.create k in 
            let aux_buf = Buffer.create k in 
-           let is_sp ci = (RS.compare_sym s_sym ci = 0) in
            let do_line () = 
              if Buffer.length buf <> 0 && Buffer.length line_buf <> 0 then 
                Buffer.add_string buf (RS.string_of_t nl);
@@ -300,7 +304,7 @@ module Canonizer = struct
              Buffer.reset line_buf in 
            let do_space () =  
              if Buffer.length line_buf <> 0 then 
-               Buffer.add_string line_buf (RS.repr s_sym);            
+               Buffer.add_string line_buf (RS.string_of_t s);            
              Buffer.add_buffer line_buf aux_buf;
              Buffer.reset aux_buf in 
            let rec loop i =              
@@ -310,10 +314,14 @@ module Canonizer = struct
                (do_space (); 
                 do_line ())
              else
-               (let ci = RS.get c i in
-                if is_sp ci then do_space ()
-                else Buffer.add_string aux_buf (RS.repr ci);
-                loop (succ i)) in 
+               let i' = 
+                 if matches s c i then 
+                   (do_space (); 
+                    i + s_len)
+                 else 
+                   (Buffer.add_string aux_buf (RS.repr (RS.get c i));
+                    succ i) in 
+               loop i' in 
            loop 0;
            RS.t_of_string (Buffer.contents buf)) }
                    

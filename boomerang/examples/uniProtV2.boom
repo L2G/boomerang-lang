@@ -628,7 +628,7 @@ let og_xml : lens =
       | og_other) .       
       ins "." 
 
-let og_cn : canonizer = columnize (atype og_xml) ", " ",\nOG  "
+let og_cn : canonizer = columnize (atype og_xml) " " "\nOG  "
 let og_line : lens = right_quot og_xml og_cn 
 
 test og_line create 
@@ -966,7 +966,7 @@ let ra_xml : lens =
   ins ";" 
 
 let ra_cn : canonizer = 
-  columnize (atype ra_xml) ", " ",\nRA " 
+  columnize (atype ra_xml) " " "\nRA  " 
 let ra_line : lens = right_quot ra_xml ra_cn 
 
 test ra_line get 
@@ -979,8 +979,8 @@ test ra_line get
    |      <person name=\"Ole-Moiyoi O.K.\"/>
    |      <person name=\"Musoke A.J.\"/>"
 =
-  "RA  Iams K.P., Young J.R., Nene V., Desai J., Webster P., Ole-Moiyoi O.K.,
-  |RA  Musoke A.J.;"
+  "RA  Iams K.P., Young J.R., Nene V., Desai J., Webster P., Ole-Moiyoi O.K., Musoke
+  |RA  A.J.;"
 
 test ra_line create 
   "RA   Iams K.P., Young J.R., Nene V., Desai J., Webster P., Ole-Moiyoi O.K., Musoke A.J.;"
@@ -1217,7 +1217,7 @@ test reference_block create
 
 let cc_break : lens = ins "\nCC      "  
 
-let cc_fix (l:lens) : lens = right_quot l (columnize (atype l) "; " ";\nCC       ") 
+let cc_fix (l:lens) : lens = right_quot l (columnize (atype l) " " "\nCC        ") 
 
 let cc_status : lens = 
   xml_attr "status"
@@ -1506,16 +1506,15 @@ test cc_interaction_xml create
   |  </comment>"
 
 let cc_alternative_products_xml : lens = 
-  let event (l: lens) : lens = xml_attr1_elt_no_body nl2 "event" "type" l in 
-  let event_body : lens = 
+  let event : lens = 
+    xml_attr1_elt_no_body nl2 "event" "type" 
       ( "alternative promoter"    <-> "Alternative promoter usage" 
       | "alternative splicing"    <-> "Alternative splicing"       
       | "alternative initiation"  <-> "Alternative initiation"     
       | "ribosomal frameshifting" <-> "Ribosomal frameshifting") in 
   let events : lens = 
-    let e : lens = event event_body in 
     ins "Event=" . 
-    e . (csp . e)* . 
+    event . (csp . event)* . 
     ins ";" in
   let named_isos : lens = 
     ins "Named isoforms=" . qins NUMBER "0" . 
@@ -1559,14 +1558,14 @@ let cc_alternative_products_xml : lens =
     ins "-!-" . qsp . 
     ins "ALTERNATIVE_PRODUCTS:" . 
     cc_break in     
-  let named_isos : lens = ins "Named isoforms=" . count (ctype name) . ssp in 
-  let names : lens = (cc_break . cc_fix name)* in
-  let comment : lens = (generic "comment" "Comment")? in 
+  let named_isos : lens = qsp . ins "Named isoforms=" . count (ctype name) . ins ";" in
+  let names : lens = (cc_break . cc_fix name)* in 
+  let comment : lens = (qsp . generic "comment" "Comment")? in 
   let entry : lens = 
     prelude . 
     xml_attr1_elt nl1 "comment" "type" (del "alternative products") 
       begin 
-        events . qsp . 
+        events . 
         comment .
         duplicate_snd named_isos names 
       end in 
@@ -1577,11 +1576,10 @@ let cc_alternative_products_xml : lens =
            atype prelude . 
            cc_fix 
              (atype events . 
-              atype qsp . 
               (atype comment ~ atype named_isos)) . 
              atype names
          end) in 
-    right_quot entry cn 
+    right_quot entry cn
 
 let cc_alternative_products_line : lens =   
   cc_alternative_products_xml 
@@ -1605,8 +1603,8 @@ test cc_alternative_products_line get
   |   </comment>" 
 = 
   "CC  -!- ALTERNATIVE_PRODUCTS:
-  |CC      Event=Alternative splicing; Named isoforms=2;
-  |CC        Comment=This is a rather lengthy comment.;
+  |CC      Event=Alternative splicing; Named isoforms=2; Comment=This is a rather lengthy
+  |CC        comment.;
   |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
   |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;"
 
@@ -1703,9 +1701,10 @@ let cc_sequence_caution_xml : lens =
   ins "-!-" . qsp . 
   ins "SEQUENCE CAUTION:" . 
   cc_break . 
+  cc_fix (
   xml_attr1_elt nl1 "comment" "type" (del "sequence caution") 
     begin
-      ((ins "Type=" . 
+      ((qsp . ins "Type=" . 
        xml_open nl2 "conflict" . 
        xml_attr "type"
          ( "frameshift" <-> "Frameshift"
@@ -1721,24 +1720,24 @@ let cc_sequence_caution_xml : lens =
          "resource" (del ("EMBL-CDS" | "EMBL"))
          "id" (ALPHA) 
          "version" (ins "." . NUMBER) . 
-       ssp)) . 
+       ins ";")) . 
      qdel WS nl2 . 
      xml_close_tag "conflict" . 
-     (qins ("Positions=Several;" . WSP)? "" 
-     | ins "Positions=" . 
+     ( qins (WSP . "Positions=Several;")? ""
+     | qsp . ins "Positions=" . 
        xml_elt nl2 "location"
          begin           
            let p : lens = xml_attr1_elt_no_body nl3 "position" "position" (NUMBER) in 
            p . (csp . p)* 
          end . 
-       ssp) . 
-     (ins "Note=" . 
+       ins ";") . 
+     (qsp . ins "Note=" . 
      xml_simple_elt nl2 "note" ALPHA . 
      ins ";")?
-    end
+    end)
 
 let cc_sequence_caution_line : lens = 
-  cc_fix cc_sequence_caution_xml
+ cc_sequence_caution_xml
 
 test cc_sequence_caution_line get
   "<comment type=\"sequence caution\">
@@ -1752,8 +1751,9 @@ test cc_sequence_caution_line get
   |</comment>" 
 = 
   "CC  -!- SEQUENCE CAUTION:
-  |CC      Sequence=AAN42076.1; Type=Erroneous termination;
-  |CC       Positions=273; Note=Translated as Gln.;" 
+  |CC      Sequence=AAN42076.1; Type=Erroneous termination; Positions=273; Note=Translated
+  |CC        as Gln.;" 
+  
 
 let cc_web_resource_xml : lens = 
   tag "CC" . 
@@ -1783,14 +1783,12 @@ test cc_web_resource_line get
   |<note>Somatic and germline TP53 mutations in human cancers</note>
   |</comment>" 
 = 
-  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database;
-  |CC        Note=Somatic and germline TP53 mutations in human cancers;
-  |CC        URL=\"http://www-p53.iarc.fr/\";" 
+  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database; Note=Somatic and germline
+  |CC        TP53 mutations in human cancers; URL=\"http://www-p53.iarc.fr/\";" 
 
 test cc_web_resource_line create
-  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database;
-  |CC        Note=Somatic and germline TP53 mutations in human cancers;
-  |CC        URL=\"http://www-p53.iarc.fr/\";" 
+  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database; Note=Somatic and germline
+  |CC        TP53 mutations in human cancers; URL=\"http://www-p53.iarc.fr/\";" 
 = 
   "
   |  <comment type=\"online information\" name=\"IARC TP53 mutation database\">
