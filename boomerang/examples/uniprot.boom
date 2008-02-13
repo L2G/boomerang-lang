@@ -1404,27 +1404,25 @@ let DR_property (ty:string) =
 
 let optional_DR_2 (lst_db:regexp) (ty:string) = 
   beg_DR lst_db . 
-   ((del "; -" . xml_sgt . xml_nl) 
+   ((del "; -" . xml_sgt . xml_nl)
  | (xml_gt . xml_nl .
     DR_property ty .
     xml_closing_tag "  " "dbReference"))
 
 let optional_DR_3 (lst_db:regexp) (type1:string) (type2:string) = 
-  beg_DR lst_db . 
-    ((del "; -; -" . xml_sgt . xml_nl) 
+  beg_DR lst_db . ((del "; -; -" . xml_sgt . xml_nl)
   | (xml_gt . xml_nl . 
-     ((DR_property type1 . (DR_property type2 | del "; -")) |(del "; -" . DR_property type2)).  
+     ((DR_property type1 . (DR_property type2 | del "; -")) |(del "; -" . DR_property type2)) .  
      xml_closing_tag "  " "dbReference"))
 
 let optional_DR_4 (lst_db:regexp) (type1:string) (type2:string) (type3:string)= 
   beg_DR lst_db . 
-    ((del "; -; -; -" . xml_sgt . xml_nl) 
-  | (xml_gt . xml_nl . 
-     (
-       (DR_property type1 . (DR_property type2 | del "; -") . (DR_property type3 | del "; -")) 
-      |(del "; -" . DR_property type2 . (DR_property type3 | del "; -"))
-      |(del "; -; -" . DR_property type3 )).
-     xml_closing_tag "  " "dbReference"))
+    ( (del "; -; -; -" . xml_sgt . xml_nl)
+    | (xml_gt . xml_nl . 
+         ( (DR_property type1 . (DR_property type2 | del "; -") . (DR_property type3 | del "; -")) 
+         | (del "; -" . DR_property type2 . (DR_property type3 | del "; -"))
+         | (del "; -; -" . DR_property type3 ) ) .
+       xml_closing_tag "  " "dbReference") )
 
 let DR_2_1 =
   optional_DR_2 ( "HIV" | "InterPro" | "PIR" | "PRINTS" | "REBASE")

@@ -179,9 +179,9 @@ let qnl : lens = qins (S.NL) "\n"
 let DIGIT : regexp = [0-9]
 let FDIGIT : regexp = [0-9]
 
-let A : regexp = [A-Za-z0-9\-.!='[\]/] 
-let AP : regexp = [A-Za-z0-9\-.!='[\]/()] 
-let AC : regexp = [A-Za-z0-9\-.!='[\]/:,] 
+let A : regexp = [A-Za-z0-9\-_.!='[\]/] 
+let AP : regexp = [A-Za-z0-9\-_.!='[\]/()] 
+let AC : regexp = [A-Za-z0-9\-_.!='[\]/:,] 
 let ALPHA : regexp = A | A.(A | " ")*.A
 let ALPHAP : regexp = AP | AP.(AP | " ")*.AP
 let ALPHAC : regexp = AC | AC.(AC | " ")*.AC
@@ -1839,3 +1839,194 @@ test cc_block create
   |  <comment type=\"subcellular location\" status=\"by similarity\">Golgi apparatus</comment>
   |  <comment type=\"domain\">The SH3 domains mediate interaction with SHB</comment>
   |  <comment type=\"similarity\">Belongs to the GRB2/sem-5/DRK family</comment>"
+
+(* --------------------------------------------------------------------------- *)
+(* DR block *)
+
+let sspd = ssp . ins "-" 
+
+let start_dr (db:regexp) : lens = 
+  xml_attr "type" (db . ssp) .
+  xml_attr "key" (del NUMBER) . 
+  xml_attr "id" (ALPHAC)
+    
+
+let property (ty:string) : lens = 
+  ssp . 
+  xml_attr2_elt_no_body nl2 "property" 
+    "value" ALPHAC
+    "type" (del ty) 
+
+let optional_dr2 (db:regexp) (ty:string) : lens = 
+    start_dr db . 
+      ( (xml_slash_close . sspd)
+      | (xml_close . 
+         property ty . 
+         qdel WS nl1 . 
+         xml_close_tag "dbReference") )
+
+let optional_dr3 (db:regexp) (ty1:string) (ty2:string) : lens = 
+  start_dr db . 
+    ( (xml_slash_close . sspd{2})
+    | (xml_close . 
+         ( (property ty1 . (property ty2 | sspd))
+          | (sspd | property ty2) ) . 
+       qdel WS nl1 . 
+       xml_close_tag "dbReference") )
+
+let optional_dr4 (db:regexp) (ty1:string) (ty2:string) (ty3:string) : lens = 
+  start_dr db . 
+    ( (xml_slash_close . sspd{3})
+    | (xml_close . 
+         ( (property ty1 . (property ty2 | sspd) . (property ty3 | sspd))
+         | (sspd . property ty2 . (property ty3 | sspd))
+         | (sspd{2} . property ty3) ) . 
+       qdel WS nl1 . 
+       xml_close_tag "dbReference") )
+
+let dr_2_1 =
+  optional_dr2 ( "HIV" | "InterPro" | "PIR" | "PRINTS" | "REBASE")
+    "entry name"
+
+let dr_2_1_3_1 =
+  optional_dr3 
+    ("Gene3D" | "PANTHER" | "Pfam" | "ProDom" | "SMART" | "TIGRFAMs") 
+    "entry name" "match status"
+
+let dr_2_2_3_3_4_1 = 
+  optional_dr4 "PDB" "method" "resolution" "chains"
+
+
+(* !!! pb with HGNC ! the XML file has "entry name" instead of "gene designation" !!! *)
+let dr_2_3 =
+  optional_dr2 ("DictyBase" | "EcoGene" | "FlyBase" | "HGNC" | "MGI" | "RGD" | "SGD" 
+        | "StyGene" | "SubtiList" | "WormBase" | "ZFIN" ) "gene designation"
+
+let dr_2_4_3_2 = 
+  optional_dr3 "GO" "term" "evidence"
+
+(* look at dr   HAMAP; MF_01546; atypical; 1. *)
+let dr_2_5_3_1 = 
+  optional_dr3 "HAMAP" "flag" "match status"
+
+let dr_2_6 = 
+  optional_dr2 "ECO2DBASE" "edition"
+
+let dr_2_7 = 
+  optional_dr2 ("Cornea-2DPAGE" | "DOSAC-COBS-2DPAGE" | "HSC-2DPAGE" | "REPRODUCTION-2DPAGE" 
+        | "SWISS-2DPAGE") "organism name"
+
+let dr_2_8 = 
+  optional_dr2 "Ensembl" "organism name"
+
+let dr_2_9_3_1 = 
+  optional_dr3 "PIRSF" "entry name" "match status"
+  
+
+(* no AARHUS exemple found *)
+(*let DR_2_10 = 
+  optional_dr2 "AARHUS/GHENT-2DPAGE" "" *)
+  
+let dr_2_11 = 
+  optional_dr2 "WormPep" "accession"
+  
+let dr_2_12 = 
+  start_dr 
+    ("AGD" | "ANU-2DPAGE" | "ArrayExpress" | "BioCyc" | "CleanEx" 
+    | "COMPLUYEAST-2DPAGE" | "CYGD" | "DIP" | "DisProt" | "EchoBASE" 
+    | "GeneDB_Spombe" | "GeneID" | "GlycoSuiteDB" | "Gramene" | "H-InvDB" 
+    | "HPA" | "IntAct" | "KEGG" | "LegioList" | "Leproma" | "LinkHub" 
+    | "ListiList" | "MaizeGDB" | "MEROPS" | "MypuList" | "OGP" | "PeptideAtlas" 
+    | "PharmGKB" | "PHCI-2DPAGE" | "PhosSite" | "PhotoList" | "PMMA-2DPAGE" 
+    | "PptaseDB" | "PseudoCAP" | "Rat-heart-2DPAGE" | "RefSeq" | "SagaList" 
+    | "Siena-2DPAGE" | "TAIR" | "TIGR" | "TRANSFAC" | "TubercuList or UniGene") .
+  xml_slash_close . 
+  sspd
+
+let dr_2_13 = 
+  optional_dr2 "HSSP" "PDB accession"
+    
+let dr_2_14 = 
+  optional_dr2 "GeneFarm" "family number"
+    
+let dr_2_15 = 
+  optional_dr2 "SMR" "residue range"
+  
+let dr_2_16 = 
+  optional_dr2 "MIM" "type"
+  
+(* for now, the second identifier seems to be dropped away. I'm waiting for an answer of the uniprot help list *)
+(*let dr_2_17 = 
+  optional_dr2 "Orphanet" ""*)
+  
+let dr_2_18 = 
+  optional_dr2 "GenomeReviews" "gene designation"
+  
+let dr_2_19 = 
+  optional_dr2 "GermOnline" "organism name"
+  
+let dr_2_20 = 
+  optional_dr2 "PeroxiBase" "entry name"
+  
+let dr_2_21 = 
+  optional_dr2 "Reactome" "pathway name"
+  
+let dr_2_22 = 
+  optional_dr2 "DrugBank" "generic name"
+  
+let dr_EMBL = 
+  optional_dr4 "EMBL" "protein sequence ID" "status" "molecule type"
+
+let dr_PROSITE = 
+  optional_dr3 "PROSITE" "entry name" "match status"
+
+let dr_xml = 
+  tag "DR" . 
+  xml_open nl1 "dbReference" . 
+  (dr_2_1 | dr_2_1_3_1 | dr_2_2_3_3_4_1 | dr_2_3 | dr_2_4_3_2 | dr_2_5_3_1 
+  | dr_2_6 | dr_2_7 | dr_2_8 | dr_2_9_3_1 | dr_2_11 | dr_2_12 | dr_2_13
+  | dr_2_14 | dr_2_15 | dr_2_16 | dr_2_18 | dr_2_19 | dr_2_20 | dr_2_21 
+  | dr_2_22 | dr_EMBL | dr_PROSITE) .
+  ins "."
+
+test (terminate dr_xml)* get
+  "  <dbReference type=\"EMBL\" key=\"1\" id=\"X83468\">
+  |    <property value=\"CAA58470.1\" type=\"protein sequence ID\"/>
+  |    <property value=\"JOINED\" type=\"status\"/>
+  |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PROSITE\" key=\"1\" id=\"PS00940\">
+  |    <property value=\"GAMMA_THIONIN\" type=\"entry name\"/>
+  |    <property value=\"1\" type=\"match status\"/>
+  |  </dbReference>
+  |  <dbReference type=\"EMBL\" key=\"1\" id=\"CR940353\">
+  |    <property value=\"CAI76474.1\" type=\"protein sequence ID\"/>
+  |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
+  |  </dbReference>
+  |  <dbReference type=\"KEGG\" key=\"1\" id=\"tan:TA08425\"/>
+  |  <dbReference type=\"InterPro\" key=\"1\" id=\"IPR007480\">
+  |    <property value=\"DUF529\" type=\"entry name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"Pfam\" key=\"1\" id=\"PF04385\">
+  |    <property value=\"FAINT\" type=\"entry name\"/>
+  |    <property value=\"4\" type=\"match status\"/>
+  |  </dbReference>" 
+= 
+  "DR  EMBL; X83468; CAA58470.1; JOINED; Genomic_DNA.
+  |DR  PROSITE; PS00940; GAMMA_THIONIN; 1.
+  |DR  EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
+  |DR  KEGG; tan:TA08425; -.
+  |DR  InterPro; IPR007480; DUF529.
+  |DR  Pfam; PF04385; FAINT; 4.
+  |"
+
+test dr_xml create 
+  "DR   EMBL; X83467; CAA58470.1; -; Genomic_DNA." 
+= 
+  "
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"X83467\">
+  |    <property value=\"CAA58470.1\" type=\"protein sequence ID\"/>
+  |    <property value=\"-\" type=\"status\"/>
+  |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
+  |  </dbReference>"
+
