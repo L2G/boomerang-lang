@@ -170,6 +170,8 @@ let S : regexp = [ ]*
 let SP : regexp = [ ]+
 
 let qsp : lens = qins SP " "
+let csp : lens = ins "," . qsp 
+let ssp : lens = ins ";" . qsp 
 
 let qnl : lens = qins (S.NL) "\n"
 
@@ -465,8 +467,8 @@ let de_xml : lens =
     tag "DE" .
     xml_elt nl1 "protein" 
     (name2 .
-       (qsp . ins "[Includes:" . qsp . domain. (ins ";" . qsp . domain)+ . ins "]")? . 
-       (qsp . ins "[Contains:" . qsp . component. (ins ";" . qsp . component)+ . ins "]")? )
+       (qsp . ins "[Includes:" . qsp . domain. (ssp . domain)+ . ins "]")? . 
+       (qsp . ins "[Contains:" . qsp . component. (ssp. component)+ . ins "]")? )
 let de_cn : canonizer = columnize (atype de_xml) " " "\nDE  "
 
 let de_sample : string = 
@@ -621,9 +623,8 @@ let og_xml : lens =
            | "chloroplast" <-> "Chloroplast" 
            | "cyanelle"    <-> "Cyanelle"    
            | "non-photosynthetic plastid" <-> "Non-photosynthetic plastid"))) in
-  let cs : lens = ins "," . qsp in 
     tag "OG" . 
-      ( og_plasmid . ((cs . og_plasmid)* . (cs . ins "and" . qsp . og_plasmid))?
+      ( og_plasmid . ((csp . og_plasmid)* . (csp . ins "and" . qsp . og_plasmid))?
       | og_other) .       
       ins "." 
 
@@ -860,8 +861,8 @@ let rc_xml : lens =
     ins ascii . 
     ins "=" . 
     l . 
-    ((ins "," . qsp . l)* . 
-     (ins "," . qsp . ins "and" . qsp . l))? . 
+    ((csp . l)* . 
+     (csp . ins "and" . qsp . l))? . 
     ins ";" in 
   let strain : lens =  aux "strain" "STRAIN" in 
   let tissue : lens =  aux "tissue" "TISSUE" in 
@@ -961,7 +962,7 @@ let person (spaces:string) : lens = xml_attr1_elt_no_body spaces "person" "name"
 
 let ra_xml : lens = 
   tag "RA" . 
-  person nl3 . (ins "," . qsp . person nl3)* .
+  person nl3 . (csp . person nl3)* .
   ins ";" 
 
 let ra_cn : canonizer = 
@@ -1051,7 +1052,7 @@ test electronic_xml get
 let editors_xml : lens = 
   ins "(In)" . qsp . 
   xml_elt nl2 "editorList"
-  (person nl3 . (ins "," . qsp . person nl3)* . qsp . ins "(eds.);" . qsp)
+  (person nl3 . (csp . person nl3)* . qsp . ins "(eds.);" . qsp)
 
 test editors_xml create 
  "(In) Rich D.H., Gross E. (eds.); " 
@@ -1066,11 +1067,11 @@ test editors_xml create
 let book_xml : lens = 
   (xml_open nl1 "citation" . 
    xml_attr "type" (del "book") . 
-   xml_attr "name" (ALPHA . ins "," . qsp) . 
+   xml_attr "name" (ALPHA . csp) . 
    (xml_attr "volume" (NUMBER . ins ":"))? . 
    xml_attr "first" (ins "pp." . NUMBER . ins "-") . 
-   xml_attr "last" (NUMBER . ins "," . qsp) . 
-   xml_attr "publisher" (ALPHA . ins "," . qsp) . 
+   xml_attr "last" (NUMBER . csp) . 
+   xml_attr "publisher" (ALPHA . csp) . 
    xml_attr "city" (ALPHA . qsp) . 
    xml_attr "date" (braces NUMBER) . 
    xml_close . 
@@ -1108,8 +1109,8 @@ let thesis_xml : lens =
   ins "Thesis" . qsp . 
   xml_open nl1 "citation" . 
   xml_attr "type" (del "thesis") . 
-  xml_attr "date" (braces NUMBER . ins "," . qsp) . 
-  xml_attr "institute" (ALPHA . ins "," . qsp) . 
+  xml_attr "date" (braces NUMBER . csp) . 
+  xml_attr "institute" (ALPHA . csp) . 
   xml_attr "country" (ALPHA) . 
   xml_slash_close . 
   ins "." 
@@ -1124,7 +1125,7 @@ let patent_xml : lens =
   ins "Patent number" . qsp . 
   xml_open nl1 "citation" . 
   xml_attr "type" (del "patent") . 
-  xml_attr "number" (ALPHA . ins "," . qsp) . 
+  xml_attr "number" (ALPHA . csp) . 
   xml_attr "date" date . 
   xml_slash_close . 
   ins "." 
@@ -1216,7 +1217,7 @@ test reference_block create
 
 let cc_break : lens = ins "\nCC      "  
 
-let cc_fix (l:lens) : lens = right_quot l (columnize (atype l) "; " ";\nCC      ") 
+let cc_fix (l:lens) : lens = right_quot l (columnize (atype l) "; " ";\nCC       ") 
 
 let cc_status : lens = 
   xml_attr "status"
@@ -1288,7 +1289,7 @@ let cc_biophysicochemical_properties_xml : lens =
        xml_simple_elt nl3 "text" (ins "Note=" . ALPHAP . ins ";"))  in 
   let generic (xml:string) (ascii:string) : lens = 
     ins " " . ins ascii . ins ": " . 
-    xml_elt nl2 xml (ALPHAP . ins ";" . qsp ) in 
+    xml_elt nl2 xml (ALPHAP . ssp ) in 
   let ph_dependence : lens = 
     generic "phDependence" "pH dependence" in
   let redox_potential : lens = 
@@ -1328,7 +1329,7 @@ let interaction : lens =
   let experiments : lens = 
     ins "NbExp=" . 
     xml_simple_elt nl2 "experiments" NUMBER . 
-    ins ";" . qsp in
+    ssp in
   let self_rest : lens = 
     ins "Self" . 
     xml_slash_close .     
@@ -1346,12 +1347,12 @@ let interaction : lens =
     begin  
       ( ins "IntAct=" . 
         xml_attr1_elt_no_body nl2 "interactant" "intactId" ALPHA . 
-        ins "," . qsp . 
+        csp . 
         xml_open nl2 "interactant" . 
         xml_attr "intactId" ALPHA . 
         ins ";") ~
       (( self_rest | id_rest ) . 
-       ins ";" . qsp .
+       ssp .
       experiments)
     end
 
@@ -1505,15 +1506,16 @@ test cc_interaction_xml create
   |  </comment>"
 
 let cc_alternative_products_xml : lens = 
-  let event : lens = 
-    xml_attr1_elt_no_body nl2 "event" "type" 
+  let event (l: lens) : lens = xml_attr1_elt_no_body nl2 "event" "type" l in 
+  let event_body : lens = 
       ( "alternative promoter"    <-> "Alternative promoter usage" 
       | "alternative splicing"    <-> "Alternative splicing"       
       | "alternative initiation"  <-> "Alternative initiation"     
       | "ribosomal frameshifting" <-> "Ribosomal frameshifting") in 
   let events : lens = 
+    let e : lens = event event_body in 
     ins "Event=" . 
-    event . (ins "," . qsp . event)* . 
+    e . (csp . e)* . 
     ins ";" in
   let named_isos : lens = 
     ins "Named isoforms=" . qins NUMBER "0" . 
@@ -1522,51 +1524,67 @@ let cc_alternative_products_xml : lens =
     ins ascii . ins "=" . 
     xml_simple_elt nl2 xml ALPHA . 
     ins ";" in 
-  let sequence : lens = 
-    let vsp : lens = "VSP_" . NUMBER in 
-    ins "Sequence=" . 
-    ( xml_attr1_elt_no_body nl2 "sequence" "type"
-        ( "displayed"     <-> "Displayed"
-        | "external"      <-> "External"
-        | "not described" <-> "Not described")
-    | xml_attr2_elt_no_body nl2 "sequence" 
-        "type" (del "described")
-        "ref"  (vsp . (ins "," . qsp . vsp)* )) . 
-    ins ";" in 
-  let synonyms : lens = 
-    let s : lens = xml_simple_elt nl3 "name" ALPHA in
-    ins "Synonyms=" . 
-    s . (ins "," . qsp . s)* .
-    ins ";" in
   let name : lens =     
     let id : lens = xml_simple_elt nl3 "id" (ALPHA) in
+    let synonyms : lens = 
+      let s : lens = xml_simple_elt nl3 "name" ALPHA in
+      ins "Synonyms=" . 
+      s . (csp . s)* .
+      ins ";" in
+    let sequence : lens = 
+      let vsp : lens = "VSP_" . NUMBER in 
+      ins "Sequence=" . 
+      ( xml_attr1_elt_no_body nl2 "sequence" "type"
+          ( "displayed"     <-> "Displayed"
+          | "external"      <-> "External"
+          | "not described" <-> "Not described")
+      | xml_attr2_elt_no_body nl2 "sequence" 
+          "type" (del "described")
+          "ref"  (vsp . (csp . vsp)* )) . 
+      ins ";" in 
     xml_elt nl2 "isoform" 
       begin 
         ((ins "IsoId=" . 
-          id . (ins "," . qsp . id)* . 
-          ins ";" . qsp ) ~
+          id . (csp . id)* . 
+          ssp ) ~
          (ins "Name=" . 
           xml_simple_elt nl3 "name" (ALPHA) . 
-          ins ";" . qsp . 
+          ssp . 
           (synonyms . qsp )? )) . 
         sequence . 
         (generic "note" "Note")? 
       end in 
-  tag "CC" . 
-  ins "-!-" . qsp . 
-  ins "ALTERNATIVE_PRODUCTS:" . 
-  cc_break . 
-  xml_attr1_elt nl1 "comment" "type" (del "alternative products") 
-    begin 
-       events . qsp . 
-       duplicate_snd
-         ((xml_simple_elt nl2 "comment" (del ALPHA))? . 
-          ins "Named isoforms=" . count (ctype name) . ins ";" . qsp)
-         ((generic "comment" "Comment")? . 
-          (cc_break . cc_fix name)* )
-    end
+  let prelude : lens = 
+    tag "CC" . 
+    ins "-!-" . qsp . 
+    ins "ALTERNATIVE_PRODUCTS:" . 
+    cc_break in     
+  let named_isos : lens = ins "Named isoforms=" . count (ctype name) . ssp in 
+  let names : lens = (cc_break . cc_fix name)* in
+  let comment : lens = (generic "comment" "Comment")? in 
+  let entry : lens = 
+    prelude . 
+    xml_attr1_elt nl1 "comment" "type" (del "alternative products") 
+      begin 
+        events . qsp . 
+        comment .
+        duplicate_snd named_isos names 
+      end in 
+  let cn : canonizer = 
+    canonizer_of_lens 
+      (invert 
+         begin 
+           atype prelude . 
+           cc_fix 
+             (atype events . 
+              atype qsp . 
+              (atype comment ~ atype named_isos)) . 
+             atype names
+         end) in 
+    right_quot entry cn 
 
-let cc_alternative_products_line : lens = cc_alternative_products_xml 
+let cc_alternative_products_line : lens =   
+  cc_alternative_products_xml 
 
 test cc_alternative_products_line get
   "<comment type=\"alternative products\">
@@ -1587,7 +1605,8 @@ test cc_alternative_products_line get
   |   </comment>" 
 = 
   "CC  -!- ALTERNATIVE_PRODUCTS:
-  |CC      Event=Alternative splicing; Named isoforms=2; Comment=This is a rather lengthy comment.;
+  |CC      Event=Alternative splicing; Named isoforms=2;
+  |CC        Comment=This is a rather lengthy comment.;
   |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
   |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;"
 
@@ -1616,9 +1635,9 @@ test cc_alternative_products_line create
   |  </comment>"
 
 let cc_mass_spectrometry_xml : lens = 
-  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ins ";" . qsp) in 
-  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ins ";" . qsp) in
-  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ins ";" . qsp) in
+  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ssp) in 
+  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ssp) in
+  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ssp) in
   let src : lens = qins (WSP . "Source=" . ALPHAC . ";")? "" in 
   tag "CC" . 
   ins "-!-" . qsp . 
@@ -1639,7 +1658,7 @@ let cc_mass_spectrometry_xml : lens =
      xml_attr1_elt_no_body nl3 "end" "position" NUMBER) ) . 
   qdel WS nl2 . 
   xml_close_tag "location" . 
-  ins ";" . qsp . 
+  ssp . 
   ins "Note=" . 
   xml_simple_elt nl2 "note" ALPHAC . 
   ins ";" . 
@@ -1652,8 +1671,8 @@ let cc_mass_spectrometry_line : lens =
 
 test cc_mass_spectrometry_line create
   "CC   -!- MASS SPECTROMETRY: Mass=23290.2; Mass_error=2.9; Method=Electrospray;
-  |CC       Range=16-214 (P04653-2); Note=Allele D, with 6 phosphate groups;
-  |CC       Source=PubMed:7601973;" 
+  |CC        Range=16-214 (P04653-2); Note=Allele D, with 6 phosphate groups;
+  |CC        Source=PubMed:7601973;" 
 =
   "
   |  <comment type=\"mass spectrometry\" mass=\"23290.2\" error=\"2.9\" method=\"Electrospray\">
@@ -1674,12 +1693,12 @@ test cc_mass_spectrometry_line get
   |    </comment>" 
 = 
   "CC  -!- MASS SPECTROMETRY: Mass=29440; Mass_error=2; Method=MALDI; Range=1-255;
-  |CC       Note=Ref.2;"
+  |CC        Note=Ref.2;"
 
 let cc_sequence_caution_xml : lens = 
-  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ins ";" . qsp) in 
-  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ins ";" . qsp) in
-  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ins ";" . qsp) in
+  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ssp) in 
+  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ssp) in
+  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ssp) in
   tag "CC" . 
   ins "-!-" . qsp . 
   ins "SEQUENCE CAUTION:" . 
@@ -1702,7 +1721,7 @@ let cc_sequence_caution_xml : lens =
          "resource" (del ("EMBL-CDS" | "EMBL"))
          "id" (ALPHA) 
          "version" (ins "." . NUMBER) . 
-       ins ";" . qsp)) . 
+       ssp)) . 
      qdel WS nl2 . 
      xml_close_tag "conflict" . 
      (qins ("Positions=Several;" . WSP)? "" 
@@ -1710,9 +1729,9 @@ let cc_sequence_caution_xml : lens =
        xml_elt nl2 "location"
          begin           
            let p : lens = xml_attr1_elt_no_body nl3 "position" "position" (NUMBER) in 
-           p . (ins "," . qsp . p)* 
+           p . (csp . p)* 
          end . 
-       ins ";" . qsp) . 
+       ssp) . 
      (ins "Note=" . 
      xml_simple_elt nl2 "note" ALPHA . 
      ins ";")?
@@ -1734,15 +1753,15 @@ test cc_sequence_caution_line get
 = 
   "CC  -!- SEQUENCE CAUTION:
   |CC      Sequence=AAN42076.1; Type=Erroneous termination;
-  |CC      Positions=273; Note=Translated as Gln.;" 
+  |CC       Positions=273; Note=Translated as Gln.;" 
 
 let cc_web_resource_xml : lens = 
   tag "CC" . 
   ins "-!-" . qsp . 
-  ins "WEB RESOURCE:" . 
+  ins "WEB RESOURCE:" . qsp . 
   xml_attr2_elt nl1 "comment" 
     "type" (del "online information") 
-    "name" (ins "Name=" . ALPHA . ins ";" . qsp)
+    "name" (ins "Name=" . ALPHA . ssp)
     begin
       let url : lens = 
         ins "URL=" . 
@@ -1751,7 +1770,7 @@ let cc_web_resource_xml : lens =
       let note : lens = 
         ins "Note=" . 
         xml_simple_elt nl2 "note" ALPHA . 
-        ins ";" . qsp in 
+        ssp in 
       url ~ note
     end
 
@@ -1764,14 +1783,14 @@ test cc_web_resource_line get
   |<note>Somatic and germline TP53 mutations in human cancers</note>
   |</comment>" 
 = 
-  "CC  -!- WEB RESOURCE:Name=IARC TP53 mutation database;
-  |CC       Note=Somatic and germline TP53 mutations in human cancers;
-  |CC       URL=\"http://www-p53.iarc.fr/\";" 
+  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database;
+  |CC        Note=Somatic and germline TP53 mutations in human cancers;
+  |CC        URL=\"http://www-p53.iarc.fr/\";" 
 
 test cc_web_resource_line create
-  "CC  -!- WEB RESOURCE:Name=IARC TP53 mutation database;
-  |CC       Note=Somatic and germline TP53 mutations in human cancers;
-  |CC       URL=\"http://www-p53.iarc.fr/\";" 
+  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database;
+  |CC        Note=Somatic and germline TP53 mutations in human cancers;
+  |CC        URL=\"http://www-p53.iarc.fr/\";" 
 = 
   "
   |  <comment type=\"online information\" name=\"IARC TP53 mutation database\">
