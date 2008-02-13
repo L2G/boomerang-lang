@@ -85,7 +85,13 @@ let prelude_spec =
     SLens ^> SLens ^> SLens,
     mk_lfun (Info.M "duplicate built-in") (SLens ^> SLens) (fun i l1 -> 
       mk_lfun i SLens (fun i l2 ->         
-        Lns(i,L.duplicate i l1 l2))))
+        Lns(i,L.duplicate i true l1 l2))))
+
+  ; (mk_prelude_qid "duplicate_snd",
+    SLens ^> SLens ^> SLens,
+    mk_lfun (Info.M "duplicate_snd built-in") (SLens ^> SLens) (fun i l1 -> 
+      mk_lfun i SLens (fun i l2 ->         
+        Lns(i,L.duplicate i false l1 l2))))
 
   ; (mk_prelude_qid "count",
      SRegexp ^> SLens,

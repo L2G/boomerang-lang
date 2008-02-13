@@ -21,6 +21,9 @@
 
 module Units = 
 
+test rep (columnize ([a-z0-9 \n]*) " " "\n") 
+"abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre\nbenjamin aaron alan owen william kate michael" = ?
+
 let Any = [^]*
 
 let x : { ? <-> ? } = cp Any 

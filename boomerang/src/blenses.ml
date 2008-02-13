@@ -246,8 +246,26 @@ module Canonizer = struct
     let s_sym = RS.get s 0 in 
     let nl_len = RS.length nl in 
     let r_expanded = R.expand r s_sym nl in 
-    let ct = r in 
+    let ct = 
+      let any = R.star (R.negset []) in 
+      let contains_nl = R.seq any (R.seq (R.str false nl) any) in 
+      let r_contains_nl = not (R.is_empty (R.inter r contains_nl)) in 
+      if r_contains_nl then 
+        Berror.static_error i n 
+          (sprintf "%s contains %s"
+             (R.string_of_t r)
+             (RS.string_of_t nl));
+        r in 
     let rt = r_expanded in 
+    let is_nl c i = 
+      let c_len = RS.length c in 
+      let rec aux j = 
+        if j=nl_len then true
+        else
+          (i+j < c_len) 
+          && ((RS.get c (i+j)) = (RS.get nl j))
+          && (aux (succ j)) in 
+        aux 0 in       
     { info = i;
       string = n;
       rtype = rt;
@@ -256,18 +274,10 @@ module Canonizer = struct
         (fun c -> 
            let c_len = RS.length c in 
            let buf = Buffer.create c_len in 
-           let is_nl i = 
-             let rec aux j = 
-               if j=nl_len then true
-               else
-                 (i+j < c_len) 
-                 && ((RS.get c (i+j)) = (RS.get nl j))
-                 && (aux (succ j)) in 
-               aux 0 in 
            let rec loop i = 
              if i = c_len then ()
              else
-               if is_nl i then 
+               if is_nl c i then 
                  (Buffer.add_string buf (RS.string_of_t s);
                   loop (i + nl_len))
                else 
@@ -282,7 +292,7 @@ module Canonizer = struct
            let buf = Buffer.create c_len in 
            let line_buf = Buffer.create k in 
            let aux_buf = Buffer.create k in 
-           let is_sp ci = (RS.compare_sym s_sym ci = 0) in             
+           let is_sp ci = (RS.compare_sym s_sym ci = 0) in
            let do_line () = 
              if Buffer.length buf <> 0 && Buffer.length line_buf <> 0 then 
                Buffer.add_string buf (RS.string_of_t nl);
@@ -295,7 +305,7 @@ module Canonizer = struct
              Buffer.reset aux_buf in 
            let rec loop i =              
              if Buffer.length line_buf + Buffer.length aux_buf > k then
-               do_line ();
+               do_line ();               
              if i = c_len then 
                (do_space (); 
                 do_line ())
@@ -961,8 +971,10 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	uid = next_uid ();
       }
 
-  let duplicate i dl1 dl2 = 
-    let n = sprintf "duplicate (%s) (%s)" dl1.string dl2.string in 
+  let duplicate i isFst dl1 dl2 = 
+    let n = sprintf "duplicate%s (%s) (%s)" 
+      (if isFst then "" else "_snd")
+      dl1.string dl2.string in 
     let ct = 
       let equiv, f_suppl = R.check_equiv dl1.ctype dl2.ctype in
       if not equiv then
@@ -990,8 +1002,8 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       put = lift_rsd i (put_str n) at st (fun a s d -> 
          let a1,a2 = split dl1.atype dl2.atype a in 
 	 let c1,d1 = dl1.put a1 (fst_dup_of_skel s) d in
-	 let _,d2 = dl2.put a2 (snd_dup_of_skel s) d1 in
-	 (c1, d2));
+	 let c2,d2 = dl2.put a2 (snd_dup_of_skel s) d1 in
+	 (if isFst then (c1,d2) else (c2,d2)));
       parse = lift_r i (parse_str n) ct (fun c->
 	 let s1, d1 = dl1.parse c in
 	 let s2, d2 = dl2.parse c in
@@ -999,8 +1011,8 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       create = lift_rd i n at (fun a d ->
          let a1, a2 = split dl1.atype dl2.atype a in
 	 let c1, d1 = dl1.create a1 d in
-	 let _, d2 = dl2.create a2 d1 in
-	  (c1, d2));
+	 let c2, d2 = dl2.create a2 d1 in
+	  (if isFst then (c1,d2) else (c2,d2)));
       key = lift_r i n at (fun a ->
          let a1,a2 = split dl1.atype dl2.atype a in
 	 (dl1.key a1) ^ (dl2.key a2));

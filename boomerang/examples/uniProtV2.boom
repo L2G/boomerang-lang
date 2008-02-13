@@ -536,13 +536,13 @@ let gn_xml : lens =
     ins "; " . 
     gn_fst_orf . gn_orf* . 
     ins ";" in
+  let wrap (l:lens) : lens = right_quot l (columnize (atype l) " " "\nGN  ") in
   let gn_elt : lens = 
     tag "GN" .
     xml_elt nl1 "gene" gn_names in 
-    gn_elt . (ins "\n" . tag "GN" . ins "and\n" . gn_elt)*
+    wrap gn_elt . (ins "\n" . tag "GN" . ins "and\n" . wrap gn_elt)*
      
-let gn_cn : canonizer = columnize (atype gn_xml) " " "\nGN  "
-let gn_line : lens = right_quot gn_xml gn_cn 
+let gn_line : lens = gn_xml 
 
 test gn_line get 
   "<gene>
@@ -563,8 +563,7 @@ test gn_line get
   "GN  Name=Jon99Ciii; Synonyms=SER5, Ser99Db; OrderedLocusNames=b1237, c1701;
   |GN  ORFNames=CG15519;
   |GN  and
-  |GN  Name=Jon99Ciii; Synonyms=SER5;
-  |GN  OrderedLocusNames=c1701; ORFNames=CG15519;"
+  |GN  Name=Jon99Ciii; Synonyms=SER5; OrderedLocusNames=c1701; ORFNames=CG15519;"
 
 (* --------------------------------------------------------------------------- *)
 (* OS line *)
@@ -1505,7 +1504,7 @@ test cc_interaction_xml create
   |    <experiments>1</experiments>
   |  </comment>"
 
-let cc_alternative_products_line : lens = 
+let cc_alternative_products_xml : lens = 
   let event : lens = 
     xml_attr1_elt_no_body nl2 "event" "type" 
       ( "alternative promoter"    <-> "Alternative promoter usage" 
@@ -1559,11 +1558,15 @@ let cc_alternative_products_line : lens =
   cc_break . 
   xml_attr1_elt nl1 "comment" "type" (del "alternative products") 
     begin 
-      cc_fix (events . qsp . 
-           named_isos . qsp . 
-           (generic "comment" "Comment")? ) . 
-      (cc_break . cc_fix name)*
+       events . qsp . 
+       duplicate_snd
+         ((xml_simple_elt nl2 "comment" (del ALPHA))? . 
+          ins "Named isoforms=" . count (ctype name) . ins ";" . qsp)
+         ((generic "comment" "Comment")? . 
+          (cc_break . cc_fix name)* )
     end
+
+let cc_alternative_products_line : lens = cc_alternative_products_xml 
 
 test cc_alternative_products_line get
   "<comment type=\"alternative products\">
@@ -1584,11 +1587,34 @@ test cc_alternative_products_line get
   |   </comment>" 
 = 
   "CC  -!- ALTERNATIVE_PRODUCTS:
-  |CC      Event=Alternative splicing; Named isoforms=0;
-  |CC       Comment=This is a rather lengthy comment.;
+  |CC      Event=Alternative splicing; Named isoforms=2; Comment=This is a rather lengthy comment.;
   |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
   |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;"
-  
+
+test cc_alternative_products_line create
+  "CC  -!- ALTERNATIVE_PRODUCTS:
+  |CC      Event=Alternative splicing; Named isoforms=100; Comment=This is a rather lengthy comment.;
+  |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
+  |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;" 
+=
+  "
+  |  <comment type=\"alternative products\">
+  |    <event type=\"alternative splicing\"/>
+  |    <comment>This is a rather lengthy comment.</comment>
+  |    <isoform>
+  |      <id>P48347-1</id>
+  |      <name>1</name>
+  |      <name>D</name>
+  |      <name>E</name>
+  |    <sequence type=\"displayed\"/>
+  |    </isoform>
+  |    <isoform>
+  |      <id>P48347-2</id>
+  |      <name>2</name>
+  |    <sequence type=\"described\" ref=\"VSP_008972\"/>
+  |    </isoform>
+  |  </comment>"
+
 let cc_mass_spectrometry_xml : lens = 
   let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ins ";" . qsp) in 
   let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ins ";" . qsp) in
@@ -1767,14 +1793,9 @@ let cc_block : lens =
 
 test cc_block create
   "CC  -!- ALTERNATIVE_PRODUCTS:
-  |CC      Event=Alternative splicing; Named isoforms=2;
-  |CC         Comment=Additional isoforms seem to exist;
-  |CC      Name=1; Synonyms=Ash-L;
-  |CC         IsoId=P62993-1, P29354-1;
-  |CC         Sequence=Displayed;
-  |CC      Name=GRB3-3;
-  |CC         IsoId=P62993-2, P29354-2;
-  |CC         Sequence=VSP_001839;
+  |CC      Event=Alternative splicing; Named isoforms=2; Comment=Additional isoforms seem to exist;
+  |CC      Name=1; Synonyms=Ash-L; IsoId=P62993-1, P29354-1; Sequence=Displayed;
+  |CC      Name=GRB3-3; IsoId=P62993-2, P29354-2; Sequence=VSP_001839;
   |CC   -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity).
   |CC   -!- DOMAIN: The SH3 domains mediate interaction with SHB.
   |CC   -!- SIMILARITY: Belongs to the GRB2/sem-5/DRK family.
