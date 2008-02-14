@@ -301,13 +301,13 @@ let xml_attr3_elt_no_body (spaces:string) (tag:string)
 (* ASCII Helpers *)
 
 let tag (t:string) : lens = 
-  qins (t . SP) (t . "  ")
+  qins (t . SP) (t . "   ")
 
 let default_tag (t:string) (d:string) : lens = 
   qins (t . SP) (t . d) 
 
 let terminate (l:lens) : lens = l . qnl 
-
+(*
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
 let id_tag : string = "ID"
@@ -2960,7 +2960,7 @@ let kw_xml : lens =
 test kw_xml create 
   "KW   Complete proteome; Differentiation; Viral movement protein; Zymogen; 2Fe-2S." 
 = 
-  "  
+  "
   |  <keyword id=\"KW-0181\">Complete proteome</keyword>
   |  <keyword id=\"KW-0221\">Differentiation</keyword>
   |  <keyword id=\"KW-0916\">Viral movement protein</keyword>
@@ -2974,6 +2974,195 @@ test kw_xml get
   |  <keyword id=\"KW-0865\">Zymogen</keyword>
   |  <keyword id=\"KW-0001\">2Fe-2S</keyword>"
 = 
-  "KW   Complete proteome; Differentiation; Viral movement protein; Zymogen; 2Fe-2S." 
-
+  "KW  Complete proteome; Differentiation; Viral movement protein; Zymogen; 2Fe-2S." 
+*)
   
+(* --------------------------------------------------------------------------- *)
+(* FT line *)
+
+let ft_bound (name:string) : lens = 
+  let num (sym:string) : lens = 
+    ( ins "    " . ins sym . DIGIT
+    | ins "   "  . ins sym . DIGIT{2}
+    | ins "  "   . ins sym . DIGIT{3}
+    | ins " "    . ins sym . DIGIT{4}
+    | ins ""     . ins sym . DIGIT{5} ) in 
+  ( xml_attr2_elt_no_body nl3 name 
+      "status" (del "less than") 
+      "position" (num "<")
+  | xml_attr2_elt_no_body nl3 name 
+      "status" (del "greater than") 
+      "position" (num ">")
+  | xml_attr2_elt_no_body nl3 name 
+      "status" (del "uncertain") 
+      "position" (num "?")
+  | xml_attr1_elt_no_body nl3 name 
+       "position" (num " ") )
+
+let ft_bounds : lens = 
+  xml_elt nl2 "location"
+    (ft_bound "begin" . 
+     ins " " . 
+     ft_bound "end") . 
+  ins "       "
+
+let ft_id : lens = 
+  ins "/FTId=" . 
+  xml_attr "id" [A-Za-z0-9 _]+ . 
+  ins "."  
+
+let ft_description : lens = 
+  xml_attr "description" ("(" . [a-zA-Z0-9. _]+ . ")") . 
+  ins "." 
+
+let ft_original_variation : lens = 
+  ( xml_simple_elt nl2 "original" ALPHA . 
+    ins " -> " . 
+    xml_simple_elt nl2 "variation" ALPHA 
+  | ins "Missing" )
+
+let ft_normal : lens = 
+  xml_attr "type"
+     ( "active site"                         <-> "ACT_SITE" 
+     | "binding site"                        <-> "BINDING " 
+     | "calcium-binding region"              <-> "CA_BIND " 
+     | "chain"                               <-> "CHAIN   " 
+     | "coiled-coil region"                  <-> "COILED  " 
+     | "compositionally biased region"       <-> "COMPBIAS" 
+     | "cross-link"                          <-> "CROSSLNK" 
+     | "disulfide bond"                      <-> "DISULFID" 
+     | "DNA-binding region"                  <-> "DNA_BIND" 
+     | "domain"                              <-> "DOMAIN  " 
+     | "glycosylation site"                  <-> "CARBOHYD" 
+     | "helix"                               <-> "HELIX   " 
+     | "initiator methionine"                <-> "INIT_MET" 
+     | "lipid moiety-binding region"         <-> "LIPID   " 
+     | "metal ion-binding site"              <-> "METAL   " 
+     | "modified residue"                    <-> "MOD_RES " 
+     | "non-consecutive residues"            <-> "NON_CONS" 
+     | "non-terminal residue"                <-> "NON_TER " 
+     | "nucleotide phosphate-binding region" <-> "NP_BIND " 
+     | "peptide"                             <-> "PEPTIDE " 
+     | "propeptide"                          <-> "PROPEP  " 
+     | "region of interest"                  <-> "REGION  " 
+     | "repeat"                              <-> "REPEAT  " 
+     | "selenocysteine"                      <-> "SE_CYS  " 
+     | "short sequence motif"                <-> "MOTIF   " 
+     | "signal peptide"                      <-> "SIGNAL  " 
+     | "site"                                <-> "SITE    " 
+     | "strand"                              <-> "STRAND  " 
+     | "topological domain"                  <-> "TOPO_DOM" 
+     | "transit peptide"                     <-> "TRANSIT " 
+     | "transmembrane region"                <-> "TRANSMEM" 
+     | "turn"                                <-> "TURN    " 
+     | "unsure residue"                      <-> "UNSURE  " 
+     | "zinc finger region"                  <-> "ZN_FING ") . 
+    ins " " . 
+    ( ( ((ins " " . ft_id)? ~ ft_description)? . xml_close ) ~
+        ft_bounds )
+
+let ft_variation : lens = 
+  xml_attr "type"
+    ( "mutagenesis site"  <-> "MUTAGEN " 
+    | "sequence conflict" <-> "CONFLICT" 
+    | "sequence variant"  <-> "VARIANT " 
+    | "splice variant"    <-> "VAR_SEQ ") . 
+  ins " " . 
+  ( ( ins " " . ((ins " " . ft_id)? ~ ft_description)? . xml_close ) ~ 
+    ( ft_original_variation ~ ft_bounds) )
+
+let ft_xml : lens = 
+  tag "FT" . 
+  xml_open nl1 "feature" . 
+  (ft_normal | ft_variation) . 
+  qdel WS nl1 . 
+  xml_close_tag "feature"
+
+test ft_xml get
+  "
+  |  <feature type=\"sequence conflict\" id=\"VSP1234\" description=\"(in Ref. 2)\">
+  |    <original>S</original>
+  |    <variation>E</variation>
+  |    <location>
+  |      <begin position=\"27\"/>
+  |      <end position=\"27\"/>
+  |    </location>
+  |  </feature>"
+= 
+  "FT   CONFLICT     27     27       S -> E (in Ref. 2). /FTId=VSP1234."
+
+test ft_xml get
+  "
+  |  <feature type=\"splice variant\" id=\"VSP_008971\" description=\"(in isoform 2)\">
+  |    <location>
+  |      <begin position=\"243\"/>
+  |      <end position=\"244\"/>
+  |    </location>
+  |  </feature>" 
+=
+  "FT   VAR_SEQ     243    244       Missing (in isoform 2). /FTId=VSP_008971."
+
+(* --------------------------------------------------------------------------- *)
+(* SQ line *)
+let sq_xml : lens = 
+  let block : lens = ins " " . [A-Z]{10} in 
+  let full_line : lens = ins "    " . block{6} . ins "\n" in 
+  let part_line : lens = ins "    " . block{0,5} . 
+                         (ins " " . [A-Z]{1,10}) . 
+                         ins "\n" in 
+  tag "SQ" . 
+  ins "SEQUENCE   " . 
+  xml_open nl1 "sequence" . 
+  ( (xml_attr "mass"   (NUMBER . ins " MW;  ")) ~
+    (xml_attr "length" (NUMBER . ins " AA;  ")) ) . 
+  xml_attr "checksum"  ([0-9A-Z]+ . ins " CRC64;\n") . 
+  xml_close . 
+  full_line* . part_line . 
+  ins "//" . 
+  xml_close_tag "sequence" 
+                       
+test sq_xml create 
+  "SQ   SEQUENCE   893 AA;  101921 MW;  2F67CEB3B02E7AC1 CRC64;
+  |     MKFLVLLFNI LCLFPILGAD ELVMSPIPTT DVQPKVTFDI NSEVSSGPLY LNPVEMAGVK
+  |     YLQLQRQPGV QVHKVVEGDI VIWENEEMPL YTCAIVTQNE VPYMAYVELL EDPDLIFFLK
+  |     EGDQWAPIPE DQYLARLQQL RQQIHTESFF SLNLSFQHEN YKYEMVSSFQ HSIKMVVFTP
+  |     KNGHICKMVY DKNIRIFKAL YNEYVTSVIG FFRGLKLLLL NIFVIDDRGM IGNKYFQLLD
+  |     DKYAPISVQG YVATIPKLKD FAEPYHPIIL DISDIDYVNF YLGDATYHDP GFKIVPKTPQ
+  |     CITKVVDGNE VIYESSNPSV ECVYKVTYYD KKNESMLRLD LNHSPPSYTS YYAKREGVWV
+  |     TSTYIDLEEK IEELQDHRST ELDVMFMSDK DLNVVPLTNG NLEYFMVTPK PHRDIIIVFD
+  |     GSEVLWYYEG LENHLVCTWI YVTEGAPRLV HLRVKDRIPQ NTDIYMVKFG EYWVRISKTQ
+  |     YTQEIKKLIK KSKKKLPSIE EEDSDKHGGP PKGPEPPTGP GHSSSESKEH EDSKESKEPK
+  |     EHGSPKETKE GEVTKKPGPA KEHKPSKIPV YTKRPEFPKK SKSPKRPESP KSPKRPVSPQ
+  |     RPVSPKSPKR PESLDIPKSP KRPESPKSPK RPVSPQRPVS PRRPESPKSP KSPKSPKSPK
+  |     VPFDPKFKEK LYDSYLDKAA KTKETVTLPP VLPTDESFTH TPIGEPTAEQ PDDIEPIEES
+  |     VFIKETGILT EEVKTEDIHS ETGEPEEPKR PDSPTKHSPK PTGTHPSMPK KRRRSDGLAL
+  |     STTDLESEAG RILRDPTGKI VTMKRSKSFD DLTTVREKEH MGAEIRKIVV DDDGTEADDE
+  |     DTHPSKEKHL STVRRRRPRP KKSSKSSKPR KPDSAFVPSI IFIFLVSLIV GIL
+  |//" 
+= 
+  "
+  |  <sequence mass=\"101921\" length=\"893\" checksum=\"2F67CEB3B02E7AC1\">MKFLVLLFNILCLFPILGADELVMSPIPTTDVQPKVTFDINSEVSSGPLYLNPVEMAGVKYLQLQRQPGVQVHKVVEGDIVIWENEEMPLYTCAIVTQNEVPYMAYVELLEDPDLIFFLKEGDQWAPIPEDQYLARLQQLRQQIHTESFFSLNLSFQHENYKYEMVSSFQHSIKMVVFTPKNGHICKMVYDKNIRIFKALYNEYVTSVIGFFRGLKLLLLNIFVIDDRGMIGNKYFQLLDDKYAPISVQGYVATIPKLKDFAEPYHPIILDISDIDYVNFYLGDATYHDPGFKIVPKTPQCITKVVDGNEVIYESSNPSVECVYKVTYYDKKNESMLRLDLNHSPPSYTSYYAKREGVWVTSTYIDLEEKIEELQDHRSTELDVMFMSDKDLNVVPLTNGNLEYFMVTPKPHRDIIIVFDGSEVLWYYEGLENHLVCTWIYVTEGAPRLVHLRVKDRIPQNTDIYMVKFGEYWVRISKTQYTQEIKKLIKKSKKKLPSIEEEDSDKHGGPPKGPEPPTGPGHSSSESKEHEDSKESKEPKEHGSPKETKEGEVTKKPGPAKEHKPSKIPVYTKRPEFPKKSKSPKRPESPKSPKRPVSPQRPVSPKSPKRPESLDIPKSPKRPESPKSPKRPVSPQRPVSPRRPESPKSPKSPKSPKSPKVPFDPKFKEKLYDSYLDKAAKTKETVTLPPVLPTDESFTHTPIGEPTAEQPDDIEPIEESVFIKETGILTEEVKTEDIHSETGEPEEPKRPDSPTKHSPKPTGTHPSMPKKRRRSDGLALSTTDLESEAGRILRDPTGKIVTMKRSKSFDDLTTVREKEHMGAEIRKIVVDDDGTEADDEDTHPSKEKHLSTVRRRRPRPKKSSKSSKPRKPDSAFVPSIIFIFLVSLIVGIL</sequence>"
+
+(* --------------------------------------------------------------------------- *)
+(* UniProtKB entry *)
+
+let uniprot_xml : lens = 
+  xml_elt nl0 "entry"
+    begin
+      (terminate id_line) . 
+      (terminate ac_line)? . 
+      (terminate de_line) . 
+      (terminate gn_line) . 
+      os_og_oc_ox_oh_block . 
+      reference_block . 
+      cc_block . 
+      ins  "CC   -----------------------------------------------------------------------
+           |CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+           |CC   Distributed under the Creative Commons Attribution-NoDerivs License
+           |CC   -----------------------------------------------------------------------" . 
+     (terminate dr_line)* . 
+     (terminate pe_line)? . 
+     (terminate kw_line)? . 
+     (terminate ft_ilne)* . 
+     (terminate sq_line) 
+    end
