@@ -21,37 +21,24 @@
 
 module UniProtV2 = 
 
-(* [bracket s] encloses [s] in bracket. *) 
-let brackets (l:lens) : lens = 
-  ins "[" . l . ins "]" 
+(* shorthand for backward compatibility. to be removed. *)
+let columnize : regexp -> string -> string -> canonizer = 
+  columnize "75"
 
-let braces (l:lens) : lens = 
-  ins "(" . l . ins ")"
-
-let quotes (l:lens) : lens = 
-  ins "\"" . l . ins "\"" 
-
-let cn : canonizer = columnize [a-z0-9 ]+ " " "\n"
-
-test   
-  let R : regexp = [a-z0-9 ]+ in 
-  let cn : canonizer = columnize R " " "\n" in 
-  let l : lens = right_quot R cn in 
-  l get
-  "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee zulu zero one two tree four five six seven eight niner 12345678901234567890123456789012345678901234567890123456789012345678901234567890123"
-= 
-  "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike
-  |november oscar papa quebec romeo sierra tango unicorn victor whiskey xray yankee
-  |zulu zero one two tree four five six seven eight niner
-  |12345678901234567890123456789012345678901234567890123456789012345678901234567890123"
-  
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)
 
-(* booleans / conditionals *)
-type bool = True | False
+(* [bracket l] inserts enclosing square bracket. *) 
+let brackets (l:lens) : lens = 
+  ins "[" . l . ins "]" 
 
-let cond (b:bool) (l1:lens) (l2:lens) = match b with True -> l1 | False -> l2
+(* [braces l] inserts enclosing braces (i.e., parentheses). *) 
+let braces (l:lens) : lens = 
+  ins "(" . l . ins ")"
+
+(* [quotes s] inserts enclosing quotation marks. *) 
+let quotes (l:lens) : lens = 
+  ins "\"" . l . ins "\"" 
 
 (* sorting *)
 let sort2 (l1:lens) (l2:lens) : lens = 
@@ -131,14 +118,17 @@ let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens =
 let qins (E:regexp) (e:string) : { "" <-> E } = 
   qconst "" E e "" 
 
+(* qins unit tests *)
+test qins [A-Z]+ "A" get "" = "A"
+test qins [A-Z]+ "A" create "ABC" = ""
+
 (* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
    direction. *)
 let qdel (E:regexp) (e:string) : { E <-> "" } = 
   left_quot 
     (canonizer_of_lens (default (del E) e))
     ""
-
-(* unit tests *)
+(* qdel unit tests *)
 test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
 test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
   
@@ -169,25 +159,8 @@ let S : regexp = [ ]*
 (* [SP] positive space *)
 let SP : regexp = [ ]+
 
-let qsp : lens = qins SP " "
-let csp : lens = ins "," . qsp 
-let ssp : lens = ins ";" . qsp 
-
-let qnl : lens = qins (S.NL) "\n"
-
 (* [DIGIT] digit *)
 let DIGIT : regexp = [0-9]
-let FDIGIT : regexp = [0-9]
-
-let A : regexp = [A-Za-z0-9\-_.!='[\]/] 
-let AP : regexp = [A-Za-z0-9\-_.!='[\]/()] 
-let AC : regexp = [A-Za-z0-9\-_.!='[\]/:,] 
-let ALPHA : regexp = A | A.(A | " ")*.A
-let ALPHAP : regexp = AP | AP.(AP | " ")*.AP
-let ALPHAC : regexp = AC | AC.(AC | " ")*.AC
-let NUMBER : regexp = DIGIT+ 
-let FNUMBER : regexp = DIGIT* . "."? . DIGIT+ 
-
 
 (* [nlX]: X^th amount of whitespace--used to canonize XML *)
 let nl0 = "\n"
@@ -197,46 +170,114 @@ let nl3 = nl2 . "  "
 let nl4 = nl3 . "  "
 let nl5 = nl4 . "  "
 let nl6 = nl5 . "  "
+let nl7 = nl6 . "  " 
+let nl8 = nl7 . "  "
+let nl9 = nl8 . "  "
+let nl10 = nl9 . "  "
 
 (* --------------------------------------------------------------------------- *)
 (* XML functions *)
 
-(* opens and closes *)
+(* [xml_esc_char ex] maps an XML symbol -- either a character or an
+   escaped characeter -- to its equivalent representation in ASCII.
+   o [ex] is the set of excluded characters
+ *)
+let xml_esc_char (excl_chars:regexp) : lens = 
+  ( [^&<>\n] - excl_chars
+  | "&gt;" <-> ">"
+  | "&lt;" <-> "<"
+  | "&amp;" <-> "&" )
+
+(* [xml_esc_string_ends ex ends_ex] maps an XML-escaped string
+   beginning and ending with characters not in [ex] or [ends_ex], to
+   its equivalent representation in ASCII.
+   o [ex] the set of excluded characters.       
+   o [ends_ex] the set of excluded characters at the end points.
+*)
+let xml_esc_string_ends (excl_chars:regexp) (ends_excl_chars:regexp) : lens = 
+  let esc_char : lens = xml_esc_char excl_chars in 
+  let esc_char_ends : lens = xml_esc_char (excl_chars | ends_excl_chars) in 
+    esc_char_ends . (esc_char . esc_char_ends)* 
+
+(* [xml_esc_string ex] maps an XML-escaped string starting and
+   beginning with a non-space character, to its equivalent
+   representation in ASCII.
+   o [ex] the set of excluded characters.  
+*)
+let xml_esc_string (excl_chars:regexp) : lens = 
+  xml_esc_string_ends excl_chars [ ] 
+
+(* [xml_open sp t] recognizes and deletes a string consisting of
+   whitespace and the start of an XML open tag.
+   o [sp] is used to canonize the leading whitespace.
+   o [t] is the tag.
+*)
 let xml_open (spaces:string) (tag:string) : lens = 
   qdel WS spaces . 
   del ("<" . tag) 
 
-let xml_close : lens = del (">")
+(* [xml_close] recognizes and deletes the string ">" *)
+let xml_close : lens = 
+  del ">"
 
+(* [xml_slash_close] recognizes and deletes strings consisting of
+   whitespace followed by "/>", which is used to terminate XML
+   elements whose children are all attributes.
+*)
+let xml_slash_close : lens = 
+  qdel (WS . "/>") "/>"
+
+(* [xml_open_tag sp t] recognizes and deletes a string consisting of
+   whitespace followed by an XML open tag.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+*)
 let xml_open_tag (spaces:string) (tag:string) : lens = 
   xml_open spaces tag . 
   xml_close
 
-let xml_slash_close : lens = del ("/>")
+(* [xml_simple_close_tag t] recognizes and deletes a string consisting
+   of an XML close tag.
+   o [t] element tag.   
+*)
+let xml_simple_close_tag (tag:string) : lens = 
+  del ("</" . tag . ">")
 
-let xml_close_tag (tag:string) : lens = del ("</" . tag . ">")
+(* [xml_close_tag sp t] recognizes and deletes a string consisting of
+   whitespace followed by an XML close tag. 
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+*)
+let xml_close_tag (spaces:string) (tag:string) : lens = 
+  qdel WS spaces . 
+  xml_simple_close_tag tag
 
-(* single_line_elt: helper for processing a single-line XML element
-   o spaces: default whitespace before the element
-   o tag: the element's tag
-   o body: lens for handling the children
+(* [xml_simple_elt sp t l] proecesses a single-line XML element.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [l] lens for processing the children.
 *)
 let xml_simple_elt (spaces:string) (tag:string) (body:lens) : lens = 
   xml_open_tag spaces tag . 
   body . 
-  xml_close_tag tag
+  xml_simple_close_tag tag
 
-(* xml_elt: helper for processing a multi-line XML element 
-   o spaces: default whitespace after the element
-   o tag: the element's tag
-   o body: lens for handling the children 
+(* [xml_elt sp t l] processes a multi-line XML element.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [l] lens for processing children.
 *)
 let xml_elt (spaces:string) (tag:string) (body:lens) : lens = 
   xml_open_tag spaces tag . 
   body . 
-  qdel WS spaces . 
-  xml_close_tag tag
+  xml_close_tag spaces tag
   
+(* [xml_attr n l] proceses a string consiting of whitespace and a
+   single XML attribute. Leading whitespace is canonized to a single
+   space.
+   o [n] attribute name.
+   o [l] lens for processing value.
+*)
 let xml_attr (name:string) (value:lens) : lens = 
   qdel WSP " " . 
   del name . 
@@ -244,14 +285,60 @@ let xml_attr (name:string) (value:lens) : lens =
   value . 
   del "\""
     
-let xml_attr1_elt (spaces:string) (tag:string) (name:string) (value:lens) (body:lens) : lens = 
+(* [xml_attr1_elt sp t n v l] processes a multi-line XML element with
+   one attribute.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [n] attribute name.
+   o [v] lens for processing attribute value.
+   o [l] lens for processing element children.
+*)
+let xml_attr1_elt (spaces:string) (tag:string) 
+    (name:string) (value:lens) 
+    (body:lens) : lens = 
   xml_open spaces tag . 
   xml_attr name value . 
   xml_close . 
   body . 
-  qdel WS spaces . 
-  xml_close_tag tag 
+  xml_close_tag spaces tag 
+    
+(* [xml_attr1_simple_elt sp t n v l] processes a single-line XML element with
+   one attribute.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [n] attribute name.
+   o [v] lens for processing attribute value.
+   o [l] lens for processing element children.
+*)
+let xml_attr1_simple_elt (spaces:string) (tag:string) 
+    (name:string) (value:lens) 
+    (body:lens) : lens = 
+  xml_open spaces tag . 
+    xml_attr name value . 
+    xml_close . 
+    body . 
+    xml_simple_close_tag tag 
 
+(* [xml_attr1_elt_no_kids sp t n v] processes a single-line XML element with
+   no children (other than its single attribute.)
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [n] attribute name.
+   o [v] lens for processing attribute value.
+*)
+let xml_attr1_elt_no_kids (spaces:string) (tag:string) (name:string) (value:lens) : lens = 
+  xml_open spaces tag . 
+  xml_attr name value . 
+  xml_slash_close
+
+(* [xml_attr2_elt sp t n1 v1 n2 v2 l] processes a multi-line XML
+   element with two attributes.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [ni] ith attribute name.
+   o [vi] lens for processing ith attribute value.
+   o [l] lens for processing element children.
+*)
 let xml_attr2_elt (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
@@ -262,22 +349,16 @@ let xml_attr2_elt (spaces:string) (tag:string)
     (xml_attr name2 value2) . 
   xml_close . 
   body . 
-  qdel WS spaces . 
-  xml_close_tag tag 
+  xml_close_tag spaces tag 
 
-let xml_attr1_simple_elt (spaces:string) (tag:string) (name:string) (value:lens) (body:lens) : lens = 
-  xml_open spaces tag . 
-  xml_attr name value . 
-  xml_close . 
-  body . 
-  xml_close_tag tag 
-
-let xml_attr1_elt_no_body (spaces:string) (tag:string) (name:string) (value:lens) : lens = 
-  xml_open spaces tag . 
-  xml_attr name value . 
-  xml_slash_close
-
-let xml_attr2_elt_no_body (spaces:string) (tag:string) 
+(* [xml_attr1_elt_no_kids sp t n1 v1 n2 v2] processes a single-line
+   XML element with no children (other than its two attributes.)
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [ni] ith attribute name.
+   o [vi] lens for processing ith attribute value.
+*)
+let xml_attr2_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) : lens = 
   xml_open spaces tag . 
@@ -286,6 +367,14 @@ let xml_attr2_elt_no_body (spaces:string) (tag:string)
     (xml_attr name2 value2) . 
   xml_slash_close 
 
+(* [xml_attr3_elt_no_kids sp t n1 v1 n2 v2 n3 v3] processes a
+   single-line XML element with no children (other than its three
+   attributes.)
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [ni] ith attribute name.
+   o [vi] lens for processing ith attribute value.
+*)
 let xml_attr3_elt_no_body (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
@@ -300,40 +389,65 @@ let xml_attr3_elt_no_body (spaces:string) (tag:string)
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
 
+(* [tag t] formats a UniProtKB format and standard three spaces. 
+   o [t] tag. 
+*)
 let tag (t:string) : lens = 
-  qins (t . SP) (t . "   ")
+  ins (t . "   ")
 
-let default_tag (t:string) (d:string) : lens = 
-  qins (t . SP) (t . d) 
+(* [terminate l] wraps [l] so that it also inserts [NL]. 
+   o [l] lens
+*)
+let terminate (l:lens) : lens = l . ins NL
 
-let terminate (l:lens) : lens = l . qnl 
-(*
+let space : lens = ins " " 
+let qspace : lens = qins S " "
+let semi : lens = ins ";"
+let dot : lens = ins "." 
+let comma : lens = ins "," 
+
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
-let id_tag : string = "ID"
-let id_data : regexp = [A-Z0-9_]{1,12}
-let id_xml : lens = 
-  let STATUS : regexp = SP . ("Reviewed" | "Unreviewed") . ";" in 
-  let LENGTH : regexp = SP . NUMBER . " AA" in 
-  let def_sl : string = " Unreviewed; 000 AA" in 
-  tag "ID" . 
+
+(* an entry is either SwissProt (human annotated) or TrEMBL (computer generated) *)
+type entry = SwissProt | TrEMBL
+
+let id_xml (ty:entry) : lens = 
+  let id_tag : string = "ID" in 
+  let EntryName : lens = [A-Z0-9_]{1,12} in 
+  let Status : lens = 
+    ( match ty with 
+    | SwissProt -> ins "Reviewed"
+    | TrEMBL    -> ins "Unreviewed" ) . 
+    semi in 
+  let SequenceLength : lens = 
+    qins DIGIT+ "000" . 
+    qspace . 
+    ins "AA" . 
+    dot in 
+  (* id_xml body *)
+  tag id_tag . 
   xml_simple_elt nl1 "name" 
-    (key id_data .
-     qins (STATUS . LENGTH) def_sl)
-let id_line : lens = id_xml 
+    begin 
+      key EntryName . qspace . 
+      Status . qspace .
+      SequenceLength
+end
 
-(* unit tests *)
-test id_line get 
-  "<name>Q56J06_HUMAN</name>" 
-= 
-  "ID  Q56J06_HUMAN Unreviewed; 000 AA"
+let id_line (ty:entry) : lens = terminate (id_xml ty)
 
-test id_line create 
-  "ID Q5JU06_HUMAN Reviewed; 280 AA" 
+(* ID line unit tests *)
+test id_line SwissProt get 
+  "<name>Q56J06_9FLAV</name>" 
 = 
+  "ID   Q56J06_9FLAV Reviewed; 000 AA.\n"
+
+test id_line TrEMBL create 
+  "ID   Q5JU06_HUMAN Unreviewed; 280 AA.\n" 
+=  
   "\n  <name>Q5JU06_HUMAN</name>"
 
-
+(*
 (* --------------------------------------------------------------------------- *)
 (* AC line *)
 let ac_tag : string = "AC"
@@ -2975,7 +3089,6 @@ test kw_xml get
   |  <keyword id=\"KW-0001\">2Fe-2S</keyword>"
 = 
   "KW  Complete proteome; Differentiation; Viral movement protein; Zymogen; 2Fe-2S." 
-*)
   
 (* --------------------------------------------------------------------------- *)
 (* FT line *)
@@ -3166,3 +3279,4 @@ let uniprot_xml : lens =
      (terminate ft_ilne)* . 
      (terminate sq_line) 
     end
+*)
