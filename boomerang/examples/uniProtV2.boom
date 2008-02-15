@@ -32,8 +32,8 @@ let columnize : regexp -> string -> string -> canonizer =
 let brackets (l:lens) : lens = 
   ins "[" . l . ins "]" 
 
-(* [braces l] inserts enclosing braces (i.e., parentheses). *) 
-let braces (l:lens) : lens = 
+(* [parens l] inserts enclosing parentheses. *) 
+let parens (l:lens) : lens = 
   ins "(" . l . ins ")"
 
 (* [quotes s] inserts enclosing quotation marks. *) 
@@ -218,6 +218,10 @@ let xml_esc_string_ends (excl_chars:regexp) (ends_excl_chars:regexp) : lens =
 *)
 let xml_esc_string (excl_chars:regexp) : lens = 
   xml_esc_string_ends excl_chars [ ] 
+
+let esc_cs : lens = xml_esc_string [,;]
+
+let esc_pcs : lens = xml_esc_string [,;()]
 
 (* [xml_open sp t] recognizes and deletes a string consisting of
    whitespace and the start of an XML open tag.
@@ -558,7 +562,8 @@ let date,partial_date : lens * lens =
   let YYYY : regexp = DIGIT{4} in 
   let d : lens =  YYYY ~ (("-" . MMM . "-") ~ DD) in 
   let pd : lens = YYYY ~ (del "-" . MMM . ins "-") in
-  (default d "1900-01-01", default pd "1900-01")
+  (default d "1900-01-01", 
+   default pd "1900-01")
 
 (* date unit tests *)
 let date_ascii : string = "20-JAN-2009" 
@@ -619,12 +624,12 @@ let de_xml : lens =
      (xml_close . Description) ) . 
     xml_simple_close_tag "name" in 
   let (name2,name3) : lens * lens = name nl2, name nl3 in 
-  let names (tag:string) : lens = xml_elt nl2 tag (name3 . (braces name3)* ) in 
+  let names (tag:string) : lens = xml_elt nl2 tag (name3 . (parens name3)* ) in 
   let (domain,component) : lens * lens = names "domain", names "component" in 
     ins de_tag .
     xml_elt nl1 "protein" 
       begin
-        name2 . (qsp . braces name2)* . 
+        name2 . (qsp . parens name2)* . 
         (qsp . brackets (ins "Includes" . colon . qsp . iter_with_sqsp domain))? . 
         (qsp . brackets (ins "Contains" . colon . qsp . iter_with_sqsp component))?
       end . 
@@ -676,94 +681,114 @@ test de_line get
 test de_line create 
   P12544_de_ascii_actual = P12544_de_xml_cn
 
-(*
 (* --------------------------------------------------------------------------- *)
 (* GN line *)
 
+let gn_tag : string = tag "GN"
 let gn_xml : lens = 
-  let gn_any_name (ty:string) (pre:string) (post:string) : lens = 
-    xml_attr1_simple_elt nl2 "name" "type" (del ty) (ins pre . ALPHA . ins post) in 
-  let gn_primary : lens = gn_any_name "primary" "Name=" "" in 
-  let gn_fst_syn : lens = gn_any_name "synonym" "Synonyms=" "" in 
-  let gn_syn : lens = gn_any_name "synonym" ", " "" in 
-  let gn_fst_ordered_locus : lens = gn_any_name "ordered locus" "OrderedLocusNames=" "" in 
-  let gn_ordered_locus : lens = gn_any_name "ordered locus" ", " "" in 
-  let gn_fst_orf : lens = gn_any_name "ORF" "ORFNames=" "" in 
-  let gn_orf : lens = gn_any_name "ORF" ", " "" in 
+  let gn_aux (ty:string) (f:lens -> lens) : lens = 
+    xml_attr1_simple_elt nl2 "name" 
+      "type" (del ty) 
+      (f esc_cs) in 
+  let gn_primary : lens = 
+    gn_aux "primary" (fun (l:lens) -> ins "Name=" . l) in 
+  let gn_fst_syn : lens = 
+    gn_aux "synonym" (fun (l:lens) -> ins "Synonyms=" . l) in 
+  let gn_syn : lens = 
+    gn_aux "synonym" (fun (l:lens) -> comma . space . l) in 
+  let gn_fst_ordered_locus : lens = 
+    gn_aux "ordered locus" (fun (l:lens) -> ins "OrderedLocusNames=" . l) in 
+  let gn_ordered_locus : lens = 
+    gn_aux  "ordered locus" (fun (l:lens) -> comma . space . l) in 
+  let gn_fst_orf : lens = 
+    gn_aux "ORF" (fun (l:lens) -> ins "ORFNames=" . l) in 
+  let gn_orf : lens = 
+    gn_aux "ORF" (fun (l:lens) -> comma . space . l) in 
   let gn_names : lens = 
-    gn_primary .
-    ins "; " . 
-    gn_fst_syn . gn_syn* .
-    ins "; " . 
-    gn_fst_ordered_locus . gn_ordered_locus* . 
-    ins "; " . 
-    gn_fst_orf . gn_orf* . 
-    ins ";" in
-  let wrap (l:lens) : lens = right_quot l (columnize (atype l) " " "\nGN  ") in
+    gn_primary . 
+    (semi . space . gn_fst_syn . gn_syn* )? . 
+    (semi . space . gn_fst_ordered_locus . gn_ordered_locus* )? .
+    (semi . space . gn_fst_orf . gn_orf* )? . 
+    semi in 
+  let split (l:lens) : lens = 
+    right_quot l (columnize (atype l) " " (nl . gn_tag)) in
   let gn_elt : lens = 
-    tag "GN" .
+    ins gn_tag . 
     xml_elt nl1 "gene" gn_names in 
-    wrap gn_elt . (ins "\n" . tag "GN" . ins "and\n" . wrap gn_elt)*
-     
-let gn_line : lens = gn_xml 
+    split gn_elt .
+    (ins "\n" . ins gn_tag . ins "and\n" . split gn_elt)*
 
-test gn_line get 
+let gn_line : lens = 
+  terminate gn_xml 
+
+let P12544_gn_ascii : string = 
+  "GN   Name=GZMA; Synonyms=CTLA3, HFSP;" . 
+  nl
+
+let P12544_gn_xml : string = 
   "<gene>
-    <name type=\"primary\">Jon99Ciii</name>
-    <name type=\"synonym\">SER5</name>
-    <name type=\"synonym\">Ser99Db</name>
-    <name type=\"ordered locus\">b1237</name>
-    <name type=\"ordered locus\">c1701</name>
-    <name type=\"ORF\">CG15519</name>
-  </gene>
-  <gene>
-    <name type=\"primary\">Jon99Ciii</name>
-    <name type=\"synonym\">SER5</name>
-    <name type=\"ordered locus\">c1701</name>
-    <name type=\"ORF\">CG15519</name>
-  </gene>" 
-= 
-  "GN  Name=Jon99Ciii; Synonyms=SER5, Ser99Db; OrderedLocusNames=b1237, c1701;
-  |GN  ORFNames=CG15519;
-  |GN  and
-  |GN  Name=Jon99Ciii; Synonyms=SER5; OrderedLocusNames=c1701; ORFNames=CG15519;"
+  |<name type=\"primary\">GZMA</name>
+  |<name type=\"synonym\">CTLA3</name>
+  |<name type=\"synonym\">HFSP</name>
+  |</gene>"
+
+let P12544_gn_xml_cn : string = 
+  nl . 
+  "  <gene>
+  |    <name type=\"primary\">GZMA</name>
+  |    <name type=\"synonym\">CTLA3</name>
+  |    <name type=\"synonym\">HFSP</name>
+  |  </gene>"
+
+test gn_line get
+  P12544_gn_xml = P12544_gn_ascii
+
+test gn_line create
+  P12544_gn_ascii = P12544_gn_xml_cn
 
 (* --------------------------------------------------------------------------- *)
 (* OS line *)
 let names_xml (spaces:string) : lens = 
-  let any_name (ty:string) (pre:string) (post:string) : lens = 
-    xml_attr1_simple_elt spaces "name" "type" (del ty) (ins pre . ALPHA . ins post) in 
-  let scientific : lens = any_name "scientific" "" "" in 
-  let common : lens = any_name "common" "(" ")" in 
-  let syn : lens = any_name "synonym" "(" ")" in 
-    scientific 
-  | scientific . 
-    qsp . common
-  | scientific . 
-    qsp . common . 
-    qsp . syn+
+  let os_aux (ty:string) (f:lens -> lens) : lens = 
+    xml_attr1_simple_elt spaces "name" 
+      "type" (del ty) 
+      (f esc_pcs) in 
+  let scientific : lens = os_aux "scientific" (fun (l:lens) -> l) in 
+  let common : lens = os_aux "common" (fun (l:lens) -> parens l) in 
+  let synonym : lens = os_aux "synonym" (fun (l:lens) -> parens l) in 
+  (  scientific 
+  | scientific . space . common
+  | scientific . space . common . space . synonym+ )
 
+let os_tag : string = tag "OS" 
 let os_xml : lens = 
-  tag "OS" .
+  ins os_tag . 
   names_xml nl2 . 
-  ins "."      
-let os_cn : canonizer = columnize (atype os_xml) " " "\nOS  "
-let os_line : lens = right_quot os_xml os_cn 
+  dot
+let os_line : lens = 
+  let os_cn : canonizer = columnize (atype os_xml) s (nl . os_tag) in 
+  terminate (right_quot os_xml os_cn)
 
-test os_line get 
-  "<name type=\"scientific\">Solanum lycopersicum</name>
-  |<name type=\"common\">Tomato</name>
-  |<name type=\"synonym\">Lycopersicon esculentum</name>" 
-= 
-  "OS  Solanum lycopersicum (Tomato) (Lycopersicon esculentum)."
+let P12544_os_ascii : string = 
+  "OS   Homo sapiens (Human)." . 
+  nl
+
+let P12544_os_xml : string = 
+  "<name type=\"scientific\">Homo sapiens</name>
+  |<name type=\"common\">Human</name>"
+
+let P12544_os_xml_cn : string = 
+  nl . 
+  "    <name type=\"scientific\">Homo sapiens</name>
+  |    <name type=\"common\">Human</name>"
+  
+test os_line get
+  P12544_os_xml = P12544_os_ascii
 
 test os_line create
-  "OS  Passer domesticus (House sparrow)."
-=
-  "
-  |    <name type=\"scientific\">Passer domesticus</name>
-  |    <name type=\"common\">House sparrow</name>"
+  P12544_os_ascii = P12544_os_xml_cn
 
+(* 
 (* --------------------------------------------------------------------------- *)
 (* OG line *)
 
