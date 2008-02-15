@@ -23,7 +23,7 @@ module UniProtV2 =
 
 (* shorthand for backward compatibility. to be removed. *)
 let columnize : regexp -> string -> string -> canonizer = 
-  columnize "75"
+  columnize "70"
 
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)
@@ -40,7 +40,7 @@ let braces (l:lens) : lens =
 let quotes (l:lens) : lens = 
   ins "\"" . l . ins "\"" 
 
-(* sorting *)
+(* sorting lenses *)
 let sort2 (l1:lens) (l2:lens) : lens = 
   ( l1 . l2
   | l2 ~ l1)
@@ -209,7 +209,7 @@ let xml_esc_char (excl_chars:regexp) : lens =
 let xml_esc_string_ends (excl_chars:regexp) (ends_excl_chars:regexp) : lens = 
   let esc_char : lens = xml_esc_char excl_chars in 
   let esc_char_ends : lens = xml_esc_char (excl_chars | ends_excl_chars) in 
-    esc_char_ends . (esc_char . esc_char_ends)* 
+  esc_char_ends . (esc_char* . esc_char_ends)?
 
 (* [xml_esc_string ex] maps an XML-escaped string starting and
    beginning with a non-space character, to its equivalent
@@ -352,7 +352,7 @@ let xml_attr2_elt (spaces:string) (tag:string)
   xml_close_tag spaces tag 
 
 (* [xml_attrk_elt_no_kids sp t n1 v1 .. nk vk] processes a single-line XML element with
-   k children (other than its attributes.)
+   no children (other than its attributes.)
    o [sp] canonical leading whitespace.
    o [t] element tag.
    o [ni] ith attribute name.
@@ -426,18 +426,23 @@ let tag (t:string) : string =
 *)
 let terminate (l:lens) : lens = l . ins nl
 
+(* insert strings into the view *)
 let space : lens = ins " " 
 let qspace : lens = qins S ""
 let qsp : lens = qins S " "
 let semi : lens = ins ";"
+let colon : lens = ins ":"
 let dot : lens = ins "." 
 let comma : lens = ins "," 
 
-let qiter_with_sep (l:lens) (sep:lens) : lens = 
+(* [iter_with_sep l s] iterate lens [l] with separator [s] *)
+let iter_with_sep (l:lens) (sep:lens) : lens = 
   l . (sep . l)*
 
-let qiter_with_semi_qsp (l:lens) : lens = 
-  qiter_with_sep l (semi . qsp)
+(* [iter_with_sqsp] iterate a lens with "; " as a separator. used
+   all over ASCII UniProtKB. *)
+let iter_with_sqsp (l:lens) : lens = 
+  iter_with_sep l (semi . qsp)
 
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
@@ -446,15 +451,15 @@ let qiter_with_semi_qsp (l:lens) : lens =
    there are a few quirks that make generating it from the XML source
    slightly tricky. First, the status of the entry--whether it is
    SwissProt ("Reviewed") or TrEMBL ("Unreviewed") is actually
-   contained in the "dataset" attribute of the "entry" element (just
-   below). Since there are only two possibilities, we handle this by
-   paramerizing the entire lens on a datatype and using types to
-   determine which branch we are in. Second, the sequence length is
-   contained in the "length" attribute of the "sequence" element,
-   which appears at the *end* of the entry. Thus, "id_xml_start" lens
-   actually only generates the start of the ID line; the end of the
-   line is generated in the "uniprot_entry" lens using "duplicate" on
-   the "sequence" element, and a "swap" to pull it up to the top.
+   contained in the "dataset" attribute of the "entry" element. Since
+   there are only two possibilities, we handle this by parameterizing
+   the entire lens on a datatype and using types to determine which
+   branch we are in. Second, the sequence length is contained in the
+   "length" attribute of the "sequence" element, which appears at the
+   *end* of the entry. Thus, "id_xml_start" lens actually only
+   generates the start of the ID line; the end of the line is
+   generated in the "uniprot_entry" lens using "duplicate" on the
+   "sequence" element, and a "swap" to pull it up to the top.
 *)
 
 (* [entry] representing kind of entry: SwissProt (human annotated) or
@@ -483,7 +488,6 @@ let id_xml_start (ty:entry) : lens =
     end
 
 (* ID line unit tests *)
-
 let P12544_id_ascii : string = 
   "ID   GRAA_HUMAN              Reviewed; " 
 
@@ -510,7 +514,7 @@ let ac_xml : lens =
   let ac_elt : lens = xml_simple_elt nl1 "accession" AC_number in 
   ins ac_tag . 
   qspace . 
-  qiter_with_semi_qsp ac_elt . 
+  iter_with_sqsp ac_elt . 
   semi
 
 let ac_line : lens = 
@@ -603,68 +607,76 @@ test dt_lines SwissProt get
 test dt_lines SwissProt create 
   P12544_dt_ascii = P12544_dt_xml_cn
 
-(*
- 
 (* --------------------------------------------------------------------------- *)
 (* DE line *)
 
+let de_tag : string = tag "DE" 
 let de_xml : lens = 
-  let name2 : lens = xml_simple_elt nl2 "name" ALPHA in
-  let name3 : lens = xml_simple_elt nl3 "name" ALPHA in 
-  let domain: lens = xml_elt nl2 "domain" (name3 . (ins " (". name3 . ins ")")* ) in 
-  let component: lens = xml_elt nl2 "component" (name3 . (ins " (". name3 . ins ")")* ) in 
-    tag "DE" .
+  let Description : lens = xml_esc_string [;()[\]] in 
+  let name (space:string) : lens =
+    xml_open space "name" . 
+    ( (xml_attr "ref" (qsp . brackets NUMBER))? ~ 
+     (xml_close . Description) ) . 
+    xml_simple_close_tag "name" in 
+  let (name2,name3) : lens * lens = name nl2, name nl3 in 
+  let names (tag:string) : lens = xml_elt nl2 tag (name3 . (braces name3)* ) in 
+  let (domain,component) : lens * lens = names "domain", names "component" in 
+    ins de_tag .
     xml_elt nl1 "protein" 
-    (name2 .
-       (qsp . ins "[Includes:" . qsp . domain. (ssp . domain)+ . ins "]")? . 
-       (qsp . ins "[Contains:" . qsp . component. (ssp. component)+ . ins "]")? )
-let de_cn : canonizer = columnize (atype de_xml) " " "\nDE  "
+      begin
+        name2 . (qsp . braces name2)* . 
+        (qsp . brackets (ins "Includes" . colon . qsp . iter_with_sqsp domain))? . 
+        (qsp . brackets (ins "Contains" . colon . qsp . iter_with_sqsp component))?
+      end . 
+    dot
 
-let de_sample : string = 
-  "
-  |  <protein>
-  |    <name>Arginine biosynthesis bifunctional protein argJ</name>
-  |    <domain>
-  |      <name>Glutamate N-acetyltransferase</name>
-  |      <name>EC 2.3.1.35</name>
-  |      <name>Ornithine acetyltransferase</name>
-  |      <name>Ornithine transacetylase</name>
-  |      <name>OATase</name>
-  |    </domain>
-  |    <domain>
-  |      <name>Amino-acid acetyltransferase</name>
-  |      <name>EC 2.3.1.1</name>
-  |      <name>N-acetylglutamate synthase</name>
-  |      <name>AGS</name>
-  |    </domain>
-  |    <component>
-  |      <name>Arginine biosynthesis bifunctional protein argJ alpha chain</name>
-  |    </component>
-  |    <component>
-  |      <name>Arginine biosynthesis bifunctional protein argJ beta chain</name>
-  |    </component>
-  |  </protein>"
+let de_line : lens = 
+  let de_cn : canonizer = columnize (atype de_xml) s (nl . de_tag) in 
+  terminate (right_quot de_xml de_cn)
 
-test right_quot de_xml de_cn get
-  de_sample 
-=
- "DE  Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate
- |DE  N-acetyltransferase (EC 2.3.1.35) (Ornithine acetyltransferase) (Ornithine
- |DE  transacetylase) (OATase); Amino-acid acetyltransferase (EC 2.3.1.1)
- |DE  (N-acetylglutamate synthase) (AGS)] [Contains: Arginine biosynthesis bifunctional
- |DE  protein argJ alpha chain; Arginine biosynthesis bifunctional protein argJ beta
- |DE  chain]"
+let P12544_de_ascii : string = 
+  "DE   Granzyme A precursor (EC 3.4.21.78) (Cytotoxic T-lymphocyte proteinase
+  |DE   1) (Hanukkah factor) (H factor) (HF) (Granzyme-1) (CTL tryptase)
+  |DE   (Fragmentin-1)."
 
-test right_quot de_xml de_cn create 
- "DE  Arginine biosynthesis bifunctional protein argJ [Includes: Glutamate
- |DE  N-acetyltransferase (EC 2.3.1.35) (Ornithine acetyltransferase) (Ornithine
- |DE  transacetylase) (OATase); Amino-acid acetyltransferase (EC 2.3.1.1)
- |DE  (N-acetylglutamate synthase) (AGS)] [Contains: Arginine biosynthesis bifunctional
- |DE  protein argJ alpha chain; Arginine biosynthesis bifunctional protein argJ beta
- |DE  chain]"
-=
- de_sample
+let P12544_de_ascii_actual : string = 
+  "DE   Granzyme A precursor [1] (Cytotoxic T-lymphocyte proteinase 1)
+  |DE   (Hanukkah factor) (H factor) (HF) (Granzyme-1) (CTL tryptase)
+  |DE   (Fragmentin-1)." . 
+  nl
 
+let P12544_de_xml : string = 
+  "<protein>
+  |<name ref=\"1\">Granzyme A precursor</name>
+  |<name>Cytotoxic T-lymphocyte proteinase 1</name>
+  |<name>Hanukkah factor</name>
+  |<name>H factor</name>
+  |<name>HF</name>
+  |<name>Granzyme-1</name>
+  |<name>CTL tryptase</name>
+  |<name>Fragmentin-1</name>
+  |</protein>" 
+
+let P12544_de_xml_cn : string = 
+  nl . 
+  "  <protein>
+  |    <name ref=\"1\">Granzyme A precursor</name>
+  |    <name>Cytotoxic T-lymphocyte proteinase 1</name>
+  |    <name>Hanukkah factor</name>
+  |    <name>H factor</name>
+  |    <name>HF</name>
+  |    <name>Granzyme-1</name>
+  |    <name>CTL tryptase</name>
+  |    <name>Fragmentin-1</name>
+  |  </protein>" 
+
+test de_line get 
+  P12544_de_xml = P12544_de_ascii_actual
+
+test de_line create 
+  P12544_de_ascii_actual = P12544_de_xml_cn
+
+(*
 (* --------------------------------------------------------------------------- *)
 (* GN line *)
 
