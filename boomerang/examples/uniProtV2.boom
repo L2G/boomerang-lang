@@ -141,8 +141,11 @@ let ANY : regexp = [^]*
 (* [containing R] any string containing [R] *)
 let containing (R:regexp) : regexp = ANY . R . ANY
 
-(* [NL] newline *)
-let NL :string = "\n"
+(* [nl] newline *)
+let nl :string = "\n"
+
+(* [s] space *)
+let s :string = " "
 
 (* [WS] whitespace *)
 let WS : regexp = [ \n]*
@@ -162,8 +165,17 @@ let SP : regexp = [ ]+
 (* [DIGIT] digit *)
 let DIGIT : regexp = [0-9]
 
+(* [NUMBER] number *)
+let NUMBER : regexp = DIGIT+
+
+(* [ULETTER] uppercase letter *)
+let ULETTER : regexp = [A-Z]
+
+(* [UALPHANUM] uppercase alphanumeric character *)
+let UALPHANUM : regexp = [A-Z0-9]
+
 (* [nlX]: X^th amount of whitespace--used to canonize XML *)
-let nl0 = "\n"
+let nl0 = nl
 let nl1 = nl0 . "  "
 let nl2 = nl1 . "  "
 let nl3 = nl2 . "  "
@@ -319,18 +331,6 @@ let xml_attr1_simple_elt (spaces:string) (tag:string)
     body . 
     xml_simple_close_tag tag 
 
-(* [xml_attr1_elt_no_kids sp t n v] processes a single-line XML element with
-   no children (other than its single attribute.)
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [n] attribute name.
-   o [v] lens for processing attribute value.
-*)
-let xml_attr1_elt_no_kids (spaces:string) (tag:string) (name:string) (value:lens) : lens = 
-  xml_open spaces tag . 
-  xml_attr name value . 
-  xml_slash_close
-
 (* [xml_attr2_elt sp t n1 v1 n2 v2 l] processes a multi-line XML
    element with two attributes.
    o [sp] canonical leading whitespace.
@@ -351,40 +351,66 @@ let xml_attr2_elt (spaces:string) (tag:string)
   body . 
   xml_close_tag spaces tag 
 
-(* [xml_attr1_elt_no_kids sp t n1 v1 n2 v2] processes a single-line
-   XML element with no children (other than its two attributes.)
+(* [xml_attrk_elt_no_kids sp t n1 v1 .. nk vk] processes a single-line XML element with
+   k children (other than its attributes.)
    o [sp] canonical leading whitespace.
    o [t] element tag.
    o [ni] ith attribute name.
    o [vi] lens for processing ith attribute value.
 *)
+let xml_attrs_no_kids (spaces:string) (tag:string) 
+    (attrs:lens) : lens = 
+  xml_open spaces tag . 
+  attrs . 
+  xml_slash_close
+
+let xml_attr1_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) : lens = 
+  xml_attrs_no_kids spaces tag 
+    (xml_attr name1 value1)
+    
 let xml_attr2_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) : lens = 
-  xml_open spaces tag . 
-  sort2
+  xml_attrs_no_kids spaces tag 
+  (sort2
     (xml_attr name1 value1) 
-    (xml_attr name2 value2) . 
-  xml_slash_close 
+    (xml_attr name2 value2))
 
-(* [xml_attr3_elt_no_kids sp t n1 v1 n2 v2 n3 v3] processes a
-   single-line XML element with no children (other than its three
-   attributes.)
+let xml_attr3_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) : lens = 
+  xml_attrs_no_kids spaces tag 
+  (sort3 
+    (xml_attr name1 value1) 
+    (xml_attr name2 value2)  
+    (xml_attr name3 value3))
+
+
+(* [xml_attrk_open sp t n1 v1 .. nk vk] opens a single-line XML element with k attributes.
    o [sp] canonical leading whitespace.
    o [t] element tag.
    o [ni] ith attribute name.
    o [vi] lens for processing ith attribute value.
 *)
-let xml_attr3_elt_no_body (spaces:string) (tag:string) 
+let xml_attrs_open (spaces:string) (tag:string) 
+    (attrs:lens) : lens = 
+  xml_open spaces tag . 
+  attrs . 
+  xml_close  
+
+let xml_attr4_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) : lens = 
-  xml_open spaces tag . 
-  sort3 
+    (name3:string) (value3:lens) 
+    (name4:string) (value4:lens) : lens = 
+  xml_attrs_open spaces tag 
+  (sort4
     (xml_attr name1 value1) 
     (xml_attr name2 value2)  
-    (xml_attr name3 value3) .
-  xml_slash_close 
+    (xml_attr name3 value3) 
+    (xml_attr name4 value4)) 
 
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
@@ -392,28 +418,52 @@ let xml_attr3_elt_no_body (spaces:string) (tag:string)
 (* [tag t] formats a UniProtKB format and standard three spaces. 
    o [t] tag. 
 *)
-let tag (t:string) : lens = 
-  ins (t . "   ")
+let tag (t:string) : string = 
+  t . "   "
 
-(* [terminate l] wraps [l] so that it also inserts [NL]. 
+(* [terminate l] wraps [l] so that it also inserts [nl]. 
    o [l] lens
 *)
-let terminate (l:lens) : lens = l . ins NL
+let terminate (l:lens) : lens = l . ins nl
 
 let space : lens = ins " " 
-let qspace : lens = qins S " "
+let qspace : lens = qins S ""
+let qsp : lens = qins S " "
 let semi : lens = ins ";"
 let dot : lens = ins "." 
 let comma : lens = ins "," 
 
+let qiter_with_sep (l:lens) (sep:lens) : lens = 
+  l . (sep . l)*
+
+let qiter_with_semi_qsp (l:lens) : lens = 
+  qiter_with_sep l (semi . qsp)
+
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
 
-(* an entry is either SwissProt (human annotated) or TrEMBL (computer generated) *)
+(* Notes: the ASCII representation of the ID line is dead simple, but
+   there are a few quirks that make generating it from the XML source
+   slightly tricky. First, the status of the entry--whether it is
+   SwissProt ("Reviewed") or TrEMBL ("Unreviewed") is actually
+   contained in the "dataset" attribute of the "entry" element (just
+   below). Since there are only two possibilities, we handle this by
+   paramerizing the entire lens on a datatype and using types to
+   determine which branch we are in. Second, the sequence length is
+   contained in the "length" attribute of the "sequence" element,
+   which appears at the *end* of the entry. Thus, "id_xml_start" lens
+   actually only generates the start of the ID line; the end of the
+   line is generated in the "uniprot_entry" lens using "duplicate" on
+   the "sequence" element, and a "swap" to pull it up to the top.
+*)
+
+(* [entry] representing kind of entry: SwissProt (human annotated) or
+   TrEMBL (computer generated). *)
 type entry = SwissProt | TrEMBL
 
-let id_xml (ty:entry) : lens = 
-  let id_tag : string = "ID" in 
+let id_tag : string = tag "ID"
+let id_xml_start (ty:entry) : lens = 
+  (* helpers *)
   let EntryName : lens = [A-Z0-9_]{1,12} in 
   let Status : lens = 
     ( match ty with 
@@ -421,97 +471,74 @@ let id_xml (ty:entry) : lens =
     | TrEMBL    -> ins "Unreviewed" ) . 
     semi in 
   let SequenceLength : lens = 
-    qins DIGIT+ "000" . 
-    qspace . 
+    qins DIGIT+ "000" . qsp . 
     ins "AA" . 
     dot in 
   (* id_xml body *)
-  tag id_tag . 
+  ins id_tag . 
   xml_simple_elt nl1 "name" 
     begin 
-      key EntryName . qspace . 
-      Status . qspace .
-      SequenceLength
-end
-
-let id_line (ty:entry) : lens = terminate (id_xml ty)
+      key EntryName . qsp . 
+      Status . qsp 
+    end
 
 (* ID line unit tests *)
-test id_line SwissProt get 
-  "<name>Q56J06_9FLAV</name>" 
-= 
-  "ID   Q56J06_9FLAV Reviewed; 000 AA.\n"
 
-test id_line TrEMBL create 
-  "ID   Q5JU06_HUMAN Unreviewed; 280 AA.\n" 
-=  
-  "\n  <name>Q5JU06_HUMAN</name>"
+let P12544_id_ascii : string = 
+  "ID   GRAA_HUMAN              Reviewed; " 
 
-(*
+let P12544_id_ascii_cn : string = 
+  "ID   GRAA_HUMAN Reviewed; " 
+
+let P12544_id_xml : string = 
+  nl . "  <name>GRAA_HUMAN</name>"
+
+test (id_xml_start SwissProt) create 
+  P12544_id_ascii = P12544_id_xml
+
+test (id_xml_start SwissProt) get 
+  P12544_id_xml = P12544_id_ascii_cn 
+
 (* --------------------------------------------------------------------------- *)
 (* AC line *)
-let ac_tag : string = "AC"
-let ac_data : regexp = [A-Z0-9]{6} 
-let ac_entry : regexp = ac_data . ";" 
+
+let ac_tag : string = tag "AC"
 let ac_xml : lens =  
-  let ac_elt (sep:string) : lens = 
-    xml_simple_elt nl1 "accession" (ac_data . qins (sep . S) sep) in 
-  tag "AC" . 
-  (ac_elt "; ")* . (ac_elt ";")
-let ac_cn : canonizer = columnize (atype ac_xml) " " "\nAC  "
-let ac_line : lens = right_quot ac_xml ac_cn
+  let AC_number : regexp = 
+    ( [A-NR-Z] . DIGIT . ULETTER . UALPHANUM{2} . DIGIT 
+    | [OPQ]    . DIGIT . UALPHANUM{3}           . DIGIT ) in       
+  let ac_elt : lens = xml_simple_elt nl1 "accession" AC_number in 
+  ins ac_tag . 
+  qspace . 
+  qiter_with_semi_qsp ac_elt . 
+  semi
 
-(* unit tests *)
+let ac_line : lens = 
+  let ac_cn : canonizer = columnize (atype ac_xml) s (nl . ac_tag) in 
+  terminate (right_quot ac_xml ac_cn)
+
+(* AC line unit tests *)
+let P12544_ac_ascii : string = 
+  "AC   P12544; Q6IB36;" . nl
+
+let P12544_ac_xml : string = 
+  nl . 
+  "  <accession>P12544</accession>
+  |  <accession>Q6IB36</accession>"
+
 test ac_line get 
-  "<accession>Q21234</accession>" 
-= "AC  Q21234;" 
+  P12544_ac_xml = P12544_ac_ascii
 
-let ac_sample : string = 
-  "
-  |  <accession>Q92892</accession>
-  |  <accession>Q92893</accession>
-  |  <accession>Q92894</accession>
-  |  <accession>Q92895</accession>
-  |  <accession>Q93053</accession>
-  |  <accession>Q96KU9</accession>
-  |  <accession>Q93053</accession>
-  |  <accession>Q96KV0</accession>
-  |  <accession>Q93053</accession>
-  |  <accession>Q93053</accession>
-  |  <accession>Q93053</accession>
-  |  <accession>Q96KU9</accession>" 
+test ac_line create 
+  P12544_ac_ascii = P12544_ac_xml
 
-test ac_line get ac_sample
-= 
-  "AC  Q92892; Q92893; Q92894; Q92895; Q93053; Q96KU9; Q93053; Q96KV0; Q93053;
-  |AC  Q93053; Q93053; Q96KU9;"
-
-test ac_line create
-  "AC    Q92892; Q92893; Q92894; Q92895; 
-  |AC         Q93053; Q96KU9; Q93053; Q96KV0; Q93053;
-  |AC  Q93053;   Q93053; 
-  |AC  Q96KU9;"
-= ac_sample
-
-test ac_line put
-  "AC    Q21234; QJNF12;"
-into
-  "<accession>Q92892</accession>
-  |  <accession>Q92893</accession>
-  |      <accession>Q92894</accession>
-  | <accession>Q92895</accession>"
-= 
-  "
-  |  <accession>Q21234</accession>
-  |  <accession>QJNF12</accession>" 
- 
 (* --------------------------------------------------------------------------- *)
 (* DT line *)
 
-(* [date] maps between aphanumeric and numeric dates *)
+(* [date] and [partial_date] map between aphanumeric and numeric dates *)
 let date,partial_date : lens * lens = 
-  let day : regexp = DIGIT{2} in 
-  let month : lens = 
+  let DD : regexp = DIGIT{2} in 
+  let MMM : lens = 
     ( "01" <-> "JAN" 
     | "02" <-> "FEB" 
     | "03" <-> "MAR" 
@@ -524,51 +551,59 @@ let date,partial_date : lens * lens =
     | "10" <-> "OCT" 
     | "11" <-> "NOV" 
     | "12" <-> "DEC" ) in       
-  let year : regexp = DIGIT{4} in 
-    (default
-      (year ~ (("-" . month . "-") ~ day))        
-      "1900-01-01",
-     default
-       (year ~ (del "-" . month . ins "-"))
-       "1900-01")
+  let YYYY : regexp = DIGIT{4} in 
+  let d : lens =  YYYY ~ (("-" . MMM . "-") ~ DD) in 
+  let pd : lens = YYYY ~ (del "-" . MMM . ins "-") in
+  (default d "1900-01-01", default pd "1900-01")
 
-test date get "2009-01-20" = "20-JAN-2009"
-test partial_date get "2009-01" = "JAN-2009" 
+(* date unit tests *)
+let date_ascii : string = "20-JAN-2009" 
+let date_xml : string = "2009-01-20" 
+test date get date_xml = date_ascii
+test date create date_ascii = date_xml
 
-let (entry_cn,entry_xml) : canonizer * lens = 
-  let entry_tag : string = "entry" in 
-  let DATE : regexp = ctype date in 
-  let STRING : regexp = [A-Za-z\-]+ in 
-  (* helpers *)
-  let cp_ws (R:regexp) : lens = WSP . R in 
-  let attr  (s:string) (R:regexp) : regexp = s . "=\"" . R . "\"" in 
-  (* definitions *)
-  let R1 = attr "created" DATE in 
-  let R2 = attr "dataset" STRING in
-  let R3 = attr "modified" DATE in
-  let R4 = attr "version" NUMBER in 
-  let cn : canonizer = canonizer_of_lens (
-    xml_open nl1 entry_tag . 
-    (sort4 (cp_ws R1) (cp_ws R2) (cp_ws R3) (cp_ws R4)) . 
-    xml_slash_close) in 
-  let dt1a = tag "DT" . date . ins ", " in
-  let dt1b = ins "integrated into UniprotKB/" . STRING . ins "." . ins NL in
-  let dt3a = tag "DT" . date . ins ", " in
-  let dt3b = ins "entry version" . qins S " " . NUMBER . ins "." in
-  let xml : lens = 
-    xml_attr "created" dt1a .
-    xml_attr "dataset" dt1b .  
-    xml_attr "modified" dt3a . 
-    xml_attr "version" dt3b in 
-  (cn,xml)
+(* partial_date unit tests *)
+let partial_ascii : string = "JAN-2009"
+let partial_xml : string = "2009-01"
+test partial_date get partial_xml = partial_ascii
+test partial_date create partial_ascii = partial_xml
 
-let entry_line = left_quot entry_cn entry_xml
+let dt_tag : string = tag "DT" 
+let dt_lines (ty:entry) : lens =   
+  let dataset : lens = match ty with 
+    | SwissProt -> "Swiss-Prot" 
+    | TrEMBL -> "TrEMBL" in 
+  ins dt_tag . 
+  xml_attr4_elt_open nl1 "entry" 
+    "created" (date . comma . qsp . ins "integrated into UniProtKB/") 
+    "dataset" (dataset . dot . ins nl)
+    "modified" (ins dt_tag . date . comma. qsp) 
+    "version" (ins "entry version" . qsp . NUMBER . dot . ins nl)
 
-test entry_line get 
-  "<entry created=\"2006-04-18\" version=\"15\"   dataset=\"Swiss-Prot\"   modified=\"2007-02-20\"/>"
-= 
-  "DT  18-APR-2006, integrated into UniprotKB/Swiss-Prot.
-  |DT  20-FEB-2007, entry version 15."
+(* DT lines unit tests *)
+let P12544_dt_xml : string = 
+  nl . 
+  "  <entry dataset=\"Swiss-Prot\" created=\"1989-10-01\" modified=\"2008-01-15\" version=\"101\">"
+
+let P12544_dt_xml_cn : string = 
+  nl . 
+  "  <entry created=\"1989-10-01\" dataset=\"Swiss-Prot\" modified=\"2008-01-15\" version=\"101\">"
+
+let P12544_dt_xml : string = 
+  nl . 
+  "  <entry dataset=\"Swiss-Prot\" created=\"1989-10-01\" modified=\"2008-01-15\" version=\"101\">"
+
+let P12544_dt_ascii : string = 
+  "DT   01-OCT-1989, integrated into UniProtKB/Swiss-Prot.
+  |DT   15-JAN-2008, entry version 101." . nl
+
+test dt_lines SwissProt get 
+  P12544_dt_xml = P12544_dt_ascii
+
+test dt_lines SwissProt create 
+  P12544_dt_ascii = P12544_dt_xml_cn
+
+(*
  
 (* --------------------------------------------------------------------------- *)
 (* DE line *)

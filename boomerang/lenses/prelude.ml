@@ -206,11 +206,12 @@ let prelude_spec =
          Str(i,C.cls c1 s1))))                          
 
   ; (mk_prelude_qid "columnize",
-     SRegexp ^> SString ^> SString ^> SCanonizer,
+     SString ^> SRegexp ^> SString ^> SString ^> SCanonizer,
+     mk_sfun (Info.M "columnize built-in") (SRegexp ^> SString ^> SString ^> SCanonizer) (fun i k -> 
      mk_rfun (Info.M "columnize built-in") (SString ^> SString ^> SCanonizer) (fun i r -> 
        mk_sfun i (SString ^> SCanonizer) (fun i s -> 
          mk_sfun i SCanonizer (fun i nl -> 
-           Can(i,C.columnize i 80 r s nl)))))
+           Can(i,C.columnize i k r s nl))))))
 
   ; (mk_prelude_qid "rep",
      SCanonizer ^> SString ^> SString,

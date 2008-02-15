@@ -241,8 +241,16 @@ module Canonizer = struct
     }
 
   (* add primitives ... *)
-  let columnize i k r s nl =     
-    let n = sprintf "columnize %d (%s) (%s) (%s)" k (R.string_of_t r) (RS.string_of_t s) (RS.string_of_t nl) in 
+  let columnize i ks r s nl =     
+    let n = sprintf "columnize %s (%s) (%s) (%s)" 
+      (RS.string_of_t ks) 
+      (R.string_of_t r) 
+      (RS.string_of_t s) 
+      (RS.string_of_t nl) in 
+    let k = 
+      try int_of_string (RS.string_of_t ks) with _ -> 
+        Berror.static_error i n
+          (sprintf "%s must be an integer@\n" (RS.string_of_t ks)) in 
     let () = 
       let any = R.star (R.negset []) in 
       let contains_nl = R.seq any (R.seq (R.str false nl) any) in 
@@ -884,12 +892,12 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       | S_comp (s1, s2) -> dl1.stype s1 && dl2.stype s2
       | _ -> false in
     (match dl1.arel,dl2.crel with
-      | Identity,Identity -> ()
-      | _ -> 
+       | Unknown,Unknown -> 
           let s = sprintf "the composition of %s and %s is ill-typed: %s"            
             dl1.string dl2.string 
             "the middle relations must both be the identity" in 
-            Berror.static_error i n s);
+            Berror.static_error i n s
+       | _ -> ());
     let equiv, f_suppl = R.check_equiv dl1.atype dl2.ctype in
       if not equiv then
         begin
