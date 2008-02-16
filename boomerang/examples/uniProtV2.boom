@@ -2,7 +2,8 @@
 (* The Harmony Project                                                         *)
 (* harmony@lists.seas.upenn.edu                                                *)
 (*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Alexandre Pilkiewicz                *)
+(* Copyright (C) 2007-2008                                                     *)
+(* J. Nathan Foster, Alexandre Pilkiewicz, and Benjamin C. Pierce              *)
 (*                                                                             *)
 (* This library is free software; you can redistribute it and/or               *)
 (* modify it under the terms of the GNU Lesser General Public                  *)
@@ -15,7 +16,7 @@
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
 (* /boomerang/examples/uniProtV2.boom                                          *)
-(* UniProtKB <-> SwissProt lens                                                *)
+(* UniProtKB XML <-> UniProtKB ASCII lens                                      *)
 (* $Id$ *)
 (*******************************************************************************)
 
@@ -433,16 +434,15 @@ let xml_attr2_elt_open (spaces:string) (tag:string)
        (xml_attr name1 value1)
        (xml_attr name2 value2))
 
-
 let xml_attr3_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) : lens = 
   xml_attrs_open spaces tag 
-  (sort3
-    (xml_attr name1 value1) 
-    (xml_attr name2 value2)  
-    (xml_attr name3 value3))
+    (sort3
+       (xml_attr name1 value1) 
+       (xml_attr name2 value2)  
+       (xml_attr name3 value3))
 
 let xml_attr4_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
@@ -450,11 +450,11 @@ let xml_attr4_elt_open (spaces:string) (tag:string)
     (name3:string) (value3:lens) 
     (name4:string) (value4:lens) : lens = 
   xml_attrs_open spaces tag 
-  (sort4
-    (xml_attr name1 value1) 
-    (xml_attr name2 value2)  
-    (xml_attr name3 value3) 
-    (xml_attr name4 value4))
+    (sort4
+       (xml_attr name1 value1) 
+       (xml_attr name2 value2)  
+       (xml_attr name3 value3) 
+       (xml_attr name4 value4))
 
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
@@ -1612,8 +1612,9 @@ test submitted_line create
   "<citation type=\"submission\" date=\"1995-10\" db=\"EMBL/GenBank/DDBJ databases\">"
 
 (* RL line final assembly *)
-let rl_line : lens = (journal_line | electronic_line | book_line 
-                     | unpublished_line | thesis_line | submitted_line)
+let rl_line : lens = 
+  ( journal_line | electronic_line | book_line | unpublished_line | thesis_line 
+  | submitted_line)
 
 (* --------------------------------------------------------------------------- *)
 (* Reference block *)
@@ -1700,14 +1701,11 @@ test reference_block get
 
 test reference_block create 
   P12544_reference_ascii_actual = P12544_reference_xml_cn
-
-(*  
 (* --------------------------------------------------------------------------- *)
 (* CC line *)
 
-let cc_break : lens = ins "\nCC      "  
-
-let cc_fix (l:lens) : lens = right_quot l (columnize (atype l) " " "\nCC        ") 
+let cc_tag : string = tag "CC" 
+let cc_long_tag : string = cc_tag . "    "
 
 let cc_status : lens = 
   xml_attr "status"
@@ -1715,56 +1713,100 @@ let cc_status : lens =
     | "potential"     <-> " (Potential)"    
     | "probable"      <-> " (Probable)" )
 
-let CC_DATA : regexp = 
-  (NWS . ANY  . NWS) - (containing ([<>&\n] | "-!-") | ANY . (atype cc_status | ".")) 
-
 let cc_generic_xml (ty:lens) : lens = 
-  tag "CC" . 
-  ins "-!-" . qsp . 
+  let typ : lens = xml_attr "type" ty in 
+  let data_no_dot : lens = xml_esc_string_ends [] [.] in 
+  let data_dot : lens = esc . "." in 
+  let txt (d:lens) : lens = 
+    colon . 
+    space . 
+    xml_simple_elt nl2 "text" d in 
+  ins cc_tag . 
+  ins "-!-" . space . 
   xml_open nl1 "comment" . 
-  xml_attr "type" ty . 
-  ((cc_status? . xml_close) ~
-  (ins ":" . qsp . CC_DATA)) . 
-  xml_close_tag "comment" . 
-  ins "." 
+  ( typ . ( (cc_status . xml_close) ~ (txt data_no_dot) ) . dot 
+  | ( cc_status ~ (typ . xml_close . txt data_no_dot) ) . dot  
+  | typ . xml_close . txt data_dot ) . 
+  xml_close_tag nl1 "comment" 
 
 let cc_unstructured_xml : lens = 
   cc_generic_xml
     ( "allergen"             <-> "ALLERGEN"
-    | "biotechnology"        <->  "BIOTECHNOLOGY"       
-    | "catalytic activity"   <->  "CATALYTIC ACTIVITY"  
-    | "cofactor"             <->  "COFACTOR"            
-    | "developmental stage"  <->  "DEVELOPMENTAL STAGE" 
-    | "disease"              <->  "DISEASE"             
-    | "domain"               <->  "DOMAIN"              
-    | "enzyme regulation"    <->  "ENZYME REGULATION"   
-    | "function"             <->  "FUNCTION"            
-    | "induction"            <->  "INDUCTION"           
-    | "miscellaneous"        <->  "MISCELLANEOUS"       
-    | "pathway"              <->  "PATHWAY"             
-    | "pharmaceutical"       <->  "PHARMACEUTICAL"      
-    | "polymorphism"         <->  "POLYMORPHISM"        
-    | "PTM"                  <->  "PTM"                 
-    | "RNA editing"          <->  "RNA EDITING"         
-    | "similarity"           <->  "SIMILARITY"          
-    | "subcellular location" <->  "SUBCELLULAR LOCATION"
-    | "subunit"              <->  "SUBUNIT"             
-    | "tissue specificity"   <->  "TISSUE SPECIFICITY"  
-    | "toxic dose"           <->  "TOXIC DOSE" )
+    | "biotechnology"        <-> "BIOTECHNOLOGY"       
+    | "catalytic activity"   <-> "CATALYTIC ACTIVITY"  
+    | "cofactor"             <-> "COFACTOR"            
+    | "developmental stage"  <-> "DEVELOPMENTAL STAGE" 
+    | "disease"              <-> "DISEASE"             
+    | "domain"               <-> "DOMAIN"              
+    | "enzyme regulation"    <-> "ENZYME REGULATION"   
+    | "function"             <-> "FUNCTION"            
+    | "induction"            <-> "INDUCTION"           
+    | "miscellaneous"        <-> "MISCELLANEOUS"       
+    | "pathway"              <-> "PATHWAY"             
+    | "pharmaceutical"       <-> "PHARMACEUTICAL"      
+    | "polymorphism"         <-> "POLYMORPHISM"        
+    | "PTM"                  <-> "PTM"                 
+    | "RNA editing"          <-> "RNA EDITING"         
+    | "similarity"           <-> "SIMILARITY"          
+    | "subcellular location" <-> "SUBCELLULAR LOCATION"
+    | "subunit"              <-> "SUBUNIT"             
+    | "tissue specificity"   <-> "TISSUE SPECIFICITY"  
+    | "toxic dose"           <-> "TOXIC DOSE" )
 
-test cc_unstructured_xml create 
-  ("CC   -!- ALLERGEN: Causes an allergic reaction in humans. Binds to IgE. " . 
-   "Partially heat-labile allergen that may cause both respiratory and " . 
-   "food-allergy symptoms in patients with the bird-egg syndrome.") = 
+let cc_unstructured_line : lens = 
+  split_terminate (cc_long_tag,cc_unstructured_xml)
+
+(* unit tests for CC unstructured lines *)
+test cc_unstructured_line create 
+  ("CC   -!- ALLERGEN: Causes an allergic reaction in humans. Binds to IgE.
+   |CC       Partially heat-labile allergen that may cause both respiratory and
+   |CC       food-allergy symptoms in patients with the bird-egg syndrome." . 
+   nl) = 
   "
-  |  <comment type=\"allergen\">Causes an allergic reaction in humans. Binds to IgE. Partially heat-labile allergen that may cause both respiratory and food-allergy symptoms in patients with the bird-egg syndrome</comment>"
+  |  <comment type=\"allergen\">
+  |    <text>Causes an allergic reaction in humans. Binds to IgE. Partially heat-labile allergen that may cause both respiratory and food-allergy symptoms in patients with the bird-egg syndrome.</text>
+  |  </comment>"
 
-test cc_unstructured_xml create
-  "CC    -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity)." 
+test cc_unstructured_line create
+  ("CC   -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity)." . 
+   nl)
 = 
   "
-  |  <comment type=\"subcellular location\" status=\"by similarity\">Golgi apparatus</comment>" 
+  |  <comment type=\"subcellular location\" status=\"by similarity\">
+  |    <text>Golgi apparatus</text>
+  |  </comment>" 
 
+(* UniProtKB breaks its own rules here, splitting a line at a hyphen :( *)
+let P12544_cc_unstructured_ascii : string = 
+  "CC   -!- FUNCTION: This enzyme is necessary for target cell lysis in cell-
+  |CC       mediated immune responses. It cleaves after Lys or Arg. May be
+  |CC       involved in apoptosis." . 
+  nl
+
+let P12544_cc_unstructured_ascii_actual : string = 
+  "CC   -!- FUNCTION: This enzyme is necessary for target cell lysis in
+  |CC       cell-mediated immune responses. It cleaves after Lys or Arg. May be
+  |CC       involved in apoptosis." . 
+  nl
+
+let P12544_cc_unstructured_xml : string = 
+  "<comment type=\"function\">
+  |<text>This enzyme is necessary for target cell lysis in cell-mediated immune responses. It cleaves after Lys or Arg. May be involved in apoptosis.</text>
+  |</comment>" 
+
+let P12544_cc_unstructured_xml_cn : string = 
+  nl . 
+  "  <comment type=\"function\">
+  |    <text>This enzyme is necessary for target cell lysis in cell-mediated immune responses. It cleaves after Lys or Arg. May be involved in apoptosis.</text>
+  |  </comment>" 
+
+test cc_unstructured_line get 
+  P12544_cc_unstructured_xml = P12544_cc_unstructured_ascii_actual
+
+test cc_unstructured_line create 
+  P12544_cc_unstructured_ascii_actual = P12544_cc_unstructured_xml_cn
+
+(*
 let cc_biophysicochemical_properties_xml : lens = 
   let absorption : lens = 
     ins " Absorption: " .
