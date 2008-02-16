@@ -219,9 +219,10 @@ let xml_esc_string_ends (excl_chars:regexp) (ends_excl_chars:regexp) : lens =
 let xml_esc_string (excl_chars:regexp) : lens = 
   xml_esc_string_ends excl_chars [ ] 
 
+let esc_s : lens = xml_esc_string [;]
+let esc_c : lens = xml_esc_string [,] 
 let esc_cs : lens = xml_esc_string [,;]
-
-let esc_pcs : lens = xml_esc_string [,;()]
+let esc_csp : lens = xml_esc_string [,;()]
 
 (* [xml_open sp t] recognizes and deletes a string consisting of
    whitespace and the start of an XML open tag.
@@ -403,6 +404,11 @@ let xml_attrs_open (spaces:string) (tag:string)
   xml_open spaces tag . 
   attrs . 
   xml_close  
+
+let xml_attr1_elt_open (spaces:string) (tag:string)
+    (name1:string) (value1:lens) : lens = 
+  xml_attrs_open spaces tag 
+    (xml_attr name1 value1)
 
 let xml_attr4_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
@@ -748,30 +754,33 @@ test gn_line create
 
 (* --------------------------------------------------------------------------- *)
 (* OS line *)
+
+(* [names_xml sp] processes a sequence of name elements. It is also
+   used to format the OH line. *)
 let names_xml (spaces:string) : lens = 
   let os_aux (ty:string) (f:lens -> lens) : lens = 
     xml_attr1_simple_elt spaces "name" 
       "type" (del ty) 
-      (f esc_pcs) in 
+      (f esc_csp) in 
   let scientific : lens = os_aux "scientific" (fun (l:lens) -> l) in 
   let common : lens = os_aux "common" (fun (l:lens) -> parens l) in 
   let synonym : lens = os_aux "synonym" (fun (l:lens) -> parens l) in 
-  (  scientific 
-  | scientific . space . common
-  | scientific . space . common . space . synonym+ )
+    (  scientific 
+    | scientific . space . common
+    | scientific . space . common . space . synonym+ )
 
 let os_tag : string = tag "OS" 
 let os_xml : lens = 
   ins os_tag . 
-  names_xml nl2 . 
-  dot
+    names_xml nl2 . 
+    dot
 let os_line : lens = 
   let os_cn : canonizer = columnize (atype os_xml) s (nl . os_tag) in 
-  terminate (right_quot os_xml os_cn)
+    terminate (right_quot os_xml os_cn)
 
 let P12544_os_ascii : string = 
   "OS   Homo sapiens (Human)." . 
-  nl
+    nl
 
 let P12544_os_xml : string = 
   "<name type=\"scientific\">Homo sapiens</name>
@@ -779,144 +788,186 @@ let P12544_os_xml : string =
 
 let P12544_os_xml_cn : string = 
   nl . 
-  "    <name type=\"scientific\">Homo sapiens</name>
+    "    <name type=\"scientific\">Homo sapiens</name>
   |    <name type=\"common\">Human</name>"
-  
-test os_line get
-  P12544_os_xml = P12544_os_ascii
+    
+    test os_line get
+    P12544_os_xml = P12544_os_ascii
 
-test os_line create
+  test os_line create
   P12544_os_ascii = P12544_os_xml_cn
 
-(* 
 (* --------------------------------------------------------------------------- *)
 (* OG line *)
 
+let og_tag : string = 
+  tag "OG" 
 let og_xml : lens = 
   let og_plasmid : lens = 
     xml_attr1_elt nl1 "geneLocation" "type" (del "plasmid") 
       (ins "Plasmid" . 
        qsp . 
-       xml_simple_elt nl2 "name" ALPHAP) in
+       xml_simple_elt nl2 "name" esc_c) in
   let og_other : lens = 
-    xml_attr1_elt_no_body nl1 "geneLocation" "type"   
+    xml_attr1_elt_no_kids nl1 "geneLocation" "type"   
       ( "hydrogenosome" <-> "Hydrogenosome" 
       | "mitochondrion" <-> "Mitochondrion" 
       | "nucleomorph"   <-> "Nucleomorph"   
       | "plastid"       <-> "Plastid"       
-      | (ins "Plastid;" . qsp . 
-           ( "apicoplast"  <-> "Apicoplast"  
-           | "chloroplast" <-> "Chloroplast" 
-           | "cyanelle"    <-> "Cyanelle"    
-           | "non-photosynthetic plastid" <-> "Non-photosynthetic plastid"))) in
-    tag "OG" . 
-      ( og_plasmid . ((csp . og_plasmid)* . (csp . ins "and" . qsp . og_plasmid))?
-      | og_other) .       
-      ins "." 
+      | "apicoplast"  <-> "Plastid; Apicoplast"  
+      | "chloroplast" <-> "Plastid; Chloroplast" 
+      | "cyanelle"    <-> "Plastid; Cyanelle"    
+      | "non-photosynthetic plastid" <-> "Plastid; Non-photosynthetic plastid") in
+   ins og_tag . 
+   ( og_plasmid . ((comma . space . og_plasmid)* . 
+                   (comma . space . ins "and" . space . og_plasmid))?
+   | og_other) .       
+   dot
 
-let og_cn : canonizer = columnize (atype og_xml) " " "\nOG  "
-let og_line : lens = right_quot og_xml og_cn 
+let og_line : lens = 
+  let og_cn : canonizer = columnize (atype og_xml) s (nl . og_tag) in 
+  terminate (right_quot og_xml og_cn)
 
 test og_line create 
-"OG  Plasmid R6-5, Plasmid IncFII R100 (NR1),
-|OG   and Plasmid IncFII R1-19 (R1 drd-19)." 
+  ( "OG   Plasmid R6-5, Plasmid IncFII R100 (NR1), and Plasmid IncFII R1-19 (R1
+    |OG   drd-19)." .  
+    nl) 
 = 
-"
-  <geneLocation type=\"plasmid\">
-    <name>R6-5</name>
-  </geneLocation>
-  <geneLocation type=\"plasmid\">
-    <name>IncFII R100 (NR1)</name>
-  </geneLocation>
-  <geneLocation type=\"plasmid\">
-    <name>IncFII R1-19 (R1 drd-19)</name>
-  </geneLocation>" 
-
-test og_xml get
+  nl . 
+  "  <geneLocation type=\"plasmid\">
+  |    <name>R6-5</name>
+  |  </geneLocation>
+  |  <geneLocation type=\"plasmid\">
+  |    <name>IncFII R100 (NR1)</name>
+  |  </geneLocation>
+  |  <geneLocation type=\"plasmid\">
+  |    <name>IncFII R1-19 (R1 drd-19)</name>
+  |  </geneLocation>" 
+  
+test og_line get
   "<geneLocation type=\"non-photosynthetic plastid\"/>" 
-= "OG  Plastid; Non-photosynthetic plastid."
+= 
+  "OG   Plastid; Non-photosynthetic plastid." . 
+  nl
 
 (* --------------------------------------------------------------------------- *)
 (* OC line *)
-let oc_xml : lens = 
-  let taxon (l:lens) : lens = xml_simple_elt nl3 "taxon" (ALPHA . l) in 
-  tag "OC" . 
-  xml_elt nl2 "lineage"
-    ((taxon (ins ";" . qsp))* . 
-     taxon (ins ".")) 
-let oc_cn : canonizer = columnize (atype oc_xml) " " "\nOC  "
-let oc_line : lens = right_quot oc_xml oc_cn 
 
-test oc_line create
-"OC   Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Piroplasmida; Theileriidae; Theileria."
-=
-"
-|    <lineage>
-|      <taxon>Eukaryota</taxon>
-|      <taxon>Alveolata</taxon>
-|      <taxon>Apicomplexa</taxon>
-|      <taxon>Aconoidasida</taxon>
-|      <taxon>Piroplasmida</taxon>
-|      <taxon>Theileriidae</taxon>
-|      <taxon>Theileria</taxon>
-|    </lineage>"
+let oc_tag : string = tag "OC"
+let oc_xml : lens = 
+  let oc_aux : lens = xml_simple_elt nl3 "taxon" esc_s in 
+  ins oc_tag . 
+  xml_elt nl2 "lineage" (oc_aux . (semi . space . oc_aux)* ) . 
+  dot
+
+let oc_line : lens = 
+  let oc_cn : canonizer = columnize (atype oc_xml) s (nl . oc_tag) in 
+  terminate (right_quot oc_xml oc_cn)
+
+let P12544_oc_ascii : string = 
+  "OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
+  |OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini;
+  |OC   Catarrhini; Hominidae; Homo." . 
+  nl
+
+let P12544_oc_xml : string = 
+  "<lineage>
+  |<taxon>Eukaryota</taxon>
+  |<taxon>Metazoa</taxon>
+  |<taxon>Chordata</taxon>
+  |<taxon>Craniata</taxon>
+  |<taxon>Vertebrata</taxon>
+  |<taxon>Euteleostomi</taxon>
+  |<taxon>Mammalia</taxon>
+  |<taxon>Eutheria</taxon>
+  |<taxon>Euarchontoglires</taxon>
+  |<taxon>Primates</taxon>
+  |<taxon>Haplorrhini</taxon>
+  |<taxon>Catarrhini</taxon>
+  |<taxon>Hominidae</taxon>
+  |<taxon>Homo</taxon>
+  |</lineage>"
+
+let P12544_oc_xml_cn : string = 
+  nl . 
+  "    <lineage>
+  |      <taxon>Eukaryota</taxon>
+  |      <taxon>Metazoa</taxon>
+  |      <taxon>Chordata</taxon>
+  |      <taxon>Craniata</taxon>
+  |      <taxon>Vertebrata</taxon>
+  |      <taxon>Euteleostomi</taxon>
+  |      <taxon>Mammalia</taxon>
+  |      <taxon>Eutheria</taxon>
+  |      <taxon>Euarchontoglires</taxon>
+  |      <taxon>Primates</taxon>
+  |      <taxon>Haplorrhini</taxon>
+  |      <taxon>Catarrhini</taxon>
+  |      <taxon>Hominidae</taxon>
+  |      <taxon>Homo</taxon>
+  |    </lineage>"
 
 test oc_line get 
-"
-  <lineage>
-    <taxon>Eukaryota</taxon>
-    <taxon>Alveolata</taxon>
-    <taxon>Apicomplexa</taxon>
-    <taxon>Aconoidasida</taxon>
-    <taxon>Piroplasmida</taxon>
-    <taxon>Theileriidae</taxon>
-    <taxon>Theileria</taxon>
-  </lineage>"
+  P12544_oc_xml = P12544_oc_ascii
 
-= 
-  "OC  Eukaryota; Alveolata; Apicomplexa; Aconoidasida; Piroplasmida; Theileriidae;
-  |OC  Theileria."
+test oc_line create 
+  P12544_oc_ascii = P12544_oc_xml_cn
 
 (* --------------------------------------------------------------------------- *)
 (* OX line *)
-let ncbi_xml (spaces:string) : lens = 
-  let a1 : lens = xml_attr "type" (del "NCBI Taxonomy") in 
-  let a2 : lens = xml_attr "key" (del NUMBER) in 
-  let a3 : lens = xml_attr "id" (ins "NCBI_TaxID=" . NUMBER . ins ";") in  
-  xml_open spaces "dbReference" .
-    (sort3 a1 a2 a3) . 
-    xml_slash_close 
 
+(* [ncbi_xml sp] processes a "dbReference" element. It is also used to
+   format the OH line. *)
+let ncbi_xml (spaces:string) : lens = 
+  ins "NCBI_TaxID=" . 
+  ( xml_attr3_elt_no_kids spaces "dbReference"
+     "type" (del "NCBI Taxonomy")
+     "key" (del NUMBER)          
+     "id" (NUMBER) ) . 
+  semi
+
+let ox_tag : string = tag "OX"
 let ox_xml : lens = 
-  tag "OX" . 
+  ins ox_tag . 
   ncbi_xml nl2
-let ox_cn : canonizer = columnize (atype ox_xml) " " "\nOX  "
-let ox_line : lens = right_quot ox_xml ox_cn
+let ox_line : lens = 
+  let ox_cn : canonizer = columnize (atype ox_xml) s (nl . ox_tag) in 
+  terminate (right_quot ox_xml ox_cn)
+
+let P12544_ox_ascii : string = 
+  "OX   NCBI_TaxID=9606;" . 
+  nl
+
+let P12544_ox_xml : string = 
+  "<dbReference type=\"NCBI Taxonomy\" id=\"9606\" key=\"3\" />"
+
+let P12544_ox_xml_cn : string = 
+  nl . 
+  "    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9606\"/>"
 
 test ox_line get 
-  "<dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"5874\"/>" 
-= 
-  "OX  NCBI_TaxID=5874;" 
+  P12544_ox_xml = P12544_ox_ascii 
 
 test ox_line create 
-  "OX  NCBI_TaxID=5874;" 
-=
-  "
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"5874\"/>" 
+  P12544_ox_ascii = P12544_ox_xml_cn 
 
 (* --------------------------------------------------------------------------- *)
 (* OH line *)
+
+let oh_tag : string = tag "OH"
 let oh_xml : lens =
-  tag "OH" .
+  ins oh_tag . 
   xml_attr1_elt nl1 "organism" "key" (del NUMBER) 
   (names_xml nl2 ~ (ncbi_xml nl2 . qsp)) . 
-  ins "."
+  dot 
 
-let oh_cn : canonizer = columnize (atype oh_xml) " " "\nOH  "
-let oh_line : lens = right_quot oh_xml oh_cn
+let oh_line : lens = 
+  let oh_cn : canonizer = columnize (atype oh_xml) s (nl . oh_tag) in 
+  terminate (right_quot oh_xml oh_cn)
 
 test oh_line create
-  "OH   NCBI_TaxID=9481; Callithrix." 
+  "OH   NCBI_TaxID=9481; Callithrix.
+  |" 
 = 
   "
   |  <organism key=\"0\">
@@ -930,22 +981,19 @@ test oh_line get
   |  <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9481\"/>
   |</organism>" 
 = 
-  "OH  NCBI_TaxID=9481; Callithrix."
+  "OH   NCBI_TaxID=9481; Callithrix.
+  |"
 
 (* --------------------------------------------------------------------------- *)
 (* OS OG OC OX OH block *)
 
 let os_og_oc_ox_oh_block = 
-  xml_open nl1 "organism" . 
-  xml_attr "key" (del NUMBER) . 
-  xml_close . 
-  terminate os_line . 
-  (((terminate ox_line ~
-    terminate oc_line) . 
-   qdel WS nl1 . 
-   xml_close_tag "organism" . 
-   (terminate oh_line)* ) ~
-  terminate og_line)
+  xml_attr1_elt_open nl1 "organism" "key" (del NUMBER) . 
+  os_line . 
+  (((ox_line ~ oc_line) . 
+   xml_close_tag nl1 "organism" . 
+   oh_line* ) ~
+  og_line)
 
 test os_og_oc_ox_oh_block get
   "<organism key=\"1\">
@@ -969,12 +1017,13 @@ test os_og_oc_ox_oh_block get
   |  </organism>
   |   <geneLocation type=\"apicoplast\"/>"
 = 
-  "OS  Solanum melongena (Eggplant) (Aubergine).
-  |OG  Plastid; Apicoplast.
-  |OC  Mammalia; Eutheria.
-  |OX  NCBI_TaxID=9606;
-  |OH  NCBI_TaxID=9481; Callithrix.
-  |OH  NCBI_TaxID=9536; Cercopithecus hamlyni (Owl-faced monkey) (Hamlyn's monkey).
+  "OS   Solanum melongena (Eggplant) (Aubergine).
+  |OG   Plastid; Apicoplast.
+  |OC   Mammalia; Eutheria.
+  |OX   NCBI_TaxID=9606;
+  |OH   NCBI_TaxID=9481; Callithrix.
+  |OH   NCBI_TaxID=9536; Cercopithecus hamlyni (Owl-faced monkey)
+  |OH   (Hamlyn's monkey).
   |"
 
 test os_og_oc_ox_oh_block create 
@@ -983,7 +1032,8 @@ test os_og_oc_ox_oh_block create
   |OC   Mammalia; Eutheria.
   |OX   NCBI_TaxID=9606;
   |OH   NCBI_TaxID=9481; Callithrix.
-  |OH   NCBI_TaxID=9536; Cercopithecus hamlyni (Owl-faced monkey) (Hamlyn's monkey).
+  |OH   NCBI_TaxID=9536; Cercopithecus hamlyni (Owl-faced monkey)
+  |OH   (Hamlyn's monkey).
   |" 
 = 
 "
@@ -1009,7 +1059,7 @@ test os_og_oc_ox_oh_block create
 |  </organism>
 |  <geneLocation type=\"apicoplast\"/>"
 
-
+(*
 (* --------------------------------------------------------------------------- *)
 (* RN line *)
 let rn_xml : lens = 
