@@ -506,6 +506,22 @@ let xml_attr3_elt_swap2 (spaces:string) (tag:string)
   ( atype value1 . 
     ( (atype value2 . atype value3) ~ (atype body) ) )
 
+let xml_attr4_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (name4:string) (value4:lens) 
+    (body:lens) : lens = 
+  (xml_attr4_elt_open spaces tag 
+     name1 value1 
+     name2 value2 
+     name3 value3
+     name4 value4 . 
+   body . 
+   xml_close_tag spaces tag); 
+  ( atype value1 . 
+    ( (atype value2 . atype value3 . atype value4) ~ (atype body) ) )
+
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
 
@@ -554,6 +570,11 @@ let iter_with_sep (l:lens) (sep:lens) : lens =
    all over ASCII UniProtKB. *)
 let iter_with_sqsp (l:lens) : lens = 
   iter_with_sep l (semi . qsp)
+
+let qualifiers : lens = 
+  ( "by similarity" <-> " (By similarity)"
+  | "potential"     <-> " (Potential)"    
+  | "probable"      <-> " (Probable)" )
 
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
@@ -1734,11 +1755,7 @@ let cc_tag : string = tag "CC"
 let cc_bang : string = "-!- " 
 let cc_long_tag : string = cc_tag . "    "
 
-let cc_status : lens = 
-  xml_attr "status"
-    ( "by similarity" <-> " (By similarity)"
-    | "potential"     <-> " (Potential)"    
-    | "probable"      <-> " (Probable)" )
+let cc_status : lens = xml_attr "status" qualifiers
 
 let cc_generic_xml (ty:lens) : lens = 
   let typ : lens = xml_attr "type" ty in 
@@ -3900,9 +3917,10 @@ test kw_line get
 test kw_line create 
   P12544_kw_ascii = P12544_kw_xml
 
-(* BEGIN
 (* --------------------------------------------------------------------------- *)
 (* FT line *)
+
+let ft_tag : string = tag "FT" 
 
 let num (sym:string) : lens = 
   ( space{4} . ins sym . DIGIT
@@ -3925,22 +3943,24 @@ let ft_bound (name:string) : lens =
        "position" (num " ") )
 
 let ft_bounds : lens = 
+  let pos : lens = xml_attr1_elt_no_kids NL3 "position" "position" (num " ") in 
   xml_elt NL2 "location"
     ( ft_bound "begin" . space . ft_bound "end"
-    | xml_attr1_elt_no_kids NL3 "position"
-        "position" (num " ") ) . 
-  space{7}
-
+    | duplicate (pos . space) pos )
 
 let ft_description : lens = 
   xml_attr "description" esc_d . 
   dot 
 
+let s7 : lens = ins "       "
+
 let ft_original_variation : lens = 
+  s7 . 
   ( xml_simple_elt NL2 "original" UALPHANUM . 
     ins " -> " . 
-    xml_simple_elt NL2 "variation" UALPHANUM
-  | ins "Missing" )
+    xml_simple_elt NL2 "variation" UALPHANUM 
+  | ins "Missing" ) . 
+  space 
 
 let ft_normal_type : lens = 
   ( "active site"                         <-> "ACT_SITE" 
@@ -3986,74 +4006,72 @@ let ft_variation_type : lens =
   | "splice variant"    <-> "VAR_SEQ ") . 
   space
 
+let s29 : lens = ins "                             "
 let ft_id : lens = 
-  space . 
+  nl . ins ft_tag . s29 . 
   ins "/FTId=" . 
-  esc_dq . 
-  dot 
-
-let ft_description : lens = 
-  space . 
-  esc_q . 
+  [A-Z]{3} . "_" . [0-9]{6,10} . 
   dot
 
-let ft_normal : lens = 
-  ( xml_attr3_elt_swap2 NL1 "feature"
-     "type" ft_normal_type 
-     "description" ft_description 
-     "id" ft_id 
-     ft_bounds
-  | xml_attr2_elt_swap2 NL1 "feature"
-     "type" ft_normal_type 
-     "id" ft_id 
-     ft_bounds
-  | xml_attr2_elt_swap2 NL1 "feature"
-     "type" ft_normal_type 
-     "description" ft_description 
-     ft_bounds
-  | xml_attr1_elt NL1 "feature"
-     "type" ft_normal_type 
-     ft_bounds )
 
-let ft_variation : lens = 
-  let variation_body : lens = ft_original_variation ~ ft_bounds in 
-  ( xml_attr3_elt_swap2 NL1 "feature"
-     "type" ft_variation_type 
-     "description" ft_description 
-     "id" ft_id 
-     variation_body
-  | xml_attr2_elt_swap2 NL1 "feature"
-     "type" ft_variation_type 
-     "id" ft_id 
-     variation_body
-  | xml_attr2_elt_swap2 NL1 "feature"
-     "type" ft_variation_type 
-     "description" ft_description 
-     variation_body
-  | xml_attr1_elt NL1 "feature"
-     "type" ft_variation_type 
-     variation_body )
+let ft_description : lens =   
+  esc_q 
 
-let ft_tag : string = tag "FT" 
+let ft_status : lens = 
+    qualifiers . dot
+
+let ft_aux (l:lens) (ty:lens) (body:lens) :  lens = 
+  ( xml_attr4_elt_swap2 NL1 "feature"
+      "type" ty 
+      "description" (l . ft_description)
+      "status" ft_status 
+      "id" ft_id 
+      body
+  | xml_attr3_elt_swap2 NL1 "feature"
+      "type" ty
+      "description" (l . ft_description . dot)
+      "id" ft_id
+      body
+  | xml_attr3_elt_swap2 NL1 "feature"
+      "type" ty
+      "description" (l . ft_description)
+      "status" ft_status
+      body
+  | xml_attr2_elt_swap2 NL1 "feature"
+      "type" ty
+      "description" (l . ft_description . dot)
+      body
+  | xml_attr2_elt_swap2 NL1 "feature"
+      "type" ty
+      "id" ft_id 
+      body
+  | xml_attr1_elt NL1 "feature"
+      "type" ty
+      body )
 
 let ft_xml : lens = 
   ins ft_tag . 
-  (ft_normal | ft_variation)
+  ( ft_aux s7 ft_normal_type ft_bounds 
+  | ft_aux "" ft_variation_type (ft_original_variation ~ ft_bounds) )
 
-let ft_line : lens = terminate ft_xml
+let ft_line : lens = terminate ft_xml 
+
+let ft_block : lens = ft_line*
 
 (* unit tests for FT line *)
 let ft_ascii1 : string = 
-  "FT   CONFLICT     27     27       S -> E (in Ref. 2). /FTId=VSP1234." . 
+  "FT   CONFLICT     27     27       S -> E (in Ref. 2).
+  |FT                                /FTId=VSP_123456." . 
   NL
 
 let ft_ascii2 : string = 
-  "FT   VAR_SEQ     243    244       Missing (in isoform 2). /FTId=VSP_008971." . 
+  "FT   VAR_SEQ     243    244       Missing (in isoform 2).
+  |FT                                /FTId=VSP_008971." . 
   NL
 
 let ft_xml1 : string = 
   NL . 
-  "  <feature type=\"sequence conflict\" description=\"(in Ref. 2)\" id=\"VSP1234\">
+  "  <feature type=\"sequence conflict\" description=\"(in Ref. 2)\" id=\"VSP_123456\">
   |    <original>S</original>
   |    <variation>E</variation>
   |    <location>
@@ -4098,7 +4116,7 @@ let P12544_ft_ascii : string =
   |FT   DISULFID    148    218
   |FT   DISULFID    179    197
   |FT   DISULFID    208    234
-  |FT   VARIANT     121    121       T -> M (in dbSNP:rs3104233).
+  |FT   VARIANT     121    121       T -> M In dbSNP:rs3104233.
   |FT                                /FTId=VAR_024291.
   |FT   STRAND       43     47
   |FT   STRAND       49     51
@@ -4124,6 +4142,7 @@ let P12544_ft_ascii : string =
   NL
 
 let P12544_ft_xml : string = 
+  NL . 
   "  <feature type=\"signal peptide\">
   |    <location>
   |      <begin position=\"1\"/>
@@ -4192,7 +4211,7 @@ let P12544_ft_xml : string =
   |      <end position=\"234\"/>
   |    </location>
   |  </feature>
-  |  <feature type=\"sequence variant\" description=\"In dbSNP:rs3104233.\" id=\"VAR_024291\">
+  |  <feature type=\"sequence variant\" description=\"In dbSNP:rs3104233\" id=\"VAR_024291\">
   |  <original>T</original>
   |  <variation>M</variation>
   |    <location>
@@ -4326,9 +4345,221 @@ let P12544_ft_xml : string =
   |    </location>
   |  </feature>"
 
-test ft_line* get P12544_ft_xml = P12544_ft_ascii
-test ft_line* create P12544_ft_ascii = P12544_ft_xml
+let P12544_ft_xml_cn : string = 
+  NL . 
+  "  <feature type=\"signal peptide\">
+  |    <location>
+  |      <begin position=\"1\"/>
+  |      <end position=\"26\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"propeptide\" description=\"Activation peptide\" id=\"PRO_0000027393\">
+  |    <location>
+  |      <begin position=\"27\"/>
+  |      <end position=\"28\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"chain\" description=\"Granzyme A\" id=\"PRO_0000027394\">
+  |    <location>
+  |      <begin position=\"29\"/>
+  |      <end position=\"262\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"domain\" description=\"Peptidase S1\">
+  |    <location>
+  |      <begin position=\"29\"/>
+  |      <end position=\"259\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"active site\" description=\"Charge relay system\">
+  |    <location>
+  |      <begin position=\"69\"/>
+  |      <end position=\"69\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"active site\" description=\"Charge relay system\">
+  |    <location>
+  |      <begin position=\"114\"/>
+  |      <end position=\"114\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"active site\" description=\"Charge relay system\">
+  |    <location>
+  |      <begin position=\"212\"/>
+  |      <end position=\"212\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"glycosylation site\" description=\"N-linked (GlcNAc...)\" status=\"potential\">
+  |    <location>
+  |      <begin position=\"170\"/>
+  |      <end position=\"170\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"54\"/>
+  |      <end position=\"70\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"148\"/>
+  |      <end position=\"218\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"179\"/>
+  |      <end position=\"197\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"208\"/>
+  |      <end position=\"234\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"sequence variant\" description=\"In dbSNP:rs3104233\" id=\"VAR_024291\">
+  |    <original>T</original>
+  |    <variation>M</variation>
+  |    <location>
+  |      <begin position=\"121\"/>
+  |      <end position=\"121\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"43\"/>
+  |      <end position=\"47\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"49\"/>
+  |      <end position=\"51\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"53\"/>
+  |      <end position=\"60\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"63\"/>
+  |      <end position=\"66\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"77\"/>
+  |      <end position=\"81\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"83\"/>
+  |      <end position=\"87\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"93\"/>
+  |      <end position=\"95\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"97\"/>
+  |      <end position=\"102\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"turn\">
+  |    <location>
+  |      <begin position=\"108\"/>
+  |      <end position=\"110\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"116\"/>
+  |      <end position=\"122\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"127\"/>
+  |      <end position=\"130\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"147\"/>
+  |      <end position=\"154\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"156\"/>
+  |      <end position=\"160\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"167\"/>
+  |      <end position=\"174\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"helix\">
+  |    <location>
+  |      <begin position=\"176\"/>
+  |      <end position=\"179\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"turn\">
+  |    <location>
+  |      <begin position=\"186\"/>
+  |      <end position=\"189\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"195\"/>
+  |      <end position=\"199\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"215\"/>
+  |      <end position=\"218\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"221\"/>
+  |      <end position=\"228\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"241\"/>
+  |      <end position=\"245\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"helix\">
+  |    <location>
+  |      <begin position=\"251\"/>
+  |      <end position=\"258\"/>
+  |    </location>
+  |  </feature>"
 
+test ft_block get 
+  P12544_ft_xml = P12544_ft_ascii
+test ft_block create 
+  P12544_ft_ascii = P12544_ft_xml_cn
+
+(*
 (* --------------------------------------------------------------------------- *)
 (* SQ line *)
 let sq_xml : lens = 
@@ -4393,4 +4624,4 @@ let uniprot_xml : lens =
      (terminate ft_ilne)* . 
      (terminate sq_line) 
     end
-END *)
+*)
