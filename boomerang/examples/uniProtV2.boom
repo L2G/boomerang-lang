@@ -578,7 +578,6 @@ let qualifiers : lens =
 
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
-
 (* Notes: the ASCII representation of the ID line is dead simple, but
    there are a few quirks that make generating it from the XML source
    slightly tricky. First, the status of the entry--whether it is
@@ -718,7 +717,7 @@ let dt_lines (ty:entry) : lens =
     "modified" (ins dt_tag . date . comma. qsp) 
     "version" (ins "entry version" . qsp . NUMBER . dot . ins NL)
 
-(* unit tests for DT lines *)
+xb(* unit tests for DT lines *)
 let P12544_dt_xml : string = 
   NL . 
   "  <entry dataset=\"Swiss-Prot\" created=\"1989-10-01\" modified=\"2008-01-15\" version=\"101\">"
@@ -4558,28 +4557,40 @@ test ft_block get
   P12544_ft_xml = P12544_ft_ascii
 test ft_block create 
   P12544_ft_ascii = P12544_ft_xml_cn
-
-(*
+  
 (* --------------------------------------------------------------------------- *)
 (* SQ line *)
-let sq_xml : lens = 
-  let block : lens = ins " " . [A-Z]{10} in 
-  let full_line : lens = ins "    " . block{6} . ins "\n" in 
-  let part_line : lens = ins "    " . block{0,5} . 
-                         (ins " " . [A-Z]{1,10}) . 
-                         ins "\n" in 
-  tag "SQ" . 
+
+let sq_tag : string = tag "SQ" 
+
+let sq_start_xml (flen:regexp -> lens) (fmass:regexp -> lens) (fcheck:regexp -> lens) : lens = 
+  ins sq_tag . 
   ins "SEQUENCE   " . 
-  xml_open NL1 "sequence" . 
-  ( (xml_attr "mass"   (NUMBER . ins " MW;  ")) ~
-    (xml_attr "length" (NUMBER . ins " AA;  ")) ) . 
-  xml_attr "checksum"  ([0-9A-Z]+ . ins " CRC64;\n") . 
-  xml_close . 
+  xml_attr3_elt_open NL1 "sequence" 
+    "length" (flen NUMBER)
+    "mass" (fmass NUMBER)
+    "checksum" (fcheck UALPHANUM+)
+
+let sq_rest_xml : lens = 
+  let block : lens = space . ULETTER{10} in 
+  let full_line : lens = ins "    " . block{6} . ins "\n" in 
+  let part_line : lens = 
+    ins "    " . block{0,5} . 
+    (space . ULETTER{1,10}) . 
+    nl in
   full_line* . part_line . 
   ins "//" . 
-  xml_close_tag "sequence" 
-                       
-test sq_xml create 
+  xml_simple_close_tag "sequence" 
+
+let sq_block : lens = 
+  terminate (sq_start_xml 
+               (fun (l:regexp) -> l . ins " AA;  ")
+               (fun (l:regexp) -> l . ins " MW;  ")
+               (fun (l:regexp) -> l . ins " CRC64;\n") . 
+             sq_rest_xml)
+
+(* unit tests for SQ block *)
+let sq_ascii : string = 
   "SQ   SEQUENCE   893 AA;  101921 MW;  2F67CEB3B02E7AC1 CRC64;
   |     MKFLVLLFNI LCLFPILGAD ELVMSPIPTT DVQPKVTFDI NSEVSSGPLY LNPVEMAGVK
   |     YLQLQRQPGV QVHKVVEGDI VIWENEEMPL YTCAIVTQNE VPYMAYVELL EDPDLIFFLK
@@ -4596,32 +4607,33 @@ test sq_xml create
   |     VFIKETGILT EEVKTEDIHS ETGEPEEPKR PDSPTKHSPK PTGTHPSMPK KRRRSDGLAL
   |     STTDLESEAG RILRDPTGKI VTMKRSKSFD DLTTVREKEH MGAEIRKIVV DDDGTEADDE
   |     DTHPSKEKHL STVRRRRPRP KKSSKSSKPR KPDSAFVPSI IFIFLVSLIV GIL
-  |//" 
-= 
-  "
-  |  <sequence mass=\"101921\" length=\"893\" checksum=\"2F67CEB3B02E7AC1\">MKFLVLLFNILCLFPILGADELVMSPIPTTDVQPKVTFDINSEVSSGPLYLNPVEMAGVKYLQLQRQPGVQVHKVVEGDIVIWENEEMPLYTCAIVTQNEVPYMAYVELLEDPDLIFFLKEGDQWAPIPEDQYLARLQQLRQQIHTESFFSLNLSFQHENYKYEMVSSFQHSIKMVVFTPKNGHICKMVYDKNIRIFKALYNEYVTSVIGFFRGLKLLLLNIFVIDDRGMIGNKYFQLLDDKYAPISVQGYVATIPKLKDFAEPYHPIILDISDIDYVNFYLGDATYHDPGFKIVPKTPQCITKVVDGNEVIYESSNPSVECVYKVTYYDKKNESMLRLDLNHSPPSYTSYYAKREGVWVTSTYIDLEEKIEELQDHRSTELDVMFMSDKDLNVVPLTNGNLEYFMVTPKPHRDIIIVFDGSEVLWYYEGLENHLVCTWIYVTEGAPRLVHLRVKDRIPQNTDIYMVKFGEYWVRISKTQYTQEIKKLIKKSKKKLPSIEEEDSDKHGGPPKGPEPPTGPGHSSSESKEHEDSKESKEPKEHGSPKETKEGEVTKKPGPAKEHKPSKIPVYTKRPEFPKKSKSPKRPESPKSPKRPVSPQRPVSPKSPKRPESLDIPKSPKRPESPKSPKRPVSPQRPVSPRRPESPKSPKSPKSPKSPKVPFDPKFKEKLYDSYLDKAAKTKETVTLPPVLPTDESFTHTPIGEPTAEQPDDIEPIEESVFIKETGILTEEVKTEDIHSETGEPEEPKRPDSPTKHSPKPTGTHPSMPKKRRRSDGLALSTTDLESEAGRILRDPTGKIVTMKRSKSFDDLTTVREKEHMGAEIRKIVVDDDGTEADDEDTHPSKEKHLSTVRRRRPRPKKSSKSSKPRKPDSAFVPSIIFIFLVSLIVGIL</sequence>"
+  |//" . 
+  NL
+
+let sq_xml : string = 
+  NL . 
+  "  <sequence mass=\"101921\" length=\"893\" checksum=\"2F67CEB3B02E7AC1\">MKFLVLLFNILCLFPILGADELVMSPIPTTDVQPKVTFDINSEVSSGPLYLNPVEMAGVKYLQLQRQPGVQVHKVVEGDIVIWENEEMPLYTCAIVTQNEVPYMAYVELLEDPDLIFFLKEGDQWAPIPEDQYLARLQQLRQQIHTESFFSLNLSFQHENYKYEMVSSFQHSIKMVVFTPKNGHICKMVYDKNIRIFKALYNEYVTSVIGFFRGLKLLLLNIFVIDDRGMIGNKYFQLLDDKYAPISVQGYVATIPKLKDFAEPYHPIILDISDIDYVNFYLGDATYHDPGFKIVPKTPQCITKVVDGNEVIYESSNPSVECVYKVTYYDKKNESMLRLDLNHSPPSYTSYYAKREGVWVTSTYIDLEEKIEELQDHRSTELDVMFMSDKDLNVVPLTNGNLEYFMVTPKPHRDIIIVFDGSEVLWYYEGLENHLVCTWIYVTEGAPRLVHLRVKDRIPQNTDIYMVKFGEYWVRISKTQYTQEIKKLIKKSKKKLPSIEEEDSDKHGGPPKGPEPPTGPGHSSSESKEHEDSKESKEPKEHGSPKETKEGEVTKKPGPAKEHKPSKIPVYTKRPEFPKKSKSPKRPESPKSPKRPVSPQRPVSPKSPKRPESLDIPKSPKRPESPKSPKRPVSPQRPVSPRRPESPKSPKSPKSPKSPKVPFDPKFKEKLYDSYLDKAAKTKETVTLPPVLPTDESFTHTPIGEPTAEQPDDIEPIEESVFIKETGILTEEVKTEDIHSETGEPEEPKRPDSPTKHSPKPTGTHPSMPKKRRRSDGLALSTTDLESEAGRILRDPTGKIVTMKRSKSFDDLTTVREKEHMGAEIRKIVVDDDGTEADDEDTHPSKEKHLSTVRRRRPRPKKSSKSSKPRKPDSAFVPSIIFIFLVSLIVGIL</sequence>"
+
+test sq_block get sq_xml = sq_ascii 
 
 (* --------------------------------------------------------------------------- *)
 (* UniProtKB entry *)
 
-let uniprot_xml : lens = 
-  xml_elt NL0 "entry"
-    begin
-      (terminate id_line) . 
-      (terminate ac_line)? . 
-      (terminate de_line) . 
-      (terminate gn_line) . 
-      os_og_oc_ox_oh_block . 
-      reference_block . 
-      cc_block . 
-      ins  "CC   -----------------------------------------------------------------------
-           |CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
-           |CC   Distributed under the Creative Commons Attribution-NoDerivs License
-           |CC   -----------------------------------------------------------------------" . 
-     (terminate dr_line)* . 
-     (terminate pe_line)? . 
-     (terminate kw_line)? . 
-     (terminate ft_ilne)* . 
-     (terminate sq_line) 
-    end
-*)
+let uniprot_entry : lens = 
+  ( dt_lines SwissProt . 
+    ac_line? . 
+    id_xml_start SwissProt 
+  | dt_lines TrEMBL . 
+    ac_line? . 
+    id_xml_start TrEMBL ) .  
+  ac_line? . 
+  de_line . 
+  gn_line . 
+  organism_block . 
+  reference_block . 
+  cc_block . 
+  dr_block . 
+  pe_line? . 
+  kw_line? . 
+  ft_block . 
+  sq_block
