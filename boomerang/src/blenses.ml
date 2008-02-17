@@ -315,9 +315,17 @@ module Canonizer = struct
                Buffer.add_string line_buf (RS.string_of_t s);            
              Buffer.add_buffer line_buf aux_buf;
              Buffer.reset aux_buf in 
-           let rec loop i =              
-             if Buffer.length line_buf + Buffer.length aux_buf > k then
-               do_line ();               
+           let rec loop i =                           
+             let sum =                
+               let nl_off = if Buffer.length buf=0 then 0 else pred nl_len in
+               let aux_len = Buffer.length aux_buf in 
+               let line_len = let n = Buffer.length line_buf in if n=0 then n else succ n in 
+               nl_off + aux_len + line_len in 
+               (* Util.format "line_buf[%d] aux_buf[%d] Sum[%d] ~?~ k[%d] c[i]=%s@\n"
+                (Buffer.length line_buf) (Buffer.length aux_buf) sum k 
+               (if i=c_len then "NONE" else RS.repr (RS.get c i)); *)
+               if sum > k then 
+               do_line ();
              if i = c_len then 
                (do_space (); 
                 do_line ())

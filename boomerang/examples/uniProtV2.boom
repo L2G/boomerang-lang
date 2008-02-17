@@ -22,6 +22,18 @@
 
 module UniProtV2 = 
 
+test
+  let cn : canonizer = columnize "10" ([A-Z0-9 ]*) " " ("\n" . "Z  ") in 
+  rep cn 
+  "Z  4 6 8 0 2 4 6 8 0 2 4 6 8 0 2 4 6 8 0 2 4 6 8 0"
+=
+  "Z  4 6 8 0
+  |Z  2 4 6 8
+  |Z  0 2 4 6
+  |Z  8 0 2 4
+  |Z  6 8 0 2
+  |Z  4 6 8 0"
+
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)
 
@@ -226,11 +238,15 @@ let esc_cs : lens = xml_esc_string [,;]
 let esc_csp : lens = xml_esc_string [,;()]
 let esc_p : lens = xml_esc_string [()]
 let esc_q : lens = xml_esc_string [""] 
+let esc_dq : lens = xml_esc_string ["".] 
+let esc_dsq : lens = xml_esc_string [\-;""] 
 let esc_sq : lens = xml_esc_string [;""] 
+let esc_qp : lens = xml_esc_string [""()] 
 let esc_cq : lens = xml_esc_string [,""] 
 let esc_cdq : lens = xml_esc_string [.,""] 
 let esc_d : lens = xml_esc_string [.] 
 let esc_n : lens = xml_esc_string [:]
+let esc_p : lens = xml_esc_string [ ]
 let raw : regexp = 
   let e : regexp = [^;\n ] in 
   let m : regexp = [^;\n] in 
@@ -462,6 +478,33 @@ let xml_attr4_elt_open (spaces:string) (tag:string)
         (xml_attr name2 value2)  
         (xml_attr name3 value3) 
         (xml_attr name4 value4) )
+
+(* xml_attrN_elt_swap2 *)
+let xml_attr2_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (body:lens) : lens = 
+  (xml_attr2_elt_open spaces tag 
+     name1 value1 
+     name2 value2 .
+   body . 
+   xml_close_tag spaces tag); 
+  ( atype value1 . 
+    ( (atype value2) ~ (atype body) ) )
+
+let xml_attr3_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (body:lens) : lens = 
+  (xml_attr3_elt_open spaces tag 
+     name1 value1 
+     name2 value2 
+     name3 value3 . 
+   body . 
+   xml_close_tag spaces tag); 
+  ( atype value1 . 
+    ( (atype value2 . atype value3) ~ (atype body) ) )
 
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
@@ -925,8 +968,8 @@ let oc_line : lens = split_terminate (oc_tag,oc_xml)
 (* unit tests for OC line *)
 let P12544_oc_ascii : string = 
   "OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
-  |OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini; Catarrhini;
-  |OC   Hominidae; Homo." . 
+  |OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini;
+  |OC   Catarrhini; Hominidae; Homo." . 
   NL
 
 let P12544_oc_xml : string = 
@@ -1701,12 +1744,8 @@ let cc_generic_xml (ty:lens) : lens =
   let typ : lens = xml_attr "type" ty in 
   let data_no_dot : lens = xml_esc_string_ends [""] [.] in 
   let data_dot : lens = esc_q . "." in 
-  let txt (d:lens) : lens = 
-    colon . 
-    space . 
-    xml_simple_elt NL2 "text" d in 
-  ins cc_tag . 
-  ins cc_bang . 
+  let txt (d:lens) : lens = colon . space . xml_simple_elt NL2 "text" d in 
+  ins cc_tag . ins cc_bang . 
   xml_open NL1 "comment" . 
   ( typ . ( (cc_status . xml_close) ~ (txt data_no_dot) ) . dot 
   | ( cc_status ~ (typ . xml_close . txt data_no_dot) ) . dot  
@@ -1768,28 +1807,18 @@ let P12544_cc_unstructured_ascii : string =
   |CC       involved in apoptosis." . 
   NL
 
-let P12544_cc_unstructured_ascii_actual : string = 
-  "CC   -!- FUNCTION: This enzyme is necessary for target cell lysis in
-  |CC       cell-mediated immune responses. It cleaves after Lys or Arg. May be involved
-  |CC       in apoptosis." . 
-  NL
-
 let P12544_cc_unstructured_xml : string = 
-  "<comment type=\"function\">
-  |<text>This enzyme is necessary for target cell lysis in cell-mediated immune responses. It cleaves after Lys or Arg. May be involved in apoptosis.</text>
-  |</comment>" 
-
-let P12544_cc_unstructured_xml_cn : string = 
   NL . 
   "  <comment type=\"function\">
-  |    <text>This enzyme is necessary for target cell lysis in cell-mediated immune responses. It cleaves after Lys or Arg. May be involved in apoptosis.</text>
+  |    <text>This enzyme is necessary for target cell lysis in cell- mediated immune responses. It cleaves after Lys or Arg. May be involved in apoptosis.</text>
   |  </comment>" 
 
+
 test cc_unstructured_line get 
-  P12544_cc_unstructured_xml = P12544_cc_unstructured_ascii_actual
+  P12544_cc_unstructured_xml = P12544_cc_unstructured_ascii
 
 test cc_unstructured_line create 
-  P12544_cc_unstructured_ascii_actual = P12544_cc_unstructured_xml_cn
+  P12544_cc_unstructured_ascii = P12544_cc_unstructured_xml
 
 (* CC biophysiochemical properties line *)
 let cc_biophysicochemical_properties_xml : lens = 
@@ -1829,11 +1858,12 @@ let cc_biophysicochemical_properties_line : lens =
 (* unit tests for biophysiochemical properties CC lines *)
 let cc_bp_ascii : string = 
   "CC   -!- BIOPHYSICOCHEMICAL PROPERTIES: Absorption: Abs(max)=465 nm;
-  |CC       Note=The above maximum is for the oxidized form. Shows a maximal peak at 330
-  |CC       nm in the reduced form. These absorption peaks are for the tryptophylquinone
-  |CC       cofactor; Kinetic parameters: KM=5.4 uM for tyramine; Vmax=17 umol/min/mg
-  |CC       enzyme; Note=The enzyme is substrate inhibited at high substrate
-  |CC       concentrations (Ki=1.08 mM for tyramine);" . 
+  |CC       Note=The above maximum is for the oxidized form. Shows a maximal
+  |CC       peak at 330 nm in the reduced form. These absorption peaks are for
+  |CC       the tryptophylquinone cofactor; Kinetic parameters: KM=5.4 uM for
+  |CC       tyramine; Vmax=17 umol/min/mg enzyme; Note=The enzyme is substrate
+  |CC       inhibited at high substrate concentrations (Ki=1.08 mM for
+  |CC       tyramine);" .  
   NL
 
 let cc_bp_xml : string = 
@@ -2193,8 +2223,8 @@ let cc_alternative_products_ascii : string =
   "CC   -!- ALTERNATIVE_PRODUCTS:
   |CC       Event=Alternative splicing; Named isoforms=2; Comment=This is
   |CC         a rather lengthy comment.;
-  |CC       Name=1; Synonyms=D, This is a really long synonym that should cause the
-  |CC         line to break, E; IsoId=P48347-1; Sequence=Displayed;
+  |CC       Name=1; Synonyms=D, This is a really long synonym that should cause
+  |CC         the line to break, E; IsoId=P48347-1; Sequence=Displayed;
   |CC       Name=2; IsoId=P48347-2; Sequence=VSP_008972;" . 
   NL
 
@@ -2237,14 +2267,14 @@ let cc_mass_spectrometry_line : lens =
 (* CC mass spectrometry unit tests *)
 let cc_mass_spectrometry_ascii : string = 
    "CC   -!- MASS SPECTROMETRY: Mass=23290.2; Mass_error=2.9;
-   |CC       Method=Electrospray; Range=16-214 (P04653-2); Note=Allele D, with 6
-   |CC       phosphate groups; Source=PubMed:7601973;" . 
+   |CC       Method=Electrospray; Range=16-214 (P04653-2); Note=Allele D, with
+   |CC       6 phosphate groups; Source=PubMed:7601973;" . 
    NL
 
 let cc_mass_spectrometry_ascii_cn : string = 
    "CC   -!- MASS SPECTROMETRY: Mass=23290.2; Mass_error=2.9;
-   |CC       Method=Electrospray; Range=16-214 (P04653-2); Note=Allele D, with 6
-   |CC       phosphate groups;" . 
+   |CC       Method=Electrospray; Range=16-214 (P04653-2); Note=Allele D, with
+   |CC       6 phosphate groups;" . 
    NL
 
 let cc_mass_spectrometry_xml : string = 
@@ -2361,7 +2391,8 @@ let cc_web_resource_xml : string =
 
 let cc_web_resource_ascii : string = 
   "CC   -!- WEB RESOURCE: Name=IARC TP53 mutation database; Note=Somatic and
-  |CC         germline TP53 mutations in human cancers; URL=\"http://www-p53.iarc.fr/\";" .
+  |CC         germline TP53 mutations in human cancers;
+  |CC         URL=\"http://www-p53.iarc.fr/\";" .
   NL
 
 test cc_web_resource_line get 
@@ -2371,6 +2402,13 @@ test cc_web_resource_line create
   cc_web_resource_ascii = cc_web_resource_xml
 
 (* CC Block *)
+let cc_copyright : string = 
+  "CC   -----------------------------------------------------------------------
+  |CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+  |CC   Distributed under the Creative Commons Attribution-NoDerivs License
+  |CC   -----------------------------------------------------------------------" . 
+  NL
+
 let cc_block : lens = 
   let non_interaction : lens = 
       ( cc_unstructured_line 
@@ -2379,22 +2417,30 @@ let cc_block : lens =
       | cc_mass_spectrometry_line 
       | cc_sequence_caution_line 
       | cc_web_resource_line) in
-    ( non_interaction+
-    | cc_interaction_block 
-    | non_interaction* . cc_interaction_block . non_interaction+ )
+  ( non_interaction+
+  | cc_interaction_block 
+  | non_interaction* . cc_interaction_block . non_interaction+ ) . 
+  ins cc_copyright      
 
-test cc_block create
+(* unit tests for CC block *)
+let cc_block_ascii : string =
   "CC   -!- ALTERNATIVE_PRODUCTS:
-  |CC       Event=Alternative splicing; Named isoforms=2; Comment=Additional isoforms seem to exist;
+  |CC       Event=Alternative splicing; Named isoforms=2;
+  |CC         Comment=Additional isoforms seem to exist;
   |CC       Name=1; Synonyms=Ash-L; IsoId=P62993-1, P29354-1; Sequence=Displayed;
   |CC       Name=GRB3-3; IsoId=P62993-2, P29354-2; Sequence=VSP_001839;
   |CC   -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity).
   |CC   -!- DOMAIN: The SH3 domains mediate interaction with SHB.
   |CC   -!- SIMILARITY: Belongs to the GRB2/sem-5/DRK family.
-  |" 
-= 
-  "
-  |  <comment type=\"alternative products\">
+  |CC   -----------------------------------------------------------------------
+  |CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+  |CC   Distributed under the Creative Commons Attribution-NoDerivs License
+  |CC   -----------------------------------------------------------------------" . 
+  NL
+
+let cc_block_xml : string = 
+  NL . 
+  "  <comment type=\"alternative products\">
   |    <event type=\"alternative splicing\"/>
   |    <comment>Additional isoforms seem to exist</comment>
   |    <isoform>
@@ -2421,53 +2467,119 @@ test cc_block create
   |    <text>Belongs to the GRB2/sem-5/DRK family.</text>
   |  </comment>"
 
-(* JNF tidied through here. 
+test cc_block get
+  cc_block_xml = cc_block_ascii 
+
+test cc_block create
+  cc_block_ascii = cc_block_xml
+
+let P12544_cc_block_ascii : string = 
+  "CC   -!- FUNCTION: This enzyme is necessary for target cell lysis in cell-
+  |CC       mediated immune responses. It cleaves after Lys or Arg. May be
+  |CC       involved in apoptosis.
+  |CC   -!- CATALYTIC ACTIVITY: Hydrolysis of proteins, including fibronectin,
+  |CC       type IV collagen and nucleolin. Preferential cleavage:
+  |CC       -Arg-|-Xaa-, -Lys-|-Xaa- >> -Phe-|-Xaa- in small molecule
+  |CC       substrates.
+  |CC   -!- SUBUNIT: Homodimer; disulfide-linked.
+  |CC   -!- INTERACTION:
+  |CC       Self; NbExp=1; IntAct=EBI-519800, EBI-519800;
+  |CC   -!- SUBCELLULAR LOCATION: Secreted. Cytoplasmic granule.
+  |CC   -!- SIMILARITY: Belongs to the peptidase S1 family. Granzyme
+  |CC       subfamily.
+  |CC   -!- SIMILARITY: Contains 1 peptidase S1 domain.
+  |CC   -----------------------------------------------------------------------
+  |CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+  |CC   Distributed under the Creative Commons Attribution-NoDerivs License
+  |CC   -----------------------------------------------------------------------" . 
+  NL
+
+let P12544_cc_block_xml : string = 
+  NL . 
+  "  <comment type=\"function\">
+  |    <text>This enzyme is necessary for target cell lysis in cell- mediated immune responses. It cleaves after Lys or Arg. May be involved in apoptosis.</text>
+  |  </comment>
+  |  <comment type=\"catalytic activity\">
+  |    <text>Hydrolysis of proteins, including fibronectin, type IV collagen and nucleolin. Preferential cleavage: -Arg-|-Xaa-, -Lys-|-Xaa- &gt;&gt; -Phe-|-Xaa- in small molecule substrates.</text>
+  |  </comment>
+  |  <comment type=\"subunit\">
+  |    <text>Homodimer; disulfide-linked.</text>
+  |  </comment>
+  |  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-519800\"/>
+  |    <interactant intactId=\"EBI-519800\"/>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>
+  |  <comment type=\"subcellular location\">
+  |    <text>Secreted. Cytoplasmic granule.</text>
+  |  </comment>
+  |  <comment type=\"similarity\">
+  |    <text>Belongs to the peptidase S1 family. Granzyme subfamily.</text>
+  |  </comment>
+  |  <comment type=\"similarity\">
+  |    <text>Contains 1 peptidase S1 domain.</text>
+  |  </comment>"
+
+test cc_block get
+  P12544_cc_block_xml = P12544_cc_block_ascii
+
+test cc_block create 
+  P12544_cc_block_ascii = P12544_cc_block_xml
+
 (* --------------------------------------------------------------------------- *)
 (* DR block *)
 
-let sspd = ssp . ins "-" 
+let semi_space_dash : lens = semi . space . dash 
 
 let start_dr (db:regexp) : lens = 
-  xml_attr "type" (db . ssp) .
-  xml_attr "key" (del NUMBER) . 
-  xml_attr "id" (ALPHAC)
+  sort3
+    (xml_attr "type" (db . semi . space))
+    (xml_attr "key" (del NUMBER))
+    (xml_attr "id" (esc_sq))
     
-
 let property (ty:string) : lens = 
-  ssp . 
-  xml_attr2_elt_no_body NL2 "property" 
-    "value" ALPHAC
-    "type" (del ty) 
+  semi . space . 
+  xml_attr2_elt_no_kids NL2 "property" 
+    "value" esc_sq
+    "type" (del ty)
 
 let optional_dr2 (db:regexp) (ty:string) : lens = 
     start_dr db . 
-      ( (xml_slash_close . sspd)
+      ( (xml_slash_close . semi_space_dash)
       | (xml_close . 
          property ty . 
-         qdel WS NL1 . 
-         xml_close_tag "dbReference") )
+         xml_close_tag NL1 "dbReference") )
 
 let optional_dr3 (db:regexp) (ty1:string) (ty2:string) : lens = 
   start_dr db . 
-    ( (xml_slash_close . sspd{2})
+    ( (xml_slash_close . semi_space_dash{2})
     | (xml_close . 
-         ( (property ty1 . (property ty2 | sspd))
-          | (sspd | property ty2) ) . 
-       qdel WS NL1 . 
-       xml_close_tag "dbReference") )
+         ( (property ty1 . (property ty2 | semi_space_dash))
+          | (semi_space_dash | property ty2) ) . 
+       xml_close_tag NL1 "dbReference") )
+
+let optional_dr4_a (db:regexp) (ty1:string) (ty2:string) (ty3:string) : lens = 
+  let a : lens = space . ins "A" in 
+  start_dr db . 
+    ( (xml_slash_close . semi_space_dash{3})
+    | (xml_close . 
+         ( (property ty1 . (property ty2 . a | semi_space_dash) . (property ty3 | semi_space_dash))
+         | (semi_space_dash . property ty2 . a . (property ty3 | semi_space_dash))
+         | (semi_space_dash{2} . property ty3) ) . 
+       xml_close_tag NL1 "dbReference") )
 
 let optional_dr4 (db:regexp) (ty1:string) (ty2:string) (ty3:string) : lens = 
   start_dr db . 
-    ( (xml_slash_close . sspd{3})
+    ( (xml_slash_close . semi_space_dash{3})
     | (xml_close . 
-         ( (property ty1 . (property ty2 | sspd) . (property ty3 | sspd))
-         | (sspd . property ty2 . (property ty3 | sspd))
-         | (sspd{2} . property ty3) ) . 
-       qdel WS NL1 . 
-       xml_close_tag "dbReference") )
+         ( (property ty1 . (property ty2 | semi_space_dash) . (property ty3 | semi_space_dash))
+         | (semi_space_dash . property ty2 . (property ty3 | semi_space_dash))
+         | (semi_space_dash{2} . property ty3) ) . 
+       xml_close_tag NL1 "dbReference") )
 
 let dr_2_1 =
-  optional_dr2 ( "HIV" | "InterPro" | "PIR" | "PRINTS" | "REBASE")
+  optional_dr2 ( "HIV" | "InterPro" | "PIR" | "PRINTS" | "REBASE" | "HGNC")
     "entry name"
 
 let dr_2_1_3_1 =
@@ -2476,12 +2588,10 @@ let dr_2_1_3_1 =
     "entry name" "match status"
 
 let dr_2_2_3_3_4_1 = 
-  optional_dr4 "PDB" "method" "resolution" "chains"
+  optional_dr4_a "PDB" "method" "resolution" "chains"
 
-
-(* !!! pb with HGNC ! the XML file has "entry name" instead of "gene designation" !!! *)
 let dr_2_3 =
-  optional_dr2 ("DictyBase" | "EcoGene" | "FlyBase" | "HGNC" | "MGI" | "RGD" | "SGD" 
+  optional_dr2 ("DictyBase" | "EcoGene" | "FlyBase" | "MGI" | "RGD" | "SGD" 
         | "StyGene" | "SubtiList" | "WormBase" | "ZFIN" ) "gene designation"
 
 let dr_2_4_3_2 = 
@@ -2519,11 +2629,11 @@ let dr_2_12 =
     | "GeneDB_Spombe" | "GeneID" | "GlycoSuiteDB" | "Gramene" | "H-InvDB" 
     | "HPA" | "IntAct" | "KEGG" | "LegioList" | "Leproma" | "LinkHub" 
     | "ListiList" | "MaizeGDB" | "MEROPS" | "MypuList" | "OGP" | "PeptideAtlas" 
-    | "PharmGKB" | "PHCI-2DPAGE" | "PhosSite" | "PhotoList" | "PMMA-2DPAGE" 
+    | "PDBsum" | "PharmGKB" | "PHCI-2DPAGE" | "PhosSite" | "PhotoList" | "PMMA-2DPAGE" 
     | "PptaseDB" | "PseudoCAP" | "Rat-heart-2DPAGE" | "RefSeq" | "SagaList" 
-    | "Siena-2DPAGE" | "TAIR" | "TIGR" | "TRANSFAC" | "TubercuList or UniGene") .
+    | "Siena-2DPAGE" | "TAIR" | "TIGR" | "TRANSFAC" | "TubercuList" | "UniGene") .
   xml_slash_close . 
-  sspd
+  semi_space_dash
 
 let dr_2_13 = 
   optional_dr2 "HSSP" "PDB accession"
@@ -2562,16 +2672,21 @@ let dr_EMBL =
 let dr_PROSITE = 
   optional_dr3 "PROSITE" "entry name" "match status"
 
+let dr_tag : string = tag "DR" 
+
 let dr_xml = 
-  tag "DR" . 
+  ins dr_tag . 
   xml_open NL1 "dbReference" . 
-  (dr_2_1 | dr_2_1_3_1 | dr_2_2_3_3_4_1 | dr_2_3 | dr_2_4_3_2 | dr_2_5_3_1 
+  ( dr_2_1 | dr_2_1_3_1 | dr_2_2_3_3_4_1 | dr_2_3 | dr_2_4_3_2 | dr_2_5_3_1 
   | dr_2_6 | dr_2_7 | dr_2_8 | dr_2_9_3_1 | dr_2_11 | dr_2_12 | dr_2_13
   | dr_2_14 | dr_2_15 | dr_2_16 | dr_2_18 | dr_2_19 | dr_2_20 | dr_2_21 
   | dr_2_22 | dr_EMBL | dr_PROSITE) .
-  ins "."
+  dot
 
-test (terminate dr_xml)* get
+let dr_block : lens = (terminate dr_xml)*
+
+(* unit tests for DR block *)
+test dr_block get 
   "  <dbReference type=\"EMBL\" key=\"1\" id=\"X83468\">
   |    <property value=\"CAA58470.1\" type=\"protein sequence ID\"/>
   |    <property value=\"JOINED\" type=\"status\"/>
@@ -2594,16 +2709,17 @@ test (terminate dr_xml)* get
   |    <property value=\"4\" type=\"match status\"/>
   |  </dbReference>" 
 = 
-  "DR  EMBL; X83468; CAA58470.1; JOINED; Genomic_DNA.
-  |DR  PROSITE; PS00940; GAMMA_THIONIN; 1.
-  |DR  EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
-  |DR  KEGG; tan:TA08425; -.
-  |DR  InterPro; IPR007480; DUF529.
-  |DR  Pfam; PF04385; FAINT; 4.
-  |"
+  "DR   EMBL; X83468; CAA58470.1; JOINED; Genomic_DNA.
+  |DR   PROSITE; PS00940; GAMMA_THIONIN; 1.
+  |DR   EMBL; CR940353; CAI76474.1; -; Genomic_DNA.
+  |DR   KEGG; tan:TA08425; -.
+  |DR   InterPro; IPR007480; DUF529.
+  |DR   Pfam; PF04385; FAINT; 4." . 
+  NL
 
-test dr_xml create 
-  "DR   EMBL; X83467; CAA58470.1; -; Genomic_DNA." 
+test dr_block create 
+  ("DR   EMBL; X83467; CAA58470.1; -; Genomic_DNA." . 
+   NL)
 = 
   "
   |  <dbReference type=\"EMBL\" key=\"0\" id=\"X83467\">
@@ -2612,31 +2728,222 @@ test dr_xml create
   |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
   |  </dbReference>"
 
+let P12544_dr_block_ascii : string =   
+  "DR   EMBL; M18737; AAA52647.1; -; mRNA.
+  |DR   EMBL; CR456968; CAG33249.1; -; mRNA.
+  |DR   EMBL; BC015739; AAH15739.1; -; mRNA.
+  |DR   EMBL; U40006; AAD00009.1; -; Genomic_DNA.
+  |DR   PIR; A31372; A31372.
+  |DR   RefSeq; NP_006135.1; -.
+  |DR   UniGene; Hs.90708; -.
+  |DR   PDB; 1HF1; Model; -; A=29-262.
+  |DR   PDB; 1OP8; X-ray; 2.50 A; A/B/C/D/E/F=29-262.
+  |DR   PDB; 1ORF; X-ray; 2.40 A; A=29-262.
+  |DR   PDBsum; 1HF1; -.
+  |DR   PDBsum; 1OP8; -.
+  |DR   PDBsum; 1ORF; -.
+  |DR   IntAct; P12544; -.
+  |DR   MEROPS; S01.135; -.
+  |DR   Ensembl; ENSG00000145649; Homo sapiens.
+  |DR   GeneID; 3001; -.
+  |DR   KEGG; hsa:3001; -.
+  |DR   H-InvDB; HIX0004862; -.
+  |DR   HGNC; HGNC:4708; GZMA.
+  |DR   MIM; 140050; gene.
+  |DR   PharmGKB; PA29086; -.
+  |DR   LinkHub; P12544; -.
+  |DR   ArrayExpress; P12544; -.
+  |DR   CleanEx; HS_GZMA; -.
+  |DR   GermOnline; ENSG00000145649; Homo sapiens.
+  |DR   GO; GO:0001772; C:immunological synapse; TAS:UniProtKB.
+  |DR   GO; GO:0005634; C:nucleus; TAS:UniProtKB.
+  |DR   GO; GO:0004277; F:granzyme A activity; IDA:UniProtKB.
+  |DR   GO; GO:0042803; F:protein homodimerization activity; IDA:UniProtKB.
+  |DR   GO; GO:0006922; P:cleavage of lamin; IDA:UniProtKB.
+  |DR   GO; GO:0006955; P:immune response; TAS:UniProtKB.
+  |DR   InterPro; IPR001254; Peptidase_S1_S6.
+  |DR   InterPro; IPR001314; Peptidase_S1A.
+  |DR   Pfam; PF00089; Trypsin; 1.
+  |DR   PRINTS; PR00722; CHYMOTRYPSIN.
+  |DR   SMART; SM00020; Tryp_SPc; 1.
+  |DR   PROSITE; PS50240; TRYPSIN_DOM; 1.
+  |DR   PROSITE; PS00134; TRYPSIN_HIS; 1.
+  |DR   PROSITE; PS00135; TRYPSIN_SER; 1." . 
+  NL
+
+(* differs from UniProtKB version in that: order of attrs canonized,
+   key attrs set to "0", whitepsace canonized. *)
+let P12544_dr_block_xml_cn : string = 
+  NL . 
+  "  <dbReference type=\"EMBL\" key=\"0\" id=\"M18737\">
+  |    <property value=\"AAA52647.1\" type=\"protein sequence ID\"/>
+  |    <property value=\"-\" type=\"status\"/>
+  |    <property value=\"mRNA\" type=\"molecule type\"/>
+  |  </dbReference>
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"CR456968\">
+  |    <property value=\"CAG33249.1\" type=\"protein sequence ID\"/>
+  |    <property value=\"-\" type=\"status\"/>
+  |    <property value=\"mRNA\" type=\"molecule type\"/>
+  |  </dbReference>
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"BC015739\">
+  |    <property value=\"AAH15739.1\" type=\"protein sequence ID\"/>
+  |    <property value=\"-\" type=\"status\"/>
+  |    <property value=\"mRNA\" type=\"molecule type\"/>
+  |  </dbReference>
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"U40006\">
+  |    <property value=\"AAD00009.1\" type=\"protein sequence ID\"/>
+  |    <property value=\"-\" type=\"status\"/>
+  |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PIR\" key=\"0\" id=\"A31372\">
+  |    <property value=\"A31372\" type=\"entry name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"RefSeq\" key=\"0\" id=\"NP_006135.1\"/>
+  |  <dbReference type=\"UniGene\" key=\"0\" id=\"Hs.90708\"/>
+  |  <dbReference type=\"PDB\" key=\"0\" id=\"1HF1\">
+  |    <property value=\"Model\" type=\"method\"/>
+  |    <property value=\"A=29-262\" type=\"chains\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PDB\" key=\"0\" id=\"1OP8\">
+  |    <property value=\"X-ray\" type=\"method\"/>
+  |    <property value=\"2.50\" type=\"resolution\"/>
+  |    <property value=\"A/B/C/D/E/F=29-262\" type=\"chains\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PDB\" key=\"0\" id=\"1ORF\">
+  |    <property value=\"X-ray\" type=\"method\"/>
+  |    <property value=\"2.40\" type=\"resolution\"/>
+  |    <property value=\"A=29-262\" type=\"chains\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PDBsum\" key=\"0\" id=\"1HF1\"/>
+  |  <dbReference type=\"PDBsum\" key=\"0\" id=\"1OP8\"/>
+  |  <dbReference type=\"PDBsum\" key=\"0\" id=\"1ORF\"/>
+  |  <dbReference type=\"IntAct\" key=\"0\" id=\"P12544\"/>
+  |  <dbReference type=\"MEROPS\" key=\"0\" id=\"S01.135\"/>
+  |  <dbReference type=\"Ensembl\" key=\"0\" id=\"ENSG00000145649\">
+  |    <property value=\"Homo sapiens\" type=\"organism name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"GeneID\" key=\"0\" id=\"3001\"/>
+  |  <dbReference type=\"KEGG\" key=\"0\" id=\"hsa:3001\"/>
+  |  <dbReference type=\"H-InvDB\" key=\"0\" id=\"HIX0004862\"/>
+  |  <dbReference type=\"HGNC\" key=\"0\" id=\"HGNC:4708\">
+  |    <property value=\"GZMA\" type=\"entry name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"MIM\" key=\"0\" id=\"140050\">
+  |    <property value=\"gene\" type=\"type\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PharmGKB\" key=\"0\" id=\"PA29086\"/>
+  |  <dbReference type=\"LinkHub\" key=\"0\" id=\"P12544\"/>
+  |  <dbReference type=\"ArrayExpress\" key=\"0\" id=\"P12544\"/>
+  |  <dbReference type=\"CleanEx\" key=\"0\" id=\"HS_GZMA\"/>
+  |  <dbReference type=\"GermOnline\" key=\"0\" id=\"ENSG00000145649\">
+  |    <property value=\"Homo sapiens\" type=\"organism name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0001772\">
+  |    <property value=\"C:immunological synapse\" type=\"term\"/>
+  |    <property value=\"TAS:UniProtKB\" type=\"evidence\"/>
+  |  </dbReference>
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0005634\">
+  |    <property value=\"C:nucleus\" type=\"term\"/>
+  |    <property value=\"TAS:UniProtKB\" type=\"evidence\"/>
+  |  </dbReference>
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0004277\">
+  |    <property value=\"F:granzyme A activity\" type=\"term\"/>
+  |    <property value=\"IDA:UniProtKB\" type=\"evidence\"/>
+  |  </dbReference>
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0042803\">
+  |    <property value=\"F:protein homodimerization activity\" type=\"term\"/>
+  |    <property value=\"IDA:UniProtKB\" type=\"evidence\"/>
+  |  </dbReference>
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0006922\">
+  |    <property value=\"P:cleavage of lamin\" type=\"term\"/>
+  |    <property value=\"IDA:UniProtKB\" type=\"evidence\"/>
+  |  </dbReference>
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0006955\">
+  |    <property value=\"P:immune response\" type=\"term\"/>
+  |    <property value=\"TAS:UniProtKB\" type=\"evidence\"/>
+  |  </dbReference>
+  |  <dbReference type=\"InterPro\" key=\"0\" id=\"IPR001254\">
+  |    <property value=\"Peptidase_S1_S6\" type=\"entry name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"InterPro\" key=\"0\" id=\"IPR001314\">
+  |    <property value=\"Peptidase_S1A\" type=\"entry name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"Pfam\" key=\"0\" id=\"PF00089\">
+  |    <property value=\"Trypsin\" type=\"entry name\"/>
+  |    <property value=\"1\" type=\"match status\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PRINTS\" key=\"0\" id=\"PR00722\">
+  |    <property value=\"CHYMOTRYPSIN\" type=\"entry name\"/>
+  |  </dbReference>
+  |  <dbReference type=\"SMART\" key=\"0\" id=\"SM00020\">
+  |    <property value=\"Tryp_SPc\" type=\"entry name\"/>
+  |    <property value=\"1\" type=\"match status\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PROSITE\" key=\"0\" id=\"PS50240\">
+  |    <property value=\"TRYPSIN_DOM\" type=\"entry name\"/>
+  |    <property value=\"1\" type=\"match status\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PROSITE\" key=\"0\" id=\"PS00134\">
+  |    <property value=\"TRYPSIN_HIS\" type=\"entry name\"/>
+  |    <property value=\"1\" type=\"match status\"/>
+  |  </dbReference>
+  |  <dbReference type=\"PROSITE\" key=\"0\" id=\"PS00135\">
+  |    <property value=\"TRYPSIN_SER\" type=\"entry name\"/>
+  |    <property value=\"1\" type=\"match status\"/>
+  |  </dbReference>"
+
+    test dr_block get 
+    P12544_dr_block_xml_cn = P12544_dr_block_ascii
+
+  test dr_block create 
+  P12544_dr_block_ascii = P12544_dr_block_xml_cn
+
 (* --------------------------------------------------------------------------- *)
 (* PE line *)
 
+let pe_tag : string = tag "PE"
+
 let pe_xml : lens = 
-  tag "PE" . 
-  xml_attr1_elt_no_body NL1 "proteinExistence" 
+  ins pe_tag . 
+  xml_attr1_elt_no_kids NL1 "proteinExistence" 
     "type" 
     ( "Evidence at protein level"    <-> "1: Evidence at protein level"   
     | "Evidence at transcript level" <-> "2: Evidence at transcript level"
     | "Inferred from homology"       <-> "3: Inferred from homology"      
     | "Predicted"                    <-> "4: Predicted"                   
     | "Uncertain"                    <-> "5: Uncertain"                   ) . 
-  ins ";" 
+  semi 
 
-test pe_xml get 
+let pe_line : lens = terminate pe_xml
+
+(* unit tests for PE line *)
+let pe_ascii : string = 
+  "PE   5: Uncertain;" . NL
+
+let pe_xml : string = 
+  NL . 
   "  <proteinExistence type=\"Uncertain\"/>"
-= 
-  "PE  5: Uncertain;"
 
-test pe_xml create
-  "PE   3: Inferred from homology;" 
-= 
-  "
-  |  <proteinExistence type=\"Inferred from homology\"/>"
-  
+test pe_line get 
+  pe_xml = pe_ascii
+
+test pe_line create 
+  pe_ascii = pe_xml
+
+let P12544_pe_ascii : string = 
+  "PE   1: Evidence at protein level;" . 
+  NL
+
+let P12544_pe_xml_cn : string = 
+  NL . 
+  "  <proteinExistence type=\"Evidence at protein level\"/>" 
+
+test pe_line get
+  P12544_pe_xml_cn = P12544_pe_ascii
+
+test pe_line create
+  P12544_pe_ascii = P12544_pe_xml_cn
+
 (* --------------------------------------------------------------------------- *)
 (* KW line *)
 
@@ -3366,6 +3673,7 @@ let kw_trans : lens =
   | del "KW-0703" . mid . "Sarcoplasmic reticulum"
   | del "KW-0704" . mid . "Schiff base"
   | del "KW-0705" . mid . "SCID"
+  | del "KW-0964" . mid . "Secreted"
   | del "KW-0708" . mid . "Seed storage protein"
   | del "KW-0709" . mid . "Segmentation polarity protein"
   | del "KW-0711" . mid . "Selenium"
@@ -3531,137 +3839,221 @@ let kw_trans : lens =
   | del "KW-0864" . mid . "Zinc transport"
   | del "KW-0865" . mid . "Zymogen" )
 
+let kw_tag : string = tag "KW" 
+
 let kw_xml : lens = 
   let kw : lens = 
     xml_open NL1 "keyword" . 
-    del SP . 
+    qdel SP " " . 
     del "id=\"" . kw_trans . 
-    xml_close_tag "keyword" in
-  tag "KW" . kw . (ssp . kw)* . ins "." 
+    xml_simple_close_tag "keyword" in
+  ins kw_tag . 
+  iter_with_sqsp kw . 
+  dot 
 
-test kw_xml create 
-  "KW   Complete proteome; Differentiation; Viral movement protein; Zymogen; 2Fe-2S." 
-= 
-  "
-  |  <keyword id=\"KW-0181\">Complete proteome</keyword>
-  |  <keyword id=\"KW-0221\">Differentiation</keyword>
-  |  <keyword id=\"KW-0916\">Viral movement protein</keyword>
-  |  <keyword id=\"KW-0865\">Zymogen</keyword>
-  |  <keyword id=\"KW-0001\">2Fe-2S</keyword>"
+let kw_line : lens = split_terminate (kw_tag,kw_xml)
 
-test kw_xml get 
+(* unit tests for KW line *)
+let kw_ascii : string = 
+  "KW   Complete proteome; Differentiation; Viral movement protein; Zymogen;
+  |KW   2Fe-2S." . 
+  NL
+
+let kw_xml : string = 
+  NL . 
   "  <keyword id=\"KW-0181\">Complete proteome</keyword>
   |  <keyword id=\"KW-0221\">Differentiation</keyword>
   |  <keyword id=\"KW-0916\">Viral movement protein</keyword>
   |  <keyword id=\"KW-0865\">Zymogen</keyword>
   |  <keyword id=\"KW-0001\">2Fe-2S</keyword>"
-= 
-  "KW  Complete proteome; Differentiation; Viral movement protein; Zymogen; 2Fe-2S." 
-  
+
+test kw_line get 
+  kw_xml = kw_ascii
+
+test kw_line create 
+  kw_ascii = kw_xml
+
+let P12544_kw_ascii : string = 
+  "KW   3D-structure; Apoptosis; Cytolysis; Direct protein sequencing;
+  |KW   Glycoprotein; Hydrolase; Polymorphism; Protease; Secreted; Serine
+  |KW   protease; Signal; Zymogen." . 
+  NL
+
+let P12544_kw_xml : string = 
+  NL . 
+  "  <keyword id=\"KW-0002\">3D-structure</keyword>
+  |  <keyword id=\"KW-0053\">Apoptosis</keyword>
+  |  <keyword id=\"KW-0204\">Cytolysis</keyword>
+  |  <keyword id=\"KW-0903\">Direct protein sequencing</keyword>
+  |  <keyword id=\"KW-0325\">Glycoprotein</keyword>
+  |  <keyword id=\"KW-0378\">Hydrolase</keyword>
+  |  <keyword id=\"KW-0621\">Polymorphism</keyword>
+  |  <keyword id=\"KW-0645\">Protease</keyword>
+  |  <keyword id=\"KW-0964\">Secreted</keyword>
+  |  <keyword id=\"KW-0720\">Serine protease</keyword>
+  |  <keyword id=\"KW-0732\">Signal</keyword>
+  |  <keyword id=\"KW-0865\">Zymogen</keyword>"
+
+test kw_line get 
+  P12544_kw_xml = P12544_kw_ascii
+
+test kw_line create 
+  P12544_kw_ascii = P12544_kw_xml
+
+(* BEGIN
 (* --------------------------------------------------------------------------- *)
 (* FT line *)
 
+let num (sym:string) : lens = 
+  ( space{4} . ins sym . DIGIT
+  | space{3} . ins sym . DIGIT{2}
+  | space{2} . ins sym . DIGIT{3}
+  | space{1} . ins sym . DIGIT{4}
+  |            ins sym . DIGIT{5} ) 
+
 let ft_bound (name:string) : lens = 
-  let num (sym:string) : lens = 
-    ( ins "    " . ins sym . DIGIT
-    | ins "   "  . ins sym . DIGIT{2}
-    | ins "  "   . ins sym . DIGIT{3}
-    | ins " "    . ins sym . DIGIT{4}
-    | ins ""     . ins sym . DIGIT{5} ) in 
-  ( xml_attr2_elt_no_body NL3 name 
+  ( xml_attr2_elt_no_kids NL3 name 
       "status" (del "less than") 
       "position" (num "<")
-  | xml_attr2_elt_no_body NL3 name 
+  | xml_attr2_elt_no_kids NL3 name 
       "status" (del "greater than") 
       "position" (num ">")
-  | xml_attr2_elt_no_body NL3 name 
+  | xml_attr2_elt_no_kids NL3 name 
       "status" (del "uncertain") 
       "position" (num "?")
-  | xml_attr1_elt_no_body NL3 name 
+  | xml_attr1_elt_no_kids NL3 name 
        "position" (num " ") )
 
 let ft_bounds : lens = 
   xml_elt NL2 "location"
-    (ft_bound "begin" . 
-     ins " " . 
-     ft_bound "end") . 
-  ins "       "
+    ( ft_bound "begin" . space . ft_bound "end"
+    | xml_attr1_elt_no_kids NL3 "position"
+        "position" (num " ") ) . 
+  space{7}
 
-let ft_id : lens = 
-  ins "/FTId=" . 
-  xml_attr "id" [A-Za-z0-9 _]+ . 
-  ins "."  
 
 let ft_description : lens = 
-  xml_attr "description" ("(" . [a-zA-Z0-9. _]+ . ")") . 
-  ins "." 
+  xml_attr "description" esc_d . 
+  dot 
 
 let ft_original_variation : lens = 
-  ( xml_simple_elt NL2 "original" ALPHA . 
+  ( xml_simple_elt NL2 "original" UALPHANUM . 
     ins " -> " . 
-    xml_simple_elt NL2 "variation" ALPHA 
+    xml_simple_elt NL2 "variation" UALPHANUM
   | ins "Missing" )
 
+let ft_normal_type : lens = 
+  ( "active site"                         <-> "ACT_SITE" 
+  | "binding site"                        <-> "BINDING " 
+  | "calcium-binding region"              <-> "CA_BIND " 
+  | "chain"                               <-> "CHAIN   " 
+  | "coiled-coil region"                  <-> "COILED  " 
+  | "compositionally biased region"       <-> "COMPBIAS" 
+  | "cross-link"                          <-> "CROSSLNK" 
+  | "disulfide bond"                      <-> "DISULFID" 
+  | "DNA-binding region"                  <-> "DNA_BIND" 
+  | "domain"                              <-> "DOMAIN  " 
+  | "glycosylation site"                  <-> "CARBOHYD" 
+  | "helix"                               <-> "HELIX   " 
+  | "initiator methionine"                <-> "INIT_MET" 
+  | "lipid moiety-binding region"         <-> "LIPID   " 
+  | "metal ion-binding site"              <-> "METAL   " 
+  | "modified residue"                    <-> "MOD_RES " 
+  | "non-consecutive residues"            <-> "NON_CONS" 
+  | "non-terminal residue"                <-> "NON_TER " 
+  | "nucleotide phosphate-binding region" <-> "NP_BIND " 
+  | "peptide"                             <-> "PEPTIDE " 
+  | "propeptide"                          <-> "PROPEP  " 
+  | "region of interest"                  <-> "REGION  " 
+  | "repeat"                              <-> "REPEAT  " 
+  | "selenocysteine"                      <-> "SE_CYS  " 
+  | "short sequence motif"                <-> "MOTIF   " 
+  | "signal peptide"                      <-> "SIGNAL  " 
+  | "site"                                <-> "SITE    " 
+  | "strand"                              <-> "STRAND  " 
+  | "topological domain"                  <-> "TOPO_DOM" 
+  | "transit peptide"                     <-> "TRANSIT " 
+  | "transmembrane region"                <-> "TRANSMEM" 
+  | "turn"                                <-> "TURN    " 
+  | "unsure residue"                      <-> "UNSURE  " 
+  | "zinc finger region"                  <-> "ZN_FING ") . 
+  space
+
+let ft_variation_type : lens = 
+  ( "mutagenesis site"  <-> "MUTAGEN " 
+  | "sequence conflict" <-> "CONFLICT" 
+  | "sequence variant"  <-> "VARIANT " 
+  | "splice variant"    <-> "VAR_SEQ ") . 
+  space
+
+let ft_id : lens = 
+  space . 
+  ins "/FTId=" . 
+  esc_dq . 
+  dot 
+
+let ft_description : lens = 
+  space . 
+  esc_q . 
+  dot
+
 let ft_normal : lens = 
-  xml_attr "type"
-     ( "active site"                         <-> "ACT_SITE" 
-     | "binding site"                        <-> "BINDING " 
-     | "calcium-binding region"              <-> "CA_BIND " 
-     | "chain"                               <-> "CHAIN   " 
-     | "coiled-coil region"                  <-> "COILED  " 
-     | "compositionally biased region"       <-> "COMPBIAS" 
-     | "cross-link"                          <-> "CROSSLNK" 
-     | "disulfide bond"                      <-> "DISULFID" 
-     | "DNA-binding region"                  <-> "DNA_BIND" 
-     | "domain"                              <-> "DOMAIN  " 
-     | "glycosylation site"                  <-> "CARBOHYD" 
-     | "helix"                               <-> "HELIX   " 
-     | "initiator methionine"                <-> "INIT_MET" 
-     | "lipid moiety-binding region"         <-> "LIPID   " 
-     | "metal ion-binding site"              <-> "METAL   " 
-     | "modified residue"                    <-> "MOD_RES " 
-     | "non-consecutive residues"            <-> "NON_CONS" 
-     | "non-terminal residue"                <-> "NON_TER " 
-     | "nucleotide phosphate-binding region" <-> "NP_BIND " 
-     | "peptide"                             <-> "PEPTIDE " 
-     | "propeptide"                          <-> "PROPEP  " 
-     | "region of interest"                  <-> "REGION  " 
-     | "repeat"                              <-> "REPEAT  " 
-     | "selenocysteine"                      <-> "SE_CYS  " 
-     | "short sequence motif"                <-> "MOTIF   " 
-     | "signal peptide"                      <-> "SIGNAL  " 
-     | "site"                                <-> "SITE    " 
-     | "strand"                              <-> "STRAND  " 
-     | "topological domain"                  <-> "TOPO_DOM" 
-     | "transit peptide"                     <-> "TRANSIT " 
-     | "transmembrane region"                <-> "TRANSMEM" 
-     | "turn"                                <-> "TURN    " 
-     | "unsure residue"                      <-> "UNSURE  " 
-     | "zinc finger region"                  <-> "ZN_FING ") . 
-    ins " " . 
-    ( ( ((ins " " . ft_id)? ~ ft_description)? . xml_close ) ~
-        ft_bounds )
+  ( xml_attr3_elt_swap2 NL1 "feature"
+     "type" ft_normal_type 
+     "description" ft_description 
+     "id" ft_id 
+     ft_bounds
+  | xml_attr2_elt_swap2 NL1 "feature"
+     "type" ft_normal_type 
+     "id" ft_id 
+     ft_bounds
+  | xml_attr2_elt_swap2 NL1 "feature"
+     "type" ft_normal_type 
+     "description" ft_description 
+     ft_bounds
+  | xml_attr1_elt NL1 "feature"
+     "type" ft_normal_type 
+     ft_bounds )
 
 let ft_variation : lens = 
-  xml_attr "type"
-    ( "mutagenesis site"  <-> "MUTAGEN " 
-    | "sequence conflict" <-> "CONFLICT" 
-    | "sequence variant"  <-> "VARIANT " 
-    | "splice variant"    <-> "VAR_SEQ ") . 
-  ins " " . 
-  ( ( ins " " . ((ins " " . ft_id)? ~ ft_description)? . xml_close ) ~ 
-    ( ft_original_variation ~ ft_bounds) )
+  let variation_body : lens = ft_original_variation ~ ft_bounds in 
+  ( xml_attr3_elt_swap2 NL1 "feature"
+     "type" ft_variation_type 
+     "description" ft_description 
+     "id" ft_id 
+     variation_body
+  | xml_attr2_elt_swap2 NL1 "feature"
+     "type" ft_variation_type 
+     "id" ft_id 
+     variation_body
+  | xml_attr2_elt_swap2 NL1 "feature"
+     "type" ft_variation_type 
+     "description" ft_description 
+     variation_body
+  | xml_attr1_elt NL1 "feature"
+     "type" ft_variation_type 
+     variation_body )
+
+let ft_tag : string = tag "FT" 
 
 let ft_xml : lens = 
-  tag "FT" . 
-  xml_open NL1 "feature" . 
-  (ft_normal | ft_variation) . 
-  qdel WS NL1 . 
-  xml_close_tag "feature"
+  ins ft_tag . 
+  (ft_normal | ft_variation)
 
-test ft_xml get
-  "
-  |  <feature type=\"sequence conflict\" id=\"VSP1234\" description=\"(in Ref. 2)\">
+let ft_line : lens = terminate ft_xml
+
+(* unit tests for FT line *)
+let ft_ascii1 : string = 
+  "FT   CONFLICT     27     27       S -> E (in Ref. 2). /FTId=VSP1234." . 
+  NL
+
+let ft_ascii2 : string = 
+  "FT   VAR_SEQ     243    244       Missing (in isoform 2). /FTId=VSP_008971." . 
+  NL
+
+let ft_xml1 : string = 
+  NL . 
+  "  <feature type=\"sequence conflict\" description=\"(in Ref. 2)\" id=\"VSP1234\">
   |    <original>S</original>
   |    <variation>E</variation>
   |    <location>
@@ -3669,19 +4061,273 @@ test ft_xml get
   |      <end position=\"27\"/>
   |    </location>
   |  </feature>"
-= 
-  "FT   CONFLICT     27     27       S -> E (in Ref. 2). /FTId=VSP1234."
 
-test ft_xml get
-  "
-  |  <feature type=\"splice variant\" id=\"VSP_008971\" description=\"(in isoform 2)\">
+let ft_xml2 : string = 
+  NL . 
+  "  <feature type=\"splice variant\" description=\"(in isoform 2)\" id=\"VSP_008971\">
   |    <location>
   |      <begin position=\"243\"/>
   |      <end position=\"244\"/>
   |    </location>
   |  </feature>" 
-=
-  "FT   VAR_SEQ     243    244       Missing (in isoform 2). /FTId=VSP_008971."
+
+test ft_line get 
+  ft_xml1 = ft_ascii1
+
+test ft_line get 
+  ft_xml2 = ft_ascii2
+
+test ft_line create 
+  ft_ascii1 = ft_xml1
+
+test ft_line create 
+  ft_ascii2 = ft_xml2
+
+let P12544_ft_ascii : string = 
+  "FT   SIGNAL        1     26
+  |FT   PROPEP       27     28       Activation peptide.
+  |FT                                /FTId=PRO_0000027393.
+  |FT   CHAIN        29    262       Granzyme A.
+  |FT                                /FTId=PRO_0000027394.
+  |FT   DOMAIN       29    259       Peptidase S1.
+  |FT   ACT_SITE     69     69       Charge relay system.
+  |FT   ACT_SITE    114    114       Charge relay system.
+  |FT   ACT_SITE    212    212       Charge relay system.
+  |FT   CARBOHYD    170    170       N-linked (GlcNAc...) (Potential).
+  |FT   DISULFID     54     70
+  |FT   DISULFID    148    218
+  |FT   DISULFID    179    197
+  |FT   DISULFID    208    234
+  |FT   VARIANT     121    121       T -> M (in dbSNP:rs3104233).
+  |FT                                /FTId=VAR_024291.
+  |FT   STRAND       43     47
+  |FT   STRAND       49     51
+  |FT   STRAND       53     60
+  |FT   STRAND       63     66
+  |FT   STRAND       77     81
+  |FT   STRAND       83     87
+  |FT   STRAND       93     95
+  |FT   STRAND       97    102
+  |FT   TURN        108    110
+  |FT   STRAND      116    122
+  |FT   STRAND      127    130
+  |FT   STRAND      147    154
+  |FT   STRAND      156    160
+  |FT   STRAND      167    174
+  |FT   HELIX       176    179
+  |FT   TURN        186    189
+  |FT   STRAND      195    199
+  |FT   STRAND      215    218
+  |FT   STRAND      221    228
+  |FT   STRAND      241    245
+  |FT   HELIX       251    258" . 
+  NL
+
+let P12544_ft_xml : string = 
+  "  <feature type=\"signal peptide\">
+  |    <location>
+  |      <begin position=\"1\"/>
+  |      <end position=\"26\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"propeptide\" description=\"Activation peptide\" id=\"PRO_0000027393\">
+  |    <location>
+  |      <begin position=\"27\"/>
+  |      <end position=\"28\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"chain\" description=\"Granzyme A\" id=\"PRO_0000027394\">
+  |    <location>
+  |      <begin position=\"29\"/>
+  |      <end position=\"262\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"domain\" description=\"Peptidase S1\">
+  |    <location>
+  |      <begin position=\"29\"/>
+  |      <end position=\"259\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"active site\" description=\"Charge relay system\">
+  |    <location>
+  |  <position position=\"69\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"active site\" description=\"Charge relay system\">
+  |    <location>
+  |  <position position=\"114\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"active site\" description=\"Charge relay system\">
+  |    <location>
+  |  <position position=\"212\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"glycosylation site\" description=\"N-linked (GlcNAc...)\" status=\"potential\">
+  |    <location>
+  |  <position position=\"170\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"54\"/>
+  |      <end position=\"70\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"148\"/>
+  |      <end position=\"218\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"179\"/>
+  |      <end position=\"197\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"disulfide bond\">
+  |    <location>
+  |      <begin position=\"208\"/>
+  |      <end position=\"234\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"sequence variant\" description=\"In dbSNP:rs3104233.\" id=\"VAR_024291\">
+  |  <original>T</original>
+  |  <variation>M</variation>
+  |    <location>
+  |  <position position=\"121\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"43\"/>
+  |      <end position=\"47\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"49\"/>
+  |      <end position=\"51\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"53\"/>
+  |      <end position=\"60\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"63\"/>
+  |      <end position=\"66\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"77\"/>
+  |      <end position=\"81\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"83\"/>
+  |      <end position=\"87\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"93\"/>
+  |      <end position=\"95\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"97\"/>
+  |      <end position=\"102\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"turn\">
+  |    <location>
+  |      <begin position=\"108\"/>
+  |      <end position=\"110\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"116\"/>
+  |      <end position=\"122\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"127\"/>
+  |      <end position=\"130\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"147\"/>
+  |      <end position=\"154\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"156\"/>
+  |      <end position=\"160\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"167\"/>
+  |      <end position=\"174\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"helix\">
+  |    <location>
+  |      <begin position=\"176\"/>
+  |      <end position=\"179\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"turn\">
+  |    <location>
+  |      <begin position=\"186\"/>
+  |      <end position=\"189\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"195\"/>
+  |      <end position=\"199\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"215\"/>
+  |      <end position=\"218\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"221\"/>
+  |      <end position=\"228\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"strand\">
+  |    <location>
+  |      <begin position=\"241\"/>
+  |      <end position=\"245\"/>
+  |    </location>
+  |  </feature>
+  |  <feature type=\"helix\">
+  |    <location>
+  |      <begin position=\"251\"/>
+  |      <end position=\"258\"/>
+  |    </location>
+  |  </feature>"
+
+test ft_line* get P12544_ft_xml = P12544_ft_ascii
+test ft_line* create P12544_ft_ascii = P12544_ft_xml
 
 (* --------------------------------------------------------------------------- *)
 (* SQ line *)
@@ -3747,4 +4393,4 @@ let uniprot_xml : lens =
      (terminate ft_ilne)* . 
      (terminate sq_line) 
     end
-*)
+END *)

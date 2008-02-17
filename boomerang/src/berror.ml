@@ -42,10 +42,10 @@ let static_error i n ?(suppl =  id) msg =
 let type_error i t s1 (s3l,s3r,approx) =
   raise (Error.Harmony_error (fun () -> 
     Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-    Util.format "  T=@[%s@]@\n@\n" t;
+(*     Util.format "  T=@[%s@]@\n@\n" t;
     Util.format "  @["; 
     nlify s1;
-    Util.format "@]@\n@\n";
+    Util.format "@]@\n@\n"; *)
     Util.format "  [@["; 
     nlify_str s3l; 
     if approx then
