@@ -22,10 +22,6 @@
 
 module UniProtV2 = 
 
-(* shorthand for backward compatibility. to be removed. *)
-let columnize : regexp -> string -> string -> canonizer = 
-  columnize "70"
-
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)
 
@@ -143,7 +139,7 @@ let ANY : regexp = [^]*
 let containing (R:regexp) : regexp = ANY . R . ANY
 
 (* [nl] newline *)
-let nl :string = "\n"
+let NL :string = "\n"
 
 (* [s] space *)
 let s :string = " "
@@ -169,6 +165,9 @@ let DIGIT : regexp = [0-9]
 (* [NUMBER] number *)
 let NUMBER : regexp = DIGIT+
 
+(* [FNUMBER] floating-point number *)
+let FNUMBER : regexp = DIGIT* . ([.] . DIGIT+)?
+
 (* [ULETTER] uppercase letter *)
 let ULETTER : regexp = [A-Z]
 
@@ -176,17 +175,17 @@ let ULETTER : regexp = [A-Z]
 let UALPHANUM : regexp = [A-Z0-9]
 
 (* [nlX]: X^th amount of whitespace--used to canonize XML *)
-let nl0 = nl
-let nl1 = nl0 . "  "
-let nl2 = nl1 . "  "
-let nl3 = nl2 . "  "
-let nl4 = nl3 . "  "
-let nl5 = nl4 . "  "
-let nl6 = nl5 . "  "
-let nl7 = nl6 . "  " 
-let nl8 = nl7 . "  "
-let nl9 = nl8 . "  "
-let nl10 = nl9 . "  "
+let NL0 = NL
+let NL1 = NL0 . "  "
+let NL2 = NL1 . "  "
+let NL3 = NL2 . "  "
+let NL4 = NL3 . "  "
+let NL5 = NL4 . "  "
+let NL6 = NL5 . "  "
+let NL7 = NL6 . "  " 
+let NL8 = NL7 . "  "
+let NL9 = NL8 . "  "
+let NL10 = NL9 . "  "
 
 (* --------------------------------------------------------------------------- *)
 (* XML functions *)
@@ -225,9 +224,17 @@ let esc_s : lens = xml_esc_string [;]
 let esc_c : lens = xml_esc_string [,] 
 let esc_cs : lens = xml_esc_string [,;]
 let esc_csp : lens = xml_esc_string [,;()]
+let esc_p : lens = xml_esc_string [()]
 let esc_q : lens = xml_esc_string [""] 
+let esc_sq : lens = xml_esc_string [;""] 
 let esc_cq : lens = xml_esc_string [,""] 
 let esc_cdq : lens = xml_esc_string [.,""] 
+let esc_d : lens = xml_esc_string [.] 
+let esc_n : lens = xml_esc_string [:]
+let raw : regexp = 
+  let e : regexp = [^;\n ] in 
+  let m : regexp = [^;\n] in 
+  e . (m* . e)?
 
 (* [xml_open sp t] recognizes and deletes a string consisting of
    whitespace and the start of an XML open tag.
@@ -439,22 +446,22 @@ let xml_attr3_elt_open (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) : lens = 
   xml_attrs_open spaces tag 
-    (sort3
-       (xml_attr name1 value1) 
-       (xml_attr name2 value2)  
-       (xml_attr name3 value3))
-
+    ( sort3
+        (xml_attr name1 value1) 
+        (xml_attr name2 value2)  
+        (xml_attr name3 value3) )
+    
 let xml_attr4_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
     (name4:string) (value4:lens) : lens = 
   xml_attrs_open spaces tag 
-    (sort4
-       (xml_attr name1 value1) 
-       (xml_attr name2 value2)  
-       (xml_attr name3 value3) 
-       (xml_attr name4 value4))
+    ( sort4
+        (xml_attr name1 value1) 
+        (xml_attr name2 value2)  
+        (xml_attr name3 value3) 
+        (xml_attr name4 value4) )
 
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
@@ -466,17 +473,20 @@ let tag (t:string) : string =
   t . "   "
 
 (* [split (t,l)] wraps [l] so that it also breaks long lines. *)
-let split (p:string * lens) : lens = 
+let split_n (n:string) (p:string * lens) : lens = 
   let (tag,l) : string * lens = p in 
-  let cn : canonizer = columnize (atype l) s (nl . tag) in 
+  let cn : canonizer = columnize n (atype l) s (NL . tag) in 
   right_quot l cn
 
-(* [terminate l] wraps [l] so that it also inserts [nl]. 
+let split (p:string * lens) : lens = split_n "75" p
+let split70 (p:string * lens) : lens = split_n "70" p
+
+(* [terminate l] wraps [l] so that it also inserts [NL]. 
    o [l] lens
 *)
-let terminate (l:lens) : lens = l . ins nl
+let terminate (l:lens) : lens = l . ins NL
 
-(* [split_terminate (t,l)] wraps [l] so that it also breaks long lines and inserts [nl]. 
+(* [split_terminate (t,l)] wraps [l] so that it also breaks long lines and inserts [NL]. 
    o [(t,l)] tag * lens
 *)
 let split_terminate (p:string * lens) : lens = 
@@ -491,6 +501,7 @@ let colon : lens = ins ":"
 let dot : lens = ins "." 
 let comma : lens = ins "," 
 let dash : lens = ins "-" 
+let nl : lens = ins NL
 
 (* [iter_with_sep l s] iterate lens [l] with separator [s] *)
 let iter_with_sep (l:lens) (sep:lens) : lens = 
@@ -539,7 +550,7 @@ let id_xml_start (ty:entry) : lens =
     dot in 
   (* id_xml body *)
   ins id_tag . 
-  xml_simple_elt nl1 "name" 
+  xml_simple_elt NL1 "name" 
     begin 
       key EntryName . qsp . 
       Status . qsp 
@@ -553,7 +564,7 @@ let P12544_id_ascii_cn : string =
   "ID   GRAA_HUMAN Reviewed; " 
 
 let P12544_id_xml : string = 
-  nl . "  <name>GRAA_HUMAN</name>"
+  NL . "  <name>GRAA_HUMAN</name>"
 
 test (id_xml_start SwissProt) create 
   P12544_id_ascii = P12544_id_xml
@@ -570,7 +581,7 @@ let ac_xml : lens =
   let AC_number : regexp = 
     ( [A-NR-Z] . DIGIT . ULETTER . UALPHANUM{2} . DIGIT 
     | [OPQ]    . DIGIT . UALPHANUM{3}           . DIGIT ) in       
-  let ac_elt : lens = xml_simple_elt nl1 "accession" AC_number in 
+  let ac_elt : lens = xml_simple_elt NL1 "accession" AC_number in 
   ins ac_tag . 
   qspace . 
   iter_with_sqsp ac_elt . 
@@ -580,10 +591,10 @@ let ac_line : lens = split_terminate (ac_tag,ac_xml)
 
 (* unit tests for AC line *)
 let P12544_ac_ascii : string = 
-  "AC   P12544; Q6IB36;" . nl
+  "AC   P12544; Q6IB36;" . NL
 
 let P12544_ac_xml : string = 
-  nl . 
+  NL . 
   "  <accession>P12544</accession>
   |  <accession>Q6IB36</accession>"
 
@@ -637,28 +648,28 @@ let dt_lines (ty:entry) : lens =
     | SwissProt -> "Swiss-Prot" 
     | TrEMBL -> "TrEMBL" in 
   ins dt_tag . 
-  xml_attr4_elt_open nl1 "entry" 
+  xml_attr4_elt_open NL1 "entry" 
     "created" (date . comma . qsp . ins "integrated into UniProtKB/") 
-    "dataset" (dataset . dot . ins nl)
+    "dataset" (dataset . dot . ins NL)
     "modified" (ins dt_tag . date . comma. qsp) 
-    "version" (ins "entry version" . qsp . NUMBER . dot . ins nl)
+    "version" (ins "entry version" . qsp . NUMBER . dot . ins NL)
 
 (* unit tests for DT lines *)
 let P12544_dt_xml : string = 
-  nl . 
+  NL . 
   "  <entry dataset=\"Swiss-Prot\" created=\"1989-10-01\" modified=\"2008-01-15\" version=\"101\">"
 
 let P12544_dt_xml_cn : string = 
-  nl . 
+  NL . 
   "  <entry created=\"1989-10-01\" dataset=\"Swiss-Prot\" modified=\"2008-01-15\" version=\"101\">"
 
 let P12544_dt_xml : string = 
-  nl . 
+  NL . 
   "  <entry dataset=\"Swiss-Prot\" created=\"1989-10-01\" modified=\"2008-01-15\" version=\"101\">"
 
 let P12544_dt_ascii : string = 
   "DT   01-OCT-1989, integrated into UniProtKB/Swiss-Prot.
-  |DT   15-JAN-2008, entry version 101." . nl
+  |DT   15-JAN-2008, entry version 101." . NL
 
 test dt_lines SwissProt get 
   P12544_dt_xml = P12544_dt_ascii
@@ -678,11 +689,11 @@ let de_xml : lens =
     ( (xml_attr "ref" (qsp . brackets NUMBER))? ~ 
      (xml_close . Description) ) . 
     xml_simple_close_tag "name" in 
-  let (name2,name3) : lens * lens = name nl2, name nl3 in 
-  let names (tag:string) : lens = xml_elt nl2 tag (name3 . (parens name3)* ) in 
+  let (name2,name3) : lens * lens = name NL2, name NL3 in 
+  let names (tag:string) : lens = xml_elt NL2 tag (name3 . (parens name3)* ) in 
   let (domain,component) : lens * lens = names "domain", names "component" in 
     ins de_tag .
-    xml_elt nl1 "protein" 
+    xml_elt NL1 "protein" 
       begin
         name2 . (qsp . parens name2)* . 
         (qsp . brackets (ins "Includes" . colon . qsp . iter_with_sqsp domain))? . 
@@ -702,7 +713,7 @@ let P12544_de_ascii_actual : string =
   "DE   Granzyme A precursor [1] (Cytotoxic T-lymphocyte proteinase 1)
   |DE   (Hanukkah factor) (H factor) (HF) (Granzyme-1) (CTL tryptase)
   |DE   (Fragmentin-1)." . 
-  nl
+  NL
 
 let P12544_de_xml : string = 
   "<protein>
@@ -717,7 +728,7 @@ let P12544_de_xml : string =
   |</protein>" 
 
 let P12544_de_xml_cn : string = 
-  nl . 
+  NL . 
   "  <protein>
   |    <name ref=\"1\">Granzyme A precursor</name>
   |    <name>Cytotoxic T-lymphocyte proteinase 1</name>
@@ -742,7 +753,7 @@ let gn_tag : string = tag "GN"
 
 let gn_xml : lens = 
   let gn_aux (ty:string) (f:lens -> lens) : lens = 
-    xml_attr1_simple_elt nl2 "name" 
+    xml_attr1_simple_elt NL2 "name" 
       "type" (del ty) 
       (f esc_cs) in 
   let gn_primary : lens = 
@@ -767,7 +778,7 @@ let gn_xml : lens =
     semi in 
   let gn_elt : lens = 
     ins gn_tag . 
-    xml_elt nl1 "gene" gn_names in 
+    xml_elt NL1 "gene" gn_names in 
   let gn_elt_line : lens = split (gn_tag,gn_elt) in
     gn_elt_line . 
     (ins "\n" . ins gn_tag . ins "and\n" . gn_elt_line)*
@@ -777,7 +788,7 @@ let gn_line : lens = terminate gn_xml
 (* unit tests for GN line *)
 let P12544_gn_ascii : string = 
   "GN   Name=GZMA; Synonyms=CTLA3, HFSP;" . 
-  nl
+  NL
 
 let P12544_gn_xml : string = 
   "<gene>
@@ -787,7 +798,7 @@ let P12544_gn_xml : string =
   |</gene>"
 
 let P12544_gn_xml_cn : string = 
-  nl . 
+  NL . 
   "  <gene>
   |    <name type=\"primary\">GZMA</name>
   |    <name type=\"synonym\">CTLA3</name>
@@ -821,7 +832,7 @@ let os_tag : string = tag "OS"
 
 let os_xml : lens = 
   ins os_tag . 
-    names_xml nl2 . 
+    names_xml NL2 . 
     dot
 
 let os_line : lens = split_terminate (os_tag,os_xml)
@@ -829,14 +840,14 @@ let os_line : lens = split_terminate (os_tag,os_xml)
 (* unit tests for OS line *)
 let P12544_os_ascii : string = 
   "OS   Homo sapiens (Human)." . 
-    nl
+    NL
 
 let P12544_os_xml : string = 
   "<name type=\"scientific\">Homo sapiens</name>
   |<name type=\"common\">Human</name>"
 
 let P12544_os_xml_cn : string = 
-  nl . 
+  NL . 
     "    <name type=\"scientific\">Homo sapiens</name>
   |    <name type=\"common\">Human</name>"
     
@@ -853,12 +864,12 @@ let og_tag : string = tag "OG"
 
 let og_xml : lens = 
   let og_plasmid : lens = 
-    xml_attr1_elt nl1 "geneLocation" "type" (del "plasmid") 
+    xml_attr1_elt NL1 "geneLocation" "type" (del "plasmid") 
       (ins "Plasmid" . 
        qsp . 
-       xml_simple_elt nl2 "name" esc_c) in
+       xml_simple_elt NL2 "name" esc_c) in
   let og_other : lens = 
-    xml_attr1_elt_no_kids nl1 "geneLocation" "type"   
+    xml_attr1_elt_no_kids NL1 "geneLocation" "type"   
       ( "hydrogenosome" <-> "Hydrogenosome" 
       | "mitochondrion" <-> "Mitochondrion" 
       | "nucleomorph"   <-> "Nucleomorph"   
@@ -879,9 +890,9 @@ let og_line : lens = split_terminate (og_tag,og_xml)
 test og_line create 
   ( "OG   Plasmid R6-5, Plasmid IncFII R100 (NR1), and Plasmid IncFII R1-19 (R1
     |OG   drd-19)." .  
-    nl) 
+    NL) 
 = 
-  nl . 
+  NL . 
   "  <geneLocation type=\"plasmid\">
   |    <name>R6-5</name>
   |  </geneLocation>
@@ -896,7 +907,7 @@ test og_line get
   "<geneLocation type=\"non-photosynthetic plastid\"/>" 
 = 
   "OG   Plastid; Non-photosynthetic plastid." . 
-  nl
+  NL
 
 (* --------------------------------------------------------------------------- *)
 (* OC line *)
@@ -904,9 +915,9 @@ test og_line get
 let oc_tag : string = tag "OC"
 
 let oc_xml : lens = 
-  let oc_aux : lens = xml_simple_elt nl3 "taxon" esc_s in 
+  let oc_aux : lens = xml_simple_elt NL3 "taxon" esc_s in 
   ins oc_tag . 
-  xml_elt nl2 "lineage" (oc_aux . (semi . space . oc_aux)* ) . 
+  xml_elt NL2 "lineage" (oc_aux . (semi . space . oc_aux)* ) . 
   dot
 
 let oc_line : lens = split_terminate (oc_tag,oc_xml)
@@ -914,9 +925,9 @@ let oc_line : lens = split_terminate (oc_tag,oc_xml)
 (* unit tests for OC line *)
 let P12544_oc_ascii : string = 
   "OC   Eukaryota; Metazoa; Chordata; Craniata; Vertebrata; Euteleostomi;
-  |OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini;
-  |OC   Catarrhini; Hominidae; Homo." . 
-  nl
+  |OC   Mammalia; Eutheria; Euarchontoglires; Primates; Haplorrhini; Catarrhini;
+  |OC   Hominidae; Homo." . 
+  NL
 
 let P12544_oc_xml : string = 
   "<lineage>
@@ -937,7 +948,7 @@ let P12544_oc_xml : string =
   |</lineage>"
 
 let P12544_oc_xml_cn : string = 
-  nl . 
+  NL . 
   "    <lineage>
   |      <taxon>Eukaryota</taxon>
   |      <taxon>Metazoa</taxon>
@@ -978,20 +989,20 @@ let ox_tag : string = tag "OX"
 
 let ox_xml : lens = 
   ins ox_tag . 
-  ncbi_xml nl2
+  ncbi_xml NL2
 
 let ox_line : lens = split_terminate (ox_tag,ox_xml)
 
 (* unit tests for OX line *)
 let P12544_ox_ascii : string = 
   "OX   NCBI_TaxID=9606;" . 
-  nl
+  NL
 
 let P12544_ox_xml : string = 
   "<dbReference type=\"NCBI Taxonomy\" id=\"9606\" key=\"3\" />"
 
 let P12544_ox_xml_cn : string = 
-  nl . 
+  NL . 
   "    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9606\"/>"
 
 test ox_line get 
@@ -1007,8 +1018,8 @@ let oh_tag : string = tag "OH"
 
 let oh_xml : lens =
   ins oh_tag . 
-  xml_attr1_elt nl1 "organism" "key" (del NUMBER) 
-  (names_xml nl2 ~ (ncbi_xml nl2 . qsp)) . 
+  xml_attr1_elt NL1 "organism" "key" (del NUMBER) 
+  (names_xml NL2 ~ (ncbi_xml NL2 . qsp)) . 
   dot 
 
 let oh_line : lens = split_terminate (oh_tag,oh_xml)
@@ -1037,77 +1048,53 @@ test oh_line get
 (* Organism block *)
 
 let organism_block = 
-  xml_attr1_elt_open nl1 "organism" "key" (del NUMBER) . 
+  xml_attr1_elt_open NL1 "organism" "key" (del NUMBER) . 
   os_line . 
   (((ox_line ~ oc_line) . 
-   xml_close_tag nl1 "organism" . 
+   xml_close_tag NL1 "organism" . 
    oh_line* ) ~
   og_line)
 
 (* unit tests for Organism block *)
-test organism_block get
-  "<organism key=\"1\">
+let organism_block_xml : string = 
+  NL . 
+  "  <organism key=\"0\">
   |    <name type=\"scientific\">Solanum melongena</name>
   |    <name type=\"common\">Eggplant</name>
   |    <name type=\"synonym\">Aubergine</name>
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9606\"/>
+  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9606\"/>
   |    <lineage>
   |      <taxon>Mammalia</taxon>
   |      <taxon>Eutheria</taxon>
   |    </lineage>
-  |  </organism>  <organism key=\"1\">
-  |    <name type=\"scientific\">Callithrix</name>
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9481\"/>
   |  </organism>
-  |  <organism key=\"1\">
+  |  <organism key=\"0\">
+  |    <name type=\"scientific\">Callithrix</name>
+  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9481\"/>
+  |  </organism>
+  |  <organism key=\"0\">
   |    <name type=\"scientific\">Cercopithecus hamlyni</name>
   |    <name type=\"common\">Owl-faced monkey</name>
   |    <name type=\"synonym\">Hamlyn's monkey</name>
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9536\"/>
+  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9536\"/>
   |  </organism>
-  |   <geneLocation type=\"apicoplast\"/>"
-= 
+  |  <geneLocation type=\"apicoplast\"/>"
+
+let organism_block_ascii : string = 
   "OS   Solanum melongena (Eggplant) (Aubergine).
   |OG   Plastid; Apicoplast.
   |OC   Mammalia; Eutheria.
   |OX   NCBI_TaxID=9606;
   |OH   NCBI_TaxID=9481; Callithrix.
-  |OH   NCBI_TaxID=9536; Cercopithecus hamlyni (Owl-faced monkey)
-  |OH   (Hamlyn's monkey).
-  |"
+  |OH   NCBI_TaxID=9536; Cercopithecus hamlyni (Owl-faced monkey) (Hamlyn's
+  |OH   monkey)." . 
+  NL 
+
+test organism_block get 
+  organism_block_xml = organism_block_ascii
 
 test organism_block create 
-  "OS   Solanum melongena (Eggplant) (Aubergine).
-  |OG   Plastid; Apicoplast.
-  |OC   Mammalia; Eutheria.
-  |OX   NCBI_TaxID=9606;
-  |OH   NCBI_TaxID=9481; Callithrix.
-  |OH   NCBI_TaxID=9536; Cercopithecus hamlyni (Owl-faced monkey)
-  |OH   (Hamlyn's monkey).
-  |" 
-= 
-"
-|  <organism key=\"0\">
-|    <name type=\"scientific\">Solanum melongena</name>
-|    <name type=\"common\">Eggplant</name>
-|    <name type=\"synonym\">Aubergine</name>
-|    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9606\"/>
-|    <lineage>
-|      <taxon>Mammalia</taxon>
-|      <taxon>Eutheria</taxon>
-|    </lineage>
-|  </organism>
-|  <organism key=\"0\">
-|    <name type=\"scientific\">Callithrix</name>
-|    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9481\"/>
-|  </organism>
-|  <organism key=\"0\">
-|    <name type=\"scientific\">Cercopithecus hamlyni</name>
-|    <name type=\"common\">Owl-faced monkey</name>
-|    <name type=\"synonym\">Hamlyn's monkey</name>
-|    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9536\"/>
-|  </organism>
-|  <geneLocation type=\"apicoplast\"/>"
+  organism_block_ascii = organism_block_xml
 
 (* --------------------------------------------------------------------------- *)
 (* RN line *)
@@ -1116,7 +1103,7 @@ let rn_tag : string = tag "RN"
 
 let rn_xml : lens = 
   ins rn_tag . 
-    xml_attr1_elt_open nl1 "reference" "key" (brackets NUMBER) 
+    xml_attr1_elt_open NL1 "reference" "key" (brackets NUMBER) 
 
 let rn_line : lens = 
   terminate rn_xml
@@ -1133,7 +1120,7 @@ test rn_line get
   "  <reference key=\"1\">" 
 = 
   "RN   [1]" . 
-  nl
+  NL
 
 (* --------------------------------------------------------------------------- *)
 (* RP line *)
@@ -1142,7 +1129,7 @@ let rp_tag : string = tag "RP"
 
 let rp_xml : lens = 
   ins rp_tag . 
-  xml_simple_elt nl2 "scope" esc . 
+  xml_simple_elt NL2 "scope" esc . 
   dot
 
 let rp_line : lens =  split_terminate (rp_tag,rp_xml)
@@ -1168,7 +1155,7 @@ let rc_tag : string = tag "RC"
 
 let rc_xml : lens = 
   let rx_aux (xml:string) (ascii:string) : lens = 
-    let l : lens = xml_simple_elt nl3 xml esc_cs in 
+    let l : lens = xml_simple_elt NL3 xml esc_cs in 
     ins ascii . ins "=" . 
     l . 
     (( comma . space . l)* . 
@@ -1183,7 +1170,7 @@ let rc_xml : lens =
   let final_tissue : lens = ((strain | final_plasmid | final_transposon) . qsp)? . tissue in 
   let all = strain | final_tissue | final_plasmid | final_transposon in 
   ins rc_tag . 
-  xml_elt nl2 "source" all 
+  xml_elt NL2 "source" all 
 
 let rc_line : lens = split_terminate (rc_tag,rc_xml)
 
@@ -1220,7 +1207,7 @@ let rx_tag : string = tag "RX"
 
 let rx_xml : lens = 
   let rx_aux (db:string) : lens = 
-    let l : lens = xml_attr3_elt_no_kids nl3 "dbReference" 
+    let l : lens = xml_attr3_elt_no_kids NL3 "dbReference" 
       "type" (del db)
       "key" (del NUMBER) 
       "id" esc_s in 
@@ -1234,14 +1221,14 @@ let rx_line : lens = split_terminate (rx_tag,rx_xml)
 
 (* unit tests for RX line *)
 let P12544_rx_ascii : string = 
-  "RX   MEDLINE=88125000; PubMed=3257574;" . nl
+  "RX   MEDLINE=88125000; PubMed=3257574;" . NL
 
 let P12544_rx_xml : string = 
   "<dbReference type=\"MEDLINE\" id=\"88125000\" key=\"5\" />
   |<dbReference type=\"PubMed\" id=\"3257574\" key=\"6\" />"
 
 let P12544_rx_xml_cn : string = 
-  nl . 
+  NL . 
   "      <dbReference type=\"MEDLINE\" key=\"0\" id=\"88125000\"/>
   |      <dbReference type=\"PubMed\" key=\"0\" id=\"3257574\"/>"
 
@@ -1258,7 +1245,7 @@ let rg_tag : string = tag "RG"
 
 let rg_xml : lens = 
   ins rg_tag . 
-  xml_attr1_elt_no_kids nl4 "consortium" "name" esc_s .
+  xml_attr1_elt_no_kids NL4 "consortium" "name" esc_s .
   semi
 
 let rg_line : lens = split_terminate (rg_tag,rg_xml)
@@ -1266,13 +1253,13 @@ let rg_line : lens = split_terminate (rg_tag,rg_xml)
 (* unit tests for RG line *)
 let P12544_rg_ascii : string =  
   "RG   The MGC Project Team;" . 
-  nl
+  NL
 
 let P12544_rg_xml : string = 
   "<consortium name=\"The MGC Project Team\" />"
 
 let P12544_rg_xml_cn : string = 
-  nl4 . 
+  NL4 . 
   "<consortium name=\"The MGC Project Team\"/>"
 
 test rg_line get
@@ -1291,7 +1278,7 @@ let ra_tag : string = tag "RA"
 
 let ra_xml : lens = 
   ins ra_tag . 
-  iter_with_sep (person nl4) (comma . space) . 
+  iter_with_sep (person NL4) (comma . space) . 
   semi
 
 let ra_line : lens = split_terminate (ra_tag,ra_xml)
@@ -1299,7 +1286,7 @@ let ra_line : lens = split_terminate (ra_tag,ra_xml)
 (* unit tests for RA line *)
 let P12544_ra_ascii : string = 
   "RA   Gershenfeld H.K., Hershberger R.J., Shows T.B., Weissman I.L.;" . 
-  nl
+  NL
 
 let P12544_ra_xml : string = 
   "<person name=\"Gershenfeld H.K.\" />
@@ -1308,7 +1295,7 @@ let P12544_ra_xml : string =
   |<person name=\"Weissman I.L.\" />"
 
 let P12544_ra_xml_cn : string = 
-  nl . 
+  NL . 
   "        <person name=\"Gershenfeld H.K.\"/>
   |        <person name=\"Hershberger R.J.\"/>
   |        <person name=\"Shows T.B.\"/>
@@ -1327,7 +1314,7 @@ let rt_tag : string = tag "RT"
 
 let rt_xml : lens = 
   ins rt_tag . 
-  xml_simple_elt nl3 "title" (quotes (esc . [.!?])) . 
+  xml_simple_elt NL3 "title" (quotes (esc . [.!?])) . 
   semi 
 
 let rt_line : lens = split_terminate (rt_tag,rt_xml)
@@ -1336,22 +1323,17 @@ let rt_line : lens = split_terminate (rt_tag,rt_xml)
 let P12544_rt_ascii : string = 
   "RT   \"Cloning and chromosomal assignment of a human cDNA encoding a T cell-
   |RT   and natural killer cell-specific trypsin-like serine protease.\";" . 
-  nl 
-
-let P12544_rt_ascii_actual : string = 
-  "RT   \"Cloning and chromosomal assignment of a human cDNA encoding a T
-  |RT   cell- and natural killer cell-specific trypsin-like serine protease.\";" . 
-  nl 
+  NL 
 
 let P12544_rt_xml : string = 
   "<title>Cloning and chromosomal assignment of a human cDNA encoding a T cell- " . 
   "and natural killer cell-specific trypsin-like serine protease.</title>"
   
 test rt_line get
-  P12544_rt_xml = P12544_rt_ascii_actual
+  P12544_rt_xml = P12544_rt_ascii
 
 test rt_line create
-  P12544_rt_ascii_actual = nl3 . P12544_rt_xml
+  P12544_rt_ascii = NL3 . P12544_rt_xml
 
 (* --------------------------------------------------------------------------- *)
 (* RL line *)
@@ -1361,7 +1343,7 @@ let rl_tag : string = tag "RL"
 (* journal citations *)
 let journal_xml : lens = 
   ins rl_tag . 
-  xml_attrs_open nl2 "citation" 
+  xml_attrs_open NL2 "citation" 
     begin
       (* this sorting is fragile: some interleavings of the abstract
          schemas are not unambiguous (due to two-pass sorting in
@@ -1384,11 +1366,11 @@ test journal_line get
   "<citation type=\"journal article\" date=\"2005\" name=\"Science\" volume=\"309\" first=\"131\" last=\"133\">" 
   =
   "RL   Science 309:131-133(2005)." . 
-  nl
+  NL
 
 let P12544_journal_ascii : string = 
   "RL   Proc. Natl. Acad. Sci. U.S.A. 85:1184-1188(1988)." . 
-  nl
+  NL
 
 let P12544_journal_xml : string = 
   "<citation type=\"journal article\" date=\"1988\"" . 
@@ -1403,12 +1385,12 @@ test journal_line get
   P12544_journal_xml = P12544_journal_ascii 
 
 test journal_line create
-  P12544_journal_ascii = nl2 . P12544_journal_xml_cn
+  P12544_journal_ascii = NL2 . P12544_journal_xml_cn
 
 (* electronic citations *)
 let electronic_xml : lens = 
   ins rl_tag . 
-  xml_attr2_elt_open nl2 "citation"
+  xml_attr2_elt_open NL2 "citation"
     "type" ("online journal article" <-> "(er)" . space)
     "name" esc_q . 
   dot
@@ -1420,20 +1402,20 @@ test electronic_line get
   "<citation type=\"online journal article\" name=\"Plant Gene Register PGR98-023\">" 
 = 
   "RL   (er) Plant Gene Register PGR98-023." . 
-  nl
+  NL
 
 test electronic_line create 
-  ("RL   (er) Plant Gene Register PGR98-023." . nl) 
+  ("RL   (er) Plant Gene Register PGR98-023." . NL) 
 = 
-  nl2 . 
+  NL2 . 
   "<citation type=\"online journal article\" name=\"Plant Gene Register PGR98-023\">" 
 
 (* editor list citations *)
 let editors_xml : lens = 
   ins "(In)" . space . 
-  xml_elt nl3 "editorList"
+  xml_elt NL3 "editorList"
     begin 
-      iter_with_sep (person nl4) (comma . space)     
+      iter_with_sep (person NL4) (comma . space)     
     end . 
   space . 
   ins "(eds.)" . 
@@ -1451,7 +1433,7 @@ test editors_xml get
 test editors_xml create 
  "(In) Rich D.H., Gross E. (eds.);" 
 =
-  nl .
+  NL .
  "      <editorList>
  |        <person name=\"Rich D.H.\"/>
  |        <person name=\"Gross E.\"/>
@@ -1461,7 +1443,7 @@ test editors_xml create
 (* book citations *)
 let book_xml : lens = 
   ins rl_tag . 
-  ( (xml_attrs_open nl2 "citation" 
+  ( (xml_attrs_open NL2 "citation" 
       begin 
         xml_attr "type" (del "book") . 
         xml_attr "name" (esc_cq . comma . space) . 
@@ -1487,14 +1469,14 @@ test book_line get
 = 
   "RL   (In) Rich D.H., Gross E. (eds.); Proceedings of the 7th American
   |RL   peptide symposium, pp.69-72, Pierce Chemical Co., Rockford Il. (1981)." . 
-  nl
+  NL
 
 test book_line create
   ("RL   (In) Rich D.H., Gross E. (eds.); Proceedings of the 7th American peptide symposium," . 
   " pp.69-72, Pierce Chemical Co., Rockford Il. (1981)." . 
-  nl)
+  NL)
 =
-  nl . 
+  NL . 
   "    <citation type=\"book\" name=\"Proceedings of the 7th American peptide symposium\" first=\"69\" last=\"72\" publisher=\"Pierce Chemical Co.\" city=\"Rockford Il.\" date=\"1981\">
   |      <editorList>
   |        <person name=\"Rich D.H.\"/>
@@ -1505,7 +1487,7 @@ test book_line create
 let unpublished_xml : lens = 
   ins rl_tag . 
   ins "Unpublished observations" . space . 
-  xml_attr2_elt_no_kids nl2 "citation" 
+  xml_attr2_elt_no_kids NL2 "citation" 
     "type" (del "unpulished observations") 
     "date" (parens partial_date) . 
   dot 
@@ -1515,21 +1497,21 @@ let unpublished_line : lens = split_terminate (rl_tag,unpublished_xml)
 (* unit tests for unpublished citations *)
 test unpublished_line create 
   ("RL   Unpublished observations (JAN-2009)." . 
-   nl)
+   NL)
 = 
-  nl . 
+  NL . 
   "    <citation type=\"unpulished observations\" date=\"2009-01\"/>"
 
 test unpublished_line get 
   "<citation type=\"unpulished observations\" date=\"2009-01\"/>"
 =
   "RL   Unpublished observations (JAN-2009)." . 
-  nl
+  NL
 
 (* thesis citations *)
 let thesis_xml : lens = 
   ins rl_tag . 
-  xml_attr4_elt_no_kids nl2 "citation"
+  xml_attr4_elt_no_kids NL2 "citation"
     "type" ("thesis" <-> "Thesis" . space) 
     "date" (parens esc_cdq . comma . space) 
     "institute" (esc_cdq . comma . space)
@@ -1542,19 +1524,19 @@ test thesis_line get
   "<citation type=\"thesis\" date=\"1977\" institute=\"University of Geneva\" country=\"Switzerland\"/>"
 =
   "RL   Thesis (1977), University of Geneva, Switzerland." . 
-  nl
+  NL
 
 test thesis_line create 
   ("RL   Thesis (1977), University of Geneva, Switzerland." . 
-  nl)
+  NL)
 = 
-  nl . 
+  NL . 
   "    <citation type=\"thesis\" date=\"1977\" institute=\"University of Geneva\" country=\"Switzerland\"/>"
 
 (* patent citations *)
 let patent_xml : lens = 
   ins rl_tag . 
-  xml_attr3_elt_no_kids nl2 "citation"
+  xml_attr3_elt_no_kids NL2 "citation"
     "type" ("patent" <-> "Patent number" . space)
     "number" (esc_q . comma . space)
     "date" date . 
@@ -1567,19 +1549,19 @@ test patent_line get
   "<citation type=\"patent\" number=\"WO9010703\" date=\"1990-09-20\"/>"
 =
   "RL   Patent number WO9010703, 20-SEP-1990." . 
-  nl
+  NL
 
 test patent_line create
   ("RL   Patent number WO9010703, 20-SEP-1990." . 
-   nl)
+   NL)
 = 
-  nl2 . 
+  NL2 . 
   "<citation type=\"patent\" number=\"WO9010703\" date=\"1990-09-20\"/>"
 
 (* submitted citations *)
 let submitted_xml : lens = 
   ins rl_tag . 
-  xml_attr3_elt_open nl2 "citation" 
+  xml_attr3_elt_open NL2 "citation" 
      "type" ("submission" <-> "Submitted" . space) 
      "date" (parens partial_date . space . ins "to" . space) 
      "db"   ( ins "the " . "EMBL/GenBank/DDBJ databases"
@@ -1593,7 +1575,7 @@ let submitted_line : lens = split_terminate (rl_tag,submitted_xml)
 (* unit tests for submitted citations *)
 let P12544_submitted_ascii : string = 
   "RL   Submitted (JUN-2004) to the EMBL/GenBank/DDBJ databases." . 
-  nl
+  NL
 
 let P12544_submitted_xml : string = 
   "<citation type=\"submission\" date=\"2004-06\" db=\"EMBL/GenBank/DDBJ databases\">"
@@ -1602,13 +1584,13 @@ test submitted_line get
   P12544_submitted_xml = P12544_submitted_ascii
 
 test submitted_line create
-  P12544_submitted_ascii = nl2 . P12544_submitted_xml
+  P12544_submitted_ascii = NL2 . P12544_submitted_xml
 
 test submitted_line create 
   ("RL   Submitted (OCT-1995) to the EMBL/GenBank/DDBJ databases." . 
-  nl)
+  NL)
 = 
-  nl2 . 
+  NL2 . 
   "<citation type=\"submission\" date=\"1995-10\" db=\"EMBL/GenBank/DDBJ databases\">"
 
 (* RL line final assembly *)
@@ -1620,11 +1602,11 @@ let rl_line : lens =
 (* Reference block *)
 
 let rp_rc_rx_block : lens = 
-  (rx_line? . xml_close_tag nl2 "citation") ~ 
+  (rx_line? . xml_close_tag NL2 "citation") ~ 
   ( rp_line . rc_line? )
 
 let rg_ra_block : lens = 
-  xml_elt nl3 "authorList" 
+  xml_elt NL3 "authorList" 
     ( rg_line
     | ra_line . 
       rg_line? )
@@ -1636,7 +1618,7 @@ let reference_block : lens =
   rn_line . 
   ( (rl_line ~ rg_ra_rt_block) ~ 
     rp_rc_rx_block ) . 
-  xml_close_tag nl1 "reference"
+  xml_close_tag NL1 "reference"
 
 (* unit tests for reference block *)
 let P12544_reference_ascii : string = 
@@ -1648,7 +1630,7 @@ let P12544_reference_ascii : string =
   |RT   \"The status, quality, and expansion of the NIH full-length cDNA
   |RT   project: the Mammalian Gene Collection (MGC).\";
   |RL   Genome Res. 14:2121-2127(2004)." . 
-  nl
+  NL
 
 (* deviates from version found on beta.uniprot.org: reference number
    [8] vs [3], and order of entries in RX field. *)
@@ -1661,7 +1643,7 @@ let P12544_reference_ascii_actual : string =
   |RT   \"The status, quality, and expansion of the NIH full-length cDNA
   |RT   project: the Mammalian Gene Collection (MGC).\";
   |RL   Genome Res. 14:2121-2127(2004)." . 
-    nl
+    NL
 
 let P12544_reference_xml : string = 
   "<reference key=\"8\">
@@ -1680,7 +1662,7 @@ let P12544_reference_xml : string =
   |</reference>"
 
 let P12544_reference_xml_cn : string = 
-  nl . 
+  NL . 
   "  <reference key=\"8\">
   |    <citation type=\"journal article\" name=\"Genome Res.\" volume=\"14\" first=\"2121\" last=\"2127\" date=\"2004\">
   |      <title>The status, quality, and expansion of the NIH full-length cDNA project: the Mammalian Gene Collection (MGC).</title>
@@ -1701,10 +1683,12 @@ test reference_block get
 
 test reference_block create 
   P12544_reference_ascii_actual = P12544_reference_xml_cn
+  
 (* --------------------------------------------------------------------------- *)
 (* CC line *)
 
 let cc_tag : string = tag "CC" 
+let cc_bang : string = "-!- " 
 let cc_long_tag : string = cc_tag . "    "
 
 let cc_status : lens = 
@@ -1715,20 +1699,21 @@ let cc_status : lens =
 
 let cc_generic_xml (ty:lens) : lens = 
   let typ : lens = xml_attr "type" ty in 
-  let data_no_dot : lens = xml_esc_string_ends [] [.] in 
-  let data_dot : lens = esc . "." in 
+  let data_no_dot : lens = xml_esc_string_ends [""] [.] in 
+  let data_dot : lens = esc_q . "." in 
   let txt (d:lens) : lens = 
     colon . 
     space . 
-    xml_simple_elt nl2 "text" d in 
+    xml_simple_elt NL2 "text" d in 
   ins cc_tag . 
-  ins "-!-" . space . 
-  xml_open nl1 "comment" . 
+  ins cc_bang . 
+  xml_open NL1 "comment" . 
   ( typ . ( (cc_status . xml_close) ~ (txt data_no_dot) ) . dot 
   | ( cc_status ~ (typ . xml_close . txt data_no_dot) ) . dot  
-  | typ . xml_close . txt data_dot ) . 
-  xml_close_tag nl1 "comment" 
+  | typ . xml_close . txt (data_dot | data_no_dot) ) . 
+  xml_close_tag NL1 "comment" 
 
+(* CC unstructured lines *)
 let cc_unstructured_xml : lens = 
   cc_generic_xml
     ( "allergen"             <-> "ALLERGEN"
@@ -1761,7 +1746,7 @@ test cc_unstructured_line create
   ("CC   -!- ALLERGEN: Causes an allergic reaction in humans. Binds to IgE.
    |CC       Partially heat-labile allergen that may cause both respiratory and
    |CC       food-allergy symptoms in patients with the bird-egg syndrome." . 
-   nl) = 
+   NL) = 
   "
   |  <comment type=\"allergen\">
   |    <text>Causes an allergic reaction in humans. Binds to IgE. Partially heat-labile allergen that may cause both respiratory and food-allergy symptoms in patients with the bird-egg syndrome.</text>
@@ -1769,25 +1754,25 @@ test cc_unstructured_line create
 
 test cc_unstructured_line create
   ("CC   -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity)." . 
-   nl)
+   NL)
 = 
   "
   |  <comment type=\"subcellular location\" status=\"by similarity\">
   |    <text>Golgi apparatus</text>
   |  </comment>" 
 
-(* UniProtKB breaks its own rules here, splitting a line at a hyphen :( *)
+(* UniProtKB breaks its own guidelines here, splitting a line at a hyphen :( *)
 let P12544_cc_unstructured_ascii : string = 
   "CC   -!- FUNCTION: This enzyme is necessary for target cell lysis in cell-
   |CC       mediated immune responses. It cleaves after Lys or Arg. May be
   |CC       involved in apoptosis." . 
-  nl
+  NL
 
 let P12544_cc_unstructured_ascii_actual : string = 
   "CC   -!- FUNCTION: This enzyme is necessary for target cell lysis in
-  |CC       cell-mediated immune responses. It cleaves after Lys or Arg. May be
-  |CC       involved in apoptosis." . 
-  nl
+  |CC       cell-mediated immune responses. It cleaves after Lys or Arg. May be involved
+  |CC       in apoptosis." . 
+  NL
 
 let P12544_cc_unstructured_xml : string = 
   "<comment type=\"function\">
@@ -1795,7 +1780,7 @@ let P12544_cc_unstructured_xml : string =
   |</comment>" 
 
 let P12544_cc_unstructured_xml_cn : string = 
-  nl . 
+  NL . 
   "  <comment type=\"function\">
   |    <text>This enzyme is necessary for target cell lysis in cell-mediated immune responses. It cleaves after Lys or Arg. May be involved in apoptosis.</text>
   |  </comment>" 
@@ -1806,106 +1791,141 @@ test cc_unstructured_line get
 test cc_unstructured_line create 
   P12544_cc_unstructured_ascii_actual = P12544_cc_unstructured_xml_cn
 
-(*
+(* CC biophysiochemical properties line *)
 let cc_biophysicochemical_properties_xml : lens = 
+  let aux (xml:string) (ascii:string) : lens = 
+    xml_simple_elt NL3 xml (ins ascii . ins "=" . esc_s . semi) in 
   let absorption : lens = 
-    ins " Absorption: " .
-    xml_elt nl2 "absorption"
-      (xml_simple_elt nl3 "max" (ins "Abs(max)=" . ALPHAP . ins "; ") . qsp . 
-       xml_simple_elt nl3 "text" (ins "Note=" . ALPHAP . ins ";")) in 
+    space . ins "Absorption" . colon . space . 
+    xml_elt NL2 "absorption"
+      (aux "max" "Abs(max)" . space . 
+       aux "text" "Note") in 
   let kinetic_parameters : lens = 
-    ins " Kinetic parameters: " . 
-    xml_elt nl2 "kinetics" 
-      (xml_simple_elt nl3 "KM" (ins "KM=" . ALPHAP . ins "; ") . qsp . 
-       xml_simple_elt nl3 "Vmax" (ins "Vmax=" . ALPHAP . ins "; ") . qsp . 
-       xml_simple_elt nl3 "text" (ins "Note=" . ALPHAP . ins ";"))  in 
+    space . ins "Kinetic parameters: " . 
+    xml_elt NL2 "kinetics" 
+      (aux "KM" "KM" . space . 
+       aux "Vmax" "Vmax" . space . 
+       aux "text" "Note") in 
   let generic (xml:string) (ascii:string) : lens = 
-    ins " " . ins ascii . ins ": " . 
-    xml_elt nl2 xml (ALPHAP . ssp ) in 
-  let ph_dependence : lens = 
-    generic "phDependence" "pH dependence" in
-  let redox_potential : lens = 
-    generic "redoxPotential" "Redox potential" in
-  let temperature_dependence : lens = 
-    generic "temperatureDependence" "Temperature dependence" in       
-  tag "CC" . 
-  ins "-!-" . qsp . 
-  xml_open nl1 "comment" . 
-  xml_attr "type" ("biophysicochemical properties" <-> "BIOPHYSICOCHEMICAL PROPERTIES") . 
-  xml_close . 
-  ins ":"  . qsp . 
-  absorption? . 
-  kinetic_parameters? . 
-  ph_dependence? . 
-  redox_potential? . 
-  temperature_dependence? . 
-  qdel WS nl1 . 
-  xml_close_tag "comment" 
+    space . ins ascii . colon . space . 
+    xml_elt NL2 xml (esc_s . semi . space) in 
+  let ph_dependence : lens = generic "phDependence" "pH dependence" in
+  let redox_potential : lens = generic "redoxPotential" "Redox potential" in
+  let temperature_dependence : lens = generic "temperatureDependence" "Temperature dependence" in       
+  ins cc_tag . ins cc_bang . 
+  xml_attr1_elt NL1 "comment"
+    "type" ("biophysicochemical properties" <-> "BIOPHYSICOCHEMICAL PROPERTIES" . colon)
+    begin
+      absorption? . 
+      kinetic_parameters? . 
+      ph_dependence? . 
+      redox_potential? . 
+      temperature_dependence? 
+    end
 
-test cc_biophysicochemical_properties_xml get 
-"  <comment type=\"biophysicochemical properties\">
-    <absorption>
-      <max>465 nm</max>
-      <text>The above maximum is for the oxidized form. Shows a maximal peak at 330 nm in the reduced form. These absorption peaks are for the tryptophylquinone cofactor</text>
-    </absorption>
-    <kinetics>
-      <KM>5.4 uM for tyramine</KM>
-      <Vmax>17 umol/min/mg enzyme</Vmax>
-      <text>The enzyme is substrate inhibited at high substrate concentrations (Ki=1.08 mM for tyramine)</text>
-    </kinetics>
-  </comment>" 
-= 
-  "CC  -!- BIOPHYSICOCHEMICAL PROPERTIES:  Absorption: Abs(max)=465 nm;  Note=The above maximum is for the oxidized form. Shows a maximal peak at 330 nm in the reduced form. These absorption peaks are for the tryptophylquinone cofactor; Kinetic parameters: KM=5.4 uM for tyramine;  Vmax=17 umol/min/mg enzyme;  Note=The enzyme is substrate inhibited at high substrate concentrations (Ki=1.08 mM for tyramine);"
+let cc_biophysicochemical_properties_line : lens = 
+  split_terminate (cc_long_tag,cc_biophysicochemical_properties_xml)
+
+(* unit tests for biophysiochemical properties CC lines *)
+let cc_bp_ascii : string = 
+  "CC   -!- BIOPHYSICOCHEMICAL PROPERTIES: Absorption: Abs(max)=465 nm;
+  |CC       Note=The above maximum is for the oxidized form. Shows a maximal peak at 330
+  |CC       nm in the reduced form. These absorption peaks are for the tryptophylquinone
+  |CC       cofactor; Kinetic parameters: KM=5.4 uM for tyramine; Vmax=17 umol/min/mg
+  |CC       enzyme; Note=The enzyme is substrate inhibited at high substrate
+  |CC       concentrations (Ki=1.08 mM for tyramine);" . 
+  NL
+
+let cc_bp_xml : string = 
+  NL . 
+  "  <comment type=\"biophysicochemical properties\">
+  |    <absorption>
+  |      <max>465 nm</max>
+  |      <text>The above maximum is for the oxidized form. Shows a maximal peak at 330 nm in the reduced form. These absorption peaks are for the tryptophylquinone cofactor</text>
+  |    </absorption>
+  |    <kinetics>
+  |      <KM>5.4 uM for tyramine</KM>
+  |      <Vmax>17 umol/min/mg enzyme</Vmax>
+  |      <text>The enzyme is substrate inhibited at high substrate concentrations (Ki=1.08 mM for tyramine)</text>
+  |    </kinetics>
+  |  </comment>"
+
+test cc_biophysicochemical_properties_line get
+  cc_bp_xml = cc_bp_ascii 
+
+test cc_biophysicochemical_properties_line create
+  cc_bp_ascii = cc_bp_xml 
+
+(* CC interactions block *)
 
 let interaction : lens = 
-  let experiments : lens = 
-    ins "NbExp=" . 
-    xml_simple_elt nl2 "experiments" NUMBER . 
-    ssp in
+   let experiments : lens = 
+     ins "NbExp=" . 
+     xml_simple_elt NL2 "experiments" NUMBER . 
+     semi . space in
   let self_rest : lens = 
     ins "Self" . 
     xml_slash_close .     
-    xml_simple_elt nl2 "organismsDiffer" (del "false") in
+    xml_simple_elt NL2 "organismsDiffer" (del "false") in
   let id_rest : lens = 
     xml_close . 
-    xml_simple_elt nl3 "id" ALPHA . 
-    ins ":" . 
-    (xml_simple_elt nl3 "label" ALPHA | ins "-") . 
-    qdel WS nl2 . 
-    xml_close_tag "interactant" . 
-    xml_simple_elt nl2 "organismsDiffer" ( del "true". qsp . ins "(xeno)" | del "false") in    
-  default_tag "CC" "      " . 
-  xml_attr1_elt nl1 "comment" "type" (del "interaction") 
+    xml_simple_elt NL3 "id" esc_n . colon . 
+    (dash | xml_simple_elt NL3 "label" esc_p) . 
+     xml_close_tag NL2 "interactant" . 
+     xml_simple_elt NL2 "organismsDiffer" ( "true" <-> " (xeno)" | del "false") in    
+  ins cc_long_tag . 
+  xml_attr1_elt NL1 "comment" "type" (del "interaction") 
     begin  
       ( ins "IntAct=" . 
-        xml_attr1_elt_no_body nl2 "interactant" "intactId" ALPHA . 
-        csp . 
-        xml_open nl2 "interactant" . 
-        xml_attr "intactId" ALPHA . 
-        ins ";") ~
-      (( self_rest | id_rest ) . 
-       ssp .
-      experiments)
+        xml_attr1_elt_no_kids NL2 "interactant" "intactId" esc_cs . 
+        comma . space . 
+        xml_open NL2 "interactant" . 
+        xml_attr "intactId" esc_s . 
+        semi ) ~
+      ( ( self_rest | id_rest ) . 
+      semi . space .
+      experiments )
     end
 
-test interaction get 
-"  <comment type=\"interaction\">
-    <interactant intactId=\"EBI-1043398\"/>
-    <interactant intactId=\"EBI-1050185\">
-      <id>Q8NBH6</id>
-    </interactant>
-    <organismsDiffer>false</organismsDiffer>
-    <experiments>1</experiments>
-  </comment>" = 
-"CC      Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;" 
+let interaction_line : lens = terminate interaction
 
-let cc_interaction_xml : lens =        
-  tag "CC" . 
-  ins "-!- " . qins WS "" . 
-  ins "INTERACTION:" . qins WS "\n" .
-  (interaction . qins WS "\n")* . interaction  
+(* unit tests for interaction line *)
+test interaction_line get 
+  "  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-1043398\"/>
+  |    <interactant intactId=\"EBI-1050185\">
+  |      <id>Q8NBH6</id>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>" 
+= 
+  "CC       Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;" . 
+  NL
 
-test cc_interaction_xml get 
+test interaction_line create 
+  ("CC       Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;" . 
+   NL)
+=
+  NL . 
+  "  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-1043398\"/>
+  |    <interactant intactId=\"EBI-1050185\">
+  |      <id>Q8NBH6</id>
+  |    </interactant>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>" 
+
+(* interaction block *)
+let cc_interaction_block : lens =
+  ins cc_tag . 
+  ins cc_bang . 
+  ins "INTERACTION:" . nl . 
+  interaction_line+
+
+(* unit tests for interaction block *)
+test cc_interaction_block get 
 "  <comment type=\"interaction\">
     <interactant intactId=\"EBI-1043398\"/>
     <interactant intactId=\"EBI-1043398\"/>
@@ -1930,23 +1950,25 @@ test cc_interaction_xml get
     <experiments>1</experiments>
   </comment>" 
 = 
-  "CC  -!- INTERACTION:
-  |CC      Self; NbExp=1; IntAct=EBI-1043398, EBI-1043398;
-  |CC      Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;
-  |CC      P21266:GSTM3; NbExp=1; IntAct=EBI-1043398, EBI-350350;"
-
-test cc_interaction_xml create
   "CC   -!- INTERACTION:
-  |CC       Self; NbExp=1; IntAct=EBI-476263, EBI-476263;
-  |CC       P31749:AKT1; NbExp=2; IntAct=EBI-476263, EBI-296087;
-  |CC       Q9UER7:DAXX; NbExp=3; IntAct=EBI-476263, EBI-77321;
-  |CC       P25445:FAS; NbExp=1; IntAct=EBI-476263, EBI-494743;
-  |CC       P15626:Gstm2 (xeno); NbExp=1; IntAct=EBI-476263, EBI-1209729;
-  |CC       P09211:GSTP1; NbExp=1; IntAct=EBI-476263, EBI-353467;
-  |CC       Q9WTR2:Map3k6 (xeno); NbExp=1; IntAct=EBI-476263, EBI-1254790;
-  |CC       O08815:Slk (xeno); NbExp=1; IntAct=EBI-476263, EBI-986112;
-  |CC       Q12933:TRAF2; NbExp=1; IntAct=EBI-476263, EBI-355744;
-  |CC       P63104:YWHAZ; NbExp=1; IntAct=EBI-476263, EBI-347088;" 
+  |CC       Self; NbExp=1; IntAct=EBI-1043398, EBI-1043398;
+  |CC       Q8NBH6:-; NbExp=1; IntAct=EBI-1043398, EBI-1050185;
+  |CC       P21266:GSTM3; NbExp=1; IntAct=EBI-1043398, EBI-350350;" . 
+  NL
+
+test cc_interaction_block create
+  ("CC   -!- INTERACTION:
+   |CC       Self; NbExp=1; IntAct=EBI-476263, EBI-476263;
+   |CC       P31749:AKT1; NbExp=2; IntAct=EBI-476263, EBI-296087;
+   |CC       Q9UER7:DAXX; NbExp=3; IntAct=EBI-476263, EBI-77321;
+   |CC       P25445:FAS; NbExp=1; IntAct=EBI-476263, EBI-494743;
+   |CC       P15626:Gstm2 (xeno); NbExp=1; IntAct=EBI-476263, EBI-1209729;
+   |CC       P09211:GSTP1; NbExp=1; IntAct=EBI-476263, EBI-353467;
+   |CC       Q9WTR2:Map3k6 (xeno); NbExp=1; IntAct=EBI-476263, EBI-1254790;
+   |CC       O08815:Slk (xeno); NbExp=1; IntAct=EBI-476263, EBI-986112;
+   |CC       Q12933:TRAF2; NbExp=1; IntAct=EBI-476263, EBI-355744;
+   |CC       P63104:YWHAZ; NbExp=1; IntAct=EBI-476263, EBI-347088;" . 
+   NL)
 = 
   "
   |  <comment type=\"interaction\">
@@ -2037,65 +2059,95 @@ test cc_interaction_xml create
   |    <experiments>1</experiments>
   |  </comment>"
 
+let P12544_cc_interaction_ascii : string = 
+  "CC   -!- INTERACTION:
+  |CC       Self; NbExp=1; IntAct=EBI-519800, EBI-519800;" . 
+  NL
+
+let P12544_cc_interaction_xml : string = 
+  "<comment type=\"interaction\">
+  |<interactant intactId=\"EBI-519800\" />
+  |<interactant intactId=\"EBI-519800\" />
+  |<organismsDiffer>false</organismsDiffer>
+  |<experiments>1</experiments>
+  |</comment>" 
+
+let P12544_cc_interaction_xml_cn : string = 
+  NL . 
+  "  <comment type=\"interaction\">
+  |    <interactant intactId=\"EBI-519800\"/>
+  |    <interactant intactId=\"EBI-519800\"/>
+  |    <organismsDiffer>false</organismsDiffer>
+  |    <experiments>1</experiments>
+  |  </comment>" 
+
+test cc_interaction_block get 
+  P12544_cc_interaction_xml = P12544_cc_interaction_ascii 
+
+test cc_interaction_block create 
+  P12544_cc_interaction_ascii = P12544_cc_interaction_xml_cn
+
+(* CC alternative products *)
+let cc_fix (l:lens) : lens = 
+  split (cc_long_tag . "  ", l)
+
+let cc_fix70 (l:lens) : lens = 
+  split70 (cc_long_tag . "  ", l)
+
+(* Notes: this comment is a little tricky because the number of
+   isoforms needs to be counted and included in the view. We do this
+   using a Q-lens that duplicates the names. Edits to the number in
+   the view are discarded. *)
 let cc_alternative_products_xml : lens = 
   let event : lens = 
-    xml_attr1_elt_no_body nl2 "event" "type" 
+    xml_attr1_elt_no_kids NL2 "event" "type" 
       ( "alternative promoter"    <-> "Alternative promoter usage" 
       | "alternative splicing"    <-> "Alternative splicing"       
       | "alternative initiation"  <-> "Alternative initiation"     
       | "ribosomal frameshifting" <-> "Ribosomal frameshifting") in 
-  let events : lens = 
-    ins "Event=" . 
-    event . (csp . event)* . 
-    ins ";" in
-  let named_isos : lens = 
-    ins "Named isoforms=" . qins NUMBER "0" . 
-    ins ";" in
+  let events : lens = ins cc_long_tag . ins "Event=" . iter_with_sqsp event . semi in 
   let generic (xml:string) (ascii:string) : lens = 
     ins ascii . ins "=" . 
-    xml_simple_elt nl2 xml ALPHA . 
-    ins ";" in 
+      xml_simple_elt NL2 xml esc_s . 
+      semi in 
   let name : lens =     
-    let id : lens = xml_simple_elt nl3 "id" (ALPHA) in
+    let id : lens = xml_simple_elt NL3 "id" esc_csp in 
     let synonyms : lens = 
-      let s : lens = xml_simple_elt nl3 "name" ALPHA in
       ins "Synonyms=" . 
-      s . (csp . s)* .
-      ins ";" in
+        iter_with_sep (xml_simple_elt NL3 "name" esc_csp) (comma . space) . 
+        semi in
     let sequence : lens = 
       let vsp : lens = "VSP_" . NUMBER in 
-      ins "Sequence=" . 
-      ( xml_attr1_elt_no_body nl2 "sequence" "type"
-          ( "displayed"     <-> "Displayed"
-          | "external"      <-> "External"
-          | "not described" <-> "Not described")
-      | xml_attr2_elt_no_body nl2 "sequence" 
-          "type" (del "described")
-          "ref"  (vsp . (csp . vsp)* )) . 
-      ins ";" in 
-    xml_elt nl2 "isoform" 
-      begin 
-        ((ins "IsoId=" . 
-          id . (csp . id)* . 
-          ssp ) ~
-         (ins "Name=" . 
-          xml_simple_elt nl3 "name" (ALPHA) . 
-          ssp . 
-          (synonyms . qsp )? )) . 
-        sequence . 
-        (generic "note" "Note")? 
-      end in 
+        ins "Sequence=" . 
+          ( xml_attr1_elt_no_kids NL3 "sequence" "type"
+              ( "displayed"     <-> "Displayed"
+              | "external"      <-> "External"
+              | "not described" <-> "Not described")
+          | xml_attr2_elt_no_kids NL3 "sequence" 
+              "type" (del "described")
+              "ref"  (iter_with_sep vsp (comma . space)) ) . 
+          semi in 
+      xml_elt NL2 "isoform" 
+        begin 
+          ((ins "IsoId=" . 
+              iter_with_sep id (comma . space) . 
+              semi . space ) ~
+             (ins "Name=" . 
+                xml_simple_elt NL3 "name" esc_csp . 
+                semi . space . 
+                (synonyms . space )? )) . 
+            sequence . 
+            (generic "note" "Note")? 
+        end in 
   let prelude : lens = 
-    tag "CC" . 
-    ins "-!-" . qsp . 
-    ins "ALTERNATIVE_PRODUCTS:" . 
-    cc_break in     
-  let named_isos : lens = qsp . ins "Named isoforms=" . count (ctype name) . ins ";" in
-  let names : lens = (cc_break . cc_fix name)* in 
-  let comment : lens = (qsp . generic "comment" "Comment")? in 
+    ins cc_tag . ins cc_bang . 
+      ins "ALTERNATIVE_PRODUCTS:" . nl in 
+  let named_isos : lens = (space . ins "Named isoforms=" . count (ctype name) . semi) in 
+  let names : lens = (nl . ins cc_long_tag . cc_fix70 name)* in 
+  let comment : lens = (space . generic "comment" "Comment")? in 
   let entry : lens = 
     prelude . 
-    xml_attr1_elt nl1 "comment" "type" (del "alternative products") 
+      xml_attr1_elt NL1 "comment" "type" (del "alternative products") 
       begin 
         events . 
         comment .
@@ -2105,246 +2157,237 @@ let cc_alternative_products_xml : lens =
     canonizer_of_lens 
       (invert 
          begin 
-           atype prelude . 
-           cc_fix 
-             (atype events . 
-              (atype comment ~ atype named_isos)) . 
-             atype names
+           atype prelude .            
+           cc_fix70 
+           ( atype events . 
+           (atype comment ~ atype named_isos) ) . 
+           atype names
          end) in 
-    right_quot entry cn
+    terminate (right_quot entry cn)
 
 let cc_alternative_products_line : lens =   
   cc_alternative_products_xml 
 
-test cc_alternative_products_line get
-  "<comment type=\"alternative products\">
-  |     <event type=\"alternative splicing\"/>
-  |     <comment>This is a rather lengthy comment.</comment>
-  |     <isoform>
-  |       <id>P48347-1</id>
-  |       <name>1</name>
-  |       <name>D</name>
-  |       <name>E</name>
-  |       <sequence type=\"displayed\"/>
-  |     </isoform>
-  |     <isoform>
-  |       <id>P48347-2</id>
-  |       <name>2</name>
-  |       <sequence type=\"described\" ref=\"VSP_008972\"/>
-  |     </isoform>
-  |   </comment>" 
-= 
-  "CC  -!- ALTERNATIVE_PRODUCTS:
-  |CC      Event=Alternative splicing; Named isoforms=2; Comment=This is a rather lengthy
-  |CC        comment.;
-  |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
-  |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;"
-
-test cc_alternative_products_line create
-  "CC  -!- ALTERNATIVE_PRODUCTS:
-  |CC      Event=Alternative splicing; Named isoforms=100; Comment=This is a rather lengthy comment.;
-  |CC      Name=1; Synonyms=D, E; IsoId=P48347-1; Sequence=Displayed;
-  |CC      Name=2; IsoId=P48347-2; Sequence=VSP_008972;" 
-=
-  "
-  |  <comment type=\"alternative products\">
+(* unit tests for CC alternative prodocuts *)
+let cc_alternative_products_xml : string = 
+  NL . 
+  "  <comment type=\"alternative products\">
   |    <event type=\"alternative splicing\"/>
   |    <comment>This is a rather lengthy comment.</comment>
   |    <isoform>
   |      <id>P48347-1</id>
   |      <name>1</name>
   |      <name>D</name>
+  |      <name>This is a really long synonym that should cause the line to break</name>
   |      <name>E</name>
-  |    <sequence type=\"displayed\"/>
+  |      <sequence type=\"displayed\"/>
   |    </isoform>
   |    <isoform>
   |      <id>P48347-2</id>
   |      <name>2</name>
-  |    <sequence type=\"described\" ref=\"VSP_008972\"/>
+  |      <sequence type=\"described\" ref=\"VSP_008972\"/>
   |    </isoform>
-  |  </comment>"
+  |  </comment>" 
 
+let cc_alternative_products_ascii : string = 
+  "CC   -!- ALTERNATIVE_PRODUCTS:
+  |CC       Event=Alternative splicing; Named isoforms=2; Comment=This is
+  |CC         a rather lengthy comment.;
+  |CC       Name=1; Synonyms=D, This is a really long synonym that should cause the
+  |CC         line to break, E; IsoId=P48347-1; Sequence=Displayed;
+  |CC       Name=2; IsoId=P48347-2; Sequence=VSP_008972;" . 
+  NL
+
+test cc_alternative_products_line get
+ cc_alternative_products_xml = cc_alternative_products_ascii
+
+test cc_alternative_products_line create
+  cc_alternative_products_ascii =  cc_alternative_products_xml
+
+(* CC mass spectrometry line *)
 let cc_mass_spectrometry_xml : lens = 
-  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ssp) in 
-  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ssp) in
-  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ssp) in
-  let src : lens = qins (WSP . "Source=" . ALPHAC . ";")? "" in 
-  tag "CC" . 
-  ins "-!-" . qsp . 
-  ins "MASS SPECTROMETRY:" . 
-  qsp . 
-  xml_open nl1 "comment" .
-  xml_attr "type" (del "mass spectrometry") . 
-  mass . 
-  err? . 
-  meth . 
-  xml_close . 
+  let src : lens = qins (WSP . "Source=" . raw . ";")? "" in 
+  ins cc_tag . ins cc_bang . 
+  ins "MASS SPECTROMETRY" . colon . space . 
+  ( ( xml_attr3_elt_open NL1 "comment" 
+        "type" (del "mass spectrometry")    
+        "mass" (ins "Mass=" . FNUMBER . semi . space)
+        "method"  (ins "Method=" . esc_sq . semi . space) )
+  | ( xml_attr4_elt_open NL1 "comment" 
+       "type" (del "mass spectrometry")    
+       "mass" (ins "Mass=" . FNUMBER . semi . space)
+       "error "(ins "Mass_error=" . FNUMBER . semi . space) 
+       "method"  (ins "Method=" . esc_sq . semi . space) ) ) . 
   ins "Range=" . 
-  xml_open nl2 "location" . 
-  ( (xml_attr "sequence" (qsp . braces ALPHA))? ~    
+  xml_open NL2 "location" . 
+  ( (xml_attr "sequence" (qsp . parens esc_csp))? ~    
     (xml_close . 
-     xml_attr1_elt_no_body nl3 "begin" "position" NUMBER . 
-     ins "-" . 
-     xml_attr1_elt_no_body nl3 "end" "position" NUMBER) ) . 
-  qdel WS nl2 . 
-  xml_close_tag "location" . 
-  ssp . 
+     xml_attr1_elt_no_kids NL3 "begin" "position" NUMBER . 
+     dash . 
+     xml_attr1_elt_no_kids NL3 "end" "position" NUMBER) ) . 
+  xml_close_tag NL2 "location" . semi . space . 
   ins "Note=" . 
-  xml_simple_elt nl2 "note" ALPHAC . 
-  ins ";" . 
-  qdel WS nl1 . 
-  xml_close_tag "comment" . 
+  xml_simple_elt NL2 "note" esc_s . semi . 
+  xml_close_tag NL1 "comment" . 
   src
 
 let cc_mass_spectrometry_line : lens = 
-  cc_fix cc_mass_spectrometry_xml
+  split_terminate (cc_long_tag, cc_mass_spectrometry_xml)
 
-test cc_mass_spectrometry_line create
-  "CC   -!- MASS SPECTROMETRY: Mass=23290.2; Mass_error=2.9; Method=Electrospray;
-  |CC        Range=16-214 (P04653-2); Note=Allele D, with 6 phosphate groups;
-  |CC        Source=PubMed:7601973;" 
-=
-  "
-  |  <comment type=\"mass spectrometry\" mass=\"23290.2\" error=\"2.9\" method=\"Electrospray\">
+(* CC mass spectrometry unit tests *)
+let cc_mass_spectrometry_ascii : string = 
+   "CC   -!- MASS SPECTROMETRY: Mass=23290.2; Mass_error=2.9;
+   |CC       Method=Electrospray; Range=16-214 (P04653-2); Note=Allele D, with 6
+   |CC       phosphate groups; Source=PubMed:7601973;" . 
+   NL
+
+let cc_mass_spectrometry_ascii_cn : string = 
+   "CC   -!- MASS SPECTROMETRY: Mass=23290.2; Mass_error=2.9;
+   |CC       Method=Electrospray; Range=16-214 (P04653-2); Note=Allele D, with 6
+   |CC       phosphate groups;" . 
+   NL
+
+let cc_mass_spectrometry_xml : string = 
+  NL . 
+  "  <comment type=\"mass spectrometry\" mass=\"23290.2\" error =\"2.9\" method=\"Electrospray\">
   |    <location sequence=\"P04653-2\">
   |      <begin position=\"16\"/>
   |      <end position=\"214\"/>
   |    </location>
   |    <note>Allele D, with 6 phosphate groups</note>
   |  </comment>"
-  
-test cc_mass_spectrometry_line get 
-  "  <comment type=\"mass spectrometry\" mass=\"29440\" error=\"2\" method=\"MALDI\">
-  |      <location>
-  |        <begin position=\"1\"/>
-  |        <end position=\"255\"/>
-  |      </location>
-  |      <note>Ref.2</note>
-  |    </comment>" 
-= 
-  "CC  -!- MASS SPECTROMETRY: Mass=29440; Mass_error=2; Method=MALDI; Range=1-255;
-  |CC        Note=Ref.2;"
 
+test cc_mass_spectrometry_line get
+  cc_mass_spectrometry_xml = cc_mass_spectrometry_ascii_cn
+
+test cc_mass_spectrometry_line create
+  cc_mass_spectrometry_ascii = cc_mass_spectrometry_xml 
+
+(* CC sequence caution line *)
 let cc_sequence_caution_xml : lens = 
-  let err : lens = xml_attr "error" (ins "Mass_error=" . FNUMBER . ssp) in 
-  let mass : lens = xml_attr "mass" (ins "Mass=" . FNUMBER . ssp) in
-  let meth : lens = xml_attr "method" (ins "Method=" . ALPHA . ssp) in
-  tag "CC" . 
-  ins "-!-" . qsp . 
-  ins "SEQUENCE CAUTION:" . 
-  cc_break . 
-  cc_fix (
-  xml_attr1_elt nl1 "comment" "type" (del "sequence caution") 
+  ins cc_tag . ins cc_bang . 
+  ins "SEQUENCE CAUTION:" . nl . 
+  ins cc_long_tag . 
+  xml_attr1_elt NL1 "comment" "type" (del "sequence caution") 
     begin
-      ((qsp . ins "Type=" . 
-       xml_open nl2 "conflict" . 
-       xml_attr "type"
-         ( "frameshift" <-> "Frameshift"
-         | "erroneous initiation" <-> "Erroneous initiation"             
-         | "erroneous termination" <-> "Erroneous termination" 
-         | "erroneous gene model prediction" <-> "Erroneous gene model prediction"
-         | "erroneous translation" <-> "Erroneous translation"
-         | "miscellaneous discrepancy" <-> "Miscellaneous discrepancy") . 
-       xml_close . 
-       ins ";") ~
-      (ins "Sequence=" . 
-       xml_attr3_elt_no_body nl2 "sequence"
-         "resource" (del ("EMBL-CDS" | "EMBL"))
-         "id" (ALPHA) 
-         "version" (ins "." . NUMBER) . 
-       ins ";")) . 
-     qdel WS nl2 . 
-     xml_close_tag "conflict" . 
+      ( (space . 
+         ins "Type=" . 
+         xml_attr1_elt_open NL2 "conflict" 
+           "type" ( "frameshift" <-> "Frameshift"
+                  | "erroneous initiation" <-> "Erroneous initiation"             
+                  | "erroneous termination" <-> "Erroneous termination" 
+                  | "erroneous gene model prediction" <-> "Erroneous gene model prediction"
+                  | "erroneous translation" <-> "Erroneous translation"
+                  | "miscellaneous discrepancy" <-> "Miscellaneous discrepancy") . 
+         semi) ~
+        (ins "Sequence=" . 
+         xml_attr3_elt_no_kids NL3 "sequence"
+           "resource" (del ("EMBL-CDS" | "EMBL"))
+           "id" esc_d
+           "version" (dot . NUMBER) . 
+         semi) ) . 
+     xml_close_tag NL2 "conflict" . 
      ( qins (WSP . "Positions=Several;")? ""
-     | qsp . ins "Positions=" . 
-       xml_elt nl2 "location"
-         begin           
-           let p : lens = xml_attr1_elt_no_body nl3 "position" "position" (NUMBER) in 
-           p . (csp . p)* 
+     | space . ins "Positions=" . 
+       xml_elt NL2 "location"
+       begin           
+           iter_with_sep 
+             (xml_attr1_elt_no_kids NL3 "position" "position" NUMBER) 
+             (comma . space)
          end . 
-       ins ";") . 
-     (qsp . ins "Note=" . 
-     xml_simple_elt nl2 "note" ALPHA . 
-     ins ";")?
-    end)
+       semi ) . 
+     (space . ins "Note=" . 
+     xml_simple_elt NL2 "note" esc_s . 
+     semi)?
+  end
 
+(* NB: CC sequence caution lines are not wrapped *)
 let cc_sequence_caution_line : lens = 
- cc_sequence_caution_xml
+  terminate cc_sequence_caution_xml
 
-test cc_sequence_caution_line get
-  "<comment type=\"sequence caution\">
-  |<conflict type=\"erroneous termination\">
-  |<sequence resource=\"EMBL-CDS\" id=\"AAN42076\" version=\"1\"/>
-  |</conflict>
-  |<location>
-  |<position position=\"273\"/>
-  |</location>
-  |<note>Translated as Gln.</note>
-  |</comment>" 
-= 
-  "CC  -!- SEQUENCE CAUTION:
-  |CC      Sequence=AAN42076.1; Type=Erroneous termination; Positions=273; Note=Translated
-  |CC        as Gln.;" 
+(* unit tests for CC sequence caution *)
+let cc_sequence_caution_xml : string = 
+  NL . 
+  "  <comment type=\"sequence caution\">
+  |    <conflict type=\"erroneous termination\">
+  |      <sequence resource=\"EMBL-CDS\" id=\"AAN42076\" version=\"1\"/>
+  |    </conflict>
+  |    <location>
+  |      <position position=\"273\"/>
+  |    </location>
+  |    <note>Translated as Gln.</note>
+  |  </comment>" 
+
+let cc_sequence_caution_ascii : string = 
+  "CC   -!- SEQUENCE CAUTION:
+  |CC       Sequence=AAN42076.1; Type=Erroneous termination; Positions=273; Note=Translated as Gln.;" . 
+  NL
   
+test cc_sequence_caution_line get
+  cc_sequence_caution_xml = cc_sequence_caution_ascii
 
+test cc_sequence_caution_line create
+  cc_sequence_caution_ascii = cc_sequence_caution_xml
+
+(* CC web resource line *)
 let cc_web_resource_xml : lens = 
-  tag "CC" . 
-  ins "-!-" . qsp . 
-  ins "WEB RESOURCE:" . qsp . 
-  xml_attr2_elt nl1 "comment" 
+  ins cc_tag . ins cc_bang . 
+  ins "WEB RESOURCE:" . space . 
+  xml_attr2_elt NL1 "comment" 
     "type" (del "online information") 
-    "name" (ins "Name=" . ALPHA . ssp)
+    "name" (ins "Name=" . esc_s . semi . space)
     begin
       let url : lens = 
         ins "URL=" . 
-          xml_attr1_elt_no_body nl2 "link" "uri" (quotes ALPHAC) . 
-          ins ";" in 
+        xml_attr1_elt_no_kids NL2 "link" "uri" (quotes esc_q) . 
+        semi in 
       let note : lens = 
         ins "Note=" . 
-        xml_simple_elt nl2 "note" ALPHA . 
-        ssp in 
+        xml_simple_elt NL2 "note" esc_s . 
+        semi . space in 
       url ~ note
     end
 
 let cc_web_resource_line : lens = 
-  cc_fix cc_web_resource_xml
+  terminate (cc_fix cc_web_resource_xml)
 
-test cc_web_resource_line get
-  "<comment type=\"online information\" name=\"IARC TP53 mutation database\">
-  |<link uri=\"http://www-p53.iarc.fr/\"/>
-  |<note>Somatic and germline TP53 mutations in human cancers</note>
-  |</comment>" 
-= 
-  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database; Note=Somatic and germline
-  |CC        TP53 mutations in human cancers; URL=\"http://www-p53.iarc.fr/\";" 
-
-test cc_web_resource_line create
-  "CC  -!- WEB RESOURCE: Name=IARC TP53 mutation database; Note=Somatic and germline
-  |CC        TP53 mutations in human cancers; URL=\"http://www-p53.iarc.fr/\";" 
-= 
-  "
-  |  <comment type=\"online information\" name=\"IARC TP53 mutation database\">
+(* unit tests for CC web resource *)
+let cc_web_resource_xml : string = 
+  NL . 
+  "  <comment type=\"online information\" name=\"IARC TP53 mutation database\">
   |    <link uri=\"http://www-p53.iarc.fr/\"/>
   |    <note>Somatic and germline TP53 mutations in human cancers</note>
   |  </comment>" 
 
+let cc_web_resource_ascii : string = 
+  "CC   -!- WEB RESOURCE: Name=IARC TP53 mutation database; Note=Somatic and
+  |CC         germline TP53 mutations in human cancers; URL=\"http://www-p53.iarc.fr/\";" .
+  NL
+
+test cc_web_resource_line get 
+  cc_web_resource_xml = cc_web_resource_ascii
+
+test cc_web_resource_line create 
+  cc_web_resource_ascii = cc_web_resource_xml
+
+(* CC Block *)
 let cc_block : lens = 
   let non_interaction : lens = 
-      ( cc_unstructured_xml 
-      | cc_biophysicochemical_properties_xml     
+      ( cc_unstructured_line 
+      | cc_biophysicochemical_properties_line     
       | cc_alternative_products_line 
       | cc_mass_spectrometry_line 
       | cc_sequence_caution_line 
-      | cc_web_resource_line) . ins "\n" in 
-    ( cc_interaction_xml . ins "\n"
-    | non_interaction*
-    | (non_interaction* . cc_interaction_xml . ins "\n" . non_interaction)+ )
+      | cc_web_resource_line) in
+    ( non_interaction+
+    | cc_interaction_block 
+    | non_interaction* . cc_interaction_block . non_interaction+ )
 
 test cc_block create
-  "CC  -!- ALTERNATIVE_PRODUCTS:
-  |CC      Event=Alternative splicing; Named isoforms=2; Comment=Additional isoforms seem to exist;
-  |CC      Name=1; Synonyms=Ash-L; IsoId=P62993-1, P29354-1; Sequence=Displayed;
-  |CC      Name=GRB3-3; IsoId=P62993-2, P29354-2; Sequence=VSP_001839;
+  "CC   -!- ALTERNATIVE_PRODUCTS:
+  |CC       Event=Alternative splicing; Named isoforms=2; Comment=Additional isoforms seem to exist;
+  |CC       Name=1; Synonyms=Ash-L; IsoId=P62993-1, P29354-1; Sequence=Displayed;
+  |CC       Name=GRB3-3; IsoId=P62993-2, P29354-2; Sequence=VSP_001839;
   |CC   -!- SUBCELLULAR LOCATION: Golgi apparatus (By similarity).
   |CC   -!- DOMAIN: The SH3 domains mediate interaction with SHB.
   |CC   -!- SIMILARITY: Belongs to the GRB2/sem-5/DRK family.
@@ -2359,19 +2402,26 @@ test cc_block create
   |      <id>P29354-1</id>
   |      <name>1</name>
   |      <name>Ash-L</name>
-  |    <sequence type=\"displayed\"/>
+  |      <sequence type=\"displayed\"/>
   |    </isoform>
   |    <isoform>
   |      <id>P62993-2</id>
   |      <id>P29354-2</id>
   |      <name>GRB3-3</name>
-  |    <sequence type=\"described\" ref=\"VSP_001839\"/>
+  |      <sequence type=\"described\" ref=\"VSP_001839\"/>
   |    </isoform>
   |  </comment>
-  |  <comment type=\"subcellular location\" status=\"by similarity\">Golgi apparatus</comment>
-  |  <comment type=\"domain\">The SH3 domains mediate interaction with SHB</comment>
-  |  <comment type=\"similarity\">Belongs to the GRB2/sem-5/DRK family</comment>"
+  |  <comment type=\"subcellular location\" status=\"by similarity\">
+  |    <text>Golgi apparatus</text>
+  |  </comment>
+  |  <comment type=\"domain\">
+  |    <text>The SH3 domains mediate interaction with SHB.</text>
+  |  </comment>
+  |  <comment type=\"similarity\">
+  |    <text>Belongs to the GRB2/sem-5/DRK family.</text>
+  |  </comment>"
 
+(* JNF tidied through here. 
 (* --------------------------------------------------------------------------- *)
 (* DR block *)
 
@@ -2385,7 +2435,7 @@ let start_dr (db:regexp) : lens =
 
 let property (ty:string) : lens = 
   ssp . 
-  xml_attr2_elt_no_body nl2 "property" 
+  xml_attr2_elt_no_body NL2 "property" 
     "value" ALPHAC
     "type" (del ty) 
 
@@ -2394,7 +2444,7 @@ let optional_dr2 (db:regexp) (ty:string) : lens =
       ( (xml_slash_close . sspd)
       | (xml_close . 
          property ty . 
-         qdel WS nl1 . 
+         qdel WS NL1 . 
          xml_close_tag "dbReference") )
 
 let optional_dr3 (db:regexp) (ty1:string) (ty2:string) : lens = 
@@ -2403,7 +2453,7 @@ let optional_dr3 (db:regexp) (ty1:string) (ty2:string) : lens =
     | (xml_close . 
          ( (property ty1 . (property ty2 | sspd))
           | (sspd | property ty2) ) . 
-       qdel WS nl1 . 
+       qdel WS NL1 . 
        xml_close_tag "dbReference") )
 
 let optional_dr4 (db:regexp) (ty1:string) (ty2:string) (ty3:string) : lens = 
@@ -2413,7 +2463,7 @@ let optional_dr4 (db:regexp) (ty1:string) (ty2:string) (ty3:string) : lens =
          ( (property ty1 . (property ty2 | sspd) . (property ty3 | sspd))
          | (sspd . property ty2 . (property ty3 | sspd))
          | (sspd{2} . property ty3) ) . 
-       qdel WS nl1 . 
+       qdel WS NL1 . 
        xml_close_tag "dbReference") )
 
 let dr_2_1 =
@@ -2514,7 +2564,7 @@ let dr_PROSITE =
 
 let dr_xml = 
   tag "DR" . 
-  xml_open nl1 "dbReference" . 
+  xml_open NL1 "dbReference" . 
   (dr_2_1 | dr_2_1_3_1 | dr_2_2_3_3_4_1 | dr_2_3 | dr_2_4_3_2 | dr_2_5_3_1 
   | dr_2_6 | dr_2_7 | dr_2_8 | dr_2_9_3_1 | dr_2_11 | dr_2_12 | dr_2_13
   | dr_2_14 | dr_2_15 | dr_2_16 | dr_2_18 | dr_2_19 | dr_2_20 | dr_2_21 
@@ -2567,7 +2617,7 @@ test dr_xml create
 
 let pe_xml : lens = 
   tag "PE" . 
-  xml_attr1_elt_no_body nl1 "proteinExistence" 
+  xml_attr1_elt_no_body NL1 "proteinExistence" 
     "type" 
     ( "Evidence at protein level"    <-> "1: Evidence at protein level"   
     | "Evidence at transcript level" <-> "2: Evidence at transcript level"
@@ -3483,7 +3533,7 @@ let kw_trans : lens =
 
 let kw_xml : lens = 
   let kw : lens = 
-    xml_open nl1 "keyword" . 
+    xml_open NL1 "keyword" . 
     del SP . 
     del "id=\"" . kw_trans . 
     xml_close_tag "keyword" in
@@ -3518,20 +3568,20 @@ let ft_bound (name:string) : lens =
     | ins "  "   . ins sym . DIGIT{3}
     | ins " "    . ins sym . DIGIT{4}
     | ins ""     . ins sym . DIGIT{5} ) in 
-  ( xml_attr2_elt_no_body nl3 name 
+  ( xml_attr2_elt_no_body NL3 name 
       "status" (del "less than") 
       "position" (num "<")
-  | xml_attr2_elt_no_body nl3 name 
+  | xml_attr2_elt_no_body NL3 name 
       "status" (del "greater than") 
       "position" (num ">")
-  | xml_attr2_elt_no_body nl3 name 
+  | xml_attr2_elt_no_body NL3 name 
       "status" (del "uncertain") 
       "position" (num "?")
-  | xml_attr1_elt_no_body nl3 name 
+  | xml_attr1_elt_no_body NL3 name 
        "position" (num " ") )
 
 let ft_bounds : lens = 
-  xml_elt nl2 "location"
+  xml_elt NL2 "location"
     (ft_bound "begin" . 
      ins " " . 
      ft_bound "end") . 
@@ -3547,9 +3597,9 @@ let ft_description : lens =
   ins "." 
 
 let ft_original_variation : lens = 
-  ( xml_simple_elt nl2 "original" ALPHA . 
+  ( xml_simple_elt NL2 "original" ALPHA . 
     ins " -> " . 
-    xml_simple_elt nl2 "variation" ALPHA 
+    xml_simple_elt NL2 "variation" ALPHA 
   | ins "Missing" )
 
 let ft_normal : lens = 
@@ -3604,9 +3654,9 @@ let ft_variation : lens =
 
 let ft_xml : lens = 
   tag "FT" . 
-  xml_open nl1 "feature" . 
+  xml_open NL1 "feature" . 
   (ft_normal | ft_variation) . 
-  qdel WS nl1 . 
+  qdel WS NL1 . 
   xml_close_tag "feature"
 
 test ft_xml get
@@ -3643,7 +3693,7 @@ let sq_xml : lens =
                          ins "\n" in 
   tag "SQ" . 
   ins "SEQUENCE   " . 
-  xml_open nl1 "sequence" . 
+  xml_open NL1 "sequence" . 
   ( (xml_attr "mass"   (NUMBER . ins " MW;  ")) ~
     (xml_attr "length" (NUMBER . ins " AA;  ")) ) . 
   xml_attr "checksum"  ([0-9A-Z]+ . ins " CRC64;\n") . 
@@ -3678,7 +3728,7 @@ test sq_xml create
 (* UniProtKB entry *)
 
 let uniprot_xml : lens = 
-  xml_elt nl0 "entry"
+  xml_elt NL0 "entry"
     begin
       (terminate id_line) . 
       (terminate ac_line)? . 
