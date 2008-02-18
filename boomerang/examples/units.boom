@@ -21,8 +21,8 @@
 
 module Units = 
 
-test rep (columnize ([a-z0-9 \n]*) " " "\n") 
-"abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre\nbenjamin aaron alan owen william kate michael" = ?
+test rep (columnize "80" ([a-z0-9 ]*) " " "\n") 
+"abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen william kate michael" = ?
 
 let Any = [^]*
 
@@ -64,13 +64,13 @@ let upper : lens =
   | "z" <-> "Z" 
   | [^a-zA-Z])
 
-let cp_upper = ins "[" . duplicate ([^A-Z] . ins ":") upper . ins "]"  
-test cp_upper* get "nate" = "[n:N][a:A][t:T][e:E]" 
-test cp_upper* create "[n:N][a:A][t:T][e:E]" = "nate"
+let cp_upper = ins "[" . duplicate ([^A-Z]) ":" upper . ins "]"  
+test cp_upper* get "n:a:t:e:" = "[n:N][a:A][t:T][e:E]" 
+test cp_upper* create "[n:N][a:A][t:T][e:E]" = "n:a:t:e:"
 
 let length (R:regexp) : lens = 
   ins "(" . 
-  duplicate (R* ) (ins "," . count R) . 
+  duplicate (R* ) "" (ins "," . count R) . 
   ins ")" 
 
 test length [A-Z] get "ABCD" = "(ABCD,4)"

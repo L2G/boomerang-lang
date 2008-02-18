@@ -82,16 +82,18 @@ let prelude_spec =
        Lns(i,L.key i r)))
 
   ; (mk_prelude_qid "duplicate",
-    SLens ^> SLens ^> SLens,
-    mk_lfun (Info.M "duplicate built-in") (SLens ^> SLens) (fun i l1 -> 
-      mk_lfun i SLens (fun i l2 ->         
-        Lns(i,L.duplicate i true l1 l2))))
+    SLens ^> SLens ^> SLens ^> SLens,
+    mk_lfun (Info.M "duplicate built-in") (SLens ^> SLens ^> SLens) (fun i l1 -> 
+      mk_lfun i (SLens ^> SLens) (fun i l2 ->
+        mk_lfun i SLens (fun i l3 -> 
+          Lns(i,L.duplicate i true l1 l2 l3)))))
 
   ; (mk_prelude_qid "duplicate_snd",
-    SLens ^> SLens ^> SLens,
-    mk_lfun (Info.M "duplicate_snd built-in") (SLens ^> SLens) (fun i l1 -> 
-      mk_lfun i SLens (fun i l2 ->         
-        Lns(i,L.duplicate i false l1 l2))))
+    SLens ^> SLens ^> SLens ^> SLens,
+    mk_lfun (Info.M "duplicate_snd built-in") (SLens ^> SLens ^> SLens) (fun i l1 -> 
+      mk_lfun i (SLens ^> SLens) (fun i l2 ->
+        mk_lfun i SLens (fun i l3 -> 
+          Lns(i,L.duplicate i false l1 l2 l3)))))
 
   ; (mk_prelude_qid "count",
      SRegexp ^> SLens,
@@ -208,10 +210,10 @@ let prelude_spec =
   ; (mk_prelude_qid "columnize",
      SString ^> SRegexp ^> SString ^> SString ^> SCanonizer,
      mk_sfun (Info.M "columnize built-in") (SRegexp ^> SString ^> SString ^> SCanonizer) (fun i k -> 
-     mk_rfun (Info.M "columnize built-in") (SString ^> SString ^> SCanonizer) (fun i r -> 
-       mk_sfun i (SString ^> SCanonizer) (fun i s -> 
-         mk_sfun i SCanonizer (fun i nl -> 
-           Can(i,C.columnize i k r s nl))))))
+       mk_rfun (Info.M "columnize built-in") (SString ^> SString ^> SCanonizer) (fun i r -> 
+         mk_sfun i (SString ^> SCanonizer) (fun i s -> 
+           mk_sfun i SCanonizer (fun i nl -> 
+             Can(i,C.columnize i k r s nl))))))
 
   ; (mk_prelude_qid "rep",
      SCanonizer ^> SString ^> SString,

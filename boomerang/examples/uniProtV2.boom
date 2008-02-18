@@ -22,20 +22,11 @@
 
 module UniProtV2 = 
 
-test
-  let cn : canonizer = columnize "10" ([A-Z0-9 ]*) " " ("\n" . "Z  ") in 
-  rep cn 
-  "Z  4 6 8 0 2 4 6 8 0 2 4 6 8 0 2 4 6 8 0 2 4 6 8 0"
-=
-  "Z  4 6 8 0
-  |Z  2 4 6 8
-  |Z  0 2 4 6
-  |Z  8 0 2 4
-  |Z  6 8 0 2
-  |Z  4 6 8 0"
-
 (* --------------------------------------------------------------------------- *)
 (* GENERIC HELPER FUNCTIONS *)
+
+let dup (l1:lens) (l2:lens) = duplicate l1 "" l2
+let dup_snd (l1:lens) (l2:lens) = duplicate_snd l1 "" l2
 
 (* [bracket l] inserts enclosing square bracket. *) 
 let brackets (l:lens) : lens = 
@@ -71,6 +62,10 @@ test sort3 "a" "b" "c" get "bca" = "abc"
 test sort3 "a" "b" "c" get "cab" = "abc"
 test sort3 "a" "b" "c" get "cba" = "abc"
 
+(* sort4 requires that (l2,l4) and (l1,l3) be unambiguously
+   concatenable, as an artifact of the way we implement it using a
+   binary swap operator and composition. we wouldn't need this if we
+   had a more powerful permutation operator on lenses. *)
 let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens = 
   let s12 : lens = sort2 l1 l2 in 
   let s23 : lens = sort2 l2 l3 in 
@@ -78,18 +73,18 @@ let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =
   let s123 : lens = sort3 l1 l2 l3 in 
   let s234 : lens = sort3 l2 l3 l4 in 
   let f1324 : lens = atype l1 . (atype l3 ~ atype l2) . atype l4 in 
-  ( l1 . s234 
-  | s234 ~ l1
-  | ((l2 . l3) ~ l1) . l4
-  | (l2 ~ l1) . s34 
-  | (l3 ~ s12) . l4
-  | l4 ~ (l1 . s23)
-  | l4 ~ ((l2 ~ l1) . l3)
-  | l4 ~ (l3 ~ (l1 . l2))
-  | (l3 . l4) ~ (l1 . l2) 
-  | ( (l2 . l4) ~ (l1 . l3); f1324 )
-  | ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
-
+    ( l1 . s234 
+    | s234 ~ l1
+    | ((l2 . l3) ~ l1) . l4
+    | (l2 ~ l1) . s34 
+    | (l3 ~ s12) . l4
+    | l4 ~ (l1 . s23)
+    | l4 ~ ((l2 ~ l1) . l3)
+    | l4 ~ (l3 ~ (l1 . l2))
+    | (l3 . l4) ~ (l1 . l2) 
+    | ( (l2 . l4) ~ (l1 . l3); f1324 )
+    | ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
+      
 test sort4 "a" "b" "c" "d" get "abcd" = "abcd"
 test sort4 "a" "b" "c" "d" get "abdc" = "abcd"
 test sort4 "a" "b" "c" "d" get "acbd" = "abcd"
@@ -154,7 +149,7 @@ let containing (R:regexp) : regexp = ANY . R . ANY
 let NL :string = "\n"
 
 (* [s] space *)
-let s :string = " "
+let S :string = " "
 
 (* [WS] whitespace *)
 let WS : regexp = [ \n]*
@@ -164,9 +159,6 @@ let NWS : regexp = [^ \n]
 
 (* [WSP] positive whitespace *)
 let WSP : regexp = [ \n]+
-
-(* [S] space *)
-let S : regexp = [ ]*
 
 (* [SP] positive space *)
 let SP : regexp = [ ]+
@@ -534,7 +526,7 @@ let tag (t:string) : string =
 (* [split (t,l)] wraps [l] so that it also breaks long lines. *)
 let split_n (n:string) (p:string * lens) : lens = 
   let (tag,l) : string * lens = p in 
-  let cn : canonizer = columnize n (atype l) s (NL . tag) in 
+  let cn : canonizer = columnize n (atype l) S (NL . tag) in 
   right_quot l cn
 
 let split (p:string * lens) : lens = split_n "75" p
@@ -553,8 +545,8 @@ let split_terminate (p:string * lens) : lens =
 
 (* insert strings into the view *)
 let space : lens = ins " " 
-let qspace : lens = qins S ""
-let qsp : lens = qins S " "
+let qspace : lens = qins [ ]* ""
+let qsp : lens = qins [ ]+ " "
 let semi : lens = ins ";"
 let colon : lens = ins ":"
 let dot : lens = ins "." 
@@ -712,12 +704,12 @@ let dt_lines (ty:entry) : lens =
     | TrEMBL -> "TrEMBL" in 
   ins dt_tag . 
   xml_attr4_elt_open NL1 "entry" 
-    "created" (date . comma . qsp . ins "integrated into UniProtKB/") 
+    "created" (date . comma . qsp . ins "integrated into UniProtKB/")
     "dataset" (dataset . dot . ins NL)
-    "modified" (ins dt_tag . date . comma. qsp) 
+    "modified" (ins dt_tag . date . comma. qsp)
     "version" (ins "entry version" . qsp . NUMBER . dot . ins NL)
 
-xb(* unit tests for DT lines *)
+(* unit tests for DT lines *)
 let P12544_dt_xml : string = 
   NL . 
   "  <entry dataset=\"Swiss-Prot\" created=\"1989-10-01\" modified=\"2008-01-15\" version=\"101\">"
@@ -2197,7 +2189,7 @@ let cc_alternative_products_xml : lens =
       begin 
         events . 
         comment .
-        duplicate_snd named_isos names 
+        dup_snd named_isos names 
       end in 
   let cn : canonizer = 
     canonizer_of_lens 
@@ -3945,7 +3937,7 @@ let ft_bounds : lens =
   let pos : lens = xml_attr1_elt_no_kids NL3 "position" "position" (num " ") in 
   xml_elt NL2 "location"
     ( ft_bound "begin" . space . ft_bound "end"
-    | duplicate (pos . space) pos )
+    | dup (pos . space) pos )
 
 let ft_description : lens = 
   xml_attr "description" esc_d . 
@@ -4566,10 +4558,20 @@ let sq_tag : string = tag "SQ"
 let sq_start_xml (flen:regexp -> lens) (fmass:regexp -> lens) (fcheck:regexp -> lens) : lens = 
   ins sq_tag . 
   ins "SEQUENCE   " . 
-  xml_attr3_elt_open NL1 "sequence" 
-    "length" (flen NUMBER)
-    "mass" (fmass NUMBER)
-    "checksum" (fcheck UALPHANUM+)
+  xml_open NL1 "sequence" . 
+    sort3
+     (xml_attr "length" (flen NUMBER))
+     (xml_attr "mass" (fmass NUMBER))
+     (xml_attr "checksum" (fcheck UALPHANUM+))
+
+let sq_mid_xml : lens = 
+  let l : lens = 
+    ins dt_tag . 
+    sort2 
+      (xml_attr "modified" (date . comma . space))
+      (xml_attr "version" (ins "sequence version" . space . NUMBER . dot)) . 
+    xml_close in 
+  terminate l 
 
 let sq_rest_xml : lens = 
   let block : lens = space . ULETTER{10} in 
@@ -4578,20 +4580,24 @@ let sq_rest_xml : lens =
     ins "    " . block{0,5} . 
     (space . ULETTER{1,10}) . 
     nl in
-  full_line* . part_line . 
-  ins "//" . 
-  xml_simple_close_tag "sequence" 
+  let l : lens = 
+    full_line* . part_line . 
+    ins "//" . 
+    xml_simple_close_tag "sequence" in 
+  terminate l 
 
 let sq_block : lens = 
-  terminate (sq_start_xml 
-               (fun (l:regexp) -> l . ins " AA;  ")
-               (fun (l:regexp) -> l . ins " MW;  ")
-               (fun (l:regexp) -> l . ins " CRC64;\n") . 
-             sq_rest_xml)
+  sq_start_xml 
+    (fun (l:regexp) -> l . ins " AA;  ")
+    (fun (l:regexp) -> l . ins " MW;  ") 
+    (fun (l:regexp) -> l . ins " CRC64;\n") . 
+  sq_mid_xml . 
+  sq_rest_xml
 
 (* unit tests for SQ block *)
 let sq_ascii : string = 
   "SQ   SEQUENCE   893 AA;  101921 MW;  2F67CEB3B02E7AC1 CRC64;
+  |DT   01-JAN-2007, sequence version 15.
   |     MKFLVLLFNI LCLFPILGAD ELVMSPIPTT DVQPKVTFDI NSEVSSGPLY LNPVEMAGVK
   |     YLQLQRQPGV QVHKVVEGDI VIWENEEMPL YTCAIVTQNE VPYMAYVELL EDPDLIFFLK
   |     EGDQWAPIPE DQYLARLQQL RQQIHTESFF SLNLSFQHEN YKYEMVSSFQ HSIKMVVFTP
@@ -4612,28 +4618,41 @@ let sq_ascii : string =
 
 let sq_xml : string = 
   NL . 
-  "  <sequence mass=\"101921\" length=\"893\" checksum=\"2F67CEB3B02E7AC1\">MKFLVLLFNILCLFPILGADELVMSPIPTTDVQPKVTFDINSEVSSGPLYLNPVEMAGVKYLQLQRQPGVQVHKVVEGDIVIWENEEMPLYTCAIVTQNEVPYMAYVELLEDPDLIFFLKEGDQWAPIPEDQYLARLQQLRQQIHTESFFSLNLSFQHENYKYEMVSSFQHSIKMVVFTPKNGHICKMVYDKNIRIFKALYNEYVTSVIGFFRGLKLLLLNIFVIDDRGMIGNKYFQLLDDKYAPISVQGYVATIPKLKDFAEPYHPIILDISDIDYVNFYLGDATYHDPGFKIVPKTPQCITKVVDGNEVIYESSNPSVECVYKVTYYDKKNESMLRLDLNHSPPSYTSYYAKREGVWVTSTYIDLEEKIEELQDHRSTELDVMFMSDKDLNVVPLTNGNLEYFMVTPKPHRDIIIVFDGSEVLWYYEGLENHLVCTWIYVTEGAPRLVHLRVKDRIPQNTDIYMVKFGEYWVRISKTQYTQEIKKLIKKSKKKLPSIEEEDSDKHGGPPKGPEPPTGPGHSSSESKEHEDSKESKEPKEHGSPKETKEGEVTKKPGPAKEHKPSKIPVYTKRPEFPKKSKSPKRPESPKSPKRPVSPQRPVSPKSPKRPESLDIPKSPKRPESPKSPKRPVSPQRPVSPRRPESPKSPKSPKSPKSPKVPFDPKFKEKLYDSYLDKAAKTKETVTLPPVLPTDESFTHTPIGEPTAEQPDDIEPIEESVFIKETGILTEEVKTEDIHSETGEPEEPKRPDSPTKHSPKPTGTHPSMPKKRRRSDGLALSTTDLESEAGRILRDPTGKIVTMKRSKSFDDLTTVREKEHMGAEIRKIVVDDDGTEADDEDTHPSKEKHLSTVRRRRPRPKKSSKSSKPRKPDSAFVPSIIFIFLVSLIVGIL</sequence>"
+  "  <sequence mass=\"101921\" length=\"893\" checksum=\"2F67CEB3B02E7AC1\" modified=\"2007-01-01\" version=\"15\">MKFLVLLFNILCLFPILGADELVMSPIPTTDVQPKVTFDINSEVSSGPLYLNPVEMAGVKYLQLQRQPGVQVHKVVEGDIVIWENEEMPLYTCAIVTQNEVPYMAYVELLEDPDLIFFLKEGDQWAPIPEDQYLARLQQLRQQIHTESFFSLNLSFQHENYKYEMVSSFQHSIKMVVFTPKNGHICKMVYDKNIRIFKALYNEYVTSVIGFFRGLKLLLLNIFVIDDRGMIGNKYFQLLDDKYAPISVQGYVATIPKLKDFAEPYHPIILDISDIDYVNFYLGDATYHDPGFKIVPKTPQCITKVVDGNEVIYESSNPSVECVYKVTYYDKKNESMLRLDLNHSPPSYTSYYAKREGVWVTSTYIDLEEKIEELQDHRSTELDVMFMSDKDLNVVPLTNGNLEYFMVTPKPHRDIIIVFDGSEVLWYYEGLENHLVCTWIYVTEGAPRLVHLRVKDRIPQNTDIYMVKFGEYWVRISKTQYTQEIKKLIKKSKKKLPSIEEEDSDKHGGPPKGPEPPTGPGHSSSESKEHEDSKESKEPKEHGSPKETKEGEVTKKPGPAKEHKPSKIPVYTKRPEFPKKSKSPKRPESPKSPKRPVSPQRPVSPKSPKRPESLDIPKSPKRPESPKSPKRPVSPQRPVSPRRPESPKSPKSPKSPKSPKVPFDPKFKEKLYDSYLDKAAKTKETVTLPPVLPTDESFTHTPIGEPTAEQPDDIEPIEESVFIKETGILTEEVKTEDIHSETGEPEEPKRPDSPTKHSPKPTGTHPSMPKKRRRSDGLALSTTDLESEAGRILRDPTGKIVTMKRSKSFDDLTTVREKEHMGAEIRKIVVDDDGTEADDEDTHPSKEKHLSTVRRRRPRPKKSSKSSKPRKPDSAFVPSIIFIFLVSLIVGIL</sequence>"
 
 test sq_block get sq_xml = sq_ascii 
 
 (* --------------------------------------------------------------------------- *)
 (* UniProtKB entry *)
 
+let id_rest : lens = 
+  sq_start_xml 
+    (fun (l:regexp) -> l . ins " AA; ")
+    (fun (l:regexp) -> del l)
+    (fun (l:regexp) -> del l)
+
+let sq_start : lens = 
+  sq_start_xml 
+    (fun (l:regexp) -> l . ins " AA;  ")
+    (fun (l:regexp) -> l . ins " MW;  ")
+    (fun (l:regexp) -> l . ins " CRC64;\n") 
+
 let uniprot_entry : lens = 
-  ( dt_lines SwissProt . 
-    ac_line? . 
-    id_xml_start SwissProt 
-  | dt_lines TrEMBL . 
-    ac_line? . 
-    id_xml_start TrEMBL ) .  
-  ac_line? . 
-  de_line . 
-  gn_line . 
-  organism_block . 
-  reference_block . 
-  cc_block . 
-  dr_block . 
-  pe_line? . 
-  kw_line? . 
-  ft_block . 
-  sq_block
+  let pass1 : lens = 
+    ( (dt_lines SwissProt . 
+       ac_line?) ~
+      (id_xml_start SwissProt) ) . 
+    de_line . 
+    gn_line . 
+    organism_block . 
+    reference_block . 
+    cc_block . 
+    dr_block . 
+    pe_line? . 
+    kw_line? . 
+    ft_block . 
+    dup_snd id_rest sq_start . 
+    sq_mid_xml . 
+    sq_rest_xml in 
+  pass1
+    

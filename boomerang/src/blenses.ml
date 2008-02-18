@@ -995,23 +995,33 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	uid = next_uid ();
       }
 
-  let duplicate i isFst dl1 dl2 = 
-    let n = sprintf "duplicate%s (%s) (%s)" 
+  let duplicate i isFst dl1 dl2 dl3 = 
+    let n = sprintf "duplicate%s (%s) (%s) (%s)" 
       (if isFst then "" else "_snd")
-      dl1.string dl2.string in 
+      dl1.string dl2.string dl3.string in 
     let ct = 
-      let equiv, f_suppl = R.check_equiv dl1.ctype dl2.ctype in
+      let equiv, f_suppl = R.check_equiv dl1.ctype dl3.ctype in
       if not equiv then
         begin
 	  let s =sprintf "%s is ill-typed:" n in
 	  Berror.static_error i n ~suppl:f_suppl s 
         end;
-      dl1.ctype in 
-    let at = R.unambig_seq i n dl1.atype dl2.atype in 
-    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+        R.unambig_seq i n dl1.ctype dl2.ctype in 
+    let a23 = R.unambig_seq i n dl2.atype dl3.atype in 
+    let at = R.unambig_seq i n dl1.atype a23 in 
+    let dt = safe_fusion_dict_type i dl1.dtype (safe_fusion_dict_type i dl2.dtype dl3.dtype) in 
     let st = function
-      | S_dup (s1, s2) -> dl1.stype s1 && dl2.stype s2
+      | S_dup (s1, S_concat(s2,s3)) -> dl1.stype s1 && dl2.stype s2 && dl3.stype s3
       | _ -> false in
+    let split_c c = 
+      if isFst then split dl1.ctype dl2.ctype c 
+      else 
+        let c2,c13 = split dl2.ctype dl3.ctype c in 
+        (c13,c2) in 
+    let split_a a = 
+      let a1,a23 = split dl1.atype a23 a in 
+      let a2,a3 = split dl2.atype dl3.atype a23 in 
+      (a1,a2,a3) in 
     (* lens *) 
     { info = i; 
       string = n;
@@ -1019,27 +1029,33 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       atype = at;
       dtype = dt;
       stype = st;
-      crel = combine_rel dl1.crel dl2.crel;
+      crel = combine_rel dl1.crel (combine_rel dl2.crel dl3.crel);
       arel = Unknown;
       get = lift_r i (get_str n) ct 
-        (fun c -> (dl1.get c) ^ (dl2.get c));
+        (fun c -> 
+           let c13,c2 = split_c c in 
+           (dl1.get c13) ^ (dl2.get c2) ^ (dl3.get c13));
       put = lift_rsd i (put_str n) at st (fun a s d -> 
-         let a1,a2 = split dl1.atype dl2.atype a in 
+         let a1,a2,a3 = split_a a in 
 	 let c1,d1 = dl1.put a1 (fst_dup_of_skel s) d in
-	 let c2,d2 = dl2.put a2 (snd_dup_of_skel s) d1 in
-	 (if isFst then (c1,d2) else (c2,d2)));
+	 let c2,d2 = dl2.put a2 (fst_concat_of_skel (snd_dup_of_skel s)) d1 in 
+         let c3,d3 = dl3.put a3 (snd_concat_of_skel (snd_dup_of_skel s)) d2 in 
+	 (if isFst then (c1 ^ c2,d2) else (c2 ^ c3,d2)));
       parse = lift_r i (parse_str n) ct (fun c->
-	 let s1, d1 = dl1.parse c in
-	 let s2, d2 = dl2.parse c in
-	 (S_dup (s1,s2), d1 ++ d2));
+         let c13,c2 = split_c c in                                   
+	 let s1, d1 = dl1.parse c13 in
+	 let s2, d2 = dl2.parse c2 in
+	 let s3, d3 = dl3.parse c13 in
+	 (S_dup (s1,S_concat(s2,s3)), d1 ++ (d2 ++ d3)));
       create = lift_rd i n at (fun a d ->
-         let a1, a2 = split dl1.atype dl2.atype a in
+         let a1,a2,a3 = split_a a in 
 	 let c1, d1 = dl1.create a1 d in
 	 let c2, d2 = dl2.create a2 d1 in
-	  (if isFst then (c1,d2) else (c2,d2)));
+	 let c3, d3 = dl3.create a3 d2 in
+	  (if isFst then (c1 ^ c2,d3) else (c2^c3,d3)));
       key = lift_r i n at (fun a ->
-         let a1,a2 = split dl1.atype dl2.atype a in
-	 (dl1.key a1) ^ (dl2.key a2));
+         let a1,a2,a3 = split_a a in 
+	 (dl1.key a1) ^ (dl2.key a2) ^ (dl3.key a3));
       uid = next_uid (); }
         
   let filter i rd rk =
