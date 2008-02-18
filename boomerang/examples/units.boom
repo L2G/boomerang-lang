@@ -24,10 +24,10 @@ module Units =
 test rep (columnize "80" ([a-z0-9 ]*) " " "\n") 
 "abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen william kate michael" = ?
 
-let Any = [^]*
+let any = [^]*
 
-let x : { ? <-> ? } = cp Any 
-test x : { Any <-> Any* }
+let x : { ? <-> ? } = copy any
+test x : { any <-> any* }
 
 let bracket (s:string) = "(" . s . ")" 
 test count [A-Z] get "ABCDEFG" = "7"
@@ -68,9 +68,9 @@ let cp_upper = ins "[" . duplicate ([^A-Z]) ":" upper . ins "]"
 test cp_upper* get "n:a:t:e:" = "[n:N][a:A][t:T][e:E]" 
 test cp_upper* create "[n:N][a:A][t:T][e:E]" = "n:a:t:e:"
 
-let length (R:regexp) : lens = 
+let length (r:regexp) : lens = 
   ins "(" . 
-  duplicate (R* ) "" (ins "," . count R) . 
+  duplicate (r* ) "" (ins "," . count r) . 
   ins ")" 
 
 test length [A-Z] get "ABCD" = "(ABCD,4)"
@@ -154,7 +154,7 @@ test l put "a" into "" = "a"
 
 (* check ambiguous on aababa *)
 test
-  (cp "a" . [ab]* . "ab").(cp "a" . [ab]*)
+  (copy "a" . [ab]* . "ab").(copy "a" . [ab]*)
 get "aaba" = error
 
 test  ("abc" . (del "123" . "4") * . "def") get "abc1234def" = "abc4def"
@@ -308,9 +308,8 @@ let a1 = "a"
 test (<a1> . <a1>) get "aa" = error 
 test (<a1:a1> . <a2:a1>) get "aa" = "aa"
 
-let a3 = cp "a"
+let a3 = copy "a"
 test (<a3>.<a3>) get "aa" = "aa"
-
 
 (* dictionaries are (not) shared *)
 

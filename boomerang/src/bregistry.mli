@@ -50,13 +50,13 @@ end
 val reset : unit -> unit
 (** Resets the library. *)
 
-val pre_ctx : Bsyntax.qid list
+val pre_ctx : Bsyntax.id list
 (** the initial naming context, i.e., [''Prelude''] *)
 
 val get_library : unit -> REnv.t
 (** Returns the library, as an environment. *)
 
-val register_env : REnv.t -> Bsyntax.qid -> unit
+val register_env : REnv.t -> Bsyntax.id -> unit
 (** ?? *)
 
 val register_native_qid: Bsyntax.qid -> Bsyntax.sort -> Bvalue.t -> unit
@@ -71,7 +71,7 @@ val load : string -> bool
 val find_filename : string -> string list -> string option
 (** ?? *)
 
-val lookup_library_ctx : Bsyntax.qid list -> Bsyntax.qid -> rv option
+val lookup_library_ctx : Bsyntax.id list -> Bsyntax.qid -> rv option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_library : Bsyntax.qid -> rv option

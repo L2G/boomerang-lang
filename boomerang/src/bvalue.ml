@@ -258,18 +258,30 @@ let mk_cfun i s f = Fun(i,S.SCanonizer,s,(fun i v -> f i (get_c v i)))
  *)
 let mk_ufun i s f = Fun(i,S.SUnit,s,(fun i v -> f i (get_u v i)))
 
+let parse_uid s = 
+  let lexbuf = Lexing.from_string s in
+    Blexer.setup "identifier constant";
+    let x = 
+      try Bparser.uid Blexer.main lexbuf
+      with _ -> raise 
+        (Error.Harmony_error
+           (fun () -> 
+              Util.format "%s: syntax error in identifier %s." 
+                (Info.string_of_t (Blexer.info lexbuf))
+                s)) in 
+      Blexer.finish ();                    
+      x
+
 let parse_qid s = 
   let lexbuf = Lexing.from_string s in
-    Blexer.setup "qid constant";
+    Blexer.setup "qualitified identifier constant";
     let q = 
       try Bparser.qid Blexer.main lexbuf
-      with 
-        | _ -> 
-            raise 
-              (Error.Harmony_error
-                  (fun () -> 
-                    Util.format "%s: syntax error in qualfied identifier %s." 
-                      (Info.string_of_t (Blexer.info lexbuf))
-                      s)) in 
+      with _ -> raise 
+        (Error.Harmony_error
+           (fun () -> 
+              Util.format "%s: syntax error in qualified identifier %s." 
+                (Info.string_of_t (Blexer.info lexbuf))
+                s)) in 
       Blexer.finish ();                    
       q

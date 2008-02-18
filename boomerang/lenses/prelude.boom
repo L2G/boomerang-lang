@@ -1,0 +1,104 @@
+module Prelude =
+
+(* lens operations *)
+let pget : lens -> string -> string = 
+  Native.Prelude.get
+let pput : lens -> string -> string -> string = 
+  Native.Prelude.put
+let pcreate : lens -> string -> string =
+  Native.Prelude.create
+let invert : lens -> lens =
+  Native.Prelude.invert
+let copy : regexp -> lens =
+  Native.Prelude.copy
+let const : regexp -> string -> string -> lens =
+  Native.Prelude.const 
+let concat : lens -> lens -> lens =
+  Native.Prelude.concat
+let union : lens -> lens -> lens =
+  Native.Prelude.union
+let star : lens -> lens =
+  Native.Prelude.star
+let swap : lens -> lens -> lens =
+  Native.Prelude.swap
+let compose : lens -> lens -> lens =
+  Native.Prelude.compose
+let default : lens -> string -> lens =
+  Native.Prelude.default
+let key : regexp -> lens =
+  Native.Prelude.key
+let duplicate : lens -> lens -> lens -> lens = 
+  Native.Prelude.duplicate
+let duplicate_snd : lens -> lens -> lens -> lens = 
+  Native.Prelude.duplicate_snd
+let count : regexp -> lens =
+  Native.Prelude.count
+let forgetkey : lens -> lens = 
+  Native.Prelude.forgetkey
+let filter : regexp -> regexp -> lens = 
+  Native.Prelude.filter
+  
+(* canonizer operations *)
+let cls : canonizer -> string -> string =
+  Native.Prelude.cls
+let rep : canonizer -> string -> string = 
+  Native.Prelude.rep
+let left_quot : canonizer -> lens -> lens = 
+  Native.Prelude.left_quot
+let right_quot : lens -> canonizer -> lens =
+  Native.Prelude.right_quot
+let columnize : string -> regexp -> string -> string -> canonizer = 
+  Native.Prelude.columnize
+
+(* string operations *)
+let append : string -> string -> string = 
+  Native.Prelude.append
+let read : string -> string = 
+  Native.Prelude.read
+
+(* regexp operations *)
+let str : string -> regexp =
+  Native.Prelude.str
+let empty : regexp = 
+  Native.Prelude.empty
+let seq : regexp -> regexp -> regexp = 
+  Native.Prelude.seq
+let alt : regexp -> regexp -> regexp = 
+  Native.Prelude.alt
+let iter : regexp -> regexp = 
+  Native.Prelude.iter
+let shortest : regexp -> string = 
+  Native.Prelude.shortest
+let equiv : regexp -> regexp -> string = 
+  Native.Prelude.equiv
+
+(* run-time checking *)
+let assert : regexp -> regexp -> lens -> lens = 
+  Native.Prelude.assert
+let assert_ctype : regexp -> lens -> lens = 
+  Native.Prelude.assert_ctype
+let assert_atype  : regexp -> lens -> lens = 
+  Native.Prelude.assert_atype
+let ctype : lens -> regexp = 
+  Native.Prelude.ctype
+let atype : lens -> regexp =
+  Native.Prelude.atype
+
+(* coercions *)
+let canonizer_of_lens : lens -> canonizer = 
+  Native.Prelude.canonizer_of_lens
+let string_of_regexp : regexp -> string = 
+  Native.Prelude.string_of_regexp
+
+
+(* derived forms *)
+let epsilon : regexp = str ""
+
+let ins (s:string) : lens = 
+  const "" s "" 
+
+let del (r:regexp) : lens = 
+  const r "" (shortest r) 
+
+let set (r:regexp) (s:string) : lens = 
+  const r s (shortest r)

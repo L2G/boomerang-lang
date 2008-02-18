@@ -72,12 +72,12 @@ struct
   let iter f e = M.iter (fun q rvr -> f q (!rvr)) e 
 end
 
-let loaded = ref []
+let loaded = ref ["Native"]
 
 let library : REnv.t ref = ref (REnv.empty ())
 
 (* constants *)
-let pre_ctx = List.map Bvalue.parse_qid ["Prelude"]
+let pre_ctx = List.map Bvalue.parse_uid ["Prelude"]
 
 (* utilities *)
 let get_library () = !library
@@ -103,7 +103,7 @@ let register_native_qid q s v = register q (s,v)
 let register_native qs s v = register_native_qid (Bvalue.parse_qid qs) s v
 
 (* register a whole (rv Env.t) in m *)
-let register_env ev m = REnv.iter (fun q r -> register (Bsyntax.qid_dot m q) r) ev
+let register_env ev m = REnv.iter (fun q r -> register (Bsyntax.id_dot m q) r) ev
 
 (* --------------- Lookup functions -------------- *)
 
@@ -211,9 +211,12 @@ let lookup_library_ctx nctx q =
                 | Some r -> Some r
                 | None -> match nctx with 
                     | []       -> None
-                    | o::orest -> lookup_library_aux orest (Bsyntax.qid_dot o q) 
+                    | o::orest -> lookup_library_aux orest (Bsyntax.id_dot o q) 
             end
   in
-    lookup_library_aux nctx q
+  lookup_library_aux nctx q
 
-let lookup_library q = lookup_library_ctx [] q
+let lookup_library q = 
+  debug (fun () -> Util.format "lookup_library [%s]@\n"
+           (Bsyntax.string_of_qid q));
+  lookup_library_ctx [] q

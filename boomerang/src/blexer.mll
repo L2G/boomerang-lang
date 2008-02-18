@@ -99,13 +99,7 @@ let _ =
     ; ("begin", (fun i -> BEGIN i))
     ; ("end", (fun i -> END i))
     ; ("test", (fun i -> TEST i))
-    ; ("into", (fun i -> INTO i))
-    ; ("get", (fun i -> GET i))
-    ; ("put", (fun i -> PUT i))
-    ; ("create", (fun i -> CREATE i))
-    ; ("crt", (fun i -> CREATE i))
     ; ("match", (fun i -> MATCH i))
-    ; ("with", (fun i -> WITH i))
     ; ("with", (fun i -> WITH i))
     ; ("error", (fun i -> ERROR i))
     ; ("string", (fun i -> STRING i))
@@ -115,11 +109,17 @@ let _ =
     ; ("unit", (fun i -> UNIT i))
     ; ("type", (fun i -> TYPE i))
     ; ("of", (fun i -> OF i))
+    ; ("into", (fun i -> INTO i))
+    ; ("get", (fun i -> GET i))
+    ; ("put", (fun i -> PUT i))
+    ; ("create", (fun i -> CREATE i))
+    ; ("crt", (fun i -> CREATE i))
     ]
 }
 
 let whitespace = [' ' '\t']+
 let newline = "\n"
+let uid_char = ['A'-'Z']
 let id_char_first = ['a'-'z' 'A'-'Z' '\'' '_' '-' '@']
 let id_char_rest = ['a'-'z' 'A'-'Z' '0'-'9' '\'' '_' '-' '@']
 let int_char = ['0' - '9']
@@ -130,10 +130,6 @@ rule main = parse
 | "("                { LPAREN(info lexbuf) }
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }
-| ".get"             { DOTGET(info lexbuf) }
-| ".put"             { DOTPUT(info lexbuf) }
-| ".create"          { DOTCREATE(info lexbuf) }
-| ".crt"             { DOTCREATE(info lexbuf) }
 | "."                { DOT(info lexbuf) }
 | "&"                { AMPERSAND(info lexbuf) }
 | "*"                { STAR(info lexbuf) }
@@ -142,8 +138,6 @@ rule main = parse
 | "+"                { PLUS(info lexbuf) }
 | "!"                { BANG(info lexbuf) }
 | "->"               { ARROW(info lexbuf) }
-| "--->"             { LONGARROW(info lexbuf) }
-| "<--->"            { LONGDARROW(info lexbuf) }
 | "<->"              { DARROW(info lexbuf) }
 | "|"                { BAR(info lexbuf) }
 | "="                { EQUAL(info lexbuf) }
@@ -152,13 +146,11 @@ rule main = parse
 | "["                { CSET(info lexbuf, cset lexbuf) }
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }
-| "<|"               { LANGLEBAR(info lexbuf)}
 | "<<<"              { let i1 = info lexbuf in 
                        let i2,s = bare "" lexbuf in 
                        let i = Info.merge_inc i1 i2 in 
                        STR(i,s) }
 | ">"                { RANGLE(info lexbuf) }
-| "|>"               { BARRANGLE(info lexbuf) }
 | ","                { COMMA(info lexbuf) }
 | ":"                { COLON(info lexbuf) }
 | "^"                { HAT(info lexbuf) }
@@ -170,14 +162,17 @@ rule main = parse
                        let i2,s = string "" lexbuf in 
                        let i = Info.merge_inc i1 i2 in 
                        STR(i,s) }
-| ">/"               { RANGLESLASH(info lexbuf) }
-| "/<"               { SLASHLANGLE(info lexbuf) }
 | id_char_first id_char_rest* as ident { 
       try let kw = Hashtbl.find keywords ident in
           kw (info lexbuf)
       with Not_found -> 
-        if Char.uppercase ident.[0] = ident.[0] then UIDENT (info lexbuf, ident)
-        else LIDENT (info lexbuf, ident) }
+        if Char.uppercase ident.[0] = ident.[0] then 
+          UIDENT (info lexbuf, ident)
+        else 
+          LIDENT (info lexbuf, ident) }
+| (uid_char id_char_rest* ".")+ id_char_rest+ as qident {
+    QIDENT(info lexbuf,qident)
+  }
 | int_char+ as integ { INT(info lexbuf, int_of_string integ) }
 | newline            { newline lexbuf; main lexbuf }
 | eof                { EOF(info lexbuf) } 

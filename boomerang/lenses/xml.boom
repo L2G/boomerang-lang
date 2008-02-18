@@ -1,0 +1,403 @@
+module Xml = 
+
+(* [WS] and [WSP] are regexps denoting whitespace and "positive" whitespace. *)
+let WS : regexp = [ \n]*
+let WSP : regexp = [ \n]+
+  
+(* sorting lenses *)
+let sort2 (l1:lens) (l2:lens) : lens = 
+  ( l1 . l2 | l2 ~ l1)
+
+test sort2 "a" "b" get "ab" = "ab"
+test sort2 "a" "b" get "ba" = "ab"
+
+let sort3 (l1:lens) (l2:lens) (l3:lens) : lens = 
+  let s23 : lens = sort2 l2 l3 in 
+  ( l1 . s23
+  | (l2 ~ l1) . l3
+  | l3 ~ (l1 . l2)
+  | s23 ~ l1 )
+
+test sort3 "a" "b" "c" get "abc" = "abc"
+test sort3 "a" "b" "c" get "acb" = "abc"
+test sort3 "a" "b" "c" get "bac" = "abc"
+test sort3 "a" "b" "c" get "bca" = "abc"
+test sort3 "a" "b" "c" get "cab" = "abc"
+test sort3 "a" "b" "c" get "cba" = "abc"
+
+(* sort4 requires that (l2,l4) and (l1,l3) be unambiguously
+   concatenable, as an artifact of the way we implement it using a
+   binary swap operator and composition. we wouldn't need this if we
+   had a more powerful permutation operator on lenses. *)
+let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens = 
+  let s12 : lens = sort2 l1 l2 in 
+  let s23 : lens = sort2 l2 l3 in 
+  let s34 : lens = sort2 l3 l4 in 
+  let s123 : lens = sort3 l1 l2 l3 in 
+  let s234 : lens = sort3 l2 l3 l4 in 
+  let f1324 : lens = atype l1 . (atype l3 ~ atype l2) . atype l4 in 
+    ( l1 . s234 
+    | s234 ~ l1
+    | ((l2 . l3) ~ l1) . l4
+    | (l2 ~ l1) . s34 
+    | (l3 ~ s12) . l4
+    | l4 ~ (l1 . s23)
+    | l4 ~ ((l2 ~ l1) . l3)
+    | l4 ~ (l3 ~ (l1 . l2))
+    | (l3 . l4) ~ (l1 . l2) 
+    | ( (l2 . l4) ~ (l1 . l3); f1324 )
+    | ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
+      
+test sort4 "a" "b" "c" "d" get "abcd" = "abcd"
+test sort4 "a" "b" "c" "d" get "abdc" = "abcd"
+test sort4 "a" "b" "c" "d" get "acbd" = "abcd"
+test sort4 "a" "b" "c" "d" get "acdb" = "abcd"
+test sort4 "a" "b" "c" "d" get "adbc" = "abcd"
+test sort4 "a" "b" "c" "d" get "adcb" = "abcd"
+test sort4 "a" "b" "c" "d" get "bacd" = "abcd"
+test sort4 "a" "b" "c" "d" get "badc" = "abcd"
+test sort4 "a" "b" "c" "d" get "bcad" = "abcd"
+test sort4 "a" "b" "c" "d" get "bcda" = "abcd"
+test sort4 "a" "b" "c" "d" get "bdac" = "abcd"
+test sort4 "a" "b" "c" "d" get "bdca" = "abcd"
+test sort4 "a" "b" "c" "d" get "cabd" = "abcd"
+test sort4 "a" "b" "c" "d" get "cadb" = "abcd"
+test sort4 "a" "b" "c" "d" get "cbad" = "abcd"
+test sort4 "a" "b" "c" "d" get "cbda" = "abcd"
+test sort4 "a" "b" "c" "d" get "cdab" = "abcd"
+test sort4 "a" "b" "c" "d" get "cdba" = "abcd"
+test sort4 "a" "b" "c" "d" get "dabc" = "abcd"
+test sort4 "a" "b" "c" "d" get "dacb" = "abcd"
+test sort4 "a" "b" "c" "d" get "dbac" = "abcd"
+test sort4 "a" "b" "c" "d" get "dbca" = "abcd"
+test sort4 "a" "b" "c" "d" get "dcab" = "abcd"
+test sort4 "a" "b" "c" "d" get "dcba" = "abcd"
+
+(* [qconst C A a c]: is like [const C a c], but accepts all of [A] in
+   the PUT/CREATE direction. *)
+let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
+  right_quot     
+    (const C a c)
+    (canonizer_of_lens (const A a a))
+
+(* [qins E e] is like [ins e], but accepts all of [E] in the
+   PUT/CREATE direction *)
+let qins (E:regexp) (e:string) : { "" <-> E } = 
+  qconst "" E e "" 
+
+(* unit tests for qins *)
+test qins [A-Z]+ "A" get "" = "A"
+test qins [A-Z]+ "A" create "ABC" = ""
+
+(* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
+   direction. *)
+let qdel (E:regexp) (e:string) : { E <-> "" } = 
+  left_quot 
+    (canonizer_of_lens (default (del E) e))
+    ""
+(* unit tests for qdel *)
+test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
+test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
+
+(* --------------------------------------------------------------------------- *)
+(* XML functions *)
+
+(* [xml_esc_char ex] maps an XML symbol -- either a character or an
+   escaped characeter -- to its equivalent representation in ASCII.
+   o [ex] is the set of excluded characters
+ *)
+let esc_char (excl_chars:regexp) : lens = 
+  ( [^&<>\n] - excl_chars
+  | "&gt;" <-> ">"
+  | "&lt;" <-> "<"
+  | "&amp;" <-> "&" )
+
+(* [esc_string_ends ex ends_ex] maps an XML-escaped string
+   beginning and ending with characters not in [ex] or [ends_ex], to
+   its equivalent representation in ASCII.
+   o [ex] the set of excluded characters.       
+   o [ends_ex] the set of excluded characters at the end points.
+*)
+let esc_string_ends (excl_chars:regexp) (ends_excl_chars:regexp) : lens = 
+  let echar : lens = esc_char excl_chars in 
+  let echar_ends : lens = esc_char (excl_chars | ends_excl_chars) in 
+  echar_ends . (echar* . echar_ends)?
+
+(* [esc_string ex] maps an XML-escaped string starting and
+   beginning with a non-space character, to its equivalent
+   representation in ASCII.
+   o [ex] the set of excluded characters.  
+*)
+let esc_string (excl_chars:regexp) : lens = 
+  esc_string_ends excl_chars [ ] 
+
+(* [open sp t] recognizes and deletes a string consisting of
+   whitespace and the start of an XML open tag.
+   o [sp] is used to canonize the leading whitespace.
+   o [t] is the tag.
+*)
+let raw_open (spaces:string) (tag:string) : lens = 
+  qdel WS spaces . 
+  del ("<" . tag) 
+
+(* [close] recognizes and deletes the string ">" *)
+let close : lens = 
+  del ">"
+
+(* [slash_close] recognizes and deletes strings consisting of
+   whitespace followed by "/>", which is used to terminate XML
+   elements whose children are all attributes.
+*)
+let slash_close : lens = 
+  qdel (WS . "/>") "/>"
+
+(* [open_tag sp t] recognizes and deletes a string consisting of
+   whitespace followed by an XML open tag.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+*)
+let open_tag (spaces:string) (tag:string) : lens = 
+  raw_open spaces tag . 
+  close
+
+(* [simple_close_tag t] recognizes and deletes a string consisting
+   of an XML close tag.
+   o [t] element tag.   
+*)
+let simple_close_tag (tag:string) : lens = 
+  del ("</" . tag . ">")
+
+(* [close_tag sp t] recognizes and deletes a string consisting of
+   whitespace followed by an XML close tag. 
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+*)
+let close_tag (spaces:string) (tag:string) : lens = 
+  qdel WS spaces . 
+  simple_close_tag tag
+
+(* [simple_elt sp t l] proecesses a single-line XML element.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [l] lens for processing the children.
+*)
+let simple_elt (spaces:string) (tag:string) (body:lens) : lens = 
+  open_tag spaces tag . 
+  body . 
+  simple_close_tag tag
+
+(* [elt sp t l] processes a multi-line XML element.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [l] lens for processing children.
+*)
+let elt (spaces:string) (tag:string) (body:lens) : lens = 
+  open_tag spaces tag . 
+  body . 
+  close_tag spaces tag
+  
+(* [attr n l] proceses a string consiting of whitespace and a
+   single XML attribute. Leading whitespace is canonized to a single
+   space.
+   o [n] attribute name.
+   o [l] lens for processing value.
+*)
+let attr (name:string) (value:lens) : lens = 
+  qdel WSP " " . 
+  del name . 
+  del "=\"" . 
+  value . 
+  del "\""
+    
+(* [attr1_elt sp t n v l] processes a multi-line XML element with
+   one attribute.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [n] attribute name.
+   o [v] lens for processing attribute value.
+   o [l] lens for processing element children.
+*)
+let attr1_elt (spaces:string) (tag:string) 
+    (name:string) (value:lens) 
+    (body:lens) : lens = 
+  raw_open spaces tag . 
+  attr name value . 
+  close . 
+  body . 
+  close_tag spaces tag 
+    
+(* [attr1_simple_elt sp t n v l] processes a single-line XML element with
+   one attribute.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [n] attribute name.
+   o [v] lens for processing attribute value.
+   o [l] lens for processing element children.
+*)
+let attr1_simple_elt (spaces:string) (tag:string) 
+    (name:string) (value:lens) 
+    (body:lens) : lens = 
+  raw_open spaces tag . 
+  attr name value . 
+  close . 
+  body . 
+  simple_close_tag tag 
+
+(* [attr2_elt sp t n1 v1 n2 v2 l] processes a multi-line XML
+   element with two attributes.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [ni] ith attribute name.
+   o [vi] lens for processing ith attribute value.
+   o [l] lens for processing element children.
+*)
+let attr2_elt (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (body:lens) : lens = 
+  raw_open spaces tag . 
+  sort2 
+    (attr name1 value1) 
+    (attr name2 value2) . 
+  close . 
+  body . 
+  close_tag spaces tag 
+
+(* [attrk_elt_no_kids sp t n1 v1 .. nk vk] processes a single-line XML element with
+   no children (other than its attributes.)
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [ni] ith attribute name.
+   o [vi] lens for processing ith attribute value.
+*)
+let attrs_elt_no_kids (spaces:string) (tag:string) 
+    (attrs:lens) : lens = 
+  raw_open spaces tag . 
+  attrs . 
+  slash_close
+
+let attr1_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) : lens = 
+  attrs_elt_no_kids spaces tag 
+    (attr name1 value1)
+    
+let attr2_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) : lens = 
+  attrs_elt_no_kids spaces tag 
+  (sort2
+    (attr name1 value1) 
+    (attr name2 value2))
+
+let attr3_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) : lens = 
+  attrs_elt_no_kids spaces tag 
+  (sort3 
+    (attr name1 value1) 
+    (attr name2 value2)  
+    (attr name3 value3))
+
+let attr4_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens)
+    (name4:string) (value4:lens) : lens = 
+  attrs_elt_no_kids spaces tag 
+  (sort4
+    (attr name1 value1) 
+    (attr name2 value2)  
+    (attr name3 value3)
+    (attr name4 value4))
+
+(* [attrk_open sp t n1 v1 .. nk vk] opens a single-line XML element with k attributes.
+   o [sp] canonical leading whitespace.
+   o [t] element tag.
+   o [ni] ith attribute name.
+   o [vi] lens for processing ith attribute value.
+*)
+let attrs_open (spaces:string) (tag:string) 
+    (attrs:lens) : lens = 
+  raw_open spaces tag . 
+  attrs . 
+  close  
+
+let attr1_elt_open (spaces:string) (tag:string)
+    (name1:string) (value1:lens) : lens = 
+  attrs_open spaces tag 
+    (attr name1 value1)
+
+let attr2_elt_open (spaces:string) (tag:string)
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) : lens = 
+  attrs_open spaces tag 
+    (sort2
+       (attr name1 value1)
+       (attr name2 value2))
+
+let attr3_elt_open (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) : lens = 
+  attrs_open spaces tag 
+    ( sort3
+        (attr name1 value1) 
+        (attr name2 value2)  
+        (attr name3 value3) )
+    
+let attr4_elt_open (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (name4:string) (value4:lens) : lens = 
+  attrs_open spaces tag 
+    ( sort4
+        (attr name1 value1) 
+        (attr name2 value2)  
+        (attr name3 value3) 
+        (attr name4 value4) )
+
+(* attrN_elt_swap2 *)
+let attr2_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (body:lens) : lens = 
+  (attr2_elt_open spaces tag 
+     name1 value1 
+     name2 value2 .
+   body . 
+   close_tag spaces tag); 
+  ( atype value1 . 
+    ( (atype value2) ~ (atype body) ) )
+
+let attr3_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (body:lens) : lens = 
+  (attr3_elt_open spaces tag 
+     name1 value1 
+     name2 value2 
+     name3 value3 . 
+   body . 
+   close_tag spaces tag); 
+  ( atype value1 . 
+    ( (atype value2 . atype value3) ~ (atype body) ) )
+
+let attr4_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (name4:string) (value4:lens) 
+    (body:lens) : lens = 
+  (attr4_elt_open spaces tag 
+     name1 value1 
+     name2 value2 
+     name3 value3
+     name4 value4 . 
+   body . 
+   close_tag spaces tag); 
+  ( atype value1 . 
+    ( (atype value2 . atype value3 . atype value4) ~ (atype body) ) )
+

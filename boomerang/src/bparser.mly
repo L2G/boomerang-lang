@@ -85,7 +85,22 @@ let parse_cset s =
             else (c1,c1)::acc in 
         go acc' in 
     go []
-      
+
+let parse_qid i qstr = 
+  let err () = raise (Parsing.Parse_error) in 
+  let j = ref 0 in
+  let l = String.length qstr in
+  let eos () = !j = l in
+  let get () = let r = qstr.[!j] in incr j; r in 
+  let next () = if eos () then err () else get () in 
+  let rec go (acc,x) = 
+    if eos () then (Safelist.rev acc,(i,x))
+    else 
+      let c1 = next () in 
+      if c1 = '.' then go ((i,x)::acc,"")
+      else go (acc,x ^ (String.make 1 c1)) in 
+  go ([],"")
+
 let mk_fun i params body = 
   Safelist.fold_right
     (fun p f -> (EFun(i,p,None,f)))
@@ -103,13 +118,13 @@ let mk_assert = function
   | None,None -> (fun i e -> e)
   | Some c,None -> 
       (fun i e -> 
-         EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_ctype"),c),e))
+         EApp(i,EApp(i,EVar(i,mk_native_prelude_qid "assert_ctype"),c),e))
   | None,Some a -> 
       (fun i e -> 
-         EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert_atype"),a),e))
+         EApp(i,EApp(i,EVar(i,mk_native_prelude_qid "assert_atype"),a),e))
   | Some c, Some a -> 
       (fun i e -> 
-         EApp(i,EApp(i,EApp(i,EVar(i,mk_prelude_qid "assert"),c),a),e))
+         EApp(i,EApp(i,EApp(i,EVar(i,mk_native_prelude_qid "assert"),c),a),e))
 
 let rec fixup_pat i = function
   | PVnt(_,Some _) -> syntax_error i "illegal pattern"
@@ -128,26 +143,28 @@ let check_pat i p params = match p,params with
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
 %token <Info.t> STRING REGEXP LENS CANONIZER UNIT
-%token <Info.t * string> STR UIDENT LIDENT CSET NSET
+%token <Info.t * string> STR UIDENT LIDENT QIDENT CSET NSET
 %token <Info.t * int> INT
-%token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE LANGLEBAR BARRANGLE RANGLE   
-%token <Info.t> ARROW DARROW LONGARROW LONGDARROW RANGLESLASH SLASHLANGLE
-%token <Info.t> CREATE BEGIN END FUN LET IN TEST INTO MATCH WITH
-%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH  
+%token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
+%token <Info.t> ARROW DARROW
+%token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
+%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
-%token <Info.t> GET PUT DOTGET DOTPUT DOTCREATE ERROR
+%token <Info.t> GET PUT CREATE INTO
+%token <Info.t> ERROR
 
-%start modl qid
+%start modl uid qid
 %type <Bsyntax.modl> modl
+%type <Bsyntax.id> uid
 %type <Bsyntax.qid> qid
 %%
 
 /* --------- MODULES ---------- */
 modl: 
-  | MODULE ident EQUAL opens decls EOF
+  | MODULE UIDENT EQUAL opens decls EOF
       { Mod(m $1 $6,$2,$4,$5) }
 opens:
-  | OPEN qid opens  
+  | OPEN UIDENT opens  
       { $2::$3 }
   | { [] }
 
@@ -174,7 +191,7 @@ decls:
         let so = mk_fun_sorto i $3 (Some s) in 
         DLet(i,Bind(i,p,so,f))::$8 }
 
-  | MODULE ident EQUAL decls END decls 
+  | MODULE UIDENT EQUAL decls END decls 
       { DMod(m $1 $5,$2,$4)::$6 }
 
   | TEST exp EQUAL test_res decls
@@ -240,15 +257,15 @@ exp:
 
 /* "get put" expressions -- snipped JNF*/
 gpexp: 
-  | cexp get aexp
+  | cexp GET aexp
       { let i = me $1 $3 in 
-        EApp(i, EApp(i, EVar(i, mk_prelude_qid "get"), $1), $3) }
-  | cexp put aexp INTO aexp        
+        EApp(i, EApp(i, EVar(i, mk_native_prelude_qid "get"), $1), $3) }
+  | cexp PUT aexp INTO aexp        
       { let i = me $1 $3 in 
-        EApp(i, EApp(i, EApp(i, EVar(i, mk_prelude_qid "put"), $1), $3), $5) }
-  | cexp create aexp               
+        EApp(i, EApp(i, EApp(i, EVar(i, mk_native_prelude_qid "put"), $1), $3), $5) }
+  | cexp CREATE aexp               
       { let i = me $1 $3 in 
-        EApp(i, EApp(i, EVar(i, mk_prelude_qid "create"), $1), $3) }
+        EApp(i, EApp(i, EVar(i, mk_native_prelude_qid "create"), $1), $3) }
   | cexp
       { $1 } 
 
@@ -303,13 +320,13 @@ iexp:
 
 /* swap expressions */
 sexp:
-  | sexp TILDE catexp
+  | sexp TILDE catexp 
       { let i = me $1 $3 in 
-        EApp(i, EApp(i, EVar(i, mk_prelude_qid "swap"), $1), $3) }
+        EApp(i, EApp(i, EVar(i, mk_native_prelude_qid "swap"), $1), $3) }
 
   | catexp 
       { $1 }
-
+  
 /* concat expressions */
 catexp:
   | catexp DOT texp                     
@@ -376,11 +393,11 @@ aexp:
   | LANGLE qid RANGLE
       { EMatch(m $1 $3,RS.empty, $2) }
 
-  | LANGLE ident COLON qid RANGLE
+  | LANGLE LIDENT COLON qid RANGLE
       { EMatch(m $1 $3,RS.t_of_string (snd $2), $4) }
 
-  | ident                               
-      { mk_var $1 }
+  | qid 
+      { EVar(info_of_qid $1,$1) }
 
   | CSET                                
       { let i1,s1 = $1 in 
@@ -544,10 +561,20 @@ dtsort_list2:
   | BAR dtsort dtsort_list2
       { $2 :: $3 }
 
-/* --------- QUALIFIED identIFIERS ---------- */
+/* --------- QUALIFIED IDENTIFIERS ---------- */
 qid:
-  | ident                                    { qid_of_id ($1) }
-  | qid DOT ident                            { qid_dot $1 (qid_of_id $3) }
+  | LIDENT
+      { qid_of_id $1 }
+  | UIDENT
+      { qid_of_id $1 }
+  | QIDENT
+      { let (i,qs) = $1 in parse_qid i qs }
+
+id:
+  | LIDENT
+      { $1 }
+  | UIDENT 
+      { $1 }
 
 /* --------- PARAMETERS ---------- */
 param_list:
@@ -558,7 +585,7 @@ param_list:
       { [] }
 
 param: 
-  | LPAREN ident COLON sort RPAREN
+  | LPAREN id COLON sort RPAREN
       { Param(fst $2,$2,$4) }
 
 /* --------- REPETITIONS ---------- */
@@ -582,31 +609,7 @@ rep:
       { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, Some n4)) }
 
 /* --------- MISC SYMBOLS ---------- */
-ident:
-  | LIDENT
-      { $1 }
-
+uid:
   | UIDENT
       { $1 }
-
-get:
-  | GET                                 
-      { $1 }
-
-  | DOTGET                              
-      { $1 }        
-
-put:
-  | PUT                                 
-      { $1 }
-
-  | DOTPUT                              
-      { $1 }        
-
-create:
-  | CREATE                                 
-      { $1 }
-
-  | DOTCREATE                              
-      { $1 }        
 

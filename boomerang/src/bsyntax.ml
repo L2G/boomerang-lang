@@ -30,16 +30,17 @@ type i = Info.t
 type id = i * string
 type qid = id list * id
 
-let mk_prelude_qid s = 
-  let i = Info.M (sprintf "%s built-in" s) in 
-  ([i,"Prelude"],(i,s))
+let mk_native_prelude_qid x = 
+  let i = Info.M (sprintf "%s built-in" x) in 
+  ([(i,"Native");(i,"Prelude")],(i,x))
 
 let info_of_id (i,_) = i
 let string_of_id (_,x) = x
 let id_compare (_,x1) (_,x2) = compare x1 x2
 let id_equal i1 i2 = (id_compare i1 i2 = 0)
 let qid_of_id id = [],id
-let qid_dot (qs1,x1) (qs2,x2) = (qs1@(x1::qs2),x2)
+let id_dot x1 (qs2,x2) = (x1::qs2,x2)
+let splice_id_dot x1 (qs2,x2) = (qs2@[x1],x2)
 let qid_compare (qs1,x1) (qs2,x2) = 
   let rec ids_compare xs1 xs2 = match xs1,xs2 with
     | [],[] -> 0
@@ -52,17 +53,19 @@ let qid_compare (qs1,x1) (qs2,x2) =
   in
     ids_compare (qs1@[x1]) (qs2@[x2])
 let qid_equal q1 q2 = (qid_compare q1 q2 = 0)
-let qid_prefix q1 q2 = 
-  let (is1,i1) = q1 in
-  let (is2,i2) = q2 in 
+let id_prefix q1 il2 = 
+  let (is1,i1) = q1 in 
   let il1 = is1 @ [i1] in
-  let il2 = is2 @ [i2] in
     ((Safelist.length il1) <= (Safelist.length il2)) 
     && (Safelist.for_all 
           (fun (i1,i2) -> id_equal i1 i2)
           (Safelist.combine il1 (Misc.take (Safelist.length il1) il2)))
 
 let qid_qualifiers (qs,_) = qs
+
+let info_of_qid = function
+  | [],(i,_) -> i
+  | (i1,_)::_,(i2,_) -> Info.merge_inc i1 i2
 
 let string_of_qid (qs,i) = 
   Printf.sprintf "%s%s"
@@ -135,7 +138,7 @@ type decl =
     | DTest of i * exp * test_result
         
 (* modules *)
-type modl = Mod of i * id * qid list * decl list
+type modl = Mod of i * id * id list * decl list
 
 let (^>) s1 s2 = SFunction(s1,s2)
 
@@ -385,7 +388,7 @@ and format_module (Mod (_, id, qs, ds)) =
   Util.format "@[module %s =@\n  @[" (string_of_id id);
   if qs <> [] then 
     Misc.format_list "@\n" 
-      (fun qid -> Util.format "open %s" (string_of_qid qid))
+      (fun x -> Util.format "open %s" (string_of_id x))
       qs;
   Misc.format_list "@\n" format_decl ds;
   Util.format "@\n@]@\n@]"

@@ -53,9 +53,9 @@ let test_all = Prefs.createBool "test-all" false
 
 (* [check_test m] returns true iff the command line arguments
    '-test-all' or '-test m' are set *)
-let check_test m = 
+let check_test ms = 
   Safelist.fold_left 
-    (fun r qs -> r or (qid_prefix (Bvalue.parse_qid qs) m))
+    (fun r qs -> r or (id_prefix (Bvalue.parse_qid qs) ms))
     (Prefs.read test_all)
     (Prefs.read tests)
 
@@ -88,8 +88,8 @@ sig
   val empty : unit -> t
   val get_ev : t -> Bregistry.REnv.t
   val set_ev : t -> Bregistry.REnv.t -> t
-  val get_ctx : t -> qid list
-  val set_ctx : t -> qid list -> t
+  val get_ctx : t -> id list
+  val set_ctx : t -> id list -> t
   val lookup : t -> qid -> v option
   val update : t -> qid -> v -> t
 end
@@ -108,7 +108,7 @@ module TEnv = struct
 end
 
 module CEnv : CEnvSig with type v = (sort * Bvalue.t) = struct
-  type t = qid list * (Bregistry.REnv.t)
+  type t = id list * (Bregistry.REnv.t)
   type v = sort * Bvalue.t
 
   let empty () = ([], (Bregistry.REnv.empty ()))    
@@ -147,7 +147,8 @@ module SCEnv : CEnvSig with type v = sort = struct
   let get_ctx = CEnv.get_ctx
   let set_ctx = CEnv.set_ctx
 
-  let lookup sev q = match CEnv.lookup sev q with 
+  let lookup sev q = 
+    match CEnv.lookup sev q with 
     | None -> None
     | Some (s,_) -> Some s
   let update sev q s = 
@@ -473,15 +474,14 @@ and check_binding ((tev,sev) as evs) = function
       ((tev,bsev),Safelist.rev xs_rev,new_b)
 
 (* type check a single declaration *)
-let rec check_decl ((tev,sev) as evs) m = function 
+let rec check_decl ((tev,sev) as evs) ms = function 
   | DLet(i,b) -> 
       let bevs,xs,new_b = check_binding evs b in 
       let new_d = DLet(i,new_b) in 
       (bevs,xs,new_d)
   | DMod(i,n,ds) ->
-      let n_qid = qid_of_id n in        
-      let mn = qid_dot m n_qid in
-      let (m_tev,m_sev),names,new_ds= check_module_aux evs mn ds in
+      let ms = ms @ [n] in 
+      let (m_tev,m_sev),names,new_ds= check_module_aux evs ms ds in
       let n_sev, names_rev = Safelist.fold_left 
         (fun (n_sev, names) q -> 
            match Bregistry.REnv.lookup (SCEnv.get_ev m_sev) q with
@@ -490,8 +490,8 @@ let rec check_decl ((tev,sev) as evs) m = function
                   Util.format "@[declaration for %s missing@]"
                     (string_of_qid q))
             | Some q_rv ->
-                let nq_dot_q = qid_dot n_qid q in
-                  (SCEnv.update n_sev nq_dot_q (s_of_rv q_rv), nq_dot_q::names))
+                let nq = splice_id_dot n q in
+                (SCEnv.update n_sev nq (s_of_rv q_rv), nq::names))
         (sev,[])
         names in 
       let new_d = DMod(i,n,new_ds) in 
@@ -544,7 +544,7 @@ let check_module = function
   | Mod(i,m,nctx,ds) -> 
       let tev = TEnv.empty () in 
       let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Bregistry.pre_ctx) in
-      let _,_,new_ds = check_module_aux (tev,sev) (qid_of_id m) ds in 
+      let _,_,new_ds = check_module_aux (tev,sev) [m] ds in 
       Mod(i,m,nctx,new_ds)
 
 (* --------------- Compiler --------------- *)
@@ -784,7 +784,7 @@ and compile_binding cev = function
               (cev,[]) binds in 
       (bcev,Safelist.rev xs_rev)
 
-let rec compile_decl cev m = function
+let rec compile_decl cev ms = function
   | DLet(i,b) -> 
       let bcev,xs = compile_binding cev b in
       (bcev,xs)
@@ -804,14 +804,13 @@ let rec compile_decl cev m = function
       (new_cev,[qx])
 
   | DMod(i,n,ds) ->
-      let n_qid = qid_dot m (qid_of_id n) in 
-      let m_cev, names = compile_mod_aux cev n_qid ds in
+      let m_cev, names = compile_mod_aux cev ms ds in
       let n_cev,names_rev = 
         Safelist.fold_left
           (fun (n_cev, names) q ->
-            match Bregistry.REnv.lookup (CEnv.get_ev m_cev) q with
+           match Bregistry.REnv.lookup (CEnv.get_ev m_cev) q with
               | Some rv ->
-                  let nq = qid_dot n_qid q in
+                  let nq = splice_id_dot n q in
                   (CEnv.update cev nq (p_of_rv rv), nq::names)
               | None -> 
                   run_error i "compile_decl" 
@@ -821,12 +820,12 @@ let rec compile_decl cev m = function
           names in
         (n_cev, Safelist.rev names_rev)
   | DTest(i,e,tr) ->
-      if check_test m then 
+      if check_test ms then 
         begin
           let vo = 
             try let s,v = compile_exp cev e in 
             OK(s,v)
-            with (Error.Harmony_error(m)) -> Error m in 
+            with (Error.Harmony_error(err)) -> Error err in 
           match vo,tr with 
             | OK (_,v), TestShow ->
                 Util.format "Test result:@ "; 
@@ -874,13 +873,13 @@ let rec compile_decl cev m = function
                        Util.format "@[<2>%s <-> %s@]" (R.string_of_t c) (R.string_of_t a);
                        Util.format "@\n%!");
                     end                      
-            | Error m, TestShow 
-            | Error m, TestSort _ 
-            | Error m, TestLensType _ -> 
+            | Error err, TestShow 
+            | Error err, TestSort _ 
+            | Error err, TestLensType _ -> 
                 test_error i 
                   (fun () -> 
                     Util.format "Test result: error";
-                    m (); 
+                    err (); 
                     Util.format "%!")
             | Error _, TestError -> ()
             | OK(_,v), TestValue res -> 
@@ -891,13 +890,13 @@ let rec compile_decl cev m = function
                         Util.format "@\nExpected@ "; Bvalue.format resv;
                         Util.format "@ but found@ "; Bvalue.format v; 
                         Util.format "@\n%!")
-            | Error m, TestValue res -> 
+            | Error err, TestValue res -> 
                 let resv = snd (compile_exp cev res) in
                   test_error i 
                     (fun () ->
                       Util.format "@\nExpected@ "; Bvalue.format resv; 
                       Util.format "@ but found an error:@ "; 
-                      m (); 
+                      err (); 
                       Util.format "@\n%!")
             | OK(_,v), TestError -> 
                 test_error i 
@@ -909,17 +908,16 @@ let rec compile_decl cev m = function
         end;
       (cev, [])
         
-and compile_mod_aux cev m ds = 
+and compile_mod_aux cev ms ds = 
   Safelist.fold_left
     (fun (cev, names) di ->
-      let m_cev, new_names = compile_decl cev m di in
+      let m_cev, new_names = compile_decl cev ms di in
         (m_cev, names@new_names))
     (cev,[])
     ds
 
 let compile_module = function
   | Mod(i,m,nctx,ds) -> 
-      let m_qid = qid_of_id m in
       let cev = CEnv.set_ctx (CEnv.empty ()) (nctx@Bregistry.pre_ctx) in
-      let new_cev,_ = compile_mod_aux cev m_qid ds in
-      Bregistry.register_env (CEnv.get_ev new_cev) m_qid
+      let new_cev,_ = compile_mod_aux cev [m] ds in
+      Bregistry.register_env (CEnv.get_ev new_cev) m

@@ -39,102 +39,6 @@ let parens (l:lens) : lens =
 (* [quotes s] inserts enclosing quotation marks. *) 
 let quotes (l:lens) : lens = 
   ins "\"" . l . ins "\"" 
-
-(* sorting lenses *)
-let sort2 (l1:lens) (l2:lens) : lens = 
-  ( l1 . l2
-  | l2 ~ l1)
-
-test sort2 "a" "b" get "ab" = "ab"
-test sort2 "a" "b" get "ba" = "ab"
-
-let sort3 (l1:lens) (l2:lens) (l3:lens) : lens = 
-  let s23 : lens = sort2 l2 l3 in 
-  ( l1 . s23
-  | (l2 ~ l1) . l3
-  | l3 ~ (l1 . l2)
-  | s23 ~ l1 )
-
-test sort3 "a" "b" "c" get "abc" = "abc"
-test sort3 "a" "b" "c" get "acb" = "abc"
-test sort3 "a" "b" "c" get "bac" = "abc"
-test sort3 "a" "b" "c" get "bca" = "abc"
-test sort3 "a" "b" "c" get "cab" = "abc"
-test sort3 "a" "b" "c" get "cba" = "abc"
-
-(* sort4 requires that (l2,l4) and (l1,l3) be unambiguously
-   concatenable, as an artifact of the way we implement it using a
-   binary swap operator and composition. we wouldn't need this if we
-   had a more powerful permutation operator on lenses. *)
-let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens = 
-  let s12 : lens = sort2 l1 l2 in 
-  let s23 : lens = sort2 l2 l3 in 
-  let s34 : lens = sort2 l3 l4 in 
-  let s123 : lens = sort3 l1 l2 l3 in 
-  let s234 : lens = sort3 l2 l3 l4 in 
-  let f1324 : lens = atype l1 . (atype l3 ~ atype l2) . atype l4 in 
-    ( l1 . s234 
-    | s234 ~ l1
-    | ((l2 . l3) ~ l1) . l4
-    | (l2 ~ l1) . s34 
-    | (l3 ~ s12) . l4
-    | l4 ~ (l1 . s23)
-    | l4 ~ ((l2 ~ l1) . l3)
-    | l4 ~ (l3 ~ (l1 . l2))
-    | (l3 . l4) ~ (l1 . l2) 
-    | ( (l2 . l4) ~ (l1 . l3); f1324 )
-    | ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
-      
-test sort4 "a" "b" "c" "d" get "abcd" = "abcd"
-test sort4 "a" "b" "c" "d" get "abdc" = "abcd"
-test sort4 "a" "b" "c" "d" get "acbd" = "abcd"
-test sort4 "a" "b" "c" "d" get "acdb" = "abcd"
-test sort4 "a" "b" "c" "d" get "adbc" = "abcd"
-test sort4 "a" "b" "c" "d" get "adcb" = "abcd"
-test sort4 "a" "b" "c" "d" get "bacd" = "abcd"
-test sort4 "a" "b" "c" "d" get "badc" = "abcd"
-test sort4 "a" "b" "c" "d" get "bcad" = "abcd"
-test sort4 "a" "b" "c" "d" get "bcda" = "abcd"
-test sort4 "a" "b" "c" "d" get "bdac" = "abcd"
-test sort4 "a" "b" "c" "d" get "bdca" = "abcd"
-test sort4 "a" "b" "c" "d" get "cabd" = "abcd"
-test sort4 "a" "b" "c" "d" get "cadb" = "abcd"
-test sort4 "a" "b" "c" "d" get "cbad" = "abcd"
-test sort4 "a" "b" "c" "d" get "cbda" = "abcd"
-test sort4 "a" "b" "c" "d" get "cdab" = "abcd"
-test sort4 "a" "b" "c" "d" get "cdba" = "abcd"
-test sort4 "a" "b" "c" "d" get "dabc" = "abcd"
-test sort4 "a" "b" "c" "d" get "dacb" = "abcd"
-test sort4 "a" "b" "c" "d" get "dbac" = "abcd"
-test sort4 "a" "b" "c" "d" get "dbca" = "abcd"
-test sort4 "a" "b" "c" "d" get "dcab" = "abcd"
-test sort4 "a" "b" "c" "d" get "dcba" = "abcd"
-
-(* [qconst C A a c]: is like [const C a c], but accepts all of [A] in
-   the PUT/CREATE direction. *)
-let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
-  right_quot     
-    (const C a c)
-    (canonizer_of_lens (const A a a))
-
-(* [qins E e] is like [ins e], but accepts all of [E] in the
-   PUT/CREATE direction *)
-let qins (E:regexp) (e:string) : { "" <-> E } = 
-  qconst "" E e "" 
-
-(* unit tests for qins *)
-test qins [A-Z]+ "A" get "" = "A"
-test qins [A-Z]+ "A" create "ABC" = ""
-
-(* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
-   direction. *)
-let qdel (E:regexp) (e:string) : { E <-> "" } = 
-  left_quot 
-    (canonizer_of_lens (default (del E) e))
-    ""
-(* unit tests for qdel *)
-test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
-test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
   
 (* --------------------------------------------------------------------------- *)
 (* CONSTANTS *)
@@ -191,328 +95,26 @@ let NL8 = NL7 . "  "
 let NL9 = NL8 . "  "
 let NL10 = NL9 . "  "
 
-(* --------------------------------------------------------------------------- *)
-(* XML functions *)
-
-(* [xml_esc_char ex] maps an XML symbol -- either a character or an
-   escaped characeter -- to its equivalent representation in ASCII.
-   o [ex] is the set of excluded characters
- *)
-let xml_esc_char (excl_chars:regexp) : lens = 
-  ( [^&<>\n] - excl_chars
-  | "&gt;" <-> ">"
-  | "&lt;" <-> "<"
-  | "&amp;" <-> "&" )
-
-(* [xml_esc_string_ends ex ends_ex] maps an XML-escaped string
-   beginning and ending with characters not in [ex] or [ends_ex], to
-   its equivalent representation in ASCII.
-   o [ex] the set of excluded characters.       
-   o [ends_ex] the set of excluded characters at the end points.
-*)
-let xml_esc_string_ends (excl_chars:regexp) (ends_excl_chars:regexp) : lens = 
-  let esc_char : lens = xml_esc_char excl_chars in 
-  let esc_char_ends : lens = xml_esc_char (excl_chars | ends_excl_chars) in 
-  esc_char_ends . (esc_char* . esc_char_ends)?
-
-(* [xml_esc_string ex] maps an XML-escaped string starting and
-   beginning with a non-space character, to its equivalent
-   representation in ASCII.
-   o [ex] the set of excluded characters.  
-*)
-let xml_esc_string (excl_chars:regexp) : lens = 
-  xml_esc_string_ends excl_chars [ ] 
-
-let esc : lens = xml_esc_string [] 
-let esc_s : lens = xml_esc_string [;]
-let esc_c : lens = xml_esc_string [,] 
-let esc_cs : lens = xml_esc_string [,;]
-let esc_csp : lens = xml_esc_string [,;()]
-let esc_p : lens = xml_esc_string [()]
-let esc_q : lens = xml_esc_string [""] 
-let esc_dq : lens = xml_esc_string ["".] 
-let esc_dsq : lens = xml_esc_string [\-;""] 
-let esc_sq : lens = xml_esc_string [;""] 
-let esc_qp : lens = xml_esc_string [""()] 
-let esc_cq : lens = xml_esc_string [,""] 
-let esc_cdq : lens = xml_esc_string [.,""] 
-let esc_d : lens = xml_esc_string [.] 
-let esc_n : lens = xml_esc_string [:]
-let esc_p : lens = xml_esc_string [ ]
+let esc : lens = Xml.esc_string [] 
+let esc_s : lens = Xml.esc_string [;]
+let esc_c : lens = Xml.esc_string [,] 
+let esc_cs : lens = Xml.esc_string [,;]
+let esc_csp : lens = Xml.esc_string [,;()]
+let esc_p : lens = Xml.esc_string [()]
+let esc_q : lens = Xml.esc_string [""] 
+let esc_dq : lens = Xml.esc_string ["".] 
+let esc_dsq : lens = Xml.esc_string [\-;""] 
+let esc_sq : lens = Xml.esc_string [;""] 
+let esc_qp : lens = Xml.esc_string [""()] 
+let esc_cq : lens = Xml.esc_string [,""] 
+let esc_cdq : lens = Xml.esc_string [.,""] 
+let esc_d : lens = Xml.esc_string [.] 
+let esc_n : lens = Xml.esc_string [:]
+let esc_p : lens = Xml.esc_string [ ]
 let raw : regexp = 
   let e : regexp = [^;\n ] in 
   let m : regexp = [^;\n] in 
   e . (m* . e)?
-
-(* [xml_open sp t] recognizes and deletes a string consisting of
-   whitespace and the start of an XML open tag.
-   o [sp] is used to canonize the leading whitespace.
-   o [t] is the tag.
-*)
-let xml_open (spaces:string) (tag:string) : lens = 
-  qdel WS spaces . 
-  del ("<" . tag) 
-
-(* [xml_close] recognizes and deletes the string ">" *)
-let xml_close : lens = 
-  del ">"
-
-(* [xml_slash_close] recognizes and deletes strings consisting of
-   whitespace followed by "/>", which is used to terminate XML
-   elements whose children are all attributes.
-*)
-let xml_slash_close : lens = 
-  qdel (WS . "/>") "/>"
-
-(* [xml_open_tag sp t] recognizes and deletes a string consisting of
-   whitespace followed by an XML open tag.
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-*)
-let xml_open_tag (spaces:string) (tag:string) : lens = 
-  xml_open spaces tag . 
-  xml_close
-
-(* [xml_simple_close_tag t] recognizes and deletes a string consisting
-   of an XML close tag.
-   o [t] element tag.   
-*)
-let xml_simple_close_tag (tag:string) : lens = 
-  del ("</" . tag . ">")
-
-(* [xml_close_tag sp t] recognizes and deletes a string consisting of
-   whitespace followed by an XML close tag. 
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-*)
-let xml_close_tag (spaces:string) (tag:string) : lens = 
-  qdel WS spaces . 
-  xml_simple_close_tag tag
-
-(* [xml_simple_elt sp t l] proecesses a single-line XML element.
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [l] lens for processing the children.
-*)
-let xml_simple_elt (spaces:string) (tag:string) (body:lens) : lens = 
-  xml_open_tag spaces tag . 
-  body . 
-  xml_simple_close_tag tag
-
-(* [xml_elt sp t l] processes a multi-line XML element.
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [l] lens for processing children.
-*)
-let xml_elt (spaces:string) (tag:string) (body:lens) : lens = 
-  xml_open_tag spaces tag . 
-  body . 
-  xml_close_tag spaces tag
-  
-(* [xml_attr n l] proceses a string consiting of whitespace and a
-   single XML attribute. Leading whitespace is canonized to a single
-   space.
-   o [n] attribute name.
-   o [l] lens for processing value.
-*)
-let xml_attr (name:string) (value:lens) : lens = 
-  qdel WSP " " . 
-  del name . 
-  del "=\"" . 
-  value . 
-  del "\""
-    
-(* [xml_attr1_elt sp t n v l] processes a multi-line XML element with
-   one attribute.
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [n] attribute name.
-   o [v] lens for processing attribute value.
-   o [l] lens for processing element children.
-*)
-let xml_attr1_elt (spaces:string) (tag:string) 
-    (name:string) (value:lens) 
-    (body:lens) : lens = 
-  xml_open spaces tag . 
-  xml_attr name value . 
-  xml_close . 
-  body . 
-  xml_close_tag spaces tag 
-    
-(* [xml_attr1_simple_elt sp t n v l] processes a single-line XML element with
-   one attribute.
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [n] attribute name.
-   o [v] lens for processing attribute value.
-   o [l] lens for processing element children.
-*)
-let xml_attr1_simple_elt (spaces:string) (tag:string) 
-    (name:string) (value:lens) 
-    (body:lens) : lens = 
-  xml_open spaces tag . 
-    xml_attr name value . 
-    xml_close . 
-    body . 
-    xml_simple_close_tag tag 
-
-(* [xml_attr2_elt sp t n1 v1 n2 v2 l] processes a multi-line XML
-   element with two attributes.
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [ni] ith attribute name.
-   o [vi] lens for processing ith attribute value.
-   o [l] lens for processing element children.
-*)
-let xml_attr2_elt (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (body:lens) : lens = 
-  xml_open spaces tag . 
-  sort2 
-    (xml_attr name1 value1) 
-    (xml_attr name2 value2) . 
-  xml_close . 
-  body . 
-  xml_close_tag spaces tag 
-
-(* [xml_attrk_elt_no_kids sp t n1 v1 .. nk vk] processes a single-line XML element with
-   no children (other than its attributes.)
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [ni] ith attribute name.
-   o [vi] lens for processing ith attribute value.
-*)
-let xml_attrs_elt_no_kids (spaces:string) (tag:string) 
-    (attrs:lens) : lens = 
-  xml_open spaces tag . 
-  attrs . 
-  xml_slash_close
-
-let xml_attr1_elt_no_kids (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) : lens = 
-  xml_attrs_elt_no_kids spaces tag 
-    (xml_attr name1 value1)
-    
-let xml_attr2_elt_no_kids (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) : lens = 
-  xml_attrs_elt_no_kids spaces tag 
-  (sort2
-    (xml_attr name1 value1) 
-    (xml_attr name2 value2))
-
-let xml_attr3_elt_no_kids (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) : lens = 
-  xml_attrs_elt_no_kids spaces tag 
-  (sort3 
-    (xml_attr name1 value1) 
-    (xml_attr name2 value2)  
-    (xml_attr name3 value3))
-
-let xml_attr4_elt_no_kids (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (name3:string) (value3:lens)
-    (name4:string) (value4:lens) : lens = 
-  xml_attrs_elt_no_kids spaces tag 
-  (sort4
-    (xml_attr name1 value1) 
-    (xml_attr name2 value2)  
-    (xml_attr name3 value3)
-    (xml_attr name4 value4))
-
-(* [xml_attrk_open sp t n1 v1 .. nk vk] opens a single-line XML element with k attributes.
-   o [sp] canonical leading whitespace.
-   o [t] element tag.
-   o [ni] ith attribute name.
-   o [vi] lens for processing ith attribute value.
-*)
-let xml_attrs_open (spaces:string) (tag:string) 
-    (attrs:lens) : lens = 
-  xml_open spaces tag . 
-  attrs . 
-  xml_close  
-
-let xml_attr1_elt_open (spaces:string) (tag:string)
-    (name1:string) (value1:lens) : lens = 
-  xml_attrs_open spaces tag 
-    (xml_attr name1 value1)
-
-let xml_attr2_elt_open (spaces:string) (tag:string)
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) : lens = 
-  xml_attrs_open spaces tag 
-    (sort2
-       (xml_attr name1 value1)
-       (xml_attr name2 value2))
-
-let xml_attr3_elt_open (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) : lens = 
-  xml_attrs_open spaces tag 
-    ( sort3
-        (xml_attr name1 value1) 
-        (xml_attr name2 value2)  
-        (xml_attr name3 value3) )
-    
-let xml_attr4_elt_open (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) 
-    (name4:string) (value4:lens) : lens = 
-  xml_attrs_open spaces tag 
-    ( sort4
-        (xml_attr name1 value1) 
-        (xml_attr name2 value2)  
-        (xml_attr name3 value3) 
-        (xml_attr name4 value4) )
-
-(* xml_attrN_elt_swap2 *)
-let xml_attr2_elt_swap2 (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (body:lens) : lens = 
-  (xml_attr2_elt_open spaces tag 
-     name1 value1 
-     name2 value2 .
-   body . 
-   xml_close_tag spaces tag); 
-  ( atype value1 . 
-    ( (atype value2) ~ (atype body) ) )
-
-let xml_attr3_elt_swap2 (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) 
-    (body:lens) : lens = 
-  (xml_attr3_elt_open spaces tag 
-     name1 value1 
-     name2 value2 
-     name3 value3 . 
-   body . 
-   xml_close_tag spaces tag); 
-  ( atype value1 . 
-    ( (atype value2 . atype value3) ~ (atype body) ) )
-
-let xml_attr4_elt_swap2 (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) 
-    (name4:string) (value4:lens) 
-    (body:lens) : lens = 
-  (xml_attr4_elt_open spaces tag 
-     name1 value1 
-     name2 value2 
-     name3 value3
-     name4 value4 . 
-   body . 
-   xml_close_tag spaces tag); 
-  ( atype value1 . 
-    ( (atype value2 . atype value3 . atype value4) ~ (atype body) ) )
 
 (* --------------------------------------------------------------------------- *)
 (* ASCII Helpers *)
@@ -545,8 +147,8 @@ let split_terminate (p:string * lens) : lens =
 
 (* insert strings into the view *)
 let space : lens = ins " " 
-let qspace : lens = qins [ ]* ""
-let qsp : lens = qins [ ]+ " "
+let qspace : lens = Xml.qins [ ]* ""
+let qsp : lens = Xml.qins [ ]+ " "
 let semi : lens = ins ";"
 let colon : lens = ins ":"
 let dot : lens = ins "." 
@@ -579,7 +181,7 @@ let qualifiers : lens =
    the entire lens on a datatype and using types to determine which
    branch we are in. Second, the sequence length is contained in the
    "length" attribute of the "sequence" element, which appears at the
-   *end* of the entry. Thus, "id_xml_start" lens actually only
+   *end* of the entry. Thus, "id_Xml.start" lens actually only
    generates the start of the ID line; the end of the line is
    generated in the "uniprot_entry" lens using "duplicate" on the
    "sequence" element, and a "swap" to pull it up to the top.
@@ -600,12 +202,12 @@ let id_xml_start (ty:entry) : lens =
     | TrEMBL    -> ins "Unreviewed" ) . 
     semi in 
   let SequenceLength : lens = 
-    qins DIGIT+ "000" . qsp . 
+    Xml.qins DIGIT+ "000" . qsp . 
     ins "AA" . 
     dot in 
   (* id_xml body *)
   ins id_tag . 
-  xml_simple_elt NL1 "name" 
+  Xml.simple_elt NL1 "name" 
     begin 
       key EntryName . qsp . 
       Status . qsp 
@@ -636,7 +238,7 @@ let ac_xml : lens =
   let AC_number : regexp = 
     ( [A-NR-Z] . DIGIT . ULETTER . UALPHANUM{2} . DIGIT 
     | [OPQ]    . DIGIT . UALPHANUM{3}           . DIGIT ) in       
-  let ac_elt : lens = xml_simple_elt NL1 "accession" AC_number in 
+  let ac_elt : lens = Xml.simple_elt NL1 "accession" AC_number in 
   ins ac_tag . 
   qspace . 
   iter_with_sqsp ac_elt . 
@@ -703,7 +305,7 @@ let dt_lines (ty:entry) : lens =
     | SwissProt -> "Swiss-Prot" 
     | TrEMBL -> "TrEMBL" in 
   ins dt_tag . 
-  xml_attr4_elt_open NL1 "entry" 
+  Xml.attr4_elt_open NL1 "entry" 
     "created" (date . comma . qsp . ins "integrated into UniProtKB/")
     "dataset" (dataset . dot . ins NL)
     "modified" (ins dt_tag . date . comma. qsp)
@@ -738,17 +340,17 @@ test dt_lines SwissProt create
 let de_tag : string = tag "DE" 
 
 let de_xml : lens = 
-  let Description : lens = xml_esc_string [;()[\]] in 
+  let Description : lens = Xml.esc_string [;()[\]] in 
   let name (space:string) : lens =
-    xml_open space "name" . 
-    ( (xml_attr "ref" (qsp . brackets NUMBER))? ~ 
-     (xml_close . Description) ) . 
-    xml_simple_close_tag "name" in 
+    Xml.raw_open space "name" . 
+    ( (Xml.attr "ref" (qsp . brackets NUMBER))? ~ 
+     (Xml.close . Description) ) . 
+    Xml.simple_close_tag "name" in 
   let (name2,name3) : lens * lens = name NL2, name NL3 in 
-  let names (tag:string) : lens = xml_elt NL2 tag (name3 . (parens name3)* ) in 
+  let names (tag:string) : lens = Xml.elt NL2 tag (name3 . (parens name3)* ) in 
   let (domain,component) : lens * lens = names "domain", names "component" in 
     ins de_tag .
-    xml_elt NL1 "protein" 
+    Xml.elt NL1 "protein" 
       begin
         name2 . (qsp . parens name2)* . 
         (qsp . brackets (ins "Includes" . colon . qsp . iter_with_sqsp domain))? . 
@@ -808,7 +410,7 @@ let gn_tag : string = tag "GN"
 
 let gn_xml : lens = 
   let gn_aux (ty:string) (f:lens -> lens) : lens = 
-    xml_attr1_simple_elt NL2 "name" 
+    Xml.attr1_simple_elt NL2 "name" 
       "type" (del ty) 
       (f esc_cs) in 
   let gn_primary : lens = 
@@ -833,7 +435,7 @@ let gn_xml : lens =
     semi in 
   let gn_elt : lens = 
     ins gn_tag . 
-    xml_elt NL1 "gene" gn_names in 
+    Xml.elt NL1 "gene" gn_names in 
   let gn_elt_line : lens = split (gn_tag,gn_elt) in
     gn_elt_line . 
     (ins "\n" . ins gn_tag . ins "and\n" . gn_elt_line)*
@@ -873,7 +475,7 @@ test gn_line create
    used to format the OH line. *)
 let names_xml (spaces:string) : lens = 
   let os_aux (ty:string) (f:lens -> lens) : lens = 
-    xml_attr1_simple_elt spaces "name" 
+    Xml.attr1_simple_elt spaces "name" 
       "type" (del ty) 
       (f esc_csp) in 
   let scientific : lens = os_aux "scientific" (fun (l:lens) -> l) in 
@@ -919,12 +521,12 @@ let og_tag : string = tag "OG"
 
 let og_xml : lens = 
   let og_plasmid : lens = 
-    xml_attr1_elt NL1 "geneLocation" "type" (del "plasmid") 
+    Xml.attr1_elt NL1 "geneLocation" "type" (del "plasmid") 
       (ins "Plasmid" . 
        qsp . 
-       xml_simple_elt NL2 "name" esc_c) in
+       Xml.simple_elt NL2 "name" esc_c) in
   let og_other : lens = 
-    xml_attr1_elt_no_kids NL1 "geneLocation" "type"   
+    Xml.attr1_elt_no_kids NL1 "geneLocation" "type"   
       ( "hydrogenosome" <-> "Hydrogenosome" 
       | "mitochondrion" <-> "Mitochondrion" 
       | "nucleomorph"   <-> "Nucleomorph"   
@@ -970,9 +572,9 @@ test og_line get
 let oc_tag : string = tag "OC"
 
 let oc_xml : lens = 
-  let oc_aux : lens = xml_simple_elt NL3 "taxon" esc_s in 
+  let oc_aux : lens = Xml.simple_elt NL3 "taxon" esc_s in 
   ins oc_tag . 
-  xml_elt NL2 "lineage" (oc_aux . (semi . space . oc_aux)* ) . 
+  Xml.elt NL2 "lineage" (oc_aux . (semi . space . oc_aux)* ) . 
   dot
 
 let oc_line : lens = split_terminate (oc_tag,oc_xml)
@@ -1034,7 +636,7 @@ test oc_line create
    format the OH line. *)
 let ncbi_xml (spaces:string) : lens = 
   ins "NCBI_TaxID=" . 
-  ( xml_attr3_elt_no_kids spaces "dbReference"
+  ( Xml.attr3_elt_no_kids spaces "dbReference"
      "type" (del "NCBI Taxonomy")
      "key" (del NUMBER)          
      "id" (NUMBER) ) . 
@@ -1073,7 +675,7 @@ let oh_tag : string = tag "OH"
 
 let oh_xml : lens =
   ins oh_tag . 
-  xml_attr1_elt NL1 "organism" "key" (del NUMBER) 
+  Xml.attr1_elt NL1 "organism" "key" (del NUMBER) 
   (names_xml NL2 ~ (ncbi_xml NL2 . qsp)) . 
   dot 
 
@@ -1103,10 +705,10 @@ test oh_line get
 (* Organism block *)
 
 let organism_block = 
-  xml_attr1_elt_open NL1 "organism" "key" (del NUMBER) . 
+  Xml.attr1_elt_open NL1 "organism" "key" (del NUMBER) . 
   os_line . 
   (((ox_line ~ oc_line) . 
-   xml_close_tag NL1 "organism" . 
+   Xml.close_tag NL1 "organism" . 
    oh_line* ) ~
   og_line)
 
@@ -1158,7 +760,7 @@ let rn_tag : string = tag "RN"
 
 let rn_xml : lens = 
   ins rn_tag . 
-    xml_attr1_elt_open NL1 "reference" "key" (brackets NUMBER) 
+    Xml.attr1_elt_open NL1 "reference" "key" (brackets NUMBER) 
 
 let rn_line : lens = 
   terminate rn_xml
@@ -1184,7 +786,7 @@ let rp_tag : string = tag "RP"
 
 let rp_xml : lens = 
   ins rp_tag . 
-  xml_simple_elt NL2 "scope" esc . 
+  Xml.simple_elt NL2 "scope" esc . 
   dot
 
 let rp_line : lens =  split_terminate (rp_tag,rp_xml)
@@ -1210,7 +812,7 @@ let rc_tag : string = tag "RC"
 
 let rc_xml : lens = 
   let rx_aux (xml:string) (ascii:string) : lens = 
-    let l : lens = xml_simple_elt NL3 xml esc_cs in 
+    let l : lens = Xml.simple_elt NL3 xml esc_cs in 
     ins ascii . ins "=" . 
     l . 
     (( comma . space . l)* . 
@@ -1225,7 +827,7 @@ let rc_xml : lens =
   let final_tissue : lens = ((strain | final_plasmid | final_transposon) . qsp)? . tissue in 
   let all = strain | final_tissue | final_plasmid | final_transposon in 
   ins rc_tag . 
-  xml_elt NL2 "source" all 
+  Xml.elt NL2 "source" all 
 
 let rc_line : lens = split_terminate (rc_tag,rc_xml)
 
@@ -1262,7 +864,7 @@ let rx_tag : string = tag "RX"
 
 let rx_xml : lens = 
   let rx_aux (db:string) : lens = 
-    let l : lens = xml_attr3_elt_no_kids NL3 "dbReference" 
+    let l : lens = Xml.attr3_elt_no_kids NL3 "dbReference" 
       "type" (del db)
       "key" (del NUMBER) 
       "id" esc_s in 
@@ -1300,7 +902,7 @@ let rg_tag : string = tag "RG"
 
 let rg_xml : lens = 
   ins rg_tag . 
-  xml_attr1_elt_no_kids NL4 "consortium" "name" esc_s .
+  Xml.attr1_elt_no_kids NL4 "consortium" "name" esc_s .
   semi
 
 let rg_line : lens = split_terminate (rg_tag,rg_xml)
@@ -1327,7 +929,7 @@ test rg_line create
 (* RA line *)
 
 let person (spaces:string) : lens = 
-  xml_attr1_elt_no_kids spaces "person" "name" esc_cs
+  Xml.attr1_elt_no_kids spaces "person" "name" esc_cs
 
 let ra_tag : string = tag "RA" 
 
@@ -1369,7 +971,7 @@ let rt_tag : string = tag "RT"
 
 let rt_xml : lens = 
   ins rt_tag . 
-  xml_simple_elt NL3 "title" (quotes (esc . [.!?])) . 
+  Xml.simple_elt NL3 "title" (quotes (esc . [.!?])) . 
   semi 
 
 let rt_line : lens = split_terminate (rt_tag,rt_xml)
@@ -1398,19 +1000,19 @@ let rl_tag : string = tag "RL"
 (* journal citations *)
 let journal_xml : lens = 
   ins rl_tag . 
-  xml_attrs_open NL2 "citation" 
+  Xml.attrs_open NL2 "citation" 
     begin
       (* this sorting is fragile: some interleavings of the abstract
          schemas are not unambiguous (due to two-pass sorting in
          swap4). This makes some assumptions--e.g., that volume,
          first, last are grouped together--that seem reasonable. *)
-      xml_attr "type" (del "journal article") . 
-        sort3 
-        (xml_attr "name" (esc_q . space))
-        ((xml_attr "volume" (NUMBER . colon)) . 
-           (xml_attr "first" (NUMBER . dash)) . 
-           (xml_attr "last" (NUMBER)))
-        (xml_attr "date" (parens NUMBER))
+      Xml.attr "type" (del "journal article") . 
+        Xml.sort3 
+        (Xml.attr "name" (esc_q . space))
+        ((Xml.attr "volume" (NUMBER . colon)) . 
+           (Xml.attr "first" (NUMBER . dash)) . 
+           (Xml.attr "last" (NUMBER)))
+        (Xml.attr "date" (parens NUMBER))
     end . 
     dot 
 
@@ -1445,7 +1047,7 @@ test journal_line create
 (* electronic citations *)
 let electronic_xml : lens = 
   ins rl_tag . 
-  xml_attr2_elt_open NL2 "citation"
+  Xml.attr2_elt_open NL2 "citation"
     "type" ("online journal article" <-> "(er)" . space)
     "name" esc_q . 
   dot
@@ -1468,7 +1070,7 @@ test electronic_line create
 (* editor list citations *)
 let editors_xml : lens = 
   ins "(In)" . space . 
-  xml_elt NL3 "editorList"
+  Xml.elt NL3 "editorList"
     begin 
       iter_with_sep (person NL4) (comma . space)     
     end . 
@@ -1498,16 +1100,16 @@ test editors_xml create
 (* book citations *)
 let book_xml : lens = 
   ins rl_tag . 
-  ( (xml_attrs_open NL2 "citation" 
+  ( (Xml.attrs_open NL2 "citation" 
       begin 
-        xml_attr "type" (del "book") . 
-        xml_attr "name" (esc_cq . comma . space) . 
-        (xml_attr "volume" (NUMBER . colon))? . 
-        xml_attr "first" (ins "pp." . NUMBER . dash) . 
-        xml_attr "last" (NUMBER . comma . space) . 
-        xml_attr "publisher" (esc_cq . comma . space) . 
-        xml_attr "city" (esc_cq . space) . 
-        xml_attr "date" (parens NUMBER)
+        Xml.attr "type" (del "book") . 
+        Xml.attr "name" (esc_cq . comma . space) . 
+        (Xml.attr "volume" (NUMBER . colon))? . 
+        Xml.attr "first" (ins "pp." . NUMBER . dash) . 
+        Xml.attr "last" (NUMBER . comma . space) . 
+        Xml.attr "publisher" (esc_cq . comma . space) . 
+        Xml.attr "city" (esc_cq . space) . 
+        Xml.attr "date" (parens NUMBER)
       end . 
     dot) ~
     (editors_xml . space) ) 
@@ -1542,7 +1144,7 @@ test book_line create
 let unpublished_xml : lens = 
   ins rl_tag . 
   ins "Unpublished observations" . space . 
-  xml_attr2_elt_no_kids NL2 "citation" 
+  Xml.attr2_elt_no_kids NL2 "citation" 
     "type" (del "unpulished observations") 
     "date" (parens partial_date) . 
   dot 
@@ -1566,7 +1168,7 @@ test unpublished_line get
 (* thesis citations *)
 let thesis_xml : lens = 
   ins rl_tag . 
-  xml_attr4_elt_no_kids NL2 "citation"
+  Xml.attr4_elt_no_kids NL2 "citation"
     "type" ("thesis" <-> "Thesis" . space) 
     "date" (parens esc_cdq . comma . space) 
     "institute" (esc_cdq . comma . space)
@@ -1591,7 +1193,7 @@ test thesis_line create
 (* patent citations *)
 let patent_xml : lens = 
   ins rl_tag . 
-  xml_attr3_elt_no_kids NL2 "citation"
+  Xml.attr3_elt_no_kids NL2 "citation"
     "type" ("patent" <-> "Patent number" . space)
     "number" (esc_q . comma . space)
     "date" date . 
@@ -1616,7 +1218,7 @@ test patent_line create
 (* submitted citations *)
 let submitted_xml : lens = 
   ins rl_tag . 
-  xml_attr3_elt_open NL2 "citation" 
+  Xml.attr3_elt_open NL2 "citation" 
      "type" ("submission" <-> "Submitted" . space) 
      "date" (parens partial_date . space . ins "to" . space) 
      "db"   ( ins "the " . "EMBL/GenBank/DDBJ databases"
@@ -1657,11 +1259,11 @@ let rl_line : lens =
 (* Reference block *)
 
 let rp_rc_rx_block : lens = 
-  (rx_line? . xml_close_tag NL2 "citation") ~ 
+  (rx_line? . Xml.close_tag NL2 "citation") ~ 
   ( rp_line . rc_line? )
 
 let rg_ra_block : lens = 
-  xml_elt NL3 "authorList" 
+  Xml.elt NL3 "authorList" 
     ( rg_line
     | ra_line . 
       rg_line? )
@@ -1673,7 +1275,7 @@ let reference_block : lens =
   rn_line . 
   ( (rl_line ~ rg_ra_rt_block) ~ 
     rp_rc_rx_block ) . 
-  xml_close_tag NL1 "reference"
+  Xml.close_tag NL1 "reference"
 
 (* unit tests for reference block *)
 let P12544_reference_ascii : string = 
@@ -1746,19 +1348,19 @@ let cc_tag : string = tag "CC"
 let cc_bang : string = "-!- " 
 let cc_long_tag : string = cc_tag . "    "
 
-let cc_status : lens = xml_attr "status" qualifiers
+let cc_status : lens = Xml.attr "status" qualifiers
 
 let cc_generic_xml (ty:lens) : lens = 
-  let typ : lens = xml_attr "type" ty in 
-  let data_no_dot : lens = xml_esc_string_ends [""] [.] in 
+  let typ : lens = Xml.attr "type" ty in 
+  let data_no_dot : lens = Xml.esc_string_ends [""] [.] in 
   let data_dot : lens = esc_q . "." in 
-  let txt (d:lens) : lens = colon . space . xml_simple_elt NL2 "text" d in 
+  let txt (d:lens) : lens = colon . space . Xml.simple_elt NL2 "text" d in 
   ins cc_tag . ins cc_bang . 
-  xml_open NL1 "comment" . 
-  ( typ . ( (cc_status . xml_close) ~ (txt data_no_dot) ) . dot 
-  | ( cc_status ~ (typ . xml_close . txt data_no_dot) ) . dot  
-  | typ . xml_close . txt (data_dot | data_no_dot) ) . 
-  xml_close_tag NL1 "comment" 
+  Xml.raw_open NL1 "comment" . 
+  ( typ . ( (cc_status . Xml.close) ~ (txt data_no_dot) ) . dot 
+  | ( cc_status ~ (typ . Xml.close . txt data_no_dot) ) . dot  
+  | typ . Xml.close . txt (data_dot | data_no_dot) ) . 
+  Xml.close_tag NL1 "comment" 
 
 (* CC unstructured lines *)
 let cc_unstructured_xml : lens = 
@@ -1831,26 +1433,26 @@ test cc_unstructured_line create
 (* CC biophysiochemical properties line *)
 let cc_biophysicochemical_properties_xml : lens = 
   let aux (xml:string) (ascii:string) : lens = 
-    xml_simple_elt NL3 xml (ins ascii . ins "=" . esc_s . semi) in 
+    Xml.simple_elt NL3 xml (ins ascii . ins "=" . esc_s . semi) in 
   let absorption : lens = 
     space . ins "Absorption" . colon . space . 
-    xml_elt NL2 "absorption"
+    Xml.elt NL2 "absorption"
       (aux "max" "Abs(max)" . space . 
        aux "text" "Note") in 
   let kinetic_parameters : lens = 
     space . ins "Kinetic parameters: " . 
-    xml_elt NL2 "kinetics" 
+    Xml.elt NL2 "kinetics" 
       (aux "KM" "KM" . space . 
        aux "Vmax" "Vmax" . space . 
        aux "text" "Note") in 
   let generic (xml:string) (ascii:string) : lens = 
     space . ins ascii . colon . space . 
-    xml_elt NL2 xml (esc_s . semi . space) in 
+    Xml.elt NL2 xml (esc_s . semi . space) in 
   let ph_dependence : lens = generic "phDependence" "pH dependence" in
   let redox_potential : lens = generic "redoxPotential" "Redox potential" in
   let temperature_dependence : lens = generic "temperatureDependence" "Temperature dependence" in       
   ins cc_tag . ins cc_bang . 
-  xml_attr1_elt NL1 "comment"
+  Xml.attr1_elt NL1 "comment"
     "type" ("biophysicochemical properties" <-> "BIOPHYSICOCHEMICAL PROPERTIES" . colon)
     begin
       absorption? . 
@@ -1899,26 +1501,26 @@ test cc_biophysicochemical_properties_line create
 let interaction : lens = 
    let experiments : lens = 
      ins "NbExp=" . 
-     xml_simple_elt NL2 "experiments" NUMBER . 
+     Xml.simple_elt NL2 "experiments" NUMBER . 
      semi . space in
   let self_rest : lens = 
     ins "Self" . 
-    xml_slash_close .     
-    xml_simple_elt NL2 "organismsDiffer" (del "false") in
+    Xml.slash_close .     
+    Xml.simple_elt NL2 "organismsDiffer" (del "false") in
   let id_rest : lens = 
-    xml_close . 
-    xml_simple_elt NL3 "id" esc_n . colon . 
-    (dash | xml_simple_elt NL3 "label" esc_p) . 
-     xml_close_tag NL2 "interactant" . 
-     xml_simple_elt NL2 "organismsDiffer" ( "true" <-> " (xeno)" | del "false") in    
+    Xml.close . 
+    Xml.simple_elt NL3 "id" esc_n . colon . 
+    (dash | Xml.simple_elt NL3 "label" esc_p) . 
+     Xml.close_tag NL2 "interactant" . 
+     Xml.simple_elt NL2 "organismsDiffer" ( "true" <-> " (xeno)" | del "false") in    
   ins cc_long_tag . 
-  xml_attr1_elt NL1 "comment" "type" (del "interaction") 
+  Xml.attr1_elt NL1 "comment" "type" (del "interaction") 
     begin  
       ( ins "IntAct=" . 
-        xml_attr1_elt_no_kids NL2 "interactant" "intactId" esc_cs . 
+        Xml.attr1_elt_no_kids NL2 "interactant" "intactId" esc_cs . 
         comma . space . 
-        xml_open NL2 "interactant" . 
-        xml_attr "intactId" esc_s . 
+        Xml.raw_open NL2 "interactant" . 
+        Xml.attr "intactId" esc_s . 
         semi ) ~
       ( ( self_rest | id_rest ) . 
       semi . space .
@@ -2138,7 +1740,7 @@ let cc_fix70 (l:lens) : lens =
    the view are discarded. *)
 let cc_alternative_products_xml : lens = 
   let event : lens = 
-    xml_attr1_elt_no_kids NL2 "event" "type" 
+    Xml.attr1_elt_no_kids NL2 "event" "type" 
       ( "alternative promoter"    <-> "Alternative promoter usage" 
       | "alternative splicing"    <-> "Alternative splicing"       
       | "alternative initiation"  <-> "Alternative initiation"     
@@ -2146,32 +1748,32 @@ let cc_alternative_products_xml : lens =
   let events : lens = ins cc_long_tag . ins "Event=" . iter_with_sqsp event . semi in 
   let generic (xml:string) (ascii:string) : lens = 
     ins ascii . ins "=" . 
-      xml_simple_elt NL2 xml esc_s . 
+      Xml.simple_elt NL2 xml esc_s . 
       semi in 
   let name : lens =     
-    let id : lens = xml_simple_elt NL3 "id" esc_csp in 
+    let id : lens = Xml.simple_elt NL3 "id" esc_csp in 
     let synonyms : lens = 
       ins "Synonyms=" . 
-        iter_with_sep (xml_simple_elt NL3 "name" esc_csp) (comma . space) . 
+        iter_with_sep (Xml.simple_elt NL3 "name" esc_csp) (comma . space) . 
         semi in
     let sequence : lens = 
       let vsp : lens = "VSP_" . NUMBER in 
         ins "Sequence=" . 
-          ( xml_attr1_elt_no_kids NL3 "sequence" "type"
+          ( Xml.attr1_elt_no_kids NL3 "sequence" "type"
               ( "displayed"     <-> "Displayed"
               | "external"      <-> "External"
               | "not described" <-> "Not described")
-          | xml_attr2_elt_no_kids NL3 "sequence" 
+          | Xml.attr2_elt_no_kids NL3 "sequence" 
               "type" (del "described")
               "ref"  (iter_with_sep vsp (comma . space)) ) . 
           semi in 
-      xml_elt NL2 "isoform" 
+      Xml.elt NL2 "isoform" 
         begin 
           ((ins "IsoId=" . 
               iter_with_sep id (comma . space) . 
               semi . space ) ~
              (ins "Name=" . 
-                xml_simple_elt NL3 "name" esc_csp . 
+                Xml.simple_elt NL3 "name" esc_csp . 
                 semi . space . 
                 (synonyms . space )? )) . 
             sequence . 
@@ -2185,7 +1787,7 @@ let cc_alternative_products_xml : lens =
   let comment : lens = (space . generic "comment" "Comment")? in 
   let entry : lens = 
     prelude . 
-      xml_attr1_elt NL1 "comment" "type" (del "alternative products") 
+      Xml.attr1_elt NL1 "comment" "type" (del "alternative products") 
       begin 
         events . 
         comment .
@@ -2244,29 +1846,29 @@ test cc_alternative_products_line create
 
 (* CC mass spectrometry line *)
 let cc_mass_spectrometry_xml : lens = 
-  let src : lens = qins (WSP . "Source=" . raw . ";")? "" in 
+  let src : lens = Xml.qins (WSP . "Source=" . raw . ";")? "" in 
   ins cc_tag . ins cc_bang . 
   ins "MASS SPECTROMETRY" . colon . space . 
-  ( ( xml_attr3_elt_open NL1 "comment" 
+  ( ( Xml.attr3_elt_open NL1 "comment" 
         "type" (del "mass spectrometry")    
         "mass" (ins "Mass=" . FNUMBER . semi . space)
         "method"  (ins "Method=" . esc_sq . semi . space) )
-  | ( xml_attr4_elt_open NL1 "comment" 
+  | ( Xml.attr4_elt_open NL1 "comment" 
        "type" (del "mass spectrometry")    
        "mass" (ins "Mass=" . FNUMBER . semi . space)
        "error "(ins "Mass_error=" . FNUMBER . semi . space) 
        "method"  (ins "Method=" . esc_sq . semi . space) ) ) . 
   ins "Range=" . 
-  xml_open NL2 "location" . 
-  ( (xml_attr "sequence" (qsp . parens esc_csp))? ~    
-    (xml_close . 
-     xml_attr1_elt_no_kids NL3 "begin" "position" NUMBER . 
+  Xml.raw_open NL2 "location" . 
+  ( (Xml.attr "sequence" (qsp . parens esc_csp))? ~    
+    (Xml.close . 
+     Xml.attr1_elt_no_kids NL3 "begin" "position" NUMBER . 
      dash . 
-     xml_attr1_elt_no_kids NL3 "end" "position" NUMBER) ) . 
-  xml_close_tag NL2 "location" . semi . space . 
+     Xml.attr1_elt_no_kids NL3 "end" "position" NUMBER) ) . 
+  Xml.close_tag NL2 "location" . semi . space . 
   ins "Note=" . 
-  xml_simple_elt NL2 "note" esc_s . semi . 
-  xml_close_tag NL1 "comment" . 
+  Xml.simple_elt NL2 "note" esc_s . semi . 
+  Xml.close_tag NL1 "comment" . 
   src
 
 let cc_mass_spectrometry_line : lens = 
@@ -2306,11 +1908,11 @@ let cc_sequence_caution_xml : lens =
   ins cc_tag . ins cc_bang . 
   ins "SEQUENCE CAUTION:" . nl . 
   ins cc_long_tag . 
-  xml_attr1_elt NL1 "comment" "type" (del "sequence caution") 
+  Xml.attr1_elt NL1 "comment" "type" (del "sequence caution") 
     begin
       ( (space . 
          ins "Type=" . 
-         xml_attr1_elt_open NL2 "conflict" 
+         Xml.attr1_elt_open NL2 "conflict" 
            "type" ( "frameshift" <-> "Frameshift"
                   | "erroneous initiation" <-> "Erroneous initiation"             
                   | "erroneous termination" <-> "Erroneous termination" 
@@ -2319,23 +1921,23 @@ let cc_sequence_caution_xml : lens =
                   | "miscellaneous discrepancy" <-> "Miscellaneous discrepancy") . 
          semi) ~
         (ins "Sequence=" . 
-         xml_attr3_elt_no_kids NL3 "sequence"
+         Xml.attr3_elt_no_kids NL3 "sequence"
            "resource" (del ("EMBL-CDS" | "EMBL"))
            "id" esc_d
            "version" (dot . NUMBER) . 
          semi) ) . 
-     xml_close_tag NL2 "conflict" . 
-     ( qins (WSP . "Positions=Several;")? ""
+     Xml.close_tag NL2 "conflict" . 
+     ( Xml.qins (WSP . "Positions=Several;")? ""
      | space . ins "Positions=" . 
-       xml_elt NL2 "location"
+       Xml.elt NL2 "location"
        begin           
            iter_with_sep 
-             (xml_attr1_elt_no_kids NL3 "position" "position" NUMBER) 
+             (Xml.attr1_elt_no_kids NL3 "position" "position" NUMBER) 
              (comma . space)
          end . 
        semi ) . 
      (space . ins "Note=" . 
-     xml_simple_elt NL2 "note" esc_s . 
+     Xml.simple_elt NL2 "note" esc_s . 
      semi)?
   end
 
@@ -2371,17 +1973,17 @@ test cc_sequence_caution_line create
 let cc_web_resource_xml : lens = 
   ins cc_tag . ins cc_bang . 
   ins "WEB RESOURCE:" . space . 
-  xml_attr2_elt NL1 "comment" 
+  Xml.attr2_elt NL1 "comment" 
     "type" (del "online information") 
     "name" (ins "Name=" . esc_s . semi . space)
     begin
       let url : lens = 
         ins "URL=" . 
-        xml_attr1_elt_no_kids NL2 "link" "uri" (quotes esc_q) . 
+        Xml.attr1_elt_no_kids NL2 "link" "uri" (quotes esc_q) . 
         semi in 
       let note : lens = 
         ins "Note=" . 
-        xml_simple_elt NL2 "note" esc_s . 
+        Xml.simple_elt NL2 "note" esc_s . 
         semi . space in 
       url ~ note
     end
@@ -2541,50 +2143,50 @@ test cc_block create
 let semi_space_dash : lens = semi . space . dash 
 
 let start_dr (db:regexp) : lens = 
-  sort3
-    (xml_attr "type" (db . semi . space))
-    (xml_attr "key" (del NUMBER))
-    (xml_attr "id" (esc_sq))
+  Xml.sort3
+    (Xml.attr "type" (db . semi . space))
+    (Xml.attr "key" (del NUMBER))
+    (Xml.attr "id" (esc_sq))
     
 let property (ty:string) : lens = 
   semi . space . 
-  xml_attr2_elt_no_kids NL2 "property" 
+  Xml.attr2_elt_no_kids NL2 "property" 
     "value" esc_sq
     "type" (del ty)
 
 let optional_dr2 (db:regexp) (ty:string) : lens = 
     start_dr db . 
-      ( (xml_slash_close . semi_space_dash)
-      | (xml_close . 
+      ( (Xml.slash_close . semi_space_dash)
+      | (Xml.close . 
          property ty . 
-         xml_close_tag NL1 "dbReference") )
+         Xml.close_tag NL1 "dbReference") )
 
 let optional_dr3 (db:regexp) (ty1:string) (ty2:string) : lens = 
   start_dr db . 
-    ( (xml_slash_close . semi_space_dash{2})
-    | (xml_close . 
+    ( (Xml.slash_close . semi_space_dash{2})
+    | (Xml.close . 
          ( (property ty1 . (property ty2 | semi_space_dash))
           | (semi_space_dash | property ty2) ) . 
-       xml_close_tag NL1 "dbReference") )
+       Xml.close_tag NL1 "dbReference") )
 
 let optional_dr4_a (db:regexp) (ty1:string) (ty2:string) (ty3:string) : lens = 
   let a : lens = space . ins "A" in 
   start_dr db . 
-    ( (xml_slash_close . semi_space_dash{3})
-    | (xml_close . 
+    ( (Xml.slash_close . semi_space_dash{3})
+    | (Xml.close . 
          ( (property ty1 . (property ty2 . a | semi_space_dash) . (property ty3 | semi_space_dash))
          | (semi_space_dash . property ty2 . a . (property ty3 | semi_space_dash))
          | (semi_space_dash{2} . property ty3) ) . 
-       xml_close_tag NL1 "dbReference") )
+       Xml.close_tag NL1 "dbReference") )
 
 let optional_dr4 (db:regexp) (ty1:string) (ty2:string) (ty3:string) : lens = 
   start_dr db . 
-    ( (xml_slash_close . semi_space_dash{3})
-    | (xml_close . 
+    ( (Xml.slash_close . semi_space_dash{3})
+    | (Xml.close . 
          ( (property ty1 . (property ty2 | semi_space_dash) . (property ty3 | semi_space_dash))
          | (semi_space_dash . property ty2 . (property ty3 | semi_space_dash))
          | (semi_space_dash{2} . property ty3) ) . 
-       xml_close_tag NL1 "dbReference") )
+       Xml.close_tag NL1 "dbReference") )
 
 let dr_2_1 =
   optional_dr2 ( "HIV" | "InterPro" | "PIR" | "PRINTS" | "REBASE" | "HGNC")
@@ -2640,7 +2242,7 @@ let dr_2_12 =
     | "PDBsum" | "PharmGKB" | "PHCI-2DPAGE" | "PhosSite" | "PhotoList" | "PMMA-2DPAGE" 
     | "PptaseDB" | "PseudoCAP" | "Rat-heart-2DPAGE" | "RefSeq" | "SagaList" 
     | "Siena-2DPAGE" | "TAIR" | "TIGR" | "TRANSFAC" | "TubercuList" | "UniGene") .
-  xml_slash_close . 
+  Xml.slash_close . 
   semi_space_dash
 
 let dr_2_13 = 
@@ -2684,7 +2286,7 @@ let dr_tag : string = tag "DR"
 
 let dr_xml = 
   ins dr_tag . 
-  xml_open NL1 "dbReference" . 
+  Xml.raw_open NL1 "dbReference" . 
   ( dr_2_1 | dr_2_1_3_1 | dr_2_2_3_3_4_1 | dr_2_3 | dr_2_4_3_2 | dr_2_5_3_1 
   | dr_2_6 | dr_2_7 | dr_2_8 | dr_2_9_3_1 | dr_2_11 | dr_2_12 | dr_2_13
   | dr_2_14 | dr_2_15 | dr_2_16 | dr_2_18 | dr_2_19 | dr_2_20 | dr_2_21 
@@ -2913,7 +2515,7 @@ let pe_tag : string = tag "PE"
 
 let pe_xml : lens = 
   ins pe_tag . 
-  xml_attr1_elt_no_kids NL1 "proteinExistence" 
+  Xml.attr1_elt_no_kids NL1 "proteinExistence" 
     "type" 
     ( "Evidence at protein level"    <-> "1: Evidence at protein level"   
     | "Evidence at transcript level" <-> "2: Evidence at transcript level"
@@ -3851,10 +3453,10 @@ let kw_tag : string = tag "KW"
 
 let kw_xml : lens = 
   let kw : lens = 
-    xml_open NL1 "keyword" . 
-    qdel SP " " . 
+    Xml.raw_open NL1 "keyword" . 
+    Xml.qdel SP " " . 
     del "id=\"" . kw_trans . 
-    xml_simple_close_tag "keyword" in
+    Xml.simple_close_tag "keyword" in
   ins kw_tag . 
   iter_with_sqsp kw . 
   dot 
@@ -3921,35 +3523,35 @@ let num (sym:string) : lens =
   |            ins sym . DIGIT{5} ) 
 
 let ft_bound (name:string) : lens = 
-  ( xml_attr2_elt_no_kids NL3 name 
+  ( Xml.attr2_elt_no_kids NL3 name 
       "status" (del "less than") 
       "position" (num "<")
-  | xml_attr2_elt_no_kids NL3 name 
+  | Xml.attr2_elt_no_kids NL3 name 
       "status" (del "greater than") 
       "position" (num ">")
-  | xml_attr2_elt_no_kids NL3 name 
+  | Xml.attr2_elt_no_kids NL3 name 
       "status" (del "uncertain") 
       "position" (num "?")
-  | xml_attr1_elt_no_kids NL3 name 
+  | Xml.attr1_elt_no_kids NL3 name 
        "position" (num " ") )
 
 let ft_bounds : lens = 
-  let pos : lens = xml_attr1_elt_no_kids NL3 "position" "position" (num " ") in 
-  xml_elt NL2 "location"
+  let pos : lens = Xml.attr1_elt_no_kids NL3 "position" "position" (num " ") in 
+  Xml.elt NL2 "location"
     ( ft_bound "begin" . space . ft_bound "end"
     | dup (pos . space) pos )
 
 let ft_description : lens = 
-  xml_attr "description" esc_d . 
+  Xml.attr "description" esc_d . 
   dot 
 
 let s7 : lens = ins "       "
 
 let ft_original_variation : lens = 
   s7 . 
-  ( xml_simple_elt NL2 "original" UALPHANUM . 
+  ( Xml.simple_elt NL2 "original" UALPHANUM . 
     ins " -> " . 
-    xml_simple_elt NL2 "variation" UALPHANUM 
+    Xml.simple_elt NL2 "variation" UALPHANUM 
   | ins "Missing" ) . 
   space 
 
@@ -4012,31 +3614,31 @@ let ft_status : lens =
     qualifiers . dot
 
 let ft_aux (l:lens) (ty:lens) (body:lens) :  lens = 
-  ( xml_attr4_elt_swap2 NL1 "feature"
+  ( Xml.attr4_elt_swap2 NL1 "feature"
       "type" ty 
       "description" (l . ft_description)
       "status" ft_status 
       "id" ft_id 
       body
-  | xml_attr3_elt_swap2 NL1 "feature"
+  | Xml.attr3_elt_swap2 NL1 "feature"
       "type" ty
       "description" (l . ft_description . dot)
       "id" ft_id
       body
-  | xml_attr3_elt_swap2 NL1 "feature"
+  | Xml.attr3_elt_swap2 NL1 "feature"
       "type" ty
       "description" (l . ft_description)
       "status" ft_status
       body
-  | xml_attr2_elt_swap2 NL1 "feature"
+  | Xml.attr2_elt_swap2 NL1 "feature"
       "type" ty
       "description" (l . ft_description . dot)
       body
-  | xml_attr2_elt_swap2 NL1 "feature"
+  | Xml.attr2_elt_swap2 NL1 "feature"
       "type" ty
       "id" ft_id 
       body
-  | xml_attr1_elt NL1 "feature"
+  | Xml.attr1_elt NL1 "feature"
       "type" ty
       body )
 
@@ -4558,19 +4160,19 @@ let sq_tag : string = tag "SQ"
 let sq_start_xml (flen:regexp -> lens) (fmass:regexp -> lens) (fcheck:regexp -> lens) : lens = 
   ins sq_tag . 
   ins "SEQUENCE   " . 
-  xml_open NL1 "sequence" . 
-    sort3
-     (xml_attr "length" (flen NUMBER))
-     (xml_attr "mass" (fmass NUMBER))
-     (xml_attr "checksum" (fcheck UALPHANUM+))
+  Xml.raw_open NL1 "sequence" . 
+    Xml.sort3
+     (Xml.attr "length" (flen NUMBER))
+     (Xml.attr "mass" (fmass NUMBER))
+     (Xml.attr "checksum" (fcheck UALPHANUM+))
 
 let sq_mid_xml : lens = 
   let l : lens = 
     ins dt_tag . 
-    sort2 
-      (xml_attr "modified" (date . comma . space))
-      (xml_attr "version" (ins "sequence version" . space . NUMBER . dot)) . 
-    xml_close in 
+    Xml.sort2 
+      (Xml.attr "modified" (date . comma . space))
+      (Xml.attr "version" (ins "sequence version" . space . NUMBER . dot)) . 
+    Xml.close in 
   terminate l 
 
 let sq_rest_xml : lens = 
@@ -4583,7 +4185,7 @@ let sq_rest_xml : lens =
   let l : lens = 
     full_line* . part_line . 
     ins "//" . 
-    xml_simple_close_tag "sequence" in 
+    Xml.simple_close_tag "sequence" in 
   terminate l 
 
 let sq_block : lens = 
