@@ -130,6 +130,7 @@ rule main = parse
 | "("                { LPAREN(info lexbuf) }
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }
+| "'"                { QUOT(info lexbuf) }
 | "."                { DOT(info lexbuf) }
 | "&"                { AMPERSAND(info lexbuf) }
 | "*"                { STAR(info lexbuf) }

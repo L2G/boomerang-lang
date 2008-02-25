@@ -33,6 +33,10 @@ let no_check = Prefs.createBool "no-check" false
   "don't type check lens arguments" 
   "don't type check lens arguments"
 
+let no_assert = Prefs.createBool "no-assert" false
+  "don't check assertions"
+  "don't check assertions"
+
 (* -------------------- utilities -------------------- *)
 let lst_replace = [("\n","\\n");("\t","\\t");("\"","\\\"");("\\", "\\\\")]
 let lst_regexp_replace = Safelist.map (fun (p,r) -> (Str.regexp p, r)) lst_replace
@@ -440,7 +444,7 @@ and t =
 
 let assert_lens_type i l co ao = 
 	(* shouldn'd be no-assert ? *)
-  if not (Prefs.read no_check) then 
+  if not (Prefs.read no_assert) then 
     begin 
       let check_rx s = function
         | None -> None

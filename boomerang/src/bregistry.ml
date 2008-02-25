@@ -24,17 +24,17 @@ let debug = Trace.debug "registry"
 let verbose = Trace.debug "registry+"
 
 (* --------------- Registry values -------------- *)
-type rv = Bsyntax.sort * Bvalue.t
+type rv = Bsyntax.scheme * Bvalue.t
 
 (* utility functions *)
 let make_rv s v = (s,v)
 let value_of_rv (s,v) = v
-let sort_of_rv (s,v) = s
+let scheme_of_rv (s,v) = s
 let format_rv rv = 
   let (s,v) = rv in    
     Util.format "@[";
     Bvalue.format v;
-    Util.format ": %s" (Bsyntax.string_of_sort s);
+    Util.format ": %s" (Bsyntax.string_of_scheme s);
     Util.format "]"
 
 (* --------------- Focal library -------------- *)
@@ -48,6 +48,7 @@ sig
   val update : t -> Bsyntax.qid -> rv -> t
   val overwrite : t -> Bsyntax.qid -> rv -> unit
   val iter : (Bsyntax.qid -> rv -> unit) -> t -> unit
+  val fold : (Bsyntax.qid -> rv -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
 module REnv : REnvSig = 
@@ -63,6 +64,7 @@ struct
       Some r -> Some (!r)
     | None -> None
   let update e q v = M.update e q (ref v)
+  let fold f e a = M.fold (fun q rvr a -> f q !rvr a) e a
   let overwrite e q v = 
     match M.lookup e q with 
         Some r -> r:=v
@@ -188,6 +190,8 @@ let load_var q = match get_module_prefix q with
 
 (* lookup in a naming context *)
 let lookup_library_ctx nctx q = 
+  debug (fun () -> Util.format "lookup_library [%s]@\n"
+           (Bsyntax.string_of_qid q));
   let rec lookup_library_aux nctx q2 =       
 
     (* Util.format "lookup_library_aux %s in [%s] from %s "

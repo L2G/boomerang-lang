@@ -110,7 +110,7 @@ let rec sort_of_t = function
   | Fun(i,s1,s2,f) -> S.SFunction(s1,s2)
   | Unt(_)         -> S.SUnit
   | Par(_,v1,v2)   -> S.SProduct(sort_of_t v1,sort_of_t v2)
-  | Vnt(_,q,_,_)   -> S.SVar(q)
+  | Vnt(_,q,_,_)   -> S.SData([],q)
 
 (* --------- conversions between run-time values ---------- *)
 let conversion_error i s1 v1 = 

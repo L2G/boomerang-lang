@@ -18,8 +18,25 @@
 (* Boomerang unit tests                                                        *)
 (* $Id$ *)
 (*******************************************************************************)
-
+ 
 module Units = 
+
+type t = A of string | B of regexp
+
+let f1 (x:t) : lens = match x with 
+  | B _ -> copy (str "")
+  | B r -> copy r
+  | A s -> copy (str s)
+
+let g =
+  let f x = x in
+  (f (), f "hello")
+
+let g =
+  let f l = l . l in
+  f (copy [A-Z])
+
+let f l = l | l 
 
 test rep (columnize "80" ([a-z0-9 ]*) " " "\n") 
 "abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen william kate michael" = ?
@@ -36,41 +53,41 @@ test count [A-Z] create "0" = ""
 test count [A-Z] create "5" = "AAAAA"
 
 let upper : lens = 
-  ( "a" <-> "A"  
-  | "b" <-> "B"   
-  | "c" <-> "C"   
-  | "d" <-> "D"   
-  | "e" <-> "E"   
-  | "f" <-> "F"   
-  | "g" <-> "G"   
-  | "h" <-> "H"   
-  | "i" <-> "I"   
-  | "j" <-> "J"      
-  | "k" <-> "K"   
-  | "l" <-> "L"   
-  | "m" <-> "M"   
-  | "n" <-> "N"   
-  | "o" <-> "O"   
-  | "p" <-> "P"   
-  | "q" <-> "Q"   
-  | "r" <-> "R"   
-  | "s" <-> "S"   
-  | "t" <-> "T"   
-  | "u" <-> "U"   
-  | "v" <-> "V"   
-  | "w" <-> "W"   
-  | "x" <-> "X"   
-  | "y" <-> "Y"   
-  | "z" <-> "Z" 
-  | [^a-zA-Z])
+  ( [a] <-> "A"  
+  | [b] <-> "B"   
+  | [c] <-> "C"   
+  | [d] <-> "D"   
+  | [e] <-> "E"   
+  | [f] <-> "F"   
+  | [g] <-> "G"   
+  | [h] <-> "H"   
+  | [i] <-> "I"   
+  | [j] <-> "J"      
+  | [k] <-> "K"   
+  | [l] <-> "L"   
+  | [m] <-> "M"   
+  | [n] <-> "N"   
+  | [o] <-> "O"   
+  | [p] <-> "P"   
+  | [q] <-> "Q"   
+  | [r] <-> "R"   
+  | [s] <-> "S"   
+  | [t] <-> "T"   
+  | [u] <-> "U"   
+  | [v] <-> "V"   
+  | [w] <-> "W"   
+  | [x] <-> "X"   
+  | [y] <-> "Y"   
+  | [z] <-> "Z" 
+  | copy [^a-zA-Z])
 
-let cp_upper = ins "[" . duplicate ([^A-Z]) ":" upper . ins "]"  
+let cp_upper = ins "[" . duplicate (copy [^A-Z]) (copy (str ":")) upper . ins "]"  
 test cp_upper* get "n:a:t:e:" = "[n:N][a:A][t:T][e:E]" 
 test cp_upper* create "[n:N][a:A][t:T][e:E]" = "n:a:t:e:"
 
 let length (r:regexp) : lens = 
   ins "(" . 
-  duplicate (r* ) "" (ins "," . count r) . 
+  duplicate (copy r* ) (copy (str "")) (ins "," . count r) . 
   ins ")" 
 
 test length [A-Z] get "ABCD" = "(ABCD,4)"
@@ -79,7 +96,7 @@ test length [A-Z] put "(ABCD,6)" into "ABCDEF" = "ABCD"
 type mytype = A | B of regexp | C of unit
 
 type string_list = Nil | Cons of string * string_list
-
+  
 let l = Cons("nate", Cons ("foster", Nil))
 
 let hd (l:string_list) (def:string) : string = 
@@ -95,15 +112,18 @@ let tl (l:string_list) (def:string_list) : string_list =
 test "ln1 is: [" . hd l "" . "]" = "ln1 is: [nate]"
 test "ln2 is: [" . (hd (tl l Nil) "") . "]" = "ln2 is: [foster]"
 
-let x = B "nate"
+let x = B (str "nate")
 
-let y = match x with | A -> ("","") | B z -> (z . " " . "foster", "levine 561") | C () -> ("unit","unit")
+let y = match x with 
+  | A -> (str "","") 
+  | B z -> (z . str " " . str "foster", "levine 561") 
+  | C () -> (str "unit","unit")
 
-test y = ("nate foster", "levine 561")
+test y = (str "nate foster", "levine 561")
 
 let z = match y with (x,y) -> x
 
-test "<< " . z . " >>" = "<< nate foster >>"
+test "<< " . shortest z . " >>" = "<< nate foster >>"
 
 let a,b = ("nate","foster") 
 test a = "nate"
@@ -116,7 +136,7 @@ test cl2 put
 "LOOJ Weaving loom into Java" into 
 "{L}{O}{O}{J} {W}eaving {LOOM} into {J}ava" = ? 
 *)
-test "---- DONE ----" get "---- DONE ----" = "---- DONE ----"
+test (copy (str "---- DONE ----")) get "---- DONE ----" = "---- DONE ----"
 
 (*test lowercase [a-zA-Z ]+ get "LOOJ Weaving LOOM into Java" = ?
 test lowercase [@-[ a-z]+ put 
@@ -125,28 +145,28 @@ into
   "LOOJ Weaving LOOM into JAVA" = ?
 *)
 let foo = "foo"
-let bar = del "bar"
-let foobar = foo . bar
-let foobarbis = foo | bar
+let bar = del (str "bar")
+let foobar = (copy (str foo)) . bar
+let foobarbis = (copy (str foo)) | bar
 
 let otherbar = "bar"
 let otherfoobar = foo . otherbar
 
-let chunk = "Last Name" <-> "LAST NAME" 
+let chunk = (str "Last Name") <-> "LAST NAME" 
 
-test ("First Name " . ("Last Name" ; <chunk>)) get "First Name Last Name" 
+test (copy (str "First Name ") . (copy (str "Last Name"); <chunk>)) get "First Name Last Name" 
 = "First Name LAST NAME"
 
-let opt (l:lens) (C:regexp) (A:regexp) = (l | "")
-test opt ("A" <-> "BB") "A" "BB" get "A" = "BB"
+let opt (l:lens) (C:regexp) (A:regexp) = (l | (copy (str "")))
+test opt (str "A" <-> "BB") (str "A") (str "BB") get "A" = "BB"
 
-let l = "A" ~ ("B" ~ "C") 
+let l = (copy (str "A")) ~ ((copy (str "B")) ~ (copy (str "C")))
 test l get "ABC" = "CBA"
 
 let R = [\\]
 
-let R = "a"|"b"
-let l = R{0,2}
+let R = [a] | [b]
+let l = copy (R{1,2} | epsilon)
 test l get "" = ""
 test l get "aa" = "aa"
 test l put "" into "a" = ""
@@ -154,71 +174,71 @@ test l put "a" into "" = "a"
 
 (* check ambiguous on aababa *)
 test
-  (copy "a" . [ab]* . "ab").(copy "a" . [ab]*)
+(copy [a] . copy [ab]* . (copy (str "ab")) . (copy [a] . copy [ab]* ))
 get "aaba" = error
 
-test  ("abc" . (del "123" . "4") * . "def") get "abc1234def" = "abc4def"
+test copy (str "abc") . (del (str "123") . (copy [4]) * . copy (str "def")) get "abc1234def" = "abc4def"
 
-test [b-c] get "a" = error
-test [b-c] get "b" = "b"
-test [b-c] get "c" = "c"
-test [b-c] get "d" = error
+test copy [b-c] get "a" = error
+test copy [b-c] get "b" = "b"
+test copy [b-c] get "c" = "c"
+test copy [b-c] get "d" = error
 
 (* ambiguity checker *)
 let any = [^,]
 let alpha = [a-zA-Z]
 let ws = [ ]
-let author = (alpha . any* . alpha) - (any* . ws . "and" . ws . any*)
+let author = (alpha . any* . alpha) - (any* . ws . str "and" . ws . any*)
 
 test (del [^]* )* get "" = error
 
 test (const [^]* "hihi" "haha")* get "" = error
 
-test (const ("b"|"abb"|"abbba"|"bba"|"baabb") "paf" "baabb")* get "" = error
+test (const ([b]| str "abb"| str "abbba"| str "bba"| str "baabb") "paf" "baabb")* get "" = error
 
-test (const ("a"."b"*) "!" "abbbb")* put "!!!!" into "aaa" = "aaaabbbb"
+test (const ([a].[b]*) "!" "abbbb")* put "!!!!" into "aaa" = "aaaabbbb"
 
 (* test of finite repetitions*)
-test const "ah"{2,4} "haha" "ahah" .
+test const (str "ah"){2,4} "haha" "ahah" .
      del [ ]*.
-     const "" " " "" . 
-     const "test" "ok" "test" 
+     const epsilon " " "" . 
+     const (str "test") "ok" "test" 
 get "ahahah     test" 
 = "haha ok"
 
 (* bad repetitions *)
 (* test const "ah"{4,2} "haha" "ahah" get "ahahah" = error *)
-test const "ah"{1,2} "haha" "ahah" get "ahahah" = error
+test const (str "ah"){1,2} "haha" "ahah" get "ahahah" = error
 
 test del empty get "" = error
 
 let everything = [^]*
-let r1 = everything - (everything.("ab"|"ca").everything)
+let r1 = everything - (everything.(str "ab"| str "ca").everything)
 let l1 = del r1
-let k1 = ("ab" <-> "ABC") | ("ca" <-> "CBA")
+let k1 = (str "ab" <-> "ABC") | (str "ca" <-> "CBA")
 
 (* ambiguity on "cabab" *)
 test (l1.k1)*.l1 get "test" = error
 
 (* need to check if the removed string finishs by 'c' *)
-let r2 = r1 - (everything."c")
+let r2 = r1 - (everything . [c])
 let l2 = del r2
-let r3 = r1."c"
-let l3 = del (r1."c")
-let k2 = "ca" <-> "CBA"
+let r3 = r1. [c]
+let l3 = del (r1. [c])
+let k2 = str "ca" <-> "CBA"
 let l = (l2.k1|l3.k2)*.l1 
 test l get "ab ab saaaalut ca ca" = "ABCABCCBACBA"
 test l put "CBACBAABCABC" into "ab ab hihi ca ca" = "ca ca hihi ab ab"
 
 (* fails because the strings could contain "ABC". Counter example : ABCABC*)
-test (r2.k1|r3.k2)*.r1 get "123ab 1ab23" = error
+test (copy r2 . k1 | copy r3 . k2)* . copy r1 get "123ab 1ab23" = error
 
-let name = del "NAME:" . [^\n:]*
+let name = del (str "NAME:") . copy [^\n:]*
 
-let unesc = "\\," <-> "," | [^\\,]
-let note = "NOTE:" <-> ": " . unesc*
+let unesc = str "\\," <-> "," | copy [^\\,]
+let note = str "NOTE:" <-> ": " . unesc*
 
-let vc = name . (del [\n]+ . note)?
+let vc = name . ((del [\n]+ . note) | (copy (str "")))
 
 (*with an existing note, it's ok*)
 test vc put "Nobody: Interresting note, no" into
@@ -244,13 +264,13 @@ test vc put "Nobody: Interresting note, no" into
 (* testing of regexp representation *)
 
 let bs = "One string"
-let balt = "one" | "the other"
-let bseq = bs . balt
+let balt = str "one" | str "the other"
+let bseq = str bs . balt
 let bmin = [abc] - [a]
 test (string_of_regexp (empty . bseq) ) = 
   "empty"
 
-test (string_of_regexp (bs | bseq . balt)) = 
+test (string_of_regexp (str bs | bseq . balt)) = 
   <<<"One string" | bseq . balt>>>
 
 test (string_of_regexp (bmin . bseq | balt)) = 
@@ -281,8 +301,8 @@ test (string_of_regexp ((bmin . balt){1,3}))=
 test (string_of_regexp ((bmin . balt){2,}))=
   <<<bmin . balt . (bmin . balt . (bmin . balt)*)>>>
     
-test (string_of_regexp ((bmin . balt)?))=
-  <<<"" | bmin . balt>>>
+test (string_of_regexp ((bmin . balt) | str ""))=
+  <<<bmin . balt | "">>>
 
 (*let me = move_end [ab] [CD]
 
@@ -300,15 +320,15 @@ test me put  "abbabaaD"
 
 
 
-
-(* probleme with convertion between type :-\ *)
-let a1 = "a"
-
-(* a new lense is created from the *string* a1 each time, so a unique id is generated *)
-test (<a1> . <a1>) get "aa" = error 
+      
+(* problem with convertion between type :-\ a new lense is created
+   from the *string* a1 each time, so a unique id is generated *)
+(* fixed now -- subtyping is gone! *)
+let a1 = copy (str "a")
+test (<a1> . <a1>) get "aa" = "aa"
 test (<a1:a1> . <a2:a1>) get "aa" = "aa"
 
-let a3 = copy "a"
+let a3 = copy (str "a")
 test (<a3>.<a3>) get "aa" = "aa"
 
 (* dictionaries are (not) shared *)
@@ -316,7 +336,7 @@ test (<a3>.<a3>) get "aa" = "aa"
 let l = key [a-z]* . del [0-9]{4}
 
 (* dictionaries are shared *)
-test (<l> ."\n". <l>) put 
+test (<l> . copy (str "\n"). <l>) put 
 <<<
 foo
 bar
@@ -334,7 +354,7 @@ bar1234
 
 
 (* dictionaries are *not* shared *)
-test (<tag1:l> ."\n". <tag2:l>) put 
+test (<tag1:l> . copy (str "\n"). <tag2:l>) put 
 <<<
 foo
 bar
@@ -383,8 +403,8 @@ let strange_def =
 default <chunk> "foo42"
 
 
-let normal_l = normal_def*. "," . normal_def
-let strange_l = strange_def* ."," .strange_def
+let normal_l = normal_def*. copy (str ",") . normal_def
+let strange_l = strange_def* . copy (str ",") .strange_def
 
 (* swaping of values *) 
 test normal_l put "bar,foo" into "foo11,bar22"= "bar22,foo11"
@@ -399,9 +419,9 @@ test strange_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo11" (* use t
 
 (* we don't have l1.(l2|l3) = l1.l2 | l1.l3 *)
 
-let l1 = ("a" | "aa")
-let l2 = "c" <-> "a"
-let l3 = "d" <-> "aa"
+let l1 = copy (str "a" | str "aa")
+let l2 = str "c" <-> "a"
+let l3 = str "d" <-> "aa"
 
 test (l1.l2 | l1.l3) get "ac" = "aa"
 test (l1.(l2|l3)) get "ac" = error

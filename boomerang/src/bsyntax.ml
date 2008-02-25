@@ -22,6 +22,7 @@
 (* imports *)
 let ( @ ) = Safelist.append 
 let sprintf = Printf.sprintf
+let msg = Util.format
 
 (* parsing info *)
 type i = Info.t
@@ -34,11 +35,15 @@ let mk_native_prelude_qid x =
   let i = Info.M (sprintf "%s built-in" x) in 
   ([(i,"Native");(i,"Prelude")],(i,x))
 
+let mk_prelude_qid x = 
+  let i = Info.M (sprintf "%s built-in" x) in 
+  ([(i,"Prelude")],(i,x))
+
 let info_of_id (i,_) = i
 let string_of_id (_,x) = x
 let id_compare (_,x1) (_,x2) = compare x1 x2
-let id_equal i1 i2 = (id_compare i1 i2 = 0)
-let qid_of_id id = [],id
+let id_equal (i1:id) (i2:id) = (id_compare i1 i2 = 0)
+let qid_of_id (x:id) = [],x
 let id_dot x1 (qs2,x2) = (x1::qs2,x2)
 let splice_id_dot x1 (qs2,x2) = (qs2@[x1],x2)
 let qid_compare (qs1,x1) (qs2,x2) = 
@@ -77,18 +82,36 @@ let string_of_qid (qs,i) =
 
 (* sorts, parameters, expressions *)
 type sort = 
-    | SString                      (* strings *)
-    | SRegexp                      (* regular expressions *)
-    | SLens                        (* lenses *)
-    | SCanonizer                   (* canonizers *)
-    | SFunction of sort * sort     (* funtions *)
-    | SVar of qid                  (* variables *)
-    | SUnit                        (* unit *)
-    | SProduct of sort * sort      (* products *)
+    | SUnit                            (* unit *)
+    | SString                          (* strings *)
+    | SRegexp                          (* regular expressions *)
+    | SLens                            (* lenses *)
+    | SCanonizer                       (* canonizers *)
+    | SFunction of sort * sort         (* funtions *)
+    | SData of sort list * qid         (* data types *)
+    | SProduct of sort * sort          (* products *)
+    | SVar of svar                     (* sort variables *)
 
-and param = Param of i * id * sort
+(* baked in type classes for disambiguation of overloaded operators *)
+and sbnd = Fre | Bnd of sort | Con of scon
 
-and binding = Bind of i * pat * sort option * exp
+and scon = Str | Reg | Lns 
+
+and svar = sbnd ref * int
+
+module SVSet = Set.Make
+(struct
+  type t = svar 
+  let compare (_,x) (_,y) = Pervasives.compare x y
+ end)                          
+
+type scheme = SVSet.t * sort
+
+let scheme_of_sort s = (SVSet.empty,s)
+
+type param = Param of i * id * sort
+
+type binding = Bind of i * pat * sort option * exp
 
 and exp = 
     (* lambda calculus *)
@@ -102,26 +125,25 @@ and exp =
     | EPair of i * exp * exp
     | ECase of i * exp * (pat * exp) list
         
-    (* regular operations *)
+    (* placeholders: hold dictionary parameters in type inference *)
+    | EOver of i * osym 
+
+    (* constants *)
     | EString of i * Bstring.t
     | ECSet of i * bool * (Bstring.sym * Bstring.sym) list 
-    | EUnion of i * exp * exp
-    | ECat of i * exp * exp 
-    | EStar of i * exp
-    | ECompose of i * exp * exp
-    | EDiff of i * exp * exp
-    | EInter of i * exp * exp
 
-   (* boomerang expressions *)
-    | EMatch of i * Bstring.t * qid
-    | ETrans of i * exp * exp
+and osym = 
+  | ODot 
+  | OBar 
+  | OStar
+  | OTilde
 
 and pat = 
-  | PWld 
-  | PUnt
-  | PVar of id 
-  | PVnt of id * pat option
-  | PPar of pat * pat
+  | PWld of i
+  | PUnt of i
+  | PVar of i * id 
+  | PVnt of i * id * pat option
+  | PPar of i * pat * pat
 
 (* declarations *)
 type test_result =
@@ -133,7 +155,7 @@ type test_result =
 
 type decl = 
     | DLet of i * binding  
-    | DType of i * id * (id * sort option) list 
+    | DType of i * sort list * id * (id * sort option) list 
     | DMod of i * id * decl list 
     | DTest of i * exp * test_result
         
@@ -141,6 +163,93 @@ type decl =
 type modl = Mod of i * id * id list * decl list
 
 let (^>) s1 s2 = SFunction(s1,s2)
+
+(* functions on sorts *)
+(* fresh variables *)
+let gensym_count = ref 0 
+let fresh_svar con = 
+  let n = !gensym_count in 
+  incr gensym_count;
+  (ref con,n)
+
+module SHash = 
+  Hashtbl.Make(struct
+                 type t = string
+                 let equal = (=)
+                 let hash = Hashtbl.hash 
+               end)
+    
+let svar_cache : svar SHash.t = SHash.create 17 
+let get_svar x = 
+  try SHash.find svar_cache x 
+  with Not_found -> 
+    let sv = fresh_svar Fre in 
+    SHash.add svar_cache x sv;
+    sv
+
+let fresh_sort con = SVar(fresh_svar con)
+
+(* sv_equal: true iff the two variables are equal *)
+let sv_equal (_,x) (_,y) = x=y
+
+(* zonking: removes "chains" of variable references producing during unification. *)
+let rec zonk s0 = match s0 with 
+  | SUnit | SString | SRegexp | SLens | SCanonizer -> s0
+  | SFunction(s1,s2) -> SFunction(zonk s1,zonk s2)
+  | SData(sl,x) -> SData(Safelist.map zonk sl,x)
+  | SProduct(s1,s2) -> SProduct(zonk s1,zonk s2)
+  | SVar(sor,_) -> begin match !sor with 
+      | Bnd s -> 
+          let s' = zonk s in 
+          sor := Bnd s';
+          s'
+      | _ -> s0
+    end
+
+(* free sort variables *)
+let free_svs s0 = 
+  let rec go acc = function
+    | SVar(sv1) -> 
+        let (sor1,x1) = sv1 in 
+        begin match !sor1 with 
+          | Bnd s1 -> go acc s1
+          | _    -> SVSet.add sv1 acc 
+        end
+    | SUnit | SString | SRegexp | SLens | SCanonizer -> acc
+    | SFunction(s1,s2) -> go (go acc s1) s2
+    | SProduct(s1,s2)  -> go (go acc s1) s2
+    | SData(sl,s1)     -> Safelist.fold_left go acc sl in 
+  go SVSet.empty s0
+
+let generalize env_svs s0 = 
+  let s = zonk s0 in 
+  let fsvs = SVSet.diff (free_svs s) env_svs in 
+  (fsvs,s)
+
+let instantiate (svs,s0) = 
+  let substs = SVSet.fold 
+    (fun svi acc ->
+       let cr,_ = svi in 
+       (svi,fresh_svar !cr)::acc) 
+    svs [] in 
+  let rec go s0 = match s0 with
+  | SVar(sv1) ->       
+      let fresh_sv1 =
+        try snd (Safelist.find (fun (svi,_) -> sv_equal sv1 svi) substs)
+        with Not_found -> sv1 in 
+      SVar(fresh_sv1)
+  | SUnit | SString | SRegexp | SLens | SCanonizer -> s0 
+  | SFunction(s1,s2) -> SFunction(go s1, go s2)
+  | SProduct(s1,s2)  -> SProduct(go s1, go s2)
+  | SData(sl,x1)     -> SData(Safelist.map go sl,x1) in 
+  go s0
+
+and merge_con c1 c2 = match c1,c2 with
+  | Str,Str -> Str
+  | Reg,Reg | Reg,Str | Str,Reg -> Reg
+  | _ -> Lns
+
+(* info accessors *)
 
 let info_of_exp = function    
   | EApp (i,_,_)     -> i
@@ -152,15 +261,16 @@ let info_of_exp = function
   | ECase(i,_,_)     -> i
   | EString (i,_)    -> i
   | ECSet (i,_,_)    -> i
-  | EUnion (i,_,_)   -> i
-  | ECat (i,_,_)     -> i
-  | ETrans (i,_,_)   -> i
-  | EStar (i,_)      -> i
-  | ECompose (i,_,_) -> i
-  | EDiff (i,_,_)    -> i
-  | EInter (i,_,_)   -> i
-  | EMatch (i,_,_)   -> i
+  | EOver (i,_)      -> i 
       
+let info_of_pat = function
+  | PWld(i)     -> i
+  | PUnt(i)     -> i
+  | PVar(i,_)   -> i
+  | PVnt(i,_,_) -> i
+  | PPar(i,_,_) -> i
+
+
 let info_of_module = function
   | Mod(i,_,_,_) -> i
 
@@ -174,73 +284,103 @@ let id_of_param = function
   | Param(_,x,_) -> x
 
 (* TODO only use parens when necessary *)
-let rec format_sort s =
-  match s with
-      SString -> Util.format "string"
+let rec format_sort = function
+  | SUnit -> Util.format "unit"
+      
+  | SString -> Util.format "string"
+      
+  | SRegexp -> Util.format "regexp"
+      
+  | SLens -> Util.format "lens"
+      
+  | SCanonizer -> Util.format "canonizer"
+      
+  | SFunction(s1, s2) ->
+      Util.format "@[(";
+      format_sort s1;
+      Util.format "@ ->@ ";
+      format_sort s2;
+      Util.format ")@]"
+        
+  | SProduct(s1,s2) -> 
+      Util.format "@[<2>";
+      format_sort s1;
+      Util.format "@ *@ ";
+      format_sort s2;
+      Util.format "@]"
+  | SData([],x1) -> Util.format "@[%s@]" (string_of_qid x1)
+  | SData(ms,x1) ->         
+      Util.format "@[[@[<2>";
+      Misc.format_list ",@ " format_sort ms;      
+      Util.format "@]]@ %s@]" (string_of_qid x1)
+  | SVar(sv) -> format_svar false sv
 
-    | SRegexp -> Util.format "regexp"
+and format_svar print_cons (cr,x) = match !cr with
+  | Bnd s -> 
+      (* msg "<%d>:=" x;*)
+      format_sort s
+  | Fre   -> 
+      (* msg "<%d>" x *)
+      format_svar_tag x
+  | Con c -> 
+      if  print_cons then (format_cons c; msg " ");
+      format_svar_tag x
 
-    | SLens -> Util.format "lens"
+and format_svar_tag x = 
+  let chr = Char.chr (97 + x mod 26) in 
+  let sub = x / 26 in 
+    if sub=0 then Util.format "'%c" chr
+    else Util.format "'%c_%d" chr sub
+    (* ; Util.format "<%d>" x*)
 
-    | SCanonizer -> Util.format "canonizer"
+and format_cons = function
+  | Str -> Util.format "Str"
+  | Reg -> Util.format "Reg"
+  | Lns -> Util.format "Lns"
 
-    | SFunction(s1, s2) ->
-	Util.format "(";
-	format_sort s1;
-	Util.format "@ ->@ ";
-	format_sort s2;
-	Util.format ")"
+let format_scheme (svs,s) = 
+  let fvs = SVSet.elements svs in 
+  Util.format "@[<2>";
+  if Safelist.length fvs <> 0 then 
+    (Misc.format_list ", " (format_svar true) (SVSet.elements svs);
+     Util.format " => ");
+  format_sort s;
+  Util.format "@]"
 
-    | SUnit -> Util.format "unit"
-    | SProduct(s1,s2) -> 
-        Util.format "@[<2>";
-        format_sort s1;
-        Util.format "@ *@ ";
-        format_sort s2;
-        Util.format "@]"
-    | SVar(q) -> Util.format "%s" (string_of_qid q)
-
-and format_pat = function
-  | PWld -> Util.format "_"
-  | PUnt -> Util.format "()"
-  | PVar x -> Util.format "%s" (string_of_id x)
-  | PPar(p1,p2) -> 
+let rec format_pat = function
+  | PWld _ -> Util.format "_"
+  | PUnt _ -> Util.format "()"
+  | PVar(_,x) -> Util.format "%s" (string_of_id x)
+  | PPar(_,p1,p2) -> 
       Util.format "@[<2>(";
       format_pat p1;
       Util.format ",@,";
       format_pat p2;
       Util.format ")@]";
-  | PVnt(l,None) -> Util.format "%s" (string_of_id l)
-  | PVnt(l,Some p1) ->  
+  | PVnt(_,l,None) -> Util.format "%s" (string_of_id l)
+  | PVnt(_,l,Some p1) ->  
       Util.format "@[<2>(%s@ " (string_of_id l);
       format_pat p1;
       Util.format ")@]"
 
-and format_param (Param (_, id, s)) =
-  Util.format "@[%s:" (string_of_id id);
-  format_sort s;
-  Util.format "@]"
+and format_param = function
+  | Param(_,x,s) ->
+      Util.format "@[(%s:" (string_of_id x);
+      format_sort s;
+      Util.format ")@]"
 
 and format_binding (Bind (_, x, s, e)) =
   Util.format "@[<2>";
   format_pat x;
   (match s with
-       Some s -> Util.format "@ :@ "; format_sort s
-     | None -> ());
+     | None -> ()
+     | Some s -> Util.format "@ :@ "; format_sort s);     
   Util.format "@ =@ ";
   format_exp e;
   Util.format "@]"
 
-and format_exp e =
-  let format_binary_exp sep e1 e2 =
-	Util.format "@[<2>(";
-	format_exp e1;
-	Util.format ")@ %s@ (" sep;
-	format_exp e2;
-	Util.format ")@]"
-  in
-  match e with
-      EApp (_, e1, e2) ->
+and format_exp = function
+  | EApp (_, e1, e2) ->
 	Util.format "@[<2>(";
 	format_exp e1;
 	Util.format "@ ";
@@ -251,15 +391,14 @@ and format_exp e =
 	Util.format "@[%s@]" (string_of_qid qid)
 
     | EFun (_, p, s, e) ->
-	(* TODO does this really take only one parameter? *)
-	Util.format "@[<2>fun@ ";
+	Util.format "@[<2>(fun@ ";
 	format_param p;
 	(match s with
-	     Some s -> Util.format " : "; format_sort s
-	   | None -> ());
+	   | None -> ()
+           | Some s -> Util.format "@ :@ "; format_sort s);
 	Util.format "@ ->@ ";
 	format_exp e;
-	Util.format "@]";
+	Util.format ")@]";
 
     | ELet (_, b, e) ->
 	Util.format "@[<2>let@ ";
@@ -309,29 +448,13 @@ and format_exp e =
 	  ranges;
 	  Util.format "]@]"
 
-    | EUnion (_, e1, e2) -> format_binary_exp "|" e1 e2
+    | EOver(_,s) -> format_sym s
 
-    | ECat (_, e1, e2) -> format_binary_exp "." e1 e2
-
-    | EStar (_, e) ->
-	Util.format "@[<2>(";
-	format_exp e;
-	Util.format ")*@]"
-
-    | ECompose (_, e1, e2) -> format_binary_exp ";" e1 e2
-
-    | EDiff (_, e1, e2) -> format_binary_exp "-" e1 e2
-
-    | EInter (_, e1, e2) -> format_binary_exp "&" e1 e2
-
-    | EMatch (_, s, qid) ->
-	Util.format "@[<2><%s" (string_of_qid qid);
-	let s = Bstring.string_of_t s in
-	  (if s <> ""
-	   then Util.format "@ :@ %s" s);
-	  Util.format ">@]"
-
-    | ETrans (_, e1, e2) -> format_binary_exp "<->" e1 e2
+and format_sym = function
+  | ODot -> Util.format "concat"
+  | OBar -> Util.format "union"
+  | OStar -> Util.format "star"
+  | OTilde -> Util.format "swap"
 
 and format_test_result tr =
   match tr with
@@ -363,8 +486,16 @@ and format_decl d =
 	format_binding b;
 	Util.format "@]"
 
-    | DType(_,x,sl) ->  
-        Util.format "@[type@ %s@ =@ " (string_of_id x);
+    | DType(_,sl,x,cl) ->  
+        Util.format "@[type@ ";
+        (match sl with 
+          | [] -> ()
+          | [s] -> format_sort s
+          | _ -> 
+              msg "[";
+              Misc.format_list "," format_sort sl;
+              msg "]");
+        msg "%s@ =@ " (string_of_id x);
         Misc.format_list " | "
           (fun (l,s) -> match s with
              | None -> Util.format "%s" (string_of_id l)
@@ -372,7 +503,7 @@ and format_decl d =
                  Util.format "(%s@ " (string_of_id l);
                  format_sort s;
                  Util.format ")")
-          sl;
+          cl;
         Util.format "@]"        
 
     | DMod (i, id, ds) ->
@@ -398,7 +529,141 @@ and format_module (Mod (_, id, qs, ds)) =
  * [string_of_sort s] produces a string representing [s] 
  *)
 let string_of_sort s = Util.format_to_string (fun () -> format_sort s)
-
+let string_of_scheme s = Util.format_to_string (fun () -> format_scheme s)
 let string_of_param p = Util.format_to_string (fun () -> format_param p)
-
 let string_of_pat p = Util.format_to_string (fun () -> format_pat p)
+
+(* instance: assumes sort has been zonk'd *)
+let rec instance s c = match s,c with
+  | SString,Str | SRegexp,Str | SLens,Str | SCanonizer,Str -> Some s
+  | SString,Reg -> Some SRegexp
+  | SRegexp,Reg | SLens,Reg | SCanonizer,Reg -> Some s
+  | SString,Lns | SRegexp,Lns -> Some SLens 
+  | SLens,Lns | SCanonizer,Lns -> Some s
+  | _ -> None
+
+type ('a,'b) three_alts = Left of 'a | Right of 'b | Nothing
+
+let rec get_con_sort = function 
+  | SVar(sor,_) -> begin match !sor with 
+      | Fre -> Nothing
+      | Bnd s -> get_con_sort s
+      | Con c -> Left c
+    end
+  | s -> Right s
+      
+let occurs_check i sv1 s2 = 
+  (* occurrs check *)
+  if SVSet.mem sv1 (free_svs s2) then
+    Berror.sort_error i 
+      (fun () -> 
+         msg "Occurs check failed during unification of %t and %t."
+           (fun _ -> format_svar true sv1)
+           (fun _ -> format_sort s2))  
+  
+let rec unify i s1 s2 = 
+ (* msg "@[UNIFY@\n";
+  msg "  S1="; format_sort s1;
+  msg "@\n  S2="; format_sort s2;
+  msg "@\n@]%!"; *)
+  let res = match s1,s2 with
+
+  (* equal types *)
+  | SUnit,SUnit           -> true
+  | SString,SString       -> true
+  | SRegexp,SRegexp       -> true
+  | SLens,SLens           -> true
+  | SCanonizer,SCanonizer -> true
+
+  (* products *)
+  | SProduct(s11,s12),SProduct(s21,s22) -> 
+      (unify i s11 s21) && (unify i s12 s22)
+      
+  | SFunction(s11,s12),SFunction(s21,s22) -> 
+      (unify i s21 s11) && (unify i s12 s22)
+
+  (* data types *)
+  | SData(ss1,x1),SData(ss2,x2) -> 
+      let ok,ss12 = 
+        try true, Safelist.combine ss1 ss2 
+        with Invalid_argument _ -> (false,[]) in 
+      Safelist.fold_left
+        (fun b (s1,s2) -> b && unify i s1 s2)
+        (ok && qid_equal x1 x2)
+        ss12
+      
+  (* type variables *)
+  | SVar sv1,_ -> unifyVar i false sv1 s2
+  | _,SVar sv2 -> unifyVar i true sv2 s1
+  | _        -> false in
+  (* msg "@[UNIFY RES=%b@\n" res;
+     msg "  S1="; format_sort s1;
+     msg "@\n  S2="; format_sort s2;
+     msg "@\n@]"; *)
+    res
+
+and unifyVar i flip sv1 s2 = 
+  (* msg "UNIFY_VAR: ";
+  format_svar true sv1;
+  msg " ~ ";
+  format_sort s2;
+  msg "@\n"; *)
+  let (sor1,x1) = sv1 in 
+  match !sor1,s2 with    
+    | Bnd s1,_ -> 
+        if flip then unify i s2 s1 
+        else unify i s1 s2 
+    | Fre,SVar(sor2,x2) -> 
+        if x1 = x2 then ()
+        else begin
+          match get_con_sort s2 with 
+            | Nothing -> 
+                sor1 := Bnd s2
+            | Left c  -> 
+                sor2 := Con c;
+                sor1 := Bnd s2
+            | Right s' -> 
+                occurs_check i sv1 s2;
+                sor2 := Bnd s';
+                sor1 := Bnd s2
+        end;
+        true
+        
+    | Fre,_ -> 
+        occurs_check i sv1 s2;
+        sor1 := Bnd s2; 
+        true
+
+    | Con c1,SVar(sor2,x2) -> 
+        if x1=x2 then true
+        else begin
+          match get_con_sort s2 with 
+            | Nothing -> 
+                sor1 := Bnd s2;
+                true
+            | Left c  -> 
+                sor2 := Con c;
+                sor1 := Bnd s2;
+                true
+            | Right s ->                 
+                begin match instance s2 c1 with
+                  | None -> false
+                  | Some s' -> 
+                      occurs_check i sv1 s2;
+                      sor2 := Bnd s';
+                      sor1 := Bnd s2;
+                      true
+                end
+        end        
+  | Con c1,s2 -> 
+      begin 
+        match instance s2 c1 with
+        | None -> false
+        | Some s' -> 
+            occurs_check i sv1 s2;
+            sor1 := Bnd s';
+            true
+      end
+
+
+        

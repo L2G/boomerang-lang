@@ -26,9 +26,9 @@ let nlify s = Misc.format_list "@\n"
 
 let nlify_str s = nlify (Bstring.string_of_t s)
 
-let id x = x
+let nop () = ()
 
-let static_error i n ?(suppl =  id) msg = 
+let static_error i n ?(suppl =  nop) msg = 
   raise (Error.Harmony_error(fun () -> 
     Util.format "@[%s: static error in@\n" (Info.string_of_t i);
     Util.format "  @["; 

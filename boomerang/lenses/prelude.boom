@@ -19,6 +19,8 @@ let union : lens -> lens -> lens =
   Native.Prelude.union
 let star : lens -> lens =
   Native.Prelude.star
+let dmatch : string -> lens -> lens = 
+  Native.Prelude.dmatch
 let swap : lens -> lens -> lens =
   Native.Prelude.swap
 let compose : lens -> lens -> lens =
@@ -67,6 +69,10 @@ let alt : regexp -> regexp -> regexp =
   Native.Prelude.alt
 let iter : regexp -> regexp = 
   Native.Prelude.iter
+let inter : regexp -> regexp -> regexp = 
+  Native.Prelude.inter
+let diff : regexp -> regexp -> regexp = 
+  Native.Prelude.diff
 let shortest : regexp -> string = 
   Native.Prelude.shortest
 let equiv : regexp -> regexp -> string = 
@@ -95,7 +101,7 @@ let string_of_regexp : regexp -> string =
 let epsilon : regexp = str ""
 
 let ins (s:string) : lens = 
-  const "" s "" 
+  const (str "") s "" 
 
 let del (r:regexp) : lens = 
   const r "" (shortest r) 

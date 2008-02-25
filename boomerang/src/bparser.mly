@@ -40,7 +40,23 @@ let me1 e1 i2 = m (info_of_exp e1) i2
 let me2 i1 e2 = m i1 (info_of_exp e2)
 let me e1 e2 = m (info_of_exp e1) (info_of_exp e2) 
 
-let mk_var i = EVar(info_of_id i,qid_of_id i)
+let mp2 i1 p2 = m i1 (info_of_pat p2)
+let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
+
+(* helpers for building ASTs *)
+let mk_qid_var x = EVar(info_of_qid x,x)
+let mk_var x = mk_qid_var (qid_of_id x)
+
+let mk_bin_op i o e1 e2 = EApp(i,EApp(i,o,e1),e2) 
+let mk_cat i e1 e2 = mk_bin_op i (EOver(i,ODot)) e1 e2
+let mk_star i e1 =  EApp(i,EOver(i,OStar),e1)
+let mk_union i e1 e2 = mk_bin_op i (EOver(i,OBar)) e1 e2
+let mk_diff i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "diff")) e1 e2
+let mk_inter i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "inter")) e1 e2
+let mk_compose i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "compose")) e1 e2
+let mk_swap i e1 e2 = mk_bin_op i (EOver(i,OTilde)) e1 e2
+let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "set")) e1 e2
+let mk_match i x q = mk_bin_op i (mk_qid_var (mk_prelude_qid "dmatch")) (EString(i,RS.t_of_string x)) (mk_qid_var q)
 
 (* error *)
 let syntax_error i msg = 
@@ -101,18 +117,15 @@ let parse_qid i qstr =
       else go (acc,x ^ (String.make 1 c1)) in 
   go ([],"")
 
-let mk_fun i params body = 
+let mk_fun i params body sorto = 
   Safelist.fold_right
-    (fun p f -> (EFun(i,p,None,f)))
-    params body 
-    
-let mk_fun_sorto i params bsorto = 
-  Safelist.fold_right
-    (fun p so -> match so with 
-      | None -> None
-      | Some s -> Some (SFunction(sort_of_param p,s)))
-    params
-    bsorto
+    (fun p (f,so) -> 
+       let f' = EFun(i,p,so,f) in 
+       let so' = match so with 
+         | None -> None 
+         | Some s -> Some (SFunction(sort_of_param p,s)) in 
+       (f',so'))
+    params (body,sorto)
 
 let mk_assert = function
   | None,None -> (fun i e -> e)
@@ -127,9 +140,9 @@ let mk_assert = function
          EApp(i,EApp(i,EApp(i,EVar(i,mk_native_prelude_qid "assert"),c),a),e))
 
 let rec fixup_pat i = function
-  | PVnt(_,Some _) -> syntax_error i "illegal pattern"
-  | PVnt(x,None) -> PVar(x)
-  | PPar(p1,p2)  -> PPar(fixup_pat i p1, fixup_pat i p2)
+  | PVnt(_,_,Some _) -> syntax_error i "illegal pattern"
+  | PVnt(i,x,None) -> PVar(i,x)
+  | PPar(i,p1,p2)  -> PPar(i,fixup_pat i p1, fixup_pat i p2)
   | p -> p 
 
 
@@ -148,7 +161,7 @@ let check_pat i p params = match p,params with
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW
 %token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
-%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
+%token <Info.t> SEMI QUOT COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> GET PUT CREATE INTO
 %token <Info.t> ERROR
@@ -170,25 +183,23 @@ opens:
 
 /* --------- DECLARATIONS ---------- */
 decls:      
-  | TYPE LIDENT EQUAL dtsort_list decls
-      { let i = m $1 $3 in 
-        DType(i,$2,$4)::$5 }
+  | TYPE sort_list LIDENT EQUAL dtsort_list decls
+      { let i = m $1 $4 in 
+        DType(i,$2,$3,$5)::$6 }
 
   | LET ppat param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
-        let p = fixup_pat i (snd $2) in 
+        let p = fixup_pat i $2 in
         let () = check_pat i p $3 in 
-        let f = mk_fun i $3 $5 in 
-        let so = mk_fun_sorto i $3 None in 
+        let f,so = mk_fun i $3 $5 None in 
         DLet(i,Bind(i,p,so,f))::$6 }
 
   | LET ppat param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
-        let p = fixup_pat i (snd $2) in 
+        let p = fixup_pat i $2 in 
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
-        let f = mk_fun i $3 (ef $4 $7) in 
-        let so = mk_fun_sorto i $3 (Some s) in 
+        let f,so = mk_fun i $3 (ef $4 $7) (Some s) in 
         DLet(i,Bind(i,p,so,f))::$8 }
 
   | MODULE UIDENT EQUAL decls END decls 
@@ -230,26 +241,24 @@ test_type:
 exp:
   | LET ppat param_list EQUAL exp IN exp
       { let i = m $1 $6 in 
-        let p = fixup_pat i (snd $2) in 
+        let p = fixup_pat i $2 in 
         let () = check_pat i p $3 in 
-        let f = mk_fun i $3 $5 in 
-        let so = mk_fun_sorto i $3 None in 
+        let f,so = mk_fun i $3 $5 None in 
         ELet(i,Bind(i,p,so,f),$7) 
       }
 
   | LET ppat param_list COLON decl_sort EQUAL exp IN exp
       { let i = m $1 $8 in 
-        let p = fixup_pat i (snd $2) in 
+        let p = fixup_pat i $2 in 
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
-        let f = mk_fun i $3 (ef $4 $7) in 
-        let so = mk_fun_sorto i $3 (Some s) in 
+        let f,so = mk_fun i $3 (ef $4 $7) (Some s) in 
         ELet(i,Bind(i,p,so,f),$9) 
       }
 
   | FUN param param_list ARROW exp
       { let i = me2 $1 $5 in 
-        let f = mk_fun i $3 $5 in 
+        let f,_ = mk_fun i $3 $5 None in 
         EFun(i,$2,None,f) }
       
   | gpexp                               
@@ -281,7 +290,7 @@ cexp:
 /* compose expressions */
 composeexp:
   | composeexp SEMI pexp
-      { ECompose(me $1 $3, $1, $3) }
+      { mk_compose (me $1 $3) $1 $3 }
       
   | pexp
       { $1 }
@@ -297,7 +306,7 @@ pexp:
 /* bar expressions */
 bexp:
   | bexp BAR mexp 
-      { EUnion(me $1 $3,$1,$3) }
+      { mk_union (me $1 $3) $1 $3 }
 
   | mexp
       { $1 }
@@ -305,7 +314,7 @@ bexp:
 /* minus expressions */
 mexp:
   | mexp MINUS iexp
-      { EDiff(me $1 $3,$1,$3) }
+      { mk_diff (me $1 $3) $1 $3 }
 
   | iexp 
       { $1 }
@@ -313,7 +322,7 @@ mexp:
 /* inter expressions */
 iexp:
   | iexp AMPERSAND sexp
-      { EInter(me $1 $3, $1, $3) } 
+      { mk_inter (me $1 $3) $1 $3 }
 
   | sexp 
       { $1 }
@@ -321,8 +330,7 @@ iexp:
 /* swap expressions */
 sexp:
   | sexp TILDE catexp 
-      { let i = me $1 $3 in 
-        EApp(i, EApp(i, EVar(i, mk_native_prelude_qid "swap"), $1), $3) }
+      { mk_swap (me $1 $3) $1 $3 }
 
   | catexp 
       { $1 }
@@ -330,15 +338,15 @@ sexp:
 /* concat expressions */
 catexp:
   | catexp DOT texp                     
-      { ECat(me $1 $3, $1, $3) } 
+      { mk_cat (me $1 $3) $1 $3 }
 
   | texp                              
       { $1 }
 
-/* translate expressions */
+/* set expressions */
 texp:
   | texp DARROW appexp
-      { ETrans(me $1 $3, $1, $3) }
+      { mk_set (me $1 $3) $1 $3 }
   | appexp                                
       { $1 }
 
@@ -355,19 +363,16 @@ rexp:
   | aexp rep                            
       { let i2,(min,maxo) = $2 in 
         let i = me1 $1 i2 in 
-        let mk_cat e1 e2 = ECat(i,e1,e2) in 
-        let mk_union e1 e2 = EUnion(i,e1,e2) in 
-        let mk_star e1 = EStar(i,e1) in
         let epsilon = EString(i,RS.empty) in 
         let rec mk_cats l acc = function
           | 0 -> acc
-          | 1 -> mk_cat l acc
-          | n -> mk_cats l (mk_cat l acc) (pred n) in 
+          | 1 -> mk_cat i l acc
+          | n -> mk_cats l (mk_cat i l acc) (pred n) in 
         match min,maxo with 
-          | 0,None -> EStar(i,$1)
-          | n,None -> mk_cats $1 (mk_star $1) n
+          | 0,None -> mk_star i $1 
+          | n,None -> mk_cats $1 (mk_star i $1) n
           | 0,Some 0 -> epsilon 
-          | 0,Some 1 -> mk_union epsilon $1
+          | 0,Some 1 -> mk_union i epsilon $1
           | m,Some n -> 
               if m > n then
                 syntax_error i 
@@ -375,11 +380,11 @@ rexp:
               else if m=n then 
                 mk_cats $1 $1 (pred m)
               else (* n > m *)
-                let rec aux (vi,us) i = 
-                  if i=0 then us
+                let rec aux (vi,us) j = 
+                  if j=0 then us
                   else 
-                    let vi1 = mk_cat $1 vi in 
-                    aux (vi1, mk_union us vi1) (pred i) in 
+                    let vi1 = mk_cat i $1 vi in 
+                    aux (vi1, mk_union i us vi1) (pred j) in 
                 let v1 = 
                   if m=0 then epsilon
                   else mk_cats $1 $1 (pred m) in 
@@ -391,10 +396,10 @@ rexp:
 /* atomic expressions */
 aexp:
   | LANGLE qid RANGLE
-      { EMatch(m $1 $3,RS.empty, $2) }
+      { mk_match (m $1 $3) "" $2 }
 
   | LANGLE LIDENT COLON qid RANGLE
-      { EMatch(m $1 $3,RS.t_of_string (snd $2), $4) }
+      { mk_match (m $1 $5) (string_of_id $2) $4 }
 
   | qid 
       { EVar(info_of_qid $1,$1) }
@@ -423,45 +428,43 @@ aexp:
 /* --------- PATTERNS ---------- */
 branch: 
   | pat ARROW mexp 
-      { let i1,p = $1 in 
-        (me2 i1 $3, p, $3) }
+      { let i = m (info_of_pat $1) (info_of_exp $3) in 
+        (i,$1,$3) }
 
 pat:      
   | UIDENT ppat
       { let i1,_ = $1 in 
-        let i2,p2 = $2 in 
-        (m i1 i2, PVnt($1,Some p2)) }
+        let i = mp2 i1 $2 in 
+        PVnt(i, $1,Some $2) }
 
   | ppat
       { $1 }
 
 ppat:
   | ppat COMMA apat
-      { let i1,p1 = $1 in 
-        let i2,p2 = $3 in 
-        (m i1 i2, PPar(p1,p2)) }
+      { let i = mp $1 $3 in 
+        PPar(i,$1,$3) }
 
   | apat
       { $1 }
 
 apat:
   | UNDERLINE 
-      { ($1, PWld) }
+      { PWld $1 }
 
   | LPAREN RPAREN
-      { (m $1 $2, PUnt) }
+      { PUnt (m $1 $2) }
 
   | UIDENT
-      { let i1,_ = $1 in 
-        (i1, PVnt($1,None)) }
+      { let i,_ = $1 in 
+        PVnt(i,$1,None) }
       
   | LIDENT
       { let i,_ = $1 in 
-        (i,PVar($1)) }
+        PVar(i,$1) }
 
   | LPAREN pat RPAREN
-      { let _,p = $2 in 
-        (m $1 $3, p) }
+      { $2 }
       
 branch_list:
   | branch branch_list2
@@ -493,10 +496,19 @@ sort:
 
 /* product sorts */
 psort:
-  | psort STAR asort
+  | psort STAR dsort
       { SProduct($1,$3) }
 
-  | asort
+  | dsort
+      { $1 }
+
+
+/* data type sorts */
+dsort:
+  | sort_list LIDENT
+      { SData($1,qid_of_id $2) }
+
+  | asort 
       { $1 }
 
 /* atomic sorts */
@@ -516,11 +528,29 @@ asort:
   | UNIT
       { SUnit }
 
-  | LIDENT
-      { SVar (qid_of_id $1) }
+  | QUOT LIDENT
+      { SVar (get_svar (string_of_id $2)) }
       
   | LPAREN sort RPAREN
+      { $2 }      
+
+/* sort list */
+sort_list: 
+  | 
+      { [] }
+
+  | asort 
+      { [$1] }
+
+  | LBRACK sort_list2 RBRACK
       { $2 }
+
+sort_list2:
+  | sort 
+      { [$1] }
+
+  | sort COMMA sort_list2
+      { $1 :: $3 }
 
 /* sort test specifications */
 decl_sort:
@@ -585,6 +615,9 @@ param_list:
       { [] }
 
 param: 
+  | id 
+      { Param (fst $1,$1,fresh_sort Fre) }
+
   | LPAREN id COLON sort RPAREN
       { Param(fst $2,$2,$4) }
 

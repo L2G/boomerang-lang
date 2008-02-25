@@ -22,16 +22,16 @@
 (** {2 Registry of Boomerang values } *)
 
 type rv 
-(** The type of registry values; just a sort and a value. *)
+(** The type of registry values; just a scheme and a value. *)
 
-val make_rv : Bsyntax.sort -> Bvalue.t -> rv
-(** [make_rv s v] returns a registry value of sort [s] and value [v]. *)
+val make_rv : Bsyntax.scheme -> Bvalue.t -> rv
+(** [make_rv s v] returns a registry value of scheme [s] and value [v]. *)
 
 val value_of_rv : rv -> Bvalue.t
 (** [value_of_rv r] returns the value from [r]. *)
 
-val sort_of_rv : rv -> Bsyntax.sort
-(** [sort_of_rv r] returns the sort from [r]. *)
+val scheme_of_rv : rv -> Bsyntax.scheme
+(** [scheme_of_rv r] returns the scheme from [r]. *)
 
 val format_rv : rv -> unit
 (** [format_rv r] pretty prints [r] *)
@@ -45,6 +45,7 @@ module REnv : sig
   val update : t -> Bsyntax.qid -> rv -> t
   val overwrite : t -> Bsyntax.qid -> rv -> unit
   val iter : (Bsyntax.qid -> rv -> unit) -> t -> unit
+  val fold : (Bsyntax.qid -> rv -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
 val reset : unit -> unit
@@ -59,10 +60,10 @@ val get_library : unit -> REnv.t
 val register_env : REnv.t -> Bsyntax.id -> unit
 (** ?? *)
 
-val register_native_qid: Bsyntax.qid -> Bsyntax.sort -> Bvalue.t -> unit
+val register_native_qid: Bsyntax.qid -> Bsyntax.scheme -> Bvalue.t -> unit
 (** ?? *)
 
-val register_native : string -> Bsyntax.sort -> Bvalue.t -> unit
+val register_native : string -> Bsyntax.scheme -> Bvalue.t -> unit
 (** ?? *)
 
 val load : string -> bool
