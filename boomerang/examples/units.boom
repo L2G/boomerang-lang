@@ -18,8 +18,14 @@
 (* Boomerang unit tests                                                        *)
 (* $Id$ *)
 (*******************************************************************************)
- 
+
 module Units = 
+
+type 'a list = Nil | Cons of 'a * 'a list 
+
+let safe_hd l d = match l with 
+  | Nil -> d
+  | Cons(h,_) -> h
 
 type t = A of string | B of regexp
 

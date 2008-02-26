@@ -106,7 +106,7 @@ module TEnv = struct
                             let to_string = string_of_id
                           end)
   type sl = (id * sort option) list
-  type t = (sl M.t * qid MCon.t)
+  type t = ((sort list * sl) M.t * qid MCon.t)
   let empty () = (M.empty (), MCon.empty ())
   let lookup (t,_) x = M.lookup t x
   let lookup_con (t,tcon) x = match MCon.lookup tcon x with 
@@ -115,14 +115,14 @@ module TEnv = struct
         | None -> 
             run_error (Info.M "TEnv.lookup_con") 
               (fun () -> msg "datatype %s missing" (string_of_qid q))
-        | Some sl -> Some (q,sl)
+        | Some (sl,cl) -> Some (q,sl,cl)
       end
-  let update (t,tcon) x sl = 
-    let t' = M.update t x sl in 
+  let update (t,tcon) sl x cl =    
+    let t' = M.update t x (sl,cl) in 
     let tcon' = 
       Safelist.fold_left 
         (fun tcon (xi,so) -> MCon.update tcon xi x)
-        tcon sl in 
+        tcon cl in 
     (t',tcon')
 end
 
@@ -206,31 +206,31 @@ let rec static_match i tev p s =
     | PUnt(_),s -> 
         if not (unify i s SUnit) then err p SUnit s;
         Some []
-  | PVnt(_,li,pio),s -> 
-      (* lookup which datatype we have using li *)
-      begin match TEnv.lookup_con tev li with
-        | None -> 
-            sort_error i 
-              (fun () -> msg "@[Unbound@ constructor@ %s@]" (string_of_id li))
-        | Some (q,sl) -> 
-            let s_expect = SData([],q) in 
-            if not (unify i s s_expect) then err p s_expect s;
-            let rec aux = function
-              | [] -> None
-              | (lj,sjo)::rest -> 
-                  if (id_equal li lj) then 
-                    (match pio,sjo with 
-                       | None,None -> Some []
-                       | Some pi,Some sj -> static_match i tev pi sj
-                       | _ -> sort_error i (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_id li)))
-                  else aux rest in 
-              aux sl
-      end
-  | PPar(_,p1,p2),SProduct(s1,s2) -> 
-      (match static_match i tev p1 s1, static_match i tev p2 s2 with 
-         | Some l1, Some l2 -> Some (l1 @ l2) 
-         | _ -> None)
-  | _ -> None 
+    | PVnt(_,li,pio),s -> 
+        (* lookup which datatype we have using li *)
+        begin match TEnv.lookup_con tev li with
+          | None -> 
+              sort_error i 
+                (fun () -> msg "@[Unbound@ constructor@ %s@]" (string_of_id li))
+          | Some (q,sl,cl) -> 
+              let s_expect = SData(sl,q) in 
+                if not (unify i s s_expect) then err p s_expect s;
+                let rec aux = function
+                  | [] -> None
+                  | (lj,sjo)::rest -> 
+                      if (id_equal li lj) then 
+                        (match pio,sjo with 
+                           | None,None -> Some []
+                           | Some pi,Some sj -> static_match i tev pi sj
+                           | _ -> sort_error i (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_id li)))
+                      else aux rest in 
+                  aux cl
+        end
+    | PPar(_,p1,p2),SProduct(s1,s2) -> 
+        (match static_match i tev p1 s1, static_match i tev p2 s2 with 
+           | Some l1, Some l2 -> Some (l1 @ l2) 
+           | _ -> None)
+    | _ -> None 
 
 let rec dynamic_match i p v = match p,v with 
   | PWld(_),_ -> Some []
@@ -445,7 +445,7 @@ let rec check_decl ((tev,sev) as evs) ms = function
              | Some s -> SFunction (s,sx) in
              SCEnv.update sev ql (generalize scenv_fsvs s))
         sev cl in 
-      let new_tev = TEnv.update tev qx cl in 
+      let new_tev = TEnv.update tev sl qx cl in 
       ((new_tev,new_sev),[],d)
       
   | DTest(i,e1,tr) -> 

@@ -130,7 +130,6 @@ rule main = parse
 | "("                { LPAREN(info lexbuf) }
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }
-| "'"                { QUOT(info lexbuf) }
 | "."                { DOT(info lexbuf) }
 | "&"                { AMPERSAND(info lexbuf) }
 | "*"                { STAR(info lexbuf) }
@@ -163,6 +162,10 @@ rule main = parse
                        let i2,s = string "" lexbuf in 
                        let i = Info.merge_inc i1 i2 in 
                        STR(i,s) }
+
+| '\'' (id_char_first id_char_rest* as ident) { 
+    VIDENT(info lexbuf, ident)
+  }
 | id_char_first id_char_rest* as ident { 
       try let kw = Hashtbl.find keywords ident in
           kw (info lexbuf)

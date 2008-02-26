@@ -156,12 +156,12 @@ let check_pat i p params = match p,params with
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
 %token <Info.t> STRING REGEXP LENS CANONIZER UNIT
-%token <Info.t * string> STR UIDENT LIDENT QIDENT CSET NSET
+%token <Info.t * string> STR UIDENT LIDENT QIDENT VIDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW
 %token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
-%token <Info.t> SEMI QUOT COMMA DOT EQUAL COLON BACKSLASH SLASH
+%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> GET PUT CREATE INTO
 %token <Info.t> ERROR
@@ -528,8 +528,8 @@ asort:
   | UNIT
       { SUnit }
 
-  | QUOT LIDENT
-      { SVar (get_svar (string_of_id $2)) }
+  | VIDENT
+      { SVar (get_svar (string_of_id $1)) }
       
   | LPAREN sort RPAREN
       { $2 }      

@@ -309,9 +309,14 @@ let rec format_sort = function
       format_sort s2;
       Util.format "@]"
   | SData([],x1) -> Util.format "@[%s@]" (string_of_qid x1)
+  | SData([s],x1) -> 
+      msg "@[";
+      format_sort s;
+      msg "@ ";
+      msg "%s@]" (string_of_qid x1)
   | SData(ms,x1) ->         
       Util.format "@[[@[<2>";
-      Misc.format_list ",@ " format_sort ms;      
+      Misc.format_list ",@ " (format_sort) ms;      
       Util.format "@]]@ %s@]" (string_of_qid x1)
   | SVar(sv) -> format_svar false sv
 
@@ -562,7 +567,7 @@ let occurs_check i sv1 s2 =
            (fun _ -> format_sort s2))  
   
 let rec unify i s1 s2 = 
- (* msg "@[UNIFY@\n";
+  (* msg "@[UNIFY@\n";
   msg "  S1="; format_sort s1;
   msg "@\n  S2="; format_sort s2;
   msg "@\n@]%!"; *)
@@ -597,10 +602,10 @@ let rec unify i s1 s2 =
   | _,SVar sv2 -> unifyVar i true sv2 s1
   | _        -> false in
   (* msg "@[UNIFY RES=%b@\n" res;
-     msg "  S1="; format_sort s1;
-     msg "@\n  S2="; format_sort s2;
-     msg "@\n@]"; *)
-    res
+  msg "  S1="; format_sort s1;
+  msg "@\n  S2="; format_sort s2;
+  msg "@\n@]"; *)
+  res
 
 and unifyVar i flip sv1 s2 = 
   (* msg "UNIFY_VAR: ";
