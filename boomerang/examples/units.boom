@@ -12,7 +12,8 @@
 (* This library is distributed in the hope that it will be useful,             *)
 (* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
+(* Lesser General Public License for more details.          k
+                   *)
 (*******************************************************************************)
 (* /boomerang/examples/units.boom                                              *)
 (* Boomerang unit tests                                                        *)
@@ -21,11 +22,16 @@
 
 module Units = 
 
+let R = /abc\// 
+test del R get "abc/" = ""
+
 type 'a list = Nil | Cons of 'a * 'a list 
 
-let safe_hd l d = match l with 
-  | Nil -> d
-  | Cons(h,_) -> h
+let safe_hd : 'b = 
+  (fun l -> 
+     (fun d -> match l with 
+        | Nil -> d
+        | Cons(h,_) -> h))
 
 type t = A of string | B of regexp
 
@@ -45,7 +51,11 @@ let g =
 let f l = l | l 
 
 test rep (columnize "80" ([a-z0-9 ]*) " " "\n") 
-"abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen william kate michael" = ?
+"abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen william kate michael" =
+<<<
+ abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen
+ william kate michael
+>>>
 
 let any = [^]*
 

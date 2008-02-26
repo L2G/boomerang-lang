@@ -155,6 +155,10 @@ rule main = parse
 | ":"                { COLON(info lexbuf) }
 | "^"                { HAT(info lexbuf) }
 | "~"                { TILDE(info lexbuf) }
+| "/"                { let i1 = info lexbuf in 
+                       let i2,s = rx_string "" lexbuf in 
+                       let i = Info.merge_inc i1 i2 in 
+                       RXSTR(i,s) }
 | "\\"               { BACKSLASH(info lexbuf) }
 | ","                { COMMA(info lexbuf) }
 | "?"                { QMARK(info lexbuf) }
@@ -190,14 +194,23 @@ and cset = parse
   | "\n"             { newline lexbuf; "\n" ^ cset lexbuf }
   | _                { let s = lexeme lexbuf in s ^ cset lexbuf }
 
+and rx_string acc = parse
+  | "\\"        { let s = escape [("/","/")] lexbuf in 
+                  rx_string (acc ^ s) lexbuf }
+  | "/"         { (info lexbuf,acc) }
+  | newline ([' ' '\t']* "|")? 
+                { newline lexbuf;
+                  rx_string (acc ^ "\n") lexbuf }
+  | eof         { error lexbuf "unmatched '/'" }
+  | _           { rx_string (acc ^ lexeme lexbuf) lexbuf }
+
 and string acc = parse
-| "\\"          { let s = escape lexbuf in 
+| "\\"          { let s = escape [("\"","\"")] lexbuf in 
                   string (acc ^ s) lexbuf }
 | "\""          { (info lexbuf,acc) }
-| newline [' ' '\t']* "|" { newline lexbuf; 
-                            string (acc ^ "\n") lexbuf}
-| newline       { newline lexbuf; 
-                  string (acc ^ lexeme lexbuf) lexbuf }
+| newline ([' ' '\t']* "|")? 
+                { newline lexbuf; 
+                  string (acc ^ "\n") lexbuf}
 | eof           { error lexbuf "unmatched '\"'"}
 | _             { string (acc ^ lexeme lexbuf) lexbuf }
 
@@ -240,15 +253,16 @@ and bare_raw acc = parse
   | eof         { error lexbuf "unmatched '<<<'" }
   | _           { bare_raw (acc ^ lexeme lexbuf) lexbuf }
 
-and escape = parse
-| "'"           { "'" }
-| "\""          { "\"" }
+and escape el = parse
 | "\\"          { "\\" }
+| "'"           { "'" }
 | "b"           { "\008" }
 | "n"           { "\010" }
 | "r"           { "\013" }
 | "t"           { "\009" }
-| _             { error lexbuf "in string escape sequence" }
+| _             { try Safelist.assoc (lexeme lexbuf) el 
+                  with Not_found -> 
+                    error lexbuf "in string escape sequence" }
 
 and comment = parse
 | "(*"             { comment lexbuf; comment lexbuf }

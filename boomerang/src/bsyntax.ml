@@ -105,6 +105,11 @@ module SVSet = Set.Make
   let compare (_,x) (_,y) = Pervasives.compare x y
  end)                          
 
+let svs_of_svl l = Safelist.fold_left (fun s svi -> SVSet.add svi s) SVSet.empty l
+let svs_sl_of_svl l = Safelist.fold_left (fun (s,l) svi -> (SVSet.add svi s, SVar svi::l)) (SVSet.empty,[]) l 
+let sl_of_svs s = SVSet.fold (fun svi l -> SVar svi::l) s [] 
+
+
 type scheme = SVSet.t * sort
 
 let scheme_of_sort s = (SVSet.empty,s)
@@ -137,6 +142,7 @@ and osym =
   | OBar 
   | OStar
   | OTilde
+  | OQmark 
 
 and pat = 
   | PWld of i
@@ -155,7 +161,7 @@ type test_result =
 
 type decl = 
     | DLet of i * binding  
-    | DType of i * sort list * id * (id * sort option) list 
+    | DType of i * svar list * id * (id * sort option) list 
     | DMod of i * id * decl list 
     | DTest of i * exp * test_result
         
@@ -226,23 +232,27 @@ let generalize env_svs s0 =
   let fsvs = SVSet.diff (free_svs s) env_svs in 
   (fsvs,s)
 
-let instantiate (svs,s0) = 
+let instantiate_cases (svs,s0) cl = 
   let substs = SVSet.fold 
     (fun svi acc ->
        let cr,_ = svi in 
        (svi,fresh_svar !cr)::acc) 
     svs [] in 
-  let rec go s0 = match s0 with
+  let rec go s = match s with
   | SVar(sv1) ->       
       let fresh_sv1 =
         try snd (Safelist.find (fun (svi,_) -> sv_equal sv1 svi) substs)
         with Not_found -> sv1 in 
       SVar(fresh_sv1)
-  | SUnit | SString | SRegexp | SLens | SCanonizer -> s0 
+  | SUnit | SString | SRegexp | SLens | SCanonizer -> s 
   | SFunction(s1,s2) -> SFunction(go s1, go s2)
   | SProduct(s1,s2)  -> SProduct(go s1, go s2)
   | SData(sl,x1)     -> SData(Safelist.map go sl,x1) in 
-  go s0
+  (go s0,Safelist.map (fun (x,so) -> (x,match so with None -> None | Some s -> Some (go s))) cl)
+
+let instantiate scm = 
+  let res,_ = instantiate_cases scm [] in
+  res
 
 and merge_con c1 c2 = match c1,c2 with
   | Str,Str -> Str
@@ -320,16 +330,19 @@ let rec format_sort = function
       Util.format "@]]@ %s@]" (string_of_qid x1)
   | SVar(sv) -> format_svar false sv
 
-and format_svar print_cons (cr,x) = match !cr with
-  | Bnd s -> 
-      (* msg "<%d>:=" x;*)
-      format_sort s
-  | Fre   -> 
-      (* msg "<%d>" x *)
-      format_svar_tag x
-  | Con c -> 
-      if  print_cons then (format_cons c; msg " ");
-      format_svar_tag x
+and format_svar print_cons (cr,x) = 
+  let verbose = false in 
+  if verbose then msg "[x%d:" x;
+  ( match !cr with
+    | Bnd s -> 
+        if verbose then msg "<-";
+        format_sort s
+    | Fre   -> 
+        format_svar_tag x
+    | Con c -> 
+        if  print_cons then (format_cons c; msg " ");
+        format_svar_tag x);
+  if verbose then msg "]";
 
 and format_svar_tag x = 
   let chr = Char.chr (97 + x mod 26) in 
@@ -460,6 +473,7 @@ and format_sym = function
   | OBar -> Util.format "union"
   | OStar -> Util.format "star"
   | OTilde -> Util.format "swap"
+  | OQmark -> Util.format "opt"
 
 and format_test_result tr =
   match tr with
@@ -491,14 +505,14 @@ and format_decl d =
 	format_binding b;
 	Util.format "@]"
 
-    | DType(_,sl,x,cl) ->  
+    | DType(_,svl,x,cl) ->  
         Util.format "@[type@ ";
-        (match sl with 
+        (match svl with 
           | [] -> ()
-          | [s] -> format_sort s
+          | [sv] -> format_svar true sv
           | _ -> 
               msg "[";
-              Misc.format_list "," format_sort sl;
+              Misc.format_list ",@ " (format_svar true) svl;
               msg "]");
         msg "%s@ =@ " (string_of_id x);
         Misc.format_list " | "
@@ -562,15 +576,15 @@ let occurs_check i sv1 s2 =
   if SVSet.mem sv1 (free_svs s2) then
     Berror.sort_error i 
       (fun () -> 
-         msg "Occurs check failed during unification of %t and %t."
+         msg "occurs check failed during unification of %t and %t."
            (fun _ -> format_svar true sv1)
            (fun _ -> format_sort s2))  
   
 let rec unify i s1 s2 = 
-  (* msg "@[UNIFY@\n";
-  msg "  S1="; format_sort s1;
-  msg "@\n  S2="; format_sort s2;
-  msg "@\n@]%!"; *)
+(*   msg "@[UNIFY@\n"; *)
+(*   msg "  S1="; format_sort s1; *)
+(*   msg "@\n  S2="; format_sort s2; *)
+(*   msg "@\n@]%!"; *)
   let res = match s1,s2 with
 
   (* equal types *)
@@ -601,18 +615,18 @@ let rec unify i s1 s2 =
   | SVar sv1,_ -> unifyVar i false sv1 s2
   | _,SVar sv2 -> unifyVar i true sv2 s1
   | _        -> false in
-  (* msg "@[UNIFY RES=%b@\n" res;
-  msg "  S1="; format_sort s1;
-  msg "@\n  S2="; format_sort s2;
-  msg "@\n@]"; *)
+(*   msg "@[UNIFY RES=%b@\n" res; *)
+(*   msg "  S1="; format_sort s1; *)
+(*   msg "@\n  S2="; format_sort s2; *)
+(*   msg "@\n@]"; *)
   res
 
 and unifyVar i flip sv1 s2 = 
-  (* msg "UNIFY_VAR: ";
-  format_svar true sv1;
-  msg " ~ ";
-  format_sort s2;
-  msg "@\n"; *)
+(*   msg "UNIFY_VAR: "; *)
+(*   format_svar true sv1; *)
+(*   msg " ~ "; *)
+(*   format_sort s2; *)
+(*   msg "@\n"; *)
   let (sor1,x1) = sv1 in 
   match !sor1,s2 with    
     | Bnd s1,_ -> 

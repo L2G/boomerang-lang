@@ -105,8 +105,8 @@ module TEnv = struct
                             let compare = id_compare
                             let to_string = string_of_id
                           end)
-  type sl = (id * sort option) list
-  type t = ((sort list * sl) M.t * qid MCon.t)
+  type cl = (id * sort option) list
+  type t = ((svar list * cl) M.t * qid MCon.t)
   let empty () = (M.empty (), MCon.empty ())
   let lookup (t,_) x = M.lookup t x
   let lookup_con (t,tcon) x = match MCon.lookup tcon x with 
@@ -117,8 +117,8 @@ module TEnv = struct
               (fun () -> msg "datatype %s missing" (string_of_qid q))
         | Some (sl,cl) -> Some (q,sl,cl)
       end
-  let update (t,tcon) sl x cl =    
-    let t' = M.update t x (sl,cl) in 
+  let update (t,tcon) svl x cl =    
+    let t' = M.update t x (svl,cl) in 
     let tcon' = 
       Safelist.fold_left 
         (fun tcon (xi,so) -> MCon.update tcon xi x)
@@ -182,7 +182,6 @@ struct
 end
 
 (* --------------- Checker --------------- *)
-
 let cenv_free_svs cev = 
   CEnv.fold 
     (fun _ ((svsi,si),_) acc -> SVSet.union acc (SVSet.diff (free_svs si) svsi))
@@ -195,6 +194,7 @@ let scenv_free_svs sev =
 
 (* helper: check if a sort matches a pattern; return bindings for variables *)
 let rec static_match i tev p s = 
+(*   msg "STATIC_MATCH: %s # %s@\n" (string_of_pat p) (string_of_sort s); *)
   let err p s1 s2 = sort_error i 
     (fun () -> msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
        (string_of_pat p)
@@ -209,22 +209,23 @@ let rec static_match i tev p s =
     | PVnt(_,li,pio),s -> 
         (* lookup which datatype we have using li *)
         begin match TEnv.lookup_con tev li with
-          | None -> 
-              sort_error i 
-                (fun () -> msg "@[Unbound@ constructor@ %s@]" (string_of_id li))
-          | Some (q,sl,cl) -> 
-              let s_expect = SData(sl,q) in 
-                if not (unify i s s_expect) then err p s_expect s;
-                let rec aux = function
-                  | [] -> None
-                  | (lj,sjo)::rest -> 
-                      if (id_equal li lj) then 
-                        (match pio,sjo with 
-                           | None,None -> Some []
-                           | Some pi,Some sj -> static_match i tev pi sj
-                           | _ -> sort_error i (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_id li)))
-                      else aux rest in 
-                  aux cl
+          | None -> sort_error i (fun () -> msg "@[Unbound@ constructor@ %s@]" (string_of_id li))
+          | Some (q,svl,cl) ->            
+              let svs,sl = svs_sl_of_svl svl in               
+              let s_expect,cl_inst = instantiate_cases (svs,SData(sl,q)) cl in 
+(*               msg "RAW DATA         : %s@\n" (string_of_sort (SData(sl,q))); *)
+(*               msg "INSTANTIATED DATA: %s@\n" (string_of_sort s_expect); *)
+              if not (unify i s s_expect) then err p s_expect s;
+              let rec aux = function
+                | [] -> None
+                | (lj,sjo)::rest -> 
+                    if (id_equal li lj) then 
+                      (match pio,sjo with 
+                         | None,None -> Some []
+                         | Some pi,Some sj -> static_match i tev pi sj
+                         | _ -> sort_error i (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_id li)))
+                    else aux rest in 
+              aux cl_inst
         end
     | PPar(_,p1,p2),SProduct(s1,s2) -> 
         (match static_match i tev p1 s1, static_match i tev p2 s2 with 
@@ -269,6 +270,7 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
       | OBar -> mk_bin Reg (mk_native_prelude_qid "poly_union")
       | OStar -> mk_un Reg (mk_native_prelude_qid "poly_star")
       | OTilde -> mk_bin Lns (mk_native_prelude_qid "poly_swap")
+      | OQmark -> mk_un Reg (mk_native_prelude_qid "poly_opt")
     end
 
   | EVar(i,q) ->
@@ -278,6 +280,7 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
             sort_error i 
               (fun () -> msg "@[%s is not bound@]" 
                  (string_of_qid q)) in 
+(*       msg "VAR: %s %s@\n" (string_of_qid q) (string_of_sort e0_sort); *)
       let new_e0 = e0 in 
       (e0_sort,new_e0)
 
@@ -322,9 +325,9 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
   | EApp(i,e1,e2) -> 
       let e1_sort,new_e1 = check_exp evs e1 in 
       let e2_sort,new_e2 = check_exp evs e2 in 
-      (* msg "@[IN APP: "; format_exp e0; msg "@]@\n";
-      msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort);
-      msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
+(*       msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
+(*       msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
+(*       msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort);  *)
       let param_sort = fresh_sort Fre in 
       let ret_sort = fresh_sort Fre in 
       let sf = SFunction(param_sort,ret_sort) in        
@@ -348,18 +351,27 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
       let err2 i p s1 s2 = sort_error i (fun () -> msg p s1 s2) in 
       let e1_sort,new_e1 = check_exp evs e1 in 
       let branches_sort = fresh_sort Fre in 
+(*       msg "ECASE: %s@\n" (string_of_sort e1_sort); *)
+(*       msg "BRANCHES SORT: %s@\n" (string_of_sort branches_sort); *)
       let new_pl_rev = Safelist.fold_left 
         (fun new_pl_rev (pi,ei) -> 
+(*            msg "CHECKING BRANCH: "; *)
+(*            format_pat pi; *)
+(*            msg " -> "; *)
+(*            format_exp ei; *)
+(*            msg "@\n"; *)
            match static_match i tev pi e1_sort with 
              | None -> 
                  err2 i "@[pattern@ %s@ does@ not@ match@ sort@ %s@]" 
                    (string_of_pat pi) 
                    (string_of_sort e1_sort)
-             | Some binds -> 
+             | Some binds ->                  
                  let ei_sev = Safelist.fold_left 
                    (fun ei_sev (xj,sj) -> SCEnv.update ei_sev (qid_of_id xj) sj)
                    sev binds in 
-                 let ei_sort,new_ei = check_exp (tev,ei_sev) ei in
+                 let ei_sort,new_ei = check_exp (tev,ei_sev) ei in                 
+(*                  msg "EI_SORT: %s@\n" (string_of_sort ei_sort); *)
+(*                  msg "BRANCHES_SORT: %s@\n" (string_of_sort branches_sort);                    *)
                  if not (unify i ei_sort branches_sort) then
                    sort_error i 
                      (fun () -> 
@@ -390,7 +402,7 @@ and check_binding ((tev,sev) as evs) = function
                      (string_of_sort s)
                      (string_of_sort e_sort)));      
       let new_b = Bind(i,PVar(ix,x),Some e_sort,new_e) in 
-      msg "@[BINDING %s has sort %s@\n@]" (string_of_id x) (string_of_scheme x_scheme);
+(*       msg "@[BINDING %s has sort %s@\n@]" (string_of_id x) (string_of_scheme x_scheme); *)
       ((tev,bsev),[qx],new_b)
   | Bind(i,p,_,e) ->      
       let e_sort,new_e = check_exp evs e in 
@@ -433,19 +445,21 @@ let rec check_decl ((tev,sev) as evs) ms = function
       let new_d = DMod(i,n,new_ds) in 
       ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
-  | DType(i,sl,x,cl) as d -> 
+  | DType(i,svl,x,cl) as d -> 
       let qx = qid_of_id x in 
-      let sx = SData(sl,qx) in
-      let scenv_fsvs = scenv_free_svs sev in
+      let sx = SData(Safelist.map (fun sv -> SVar sv) svl,qx) in
       let new_sev = Safelist.fold_left 
         (fun sev (l,so) -> 
            let ql = qid_of_id l in 
            let s = match so with 
              | None -> sx
              | Some s -> SFunction (s,sx) in
-             SCEnv.update sev ql (generalize scenv_fsvs s))
+           let svs = Safelist.fold_left (fun s svi -> SVSet.add svi s) SVSet.empty svl in 
+           let scheme = (svs,s) in
+(*            msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme); *)
+           SCEnv.update sev ql scheme)
         sev cl in 
-      let new_tev = TEnv.update tev sl qx cl in 
+      let new_tev = TEnv.update tev svl qx cl in 
       ((new_tev,new_sev),[],d)
       
   | DTest(i,e1,tr) -> 
@@ -604,21 +618,23 @@ let rec compile_decl cev ms = function
   | DLet(i,b) -> 
       let bcev,xs = compile_binding cev b in
       (bcev,xs)
-  | DType(i,sl,x,cl) -> 
+  | DType(i,svl,x,cl) -> 
       let qx = qid_of_id x in 
-      let sx = SData(sl,qx) in 
+      let svs,sl = svs_sl_of_svl svl in 
+      let x_sort = SData(sl,qx) in 
+      let x_scheme = (svs,x_sort) in 
       let new_cev = Safelist.fold_left 
         (fun cev (l,so) -> 
            let ql = qid_of_id l in 
            let rv = match so with 
-             | None -> (scheme_of_sort sx,V.Vnt(i,qx,l,None))
+             | None -> (x_scheme,V.Vnt(i,qx,l,None))
              | Some s -> 
-                 let sf = SFunction(s,sx) in 
-                   (scheme_of_sort sf,
-                    V.Fun(i,s,sx,(fun i v -> V.Vnt(i,qx,l,Some v)))) in 
-             CEnv.update cev ql rv)
+                 let sf = SFunction(s,x_sort) in 
+                 let sf_scheme = (svs,sf) in                    
+                 (sf_scheme, V.Fun(i,s,x_sort,(fun i v -> V.Vnt(i,qx,l,Some v)))) in 
+           CEnv.update cev ql rv)
         cev cl in 
-      (new_cev,[qx])
+        (new_cev,[qx])
 
   | DMod(i,n,ds) ->
       let m_cev, names = compile_mod_aux cev ms ds in

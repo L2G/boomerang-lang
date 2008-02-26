@@ -57,6 +57,8 @@ let mk_compose i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "compose")) e1 
 let mk_swap i e1 e2 = mk_bin_op i (EOver(i,OTilde)) e1 e2
 let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "set")) e1 e2
 let mk_match i x q = mk_bin_op i (mk_qid_var (mk_prelude_qid "dmatch")) (EString(i,RS.t_of_string x)) (mk_qid_var q)
+let mk_str i s = EString(i,RS.t_of_string s)
+let mk_rx i e = EApp(i,mk_qid_var (mk_prelude_qid "str"),e)
 
 (* error *)
 let syntax_error i msg = 
@@ -156,7 +158,7 @@ let check_pat i p params = match p,params with
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
 %token <Info.t> STRING REGEXP LENS CANONIZER UNIT
-%token <Info.t * string> STR UIDENT LIDENT QIDENT VIDENT CSET NSET
+%token <Info.t * string> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW
@@ -183,7 +185,7 @@ opens:
 
 /* --------- DECLARATIONS ---------- */
 decls:      
-  | TYPE sort_list LIDENT EQUAL dtsort_list decls
+  | TYPE svar_list LIDENT EQUAL dtsort_list decls
       { let i = m $1 $4 in 
         DType(i,$2,$3,$5)::$6 }
 
@@ -414,7 +416,11 @@ aexp:
 
   | STR 
       { let i,s = $1 in 
-        EString(i,RS.t_of_string s) }
+        mk_str i s }
+
+  | RXSTR
+      { let i,s = $1 in 
+        mk_rx i (mk_str i s) }
 
   | LPAREN RPAREN
       { EUnit(m $1 $2) }
@@ -505,7 +511,7 @@ psort:
 
 /* data type sorts */
 dsort:
-  | sort_list LIDENT
+  | sort_list LIDENT 
       { SData($1,qid_of_id $2) }
 
   | asort 
@@ -528,28 +534,46 @@ asort:
   | UNIT
       { SUnit }
 
-  | VIDENT
-      { SVar (get_svar (string_of_id $1)) }
+  | svar
+      { SVar $1 }
       
   | LPAREN sort RPAREN
-      { $2 }      
+      { $2 }
 
-/* sort list */
-sort_list: 
+sort_list:
   | 
       { [] }
 
+  | sort_list2
+      { $1 }
+
+sort_list2:
   | asort 
       { [$1] }
 
-  | LBRACK sort_list2 RBRACK
-      { $2 }
+  | asort COMMA sort_list2
+      { $1 :: $3}
 
-sort_list2:
-  | sort 
+/* svar list */
+svar:
+  | VIDENT
+      { get_svar (string_of_id $1) }
+
+svar_list: 
+  | 
+      { [] }
+
+  | svar 
       { [$1] }
 
-  | sort COMMA sort_list2
+  | LBRACK svar_list2 RBRACK
+      { $2 }
+
+svar_list2:
+  | svar 
+      { [$1] }
+
+  | svar COMMA svar_list2
       { $1 :: $3 }
 
 /* sort test specifications */
