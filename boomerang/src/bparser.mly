@@ -185,7 +185,7 @@ opens:
 
 /* --------- DECLARATIONS ---------- */
 decls:      
-  | TYPE svar_list LIDENT EQUAL dtsort_list decls
+  | TYPE sort_list LIDENT EQUAL dtsort_list decls
       { let i = m $1 $4 in 
         DType(i,$2,$3,$5)::$6 }
 
@@ -535,7 +535,7 @@ asort:
       { SUnit }
 
   | svar
-      { SVar $1 }
+      { SRawVar $1 }
       
   | LPAREN sort RPAREN
       { $2 }
@@ -557,24 +557,7 @@ sort_list2:
 /* svar list */
 svar:
   | VIDENT
-      { get_svar (string_of_id $1) }
-
-svar_list: 
-  | 
-      { [] }
-
-  | svar 
-      { [$1] }
-
-  | LBRACK svar_list2 RBRACK
-      { $2 }
-
-svar_list2:
-  | svar 
-      { [$1] }
-
-  | svar COMMA svar_list2
-      { $1 :: $3 }
+      { $1 }
 
 /* sort test specifications */
 decl_sort:

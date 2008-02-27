@@ -27,13 +27,15 @@ test del R get "abc/" = ""
 
 type 'a list = Nil | Cons of 'a * 'a list 
 
-let safe_hd : 'b = 
-  (fun l -> 
+let safe_hd : 'a = 
+  (fun (l:'a) -> 
      (fun d -> match l with 
         | Nil -> d
         | Cons(h,_) -> h))
 
 type t = A of string | B of regexp
+
+let twice l = l | l
 
 let f1 (x:t) : lens = match x with 
   | B _ -> copy (str "")

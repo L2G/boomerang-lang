@@ -104,12 +104,14 @@ module TEnv = struct
                             type t = id
                             let compare = id_compare
                             let to_string = string_of_id
-                          end)
-  type cl = (id * sort option) list
-  type t = ((svar list * cl) M.t * qid MCon.t)
-  let empty () = (M.empty (), MCon.empty ())
-  let lookup (t,_) x = M.lookup t x
-  let lookup_con (t,tcon) x = match MCon.lookup tcon x with 
+                          end) 
+  type tmap = (svar list * (id * sort option) list) M.t
+  type rmap = qid MCon.t 
+  type vmap = (id * sort) list 
+  type t = tmap * rmap * vmap 
+  let empty () = (M.empty (), MCon.empty (),[])
+  let lookup (t,_,_) x = M.lookup t x
+  let lookup_con (t,tcon,_) x = match MCon.lookup tcon x with 
     | None -> None
     | Some q -> begin match M.lookup t q with 
         | None -> 
@@ -117,13 +119,15 @@ module TEnv = struct
               (fun () -> msg "datatype %s missing" (string_of_qid q))
         | Some (sl,cl) -> Some (q,sl,cl)
       end
-  let update (t,tcon) svl x cl =    
+  let update (t,tcon,al) svl x cl =    
     let t' = M.update t x (svl,cl) in 
     let tcon' = 
       Safelist.fold_left 
         (fun tcon (xi,so) -> MCon.update tcon xi x)
         tcon cl in 
-    (t',tcon')
+    (t',tcon',al)
+  let update_al (t,tcon,_) al = (t,tcon,al)
+  let get_al (_,_,al) = al
 end
 
 module CEnv : CEnvSig with type v = (scheme * Bvalue.t) = 
@@ -182,14 +186,14 @@ struct
 end
 
 (* --------------- Checker --------------- *)
-let cenv_free_svs cev = 
+let cenv_free_svs i cev = 
   CEnv.fold 
-    (fun _ ((svsi,si),_) acc -> SVSet.union acc (SVSet.diff (free_svs si) svsi))
+    (fun _ ((svsi,si),_) acc -> SVSet.union acc (SVSet.diff (free_svs i si) svsi))
     cev SVSet.empty
 
-let scenv_free_svs sev = 
+let scenv_free_svs i sev = 
   SCEnv.fold 
-    (fun _ (svsi,si) acc -> SVSet.union acc (SVSet.diff (free_svs si) svsi))
+    (fun _ (svsi,si) acc -> SVSet.union acc (SVSet.diff (free_svs i si) svsi))
     sev SVSet.empty
 
 (* helper: check if a sort matches a pattern; return bindings for variables *)
@@ -212,7 +216,7 @@ let rec static_match i tev p s =
           | None -> sort_error i (fun () -> msg "@[Unbound@ constructor@ %s@]" (string_of_id li))
           | Some (q,svl,cl) ->            
               let svs,sl = svs_sl_of_svl svl in               
-              let s_expect,cl_inst = instantiate_cases (svs,SData(sl,q)) cl in 
+              let s_expect,cl_inst = instantiate_cases i (svs,SData(sl,q)) cl in 
 (*               msg "RAW DATA         : %s@\n" (string_of_sort (SData(sl,q))); *)
 (*               msg "INSTANTIATED DATA: %s@\n" (string_of_sort s_expect); *)
               if not (unify i s s_expect) then err p s_expect s;
@@ -275,7 +279,7 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
 
   | EVar(i,q) ->
       let e0_sort = match SCEnv.lookup sev q with
-        | Some ss -> instantiate ss 
+        | Some ss -> instantiate i ss 
         | None -> 
             sort_error i 
               (fun () -> msg "@[%s is not bound@]" 
@@ -284,22 +288,26 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
       let new_e0 = e0 in 
       (e0_sort,new_e0)
 
-  | EFun(i,p,ret_sorto,body) ->
-      let p_id = id_of_param p in
-      let p_sort = sort_of_param p in 
-      let body_sev = SCEnv.update sev (qid_of_id p_id) (scheme_of_sort p_sort) in
-      let body_sort,new_body = check_exp (tev,body_sev) body in       
-      (match ret_sorto with 
-        | None -> ()
-        | Some ret_sort -> 
-            if not (unify i body_sort ret_sort) then 
-              sort_error i 
-                (fun () -> 
-                   msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
-                     (string_of_sort ret_sort)
-                     (string_of_sort body_sort)));      
-      let e0_sort = SFunction(p_sort,body_sort) in 
-      let new_e0 = EFun(i,p,Some body_sort,new_body) in 
+  | EFun(i,Param(p_i,p_x,p_s),ret_sorto,body) ->      
+      let rv_al,p_s' = fix_sort (TEnv.get_al tev) p_s in 
+      let tev' = TEnv.update_al tev rv_al in 
+      let body_sev = SCEnv.update sev (qid_of_id p_x) (scheme_of_sort p_s') in
+      let body_sort,new_body = 
+        match ret_sorto with 
+          | None -> check_exp (tev',body_sev) body 
+          | Some ret_sort -> 
+              let rv_al',ret_sort' = fix_sort rv_al ret_sort in 
+              let tev'' = TEnv.update_al tev' rv_al' in                 
+              let body_sort,new_body = check_exp (tev'',body_sev) body in       
+              if not (unify i body_sort ret_sort') then 
+                sort_error i 
+                  (fun () -> 
+                     msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
+                       (string_of_sort ret_sort')
+                       (string_of_sort body_sort));
+              (body_sort,new_body) in 
+      let e0_sort = SFunction(p_s',body_sort) in 
+      let new_e0 = EFun(i,Param(p_i,p_x,p_s'),Some body_sort,new_body) in       
       (e0_sort, new_e0)
 
   | ELet(i,b,e) ->
@@ -327,7 +335,7 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
       let e2_sort,new_e2 = check_exp evs e2 in 
 (*       msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
 (*       msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
-(*       msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort);  *)
+(*       msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
       let param_sort = fresh_sort Fre in 
       let ret_sort = fresh_sort Fre in 
       let sf = SFunction(param_sort,ret_sort) in        
@@ -344,6 +352,8 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
                (string_of_sort param_sort)
                (string_of_sort e2_sort));
       let e0_sort = ret_sort in 
+(*       msg "@[RESULT: %s@\n@]" (string_of_sort ret_sort); *)
+
       let new_e0 = EApp(i,new_e1,new_e2) in 
       (e0_sort,new_e0)
 
@@ -387,26 +397,42 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
         
 and check_binding ((tev,sev) as evs) = function
   | Bind(i,PVar(ix,x),sorto,e) -> 
-      let e_sort,new_e = check_exp evs e in 
       let qx = qid_of_id x in 
-      let sev_fsvs = scenv_free_svs sev in 
-      let x_scheme = generalize sev_fsvs e_sort in 
-      let bsev = SCEnv.update sev qx x_scheme in 
-      (match sorto with 
-        | None -> ()
+      let sev_fsvs = scenv_free_svs i sev in 
+      let tev',(e_sort,new_e) = match sorto with 
+        | None -> (tev,check_exp evs e)
         | Some s -> 
-            if not (unify i e_sort s) then 
+            let rv_al',s' = fix_sort (TEnv.get_al tev) s in 
+            let tev' = TEnv.update_al tev rv_al' in 
+            let e_sort,new_e = check_exp (tev',sev) e in 
+            if not (unify i e_sort s') then 
               sort_error i 
                 (fun () -> 
                    msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
-                     (string_of_sort s)
-                     (string_of_sort e_sort)));      
+                     (string_of_sort s')
+                     (string_of_sort e_sort));
+              (tev',(e_sort,new_e)) in 
+      let x_scheme = generalize i sev_fsvs e_sort in 
+      let bsev = SCEnv.update sev qx x_scheme in 
       let new_b = Bind(i,PVar(ix,x),Some e_sort,new_e) in 
-(*       msg "@[BINDING %s has sort %s@\n@]" (string_of_id x) (string_of_scheme x_scheme); *)
-      ((tev,bsev),[qx],new_b)
-  | Bind(i,p,_,e) ->      
-      let e_sort,new_e = check_exp evs e in 
-      let bindso = static_match i tev p e_sort in 
+      (* msg "@[BINDING %s has sort %s@\n@]" (string_of_id x) (string_of_scheme x_scheme);*)
+      ((tev',bsev),[qx],new_b)
+  | Bind(i,p,sorto,e) ->
+      let tev',(e_sort,new_e) = match sorto with 
+        | None -> (tev,check_exp evs e)
+        | Some s -> 
+            let rv_al',s' = fix_sort (TEnv.get_al tev) s in 
+            let tev' = TEnv.update_al tev rv_al' in 
+            let e_sort,new_e = check_exp (tev',sev) e in 
+            if not (unify i e_sort s') then 
+              sort_error i 
+                (fun () -> 
+                   msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
+                     (string_of_sort s')
+                     (string_of_sort e_sort));
+              (tev',(e_sort,new_e)) in 
+
+      let bindso = static_match i tev' p e_sort in 
       let bsev,xs_rev = match bindso with 
         | None -> sort_error i 
             (fun () -> msg "@[pattern@ %s@ does@ not@ match@ sort@ %s@]"
@@ -418,14 +444,16 @@ and check_binding ((tev,sev) as evs) = function
                  let qx = qid_of_id x in 
                  (SCEnv.update bsev qx s, qx::xs))
               (sev,[]) binds in 
+
       let new_b = Bind(i,p,Some e_sort,new_e) in 
-      ((tev,bsev),Safelist.rev xs_rev,new_b)
+      ((tev',bsev),Safelist.rev xs_rev,new_b)
 
 (* type check a single declaration *)
 let rec check_decl ((tev,sev) as evs) ms = function 
   | DLet(i,b) -> 
-      let bevs,xs,new_b = check_binding evs b in 
+      let (tev,sev),xs,new_b = check_binding evs b in 
       let new_d = DLet(i,new_b) in
+      let bevs = (TEnv.update_al tev [],sev) in 
       (bevs,xs,new_d)
   | DMod(i,n,ds) ->
       let ms = ms @ [n] in 
@@ -445,22 +473,32 @@ let rec check_decl ((tev,sev) as evs) ms = function
       let new_d = DMod(i,n,new_ds) in 
       ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
-  | DType(i,svl,x,cl) as d -> 
+  | DType(i,sl,x,cl) -> 
       let qx = qid_of_id x in 
-      let sx = SData(Safelist.map (fun sv -> SVar sv) svl,qx) in
+      (* allocate / substitute SVars for SRawVars *)
+      let sl',al = svl_al_of_rl i sl in 
+      let svs = svs_of_sl i sl' in 
+      let eq = function
+        | SRawVar(x) -> id_equal x
+        | _ -> (fun _ -> false) in 
+      let cl' = 
+        Safelist.map 
+          (fun (x,so) -> (x,Misc.map_option (subst al eq) so)) 
+          cl in 
+      let sx = SData(sl',qx) in 
       let new_sev = Safelist.fold_left 
         (fun sev (l,so) -> 
            let ql = qid_of_id l in 
            let s = match so with 
              | None -> sx
              | Some s -> SFunction (s,sx) in
-           let svs = Safelist.fold_left (fun s svi -> SVSet.add svi s) SVSet.empty svl in 
            let scheme = (svs,s) in
-(*            msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme); *)
+           (* msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme);*)
            SCEnv.update sev ql scheme)
-        sev cl in 
-      let new_tev = TEnv.update tev svl qx cl in 
-      ((new_tev,new_sev),[],d)
+        sev cl' in 
+      let new_tev = TEnv.update tev (SVSet.elements svs) qx cl' in 
+      let new_d = DType(i,sl',x,cl') in 
+      ((new_tev,new_sev),[],new_d)
       
   | DTest(i,e1,tr) -> 
       let e1_sort,new_e1 = check_exp evs e1 in
@@ -599,7 +637,7 @@ and compile_binding cev = function
   | Bind(i,p,so,e) ->
       let (_,s),v = compile_exp cev e in 
       let bindso = dynamic_match i p v in 
-      let cev_fsvs = cenv_free_svs cev in 
+      let cev_fsvs = cenv_free_svs i cev in 
       let bcev,xs_rev = match bindso with 
         | None -> run_error i 
             (fun () -> msg "@[pattern %s and value %s do not match@]" 
@@ -610,7 +648,7 @@ and compile_binding cev = function
               (fun (bcev,xs) (x,v) -> 
                  let qx = qid_of_id x in 
                  let s = V.sort_of_t v in 
-                 (CEnv.update bcev qx (generalize cev_fsvs s,v), qx::xs))
+                 (CEnv.update bcev qx (generalize i cev_fsvs s,v), qx::xs))
               (cev,[]) binds in 
       (bcev,Safelist.rev xs_rev)
 
@@ -618,8 +656,16 @@ let rec compile_decl cev ms = function
   | DLet(i,b) -> 
       let bcev,xs = compile_binding cev b in
       (bcev,xs)
-  | DType(i,svl,x,cl) -> 
+  | DType(i,sl,x,cl) -> 
       let qx = qid_of_id x in 
+      let svl =       (* SLOW *)
+        Safelist.rev 
+          (Safelist.fold_left 
+             (fun l si -> 
+                match si with 
+                  | SVar svi -> svi::l
+                  | _ -> assert false)
+             [] sl) in 
       let svs,sl = svs_sl_of_svl svl in 
       let x_sort = SData(sl,qx) in 
       let x_scheme = (svs,x_sort) in 

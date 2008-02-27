@@ -29,3 +29,5 @@ val split_error : Info.t -> string -> int -> string -> 'a
 
 val sort_error : Info.t -> (unit -> unit) -> 'a
 
+val run_error : Info.t -> (unit -> unit) -> 'a
+

@@ -91,12 +91,9 @@ type sort =
     | SData of sort list * qid         (* data types *)
     | SProduct of sort * sort          (* products *)
     | SVar of svar                     (* sort variables *)
-
-(* baked in type classes for disambiguation of overloaded operators *)
+    | SRawVar of id                    (* parsed sort variables *)
 and sbnd = Fre | Bnd of sort | Con of scon
-
 and scon = Str | Reg | Lns 
-
 and svar = sbnd ref * int
 
 module SVSet = Set.Make
@@ -104,11 +101,6 @@ module SVSet = Set.Make
   type t = svar 
   let compare (_,x) (_,y) = Pervasives.compare x y
  end)                          
-
-let svs_of_svl l = Safelist.fold_left (fun s svi -> SVSet.add svi s) SVSet.empty l
-let svs_sl_of_svl l = Safelist.fold_left (fun (s,l) svi -> (SVSet.add svi s, SVar svi::l)) (SVSet.empty,[]) l 
-let sl_of_svs s = SVSet.fold (fun svi l -> SVar svi::l) s [] 
-
 
 type scheme = SVSet.t * sort
 
@@ -161,7 +153,7 @@ type test_result =
 
 type decl = 
     | DLet of i * binding  
-    | DType of i * svar list * id * (id * sort option) list 
+    | DType of i * sort list * id * (id * sort option) list 
     | DMod of i * id * decl list 
     | DTest of i * exp * test_result
         
@@ -178,42 +170,103 @@ let fresh_svar con =
   incr gensym_count;
   (ref con,n)
 
-module SHash = 
-  Hashtbl.Make(struct
-                 type t = string
-                 let equal = (=)
-                 let hash = Hashtbl.hash 
-               end)
-    
-let svar_cache : svar SHash.t = SHash.create 17 
-let get_svar x = 
-  try SHash.find svar_cache x 
-  with Not_found -> 
-    let sv = fresh_svar Fre in 
-    SHash.add svar_cache x sv;
-    sv
-
 let fresh_sort con = SVar(fresh_svar con)
+
+let raw_error i = 
+  Berror.run_error i 
+    (fun () -> msg "unexpected raw sort variable")
+
+let svs_of_svl l = 
+  Safelist.fold_left 
+    (fun s svi -> SVSet.add svi s) 
+    SVSet.empty l
+
+let svs_of_sl i l = 
+  Safelist.fold_left 
+    (fun s si -> match si with 
+       | SVar(svi) -> SVSet.add svi s
+       | _ -> Berror.run_error i (fun () -> msg "expected sort variable"))
+    SVSet.empty l                
+
+let svs_sl_of_svl l = 
+  Safelist.fold_left 
+    (fun (s,l) svi -> (SVSet.add svi s, SVar svi::l)) 
+    (SVSet.empty,[]) l
+    
+let sl_of_svs s = 
+  SVSet.fold (fun svi l -> SVar svi::l) 
+    s [] 
+
+let svl_al_of_rl i rl = 
+  Safelist.fold_left 
+    (fun (svl,al) si -> 
+       match si with 
+         | SRawVar(x) -> begin 
+             try (Safelist.assoc x al::svl,al)
+             with Not_found -> 
+               let s_fresh = fresh_sort Fre in 
+               (s_fresh::svl, (x,s_fresh)::al)
+           end
+         | _ -> Berror.run_error i (fun () -> msg "expected sort variable"))
+    ([],[]) rl 
+
+let subst al eq s0 = 
+  let rec go s = match s with
+    | SVar _ | SRawVar _ -> 
+        begin 
+          try snd (Safelist.find (fun (x,_) -> eq s x) al) 
+          with Not_found -> s
+        end
+    | SUnit | SString | SRegexp | SLens | SCanonizer -> s 
+    | SFunction(s1,s2) -> SFunction(go s1, go s2)
+    | SProduct(s1,s2)  -> SProduct(go s1, go s2)
+    | SData(sl,x1)     -> SData(Safelist.map go sl,x1) in 
+  go s0 
+
+let rec fix_sort al s = match s with
+  | SVar _ | SUnit | SString | SRegexp | SLens | SCanonizer -> (al,s)
+  | SFunction(s1,s2) -> 
+      let al1,s1' = fix_sort al s1 in 
+      let al2,s2' = fix_sort al s2 in 
+      (al2,SFunction(s1',s2'))
+    | SProduct(s1,s2)  -> 
+        let al1,s1' = fix_sort al s1 in 
+        let al2,s2' = fix_sort al s2 in 
+        (al2,SProduct(s1',s2'))
+    | SData(sl,x1) -> 
+        let al',sl' = 
+          Safelist.fold_left 
+            (fun (al,sl) si -> 
+               let al',si' = fix_sort al si in 
+                 (al',si'::sl))
+            (al,[]) sl in 
+        (al',SData(sl',x1))
+    | SRawVar(x) -> 
+        try (al,snd (Safelist.find (fun (y,_) -> id_equal x y) al))
+        with Not_found -> 
+          let s_fresh = fresh_sort Fre in 
+          ((x,s_fresh)::al,s_fresh) 
 
 (* sv_equal: true iff the two variables are equal *)
 let sv_equal (_,x) (_,y) = x=y
 
 (* zonking: removes "chains" of variable references producing during unification. *)
-let rec zonk s0 = match s0 with 
+let rec zonk i s0 = match s0 with 
   | SUnit | SString | SRegexp | SLens | SCanonizer -> s0
-  | SFunction(s1,s2) -> SFunction(zonk s1,zonk s2)
-  | SData(sl,x) -> SData(Safelist.map zonk sl,x)
-  | SProduct(s1,s2) -> SProduct(zonk s1,zonk s2)
+  | SFunction(s1,s2) -> SFunction(zonk i s1,zonk i s2)
+  | SData(sl,x) -> SData(Safelist.map (zonk i) sl,x)
+  | SProduct(s1,s2) -> SProduct(zonk i s1,zonk i s2)
   | SVar(sor,_) -> begin match !sor with 
       | Bnd s -> 
-          let s' = zonk s in 
+          let s' = zonk i s in 
           sor := Bnd s';
           s'
-      | _ -> s0
+      | _ -> s0     
     end
+  | SRawVar _ -> raw_error i      
 
 (* free sort variables *)
-let free_svs s0 = 
+let free_svs i s0 = 
   let rec go acc = function
     | SVar(sv1) -> 
         let (sor1,x1) = sv1 in 
@@ -224,34 +277,28 @@ let free_svs s0 =
     | SUnit | SString | SRegexp | SLens | SCanonizer -> acc
     | SFunction(s1,s2) -> go (go acc s1) s2
     | SProduct(s1,s2)  -> go (go acc s1) s2
-    | SData(sl,s1)     -> Safelist.fold_left go acc sl in 
+    | SData(sl,s1)     -> Safelist.fold_left go acc sl 
+    | SRawVar _        -> raw_error i in 
   go SVSet.empty s0
 
-let generalize env_svs s0 = 
-  let s = zonk s0 in 
-  let fsvs = SVSet.diff (free_svs s) env_svs in 
+let generalize i env_svs s0 = 
+  let s = zonk i s0 in 
+  let fsvs = SVSet.diff (free_svs i s) env_svs in 
   (fsvs,s)
 
-let instantiate_cases (svs,s0) cl = 
-  let substs = SVSet.fold 
-    (fun svi acc ->
-       let cr,_ = svi in 
-       (svi,fresh_svar !cr)::acc) 
-    svs [] in 
-  let rec go s = match s with
-  | SVar(sv1) ->       
-      let fresh_sv1 =
-        try snd (Safelist.find (fun (svi,_) -> sv_equal sv1 svi) substs)
-        with Not_found -> sv1 in 
-      SVar(fresh_sv1)
-  | SUnit | SString | SRegexp | SLens | SCanonizer -> s 
-  | SFunction(s1,s2) -> SFunction(go s1, go s2)
-  | SProduct(s1,s2)  -> SProduct(go s1, go s2)
-  | SData(sl,x1)     -> SData(Safelist.map go sl,x1) in 
-  (go s0,Safelist.map (fun (x,so) -> (x,match so with None -> None | Some s -> Some (go s))) cl)
+let instantiate_cases i (svs,s0) cl = 
+  let al = 
+    SVSet.fold 
+      (fun (cr,x) l -> (x,SVar (fresh_svar !cr))::l)
+      svs [] in 
+  let eq = function
+    | SVar(_,x) -> (=) x
+    | _ -> (fun _ -> false) in 
+  let go = subst al eq in 
+  (go s0, Safelist.map (fun (x,so) -> (x,Misc.map_option go so)) cl)
 
-let instantiate scm = 
-  let res,_ = instantiate_cases scm [] in
+let instantiate i scm = 
+  let res,_ = instantiate_cases i scm [] in
   res
 
 and merge_con c1 c2 = match c1,c2 with
@@ -293,6 +340,24 @@ let sort_of_param = function
 let id_of_param = function
   | Param(_,x,_) -> x
 
+let name_ctxt : (int * ((int * string) list)) ref = ref (0,[])
+let reset_name_ctxt () = 
+  name_ctxt := (0,[])
+
+let format_svar_tag x = 
+  let i,assoc = !name_ctxt in 
+  let x_str = 
+    try Safelist.assoc x assoc
+    with Not_found -> 
+      let chr = Char.chr (97 + i mod 26) in 
+      let sub = i / 26 in 
+      let x_str = 
+        if sub=0 then Printf.sprintf "'%c" chr
+        else Printf.sprintf "'%c_%d" chr sub in 
+        name_ctxt := (succ i,(x,x_str)::assoc);
+        x_str in     
+  Util.format "%s" x_str 
+
 (* TODO only use parens when necessary *)
 let rec format_sort = function
   | SUnit -> Util.format "unit"
@@ -329,27 +394,18 @@ let rec format_sort = function
       Misc.format_list ",@ " (format_sort) ms;      
       Util.format "@]]@ %s@]" (string_of_qid x1)
   | SVar(sv) -> format_svar false sv
+  | SRawVar(x) -> Util.format "~%s" (string_of_id x)
 
 and format_svar print_cons (cr,x) = 
-  let verbose = false in 
-  if verbose then msg "[x%d:" x;
   ( match !cr with
     | Bnd s -> 
-        if verbose then msg "<-";
         format_sort s
     | Fre   -> 
         format_svar_tag x
     | Con c -> 
-        if  print_cons then (format_cons c; msg " ");
+        format_cons c; 
+        msg " ";
         format_svar_tag x);
-  if verbose then msg "]";
-
-and format_svar_tag x = 
-  let chr = Char.chr (97 + x mod 26) in 
-  let sub = x / 26 in 
-    if sub=0 then Util.format "'%c" chr
-    else Util.format "'%c_%d" chr sub
-    (* ; Util.format "<%d>" x*)
 
 and format_cons = function
   | Str -> Util.format "Str"
@@ -357,10 +413,13 @@ and format_cons = function
   | Lns -> Util.format "Lns"
 
 let format_scheme (svs,s) = 
-  let fvs = SVSet.elements svs in 
   Util.format "@[<2>";
-  if Safelist.length fvs <> 0 then 
-    (Misc.format_list ", " (format_svar true) (SVSet.elements svs);
+  let con_fsvs = 
+    SVSet.fold 
+      (fun ((cr,_) as svi) l -> match !cr with | Con _ -> svi::l | _ -> l)
+      svs [] in 
+  if Safelist.length con_fsvs <> 0 then
+    (Misc.format_list ", " (format_svar true) con_fsvs;
      Util.format " => ");
   format_sort s;
   Util.format "@]"
@@ -509,11 +568,11 @@ and format_decl d =
         Util.format "@[type@ ";
         (match svl with 
           | [] -> ()
-          | [sv] -> format_svar true sv
+          | [sv] -> format_sort sv
           | _ -> 
-              msg "[";
-              Misc.format_list ",@ " (format_svar true) svl;
-              msg "]");
+              msg "(";
+              Misc.format_list ",@ " format_sort svl;
+              msg ")");
         msg "%s@ =@ " (string_of_id x);
         Misc.format_list " | "
           (fun (l,s) -> match s with
@@ -573,12 +632,25 @@ let rec get_con_sort = function
       
 let occurs_check i sv1 s2 = 
   (* occurrs check *)
-  if SVSet.mem sv1 (free_svs s2) then
-    Berror.sort_error i 
-      (fun () -> 
-         msg "occurs check failed during unification of %t and %t."
-           (fun _ -> format_svar true sv1)
-           (fun _ -> format_sort s2))  
+  if SVSet.mem sv1 (free_svs i s2) then
+    begin 
+      reset_name_ctxt ();
+      Berror.sort_error i 
+        (fun () -> 
+           msg "occurs check failed during unification of %t and %t."
+             (fun _ -> format_svar true sv1)
+             (fun _ -> format_sort s2))
+    end
+
+let rec set_con (br,x) c = match !br with 
+  | Fre           -> br := Con c
+  | Bnd (SVar sv) -> set_con sv c
+  | Con _         -> br := Con c
+  | _             -> assert false
+
+let rec set_sort (br,x) s = match !br with
+  | Bnd (SVar sv) -> set_sort sv s
+  | _             -> br := Bnd s
   
 let rec unify i s1 s2 = 
 (*   msg "@[UNIFY@\n"; *)
@@ -653,27 +725,28 @@ and unifyVar i flip sv1 s2 =
         sor1 := Bnd s2; 
         true
 
-    | Con c1,SVar(sor2,x2) -> 
-        if x1=x2 then true
-        else begin
-          match get_con_sort s2 with 
-            | Nothing -> 
-                sor1 := Bnd s2;
-                true
-            | Left c  -> 
-                sor2 := Con c;
-                sor1 := Bnd s2;
-                true
-            | Right s ->                 
-                begin match instance s2 c1 with
-                  | None -> false
-                  | Some s' -> 
-                      occurs_check i sv1 s2;
-                      sor2 := Bnd s';
-                      sor1 := Bnd s2;
-                      true
+     | Con c1,SVar((sor2,x2) as sv2) -> 
+         if x1=x2 then true
+         else begin
+           match get_con_sort s2 with 
+             | Nothing -> 
+                 set_con sv2 c1;
+                 sor1 := Bnd s2;
+                 true
+             | Left c  -> 
+                 set_con sv2 c;
+                 sor1 := Bnd s2;
+                 true
+             | Right s ->                 
+                 begin match instance s2 c1 with
+                   | None -> false
+                   | Some s' -> 
+                       occurs_check i sv1 s2;
+                       set_sort sv2 s';
+                       sor1 := Bnd s2;
+                       true
                 end
-        end        
+         end        
   | Con c1,s2 -> 
       begin 
         match instance s2 c1 with
