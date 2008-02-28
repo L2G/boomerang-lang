@@ -204,16 +204,6 @@ let seq r1 r2 =
       rx = Erx.mk_seq r1.rx r2.rx;
       rank = Cexp }
 
-let rec iter r1 n = 
-  if n=0 then epsilon
-  else if n=1 then r1
-  else if n=2 then seq r1 r1
-  else 
-    let double_r1 = iter r1 (n/2) in 
-    seq 
-      (if n mod 2 = 0 then epsilon else r1)
-      (seq double_r1 double_r1)
-
 let alt r1 r2 = 
   if is_empty r1 then r2
   else if is_empty r2 then r1
@@ -239,6 +229,39 @@ let star r1 =
     rep = Some (S.t_of_string "");
     rx = Erx.mk_star r1.rx;
     rank = Rexp}
+
+let rec generic_iter i epsilon union concat star x min maxo = 
+  let rec mk_cats x n = 
+    if n=0 then epsilon
+    else if n=1 then x
+    else if n=2 then concat x x
+    else 
+      let half_x = mk_cats x (n/2) in 
+      let twice_half_x = concat half_x half_x in 
+      if n mod 2 = 0 then twice_half_x
+      else concat x twice_half_x in 
+   match min,maxo with
+     | 0,None -> star x
+     | n,None -> concat (mk_cats x n) (star x)
+     | 0,Some 0 -> epsilon
+     | 0,Some 1 -> union epsilon x
+     | m,Some n -> 
+         if m > n then 
+           Berror.run_error i 
+             (fun () -> Util.format "error in iteration: %d > %d" m n)
+         else if m=n then mk_cats x n
+         else (* n > m *)
+           let rec aux (xi,us) j = 
+             if j=0 then us
+             else
+               let xi1 = concat x xi in 
+               aux (xi1, union us xi1) (pred j) in 
+           let x1 = if m=0 then epsilon else mk_cats x m in 
+           aux (x1,x1) (n-m) 
+
+let iter r1 min maxo = 
+  let i = Info.M ("Bregexp.iter") in 
+  generic_iter i epsilon alt seq star r1 min maxo
 
 let diff r1 r2 =
   if is_empty r1 then empty 

@@ -27,8 +27,8 @@ test del R get "abc/" = ""
 
 type 'a list = Nil | Cons of 'a * 'a list 
 
-let safe_hd : 'a = 
-  (fun (l:'a) -> 
+let safe_hd : 'a list -> 'a -> 'a = 
+  (fun (l:'a list) -> 
      (fun d -> match l with 
         | Nil -> d
         | Cons(h,_) -> h))
@@ -52,7 +52,9 @@ let g =
 
 let f l = l | l 
 
-test rep (columnize "80" ([a-z0-9 ]*) " " "\n") 
+test f : ? 
+
+test rep (columnize "80" ([a-z0-9 ]* ) " " "\n")
 "abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen william kate michael" =
 <<<
  abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen
@@ -315,12 +317,12 @@ test (string_of_regexp ((bseq | [abc]) - [ab]))=
 
 test (string_of_regexp ((bmin . balt){1,3}))=
   <<<bmin . balt | bmin . balt . (bmin . balt) | bmin . balt . (bmin . balt . (bmin . balt))>>>
-      
+           
 test (string_of_regexp ((bmin . balt){2,}))=
-  <<<bmin . balt . (bmin . balt . (bmin . balt)*)>>>
+  <<<bmin . balt . (bmin . balt) . (bmin . balt)*>>>
     
-test (string_of_regexp ((bmin . balt) | str ""))=
-  <<<bmin . balt | "">>>
+test (string_of_regexp ((bmin . balt)?)) = 
+  <<<(bmin . balt)?>>>
 
 (*let me = move_end [ab] [CD]
 
@@ -443,3 +445,4 @@ let l3 = str "d" <-> "aa"
 
 test (l1.l2 | l1.l3) get "ac" = "aa"
 test (l1.(l2|l3)) get "ac" = error
+

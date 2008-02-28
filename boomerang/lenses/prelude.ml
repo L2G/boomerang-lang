@@ -301,19 +301,31 @@ let () =
                     | Lns _, Lns _ -> Lns(i,L.union i (get_l v1 i) (get_l v2 i))
                     | _            -> Can(i,C.union i (get_c v1 i) (get_c v2 i)))))) in 
   Bregistry.register_native_qid q s f;
+  (* iter *)
   let alpha = S.fresh_svar (S.Con S.Reg) in 
   let a = S.SVar alpha in 
-  let q = S.mk_native_prelude_qid "poly_star" in 
-  let s = S.SVSet.singleton alpha, S.SFunction(a,a) in 
+  let q = S.mk_native_prelude_qid "poly_iter" in 
+  let s = (S.SVSet.singleton alpha, a ^> (S.SString ^> (S.SString ^> a))) in
   let i = Info.M "poly_star built-in" in
+  let get_int s = 
+    try int_of_string (RS.string_of_t s) 
+    with _ -> raise
+      (Error.Harmony_error
+         (fun () -> 
+            Util.format "%s: expected string representing an integer, found %s."
+              (Info.string_of_t i) (RS.string_of_t s))) in     
   let f = 
-    Fun(i,a,a,
-        (fun i v1 -> 
-           match v1 with 
-             | Rx _  -> Rx(i,R.star (get_r v1 i))
-             | Lns _ -> Lns(i,L.star i (get_l v1 i))
-             | _     -> Can(i,C.star i (get_c v1 i)))) in 
+    Fun(i,a,S.SString ^> (S.SString ^> a), (fun i v1 -> 
+      mk_sfun i (S.SString ^> a) (fun i s1 -> 
+        mk_sfun i a (fun i s2 -> 
+        let min = get_int s1 in
+        let maxo = if RS.length s2 = 0 then None else Some(get_int s2) in 
+          match v1 with 
+            | Rx _  -> Rx(i,R.iter (get_r v1 i) min maxo)
+            | Lns _ -> Lns(i,L.iter i (get_l v1 i) min maxo)
+            | _     -> Can(i,C.iter i (get_c v1 i) min maxo))))) in 
     Bregistry.register_native_qid q s f;
+  (* swap *)
   let alpha = S.fresh_svar (S.Con S.Lns) in 
   let a = S.SVar alpha in 
   let q = S.mk_native_prelude_qid "poly_swap" in 

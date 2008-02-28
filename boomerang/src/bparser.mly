@@ -47,9 +47,20 @@ let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
 let mk_qid_var x = EVar(info_of_qid x,x)
 let mk_var x = mk_qid_var (qid_of_id x)
 
+let mk_str i s = EString(i,RS.t_of_string s)
 let mk_bin_op i o e1 e2 = EApp(i,EApp(i,o,e1),e2) 
 let mk_cat i e1 e2 = mk_bin_op i (EOver(i,ODot)) e1 e2
-let mk_star i e1 =  EApp(i,EOver(i,OStar),e1)
+let mk_iter i e1 min maxo =  
+  EApp(i,
+    EApp(i,
+      EApp(i,
+        EOver(i,OIter),
+        e1),
+      mk_str i (string_of_int min)), 
+    mk_str i (match maxo with None -> "" | Some max -> string_of_int max))
+
+let mk_star i e1 = mk_iter i e1 0 None
+
 let mk_union i e1 e2 = mk_bin_op i (EOver(i,OBar)) e1 e2
 let mk_diff i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "diff")) e1 e2
 let mk_inter i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "inter")) e1 e2
@@ -57,7 +68,6 @@ let mk_compose i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "compose")) e1 
 let mk_swap i e1 e2 = mk_bin_op i (EOver(i,OTilde)) e1 e2
 let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "set")) e1 e2
 let mk_match i x q = mk_bin_op i (mk_qid_var (mk_prelude_qid "dmatch")) (EString(i,RS.t_of_string x)) (mk_qid_var q)
-let mk_str i s = EString(i,RS.t_of_string s)
 let mk_rx i e = EApp(i,mk_qid_var (mk_prelude_qid "str"),e)
 
 (* error *)
@@ -262,6 +272,11 @@ exp:
       { let i = me2 $1 $5 in 
         let f,_ = mk_fun i $3 $5 None in 
         EFun(i,$2,None,f) }
+
+  | FUN param param_list COLON asort ARROW exp
+      { let i = me2 $1 $7 in 
+        let f,so = mk_fun i $3 $7 (Some $5) in 
+        EFun(i,$2,so,f) }
       
   | gpexp                               
       { $1 }
@@ -365,32 +380,7 @@ rexp:
   | aexp rep                            
       { let i2,(min,maxo) = $2 in 
         let i = me1 $1 i2 in 
-        let epsilon = EString(i,RS.empty) in 
-        let rec mk_cats l acc = function
-          | 0 -> acc
-          | 1 -> mk_cat i l acc
-          | n -> mk_cats l (mk_cat i l acc) (pred n) in 
-        match min,maxo with 
-          | 0,None -> mk_star i $1 
-          | n,None -> mk_cats $1 (mk_star i $1) n
-          | 0,Some 0 -> epsilon 
-          | 0,Some 1 -> mk_union i epsilon $1
-          | m,Some n -> 
-              if m > n then
-                syntax_error i 
-                  (sprintf "error in repetition %d > %d" m n)
-              else if m=n then 
-                mk_cats $1 $1 (pred m)
-              else (* n > m *)
-                let rec aux (vi,us) j = 
-                  if j=0 then us
-                  else 
-                    let vi1 = mk_cat i $1 vi in 
-                    aux (vi1, mk_union i us vi1) (pred j) in 
-                let v1 = 
-                  if m=0 then epsilon
-                  else mk_cats $1 $1 (pred m) in 
-                aux (v1,v1) (n-m) }
+        mk_iter i $1 min maxo }
 
   | aexp                                
       { $1 }

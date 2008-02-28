@@ -261,21 +261,19 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
   | EOver(i,s) -> 
       let mk_bin c q = 
         let alpha = fresh_sort (Con c) in 
-        let e0_sort = SFunction(alpha,SFunction(alpha,alpha)) in 
+        let e0_sort = alpha ^> alpha ^> alpha in
         let new_e0 = EVar(i,q) in
         (e0_sort,new_e0) in 
-      let mk_un c q = 
-        let alpha = fresh_sort (Con c) in 
-        let e0_sort = SFunction(alpha,alpha) in 
-        let new_e0 = EVar(i,q) in 
-        (e0_sort,new_e0) in
       begin match s with 
       | ODot -> mk_bin Str (mk_native_prelude_qid "poly_concat")
       | OBar -> mk_bin Reg (mk_native_prelude_qid "poly_union")
-      | OStar -> mk_un Reg (mk_native_prelude_qid "poly_star")
       | OTilde -> mk_bin Lns (mk_native_prelude_qid "poly_swap")
-      | OQmark -> mk_un Reg (mk_native_prelude_qid "poly_opt")
-    end
+      | OIter -> 
+          let alpha = fresh_sort (Con Reg) in 
+          let e0_sort = alpha ^> SString ^> SString ^> alpha in
+          let new_e0 = EVar(i,mk_native_prelude_qid "poly_iter") in 
+          (e0_sort,new_e0)
+      end
 
   | EVar(i,q) ->
       let e0_sort = match SCEnv.lookup sev q with
@@ -415,7 +413,7 @@ and check_binding ((tev,sev) as evs) = function
       let x_scheme = generalize i sev_fsvs e_sort in 
       let bsev = SCEnv.update sev qx x_scheme in 
       let new_b = Bind(i,PVar(ix,x),Some e_sort,new_e) in 
-      (* msg "@[BINDING %s has sort %s@\n@]" (string_of_id x) (string_of_scheme x_scheme);*)
+(*       msg "@[BINDING %s has sort %s@\n@]" (string_of_id x) (string_of_scheme x_scheme); *)
       ((tev',bsev),[qx],new_b)
   | Bind(i,p,sorto,e) ->
       let tev',(e_sort,new_e) = match sorto with 
@@ -451,10 +449,11 @@ and check_binding ((tev,sev) as evs) = function
 (* type check a single declaration *)
 let rec check_decl ((tev,sev) as evs) ms = function 
   | DLet(i,b) -> 
-      let (tev,sev),xs,new_b = check_binding evs b in 
-      let new_d = DLet(i,new_b) in
-      let bevs = (TEnv.update_al tev [],sev) in 
-      (bevs,xs,new_d)
+      let tev' = TEnv.update_al tev [] in 
+      let evs' = (tev',sev) in 
+      let bevs',xs,new_b = check_binding evs' b in 
+      let new_d = DLet(i,new_b) in      
+      (bevs',xs,new_d)
   | DMod(i,n,ds) ->
       let ms = ms @ [n] in 
       let (m_tev,m_sev),names,new_ds= check_module_aux evs ms ds in

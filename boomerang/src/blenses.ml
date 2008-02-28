@@ -244,6 +244,18 @@ module Canonizer = struct
       rep = r; 
     }
 
+  let copy i r = 
+    let n = sprintf "cp (%s)" (R.string_of_t r) in 
+    let rt = r in 
+    let ct = r in
+      { info = i;
+        string = n;
+        rtype = rt;
+        ctype = ct;
+        cls = lift_r i (cls_str n) rt (fun x -> x);
+        rep = lift_r i (rep_str n) rt (fun x -> x);
+      }
+
   (* add primitives ... *)
   let columnize i ks r s nl =     
     let n = sprintf "columnize %s (%s) (%s) (%s)" 
@@ -391,6 +403,11 @@ module Canonizer = struct
               loop clrest (acc ^ (cn1.rep cl1)) in 
         loop cl RS.empty);
     }
+      
+  let iter i cn1 min maxo = 
+    R.generic_iter i 
+      (copy i R.epsilon) (union i) (concat i) (star i) 
+      cn1 min maxo
 end
 
 (* simple sort checking for relations *)
@@ -853,6 +870,11 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	uid = next_uid ();
 
       }
+
+  let iter i l1 min maxo = 
+    R.generic_iter i 
+      (copy i R.epsilon) (union i) (concat i) (star i) 
+      l1 min maxo
 
   (* non-standard lenses *)
   let swap i dl1 dl2 = 

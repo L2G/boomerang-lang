@@ -132,9 +132,8 @@ and exp =
 and osym = 
   | ODot 
   | OBar 
-  | OStar
   | OTilde
-  | OQmark 
+  | OIter
 
 and pat = 
   | PWld of i
@@ -356,7 +355,8 @@ let format_svar_tag x =
         else Printf.sprintf "'%c_%d" chr sub in 
         name_ctxt := (succ i,(x,x_str)::assoc);
         x_str in     
-  Util.format "%s" x_str 
+    Util.format "%s" x_str
+      (* Util.format "x%d" x *)
 
 (* TODO only use parens when necessary *)
 let rec format_sort = function
@@ -396,17 +396,16 @@ let rec format_sort = function
   | SVar(sv) -> format_svar false sv
   | SRawVar(x) -> Util.format "~%s" (string_of_id x)
 
-and format_svar print_cons (cr,x) = 
-  ( match !cr with
-    | Bnd s -> 
-        format_sort s
-    | Fre   -> 
-        format_svar_tag x
-    | Con c -> 
-        format_cons c; 
-        msg " ";
-        format_svar_tag x);
-
+and format_svar print_cons (cr,x) = match !cr with
+  | Bnd s -> format_sort s
+      (* msg "@[[%d:=%t]@]" x (fun _ -> format_sort s)*)
+  | Fre   -> 
+      format_svar_tag x
+  | Con c -> 
+      format_cons c; 
+      msg " ";
+      format_svar_tag x;
+ 
 and format_cons = function
   | Str -> Util.format "Str"
   | Reg -> Util.format "Reg"
@@ -530,9 +529,8 @@ and format_exp = function
 and format_sym = function
   | ODot -> Util.format "concat"
   | OBar -> Util.format "union"
-  | OStar -> Util.format "star"
   | OTilde -> Util.format "swap"
-  | OQmark -> Util.format "opt"
+  | OIter -> Util.format "iter"
 
 and format_test_result tr =
   match tr with
@@ -620,15 +618,15 @@ let rec instance s c = match s,c with
   | SLens,Lns | SCanonizer,Lns -> Some s
   | _ -> None
 
-type ('a,'b) three_alts = Left of 'a | Right of 'b | Nothing
+type ('a,'b,'c) three = Fst of 'a | Snd of 'b | Thd of 'c
 
 let rec get_con_sort = function 
-  | SVar(sor,_) -> begin match !sor with 
-      | Fre -> Nothing
+  | SVar(sor,x) -> begin match !sor with 
+      | Fre   -> Fst x 
       | Bnd s -> get_con_sort s
-      | Con c -> Left c
+      | Con c -> Snd c
     end
-  | s -> Right s
+  | s -> Thd s
       
 let occurs_check i sv1 s2 = 
   (* occurrs check *)
@@ -653,10 +651,10 @@ let rec set_sort (br,x) s = match !br with
   | _             -> br := Bnd s
   
 let rec unify i s1 s2 = 
-(*   msg "@[UNIFY@\n"; *)
-(*   msg "  S1="; format_sort s1; *)
-(*   msg "@\n  S2="; format_sort s2; *)
-(*   msg "@\n@]%!"; *)
+ (* msg "@[UNIFY@\n";
+    msg "  S1="; format_sort s1;
+    msg "@\n  S2="; format_sort s2;
+    msg "@\n@]%!"; *)
   let res = match s1,s2 with
 
   (* equal types *)
@@ -687,33 +685,33 @@ let rec unify i s1 s2 =
   | SVar sv1,_ -> unifyVar i false sv1 s2
   | _,SVar sv2 -> unifyVar i true sv2 s1
   | _        -> false in
-(*   msg "@[UNIFY RES=%b@\n" res; *)
-(*   msg "  S1="; format_sort s1; *)
-(*   msg "@\n  S2="; format_sort s2; *)
-(*   msg "@\n@]"; *)
+    (* msg "@[UNIFY RES=%b@\n" res;
+       msg "  S1="; format_sort s1;
+       msg "@\n  S2="; format_sort s2;
+       msg "@\n@]"; *)
   res
 
 and unifyVar i flip sv1 s2 = 
-(*   msg "UNIFY_VAR: "; *)
-(*   format_svar true sv1; *)
-(*   msg " ~ "; *)
-(*   format_sort s2; *)
-(*   msg "@\n"; *)
+  (* msg "UNIFY_VAR: ";
+  format_svar true sv1;
+  msg " ~ ";
+  format_sort s2;
+  msg "@\n"; *)
   let (sor1,x1) = sv1 in 
   match !sor1,s2 with    
     | Bnd s1,_ -> 
         if flip then unify i s2 s1 
         else unify i s1 s2 
-    | Fre,SVar(sor2,x2) -> 
-        if x1 = x2 then ()
-        else begin
+    | Fre,SVar(sor2,_) -> 
+        begin
           match get_con_sort s2 with 
-            | Nothing -> 
-                sor1 := Bnd s2
-            | Left c  -> 
+            | Fst x2 -> 
+                if x1 = x2 then ()
+                else sor1 := Bnd s2
+            | Snd c  -> 
                 sor2 := Con c;
                 sor1 := Bnd s2
-            | Right s' -> 
+            | Thd s' -> 
                 occurs_check i sv1 s2;
                 sor2 := Bnd s';
                 sor1 := Bnd s2
@@ -726,18 +724,19 @@ and unifyVar i flip sv1 s2 =
         true
 
      | Con c1,SVar((sor2,x2) as sv2) -> 
-         if x1=x2 then true
-         else begin
-           match get_con_sort s2 with 
-             | Nothing -> 
-                 set_con sv2 c1;
-                 sor1 := Bnd s2;
+         begin match get_con_sort s2 with 
+             | Fst x2 -> 
+                 if x1=x2 then ()
+                 else 
+                   (set_con sv2 c1;
+                    sor1 := Bnd s2);
                  true
-             | Left c  -> 
+
+             | Snd c  -> 
                  set_con sv2 c;
                  sor1 := Bnd s2;
                  true
-             | Right s ->                 
+             | Thd s ->                 
                  begin match instance s2 c1 with
                    | None -> false
                    | Some s' -> 
