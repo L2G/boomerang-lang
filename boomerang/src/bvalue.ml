@@ -33,7 +33,7 @@ let (@) = Safelist.append
 (* run-time values; correspond to each sort *)
 type t = 
     | Str of Info.t * RS.t 
-    | Rx of Info.t * R.t
+    | Rx  of Info.t * R.t
     | Lns of Info.t * L.t
     | Can of Info.t * C.t
     | Fun of Info.t * S.sort * S.sort * (Info.t -> t -> t)    
@@ -218,45 +218,52 @@ let get_v v i = match v with
         
 (* --------- constructors for functions on run-time values ---------- *)
 
-(* mk_sfun: Info.t -> (RS.t -> t) -> (t -> t)
+(* mk_sfun: Info.t -> S.sort -> (Info.t -> RS.t -> t) -> t
  * 
- * [mk_sfun i s f] takes a [RS.t -> t] function and yields a [t -> t]
+ * [mk_sfun i s f] takes a [RS.t -> t] function and yields a [t]
  * function that expects its argument to actually be an [SString]. [i] is
  * used to report errors when the argument has a different sort. 
  *)
 let mk_sfun i s f = Fun(i,S.SString,s,(fun i v -> f i (get_s v i)))
 
-(* mk_rfun: Info.t -> (L.rx.t -> t) -> (t -> t)
+(* mk_rfun: Info.t -> S.sort (Info.t -> R.t -> t) -> t
  * 
- * [mk_rfun i s f] takes a [L.rx.t -> t] function and yields a [t -> t]
+ * [mk_rfun i s f] takes a [L.rx.t -> t] function and yields a [t]
  * function that expects its argument to actually be a [SRegexp]. [i] is
  * used to report errors when the argument has a different sort.
  *)
 let mk_rfun i s f = Fun(i,S.SRegexp,s,(fun i v -> f i (get_r v i)))
 
-(* mk_lfun: Info.t -> (L.Lens.t -> t) -> (t -> t)
+(* mk_lfun: Info.t -> S.sort -> (Info.t -> L.t -> t) -> t
  * 
- * [mk_lfun i s f] takes a [L.Lens.t -> t] function and yields a [t -> t]
+ * [mk_lfun i s f] takes a [L.Lens.t -> t] function and yields a [t]
  * function that expects its argument to actually be an [SLens]. [i] is
  * used to report errors when the argument has a different sort.
  *)
 let mk_lfun i s f = Fun(i,S.SLens,s,(fun i v -> f i (get_l v i)))
 
-(* mk_cfun: Info.t -> (C.t -> t) -> (t -> t)
+(* mk_cfun: Info.t -> S.sort -> (Info.t -> C.t -> t) -> t
  * 
- * [mk_cfun i s f] takes a [C.t -> t] function and yields a [t -> t]
+ * [mk_cfun i s f] takes a [C.t -> t] function and yields a [t]
  * function that expects its argument to actually be an [SCanonizer]. [i] is
  * used to report errors when the argument has a different sort.
  *)
 let mk_cfun i s f = Fun(i,S.SCanonizer,s,(fun i v -> f i (get_c v i)))
 
-(* mk_ufun: Info.t -> (() -> t) -> (t -> t)
+(* mk_ufun: Info.t -> S.sort -> (Info.t -> unit -> t) -> t
  * 
- * [mk_ufun i s f] takes a [() -> t] function and yields a [t -> t]
+ * [mk_ufun i s f] takes a [unit -> t] function and yields a [t]
  * function that expects its argument to actually be an [SUnit]. [i] is
  * used to report errors when the argument has a different sort.
  *)
 let mk_ufun i s f = Fun(i,S.SUnit,s,(fun i v -> f i (get_u v i)))
+
+(* mk_poly_fun: Info.t -> S.sort -> (Info.t -> t -> t) -> t
+ * 
+ * [mk_poly_fun i s f] takes a [t -> t] function and yields a [t]
+ * function. [i] is used to report errors.  
+ *)
+let mk_poly_fun i s1 s2 f = Fun(i,s1,s2,f)
 
 let parse_uid s = 
   let lexbuf = Lexing.from_string s in

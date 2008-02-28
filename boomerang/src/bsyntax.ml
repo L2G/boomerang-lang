@@ -104,8 +104,6 @@ module SVSet = Set.Make
 
 type scheme = SVSet.t * sort
 
-let scheme_of_sort s = (SVSet.empty,s)
-
 type param = Param of i * id * sort
 
 type binding = Bind of i * pat * sort option * exp
@@ -208,6 +206,9 @@ let svl_al_of_rl i rl =
            end
          | _ -> Berror.run_error i (fun () -> msg "expected sort variable"))
     ([],[]) rl 
+
+let mk_scheme svl s = (svs_of_svl svl,s)
+let scheme_of_sort s = mk_scheme [] s
 
 let subst al eq s0 = 
   let rec go s = match s with

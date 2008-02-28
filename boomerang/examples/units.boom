@@ -52,8 +52,6 @@ let g =
 
 let f l = l | l 
 
-test f : ? 
-
 test rep (columnize "80" ([a-z0-9 ]* ) " " "\n")
 "abcdefg hijklmnop qrs tuv wxyz 123456789 nate alexandre benjamin aaron alan owen william kate michael" =
 <<<
