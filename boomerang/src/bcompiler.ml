@@ -197,49 +197,57 @@ let scenv_free_svs i sev =
     sev SVSet.empty
 
 (* helper: check if a sort matches a pattern; return bindings for variables *)
-let rec static_match i tev p s = 
+let rec static_match i tev p0 s = 
 (*   msg "STATIC_MATCH: %s # %s@\n" (string_of_pat p) (string_of_sort s); *)
   let err p s1 s2 = sort_error i 
     (fun () -> msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
        (string_of_pat p)
        (string_of_sort s1)
        (string_of_sort s2)) in 
-  match p,s with 
-    | PWld _,_ -> Some []
-    | PVar(_,x),_ -> Some [(x,scheme_of_sort s)]
+  match p0,s with 
+    | PWld _,_ -> 
+        Some (p0,[])
+    | PVar(i,x,_),_ -> 
+        Some (PVar(i,x,Some s), [(x,scheme_of_sort s)])
     | PUnt(_),s -> 
-        if not (unify i s SUnit) then err p SUnit s;
-        Some []
-    | PVnt(_,li,pio),s -> 
+        if not (unify i s SUnit) then err p0 SUnit s;
+        (Some (p0,[]))
+    | PVnt(i,li,pio),s -> 
         (* lookup which datatype we have using li *)
         begin match TEnv.lookup_con tev li with
           | None -> sort_error i (fun () -> msg "@[Unbound@ constructor@ %s@]" (string_of_id li))
           | Some (q,svl,cl) ->            
-              let svs,sl = svs_sl_of_svl svl in               
+(*               msg "LOOKING UP %s@\n" (string_of_id li); *)
+(*               msg "Q: %s SVL: %t@\n" (string_of_qid q) (fun _ -> Misc.format_list "," (format_svar false) svl); *)
+
+              let svs,sl = svs_sl_of_svl svl in
               let s_expect,cl_inst = instantiate_cases i (svs,SData(sl,q)) cl in 
 (*               msg "RAW DATA         : %s@\n" (string_of_sort (SData(sl,q))); *)
 (*               msg "INSTANTIATED DATA: %s@\n" (string_of_sort s_expect); *)
-              if not (unify i s s_expect) then err p s_expect s;
+              if not (unify i s s_expect) then err p0 s_expect s;
               let rec aux = function
                 | [] -> None
                 | (lj,sjo)::rest -> 
                     if (id_equal li lj) then 
                       (match pio,sjo with 
-                         | None,None -> Some []
-                         | Some pi,Some sj -> static_match i tev pi sj
+                         | None,None -> Some (PVnt(i,li,None),[])
+                         | Some pi,Some sj -> 
+                             Misc.map_option 
+                               (fun (new_pi,l) -> PVnt(i,li,Some new_pi),l)
+                               (static_match i tev pi sj)                             
                          | _ -> sort_error i (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_id li)))
                     else aux rest in 
               aux cl_inst
         end
-    | PPar(_,p1,p2),SProduct(s1,s2) -> 
+    | PPar(i,p1,p2),SProduct(s1,s2) -> 
         (match static_match i tev p1 s1, static_match i tev p2 s2 with 
-           | Some l1, Some l2 -> Some (l1 @ l2) 
+           | Some (new_p1,l1), Some(new_p2,l2) -> Some (PPar(i,new_p1,new_p2), l1 @ l2)
            | _ -> None)
     | _ -> None 
 
 let rec dynamic_match i p v = match p,v with 
   | PWld(_),_ -> Some []
-  | PVar(_,x),_ -> Some [(x,v)]
+  | PVar(_,x,Some s),_ -> Some [(x,s,v)]
   | PUnt(_),V.Unt(_) -> Some []
   | PVnt(_,li,pio),V.Vnt(_,_,lj,vjo) -> 
       if (id_equal li lj) then 
@@ -262,7 +270,7 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
       let mk_bin c q = 
         let alpha = fresh_sort (Con c) in 
         let e0_sort = alpha ^> alpha ^> alpha in
-        let new_e0 = EVar(i,q) in
+        let new_e0 = EVar(i,q,Some e0_sort) in 
         (e0_sort,new_e0) in 
       begin match s with 
       | ODot -> mk_bin Str (mk_native_prelude_qid "poly_concat")
@@ -271,11 +279,11 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
       | OIter -> 
           let alpha = fresh_sort (Con Reg) in 
           let e0_sort = alpha ^> SString ^> SString ^> alpha in
-          let new_e0 = EVar(i,mk_native_prelude_qid "poly_iter") in 
+          let new_e0 = EVar(i,mk_native_prelude_qid "poly_iter",Some e0_sort) in 
           (e0_sort,new_e0)
       end
 
-  | EVar(i,q) ->
+  | EVar(i,q,_) ->
       let e0_sort = match SCEnv.lookup sev q with
         | Some ss -> instantiate i ss 
         | None -> 
@@ -283,10 +291,10 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
               (fun () -> msg "@[%s is not bound@]" 
                  (string_of_qid q)) in 
 (*       msg "VAR: %s %s@\n" (string_of_qid q) (string_of_sort e0_sort); *)
-      let new_e0 = e0 in 
+      let new_e0 = EVar(i,q,Some e0_sort) in 
       (e0_sort,new_e0)
 
-  | EFun(i,Param(p_i,p_x,p_s),ret_sorto,body) ->      
+  | EFun(i,Param(p_i,p_x,p_s),ret_sorto,body,_) ->      
       let rv_al,p_s' = fix_sort (TEnv.get_al tev) p_s in 
       let tev' = TEnv.update_al tev rv_al in 
       let body_sev = SCEnv.update sev (qid_of_id p_x) (scheme_of_sort p_s') in
@@ -305,14 +313,14 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
                        (string_of_sort body_sort));
               (body_sort,new_body) in 
       let e0_sort = SFunction(p_s',body_sort) in 
-      let new_e0 = EFun(i,Param(p_i,p_x,p_s'),Some body_sort,new_body) in       
-      (e0_sort, new_e0)
+      let new_e0 = EFun(i,Param(p_i,p_x,p_s'),Some body_sort,new_body,Some e0_sort) in 
+      (e0_sort,new_e0)
 
-  | ELet(i,b,e) ->
+  | ELet(i,b,e,_) ->
       let bevs,_,new_b = check_binding evs b in 
       let e0_sort,new_e = check_exp bevs e in 
-      let new_e0 = ELet(i,new_b,new_e) in 
-      (e0_sort, new_e0)
+      let new_e0 = ELet(i,new_b,new_e,Some e0_sort) in 
+      (e0_sort,new_e0)
 
   | EUnit(_) -> (SUnit,e0)
 
@@ -320,15 +328,15 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
 
   | ECSet(_) -> (SRegexp,e0)
 
-  | EPair(i,e1,e2) -> 
+  | EPair(i,e1,e2,_) -> 
       let e1_sort,new_e1 = check_exp evs e1 in 
       let e2_sort,new_e2 = check_exp evs e2 in 
       let e0_sort = SProduct(e1_sort,e2_sort) in 
-      let new_e0 = EPair(i,new_e1,new_e2) in 
+      let new_e0 = EPair(i,new_e1,new_e2,Some e0_sort) in 
       (e0_sort,new_e0)
- 
+
   (* elimination forms *)
-  | EApp(i,e1,e2) -> 
+  | EApp(i,e1,e2,_) ->  
       let e1_sort,new_e1 = check_exp evs e1 in 
       let e2_sort,new_e2 = check_exp evs e2 in 
 (*       msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
@@ -351,11 +359,10 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
                (string_of_sort e2_sort));
       let e0_sort = ret_sort in 
 (*       msg "@[RESULT: %s@\n@]" (string_of_sort ret_sort); *)
-
-      let new_e0 = EApp(i,new_e1,new_e2) in 
+      let new_e0 = EApp(i,new_e1,new_e2,Some e0_sort) in 
       (e0_sort,new_e0)
 
-  | ECase(i,e1,pl) -> 
+  | ECase(i,e1,pl,_) -> 
       let err2 i p s1 s2 = sort_error i (fun () -> msg p s1 s2) in 
       let e1_sort,new_e1 = check_exp evs e1 in 
       let branches_sort = fresh_sort Fre in 
@@ -373,28 +380,29 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
                  err2 i "@[pattern@ %s@ does@ not@ match@ sort@ %s@]" 
                    (string_of_pat pi) 
                    (string_of_sort e1_sort)
-             | Some binds ->                  
+             | Some (new_pi,binds) ->                
                  let ei_sev = Safelist.fold_left 
                    (fun ei_sev (xj,sj) -> SCEnv.update ei_sev (qid_of_id xj) sj)
                    sev binds in 
                  let ei_sort,new_ei = check_exp (tev,ei_sev) ei in                 
 (*                  msg "EI_SORT: %s@\n" (string_of_sort ei_sort); *)
-(*                  msg "BRANCHES_SORT: %s@\n" (string_of_sort branches_sort);                    *)
+(*                  msg "BRANCHES_SORT: %s@\n" (string_of_sort branches_sort); *)
                  if not (unify i ei_sort branches_sort) then
                    sort_error i 
                      (fun () -> 
                         msg "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
                           (string_of_sort branches_sort)
                           (string_of_sort ei_sort));                   
-                 let new_pl_rev' = (pi,new_ei)::new_pl_rev in 
+                 let new_pl_rev' = (new_pi,new_ei)::new_pl_rev in 
                  new_pl_rev')
         [] pl in 
       let e0_sort = branches_sort in 
-      let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev) in 
+(*       msg "END OF CASE %t@\n" (fun _ -> format_sort e0_sort); *)
+      let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev, Some e0_sort) in 
       (e0_sort,new_e0)
         
 and check_binding ((tev,sev) as evs) = function
-  | Bind(i,PVar(ix,x),sorto,e) -> 
+  | Bind(i,PVar(ix,x,_),sorto,e) -> 
       let qx = qid_of_id x in 
       let sev_fsvs = scenv_free_svs i sev in 
       let tev',(e_sort,new_e) = match sorto with 
@@ -412,7 +420,7 @@ and check_binding ((tev,sev) as evs) = function
               (tev',(e_sort,new_e)) in 
       let x_scheme = generalize i sev_fsvs e_sort in 
       let bsev = SCEnv.update sev qx x_scheme in 
-      let new_b = Bind(i,PVar(ix,x),Some e_sort,new_e) in 
+      let new_b = Bind(i,PVar(ix,x,Some e_sort),Some e_sort,new_e) in 
 (*       msg "@[BINDING %s has sort %s@\n@]" (string_of_id x) (string_of_scheme x_scheme); *)
       ((tev',bsev),[qx],new_b)
   | Bind(i,p,sorto,e) ->
@@ -431,19 +439,19 @@ and check_binding ((tev,sev) as evs) = function
               (tev',(e_sort,new_e)) in 
 
       let bindso = static_match i tev' p e_sort in 
-      let bsev,xs_rev = match bindso with 
+      let new_p,(bsev,xs_rev) = match bindso with 
         | None -> sort_error i 
             (fun () -> msg "@[pattern@ %s@ does@ not@ match@ sort@ %s@]"
                (string_of_pat p) 
                (string_of_sort e_sort))
-        | Some binds -> 
-            Safelist.fold_left 
-              (fun (bsev,xs) (x,s) -> 
-                 let qx = qid_of_id x in 
-                 (SCEnv.update bsev qx s, qx::xs))
-              (sev,[]) binds in 
-
-      let new_b = Bind(i,p,Some e_sort,new_e) in 
+        | Some (new_p,binds) -> 
+            (new_p,
+             Safelist.fold_left 
+               (fun (bsev,xs) (x,s) -> 
+                  let qx = qid_of_id x in 
+                    (SCEnv.update bsev qx s, qx::xs))
+              (sev,[]) binds) in 
+      let new_b = Bind(i,new_p,Some e_sort,new_e) in 
       ((tev',bsev),Safelist.rev xs_rev,new_b)
 
 (* type check a single declaration *)
@@ -473,9 +481,14 @@ let rec check_decl ((tev,sev) as evs) ms = function
       ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
   | DType(i,sl,x,cl) -> 
+(*       msg "DTYPE: %t@\n" (fun _ -> format_decl d); *)
       let qx = qid_of_id x in 
       (* allocate / substitute SVars for SRawVars *)
-      let sl',al = svl_al_of_rl i sl in 
+      let sl',al = svl_al_of_rl i sl in         
+(*         msg "SL: (%t)@\n" (fun _ -> Misc.format_list "," format_sort sl); *)
+(*         msg "AL: [%t]@\n" (fun _ -> Misc.format_list "," (fun (x,s) -> msg "~%s -> %t" (string_of_id x) (fun _ -> format_sort s)) al); *)
+(*         msg "SL': (%t)@\n" (fun _ -> Misc.format_list "," format_sort sl'); *)
+      let svl = svl_of_sl i sl' in 
       let svs = svs_of_sl i sl' in 
       let eq = function
         | SRawVar(x) -> id_equal x
@@ -495,7 +508,7 @@ let rec check_decl ((tev,sev) as evs) ms = function
            (* msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme);*)
            SCEnv.update sev ql scheme)
         sev cl' in 
-      let new_tev = TEnv.update tev (SVSet.elements svs) qx cl' in 
+      let new_tev = TEnv.update tev svl qx cl' in 
       let new_d = DType(i,sl',x,cl') in 
       ((new_tev,new_sev),[],new_d)
       
@@ -546,7 +559,7 @@ let check_module = function
       let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Bregistry.pre_ctx) in
       let _,_,new_ds = check_module_aux (tev,sev) [m] ds in 
       Mod(i,m,nctx,new_ds)
-
+ 
 (* --------------- Compiler --------------- *)
 (* expressions *)
 let rec compile_exp cev e0 = match e0 with
@@ -557,61 +570,52 @@ let rec compile_exp cev e0 = match e0 with
            (format_sym s);
            msg "@]")
 
-  | EVar(i,q) -> 
-      begin match CEnv.lookup cev q with
-        | Some((_,SRegexp),v) -> 
+  | EVar(i,q,Some s0) -> 
+      begin match s0,CEnv.lookup cev q with
+        | SRegexp,Some(_,v) -> 
             (* rethink this: it renames regexps too agressively! --JNF *)
             let x = string_of_qid q in 
             let r' = Bregexp.set_str (Bvalue.get_r v i) x in
             let rv' = scheme_of_sort SRegexp, Bvalue.Rx(i,r') in 
             rv'
-        | Some rv -> rv
-        | None -> run_error i (fun () -> msg "@[%s is not bound@]" (string_of_qid q))
+        | _,Some(_,v) -> (scheme_of_sort s0,v)
+        | _,None -> run_error i (fun () -> msg "@[%s is not bound@]" (string_of_qid q))
       end
 
-  | EApp(i,e1,e2) ->
+  | EApp(i,e1,e2,Some s0) ->
       let (_,s1),v1 = compile_exp cev e1 in
-      let (_,s2),v2 = compile_exp cev e2 in
-      begin match s1,v1 with
-        | (SFunction(_,ret_sort)),Bvalue.Fun(_,_,_,f) -> 
-          (scheme_of_sort ret_sort, f i v2)
+      let _,v2 = compile_exp cev e2 in
+      begin match v1 with
+        | Bvalue.Fun(_,f) -> (scheme_of_sort s0, f i v2)
         | _   -> 
             run_error i 
               (fun () -> 
-                msg
-                  "@[expected function in left-hand side of application but found %s"
-                  (string_of_sort s1))
+                 msg
+                   "@[expected function in left-hand side of application but found %s"
+                   (string_of_sort s1))
       end
 
-  | ELet(i,b,e) ->
-      let bcev,_ = compile_binding cev b in       
+  | ELet(i,b,e,_) ->
+      let bcev,_ = compile_binding cev b in
       compile_exp bcev e
         
-  | EFun(i,p,Some ret_sort,e) ->
+  | EFun(i,p,Some ret_sort,e,Some s0) ->
       let p_sort = sort_of_param p in 
-      let p_id = id_of_param p in 
-      let f_sort = SFunction(p_sort,ret_sort) in
       let f_impl i v =
-        let p_qid = qid_of_id p_id in 
+        let p_qid = qid_of_id (id_of_param p) in 
         let body_cev = CEnv.update cev p_qid (scheme_of_sort p_sort, v) in
         snd (compile_exp body_cev e) in 
-      (scheme_of_sort f_sort, (Bvalue.Fun (i,p_sort,ret_sort,f_impl)))
-
-  | EFun(i,_,_,_) -> 
-      run_error i 
-        (fun () -> 
-          msg 
-            "@[compiler bug: unannotated function!@]")
+      (scheme_of_sort s0, (Bvalue.Fun (i,f_impl)))
 
   | EUnit i -> (scheme_of_sort SUnit,Bvalue.Unt i)
 
-  | EPair(i,e1,e2) -> 
-      let (_,s1),v1 = compile_exp cev e1 in 
-      let (_,s2),v2 = compile_exp cev e2 in 
-      (scheme_of_sort (SProduct(s1,s2)),Bvalue.Par(i,v1,v2))
+  | EPair(i,e1,e2,Some s0) -> 
+      let _,v1 = compile_exp cev e1 in 
+      let _,v2 = compile_exp cev e2 in 
+      (scheme_of_sort s0,Bvalue.Par(i,v1,v2))
 
-  | ECase(i,e1,pl) -> 
-      let s1,v1 = compile_exp cev e1 in 
+  | ECase(i,e1,pl,_) -> 
+      let _,v1 = compile_exp cev e1 in 
       let rec find_match = function
         | [] -> run_error i (fun () -> msg "@[match@ failure@]")
         | (pi,ei)::rest -> 
@@ -620,17 +624,20 @@ let rec compile_exp cev e0 = match e0 with
                | Some l -> l,ei) in 
       let binds,ei = find_match pl in 
       let ei_cev = Safelist.fold_left 
-        (fun ei_cev (x,v) -> 
-           let s = scheme_of_sort (Bvalue.sort_of_t v) in 
-           CEnv.update ei_cev (qid_of_id x) (s,v))
+        (fun ei_cev (x,s,v) -> CEnv.update ei_cev (qid_of_id x) (scheme_of_sort s,v))
         cev binds in 
-        compile_exp ei_cev ei
+      compile_exp ei_cev ei
 
   | EString(i,s) -> (scheme_of_sort SString,Bvalue.Str(i,s))
 
-  | ECSet(i,true,cs) -> (scheme_of_sort SRegexp,Bvalue.Rx (i, R.set cs))
+  | ECSet(i,pos,cs) -> 
+      let mk_r = if pos then R.set else R.negset in 
+      (scheme_of_sort SRegexp,Bvalue.Rx (i, mk_r cs))
 
-  | ECSet(i,false,cs) -> (scheme_of_sort SRegexp,Bvalue.Rx (i, R.negset cs))
+  | _ -> 
+      run_error (info_of_exp e0)
+        (fun () -> 
+           msg "@[compiler bug: unannotated expression!@]")
       
 and compile_binding cev = function
   | Bind(i,p,so,e) ->
@@ -644,18 +651,18 @@ and compile_binding cev = function
                (V.string_of_t v))
         | Some binds -> 
             Safelist.fold_left 
-              (fun (bcev,xs) (x,v) -> 
+              (fun (bcev,xs) (x,s,v) -> 
                  let qx = qid_of_id x in 
-                 let s = V.sort_of_t v in 
                  (CEnv.update bcev qx (generalize i cev_fsvs s,v), qx::xs))
               (cev,[]) binds in 
       (bcev,Safelist.rev xs_rev)
 
-let rec compile_decl cev ms = function
+let rec compile_decl cev ms d0 = match d0 with 
   | DLet(i,b) -> 
       let bcev,xs = compile_binding cev b in
       (bcev,xs)
   | DType(i,sl,x,cl) -> 
+(*       msg "COMPILING %t@\n" (fun _ -> format_decl d); *)
       let qx = qid_of_id x in 
       let svl =       (* SLOW *)
         Safelist.rev 
@@ -664,9 +671,10 @@ let rec compile_decl cev ms = function
                 match si with 
                   | SVar svi -> svi::l
                   | _ -> assert false)
-             [] sl) in 
+             [] sl) in  
       let svs,sl = svs_sl_of_svl svl in 
-      let x_sort = SData(sl,qx) in 
+      let x_sort = SData(sl,qx) in
+(*       msg "X_SORT %t@\n" (fun _ -> format_sort x_sort); *)
       let x_scheme = (svs,x_sort) in 
       let new_cev = Safelist.fold_left 
         (fun cev (l,so) -> 
@@ -676,7 +684,7 @@ let rec compile_decl cev ms = function
              | Some s -> 
                  let sf = SFunction(s,x_sort) in 
                  let sf_scheme = (svs,sf) in                    
-                 (sf_scheme, V.Fun(i,s,x_sort,(fun i v -> V.Vnt(i,qx,l,Some v)))) in 
+                 (sf_scheme, V.Fun(i,(fun i v -> V.Vnt(i,qx,l,Some v)))) in 
            CEnv.update cev ql rv)
         cev cl in 
         (new_cev,[qx])
@@ -718,8 +726,8 @@ let rec compile_decl cev ms = function
                        msg "@\n%!")
             | OK(s0,v), TestSort None -> 
                 msg "Test sort:@ %s@\n%!" (string_of_sort s0);
-            | OK(_,v), TestLensType(e1o,e2o) -> 
-                if not (unify i (Bvalue.sort_of_t v) SLens) then 
+            | OK(s0,v), TestLensType(e1o,e2o) -> 
+                if not (unify i s0 SLens) then 
                   test_error i 
                     (fun () -> 
                        msg "@\nExpected@ "; format_sort SLens;

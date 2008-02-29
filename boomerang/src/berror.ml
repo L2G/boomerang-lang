@@ -40,21 +40,20 @@ let static_error i n ?(suppl =  nop) msg =
     Util.format "@]]@\n"))
 
 let type_error i t s1 (s3l,s3r,approx) =
-  raise (Error.Harmony_error (fun () -> 
-    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-(*     Util.format "  T=@[%s@]@\n@\n" t;
-    Util.format "  @["; 
-    nlify s1;
-    Util.format "@]@\n@\n"; *)
-    Util.format "  [@["; 
-    nlify_str s3l; 
-    if approx then
-      Util.format "@]]@\n<<AROUND HERE>>@\n  [@["
-    else
-      Util.format "@]]@\n<<HERE>>@\n  [@[";
-    nlify_str s3r; 
-    Util.format "@]]@]@\n"))
-
+  raise (Error.Harmony_error 
+           (fun () -> 
+              Util.format "@[%s: type error in@\n" (Info.string_of_t i);
+              (* Util.format "  T=@[%s@]@\n@\n" t;
+                 Util.format "  @["; 
+                 nlify s1;
+                 Util.format "@]@\n@\n"; *)
+              Util.format "  [@["; 
+              nlify_str s3l; 
+              if approx then Util.format "@]]@\n<<AROUND HERE>>@\n  [@["
+              else Util.format "@]]@\n<<HERE>>@\n  [@[";
+              nlify_str s3r; 
+              Util.format "@]]@]@\n"))
+    
 let split_error i t pos nf =
   raise (Error.Harmony_error (fun () -> 
     Util.format "@[%s: type error in@\n" (Info.string_of_t i);

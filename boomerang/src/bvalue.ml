@@ -36,7 +36,7 @@ type t =
     | Rx  of Info.t * R.t
     | Lns of Info.t * L.t
     | Can of Info.t * C.t
-    | Fun of Info.t * S.sort * S.sort * (Info.t -> t -> t)    
+    | Fun of Info.t * (Info.t -> t -> t)
     | Unt of Info.t
     | Par of Info.t * t * t
     | Vnt of Info.t * S.qid * S.id * t option
@@ -67,7 +67,7 @@ let rec format = function
   | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
   | Can(_,c)     -> Util.format "%s" (C.string c)
-  | Fun(_,_,_,f)   -> Util.format "<function>"
+  | Fun(_,f)     -> Util.format "<function>"
   | Unt(_)       -> Util.format "()"
   | Par(_,v1,v2) -> 
       Util.format "@[(";
@@ -83,6 +83,16 @@ let rec format = function
 
 let string_of_t v = Util.format_to_string (fun () -> format v)
         
+let rec sort_string_of_t = function
+  | Str _ -> "string"
+  | Rx _  -> "regexp"
+  | Lns _ -> "lens"
+  | Can _ -> "canonizer"
+  | Fun _ -> "<function>"
+  | Unt _ -> "unit"
+  | Par(_,v1,v2) -> sprintf "(%s,%s)" (sort_string_of_t v1) (sort_string_of_t v2)
+  | Vnt(_,l,_,_) -> sprintf "%s" (S.string_of_qid l)
+
 (* info_of_t : t -> Info.t 
  *
  * [info_of_t t] returns the lexing info associated to a run-time value 
@@ -92,25 +102,10 @@ let info_of_t = function
   | Rx(i,_)      -> i
   | Lns(i,_)     -> i
   | Can(i,_)     -> i
-  | Fun(i,_,_,_)   -> i
+  | Fun(i,_)     -> i
   | Unt(i)       -> i
   | Par(i,_,_)   -> i
   | Vnt(i,_,_,_) -> i
-
-(* sort_of_t : t -> s
- * 
- * [sort_of_t t] returns the sort of a run-time value; note that for
- * functions, we only compute the argument type 
- *)
-let rec sort_of_t = function
-  | Str(_)         -> S.SString
-  | Rx(_)          -> S.SRegexp
-  | Lns(_)         -> S.SLens
-  | Can(_)         -> S.SCanonizer
-  | Fun(i,s1,s2,f) -> S.SFunction(s1,s2)
-  | Unt(_)         -> S.SUnit
-  | Par(_,v1,v2)   -> S.SProduct(sort_of_t v1,sort_of_t v2)
-  | Vnt(_,q,_,_)   -> S.SData([],q)
 
 (* --------- conversions between run-time values ---------- *)
 let conversion_error i s1 v1 = 
@@ -118,7 +113,7 @@ let conversion_error i s1 v1 =
     (sprintf "%s: expected %s, but found %s" 
         (Info.string_of_t i) 
         (S.string_of_sort s1)
-        (S.string_of_sort (sort_of_t v1)))
+        (string_of_t v1))
 
 (* get_s: t -> Info.t -> string
  * 
@@ -169,12 +164,12 @@ let get_c v i = match v with
  * sort. [i] is used to report errors.  
  *)
 let get_f v i = match v with
-  | Fun(_,_,_,f) -> f
+  | Fun(_,f) -> f
   | _ ->
       Error.simple_error 
         (sprintf "%s: expected function, but found %s" 
             (Info.string_of_t i) 
-            (S.string_of_sort (sort_of_t v)))
+            (string_of_t v))
 
 (* get_u: t -> Info.t -> ()
  * 
@@ -188,7 +183,7 @@ let get_u v i = match v with
       Error.simple_error 
         (sprintf "%s: expected unit, but found %s" 
            (Info.string_of_t i) 
-           (S.string_of_sort (sort_of_t v)))
+           (string_of_t v))
 
 (* get_p: t -> Info.t -> t * t
  * 
@@ -201,7 +196,7 @@ let get_p v i = match v with
       Error.simple_error 
         (sprintf "%s: expected pair, but found %s" 
            (Info.string_of_t i) 
-           (S.string_of_sort (sort_of_t v)))
+           (string_of_t v))
 
 (* get_v: t -> Info.t -> string * t
  * 
@@ -214,7 +209,7 @@ let get_v v i = match v with
       Error.simple_error 
         (sprintf "%s: expected variant, but found %s" 
            (Info.string_of_t i) 
-           (S.string_of_sort (sort_of_t v)))
+           (string_of_t v))
         
 (* --------- constructors for functions on run-time values ---------- *)
 
@@ -224,7 +219,7 @@ let get_v v i = match v with
  * function that expects its argument to actually be an [SString]. [i] is
  * used to report errors when the argument has a different sort. 
  *)
-let mk_sfun i s f = Fun(i,S.SString,s,(fun i v -> f i (get_s v i)))
+let mk_sfun i f = Fun(i,(fun i v -> f i (get_s v i)))
 
 (* mk_rfun: Info.t -> S.sort (Info.t -> R.t -> t) -> t
  * 
@@ -232,7 +227,7 @@ let mk_sfun i s f = Fun(i,S.SString,s,(fun i v -> f i (get_s v i)))
  * function that expects its argument to actually be a [SRegexp]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_rfun i s f = Fun(i,S.SRegexp,s,(fun i v -> f i (get_r v i)))
+let mk_rfun i f = Fun(i,(fun i v -> f i (get_r v i)))
 
 (* mk_lfun: Info.t -> S.sort -> (Info.t -> L.t -> t) -> t
  * 
@@ -240,7 +235,7 @@ let mk_rfun i s f = Fun(i,S.SRegexp,s,(fun i v -> f i (get_r v i)))
  * function that expects its argument to actually be an [SLens]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_lfun i s f = Fun(i,S.SLens,s,(fun i v -> f i (get_l v i)))
+let mk_lfun i f = Fun(i,(fun i v -> f i (get_l v i)))
 
 (* mk_cfun: Info.t -> S.sort -> (Info.t -> C.t -> t) -> t
  * 
@@ -248,7 +243,7 @@ let mk_lfun i s f = Fun(i,S.SLens,s,(fun i v -> f i (get_l v i)))
  * function that expects its argument to actually be an [SCanonizer]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_cfun i s f = Fun(i,S.SCanonizer,s,(fun i v -> f i (get_c v i)))
+let mk_cfun i f = Fun(i,(fun i v -> f i (get_c v i)))
 
 (* mk_ufun: Info.t -> S.sort -> (Info.t -> unit -> t) -> t
  * 
@@ -256,14 +251,14 @@ let mk_cfun i s f = Fun(i,S.SCanonizer,s,(fun i v -> f i (get_c v i)))
  * function that expects its argument to actually be an [SUnit]. [i] is
  * used to report errors when the argument has a different sort.
  *)
-let mk_ufun i s f = Fun(i,S.SUnit,s,(fun i v -> f i (get_u v i)))
+let mk_ufun i f = Fun(i,(fun i v -> f i (get_u v i)))
 
 (* mk_poly_fun: Info.t -> S.sort -> (Info.t -> t -> t) -> t
  * 
  * [mk_poly_fun i s f] takes a [t -> t] function and yields a [t]
  * function. [i] is used to report errors.  
  *)
-let mk_poly_fun i s1 s2 f = Fun(i,s1,s2,f)
+let mk_poly_fun i f = Fun(i,f)
 
 let parse_uid s = 
   let lexbuf = Lexing.from_string s in

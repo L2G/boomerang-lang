@@ -110,21 +110,21 @@ type binding = Bind of i * pat * sort option * exp
 
 and exp = 
     (* lambda calculus *)
-    | EApp of i  * exp * exp
-    | EVar of i * qid
-    | EFun of i * param * sort option * exp 
-    | ELet of i * binding * exp
+    | EApp of i  * exp * exp * sort option
+    | EVar of i * qid * sort option 
+    | EFun of i * param * sort option * exp * sort option
+    | ELet of i * binding * exp * sort option
 
-    (* with products, units, sums *)
-    | EUnit of i
-    | EPair of i * exp * exp
-    | ECase of i * exp * (pat * exp) list
+    (* with products, sums *)
+    | EPair of i * exp * exp * sort option
+    | ECase of i * exp * (pat * exp) list * sort option
         
     (* placeholders: hold dictionary parameters in type inference *)
     | EOver of i * osym 
 
     (* constants *)
-    | EString of i * Bstring.t
+    | EUnit of i 
+    | EString of i * Bstring.t 
     | ECSet of i * bool * (Bstring.sym * Bstring.sym) list 
 
 and osym = 
@@ -136,8 +136,8 @@ and osym =
 and pat = 
   | PWld of i
   | PUnt of i
-  | PVar of i * id 
-  | PVnt of i * id * pat option
+  | PVar of i * id * sort option
+  | PVnt of i * id * pat option 
   | PPar of i * pat * pat
 
 (* declarations *)
@@ -178,6 +178,14 @@ let svs_of_svl l =
     (fun s svi -> SVSet.add svi s) 
     SVSet.empty l
 
+let svl_of_sl i l = 
+  Safelist.rev
+    (Safelist.fold_left 
+       (fun l si -> match si with 
+          | SVar(svi) -> svi::l
+          | _ -> Berror.run_error i (fun () -> msg "expected sort variable"))
+       [] l)
+
 let svs_of_sl i l = 
   Safelist.fold_left 
     (fun s si -> match si with 
@@ -186,26 +194,30 @@ let svs_of_sl i l =
     SVSet.empty l                
 
 let svs_sl_of_svl l = 
-  Safelist.fold_left 
-    (fun (s,l) svi -> (SVSet.add svi s, SVar svi::l)) 
-    (SVSet.empty,[]) l
+  let s,rev_l = 
+    Safelist.fold_left 
+      (fun (s,l) svi -> (SVSet.add svi s, SVar svi::l)) 
+      (SVSet.empty,[]) l in 
+  (s,Safelist.rev rev_l)
     
 let sl_of_svs s = 
-  SVSet.fold (fun svi l -> SVar svi::l) 
-    s [] 
+  Safelist.rev 
+    (SVSet.fold (fun svi l -> SVar svi::l) s [])
 
 let svl_al_of_rl i rl = 
-  Safelist.fold_left 
-    (fun (svl,al) si -> 
-       match si with 
-         | SRawVar(x) -> begin 
-             try (Safelist.assoc x al::svl,al)
-             with Not_found -> 
-               let s_fresh = fresh_sort Fre in 
-               (s_fresh::svl, (x,s_fresh)::al)
-           end
-         | _ -> Berror.run_error i (fun () -> msg "expected sort variable"))
-    ([],[]) rl 
+  let svl_rev,al = 
+    Safelist.fold_left 
+      (fun (svl,al) si -> 
+         match si with 
+           | SRawVar(x) -> begin 
+               try (Safelist.assoc x al::svl,al)
+               with Not_found -> 
+                 let s_fresh = fresh_sort Fre in 
+                   (s_fresh::svl, (x,s_fresh)::al)
+             end
+           | _ -> Berror.run_error i (fun () -> msg "expected sort variable"))
+      ([],[]) rl in 
+  (Safelist.rev svl_rev,al)
 
 let mk_scheme svl s = (svs_of_svl svl,s)
 let scheme_of_sort s = mk_scheme [] s
@@ -309,21 +321,21 @@ and merge_con c1 c2 = match c1,c2 with
 (* info accessors *)
 
 let info_of_exp = function    
-  | EApp (i,_,_)     -> i
-  | EVar (i,_)       -> i
-  | EFun (i,_,_,_)   -> i
-  | ELet (i,_,_)     -> i
-  | EUnit(i)         -> i
-  | EPair(i,_,_)     -> i
-  | ECase(i,_,_)     -> i
-  | EString (i,_)    -> i
-  | ECSet (i,_,_)    -> i
-  | EOver (i,_)      -> i 
+  | EApp (i,_,_,_)     -> i
+  | EVar (i,_,_)       -> i
+  | EFun (i,_,_,_,_)   -> i
+  | ELet (i,_,_,_)     -> i
+  | EPair(i,_,_,_)     -> i
+  | ECase(i,_,_,_)     -> i
+  | EUnit(i)           -> i
+  | EString (i,_)      -> i
+  | ECSet (i,_,_)      -> i
+  | EOver (i,_)        -> i 
       
 let info_of_pat = function
   | PWld(i)     -> i
   | PUnt(i)     -> i
-  | PVar(i,_)   -> i
+  | PVar(i,_,_)   -> i
   | PVnt(i,_,_) -> i
   | PPar(i,_,_) -> i
 
@@ -391,9 +403,9 @@ let rec format_sort = function
       msg "@ ";
       msg "%s@]" (string_of_qid x1)
   | SData(ms,x1) ->         
-      Util.format "@[[@[<2>";
+      Util.format "@[(@[<2>";
       Misc.format_list ",@ " (format_sort) ms;      
-      Util.format "@]]@ %s@]" (string_of_qid x1)
+      Util.format "@])@ %s@]" (string_of_qid x1)
   | SVar(sv) -> format_svar false sv
   | SRawVar(x) -> Util.format "~%s" (string_of_id x)
 
@@ -427,7 +439,7 @@ let format_scheme (svs,s) =
 let rec format_pat = function
   | PWld _ -> Util.format "_"
   | PUnt _ -> Util.format "()"
-  | PVar(_,x) -> Util.format "%s" (string_of_id x)
+  | PVar(_,x,_) -> Util.format "%s" (string_of_id x)
   | PPar(_,p1,p2) -> 
       Util.format "@[<2>(";
       format_pat p1;
@@ -457,17 +469,17 @@ and format_binding (Bind (_, x, s, e)) =
   Util.format "@]"
 
 and format_exp = function
-  | EApp (_, e1, e2) ->
+  | EApp (_, e1, e2,_) ->
 	Util.format "@[<2>(";
 	format_exp e1;
 	Util.format "@ ";
 	format_exp e2;
 	Util.format ")@]"
 
-    | EVar (_, qid) ->
-	Util.format "@[%s@]" (string_of_qid qid)
+    | EVar (_, q, _) ->
+	Util.format "@[%s@]" (string_of_qid q)
 
-    | EFun (_, p, s, e) ->
+    | EFun (_, p, s, e,_) ->
 	Util.format "@[<2>(fun@ ";
 	format_param p;
 	(match s with
@@ -477,7 +489,7 @@ and format_exp = function
 	format_exp e;
 	Util.format ")@]";
 
-    | ELet (_, b, e) ->
+    | ELet (_, b, e, _) ->
 	Util.format "@[<2>let@ ";
 	format_binding b;
 	Util.format "@ in@ ";
@@ -486,14 +498,14 @@ and format_exp = function
 
     | EUnit _ -> Util.format "()"
 
-    | EPair(_,e1,e2) -> 
+    | EPair(_,e1,e2,_) -> 
         Util.format "@[<2>(";
         format_exp e1;
         Util.format ",";
         format_exp e2;
         Util.format ")@]"
 
-    | ECase(_,e1,pl) -> 
+    | ECase(_,e1,pl,_) -> 
         Util.format "@[<2>match@ ";
         format_exp e1;
         Util.format "@ with@ ";
@@ -571,7 +583,7 @@ and format_decl d =
           | _ -> 
               msg "(";
               Misc.format_list ",@ " format_sort svl;
-              msg ")");
+              msg ")@ ");
         msg "%s@ =@ " (string_of_id x);
         Misc.format_list " | "
           (fun (l,s) -> match s with

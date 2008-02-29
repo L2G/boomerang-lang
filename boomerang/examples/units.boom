@@ -25,7 +25,15 @@ module Units =
 let R = /abc\// 
 test del R get "abc/" = ""
 
-type 'a list = Nil | Cons of 'a * 'a list 
+type 'a list = Nil | Cons of 'a * 'a list
+
+type ('a,'b) maybe = Left of 'a | Right of 'b 
+
+let myf x y = match x with 
+  | Left _ -> y
+  | Right y -> y
+
+test myf : (string,unit) maybe -> unit -> unit
 
 let safe_hd : 'a list -> 'a -> 'a = 
   (fun (l:'a list) -> 
