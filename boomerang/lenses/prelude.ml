@@ -56,13 +56,6 @@ let prelude_spec =
        Lns(i,L.invert i l1)))
 
   (* core lens combinators *)
-  ; (S.mk_native_prelude_qid "const",
-     S.scheme_of_sort (S.SRegexp ^> S.SString ^> S.SString ^> S.SLens),
-     mk_rfun (Info.M "const built-in") (fun i r1 -> 
-       mk_sfun i (fun i s1 -> 
-         mk_sfun i (fun i s2 -> 
-           Lns(i,L.const i r1 s1 s2)))))
-
   ; (S.mk_native_prelude_qid "concat",
      S.scheme_of_sort (S.SLens ^> S.SLens ^> S.SLens),
      mk_lfun (Info.M "concat built-in") (fun i l1 -> 
@@ -224,11 +217,6 @@ let prelude_spec =
      mk_rfun (Info.M "iter built-in") (fun i r1 ->         
        Rx(i,R.star r1)))
 
-  ; (S.mk_native_prelude_qid "shortest",
-     S.scheme_of_sort (S.SRegexp ^> S.SString),
-     mk_rfun (Info.M "shortest built-in") (fun i r1 -> 
-       Str(i,wrap_rep i r1)))
-
   ; (S.mk_native_prelude_qid "equiv",
      S.scheme_of_sort (S.SRegexp ^> S.SRegexp ^> S.SString),
      mk_rfun(Info.M "equiv built-in") (fun i r1 ->
@@ -277,6 +265,34 @@ let prelude_spec =
       Str(i, RS.t_of_string (R.string_of_t r1))))
 
   (* polymorphic operators *)
+  ; begin
+    let alpha = S.fresh_svar (S.Con S.Str) in 
+    let a = S.SVar alpha in 
+    (S.mk_native_prelude_qid "shortest",
+     S.mk_scheme [alpha] (a ^> S.SString),
+     mk_poly_fun (Info.M "shortest built-in") (fun i v1 -> 
+       match v1 with 
+         | Str _ -> Str(i,get_s v1 i)
+         | Rx _  -> Str(i,wrap_rep i (get_r v1 i))
+         | Lns _ -> Str(i,wrap_rep i (L.ctype (get_l v1 i)))
+         | _     -> poly_error i a v1))
+  end
+  ; begin 
+    let alpha = S.fresh_svar (S.Con S.Str) in 
+    let a = S.SVar alpha in 
+    (S.mk_native_prelude_qid "const",
+     S.mk_scheme [alpha] (a ^> S.SString ^> S.SString ^> S.SLens),
+     mk_poly_fun (Info.M "const built-in") (fun i v1 -> 
+       mk_sfun i (fun i s1 -> 
+         mk_sfun i (fun i s2 -> 
+           match v1 with 
+             | Str _ -> 
+                 let r = R.str false (get_s v1 i) in                  
+                 Lns(i,L.const i r s1 s2)
+             | Rx _  -> Lns(i,L.const i (get_r v1 i) s1 s2)
+             | Lns _ -> Lns(i,L.const i (L.ctype (get_l v1 i)) s1 s2)
+             | _     -> poly_error i a v1))))
+    end
   ; begin 
     let alpha = S.fresh_svar (S.Con S.Str) in 
     let a = S.SVar alpha in 

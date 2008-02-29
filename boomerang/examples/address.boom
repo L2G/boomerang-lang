@@ -227,8 +227,8 @@ let name : { ? <-> GlobalName } =
   let escNonEmptyName = 
     unformatnotemptyname ; formatnotemptyname in
   let familyname = 
-    del /N:/ . escNonEmptyName in
-  familyname . (del /;/ | /;/ <-> ", " . escNonEmptyName ) . del /;;;/
+    del "N:" . escNonEmptyName in
+  familyname . (del ";" | /;/ <-> ", " . escNonEmptyName ) . del ";;;"
 
 (* unit test for name *)
 test name get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
@@ -243,10 +243,10 @@ let formattel : lens = escstr [,]
 *)
 let field' (w0:string) (w1:string) (w2:string) =
   str (w0 . ";") <-> ", " . 
-  del /type=/ . del (str w1) .
-  del (/;/ . /type=/ . [A-Z]+)* . 
-  (copy "" | del /;type=pref/) .
-  del [:] . 
+  del "type=" . del w1 . 
+  del (/;type=/ . [A-Z]+)* . 
+  (copy "" | del ";type=pref") .
+  del ":" . 
   (unescstr [;,:]; formattel) .
   ins " (" . ins w2 . ins ")" .
   del NL
@@ -276,7 +276,8 @@ let abemail : lens =
   /item.EMAIL;type=INTERNET;type=pref:/ <-> ", " .
   (unescstr [,:;]; escstr [,]) .
   del NL .
-  del /item.X-ABLabel:E-mail/ . del NL .
+  del "item.X-ABLabel:E-mail" . 
+  del NL .
   ins " (e)" 
 
 (* email: lens for ordinary vCard (as in RFC) field *)
@@ -309,9 +310,9 @@ let Field_unnumbered : regexp =
 let remove_item_numbers : { ? <-> Field_unnumbered* } = 
   let delItemNumber (n:string) : lens = 
     copy "item" . 
-    del (str n) . 
+    del n . 
     copy ([.] . NonNL . NL . /item/) . 
-    del (str n) . 
+    del n . 
     copy ([.] . NonNL . NL) in
   let Stuff = copy (Field - (/item/ . NonNL . NL . /item/ . NonNL . NL) ) in 
   ( ( Stuff* . delItemNumber "1" .
@@ -328,8 +329,8 @@ let remove_item_numbers : { ? <-> Field_unnumbered* } =
 (* chunk: lens for a vCard entry *)
 let chunk : { ? <-> AbsAddr } = 
   (* delete preamble *)
-  del /BEGIN:VCARD/ . del NL . 
-  del /VERSION:3.0/ . del NL .  
+  del "BEGIN:VCARD" . del NL . 
+  del "VERSION:3.0" . del NL .  
   (* format name, tag it as key *)
   (name; key (atype name)) . del NL .
   (* handle fields by: 
@@ -341,7 +342,7 @@ let chunk : { ? <-> AbsAddr } =
        Field_unnumbered
        entry) .
   (* del postamble *)
-  del /END:VCARD/ . del NL
+  del "END:VCARD" . del NL
 
 (* vcard lens: match a chunk *)
 let vcard = <chunk>
@@ -554,8 +555,8 @@ let del_xml_nl (def:string) : lens = del_xml_nl_var (def . "\n")
 *)
 let single_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
   default (del WS) spaces .
-  del (/</ . str tag . />/) . body . 
-  del (/<\// . str tag . />/) 
+  del ("<" . tag . ">") . body . 
+  del ("</" . tag . ">") 
 
 (* multi_line_elt_nl_nl: helper for processing a multi-line XML element 
    o spaces: default whitespace after the element
@@ -563,10 +564,10 @@ let single_line_elt (spaces:string) (tag:string) (body:lens) : lens =
    o body: lens for handling the children 
 *)
 let multi_line_elt_no_nl (spaces:string) (tag:string) (body:lens) : lens = 
-  del (/</ . str tag . />/) .
+  del ("<" . tag . ">") .
   body . 
   default (del WS) spaces . 
-  del (/<\// . str tag ./>/) 
+  del ("</" . tag .">") 
 
 (* multi_line_elt: helper for processing a multi-line XML element
    o spaces: default whitespace before the element
@@ -579,9 +580,9 @@ let multi_line_elt (spaces:string) (tag:string) (body:lens) : lens =
 
 (* special: lens for escaping special characters in PCDATA *)
 let special : lens = 
-  ( /&lt;/ <-> "<" 
-  | /&gt;/ <-> ">" 
-  | /&amp;/ <-> "&")    
+  ( "&lt;" <-> "<" 
+  | "&gt;" <-> ">" 
+  | "&amp;" <-> "&")    
 
 (* R: character set for special characters *)
 let R = [&<>]

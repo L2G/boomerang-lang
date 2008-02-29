@@ -1,5 +1,14 @@
 module Prelude =
 
+(* polymorphic operators *)
+let copy = Native.Prelude.copy
+let const = Native.Prelude.const 
+let shortest = Native.Prelude.shortest
+let poly_concat = Native.Prelude.poly_concat
+let poly_union = Native.Prelude.poly_union
+let poly_iter = Native.Prelude.poly_iter
+let poly_swap = Native.Prelude.poly_swap
+
 (* lens operations *)
 let pget : lens -> string -> string = 
   Native.Prelude.get
@@ -9,9 +18,6 @@ let pcreate : lens -> string -> string =
   Native.Prelude.create
 let invert : lens -> lens =
   Native.Prelude.invert
-let copy = Native.Prelude.copy
-let const : regexp -> string -> string -> lens =
-  Native.Prelude.const 
 let concat : lens -> lens -> lens =
   Native.Prelude.concat
 let union : lens -> lens -> lens =
@@ -72,8 +78,6 @@ let inter : regexp -> regexp -> regexp =
   Native.Prelude.inter
 let diff : regexp -> regexp -> regexp = 
   Native.Prelude.diff
-let shortest : regexp -> string = 
-  Native.Prelude.shortest
 let equiv : regexp -> regexp -> string = 
   Native.Prelude.equiv
 
@@ -99,17 +103,7 @@ let string_of_regexp : regexp -> string =
 (* derived forms *)
 let epsilon : regexp = str ""
 
-let ins (s:string) : lens = 
-  const (str "") s "" 
+let ins (s:string) : lens = const (str "") s "" 
+let del r = const r "" (shortest r) 
+let set r s = const r s (shortest r)
 
-let del (r:regexp) : lens = 
-  const r "" (shortest r) 
-
-let set (r:regexp) (s:string) : lens = 
-  const r s (shortest r)
-
-(* polymorphic operators *)
-let poly_concat = Native.Prelude.poly_concat
-let poly_union = Native.Prelude.poly_union
-let poly_iter = Native.Prelude.poly_iter
-let poly_swap = Native.Prelude.poly_swap
