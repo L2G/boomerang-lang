@@ -63,7 +63,7 @@ let WS : regexp = [ \n\t]*
 let ws : lens = del WS
 
 (* NL: portable newline *)
-let NL : regexp = "\r"? . "\n"
+let NL : regexp = /\r/? . /\n/
 
 (* NonNL: any string not containing a newline *)
 let NonNL : regexp = StringNotContaining [\n\r]
@@ -86,13 +86,13 @@ let NonSpecial : regexp = [^\n\r\\]
 let EscapedSpecial : regexp = [\\nr]
 
 (* escspecial: lens escaping non-slash chars in Special *)
-let escspecial : lens = ("\n" <-> "\\n" | "\r" <-> "\\r")
+let escspecial : lens = (/\n/ <-> "\\n" | /\r/ <-> "\\r")
 
 (* EscapedStr: strings where every character in [R] and [Special] are
    escaped using backslash. [R] should be a chracter class. *)
 let EscapedStr (R:regexp) : regexp =
   let Normal = StringNotContaining (Special | R) in
-  let Escaped = "\\" . (EscapedSpecial | R) in
+  let Escaped = /\\/ . (EscapedSpecial | R) in
   Normal . (Escaped . Normal)* 
 
 (* NonEmptyEscapedStr: non-empty strings where every character in [R]
@@ -100,17 +100,17 @@ let EscapedStr (R:regexp) : regexp =
    chracter class. *)
 let NonEmptyEscapedStr (R:regexp) : regexp = 
   let Normal = StringNotContaining (Special | R) in 
-  let NonEmptyNormal = Normal - "" in 
-  let Escaped = "\\" . (EscapedSpecial | R) in 
+  let NonEmptyNormal = Normal - epsilon in 
+  let Escaped = /\\/ . (EscapedSpecial | R) in 
   let EscapedNormal = Escaped . Normal in 
     NonEmptyNormal . EscapedNormal* | EscapedNormal+
 
 (* escchar: escape characters in [c], which should be a character
    class. *)
 let escchar (c:regexp) : lens = 
-  ( (ins "\\" . (c | "\\"))
+  ( (ins "\\" . copy (c | /\\/))
   | escspecial
-  | (NonSpecial - c))
+  | copy (NonSpecial - c))
 
 (* unescchar: inverse of (the bijective lens) escchar *)
 let unescchar (c:regexp) : lens = invert (escchar c)
@@ -140,25 +140,25 @@ test (escchar [,])* get "a,b" = "a\\,b"
 (* TELEPHONE AND NAME FIELDS *)
 
 (* TelTags: strings used in markers for tel fields in CSV *)
-let TelTags : regexp = [hwce] | "note"
+let TelTags : regexp = [hwce] | /note/
 
 (* TelMarker: strings used to mark tel fields in CSV *)
-let TelMarker : regexp = " (" . TelTags . ")"
+let TelMarker : regexp = / (/ . TelTags . /)/
 
 (* Tel: a single, escaped tel field *)
-let Tel : regexp = ", " . (EscapedStr [,]) . TelMarker
+let Tel : regexp = /, / . (EscapedStr [,]) . TelMarker
 
 (* Name: a single, escaped name field. Cannot end with a TelMarker *)
 let Name : regexp = (NonEmptyEscapedStr [,]) - ( Any . TelMarker )
 
 (* NonEmptyName: a single, non-empty name *)
-let NonEmptyName : regexp = Name - ""
+let NonEmptyName : regexp = Name - epsilon
 
 (* Family and Given: just non-empty names *)
 let Family,Given : regexp * regexp = NonEmptyName,NonEmptyName
 
 (* GlobalName: a single name in CSV *)
-let GlobalName : regexp = Family . (", " . Given)?
+let GlobalName : regexp = Family . (/, / . Given)?
   
 (* AbsAddr: type for CSV address book entry *) 
 let AbsAddr = GlobalName . Tel* 
@@ -174,23 +174,23 @@ let AbsAddr = GlobalName . Tel*
      o c: set of special characters 
   *)
 let escaper (legal:regexp) (esc:regexp -> lens) (l:lens) (c:regexp) = 
-  let mk_suffix (r:regexp) : lens = (legal - (r | c)) | l  in
+  let mk_suffix (r:regexp) : lens = copy (legal - (r | c)) | l  in
   let suffix : lens = 
-    ( (mk_suffix ")")
-    | (mk_suffix [hwce]) . ")"
-    | (mk_suffix [t(])   . "e)"
-    | (mk_suffix [(])    . ( [hwc] . ")" | "note)" )
-    | (mk_suffix [ ])    . ("(" . TelTags . ")")
-    | (mk_suffix [o])    . "te)"
-    | (mk_suffix [n])    . "ote)" ) in 
+    ( (mk_suffix [)])
+    | (mk_suffix [hwce]) . cp ")"
+    | (mk_suffix [t(])   . cp "e)"
+    | (mk_suffix [(])    . copy ( [hwc] . [)] | /note)/ )
+    | (mk_suffix [ ])    . copy ([(] . TelTags . [)])
+    | (mk_suffix [o])    . cp "te)"
+    | (mk_suffix [n])    . cp "ote)" ) in 
   ( esc c . suffix
-  | ")" 
-  | [hwce] . ")" 
-  | "te)" 
-  | "ote)"
-  | "note)"
-  | "(note)" 
-  | "(" . [hwce] . ")")
+  | cp ")" 
+  | copy ([hwce] . /)/)
+  | cp "te)" 
+  | cp "ote)"
+  | cp "note)"
+  | cp "(note)" 
+  | copy ( /(/ . [hwce] . /)/ ) )
             
 (* formatter: specialization of escaper with the standard special characters *)
 let formatter : (regexp -> lens) -> lens -> regexp -> lens = 
@@ -198,17 +198,17 @@ let formatter : (regexp -> lens) -> lens -> regexp -> lens =
 
 (* formatspecial: lens for formatting the special characters *)
 let formatspecial : lens = 
-  ( "\\" <-> "\\\\" 
-  | "," <-> "\\," 
-  | "\n" <-> "\\n" 
-  | "\r" <-> "\\r")
+  ( [\\] <-> "\\\\" 
+  | [,] <-> "\\," 
+  | [\n] <-> "\\n" 
+  | [\r] <-> "\\r")
 
 (* unformatspecial: lens for unformatting special characters, also 
    handles colons and semicolons *)
 let unformatspecial : lens = 
   ( invert formatspecial
-  | "\\:" <-> ":" 
-  | "\\;" <-> ";" ) 
+  | /\\:/ <-> ":" 
+  | /\\;/ <-> ";" ) 
 
 (* formatnotemptyname: escape string to Name *)
 let formatnotemptyname : { ? <-> Name } = 
@@ -226,8 +226,8 @@ let name : { ? <-> GlobalName } =
   let escNonEmptyName = 
     unformatnotemptyname ; formatnotemptyname in
   let familyname = 
-    del "N:" . escNonEmptyName in
-  familyname . (del ";" | ";" <-> ", " . escNonEmptyName ) . del ";;;" 
+    del /N:/ . escNonEmptyName in
+  familyname . (del /;/ | /;/ <-> ", " . escNonEmptyName ) . del /;;;/
 
 (* unit test for name *)
 test name get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
@@ -241,11 +241,11 @@ let formattel : lens = escstr [,]
      o w2: tag in CSV view
 *)
 let field' (w0:string) (w1:string) (w2:string) =
-  (w0 . ";") <-> ", " . 
-  del "type=" . del w1 .
-  del (";" . "type=" . [A-Z]+)* . 
-  ("" | del ";type=pref") .
-  del ":" . 
+  str (w0 . ";") <-> ", " . 
+  del /type=/ . del (str w1) .
+  del (/;/ . /type=/ . [A-Z]+)* . 
+  (cp "" | del /;type=pref/) .
+  del [:] . 
   (unescstr [;,:]; formattel) .
   ins " (" . ins w2 . ins ")" .
   del NL
@@ -265,17 +265,17 @@ let formatnote : lens = escstr [,]
 (* note: lens for handling note fields. Again, we use the two-pass 
    approach--unformatting / unescaping, and then reformatting / reescaping *)
 let note : lens =
-  "NOTE:" <-> ", " .
+  /NOTE:/ <-> ", " .
   (unescstr [,:;]; formatnote) .
   ins " (note)" .
   del NL
 
 (* abemail: lens for Apple's special email field. Uses two-pass approach. *)
 let abemail : lens =
-  "item.EMAIL;type=INTERNET;type=pref:" <-> ", " .
+  /item.EMAIL;type=INTERNET;type=pref:/ <-> ", " .
   (unescstr [,:;]; escstr [,]) .
   del NL .
-  del "item.X-ABLabel:E-mail" . del NL .
+  del /item.X-ABLabel:E-mail/ . del NL .
   ins " (e)" 
 
 (* email: lens for ordinary vCard (as in RFC) field *)
@@ -285,20 +285,20 @@ let email : lens = field' "EMAIL" "INTERNET" "e"
 let entry : lens =  abemail | email | tel | note
 
 (* ItemLine: regexp for lines that use Apple's itemN convention *)
-let ItemLine :regexp = "item" . NonNL . NL
+let ItemLine :regexp = /item/ . NonNL . NL
 
 (* Line: regexp for any line *)
-let Line : regexp = [^ ] . NonNL . NL . (" " . NonNL . NL)*
+let Line : regexp = [^ ] . NonNL . NL . (/ / . NonNL . NL)*
 
 (* Field: regexp for ItemLine fields: either an ordinary line or two
    item lines *)
-let Field = 
+let Field : regexp = 
   ((Line - ItemLine) | (ItemLine . ItemLine))
-  - ("END:VCARD" . NL)
+  - (/END:VCARD/ . NL)
 
 (* numberedItem: regexp for lines with numbered items *)
 let NumberedItem (n:string) : regexp =
-  "item" . n . "." . NonNL . NL . "item" . n . "." . NonNL . NL
+  /item/ . str n . /./ . NonNL . NL . /item/ . str n . /./ . NonNL . NL
 
 (* Field_unnumbered: regexp for fields without numbered item lines *)
 let Field_unnumbered : regexp =
@@ -306,34 +306,41 @@ let Field_unnumbered : regexp =
 
 (* remove_item_numbers: lens for deleting item numberings *)
 let remove_item_numbers : { ? <-> Field_unnumbered* } = 
-  let delItemNumber (n:string) = "item" . del n . "." . NonNL . NL .
-    "item" . del n . "." . NonNL . NL in
-  let Stuff = Field - ("item" . NonNL . NL . "item" . NonNL . NL) in
-    Stuff* . delItemNumber "1" .
+  let delItemNumber (n:string) : lens = 
+    cp "item" . 
+    del (str n) . 
+    copy ([.] . NonNL . NL . /item/) . 
+    del (str n) . 
+    copy ([.] . NonNL . NL) in
+  let Stuff = copy (Field - (/item/ . NonNL . NL . /item/ . NonNL . NL) ) in 
+  ( ( Stuff* . delItemNumber "1" .
       Stuff* . delItemNumber "2" .
       Stuff* . delItemNumber "3" .
-      Field_unnumbered* 
-  | Stuff* . delItemNumber "1" .
+      copy Field_unnumbered* )
+  | ( Stuff* . delItemNumber "1" .
       Stuff* . delItemNumber "2" .
-      Field_unnumbered* 
-  | Stuff* . delItemNumber "1" .
-      Field_unnumbered* 
-  | Field_unnumbered* 
+      copy Field_unnumbered* )
+  | ( Stuff* . delItemNumber "1" .
+      copy Field_unnumbered* )
+  | ( copy Field_unnumbered* ) )
 
 (* chunk: lens for a vCard entry *)
 let chunk : { ? <-> AbsAddr } = 
   (* delete preamble *)
-  del "BEGIN:VCARD" . del NL . 
-  del "VERSION:3.0" . del NL .  
+  del /BEGIN:VCARD/ . del NL . 
+  del /VERSION:3.0/ . del NL .  
   (* format name, tag it as key *)
   (name; key (atype name)) . del NL .
-  (* handle fields by: removing item numbers, removing unnumbered fields, evaluating entry *)
+  (* handle fields by: 
+       removing item numbers, 
+       removing unnumbered fields, 
+       evaluating entry *)
     (remove_item_numbers ;
      filterwith
        Field_unnumbered
        entry) .
   (* del postamble *)
-  del "END:VCARD" . del NL
+  del /END:VCARD/ . del NL
 
 (* vcard lens: match a chunk *)
 let vcard = <chunk>
@@ -350,8 +357,12 @@ let samplevcard =
     END:VCARD
     
 >>>
-    
-test vcard create "Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)" = 
+
+test vcard create 
+<<<
+  Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)
+>>>
+= 
 <<<
   BEGIN:VCARD
   VERSION:3.0
@@ -530,7 +541,7 @@ let nl3 = nl2 . "  "
 let nl4 = nl3 . "  "
 
 (* del_xml_nl_var: lens for deleting whitespace with a default *)
-let del_xml_nl_var (def:string) : lens = default ((del WS . del "\n") | "") def
+let del_xml_nl_var (def:string) : lens = default ((del WS . del [\n]) | cp "") def
 
 (* del_xml_nl: lens for deleting whitespace with a default--adds a newline to passed default *)
 let del_xml_nl (def:string) : lens = del_xml_nl_var (def . "\n")
@@ -542,8 +553,8 @@ let del_xml_nl (def:string) : lens = del_xml_nl_var (def . "\n")
 *)
 let single_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
   default (del WS) spaces .
-  del ("<" . tag . ">") . body . 
-  del ("</" . tag .">") 
+  del (/</ . str tag . />/) . body . 
+  del (/<\// . str tag . />/) 
 
 (* multi_line_elt_nl_nl: helper for processing a multi-line XML element 
    o spaces: default whitespace after the element
@@ -551,10 +562,10 @@ let single_line_elt (spaces:string) (tag:string) (body:lens) : lens =
    o body: lens for handling the children 
 *)
 let multi_line_elt_no_nl (spaces:string) (tag:string) (body:lens) : lens = 
-  del ("<" . tag . ">") .
+  del (/</ . str tag . />/) .
   body . 
   default (del WS) spaces . 
-  del ("</" . tag .">") 
+  del (/<\// . str tag ./>/) 
 
 (* multi_line_elt: helper for processing a multi-line XML element
    o spaces: default whitespace before the element
@@ -567,9 +578,9 @@ let multi_line_elt (spaces:string) (tag:string) (body:lens) : lens =
 
 (* special: lens for escaping special characters in PCDATA *)
 let special : lens = 
-  ( "&lt;" <-> "<" 
-  | "&gt;" <-> ">" 
-  | "&amp;" <-> "&")    
+  ( /&lt;/ <-> "<" 
+  | /&gt;/ <-> ">" 
+  | /&amp;/ <-> "&")    
 
 (* R: character set for special characters *)
 let R = [&<>]
@@ -578,10 +589,10 @@ let R = [&<>]
 let Normal : regexp = StringNotContaining R
 
 (* unescpcdata: regexp for unescaping raw PCDATA *)
-let unescpcdata : lens = Normal . (special . Normal)*  
+let unescpcdata : lens = copy Normal . (special . copy Normal)*  
   
 (* formatpcdata: lens for escaping PCDATA; excludes TelTags using escaper helper from above. *)
-let format_pcdata : lens = escaper [^] (fun (c:regexp) -> unescpcdata) [] []
+let format_pcdata : lens = escaper [^] (fun (c:regexp) -> unescpcdata) (copy []) []
 
 (* -------------------------------------------------------------------- *)
 (* BCP's personal variant of XCard *)
@@ -594,7 +605,7 @@ let name : lens =
     ( single_line_elt nl2 "n" n
     | (multi_line_elt nl2 "n" 
          (single_line_elt nl3 "family" n . 
-            ("" | ins ", " . single_line_elt nl3 "given" n))))
+            (cp "" | ins ", " . single_line_elt nl3 "given" n))))
 
 (* tel': helper for escaping and formatting telephone data. 
      o full: XCard tag

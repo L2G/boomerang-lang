@@ -108,3 +108,5 @@ let del (r:regexp) : lens =
 
 let set (r:regexp) (s:string) : lens = 
   const r s (shortest r)
+
+let cp (s:string) : lens = copy (str s)
