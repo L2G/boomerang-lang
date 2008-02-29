@@ -24,13 +24,13 @@
 type rv 
 (** The type of registry values; just a scheme and a value. *)
 
-val make_rv : Bsyntax.scheme -> Bvalue.t -> rv
+val make_rv : Bsyntax.sort_or_scheme -> Bvalue.t -> rv
 (** [make_rv s v] returns a registry value of scheme [s] and value [v]. *)
 
 val value_of_rv : rv -> Bvalue.t
 (** [value_of_rv r] returns the value from [r]. *)
 
-val scheme_of_rv : rv -> Bsyntax.scheme
+val sort_or_scheme_of_rv : rv -> Bsyntax.sort_or_scheme
 (** [scheme_of_rv r] returns the scheme from [r]. *)
 
 val format_rv : rv -> unit

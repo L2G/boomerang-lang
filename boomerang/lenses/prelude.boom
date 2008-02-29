@@ -9,8 +9,7 @@ let pcreate : lens -> string -> string =
   Native.Prelude.create
 let invert : lens -> lens =
   Native.Prelude.invert
-let copy : regexp -> lens =
-  Native.Prelude.copy
+let copy = Native.Prelude.copy
 let const : regexp -> string -> string -> lens =
   Native.Prelude.const 
 let concat : lens -> lens -> lens =
@@ -108,8 +107,6 @@ let del (r:regexp) : lens =
 
 let set (r:regexp) (s:string) : lens = 
   const r s (shortest r)
-
-let cp (s:string) : lens = copy (str s)
 
 (* polymorphic operators *)
 let poly_concat = Native.Prelude.poly_concat

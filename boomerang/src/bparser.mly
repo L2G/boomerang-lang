@@ -56,9 +56,9 @@ let mk_iter i e1 min maxo =
     EApp(i,
       EApp(i,
         mk_prelude_var "poly_iter",
-        e1, 
+        e1,
         None),
-      mk_str i (string_of_int min), 
+      mk_str i (string_of_int min),
       None),
     mk_str i (match maxo with None -> "" | Some max -> string_of_int max),
     None)

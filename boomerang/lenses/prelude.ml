@@ -56,11 +56,6 @@ let prelude_spec =
        Lns(i,L.invert i l1)))
 
   (* core lens combinators *)
-  ; (S.mk_native_prelude_qid "copy",
-     S.scheme_of_sort (S.SRegexp ^> S.SLens),
-     mk_rfun (Info.M "copy built-in") (fun i r1 -> 
-       Lns(i,L.copy i r1)))
-
   ; (S.mk_native_prelude_qid "const",
      S.scheme_of_sort (S.SRegexp ^> S.SString ^> S.SString ^> S.SLens),
      mk_rfun (Info.M "const built-in") (fun i r1 -> 
@@ -282,6 +277,18 @@ let prelude_spec =
       Str(i, RS.t_of_string (R.string_of_t r1))))
 
   (* polymorphic operators *)
+  ; begin 
+    let alpha = S.fresh_svar (S.Con S.Str) in 
+    let a = S.SVar alpha in 
+    (S.mk_native_prelude_qid "copy",
+     S.mk_scheme [alpha] (a ^> S.SLens),
+     mk_poly_fun (Info.M "copy built-in") (fun i v1 -> 
+         match v1 with
+           | Str _ -> Lns(i,L.copy i (R.str false (get_s v1 i)))
+           | Rx _  -> Lns(i,L.copy i (get_r v1 i))
+           | Lns _ -> v1 
+           | _     -> poly_error i a v1))
+    end
   ; begin 
     let alpha = S.fresh_svar (S.Con S.Str) in 
     let a = S.SVar alpha in 

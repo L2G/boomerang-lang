@@ -104,6 +104,8 @@ module SVSet = Set.Make
 
 type scheme = SVSet.t * sort
 
+type sort_or_scheme = Sort of sort | Scheme of scheme 
+
 type param = Param of i * id * sort
 
 type binding = Bind of i * pat * sort option * exp

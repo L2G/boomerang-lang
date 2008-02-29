@@ -178,19 +178,19 @@ let escaper (legal:regexp) (esc:regexp -> lens) (l:lens) (c:regexp) =
   let mk_suffix (r:regexp) : lens = copy (legal - (r | c)) | l  in
   let suffix : lens = 
     ( (mk_suffix [)])
-    | (mk_suffix [hwce]) . cp ")"
-    | (mk_suffix [t(])   . cp "e)"
+    | (mk_suffix [hwce]) . copy ")"
+    | (mk_suffix [t(])   . copy "e)"
     | (mk_suffix [(])    . copy ( [hwc] . [)] | /note)/ )
     | (mk_suffix [ ])    . copy ([(] . TelTags . [)])
-    | (mk_suffix [o])    . cp "te)"
-    | (mk_suffix [n])    . cp "ote)" ) in 
+    | (mk_suffix [o])    . copy "te)"
+    | (mk_suffix [n])    . copy "ote)" ) in 
   ( esc c . suffix
-  | cp ")" 
+  | copy ")" 
   | copy ([hwce] . /)/)
-  | cp "te)" 
-  | cp "ote)"
-  | cp "note)"
-  | cp "(note)" 
+  | copy "te)" 
+  | copy "ote)"
+  | copy "note)"
+  | copy "(note)" 
   | copy ( /(/ . [hwce] . /)/ ) )
             
 (* formatter: specialization of escaper with the standard special characters *)
@@ -245,7 +245,7 @@ let field' (w0:string) (w1:string) (w2:string) =
   str (w0 . ";") <-> ", " . 
   del /type=/ . del (str w1) .
   del (/;/ . /type=/ . [A-Z]+)* . 
-  (cp "" | del /;type=pref/) .
+  (copy "" | del /;type=pref/) .
   del [:] . 
   (unescstr [;,:]; formattel) .
   ins " (" . ins w2 . ins ")" .
@@ -308,7 +308,7 @@ let Field_unnumbered : regexp =
 (* remove_item_numbers: lens for deleting item numberings *)
 let remove_item_numbers : { ? <-> Field_unnumbered* } = 
   let delItemNumber (n:string) : lens = 
-    cp "item" . 
+    copy "item" . 
     del (str n) . 
     copy ([.] . NonNL . NL . /item/) . 
     del (str n) . 
@@ -542,7 +542,7 @@ let nl3 = nl2 . "  "
 let nl4 = nl3 . "  "
 
 (* del_xml_nl_var: lens for deleting whitespace with a default *)
-let del_xml_nl_var (def:string) : lens = default ((del WS . del [\n]) | cp "") def
+let del_xml_nl_var (def:string) : lens = default ((del WS . del [\n]) | copy "") def
 
 (* del_xml_nl: lens for deleting whitespace with a default--adds a newline to passed default *)
 let del_xml_nl (def:string) : lens = del_xml_nl_var (def . "\n")
@@ -606,7 +606,7 @@ let name : lens =
     ( single_line_elt nl2 "n" n
     | (multi_line_elt nl2 "n" 
          (single_line_elt nl3 "family" n . 
-            (cp "" | ins ", " . single_line_elt nl3 "given" n))))
+            (copy "" | ins ", " . single_line_elt nl3 "given" n))))
 
 (* tel': helper for escaping and formatting telephone data. 
      o full: XCard tag
@@ -644,10 +644,10 @@ test vcard get samplevcard =
   "foo, bar, 12345 (h), 12345 (c), hello world (note)"
 
 (* xcard: lens for handling a single XCard xcard elemnet *)
-let xcard = multi_line_elt_no_nl nl0 "xcard" ((vcard . ins "\n") * )
+let xcard : lens = multi_line_elt_no_nl nl0 "xcard" ((vcard . ins "\n") * )
 
 (* unit tests for xcard *)
-let samplexcards = 
+let samplexcards : string = 
   "<xcard>
      | <vcard>
      |   <n>Charles Addams</n>

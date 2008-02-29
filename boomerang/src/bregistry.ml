@@ -16,7 +16,7 @@
 (*******************************************************************************)
 (* /boomerang/src/registry.ml                                                  *)
 (* Boomerang run-time registry                                                 *)
-(* $Id$                                                                        *)
+(* $Id$ *)
 (*******************************************************************************)
 
 let sprintf = Printf.sprintf
@@ -24,17 +24,20 @@ let debug = Trace.debug "registry"
 let verbose = Trace.debug "registry+"
 
 (* --------------- Registry values -------------- *)
-type rv = Bsyntax.scheme * Bvalue.t
+type rv = Bsyntax.sort_or_scheme * Bvalue.t
 
 (* utility functions *)
 let make_rv s v = (s,v)
 let value_of_rv (s,v) = v
-let scheme_of_rv (s,v) = s
+let sort_or_scheme_of_rv (s,v) = s
 let format_rv rv = 
   let (s,v) = rv in    
     Util.format "@[";
     Bvalue.format v;
-    Util.format ": %s" (Bsyntax.string_of_scheme s);
+    Util.format ":@ ";
+    (match s with 
+       | Bsyntax.Sort s -> Bsyntax.format_sort s
+       | Bsyntax.Scheme s -> Bsyntax.format_scheme s);
     Util.format "]"
 
 (* --------------- Focal library -------------- *)
@@ -99,7 +102,7 @@ let reset () =
 (* register a value *)
 let register q r = library := (REnv.update (!library) q r)
 
-let register_native_qid q s v = register q (s,v)
+let register_native_qid q s v = register q (Bsyntax.Scheme s,v)
 
 (* register a native value *)
 let register_native qs s v = register_native_qid (Bvalue.parse_qid qs) s v
