@@ -46,15 +46,16 @@ let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
 (* helpers for building ASTs *)
 let mk_qid_var x = EVar(info_of_qid x,x,None)
 let mk_var x = mk_qid_var (qid_of_id x)
+let mk_prelude_var x = mk_qid_var (mk_prelude_qid x)
 
 let mk_str i s = EString(i,RS.t_of_string s)
 let mk_bin_op i o e1 e2 = EApp(i,EApp(i,o,e1,None),e2,None) 
-let mk_cat i e1 e2 = mk_bin_op i (EOver(i,ODot)) e1 e2
+let mk_cat i e1 e2 = mk_bin_op i (mk_prelude_var "poly_concat") e1 e2
 let mk_iter i e1 min maxo =  
   EApp(i,
     EApp(i,
       EApp(i,
-        EOver(i,OIter),
+        mk_prelude_var "poly_iter",
         e1, 
         None),
       mk_str i (string_of_int min), 
@@ -64,11 +65,11 @@ let mk_iter i e1 min maxo =
 
 let mk_star i e1 = mk_iter i e1 0 None
 
-let mk_union i e1 e2 = mk_bin_op i (EOver(i,OBar)) e1 e2
-let mk_diff i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "diff")) e1 e2
-let mk_inter i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "inter")) e1 e2
-let mk_compose i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "compose")) e1 e2
-let mk_swap i e1 e2 = mk_bin_op i (EOver(i,OTilde)) e1 e2
+let mk_union i e1 e2 = mk_bin_op i (mk_prelude_var "poly_union") e1 e2
+let mk_diff i e1 e2 = mk_bin_op i (mk_prelude_var "diff") e1 e2
+let mk_inter i e1 e2 = mk_bin_op i (mk_prelude_var "inter") e1 e2
+let mk_compose i e1 e2 = mk_bin_op i (mk_prelude_var "compose") e1 e2
+let mk_swap i e1 e2 = mk_bin_op i (mk_prelude_var "poly_swap") e1 e2
 let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "set")) e1 e2
 let mk_match i x q = mk_bin_op i (mk_qid_var (mk_prelude_qid "dmatch")) (EString(i,RS.t_of_string x)) (mk_qid_var q)
 let mk_rx i e = EApp(i,mk_qid_var (mk_prelude_qid "str"),e,None)

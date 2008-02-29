@@ -33,7 +33,7 @@
        (boomcmd (concat 
                  "boomerang" " " "sync" " " lens " " 
                  archive " " source " " view
-                 " " "-debug sync -no-assert -no-check -no-type-check"))
+                 " " "-debug sync -no-assert -no-check -no-type-check -I ../lenses"))
        ;; setup boomerang output buffer 
        (boombuf (get-buffer-create "*boomerang output*"))
        ;; run boomerang once, save exit code

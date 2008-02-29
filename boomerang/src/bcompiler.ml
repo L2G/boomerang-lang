@@ -266,23 +266,6 @@ let rec dynamic_match i p v = match p,v with
 
 let rec check_exp ((tev,sev) as evs) e0 = match e0 with
   (* overloaded, polymorphic operators *)
-  | EOver(i,s) -> 
-      let mk_bin c q = 
-        let alpha = fresh_sort (Con c) in 
-        let e0_sort = alpha ^> alpha ^> alpha in
-        let new_e0 = EVar(i,q,Some e0_sort) in 
-        (e0_sort,new_e0) in 
-      begin match s with 
-      | ODot -> mk_bin Str (mk_native_prelude_qid "poly_concat")
-      | OBar -> mk_bin Reg (mk_native_prelude_qid "poly_union")
-      | OTilde -> mk_bin Lns (mk_native_prelude_qid "poly_swap")
-      | OIter -> 
-          let alpha = fresh_sort (Con Reg) in 
-          let e0_sort = alpha ^> SString ^> SString ^> alpha in
-          let new_e0 = EVar(i,mk_native_prelude_qid "poly_iter",Some e0_sort) in 
-          (e0_sort,new_e0)
-      end
-
   | EVar(i,q,_) ->
       let e0_sort = match SCEnv.lookup sev q with
         | Some ss -> instantiate i ss 
@@ -563,13 +546,6 @@ let check_module = function
 (* --------------- Compiler --------------- *)
 (* expressions *)
 let rec compile_exp cev e0 = match e0 with
-  | EOver(i,s) -> 
-      run_error i 
-        (fun () -> 
-           msg "@[unresolved overloaded symbol ";
-           (format_sym s);
-           msg "@]")
-
   | EVar(i,q,Some s0) -> 
       begin match s0,CEnv.lookup cev q with
         | SRegexp,Some(_,v) -> 

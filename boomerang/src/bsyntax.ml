@@ -119,19 +119,10 @@ and exp =
     | EPair of i * exp * exp * sort option
     | ECase of i * exp * (pat * exp) list * sort option
         
-    (* placeholders: hold dictionary parameters in type inference *)
-    | EOver of i * osym 
-
     (* constants *)
     | EUnit of i 
     | EString of i * Bstring.t 
     | ECSet of i * bool * (Bstring.sym * Bstring.sym) list 
-
-and osym = 
-  | ODot 
-  | OBar 
-  | OTilde
-  | OIter
 
 and pat = 
   | PWld of i
@@ -330,7 +321,6 @@ let info_of_exp = function
   | EUnit(i)           -> i
   | EString (i,_)      -> i
   | ECSet (i,_,_)      -> i
-  | EOver (i,_)        -> i 
       
 let info_of_pat = function
   | PWld(i)     -> i
@@ -536,14 +526,6 @@ and format_exp = function
 	       (Bstring.escaped_repr last))
 	  ranges;
 	  Util.format "]@]"
-
-    | EOver(_,s) -> format_sym s
-
-and format_sym = function
-  | ODot -> Util.format "concat"
-  | OBar -> Util.format "union"
-  | OTilde -> Util.format "swap"
-  | OIter -> Util.format "iter"
 
 and format_test_result tr =
   match tr with

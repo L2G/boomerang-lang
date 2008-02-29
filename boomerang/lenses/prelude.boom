@@ -110,3 +110,9 @@ let set (r:regexp) (s:string) : lens =
   const r s (shortest r)
 
 let cp (s:string) : lens = copy (str s)
+
+(* polymorphic operators *)
+let poly_concat = Native.Prelude.poly_concat
+let poly_union = Native.Prelude.poly_union
+let poly_iter = Native.Prelude.poly_iter
+let poly_swap = Native.Prelude.poly_swap
