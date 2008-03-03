@@ -43,44 +43,6 @@ let quotes (l:lens) : lens =
 (* --------------------------------------------------------------------------- *)
 (* CONSTANTS *)
 
-(* [ANY] any string *)
-let ANY : regexp = [^]*
-
-(* [containing R] any string containing [R] *)
-let containing (R:regexp) : regexp = ANY . R . ANY
-
-(* [nl] newline *)
-let NL :string = "\n"
-
-(* [s] space *)
-let S :string = " "
-
-(* [WS] whitespace *)
-let WS : regexp = [ \n]*
-
-(* [NWS] not white space *)
-let NWS : regexp = [^ \n]
-
-(* [WSP] positive whitespace *)
-let WSP : regexp = [ \n]+
-
-(* [SP] positive space *)
-let SP : regexp = [ ]+
-
-(* [DIGIT] digit *)
-let DIGIT : regexp = [0-9]
-
-(* [NUMBER] number *)
-let NUMBER : regexp = DIGIT+
-
-(* [FNUMBER] floating-point number *)
-let FNUMBER : regexp = DIGIT* . ([.] . DIGIT+)?
-
-(* [ULETTER] uppercase letter *)
-let ULETTER : regexp = [A-Z]
-
-(* [UALPHANUM] uppercase alphanumeric character *)
-let UALPHANUM : regexp = [A-Z0-9]
 
 (* [nlX]: X^th amount of whitespace--used to canonize XML *)
 let NL0 = NL

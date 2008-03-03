@@ -19,6 +19,9 @@ module type S = sig
         Returns a new environment *)
     val update : 'a t -> key -> 'a -> 'a t
 
+    (** [fold f e b] computes [(f kN aN ... (f k1 a1 b)...)] *)
+    val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+
     (** [lookup ev q] returns an option representing the binding for [q]
         in [ev]. *)
     val lookup : 'a t -> key -> 'a option

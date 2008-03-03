@@ -46,7 +46,7 @@ let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
 (* helpers for building ASTs *)
 let mk_qid_var x = EVar(info_of_qid x,x,None)
 let mk_var x = mk_qid_var (qid_of_id x)
-let mk_prelude_var x = mk_qid_var (mk_prelude_qid x)
+let mk_prelude_var x = mk_qid_var (mk_native_prelude_qid x)
 
 let mk_str i s = EString(i,RS.t_of_string s)
 let mk_bin_op i o e1 e2 = EApp(i,EApp(i,o,e1,None),e2,None) 
@@ -72,7 +72,7 @@ let mk_compose i e1 e2 = mk_bin_op i (mk_prelude_var "compose") e1 e2
 let mk_swap i e1 e2 = mk_bin_op i (mk_prelude_var "poly_swap") e1 e2
 let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "set")) e1 e2
 let mk_match i x q = mk_bin_op i (mk_qid_var (mk_prelude_qid "dmatch")) (EString(i,RS.t_of_string x)) (mk_qid_var q)
-let mk_rx i e = EApp(i,mk_qid_var (mk_prelude_qid "str"),e,None)
+let mk_rx i e = EApp(i,mk_prelude_var "str",e,None)
 
 (* error *)
 let syntax_error i msg = 
@@ -175,7 +175,7 @@ let check_pat i p params = match p,params with
 %token <Info.t * string> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
 %token <Info.t * int> INT
 %token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
-%token <Info.t> ARROW DARROW
+%token <Info.t> ARROW DARROW EQARROW
 %token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
@@ -513,7 +513,7 @@ dsort:
   | LPAREN sort RPAREN LIDENT 
       { SData([$2],qid_of_id $4) }
 
-  | LPAREN sort COMMA sort_list2 RPAREN LIDENT 
+  | LPAREN sort COMMA sort_list RPAREN LIDENT 
       { SData($2::$4,qid_of_id $6) }
 
   | bsort 
@@ -567,15 +567,29 @@ svar_list2:
   | svar COMMA svar_list2
       { $1::$3 }
 
-sort_list2:
+sort_list:
   | sort 
       { [$1] }
 
-  | sort COMMA sort_list2
+  | sort COMMA sort_list
       { $1 :: $3 }
+
+cvar_list:
+  | cvar
+      { [$1] }
+
+  | cvar COMMA cvar_list
+      { $1 :: $3 }
+
+cvar:
+  | LBRACE VIDENT COLON sort_list RBRACE 
+      { ($2,$4) }
 
 /* sort test specifications */
 decl_sort:
+  | cvar_list EQARROW sort 
+      { ($3, (fun i e -> e)) }
+
   | sort 
       { ($1, (fun i e -> e)) }
 

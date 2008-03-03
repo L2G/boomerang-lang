@@ -21,6 +21,9 @@ module type S =
     (** [update ev q r] extends [ev] with a binding for [qid] and
         [rv]. Returns a new environment *)
 
+    val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+    (** [fold f e b] computes [(f kN aN ... (f k1 a1 b)...)] *)
+
     val lookup : 'a t -> key -> 'a option
     (** [lookup ev q] returns an option representing the binding for [q]
         in [ev]. *)
@@ -50,6 +53,8 @@ module Make(Key:PrintableOrderedType) = struct
 
   (* produce env[q->v]; yields a NEW env *)
   let update ev k v = KeyMap.add k v ev
+
+  let fold = KeyMap.fold
 
   let lookup ev k = 
     try 

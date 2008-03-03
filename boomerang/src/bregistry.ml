@@ -82,7 +82,7 @@ let loaded = ref ["Native"]
 let library : REnv.t ref = ref (REnv.empty ())
 
 (* constants *)
-let pre_ctx = List.map Bvalue.parse_uid ["Prelude"]
+let pre_ctx = Safelist.map Bvalue.parse_uid ["Prelude"]
 
 (* utilities *)
 let get_library () = !library

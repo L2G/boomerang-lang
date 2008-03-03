@@ -81,6 +81,14 @@ let string_of_qid (qs,i) =
     (string_of_id i)
 
 (* sorts, parameters, expressions *)
+type base_sort = Unt | Str | Reg | Lns | Can
+module SBSet = Set.Make(
+  struct
+    type t = base_sort
+    let compare = Pervasives.compare
+  end)
+let sbset_of_sl l = Safelist.fold_left (fun s si -> SBSet.add si s) SBSet.empty l 
+
 type sort = 
     | SUnit                            (* unit *)
     | SString                          (* strings *)
@@ -92,15 +100,14 @@ type sort =
     | SProduct of sort * sort          (* products *)
     | SVar of svar                     (* sort variables *)
     | SRawVar of id                    (* parsed sort variables *)
-and sbnd = Fre | Bnd of sort | Con of scon
-and scon = Str | Reg | Lns 
 and svar = sbnd ref * int
+and sbnd = Fre | Bnd of sort | Con of SBSet.t
 
 module SVSet = Set.Make
 (struct
   type t = svar 
   let compare (_,x) (_,y) = Pervasives.compare x y
- end)                          
+ end)
 
 type scheme = SVSet.t * sort
 
@@ -306,13 +313,7 @@ let instantiate i scm =
   let res,_ = instantiate_cases i scm [] in
   res
 
-and merge_con c1 c2 = match c1,c2 with
-  | Str,Str -> Str
-  | Reg,Reg | Reg,Str | Str,Reg -> Reg
-  | _ -> Lns
-
 (* info accessors *)
-
 let info_of_exp = function    
   | EApp (i,_,_,_)     -> i
   | EVar (i,_,_)       -> i
@@ -407,14 +408,20 @@ and format_svar print_cons (cr,x) = match !cr with
   | Fre   -> 
       format_svar_tag x
   | Con c -> 
-      format_cons c; 
-      msg " ";
+      msg "@[";
+      if print_cons then 
+        (msg "{@[<2>";
+         Misc.format_list "," format_base_sort (SBSet.elements c);
+         msg "@]}@ ");
       format_svar_tag x;
+      msg "@]";
  
-and format_cons = function
-  | Str -> Util.format "Str"
-  | Reg -> Util.format "Reg"
-  | Lns -> Util.format "Lns"
+and format_base_sort = function
+  | Unt -> Util.format "unit"
+  | Str -> Util.format "string"
+  | Reg -> Util.format "regexp"
+  | Lns -> Util.format "lens"
+  | Can -> Util.format "canonizer"
 
 let format_scheme (svs,s) = 
   Util.format "@[<2>";
@@ -607,13 +614,13 @@ let string_of_param p = Util.format_to_string (fun () -> format_param p)
 let string_of_pat p = Util.format_to_string (fun () -> format_pat p)
 
 (* instance: assumes sort has been zonk'd *)
-let rec instance s c = match s,c with
-  | SString,Str | SRegexp,Str | SLens,Str | SCanonizer,Str -> Some s
-  | SString,Reg -> Some SRegexp
-  | SRegexp,Reg | SLens,Reg | SCanonizer,Reg -> Some s
-  | SString,Lns | SRegexp,Lns -> Some SLens 
-  | SLens,Lns | SCanonizer,Lns -> Some s
-  | _ -> None
+let rec instance s c = match s with 
+  | SUnit -> SBSet.mem Unt c
+  | SString -> SBSet.mem Str c
+  | SRegexp -> SBSet.mem Reg c
+  | SLens -> SBSet.mem Lns c
+  | SCanonizer -> SBSet.mem Can c
+  | _ -> false
 
 type ('a,'b,'c) three = Fst of 'a | Snd of 'b | Thd of 'c
 
@@ -637,10 +644,10 @@ let occurs_check i sv1 s2 =
              (fun _ -> format_sort s2))
     end
 
-let rec set_con (br,x) c = match !br with 
+let rec add_con (br,x) c = match !br with 
   | Fre           -> br := Con c
-  | Bnd (SVar sv) -> set_con sv c
-  | Con _         -> br := Con c
+  | Bnd (SVar sv) -> add_con sv c
+  | Con c1        -> br := Con (SBSet.union c1 c)
   | _             -> assert false
 
 let rec set_sort (br,x) s = match !br with
@@ -725,33 +732,27 @@ and unifyVar i flip sv1 s2 =
              | Fst x2 -> 
                  if x1=x2 then ()
                  else 
-                   (set_con sv2 c1;
+                   (add_con sv2 c1;
                     sor1 := Bnd s2);
                  true
 
              | Snd c  -> 
-                 set_con sv2 c;
+                 add_con sv2 c1;
                  sor1 := Bnd s2;
                  true
-             | Thd s ->                 
-                 begin match instance s2 c1 with
-                   | None -> false
-                   | Some s' -> 
-                       occurs_check i sv1 s2;
-                       set_sort sv2 s';
-                       sor1 := Bnd s2;
-                       true
-                end
+             | Thd s' ->            
+                 if instance s2 c1 then
+                   (occurs_check i sv1 s2;
+                    set_sort sv2 s';
+                    sor1 := Bnd s2;
+                    true)
+                 else false
          end        
   | Con c1,s2 -> 
-      begin 
-        match instance s2 c1 with
-        | None -> false
-        | Some s' -> 
-            occurs_check i sv1 s2;
-            sor1 := Bnd s';
-            true
-      end
-
+      if instance s2 c1 then
+        (occurs_check i sv1 s2;
+         sor1 := Bnd s2;
+         true)
+      else false
 
         

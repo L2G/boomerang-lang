@@ -2,7 +2,8 @@
 (* The Harmony Project                                                         *)
 (* harmony@lists.seas.upenn.edu                                                *)
 (*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
+(* Copyright (C) 2007-2008                                                     *)
+(* J. Nathan Foster, Alexandre Pilkiewicz, and Benjamin C. Pierce              *)
 (*                                                                             *)
 (* This library is free software; you can redistribute it and/or               *)
 (* modify it under the terms of the GNU Lesser General Public                  *)
@@ -469,13 +470,9 @@ let rec check_decl ((tev,sev) as evs) ms = function
       ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
   | DType(i,sl,x,cl) -> 
-(*       msg "DTYPE: %t@\n" (fun _ -> format_decl d); *)
       let qx = qid_of_id x in 
       (* allocate / substitute SVars for SRawVars *)
       let sl',al = svl_al_of_rl i sl in         
-(*         msg "SL: (%t)@\n" (fun _ -> Misc.format_list "," format_sort sl); *)
-(*         msg "AL: [%t]@\n" (fun _ -> Misc.format_list "," (fun (x,s) -> msg "~%s -> %t" (string_of_id x) (fun _ -> format_sort s)) al); *)
-(*         msg "SL': (%t)@\n" (fun _ -> Misc.format_list "," format_sort sl'); *)
       let svl = svl_of_sl i sl' in 
       let svs = svs_of_sl i sl' in 
       let eq = function
@@ -708,7 +705,7 @@ let rec compile_decl cev ms d0 = match d0 with
                        msg "@ but found@ "; format_sort s0; 
                        msg "@\n%!")
             | OK(s0,v), TestSort None -> 
-                msg "Test sort:@ %s@\n%!" (string_of_sort s0);
+                msg "Test sort:@ %t@\n%!" (fun _ -> format_scheme (free_svs i s0,s0));
             | OK(s0,v), TestLensType(e1o,e2o) -> 
                 if not (unify i s0 SLens) then 
                   test_error i 

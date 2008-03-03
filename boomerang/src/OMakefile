@@ -72,3 +72,14 @@ $(BINDIR)/$(RESULT)$(EXE): $(RESULT)$(EXE)
 
 clean:
 	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES)
+
+# If we are installing Harmony elsewhere, then we need to build a real
+# bakery.ml embedding all the focal files we might need.  But if we're
+# only going to run things in place, we can skip this step and avoid
+# recompiling Harmony whenever .fcl files change in the examples.
+if $(defined BAKE)
+  bakery.ml: $(TOOLSDIR)/baker$(EXE)
+    $< ".boom" $(LENSESDIR) > $@
+else
+  bakery.ml: $(TOOLSDIR)/baker$(EXE)
+    ./$< ".boom" > $@

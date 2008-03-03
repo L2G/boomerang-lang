@@ -138,6 +138,7 @@ rule main = parse
 | "+"                { PLUS(info lexbuf) }
 | "!"                { BANG(info lexbuf) }
 | "->"               { ARROW(info lexbuf) }
+| "=>"               { EQARROW(info lexbuf) }
 | "<->"              { DARROW(info lexbuf) }
 | "|"                { BAR(info lexbuf) }
 | "="                { EQUAL(info lexbuf) }

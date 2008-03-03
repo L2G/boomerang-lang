@@ -32,14 +32,15 @@ let parse_lexbuf lexbuf =
             (Info.string_of_t (Blexer.info lexbuf))))
 
 let m_check n m_str ast= 
-  if n = m_str then ()
-  else
-    let m_low = String.uncapitalize m_str in 
-    Berror.sort_error 
-      (info_of_module ast)
-      (fun () -> 
-         Util.format "@[module %s must appear in a file named %s.src or %s.boom.@]"
-           m_str m_low m_low)
+  let n_base = String.uncapitalize (Filename.basename n) in 
+  let m_low = String.uncapitalize m_str in 
+    if n_base = m_low then ()
+    else      
+      Berror.sort_error 
+        (info_of_module ast)
+        (fun () -> 
+           Util.format "@[module %s must appear in a file named %s.src or %s.boom.@]"
+             m_str m_low m_low)
       
 (* end-to-end compilation of files *)
 let compile_lexbuf lexbuf n = 
@@ -67,8 +68,7 @@ let compile_src_str s n = compile_boom_str (Src2fcl.fcl_of_src_str s) n
 
 let compile_file fn n = compile_boom fn n 
 
-(* ugly hack!! this thunk forces loading of this module when used via
-   harmony.cmxa (which is occasionally dynamically linked) *)
+(* hack to force loading of this module in dynamically-linked binaries *)
 let init () = 
   Bregistry.compile_file_impl := compile_file;
   Bregistry.compile_boom_str_impl := compile_boom_str;

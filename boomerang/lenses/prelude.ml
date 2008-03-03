@@ -1,3 +1,25 @@
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007-2008                                                     *)
+(* J. Nathan Foster, Alexandre Pilkiewicz, and Benjamin C. Pierce              *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/lenses/prelude.ml                                                *)
+(* OCaml definitions of lens primitives                                        *)
+(* $Id$ *)
+(*******************************************************************************)
+
 open Bvalue 
 module S = Bsyntax
 module L = Blenses.DLens
@@ -266,7 +288,7 @@ let prelude_spec =
 
   (* polymorphic operators *)
   ; begin
-    let alpha = S.fresh_svar (S.Con S.Str) in 
+    let alpha = S.fresh_svar (S.Con (S.sbset_of_sl [S.Str;S.Reg])) in 
     let a = S.SVar alpha in 
     (S.mk_native_prelude_qid "shortest",
      S.mk_scheme [alpha] (a ^> S.SString),
@@ -274,11 +296,10 @@ let prelude_spec =
        match v1 with 
          | Str _ -> Str(i,get_s v1 i)
          | Rx _  -> Str(i,wrap_rep i (get_r v1 i))
-         | Lns _ -> Str(i,wrap_rep i (L.ctype (get_l v1 i)))
          | _     -> poly_error i a v1))
   end
   ; begin 
-    let alpha = S.fresh_svar (S.Con S.Str) in 
+    let alpha = S.fresh_svar (S.Con (S.sbset_of_sl [S.Str;S.Reg])) in 
     let a = S.SVar alpha in 
     (S.mk_native_prelude_qid "const",
      S.mk_scheme [alpha] (a ^> S.SString ^> S.SString ^> S.SLens),
@@ -290,11 +311,10 @@ let prelude_spec =
                  let r = R.str false (get_s v1 i) in                  
                  Lns(i,L.const i r s1 s2)
              | Rx _  -> Lns(i,L.const i (get_r v1 i) s1 s2)
-             | Lns _ -> Lns(i,L.const i (L.ctype (get_l v1 i)) s1 s2)
              | _     -> poly_error i a v1))))
     end
   ; begin 
-    let alpha = S.fresh_svar (S.Con S.Str) in 
+    let alpha = S.fresh_svar (S.Con (S.sbset_of_sl [S.Str;S.Reg])) in 
     let a = S.SVar alpha in 
     (S.mk_native_prelude_qid "copy",
      S.mk_scheme [alpha] (a ^> S.SLens),
@@ -302,11 +322,10 @@ let prelude_spec =
          match v1 with
            | Str _ -> Lns(i,L.copy i (R.str false (get_s v1 i)))
            | Rx _  -> Lns(i,L.copy i (get_r v1 i))
-           | Lns _ -> v1 
            | _     -> poly_error i a v1))
     end
   ; begin 
-    let alpha = S.fresh_svar (S.Con S.Str) in 
+    let alpha = S.fresh_svar (S.Con (S.sbset_of_sl [S.Str;S.Reg;S.Lns])) in 
     let a = S.SVar alpha in 
     (S.mk_native_prelude_qid "poly_concat",
      S.mk_scheme [alpha] (a ^> a ^> a),
@@ -321,7 +340,7 @@ let prelude_spec =
     end
 
   ; begin 
-    let alpha = S.fresh_svar (S.Con S.Reg) in 
+    let alpha = S.fresh_svar (S.Con (S.sbset_of_sl [S.Str;S.Reg;S.Lns])) in 
     let a = S.SVar alpha in 
     (S.mk_native_prelude_qid "poly_union",
      S.mk_scheme [alpha] (a ^> a ^> a),
@@ -334,7 +353,7 @@ let prelude_spec =
            | _            -> poly_bin_error i a a v1 v2)))
     end
   ; begin 
-    let alpha = S.fresh_svar (S.Con S.Reg) in 
+    let alpha = S.fresh_svar (S.Con (S.sbset_of_sl [S.Reg;S.Lns;S.Can])) in 
     let a = S.SVar alpha in 
     let get_int i s = 
       try int_of_string (RS.string_of_t s) 
@@ -357,7 +376,7 @@ let prelude_spec =
                | _            -> poly_error i a v1))))
     end
   ; begin 
-    let alpha = S.fresh_svar (S.Con S.Lns) in 
+    let alpha = S.fresh_svar (S.Con (S.sbset_of_sl [S.Lns])) in 
     let a = S.SVar alpha in 
     (S.mk_native_prelude_qid "poly_swap",
      S.mk_scheme [alpha] (a ^> a ^> a),
@@ -369,4 +388,7 @@ let prelude_spec =
   end
   ]  
     
-let () = Safelist.iter (fun (x,s,v) -> Bregistry.register_native_qid x s v) prelude_spec
+let () = 
+  Safelist.iter 
+    (fun (x,s,v) -> Bregistry.register_native_qid x s v) 
+    prelude_spec

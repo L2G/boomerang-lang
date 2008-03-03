@@ -80,10 +80,10 @@ $(BINDIR)/$(RESULT)$(EXE): $(RESULT)$(EXE)
 # recompiling Harmony whenever .fcl files change in the examples.
 if $(defined BAKE)
   $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker$(EXE) $(FCLFILES)
-    $< $(EXAMPLESDIR) $(LENSESDIR) > $@
+    $< ".fcl" $(EXAMPLESDIR) $(LENSESDIR) > $@
 else
   $(SRCDIR)/bakery.ml: $(TOOLSDIR)/baker$(EXE)
-    ./$< > $@
+    ./$< ".fcl" > $@
 
 ##############################################################################
 # Override scanner for external libraries
