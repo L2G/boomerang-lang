@@ -2,7 +2,7 @@ module Wiki =
 
 let esc : lens = Xml.esc_string [\r\n|[\]]
 let Escaped : regexp = [^<>&""|\r\n[\]]* 
-let Word : regexp = [^ \n\t[\]<>'']+
+let Word : regexp = [^ \n\t[\]<>''|]+
 let Words : regexp = Word . (SP . Word)*
 let Url : regexp = /http:\/\// . [^ [\]\n\t\r]+
 
@@ -28,14 +28,16 @@ let tt : lens  = simple_flat "tt"
 let sup : lens = simple_flat "sup"
 let sub : lens = simple_flat "sub"
 let big : lens = simple_flat "big" 
-let br : lens = Xml.raw_simple_elt "br" (ins "<br>")
+let br : lens = 
+  copy "<br>" . 
+  del "</br>"
 
 let sp : lens = copy SP 
 
 let url : lens = 
   ins "[" . 
-  Xml.attr1_raw_simple_elt "a" "href" 
-    (copy Url)
+  Xml.attr1_raw_simple_elt "a"
+    "href" (copy Url)
     begin 
       ins " " . 
       copy Words 
@@ -43,21 +45,19 @@ let url : lens =
   ins "]"
 
 let link : lens = 
-  ins "[" . 
-  Xml.attr1_raw_simple_elt "a" "href"
-    (copy (Word - (Url | containing /|/)))
+  ins "[[" . 
+  Xml.attr1_raw_simple_elt "a"
+    "href" (copy (Word - Url))
     begin
       ins "|" . 
       copy Words
     end . 
-  ins "]"
+  ins "]]"
     
-
-(* todo: add alt="..." *)
 let img : lens = 
   ins "[[Image:" . 
   Xml.attr2_raw_simple_elt_no_kids "img" 
-    "src" (copy (Word - containing /|/))
+    "src" (copy Word)
     "alt" (ins "|" . copy Words) . 
   ins "]]"
 
@@ -65,31 +65,29 @@ let w : lens = copy Word
  
 let flats : lens = 
   let non_wsp = ( q5 | q3 | q2 | tt | sup | sub | big | br | url | link | img )+ in 
-  let wspes = (w . sp)+ . w? | (sp . w)+ . sp? | w | sp in 
+  let wspes = w | sp | (w . sp)+ . w? | (sp . w)+ . sp? in
   non_wsp? . (wspes . non_wsp)+ . wspes?
 
 test flats create 
 "The [http://www.brics.dk/xsugar XSugar] project has developed a notation for specifying a ''dual syntax'' for an XML language." = ?
 
-
-(* 
-
+(* ---------- items ---------- *)
 let hr : lens = 
-  Xml.simple_elt_no_kids NL2 "hr" . 
-  ins "\n-----------------------" 
+  let Hr : regexp = /\n---/ . [\-]* in 
+  del "<hr></>" . 
+  qins Hr (shortest Hr)
 
-let flats = esc
+test copy "hr" get "hr" = ?
 
 let heading (xml:string) (ascii:string) : lens = 
   ins ascii . 
-  Xml.simple_elt NL2 xml flats
-
+  Xml.raw_simple_elt xml flats
 let h3 : lens = heading "h3" "===="
 let h2 : lens = heading "h2" "==="
 let h1 : lens = heading "h1" "=="
 
 let raw (xml:string) (body:lens) : lens = 
-  Xml.simple_elt NL2 xml 
+  Xml.raw_simple_elt xml 
     begin 
       ins ("<" . xml . ">") . 
       body . 
@@ -98,13 +96,17 @@ let raw (xml:string) (body:lens) : lens =
 
 let pre : lens = raw "xml" (copy Escaped)
 
+test copy "pre" get "pre" = ?
+
 let nowiki : lens = raw "nowiki" (copy Escaped)
 
+test copy "nowiki" get "nowiki" = ?
 
-let p : lens = Xml.simple_elt NL2 "p" (copy //)
+let p : lens = "<p></>" <-> "\n\n"
+
+test copy "p" get "p" = ?
 
 (* lists *)
-
 let listelt (spaces:string) (stars:string) : lens = 
   Xml.simple_elt spaces "li" (ins stars . ins " " . flats . ins "\n")
 
@@ -112,25 +114,57 @@ let mk_list (spaces:string) (body:lens) : lens =
   Xml.elt spaces "ul" body
 
 let list3 : lens = 
-  mk_list NL5 ( listelt NL6 "***" )+
+  mk_list NL2 ( listelt NL3 "***" )+
 
-let list2 : lens = 
-  let le2 = listelt NL5 "**" in 
-  let l = 
-    ( le2+ 
-    | le2* . (list3 . le2+)+
-    | le2* . (list3 . le2+)* . list3 ) in 
-  mk_list NL4 l
+test copy "list3" get "list3" = ?
+
+let le2 = listelt NL2 "**"  
+
+test copy "le2" get "le2" = ?
+
+let le2s = le2*  
+
+test copy "le2s" get "le2s" = ?
+
+let le2p = le2+
+
+test copy "le2p" get "le2p" = ?
+
+let list3_le2p = list3 . le2p
+
+test copy "list3_le2p" get "list3_le2p" = ?
+
+(* croaking here... *)
+
+let le2s_list3_le2p_p = le2s . list3_le2p+ 
+
+test copy "le2s_list3_le2p_p" get "le2s_list3_le2p_p" = ?
+
+let le2s_list3_le2p_s_list3 = le2s . list3_le2p* . list3 
+
+test copy "le2s_list3_le2p_s_list3" get "le2s_list3_le2p_s_list3" = ?
+
+let l = le2p | le2s_list3_le2p_p | le2s_list3_le2p_s_list3 
+
+test copy "l" get "l" = ?
+
+let list2 : lens = mk_list NL1 l
+
+test copy "list2" get "list2" = ?
     
 let list1 : lens = 
-  let le1 = listelt NL4 "*" in 
+  let le1 = listelt NL1 "*" in 
   let l = 
     ( le1+ 
     | le1* . (list2 . le1+)+ 
     | le1* . (list2 . le1+)* . list2 ) in
-  mk_list NL3 l
+  mk_list NL0 l
+
+test copy "list1" get "list1" = ?
 
 let list : lens = list1 
+
+test copy "list" get "list" = ?
 
 test list get 
   "<ul>
@@ -139,12 +173,9 @@ test list get
      <ul>
        <li>Mollie Foster</li>
      </ul>
-   </ul>" = 
-  "* Nate Foster
-  |* Clare Foster
-  |** Mollie Foster
-  |"
+   </ul>" = ?
 
+(* 
 let item : lens = 
   hr | h3 | h2 | h1 | pre | nowiki | list | p
 
