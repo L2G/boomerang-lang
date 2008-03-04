@@ -1,0 +1,159 @@
+module Wiki = 
+
+let esc : lens = Xml.esc_string [\r\n|[\]]
+let Escaped : regexp = [^<>&""|\r\n[\]]* 
+let Word : regexp = [^ \n\t[\]<>'']+
+let Words : regexp = Word . (SP . Word)*
+let Url : regexp = /http:\/\// . [^ [\]\n\t\r]+
+
+(* ---------- flat ---------- *)
+let mk_quot (tag:string) (q:string) : lens = 
+  Xml.raw_simple_elt tag (ins q . copy Words . ins q)
+
+let q5 : lens = Xml.raw_simple_elt "b" (mk_quot "i" "'''''")
+
+let q3 : lens = mk_quot "b" "'''" 
+
+let q2 : lens = mk_quot "i" "''" 
+
+let simple_flat (tag:string) = 
+  Xml.raw_simple_elt tag 
+    begin 
+      ins ("<" . tag . ">") . 
+      copy Escaped . 
+      ins ("</" . tag . ">")
+    end
+
+let tt : lens  = simple_flat "tt"
+let sup : lens = simple_flat "sup"
+let sub : lens = simple_flat "sub"
+let big : lens = simple_flat "big" 
+let br : lens = Xml.raw_simple_elt "br" (ins "<br>")
+
+let sp : lens = copy SP 
+
+let url : lens = 
+  ins "[" . 
+  Xml.attr1_raw_simple_elt "a" "href" 
+    (copy Url)
+    begin 
+      ins " " . 
+      copy Words 
+    end . 
+  ins "]"
+
+let link : lens = 
+  ins "[" . 
+  Xml.attr1_raw_simple_elt "a" "href"
+    (copy (Word - (Url | containing /|/)))
+    begin
+      ins "|" . 
+      copy Words
+    end . 
+  ins "]"
+    
+
+(* todo: add alt="..." *)
+let img : lens = 
+  ins "[[Image:" . 
+  Xml.attr2_raw_simple_elt_no_kids "img" 
+    "src" (copy (Word - containing /|/))
+    "alt" (ins "|" . copy Words) . 
+  ins "]]"
+
+let w : lens = copy Word 
+ 
+let flats : lens = 
+  let non_wsp = ( q5 | q3 | q2 | tt | sup | sub | big | br | url | link | img )+ in 
+  let wspes = (w . sp)+ . w? | (sp . w)+ . sp? | w | sp in 
+  non_wsp? . (wspes . non_wsp)+ . wspes?
+
+test flats create 
+"The [http://www.brics.dk/xsugar XSugar] project has developed a notation for specifying a ''dual syntax'' for an XML language." = ?
+
+
+(* 
+
+let hr : lens = 
+  Xml.simple_elt_no_kids NL2 "hr" . 
+  ins "\n-----------------------" 
+
+let flats = esc
+
+let heading (xml:string) (ascii:string) : lens = 
+  ins ascii . 
+  Xml.simple_elt NL2 xml flats
+
+let h3 : lens = heading "h3" "===="
+let h2 : lens = heading "h2" "==="
+let h1 : lens = heading "h1" "=="
+
+let raw (xml:string) (body:lens) : lens = 
+  Xml.simple_elt NL2 xml 
+    begin 
+      ins ("<" . xml . ">") . 
+      body . 
+      ins ("</" . xml . ">")
+    end
+
+let pre : lens = raw "xml" (copy Escaped)
+
+let nowiki : lens = raw "nowiki" (copy Escaped)
+
+
+let p : lens = Xml.simple_elt NL2 "p" (copy //)
+
+(* lists *)
+
+let listelt (spaces:string) (stars:string) : lens = 
+  Xml.simple_elt spaces "li" (ins stars . ins " " . flats . ins "\n")
+
+let mk_list (spaces:string) (body:lens) : lens = 
+  Xml.elt spaces "ul" body
+
+let list3 : lens = 
+  mk_list NL5 ( listelt NL6 "***" )+
+
+let list2 : lens = 
+  let le2 = listelt NL5 "**" in 
+  let l = 
+    ( le2+ 
+    | le2* . (list3 . le2+)+
+    | le2* . (list3 . le2+)* . list3 ) in 
+  mk_list NL4 l
+    
+let list1 : lens = 
+  let le1 = listelt NL4 "*" in 
+  let l = 
+    ( le1+ 
+    | le1* . (list2 . le1+)+ 
+    | le1* . (list2 . le1+)* . list2 ) in
+  mk_list NL3 l
+
+let list : lens = list1 
+
+test list get 
+  "<ul>
+     <li>Nate Foster</li>
+     <li>Clare Foster</li>
+     <ul>
+       <li>Mollie Foster</li>
+     </ul>
+   </ul>" = 
+  "* Nate Foster
+  |* Clare Foster
+  |** Mollie Foster
+  |"
+
+let item : lens = 
+  hr | h3 | h2 | h1 | pre | nowiki | list | p
+
+let items : lens = item
+     
+let wiki : lens = 
+  Xml.elt NL0 "html"
+    begin
+      Xml.simple_elt NL1 "head" (Xml.simple_elt NL2 "title" (del [^""\n\r<>]* )) . 
+      Xml.simple_elt NL1 "body" items
+    end
+*)

@@ -86,10 +86,11 @@ test l4 get "dcba" = "abcd"
    o [ex] is the set of excluded characters
  *)
 let esc_char (excl_chars:regexp) : lens = 
-  ( copy ([^&<>\n] - excl_chars)
+  ( copy ([^&<>\n""] - excl_chars)
   | "&gt;" <-> ">"
   | "&lt;" <-> "<"
-  | "&amp;" <-> "&" )
+  | "&amp;" <-> "&" 
+  | "&quot;" <-> "\"" )
 
 (* [esc_string_ends ex ends_ex] maps an XML-escaped string
    beginning and ending with characters not in [ex] or [ends_ex], to
@@ -118,6 +119,9 @@ let esc_string (excl_chars:regexp) : lens =
 let raw_open (spaces:string) (tag:string) : lens = 
   qdel WS spaces . 
   del ("<" . tag) 
+
+let simple_open_tag (tag:string) : lens = 
+  del ("<" . tag . ">")
 
 (* [close] recognizes and deletes the string ">" *)
 let close : lens = 
@@ -184,6 +188,11 @@ let elt (spaces:string) (tag:string) (body:lens) : lens =
   open_tag spaces tag . 
   body . 
   close_tag spaces tag
+
+let raw_simple_elt (tag:string) (body:lens) : lens = 
+  simple_open_tag tag . 
+  body . 
+  simple_close_tag tag 
   
 (* [attr n l] proceses a string consiting of whitespace and a
    single XML attribute. Leading whitespace is canonized to a single
@@ -215,7 +224,6 @@ let attr1_elt (spaces:string) (tag:string)
   body . 
   close_tag spaces tag 
 
-
 let attr1_elt_swap (spaces:string) (tag:string) 
     (name:string) (value:lens) 
     (body:lens) : lens = 
@@ -241,6 +249,15 @@ let attr1_simple_elt (spaces:string) (tag:string)
   body . 
   simple_close_tag tag 
 
+let attr1_raw_simple_elt (tag:string)
+    (name:string) (value:lens)
+    (body:lens) = 
+  del ("<" . tag) . 
+  attr name value . 
+  close . 
+  body . 
+  simple_close_tag tag 
+
 (* [attr2_elt sp t n1 v1 n2 v2 l] processes a multi-line XML
    element with two attributes.
    o [sp] canonical leading whitespace.
@@ -260,6 +277,15 @@ let attr2_elt (spaces:string) (tag:string)
   close . 
   body . 
   close_tag spaces tag 
+
+let attr2_raw_simple_elt_no_kids (tag:string)
+    (name1:string) (value1:lens)
+    (name2:string) (value2:lens) : lens = 
+  del ("<" . tag) . 
+  sort2 
+    (attr name1 value1)
+    (attr name2 value2) . 
+  slash_close 
 
 (* [attrk_elt_no_kids sp t n1 v1 .. nk vk] processes a single-line XML element with
    no children (other than its attributes.)
