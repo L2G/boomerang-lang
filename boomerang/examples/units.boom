@@ -12,8 +12,7 @@
 (* This library is distributed in the hope that it will be useful,             *)
 (* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.          k
-                   *)
+(* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
 (* /boomerang/examples/units.boom                                              *)
 (* Boomerang unit tests                                                        *)
@@ -22,25 +21,36 @@
 
 module Units = 
 
+let l1 = Prelude.copy [d]
+
+let l1 = copy [a]
+let l2 = copy [ab]
+let cn = canonizer_of_lens (const [ab] "a" "a")
+let l = (right_quot l1 cn); l2
+test l get (l create "b") = ?
+  
+let l = l2; (left_quot cn l1) 
+ 
+test l get "b" = ?
+test l put "a" into "b" = ?
+
 let R = /abc\// 
 test del R get "abc/" = ""
 
-type 'a list = Nil | Cons of 'a * 'a list
+type super = Left of unit | Right of string
 
-type ('a,'b) maybe = Left of 'a | Right of 'b 
+let myf x y = match x with
+  | Prelude.Left _ -> True
+  | Prelude.Right _ -> False
+test myf : ?
 
-let myf x y = match x with 
-  | Left _ -> y
-  | Right y -> y
-
-test myf : (string,unit) maybe -> unit -> unit
-
+(* 
 let safe_hd : 'a list -> 'a -> 'a = 
   (fun (l:'a list) -> 
      (fun d -> match l with 
         | Nil -> d
         | Cons(h,_) -> h))
-
+*)
 type t = A of string | B of regexp
 
 let twice l = l | l

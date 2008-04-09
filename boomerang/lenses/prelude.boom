@@ -202,7 +202,9 @@ let qconst (C:regexp) (A:regexp) (a:string) (c:string) : { C <-> A } =
 (* [qins E e] is like [ins e], but accepts all of [E] in the
    PUT/CREATE direction *)
 let qins (E:regexp) (e:string) : { epsilon <-> E } = 
-  qconst // E e "" 
+  right_quot
+    (ins e)
+    (canonizer_of_lens (const E e e))
 
 (* unit tests for qins *)
 test qins [A-Z]+ "A" get "" = "A"
@@ -218,3 +220,37 @@ let qdel (E:regexp) (e:string) : { E <-> epsilon } =
 (* unit tests for qdel *)
 test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
 test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
+
+(* standard datatypes *)
+
+(* bools *)
+type bool = True | False
+
+let if (b:bool) (e1:'a) (e2:'a) : 'a = 
+  match b with 
+    | True -> e1
+    | False -> e2
+
+let not (b:bool) : bool = 
+  match b with
+    | True -> False
+    | False -> True
+
+let or (b1:bool) (b2:bool) : bool = match b1,b2 with 
+  | False,False -> False
+  | _ -> True
+
+let and (b1:bool) (b2:bool) : bool = match b1,b2 with 
+  | True,True -> True
+  | _ -> False
+
+(* options *)
+type 'a option = 
+    None | Some of 'a
+
+type ('a,'b) maybe = 
+    Left of 'a | Right of 'b 
+
+(* lists*)
+type 'a list = 
+    Nil | Cons of 'a * 'a list

@@ -435,7 +435,11 @@ pat:
   | UIDENT ppat
       { let i1,_ = $1 in 
         let i = mp2 i1 $2 in 
-        PVnt(i, $1,Some $2) }
+        PVnt(i, qid_of_id $1,Some $2) }
+
+  | QIDENT ppat
+      { let (i,qs) = $1 in 
+        PVnt(i,parse_qid i qs,Some $2) }
 
   | ppat
       { $1 }
@@ -457,11 +461,15 @@ apat:
 
   | UIDENT
       { let i,_ = $1 in 
-        PVnt(i,$1,None) }
+        PVnt(i,qid_of_id $1,None) }
       
   | LIDENT
       { let i,_ = $1 in 
-        PVar(i,$1,None) }
+        PVar(i,qid_of_id $1,None) }
+
+  | QIDENT
+      { let (i,qs) = $1 in 
+        PVnt(i,parse_qid i qs,None) }
 
   | LPAREN pat RPAREN
       { $2 }
@@ -505,16 +513,16 @@ psort:
 /* data type sorts */
 dsort:
   | LIDENT
-      { SData([],qid_of_id $1) }
+      { SData([], qid_of_id $1) }
 
   | asort LIDENT
-      { SData([$1],qid_of_id $2) }
+      { SData([$1], qid_of_id $2) }
 
   | LPAREN sort RPAREN LIDENT 
-      { SData([$2],qid_of_id $4) }
+      { SData([$2], qid_of_id $4) }
 
   | LPAREN sort COMMA sort_list RPAREN LIDENT 
-      { SData($2::$4,qid_of_id $6) }
+      { SData($2::$4, qid_of_id $6) }
 
   | bsort 
       { $1 }

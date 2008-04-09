@@ -36,15 +36,21 @@ val sort_or_scheme_of_rv : rv -> Bsyntax.sort_or_scheme
 val format_rv : rv -> unit
 (** [format_rv r] pretty prints [r] *)
 
-(** {2 Library} *)
+type tcon = Bsyntax.qid * Bsyntax.sort option
+type tspec = Bsyntax.svar list * tcon list 
 
+(** {2 Library} *)
 module REnv : sig 
   type t
   val empty : unit -> t
   val lookup : t -> Bsyntax.qid -> rv option
+  val lookup_type: t -> Bsyntax.qid -> tspec option
+  val lookup_con : t -> Bsyntax.qid -> (Bsyntax.qid * tspec) option
   val update : t -> Bsyntax.qid -> rv -> t
+  val update_type : t -> Bsyntax.svar list -> Bsyntax.qid -> tcon list -> t
   val overwrite : t -> Bsyntax.qid -> rv -> unit
   val iter : (Bsyntax.qid -> rv -> unit) -> t -> unit
+  val iter_type : (Bsyntax.qid -> tspec -> unit) -> t -> unit
   val fold : (Bsyntax.qid -> rv -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
@@ -76,6 +82,18 @@ val lookup_library_ctx : Bsyntax.id list -> Bsyntax.qid -> rv option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_library : Bsyntax.qid -> rv option
+(** [lookup_library q] looks up [q] from the library *)
+
+val lookup_type_library_ctx : Bsyntax.id list -> Bsyntax.qid -> tspec option
+(** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
+
+val lookup_type_library : Bsyntax.qid -> tspec option
+(** [lookup_library q] looks up [q] from the library *)
+
+val lookup_con_library_ctx : Bsyntax.id list -> Bsyntax.qid -> (Bsyntax.qid * tspec) option
+(** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
+
+val lookup_con_library : Bsyntax.qid -> (Bsyntax.qid * tspec) option
 (** [lookup_library q] looks up [q] from the library *)
 
 (**/**)

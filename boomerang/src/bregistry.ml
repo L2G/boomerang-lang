@@ -40,41 +40,88 @@ let format_rv rv =
        | Bsyntax.Scheme s -> Bsyntax.format_scheme s);
     Util.format "]"
 
-(* --------------- Focal library -------------- *)
 
+(* type abbreviation for the constructors for a type *)
+type tcon = Bsyntax.qid * Bsyntax.sort option
+type tspec = Bsyntax.svar list * tcon list
+
+(* --------------- Focal library -------------- *)
 (* state *)
 module type REnvSig = 
 sig
   type t
   val empty : unit -> t
   val lookup : t -> Bsyntax.qid -> rv option
+  val lookup_type: t -> Bsyntax.qid -> tspec option
+  val lookup_con : t -> Bsyntax.qid -> (Bsyntax.qid * tspec) option
   val update : t -> Bsyntax.qid -> rv -> t
+  val update_type : t -> Bsyntax.svar list -> Bsyntax.qid -> tcon list -> t
   val overwrite : t -> Bsyntax.qid -> rv -> unit
   val iter : (Bsyntax.qid -> rv -> unit) -> t -> unit
+  val iter_type : (Bsyntax.qid -> tspec -> unit) -> t -> unit
   val fold : (Bsyntax.qid -> rv -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
 module REnv : REnvSig = 
 struct
-  module M = Env.Make(struct
-                        type t = Bsyntax.qid
-                        let compare = Bsyntax.qid_compare
-                        let to_string = Bsyntax.string_of_qid
-                      end) 
-  type t = (rv ref) M.t
-  let empty = M.empty
-  let lookup e q = match M.lookup e q with 
+  module QM = 
+    Env.Make(struct
+               type t = Bsyntax.qid
+               let compare = Bsyntax.qid_compare
+               let to_string = Bsyntax.string_of_qid
+             end) 
+  
+  (* "type map" from names (Prelude.list) to type variables (['a]) and
+     constructors / optional sorts (["Nil", None; "Cons", 'a * 'a list]) *)
+  type tmap = (Bsyntax.svar list * tcon list) QM.t
+
+  (* "reverse type map" from constructor names (Prelude.Nil) to types (Prelude.list) *)
+  type rmap = Bsyntax.qid QM.t 
+
+  (* enviroments are have two components: for types and values *)
+  type t = (tmap * rmap) * (rv ref) QM.t
+
+  let empty () = ((QM.empty (), QM.empty ()), QM.empty ())
+
+  let lookup (_,ve) q = match QM.lookup ve q with 
       Some r -> Some (!r)
     | None -> None
-  let update e q v = M.update e q (ref v)
-  let fold f e a = M.fold (fun q rvr a -> f q !rvr a) e a
-  let overwrite e q v = 
-    match M.lookup e q with 
+
+  let lookup_type ((tm,_),_) q = QM.lookup tm q
+
+  let lookup_con ((tm,rm),_) q = match QM.lookup rm q with 
+    | None -> None
+    | Some q' -> begin match QM.lookup tm q' with 
+        | None -> Berror.run_error (Info.M "Renv.lookup_con") 
+            (fun () -> Util.format "datatype %s missing" 
+               (Bsyntax.string_of_qid q'))
+        | Some (sl,cl) -> Some (q',(sl,cl))
+      end
+  
+  let update (te,ve) q v = 
+    (te, QM.update ve q (ref v))
+
+  let update_type (((tm,rm),ve)) svl q cl = 
+    let tm' = QM.update tm q (svl,cl) in 
+    let rm' = 
+      Safelist.fold_left 
+        (fun rmi (qi,so) -> QM.update rmi qi q)
+        rm cl in 
+    ((tm',rm'),ve)
+
+  let overwrite (te,ve) q v = 
+    match QM.lookup ve q with 
         Some r -> r:=v
-      | None -> raise (Error.Harmony_error
-                         (fun () -> Util.format "Registry.overwrite: %s not found" 
-                           (Bsyntax.string_of_qid q)))
-  let iter f e = M.iter (fun q rvr -> f q (!rvr)) e 
+      | None -> 
+          raise (Error.Harmony_error
+                   (fun () -> Util.format "Registry.overwrite: %s not found" 
+                      (Bsyntax.string_of_qid q)))
+  let iter f (_,ve) = 
+    QM.iter (fun q rvr -> f q (!rvr)) ve
+  let iter_type f ((tm,_),_) = 
+    QM.iter f tm 
+  let fold f (_,ve) init = 
+    QM.fold (fun q rvr a -> f q (!rvr) a) ve init
 end
 
 let loaded = ref ["Native"]
@@ -100,16 +147,28 @@ let reset () =
 (* --------------- Registration functions -------------- *)
 
 (* register a value *)
-let register q r = library := (REnv.update (!library) q r)
+let register q r = 
+  library := (REnv.update (!library) q r)
 
-let register_native_qid q s v = register q (Bsyntax.Scheme s,v)
+let register_type q (svl,cl) = 
+  library := (REnv.update_type (!library) svl q cl)
+
+let register_native_qid q s v = 
+  register q (Bsyntax.Scheme s,v)
 
 (* register a native value *)
-let register_native qs s v = register_native_qid (Bvalue.parse_qid qs) s v
+let register_native qs s v = 
+  register_native_qid (Bvalue.parse_qid qs) s v
 
 (* register a whole (rv Env.t) in m *)
-let register_env ev m = REnv.iter (fun q r -> register (Bsyntax.id_dot m q) r) ev
-
+let register_env ev m = 
+  REnv.iter (fun q r -> register (Bsyntax.id_dot m q) r) ev;  
+  REnv.iter_type 
+    (fun q ts -> 
+       let (svl,cl) = ts in 
+       let cl' = Safelist.map (fun (x,so) -> (Bsyntax.id_dot m x,so)) cl in 
+       register_type (Bsyntax.id_dot m q) (svl,cl')) ev
+    
 (* --------------- Lookup functions -------------- *)
 
 let paths = Prefs.createStringList 
@@ -191,39 +250,43 @@ let load_var q = match get_module_prefix q with
   | None -> ()
   | Some n -> ignore (load (Bsyntax.string_of_id n))
 
-(* lookup in a naming context *)
-let lookup_library_ctx nctx q = 
-  debug (fun () -> Util.format "lookup_library [%s]@\n"
-           (Bsyntax.string_of_qid q));
+(* lookup in a naming context, with a lookup function *)
+let lookup_library_generic lookup_fun nctx q = 
+  debug (fun () -> Util.format "lookup_library_generic [%s] [%s]@\n" 
+           (Bsyntax.string_of_qid q)
+           (Misc.concat_list "," (Safelist.map Bsyntax.string_of_id nctx)));
   let rec lookup_library_aux nctx q2 =       
-
-    (* Util.format "lookup_library_aux %s in [%s] from %s "
-      (Bsyntax.string_of_qid q2)
-      (Misc.concat_list ", " (Safelist.map Bsyntax.string_of_qid nctx))
-      (Env.to_string !library string_of_rv);
-    *)
-    (* let _ = debug (fun () -> Util.format "lookup_library_aux %s in [%s] from %s "
-       (Bsyntax.string_of_qid q2)
-       (Misc.concat_list ", " (Safelist.map Bsyntax.string_of_qid nctx))
-       (Env.to_string !library string_of_rv)
-       )
-       in *)
-    let try_lib () = REnv.lookup !library q2 in
+    let try_lib () = lookup_fun !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
-          Some r -> Some r
+        | Some r -> Some r
         | None -> 
-            begin
-              match load_var q2; try_lib () with
-                | Some r -> Some r
-                | None -> match nctx with 
-                    | []       -> None
-                    | o::orest -> lookup_library_aux orest (Bsyntax.id_dot o q) 
+            begin match load_var q2; try_lib () with
+              | Some r -> Some r
+              | None -> match nctx with 
+                  | []       -> None
+                  | o::orest -> lookup_library_aux orest (Bsyntax.id_dot o q) 
             end
   in
   lookup_library_aux nctx q
 
+let lookup_library_ctx = 
+  lookup_library_generic REnv.lookup
+
+let lookup_type_library_ctx = 
+  lookup_library_generic REnv.lookup_type
+
+let lookup_con_library_ctx = 
+  lookup_library_generic REnv.lookup_con
+
 let lookup_library q = 
-  debug (fun () -> Util.format "lookup_library [%s]@\n"
-           (Bsyntax.string_of_qid q));
+  debug (fun () -> Util.format "lookup_library [%s]@\n" (Bsyntax.string_of_qid q));
   lookup_library_ctx [] q
+
+let lookup_type_library q = 
+  debug (fun () -> Util.format "lookup_type_library [%s]@\n" (Bsyntax.string_of_qid q));
+  lookup_type_library_ctx [] q
+
+let lookup_con_library q = 
+  debug (fun () -> Util.format "lookup_con_library [%s]@\n" (Bsyntax.string_of_qid q));
+  lookup_con_library_ctx [] q

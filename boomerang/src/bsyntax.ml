@@ -136,8 +136,8 @@ and exp =
 and pat = 
   | PWld of i
   | PUnt of i
-  | PVar of i * id * sort option
-  | PVnt of i * id * pat option 
+  | PVar of i * qid * sort option
+  | PVnt of i * qid * pat option 
   | PPar of i * pat * pat
 
 (* declarations *)
@@ -389,16 +389,16 @@ let rec format_sort = function
       Util.format "@ *@ ";
       format_sort s2;
       Util.format "@]"
-  | SData([],x1) -> Util.format "@[%s@]" (string_of_qid x1)
-  | SData([s],x1) -> 
+  | SData([],q1) -> Util.format "@[%s@]" (string_of_qid q1)
+  | SData([s],q1) -> 
       msg "@[";
       format_sort s;
       msg "@ ";
-      msg "%s@]" (string_of_qid x1)
-  | SData(ms,x1) ->         
+      msg "%s@]" (string_of_qid q1)
+  | SData(ms,q1) ->         
       Util.format "@[(@[<2>";
       Misc.format_list ",@ " (format_sort) ms;      
-      Util.format "@])@ %s@]" (string_of_qid x1)
+      Util.format "@])@ %s@]" (string_of_qid q1)
   | SVar(sv) -> format_svar false sv
   | SRawVar(x) -> Util.format "~%s" (string_of_id x)
 
@@ -438,16 +438,16 @@ let format_scheme (svs,s) =
 let rec format_pat = function
   | PWld _ -> Util.format "_"
   | PUnt _ -> Util.format "()"
-  | PVar(_,x,_) -> Util.format "%s" (string_of_id x)
+  | PVar(_,x,_) -> Util.format "%s" (string_of_qid x)
   | PPar(_,p1,p2) -> 
       Util.format "@[<2>(";
       format_pat p1;
       Util.format ",@,";
       format_pat p2;
       Util.format ")@]";
-  | PVnt(_,l,None) -> Util.format "%s" (string_of_id l)
+  | PVnt(_,l,None) -> Util.format "%s" (string_of_qid l)
   | PVnt(_,l,Some p1) ->  
-      Util.format "@[<2>(%s@ " (string_of_id l);
+      Util.format "@[<2>(%s@ " (string_of_qid l);
       format_pat p1;
       Util.format ")@]"
 
@@ -676,13 +676,13 @@ let rec unify i s1 s2 =
       (unify i s21 s11) && (unify i s12 s22)
 
   (* data types *)
-  | SData(ss1,x1),SData(ss2,x2) -> 
+  | SData(ss1,q1),SData(ss2,q2) -> 
       let ok,ss12 = 
         try true, Safelist.combine ss1 ss2 
         with Invalid_argument _ -> (false,[]) in 
       Safelist.fold_left
         (fun b (s1,s2) -> b && unify i s1 s2)
-        (ok && qid_equal x1 x2)
+        (ok && qid_equal q1 q2)
         ss12
       
   (* type variables *)

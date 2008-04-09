@@ -39,7 +39,7 @@ type t =
     | Fun of Info.t * (Info.t -> t -> t)
     | Unt of Info.t
     | Par of Info.t * t * t
-    | Vnt of Info.t * S.qid * S.id * t option
+    | Vnt of Info.t * S.qid * S.qid * t option
 
 let rec equal v1 v2 = match v1,v2 with
   | Str(_,s1), Str(_,s2) -> 
@@ -55,9 +55,9 @@ let rec equal v1 v2 = match v1,v2 with
   | Unt _, Unt _ -> true
   | Par(_,v1,v2),Par(_,v1',v2') -> 
       (equal v1 v1') && (equal v2 v2')
-  | Vnt(_,_,l,None), Vnt(_,_,l',None) -> S.id_equal l l'
+  | Vnt(_,_,l,None), Vnt(_,_,l',None) -> S.qid_equal l l'
   | Vnt(_,_,l,Some v), Vnt(_,_,l',Some v') ->
-      (S.id_equal l l') && (equal v v')
+      (S.qid_equal l l') && (equal v v')
   | Vnt _,Vnt _ -> false
   | _, _ -> 
       Error.simple_error (sprintf "Cannot test equality of values with different sorts.")
@@ -75,9 +75,9 @@ let rec format = function
       Util.format ",@ ";
       format v2;
       Util.format ")@]"
-  | Vnt(_,_,l,None) -> Util.format "%s" (S.string_of_id l)
+  | Vnt(_,_,l,None) -> Util.format "%s" (S.string_of_qid l)
   | Vnt(_,_,l,Some v) ->  
-      Util.format "@[(%s@ " (S.string_of_id l);
+      Util.format "@[(%s@ " (S.string_of_qid l);
       format v;
       Util.format ")@]"        
 

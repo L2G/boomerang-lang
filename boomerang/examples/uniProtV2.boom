@@ -443,7 +443,7 @@ let names_xml (spaces:string) : lens =
   let scientific : lens = os_aux "scientific" (fun (l:lens) -> l) in 
   let common : lens = os_aux "common" (fun (l:lens) -> parens l) in 
   let synonym : lens = os_aux "synonym" (fun (l:lens) -> parens l) in 
-    (  scientific 
+    ( scientific 
     | scientific . space . common
     | scientific . space . common . space . synonym+ )
 
@@ -532,13 +532,11 @@ test og_line get
 (* OC line *)
 
 let oc_tag : string = tag "OC"
-
 let oc_xml : lens = 
   let oc_aux : lens = Xml.simple_elt NL3 "taxon" esc_s in 
   ins oc_tag . 
   Xml.elt NL2 "lineage" (oc_aux . (semi . space . oc_aux)* ) . 
   dot
-
 let oc_line : lens = split_terminate (oc_tag,oc_xml)
 
 (* unit tests for OC line *)

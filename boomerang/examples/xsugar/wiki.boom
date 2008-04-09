@@ -66,11 +66,13 @@ let w : lens = copy Word
 let flats : lens = 
   let non_wsp = ( q5 | q3 | q2 | tt | sup | sub | big | br | url | link | img )+ in 
   let wspes = w | sp | (w . sp)+ . w? | (sp . w)+ . sp? in
-  non_wsp? . (wspes . non_wsp)+ . wspes?
+  (* non_wsp? . (wspes . non_wsp)+ . wspes? *)
+  non_wsp
 
+(* 
 test flats create 
 "The [http://www.brics.dk/xsugar XSugar] project has developed a notation for specifying a ''dual syntax'' for an XML language." = ?
-
+*)
 (* ---------- items ---------- *)
 let hr : lens = 
   let Hr : regexp = /\n---/ . [\-]* in 
