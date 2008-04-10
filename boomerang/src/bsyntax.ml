@@ -58,6 +58,14 @@ let qid_compare (qs1,x1) (qs2,x2) =
   in
     ids_compare (qs1@[x1]) (qs2@[x2])
 let qid_equal q1 q2 = (qid_compare q1 q2 = 0)
+let qid_equal_ctx ctx q1 q2 = 
+  (qid_equal q1 q2) ||
+    (Safelist.exists 
+       (fun x -> 
+          (qid_equal (id_dot x q1) q2) ||
+            (qid_equal q1 (id_dot x q2)))
+       ctx) 
+
 let id_prefix q1 il2 = 
   let (is1,i1) = q1 in 
   let il1 = is1 @ [i1] in
@@ -654,12 +662,12 @@ let rec set_sort (br,x) s = match !br with
   | Bnd (SVar sv) -> set_sort sv s
   | _             -> br := Bnd s
   
-let rec unify i s1 s2 = 
- (* msg "@[UNIFY@\n";
-    msg "  S1="; format_sort s1;
-    msg "@\n  S2="; format_sort s2;
-    msg "@\n@]%!"; *)
-  let res = match s1,s2 with
+let rec unify i ctx s1 s2 = 
+(*  msg "@[UNIFY@\n"; *)
+(*  msg "  S1="; format_sort s1; *)
+(*  msg "@\n  S2="; format_sort s2; *)
+(*  msg "@\n@]%!"; *)
+ let res = match s1,s2 with
 
   (* equal types *)
   | SUnit,SUnit           -> true
@@ -670,10 +678,10 @@ let rec unify i s1 s2 =
 
   (* products *)
   | SProduct(s11,s12),SProduct(s21,s22) -> 
-      (unify i s11 s21) && (unify i s12 s22)
+      (unify i ctx s11 s21) && (unify i ctx s12 s22)
       
   | SFunction(s11,s12),SFunction(s21,s22) -> 
-      (unify i s21 s11) && (unify i s12 s22)
+      (unify i ctx s21 s11) && (unify i ctx s12 s22)
 
   (* data types *)
   | SData(ss1,q1),SData(ss2,q2) -> 
@@ -681,21 +689,21 @@ let rec unify i s1 s2 =
         try true, Safelist.combine ss1 ss2 
         with Invalid_argument _ -> (false,[]) in 
       Safelist.fold_left
-        (fun b (s1,s2) -> b && unify i s1 s2)
-        (ok && qid_equal q1 q2)
+        (fun b (s1,s2) -> b && unify i ctx s1 s2)
+        (ok && (qid_equal_ctx ctx q1 q2))
         ss12
       
   (* type variables *)
-  | SVar sv1,_ -> unifyVar i false sv1 s2
-  | _,SVar sv2 -> unifyVar i true sv2 s1
+  | SVar sv1,_ -> unifyVar i ctx false sv1 s2
+  | _,SVar sv2 -> unifyVar i ctx true sv2 s1
   | _        -> false in
-    (* msg "@[UNIFY RES=%b@\n" res;
-       msg "  S1="; format_sort s1;
-       msg "@\n  S2="; format_sort s2;
-       msg "@\n@]"; *)
+(*    msg "@[UNIFY RES=%b@\n" res; *)
+(*    msg "  S1="; format_sort s1; *)
+(*    msg "@\n  S2="; format_sort s2; *)
+(*    msg "@\n@]"; *)
   res
 
-and unifyVar i flip sv1 s2 = 
+and unifyVar i ctx flip sv1 s2 = 
   (* msg "UNIFY_VAR: ";
   format_svar true sv1;
   msg " ~ ";
@@ -704,8 +712,8 @@ and unifyVar i flip sv1 s2 =
   let (sor1,x1) = sv1 in 
   match !sor1,s2 with    
     | Bnd s1,_ -> 
-        if flip then unify i s2 s1 
-        else unify i s1 s2 
+        if flip then unify i ctx s2 s1 
+        else unify i ctx s1 s2 
     | Fre,SVar(sor2,_) -> 
         begin
           match get_con_sort s2 with 

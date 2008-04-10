@@ -45,13 +45,12 @@ let myf x y = match x with
 
 test myf : ('a, 'b) Prelude.maybe -> ('c -> bool)
 
-(* 
 let safe_hd : 'a list -> 'a -> 'a = 
   (fun (l:'a list) -> 
      (fun d -> match l with 
         | Nil -> d
         | Cons(h,_) -> h))
-*)
+
 type t = A of string | B of regexp
 
 let twice l = l | l

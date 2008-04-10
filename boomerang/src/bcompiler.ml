@@ -191,7 +191,7 @@ let scenv_free_svs i sev =
 
 (* helper: check if a sort matches a pattern; return bindings for variables *)
 let rec static_match i sev p0 s = 
-(*   msg "STATIC_MATCH: %s # %s@\n" (string_of_pat p) (string_of_sort s); *)
+(*   msg "STATIC_MATCH: %s # %s@\n" (string_of_pat p0) (string_of_sort s); *)
   let err p s1 s2 = sort_error i 
     (fun () -> msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
        (string_of_pat p)
@@ -203,7 +203,7 @@ let rec static_match i sev p0 s =
     | PVar(i,x,_),_ -> 
         Some (PVar(i,x,Some s), [(x,Sort s)])
     | PUnt(_),s -> 
-        if not (unify i s SUnit) then err p0 SUnit s;
+        if not (unify i (SCEnv.get_ctx sev) s SUnit) then err p0 SUnit s;
         (Some (p0,[]))
     | PVnt(i,li,pio),s -> 
         (* lookup which datatype we have using li *)
@@ -216,11 +216,11 @@ let rec static_match i sev p0 s =
               let s_expect,cl_inst = instantiate_cases i (svs,SData(sl,qx)) cl in 
 (*               msg "RAW DATA         : %s@\n" (string_of_sort (SData(sl,qx))); *)
 (*               msg "INSTANTIATED DATA: %s@\n" (string_of_sort s_expect); *)
-              if not (unify i s s_expect) then err p0 s_expect s;
+              if not (unify i (SCEnv.get_ctx sev) s s_expect) then err p0 s_expect s;
               let rec aux = function
                 | [] -> None
                 | (lj,sjo)::rest -> 
-                    if (qid_equal li lj) then 
+                    if (qid_equal_ctx (SCEnv.get_ctx sev) li lj) then 
                       (match pio,sjo with 
                          | None,None -> Some (PVnt(i,li,None),[])
                          | Some pi,Some sj -> 
@@ -279,7 +279,7 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
           | Some ret_sort -> 
               let tev'',ret_sort' = fix_sort tev' ret_sort in 
               let body_sort,new_body = check_exp (tev'',body_sev) body in       
-              if not (unify i body_sort ret_sort') then 
+              if not (unify i (SCEnv.get_ctx sev) body_sort ret_sort') then 
                 sort_error i 
                   (fun () -> 
                      msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
@@ -319,13 +319,13 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
       let param_sort = fresh_sort Fre in 
       let ret_sort = fresh_sort Fre in 
       let sf = SFunction(param_sort,ret_sort) in        
-      if not (unify i e1_sort sf) then
+      if not (unify i (SCEnv.get_ctx sev) e1_sort sf) then
         sort_error i 
           (fun () -> 
              msg "@[in@ application:@ %s@ expected@ but@ %s@ found@]"
                (string_of_sort sf)
                (string_of_sort e1_sort));
-      if not (unify i e2_sort param_sort) then 
+      if not (unify i (SCEnv.get_ctx sev) e2_sort param_sort) then 
         sort_error i 
           (fun () -> 
              msg "@[in@ application:@ %s@ expected@ but@ %s@ found@]"
@@ -361,7 +361,7 @@ let rec check_exp ((tev,sev) as evs) e0 = match e0 with
                  let ei_sort,new_ei = check_exp (tev,ei_sev) ei in                 
 (*                  msg "EI_SORT: %s@\n" (string_of_sort ei_sort); *)
 (*                  msg "BRANCHES_SORT: %s@\n" (string_of_sort branches_sort); *)
-                 if not (unify i ei_sort branches_sort) then
+                 if not (unify i (SCEnv.get_ctx sev) ei_sort branches_sort) then
                    sort_error i 
                      (fun () -> 
                         msg "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
@@ -383,7 +383,7 @@ and check_binding ((tev,sev) as evs) = function
         | Some s -> 
             let tev',s' = fix_sort tev s in 
             let e_sort,new_e = check_exp (tev',sev) e in 
-            if not (unify i e_sort s') then 
+            if not (unify i (SCEnv.get_ctx sev) e_sort s') then 
               sort_error i 
                 (fun () -> 
                    msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
@@ -401,7 +401,7 @@ and check_binding ((tev,sev) as evs) = function
         | Some s -> 
             let tev',s' = fix_sort tev s in 
             let e_sort,new_e = check_exp (tev',sev) e in 
-            if not (unify i e_sort s') then 
+            if not (unify i (SCEnv.get_ctx sev) e_sort s') then 
               sort_error i 
                 (fun () -> 
                    msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
@@ -482,7 +482,7 @@ let rec check_decl ((tev,sev) as evs) ms = function
         | TestError | TestShow -> tev,tr
         | TestValue e2 -> 
             let e2_sort,new_e2 = check_exp evs e2 in 
-              if not (unify i e2_sort e1_sort) then
+              if not (unify i (SCEnv.get_ctx sev) e2_sort e1_sort) then
                 sort_error i 
                   (fun () -> 
                      msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
@@ -498,7 +498,7 @@ let rec check_decl ((tev,sev) as evs) ms = function
               | None -> None
               | Some e -> 
                   let e_sort,new_e = check_exp evs e in 
-                    if not (unify i e_sort SRegexp) then
+                    if not (unify i (SCEnv.get_ctx sev) e_sort SRegexp) then
                       sort_error i 
                         (fun () ->
                            msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
@@ -684,7 +684,7 @@ let rec compile_decl cev ms d0 = match d0 with
                 Bvalue.format v; 
                 msg "@\n%!"
             | OK (s0,v), TestSort(Some s) -> 
-                if not (unify i s0 s) then
+                if not (unify i (CEnv.get_ctx cev) s0 s) then
                   test_error i
                     (fun () -> 
                        msg "@\nExpected@ "; format_sort s;
@@ -693,7 +693,7 @@ let rec compile_decl cev ms d0 = match d0 with
             | OK(s0,v), TestSort None -> 
                 msg "Test sort:@ %t@\n%!" (fun _ -> format_scheme (free_svs i s0,s0));
             | OK(s0,v), TestLensType(e1o,e2o) -> 
-                if not (unify i s0 SLens) then 
+                if not (unify i (CEnv.get_ctx cev) s0 SLens) then 
                   test_error i 
                     (fun () -> 
                        msg "@\nExpected@ "; format_sort SLens;
