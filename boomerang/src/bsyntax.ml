@@ -169,9 +169,9 @@ let fresh_svar con =
 
 let fresh_sort con = SVar(fresh_svar con)
 
-let raw_error i = 
+let raw_error i x = 
   Berror.run_error i 
-    (fun () -> msg "unexpected raw sort variable")
+    (fun () -> msg "unexpected raw sort variable %s" (string_of_id x))
 
 let svs_of_svl l = 
   Safelist.fold_left 
@@ -275,7 +275,7 @@ let rec zonk i s0 = match s0 with
           s'
       | _ -> s0     
     end
-  | SRawVar _ -> raw_error i      
+  | SRawVar x -> raw_error i x
 
 (* free sort variables *)
 let free_svs i s0 = 
@@ -290,7 +290,7 @@ let free_svs i s0 =
     | SFunction(s1,s2) -> go (go acc s1) s2
     | SProduct(s1,s2)  -> go (go acc s1) s2
     | SData(sl,s1)     -> Safelist.fold_left go acc sl 
-    | SRawVar _        -> raw_error i in 
+    | SRawVar x        -> raw_error i x in 
   go SVSet.empty s0
 
 let generalize i env_svs s0 = 

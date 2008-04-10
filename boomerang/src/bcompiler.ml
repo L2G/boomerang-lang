@@ -429,24 +429,24 @@ let rec check_decl ((tev,sev) as evs) ms = function
       let evs' = (tev',sev) in 
       let bevs',xs,new_b = check_binding evs' b in 
       let new_d = DLet(i,new_b) in      
-      (bevs',xs,new_d)
+        (bevs',xs,new_d)
   | DMod(i,n,ds) ->
       let ms = ms @ [n] in 
       let (m_tev,m_sev),names,new_ds= check_module_aux evs ms ds in
       let n_sev, names_rev = Safelist.fold_left 
         (fun (n_sev, names) q -> 
            match SCEnv.lookup m_sev q with
-              None -> run_error i 
-                (fun () -> 
-                  msg "@[declaration for %s missing@]"
-                    (string_of_qid q))
-            | Some s ->
-                let nq = splice_id_dot n q in
-                (SCEnv.update n_sev nq s, nq::names))
+               None -> run_error i 
+                 (fun () -> 
+                    msg "@[declaration for %s missing@]"
+                      (string_of_qid q))
+             | Some s ->
+                 let nq = splice_id_dot n q in
+                   (SCEnv.update n_sev nq s, nq::names))
         (sev,[])
         names in 
       let new_d = DMod(i,n,new_ds) in 
-      ((m_tev,n_sev),Safelist.rev names_rev,new_d)
+        ((m_tev,n_sev),Safelist.rev names_rev,new_d)
 
   | DType(i,sl,x,cl) -> 
       (* allocate / substitute SVars for SRawVars *)
@@ -469,28 +469,30 @@ let rec check_decl ((tev,sev) as evs) ms = function
              | None -> sx
              | Some s -> SFunction (s,sx) in
            let scheme = Scheme (svs,s) in
-           (* msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme);*)
-           SCEnv.update sev l scheme)
+             (* msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme);*)
+             SCEnv.update sev l scheme)
         sev qcl' in 
       let new_sev' = SCEnv.update_type new_sev svl qx qcl' in 
       let new_d = DType(i,sl',x,cl') in 
-      ((tev,new_sev'),[],new_d)
-      
+        ((tev,new_sev'),[],new_d)
+          
   | DTest(i,e1,tr) -> 
       let e1_sort,new_e1 = check_exp evs e1 in
-      let new_tr = match tr with 
-        | TestError -> tr
-        | TestShow -> tr
+      let tev',new_tr = match tr with 
+        | TestError | TestShow -> tev,tr
         | TestValue e2 -> 
             let e2_sort,new_e2 = check_exp evs e2 in 
-            if not (unify i e2_sort e1_sort) then
-              sort_error i 
-                (fun () -> 
-                   msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
-                     (string_of_sort e1_sort)
-                     (string_of_sort e2_sort));
-            TestValue (new_e2) 
-        | TestSort _ -> tr
+              if not (unify i e2_sort e1_sort) then
+                sort_error i 
+                  (fun () -> 
+                     msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
+                       (string_of_sort e1_sort)
+                       (string_of_sort e2_sort));
+              tev, TestValue (new_e2)
+        | TestSort None -> tev,tr
+        | TestSort (Some s) -> 
+            let tev',s' = fix_sort tev s in 
+            (tev',TestSort (Some s'))
         | TestLensType(e21o,e22o) -> 
             let chk_eo = function
               | None -> None
@@ -503,19 +505,20 @@ let rec check_decl ((tev,sev) as evs) ms = function
                              (string_of_sort SRegexp)
                              (string_of_sort e_sort));
                     Some new_e in 
-            TestLensType(chk_eo e21o, chk_eo e22o) in 
+              (tev,TestLensType(chk_eo e21o, chk_eo e22o)) in 
       let new_d = DTest(i,new_e1,new_tr) in 
-      (evs,[],new_d)
+      let evs' = (tev',sev) in 
+      (evs',[],new_d)
           
 and check_module_aux evs m ds = 
   let m_evs, names, new_ds_rev = 
     Safelist.fold_left 
       (fun (evs, names, new_ds_rev) di -> 
-        let m_evs,new_names,new_di = check_decl evs m di in
-          m_evs, names@new_names,new_di::new_ds_rev)
+         let m_evs,new_names,new_di = check_decl evs m di in
+           m_evs, names@new_names,new_di::new_ds_rev)
       (evs,[],[])
       ds in
-  (m_evs, names, Safelist.rev new_ds_rev)
+    (m_evs, names, Safelist.rev new_ds_rev)
 
 let check_module = function
   | Mod(i,m,nctx,ds) -> 

@@ -42,7 +42,8 @@ type super = Left of unit | Right of string
 let myf x y = match x with
   | Prelude.Left _ -> True
   | Prelude.Right _ -> False
-test myf : ?
+
+test myf : ('a, 'b) Prelude.maybe -> ('c -> bool)
 
 (* 
 let safe_hd : 'a list -> 'a -> 'a = 

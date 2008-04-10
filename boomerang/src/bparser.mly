@@ -524,6 +524,22 @@ dsort:
   | LPAREN sort COMMA sort_list RPAREN LIDENT 
       { SData($2::$4, qid_of_id $6) }
 
+  | QIDENT
+      { let (i,qs) = $1 in 
+        SData([], parse_qid i qs) }
+
+  | asort QIDENT 
+      { let (i,qs) = $2 in 
+        SData([$1], parse_qid i qs) }
+
+  | LPAREN sort RPAREN QIDENT
+      { let (i,qs) = $4 in 
+        SData([$2], parse_qid i qs) }
+
+  | LPAREN sort COMMA sort_list RPAREN QIDENT 
+      { let (i,qs) = $6 in 
+        SData($2::$4, parse_qid i qs) }
+      
   | bsort 
       { $1 }
 
