@@ -45,11 +45,13 @@ let myf x y = match x with
 
 test myf : ('a, 'b) Prelude.maybe -> ('c -> bool)
 
-let safe_hd : 'a list -> 'a -> 'a = 
-  (fun (l:'a list) -> 
+let safe_hd = 
+  (fun l -> 
      (fun d -> match l with 
-        | Nil -> d
-        | Cons(h,_) -> h))
+        | List.Nil -> d
+        | List.Cons(h,_) -> h))
+
+test safe_hd : ?
 
 type t = A of string | B of regexp
 

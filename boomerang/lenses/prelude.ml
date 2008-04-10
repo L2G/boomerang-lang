@@ -385,8 +385,37 @@ let prelude_spec =
          match v1,v2 with 
            | Lns _, Lns _ -> Lns(i,L.swap i (get_l v1 i) (get_l v2 i))
            | _            -> poly_bin_error i a a v1 v2)))
-  end
-  ]  
+    end
+  ; begin 
+    let list_error i msg = 
+      Error.simple_error 
+        (sprintf "LIST ERROR %s: %s"
+           (Info.string_of_t i) msg) in 
+    let nil = S.mk_list_qid "Nil" in 
+    let cons = S.mk_list_qid "Cons" in 
+    let alpha = S.fresh_svar S.Fre in 
+    let beta = S.fresh_svar S.Fre in 
+    let a = S.SVar alpha in 
+    let b = S.SVar beta in 
+    let list_b = S.SData([b],S.mk_list_qid "t") in 
+    (S.mk_native_prelude_qid "fold_left",
+     S.mk_scheme [alpha] ((a ^> b ^> a) ^> a ^> list_b ^> a),
+     mk_poly_fun (Info.M "fold_left built-in") (fun i f0 -> 
+       mk_poly_fun i (fun i acc0 -> 
+         mk_poly_fun i (fun i l0 ->                                                   
+           let f = get_f f0 i in 
+           let rec aux l acc = 
+             let lbl,vo = get_v l i in 
+             if S.qid_equal lbl nil then acc
+             else if S.qid_equal lbl cons then 
+               let hd,tl = match vo with 
+                 | None -> list_error i "CONS w/ None"
+                 | Some v -> get_p v i in                
+               let acc' = (get_f (f i hd) i) i acc in 
+               aux tl acc'
+             else list_error i (sprintf "TAG: %s" (S.string_of_qid lbl)) in 
+           aux l0 acc0))))
+  end ]  
     
 let () = 
   Safelist.iter 

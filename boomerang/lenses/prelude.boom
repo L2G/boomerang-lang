@@ -251,6 +251,3 @@ type 'a option =
 type ('a,'b) maybe = 
     Left of 'a | Right of 'b 
 
-(* lists*)
-type 'a list = 
-    Nil | Cons of 'a * 'a list

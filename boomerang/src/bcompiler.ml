@@ -83,11 +83,13 @@ module type CEnvSig =
 sig
   type t 
   type v
-  val empty : unit -> t
+  val empty : qid -> t
   val get_ev : t -> Bregistry.REnv.t
   val set_ev : t -> Bregistry.REnv.t -> t
   val get_ctx : t -> id list
   val set_ctx : t -> id list -> t
+  val get_mod : t -> qid 
+  val set_mod : t -> qid -> t
   val lookup : t -> qid -> v option
   val lookup_type : t -> qid -> Bregistry.tspec option
   val lookup_con : t -> qid -> (qid * Bregistry.tspec) option
@@ -98,16 +100,18 @@ end
 
 module CEnv : CEnvSig with type v = (sort_or_scheme * Bvalue.t) = 
 struct
-  type t = id list * (Bregistry.REnv.t)
+  type t = (id list * qid) * (Bregistry.REnv.t)
   type v = sort_or_scheme * Bvalue.t
 
-  let empty () = ([], (Bregistry.REnv.empty ()))    
+  let empty m = (([],m), (Bregistry.REnv.empty ()))
 
   (* getters and setters *)
   let get_ev cev = let (_,ev) = cev in ev
   let set_ev cev ev = let (os,_) = cev in (os,ev)
-  let get_ctx cev = let (os,_) = cev in os
-  let set_ctx cev os = let (_,ev) = cev in (os,ev)
+  let get_ctx cev = let ((os,_),_) = cev in os
+  let set_ctx cev os = let ((_,m),ev) = cev in ((os,m),ev)
+  let get_mod cev = let ((_,m),_) = cev in m
+  let set_mod cev m = let ((os,_),ev) = cev in ((os,m),ev)
 
   (* lookup from a cev, then from the library *)
   let lookup_generic lookup_fun lookup_library_fun cev q = match lookup_fun (get_ev cev) q with
@@ -149,7 +153,6 @@ struct
 end
 
 type cenv = CEnv.t
-let empty_cenv () = CEnv.empty ()
 
 module SCEnv : CEnvSig with type v = sort_or_scheme = 
 struct
@@ -162,6 +165,8 @@ struct
   let set_ev = CEnv.set_ev   
   let get_ctx = CEnv.get_ctx
   let set_ctx = CEnv.set_ctx
+  let get_mod = CEnv.get_mod
+  let set_mod = CEnv.set_mod
 
   let lookup sev q = 
     match CEnv.lookup sev q with 
@@ -237,21 +242,21 @@ let rec static_match i sev p0 s =
            | _ -> None)
     | _ -> None 
 
-let rec dynamic_match i p v = match p,v with 
+let rec dynamic_match i cev p v = match p,v with 
   | PWld(_),_ -> Some []
   | PVar(_,q,Some s),_ -> Some [(q,s,v)]
   | PUnt(_),V.Unt(_) -> Some []
   | PVnt(_,li,pio),V.Vnt(_,_,lj,vjo) -> 
-      if (qid_equal li lj) then 
+      if (qid_equal_ctx (CEnv.get_ctx cev) li lj) then 
         (match pio,vjo with 
            | None,None -> Some []
-           | Some pi,Some vj -> dynamic_match i pi vj
+           | Some pi,Some vj -> dynamic_match i cev pi vj
            | _ -> 
                run_error i 
                  (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" (string_of_qid li)))
       else None
   | PPar(_,p1,p2),V.Par(_,v1,v2) -> 
-      (match dynamic_match i p1 v1,dynamic_match i p2 v2 with 
+      (match dynamic_match i cev p1 v1,dynamic_match i cev p2 v2 with 
          | Some l1,Some l2 -> Some (l1 @ l2)
          | _ -> None)
   | _ -> None 
@@ -399,7 +404,7 @@ and check_binding ((tev,sev) as evs) = function
       let tev',(e_sort,new_e) = match sorto with 
         | None -> (tev,check_exp evs e)
         | Some s -> 
-            let tev',s' = fix_sort tev s in 
+            let tev',s' = fix_sort tev s in             
             let e_sort,new_e = check_exp (tev',sev) e in 
             if not (unify i (SCEnv.get_ctx sev) e_sort s') then 
               sort_error i 
@@ -450,7 +455,7 @@ let rec check_decl ((tev,sev) as evs) ms = function
 
   | DType(i,sl,x,cl) -> 
       (* allocate / substitute SVars for SRawVars *)
-      let qx = qid_of_id x in 
+      let qx = qid_dot_id (SCEnv.get_mod sev) x in 
       let sl',al = svl_al_of_rl i sl in         
       let svl = svl_of_sl i sl' in 
       let svs = svs_of_sl i sl' in 
@@ -461,16 +466,16 @@ let rec check_decl ((tev,sev) as evs) ms = function
         Safelist.map 
           (fun (x,so) -> (x,Misc.map_option (subst al eq) so)) 
           cl in 
-      let qcl' = Safelist.map (fun (x,so) -> (qid_of_id x,so)) cl' in
+      let qcl' = Safelist.map (fun (x,so) -> (qid_of_id x,so)) cl' in 
       let sx = SData(sl',qx) in 
       let new_sev = Safelist.fold_left 
-        (fun sev (l,so) ->            
+        (fun sev (ql,so) ->            
            let s = match so with 
              | None -> sx
              | Some s -> SFunction (s,sx) in
            let scheme = Scheme (svs,s) in
              (* msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme);*)
-             SCEnv.update sev l scheme)
+             SCEnv.update sev ql scheme)
         sev qcl' in 
       let new_sev' = SCEnv.update_type new_sev svl qx qcl' in 
       let new_d = DType(i,sl',x,cl') in 
@@ -523,7 +528,7 @@ and check_module_aux evs m ds =
 let check_module = function
   | Mod(i,m,nctx,ds) -> 
       let tev = [] in 
-      let sev = SCEnv.set_ctx (SCEnv.empty ()) (nctx@Bregistry.pre_ctx) in
+      let sev = SCEnv.set_ctx (SCEnv.empty (qid_of_id m)) (m::nctx@Bregistry.pre_ctx) in
       let _,_,new_ds = check_module_aux (tev,sev) [m] ds in 
       Mod(i,m,nctx,new_ds)
  
@@ -581,9 +586,9 @@ let rec compile_exp cev e0 : (Bsyntax.sort * Bvalue.t) = match e0 with
   | ECase(i,e1,pl,_) -> 
       let _,v1 = compile_exp cev e1 in 
       let rec find_match = function
-        | [] -> run_error i (fun () -> msg "@[match@ failure@]")
+        | [] -> run_error i (fun () -> msg "@[match@ failure@]"
         | (pi,ei)::rest -> 
-            (match dynamic_match i pi v1 with 
+            (match dynamic_match i cev pi v1 with 
                | None -> find_match rest
                | Some l -> l,ei) in 
       let binds,ei = find_match pl in 
@@ -606,7 +611,7 @@ let rec compile_exp cev e0 : (Bsyntax.sort * Bvalue.t) = match e0 with
 and compile_binding cev = function
   | Bind(i,p,so,e) ->
       let s,v = compile_exp cev e in 
-      let bindso = dynamic_match i p v in 
+      let bindso = dynamic_match i cev p v in 
       let cev_fsvs = cenv_free_svs i cev in 
       let bcev,xs_rev = match bindso with 
         | None -> run_error i 
@@ -627,7 +632,7 @@ let rec compile_decl cev ms d0 = match d0 with
         (bcev,xs)
   | DType(i,sl,x,cl) -> 
       (*       msg "COMPILING %t@\n" (fun _ -> format_decl d); *)
-      let qx = qid_of_id x in 
+      let qx = qid_dot_id (CEnv.get_mod cev) x in 
       let svl =       (* SLOW! *)
         Safelist.rev 
           (Safelist.fold_left 
@@ -643,12 +648,13 @@ let rec compile_decl cev ms d0 = match d0 with
       let new_cev = Safelist.fold_left 
         (fun cev (l,so) -> 
            let ql = qid_of_id l in 
+           let qml = qid_dot_id (CEnv.get_mod cev) l in 
            let rv = match so with 
-             | None -> (x_scheme,V.Vnt(i,qx,ql,None))
+             | None -> (x_scheme,V.Vnt(i,qx,qml,None))
              | Some s -> 
                  let sf = SFunction(s,x_sort) in 
                  let sf_scheme = Scheme (svs,sf) in                    
-                 (sf_scheme, V.Fun(i,(fun i v -> V.Vnt(i,qx,ql,Some v)))) in 
+                 (sf_scheme, V.Fun(i,(fun i v -> V.Vnt(i,qx,qml,Some v)))) in 
            CEnv.update cev ql rv)
         cev cl in 
       let qcl = Safelist.map (fun (x,so) -> (qid_of_id x,so)) cl in 
@@ -730,7 +736,7 @@ let rec compile_decl cev ms d0 = match d0 with
             | Error err, TestLensType _ -> 
                 test_error i 
                   (fun () -> 
-                    msg "Test result: error";
+                    msg "Test result: error@\n";
                     err (); 
                     msg "%!")
             | Error _, TestError -> ()
@@ -770,6 +776,6 @@ and compile_mod_aux cev ms ds =
 
 let compile_module = function
   | Mod(i,m,nctx,ds) -> 
-      let cev = CEnv.set_ctx (CEnv.empty ()) (nctx@Bregistry.pre_ctx) in
+      let cev = CEnv.set_ctx (CEnv.empty (qid_of_id m)) (m::nctx@Bregistry.pre_ctx) in
       let new_cev,_ = compile_mod_aux cev [m] ds in
       Bregistry.register_env (CEnv.get_ev new_cev) m

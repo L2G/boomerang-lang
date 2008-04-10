@@ -39,12 +39,17 @@ let mk_prelude_qid x =
   let i = Info.M (sprintf "%s built-in" x) in 
   ([(i,"Prelude")],(i,x))
 
+let mk_list_qid x = 
+  let i = Info.M (sprintf "%s built-in" x) in 
+  ([(i,"List")],(i,x))
+
 let info_of_id (i,_) = i
 let string_of_id (_,x) = x
 let id_compare (_,x1) (_,x2) = compare x1 x2
 let id_equal (i1:id) (i2:id) = (id_compare i1 i2 = 0)
 let qid_of_id (x:id) = [],x
 let id_dot x1 (qs2,x2) = (x1::qs2,x2)
+let qid_dot_id (qs1,x1) x2 = ((qs1@[x1]),x2)
 let splice_id_dot x1 (qs2,x2) = (qs2@[x1],x2)
 let qid_compare (qs1,x1) (qs2,x2) = 
   let rec ids_compare xs1 xs2 = match xs1,xs2 with
