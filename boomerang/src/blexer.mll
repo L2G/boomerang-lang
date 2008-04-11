@@ -183,6 +183,8 @@ rule main = parse
     QIDENT(info lexbuf,qident)
   }
 | int_char+ as integ { INT(info lexbuf, int_of_string integ) }
+| (int_char* "." int_char+) as flot 
+                     { FLOAT(info lexbuf, float_of_string flot) } 
 | newline            { newline lexbuf; main lexbuf }
 | eof                { EOF(info lexbuf) } 
 | "(*"               { comment lexbuf; main lexbuf }

@@ -96,6 +96,12 @@ let prelude_spec =
        mk_lfun i (fun i l1 -> 
          Lns(i,L.dmatch i L.std_lookup s1 l1))))
 
+  ; (S.mk_native_prelude_qid "smatch",
+     S.scheme_of_sort (S.SString ^> S.SLens ^> S.SLens),
+     mk_sfun (Info.M "smatch built-in") (fun i s1 ->
+       mk_lfun i (fun i l1 -> 
+         Lns(i,L.dmatch i (fun t -> L.sim_lookup t (float_of_string (RS.string_of_t s1))) RS.empty l1))))
+
   ; (S.mk_native_prelude_qid "star",
      S.scheme_of_sort (S.SLens ^> S.SLens),
      mk_lfun (Info.M "star built-in") (fun i l1 ->         

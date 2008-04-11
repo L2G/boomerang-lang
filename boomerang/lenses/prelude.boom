@@ -55,6 +55,8 @@ let star : lens -> lens =
   Native.Prelude.star
 let dmatch : string -> lens -> lens = 
   Native.Prelude.dmatch
+let smatch : string -> lens -> lens = 
+  Native.Prelude.smatch
 let swap : lens -> lens -> lens =
   Native.Prelude.swap
 let compose : lens -> lens -> lens =

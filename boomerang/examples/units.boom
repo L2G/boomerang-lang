@@ -22,18 +22,14 @@
 module Units = 
 
 let l1 = Prelude.copy [d]
-
 let l1 = copy [a]
 let l2 = copy [ab]
 let cn = canonizer_of_lens (const [ab] "a" "a")
 let l = (right_quot l1 cn); l2
-test l get (l create "b") = ?
-  
+test l get (l create "b") = "a"
 let l = l2; (left_quot cn l1) 
- 
-test l get "b" = ?
-test l put "a" into "b" = ?
-
+test l get "b" = "a"
+test l put "a" into "b" = "a"
 let R = /abc\// 
 test del R get "abc/" = ""
 
@@ -50,8 +46,6 @@ let safe_hd =
      (fun d -> match l with 
         | List.Nil -> d
         | List.Cons(h,_) -> h))
-
-test safe_hd : ?
 
 type t = A of string | B of regexp
 
@@ -457,3 +451,9 @@ let l3 = str "d" <-> "aa"
 test (l1.l2 | l1.l3) get "ac" = "aa"
 test (l1.(l2|l3)) get "ac" = error
 
+(* diffy lenses *)
+let chunk = key [a-z]{3} . del [0-9]{3}
+let l1 = copy // | <chunk> . (copy /,/ . <chunk>)*
+let l2 = copy // | <~chunk> . (copy /,/ . <~chunk>)*
+test l1 put "bab,aba" into "aaa123,bbb456" = "bab000,aba000"
+test l2 put "bab,aba" into "aaa123,bbb456" = "bab456,aba123"
