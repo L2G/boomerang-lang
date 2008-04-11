@@ -94,7 +94,7 @@ let prelude_spec =
      S.scheme_of_sort (S.SString ^> S.SLens ^> S.SLens),
      mk_sfun (Info.M "dmatch built-in") (fun i s1 ->
        mk_lfun i (fun i l1 -> 
-         Lns(i,L.smatch i s1 l1))))
+         Lns(i,L.dmatch i L.std_lookup s1 l1))))
 
   ; (S.mk_native_prelude_qid "star",
      S.scheme_of_sort (S.SLens ^> S.SLens),

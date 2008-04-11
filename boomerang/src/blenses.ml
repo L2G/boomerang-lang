@@ -479,13 +479,36 @@ let assert_lens_ctype i l c = assert_lens_type i l (Some c) None
 let assert_lens_atype i l a = assert_lens_type i l None (Some a)
   
 (* lookup function for both types of dictionary types *)
-let rec lookup tag k d = 
+let rec std_lookup tag k d = 
   let km = try TMap.find tag d with Not_found -> KMap.empty in
   try match KMap.find k km with 
-    | c::kl -> Some (c, TMap.add tag (KMap.add k kl km) d)
+    | sd::l -> Some (sd, TMap.add tag (KMap.add k l km) d)
     | []    -> None
   with Not_found -> None
 
+let rec sim_lookup tag epsilon k d = 
+  let km = try TMap.find tag d with Not_found -> KMap.empty in 
+  let aux k1 k2 = 
+    let di = RS.distance k1 k2 in 
+    let delta = float_of_int di /. float_of_int (max (RS.length k1) (RS.length k2)) in 
+    (delta,di) in     
+  let reso = 
+    KMap.fold 
+      (fun ki li acco -> match li,acco with 
+         | [],_ | _,Some(0,_,_,_) -> acco
+         | sdi::li,Some(d',_,_,_) ->
+             let _,di = aux k ki in 
+             if di < d' then Some(di,ki,sdi,li)
+             else acco
+         | sdi::li,None -> 
+             let delta,di = aux k ki in 
+             if delta < epsilon then Some(di,ki,sdi,li) 
+             else None)
+      km None in 
+    Misc.map_option       
+      (fun (di,ki,sdi,li) -> (sdi,TMap.add tag (KMap.add ki li km) d))
+      reso
+  
 exception Incompatible_dict_type of tag
 let merge_dict_type dt1 dt2 = 
   TMap.fold 
@@ -951,11 +974,11 @@ let (++) d1 d2 =
     let s,d = dl1.parse def in
       { dl1 with
           create = lift_rd i (create_str n) at (fun a d' -> dl1.put a s (d' ++ d)); 
-          (* FINISH: think carefully about this smashing of dictionaries *)
+          (* FINISH: think carefully about order of dictionary smashing here *)
 	  uid = next_uid ();
       }
 
-  let smatch i tag dl1 = 
+  let dmatch i lookup_fun tag dl1 = 
     let n = sprintf "<%s>" dl1.string in
     let ct = dl1.ctype in 
     let at = dl1.atype in 
@@ -974,7 +997,7 @@ let (++) d1 d2 =
         get = lift_r i (get_str n) ct (fun c -> dl1.get c);
         put = lift_rsd i (put_str n) at st 
           (fun a _ d -> 
-	     match lookup tag (dl1.key a) d with
+	     match lookup_fun tag (dl1.key a) d with
 	       | Some((s',d'),d'') -> 
                    let c' = fst (dl1.put a s' d') in 
                    (c',d'')
@@ -983,7 +1006,7 @@ let (++) d1 d2 =
                    (c',d));
         create = lift_rx i (create_str n) at 
           (fun a d -> 
-	     match lookup tag (dl1.key a) d with
+	     match lookup_fun tag (dl1.key a) d with
 	       | Some((s',d'),d'') -> 
                    let c',_ = dl1.put a s' d' in 
                    (c',d'')
