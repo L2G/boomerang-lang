@@ -457,3 +457,7 @@ let l1 = copy // | <chunk> . (copy /,/ . <chunk>)*
 let l2 = copy // | <~chunk> . (copy /,/ . <~chunk>)*
 test l1 put "bab,aba" into "aaa123,bbb456" = "bab000,aba000"
 test l2 put "bab,aba" into "aaa123,bbb456" = "bab456,aba123"
+(* example showing thresholding *)
+let l3 = copy // | <~{.5}chunk> . (copy /,/ . <~{.5}chunk>)*
+test l2 put "bcc" into "aaa123,bbb456" = "bcc456"
+test l3 put "bcc" into "aaa123,bbb456" = "bcc000"

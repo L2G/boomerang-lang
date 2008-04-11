@@ -402,7 +402,7 @@ aexp:
   | LANGLE TILDE qid RANGLE 
       { mk_sim_match (m $1 $4) 1.0 $3 }
 
-  | LANGLE TILDE LBRACK FLOAT RBRACK qid RANGLE 
+  | LANGLE TILDE LBRACE FLOAT RBRACE qid RANGLE 
       { let _,f = $4 in 
         mk_sim_match (m $1 $7) f $6 }
 
