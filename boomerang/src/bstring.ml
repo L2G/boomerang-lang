@@ -347,3 +347,22 @@ let escaped = String.escaped
 
 let escaped_repr i = escaped (repr i)
 
+(* edit distance *)
+let distance s1 s2 = 
+  let m = length s1 in 
+  let n = length s2 in 
+  let aodd = Array.make (succ n) 0 in 
+  let aeven = Array.make (succ n) 0 in 
+  for j=0 to n do aeven.(j) <- j done;
+  for i=1 to m do
+    let apredi = if i mod 2 = 0 then aodd else aeven in 
+    let ai = if i mod 2 = 0 then aeven else aodd in 
+    ai.(0) <- i;
+    for j = 1 to n do      
+      ai.(j) <-
+        (min (apredi.(j) + 1)
+           (min (ai.(j-1) + 1)
+              (apredi.(j-1) + if get s1 (pred i) = get s2 (pred j) then 0 else 1)));
+    done
+  done;
+  if m mod 2 = 0 then aeven.(n) else aodd.(n)

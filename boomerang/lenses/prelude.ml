@@ -387,10 +387,6 @@ let prelude_spec =
            | _            -> poly_bin_error i a a v1 v2)))
     end
   ; begin 
-    let list_error i msg = 
-      Error.simple_error 
-        (sprintf "LIST ERROR %s: %s"
-           (Info.string_of_t i) msg) in 
     let nil = S.mk_list_qid "Nil" in 
     let cons = S.mk_list_qid "Cons" in 
     let alpha = S.fresh_svar S.Fre in 
@@ -409,11 +405,11 @@ let prelude_spec =
              if S.qid_equal lbl nil then acc
              else if S.qid_equal lbl cons then 
                let hd,tl = match vo with 
-                 | None -> list_error i "CONS w/ None"
+                 | None -> poly_error i list_b l
                  | Some v -> get_p v i in                
                let acc' = (get_f (f i hd) i) i acc in 
                aux tl acc'
-             else list_error i (sprintf "TAG: %s" (S.string_of_qid lbl)) in 
+             else poly_error i list_b l in 
            aux l0 acc0))))
   end ]  
     

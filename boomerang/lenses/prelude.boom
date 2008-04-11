@@ -142,6 +142,9 @@ let set r s = const r s (shortest r)
 (* [ANY] any string *)
 let ANY : regexp = [^]*
 
+(* [ANYP] any non-empty string *)
+let ANYP : regexp = [^]+
+
 (* [containing R] any string containing [R] *)
 let containing (R:regexp) : regexp = ANY . R . ANY
 

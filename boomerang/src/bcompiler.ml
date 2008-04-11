@@ -586,7 +586,7 @@ let rec compile_exp cev e0 : (Bsyntax.sort * Bvalue.t) = match e0 with
   | ECase(i,e1,pl,_) -> 
       let _,v1 = compile_exp cev e1 in 
       let rec find_match = function
-        | [] -> run_error i (fun () -> msg "@[match@ failure@]"
+        | [] -> run_error i (fun () -> msg "@[match@ failure@]")
         | (pi,ei)::rest -> 
             (match dynamic_match i cev pi v1 with 
                | None -> find_match rest
