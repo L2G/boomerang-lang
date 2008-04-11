@@ -486,23 +486,26 @@ let rec std_lookup tag k d =
     | []    -> None
   with Not_found -> None
 
-let rec sim_lookup tag epsilon k d = 
+let rec sim_lookup delta tag k d = 
   let km = try TMap.find tag d with Not_found -> KMap.empty in 
   let aux k1 k2 = 
     let di = RS.distance k1 k2 in 
     let delta = float_of_int di /. float_of_int (max (RS.length k1) (RS.length k2)) in 
     (delta,di) in     
+(*   Util.format "SEARCHING FOR %s@\n" (RS.string_of_t k); *)
   let reso = 
     KMap.fold 
-      (fun ki li acco -> match li,acco with 
+      (fun ki li acco -> 
+(*          Util.format "TRYING %s@\n" (RS.string_of_t ki); *)
+         match li,acco with 
          | [],_ | _,Some(0,_,_,_) -> acco
          | sdi::li,Some(d',_,_,_) ->
              let _,di = aux k ki in 
              if di < d' then Some(di,ki,sdi,li)
              else acco
          | sdi::li,None -> 
-             let delta,di = aux k ki in 
-             if delta < epsilon then Some(di,ki,sdi,li) 
+             let deltai,di = aux k ki in 
+             if deltai < delta then Some(di,ki,sdi,li) 
              else None)
       km None in 
     Misc.map_option       

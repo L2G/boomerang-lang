@@ -50,19 +50,22 @@ let mk_prelude_var x = mk_qid_var (mk_native_prelude_qid x)
 
 let mk_str i s = EString(i,RS.t_of_string s)
 let mk_bin_op i o e1 e2 = EApp(i,EApp(i,o,e1,None),e2,None) 
-let mk_cat i e1 e2 = mk_bin_op i (mk_prelude_var "poly_concat") e1 e2
-let mk_iter i e1 min maxo =  
+let mk_tern_op i o e1 e2 e3 = 
   EApp(i,
     EApp(i,
-      EApp(i,
-        mk_prelude_var "poly_iter",
-        e1,
-        None),
-      mk_str i (string_of_int min),
+      EApp(i,o,e1,None),
+      e2,
       None),
-    mk_str i (match maxo with None -> "" | Some max -> string_of_int max),
+    e3,
     None)
 
+let mk_cat i e1 e2 = mk_bin_op i (mk_prelude_var "poly_concat") e1 e2
+let mk_iter i e1 min maxo = 
+  mk_tern_op i (mk_prelude_var "poly_iter") 
+    e1 
+    (mk_str i (string_of_int min)) 
+    (mk_str i (match maxo with None -> "" | Some max -> string_of_int max))
+  
 let mk_star i e1 = mk_iter i e1 0 None
 
 let mk_union i e1 e2 = mk_bin_op i (mk_prelude_var "poly_union") e1 e2
@@ -71,8 +74,12 @@ let mk_inter i e1 e2 = mk_bin_op i (mk_prelude_var "inter") e1 e2
 let mk_compose i e1 e2 = mk_bin_op i (mk_prelude_var "compose") e1 e2
 let mk_swap i e1 e2 = mk_bin_op i (mk_prelude_var "poly_swap") e1 e2
 let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (mk_prelude_qid "set")) e1 e2
-let mk_match i x q = mk_bin_op i (mk_qid_var (mk_prelude_qid "dmatch")) (EString(i,RS.t_of_string x)) (mk_qid_var q)
-let mk_sim_match i t q = mk_bin_op i (mk_qid_var (mk_prelude_qid "smatch")) (EString(i,RS.t_of_string (string_of_float t))) (mk_qid_var q)
+let mk_match i x q = mk_bin_op i (mk_qid_var (mk_prelude_qid "dmatch")) (mk_str i x) (mk_qid_var q)
+let mk_sim_match i e t q = 
+  mk_tern_op i (mk_prelude_var "smatch")
+    (mk_str i (string_of_float e))
+    (mk_str i t)
+    (mk_qid_var q)
 let mk_rx i e = EApp(i,mk_prelude_var "str",e,None)
 
 (* error *)
@@ -400,11 +407,18 @@ aexp:
       { mk_match (m $1 $5) (string_of_id $2) $4 }
 
   | LANGLE TILDE qid RANGLE 
-      { mk_sim_match (m $1 $4) 1.0 $3 }
+      { mk_sim_match (m $1 $4) 1.0 "" $3 }
+
+  | LANGLE TILDE LIDENT COLON qid RANGLE 
+      { mk_sim_match (m $1 $6) 1.0 (string_of_id $3) $5 }
 
   | LANGLE TILDE LBRACE FLOAT RBRACE qid RANGLE 
       { let _,f = $4 in 
-        mk_sim_match (m $1 $7) f $6 }
+        mk_sim_match (m $1 $7) f "" $6 }
+
+  | LANGLE TILDE LBRACE FLOAT RBRACE LIDENT COLON qid RANGLE 
+      { let _,f = $4 in 
+        mk_sim_match (m $1 $9) f (string_of_id $6) $8 }
 
   | qid 
       { EVar(info_of_qid $1,$1,None) }
