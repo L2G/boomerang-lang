@@ -418,26 +418,16 @@ let combine_rel r1 r2 = match r1,r2 with
 
 (* -------------------- DICTIONARY LENSES -------------------- *)
 module DLens = struct    
+  
+type dict = ((skeleton * dict) list KMap.t) TMap.t
 
-(* classical dictionaries *)
-type cdict = 
-  | CD_empty
-  | CD of (((skeleton * cdict) list) KMap.t) TMap.t
-   
-(* ddict stands for double dict. Used for default *)
-and ddict = { provisory_dict:dict;
-	      main_dict:dict; }
+let empty_dict : dict = TMap.empty
 
-and dict = 
-  | CDict of cdict
-  | DDict of ddict
+(* dictionariy types. At each level, we check that for each tag, the
+   lens used to process matches tagged thus, has a unique uid *)
+type dict_type = uid TMap.t
 
-(* dictionaries type type. At each level, we need to check that for
-   one tag, there is only one unique id for this tag *)
-
-and dict_type = uid TMap.t
-
-and t = 
+type t = 
     { (* --- meta data --- *)
       info: Info.t;                           (* parsing info *)
       string: string;                         (* pretty printer *)
@@ -452,7 +442,7 @@ and t =
       (* --- core --- *)
       get: RS.t -> RS.t;                      (* get function *)
       put: RS.t -> skeleton -> dict -> (RS.t * dict);  (* put function *)
-      parse: RS.t -> (skeleton * cdict);      (* parse function *)
+      parse: RS.t -> (skeleton * dict);       (* parse function *)
       create: RS.t -> dict -> (RS.t * dict);  (* create function *)
       key: RS.t -> RS.t;                      (* key function *)
       (* --- hack --- *)
@@ -460,7 +450,6 @@ and t =
     }
 
 let assert_lens_type i l co ao = 
-	(* shouldn'd be no-assert ? *)
   if not (Prefs.read no_assert) then 
     begin 
       let check_rx s = function
@@ -471,61 +460,49 @@ let assert_lens_type i l co ao =
       match check_rx l.ctype co, check_rx l.atype ao with 
         | None, None -> ()
         | Some f, _ | _, Some f ->
-            (* FIX: say which of C and A this comes from *)
+            (* FINISH LATER: error message could say which of C and A
+               this comes from *)
             Berror.static_error i "assert_lens_type" ~suppl:f
-            (Util.format_to_string  
-               (fun () -> 
-                  Util.format 
-                    "expected @[<2>%s@ <->@ %s@]@ but@ found @[<2>%s@ <->@ %s@]"
-                    (match co with None -> "?" | Some c -> R.string_of_t c)
-                    (match ao with None -> "?" | Some a -> R.string_of_t a)
-                    (R.string_of_t l.ctype)
-                    (R.string_of_t l.atype)))
+              (Util.format_to_string  
+                 (fun () -> 
+                    Util.format 
+                      "expected @[<2>%s@ <->@ %s@]@ but@ found @[<2>%s@ <->@ %s@]"
+                      (match co with None -> "?" | Some c -> R.string_of_t c)
+                      (match ao with None -> "?" | Some a -> R.string_of_t a)
+                      (R.string_of_t l.ctype)
+                      (R.string_of_t l.atype)))
     end;
   l
 
 let assert_lens_ctype i l c = assert_lens_type i l (Some c) None
 
 let assert_lens_atype i l a = assert_lens_type i l None (Some a)
-   
-(* lookup function in dictionnaries of both type *)
-let rec lookup tag k = function 
-  | CDict CD_empty -> None 
-  | CDict (CD d) ->
-      (let km = try TMap.find tag d with Not_found -> KMap.empty in
-       try 
-       (match KMap.find k km with 
-	  | c::kl -> Some (c, CDict (CD (TMap.add tag (KMap.add k kl km) d)))
-	  | [] -> None)
-       with Not_found -> None)
-  | DDict dd ->
-      (match lookup tag k dd.provisory_dict with
-	 | None -> (* not found in the provisory dictionnary, look in the other one*)
-	     (match lookup tag k dd.main_dict with
-		| None -> None
-		| Some (r, d) -> Some (r, DDict {dd with main_dict = d}))
-	 | Some (r, d) -> Some (r, DDict {dd with provisory_dict = d}))
-	
+  
+(* lookup function for both types of dictionary types *)
+let rec lookup tag k d = 
+  let km = try TMap.find tag d with Not_found -> KMap.empty in
+  try match KMap.find k km with 
+    | c::kl -> Some (c, TMap.add tag (KMap.add k kl km) d)
+    | []    -> None
+  with Not_found -> None
 
-
-exception Incompatilbe_dict_type of tag
-let fusion_dict_type dt1 dt2 = 
+exception Incompatible_dict_type of tag
+let merge_dict_type dt1 dt2 = 
   TMap.fold 
     (fun t u acc ->
        if (not (TMap.mem t dt2)) || (TMap.find t dt2 = u) then
-	 TMap.add t u acc
-       else raise (Incompatilbe_dict_type t)) dt1 dt2
+         TMap.add t u acc
+       else raise (Incompatible_dict_type t)) dt1 dt2
 
-let safe_fusion_dict_type i dt1 dt2 = 
-  try 
-    fusion_dict_type dt1 dt2 
+let safe_merge_dict_type i dt1 dt2 = 
+  try merge_dict_type dt1 dt2 
   with
-    | Incompatilbe_dict_type t -> 
+    | Incompatible_dict_type t -> 
 	raise (Error.Harmony_error 
 		 (fun () -> 
 		    Util.format "@[%s: type error in@\n" (Info.string_of_t i);
-		    Util.format "The tag \"%s\" is used twice with different lenses@]@\n" (RS.string_of_t t);))
-
+		    Util.format "The tag \"%s\" is used with different lenses@]@\n" 
+                      (RS.string_of_t t);))
 
 (* helper: combine maps with merge. 
    Mapplus's combine is (combine fold find add (curry fst)) *)
@@ -535,17 +512,13 @@ let combine fold find add merge m1 m2 =
     m1 m2  
 
 (* smash two classic dictionaries *)
-let (++) cd1 cd2 = match (cd1,cd2) with
-  | CD_empty, CD_empty -> CD_empty
-  | CD_empty, cd
-  | cd, CD_empty -> cd
-  | CD d1', CD d2' ->
-      CD (combine TMap.fold TMap.find TMap.add 
-	   (fun km1 km2 -> 
-	      (combine KMap.fold KMap.find KMap.add 
-		 (fun kl1 kl2 -> kl1 @ kl2)
-		 km1 km2))
-	   d1' d2')
+let (++) d1 d2 =
+    combine TMap.fold TMap.find TMap.add 
+      (fun km1 km2 -> 
+	 (combine KMap.fold KMap.find KMap.add 
+	    (fun kl1 kl2 -> kl1 @ kl2)
+	    km1 km2))
+      d1 d2
 
   let info dl = dl.info
   let string dl = dl.string
@@ -581,13 +554,12 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 
   (* pseudo rlenses function *)
   let rput_of_dl dl = 
-    fun a c -> 
+    (fun a c -> 
       let s,d = dl.parse c in
-	fst (dl.put a s (CDict d))
+	fst (dl.put a s d))
 
   let rcreate_of_dl dl = 
-    fun a ->
-      fst (dl.create a (CDict CD_empty))
+    (fun a -> fst (dl.create a empty_dict))
 
   let determinize_dlens dl =
     { dl with 
@@ -620,9 +592,9 @@ let (++) cd1 cd2 = match (cd1,cd2) with
           string = n;
           ctype = ct;
           atype = at;
-          get = lift_r i (get_str n) ct (fun c -> fst (dl.create c (CDict CD_empty)));
+          get = rcreate_of_dl dl;
           put = lift_rsd i (put_str n) at dl.stype (fun a _ d -> (dl.get a,d));
-          parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty));
+          parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict));
           create = lift_rd i (create_str n) at (fun a d -> (dl.get a,d));
           key = lift_r i n at (fun a -> dl.key (dl.get a));
           uid = next_uid ();
@@ -647,7 +619,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       arel = Identity;
       get = lift_r i (get_str n) ct (fun c -> c);
       put = lift_rsd i (put_str n) at st (fun a _ d -> (a,d));
-      parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty)); 
+      parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict)); 
       create = lift_rd i (create_str n) at (fun a d -> a,d);
       key = lift_r i n at (fun _ -> RS.empty);
       uid = next_uid ();
@@ -682,12 +654,13 @@ let (++) cd1 cd2 = match (cd1,cd2) with
         arel = Identity;
         get = lift_r i (get_str n) ct (fun c -> u_str);
         put = lift_rsd i (put_str n) at st (fun _ s d -> (string_of_skel s, d) );
-	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, CD_empty));  
+	parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict));  
         create = lift_rd i (create_str n) at (fun a d -> (def_str,d));
 	key = lift_r i n at (fun _ -> RS.empty);
 	uid = next_uid ();
       }
 
+  (* consider making this a function rather than a lens as in q-lens paper? *)
   let count i r = 
     let n = sprintf "count(%s)" (R.string_of_t r) in
     let ct = R.unambig_star i n r in 
@@ -735,7 +708,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
            let n = int_of_string (RS.string_of_t a) in 
            (uncount n [] RS.empty,d)); 
       parse = lift_r i (parse_str n) ct 
-        (fun c -> (S_string c, CD_empty)); 
+        (fun c -> (S_string c, empty_dict)); 
       key = lift_r i (key_str n) at (fun _ -> RS.empty);
       uid = next_uid ();
     }
@@ -745,7 +718,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     let n = sprintf "%s . %s" dl1.string dl2.string in 
     let ct = R.unambig_seq i n dl1.ctype dl2.ctype in 
     let at = R.unambig_seq i n dl1.atype dl2.atype in 
-    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+    let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
     let st = function
       | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
       | _ -> false in
@@ -789,7 +762,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     let at = R.alt dl1.atype dl2.atype in 
     let ct = R.disjoint_alt i n  dl1.ctype dl2.ctype in 
       (**** We still need to check equality of keys ***)
-    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+    let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
     let st s = dl1.stype s || dl2.stype s in
       { info = i;
         string = n;
@@ -862,7 +835,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	    let buf' = s1::buf  in
 	    let d' = d ++ d1 in
 	      (buf', d'))
-            ([], CD_empty)
+            ([], empty_dict)
             (R.unambig_star_split dl1.ctype c) in
 	  (S_star (Safelist.rev sl), d));
 	key = lift_r i (key_str n) at 
@@ -881,7 +854,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
     let at = R.unambig_seq i n dl2.atype dl1.atype in 
     let ct = R.unambig_seq i n dl1.ctype dl2.ctype in 
-    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+    let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
     let st = function
       | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
       | _ -> false in
@@ -921,7 +894,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     let n = sprintf "%s; %s" dl1.string dl2.string in 
     let ct = dl1.ctype in
     let at = dl2.atype in 
-    let dt = safe_fusion_dict_type i dl1.dtype dl2.dtype in
+    let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
     let st = function
       | S_comp (s1, s2) -> dl1.stype s1 && dl2.stype s2
       | _ -> false in
@@ -972,21 +945,15 @@ let (++) cd1 cd2 = match (cd1,cd2) with
     let () = 
       if not (R.match_str dl1.ctype def) then 
         Berror.static_error i n 
-          (sprintf "%s does not belong to %s" (RS.string_of_t def) (R.string_of_t dl1.ctype)) in 
+          (sprintf "%s does not belong to %s" 
+             (RS.string_of_t def) 
+             (R.string_of_t dl1.ctype)) in 
     let s,d = dl1.parse def in
       { dl1 with
-        create = lift_rd i (create_str n) at (fun a d' -> 
-          (* changing of behavior for former D-lenses ! Information
-	   * are added to the dictionnary only for the time of the
-	   * create and are then removed. This modification was needed
-	   * because of the streaming lenses and the two type of
-	   * dictionnaries that could not be smached together anymore*)
-          match dl1.put a s (DDict {provisory_dict = CDict d; main_dict = d'}) with
-	    | res, DDict dd -> (res, dd.main_dict)
-	    | _ -> assert false);
+          create = lift_rd i (create_str n) at (fun a d' -> dl1.put a s (d' ++ d)); 
+          (* FINISH: think carefully about this smashing of dictionaries *)
 	  uid = next_uid ();
       }
-
 
   let smatch i tag dl1 = 
     let n = sprintf "<%s>" dl1.string in
@@ -1005,18 +972,30 @@ let (++) cd1 cd2 = match (cd1,cd2) with
         crel = dl1.crel;
         arel = dl1.arel;
         get = lift_r i (get_str n) ct (fun c -> dl1.get c);
-        put = lift_rsd i (put_str n) at st (fun a _ d -> 
-	   match lookup tag (dl1.key a) d with
-	       Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
-	     | None       -> (fst (dl1.create a (CDict CD_empty)), d));
-        create = lift_rx i (create_str n) at (fun a d -> 
-	  match lookup tag (dl1.key a) d with
-	      Some((s',d'),d'') -> (fst (dl1.put a s' (CDict d')),d'')
-	    | None       -> (fst (dl1.create a (CDict CD_empty)), d));
+        put = lift_rsd i (put_str n) at st 
+          (fun a _ d -> 
+	     match lookup tag (dl1.key a) d with
+	       | Some((s',d'),d'') -> 
+                   let c' = fst (dl1.put a s' d') in 
+                   (c',d'')
+	       | None       -> 
+                   let c' = (fst (dl1.create a empty_dict)) in 
+                   (c',d));
+        create = lift_rx i (create_str n) at 
+          (fun a d -> 
+	     match lookup tag (dl1.key a) d with
+	       | Some((s',d'),d'') -> 
+                   let c',_ = dl1.put a s' d' in 
+                   (c',d'')
+	       | None -> 
+                   let c',_ = dl1.create a empty_dict in 
+                   (c',d));
         parse = lift_r i (parse_str n) ct (fun c -> 
 	  let s,d = dl1.parse c in
-	  let d' = TMap.add tag (KMap.add (dl1.key (dl1.get c)) [(s,d)] KMap.empty) TMap.empty in 
-	    (S_box tag, CD d'));
+          let k = dl1.key (dl1.get c) in
+          let km = KMap.add k [(s,d)] KMap.empty in 
+	  let d' = TMap.add tag km empty_dict in 
+	  (S_box tag,d'));
 	key = dl1.key;
 	uid = next_uid ();
       }
@@ -1035,15 +1014,16 @@ let (++) cd1 cd2 = match (cd1,cd2) with
         R.unambig_seq i n dl1.ctype dl2.ctype in 
     let a23 = R.unambig_seq i n dl2.atype dl3.atype in 
     let at = R.unambig_seq i n dl1.atype a23 in 
-    let dt = safe_fusion_dict_type i dl1.dtype (safe_fusion_dict_type i dl2.dtype dl3.dtype) in 
+    let dt = safe_merge_dict_type i 
+      dl1.dtype 
+      (safe_merge_dict_type i dl2.dtype dl3.dtype) in 
     let st = function
       | S_dup (s1, S_concat(s2,s3)) -> dl1.stype s1 && dl2.stype s2 && dl3.stype s3
       | _ -> false in
     let split_c c = 
       if isFst then split dl1.ctype dl2.ctype c 
-      else 
-        let c2,c13 = split dl2.ctype dl3.ctype c in 
-        (c13,c2) in 
+      else let c2,c13 = split dl2.ctype dl3.ctype c in 
+      (c13,c2) in 
     let split_a a = 
       let a1,a23 = split dl1.atype a23 a in 
       let a2,a3 = split dl2.atype dl3.atype a23 in 
@@ -1124,7 +1104,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
          let la = R.unambig_star_split at a in
            (loop RS.empty lc la, d)) in
     let create = lift_rd i n at (fun a d -> (a,d)) in
-    let parse = lift_r i n ct (fun c -> (S_string c, CD_empty))in
+    let parse = lift_r i n ct (fun c -> (S_string c, empty_dict))in
       { info = i; 
         string = n;
         ctype = ct;
@@ -1171,7 +1151,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       arel = dl.arel;
       get = lift_r i (get_str n) ct 
 	(fun c -> dl.get(cls c));
-      put = lift_rsd i n at st (* useless lift_rsd ... *)
+      put = lift_rsd i n at st 
 	(fun a s d ->
 	  let cc, d = dl.put a s d in
 	  (rep cc, d));
@@ -1187,12 +1167,8 @@ let (++) cd1 cd2 = match (cd1,cd2) with
       uid = next_uid();
     }
 
-  (* right quotient of a dlens by a canonizer. I don't know if we
-     should check if the dlens is not already a q-lens. *)
   let right_quot i dl cn = 
     let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
-      (* the "class type" of the canonizer has to be equal to the
-	 abstract type of the lens *)
     let equiv, f_suppl = R.check_equiv (Canonizer.ctype cn) dl.atype in
       if not equiv then
         begin
@@ -1224,11 +1200,7 @@ let (++) cd1 cd2 = match (cd1,cd2) with
 	  let ac = cls a in
 	  dl.create ac d);
       parse = dl.parse;
-
-      (* BIG QUESTION ABOUT LENS LAWS*)
-      (* I'm not 100% convinced about this implementation and about
-	 the fact it ensure the conservation of the laws *)
       key = (fun a -> dl.key (cls a));
-      uid = next_uid();
+      uid = next_uid ();
     }
 end

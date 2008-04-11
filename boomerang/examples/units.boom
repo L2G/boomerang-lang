@@ -434,12 +434,8 @@ test strange put "z" into "abcd" = "zaab"
 
 let chunk = key alpha{3} . del [0-9]{2}
 
-let normal_def = 
-default <chunk> "zzz42"
-
-let strange_def = 
-default <chunk> "foo42"
-
+let normal_def = default <chunk> "zzz42"
+let strange_def = default <chunk> "foo42"
 
 let normal_l = normal_def*. copy (str ",") . normal_def
 let strange_l = strange_def* . copy (str ",") .strange_def
@@ -449,12 +445,9 @@ test normal_l put "bar,foo" into "foo11,bar22"= "bar22,foo11"
 test strange_l put "bar,foo" into "foo11,bar22"= "bar22,foo11"
 
 test normal_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo11"
-test strange_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo11" (* use to be "bar22bar00,foo42"*)
-
-
+test strange_l put "barbar,foo" into "foo11,bar22" = "bar22bar00,foo11" 
 
 (**** Algebraic laws ****)
-
 (* we don't have l1.(l2|l3) = l1.l2 | l1.l3 *)
 
 let l1 = copy (str "a" | str "aa")
