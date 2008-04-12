@@ -487,31 +487,39 @@ let rec std_lookup tag k d =
   with Not_found -> None
 
 let rec sim_lookup delta tag k d = 
-  let km = try TMap.find tag d with Not_found -> KMap.empty in 
   let aux k1 k2 = 
     let di = RS.distance k1 k2 in 
-    let delta = float_of_int di /. float_of_int (max (RS.length k1) (RS.length k2)) in 
-    (delta,di) in     
-(*   Util.format "SEARCHING FOR %s@\n" (RS.string_of_t k); *)
-  let reso = 
-    KMap.fold 
-      (fun ki li acco -> 
-(*          Util.format "TRYING %s@\n" (RS.string_of_t ki); *)
-         match li,acco with 
-         | [],_ | _,Some(0,_,_,_) -> acco
-         | sdi::li,Some(d',_,_,_) ->
-             let _,di = aux k ki in 
-             if di < d' then Some(di,ki,sdi,li)
-             else acco
-         | sdi::li,None -> 
-             let deltai,di = aux k ki in 
-             if deltai < delta then Some(di,ki,sdi,li) 
-             else None)
-      km None in 
-    Misc.map_option       
-      (fun (di,ki,sdi,li) -> (sdi,TMap.add tag (KMap.add ki li km) d))
-      reso
-  
+    let len = max (RS.length k1) (RS.length k2) in 
+    let delta = float_of_int di /. float_of_int len in 
+    (delta,di) in  
+  let km = try TMap.find tag d with Not_found -> KMap.empty in
+  let reso = try match KMap.find k km with 
+    | sd::l -> Some (sd, TMap.add tag (KMap.add k l km) d)
+    | []    -> None
+  with Not_found -> None in 
+  begin match reso with 
+    | Some _ -> reso
+    | None -> 
+        begin
+          let reso = KMap.fold
+            (fun ki li acco -> 
+               match li,acco with 
+                 | [],_ | _,Some(0,_,_,_) -> acco
+                 | sdi::li,Some(d',_,_,_) ->
+                     let _,di = aux k ki in 
+                     if di < d' then Some(di,ki,sdi,li)
+                     else acco
+                 | sdi::li,None -> 
+                     let deltai,di = aux k ki in 
+                     if deltai < delta then Some(di,ki,sdi,li) 
+                     else None)
+            km None in 
+          Misc.map_option       
+            (fun (di,ki,sdi,li) -> 
+               (sdi,TMap.add tag (KMap.add ki li km) d))
+            reso
+        end
+  end  
 exception Incompatible_dict_type of tag
 let merge_dict_type dt1 dt2 = 
   TMap.fold 
