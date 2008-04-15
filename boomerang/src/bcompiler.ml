@@ -202,15 +202,15 @@ let rec static_match i sev p0 s =
        (string_of_pat p)
        (string_of_sort s1)
        (string_of_sort s2)) in 
-  match p0,s with 
-    | PWld _,_ -> 
+  match p0 with 
+    | PWld _ -> 
         Some (p0,[])
-    | PVar(i,x,_),_ -> 
+    | PVar(i,x,_) -> 
         Some (PVar(i,x,Some s), [(x,Sort s)])
-    | PUnt(_),s -> 
+    | PUnt(_) -> 
         if not (unify i (SCEnv.get_ctx sev) s SUnit) then err p0 SUnit s;
         (Some (p0,[]))
-    | PVnt(i,li,pio),s -> 
+    | PVnt(i,li,pio) -> 
         (* lookup which datatype we have using li *)
 (*         msg "LOOKING UP %s@\n" (string_of_qid li); *)
         begin match SCEnv.lookup_con sev li with
@@ -236,11 +236,14 @@ let rec static_match i sev p0 s =
                     else aux rest in 
               aux cl_inst
         end
-    | PPar(i,p1,p2),SProduct(s1,s2) -> 
+    | PPar(i,p1,p2) -> 
+        let s1 = fresh_sort Fre in 
+        let s2 = fresh_sort Fre in 
+        let s_expect = SProduct(s1,s2) in 
+        if not (unify i (SCEnv.get_ctx sev) s s_expect) then err p0 s_expect s;
         (match static_match i sev p1 s1, static_match i sev p2 s2 with 
            | Some (new_p1,l1), Some(new_p2,l2) -> Some (PPar(i,new_p1,new_p2), l1 @ l2)
            | _ -> None)
-    | _ -> None 
 
 let rec dynamic_match i cev p v = match p,v with 
   | PWld(_),_ -> Some []
@@ -474,7 +477,7 @@ let rec check_decl ((tev,sev) as evs) ms = function
              | None -> sx
              | Some s -> SFunction (s,sx) in
            let scheme = Scheme (svs,s) in
-             (* msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme scheme);*)
+(*            msg "%s := %s@\n" (string_of_qid ql) (string_of_scheme (svs,s)); *)
              SCEnv.update sev ql scheme)
         sev qcl' in 
       let new_sev' = SCEnv.update_type new_sev svl qx qcl' in 
