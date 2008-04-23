@@ -36,37 +36,37 @@ val sort_or_scheme_of_rv : rv -> Bsyntax.sort_or_scheme
 val format_rv : rv -> unit
 (** [format_rv r] pretty prints [r] *)
 
-type tcon = Bsyntax.qid * Bsyntax.sort option
+type tcon = Bsyntax.Qid.t * Bsyntax.sort option
 type tspec = Bsyntax.svar list * tcon list 
 
 (** {2 Library} *)
 module REnv : sig 
   type t
   val empty : unit -> t
-  val lookup : t -> Bsyntax.qid -> rv option
-  val lookup_type: t -> Bsyntax.qid -> tspec option
-  val lookup_con : t -> Bsyntax.qid -> (Bsyntax.qid * tspec) option
-  val update : t -> Bsyntax.qid -> rv -> t
-  val update_type : t -> Bsyntax.svar list -> Bsyntax.qid -> tcon list -> t
-  val overwrite : t -> Bsyntax.qid -> rv -> unit
-  val iter : (Bsyntax.qid -> rv -> unit) -> t -> unit
-  val iter_type : (Bsyntax.qid -> tspec -> unit) -> t -> unit
-  val fold : (Bsyntax.qid -> rv -> 'a -> 'a) -> t -> 'a -> 'a
+  val lookup : t -> Bsyntax.Qid.t -> rv option
+  val lookup_type: t -> Bsyntax.Qid.t -> tspec option
+  val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+  val update : t -> Bsyntax.Qid.t -> rv -> t
+  val update_type : t -> Bsyntax.svar list -> Bsyntax.Qid.t -> tcon list -> t
+  val overwrite : t -> Bsyntax.Qid.t -> rv -> unit
+  val iter : (Bsyntax.Qid.t -> rv -> unit) -> t -> unit
+  val iter_type : (Bsyntax.Qid.t -> tspec -> unit) -> t -> unit
+  val fold : (Bsyntax.Qid.t -> rv -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
 val reset : unit -> unit
 (** Resets the library. *)
 
-val pre_ctx : Bsyntax.id list
+val pre_ctx : Bsyntax.Id.t list
 (** the initial naming context, i.e., [''Prelude''] *)
 
 val get_library : unit -> REnv.t
 (** Returns the library, as an environment. *)
 
-val register_env : REnv.t -> Bsyntax.id -> unit
+val register_env : REnv.t -> Bsyntax.Id.t -> unit
 (** ?? *)
 
-val register_native_qid: Bsyntax.qid -> Bsyntax.scheme -> Bvalue.t -> unit
+val register_native_qid : Bsyntax.Qid.t -> Bsyntax.scheme -> Bvalue.t -> unit
 (** ?? *)
 
 val register_native : string -> Bsyntax.scheme -> Bvalue.t -> unit
@@ -78,22 +78,22 @@ val load : string -> bool
 val find_filename : string -> string list -> string option
 (** ?? *)
 
-val lookup_library_ctx : Bsyntax.id list -> Bsyntax.qid -> rv option
+val lookup_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> rv option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
-val lookup_library : Bsyntax.qid -> rv option
+val lookup_library : Bsyntax.Qid.t -> rv option
 (** [lookup_library q] looks up [q] from the library *)
 
-val lookup_type_library_ctx : Bsyntax.id list -> Bsyntax.qid -> tspec option
+val lookup_type_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> tspec option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
-val lookup_type_library : Bsyntax.qid -> tspec option
+val lookup_type_library : Bsyntax.Qid.t -> tspec option
 (** [lookup_library q] looks up [q] from the library *)
 
-val lookup_con_library_ctx : Bsyntax.id list -> Bsyntax.qid -> (Bsyntax.qid * tspec) option
+val lookup_con_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
-val lookup_con_library : Bsyntax.qid -> (Bsyntax.qid * tspec) option
+val lookup_con_library : Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
 (** [lookup_library q] looks up [q] from the library *)
 
 (**/**)

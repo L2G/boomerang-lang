@@ -45,7 +45,7 @@ let m_check n m_str ast=
 (* end-to-end compilation of files *)
 let compile_lexbuf lexbuf n = 
   let ast = parse_lexbuf lexbuf in
-  let m_str = string_of_id (id_of_module ast) in 
+  let m_str = Id.string_of_t (id_of_module ast) in 
   let _ = m_check n m_str ast in
   let ast' = check_module ast in 
   let _ = compile_module ast' in 

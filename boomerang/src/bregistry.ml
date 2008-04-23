@@ -36,13 +36,13 @@ let format_rv rv =
     Bvalue.format v;
     Util.format ":@ ";
     (match s with 
-       | Bsyntax.Sort s -> Bsyntax.format_sort s
-       | Bsyntax.Scheme s -> Bsyntax.format_scheme s);
+       | Bsyntax.Sort s -> Bprint.format_sort s
+       | Bsyntax.Scheme s -> Bprint.format_scheme s);
     Util.format "]"
 
 
 (* type abbreviation for the constructors for a type *)
-type tcon = Bsyntax.qid * Bsyntax.sort option
+type tcon = Bsyntax.Qid.t * Bsyntax.sort option
 type tspec = Bsyntax.svar list * tcon list
 
 (* --------------- Focal library -------------- *)
@@ -51,24 +51,24 @@ module type REnvSig =
 sig
   type t
   val empty : unit -> t
-  val lookup : t -> Bsyntax.qid -> rv option
-  val lookup_type: t -> Bsyntax.qid -> tspec option
-  val lookup_con : t -> Bsyntax.qid -> (Bsyntax.qid * tspec) option
-  val update : t -> Bsyntax.qid -> rv -> t
-  val update_type : t -> Bsyntax.svar list -> Bsyntax.qid -> tcon list -> t
-  val overwrite : t -> Bsyntax.qid -> rv -> unit
-  val iter : (Bsyntax.qid -> rv -> unit) -> t -> unit
-  val iter_type : (Bsyntax.qid -> tspec -> unit) -> t -> unit
-  val fold : (Bsyntax.qid -> rv -> 'a -> 'a) -> t -> 'a -> 'a
+  val lookup : t -> Bsyntax.Qid.t -> rv option
+  val lookup_type: t -> Bsyntax.Qid.t -> tspec option
+  val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+  val update : t -> Bsyntax.Qid.t -> rv -> t
+  val update_type : t -> Bsyntax.svar list -> Bsyntax.Qid.t -> tcon list -> t
+  val overwrite : t -> Bsyntax.Qid.t -> rv -> unit
+  val iter : (Bsyntax.Qid.t -> rv -> unit) -> t -> unit
+  val iter_type : (Bsyntax.Qid.t -> tspec -> unit) -> t -> unit
+  val fold : (Bsyntax.Qid.t -> rv -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
 module REnv : REnvSig = 
 struct
   module QM = 
     Env.Make(struct
-               type t = Bsyntax.qid
-               let compare = Bsyntax.qid_compare
-               let to_string = Bsyntax.string_of_qid
+               type t = Bsyntax.Qid.t
+               let compare = Bsyntax.Qid.compare
+               let to_string = Bsyntax.Qid.string_of_t
              end) 
   
   (* "type map" from names (Prelude.list) to type variables (['a]) and
@@ -76,7 +76,7 @@ struct
   type tmap = (Bsyntax.svar list * tcon list) QM.t
 
   (* "reverse type map" from constructor names (Prelude.Nil) to types (Prelude.list) *)
-  type rmap = Bsyntax.qid QM.t 
+  type rmap = Bsyntax.Qid.t QM.t 
 
   (* enviroments are have two components: for types and values *)
   type t = (tmap * rmap) * (rv ref) QM.t
@@ -94,7 +94,7 @@ struct
     | Some q' -> begin match QM.lookup tm q' with 
         | None -> Berror.run_error (Info.M "Renv.lookup_con") 
             (fun () -> Util.format "datatype %s missing" 
-               (Bsyntax.string_of_qid q'))
+               (Bsyntax.Qid.string_of_t q'))
         | Some (sl,cl) -> Some (q',(sl,cl))
       end
   
@@ -115,7 +115,7 @@ struct
       | None -> 
           raise (Error.Harmony_error
                    (fun () -> Util.format "Registry.overwrite: %s not found" 
-                      (Bsyntax.string_of_qid q)))
+                      (Bsyntax.Qid.string_of_t q)))
   let iter f (_,ve) = 
     QM.iter (fun q rvr -> f q (!rvr)) ve
   let iter_type f ((tm,_),_) = 
@@ -162,12 +162,12 @@ let register_native qs s v =
 
 (* register a whole (rv Env.t) in m *)
 let register_env ev m = 
-  REnv.iter (fun q r -> register (Bsyntax.id_dot m q) r) ev;  
+  REnv.iter (fun q r -> register (Bsyntax.Qid.id_dot m q) r) ev;  
   REnv.iter_type 
     (fun q ts -> 
        let (svl,cl) = ts in 
-       let cl' = Safelist.map (fun (x,so) -> (Bsyntax.id_dot m x,so)) cl in 
-       register_type (Bsyntax.id_dot m q) (svl,cl')) ev
+       let cl' = Safelist.map (fun (x,so) -> (Bsyntax.Qid.id_dot m x,so)) cl in 
+       register_type (Bsyntax.Qid.id_dot m q) (svl,cl')) ev
     
 (* --------------- Lookup functions -------------- *)
 
@@ -183,7 +183,7 @@ let boompath =
 
 (* get the filename that a module is stored at *)
 let get_module_prefix q = 
-  match Bsyntax.qid_qualifiers q with 
+  match Bsyntax.Qid.qualifiers q with 
     | [] -> None
     | n::_ -> Some n
 
@@ -248,13 +248,13 @@ let load ns =
       
 let load_var q = match get_module_prefix q with 
   | None -> ()
-  | Some n -> ignore (load (Bsyntax.string_of_id n))
+  | Some n -> ignore (load (Bsyntax.Id.string_of_t n))
 
 (* lookup in a naming context, with a lookup function *)
 let lookup_library_generic lookup_fun nctx q = 
   debug (fun () -> Util.format "lookup_library_generic [%s] [%s]@\n" 
-           (Bsyntax.string_of_qid q)
-           (Misc.concat_list "," (Safelist.map Bsyntax.string_of_id nctx)));
+           (Bsyntax.Qid.string_of_t q)
+           (Misc.concat_list "," (Safelist.map Bsyntax.Id.string_of_t nctx)));
   let rec lookup_library_aux nctx q2 =       
     let try_lib () = lookup_fun !library q2 in
       (* try here first, to avoid looping on native values *)
@@ -265,7 +265,7 @@ let lookup_library_generic lookup_fun nctx q =
               | Some r -> Some r
               | None -> match nctx with 
                   | []       -> None
-                  | o::orest -> lookup_library_aux orest (Bsyntax.id_dot o q) 
+                  | o::orest -> lookup_library_aux orest (Bsyntax.Qid.id_dot o q) 
             end
   in
   lookup_library_aux nctx q
@@ -280,13 +280,13 @@ let lookup_con_library_ctx =
   lookup_library_generic REnv.lookup_con
 
 let lookup_library q = 
-  debug (fun () -> Util.format "lookup_library [%s]@\n" (Bsyntax.string_of_qid q));
+  debug (fun () -> Util.format "lookup_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_library_ctx [] q
 
 let lookup_type_library q = 
-  debug (fun () -> Util.format "lookup_type_library [%s]@\n" (Bsyntax.string_of_qid q));
+  debug (fun () -> Util.format "lookup_type_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_type_library_ctx [] q
 
 let lookup_con_library q = 
-  debug (fun () -> Util.format "lookup_con_library [%s]@\n" (Bsyntax.string_of_qid q));
+  debug (fun () -> Util.format "lookup_con_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_con_library_ctx [] q

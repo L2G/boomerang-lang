@@ -21,6 +21,7 @@
 
 (* module imports and abbreviations *)
 module S = Bsyntax
+module P = Bprint
 module R = Bregexp
 module L = Blenses.DLens
 module C = Blenses.Canonizer
@@ -39,7 +40,7 @@ type t =
     | Fun of Info.t * (Info.t -> t -> t)
     | Unt of Info.t
     | Par of Info.t * t * t
-    | Vnt of Info.t * S.qid * S.qid * t option
+    | Vnt of Info.t * S.Qid.t * S.Qid.t * t option
 
 let rec equal v1 v2 = match v1,v2 with
   | Str(_,s1), Str(_,s2) -> 
@@ -55,9 +56,9 @@ let rec equal v1 v2 = match v1,v2 with
   | Unt _, Unt _ -> true
   | Par(_,v1,v2),Par(_,v1',v2') -> 
       (equal v1 v1') && (equal v2 v2')
-  | Vnt(_,_,l,None), Vnt(_,_,l',None) -> S.qid_equal l l'
+  | Vnt(_,_,l,None), Vnt(_,_,l',None) -> S.Qid.equal l l'
   | Vnt(_,_,l,Some v), Vnt(_,_,l',Some v') ->
-      (S.qid_equal l l') && (equal v v')
+      (S.Qid.equal l l') && (equal v v')
   | Vnt _,Vnt _ -> false
   | _, _ -> 
       Error.simple_error (sprintf "Cannot test equality of values with different sorts.")
@@ -75,9 +76,9 @@ let rec format = function
       Util.format ",@ ";
       format v2;
       Util.format ")@]"
-  | Vnt(_,_,l,None) -> Util.format "%s" (S.string_of_qid l)
+  | Vnt(_,_,l,None) -> Util.format "%s" (S.Qid.string_of_t l)
   | Vnt(_,_,l,Some v) ->  
-      Util.format "@[(%s@ " (S.string_of_qid l);
+      Util.format "@[(%s@ " (S.Qid.string_of_t l);
       format v;
       Util.format ")@]"        
 
@@ -91,7 +92,7 @@ let rec sort_string_of_t = function
   | Fun _ -> "<function>"
   | Unt _ -> "unit"
   | Par(_,v1,v2) -> sprintf "(%s,%s)" (sort_string_of_t v1) (sort_string_of_t v2)
-  | Vnt(_,l,_,_) -> sprintf "%s" (S.string_of_qid l)
+  | Vnt(_,l,_,_) -> sprintf "%s" (S.Qid.string_of_t l)
 
 (* info_of_t : t -> Info.t 
  *
@@ -112,7 +113,7 @@ let conversion_error i s1 v1 =
   Error.simple_error 
     (sprintf "%s: expected %s, but found %s" 
         (Info.string_of_t i) 
-        (S.string_of_sort s1)
+        (P.string_of_sort s1)
         (string_of_t v1))
 
 (* get_s: t -> Info.t -> string
