@@ -49,10 +49,8 @@ let lookup qid_str = Bregistry.lookup_library (Bvalue.parse_qid qid_str)
 let lookup_lens qid_str =
   match lookup qid_str with
       None -> Error.simple_error (Printf.sprintf "lens %s not found" qid_str)
-    | Some rv -> 
-        Bvalue.get_l 
-          (Bregistry.value_of_rv rv)
-          (Info.M (Printf.sprintf "%s is not a lens" qid_str))
+    | Some rv -> Bvalue.get_l (Bregistry.value_of_rv rv)
+          
 
 (* Filesystem helpers *)          
 let read_string fn = 

@@ -31,16 +31,58 @@ module RS = Bstring
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append 
 
+type b = Pos of Info.t | NegPos of Info.t * Info.t
+
 (* run-time values; correspond to each sort *)
 type t = 
-    | Str of Info.t * RS.t 
-    | Rx  of Info.t * R.t
-    | Lns of Info.t * L.t
-    | Can of Info.t * C.t
-    | Fun of Info.t * (Info.t -> t -> t)
-    | Unt of Info.t
-    | Par of Info.t * t * t
-    | Vnt of Info.t * S.Qid.t * S.Qid.t * t option
+    | Str of b * RS.t 
+    | Rx  of b * R.t
+    | Lns of b * L.t
+    | Can of b * C.t
+    | Fun of b * (t -> t)
+    | Unt of b
+    | Par of b * t * t
+    | Vnt of b * S.Qid.t * S.Qid.t * t option
+
+(* blame_of_t : t -> b
+ *
+ * [blame_of_t t] returns the blame information associated to a run-time value 
+ *)
+let blame_of_t = function 
+  | Str(b,_)     -> b
+  | Rx(b,_)      -> b
+  | Lns(b,_)     -> b
+  | Can(b,_)     -> b
+  | Fun(b,_)     -> b
+  | Unt(b)       -> b
+  | Par(b,_,_)   -> b
+  | Vnt(b,_,_,_) -> b
+
+let info_of_blame b = match b with
+  | Pos i -> i
+  | NegPos (_,i) -> i
+
+let blame_of_info i = Pos i
+      
+let info_of_t v = info_of_blame (blame_of_t v)
+        
+let install_blame b v =
+  match v with
+    | Str(_,s) -> Str(b,s)
+    | Rx(_,r) -> Rx(b,r)
+    | Lns(_,l) -> Lns(b,l)
+    | Can(_,c) -> Can(b,c)
+    | Fun(_,f) -> Fun(b,f)
+    | Unt(_) -> Unt(b)
+    | Par(_,v1,v2) -> Par(b,v1,v2)
+    | Vnt(_,q,l,vo) -> Vnt(b,q,l,vo)
+
+let merge_blame b1 v2 = 
+  let b = match b1, (blame_of_t v2) with
+    | Pos l1, Pos l2 -> NegPos (l1, l2)
+    | Pos l1, NegPos (l2,l3) -> NegPos (l1,l3)
+    | NegPos (l1,l2), _ -> NegPos (l2,l1) in 
+  install_blame b v2
 
 let rec equal v1 v2 = match v1,v2 with
   | Str(_,s1), Str(_,s2) -> 
@@ -94,172 +136,74 @@ let rec sort_string_of_t = function
   | Par(_,v1,v2) -> sprintf "(%s,%s)" (sort_string_of_t v1) (sort_string_of_t v2)
   | Vnt(_,l,_,_) -> sprintf "%s" (S.Qid.string_of_t l)
 
-(* info_of_t : t -> Info.t 
- *
- * [info_of_t t] returns the lexing info associated to a run-time value 
- *)
-let info_of_t = function 
-  | Str(i,_)     -> i
-  | Rx(i,_)      -> i
-  | Lns(i,_)     -> i
-  | Can(i,_)     -> i
-  | Fun(i,_)     -> i
-  | Unt(i)       -> i
-  | Par(i,_,_)   -> i
-  | Vnt(i,_,_,_) -> i
-
 (* --------- conversions between run-time values ---------- *)
-let conversion_error i s1 v1 = 
+let conversion_error s1 v1 = 
   Error.simple_error 
     (sprintf "%s: expected %s, but found %s" 
-        (Info.string_of_t i) 
-        (P.string_of_sort s1)
+        (Info.string_of_t (info_of_t v1)) 
+        s1
         (string_of_t v1))
 
-(* get_s: t -> Info.t -> string
- * 
- * [get_s v i] returns the string that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.
-*)
-let get_s v i = match v with
+let get_s v = match v with
   | Str(_,s) -> s
-  | _ -> conversion_error i S.SString v
+  | _ -> conversion_error (P.string_of_sort S.SString) v
 
-(* get_r: t -> Info.t -> L.rx.t
- * 
- * [get_r v i] returns the regexp that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  
- *)
-let get_r v i = match v with
+let get_r v = match v with
     Rx(_,r)  -> r
   | Str(_,s) -> R.str false s
-  | _ -> conversion_error i S.SRegexp v
+  | _ -> conversion_error (P.string_of_sort S.SRegexp) v
 
-(* get_l: t -> Info.t -> L.DLens.t
- * 
- * [get_l v i] returns the D-lens that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  
- *)
-let get_l v i = match v with 
-  | Str(_,s) -> L.copy i (R.str false s)
-  | Rx(_,r)  -> L.copy i r
-  | Lns(_,l) -> l
-  | _ -> conversion_error i S.SLens v
+let get_l v = 
+  let i = info_of_t v in
+    match v with 
+      | Str(_,s) -> L.copy i (R.str false s)
+      | Rx(_,r)  -> L.copy i r
+      | Lns(_,l) -> l
+      | _ -> conversion_error (P.string_of_sort S.SLens) v
 
-(* get_c: t -> Info.t -> C.t
- * 
- * [get_dl v i] returns the canonizer that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors. *)
-let get_c v i = match v with 
+let get_c v = match v with 
   | Can(_,c) -> c
-  | _ -> conversion_error i S.SCanonizer v
+  | _ -> conversion_error (P.string_of_sort S.SCanonizer) v
 
-(* get_f: t -> Info.t -> (t -> t) 
- * 
- * [get_f v i] returns the [t -> t] function that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  
- *)
-let get_f v i = match v with
+let get_f v = match v with
   | Fun(_,f) -> f
-  | _ ->
-      Error.simple_error 
-        (sprintf "%s: expected function, but found %s" 
-            (Info.string_of_t i) 
-            (string_of_t v))
+  | _ -> conversion_error "function" v
 
-(* get_u: t -> Info.t -> ()
- * 
- * [get_u v i] returns the unit that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  
- *)
-let get_u v i = match v with
+let get_u v = match v with
   | Unt(_) -> ()
-  | _ ->
-      Error.simple_error 
-        (sprintf "%s: expected unit, but found %s" 
-           (Info.string_of_t i) 
-           (string_of_t v))
+  | _ -> conversion_error "unit" v
 
-(* get_p: t -> Info.t -> t * t
- * 
- * [get_p v i] returns the pair that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  *)
-let get_p v i = match v with
+let get_p v = match v with
   | Par(_,v1,v2) -> (v1,v2)
-  | _ ->
-      Error.simple_error 
-        (sprintf "%s: expected pair, but found %s" 
-           (Info.string_of_t i) 
-           (string_of_t v))
+  | _ -> conversion_error "pair" v
 
-(* get_v: t -> Info.t -> string * t
- * 
- * [get_v v i] returns the variant that [v] represents, or throws an
- * exception if [v] is a run-time value representing a different
- * sort. [i] is used to report errors.  *)
-let get_v v i = match v with
+let get_v v = match v with
   | Vnt(_,_,l,v) -> (l,v)
-  | _ ->
-      Error.simple_error 
-        (sprintf "%s: expected variant, but found %s" 
-           (Info.string_of_t i) 
-           (string_of_t v))
+  | _ -> conversion_error "variant" v
+
+let get_b v = 
+  let t_qid = Bsyntax.Qid.mk_prelude_t "True" in 
+  let f_qid = Bsyntax.Qid.mk_prelude_t "False" in 
+  match get_v v with
+    | (l,_) -> 
+        if Bsyntax.Qid.equal l t_qid
+        then true
+        else if Bsyntax.Qid.equal l f_qid
+        then false
+        else conversion_error "boolean" v
         
 (* --------- constructors for functions on run-time values ---------- *)
+let mk_sfun b f = Fun(b,(fun v -> f (get_s v)))
 
-(* mk_sfun: Info.t -> S.sort -> (Info.t -> RS.t -> t) -> t
- * 
- * [mk_sfun i s f] takes a [RS.t -> t] function and yields a [t]
- * function that expects its argument to actually be an [SString]. [i] is
- * used to report errors when the argument has a different sort. 
- *)
-let mk_sfun i f = Fun(i,(fun i v -> f i (get_s v i)))
+let mk_rfun b f = Fun(b,(fun v -> f (get_r v)))
 
-(* mk_rfun: Info.t -> S.sort (Info.t -> R.t -> t) -> t
- * 
- * [mk_rfun i s f] takes a [L.rx.t -> t] function and yields a [t]
- * function that expects its argument to actually be a [SRegexp]. [i] is
- * used to report errors when the argument has a different sort.
- *)
-let mk_rfun i f = Fun(i,(fun i v -> f i (get_r v i)))
+let mk_lfun b f = Fun(b,(fun v -> f (get_l v)))
 
-(* mk_lfun: Info.t -> S.sort -> (Info.t -> L.t -> t) -> t
- * 
- * [mk_lfun i s f] takes a [L.Lens.t -> t] function and yields a [t]
- * function that expects its argument to actually be an [SLens]. [i] is
- * used to report errors when the argument has a different sort.
- *)
-let mk_lfun i f = Fun(i,(fun i v -> f i (get_l v i)))
+let mk_cfun b f = Fun(b,(fun v -> f (get_c v)))
 
-(* mk_cfun: Info.t -> S.sort -> (Info.t -> C.t -> t) -> t
- * 
- * [mk_cfun i s f] takes a [C.t -> t] function and yields a [t]
- * function that expects its argument to actually be an [SCanonizer]. [i] is
- * used to report errors when the argument has a different sort.
- *)
-let mk_cfun i f = Fun(i,(fun i v -> f i (get_c v i)))
+let mk_ufun b f = Fun(b,(fun v -> f (get_u v)))
 
-(* mk_ufun: Info.t -> S.sort -> (Info.t -> unit -> t) -> t
- * 
- * [mk_ufun i s f] takes a [unit -> t] function and yields a [t]
- * function that expects its argument to actually be an [SUnit]. [i] is
- * used to report errors when the argument has a different sort.
- *)
-let mk_ufun i f = Fun(i,(fun i v -> f i (get_u v i)))
-
-(* mk_poly_fun: Info.t -> S.sort -> (Info.t -> t -> t) -> t
- * 
- * [mk_poly_fun i s f] takes a [t -> t] function and yields a [t]
- * function. [i] is used to report errors.  
- *)
-let mk_poly_fun i f = Fun(i,f)
+let mk_poly_fun b f = Fun(b,f)
 
 let parse_uid s = 
   let lexbuf = Lexing.from_string s in

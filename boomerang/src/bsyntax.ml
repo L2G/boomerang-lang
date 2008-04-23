@@ -20,19 +20,23 @@
 (*******************************************************************************)
 
 (* ----- imports and abbreviations ----- *)
-type i = Info.t
 let (@) = Safelist.append 
 let sprintf = Printf.sprintf
 let msg = Util.format
 
 (* ------ identifiers ------ *)
 module Id = struct
-  type t = i * string 
+  (* identifiers record parsing information with a string *)
+  type t = Info.t * string 
+  (* constructor *)
+  let mk i s = (i,s)
+  (* accessors *)
   let info_of_t (i,_) = i
   let string_of_t (_,s) = s
-  let mk i s = (i,s)
+  (* comparisons *)
   let compare (_,x1) (_,x2) = compare x1 x2
   let equal i1 i2 = compare i1 i2 = 0
+  (* constaints *)
   let wild = (Info.M "_", "_")
 end
 
@@ -93,22 +97,15 @@ end
 
 (* ----- sorts, parameters, expressions ----- *)
 
-(* base sorts, used in constrained set *)
+(* base sorts, used in constrained types *)
 type base_sort = Unt | Str | Reg | Lns | Can
-
-(* base sort sets *)
 module BSSet = Set.Make(
   struct
     type t = base_sort
     let compare = Pervasives.compare
   end)
 
-(* sbset_of_sl: convert a list of base_sorts to a BSSet.t *)
-let sbset_of_sl l = 
-  Safelist.fold_left 
-    (fun s si -> BSSet.add si s) 
-    BSSet.empty l 
-
+(* sorts *)
 type sort = 
     | SUnit                             (* unit *)
     | SString                           (* strings *)
@@ -122,15 +119,21 @@ type sort =
     | SRawVar of Id.t                   (* parsed sort variables *)
     | SRefine of Id.t * sort * exp      (* refinements *)
 
+(* sort variables: an updateable ref cell, and a unique identifier *)
 and svar = sbnd ref * int
 
+(* bound of a sort variable: free, bound to a sort, or constrained by
+   a set of base sorts *)
 and sbnd = Fre | Bnd of sort | Con of BSSet.t
 
-and param = Param of i * Id.t * sort
+(* parameters *)
+and param = Param of Info.t * Id.t * sort
 
-and binding = Bind of i * pat * sort option * exp
+(* variable binding *)
+and binding = Bind of Info.t * pat * sort option * exp
 
-and desc = 
+(* expression syntax *)
+and exp_desc = 
     (* lambda calculus *)
     | EApp of exp * exp 
     | EVar of Qid.t 
@@ -147,18 +150,21 @@ and desc =
     | ECSet of bool * (Bstring.sym * Bstring.sym) list 
 
 and pat = 
-  | PWld of i
-  | PUnt of i
-  | PVar of i * Qid.t * sort option
-  | PVnt of i * Qid.t * pat option 
-  | PPar of i * pat * pat
+  | PWld of Info.t 
+  | PUnt of Info.t 
+  | PVar of Info.t * Qid.t * sort option
+  | PVnt of Info.t * Qid.t * pat option 
+  | PPar of Info.t * pat * pat
 
-and exp = 
-    { info: i;
-      desc: desc;
-      sorto: sort option }
+and ('a,'b) syntax = 
+    { info: Info.t;
+      desc: 'a;
+      sorto: 'b }
+
+and exp = (exp_desc, sort option) syntax
 
 let mk_exp i d = { info=i; desc=d; sorto=None }
+
 let mk_checked_exp i d s = { info=i; desc=d; sorto=Some s }
 
 (* variable sets *)
@@ -198,17 +204,16 @@ type test_result =
 
 (* declarations *)
 type decl = 
-    | DLet of i * binding  
-    | DType of i * sort list * Id.t * (Id.t * sort option) list 
-    | DMod of i * Id.t * decl list 
-    | DTest of i * exp * test_result
+    | DLet of Info.t * binding  
+    | DType of Info.t * sort list * Id.t * (Id.t * sort option) list 
+    | DMod of Info.t * Id.t * decl list 
+    | DTest of Info.t * exp * test_result
         
 (* modules *)
-type modl = Mod of i * Id.t * Id.t list * decl list
+type modl = Mod of Info.t * Id.t * Id.t list * decl list
 
-(* infix constructor for functions *)
+(* infix constructor for non-dependent functions *)
 let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
-
 
 (* sv_equal: true iff the two variables are equal *)
 let sv_equal (_,x) (_,y) = x=y
@@ -241,13 +246,8 @@ let free_vars_sort s : VSet.t = assert false
 (* info accessors *)
 let info_of_exp e0 = e0.info
       
-let info_of_pat = function
-  | PWld(i)     -> i
-  | PUnt(i)     -> i
-  | PVar(i,_,_)   -> i
-  | PVnt(i,_,_) -> i
-  | PPar(i,_,_) -> i
-
+let info_of_pat p0 = match p0 with 
+  | PUnt(i) | PWld(i) | PVar(i,_,_) | PPar(i,_,_) | PVnt(i,_,_) -> i
 
 let info_of_module = function
   | Mod(i,_,_,_) -> i

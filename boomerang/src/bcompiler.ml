@@ -163,7 +163,7 @@ struct
   type t = CEnv.t
   type v = sort_or_scheme 
 
-  let dummy_value = Bvalue.Unt (Info.M "dummy value") 
+  let dummy_value = Bvalue.Unt (V.Pos (Info.M "dummy value"))
   let empty = CEnv.empty        
   let get_ev = CEnv.get_ev
   let set_ev = CEnv.set_ev   
@@ -564,8 +564,46 @@ let check_module = function
       Mod(i,m,nctx,new_ds)
  
 (* --------------- Compiler --------------- *)
+(* checking of refinement types *)
+let rec instrument cev s0 v0 = match s0 with 
+  | SProduct(s1,s2) -> 
+      begin match v0 with
+        | V.Par(b,v1,v2) -> 
+            let v1' = instrument cev s1 v1 in 
+            let v2' = instrument cev s2 v2 in 
+              V.Par(b,v1',v2')
+        | _ -> assert false
+      end
+  | SFunction(dep,s1,s2) -> 
+      begin match v0 with 
+        | V.Fun(b,f) -> 
+            let f' x = 
+              let x' = instrument cev s1 (V.merge_blame b x) in
+              let r = f x' in
+              let cod_cev = CEnv.update cev (Qid.t_of_id dep) (Sort s1, x') in
+                instrument cod_cev s2 (V.install_blame b r) in 
+            V.Fun(b,f')
+        | _ -> assert false
+      end
+  | SRefine(x,s1,e1) -> 
+      let cev' = CEnv.update cev (Qid.t_of_id x) (Sort s1, v0) in
+      let (_,pred) = compile_exp cev' e1 in
+      if V.get_b pred then v0 else 
+        begin 
+          (* BLAME! *)
+          raise 
+            (Error.Harmony_error
+               (fun () -> 
+                  Util.format "%s: %s did not have sort %s"
+                    (Info.string_of_t (V.info_of_t v0))
+                    (V.string_of_t v0)
+                    (string_of_sort s0)))
+        end
+  | SData _ -> assert false
+  | _ -> v0
+
 (* expressions *)
-let rec compile_exp cev e0 = match e0.desc,e0.sorto with 
+and compile_exp cev e0 = match e0.desc,e0.sorto with 
   | EVar(q),Some s0 ->       
       begin match s0,CEnv.lookup cev q with
         | SRegexp,Some(_,v) -> 
@@ -573,8 +611,8 @@ let rec compile_exp cev e0 = match e0.desc,e0.sorto with
                it right, the environment needs to maintain a list of
                already-def'd regexps that it can rename.  --JNF *)
             let x = Qid.string_of_t q in 
-            let r' = Bregexp.set_str (Bvalue.get_r v e0.info) x in
-            let rv' = SRegexp, Bvalue.Rx(e0.info,r') in 
+            let r' = Bregexp.set_str (Bvalue.get_r v) x in
+            let rv' = SRegexp, Bvalue.Rx(V.blame_of_info e0.info,r') in 
               rv'
         | _,Some(_,v) -> (s0,v)
         | _,None -> run_error e0.info 
@@ -585,7 +623,7 @@ let rec compile_exp cev e0 = match e0.desc,e0.sorto with
       let s1,v1 = compile_exp cev e1 in
       let _,v2 = compile_exp cev e2 in
         begin match v1 with
-          | Bvalue.Fun(_,f) -> (s0, f e0.info v2)
+          | Bvalue.Fun(_,f) -> (s0,f v2)
           | _   -> 
               run_error e0.info 
                 (fun () -> 
@@ -601,18 +639,18 @@ let rec compile_exp cev e0 = match e0.desc,e0.sorto with
           
   | EFun(p,Some ret_sort,e),Some s0 ->
       let p_sort = sort_of_param p in 
-      let f_impl i v =
+      let f_impl v =
         let p_qid = Qid.t_of_id (id_of_param p) in 
         let body_cev = CEnv.update cev p_qid (Sort p_sort, v) in
           snd (compile_exp body_cev e) in 
-        (s0, (Bvalue.Fun (e0.info,f_impl)))
+        (s0, (Bvalue.Fun (V.blame_of_info e0.info,f_impl)))
 
-  | EUnit,_ -> (SUnit,Bvalue.Unt e0.info)
+  | EUnit,_ -> (SUnit,Bvalue.Unt (V.blame_of_info e0.info))
 
   | EPair(e1,e2),Some s0 -> 
       let _,v1 = compile_exp cev e1 in 
       let _,v2 = compile_exp cev e2 in 
-        (s0,Bvalue.Par(e0.info,v1,v2))
+        (s0,Bvalue.Par(V.blame_of_info e0.info,v1,v2))
 
   | ECase(e1,pl),_ -> 
       let _,v1 = compile_exp cev e1 in 
@@ -628,11 +666,11 @@ let rec compile_exp cev e0 = match e0.desc,e0.sorto with
         cev binds in 
         compile_exp ei_cev ei
 
-  | EString(s),_ -> (SString,Bvalue.Str(e0.info,s))
+  | EString(s),_ -> (SString,Bvalue.Str(V.blame_of_info e0.info,s))
 
   | ECSet(pos,cs),_ -> 
       let mk_r = if pos then R.set else R.negset in 
-        (SRegexp,Bvalue.Rx (e0.info, mk_r cs))
+        (SRegexp,Bvalue.Rx (V.blame_of_info e0.info, mk_r cs))
 
   | _ -> 
       run_error (info_of_exp e0)
@@ -681,11 +719,13 @@ let rec compile_decl cev ms d0 = match d0 with
            let ql = Qid.t_of_id l in 
            let qml = Qid.t_dot_id (CEnv.get_mod cev) l in 
            let rv = match so with 
-             | None -> (x_scheme,V.Vnt(i,qx,qml,None))
+             | None -> (x_scheme,V.Vnt(V.blame_of_info i,qx,qml,None))
              | Some s -> 
                  let sf = SFunction(Id.wild,s,x_sort) in 
                  let sf_scheme = Scheme (svs,sf) in                    
-                 (sf_scheme, V.Fun(i,(fun i v -> V.Vnt(i,qx,qml,Some v)))) in 
+                 (sf_scheme, 
+                  V.Fun(V.blame_of_info i,
+                        (fun v -> V.Vnt(V.blame_of_t v,qx,qml,Some v)))) in 
            CEnv.update cev ql rv)
         cev cl in 
       let qcl = Safelist.map (fun (x,so) -> (Qid.t_of_id x,so)) cl in 
@@ -736,12 +776,12 @@ let rec compile_decl cev ms d0 = match d0 with
                        msg "@\nExpected@ "; format_sort SLens;
                        msg "@ but found@ "; Bvalue.format v;
                        msg "@\n%!");
-                let l = Bvalue.get_l v i in 
+                let l = Bvalue.get_l v in 
                 let c,a = L.ctype l,L.atype l in 
                 let chk_eo r = function
                   | None -> true,"?"
                   | Some e -> 
-                      let expected = Bvalue.get_r (snd (compile_exp cev e)) i in 
+                      let expected = Bvalue.get_r (snd (compile_exp cev e)) in 
                       (R.equiv r expected, R.string_of_t expected) in 
                 let c_ok,c_str = chk_eo c e1o in 
                 let a_ok,a_str = chk_eo a e2o in 

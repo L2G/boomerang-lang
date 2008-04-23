@@ -153,12 +153,11 @@ let mk_assert = function
   | Some c, Some a -> 
       (fun i e -> mk_tern_op i (mk_prelude_var "assert") c a e)
 
-let rec fixup_pat i = function
-  | PVnt(_,_,Some _) -> syntax_error i "illegal pattern"
+let rec fixup_pat i p0 = match p0 with 
+  | PVnt(i,_,Some _) -> syntax_error i "illegal pattern"
   | PVnt(i,x,None) -> PVar(i,x,None)
   | PPar(i,p1,p2)  -> PPar(i,fixup_pat i p1, fixup_pat i p2)
-  | p -> p 
-
+  | _ -> p0
 
 let check_pat i p params = match p,params with 
   | PVar _,_ -> ()
@@ -448,7 +447,7 @@ pat:
   | UIDENT ppat
       { let i1,_ = $1 in 
         let i = mp2 i1 $2 in 
-        PVnt(i, Qid.t_of_id $1,Some $2) }
+         PVnt(i,Qid.t_of_id $1,Some $2) }
 
   | QIDENT ppat
       { let (i,qs) = $1 in 
@@ -467,7 +466,7 @@ ppat:
 
 apat:
   | UNDERLINE 
-      { PWld $1 }
+    { PWld($1) }
 
   | LPAREN RPAREN
       { PUnt (m $1 $2) }
@@ -482,7 +481,7 @@ apat:
 
   | QIDENT
       { let (i,qs) = $1 in 
-        PVnt(i,parse_qid i qs,None) }
+         PVnt(i,parse_qid i qs,None) }
 
   | LPAREN pat RPAREN
       { $2 }
