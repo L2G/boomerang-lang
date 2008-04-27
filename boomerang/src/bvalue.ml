@@ -42,7 +42,7 @@ type t =
     | Fun of b * (t -> t)
     | Unt of b
     | Par of b * t * t
-    | Vnt of b * S.Qid.t * S.Qid.t * t option
+    | Vnt of b * S.Qid.t * S.Id.t * t option
 
 (* blame_of_t : t -> b
  *
@@ -98,9 +98,10 @@ let rec equal v1 v2 = match v1,v2 with
   | Unt _, Unt _ -> true
   | Par(_,v1,v2),Par(_,v1',v2') -> 
       (equal v1 v1') && (equal v2 v2')
-  | Vnt(_,_,l,None), Vnt(_,_,l',None) -> S.Qid.equal l l'
-  | Vnt(_,_,l,Some v), Vnt(_,_,l',Some v') ->
-      (S.Qid.equal l l') && (equal v v')
+  | Vnt(_,qx,l,None), Vnt(_,qx',l',None) -> 
+      S.Qid.equal qx qx' && S.Id.equal l l'
+  | Vnt(_,qx,l,Some v), Vnt(_,qx',l',Some v') ->
+      (S.Qid.equal qx qx') && (S.Id.equal l l') && (equal v v')
   | Vnt _,Vnt _ -> false
   | _, _ -> 
       Error.simple_error (sprintf "Cannot test equality of values with different sorts.")
@@ -118,9 +119,9 @@ let rec format = function
       Util.format ",@ ";
       format v2;
       Util.format ")@]"
-  | Vnt(_,_,l,None) -> Util.format "%s" (S.Qid.string_of_t l)
+  | Vnt(_,_,l,None) -> Util.format "%s" (S.Id.string_of_t l)
   | Vnt(_,_,l,Some v) ->  
-      Util.format "@[(%s@ " (S.Qid.string_of_t l);
+      Util.format "@[(%s@ " (S.Id.string_of_t l);
       format v;
       Util.format ")@]"        
 
@@ -134,7 +135,7 @@ let rec sort_string_of_t = function
   | Fun _ -> "<function>"
   | Unt _ -> "unit"
   | Par(_,v1,v2) -> sprintf "(%s,%s)" (sort_string_of_t v1) (sort_string_of_t v2)
-  | Vnt(_,l,_,_) -> sprintf "%s" (S.Qid.string_of_t l)
+  | Vnt(_,qx,_,_) -> sprintf "%s" (S.Qid.string_of_t qx)
 
 (* --------- conversions between run-time values ---------- *)
 let conversion_error s1 v1 = 
@@ -182,13 +183,13 @@ let get_v v = match v with
   | _ -> conversion_error "variant" v
 
 let get_b v = 
-  let t_qid = Bsyntax.Qid.mk_prelude_t "True" in 
-  let f_qid = Bsyntax.Qid.mk_prelude_t "False" in 
+  let t_id = Bsyntax.Id.mk (Info.M "True built-in") "True" in 
+  let f_id = Bsyntax.Id.mk (Info.M "False built-in") "False" in 
   match get_v v with
     | (l,_) -> 
-        if Bsyntax.Qid.equal l t_qid
+        if Bsyntax.Id.equal l t_id
         then true
-        else if Bsyntax.Qid.equal l f_qid
+        else if Bsyntax.Id.equal l f_id
         then false
         else conversion_error "boolean" v
         

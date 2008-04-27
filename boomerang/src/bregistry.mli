@@ -44,7 +44,7 @@ module REnv : sig
   type t
   val empty : unit -> t
   val lookup : t -> Bsyntax.Qid.t -> rv option
-  val lookup_type: t -> Bsyntax.Qid.t -> tspec option
+  val lookup_type: t -> Bsyntax.Qid.t -> Bsyntax.Qid.t option
   val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val update : t -> Bsyntax.Qid.t -> rv -> t
   val update_type : t -> Bsyntax.svar list -> Bsyntax.Qid.t -> tcon list -> t
@@ -84,10 +84,10 @@ val lookup_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> rv option
 val lookup_library : Bsyntax.Qid.t -> rv option
 (** [lookup_library q] looks up [q] from the library *)
 
-val lookup_type_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> tspec option
+val lookup_type_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> Bsyntax.Qid.t option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
-val lookup_type_library : Bsyntax.Qid.t -> tspec option
+val lookup_type_library : Bsyntax.Qid.t -> Bsyntax.Qid.t option
 (** [lookup_library q] looks up [q] from the library *)
 
 val lookup_con_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option

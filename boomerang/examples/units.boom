@@ -33,7 +33,15 @@ test l put "a" into "b" = "a"
 let R = /abc\// 
 test del R get "abc/" = ""
 
-type super = Left of unit | Right of string
+let l : string List.t = List.Cons ("",List.Nil)
+
+test List.fold_left 
+       (fun s1 s2 -> s1 . s2) 
+       "" 
+       (List.Cons ("a",List.Cons ("b",List.Cons("c",List.Nil)))) 
+= "cba"
+
+type mm = Left of unit | Right of string
 
 let myf x y = match x with
   | Prelude.Left _ -> True
@@ -127,6 +135,8 @@ test length [A-Z] put "(ABCD,6)" into "ABCDEF" = "ABCD"
 
 type mytype = A | B of regexp | C of unit
 
+
+(* 
 type string_list = Nil | Cons of string * string_list
   
 let l = Cons("nate", Cons ("foster", Nil))
@@ -143,7 +153,7 @@ let tl (l:string_list) (def:string_list) : string_list =
     
 test "ln1 is: [" . hd l "" . "]" = "ln1 is: [nate]"
 test "ln2 is: [" . (hd (tl l Nil) "") . "]" = "ln2 is: [foster]"
-
+*)
 let x = B (str "nate")
 
 let y = match x with 

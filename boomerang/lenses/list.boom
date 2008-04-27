@@ -4,9 +4,3 @@ type 'a t = Nil | Cons of 'a * 'a t
 
 let fold_left : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a = 
   Native.Prelude.fold_left 
-
-test fold_left 
-       (fun s1 s2 -> s1 . s2) 
-       "" 
-       (Cons ("a",Cons ("b",Cons("c",Nil)))) 
-= "cba"

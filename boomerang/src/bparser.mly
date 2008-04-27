@@ -153,13 +153,13 @@ let mk_assert = function
   | Some c, Some a -> 
       (fun i e -> mk_tern_op i (mk_prelude_var "assert") c a e)
 
-let rec fixup_pat i p0 = match p0 with 
-  | PVnt(i,_,Some _) -> syntax_error i "illegal pattern"
-  | PVnt(i,x,None) -> PVar(i,x,None)
-  | PPar(i,p1,p2)  -> PPar(i,fixup_pat i p1, fixup_pat i p2)
+let rec fixup_pat i p0 = match p0.desc with 
+  | PVnt(_,Some _) -> syntax_error i "illegal pattern"
+  | PVnt(x,None) -> mk_pat i (PVar x)
+  | PPar(p1,p2)  -> mk_pat i (PPar(fixup_pat i p1, fixup_pat i p2))
   | _ -> p0
 
-let check_pat i p params = match p,params with 
+let check_pat i p params = match p.desc,params with 
   | PVar _,_ -> ()
   | _,_::_ -> syntax_error i "illegal pattern" 
   | _ -> ()  
@@ -189,7 +189,7 @@ let check_pat i p params = match p,params with
 /* --------- MODULES ---------- */
 modl: 
   | MODULE UIDENT EQUAL opens decls EOF
-      { Mod(m $1 $6,$2,$4,$5) }
+      { mk_mod (m $1 $6) (Mod($2,$4,$5)) }
 opens:
   | OPEN UIDENT opens  
       { $2::$3 }
@@ -199,14 +199,14 @@ opens:
 decls:      
   | TYPE svar_list LIDENT EQUAL dtsort_list decls
       { let i = m $1 $4 in 
-        DType(i,$2,$3,$5)::$6 }
+        mk_decl i (DType($2,Qid.t_of_id $3,$5))::$6 }
 
   | LET ppat param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
         let p = fixup_pat i $2 in
         let () = check_pat i p $3 in 
         let f,so = mk_fun i $3 $5 None in 
-        DLet(i,Bind(i,p,so,f))::$6 }
+        mk_decl i (DLet(Bind(i,p,so,f)))::$6 }
 
   | LET ppat param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
@@ -214,20 +214,24 @@ decls:
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
         let f,so = mk_fun i $3 (ef $4 $7) (Some s) in 
-        DLet(i,Bind(i,p,so,f))::$8 }
+        mk_decl i (DLet(Bind(i,p,so,f)))::$8 }
 
   | MODULE UIDENT EQUAL decls END decls 
-      { DMod(m $1 $5,$2,$4)::$6 }
+      { let i = m $1 $5 in 
+        mk_decl i (DMod($2,$4))::$6 }
 
   | TEST exp EQUAL test_res decls
-      { let i,tr = $4 in 
-        DTest(m $1 i,$2,tr)::$5 }
+      { let i4,tr = $4 in 
+        let i = m $1 i4 in 
+        mk_decl i (DTest($2,tr))::$5 }
 
   | TEST exp COLON test_type decls
-      { DTest(m $1 $3,$2,$4)::$5 }
+      { let i = m $1 $3 in 
+        mk_decl i (DTest($2,$4))::$5 }
 
   | TEST exp COLON ERROR decls 
-      { DTest(m $1 $4,$2,TestError)::$5 }
+      { let i = m $1 $4 in 
+        mk_decl i (DTest($2,TestError))::$5 }
       
   | { [] }
 
@@ -447,11 +451,11 @@ pat:
   | UIDENT ppat
       { let i1,_ = $1 in 
         let i = mp2 i1 $2 in 
-         PVnt(i,Qid.t_of_id $1,Some $2) }
+         mk_pat i (PVnt(Qid.t_of_id $1,Some $2)) }
 
   | QIDENT ppat
       { let (i,qs) = $1 in 
-        PVnt(i,parse_qid i qs,Some $2) }
+        mk_pat i (PVnt(parse_qid i qs,Some $2)) }
 
   | ppat
       { $1 }
@@ -459,29 +463,29 @@ pat:
 ppat:
   | ppat COMMA apat
       { let i = mp $1 $3 in 
-        PPar(i,$1,$3) }
+        mk_pat i (PPar($1,$3)) }
 
   | apat
       { $1 }
 
 apat:
   | UNDERLINE 
-    { PWld($1) }
+    { mk_pat $1 PWld }
 
   | LPAREN RPAREN
-      { PUnt (m $1 $2) }
+    { mk_pat (m $1 $2) PUnt }
 
   | UIDENT
       { let i,_ = $1 in 
-        PVnt(i,Qid.t_of_id $1,None) }
+        mk_pat i (PVnt(Qid.t_of_id $1,None)) }
       
   | LIDENT
       { let i,_ = $1 in 
-        PVar(i,Qid.t_of_id $1,None) }
+        mk_pat i (PVar(Qid.t_of_id $1)) }
 
   | QIDENT
       { let (i,qs) = $1 in 
-         PVnt(i,parse_qid i qs,None) }
+        mk_pat i (PVnt(parse_qid i qs,None)) }
 
   | LPAREN pat RPAREN
       { $2 }

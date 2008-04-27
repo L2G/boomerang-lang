@@ -52,7 +52,7 @@ sig
   type t
   val empty : unit -> t
   val lookup : t -> Bsyntax.Qid.t -> rv option
-  val lookup_type: t -> Bsyntax.Qid.t -> tspec option
+  val lookup_type: t -> Bsyntax.Qid.t -> Bsyntax.Qid.t option
   val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val update : t -> Bsyntax.Qid.t -> rv -> t
   val update_type : t -> Bsyntax.svar list -> Bsyntax.Qid.t -> tcon list -> t
@@ -87,12 +87,18 @@ struct
       Some r -> Some (!r)
     | None -> None
 
-  let lookup_type ((tm,_),_) q = QM.lookup tm q
-
+  let lookup_type ((tm,_),_) q = 
+(*     Util.format "LOOKUP_TYPE %s {@[@\n" (Bsyntax.Qid.string_of_t q); *)
+(*     QM.iter (fun q _ -> Util.format "%s defined@\n" (Bsyntax.Qid.string_of_t q)) tm; *)
+(*     Util.format "@]}@\n"; *)
+    match QM.lookup tm q with
+      | None -> None
+      | Some _ -> Some q
+      
   let lookup_con ((tm,rm),_) q = match QM.lookup rm q with 
     | None -> None
     | Some q' -> begin match QM.lookup tm q' with 
-        | None -> Berror.run_error (Info.M "Renv.lookup_con") 
+        | None -> Berror.run_error (Info.M "Bregistry.lookup_con") 
             (fun () -> Util.format "datatype %s missing" 
                (Bsyntax.Qid.string_of_t q'))
         | Some (sl,cl) -> Some (q',(sl,cl))
@@ -163,11 +169,10 @@ let register_native qs s v =
 (* register a whole (rv Env.t) in m *)
 let register_env ev m = 
   REnv.iter (fun q r -> register (Bsyntax.Qid.id_dot m q) r) ev;  
-  REnv.iter_type 
-    (fun q ts -> 
-       let (svl,cl) = ts in 
-       let cl' = Safelist.map (fun (x,so) -> (Bsyntax.Qid.id_dot m x,so)) cl in 
-       register_type (Bsyntax.Qid.id_dot m q) (svl,cl')) ev
+  REnv.iter_type (fun q ts -> 
+                    let (svl,cl) = ts in 
+                    let cl' = Safelist.map (fun (x,so) -> (Bsyntax.Qid.id_dot m x,so)) cl in 
+                    register_type q (svl,cl')) ev
     
 (* --------------- Lookup functions -------------- *)
 
@@ -183,7 +188,7 @@ let boompath =
 
 (* get the filename that a module is stored at *)
 let get_module_prefix q = 
-  match Bsyntax.Qid.qualifiers q with 
+  match Bsyntax.Qid.qs_of_t q with 
     | [] -> None
     | n::_ -> Some n
 
@@ -256,6 +261,9 @@ let lookup_library_generic lookup_fun nctx q =
            (Bsyntax.Qid.string_of_t q)
            (Misc.concat_list "," (Safelist.map Bsyntax.Id.string_of_t nctx)));
   let rec lookup_library_aux nctx q2 =       
+    debug (fun () -> Util.format "lookup_library_aux [%s] [%s]@\n" 
+             (Bsyntax.Qid.string_of_t q2)
+             (Misc.concat_list "," (Safelist.map Bsyntax.Id.string_of_t nctx)));
     let try_lib () = lookup_fun !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
@@ -265,7 +273,8 @@ let lookup_library_generic lookup_fun nctx q =
               | Some r -> Some r
               | None -> match nctx with 
                   | []       -> None
-                  | o::orest -> lookup_library_aux orest (Bsyntax.Qid.id_dot o q) 
+                  | o::orest -> 
+                      lookup_library_aux orest (Bsyntax.Qid.id_dot o q) 
             end
   in
   lookup_library_aux nctx q

@@ -23,7 +23,7 @@
 module Prelude =
 
 (* polymorphic operators *)
-let copy : {'a:string,regexp,lens} => 'a -> lens = 
+let copy : {'a:string,regexp} => 'a -> lens = 
   Native.Prelude.copy
 let const : {'a:string,regexp} => 'a -> string -> string -> lens = 
   Native.Prelude.const 
@@ -33,7 +33,7 @@ let poly_concat : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> 'a =
   Native.Prelude.poly_concat
 let poly_union : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> 'a =
   Native.Prelude.poly_union
-let poly_iter : {'a:regexp,lens,canonizer} => 'a -> 'a = 
+let poly_iter : {'a:regexp,lens,canonizer} => 'a -> string -> string -> 'a = 
   Native.Prelude.poly_iter
 let poly_swap  : {'a:lens,canonizer} => 'a -> 'a -> 'a = 
   Native.Prelude.poly_swap

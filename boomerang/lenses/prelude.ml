@@ -453,13 +453,13 @@ let prelude_spec =
            | _            -> poly_bin_error (info_of_blame b) a a v1 v2)))
     end
   ; begin 
-    let nil = S.Qid.mk_list_t "Nil" in 
-    let cons = S.Qid.mk_list_t "Cons" in 
+    let nil = S.Id.mk (Info.M "Nil built-in") "Nil" in 
+    let cons = S.Id.mk (Info.M "Cons built-in") "Cons" in 
     let alpha = Bunify.fresh_svar S.Fre in 
     let beta = Bunify.fresh_svar S.Fre in 
     let al = S.SVar alpha in 
     let bt = S.SVar beta in 
-    let list_bt = S.SData([bt],S.Qid.mk_list_t "t") in 
+    let list_bt = S.SData([bt],S.Qid.mk_list_t "t") in      
     (S.Qid.mk_native_prelude_t "fold_left",
      S.mk_scheme [alpha] ((al ^> bt ^> al) ^> al ^> list_bt ^> al),
      let b = mk_prelude_blame "fold_left" in 
@@ -469,14 +469,15 @@ let prelude_spec =
            let f = get_f f0 in 
            let rec aux l acc = 
              let lbl,vo = get_v l in 
-             if S.Qid.equal lbl nil then acc
-             else if S.Qid.equal lbl cons then 
+             if S.Id.equal lbl nil then acc
+             else if S.Id.equal lbl cons then 
                let hd,tl = match vo with 
                  | None -> poly_error (info_of_blame b) list_bt l
                  | Some v -> get_p v in                
                let acc' = (get_f (f hd)) acc in 
                aux tl acc'
-             else poly_error (info_of_blame b) list_bt l in 
+             else 
+               poly_error (info_of_blame b) list_bt l in 
            aux l0 acc0))))
   end ]  
     
