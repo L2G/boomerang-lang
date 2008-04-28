@@ -31,18 +31,18 @@ module RS = Bstring
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append 
 
-type b = Pos of Info.t | NegPos of Info.t * Info.t
+type blame = Pos of Info.t | NegPos of Info.t * Info.t
 
 (* run-time values; correspond to each sort *)
 type t = 
-    | Str of b * RS.t 
-    | Rx  of b * R.t
-    | Lns of b * L.t
-    | Can of b * C.t
-    | Fun of b * (t -> t)
-    | Unt of b
-    | Par of b * t * t
-    | Vnt of b * S.Qid.t * S.Id.t * t option
+    | Str of blame * RS.t 
+    | Rx  of blame * R.t
+    | Lns of blame * L.t
+    | Can of blame * C.t
+    | Fun of blame * (t -> t)
+    | Unt of blame
+    | Par of blame * t * t
+    | Vnt of blame * S.Qid.t * S.Id.t * t option
 
 (* blame_of_t : t -> b
  *

@@ -1,6 +1,8 @@
 open Bsyntax
 open Bprint
 
+let msg = Util.format
+
 (* fresh variables *)
 let gensym_count = ref 0 
 let fresh_svar con = 

@@ -43,7 +43,8 @@ BOOMERANG_BASE_SOURCES[] = \
    crm.ml erx.ml \
    berror.ml bregexp.ml blenses.ml \
    bsyntax.mli bsyntax.ml \
-   bprint.ml bunify.mli bunify.ml bparser.mly blexer.mll bvalue.ml \
+   bprint.mli bprint.ml bunify.mli bunify.ml \
+   bparser.mly blexer.mll bvalue.mli bvalue.ml \
    bakery.ml bregistry.ml bcompiler.ml bdriver.ml \
    toplevel.ml
 
@@ -72,7 +73,7 @@ $(BINDIR)/$(RESULT)$(EXE): $(RESULT)$(EXE)
 # Miscellaneous
 
 clean:
-	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES)
+	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES) bakery.ml
 
 # If we are installing Harmony elsewhere, then we need to build a real
 # bakery.ml embedding all the focal files we might need.  But if we're
