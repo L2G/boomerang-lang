@@ -19,7 +19,7 @@
 (* $Id$ *)
 (*******************************************************************************)
 
-(** {2 Boomerang Abstract Syntax } *)
+(** {2 Boomerang Abstract Syntax} *)
 
 (** {2 Identifiers} *)
 module Id : sig
