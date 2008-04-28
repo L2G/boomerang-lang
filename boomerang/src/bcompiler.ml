@@ -582,7 +582,7 @@ let rec check_decl (_,sev) ms d0 = match d0.desc with
         (evs,[]) sl in 
       let new_sl = Safelist.rev new_sl_rev in 
       let svl = Bunify.svl_of_sl d0.info new_sl in 
-      let new_qx = Qid.splice_dot qm qx in 
+      let new_qx = Qid.t_dot_t qm qx in 
       (* put dummy in environment *)
       let sev2 = SCEnv.update_type sev1 svl new_qx [] in 
       (* resolve sorts in cl *)

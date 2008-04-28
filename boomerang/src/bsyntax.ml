@@ -74,9 +74,9 @@ module Qid = struct
   let equal q1 q2 = (compare q1 q2 = 0)
   (* operations *)      
   let id_dot x1 (qs2,x2) = (x1::qs2,x2)
-  let t_dot_id (qs1,x1) x2 = (qs1@[x1],x2)
   let splice_id_dot x1 (qs2,x2) = (qs2@[x1],x2)
-  let splice_dot (qs1,x1) (qs2,x2) = (qs1@x1::qs2,x2)
+  let t_dot_id (qs1,x1) x2 = (qs1@[x1],x2)
+  let t_dot_t (qs1,x1) (qs2,x2) = (qs1@x1::qs2,x2)
   let id_prefix q1 il2 = 
     let (is1,i1) = q1 in 
     let il1 = is1 @ [i1] in
@@ -97,7 +97,7 @@ end
 (* ----- sorts, parameters, expressions ----- *)
 
 (* base sorts: used to constrained type variables *)
-type base_sort = Unt | Str | Reg | Lns | Can
+type base_sort = Unt | Str | Int | Reg | Lns | Can
 
 (* sets of base sorts *)          
 module BSSet = Set.Make(
@@ -105,6 +105,8 @@ module BSSet = Set.Make(
     type t = base_sort
     let compare = Pervasives.compare
   end)
+
+type bs = BSSet.t 
 
 (* sorts *)
 type sort = 
@@ -125,7 +127,7 @@ type sort =
 and svar = int * sbnd ref
 
 (* sort variable: free, bound to sort, or constrained *)
-and sbnd = Fre | Bnd of sort | Con of BSSet.t
+and sbnd = Fre | Bnd of sort | Con of bs
 
 (* parameters *)
 and param = Param of Info.t * Id.t * sort
