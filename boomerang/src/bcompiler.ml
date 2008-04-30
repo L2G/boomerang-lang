@@ -906,6 +906,11 @@ and instrument_sort iev i s0 = match s0 with
       let svl,cl = match SCEnv.lookup_type (SCEnv.empty qx) qx with
         | None -> run_error i (fun () -> msg "@[unbound type %s]" (Qid.string_of_t qx))
         | Some (_,ts) -> ts in 
+      let s0_inst,cl_inst = Bunify.instantiate_cases i (qx,(svl,cl)) in
+      let s0_inst' = translate_sort s0_inst in 
+      let () = 
+        if not (Bunify.unify i s0' s0_inst') then 
+          run_error i (fun () -> msg "@[unexpected error instrumenting %s]" (string_of_sort s0)) in 
       let cl_rev' = 
         Safelist.fold_left 
           (fun acc tc -> match tc with
@@ -922,7 +927,7 @@ and instrument_sort iev i s0 = match s0 with
                   mk_checked_app i 
                     (mk_checked_var i q (Sort (SFunction(Id.wild,s',s0'))))
                     (mk_checked_app i s_checker ex))::acc)
-          [] cl in 
+          [] cl_inst in 
       mk_checked_fun i v s0' 
         (mk_checked_case i ev (Safelist.rev cl_rev'))
 
@@ -1036,7 +1041,6 @@ let rec compile_decl cev ms d0 = match d0.desc with
         (bcev,xs)
   | DType(sl,qx,cl) -> 
       let x_sort = get_sort d0 in
-      (* get module qualifier *)
       let svl = Bunify.svl_of_sl d0.info sl in 
       let x_scheme = Scheme (svl,x_sort) in 
       let new_cev = Safelist.fold_left 
