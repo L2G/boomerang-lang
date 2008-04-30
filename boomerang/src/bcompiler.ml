@@ -3,7 +3,7 @@
 (* harmony@lists.seas.upenn.edu                                                *)
 (*******************************************************************************)
 (* Copyright (C) 2007-2008                                                     *)
-(* J. Nathan Foster, Alexandre Pilkiewicz, and Benjamin C. Pierce              *)
+(* J. Nathan Foster and Benjamin C. Pierce                                     *)
 (*                                                                             *)
 (* This library is free software; you can redistribute it and/or               *)
 (* modify it under the terms of the GNU Lesser General Public                  *)
@@ -39,6 +39,56 @@ let s_of_rv = Bregistry.sort_or_scheme_of_rv
 let v_of_rv = Bregistry.value_of_rv 
 let p_of_rv rv = (s_of_rv rv, v_of_rv rv)
 let mk_rv = Bregistry.make_rv
+
+(* --------------- AST utilities --------------- *)
+(* lookup a sort *)
+let get_sort e0 = match e0.annot with
+  | None -> run_error e0.info 
+      (fun () -> msg "@[Unchecked expression@]")
+  | Some s -> s
+        
+let mk_checked_var i q ss = 
+  let s = match ss with
+    | Sort(s) -> s
+    | Scheme(ss) -> 
+        let _,s = Bunify.instantiate i ss in
+        s in 
+  mk_checked_exp i (EVar(q)) s
+
+let mk_checked_app i e1 e2 =
+  let s = match get_sort e1 with
+    | SFunction(_,_,s2) -> s2
+    | _ -> 
+        run_error i 
+          (fun () -> msg "@[expected function sort@]") in
+  mk_checked_exp i (EApp(e1,e2)) s
+
+let mk_checked_app3 i e1 e2 e3 = 
+  mk_checked_app i (mk_checked_app i e1 e2) e3
+
+let mk_checked_let i qx e1 e2 =
+  let s1 = get_sort e1 in
+  let s2 = get_sort e2 in
+  let p = mk_checked_pat i (PVar(qx)) s1 in
+  let b = Bind(i,p,e1) in
+  mk_checked_exp i (ELet(b,e2)) s2
+
+let mk_checked_fun i x s e1 =
+  let s1 = get_sort e1 in
+  let p = Param(i,x,s) in
+  mk_checked_exp i (EFun(p,Some(s1),e1)) (SFunction(Id.wild,s,s1))
+
+let mk_if i e0 e1 e2 =
+  let s1 = get_sort e1 in
+  let s2 = get_sort e2 in
+  if not (Bunify.unify i s1 s2)
+  then 
+    run_error i 
+      (fun () -> msg "@[both expressions in if must have the same sort@]");
+  let e = ECase(e0,
+                [(mk_pat i (PVnt(Qid.mk_prelude_t "True",None)),e1);
+                 (mk_pat i (PVnt(Qid.mk_prelude_t "False",None)),e2)]) in
+  mk_checked_exp i e s1
 
 (* --------------- Unit tests --------------- *)
 (* unit tests either succeed, yielding a value, or fail with a msg *)
@@ -187,13 +237,22 @@ struct
   let fold f sev a = CEnv.fold (fun q (s,_) a -> f q s a) sev a
 end
 
+let lookup_native_prelude_sort i s = 
+  let q = Qid.mk_native_prelude_t s in
+  let v = match Bregistry.lookup_library_ctx [] q with
+    | Some(rv) -> rv
+    | None -> run_error i (fun () -> msg "@[unbound variable %s@]" (Qid.string_of_t q)) in
+  s_of_rv v
+
 (* --------------- Sort Checking --------------- *)
 (* calculate the free sort variables in a compilation environment *)
 let cenv_free_svs i cev = 
   CEnv.fold 
     (fun _ (ss,_) acc -> match ss with 
        | Sort _ -> acc
-       | Scheme (svsi,si) -> SVSet.union acc (SVSet.diff (free_svs i si) svsi))
+       | Scheme (svli,si) -> 
+           let svsi = Bunify.svs_of_svl svli in
+           SVSet.union acc (SVSet.diff (free_svs i si) svsi))
     cev SVSet.empty
 
 (* calculate free variables in a sort checking environment *)
@@ -201,7 +260,9 @@ let scenv_free_svs i sev =
   SCEnv.fold 
     (fun _ ss acc -> match ss with 
        | Sort _ -> acc
-       | Scheme (svsi,si) -> SVSet.union acc (SVSet.diff (free_svs i si) svsi))
+       | Scheme (svli,si) -> 
+           let svsi = Bunify.svs_of_svl svli in 
+           SVSet.union acc (SVSet.diff (free_svs i si) svsi))
     sev SVSet.empty
 
 (* lookup a constructor *)
@@ -211,12 +272,6 @@ let get_con i sev li =
         (fun () -> msg "@[Unbound@ constructor@ %s@]" (Qid.string_of_t li))
     | Some r -> r
 
-(* lookup a sort *)
-let get_sort e0 = match e0.annot with
-  | None -> run_error e0.info 
-      (fun () -> msg "@[Unchecked expression@]")
-  | Some s -> s
-        
 (* static_match: determine if a value with a given sort *could* match
    a pattern; annotate PVars with their sorts, return the list of sort
    bindings for variables. *)
@@ -346,14 +401,18 @@ let rec check_exp evs e0 = match e0.desc with
   | EVar(q) ->
       let _,sev = evs in 
       (* lookup q in the environment *)
-      let e0_sort = match SCEnv.lookup sev q with
+      let e0_sort,new_e = match SCEnv.lookup sev q with
         | Some (Sort s) -> 
             (* if q is bound to a sort, return that sort *)
-            s
+            (s,e0)
         | Some (Scheme ss) -> 
-            (* if q is bound to a scheme, instantiate with fresh variables *)
-            let s = Bunify.instantiate e0.info ss in 
-            s
+            (* if q is bound to a scheme, instantiate with fresh variables, insert type applications. *)
+            let sl,s = Bunify.instantiate e0.info ss in 
+            let new_e0 = Safelist.fold_left 
+              (* !!! the eis can be unchecked, but it is ugly! *)
+              (fun ei si -> mk_exp e0.info (ETyApp(ei,si)))
+              e0 sl in 
+              (s,new_e0)
         | None -> 
             (* otherwise, q is unbound, so raise an exception *)
             sort_error e0.info
@@ -390,6 +449,10 @@ let rec check_exp evs e0 = match e0.desc with
       let e0_sort = SFunction(dep_x,new_param_sort,body_sort) in 
       let new_e0 = EFun(Param(pi,px,new_param_sort),Some body_sort,new_body) in         
       (new_evs,e0_sort,mk_checked_exp e0.info new_e0 e0_sort)
+
+  | ETyFun _ | ETyApp _ -> 
+      sort_error e0.info
+        (fun () -> msg "@[unexpected type abstraction / application@]")
 
   | ELet(b,e) ->
       (* for let-expressions, check the bindings *)
@@ -500,46 +563,59 @@ let rec check_exp evs e0 = match e0.desc with
       let new_e0 = ECase(new_e1,Safelist.rev new_pl_rev) in 
       (new_evs,e0_sort,mk_checked_exp e0.info new_e0 e0_sort)
         
-and check_binding evs b = 
-    match b with 
-    | Bind(i,p,sorto,e) ->
-        let new_evs,e_sort,new_e = match sorto with 
-          | None -> 
-              (* if no declared sort, then just check the exp *)
-              check_exp evs e
-        | Some s ->             
-            (* otherwise, resolve the sort and check the exp *)
-            let evs1,new_s = resolve_sort i evs s in
-            let evs2,e_sort,new_e = check_exp evs1 e in
-            (* and make sure that declared and inferred sorts are compatible *)            
-            if not (Bunify.unify i e_sort new_s) then
-              sort_error i
-                (fun () ->
-                   msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
-                     (string_of_sort new_s)
-                     (string_of_sort e_sort));
-            (evs2,e_sort,new_e) in
-      (* then calculate bindings for variables mentioned in p *)
-      let new_tev,new_sev = new_evs in
-      let bindso = static_match i new_sev p e_sort in
-      let sev2,xs_rev = match bindso with
-        | None ->
-            (* if pattern does not match the sort, raise an exception *)
-            sort_error i
-              (fun () -> msg "@[pattern@ %s@ does@ not@ match@ sort@ %s@]"
-                 (string_of_pat p)
-                 (string_of_sort e_sort))
-        | Some binds ->
-            (* otherwise extend the environment with the new bindings *)
-            Safelist.fold_left
-              (fun (sevi,xs) (q,s) -> 
-                 let sev_fsvs = scenv_free_svs i sevi in 
-                 let q_scheme = Scheme(Bunify.generalize i sev_fsvs s) in 
-                 let sevi2 = SCEnv.update sevi q q_scheme in 
-                 (sevi2, q::xs))
-              (new_sev,[]) binds in
-      let new_b = Bind(i,p,Some e_sort,new_e) in
-      ((new_tev,sev2),Safelist.rev xs_rev,new_b)
+and check_binding evs = function
+  | Bind(i,p,e) -> 
+      match p.desc with
+        | PVar(qx) -> 
+            let evs1,e_sort,new_e = check_exp evs e in
+            let evs2 = match p.annot with
+              | None -> evs1 
+              | Some s -> 
+                  let evs2,s' = resolve_sort i evs s in 
+                  if not (Bunify.unify i e_sort s') then
+                    sort_error i
+                      (fun () ->
+                         msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
+                           (string_of_sort s')
+                           (string_of_sort e_sort));
+                  evs2 in 
+            let () = p.annot <- Some e_sort in 
+            let tev2,sev2 = evs2 in 
+            let sev_fsvs = scenv_free_svs i sev2 in
+            let e_scheme = Bunify.generalize i sev_fsvs e_sort in 
+            let sev3 = SCEnv.update sev2 qx (Scheme e_scheme) in 
+            (* insert type abstractions *)
+            let final_e = 
+              Safelist.fold_right 
+                (fun svi ei -> mk_exp i (ETyFun(svi,ei)))
+                (fst e_scheme) new_e in 
+            let new_b = Bind(i,p,final_e) in 
+            ((tev2,sev3),[qx],new_b)              
+          | _ -> 
+              sort_error i 
+                (fun () -> msg "@[in@ let-binding: pattern must be a variable@]") 
+
+(** old code for handling patterns in lets **)
+(*       (\* then calculate bindings for variables mentioned in p *\) *)
+(*       let new_tev,new_sev = new_evs in *)
+(*       let bindso = static_match i new_sev p e_sort in *)
+(*       let sev2,xs_rev = match bindso with *)
+(*         | None -> *)
+(*             (\* if pattern does not match the sort, raise an exception *\) *)
+(*             sort_error i *)
+(*               (fun () -> msg "@[pattern@ %s@ does@ not@ match@ sort@ %s@]" *)
+(*                  (string_of_pat p) *)
+(*                  (string_of_sort e_sort)) *)
+(*         | Some binds -> *)
+(*             (\* otherwise extend the environment with the new bindings *\) *)
+(*             Safelist.fold_left *)
+(*               (fun (sevi,xs) (q,s) ->  *)
+(*                  let sev_fsvs = scenv_free_svs i sevi in  *)
+(*                  let q_scheme = Scheme(Bunify.generalize i sev_fsvs s) in  *)
+(*                  let sevi2 = SCEnv.update sevi q q_scheme in  *)
+(*                  (sevi2, q::xs)) *)
+(*               (new_sev,[]) binds in *)
+
 
 (* type check a single declaration *)
 let rec check_decl (_,sev) ms d0 = match d0.desc with
@@ -678,47 +754,106 @@ let check_module m0 =
       let _,_,new_ds = check_module_aux (tev,sev) [m] ds in 
       mk_mod m0.info (Mod(m,nctx,new_ds))
           
-(* --------------- Compiler --------------- *)
-(* checking of refinement types *)
-let rec instrument cev s0 v0 = match s0 with 
-  | SProduct(s1,s2) -> 
-      begin match v0 with
-        | V.Par(b,v1,v2) -> 
-            let v1' = instrument cev s1 v1 in 
-            let v2' = instrument cev s2 v2 in 
-              V.Par(b,v1',v2')
-        | _ -> assert false
-      end
-  | SFunction(dep,s1,s2) -> 
-      begin match v0 with 
-        | V.Fun(b,f) -> 
-            let f' x = 
-              let x' = instrument cev s1 (V.merge_blame b x) in
-              let r = f x' in
-              let cod_cev = CEnv.update cev (Qid.t_of_id dep) (Sort s1, x') in
-                instrument cod_cev s2 (V.install_blame b r) in 
-            V.Fun(b,f')
-        | _ -> assert false
-      end
-  | SRefine(x,s1,e1) -> 
-      let cev' = CEnv.update cev (Qid.t_of_id x) (Sort s1, v0) in
-      let (_,pred) = compile_exp cev' e1 in
-      if V.get_b pred then v0 else 
-        begin 
-          (* BLAME! *)
-          raise 
-            (Error.Harmony_error
-               (fun () -> 
-                  Util.format "%s: %s did not have sort %s"
-                    (Info.string_of_t (V.info_of_t v0))
-                    (V.string_of_t v0)
-                    (string_of_sort s0)))
-        end          
-  | SData(sl1,q1) -> assert false
-  | _ -> v0
+(* --------------- Instrumentation --------------- *)
 
+module IEnv = Env.Make(
+  struct
+    type t = svar
+    let compare (x,_) (y,_) = Pervasives.compare x y
+    let to_string (x,_) = sprintf "'a_%d" x
+  end)
+
+let fresh_counter = ref 0 
+let fresh_var i l = 
+  let gen () = 
+    let x = !fresh_counter in 
+    let n = x / 26 in 
+    let s = 
+      sprintf "_%c%s" 
+        (Char.chr (97 + x mod 26))
+        (if n=0 then "" else string_of_int n) in 
+      incr fresh_counter;
+      Id.mk i s in 
+  (* generate fresh variables until we find one not in l *)
+  let rec loop x = 
+    if Safelist.exists (fun y -> Id.equal x y) l then loop (gen ()) 
+    else x in 
+  loop (gen ())
+   
+let rec translate_sort s0 = match s0 with
+  | SUnit | SString | SInteger | SRegexp 
+  | SLens | SCanonizer | SVar _ | SRawVar _ -> s0
+  | SFunction(dep,s1,s2) -> 
+      SFunction(Id.wild,translate_sort s1,translate_sort s2)
+  | SData(sl,qx) -> 
+      SData(Safelist.map translate_sort sl,qx)
+  | SProduct(s1,s2) -> 
+      SProduct(translate_sort s1,translate_sort s2)
+  | SRefine(_,s1,_) -> 
+      translate_sort s1
+
+and instrument_sort iev i s0 = match s0 with
+  | SVar(sv) -> begin
+      match IEnv.lookup iev sv with
+        | Some(q) -> 
+            (* !!! we can't be certain that s0' will be instantiated correctly *)
+            let s0' = translate_sort s0 in
+            mk_checked_var i q (Sort (SFunction(Id.wild,s0',s0')))
+        | None -> run_error i (fun () -> 
+                                 msg "@[unbound sort variable ";
+                                 Bprint.reset_name_ctxt ();
+                                 format_sort s0; msg "@]")
+    end
+  | SRawVar(_) -> 
+      run_error i 
+        (fun () ->
+           msg "@[unexpected raw sort variable ";
+           format_sort s0; msg "@]")
+  | SUnit | SString | SInteger | SRegexp | SLens | SCanonizer -> 
+      let s0' = translate_sort s0 in (* this is a NOP *)
+      let x = Id.mk i "x" in 
+      mk_checked_fun i x s0' (mk_checked_var i (Qid.t_of_id x) (Sort s0'))
+  | SRefine(dep,s1,e0) ->
+      let s1' = translate_sort s1 in
+      let dep' = mk_checked_var i (Qid.t_of_id dep) (Sort s1') in 
+      let blame = 
+        mk_checked_var i 
+          (Qid.mk_native_prelude_t "blame") 
+          (lookup_native_prelude_sort i "blame") in
+        mk_checked_fun i dep s1
+          (mk_if i e0 dep' (mk_checked_app i blame dep'))
+               
+  | SFunction(x,s1,s2) ->
+      let s1' = translate_sort s1 in
+      let s2' = translate_sort s2 in
+      let f = fresh_var i [x] in 
+      let f_sort = SFunction(Id.wild,s1',s2') in
+      let qf = Qid.t_of_id f in 
+      let qx = Qid.t_of_id x in 
+      let ef = mk_checked_var i qf (Sort f_sort) in 
+      let ex = mk_checked_var i qx (Sort s1') in 
+      let merge_blame = 
+        mk_checked_var i 
+          (Qid.mk_native_prelude_t "merge_blame") 
+          (lookup_native_prelude_sort i "merge_blame") in
+        mk_checked_fun i f f_sort
+          (mk_checked_fun i x s1'
+             (mk_checked_let i qx 
+                (mk_checked_app i 
+                   (instrument_sort iev i s1)
+                   (mk_checked_app3 i merge_blame ef ex))
+                (mk_checked_app i 
+                   (instrument_sort iev i s2)
+                   (mk_checked_app i ef ex))))
+
+  | _ -> assert false
+        
+and instrument_exp iev s0 e0 = assert false
+
+
+(* --------------- Compiler --------------- *)
 (* expressions *)
-and compile_exp cev e0 = match e0.desc,e0.annot with 
+let rec compile_exp cev e0 = match e0.desc,e0.annot with 
   | EVar(q),Some s0 ->       
       begin match s0,CEnv.lookup cev q with
         | SRegexp,Some(_,v) -> 
@@ -738,19 +873,19 @@ and compile_exp cev e0 = match e0.desc,e0.annot with
   | EApp(e1,e2),Some s0 ->
       let s1,v1 = compile_exp cev e1 in
       let _,v2 = compile_exp cev e2 in
-        begin match v1 with
-          | Bvalue.Fun(_,f) -> (s0,f v2)
-          | _   -> 
-              run_error e0.info 
-                (fun () -> 
-                   msg
-                     "@[expected function in left-hand side of application but found %s"
-                     (string_of_sort s1))
-        end
+      begin match v1 with
+        | Bvalue.Fun(_,f) -> (s0,f v2)
+        | _   -> 
+            run_error e0.info 
+              (fun () -> 
+                 msg
+                   "@[expected function in left-hand side of application but found %s"
+                   (string_of_sort s1))
+      end
 
   | ELet(b,e),_ -> 
       let bcev,_ = compile_binding cev b in
-        compile_exp bcev e
+      compile_exp bcev e
           
   | EFun(p,Some ret_sort,e),Some s0 ->
       let p_sort = sort_of_param p in 
@@ -785,15 +920,21 @@ and compile_exp cev e0 = match e0.desc,e0.annot with
 
   | ECSet(pos,cs),_ -> 
       let mk_r = if pos then R.set else R.negset in 
-        (SRegexp,Bvalue.Rx (V.blame_of_info e0.info, mk_r cs))
+      (SRegexp,Bvalue.Rx (V.blame_of_info e0.info, mk_r cs))
+
+  | ETyFun(_,e),_ -> compile_exp cev e
+
+  | ETyApp(e,_),_ -> compile_exp cev e
 
   | _ -> 
       run_error (info_of_exp e0)
         (fun () -> 
-           msg "@[compiler bug: unchecked expression!@]")
+           msg "@[compiler bug: unchecked expression!@ ";
+           format_exp e0;
+           msg "@]")
         
 and compile_binding cev = function
-  | Bind(i,p,so,e) ->
+  | Bind(i,p,e) ->
       let s,v = compile_exp cev e in 
       let bindso = dynamic_match i p v in 
       let cev_fsvs = cenv_free_svs i cev in 
@@ -817,9 +958,8 @@ let rec compile_decl cev ms d0 = match d0.desc with
   | DType(sl,qx,cl) -> 
       let x_sort = get_sort d0 in
       (* get module qualifier *)
-      let svs = Bunify.svs_of_sl d0.info sl in 
       let svl = Bunify.svl_of_sl d0.info sl in 
-      let x_scheme = Scheme (svs,x_sort) in 
+      let x_scheme = Scheme (svl,x_sort) in 
       let new_cev = Safelist.fold_left 
         (fun cev (l,so) -> 
            let ql = Qid.t_of_id l in 
@@ -827,7 +967,7 @@ let rec compile_decl cev ms d0 = match d0.desc with
              | None -> (x_scheme,V.Vnt(V.blame_of_info d0.info,qx,l,None))
              | Some s -> 
                  let sf = SFunction(Id.wild,s,x_sort) in 
-                 let sf_scheme = Scheme (svs,sf) in                    
+                 let sf_scheme = Scheme (svl,sf) in                    
                  (sf_scheme, 
                   V.Fun(V.blame_of_info d0.info,
                         (fun v -> V.Vnt(V.blame_of_t v,qx,l,Some v)))) in 
@@ -874,7 +1014,7 @@ let rec compile_decl cev ms d0 = match d0.desc with
                        msg "@\n%!")
             | OK(s0,v), TestSort None -> 
                 msg "Test sort:@ %t@\n%!" 
-                  (fun _ -> format_scheme (free_svs d0.info s0,s0));
+                  (fun _ -> format_scheme (SVSet.elements (free_svs d0.info s0),s0));
             | OK(s0,v), TestLensType(e1o,e2o) -> 
                 if not (Bunify.unify d0.info s0 SLens) then 
                   test_error d0.info 

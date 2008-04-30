@@ -13,7 +13,11 @@ val svl_of_sl : Info.t -> sort list -> svar list
     variables; [i] is used to report errors. *)
 
 val svs_of_sl : Info.t -> sort list -> SVSet.t
-(** [svl_of_sl i sl] converts a list [sl] of sorts to a set of sort
+(** [svs_of_sl i sl] converts a list [sl] of sorts to a set of sort
+    variables; [i] is used to report errors. *)
+
+val svs_of_svl : svar list -> SVSet.t
+(** [svs_of_svl i sl] converts a list [svl] of sort variables to a set of sort
     variables; [i] is used to report errors. *)
 
 val subst_sort : (Id.t * sort) list -> (sort -> Id.t -> bool) -> sort -> sort
@@ -31,7 +35,7 @@ val instantiate_cases : Info.t ->
     of constructor cases by picking fresh sort variables for each variable
     in [svl].*)
 
-val instantiate : Info.t -> SVSet.t * sort -> sort
+val instantiate : Info.t -> svar list * sort -> (sort list * sort)
 (** [instantiate i (svs,s)] constructs a new sort by picking fresh
     sort variables for each variable in [svs].*)
 

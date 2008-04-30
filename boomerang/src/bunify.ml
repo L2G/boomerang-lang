@@ -108,7 +108,7 @@ let rec zonk i s0 = match s0 with
 let generalize i env_svs s0 = 
   let s = zonk i s0 in 
   let fsvs = SVSet.diff (free_svs i s) env_svs in 
-    (fsvs,s)
+  (SVSet.elements fsvs,s)
 
 let instantiate_cases i (qx,(svl,cl)) = 
   let s0 = SData(Safelist.map (fun svi -> SVar(svi)) svl,qx) in
@@ -120,18 +120,18 @@ let instantiate_cases i (qx,(svl,cl)) =
     | SVar(x,_) -> (=) x
     | _ -> (fun _ -> false) in 
   let go = subst_sort al eq in 
-    (go s0, Safelist.map (fun (x,so) -> (x,Misc.map_option go so)) cl)
+  (go s0, Safelist.map (fun (x,so) -> (x,Misc.map_option go so)) cl)
 
-let instantiate i (svs,s0) = 
+let instantiate i (svl,s0) = 
   let al = 
-    SVSet.fold 
-      (fun (x,cr) l -> (x,SVar (fresh_svar !cr))::l) 
-      svs [] in 
+    Safelist.map 
+      (fun (x,cr) -> (x,SVar (fresh_svar !cr)))
+      svl in 
   let eq = function
     | SVar(x,_) -> (=) x
     | _ -> (fun _ -> false) in 
   let go = subst_sort al eq in 
-    go s0
+  (Safelist.map snd al, go s0)
 
 (* instance: assumes sort has been zonk'd *)
 let rec instance s c = match s with 

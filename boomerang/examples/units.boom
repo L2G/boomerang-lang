@@ -167,9 +167,9 @@ let z = match y with (x,y) -> x
 
 test "<< " . shortest z . " >>" = "<< nate foster >>"
 
-let a,b = ("nate","foster") 
-test a = "nate"
-test b = "foster"
+let p = ("nate","foster") 
+test match p with (a,_) -> a = "nate" 
+test match p with (_,b) -> b = "foster"
 
 (*let cl1 = lowercase [A-Za-z ] | del "{" . [A-Za-z ]+ . del "}" *)
 (*let cl2 = smash_clens cl1

@@ -205,16 +205,16 @@ decls:
       { let i = me2 $1 $5 in 
         let p = fixup_pat i $2 in
         let () = check_pat i p $3 in 
-        let f,so = mk_fun i $3 $5 None in 
-        mk_decl i (DLet(Bind(i,p,so,f)))::$6 }
+        let f,_ = mk_fun i $3 $5 None in 
+        mk_decl i (DLet(Bind(i,p,f)))::$6 }
 
   | LET ppat param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
         let p = fixup_pat i $2 in 
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
-        let f,so = mk_fun i $3 (ef $4 $7) (Some s) in 
-        mk_decl i (DLet(Bind(i,p,so,f)))::$8 }
+        let f,_ = mk_fun i $3 (ef $4 $7) (Some s) in 
+        mk_decl i (DLet(Bind(i,p,f)))::$8 }
 
   | MODULE UIDENT EQUAL decls END decls 
       { let i = m $1 $5 in 
@@ -261,8 +261,8 @@ exp:
       { let i = m $1 $6 in 
         let p = fixup_pat i $2 in 
         let () = check_pat i p $3 in 
-        let f,so = mk_fun i $3 $5 None in 
-        mk_exp i (ELet(Bind(i,p,so,f),$7))
+        let f,_ = mk_fun i $3 $5 None in 
+        mk_exp i (ELet(Bind(i,p,f),$7))
       }
 
   | LET ppat param_list COLON decl_sort EQUAL exp IN exp
@@ -270,8 +270,8 @@ exp:
         let p = fixup_pat i $2 in 
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
-        let f,so = mk_fun i $3 (ef $4 $7) (Some s) in 
-        mk_exp i (ELet(Bind(i,p,so,f),$9)) 
+        let f,_ = mk_fun i $3 (ef $4 $7) (Some s) in 
+        mk_exp i (ELet(Bind(i,p,f),$9)) 
       }
 
   | FUN param param_list ARROW exp

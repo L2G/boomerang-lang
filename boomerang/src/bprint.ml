@@ -94,12 +94,12 @@ and format_base_sort = function
   | Lns -> Util.format "lens"
   | Can -> Util.format "canonizer"
 
-and format_scheme (svs,s) = 
+and format_scheme (svl,s) = 
   Util.format "@[<2>";
   let con_fsvs = 
-    SVSet.fold 
-      (fun ((_,cr) as svi) l -> match !cr with | Con _ -> svi::l | _ -> l)
-      svs [] in 
+    Safelist.fold_left 
+      (fun l ((_,cr) as svi) -> match !cr with | Con _ -> svi::l | _ -> l)
+      [] svl in 
   if Safelist.length con_fsvs <> 0 then
     (Misc.format_list ", " (format_svar true) con_fsvs;
      Util.format " => ");
@@ -128,12 +128,9 @@ and format_param = function
       format_sort s;
       Util.format ")@]"
 
-and format_binding (Bind (_, x, s, e)) =
+and format_binding (Bind (_, x, e)) =
   Util.format "@[<2>";
   format_pat x;
-  (match s with
-     | None -> ()
-     | Some s -> Util.format "@ :@ "; format_sort s);     
   Util.format "@ =@ ";
   format_exp e;
   Util.format "@]"
@@ -158,6 +155,20 @@ and format_exp e0 = match e0.desc with
 	Util.format "@ ->@ ";
 	format_exp e;
 	Util.format ")@]";
+
+    | ETyFun(sv,e) ->
+        Util.format "@[<2>(tyfun@ ";
+        format_svar false sv;
+        Util.format "@ . @ ";
+        format_exp e;
+        Util.format ")@]";               
+
+    | ETyApp(e,s) ->
+        Util.format "@[<2>(@ ";
+        format_exp e;
+        Util.format "@ [@ "; 
+        format_sort s;
+        Util.format "])@]"
 
     | ELet (b,e) ->
 	Util.format "@[<2>let@ ";

@@ -115,6 +115,8 @@ module Qid : sig
   (** [mk_list_t s] constructs the qualified identifier representing
       [List.s] with dummy parsing info. *) 
 
+  module Env : Env.S with type key = t
+  (** Environments with Qid.ts as keys *)
 end
 
 type base_sort = Unt | Str | Int | Reg | Lns | Can 
@@ -149,9 +151,8 @@ and param = Param of Info.t * Id.t * sort
 (** The type of formal parameters: parsing info, an identifier, and a
     sort. *)
 
-and binding = Bind of Info.t * pat * sort option * exp
-(** The type of variable bindings: parsing info, a pattern, an
-    optional sort, and an expression *)
+and binding = Bind of Info.t * pat * exp
+(** The type of variable bindings: parsing info, a pattern, and an expression *)
 
 and exp_desc = 
     (* lambda calculus *)
@@ -159,6 +160,10 @@ and exp_desc =
     | EVar of Qid.t 
     | EFun of param * sort option * exp 
     | ELet of binding * exp 
+
+    (* err... make that System F *)
+    | ETyFun of svar * exp
+    | ETyApp of exp * sort
 
     (* with products, case *)
     | EPair of exp * exp 
@@ -206,6 +211,10 @@ val mk_checked_exp : Info.t -> exp_desc -> sort -> exp
 val mk_pat : Info.t -> pat_desc -> pat
 (** [mk_pat i p] constructs a [pat] with parsing info [i] and
     description [p]. *)
+
+val mk_checked_pat : Info.t -> pat_desc -> sort -> pat
+(** [mk_checked_pat i p s] constructs a [pat] with parsing info [i],
+    description [p], and annotated with sort [s]. *)
   
 module SVSet : Set.S with type elt = svar
 (** Sets of sort variables. *)
@@ -213,7 +222,7 @@ module SVSet : Set.S with type elt = svar
 module VSet : Set.S with type elt = Id.t
 (** Sets of variables (identifiers). *)
 
-type scheme = SVSet.t * sort
+type scheme = svar list * sort
 (** The type of sort schemes: a set of free variables and a sort. *)
 
 val mk_scheme : svar list -> sort -> scheme

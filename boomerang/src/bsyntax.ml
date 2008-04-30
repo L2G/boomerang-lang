@@ -43,7 +43,7 @@ end
 (* ------ qualified identifiers ------ *)
 module Qid = struct
   (* qualified identifiers: list of qualifiers, and an identifier *)
-  type t = Id.t list * Id.t
+  type t = Id.t list * Id.t  
   (* constructor *)
   let mk qs x = (qs,x)
   let t_of_id x = mk [] x
@@ -92,6 +92,13 @@ module Qid = struct
   let mk_native_prelude_t = mk_mod_t ["Native"; "Prelude"] 
   let mk_prelude_t = mk_mod_t ["Prelude"]
   let mk_list_t = mk_mod_t ["List"]    
+  type this_t = t
+  module Env = Env.Make(
+    struct
+      type t = this_t
+      let compare = compare
+      let to_string = string_of_t
+    end) 
 end
 
 (* ----- sorts, parameters, expressions ----- *)
@@ -110,18 +117,18 @@ type bs = BSSet.t
 
 (* sorts *)
 type sort = 
-    | SUnit                             (* unit *)
-    | SString                           (* strings *)
-    | SInteger                          (* integers *)
-    | SRegexp                           (* regular expressions *)
-    | SLens                             (* lenses *)
-    | SCanonizer                        (* canonizers *)
-    | SFunction of Id.t * sort * sort   (* dependent functions *)
-    | SData of sort list * Qid.t        (* data types *)
-    | SProduct of sort * sort           (* products *)
-    | SVar of svar                      (* sort variables *)
-    | SRawVar of Id.t                   (* parsed sort variables *)
-    | SRefine of Id.t * sort * exp      (* refinements *)
+    | SUnit                           (* unit *)
+    | SString                         (* strings *)
+    | SInteger                        (* integers *)
+    | SRegexp                         (* regular expressions *)
+    | SLens                           (* lenses *)
+    | SCanonizer                      (* canonizers *)
+    | SFunction of Id.t * sort * sort (* dependent functions *)
+    | SData of sort list * Qid.t      (* data types *)
+    | SProduct of sort * sort         (* products *)
+    | SVar of svar                    (* sort variables *)
+    | SRawVar of Id.t                 (* parsed sort variables *)
+    | SRefine of Id.t * sort * exp    (* refinements *)
 
 (* sort variables: a unique identifier and a ref cell *)
 and svar = int * sbnd ref
@@ -133,7 +140,7 @@ and sbnd = Fre | Bnd of sort | Con of bs
 and param = Param of Info.t * Id.t * sort
 
 (* variable bindings *)
-and binding = Bind of Info.t * pat * sort option * exp
+and binding = Bind of Info.t * pat * exp
 
 (* expression syntax *)
 and exp_desc = 
@@ -142,6 +149,10 @@ and exp_desc =
     | EVar of Qid.t 
     | EFun of param * sort option * exp 
     | ELet of binding * exp 
+  
+    (* err... make that System F *)
+    | ETyFun of svar * exp
+    | ETyApp of exp * sort
 
     (* with products, case *)
     | EPair of exp * exp 
@@ -170,13 +181,15 @@ and ('a,'b) syntax =
 and exp = (exp_desc,sort option) syntax
 
 and pat = (pat_desc,sort option) syntax          
-          
+
 let mk_exp i d = { info=i; desc=d; annot=None }
 
 let mk_pat i p = { info=i; desc=p; annot=None }
           
 let mk_checked_exp i d s = { info=i; desc=d; annot=Some s }
 
+let mk_checked_pat i p s = { info=i; desc=p; annot=Some s }
+     
 (* variable sets *)
 module VSet = Set.Make(
   struct
@@ -184,21 +197,11 @@ module VSet = Set.Make(
     let compare = Id.compare 
   end)
   
-(* sort variable sets *)
-module SVSet = Set.Make(
-  struct
-    type t = svar 
-    (* compare uids *)    
-    let compare (x,_) (y,_) = Pervasives.compare x y
-  end)
-
 (* sort schemes: used in sort checking environments *)
-type scheme = SVSet.t * sort
+type scheme = svar list * sort
 
 (* mk_scheme: construct a scheme from a svar list and a sort *)
-let mk_scheme svl s = 
-  let svs = Safelist.fold_left (fun s svi -> SVSet.add svi s) SVSet.empty svl in 
-  (svs,s)
+let mk_scheme svl s = (svl, s)
 
 (* scheme_of_sort: convert a sort to a scheme *)
 let scheme_of_sort s = mk_scheme [] s
@@ -236,6 +239,14 @@ let mk_mod i m = { info=i; desc=m; annot=() }
           
 (* infix constructor for non-dependent functions *)
 let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
+
+(* sort variable sets *)
+module SVSet = Set.Make(
+  struct
+    type t = svar 
+    (* compare uids *)    
+    let compare (x,_) (y,_) = Pervasives.compare x y
+  end)
 
 (* free sort variables *)
 let free_svs i s0 = 

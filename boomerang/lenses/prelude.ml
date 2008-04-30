@@ -23,6 +23,7 @@
 open Bvalue 
 module S = Bsyntax
 module L = Blenses.DLens
+module C = Blenses.Canonizer
 module R = Bregexp
 module RS = Bstring
 let (^) = Pervasives.(^)

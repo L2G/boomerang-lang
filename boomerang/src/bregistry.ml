@@ -23,6 +23,9 @@ let sprintf = Printf.sprintf
 let debug = Trace.debug "registry"
 let verbose = Trace.debug "registry+"
 
+(* finite maps *)
+module QM = Bsyntax.Qid.Env
+
 (* --------------- Registry values -------------- *)
 type rv = Bsyntax.sort_or_scheme * Bvalue.t
 
@@ -63,14 +66,7 @@ sig
 end
 
 module REnv : REnvSig = 
-struct
-  module QM = 
-    Env.Make(struct
-               type t = Bsyntax.Qid.t
-               let compare = Bsyntax.Qid.compare
-               let to_string = Bsyntax.Qid.string_of_t
-             end) 
-  
+struct  
   (* "type map" from names (Prelude.list) to type variables (['a]) and
      constructors / optional sorts (["Nil", None; "Cons", 'a * 'a list]) *)
   type tmap = (Bsyntax.svar list * tcon list) QM.t
