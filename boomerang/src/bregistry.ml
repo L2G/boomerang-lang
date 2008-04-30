@@ -55,7 +55,7 @@ sig
   type t
   val empty : unit -> t
   val lookup : t -> Bsyntax.Qid.t -> rv option
-  val lookup_type: t -> Bsyntax.Qid.t -> Bsyntax.Qid.t option
+  val lookup_type: t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val update : t -> Bsyntax.Qid.t -> rv -> t
   val update_type : t -> Bsyntax.svar list -> Bsyntax.Qid.t -> tcon list -> t
@@ -84,12 +84,9 @@ struct
     | None -> None
 
   let lookup_type ((tm,_),_) q = 
-(*     Util.format "LOOKUP_TYPE %s {@[@\n" (Bsyntax.Qid.string_of_t q); *)
-(*     QM.iter (fun q _ -> Util.format "%s defined@\n" (Bsyntax.Qid.string_of_t q)) tm; *)
-(*     Util.format "@]}@\n"; *)
     match QM.lookup tm q with
       | None -> None
-      | Some _ -> Some q
+      | Some r -> Some (q,r)
       
   let lookup_con ((tm,rm),_) q = match QM.lookup rm q with 
     | None -> None

@@ -78,13 +78,37 @@ let mk_checked_fun i x s e1 =
   let p = Param(i,x,s) in
   mk_checked_exp i (EFun(p,Some(s1),e1)) (SFunction(Id.wild,s,s1))
 
+let mk_checked_pair i e1 e2 = 
+  let s1 = get_sort e1 in 
+  let s2 = get_sort e2 in 
+  mk_checked_exp i (EPair(e1,e2)) (SProduct(s1,s2))
+
+let mk_checked_case i e1 cl = 
+  let so = 
+    Safelist.fold_left 
+      (fun so (_,ei) -> 
+         let si = get_sort ei in 
+         let () = match so with  
+           | None -> ()
+           | Some sj -> 
+               if not (Bunify.unify i si sj) then
+                 run_error i 
+                   (fun () -> msg "@[all branches of a case must have the same sort@]") in 
+         Some si)
+      None cl in
+  let s = match so with 
+    | Some s -> s
+    | None -> run_error i (fun () -> msg "@[empty case expression]") in 
+  mk_checked_exp i (ECase(e1,cl)) s
+
 let mk_if i e0 e1 e2 =
   let s1 = get_sort e1 in
   let s2 = get_sort e2 in
-  if not (Bunify.unify i s1 s2)
-  then 
-    run_error i 
-      (fun () -> msg "@[both expressions in if must have the same sort@]");
+  let () = 
+    if not (Bunify.unify i s1 s2)
+    then 
+      run_error i 
+        (fun () -> msg "@[both expressions in if must have the same sort@]") in 
   let e = ECase(e0,
                 [(mk_pat i (PVnt(Qid.mk_prelude_t "True",None)),e1);
                  (mk_pat i (PVnt(Qid.mk_prelude_t "False",None)),e2)]) in
@@ -143,7 +167,7 @@ sig
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
   val lookup : t -> Qid.t -> v option
-  val lookup_type : t -> Qid.t -> Qid.t option
+  val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
   val lookup_con : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
   val update : t -> Qid.t -> v -> t
   val update_type : t -> Bsyntax.svar list -> Qid.t -> Bregistry.tcon list -> t
@@ -369,7 +393,7 @@ let rec resolve_sort i evs s0 =
       (evs2,SProduct(s1',s2'))
   | SData(sl,qx) -> 
       let _,sev = evs in 
-      let qx' = match SCEnv.lookup_type sev qx with 
+      let qx',_ = match SCEnv.lookup_type sev qx with 
         | None -> 
             sort_error i  
               (fun () -> msg "@[cannot@ resolve@ sort@ %s@]" 
@@ -545,7 +569,7 @@ let rec check_exp evs e0 = match e0.desc with
              | Some binds ->                
                  (* otherwise, extend the env with bindings for pattern vars *)
                  let ei_sev = Safelist.fold_left 
-                   (fun ei_sev (qj,sj) -> SCEnv.update ei_sev qj (Sort sj))
+                   (fun ei_sev (qj,sj) -> SCEnv.update ei_sev (Qid.t_of_id qj) (Sort sj))
                    sev binds in 
                  (* sort check the expression *) 
                  let evsi,ei_sort,new_ei = check_exp (tev,ei_sev) ei in
@@ -566,7 +590,8 @@ let rec check_exp evs e0 = match e0.desc with
 and check_binding evs = function
   | Bind(i,p,e) -> 
       match p.desc with
-        | PVar(qx) -> 
+        | PVar(x) -> 
+            let qx = Qid.t_of_id x in 
             let evs1,e_sort,new_e = check_exp evs e in
             let evs2 = match p.annot with
               | None -> evs1 
@@ -826,6 +851,8 @@ and instrument_sort iev i s0 = match s0 with
   | SFunction(x,s1,s2) ->
       let s1' = translate_sort s1 in
       let s2' = translate_sort s2 in
+      let s1_checker = instrument_sort iev i s1 in 
+      let s2_checker = instrument_sort iev i s2 in 
       let f = fresh_var i [x] in 
       let f_sort = SFunction(Id.wild,s1',s2') in
       let qf = Qid.t_of_id f in 
@@ -836,18 +863,69 @@ and instrument_sort iev i s0 = match s0 with
         mk_checked_var i 
           (Qid.mk_native_prelude_t "merge_blame") 
           (lookup_native_prelude_sort i "merge_blame") in
+        (* the instrumented function *)
         mk_checked_fun i f f_sort
           (mk_checked_fun i x s1'
-             (mk_checked_let i qx 
+             (mk_checked_let i x 
                 (mk_checked_app i 
-                   (instrument_sort iev i s1)
+                   s1_checker
                    (mk_checked_app3 i merge_blame ef ex))
                 (mk_checked_app i 
-                   (instrument_sort iev i s2)
+                   s2_checker 
                    (mk_checked_app i ef ex))))
-
-  | _ -> assert false
         
+  | SProduct(s1,s2) ->
+      let s1' = translate_sort s1 in
+      let s2' = translate_sort s2 in
+      let s0' = SProduct(s1',s2') in
+      let s1_checker = instrument_sort iev i s1 in
+      let s2_checker = instrument_sort iev i s2 in
+      let p = fresh_var i [] in
+      let ep = mk_checked_var i (Qid.t_of_id p) (Sort s0') in
+      let x1 = fresh_var i [] in
+      let ex1 = mk_checked_var i (Qid.t_of_id x1) (Sort s1') in 
+      let x2 = fresh_var i [] in
+      let ex2 = mk_checked_var i (Qid.t_of_id x2) (Sort s2') in 
+      mk_checked_fun i p s0'
+        (mk_checked_case i ep 
+           [(mk_checked_pat i 
+               (PPar(mk_checked_pat i (PVar x1) s1',
+                     mk_checked_pat i (PVar x2) s2'))
+               s0',
+             (mk_checked_pair i 
+                (mk_checked_app i s1_checker ex1)
+                (mk_checked_app i s2_checker ex2)))])              
+      
+  | SData(sl,qx) -> 
+      let sl' = Safelist.map translate_sort sl in
+      let s0' = SData(sl',qx) in
+      let v = fresh_var i [] in
+      let ev = mk_checked_var i (Qid.t_of_id v) (Sort s0') in
+      let x = fresh_var i [] in 
+      let qx = Qid.t_of_id x in 
+      let svl,cl = match SCEnv.lookup_type (SCEnv.empty qx) qx with
+        | None -> run_error i (fun () -> msg "@[unbound type %s]" (Qid.string_of_t qx))
+        | Some (_,ts) -> ts in 
+      let cl_rev' = 
+        Safelist.fold_left 
+          (fun acc tc -> match tc with
+             | (q,None) -> 
+                 let p = mk_checked_pat i (PVnt(q,None)) s0' in 
+                 (p,ev)::acc
+             | (q,Some s) -> 
+                 let s' = translate_sort s in 
+                 let s_checker = instrument_sort iev i s in
+                 let px = mk_checked_pat i (PVar x) s' in 
+                 let p = mk_checked_pat i (PVnt(q,Some px)) s0' in 
+                 let ex = mk_checked_var i qx (Sort s') in 
+                 (p,
+                  mk_checked_app i 
+                    (mk_checked_var i q (Sort (SFunction(Id.wild,s',s0'))))
+                    (mk_checked_app i s_checker ex))::acc)
+          [] cl in 
+      mk_checked_fun i v s0' 
+        (mk_checked_case i ev (Safelist.rev cl_rev'))
+
 and instrument_exp iev s0 e0 = assert false
 
 
@@ -912,7 +990,7 @@ let rec compile_exp cev e0 = match e0.desc,e0.annot with
                | Some l -> l,ei) in 
       let binds,ei = find_match pl in 
       let ei_cev = Safelist.fold_left 
-        (fun ei_cev (q,s,v) -> CEnv.update ei_cev q (Sort s,v))
+        (fun ei_cev (x,s,v) -> CEnv.update ei_cev (Qid.t_of_id x) (Sort s,v))
         cev binds in 
         compile_exp ei_cev ei
 
@@ -945,9 +1023,10 @@ and compile_binding cev = function
                (V.string_of_t v))
         | Some binds -> 
             Safelist.fold_left 
-              (fun (bcev,xs) (q,s,v) -> 
+              (fun (bcev,xs) (x,s,v) -> 
                  let x_scheme = Scheme (Bunify.generalize i cev_fsvs s) in 
-                   (CEnv.update bcev q (x_scheme,v), q::xs))
+                 let qx = Qid.t_of_id x in 
+                   (CEnv.update bcev qx (x_scheme,v), qx::xs))
               (cev,[]) binds in 
         (bcev,Safelist.rev xs_rev)
 

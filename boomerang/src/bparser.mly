@@ -155,7 +155,7 @@ let mk_assert = function
 
 let rec fixup_pat i p0 = match p0.desc with 
   | PVnt(_,Some _) -> syntax_error i "illegal pattern"
-  | PVnt(x,None) -> mk_pat i (PVar x)
+  | PVnt(x,None) -> mk_pat i (PVar (Qid.id_of_t x))
   | PPar(p1,p2)  -> mk_pat i (PPar(fixup_pat i p1, fixup_pat i p2))
   | _ -> p0
 
@@ -481,7 +481,7 @@ apat:
       
   | LIDENT
       { let i,_ = $1 in 
-        mk_pat i (PVar(Qid.t_of_id $1)) }
+        mk_pat i (PVar $1) }
 
   | QIDENT
       { let (i,qs) = $1 in 

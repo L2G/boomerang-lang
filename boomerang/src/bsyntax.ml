@@ -168,7 +168,7 @@ and exp_desc =
 and pat_desc = 
   | PWld 
   | PUnt 
-  | PVar of Qid.t 
+  | PVar of Id.t 
   | PVnt of Qid.t * pat option 
   | PPar of pat * pat
 

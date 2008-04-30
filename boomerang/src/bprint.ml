@@ -109,7 +109,7 @@ and format_scheme (svl,s) =
 and format_pat p0 = match p0.desc with 
   | PWld -> Util.format "_"
   | PUnt -> Util.format "()"
-  | PVar(x) -> Util.format "%s" (Qid.string_of_t x)
+  | PVar(x) -> Util.format "%s" (Id.string_of_t x)
   | PPar(p1,p2) -> 
       Util.format "@[<2>(";
       format_pat p1;
