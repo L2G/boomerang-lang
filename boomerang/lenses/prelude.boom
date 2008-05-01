@@ -22,6 +22,55 @@
 
 module Prelude =
 
+(* standard datatypes *)
+
+(* bools *)
+type bool = True | False
+
+let if (b:bool) (e1:'a) (e2:'a) : 'a = 
+  match b with 
+    | True -> e1
+    | False -> e2
+
+let not (b:bool) : bool = 
+  match b with
+    | True -> False
+    | False -> True
+
+let or (b1:bool) (b2:bool) : bool = match b1,b2 with 
+  | False,False -> False
+  | _ -> True
+
+let and (b1:bool) (b2:bool) : bool = match b1,b2 with 
+  | True,True -> True
+  | _ -> False
+
+(* options *)
+type 'a option = 
+    None | Some of 'a
+
+type ('a,'b) maybe = 
+    Left of 'a | Right of 'b 
+
+(* components of lenses *)
+let ctype : lens -> regexp = 
+  Native.Prelude.ctype
+let atype : lens -> regexp =
+  Native.Prelude.atype
+let pget : lens -> string -> string = 
+  Native.Prelude.get
+let pput : lens -> string -> string -> string = 
+  Native.Prelude.put
+let pcreate : lens -> string -> string =
+  Native.Prelude.create
+
+(* predicates *)
+let splittable : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> bool =
+  Native.Prelude.splittable
+let disjoint : regexp -> regexp -> bool =
+  Native.Prelude.disjoint
+(* Maybe we also want one for lenses? *)
+
 (* polymorphic operators *)
 let copy : {'a:string,regexp} => 'a -> lens = 
   Native.Prelude.copy
@@ -29,25 +78,42 @@ let const : {'a:string,regexp} => 'a -> string -> string -> lens =
   Native.Prelude.const 
 let shortest : {'a:string,regexp} => 'a -> string = 
   Native.Prelude.shortest
-let poly_concat : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> 'a = 
+let poly_concat : {'a:string,regexp,lens,canonizer} => 
+                      (x:'a)
+                   -> (y:'a | splittable x y) 
+                   -> 'a =
   Native.Prelude.poly_concat
-let poly_union : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> 'a =
+(* Want to be able to write
+   let poly_concat : {'a:string,regexp,lens,canonizer} => 'a -> a' -> a' =
+     fun (x:'a) (y:'a | splittable x y)  ->
+       ... x ... y ...
+or even
+   let poly_concat ('a:string,regexp,lens,canonizer)
+                   (x:'a) (y:'a | splittable x y) ->
+       ... x ... y ...
+*)
+let poly_union : {'a:regexp,lens,canonizer} => 'a -> 'a -> 'a =
   Native.Prelude.poly_union
+
+(* Experimental:
+  let poly_union : {'a:regexp,lens,canonizer} => 
+                      (x:'a) 
+                   -> (y:'a | case 'a of lens,canonizer => 
+                                            disjoint (ctype x) (ctype y)
+                                       | _ => True)
+                   -> 'a =
+    Native.Prelude.poly_union
+*)
+
 let poly_iter : {'a:regexp,lens,canonizer} => 'a -> string -> string -> 'a = 
   Native.Prelude.poly_iter
 let poly_swap  : {'a:lens,canonizer} => 'a -> 'a -> 'a = 
   Native.Prelude.poly_swap
 
-(* lens operations *)
-let pget : lens -> string -> string = 
-  Native.Prelude.get
-let pput : lens -> string -> string -> string = 
-  Native.Prelude.put
-let pcreate : lens -> string -> string =
-  Native.Prelude.create
+(* operations on lenses *)
 let invert : lens -> lens =
   Native.Prelude.invert
-let concat : lens -> lens -> lens =
+let concat : lens -> lens -> lens =  (* live?  (also below) *)
   Native.Prelude.concat
 let union : lens -> lens -> lens =
   Native.Prelude.union
@@ -119,10 +185,6 @@ let assert_ctype : regexp -> lens -> lens =
   Native.Prelude.assert_ctype
 let assert_atype  : regexp -> lens -> lens = 
   Native.Prelude.assert_atype
-let ctype : lens -> regexp = 
-  Native.Prelude.ctype
-let atype : lens -> regexp =
-  Native.Prelude.atype
 
 (* coercions *)
 let canonizer_of_lens : lens -> canonizer = 
@@ -225,34 +287,4 @@ let qdel (E:regexp) (e:string) : { E <-> epsilon } =
 (* unit tests for qdel *)
 test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
 test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
-
-(* standard datatypes *)
-
-(* bools *)
-type bool = True | False
-
-let if (b:bool) (e1:'a) (e2:'a) : 'a = 
-  match b with 
-    | True -> e1
-    | False -> e2
-
-let not (b:bool) : bool = 
-  match b with
-    | True -> False
-    | False -> True
-
-let or (b1:bool) (b2:bool) : bool = match b1,b2 with 
-  | False,False -> False
-  | _ -> True
-
-let and (b1:bool) (b2:bool) : bool = match b1,b2 with 
-  | True,True -> True
-  | _ -> False
-
-(* options *)
-type 'a option = 
-    None | Some of 'a
-
-type ('a,'b) maybe = 
-    Left of 'a | Right of 'b 
 
