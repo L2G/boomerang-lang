@@ -91,6 +91,11 @@ or even
    let poly_concat ('a:string,regexp,lens,canonizer)
                    (x:'a) (y:'a | splittable x y) ->
        ... x ... y ...
+
+Proposal:
+   let poly_concat : Catenable 'a => 'a -> a' -> a' =
+     fun (x:'a) (y:'a | splittable x y)  ->
+       ... x ... y ...
 *)
 let poly_union : {'a:regexp,lens,canonizer} => 'a -> 'a -> 'a =
   Native.Prelude.poly_union
