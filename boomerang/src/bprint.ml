@@ -122,19 +122,20 @@ and format_pat p0 = match p0.desc with
       format_pat p1;
       Util.format ")@]"
 
-and format_param = function
-  | Param(_,x,s) ->
+and format_param p0 = match p0.desc with
+  | Param(x,s) ->
       Util.format "@[(%s:" (Id.string_of_t x);
       format_sort s;
       Util.format ")@]"
 
-and format_binding (Bind (_, x, e)) =
-  Util.format "@[<2>";
-  format_pat x;
-  Util.format "@ =@ ";
-  format_exp e;
-  Util.format "@]"
-
+and format_binding b0 = match b0.desc with
+  | Bind (p, e) ->
+      Util.format "@[<2>";
+      format_pat p;
+      Util.format "@ =@ ";
+      format_exp e;
+      Util.format "@]"
+        
 and format_exp e0 = match e0.desc with 
   | EApp (e1,e2) ->
 	Util.format "@[<2>(";
@@ -155,20 +156,6 @@ and format_exp e0 = match e0.desc with
 	Util.format "@ ->@ ";
 	format_exp e;
 	Util.format ")@]";
-
-    | ETyFun(sv,e) ->
-        Util.format "@[<2>(tyfun@ ";
-        format_svar false sv;
-        Util.format "@ . @ ";
-        format_exp e;
-        Util.format ")@]";               
-
-    | ETyApp(e,s) ->
-        Util.format "@[<2>(@ ";
-        format_exp e;
-        Util.format "@ [@ "; 
-        format_sort s;
-        Util.format "])@]"
 
     | ELet (b,e) ->
 	Util.format "@[<2>let@ ";
@@ -230,11 +217,6 @@ and format_test_result tr =
         Util.format "@]";
     | TestError -> Util.format "= @[<2>error@]"
     | TestShow -> Util.format "= @[<2>?@]"
-    | TestSort(None) -> Util.format ": @[<2>?@]"
-    | TestSort(Some s) -> 
-        Util.format ": @[<2>";
-        format_sort s;
-        Util.format "@]"
     | TestLensType(e1o,e2o) -> 
         let format_eo = function
           | None -> Util.format "?"

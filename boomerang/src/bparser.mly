@@ -206,7 +206,8 @@ decls:
         let p = fixup_pat i $2 in
         let () = check_pat i p $3 in 
         let f,_ = mk_fun i $3 $5 None in 
-        mk_decl i (DLet(Bind(i,p,f)))::$6 }
+        let b = mk_binding i (Bind(p,f)) in 
+        mk_decl i (DLet b)::$6 }
 
   | LET ppat param_list COLON decl_sort EQUAL exp decls
       { let i = me2 $1 $7 in 
@@ -214,7 +215,8 @@ decls:
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
         let f,_ = mk_fun i $3 (ef $4 $7) (Some s) in 
-        mk_decl i (DLet(Bind(i,p,f)))::$8 }
+        let b = mk_binding i (Bind(p,f)) in 
+        mk_decl i (DLet b)::$8 }
 
   | MODULE UIDENT EQUAL decls END decls 
       { let i = m $1 $5 in 
@@ -246,12 +248,6 @@ test_res:
       { (info_of_exp $1, TestValue $1) }
 
 test_type:
-  | QMARK 
-      { TestSort None }
-      
-  | sort 
-      { TestSort (Some $1) }
-      
   | lens_type 
       { TestLensType $1 }
 
@@ -262,8 +258,8 @@ exp:
         let p = fixup_pat i $2 in 
         let () = check_pat i p $3 in 
         let f,_ = mk_fun i $3 $5 None in 
-        mk_exp i (ELet(Bind(i,p,f),$7))
-      }
+        let b = mk_binding i (Bind(p,f)) in 
+        mk_exp i (ELet(b,$7)) }
 
   | LET ppat param_list COLON decl_sort EQUAL exp IN exp
       { let i = m $1 $8 in 
@@ -271,8 +267,8 @@ exp:
         let () = check_pat i p $3 in 
         let s,ef = $5 in 
         let f,_ = mk_fun i $3 (ef $4 $7) (Some s) in 
-        mk_exp i (ELet(Bind(i,p,f),$9)) 
-      }
+        let b = mk_binding i (Bind(p,f)) in 
+        mk_exp i (ELet (b,$9)) }
 
   | FUN param param_list ARROW exp
       { let i = me2 $1 $5 in 
@@ -692,10 +688,10 @@ param_list:
 
 param: 
   | id 
-      { Param (fst $1,$1,Bunify.fresh_sort Fre) }
+      { mk_param (fst $1) (Param($1,Bunify.fresh_sort Fre)) }
 
   | LPAREN id COLON sort RPAREN
-      { Param(fst $2,$2,$4) }
+      { mk_param (fst $2) (Param($2,$4)) }
 
 /* --------- REPETITIONS ---------- */
 rep: 

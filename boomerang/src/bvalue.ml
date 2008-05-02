@@ -36,6 +36,7 @@ type blame = Pos of Info.t | NegPos of Info.t * Info.t
 (* run-time values; correspond to each sort *)
 type t = 
     | Str of blame * RS.t 
+    | Int of blame * int
     | Rx  of blame * R.t
     | Lns of blame * L.t
     | Can of blame * C.t
@@ -50,6 +51,7 @@ type t =
  *)
 let blame_of_t = function 
   | Str(b,_)     -> b
+  | Int(b,_)     -> b
   | Rx(b,_)      -> b
   | Lns(b,_)     -> b
   | Can(b,_)     -> b
@@ -69,6 +71,7 @@ let info_of_t v = info_of_blame (blame_of_t v)
 let install_blame b v =
   match v with
     | Str(_,s) -> Str(b,s)
+    | Int(_,i) -> Int(b,i)
     | Rx(_,r) -> Rx(b,r)
     | Lns(_,l) -> Lns(b,l)
     | Can(_,c) -> Can(b,c)
@@ -87,6 +90,8 @@ let merge_blame b1 v2 =
 let rec equal v1 v2 = match v1,v2 with
   | Str(_,s1), Str(_,s2) -> 
       RS.equal s1 s2
+  | Int(_,n1), Int(_,n2) -> 
+      n1=n2
   | Rx(_,r1), Rx(_,r2) -> 
       R.equiv r1 r2
   | Lns _, Lns _ -> 
@@ -108,6 +113,7 @@ let rec equal v1 v2 = match v1,v2 with
 
 let rec format = function
   | Str(_,rs)    -> Util.format "%s" (RS.string_of_t rs)
+  | Int(_,n)     -> Util.format "%d" n
   | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
   | Can(_,c)     -> Util.format "%s" (C.string c)
@@ -129,6 +135,7 @@ let string_of_t v = Util.format_to_string (fun () -> format v)
         
 let rec sort_string_of_t = function
   | Str _ -> "string"
+  | Int _ -> "int" 
   | Rx _  -> "regexp"
   | Lns _ -> "lens"
   | Can _ -> "canonizer"
@@ -148,6 +155,10 @@ let conversion_error s1 v1 =
 let get_s v = match v with
   | Str(_,s) -> s
   | _ -> conversion_error (P.string_of_sort S.SString) v
+
+let get_i v = match v with
+  | Int(_,n) -> n
+  | _ -> conversion_error (P.string_of_sort S.SInteger) v
 
 let get_r v = match v with
     Rx(_,r)  -> r

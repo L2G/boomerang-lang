@@ -137,10 +137,10 @@ and svar = int * sbnd ref
 and sbnd = Fre | Bnd of sort | Con of bs
 
 (* parameters *)
-and param = Param of Info.t * Id.t * sort
+and param_desc = Param of Id.t * sort
 
 (* variable bindings *)
-and binding = Bind of Info.t * pat * exp
+and binding_desc = Bind of pat * exp 
 
 (* expression syntax *)
 and exp_desc = 
@@ -149,10 +149,6 @@ and exp_desc =
     | EVar of Qid.t 
     | EFun of param * sort option * exp 
     | ELet of binding * exp 
-  
-    (* err... make that System F *)
-    | ETyFun of svar * exp
-    | ETyApp of exp * sort
 
     (* with products, case *)
     | EPair of exp * exp 
@@ -178,16 +174,30 @@ and ('a,'b) syntax =
       desc: 'a;
       mutable annot: 'b }
 
-and exp = (exp_desc,sort option) syntax
+and exp = (exp_desc,(sort option * sort list)) syntax
 
 and pat = (pat_desc,sort option) syntax          
 
-let mk_exp i d = { info=i; desc=d; annot=None }
+and param = (param_desc,unit) syntax
+
+and binding = (binding_desc,sort option) syntax
+
+let mk_exp i e = { info=i; desc=e; annot=(None,[]) }
+
+let mk_checked_exp i e s = { info=i; desc=e; annot=(Some s,[]) }
+
+let mk_checked_annot_exp i e s l = { info=i; desc=e; annot=(Some s,l) }
 
 let mk_pat i p = { info=i; desc=p; annot=None }
-          
-let mk_checked_exp i d s = { info=i; desc=d; annot=Some s }
 
+let mk_annot_pat i p s = { info=i; desc=p; annot=Some s }
+
+let mk_binding i b = { info=i; desc=b; annot=None }
+
+let mk_annot_binding i b s = { info=i; desc=b; annot=Some s }
+
+let mk_param i p = { info=i; desc=p; annot=() }
+          
 let mk_checked_pat i p s = { info=i; desc=p; annot=Some s }
      
 (* variable sets *)
@@ -214,7 +224,6 @@ type test_result =
     | TestValue of exp
     | TestError
     | TestShow
-    | TestSort of sort option
     | TestLensType of (exp option * exp option)
 
 (* declarations *)
@@ -288,11 +297,11 @@ let info_of_module m0 = m0.info
 let id_of_module m0 = match m0.desc with
   | Mod(x,_,_) -> x
 
-let sort_of_param = function
-  | Param(_,_,s) -> s
+let sort_of_param p0 = match p0.desc with
+  | Param(_,s) -> s
 
-let id_of_param = function
-  | Param(_,x,_) -> x
+let id_of_param p0 = match p0.desc with
+  | Param(x,_) -> x
 
 
 

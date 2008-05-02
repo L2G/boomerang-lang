@@ -26,6 +26,7 @@ type blame = Pos of Info.t | NegPos of Info.t * Info.t
 
 type t = 
     | Str of blame * Bstring.t 
+    | Int of blame * int
     | Rx  of blame * Bregexp.t
     | Lns of blame * Blenses.DLens.t
     | Can of blame * Blenses.Canonizer.t
@@ -73,9 +74,13 @@ val get_s : t -> Bstring.t
 (** [get_s v] returns a string if [v] is a [Str], and otherwise raises
     an exception. *)
 
+val get_i : t -> int
+(** [get_i v] returns an int if [v] is a [Int], and otherwise raises
+    an exception. *)
+
 val get_r : t -> Bregexp.t
-(** [get_r v] returns a regexp if [v] is a [Rx], and otherwise raises an
-    exception. *)
+  (** [get_r v] returns a regexp if [v] is a [Rx], and otherwise raises an
+      exception. *)
 
 val get_l : t -> Blenses.DLens.t
 (** [get_l v] returns a lens if [v] is a [Lns], and otherwise raises an

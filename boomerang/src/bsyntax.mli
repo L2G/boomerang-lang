@@ -147,12 +147,11 @@ and sbnd = Fre | Bnd of sort | Con of BSSet.t
 (** The type of sort variable bounds: free, bound to a sort, or
     constrained by a set of base sorts. *)
 
-and param = Param of Info.t * Id.t * sort
+and param_desc = Param of Id.t * sort
 (** The type of formal parameters: parsing info, an identifier, and a
     sort. *)
 
-and binding = Bind of Info.t * pat * exp
-(** The type of variable bindings: parsing info, a pattern, and an expression *)
+and binding_desc = Bind of pat * exp 
 
 and exp_desc = 
     (* lambda calculus *)
@@ -160,10 +159,6 @@ and exp_desc =
     | EVar of Qid.t 
     | EFun of param * sort option * exp 
     | ELet of binding * exp 
-
-    (* err... make that System F *)
-    | ETyFun of svar * exp
-    | ETyApp of exp * sort
 
     (* with products, case *)
     | EPair of exp * exp 
@@ -192,12 +187,18 @@ and ('a,'b) syntax =
     mutable annotation data to be filled in by the checker. This type
     is loosely based on similar types in Galax. *)
 
-and exp = (exp_desc,sort option) syntax
+and exp = (exp_desc, (sort option * sort list)) syntax
 (** The type of expressions: an expression description annotated with
-    an optional sort. *)
+    an optional sort and a list of sort variables. *)
 
 and pat = (pat_desc,sort option) syntax          
 (** The type of patterns: an pattern description annotated with
+    an optional sort. *)
+
+and param = (param_desc,unit) syntax
+
+and binding = (binding_desc,sort option) syntax
+(** The type of bindings: a binding description annotated with
     an optional sort. *)
     
 val mk_exp : Info.t -> exp_desc -> exp
@@ -205,12 +206,32 @@ val mk_exp : Info.t -> exp_desc -> exp
     description [d]. *)
 
 val mk_checked_exp : Info.t -> exp_desc -> sort -> exp
-(** [mk_checked_exp i d s] constructs an [exp] with parsing info [i],
-    description [d], and annotated with sort [s]. *)
+(** [mk_exp i e s] constructs an [exp] with parsing info [i] and
+    description [e], annotated with [s]. *)
+
+val mk_checked_annot_exp : Info.t -> exp_desc -> sort -> sort list -> exp
+(** [mk_checked_exp i e l] constructs an [exp] with parsing info [i],
+    description [e], and annotated with [s] and [l]. *)
 
 val mk_pat : Info.t -> pat_desc -> pat
 (** [mk_pat i p] constructs a [pat] with parsing info [i] and
     description [p]. *)
+
+val mk_annot_pat : Info.t -> pat_desc -> sort -> pat
+(** [mk_annot_pat i p s] constructs a [pat] with parsing info [i] and
+    description [p], annotated with [s]. *)
+
+val mk_param : Info.t -> param_desc -> param
+(** [mk_param i p] constructs a [param] with parsing info [i] and
+    description [p]. *)
+
+val mk_binding : Info.t -> binding_desc -> binding
+(** [mk_binding i b] constructs a [binding] with parsing info [i] and
+    description [b]. *)
+
+val mk_annot_binding : Info.t -> binding_desc -> sort -> binding
+(** [mk_annot_binding i b] constructs a [binding] with parsing info [i] and
+    description [b], annotated with [s]. *)
 
 val mk_checked_pat : Info.t -> pat_desc -> sort -> pat
 (** [mk_checked_pat i p s] constructs a [pat] with parsing info [i],
@@ -243,7 +264,6 @@ type test_result =
     | TestValue of exp
     | TestError
     | TestShow
-    | TestSort of sort option
     | TestLensType of (exp option * exp option)
 (** The datatype representing unit test results. *)
 
