@@ -197,7 +197,7 @@ and pat = (pat_desc,sort option) syntax
 
 and param = (param_desc,unit) syntax
 
-and binding = (binding_desc,sort option) syntax
+and binding = (binding_desc,(svar list * sort option)) syntax
 (** The type of bindings: a binding description annotated with
     an optional sort. *)
     
@@ -229,9 +229,13 @@ val mk_binding : Info.t -> binding_desc -> binding
 (** [mk_binding i b] constructs a [binding] with parsing info [i] and
     description [b]. *)
 
-val mk_annot_binding : Info.t -> binding_desc -> sort -> binding
-(** [mk_annot_binding i b] constructs a [binding] with parsing info [i] and
+val mk_checked_binding : Info.t -> binding_desc -> sort -> binding
+(** [mk_checked_binding i b svl s] constructs a [binding] with parsing info [i] and
     description [b], annotated with [s]. *)
+
+val mk_checked_annot_binding : Info.t -> binding_desc -> svar list -> sort -> binding
+(** [mk_checked_annot_binding i b svl s] constructs a [binding] with parsing info [i] and
+    description [b], annotated with [svl] and [s]. *)
 
 val mk_checked_pat : Info.t -> pat_desc -> sort -> pat
 (** [mk_checked_pat i p s] constructs a [pat] with parsing info [i],

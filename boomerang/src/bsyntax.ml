@@ -180,7 +180,7 @@ and pat = (pat_desc,sort option) syntax
 
 and param = (param_desc,unit) syntax
 
-and binding = (binding_desc,sort option) syntax
+and binding = (binding_desc,(svar list * sort option)) syntax
 
 let mk_exp i e = { info=i; desc=e; annot=(None,[]) }
 
@@ -192,9 +192,11 @@ let mk_pat i p = { info=i; desc=p; annot=None }
 
 let mk_annot_pat i p s = { info=i; desc=p; annot=Some s }
 
-let mk_binding i b = { info=i; desc=b; annot=None }
+let mk_binding i b = { info=i; desc=b; annot=([],None) }
 
-let mk_annot_binding i b s = { info=i; desc=b; annot=Some s }
+let mk_checked_binding i b s = { info=i; desc=b; annot=([],Some s) }
+
+let mk_checked_annot_binding i b svl s = { info=i; desc=b; annot=(svl,Some s) }
 
 let mk_param i p = { info=i; desc=p; annot=() }
           
