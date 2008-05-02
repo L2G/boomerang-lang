@@ -180,7 +180,7 @@ and pat = (pat_desc,sort option) syntax
 
 and param = (param_desc,unit) syntax
 
-and binding = (binding_desc,(svar list * sort option)) syntax
+and binding = (binding_desc,(svar list * sort) option) syntax
 
 let mk_exp i e = { info=i; desc=e; annot=(None,[]) }
 
@@ -192,11 +192,9 @@ let mk_pat i p = { info=i; desc=p; annot=None }
 
 let mk_annot_pat i p s = { info=i; desc=p; annot=Some s }
 
-let mk_binding i b = { info=i; desc=b; annot=([],None) }
+let mk_binding i b = { info=i; desc=b; annot=None }
 
-let mk_checked_binding i b s = { info=i; desc=b; annot=([],Some s) }
-
-let mk_checked_annot_binding i b svl s = { info=i; desc=b; annot=(svl,Some s) }
+let mk_annot_binding i b ss = { info=i; desc=b; annot=Some ss }
 
 let mk_param i p = { info=i; desc=p; annot=() }
           
@@ -217,9 +215,6 @@ let mk_scheme svl s = (svl, s)
 
 (* scheme_of_sort: convert a sort to a scheme *)
 let scheme_of_sort s = mk_scheme [] s
-
-(* sort_or_scheme: used in sort checking environments *)
-type sort_or_scheme = Sort of sort | Scheme of scheme 
 
 (* test results *)
 type test_result =

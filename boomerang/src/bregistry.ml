@@ -27,22 +27,25 @@ let verbose = Trace.debug "registry+"
 module QM = Bsyntax.Qid.Env
 
 (* --------------- Registry values -------------- *)
-type rv = Bsyntax.sort_or_scheme * Bvalue.t
+type rs = 
+  | Scheme of Bsyntax.scheme 
+  | Sort of Bsyntax.sort      
+  | Unknown 
+
+type rv = rs * Bvalue.t
 
 (* utility functions *)
-let make_rv s v = (s,v)
-let value_of_rv (s,v) = v
-let sort_or_scheme_of_rv (s,v) = s
-let format_rv rv = 
-  let (s,v) = rv in    
-    Util.format "@[";
-    Bvalue.format v;
-    Util.format ":@ ";
-    (match s with 
-       | Bsyntax.Sort s -> Bprint.format_sort s
-       | Bsyntax.Scheme s -> Bprint.format_scheme s);
-    Util.format "]"
 
+let value_of_rv (_,v) = v
+
+let format_rv (rs,v) = 
+  Util.format "@[";
+  Bvalue.format v;
+  (match rs with
+    | Scheme (ss) -> Util.format ":@ ";  Bprint.format_scheme ss
+    | Sort(s)     -> Util.format ":@ ";  Bprint.format_sort s
+    | Unknown     -> ());
+    Util.format "@]"
 
 (* type abbreviation for the constructors for a type *)
 type tcon = Bsyntax.Qid.t * Bsyntax.sort option
@@ -152,8 +155,8 @@ let register q r =
 let register_type q (svl,cl) = 
   library := (REnv.update_type (!library) svl q cl)
 
-let register_native_qid q s v = 
-  register q (Bsyntax.Scheme s,v)
+let register_native_qid q ss v = 
+  register q (Scheme ss,v)
 
 (* register a native value *)
 let register_native qs s v = 

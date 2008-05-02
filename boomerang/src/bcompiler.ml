@@ -29,16 +29,14 @@ module R = Bregexp
 module L = Blenses.DLens
 module C = Blenses.Canonizer
 module V = Bvalue
+module G = Bregistry
 
 (* abbreviations *)
 let sprintf = Printf.sprintf  
 let msg = Util.format
 let (@) = Safelist.append
 
-let s_of_rv = Bregistry.sort_or_scheme_of_rv 
-let v_of_rv = Bregistry.value_of_rv 
-let p_of_rv rv = (s_of_rv rv, v_of_rv rv)
-let mk_rv = Bregistry.make_rv
+let v_of_rv = G.value_of_rv 
 
 (* --------------- AST utilities --------------- *)
 (* lookup a sort *)
@@ -55,9 +53,9 @@ let get_decl_sort d0 = match d0.annot with
 let mk_var i q = mk_exp i (EVar q) 
 let mk_app i e1 e2 = mk_exp i (EApp(e1,e2))
 let mk_app3 i e1 e2 e3 = mk_app i (mk_app i e1 e2) e3
-let mk_let i qx e1 s1 e2 =
-  let p = mk_annot_pat i (PVar(qx)) s1 in 
-  let b = mk_checked_binding i (Bind(p,e1)) s1 in 
+let mk_let i qx s1 e1 e2 =
+  let p = mk_checked_pat i (PVar(qx)) s1 in 
+  let b = mk_annot_binding i (Bind(p,e1)) ([],s1) in 
   mk_exp i (ELet(b,e2))
 
 let mk_fun i x s e1 =
@@ -120,27 +118,27 @@ sig
   type t 
   type v
   val empty : Qid.t -> t
-  val get_ev : t -> Bregistry.REnv.t
-  val set_ev : t -> Bregistry.REnv.t -> t
+  val get_ev : t -> G.REnv.t
+  val set_ev : t -> G.REnv.t -> t
   val get_ctx : t -> Id.t list
   val set_ctx : t -> Id.t list -> t
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
   val lookup : t -> Qid.t -> v option
-  val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
-  val lookup_con : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
+  val lookup_type : t -> Qid.t -> (Qid.t * G.tspec) option
+  val lookup_con : t -> Qid.t -> (Qid.t * G.tspec) option
   val update : t -> Qid.t -> v -> t
   val update_list : t -> (Qid.t * v) list -> t
-  val update_type : t -> Bsyntax.svar list -> Qid.t -> Bregistry.tcon list -> t
+  val update_type : t -> Bsyntax.svar list -> Qid.t -> G.tcon list -> t
   val fold : (Qid.t -> v -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
-module CEnv : CEnvSig with type v = (sort_or_scheme * Bvalue.t) = 
+module CEnv : CEnvSig with type v = G.rv = 
 struct
-  type t = (Id.t list * Qid.t) * Bregistry.REnv.t
-  type v = sort_or_scheme * Bvalue.t
+  type t = (Id.t list * Qid.t) * G.REnv.t
+  type v = G.rv
 
-  let empty m = (([],m), Bregistry.REnv.empty ())
+  let empty m = (([],m), G.REnv.empty ())
 
   (* getters and setters *)
   let get_ev cev = let (_,ev) = cev in ev
@@ -165,27 +163,25 @@ struct
       | None -> lookup_library_fun ctx q
           
   let lookup cev q = 
-    match lookup_generic 
-      Bregistry.REnv.lookup 
-      Bregistry.lookup_library_ctx 
-      cev q with
-        | None -> None
-        | Some rv -> Some (p_of_rv rv)
+    lookup_generic 
+      G.REnv.lookup 
+      G.lookup_library_ctx 
+      cev q 
 
   let lookup_type cev q = 
     lookup_generic 
-      Bregistry.REnv.lookup_type
-      Bregistry.lookup_type_library_ctx 
+      G.REnv.lookup_type
+      G.lookup_type_library_ctx 
       cev q 
 
   let lookup_con cev q = 
     lookup_generic 
-      Bregistry.REnv.lookup_con
-      Bregistry.lookup_con_library_ctx 
+      G.REnv.lookup_con
+      G.lookup_con_library_ctx 
       cev q 
 
-  let update cev q (s,v) = 
-    set_ev cev (Bregistry.REnv.update (get_ev cev) q (mk_rv s v))
+  let update cev q rv = 
+    set_ev cev (G.REnv.update (get_ev cev) q rv)
 
   let update_list cev qs = 
     Safelist.fold_left 
@@ -193,19 +189,17 @@ struct
       cev qs
             
   let update_type cev svars q cl = 
-    set_ev cev (Bregistry.REnv.update_type (get_ev cev) svars q cl)
+    set_ev cev (G.REnv.update_type (get_ev cev) svars q cl)
 
-  let fold f cev a = 
-    let ev = get_ev cev in   
-    Bregistry.REnv.fold (fun q v a -> f q (s_of_rv v,v_of_rv v) a) ev a
+  let fold f cev a = G.REnv.fold f (get_ev cev) a
 end
 type cenv = CEnv.t
 
 (* sort checking environment *)
-module SCEnv : CEnvSig with type v = sort_or_scheme = 
+module SCEnv : CEnvSig with type v = G.rs = 
 struct
   type t = CEnv.t
-  type v = sort_or_scheme 
+  type v = G.rs
 
   let dummy_value = V.Unt (V.Pos (Info.M "dummy value"))
   let empty = CEnv.empty        
@@ -231,32 +225,25 @@ struct
   let fold f sev a = CEnv.fold (fun q (s,_) a -> f q s a) sev a
 end
 
-let lookup_native_prelude_sort i s = 
-  let q = Qid.mk_native_prelude_t s in
-  let v = match Bregistry.lookup_library_ctx [] q with
-    | Some(rv) -> rv
-    | None -> run_error i (fun () -> msg "@[unbound variable %s@]" (Qid.string_of_t q)) in
-  s_of_rv v
-
 (* --------------- Sort Checking --------------- *)
 (* calculate the free sort variables in a compilation environment *)
 let cenv_free_svs i cev = 
   CEnv.fold 
-    (fun _ (ss,_) acc -> match ss with 
-       | Sort _ -> acc
-       | Scheme (svli,si) -> 
+    (fun _ (rs,_) acc -> match rs with 
+       | G.Scheme (svli,si) -> 
            let svsi = Bunify.svs_of_svl svli in
-           SVSet.union acc (SVSet.diff (free_svs i si) svsi))
+           SVSet.union acc (SVSet.diff (free_svs i si) svsi)
+       | _ -> acc)
     cev SVSet.empty
 
 (* calculate free variables in a sort checking environment *)
 let scenv_free_svs i sev = 
   SCEnv.fold 
-    (fun _ ss acc -> match ss with 
-       | Sort _ -> acc
-       | Scheme (svli,si) -> 
+    (fun _ rs acc -> match rs with 
+       | G.Scheme (svli,si) -> 
            let svsi = Bunify.svs_of_svl svli in 
-           SVSet.union acc (SVSet.diff (free_svs i si) svsi))
+           SVSet.union acc (SVSet.diff (free_svs i si) svsi)
+       | _ -> acc)
     sev SVSet.empty
 
 (* lookup a constructor *)
@@ -396,14 +383,14 @@ let rec check_exp evs e0 = match e0.desc with
       let _,sev = evs in 
       (* lookup q in the environment *)
       let e0_sl,e0_sort,new_e = match SCEnv.lookup sev q with
-        | Some (Sort s) -> 
+        | Some (G.Sort s) -> 
             (* if q is bound to a sort, return that sort *)
             ([],s,e0)
-        | Some (Scheme ss) -> 
+        | Some (G.Scheme ss) -> 
             (* if q is bound to a scheme, instantiate with fresh variables, insert type applications. *)
             let sl,s = Bunify.instantiate e0.info ss in 
             (sl,s,e0)
-        | None -> 
+        | _ -> 
             (* otherwise, q is unbound, so raise an exception *)
             sort_error e0.info
               (fun () -> msg "@[%s is not bound@]" 
@@ -416,7 +403,7 @@ let rec check_exp evs e0 = match e0.desc with
       (* for functions, resolve the parameter sort *)
       let (tev1,sev1),new_param_sort = resolve_sort p.info evs param_sort in 
       (* create the environment for the body *)
-      let body_sev = SCEnv.update sev1 (Qid.t_of_id px) (Sort new_param_sort) in      
+      let body_sev = SCEnv.update sev1 (Qid.t_of_id px) (G.Sort new_param_sort) in      
       let new_evs,body_sort,new_body = 
         match ret_sorto with 
           | None -> 
@@ -534,7 +521,7 @@ let rec check_exp evs e0 = match e0.desc with
              | Some binds ->                
                  (* otherwise, extend the env with bindings for pattern vars *)
                  let ei_sev = Safelist.fold_left 
-                   (fun ei_sev (qj,sj) -> SCEnv.update ei_sev (Qid.t_of_id qj) (Sort sj))
+                   (fun ei_sev (qj,sj) -> SCEnv.update ei_sev (Qid.t_of_id qj) (G.Sort sj))
                    sev binds in 
                  (* sort check the expression *) 
                  let evsi,ei_sort,new_ei = check_exp (tev,ei_sev) ei in
@@ -571,10 +558,10 @@ and check_binding evs b0 = match b0.desc with
           let () = p.annot <- Some e_sort in 
           let tev2,sev2 = evs2 in 
           let sev_fsvs = scenv_free_svs b0.info sev2 in
-          let e_svl,e_s = Bunify.generalize b0.info sev_fsvs e_sort in 
-          let sev3 = SCEnv.update sev2 qx (Scheme (e_svl,e_s)) in 
+          let e_scheme = Bunify.generalize b0.info sev_fsvs e_sort in 
+          let sev3 = SCEnv.update sev2 qx (G.Scheme e_scheme) in 
           let final_e = mk_checked_exp new_e.info new_e.desc e_sort in 
-          let new_b = mk_checked_annot_binding b0.info (Bind(p,final_e)) e_svl e_sort in 
+          let new_b = mk_annot_binding b0.info (Bind(p,final_e)) e_scheme in 
           ((tev2,sev3),[qx],new_b)              
       | _ -> 
           sort_error b0.info 
@@ -670,7 +657,7 @@ let rec check_decl (_,sev) ms d0 = match d0.desc with
              | Some s -> 
                  let evsi2,new_s = resolve_sort d0.info evsi s in 
                  (evsi2,SFunction (Id.wild,new_s,sx)) in 
-           let scheme = Scheme (mk_scheme svl s) in
+           let scheme = G.Scheme (mk_scheme svl s) in
            let sevi3 = SCEnv.update sevi2 (Qid.t_of_id l) scheme in 
            (tevi2,sevi3))
         (tev3,sev3) cl in 
@@ -724,15 +711,6 @@ and check_module_aux evs m ds =
       (evs,[],[])
       ds in
     (m_evs, names, Safelist.rev new_ds_rev)
-
-let check_module m0 = 
-  match m0.desc with
-  | Mod(m,nctx,ds) -> 
-      let tev = [] in 
-      let qm = Qid.t_of_id m in 
-      let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@Bregistry.pre_ctx) in
-      let _,_,new_ds = check_module_aux (tev,sev) [m] ds in 
-      mk_mod m0.info (Mod(m,nctx,new_ds))
           
 (* --------------- Instrumentation --------------- *)
 
@@ -802,11 +780,10 @@ let rec instrument_sort i (sev,iev) s0 = match s0 with
       let merge_blame = mk_var i (Qid.mk_native_prelude_t "merge_blame") in
         mk_fun i f s0
           (mk_fun i x s1
-             (mk_let i x 
+             (mk_let i x s1
                 (mk_app i 
                    s1_checker
                    (mk_app3 i merge_blame ef ex))
-                s1
                 (mk_app i 
                    s2_checker 
                    (mk_app i ef ex))))
@@ -901,7 +878,7 @@ and instrument_exp (sev,iev) e0 = match e0.desc with
       e0
 
 and instrument_binding (sev,iev) b0 = match b0.desc,b0.annot with 
-  | Bind(p,e),(svl,Some s0) ->       
+  | Bind(p,e),Some (svl,s) ->       
       let assoc = Safelist.map (fun svi -> (svi,fresh_var b0.info None)) svl in 
       let fiev = 
         Safelist.fold_right 
@@ -912,7 +889,7 @@ and instrument_binding (sev,iev) b0 = match b0.desc,b0.annot with
           (fun (svi,ci) acc -> 
              mk_fun b0.info ci (SVar svi) acc)
           assoc (instrument_exp (sev,fiev) e) in 
-      mk_checked_binding b0.info (Bind(p,new_e)) s0
+      mk_binding b0.info (Bind(p,new_e)) 
   | _ -> 
       run_error b0.info
         (fun () -> msg "@[unannotated binding]@")
@@ -947,14 +924,16 @@ and instrument_module_aux (sev,iev) ds =
     (fun di acc -> instrument_decl (sev,iev) di::acc)
     ds []
 
-and instrument_module m0 = match m0.desc with
+(* entry point to static analysis / instrumentation *)
+let check_module m0 = 
+  match m0.desc with
   | Mod(m,nctx,ds) -> 
-      let iev = IEnv.empty () in 
+      let tev = [] in 
       let qm = Qid.t_of_id m in 
-      let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@Bregistry.pre_ctx) in
-      let new_ds = instrument_module_aux (sev,iev) ds in 
-      mk_mod m0.info (Mod(m,nctx,new_ds))
-
+      let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@G.pre_ctx) in
+      let (_,checked_sev),_,checked_ds = check_module_aux (tev,sev) [m] ds in 
+      let instrumented_ds = instrument_module_aux (checked_sev,IEnv.empty ()) ds in 
+      mk_mod m0.info (Mod(m,nctx,instrumented_ds))
 
 (* --------------- Compiler --------------- *)
 (* expressions *)
@@ -981,7 +960,7 @@ let rec compile_exp cev e0 = match e0.desc with
         let body_cev = 
           CEnv.update cev 
             (Qid.t_of_id (id_of_param p))
-            (Sort (sort_of_param p), v) in 
+            (G.Unknown, v) in 
       compile_exp body_cev e in 
       V.Fun (V.blame_of_info e0.info,f)
 
@@ -1007,7 +986,7 @@ let rec compile_exp cev e0 = match e0.desc with
       let binds,ei = find_match pl in 
       let qid_binds = 
         Safelist.map 
-          (fun (x,s,v) -> (Qid.t_of_id x,(Sort s,v))) binds in         
+          (fun (x,s,v) -> (Qid.t_of_id x,(G.Sort s,v))) binds in         
       let ei_cev = CEnv.update_list cev qid_binds in
       compile_exp ei_cev ei
 
@@ -1022,7 +1001,7 @@ let rec compile_exp cev e0 = match e0.desc with
       V.Rx (V.blame_of_info e0.info, mk_rx cs)
 
 and compile_binding cev b0 = match b0.desc,b0.annot with
-  | Bind(p,e),(_,Some s) -> 
+  | Bind(p,e),Some(svl,s) -> 
       let v = compile_exp cev e in 
       let bindso = dynamic_match b0.info p v in 
       begin match bindso with 
@@ -1037,7 +1016,7 @@ and compile_binding cev b0 = match b0.desc,b0.annot with
               Safelist.map 
                 (fun (x,s,v) -> 
                    let qx = Qid.t_of_id x in 
-                   let ss = Scheme (Bunify.generalize b0.info cev_fsvs s) in 
+                   let ss = G.Scheme (Bunify.generalize b0.info cev_fsvs s) in 
                    (qx,(ss,v)))
                 binds in 
             let bcev = CEnv.update_list cev binds_schemes in 
@@ -1055,7 +1034,7 @@ let rec compile_decl cev ms d0 = match d0.desc with
   | DType(sl,qx,cl) -> 
       let x_sort = get_decl_sort d0 in
       let svl = Bunify.svl_of_sl d0.info sl in 
-      let x_scheme = Scheme (svl,x_sort) in 
+      let x_scheme = G.Scheme (svl,x_sort) in 
       let new_cev = Safelist.fold_left 
         (fun cev (l,so) -> 
            let ql = Qid.t_of_id l in 
@@ -1063,7 +1042,7 @@ let rec compile_decl cev ms d0 = match d0.desc with
              | None -> (x_scheme,V.Vnt(V.blame_of_info d0.info,qx,l,None))
              | Some s -> 
                  let sf = SFunction(Id.wild,s,x_sort) in 
-                 let sf_scheme = Scheme (svl,sf) in                    
+                 let sf_scheme = G.Scheme (svl,sf) in
                  (sf_scheme, 
                   V.Fun(V.blame_of_info d0.info,
                         (fun v -> V.Vnt(V.blame_of_t v,qx,l,Some v)))) in 
@@ -1173,6 +1152,6 @@ and compile_mod_aux cev ms ds =
 let compile_module m0 = match m0.desc with 
   | Mod(m,nctx,ds) -> 
       let qm = Qid.t_of_id m in 
-      let cev = CEnv.set_ctx (CEnv.empty qm) (m::nctx@Bregistry.pre_ctx) in
+      let cev = CEnv.set_ctx (CEnv.empty qm) (m::nctx@G.pre_ctx) in
       let new_cev,_ = compile_mod_aux cev [m] ds in
-      Bregistry.register_env (CEnv.get_ev new_cev) m
+      G.register_env (CEnv.get_ev new_cev) m

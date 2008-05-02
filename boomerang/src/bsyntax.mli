@@ -195,11 +195,21 @@ and pat = (pat_desc,sort option) syntax
 (** The type of patterns: an pattern description annotated with
     an optional sort. *)
 
-and param = (param_desc,unit) syntax
+and param = (param_desc, unit) syntax
 
-and binding = (binding_desc,(svar list * sort option)) syntax
+and binding = (binding_desc, (svar list * sort) option) syntax
 (** The type of bindings: a binding description annotated with
     an optional sort. *)
+
+module SVSet : Set.S with type elt = svar
+(** Sets of sort variables. *)
+
+module VSet : Set.S with type elt = Id.t
+(** Sets of variables (identifiers). *)
+
+type scheme = svar list * sort
+(** The type of sort schemes: a set of free variables and a sort. *)
+
     
 val mk_exp : Info.t -> exp_desc -> exp
 (** [mk_exp i d] constructs an [exp] with parsing info [i] and
@@ -229,26 +239,13 @@ val mk_binding : Info.t -> binding_desc -> binding
 (** [mk_binding i b] constructs a [binding] with parsing info [i] and
     description [b]. *)
 
-val mk_checked_binding : Info.t -> binding_desc -> sort -> binding
-(** [mk_checked_binding i b svl s] constructs a [binding] with parsing info [i] and
-    description [b], annotated with [s]. *)
-
-val mk_checked_annot_binding : Info.t -> binding_desc -> svar list -> sort -> binding
-(** [mk_checked_annot_binding i b svl s] constructs a [binding] with parsing info [i] and
-    description [b], annotated with [svl] and [s]. *)
+val mk_annot_binding : Info.t -> binding_desc -> scheme -> binding
+(** [mk_binding i b ss] constructs a [binding] with parsing info [i] and
+    description [b], annotated with [ss]. *)
 
 val mk_checked_pat : Info.t -> pat_desc -> sort -> pat
 (** [mk_checked_pat i p s] constructs a [pat] with parsing info [i],
     description [p], and annotated with sort [s]. *)
-  
-module SVSet : Set.S with type elt = svar
-(** Sets of sort variables. *)
-
-module VSet : Set.S with type elt = Id.t
-(** Sets of variables (identifiers). *)
-
-type scheme = svar list * sort
-(** The type of sort schemes: a set of free variables and a sort. *)
 
 val mk_scheme : svar list -> sort -> scheme
 (** [mk_scheme svl s] constructs a sort scheme with sort variables
@@ -257,12 +254,6 @@ val mk_scheme : svar list -> sort -> scheme
 val scheme_of_sort : sort -> scheme
 (** [scheme_of_sort s] constructs a sort scheme with no sort variables
     and sort [s]. *)
-
-type sort_or_scheme = Sort of sort | Scheme of scheme 
-(** The datatype representing sorts (for variables corresponding to
-    function parameters, and instantiated let-bound variables) and
-    schemes (for let-bound variables) used in sort checking
-    environments. *)
 
 type test_result =
     | TestValue of exp

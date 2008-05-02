@@ -47,8 +47,7 @@ let compile_lexbuf lexbuf n =
   let ast = parse_lexbuf lexbuf in
   let m_str = Id.string_of_t (id_of_module ast) in 
   let _ = m_check n m_str ast in
-  let checked_ast = check_module ast in 
-  let instrumented_ast = instrument_module checked_ast in
+  let instrumented_ast = check_module ast in 
   let _ = compile_module instrumented_ast in 
     ()
 

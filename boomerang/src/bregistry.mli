@@ -21,17 +21,17 @@
 
 (** {2 Registry of Boomerang values } *)
 
-type rv 
-(** The type of registry values; just a scheme and a value. *)
+type rs = 
+  | Scheme of Bsyntax.scheme 
+  | Sort of Bsyntax.sort      
+  | Unknown 
+(** The type of registry sorts: either a sort, a scheme, or unknown *)
 
-val make_rv : Bsyntax.sort_or_scheme -> Bvalue.t -> rv
-(** [make_rv s v] returns a registry value of scheme [s] and value [v]. *)
+type rv = rs * Bvalue.t
+(** The type of registry values: an [rs] and a value. *)
 
 val value_of_rv : rv -> Bvalue.t
 (** [value_of_rv r] returns the value from [r]. *)
-
-val sort_or_scheme_of_rv : rv -> Bsyntax.sort_or_scheme
-(** [scheme_of_rv r] returns the scheme from [r]. *)
 
 val format_rv : rv -> unit
 (** [format_rv r] pretty prints [r] *)
