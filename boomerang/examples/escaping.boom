@@ -1,0 +1,115 @@
+module Escaping = 
+
+let ANYCHAR = [^]
+
+let ANY = ANYCHAR*
+
+(* FIRST TRY:
+
+let unrender_quotedstr =
+    "\"" <-> "" 
+  . copy ANY
+  . "\"" <-> "" 
+
+let unescape_quotedstr_char =
+    "\\\"" <-> "\""
+  | "\\\\" <-> "\\"
+  | copy (ANYCHAR - [\\"])
+
+let unescape_quotedstr = unescape_quotedstr_char*
+
+test unescape_quotedstr get 
+    <<<
+        <hello\"world>
+    >>> 
+  = 
+    <<<
+        <hello"world>
+    >>> 
+
+let tester = unrender_quotedstr ; unescape_quotedstr
+(* DOESN'T WORK!! *)
+*)
+
+let unrender_quotedstr R =
+    "\"" <-> "" 
+  . copy R
+  . "\"" <-> "" 
+
+let unescape_quotedstr_char =
+    "\\\"" <-> "\""
+  | "\\\\" <-> "\\"
+  | copy (ANYCHAR - [\\])
+
+let unescape_quotedstr = unescape_quotedstr_char*
+
+test unescape_quotedstr get 
+    <<<
+        <hello\"world>
+    >>> 
+  = 
+    <<<
+        <hello"world>
+    >>> 
+
+let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
+
+(* Does this transformation work in general? *)
+
+(* Making the example harder: Make the ASCII into a CSV... *)
+
+let escape_xml_char = 
+    "<" <-> "&lt;"
+  | ">" <-> "&gt;"
+  | "&" <-> "&amp;"
+  | copy (ANYCHAR - [<>&])
+
+let escape_xml = escape_xml_char*
+
+let render_tag R = 
+    "" <-> "<tag>"
+  . copy R
+  . "" <-> "</tag>"
+
+let test2 = escape_xml; render_tag (atype escape_xml) 
+
+test test2 get 
+    <<<
+        <hello"world>
+    >>> 
+  = 
+    <<<
+        <tag>&lt;hello"world&gt;</tag>
+    >>> 
+    
+let l = test1 ; test2
+
+test l get 
+    <<<
+        " <hello\"world> "
+    >>> 
+  = <<<
+        <tag> &lt;hello"world&gt; </tag>
+    >>>
+
+(* That works.  So let's make it more generic... *)
+
+let render R before after = 
+    "" <-> before
+  . copy R
+  . "" <-> after
+
+let escape pairs =
+  List.fold_left
+    (fun l p -> match p with (from,to) -> ((from <-> to) | l))
+    (copy ANY)
+    pairs
+
+(* Things to do next:
+Simplifying assumption: All escape sequences begin with the same char.
+      - fix the (incorrect) ANY in the above definition
+      - express unescaping symmetrically using inverse (or whatever it's called)
+      - extend the whole setup to CSV, XML, etc., etc. (i.e., *lists* of escaped fields)
+Note that all escaping maps *single* characters to multi-char sequences
+  (this should simplify things)
+*)
