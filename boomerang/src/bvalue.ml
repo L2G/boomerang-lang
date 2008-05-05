@@ -125,7 +125,7 @@ let rec format = function
       Util.format ",@ ";
       format v2;
       Util.format ")@]"
-  | Vnt(_,_,l,None) -> Util.format "%s" (S.Id.string_of_t l)
+  | Vnt(_,_,l,None) -> Util.format "VNT %s" (S.Id.string_of_t l)
   | Vnt(_,_,l,Some v) ->  
       Util.format "@[(%s@ " (S.Id.string_of_t l);
       format v;

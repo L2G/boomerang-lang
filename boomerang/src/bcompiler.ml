@@ -307,6 +307,12 @@ let rec static_match i sev p0 s =
 (* dynamic match: determine if a value *does* match a pattern; return
    the list of value bindings for variables. *)
 let rec dynamic_match i p0 v0 = 
+(*  msg "DYNAMIC_MATCH [";
+  V.format v0;
+  msg "] WITH [";
+  format_pat p0;
+  msg "]@\n";
+*)
   match p0.desc,v0 with   
   | PWld,_ -> 
       Some []
@@ -836,10 +842,10 @@ let rec instrument_sort i (sev,iev) s0 = match Bunify.zonk i s0 with
   | SData(sl,qx) -> 
       let v = fresh_var i None in
       let ev = mk_var i (Qid.t_of_id v) in
-      let x = fresh_var i None in 
-      let qx = Qid.t_of_id x in 
-      let svl,cl = match SCEnv.lookup_type (SCEnv.empty qx) qx with
-        | None -> run_error i (fun () -> msg "@[unbound type %s]" (Qid.string_of_t qx))
+      let y = fresh_var i None in 
+      let qy = Qid.t_of_id y in 
+      let svl,cl = match SCEnv.lookup_type sev qx with
+        | None -> run_error i (fun () -> msg "@[cannot resolve %s@]" (Qid.string_of_t qx))
         | Some (_,ts) -> ts in 
       let s0_inst,cl_inst = Bunify.instantiate_cases i (qx,(svl,cl)) in
       let () = 
@@ -853,13 +859,13 @@ let rec instrument_sort i (sev,iev) s0 = match Bunify.zonk i s0 with
                  (p,ev)::acc
              | (q,Some s) -> 
                  let s_checker = instrument_sort i (sev,iev) s in
-                 let px = mk_checked_pat i (PVar x) s in 
-                 let p = mk_checked_pat i (PVnt(q,Some px)) s0 in 
-                 let ex = mk_var i qx in 
+                 let py = mk_checked_pat i (PVar y) s in 
+                 let p = mk_checked_pat i (PVnt(q,Some py)) s0 in 
+                 let ey = mk_var i qy in 
                  (p,
                   mk_app i 
                     (mk_var i q)
-                    (mk_app i s_checker ex))::acc)
+                    (mk_app i s_checker ey))::acc)
           [] cl_inst in 
       mk_fun i v s0 (mk_case i ev (Safelist.rev cl_rev'))
 
@@ -867,7 +873,14 @@ and instrument_exp (sev,iev) e0 =
   let res = match e0.desc with
   | EVar(q) -> 
       let _,sl = e0.annot in 
-      let chkl = Safelist.map (instrument_sort e0.info (sev,iev)) sl in 
+      let chkl = 
+        try Safelist.map (instrument_sort e0.info (sev,iev)) sl 
+        with err -> 
+          msg "ERR in"; 
+          format_exp e0;
+          msg "@\n";
+          raise err
+      in 
       Safelist.fold_right 
         (fun chki acc -> mk_app e0.info acc chki)
         chkl e0
@@ -883,7 +896,14 @@ and instrument_exp (sev,iev) e0 =
       mk_exp e0.info (ELet(ib,ie))
 
   | EFun(p1,_,e1) -> 
-      let s0_checker = instrument_sort e0.info (sev,iev) (get_sort e0) in 
+      let s0_checker = 
+        try instrument_sort e0.info (sev,iev) (get_sort e0)
+        with err -> 
+          msg "ERR in"; 
+          format_exp e0;
+          msg "@\n";
+          raise err
+      in 
       let i1 = instrument_exp (sev,iev) e1 in 
       let i0 = mk_exp e0.info (EFun(p1,None,i1)) in 
       mk_exp e0.info (EApp(s0_checker,i0))
@@ -979,10 +999,7 @@ let check_module m0 =
       let qm = Qid.t_of_id m in 
       let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@G.pre_ctx) in
       let (_,checked_sev),_,checked_ds = check_module_aux (tev,sev) [m] ds in 
-      let instrumented_ds = 
-        if false then 
-          instrument_module_aux (checked_sev,IEnv.empty ()) checked_ds 
-        else checked_ds in 
+      let instrumented_ds = if false then instrument_module_aux (checked_sev,IEnv.empty ()) checked_ds else checked_ds in 
       let res = mk_mod m0.info (Mod(m,nctx,instrumented_ds)) in 
       Trace.debug "instr+" (fun () -> format_module res; msg "@\n");
       res

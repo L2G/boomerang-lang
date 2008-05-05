@@ -275,14 +275,17 @@ let lookup_library_generic lookup_fun nctx q =
   in
   lookup_library_aux nctx q
 
-let lookup_library_ctx = 
-  lookup_library_generic REnv.lookup
+let lookup_library_ctx os q = 
+  debug (fun () -> Util.format "lookup_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  lookup_library_generic REnv.lookup os q
 
-let lookup_type_library_ctx = 
-  lookup_library_generic REnv.lookup_type
+let lookup_type_library_ctx os q = 
+  debug (fun () -> Util.format "lookup_type_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  lookup_library_generic REnv.lookup_type os q
 
-let lookup_con_library_ctx = 
-  lookup_library_generic REnv.lookup_con
+let lookup_con_library_ctx os q = 
+  debug (fun () -> Util.format "lookup_con_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  lookup_library_generic REnv.lookup_con os q
 
 let lookup_library q = 
   debug (fun () -> Util.format "lookup_library [%s]@\n" (Bsyntax.Qid.string_of_t q));

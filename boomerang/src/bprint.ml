@@ -241,8 +241,8 @@ and format_decl d0 =
           | _ -> 
               msg "(";
               Misc.format_list ",@ " format_sort svl;
-              msg ")@ ");
-        msg "%s@ =@ " (Qid.string_of_t x);
+              msg ")");
+        msg "@ %s@ =@ " (Qid.string_of_t x);
         Misc.format_list " | "
           (fun (l,s) -> match s with
              | None -> Util.format "%s" (Id.string_of_t l)

@@ -475,7 +475,7 @@ let prelude_spec =
                let hd,tl = match vo with 
                  | None -> poly_error (info_of_blame b) list_bt l
                  | Some v -> get_p v in                
-               let acc' = (get_f (f hd)) acc in 
+               let acc' = (get_f (f acc)) hd in 
                aux tl acc'
              else 
                poly_error (info_of_blame b) list_bt l in 
