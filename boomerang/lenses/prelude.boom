@@ -65,10 +65,12 @@ let pcreate : lens -> string -> string =
   Native.Prelude.create
 
 (* predicates *)
+(* 
 let splittable : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> bool =
   Native.Prelude.splittable
 let disjoint : regexp -> regexp -> bool =
   Native.Prelude.disjoint
+*)
 (* Maybe we also want one for lenses? *)
 
 (* polymorphic operators *)
@@ -78,11 +80,16 @@ let const : {'a:string,regexp} => 'a -> string -> string -> lens =
   Native.Prelude.const 
 let shortest : {'a:string,regexp} => 'a -> string = 
   Native.Prelude.shortest
+let poly_concat : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> 'a = 
+  Native.Prelude.poly_concat 
+
+(* 
 let poly_concat : {'a:string,regexp,lens,canonizer} => 
                       (x:'a)
                    -> (y:'a | splittable x y) 
                    -> 'a =
   Native.Prelude.poly_concat
+*)
 (* Want to be able to write
    let poly_concat : {'a:string,regexp,lens,canonizer} => 'a -> a' -> a' =
      fun (x:'a) (y:'a | splittable x y)  ->

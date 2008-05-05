@@ -378,7 +378,13 @@ let rec resolve_sort i evs s0 =
 
 
 (* ------ sort checking expressions ----- *)
-let rec check_exp evs e0 = match e0.desc with
+let rec check_exp evs e0 = 
+  Trace.debug "check"
+    (fun () -> 
+       msg "@[check_exp ";
+       format_exp e0;
+       msg "@]@\n");
+  match e0.desc with
   | EVar(q) ->
       let _,sev = evs in 
       (* lookup q in the environment *)
@@ -395,6 +401,7 @@ let rec check_exp evs e0 = match e0.desc with
             sort_error e0.info
               (fun () -> msg "@[%s is not bound@]" 
                  (Qid.string_of_t q)) in 
+      Trace.debug "check" (fun () -> msg "@[annot: ["; Misc.format_list "," format_sort e0_sl; msg "] => "; format_sort e0_sort; msg "@]@\n");
       (evs,e0_sort,mk_checked_annot_exp e0.info e0.desc e0_sort e0_sl)
 
   | EFun(p,ret_sorto,body) ->
@@ -558,11 +565,21 @@ and check_binding evs b0 = match b0.desc with
           let () = p.annot <- Some e_sort in 
           let tev2,sev2 = evs2 in 
           let sev_fsvs = scenv_free_svs b0.info sev2 in
+            Trace.debug "check"
+              (fun () -> 
+                 msg "@[generalizing ";
+                 format_sort e_sort;
+                 msg "...@]@\n");
           let e_scheme = Bunify.generalize b0.info sev_fsvs e_sort in 
+            Trace.debug "check"
+              (fun () -> 
+                 msg "@[...to ";
+                 format_sort (snd e_scheme);
+                 msg "@]@\n");
           let sev3 = SCEnv.update sev2 qx (G.Scheme e_scheme) in 
           let final_e = mk_checked_exp new_e.info new_e.desc e_sort in 
           let new_b = mk_annot_binding b0.info (Bind(p,final_e)) e_scheme in 
-          ((tev2,sev3),[qx],new_b)              
+          ((tev2,sev3),[qx],new_b)
       | _ -> 
           sort_error b0.info 
             (fun () -> msg "@[in@ let-binding: pattern must be a variable@]") 
@@ -719,8 +736,11 @@ module IEnv = Env.Make(
   struct
     type t = svar
     let compare (x,_) (y,_) = Pervasives.compare x y
-    let to_string (x,_) = sprintf "'a_%d" x
+    let to_string (x,_) = sprintf "<%d>" x
   end)
+
+let format_ienv ienv = 
+  IEnv.format_t ienv (fun x -> msg "@[%s@]" (Qid.string_of_t x))
 
 (* gensym *)
 let fresh_counter = ref 0 
@@ -742,7 +762,7 @@ let fresh_var i exclo =
   loop (gen ())
    
 (* instrumentation at sorts *)
-let rec instrument_sort i (sev,iev) s0 = match s0 with
+let rec instrument_sort i (sev,iev) s0 = match Bunify.zonk i s0 with
   | SVar(sv) -> begin
       match IEnv.lookup iev sv with
         | Some(q) -> 
@@ -751,18 +771,21 @@ let rec instrument_sort i (sev,iev) s0 = match s0 with
             run_error i 
               (fun () -> 
                  msg "@[unbound sort variable ";
-                 Bprint.reset_name_ctxt ();
-                 format_sort s0; msg "@]")
+                       Bprint.reset_name_ctxt ();
+                       format_sort s0; msg "@]")
     end
+
   | SRawVar(_) -> 
       run_error i 
         (fun () ->
            msg "@[unexpected raw sort variable ";
            format_sort s0; msg "@]")
+
   | SUnit | SString | SInteger | SRegexp | SLens | SCanonizer -> 
       let x = fresh_var i None in 
       mk_fun i x s0
         (mk_var i (Qid.t_of_id x))
+
   | SRefine(x,s1,e0) ->
       let e_x = mk_var i (Qid.t_of_id x) in 
       let e_blame = mk_var i (Qid.mk_native_prelude_t "blame") in        
@@ -774,19 +797,22 @@ let rec instrument_sort i (sev,iev) s0 = match s0 with
       let s2_checker = instrument_sort i (sev,iev) s2 in 
       let f = fresh_var i (Some x) in 
       let qf = Qid.t_of_id f in 
-      let qx = Qid.t_of_id x in 
+      let y = 
+        if Id.equal Id.wild x then fresh_var i None
+        else x in 
+      let qy = Qid.t_of_id y in 
       let ef = mk_var i qf in 
-      let ex = mk_var i qx in
+      let ey = mk_var i qy in
       let merge_blame = mk_var i (Qid.mk_native_prelude_t "merge_blame") in
         mk_fun i f s0
-          (mk_fun i x s1
-             (mk_let i x s1
+          (mk_fun i y s1
+             (mk_let i y s1
                 (mk_app i 
                    s1_checker
-                   (mk_app3 i merge_blame ef ex))
+                   (mk_app3 i merge_blame ef ey))
                 (mk_app i 
                    s2_checker 
-                   (mk_app i ef ex))))
+                   (mk_app i ef ey))))
         
   | SProduct(s1,s2) ->
       let s1_checker = instrument_sort i (sev,iev) s1 in
@@ -837,7 +863,8 @@ let rec instrument_sort i (sev,iev) s0 = match s0 with
           [] cl_inst in 
       mk_fun i v s0 (mk_case i ev (Safelist.rev cl_rev'))
 
-and instrument_exp (sev,iev) e0 = match e0.desc with
+and instrument_exp (sev,iev) e0 = 
+  let res = match e0.desc with
   | EVar(q) -> 
       let _,sl = e0.annot in 
       let chkl = Safelist.map (instrument_sort e0.info (sev,iev)) sl in 
@@ -875,9 +902,18 @@ and instrument_exp (sev,iev) e0 = match e0.desc with
       mk_exp e0.info (ECase(i1,Safelist.rev new_cl_rev)) 
 
   | EUnit | EString _ | EInteger _ | ECSet _ -> 
-      e0
+      e0 in 
+  Trace.debug "instr++" 
+    (fun () -> 
+       msg "@["; 
+       format_exp e0; 
+       msg " ~> ";
+       format_exp res; 
+       msg "@]@\n"); 
+    res
 
-and instrument_binding (sev,iev) b0 = match b0.desc,b0.annot with 
+and instrument_binding (sev,iev) b0 = 
+  match b0.desc,b0.annot with 
   | Bind(p,e),Some (svl,s) ->       
       let assoc = Safelist.map (fun svi -> (svi,fresh_var b0.info None)) svl in 
       let fiev = 
@@ -887,14 +923,22 @@ and instrument_binding (sev,iev) b0 = match b0.desc,b0.annot with
       let new_e = 
         Safelist.fold_right 
           (fun (svi,ci) acc -> 
-             mk_fun b0.info ci (SVar svi) acc)
+             let ci_sort = SVar svi in 
+             let f_sort = SFunction(Id.wild,ci_sort,ci_sort) in 
+             mk_fun b0.info ci f_sort acc)
           assoc (instrument_exp (sev,fiev) e) in 
-      mk_binding b0.info (Bind(p,new_e)) 
-  | _ -> 
-      run_error b0.info
-        (fun () -> msg "@[unannotated binding]@")
+      mk_annot_binding b0.info (Bind(p,new_e)) (svl,s)
 
-and instrument_decl (sev,iev) d0 = match d0.desc with
+  | Bind _,None -> 
+      run_error b0.info
+        (fun () -> msg "@[unannotated binding!@ ";
+                   Bprint.format_binding b0;
+                   msg "@]")
+
+and instrument_decl (sev,iev) d0 =
+  Trace.debug "instr" 
+    (fun () -> msg "@[instrument_decl: "; format_decl d0; msg "@]@\n"); 
+  let res = match d0.desc with
   | DLet(b) ->
       let ib = instrument_binding (sev,iev) b in 
       mk_decl d0.info (DLet(ib)) 
@@ -917,7 +961,10 @@ and instrument_decl (sev,iev) d0 = match d0.desc with
             let i2o = Misc.map_option instr e2o in 
             TestLensType(i1o,i2o)
         | _ -> tr in 
-      mk_decl d0.info (DTest(i1,itr))        
+      mk_decl d0.info (DTest(i1,itr)) in
+    Trace.debug "instr_test"
+      (fun () -> msg "@[~> "; format_decl res; msg "@]@\n"); 
+    res
 
 and instrument_module_aux (sev,iev) ds = 
   Safelist.fold_right
@@ -932,8 +979,13 @@ let check_module m0 =
       let qm = Qid.t_of_id m in 
       let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@G.pre_ctx) in
       let (_,checked_sev),_,checked_ds = check_module_aux (tev,sev) [m] ds in 
-      let instrumented_ds = instrument_module_aux (checked_sev,IEnv.empty ()) ds in 
-      mk_mod m0.info (Mod(m,nctx,instrumented_ds))
+      let instrumented_ds = 
+        if false then 
+          instrument_module_aux (checked_sev,IEnv.empty ()) checked_ds 
+        else checked_ds in 
+      let res = mk_mod m0.info (Mod(m,nctx,instrumented_ds)) in 
+      Trace.debug "instr+" (fun () -> format_module res; msg "@\n");
+      res
 
 (* --------------- Compiler --------------- *)
 (* expressions *)
@@ -947,7 +999,7 @@ let rec compile_exp cev e0 = match e0.desc with
       end
 
   | EApp(e1,e2) ->
-      let v1 = compile_exp cev e2 in 
+      let v1 = compile_exp cev e1 in 
       let v2 = compile_exp cev e2 in 
       (V.get_f v1) v2
 
@@ -1016,8 +1068,8 @@ and compile_binding cev b0 = match b0.desc,b0.annot with
               Safelist.map 
                 (fun (x,s,v) -> 
                    let qx = Qid.t_of_id x in 
-                   let ss = G.Scheme (Bunify.generalize b0.info cev_fsvs s) in 
-                   (qx,(ss,v)))
+                   let ss = Bunify.generalize b0.info cev_fsvs s in 
+                   (qx,(G.Scheme ss,v)))
                 binds in 
             let bcev = CEnv.update_list cev binds_schemes in 
             let xs = Safelist.map (fun (qx,_) -> qx) binds_schemes in 

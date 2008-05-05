@@ -44,11 +44,11 @@ let rec format_sort = function
       Util.format ")@]"
         
   | SProduct(s1,s2) -> 
-      Util.format "@[<2>";
+      Util.format "@[<2>(";
       format_sort s1;
       Util.format "@ *@ ";
       format_sort s2;
-      Util.format "@]"
+      Util.format ")@]"
   | SData([],q1) -> Util.format "@[%s@]" (Qid.string_of_t q1)
   | SData([s],q1) -> 
       msg "@[";
@@ -71,7 +71,6 @@ let rec format_sort = function
       Util.format ")@]"
 
 and format_svar print_cons (x,cr) = 
-  (* msg "<%d>:" x; *)
   match !cr with
   | Bnd s -> 
       format_sort s
@@ -260,7 +259,7 @@ and format_decl d0 =
     | DTest (e, tr) ->
 	Util.format"@[<2>test@ @[";
 	format_exp e;
-	Util.format "@ =@ ";
+	Util.format "@ ";
 	format_test_result tr;
 	Util.format "@]@]"
 and format_module m0 = match m0.desc with 

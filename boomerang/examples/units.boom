@@ -47,8 +47,6 @@ let myf x y = match x with
   | Prelude.Left _ -> True
   | Prelude.Right _ -> False
 
-test myf : ('a, 'b) Prelude.maybe -> ('c -> bool)
-
 let safe_hd = 
   (fun l -> 
      (fun d -> match l with 

@@ -39,5 +39,8 @@ val instantiate : Info.t -> svar list * sort -> (sort list * sort)
 (** [instantiate i (svs,s)] constructs a new sort by picking fresh
     sort variables for each variable in [svs].*)
 
+val zonk : Info.t -> sort -> sort
+(** [zonk sv] forces latent substitutions in [sv]. *)
+
 val unify : Info.t -> sort -> sort -> bool
 (** [unify i s1 s2] unifies [s1] and [s2]. *)

@@ -221,26 +221,23 @@ and unifyVar i flip sv1 s2 =
 (*   format_svar true sv1; *)
 (*   msg " ~ "; *)
 (*   format_sort s2; *)
-(*   msg "@\n";  *)
+(*   msg "@\n"; *)
   let (x1,sor1) = sv1 in 
-  match !sor1,s2 with    
+  let res = match !sor1,s2 with    
     | Bnd s1,_ -> 
         if flip then unify i s2 s1 
         else unify i s1 s2 
     | Fre,SVar(_,sor2) -> 
-        begin
+        begin 
           match get_con_sort s2 with 
             | Fst x2 -> 
                 if x1 = x2 then ()
                 else sor1 := Bnd s2
-            | Snd (x2,c)  -> 
+            | Snd (x2,_)  -> 
                 if x1 = x2 then ()
-                else 
-                  (sor2 := Con c;
-                   sor1 := Bnd s2)
-            | Thd s' -> 
+                else sor1 := Bnd s2
+            | Thd _ -> 
                 occurs_check i sv1 s2;
-                sor2 := Bnd s';
                 sor1 := Bnd s2
         end;
         true
@@ -278,6 +275,11 @@ and unifyVar i flip sv1 s2 =
         (occurs_check i sv1 s2;
          sor1 := Bnd s2;
          true)
-      else false
+      else false in 
+(*   msg "@[UNIFY_VAR RES=%b@\n" res; *)
+(*   msg "  SV1="; format_svar false sv1; *)
+(*   msg "@\n  S2="; format_sort s2; *)
+(*   msg "@\n@]"; *)
+  res
 
         
