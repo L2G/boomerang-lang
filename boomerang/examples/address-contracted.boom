@@ -17,7 +17,7 @@
 (*******************************************************************************)
 (* /boomerang/examples/address.boom                                            *)
 (* VCard, XCard, CSV address books lens                                        *)
-(* $Id$ *)
+(* $Id: address.boom 3580 2008-02-29 21:27:17Z jnfoster $ *)
 (*******************************************************************************)
 
 module Address = 
@@ -60,7 +60,8 @@ let NonEmptyStringNotContaining (r:regexp) : regexp =
 let WS : regexp = [ \n\t]*
 
 (* ws: lens that deletes whitespace *)
-let ws : lens = del WS
+let ws : WS <-> // = del WS
+(* Note that this is checked at definition time *)
 
 (* NL: portable newline *)
 let NL : regexp = /\r/? . /\n/
@@ -68,10 +69,29 @@ let NL : regexp = /\r/? . /\n/
 (* NonNL: any string not containing a newline *)
 let NonNL : regexp = StringNotContaining [\n\r]
 
-(* filterwith: derived lens that removes characters in [both], then
-   runs [l]*)
-let filterwith (both: regexp) (l: lens) : lens = 
+let filter (r1:regexp) 
+           (r2:regexp | disjoint r1 r2 /\ iterable (r1|r2) /\ iterable r2) 
+         : (r1|r2)* <-> r2* =
+  Prelude.filter r1 r2
+
+(* Observation: filter's contract will not be checked at declaration
+   time, so we need to write a unit test, which will *both* document
+   its behavior and cause (an instance of) the contract to be checked. *)
+
+(* filterwith: derived lens that removes characters in [both] but not in 
+   [ctype l], then runs [l]*) 
+let filterwith (both: regexp) 
+               (l: lens | iterable l /\ iterable (ctype l | both)) 
+             : (ctype l | both)* <-> (atype l)*
+ = 
   filter (both - (ctype l)) (ctype l) ; l*
+
+(* Note that the second condition is needed for asset-checking (CYA),
+   but the disjointness condition in filter's contract is guaranteed
+   so we don't need to propagate it to our contract. *)
+
+(* Again, we need unit test(s). *)
+
 
 (* -------------------------------------------------------------------- *)
 (* ESCAPING *)
@@ -86,7 +106,7 @@ let NonSpecial : regexp = [^\n\r\\]
 let EscapedSpecial : regexp = [\\nr]
 
 (* escspecial: lens escaping non-slash chars in Special *)
-let escspecial : lens = (/\n/ <-> "\\n" | /\r/ <-> "\\r")
+let escspecial : [\n\r] <-> (/\\/ . [nr]) = (/\n/ <-> "\\n" | /\r/ <-> "\\r")
 
 (* EscapedStr: strings where every character in [R] and [Special] are
    escaped using backslash. [R] should be a chracter class. *)
@@ -107,16 +127,33 @@ let NonEmptyEscapedStr (R:regexp) : regexp =
 
 (* escchar: escape characters in [c], which should be a character
    class. *)
-let escchar (c:regexp) : lens = 
+let escchar (c:regexp where disjoint c [\n\r]) 
+          :  AnyChar <-> (/\\/ . (Special|c) | (NonSpecial-c) = 
   ( (ins "\\" . copy (c | /\\/))
   | escspecial
   | copy (NonSpecial - c))
+(* Unit test needed *)
 
 (* unescchar: inverse of (the bijective lens) escchar *)
-let unescchar (c:regexp) : lens = invert (escchar c)
+let unescchar (c:regexp where disjoint c [\n\r]) 
+              : (/\\/ . (Special|c) | (NonSpecial-c) <-> AnyChar = 
+  invert (escchar c)
+
+(* Note that we should also check bijectiveness (because invert
+   demands it).  This could be done either "statically" by making
+   lenses know whether they are guaranteed bijective or "lazily" by
+   checking on each application of GET that CREATE maps us back to
+   where we started (the other round trip is automatic from the lens
+   laws).  This is going to be damn expensive. *)
+
+(* Note that we are probably going to pretty soon need notations for
+   programming over contracts... *)
 
 (* escstr: escape a string using [escchar] *)
-let escstr (c:regexp) : { ? <-> EscapedStr c } = (escchar c)*
+let escstr (c:regexp where disjoint c [\n\r]) 
+         : Any <-> EscapedStr c = 
+  (escchar c)*
+(* Incomplete -- what about iterability?? *)
 
 (* escNonEmptyStr: escape a non-empty string using [escchar] *)
 let escNonEmptyStr (c:regexp) : { ? <-> NonEmptyEscapedStr c } = (escchar c)+
