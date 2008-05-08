@@ -400,7 +400,7 @@ let rec check_exp evs e0 =
        msg "@[check_exp ";
        format_exp e0;
        msg "@]@\n");
-  match e0.desc with
+  let res = match e0.desc with
   | EVar(q) ->
       let _,sev = evs in 
       (* lookup q in the environment *)
@@ -427,7 +427,7 @@ let rec check_exp evs e0 =
       let (tev1,sev1),new_param_sort = resolve_sort p.info evs param_sort in 
       (* create the environment for the body *)
       let body_sev = SCEnv.update sev1 (Qid.t_of_id px) (G.Sort new_param_sort) in      
-      let new_evs,body_sort,new_body = 
+      let (new_tev,_),body_sort,new_body = 
         match ret_sorto with 
           | None -> 
               (* if no return sort declared, just check the body *)
@@ -451,6 +451,7 @@ let rec check_exp evs e0 =
       let e0_sort = SFunction(dep_x,new_param_sort,body_sort) in 
       let new_p = mk_param p.info (Param(px,new_param_sort)) in 
       let new_e0 = EFun(new_p,Some body_sort,new_body) in         
+      let new_evs = new_tev,sev1 in 
       (new_evs,e0_sort,mk_checked_exp e0.info new_e0 e0_sort)
 
   | ELet(b,e) ->
@@ -560,7 +561,15 @@ let rec check_exp evs e0 =
         (evs1,[]) pl in 
       let e0_sort = branches_sort in 
       let new_e0 = ECase(new_e1,Safelist.rev new_pl_rev) in 
-      (new_evs,e0_sort,mk_checked_exp e0.info new_e0 e0_sort)
+      (new_evs,e0_sort,mk_checked_exp e0.info new_e0 e0_sort) in
+  Trace.debug "check"
+    (fun () -> 
+       msg "@[check_exp result ";
+       format_exp e0;
+       msg "@ :@ "; format_sort (match res with (_,s,_) -> s);
+       msg "@]@\n");
+    res
+
         
 and check_binding evs b0 = match b0.desc with
   | Bind(p,e) -> match p.desc with
