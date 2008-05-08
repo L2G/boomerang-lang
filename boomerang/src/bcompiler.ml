@@ -258,50 +258,60 @@ let get_con i sev li =
    bindings for variables. *)
 let rec static_match i sev p0 s = 
 (*   msg "STATIC_MATCH: %s # %s@\n" (string_of_pat p0) (string_of_sort s); *)
-(*         msg "LOOKING UP %s@\n" (Qid.string_of_t li); *)
-(*               msg "QX: %s SVL: %t@\n" (Qid.string_of_t qx) (fun _ -> Misc.format_list "," (format_svar false) svl); *)
-(*               msg "RAW DATA         : %s@\n" (string_of_sort (SData(sl,qx))); *)
-(*               msg "INSTANTIATED DATA: %s@\n" (string_of_sort s_expect); *)
+(*   msg "LOOKING UP %s@\n" (Qid.string_of_t li);         *)
+(*   msg "QX: %s SVL: %t@\n" (Qid.string_of_t qx) (fun _ -> Misc.format_list "," (format_svar false) svl); *)
+(*   msg "INSTANTIATED DATA: %s@\n" (string_of_sort s_expect); *)
   let err p s1 s2 = sort_error i 
     (fun () -> msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
        (string_of_pat p)
        (string_of_sort s1)
        (string_of_sort s2)) in 
   match p0.desc with 
-    | PWld -> Some []
+    | PWld -> Some (p0,[])
     | PVar(x) -> 
         p0.annot <- Some s;
-        Some [(x,s)]
+        Some (p0,[(x,s)])
     | PUnt -> 
         if not (Bunify.unify i s SUnit) then err p0 SUnit s;
-        Some []
+        Some (p0,[])
     | PVnt(li,pio) -> 
         (* lookup the constructor from the environment *)
         let qx,(svl,cl) = get_con p0.info sev li in 
         (* instantiate with *)
         let s_expect,cl_inst = Bunify.instantiate_cases i (qx,(svl,cl)) in 
           if not (Bunify.unify i s s_expect) then err p0 s_expect s;
-          let rec find_constructor = function
+          let rec resolve_label li lj = function
             | [] -> None
-            | (lj,sjo)::rest ->            
-                if Qid.equal li lj then 
-                  (match pio,sjo with 
-                     | None,None -> Some []
-                     | Some pi,Some sj -> 
-                         Misc.map_option 
-                           (fun l -> l) 
-                           (static_match i sev pi sj)                             
-                     | _ -> sort_error i 
-                         (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" 
-                            (Qid.string_of_t lj)))
-                else find_constructor rest in 
-          find_constructor cl_inst
+            | o::os -> 
+                let qi = Qid.id_dot o li in 
+                if Qid.equal qi lj then Some qi
+                else resolve_label li lj os in
+          let rec find_label = function
+            | [] -> None
+            | (lj,sjo)::rest ->                            
+                let go qi = 
+                  match pio,sjo with 
+                  | None,None -> 
+                      Some(mk_pat p0.info (PVnt(qi,pio)),[])
+                  | Some pi,Some sj -> 
+                      Misc.map_option 
+                        (fun (new_pi,binds) -> 
+                           (mk_pat p0.info (PVnt(qi,pio)),binds))
+                        (static_match i sev pi sj)                             
+                  | _ -> sort_error i 
+                      (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" 
+                         (Qid.string_of_t lj)) in 
+                if Qid.equal li lj then go li
+                else match resolve_label li lj (SCEnv.get_ctx sev) with
+                  | None -> find_label rest
+                  | Some qi -> go qi in 
+          find_label cl_inst
     | PPar(p1,p2) -> 
         let s1,s2 = Bunify.fresh_sort Fre,Bunify.fresh_sort Fre in 
         let s_expect = SProduct(s1,s2) in 
         if not (Bunify.unify i s s_expect) then err p0 s_expect s;
         (match static_match i sev p1 s1, static_match i sev p2 s2 with 
-           | Some l1,Some l2 -> Some (l1 @ l2)
+           | Some (new_p1,l1),Some(new_p2,l2) -> Some (mk_pat p0.info (PPar(new_p1,new_p2)),l1 @ l2)
            | _ -> None)
 
 (* dynamic match: determine if a value *does* match a pattern; return
@@ -531,7 +541,7 @@ let rec check_exp evs e0 =
                  err2 e0.info "@[pattern@ %s@ does@ not@ match@ sort@ %s@]" 
                    (string_of_pat pi) 
                    (string_of_sort e1_sort)
-             | Some binds ->                
+             | Some (new_pi,binds) ->                
                  (* otherwise, extend the env with bindings for pattern vars *)
                  let ei_sev = Safelist.fold_left 
                    (fun ei_sev (qj,sj) -> SCEnv.update ei_sev (Qid.t_of_id qj) (G.Sort sj))
@@ -545,7 +555,7 @@ let rec check_exp evs e0 =
                           msg "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
                             (string_of_sort branches_sort)
                             (string_of_sort ei_sort));                   
-                   let new_pl_rev' = (pi,new_ei)::new_pl_rev in 
+                   let new_pl_rev' = (new_pi,new_ei)::new_pl_rev in 
                    (evsi,new_pl_rev'))
         (evs1,[]) pl in 
       let e0_sort = branches_sort in 
@@ -873,14 +883,7 @@ and instrument_exp (sev,iev) e0 =
   let res = match e0.desc with
   | EVar(q) -> 
       let _,sl = e0.annot in 
-      let chkl = 
-        try Safelist.map (instrument_sort e0.info (sev,iev)) sl 
-        with err -> 
-          msg "ERR in"; 
-          format_exp e0;
-          msg "@\n";
-          raise err
-      in 
+      let chkl = Safelist.map (instrument_sort e0.info (sev,iev)) sl in
       Safelist.fold_right 
         (fun chki acc -> mk_app e0.info acc chki)
         chkl e0
@@ -896,14 +899,7 @@ and instrument_exp (sev,iev) e0 =
       mk_exp e0.info (ELet(ib,ie))
 
   | EFun(p1,_,e1) -> 
-      let s0_checker = 
-        try instrument_sort e0.info (sev,iev) (get_sort e0)
-        with err -> 
-          msg "ERR in"; 
-          format_exp e0;
-          msg "@\n";
-          raise err
-      in 
+      let s0_checker = instrument_sort e0.info (sev,iev) (get_sort e0) in
       let i1 = instrument_exp (sev,iev) e1 in 
       let i0 = mk_exp e0.info (EFun(p1,None,i1)) in 
       mk_exp e0.info (EApp(s0_checker,i0))
@@ -999,7 +995,9 @@ let check_module m0 =
       let qm = Qid.t_of_id m in 
       let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@G.pre_ctx) in
       let (_,checked_sev),_,checked_ds = check_module_aux (tev,sev) [m] ds in 
-      let instrumented_ds = if false then instrument_module_aux (checked_sev,IEnv.empty ()) checked_ds else checked_ds in 
+      let instrumented_ds = 
+        if false then instrument_module_aux (checked_sev,IEnv.empty ()) checked_ds 
+        else checked_ds in 
       let res = mk_mod m0.info (Mod(m,nctx,instrumented_ds)) in 
       Trace.debug "instr+" (fun () -> format_module res; msg "@\n");
       res
@@ -1182,7 +1180,7 @@ let rec compile_decl cev ms d0 = match d0.desc with
                   (fun () -> 
                     msg "Test result: error@\n";
                     err (); 
-                    msg "%!")
+                    msg "@\n%!")
             | Error _, TestError -> ()
             | OK(v), TestValue res -> 
                 let resv = compile_exp cev res in

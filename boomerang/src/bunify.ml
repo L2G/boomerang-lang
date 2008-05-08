@@ -207,8 +207,8 @@ let rec unify i s1 s2 =
         ss12
       
   (* type variables *)
-  | SVar sv1,_ -> unifyVar i false sv1 s2
-  | _,SVar sv2 -> unifyVar i true sv2 s1
+  | SVar sv1,_ -> unifyVar i sv1 s2
+  | _,SVar sv2 -> unifyVar i sv2 s1
   | _        -> false in
 (*    msg "@[UNIFY RES=%b@\n" res; *)
 (*    msg "  S1="; format_sort s1; *)
@@ -216,7 +216,7 @@ let rec unify i s1 s2 =
 (*    msg "@\n@]"; *)
   res
 
-and unifyVar i flip sv1 s2 = 
+and unifyVar i sv1 s2 = 
 (*   msg "UNIFY_VAR: "; *)
 (*   format_svar true sv1; *)
 (*   msg " ~ "; *)
@@ -224,16 +224,11 @@ and unifyVar i flip sv1 s2 =
 (*   msg "@\n"; *)
   let (x1,sor1) = sv1 in 
   let res = match !sor1,s2 with    
-    | Bnd s1,_ -> 
-        if flip then unify i s2 s1 
-        else unify i s1 s2 
+    | Bnd s1,_ -> unify i s1 s2 
     | Fre,SVar(_,sor2) -> 
         begin 
           match get_con_sort s2 with 
-            | Fst x2 -> 
-                if x1 = x2 then ()
-                else sor1 := Bnd s2
-            | Snd (x2,_)  -> 
+            | Fst x2 | Snd(x2,_) -> 
                 if x1 = x2 then ()
                 else sor1 := Bnd s2
             | Thd _ -> 
@@ -249,16 +244,9 @@ and unifyVar i flip sv1 s2 =
 
      | Con c1,SVar((sor2,x2) as sv2) -> 
          begin match get_con_sort s2 with 
-             | Fst x2 -> 
+             | Fst x2 | Snd(x2,_) -> 
                  if x1=x2 then ()
                  else 
-                   (add_con sv2 c1;
-                    sor1 := Bnd s2);
-                 true
-
-             | Snd (x2,c) -> 
-                 if x1=x2 then () 
-                 else
                    (add_con sv2 c1;
                     sor1 := Bnd s2);
                  true
