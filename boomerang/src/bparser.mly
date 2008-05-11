@@ -44,28 +44,27 @@ let mp2 i1 p2 = m i1 (info_of_pat p2)
 let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
 
 (* helpers for building ASTs *)
+let mk_bool i b = mk_exp i (EBoolean b)
+let mk_int i n = mk_exp i (EInteger n)
 let mk_qid_var x = mk_exp (Qid.info_of_t x) (EVar x)
 let mk_var x = mk_qid_var (Qid.t_of_id x)
 let mk_prelude_var x = mk_qid_var (Qid.mk_native_prelude_t x)
+let mk_list_var x = mk_qid_var (Qid.mk_list_t x)
+let mk_over i op el = mk_exp i (EOver(op,el))
 
+let mk_pair i e1 e2 = mk_exp i (EPair(e1,e2)) 
 let mk_str i s = mk_exp i (EString (RS.t_of_string s))
 let mk_app i e1 e2 = mk_exp i (EApp(e1,e2))
 let mk_bin_op i o e1 e2 = mk_app i (mk_app i o e1) e2
 let mk_tern_op i o e1 e2 e3 = mk_app i (mk_bin_op i o e1 e2) e3
-let mk_cat i e1 e2 = mk_bin_op i (mk_prelude_var "poly_concat") e1 e2
-let mk_iter i e1 min maxo = 
-  mk_tern_op i (mk_prelude_var "poly_iter") 
-    e1 
-    (mk_str i (string_of_int min)) 
-    (mk_str i (match maxo with None -> "" | Some max -> string_of_int max))
-  
-let mk_star i e1 = mk_iter i e1 0 None
+let mk_cat i e1 e2 = mk_over i ODot [e1;e2]
+let mk_iter i min max e1 = mk_over i (OIter(min,max)) [e1]
 
-let mk_union i e1 e2 = mk_bin_op i (mk_prelude_var "poly_union") e1 e2
+let mk_union i e1 e2 = mk_over i OBar [e1;e2]
+let mk_swap i e1 e2 = mk_over i OTilde [e1;e2]
 let mk_diff i e1 e2 = mk_bin_op i (mk_prelude_var "diff") e1 e2
 let mk_inter i e1 e2 = mk_bin_op i (mk_prelude_var "inter") e1 e2
 let mk_compose i e1 e2 = mk_bin_op i (mk_prelude_var "compose") e1 e2
-let mk_swap i e1 e2 = mk_bin_op i (mk_prelude_var "poly_swap") e1 e2
 let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (Qid.mk_prelude_t "set")) e1 e2
 let mk_match i x q = mk_bin_op i (mk_qid_var (Qid.mk_prelude_t "dmatch")) (mk_str i x) (mk_qid_var q)
 let mk_sim_match i e t q = 
@@ -74,6 +73,7 @@ let mk_sim_match i e t q =
     (mk_str i t)
     (mk_qid_var q)
 let mk_rx i e = mk_app i (mk_prelude_var "str") e
+let mk_tyapp i e s = mk_exp i (ETyApp(e,s))
 
 (* error *)
 let syntax_error i msg = 
@@ -134,15 +134,18 @@ let parse_qid i qstr =
       else go (acc,x ^ (String.make 1 c1)) in 
   go ([],"")
 
-let mk_fun i params body sorto = 
+let mk_fun i params body sort = 
   Safelist.fold_right
-    (fun p (f,so) -> 
-       let f' = mk_exp i (EFun(p,so,f)) in 
-       let so' = match so with 
-         | None -> None 
-         | Some s -> Some (SFunction(Id.wild,sort_of_param p,s)) in 
-       (f',so'))
-    params (body,sorto)
+    (fun p (f,s) -> 
+       let f' = mk_exp i (EFun(p,Some s,f)) in 
+       let s' = SFunction(Id.wild,sort_of_param p,s) in          
+       (f',s'))
+    params (body,sort)
+
+let mk_bare_fun i params body = 
+  Safelist.fold_right
+    (fun p f -> mk_exp i (EFun(p,None,f)))
+    params body
 
 let mk_assert = function
   | None,None -> (fun i e -> e)
@@ -168,13 +171,14 @@ let check_pat i p params = match p.desc,params with
 
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
-%token <Info.t> STRING REGEXP LENS CANONIZER UNIT
+%token <Info.t> STRING REGEXP LENS INT BOOL CANONIZER UNIT
 %token <Bsyntax.Id.t> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
-%token <Info.t * int> INT
+%token <Info.t * int> INTEGER
+%token <Info.t * bool> BOOLEAN
 %token <Info.t * float> FLOAT
-%token <Info.t> LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
+%token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW EQARROW
-%token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
+%token <Info.t> BEGIN END FUN TYFUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> GET PUT CREATE INTO
@@ -201,22 +205,17 @@ decls:
       { let i = m $1 $4 in 
         mk_decl i (DType($2,Qid.t_of_id $3,$5))::$6 }
 
-  | LET ppat param_list EQUAL exp decls
-      { let i = me2 $1 $5 in 
-        let p = fixup_pat i $2 in
-        let () = check_pat i p $3 in 
-        let f,_ = mk_fun i $3 $5 None in 
-        let b = mk_binding i (Bind(p,f)) in 
-        mk_decl i (DLet b)::$6 }
-
-  | LET ppat param_list COLON decl_sort EQUAL exp decls
+  | LET id param_list COLON sort EQUAL exp decls
       { let i = me2 $1 $7 in 
-        let p = fixup_pat i $2 in 
-        let () = check_pat i p $3 in 
-        let s,ef = $5 in 
-        let f,_ = mk_fun i $3 (ef $4 $7) (Some s) in 
-        let b = mk_binding i (Bind(p,f)) in 
+        let f,f_sort = mk_fun i $3 $7 $5 in 
+        let b = mk_binding i (Bind($2,Some f_sort,f)) in 
         mk_decl i (DLet b)::$8 }
+
+  | LET id param_list EQUAL exp decls
+      { let i = me2 $1 $5 in 
+        let f = mk_bare_fun i $3 $5 in 
+        let b = mk_binding i (Bind($2,None,f)) in 
+        mk_decl i (DLet b)::$6 }
 
   | MODULE UIDENT EQUAL decls END decls 
       { let i = m $1 $5 in 
@@ -253,33 +252,32 @@ test_type:
 
 /* --------- EXPRESSIONS ---------- */      
 exp:
-  | LET ppat param_list EQUAL exp IN exp
-      { let i = m $1 $6 in 
-        let p = fixup_pat i $2 in 
-        let () = check_pat i p $3 in 
-        let f,_ = mk_fun i $3 $5 None in 
-        let b = mk_binding i (Bind(p,f)) in 
-        mk_exp i (ELet(b,$7)) }
+  | LET id param_list COLON sort EQUAL exp IN exp 
+      { let i = me2 $1 $9 in 
+        let f,f_sort = mk_fun i $3 $7 $5 in 
+        let b = mk_binding i (Bind($2,Some f_sort,f)) in 
+        mk_exp i (ELet(b,$9)) }
 
-  | LET ppat param_list COLON decl_sort EQUAL exp IN exp
-      { let i = m $1 $8 in 
-        let p = fixup_pat i $2 in 
-        let () = check_pat i p $3 in 
-        let s,ef = $5 in 
-        let f,_ = mk_fun i $3 (ef $4 $7) (Some s) in 
-        let b = mk_binding i (Bind(p,f)) in 
-        mk_exp i (ELet (b,$9)) }
+  | LET id param_list EQUAL exp IN exp 
+      { let i = me2 $1 $7 in 
+        let f = mk_bare_fun i $3 $5 in 
+        let b = mk_binding i (Bind($2,None,f)) in 
+        mk_exp i (ELet(b,$7)) }
 
   | FUN param param_list ARROW exp
       { let i = me2 $1 $5 in 
-        let f,_ = mk_fun i $3 $5 None in 
+        let f = mk_bare_fun i $3 $5 in 
         mk_exp i (EFun($2,None,f)) }
 
   | FUN param param_list COLON asort ARROW exp
       { let i = me2 $1 $7 in 
-        let f,so = mk_fun i $3 $7 (Some $5) in 
-        mk_exp i (EFun($2,so,f)) }
+        let f,s = mk_fun i $3 $7 $5 in 
+        mk_exp i (EFun($2,Some s,f)) }
       
+  | TYFUN VIDENT ARROW exp
+      { let i = me2 $1 $4 in 
+        mk_exp i (ETyFun($2,$4)) }
+
   | gpexp                               
       { $1 }
 
@@ -379,12 +377,20 @@ appexp:
       
 /* repeated expressions */
 rexp:
-  | aexp rep                            
-      { let i2,(min,maxo) = $2 in 
+  | tyexp rep                            
+      { let i2,(min,max) = $2 in 
         let i = me1 $1 i2 in 
-        mk_iter i $1 min maxo }
+        mk_iter i min max $1 }
 
-  | aexp                                
+  | tyexp                                
+      { $1 }
+
+tyexp:
+  | tyexp LBRACE sort RBRACE
+      { let i = me1 $1 $4 in 
+        mk_tyapp i $1 $3 }
+
+  | aexp 
       { $1 }
 
 /* atomic expressions */
@@ -408,6 +414,20 @@ aexp:
   | LANGLE TILDE LBRACE FLOAT RBRACE LIDENT COLON qid RANGLE 
       { let _,f = $4 in 
         mk_sim_match (m $1 $9) f (Id.string_of_t $6) $8 }
+
+  | HASH LBRACE sort LLIST list 
+      { let i6,mk = $5 in 
+        let i = m $1 i6 in 
+        let l = mk i $3 in 
+        l }
+
+  | INTEGER
+      { let i,n = $1 in 
+        mk_int i n }
+
+  | BOOLEAN
+      { let i,b = $1 in 
+        mk_bool i b }
 
   | qid 
       { mk_qid_var $1 }
@@ -436,6 +456,26 @@ aexp:
 
   | BEGIN exp END                       
       { $2 }
+
+/* --------- LISTS ------------ */
+list:
+  | RBRACK 
+      { $1, (fun i s -> mk_tyapp i (mk_list_var "Nil") s) }
+
+  | pexp RBRACK 
+      { ($2, 
+         (fun i s -> 
+            mk_app i 
+              (mk_tyapp i (mk_list_var "Cons") s)
+              (mk_pair i $1 (mk_tyapp i (mk_list_var "Nil") s)))) }
+
+  | pexp SEMI list
+    { let i3,mk = $3 in 
+      (i3, 
+       (fun i s -> 
+          mk_app i
+            (mk_tyapp i (mk_list_var "Cons") s)
+            (mk_pair i $1 (mk i s)))) }
 
 /* --------- PATTERNS ---------- */
 branch: 
@@ -468,17 +508,29 @@ apat:
   | UNDERLINE 
     { mk_pat $1 PWld }
 
+  | LIDENT
+      { let i,_ = $1 in 
+        mk_pat i (PVar $1) }
+
   | LPAREN RPAREN
     { mk_pat (m $1 $2) PUnt }
+
+  | INTEGER
+    { let i,n = $1 in 
+      mk_pat i (PInt(n)) }
+
+  | BOOLEAN
+      { let i,b = $1 in 
+        mk_pat i (PBol(b)) }
+
+  | STR
+      { let i,s = $1 in 
+        mk_pat i (PStr(s)) }
 
   | UIDENT
       { let i,_ = $1 in 
         mk_pat i (PVnt(Qid.t_of_id $1,None)) }
       
-  | LIDENT
-      { let i,_ = $1 in 
-        mk_pat i (PVar $1) }
-
   | QIDENT
       { let (i,qs) = $1 in 
         mk_pat i (PVnt(parse_qid i qs,None)) }
@@ -573,6 +625,12 @@ asort:
   | LENS  
       { SLens }
 
+  | INT
+      { SInteger }
+
+  | BOOL
+      { SBool }
+
   | CANONIZER
       { SCanonizer }
 
@@ -580,11 +638,11 @@ asort:
       { SUnit }
 
   | svar
-      { $1 }
+      { SVar $1 }
 
 svar:
   | VIDENT
-      { SRawVar $1 }
+      { $1 }
 
 svar_list:
   | 
@@ -687,31 +745,28 @@ param_list:
       { [] }
 
 param: 
-  | id 
-      { mk_param (fst $1) (Param($1,Bunify.fresh_sort Fre)) }
-
   | LPAREN id COLON sort RPAREN
       { mk_param (fst $2) (Param($2,$4)) }
 
 /* --------- REPETITIONS ---------- */
 rep: 
   | STAR                                
-      { ($1, (0, None)) }
+      { ($1, (0,-1)) }
 
   | PLUS                                
-      { ($1, (1, None)) }
+      { ($1, (1,-1)) }
 
   | QMARK                               
-      { ($1, (0,Some 1)) }
+      { ($1, (0,1)) }
 
-  | LBRACE INT RBRACE
-      { let i = m $1 $3 in let _,n = $2 in (i, (n,Some n)) }
+  | LBRACE INTEGER RBRACE
+      { let i = m $1 $3 in let _,n = $2 in (i, (n,n)) }
 
-  | LBRACE INT COMMA RBRACE             
-      { let i = m $1 $3 in let _,n = $2 in (i, (n,None)) }
+  | LBRACE INTEGER COMMA RBRACE             
+      { let i = m $1 $3 in let _,n = $2 in (i, (n,-1)) }
 
-  | LBRACE INT COMMA INT RBRACE         
-      { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, Some n4)) }
+  | LBRACE INTEGER COMMA INTEGER RBRACE         
+      { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, n4)) }
 
 /* --------- MISC SYMBOLS ---------- */
 uid:

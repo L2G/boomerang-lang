@@ -38,6 +38,14 @@ module Id = struct
   let equal i1 i2 = compare i1 i2 = 0
   (* constants *)
   let wild = (Info.M "_", "_")
+  (* modules *)
+  type this_t = t
+  module Set = 
+    Set.Make(
+      struct
+        type t = this_t 
+        let compare = compare 
+      end)
 end
 
 (* ------ qualified identifiers ------ *)
@@ -92,6 +100,7 @@ module Qid = struct
   let mk_native_prelude_t = mk_mod_t ["Native"; "Prelude"] 
   let mk_prelude_t = mk_mod_t ["Prelude"]
   let mk_list_t = mk_mod_t ["List"]    
+  (* modules *)
   type this_t = t
   module Env = Env.Make(
     struct
@@ -99,56 +108,51 @@ module Qid = struct
       let compare = compare
       let to_string = string_of_t
     end) 
+  module Set = 
+    Set.Make(
+      struct
+        type t = this_t 
+        let compare = compare 
+      end)
 end
 
 (* ----- sorts, parameters, expressions ----- *)
-
-(* base sorts: used to constrained type variables *)
-type base_sort = Unt | Str | Int | Reg | Lns | Can
-
-(* sets of base sorts *)          
-module BSSet = Set.Make(
-  struct
-    type t = base_sort
-    let compare = Pervasives.compare
-  end)
-
-type bs = BSSet.t 
-
-(* sorts *)
 type sort = 
+    (* base types *)
     | SUnit                           (* unit *)
-    | SString                         (* strings *)
+    | SBool                           (* booleans *)
     | SInteger                        (* integers *)
+    | SString                         (* strings *)
     | SRegexp                         (* regular expressions *)
     | SLens                           (* lenses *)
     | SCanonizer                      (* canonizers *)
+    (* dependent types *)
     | SFunction of Id.t * sort * sort (* dependent functions *)
     | SData of sort list * Qid.t      (* data types *)
     | SProduct of sort * sort         (* products *)
-    | SVar of svar                    (* sort variables *)
-    | SRawVar of Id.t                 (* parsed sort variables *)
     | SRefine of Id.t * sort * exp    (* refinements *)
-
-(* sort variables: a unique identifier and a ref cell *)
-and svar = int * sbnd ref
-
-(* sort variable: free, bound to sort, or constrained *)
-and sbnd = Fre | Bnd of sort | Con of bs
-
+    (* polymorphism *)
+    | SVar of Id.t                    (* variables *)
+    | SForall of Id.t * sort          (* universals *)
+ 
 (* parameters *)
 and param_desc = Param of Id.t * sort
 
 (* variable bindings *)
-and binding_desc = Bind of pat * exp 
+and binding_desc = Bind of Id.t * sort option * exp 
 
 (* expression syntax *)
 and exp_desc = 
     (* lambda calculus *)
     | EApp of exp * exp 
     | EVar of Qid.t 
+    | EOver of op * exp list 
     | EFun of param * sort option * exp 
     | ELet of binding * exp 
+
+    (* err... System F rather *)
+    | ETyFun of Id.t * exp 
+    | ETyApp of exp * sort
 
     (* with products, case *)
     | EPair of exp * exp 
@@ -156,17 +160,29 @@ and exp_desc =
         
     (* unit, strings, ints, character sets *)
     | EUnit  
-    | EString of Bstring.t 
+    | EBoolean of bool
     | EInteger of int    
+    | EString of Bstring.t 
     | ECSet of bool * (Bstring.sym * Bstring.sym) list 
+
+(* overloaded operators *)
+and op = 
+  | OIter of int * int
+  | ODot
+  | OBar
+  | OTilde
 
 (* patterns *)
 and pat_desc = 
   | PWld 
   | PUnt 
+  | PBol of bool
+  | PInt of int
+  | PStr of string
   | PVar of Id.t 
   | PVnt of Qid.t * pat option 
   | PPar of pat * pat
+
 
 (* syntax: carries info, ast, and annotation *) 
 and ('a,'b) syntax = 
@@ -174,48 +190,34 @@ and ('a,'b) syntax =
       desc: 'a;
       mutable annot: 'b }
 
-and exp = (exp_desc,(sort option * sort list)) syntax
+and exp = (exp_desc,sort option) syntax
 
-and pat = (pat_desc,sort option) syntax          
+and pat = (pat_desc,sort option) syntax
 
 and param = (param_desc,unit) syntax
 
-and binding = (binding_desc,(svar list * sort) option) syntax
+and binding = (binding_desc,unit) syntax
 
-let mk_exp i e = { info=i; desc=e; annot=(None,[]) }
-
-let mk_checked_exp i e s = { info=i; desc=e; annot=(Some s,[]) }
-
-let mk_checked_annot_exp i e s l = { info=i; desc=e; annot=(Some s,l) }
-
+let mk_exp i e = { info=i; desc=e; annot=None }
 let mk_pat i p = { info=i; desc=p; annot=None }
+let mk_binding i b = { info=i; desc=b; annot=() }
+let mk_param i p = { info=i; desc=p; annot=() }
 
+let mk_annot_exp i e s = { info=i; desc=e; annot=(Some s) }
 let mk_annot_pat i p s = { info=i; desc=p; annot=Some s }
 
-let mk_binding i b = { info=i; desc=b; annot=None }
+let sort_of_param p0 = match p0.desc with
+  | Param(_,s) -> s
 
-let mk_annot_binding i b ss = { info=i; desc=b; annot=Some ss }
+let id_of_param p0 = match p0.desc with
+  | Param(x,_) -> x
 
-let mk_param i p = { info=i; desc=p; annot=() }
-          
-let mk_checked_pat i p s = { info=i; desc=p; annot=Some s }
-     
-(* variable sets *)
-module VSet = Set.Make(
-  struct
-    type t = Id.t
-    let compare = Id.compare 
-  end)
+let id_of_binding b0 = match b0.desc with 
+  | Bind(x,_,_) -> x
+
+let exp_of_binding b0 = match b0.desc with 
+  | Bind(_,_,e) -> e
   
-(* sort schemes: used in sort checking environments *)
-type scheme = svar list * sort
-
-(* mk_scheme: construct a scheme from a svar list and a sort *)
-let mk_scheme svl s = (svl, s)
-
-(* scheme_of_sort: convert a sort to a scheme *)
-let scheme_of_sort s = mk_scheme [] s
-
 (* test results *)
 type test_result =
     | TestValue of exp
@@ -226,16 +228,14 @@ type test_result =
 (* declarations *)
 type decl_desc = 
     | DLet of binding  
-    | DType of sort list * Qid.t * (Id.t * sort option) list 
+    | DType of Id.t list * Qid.t * (Id.t * sort option) list 
     | DMod of Id.t * decl list 
     | DTest of exp * test_result
 
-and decl = (decl_desc,sort option) syntax 
+and decl = (decl_desc,unit) syntax 
           
-let mk_decl i d = { info=i; desc=d; annot=None }          
-        
-let mk_checked_decl i d s = { info=i; desc=d; annot=Some s } 
-  
+let mk_decl i d = { info=i; desc=d; annot=() }          
+          
 (* modules *)
 type modl_desc = Mod of Id.t * Id.t list * decl list
 
@@ -246,43 +246,38 @@ let mk_mod i m = { info=i; desc=m; annot=() }
 (* infix constructor for non-dependent functions *)
 let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
 
-(* sort variable sets *)
-module SVSet = Set.Make(
-  struct
-    type t = svar 
-    (* compare uids *)    
-    let compare (x,_) (y,_) = Pervasives.compare x y
-  end)
-
-(* free sort variables *)
-let free_svs i s0 = 
+(* free variables *)
+let free_sort_vars s0 = 
   let rec go acc = function
-    | SVar(sv1) -> 
-        let (x1,sor1) = sv1 in 
-        begin match !sor1 with 
-          | Bnd s1 -> go acc s1
-          | _    -> SVSet.add sv1 acc 
-        end
-    | SUnit | SString | SInteger | SRegexp | SLens | SCanonizer -> acc
+    | SVar(x) -> Id.Set.add x acc
+    | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer -> acc
     | SFunction(_,s1,s2) -> go (go acc s1) s2
-    | SProduct(s1,s2)  -> go (go acc s1) s2
-    | SData(sl,s1)     -> Safelist.fold_left go acc sl 
-    | SRawVar x        -> SVSet.empty
-    | SRefine(_,s1,_) -> 
-        (* STUB *)
-        assert false
-  in 
-  go SVSet.empty s0
+    | SProduct(s1,s2)    -> go (go acc s1) s2
+    | SData(sl,_)        -> Safelist.fold_left go acc sl
+    | SRefine(_,s1,e1)   -> go acc s1 (* and e1? *) 
+    | SForall(x,s)       -> Id.Set.remove x (go acc s) in 
+  go Id.Set.empty s0
 
-(* free expression variables *)
-let free_vars e : VSet.t = 
-  (* STUB! *)
-  assert false
-
-(* free expression variables in sorts *)
-let free_vars_sort s : VSet.t = 
-  (* STUB! *)
-  VSet.empty
+let free_vars e0 = 
+  let rec go acc e0 = match e0.desc with     
+    | EVar(x)     -> Qid.Set.add x acc
+    | EApp(e1,e2) -> go (go acc e1) e2
+    | EOver(_,el) -> Safelist.fold_left go acc el
+    | EFun(p,_,e) -> 
+        Qid.Set.remove 
+          (Qid.t_of_id (id_of_param p)) 
+          (go acc e) 
+    | ELet(b,e)   -> 
+        Qid.Set.remove 
+          (Qid.t_of_id (id_of_binding b)) 
+          (go (go acc (exp_of_binding b)) e)
+    | ETyFun(_,e)  -> go acc e
+    | ETyApp(e,_)  -> go acc e
+    | EPair(e1,e2) -> go (go acc e1) e2
+    | ECase(e,cl)  -> 
+        go (Safelist.fold_left (fun acc (_,ei) -> go acc ei) acc cl) e
+    | EUnit | EBoolean _ | EInteger _ | EString _ | ECSet _ -> acc in 
+  go Qid.Set.empty e0
 
 (* accessors *)
 let info_of_exp e0 = e0.info
@@ -293,12 +288,3 @@ let info_of_module m0 = m0.info
 
 let id_of_module m0 = match m0.desc with
   | Mod(x,_,_) -> x
-
-let sort_of_param p0 = match p0.desc with
-  | Param(_,s) -> s
-
-let id_of_param p0 = match p0.desc with
-  | Param(x,_) -> x
-
-
-

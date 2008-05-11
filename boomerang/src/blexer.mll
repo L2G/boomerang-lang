@@ -96,8 +96,11 @@ let _ =
     ; ("let", (fun i -> LET i)) 
     ; ("in", (fun i -> IN i))
     ; ("fun", (fun i -> FUN i))
+    ; ("tyfun", (fun i -> TYFUN i))
     ; ("begin", (fun i -> BEGIN i))
     ; ("end", (fun i -> END i))
+    ; ("true", (fun i -> BOOLEAN(i,true)))
+    ; ("false", (fun i -> BOOLEAN(i,false)))
     ; ("test", (fun i -> TEST i))
     ; ("match", (fun i -> MATCH i))
     ; ("with", (fun i -> WITH i))
@@ -105,6 +108,8 @@ let _ =
     ; ("string", (fun i -> STRING i))
     ; ("regexp", (fun i -> REGEXP i))
     ; ("lens", (fun i -> LENS i))
+    ; ("int", (fun i -> INT i))
+    ; ("bool", (fun i -> BOOL i))
     ; ("canonizer", (fun i -> CANONIZER i))
     ; ("unit", (fun i -> UNIT i))
     ; ("type", (fun i -> TYPE i))
@@ -144,6 +149,9 @@ rule main = parse
 | "="                { EQUAL(info lexbuf) }
 | "{"                { LBRACE(info lexbuf) }
 | "}"                { RBRACE(info lexbuf) }
+| "#"                { HASH(info lexbuf) }
+| "}["               { LLIST(info lexbuf) }
+| "]"                { RBRACK(info lexbuf) }
 | "["                { CSET(info lexbuf, cset lexbuf) }
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }
@@ -182,7 +190,7 @@ rule main = parse
 | (uid_char id_char_rest* ".")+ id_char_rest+ as qident {
     QIDENT(info lexbuf,qident)
   }
-| int_char+ as integ { INT(info lexbuf, int_of_string integ) }
+| int_char+ as integ { INTEGER(info lexbuf, int_of_string integ) }
 | (int_char* "." int_char+) as flot 
                      { FLOAT(info lexbuf, float_of_string flot) } 
 | newline            { newline lexbuf; main lexbuf }

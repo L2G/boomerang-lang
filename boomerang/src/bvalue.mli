@@ -25,13 +25,14 @@ type blame = Pos of Info.t | NegPos of Info.t * Info.t
 (** The type of blame: either positive or negative / positive. *)
 
 type t = 
-    | Str of blame * Bstring.t 
+    | Unt of blame
+    | Bol of blame * bool
     | Int of blame * int
+    | Str of blame * Bstring.t 
     | Rx  of blame * Bregexp.t
     | Lns of blame * Blenses.DLens.t
     | Can of blame * Blenses.Canonizer.t
     | Fun of blame * (t -> t)
-    | Unt of blame
     | Par of blame * t * t
     | Vnt of blame * Bsyntax.Qid.t * Bsyntax.Id.t * t option
 (** The type of boxed run-time values. *)
@@ -72,6 +73,10 @@ val sort_string_of_t : t -> string
 
 val get_s : t -> Bstring.t
 (** [get_s v] returns a string if [v] is a [Str], and otherwise raises
+    an exception. *)
+
+val get_b : t -> bool
+(** [get_b v] returns a boolean if [v] is a [Bol], and otherwise raises
     an exception. *)
 
 val get_i : t -> int
@@ -133,6 +138,11 @@ val mk_cfun : blame -> (Blenses.Canonizer.t -> t) -> t
 
 val mk_ufun : blame -> (unit -> t) -> t
 (** [mk_ufun b f] lifts a unit to [t] function to a [t] representing that
+    function. [b] is used as the blame if the argument has a different
+    sort. *)
+
+val mk_ifun : blame -> (int -> t) -> t
+(** [mk_ifun b f] lifts an integer to [t] function to a [t] representing that
     function. [b] is used as the blame if the argument has a different
     sort. *)
 

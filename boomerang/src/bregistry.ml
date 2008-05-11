@@ -28,7 +28,6 @@ module QM = Bsyntax.Qid.Env
 
 (* --------------- Registry values -------------- *)
 type rs = 
-  | Scheme of Bsyntax.scheme 
   | Sort of Bsyntax.sort      
   | Unknown 
 
@@ -42,14 +41,13 @@ let format_rv (rs,v) =
   Util.format "@[";
   Bvalue.format v;
   (match rs with
-    | Scheme (ss) -> Util.format ":@ ";  Bprint.format_scheme ss
     | Sort(s)     -> Util.format ":@ ";  Bprint.format_sort s
     | Unknown     -> ());
     Util.format "@]"
 
 (* type abbreviation for the constructors for a type *)
 type tcon = Bsyntax.Qid.t * Bsyntax.sort option
-type tspec = Bsyntax.svar list * tcon list
+type tspec = Bsyntax.Id.t list * tcon list
 
 (* --------------- Focal library -------------- *)
 (* state *)
@@ -61,7 +59,7 @@ sig
   val lookup_type: t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val update : t -> Bsyntax.Qid.t -> rv -> t
-  val update_type : t -> Bsyntax.svar list -> Bsyntax.Qid.t -> tcon list -> t
+  val update_type : t -> Bsyntax.Id.t list -> Bsyntax.Qid.t -> tcon list -> t
   val overwrite : t -> Bsyntax.Qid.t -> rv -> unit
   val iter : (Bsyntax.Qid.t -> rv -> unit) -> t -> unit
   val iter_type : (Bsyntax.Qid.t -> tspec -> unit) -> t -> unit
@@ -72,7 +70,7 @@ module REnv : REnvSig =
 struct  
   (* "type map" from names (Prelude.list) to type variables (['a]) and
      constructors / optional sorts (["Nil", None; "Cons", 'a * 'a list]) *)
-  type tmap = (Bsyntax.svar list * tcon list) QM.t
+  type tmap = (Bsyntax.Id.t list * tcon list) QM.t
 
   (* "reverse type map" from constructor names (Prelude.Nil) to types (Prelude.list) *)
   type rmap = Bsyntax.Qid.t QM.t 
@@ -155,8 +153,8 @@ let register q r =
 let register_type q (svl,cl) = 
   library := (REnv.update_type (!library) svl q cl)
 
-let register_native_qid q ss v = 
-  register q (Scheme ss,v)
+let register_native_qid q s v = 
+  register q (Sort s,v)
 
 (* register a native value *)
 let register_native qs s v = 

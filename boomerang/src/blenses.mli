@@ -39,7 +39,7 @@ module Canonizer : sig
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
-  val iter : Info.t -> t -> int -> int option -> t
+  val iter : Info.t -> t -> int -> int -> t
 end
 
 module DLens : sig 
@@ -69,7 +69,7 @@ module DLens : sig
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
-  val iter : Info.t -> t -> int -> int option -> t
+  val iter : Info.t -> t -> int -> int -> t
   val swap : Info.t -> t -> t -> t
   val compose : Info.t -> t -> t -> t
   val default : Info.t -> Bstring.t -> t -> t

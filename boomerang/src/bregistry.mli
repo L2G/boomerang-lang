@@ -22,7 +22,6 @@
 (** {2 Registry of Boomerang values } *)
 
 type rs = 
-  | Scheme of Bsyntax.scheme 
   | Sort of Bsyntax.sort      
   | Unknown 
 (** The type of registry sorts: either a sort, a scheme, or unknown *)
@@ -37,7 +36,7 @@ val format_rv : rv -> unit
 (** [format_rv r] pretty prints [r] *)
 
 type tcon = Bsyntax.Qid.t * Bsyntax.sort option
-type tspec = Bsyntax.svar list * tcon list 
+type tspec = Bsyntax.Id.t list * tcon list 
 
 (** {2 Library} *)
 module REnv : sig 
@@ -47,7 +46,7 @@ module REnv : sig
   val lookup_type: t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
   val update : t -> Bsyntax.Qid.t -> rv -> t
-  val update_type : t -> Bsyntax.svar list -> Bsyntax.Qid.t -> tcon list -> t
+  val update_type : t -> Bsyntax.Id.t list -> Bsyntax.Qid.t -> tcon list -> t
   val overwrite : t -> Bsyntax.Qid.t -> rv -> unit
   val iter : (Bsyntax.Qid.t -> rv -> unit) -> t -> unit
   val iter_type : (Bsyntax.Qid.t -> tspec -> unit) -> t -> unit
@@ -66,10 +65,10 @@ val get_library : unit -> REnv.t
 val register_env : REnv.t -> Bsyntax.Id.t -> unit
 (** ?? *)
 
-val register_native_qid : Bsyntax.Qid.t -> Bsyntax.scheme -> Bvalue.t -> unit
+val register_native_qid : Bsyntax.Qid.t -> Bsyntax.sort -> Bvalue.t -> unit
 (** ?? *)
 
-val register_native : string -> Bsyntax.scheme -> Bvalue.t -> unit
+val register_native : string -> Bsyntax.sort -> Bvalue.t -> unit
 (** ?? *)
 
 val load : string -> bool

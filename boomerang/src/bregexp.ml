@@ -230,7 +230,7 @@ let star r1 =
     rx = Erx.mk_star r1.rx;
     rank = Rexp}
 
-let rec generic_iter i epsilon union concat star x min maxo = 
+let rec generic_iter i epsilon union concat star x min max = 
   let rec mk_cats x n = 
     if n=0 then epsilon
     else if n=1 then x
@@ -240,12 +240,12 @@ let rec generic_iter i epsilon union concat star x min maxo =
       let twice_half_x = concat half_x half_x in 
       if n mod 2 = 0 then twice_half_x
       else concat x twice_half_x in 
-   match min,maxo with
-     | 0,None -> star x
-     | n,None -> concat (mk_cats x n) (star x)
-     | 0,Some 0 -> epsilon
-     | 0,Some 1 -> union epsilon x
-     | m,Some n -> 
+   match min,max with
+     | (0,-1) -> star x
+     | (n,-1) -> concat (mk_cats x n) (star x)
+     | (0,0)  -> epsilon
+     | (0,1)  -> union epsilon x
+     | (m,n)  -> 
          if m > n then 
            Berror.run_error i 
              (fun () -> Util.format "error in iteration: %d > %d" m n)

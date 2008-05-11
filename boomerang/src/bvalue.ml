@@ -35,13 +35,14 @@ type blame = Pos of Info.t | NegPos of Info.t * Info.t
 
 (* run-time values; correspond to each sort *)
 type t = 
-    | Str of blame * RS.t 
+    | Unt of blame
+    | Bol of blame * bool
     | Int of blame * int
+    | Str of blame * RS.t 
     | Rx  of blame * R.t
     | Lns of blame * L.t
     | Can of blame * C.t
     | Fun of blame * (t -> t)
-    | Unt of blame
     | Par of blame * t * t
     | Vnt of blame * S.Qid.t * S.Id.t * t option
 
@@ -50,13 +51,14 @@ type t =
  * [blame_of_t t] returns the blame information associated to a run-time value 
  *)
 let blame_of_t = function 
-  | Str(b,_)     -> b
+  | Unt(b)       -> b
   | Int(b,_)     -> b
+  | Bol(b,_)     -> b
+  | Str(b,_)     -> b
   | Rx(b,_)      -> b
   | Lns(b,_)     -> b
   | Can(b,_)     -> b
   | Fun(b,_)     -> b
-  | Unt(b)       -> b
   | Par(b,_,_)   -> b
   | Vnt(b,_,_,_) -> b
 
@@ -70,13 +72,15 @@ let info_of_t v = info_of_blame (blame_of_t v)
         
 let install_blame b v =
   match v with
-    | Str(_,s) -> Str(b,s)
+    | Unt(_) -> Unt(b)
+    | Bol(_,t) -> Bol(b,t)
     | Int(_,i) -> Int(b,i)
+    | Str(_,s) -> Str(b,s)
     | Rx(_,r) -> Rx(b,r)
     | Lns(_,l) -> Lns(b,l)
     | Can(_,c) -> Can(b,c)
     | Fun(_,f) -> Fun(b,f)
-    | Unt(_) -> Unt(b)
+
     | Par(_,v1,v2) -> Par(b,v1,v2)
     | Vnt(_,q,l,vo) -> Vnt(b,q,l,vo)
 
@@ -88,10 +92,14 @@ let merge_blame b1 v2 =
   install_blame b v2
 
 let rec equal v1 v2 = match v1,v2 with
-  | Str(_,s1), Str(_,s2) -> 
-      RS.equal s1 s2
+  | Unt _, Unt _ -> 
+      true
+  | Bol(_,b1), Bol(_,b2) -> 
+      b1=b2
   | Int(_,n1), Int(_,n2) -> 
       n1=n2
+  | Str(_,s1), Str(_,s2) -> 
+      RS.equal s1 s2
   | Rx(_,r1), Rx(_,r2) -> 
       R.equiv r1 r2
   | Lns _, Lns _ -> 
@@ -100,7 +108,6 @@ let rec equal v1 v2 = match v1,v2 with
       Error.simple_error (sprintf "Cannot test equality of canonizers.")
   | Fun _, Fun _ -> 
       Error.simple_error (sprintf "Cannot test equality of functions.")
-  | Unt _, Unt _ -> true
   | Par(_,v1,v2),Par(_,v1',v2') -> 
       (equal v1 v1') && (equal v2 v2')
   | Vnt(_,qx,l,None), Vnt(_,qx',l',None) -> 
@@ -112,13 +119,14 @@ let rec equal v1 v2 = match v1,v2 with
       Error.simple_error (sprintf "Cannot test equality of values with different sorts.")
 
 let rec format = function
-  | Str(_,rs)    -> Util.format "%s" (RS.string_of_t rs)
+  | Unt(_)       -> Util.format "()"
   | Int(_,n)     -> Util.format "%d" n
+  | Bol(_,b)     -> Util.format "%b" b
+  | Str(_,rs)    -> Util.format "%s" (RS.string_of_t rs)
   | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
   | Can(_,c)     -> Util.format "%s" (C.string c)
   | Fun(_,f)     -> Util.format "<function>"
-  | Unt(_)       -> Util.format "()"
   | Par(_,v1,v2) -> 
       Util.format "@[(";
       format v1;
@@ -134,13 +142,14 @@ let rec format = function
 let string_of_t v = Util.format_to_string (fun () -> format v)
         
 let rec sort_string_of_t = function
-  | Str _ -> "string"
+  | Unt _ -> "unit"
+  | Bol _ -> "bool" 
   | Int _ -> "int" 
+  | Str _ -> "string"
   | Rx _  -> "regexp"
   | Lns _ -> "lens"
   | Can _ -> "canonizer"
   | Fun _ -> "<function>"
-  | Unt _ -> "unit"
   | Par(_,v1,v2) -> sprintf "(%s,%s)" (sort_string_of_t v1) (sort_string_of_t v2)
   | Vnt(_,qx,_,_) -> sprintf "%s" (S.Qid.string_of_t qx)
 
@@ -155,6 +164,10 @@ let conversion_error s1 v1 =
 let get_s v = match v with
   | Str(_,s) -> s
   | _ -> conversion_error (P.string_of_sort S.SString) v
+
+let get_b v = match v with
+  | Bol(_,b) -> b
+  | _ -> conversion_error (P.string_of_sort S.SBool) v
 
 let get_i v = match v with
   | Int(_,n) -> n
@@ -214,6 +227,8 @@ let mk_lfun b f = Fun(b,(fun v -> f (get_l v)))
 let mk_cfun b f = Fun(b,(fun v -> f (get_c v)))
 
 let mk_ufun b f = Fun(b,(fun v -> f (get_u v)))
+
+let mk_ifun b f = Fun(b,(fun v -> f (get_i v)))
 
 let mk_poly_fun b f = Fun(b,f)
 

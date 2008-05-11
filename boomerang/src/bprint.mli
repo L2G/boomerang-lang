@@ -22,26 +22,8 @@ open Bsyntax
 
 (** {2 Pretty Printing} *)
 
-val reset_name_ctxt : unit -> unit
-  (** Pretty printing is based on the approach used in
-      OCaml. Internally, sort variables are represented by integer
-      uids. When we pretty print a sort variable, we use a string like
-      "'a" and "'b". Thus, all all of the pretty printing are relative
-      to a global context mapping uids to names. [reset_name_ctxt ()]
-      resets this context. The next svar will be printed as "'a". *)
-
 val format_sort : sort -> unit 
   (** [format_sort s] pretty prints [s] using [Util.format]. *)
-
-val format_svar : bool -> svar -> unit
-(** [format_svar b x] pretty prints [x] using [Util.format]. If [b] is
-    true, then constraints on [x] are printed. *)
-
-val format_base_sort : base_sort -> unit
-(** [format_base_sort s] pretty prints [s] using [Util.format]. *)
-
-val format_scheme : scheme -> unit
-(** [format_scheme s] pretty prints [s] using [Util.format]. *)
 
 val format_pat : pat -> unit
 (** [format_pat p] pretty prints [p] using [Util.format]. *)
@@ -55,6 +37,9 @@ val format_binding : binding -> unit
 val format_exp : exp -> unit
 (** [format_exp e] pretty prints [e] using [Util.format]. *)
 
+val format_op : op -> unit
+(** [format_op o] pretty prints [o] using [Util.format]. *)
+
 val format_test_result : test_result -> unit
 (** [format_test_result tr] pretty prints [tr] using [Util.format]. *)
 
@@ -66,9 +51,6 @@ val format_module : modl -> unit
 
 val string_of_sort : sort -> string
 (** [string_of_sort s] pretty prints [s] to a string. *)
-
-val string_of_scheme : scheme -> string
-(** [string_of_scheme s] pretty prints [s] to a string. *)
 
 val string_of_pat : pat -> string
 (** [string_of_pat p] pretty prints [p] to a string. *)
