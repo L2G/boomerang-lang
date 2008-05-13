@@ -34,7 +34,7 @@ let alpha = [a-zA-Z.]
 let ws : regexp = [ \n]
 let tag (s:string) = s . "  - "
 
-let any_tag : regexp = [A-Z] . [A-Z0-9] . "  - " 
+let any_tag : regexp = [A-Z] . [A-Z0-9] . /  - /
 
 let no_tags (r:regexp) = 
   r - (any . any_tag . any)
@@ -44,15 +44,15 @@ let au_tag = tag "AU"
 
 (* AUTHORS *)
 let author : lens = 
-  let any_and = any . "and" . any in
-  let string_no_ws = alpha+ - any_and in
-  let string_ws = alpha . char* . alpha - any_and in
+  let any_and = any . /and/ . any in
+  let string_no_ws = copy (alpha+ - any_and) in
+  let string_ws = copy (alpha . char* . alpha - any_and) in
   ins au_tag . 
-  ( (string_no_ws . ", " . string_ws)
-  | (string_ws . del " ") ~ (string_no_ws . ins ", "))
+  ( (string_no_ws . copy /, / . string_ws)
+  | (string_ws . del / /) ~ (string_no_ws . ins ", "))
 
 (* process a list of authors *)
-let wsp_and =  ws+ . "and" . ws+
+let wsp_and = ws+ . /and/ . ws+
 let authors = author | author . ( default (wsp_and <-> "\n") " and " . author)+
 
 (* unit tests *)
@@ -85,6 +85,13 @@ test authors create
   |AU  - Pierce, Benjamin C." = 
   "Bohannon, Aaron and Foster, J. Nathan and Pierce, Benjamin C."
 
+test authors get
+    <<<
+        J. Nathan Foster 
+               and Benjamin C. Pierce 
+               and Alan Schmitt
+    >>> = ?
+
 (* HELPER FUNCTIONS *)
 let ws = [ \t]*
 
@@ -115,25 +122,41 @@ let to_lower : lens =
   | ([xX] <-> "x")  
   | ([yY] <-> "y")  
   | ([zZ] <-> "z")  
-  | [^a-zA-Z@{}"] ) (* " *)
-      
+  | copy [^a-zA-Z@{}"] ) (* " *)
+
+let lower : regexp = [^A-Z@{}"]     (* " *)
+let upper : regexp = [A-Z] 
+let lower_no_ws = [^A-Z@{}" \n\t]   (* " *)
+let ws = [ \n\t]
+
+let braces : lens = del /{/ . (ins "{" . copy upper . ins "}" | copy lower)+ . del /}/
+
+test braces get "{HeLlO}" = "{H}e{L}l{O}"
+test braces create "{F}oo" = "{Foo}"
+test braces create "ho{W}{D}{Y}" = "{hoWDY}"
+
+let empty_cn : canonizer = mk_cn (copy //)
+
+let first_cn : canonizer = mk_cn (ins "{" . copy upper . ins "}" | copy lower | braces)
+
+test cls first_cn "H" = "{H}"
+test cls first_cn "f" = "f"
+test cls first_cn "{HeLlO}" = "{H}e{L}l{O}"
+
+let rest_cn  : canonizer = (mk_cn (to_lower | braces))*
+
+let title_can : canonizer = empty_cn | (first_cn . rest_cn)
+
+test rep title_can "{L}{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava" = ?
+
 let canonize_title : lens = 
-  let lower : regexp = [^A-Z@{}"] in     (* " *)
-  let upper : regexp = [A-Z] in 
-  let lower_no_ws = [^A-Z@{}" \n\t] in   (* " *)
-  let ws = [ \n\t] in 
-  let can : canonizer = 
-    let braces : lens = del "{" . (ins "{" . upper . ins "}" | lower)+ . del "}" in 
-      (mk_cn "")
-    | ( mk_cn (ins "{" . upper . ins "}" | lower | braces)
-      . (mk_cn (to_lower | braces))* ) in
   let l : lens = 
-    (( lower_no_ws 
-     | del "{" . upper . del "}"
-     | ws+ <-> " " . lower_no_ws
-     | ws+ <-> " " . del "{" . upper . del "}")* )
-      . ("" | (ws+ <-> " ")) in 
-    left_quot can l
+    ((copy lower_no_ws 
+     | del /{/ . copy upper . del /}/
+     | ws+ <-> " " . copy lower_no_ws
+     | ws+ <-> " " . del /{/ . copy upper . del /}/)* )
+      . (copy // | (ws+ <-> " ")) in 
+    left_quot title_can l
 
 test canonize_title get "LOOJ: {W}eaving {LOOM} into {Java}" = 
 "Looj: Weaving LOOM into Java"
@@ -141,30 +164,31 @@ test canonize_title get "LOOJ: {W}eaving {LOOM} into {Java}" =
 test canonize_title get "Looj: {W}eaving {LOOM} into {Java}" = 
 "Looj: Weaving LOOM into Java"
 
-test canonize_title put 
-"LOOJ: Weaving LOOM into Java" into "{LOOJ}: {Weaving LOOM into Java}" = 
+test canonize_title put "LOOJ: Weaving LOOM into Java" into "{LOOJ}: {Weaving LOOM into Java}" = 
 "L{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava"
+
+test canonize_title get "A {L}ogic {Y}our {T}ypechecker {C}an {C}ount {O}n: {U}nordered {T}ree {T}ypes in {P}ractice" = ?
 
 (* VALUES *)
 let ws_nl = [ \t\n]*
 
-let esc (s:string) = "\\" . s
+let esc (s:string) = str ("\\" . s)
 let bare_value = [A-Za-z0-9]+
 let braced_value = no_tags ([^@{}\\] | esc "{" | esc "}")*
   let quoted_value = no_tags ([^@"\\] | esc "\"")*            (* " *)
 
 (* FIELDS *)
 let mk_template (lb:string) (l:lens) (rb:string) = 
-  del (ws . "=" . ws . lb) . l . del (rb . ws . "," . ws . "\n") 
+  del (ws* . /=/ . ws* . str lb) . l . del (str rb . [ ]* . /,/ . [ ]* . /\n/) 
 
 (* I lifted this out to avoid re-calculating the NFAs for the
    preamble. I don't know if this saves us much because we still have
    to copy the (huge) Array.ts each time this function is invoked, but
    it can't hurt *)
 let do_std_field = 
-  let quoted_preamble = mk_template "\"" quoted_value "\"" in 
-  let braced_preamble = mk_template "{" braced_value "}" in 
-  let bare_preamble = mk_template "" bare_value "" in 
+  let quoted_preamble = mk_template "\"" (copy quoted_value) "\"" in 
+  let braced_preamble = mk_template "{" (copy braced_value) "}" in 
+  let bare_preamble = mk_template "" (copy bare_value) "" in 
   let any_preamble = quoted_preamble | braced_preamble | bare_preamble in 
     (fun (r:string) (o:regexp) (c:string) -> ws_nl <-> r . del o . any_preamble . ins c)
       
@@ -178,58 +202,59 @@ let do_field (r:string) (lo:regexp -> lens) (o:regexp) (l1:lens) (l2:lens) (l3:l
 
 (* special processors for fields *)
 let page_value = 
-  ins (tag "SP") . [0-9]+ . ins "\n" . 
+  ins (tag "SP") . copy [0-9]+ . ins "\n" . 
   del [\-]+ . 
-  ins (tag "EP") . [0-9]+ 
+  ins (tag "EP") . copy [0-9]+ 
 
 let do_dates = 
   let month_data = 
-      ("January" | "jan") <-> "01"
-    | ("February" | "feb") <-> "02"
-    | ("March" | "mar") <-> "03"
-    | ("April" | "apr") <-> "04"
-    | ("May" | "may") <-> "05"
-    | ("June" | "jun") <-> "06"
-    | ("July" | "jul") <-> "07"
-    | ("August" | "aug") <-> "08"
-    | ("September" | "sep") <-> "09"
-    | ("October" | "oct") <-> "10"
-    | ("November" | "nov") <-> "11"
-    | ("December" | "dec") <-> "12" in 
-  let do_year = do_std_field (tag "PY") "year" "/" in
-  let do_month = do_field "" del "month" month_data month_data month_data "" in 
+      (/January/ | /jan/) <-> "01"
+    | (/February/ | /feb/) <-> "02"
+    | (/March/ | /mar/) <-> "03"
+    | (/April/ | /apr/) <-> "04"
+    | (/May/ | /may/) <-> "05"
+    | (/June/ | /jun/) <-> "06"
+    | (/July/ | /jul/) <-> "07"
+    | (/August/ | /aug/) <-> "08"
+    | (/September/ | /sep/) <-> "09"
+    | (/October/ | /oct/) <-> "10"
+    | (/November/ | /nov/) <-> "11"
+    | (/December/ | /dec/) <-> "12" in 
+  let do_year = do_std_field (tag "PY") /year/ "/" in
+  let do_month = do_field "" del /month/ month_data month_data month_data "" in 
     (do_year . do_month?)
     . ins "//" 
     . ins "\n"
 
 let fields : lens = 
   let non_author_fields = 
-    ( do_field (tag "T1") del "title" canonize_title canonize_title bare_value "\n" 
+    ( do_field (tag "T1") del /title/ canonize_title canonize_title (copy bare_value) "\n" 
     | do_dates
-    | do_field "" del "pages" page_value page_value none "\n"
-    | do_std_field (tag "T2") "booktitle" "\n" 
-    | do_std_field (tag "JO") "journal" "\n"
-    | do_std_field (tag "VL") "volume" "\n"
-    | do_std_field (tag "IS") "number" "\n"
-    | do_std_field (tag "N1") "note" "\n"
-    | do_std_field (tag "AD") "address" "\n" 
-    | do_std_field (tag "UR") "url" "\n"
-    | do_std_field (tag "L1") "pdf" "\n"
-    | do_std_field (tag "SN") "issn" "\n"
-    | do_std_field (tag "PB") "publisher" "\n"
-    | do_std_field (tag "N2") "abstract" "\n"
-    | do_std_field (tag "T3") "series" "\n"
+    | do_field "" del /pages/ page_value page_value (copy none) "\n"
+    | do_std_field (tag "T2") /booktitle/ "\n" 
+    | do_std_field (tag "JO") /journal/ "\n"
+    | do_std_field (tag "VL") /volume/ "\n"
+    | do_std_field (tag "IS") /number/ "\n"
+    | do_std_field (tag "N1") /note/ "\n"
+    | do_std_field (tag "AD") /address/ "\n" 
+    | do_std_field (tag "UR") /url/ "\n"
+    | do_std_field (tag "L1") /pdf/ "\n"
+    | do_std_field (tag "SN") /issn/ "\n"
+    | do_std_field (tag "PB") /publisher/ "\n"
+    | do_std_field (tag "N2") /abstract/ "\n"
+    | do_std_field (tag "T3") /series/ "\n"
     | do_field (tag "M1") 
-               (fun (r:regexp) -> r . ins ": ") 
-               ([a-zA-Z]+ - ("author" | "title" | "booktitle" | "journal" | "volume" | "number" | "note" | "pages" | "year" | "month" | "address" | "url" | "pdf" | "issn" | "publisher" | "abstract" | "series" ))
-         braced_value quoted_value bare_value "\n")* in 
-  let author_field = do_field "" del "author" authors authors none "\n" in 
+               (fun (r:regexp) -> (copy r) . ins ": ") 
+               ([a-zA-Z]+ - (/author/ | /title/ | /booktitle/ | /journal/ | /volume/ | /number/ | /note/ | /pages/ | /year/ | /month/ | /address/ | /url/ | /pdf/ | /issn/ | /publisher/ | /abstract/ | /series/ ))
+         (copy braced_value) (copy quoted_value) (copy bare_value) "\n")* in 
+  let author_field = do_field "" del /author/ authors authors (copy none) "\n" in 
     author_field . non_author_fields
 
-let do_key = ins (tag "ID") . key [^@{}",\n ]+ . ("," . ws . "\n") <-> ""
+let do_key = ins (tag "ID") . key [^@{}",\n ]+ . (/,/ . [ ]* . /\n/) <-> ""
 
+test do_key get "dtts,\n" = ?
 
-let do_type (b:string) (r:string) = ("@" . b . ws_nl . "{") <-> ("TY  - " . r)
+let do_type (b:string) (r:string) = (/@/ . (str b) . ws_nl . /{/) <-> ("TY  - " . r)
 
 let chunk : lens = 
   ( do_type "article" "JOUR" 
@@ -242,17 +267,17 @@ let chunk : lens =
   . ins "\n" . 
   do_key . ins "\n" . 
   fields . 
-  (ws_nl . "}") <-> "ER  -\n\n"
+  (ws_nl . /}/) <-> "ER  -\n\n"
 
 let del_non_entry = 
-  del (any - (any . ("@" . 
-                        ("article" 
-                        |"inproceedings" 
-                        | "misc" 
-                        | "incollection" 
-                        | "mastersthesis" 
-                        | "manual" 
-                        | "phdthesis")) . any))
+  del (any - (any . (/@/ . 
+                        (/article/ 
+                        |/inproceedings/ 
+                        | /misc/ 
+                        | /incollection/ 
+                        | /mastersthesis/ 
+                        | /manual/ 
+                        | /phdthesis/)) . any))
     
 let ris = del_non_entry | del_non_entry . <chunk> . (del_non_entry . <chunk>)* . del_non_entry
 
@@ -272,7 +297,25 @@ test ris get
      slides = {http://www.cis.upenn.edu/~jnfoster/papers/dtts-slides.pdf},
      jnf =    "yes",
    }
->>> = ?
+>>> = 
+<<<
+TY  - CONF
+ID  - dtts
+AU  - Foster, J. Nathan
+AU  - Pierce, Benjamin C.
+AU  - Schmitt, Alan
+T1  - A Logic Your Typechecker Can Count On: Unordered Tree Types in Practice
+T2  - planx07
+PY  - 2007/01//
+SP  - 80
+EP  - 90
+M1  - conf: http://www.cis.upenn.edu/~jnfoster/papers/dtts.pdf
+M1  - slides: http://www.cis.upenn.edu/~jnfoster/papers/dtts-slides.pdf
+M1  - jnf: yes
+ER  -
+
+
+>>>
 
 test ris get 
 "@article{Lenses-TOPLAS05,
@@ -294,5 +337,37 @@ test ris get
 |  month     = {August}, 
 |  pages     = {42--57},
 |}
-|" = ?
+|" = 
+<<<
+TY  - JOUR
+ID  - Lenses-TOPLAS05
+AU  - Foster, J. Nathan
+AU  - Greenwald, Michael B.
+AU  - Moore, Jonathan T.
+AU  - Pierce, Benjamin C.
+AU  - Schmitt, Alan
+T1  - Combinators for bidirectional tree transformations: A linguistic approach to the view update problem
+JO  - Transactions on Programming Languages and Systems (TOPLAS)
+PY  - 2007/05//
+SP  - 233
+EP  - 246
+AD  - New York, NY, USA
+ER  -
+
+TY  - CONF
+ID  - SchemaSync-DBPL05
+AU  - Foster, J. Nathan
+AU  - Greenwald, Michael B.
+AU  - Kirkegaard, Christian
+AU  - Pierce, Benjamin C.
+AU  - Schmitt, Alan
+T1  - Exploiting schemas in data synchronization
+T2  - Database Programming Languages (DBPL), Trondheim, Norway
+PY  - 2005/08//
+SP  - 42
+EP  - 57
+ER  -
+
+
+>>>
  
