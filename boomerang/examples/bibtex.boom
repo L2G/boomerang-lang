@@ -90,7 +90,12 @@ test authors get
         J. Nathan Foster 
                and Benjamin C. Pierce 
                and Alan Schmitt
-    >>> = ?
+    >>> = 
+    <<<
+        AU  - Foster, J. Nathan
+        AU  - Pierce, Benjamin C.
+        AU  - Schmitt, Alan
+    >>>
 
 (* HELPER FUNCTIONS *)
 let ws = [ \t]*
@@ -147,7 +152,8 @@ let rest_cn  : canonizer = (mk_cn (to_lower | braces))*
 
 let title_can : canonizer = empty_cn | (first_cn . rest_cn)
 
-test rep title_can "{L}{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava" = ?
+test rep title_can "{L}{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava" = 
+                   "L{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava"
 
 let canonize_title : lens = 
   let l : lens = 
@@ -167,7 +173,9 @@ test canonize_title get "Looj: {W}eaving {LOOM} into {Java}" =
 test canonize_title put "LOOJ: Weaving LOOM into Java" into "{LOOJ}: {Weaving LOOM into Java}" = 
 "L{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava"
 
-test canonize_title get "A {L}ogic {Y}our {T}ypechecker {C}an {C}ount {O}n: {U}nordered {T}ree {T}ypes in {P}ractice" = ?
+test canonize_title get 
+  "A {L}ogic {Y}our {T}ypechecker {C}an {C}ount {O}n: {U}nordered {T}ree {T}ypes in {P}ractice" =
+  "A Logic Your Typechecker Can Count On: Unordered Tree Types in Practice"
 
 (* VALUES *)
 let ws_nl = [ \t\n]*
@@ -175,7 +183,7 @@ let ws_nl = [ \t\n]*
 let esc (s:string) = str ("\\" . s)
 let bare_value = [A-Za-z0-9]+
 let braced_value = no_tags ([^@{}\\] | esc "{" | esc "}")*
-  let quoted_value = no_tags ([^@"\\] | esc "\"")*            (* " *)
+let quoted_value = no_tags ([^@"\\] | esc "\"")*            (* " *)
 
 (* FIELDS *)
 let mk_template (lb:string) (l:lens) (rb:string) = 
@@ -226,6 +234,13 @@ let do_dates =
     . ins "//" 
     . ins "\n"
 
+test ctype do_dates = ?
+test atype do_dates = ?
+
+test True = False
+
+
+
 let fields : lens = 
   let non_author_fields = 
     ( do_field (tag "T1") del /title/ canonize_title canonize_title (copy bare_value) "\n" 
@@ -252,7 +267,7 @@ let fields : lens =
 
 let do_key = ins (tag "ID") . key [^@{}",\n ]+ . (/,/ . [ ]* . /\n/) <-> ""
 
-test do_key get "dtts,\n" = ?
+test do_key get "dtts,\n" = "ID  - dtts"
 
 let do_type (b:string) (r:string) = (/@/ . (str b) . ws_nl . /{/) <-> ("TY  - " . r)
 
