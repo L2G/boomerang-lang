@@ -81,9 +81,11 @@ let rec equal v1 v2 = match v1,v2 with
       (S.Qid.equal qx qx') && (S.Id.equal l l') && (equal v v')
   | Vnt _,Vnt _ -> false
   | _, _ -> 
+      format v1; Util.format "@\n"; 
+      format v2; Util.format "@\n";
       Error.simple_error (sprintf "Cannot test equality of values with different sorts.")
 
-let rec format = function
+and format = function
   | Unt(_)       -> Util.format "()"
   | Int(_,n)     -> Util.format "%d" n
   | Bol(_,b)     -> Util.format "%b" b
@@ -205,7 +207,7 @@ let parse_uid s =
       with _ -> raise 
         (Error.Harmony_error
            (fun () -> 
-              Util.format "%s: syntax error in identifier %s." 
+              Util.format "@[%s:@ syntax@ error@ in@ identifier@ %s.@]" 
                 (Info.string_of_t (Blexer.info lexbuf))
                 s)) in 
       Blexer.finish ();                    
@@ -213,13 +215,13 @@ let parse_uid s =
 
 let parse_qid s = 
   let lexbuf = Lexing.from_string s in
-    Blexer.setup "qualitified identifier constant";
+    Blexer.setup "qualified identifier constant";
     let q = 
       try Bparser.qid Blexer.main lexbuf
       with _ -> raise 
         (Error.Harmony_error
            (fun () -> 
-              Util.format "%s: syntax error in qualified identifier %s." 
+              Util.format "@[%s:@ syntax@ error@ in@ qualified@ identifier@ %s.@]" 
                 (Info.string_of_t (Blexer.info lexbuf))
                 s)) in 
       Blexer.finish ();                    

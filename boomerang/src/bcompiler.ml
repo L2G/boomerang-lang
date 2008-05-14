@@ -529,11 +529,20 @@ let rec resolve_sort i sev s0 =
           | Some q -> q in 
           SData(Safelist.fold_left (fun acc si -> go si::acc) [] sl,qx')
     | SForall(x,s1) -> SForall(x,go s1)
-    | SRefine(x,s1,e1) -> SRefine(x,go s1,e1) (* FIXME *) in
+    | SRefine(x,s1,e1) -> 
+        let s1' = go s1 in 
+        let sev' = SCEnv.update sev (Qid.t_of_id x) (G.Sort s1') in 
+        let e1_sort,new_e1 = check_exp sev' e1 in  
+        if not (compatible e1_sort SBool) then 
+          sort_error i 
+            (fun () -> msg "@[in@ refinement: expected@ %s@ but@ found@ %s@]"
+               (string_of_sort SBool)
+               (string_of_sort e1_sort));
+        SRefine(x,s1',new_e1) in 
   go s0
 
 (* ------ sort checking expressions ----- *)
-let rec check_exp sev e0 = 
+and check_exp sev e0 = 
   Trace.debug "check"
     (fun () -> 
        msg "@[check_exp ";

@@ -470,10 +470,6 @@ aexp:
   | BEGIN exp END                       
       { $2 }
 
-  | LPAREN aexp EQUAL aexp RPAREN
-      { let i = me $2 $4 in 
-        mk_app i (mk_app i (mk_prelude_var "equals") $2) $4 } 
-
 /* --------- LISTS ------------ */
 list:
   | RBRACK 
@@ -578,7 +574,7 @@ branch_list2:
 /* --------- SORTS ---------- */
 /* universal sorts */
 sort:
-  | FORALL VIDENT DARROW sort 
+  | FORALL VIDENT EQARROW sort 
       { SForall($2,$4) }
 
   | arrsort

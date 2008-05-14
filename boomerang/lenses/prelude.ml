@@ -389,11 +389,12 @@ let prelude_spec =
     let a_sort = S.SVar a in 
     (S.Qid.mk_native_prelude_t "equals",
      S.SForall(a,a_sort ^> a_sort ^> S.SBool),
-     mk_poly_fun i (fun v1 -> 
-       mk_poly_fun i (fun v2 -> 
-         Bol(i,equal v1 v2))))
-  end
-
+     mk_ufun i (fun () -> 
+       mk_poly_fun i (fun v1 -> 
+         mk_poly_fun i (fun v2 -> 
+           Bol(i,equal v1 v2)))))
+   end
+ 
   ; begin 
     let i = Info.M "blame built-in" in 
     let a = S.Id.mk i "a" in 

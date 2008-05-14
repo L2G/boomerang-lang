@@ -175,6 +175,9 @@ let canonizer_of_lens : lens -> canonizer =
 let string_of_regexp : regexp -> string = 
   Native.Prelude.string_of_regexp
 
+(* polymorphic *)
+let equals : forall 'a => 'a -> 'a -> bool = 
+  Native.Prelude.equals
 
 (* derived forms *)
 let epsilon : regexp = str ""
