@@ -158,11 +158,14 @@ test l2 get
     >>>
 
 (* TODO move this to lenses/list.boom at some point *)
-let list_reverse l =
+let list_reverse (l : 'z List.t) =
   List.fold_left (fun l p -> (List.Cons(p,l))) List.Nil l
 
-let list_map (f : 'a -> 'b) (la : 'a List.t) : 'b List.t =
-  list_reverse (List.fold_left (fun lb p -> (List.Cons(f p,lb))) List.Nil la)
+let list_map (f : string -> lens) (lx : string List.t) : lens List.t = 
+  List.fold_left (fun l p -> (List.Cons(f p,l))) 
+    List.Nil
+    (list_reverse lx)
+
 
 let concat_lenses (lenses : lens List.t) (sep : lens) : lens =
   let concatted = List.fold_left 

@@ -134,18 +134,28 @@ let parse_qid i qstr =
       else go (acc,x ^ (String.make 1 c1)) in 
   go ([],"")
 
-let mk_fun i params body sort = 
+let build_fun i param_alts body sort = 
   Safelist.fold_right
-    (fun p (f,s) -> 
-       let f' = mk_exp i (EFun(p,Some s,f)) in 
-       let s' = SFunction(id_of_param p,sort_of_param p,s) in          
-       (f',s'))
-    params (body,sort)
+    (fun pa (f,s) -> match pa with 
+       | Misc.Left(p) -> 
+           let f' = mk_exp i (EFun(p,Some s,f)) in 
+           let s' = SFunction(id_of_param p,sort_of_param p,s) in          
+           (f',s')
+       | Misc.Right(a) -> 
+           let f' = mk_exp i (ETyFun(a,f)) in 
+           let s' = SForall(a,s) in 
+           (f',s'))
+    param_alts (body,sort)
 
-let mk_bare_fun i params body = 
+let build_bare_fun i param_alts body = 
   Safelist.fold_right
-    (fun p f -> mk_exp i (EFun(p,None,f)))
-    params body
+    (fun pa f -> 
+       match pa with 
+         | Misc.Left(p) -> 
+             mk_exp i (EFun(p,None,f))
+         | Misc.Right(a) -> 
+             mk_exp i (ETyFun(a,f)))
+    param_alts body
 
 let mk_assert = function
   | None,None -> (fun i e -> e)
@@ -171,14 +181,14 @@ let check_pat i p params = match p.desc,params with
 
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
-%token <Info.t> STRING REGEXP LENS INT BOOL CANONIZER UNIT
+%token <Info.t> UNIT BOOL INT STRING REGEXP LENS CANONIZER FORALL WHERE
 %token <Bsyntax.Id.t> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
 %token <Info.t * int> INTEGER
 %token <Info.t * bool> BOOLEAN
 %token <Info.t * float> FLOAT
 %token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW EQARROW
-%token <Info.t> BEGIN END FUN TYFUN LET IN TEST MATCH WITH
+%token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> GET PUT CREATE INTO
@@ -207,13 +217,13 @@ decls:
 
   | LET id param_list COLON sort EQUAL exp decls
       { let i = me2 $1 $7 in 
-        let f,f_sort = mk_fun i $3 $7 $5 in 
+        let f,f_sort = build_fun i $3 $7 $5 in 
         let b = mk_binding i (Bind($2,Some f_sort,f)) in 
         mk_decl i (DLet b)::$8 }
 
   | LET id param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
-        let f = mk_bare_fun i $3 $5 in 
+        let f = build_bare_fun i $3 $5 in 
         let b = mk_binding i (Bind($2,None,f)) in 
         mk_decl i (DLet b)::$6 }
 
@@ -254,30 +264,25 @@ test_type:
 exp:
   | LET id param_list COLON sort EQUAL exp IN exp 
       { let i = me2 $1 $9 in 
-        let f,f_sort = mk_fun i $3 $7 $5 in 
+        let f,f_sort = build_fun i $3 $7 $5 in 
         let b = mk_binding i (Bind($2,Some f_sort,f)) in 
         mk_exp i (ELet(b,$9)) }
 
   | LET id param_list EQUAL exp IN exp 
       { let i = me2 $1 $7 in 
-        let f = mk_bare_fun i $3 $5 in 
+        let f = build_bare_fun i $3 $5 in 
         let b = mk_binding i (Bind($2,None,f)) in 
         mk_exp i (ELet(b,$7)) }
 
   | FUN param param_list ARROW exp
       { let i = me2 $1 $5 in 
-        let f = mk_bare_fun i $3 $5 in 
-        mk_exp i (EFun($2,None,f)) }
+        build_bare_fun i ($2::$3) $5 }
 
   | FUN param param_list COLON asort ARROW exp
       { let i = me2 $1 $7 in 
-        let f,s = mk_fun i $3 $7 $5 in 
-        mk_exp i (EFun($2,Some s,f)) }
+        let f,_ = build_fun i ($2::$3) $7 $5 in 
+        f }
       
-  | TYFUN VIDENT ARROW exp
-      { let i = me2 $1 $4 in 
-        mk_exp i (ETyFun($2,$4)) }
-
   | gpexp                               
       { $1 }
 
@@ -300,6 +305,14 @@ cexp:
   | MATCH composeexp WITH branch_list COLON sort
       { let i4,pl = $4 in 
         mk_exp (m $1 i4) (ECase($2,pl,$6)) }
+
+  | LPAREN MATCH composeexp WITH branch_list RPAREN COLON sort
+      { let i5,pl = $5 in 
+        mk_exp (m $1 i5) (ECase($3,pl,$8)) }
+
+  | BEGIN MATCH composeexp WITH branch_list END COLON sort
+      { let i5,pl = $5 in 
+        mk_exp (m $1 i5) (ECase($3,pl,$8)) }
 
   | composeexp
       { $1 }
@@ -457,6 +470,10 @@ aexp:
   | BEGIN exp END                       
       { $2 }
 
+  | LPAREN aexp EQUAL aexp RPAREN
+      { let i = me $2 $4 in 
+        mk_app i (mk_app i (mk_prelude_var "equals") $2) $4 } 
+
 /* --------- LISTS ------------ */
 list:
   | RBRACK 
@@ -559,8 +576,16 @@ branch_list2:
         (fun _ -> (m $1 i2, (p,e)::l)) }
 
 /* --------- SORTS ---------- */
-sort: 
-  | psort ARROW sort
+/* universal sorts */
+sort:
+  | FORALL VIDENT DARROW sort 
+      { SForall($2,$4) }
+
+  | arrsort
+      { $1 }
+
+arrsort: 
+  | psort ARROW arrsort
       { SFunction(Id.wild,$1,$3) }
 
   | psort
@@ -611,6 +636,12 @@ bsort:
   | LPAREN sort RPAREN
       { $2 }
 
+  | LPAREN sort WHERE exp RPAREN
+      { SRefine(Id.wild,$2,$4) }
+
+  | LPAREN id COLON sort WHERE exp RPAREN
+      { SRefine($2,$4,$6) }
+
   | asort 
       { $1 }
 
@@ -638,7 +669,7 @@ asort:
       { SUnit }
 
   | svar
-      { SVar $1 }
+      { SVar $1 }  
 
 svar:
   | VIDENT
@@ -746,7 +777,10 @@ param_list:
 
 param: 
   | LPAREN id COLON sort RPAREN
-      { mk_param (fst $2) (Param($2,$4)) }
+      { Misc.Left (mk_param (fst $2) (Param($2,$4))) }
+
+  | VIDENT 
+      { Misc.Right ($1) }
 
 /* --------- REPETITIONS ---------- */
 rep: 

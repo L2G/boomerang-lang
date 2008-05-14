@@ -96,7 +96,6 @@ let _ =
     ; ("let", (fun i -> LET i)) 
     ; ("in", (fun i -> IN i))
     ; ("fun", (fun i -> FUN i))
-    ; ("tyfun", (fun i -> TYFUN i))
     ; ("begin", (fun i -> BEGIN i))
     ; ("end", (fun i -> END i))
     ; ("true", (fun i -> BOOLEAN(i,true)))
@@ -118,7 +117,8 @@ let _ =
     ; ("get", (fun i -> GET i))
     ; ("put", (fun i -> PUT i))
     ; ("create", (fun i -> CREATE i))
-    ; ("crt", (fun i -> CREATE i))
+    ; ("where", (fun i -> WHERE i))
+    ; ("forall", (fun i -> FORALL i))
     ]
 }
 

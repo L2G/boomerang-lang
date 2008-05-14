@@ -38,9 +38,6 @@ let (@) = Safelist.append
 
 let v_of_rv = G.value_of_rv 
 
-(* triple option data type *)
-type ('a,'b,'c) triple_option = First of 'a | Second of 'b | Third of 'c 
-
 (* --------------- AST utilities --------------- *)
 let get_sort e0 = match e0.annot with
   | None,_ -> run_error e0.info 
@@ -53,8 +50,8 @@ let get_decl_sort d0 = match d0.annot with
   | Some s -> s
         
 let mk_var i q = mk_exp i (EVar q) 
-let mk_prelude_var i s = 
-  mk_var i (Qid.mk_prelude_t s)
+let mk_native_prelude_var i s = 
+  mk_var i (Qid.mk_native_prelude_t s)
 let mk_unit i  = mk_exp i EUnit
 let mk_int i n = mk_exp i (EInteger n)
 let mk_app i e1 e2 = mk_exp i (EApp(e1,e2))
@@ -532,7 +529,7 @@ let rec resolve_sort i sev s0 =
           | Some q -> q in 
           SData(Safelist.fold_left (fun acc si -> go si::acc) [] sl,qx')
     | SForall(x,s1) -> SForall(x,go s1)
-    | SRefine _ -> assert false in 
+    | SRefine(x,s1,e1) -> SRefine(x,go s1,e1) (* FIXME *) in
   go s0
 
 (* ------ sort checking expressions ----- *)
@@ -1036,9 +1033,9 @@ let rec compile_exp cev e0 = match e0.desc with
           | SLens,SLens 
           | SCanonizer,SCanonizer -> e 
           | SString,SLens ->  
-              (mk_app i (mk_prelude_var i "str") e)
+              (mk_app i (mk_native_prelude_var i "str") e)
           | SRegexp,SLens -> 
-              (mk_app i (mk_prelude_var i "copy") e)
+              (mk_app i (mk_native_prelude_var i "copy") e)
           | SFunction(x,f11,f12), SFunction(_,t11,t12) -> 
               (* let x = if Id.equal x Id.wild then Id.mk i "x" else x in *)
               let fn = Id.mk i "fn" in 
@@ -1100,7 +1097,7 @@ let rec compile_exp cev e0 = match e0.desc with
               (mk_if i e2 
                  (mk_var i qx) 
                  (mk_app i 
-                    (mk_prelude_var i "blame") 
+                    (mk_tyapp i (mk_native_prelude_var i "blame") t2)
                     (mk_exp i (EString(Bstring.t_of_string (string_of_blame b)))))                                               
                  t2)
         | SVar(x),SVar(y) when Id.equal x y -> e
@@ -1113,16 +1110,6 @@ let rec compile_exp cev e0 = match e0.desc with
                    (string_of_sort f) 
                    (string_of_sort t))
         end in 
-      Trace.debug "cast" 
-        (fun () -> 
-           msg "@[CASTING@ ";
-           format_exp e;
-           msg "@ from@ %s@ to@ %s@ "
-             (string_of_sort f)
-             (string_of_sort t);                            
-           msg "@ ~~>@ ";
-           format_exp e';
-           msg "@]@\n");
       compile_exp cev e'
 
 and compile_binding cev b0 = match b0.desc with

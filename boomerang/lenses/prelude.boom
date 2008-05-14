@@ -24,27 +24,6 @@ module Prelude =
 
 (* standard datatypes *)
 
-(* bools *)
-type bool = True | False
-
-let if (b:bool) (e1:'a) (e2:'a) : 'a = 
-  match b with 
-    | True -> e1
-    | False -> e2
-
-let not (b:bool) : bool = 
-  match b with
-    | True -> False
-    | False -> True
-
-let or (b1:bool) (b2:bool) : bool = match b1,b2 with 
-  | False,False -> False
-  | _ -> True
-
-let and (b1:bool) (b2:bool) : bool = match b1,b2 with 
-  | True,True -> True
-  | _ -> False
-
 (* options *)
 type 'a option = 
     None | Some of 'a
@@ -68,75 +47,73 @@ let pcreate : lens -> string -> string =
 (* 
 let splittable : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> bool =
   Native.Prelude.splittable
+
 let disjoint : regexp -> regexp -> bool =
   Native.Prelude.disjoint
 *)
 (* Maybe we also want one for lenses? *)
 
 (* polymorphic operators *)
-let copy : {'a:string,regexp} => 'a -> lens = 
+let copy : regexp -> lens = 
   Native.Prelude.copy
-let const : {'a:string,regexp} => 'a -> string -> string -> lens = 
+let const : regexp -> string -> string -> lens = 
   Native.Prelude.const 
-let shortest : {'a:string,regexp} => 'a -> string = 
-  Native.Prelude.shortest
-let poly_concat : {'a:string,regexp,lens,canonizer} => 'a -> 'a -> 'a = 
-  Native.Prelude.poly_concat 
+
+let string_concat : string -> string -> string = 
+  Native.Prelude.string_concat 
+
+let regexp_concat : regexp -> regexp -> regexp = 
+  Native.Prelude.regexp_concat 
+
 
 (* 
-let poly_concat : {'a:string,regexp,lens,canonizer} => 
-                      (x:'a)
-                   -> (y:'a | splittable x y) 
-                   -> 'a =
-  Native.Prelude.poly_concat
+let lens_concat : (x:lens)
+               -> (y:lens | splittable x y) 
+               -> lens =
+  Native.Prelude.lens_concat
 *)
-(* Want to be able to write
-   let poly_concat : {'a:string,regexp,lens,canonizer} => 'a -> a' -> a' =
-     fun (x:'a) (y:'a | splittable x y)  ->
-       ... x ... y ...
-or even
-   let poly_concat ('a:string,regexp,lens,canonizer)
-                   (x:'a) (y:'a | splittable x y) ->
-       ... x ... y ...
+let lens_concat : lens -> lens -> lens = 
+  Native.Prelude.lens_concat 
 
-Proposal:
-   let poly_concat : Catenable 'a => 'a -> a' -> a' =
-     fun (x:'a) (y:'a | splittable x y)  ->
-       ... x ... y ...
+let canonizer_concat : canonizer -> canonizer -> canonizer = 
+  Native.Prelude.canonizer_concat 
+
+let regexp_union : regexp -> regexp -> regexp = 
+  Native.Prelude.regexp_union
+(* 
+  let lens_union : (x:lens) 
+                -> (y:lens where disjoint (ctype x) (ctype y))
+                -> lens =
+    Native.Prelude.lens_union
 *)
-let poly_union : {'a:regexp,lens,canonizer} => 'a -> 'a -> 'a =
-  Native.Prelude.poly_union
+let lens_union : lens -> lens -> lens = 
+  Native.Prelude.lens_union
 
-(* Experimental:
-  let poly_union : {'a:regexp,lens,canonizer} => 
-                      (x:'a) 
-                   -> (y:'a | case 'a of lens,canonizer => 
-                                            disjoint (ctype x) (ctype y)
-                                       | _ => True)
-                   -> 'a =
-    Native.Prelude.poly_union
-*)
+let canonizer_union : canonizer -> canonizer -> canonizer = 
+  Native.Prelude.canonizer_union
 
-let poly_iter : {'a:regexp,lens,canonizer} => 'a -> string -> string -> 'a = 
-  Native.Prelude.poly_iter
-let poly_swap  : {'a:lens,canonizer} => 'a -> 'a -> 'a = 
-  Native.Prelude.poly_swap
+let regexp_iter : regexp -> int -> int -> regexp = 
+  Native.Prelude.regexp_iter
+
+let lens_iter : lens -> int -> int -> lens = 
+  Native.Prelude.lens_iter
+
+let canonizer_iter : canonizer -> int -> int -> canonizer = 
+  Native.Prelude.canonizer_iter
+
+let lens_swap: lens -> lens -> lens = 
+  Native.Prelude.lens_swap
+
+let canonizer_swap: canonizer -> canonizer -> canonizer = 
+  Native.Prelude.canonizer_swap
 
 (* operations on lenses *)
 let invert : lens -> lens =
   Native.Prelude.invert
-let concat : lens -> lens -> lens =  (* live?  (also below) *)
-  Native.Prelude.concat
-let union : lens -> lens -> lens =
-  Native.Prelude.union
-let star : lens -> lens =
-  Native.Prelude.star
 let dmatch : string -> lens -> lens = 
   Native.Prelude.dmatch
 let smatch : string -> string -> lens -> lens = 
   Native.Prelude.smatch
-let swap : lens -> lens -> lens =
-  Native.Prelude.swap
 let compose : lens -> lens -> lens =
   Native.Prelude.compose
 let default : lens -> string -> lens =
@@ -167,22 +144,16 @@ let columnize : string -> regexp -> string -> string -> canonizer =
   Native.Prelude.columnize
 
 (* string operations *)
-let append : string -> string -> string = 
-  Native.Prelude.append
 let read : string -> string = 
   Native.Prelude.read
 
 (* regexp operations *)
 let str : string -> regexp =
   Native.Prelude.str
+let shortest : regexp -> string = 
+  Native.Prelude.shortest
 let empty : regexp = 
   Native.Prelude.empty
-let seq : regexp -> regexp -> regexp = 
-  Native.Prelude.seq
-let alt : regexp -> regexp -> regexp = 
-  Native.Prelude.alt
-let iter : regexp -> regexp = 
-  Native.Prelude.iter
 let inter : regexp -> regexp -> regexp = 
   Native.Prelude.inter
 let diff : regexp -> regexp -> regexp = 
@@ -208,11 +179,11 @@ let string_of_regexp : regexp -> string =
 (* derived forms *)
 let epsilon : regexp = str ""
 
-let ins (s:string) : lens = const (str "") s "" 
+let ins (s:string) : lens = const // s "" 
 
-let del r = const r "" (shortest r) 
+let del (r:regexp) = const r "" (shortest r) 
 
-let set r s = const r s (shortest r)
+let set (r:regexp) (s:string) = const r s (shortest r)
 
 (* constants *)
 (* [ANY] any string *)
@@ -273,14 +244,14 @@ let NL10 = NL9 . "  "
 (* quotient lenses *)
 (* [qconst C A a c]: is like [const C a c], but accepts all of [A] in
    the PUT/CREATE direction. *)
-let qconst (C:regexp) (A:regexp) (a:string) (c:string) : { C <-> A } = 
+let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
   right_quot     
     (const C a c)
     (canonizer_of_lens (const A a a))
 
 (* [qins E e] is like [ins e], but accepts all of [E] in the
    PUT/CREATE direction *)
-let qins (E:regexp) (e:string) : { epsilon <-> E } = 
+let qins (E:regexp) (e:string) : lens = 
   right_quot
     (ins e)
     (canonizer_of_lens (const E e e))
@@ -291,10 +262,10 @@ test qins [A-Z]+ "A" create "ABC" = ""
 
 (* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
    direction. *)
-let qdel (E:regexp) (e:string) : { E <-> epsilon } = 
+let qdel (E:regexp) (e:string) : lens = 
   left_quot 
     (canonizer_of_lens (default (del E) e))
-    (copy "")
+    (copy //)
 
 (* unit tests for qdel *)
 test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
