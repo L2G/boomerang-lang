@@ -39,50 +39,35 @@ let (@) = Safelist.append
 let v_of_rv = G.value_of_rv 
 
 (* --------------- AST utilities --------------- *)
-let get_sort e0 = match e0.annot with
-  | None,_ -> run_error e0.info 
-      (fun () -> msg "@[Unchecked expression@]")
-  | (Some s),_ -> s
 
-let get_decl_sort d0 = match d0.annot with 
-  | None -> run_error d0.info 
-      (fun () -> msg "@[Unchecked declaration@]")
-  | Some s -> s
-        
-let mk_var i q = mk_exp i (EVar q) 
+let mk_var i q = EVar(i,q)
 let mk_native_prelude_var i s = 
   mk_var i (Qid.mk_native_prelude_t s)
-let mk_unit i  = mk_exp i EUnit
-let mk_int i n = mk_exp i (EInteger n)
-let mk_app i e1 e2 = mk_exp i (EApp(e1,e2))
+let mk_unit i  = EUnit(i)
+let mk_int i n = EInteger(i,n)
+let mk_app i e1 e2 = EApp(i,e1,e2)
 let mk_app3 i e1 e2 e3 = mk_app i (mk_app i e1 e2) e3
 let mk_let i x s1 e1 e2 =
-  let b = mk_binding i (Bind(x,s1,e1)) in 
-  mk_exp i (ELet(b,e2))
+  let b = Bind(i,x,s1,e1) in 
+  ELet(i,b,e2)
 
 let mk_fun i x s e1 =
-  let p = mk_param i (Param(x,s)) in 
-  mk_exp i (EFun(p,None,e1))
+  let p = Param(i,x,s) in  
+  EFun(i,p,None,e1)
 
-let mk_tyfun i a e = mk_exp i (ETyFun(a,e))
+let mk_tyfun i a e = ETyFun(i,a,e)
 
-let mk_tyapp i e1 s2 = mk_exp i (ETyApp(e1,s2))
-
-let mk_pair i e1 e2 = mk_exp i (EPair(e1,e2))
-
-let mk_case i e1 cl s = mk_exp i (ECase(e1,cl,s))
+let mk_tyapp i e1 s2 = ETyApp(i,e1,s2)
 
 let mk_if i e0 e1 e2 s =
-  let e = 
-    ECase(e0,
-          [(mk_pat i (PBol(true)),e1);
-           (mk_pat i (PBol(false)),e2)],
-          s) in
-    mk_exp i e
+  ECase(i,
+        e0,
+        [(PBol(i,true),e1);(PBol(i,false),e2)],
+        s)
 
 let mk_cast_blame i b f t e = 
-  if sort_equal f t then e 
-  else mk_exp i (ECast(f,t,mk_blame i,e))
+  if obvious_subtype f t then e 
+  else ECast(i,f,t,mk_blame i,e)
 
 let mk_cast i f t e = 
   mk_cast_blame i (mk_blame i) f t e 
@@ -253,87 +238,6 @@ let rec id_remove_assoc x l =
         else aux ((y,s)::acc) rest in 
   aux [] l 
 
-let rec subst_sort subst s0 = match s0 with
-  | SVar(x) -> 
-      (try id_assoc x subst with Not_found -> s0)
-  | SFunction(x,s1,s2) -> 
-      let s1' = subst_sort subst s1 in 
-      let s2' = subst_sort subst s2 in 
-      SFunction(x,s1',s2')
-  | SProduct(s1,s2) -> 
-      let s1' = subst_sort subst s1 in 
-      let s2' = subst_sort subst s2 in       
-      SProduct(s1',s2')
-  | SData(sl,qx) -> 
-      let sl' = Safelist.map (subst_sort subst) sl in 
-      SData(sl',qx)
-  | SRefine(x,s1,e1) ->
-      let s1' = subst_sort subst s1 in 
-      let e1' = subst_exp_sort subst e1 in 
-      SRefine(x,s1',e1')
-  | SForall(x,s) -> 
-      let subst' = id_remove_assoc x subst in 
-      let s' = subst_sort subst' s in 
-      SForall(x,s')
-  | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer -> 
-      s0
-
-and subst_exp_sort subst e0 = match e0.desc with 
-  | EVar(q) -> e0
-  | EApp(e1,e2) -> 
-      let e1' = subst_exp_sort subst e1 in 
-      let e2' = subst_exp_sort subst e2 in 
-      mk_exp e0.info (EApp(e1',e2'))
-  | EOver(o,el) -> 
-      let el' = Safelist.map (subst_exp_sort subst) el in 
-      mk_exp e0.info (EOver(o,el'))
-  | EFun(p1,so1,e1) -> begin 
-      match p1.desc with 
-        | Param(x1,s1) -> 
-            let s1' = subst_sort subst s1 in 
-            let p1' = mk_param p1.info (Param(x1,s1')) in 
-            let so1' = Misc.map_option (subst_sort subst) so1 in 
-            let e1' = subst_exp_sort subst e1 in 
-              mk_exp e0.info (EFun(p1',so1',e1'))
-    end
-  | ELet(b1,e2) -> begin match b1.desc with 
-        Bind(x1,so1,e1) -> 
-          let so1' = Misc.map_option (subst_sort subst) so1 in 
-          let e1' = subst_exp_sort subst e1 in 
-          let b1' = mk_binding b1.info (Bind(x1,so1',e1')) in 
-          let e2' = subst_exp_sort subst e2 in 
-          mk_exp e0.info (ELet(b1',e2'))
-    end
-  | ETyFun(a,e) -> 
-      let subst' = id_remove_assoc a subst in 
-      let e' = subst_exp_sort subst' e in 
-      mk_exp e0.info (ETyFun(a,e'))
-  | ETyApp(e,s) -> 
-      let e' = subst_exp_sort subst e in 
-      let s' = subst_sort subst s in 
-      mk_exp e0.info (ETyApp(e',s'))
-  | ECast(f,t,b,e) -> 
-      let f' = subst_sort subst f in 
-      let t' = subst_sort subst t in 
-      let e' = subst_exp_sort subst e in 
-      mk_exp e0.info (ECast(f',t',b,e'))
-  | EPair(e1,e2) -> 
-      let e1' = subst_exp_sort subst e1 in 
-      let e2' = subst_exp_sort subst e2 in 
-      mk_exp e0.info (EPair(e1',e2'))
-  | ECase(e1,cl,s) -> 
-      let e1' = subst_exp_sort subst e1 in         
-      let cl' = 
-        Safelist.map 
-          (fun (pi,ei) -> 
-             let ei' = subst_exp_sort subst ei in 
-             (pi,ei'))
-          cl in 
-      let s' = subst_sort subst s in 
-      mk_exp e0.info (ECase(e1',cl',s'))
-  | EUnit | EBoolean _ | EInteger _ | EString _ | ECSet _ -> 
-      e0
-
 (* check if one sort is compatible with another *)
 let rec compatible f t = match f,t with
   | SUnit,SUnit       
@@ -402,13 +306,12 @@ let rec static_match i sev p0 s =
   let err p str s = sort_error i 
     (fun () -> msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
        (string_of_pat p) str (string_of_sort s)) in 
-    match p0.desc with 
-      | PWld -> 
+    match p0 with 
+      | PWld _ -> 
           Some (p0,[])
-      | PVar(x) -> 
-          p0.annot <- Some s;
+      | PVar(_,x) -> 
           Some (p0,[(x,s)])
-      | PUnt ->
+      | PUnt(i) ->
           if not (compatible s SUnit) then err p0 "unit" s;
           Some (p0,[])
       | PInt _ -> 
@@ -420,12 +323,11 @@ let rec static_match i sev p0 s =
       | PStr _ -> 
           if not (compatible s SString) then err p0 "string" s;
           Some (p0,[])
-
-      | PVnt(li,pio) -> 
+      | PVnt(pi,li,ptio) -> 
           begin match s with 
             | SData(sl1,qy) -> 
                 (* lookup the constructor from the environment *)
-                let qx,(svl,cl) = get_con p0.info sev li in 
+                let qx,(svl,cl) = get_con i sev li in 
                 let cl_inst = 
                   if not (Qid.equal qx qy) then     
                     let s_expect = SData(sl_of_svl svl,qx) in 
@@ -443,14 +345,14 @@ let rec static_match i sev p0 s =
                   | [] -> None
                   | (lj,sjo)::rest ->                            
                       let go qi = 
-                        match pio,sjo with 
+                        match ptio,sjo with 
                           | None,None -> 
-                              Some(mk_pat p0.info (PVnt(qi,pio)),[])
-                          | Some pi,Some sj -> 
+                              Some(PVnt(pi,qi,ptio),[])
+                          | Some pti,Some sj -> 
                               begin 
-                                match static_match i sev pi sj with
-                                  | Some (new_pi,binds) -> 
-                                      Some (mk_pat p0.info (PVnt(qi,pio)),binds)
+                                match static_match i sev pti sj with
+                                  | Some (new_pti,binds) -> 
+                                      Some (PVnt(pi,qi,Some new_pti),binds)
                                   | None -> find_label rest
                               end
                           | _ -> sort_error i 
@@ -464,7 +366,7 @@ let rec static_match i sev p0 s =
             | _ -> err p0 "data type" s
           end
             
-      | PPar(p1,p2) -> 
+      | PPar(pi,p1,p2) -> 
           begin match s with 
             | SProduct(s1,s2) -> 
                 begin match
@@ -472,7 +374,7 @@ let rec static_match i sev p0 s =
                   static_match i sev p2 s2 
                 with 
                   | Some (new_p1,l1),Some(new_p2,l2) -> 
-                      Some (mk_pat p0.info (PPar(new_p1,new_p2)),l1 @ l2)
+                      Some (PPar(pi,new_p1,new_p2),l1 @ l2)
                   | _ -> None 
                 end
             | _ -> err p0 "product" s
@@ -487,14 +389,14 @@ let rec dynamic_match i p0 v0 =
     format_pat p0;
     msg "]@\n";
 *)
-  match p0.desc,v0 with   
-  | PWld,_ -> Some []
-  | PVar q,_ -> Some [(q,v0)]
-  | PUnt,V.Unt(_) -> Some []
-  | PInt(n1),V.Int(_,n2) -> if n1=n2 then Some [] else None
-  | PBol(b1),V.Bol(_,b2) -> if b1=b2 then Some [] else None
-  | PStr(s1),V.Str(_,s2) -> if s1 = RS.string_of_t s2 then Some [] else None
-  | PVnt((_,li),pio),V.Vnt(_,_,lj,vjo) -> 
+  match p0,v0 with   
+  | PWld _,_ -> Some []
+  | PVar(_,q),_ -> Some [(q,v0)]
+  | PUnt _,V.Unt(_) -> Some []
+  | PInt(_,n1),V.Int(_,n2) -> if n1=n2 then Some [] else None
+  | PBol(_,b1),V.Bol(_,b2) -> if b1=b2 then Some [] else None
+  | PStr(_,s1),V.Str(_,s2) -> if s1 = RS.string_of_t s2 then Some [] else None
+  | PVnt(_,(_,li),pio),V.Vnt(_,_,lj,vjo) -> 
       if Id.equal li lj then 
         (match pio,vjo with 
            | None,None -> Some []
@@ -503,7 +405,7 @@ let rec dynamic_match i p0 v0 =
                run_error i (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" 
                               (Id.string_of_t li)))
       else None
-  | PPar(p1,p2),V.Par(_,v1,v2) -> 
+  | PPar(_,p1,p2),V.Par(_,v1,v2) -> 
       (match dynamic_match i p1 v1,dynamic_match i p2 v2 with 
          | Some l1,Some l2 -> Some (l1 @ l2)
          | _ -> None)
@@ -530,9 +432,10 @@ let rec resolve_sort i sev s0 =
           SData(Safelist.fold_left (fun acc si -> go si::acc) [] sl,qx')
     | SForall(x,s1) -> SForall(x,go s1)
     | SRefine(x,s1,e1) -> 
-        let s1' = go s1 in 
-        let sev' = SCEnv.update sev (Qid.t_of_id x) (G.Sort s1') in 
-        let e1_sort,new_e1 = check_exp sev' e1 in  
+        let sev1 = SCEnv.update sev (Qid.t_of_id x) (G.Sort (erase_sort s1)) in 
+        let s1' = resolve_sort i sev1 s1 in 
+        let sev2 = SCEnv.update sev (Qid.t_of_id x) (G.Sort s1') in 
+        let e1_sort,new_e1 = check_exp sev2 e1 in  
         if not (compatible e1_sort SBool) then 
           sort_error i 
             (fun () -> msg "@[in@ refinement: expected@ %s@ but@ found@ %s@]"
@@ -548,8 +451,8 @@ and check_exp sev e0 =
        msg "@[check_exp ";
        format_exp e0;
        msg "@]@\n");
-  match e0.desc with
-  | EVar(q) ->
+  match e0 with
+  | EVar(i,q) ->
       (* lookup q in the environment *)
       let e0_sort = match SCEnv.lookup sev q with
         | Some (G.Sort s) -> 
@@ -557,17 +460,14 @@ and check_exp sev e0 =
             s
         | _ -> 
             (* otherwise raise an exception *)
-            sort_error e0.info
+            sort_error i
               (fun () -> msg "@[%s is not bound@]" 
                  (Qid.string_of_t q)) in 
-      (e0_sort,mk_annot_exp e0.info e0.desc e0_sort)
+      (e0_sort,e0)
 
-  | EOver(op,es) -> begin 
-      let i = e0.info in 
-      let err () =
-        sort_error i 
-          (fun () -> 
-             msg "@[could@ not@ resolve@ overloaded@ operator@]") in 
+  | EOver(i,op,es) -> begin 
+      let err () = sort_error i 
+        (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
       (* rules for overloaded symbols *)
       let iter_rules = 
         [ SRegexp, "regexp_iter";
@@ -638,14 +538,11 @@ and check_exp sev e0 =
       check_exp sev raw_new_e
     end
 
-  | EFun(p,ret_sorto,body) ->
-      let (px,param_sort) = match p.desc with
-        | Param(x,s) -> x,s in 
+  | EFun(i,Param(p_i,p_x,p_s),ret_sorto,body) ->
       (* resolve the parameter sort *)
-      let new_param_sort = resolve_sort p.info sev param_sort in 
+      let new_p_s = resolve_sort p_i sev p_s in 
       (* create the environment for the body *)
-      let qx = Qid.t_of_id px in 
-      let body_sev = SCEnv.update sev qx (G.Sort new_param_sort) in      
+      let body_sev = SCEnv.update sev (Qid.t_of_id p_x) (G.Sort new_p_s) in      
       let body_sort,new_body = 
         match ret_sorto with 
           | None -> 
@@ -653,124 +550,107 @@ and check_exp sev e0 =
               check_exp body_sev body 
           | Some ret_sort ->
               (* otherwise, resolve the declared return sort *)
-              let new_ret_sort = resolve_sort e0.info body_sev ret_sort in 
+              let new_ret_sort = resolve_sort i body_sev ret_sort in 
               (* then check the body *)
               let body_sort,new_body = check_exp body_sev body in       
               (* and check that the declared return sort is a subsort of the body sort *)
               if not (compatible body_sort new_ret_sort) then 
-                sort_error e0.info
+                sort_error i
                   (fun () -> 
                      format_exp e0; msg "@\n";
                      msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
                        (string_of_sort new_ret_sort)
                        (string_of_sort body_sort));
-              let cast_body = mk_cast e0.info body_sort ret_sort new_body in 
+              let cast_body = mk_cast (info_of_exp body) body_sort ret_sort new_body in 
               (ret_sort,cast_body) in 
-      let e0_sort = SFunction(px,new_param_sort,body_sort) in 
-      let new_p = mk_param p.info (Param(px,new_param_sort)) in 
-      let new_e0 = EFun(new_p,Some body_sort,new_body) in         
-      (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
+      let e0_sort = SFunction(p_x,new_p_s,body_sort) in 
+      let new_p = Param(p_i,p_x,new_p_s) in 
+      let new_e0 = EFun(i,new_p,Some body_sort,new_body) in         
+      (e0_sort,new_e0)
 
-  | ELet(b,e) ->
+  | ELet(i,b,e) ->
       (* for let-expressions, check the bindings *)
       let bevs,_,new_b = check_binding sev b in 
       (* use the resulting environment to check the exp *)
       let e_sort,new_e = check_exp bevs e in 
-      let new_e0 = ELet(new_b,new_e) in 
-      (e_sort,mk_annot_exp e0.info new_e0 e_sort)
+      let new_e0 = ELet(i,new_b,new_e) in 
+      (e_sort,new_e0)
 
-  | EPair(e1,e2) -> 
+  | EPair(i,e1,e2) -> 
       (* for pairs, recursively check e1 and e2 *)
       let e1_sort,new_e1 = check_exp sev e1 in 
       let e2_sort,new_e2 = check_exp sev e2 in 
       let e0_sort = SProduct(e1_sort,e2_sort) in 
-      let new_e0 = EPair(new_e1,new_e2) in 
-      (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
+      let new_e0 = EPair(i,new_e1,new_e2) in 
+      (e0_sort,new_e0)
 
-  | EUnit -> 
+  | EUnit(_) -> 
       (* units have sort SUnit *)
-      (SUnit,mk_annot_exp e0.info e0.desc SUnit)
+      (SUnit,e0)
 
   | EBoolean(_) -> 
       (* boolean constants have sort SBool *)
-      (SBool,mk_annot_exp e0.info e0.desc SBool)
+      (SBool,e0)
 
   | EInteger(_) -> 
       (* integer constants have sort SInteger *)
-      (SInteger,mk_annot_exp e0.info e0.desc SInteger)
+      (SInteger,e0)
 
   | EString(_) -> 
       (* string constants have sort SString *)
-      (SString,mk_annot_exp e0.info e0.desc SString)
+      (SString,e0)
 
   | ECSet(_) -> 
       (* character sets have sort SRegexp *)
-      (SRegexp,mk_annot_exp e0.info e0.desc SRegexp)
+      (SRegexp,e0)
 
 (*       msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
 (*       msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
 (*       msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
 (*       msg "@[RESULT: %s@\n@]" (string_of_sort ret_sort); *)
 
-  | EApp(e1,e2) ->  
+  | EApp(i,e1,e2) ->  
       (* for function applications, check the left-hand expression *)
       let e1_sort,new_e1 = check_exp sev e1 in 
       (* and make sure it is a function sort *)
       begin match e1_sort with 
-        | SFunction(_,param_sort,return_sort) -> 
+        | SFunction(x,param_sort,return_sort) -> 
             (* then check the right-hand expression *)
             let e2_sort,new_e2 = check_exp sev e2 in 
             (* and make sure its sort is compatible with the parameter *)
+            let i2 = info_of_exp e2 in 
             if not (compatible e2_sort param_sort) then 
-              sort_error e2.info
-                (fun () -> 
-                   format_exp e0; msg "@\n";
+              sort_error i2
+                (fun () ->                    
                    msg "@[in@ application:@ expected@ %s@ but@ found@ %s@]"
                      (string_of_sort param_sort)
                      (string_of_sort e2_sort));
             (* insert cast if needed *)
-            let cast_e2 = mk_cast e2.info e2_sort param_sort new_e2 in             
-            let new_e0 = EApp(new_e1,cast_e2) in 
-            (return_sort,mk_annot_exp e0.info new_e0 return_sort)
+            let cast_e2 = mk_cast i2 e2_sort param_sort new_e2 in             
+            let new_e0 = EApp(i,new_e1,cast_e2) in 
+            let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,new_e2)] return_sort in 
+            (e0_sort,new_e0)
         | _ -> 
-            sort_error e1.info
+            sort_error (info_of_exp e1)
               (fun () ->              
                  msg "@[in@ application:@ expected@ function@ sort@ but@ found@ %s.@]"
                    (string_of_sort e1_sort))
       end
 
-(*       msg "ECASE: %s@\n" (string_of_sort e1_sort); *)
-(*       msg "BRANCHES SORT: %s@\n" (string_of_sort branches_sort); *)
-(*            msg "CHECKING BRANCH: "; *)
-(*            format_pat pi; *)
-(*            msg " -> "; *)
-(*            format_exp ei; *)
-(*            msg "@\n"; *)
-(*                  msg "EI_SORT: %s@\n" (string_of_sort ei_sort); *)
-(*                  msg "BRANCHES_SORT: %s@\n" (string_of_sort branches_sort); *)
-(*       msg "END OF CASE %t@\n" (fun _ -> format_sort e0_sort); *)
-(*   Trace.debug "check" *)
-(*     (fun () ->  *)
-(*        msg "@[check_exp result "; *)
-(*        format_exp e0; *)
-(*        msg "@ :@ "; format_sort (match res with (_,s,_) -> s); *)
-(*        msg "@]@\n"); *)
-(*     res *)
-
-  | ECase(e1,pl,ps) -> 
+  | ECase(i,e1,pl,ps) -> 
       (* helper function for printing error messages *)
       let err2 i p s1 s2 = sort_error i (fun () -> msg p s1 s2) in 
       (* resolve the sort *)
-      let new_ps = resolve_sort e0.info sev ps in 
+      let new_ps = resolve_sort i sev ps in 
       (* check the expression being matched *)
       let e1_sort,new_e1 = check_exp sev e1 in 
       (* fold over the list of patterns and expressions *)
       let new_pl_rev = Safelist.fold_left 
         (fun new_pl_rev (pi,ei) -> 
-           match static_match e0.info sev pi e1_sort with 
+           match static_match i sev pi e1_sort with 
              | None -> 
                  (* if the branch is useless, raise an exception *)
-                 err2 e0.info "@[pattern@ %s@ does@ not@ match@ sort@ %s@]" 
+                 err2 i "@[pattern@ %s@ does@ not@ match@ sort@ %s@]" 
                    (string_of_pat pi) 
                    (string_of_sort e1_sort)
              | Some (new_pi,binds) ->                
@@ -781,70 +661,72 @@ and check_exp sev e0 =
                  (* sort check the expression *) 
                  let ei_sort,new_ei = check_exp ei_sev ei in
                  (* and check that it is compatible with the sorts of the other branches *)
+                 let ii = info_of_exp ei in 
                  if not (compatible ei_sort new_ps) then 
-                   err2 ei.info "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
+                   err2 ii                     
+                     "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
                      (string_of_sort new_ps)
                      (string_of_sort ei_sort);
-                 let cast_ei = mk_cast ei.info ei_sort new_ps new_ei in
+                 let cast_ei = mk_cast ii ei_sort new_ps new_ei in
                  (new_pi,cast_ei)::new_pl_rev)
         [] pl in 
       if Safelist.length new_pl_rev = 0 then 
-        sort_error e0.info (fun () -> msg "@[empty@ match@ expression@]");          
-      let new_e0 = ECase(new_e1,Safelist.rev new_pl_rev,new_ps) in 
-      (new_ps,mk_annot_exp e0.info new_e0 new_ps)
+        sort_error i (fun () -> msg "@[empty@ match@ expression@]");          
+      let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev,new_ps) in 
+      (new_ps,new_e0)
 
-  | ETyFun(x,e1) -> 
+  | ETyFun(i,x,e1) -> 
       let e1_sort,new_e1 = check_exp sev e1 in 
-      let new_e0 = ETyFun(x,new_e1) in 
+      let new_e0 = ETyFun(i,x,new_e1) in 
       let e0_sort = SForall(x,e1_sort) in 
-      (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
+      (e0_sort,new_e0)
 
-  | ETyApp(e1,s2) -> 
+  | ETyApp(i,e1,s2) -> 
       let e1_sort,new_e1 = check_exp sev e1 in 
-      let new_s2 = resolve_sort e0.info sev s2 in 
+      let new_s2 = resolve_sort i sev s2 in 
       let e0_sort = match e1_sort with 
         | SForall(x,s11) -> subst_sort [x,new_s2] s11
-        | _ -> sort_error e0.info 
+        | _ -> sort_error i
             (fun () -> msg "@[in@ type@ application:@ expected@ universal@ type@ but@ %s@ found.@]"
                (string_of_sort e1_sort)) in 
-      let new_e0 = ETyApp(new_e1,new_s2) in 
-      (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
+      let new_e0 = ETyApp(i,new_e1,new_s2) in 
+      (e0_sort,new_e0)
 
-  | ECast(f,t,b,e) -> 
+  | ECast(i,f,t,b,e) -> 
       let _,new_e = check_exp sev e in 
-      let f' = resolve_sort e0.info sev f in 
-      let t' = resolve_sort e0.info sev t in 
-      let new_e0 = ECast(f',t',b,new_e) in 
+      let f' = resolve_sort i sev f in 
+      let t' = resolve_sort i sev t in 
+      let new_e0 = ECast(i,f',t',b,new_e) in 
       let e0_sort = t' in 
-      (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
+      (e0_sort,new_e0)
 
-and check_binding sev b0 = match b0.desc with
-  | Bind(x,so,e) ->
+and check_binding sev b0 = match b0 with
+  | Bind(i,x,so,e) ->
       let qx = Qid.t_of_id x in 
       let e_sort,new_e = check_exp sev e in
       let new_s,cast_e = match so with 
         | None -> (e_sort,new_e)
         | Some s -> 
-            let new_s = resolve_sort b0.info sev s in
+            let new_s = resolve_sort i sev s in
             if not (compatible e_sort new_s) then 
-              sort_error b0.info
+              sort_error i
                 (fun () ->
                    msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
                      (string_of_sort new_s)
                      (string_of_sort e_sort));
-            let cast_e = mk_cast e.info e_sort new_s new_e in 
+            let cast_e = mk_cast (info_of_exp e) e_sort new_s new_e in 
             (new_s,cast_e) in 
       let bsev = SCEnv.update sev qx (G.Sort new_s) in 
-      let new_b = mk_binding b0.info (Bind(x,Some new_s,cast_e)) in 
+      let new_b = Bind(i,x,Some new_s,cast_e) in 
       (bsev,[qx],new_b)
 
 (* type check a single declaration *)
-let rec check_decl sev ms d0 = match d0.desc with
-  | DLet(b) ->
-      let bsev,xs,new_b = check_binding sev b in 
-      let new_d = DLet(new_b) in
-      (bsev,xs,mk_decl d0.info new_d)
-  | DMod(n,ds) ->
+let rec check_decl sev ms d0 = match d0 with
+  | DLet(i,b) ->
+      let bsev,xs,new_b = check_binding sev b in
+      let new_d = DLet(i,new_b) in
+      (bsev,xs,new_d)
+  | DMod(i,n,ds) ->
       let qmn = Qid.t_dot_id (SCEnv.get_mod sev) n in 
       let msev = SCEnv.set_mod sev qmn in 
       let ms = ms @ [n] in 
@@ -853,7 +735,7 @@ let rec check_decl sev ms d0 = match d0.desc with
       let nsev, names_rev = Safelist.fold_left 
         (fun (nsev, names) q -> 
            match SCEnv.lookup msev q with
-               None -> run_error d0.info
+               None -> run_error i
                  (fun () -> msg "@[declaration@ for@ %s@ missing@]"
                     (Qid.string_of_t q))
              | Some s ->
@@ -861,10 +743,10 @@ let rec check_decl sev ms d0 = match d0.desc with
                  let nq = Qid.splice_id_dot n q in
                  (SCEnv.update nsev nq s, nq::names))
         (msev,[]) names in 
-      let new_d = DMod(n,new_ds) in 
-      (nsev,Safelist.rev names_rev,mk_decl d0.info new_d)
+      let new_d = DMod(i,n,new_ds) in 
+      (nsev,Safelist.rev names_rev,new_d)
 
-  | DType(svl,qx,cl) -> 
+  | DType(i,svl,qx,cl) -> 
       (* get module prefix *)
       let qm = SCEnv.get_mod sev in       
       let new_qx = Qid.t_dot_t qm qx in      
@@ -876,7 +758,7 @@ let rec check_decl sev ms d0 = match d0.desc with
           (fun acc (x,so) -> 
              let x_so' = match so with 
                | None -> (x,so)
-               | Some s -> (x,Some (resolve_sort d0.info sev2 s)) in 
+               | Some s -> (x,Some (resolve_sort i sev2 s)) in 
              x_so'::acc)
           [] cl in 
       let new_cl = Safelist.rev new_cl_rev in 
@@ -894,43 +776,30 @@ let rec check_decl sev ms d0 = match d0.desc with
            let qli = Qid.t_of_id li in 
            (SCEnv.update sevi qli (G.Sort li_sort),qli::acc))
         (sev3,[]) new_cl_rev in
-      let new_d = DType(svl,new_qx,Safelist.rev new_cl_rev) in 
-      (sev4,Safelist.rev xs_rev,mk_decl d0.info new_d)
+      let new_d = DType(i,svl,new_qx,Safelist.rev new_cl_rev) in 
+      (sev4,Safelist.rev xs_rev,new_d)
           
-  | DTest(e1,tr) -> 
+  | DTest(i,e1,tr) -> 
       (* check the expression *)
       let e1_sort,new_e1 = check_exp sev e1 in
       let new_tr = match tr with 
-        | TestError | TestShow -> tr
-        | TestValue e2 -> 
+        | TestError | TestPrint -> tr
+        | TestEqual e2 -> 
             (* for values, check that the exps have compatible types *)
-            (* TODO: this should only be for "equality types"?! *)
             let e2_sort,new_e2 = check_exp sev e2 in 
-            if not (compatible e2_sort e1_sort) then
-              sort_error e2.info
+              if not (compatible e2_sort e1_sort) then
+              sort_error (info_of_exp e2)
                 (fun () -> 
                    msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
                      (string_of_sort e1_sort)
                      (string_of_sort e2_sort));
-            TestValue new_e2
-        | TestLensType(e21o,e22o) -> 
-            (* for lens type results, check that both exps are regexps *)
-            let chk_eo evsi = function
-              | None -> None
-              | Some e -> 
-                  let e_sort,new_e = check_exp evsi e in 
-                  if not (compatible e_sort SRegexp) then
-                    sort_error e.info 
-                      (fun () ->
-                         msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
-                           (string_of_sort SRegexp)
-                           (string_of_sort e_sort));
-                  Some new_e in 
-            let new_e21o = chk_eo sev e21o in 
-            let new_e22o = chk_eo sev e22o in 
-           TestLensType(new_e21o,new_e22o) in 
-      let new_d = DTest(new_e1,new_tr) in 
-      (sev,[],mk_decl d0.info new_d)
+            TestEqual new_e2
+        | TestSortPrint _ -> TestSortPrint (Some e1_sort)
+        | TestSortEqual s -> 
+            let s' = resolve_sort i sev s in 
+            TestSortEqual s' in            
+      let new_d = DTest(i,new_e1,new_tr) in 
+      (sev,[],new_d)
           
 and check_module_aux sev m ds = 
   let msev, names, new_ds_rev = 
@@ -942,71 +811,64 @@ and check_module_aux sev m ds =
   (msev, names, Safelist.rev new_ds_rev)
 
 (* entry point to static analysis / instrumentation *)
-let check_module m0 = 
-  match m0.desc with
-  | Mod(m,nctx,ds) -> 
+let check_module m0 = match m0 with 
+  | Mod(i,m,nctx,ds) -> 
       let qm = Qid.t_of_id m in 
       let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@G.pre_ctx) in
       let checked_sev,_,checked_ds = check_module_aux sev [m] ds in 
-      let res = mk_mod m0.info (Mod(m,nctx,checked_ds)) in 
+      let res = Mod(i,m,nctx,checked_ds) in 
       Trace.debug "instr+" (fun () -> format_module res; msg "@\n");
       res
 
 (* --------------- Compiler --------------- *)
 (* expressions *)
-let rec compile_exp cev e0 = match e0.desc with 
-  | ETyFun(_,e) -> 
-      compile_exp cev (mk_fun e0.info Id.wild SUnit e)
-
-  | ETyApp(e1,s2) -> 
-      compile_exp cev (mk_app e0.info e1 (mk_unit e0.info))
-
-  | EVar(q) ->       
+let rec compile_exp cev e0 = match e0 with 
+  | EVar(i,q) ->       
       begin match CEnv.lookup cev q with
         | Some(_,v) -> 
             v
         | None -> 
-            run_error e0.info 
+           run_error i 
               (fun () -> msg "@[%s is not bound@]" (Qid.string_of_t q))
       end
 
-  | EOver _ -> 
-      run_error e0.info (fun () -> msg "@[unresolved overloaded operator@]")
+  | EOver(i,_,_) -> 
+      run_error i
+        (fun () -> msg "@[unresolved@ overloaded@ operator@]")
 
-  | EApp(e1,e2) ->
+  | EApp(_,e1,e2) ->
       let v1 = compile_exp cev e1 in 
       let v2 = compile_exp cev e2 in 
       (V.get_f v1) v2
 
-  | ELet(b,e) -> 
+  | ELet(_,b,e) -> 
       let bcev,_ = compile_binding cev b in
       compile_exp bcev e
           
-  | EFun(p,_,e) ->
+  | EFun(i,p,_,e) ->
       let f v =        
-        let body_cev = CEnv.update cev (Qid.t_of_id (id_of_param p)) (G.Unknown,v) in 
+        let body_cev = 
+          CEnv.update cev 
+            (Qid.t_of_id (id_of_param p)) 
+            (G.Unknown,v) in 
         compile_exp body_cev e in 
-      V.Fun (e0.info,f)
+      V.Fun(i,f)
 
-  | EPair(e1,e2) -> 
+  | EPair(i,e1,e2) -> 
       let v1 = compile_exp cev e1 in 
       let v2 = compile_exp cev e2 in 
-      V.Par(e0.info,v1,v2)
+      V.Par(i,v1,v2)
 
-  | ECase(e1,pl,_) -> 
+  | ECase(i,e1,pl,_) -> 
       let v1 = compile_exp cev e1 in 
       (* first match *)
       let rec find_match = function
         | [] -> 
-            run_error e0.info 
+            run_error i
               (fun () -> 
-                 format_exp e0;
-                 msg "@\nv=";
-                 V.format v1;
-                 msg "@\n";
                  msg "@[match@ failure@]")
         | (pi,ei)::rest -> 
-            (match dynamic_match e0.info pi v1 with 
+            (match dynamic_match i pi v1 with 
                | None -> find_match rest
                | Some l -> l,ei) in 
       let binds,ei = find_match pl in 
@@ -1014,24 +876,29 @@ let rec compile_exp cev e0 = match e0.desc with
       let ei_cev = CEnv.update_list cev qid_binds in
       compile_exp ei_cev ei
 
-  | EUnit -> 
-      V.Unt (e0.info)
+  | ETyFun(i,_,e) -> 
+      compile_exp cev (mk_fun i Id.wild SUnit e)
 
-  | EBoolean(b) -> 
-      V.Bol(e0.info,b)
+  | ETyApp(i,e1,s2) -> 
+      compile_exp cev (mk_app i e1 (EUnit(i)))
 
-  | EInteger(i) -> 
-      V.Int(e0.info,i)
+  | EUnit(i) -> 
+      V.Unt(i)
 
-  | EString(s) -> 
-      V.Str(e0.info,s)
+  | EBoolean(i,b) -> 
+      V.Bol(i,b)
 
-  | ECSet(pos,cs) -> 
+  | EInteger(i,n) -> 
+      V.Int(i,n)
+
+  | EString(i,s) -> 
+      V.Str(i,s)
+
+  | ECSet(i,pos,cs) -> 
       let mk_rx = if pos then R.set else R.negset in 
-      V.Rx (e0.info, mk_rx cs)
+      V.Rx(i,mk_rx cs)
 
-  | ECast(f,t,b,e) -> 
-      let i = e0.info in 
+  | ECast(i,f,t,b,e) -> 
       let e' = 
         begin match f,t with
           | SUnit,SUnit
@@ -1046,7 +913,6 @@ let rec compile_exp cev e0 = match e0.desc with
           | SRegexp,SLens -> 
               (mk_app i (mk_native_prelude_var i "copy") e)
           | SFunction(x,f11,f12), SFunction(_,t11,t12) -> 
-              (* let x = if Id.equal x Id.wild then Id.mk i "x" else x in *)
               let fn = Id.mk i "fn" in 
               let qfn = Qid.t_of_id fn in 
               let qx = Qid.t_of_id x in 
@@ -1059,17 +925,18 @@ let rec compile_exp cev e0 = match e0.desc with
                 e
           | SProduct(f1,f2), SProduct(t1,t2) -> 
             let x = Id.mk i "x" in 
-            let px = mk_pat i (PVar x) in         
+            let px = PVar(i,x) in         
             let qx = Qid.t_of_id x in 
             let y = Id.mk i "y" in 
-            let py = mk_pat i (PVar y) in                 
+            let py = PVar(i,y) in                 
             let qy = Qid.t_of_id y in 
-            mk_case i e 
-              [ (mk_pat i (PPar(px,py)), 
-                 mk_pair i 
-                   (mk_cast_blame i b f1 t1 (mk_var i qx)) 
-                   (mk_cast_blame i b f2 t2 (mk_var i qy))) ]
-              t
+            ECase(i,e,
+                  [ (PPar(i,px,py), 
+                     EPair(i,
+                           (mk_cast_blame i b f1 t1 (mk_var i qx)),
+                           (mk_cast_blame i b f2 t2 (mk_var i qy)))) ],
+                  t)
+                  
         | SData(fl,x),SData(tl,y) when Qid.equal x y -> 
             let _,(svl,cl) = get_type i cev x in               
             let fsubst = Safelist.combine svl fl in 
@@ -1079,13 +946,13 @@ let rec compile_exp cev e0 = match e0.desc with
             let x = Id.mk i "x" in 
             let qx = Qid.t_of_id x in 
             let y = Id.mk i "y" in 
-            let py = mk_pat i (PVar y) in 
+            let py = PVar(i,y) in 
             let qy = Qid.t_of_id y in 
             let pl = Safelist.map
               (fun ((li,fio),(_,tio)) -> 
                  match fio,tio with 
                    | None,None -> 
-                       let pi = mk_pat i (PVnt(li,None)) in 
+                       let pi = PVnt(i,li,None) in 
                        let ei = mk_var i qx in 
                        (pi,ei)
                    | Some fi,Some ti -> 
@@ -1093,12 +960,12 @@ let rec compile_exp cev e0 = match e0.desc with
                          Safelist.fold_right 
                            (fun tj acc -> mk_tyapp i acc tj)
                            tl (mk_var i li) in 
-                       let pi = mk_pat i (PVnt(li,Some py)) in 
+                       let pi = PVnt(i,li,Some py) in 
                        let ei = mk_app i li_f (mk_cast i fi ti (mk_var i qy)) in 
                        (pi,ei)
                    | _ -> run_error i (fun () -> msg "@[different@ datatypes@ in@ cast@ expression@]"))
               (Safelist.combine cl_finst cl_tinst) in 
-             mk_let i x (Some f) e (mk_case i (mk_var i qx) pl t)
+             mk_let i x (Some f) e (ECase(i,mk_var i qx,pl,t))
         | _,SRefine(x,t2,e2) -> 
             let qx = Qid.t_of_id x in 
             mk_let i x (Some t2) 
@@ -1106,12 +973,14 @@ let rec compile_exp cev e0 = match e0.desc with
               (mk_if i e2 
                  (mk_var i qx) 
                  (mk_app i 
-                    (mk_tyapp i (mk_native_prelude_var i "blame") t2)
-                    (mk_exp i (EString(Bstring.t_of_string (string_of_blame b)))))                                               
+                    (ETyApp(i,mk_native_prelude_var i "blame",t2))
+                    (EString(i,Bstring.t_of_string (string_of_blame b))))
                  t2)
+        | SRefine(x,f1,e1),t1 -> 
+            (mk_cast_blame i b f1 t1 e)
         | SVar(x),SVar(y) when Id.equal x y -> e
         | SForall(x,f1),SForall(y,t1) when Id.equal x y ->
-            mk_tyfun i x (mk_cast_blame i b f1 t1 (mk_tyapp i e (SVar x)))
+            ETyFun(i,x,mk_cast_blame i b f1 t1 (ETyApp(i,e,SVar x)))
         | _ -> 
             run_error i 
               (fun () -> 
@@ -1121,23 +990,23 @@ let rec compile_exp cev e0 = match e0.desc with
         end in 
       compile_exp cev e'
 
-and compile_binding cev b0 = match b0.desc with
-  | Bind(x,Some s,e) -> 
+and compile_binding cev b0 = match b0 with
+  | Bind(_,x,so,e) -> 
       let v = compile_exp cev e in 
       let qx = Qid.t_of_id x in 
-      let bcev = CEnv.update cev qx (G.Sort s,v) in       
+      let bcev = match so with 
+        | Some s -> CEnv.update cev qx (G.Sort s,v) 
+        | None -> CEnv.update cev qx (G.Unknown,v) in
       (bcev,[qx])
-  | _ -> 
-      run_error b0.info (fun () -> msg "@[unannotated@ binding@]")
       
-let rec compile_decl cev ms d0 = match d0.desc with 
-  | DLet(b) -> 
+let rec compile_decl cev ms d0 = match d0 with
+  | DLet(i,b) ->
       let bcev,xs = compile_binding cev b in
       (bcev,xs)
-  | DType(svl,qx,cl) -> 
+  | DType(i,svl,qx,cl) -> 
       let sx = SData(sl_of_svl svl,qx) in 
       let mk_univ s = Safelist.fold_right (fun svi acc -> SForall(svi,acc)) svl s in 
-      let mk_impl v = Safelist.fold_right (fun _ f -> V.Fun(d0.info,(fun v -> f))) svl v in 
+      let mk_impl v = Safelist.fold_right (fun _ f -> V.Fun(i,(fun v -> f))) svl v in 
       let new_cev,xs = 
         Safelist.fold_left 
           (fun (cev,xs) (l,so) -> 
@@ -1145,12 +1014,12 @@ let rec compile_decl cev ms d0 = match d0.desc with
              let rv = match so with 
                | None -> 
                    let s = mk_univ sx in 
-                   let v = mk_impl (V.Vnt(d0.info,qx,l,None)) in 
+                   let v = mk_impl (V.Vnt(i,qx,l,None)) in 
                    (G.Sort s,v) 
                | Some s -> 
                    let s = mk_univ (SFunction(Id.wild,s,sx)) in 
                    let f v = V.Vnt(V.info_of_t v,qx,l,Some v) in 
-                   let v = mk_impl (V.Fun(d0.info,f)) in 
+                   let v = mk_impl (V.Fun(i,f)) in 
                    (G.Sort s,v) in 
              (CEnv.update cev ql rv,Qid.t_of_id l::xs))
         (cev,[]) cl in 
@@ -1158,7 +1027,7 @@ let rec compile_decl cev ms d0 = match d0.desc with
       let new_cev' = CEnv.update_type new_cev svl qx qcl in   
       (new_cev',xs)
 
-  | DMod(n,ds) ->
+  | DMod(i,n,ds) ->
       let m_cev, names = compile_mod_aux cev ms ds in
       let n_cev,names_rev = 
         Safelist.fold_left
@@ -1168,77 +1037,97 @@ let rec compile_decl cev ms d0 = match d0.desc with
                    let nq = Qid.splice_id_dot n q in
                    (CEnv.update n_cev nq rv, nq::names)
                | None -> 
-                   run_error d0.info 
+                   run_error i 
                      (fun () -> msg "@[compiled declaration for %s missing@]"
                         (Qid.string_of_t q)))
           (cev,[])
           names in
         (n_cev, Safelist.rev names_rev)
-  | DTest(e,tr) ->
+
+(*             | OK(v), TestLensType(e1o,e2o) ->  *)
+(*                 let l = V.get_l v in  *)
+(*                 let c,a = L.ctype l,L.atype l in  *)
+(*                 let chk_eo r = function *)
+(*                   | None -> true,"?" *)
+(*                   | Some e ->  *)
+(*                       let expected = V.get_r (compile_exp cev e) in  *)
+(*                       (R.equiv r expected, R.string_of_t expected) in  *)
+(*                 let c_ok,c_str = chk_eo c e1o in  *)
+(*                 let a_ok,a_str = chk_eo a e2o in  *)
+(*                   if c_ok && a_ok then  *)
+(*                     (if e1o = None || e2o = None then  *)
+(*                       begin  *)
+(*                         msg "Test type:@ "; *)
+(*                         msg "@[<2>%s <-> %s@]" (R.string_of_t c) (R.string_of_t a); *)
+(*                         msg "@\n%!" *)
+(*                       end) *)
+(*                   else *)
+(*                     begin *)
+(*                   test_error i *)
+(*                     (fun () ->  *)
+(*                        msg "@\nExpected@ ";  *)
+(*                        msg "@[<2>%s <-> %s@]" c_str a_str; *)
+(*                        msg "@ but found@ ";  *)
+(*                        msg "@[<2>%s <-> %s@]" (R.string_of_t c) (R.string_of_t a); *)
+(*                        msg "@\n%!"); *)
+(*                     end                       *)
+
+  | DTest(i,e,tr) ->
       if check_test ms then 
         begin
           let vo = 
-            try let v = compile_exp cev e in 
-            OK(v)
+            try OK(compile_exp cev e)
             with (Error.Harmony_error(err)) -> Error err in 
           match vo,tr with 
-            | OK (v), TestShow ->
+            | OK (v),TestPrint ->
                 msg "Test result:@ "; 
                 V.format v; 
                 msg "@\n%!"
-            | OK(v), TestLensType(e1o,e2o) -> 
-                let l = V.get_l v in 
-                let c,a = L.ctype l,L.atype l in 
-                let chk_eo r = function
-                  | None -> true,"?"
-                  | Some e -> 
-                      let expected = V.get_r (compile_exp cev e) in 
-                      (R.equiv r expected, R.string_of_t expected) in 
-                let c_ok,c_str = chk_eo c e1o in 
-                let a_ok,a_str = chk_eo a e2o in 
-                  if c_ok && a_ok then 
-                    (if e1o = None || e2o = None then 
-                      begin 
-                        msg "Test type:@ ";
-                        msg "@[<2>%s <-> %s@]" (R.string_of_t c) (R.string_of_t a);
-                        msg "@\n%!"
-                      end)
-                  else
-                    begin
-                  test_error d0.info
-                    (fun () -> 
-                       msg "@\nExpected@ "; 
-                       msg "@[<2>%s <-> %s@]" c_str a_str;
-                       msg "@ but found@ "; 
-                       msg "@[<2>%s <-> %s@]" (R.string_of_t c) (R.string_of_t a);
-                       msg "@\n%!");
-                    end                      
-            | Error err, TestShow 
-            | Error err, TestLensType _ -> 
-                test_error d0.info 
-                  (fun () -> 
-                    msg "Test result: error@\n";
-                    err (); 
-                    msg "@\n%!")
+            | OK (v),TestSortPrint so -> begin 
+                match so with 
+                  | Some s -> 
+                      msg "Test result:@ "; 
+                      format_sort s;
+                      msg "@\n%!"
+                  | None -> run_error i (fun () -> msg "@[unannotated@ unit@ test@]")
+              end
+            | Error err, TestPrint 
+            | Error err, TestSortPrint _ -> 
+                test_error i 
+                (fun () -> 
+                   msg "Test result: error@\n";
+                   err (); 
+                   msg "@\n%!")
             | Error _, TestError -> ()
-            | OK(v), TestValue res -> 
-                let resv = compile_exp cev res in
-                  if not (V.equal v resv) then
-                    test_error d0.info 
-                      (fun () ->
-                        msg "@\nExpected@ "; V.format resv;
-                        msg "@ but found@ "; V.format v; 
-                        msg "@\n%!")
-            | Error err, TestValue res -> 
-                let resv = compile_exp cev res in 
-                  test_error d0.info 
+            | OK v1, TestEqual e2 -> 
+                let v2 = compile_exp cev e2 in
+                if not (V.equal v1 v2) then
+                  test_error i 
                     (fun () ->
-                      msg "@\nExpected@ "; V.format resv; 
-                      msg "@ but found an error:@ "; 
-                      err (); 
-                      msg "@\n%!")
-            | OK(v), TestError -> 
-                test_error d0.info 
+                       msg "@\nExpected@ "; V.format v2;
+                       msg "@ but found@ "; V.format v1; 
+                       msg "@\n%!")
+            | OK v1, TestSortEqual s2 -> 
+                run_error i 
+                  (fun () -> 
+                     msg "@[unimplemented unit test!@]")
+            | Error err, TestEqual e2 -> 
+                let v2 = compile_exp cev e2 in 
+                  test_error i 
+                    (fun () ->
+                       msg "@\nExpected@ "; V.format v2; 
+                       msg "@ but found an error:@ "; 
+                       err (); 
+                       msg "@\n%!")
+            | Error err, TestSortEqual s2 -> 
+                test_error i 
+                  (fun () ->
+                     msg "@\nExpected@ "; format_sort s2;
+                     msg "@ but found an error:@ "; 
+                     err (); 
+                     msg "@\n%!")
+            | OK v, TestError -> 
+                test_error i 
                   (fun () ->
                     msg "@\nExpected an error@ "; 
                     msg "@ but found:@ "; 
@@ -1255,8 +1144,8 @@ and compile_mod_aux cev ms ds =
     (cev,[])
     ds
 
-let compile_module m0 = match m0.desc with 
-  | Mod(m,nctx,ds) -> 
+let compile_module m0 = match m0 with 
+  | Mod(i,m,nctx,ds) -> 
       let qm = Qid.t_of_id m in 
       let cev = CEnv.set_ctx (CEnv.empty qm) (m::nctx@G.pre_ctx) in
       let new_cev,_ = compile_mod_aux cev [m] ds in

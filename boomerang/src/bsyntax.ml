@@ -126,7 +126,7 @@ let string_of_blame (Blame(i,b)) = sprintf "<<%s:%b>>" (Info.string_of_t i) b
 
 (* ----- sorts, parameters, expressions ----- *)
 type sort = 
-    (* base types *)
+    (* base sorts *)
     | SUnit                           (* unit *)
     | SBool                           (* booleans *)
     | SInteger                        (* integers *)
@@ -134,47 +134,51 @@ type sort =
     | SRegexp                         (* regular expressions *)
     | SLens                           (* lenses *)
     | SCanonizer                      (* canonizers *)
-    (* dependent types *)
-    | SFunction of Id.t * sort * sort (* dependent functions *)
-    | SData of sort list * Qid.t      (* data types *)
+
+    (* products and datatypes (sums) *)
     | SProduct of sort * sort         (* products *)
+    | SData of sort list * Qid.t      (* data types *)
+
+    (* dependent and refinement sorts *)
+    | SFunction of Id.t * sort * sort (* dependent functions *)
     | SRefine of Id.t * sort * exp    (* refinements *)
-    (* polymorphism *)
+
+    (* variables and universals *)
     | SVar of Id.t                    (* variables *)
     | SForall of Id.t * sort          (* universals *)
  
 (* parameters *)
-and param_desc = Param of Id.t * sort
+and param = Param of Info.t * Id.t * sort
 
 (* variable bindings *)
-and binding_desc = Bind of Id.t * sort option * exp 
+and binding = Bind of Info.t * Id.t * sort option * exp 
 
 (* expression syntax *)
-and exp_desc = 
+and exp = 
     (* lambda calculus *)
-    | EApp of exp * exp 
-    | EVar of Qid.t 
-    | EOver of op * exp list 
-    | EFun of param * sort option * exp 
-    | ELet of binding * exp 
+    | EApp  of Info.t * exp * exp 
+    | EVar  of Info.t * Qid.t 
+    | EOver of Info.t * op * exp list 
+    | EFun  of Info.t * param * sort option * exp 
+    | ELet  of Info.t * binding * exp 
 
     (* err... System F rather *)
-    | ETyFun of Id.t * exp 
-    | ETyApp of exp * sort
+    | ETyFun of Info.t * Id.t * exp 
+    | ETyApp of Info.t * exp * sort
 
     (* with products, case *)
-    | EPair of exp * exp 
-    | ECase of exp * (pat * exp) list * sort
+    | EPair of Info.t * exp * exp 
+    | ECase of Info.t * exp * (pat * exp) list * sort
 
     (* coercions *)
-    | ECast of sort * sort * blame * exp 
+    | ECast of Info.t * sort * sort * blame * exp 
         
     (* unit, strings, ints, character sets *)
-    | EUnit  
-    | EBoolean of bool
-    | EInteger of int    
-    | EString of Bstring.t 
-    | ECSet of bool * (Bstring.sym * Bstring.sym) list 
+    | EUnit    of Info.t  
+    | EBoolean of Info.t *bool
+    | EInteger of Info.t *int    
+    | EString  of Info.t *Bstring.t 
+    | ECSet    of Info.t *bool * (Bstring.sym * Bstring.sym) list 
 
 (* overloaded operators *)
 and op = 
@@ -184,32 +188,17 @@ and op =
   | OTilde
 
 (* patterns *)
-and pat_desc = 
-  | PWld 
-  | PUnt 
-  | PBol of bool
-  | PInt of int
-  | PStr of string
-  | PVar of Id.t 
-  | PVnt of Qid.t * pat option 
-  | PPar of pat * pat
+and pat = 
+  | PWld of Info.t
+  | PUnt of Info.t
+  | PBol of Info.t * bool
+  | PInt of Info.t * int
+  | PStr of Info.t * string
+  | PVar of Info.t * Id.t 
+  | PVnt of Info.t * Qid.t * pat option 
+  | PPar of Info.t * pat * pat
 
-
-(* syntax: carries info, ast, and annotation *) 
-and ('a,'b) syntax = 
-    { info: Info.t;
-      desc: 'a;
-      mutable annot: 'b }
-
-and exp = (exp_desc,sort option) syntax
-
-and pat = (pat_desc,sort option) syntax
-
-and param = (param_desc,unit) syntax
-
-and binding = (binding_desc,unit) syntax
-
-let rec sort_equal u v = match u,v with 
+let rec obvious_subtype u v = match u,v with 
   | SUnit,SUnit -> true
   | SBool,SBool -> true
   | SInteger,SInteger -> true
@@ -218,77 +207,221 @@ let rec sort_equal u v = match u,v with
   | SLens,SLens -> true
   | SCanonizer,SCanonizer -> true
   | SFunction(x,u1,u2),SFunction(y,v1,v2) -> 
-      Id.equal x y && sort_equal u1 v1 && sort_equal u2 v2
+      Id.equal x y && obvious_subtype u1 v1 && obvious_subtype u2 v2
   | SData(sl1,x),SData(sl2,y) -> 
       (try Qid.equal x y && 
-         Safelist.for_all (fun (s1,s2) -> sort_equal s1 s2) (Safelist.combine sl1 sl2) 
+         Safelist.for_all (fun (s1,s2) -> obvious_subtype s1 s2) (Safelist.combine sl1 sl2) 
        with _ -> false)
   | SProduct(u1,u2),SProduct(v1,v2) -> 
-      sort_equal u1 v1 && sort_equal u2 v2
+      obvious_subtype u1 v1 && obvious_subtype u2 v2
   | SRefine(x1,s1,e1),SRefine(x2,s2,e2) -> 
-      Id.equal x1 x2 && sort_equal s1 s2 && 
-        e1 = e2 (* can we do better? this is finer than syntactic equality :-/ *)
+      (Id.equal x1 x2 && obvious_subtype s1 s2 && 
+        e1 = e2) (* we can do better! *)
+      || (obvious_subtype s1 v)
+  | SRefine(x1,s1,e1),_ -> 
+      obvious_subtype s1 v  
   | SVar(x),SVar(y) -> 
       Id.equal x y
   | SForall(x1,s1),SForall(x2,s2) -> 
-      Id.equal x1 x2 && sort_equal s1 s2
-        (* should alpha vary! *)
+      Id.equal x1 x2 && obvious_subtype s1 s2
+        (* we can do better! *)
   | _ -> false        
 
-let mk_exp i e = { info=i; desc=e; annot=None }
-let mk_pat i p = { info=i; desc=p; annot=None }
-let mk_binding i b = { info=i; desc=b; annot=() }
-let mk_param i p = { info=i; desc=p; annot=() }
+let sort_of_param p0 = match p0 with
+  | Param(_,_,s) -> s
 
-let mk_annot_exp i e s = { info=i; desc=e; annot=(Some s) }
-let mk_annot_pat i p s = { info=i; desc=p; annot=Some s }
+let id_of_param p0 = match p0 with
+  | Param(_,x,_) -> x
 
-let sort_of_param p0 = match p0.desc with
-  | Param(_,s) -> s
+let id_of_binding b0 = match b0 with 
+  | Bind(_,x,_,_) -> x
 
-let id_of_param p0 = match p0.desc with
-  | Param(x,_) -> x
-
-let id_of_binding b0 = match b0.desc with 
-  | Bind(x,_,_) -> x
-
-let exp_of_binding b0 = match b0.desc with 
-  | Bind(_,_,e) -> e
+let exp_of_binding b0 = match b0 with 
+  | Bind(_,_,_,e) -> e
   
 (* test results *)
 type test_result =
-    | TestValue of exp
     | TestError
-    | TestShow
-    | TestLensType of (exp option * exp option)
+    | TestPrint
+    | TestEqual of exp
+    | TestSortPrint of sort option
+    | TestSortEqual of sort 
 
 (* declarations *)
-type decl_desc = 
-    | DLet of binding  
-    | DType of Id.t list * Qid.t * (Id.t * sort option) list 
-    | DMod of Id.t * decl list 
-    | DTest of exp * test_result
+type decl = 
+    | DLet  of Info.t * binding 
+    | DType of Info.t * Id.t list * Qid.t * (Id.t * sort option) list 
+    | DMod  of Info.t * Id.t * decl list 
+    | DTest of Info.t * exp * test_result
 
-and decl = (decl_desc,unit) syntax 
-          
-let mk_decl i d = { info=i; desc=d; annot=() }          
-          
 (* modules *)
-type modl_desc = Mod of Id.t * Id.t list * decl list
+type modl = Mod of Info.t * Id.t * Id.t list * decl list
 
-and modl = (modl_desc,unit) syntax
-          
-let mk_mod i m = { info=i; desc=m; annot=() }
-          
 (* infix constructor for non-dependent functions *)
 let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
 
 (* accessors *)
-let info_of_exp e0 = e0.info
+let info_of_exp = function
+  | EApp     (i,_,_)     -> i
+  | EVar     (i,_)       -> i
+  | EOver    (i,_,_)     -> i
+  | EFun     (i,_,_,_)   -> i
+  | ELet     (i,_,_)     -> i 
+  | ETyFun   (i,_,_)     -> i
+  | ETyApp   (i,_,_)     -> i
+  | EPair    (i,_,_)     -> i
+  | ECase    (i,_,_,_)   -> i
+  | ECast    (i,_,_,_,_) -> i 
+  | EUnit    (i)         -> i
+  | EBoolean (i,_)       -> i
+  | EInteger (i,_)       -> i    
+  | EString  (i,_)       -> i
+  | ECSet    (i,_,_)     -> i
       
-let info_of_pat p0 = p0.info 
+let info_of_pat = function
+  | PWld (i)     -> i
+  | PUnt (i)     -> i
+  | PBol (i,_)   -> i
+  | PInt (i,_)   -> i
+  | PStr (i,_)   -> i
+  | PVar (i,_)   -> i 
+  | PVnt (i,_,_) -> i
+  | PPar (i,_,_) -> i
 
-let info_of_module m0 = m0.info
+let info_of_module = function
+  | Mod(i,_,_,_) -> i
 
-let id_of_module m0 = match m0.desc with
-  | Mod(x,_,_) -> x
+let id_of_module = function
+  | Mod(_,x,_,_) -> x
+
+let pat_vars = 
+  let rec aux acc = function
+  | PWld (_)     
+  | PUnt (_)     
+  | PBol (_,_)   
+  | PInt (_,_)   
+  | PStr (_,_)    -> acc
+  | PVar (_,x)    -> Id.Set.add x acc 
+  | PVnt (_,_,None) -> acc
+  | PVnt (_,_,Some p) -> aux acc p
+  | PPar (_,p1,p2) -> aux (aux acc p1) p2 in 
+  aux Id.Set.empty
+
+let rec sort_walk eacc sacc on_evar on_svar s0 = 
+  let go = sort_walk eacc sacc on_evar on_svar in
+  let add_evar x = 
+    let eacc' = Qid.Set.add x eacc in 
+    let go' = sort_walk eacc' sacc on_evar on_svar in 
+    let go_exp' = exp_walk eacc' sacc on_evar on_svar in 
+    (go',go_exp') in 
+  let add_svar x = 
+    let sacc' = Id.Set.add x sacc in 
+    let go' = sort_walk eacc sacc' on_evar on_svar in 
+    let go_exp' = exp_walk eacc sacc' on_evar on_svar in 
+    (go',go_exp') in 
+  match s0 with 
+    | SVar(x) -> 
+        on_svar sacc x
+    | SFunction(x,s1,s2) -> 
+        let go',_ = add_evar (Qid.t_of_id x) in 
+        SFunction(x,go' s1,go' s2)
+    | SProduct(s1,s2) -> 
+        SProduct(go s1,go s2)
+    | SData(sl,qx) ->
+        SData(Safelist.map go sl,qx)
+    | SRefine(x,s1,e1) -> 
+        let go',go_exp' = add_evar (Qid.t_of_id x) in
+        SRefine(x,go' s1,go_exp' e1)
+    | SForall(x,s1) -> 
+        let go',_ = add_svar x in 
+        SForall(x,go' s1)
+    | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer -> 
+        s0
+
+and exp_walk eacc sacc on_evar on_svar e0 = 
+  let add_evar x = 
+    let eacc' = Qid.Set.add x eacc in 
+    let go' = exp_walk eacc' sacc on_evar on_svar in 
+    let go_sort' = sort_walk eacc' sacc on_evar on_svar in 
+    (go',go_sort') in 
+  let add_svar x = 
+    let sacc' = Id.Set.add x sacc in 
+    let go' = exp_walk eacc sacc' on_evar on_svar in 
+    let go_sort' = sort_walk eacc sacc' on_evar on_svar in 
+    (go',go_sort') in 
+  let go = exp_walk eacc sacc on_evar on_svar in 
+  let go_sort = sort_walk eacc sacc on_evar on_svar in 
+  let go_sorto = Misc.map_option go_sort in 
+    match e0 with 
+      | EVar(i,q) -> 
+          on_evar eacc i q
+      | EApp(i,e1,e2) -> 
+          EApp(i,go e1,go e2)
+      | EOver(i,o,el) -> 
+          EOver(i,o,Safelist.map go el)
+      | EFun(i,Param(pi,x1,s1),so1,e1) ->  
+          let go',go_sort' = add_evar (Qid.t_of_id x1) in 
+          EFun(i,Param(pi,x1,go_sort' s1),Misc.map_option go_sort' so1,go' e1)
+      | ELet(i,Bind(bi,x1,so1,e1),e2) -> 
+          let go',go_sort' = add_evar (Qid.t_of_id x1) in 
+          ELet(i,Bind(bi,x1,go_sorto so1,go e1),go' e2)
+      | ETyFun(i,x,e) -> 
+          let go',go_sort' = add_svar x in 
+          ETyFun(i,x,go' e)
+      | ETyApp(i,e,s) -> 
+          ETyApp(i,go e,go_sort s)
+      | ECast(i,f,t,b,e) -> 
+          ECast(i,go_sort f,go_sort t,b,go e)
+      | EPair(i,e1,e2) -> 
+          EPair(i,go e1,go e2)
+      | ECase(i,e1,cl,s) -> 
+          let cl' = 
+            Safelist.map 
+              (fun (pi,ei) -> 
+                 let xs = pat_vars pi in 
+                 let eacc' = Id.Set.fold (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) xs eacc in 
+                 let go' = exp_walk eacc' sacc on_evar on_svar in 
+                 (pi,go' ei))
+              cl in 
+          ECase(i,go e1,cl', go_sort s)
+      | EUnit _ | EBoolean _ | EInteger _ | EString _ | ECSet _ -> 
+          e0
+
+let rec gen_assoc eq x = function
+  | [] -> raise Not_found
+  | (y,s)::rest -> if eq x y then s else gen_assoc eq x rest
+
+let do_svar subst sacc x = 
+  if Id.Set.mem x sacc then SVar(x)
+  else try gen_assoc Id.equal x subst with Not_found -> SVar(x) 
+
+let dont_svar _ _ x = SVar(x)
+
+let do_evar subst eacc i q = 
+  if Qid.Set.mem q eacc then EVar(i,q)
+  else try gen_assoc Qid.equal q subst with Not_found -> EVar(i,q) 
+
+let dont_evar _ _ i q = EVar(i,q)
+
+let subst_sort subst s0 = 
+  sort_walk Qid.Set.empty Id.Set.empty (dont_evar []) (do_svar subst) s0
+
+let subst_exp subst e0 = 
+  exp_walk Qid.Set.empty Id.Set.empty (do_evar subst) (dont_svar []) e0
+
+let subst_exp_in_sort subst s0 = 
+  sort_walk Qid.Set.empty Id.Set.empty (do_evar subst) (dont_svar []) s0
+
+let rec erase_sort = function
+  | SFunction(x,s1,s2) ->       
+      SFunction(x,erase_sort s1,erase_sort s2)
+  | SProduct(s1,s2) -> 
+      SProduct(erase_sort s1, erase_sort s2)
+  | SData(sl,qx) ->
+      SData(Safelist.map erase_sort sl,qx)
+  | SRefine(x,s1,e1) -> 
+      erase_sort s1
+  | SForall(x,s1) -> 
+      SForall(x,erase_sort s1)
+  | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer | SVar _ as s0 -> 
+      s0

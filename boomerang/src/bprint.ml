@@ -56,51 +56,51 @@ let rec format_sort = function
       format_exp e0;
       msg ")@]"
 
-and format_pat p0 = match p0.desc with 
-  | PWld -> msg "_"
-  | PUnt -> msg "()"
-  | PInt(n) -> msg "%d" n
-  | PBol(b) -> msg "%b" b
-  | PStr(s) -> msg "%s" s
-  | PVar(x) -> msg "%s" (Id.string_of_t x)
-  | PPar(p1,p2) -> 
+and format_pat p0 = match p0 with 
+  | PWld _ -> msg "_"
+  | PUnt _ -> msg "()"
+  | PInt(_,n) -> msg "%d" n
+  | PBol(_,b) -> msg "%b" b
+  | PStr(_,s) -> msg "%s" s
+  | PVar(_,x) -> msg "%s" (Id.string_of_t x)
+  | PPar(_,p1,p2) -> 
       msg "@[<2>(";
       format_pat p1;
       msg ",@,";
       format_pat p2;
       msg ")@]";
-  | PVnt(l,None) -> msg "%s" (Qid.string_of_t l)
-  | PVnt(l,Some p1) ->  
+  | PVnt(_,l,None) -> msg "%s" (Qid.string_of_t l)
+  | PVnt(_,l,Some p1) ->  
       msg "@[<2>(%s@ " (Qid.string_of_t l);
       format_pat p1;
       msg ")@]"
 
-and format_param p0 = match p0.desc with
-  | Param(x,s) ->
+and format_param p0 = match p0 with
+  | Param(_,x,s) ->
       msg "@[(%s:" (Id.string_of_t x);
       format_sort s;
       msg ")@]"
 
-and format_binding b0 = match b0.desc with
-  | Bind (x,so,e) ->
+and format_binding b0 = match b0 with
+  | Bind (_,x,so,e) ->
       msg "@[<2>%s" (Id.string_of_t x);
       (match so with None -> () | Some s -> msg "@ :@ "; format_sort s);
       msg "@ =@ ";
       format_exp e;
       msg "@]"
         
-and format_exp e0 = match e0.desc with 
-  | EApp (e1,e2) ->
+and format_exp e0 = match e0 with 
+  | EApp (_,e1,e2) ->
 	msg "@[<2>(";
 	format_exp e1;
 	msg "@ ";
 	format_exp e2;
 	msg ")@]"
 
-    | EVar(q) -> 
+    | EVar(_,q) -> 
 	msg "@[%s@]" (Qid.string_of_t q)
 
-    | EOver(op,e1::rest) -> 
+    | EOver(_,op,e1::rest) -> 
         msg "@[<2>(";
         format_exp e1;
         (match rest with 
@@ -117,7 +117,7 @@ and format_exp e0 = match e0.desc with
 
     | EOver _ -> assert false
         
-    | EFun (p,s,e) ->
+    | EFun (_,p,s,e) ->
 	msg "@[<2>(fun@ ";
 	format_param p;
 	(match s with
@@ -127,35 +127,35 @@ and format_exp e0 = match e0.desc with
 	format_exp e;
 	msg ")@]";
 
-    | ELet (b,e) ->
+    | ELet (_,b,e) ->
 	msg "@[<2>let@ ";
 	format_binding b;
 	msg "@ in@ ";
 	format_exp e;
 	msg "@]";
 
-    | ETyFun(x,e) -> 
+    | ETyFun(_,x,e) -> 
         msg "@[<2>(tyfun@ %s@ ->@ " (Id.string_of_t x);
         format_exp e;
         msg ")@]"
     
-    | ETyApp(e,s) -> 
+    | ETyApp(_,e,s) -> 
         msg "@[<2>";
         format_exp e;
-        msg "<@["; 
+        msg "{@["; 
         format_sort s; 
-        msg "@]>@]"
+        msg "@]}@]"
 
-    | EUnit -> msg "()"
+    | EUnit _ -> msg "()"
 
-    | EPair(e1,e2) -> 
+    | EPair(_,e1,e2) -> 
         msg "@[<2>(";
         format_exp e1;
         msg ",";
         format_exp e2;
         msg ")@]"
 
-    | ECase(e1,pl,s) -> 
+    | ECase(_,e1,pl,s) -> 
         msg "@[<2>(match@ ";
         format_exp e1;
         msg "@ with@ ";
@@ -171,7 +171,7 @@ and format_exp e0 = match e0.desc with
         format_sort s;
         msg "@]"
 
-    | ECast(f,t,_,e) -> 
+    | ECast(_,f,t,_,e) -> 
         msg "@[<2><|"; 
         format_sort t;
         msg "@ <=@ ";
@@ -180,17 +180,17 @@ and format_exp e0 = match e0.desc with
         format_exp e;
         msg "@]"
 
-    | EBoolean (b) -> 
+    | EBoolean (_,b) -> 
         msg "@[%b@]" b
 
-    | EString (s) ->
+    | EString (_,s) ->
 	msg "@[\"%s\"@]" 
           (Bstring.escaped (Bstring.string_of_t s))
 
-    | EInteger (i) ->
+    | EInteger (_,i) ->
 	msg "@[%d@]" i
 
-    | ECSet (negated, ranges) ->
+    | ECSet (_,negated, ranges) ->
 	msg "@[[";
 	(if negated
 	 then msg "^"
@@ -221,30 +221,25 @@ and format_op = function
 
 and format_test_result tr =
   match tr with
-    | TestValue e -> 
+    | TestEqual e -> 
         msg "= @[<2>" ; 
         format_exp e;
         msg "@]";
     | TestError -> msg "= @[<2>error@]"
-    | TestShow -> msg "= @[<2>?@]"
-    | TestLensType(e1o,e2o) -> 
-        let format_eo = function
-          | None -> msg "?"
-          | Some e1 -> format_exp e1 in 
-        msg ": @[<2>";
-        format_eo e1o;
-        msg " <-> ";
-        format_eo e2o;
+    | TestPrint -> msg "= @[<2>?@]"
+    | TestSortPrint _ -> msg ": @[<2>?@]"
+    | TestSortEqual s -> 
+        msg ": @[";
+        format_sort s;
         msg "@]"
 
-and format_decl d0 =
-  match d0.desc with
-      DLet (b) ->
+and format_decl = function
+      DLet (_,b) ->
 	msg "@[let@ ";
 	format_binding b;
 	msg "@]"
 
-    | DType(xl,x,cl) ->  
+    | DType(_,xl,x,cl) ->  
         msg "@[type@ ";
         (match xl with 
           | [] -> ()
@@ -264,18 +259,18 @@ and format_decl d0 =
           cl;
         msg "@]"        
 
-    | DMod (m, ds) ->
-	format_module (mk_mod d0.info (Mod (m, [], ds)))
+    | DMod (i,m,ds) ->
+	format_module (Mod (i,m,[], ds))
 
-    | DTest (e, tr) ->
+    | DTest (_,e,tr) ->
 	msg"@[<2>test@ @[";
 	format_exp e;
 	msg "@ ";
 	format_test_result tr;
 	msg "@]@]"
 
-and format_module m0 = match m0.desc with 
-  | Mod (m, qs, ds) ->
+and format_module = function
+  | Mod (_,m,qs,ds) ->
       msg "@[module %s =@\n  @[" (Id.string_of_t m);
       if qs <> [] then 
         Misc.format_list "@\n" 
@@ -284,6 +279,12 @@ and format_module m0 = match m0.desc with
       Misc.format_list "@\n" format_decl ds;
       msg "@\n@]@\n@]"
 
+let string_of_exp e = Util.format_to_string (fun () -> format_exp e)
+let string_of_binding b = Util.format_to_string (fun () -> format_binding b)
+let string_of_decl d = Util.format_to_string (fun () -> format_decl d)
+let string_of_test_result tr = Util.format_to_string (fun () -> format_test_result tr)
+let string_of_op o = Util.format_to_string (fun () -> format_op o)
+let string_of_module m = Util.format_to_string (fun () -> format_module m)
 let string_of_sort s = Util.format_to_string (fun () -> format_sort s)
 let string_of_param p = Util.format_to_string (fun () -> format_param p)
 let string_of_pat p = Util.format_to_string (fun () -> format_pat p)

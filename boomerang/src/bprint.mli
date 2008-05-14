@@ -20,7 +20,7 @@
 (*******************************************************************************)
 open Bsyntax
 
-(** {2 Pretty Printing} *)
+(** {2 Pretty Printing using formatting functions} *)
 
 val format_sort : sort -> unit 
   (** [format_sort s] pretty prints [s] using [Util.format]. *)
@@ -49,6 +49,8 @@ val format_decl : decl -> unit
 val format_module : modl -> unit
 (** [format_module m] pretty prints [m] using [Util.format]. *)
 
+(** {2 Pretty Printing to strings} *)
+
 val string_of_sort : sort -> string
 (** [string_of_sort s] pretty prints [s] to a string. *)
 
@@ -57,3 +59,21 @@ val string_of_pat : pat -> string
 
 val string_of_param : param -> string
 (** [string_of_param p] pretty prints [p] to a string. *)
+
+val string_of_binding : binding -> string
+(** [string_of_binding b] pretty prints [b] to a string. *)
+
+val string_of_exp : exp -> string
+(** [string_of_exp e] pretty prints [e] to a string. *)
+
+val string_of_op : op -> string
+(** [string_of_op o] pretty prints [o] to a string. *)
+
+val string_of_test_result : test_result -> string
+(** [string_of_test_result tr] pretty prints [tr] to a string. *)
+
+val string_of_decl : decl -> string
+(** [string_of_decl d] pretty prints [d] to a string. *)
+
+val string_of_module : modl -> string
+(** [string_of_module m] pretty prints [m] to a string. *)

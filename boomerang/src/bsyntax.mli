@@ -136,7 +136,7 @@ val invert_blame : blame -> blame
 val string_of_blame : blame -> string
 
 type sort = 
-    (* base types *)
+    (* base sorts *)
     | SUnit                           (* unit *)
     | SBool                           (* booleans *)
     | SInteger                        (* integers *)
@@ -144,149 +144,91 @@ type sort =
     | SRegexp                         (* regular expressions *)
     | SLens                           (* lenses *)
     | SCanonizer                      (* canonizers *)
-    (* dependent types *)
-    | SFunction of Id.t * sort * sort (* dependent functions *)
-    | SData of sort list * Qid.t      (* data types *)
+
+    (* products and datatypes (sums) *)
     | SProduct of sort * sort         (* products *)
+    | SData of sort list * Qid.t      (* data types *)
+
+    (* dependent and refinement sorts *)
+    | SFunction of Id.t * sort * sort (* dependent functions *)
     | SRefine of Id.t * sort * exp    (* refinements *)
-    (* polymorphism *)
+
+    (* variables and universals *)
     | SVar of Id.t                    (* variables *)
     | SForall of Id.t * sort          (* universals *)
 
-and param_desc = Param of Id.t * sort
+and param = Param of Info.t * Id.t * sort
 (** The type of formal parameters: parsing info, an identifier, and a
     sort. *)
 
-and binding_desc = Bind of Id.t * sort option * exp 
+and binding = Bind of Info.t * Id.t * sort option * exp 
 
-and exp_desc = 
+and exp = 
     (* lambda calculus *)
-    | EApp of exp * exp 
-    | EVar of Qid.t 
-    | EOver of op * exp list
-    | EFun of param * sort option * exp 
-    | ELet of binding * exp 
+    | EApp  of Info.t * exp * exp 
+    | EVar  of Info.t * Qid.t 
+    | EOver of Info.t * op * exp list 
+    | EFun  of Info.t * param * sort option * exp 
+    | ELet  of Info.t * binding * exp 
 
     (* err... System F rather *)
-    | ETyFun of Id.t * exp 
-    | ETyApp of exp * sort
+    | ETyFun of Info.t * Id.t * exp 
+    | ETyApp of Info.t * exp * sort
 
     (* with products, case *)
-    | EPair of exp * exp 
-    | ECase of exp * (pat * exp) list * sort
+    | EPair of Info.t * exp * exp 
+    | ECase of Info.t * exp * (pat * exp) list * sort
 
-    (* casts, *)
-    | ECast of sort * sort * blame * exp 
+    (* coercions *)
+    | ECast of Info.t * sort * sort * blame * exp 
         
-    (* and unit, boolean, string, integer, and character sets constants *)
-    | EUnit  
-    | EBoolean of bool
-    | EInteger of int    
-    | EString of Bstring.t 
-    | ECSet of bool * (Bstring.sym * Bstring.sym) list 
-(** The type of expression "descriptions". *)
+    (* unit, strings, ints, character sets *)
+    | EUnit    of Info.t  
+    | EBoolean of Info.t *bool
+    | EInteger of Info.t *int    
+    | EString  of Info.t *Bstring.t 
+    | ECSet    of Info.t *bool * (Bstring.sym * Bstring.sym) list 
+(** The type of expression ASTs. *)
 
 and op = 
   | OIter of int * int 
   | ODot
   | OBar
   | OTilde
+(** The type of overloaded operators. *)
 
-and pat_desc = 
-  | PWld 
-  | PUnt 
-  | PBol of bool
-  | PInt of int
-  | PStr of string
-  | PVar of Id.t 
-  | PVnt of Qid.t * pat option 
-  | PPar of pat * pat
-(** The type of pattern "descriptions". *)
-
-and ('a,'b) syntax = 
-    { info: Info.t;
-      desc: 'a;
-      mutable annot: 'b }
-(** A generic type for abstract syntax: parsing info, description, and
-    mutable annotation data to be filled in by the checker. This type
-    is loosely based on similar types in Galax. *)
-
-and exp = (exp_desc, sort option) syntax
-(** The type of expressions: an expression description annotated with
-    an optional sort and a list of sort variables. *)
-
-and pat = (pat_desc,sort option) syntax          
-(** The type of patterns: an pattern description annotated with
-    an optional sort. *)
-
-and param = (param_desc, unit) syntax
-
-and binding = (binding_desc,unit) syntax
-(** The type of bindings: a binding description annotated with
-    an optional sort. *)
+and pat = 
+  | PWld of Info.t
+  | PUnt of Info.t
+  | PBol of Info.t * bool
+  | PInt of Info.t * int
+  | PStr of Info.t * string
+  | PVar of Info.t * Id.t 
+  | PVnt of Info.t * Qid.t * pat option 
+  | PPar of Info.t * pat * pat
+(** The type of pattern ASTs. *)
     
-val sort_equal : sort -> sort -> bool
+val obvious_subtype : sort -> sort -> bool
 (** ??? *)
 
-val mk_exp : Info.t -> exp_desc -> exp
-(** [mk_exp i d] constructs an [exp] with parsing info [i] and
-    description [d]. *)
-
-val mk_annot_exp : Info.t -> exp_desc -> sort -> exp
-(** [mk_annot_exp i e s] constructs an [exp] with parsing info [i] and
-    description [e], annotated with [s]. *)
-
-val mk_pat : Info.t -> pat_desc -> pat
-(** [mk_pat i p] constructs a [pat] with parsing info [i] and
-    description [p]. *)
-
-val mk_annot_pat : Info.t -> pat_desc -> sort -> pat
-(** [mk_annot_pat i p s] constructs a [pat] with parsing info [i] and
-    description [p], annotated with [s]. *)
-
-val mk_param : Info.t -> param_desc -> param
-(** [mk_param i p] constructs a [param] with parsing info [i] and
-    description [p]. *)
-
-val mk_binding : Info.t -> binding_desc -> binding
-(** [mk_binding i b] constructs a [binding] with parsing info [i] and
-    description [b]. *)
-
-val mk_annot_pat : Info.t -> pat_desc -> sort -> pat
-(** [mk_checked_pat i p s] constructs a [pat] with parsing info [i],
-    description [p], and annotated with sort [s]. *)
-
 type test_result =
-    | TestValue of exp
     | TestError
-    | TestShow
-    | TestLensType of (exp option * exp option)
-(** The datatype representing unit test results. *)
+    | TestPrint
+    | TestEqual of exp
+    | TestSortPrint of sort option
+    | TestSortEqual of sort
+(** The type of unit test results. *)
 
-type decl_desc = 
-    | DLet of binding  
-    | DType of Id.t list * Qid.t * (Id.t * sort option) list 
-    | DMod of Id.t * decl list 
-    | DTest of exp * test_result
-(** The type of declaration "descriptions" *)
+type decl = 
+    | DLet  of Info.t * binding
+    | DType of Info.t * Id.t list * Qid.t * (Id.t * sort option) list 
+    | DMod  of Info.t * Id.t * decl list 
+    | DTest of Info.t * exp * test_result
+(** The type of declaration ASTs. *)
 
-and decl = (decl_desc,unit) syntax 
-(** The type of declarations: a description and an optional sort. *)
-          
-val mk_decl : Info.t -> decl_desc -> decl
-(** [mk_decl i d] constructs the [decl] with parsing info [i] and
-    description [d]. *)
-          
-type modl_desc = Mod of Id.t * Id.t list * decl list
-(** The type of module "descriptions": the name of the module, a list
-    of "open" modules, and a list of declarations. *)
-
-and modl = (modl_desc,unit) syntax
-(** The type of modules: a module description with no annotation. *)
-          
-val mk_mod : Info.t -> modl_desc -> modl
-(** [mk_mod i m] constructs a [modl] with parsing info [i] and
-description [m]. *)
+type modl = Mod of Info.t * Id.t * Id.t list * decl list
+(** The type of module ASTs: the name of the module, a list of "open"
+    modules, and a list of declarations. *)
           
 val (^>) : sort -> sort -> sort
 (** [s1 ^> s2] is the function sort from [s1] to [s2]. *)
@@ -315,3 +257,10 @@ val id_of_binding : binding -> Id.t
 val exp_of_binding : binding -> exp
 (** [sort_of_param p] returns the expression of binding [b]. *)
 
+val subst_sort : (Id.t * sort) list -> sort -> sort
+
+val subst_exp : (Qid.t * exp) list -> exp -> exp 
+
+val subst_exp_in_sort : (Qid.t * exp) list -> sort -> sort
+
+val erase_sort : sort -> sort 
