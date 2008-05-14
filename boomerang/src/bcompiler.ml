@@ -38,6 +38,9 @@ let (@) = Safelist.append
 
 let v_of_rv = G.value_of_rv 
 
+(* triple option data type *)
+type ('a,'b,'c) triple_option = First of 'a | Second of 'b | Third of 'c 
+
 (* --------------- AST utilities --------------- *)
 let get_sort e0 = match e0.annot with
   | None,_ -> run_error e0.info 
@@ -50,27 +53,42 @@ let get_decl_sort d0 = match d0.annot with
   | Some s -> s
         
 let mk_var i q = mk_exp i (EVar q) 
+let mk_prelude_var i s = 
+  mk_var i (Qid.mk_prelude_t s)
 let mk_unit i  = mk_exp i EUnit
 let mk_int i n = mk_exp i (EInteger n)
 let mk_app i e1 e2 = mk_exp i (EApp(e1,e2))
 let mk_app3 i e1 e2 e3 = mk_app i (mk_app i e1 e2) e3
-let mk_let i qx s1 e1 e2 =
-  let b = mk_binding i (Bind(qx,s1,e1)) in 
+let mk_let i x s1 e1 e2 =
+  let b = mk_binding i (Bind(x,s1,e1)) in 
   mk_exp i (ELet(b,e2))
 
 let mk_fun i x s e1 =
   let p = mk_param i (Param(x,s)) in 
   mk_exp i (EFun(p,None,e1))
 
+let mk_tyfun i a e = mk_exp i (ETyFun(a,e))
+
+let mk_tyapp i e1 s2 = mk_exp i (ETyApp(e1,s2))
+
 let mk_pair i e1 e2 = mk_exp i (EPair(e1,e2))
 
-let mk_case i e1 cl = mk_exp i (ECase(e1,cl))
+let mk_case i e1 cl s = mk_exp i (ECase(e1,cl,s))
 
-let mk_if i e0 e1 e2 =
-  let e = ECase(e0,
-                [(mk_pat i (PVnt(Qid.mk_prelude_t "True",None)),e1);
-                 (mk_pat i (PVnt(Qid.mk_prelude_t "False",None)),e2)]) in
-  mk_exp i e
+let mk_if i e0 e1 e2 s =
+  let e = 
+    ECase(e0,
+          [(mk_pat i (PBol(true)),e1);
+           (mk_pat i (PBol(false)),e2)],
+          s) in
+    mk_exp i e
+
+let mk_cast_blame i b f t e = 
+  if sort_equal f t then e 
+  else mk_exp i (ECast(f,t,mk_blame i,e))
+
+let mk_cast i f t e = 
+  mk_cast_blame i (mk_blame i) f t e 
 
 (* --------------- Unit tests --------------- *)
 (* unit tests either succeed, yielding a value, or fail with a msg *)
@@ -201,7 +219,7 @@ struct
   type t = CEnv.t
   type v = G.rs
 
-  let dummy_value = V.Unt (V.Pos (Info.M "dummy value"))
+  let dummy_value = V.Unt (Info.M "dummy value")
   let empty = CEnv.empty        
   let get_ev = CEnv.get_ev
   let set_ev = CEnv.set_ev   
@@ -226,146 +244,135 @@ struct
 end
 
 (* --------------- Sort Checking --------------- *)
+let rec id_assoc x = function
+  | [] -> raise Not_found
+  | (y,s)::rest -> if Id.equal x y then s else id_assoc x rest
+
+let rec id_remove_assoc x l = 
+  let rec aux acc = function
+    | [] -> Safelist.rev acc
+    | (y,s)::rest -> 
+        if Id.equal x y then aux acc rest
+        else aux ((y,s)::acc) rest in 
+  aux [] l 
+
 let rec subst_sort subst s0 = match s0 with
   | SVar(x) -> 
-      let rec aux = function
-        | [] -> s0
-        | (y,s)::rest -> if Id.equal x y then s else aux rest in 
-      aux subst 
-  | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer -> s0
-  | SFunction(x,s1,s2) -> SFunction(x,subst_sort subst s1, subst_sort subst s2)
-  | SProduct(s1,s2)    -> SProduct(subst_sort subst s1,subst_sort subst s2)
-  | SData(sl,qx)       -> 
-      let sl' = Safelist.fold_right (fun si acc -> subst_sort subst si::acc) sl [] in 
-        SData(sl',qx)
-  | SRefine(x,s1,e1)   -> assert false
-  | SForall(x,s)       -> 
-      let subst' = Safelist.remove_assoc x subst in 
-      SForall(x,subst_sort subst' s) 
+      (try id_assoc x subst with Not_found -> s0)
+  | SFunction(x,s1,s2) -> 
+      let s1' = subst_sort subst s1 in 
+      let s2' = subst_sort subst s2 in 
+      SFunction(x,s1',s2')
+  | SProduct(s1,s2) -> 
+      let s1' = subst_sort subst s1 in 
+      let s2' = subst_sort subst s2 in       
+      SProduct(s1',s2')
+  | SData(sl,qx) -> 
+      let sl' = Safelist.map (subst_sort subst) sl in 
+      SData(sl',qx)
+  | SRefine(x,s1,e1) ->
+      let s1' = subst_sort subst s1 in 
+      let e1' = subst_exp_sort subst e1 in 
+      SRefine(x,s1',e1')
+  | SForall(x,s) -> 
+      let subst' = id_remove_assoc x subst in 
+      let s' = subst_sort subst' s in 
+      SForall(x,s')
+  | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer -> 
+      s0
 
-(* check if one sort is a subsort of another *)
-let rec subsort u v = match u,v with        
-  | SUnit,SUnit           -> true
-  | SInteger,SInteger     -> true
-  | SBool,SBool           -> true
-  | SString,SString       -> true
-  | SString,SRegexp       -> true
-  | SString,SLens         -> true
-  | SRegexp,SRegexp       -> true
-  | SRegexp,SLens         -> true
-  | SLens,SLens           -> true
-  | SCanonizer,SCanonizer -> true
+and subst_exp_sort subst e0 = match e0.desc with 
+  | EVar(q) -> e0
+  | EApp(e1,e2) -> 
+      let e1' = subst_exp_sort subst e1 in 
+      let e2' = subst_exp_sort subst e2 in 
+      mk_exp e0.info (EApp(e1',e2'))
+  | EOver(o,el) -> 
+      let el' = Safelist.map (subst_exp_sort subst) el in 
+      mk_exp e0.info (EOver(o,el'))
+  | EFun(p1,so1,e1) -> begin 
+      match p1.desc with 
+        | Param(x1,s1) -> 
+            let s1' = subst_sort subst s1 in 
+            let p1' = mk_param p1.info (Param(x1,s1')) in 
+            let so1' = Misc.map_option (subst_sort subst) so1 in 
+            let e1' = subst_exp_sort subst e1 in 
+              mk_exp e0.info (EFun(p1',so1',e1'))
+    end
+  | ELet(b1,e2) -> begin match b1.desc with 
+        Bind(x1,so1,e1) -> 
+          let so1' = Misc.map_option (subst_sort subst) so1 in 
+          let e1' = subst_exp_sort subst e1 in 
+          let b1' = mk_binding b1.info (Bind(x1,so1',e1')) in 
+          let e2' = subst_exp_sort subst e2 in 
+          mk_exp e0.info (ELet(b1',e2'))
+    end
+  | ETyFun(a,e) -> 
+      let subst' = id_remove_assoc a subst in 
+      let e' = subst_exp_sort subst' e in 
+      mk_exp e0.info (ETyFun(a,e'))
+  | ETyApp(e,s) -> 
+      let e' = subst_exp_sort subst e in 
+      let s' = subst_sort subst s in 
+      mk_exp e0.info (ETyApp(e',s'))
+  | ECast(f,t,b,e) -> 
+      let f' = subst_sort subst f in 
+      let t' = subst_sort subst t in 
+      let e' = subst_exp_sort subst e in 
+      mk_exp e0.info (ECast(f',t',b,e'))
+  | EPair(e1,e2) -> 
+      let e1' = subst_exp_sort subst e1 in 
+      let e2' = subst_exp_sort subst e2 in 
+      mk_exp e0.info (EPair(e1',e2'))
+  | ECase(e1,cl,s) -> 
+      let e1' = subst_exp_sort subst e1 in         
+      let cl' = 
+        Safelist.map 
+          (fun (pi,ei) -> 
+             let ei' = subst_exp_sort subst ei in 
+             (pi,ei'))
+          cl in 
+      let s' = subst_sort subst s in 
+      mk_exp e0.info (ECase(e1',cl',s'))
+  | EUnit | EBoolean _ | EInteger _ | EString _ | ECSet _ -> 
+      e0
+
+(* check if one sort is compatible with another *)
+let rec compatible f t = match f,t with
+  | SUnit,SUnit       
+  | SInteger,SInteger 
+  | SBool,SBool       
+  | SString,SString 
+  | SRegexp,SRegexp 
+  | SLens,SLens 
+  | SCanonizer,SCanonizer ->
+      true
+  | SString,SRegexp 
+  | SString,SLens 
+  | SRegexp,SLens -> 
+      true
   | SFunction(x,s11,s12),SFunction(y,s21,s22) -> 
-      let b1 = true || Id.equal x y in 
-      let b2 = subsort s21 s11  in
-      let b3 = subsort s12 s22 in 
-      b1 && b2 && b3
+         (Id.equal x y)
+      && (compatible s11 s21) 
+      && (compatible s12 s22)
   | SProduct(s11,s12),SProduct(s21,s22) -> 
-      let b1 = subsort s11 s21  in
-      let b2 = subsort s12 s22 in 
-      b1 && b2     
+         (compatible s11 s21) 
+      && (compatible s12 s22)
   | SData(sl1,qx),SData(sl2,qy) -> 
       let ok,sl12 = 
         try true, Safelist.combine sl1 sl2 
         with Invalid_argument _ -> (false,[]) in 
       Safelist.fold_left
-        (fun b (s1i,s2i) -> b && subsort s1i s2i)
+        (fun b (s1i,s2i) -> b && compatible s1i s2i)
         (ok && (Qid.equal qx qy))
         sl12
   | SVar x, SVar y -> 
       Id.equal x y
   | SForall(x,s1),SForall(y,s2) -> 
-      Id.equal x y && subsort s1 s2
-  | SRefine(_,s11,_),s2 -> subsort s11 s2
-  | s1,SRefine(_,s21,_) -> subsort s1 s21
+      Id.equal x y && compatible s1 s2
+  | SRefine(_,s11,_),s2 -> compatible s11 s2
+  | s1,SRefine(_,s21,_) -> compatible s1 s21
   | _ -> false
-
-let rec join i u v = 
-  let err () = 
-    run_error i
-      (fun () -> Util.format "@[%s and %s do not join@]"
-         (string_of_sort u)
-         (string_of_sort v)) in 
-  match u,v with 
-    | SUnit,SUnit           -> SUnit
-    | SBool,SBool           -> SBool
-    | SInteger,SInteger     -> SInteger
-    | SString,SString       -> SString
-    | SString,SRegexp       -> SRegexp
-    | SRegexp,SString       -> SRegexp
-    | SString,SLens         -> SLens
-    | SLens,SString         -> SLens
-    | SRegexp,SLens         -> SLens
-    | SLens,SRegexp         -> SLens
-    | SLens,SLens           -> SLens
-    | SCanonizer,SCanonizer -> SCanonizer
-  | SFunction(x,s11,s12),SFunction(y,s21,s22) -> 
-      if Id.equal x y then 
-        try SFunction(x,meet i s11 s12,join i s21 s22) 
-        with _ -> err ()
-      else err () 
-  | SProduct(s11,s12),SProduct(s21,s22) -> 
-      begin try SProduct(meet i s11 s12,join i s21 s22) 
-      with _ -> err () end
-  | SData(sl1,qx),SData(sl2,qy) -> 
-      let sl12 = 
-        try Safelist.combine sl1 sl2 
-        with Invalid_argument _ -> err () in      
-        if Qid.equal qx qy then 
-          SData(Safelist.map (fun (s1i,s2i) -> join i s1i s2i) sl12,qx)
-        else err ()
-  | SVar x, SVar y -> 
-      if Id.equal x y then u 
-      else err ()
-  | SForall(x,s1),SForall(y,s2) -> 
-      if Id.equal x y then SForall(x,join i s1 s2)
-      else err ()
-  | SRefine(x,s,e),_ | _,SRefine(x,s,e) -> err ()
-  | _ -> err ()
-         
-and meet i u v = 
-  let err () = 
-    run_error i
-      (fun () -> Util.format "@[%s and %s do not meet@]"
-         (string_of_sort u)
-         (string_of_sort v)) in       
-  match u,v with
-    | SUnit,SUnit           -> SUnit
-    | SBool,SBool           -> SBool
-    | SInteger,SInteger     -> SInteger
-    | SString,SString       -> SString
-    | SString,SRegexp       -> SString
-    | SRegexp,SString       -> SString
-    | SString,SLens         -> SString
-    | SLens,SString         -> SString
-    | SRegexp,SLens         -> SRegexp
-    | SLens,SRegexp         -> SRegexp
-    | SLens,SLens           -> SLens
-    | SCanonizer,SCanonizer -> SCanonizer
-    | SFunction(x,s11,s12),SFunction(y,s21,s22) -> 
-      if Id.equal x y then 
-        try SFunction(x,join i s11 s12,meet i s21 s22) 
-        with _ -> err ()
-      else err ()
-    | SProduct(s11,s12),SProduct(s21,s22) -> 
-        begin 
-          try SProduct(join i s11 s12,meet i s21 s22) 
-          with _ -> err ()
-        end
-    | SData(sl1,qx),SData(sl2,qy) -> 
-        let sl12 = 
-          try Safelist.combine sl1 sl2 
-          with Invalid_argument _ -> err () in      
-          if Qid.equal qx qy then 
-            SData(Safelist.map (fun (s1i,s2i) -> meet i s1i s2i) sl12,qx)
-          else err ()
-    | SVar x,SVar y -> 
-        if Id.equal x y then u else err ()
-    | SForall(x,s1),SForall(y,s2) -> 
-        if Id.equal x y then SForall(x,meet i s1 s2)
-        else err ()
-    | SRefine(x,s,e),_ | _,SRefine(x,s,e) -> err ()
-    | _ -> err ()
 
 (* lookup a constructor *)
 let get_con i sev li = 
@@ -374,7 +381,18 @@ let get_con i sev li =
         (fun () -> msg "@[Unbound@ constructor@ %s@]" (Qid.string_of_t li))
     | Some r -> r
 
+let get_type i cev qx = 
+  match CEnv.lookup_type cev qx with
+    | None -> sort_error i 
+        (fun () -> msg "@[Unbound@ type@ %s@]" (Qid.string_of_t qx))
+    | Some r -> r
+
 let sl_of_svl svl = Safelist.map (fun svi -> SVar svi) svl 
+
+let inst_cases subst cl = 
+  Safelist.map 
+    (fun (li,so) -> (li,Misc.map_option (subst_sort subst) so)) cl
+
 
 (* static_match: determine if a value with a given sort *could* match
    a pattern; annotate PVars with their sorts, return the list of sort
@@ -394,16 +412,16 @@ let rec static_match i sev p0 s =
           p0.annot <- Some s;
           Some (p0,[(x,s)])
       | PUnt ->
-          if not (subsort s SUnit) then err p0 "unit" s;
+          if not (compatible s SUnit) then err p0 "unit" s;
           Some (p0,[])
       | PInt _ -> 
-          if not (subsort s SInteger) then err p0 "int" s;
+          if not (compatible s SInteger) then err p0 "int" s;
           Some (p0,[])
       | PBol _ -> 
-          if not (subsort s SBool) then err p0 "bool" s;
+          if not (compatible s SBool) then err p0 "bool" s;
           Some (p0,[])
       | PStr _ -> 
-          if not (subsort s SString) then err p0 "string" s;
+          if not (compatible s SString) then err p0 "string" s;
           Some (p0,[])
 
       | PVnt(li,pio) -> 
@@ -417,11 +435,7 @@ let rec static_match i sev p0 s =
                     err p0 (string_of_sort s_expect) s
                   else 
                     let subst = Safelist.combine svl sl1 in 
-                      Safelist.fold_right 
-                        (fun (li,so) acc -> 
-                           let so' = Misc.map_option (subst_sort subst) so in 
-                             (li,so')::acc) 
-                        cl [] in 
+                    inst_cases subst cl in 
                 let rec resolve_label li lj = function
                   | [] -> None
                   | o::os -> 
@@ -569,7 +583,7 @@ let rec check_exp sev e0 =
       let rec find_rule r es = match r with 
         | [] -> None
         | (s,x)::t -> 
-            if Safelist.for_all (fun (si,_) -> subsort si s) es then 
+            if Safelist.for_all (fun (si,_) -> compatible si s) es then 
               Some x
             else 
               find_rule t es in 
@@ -637,14 +651,15 @@ let rec check_exp sev e0 =
               (* then check the body *)
               let body_sort,new_body = check_exp body_sev body in       
               (* and check that the declared return sort is a subsort of the body sort *)
-              if not (subsort body_sort new_ret_sort) then 
+              if not (compatible body_sort new_ret_sort) then 
                 sort_error e0.info
                   (fun () -> 
                      format_exp e0; msg "@\n";
                      msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
                        (string_of_sort new_ret_sort)
                        (string_of_sort body_sort));
-              (body_sort,new_body) in 
+              let cast_body = mk_cast e0.info body_sort ret_sort new_body in 
+              (ret_sort,cast_body) in 
       let e0_sort = SFunction(px,new_param_sort,body_sort) in 
       let new_p = mk_param p.info (Param(px,new_param_sort)) in 
       let new_e0 = EFun(new_p,Some body_sort,new_body) in         
@@ -700,14 +715,16 @@ let rec check_exp sev e0 =
             (* then check the right-hand expression *)
             let e2_sort,new_e2 = check_exp sev e2 in 
             (* and make sure its sort is compatible with the parameter *)
-            if not (subsort e2_sort param_sort) then 
+            if not (compatible e2_sort param_sort) then 
               sort_error e2.info
                 (fun () -> 
                    format_exp e0; msg "@\n";
                    msg "@[in@ application:@ expected@ %s@ but@ found@ %s@]"
                      (string_of_sort param_sort)
                      (string_of_sort e2_sort));
-            let new_e0 = EApp(new_e1,new_e2) in 
+            (* insert cast if needed *)
+            let cast_e2 = mk_cast e2.info e2_sort param_sort new_e2 in             
+            let new_e0 = EApp(new_e1,cast_e2) in 
             (return_sort,mk_annot_exp e0.info new_e0 return_sort)
         | _ -> 
             sort_error e1.info
@@ -734,14 +751,16 @@ let rec check_exp sev e0 =
 (*        msg "@]@\n"); *)
 (*     res *)
 
-  | ECase(e1,pl) -> 
+  | ECase(e1,pl,ps) -> 
       (* helper function for printing error messages *)
       let err2 i p s1 s2 = sort_error i (fun () -> msg p s1 s2) in 
+      (* resolve the sort *)
+      let new_ps = resolve_sort e0.info sev ps in 
       (* check the expression being matched *)
       let e1_sort,new_e1 = check_exp sev e1 in 
       (* fold over the list of patterns and expressions *)
-      let new_pl_rev,pl_sorto = Safelist.fold_left 
-        (fun (new_pl_rev,branches_sorto) (pi,ei) -> 
+      let new_pl_rev = Safelist.fold_left 
+        (fun new_pl_rev (pi,ei) -> 
            match static_match e0.info sev pi e1_sort with 
              | None -> 
                  (* if the branch is useless, raise an exception *)
@@ -756,22 +775,17 @@ let rec check_exp sev e0 =
                  (* sort check the expression *) 
                  let ei_sort,new_ei = check_exp ei_sev ei in
                  (* and check that it is compatible with the sorts of the other branches *)
-                 let branches_sort = 
-                   match branches_sorto with 
-                     | None -> ei_sort 
-                     | Some branches_sort ->
-                         try join ei.info ei_sort branches_sort with _ -> 
-                           err2 ei.info "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
-                             (string_of_sort branches_sort)
-                             (string_of_sort ei_sort) in  
-                 let new_pl_rev' = (new_pi,new_ei)::new_pl_rev in 
-                 (new_pl_rev',Some branches_sort))
-        ([],None) pl in 
-      let e0_sort = match pl_sorto with 
-        | Some pl_sort -> pl_sort 
-        | None -> sort_error e0.info (fun () -> msg "@[empty@ match@ expression@]") in  
-      let new_e0 = ECase(new_e1,Safelist.rev new_pl_rev) in 
-      (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
+                 if not (compatible ei_sort new_ps) then 
+                   err2 ei.info "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
+                     (string_of_sort new_ps)
+                     (string_of_sort ei_sort);
+                 let cast_ei = mk_cast ei.info ei_sort new_ps new_ei in
+                 (new_pi,cast_ei)::new_pl_rev)
+        [] pl in 
+      if Safelist.length new_pl_rev = 0 then 
+        sort_error e0.info (fun () -> msg "@[empty@ match@ expression@]");          
+      let new_e0 = ECase(new_e1,Safelist.rev new_pl_rev,new_ps) in 
+      (new_ps,mk_annot_exp e0.info new_e0 new_ps)
 
   | ETyFun(x,e1) -> 
       let e1_sort,new_e1 = check_exp sev e1 in 
@@ -790,23 +804,32 @@ let rec check_exp sev e0 =
       let new_e0 = ETyApp(new_e1,new_s2) in 
       (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
 
+  | ECast(f,t,b,e) -> 
+      let _,new_e = check_exp sev e in 
+      let f' = resolve_sort e0.info sev f in 
+      let t' = resolve_sort e0.info sev t in 
+      let new_e0 = ECast(f',t',b,new_e) in 
+      let e0_sort = t' in 
+      (e0_sort,mk_annot_exp e0.info new_e0 e0_sort)
+
 and check_binding sev b0 = match b0.desc with
   | Bind(x,so,e) ->
       let qx = Qid.t_of_id x in 
       let e_sort,new_e = check_exp sev e in
-      let new_s = match so with 
-        | None -> e_sort 
+      let new_s,cast_e = match so with 
+        | None -> (e_sort,new_e)
         | Some s -> 
             let new_s = resolve_sort b0.info sev s in
-              if not (subsort e_sort new_s) then 
-                sort_error b0.info
-                  (fun () ->
-                     msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
-                       (string_of_sort new_s)
-                       (string_of_sort e_sort));
-            new_s in               
+            if not (compatible e_sort new_s) then 
+              sort_error b0.info
+                (fun () ->
+                   msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
+                     (string_of_sort new_s)
+                     (string_of_sort e_sort));
+            let cast_e = mk_cast e.info e_sort new_s new_e in 
+            (new_s,cast_e) in 
       let bsev = SCEnv.update sev qx (G.Sort new_s) in 
-      let new_b = mk_binding b0.info (Bind(x,Some new_s,new_e)) in 
+      let new_b = mk_binding b0.info (Bind(x,Some new_s,cast_e)) in 
       (bsev,[qx],new_b)
 
 (* type check a single declaration *)
@@ -877,7 +900,7 @@ let rec check_decl sev ms d0 = match d0.desc with
             (* for values, check that the exps have compatible types *)
             (* TODO: this should only be for "equality types"?! *)
             let e2_sort,new_e2 = check_exp sev e2 in 
-            if not (subsort e2_sort e1_sort) then
+            if not (compatible e2_sort e1_sort) then
               sort_error e2.info
                 (fun () -> 
                    msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
@@ -890,7 +913,7 @@ let rec check_decl sev ms d0 = match d0.desc with
               | None -> None
               | Some e -> 
                   let e_sort,new_e = check_exp evsi e in 
-                  if not (subsort e_sort SRegexp) then
+                  if not (compatible e_sort SRegexp) then
                     sort_error e.info 
                       (fun () ->
                          msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
@@ -912,256 +935,6 @@ and check_module_aux sev m ds =
       (sev,[],[]) ds in 
   (msev, names, Safelist.rev new_ds_rev)
 
-(* --------------- Instrumentation --------------- *)
-(* 
-module SVMap = Env.Make(
-  struct
-    type t = svar
-    let compare (x,_) (y,_) = Pervasives.compare x y
-    let to_string (x,_) = sprintf "<%d>" x
-  end)
-
-module IEnv = struct
-  (* instrumentation environment: maps of svars to Qid.ts and a lookup
-     function for constructor names *)
-  type t = Qid.t SVMap.t * (Qid.t -> (Qid.t * G.tspec) option)
-  let empty lookup = (SVMap.empty (), lookup)
-  let update (sm,lk) sv q = (SVMap.update sm sv q,lk) 
-  let lookup (sm,lk) q = SVMap.lookup sm q 
-  let lookup_type (sm,lk) q = lk q
-end
-
-(* gensym *)
-let fresh_counter = ref 0 
-let fresh_var i exclo = 
-  let gen () = 
-    let x = !fresh_counter in 
-    let n = x / 26 in 
-    let s = 
-      sprintf "_%c%s" 
-        (Char.chr (97 + x mod 26))
-        (if n=0 then "" else string_of_int n) in 
-      incr fresh_counter;
-      Id.mk i s in 
-  (* generate fresh variables until we find one not in l *)
-  let rec loop x = 
-    match exclo with 
-      | None -> x
-      | Some y -> if Id.equal x y then loop (gen ()) else x in
-  loop (gen ())
-   
-(* instrumentation at sorts *)
-let rec instrument_sort i iev s0 = match Bunify.zonk i s0 with
-  | SVar(sv) -> begin
-      match IEnv.lookup iev sv with
-        | Some(q) -> 
-            mk_var i q
-        | None -> 
-            run_error i 
-              (fun () -> 
-                 msg "@[unbound sort variable ";
-                       Bprint.reset_name_ctxt ();
-                       format_sort s0; msg "@]")
-    end
-
-  | SRawVar(_) -> 
-      run_error i 
-        (fun () ->
-           msg "@[unexpected raw sort variable ";
-           format_sort s0; msg "@]")
-
-  | SUnit | SString | SInteger | SRegexp | SLens | SCanonizer -> 
-      let x = fresh_var i None in 
-      mk_fun i x s0
-        (mk_var i (Qid.t_of_id x))
-
-  | SRefine(x,s1,e0) ->
-      let e_x = mk_var i (Qid.t_of_id x) in 
-      let e_blame = mk_var i (Qid.mk_native_prelude_t "blame") in        
-        mk_fun i x s1
-          (mk_if i e0 e_x (mk_app i e_blame e_x))
-               
-  | SFunction(x,s1,s2) ->
-      let s1_checker = instrument_sort i iev s1 in 
-      let s2_checker = instrument_sort i iev s2 in 
-      let f = fresh_var i (Some x) in 
-      let qf = Qid.t_of_id f in 
-      let y = 
-        if Id.equal Id.wild x then fresh_var i None
-        else x in 
-      let qy = Qid.t_of_id y in 
-      let ef = mk_var i qf in 
-      let ey = mk_var i qy in
-      let merge_blame = mk_var i (Qid.mk_native_prelude_t "merge_blame") in
-        mk_fun i f s0
-          (mk_fun i y s1
-             (mk_let i y s1
-                (mk_app i 
-                   s1_checker
-                   (mk_app3 i merge_blame ef ey))
-                (mk_app i 
-                   s2_checker 
-                   (mk_app i ef ey))))
-        
-  | SProduct(s1,s2) ->
-      let s1_checker = instrument_sort i iev s1 in
-      let s2_checker = instrument_sort i iev s2 in 
-      let p = fresh_var i None in
-      let ep = mk_var i (Qid.t_of_id p) in
-      let x1 = fresh_var i None in
-      let ex1 = mk_var i (Qid.t_of_id x1) in
-      let x2 = fresh_var i None in
-      let ex2 = mk_var i (Qid.t_of_id x2) in
-      mk_fun i p s0
-        (mk_case i ep 
-           [(mk_annot_pat i 
-               (PPar(mk_annot_pat i (PVar x1) s1,
-                     mk_annot_pat i (PVar x2) s2))
-               s0,
-             (mk_pair i 
-                (mk_app i s1_checker ex1)
-                (mk_app i s2_checker ex2)))])
-      
-  | SData(sl,qx) -> 
-      let v = fresh_var i None in
-      let ev = mk_var i (Qid.t_of_id v) in
-      let y = fresh_var i None in 
-      let qy = Qid.t_of_id y in 
-      let svl,cl = match IEnv.lookup_type iev qx with
-        | None -> run_error i (fun () -> msg "@[cannot resolve %s@]" (Qid.string_of_t qx))
-        | Some (_,ts) -> ts in 
-      let s0_inst,cl_inst = Bunify.instantiate_cases i (qx,(svl,cl)) in
-      let () = 
-        if not (Bunify.unify i s0 s0_inst) then 
-          run_error i (fun () -> msg "@[unexpected error instrumenting %s]" (string_of_sort s0)) in 
-      let cl_rev' = 
-        Safelist.fold_left 
-          (fun acc tc -> match tc with
-             | (q,None) -> 
-                 let p = mk_annot_pat i (PVnt(q,None)) s0 in 
-                 (p,ev)::acc
-             | (q,Some s) -> 
-                 let s_checker = instrument_sort i iev s in 
-                 let py = mk_annot_pat i (PVar y) s in 
-                 let p = mk_annot_pat i (PVnt(q,Some py)) s0 in 
-                 let ey = mk_var i qy in 
-                 (p,
-                  mk_app i 
-                    (mk_var i q)
-                    (mk_app i s_checker ey))::acc)
-          [] cl_inst in 
-      mk_fun i v s0 (mk_case i ev (Safelist.rev cl_rev'))
-
-and instrument_exp iev e0 = 
-  let res = match e0.desc with
-  | EVar(q) -> 
-      let so,sl = e0.annot in 
-      let chkl = Safelist.map (instrument_sort e0.info iev) sl in 
-        Safelist.fold_right 
-          (fun chki acc -> mk_app e0.info acc chki)
-          chkl e0 
-
-  | EOver _ -> run_error e0.info (fun () -> msg "@[unresolved overloaded operator@]")
-
-  | EApp(e1,e2) ->     
-      let i1 = instrument_exp iev e1 in 
-      let i2 = instrument_exp iev e2 in 
-      mk_exp e0.info (EApp(i1,i2))
-
-  | ELet(b,e) -> 
-      let ib = instrument_binding iev b in 
-      let ie = instrument_exp iev e in 
-      mk_exp e0.info (ELet(ib,ie))
-
-  | EFun(p1,_,e1) -> 
-      let s0_checker = instrument_sort e0.info iev (get_sort e0) in
-      let i1 = instrument_exp iev e1 in 
-      let i0 = mk_exp e0.info (EFun(p1,None,i1)) in 
-      mk_exp e0.info (EApp(s0_checker,i0))
-
-  | EPair(e1,e2) ->
-      let i1 = instrument_exp iev e1 in 
-      let i2 = instrument_exp iev e2 in 
-      mk_exp e0.info (EPair(i1,i2)) 
-
-  | ECase(e1,cl) -> 
-      let i1 = instrument_exp iev e1 in 
-      let new_cl_rev = 
-        Safelist.fold_left 
-          (fun acc (pi,ei) -> (pi,instrument_exp iev ei)::acc)
-          [] cl in 
-      mk_exp e0.info (ECase(i1,Safelist.rev new_cl_rev)) 
-
-  | EUnit | EString _ | EInteger _ | ECSet _ -> 
-      e0 in 
-  Trace.debug "instr++" 
-    (fun () -> 
-       msg "@["; 
-       format_exp e0; 
-       msg " ~> ";
-       format_exp res; 
-       msg "@]@\n"); 
-    res
-
-and instrument_binding iev b0 = 
-  match b0.desc,b0.annot with 
-  | Bind(p,e),Some (svl,s) ->       
-      let assoc = Safelist.map (fun svi -> (svi,fresh_var b0.info None)) svl in 
-      let fiev = 
-        Safelist.fold_right 
-          (fun (svi,ci) ievi -> IEnv.update ievi svi (Qid.t_of_id ci))
-          assoc iev in
-      let new_e = 
-        Safelist.fold_right 
-          (fun (svi,ci) acc -> 
-             let ci_sort = SVar svi in 
-             let f_sort = SFunction(Id.wild,ci_sort,ci_sort) in 
-             mk_fun b0.info ci f_sort acc)
-          assoc (instrument_exp fiev e) in
-      mk_annot_binding b0.info (Bind(p,new_e)) (svl,s)
-
-  | Bind _,None -> 
-      run_error b0.info
-        (fun () -> msg "@[unannotated binding!@ ";
-                   Bprint.format_binding b0;
-                   msg "@]")
-
-and instrument_decl iev d0 =
-  Trace.debug "instr" 
-    (fun () -> msg "@[instrument_decl: "; format_decl d0; msg "@]@\n"); 
-  let res = match d0.desc with
-  | DLet(b) ->
-      let ib = instrument_binding iev b in 
-      mk_decl d0.info (DLet(ib)) 
-
-  | DMod(n,ds) ->
-      let ids = instrument_module_aux iev ds in 
-      mk_decl d0.info (DMod(n,ids)) 
-
-  | DType(sl,qx,cl) -> d0
-      
-  | DTest(e1,tr) -> 
-      let i1 = instrument_exp iev e1 in 
-      let itr = match tr with
-        | TestValue e2 -> 
-            let i2 = instrument_exp iev e2 in 
-            TestValue(i2)
-        | TestLensType(e1o,e2o) -> 
-            let instr = instrument_exp iev in
-            let i1o = Misc.map_option instr e1o in 
-            let i2o = Misc.map_option instr e2o in 
-            TestLensType(i1o,i2o)
-        | _ -> tr in 
-      mk_decl d0.info (DTest(i1,itr)) in
-    Trace.debug "instr_test"
-      (fun () -> msg "@[~> "; format_decl res; msg "@]@\n"); 
-    res
-
-and instrument_module_aux iev ds = 
-  Safelist.fold_right
-    (fun di acc -> instrument_decl iev di::acc)
-    ds []
-*)
 (* entry point to static analysis / instrumentation *)
 let check_module m0 = 
   match m0.desc with
@@ -1169,9 +942,7 @@ let check_module m0 =
       let qm = Qid.t_of_id m in 
       let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@G.pre_ctx) in
       let checked_sev,_,checked_ds = check_module_aux sev [m] ds in 
-      let instrumented_ds = checked_ds in 
-(*         instrument_module_aux (IEnv.empty (SCEnv.lookup_type sev)) checked_ds  *)
-      let res = mk_mod m0.info (Mod(m,nctx,instrumented_ds)) in 
+      let res = mk_mod m0.info (Mod(m,nctx,checked_ds)) in 
       Trace.debug "instr+" (fun () -> format_module res; msg "@\n");
       res
 
@@ -1186,7 +957,8 @@ let rec compile_exp cev e0 = match e0.desc with
 
   | EVar(q) ->       
       begin match CEnv.lookup cev q with
-        | Some(_,v) -> v
+        | Some(_,v) -> 
+            v
         | None -> 
             run_error e0.info 
               (fun () -> msg "@[%s is not bound@]" (Qid.string_of_t q))
@@ -1208,20 +980,25 @@ let rec compile_exp cev e0 = match e0.desc with
       let f v =        
         let body_cev = CEnv.update cev (Qid.t_of_id (id_of_param p)) (G.Unknown,v) in 
         compile_exp body_cev e in 
-      V.Fun (V.blame_of_info e0.info,f)
+      V.Fun (e0.info,f)
 
   | EPair(e1,e2) -> 
       let v1 = compile_exp cev e1 in 
       let v2 = compile_exp cev e2 in 
-      V.Par(V.blame_of_info e0.info,v1,v2)
+      V.Par(e0.info,v1,v2)
 
-  | ECase(e1,pl) -> 
+  | ECase(e1,pl,_) -> 
       let v1 = compile_exp cev e1 in 
       (* first match *)
       let rec find_match = function
         | [] -> 
             run_error e0.info 
-              (fun () -> msg "@[match@ failure@]")
+              (fun () -> 
+                 format_exp e0;
+                 msg "@\nv=";
+                 V.format v1;
+                 msg "@\n";
+                 msg "@[match@ failure@]")
         | (pi,ei)::rest -> 
             (match dynamic_match e0.info pi v1 with 
                | None -> find_match rest
@@ -1232,20 +1009,121 @@ let rec compile_exp cev e0 = match e0.desc with
       compile_exp ei_cev ei
 
   | EUnit -> 
-      V.Unt (V.blame_of_info e0.info)
+      V.Unt (e0.info)
 
   | EBoolean(b) -> 
-      V.Bol(V.blame_of_info e0.info,b)
+      V.Bol(e0.info,b)
 
   | EInteger(i) -> 
-      V.Int(V.blame_of_info e0.info,i)
+      V.Int(e0.info,i)
 
   | EString(s) -> 
-      V.Str(V.blame_of_info e0.info,s)
+      V.Str(e0.info,s)
 
   | ECSet(pos,cs) -> 
       let mk_rx = if pos then R.set else R.negset in 
-      V.Rx (V.blame_of_info e0.info, mk_rx cs)
+      V.Rx (e0.info, mk_rx cs)
+
+  | ECast(f,t,b,e) -> 
+      let i = e0.info in 
+      let e' = 
+        begin match f,t with
+          | SUnit,SUnit
+          | SBool,SBool
+          | SInteger,SInteger
+          | SString,SString
+          | SRegexp,SRegexp
+          | SLens,SLens 
+          | SCanonizer,SCanonizer -> e 
+          | SString,SLens ->  
+              (mk_app i (mk_prelude_var i "str") e)
+          | SRegexp,SLens -> 
+              (mk_app i (mk_prelude_var i "copy") e)
+          | SFunction(x,f11,f12), SFunction(_,t11,t12) -> 
+              (* let x = if Id.equal x Id.wild then Id.mk i "x" else x in *)
+              let fn = Id.mk i "fn" in 
+              let qfn = Qid.t_of_id fn in 
+              let qx = Qid.t_of_id x in 
+              mk_app i 
+                (mk_fun i fn f
+                   (mk_fun i x f11
+                      (mk_let i x (Some t11)
+                         (mk_cast_blame i (invert_blame b) t11 f11 (mk_var i qx))
+                         (mk_cast_blame i b f12 t12 (mk_app i (mk_var i qfn) (mk_var i qx))))))
+                e
+          | SProduct(f1,f2), SProduct(t1,t2) -> 
+            let x = Id.mk i "x" in 
+            let px = mk_pat i (PVar x) in         
+            let qx = Qid.t_of_id x in 
+            let y = Id.mk i "y" in 
+            let py = mk_pat i (PVar y) in                 
+            let qy = Qid.t_of_id y in 
+            mk_case i e 
+              [ (mk_pat i (PPar(px,py)), 
+                 mk_pair i 
+                   (mk_cast_blame i b f1 t1 (mk_var i qx)) 
+                   (mk_cast_blame i b f2 t2 (mk_var i qy))) ]
+              t
+        | SData(fl,x),SData(tl,y) when Qid.equal x y -> 
+            let _,(svl,cl) = get_type i cev x in               
+            let fsubst = Safelist.combine svl fl in 
+            let tsubst = Safelist.combine svl tl in 
+            let cl_finst = inst_cases fsubst cl in 
+            let cl_tinst = inst_cases tsubst cl in
+            let x = Id.mk i "x" in 
+            let qx = Qid.t_of_id x in 
+            let y = Id.mk i "y" in 
+            let py = mk_pat i (PVar y) in 
+            let qy = Qid.t_of_id y in 
+            let pl = Safelist.map
+              (fun ((li,fio),(_,tio)) -> 
+                 match fio,tio with 
+                   | None,None -> 
+                       let pi = mk_pat i (PVnt(li,None)) in 
+                       let ei = mk_var i qx in 
+                       (pi,ei)
+                   | Some fi,Some ti -> 
+                       let li_f = 
+                         Safelist.fold_right 
+                           (fun tj acc -> mk_tyapp i acc tj)
+                           tl (mk_var i li) in 
+                       let pi = mk_pat i (PVnt(li,Some py)) in 
+                       let ei = mk_app i li_f (mk_cast i fi ti (mk_var i qy)) in 
+                       (pi,ei)
+                   | _ -> run_error i (fun () -> msg "@[different@ datatypes@ in@ cast@ expression@]"))
+              (Safelist.combine cl_finst cl_tinst) in 
+             mk_let i x (Some f) e (mk_case i (mk_var i qx) pl t)
+        | _,SRefine(x,t2,e2) -> 
+            let qx = Qid.t_of_id x in 
+            mk_let i x (Some t2) 
+              (mk_cast_blame i b f t2 e) 
+              (mk_if i e2 
+                 (mk_var i qx) 
+                 (mk_app i 
+                    (mk_prelude_var i "blame") 
+                    (mk_exp i (EString(Bstring.t_of_string (string_of_blame b)))))                                               
+                 t2)
+        | SVar(x),SVar(y) when Id.equal x y -> e
+        | SForall(x,f1),SForall(y,t1) when Id.equal x y ->
+            mk_tyfun i x (mk_cast_blame i b f1 t1 (mk_tyapp i e (SVar x)))
+        | _ -> 
+            run_error i 
+              (fun () -> 
+                 msg "@[cannot@ convert@ from@ %s@ to@ %s@]"
+                   (string_of_sort f) 
+                   (string_of_sort t))
+        end in 
+      Trace.debug "cast" 
+        (fun () -> 
+           msg "@[CASTING@ ";
+           format_exp e;
+           msg "@ from@ %s@ to@ %s@ "
+             (string_of_sort f)
+             (string_of_sort t);                            
+           msg "@ ~~>@ ";
+           format_exp e';
+           msg "@]@\n");
+      compile_exp cev e'
 
 and compile_binding cev b0 = match b0.desc with
   | Bind(x,Some s,e) -> 
@@ -1263,7 +1141,7 @@ let rec compile_decl cev ms d0 = match d0.desc with
   | DType(svl,qx,cl) -> 
       let sx = SData(sl_of_svl svl,qx) in 
       let mk_univ s = Safelist.fold_right (fun svi acc -> SForall(svi,acc)) svl s in 
-      let mk_impl v = Safelist.fold_right (fun _ f -> V.Fun(V.blame_of_info d0.info,(fun v -> f))) svl v in 
+      let mk_impl v = Safelist.fold_right (fun _ f -> V.Fun(d0.info,(fun v -> f))) svl v in 
       let new_cev,xs = 
         Safelist.fold_left 
           (fun (cev,xs) (l,so) -> 
@@ -1271,12 +1149,12 @@ let rec compile_decl cev ms d0 = match d0.desc with
              let rv = match so with 
                | None -> 
                    let s = mk_univ sx in 
-                   let v = mk_impl (V.Vnt(V.blame_of_info d0.info,qx,l,None)) in 
+                   let v = mk_impl (V.Vnt(d0.info,qx,l,None)) in 
                    (G.Sort s,v) 
                | Some s -> 
                    let s = mk_univ (SFunction(Id.wild,s,sx)) in 
-                   let f v = V.Vnt(V.blame_of_t v,qx,l,Some v) in 
-                   let v = mk_impl (V.Fun(V.blame_of_info d0.info,f)) in 
+                   let f v = V.Vnt(V.info_of_t v,qx,l,Some v) in 
+                   let v = mk_impl (V.Fun(d0.info,f)) in 
                    (G.Sort s,v) in 
              (CEnv.update cev ql rv,Qid.t_of_id l::xs))
         (cev,[]) cl in 

@@ -124,6 +124,17 @@ module Qid : sig
   (** Sets with Qid.ts as elements *)
 end
 
+type blame = Blame of Info.t * bool 
+(* blame *)
+
+val mk_blame : Info.t -> blame 
+(** [mk_blame i] constructs blame associated with parsing info [i]. *)
+
+val invert_blame : blame -> blame
+(** ??? *)
+
+val string_of_blame : blame -> string
+
 type sort = 
     (* base types *)
     | SUnit                           (* unit *)
@@ -162,9 +173,12 @@ and exp_desc =
 
     (* with products, case *)
     | EPair of exp * exp 
-    | ECase of exp * (pat * exp) list 
+    | ECase of exp * (pat * exp) list * sort
+
+    (* casts, *)
+    | ECast of sort * sort * blame * exp 
         
-    (* unit, strings, ints, character sets *)
+    (* and unit, boolean, string, integer, and character sets constants *)
     | EUnit  
     | EBoolean of bool
     | EInteger of int    
@@ -211,6 +225,9 @@ and binding = (binding_desc,unit) syntax
 (** The type of bindings: a binding description annotated with
     an optional sort. *)
     
+val sort_equal : sort -> sort -> bool
+(** ??? *)
+
 val mk_exp : Info.t -> exp_desc -> exp
 (** [mk_exp i d] constructs an [exp] with parsing info [i] and
     description [d]. *)
@@ -273,12 +290,6 @@ description [m]. *)
           
 val (^>) : sort -> sort -> sort
 (** [s1 ^> s2] is the function sort from [s1] to [s2]. *)
-
-val free_sort_vars : sort -> Id.Set.t
-(** [free_sort_vars s] returns the set of free sort variables in [s]. *)
-
-val free_vars : exp -> Qid.Set.t 
-  (** [free_vars e] returns the set of free variables in expression [e]. *)
 
 val info_of_exp : exp -> Info.t
 (** [info_of_exp e] returns the parsing info associated to expression [e]. *)

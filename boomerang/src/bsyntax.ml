@@ -116,6 +116,14 @@ module Qid = struct
       end)
 end
 
+type blame = Blame of Info.t * bool 
+
+let mk_blame i = Blame (i,true)
+
+let invert_blame (Blame(i,b)) = Blame (i,not b)
+
+let string_of_blame (Blame(i,b)) = sprintf "<<%s:%b>>" (Info.string_of_t i) b
+
 (* ----- sorts, parameters, expressions ----- *)
 type sort = 
     (* base types *)
@@ -156,7 +164,10 @@ and exp_desc =
 
     (* with products, case *)
     | EPair of exp * exp 
-    | ECase of exp * (pat * exp) list 
+    | ECase of exp * (pat * exp) list * sort
+
+    (* coercions *)
+    | ECast of sort * sort * blame * exp 
         
     (* unit, strings, ints, character sets *)
     | EUnit  
@@ -197,6 +208,32 @@ and pat = (pat_desc,sort option) syntax
 and param = (param_desc,unit) syntax
 
 and binding = (binding_desc,unit) syntax
+
+let rec sort_equal u v = match u,v with 
+  | SUnit,SUnit -> true
+  | SBool,SBool -> true
+  | SInteger,SInteger -> true
+  | SString,SString -> true
+  | SRegexp,SRegexp -> true
+  | SLens,SLens -> true
+  | SCanonizer,SCanonizer -> true
+  | SFunction(x,u1,u2),SFunction(y,v1,v2) -> 
+      Id.equal x y && sort_equal u1 v1 && sort_equal u2 v2
+  | SData(sl1,x),SData(sl2,y) -> 
+      (try Qid.equal x y && 
+         Safelist.for_all (fun (s1,s2) -> sort_equal s1 s2) (Safelist.combine sl1 sl2) 
+       with _ -> false)
+  | SProduct(u1,u2),SProduct(v1,v2) -> 
+      sort_equal u1 v1 && sort_equal u2 v2
+  | SRefine(x1,s1,e1),SRefine(x2,s2,e2) -> 
+      Id.equal x1 x2 && sort_equal s1 s2 && 
+        e1 = e2 (* can we do better? this is finer than syntactic equality :-/ *)
+  | SVar(x),SVar(y) -> 
+      Id.equal x y
+  | SForall(x1,s1),SForall(x2,s2) -> 
+      Id.equal x1 x2 && sort_equal s1 s2
+        (* should alpha vary! *)
+  | _ -> false        
 
 let mk_exp i e = { info=i; desc=e; annot=None }
 let mk_pat i p = { info=i; desc=p; annot=None }
@@ -245,39 +282,6 @@ let mk_mod i m = { info=i; desc=m; annot=() }
           
 (* infix constructor for non-dependent functions *)
 let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
-
-(* free variables *)
-let free_sort_vars s0 = 
-  let rec go acc = function
-    | SVar(x) -> Id.Set.add x acc
-    | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer -> acc
-    | SFunction(_,s1,s2) -> go (go acc s1) s2
-    | SProduct(s1,s2)    -> go (go acc s1) s2
-    | SData(sl,_)        -> Safelist.fold_left go acc sl
-    | SRefine(_,s1,e1)   -> go acc s1 (* and e1? *) 
-    | SForall(x,s)       -> Id.Set.remove x (go acc s) in 
-  go Id.Set.empty s0
-
-let free_vars e0 = 
-  let rec go acc e0 = match e0.desc with     
-    | EVar(x)     -> Qid.Set.add x acc
-    | EApp(e1,e2) -> go (go acc e1) e2
-    | EOver(_,el) -> Safelist.fold_left go acc el
-    | EFun(p,_,e) -> 
-        Qid.Set.remove 
-          (Qid.t_of_id (id_of_param p)) 
-          (go acc e) 
-    | ELet(b,e)   -> 
-        Qid.Set.remove 
-          (Qid.t_of_id (id_of_binding b)) 
-          (go (go acc (exp_of_binding b)) e)
-    | ETyFun(_,e)  -> go acc e
-    | ETyApp(e,_)  -> go acc e
-    | EPair(e1,e2) -> go (go acc e1) e2
-    | ECase(e,cl)  -> 
-        go (Safelist.fold_left (fun acc (_,ei) -> go acc ei) acc cl) e
-    | EUnit | EBoolean _ | EInteger _ | EString _ | ECSet _ -> acc in 
-  go Qid.Set.empty e0
 
 (* accessors *)
 let info_of_exp e0 = e0.info

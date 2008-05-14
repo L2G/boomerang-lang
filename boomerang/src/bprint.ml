@@ -155,8 +155,8 @@ and format_exp e0 = match e0.desc with
         format_exp e2;
         msg ")@]"
 
-    | ECase(e1,pl) -> 
-        msg "@[<2>match@ ";
+    | ECase(e1,pl,s) -> 
+        msg "@[<2>(match@ ";
         format_exp e1;
         msg "@ with@ ";
         Misc.format_list "@ |@ "
@@ -167,6 +167,17 @@ and format_exp e0 = match e0.desc with
              format_exp e;
              msg "@]")
           pl;
+        msg ")@ : @ ";
+        format_sort s;
+        msg "@]"
+
+    | ECast(f,t,_,e) -> 
+        msg "@[<2><|"; 
+        format_sort t;
+        msg "@ <=@ ";
+        format_sort f;
+        msg "|>@ ";
+        format_exp e;
         msg "@]"
 
     | EBoolean (b) -> 

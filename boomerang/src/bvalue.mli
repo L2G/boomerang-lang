@@ -21,40 +21,21 @@
 
 (** {2 Boomerang Run-time Values} *)
 
-type blame = Pos of Info.t | NegPos of Info.t * Info.t
-(** The type of blame: either positive or negative / positive. *)
-
 type t = 
-    | Unt of blame
-    | Bol of blame * bool
-    | Int of blame * int
-    | Str of blame * Bstring.t 
-    | Rx  of blame * Bregexp.t
-    | Lns of blame * Blenses.DLens.t
-    | Can of blame * Blenses.Canonizer.t
-    | Fun of blame * (t -> t)
-    | Par of blame * t * t
-    | Vnt of blame * Bsyntax.Qid.t * Bsyntax.Id.t * t option
+    | Unt of Info.t
+    | Bol of Info.t * bool
+    | Int of Info.t * int
+    | Str of Info.t * Bstring.t 
+    | Rx  of Info.t * Bregexp.t
+    | Lns of Info.t * Blenses.DLens.t
+    | Can of Info.t * Blenses.Canonizer.t
+    | Fun of Info.t * (t -> t)
+    | Par of Info.t * t * t
+    | Vnt of Info.t * Bsyntax.Qid.t * Bsyntax.Id.t * t option
 (** The type of boxed run-time values. *)
-
-val blame_of_t : t -> blame
-(** [blame_of_t v] returns the blame associated to [v]. *)
-
-val info_of_blame : blame -> Info.t
-(** [info_of_blame b] returns the parsing info contained in the
-    positive blame associated to [v]. *)
-
-val blame_of_info : Info.t -> blame
-(** [blame_of_info i] constructs (positive) blame from [i]. *)
 
 val info_of_t : t -> Info.t
 (** [info_of_t v] extracts the parsing info associated with (the blame of) [v]. *)
-
-val install_blame : blame -> t -> t
-(** [install_blame b v] installs [b] as [v]'s blame. *)
-
-val merge_blame : blame -> t -> t
-(** [merge_blame b v] merges [b] with [v]'s blame. *)
 
 val equal : t -> t -> bool
 (** [equal v1 v2] returns [true] iff [v1] and [v2] represent the same
@@ -116,39 +97,39 @@ val get_b : t -> bool
 (** [get_b v] returns a boolean if [v] is a [Vnt] representing a
     [Prelude.bool], and otherwise raises an exception. *)
         
-val mk_sfun : blame -> (Bstring.t -> t) -> t
-(** [mk_sfun b f] lifts a string to [t] function to a [t] representing that
-    function. [b] is used as the blame if the argument has a different
+val mk_sfun : Info.t -> (Bstring.t -> t) -> t
+(** [mk_sfun i f] lifts a string to [t] function to a [t] representing that
+    function. [i] is used as the parsing info if the argument has a different
     sort. *)
 
-val mk_rfun : blame -> (Bregexp.t -> t) -> t
-(** [mk_rfun b f] lifts a regexp to [t] function to a [t] representing that
-    function. [b] is used as the blame if the argument has a different
+val mk_rfun : Info.t -> (Bregexp.t -> t) -> t
+(** [mk_rfun i f] lifts a regexp to [t] function to a [t] representing that
+    function. [i] is used as the parsing info if the argument has a different
     sort. *)
 
-val mk_lfun : blame -> (Blenses.DLens.t -> t) -> t
-(** [mk_lfun b f] lifts a lens to [t] function to a [t] representing that
-    function. [b] is used as the blame if the argument has a different
+val mk_lfun : Info.t -> (Blenses.DLens.t -> t) -> t
+(** [mk_lfun i f] lifts a lens to [t] function to a [t] representing that
+    function. [i] is used as the parsing info if the argument has a different
     sort. *)
 
-val mk_cfun : blame -> (Blenses.Canonizer.t -> t) -> t
-(** [mk_cfun b f] lifts a canonizer to [t] function to a [t] representing that
-    function. [b] is used as the blame if the argument has a different
+val mk_cfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
+(** [mk_cfun i f] lifts a canonizer to [t] function to a [t] representing that
+    function. [i] is used as the parsing info if the argument has a different
     sort. *)
 
-val mk_ufun : blame -> (unit -> t) -> t
-(** [mk_ufun b f] lifts a unit to [t] function to a [t] representing that
-    function. [b] is used as the blame if the argument has a different
+val mk_ufun : Info.t -> (unit -> t) -> t
+(** [mk_ufun i f] lifts a unit to [t] function to a [t] representing that
+    function. [i] is used as the parsing info if the argument has a different
     sort. *)
 
-val mk_ifun : blame -> (int -> t) -> t
-(** [mk_ifun b f] lifts an integer to [t] function to a [t] representing that
-    function. [b] is used as the blame if the argument has a different
+val mk_ifun : Info.t -> (int -> t) -> t
+(** [mk_ifun i f] lifts an integer to [t] function to a [t] representing that
+    function. [i] is used as the parsing info if the argument has a different
     sort. *)
 
-val mk_poly_fun : blame -> (t -> t) -> t
-(** [mk_poly_fun b f] constructs a [t] representing the [t -> t]
-    function given by [f] with blame [b]. *)
+val mk_poly_fun : Info.t -> (t -> t) -> t
+(** [mk_poly_fun i f] constructs a [t] representing the [t -> t]
+    function given by [f] with parsing info [i]. *)
 
 (** {3 Parsing helper functions for constructing values.} *)
 

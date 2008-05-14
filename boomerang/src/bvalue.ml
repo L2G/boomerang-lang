@@ -31,65 +31,30 @@ module RS = Bstring
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append 
 
-type blame = Pos of Info.t | NegPos of Info.t * Info.t
-
 (* run-time values; correspond to each sort *)
 type t = 
-    | Unt of blame
-    | Bol of blame * bool
-    | Int of blame * int
-    | Str of blame * RS.t 
-    | Rx  of blame * R.t
-    | Lns of blame * L.t
-    | Can of blame * C.t
-    | Fun of blame * (t -> t)
-    | Par of blame * t * t
-    | Vnt of blame * S.Qid.t * S.Id.t * t option
+  | Unt of Info.t 
+  | Bol of Info.t * bool
+  | Int of Info.t * int
+  | Str of Info.t * RS.t 
+  | Rx  of Info.t * R.t
+  | Lns of Info.t * L.t
+  | Can of Info.t * C.t
+  | Fun of Info.t * (t -> t)
+  | Par of Info.t * t * t
+  | Vnt of Info.t * S.Qid.t * S.Id.t * t option
 
-(* blame_of_t : t -> b
- *
- * [blame_of_t t] returns the blame information associated to a run-time value 
- *)
-let blame_of_t = function 
-  | Unt(b)       -> b
-  | Int(b,_)     -> b
-  | Bol(b,_)     -> b
-  | Str(b,_)     -> b
-  | Rx(b,_)      -> b
-  | Lns(b,_)     -> b
-  | Can(b,_)     -> b
-  | Fun(b,_)     -> b
-  | Par(b,_,_)   -> b
-  | Vnt(b,_,_,_) -> b
-
-let info_of_blame b = match b with
-  | Pos i -> i
-  | NegPos (_,i) -> i
-
-let blame_of_info i = Pos i
-      
-let info_of_t v = info_of_blame (blame_of_t v)
-        
-let install_blame b v =
-  match v with
-    | Unt(_) -> Unt(b)
-    | Bol(_,t) -> Bol(b,t)
-    | Int(_,i) -> Int(b,i)
-    | Str(_,s) -> Str(b,s)
-    | Rx(_,r) -> Rx(b,r)
-    | Lns(_,l) -> Lns(b,l)
-    | Can(_,c) -> Can(b,c)
-    | Fun(_,f) -> Fun(b,f)
-
-    | Par(_,v1,v2) -> Par(b,v1,v2)
-    | Vnt(_,q,l,vo) -> Vnt(b,q,l,vo)
-
-let merge_blame b1 v2 = 
-  let b = match b1, (blame_of_t v2) with
-    | Pos l1, Pos l2 -> NegPos (l1, l2)
-    | Pos l1, NegPos (l2,l3) -> NegPos (l1,l3)
-    | NegPos (l1,l2), _ -> NegPos (l2,l1) in 
-  install_blame b v2
+let info_of_t = function
+  | Unt(i)       -> i
+  | Int(i,_)     -> i
+  | Bol(i,_)     -> i
+  | Str(i,_)     -> i
+  |  Rx(i,_)     -> i
+  | Lns(i,_)     -> i
+  | Can(i,_)     -> i
+  | Fun(i,_)     -> i
+  | Par(i,_,_)   -> i
+  | Vnt(i,_,_,_) -> i         
 
 let rec equal v1 v2 = match v1,v2 with
   | Unt _, Unt _ -> 

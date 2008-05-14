@@ -138,7 +138,7 @@ let mk_fun i params body sort =
   Safelist.fold_right
     (fun p (f,s) -> 
        let f' = mk_exp i (EFun(p,Some s,f)) in 
-       let s' = SFunction(Id.wild,sort_of_param p,s) in          
+       let s' = SFunction(id_of_param p,sort_of_param p,s) in          
        (f',s'))
     params (body,sort)
 
@@ -297,9 +297,9 @@ gpexp:
 
 /* case expressions */
 cexp:
-  | MATCH composeexp WITH branch_list
+  | MATCH composeexp WITH branch_list COLON sort
       { let i4,pl = $4 in 
-        mk_exp (m $1 i4) (ECase($2,pl)) }
+        mk_exp (m $1 i4) (ECase($2,pl,$6)) }
 
   | composeexp
       { $1 }
