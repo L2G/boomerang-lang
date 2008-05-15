@@ -208,9 +208,6 @@ and pat =
   | PPar of Info.t * pat * pat
 (** The type of pattern ASTs. *)
     
-val obvious_subtype : sort -> sort -> bool
-(** ??? *)
-
 type test_result =
     | TestError
     | TestPrint
@@ -264,3 +261,7 @@ val subst_exp : (Qid.t * exp) list -> exp -> exp
 val subst_exp_in_sort : (Qid.t * exp) list -> sort -> sort
 
 val erase_sort : sort -> sort 
+
+val free_sort_vars : sort -> Id.Set.t
+
+val free_exp_vars_in_sort : sort -> Qid.Set.t

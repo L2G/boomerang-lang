@@ -160,7 +160,7 @@ let build_bare_fun i param_alts body =
 %token <Info.t * float> FLOAT
 %token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW EQARROW
-%token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
+%token <Info.t> BEGIN END PI FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> GET PUT CREATE INTO
@@ -560,6 +560,9 @@ arrsort:
   | psort ARROW arrsort
       { SFunction(Id.wild,$1,$3) }
 
+  | PI LIDENT DOT psort ARROW arrsort
+      { SFunction($2,$4,$6) }
+
   | psort
       { $1 }
 
@@ -670,13 +673,6 @@ sort_list:
 
   | sort COMMA sort_list
       { $1 :: $3 }
-
-qmark_or_exp:
-   | QMARK
-       { None }
-
-   | appexp
-       { Some $1 }
 
 /* data type sorts */
 dtsort:

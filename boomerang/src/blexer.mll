@@ -94,6 +94,7 @@ let _ =
     ; ("open", (fun i -> OPEN i)) 
     ; ("end", (fun i -> END i)) 
     ; ("let", (fun i -> LET i)) 
+    ; ("pi", (fun i -> PI i)) 
     ; ("in", (fun i -> IN i))
     ; ("fun", (fun i -> FUN i))
     ; ("begin", (fun i -> BEGIN i))
