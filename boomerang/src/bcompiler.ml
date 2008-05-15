@@ -316,10 +316,13 @@ let rec mk_cast_blame lt i b f t e =
   | SRegexp,SRegexp
   | SLens,SLens 
   | SCanonizer,SCanonizer -> e 
-  | SString,SLens ->  
-      (mk_app i (mk_native_prelude_var i "str") e)
+  | SString,SRegexp ->  
+      mk_app i (mk_native_prelude_var i "str") e
+  | SString,SLens -> 
+      mk_app i (mk_native_prelude_var i "copy")
+        (mk_app i (mk_native_prelude_var i "str") e)
   | SRegexp,SLens -> 
-      (mk_app i (mk_native_prelude_var i "copy") e)
+      mk_app i (mk_native_prelude_var i "copy") e
   | SFunction(x,f1,f2), SFunction(y,t1,t2) -> 
       let fn = Id.mk i "fn" in 
       let qfn = Qid.t_of_id fn in 
