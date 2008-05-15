@@ -1,0 +1,485 @@
+module Story = 
+
+(* Overall story:
+      - illustrate lens combinators / types
+      - motivate / illustrate abstraction / reuse
+      - how do we design the type system of boomerang?
+           - morally, they are dependent polymorphic refinement types
+           - how do we implement it?
+               - work (really) hard
+               - or be less static  (but note that we still have a
+                 "type system"  in the sense that we completely and 
+                 "statically" prevent a certain class of errors)
+      - imprecision of blame  (bc of "dynamic typechecking" of lenses)
+          ==> contracts / casts  (be careful about terminology!)
+          interesting interlude on what blame means (and slogans)
+          (read papers on blame semantics!)
+      - need for some kind of contract inference
+          = implicit cast insertion
+          interesting/tricky interactions with inference of type instantiation!
+          (read flanagan paper on type reconstruction)
+      - ass covering / buck passing (= polymorphism?  = inlining?)
+          - note no need for sealing (core polymorphism = precise polymorphism)
+      - quotienting
+*)
+
+let ANYCHAR = [^]
+
+let ANY = ANYCHAR*
+
+(* reconsider names... *)
+
+let escape_quotedstr_char =
+    "\"" <-> "\\\""
+  | "\\" <-> "\\\\"
+  | copy (ANYCHAR - [\\"])
+
+let escape_quotedstr = escape_quotedstr_char*
+
+test escape_quotedstr get 
+    <<
+        <hello"world>
+    >>
+  = 
+    <<
+        <hello\"world>
+    >> 
+
+let escape_xml_char = 
+    "<" <-> "&lt;"
+  | ">" <-> "&gt;"
+  | "&" <-> "&amp;"
+  | copy (ANYCHAR - [<>&])
+
+let escape_xml = escape_xml_char*
+
+let quotedstr_to_xml = (invert escape_quotedstr) ; escape_xml
+
+test quotedstr_to_xml get 
+    <<
+        <hello\"world>
+    >>
+  = 
+    <<
+        &lt;hello"world&gt;
+    >> 
+
+
+(* Now let's build generic escaping functions... *)
+
+(* raw should be a char, actually *)
+
+(* Actually, we want to write first the dependently typed one.  Then
+   do the next example.  Then we say, "Whoa: what kind of type system
+   is this?  Can we typecheck it??"  And then we back off to just
+   "lens" (or even "pure macros"). *)
+
+let escape_char (raw:string) (esc:string) (R:regexp) : lens =
+  (  raw <-> esc
+   | copy (R - (raw | esc)))
+
+test (escape_char "&" "&amp;" ANYCHAR)* get 
+    <<
+        hello&world
+    >>
+  = 
+    <<
+        hello&amp;world
+    >> 
+
+let escape_xml = 
+  (  escape_char "&" "&amp;" [^]
+   ; escape_char "<" "&lt;"  ([^&] | "&amp;")
+   ; escape_char ">" "&gt;"  ([^&<] | "&amp;" | "&lt;") )*
+
+test escape_xml get 
+    <<
+        <hello&world>
+    >>
+  = 
+    <<
+        &lt;hello&amp;world&gt;
+    >> 
+
+(* ... or better... *)
+let escape_xml = 
+  let l1 = escape_char "&" "&amp;" [^] in
+  let l2 = escape_char "<" "&lt;"  (atype l1) in
+  let l3 = escape_char ">" "&gt;"  (atype l2) in
+  (l1;l2;l3)*
+
+(* Can even do it with lists, which motivates polymorphism... *)
+(* and now maybe write a generic one using List.fold_left ... *)
+
+(* do we need to rename atype for purposes of the talk??  -- yes:
+   domain_of and codomain_of (maybe do this throughout?) *)
+
+test escape_xml get 
+    <<
+        <hello&world>
+    >>
+  = 
+    <<
+        &lt;hello&amp;world&gt;
+    >> 
+
+
+
+(* and then use ctype *)
+
+(*
+
+(* Add patterns on lambda-binders and tidy the following *)
+
+(* TODO move this to lenses/list.boom at some point *)
+let list_reverse (l : 'a List.t) : 'a List.t =
+  List.fold_left (fun (l:'a List.t) (p:'a) -> (List.Cons(p,l))) List.Nil l
+
+(* do we want a (precise) contract on the result? *)
+let list_map (f : 'a -> 'b) (la : 'a List.t) : 'b List.t =
+  list_reverse (List.fold_left (fun (lb:'b List.t) (p:'a) -> (List.Cons(f p,lb))) List.Nil la)
+
+let fst (p : 'a * 'b) = (match p with (x,y) -> x) : 'a
+let snd (p : 'a * 'b) = (match p with (x,y) -> y) : 'b
+
+let union_of_fsts (pairs : (regexp*regexp) List.t) = 
+  List.fold_left {regexp} {regexp} regexp_union []
+                (list_map {regexp*regexp} {regexp} fst pairs)
+
+(* Switch cond and acond *)
+
+(* need type char in some form *)
+
+let escape (pairs : (string * string) List.t) : lens =
+  let escape_char =
+    List.fold_left {lens} {string*string} 
+      (fun (l:lens) (p:string*string) -> 
+         (match p with 
+           (from,to) -> ((from <-> to) | l)) : lens)
+      (copy (ANYCHAR - (unescaped pairs)))
+      pairs
+  in
+    escape_char*
+
+
+
+(* Rendering (do we really need this??) *)
+
+let render_quotedstr =
+    "" <-> "\""
+  . copy ( ("\\\"" | "\\\\" | [^\\"])* )
+  . "" <-> "\""
+
+let render_xml_tag =
+    "" <-> "<tag>"
+  . copy ( ("&lt;" | "&gt;" | "&amp;" | [^<>&])* )
+  . "" <-> "</tag>"
+
+(* generic versions *)
+
+let tagged R tag = [<] . (str tag) . [>] . R . (str ("</" . tag)) . [>]
+
+let render_tag (R : regexp) (tag : string) 
+  : (R <-> tagged R tag)
+  = render R ("<" . tag . ">") ("</" . tag . ">")
+
+let render_str (R : regexp) : (R <-> quoted R) = render R "\"" "\""
+
+
+
+(*
+
+(* FIRST TRY:
+
+let unrender_quotedstr =
+    "\"" <-> "" 
+  . copy ANY
+  . "\"" <-> "" 
+
+let unescape_quotedstr_char =
+    "\\\"" <-> "\""
+  | "\\\\" <-> "\\"
+  | copy (ANYCHAR - [\\"])
+
+let unescape_quotedstr = unescape_quotedstr_char*
+
+test unescape_quotedstr get 
+    <<<
+        <hello\"world>
+    >>> 
+  = 
+    <<<
+        <hello"world>
+    >>> 
+
+let tester = unrender_quotedstr ; unescape_quotedstr
+(* DOESN'T WORK!! *)
+*)
+
+let unrender_quotedstr R =
+    "\"" <-> "" 
+  . copy R
+  . "\"" <-> "" 
+
+let unescape_quotedstr_char =
+    "\\\"" <-> "\""
+  | "\\\\" <-> "\\"
+  | copy (ANYCHAR - [\\])
+
+let unescape_quotedstr = unescape_quotedstr_char*
+
+test unescape_quotedstr get 
+    <<<
+        <hello\"world>
+    >>> 
+  = 
+    <<<
+        <hello"world>
+    >>> 
+
+let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
+
+(* Does this transformation work in general? *)
+
+(* Making the example harder: Make the ASCII into a CSV... *)
+
+let escape_xml_char = 
+    "<" <-> "&lt;"
+  | ">" <-> "&gt;"
+  | "&" <-> "&amp;"
+  | copy (ANYCHAR - [<>&])
+
+let escape_xml = escape_xml_char*
+
+let render_tag R = 
+    "" <-> "<tag>"
+  . copy R
+  . "" <-> "</tag>"
+
+let test2 = escape_xml; render_tag (atype escape_xml) 
+
+test test2 get 
+    <<<
+        <hello"world>
+    >>> 
+  = 
+    <<<
+        <tag>&lt;hello"world&gt;</tag>
+    >>> 
+    
+let l = test1 ; test2
+
+test l get 
+    <<<
+        " <hello\"world> "
+    >>> 
+  = <<<
+        <tag> &lt;hello"world&gt; </tag>
+    >>>
+
+(*************************************************)
+(* That works.  So let's make it more generic... *)
+
+(* regex -> str -> str -> lens
+   no possibility of failure, can give complete return type
+*)
+let render (R : regexp) (before : string) (after : string) 
+  : (R <-> (before.R.after)) = 
+    "" <-> before
+  . copy R
+  . "" <-> after
+
+let render_xml R = render R "<tag>" "</tag>"
+
+(* safe, since render is safe; can we pass the buck without 
+   repeating the contract? 
+
+   in essence, can we instrument render_tag but not install blame on its 
+   arguments?
+*)
+let tagged R tag = [<] . (str tag) . [>] . R . (str ("</" . tag)) . [>]
+
+let render_tag (R : regexp) (tag : string) 
+  : (R <-> tagged R tag)
+  = render R ("<" . tag . ">") ("</" . tag . ">")
+
+(* as above *)
+let quoted R = ["] . R . ["]
+
+let render_str (R : regexp) : (R <-> quoted R) = render R "\"" "\""
+
+(* is bijectivity guaranteed?  yes, but we need buck-passing *)
+let unrender_str (R : regexp) : (quoted R <-> R) = invert (render_str R)
+
+(* this function already existed inside escape, but we had to 
+   pull it out *)
+let unescaped (pairs : (string * string) List.t) =
+  List.fold_left
+    (fun r p ->
+       match p with
+         (from,to) -> ((str from) | r))
+    []
+    pairs
+
+(* this function didn't exist before, but we need it to 
+   talk about the atype of the lens produced by escape *)
+let escaped (pairs : (string * string) List.t) =
+  List.fold_left
+    (fun r p ->
+       match p with
+         (from,to) -> ((str to) | to))
+    []
+    pairs
+
+(* it's an interesting exercise to start with "naive" ass-covering and lead up to
+   this relatively concise and understandable contract
+
+   1) escaped chars are arbitrary strings, contract is "hell on wheels"
+   2) change to single characters
+   3) observe that the iterability constraint on the domain is satisfied by construction
+   4) rewrite the codomain, making it nice and concise
+*)
+type char = (s : string where length s = 1)
+
+(* given a set of chars to be escaped and escape codes, valid escaped "bits" are:
+     (a) an escape code, or
+     (b) a character that didn't need to be escaped
+*)
+let char_or_escaped (pairs : (char * string) List.t) =
+  escaped pairs || (ANYCHAR - (unescaped pairs))
+
+let mutually_distinct (strs : string List.t) =
+  List.fold_left
+    (fun (md_sofar,l_sofar) s ->
+      (md_sofar && not (List.member s l_sofar),List.Cons (s,l_sofar)))
+    (true,List.Nil)
+    strs
+
+let no_repeated_escape_codes (pairs : (char * string) List.t) =
+  mutually_distinct (List.map snd pairs)
+
+(*
+  any string goes to a sequence of char_or_escaped bits
+*)
+let escape 
+  (pairs : (char * string) List.t where
+             no_repeated_escape_codes pairs &&
+             iterable (char_or_escaped pairs))
+  : (ANY <-> (char_or_escaped pairs)* )
+  =
+  let escape_char =
+    List.fold_left
+      (fun l p -> 
+         match p with 
+           (from,to) -> ((from <-> to) || l))
+      (copy (ANYCHAR - (unescaped pairs)))
+      pairs
+  in
+    escape_char*
+
+let char_or_escaped2 (esc : char) pairs =
+  let escs = List.map (fun (from,to) -> (from,esc . to)) pairs in
+  (escaped escs) || (ANYCHAR - (unescaped pairs))
+
+let escape2
+  (esc : char)
+  (pairs : (char * string) List.t where
+             List.exists (fun (c,_) -> c = esc) pairs &&
+             no_repeated_escape_codes pairs)
+  : (ANY <-> (char_or_escaped2 esc pairs))
+  =
+  let escape_char =
+    List.fold_left
+      (fun l p -> 
+         match p with 
+           (from,to) -> ((from <-> esc . to) || l))
+      (copy (ANYCHAR - (unescaped pairs)))
+      pairs
+  in
+    escape_char*
+
+let xml_escs : (string * string) List.t =
+  List.Cons((">","gt;"),
+  List.Cons(("<","lt;"),
+  List.Cons(("&","amp;"), 
+  List.Nil)))
+
+(* again, do we want lens, or can/should we somehow 
+   say "specialize this"?  
+
+   : ANY <-> (/&gt;/ | /&lt;/ | /&amp;/ | [^<>&])*
+*)
+let escape_xml : lens = escape2 xml_escs
+
+let str_escs : (string * string) List.t =
+  List.Cons(("\"","\""),
+  List.Cons(("\\","\\"),
+  List.Nil))
+
+(* per above *)
+let escape_str : lens = escape2 "\\" str_escs
+
+(* ditto *)
+let unescape_str : lens = invert escape_str
+
+let l2 = 
+  unrender_str (ctype unescape_str) ; unescape_str ; 
+  escape_xml ; render_xml (atype escape_xml)
+
+test l2 get 
+    <<<
+        " <hello\"world> "
+    >>> 
+  = <<<
+        <tag> &lt;hello"world&gt; </tag>
+    >>>
+
+let concatable (lenses : lens List.t) (sep : lens) : bool =
+  let concatted = List.fold_left 
+    (fun l_acc l -> 
+       match l_acc with
+         | Prelude.None -> Some true
+         | Prelude.Some acc -> 
+           let can_sep = splittable acc sep in
+             Some (can_sep && (splittable (acc . sep) l)))
+    None lenses in
+  match concatted with
+    | Prelude.Some b -> b
+    | Prelude.None -> true
+
+(* to cover our asses, we need the concatable refinement
+
+   do we want the specific return type?
+*)
+let concat_lenses 
+      (lenses : lens List.t) 
+      (sep : lens where concatable lenses sep) : lens =
+  let concatted = List.fold_left 
+    (fun l_acc l -> 
+       match l_acc with
+         | Prelude.None -> Some l
+         | Prelude.Some acc -> Some (acc . sep . l)) None lenses in
+  match concatted with
+    | Prelude.Some l -> l
+    | Prelude.None -> copy epsilon
+
+let field_to_xml (field : string) : lens = 
+  unrender_str (ctype unescape_str) ; unescape_str ;
+  escape_xml ; render_tag (atype escape_xml) field
+
+(* as above -- do we want the strict return type?  do we want to pass the buck? *)
+let csv_to_xml (fields : string List.t where concatable fields (del ",")) = 
+  concat_lenses (list_map field_to_xml fields) (del ",")
+
+let l3 = csv_to_xml (List.Cons("first",List.Cons("last",List.Nil)))
+
+test l3 get
+    <<<
+        "Michael \"The Autominator\"","Greenberg, Jr. &c"
+    >>>
+  = <<<
+        <first>Michael "The Autominator"</first><last>Greenberg, Jr. &amp;c</last>
+    >>>
+
+*)
+*)
