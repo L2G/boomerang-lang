@@ -36,6 +36,7 @@ type t =
   | Unt of Info.t 
   | Bol of Info.t * bool
   | Int of Info.t * int
+  | Chr of Info.t * RS.sym
   | Str of Info.t * RS.t 
   | Rx  of Info.t * R.t
   | Lns of Info.t * L.t
@@ -48,6 +49,7 @@ let info_of_t = function
   | Unt(i)       -> i
   | Int(i,_)     -> i
   | Bol(i,_)     -> i
+  | Chr(i,_)     -> i
   | Str(i,_)     -> i
   |  Rx(i,_)     -> i
   | Lns(i,_)     -> i
@@ -63,6 +65,8 @@ let rec equal v1 v2 = match v1,v2 with
       b1=b2
   | Int(_,n1), Int(_,n2) -> 
       n1=n2
+  | Chr(_,c1), Chr(_,c2) -> 
+      c1=c2
   | Str(_,s1), Str(_,s2) -> 
       RS.equal s1 s2
   | Rx(_,r1), Rx(_,r2) -> 
@@ -89,6 +93,7 @@ and format = function
   | Unt(_)       -> Util.format "()"
   | Int(_,n)     -> Util.format "%d" n
   | Bol(_,b)     -> Util.format "%b" b
+  | Chr(_,c)     -> Util.format "%s" (RS.repr c)
   | Str(_,rs)    -> Util.format "%s" (RS.string_of_t rs)
   | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
@@ -112,6 +117,7 @@ let rec sort_string_of_t = function
   | Unt _ -> "unit"
   | Bol _ -> "bool" 
   | Int _ -> "int" 
+  | Chr _ -> "char"
   | Str _ -> "string"
   | Rx _  -> "regexp"
   | Lns _ -> "lens"
@@ -153,6 +159,10 @@ let get_l v =
       | Lns(_,l) -> l
       | _ -> conversion_error (P.string_of_sort S.SLens) v
 
+let get_ch v = match v with
+  | Chr(_,c) -> c
+  | _ -> conversion_error (P.string_of_sort S.SChar) v
+
 let get_c v = match v with 
   | Can(_,c) -> c
   | _ -> conversion_error (P.string_of_sort S.SCanonizer) v
@@ -192,6 +202,8 @@ let mk_rfun b f = Fun(b,(fun v -> f (get_r v)))
 let mk_lfun b f = Fun(b,(fun v -> f (get_l v)))
 
 let mk_cfun b f = Fun(b,(fun v -> f (get_c v)))
+
+let mk_chfun b f = Fun(b,(fun v -> f (get_ch v)))
 
 let mk_ufun b f = Fun(b,(fun v -> f (get_u v)))
 

@@ -94,7 +94,6 @@ let _ =
     ; ("open", (fun i -> OPEN i)) 
     ; ("end", (fun i -> END i)) 
     ; ("let", (fun i -> LET i)) 
-    ; ("pi", (fun i -> PI i)) 
     ; ("in", (fun i -> IN i))
     ; ("fun", (fun i -> FUN i))
     ; ("begin", (fun i -> BEGIN i))
@@ -105,6 +104,7 @@ let _ =
     ; ("match", (fun i -> MATCH i))
     ; ("with", (fun i -> WITH i))
     ; ("error", (fun i -> ERROR i))
+    ; ("char", (fun i -> CHAR i))
     ; ("string", (fun i -> STRING i))
     ; ("regexp", (fun i -> REGEXP i))
     ; ("lens", (fun i -> LENS i))
@@ -156,7 +156,7 @@ rule main = parse
 | "["                { CSET(info lexbuf, cset lexbuf) }
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }
-| "<<<"              { let i1 = info lexbuf in 
+| "<<"              { let i1 = info lexbuf in 
                        let i2,s = bare "" lexbuf in 
                        let i = Info.merge_inc i1 i2 in 
                        STR(i,s) }
@@ -176,6 +176,14 @@ rule main = parse
                        let i2,s = string "" lexbuf in 
                        let i = Info.merge_inc i1 i2 in 
                        STR(i,s) }
+
+| "'" ([^'\''] as c) "'" { 
+    CHARACTER(info lexbuf,c) 
+  }
+
+| "'\\" (int_char int_char int_char as c) "'" {
+    CHARACTER(info lexbuf,Char.chr (int_of_string c))
+  }
 
 | '\'' (id_char_first id_char_rest* as ident) { 
     VIDENT(info lexbuf, ident)
@@ -231,8 +239,8 @@ and bare acc = parse
                      let s = lexeme lexbuf in 
                      let n = String.length s - 1 in 
                      bare_indent acc n lexbuf }
-  | ">>>"          { (info lexbuf,acc) }
-  | eof            { error lexbuf "unmatched '<<<'" }
+  | ">>"          { (info lexbuf,acc) }
+  | eof            { error lexbuf "unmatched '<<'" }
   | _              { bare_raw (acc ^ lexeme lexbuf) lexbuf }
 
 and bare_indent_spaces acc n expected = parse
@@ -241,7 +249,7 @@ and bare_indent_spaces acc n expected = parse
                        else 
                          bare_indent_spaces acc n (pred expected) lexbuf }
   (* XXX: should we check that the number of spaces is <= n? *)
-  | newline [' ']* ">>>" { newline lexbuf;
+  | newline [' ']* ">>" { newline lexbuf;
                            (info lexbuf,acc) } 
   | newline          { newline lexbuf; 
                        bare_indent_spaces (acc ^ lexeme lexbuf) n n lexbuf }
@@ -251,18 +259,18 @@ and bare_indent_spaces acc n expected = parse
                          error lexbuf (sprintf "expecting %d spaces after newline in string" n) }
 
 and bare_indent acc n = parse
-  | newline [' ']* ">>>" { newline lexbuf; 
+  | newline [' ']* ">>" { newline lexbuf; 
                            (info lexbuf,acc) }
   | newline          { newline lexbuf; 
                        bare_indent_spaces (acc ^ lexeme lexbuf) n n lexbuf }
-  | eof              { error lexbuf "unmatched '>>>'" }
+  | eof              { error lexbuf "unmatched '>>'" }
   | _                { bare_indent (acc ^ lexeme lexbuf) n lexbuf }
   
 and bare_raw acc = parse
-  | ">>>"       { (info lexbuf,acc) }
+  | ">>"       { (info lexbuf,acc) }
   | newline     { newline lexbuf; 
                   bare_raw (acc ^ lexeme lexbuf) lexbuf }
-  | eof         { error lexbuf "unmatched '<<<'" }
+  | eof         { error lexbuf "unmatched '<<'" }
   | _           { bare_raw (acc ^ lexeme lexbuf) lexbuf }
 
 and escape el = parse

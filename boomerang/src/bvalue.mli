@@ -25,6 +25,7 @@ type t =
     | Unt of Info.t
     | Bol of Info.t * bool
     | Int of Info.t * int
+    | Chr of Info.t * Bstring.sym 
     | Str of Info.t * Bstring.t 
     | Rx  of Info.t * Bregexp.t
     | Lns of Info.t * Blenses.DLens.t
@@ -51,6 +52,10 @@ val sort_string_of_t : t -> string
 (** [sort_string_of_t v] renders [v]'s sort as a string. *)
 
 (** {2 Conversions on run-time values} *)
+
+val get_ch : t -> Bstring.sym
+(** [get_s v] returns a char if [v] is a [Chr], and otherwise raises
+    an exception. *)
 
 val get_s : t -> Bstring.t
 (** [get_s v] returns a string if [v] is a [Str], and otherwise raises
@@ -114,6 +119,11 @@ val mk_lfun : Info.t -> (Blenses.DLens.t -> t) -> t
 
 val mk_cfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
 (** [mk_cfun i f] lifts a canonizer to [t] function to a [t] representing that
+    function. [i] is used as the parsing info if the argument has a different
+    sort. *)
+
+val mk_chfun : Info.t -> (Bstring.sym -> t) -> t
+(** [mk_chfun i f] lifts a char to [t] function to a [t] representing that
     function. [i] is used as the parsing info if the argument has a different
     sort. *)
 

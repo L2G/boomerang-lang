@@ -140,6 +140,7 @@ type sort =
     | SUnit                           (* unit *)
     | SBool                           (* booleans *)
     | SInteger                        (* integers *)
+    | SChar                           (* characters *)
     | SString                         (* strings *)
     | SRegexp                         (* regular expressions *)
     | SLens                           (* lenses *)
@@ -182,12 +183,13 @@ and exp =
     (* coercions *)
     | ECast of Info.t * sort * sort * blame * exp 
         
-    (* unit, strings, ints, character sets *)
+    (* unit, strings, ints, characters, character sets *)
     | EUnit    of Info.t  
-    | EBoolean of Info.t *bool
-    | EInteger of Info.t *int    
-    | EString  of Info.t *Bstring.t 
-    | ECSet    of Info.t *bool * (Bstring.sym * Bstring.sym) list 
+    | EBoolean of Info.t * bool
+    | EInteger of Info.t * int    
+    | EChar    of Info.t * Bstring.sym
+    | EString  of Info.t * Bstring.t 
+    | ECSet    of Info.t * bool * (Bstring.sym * Bstring.sym) list 
 (** The type of expression ASTs. *)
 
 and op = 

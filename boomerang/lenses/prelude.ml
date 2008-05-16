@@ -261,6 +261,13 @@ let prelude_spec =
            mk_sfun b (fun nl -> 
              Can(b,C.columnize b k r s nl))))))
 
+  (* char operations *)
+  ; (S.Qid.mk_native_prelude_t "string_of_char",
+    (S.SChar ^> S.SString),
+     let b = mk_prelude_info "string_of_char" in 
+     mk_chfun b (fun c -> 
+       Str(b,RS.make 1 c)))
+
   (* string operations *)
   ; (S.Qid.mk_native_prelude_t "string_concat",
       (S.SString ^> S.SString ^> S.SString),

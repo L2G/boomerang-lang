@@ -6,6 +6,7 @@ let rec format_sort = function
   | SUnit -> msg "unit"      
   | SBool -> msg "bool"
   | SInteger -> msg "int"      
+  | SChar    -> msg "char" 
   | SString -> msg "string"
   | SRegexp -> msg "regexp"
   | SLens -> msg "lens"      
@@ -182,6 +183,8 @@ and format_exp e0 = match e0 with
 
     | EBoolean (_,b) -> 
         msg "@[%b@]" b
+
+    | EChar(_,c) -> msg "%s" (Bstring.repr c)
 
     | EString (_,s) ->
 	msg "@[\"%s\"@]" 

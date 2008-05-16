@@ -46,7 +46,8 @@ let mk_bin_op i o e1 e2 = mk_app i (mk_app i o e1) e2
 let mk_tern_op i o e1 e2 e3 = mk_app i (mk_bin_op i o e1 e2) e3
 let mk_cat i e1 e2 = mk_over i ODot [e1;e2]
 let mk_iter i min max e1 = mk_over i (OIter(min,max)) [e1]
-let mk_union i e1 e2 = mk_over i OBar [e1;e2]
+let mk_acond i e1 e2 = mk_over i OBar [e1;e2]
+let mk_cond i e1 e2 = mk_over i OBar [e1;e2]
 let mk_swap i e1 e2 = mk_over i OTilde [e1;e2]
 let mk_diff i e1 e2 = mk_bin_op i (mk_prelude_var "diff") e1 e2
 let mk_inter i e1 e2 = mk_bin_op i (mk_prelude_var "inter") e1 e2
@@ -153,14 +154,15 @@ let build_bare_fun i param_alts body =
 
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
-%token <Info.t> UNIT BOOL INT STRING REGEXP LENS CANONIZER FORALL WHERE
+%token <Info.t> UNIT BOOL INT CHAR STRING REGEXP LENS CANONIZER FORALL WHERE
 %token <Bsyntax.Id.t> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
+%token <Info.t * char> CHARACTER
 %token <Info.t * int> INTEGER
 %token <Info.t * bool> BOOLEAN
 %token <Info.t * float> FLOAT
 %token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW EQARROW
-%token <Info.t> BEGIN END PI FUN LET IN TEST MATCH WITH
+%token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> GET PUT CREATE INTO
@@ -312,7 +314,10 @@ pexp:
 /* bar expressions */
 bexp:
   | bexp BAR mexp 
-      { mk_union (me $1 $3) $1 $3 }
+      { mk_acond (me $1 $3) $1 $3 }
+
+  | bexp BAR BAR mexp 
+      { mk_cond (me $1 $4) $1 $4 }
 
   | mexp
       { $1 }
@@ -409,6 +414,10 @@ aexp:
         let i = m $1 i6 in 
         let l = mk i $3 in 
         l }
+
+  | CHARACTER
+      { let i,c = $1 in 
+        EChar(i,Bstring.sym_of_char c) }
 
   | INTEGER
       { let i,n = $1 in 
@@ -557,10 +566,10 @@ sort:
       { $1 }
 
 arrsort: 
-  | psort ARROW arrsort
-      { SFunction(Id.wild,$1,$3) }
+  | psort ARROW arrsort 
+      { SFunction(Id.wild,$1,$3) } 
 
-  | PI LIDENT DOT psort ARROW arrsort
+  | LPAREN id COLON psort ARROW psort RPAREN
       { SFunction($2,$4,$6) }
 
   | psort
@@ -576,34 +585,15 @@ psort:
 
 /* data type sorts */
 dsort:
-  | LIDENT
-      { SData([], Qid.t_of_id $1) }
+  | qvar
+      { SData([], $1) }
 
-  | asort LIDENT
-      { SData([$1], Qid.t_of_id $2) }
+  | bsort qvar
+      { SData([$1],$2) }
 
-  | LPAREN sort RPAREN LIDENT 
-      { SData([$2], Qid.t_of_id $4) }
+  | LPAREN sort COMMA sort_list RPAREN qvar 
+      { SData($2::$4, $6) }
 
-  | LPAREN sort COMMA sort_list RPAREN LIDENT 
-      { SData($2::$4, Qid.t_of_id $6) }
-
-  | QIDENT
-      { let (i,qs) = $1 in 
-        SData([], parse_qid i qs) }
-
-  | asort QIDENT 
-      { let (i,qs) = $2 in 
-        SData([$1], parse_qid i qs) }
-
-  | LPAREN sort RPAREN QIDENT
-      { let (i,qs) = $4 in 
-        SData([$2], parse_qid i qs) }
-
-  | LPAREN sort COMMA sort_list RPAREN QIDENT 
-      { let (i,qs) = $6 in 
-        SData($2::$4, parse_qid i qs) }
-      
   | bsort 
       { $1 }
 
@@ -622,6 +612,12 @@ bsort:
 
 /* atomic sorts */
 asort:
+  | LANGLE appexp DARROW appexp RANGLE
+      { SRefine(Id.wild,SLens,EBoolean(m $1 $5,true)) }
+
+  | CHAR
+      { SChar }
+
   | STRING 
       { SString }
 
@@ -702,6 +698,13 @@ qid:
   | QIDENT
       { let (i,qs) = $1 in parse_qid i qs }
 
+qvar:
+  | LIDENT
+      { Qid.t_of_id $1 }
+
+  | QIDENT
+      { let (i,qs) = $1 in parse_qid i qs }
+
 id:
   | LIDENT
       { $1 }
@@ -748,4 +751,3 @@ rep:
 uid:
   | UIDENT
       { $1 }
-

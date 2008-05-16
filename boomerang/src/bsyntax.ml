@@ -130,6 +130,7 @@ type sort =
     | SUnit                           (* unit *)
     | SBool                           (* booleans *)
     | SInteger                        (* integers *)
+    | SChar                           (* chars *)
     | SString                         (* strings *)
     | SRegexp                         (* regular expressions *)
     | SLens                           (* lenses *)
@@ -175,10 +176,11 @@ and exp =
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
-    | EBoolean of Info.t *bool
-    | EInteger of Info.t *int    
-    | EString  of Info.t *Bstring.t 
-    | ECSet    of Info.t *bool * (Bstring.sym * Bstring.sym) list 
+    | EBoolean of Info.t * bool
+    | EInteger of Info.t * int    
+    | EChar    of Info.t * Bstring.sym
+    | EString  of Info.t * Bstring.t 
+    | ECSet    of Info.t * bool * (Bstring.sym * Bstring.sym) list 
 
 (* overloaded operators *)
 and op = 
@@ -246,6 +248,7 @@ let info_of_exp = function
   | EUnit    (i)         -> i
   | EBoolean (i,_)       -> i
   | EInteger (i,_)       -> i    
+  | EChar    (i,_)       -> i 
   | EString  (i,_)       -> i
   | ECSet    (i,_,_)     -> i
       
@@ -326,7 +329,8 @@ let rec sort_walk
         let new_s1,acc1 = go' acc s1 in 
         let new_s0 = SForall(x,new_s1) in 
         (new_s0,acc1)
-    | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer -> 
+    | SUnit | SBool | SInteger | SChar | SString 
+    | SRegexp | SLens | SCanonizer -> 
         (s0,acc)
 
 and exp_walk 
@@ -418,7 +422,7 @@ and exp_walk
           let new_s,acc3 = go_sort acc2 s in 
           let new_e0 = ECase(i,new_e1,new_cl,new_s) in 
           (new_e0,acc3)
-      | EUnit _ | EBoolean _ | EInteger _ | EString _ | ECSet _ -> 
+      | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ -> 
           (e0,acc)
 
 let rec gen_assoc eq x = function
@@ -497,5 +501,6 @@ let rec erase_sort = function
       erase_sort s1
   | SForall(x,s1) -> 
       SForall(x,erase_sort s1)
-  | SUnit | SBool | SInteger | SString | SRegexp | SLens | SCanonizer | SVar _ as s0 -> 
+  | SUnit | SBool | SInteger | SChar | SString 
+  | SRegexp | SLens | SCanonizer | SVar _ as s0 -> 
       s0

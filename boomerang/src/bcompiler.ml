@@ -60,10 +60,7 @@ let mk_tyfun i a e = ETyFun(i,a,e)
 let mk_tyapp i e1 s2 = ETyApp(i,e1,s2)
 
 let mk_if i e0 e1 e2 s =
-  ECase(i,
-        e0,
-        [(PBol(i,true),e1);(PBol(i,false),e2)],
-        s)
+  ECase(i,e0,[(PBol(i,true),e1);(PBol(i,false),e2)],s)
     
 (* --------------- Unit tests --------------- *)
 (* unit tests either succeed, yielding a value, or fail with a msg *)
@@ -255,11 +252,15 @@ let rec compatible f t = match f,t with
   | SUnit,SUnit       
   | SInteger,SInteger 
   | SBool,SBool       
+  | SChar,SChar
   | SString,SString 
   | SRegexp,SRegexp 
   | SLens,SLens 
   | SCanonizer,SCanonizer ->
       true
+  | SChar,SString 
+  | SChar,SRegexp
+  | SChar,SLens
   | SString,SRegexp 
   | SString,SLens 
   | SRegexp,SLens -> 
@@ -312,10 +313,20 @@ let rec mk_cast_blame lt i b f t e =
   | SUnit,SUnit
   | SBool,SBool
   | SInteger,SInteger
+  | SChar,SChar
   | SString,SString
   | SRegexp,SRegexp
   | SLens,SLens 
   | SCanonizer,SCanonizer -> e 
+  | SChar,SString -> 
+      mk_app i (mk_native_prelude_var i "string_of_char") e
+  | SChar,SRegexp -> 
+      mk_app i (mk_native_prelude_var i "str")
+        (mk_app i (mk_native_prelude_var i "string_of_char") e)
+  | SChar,SLens -> 
+      mk_app i (mk_native_prelude_var i "copy")
+        (mk_app i (mk_native_prelude_var i "str")
+           (mk_app i (mk_native_prelude_var i "string_of_char") e))
   | SString,SRegexp ->  
       mk_app i (mk_native_prelude_var i "str") e
   | SString,SLens -> 
@@ -538,7 +549,8 @@ let rec dynamic_match i p0 v0 =
 (* resolve_sort: resolves QIds in SData *)
 let rec resolve_sort i sev s0 = 
   let rec go s0 = match s0 with 
-    | SUnit | SBool | SString | SInteger | SRegexp | SLens | SCanonizer | SVar _ -> 
+    | SUnit | SBool | SInteger | SChar | SString 
+    | SRegexp | SLens | SCanonizer | SVar _ -> 
         s0
     | SFunction(x,s1,s2) -> 
         let new_s1 = go s1 in 
@@ -720,6 +732,9 @@ and check_exp sev e0 =
   | EInteger(_) -> 
       (* integer constants have sort SInteger *)
       (SInteger,e0)
+
+  | EChar(_) -> 
+      (SChar,e0)
 
   | EString(_) -> 
       (* string constants have sort SString *)
@@ -1015,6 +1030,9 @@ let rec compile_exp cev e0 = match e0 with
 
   | EInteger(i,n) -> 
       V.Int(i,n)
+
+  | EChar(i,c) -> 
+      V.Chr(i,c)
 
   | EString(i,s) -> 
       V.Str(i,s)
