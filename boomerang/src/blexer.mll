@@ -181,9 +181,8 @@ rule main = parse
     CHARACTER(info lexbuf,c) 
   }
 
-| "'\\" (int_char int_char int_char as c) "'" {
-    CHARACTER(info lexbuf,Char.chr (int_of_string c))
-  }
+| "'\\" { let c = escape [("'","'")] lexbuf in 
+          character c lexbuf }
 
 | '\'' (id_char_first id_char_rest* as ident) { 
     VIDENT(info lexbuf, ident)
@@ -215,7 +214,7 @@ and cset = parse
   | _                { let s = lexeme lexbuf in s ^ cset lexbuf }
 
 and rx_string acc = parse
-  | "\\"        { let s = escape [("/","/")] lexbuf in 
+  | "\\"        { let s = escape [("/","/");("'","'")] lexbuf in 
                   rx_string (acc ^ s) lexbuf }
   | "/"         { (info lexbuf,acc) }
   | newline ([' ' '\t']* "|")? 
@@ -225,7 +224,7 @@ and rx_string acc = parse
   | _           { rx_string (acc ^ lexeme lexbuf) lexbuf }
 
 and string acc = parse
-| "\\"          { let s = escape [("\"","\"")] lexbuf in 
+| "\\"          { let s = escape [("\"","\"");("'","'")] lexbuf in 
                   string (acc ^ s) lexbuf }
 | "\""          { (info lexbuf,acc) }
 | newline ([' ' '\t']* "|")? 
@@ -233,6 +232,12 @@ and string acc = parse
                   string (acc ^ "\n") lexbuf}
 | eof           { error lexbuf "unmatched '\"'"}
 | _             { string (acc ^ lexeme lexbuf) lexbuf }
+
+and character acc = parse 
+  | "'"         { if String.length acc <> 1 then error lexbuf "unmatched '''"
+                  else CHARACTER(info lexbuf,acc.[0]) }
+
+  | _           { error lexbuf "unmatched '''" }
 
 and bare acc = parse
   | newline [' ']* { newline lexbuf; 
@@ -275,14 +280,15 @@ and bare_raw acc = parse
 
 and escape el = parse
 | "\\"          { "\\" }
-| "'"           { "'" }
 | "b"           { "\008" }
 | "n"           { "\010" }
 | "r"           { "\013" }
 | "t"           { "\009" }
+| int_char int_char int_char as c 
+                { String.make 1 (Char.chr (int_of_string c)) }
 | _             { try Safelist.assoc (lexeme lexbuf) el 
                   with Not_found -> 
-                    error lexbuf "in string escape sequence" }
+                    error lexbuf "in escape sequence" }
 
 and comment = parse
 | "(*"             { comment lexbuf; comment lexbuf }

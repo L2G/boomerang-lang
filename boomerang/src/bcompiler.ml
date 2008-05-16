@@ -573,7 +573,7 @@ let rec resolve_sort i sev s0 =
         let s1' = resolve_sort i sev1 s1 in 
         let sev2 = SCEnv.update sev (Qid.t_of_id x) (G.Sort s1') in 
         let e1_sort,new_e1 = check_exp sev2 e1 in  
-        if not (compatible e1_sort SBool) then 
+        if not (compatible e1_sort SBool) then
           sort_error i 
             (fun () -> msg "@[in@ refinement: expected@ %s@ but@ found@ %s@]"
                (string_of_sort SBool)
@@ -698,7 +698,7 @@ and check_exp sev e0 =
                      msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
                        (string_of_sort new_ret_sort)
                        (string_of_sort body_sort));
-              let cast_body = mk_cast (SCEnv.lookup_type sev) (info_of_exp body) body_sort ret_sort new_body in
+              let cast_body = mk_cast (SCEnv.lookup_type sev) (info_of_exp body) body_sort new_ret_sort new_body in
               (ret_sort,cast_body) in
       let e0_sort = SFunction(p_x,new_p_s,body_sort) in
       let new_p = Param(p_i,p_x,new_p_s) in
@@ -972,9 +972,11 @@ let rec compile_exp cev e0 = match e0 with
               (fun () -> msg "@[%s is not bound@]" (Qid.string_of_t q))
       end
 
-  | EOver(i,_,_) -> 
+  | EOver(i,op,_) -> 
       run_error i
-        (fun () -> msg "@[unresolved@ overloaded@ operator@]")
+        (fun () ->
+           format_exp e0;
+           msg "@[unresolved@ overloaded@ operator %s@]" (string_of_op op))
 
   | EApp(_,e1,e2) ->
       let v1 = compile_exp cev e1 in 

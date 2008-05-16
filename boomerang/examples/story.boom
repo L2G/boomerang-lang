@@ -26,17 +26,22 @@ THINGS TO DO:
   - rename <-> as <=>
 *)
 
-let ANYCHAR = [^]
-let ANY = ANYCHAR*
+(* -- *)
+let ANY_CHAR : regexp = [^]
+let ESC_SYMBOL : regexp = "\\\"" | "\\\\" | [^\\"]
+let escape_quotes_char : < ANY_CHAR <-> ESC_SYMBOL > = 
+    '"' <-> "\\\""
+  | '\\' <-> "\\\\"
+  | copy (ANY_CHAR - [\\"])
 
-let escape_quotes_char =
-    "\"" <-> "\\\""
-  | "\\" <-> "\\\\"
-  | copy (ANYCHAR - [\\"])
+(* -- *)
+let ANY : regexp = ANY_CHAR*
+let ESC_STRING : regexp = ESC_SYMBOL*
 
-let escape_quotes = escape_quotes_char*
+let escape_quotes_string : < ANY <-> ESC_STRING > = 
+  escape_quotes_char*
 
-test escape_quotes get 
+test escape_quotes_string get 
     <<
         <hello"world>
     >>
@@ -45,15 +50,24 @@ test escape_quotes get
         <hello\"world>
     >> 
 
-let escape_xml_char = 
-    "<" <-> "&lt;"
-  | ">" <-> "&gt;"
-  | "&" <-> "&amp;"
+(* -- *)
+let XML_ESC_SYMBOL : regexp = "&lt;" | "&gt;" | "&amp;" | [^<>&]
+
+let escape_xml_char : < ANY_CHAR <-> XML_ESC_SYMBOL > = 
+    '<' <-> "&lt;"
+  | '>' <-> "&gt;"
+  | '&' <-> "&amp;"
   | copy (ANYCHAR - [<>&])
 
-let escape_xml = escape_xml_char*
+(* -- *)
+let XML_ESC_STRING : regexp = XML_ESC_SYMBOL*
 
-let quotes_to_xml = (invert escape_quotes) ; escape_xml
+let escape_xml : < ANY <-> XML_ESC_STRING > = 
+  escape_xml_char*
+
+(* -- *)
+let quotes_to_xml : < ESC_STRING <-> XML_ESC_STRING > = 
+  (invert escape_quotes_string) ; escape_xml
 
 test quotes_to_xml get 
     <<
@@ -64,6 +78,7 @@ test quotes_to_xml get
         &lt;hello"world&gt;
     >> 
 
+(*"*)
 
 (* Now let's build generic escaping functions... *)
 
@@ -74,11 +89,13 @@ test quotes_to_xml get
    is this?  Can we typecheck it??"  And then we back off to just
    "lens" (or even "pure macros"). *)
 
-let escape_char (raw:string) (esc:string) (R:regexp) : ((R-esc) <-> (R-raw)) =
-  (  raw <-> esc
+let escape_char (raw:char) (esc:string) (R:regexp) 
+   : < ((R - esc) | raw) <-> ((R - raw) | esc) > 
+ = 
+   ( raw <-> esc
    | copy (R - (raw | esc)))
 
-test (escape_char "&" "&amp;" ANYCHAR)* get 
+test (escape_char '&' "&amp;" ANY_CHAR)* get 
     <<
         hello&world
     >>
@@ -87,10 +104,10 @@ test (escape_char "&" "&amp;" ANYCHAR)* get
         hello&amp;world
     >> 
 
-let escape_xml = 
-  (  escape_char "&" "&amp;" [^]
-   ; escape_char "<" "&lt;"  ([^&] | "&amp;")
-   ; escape_char ">" "&gt;"  ([^&<] | "&amp;" | "&lt;") )*
+let escape_xml : < ANY <-> XML_ESC_STRING > = 
+  (  escape_char '&' "&amp;" [^]
+   ; escape_char '<' "&lt;"  ([^&] | "&amp;")
+   ; escape_char '>' "&gt;"  ([^&<] | "&amp;" | "&lt;") )*
 
 test escape_xml get 
     <<
@@ -102,10 +119,10 @@ test escape_xml get
     >> 
 
 (* ... or better... *)
-let escape_xml = 
-  let l1 = escape_char "&" "&amp;" [^] in
-  let l2 = escape_char "<" "&lt;"  (atype l1) in
-  let l3 = escape_char ">" "&gt;"  (atype l2) in
+let escape_xml : < ANY <-> XML_ESC_STRING > = 
+  let l1 = escape_char '&' "&amp;" [^] in
+  let l2 = escape_char '<' "&lt;"  (atype l1) in
+  let l3 = escape_char '>' "&gt;"  (atype l2) in
   (l1;l2;l3)*
 
 (* Can even do it with lists, which motivates polymorphism... *)

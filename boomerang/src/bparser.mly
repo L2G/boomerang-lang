@@ -569,7 +569,7 @@ arrsort:
   | psort ARROW arrsort 
       { SFunction(Id.wild,$1,$3) } 
 
-  | LPAREN id COLON psort ARROW psort RPAREN
+  | LPAREN id COLON psort ARROW arrsort RPAREN
       { SFunction($2,$4,$6) }
 
   | psort
@@ -613,7 +613,13 @@ bsort:
 /* atomic sorts */
 asort:
   | LANGLE appexp DARROW appexp RANGLE
-      { SRefine(Id.wild,SLens,EBoolean(m $1 $5,true)) }
+      { let i = m $1 $5 in 
+        let l = Id.mk i "l" in 
+        SRefine(l,SLens,
+                mk_app i 
+                  (mk_app i 
+                     (mk_app i (mk_prelude_var "has_lens_type") (mk_var l))
+                     $2) $4) }
 
   | CHAR
       { SChar }

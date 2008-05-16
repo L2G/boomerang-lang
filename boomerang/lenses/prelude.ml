@@ -331,11 +331,11 @@ let prelude_spec =
            Rx(b,R.iter r1 i1 i2)))))
 
   ; (S.Qid.mk_native_prelude_t "equiv",
-      (S.SRegexp ^> S.SRegexp ^> S.SString),
+      (S.SRegexp ^> S.SRegexp ^> S.SBool),
      let b = mk_prelude_info "equiv" in 
      mk_rfun b (fun r1 ->
        mk_rfun b (fun r2 ->
-	 Str(b, RS.t_of_string(string_of_bool (R.equiv r1 r2))))))
+	 Bol(b, R.equiv r1 r2))))
     
   ; (S.Qid.mk_native_prelude_t "shortest",
       (S.SRegexp ^> S.SString),
@@ -343,27 +343,13 @@ let prelude_spec =
      mk_rfun b (fun r1 -> Str(b,wrap_rep b r1)))
 
   (* run-time checking *)
-  ; (S.Qid.mk_native_prelude_t "assert",
-      (S.SRegexp ^> S.SRegexp ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "assert" in 
-     mk_rfun b (fun c -> 
-       mk_rfun b (fun a -> 
-         mk_lfun b (fun l -> 
-           Lns(b,L.assert_lens_type b l (Some c) (Some a))))))
-
-  ; (S.Qid.mk_native_prelude_t "assert_ctype",
-      (S.SRegexp ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "assert_ctype" in 
-     mk_rfun b (fun c -> 
-       mk_lfun b (fun l -> 
-         Lns(b,L.assert_lens_ctype b l c))))
-
-  ; (S.Qid.mk_native_prelude_t "assert_atype",
-      (S.SRegexp ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "assert_atype" in 
-     mk_rfun b (fun a -> 
-       mk_lfun b (fun l -> 
-         Lns(b,L.assert_lens_atype b l a))))
+  ; (S.Qid.mk_native_prelude_t "has_lens_type",
+      (S.SLens ^> S.SRegexp ^> S.SRegexp ^> S.SBool),
+     let b = mk_prelude_info "has_lens_type" in 
+     mk_lfun b (fun l -> 
+       mk_rfun b (fun c -> 
+         mk_rfun b (fun a -> 
+           Bol(b,R.equiv (L.ctype l) c && R.equiv (L.atype l) a)))))
 
   (* coercions *)
   ; (S.Qid.mk_native_prelude_t "ctype",
@@ -391,7 +377,19 @@ let prelude_spec =
       Str(b, RS.t_of_string (R.string_of_t r1))))
 
   ; begin 
-    let i = Info.M "equal built-in" in 
+    let i = Info.M "equals built-in" in 
+    let a = S.Id.mk i "a" in 
+    let a_sort = S.SVar a in 
+    (S.Qid.mk_native_prelude_t "equals",
+     S.SForall(a,a_sort ^> a_sort ^> S.SBool),
+     mk_ufun i (fun () -> 
+       mk_poly_fun i (fun v1 -> 
+         mk_poly_fun i (fun v2 -> 
+           Bol(i,equal v1 v2)))))
+   end
+
+  ; begin 
+    let i = Info.M "and built-in" in 
     let a = S.Id.mk i "a" in 
     let a_sort = S.SVar a in 
     (S.Qid.mk_native_prelude_t "equals",

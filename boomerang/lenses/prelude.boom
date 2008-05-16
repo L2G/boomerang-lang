@@ -158,16 +158,12 @@ let inter : regexp -> regexp -> regexp =
   Native.Prelude.inter
 let diff : regexp -> regexp -> regexp = 
   Native.Prelude.diff
-let equiv : regexp -> regexp -> string = 
+let equiv : regexp -> regexp -> bool = 
   Native.Prelude.equiv
 
 (* run-time checking *)
-let assert : regexp -> regexp -> lens -> lens = 
-  Native.Prelude.assert
-let assert_ctype : regexp -> lens -> lens = 
-  Native.Prelude.assert_ctype
-let assert_atype  : regexp -> lens -> lens = 
-  Native.Prelude.assert_atype
+let has_lens_type : lens -> regexp -> regexp -> bool = 
+  Native.Prelude.has_lens_type
 
 (* coercions *)
 let canonizer_of_lens : lens -> canonizer = 
@@ -189,11 +185,14 @@ let del (r:regexp) = const r "" (shortest r)
 let set (r:regexp) (s:string) = const r s (shortest r)
 
 (* constants *)
+(* [ANYCHAR] any character *)
+let ANYCHAR = [^]
+
 (* [ANY] any string *)
-let ANY : regexp = [^]*
+let ANY : regexp = ANYCHAR*
 
 (* [ANYP] any non-empty string *)
-let ANYP : regexp = [^]+
+let ANYP : regexp = ANYCHAR+
 
 (* [containing R] any string containing [R] *)
 let containing (R:regexp) : regexp = ANY . R . ANY
