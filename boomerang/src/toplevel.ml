@@ -76,9 +76,9 @@ let check m =
              (fun () -> 
                 Util.format "Error: could not find module %s@\n" modname))
       
-let get_str l_n c = L.get (lookup_lens l_n) c
-let put_str l_n a c = L.rput_of_dl (lookup_lens l_n) a c
-let create_str l_n a = L.rcreate_of_dl (lookup_lens l_n) a
+let get_str l_n c = L.rget (lookup_lens l_n) c
+let put_str l_n a c = L.rput (lookup_lens l_n) a c
+let create_str l_n a = L.rcreate (lookup_lens l_n) a
 
 (*******)
 (* GET *)

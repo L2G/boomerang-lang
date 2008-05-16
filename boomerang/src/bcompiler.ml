@@ -766,9 +766,9 @@ and check_exp sev e0 =
                      (string_of_sort param_sort)
                      (string_of_sort e2_sort));
             (* insert cast if needed *)
-            let cast_e2 = mk_cast (SCEnv.lookup_type sev) i2 e2_sort param_sort new_e2 in             
+            let cast_e2 = mk_cast (SCEnv.lookup_type sev) i2 e2_sort param_sort new_e2 in
             let new_e0 = EApp(i,new_e1,cast_e2) in 
-            let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,new_e2)] return_sort in 
+            let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in 
             (e0_sort,new_e0)
         | _ -> 
             sort_error (info_of_exp e1)

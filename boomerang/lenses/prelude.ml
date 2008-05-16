@@ -121,9 +121,12 @@ let pmk_srssq = pmk4 S.SString mk_sfun S.SRegexp mk_rfun S.SString mk_sfun S.SSt
 
 let prelude_spec =
   [ (* lens operations *)
-    pmk_lss    "get"                    (fun _ -> L.get)
-  ; pmk_lsss   "put"                    (fun _ -> L.rput_of_dl)
-  ; pmk_lss    "create"                 (fun _ -> L.rcreate_of_dl)
+    pmk_lss    "rget"                   (fun _ -> L.rget)
+  ; pmk_lss    "unsafe_rget"            (fun _ -> L.unsafe_rget)
+  ; pmk_lsss   "rput"                   (fun _ -> L.rput)
+  ; pmk_lsss   "unsafe_rput"            (fun _ -> L.unsafe_rput)
+  ; pmk_lss    "rcreate"                (fun _ -> L.rcreate)
+  ; pmk_lss    "unsafe_rcreate"         (fun _ -> L.unsafe_rcreate)
   ; pmk_ll     "invert"                 L.invert
                                         
   (* core lens combinators *)           

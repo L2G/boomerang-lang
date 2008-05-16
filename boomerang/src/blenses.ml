@@ -52,34 +52,45 @@ let parse_str n = sprintf "%s parse" n
 let cls_str n = sprintf "%s cls" n
 let rep_str n = sprintf "%s rep" n
 let key_str n = sprintf "%s key" n
+
+let paranoid = Prefs.createBool "paranoid" false
+  "do paranoid sanity checks in lens primitives"
+  "do paranoid sanity checks in lens primitives"
   
-let lift_r i n t1 f =  
-  (fun x ->     
+let plift_r b i n t1 f =  
+  if not (b || Prefs.read paranoid) then f else
+    (fun x ->     
+       if not (R.match_str t1 x) then 
+         Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
+       else (f x))
+
+let plift_rr b i n t1 t2 f = 
+  if not (b || Prefs.read paranoid) then f else
+  (fun x y ->     
      if not (R.match_str t1 x) then 
        Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-     else (f x))
+     else if not (R.match_str t2 y) then 
+       Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t2 y)
+     else (f x y))
+
+let plift_rsd b i n t1 st2 f = 
+  if not (b || Prefs.read paranoid) then f else
+  (fun x y z ->     
+     if not (R.match_str t1 x) then 
+       Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
+     else if not (st2 y) then 
+       assert false
+     else (f x y z))
     
-let lift_rr i n t1 t2 f = (fun x y ->     
-                             if not (R.match_str t1 x) then 
-                               Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-                             else if not (R.match_str t2 y) then 
-                               Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t2 y)
-                             else (f x y))
-
-let lift_rsd i n t1 st2 f = (fun x y z ->     
-                               if not (R.match_str t1 x) then 
-                                 Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-                               else if not (st2 y) then 
-                                 assert false
-                               else (f x y z))
-
-let lift_rd i n t1 f = 
+let plift_rd b i n t1 f = 
+  if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
      if not (R.match_str t1 x) then 
        Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
      else (f x y))
 
-let lift_rrd i n t1 t2 t3 f = 
+let plift_rrd b i n t1 t2 t3 f = 
+  if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
      if not (R.match_str t1 x) then 
        Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
@@ -87,19 +98,29 @@ let lift_rrd i n t1 t2 t3 f =
        Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t2 y)
      else (f x y z))
 
-let lift_rx i n t1 f = 
+let plift_rx b i n t1 f = 
+  if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
      if not (R.match_str t1 x) then 
        Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
      else (f x y))
 
-let lift_rrx i n t1 t2 f = 
+let plift_rrx b i n t1 t2 f = 
+  if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
      if not (R.match_str t1 x) then 
        Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
      else if not (R.match_str t2 y) then 
        Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t1 y)
      else (f x y z))
+
+let lift_r i n r = plift_r false i n r
+let lift_rr i n r r = plift_rr false i n r r 
+let lift_rsd i n r s d = plift_rsd false i n r s d 
+let lift_rd i n r d = plift_rd false i n r d 
+let lift_rrd i n r r d = plift_rrd false i n r r d
+let lift_rx i n r x = plift_rx false i n r x 
+let lift_rrx i n r r x = plift_rrx false i n r r x
 
 (* string maps *)
 module SMap = Map.Make 
@@ -597,15 +618,23 @@ module DLens = struct
     }
       
   (* pseudo rlenses function *)
-  let rput_of_dl dl = 
-    (fun a c -> 
-       let s,d = dl.parse c in
-         fst (dl.put a s d))
+  let unsafe_rget dl c = dl.get c
+  let rget dl = plift_r true dl.info dl.string dl.ctype (unsafe_rget dl)
+
+  let unsafe_rput dl a c = 
+    let s,d = dl.parse c in
+    fst (dl.put a s d)
+
+  let rput dl = 
+    plift_rr true dl.info dl.string dl.atype dl.ctype (unsafe_rput dl)
       
-  let rcreate_of_dl dl = 
-    (fun a -> fst (dl.create a empty_dict))
+  let unsafe_rcreate dl a = 
+    fst (dl.create a empty_dict)
+
+  let rcreate dl = 
+    plift_r true dl.info dl.string dl.ctype (unsafe_rcreate dl)
       
-  let determinize_dlens dl =
+  let determinize dl =
     { dl with 
         ctype = R.determinize dl.ctype; 
         atype = R.determinize dl.atype
@@ -624,7 +653,7 @@ module DLens = struct
       dl.ctype
       dl.atype
       dl.get
-      (rcreate_of_dl dl)
+      (rcreate dl)
       
   (* invert -- only for bijective lenses! *)
   let invert i dl = 
@@ -636,7 +665,7 @@ module DLens = struct
           string = n;
           ctype = ct;
           atype = at;
-          get = rcreate_of_dl dl;
+          get = rcreate dl;
           put = lift_rsd i (put_str n) at dl.stype (fun a _ d -> (dl.get a,d));
           parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict));
           create = lift_rd i (create_str n) at (fun a d -> (dl.get a,d));

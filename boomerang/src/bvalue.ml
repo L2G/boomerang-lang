@@ -94,7 +94,7 @@ and format = function
   | Int(_,n)     -> Util.format "%d" n
   | Bol(_,b)     -> Util.format "%b" b
   | Chr(_,c)     -> Util.format "'%s'" (RS.repr c)
-  | Str(_,rs)    -> Util.format "%s" (RS.string_of_t rs)
+  | Str(_,rs)    -> Util.format "\"%s\"" (RS.string_of_t rs)
   | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
   | Can(_,c)     -> Util.format "%s" (C.string c)

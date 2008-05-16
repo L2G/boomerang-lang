@@ -56,9 +56,12 @@ module DLens : sig
   val string : t -> string
   val ctype : t -> Bregexp.t
   val atype : t -> Bregexp.t
-  val get : t -> (Bstring.t -> Bstring.t)
-  val rput_of_dl : t -> Bstring.t -> Bstring.t -> Bstring.t
-  val rcreate_of_dl : t -> Bstring.t -> Bstring.t
+  val rget : t -> (Bstring.t -> Bstring.t)
+  val rput : t -> Bstring.t -> Bstring.t -> Bstring.t
+  val rcreate : t -> Bstring.t -> Bstring.t
+  val unsafe_rget : t -> (Bstring.t -> Bstring.t)
+  val unsafe_rput : t -> Bstring.t -> Bstring.t -> Bstring.t
+  val unsafe_rcreate : t -> Bstring.t -> Bstring.t
   val forgetkey : t -> t
   val canonizer_of_t : Info.t -> t -> Canonizer.t
   val invert : Info.t -> t -> t

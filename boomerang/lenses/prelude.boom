@@ -31,17 +31,21 @@ type 'a option =
 type ('a,'b) maybe = 
     Left of 'a | Right of 'b 
 
+(* regular expression utilities *)
+let matches : regexp -> string -> bool = 
+  Native.Prelude.matches
+
 (* components of lenses *)
 let ctype : lens -> regexp = 
   Native.Prelude.ctype
 let atype : lens -> regexp =
   Native.Prelude.atype
-let pget : lens -> string -> string = 
-  Native.Prelude.get
-let pput : lens -> string -> string -> string = 
-  Native.Prelude.put
-let pcreate : lens -> string -> string =
-  Native.Prelude.create
+let rget (l:lens) (c:string where matches (ctype l) c) : string =
+  Native.Prelude.unsafe_rget l c
+let rput : lens -> string -> string -> string = 
+  Native.Prelude.rput
+let rcreate : lens -> string -> string =
+  Native.Prelude.rcreate
 
 (* predicates *)
 (* 
@@ -159,8 +163,8 @@ let diff : regexp -> regexp -> regexp =
   Native.Prelude.diff
 let equiv : regexp -> regexp -> bool = 
   Native.Prelude.equiv
-let matches : regexp -> string -> bool = 
-  Native.Prelude.matches
+let disjoint (r1:regexp) (r2:regexp) : bool = 
+  is_empty (inter r1 r2)
 
 (* boolean functions *)
 let land : bool -> bool -> bool = 
@@ -270,8 +274,8 @@ let qins (E:regexp) (e:string) : lens =
     (canonizer_of_lens (const E e e))
 
 (* unit tests for qins *)
-test qins [A-Z]+ "A" get "" = "A"
-test qins [A-Z]+ "A" create "ABC" = ""
+(* test qins [A-Z]+ "A" get "" = "A" *)
+(* test qins [A-Z]+ "A" create "ABC" = "" *)
 
 (* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
    direction. *)
@@ -281,6 +285,6 @@ let qdel (E:regexp) (e:string) : lens =
     (copy //)
 
 (* unit tests for qdel *)
-test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
-test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
+(* test (qdel [A-Z]+ "ZZZ" get "ABC") = "" *)
+(* test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ" *)
 

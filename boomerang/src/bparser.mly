@@ -38,7 +38,8 @@ let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
 (* helpers for building ASTs *)
 let mk_qid_var x = EVar(Qid.info_of_t x,x)
 let mk_var x = mk_qid_var (Qid.t_of_id x)
-let mk_prelude_var x = mk_qid_var (Qid.mk_native_prelude_t x)
+let mk_native_prelude_var x = mk_qid_var (Qid.mk_native_prelude_t x)
+let mk_prelude_var x = mk_qid_var (Qid.mk_prelude_t x)
 let mk_list_var x = mk_qid_var (Qid.mk_list_t x)
 let mk_over i op el = EOver(i,op,el)
 let mk_app i e1 e2 = EApp(i,e1,e2)
@@ -49,22 +50,22 @@ let mk_iter i min max e1 = mk_over i (OIter(min,max)) [e1]
 let mk_acond i e1 e2 = mk_over i OBar [e1;e2]
 let mk_cond i e1 e2 = mk_over i OBar [e1;e2]
 let mk_swap i e1 e2 = mk_over i OTilde [e1;e2]
-let mk_diff i e1 e2 = mk_bin_op i (mk_prelude_var "diff") e1 e2
-let mk_inter i e1 e2 = mk_bin_op i (mk_prelude_var "inter") e1 e2
-let mk_compose i e1 e2 = mk_bin_op i (mk_prelude_var "compose") e1 e2
-let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (Qid.mk_prelude_t "set")) e1 e2
+let mk_diff i e1 e2 = mk_bin_op i (mk_native_prelude_var "diff") e1 e2
+let mk_inter i e1 e2 = mk_bin_op i (mk_native_prelude_var "inter") e1 e2
+let mk_compose i e1 e2 = mk_bin_op i (mk_native_prelude_var "compose") e1 e2
+let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (Qid.mk_native_prelude_t "set")) e1 e2
 let mk_match i x q =   
   mk_bin_op i 
-    (mk_prelude_var "dmatch")
+    (mk_native_prelude_var "dmatch")
     (EString(i,Bstring.t_of_string x)) 
     (mk_qid_var q)
 let mk_sim_match i e t q = 
   mk_tern_op i 
-    (mk_prelude_var "smatch")
+    (mk_native_prelude_var "smatch")
     (EString(i,Bstring.t_of_string (string_of_float e)))
     (EString(i,Bstring.t_of_string t))
     (mk_qid_var q)
-let mk_rx i e = mk_app i (mk_prelude_var "str") e
+let mk_rx i e = mk_app i (mk_native_prelude_var "str") e
 
 (* error *)
 let syntax_error i msg = 
@@ -269,13 +270,13 @@ exp:
 gpexp: 
   | cexp GET aexp
       { let i = me $1 $3 in 
-        mk_bin_op i (mk_prelude_var "get") $1 $3 }
+        mk_bin_op i (mk_prelude_var "rget") $1 $3 }
   | cexp PUT aexp INTO aexp        
       { let i = me $1 $3 in 
-        mk_tern_op i (mk_prelude_var "put") $1 $3 $5 }
+        mk_tern_op i (mk_prelude_var "rput") $1 $3 $5 }
   | cexp CREATE aexp               
       { let i = me $1 $3 in 
-        mk_bin_op i (mk_prelude_var "create") $1 $3 }
+        mk_bin_op i (mk_prelude_var "rcreate") $1 $3 }
   | cexp
       { $1 } 
 
@@ -390,14 +391,14 @@ tyexp:
 
 andexp:
   | andexp AND orexp
-      { mk_bin_op (me $1 $3) (mk_prelude_var "land") $1 $3 }
+      { mk_bin_op (me $1 $3) (mk_native_prelude_var "land") $1 $3 }
 
   | orexp 
       { $1 }
 
 orexp:
   | orexp OR aexp
-      { mk_bin_op (me $1 $3) (mk_prelude_var "lor") $1 $3 }
+      { mk_bin_op (me $1 $3) (mk_native_prelude_var "lor") $1 $3 }
 
   | aexp 
       { $1 }
@@ -633,7 +634,7 @@ asort:
         SRefine(l,SLens,
                 mk_app i 
                   (mk_app i 
-                     (mk_app i (mk_prelude_var "in_lens_type") (mk_var l))
+                     (mk_app i (mk_native_prelude_var "in_lens_type") (mk_var l))
                      $2) $4) }
 
   | CHAR
