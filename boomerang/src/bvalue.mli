@@ -53,96 +53,41 @@ val sort_string_of_t : t -> string
 
 (** {2 Conversions on run-time values} *)
 
-val get_ch : t -> Bstring.sym
-(** [get_s v] returns a char if [v] is a [Chr], and otherwise raises
-    an exception. *)
-
-val get_s : t -> Bstring.t
-(** [get_s v] returns a string if [v] is a [Str], and otherwise raises
-    an exception. *)
-
-val get_b : t -> bool
-(** [get_b v] returns a boolean if [v] is a [Bol], and otherwise raises
-    an exception. *)
-
-val get_i : t -> int
-(** [get_i v] returns an int if [v] is a [Int], and otherwise raises
-    an exception. *)
-
-val get_r : t -> Bregexp.t
-  (** [get_r v] returns a regexp if [v] is a [Rx], and otherwise raises an
-      exception. *)
-
-val get_l : t -> Blenses.DLens.t
-(** [get_l v] returns a lens if [v] is a [Lns], and otherwise raises an
-    exception. *)
-
-val get_c : t -> Blenses.Canonizer.t
-(** [get_c v] returns a canonizer if [v] is a [Can], and otherwise raises an
-    exception. *)
-
-val get_f : t -> (t -> t)
-(** [get_f v] returns a function if [v] is a [Fun], and otherwise raises an
-    exception. *)
-
 val get_u : t -> unit
-(** [get_u v] returns a unit if [v] is a [Unt], and otherwise raises an
-    exception. *)
-
-val get_p : t -> (t*t)
-(** [get_p v] returns a pair if [v] is a [Par], and otherwise raises an
-    exception. *)
-
-val get_v : t -> (Bsyntax.Id.t * t option)
-(** [get_v v] returns a representation of a variant--a pair consisting
-    of a label and an optional value---if [v] is a [Vnt], and
-    otherwise raises an exception. *)
-
 val get_b : t -> bool
-(** [get_b v] returns a boolean if [v] is a [Vnt] representing a
-    [Prelude.bool], and otherwise raises an exception. *)
-        
-val mk_sfun : Info.t -> (Bstring.t -> t) -> t
-(** [mk_sfun i f] lifts a string to [t] function to a [t] representing that
-    function. [i] is used as the parsing info if the argument has a different
-    sort. *)
+val get_i : t -> int
+val get_c : t -> Bstring.sym
+val get_s : t -> Bstring.t
+val get_r : t -> Bregexp.t
+val get_l : t -> Blenses.DLens.t
+val get_q : t -> Blenses.Canonizer.t
+val get_p : t -> (t*t)
+val get_v : t -> (Bsyntax.Id.t * t option)
+val get_f : t -> (t -> t)
 
-val mk_rfun : Info.t -> (Bregexp.t -> t) -> t
-(** [mk_rfun i f] lifts a regexp to [t] function to a [t] representing that
-    function. [i] is used as the parsing info if the argument has a different
-    sort. *)
-
-val mk_lfun : Info.t -> (Blenses.DLens.t -> t) -> t
-(** [mk_lfun i f] lifts a lens to [t] function to a [t] representing that
-    function. [i] is used as the parsing info if the argument has a different
-    sort. *)
-
-val mk_cfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
-(** [mk_cfun i f] lifts a canonizer to [t] function to a [t] representing that
-    function. [i] is used as the parsing info if the argument has a different
-    sort. *)
-
-val mk_chfun : Info.t -> (Bstring.sym -> t) -> t
-(** [mk_chfun i f] lifts a char to [t] function to a [t] representing that
-    function. [i] is used as the parsing info if the argument has a different
-    sort. *)
+val mk_u : Info.t -> unit -> t
+val mk_b : Info.t -> bool -> t
+val mk_i : Info.t -> int -> t
+val mk_c : Info.t -> Bstring.sym -> t
+val mk_l : Info.t -> Blenses.DLens.t -> t
+val mk_r : Info.t -> Bregexp.t -> t
+val mk_s : Info.t -> Bstring.t -> t
+val mk_q : Info.t -> Blenses.Canonizer.t -> t
+val mk_p : Info.t -> t * t -> t
+val mk_f : Info.t -> (t -> t) -> t
 
 val mk_ufun : Info.t -> (unit -> t) -> t
-(** [mk_ufun i f] lifts a unit to [t] function to a [t] representing that
-    function. [i] is used as the parsing info if the argument has a different
-    sort. *)
-
+val mk_bfun : Info.t -> (bool -> t) -> t
 val mk_ifun : Info.t -> (int -> t) -> t
-(** [mk_ifun i f] lifts an integer to [t] function to a [t] representing that
-    function. [i] is used as the parsing info if the argument has a different
-    sort. *)
-
-val mk_poly_fun : Info.t -> (t -> t) -> t
-(** [mk_poly_fun i f] constructs a [t] representing the [t -> t]
-    function given by [f] with parsing info [i]. *)
+val mk_cfun : Info.t -> (Bstring.sym -> t) -> t
+val mk_lfun : Info.t -> (Blenses.DLens.t -> t) -> t
+val mk_rfun : Info.t -> (Bregexp.t -> t) -> t
+val mk_sfun : Info.t -> (Bstring.t -> t) -> t
+val mk_qfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
+val mk_pfun : Info.t -> (t * t -> t) -> t
+val mk_vfun : Info.t -> (Bsyntax.Id.t * t option -> t) -> t
 
 (** {3 Parsing helper functions for constructing values.} *)
-
 val parse_uid : string -> Bsyntax.Id.t
 (** [parse_uid s] parses an [Id.t] from an uppercase string. *)
 

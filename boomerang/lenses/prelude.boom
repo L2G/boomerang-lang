@@ -156,10 +156,24 @@ let empty : regexp =
   Native.Prelude.empty
 let inter : regexp -> regexp -> regexp = 
   Native.Prelude.inter
+let is_empty : regexp -> bool = 
+  Native.Prelude.is_empty
 let diff : regexp -> regexp -> regexp = 
   Native.Prelude.diff
 let equiv : regexp -> regexp -> bool = 
   Native.Prelude.equiv
+let matches : regexp -> string -> bool = 
+  Native.Prelude.matches
+
+(* boolean functions *)
+let land : bool -> bool -> bool = 
+  Native.Prelude.land
+
+let lor : bool -> bool -> bool = 
+  Native.Prelude.lor
+
+let not : bool -> bool = 
+  Native.Prelude.not
 
 (* run-time checking *)
 let has_lens_type : lens -> regexp -> regexp -> bool = 

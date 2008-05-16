@@ -120,6 +120,8 @@ let _ =
     ; ("create", (fun i -> CREATE i))
     ; ("where", (fun i -> WHERE i))
     ; ("forall", (fun i -> FORALL i))
+    ; ("and", (fun i -> AND i))
+    ; ("or", (fun i -> OR i))
     ]
 }
 

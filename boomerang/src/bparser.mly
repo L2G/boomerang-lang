@@ -165,6 +165,7 @@ let build_bare_fun i param_alts body =
 %token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
+%token <Info.t> AND OR 
 %token <Info.t> GET PUT CREATE INTO
 %token <Info.t> ERROR
 
@@ -383,6 +384,20 @@ tyexp:
   | tyexp LBRACE sort RBRACE
       { let i = me1 $1 $4 in 
         ETyApp(i,$1,$3) }
+
+  | andexp 
+      { $1 }
+
+andexp:
+  | andexp AND orexp
+      { mk_bin_op (me $1 $3) (mk_prelude_var "land") $1 $3 }
+
+  | orexp 
+      { $1 }
+
+orexp:
+  | orexp OR aexp
+      { mk_bin_op (me $1 $3) (mk_prelude_var "lor") $1 $3 }
 
   | aexp 
       { $1 }
@@ -729,6 +744,12 @@ param:
   | LPAREN id COLON sort RPAREN
       { let i,_ = $2 in 
         Misc.Left (Param(i,$2,$4)) }
+
+param: 
+  | LPAREN id COLON sort WHERE exp RPAREN
+      { let i,_ = $2 in 
+        let s = SRefine($2,$4,$6) in 
+        Misc.Left (Param(i,$2,s)) }
 
   | VIDENT 
       { Misc.Right ($1) }

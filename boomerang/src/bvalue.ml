@@ -93,7 +93,7 @@ and format = function
   | Unt(_)       -> Util.format "()"
   | Int(_,n)     -> Util.format "%d" n
   | Bol(_,b)     -> Util.format "%b" b
-  | Chr(_,c)     -> Util.format "%s" (RS.repr c)
+  | Chr(_,c)     -> Util.format "'%s'" (RS.repr c)
   | Str(_,rs)    -> Util.format "%s" (RS.string_of_t rs)
   | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
@@ -134,46 +134,37 @@ let conversion_error s1 v1 =
         s1
         (string_of_t v1))
 
-let get_s v = match v with
-  | Str(_,s) -> s
-  | _ -> conversion_error (P.string_of_sort S.SString) v
+let get_u v = match v with
+  | Unt(_) -> ()
+  | _ -> conversion_error "unit" v
 
-let get_b v = match v with
+let get_b v = match v with 
   | Bol(_,b) -> b
-  | _ -> conversion_error (P.string_of_sort S.SBool) v
+  | _ -> conversion_error "boolean" v
 
 let get_i v = match v with
   | Int(_,n) -> n
   | _ -> conversion_error (P.string_of_sort S.SInteger) v
 
-let get_r v = match v with
-    Rx(_,r)  -> r
-  | Str(_,s) -> R.str false s
-  | _ -> conversion_error (P.string_of_sort S.SRegexp) v
-
-let get_l v = 
-  let i = info_of_t v in
-    match v with 
-      | Str(_,s) -> L.copy i (R.str false s)
-      | Rx(_,r)  -> L.copy i r
-      | Lns(_,l) -> l
-      | _ -> conversion_error (P.string_of_sort S.SLens) v
-
-let get_ch v = match v with
+let get_c v = match v with
   | Chr(_,c) -> c
   | _ -> conversion_error (P.string_of_sort S.SChar) v
 
-let get_c v = match v with 
-  | Can(_,c) -> c
+let get_s v = match v with
+  | Str(_,s) -> s
+  | _ -> conversion_error (P.string_of_sort S.SString) v
+
+let get_r v = match v with
+    Rx(_,r)  -> r
+  | _ -> conversion_error (P.string_of_sort S.SRegexp) v
+
+let get_l v = match v with 
+  | Lns(_,l) -> l
+  | _ -> conversion_error (P.string_of_sort S.SLens) v
+
+let get_q v = match v with 
+  | Can(_,q) -> q
   | _ -> conversion_error (P.string_of_sort S.SCanonizer) v
-
-let get_f v = match v with
-  | Fun(_,f) -> f
-  | _ -> conversion_error "function" v
-
-let get_u v = match v with
-  | Unt(_) -> ()
-  | _ -> conversion_error "unit" v
 
 let get_p v = match v with
   | Par(_,v1,v2) -> (v1,v2)
@@ -183,33 +174,33 @@ let get_v v = match v with
   | Vnt(_,_,l,v) -> (l,v)
   | _ -> conversion_error "variant" v
 
-let get_b v = 
-  let t_id = Bsyntax.Id.mk (Info.M "True built-in") "True" in 
-  let f_id = Bsyntax.Id.mk (Info.M "False built-in") "False" in 
-  match get_v v with
-    | (l,_) -> 
-        if Bsyntax.Id.equal l t_id
-        then true
-        else if Bsyntax.Id.equal l f_id
-        then false
-        else conversion_error "boolean" v
-        
+let get_f v = match v with
+  | Fun(_,f) -> f
+  | _ -> conversion_error "function" v
+
 (* --------- constructors for functions on run-time values ---------- *)
-let mk_sfun b f = Fun(b,(fun v -> f (get_s v)))
+let mk_u i u = Unt(i)
+let mk_b i b = Bol(i,b)
+let mk_i i n = Int(i,n)
+let mk_c i c = Chr(i,c)
+let mk_s i s = Str(i,s)
+let mk_r i r = Rx(i,r)
+let mk_l i l = Lns(i,l)
+let mk_q i q = Can(i,q)
+let mk_p i (p1,p2) = Par(i,p1,p2)
+let mk_f i f = Fun(i,f)
 
-let mk_rfun b f = Fun(b,(fun v -> f (get_r v)))
-
-let mk_lfun b f = Fun(b,(fun v -> f (get_l v)))
-
-let mk_cfun b f = Fun(b,(fun v -> f (get_c v)))
-
-let mk_chfun b f = Fun(b,(fun v -> f (get_ch v)))
-
-let mk_ufun b f = Fun(b,(fun v -> f (get_u v)))
-
-let mk_ifun b f = Fun(b,(fun v -> f (get_i v)))
-
-let mk_poly_fun b f = Fun(b,f)
+let mk_ufun i f = Fun(i,(fun v -> f (get_u v)))
+let mk_bfun i f = Fun(i,(fun v -> f (get_b v)))
+let mk_ifun i f = Fun(i,(fun v -> f (get_i v)))
+let mk_cfun i f = Fun(i,(fun v -> f (get_c v)))
+let mk_sfun i f = Fun(i,(fun v -> f (get_s v)))
+let mk_rfun i f = Fun(i,(fun v -> f (get_r v)))
+let mk_lfun i f = Fun(i,(fun v -> f (get_l v)))
+let mk_qfun i f = Fun(i,(fun v -> f (get_q v)))
+let mk_pfun i f = Fun(i,(fun v -> f (get_p v)))
+let mk_vfun i f = Fun(i,(fun v -> f (get_v v)))
+let mk_ffun i f = Fun(i,(fun v -> f (get_f v)))
 
 let parse_uid s = 
   let lexbuf = Lexing.from_string s in

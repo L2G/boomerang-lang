@@ -95,6 +95,15 @@ let escape_char (raw:char) (esc:string) (R:regexp)
    ( raw <-> esc
    | copy (R - (raw | esc)))
 
+let escape_char2 (raw:char) (esc:string) 
+                 (R:regexp where (matches R raw) and (not (matches R esc))) 
+  : < R <-> ((R - raw) | esc) > 
+=    ( raw <-> esc
+   | copy (R - (raw | esc)))
+
+
+test (escape_char2 '&' "&amp;" ANY_CHAR)* get "hello&world" = ?
+
 test (escape_char '&' "&amp;" ANY_CHAR)* get 
     <<
         hello&world

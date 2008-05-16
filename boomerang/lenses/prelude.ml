@@ -48,355 +48,157 @@ let poly_error i se1 v1 =
 
 let mk_prelude_info s = Info.M (sprintf "%s built-in" s)
 
+let lift0 s1 mk1 x v1 = 
+  let q = S.Qid.mk_native_prelude_t x in 
+  let s = s1 in  
+  let i = mk_prelude_info x in 
+  let v = mk1 i v1 in 
+  (q,s,v)
+
+let lift s1 mk1 s2 mk2 x f = 
+  let q = S.Qid.mk_native_prelude_t x in 
+  let s = s1 ^> s2 in 
+  let i = mk_prelude_info x in 
+  let f = mk1 i (fun v1 -> mk2 i (f i v1)) in 
+  (q,s,f)
+
+let lift2 s1 mk1 s2 mk2 s3 mk3 x f = 
+  let q = S.Qid.mk_native_prelude_t x in 
+  let s = s1 ^> s2 ^> s3 in 
+  let i = mk_prelude_info x in 
+  let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (f i v1 v2))) in 
+  (q,s,f)
+
+let lift3 s1 mk1 s2 mk2 s3 mk3 s4 mk4 x f = 
+  let q = S.Qid.mk_native_prelude_t x in 
+  let s = s1 ^> s2 ^> s3 ^> s4 in 
+  let i = mk_prelude_info x in 
+  let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (fun v3 -> mk4 i (f i v1 v2 v3)))) in 
+  (q,s,f)
+
+let lift4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f = 
+  let q = S.Qid.mk_native_prelude_t x in 
+  let s = s1 ^> s2 ^> s3 ^> s4 in 
+  let i = mk_prelude_info x in 
+  let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (fun v3 -> mk4 i (fun v4 -> mk5 i (f i v1 v2 v3 v4))))) in 
+  (q,s,f)
+
+let lift_bb = lift S.SBool mk_bfun S.SBool mk_b
+let lift_bbb = lift2 S.SBool mk_bfun S.SBool mk_bfun S.SBool mk_b 
+let lift_qqq = lift2 S.SCanonizer mk_qfun S.SCanonizer mk_qfun S.SCanonizer mk_q 
+let lift_qq = lift S.SCanonizer mk_qfun S.SCanonizer mk_q 
+let lift_qiiq = lift3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun S.SCanonizer mk_q
+let lift_riir = lift3 S.SRegexp mk_rfun S.SInteger mk_ifun S.SInteger mk_ifun S.SRegexp mk_r
+let lift_qll = lift2 S.SCanonizer mk_qfun S.SLens mk_lfun S.SLens mk_l
+let lift_qss = lift2 S.SCanonizer mk_qfun S.SString mk_sfun S.SString mk_s
+let lift_lss = lift2 S.SLens mk_lfun S.SString mk_sfun S.SString mk_s
+let lift_sss = lift2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
+let lift_ss = lift S.SString mk_sfun S.SString mk_s
+let lift_sr = lift S.SString mk_sfun S.SRegexp mk_r
+let lift_lsss = lift3 S.SLens mk_lfun S.SString mk_sfun S.SString mk_sfun S.SString mk_s 
+let lift_lql = lift2 S.SLens mk_lfun S.SCanonizer mk_qfun S.SLens mk_l
+let lift_ll = lift S.SLens mk_lfun S.SLens mk_l
+let lift_lr = lift S.SLens mk_lfun S.SRegexp mk_r
+let lift_lq = lift S.SLens mk_lfun S.SCanonizer mk_q
+let lift_cs = lift S.SChar mk_cfun S.SString mk_s
+let lift_rl = lift S.SRegexp mk_rfun S.SLens mk_l
+let lift_rb = lift S.SRegexp mk_rfun S.SBool mk_b
+let lift_rrl = lift2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SLens mk_l
+let lift_rrb = lift2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
+let lift_rs = lift S.SRegexp mk_rfun S.SString mk_s
+let lift_rsb = lift2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_b
+let lift_rrr = lift2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SRegexp mk_r
+let lift_lll = lift2 S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_l
+let lift_llll = lift3 S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_l
+let lift_lrrb = lift3 S.SLens mk_lfun S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
+let lift_liil = lift3 S.SLens mk_lfun S.SInteger mk_ifun S.SInteger mk_ifun S.SLens mk_l
+let lift_rssl = lift3 S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SLens mk_l
+let lift_sll = lift2 S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
+let lift_lsl = lift2 S.SLens mk_lfun S.SString mk_sfun S.SLens mk_l
+let lift_ssll = lift3 S.SString mk_sfun S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
+let lift_srssq = lift4 S.SString mk_sfun S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SCanonizer mk_q
+
+let lift_0r = lift0 S.SRegexp mk_r
+
 let prelude_spec =
-  [(* lens operations *)
-   (S.Qid.mk_native_prelude_t "get", 
-     (S.SLens ^> S.SString ^> S.SString),
-    let b = mk_prelude_info "get" in 
-    mk_lfun b (fun l1 -> 
-      mk_sfun b (fun s1 -> 
-        Str(b,L.get l1 s1))))
-
-  ; (S.Qid.mk_native_prelude_t "put", 
-      (S.SLens ^> S.SString ^> S.SString ^> S.SString),
-     let b = mk_prelude_info "put" in 
-     mk_lfun b (fun l1 -> 
-       mk_sfun b (fun s1 -> 
-         mk_sfun b (fun s2 -> 
-           Str(b,L.rput_of_dl l1 s1 s2)))))
-
-  ; (S.Qid.mk_native_prelude_t "create", 
-      (S.SLens ^> S.SString ^> S.SString),
-     let b = mk_prelude_info "create" in 
-     mk_lfun b (fun l1 -> 
-       mk_sfun b (fun s1 -> 
-         Str(b,L.rcreate_of_dl l1 s1))))
-
-  ; (S.Qid.mk_native_prelude_t "invert",
-      (S.SLens ^> S.SLens), 
-     let b = mk_prelude_info "invert" in 
-     mk_lfun b (fun l1 -> 
-      Lns(b,L.invert b l1)))
+  [ (* lens operations *)
+    lift_lss  "get"    (fun _ -> L.get)
+  ; lift_lsss "put"    (fun _ -> L.rput_of_dl)
+  ; lift_lss  "create" (fun _ -> L.rcreate_of_dl)
+  ; lift_ll   "invert" L.invert
 
   (* core lens combinators *)
-  ; (S.Qid.mk_native_prelude_t "lens_union",
-      (S.SLens ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "lens_union" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 -> 
-         Lns(b,L.union b l1 l2))))
-
-  ; (S.Qid.mk_native_prelude_t "lens_concat",
-      (S.SLens ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "lens_concat" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 ->         
-         Lns(b,L.concat b l1 l2))))
-
-  ; (S.Qid.mk_native_prelude_t "lens_iter",
-      (S.SLens ^> S.SInteger ^> S.SInteger ^> S.SLens),
-     let b = mk_prelude_info "lens_iter" in 
-     mk_lfun b (fun l1 ->
-       mk_ifun b (fun i1 -> 
-         mk_ifun b (fun i2 -> 
-           Lns(b,L.iter b l1 i1 i2)))))
-
-  ; (S.Qid.mk_native_prelude_t "lens_swap",
-      (S.SLens ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "lens_swap" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 ->         
-         Lns(b,L.swap b l1 l2))))
-
-  (* other lens operators *)
-  ; (S.Qid.mk_native_prelude_t "copy",
-      (S.SRegexp ^> S.SLens),
-     let b = mk_prelude_info "copy" in 
-     mk_rfun b (fun r1 -> 
-       Lns(b,L.copy b r1)))
-
-  ; (S.Qid.mk_native_prelude_t "const",
-      (S.SRegexp ^> S.SString ^> S.SString ^> S.SLens),
-     let b = mk_prelude_info "const" in 
-     mk_rfun b (fun r1 -> 
-       mk_sfun b (fun s1 -> 
-         mk_sfun b (fun s2 -> 
-           Lns(b,L.const b r1 s1 s2)))))
-
-  ; (S.Qid.mk_native_prelude_t "dmatch",
-      (S.SString ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "dmatch" in 
-     mk_sfun b (fun s1 ->
-       mk_lfun b (fun l1 -> 
-         Lns(b,L.dmatch b L.std_lookup s1 l1))))
-
-  ; (S.Qid.mk_native_prelude_t "smatch",
-      (S.SString ^> S.SString ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "smatch" in 
-     mk_sfun b (fun s1 ->
-       let f = float_of_string (RS.string_of_t s1) in 
-       mk_sfun b (fun s2 ->                                            
-         mk_lfun b (fun l1 -> 
-           Lns(b,L.dmatch b (L.sim_lookup f) s2 l1)))))
-
-  ; (S.Qid.mk_native_prelude_t "compose",
-      (S.SLens ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "compose" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 ->         
-         Lns(b,L.compose b l1 l2))))
-
-  ; (S.Qid.mk_native_prelude_t "default",
-      (S.SLens ^> S.SString ^> S.SLens),
-     let b = mk_prelude_info "default" in 
-     mk_lfun b (fun cl1 -> 
-       mk_sfun b (fun def -> 
-         Lns(b,L.default b def cl1))))
-
-  ; (S.Qid.mk_native_prelude_t "key",
-      (S.SRegexp ^> S.SLens),
-     let b = mk_prelude_info "key" in 
-       mk_rfun b (fun r -> 
-         Lns(b,L.key b r)))
-
-  ; (S.Qid.mk_native_prelude_t "duplicate",
-      (S.SLens ^> S.SLens ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "duplicate" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 ->
-         mk_lfun b (fun l3 -> 
-           Lns(b,L.duplicate b true l1 l2 l3)))))
-
-  ; (S.Qid.mk_native_prelude_t "duplicate_snd",
-      (S.SLens ^> S.SLens ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "duplicate_snd" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 ->
-         mk_lfun b (fun l3 -> 
-           Lns(b,L.duplicate b false l1 l2 l3)))))
-
-  ; (S.Qid.mk_native_prelude_t "count",
-      (S.SRegexp ^> S.SLens),
-     let b = mk_prelude_info "count" in 
-     mk_rfun b (fun r -> 
-       Lns(b,L.count b r)))
-
-  ; (S.Qid.mk_native_prelude_t "forgetkey",
-      (S.SLens ^> S.SLens),
-     let b = mk_prelude_info "forgetkey" in 
-     mk_lfun b (fun cl ->
-       Lns(b, L.forgetkey cl)))
-
-  ; (S.Qid.mk_native_prelude_t "filter",
-      (S.SRegexp ^> S.SRegexp ^> S.SLens),
-     let b = mk_prelude_info "filter" in 
-     mk_rfun b (fun r1 ->
-       mk_rfun b (fun r2 ->
-         Lns(b,L.filter b r1 r2))))
+  ; lift_rl   "copy"           L.copy
+  ; lift_rssl "const"          L.const
+  ; lift_lll  "lens_union"     L.union
+  ; lift_lll  "lens_concat"    L.concat
+  ; lift_liil "lens_iter"      L.iter
+  ; lift_lll  "lens_swap"      L.swap
+  ; lift_sll  "dmatch"         (fun i -> L.dmatch i L.std_lookup)
+  ; lift_ssll "smatch"         (fun i s -> 
+                                  let f = float_of_string (RS.string_of_t s) in 
+                                  L.dmatch i (L.sim_lookup f))
+  ; lift_lll  "compose"        L.compose
+  ; lift_sll  "default"        L.default
+  ; lift_rl   "key"            L.key
+  ; lift_llll  "duplicate"     (fun i -> L.duplicate i true)
+  ; lift_llll  "duplicate_snd" (fun i -> L.duplicate i false)
+  ; lift_rl   "count"          L.count 
+  ; lift_ll   "forgetkey"      (fun i -> L.forgetkey)
+  ; lift_rrl  "filter"         L.filter
 
   (* canonizer operations *)
-  ; (S.Qid.mk_native_prelude_t "canonizer_union",
-      (S.SCanonizer ^> S.SCanonizer ^> S.SCanonizer),
-     let b = mk_prelude_info "canonizer_union" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 -> 
-         Lns(b,L.union b l1 l2))))
-
-  ; (S.Qid.mk_native_prelude_t "canonizer_concat",
-      (S.SCanonizer ^> S.SCanonizer ^> S.SCanonizer),
-     let b = mk_prelude_info "canonizer_concat" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 ->         
-         Lns(b,L.concat b l1 l2))))
-
-  ; (S.Qid.mk_native_prelude_t "canonizer_iter",
-      (S.SCanonizer ^> S.SInteger ^> S.SInteger ^> S.SCanonizer),
-     let b = mk_prelude_info "canonizer_iter" in 
-     mk_lfun b (fun l1 ->
-       mk_ifun b (fun i1 -> 
-         mk_ifun b (fun i2 -> 
-           Lns(b,L.iter b l1 i1 i2)))))
-
-  ; (S.Qid.mk_native_prelude_t "canonizer_swap",
-      (S.SCanonizer ^> S.SCanonizer ^> S.SCanonizer),
-     let b = mk_prelude_info "canonizer_swap" in 
-     mk_lfun b (fun l1 -> 
-       mk_lfun b (fun l2 ->         
-         Lns(b,L.swap b l1 l2))))
-
-  ; (S.Qid.mk_native_prelude_t "cls",
-      (S.SCanonizer ^> S.SString ^> S.SString),
-     let b = mk_prelude_info "cls" in 
-     mk_cfun b (fun c1 -> 
-       mk_sfun b (fun s1 -> 
-         Str(b,C.cls c1 s1))))                          
-
-  ; (S.Qid.mk_native_prelude_t "rep",
-      (S.SCanonizer ^> S.SString ^> S.SString),
-     let b = mk_prelude_info "rep" in 
-     mk_cfun b (fun c1 -> 
-       mk_sfun b (fun s1 -> 
-         Str(b,C.rep c1 s1))))                          
-
-  ; (S.Qid.mk_native_prelude_t "left_quot",
-      (S.SCanonizer ^> S.SLens ^> S.SLens),
-     let b = mk_prelude_info "left_quot" in 
-     mk_cfun b (fun c1 ->                                              
-       mk_lfun b (fun l1 -> 
-         Lns(b,L.left_quot b c1 l1))))
-
-  ; (S.Qid.mk_native_prelude_t "right_quot",
-      (S.SLens ^> S.SCanonizer ^> S.SLens),
-     let b = mk_prelude_info "right_quot" in 
-     mk_lfun b (fun l1 ->                                              
-       mk_cfun b (fun c1 -> 
-         Lns(b,L.right_quot b l1 c1))))
-
-  ; (S.Qid.mk_native_prelude_t "columnize",
-      (S.SString ^> S.SRegexp ^> S.SString ^> S.SString ^> S.SCanonizer),
-     let b = mk_prelude_info "columnize" in 
-     mk_sfun b (fun k -> 
-       mk_rfun b (fun r -> 
-         mk_sfun b (fun s -> 
-           mk_sfun b (fun nl -> 
-             Can(b,C.columnize b k r s nl))))))
+  ; lift_qqq   "canonizer_union" C.union
+  ; lift_qqq   "canonizer_concat" C.concat
+  ; lift_qiiq  "canonizer_iter"   C.iter
+  ; lift_qss   "canonize"         (fun _ -> C.cls)
+  ; lift_qss   "choose"           (fun _ -> C.rep)
+  ; lift_qll   "left_quot"        L.left_quot
+  ; lift_lql   "right_quot"       L.right_quot
+  ; lift_srssq "columnize"        C.columnize
 
   (* char operations *)
-  ; (S.Qid.mk_native_prelude_t "string_of_char",
-    (S.SChar ^> S.SString),
-     let b = mk_prelude_info "string_of_char" in 
-     mk_chfun b (fun c -> 
-       Str(b,RS.make 1 c)))
+  ; lift_cs    "string_of_char"   (fun _ -> RS.make 1)
 
   (* string operations *)
-  ; (S.Qid.mk_native_prelude_t "string_concat",
-      (S.SString ^> S.SString ^> S.SString),
-     let b = mk_prelude_info "string_concat" in 
-     mk_sfun b (fun s1 -> 
-       mk_sfun b (fun s2 ->         
-         Str(b,RS.append s1 s2))))
-
-  ; (S.Qid.mk_native_prelude_t "read",
-      (S.SString ^> S.SString),
-     let b = mk_prelude_info "read" in 
-     mk_sfun b (fun s1 -> 
-       Str(b,RS.t_of_string (Misc.read (RS.string_of_t s1)))))
+  ; lift_sss   "string_concat"    (fun _ -> RS.append)
+  ; lift_ss    "read"             (fun _ fn -> RS.t_of_string (Misc.read (RS.string_of_t fn)))
 
   (* regexp operations *)
-  ; (S.Qid.mk_native_prelude_t "str",
-      (S.SString ^> S.SRegexp),
-     let b = mk_prelude_info "str" in 
-     mk_sfun b (fun s1 ->
-       Rx(b,R.str false s1)))
+  ; lift_sr    "str"              (fun _ -> R.str false)
+  ; lift_0r    "empty"            R.empty
+  ; lift_rb    "is_empty"         (fun _ -> R.is_empty)
+  ; lift_rrr   "regexp_concat"    (fun _ -> R.seq)
+  ; lift_rrr   "regexp_union"     (fun _ -> R.alt)
+  ; lift_rrr   "regexp_diff"      (fun _ -> R.diff)
+  ; lift_rrr   "regexp_inter"     (fun _ -> R.inter)
+  ; lift_riir  "regexp_iter"      (fun _ -> R.iter)
+  ; lift_rrb   "equiv"            (fun _ -> R.equiv)
+  ; lift_rs    "shortest"         wrap_rep
+  ; lift_rsb   "matches"          (fun _ -> R.match_str)
 
-  ; (S.Qid.mk_native_prelude_t "empty",
-      (S.SRegexp),
-     let b = mk_prelude_info "empty" in 
-       Rx(b,R.empty))
-
-  ; (S.Qid.mk_native_prelude_t "regexp_concat",
-      (S.SRegexp ^> S.SRegexp ^> S.SRegexp),
-     let b = mk_prelude_info "regexp_concat" in 
-     mk_rfun b (fun r1 -> 
-       mk_rfun b (fun r2 ->         
-         Rx(b,R.seq r1 r2))))
-
-  ; (S.Qid.mk_native_prelude_t "regexp_union",
-     (S.SRegexp ^> S.SRegexp ^> S.SRegexp),
-     let b = mk_prelude_info "regexp_union" in 
-      mk_rfun b (fun r1 -> 
-        mk_rfun b (fun r2 ->         
-          Rx(b,R.alt r1 r2))))
-
-  ; (S.Qid.mk_native_prelude_t "diff",
-      (S.SRegexp ^> S.SRegexp ^> S.SRegexp),
-     let b = mk_prelude_info "diff" in 
-     mk_rfun b (fun r1 -> 
-       mk_rfun b (fun r2 ->         
-         Rx(b,R.diff r1 r2))))
-
-  ; (S.Qid.mk_native_prelude_t "inter",
-      (S.SRegexp ^> S.SRegexp ^> S.SRegexp),
-     let b = mk_prelude_info "inter" in 
-     mk_rfun b (fun r1 -> 
-       mk_rfun b (fun r2 ->         
-         Rx(b,R.inter r1 r2))))
-
-  ; (S.Qid.mk_native_prelude_t "regexp_iter",
-      (S.SRegexp ^> S.SInteger ^> S.SInteger ^> S.SRegexp),
-     let b = mk_prelude_info "regexp_iter" in 
-     mk_rfun b (fun r1 ->         
-       mk_ifun b (fun i1 -> 
-         mk_ifun b (fun i2 -> 
-           Rx(b,R.iter r1 i1 i2)))))
-
-  ; (S.Qid.mk_native_prelude_t "equiv",
-      (S.SRegexp ^> S.SRegexp ^> S.SBool),
-     let b = mk_prelude_info "equiv" in 
-     mk_rfun b (fun r1 ->
-       mk_rfun b (fun r2 ->
-	 Bol(b, R.equiv r1 r2))))
-    
-  ; (S.Qid.mk_native_prelude_t "shortest",
-      (S.SRegexp ^> S.SString),
-     let b = mk_prelude_info "shortest" in 
-     mk_rfun b (fun r1 -> Str(b,wrap_rep b r1)))
+  (* boolean operations *)
+  ; lift_bbb   "land"             (fun _ -> (&&))
+  ; lift_bbb   "lor"              (fun _ -> (||))
+  ; lift_bb    "not"              (fun _ -> not)
 
   (* run-time checking *)
-  ; (S.Qid.mk_native_prelude_t "has_lens_type",
-      (S.SLens ^> S.SRegexp ^> S.SRegexp ^> S.SBool),
-     let b = mk_prelude_info "has_lens_type" in 
-     mk_lfun b (fun l -> 
-       mk_rfun b (fun c -> 
-         mk_rfun b (fun a -> 
-           Bol(b,R.equiv (L.ctype l) c && R.equiv (L.atype l) a)))))
+  ; lift_lrrb  "has_lens_type"     (fun _ l c a -> R.equiv (L.ctype l) c && R.equiv (L.atype l) a)
+  ; lift_lr    "ctype"             (fun _ -> L.ctype)
+  ; lift_lr    "atype"             (fun _ -> L.atype)
+  ; lift_lq    "canonizer_of_lens" L.canonizer_of_t
+  ; lift_rs    "string_of_regexp"  (fun _ r1 -> (RS.t_of_string (R.string_of_t r1)))
 
-  (* coercions *)
-  ; (S.Qid.mk_native_prelude_t "ctype",
-      (S.SLens ^> S.SRegexp),
-     let b = mk_prelude_info "ctype" in 
-     mk_lfun b (fun cl ->
-       Rx(b, L.ctype cl)))
-
-  ; (S.Qid.mk_native_prelude_t "atype",
-      (S.SLens ^> S.SRegexp),
-     let b = mk_prelude_info "atype" in 
-     mk_lfun b (fun cl ->
-       Rx(b, L.atype cl)))
-
-  ; (S.Qid.mk_native_prelude_t "canonizer_of_lens",
-      (S.SLens ^> S.SCanonizer),
-     let b = mk_prelude_info "canonizer_of_lens" in 
-     mk_lfun b (fun l1 -> 
-       Can(b,L.canonizer_of_t b l1)))
-
-  ; (S.Qid.mk_native_prelude_t "string_of_regexp",
-      (S.SRegexp ^> S.SString),
-     let b = mk_prelude_info "string_of_regexp" in 
-     mk_rfun b (fun r1 ->
-      Str(b, RS.t_of_string (R.string_of_t r1))))
-
+  (* polymorphic ugliness *)
   ; begin 
-    let i = Info.M "equals built-in" in 
+    let i = Info.M "equal built-in" in 
     let a = S.Id.mk i "a" in 
     let a_sort = S.SVar a in 
     (S.Qid.mk_native_prelude_t "equals",
      S.SForall(a,a_sort ^> a_sort ^> S.SBool),
      mk_ufun i (fun () -> 
-       mk_poly_fun i (fun v1 -> 
-         mk_poly_fun i (fun v2 -> 
-           Bol(i,equal v1 v2)))))
-   end
-
-  ; begin 
-    let i = Info.M "and built-in" in 
-    let a = S.Id.mk i "a" in 
-    let a_sort = S.SVar a in 
-    (S.Qid.mk_native_prelude_t "equals",
-     S.SForall(a,a_sort ^> a_sort ^> S.SBool),
-     mk_ufun i (fun () -> 
-       mk_poly_fun i (fun v1 -> 
-         mk_poly_fun i (fun v2 -> 
+       mk_f i (fun v1 -> 
+         mk_f i (fun v2 -> 
            Bol(i,equal v1 v2)))))
    end
  
@@ -425,11 +227,11 @@ let prelude_spec =
     (S.Qid.mk_native_prelude_t "fold_left",
      S.SForall(a,S.SForall(b, ((a_sort ^> b_sort ^> a_sort) ^> a_sort ^> b_list_sort ^> a_sort))),
      let b = mk_prelude_info "fold_left" in 
-     mk_poly_fun b (fun achk -> 
-       mk_poly_fun b (fun bchk -> 
-         mk_poly_fun b (fun f0 -> 
-           mk_poly_fun b (fun acc0 -> 
-             mk_poly_fun b (fun l0 ->                                                   
+     mk_f b (fun achk -> 
+       mk_f b (fun bchk -> 
+         mk_f b (fun f0 -> 
+           mk_f b (fun acc0 -> 
+             mk_f b (fun l0 ->                                                   
                let f = get_f f0 in 
                let rec aux l acc = 
                let lbl,vo = get_v l in 
