@@ -21,22 +21,22 @@ module Story =
       - ass covering / buck passing (= polymorphism?  = inlining?)
           - note no need for sealing (core polymorphism = precise polymorphism)
       - quotienting
+
+THINGS TO DO:
+  - rename <-> as <=>
 *)
 
 let ANYCHAR = [^]
-
 let ANY = ANYCHAR*
 
-(* reconsider names... *)
-
-let escape_quotedstr_char =
+let escape_quotes_char =
     "\"" <-> "\\\""
   | "\\" <-> "\\\\"
   | copy (ANYCHAR - [\\"])
 
-let escape_quotedstr = escape_quotedstr_char*
+let escape_quotes = escape_quotes_char*
 
-test escape_quotedstr get 
+test escape_quotes get 
     <<
         <hello"world>
     >>
@@ -53,9 +53,9 @@ let escape_xml_char =
 
 let escape_xml = escape_xml_char*
 
-let quotedstr_to_xml = (invert escape_quotedstr) ; escape_xml
+let quotes_to_xml = (invert escape_quotes) ; escape_xml
 
-test quotedstr_to_xml get 
+test quotes_to_xml get 
     <<
         <hello\"world>
     >>
@@ -74,7 +74,7 @@ test quotedstr_to_xml get
    is this?  Can we typecheck it??"  And then we back off to just
    "lens" (or even "pure macros"). *)
 
-let escape_char (raw:string) (esc:string) (R:regexp) : lens =
+let escape_char (raw:string) (esc:string) (R:regexp) : ((R-esc) <-> (R-raw)) =
   (  raw <-> esc
    | copy (R - (raw | esc)))
 
@@ -165,7 +165,7 @@ let escape (pairs : (string * string) List.t) : lens =
 
 (* Rendering (do we really need this??) *)
 
-let render_quotedstr =
+let render_quotes =
     "" <-> "\""
   . copy ( ("\\\"" | "\\\\" | [^\\"])* )
   . "" <-> "\""
@@ -191,19 +191,19 @@ let render_str (R : regexp) : (R <-> quoted R) = render R "\"" "\""
 
 (* FIRST TRY:
 
-let unrender_quotedstr =
+let unrender_quotes =
     "\"" <-> "" 
   . copy ANY
   . "\"" <-> "" 
 
-let unescape_quotedstr_char =
+let unescape_quotes_char =
     "\\\"" <-> "\""
   | "\\\\" <-> "\\"
   | copy (ANYCHAR - [\\"])
 
-let unescape_quotedstr = unescape_quotedstr_char*
+let unescape_quotes = unescape_quotes_char*
 
-test unescape_quotedstr get 
+test unescape_quotes get 
     <<<
         <hello\"world>
     >>> 
@@ -212,23 +212,23 @@ test unescape_quotedstr get
         <hello"world>
     >>> 
 
-let tester = unrender_quotedstr ; unescape_quotedstr
+let tester = unrender_quotes ; unescape_quotes
 (* DOESN'T WORK!! *)
 *)
 
-let unrender_quotedstr R =
+let unrender_quotes R =
     "\"" <-> "" 
   . copy R
   . "\"" <-> "" 
 
-let unescape_quotedstr_char =
+let unescape_quotes_char =
     "\\\"" <-> "\""
   | "\\\\" <-> "\\"
   | copy (ANYCHAR - [\\])
 
-let unescape_quotedstr = unescape_quotedstr_char*
+let unescape_quotes = unescape_quotes_char*
 
-test unescape_quotedstr get 
+test unescape_quotes get 
     <<<
         <hello\"world>
     >>> 
@@ -237,7 +237,7 @@ test unescape_quotedstr get
         <hello"world>
     >>> 
 
-let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
+let test1 = unrender_quotes (ctype unescape_quotes) ; unescape_quotes
 
 (* Does this transformation work in general? *)
 
