@@ -104,9 +104,6 @@ let canonizer_iter : canonizer -> int -> int -> canonizer =
 let lens_swap: lens -> lens -> lens = 
   Native.Prelude.lens_swap
 
-let canonizer_swap: canonizer -> canonizer -> canonizer = 
-  Native.Prelude.canonizer_swap
-
 (* operations on lenses *)
 let invert : lens -> lens =
   Native.Prelude.invert
@@ -132,10 +129,10 @@ let filter : regexp -> regexp -> lens =
   Native.Prelude.filter
   
 (* canonizer operations *)
-let cls : canonizer -> string -> string =
-  Native.Prelude.cls
-let rep : canonizer -> string -> string = 
-  Native.Prelude.rep
+let canonize : canonizer -> string -> string =
+  Native.Prelude.canonize
+let choose : canonizer -> string -> string = 
+  Native.Prelude.choose
 let left_quot : canonizer -> lens -> lens = 
   Native.Prelude.left_quot
 let right_quot : lens -> canonizer -> lens =
@@ -176,8 +173,8 @@ let not : bool -> bool =
   Native.Prelude.not
 
 (* run-time checking *)
-let has_lens_type : lens -> regexp -> regexp -> bool = 
-  Native.Prelude.has_lens_type
+let in_lens_type : lens -> regexp -> regexp -> bool = 
+  Native.Prelude.in_lens_type
 
 (* coercions *)
 let canonizer_of_lens : lens -> canonizer = 

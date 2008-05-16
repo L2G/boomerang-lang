@@ -633,7 +633,7 @@ asort:
         SRefine(l,SLens,
                 mk_app i 
                   (mk_app i 
-                     (mk_app i (mk_prelude_var "has_lens_type") (mk_var l))
+                     (mk_app i (mk_prelude_var "in_lens_type") (mk_var l))
                      $2) $4) }
 
   | CHAR
