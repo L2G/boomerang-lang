@@ -113,6 +113,10 @@ module Qid : sig
   (** [mk_prelude_t s] constructs the qualified identifier representing
       [Prelude.s] with dummy parsing info. *)
 
+  val mk_core_t : string -> t
+  (** [mk_prelude_core_t s] constructs the qualified identifier representing
+      [Prelude.Core.s] with dummy parsing info. *)
+
   val mk_list_t : string -> t
   (** [mk_list_t s] constructs the qualified identifier representing
       [List.s] with dummy parsing info. *) 
@@ -225,7 +229,7 @@ type decl =
     | DTest of Info.t * exp * test_result
 (** The type of declaration ASTs. *)
 
-type modl = Mod of Info.t * Id.t * Id.t list * decl list
+type modl = Mod of Info.t * Id.t * Qid.t list * decl list
 (** The type of module ASTs: the name of the module, a list of "open"
     modules, and a list of declarations. *)
           

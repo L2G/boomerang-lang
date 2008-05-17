@@ -277,7 +277,7 @@ and format_module = function
       msg "@[module %s =@\n  @[" (Id.string_of_t m);
       if qs <> [] then 
         Misc.format_list "@\n" 
-          (fun x -> msg "open %s" (Id.string_of_t x))
+          (fun x -> msg "open %s" (Qid.string_of_t x))
           qs;
       Misc.format_list "@\n" format_decl ds;
       msg "@\n@]@\n@]"

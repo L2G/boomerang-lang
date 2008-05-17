@@ -56,8 +56,8 @@ end
 val reset : unit -> unit
 (** Resets the library. *)
 
-val pre_ctx : Bsyntax.Id.t list
-(** the initial naming context, i.e., [''Prelude''] *)
+val pre_ctx : Bsyntax.Qid.t list
+(** the initial naming context, i.e., ["Core" ; "Prelude" ] *)
 
 val get_library : unit -> REnv.t
 (** Returns the library, as an environment. *)
@@ -77,19 +77,19 @@ val load : string -> bool
 val find_filename : string -> string list -> string option
 (** ?? *)
 
-val lookup_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> rv option
+val lookup_library_ctx : Bsyntax.Qid.t list -> Bsyntax.Qid.t -> rv option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_library : Bsyntax.Qid.t -> rv option
 (** [lookup_library q] looks up [q] from the library *)
 
-val lookup_type_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+val lookup_type_library_ctx : Bsyntax.Qid.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_type_library : Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
 (** [lookup_library q] looks up [q] from the library *)
 
-val lookup_con_library_ctx : Bsyntax.Id.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+val lookup_con_library_ctx : Bsyntax.Qid.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_con_library : Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option

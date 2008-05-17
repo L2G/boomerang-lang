@@ -39,7 +39,7 @@ let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
 let mk_qid_var x = EVar(Qid.info_of_t x,x)
 let mk_var x = mk_qid_var (Qid.t_of_id x)
 let mk_native_prelude_var x = mk_qid_var (Qid.mk_native_prelude_t x)
-let mk_prelude_var x = mk_qid_var (Qid.mk_prelude_t x)
+let mk_core_var x = mk_qid_var (Qid.mk_core_t x)
 let mk_list_var x = mk_qid_var (Qid.mk_list_t x)
 let mk_over i op el = EOver(i,op,el)
 let mk_app i e1 e2 = EApp(i,e1,e2)
@@ -50,22 +50,22 @@ let mk_iter i min max e1 = mk_over i (OIter(min,max)) [e1]
 let mk_acond i e1 e2 = mk_over i OBar [e1;e2]
 let mk_cond i e1 e2 = mk_over i OBar [e1;e2]
 let mk_swap i e1 e2 = mk_over i OTilde [e1;e2]
-let mk_diff i e1 e2 = mk_bin_op i (mk_native_prelude_var "diff") e1 e2
-let mk_inter i e1 e2 = mk_bin_op i (mk_native_prelude_var "inter") e1 e2
-let mk_compose i e1 e2 = mk_bin_op i (mk_native_prelude_var "compose") e1 e2
-let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (Qid.mk_native_prelude_t "set")) e1 e2
+let mk_diff i e1 e2 = mk_bin_op i (mk_core_var "diff") e1 e2
+let mk_inter i e1 e2 = mk_bin_op i (mk_core_var "inter") e1 e2
+let mk_compose i e1 e2 = mk_bin_op i (mk_core_var "compose") e1 e2
+let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (Qid.mk_core_t "set")) e1 e2
 let mk_match i x q =   
   mk_bin_op i 
-    (mk_native_prelude_var "dmatch")
+    (mk_core_var "dmatch")
     (EString(i,Bstring.t_of_string x)) 
     (mk_qid_var q)
 let mk_sim_match i e t q = 
   mk_tern_op i 
-    (mk_native_prelude_var "smatch")
+    (mk_core_var "smatch")
     (EString(i,Bstring.t_of_string (string_of_float e)))
     (EString(i,Bstring.t_of_string t))
     (mk_qid_var q)
-let mk_rx i e = mk_app i (mk_native_prelude_var "str") e
+let mk_rx i e = mk_app i (mk_core_var "str") e
 
 (* error *)
 let syntax_error i msg = 
@@ -128,17 +128,19 @@ let parse_qid i qstr =
 
 (* helper for building functions *)
 let build_fun i param_alts body sort = 
-  Safelist.fold_right
-    (fun pa (f,s) -> match pa with 
-       | Misc.Left(p) -> 
-           let f' = EFun(i,p,Some s,f) in 
-           let s' = SFunction(id_of_param p,sort_of_param p,s) in          
-           (f',s')
-       | Misc.Right(a) -> 
-           let f' = ETyFun(i,a,f) in 
+  let f,_,f_sort = 
+    Safelist.fold_right
+      (fun pa (f,so,s) -> match pa with 
+         | Misc.Left(p) -> 
+             let f' = EFun(i,p,so,f) in 
+             let s' = SFunction(id_of_param p,sort_of_param p,s) in
+               (f',None,s')
+         | Misc.Right(a) -> 
+             let f' = ETyFun(i,a,f) in 
            let s' = SForall(a,s) in 
-           (f',s'))
-    param_alts (body,sort)
+             (f',None,s'))
+      param_alts (body,Some sort,sort) in 
+  (f,f_sort)
 
 (* helper for building un-sorted functions *)
 let build_bare_fun i param_alts body = 
@@ -172,7 +174,7 @@ let build_bare_fun i param_alts body =
 
 %start modl uid qid
 %type <Bsyntax.modl> modl
-%type <Bsyntax.Id.t> uid
+%type <Bsyntax.Qid.t> uid
 %type <Bsyntax.Qid.t> qid
 %%
 
@@ -182,7 +184,7 @@ modl:
       { Mod(m $1 $6,$2,$4,$5) }
 
 opens:
-  | OPEN UIDENT opens  
+  | OPEN qid opens  
       { $2::$3 }
   | { [] }
 
@@ -270,13 +272,13 @@ exp:
 gpexp: 
   | cexp GET aexp
       { let i = me $1 $3 in 
-        mk_bin_op i (mk_prelude_var "rget") $1 $3 }
-  | cexp PUT aexp INTO aexp        
-      { let i = me $1 $3 in 
-        mk_tern_op i (mk_prelude_var "rput") $1 $3 $5 }
-  | cexp CREATE aexp               
-      { let i = me $1 $3 in 
-        mk_bin_op i (mk_prelude_var "rcreate") $1 $3 }
+        mk_bin_op i (mk_core_var "rget") $1 $3 }
+  | cexp PUT aexp INTO aexp
+      { let i = me $1 $3 in
+        mk_tern_op i (mk_core_var "rput") $1 $3 $5 }
+  | cexp CREATE aexp
+      { let i = me $1 $3 in
+        mk_bin_op i (mk_core_var "rcreate") $1 $3 }
   | cexp
       { $1 } 
 
@@ -391,14 +393,14 @@ tyexp:
 
 andexp:
   | andexp AND orexp
-      { mk_bin_op (me $1 $3) (mk_native_prelude_var "land") $1 $3 }
+      { mk_bin_op (me $1 $3) (mk_core_var "land") $1 $3 }
 
   | orexp 
       { $1 }
 
 orexp:
   | orexp OR aexp
-      { mk_bin_op (me $1 $3) (mk_native_prelude_var "lor") $1 $3 }
+      { mk_bin_op (me $1 $3) (mk_core_var "lor") $1 $3 }
 
   | aexp 
       { $1 }
@@ -630,11 +632,11 @@ bsort:
 asort:
   | LANGLE appexp DARROW appexp RANGLE
       { let i = m $1 $5 in 
-        let l = Id.mk i "l" in 
+        let l = Id.mk i "_l" in 
         SRefine(l,SLens,
                 mk_app i 
                   (mk_app i 
-                     (mk_app i (mk_native_prelude_var "in_lens_type") (mk_var l))
+                     (mk_app i (mk_core_var "in_lens_type") (mk_var l))
                      $2) $4) }
 
   | CHAR
@@ -778,4 +780,4 @@ rep:
 /* --------- MISC SYMBOLS ---------- */
 uid:
   | UIDENT
-      { $1 }
+      { Qid.t_of_id $1 }

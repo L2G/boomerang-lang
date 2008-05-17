@@ -1,0 +1,170 @@
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007-2008                                                     *)
+(* J. Nathan Foster, Alexandre Pilkiewicz, and Benjamin C. Pierce              *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/lenses/core.boom                                                 *)
+(* Imports natively-defined primitives                                         *)
+(* $Id$ *)
+(*******************************************************************************)
+
+module Core = 
+
+(* polymorphic *)
+let equals : forall 'a => 'a -> 'a -> bool = 
+  Native.Prelude.equals
+let in_lens_type : lens -> regexp -> regexp -> bool = 
+  Native.Prelude.in_lens_type
+
+(* booleans *)
+let land : bool -> bool -> bool = 
+  Native.Prelude.land
+let lor : bool -> bool -> bool = 
+  Native.Prelude.lor
+let not : bool -> bool = 
+  Native.Prelude.not
+
+(* strings *)
+let string_concat : string -> string -> string = 
+  Native.Prelude.string_concat 
+
+(* regular expressions *) 
+let regexp_union : regexp -> regexp -> regexp = 
+  Native.Prelude.regexp_union
+let regexp_concat : regexp -> regexp -> regexp = 
+  Native.Prelude.regexp_concat 
+let regexp_iter : regexp -> int -> int -> regexp = 
+  Native.Prelude.regexp_iter
+
+let str : string -> regexp =
+  Native.Prelude.str
+let shortest : regexp -> string = 
+  Native.Prelude.shortest
+let empty : regexp = 
+  Native.Prelude.empty
+let inter : regexp -> regexp -> regexp = 
+  Native.Prelude.inter
+let is_empty : regexp -> bool = 
+  Native.Prelude.is_empty
+let diff : regexp -> regexp -> regexp = 
+  Native.Prelude.diff
+let equiv : regexp -> regexp -> bool = 
+  Native.Prelude.equiv
+let matches : regexp -> string -> bool = 
+  Native.Prelude.matches
+let disjoint (r1:regexp) (r2:regexp) : bool = 
+  is_empty (inter r1 r2)
+let splittable : regexp -> regexp -> bool = 
+  Native.Prelude.splittable
+let iterable : regexp -> bool = 
+  Native.Prelude.iterable
+
+(* lenses *)
+let ctype : lens -> regexp = 
+  Native.Prelude.ctype
+let atype : lens -> regexp =
+  Native.Prelude.atype
+
+let rget (l:lens) (c:string where matches (ctype l) c) : string =
+  Native.Prelude.unsafe_rget l c
+let rput (l:lens) (a:string where matches (atype l) a) (c:string where matches (ctype l) c) : string = 
+  Native.Prelude.unsafe_rput l a c
+let rcreate (l:lens) (a:string where matches (atype l) a) : string = 
+  Native.Prelude.unsafe_rcreate l a
+
+let copy (R:regexp) 
+  : (l:lens where land (equals{regexp} (ctype l) R) (equals{regexp} (atype l) R))
+  = Native.Prelude.copy R
+
+let const (R:regexp) (u:string) (v:string where matches R v) 
+  : (l:lens where land (equals{regexp} (ctype l) R) (equals{regexp} (atype l) (str u))) 
+  = 
+  Native.Prelude.const R u v
+
+let lens_union (l1:lens) 
+               (l2:lens where disjoint (ctype l1) (ctype l2))
+  : (l:lens where land (equals{regexp} (regexp_union (ctype l1) (ctype l2)) (ctype l))
+                       (equals{regexp} (regexp_union (atype l1) (atype l2)) (atype l)))
+  = 
+    Native.Prelude.lens_union l1 l2 
+
+let lens_concat (l1:lens)
+                (l2:lens where land (splittable (ctype l1) (ctype l2))
+                                    (splittable (ctype l1) (ctype l2)))
+  : (l:lens where land (equals{regexp} (regexp_concat (ctype l1) (ctype l2)) (ctype l))
+                       (equals{regexp} (regexp_concat (atype l1) (atype l2)) (atype l)))
+  = 
+    Native.Prelude.lens_concat l1 l2
+
+let lens_iter (l1:lens where land (iterable (ctype l1)) (iterable (atype l1))) (x:int) (y:int) 
+  : lens 
+  = 
+    Native.Prelude.lens_iter l1 x y 
+
+let invert : lens -> lens =
+  Native.Prelude.invert
+let dmatch : string -> lens -> lens = 
+  Native.Prelude.dmatch
+let smatch : string -> string -> lens -> lens = 
+  Native.Prelude.smatch
+let compose : lens -> lens -> lens =
+  Native.Prelude.compose
+let default : lens -> string -> lens =
+  Native.Prelude.default
+let key : regexp -> lens =
+  Native.Prelude.key
+let duplicate : lens -> lens -> lens -> lens = 
+  Native.Prelude.duplicate
+let duplicate_snd : lens -> lens -> lens -> lens = 
+  Native.Prelude.duplicate_snd
+let count : regexp -> lens =
+  Native.Prelude.count
+let forgetkey : lens -> lens = 
+  Native.Prelude.forgetkey
+let filter : regexp -> regexp -> lens = 
+  Native.Prelude.filter
+let lens_swap: lens -> lens -> lens = 
+  Native.Prelude.lens_swap
+
+(* canonizers *)
+let canonize : canonizer -> string -> string =
+  Native.Prelude.canonize
+let choose : canonizer -> string -> string = 
+  Native.Prelude.choose
+let left_quot : canonizer -> lens -> lens = 
+  Native.Prelude.left_quot
+let right_quot : lens -> canonizer -> lens =
+  Native.Prelude.right_quot
+
+let canonizer_concat : canonizer -> canonizer -> canonizer = 
+  Native.Prelude.canonizer_concat 
+let canonizer_iter : canonizer -> int -> int -> canonizer = 
+  Native.Prelude.canonizer_iter
+
+let columnize : string -> regexp -> string -> string -> canonizer = 
+  Native.Prelude.columnize
+
+(* misc utilities *)
+let read : string -> string = 
+  Native.Prelude.read
+
+(* run-time checking *)
+let canonizer_of_lens : lens -> canonizer = 
+  Native.Prelude.canonizer_of_lens
+let string_of_regexp : regexp -> string = 
+  Native.Prelude.string_of_regexp
+
+let blame 'a (s:string) : 'a = 
+  Native.Prelude.blame{'a} s

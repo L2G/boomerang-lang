@@ -324,6 +324,17 @@ let no_type_check = Prefs.createBool "no-type-check" false
   "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
   "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
 
+let splittable i r1 r2 = 
+  match Erx.unambig_seq r1.rx r2.rx with
+    | Erx.NA_true _ -> true
+    | _ -> false
+
+let iterable i r1 = 
+  match Erx.unambig_star r1.rx with
+    | Erx.NSA_true _ -> true
+    | _ -> false
+
+
 (* common stuff *)
 let unambig_seq i n r1 r2 = 
   if not (Prefs.read no_type_check) then( 

@@ -99,6 +99,7 @@ module Qid = struct
     (qs, Id.mk i x)
   let mk_native_prelude_t = mk_mod_t ["Native"; "Prelude"] 
   let mk_prelude_t = mk_mod_t ["Prelude"]
+  let mk_core_t = mk_mod_t ["Core"]
   let mk_list_t = mk_mod_t ["List"]    
   (* modules *)
   type this_t = t
@@ -228,7 +229,7 @@ type decl =
     | DTest of Info.t * exp * test_result
 
 (* modules *)
-type modl = Mod of Info.t * Id.t * Id.t list * decl list
+type modl = Mod of Info.t * Id.t * Qid.t list * decl list
 
 (* infix constructor for non-dependent functions *)
 let (^>) s1 s2 = SFunction(Id.wild,s1,s2)

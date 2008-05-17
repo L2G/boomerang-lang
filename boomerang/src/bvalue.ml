@@ -207,12 +207,13 @@ let parse_uid s =
     Blexer.setup "identifier constant";
     let x = 
       try Bparser.uid Blexer.main lexbuf
-      with _ -> raise 
-        (Error.Harmony_error
-           (fun () -> 
-              Util.format "@[%s:@ syntax@ error@ in@ identifier@ %s.@]" 
-                (Info.string_of_t (Blexer.info lexbuf))
-                s)) in 
+      with _ -> 
+        raise 
+          (Error.Harmony_error
+             (fun () -> 
+                Util.format "@[%s:@ syntax@ error@ in@ identifier@ %s.@]" 
+                  (Info.string_of_t (Blexer.info lexbuf))
+                  s)) in 
       Blexer.finish ();                    
       x
 

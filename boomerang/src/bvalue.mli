@@ -88,8 +88,8 @@ val mk_pfun : Info.t -> (t * t -> t) -> t
 val mk_vfun : Info.t -> (Bsyntax.Id.t * t option -> t) -> t
 
 (** {3 Parsing helper functions for constructing values.} *)
-val parse_uid : string -> Bsyntax.Id.t
-(** [parse_uid s] parses an [Id.t] from an uppercase string. *)
+val parse_uid : string -> Bsyntax.Qid.t
+(** [parse_uid s] parses a [Qid.t] from an uppercase string. *)
 
 val parse_qid : string -> Bsyntax.Qid.t
-(** [parse_qid s] parses a [Qid.t] from [s]. *)
+  (** [parse_qid s] parses a [Qid.t] from [s]. *)

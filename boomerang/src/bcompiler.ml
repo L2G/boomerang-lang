@@ -41,6 +41,8 @@ let v_of_rv = G.value_of_rv
 (* --------------- AST utilities --------------- *)
 
 let mk_var i q = EVar(i,q)
+let mk_core_var i s = 
+  mk_var i (Qid.mk_core_t s)
 let mk_native_prelude_var i s = 
   mk_var i (Qid.mk_native_prelude_t s)
 let mk_unit i  = EUnit(i)
@@ -110,8 +112,8 @@ sig
   val empty : Qid.t -> t
   val get_ev : t -> G.REnv.t
   val set_ev : t -> G.REnv.t -> t
-  val get_ctx : t -> Id.t list
-  val set_ctx : t -> Id.t list -> t
+  val get_ctx : t -> Qid.t list
+  val set_ctx : t -> Qid.t list -> t
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
   val lookup : t -> Qid.t -> v option
@@ -125,7 +127,7 @@ end
 
 module CEnv : CEnvSig with type v = G.rv = 
 struct
-  type t = (Id.t list * Qid.t) * G.REnv.t
+  type t = (Qid.t list * Qid.t) * G.REnv.t
   type v = G.rv
 
   let empty m = (([],m), G.REnv.empty ())
@@ -146,7 +148,7 @@ struct
       | Some r -> Some r
       | None -> begin  match nctx with
           | [] -> None
-          | o::orest -> aux orest (Bsyntax.Qid.id_dot o q)
+          | o::orest -> aux orest (Bsyntax.Qid.t_dot_t o q)
         end in 
     match aux ctx q with
       | Some r -> Some r
@@ -400,7 +402,7 @@ let rec mk_cast_blame lt i b f t e =
           (mk_if i e2 
              (mk_var i qx) 
              (mk_app i 
-                (ETyApp(i,mk_native_prelude_var i "blame",t2))
+                (ETyApp(i,mk_core_var i "blame",t2))
                 (EString(i,Bstring.t_of_string err)))
              t2)
   | SRefine(x,f1,e1),t1 -> 
@@ -471,7 +473,7 @@ let rec static_match i sev p0 s =
                 let rec resolve_label li lj = function
                   | [] -> None
                   | o::os -> 
-                      let qi = Qid.id_dot o li in 
+                      let qi = Qid.t_dot_t o li in 
                         if Qid.equal qi lj then Some qi
                         else resolve_label li lj os in
                 let rec find_label = function
@@ -646,7 +648,7 @@ and check_exp sev e0 =
                     mk_app i 
                       (mk_app i 
                          (mk_app i 
-                            (mk_var i (Qid.mk_native_prelude_t x))
+                            (mk_var i (Qid.mk_core_t x))
                             new_e1)
                          (mk_int i min))
                       (mk_int i max) 
@@ -655,19 +657,19 @@ and check_exp sev e0 =
           | ODot,[e1_sort,new_e1; e2_sort,new_e2] -> begin
               match find_rule dot_rules new_es with 
                 | Some x -> 
-                    mk_app3 i (mk_var i (Qid.mk_native_prelude_t x)) new_e1 new_e2 
+                    mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 
                 | None -> err ()
             end
           | OBar,[e1_sort,new_e1; e2_sort,new_e2] -> begin
               match find_rule bar_rules new_es with 
                 | Some x -> 
-                    mk_app3 i (mk_var i (Qid.mk_native_prelude_t x)) new_e1 new_e2 
+                    mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 
                 | None -> err ()
             end
           | OTilde,[e1_sort,new_e1; e2_sort,new_e2] -> begin
               match find_rule tilde_rules new_es with
                 | Some x -> 
-                    mk_app3 i (mk_var i (Qid.mk_native_prelude_t x)) new_e1 new_e2 
+                    mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 
                 | None -> err ()
             end
           | _ -> err () in 
@@ -954,7 +956,7 @@ and check_module_aux sev m ds =
 let check_module m0 = match m0 with 
   | Mod(i,m,nctx,ds) -> 
       let qm = Qid.t_of_id m in 
-      let sev = SCEnv.set_ctx (SCEnv.empty qm) (m::nctx@G.pre_ctx) in
+      let sev = SCEnv.set_ctx (SCEnv.empty qm) (qm::nctx@G.pre_ctx) in
       let checked_sev,_,checked_ds = check_module_aux sev [m] ds in 
       let res = Mod(i,m,nctx,checked_ds) in 
       Trace.debug "instr+" (fun () -> format_module res; msg "@\n");
@@ -1203,6 +1205,6 @@ and compile_mod_aux cev ms ds =
 let compile_module m0 = match m0 with 
   | Mod(i,m,nctx,ds) -> 
       let qm = Qid.t_of_id m in 
-      let cev = CEnv.set_ctx (CEnv.empty qm) (m::nctx@G.pre_ctx) in
+      let cev = CEnv.set_ctx (CEnv.empty qm) (qm::nctx@G.pre_ctx) in
       let new_cev,_ = compile_mod_aux cev [m] ds in
       G.register_env (CEnv.get_ev new_cev) m

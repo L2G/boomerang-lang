@@ -129,7 +129,7 @@ let loaded = ref ["Native"]
 let library : REnv.t ref = ref (REnv.empty ())
 
 (* constants *)
-let pre_ctx = Safelist.map Bvalue.parse_uid ["Prelude"]
+let pre_ctx = Safelist.map Bvalue.parse_uid [ "Core" ; "Prelude" ]
 
 (* utilities *)
 let get_library () = !library
@@ -253,11 +253,11 @@ let load_var q = match get_module_prefix q with
 let lookup_library_generic lookup_fun nctx q = 
   debug (fun () -> Util.format "lookup_library_generic [%s] [%s]@\n" 
            (Bsyntax.Qid.string_of_t q)
-           (Misc.concat_list "," (Safelist.map Bsyntax.Id.string_of_t nctx)));
+           (Misc.concat_list "," (Safelist.map Bsyntax.Qid.string_of_t nctx)));
   let rec lookup_library_aux nctx q2 =       
     debug (fun () -> Util.format "lookup_library_aux [%s] [%s]@\n" 
              (Bsyntax.Qid.string_of_t q2)
-             (Misc.concat_list "," (Safelist.map Bsyntax.Id.string_of_t nctx)));
+             (Misc.concat_list "," (Safelist.map Bsyntax.Qid.string_of_t nctx)));
     let try_lib () = lookup_fun !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
@@ -268,7 +268,7 @@ let lookup_library_generic lookup_fun nctx q =
               | None -> match nctx with 
                   | []       -> None
                   | o::orest -> 
-                      lookup_library_aux orest (Bsyntax.Qid.id_dot o q) 
+                      lookup_library_aux orest (Bsyntax.Qid.t_dot_t o q) 
             end
   in
   lookup_library_aux nctx q

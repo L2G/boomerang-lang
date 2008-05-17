@@ -16,7 +16,7 @@
 (*******************************************************************************)
 (* /boomerang/src/boomerang.ml                                                 *)
 (* Boomerang main function                                                     *)
-(* $Id$                                                                        *)
+(* $Id$ *)
 (*******************************************************************************)
 
 (* Trivial front end; all command-line arguments are explicit *)

@@ -653,7 +653,7 @@ module DLens = struct
       dl.ctype
       dl.atype
       dl.get
-      (rcreate dl)
+      (unsafe_rcreate dl)
       
   (* invert -- only for bijective lenses! *)
   let invert i dl = 
@@ -665,7 +665,7 @@ module DLens = struct
           string = n;
           ctype = ct;
           atype = at;
-          get = rcreate dl;
+          get = unsafe_rcreate dl;
           put = lift_rsd i (put_str n) at dl.stype (fun a _ d -> (dl.get a,d));
           parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict));
           create = lift_rd i (create_str n) at (fun a d -> (dl.get a,d));
