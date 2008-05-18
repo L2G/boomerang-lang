@@ -104,8 +104,8 @@ let qins (E:regexp) (e:string) : lens =
     (canonizer_of_lens (const E e e))
 
 (* unit tests for qins *)
-test qins [A-Z]+ "A" get "" = "A"
-test qins [A-Z]+ "A" create "ABC" = ""
+test (qins [A-Z]+ "A" get "") = "A"
+test (qins [A-Z]+ "A" create "ABC") = ""
 
 (* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
    direction. *)

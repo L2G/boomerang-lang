@@ -266,7 +266,7 @@ module Canonizer = struct
     }
 
   let copy i r = 
-    let n = sprintf "cp (%s)" (R.string_of_t r) in 
+    let n = sprintf "copy (%s)" (R.string_of_t r) in 
     let rt = r in 
     let ct = r in
       { info = i;
@@ -788,7 +788,7 @@ module DLens = struct
 
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 
-    let n = sprintf "%s . %s" dl1.string dl2.string in 
+    let n = sprintf "(%s . %s)" dl1.string dl2.string in 
     let ct = R.unambig_seq i n dl1.ctype dl2.ctype in 
     let at = R.unambig_seq i n dl1.atype dl2.atype in 
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in

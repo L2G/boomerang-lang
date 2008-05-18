@@ -24,7 +24,7 @@ module Core =
 
 (* polymorphic *)
 let equals : forall 'a => 'a -> 'a -> bool = 
-  Native.Prelude.equals
+  Native.Prelude.poly_equal
 let in_lens_type : lens -> regexp -> regexp -> bool = 
   Native.Prelude.in_lens_type
 
@@ -157,13 +157,13 @@ let columnize : string -> regexp -> string -> string -> canonizer =
   Native.Prelude.columnize
 
 (* integers *)
-let gt : int -> int -> bool = 
+let bgt : int -> int -> bool = 
   Native.Prelude.gt
-let lt : int -> int -> bool = 
+let blt : int -> int -> bool = 
   Native.Prelude.lt
-let geq : int -> int -> bool = 
+let bgeq : int -> int -> bool = 
   Native.Prelude.geq
-let leq : int -> int -> bool = 
+let bleq : int -> int -> bool = 
   Native.Prelude.leq
 let plus : int -> int -> int = 
   Native.Prelude.plus
@@ -171,9 +171,9 @@ let minus : int -> int -> int =
   Native.Prelude.minus
 let times : int -> int -> int = 
   Native.Prelude.times
-let div : int -> int -> int = 
+let bdiv : int -> int -> int = 
   Native.Prelude.div
-let mod : int -> int -> int = 
+let bmod : int -> int -> int = 
   Native.Prelude.mod
 
 (* misc utilities *)

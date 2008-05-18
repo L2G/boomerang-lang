@@ -219,8 +219,18 @@ and format_op = function
       else
         msg "{%d,%d}" m n
   | ODot -> msg "."
-  | OBar -> msg "|"
   | OTilde -> msg "~"
+  | OMinus -> msg "-"
+  | OBar -> msg "|"
+  | OAmp -> msg "&"
+  | OBarBar -> msg "||"
+  | OAmpAmp -> msg "&&"
+  | ODarrow -> msg "<->" 
+  | OEqual  -> msg "="
+  | OLt     -> msg "<"
+  | OLeq     -> msg "<="
+  | OGt     -> msg ">"
+  | OGeq    -> msg ">="
 
 and format_test_result tr =
   match tr with

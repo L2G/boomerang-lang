@@ -168,7 +168,7 @@ let build_bare_fun i param_alts body =
 %token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
-%token <Info.t> AND OR 
+%token <Info.t> LT GT LEQ GEQ  
 %token <Info.t> GET PUT CREATE INTO
 %token <Info.t> ERROR
 
@@ -210,16 +210,16 @@ decls:
       { let i = m $1 $5 in 
         DMod(i,$2,$4)::$6 }
 
-  | TEST exp EQUAL test_res decls
+  | TEST appexp EQUAL test_res decls
       { let i4,tr = $4 in 
         let i = m $1 i4 in 
         DTest(i,$2,tr)::$5 }
 
-  | TEST exp COLON test_type decls
+  | TEST appexp COLON test_type decls
       { let i = m $1 $3 in 
         DTest(i,$2,$4)::$5 }
 
-  | TEST exp COLON ERROR decls 
+  | TEST appexp COLON ERROR decls 
       { let i = m $1 $4 in 
         DTest(i,$2,TestError)::$5 }
       
@@ -232,7 +232,7 @@ test_res:
       { ($1,TestPrint) }
   | ERROR
       { ($1,TestError) }
-  | exp 
+  | appexp 
       { (info_of_exp $1, TestEqual $1) }
 
 test_type:
@@ -301,69 +301,100 @@ cexp:
 
 /* compose expressions */
 composeexp:
-  | composeexp SEMI pexp
+  | composeexp SEMI barexp
       { mk_compose (me $1 $3) $1 $3 }
       
-  | pexp
-      { $1 }
-
-/* product expressions */
-pexp:
-  | pexp COMMA bexp
-      { EPair(me $1 $3,$1,$3) }
-
-  | bexp
+  | barexp
       { $1 }
 
 /* bar expressions */
-bexp:
-  | bexp BAR mexp 
-      { mk_acond (me $1 $3) $1 $3 }
+barexp:
+  | barexp BAR infixexp
+      { mk_over (me $1 $3) OBar [$1; $3] } 
 
-  | bexp BAR BAR mexp 
-      { mk_cond (me $1 $4) $1 $4 }
+  | barexp BAR BAR infixexp
+      { mk_over (me $1 $4) OBarBar [$1; $4] } 
 
-  | mexp
+  | infixexp
       { $1 }
 
-/* minus expressions */
-mexp:
-  | mexp MINUS iexp
-      { mk_diff (me $1 $3) $1 $3 }
-
-  | iexp 
+infixexp:
+  | dotexp 
       { $1 }
 
-/* inter expressions */
-iexp:
-  | iexp AMPERSAND sexp
-      { mk_inter (me $1 $3) $1 $3 }
-
-  | sexp 
+  | tildeexp
       { $1 }
 
-/* swap expressions */
-sexp:
-  | sexp TILDE catexp 
-      { mk_swap (me $1 $3) $1 $3 }
-
-  | catexp 
-      { $1 }
-  
-/* concat expressions */
-catexp:
-  | catexp DOT texp                     
-      { mk_cat (me $1 $3) $1 $3 }
-
-  | texp                              
+  | minusexp
       { $1 }
 
-/* set expressions */
-texp:
-  | texp DARROW appexp
-      { mk_set (me $1 $3) $1 $3 }
-  | appexp                                
+  | ampexp 
       { $1 }
+
+  | ampampexp 
+      { $1 }
+
+  | darrowexp
+      { $1 }
+
+  | equalexp 
+      { $1 }
+
+  | ltexp 
+      { $1 }
+
+  | leqexp 
+      { $1 }
+
+  | gtexp 
+      { $1 }
+
+  | geqexp
+      { $1 }
+
+  | appexp
+      { $1 }
+
+dotexp:
+  | dotexp DOT appexp
+      { mk_over (me $1 $3) ODot [$1; $3] }
+  | appexp DOT appexp
+      { mk_over (me $1 $3) ODot [$1; $3] }
+
+tildeexp:
+  | tildeexp TILDE appexp
+      { mk_over (me $1 $3) OTilde [$1; $3] }
+  | appexp TILDE appexp
+      { mk_over (me $1 $3) OTilde [$1; $3] }
+minusexp:
+  | appexp MINUS appexp
+      { mk_over (me $1 $3) OMinus [$1; $3] }
+ampexp:
+  | ampexp AMPERSAND appexp 
+      { mk_over (me $1 $3) OAmp [$1; $3] }
+  | appexp AMPERSAND appexp 
+      { mk_over (me $1 $3) OAmp [$1; $3] }
+ampampexp:
+  | appexp AMPERSAND AMPERSAND appexp 
+      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
+darrowexp:
+  | appexp DARROW appexp 
+      { mk_over (me $1 $3) ODarrow [$1; $3] }
+equalexp:
+  | appexp EQUAL appexp 
+      { mk_over (me $1 $3) OEqual [$1; $3] }
+ltexp:
+  | appexp LT appexp 
+      { mk_over (me $1 $3) OLt [$1; $3] }
+leqexp:
+  | appexp LEQ appexp 
+      { mk_over (me $1 $3) OLeq [$1; $3] }
+gtexp:
+  | appexp GT appexp 
+      { mk_over (me $1 $3) OGt [$1; $3] }
+geqexp:
+  | appexp GEQ appexp 
+      { mk_over (me $1 $3) OGeq [$1; $3] }
 
 /* application expressions */
 appexp:
@@ -388,23 +419,8 @@ tyexp:
       { let i = me1 $1 $4 in 
         ETyApp(i,$1,$3) }
 
-  | andexp 
-      { $1 }
-
-andexp:
-  | andexp AND orexp
-      { mk_bin_op (me $1 $3) (mk_core_var "land") $1 $3 }
-
-  | orexp 
-      { $1 }
-
-orexp:
-  | orexp OR aexp
-      { mk_bin_op (me $1 $3) (mk_core_var "lor") $1 $3 }
-
   | aexp 
       { $1 }
-
 
 /* atomic expressions */
 aexp:
@@ -479,14 +495,14 @@ list:
   | RBRACK 
       { $1, (fun i s -> ETyApp(i,mk_list_var "Nil",s)) }
 
-  | pexp RBRACK 
+  | barexp RBRACK 
       { ($2, 
          (fun i s -> 
             mk_app i 
               (ETyApp(i,mk_list_var "Cons",s))
               (EPair(i,$1,ETyApp(i,mk_list_var "Nil",s))))) }
 
-  | pexp SEMI list
+  | barexp SEMI list
     { let i3,mk = $3 in 
       (i3, 
        (fun i s -> 
@@ -496,7 +512,7 @@ list:
 
 /* --------- PATTERNS ---------- */
 branch: 
-  | pat ARROW mexp 
+  | pat ARROW infixexp 
       { let i = m (info_of_pat $1) (info_of_exp $3) in 
         (i,$1,$3) }
 
@@ -624,11 +640,17 @@ bsort:
   | LPAREN id COLON sort WHERE exp RPAREN
       { SRefine($2,$4,$6) }
 
-  | LANGLE appexp DARROW appexp RANGLE
-      { let i = me $2 $4 in 
+  | LPAREN LENS IN appexp DARROW appexp RPAREN
+      { let i = m $1 $7 in 
         let l = Id.mk i "_l" in 
         let chk c a = mk_tern_op i (mk_core_var "in_lens_type") (mk_var l) c a in 
-        SRefine(l,SLens,chk $2 $4) }
+        SRefine(l,SLens,chk $4 $6) }
+
+  | LPAREN STRING IN exp RPAREN 
+      { let i = m $1 $5 in 
+        let s = Id.mk i "_s" in 
+        let p = mk_bin_op i (mk_core_var "matches") $4 (mk_var s) in 
+        SRefine(s,SString,p) }
 
   | asort 
       { $1 }
@@ -747,7 +769,18 @@ param:
       { let i,_ = $2 in 
         Misc.Left (Param(i,$2,$4)) }
 
-param: 
+  | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_tern_op i (mk_core_var "in_lens_type") (mk_var $2) $6 $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON STRING IN exp RPAREN
+      { let i = m $1 $7 in 
+        let p = mk_bin_op i (mk_core_var "matches") $6 (mk_var $2) in 
+        let s = SRefine($2,SString,p) in
+        Misc.Left (Param(i,$2,s)) }
+
   | LPAREN id COLON sort WHERE exp RPAREN
       { let i,_ = $2 in 
         let s = SRefine($2,$4,$6) in 

@@ -612,18 +612,30 @@ and check_exp sev e0 =
         [ SRegexp, "regexp_iter";
           SLens, "lens_iter";
           SCanonizer, "canonizer_iter" ] in 
-      let dot_rules = 
-        [ SString, "string_concat";
-          SRegexp, "regexp_concat";
-          SLens, "lens_concat";
-          SCanonizer, "canonizer_concat" ] in 
-      let bar_rules = 
-        [ SRegexp, "regexp_union";
-          SLens, "lens_union";
-          SCanonizer, "canonizer_union" ] in 
-      let tilde_rules =
-        [ SLens, "lens_swap";
-          SCanonizer, "canonizer_swap" ] in 
+      let bin_rules =
+        [ ODot, 
+          [ SString, "string_concat";
+            SRegexp, "regexp_concat";
+            SLens, "lens_concat";
+            SCanonizer, "canonizer_concat" ]
+        ; OTilde,
+          [ SLens, "lens_swap";
+            SCanonizer, "canonizer_swap" ] 
+        ; OMinus,
+          [ SRegexp, "diff";
+            SInteger, "minus" ]
+        ; OBar,
+          [ SRegexp, "regexp_union";
+            SLens, "lens_union";
+            SCanonizer, "canonizer_union" ]
+        ; OAmp,    [ SRegexp, "inter" ]
+        ; OBarBar, [ SBool, "lor" ]
+        ; OAmpAmp, [ SBool, "land" ]
+        ; ODarrow, [ SLens, "set" ]
+        ; OLt, [ SInteger, "blt" ] 
+        ; OLeq, [ SInteger, "bleq" ] 
+        ; OGt, [ SInteger, "bgt" ] 
+        ; OGeq, [ SInteger, "bgeq" ] ] in 
       (* helper to find rule *)
       let rec find_rule r es = match r with 
         | [] -> None
@@ -654,20 +666,13 @@ and check_exp sev e0 =
                       (mk_int i max) 
                 | None -> err () 
             end
-          | ODot,[e1_sort,new_e1; e2_sort,new_e2] -> begin
-              match find_rule dot_rules new_es with 
-                | Some x -> 
-                    mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 
-                | None -> err ()
-            end
-          | OBar,[e1_sort,new_e1; e2_sort,new_e2] -> begin
-              match find_rule bar_rules new_es with 
-                | Some x -> 
-                    mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 
-                | None -> err ()
-            end
-          | OTilde,[e1_sort,new_e1; e2_sort,new_e2] -> begin
-              match find_rule tilde_rules new_es with
+          | OEqual,[e1_sort,new_e1; e2_sort,new_e2] -> 
+              mk_app3 i 
+                (mk_tyapp i (mk_var i (Qid.mk_core_t "equals")) e1_sort) 
+                new_e1 new_e2                
+          | op,[e1_sort,new_e1; e2_sort,new_e2] -> begin
+              let rules = try Safelist.assoc op bin_rules with _ -> err () in 
+              match find_rule rules new_es with 
                 | Some x -> 
                     mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 
                 | None -> err ()

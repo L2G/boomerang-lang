@@ -240,10 +240,10 @@ let prelude_spec =
 
   (* polymorphic functions *)
   ; begin 
-    let i = Info.M "equal built-in" in 
+    let i = Info.M "poly_equal built-in" in 
     let a = S.Id.mk i "a" in 
     let a_sort = S.SVar a in 
-    (S.Qid.mk_native_prelude_t "equals",
+    (S.Qid.mk_native_prelude_t "poly_equal",
      S.SForall(a,a_sort ^> a_sort ^> S.SBool),
      mk_ufun i (fun () -> 
        mk_f i (fun v1 -> 

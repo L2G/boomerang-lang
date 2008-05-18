@@ -187,8 +187,18 @@ and exp =
 and op = 
   | OIter of int * int
   | ODot
-  | OBar
   | OTilde
+  | OMinus
+  | OBar
+  | OAmp
+  | OBarBar
+  | OAmpAmp
+  | ODarrow
+  | OEqual
+  | OLt
+  | OLeq
+  | OGt
+  | OGeq
 
 (* patterns *)
 and pat = 
