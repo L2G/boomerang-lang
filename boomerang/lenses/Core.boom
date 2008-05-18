@@ -156,6 +156,26 @@ let canonizer_iter : canonizer -> int -> int -> canonizer =
 let columnize : string -> regexp -> string -> string -> canonizer = 
   Native.Prelude.columnize
 
+(* integers *)
+let gt : int -> int -> bool = 
+  Native.Prelude.gt
+let lt : int -> int -> bool = 
+  Native.Prelude.lt
+let geq : int -> int -> bool = 
+  Native.Prelude.geq
+let leq : int -> int -> bool = 
+  Native.Prelude.leq
+let plus : int -> int -> int = 
+  Native.Prelude.plus
+let minus : int -> int -> int = 
+  Native.Prelude.minus
+let times : int -> int -> int = 
+  Native.Prelude.times
+let div : int -> int -> int = 
+  Native.Prelude.div
+let mod : int -> int -> int = 
+  Native.Prelude.mod
+
 (* misc utilities *)
 let read : string -> string = 
   Native.Prelude.read

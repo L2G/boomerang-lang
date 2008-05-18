@@ -164,7 +164,7 @@ let build_bare_fun i param_alts body =
 %token <Info.t * bool> BOOLEAN
 %token <Info.t * float> FLOAT
 %token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
-%token <Info.t> ARROW DARROW EQARROW
+%token <Info.t> ARROW DARROW DEQARROW EQARROW
 %token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
@@ -289,12 +289,12 @@ cexp:
         ECase(m $1 i4,$2,pl,$6) }
 
   | LPAREN MATCH composeexp WITH branch_list RPAREN COLON sort
-      { let i5,pl = $5 in 
-        ECase(m $1 i5,$3,pl,$8) }
+      { let _,pl = $5 in 
+        ECase(m $1 $6,$3,pl,$8) }
 
   | BEGIN MATCH composeexp WITH branch_list END COLON sort
-      { let i5,pl = $5 in 
-        ECase(m $1 i5,$3,pl,$8) }
+      { let _,pl = $5 in 
+        ECase(m $1 $6,$3,pl,$8) }
 
   | composeexp
       { $1 }
@@ -405,8 +405,18 @@ orexp:
   | aexp 
       { $1 }
 
+
 /* atomic expressions */
 aexp:
+  | LPAREN exp RPAREN
+      { $2 }
+
+  | BEGIN exp END                       
+      { $2 }
+
+  | qid
+      { mk_qid_var $1 }
+
   | LANGLE qid RANGLE
       { mk_match (m $1 $3) "" $2 }
 
@@ -445,9 +455,6 @@ aexp:
       { let i,b = $1 in 
         EBoolean(i,b) }
 
-  | qid 
-      { mk_qid_var $1 }
-
   | CSET                                
       { let i1,s1 = $1 in 
         ECSet(i1,true,parse_cset s1) }
@@ -466,12 +473,6 @@ aexp:
 
   | LPAREN RPAREN
       { EUnit(m $1 $2) }
-      
-  | LPAREN exp RPAREN
-      { $2 }
-
-  | BEGIN exp END                       
-      { $2 }
 
 /* --------- LISTS ------------ */
 list:
@@ -583,6 +584,7 @@ sort:
   | arrsort
       { $1 }
 
+/* function sorts */
 arrsort: 
   | psort ARROW arrsort 
       { SFunction(Id.wild,$1,$3) } 
@@ -603,9 +605,6 @@ psort:
 
 /* data type sorts */
 dsort:
-  | qvar
-      { SData([], $1) }
-
   | bsort qvar
       { SData([$1],$2) }
 
@@ -625,19 +624,19 @@ bsort:
   | LPAREN id COLON sort WHERE exp RPAREN
       { SRefine($2,$4,$6) }
 
+  | LANGLE appexp DARROW appexp RANGLE
+      { let i = me $2 $4 in 
+        let l = Id.mk i "_l" in 
+        let chk c a = mk_tern_op i (mk_core_var "in_lens_type") (mk_var l) c a in 
+        SRefine(l,SLens,chk $2 $4) }
+
   | asort 
       { $1 }
 
 /* atomic sorts */
 asort:
-  | LANGLE appexp DARROW appexp RANGLE
-      { let i = m $1 $5 in 
-        let l = Id.mk i "_l" in 
-        SRefine(l,SLens,
-                mk_app i 
-                  (mk_app i 
-                     (mk_app i (mk_core_var "in_lens_type") (mk_var l))
-                     $2) $4) }
+  | qvar
+      { SData([], $1) }
 
   | CHAR
       { SChar }

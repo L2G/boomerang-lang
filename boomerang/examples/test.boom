@@ -1,0 +1,49 @@
+module Test =
+
+(* Blume and McCallester example *)
+let g (f:(x:int where gt x 0) -> (x:int where gt x 0)) : int -> int = f
+test (g (fun (x:int) : int -> x)) 0 = error (* <<File "./Test.boom", line 4, characters 70-71:false>> blamed! *)
+
+(* Note that *)
+let g (f:(x:int where gt x 0) -> (x:int where gt x 0)) = f
+test (g (fun (x:int) : int -> x)) 0 = error (* <<File "./Test.boom", line 9, characters 34-35:false>> blamed! *)
+
+let f (u:unit) =  (copy "a") | (copy [a-z])
+
+test f () = error
+
+let l : < ANY <-> ANY > = copy ANY
+
+let ls : (string List.t) = #{string}["a"; "b"; "c"]
+let lb = #{bool}[true;false]
+let li = #{int}[1;2;3]
+
+let f 'a (l:'a List.t) = 
+  (match l with 
+    | List.Nil -> 
+        "this is a nil list"
+    | List.Cons _ -> 
+        "this is a cons list") : string
+
+(*
+let f : forall 'a => (l:'a List.t -> string) = 
+  (fun 'a -> 
+    (fun (l:'a List.t) ->
+      "this is some sort of list"))
+*)
+
+let mget (l:lens) (s:string where Native.Prelude.matches (Native.Prelude.ctype l) s) : string = 
+  Native.Prelude.unsafe_rget l s 
+
+test mget "nate" "nate" = "nate"
+
+let apply (f:string -> string) (x:string) : string = f x
+
+let foo (f:(x:int -> (z:int where equals{int} z x))) = f 3
+
+test (Native.Prelude.equals{int} 7 2) = false
+
+test foo (fun (w:int) -> 5) = error
+test foo (fun (w:int) -> w) = 3
+
+test apply (rget (count [^])) (f{int} li) = "19"

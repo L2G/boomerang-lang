@@ -147,6 +147,7 @@ rule main = parse
 | "!"                { BANG(info lexbuf) }
 | "->"               { ARROW(info lexbuf) }
 | "=>"               { EQARROW(info lexbuf) }
+| "<=>"              { DEQARROW(info lexbuf) }
 | "<->"              { DARROW(info lexbuf) }
 | "|"                { BAR(info lexbuf) }
 | "="                { EQUAL(info lexbuf) }

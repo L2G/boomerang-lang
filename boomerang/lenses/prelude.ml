@@ -111,6 +111,9 @@ let pmk_cs    = pmk1 S.SChar mk_cfun S.SString mk_s
 let pmk_bb    = pmk1 S.SBool mk_bfun S.SBool mk_b
 let pmk_bbb   = pmk2 S.SBool mk_bfun S.SBool mk_bfun S.SBool mk_b 
 
+let pmk_iib   = pmk2 S.SInteger mk_ifun  S.SInteger mk_ifun S.SBool mk_b
+let pmk_iii   = pmk2 S.SInteger mk_ifun S.SInteger mk_ifun S.SInteger mk_i 
+
 let pmk_ss    = pmk1 S.SString mk_sfun S.SString mk_s
 let pmk_sss   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
 let pmk_sr    = pmk1 S.SString mk_sfun S.SRegexp mk_r
@@ -188,10 +191,21 @@ let prelude_spec =
   ; pmk_qll    "left_quot"              L.left_quot
   ; pmk_lql    "right_quot"             L.right_quot
   ; pmk_srssq  "columnize"              C.columnize
-                                        
+                                            
   (* char operations *)                 
   ; pmk_cs     "string_of_char"         (fun _ -> RS.make 1)
-                                        
+
+  (* char operations *)                 
+  ; pmk_iib     "gt"                    (fun _ -> (>))
+  ; pmk_iib     "lt"                    (fun _ -> (<))
+  ; pmk_iib     "geq"                   (fun _ -> (>=))
+  ; pmk_iib     "leq"                   (fun _ -> (<=))
+  ; pmk_iii    "plus"                   (fun _ -> (+))
+  ; pmk_iii    "minus"                  (fun _ -> (-))
+  ; pmk_iii    "times"                  (fun _ x y -> x * y)
+  ; pmk_iii    "div"                    (fun _ x y -> x / y)
+  ; pmk_iii    "mod"                    (fun _ x y -> x mod y)
+                                    
   (* string operations *)               
   ; pmk_sss    "string_concat"          (fun _ -> RS.append)
   ; pmk_ss     "read"                   (fun _ fn -> RS.t_of_string (Misc.read (RS.string_of_t fn)))

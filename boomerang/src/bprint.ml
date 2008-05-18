@@ -159,7 +159,7 @@ and format_exp e0 = match e0 with
     | ECase(_,e1,pl,s) -> 
         msg "@[<2>(match@ ";
         format_exp e1;
-        msg "@ with@ ";
+        msg "@ with";
         Misc.format_list "@ |@ "
           (fun (p,e) -> 
              msg "@[<2>@ ";
