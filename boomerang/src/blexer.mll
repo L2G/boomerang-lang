@@ -138,6 +138,11 @@ rule main = parse
 | "("                { LPAREN(info lexbuf) }
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }
+| ".get"             { GET(info lexbuf) }
+| ".put"             { PUT(info lexbuf) }
+| ".create"          { CREATE(info lexbuf) }
+| ".canonize"        { CANONIZE(info lexbuf) }
+| ".choose"          { CHOOSE(info lexbuf) }
 | "."                { DOT(info lexbuf) }
 | "&"                { AMPERSAND(info lexbuf) }
 | "*"                { STAR(info lexbuf) }

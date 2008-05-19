@@ -169,7 +169,7 @@ let build_bare_fun i param_alts body =
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> LT GT LEQ GEQ  
-%token <Info.t> GET PUT CREATE INTO
+%token <Info.t> GET PUT CREATE CANONIZE CHOOSE INTO
 %token <Info.t> ERROR
 
 %start modl uid qid
@@ -210,16 +210,16 @@ decls:
       { let i = m $1 $5 in 
         DMod(i,$2,$4)::$6 }
 
-  | TEST appexp EQUAL test_res decls
+  | TEST infixexp EQUAL test_res decls
       { let i4,tr = $4 in 
         let i = m $1 i4 in 
         DTest(i,$2,tr)::$5 }
 
-  | TEST appexp COLON test_type decls
+  | TEST infixexp COLON test_type decls
       { let i = m $1 $3 in 
         DTest(i,$2,$4)::$5 }
 
-  | TEST appexp COLON ERROR decls 
+  | TEST infixexp COLON ERROR decls 
       { let i = m $1 $4 in 
         DTest(i,$2,TestError)::$5 }
       
@@ -265,22 +265,9 @@ exp:
         let f,_ = build_fun i ($2::$3) $7 $5 in 
         f }
       
-  | gpexp                               
+  | cexp                               
       { $1 }
 
-/* "get put" expressions -- snipped JNF*/
-gpexp: 
-  | cexp GET aexp
-      { let i = me $1 $3 in 
-        mk_bin_op i (mk_core_var "rget") $1 $3 }
-  | cexp PUT aexp INTO aexp
-      { let i = me $1 $3 in
-        mk_tern_op i (mk_core_var "rput") $1 $3 $5 }
-  | cexp CREATE aexp
-      { let i = me $1 $3 in
-        mk_bin_op i (mk_core_var "rcreate") $1 $3 }
-  | cexp
-      { $1 } 
 
 /* case expressions */
 cexp:
@@ -309,53 +296,47 @@ composeexp:
 
 /* bar expressions */
 barexp:
-  | barexp BAR infixexp
+  | barexp BAR equalexp
       { mk_over (me $1 $3) OBar [$1; $3] } 
 
-  | barexp BAR BAR infixexp
+  | barexp BAR BAR equalexp
       { mk_over (me $1 $4) OBarBar [$1; $4] } 
 
+  | equalexp
+      { $1 }
+
+equalexp:
+  | appexp EQUAL appexp 
+      { mk_over (me $1 $3) OEqual [$1; $3] }
   | infixexp
       { $1 }
 
 infixexp:
   | dotexp 
       { $1 }
-
   | tildeexp
       { $1 }
-
   | minusexp
       { $1 }
-
   | ampexp 
       { $1 }
-
   | ampampexp 
       { $1 }
-
   | darrowexp
       { $1 }
-
   | deqarrowexp
       { $1 }
-
-  | equalexp 
-      { $1 }
-
   | ltexp 
       { $1 }
-
   | leqexp 
       { $1 }
-
   | gtexp 
       { $1 }
-
   | geqexp
       { $1 }
-
   | appexp
+      { $1 }
+  | gpexp
       { $1 }
 
 dotexp:
@@ -363,7 +344,6 @@ dotexp:
       { mk_over (me $1 $3) ODot [$1; $3] }
   | appexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
-
 tildeexp:
   | tildeexp TILDE appexp
       { mk_over (me $1 $3) OTilde [$1; $3] }
@@ -386,9 +366,6 @@ darrowexp:
 deqarrowexp:
   | appexp DEQARROW appexp
       { mk_over (me $1 $3) ODeqarrow [$1; $3] }
-equalexp:
-  | appexp EQUAL appexp 
-      { mk_over (me $1 $3) OEqual [$1; $3] }
 ltexp:
   | appexp LT appexp 
       { mk_over (me $1 $3) OLt [$1; $3] }
@@ -401,6 +378,22 @@ gtexp:
 geqexp:
   | appexp GEQ appexp 
       { mk_over (me $1 $3) OGeq [$1; $3] }
+gpexp: 
+  | appexp GET appexp
+      { let i = me $1 $3 in 
+        mk_bin_op i (mk_core_var "get") $1 $3 }
+  | appexp PUT appexp INTO appexp
+      { let i = me $1 $3 in
+        mk_tern_op i (mk_core_var "put") $1 $3 $5 }
+  | appexp CREATE appexp
+      { let i = me $1 $3 in
+        mk_bin_op i (mk_core_var "create") $1 $3 }
+  | appexp CANONIZE appexp
+      { let i = me $1 $3 in
+        mk_bin_op i (mk_core_var "canonize") $1 $3 }
+  | appexp CHOOSE appexp
+      { let i = me $1 $3 in
+        mk_bin_op i (mk_core_var "choose") $1 $3 }
 
 /* application expressions */
 appexp:
