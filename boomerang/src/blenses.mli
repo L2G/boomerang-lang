@@ -54,6 +54,7 @@ module DLens : sig
 
   val info : t -> Info.t
   val string : t -> string
+  val bij : t -> bool
   val ctype : t -> Bregexp.t
   val atype : t -> Bregexp.t
   val rget : t -> (Bstring.t -> Bstring.t)

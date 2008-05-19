@@ -115,9 +115,6 @@ let _ =
     ; ("type", (fun i -> TYPE i))
     ; ("of", (fun i -> OF i))
     ; ("into", (fun i -> INTO i))
-    ; ("get", (fun i -> GET i))
-    ; ("put", (fun i -> PUT i))
-    ; ("create", (fun i -> CREATE i))
     ; ("where", (fun i -> WHERE i))
     ; ("forall", (fun i -> FORALL i))
     ; ("lt", (fun i -> LT i))
@@ -137,6 +134,7 @@ let string = '"' [^'"']* '"'
 
 rule main = parse
 | whitespace         { main lexbuf }
+| "*)"               { error lexbuf "this is not the end of a comment" }
 | "("                { LPAREN(info lexbuf) }
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }

@@ -42,6 +42,7 @@ val expand : t -> Bstring.sym -> Bstring.t -> t
 (* operations *)
 val representative : t -> Bstring.t (* raises Not_found *)
 val is_empty : t -> bool
+val is_singleton : t -> bool
 
 val trim : t -> t
 val determinize : t -> t

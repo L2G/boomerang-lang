@@ -337,6 +337,9 @@ infixexp:
   | darrowexp
       { $1 }
 
+  | deqarrowexp
+      { $1 }
+
   | equalexp 
       { $1 }
 
@@ -380,6 +383,9 @@ ampampexp:
 darrowexp:
   | appexp DARROW appexp 
       { mk_over (me $1 $3) ODarrow [$1; $3] }
+deqarrowexp:
+  | appexp DEQARROW appexp
+      { mk_over (me $1 $3) ODeqarrow [$1; $3] }
 equalexp:
   | appexp EQUAL appexp 
       { mk_over (me $1 $3) OEqual [$1; $3] }
@@ -646,6 +652,12 @@ bsort:
         let chk c a = mk_tern_op i (mk_core_var "in_lens_type") (mk_var l) c a in 
         SRefine(l,SLens,chk $4 $6) }
 
+  | LPAREN LENS IN appexp DEQARROW appexp RPAREN
+      { let i = m $1 $7 in 
+        let l = Id.mk i "_l" in 
+        let chk c a = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var l) c a in 
+        SRefine(l,SLens,chk $4 $6) }
+
   | LPAREN STRING IN exp RPAREN 
       { let i = m $1 $5 in 
         let s = Id.mk i "_s" in 
@@ -772,6 +784,12 @@ param:
   | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
       { let i = m $1 $9 in 
         let p = mk_tern_op i (mk_core_var "in_lens_type") (mk_var $2) $6 $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DEQARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var $2) $6 $8 in 
         let s = SRefine($2,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 

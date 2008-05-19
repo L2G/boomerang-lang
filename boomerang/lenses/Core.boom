@@ -25,8 +25,6 @@ module Core =
 (* polymorphic *)
 let equals : forall 'a => 'a -> 'a -> bool = 
   Native.Prelude.poly_equal
-let in_lens_type : lens -> regexp -> regexp -> bool = 
-  Native.Prelude.in_lens_type
 
 (* booleans *)
 let land : bool -> bool -> bool = 
@@ -72,48 +70,49 @@ let iterable : regexp -> bool =
   Native.Prelude.iterable
 
 (* lenses *)
+let bij : lens -> bool = 
+  Native.Prelude.bij
 let ctype : lens -> regexp = 
   Native.Prelude.ctype
 let atype : lens -> regexp =
   Native.Prelude.atype
+let in_lens_type (l:lens) (c:regexp) (a:regexp) : bool = 
+  land (equiv (ctype l) c) (equiv (atype l) a)
+let in_bij_lens_type (l:lens) (c:regexp) (a:regexp) : bool = 
+  land (land (equiv (ctype l) c) (equiv (atype l) a)) (bij l)
 
-let rget (l:lens) (c:string where matches (ctype l) c) : string =
-  Native.Prelude.unsafe_rget l c
-let rput (l:lens) (a:string where matches (atype l) a) (c:string where matches (ctype l) c) : string = 
-  Native.Prelude.unsafe_rput l a c
-let rcreate (l:lens) (a:string where matches (atype l) a) : string = 
-  Native.Prelude.unsafe_rcreate l a
+let get (l:lens) (c:string where matches (ctype l) c) : string =
+  Native.Prelude.unsafe_get l c
+let put (l:lens) (a:string where matches (atype l) a) (c:string where matches (ctype l) c) : string = 
+  Native.Prelude.unsafe_put l a c
+let create (l:lens) (a:string where matches (atype l) a) : string = 
+  Native.Prelude.unsafe_create l a
 
-let copy (R:regexp) 
-  : (l:lens where land (equals{regexp} (ctype l) R) (equals{regexp} (atype l) R))
+let copy (R:regexp) : lens
   = Native.Prelude.copy R
 
-let const (R:regexp) (u:string) (v:string where matches R v) 
-  : (l:lens where land (equals{regexp} (ctype l) R) (equals{regexp} (atype l) (str u))) 
-  = 
-  Native.Prelude.const R u v
+let const (R:regexp) (u:string) (v:string where matches R v) : lens
+  = Native.Prelude.const R u v
 
-let lens_union (l1:lens) 
-               (l2:lens where disjoint (ctype l1) (ctype l2))
-  : (l:lens where land (equals{regexp} (regexp_union (ctype l1) (ctype l2)) (ctype l))
-                       (equals{regexp} (regexp_union (atype l1) (atype l2)) (atype l)))
-  = 
-    Native.Prelude.lens_union l1 l2 
+let lens_union (l1:lens) (l2:lens where disjoint (ctype l1) (ctype l2)) : lens
+  = Native.Prelude.lens_union l1 l2 
+
+let lens_disjoint_union 
+    (l1:lens) 
+    (l2:lens where land (disjoint (ctype l1) (ctype l2))
+                        (disjoint (atype l1) (atype l2))) : lens 
+  = Native.Prelude.lens_union l1 l2 
 
 let lens_concat (l1:lens)
                 (l2:lens where land (splittable (ctype l1) (ctype l2))
-                                    (splittable (ctype l1) (ctype l2)))
-  : (l:lens where land (equals{regexp} (regexp_concat (ctype l1) (ctype l2)) (ctype l))
-                       (equals{regexp} (regexp_concat (atype l1) (atype l2)) (atype l)))
-  = 
-    Native.Prelude.lens_concat l1 l2
+                                    (splittable (ctype l1) (ctype l2))) : lens
+  = Native.Prelude.lens_concat l1 l2
 
 let lens_iter (l1:lens where land (iterable (ctype l1)) (iterable (atype l1))) (x:int) (y:int) 
   : lens 
-  = 
-    Native.Prelude.lens_iter l1 x y 
+  = Native.Prelude.lens_iter l1 x y 
 
-let invert : lens -> lens =
+let invert : (l:lens where bij l) -> lens =
   Native.Prelude.invert
 let dmatch : string -> lens -> lens = 
   Native.Prelude.dmatch
@@ -188,3 +187,9 @@ let string_of_regexp : regexp -> string =
 
 let blame 'a (s:string) : 'a = 
   Native.Prelude.blame{'a} s
+
+let set (r:regexp) (s:string) = 
+  const r s (shortest r)
+
+let rewrite (s1:string) (s2:string) = 
+  const s1 s2 s1 

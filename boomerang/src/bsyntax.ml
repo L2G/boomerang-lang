@@ -194,6 +194,7 @@ and op =
   | OBarBar
   | OAmpAmp
   | ODarrow
+  | ODeqarrow
   | OEqual
   | OLt
   | OLeq

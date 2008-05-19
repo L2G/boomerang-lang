@@ -28,8 +28,6 @@ let ins (s:string) : lens = const // s ""
 
 let del (r:regexp) = const r "" (shortest r) 
 
-let set (r:regexp) (s:string) = const r s (shortest r)
-
 (* [ANYCHAR] any character *)
 let ANYCHAR = [^]
 
@@ -104,8 +102,8 @@ let qins (E:regexp) (e:string) : lens =
     (canonizer_of_lens (const E e e))
 
 (* unit tests for qins *)
-test (qins [A-Z]+ "A" get "") = "A"
-test (qins [A-Z]+ "A" create "ABC") = ""
+test (get (qins [A-Z]+ "A") "") = "A"
+test (create (qins [A-Z]+ "A") "ABC") = ""
 
 (* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
    direction. *)
@@ -115,10 +113,10 @@ let qdel (E:regexp) (e:string) : lens =
     (copy //)
 
 (* unit tests for qdel *)
-test (qdel [A-Z]+ "ZZZ" get "ABC") = ""
-test (qdel [A-Z]+ "ZZZ" put "" into "ABC") = "ZZZ"
-test (Native.Prelude.unsafe_rput (qdel [A-Z]+ "ZZZ") "1" "ABC") = "ZZZ"
-test (rput (qdel [A-Z]+ "ZZZ") "1" "ABC") = error
+test (get (qdel [A-Z]+ "ZZZ") "ABC") = ""
+test (put (qdel [A-Z]+ "ZZZ") "" "ABC") = "ZZZ"
+test (Native.Prelude.unsafe_put (qdel [A-Z]+ "ZZZ") "1" "ABC") = "ZZZ"
+test (put (qdel [A-Z]+ "ZZZ") "1" "ABC") = error
 
 type 'a option = 
     None | Some of 'a

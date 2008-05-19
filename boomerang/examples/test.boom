@@ -12,6 +12,9 @@ test (g (fun (x:int) : int -> x)) 0 = error (* <<File "./Test.boom", line 9, cha
 
 let f (u:unit) = copy "a" | copy [a-z]
 
+test ("a" = /a/) = true
+test (/a/ = /a/) = true
+
 test f () = error
 
 let l : (lens in ANY <-> ANY) = copy ANY

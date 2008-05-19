@@ -453,6 +453,7 @@ module DLens = struct
         info: Info.t;                           (* parsing info *)
         string: string;                         (* pretty printer *)
         (* --- types --- *)
+        bij: bool;                              (* bijective flag *)
         ctype: R.t;                             (* concrete type *)
         atype: R.t;                             (* abstract type *)
         dtype: dict_type;                       (* dictionary type *)
@@ -587,6 +588,7 @@ module DLens = struct
 
   let info dl = dl.info
   let string dl = dl.string
+  let bij dl = dl.bij
   let ctype dl = dl.ctype
   let atype dl = dl.atype
   let stype dl = dl.stype
@@ -600,9 +602,10 @@ module DLens = struct
   let k dl = dl.key
   let uid dl = dl.uid
     
-  let mk_t i s ct at dt st cr ar g put parse c k uid = 
+  let mk_t i s b ct at dt st cr ar g put parse c k uid = 
     { info = i;
       string = s;
+      bij = b;
       ctype = ct;
       atype = at;
       dtype = dt;
@@ -660,6 +663,10 @@ module DLens = struct
     let n = sprintf "invert (%s)" dl.string in 
     let ct = dl.atype in
     let at = dl.ctype in 
+    let () = 
+      if not (dl.bij) then 
+        Berror.static_error i n 
+          (sprintf "%s is not bijective" dl.string) in
       { dl with 
           info = i;
           string = n;
@@ -675,7 +682,7 @@ module DLens = struct
         
   (* ---------- copy ---------- *)
   let copy i r = 
-    let n = sprintf "cp (%s)" (R.string_of_t r) in 
+    let n = sprintf "copy (%s)" (R.string_of_t r) in 
     let ct = r in 
     let at = r in
     let dt = TMap.empty in
@@ -684,6 +691,7 @@ module DLens = struct
       | _ -> false in
       { info = i;
         string = n;
+        bij = true;
         ctype = ct;
         atype = at;
         dtype = dt;
@@ -719,6 +727,7 @@ module DLens = struct
           (sprintf "%s does not belong to %s" def (R.string_of_t r)) in 
       { info = i;
         string = n;
+        bij = R.is_empty_or_singleton ct;
         ctype = ct;
         atype = at;
 	dtype = dt;
@@ -762,6 +771,7 @@ module DLens = struct
           uncount (pred n) ct (RS.append acc ch) in
       { info = i;
         string = n;
+        bij = false;
         ctype = ct;
         atype = at;
         dtype = dt;
@@ -798,6 +808,7 @@ module DLens = struct
       (* lens *) 
       { info = i; 
         string = n;
+        bij = dl1.bij && dl2.bij;
         ctype = ct;
         atype = at;
 	dtype = dt;
@@ -839,7 +850,8 @@ module DLens = struct
     let st s = dl1.stype s || dl2.stype s in
       { info = i;
         string = n;
-        ctype = ct; 
+        bij = dl1.bij && dl2.bij && R.is_empty (R.inter dl1.atype dl2.atype);
+        ctype = ct;         
         atype = at;
 	dtype = dt;
 	stype = st;
@@ -875,6 +887,7 @@ module DLens = struct
       | _ -> false in
       { info = i;
 	string = n;
+        bij = dl1.bij;
 	ctype = ct;
 	atype = at;
 	dtype = dt;
@@ -933,6 +946,7 @@ module DLens = struct
       | _ -> false in
       { info = i;
         string = n;
+        bij = dl1.bij && dl2.bij;
         ctype = ct; 
         atype = at;
         dtype = dt;
@@ -964,7 +978,7 @@ module DLens = struct
       }
         
   let compose i dl1 dl2 = 
-    let n = sprintf "%s; %s" dl1.string dl2.string in 
+    let n = sprintf "%s; %s" dl1.string dl2.string in       
     let ct = dl1.ctype in
     let at = dl2.atype in 
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
@@ -987,6 +1001,7 @@ module DLens = struct
           end;
         { info = i; 
           string = n;
+          bij = dl1.bij && dl2.bij;
           ctype = ct;      
           atype = at;
           dtype = dt;
@@ -1050,6 +1065,7 @@ module DLens = struct
                 (c',d1++d2') in 
       { info = i;
         string = n;
+        bij = dl1.bij;
         ctype = ct;
         atype = at;
         stype = st;
@@ -1106,6 +1122,7 @@ module DLens = struct
       (* lens *) 
       { info = i; 
         string = n;
+        bij = dl1.bij && dl2.bij && dl3.bij;
         ctype = ct;
         atype = at;
         dtype = dt;
@@ -1182,6 +1199,7 @@ module DLens = struct
     let parse = lift_r i n ct (fun c -> (S_string c, empty_dict))in
       { info = i; 
         string = n;
+        bij = R.is_empty ru;
         ctype = ct;
         atype = at;
         dtype = dt;
@@ -1218,6 +1236,7 @@ module DLens = struct
       let rep = Canonizer.rep cn in
         { info = i; 
           string = n;
+          bij = false;
           ctype = ct;
           atype = at;
           dtype = dt;
@@ -1258,6 +1277,7 @@ module DLens = struct
       let rep = Canonizer.rep cn in
         { info = i; 
           string = n;
+          bij = false;
           ctype = ct;      
           atype = at;
           dtype = dt;

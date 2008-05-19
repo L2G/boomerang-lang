@@ -67,8 +67,14 @@ let rec equal v1 v2 = match v1,v2 with
       n1=n2
   | Chr(_,c1), Chr(_,c2) -> 
       c1=c2
+  | Chr(_,c), Str(_,s) | Str(_,s), Chr(_,c) -> 
+      RS.equal (RS.make 1 c) s
+  | Chr(_,c), Rx(_,r) | Rx(_,r), Chr(_,c) -> 
+      R.equiv (R.str false (RS.make 1 c)) r
   | Str(_,s1), Str(_,s2) -> 
-      RS.equal s1 s2
+      RS.equal s1 s2  
+  | Str(_,s), Rx(_,r) | Rx(_,r), Str(_,s) -> 
+      R.equiv (R.str false s) r
   | Rx(_,r1), Rx(_,r2) -> 
       R.equiv r1 r2
   | Lns _, Lns _ -> 

@@ -145,6 +145,9 @@ let is_epsilon r =
 let is_empty r = 
   r.rx == Erx.empty
 
+let is_empty_or_singleton r = 
+  is_empty r || Erx.is_singleton r.rx
+
 let box e = 
   let st = S.repr e in
     { str = st;

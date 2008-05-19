@@ -1190,6 +1190,11 @@ module NFA = struct
                 end in 
               build_rep q RS.empty
 
+  let is_singleton t = 
+    try 
+      (is_empty (mk_diff t (mk_str false (representative t))))
+    with Not_found -> false
+      
   (* module for traversing the transition graph *)
   module OldGraphTraverse(S:sig
     type 'a t
@@ -1638,6 +1643,7 @@ let format = N.format
 let init = N.init
 let next = N.next
 let is_empty = N.is_empty
+let is_singleton = N.is_singleton
 
 let mk_elt = N.mk_elt
 let mk_str = N.mk_str

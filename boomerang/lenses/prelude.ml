@@ -137,6 +137,7 @@ let pmk_ll    = pmk1 S.SLens mk_lfun S.SLens mk_l
 let pmk_lll   = pmk2 S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_l
 let pmk_llll  = pmk3 S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_l
 let pmk_liil  = pmk3 S.SLens mk_lfun S.SInteger mk_ifun S.SInteger mk_ifun S.SLens mk_l
+let pmk_lb    = pmk1 S.SLens mk_lfun S.SBool mk_b
 let pmk_lr    = pmk1 S.SLens mk_lfun S.SRegexp mk_r
 let pmk_lss   = pmk2 S.SLens mk_lfun S.SString mk_sfun S.SString mk_s
 let pmk_lsl   = pmk2 S.SLens mk_lfun S.SString mk_sfun S.SLens mk_l
@@ -154,12 +155,9 @@ let pmk_qiiq  = pmk3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun 
 
 let prelude_spec =
   [ (* lens operations *)
-    pmk_lss    "unsafe_rget"            (fun _ -> L.unsafe_rget)
-  ; pmk_lsss   "unsafe_rput"            (fun _ -> L.unsafe_rput)
-(*    pmk_lss    "rget"                   (fun _ -> L.rget)
-  ; pmk_lsss   "rput"                   (fun _ -> L.rput)
-  ; pmk_lss    "rcreate"                (fun _ -> L.rcreate) *)
-  ; pmk_lss    "unsafe_rcreate"         (fun _ -> L.unsafe_rcreate)
+    pmk_lss    "unsafe_get"             (fun _ -> L.unsafe_rget)
+  ; pmk_lsss   "unsafe_put"             (fun _ -> L.unsafe_rput)
+  ; pmk_lss    "unsafe_create"          (fun _ -> L.unsafe_rcreate)
   ; pmk_ll     "invert"                 L.invert
                                         
   (* core lens combinators *)           
@@ -232,7 +230,7 @@ let prelude_spec =
   ; pmk_bb     "not"                    (fun _ -> not)
                                         
   (* run-time checking *)               
-  ; pmk_lrrb   "in_lens_type"           (fun _ l c a -> R.equiv (L.ctype l) c && R.equiv (L.atype l) a)
+  ; pmk_lb     "bij"                    (fun _ -> L.bij)  
   ; pmk_lr     "ctype"                  (fun _ -> L.ctype)
   ; pmk_lr     "atype"                  (fun _ -> L.atype)
   ; pmk_lq     "canonizer_of_lens"      L.canonizer_of_t

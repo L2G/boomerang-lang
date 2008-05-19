@@ -626,12 +626,14 @@ and check_exp sev e0 =
             SInteger, "minus" ]
         ; OBar,
           [ SRegexp, "regexp_union";
-            SLens, "lens_union";
+            SLens, "lens_disjoint_union";
             SCanonizer, "canonizer_union" ]
         ; OAmp,    [ SRegexp, "inter" ]
-        ; OBarBar, [ SBool, "lor" ]
+        ; OBarBar, [ SLens, "lens_union";
+                     SBool, "lor" ]
         ; OAmpAmp, [ SBool, "land" ]
         ; ODarrow, [ SLens, "set" ]
+        ; ODeqarrow, [ SLens, "rewrite" ]
         ; OLt, [ SInteger, "blt" ] 
         ; OLeq, [ SInteger, "bleq" ] 
         ; OGt, [ SInteger, "bgt" ] 
@@ -652,34 +654,33 @@ and check_exp sev e0 =
              ((ei_sort,new_ei)::new_es))
           es [] in
       (* rewrite the overloaded symbol using the rules above *)
-      let raw_new_e = 
-        match op,new_es with
-          | OIter(min,max),[e1_sort,new_e1] -> begin 
-              match find_rule iter_rules new_es with 
-                | Some x ->
-                    mk_app i 
-                      (mk_app i 
-                         (mk_app i 
-                            (mk_var i (Qid.mk_core_t x))
-                            new_e1)
-                         (mk_int i min))
-                      (mk_int i max) 
-                | None -> err () 
-            end
-          | OEqual,[e1_sort,new_e1; e2_sort,new_e2] -> 
-              mk_app3 i 
-                (mk_tyapp i (mk_var i (Qid.mk_core_t "equals")) e1_sort) 
-                new_e1 new_e2                
-          | op,[e1_sort,new_e1; e2_sort,new_e2] -> begin
-              let rules = try Safelist.assoc op bin_rules with _ -> err () in 
-              match find_rule rules new_es with 
-                | Some x -> 
-                    mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 
-                | None -> err ()
-            end
-          | _ -> err () in 
-      (* and check the result *)
-      check_exp sev raw_new_e
+      match op,new_es with
+        | OIter(min,max),[e1_sort,new_e1] -> begin 
+            match find_rule iter_rules new_es with 
+              | Some x ->
+                  check_exp sev 
+                    (mk_app i 
+                       (mk_app i 
+                          (mk_app i 
+                             (mk_var i (Qid.mk_core_t x))
+                             new_e1)
+                          (mk_int i min))
+                       (mk_int i max)) 
+              | None -> err () 
+          end
+        | OEqual,[e1_sort,new_e1;e2_sort,new_e2] -> 
+            (SBool,
+             mk_app3 i 
+               (mk_tyapp i (mk_var i (Qid.mk_core_t "equals")) e1_sort) 
+               new_e1 new_e2)
+        | op,[e1_sort,new_e1; e2_sort,new_e2] -> begin
+            let rules = try Safelist.assoc op bin_rules with _ -> err () in 
+             match find_rule rules new_es with 
+               | Some x -> 
+                   check_exp sev (mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2)
+               | None -> err ()
+          end
+        | _ -> err () 
     end
 
   | EFun(i,Param(p_i,p_x,p_s),ret_sorto,body) ->

@@ -226,6 +226,7 @@ and format_op = function
   | OBarBar -> msg "||"
   | OAmpAmp -> msg "&&"
   | ODarrow -> msg "<->" 
+  | ODeqarrow -> msg "<=>" 
   | OEqual  -> msg "="
   | OLt     -> msg "<"
   | OLeq     -> msg "<="
