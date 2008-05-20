@@ -194,11 +194,9 @@ and format_exp e0 = match e0 with
     | EInteger (_,i) ->
 	msg "@[%d@]" i
 
-    | ECSet (_,negated, ranges) ->
+    | ECSet (_,pos, ranges) ->
 	msg "@[[";
-	(if negated
-	 then msg "^"
-	 else ());
+	(if pos then () else msg "^");
 	Misc.format_list ""
 	  (fun (first, last) ->
 	     if Bstring.compare_sym first last = 0

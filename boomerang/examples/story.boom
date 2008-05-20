@@ -21,111 +21,154 @@ module Story =
       - ass covering / buck passing (= polymorphism?  = inlining?)
           - note no need for sealing (core polymorphism = precise polymorphism)
       - quotienting
-
-THINGS TO DO:
-  - rename <-> as <=>
 *)
 
-(* -- *)
-let ANY_CHAR : regexp = [^]
-let ESC_SYMBOL : regexp = "\\\"" | "\\\\" | [^\\""]
+(* Our first lens maps between invidual ASCII characters, and their
+   escapings in XML. *)
 
-let escape_quotes_char : (lens in ANY_CHAR <-> ESC_SYMBOL) = 
-    '"' <-> "\\\""
-  | '\\' <-> "\\\\"
-  | copy (ANY_CHAR - [\\""]) 
+let ASCII_CHAR : regexp = [^]
+let XML_ESC : regexp = "&lt;" | "&gt;" | "&amp;" | [^<>&]
 
-(* -- *)
-let ANY : regexp = ANY_CHAR*
-let ESC_STRING : regexp = ESC_SYMBOL*
-
-let escape_quotes_string : (lens in ANY <-> ESC_STRING ) = 
-  escape_quotes_char*
-
-test escape_quotes_string.get
-    <<
-        <hello"world>
-    >>
-  = 
-    <<
-        <hello\"world>
-    >> 
-(* " *)
-(* -- *)
-let XML_ESC_SYMBOL : regexp = "&lt;" | "&gt;" | "&amp;" | [^<>&]
-
-let escape_xml_char : (lens in ANY_CHAR <-> XML_ESC_SYMBOL) = 
-    '<' <=> "&lt;"
+let escape_xml_char : (lens in ASCII_CHAR <=> XML_ESC) = 
+  '<' <=> "&lt;"
   | '>' <=> "&gt;"
   | '&' <=> "&amp;"
   | copy (ANYCHAR - [<>&])
 
-(* -- *)
-let XML_ESC_STRING : regexp = XML_ESC_SYMBOL*
+(* Using [escape_xml_char], we can build a lens to escape entire strings. *)
+
+let ANY : regexp = ASCII_CHAR*
+let XML_ESC_STRING : regexp = XML_ESC*
 
 let escape_xml : (lens in ANY <=> XML_ESC_STRING ) = 
   escape_xml_char*
 
-(* -- *)
+(* Next we build a lens that maps between individual ASCII characters,
+   and their escapings in formats like CSV. (This lens is a little bit harder
+   to read because we are escaping the quotation and escape symbol of 
+   Boomerang itself!)*)
+
+let ESC_SYMBOL : regexp = "\\\"" | "\\\\" | [^\\""]
+
+let escape_quotes_char : (lens in ASCII_CHAR <=> ESC_SYMBOL) = 
+    '"' <=> "\\\""
+  | '\\' <=> "\\\\"
+  | copy (ASCII_CHAR - [\\""]) 
+
+(* Using [escape_quotes_char] we can build a lens that escapes entire
+   strings. *)
+
+let ESC_STRING : regexp = ESC_SYMBOL*
+let escape_quotes_string : (lens in ANY <=> ESC_STRING ) = 
+  escape_quotes_char*
+
+test escape_quotes_string.get
+  <<
+    <hello"world>
+  >>
+= 
+  <<
+    <hello\"world>
+  >> 
+(* " *)
+
+(* Now we can compose these lenses to build a lens that maps between
+   strings escaped according to CSV and XML conventions. *)
+
 let quotes_to_xml : (lens in ESC_STRING <=> XML_ESC_STRING) = 
   (invert escape_quotes_string) ; escape_xml
 
 test quotes_to_xml.get
-    <<
-        <hello\"world>
-    >>
-  = 
-    <<
-        &lt;hello"world&gt;
-    >> 
+  <<
+    <hello\"world>
+  >>
+= 
+  <<
+    &lt;hello"world&gt;
+  >> 
 (* " *)
 
-(* Now let's build generic escaping functions... *)
+(* Why do we need precise type system? Let's review the "real" types
+   of the core lens combinators: dependent + refinement types. *)
+let lens_splittable (l1:lens) (l2:lens) : bool = 
+  (splittable l1.ctype l2.ctype) && (splittable l1.atype l2.atype)
 
-(* raw should be a char, actually *)
+let lens_iterable (l1:lens) : bool = 
+  (iterable l1.ctype) && (iterable l1.atype)
 
-(* Actually, we want to write first the dependently typed one.  Then
-   do the next example.  Then we say, "Whoa: what kind of type system
-   is this?  Can we typecheck it??"  And then we back off to just
-   "lens" (or even "pure macros"). *)
+let lens_disjoint (l1:lens) (l2:lens) : bool = 
+  ((l1.ctype & l2.ctype) = empty) && ((l1.atype & l2.atype) = empty)
 
+let lens_concat (l1:lens) (l2:lens where lens_splittable l1 l2) : lens = 
+  l1 . l2
+
+let lens_union (l1:lens) (l2:lens where lens_disjoint l1 l2) : lens = 
+  l1 | l2
+
+let lens_star (l1:lens where lens_iterable l1) : lens = 
+  l1*
+
+(* Now let's write a generic lens. *)
 let escape_char (raw:char) (esc:string) (R:regexp) 
-   : (lens in ((R - esc) | raw) <=> ((R - raw) | esc) ) 
+   : (lens in (R | raw) <=> (R | esc))
  = 
    ( raw <=> esc
-   | copy (R - (raw | esc)))
+   | copy R )
 
-let escape_char2 (raw:char) (esc:string) 
-                 (R:regexp where matches R raw && not (matches R esc)) 
-  : (lens in R <=> ((R - raw) | esc))
-= ( raw <=> esc 
-  | copy (R - (raw | esc)))
+test escape_char '&' "amp;" ASCII_CHAR = error
+(* 
+Test result: error
+(copy R) did not have sort (l2:lens where
+((land
+   ((disjoint
+      (ctype ((Core.rewrite (Native.Prelude.string_of_char raw)) esc)))
+     (ctype l2)))
+  ((disjoint
+     (atype ((Core.rewrite (Native.Prelude.string_of_char raw)) esc)))
+    (atype l2))))
+<<File "./Story.boom", line 116, characters 5-11:true>> blamed!
+*)
 
+(* This is bad: not only do we get an error, we get an inscrutable
+   error message that points us at a library function. 
 
-test (escape_char2 '&' "&amp;" ANY_CHAR)*.get "hello&world" = ?
+   Since we call lens_union, we should "cover our ass" to ensure that it
+   will be disjoint. *)
 
-test (escape_char '&' "&amp;" ANY_CHAR)*.get 
-    <<
-        hello&world
-    >>
-  = 
-    <<
-        hello&amp;world
-    >> 
+let escape_char (raw:char) (esc:string) 
+    (R:regexp where not ((matches R raw) || (matches R esc)))
+    : (lens in (R | raw) <=> (R | esc)) = 
+  ( raw <=> esc
+  | copy R )
 
-let escape_xml : (lens in ANY <=> XML_ESC_STRING ) = 
-  (  escape_char '&' "&amp;" [^]
-   ; escape_char '<' "&lt;"  ([^&] | "&amp;")
-   ; escape_char '>' "&gt;"  ([^&<] | "&amp;" | "&lt;") )*
+(* Now if we try to instantiate [escape_char] with bogus arguments,
+   Boomerang points the finger at the source of the problem *)
+
+test escape_char '&' "amp;" ASCII_CHAR = error
+
+(* ASCII_CHAR did not have sort (R:regexp where
+   (not ((Core.lor ((matches R) (Native.Prelude.string_of_char &)))
+   ((matches R) "&amp;"))))
+   <<File "./Story.boom", line 157, characters 32-42:true>> blamed! *)
+
+let R : regexp = [^&] | "&amp;" 
+
+let escape_xml_char : (lens in ASCII_CHAR <=> XML_ESC ) = 
+  ( escape_char '&' "&amp;" ([^&] | "&amp;")
+  ; escape_char '<' "&lt;"  ([^&<] | "&amp;")
+  ; escape_char '>' "&gt;"  ([^&<>] | "&amp;" | "&lt;") )
+     
+let escape_xml : (lens in ANY <=> XML_ESC_STRING) = 
+  escape_xml_char*
 
 test escape_xml.get 
-    <<
-        <hello&world>
-    >>
-  = 
-    <<
-        &lt;hello&amp;world&gt;
-    >> 
+  <<
+    <hello&world>
+  >>
+= 
+  <<
+    &lt;hello&amp;world&gt;
+  >> 
 
 (* ... or better... *)
 let escape_xml : (lens in ANY <=> XML_ESC_STRING ) = 

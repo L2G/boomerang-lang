@@ -676,7 +676,8 @@ and check_exp sev e0 =
             let rules = try Safelist.assoc op bin_rules with _ -> err () in 
              match find_rule rules new_es with 
                | Some x -> 
-                   check_exp sev (mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2)
+                   let new_e = mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 in
+                   check_exp sev new_e
                | None -> err ()
           end
         | _ -> err () 

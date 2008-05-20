@@ -138,6 +138,9 @@ rule main = parse
 | "("                { LPAREN(info lexbuf) }
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }
+| ".ctype"           { CTYPE(info lexbuf) }
+| ".atype"           { ATYPE(info lexbuf) }
+| ".bij"             { BIJ(info lexbuf) }
 | ".get"             { GET(info lexbuf) }
 | ".put"             { PUT(info lexbuf) }
 | ".create"          { CREATE(info lexbuf) }

@@ -175,7 +175,7 @@ let rec fixup_pat i p0 = match p0 with
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> LT GT LEQ GEQ  
-%token <Info.t> GET PUT CREATE CANONIZE CHOOSE INTO
+%token <Info.t> CTYPE ATYPE BIJ GET PUT CREATE CANONIZE CHOOSE INTO
 %token <Info.t> ERROR
 
 %start modl uid qid
@@ -286,8 +286,6 @@ exp:
         let b = Bind(i,fixup_pat i $2,None,$4) in 
         ELet(i,b,$6) }
 
-      
-
   | FUN param_list ARROW exp
       { let i = me2 $1 $4 in 
         build_bare_fun i $2 $4 }
@@ -366,7 +364,7 @@ infixexp:
       { $1 }
   | geqexp
       { $1 }
-  | gpexp
+  | lcexp
       { $1 }
   | commaexp
       { $1 }
@@ -415,7 +413,7 @@ geqexp:
 commaexp:
   | appexp COMMA appexp
       { EPair(me $1 $3, $1, $3) }
-gpexp: 
+lcexp: 
   | appexp GET appexp
       { let i = me $1 $3 in 
         mk_bin_op i (mk_core_var "get") $1 $3 }
@@ -460,6 +458,16 @@ tyexp:
 
 /* atomic expressions */
 aexp:
+  | rexp CTYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var "ctype") $1 }
+  | rexp ATYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var "atype") $1 }
+  | rexp BIJ 
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var "bij") $1 }
+
   | LPAREN exp RPAREN
       { $2 }
 
@@ -508,7 +516,7 @@ aexp:
         EBoolean(i,b) }
 
   | CSET                                
-      { let i1,s1 = $1 in 
+      { let i1,s1 = $1 in         
         ECSet(i1,true,parse_cset s1) }
 
   | NSET                                
