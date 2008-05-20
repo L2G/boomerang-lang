@@ -153,7 +153,7 @@ type sort =
 and param = Param of Info.t * Id.t * sort
 
 (* variable bindings *)
-and binding = Bind of Info.t * Id.t * sort option * exp 
+and binding = Bind of Info.t * pat * sort option * exp 
 
 (* expression syntax *)
 and exp = 
@@ -208,7 +208,7 @@ and pat =
   | PBol of Info.t * bool
   | PInt of Info.t * int
   | PStr of Info.t * string
-  | PVar of Info.t * Id.t 
+  | PVar of Info.t * Id.t * sort option
   | PVnt of Info.t * Qid.t * pat option 
   | PPar of Info.t * pat * pat
 
@@ -218,8 +218,8 @@ let sort_of_param p0 = match p0 with
 let id_of_param p0 = match p0 with
   | Param(_,x,_) -> x
 
-let id_of_binding b0 = match b0 with 
-  | Bind(_,x,_,_) -> x
+let pat_of_binding b0 = match b0 with 
+  | Bind(_,p,_,_) -> p
 
 let exp_of_binding b0 = match b0 with 
   | Bind(_,_,_,e) -> e
@@ -270,7 +270,7 @@ let info_of_pat = function
   | PBol (i,_)   -> i
   | PInt (i,_)   -> i
   | PStr (i,_)   -> i
-  | PVar (i,_)   -> i 
+  | PVar (i,_,_)   -> i 
   | PVnt (i,_,_) -> i
   | PPar (i,_,_) -> i
 
@@ -287,13 +287,43 @@ let pat_vars =
   | PBol (_,_)   
   | PInt (_,_)   
   | PStr (_,_)    -> acc
-  | PVar (_,x)    -> Id.Set.add x acc 
+  | PVar (_,x,so)  -> Id.Set.add x acc 
   | PVnt (_,_,None) -> acc
   | PVnt (_,_,Some p) -> aux acc p
   | PPar (_,p1,p2) -> aux (aux acc p1) p2 in 
   aux Id.Set.empty
 
-let rec sort_walk 
+let rec pat_walk 
+    (eacc:Qid.Set.t) (sacc:Id.Set.t) 
+    (on_evar:Qid.Set.t -> 'a -> Info.t -> Qid.t -> exp * 'a) 
+    (on_svar:Id.Set.t -> 'a -> Id.t -> sort * 'a)
+    (acc:'a) (p0:pat) : (pat * 'a) = 
+  let go = pat_walk eacc sacc on_evar on_svar in 
+  let go_sort = sort_walk eacc sacc on_evar on_svar in 
+  match p0 with
+    | PVar(i,x,so) -> begin 
+        match so with 
+          | None -> (p0,acc)
+          | Some s -> 
+              let new_s,acc1 = go_sort acc s in 
+              let eacc' = Qid.Set.add (Qid.t_of_id x) eacc in                 
+              let new_s,acc2 = sort_walk eacc' sacc on_evar on_svar acc1 s in
+              (PVar(i,x,Some new_s),acc1)
+      end
+    | PVnt(i,x,po) -> begin 
+        match po with 
+          | None -> (p0,acc)
+          | Some p -> 
+              let new_p,new_acc = go acc p in 
+              (PVnt(i,x,Some new_p),new_acc)
+      end
+    | PPar(i,p1,p2) -> 
+        let new_p1,acc1 = go acc p1 in 
+        let new_p2,acc2 = go acc1 p2 in 
+        (PPar(i,new_p1,new_p2),acc2)
+    | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> (p0,acc)
+  
+and sort_walk 
     (eacc:Qid.Set.t) (sacc:Id.Set.t) 
     (on_evar:Qid.Set.t -> 'a -> Info.t -> Qid.t -> exp * 'a) 
     (on_svar:Id.Set.t -> 'a -> Id.t -> sort * 'a)
@@ -350,11 +380,6 @@ and exp_walk
     (on_evar:Qid.Set.t -> 'a -> Info.t -> Qid.t -> exp * 'a) 
     (on_svar:Id.Set.t -> 'a -> Id.t -> sort * 'a)
     (acc:'a) (e0:exp) : (exp * 'a) = 
-  let add_evar x = 
-    let eacc' = Qid.Set.add x eacc in 
-    let go' = exp_walk eacc' sacc on_evar on_svar in 
-    let go_sort' = sort_walk eacc' sacc on_evar on_svar in 
-    (go',go_sort') in 
   let add_svar x = 
     let sacc' = Id.Set.add x sacc in 
     let go' = exp_walk eacc sacc' on_evar on_svar in 
@@ -377,28 +402,35 @@ and exp_walk
              (new_ei::eli,new_acci)) el ([],acc) in 
           let new_e0 = EOver(i,o,new_el) in 
           (new_e0,new_acc)
-      | EFun(i,Param(pi,x1,s1),so2,e1) ->  
-          let go',go_sort' = add_evar (Qid.t_of_id x1) in 
+      | EFun(i,Param(ip,x1,s1),so2,e1) ->  
+          let eacc' = Qid.Set.add (Qid.t_of_id x1) eacc in 
+          let go' = exp_walk eacc' sacc on_evar on_svar in 
+          let go_sort' = sort_walk eacc' sacc on_evar on_svar in 
           let new_s1,acc1 = go_sort' acc s1 in 
           let new_so2,acc2 = match so2 with 
             | None -> (so2,acc1)
             | Some s2 -> 
                 let new_s2,acc2 = go_sort' acc1 s2 in
                 (Some new_s2,acc2) in 
+          let new_e1,acc3 = go' acc2 e1 in 
+          let new_e0 = EFun(i,Param(ip,x1,new_s1),new_so2,new_e1) in 
+          (new_e0,acc3)
+      | ELet(i,Bind(bi,p1,so,e1),e2) ->
+          let new_p1,acc1 = pat_walk eacc sacc on_evar on_svar acc p1 in 
+          let eacc' = 
+            Id.Set.fold 
+              (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) 
+              (pat_vars new_p1) eacc in 
+          let go' = exp_walk eacc' sacc on_evar on_svar in 
+          let new_so,acc2 = match so with 
+            | None -> (None,acc1)
+            | Some s -> 
+                let new_s,acc2 = go_sort acc1 s in 
+                (Some new_s,acc2) in 
           let new_e1,acc3 = go acc2 e1 in 
-          let new_e0 = EFun(i,Param(pi,x1,new_s1),new_so2,new_e1) in 
-          (new_e0,acc3)
-      | ELet(i,Bind(bi,x1,so1,e1),e2) ->           
-          let go',go_sort' = add_evar (Qid.t_of_id x1) in 
-          let new_so1,acc1 = match so1 with 
-            | None -> (so1,acc)
-            | Some s1 -> 
-                let new_s1,acc1 = go_sort acc s1 in
-                (Some new_s1,acc1) in 
-          let new_e1,acc2 = go acc1 e1 in 
-          let new_e2,acc3 = go' acc2 e2 in 
-          let new_e0 = ELet(i,Bind(bi,x1,new_so1,new_e1),new_e2) in 
-          (new_e0,acc3)
+          let new_e2,acc4 = go' acc3 e2 in 
+          let new_e0 = ELet(i,Bind(bi,p1,new_so,new_e1),new_e2) in 
+          (new_e0,acc4)
       | ETyFun(i,x1,e1) -> 
           let go',go_sort' = add_svar x1 in 
           let new_e1,acc1 = go' acc e1 in 
@@ -462,9 +494,11 @@ let subst_sort subst s0 =
     sort_walk Qid.Set.empty Id.Set.empty (dont_evar []) (do_svar subst) () s0 in 
   new_s0
 
+(* 
 let subst_exp subst e0 = 
   let new_s0,_ = exp_walk Qid.Set.empty Id.Set.empty (do_evar subst) (dont_svar []) () e0 in 
   new_s0
+*)
 
 let subst_exp_in_sort subst s0 = 
   let new_s0,_ = sort_walk Qid.Set.empty Id.Set.empty (do_evar subst) (dont_svar []) () s0 in 

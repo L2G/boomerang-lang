@@ -63,7 +63,7 @@ and format_pat p0 = match p0 with
   | PInt(_,n) -> msg "%d" n
   | PBol(_,b) -> msg "%b" b
   | PStr(_,s) -> msg "%s" s
-  | PVar(_,x) -> msg "%s" (Id.string_of_t x)
+  | PVar(_,x,_) -> msg "%s" (Id.string_of_t x)
   | PPar(_,p1,p2) -> 
       msg "@[<2>(";
       format_pat p1;
@@ -78,13 +78,14 @@ and format_pat p0 = match p0 with
 
 and format_param p0 = match p0 with
   | Param(_,x,s) ->
-      msg "@[(%s:" (Id.string_of_t x);
+      msg "@[(%s" (Id.string_of_t x);      
       format_sort s;
       msg ")@]"
 
 and format_binding b0 = match b0 with
-  | Bind (_,x,so,e) ->
-      msg "@[<2>%s" (Id.string_of_t x);
+  | Bind (_,p,so,e) ->
+      msg "@[<2>";
+      format_pat p;
       (match so with None -> () | Some s -> msg "@ :@ "; format_sort s);
       msg "@ =@ ";
       format_exp e;

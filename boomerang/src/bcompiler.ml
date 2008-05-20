@@ -50,7 +50,7 @@ let mk_int i n = EInteger(i,n)
 let mk_app i e1 e2 = EApp(i,e1,e2)
 let mk_app3 i e1 e2 e3 = mk_app i (mk_app i e1 e2) e3
 let mk_let i x s1 e1 e2 =
-  let b = Bind(i,x,s1,e1) in 
+  let b = Bind(i,PVar(i,x,Some s1),None,e1) in 
   ELet(i,b,e2)
 
 let mk_fun i x s e1 =
@@ -344,7 +344,7 @@ let rec mk_cast_blame lt i b f t e =
       let cast_f = 
         mk_fun i fn f
           (mk_fun i x f1
-             (mk_let i x (Some t1)
+             (mk_let i x t1
                 (mk_cast_blame lt i (invert_blame b) t1 f1 (mk_var i qx))
                 (mk_cast_blame lt i b f2 t2 (mk_app i (mk_var i qfn) (mk_var i qx))))) in 
       let cast_e = 
@@ -353,10 +353,10 @@ let rec mk_cast_blame lt i b f t e =
         cast_e 
   | SProduct(f1,f2), SProduct(t1,t2) -> 
       let x = Id.mk i "x" in 
-      let px = PVar(i,x) in         
+      let px = PVar(i,x,Some f1) in         
       let qx = Qid.t_of_id x in 
       let y = Id.mk i "y" in 
-      let py = PVar(i,y) in                 
+      let py = PVar(i,y,Some f2) in                 
       let qy = Qid.t_of_id y in 
         ECase(i,e,
               [ (PPar(i,px,py), 
@@ -374,7 +374,6 @@ let rec mk_cast_blame lt i b f t e =
       let x = Id.mk i "x" in 
       let qx = Qid.t_of_id x in 
       let y = Id.mk i "y" in 
-      let py = PVar(i,y) in 
       let qy = Qid.t_of_id y in 
       let pl = Safelist.map
         (fun ((li,fio),(_,tio)) -> 
@@ -388,16 +387,17 @@ let rec mk_cast_blame lt i b f t e =
                    Safelist.fold_right 
                      (fun tj acc -> mk_tyapp i acc tj)
                      tl (mk_var i li) in 
+                 let py = PVar(i,y,Some fi) in 
                  let pi = PVnt(i,li,Some py) in 
                  let ei = mk_app i li_f (ECast(i,fi,ti,b,mk_var i qy)) in (* this cast cannot be recursive! *)
                    (pi,ei)
              | _ -> run_error i (fun () -> msg "@[different@ datatypes@ in@ cast@ expression@]"))
         (Safelist.combine cl_finst cl_tinst) in 
-        mk_let i x (Some f) e (ECase(i,mk_var i qx,pl,t))
+        mk_let i x f e (ECase(i,mk_var i qx,pl,t))
   | _,SRefine(x,t2,e2) -> 
       let qx = Qid.t_of_id x in 
       let err = sprintf "%s did not have sort %s\n%s" (string_of_exp e) (string_of_sort t) (string_of_blame b) in 
-        mk_let i x (Some t2) 
+        mk_let i x t2
           (mk_cast_blame lt i b f t2 e) 
           (mk_if i e2 
              (mk_var i qx) 
@@ -444,8 +444,8 @@ let rec static_match i sev p0 s =
     match p0 with 
       | PWld _ -> 
           Some (p0,[])
-      | PVar(_,x) -> 
-          Some (p0,[(x,s)])
+      | PVar(i,x,_) -> 
+          Some (PVar(i,x,Some s),[(x,s)])
       | PUnt(i) ->
           if not (compatible s SUnit) then err p0 "unit" s;
           Some (p0,[])
@@ -519,14 +519,13 @@ let rec static_match i sev p0 s =
    the list of value bindings for variables. *)
 let rec dynamic_match i p0 v0 = 
 (*  msg "DYNAMIC_MATCH [";
-    V.format v0;
-    msg "] WITH [";
-    format_pat p0;
-    msg "]@\n";
-*)
+  V.format v0;
+  msg "] WITH [";
+  format_pat p0;
+  msg "]@\n";*)
   match p0,v0 with   
   | PWld _,_ -> Some []
-  | PVar(_,q),_ -> Some [(q,v0)]
+  | PVar(_,q,so),_ -> Some [(q,v0,so)]
   | PUnt _,V.Unt(_) -> Some []
   | PInt(_,n1),V.Int(_,n2) -> if n1=n2 then Some [] else None
   | PBol(_,b1),V.Bol(_,b2) -> if b1=b2 then Some [] else None
@@ -849,9 +848,8 @@ and check_exp sev e0 =
       (e0_sort,new_e0)
 
 and check_binding sev b0 = match b0 with
-  | Bind(i,x,so,e) ->
-      let qx = Qid.t_of_id x in 
-      let e_sort,new_e = check_exp sev e in
+  | Bind(i,p,so,e) ->
+      let e_sort,new_e = check_exp sev e in        
       let new_s,cast_e = match so with 
         | None -> (e_sort,new_e)
         | Some s -> 
@@ -864,9 +862,22 @@ and check_binding sev b0 = match b0 with
                      (string_of_sort e_sort));
             let cast_e = mk_cast (SCEnv.lookup_type sev) (info_of_exp e) e_sort new_s new_e in 
             (new_s,cast_e) in 
-      let bsev = SCEnv.update sev qx (G.Sort new_s) in 
-      let new_b = Bind(i,x,Some new_s,cast_e) in 
-      (bsev,[qx],new_b)
+      let new_p,xs,bsev = match static_match i sev p new_s with 
+        | None -> 
+            sort_error i 
+              (fun () -> 
+                 msg "@[in@ let-binding:@ %s@ does not match@ %s@]"
+                   (string_of_pat p)
+                   (string_of_sort new_s))
+        | Some(new_p,binds) ->             
+            let xs_rev,bsev = Safelist.fold_left 
+              (fun (xsi,sevi) (xj,sj) -> 
+                 let qj = Qid.t_of_id xj in 
+                 (qj::xsi,SCEnv.update sevi qj (G.Sort sj)))
+              ([],sev) binds in
+            (new_p,Safelist.rev xs_rev,bsev) in 
+      let new_b = Bind(i,new_p,Some new_s,cast_e) in 
+      (bsev,xs,new_b)
 
 (* type check a single declaration *)
 let rec check_decl sev ms d0 = match d0 with
@@ -1022,7 +1033,10 @@ let rec compile_exp cev e0 = match e0 with
                | None -> find_match rest
                | Some l -> l,ei) in 
       let binds,ei = find_match pl in 
-      let qid_binds = Safelist.map (fun (x,v) -> (Qid.t_of_id x,(G.Unknown,v))) binds in         
+      let qid_binds = Safelist.map 
+        (fun (x,v,so) -> 
+           let rs = match so with None -> G.Unknown | Some s -> G.Sort s in 
+           (Qid.t_of_id x,(rs,v))) binds in         
       let ei_cev = CEnv.update_list cev qid_binds in
       compile_exp ei_cev ei
 
@@ -1055,13 +1069,20 @@ let rec compile_exp cev e0 = match e0 with
       compile_exp cev (mk_cast_blame (CEnv.lookup_type cev) i b f t e) 
 
 and compile_binding cev b0 = match b0 with
-  | Bind(_,x,so,e) -> 
+  | Bind(i,p,so,e) -> 
       let v = compile_exp cev e in 
-      let qx = Qid.t_of_id x in 
-      let bcev = match so with 
-        | Some s -> CEnv.update cev qx (G.Sort s,v) 
-        | None -> CEnv.update cev qx (G.Unknown,v) in
-      (bcev,[qx])
+      let xs_rev,bcev = match dynamic_match i p v with
+        | None -> run_error i 
+            (fun () -> msg "@[in let-binding: %s does not match %s@]"
+               (string_of_pat p) (V.string_of_t v))
+        | Some binds -> 
+            Safelist.fold_left 
+              (fun (xsi,cevi) (xi,vi,soi) -> 
+                 let qxi = Qid.t_of_id xi in 
+                 let rsi = match soi with None -> G.Unknown | Some s -> G.Sort s in  
+                 (qxi::xsi,CEnv.update cevi (Qid.t_of_id xi) (rsi,vi)))
+              ([],cev) binds in 
+      (bcev,Safelist.rev xs_rev)
       
 let rec compile_decl cev ms d0 = match d0 with
   | DLet(i,b) ->

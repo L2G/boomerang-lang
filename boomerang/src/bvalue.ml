@@ -236,3 +236,5 @@ let parse_qid s =
                 s)) in 
       Blexer.finish ();                    
       q
+
+let string_of_t v = Util.format_to_string (fun () -> format v)

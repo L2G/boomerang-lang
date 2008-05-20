@@ -153,6 +153,12 @@ let build_bare_fun i param_alts body =
              ETyFun(i,a,f))
     param_alts body
 
+let rec fixup_pat i p0 = match p0 with 
+  | PVnt(_,x,Some _) -> syntax_error i "illegal pattern"
+  | PVnt(i,x,None)   -> PVar(i,Qid.id_of_t x,None)
+  | PPar(i,p1,p2)    -> PPar(i,fixup_pat i p1,fixup_pat i p2)
+  | _ -> p0
+
 %}
 
 %token <Info.t> EOF
@@ -197,14 +203,26 @@ decls:
   | LET id param_list COLON sort EQUAL exp decls
       { let i = me2 $1 $7 in 
         let f,f_sort = build_fun i $3 $7 $5 in 
-        let b = Bind(i,$2,Some f_sort,f) in 
+        let i2,_ = $2 in 
+        let b = Bind(i,PVar(i2,$2,None),Some f_sort,f) in 
         DLet(i,b)::$8 }
 
   | LET id param_list EQUAL exp decls
       { let i = me2 $1 $5 in 
         let f = build_bare_fun i $3 $5 in 
-        let b =  Bind(i,$2,None,f) in 
+        let i2,_ = $2 in 
+        let b =  Bind(i,PVar(i2,$2,None),None,f) in 
         DLet(i,b)::$6 }
+
+  | LET ppat COLON sort EQUAL exp decls
+      { let i = me2 $1 $6 in 
+        let b = Bind(i,fixup_pat i $2,Some $4,$6) in 
+        DLet(i,b)::$7 }
+
+  | LET ppat EQUAL exp decls
+      { let i = me2 $1 $4 in 
+        let b =  Bind(i,fixup_pat i $2,None,$4) in 
+        DLet(i,b)::$5 }
 
   | MODULE UIDENT EQUAL decls END decls 
       { let i = m $1 $5 in 
@@ -247,22 +265,36 @@ exp:
   | LET id param_list COLON sort EQUAL exp IN exp 
       { let i = me2 $1 $9 in 
         let f,f_sort = build_fun i $3 $7 $5 in 
-        let b = Bind(i,$2,Some f_sort,f) in 
+        let i2,_ = $2 in 
+        let b = Bind(i,PVar(i2,$2,None),Some f_sort,f) in 
         ELet(i,b,$9) }
 
   | LET id param_list EQUAL exp IN exp 
       { let i = me2 $1 $7 in 
         let f = build_bare_fun i $3 $5 in 
-        let b = Bind(i,$2,None,f) in 
+        let i2,_ = $2 in 
+        let b = Bind(i,PVar(i2,$2,None),None,f) in 
         ELet(i,b,$7) }
 
-  | FUN param param_list ARROW exp
-      { let i = me2 $1 $5 in 
-        build_bare_fun i ($2::$3) $5 }
+  | LET ppat COLON sort EQUAL exp IN exp 
+      { let i = me2 $1 $8 in 
+        let b = Bind(i,fixup_pat i $2,Some $4,$6) in 
+        ELet(i,b,$8) }
 
-  | FUN param param_list COLON asort ARROW exp
-      { let i = me2 $1 $7 in 
-        let f,_ = build_fun i ($2::$3) $7 $5 in 
+  | LET ppat EQUAL exp IN exp 
+      { let i = me2 $1 $6 in 
+        let b = Bind(i,fixup_pat i $2,None,$4) in 
+        ELet(i,b,$6) }
+
+      
+
+  | FUN param_list ARROW exp
+      { let i = me2 $1 $4 in 
+        build_bare_fun i $2 $4 }
+
+  | FUN param_list COLON asort ARROW exp
+      { let i = me2 $1 $6 in 
+        let f,_ = build_fun i $2 $6 $4 in 
         f }
       
   | cexp                               
@@ -334,9 +366,11 @@ infixexp:
       { $1 }
   | geqexp
       { $1 }
-  | appexp
-      { $1 }
   | gpexp
+      { $1 }
+  | commaexp
+      { $1 }
+  | appexp
       { $1 }
 
 dotexp:
@@ -378,6 +412,9 @@ gtexp:
 geqexp:
   | appexp GEQ appexp 
       { mk_over (me $1 $3) OGeq [$1; $3] }
+commaexp:
+  | appexp COMMA appexp
+      { EPair(me $1 $3, $1, $3) }
 gpexp: 
   | appexp GET appexp
       { let i = me $1 $3 in 
@@ -542,10 +579,10 @@ apat:
 
   | LIDENT
       { let i,_ = $1 in 
-        PVar(i,$1) }
+        PVar(i,$1,None) }
 
   | LPAREN RPAREN
-    { PUnt(m $1 $2) }
+      { PUnt(m $1 $2) }
 
   | INTEGER
     { let i,n = $1 in 
@@ -763,15 +800,17 @@ id:
 
 /* --------- PARAMETERS ---------- */
 param_list:
-  | param param_list
+  | param param_list2
       { $1 :: $2 }
-
+param_list2:
+  | param param_list2
+      { $1 :: $2 }
   |
       { [] }
 
 param: 
   | LPAREN id COLON sort RPAREN
-      { let i,_ = $2 in 
+      { let i = m $1 $5 in 
         Misc.Left (Param(i,$2,$4)) }
 
   | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN

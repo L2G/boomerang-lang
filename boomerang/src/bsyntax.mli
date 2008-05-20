@@ -163,10 +163,10 @@ type sort =
     | SForall of Id.t * sort          (* universals *)
 
 and param = Param of Info.t * Id.t * sort
-(** The type of formal parameters: parsing info, an identifier, and a
+(** The type of formal parameters: parsing info, a pattern, and a
     sort. *)
 
-and binding = Bind of Info.t * Id.t * sort option * exp 
+and binding = Bind of Info.t * pat * sort option * exp 
 
 and exp = 
     (* lambda calculus *)
@@ -220,7 +220,7 @@ and pat =
   | PBol of Info.t * bool
   | PInt of Info.t * int
   | PStr of Info.t * string
-  | PVar of Info.t * Id.t 
+  | PVar of Info.t * Id.t * sort option 
   | PVnt of Info.t * Qid.t * pat option 
   | PPar of Info.t * pat * pat
 (** The type of pattern ASTs. *)
@@ -265,15 +265,17 @@ val sort_of_param : param -> sort
 val id_of_param : param -> Id.t
 (** [sort_of_param p] returns the name of parameter [p]. *)
 
-val id_of_binding : binding -> Id.t
-(** [sort_of_param p] returns the name of the variable bound in [b]. *)
+val pat_of_binding : binding -> pat
+(** [pat_of_binding b] returns the name of the variable bound in [b]. *)
 
 val exp_of_binding : binding -> exp
-(** [sort_of_param p] returns the expression of binding [b]. *)
+(** [exp_op_binding p] returns the expression of binding [b]. *)
 
 val subst_sort : (Id.t * sort) list -> sort -> sort
 
+(* 
 val subst_exp : (Qid.t * exp) list -> exp -> exp 
+*)
 
 val subst_exp_in_sort : (Qid.t * exp) list -> sort -> sort
 

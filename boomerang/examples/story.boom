@@ -42,7 +42,7 @@ let ESC_STRING : regexp = ESC_SYMBOL*
 let escape_quotes_string : (lens in ANY <-> ESC_STRING ) = 
   escape_quotes_char*
 
-test get escape_quotes_string 
+test escape_quotes_string.get
     <<
         <hello"world>
     >>
@@ -70,7 +70,7 @@ let escape_xml : (lens in ANY <=> XML_ESC_STRING ) =
 let quotes_to_xml : (lens in ESC_STRING <=> XML_ESC_STRING) = 
   (invert escape_quotes_string) ; escape_xml
 
-test get quotes_to_xml
+test quotes_to_xml.get
     <<
         <hello\"world>
     >>
@@ -98,13 +98,13 @@ let escape_char (raw:char) (esc:string) (R:regexp)
 let escape_char2 (raw:char) (esc:string) 
                  (R:regexp where matches R raw && not (matches R esc)) 
   : (lens in R <=> ((R - raw) | esc))
-=    ( raw <=> esc
-   | copy (R - (raw | esc)))
+= ( raw <=> esc 
+  | copy (R - (raw | esc)))
 
 
-test get (escape_char2 '&' "&amp;" ANY_CHAR)* "hello&world" = ?
+test (escape_char2 '&' "&amp;" ANY_CHAR)*.get "hello&world" = ?
 
-test get (escape_char '&' "&amp;" ANY_CHAR)* 
+test (escape_char '&' "&amp;" ANY_CHAR)*.get 
     <<
         hello&world
     >>
@@ -118,7 +118,7 @@ let escape_xml : (lens in ANY <=> XML_ESC_STRING ) =
    ; escape_char '<' "&lt;"  ([^&] | "&amp;")
    ; escape_char '>' "&gt;"  ([^&<] | "&amp;" | "&lt;") )*
 
-test get escape_xml
+test escape_xml.get 
     <<
         <hello&world>
     >>
@@ -134,13 +134,28 @@ let escape_xml : (lens in ANY <=> XML_ESC_STRING ) =
   let l3 = escape_char '>' "&gt;"  (atype l2) in
   (l1;l2;l3)*
 
+let mk_escape (esc_map: (char * string) List.t) : lens = 
+  let l : lens = 
+    List.fold_left{lens}{char * string}
+      (fun (li:lens) (p:char * string) -> 
+         let cj,sj = p in 
+         let lj = escape_char cj sj (atype li) in 
+         li;lj)
+      (copy [^]) esc_map in 
+  l*
+      
+let escape_xml2 : lens = 
+  mk_escape #{char*string}[('&',"&amp;");('<',"&lt;");('>',"&gt;")] 
+
+test escape_xml2.get "hello&world" = ?
+
 (* Can even do it with lists, which motivates polymorphism... *)
 (* and now maybe write a generic one using List.fold_left ... *)
 
 (* do we need to rename atype for purposes of the talk??  -- yes:
    domain_of and codomain_of (maybe do this throughout?) *)
 
-test get escape_xml
+test escape_xml.get
     <<
         <hello&world>
     >>

@@ -93,3 +93,5 @@ val parse_uid : string -> Bsyntax.Qid.t
 
 val parse_qid : string -> Bsyntax.Qid.t
   (** [parse_qid s] parses a [Qid.t] from [s]. *)
+
+val string_of_t : t -> string
