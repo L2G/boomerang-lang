@@ -251,11 +251,11 @@ let load_var q = match get_module_prefix q with
 
 (* lookup in a naming context, with a lookup function *)
 let lookup_library_generic lookup_fun nctx q = 
-  debug (fun () -> Util.format "lookup_library_generic [%s] [%s]@\n" 
+  verbose (fun () -> Util.format "lookup_library_generic [%s] [%s]@\n" 
            (Bsyntax.Qid.string_of_t q)
            (Misc.concat_list "," (Safelist.map Bsyntax.Qid.string_of_t nctx)));
   let rec lookup_library_aux nctx q2 =       
-    debug (fun () -> Util.format "lookup_library_aux [%s] [%s]@\n" 
+    verbose (fun () -> Util.format "lookup_library_aux [%s] [%s]@\n" 
              (Bsyntax.Qid.string_of_t q2)
              (Misc.concat_list "," (Safelist.map Bsyntax.Qid.string_of_t nctx)));
     let try_lib () = lookup_fun !library q2 in
@@ -274,25 +274,25 @@ let lookup_library_generic lookup_fun nctx q =
   lookup_library_aux nctx q
 
 let lookup_library_ctx os q = 
-  debug (fun () -> Util.format "lookup_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_library_generic REnv.lookup os q
 
 let lookup_type_library_ctx os q = 
-  debug (fun () -> Util.format "lookup_type_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_type_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_library_generic REnv.lookup_type os q
 
 let lookup_con_library_ctx os q = 
-  debug (fun () -> Util.format "lookup_con_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_con_library_ctx [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_library_generic REnv.lookup_con os q
 
 let lookup_library q = 
-  debug (fun () -> Util.format "lookup_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_library_ctx [] q
 
 let lookup_type_library q = 
-  debug (fun () -> Util.format "lookup_type_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_type_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_type_library_ctx [] q
 
 let lookup_con_library q = 
-  debug (fun () -> Util.format "lookup_con_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_con_library [%s]@\n" (Bsyntax.Qid.string_of_t q));
   lookup_con_library_ctx [] q

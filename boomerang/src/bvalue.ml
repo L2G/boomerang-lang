@@ -135,7 +135,7 @@ let rec sort_string_of_t = function
 (* --------- conversions between run-time values ---------- *)
 let conversion_error s1 v1 = 
   Error.simple_error 
-    (sprintf "%s: expected %s, but found %s" 
+    (sprintf "%s: Conversion error; expected %s, but found %s" 
         (Info.string_of_t (info_of_t v1)) 
         s1
         (string_of_t v1))
@@ -153,7 +153,7 @@ let get_i v = match v with
   | _ -> conversion_error (P.string_of_sort S.SInteger) v
 
 let get_c v = match v with
-  | Chr(_,c) -> c
+  | Chr(b,c) -> c
   | _ -> conversion_error (P.string_of_sort S.SChar) v
 
 let get_s v = match v with

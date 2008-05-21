@@ -311,6 +311,8 @@ let rec compatible f t = match f,t with
 
 (* precondition: f and t must be compatible!! *)
 let rec mk_cast_blame lt i b f t e = 
+(*   Util.format "@[mk_cast_blame@\nF: %s@\nT: %s@\nE: %s@]@\n@\n" *)
+(*     (string_of_sort f) (string_of_sort t) (string_of_exp e); *)
   let res = match f,t with
   | SUnit,SUnit
   | SBool,SBool
@@ -752,11 +754,6 @@ and check_exp sev e0 =
       (* character sets have sort SRegexp *)
       (SRegexp,e0)
 
-(*       msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
-(*       msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
-(*       msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
-(*       msg "@[RESULT: %s@\n@]" (string_of_sort ret_sort); *)
-
   | EApp(i,e1,e2) ->  
       (* for function applications, check the left-hand expression *)
       let e1_sort,new_e1 = check_exp sev e1 in 
@@ -777,6 +774,11 @@ and check_exp sev e0 =
             let cast_e2 = mk_cast (SCEnv.lookup_type sev) i2 e2_sort param_sort new_e2 in
             let new_e0 = EApp(i,new_e1,cast_e2) in 
             let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in 
+(*               msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
+(*               msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
+(*               msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
+(*               msg "@[RESULT: %s@\n@]" (string_of_sort e0_sort); *)
+(*               msg "@[SUBST_EXP_IN_SORT: %s := %s IN %s ~> %s@]@\n" (Id.string_of_t x) (string_of_exp cast_e2) (string_of_sort return_sort) (string_of_sort e0_sort); *)
             (e0_sort,new_e0)
         | _ -> 
             sort_error (info_of_exp e1)

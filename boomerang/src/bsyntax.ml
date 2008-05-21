@@ -36,6 +36,8 @@ module Id = struct
   (* comparisons *)
   let compare (_,x1) (_,x2) = compare x1 x2
   let equal i1 i2 = compare i1 i2 = 0
+  (* modifiers *)
+  let prime (i,x) = (i,x ^ "'")
   (* constants *)
   let wild = (Info.M "_", "_")
   (* modules *)
@@ -80,6 +82,8 @@ module Qid = struct
           else ids_compare t1 t2 in
     ids_compare (qs1@[x1]) (qs2@[x2])
   let equal q1 q2 = (compare q1 q2 = 0)
+  (* modifiers *)
+  let prime (qs,x) = (qs,Id.prime x)
   (* operations *)      
   let id_dot x1 (qs2,x2) = (x1::qs2,x2)
   let splice_id_dot x1 (qs2,x2) = (qs2@[x1],x2)
@@ -293,248 +297,442 @@ let pat_vars =
   | PPar (_,p1,p2) -> aux (aux acc p1) p2 in 
   aux Id.Set.empty
 
-let rec pat_walk 
-    (eacc:Qid.Set.t) (sacc:Id.Set.t) 
-    (on_evar:Qid.Set.t -> 'a -> Info.t -> Qid.t -> exp * 'a) 
-    (on_svar:Id.Set.t -> 'a -> Id.t -> sort * 'a)
-    (acc:'a) (p0:pat) : (pat * 'a) = 
-  let go = pat_walk eacc sacc on_evar on_svar in 
-  let go_sort = sort_walk eacc sacc on_evar on_svar in 
-  match p0 with
-    | PVar(i,x,so) -> begin 
-        match so with 
-          | None -> (p0,acc)
-          | Some s -> 
-              let new_s,acc1 = go_sort acc s in 
-              let eacc' = Qid.Set.add (Qid.t_of_id x) eacc in                 
-              let new_s,acc2 = sort_walk eacc' sacc on_evar on_svar acc1 s in
-              (PVar(i,x,Some new_s),acc1)
-      end
-    | PVnt(i,x,po) -> begin 
-        match po with 
-          | None -> (p0,acc)
-          | Some p -> 
-              let new_p,new_acc = go acc p in 
-              (PVnt(i,x,Some new_p),new_acc)
-      end
-    | PPar(i,p1,p2) -> 
-        let new_p1,acc1 = go acc p1 in 
-        let new_p2,acc2 = go acc1 p2 in 
-        (PPar(i,new_p1,new_p2),acc2)
-    | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> (p0,acc)
-  
-and sort_walk 
-    (eacc:Qid.Set.t) (sacc:Id.Set.t) 
-    (on_evar:Qid.Set.t -> 'a -> Info.t -> Qid.t -> exp * 'a) 
-    (on_svar:Id.Set.t -> 'a -> Id.t -> sort * 'a)
-    (acc:'a) (s0:sort) : (sort * 'a) = 
-  let go = sort_walk eacc sacc on_evar on_svar in
-  let add_evar x = 
-    let eacc' = Qid.Set.add x eacc in 
-    let go' = sort_walk eacc' sacc on_evar on_svar in 
-    let go_exp' = exp_walk eacc' sacc on_evar on_svar in 
-    (go',go_exp') in 
-  let add_svar x = 
-    let sacc' = Id.Set.add x sacc in 
-    let go' = sort_walk eacc sacc' on_evar on_svar in 
-    let go_exp' = exp_walk eacc sacc' on_evar on_svar in 
-    (go',go_exp') in 
-  match s0 with 
-    | SVar(x) -> 
-        on_svar sacc acc x
-    | SFunction(x,s1,s2) -> 
-        let go',_ = add_evar (Qid.t_of_id x) in 
-        let new_s1,acc1 = go' acc s1 in 
-        let new_s2,acc2 = go' acc1 s2 in 
-        let new_s0 = SFunction(x,new_s1,new_s2) in 
-        (new_s0,acc2)
-    | SProduct(s1,s2) -> 
-        let new_s1,acc1 = go acc s1 in 
-        let new_s2,acc2 = go acc1 s2 in 
-        let new_s0 = SProduct(new_s1,new_s2) in 
-        (new_s0,acc2)
-    | SData(sl,qx) ->
-        let new_sl,new_acc = Safelist.fold_right 
-          (fun si (sli,acci) -> 
-             let new_si,new_acci = go acci si in 
-             (new_si::sli,new_acci)) sl ([],acc) in 
-        let new_s0 = SData(new_sl,qx) in 
-        (new_s0,new_acc)
-    | SRefine(x,s1,e1) -> 
-        let go',go_exp' = add_evar (Qid.t_of_id x) in
-        let new_s1,acc1 = go' acc s1 in 
-        let new_e1,acc2 = go_exp' acc1 e1 in 
-        let new_s0 = SRefine(x,new_s1,new_e1) in 
-        (new_s0,acc2)
-    | SForall(x,s1) -> 
-        let go',_ = add_svar x in 
-        let new_s1,acc1 = go' acc s1 in 
-        let new_s0 = SForall(x,new_s1) in 
-        (new_s0,acc1)
-    | SUnit | SBool | SInteger | SChar | SString 
-    | SRegexp | SLens | SCanonizer -> 
-        (s0,acc)
+(* These are big and ugly, but they're simple... and substitution is
+tricky enough that I think it's better to have them written out
+explicitly and (I hope) carefully. *)
 
-and exp_walk 
-    (eacc:Qid.Set.t) (sacc:Id.Set.t) 
-    (on_evar:Qid.Set.t -> 'a -> Info.t -> Qid.t -> exp * 'a) 
-    (on_svar:Id.Set.t -> 'a -> Id.t -> sort * 'a)
-    (acc:'a) (e0:exp) : (exp * 'a) = 
-  let add_svar x = 
-    let sacc' = Id.Set.add x sacc in 
-    let go' = exp_walk eacc sacc' on_evar on_svar in 
-    let go_sort' = sort_walk eacc sacc' on_evar on_svar in 
-    (go',go_sort') in 
-  let go = exp_walk eacc sacc on_evar on_svar in 
-  let go_sort = sort_walk eacc sacc on_evar on_svar in 
-    match e0 with 
-      | EVar(i,q) -> 
-          on_evar eacc acc i q
-      | EApp(i,e1,e2) -> 
-          let new_e1,acc1 = go acc e1 in 
-          let new_e2,acc2 = go acc1 e2 in 
-          let new_e0 = EApp(i,new_e1,new_e2) in 
-          (new_e0,acc2)
-      | EOver(i,o,el) -> 
-          let new_el,new_acc = Safelist.fold_right 
-          (fun ei (eli,acci) -> 
-             let new_ei,new_acci = go acci ei in 
-             (new_ei::eli,new_acci)) el ([],acc) in 
-          let new_e0 = EOver(i,o,new_el) in 
-          (new_e0,new_acc)
-      | EFun(i,Param(ip,x1,s1),so2,e1) ->  
-          let eacc' = Qid.Set.add (Qid.t_of_id x1) eacc in 
-          let go' = exp_walk eacc' sacc on_evar on_svar in 
-          let go_sort' = sort_walk eacc' sacc on_evar on_svar in 
-          let new_s1,acc1 = go_sort' acc s1 in 
-          let new_so2,acc2 = match so2 with 
-            | None -> (so2,acc1)
-            | Some s2 -> 
-                let new_s2,acc2 = go_sort' acc1 s2 in
-                (Some new_s2,acc2) in 
-          let new_e1,acc3 = go' acc2 e1 in 
-          let new_e0 = EFun(i,Param(ip,x1,new_s1),new_so2,new_e1) in 
-          (new_e0,acc3)
-      | ELet(i,Bind(bi,p1,so,e1),e2) ->
-          let new_p1,acc1 = pat_walk eacc sacc on_evar on_svar acc p1 in 
-          let eacc' = 
-            Id.Set.fold 
-              (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) 
-              (pat_vars new_p1) eacc in 
-          let go' = exp_walk eacc' sacc on_evar on_svar in 
-          let new_so,acc2 = match so with 
-            | None -> (None,acc1)
-            | Some s -> 
-                let new_s,acc2 = go_sort acc1 s in 
-                (Some new_s,acc2) in 
-          let new_e1,acc3 = go acc2 e1 in 
-          let new_e2,acc4 = go' acc3 e2 in 
-          let new_e0 = ELet(i,Bind(bi,p1,new_so,new_e1),new_e2) in 
-          (new_e0,acc4)
-      | ETyFun(i,x1,e1) -> 
-          let go',go_sort' = add_svar x1 in 
-          let new_e1,acc1 = go' acc e1 in 
-          let new_e0 = ETyFun(i,x1,new_e1) in 
-          (new_e0,acc1)
-      | ETyApp(i,e1,s1) -> 
-          let new_e1,acc1 = go acc e1 in 
-          let new_s1,acc2 = go_sort acc1 s1 in 
-          let new_e0 = ETyApp(i,new_e1,new_s1) in 
-          (new_e0,acc2)
-      | ECast(i,f,t,b,e) -> 
-          let new_f,acc1 = go_sort acc f in 
-          let new_t,acc2 = go_sort acc1 t in 
-          let new_e,acc3 = go acc2 e in 
-          let new_e0 = ECast(i,new_f,new_t,b,new_e) in 
-          (new_e0,acc3)
-      | EPair(i,e1,e2) -> 
-          let new_e1,acc1 = go acc e1 in 
-          let new_e2,acc2 = go acc1 e2 in 
-          let new_e0 = EPair(i,new_e1,new_e2) in 
-          (new_e0,acc2)
-      | ECase(i,e1,cl,s) -> 
-          let new_e1,acc1 = go acc e1 in 
-          let new_cl,acc2 = 
-            Safelist.fold_right 
-              (fun (pi,ei) (cli,acci) -> 
-                 let xs = pat_vars pi in 
-                 let eacc' = Id.Set.fold (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) xs eacc in 
-                 let go' = exp_walk eacc' sacc on_evar on_svar in 
-                 let new_ei,new_acci = go' acci ei in
-                 ((pi,new_ei)::cli, new_acci))
-              cl ([],acc1) in 
-          let new_s,acc3 = go_sort acc2 s in 
-          let new_e0 = ECase(i,new_e1,new_cl,new_s) in 
-          (new_e0,acc3)
-      | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ -> 
-          (e0,acc)
-
+(* generic Safelist.assoc stuff *)
 let rec gen_assoc eq x = function
   | [] -> raise Not_found
   | (y,s)::rest -> if eq x y then s else gen_assoc eq x rest
 
-let do_svar subst sacc () x = 
-  let res = 
-    if Id.Set.mem x sacc then SVar(x)
-    else try gen_assoc Id.equal x subst with Not_found -> SVar(x) in 
-  (res,())
+(* FREE SORT VARIABLES *)
+let rec free_svars_pat acc = function
+  | PVar(_,_,Some s) -> free_svars_sort acc s
+  | PVar(_,_,None)   -> acc
+  | PVnt(_,_,Some p) -> free_svars_pat acc p
+  | PVnt(_,_,None)   -> acc
+  | PPar(_,p1,p2)    -> free_svars_pat (free_svars_pat acc p1) p2
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
+and free_svars_sort acc = function
+  | SVar a -> Id.Set.add a acc 
+  | SFunction(x,s1,s2) -> 
+      free_svars_sort (free_svars_sort acc s1) s2 
+  | SProduct(s1,s2) -> 
+      free_svars_sort (free_svars_sort acc s1) s2
+  | SData(sl,qx)       -> 
+      Safelist.fold_left free_svars_sort acc sl
+  | SRefine(x,s1,e2) -> 
+      free_svars_exp (free_svars_sort acc s1) e2
+  | SForall(a,s1) -> 
+      Id.Set.remove a (free_svars_sort acc s1)
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer ->
+      acc
+and free_svars_exp acc = function
+  | EApp(i,e1,e2) -> 
+      free_svars_exp (free_svars_exp acc e1) e2
+  | EOver(i,o,el) -> 
+      Safelist.fold_left free_svars_exp acc el
+  | EFun(i,Param(ip,x1,s2),so3,e4) -> 
+      let acc2 = free_svars_sort acc s2 in 
+      let acc3 = match so3 with None -> acc2 | Some s3 -> free_svars_sort acc s3 in 
+      let acc4 = free_svars_exp acc3 e4 in 
+      acc4
+  | ELet(i,Bind(ib,p1,so2,e3),e4) ->
+      let acc1 = free_svars_pat acc p1 in
+      let acc2 = match so2 with None -> acc1 | Some s2 -> free_svars_sort acc1 s2 in 
+      let acc3 = free_svars_exp acc2 e3 in 
+      let acc4 = free_svars_exp acc3 e4 in 
+      acc4
+  | ETyFun(i,a,e1) -> 
+      Id.Set.remove a (free_svars_exp acc e1)
+  | ETyApp(i,e1,s1) -> 
+      let acc2 = free_svars_sort acc s1 in 
+      let acc1 = free_svars_exp acc2 e1 in 
+      acc1
+  | ECast(i,f1,t2,b,e3) ->
+      let acc1 = free_svars_sort acc f1 in 
+      let acc2 = free_svars_sort acc1 t2 in 
+      let acc3 = free_svars_exp acc2 e3 in 
+      acc3 
+  | EPair(i,e1,e2) -> 
+      free_svars_exp (free_svars_exp acc e1) e2
+  | ECase(i,e1,cl,s3) -> 
+      let accl = 
+      Safelist.fold_left 
+        (fun accj (pi,ei) -> free_svars_exp (free_svars_pat accj pi) ei)
+        acc cl in 
+      let acc1 = free_svars_exp accl e1 in 
+      let acc3 = free_svars_sort acc1 s3 in 
+      acc3
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> acc
 
-let dont_svar subst sacc () x = (SVar(x),())
+(* SORT SUBSTITUTION *)
+let free_svars_in_subst subst = 
+  Safelist.fold_left 
+    (fun acc (x,s) -> free_svars_sort (Id.Set.add x acc) s)
+    Id.Set.empty subst
 
-let do_evar subst eacc () i q = 
-  let res = 
-    if Qid.Set.mem q eacc then EVar(i,q)
-    else try gen_assoc Qid.equal q subst with Not_found -> EVar(i,q) in 
-  (res,())
+let rec fresh_svar subst a = 
+  let clashes = free_svars_in_subst subst in 
+  let rec aux a = 
+    if Id.Set.mem a clashes then aux (Id.prime a)
+    else a in 
+  aux a 
 
-let dont_evar subst eacc () i q = (EVar(i,q),())
+let rec subst_svars_pat subst p0 = match p0 with
+  | PVar(i,x,Some s) ->       
+      let new_s = subst_svars_sort subst s in 
+      PVar(i,x,Some new_s)
+  | PVar(i,x,None) -> p0
+  | PVnt(i,qx,Some p) -> 
+      let new_p = subst_svars_pat subst p in       
+      PVnt(i,qx,Some new_p)
+  | PVnt(i,qx,None) -> p0
+  | PPar(i,p1,p2) -> 
+      let new_p1 = subst_svars_pat subst p1 in  
+      let new_p2 = subst_svars_pat subst p2 in  
+      PPar(i,new_p1,new_p2) 
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
+and subst_svars_sort subst s0 = match s0 with 
+  | SVar a -> 
+      (try gen_assoc Id.equal a subst with Not_found -> s0)
+  | SFunction(x,s1,s2) -> 
+      let new_s1 = subst_svars_sort subst s1 in 
+      let new_s2 = subst_svars_sort subst s2 in 
+      SFunction(x,new_s1,new_s2)
+  | SProduct(s1,s2) -> 
+      let new_s1 = subst_svars_sort subst s1 in 
+      let new_s2 = subst_svars_sort subst s2 in 
+      SProduct(new_s1,new_s2)
+  | SData(sl,qx) -> 
+      let new_sl = Safelist.map (subst_svars_sort subst) sl in 
+      SData(new_sl,qx)
+  | SRefine(x,s1,e2) -> 
+      let new_s1 = subst_svars_sort subst s1 in 
+      let new_e2 = subst_svars_exp subst e2 in 
+      SRefine(x,new_s1,new_e2)
+  | SForall(a,s1) -> 
+      let fresh_a = fresh_svar subst a in 
+      let safe_s1 = if fresh_a = a then s1 else subst_svars_sort [(a,SVar fresh_a)] s1 in 
+      let new_s1 = subst_svars_sort subst safe_s1 in
+      SForall(fresh_a,new_s1)
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer -> 
+      s0
+and subst_svars_exp subst e0 = match e0 with 
+  | EApp(i,e1,e2) -> 
+      let new_e1 = subst_svars_exp subst e1 in 
+      let new_e2 = subst_svars_exp subst e2 in 
+      EApp(i,new_e1,new_e2) 
+  | EOver(i,o,el) -> 
+      let new_el = Safelist.map (subst_svars_exp subst) el in 
+      EOver(i,o,new_el)
+  | EFun(i,Param(ip,x1,s2),so3,e4) -> 
+      let new_s2 = subst_svars_sort subst s2 in 
+      let new_so3 = Misc.map_option (fun s3 -> subst_svars_sort subst s3) so3 in 
+      let new_e4 = subst_svars_exp subst e4 in 
+      EFun(i,Param(ip,x1,new_s2),new_so3,new_e4) 
+  | ELet(i,Bind(ib,p1,so2,e3),e4) ->
+      let new_p1 = subst_svars_pat subst p1 in 
+      let new_so2 = Misc.map_option (fun s2 -> subst_svars_sort subst s2) so2 in 
+      let new_e3 = subst_svars_exp subst e3 in 
+      let new_e4 = subst_svars_exp subst e4 in 
+      ELet(i,Bind(ib,new_p1,new_so2,new_e3),new_e4)
+  | ETyFun(i,a,e1) -> 
+      let fresh_a = fresh_svar subst a in 
+      let safe_e1 = if fresh_a = fresh_a then e1 else subst_svars_exp [(a,SVar fresh_a)] e1 in 
+      let new_e1 = subst_svars_exp subst safe_e1 in
+      ETyFun(i,fresh_a,new_e1) 
+  | ETyApp(i,e1,s2) -> 
+      let new_e1 = subst_svars_exp subst e1 in 
+      let new_s2 = subst_svars_sort subst s2 in 
+      ETyApp(i,new_e1,new_s2) 
+  | ECast(i,f1,t2,b,e3) ->
+      let new_f1 = subst_svars_sort subst f1 in 
+      let new_t2 = subst_svars_sort subst t2 in 
+      let new_e3 = subst_svars_exp subst e3 in 
+      ECast(i,new_f1,new_t2,b,new_e3)
+  | EPair(i,e1,e2) -> 
+      let new_e1 = subst_svars_exp subst e1 in 
+      let new_e2 = subst_svars_exp subst e2 in 
+      EPair(i,new_e1,new_e2)
+  | ECase(i,e1,cl,s3) -> 
+      let new_e1 = subst_svars_exp subst e1 in 
+      let new_cl = 
+        Safelist.map 
+          (fun (pi,ei) -> 
+             let new_pi = subst_svars_pat subst pi in 
+             let new_ei = subst_svars_exp subst ei in 
+             (new_pi,new_ei))
+          cl in 
+      let new_s3 = subst_svars_sort subst s3 in 
+      ECase(i,new_e1,new_cl,new_s3)
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> e0
 
-let subst_sort subst s0 = 
-  let new_s0,_ = 
-    sort_walk Qid.Set.empty Id.Set.empty (dont_evar []) (do_svar subst) () s0 in 
-  new_s0
+(* FREE EXPRESSION VARIABLES *)
+let qvs_of_is s = Id.Set.fold (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) s Qid.Set.empty 
 
-(* 
-let subst_exp subst e0 = 
-  let new_s0,_ = exp_walk Qid.Set.empty Id.Set.empty (do_evar subst) (dont_svar []) () e0 in 
-  new_s0
-*)
+let rec free_evars_pat acc = function
+  | PVar(_,_,Some s) -> free_evars_sort acc s
+  | PVar(_,_,None)   -> acc
+  | PVnt(_,_,Some p) -> free_evars_pat acc p
+  | PVnt(_,_,None)   -> acc
+  | PPar(_,p1,p2)    -> free_evars_pat (free_evars_pat acc p1) p2
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
+and bound_evars_pat acc = function
+  | PVar(_,x,_)      -> Id.Set.add x acc
+  | PVnt(_,_,Some p) -> bound_evars_pat acc p
+  | PVnt(_,_,None)   -> acc
+  | PPar(_,p1,p2)    -> bound_evars_pat (bound_evars_pat acc p1) p2
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
+and free_evars_sort acc = function
+  | SFunction(x,s1,s2) -> 
+      let acc2 = free_evars_sort acc s2 in 
+      let acc1 = free_evars_sort (Qid.Set.remove (Qid.t_of_id x) acc2) s1 in 
+      acc1 
+  | SProduct(s1,s2) -> 
+      free_evars_sort (free_evars_sort acc s1) s2
+  | SData(sl,qx)       -> 
+      Safelist.fold_left free_evars_sort acc sl
+  | SRefine(x,s1,e2) -> 
+      let acc2 = free_evars_exp acc e2 in 
+      let acc1 = free_evars_sort (Qid.Set.remove (Qid.t_of_id x) acc2) s1 in 
+      acc1 
+  | SForall(a,s1) -> 
+      free_evars_sort acc s1
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
+      acc
+and free_evars_exp acc = function
+  | EVar(i,q) -> 
+      Qid.Set.add q acc
+  | EApp(i,e1,e2) -> 
+      free_evars_exp (free_evars_exp acc e1) e2
+  | EOver(i,o,el) -> 
+      Safelist.fold_left free_evars_exp acc el
+  | EFun(i,Param(ip,x1,s2),so3,e4) -> 
+      let acc3 = match so3 with None -> acc | Some s3 -> free_evars_sort acc s3 in 
+      let acc4 = free_evars_exp acc3 e4 in 
+      free_evars_sort (Qid.Set.remove (Qid.t_of_id x1) acc4) s2
+  | ELet(i,Bind(ib,p1,so2,e3),e4) ->
+      let acc1 = free_evars_pat acc p1 in
+      let acc2 = match so2 with None -> acc1 | Some s2 -> free_evars_sort acc1 s2 in 
+      let acc3 = free_evars_exp acc2 e3 in 
+      let p1_bvars = qvs_of_is (bound_evars_pat Id.Set.empty p1) in 
+      let acc4 = free_evars_exp (Qid.Set.diff acc3 p1_bvars) e4 in 
+      acc4
+  | ETyFun(i,a,e1) -> 
+      free_evars_exp acc e1
+  | ETyApp(i,e1,s1) -> 
+      let acc2 = free_evars_sort acc s1 in 
+      let acc1 = free_evars_exp acc2 e1 in 
+      acc1
+  | ECast(i,f1,t2,b,e3) ->
+      let acc1 = free_evars_sort acc f1 in 
+      let acc2 = free_evars_sort acc1 t2 in 
+      let acc3 = free_evars_exp acc2 e3 in 
+      acc3 
+  | EPair(i,e1,e2) -> 
+      free_evars_exp (free_evars_exp acc e1) e2
+  | ECase(i,e1,cl,s3) -> 
+      let accl = 
+      Safelist.fold_left 
+        (fun accj (pi,ei) -> 
+           let acci = free_evars_pat accj pi in            
+           let pi_bvars = qvs_of_is (bound_evars_pat Id.Set.empty pi) in 
+           free_evars_exp (Qid.Set.diff acci pi_bvars) ei)
+        acc cl in 
+      let acc1 = free_evars_exp accl e1 in 
+      let acc3 = free_evars_sort acc1 s3 in 
+      acc3
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ -> acc
 
-let subst_exp_in_sort subst s0 = 
-  let new_s0,_ = sort_walk Qid.Set.empty Id.Set.empty (do_evar subst) (dont_svar []) () s0 in 
-  new_s0
+(* EXPRESSION SUBSTITUTION *)
+let free_evars_in_subst subst = 
+  Safelist.fold_left 
+    (fun acc (x,e) -> free_evars_exp (Qid.Set.add x acc) e)
+    Qid.Set.empty subst
 
-let add_sort_vars sacc fvs x = 
-  let new_fvs = 
-    if Id.Set.mem x sacc then fvs 
-    else Id.Set.add x fvs in 
-  (SVar(x),new_fvs)
+let fresh_evar subst a = 
+  let clashes = free_evars_in_subst subst in 
+  let rec aux a =     
+    if Qid.Set.mem a clashes then aux (Qid.prime a)
+    else a in 
+  aux a 
 
-let ignore_sort_vars sacc fvs x = 
-  (SVar(x), fvs)
+let fresh_evar_id subst a = 
+  let clashes = free_evars_in_subst subst in 
+  let rec aux a =     
+    if Qid.Set.mem (Qid.t_of_id a) clashes then aux (Id.prime a)
+    else a in 
+  aux a 
 
-let add_exp_vars eacc fvs i q = 
-  let new_fvs = 
-    if Qid.Set.mem q eacc then fvs 
-    else Qid.Set.add q fvs in 
-    (EVar(i,q),new_fvs)
-   
-let ignore_exp_vars eacc fvs i q = 
-  (EVar(i,q),fvs)
+let fresh_evar_ids subst xs = 
+  let clashes = free_evars_in_subst subst in 
+  let rec aux a = 
+    if Qid.Set.mem (Qid.t_of_id a) clashes then aux (Id.prime a)
+    else a in 
+  Id.Set.fold (fun xi acc -> (xi,aux xi)::acc) xs [] 
 
-let free_sort_vars s0 = 
-  let _,fvs = 
-    sort_walk Qid.Set.empty Id.Set.empty 
-      ignore_exp_vars add_sort_vars
-      Id.Set.empty s0 in 
-  fvs
+let rec rename_evars_pat subst p0 = match p0 with 
+  | PVar(i,x,so) ->  
+      (try 
+         let new_x = gen_assoc Id.equal x subst in 
+         PVar(i,new_x,so) 
+       with Not_found -> p0)
+  | PVnt(i,qx,Some p) -> 
+      let new_p = rename_evars_pat subst p in       
+      PVnt(i,qx,Some new_p)
+  | PVnt(i,qx,None) -> p0
+  | PPar(i,p1,p2) -> 
+      let new_p1 = rename_evars_pat subst p1 in  
+      let new_p2 = rename_evars_pat subst p2 in  
+      PPar(i,new_p1,new_p2) 
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
 
-let free_exp_vars_in_sort s0 = 
-  let _,fvs = 
-    sort_walk Qid.Set.empty Id.Set.empty
-      add_exp_vars ignore_sort_vars
-      Qid.Set.empty s0 in 
-  fvs
+let rec subst_evars_pat subst p0 = match p0 with
+  | PVar(i,x,Some s) ->       
+      let new_s = subst_evars_sort subst s in 
+      PVar(i,x,Some new_s)
+  | PVar(i,x,None) -> p0
+  | PVnt(i,qx,Some p) -> 
+      let new_p = subst_evars_pat subst p in       
+      PVnt(i,qx,Some new_p)
+  | PVnt(i,qx,None) -> p0
+  | PPar(i,p1,p2) -> 
+      let new_p1 = subst_evars_pat subst p1 in  
+      let new_p2 = subst_evars_pat subst p2 in  
+      PPar(i,new_p1,new_p2) 
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
+and subst_evars_sort subst s0 = match s0 with 
+  | SFunction(x,s1,s2) ->      
+      let new_s1 = subst_evars_sort subst s1 in       
+      let fresh_x = fresh_evar_id subst x in 
+      let safe_s2 = 
+        if x = fresh_x then s2 
+        else 
+          let qx = Qid.t_of_id x in 
+          let subst_x = [(qx,EVar(Id.info_of_t fresh_x,qx))] in 
+          subst_evars_sort subst_x s2 in       
+      let new_s2 = subst_evars_sort subst safe_s2 in       
+      SFunction(fresh_x,new_s1,new_s2)
+  | SProduct(s1,s2) -> 
+      let new_s1 = subst_evars_sort subst s1 in 
+      let new_s2 = subst_evars_sort subst s2 in 
+      SProduct(new_s1,new_s2)
+  | SData(sl,qx) -> 
+      let new_sl = Safelist.map (subst_evars_sort subst) sl in 
+      SData(new_sl,qx)
+  | SRefine(x,s1,e2) -> 
+      let fresh_x = fresh_evar_id subst x in 
+      let safe_e2 = 
+        if fresh_x = x then e2 
+        else 
+          let i = Id.info_of_t x in 
+          let qx = Qid.t_of_id x in 
+          let fresh_qx = Qid.t_of_id fresh_x in 
+          let subst_x = [(qx,EVar(i,fresh_qx))] in 
+          subst_evars_exp subst_x e2 in                 
+      let new_s1 = subst_evars_sort subst s1 in 
+      let new_e2 = subst_evars_exp subst safe_e2 in 
+      SRefine(fresh_x,new_s1,new_e2)
+  | SForall(a,s1) -> 
+      let new_s1 = subst_evars_sort subst s1 in 
+      SForall(a,new_s1)
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
+      s0
+and subst_evars_exp subst e0 = match e0 with 
+  | EVar(_,x) -> 
+      (try gen_assoc Qid.equal x subst with Not_found -> e0)
+  | EApp(i,e1,e2) -> 
+      let new_e1 = subst_evars_exp subst e1 in 
+      let new_e2 = subst_evars_exp subst e2 in 
+      EApp(i,new_e1,new_e2) 
+  | EOver(i,o,el) -> 
+      let new_el = Safelist.map (subst_evars_exp subst) el in 
+      EOver(i,o,new_el)
+  | EFun(i,Param(ip,x1,s2),so3,e4) -> 
+      let fresh_x1 = fresh_evar_id subst x1 in 
+      let new_s2 = subst_evars_sort subst s2 in 
+      let safe_so3,safe_e4 = 
+        if fresh_x1 = x1 then (so3,e4)
+        else
+          let i = Id.info_of_t x1 in 
+          let qx1 = Qid.t_of_id x1 in 
+          let fresh_qx1 = Qid.t_of_id fresh_x1 in 
+          let subst_x1 = [(qx1,EVar(i,fresh_qx1))] in 
+          (Misc.map_option (subst_evars_sort subst_x1) so3,
+           subst_evars_exp subst_x1 e4) in 
+      let new_so3 = Misc.map_option (subst_evars_sort subst) safe_so3 in 
+      let new_e4 = subst_evars_exp subst safe_e4 in 
+      EFun(i,Param(ip,fresh_x1,new_s2),new_so3,new_e4) 
+  | ELet(i,Bind(ib,p1,so2,e3),e4) ->
+      let p1_vars = bound_evars_pat Id.Set.empty p1 in 
+      let p1_fresh_vars = fresh_evar_ids subst p1_vars in 
+      let safe_p1,safe_so2,safe_e3,safe_e4 = 
+        if Safelist.for_all (fun (xi,fresh_xi) -> xi = fresh_xi) p1_fresh_vars then 
+          (p1,so2,e3,e4)
+        else
+          let subst_pvars = 
+            Safelist.map 
+              (fun (xi,fresh_xi) -> 
+                 (Qid.t_of_id xi, EVar(i,Qid.t_of_id fresh_xi))) 
+              p1_fresh_vars in
+          (rename_evars_pat p1_fresh_vars p1,
+           Misc.map_option (subst_evars_sort subst_pvars) so2,
+           subst_evars_exp subst_pvars e3,
+           subst_evars_exp subst_pvars e4) in 
+      let new_so2 = Misc.map_option (fun s2 -> subst_evars_sort subst s2) safe_so2 in 
+      let new_e3 = subst_evars_exp subst safe_e3 in 
+      let new_e4 = subst_evars_exp subst safe_e4 in 
+      ELet(i,Bind(ib,safe_p1,new_so2,new_e3),new_e4)
+  | ETyFun(i,a,e1) -> 
+      let new_e1 = subst_evars_exp subst e1 in 
+      ETyFun(i,a,new_e1)
+  | ETyApp(i,e1,s2) -> 
+      let new_e1 = subst_evars_exp subst e1 in 
+      let new_s2 = subst_evars_sort subst s2 in 
+      ETyApp(i,new_e1,new_s2) 
+  | ECast(i,f1,t2,b,e3) ->
+      let new_f1 = subst_evars_sort subst f1 in 
+      let new_t2 = subst_evars_sort subst t2 in 
+      let new_e3 = subst_evars_exp subst e3 in 
+      ECast(i,new_f1,new_t2,b,new_e3)
+  | EPair(i,e1,e2) -> 
+      let new_e1 = subst_evars_exp subst e1 in 
+      let new_e2 = subst_evars_exp subst e2 in 
+      EPair(i,new_e1,new_e2)
+  | ECase(i,e1,cl,s3) -> 
+      let new_e1 = subst_evars_exp subst e1 in 
+      let new_cl = 
+        Safelist.map 
+          (fun (pi,ei) -> 
+             let pi_vars = bound_evars_pat Id.Set.empty pi in 
+             let pi_fresh_vars = fresh_evar_ids subst pi_vars in 
+             let safe_pi,safe_ei = 
+               if Safelist.for_all (fun (xi,fresh_xi) -> xi = fresh_xi) pi_fresh_vars then 
+               (pi,ei)
+               else
+                 let subst_pvars = 
+                   Safelist.map 
+                     (fun (xi,fresh_xi) -> 
+                        (Qid.t_of_id xi, EVar(i,Qid.t_of_id fresh_xi))) 
+                     pi_fresh_vars in
+                 (rename_evars_pat pi_fresh_vars pi,
+                  subst_evars_exp subst_pvars ei) in                           
+             let new_ei = subst_evars_exp subst safe_ei in 
+             (safe_pi,new_ei))
+          cl in 
+      let new_s3 = subst_evars_sort subst s3 in 
+      ECase(i,new_e1,new_cl,new_s3)
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  -> e0
+
+let subst_sort subst s0 = subst_svars_sort subst s0
+
+let subst_exp_in_sort subst s0 = subst_evars_sort subst s0
+
+let free_sort_vars s0 = free_svars_sort Id.Set.empty s0
+
+let free_exp_vars_in_sort s0 = free_evars_sort Qid.Set.empty s0
 
 let rec erase_sort = function
   | SFunction(x,s1,s2) ->       

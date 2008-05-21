@@ -78,7 +78,7 @@ and format_pat p0 = match p0 with
 
 and format_param p0 = match p0 with
   | Param(_,x,s) ->
-      msg "@[(%s" (Id.string_of_t x);      
+      msg "@[(%s:" (Id.string_of_t x);      
       format_sort s;
       msg ")@]"
 
@@ -185,7 +185,7 @@ and format_exp e0 = match e0 with
     | EBoolean (_,b) -> 
         msg "@[%b@]" b
 
-    | EChar(_,c) -> msg "%s" (Bstring.repr c)
+    | EChar(_,c) -> msg "'%s'" (Bstring.repr c)
 
     | EString (_,s) ->
 	msg "@[\"%s\"@]" 
