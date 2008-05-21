@@ -23,14 +23,17 @@ module Story =
       - quotienting
 *)
 
-(* Our first lens maps between invidual ASCII characters, and their
-   escapings in XML. *)
-
+(* Some preliminary definitions, not to be shown in the talk *)
 let ASCII_CHAR : regexp = [^]
+
+
+(* Our first lens maps between invidual ASCII characters and
+   appropriate escape sequences in XML. *)
+
 let XML_ESC : regexp = "&lt;" | "&gt;" | "&amp;" | [^<>&]
 
 let escape_xml_char : (lens in ASCII_CHAR <=> XML_ESC) = 
-  '<' <=> "&lt;"
+    '<' <=> "&lt;"
   | '>' <=> "&gt;"
   | '&' <=> "&amp;"
   | copy (ANYCHAR - [<>&])
@@ -173,8 +176,8 @@ test escape_xml.get
 (* ... or better... *)
 let escape_xml : (lens in ANY <=> XML_ESC_STRING ) = 
   let l1 = escape_char '&' "&amp;" [^] in
-  let l2 = escape_char '<' "&lt;"  (atype l1) in
-  let l3 = escape_char '>' "&gt;"  (atype l2) in
+  let l2 = escape_char '<' "&lt;"  (domain_type l1) in
+  let l3 = escape_char '>' "&gt;"  (domain_type l2) in
   (l1;l2;l3)*
 
 let mk_escape (esc_map: (char * string) List.t) : lens = 
