@@ -1,6 +1,5 @@
 module Story = 
 
-(* 
 (* Overall story:
       - illustrate lens combinators / types
       - motivate / illustrate abstraction / reuse
@@ -24,16 +23,12 @@ module Story =
       - quotienting
 *)
 
-(* Some preliminary definitions, not to be shown in the talk *)
-let ASCII_CHAR : regexp = [^]
-
-
 (* Our first lens maps between invidual ASCII characters and
    appropriate escape sequences in XML. *)
 
 let XML_ESC : regexp = "&lt;" | "&gt;" | "&amp;" | [^<>&]
 
-let escape_xml_char : (lens in ASCII_CHAR <=> XML_ESC) = 
+let escape_xml_char : (lens in ANYCHAR <=> XML_ESC) = 
     '<' <=> "&lt;"
   | '>' <=> "&gt;"
   | '&' <=> "&amp;"
@@ -41,11 +36,12 @@ let escape_xml_char : (lens in ASCII_CHAR <=> XML_ESC) =
 
 (* Using [escape_xml_char], we can build a lens to escape entire strings. *)
 
-let ANY : regexp = ASCII_CHAR*
+let ANY : regexp = ANYCHAR*
 let XML_ESC_STRING : regexp = XML_ESC*
 
 let escape_xml : (lens in ANY <=> XML_ESC_STRING ) = 
   escape_xml_char*
+
 
 (* Next we build a lens that maps between individual ASCII characters,
    and their escapings in formats like CSV. (This lens is a little bit harder
@@ -54,10 +50,10 @@ let escape_xml : (lens in ANY <=> XML_ESC_STRING ) =
 
 let ESC_SYMBOL : regexp = "\\\"" | "\\\\" | [^\\""]
 
-let escape_quotes_char : (lens in ASCII_CHAR <=> ESC_SYMBOL) = 
+let escape_quotes_char : (lens in ANYCHAR <=> ESC_SYMBOL) = 
     '"' <=> "\\\""
   | '\\' <=> "\\\\"
-  | copy (ASCII_CHAR - [\\""]) 
+  | copy (ANYCHAR - [\\""]) 
 
 (* Using [escape_quotes_char] we can build a lens that escapes entire
    strings. *)
@@ -76,6 +72,7 @@ test escape_quotes_string.get
   >> 
 (* " *)
 
+
 (* Now we can compose these lenses to build a lens that maps between
    strings escaped according to CSV and XML conventions. *)
 
@@ -92,6 +89,7 @@ test quotes_to_xml.get
   >> 
 (* " *)
 
+
 (* Why do we need precise type system? Let's review the "real" types
    of the core lens combinators: dependent + refinement types. *)
 let lens_splittable (l1:lens) (l2:lens) : bool = 
@@ -104,22 +102,23 @@ let lens_disjoint (l1:lens) (l2:lens) : bool =
   ((l1.ctype & l2.ctype) = empty) && ((l1.atype & l2.atype) = empty)
 
 let lens_concat (l1:lens) (l2:lens where lens_splittable l1 l2) : lens = 
-  l1 . l2
+  Native.Prelude.lens_concat l1 l2
 
 let lens_union (l1:lens) (l2:lens where lens_disjoint l1 l2) : lens = 
-  l1 | l2
+  Native.Prelude.lens_union l1 l2
 
-let lens_star (l1:lens where lens_iterable l1) : lens = 
-  l1*
+(* etc. *)
+
+(* ------------------------------------------------------------ *)
 
 (* Now let's write a generic lens. *)
 let escape_char (raw:char) (esc:string) (R:regexp) 
    : (lens in (R | raw) <=> (R | esc))
  = 
-   ( raw <=> esc
+   ( raw <=> esc           (* Change TEX definition! *) 
    | copy R )
 
-test escape_char '&' "amp;" ASCII_CHAR = error
+test escape_char '&' "amp;" ANYCHAR = error
 (* 
 Test result: error
 (copy R) did not have sort (l2:lens where
@@ -148,16 +147,13 @@ let escape_char (raw:char) (esc:string)
 (* Now if we try to instantiate [escape_char] with bogus arguments,
    Boomerang points the finger at the source of the problem *)
 
-test escape_char '&' "amp;" ASCII_CHAR = error
-
-(* ASCII_CHAR did not have sort (R:regexp where
+test escape_char '&' "amp;" ANYCHAR = error
+(* ANYCHAR did not have sort (R:regexp where
    (not ((Core.lor ((matches R) (Native.Prelude.string_of_char &)))
    ((matches R) "&amp;"))))
    <<File "./Story.boom", line 157, characters 32-42:true>> blamed! *)
 
-let R : regexp = [^&] | "&amp;" 
-
-let escape_xml_char : (lens in ASCII_CHAR <=> XML_ESC ) = 
+let escape_xml_char : (lens in ANYCHAR <=> XML_ESC ) = 
   ( escape_char '&' "&amp;" [^&]
   ; escape_char '<' "&lt;"  ([^&<] | "&amp;")
   ; escape_char '>' "&gt;"  ([^&<>] | "&amp;" | "&lt;") )
@@ -182,15 +178,15 @@ let escape_xml : (lens in ANY <=> XML_ESC_STRING ) =
   let l3 = escape_char '>' "&gt;"  ((atype l2) - ">") in 
   (l1;l2;l3)*
 
-let mk_escape (esc:char) (s:string)
+let mk_escape (escXXX:char) (s:string)
               (esc_map: (char * string) List.t) : lens = 
   let l : lens = 
     List.fold_left{lens}{char * string}
       (fun (li:lens) (p:char * string) -> 
          let cj,sj = p in 
-         let lj = escape_char cj sj (atype li) in 
+         let lj = escape_char cj sj ((atype li) - cj) in 
          li;lj)
-      (escape_char esc s (ASCII_CHAR - esc)) esc_map in 
+      (escape_char escXXX s (ANYCHAR - escXXX)) esc_map in 
     l*
       
 let escape_xml2 : lens = 
@@ -571,6 +567,5 @@ test l3 get
         <first>Michael "The Autominator"</first><last>Greenberg, Jr. &amp;c</last>
     >>>
 
-*)
 *)
 *)

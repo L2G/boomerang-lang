@@ -167,7 +167,7 @@ rule main = parse
 | "["                { CSET(info lexbuf, cset lexbuf) }
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }
-| "<<"              { let i1 = info lexbuf in 
+| "<<"               { let i1 = info lexbuf in 
                        let i2,s = bare "" lexbuf in 
                        let i = Info.merge_inc i1 i2 in 
                        STR(i,s) }
@@ -255,8 +255,13 @@ and bare acc = parse
                      let s = lexeme lexbuf in 
                      let n = String.length s - 1 in 
                      bare_indent acc n lexbuf }
+<<<<<<< .mine
+  | ">>"           { (info lexbuf,acc) }
+  | eof            { error lexbuf "unmatched '<<'" }
+=======
   | ">>"          { (info lexbuf,acc) }
   | eof            { error lexbuf "unmatched '<<'" }
+>>>>>>> .r3807
   | _              { bare_raw (acc ^ lexeme lexbuf) lexbuf }
 
 and bare_indent_spaces acc n expected = parse
@@ -265,8 +270,13 @@ and bare_indent_spaces acc n expected = parse
                        else 
                          bare_indent_spaces acc n (pred expected) lexbuf }
   (* XXX: should we check that the number of spaces is <= n? *)
+<<<<<<< .mine
+  | newline [' ']* ">>" { newline lexbuf;
+                          (info lexbuf,acc) } 
+=======
   | newline [' ']* ">>" { newline lexbuf;
                            (info lexbuf,acc) } 
+>>>>>>> .r3807
   | newline          { newline lexbuf; 
                        bare_indent_spaces (acc ^ lexeme lexbuf) n n lexbuf }
   | _                { if expected=0 then 
@@ -275,15 +285,24 @@ and bare_indent_spaces acc n expected = parse
                          error lexbuf (sprintf "expecting %d spaces after newline in string" n) }
 
 and bare_indent acc n = parse
+<<<<<<< .mine
+  | newline [' ']* ">>" { newline lexbuf; 
+                          (info lexbuf,acc) }
+=======
   | newline [' ']* ">>" { newline lexbuf; 
                            (info lexbuf,acc) }
+>>>>>>> .r3807
   | newline          { newline lexbuf; 
                        bare_indent_spaces (acc ^ lexeme lexbuf) n n lexbuf }
   | eof              { error lexbuf "unmatched '>>'" }
   | _                { bare_indent (acc ^ lexeme lexbuf) n lexbuf }
   
 and bare_raw acc = parse
+<<<<<<< .mine
+  | ">>"        { (info lexbuf,acc) }
+=======
   | ">>"       { (info lexbuf,acc) }
+>>>>>>> .r3807
   | newline     { newline lexbuf; 
                   bare_raw (acc ^ lexeme lexbuf) lexbuf }
   | eof         { error lexbuf "unmatched '<<'" }
