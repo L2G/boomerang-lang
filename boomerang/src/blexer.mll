@@ -139,7 +139,9 @@ rule main = parse
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }
 | ".ctype"           { CTYPE(info lexbuf) }
+| ".domain_type"     { CTYPE(info lexbuf) }
 | ".atype"           { ATYPE(info lexbuf) }
+| ".codomain_type"   { ATYPE(info lexbuf) }
 | ".bij"             { BIJ(info lexbuf) }
 | ".get"             { GET(info lexbuf) }
 | ".put"             { PUT(info lexbuf) }
