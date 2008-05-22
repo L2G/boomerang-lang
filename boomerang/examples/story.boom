@@ -185,13 +185,13 @@ test escape_xml.get
   >> 
 
 (* ... or better... *)
-let codomain_type (l:lens) = l.codomain_type 
 let escape_xml : (lens in ANY <=> XML_ESC_STRING ) = 
   let l1 = escape_char '&' "&amp;" [^&] in
   let l2 = escape_char '<' "&lt;"  ((codomain_type l1) - "<") in 
   let l3 = escape_char '>' "&gt;"  ((codomain_type l2) - ">") in 
   (l1;l2;l3)*
 
+(* ------------------------------------------------------------------------ *)
 let escape_chars 
       (esc:char) 
       (s:string)
@@ -227,12 +227,6 @@ test escape_xml.get
 (* Add patterns on lambda-binders and tidy the following *)
 
 (* TODO move this to lenses/list.boom at some point *)
-let list_reverse (l : 'a List.t) : 'a List.t =
-  List.fold_left (fun (l:'a List.t) (p:'a) -> (List.Cons(p,l))) List.Nil l
-
-(* do we want a (precise) contract on the result? *)
-let list_map (f : 'a -> 'b) (la : 'a List.t) : 'b List.t =
-  list_reverse (List.fold_left (fun (lb:'b List.t) (p:'a) -> (List.Cons(f p,lb))) List.Nil la)
 
 let fst (p : 'a * 'b) = (match p with (x,y) -> x) : 'a
 let snd (p : 'a * 'b) = (match p with (x,y) -> y) : 'b
@@ -240,10 +234,6 @@ let snd (p : 'a * 'b) = (match p with (x,y) -> y) : 'b
 let union_of_fsts (pairs : (regexp*regexp) List.t) = 
   List.fold_left {regexp} {regexp} regexp_union []
                 (list_map {regexp*regexp} {regexp} fst pairs)
-
-(* Switch cond and acond *)
-
-(* need type char in some form *)
 
 let escape (pairs : (string * string) List.t) : lens =
   let escape_char =

@@ -844,6 +844,9 @@ param:
         let s = SRefine($2,$4,$6) in 
         Misc.Left (Param(i,$2,s)) }
 
+  | LPAREN VIDENT RPAREN
+      { Misc.Right ($2) }
+
   | VIDENT 
       { Misc.Right ($1) }
 

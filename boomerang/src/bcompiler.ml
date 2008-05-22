@@ -705,12 +705,11 @@ and check_exp sev e0 =
               if not (compatible body_sort new_ret_sort) then
                 sort_error i
                   (fun () ->
-                     format_exp e0; msg "@\n";
                      msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
                        (string_of_sort new_ret_sort)
                        (string_of_sort body_sort));
               let cast_body = mk_cast (SCEnv.lookup_type sev) (info_of_exp body) body_sort new_ret_sort new_body in
-              (ret_sort,cast_body) in
+              (new_ret_sort,cast_body) in
       let e0_sort = SFunction(p_x,new_p_s,body_sort) in
       let new_p = Param(p_i,p_x,new_p_s) in
       let new_e0 = EFun(i,new_p,Some body_sort,new_body) in
@@ -932,12 +931,13 @@ let rec check_decl sev ms d0 = match d0 with
       let sev3 = SCEnv.update_type sev svl new_qx new_qcl in
       (* build the datatype *)
       let sx = SData(sl_of_svl svl,new_qx) in
+      let mk_univ s = Safelist.fold_right (fun svi acc -> SForall(svi,acc)) svl s in 
       (* add constructors to sev *)
       let sev4,xs_rev = Safelist.fold_left 
         (fun (sevi,acc) (li,sio) ->            
            let li_sort = match sio with 
-             | None -> sx
-             | Some si -> SFunction(Id.wild,si,sx) in
+             | None -> mk_univ sx
+             | Some si -> mk_univ (SFunction(Id.wild,si,sx)) in 
            let qli = Qid.t_of_id li in 
            (SCEnv.update sevi qli (G.Sort li_sort),qli::acc))
         (sev3,[]) new_cl_rev in

@@ -41,7 +41,7 @@ let rec format_sort = function
       Misc.format_list ",@ " (format_sort) ms;      
       msg "@])@ %s@]" (Qid.string_of_t q1)
 
-  | SVar(x) -> msg "%s" (Id.string_of_t x)
+  | SVar(x) -> msg "'%s" (Id.string_of_t x)
 
   | SForall(x,s) -> 
       msg "@[<2>(forall %s@ =>@ " (Id.string_of_t x);
@@ -137,7 +137,7 @@ and format_exp e0 = match e0 with
 	msg "@]";
 
     | ETyFun(_,x,e) -> 
-        msg "@[<2>(tyfun@ %s@ ->@ " (Id.string_of_t x);
+        msg "@[<2>(tyfun@ %s@ ->@ '" (Id.string_of_t x);
         format_exp e;
         msg ")@]"
     

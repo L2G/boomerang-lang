@@ -2,5 +2,12 @@ module List =
 
 type 'a t = Nil | Cons of 'a * 'a t
 
-let fold_left (* : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a *) = 
-  Native.Prelude.fold_left 
+let fold_left ('a) ('b) (f:'b -> 'a -> 'b) (acc:'b) (l:'a t) : 'b = 
+  Native.Prelude.fold_left{'b}{'a} f acc l 
+
+let reverse ('a) (l : 'a t) : 'a t =
+  fold_left{'a}{'a t} (fun (t:'a t) (h:'a) -> Cons{'a}(h,t)) Nil{'a} l
+
+let map ('a) ('b) (f:'a -> 'b) (l:'a t) : 'b t = 
+  let rev_fl : 'b t = fold_left{'a}{'b t} (fun (t:'b t) (h:'a) -> Cons{'b}(f h,t)) Nil{'b} l in 
+  reverse{'b} rev_fl
