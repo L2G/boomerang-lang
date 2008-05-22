@@ -129,10 +129,10 @@ let lens_union (l1:lens) (l2:lens where lens_disjoint l1 l2) : lens =
 let escape_char (raw:char) (esc:string) (R:regexp) 
    : (lens in (R | raw) <=> (R | esc))
  = 
-   ( raw <=> esc           (* Change TEX definition! *) 
+   ( raw <=> esc 
    | copy R )
 
-test escape_char '&' "amp;" ANYCHAR = error
+test escape_char '&' "&amp;" ANYCHAR = error
 (* 
 Test result: error
 (copy R) did not have sort (l2:lens where
@@ -161,7 +161,7 @@ let escape_char (raw:char) (esc:string)
 (* Now if we try to instantiate [escape_char] with bogus arguments,
    Boomerang points the finger at the source of the problem *)
 
-test escape_char '&' "amp;" ANYCHAR = error
+test escape_char '&' "&amp;" ANYCHAR = error
 (* ANYCHAR did not have sort (R:regexp where
    (not ((Core.lor ((matches R) (Native.Prelude.string_of_char &)))
    ((matches R) "&amp;"))))
@@ -192,8 +192,11 @@ let escape_xml : (lens in ANY <=> XML_ESC_STRING ) =
   let l3 = escape_char '>' "&gt;"  ((codomain_type l2) - ">") in 
   (l1;l2;l3)*
 
-let mk_escape (esc:char) (s:string)
-              (esc_map: (char * string) List.t) : lens = 
+let escape_chars 
+      (esc:char) 
+      (s:string)
+      (esc_map: (char * string) List.t) 
+      : lens = 
   let l : lens = 
     List.fold_left{lens}{char * string}
       (fun (li:lens) (p:char * string) -> 
@@ -203,14 +206,8 @@ let mk_escape (esc:char) (s:string)
       (escape_char esc s (ANYCHAR - esc)) esc_map in 
     l*
       
-let escape_xml2 : lens = 
-  mk_escape '&' "&amp;" #{char*string}[('<',"&lt;");('>',"&gt;")] 
-
-(* Can even do it with lists, which motivates polymorphism... *)
-(* and now maybe write a generic one using List.fold_left ... *)
-
-(* do we need to rename domain_type for purposes of the talk??  -- yes:
-   domain_of and domain_of (maybe do this throughout?) *)
+let escape_xml : lens = 
+  escape_chars '&' "&amp;" #{char*string}[('<',"&lt;");('>',"&gt;")] 
 
 test escape_xml.get
     <<
