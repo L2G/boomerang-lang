@@ -134,16 +134,13 @@ module Qid : sig
   (** Sets with Qid.ts as elements *)
 end
 
-type blame = Blame of Info.t * bool 
-(* blame *)
+type blame = Blame of Info.t  
 
 val mk_blame : Info.t -> blame 
 (** [mk_blame i] constructs blame associated with parsing info [i]. *)
 
 val invert_blame : blame -> blame
 (** ??? *)
-
-val string_of_blame : blame -> string
 
 type sort = 
     (* base sorts *)
@@ -277,3 +274,4 @@ val pat_of_binding : binding -> pat
 val exp_of_binding : binding -> exp
 (** [exp_op_binding p] returns the expression of binding [b]. *)
 
+val exp_of_blame : Info.t -> blame -> exp

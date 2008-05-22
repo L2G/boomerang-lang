@@ -73,3 +73,11 @@ let run_error i msg_thk =
               Util.format "@[%s: Unexpected run-time error@\n" (Info.string_of_t i);
               msg_thk ();
               Util.format "@]"))
+
+let blame_error i msg_thk = 
+  raise (Error.Harmony_error
+           (fun () -> 
+              Util.format "@[%s: Run-time checking error@\n" (Info.string_of_t i);
+              msg_thk ();
+              Util.format "@]"))
+    

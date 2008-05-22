@@ -24,3 +24,5 @@ val test_all : bool Prefs.t
 val check_module: Bsyntax.modl -> Bsyntax.modl
 
 val compile_module: Bsyntax.modl -> unit
+
+val print_stats : unit -> unit

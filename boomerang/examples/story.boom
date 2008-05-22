@@ -23,8 +23,8 @@ module Story =
       - quotienting
 *)
 
-let domain_type (l:lens) = ctype l
-let codomain_type (l:lens) = atype l
+let domain_type (l:lens) : regexp = ctype l
+let codomain_type (l:lens) : regexp = atype l
 
 (* Our first lens maps between invidual ASCII characters and
    appropriate escape sequences in XML. *)
@@ -216,7 +216,7 @@ let char_or_escaped (esc:char) (pairs:(char * string) List.t) : regexp =
     [] pairs
 
 test char_or_escaped '&' #{char*string}[('&',"amp;");('<',"lt;");('>',"gt;")] = 
-  ("&" | "&amp;" | "<" | "&lt;" | ">" | "&gt;")
+  ("&" | "<"  | ">" | "&amp;" | "&lt;" | "&gt;")
 
 let escaped (esc:char) (pairs:(char * string) List.t) : regexp = 
   List.fold_left{char * string}{regexp}
@@ -226,18 +226,17 @@ let escaped (esc:char) (pairs:(char * string) List.t) : regexp =
     ANYCHAR pairs
        
 let escape_chars 
-      (esc:char) 
-      (pairs: (char * string) List.t where
-            contains_esc_char esc pairs
-         && no_repeated_esc_codes pairs)
+    (esc:char) 
+    (pairs: (char * string) List.t where
+                 contains_esc_char esc pairs
+              && no_repeated_esc_codes pairs)
    : (lens in ANY <-> (escaped esc pairs)* ) = 
   let l : lens = 
     List.fold_left{char * string}{lens}
       (fun (li:lens) (p:char * string) -> 
          let cj,sj = p in 
-         let lj = escape_char cj (esc . sj) ((codomain_type li) - cj) in 
-         li;lj)
-      (copy ANYCHAR) pairs in 
+         li; escape_char cj (esc . sj) (li.codomain_type - cj))
+      ANYCHAR pairs in 
     l*
       
 let escape_xml : lens = 
@@ -251,8 +250,6 @@ test escape_xml.get
     <<
         &lt;hello&amp;world&gt;
     >> 
-
-
 
 (* and then use domain_type *)
 

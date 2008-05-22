@@ -31,3 +31,4 @@ val sort_error : Info.t -> (unit -> unit) -> 'a
 
 val run_error : Info.t -> (unit -> unit) -> 'a
 
+val blame_error : Info.t -> (unit -> unit) -> 'a

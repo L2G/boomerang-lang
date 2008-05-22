@@ -185,8 +185,8 @@ let canonizer_of_lens : lens -> canonizer =
 let string_of_regexp : regexp -> string = 
   Native.Prelude.string_of_regexp
 
-let blame 'a (s:string) : 'a = 
-  Native.Prelude.blame{'a} s
+let blame 'a 'b (i:string * ((int * int) * (int * int))) (v:'a) (s:string) : 'b = 
+  Native.Prelude.blame{'a}{'b} i v s
 
 let set (r:regexp) (s:string) = 
   const r s (shortest r)

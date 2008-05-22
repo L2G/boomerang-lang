@@ -121,13 +121,11 @@ module Qid = struct
       end)
 end
 
-type blame = Blame of Info.t * bool 
+type blame = Blame of Info.t 
 
-let mk_blame i = Blame (i,true)
+let mk_blame i = Blame i 
 
-let invert_blame (Blame(i,b)) = Blame (i,not b)
-
-let string_of_blame (Blame(i,b)) = sprintf "<<%s:%b>>" (Info.string_of_t i) b
+let invert_blame b = b
 
 (* ----- sorts, parameters, expressions ----- *)
 type sort = 
@@ -297,3 +295,11 @@ let pat_vars =
   | PPar (_,p1,p2) -> aux (aux acc p1) p2 in 
   aux Id.Set.empty
 
+let exp_of_blame i b = 
+  let fn,(i1,i2),(j1,j2) = match b with 
+    | Blame(Info.I(fn,(i1,i2),(j1,j2))) -> (fn,(i1,i2),(j1,j2))
+    | Blame(Info.M s) -> s,(-1,-1),(-1,-1) in     
+  let p1 = EPair(i,EInteger(i,i1),EInteger(i,i2)) in 
+  let p2 = EPair(i,EInteger(i,j1),EInteger(i,j2)) in 
+  EPair(i,EString(i,Bstring.t_of_string fn),EPair(i,p1,p2)) 
+        

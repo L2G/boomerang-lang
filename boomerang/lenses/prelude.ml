@@ -252,14 +252,29 @@ let prelude_spec =
   ; begin 
     let i = Info.M "blame built-in" in 
     let a = S.Id.mk i "a" in 
+    let b = S.Id.mk i "b" in 
     let a_sort = S.SVar a in 
+    let b_sort = S.SVar b in 
+    let pos_sort = S.SProduct(S.SInteger,S.SInteger) in 
+    let poses_sort = S.SProduct(pos_sort,pos_sort) in 
+    let i_sort = S.SProduct(S.SString,poses_sort) in 
     (S.Qid.mk_native_prelude_t "blame",
-    S.SForall(a,S.SString ^> a_sort),
+    S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> S.SString ^> b_sort)), 
     mk_ufun i (fun () -> 
-      mk_sfun i (fun s1 -> 
-        (raise(Error.Harmony_error 
-          (fun () -> 
-             Util.format "@[%s blamed!@]" (Bstring.string_of_t s1)))))))
+      mk_ufun i (fun () -> 
+        mk_pfun i (fun (fn,ps) -> 
+          mk_f i (fun v ->
+            mk_sfun i (fun s1 -> 
+              let fn_s = Bstring.string_of_t (get_s fn) in 
+              let i_blame = 
+                let ps1,ps2 = get_p ps in 
+                let i1,i2 = get_p ps1 in 
+                let j1,j2 = get_p ps2 in 
+                Info.I(fn_s,(get_i i1,get_i i2),(get_i j1,get_i j2)) in 
+              Berror.blame_error i_blame 
+                (fun () -> 
+                   Util.format "@[%s@ did@ not@ have@ sort@ %s@]" 
+                     (Bvalue.string_of_t v) (Bstring.string_of_t s1))))))))
   end
 
   ; begin 
