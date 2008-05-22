@@ -462,7 +462,7 @@ let rec static_match i sev p0 s =
           if not (compatible s SString) then err p0 "string" s;
           Some (p0,[])
       | PVnt(pi,li,ptio) -> 
-          begin match s with 
+          begin match expose_sort s with 
             | SData(sl1,qy) -> 
                 (* lookup the constructor from the environment *)
                 let qx,(svl,cl) = get_con i sev li in 

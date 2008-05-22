@@ -497,3 +497,7 @@ let rec erase_sort = function
   | SUnit | SBool | SInteger | SChar | SString 
   | SRegexp | SLens | SCanonizer | SVar _ as s0 -> 
       s0
+
+let rec expose_sort = function
+  | SRefine(x,s1,e1) -> s1
+  | s0 -> s0

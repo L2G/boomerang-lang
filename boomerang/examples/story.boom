@@ -218,12 +218,19 @@ let char_or_escaped (esc:char) (pairs:(char * string) List.t) : regexp =
 test char_or_escaped '&' #{char*string}[('&',"amp;");('<',"lt;");('>',"gt;")] = 
   ("&" | "&amp;" | "<" | "&lt;" | ">" | "&gt;")
 
+let escaped (esc:char) (pairs:(char * string) List.t) : regexp = 
+  List.fold_left{char * string}{regexp}
+    (fun (r:regexp) (p:char * string) -> 
+       let f,t = p in 
+       (r - f | esc . t))
+    ANYCHAR pairs
+       
 let escape_chars 
       (esc:char) 
       (pairs: (char * string) List.t where
             contains_esc_char esc pairs
          && no_repeated_esc_codes pairs)
-   : lens = 
+   : (lens in ANY <-> (escaped esc pairs)* ) = 
   let l : lens = 
     List.fold_left{char * string}{lens}
       (fun (li:lens) (p:char * string) -> 
