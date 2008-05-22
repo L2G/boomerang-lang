@@ -301,7 +301,7 @@ let pat_vars =
 tricky enough that I think it's better to have them written out
 explicitly and (I hope) carefully. *)
 
-(* generic Safelist.assoc stuff *)
+(* Safelist.assoc generalized over an arbitrary equality function *)
 let rec gen_assoc eq x = function
   | [] -> raise Not_found
   | (y,s)::rest -> if eq x y then s else gen_assoc eq x rest
@@ -315,57 +315,73 @@ let rec free_svars_pat acc = function
   | PPar(_,p1,p2)    -> free_svars_pat (free_svars_pat acc p1) p2
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
 and free_svars_sort acc = function
-  | SVar a -> Id.Set.add a acc 
+  | SVar a -> 
+      Id.Set.add a acc 
   | SFunction(x,s1,s2) -> 
-      free_svars_sort (free_svars_sort acc s1) s2 
+      let acc1 = free_svars_sort acc s1 in 
+      let acc2 = free_svars_sort acc1 s2 in 
+      acc2
   | SProduct(s1,s2) -> 
-      free_svars_sort (free_svars_sort acc s1) s2
+      let acc1 = free_svars_sort acc s1 in 
+      let acc2 = free_svars_sort acc1 s2 in 
+      acc2
   | SData(sl,qx)       -> 
       Safelist.fold_left free_svars_sort acc sl
   | SRefine(x,s1,e2) -> 
-      free_svars_exp (free_svars_sort acc s1) e2
+      let acc1 = free_svars_sort acc s1 in 
+      let acc2 = free_svars_exp acc1 e2 in 
+      acc2
   | SForall(a,s1) -> 
-      Id.Set.remove a (free_svars_sort acc s1)
+      let acc1 = free_svars_sort acc s1 in 
+      Id.Set.remove a acc1
   | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer ->
       acc
 and free_svars_exp acc = function
-  | EApp(i,e1,e2) -> 
-      free_svars_exp (free_svars_exp acc e1) e2
-  | EOver(i,o,el) -> 
+  | EApp(_,e1,e2) -> 
+      let acc1 = free_svars_exp acc e1 in 
+      let acc2 = free_svars_exp acc1 e2 in 
+      acc2
+  | EOver(_,_,el) -> 
       Safelist.fold_left free_svars_exp acc el
-  | EFun(i,Param(ip,x1,s2),so3,e4) -> 
-      let acc2 = free_svars_sort acc s2 in 
-      let acc3 = match so3 with None -> acc2 | Some s3 -> free_svars_sort acc s3 in 
-      let acc4 = free_svars_exp acc3 e4 in 
-      acc4
-  | ELet(i,Bind(ib,p1,so2,e3),e4) ->
+  | EFun(_,Param(_,_,s1),so2,e3) -> 
+      let acc1 = free_svars_sort acc s1 in 
+      let acc2 = match so2 with None -> acc1 | Some s2 -> free_svars_sort acc1 s2 in 
+      let acc3 = free_svars_exp acc2 e3 in 
+      acc3
+  | ELet(_,Bind(_,p1,so2,e3),e4) ->
       let acc1 = free_svars_pat acc p1 in
       let acc2 = match so2 with None -> acc1 | Some s2 -> free_svars_sort acc1 s2 in 
       let acc3 = free_svars_exp acc2 e3 in 
       let acc4 = free_svars_exp acc3 e4 in 
       acc4
-  | ETyFun(i,a,e1) -> 
-      Id.Set.remove a (free_svars_exp acc e1)
-  | ETyApp(i,e1,s1) -> 
-      let acc2 = free_svars_sort acc s1 in 
-      let acc1 = free_svars_exp acc2 e1 in 
-      acc1
-  | ECast(i,f1,t2,b,e3) ->
+  | ETyFun(_,a,e1) -> 
+      let acc1 = free_svars_exp acc e1 in 
+      Id.Set.remove a acc1
+  | ETyApp(_,e1,s2) -> 
+      let acc1 = free_svars_exp acc e1 in 
+      let acc2 = free_svars_sort acc1 s2 in 
+      acc2
+  | ECast(_,f1,t2,_,e3) ->
       let acc1 = free_svars_sort acc f1 in 
       let acc2 = free_svars_sort acc1 t2 in 
       let acc3 = free_svars_exp acc2 e3 in 
       acc3 
-  | EPair(i,e1,e2) -> 
-      free_svars_exp (free_svars_exp acc e1) e2
-  | ECase(i,e1,cl,s3) -> 
-      let accl = 
-      Safelist.fold_left 
-        (fun accj (pi,ei) -> free_svars_exp (free_svars_pat accj pi) ei)
-        acc cl in 
-      let acc1 = free_svars_exp accl e1 in 
-      let acc3 = free_svars_sort acc1 s3 in 
+  | EPair(_,e1,e2) -> 
+      let acc1 = free_svars_exp acc e1 in 
+      let acc2 = free_svars_exp acc1 e2 in 
+      acc2
+  | ECase(i,e1,cl2,s3) -> 
+      let acc1 = free_svars_exp acc e1 in 
+      let acc2 = Safelist.fold_left 
+        (fun acci (pi,ei) -> 
+           let acci1 = free_svars_pat acci pi in 
+           let acci2 = free_svars_exp acci1 ei in 
+           acci2)
+        acc1 cl2 in 
+      let acc3 = free_svars_sort acc2 s3 in 
       acc3
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> acc
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> 
+      acc
 
 (* SORT SUBSTITUTION *)
 let free_svars_in_subst subst = 
