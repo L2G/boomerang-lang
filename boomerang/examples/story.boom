@@ -192,28 +192,55 @@ let escape_xml : (lens in ANY <=> XML_ESC_STRING ) =
   (l1;l2;l3)*
 
 (* ------------------------------------------------------------------------ *)
+let mutually_distinct (strs : string List.t) : bool =
+  let ok,_ = 
+    List.fold_left{string}{bool * string List.t}
+      (fun (p:bool * string List.t) (s:string) ->
+         let ok,seen = p in 
+           ((ok && not (List.member{string} s seen)), List.Cons{string}(s,seen)))
+      (true,List.Nil{string})
+      strs in 
+  ok
+
+let no_repeated_esc_codes (pairs : (char * string) List.t) : bool =
+  mutually_distinct (List.map{char * string}{string} snd{char}{string} pairs)
+
+let contains_esc_char (esc:char) (pairs:(char * string) List.t) : bool = 
+  List.exists{char * string} (fun (p:char * string) -> fst{char}{string} p = esc) pairs
+
+let char_or_escaped (esc:char) (pairs:(char * string) List.t) : regexp =
+  List.fold_left{char * string}{regexp}
+    (fun (r:regexp) (p:char * string) ->
+       let f,t = p in 
+       r | f | esc . t)
+    [] pairs
+
+test char_or_escaped '&' #{char*string}[('&',"amp;");('<',"lt;");('>',"gt;")] = 
+  ("&" | "&amp;" | "<" | "&lt;" | ">" | "&gt;")
+
 let escape_chars 
       (esc:char) 
-      (s:string)
-      (esc_map: (char * string) List.t) 
-      : lens = 
+      (pairs: (char * string) List.t where
+            contains_esc_char esc pairs
+         && no_repeated_esc_codes pairs)
+   : lens = 
   let l : lens = 
-    List.fold_left{lens}{char * string}
+    List.fold_left{char * string}{lens}
       (fun (li:lens) (p:char * string) -> 
          let cj,sj = p in 
-         let lj = escape_char cj sj ((codomain_type li) - cj) in 
+         let lj = escape_char cj (esc . sj) ((codomain_type li) - cj) in 
          li;lj)
-      (escape_char esc s (ANYCHAR - esc)) esc_map in 
+      (copy ANYCHAR) pairs in 
     l*
       
 let escape_xml : lens = 
-  escape_chars '&' "&amp;" #{char*string}[('<',"&lt;");('>',"&gt;")] 
+  escape_chars '&' #{char*string}[('&',"amp;");('<',"lt;");('>',"gt;")] 
 
 test escape_xml.get
     <<
         <hello&world>
     >>
-  = 
+  =
     <<
         &lt;hello&amp;world&gt;
     >> 
@@ -432,16 +459,6 @@ type char = (s : string where length s = 1)
 *)
 let char_or_escaped (pairs : (char * string) List.t) =
   escaped pairs || (ANYCHAR - (unescaped pairs))
-
-let mutually_distinct (strs : string List.t) =
-  List.fold_left
-    (fun (md_sofar,l_sofar) s ->
-      (md_sofar && not (List.member s l_sofar),List.Cons (s,l_sofar)))
-    (true,List.Nil)
-    strs
-
-let no_repeated_escape_codes (pairs : (char * string) List.t) =
-  mutually_distinct (List.map snd pairs)
 
 (*
   any string goes to a sequence of char_or_escaped bits

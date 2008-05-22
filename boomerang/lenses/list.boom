@@ -11,3 +11,9 @@ let reverse ('a) (l : 'a t) : 'a t =
 let map ('a) ('b) (f:'a -> 'b) (l:'a t) : 'b t = 
   let rev_fl : 'b t = fold_left{'a}{'b t} (fun (t:'b t) (h:'a) -> Cons{'b}(f h,t)) Nil{'b} l in 
   reverse{'b} rev_fl
+
+let exists ('a) (t:'a -> bool) (l:'a t) : bool = 
+  fold_left {'a}{bool} (fun (b:bool) (h:'a) -> b || t h) false l
+
+let member ('a) (x:'a) (l:'a t) : bool = 
+  exists{'a} (fun (h:'a) -> x = h) l 

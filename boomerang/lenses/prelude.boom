@@ -123,3 +123,10 @@ type 'a option =
 
 type ('a,'b) maybe = 
     Left of 'a | Right of 'b 
+
+(* data type stuff *)
+let fst ('a) ('b) (p:'a * 'b) : 'a = 
+  let x,_ = p in x
+
+let snd ('a) ('b) (p:'a * 'b) : 'b = 
+  let _,y = p in y
