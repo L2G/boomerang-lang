@@ -34,6 +34,9 @@ module Id : sig
 
   val string_of_t : t -> string 
   (** [string_of_t x] returns the string that [x] represents. *)
+
+  val prime : t -> t 
+  (** [primt x] returns [x']. *)
  
   val compare : t -> t -> int
   (** [compare x y] compares [x] and [y] using the standard comparison operator. *)
@@ -74,6 +77,9 @@ module Qid : sig
 
   val string_of_t : t -> string 
   (** [string_of_t q] formats prints [q] as a string. *)
+
+  val prime : t -> t 
+  (** [primt x] returns [x']. *)
  
   val compare : t -> t -> int
   (** [compare q1 q2] comparse [q1] and [q2] using a dictionary
@@ -270,14 +276,4 @@ val pat_of_binding : binding -> pat
 
 val exp_of_binding : binding -> exp
 (** [exp_op_binding p] returns the expression of binding [b]. *)
-
-val subst_sort : (Id.t * sort) list -> sort -> sort
-
-val subst_exp_in_sort : (Qid.t * exp) list -> sort -> sort
-
-val free_sort_vars : sort -> Id.Set.t
-
-val free_exp_vars_in_sort : sort -> Qid.Set.t
-
-val erase_sort : sort -> sort 
 

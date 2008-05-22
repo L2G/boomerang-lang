@@ -23,6 +23,7 @@
 (* --------------- Imports --------------- *)
 open Bsyntax
 open Bprint
+open Bsubst
 open Berror
 module RS = Bstring
 module R = Bregexp
@@ -773,7 +774,9 @@ and check_exp sev e0 =
             (* insert cast if needed *)
             let cast_e2 = mk_cast (SCEnv.lookup_type sev) i2 e2_sort param_sort new_e2 in
             let new_e0 = EApp(i,new_e1,cast_e2) in 
-            let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in 
+            let e0_sort =
+              if Id.equal x Id.wild then return_sort 
+              else subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in 
 (*               msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
 (*               msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
 (*               msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)

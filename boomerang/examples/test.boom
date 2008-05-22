@@ -38,7 +38,7 @@ let f : forall 'a => (l:'a List.t -> string) =
 *)
 
 let mget (l:lens) (s:string in ctype l) : string = 
-  Native.Prelude.unsafe_rget l s 
+  Native.Prelude.unsafe_get l s 
 
 test mget "nate" "foster" = error
 
@@ -51,4 +51,4 @@ test (7 = 2) = false
 test foo (fun (w:int) -> 5) = error
 test foo (fun (w:int) -> w) = 3
 
-test apply (rget (count [^])) (f{int} li) = "19"
+test apply (get (count [^])) (f{int} li) = "19"

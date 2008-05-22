@@ -46,6 +46,7 @@ BOOMERANG_BASE_SOURCES[] = \
    berror.ml bregexp.ml blenses.ml \
    bsyntax.mli bsyntax.ml \
    bprint.mli bprint.ml \
+   bsubst.mli bsubst.ml \
    bparser.mly blexer.mll bvalue.mli bvalue.ml \
    bakery.ml bregistry.ml bcompiler.ml bdriver.ml \
    toplevel.ml

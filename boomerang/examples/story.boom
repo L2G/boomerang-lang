@@ -104,16 +104,16 @@ test quotes_to_xml.get
 (* Why do we need precise type system? Let's review the "real" types
    of the core lens combinators: dependent + refinement types. *)
 let lens_splittable (l1:lens) (l2:lens) : bool = 
-     (splittable l1.codomain_type l2.codomain_type) 
-  && (splittable l1.domain_type l2.domain_type)
+     (splittable l1.domain_type l2.domain_type) 
+  && (splittable l1.codomain_type l2.codomain_type)
 
 let lens_iterable (l1:lens) : bool = 
-     (iterable l1.codomain_type) 
-  && (iterable l1.domain_type)
+     (iterable l1.domain_type) 
+  && (iterable l1.codomain_type)
 
 let lens_disjoint (l1:lens) (l2:lens) : bool = 
-     ((l1.codomain_type & l2.codomain_type) = empty) 
-  && ((l1.domain_type & l2.domain_type) = empty)
+     ((l1.domain_type & l2.domain_type) = empty) 
+  && ((l1.codomain_type & l2.codomain_type) = empty)
 
 let lens_concat (l1:lens) (l2:lens where lens_splittable l1 l2) : lens = 
   Native.Prelude.lens_concat l1 l2
@@ -138,12 +138,12 @@ Test result: error
 (copy R) did not have sort (l2:lens where
 ((land
    ((disjoint
-      (codomain_type ((Core.rewrite (Native.Prelude.string_of_char raw)) esc)))
-     (codomain_type l2)))
+      (ctype ((Core.rewrite (Native.Prelude.string_of_char raw)) esc)))
+     (ctype l2)))
   ((disjoint
-     (domain_type ((Core.rewrite (Native.Prelude.string_of_char raw)) esc)))
-    (domain_type l2))))
-<<File "./Story.boom", line 116, characters 5-11:true>> blamed!
+     (atype ((Core.rewrite (Native.Prelude.string_of_char raw)) esc)))
+    (atype l2))))
+<<File "./Story.boom", line 133, characters 5-11:true>> blamed!
 *)
 
 (* This is bad: not only do we get an error, we get an inscrutable
@@ -185,34 +185,32 @@ test escape_xml.get
   >> 
 
 (* ... or better... *)
-let domain_type (l:lens) = l.domain_type 
+let codomain_type (l:lens) = l.codomain_type 
 let escape_xml : (lens in ANY <=> XML_ESC_STRING ) = 
   let l1 = escape_char '&' "&amp;" [^&] in
-  let l2 = escape_char '<' "&lt;"  ((domain_type l1) - "<") in 
-  let l3 = escape_char '>' "&gt;"  ((domain_type l2) - ">") in 
+  let l2 = escape_char '<' "&lt;"  ((codomain_type l1) - "<") in 
+  let l3 = escape_char '>' "&gt;"  ((codomain_type l2) - ">") in 
   (l1;l2;l3)*
 
-let mk_escape (escXXX:char) (s:string)
+let mk_escape (esc:char) (s:string)
               (esc_map: (char * string) List.t) : lens = 
   let l : lens = 
     List.fold_left{lens}{char * string}
       (fun (li:lens) (p:char * string) -> 
          let cj,sj = p in 
-         let lj = escape_char cj sj ((domain_type li) - cj) in 
+         let lj = escape_char cj sj ((codomain_type li) - cj) in 
          li;lj)
-      (escape_char escXXX s (ANYCHAR - escXXX)) esc_map in 
+      (escape_char esc s (ANYCHAR - esc)) esc_map in 
     l*
       
 let escape_xml2 : lens = 
   mk_escape '&' "&amp;" #{char*string}[('<',"&lt;");('>',"&gt;")] 
 
-test get escape_xml2 : ? (* "hello&world" = ?*)
-
 (* Can even do it with lists, which motivates polymorphism... *)
 (* and now maybe write a generic one using List.fold_left ... *)
 
 (* do we need to rename domain_type for purposes of the talk??  -- yes:
-   domain_of and codomain_of (maybe do this throughout?) *)
+   domain_of and domain_of (maybe do this throughout?) *)
 
 test escape_xml.get
     <<
@@ -225,7 +223,7 @@ test escape_xml.get
 
 
 
-(* and then use codomain_type *)
+(* and then use domain_type *)
 
 (*
 
@@ -337,7 +335,7 @@ test unescape_quotes get
         <hello"world>
     >>> 
 
-let test1 = unrender_quotes (codomain_type unescape_quotes) ; unescape_quotes
+let test1 = unrender_quotes (domain_type unescape_quotes) ; unescape_quotes
 
 (* Does this transformation work in general? *)
 
@@ -523,8 +521,8 @@ let escape_str : lens = escape2 "\\" str_escs
 let unescape_str : lens = invert escape_str
 
 let l2 = 
-  unrender_str (codomain_type unescape_str) ; unescape_str ; 
-  escape_xml ; render_xml (domain_type escape_xml)
+  unrender_str (domain_type unescape_str) ; unescape_str ; 
+  escape_xml ; render_xml (codomain_type escape_xml)
 
 test l2 get 
     <<<
@@ -564,8 +562,8 @@ let concat_lenses
     | Prelude.None -> copy epsilon
 
 let field_to_xml (field : string) : lens = 
-  unrender_str (codomain_type unescape_str) ; unescape_str ;
-  escape_xml ; render_tag (domain_type escape_xml) field
+  unrender_str (domain_type unescape_str) ; unescape_str ;
+  escape_xml ; render_tag (codomain_type escape_xml) field
 
 (* as above -- do we want the strict return type?  do we want to pass the buck? *)
 let csv_to_xml (fields : string List.t where concatable fields (del ",")) = 
