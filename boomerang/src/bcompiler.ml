@@ -412,7 +412,7 @@ let rec mk_cast_blame lt i b f t e =
               let qx = Qid.t_of_id x in 
               let e_blame = ETyApp(i,ETyApp(i,mk_core_var i "blame",t2),t) in 
               let e_info = exp_of_blame i b in                         
-              let e_t = EString(i,Bstring.t_of_string (string_of_sort t)) in 
+              let e_t = EString(i,Bstring.empty) in (* EString(i,Bstring.t_of_string (string_of_sort t)) in *)
                 mk_let i x t2
                   (mk_cast_blame lt i b f t2 e) 
                   (mk_if i e2 

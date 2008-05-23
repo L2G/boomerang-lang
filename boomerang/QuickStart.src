@@ -7,7 +7,7 @@ Installation
 1. Download or build the Boomerang binary:
 
   * Tarballs containing pre-compiled Boomerang binaries are available
-    for Linux (x86), Mac OS X (x86 and PPC), and Windows (Cygwin).
+    for Linux (x86), Mac OS X (x86), and Windows (Cygwin).
  
   * Alternatively, to build Boomerang from source, grab the most
     recent tarball and follow the instructions in
@@ -31,7 +31,7 @@ are ignored by the Boomerang interpreter.
 
 You can run the Boomerang interpreter from the command line like this:
 
-  % boomerang quickStart.src
+  % boomerang QuickStart.src
 
 You should see several lines of output beginning like this
 
@@ -41,7 +41,7 @@ You should see several lines of output beginning like this
  
 Let's define the lens that was used to generate this text.
 
-#* let l : lens = cp [A-Za-z ]+ 
+#* let l : lens = copy [A-Za-z ]+ 
 
 This line declares a lens named 'l' using syntax based on
 explicitly-typed OCaml (for the functional parts, like the let
@@ -55,7 +55,7 @@ The easiest way to interact with Boomerang is via unit tests (other
 modes of interaction are discussed below). For example, the following
 test:
 
-#* test l get "Hello World" = ?
+#* test l.get "Hello World" = ?
 
 instructs the Boomerant interpreter to calculate the result obtained
 by applying the GET component of l to the string literal '"Hello
@@ -78,7 +78,7 @@ unit test succeed again.
 
 Now let's examine the behavior of l's PUT component.
 
-#* test l put "HELLO WORLD" into "Hello World" = ?
+#* test (l.put "HELLO WORLD" into "Hello World") = ?
 
 You should see:
 
@@ -93,7 +93,7 @@ The GET and PUT components of lenses check that their arguments have
 the expected type. We can test this by passing an ill-typed string to
 l's GET component:
 
-#* test l get "Hello World! W00t!!!" = error
+#* test (l.get "Hello World! W00t!!!") = error
 
 [Exercise 3] To see the error message that is printed by Boomerang,
 change the 'error' above to '?'. You should see the following message:
@@ -102,7 +102,7 @@ change the 'error' above to '?'. You should see the following message:
   > Test result: errorFile "./quickStart.src", line 44, characters 18-31: type error in
   >                     T=[A-Za-z ] . [A-Za-z ]*
   >                   
-  >                     cp ([A-Za-z ] . [A-Za-z ]*) get
+  >                     copy ([A-Za-z ] . [A-Za-z ]*) get
   >                   
   >                     [Hello World!]
   >                   <<AROUND HERE>>
@@ -147,7 +147,7 @@ The lens that does this transformation is written as follows:
 
 as witnessed by the following unit test:
 
-#* test comps get c = a
+#* test comps.get c = a
 
 There are several things to note about this program. First, we use
 let-bindings to abstract out repeated parts of programs, such as the
@@ -160,7 +160,7 @@ relationships:
 
 Thus, the string '", "' is automatically promoted to the (singleton)
 regular expression containing it, and the regular expression like
-'ALPHA' is automatically promoted to the lens 'cp ALPHA'.
+'ALPHA' is automatically promoted to the lens 'copy ALPHA'.
 
 [Exercise 4] Refactor the 'comp' lens to abstract away the separator
 between fields as follows:
@@ -176,7 +176,7 @@ between fields as follows:
 
 and verify that it has the same behavior on 'c' and 'a':
 
-#* test comps get c = a
+#* test comps.get c = a
 
 Note the use of a let-expression in the body of 'comps'. Just like in
 OCaml, the let-declaration for 'comp' is equivalent to the following
@@ -195,7 +195,7 @@ updated abstract view is obtained by changing the order of lines. For
 example if we swap the order of Britten and Copland, the year data
 from Britten gets associated to Copland, and vice versa.
 
-#* test comps put 
+#* test comps.put 
 #*   "Jean Sibelius, Finnish
 #*   |Benjamin Britten, English
 #*   |Aaron Copland, American"
@@ -230,7 +230,7 @@ restores lines using the name on each line as a key, rather than by
 position. For the details of how this all works, see our POPL'08
 paper. To verify it on this example, try out this unit test:
 
-#* test comps put 
+#* test comps.put 
 #*   "Jean Sibelius, Finnish
 #*   |Benjamin Britten, English
 #*   |Aaron Copland, American"
@@ -328,7 +328,7 @@ abstract files whose relationship is specified by a lens. To try it
 out without composers example, initialize comp-orig.txt to
 comp-orig.txt:
 
-  % cp comp-conc.txt comp-orig.txt
+  % cp comp-conc.txt comps-orig.txt
 
 and run
 
