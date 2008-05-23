@@ -67,13 +67,13 @@ module Make(Key:PrintableOrderedType) = struct
       KeyMap.fold (fun k v acco -> 
                      Util.format "@[%s=@[" (Key.to_string k);
                      format_r v;
-                     Util.format "]";
+                     Util.format "@]";
                      if acco <> None then Util.format ",";
-                     Util.format "]@ ";
+                     Util.format "@] ";
                      Some ())
         ev
         None in            
-      Util.format "]}"
+      Util.format "@]}"
 
   let iter f = KeyMap.iter (fun k v -> f k v)
 end

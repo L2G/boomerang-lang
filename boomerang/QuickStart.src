@@ -19,6 +19,12 @@ Installation
    In Bash, type 'export PATH=$PATH:/path/to/trunk/bin'
    In Csh, type 'setenv PATH {$PATH}:/path/to/trunk/bin'
 
+3. Add the directory containing trunk/boomerang/lenses to your 
+   $BOOMPATH environment variable. 
+
+   In Bash, type 'export BOOMPATH=/path/to/trunk/boomerang/lenses'
+   In Csh, type 'setenv PATH /path/to/trunk/boomerang/lenses'
+
 Simple Lens Programming
 -----------------------
 
