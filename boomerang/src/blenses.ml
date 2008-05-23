@@ -845,12 +845,21 @@ module DLens = struct
     let n = sprintf "(%s|%s)" dl1.string dl2.string in 
     let at = R.alt dl1.atype dl2.atype in 
     let ct = R.disjoint_alt i n  dl1.ctype dl2.ctype in 
+    let as_disjoint = R.is_empty (R.inter dl1.atype dl2.atype) in 
       (**** We still need to check equality of keys ***)
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
+    (match as_disjoint,dl1.arel,dl2.crel with
+       | true,_,_ -> ()
+       | false,_Unknown,Unknown -> 
+           let s = sprintf "the union of %s and %s is ill-typed: %s"            
+             dl1.string dl2.string 
+             "the relations must both be the identity" in 
+             Berror.static_error i n s
+       | _ -> ());
     let st s = dl1.stype s || dl2.stype s in
       { info = i;
         string = n;
-        bij = dl1.bij && dl2.bij && R.is_empty (R.inter dl1.atype dl2.atype);
+        bij = dl1.bij && dl2.bij && as_disjoint;
         ctype = ct;         
         atype = at;
 	dtype = dt;

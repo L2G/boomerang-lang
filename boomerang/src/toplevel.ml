@@ -289,6 +289,7 @@ let toplevel' progName () =
        (* barf on spurious command line options?! *)
        Prefs.set Bcompiler.test_all true;
        Safelist.iter check rest_pref;
+       Trace.debug "casts" (fun () -> Bcompiler.print_stats ());
        0
      end
      else begin 
