@@ -68,20 +68,19 @@ module DLens : sig
   val invert : Info.t -> t -> t
   val copy : Info.t -> Bregexp.t -> t
   val key : Info.t -> Bregexp.t -> t
-  val const : Info.t -> Bregexp.t -> Bstring.t -> Bstring.t -> t
-  val count : Info.t -> Bregexp.t -> t
-  val concat : Info.t -> t -> t -> t
-  val union : Info.t -> t -> t -> t
-  val star : Info.t -> t -> t
-  val iter : Info.t -> t -> int -> int -> t
-  val swap : Info.t -> t -> t -> t
+  val unsafe_const : Info.t -> Bregexp.t -> Bstring.t -> Bstring.t -> t
+  val unsafe_concat : Info.t -> t -> t -> t
+  val unsafe_union : Info.t -> t -> t -> t
+  val unsafe_disjoint_union : Info.t -> t -> t -> t
+  val unsafe_star : Info.t -> t -> t
+  val unsafe_iter : Info.t -> t -> int -> int -> t
+  val unsafe_swap : Info.t -> t -> t -> t
   val compose : Info.t -> t -> t -> t
   val default : Info.t -> Bstring.t -> t -> t
   val dmatch : Info.t -> 
                (Bstring.t -> Bstring.t -> dict -> ((skeleton * dict) * dict) option) -> 
                Bstring.t -> t -> t
-  val duplicate : Info.t -> bool -> t -> t -> t -> t
-  val filter : Info.t -> Bregexp.t -> Bregexp.t -> t
+  val unsafe_filter : Info.t -> Bregexp.t -> Bregexp.t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t
   val right_quot : Info.t -> t -> Canonizer.t -> t
 end

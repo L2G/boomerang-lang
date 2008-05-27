@@ -3,14 +3,14 @@ open Bsyntax
 let msg = Util.format
 
 let rec format_sort = function
-  | SUnit -> msg "unit"      
-  | SBool -> msg "bool"
-  | SInteger -> msg "int"      
-  | SChar    -> msg "char" 
-  | SString -> msg "string"
-  | SRegexp -> msg "regexp"
-  | SLens -> msg "lens"      
-  | SCanonizer -> msg "canonizer"
+  | SUnit -> msg "@[unit@]"      
+  | SBool -> msg "@[bool@]"
+  | SInteger -> msg "@[int@]"      
+  | SChar    -> msg "@[char@]" 
+  | SString -> msg "@[string@]"
+  | SRegexp -> msg "@[regexp@]"
+  | SLens -> msg "@[lens@]"      
+  | SCanonizer -> msg "@[canonizer@]"
       
   | SFunction(x0, s1, s2) ->
       msg "@[(";
@@ -37,11 +37,11 @@ let rec format_sort = function
       msg "%s@]" (Qid.string_of_t q1)
 
   | SData(ms,q1) ->         
-      msg "@[(@[<2>";
+      msg "@[<2>(@[<2>";
       Misc.format_list ",@ " (format_sort) ms;      
       msg "@])@ %s@]" (Qid.string_of_t q1)
 
-  | SVar(x) -> msg "'%s" (Id.string_of_t x)
+  | SVar(x) -> msg "@['%s@]" (Id.string_of_t x)
 
   | SForall(x,s) -> 
       msg "@[<2>(forall %s@ =>@ " (Id.string_of_t x);
@@ -84,7 +84,7 @@ and format_param p0 = match p0 with
 
 and format_binding b0 = match b0 with
   | Bind (_,p,so,e) ->
-      msg "@[<2>";
+      msg "@[";
       format_pat p;
       (match so with None -> () | Some s -> msg "@ :@ "; format_sort s);
       msg "@ =@ ";
@@ -130,7 +130,7 @@ and format_exp e0 = match e0 with
 	msg ")@]";
 
     | ELet (_,b,e) ->
-	msg "@[<2>let@ ";
+	msg "@[<2>let ";
 	format_binding b;
 	msg "@ in@ ";
 	format_exp e;
@@ -144,18 +144,18 @@ and format_exp e0 = match e0 with
     | ETyApp(_,e,s) -> 
         msg "@[<2>";
         format_exp e;
-        msg "{@["; 
+        msg "@,{@["; 
         format_sort s; 
         msg "@]}@]"
 
     | EUnit _ -> msg "()"
 
     | EPair(_,e1,e2) -> 
-        msg "@[<2>(";
+        msg "@[<2>(@[";
         format_exp e1;
-        msg ",";
+        msg ",@,";
         format_exp e2;
-        msg ")@]"
+        msg "@])@]"
 
     | ECase(_,e1,pl,s) -> 
         msg "@[<2>(match@ ";
@@ -169,7 +169,7 @@ and format_exp e0 = match e0 with
              format_exp e;
              msg "@]")
           pl;
-        msg ")@ : @ ";
+        msg ")@ :@ ";
         format_sort s;
         msg "@]"
 
@@ -242,18 +242,18 @@ and format_test_result tr =
     | TestPrint -> msg "= @[<2>?@]"
     | TestSortPrint _ -> msg ": @[<2>?@]"
     | TestSortEqual s -> 
-        msg ": @[";
+        msg ": @[<2>";
         format_sort s;
         msg "@]"
 
 and format_decl = function
       DLet (_,b) ->
-	msg "@[let@ ";
+	msg "@[<2>let ";
 	format_binding b;
 	msg "@]"
 
     | DType(_,xl,x,cl) ->  
-        msg "@[type@ ";
+        msg "@[<2>type@ ";
         (match xl with 
           | [] -> ()
           | [x] -> msg "%s" (Id.string_of_t x)

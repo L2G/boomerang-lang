@@ -125,12 +125,13 @@ let pmk_r     = pmk0 S.SRegexp mk_r
 let pmk_rrr   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SRegexp mk_r
 let pmk_riir  = pmk3 S.SRegexp mk_rfun S.SInteger mk_ifun S.SInteger mk_ifun S.SRegexp mk_r
 let pmk_rb    = pmk1 S.SRegexp mk_rfun S.SBool mk_b
-let pmk_rrb    = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
+let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rs    = pmk1 S.SRegexp mk_rfun S.SString mk_s
 let pmk_rl    = pmk1 S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrl   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rsb   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_b
+let pmk_rsi   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SInteger mk_i
 let pmk_rssl  = pmk3 S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SLens mk_l
 
 let pmk_ll    = pmk1 S.SLens mk_lfun S.SLens mk_l
@@ -162,11 +163,13 @@ let prelude_spec =
                                         
   (* core lens combinators *)           
   ; pmk_rl     "copy"                   L.copy
-  ; pmk_rssl   "const"                  L.const
-  ; pmk_lll    "lens_union"             L.union
-  ; pmk_lll    "lens_concat"            L.concat
-  ; pmk_liil   "lens_iter"              L.iter
-  ; pmk_lll    "lens_swap"              L.swap
+  ; pmk_rssl   "unsafe_const"           L.unsafe_const
+  ; pmk_lll    "unsafe_union"           L.unsafe_union
+  ; pmk_lll    "unsafe_disjoint_union"  L.unsafe_disjoint_union
+  ; pmk_lll    "unsafe_concat"          L.unsafe_concat
+  ; pmk_liil   "unsafe_iter"            L.unsafe_iter
+  ; pmk_ll     "unsafe_star"            L.unsafe_star
+  ; pmk_lll    "unsafe_swap"            L.unsafe_swap
   ; pmk_sll    "dmatch"                 (fun i -> L.dmatch i L.std_lookup)
   ; pmk_ssll   "smatch"                 (fun i s -> 
                                             let f = float_of_string (RS.string_of_t s) in 
@@ -174,11 +177,10 @@ let prelude_spec =
   ; pmk_lll    "compose"                L.compose
   ; pmk_lsl    "default"                (fun i l1 s2 -> L.default i s2 l1)
   ; pmk_rl     "key"                    L.key
-  ; pmk_llll   "duplicate"              (fun i -> L.duplicate i true)
-  ; pmk_llll   "duplicate_snd"          (fun i -> L.duplicate i false)
-  ; pmk_rl     "count"                  L.count 
+(*   ; pmk_llll   "duplicate"              (fun i -> L.duplicate i true) *)
+(*   ; pmk_llll   "duplicate_snd"          (fun i -> L.duplicate i false) *)
   ; pmk_ll     "forgetkey"              (fun i -> L.forgetkey)
-  ; pmk_rrl    "filter"                 L.filter
+  ; pmk_rrl    "unsafe_filter"          L.unsafe_filter
                                         
   (* canonizer operations *)            
   ; pmk_qqq    "canonizer_union"        C.union
@@ -219,6 +221,7 @@ let prelude_spec =
   ; pmk_riir   "regexp_iter"            (fun _ -> R.iter)
   ; pmk_rrb    "equiv"                  (fun _ -> R.equiv)
   ; pmk_rs     "shortest"               wrap_rep
+  ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (R.unambig_star_split r s))
   ; pmk_rsb    "matches"                (fun _ -> R.match_str)
   ; pmk_rrb    "splittable"             R.splittable
   ; pmk_rb     "iterable"               R.iterable
@@ -259,22 +262,21 @@ let prelude_spec =
     let poses_sort = S.SProduct(pos_sort,pos_sort) in 
     let i_sort = S.SProduct(S.SString,poses_sort) in 
     (S.Qid.mk_native_prelude_t "blame",
-    S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> S.SString ^> b_sort)), 
+    S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> b_sort)), 
     mk_ufun i (fun () -> 
       mk_ufun i (fun () -> 
         mk_pfun i (fun (fn,ps) -> 
           mk_f i (fun v ->
-            mk_sfun i (fun s1 -> 
-              let fn_s = Bstring.string_of_t (get_s fn) in 
-              let i_blame = 
-                let ps1,ps2 = get_p ps in 
-                let i1,i2 = get_p ps1 in 
-                let j1,j2 = get_p ps2 in 
+            let fn_s = Bstring.string_of_t (get_s fn) in 
+            let i_blame = 
+              let ps1,ps2 = get_p ps in 
+              let i1,i2 = get_p ps1 in 
+              let j1,j2 = get_p ps2 in 
                 Info.I(fn_s,(get_i i1,get_i i2),(get_i j1,get_i j2)) in 
               Berror.blame_error i_blame 
                 (fun () -> 
-                   Util.format "@[%s@ did@ not@ have@ sort@ %s@]" 
-                     (Bvalue.string_of_t v) (Bstring.string_of_t s1))))))))
+                   Util.format "@[%s@ blamed@]"
+                     (Bvalue.string_of_t v)))))))
   end
 
   ; begin 

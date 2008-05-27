@@ -501,3 +501,130 @@ let rec erase_sort = function
 let rec expose_sort = function
   | SRefine(x,s1,e1) -> s1
   | s0 -> s0
+
+
+let rec_eq eq = 
+  let rec aux acc l1 l2 = 
+  acc && (match l1,l2 with 
+            | [],[] -> true
+            | h1::t1,h2::t2 -> aux (eq h1 h2) t1 t2
+            | _ -> false) in 
+  aux 
+
+let rec syneq_sort s1 s2 = match s1,s2 with
+  | SVar a,SVar b -> Id.equal a b 
+  | SFunction(x,s11,s12),SFunction(y,s21,s22) -> 
+      Id.equal x y && syneq_sort s11 s21 && syneq_sort s21 s22 
+  | SProduct(s11,s12),SProduct(s21,s22) -> 
+      syneq_sort s11 s21 && syneq_sort s21 s22
+  | SData(sl1,qx), SData(sl2,qy) -> 
+      rec_eq syneq_sort (Qid.equal qx qy) sl1 sl2 
+  | SRefine(x,s1,e1),SRefine(y,s2,e2) -> 
+      Id.equal x y && syneq_sort s1 s2 && syneq_exp e1 e2 
+  | SForall(a,s1),SForall(b,s2) -> 
+      Id.equal a b && syneq_sort s1 s2
+  | SUnit,SUnit
+  | SBool,SBool  
+  | SInteger,SInteger 
+  | SChar,SChar 
+  | SString,SString 
+  | SRegexp,SRegexp 
+  | SLens,SLens 
+  | SCanonizer,SCanonizer -> true
+  | _ -> false
+and syneq_pat p1 p2 = match p1,p2 with
+  | PVar(_,x,Some s1),PVar(_,y,Some s2) -> 
+      Id.equal x y && syneq_sort s1 s2
+  | PVar(_,x,None),PVar(_,y,None) -> 
+      Id.equal x y
+  | PVnt(_,x,Some p1),PVnt(_,y,Some p2) -> 
+      Qid.equal x y && syneq_pat p1 p2
+  | PVnt(_,x,None),PVnt(_,y,None) -> 
+      Qid.equal x y 
+  | PPar(_,p11,p12),PPar(_,p21,p22) -> 
+      syneq_pat p11 p21 && syneq_pat p12 p22
+  | PWld _,PWld _   -> true
+  | PUnt _,PUnt _   -> true
+  | PBol(_,b1),PBol(_,b2) -> b1 = b2
+  | PInt(_,n1),PInt(_,n2) -> n1=n2
+  | PStr(_,s1),PStr(_,s2) -> s1=s2
+  | _ -> false
+and syneq_exp e1 e2 = match e1,e2 with
+  | EVar(_,x),EVar(_,y) -> 
+      Qid.equal x y 
+  | EApp(_,e11,e12),EApp(_,e21,e22) -> 
+      syneq_exp e11 e21 && syneq_exp e12 e22
+  | EOver(_,o1,el1),EOver(_,o2,el2) -> 
+      rec_eq syneq_exp (o1=o2) el1 el2  
+  | EFun(_,Param(_,x,s1),so1,e1),EFun(_,Param(_,y,s2),so2,e2) -> 
+         Id.equal x y 
+      && syneq_sort s1 s2 
+      && (match so1,so2 with 
+            | None,None -> true 
+            | Some s11,Some s12 -> syneq_sort s11 s12 
+            | _ -> false)
+      && syneq_exp e1 e2
+  | ELet(_,Bind(_,p1,so1,e11),e12),ELet(_,Bind(_,p2,so2,e21),e22) ->
+         syneq_pat p1 p2 
+      && (match so1,so2 with 
+            | None, None -> true
+            | Some s11,Some s12 -> syneq_sort s11 s12
+            | _ -> false) 
+      && syneq_exp e11 e21
+      && syneq_exp e12 e22
+  | ETyFun(_,a,e1),ETyFun(_,b,e2) -> 
+      Id.equal a b && syneq_exp e1 e2
+  | ETyApp(i,e1,s1),ETyApp(_,e2,s2) -> 
+      syneq_exp e1 e2 && syneq_sort s1 s2
+  | ECast(_,f1,t1,_,e1),ECast(_,f2,t2,_,e2) ->
+        syneq_sort f1 f2 
+     && syneq_sort t1 t2
+     && syneq_exp e1 e2
+  | EPair(_,e11,e12),EPair(_,e21,e22) -> 
+         syneq_exp e11 e21
+      && syneq_exp e12 e22
+  | ECase(_,e1,cl1,s1),ECase(_,e2,cl2,s2) -> 
+      rec_eq (fun (pi,ei) (pj,ej) -> syneq_pat pi pj && syneq_exp ei ej)
+        (syneq_exp e1 e2 && syneq_sort s1 s2) cl1 cl1
+  | EUnit _,EUnit _         -> true
+  | EBoolean(_,b1),EBoolean(_,b2) -> b1 = b2
+  | EInteger(_,n1),EInteger(_,n2) -> n1 = n2
+  | EChar(_,c1),EChar(_,c2)       -> c1 = c2
+  | EString(_,s1),EString(_,s2)   -> Bstring.equal s1 s2
+  | ECSet(_,b1,cl1),ECSet(_,b2,cl2) -> 
+      rec_eq (fun (s11,s12) (s21,s22) -> 
+                Bstring.compare_sym s11 s12 = 0
+             && Bstring.compare_sym s21 s22 = 0)
+        (b1=b2) cl1 cl2
+  | _ -> false
+
+let fresh_counter = ref 0
+let gensym i e = 
+  let xs = free_evars_exp Qid.Set.empty e in 
+  let rec aux () = 
+    let n = 
+      incr fresh_counter;
+      !fresh_counter in 
+    let s = Printf.sprintf "_%c%s" 
+      (Char.chr ((n mod 26) + 96))
+      (if n > 26 then Printf.sprintf "_%d" (n / 26) else "") in          
+    let x = Id.mk i s in 
+    if Qid.Set.mem (Qid.t_of_id x) xs then aux () 
+    else x in
+  aux ()
+
+let rec get_simple_value e0 = match e0 with
+  | EApp _ -> None
+  | EOver _ -> None  
+  | EFun(_,Param(_,x,s1),so1,e1) -> None
+  | ELet(_,Bind(_,p1,so1,e1),e2) -> None
+  | ETyFun _ -> None
+  | ETyApp _ -> None
+  | ECast _ -> None
+  | EPair(i,e1,e2) -> 
+      (match get_simple_value e1,get_simple_value e2 with
+         | Some e1',Some e2' -> Some (EPair(i,e1',e2'))
+         | _ -> None)
+  | ECase _ -> None
+  | EVar _  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ -> 
+      Some e0

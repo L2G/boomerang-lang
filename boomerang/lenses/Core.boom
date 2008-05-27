@@ -92,25 +92,29 @@ let copy (R:regexp) : lens
   = Native.Prelude.copy R
 
 let const (R:regexp) (u:string) (v:string where matches R v) : lens
-  = Native.Prelude.const R u v
+  = Native.Prelude.unsafe_const R u v
 
 let lens_union (l1:lens) (l2:lens where disjoint (ctype l1) (ctype l2)) : lens
-  = Native.Prelude.lens_union l1 l2 
+  = Native.Prelude.unsafe_union l1 l2 
 
 let lens_disjoint_union 
     (l1:lens) 
     (l2:lens where land (disjoint (ctype l1) (ctype l2))
                         (disjoint (atype l1) (atype l2))) : lens 
-  = Native.Prelude.lens_union l1 l2 
+  = Native.Prelude.unsafe_disjoint_union l1 l2 
 
 let lens_concat (l1:lens)
                 (l2:lens where land (splittable (ctype l1) (ctype l2))
                                     (splittable (ctype l1) (ctype l2))) : lens
-  = Native.Prelude.lens_concat l1 l2
+  = Native.Prelude.unsafe_concat l1 l2
 
 let lens_iter (l1:lens where land (iterable (ctype l1)) (iterable (atype l1))) (x:int) (y:int) 
   : lens 
-  = Native.Prelude.lens_iter l1 x y 
+  = Native.Prelude.unsafe_iter l1 x y 
+
+let lens_star (l1:lens where land (iterable (ctype l1)) (iterable (atype l1))) 
+  : lens 
+  = Native.Prelude.unsafe_star l1
 
 let invert : (l:lens where bij l) -> lens =
   Native.Prelude.invert
@@ -124,18 +128,16 @@ let default : lens -> string -> lens =
   Native.Prelude.default
 let key : regexp -> lens =
   Native.Prelude.key
-let duplicate : lens -> lens -> lens -> lens = 
-  Native.Prelude.duplicate
-let duplicate_snd : lens -> lens -> lens -> lens = 
-  Native.Prelude.duplicate_snd
-let count : regexp -> lens =
+let count : regexp -> (string -> int) =
   Native.Prelude.count
 let forgetkey : lens -> lens = 
   Native.Prelude.forgetkey
-let filter : regexp -> regexp -> lens = 
-  Native.Prelude.filter
-let lens_swap: lens -> lens -> lens = 
-  Native.Prelude.lens_swap
+let filter (r1:regexp where iterable r1) (r2:regexp where land (disjoint r1 r2) (iterable r2)) : lens = 
+  Native.Prelude.unsafe_filter r1 r2
+let lens_swap (l1:lens)
+              (l2:lens where land (splittable (ctype l1) (ctype l2))
+                                  (splittable (ctype l1) (ctype l2))) : lens = 
+  Native.Prelude.unsafe_swap l1 l2
 
 (* canonizers *)
 let canonize : canonizer -> string -> string =
@@ -185,8 +187,8 @@ let canonizer_of_lens : lens -> canonizer =
 let string_of_regexp : regexp -> string = 
   Native.Prelude.string_of_regexp
 
-let blame 'a 'b (i:string * ((int * int) * (int * int))) (v:'a) (s:string) : 'b = 
-  Native.Prelude.blame{'a}{'b} i v s
+let blame 'a 'b (i:string * ((int * int) * (int * int))) (v:'a) : 'b = 
+  Native.Prelude.blame{'a}{'b} i v
 
 let set (r:regexp) (s:string) = 
   const r s (shortest r)

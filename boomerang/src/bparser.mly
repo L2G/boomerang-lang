@@ -134,10 +134,10 @@ let build_fun i param_alts body sort =
          | Misc.Left(p) -> 
              let f' = EFun(i,p,so,f) in 
              let s' = SFunction(id_of_param p,sort_of_param p,s) in
-               (f',None,s')
+             (f',None,s')
          | Misc.Right(a) -> 
              let f' = ETyFun(i,a,f) in 
-           let s' = SForall(a,s) in 
+             let s' = SForall(a,s) in 
              (f',None,s'))
       param_alts (body,Some sort,sort) in 
   (f,f_sort)
@@ -204,7 +204,7 @@ decls:
       { let i = me2 $1 $7 in 
         let f,f_sort = build_fun i $3 $7 $5 in 
         let i2,_ = $2 in 
-        let b = Bind(i,PVar(i2,$2,None),Some f_sort,f) in 
+        let b = Bind(i,PVar(i2,$2,None),None,f) in 
         DLet(i,b)::$8 }
 
   | LET id param_list EQUAL exp decls
@@ -266,7 +266,7 @@ exp:
       { let i = me2 $1 $9 in 
         let f,f_sort = build_fun i $3 $7 $5 in 
         let i2,_ = $2 in 
-        let b = Bind(i,PVar(i2,$2,None),Some f_sort,f) in 
+        let b = Bind(i,PVar(i2,$2,None),None,f) in 
         ELet(i,b,$9) }
 
   | LET id param_list EQUAL exp IN exp 
