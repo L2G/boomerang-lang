@@ -116,10 +116,10 @@ let lens_disjoint (l1:lens) (l2:lens) : bool =
   && ((l1.codomain_type & l2.codomain_type) = empty)
 
 let lens_concat (l1:lens) (l2:lens where lens_splittable l1 l2) : lens = 
-  Native.Prelude.lens_concat l1 l2
+  Native.Prelude.unsafe_concat l1 l2
 
 let lens_union (l1:lens) (l2:lens where lens_disjoint l1 l2) : lens = 
-  Native.Prelude.lens_union l1 l2
+  Native.Prelude.unsafe_union l1 l2
 
 (* etc. *)
 

@@ -261,7 +261,7 @@ let prelude_spec =
     let pos_sort = S.SProduct(S.SInteger,S.SInteger) in 
     let poses_sort = S.SProduct(pos_sort,pos_sort) in 
     let i_sort = S.SProduct(S.SString,poses_sort) in 
-    (S.Qid.mk_native_prelude_t "blame",
+    (S.Qid.mk_native_prelude_t "blame",    
     S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> b_sort)), 
     mk_ufun i (fun () -> 
       mk_ufun i (fun () -> 

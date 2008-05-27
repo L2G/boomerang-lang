@@ -317,7 +317,7 @@ let rec mk_cast_blame lt i b f t e =
 (*   Util.format "@[mk_cast_blame@\nI: %s@\nF: %s@\nT: %s@\nE: %s@]@\n@\n" *)
 (*     (Info.string_of_t i)                         *)
 (*     (string_of_sort f) (string_of_sort t) (string_of_exp e); *)
-  let string_of_char e = mk_app i (mk_native_prelude_var i "string_of_var") e in 
+  let string_of_char e = mk_app i (mk_native_prelude_var i "string_of_char") e in 
   let regexp_of_string e = mk_app i (mk_native_prelude_var i "str") e in 
   let lens_of_regexp e = mk_app i (mk_native_prelude_var i "copy") e in 
   let old_casted = incr casted; !casted in   
@@ -325,7 +325,9 @@ let rec mk_cast_blame lt i b f t e =
   let cast_refinement f x t e e0 = 
     let t0 = SRefine(x,t,e) in 
     let qx = Qid.t_of_id x in 
-    let e_blame = ETyApp(i,ETyApp(i,mk_core_var i "blame",t),t0) in 
+    let erased_t = erase_sort t in 
+    let erased_t0 = erase_sort t0 in 
+    let e_blame = ETyApp(i,ETyApp(i,mk_core_var i "blame",erased_t),erased_t0) in 
     let e_info = exp_of_blame i b in                         
       mk_let i x t
         (mk_cast_blame lt i b f t e0) 
@@ -334,7 +336,7 @@ let rec mk_cast_blame lt i b f t e =
            (mk_app i 
               (mk_app i e_blame e_info)
               (mk_var i qx))
-           (erase_sort t)) in         
+           erased_t) in
   let res = 
     if f == t then (skip (); e)
     else
@@ -398,7 +400,7 @@ let rec mk_cast_blame lt i b f t e =
             | [],[] -> true
             | h1::t1,h2::t2 -> aux (syneq_sort h1 h2) t1 t2 
             | _ -> false in 
-          if aux true fl tl then e 
+          if aux true fl tl then (skip (); e)
           else 
             let _,(svl,cl) = get_type lt i x in               
             let fsubst = Safelist.combine svl fl in 
@@ -423,7 +425,7 @@ let rec mk_cast_blame lt i b f t e =
                            tl (mk_var i li) in 
                        let py = PVar(i,y,Some fi) in 
                        let pi = PVnt(i,li,Some py) in 
-                         (* this cast cannot be recursive! *)
+                         (* this cast must not be recursive! (on recursive data types, it would loop) *)
                        let ei = mk_app i li_f (ECast(i,fi,ti,b,mk_var i qy)) in
                          (pi,ei)
                    | _ -> run_error i 
@@ -431,8 +433,8 @@ let rec mk_cast_blame lt i b f t e =
               (Safelist.combine cl_finst cl_tinst) in 
               mk_let i x f e (ECase(i,mk_var i qx,pl,t))
       | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
-          if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 then e
-          else cast_refinement f x t2 e2 e
+          if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 then (skip (); e)
+          else cast_refinement f y t2 e2 e
       | _,SRefine(x,t2,e2) -> 
           cast_refinement f x t2 e2 e
       | SRefine(x,f1,e1),t1 -> 
@@ -737,12 +739,11 @@ and check_exp sev e0 =
               (Some new_ret_sort,(new_ret_sort,cast_body)) in 
       let e0_sort = 
         let dep_x = 
-          if Qid.Set.mem (Qid.t_of_id p_x) 
-            (free_exp_vars_in_sort body_sort) then p_x
+          if Qid.Set.mem (Qid.t_of_id p_x) (free_exp_vars_in_sort body_sort) then p_x
           else Id.wild in
         SFunction(dep_x,new_p_s,body_sort) in
-(*       Trace.debug "check"  *)
-(*         (fun () ->  *)
+(*       Trace.debug "dep" *)
+(*         (fun () -> *)
 (*            msg "FVS: {%s}@\n" (Misc.concat_list "," (Safelist.map Qid.string_of_t (Qid.Set.elements (free_exp_vars_in_sort body_sort)))); *)
 (*            msg "P_X: %s@\n" (Id.string_of_t p_x); *)
 (*            msg "RES: %s@\n" (string_of_sort e0_sort)); *)
@@ -812,12 +813,12 @@ and check_exp sev e0 =
             let e0_sort =
               if Id.equal x Id.wild then return_sort 
               else subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in
-              (e0_sort,new_e0)
 (*               msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
 (*               msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
 (*               msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
 (*               msg "@[RESULT: %s@\n@]" (string_of_sort e0_sort); *)
 (*               if Id.equal x Id.wild then () else msg "@[SUBST_EXP_IN_SORT: %s := %s IN %s ~> %s@]@\n" (Id.string_of_t x) (string_of_exp cast_e2) (string_of_sort return_sort) (string_of_sort e0_sort); *)
+              (e0_sort,new_e0)
         | _ -> 
             sort_error (info_of_exp e1)
               (fun () ->              
