@@ -366,3 +366,11 @@ let distance s1 s2 =
     done
   done;
   if m mod 2 = 0 then aeven.(n) else aodd.(n)
+
+(* Bstring maps *)
+type this_t = t
+module Map = Map.Make 
+  (struct
+     type t = this_t
+     let compare = compare
+   end)

@@ -19,133 +19,35 @@
 (* $Id$ *)
 (*******************************************************************************)
 
-(* abbreviations from other modules *)
+(* imports and abbreviations *)
 module R = Bregexp
 module RS = Bstring
 
 let string_concat = (^)
+let sprintf = Printf.sprintf
+let msg = Util.format
 let (^) = RS.append
 let (@) = Safelist.append
 
-let sprintf = Printf.sprintf
-
-let no_check = Prefs.createBool "no-check" false 
-  "don't type check lens arguments" 
-  "don't type check lens arguments"
-
-let no_assert = Prefs.createBool "no-assert" false
-  "don't check assertions"
-  "don't check assertions"
-
-(* -------------------- utilities -------------------- *)
-let lst_replace = [("\n","\\n");("\t","\\t");("\"","\\\"");("\\", "\\\\")]
-let lst_regexp_replace = Safelist.map (fun (p,r) -> (Str.regexp p, r)) lst_replace
-let whack s =  
-  Safelist.fold_right
-    (fun (p, r) s -> Str.global_replace p r s)
-    lst_regexp_replace s
+(* whack: inserts escape codes in rendered strings *)
+let whack = 
+  let replacements = 
+    [(Str.regexp "\n","\\n");
+     (Str.regexp "\t","\\t");
+     (Str.regexp "\"","\\\"");
+     (Str.regexp "\\", "\\\\")] in 
+  (fun s ->
+     Safelist.fold_right 
+       (fun (f,t) s -> Str.global_replace f t s)
+       replacements s)
     
-let get_str n = sprintf "%s get" n
-let put_str n = sprintf "%s put" n
-let create_str n = sprintf "%s create" n
-let parse_str n = sprintf "%s parse" n
-let cls_str n = sprintf "%s cls" n
-let rep_str n = sprintf "%s rep" n
-let key_str n = sprintf "%s key" n
-
-let paranoid = Prefs.createBool "paranoid" false
-  "do paranoid sanity checks in lens primitives"
-  "do paranoid sanity checks in lens primitives"
-  
-let plift_r b i n t1 f =  
-  if not (b || Prefs.read paranoid) then f else
-    (fun x ->     
-       if not (R.match_str t1 x) then 
-         Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-       else (f x))
-
-let plift_rr b i n t1 t2 f = 
-  if not (b || Prefs.read paranoid) then f else
-  (fun x y ->     
-     if not (R.match_str t1 x) then 
-       Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-     else if not (R.match_str t2 y) then 
-       Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t2 y)
-     else (f x y))
-
-let plift_rsd b i n t1 st2 f = 
-  if not (b || Prefs.read paranoid) then f else
-  (fun x y z ->     
-     if not (R.match_str t1 x) then 
-       Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-     else if not (st2 y) then 
-       assert false
-     else (f x y z))
-    
-let plift_rd b i n t1 f = 
-  if not (b || Prefs.read paranoid) then f else
-  (fun x y ->     
-     if not (R.match_str t1 x) then 
-       Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-     else (f x y))
-
-let plift_rrd b i n t1 t2 t3 f = 
-  if not (b || Prefs.read paranoid) then f else
-  (fun x y z ->     
-     if not (R.match_str t1 x) then 
-       Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-     else if not (R.match_str t2 y) then 
-       Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t2 y)
-     else (f x y z))
-
-let plift_rx b i n t1 f = 
-  if not (b || Prefs.read paranoid) then f else
-  (fun x y ->     
-     if not (R.match_str t1 x) then 
-       Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-     else (f x y))
-
-let plift_rrx b i n t1 t2 f = 
-  if not (b || Prefs.read paranoid) then f else
-  (fun x y z ->     
-     if not (R.match_str t1 x) then 
-       Berror.type_error i (R.string_of_t t1) n (R.split_bad_prefix t1 x)
-     else if not (R.match_str t2 y) then 
-       Berror.type_error i (R.string_of_t t2) n (R.split_bad_prefix t1 y)
-     else (f x y z))
-
-let lift_r i n r = plift_r false i n r
-let lift_rr i n r r = plift_rr false i n r r 
-let lift_rsd i n r s d = plift_rsd false i n r s d 
-let lift_rd i n r d = plift_rd false i n r d 
-let lift_rrd i n r r d = plift_rrd false i n r r d
-let lift_rx i n r x = plift_rx false i n r x 
-let lift_rrx i n r r x = plift_rrx false i n r r x
-
-(* string maps *)
-module SMap = Map.Make 
-  (struct
-     type t = RS.t
-     let compare = RS.compare
-   end   
-  )
-
-
 (* keys *)
 type key = RS.t
-
-type key_atom = 
-    Var of Info.t * RS.t
-  | Const of Info.t * RS.t
-let string_of_key_atom = function
-  | Var(_,x) -> RS.string_of_t x
-  | Const(_,s) -> sprintf "\"%s\"" (whack (RS.string_of_t s)) 
-
-module KMap = SMap 
+module KMap = Bstring.Map 
 
 (* tags *) 
 type tag = RS.t 
-module TMap = SMap
+module TMap = Bstring.Map
 
 (* skeletons *)
 type skeleton = 
@@ -156,36 +58,36 @@ type skeleton =
   | S_box of tag
   | S_comp of (skeleton * skeleton)
 
-let string_of_skel = function
+(* helpers for unpacking skeletons *)
+let string_of_skel i = function
   | S_string s -> s
-  | _ -> assert false
+  | _ -> Berror.run_error i (fun () -> msg "@[expected@ string@ skeleton@]") 
 
-let fst_concat_of_skel = function
+let fst_concat_of_skel i = function
   | S_concat (s,_) -> s
-  | _ -> assert false
+  | _ -> Berror.run_error i (fun () -> msg "@[expected@ concat@ skeleton@]") 
 
-let snd_concat_of_skel = function
+let snd_concat_of_skel i = function
   | S_concat (_, s) -> s
-  | _ -> assert false
+  | _ -> Berror.run_error i (fun () -> msg "@[expected@ concat@ skeleton@]") 
 
-let fst_dup_of_skel = function
+let fst_dup_of_skel i = function
   | S_dup (s,_) -> s
-  | _ -> assert false
+  | _ -> Berror.run_error i (fun () -> msg "@[expected@ dup@ skeleton@]") 
 
-let snd_dup_of_skel = function
+let snd_dup_of_skel i = function
   | S_dup (_, s) -> s
-  | _ -> assert false
+  | _ -> Berror.run_error i (fun () -> msg "@[expected@ dup@ skeleton@]") 
       
-let lst_of_skel = function
+let lst_of_skel i = function
   | S_star sl -> sl
-  | _ -> assert false
+  | _ -> Berror.run_error i (fun () -> msg "@[expected@ lst@ skeleton@]") 
 
-let comp_of_skel = function
+let comp_of_skel i = function
   | S_comp sc -> sc
-  | _ -> assert false
+  | _ -> Berror.run_error i (fun () -> msg "@[expected@ comp@ skeleton@]") 
 
-
-(* utilities for splitting *)
+(* helpers for splitting *)
 let split t1 t2 s = 
   match R.unambig_split t1 t2 s with
     | None -> assert false
@@ -196,29 +98,31 @@ let split_one choose t1 t2 s =
   let i = choose (R.split_positions t1 t2 s) in 
     (RS.sub s 0 i, RS.sub s i (n-i))
 
-(* utils *)
+(* helpers for concat-like operators *)
 let split2 t11 t12 t21 t22 (x1,x2) = 
   let x11,x12 = split t11 t12 x1 in        
   let x21,x22 = split t21 t22 x2 in 
     ((x11,x21),(x12,x22)) 
 
-let do_split split f1 f2 combine = (fun x -> 
-                                      let x1,x2 = split x in 
-                                        combine (f1 x1) (f2 x2))
-
-let do_split_thread split f1 f2 combine = (fun x y ->
-                                             let x1,x2 = split x in 
-                                             let x1,y1 = f1 x1 y in 
-                                             let x2,y2 = f2 x2 y1 in 
-                                               (combine x1 x2, y2))
-
-
-(* utilities for iterating *)
+let do_split split f1 f2 combine = 
+  (fun x -> 
+     let x1,x2 = split x in 
+     combine (f1 x1) (f2 x2))
+    
+let do_split_thread split f1 f2 combine = 
+  (fun x y ->
+     let x1,x2 = split x in 
+     let x1,y1 = f1 x1 y in 
+     let x2,y2 = f2 x2 y1 in 
+       (combine x1 x2, y2))
+    
+(* helpers for iteration operators *)
 let star_loop t f x = 
   Safelist.fold_left
     (fun acc xi -> RS.append acc (f xi))
     RS.empty (R.unambig_star_split t x) 
 
+(* helpers for conditional operators *)
 let branch t f1 f2 = 
   (fun x -> 
      if R.match_str t x then f1 x 
@@ -229,14 +133,15 @@ let branch2 t f1 f2 =
      if R.match_str t x then f1 x y 
      else f2 x y)
     
-(* -------------------- UIDs --------------------- *)
+(* uid *)
 type uid = int
 let current_uid = ref 0
 let next_uid () = 
   incr current_uid;
   !current_uid
 
-(* -------------------- CANONIZERS -------------------- *)
+(* -----------------------------------------------------------------------------*)
+(* CANONIZERS *)
 module Canonizer = struct
   type t = 
       { (* --- meta data --- *)
@@ -246,23 +151,24 @@ module Canonizer = struct
         rtype : R.t;
         ctype : R.t;
         (* --- core functions --- *)
-        cls : RS.t -> RS.t;                  (* class function *)
-        rep : RS.t -> RS.t                   (* representative function *)
+        canonize : RS.t -> RS.t;
+        choose : RS.t -> RS.t   
       }
 
+  (* accessors *)
   let info cn = cn.info
   let string cn = cn.string
   let rtype cn = cn.rtype
   let ctype cn = cn.ctype
-  let cls cn = cn.cls
-  let rep cn = cn.rep
-  let mk_t i s rt ct c r = 
+  let canonize cn = cn.canonize
+  let choose cn = cn.choose
+  let mk_t i s rt ct cn ch = 
     { info = i;
       string = s;
       rtype = rt;
       ctype = ct;
-      cls = c;
-      rep = r; 
+      canonize = cn;
+      choose = ch; 
     }
 
   let copy i r = 
@@ -273,8 +179,8 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
-        cls = lift_r i (cls_str n) rt (fun x -> x);
-        rep = lift_r i (rep_str n) rt (fun x -> x);
+        canonize = (fun x -> x);
+        choose = (fun x -> x);
       }
 
   (* add primitives ... *)
@@ -320,7 +226,7 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
-        cls = lift_r i (cls_str n) rt 
+        canonize = 
           (fun c -> 
              let c_len = RS.length c in 
              let buf = Buffer.create c_len in 
@@ -336,7 +242,7 @@ module Canonizer = struct
                loop 0;
                RS.t_of_string (Buffer.contents buf));
 
-        rep = lift_r i (rep_str n) ct 
+        choose = 
           (fun c -> 
              let c_len = RS.length c in 
              let buf = Buffer.create c_len in 
@@ -360,7 +266,7 @@ module Canonizer = struct
                    nl_off + aux_len + line_len in 
                  (* Util.format "line_buf[%d] aux_buf[%d] Sum[%d] ~?~ k[%d] c[i]=%s@\n"
                     (Buffer.length line_buf) (Buffer.length aux_buf) sum k 
-                    (if i=c_len then "NONE" else RS.repr (RS.get c i)); *)
+                    (if i=c_len then "NONE" else RS.chooser (RS.get c i)); *)
                  if sum > k then 
                    do_line ();
                  if i = c_len then 
@@ -386,12 +292,12 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
-        cls = lift_r i (cls_str n) rt 
+        canonize = 
           (do_split (split cn1.rtype cn2.rtype)
-             cn1.cls cn2.cls (^));
-        rep = lift_r i (rep_str n) ct 
+             cn1.canonize cn2.canonize (^));
+        choose = 
           (do_split ((split_one Rint.Set.max_elt) cn1.ctype cn2.ctype)
-             cn1.rep cn2.rep (^));
+             cn1.choose cn2.choose (^));
       }
 
   let union i cn1 cn2 = 
@@ -402,8 +308,8 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
-        cls = lift_r i (cls_str n) rt (branch cn1.rtype cn1.cls cn2.cls);
-        rep = lift_r i (rep_str n) ct (branch cn1.ctype cn1.rep cn2.rep);
+        canonize = (branch cn1.rtype cn1.canonize cn2.canonize);
+        choose = (branch cn1.ctype cn1.choose cn2.choose);
       }
 
   let star i cn1 =
@@ -414,15 +320,15 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
-        cls = lift_r i (cls_str n) rt 
-          (star_loop cn1.rtype cn1.cls);      
-        rep = lift_r i (rep_str n) ct 
+        canonize = 
+          (star_loop cn1.rtype cn1.canonize);      
+        choose = 
           (fun cl -> 
              let rec loop cl acc = 
                if RS.length cl = 0 then acc
                else
                  let cl1,clrest = (split_one Rint.Set.max_elt) cn1.ctype ct cl in 
-                   loop clrest (acc ^ (cn1.rep cl1)) in 
+                   loop clrest (acc ^ (cn1.choose cl1)) in 
                loop cl RS.empty);
       }
         
@@ -438,70 +344,41 @@ let combine_rel r1 r2 = match r1,r2 with
   | Identity,Identity -> Identity 
   | _                 -> Unknown
 
-(* -------------------- DICTIONARY LENSES -------------------- *)
+(* -----------------------------------------------------------------------------*)
+(* DICTIONARY LENSES *)
 module DLens = struct    
   
+  (* dictionaries *)
   type dict = ((skeleton * dict) list KMap.t) TMap.t
-
   let empty_dict : dict = TMap.empty
 
-  (* dictionariy types. At each level, we check that for each tag, the
-     lens used to process matches tagged thus, has a unique uid *)
+  (* dictionary types. at each level of nested matching, and foreach
+     tag, a unique lens is used. to track this, we generate a uids for
+     each lens *)
   type dict_type = uid TMap.t
 
   type t = 
       { (* --- meta data --- *)
-        info: Info.t;                           (* parsing info *)
-        string: string;                         (* pretty printer *)
-        (* --- types --- *)
-        bij: unit -> bool;                      (* bijective flag *)
-        ctype: R.t;                             (* concrete type *)
-        atype: R.t;                             (* abstract type *)
-        dtype: dict_type;                       (* dictionary type *)
-        stype: skeleton -> bool;                (* given a skeleton, returns if it is part
-						   of the skeleton type of the lens*)
-        crel: rel;                              (* concrete equiv rel type *)
-        arel: rel;                              (* abstract equiv rel type *)
-        (* --- core --- *)
-        get: RS.t -> RS.t;                      (* get function *)
+        info: Info.t;                                    (* parsing info *)
+        uid: uid;                                        (* unique identifier *)
+        string: string;                                  (* pretty printed string *)
+        (* --- types --- *)                              
+        bij: unit -> bool;                               (* bijective flag *)
+        ctype: R.t;                                      (* concrete type *)
+        atype: R.t;                                      (* abstract type *)
+        dtype: dict_type;                                (* dictionary type *)
+        stype: skeleton -> bool;                         (* extensional skeleton type *)
+        crel: rel;                                       (* concrete equiv type *)
+        arel: rel;                                       (* abstract equiv type *)
+        (* --- core functions --- *)
+        get: RS.t -> RS.t;                               (* get function *)
         put: RS.t -> skeleton -> dict -> (RS.t * dict);  (* put function *)
-        parse: RS.t -> (skeleton * dict);       (* parse function *)
-        create: RS.t -> dict -> (RS.t * dict);  (* create function *)
-        key: RS.t -> RS.t;                      (* key function *)
-        (* --- hack --- *)
-        uid: uid
+        parse: RS.t -> (skeleton * dict);                (* parse function *)
+        create: RS.t -> dict -> (RS.t * dict);           (* create function *)
+        key: RS.t -> RS.t;                               (* key function *)
       }
-
-  let assert_lens_type i l co ao = 
-    if not (Prefs.read no_assert) then 
-      begin 
-        let check_rx s = function
-          | None -> None
-          | Some r -> 
-              let equiv, f_suppl = R.check_equiv r s in 
-                if equiv then None else Some (f_suppl) in
-          match check_rx l.ctype co, check_rx l.atype ao with 
-            | None, None -> ()
-            | Some f, _ | _, Some f ->
-                (* FINISH LATER: error message could say which of C and A
-                   this comes from *)
-                Berror.static_error i "assert_lens_type" ~suppl:f
-                  (Util.format_to_string  
-                     (fun () -> 
-                        Util.format 
-                          "expected @[<2>%s@ <->@ %s@]@ but@ found @[<2>%s@ <->@ %s@]"
-                          (match co with None -> "?" | Some c -> R.string_of_t c)
-                          (match ao with None -> "?" | Some a -> R.string_of_t a)
-                          (R.string_of_t l.ctype)
-                          (R.string_of_t l.atype)))
-      end;
-    l
-
-  let assert_lens_ctype i l c = assert_lens_type i l (Some c) None
-
-  let assert_lens_atype i l a = assert_lens_type i l None (Some a)
     
-  (* lookup function for both types of dictionary types *)
+  (* lookup function for both kinds of dictionary types *)
   let rec std_lookup tag k d = 
     let km = try TMap.find tag d with Not_found -> KMap.empty in
       try match KMap.find k km with 
@@ -545,7 +422,11 @@ module DLens = struct
                   reso
             end
       end  
+
   exception Incompatible_dict_type of tag
+
+  (* helper to merge two dictionary types. raises an exception if a
+     tag with incompatible lenses is found *)
   let merge_dict_type dt1 dt2 = 
     TMap.fold 
       (fun t u acc ->
@@ -563,11 +444,11 @@ module DLens = struct
 		      Util.format "The tag \"%s\" is used with different lenses@]@\n" 
                         (RS.string_of_t t);))
 
-  (* helper: combine maps with merge. 
-     Mapplus's combine is (combine fold find add (curry fst)) *)
+  (* helper: combine maps with merge. Mapplus's combine is (combine fold find add (curry fst)) *)
   let combine fold find add merge m1 m2 = 
-    fold (fun k v -> 
-            add k (try merge v (find k m2) with Not_found -> v))
+    fold 
+      (fun k v -> 
+         add k (try merge v (find k m2) with Not_found -> v))
       m1 m2  
 
   (* smash two classic dictionaries *)
@@ -586,8 +467,9 @@ module DLens = struct
     with Not_found -> 
       (empty_dict,d)
           
-
+  (* accessors *)
   let info dl = dl.info
+  let uid dl = dl.uid
   let string dl = dl.string
   let bij dl = dl.bij ()
   let ctype dl = dl.ctype
@@ -601,10 +483,10 @@ module DLens = struct
   let parse dl = dl.parse
   let create dl = dl.create
   let k dl = dl.key
-  let uid dl = dl.uid
     
-  let mk_t i s b ct at dt st cr ar g put parse c k uid = 
+  let mk_t i u s b ct at dt st cr ar g put parse c k = 
     { info = i;
+      uid = u;
       string = s;
       bij = b;
       ctype = ct;
@@ -618,26 +500,21 @@ module DLens = struct
       parse = parse;
       create = c;
       key = k;
-      uid = uid;
     }
       
   (* pseudo rlenses function *)
   let unsafe_rget dl c = dl.get c
-  let rget dl = plift_r true dl.info dl.string dl.ctype (unsafe_rget dl)
-
   let unsafe_rput dl a c = 
     let s,d = dl.parse c in
     fst (dl.put a s d)
 
-  let rput dl = 
-    plift_rr true dl.info dl.string dl.atype dl.ctype (unsafe_rput dl)
-      
   let unsafe_rcreate dl a = 
     fst (dl.create a empty_dict)
 
-  let rcreate dl = 
-    plift_r true dl.info dl.string dl.ctype (unsafe_rcreate dl)
-      
+  let rget = unsafe_rget  
+  let rput = unsafe_rput
+  let rcreate = unsafe_rcreate
+            
   let determinize dl =
     { dl with 
         ctype = R.determinize dl.ctype; 
@@ -673,10 +550,10 @@ module DLens = struct
         ctype = ct;
         atype = at;
         get = unsafe_rcreate dl;
-        put = lift_rsd i (put_str n) at dl.stype (fun a _ d -> (dl.get a,d));
-        parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict));
-        create = lift_rd i (create_str n) at (fun a d -> (dl.get a,d));
-        key = lift_r i n at (fun a -> dl.key (dl.get a));
+        put = (fun a _ d -> (dl.get a,d));
+        parse = (fun c -> (S_string c, empty_dict));
+        create = (fun a d -> (dl.get a,d));
+        key = (fun a -> dl.key (dl.get a));
         uid = next_uid ();
     }
         
@@ -689,27 +566,27 @@ module DLens = struct
     let st = function
       | S_string s -> R.match_str r s
       | _ -> false in
-    { info = i;
+    { info   = i;
       string = n;
-      bij = (fun () -> true);
-      ctype = ct;
-      atype = at;
-      dtype = dt;
-      stype = st;
-      crel = Identity;
-      arel = Identity;
-      get = lift_r i (get_str n) ct (fun c -> c);
-      put = lift_rsd i (put_str n) at st (fun a _ d -> (a,d));
-      parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict)); 
-      create = lift_rd i (create_str n) at (fun a d -> a,d);
-      key = lift_r i n at (fun _ -> RS.empty);
-      uid = next_uid ();
+      bij    = (fun () -> true);
+      ctype  = ct;
+      atype  = at;
+      dtype  = dt;
+      stype  = st;
+      crel   = Identity;
+      arel   = Identity;
+      get    = (fun c -> c);
+      put    = (fun a _ d -> (a,d));
+      parse  = (fun c -> (S_string c, empty_dict)); 
+      create = (fun a d -> a,d);
+      key    = (fun _ -> RS.empty);
+      uid    = next_uid ();
     }
 
   let key i r = 
     let c = copy i r in
     { c with 
-      key = lift_r i c.string c.atype (fun a -> a) 
+      key = (fun a -> a)
     }
 
   (* ---------- const ---------- *)
@@ -734,11 +611,11 @@ module DLens = struct
       stype = st;
       crel = Identity;
       arel = Identity;
-      get = lift_r i (get_str n) ct (fun c -> u_str);
-      put = lift_rsd i (put_str n) at st (fun _ s d -> (string_of_skel s, d) );
-      parse = lift_r i (parse_str n) ct (fun c -> (S_string c, empty_dict));  
-      create = lift_rd i (create_str n) at (fun a d -> (def_str,d));
-      key = lift_r i n at (fun _ -> RS.empty);
+      get = (fun c -> u_str);
+      put = (fun _ s d -> (string_of_skel i s, d) );
+      parse = (fun c -> (S_string c, empty_dict));  
+      create = (fun a d -> (def_str,d));
+      key = (fun _ -> RS.empty);
       uid = next_uid ();
     }
 
@@ -761,36 +638,36 @@ module DLens = struct
       stype = st;
       crel = combine_rel dl1.crel dl2.crel;
       arel = combine_rel dl1.arel dl2.arel;
-      get = lift_r i (get_str n) ct 
+      get =
         (do_split (split dl1.ctype dl2.ctype)
            dl1.get dl2.get
            (^));
-      put = lift_rsd i (put_str n) at st 
+      put = 
         (fun a s d -> 
            let a1,a2 = split dl1.atype dl2.atype a in 
-	   let c1,d1 = dl1.put a1 (fst_concat_of_skel s) d in
-	   let c2,d2 = dl2.put a2 (snd_concat_of_skel s) d1 in
+	   let c1,d1 = dl1.put a1 (fst_concat_of_skel i s) d in
+	   let c2,d2 = dl2.put a2 (snd_concat_of_skel i s) d1 in
 	     (c1 ^ c2, d2));
-      parse = lift_r i (parse_str n) ct 
+      parse =
         (fun c->
            let c1, c2 = split dl1.ctype dl2.ctype c in
 	   let s1, d1 = dl1.parse c1 in
 	   let s2, d2 = dl2.parse c2 in
 	     (S_concat (s1, s2), d1 ++ d2));
-      create = lift_rd i n at
+      create =
         (fun a d ->
            let a1, a2 = split dl1.atype dl2.atype a in
 	   let c1, d1 = dl1.create a1 d in
 	   let c2, d2 = dl2.create a2 d1 in
 	     (c1 ^ c2, d2));
-      key = lift_r i n at
+      key = 
         (fun a ->
            let a1,a2 = split dl1.atype dl2.atype a in
 	     (dl1.key a1) ^ (dl2.key a2));
       uid = next_uid ();}          
       
   let common_union i dl1 dl2 n b = 
-    (**** We still need to check equality of keys ***)    
+    (* TODO: check equality of keys *)    
     let ct = R.alt dl1.ctype dl2.ctype in 
     let at = R.alt dl1.atype dl2.atype in 
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
@@ -804,9 +681,9 @@ module DLens = struct
 	stype = st;
 	crel = combine_rel dl1.crel dl2.crel;
         arel = combine_rel dl1.arel dl2.arel;
-        get = lift_r i (get_str n) ct 
+        get = 
           (branch dl1.ctype dl1.get dl2.get);
-        put = lift_rsd i (put_str n) at st 
+        put = 
           (fun a s d -> 
              match R.match_str dl1.atype a, 
                R.match_str dl2.atype a,
@@ -816,11 +693,11 @@ module DLens = struct
                  | true,false,false -> dl1.create a d 
                  | false,true,true  -> dl2.create a d
                  | false,false,_    -> assert false);
-	parse =  lift_r i (parse_str n) ct 
+	parse = 
 	  (branch dl1.ctype dl1.parse dl2.parse); 
-        create = lift_rd i (create_str n) at 
+        create =
           (branch2 dl1.atype dl1.create dl2.create);
-	key = lift_r i n at 
+	key =
 	  (branch dl1.atype dl1.key dl2.key);
 	uid = next_uid ();
       }
@@ -845,7 +722,6 @@ module DLens = struct
     common_union i dl1 dl2 n bij
 
   let unsafe_star i dl1 = 
-    (* body *)
     let n = sprintf "(%s)*" dl1.string in
     let ct = R.star dl1.ctype in 
     let at = R.star dl1.atype in 
@@ -862,8 +738,8 @@ module DLens = struct
       stype = st;
       crel = dl1.crel;
       arel = dl1.arel;
-      get = lift_r i (get_str n) ct (star_loop dl1.ctype dl1.get);
-      put = lift_rsd i (put_str n) at st 
+      get = (star_loop dl1.ctype dl1.get);
+      put = 
         (fun a s d -> 
 	   let rec loop al sl buf d = match al,sl with
              | [],_ -> (buf, d)
@@ -875,10 +751,10 @@ module DLens = struct
 		   loop at st (buf ^ c1) d1 in 
              loop 
                (R.unambig_star_split dl1.atype a)
-               (lst_of_skel s)
+               (lst_of_skel i s)
 	       RS.empty
 	       d);
-      create = lift_rd i (create_str n) at 
+      create =
         (fun a d -> 
            Safelist.fold_left 
              (fun (buf, d) a1 -> 
@@ -886,7 +762,7 @@ module DLens = struct
                 let buf' = RS.append buf c1 in
                   (buf', d'))
              (RS.empty, d) (R.unambig_star_split dl1.atype a));
-      parse = lift_r i (parse_str n) ct 
+      parse =
         (fun c ->
            let (sl, d) = Safelist.fold_left 
              (fun (buf, d) c1 -> 
@@ -897,7 +773,7 @@ module DLens = struct
              ([], empty_dict)
              (R.unambig_star_split dl1.ctype c) in
 	     (S_star (Safelist.rev sl), d));
-      key = lift_r i (key_str n) at 
+      key =
         (star_loop dl1.atype dl1.key);
       uid = next_uid ();      
     }
@@ -925,29 +801,29 @@ module DLens = struct
       stype = st;
       crel = combine_rel dl1.crel dl2.crel;
       arel = combine_rel dl1.arel dl2.arel;
-      get = lift_r i n ct 
+      get = 
         (fun c -> 
            let c1,c2 = split dl1.ctype dl2.ctype c in 
              (dl2.get c2) ^ (dl1.get c1));
-      put = lift_rsd i (put_str n) at st 
+      put = 
         (fun a s d -> 
            let a2,a1 = split dl2.atype dl1.atype a in 
-           let c2,d1 = dl2.put a2 (snd_concat_of_skel s) d in 
-           let c1,d2 = dl1.put a1 (fst_concat_of_skel s) d1 in 
+           let c2,d1 = dl2.put a2 (snd_concat_of_skel i s) d in 
+           let c1,d2 = dl1.put a1 (fst_concat_of_skel i s) d1 in 
              (c1 ^ c2, d2));
-      create = lift_rd i (create_str n) at 
+      create =
         (fun a d -> 
            let a2,a1 = split dl2.atype dl1.atype a in          
            let c2,d1 = dl2.create a2 d in 
            let c1,d2 = dl1.create a1 d1 in 
              (c1 ^ c2, d2));
-      parse = lift_r i (parse_str n) ct
+      parse = 
         (fun c ->
            let c1,c2 = split dl1.ctype dl2.ctype c in 
            let s2,d2 = dl2.parse c2 in 
            let s1,d1 = dl1.parse c1 in 
              (S_concat (s1,s2), d2++d1)); 
-      key = lift_r i n at 
+      key = 
         (fun a ->
            let a2, a1 = split dl2.atype dl1.atype a in
 	     (dl2.key a2) ^ (dl1.key a1));
@@ -985,17 +861,17 @@ module DLens = struct
       stype = st;
       crel = dl1.crel;
       arel = dl2.arel;
-      get = lift_r i (get_str n) ct (fun c -> dl2.get (dl1.get c));
-      put = lift_rsd i n at st 
+      get = (fun c -> dl2.get (dl1.get c));
+      put =  
 	(fun a s d  ->
-	   let s1,s2 = comp_of_skel s in
+	   let s1,s2 = comp_of_skel i s in
 	   let b, d1 = dl2.put a s2 d in
 	   dl1.put b s1 d1);
-      create = lift_rd i n at 
+      create = 
 	(fun a d ->
 	   let b, d1 = dl2.create a d in
 	   dl1.create b d1);
-      parse = lift_r i n ct
+      parse = 
 	(fun c -> 
 	   let s1, d1 = dl1.parse c in
 	   let s2,d2 = dl2.parse (dl1.get c) in
@@ -1006,7 +882,6 @@ module DLens = struct
       
   let default i def dl1 = 
     let n = sprintf "default %s %s" (RS.string_of_t def) dl1.string in 
-    let at = dl1.atype in 
     (if not (R.match_str dl1.ctype def) then 
        Berror.static_error i n 
          (sprintf "%s does not belong to %s" 
@@ -1014,7 +889,7 @@ module DLens = struct
             (R.string_of_t dl1.ctype)));
     let s,d = dl1.parse def in
     { dl1 with
-        create = lift_rd i (create_str n) at 
+        create =
         (fun a d' -> dl1.put a s (d' ++ d)); 
 	uid = next_uid ();
     }
@@ -1048,12 +923,12 @@ module DLens = struct
       dtype = dt;
       crel = dl1.crel;
       arel = dl1.arel;
-      get = lift_r i (get_str n) ct (fun c -> dl1.get c);
-      put = lift_rsd i (put_str n) at st 
+      get = (fun c -> dl1.get c);
+      put =  
         (fun a _ d -> put_create a d);
-      create = lift_rx i (create_str n) at 
+      create = 
         (fun a d -> put_create a d);
-      parse = lift_r i (parse_str n) ct 
+      parse = 
         (fun c -> 
 	   let s,d = dl1.parse c in
            let d1,d2 = split_dict d tag in 
@@ -1064,6 +939,151 @@ module DLens = struct
       key = dl1.key;
       uid = next_uid ();
     }
+
+  let unsafe_filter i rd rk =
+    let n = sprintf "filter %s %s" (R.string_of_t rd) (R.string_of_t rk) in 
+    let ru = R.alt rd rk in
+    let ct = R.star ru in
+    let at = R.star rk in
+    let dt = TMap.empty in
+    let st = function
+      | S_string s -> R.match_str ct s
+      | _ -> false in
+    let get = 
+      (fun c ->
+         let rec loop acc = function 
+           | [] -> acc
+           | h :: t -> 
+               if R.match_str rd h then 
+                 loop acc t
+               else 
+                 loop (acc ^ h) t in
+         let lc = R.unambig_star_split ct c in
+           loop RS.empty lc) in
+    let put = 
+      (fun a s d ->
+         let c = string_of_skel i s in
+         let rec loop acc lc la = match lc,la with
+           | [], [] -> acc
+           | [], ha :: ta -> loop (acc ^ ha) [] ta
+           | hc :: tc, [] -> 
+               if R.match_str rd hc then
+                 loop (acc ^ hc) tc []
+               else
+                 loop acc tc []
+           | hc :: tc, ha :: ta -> 
+               if R.match_str rd hc then
+                 loop (acc ^ hc) tc la
+               else
+                 loop (acc ^ ha) tc ta in
+         let lc = R.unambig_star_split ct c in
+         let la = R.unambig_star_split at a in
+           (loop RS.empty lc la, d)) in
+    let create = (fun a d -> (a,d)) in
+    let parse = (fun c -> (S_string c, empty_dict))in
+      { info = i; 
+        string = n;
+        bij = (fun () -> R.is_empty ru);
+        ctype = ct;
+        atype = at;
+        dtype = dt;
+	stype = st;
+	crel = Identity;
+        arel = Identity;
+        get = get;
+        put = put;
+        create = create;
+	parse = parse;
+	key = (fun _ -> RS.empty);
+	uid = next_uid ();
+      }
+
+
+  (* left quotient of a dlens by a canonizer. I don't know if we
+     should check if the dlens is not already a q-lens. *)
+
+  let left_quot i cn dl = 
+    let n = sprintf "left quotient of %s by %s" dl.string (Canonizer.string cn) in
+      (* the "uncanonized type" of the canonizer has to be equal to the
+	 concrete type of the lens *)
+    let equiv, f_suppl = R.check_equiv (Canonizer.ctype cn) dl.ctype in
+      if not equiv then
+        begin
+	  let s =sprintf "the %s is ill-typed:" n in
+	    Berror.static_error i n ~suppl:f_suppl s 
+        end;
+      let ct = Canonizer.rtype cn in
+      let at = dl.atype in
+      let dt = dl.dtype in
+      let st = dl.stype in
+      let canonize = Canonizer.canonize cn in
+      let choose = Canonizer.choose cn in
+        { info = i; 
+          string = n;
+          bij = (fun () -> false);
+          ctype = ct;
+          atype = at;
+          dtype = dt;
+          stype = st;
+          crel = Unknown;
+          arel = dl.arel;
+          get = 
+	    (fun c -> dl.get(canonize c));
+          put = 
+	    (fun a s d ->
+	       let cc, d = dl.put a s d in
+	         (choose cc, d));
+          create =
+	    (fun a d ->
+	       let cc, d = dl.create a d in
+	         (choose cc, d));
+          parse = 
+	    (fun c ->
+	       let cc = canonize c in
+	         dl.parse cc);
+          key = dl.key;
+          uid = next_uid ();
+        }
+
+  let right_quot i dl cn = 
+    let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
+    let equiv, f_suppl = R.check_equiv (Canonizer.ctype cn) dl.atype in
+      if not equiv then
+        begin
+	  let s =sprintf "the %s is ill-typed:" n in
+	    Berror.static_error i n ~suppl:f_suppl s 
+        end;
+      let ct = dl.ctype in
+      let at = Canonizer.rtype cn in
+      let dt = dl.dtype in
+      let st = dl.stype in
+      let canonize = Canonizer.canonize cn in
+      let choose = Canonizer.choose cn in
+        { info = i; 
+          string = n;
+          bij = (fun () -> false);
+          ctype = ct;      
+          atype = at;
+          dtype = dt;
+          stype = st;
+          crel = dl.crel;
+          arel = Unknown;
+          get =
+	    (fun c -> choose (dl.get c));
+          put = 
+	    (fun a s d ->
+	       let ac = canonize a in
+	         dl.put ac s d);
+          create =
+	    (fun a d ->
+	       let ac = canonize a in
+	         dl.create ac d);
+          parse = dl.parse;
+          key = (fun a -> dl.key (canonize a));
+          uid = next_uid ();
+        }
+end
+
 
 (*   let duplicate i isFst dl1 dl2 dl3 =  *)
 (*     let n = sprintf "duplicate%s (%s) (%s) (%s)"  *)
@@ -1109,9 +1129,9 @@ module DLens = struct
 (*                (dl1.get c13) ^ (dl2.get c2) ^ (dl3.get c13)); *)
 (*         put = lift_rsd i (put_str n) at st (fun a s d ->  *)
 (*                                               let a1,a2,a3 = split_a a in  *)
-(* 	                                      let c1,d1 = dl1.put a1 (fst_dup_of_skel s) d in *)
-(* 	                                      let c2,d2 = dl2.put a2 (fst_concat_of_skel (snd_dup_of_skel s)) d1 in  *)
-(*                                               let c3,d3 = dl3.put a3 (snd_concat_of_skel (snd_dup_of_skel s)) d2 in  *)
+(* 	                                      let c1,d1 = dl1.put a1 (fst_dup_of_skel i s) d in *)
+(* 	                                      let c2,d2 = dl2.put a2 (fst_concat_of_skel i (snd_dup_of_skel i s)) d1 in  *)
+(*                                               let c3,d3 = dl3.put a3 (snd_concat_of_skel i (snd_dup_of_skel i s)) d2 in  *)
 (* 	                                        (if isFst then (c1 ^ c2,d2) else (c2 ^ c3,d2))); *)
 (*         parse = lift_r i (parse_str n) ct (fun c-> *)
 (*                                              let c13,c2 = split_c c in                                    *)
@@ -1130,147 +1150,3 @@ module DLens = struct
 (* 	                         (dl1.key a1) ^ (dl2.key a2) ^ (dl3.key a3)); *)
 (*         uid = next_uid (); } *)
         
-  let unsafe_filter i rd rk =
-    let n = sprintf "filter %s %s" (R.string_of_t rd) (R.string_of_t rk) in 
-    let ru = R.alt rd rk in
-    let ct = R.star ru in
-    let at = R.star rk in
-    let dt = TMap.empty in
-    let st = function
-      | S_string s -> R.match_str ct s
-      | _ -> false in
-    let get = lift_r i (get_str n) ct 
-      (fun c ->
-         let rec loop acc = function 
-           | [] -> acc
-           | h :: t -> 
-               if R.match_str rd h then 
-                 loop acc t
-               else 
-                 loop (acc ^ h) t in
-         let lc = R.unambig_star_split ct c in
-           loop RS.empty lc) in
-    let put = lift_rsd i (put_str n) at st
-      (fun a s d ->
-         let c = string_of_skel s in
-         let rec loop acc lc la = match lc,la with
-           | [], [] -> acc
-           | [], ha :: ta -> loop (acc ^ ha) [] ta
-           | hc :: tc, [] -> 
-               if R.match_str rd hc then
-                 loop (acc ^ hc) tc []
-               else
-                 loop acc tc []
-           | hc :: tc, ha :: ta -> 
-               if R.match_str rd hc then
-                 loop (acc ^ hc) tc la
-               else
-                 loop (acc ^ ha) tc ta in
-         let lc = R.unambig_star_split ct c in
-         let la = R.unambig_star_split at a in
-           (loop RS.empty lc la, d)) in
-    let create = lift_rd i n at (fun a d -> (a,d)) in
-    let parse = lift_r i n ct (fun c -> (S_string c, empty_dict))in
-      { info = i; 
-        string = n;
-        bij = (fun () -> R.is_empty ru);
-        ctype = ct;
-        atype = at;
-        dtype = dt;
-	stype = st;
-	crel = Identity;
-        arel = Identity;
-        get = get;
-        put = put;
-        create = create;
-	parse = parse;
-	key = lift_r i n at (fun _ -> RS.empty);
-	uid = next_uid ();
-      }
-
-
-  (* left quotient of a dlens by a canonizer. I don't know if we
-     should check if the dlens is not already a q-lens. *)
-
-  let left_quot i cn dl = 
-    let n = sprintf "left quotient of %s by %s" dl.string (Canonizer.string cn) in
-      (* the "uncanonized type" of the canonizer has to be equal to the
-	 concrete type of the lens *)
-    let equiv, f_suppl = R.check_equiv (Canonizer.ctype cn) dl.ctype in
-      if not equiv then
-        begin
-	  let s =sprintf "the %s is ill-typed:" n in
-	    Berror.static_error i n ~suppl:f_suppl s 
-        end;
-      let ct = Canonizer.rtype cn in
-      let at = dl.atype in
-      let dt = dl.dtype in
-      let st = dl.stype in
-      let cls = Canonizer.cls cn in
-      let rep = Canonizer.rep cn in
-        { info = i; 
-          string = n;
-          bij = (fun () -> false);
-          ctype = ct;
-          atype = at;
-          dtype = dt;
-          stype = st;
-          crel = Unknown;
-          arel = dl.arel;
-          get = lift_r i (get_str n) ct 
-	    (fun c -> dl.get(cls c));
-          put = lift_rsd i n at st 
-	    (fun a s d ->
-	       let cc, d = dl.put a s d in
-	         (rep cc, d));
-          create = lift_rd i n at
-	    (fun a d ->
-	       let cc, d = dl.create a d in
-	         (rep cc, d));
-          parse = lift_r i n ct
-	    (fun c ->
-	       let cc = cls c in
-	         dl.parse cc);
-          key = dl.key;
-          uid = next_uid();
-        }
-
-  let right_quot i dl cn = 
-    let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
-    let equiv, f_suppl = R.check_equiv (Canonizer.ctype cn) dl.atype in
-      if not equiv then
-        begin
-	  let s =sprintf "the %s is ill-typed:" n in
-	    Berror.static_error i n ~suppl:f_suppl s 
-        end;
-      let ct = dl.ctype in
-      let at = Canonizer.rtype cn in
-      let dt = dl.dtype in
-      let st = dl.stype in
-      let cls = Canonizer.cls cn in
-      let rep = Canonizer.rep cn in
-        { info = i; 
-          string = n;
-          bij = (fun () -> false);
-          ctype = ct;      
-          atype = at;
-          dtype = dt;
-          stype = st;
-          crel = dl.crel;
-          arel = Unknown;
-          get = lift_r i (get_str n) ct 
-	    (fun c -> rep (dl.get c));
-          put = lift_rsd i n at st 
-	    (fun a s d ->
-	       let ac = cls a in
-	         dl.put ac s d);
-          create = lift_rd i n at
-	    (fun a d ->
-	       let ac = cls a in
-	         dl.create ac d);
-          parse = dl.parse;
-          key = (fun a -> dl.key (cls a));
-          uid = next_uid ();
-        }
-end
-

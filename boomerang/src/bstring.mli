@@ -61,3 +61,5 @@ val blit : t -> int -> t -> int -> int -> unit
 val split_prefix : t -> t -> t option
 val escaped : string -> string
 val distance : t -> t -> int
+
+module Map : Map.S with type key = t 

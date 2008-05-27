@@ -186,8 +186,8 @@ let prelude_spec =
   ; pmk_qqq    "canonizer_union"        C.union
   ; pmk_qqq    "canonizer_concat"       C.concat
   ; pmk_qiiq   "canonizer_iter"         C.iter
-  ; pmk_qss    "canonize"               (fun _ -> C.cls)
-  ; pmk_qss    "choose"                 (fun _ -> C.rep)
+  ; pmk_qss    "canonize"               (fun _ -> C.canonize)
+  ; pmk_qss    "choose"                 (fun _ -> C.choose)
   ; pmk_qll    "left_quot"              L.left_quot
   ; pmk_lql    "right_quot"             L.right_quot
   ; pmk_srssq  "columnize"              C.columnize

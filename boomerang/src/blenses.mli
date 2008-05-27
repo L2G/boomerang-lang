@@ -19,9 +19,6 @@
 (* $Id$ *)
 (*******************************************************************************)
 
-val no_check : bool Prefs.t
-val no_assert : bool Prefs.t
-
 type key
 type skeleton 
 
@@ -31,8 +28,8 @@ module Canonizer : sig
   val string : t -> string
   val rtype : t -> Bregexp.t
   val ctype : t -> Bregexp.t
-  val cls : t -> (Bstring.t -> Bstring.t)
-  val rep : t -> (Bstring.t -> Bstring.t)
+  val canonize : t -> (Bstring.t -> Bstring.t)
+  val choose : t -> (Bstring.t -> Bstring.t)
 
   val copy : Info.t -> Bregexp.t -> t
   val columnize : Info.t -> Bstring.t -> Bregexp.t -> Bstring.t -> Bstring.t -> t
@@ -47,10 +44,6 @@ module DLens : sig
   type dict
   val std_lookup : Bstring.t -> Bstring.t -> dict -> ((skeleton * dict) * dict) option
   val sim_lookup : float -> Bstring.t -> Bstring.t -> dict -> ((skeleton * dict) * dict) option
-
-  val assert_lens_type : Info.t -> t -> Bregexp.t option -> Bregexp.t option -> t
-  val assert_lens_ctype : Info.t -> t -> Bregexp.t -> t
-  val assert_lens_atype : Info.t -> t -> Bregexp.t -> t
 
   val info : t -> Info.t
   val string : t -> string
