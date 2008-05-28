@@ -36,20 +36,30 @@ module G = Bregistry
 let sprintf = Printf.sprintf  
 let msg = Util.format
 let (@) = Safelist.append
-
 let v_of_rv = G.value_of_rv 
 
-(* --------------- AST utilities --------------- *)
+(* helpers for constructing AST nodes *)
+let mk_var i q = 
+  EVar(i,q)
 
-let mk_var i q = EVar(i,q)
 let mk_core_var i s = 
   mk_var i (Qid.mk_core_t s)
+
 let mk_native_prelude_var i s = 
   mk_var i (Qid.mk_native_prelude_t s)
-let mk_unit i  = EUnit(i)
-let mk_int i n = EInteger(i,n)
-let mk_app i e1 e2 = EApp(i,e1,e2)
-let mk_app3 i e1 e2 e3 = mk_app i (mk_app i e1 e2) e3
+
+let mk_unit i = 
+  EUnit(i)
+
+let mk_int i n = 
+  EInteger(i,n)
+
+let mk_app i e1 e2 = 
+  EApp(i,e1,e2)
+
+let mk_app3 i e1 e2 e3 = 
+  mk_app i (mk_app i e1 e2) e3
+
 let mk_let i x s1 e1 e2 =
   let b = Bind(i,PVar(i,x,Some s1),None,e1) in 
   ELet(i,b,e2)
@@ -58,15 +68,27 @@ let mk_fun i x s e1 =
   let p = Param(i,x,s) in  
   EFun(i,p,None,e1)
 
-let mk_tyfun i a e = ETyFun(i,a,e)
+let mk_tyfun i a e = 
+  ETyFun(i,a,e)
 
-let mk_tyapp i e1 s2 = ETyApp(i,e1,s2)
+let mk_tyapp i e1 s2 = 
+  ETyApp(i,e1,s2)
 
 let mk_if i e0 e1 e2 s =
-  ECase(i,e0,[(PBol(i,true),e1);(PBol(i,false),e2)],s)
-    
-(* --------------- Unit tests --------------- *)
-(* unit tests either succeed, yielding a value, or fail with a msg *)
+  let bs = [(PBol(i,true),e1);(PBol(i,false),e2)] in 
+  ECase(i,e0,bs,s)
+
+let string_of_char i e = 
+  mk_app i (mk_native_prelude_var i "string_of_char") e
+let regexp_of_string i e = 
+  mk_app i (mk_native_prelude_var i "str") e 
+let lens_of_regexp i e = 
+  mk_app i (mk_native_prelude_var i "copy") e  
+
+(* --------------------------------------------------------------------------- *)
+(* UNIT TESTS *)
+
+(* test results: success with a value, or failure with an error message *)
 type testresult = OK of Bvalue.t | Error of (unit -> unit)
 
 let tests = Prefs.createStringList
@@ -79,7 +101,7 @@ let test_all = Prefs.createBool "test-all" false
   "run unit tests for all modules"
   "run unit tests for all modules"
 
-(* [check_test m] returns true iff the command line arguments
+(* [check_test m] returns [true] iff the command line arguments
    '-test-all' or '-test m' are set *)
 let check_test ms = 
   Safelist.fold_left 
@@ -87,10 +109,8 @@ let check_test ms =
     (Prefs.read test_all)
     (Prefs.read tests)
 
-(* --------------- Error Reporting --------------- *)
-let debug s_thk = 
-  Trace.debug "compiler" (fun () -> msg "@[%s@\n%!@]" (s_thk ()))
-
+(* --------------------------------------------------------------------------- *)
+(* ERRORS / DEBUGGING *)
 let test_error i msg_thk = 
   raise (Error.Harmony_error
            (fun () -> msg "@[%s: Unit test failed @ " (Info.string_of_t i); 
@@ -104,8 +124,10 @@ let run_error i msg_thk =
               msg_thk ();
               msg "@]"))
 
-(* --------------- Environments --------------- *)
-(* compilation environments *)
+(* --------------------------------------------------------------------------- *)
+(* ENVIRONMENTS *)
+
+(* signature *)
 module type CEnvSig = 
 sig
   type t 
@@ -126,6 +148,7 @@ sig
   val fold : (Qid.t -> v -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
+(* compilation environment *)
 module CEnv : CEnvSig with type v = G.rv = 
 struct
   type t = (Qid.t list * Qid.t) * G.REnv.t
@@ -133,7 +156,7 @@ struct
 
   let empty m = (([],m), G.REnv.empty ())
 
-  (* getters and setters *)
+  (* accessors / setters *)
   let get_ev cev = let (_,ev) = cev in ev
   let set_ev cev ev = let (os,_) = cev in (os,ev)
   let get_mod cev = let ((_,m),_) = cev in m
@@ -141,7 +164,7 @@ struct
   let get_ctx cev = let ((os,_),_) = cev in os
   let set_ctx cev os = let ((_,m),ev) = cev in ((os,m),ev)
 
-  (* lookup from a cev, then from the library *)
+  (* lookup from cev, then from library *)
   let lookup_generic lookup_fun lookup_library_fun cev q = 
     let ev = get_ev cev in 
     let ctx = get_ctx cev in 
@@ -218,20 +241,33 @@ struct
   let fold f sev a = CEnv.fold (fun q (s,_) a -> f q s a) sev a
 end
 
-(* --------------- Sort Checking --------------- *)
+(* --------------------------------------------------------------------------- *)
+(* SORT CHECKING *)
 
+(* Generate an [Id.t] from [x] that is fresh for [s] by adding primes. *)
 let rec fresh_id x s = 
   if Id.Set.mem x s then 
-    fresh_id (Id.mk (Id.info_of_t x) (Id.string_of_t x ^ "'")) s
+  fresh_id (Id.mk (Id.info_of_t x) (Id.string_of_t x ^ "'")) s
   else x
 
+(* Generate an [Qid.t] from [x] that is fresh for [s] by adding primes. *)
 let rec fresh_qid x s = 
   let q = Qid.t_of_id x in 
   if Qid.Set.mem q s then 
     fresh_qid (Id.mk (Id.info_of_t x) (Id.string_of_t x ^ "'")) s
   else q
 
-(* lookup a constructor *)
+(* Helpers for resolving types. Both return returns the
+   fully-qualified name of the type (e.g., [List.t]), its sort
+   variables (e.g., ['a]), and its constructors (e.g., [(List.Nil,
+   None); (List.Cons, (a * List.t))].
+
+   o get_con lookups a type from a data type constructor (e.g.,
+     [Nil]).
+
+   o get_type is similar, but looks up the type from its name (e.g.,
+     [List.t]).
+*)
 let get_con i sev li = 
   match SCEnv.lookup_con sev li with
     | None -> sort_error i 
@@ -244,13 +280,17 @@ let get_type lookup_type i qx =
         (fun () -> msg "@[Unbound@ type@ %s@]" (Qid.string_of_t qx))
     | Some r -> r
 
+(* helper: convert a list of sort vars to a list of sorts. *)
 let sl_of_svl svl = Safelist.map (fun svi -> SVar svi) svl 
 
+(* helper: substitute for variables in data type constructors *)
 let inst_cases subst cl = 
   Safelist.map 
     (fun (li,so) -> (li,Misc.map_option (subst_sort subst) so)) cl
 
-(* check if one sort is compatible with another *)
+(* --------------------------------------------------------------------------- *)
+(* COMPATIBILITY / CASTING *)
+
 let rec compatible f t = match f,t with
   | SUnit,SUnit       
   | SInteger,SInteger 
@@ -269,8 +309,11 @@ let rec compatible f t = match f,t with
   | SRegexp,SLens -> 
       true
   | SFunction(x,s11,s12),SFunction(y,s21,s22) -> 
-      if (Id.equal x y) then (compatible s11 s21) && (compatible s12 s22)
+      if (Id.equal x y) then 
+           compatible s11 s21 
+        && compatible s12 s22
       else 
+        (* alpha varty f and t if needed *)
         let qx = Qid.t_of_id x in 
         let qy = Qid.t_of_id y in 
         let f_fvs = Qid.Set.add qx (free_exp_vars_in_sort f) in 
@@ -278,27 +321,32 @@ let rec compatible f t = match f,t with
         let z = fresh_qid x (Qid.Set.union f_fvs t_fvs) in
         let f_subst = [qx,EVar(Info.M "gensym'd variable",z)] in 
         let t_subst = [qy,EVar(Info.M "gensym'd variable",z)] in 
-          (compatible 
-             (subst_exp_in_sort f_subst s11) 
-             (subst_exp_in_sort t_subst s21))
-          && (compatible 
-                (subst_exp_in_sort f_subst s12) 
-                (subst_exp_in_sort t_subst s22))
+             compatible 
+               (subst_exp_in_sort f_subst s11) 
+               (subst_exp_in_sort t_subst s21)
+          && compatible 
+               (subst_exp_in_sort f_subst s12) 
+               (subst_exp_in_sort t_subst s22)
   | SProduct(s11,s12),SProduct(s21,s22) -> 
-      (compatible s11 s21) && (compatible s12 s22)
+         compatible s11 s21
+      && compatible s12 s22
   | SData(sl1,qx),SData(sl2,qy) -> 
-      let ok,sl12 = 
-        try true, Safelist.combine sl1 sl2 
-        with Invalid_argument _ -> (false,[]) in 
-      Safelist.fold_left
-        (fun b (s1i,s2i) -> b && compatible s1i s2i)
-        (ok && (Qid.equal qx qy))
-        sl12
+      if Qid.equal qx qy then 
+        (* and check that the sl1 and sl2 pairwise compatible *)
+        let ok,sl12 = 
+          try true, Safelist.combine sl1 sl2 
+          with Invalid_argument _ -> (false,[]) in 
+        Safelist.fold_left
+          (fun b (s1i,s2i) -> b && compatible s1i s2i)
+          ok sl12
+      else 
+        false
   | SVar x, SVar y -> 
       Id.equal x y
   | SForall(x,s1),SForall(y,s2) -> 
       if Id.equal x y then compatible s1 s2
       else   
+        (* alpha vary f and t if needed *) 
         let f_fvs = free_sort_vars s1 in 
         let t_fvs = free_sort_vars s2 in 
         let z = fresh_id x (Id.Set.union f_fvs t_fvs) in
@@ -312,16 +360,11 @@ let rec compatible f t = match f,t with
 let skipped = ref 0
 let casted = ref 0 
 
-(* precondition: f and t must be compatible!! *)
+(* precondition: f and t must be compatible. *)
 let rec mk_cast_blame lt i b f t e = 
-(*   Util.format "@[mk_cast_blame@\nI: %s@\nF: %s@\nT: %s@\nE: %s@]@\n@\n" *)
-(*     (Info.string_of_t i)                         *)
-(*     (string_of_sort f) (string_of_sort t) (string_of_exp e); *)
-  let string_of_char e = mk_app i (mk_native_prelude_var i "string_of_char") e in 
-  let regexp_of_string e = mk_app i (mk_native_prelude_var i "str") e in 
-  let lens_of_regexp e = mk_app i (mk_native_prelude_var i "copy") e in 
   let old_casted = incr casted; !casted in   
   let skip () = casted := old_casted; incr skipped in 
+  (* generates cast of e0 into the refinement (x:t where e) *)
   let cast_refinement f x t e e0 = 
     let t0 = SRefine(x,t,e) in 
     let qx = Qid.t_of_id x in 
@@ -352,17 +395,17 @@ let rec mk_cast_blame lt i b f t e =
       | SVar(_),SVar(_) -> 
           (skip (); e) 
       | SChar,SString ->           
-          string_of_char e 
+          string_of_char i e 
       | SChar,SRegexp -> 
-          regexp_of_string (string_of_char e)
+          regexp_of_string i (string_of_char i e)
       | SChar,SLens -> 
-          lens_of_regexp (regexp_of_string (string_of_char e))
+          lens_of_regexp i (regexp_of_string i (string_of_char i e))
       | SString,SRegexp ->  
-          regexp_of_string e
+          regexp_of_string i e
       | SString,SLens -> 
-          lens_of_regexp (regexp_of_string e)
+          lens_of_regexp i (regexp_of_string i e)
       | SRegexp,SLens -> 
-          lens_of_regexp e
+          lens_of_regexp i e
       | SFunction(x,f1,f2), SFunction(y,t1,t2) -> 
           let fn = Id.mk i "fn" in 
           let qx = Qid.t_of_id x in 
@@ -376,7 +419,8 @@ let rec mk_cast_blame lt i b f t e =
             if c1 == e_x && c2 == e_fx then 
               (skip (); e)
             else                
-              let cast_f = mk_fun i fn f (mk_fun i x f1 (mk_let i x t1 c1 c2)) in 
+              let cast_f = 
+                mk_fun i fn f (mk_fun i x t1 (mk_let i x f1 c1 c2)) in 
               let cast_e = 
                 if Id.equal x y then mk_app i cast_f e
                 else mk_fun i y t1 (mk_app i (mk_app i cast_f e) (mk_var i qy)) in 
@@ -384,10 +428,8 @@ let rec mk_cast_blame lt i b f t e =
       | SProduct(f1,f2), SProduct(t1,t2) -> 
           let x = Id.mk i "x" in 
           let y = Id.mk i "y" in 
-          let qx = Qid.t_of_id x in 
-          let qy = Qid.t_of_id y in 
-          let e_x = mk_var i qx in 
-          let e_y = mk_var i qy in 
+          let e_x = mk_var i (Qid.t_of_id x) in 
+          let e_y = mk_var i (Qid.t_of_id y) in 
           let c1 = mk_cast_blame lt i b f1 t1 e_x in
           let c2 = mk_cast_blame lt i b f2 t2 e_y in                 
             if c1 == e_x && c2 == e_y then (skip (); e)
@@ -425,7 +467,7 @@ let rec mk_cast_blame lt i b f t e =
                            tl (mk_var i li) in 
                        let py = PVar(i,y,Some fi) in 
                        let pi = PVnt(i,li,Some py) in 
-                         (* this cast must not be recursive! (on recursive data types, it would loop) *)
+                         (* this cast cannot be expanded! (it would loop on recursive data types) *)
                        let ei = mk_app i li_f (ECast(i,fi,ti,b,mk_var i qy)) in
                          (pi,ei)
                    | _ -> run_error i 
@@ -433,8 +475,10 @@ let rec mk_cast_blame lt i b f t e =
               (Safelist.combine cl_finst cl_tinst) in 
               mk_let i x f e (ECase(i,mk_var i qx,pl,t))
       | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
-          if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 then (skip (); e)
-          else cast_refinement f y t2 e2 e
+          if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 then 
+            (skip (); e)
+          else 
+            cast_refinement f y t2 e2 e
       | _,SRefine(x,t2,e2) -> 
           cast_refinement f x t2 e2 e
       | SRefine(x,f1,e1),t1 -> 
