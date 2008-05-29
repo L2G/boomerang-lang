@@ -75,7 +75,6 @@ and exp =
 
     (* coercion and holes! *)
     | ECast    of Info.t * sort * sort * blame * exp 
-    | EHole    of int * sort * (exp,Bvalue.t) Misc.alternative ref
 
     (* unit, strings, ints, characters, character sets *)
     | EUnit    of Info.t  
@@ -163,6 +162,3 @@ val exp_of_binding : binding -> exp
 
 val exp_of_blame : Info.t -> blame -> exp
 (** [exp_of_blame i b] builds an expression that compiles to a run-time representation of [b]. *)
-
-val mk_hole : exp -> sort -> exp
-(** [mk_hole e s] allocates a new ref cell and returns an [EHole] filled with [e] whose sort should be [s] (please). *)

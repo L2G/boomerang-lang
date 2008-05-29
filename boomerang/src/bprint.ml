@@ -183,16 +183,6 @@ and format_exp e0 = match e0 with
         format_exp e;
         msg "@]"
 
-    | EHole(u,_,hr) -> 
-        (* TODO: we can be more clever about this, to recognize when
-        we've already printed a copied expression and only print it
-        once. To do this, we need to extend printing with a context
-        and add "where" clauses etc. etc.*)
-        begin match !hr with
-          | Misc.Left e' -> msg "@[$%d[" u; format_exp e'; msg "]@]"
-          | Misc.Right v -> Bvalue.format v
-        end
-
     | EBoolean (_,b) -> 
         msg "@[%b@]" b
 

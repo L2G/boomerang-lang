@@ -81,7 +81,6 @@ and exp =
 
     (* coercion and holes! *)
     | ECast    of Info.t * sort * sort * blame * exp 
-    | EHole    of int * sort * (exp,Bvalue.t) Misc.alternative ref
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
@@ -165,10 +164,6 @@ let rec info_of_exp e = match e with
   | EPair    (i,_,_)     -> i
   | ECase    (i,_,_,_)   -> i
   | ECast    (i,_,_,_,_) -> i 
-  | EHole    (_,_,hr) -> 
-      (match !hr with 
-         | Misc.Left e' -> info_of_exp e'
-         | Misc.Right v -> Bvalue.info_of_t v) 
   | EUnit    (i)         -> i
   | EBoolean (i,_)       -> i
   | EInteger (i,_)       -> i    
@@ -213,8 +208,3 @@ let exp_of_blame i b =
   let p2 = EPair(i,EInteger(i,j1),EInteger(i,j2)) in 
   EPair(i,EString(i,Bstring.t_of_string fn),EPair(i,p1,p2)) 
 
-let hole_counter = ref 0
-let mk_hole e s =
-  incr hole_counter;
-  let hr = ref (Misc.Left e) in
-  EHole(!hole_counter,s,hr)

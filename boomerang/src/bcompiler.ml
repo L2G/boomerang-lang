@@ -874,12 +874,11 @@ and check_exp sev e0 =
                     if Id.equal x Id.wild then               
                       let new_e0 = EApp(i,new_e1,cast_e2) in 
                       let e0_sort = return_sort in
-                        (e0_sort,new_e0)
+                      (e0_sort,new_e0)
                     else
-                      let hole_e2 = if true (* Prefs.read naive *) then cast_e2 else mk_hole cast_e2 param_sort in
-                      let new_e0 = EApp(i,new_e1,hole_e2) in
+                      let new_e0 = EApp(i,new_e1,cast_e2) in
                       let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in
-                        (e0_sort,new_e0)
+                      (e0_sort,new_e0)
                           (*               msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
                           (*               msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
                           (*               msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
@@ -955,9 +954,6 @@ and check_exp sev e0 =
         let new_e0 = ECast(i,f',t',b,new_e) in 
         let e0_sort = t' in 
           (e0_sort,new_e0)
-
-    | EHole(u,s,hr) -> 
-          (s,e0)
 
 and check_binding sev b0 = match b0 with
   | Bind(i,p,so,e) ->
@@ -1192,22 +1188,6 @@ let rec compile_exp cev e0 = match e0 with
 
   | ECast(i,f,t,b,e) -> 
       compile_exp cev (mk_cast_blame (CEnv.lookup_type cev) i b f t e) 
-
-  | EHole(u,_,hr) -> 
-      begin match !hr with 
-        | Misc.Left e -> 
-            msg "@[filling hole:@,";
-            format_exp e;
-            msg "@]@\n";
-            let v = compile_exp cev e in
-            hr := Misc.Right v;
-            v
-        | Misc.Right v ->
-            msg "@[reusing filled hole %d: " u;
-            V.format v;
-            msg "@]@\n";
-            v
-      end
 
 and compile_binding cev b0 = match b0 with
   | Bind(i,p,so,e) -> 
