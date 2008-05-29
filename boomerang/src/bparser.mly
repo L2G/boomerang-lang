@@ -21,9 +21,10 @@
 (*******************************************************************************)
 
 (* imports and abbreviations *)
+open Bsyntax
+open Bident
 module RS = Bstring
 module L = Blenses 
-open Bsyntax
 let sprintf = Printf.sprintf
 let (@) = Safelist.append
 
@@ -164,7 +165,7 @@ let rec fixup_pat i p0 = match p0 with
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
 %token <Info.t> UNIT BOOL INT CHAR STRING REGEXP LENS CANONIZER FORALL WHERE
-%token <Bsyntax.Id.t> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
+%token <Bident.Id.t> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
 %token <Info.t * char> CHARACTER
 %token <Info.t * int> INTEGER
 %token <Info.t * bool> BOOLEAN
@@ -180,8 +181,8 @@ let rec fixup_pat i p0 = match p0 with
 
 %start modl uid qid
 %type <Bsyntax.modl> modl
-%type <Bsyntax.Qid.t> uid
-%type <Bsyntax.Qid.t> qid
+%type <Bident.Qid.t> uid
+%type <Bident.Qid.t> qid
 %%
 
 /* --------- MODULES ---------- */

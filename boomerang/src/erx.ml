@@ -32,12 +32,12 @@ let test_trim = Prefs.createBool "testtrim" false
   "Cause to print stats on the efficiency of trimming"
 
 let use_trim =  Prefs.createBool "usetrim" false
-  "Cause to effectively use the triming. Usefull only with \"testtrim\" activated" 
-  "Cause to effectively use the triming. Usefull only with \"testtrim\" activated" 
+  "Cause to effectively use the trimming. Useful only with \"testtrim\" activated" 
+  "Cause to effectively use the trimming. Useful only with \"testtrim\" activated" 
 
 let no_cache =  Prefs.createBool "nocache" false
-  "Desactivate the usage of cache"
-  "Desactivate the usage of cache"
+  "Deactivate the usage of cache"
+  "Deactivate the usage of cache"
 
 
 type debug_trim = 

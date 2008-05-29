@@ -20,8 +20,7 @@
 (*******************************************************************************)
 
 (* module imports and abbreviations *)
-module S = Bsyntax
-module P = Bprint
+open Bident
 module R = Bregexp
 module L = Blenses.DLens
 module C = Blenses.Canonizer
@@ -43,7 +42,7 @@ type t =
   | Can of Info.t * C.t
   | Fun of Info.t * (t -> t)
   | Par of Info.t * t * t
-  | Vnt of Info.t * S.Qid.t * S.Id.t * t option
+  | Vnt of Info.t * Qid.t * Id.t * t option
 
 let info_of_t = function
   | Unt(i)       -> i
@@ -86,9 +85,9 @@ let rec equal v1 v2 = match v1,v2 with
   | Par(_,v1,v2),Par(_,v1',v2') -> 
       (equal v1 v1') && (equal v2 v2')
   | Vnt(_,qx,l,None), Vnt(_,qx',l',None) -> 
-      S.Qid.equal qx qx' && S.Id.equal l l'
+      Qid.equal qx qx' && Id.equal l l'
   | Vnt(_,qx,l,Some v), Vnt(_,qx',l',Some v') ->
-      (S.Qid.equal qx qx') && (S.Id.equal l l') && (equal v v')
+      (Qid.equal qx qx') && (Id.equal l l') && (equal v v')
   | Vnt _,Vnt _ -> false
   | _, _ -> 
       format v1; Util.format "@\n"; 
@@ -111,9 +110,9 @@ and format = function
       Util.format ",@ ";
       format v2;
       Util.format ")@]"
-  | Vnt(_,_,l,None) -> Util.format "%s" (S.Id.string_of_t l)
+  | Vnt(_,_,l,None) -> Util.format "%s" (Id.string_of_t l)
   | Vnt(_,_,l,Some v) ->  
-      Util.format "@[(%s@ " (S.Id.string_of_t l);
+      Util.format "@[(%s@ " (Id.string_of_t l);
       format v;
       Util.format ")@]"        
 
@@ -130,7 +129,7 @@ let rec sort_string_of_t = function
   | Can _ -> "canonizer"
   | Fun _ -> "<function>"
   | Par(_,v1,v2) -> sprintf "(%s,%s)" (sort_string_of_t v1) (sort_string_of_t v2)
-  | Vnt(_,qx,_,_) -> sprintf "%s" (S.Qid.string_of_t qx)
+  | Vnt(_,qx,_,_) -> sprintf "%s" (Qid.string_of_t qx)
 
 (* --------- conversions between run-time values ---------- *)
 let conversion_error s1 v1 = 
@@ -150,27 +149,27 @@ let get_b v = match v with
 
 let get_i v = match v with
   | Int(_,n) -> n
-  | _ -> conversion_error (P.string_of_sort S.SInteger) v
+  | _ -> conversion_error "integer" v
 
 let get_c v = match v with
   | Chr(b,c) -> c
-  | _ -> conversion_error (P.string_of_sort S.SChar) v
+  | _ -> conversion_error "char" v
 
 let get_s v = match v with
   | Str(_,s) -> s
-  | _ -> conversion_error (P.string_of_sort S.SString) v
+  | _ -> conversion_error "string" v
 
 let get_r v = match v with
     Rx(_,r)  -> r
-  | _ -> conversion_error (P.string_of_sort S.SRegexp) v
-
+  | _ -> conversion_error "regexp" v
+      
 let get_l v = match v with 
   | Lns(_,l) -> l
-  | _ -> conversion_error (P.string_of_sort S.SLens) v
+  | _ -> conversion_error "lens" v
 
 let get_q v = match v with 
   | Can(_,q) -> q
-  | _ -> conversion_error (P.string_of_sort S.SCanonizer) v
+  | _ -> conversion_error "canonizer" v
 
 let get_p v = match v with
   | Par(_,v1,v2) -> (v1,v2)
@@ -207,34 +206,5 @@ let mk_qfun i f = Fun(i,(fun v -> f (get_q v)))
 let mk_pfun i f = Fun(i,(fun v -> f (get_p v)))
 let mk_vfun i f = Fun(i,(fun v -> f (get_v v)))
 let mk_ffun i f = Fun(i,(fun v -> f (get_f v)))
-
-let parse_uid s = 
-  let lexbuf = Lexing.from_string s in
-    Blexer.setup "identifier constant";
-    let x = 
-      try Bparser.uid Blexer.main lexbuf
-      with _ -> 
-        raise 
-          (Error.Harmony_error
-             (fun () -> 
-                Util.format "@[%s:@ syntax@ error@ in@ identifier@ %s.@]" 
-                  (Info.string_of_t (Blexer.info lexbuf))
-                  s)) in 
-      Blexer.finish ();                    
-      x
-
-let parse_qid s = 
-  let lexbuf = Lexing.from_string s in
-    Blexer.setup "qualified identifier constant";
-    let q = 
-      try Bparser.qid Blexer.main lexbuf
-      with _ -> raise 
-        (Error.Harmony_error
-           (fun () -> 
-              Util.format "@[%s:@ syntax@ error@ in@ qualified@ identifier@ %s.@]" 
-                (Info.string_of_t (Blexer.info lexbuf))
-                s)) in 
-      Blexer.finish ();                    
-      q
 
 let string_of_t v = Util.format_to_string (fun () -> format v)

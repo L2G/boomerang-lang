@@ -26,7 +26,7 @@ let epsilon : regexp = //
 
 let ins (s:string) : lens = const // s "" 
 
-let del (r:regexp) = const r "" (shortest r) 
+let del (r:regexp) : lens = const r "" (shortest r) 
 
 (* [ANYCHAR] any character *)
 let ANYCHAR = [^]

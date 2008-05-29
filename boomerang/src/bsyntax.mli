@@ -20,120 +20,6 @@
 (*******************************************************************************)
 
 (** {2 Boomerang Abstract Syntax} *)
-
-(** {2 Identifiers} *)
-module Id : sig
-  type t = Info.t * string
-  (** the type of identifiers; parsing info and a string *)
-  
-  val mk : Info.t -> string -> t
-  (** [mk i s] returns the identifier representing [s] with parsing info [i]. *)
-
-  val info_of_t : t -> Info.t
-  (** [info_of_t x] returns the parsing info from [x]. *)
-
-  val string_of_t : t -> string 
-  (** [string_of_t x] returns the string that [x] represents. *)
-
-  val prime : t -> t 
-  (** [primt x] returns [x']. *)
- 
-  val compare : t -> t -> int
-  (** [compare x y] compares [x] and [y] using the standard comparison operator. *)
-
-  val equal : t -> t -> bool
-  (** [equal x y] returns [true] iff [x] and [y] represent the same
-      string (ignoring parsing information.) *)
-
-  val wild : t
-  (** [wild] is a constant representing the "don't care" string "_" *)
-
-  module Set : Set.S with type elt = t
-  (** Sets with Id.ts as elements *)
-end
-
-(** {2 Qualified Identifiers } *)
-module Qid : sig 
-  type t = Id.t list * Id.t
-  (** the type of identifiers: a list of qualifiers and a
-      base identifier *)
-
-  val mk : Id.t list -> Id.t -> t
-  (** [mk qs x] returns the qualified identifier with qualifiers [qs]
-      and base identifier [x]. *)
-
-  val t_of_id : Id.t -> t
-  (** [t_of_id q] returns a qualified identifier with base identifier
-      [x] and no qualifiers. *)
-
-  val info_of_t : t -> Info.t
-  (** [info_of_t q] returns the parsing info associated with [q]. *)
-
-  val qs_of_t : t -> Id.t list
-  (** [qs_of_t q] returns the qualifiers associated with [q]. *)
-
-  val id_of_t : t -> Id.t
-  (** [id_of_t q] returns the base identifier associated with [q]. *)
-
-  val string_of_t : t -> string 
-  (** [string_of_t q] formats prints [q] as a string. *)
-
-  val prime : t -> t 
-  (** [primt x] returns [x']. *)
- 
-  val compare : t -> t -> int
-  (** [compare q1 q2] comparse [q1] and [q2] using a dictionary
-      ordering on the underlying list of identifiers. *)
-
-  val equal : t -> t -> bool
-  (** [equal q1 q2] returns [true] iff [q1] and [q2] represent the same
-      qualified identifier (ignoring parsing information). *)
-
-  val id_dot : Id.t -> t -> t
-  (** [id_dot x1 q1] returns the qualified identifier representing [x1.q1]. *)
-
-  val splice_id_dot : Id.t -> t -> t
-  (** [splice_id_dot x1 q1], where [q1] represents [q11.x12],
-      returns the qualified identifier representing [q11.x1.x12] *)
-
-  val t_dot_id : t -> Id.t -> t
-  (** [t_dot_id q x] returns the qualified identifier representing
-      [q.x]. *)
-
-  val t_dot_t : t -> t -> t
-  (** [t_dot_t q1 q2] returns the qualified identifier representing
-      [q1.q2]. *)
-
-  val id_prefix : t -> Id.t list -> bool
-  (** [id_prefix q xl] returns [true] iff [q] is a prefix of [xl]. *)
-
-  val mk_mod_t : string list -> string -> t
-  (** [mk_mod_t ss s] constructs the qualified identifier representing
-      [ss] with dummy parsing info. *)
-
-  val mk_native_prelude_t : string -> t
-  (** [mk_native_prelude_t s] constructs the qualified identifier representing
-      [Native.Prelude.s] with dummy parsing info. *)
-
-  val mk_prelude_t : string -> t
-  (** [mk_prelude_t s] constructs the qualified identifier representing
-      [Prelude.s] with dummy parsing info. *)
-
-  val mk_core_t : string -> t
-  (** [mk_prelude_core_t s] constructs the qualified identifier representing
-      [Prelude.Core.s] with dummy parsing info. *)
-
-  val mk_list_t : string -> t
-  (** [mk_list_t s] constructs the qualified identifier representing
-      [List.s] with dummy parsing info. *) 
-
-  module Env : Env.S with type key = t
-  (** Environments with Qid.ts as keys *)
-
-  module Set : Set.S with type elt = t
-  (** Sets with Qid.ts as elements *)
-end
-
 type blame = Blame of Info.t  
 
 val mk_blame : Info.t -> blame 
@@ -155,17 +41,17 @@ type sort =
 
     (* products and datatypes (sums) *)
     | SProduct of sort * sort         (* products *)
-    | SData of sort list * Qid.t      (* data types *)
+    | SData of sort list * Bident.Qid.t      (* data types *)
 
     (* dependent and refinement sorts *)
-    | SFunction of Id.t * sort * sort (* dependent functions *)
-    | SRefine of Id.t * sort * exp    (* refinements *)
+    | SFunction of Bident.Id.t * sort * sort (* dependent functions *)
+    | SRefine of Bident.Id.t * sort * exp    (* refinements *)
 
     (* variables and universals *)
-    | SVar of Id.t                    (* variables *)
-    | SForall of Id.t * sort          (* universals *)
+    | SVar of Bident.Id.t                    (* variables *)
+    | SForall of Bident.Id.t * sort          (* universals *)
 
-and param = Param of Info.t * Id.t * sort
+and param = Param of Info.t * Bident.Id.t * sort
 (** The type of formal parameters: parsing info, a pattern, and a
     sort. *)
 
@@ -174,22 +60,23 @@ and binding = Bind of Info.t * pat * sort option * exp
 and exp = 
     (* lambda calculus *)
     | EApp  of Info.t * exp * exp 
-    | EVar  of Info.t * Qid.t 
+    | EVar  of Info.t * Bident.Qid.t 
     | EOver of Info.t * op * exp list 
     | EFun  of Info.t * param * sort option * exp 
     | ELet  of Info.t * binding * exp 
 
     (* err... System F rather *)
-    | ETyFun of Info.t * Id.t * exp 
+    | ETyFun of Info.t * Bident.Id.t * exp 
     | ETyApp of Info.t * exp * sort
 
     (* with products, case *)
     | EPair of Info.t * exp * exp 
     | ECase of Info.t * exp * (pat * exp) list * sort
 
-    (* coercions *)
-    | ECast of Info.t * sort * sort * blame * exp 
-        
+    (* coercion and holes! *)
+    | ECast    of Info.t * sort * sort * blame * exp 
+    | EHole    of int * sort * (exp,Bvalue.t) Misc.alternative ref
+
     (* unit, strings, ints, characters, character sets *)
     | EUnit    of Info.t  
     | EBoolean of Info.t * bool
@@ -223,8 +110,8 @@ and pat =
   | PBol of Info.t * bool
   | PInt of Info.t * int
   | PStr of Info.t * string
-  | PVar of Info.t * Id.t * sort option 
-  | PVnt of Info.t * Qid.t * pat option 
+  | PVar of Info.t * Bident.Id.t * sort option 
+  | PVnt of Info.t * Bident.Qid.t * pat option 
   | PPar of Info.t * pat * pat
 (** The type of pattern ASTs. *)
     
@@ -238,12 +125,12 @@ type test_result =
 
 type decl = 
     | DLet  of Info.t * binding
-    | DType of Info.t * Id.t list * Qid.t * (Id.t * sort option) list 
-    | DMod  of Info.t * Id.t * decl list 
+    | DType of Info.t * Bident.Id.t list * Bident.Qid.t * (Bident.Id.t * sort option) list 
+    | DMod  of Info.t * Bident.Id.t * decl list 
     | DTest of Info.t * exp * test_result
 (** The type of declaration ASTs. *)
 
-type modl = Mod of Info.t * Id.t * Qid.t list * decl list
+type modl = Mod of Info.t * Bident.Id.t * Bident.Qid.t list * decl list
 (** The type of module ASTs: the name of the module, a list of "open"
     modules, and a list of declarations. *)
           
@@ -259,13 +146,13 @@ val info_of_pat : pat -> Info.t
 val info_of_module : modl -> Info.t
 (** [info_of_module m] returns the parsing info associated to module [m]. *)
 
-val id_of_module : modl -> Id.t
+val id_of_module : modl -> Bident.Id.t
 (** [id_of_module m] returns the name of module [m]. *)
 
 val sort_of_param : param -> sort
 (** [sort_of_param p] returns the sort declared with parameter [p]. *)
 
-val id_of_param : param -> Id.t
+val id_of_param : param -> Bident.Id.t
 (** [sort_of_param p] returns the name of parameter [p]. *)
 
 val pat_of_binding : binding -> pat
@@ -275,3 +162,7 @@ val exp_of_binding : binding -> exp
 (** [exp_op_binding p] returns the expression of binding [b]. *)
 
 val exp_of_blame : Info.t -> blame -> exp
+(** [exp_of_blame i b] builds an expression that compiles to a run-time representation of [b]. *)
+
+val mk_hole : exp -> sort -> exp
+(** [mk_hole e s] allocates a new ref cell and returns an [EHole] filled with [e] whose sort should be [s] (please). *)

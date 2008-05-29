@@ -21,6 +21,7 @@
 (*******************************************************************************)
 
 open Bvalue 
+open Bident
 module S = Bsyntax
 module L = Blenses.DLens
 module C = Blenses.Canonizer
@@ -52,35 +53,35 @@ let mk_prelude_info s = Info.M (sprintf "%s built-in" s)
    a triple consisting of its name (a Bsyntax.Qid.t), Bsyntax.sort,
    and Bvalue.t *)
 let pmk0 s1 mk1 x v1 = 
-  let q = S.Qid.mk_native_prelude_t x in 
+  let q = Qid.mk_native_prelude_t x in 
   let s = s1 in  
   let i = mk_prelude_info x in 
   let v = mk1 i v1 in 
     (q,s,v)
 
 let pmk1 s1 mk1 s2 mk2 x f = 
-  let q = S.Qid.mk_native_prelude_t x in 
+  let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (f i v1)) in 
     (q,s,f)
 
 let pmk2 s1 mk1 s2 mk2 s3 mk3 x f = 
-  let q = S.Qid.mk_native_prelude_t x in 
+  let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 ^> s3 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (f i v1 v2))) in 
     (q,s,f)
 
 let pmk3 s1 mk1 s2 mk2 s3 mk3 s4 mk4 x f = 
-  let q = S.Qid.mk_native_prelude_t x in 
+  let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 ^> s3 ^> s4 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (fun v3 -> mk4 i (f i v1 v2 v3)))) in 
     (q,s,f)
 
 let pmk4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f = 
-  let q = S.Qid.mk_native_prelude_t x in 
+  let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 ^> s3 ^> s4 ^> s5 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (fun v3 -> mk4 i (fun v4 -> mk5 i (f i v1 v2 v3 v4))))) in 
@@ -242,9 +243,9 @@ let prelude_spec =
   (* polymorphic functions *)
   ; begin 
     let i = Info.M "poly_equal built-in" in 
-    let a = S.Id.mk i "a" in 
+    let a = Id.mk i "a" in 
     let a_sort = S.SVar a in 
-    (S.Qid.mk_native_prelude_t "poly_equal",
+    (Qid.mk_native_prelude_t "poly_equal",
      S.SForall(a,a_sort ^> a_sort ^> S.SBool),
      mk_ufun i (fun () -> 
        mk_f i (fun v1 -> 
@@ -254,14 +255,14 @@ let prelude_spec =
  
   ; begin 
     let i = Info.M "blame built-in" in 
-    let a = S.Id.mk i "a" in 
-    let b = S.Id.mk i "b" in 
+    let a = Id.mk i "a" in 
+    let b = Id.mk i "b" in 
     let a_sort = S.SVar a in 
     let b_sort = S.SVar b in 
     let pos_sort = S.SProduct(S.SInteger,S.SInteger) in 
     let poses_sort = S.SProduct(pos_sort,pos_sort) in 
     let i_sort = S.SProduct(S.SString,poses_sort) in 
-    (S.Qid.mk_native_prelude_t "blame",    
+    (Qid.mk_native_prelude_t "blame",    
     S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> b_sort)), 
     mk_ufun i (fun () -> 
       mk_ufun i (fun () -> 
@@ -281,14 +282,14 @@ let prelude_spec =
 
   ; begin 
     let i = Info.M "fold_left built-in" in 
-    let nil = S.Id.mk (Info.M "Nil built-in") "Nil" in 
-    let cons = S.Id.mk (Info.M "Cons built-in!") "Cons" in 
-    let a = S.Id.mk i "a" in 
+    let nil = Id.mk (Info.M "Nil built-in") "Nil" in 
+    let cons = Id.mk (Info.M "Cons built-in!") "Cons" in 
+    let a = Id.mk i "a" in 
     let a_sort = S.SVar a in 
-    let b = S.Id.mk i "b" in 
+    let b = Id.mk i "b" in 
     let b_sort = S.SVar b in 
-    let b_list_sort = S.SData([b_sort],S.Qid.mk_list_t "t") in      
-    (S.Qid.mk_native_prelude_t "fold_left",
+    let b_list_sort = S.SData([b_sort],Qid.mk_list_t "t") in      
+    (Qid.mk_native_prelude_t "fold_left",
      S.SForall(a,S.SForall(b, ((a_sort ^> b_sort ^> a_sort) ^> a_sort ^> b_list_sort ^> a_sort))),
      let b = mk_prelude_info "fold_left" in 
      mk_f b (fun achk -> 
@@ -299,8 +300,8 @@ let prelude_spec =
                let f = get_f f0 in 
                let rec aux l acc = 
                let lbl,vo = get_v l in 
-               if S.Id.equal lbl nil then acc
-               else if S.Id.equal lbl cons then 
+               if Id.equal lbl nil then acc
+               else if Id.equal lbl cons then 
                  let hd,tl = match vo with 
                    | None -> poly_error b b_list_sort l
                    | Some v -> get_p v in                

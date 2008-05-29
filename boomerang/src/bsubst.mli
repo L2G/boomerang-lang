@@ -1,4 +1,5 @@
 open Bsyntax
+open Bident
 
 val subst_sort : (Id.t * sort) list -> sort -> sort
 
@@ -18,4 +19,3 @@ val syneq_sort : sort -> sort -> bool
 
 val gensym : Info.t -> exp -> Id.t
 
-val get_simple_value : exp -> exp option

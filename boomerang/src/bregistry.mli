@@ -19,6 +19,13 @@
 (* $Id$ *)
 (*******************************************************************************)
 
+(** {2 Parsing helper functions for constructing values.} *)
+val parse_uid : string -> Bident.Qid.t
+(** [parse_uid s] parses a [Qid.t] from an uppercase string. *)
+
+val parse_qid : string -> Bident.Qid.t
+  (** [parse_qid s] parses a [Qid.t] from [s]. *)
+
 (** {2 Registry of Boomerang values } *)
 
 type rs = 
@@ -35,37 +42,37 @@ val value_of_rv : rv -> Bvalue.t
 val format_rv : rv -> unit
 (** [format_rv r] pretty prints [r] *)
 
-type tcon = Bsyntax.Qid.t * Bsyntax.sort option
-type tspec = Bsyntax.Id.t list * tcon list 
+type tcon = Bident.Qid.t * Bsyntax.sort option
+type tspec = Bident.Id.t list * tcon list 
 
 (** {2 Library} *)
 module REnv : sig 
   type t
   val empty : unit -> t
-  val lookup : t -> Bsyntax.Qid.t -> rv option
-  val lookup_type: t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
-  val lookup_con : t -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
-  val update : t -> Bsyntax.Qid.t -> rv -> t
-  val update_type : t -> Bsyntax.Id.t list -> Bsyntax.Qid.t -> tcon list -> t
-  val overwrite : t -> Bsyntax.Qid.t -> rv -> unit
-  val iter : (Bsyntax.Qid.t -> rv -> unit) -> t -> unit
-  val iter_type : (Bsyntax.Qid.t -> tspec -> unit) -> t -> unit
-  val fold : (Bsyntax.Qid.t -> rv -> 'a -> 'a) -> t -> 'a -> 'a
+  val lookup : t -> Bident.Qid.t -> rv option
+  val lookup_type: t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
+  val lookup_con : t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
+  val update : t -> Bident.Qid.t -> rv -> t
+  val update_type : t -> Bident.Id.t list -> Bident.Qid.t -> tcon list -> t
+  val overwrite : t -> Bident.Qid.t -> rv -> unit
+  val iter : (Bident.Qid.t -> rv -> unit) -> t -> unit
+  val iter_type : (Bident.Qid.t -> tspec -> unit) -> t -> unit
+  val fold : (Bident.Qid.t -> rv -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
 val reset : unit -> unit
 (** Resets the library. *)
 
-val pre_ctx : Bsyntax.Qid.t list
+val pre_ctx : Bident.Qid.t list
 (** the initial naming context, i.e., ["Core" ; "Prelude" ] *)
 
 val get_library : unit -> REnv.t
 (** Returns the library, as an environment. *)
 
-val register_env : REnv.t -> Bsyntax.Id.t -> unit
+val register_env : REnv.t -> Bident.Id.t -> unit
 (** ?? *)
 
-val register_native_qid : Bsyntax.Qid.t -> Bsyntax.sort -> Bvalue.t -> unit
+val register_native_qid : Bident.Qid.t -> Bsyntax.sort -> Bvalue.t -> unit
 (** ?? *)
 
 val register_native : string -> Bsyntax.sort -> Bvalue.t -> unit
@@ -77,22 +84,22 @@ val load : string -> bool
 val find_filename : string -> string list -> string option
 (** ?? *)
 
-val lookup_library_ctx : Bsyntax.Qid.t list -> Bsyntax.Qid.t -> rv option
+val lookup_library_ctx : Bident.Qid.t list -> Bident.Qid.t -> rv option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
-val lookup_library : Bsyntax.Qid.t -> rv option
+val lookup_library : Bident.Qid.t -> rv option
 (** [lookup_library q] looks up [q] from the library *)
 
-val lookup_type_library_ctx : Bsyntax.Qid.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+val lookup_type_library_ctx : Bident.Qid.t list -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
-val lookup_type_library : Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+val lookup_type_library : Bident.Qid.t -> (Bident.Qid.t * tspec) option
 (** [lookup_library q] looks up [q] from the library *)
 
-val lookup_con_library_ctx : Bsyntax.Qid.t list -> Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+val lookup_con_library_ctx : Bident.Qid.t list -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
-val lookup_con_library : Bsyntax.Qid.t -> (Bsyntax.Qid.t * tspec) option
+val lookup_con_library : Bident.Qid.t -> (Bident.Qid.t * tspec) option
 (** [lookup_library q] looks up [q] from the library *)
 
 (**/**)

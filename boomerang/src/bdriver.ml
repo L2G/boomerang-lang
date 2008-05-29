@@ -20,6 +20,7 @@
 (*******************************************************************************)
 
 open Bsyntax
+open Bident
 open Bcompiler
 
 (* parse an AST from a lexbuf *)

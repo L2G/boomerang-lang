@@ -1,4 +1,5 @@
 open Bsyntax
+open Bident
 open Bprint 
 
 let msg = Util.format
@@ -72,20 +73,25 @@ and free_svars_exp acc = function
       let acc2 = free_svars_sort acc1 t2 in 
       let acc3 = free_svars_exp acc2 e3 in 
       acc3 
+  | EHole(_,s,hr) -> free_svars_sort acc s
+      (* TODO: can optimize this by remembering the uids of EHoles
+         that we have already recurred on. 
+         
+         Also, we're not sure that this is right. *)
   | EPair(_,e1,e2) -> 
       let acc1 = free_svars_exp acc e1 in 
       let acc2 = free_svars_exp acc1 e2 in 
-      acc2
+        acc2
   | ECase(_,e1,cl2,s3) -> 
       let acc1 = free_svars_exp acc e1 in 
       let acc2 = Safelist.fold_left 
         (fun acci (pi,ei) -> 
            let acci1 = free_svars_pat acci pi in 
            let acci2 = free_svars_exp acci1 ei in 
-           acci2)
+             acci2)
         acc1 cl2 in 
       let acc3 = free_svars_sort acc2 s3 in 
-      acc3
+        acc3
   | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> 
       acc
 
@@ -104,95 +110,128 @@ let rec fresh_svar subst a =
 
 (* TODO: optimize all of these so we don't cons up new ASTs unless
    they've actually changed!*)
-let rec subst_svars_pat subst p0 = match p0 with
+let rec subst_svars_pat hctx subst p0 = match p0 with
   | PVar(i,x,Some s) ->       
-      let new_s = subst_svars_sort subst s in 
-      PVar(i,x,Some new_s)
+      let hctx1,new_s = subst_svars_sort hctx subst s in 
+      (hctx1,PVar(i,x,Some new_s))
   | PVar(i,x,None) -> 
-      p0
+      (hctx,p0)
   | PVnt(i,qx,Some p) -> 
-      let new_p = subst_svars_pat subst p in       
-      PVnt(i,qx,Some new_p)
+      let hctx1,new_p = subst_svars_pat hctx subst p in       
+      (hctx1,PVnt(i,qx,Some new_p))
   | PVnt(i,qx,None) -> 
-      p0
+      (hctx,p0)
   | PPar(i,p1,p2) -> 
-      let new_p1 = subst_svars_pat subst p1 in  
-      let new_p2 = subst_svars_pat subst p2 in  
-      PPar(i,new_p1,new_p2) 
-  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
-and subst_svars_sort subst s0 = match s0 with 
-  | SVar a -> (try gen_assoc Id.equal a subst with Not_found -> s0)
+      let hctx1,new_p1 = subst_svars_pat hctx subst p1 in  
+      let hctx2,new_p2 = subst_svars_pat hctx1 subst p2 in  
+      (hctx2,PPar(i,new_p1,new_p2))
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
+      (hctx,p0)
+and subst_svars_sort hctx subst s0 = match s0 with 
+  | SVar a -> 
+      (hctx,(try gen_assoc Id.equal a subst with Not_found -> s0))
   | SFunction(x,s1,s2) -> 
-      let new_s1 = subst_svars_sort subst s1 in 
-      let new_s2 = subst_svars_sort subst s2 in 
-      SFunction(x,new_s1,new_s2)
+      let hctx1,new_s1 = subst_svars_sort hctx subst s1 in 
+      let hctx2,new_s2 = subst_svars_sort hctx1 subst s2 in 
+      (hctx2,SFunction(x,new_s1,new_s2))
   | SProduct(s1,s2) -> 
-      let new_s1 = subst_svars_sort subst s1 in 
-      let new_s2 = subst_svars_sort subst s2 in 
-      SProduct(new_s1,new_s2)
+      let hctx1,new_s1 = subst_svars_sort hctx subst s1 in 
+      let hctx2,new_s2 = subst_svars_sort hctx1 subst s2 in 
+      (hctx2,SProduct(new_s1,new_s2))
   | SData(sl,qx) -> 
-      let new_sl = Safelist.map (subst_svars_sort subst) sl in 
-      SData(new_sl,qx)
+      let new_hctx,new_sl = Safelist.fold_right 
+        (fun si (hctxi,new_sl) -> 
+           let new_hctxi,new_si = subst_svars_sort hctxi subst si in 
+           (new_hctxi,new_si::new_sl))
+        sl (hctx,[]) in 
+      (new_hctx,SData(new_sl,qx))
   | SRefine(x,s1,e2) -> 
-      let new_s1 = subst_svars_sort subst s1 in 
-      let new_e2 = subst_svars_exp subst e2 in 
-      SRefine(x,new_s1,new_e2)
+      let hctx1,new_s1 = subst_svars_sort hctx subst s1 in 
+      let hctx2,new_e2 = subst_svars_exp hctx1 subst e2 in 
+      (hctx2,SRefine(x,new_s1,new_e2))
   | SForall(a,s1) -> 
       let fresh_a = fresh_svar subst a in 
-      let safe_s1 = if fresh_a = a then s1 else subst_svars_sort [(a,SVar fresh_a)] s1 in 
-      let new_s1 = subst_svars_sort subst safe_s1 in
-      SForall(fresh_a,new_s1)
+      let safe_s1 = if fresh_a = a then s1 else snd (subst_svars_sort [] [(a,SVar fresh_a)] s1) in 
+      let hctx1,new_s1 = subst_svars_sort hctx subst safe_s1 in
+      (hctx1,SForall(fresh_a,new_s1))
   | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer -> 
-      s0
-and subst_svars_exp subst e0 = match e0 with 
+      (hctx,s0)
+and subst_svars_exp hctx subst e0 = match e0 with 
   | EApp(i,e1,e2) -> 
-      let new_e1 = subst_svars_exp subst e1 in 
-      let new_e2 = subst_svars_exp subst e2 in 
-      EApp(i,new_e1,new_e2) 
+      let hctx1,new_e1 = subst_svars_exp hctx subst e1 in 
+      let hctx2,new_e2 = subst_svars_exp hctx1 subst e2 in 
+      (hctx2,EApp(i,new_e1,new_e2))
   | EOver(i,o,el) -> 
-      let new_el = Safelist.map (subst_svars_exp subst) el in 
-      EOver(i,o,new_el)
+      let new_hctx,new_el = Safelist.fold_right 
+        (fun ei (hctxi,new_el) -> 
+           let new_hctxi,new_ei = subst_svars_exp hctxi subst ei in 
+           (new_hctxi,new_ei::new_el))
+        el (hctx,[]) in 
+      (new_hctx,EOver(i,o,new_el))
   | EFun(i,Param(ip,x1,s2),so3,e4) -> 
-      let new_s2 = subst_svars_sort subst s2 in 
-      let new_so3 = Misc.map_option (subst_svars_sort subst) so3 in 
-      let new_e4 = subst_svars_exp subst e4 in 
-      EFun(i,Param(ip,x1,new_s2),new_so3,new_e4) 
+      let hctx2,new_s2 = subst_svars_sort hctx subst s2 in 
+      let hctx3,new_so3 = match so3 with
+        | None -> hctx2,None
+        | Some s3 -> 
+            let hctx3,new_s3 = subst_svars_sort hctx2 subst s3 in 
+            (hctx3,Some new_s3) in
+      let hctx4,new_e4 = subst_svars_exp hctx3 subst e4 in 
+      (hctx4,EFun(i,Param(ip,x1,new_s2),new_so3,new_e4))
   | ELet(i,Bind(ib,p1,so2,e3),e4) ->
-      let new_p1 = subst_svars_pat subst p1 in 
-      let new_so2 = Misc.map_option (subst_svars_sort subst) so2 in 
-      let new_e3 = subst_svars_exp subst e3 in 
-      let new_e4 = subst_svars_exp subst e4 in 
-      ELet(i,Bind(ib,new_p1,new_so2,new_e3),new_e4)
+      let hctx1,new_p1 = subst_svars_pat hctx subst p1 in 
+      let hctx2,new_so2 = match so2 with
+        | None -> hctx1,None
+        | Some s2 -> 
+            let hctx2,new_s2 = subst_svars_sort hctx1 subst s2 in 
+            (hctx2,Some new_s2) in
+      let hctx3,new_e3 = subst_svars_exp hctx2 subst e3 in 
+      let hctx4,new_e4 = subst_svars_exp hctx3 subst e4 in 
+      (hctx4,ELet(i,Bind(ib,new_p1,new_so2,new_e3),new_e4))
   | ETyFun(i,a,e1) -> 
       let fresh_a = fresh_svar subst a in 
-      let safe_e1 = if fresh_a = fresh_a then e1 else subst_svars_exp [(a,SVar fresh_a)] e1 in 
-      let new_e1 = subst_svars_exp subst safe_e1 in
-      ETyFun(i,fresh_a,new_e1) 
+      let safe_e1 = if fresh_a = fresh_a then e1 else snd (subst_svars_exp [] [(a,SVar fresh_a)] e1) in 
+      let hctx1,new_e1 = subst_svars_exp hctx subst safe_e1 in
+      (hctx1,ETyFun(i,fresh_a,new_e1))
   | ETyApp(i,e1,s2) -> 
-      let new_e1 = subst_svars_exp subst e1 in 
-      let new_s2 = subst_svars_sort subst s2 in 
-      ETyApp(i,new_e1,new_s2) 
+      let hctx1,new_e1 = subst_svars_exp hctx subst e1 in 
+      let hctx2,new_s2 = subst_svars_sort hctx1 subst s2 in 
+      (hctx2,ETyApp(i,new_e1,new_s2))
   | ECast(i,f1,t2,b,e3) ->
-      let new_f1 = subst_svars_sort subst f1 in 
-      let new_t2 = subst_svars_sort subst t2 in 
-      let new_e3 = subst_svars_exp subst e3 in 
-      ECast(i,new_f1,new_t2,b,new_e3)
+      let hctx1,new_f1 = subst_svars_sort hctx subst f1 in 
+      let hctx2,new_t2 = subst_svars_sort hctx1 subst t2 in 
+      let hctx3,new_e3 = subst_svars_exp hctx2 subst e3 in 
+      (hctx3,ECast(i,new_f1,new_t2,b,new_e3))
+  | EHole(u,s,hr) -> 
+      if Safelist.mem u hctx then (hctx,e0)
+      else begin 
+        let new_hctx = u::hctx in 
+        match !hr with
+        | Misc.Left e' -> 
+            let hctx1,new_e' = subst_svars_exp new_hctx subst e' in
+            let hctx2,new_s = subst_svars_sort hctx1 subst s in
+            hr := Misc.Left new_e';
+            (hctx2,EHole(u,new_s,hr))
+        | Misc.Right v -> 
+            let hctx1,new_s = subst_svars_sort new_hctx subst s in              
+            (hctx1,EHole(u,new_s,hr))
+      end
   | EPair(i,e1,e2) -> 
-      let new_e1 = subst_svars_exp subst e1 in 
-      let new_e2 = subst_svars_exp subst e2 in 
-      EPair(i,new_e1,new_e2)
+      let hctx1,new_e1 = subst_svars_exp hctx subst e1 in 
+      let hctx2,new_e2 = subst_svars_exp hctx1 subst e2 in 
+      (hctx2,EPair(i,new_e1,new_e2))
   | ECase(i,e1,cl,s3) -> 
-      let new_e1 = subst_svars_exp subst e1 in 
-      let new_cl = 
-        Safelist.map 
-          (fun (pi,ei) -> 
-             let new_pi = subst_svars_pat subst pi in 
-             let new_ei = subst_svars_exp subst ei in 
-             (new_pi,new_ei))
-          cl in 
-      let new_s3 = subst_svars_sort subst s3 in 
-      ECase(i,new_e1,new_cl,new_s3)
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> e0
+      let hctx1,new_e1 = subst_svars_exp hctx subst e1 in 
+      let new_hctx,new_cl = 
+        Safelist.fold_right 
+          (fun (pi,ei) (hctxi,new_cl) -> 
+             let hctxi1,new_pi = subst_svars_pat hctxi subst pi in 
+             let hctxi2,new_ei = subst_svars_exp hctxi1 subst ei in 
+             (hctxi2,(new_pi,new_ei)::new_cl))
+          cl (hctx1,[]) in 
+      let hctx3,new_s3 = subst_svars_sort new_hctx subst s3 in 
+      (hctx3,ECase(i,new_e1,new_cl,new_s3))
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> 
+      (hctx,e0)
 
 (* FREE EXPRESSION VARIABLES *)
 let qvs_of_is s = Id.Set.fold (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) s Qid.Set.empty 
@@ -264,6 +303,17 @@ and free_evars_exp acc = function
       let acc2 = free_evars_sort acc1 t2 in 
       let acc3 = free_evars_exp acc2 e3 in 
       acc3 
+  | EHole(_,s,hr) -> 
+      (* TODO: can optimize this by remembering the uids of EHoles
+         that we have already recurred on. *)
+      begin match !hr with
+        | Misc.Left e' -> 
+            let acc1 = free_evars_sort acc s in 
+            let acc2 = free_evars_exp acc1 e' in 
+            acc2
+        | Misc.Right v -> 
+            free_evars_sort acc s
+      end
   | EPair(_,e1,e2) -> 
       let acc1 = free_evars_exp acc e1 in 
       let acc2 = free_evars_exp acc1 e2 in 
@@ -327,30 +377,31 @@ let rec rename_evars_pat subst p0 = match p0 with
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
       p0
 
-let rec subst_evars_pat subst p0 = match p0 with
+let rec subst_evars_pat hctx subst p0 = match p0 with
   | PVar(i,x,Some s) ->       
-      let new_s = subst_evars_sort subst s in 
-      PVar(i,x,Some new_s)
+      let hctx1,new_s = subst_evars_sort hctx subst s in 
+      (hctx1,PVar(i,x,Some new_s))
   | PVar(i,x,None) -> 
-      p0
+      (hctx,p0)
   | PVnt(i,qx,Some p) -> 
-      let new_p = subst_evars_pat subst p in       
-      PVnt(i,qx,Some new_p)
-  | PVnt(i,qx,None) -> p0
+      let hctx1,new_p = subst_evars_pat hctx subst p in       
+      (hctx1,PVnt(i,qx,Some new_p))
+  | PVnt(i,qx,None) -> 
+      (hctx,p0)
   | PPar(i,p1,p2) -> 
-      let new_p1 = subst_evars_pat subst p1 in  
-      let new_p2 = subst_evars_pat subst p2 in  
-      PPar(i,new_p1,new_p2) 
+      let hctx1,new_p1 = subst_evars_pat hctx subst p1 in  
+      let hctx2,new_p2 = subst_evars_pat hctx1 subst p2 in  
+      (hctx2,PPar(i,new_p1,new_p2))
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
-      p0
+      (hctx,p0)
  
 (* msg "@[SUBST: {"; *)
 (* Misc.format_list ",@ " (fun (x,e) -> msg "@[%s |-> %s@]" (Qid.string_of_t x) (string_of_exp e)) subst; *)
 (* msg "} IN %s@]@\n@[X: %s < %b > FRESH_X: %s@]@\n" (string_of_sort s0) (Id.string_of_t x) (x = fresh_x) (Id.string_of_t fresh_x); *)
 
-and subst_evars_sort subst s0 = match s0 with 
+and subst_evars_sort hctx subst s0 = match s0 with 
   | SFunction(x,s1,s2) ->      
-      let new_s1 = subst_evars_sort subst s1 in       
+      let hctx1,new_s1 = subst_evars_sort hctx subst s1 in       
       let fresh_x = fresh_evar_id subst x in 
       let safe_s2 = 
         if x = fresh_x then s2 
@@ -358,18 +409,22 @@ and subst_evars_sort subst s0 = match s0 with
           let qx = Qid.t_of_id x in
           let fresh_qx = Qid.t_of_id fresh_x in 
           let subst_x = [(qx,EVar(Id.info_of_t fresh_x,fresh_qx))] in 
-          subst_evars_sort subst_x s2 in       
-      let new_s2 = subst_evars_sort subst safe_s2 in       
-      SFunction(fresh_x,new_s1,new_s2)
+          snd (subst_evars_sort [] subst_x s2) in 
+      let hctx2,new_s2 = subst_evars_sort hctx1 subst safe_s2 in       
+      (hctx2,SFunction(fresh_x,new_s1,new_s2))
   | SProduct(s1,s2) -> 
-      let new_s1 = subst_evars_sort subst s1 in 
-      let new_s2 = subst_evars_sort subst s2 in 
-      SProduct(new_s1,new_s2)
+      let hctx1,new_s1 = subst_evars_sort hctx subst s1 in 
+      let hctx2,new_s2 = subst_evars_sort hctx1 subst s2 in 
+      (hctx2,SProduct(new_s1,new_s2))
   | SData(sl,qx) -> 
-      let new_sl = Safelist.map (subst_evars_sort subst) sl in 
-      SData(new_sl,qx)
+      let new_hctx,new_sl = Safelist.fold_right 
+        (fun si (hctxi,new_sl) -> 
+           let new_hctxi,new_si = subst_evars_sort hctxi subst si in 
+           (new_hctxi,new_si::new_sl))
+        sl (hctx,[]) in 
+      (new_hctx,SData(new_sl,qx))
   | SRefine(x,s1,e2) -> 
-      let new_s1 = subst_evars_sort subst s1 in
+      let hctx1,new_s1 = subst_evars_sort hctx subst s1 in
       let fresh_x = fresh_evar_id subst x in 
       let safe_e2 = 
         if fresh_x = x then e2 
@@ -378,26 +433,30 @@ and subst_evars_sort subst s0 = match s0 with
           let qx = Qid.t_of_id x in 
           let fresh_qx = Qid.t_of_id fresh_x in 
           let subst_x = [(qx,EVar(i,fresh_qx))] in 
-          subst_evars_exp subst_x e2 in                       
-      let new_e2 = subst_evars_exp subst safe_e2 in 
-      SRefine(fresh_x,new_s1,new_e2)
+          snd (subst_evars_exp [] subst_x e2) in 
+      let hctx2,new_e2 = subst_evars_exp hctx1 subst safe_e2 in 
+      (hctx2,SRefine(fresh_x,new_s1,new_e2))
   | SForall(a,s1) -> 
-      let new_s1 = subst_evars_sort subst s1 in 
-      SForall(a,new_s1)
+      let hctx1,new_s1 = subst_evars_sort hctx subst s1 in 
+      (hctx1,SForall(a,new_s1))
   | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
-      s0
-and subst_evars_exp subst e0 = match e0 with 
+      (hctx,s0)
+and subst_evars_exp hctx subst e0 = match e0 with 
   | EVar(_,x) -> 
-      (try gen_assoc Qid.equal x subst with Not_found -> e0)
+      (hctx,(try gen_assoc Qid.equal x subst with Not_found -> e0))
   | EApp(i,e1,e2) -> 
-      let new_e1 = subst_evars_exp subst e1 in 
-      let new_e2 = subst_evars_exp subst e2 in 
-      EApp(i,new_e1,new_e2) 
+      let hctx1,new_e1 = subst_evars_exp hctx subst e1 in 
+      let hctx2,new_e2 = subst_evars_exp hctx1 subst e2 in 
+      (hctx2,EApp(i,new_e1,new_e2))
   | EOver(i,o,el) -> 
-      let new_el = Safelist.map (subst_evars_exp subst) el in 
-      EOver(i,o,new_el)
+      let new_hctx,new_el = Safelist.fold_right 
+        (fun ei (hctxi,new_el) -> 
+           let new_hctxi,new_ei = subst_evars_exp hctxi subst ei in 
+           (new_hctxi,new_ei::new_el))
+        el (hctx,[]) in 
+      (new_hctx,EOver(i,o,new_el))
   | EFun(i,Param(ip,x1,s2),so3,e4) -> 
-      let new_s2 = subst_evars_sort subst s2 in 
+      let hctx2,new_s2 = subst_evars_sort hctx subst s2 in 
       let fresh_x1 = fresh_evar_id subst x1 in 
       let safe_so3,safe_e4 = 
         if fresh_x1 = x1 then (so3,e4)
@@ -406,11 +465,16 @@ and subst_evars_exp subst e0 = match e0 with
           let qx1 = Qid.t_of_id x1 in 
           let fresh_qx1 = Qid.t_of_id fresh_x1 in 
           let subst_x1 = [(qx1,EVar(i,fresh_qx1))] in 
-          (Misc.map_option (subst_evars_sort subst_x1) so3,
-           subst_evars_exp subst_x1 e4) in 
-      let new_so3 = Misc.map_option (subst_evars_sort subst) safe_so3 in 
-      let new_e4 = subst_evars_exp subst safe_e4 in 
-      EFun(i,Param(ip,fresh_x1,new_s2),new_so3,new_e4) 
+          (* TODO: we could thread the intermediat hctx through these *)
+          (Misc.map_option (fun s3 -> snd (subst_evars_sort [] subst_x1 s3)) so3,
+           snd (subst_evars_exp [] subst_x1 e4)) in 
+      let hctx3,new_so3 = match safe_so3 with
+        | None -> hctx2,None
+        | Some s3 -> 
+            let hctx3,new_s3 = subst_evars_sort hctx2 subst s3 in
+            (hctx3,Some new_s3) in 
+      let hctx4,new_e4 = subst_evars_exp hctx3 subst safe_e4 in 
+      (hctx4,EFun(i,Param(ip,fresh_x1,new_s2),new_so3,new_e4))
   | ELet(i,Bind(ib,p1,so2,e3),e4) ->
       let p1_vars = bound_evars_pat Id.Set.empty p1 in 
       let p1_fresh_vars = fresh_evar_ids subst p1_vars in 
@@ -423,36 +487,55 @@ and subst_evars_exp subst e0 = match e0 with
               (fun (xi,fresh_xi) -> 
                  (Qid.t_of_id xi, EVar(i,Qid.t_of_id fresh_xi))) 
               p1_fresh_vars in
+          (* TODO: we could do even more threading here... *)
           (rename_evars_pat p1_fresh_vars p1,
-           Misc.map_option (subst_evars_sort subst_pvars) so2,
-           subst_evars_exp subst_pvars e3,
-           subst_evars_exp subst_pvars e4) in 
-      let new_p1 = subst_evars_pat subst safe_p1 in 
-      let new_so2 = Misc.map_option (subst_evars_sort subst) safe_so2 in 
-      let new_e3 = subst_evars_exp subst safe_e3 in 
-      let new_e4 = subst_evars_exp subst safe_e4 in 
-      ELet(i,Bind(ib,new_p1,new_so2,new_e3),new_e4)
+           Misc.map_option (fun s2 -> snd (subst_evars_sort [] subst_pvars s2)) so2,
+           snd (subst_evars_exp [] subst_pvars e3),
+           snd (subst_evars_exp [] subst_pvars e4)) in 
+      let hctx1,new_p1 = subst_evars_pat hctx subst safe_p1 in 
+      let hctx2,new_so2 = match safe_so2 with
+        | None -> hctx1,None
+        | Some s2 -> 
+            let hctx2,new_s2 = subst_evars_sort hctx1 subst s2 in
+            (hctx2,Some new_s2) in 
+      let hctx3,new_e3 = subst_evars_exp hctx2 subst safe_e3 in 
+      let hctx4,new_e4 = subst_evars_exp hctx3 subst safe_e4 in 
+      (hctx4,ELet(i,Bind(ib,new_p1,new_so2,new_e3),new_e4))
   | ETyFun(i,a,e1) -> 
-      let new_e1 = subst_evars_exp subst e1 in 
-      ETyFun(i,a,new_e1)
+      let hctx1,new_e1 = subst_evars_exp hctx subst e1 in 
+      (hctx1,ETyFun(i,a,new_e1))
   | ETyApp(i,e1,s2) -> 
-      let new_e1 = subst_evars_exp subst e1 in 
-      let new_s2 = subst_evars_sort subst s2 in 
-      ETyApp(i,new_e1,new_s2) 
+      let hctx1,new_e1 = subst_evars_exp hctx subst e1 in 
+      let hctx2,new_s2 = subst_evars_sort hctx1 subst s2 in 
+      (hctx2,ETyApp(i,new_e1,new_s2))
   | ECast(i,f1,t2,b,e3) ->
-      let new_f1 = subst_evars_sort subst f1 in 
-      let new_t2 = subst_evars_sort subst t2 in 
-      let new_e3 = subst_evars_exp subst e3 in 
-      ECast(i,new_f1,new_t2,b,new_e3)
+      let hctx1,new_f1 = subst_evars_sort hctx subst f1 in 
+      let hctx2,new_t2 = subst_evars_sort hctx1 subst t2 in 
+      let hctx3,new_e3 = subst_evars_exp hctx2 subst e3 in 
+      (hctx3,ECast(i,new_f1,new_t2,b,new_e3))
+  | EHole(u,s,hr) -> 
+      if Safelist.mem u hctx then (hctx,e0)
+      else begin 
+        let new_hctx = u::hctx in 
+        match !hr with
+        | Misc.Left e' -> 
+            let hctx1,new_e' = subst_evars_exp new_hctx subst e' in
+            let hctx2,new_s = subst_evars_sort hctx1 subst s in
+            hr := Misc.Left new_e';
+            (hctx1,EHole(u,new_s,hr))
+        | Misc.Right v -> 
+            let hctx1,new_s = subst_evars_sort new_hctx subst s in
+            (hctx1,EHole(u,new_s,hr))
+      end
   | EPair(i,e1,e2) -> 
-      let new_e1 = subst_evars_exp subst e1 in 
-      let new_e2 = subst_evars_exp subst e2 in 
-      EPair(i,new_e1,new_e2)
+      let hctx1,new_e1 = subst_evars_exp hctx subst e1 in 
+      let hctx2,new_e2 = subst_evars_exp hctx1 subst e2 in 
+      (hctx2,EPair(i,new_e1,new_e2))
   | ECase(i,e1,cl,s3) -> 
-      let new_e1 = subst_evars_exp subst e1 in 
-      let new_cl = 
-        Safelist.map 
-          (fun (pi,ei) -> 
+      let hctx1,new_e1 = subst_evars_exp hctx subst e1 in 
+      let new_hctx,new_cl = 
+        Safelist.fold_right  
+          (fun (pi,ei) (hctxi,new_cl) -> 
              let pi_vars = bound_evars_pat Id.Set.empty pi in 
              let pi_fresh_vars = fresh_evar_ids subst pi_vars in 
              let safe_pi,safe_ei = 
@@ -465,19 +548,19 @@ and subst_evars_exp subst e0 = match e0 with
                         (Qid.t_of_id xi, EVar(i,Qid.t_of_id fresh_xi))) 
                      pi_fresh_vars in
                  (rename_evars_pat pi_fresh_vars pi,
-                  subst_evars_exp subst_pvars ei) in
-             let new_pi = subst_evars_pat subst safe_pi in 
-             let new_ei = subst_evars_exp subst safe_ei in 
-             (new_pi,new_ei))
-          cl in 
-      let new_s3 = subst_evars_sort subst s3 in 
-      ECase(i,new_e1,new_cl,new_s3)
+                  snd (subst_evars_exp [] subst_pvars ei)) in
+             let hctxi1,new_pi = subst_evars_pat hctxi subst safe_pi in 
+             let hctxi2,new_ei = subst_evars_exp hctxi1 subst safe_ei in 
+             (hctxi2,(new_pi,new_ei)::new_cl))
+          cl (hctx1,[]) in 
+      let hctx3,new_s3 = subst_evars_sort new_hctx subst s3 in 
+      (hctx3,ECase(i,new_e1,new_cl,new_s3))
   | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  -> 
-      e0
+      (hctx,e0)
 
-let subst_sort subst s0 = subst_svars_sort subst s0
+let subst_sort subst s0 = snd (subst_svars_sort [] subst s0)
 
-let subst_exp_in_sort subst s0 = subst_evars_sort subst s0
+let subst_exp_in_sort subst s0 = snd (subst_evars_sort [] subst s0)
 
 let free_sort_vars s0 = free_svars_sort Id.Set.empty s0
 
@@ -499,7 +582,7 @@ let rec erase_sort = function
       s0
 
 let rec expose_sort = function
-  | SRefine(x,s1,e1) -> s1
+  | SRefine(x,s1,e1) -> expose_sort s1
   | s0 -> s0
 
 
@@ -596,6 +679,18 @@ and syneq_exp e1 e2 = match e1,e2 with
                 Bstring.compare_sym s11 s12 = 0
              && Bstring.compare_sym s21 s22 = 0)
         (b1=b2) cl1 cl2
+  | EHole(u1,_,hr1),EHole(u2,_,hr2) -> 
+      (u1 == u2) || (match !hr1,!hr2 with 
+                       | Misc.Left e1, Misc.Left e2 -> syneq_exp e1 e2
+                       | _ -> false)
+  | EHole(_,_,hr1),_ -> 
+      (match !hr1 with
+         | Misc.Left e1 -> syneq_exp e1 e2
+         | _ -> false)
+  | _,EHole(_,_,hr2) -> 
+      (match !hr2 with
+         | Misc.Left e2 -> syneq_exp e1 e2
+         | _ -> false)
   | _ -> false
 
 let fresh_counter = ref 0
@@ -613,18 +708,3 @@ let gensym i e =
     else x in
   aux ()
 
-let rec get_simple_value e0 = match e0 with
-  | EApp _ -> None
-  | EOver _ -> None  
-  | EFun(_,Param(_,x,s1),so1,e1) -> None
-  | ELet(_,Bind(_,p1,so1,e1),e2) -> None
-  | ETyFun _ -> None
-  | ETyApp _ -> None
-  | ECast _ -> None
-  | EPair(i,e1,e2) -> 
-      (match get_simple_value e1,get_simple_value e2 with
-         | Some e1',Some e2' -> Some (EPair(i,e1',e2'))
-         | _ -> None)
-  | ECase _ -> None
-  | EVar _  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ -> 
-      Some e0

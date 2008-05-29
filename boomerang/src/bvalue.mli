@@ -32,7 +32,7 @@ type t =
     | Can of Info.t * Blenses.Canonizer.t
     | Fun of Info.t * (t -> t)
     | Par of Info.t * t * t
-    | Vnt of Info.t * Bsyntax.Qid.t * Bsyntax.Id.t * t option
+    | Vnt of Info.t * Bident.Qid.t * Bident.Id.t * t option
 (** The type of boxed run-time values. *)
 
 val info_of_t : t -> Info.t
@@ -62,7 +62,7 @@ val get_r : t -> Bregexp.t
 val get_l : t -> Blenses.DLens.t
 val get_q : t -> Blenses.Canonizer.t
 val get_p : t -> (t*t)
-val get_v : t -> (Bsyntax.Id.t * t option)
+val get_v : t -> (Bident.Id.t * t option)
 val get_f : t -> (t -> t)
 
 val mk_u : Info.t -> unit -> t
@@ -85,13 +85,6 @@ val mk_rfun : Info.t -> (Bregexp.t -> t) -> t
 val mk_sfun : Info.t -> (Bstring.t -> t) -> t
 val mk_qfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
 val mk_pfun : Info.t -> (t * t -> t) -> t
-val mk_vfun : Info.t -> (Bsyntax.Id.t * t option -> t) -> t
-
-(** {3 Parsing helper functions for constructing values.} *)
-val parse_uid : string -> Bsyntax.Qid.t
-(** [parse_uid s] parses a [Qid.t] from an uppercase string. *)
-
-val parse_qid : string -> Bsyntax.Qid.t
-  (** [parse_qid s] parses a [Qid.t] from [s]. *)
+val mk_vfun : Info.t -> (Bident.Id.t * t option -> t) -> t
 
 val string_of_t : t -> string

@@ -44,7 +44,7 @@ let debug thk = Trace.debug "toplevel" (fun () -> thk (); Util.format "%!")
 let debug_sync thk = Trace.debug "sync" (fun () -> thk (); Util.format "%!")
 
 (* Registry lookup helpers *)
-let lookup qid_str = Bregistry.lookup_library (Bvalue.parse_qid qid_str)
+let lookup qid_str = Bregistry.lookup_library (Bregistry.parse_qid qid_str)
 
 let lookup_lens qid_str =
   match lookup qid_str with
