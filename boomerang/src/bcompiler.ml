@@ -809,16 +809,26 @@ and check_exp sev e0 =
           (*            msg "RES: %s@\n" (string_of_sort e0_sort)); *)
         let new_p = Param(p_i,p_x,new_p_s) in
         let new_e0 = EFun(i,new_p,new_ret_sorto,new_body) in
-          (e0_sort,new_e0)
+        (e0_sort,new_e0)
 
     | ELet(i,b,e) ->
         (* for let-expressions, check the bindings *)
-        let bevs,_,new_b = check_binding sev b in 
+        let bevs,xs,new_b = check_binding sev b in 
           (* use the resulting environment to check the exp *)
         let e_sort,new_e = check_exp bevs e in 
         let new_e0 = ELet(i,new_b,new_e) in 
-          (e_sort,new_e0)
-            (* FIXME: substitute for let-bound variables in e_sort. *)
+        let e_sort_subst = match new_b with 
+          | Bind(_,PVar(_,x,_),_,new_be) -> 
+              subst_exp_in_sort [(Qid.t_of_id x,new_be)] e_sort 
+          | _ -> 
+              let e_sort_fvs = free_exp_vars_in_sort e_sort in 
+              let () = Safelist.iter 
+                (fun qi -> 
+                   if Qid.Set.mem qi e_sort_fvs then 
+                     sort_error i (fun () -> msg "@[illegal@ dependent@ let-binding@]"))
+                xs in 
+              e_sort in
+        (e_sort_subst,new_e0)
 
     | EPair(i,e1,e2) -> 
         (* for pairs, recursively check e1 and e2 *)
@@ -855,7 +865,7 @@ and check_exp sev e0 =
         (* for function applications, check the left-hand expression *)
         let e1_sort,new_e1 = check_exp sev e1 in 
           (* and make sure it is a function sort *)
-          begin match e1_sort with 
+          begin match expose_sort e1_sort with 
             | SFunction(x,param_sort,return_sort) -> 
                 (* then check the right-hand expression *)
                 let e2_sort,new_e2 = check_exp sev e2 in 
@@ -879,11 +889,11 @@ and check_exp sev e0 =
                       let new_e0 = EApp(i,new_e1,cast_e2) in
                       let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in
                       (e0_sort,new_e0)
-                          (*               msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
-                          (*               msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
-                          (*               msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
-                          (*               msg "@[RESULT: %s@\n@]" (string_of_sort e0_sort); *)
-                          (*               if Id.equal x Id.wild then () else msg "@[SUBST_EXP_IN_SORT: %s := %s IN %s ~> %s@]@\n" (Id.string_of_t x) (string_of_exp cast_e2) (string_of_sort return_sort) (string_of_sort e0_sort); *)
+                          (* msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
+                          (* msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
+                          (* msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
+                          (* msg "@[RESULT: %s@\n@]" (string_of_sort e0_sort); *)
+                          (* if Id.equal x Id.wild then () else msg "@[SUBST_EXP_IN_SORT: %s := %s IN %s ~> %s@]@\n" (Id.string_of_t x) (string_of_exp cast_e2) (string_of_sort return_sort) (string_of_sort e0_sort); *)
             | _ -> 
                 sort_error (info_of_exp e1)
                   (fun () ->              
