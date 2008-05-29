@@ -34,6 +34,8 @@ let ANYCHAR = [^]
 (* [ANY] any string *)
 let ANY : regexp = ANYCHAR*
 
+let NONE: regexp = []
+
 (* [ANYP] any non-empty string *)
 let ANYP : regexp = ANYCHAR+
 

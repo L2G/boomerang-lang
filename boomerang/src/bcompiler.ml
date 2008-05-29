@@ -386,7 +386,7 @@ let rec mk_cast_blame lt i b f t e =
               (mk_var i qx))
            erased_t) in
   let res = 
-    if f == t then (skip (); e)
+    if f = t then (skip (); e)
     else
       match f,t with
       | SUnit,SUnit
