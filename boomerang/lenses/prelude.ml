@@ -263,21 +263,24 @@ let prelude_spec =
     let poses_sort = S.SProduct(pos_sort,pos_sort) in 
     let i_sort = S.SProduct(S.SString,poses_sort) in 
     (Qid.mk_native_prelude_t "blame",    
-    S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> b_sort)), 
+    S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> S.SString ^> b_sort)), 
     mk_ufun i (fun () -> 
       mk_ufun i (fun () -> 
         mk_pfun i (fun (fn,ps) -> 
           mk_f i (fun v ->
-            let fn_s = Bstring.string_of_t (get_s fn) in 
-            let i_blame = 
-              let ps1,ps2 = get_p ps in 
-              let i1,i2 = get_p ps1 in 
-              let j1,j2 = get_p ps2 in 
-                Info.I(fn_s,(get_i i1,get_i i2),(get_i j1,get_i j2)) in 
-              Berror.blame_error i_blame 
-                (fun () -> 
-                   Util.format "@[%s@ blamed@]"
-                     (Bvalue.string_of_t v)))))))
+            mk_sfun i (fun s -> 
+              let fn_s = Bstring.string_of_t (get_s fn) in 
+              let i_blame = 
+                let ps1,ps2 = get_p ps in 
+                let i1,i2 = get_p ps1 in 
+                let j1,j2 = get_p ps2 in 
+                  Info.I(fn_s,(get_i i1,get_i i2),(get_i j1,get_i j2)) in 
+                Berror.blame_error i_blame 
+                  (fun () -> 
+                     Util.format "@[%s@ did@ not@ satisfy@ refinement@ at@ %s@]"
+                       (Bvalue.string_of_t v)
+                       (Bstring.string_of_t s))
+                   ))))))
   end
 
   ; begin 

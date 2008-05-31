@@ -381,9 +381,10 @@ let rec mk_cast_blame lt i b f t e =
         (mk_cast_blame lt i b f t e0) 
         (mk_if i e 
            (mk_var i qx) 
-           (mk_app i 
+           (mk_app3 i 
               (mk_app i e_blame e_info)
-              (mk_var i qx))
+              (mk_var i qx)
+              (EString(i, Bstring.t_of_string (Info.string_of_t (info_of_exp e)))))
            erased_t) in
   let res = 
     if f = t then (skip (); e)

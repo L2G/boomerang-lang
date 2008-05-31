@@ -24,7 +24,7 @@ module CoqSrc =
   (* newline *)
   let nl = "\n"
   (* double newline *)
-  let dnl : string = nl{2}
+  let dnl : string = nl . nl
   (* not a newline *)
   let not_nl = [^\n]
   (* whitespace *)
@@ -108,9 +108,11 @@ module CoqSrc =
     let p1 = but (nl . any . not_nl . nl) dnl in 
     let p2 = not_nl+ in 
     let q = but any (comments " ...TO HERE ") in 
-      ((del (comments " HIDE " . (p1|p2) . nl))
+      ((del (comments " HIDE " . (p1|p2) . nl)))
+(* 
       | (del (comments " HIDE... " . q . comments " ...TO HERE " . nl))
       | (del (comments " HIDE IN LECTURE... " . q . comments " ...TO HERE " . nl)))
+*)
           
   (* ---------- MAIN DEFINITIONS ---------- *)
   let declaration = 
