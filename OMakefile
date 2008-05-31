@@ -27,6 +27,11 @@ if $(or $(defined PROFILING_NATIVE_CODE), $(defined PNC))
 	BYTE_CODE_ENABLED=false
 	export
 
+if $(defined SATURN)
+	OCAMLOPTFLAGS += -ccopt -pg -ccopt -lSaturn
+	BYTE_CODE_ENABLED=false
+	export
+
 if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
 	OCAMLCFLAGS += -p a
 	OCAMLC = ocamlcp
