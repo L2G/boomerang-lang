@@ -70,54 +70,41 @@ let iterable : regexp -> bool =
   Native.Prelude.iterable
 
 (* lenses *)
-let bij : lens -> bool = 
-  Native.Prelude.bij
 let ctype : lens -> regexp = 
   Native.Prelude.ctype
 let atype : lens -> regexp =
   Native.Prelude.atype
-let in_lens_type (l:lens) (c:regexp) (a:regexp) : bool = 
-  land (equiv (ctype l) c) (equiv (atype l) a)
-let in_bij_lens_type (l:lens) (c:regexp) (a:regexp) : bool = 
-  land (land (equiv (ctype l) c) (equiv (atype l) a)) (bij l)
 
-let get (l:lens) (c:string where matches (ctype l) c) : string =
-  Native.Prelude.unsafe_get l c
-let put (l:lens) (a:string where matches (atype l) a) (c:string where matches (ctype l) c) : string = 
-  Native.Prelude.unsafe_put l a c
-let create (l:lens) (a:string where matches (atype l) a) : string = 
-  Native.Prelude.unsafe_create l a
+let get (l:lens) (c:string) : string = 
+  Native.Prelude.get l c
+let put (l:lens) (a:string) (c:string) : string = 
+  Native.Prelude.put l a c
+let create (l:lens) (a:string) : string = 
+  Native.Prelude.create l a
 
 let copy (R:regexp) : lens
   = Native.Prelude.copy R
 
-let const (R:regexp) (u:string) (v:string where matches R v) : lens
-  = Native.Prelude.unsafe_const R u v
+let const (R:regexp) (u:string) (v:string) : lens
+  = Native.Prelude.const R u v
 
-let lens_union (l1:lens) (l2:lens where disjoint (ctype l1) (ctype l2)) : lens
-  = Native.Prelude.unsafe_union l1 l2 
+let lens_union (l1:lens) (l2:lens) : lens
+  = Native.Prelude.lens_union l1 l2 
 
-let lens_disjoint_union 
-    (l1:lens) 
-    (l2:lens where land (disjoint (ctype l1) (ctype l2))
-                        (disjoint (atype l1) (atype l2))) : lens 
-  = Native.Prelude.unsafe_disjoint_union l1 l2 
+let lens_disjoint_union (l1:lens) (l2:lens) : lens =  
+  Native.Prelude.lens_disjoint_union l1 l2 
 
-let lens_concat (l1:lens)
-                (l2:lens where land (splittable (ctype l1) (ctype l2))
-                                    (splittable (ctype l1) (ctype l2))) : lens
-  = Native.Prelude.unsafe_concat l1 l2
+let lens_concat (l1:lens) (l2:lens) : lens = 
+  Native.Prelude.lens_concat l1 l2
 
-let lens_iter (l1:lens where land (iterable (ctype l1)) (iterable (atype l1))) (x:int) (y:int) 
-  : lens 
-  = Native.Prelude.unsafe_iter l1 x y 
+let lens_iter (l1:lens) (x:int) (y:int) : lens = 
+  Native.Prelude.lens_iter l1 x y 
+    
+let lens_star (l1:lens) : lens = 
+  Native.Prelude.lens_star l1
 
-let lens_star (l1:lens where land (iterable (ctype l1)) (iterable (atype l1))) 
-  : lens 
-  = Native.Prelude.unsafe_star l1
-
-let invert : (l:lens where bij l) -> lens =
-  Native.Prelude.invert
+let invert : lens -> lens = 
+  Native.Prelude.invert 
 let dmatch : string -> lens -> lens = 
   Native.Prelude.dmatch
 let smatch : string -> string -> lens -> lens = 
@@ -128,16 +115,12 @@ let default : lens -> string -> lens =
   Native.Prelude.default
 let key : regexp -> lens =
   Native.Prelude.key
-let count : regexp -> (string -> int) =
-  Native.Prelude.count
 let forgetkey : lens -> lens = 
   Native.Prelude.forgetkey
-let filter (r1:regexp where iterable r1) (r2:regexp where land (disjoint r1 r2) (iterable r2)) : lens = 
-  Native.Prelude.unsafe_filter r1 r2
-let lens_swap (l1:lens)
-              (l2:lens where land (splittable (ctype l1) (ctype l2))
-                                  (splittable (ctype l1) (ctype l2))) : lens = 
-  Native.Prelude.unsafe_swap l1 l2
+let filter (r1:regexp) (r2:regexp) : lens = 
+  Native.Prelude.filter r1 r2
+let lens_swap (l1:lens) (l2:lens) : lens = 
+  Native.Prelude.lens_swap l1 l2
 
 (* canonizers *)
 let canonize : canonizer -> string -> string =
@@ -151,11 +134,13 @@ let right_quot : lens -> canonizer -> lens =
 
 let canonizer_concat : canonizer -> canonizer -> canonizer = 
   Native.Prelude.canonizer_concat 
+let canonizer_union : canonizer -> canonizer -> canonizer = 
+  Native.Prelude.canonizer_union 
 let canonizer_iter : canonizer -> int -> int -> canonizer = 
   Native.Prelude.canonizer_iter
 
-let columnize : string -> regexp -> string -> string -> canonizer = 
-  Native.Prelude.columnize
+(* let columnize : string -> regexp -> string -> string -> canonizer =  *)
+(*   Native.Prelude.columnize *)
 
 (* integers *)
 let bgt : int -> int -> bool = 

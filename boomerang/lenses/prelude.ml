@@ -25,20 +25,17 @@ open Bident
 module S = Bsyntax
 module L = Blenses.DLens
 module C = Blenses.Canonizer
-module R = Bregexp
-module RS = Bstring
 let (^) = Pervasives.(^)
 let sprintf = Printf.sprintf 
 let (^>) = S.(^>)
 
 let wrap_rep i r = 
-  try 
-    R.rep r 
+  try Brx.representative r 
   with Not_found -> 
     raise (Error.Harmony_error(fun () -> 
       Util.format "%s: cannot calculate representative; %s is empty."
         (Info.string_of_t i)
-        (R.string_of_t r)))
+        (Brx.string_of_t r)))
 
 let poly_error i se1 v1 = 
   Error.simple_error 
@@ -157,23 +154,23 @@ let pmk_qiiq  = pmk3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun 
 
 let prelude_spec =
   [ (* lens operations *)
-    pmk_lss    "unsafe_get"             (fun _ -> L.unsafe_rget)
-  ; pmk_lsss   "unsafe_put"             (fun _ -> L.unsafe_rput)
-  ; pmk_lss    "unsafe_create"          (fun _ -> L.unsafe_rcreate)
-  ; pmk_ll     "invert"                 L.invert
+    pmk_lss    "get"             (fun _ -> L.rget)
+  ; pmk_lsss   "put"             (fun _ -> L.rput)
+  ; pmk_lss    "create"          (fun _ -> L.rcreate)
+  ; pmk_ll     "invert"           L.invert
                                         
   (* core lens combinators *)           
-  ; pmk_rl     "copy"                   L.copy
-  ; pmk_rssl   "unsafe_const"           L.unsafe_const
-  ; pmk_lll    "unsafe_union"           L.unsafe_union
-  ; pmk_lll    "unsafe_disjoint_union"  L.unsafe_disjoint_union
-  ; pmk_lll    "unsafe_concat"          L.unsafe_concat
-  ; pmk_liil   "unsafe_iter"            L.unsafe_iter
-  ; pmk_ll     "unsafe_star"            L.unsafe_star
-  ; pmk_lll    "unsafe_swap"            L.unsafe_swap
+  ; pmk_rl     "copy"                 L.copy
+  ; pmk_rssl   "const"                L.const
+  ; pmk_lll    "lens_union"           L.union
+  ; pmk_lll    "lens_disjoint_union"  L.disjoint_union
+  ; pmk_lll    "lens_concat"          L.concat
+  ; pmk_liil   "lens_iter"            L.iter
+  ; pmk_ll     "lens_star"            (fun i l -> L.iter i l 0 (-1))
+  ; pmk_lll    "lens_swap"            L.swap
   ; pmk_sll    "dmatch"                 (fun i -> L.dmatch i L.std_lookup)
   ; pmk_ssll   "smatch"                 (fun i s -> 
-                                            let f = float_of_string (RS.string_of_t s) in 
+                                            let f = float_of_string s in
                                             L.dmatch i (L.sim_lookup f))
   ; pmk_lll    "compose"                L.compose
   ; pmk_lsl    "default"                (fun i l1 s2 -> L.default i s2 l1)
@@ -181,7 +178,7 @@ let prelude_spec =
 (*   ; pmk_llll   "duplicate"              (fun i -> L.duplicate i true) *)
 (*   ; pmk_llll   "duplicate_snd"          (fun i -> L.duplicate i false) *)
   ; pmk_ll     "forgetkey"              (fun i -> L.forgetkey)
-  ; pmk_rrl    "unsafe_filter"          L.unsafe_filter
+  ; pmk_rrl    "filter"          L.filter
                                         
   (* canonizer operations *)            
   ; pmk_qqq    "canonizer_union"        C.union
@@ -191,10 +188,10 @@ let prelude_spec =
   ; pmk_qss    "choose"                 (fun _ -> C.choose)
   ; pmk_qll    "left_quot"              L.left_quot
   ; pmk_lql    "right_quot"             L.right_quot
-  ; pmk_srssq  "columnize"              C.columnize
+(*   ; pmk_srssq  "columnize"              C.columnize *)
                                             
   (* char operations *)                 
-  ; pmk_cs     "string_of_char"         (fun _ -> RS.make 1)
+  ; pmk_cs     "string_of_char"         (fun _ -> String.make 1)
 
   (* char operations *)                 
   ; pmk_iib     "gt"                    (fun _ -> (>))
@@ -208,25 +205,27 @@ let prelude_spec =
   ; pmk_iii    "mod"                    (fun _ x y -> x mod y)
                                     
   (* string operations *)               
-  ; pmk_sss    "string_concat"          (fun _ -> RS.append)
-  ; pmk_ss     "read"                   (fun _ fn -> RS.t_of_string (Misc.read (RS.string_of_t fn)))
+  ; pmk_sss    "string_concat"          (fun _ -> (^))    
+  ; pmk_ss     "read"                   (fun _ fn -> Misc.read fn)
                                         
   (* regexp operations *)               
-  ; pmk_sr     "str"                    (fun _ -> R.str false)
-  ; pmk_r      "empty"                  R.empty
-  ; pmk_rb     "is_empty"               (fun _ -> R.is_empty)
-  ; pmk_rrr    "regexp_concat"          (fun _ -> R.seq)
-  ; pmk_rrr    "regexp_union"           (fun _ -> R.alt)
-  ; pmk_rrr    "diff"                   (fun _ -> R.diff)
-  ; pmk_rrr    "inter"                  (fun _ -> R.inter)
-  ; pmk_riir   "regexp_iter"            (fun _ -> R.iter)
-  ; pmk_rrb    "equiv"                  (fun _ -> R.equiv)
+  ; pmk_sr     "str"                    (fun _ -> Brx.mk_string)
+  ; pmk_r      "empty"                  Brx.empty
+  ; pmk_rb     "is_empty"               (fun _ -> Brx.is_empty)
+  ; pmk_rrr    "regexp_concat"          (fun _ -> Brx.mk_seq)
+  ; pmk_rrr    "regexp_union"           (fun _ -> Brx.mk_alt)
+  ; pmk_rrr    "diff"                   (fun _ -> Brx.mk_diff)
+  ; pmk_rrr    "inter"                  (fun _ -> Brx.mk_inter)
+  ; pmk_riir   "regexp_iter"            (fun i -> 
+                                           Blenses.generic_iter i
+                                             Brx.epsilon Brx.mk_alt Brx.mk_seq Brx.mk_star)
+  ; pmk_rrb    "equiv"                  (fun _ -> Brx.equiv)
   ; pmk_rs     "shortest"               wrap_rep
-  ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (R.unambig_star_split r s))
-  ; pmk_rsb    "matches"                (fun _ -> R.match_str)
-  ; pmk_rrb    "splittable"             R.splittable
-  ; pmk_rb     "iterable"               R.iterable
-
+  ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (Brx.star_split r s))
+  ; pmk_rsb    "matches"                (fun _ -> Brx.match_string)
+  ; pmk_rrb    "splittable"             (fun _ -> Brx.splittable)
+  ; pmk_rb     "iterable"               (fun _ -> Brx.iterable)
+  ; pmk_rrb    "disjoint"               (fun _ -> Brx.disjoint)
                                         
   (* boolean operations *)              
   ; pmk_bbb    "land"                   (fun _ -> (&&))
@@ -234,11 +233,10 @@ let prelude_spec =
   ; pmk_bb     "not"                    (fun _ -> not)
                                         
   (* run-time checking *)               
-  ; pmk_lb     "bij"                    (fun _ -> L.bij)  
   ; pmk_lr     "ctype"                  (fun _ -> L.ctype)
   ; pmk_lr     "atype"                  (fun _ -> L.atype)
   ; pmk_lq     "canonizer_of_lens"      L.canonizer_of_t
-  ; pmk_rs     "string_of_regexp"       (fun _ r1 -> (RS.t_of_string (R.string_of_t r1)))
+  ; pmk_rs     "string_of_regexp"       (fun _ r1 -> Brx.string_of_t r1)
 
   (* polymorphic functions *)
   ; begin 
@@ -269,7 +267,7 @@ let prelude_spec =
         mk_pfun i (fun (fn,ps) -> 
           mk_f i (fun v ->
             mk_sfun i (fun s -> 
-              let fn_s = Bstring.string_of_t (get_s fn) in 
+              let fn_s = get_s fn in 
               let i_blame = 
                 let ps1,ps2 = get_p ps in 
                 let i1,i2 = get_p ps1 in 
@@ -278,8 +276,7 @@ let prelude_spec =
                 Berror.blame_error i_blame 
                   (fun () -> 
                      Util.format "@[%s@ did@ not@ satisfy@ refinement@ at@ %s@]"
-                       (Bvalue.string_of_t v)
-                       (Bstring.string_of_t s))
+                       (Bvalue.string_of_t v) s)
                    ))))))
   end
 

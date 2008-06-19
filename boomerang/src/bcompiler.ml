@@ -26,17 +26,11 @@ open Bident
 open Bprint
 open Bsubst
 open Berror
-module RS = Bstring
-module R = Bregexp
 module L = Blenses.DLens
 module C = Blenses.Canonizer
 module V = Bvalue
 module G = Bregistry
 
-let naive = Prefs.createBool "naive" false
-  "Skip EHole optimization"
-  "Skip EHole optimization"
-  
 (* abbreviations *)
 let sprintf = Printf.sprintf  
 let msg = Util.format
@@ -313,25 +307,9 @@ let rec compatible f t = match f,t with
   | SString,SLens 
   | SRegexp,SLens -> 
       true
-  | SFunction(x,s11,s12),SFunction(y,s21,s22) -> 
-      if (Id.equal x y) then 
-           compatible s11 s21 
-        && compatible s12 s22
-      else 
-        (* alpha varty f and t if needed *)
-        let qx = Qid.t_of_id x in 
-        let qy = Qid.t_of_id y in 
-        let f_fvs = Qid.Set.add qx (free_exp_vars_in_sort f) in 
-        let t_fvs = Qid.Set.add qy (free_exp_vars_in_sort t) in 
-        let z = fresh_qid x (Qid.Set.union f_fvs t_fvs) in
-        let f_subst = [qx,EVar(Info.M "gensym'd variable",z)] in 
-        let t_subst = [qy,EVar(Info.M "gensym'd variable",z)] in 
-             compatible 
-               (subst_exp_in_sort f_subst s11) 
-               (subst_exp_in_sort t_subst s21)
-          && compatible 
-               (subst_exp_in_sort f_subst s12) 
-               (subst_exp_in_sort t_subst s22)
+  | SFunction(_,s11,s12),SFunction(_,s21,s22) -> 
+           (compatible s11 s21)
+        && (compatible s12 s22)
   | SProduct(s11,s12),SProduct(s21,s22) -> 
          compatible s11 s21
       && compatible s12 s22
@@ -362,13 +340,8 @@ let rec compatible f t = match f,t with
   | s1,SRefine(_,s21,_) -> compatible s1 s21
   | _ -> false
 
-let skipped = ref 0
-let casted = ref 0 
-
 (* precondition: f and t must be compatible. *)
 let rec mk_cast_blame lt i b f t e = 
-  let old_casted = incr casted; !casted in   
-  let skip () = casted := old_casted; incr skipped in 
   (* generates cast of e0 into the refinement (x:t where e) *)
   let cast_refinement f x t e e0 = 
     let t0 = SRefine(x,t,e) in 
@@ -384,10 +357,10 @@ let rec mk_cast_blame lt i b f t e =
            (mk_app3 i 
               (mk_app i e_blame e_info)
               (mk_var i qx)
-              (EString(i, Bstring.t_of_string (Info.string_of_t (info_of_exp e)))))
+              (EString(i,(Info.string_of_t (info_of_exp e)))))
            erased_t) in
   let res = 
-    if f = t then (skip (); e)
+    if f = t then e
     else
       match f,t with
       | SUnit,SUnit
@@ -399,7 +372,7 @@ let rec mk_cast_blame lt i b f t e =
       | SLens,SLens 
       | SCanonizer,SCanonizer 
       | SVar(_),SVar(_) -> 
-          (skip (); e) 
+          e
       | SChar,SString ->           
           string_of_char i e 
       | SChar,SRegexp -> 
@@ -412,10 +385,10 @@ let rec mk_cast_blame lt i b f t e =
           lens_of_regexp i (regexp_of_string i e)
       | SRegexp,SLens -> 
           lens_of_regexp i e
-      | SFunction(x,f1,f2), SFunction(y,t1,t2) -> 
+      | SFunction(_,f1,f2), SFunction(_,t1,t2) -> 
           let fn = Id.mk i "fn" in 
+          let x = Id.mk i "x" in 
           let qx = Qid.t_of_id x in 
-          let qy = Qid.t_of_id y in 
           let qfn = Qid.t_of_id fn in 
           let e_x = mk_var i qx in 
           let e_fn = mk_var i qfn in 
@@ -423,14 +396,11 @@ let rec mk_cast_blame lt i b f t e =
           let c1 = mk_cast_blame lt i (invert_blame b) t1 f1 e_x in 
           let c2 = mk_cast_blame lt i b f2 t2 e_fx in 
             if c1 == e_x && c2 == e_fx then 
-              (skip (); e)
+              e
             else                
-              let cast_f = 
-                mk_fun i fn f (mk_fun i x t1 (mk_let i x f1 c1 c2)) in 
-              let cast_e = 
-                if Id.equal x y then mk_app i cast_f e
-                else mk_fun i y t1 (mk_app i (mk_app i cast_f e) (mk_var i qy)) in 
-                cast_e 
+              mk_app i 
+                (mk_fun i fn f (mk_fun i x t1 (mk_let i x f1 c1 c2))) 
+                e
       | SProduct(f1,f2), SProduct(t1,t2) -> 
           let x = Id.mk i "x" in 
           let y = Id.mk i "y" in 
@@ -438,7 +408,7 @@ let rec mk_cast_blame lt i b f t e =
           let e_y = mk_var i (Qid.t_of_id y) in 
           let c1 = mk_cast_blame lt i b f1 t1 e_x in
           let c2 = mk_cast_blame lt i b f2 t2 e_y in                 
-            if c1 == e_x && c2 == e_y then (skip (); e)
+            if c1 == e_x && c2 == e_y then e
             else
               let px = PVar(i,x,Some f1) in
               let py = PVar(i,y,Some f2) in
@@ -448,7 +418,7 @@ let rec mk_cast_blame lt i b f t e =
             | [],[] -> true
             | h1::t1,h2::t2 -> aux (syneq_sort h1 h2) t1 t2 
             | _ -> false in 
-          if aux true fl tl then (skip (); e)
+          if aux true fl tl then e
           else 
             let _,(svl,cl) = get_type lt i x in               
             let fsubst = Safelist.combine svl fl in 
@@ -482,7 +452,7 @@ let rec mk_cast_blame lt i b f t e =
               mk_let i x f e (ECase(i,mk_var i qx,pl,t))
       | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
           if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 then 
-            (skip (); e)
+            e
           else 
             cast_refinement f y t2 e2 e
       | _,SRefine(x,t2,e2) -> 
@@ -492,7 +462,7 @@ let rec mk_cast_blame lt i b f t e =
       | SForall(x,f1),SForall(y,t1) ->
           let e_ex = mk_tyapp i e (SVar x) in 
           let c1 = mk_cast_blame lt i b f1 t1 e_ex in 
-          if c1 == e_ex then (skip (); e)
+          if c1 == e_ex then e
           else mk_tyfun i x c1
       | _ -> 
           run_error i 
@@ -500,14 +470,6 @@ let rec mk_cast_blame lt i b f t e =
                msg "@[cannot@ cast@ incompatible@ %s@ to@ %s@]"
                  (string_of_sort f)
                  (string_of_sort t)) in 
-    Trace.debug "cast+"
-      (fun () -> 
-         msg "@[%s@]@\nTO@\n@[%s@]@\n" 
-           (string_of_sort f)
-           (string_of_sort t);
-         msg "@[%s@]~>@[%s@]@\n" 
-           (string_of_exp e)
-           (string_of_exp res));
     res
         
 let rec mk_cast s lt i f t e = 
@@ -624,7 +586,7 @@ let rec dynamic_match i p0 v0 =
   | PUnt _,V.Unt(_) -> Some []
   | PInt(_,n1),V.Int(_,n2) -> if n1=n2 then Some [] else None
   | PBol(_,b1),V.Bol(_,b2) -> if b1=b2 then Some [] else None
-  | PStr(_,s1),V.Str(_,s2) -> if s1 = RS.string_of_t s2 then Some [] else None
+  | PStr(_,s1),V.Str(_,s2) -> if s1 = s2 then Some [] else None
   | PVnt(_,(_,li),pio),V.Vnt(_,_,lj,vjo) -> 
       if Id.equal li lj then 
         (match pio,vjo with 
@@ -1113,7 +1075,9 @@ let check_module m0 = match m0 with
 
 (* --------------- Compiler --------------- *)
 (* expressions *)
-let rec compile_exp cev e0 = match e0 with 
+let rec compile_exp cev e0 = 
+(*   Util.format "COMPILE_EXP: %s@\n%!" (Bprint.string_of_exp e0); *)
+  match e0 with 
   | EVar(i,q) ->       
       begin match CEnv.lookup cev q with
         | Some(_,v) -> 
@@ -1194,8 +1158,8 @@ let rec compile_exp cev e0 = match e0 with
       V.Str(i,s)
 
   | ECSet(i,pos,cs) -> 
-      let mk_rx = if pos then R.set else R.negset in 
-      V.Rx(i,mk_rx cs)
+      let csi = Safelist.map (fun (ci,cj) -> (Char.code ci, Char.code cj)) cs in
+      V.Rx(i,Brx.mk_cset pos csi)
 
   | ECast(i,f,t,b,e) -> 
       compile_exp cev (mk_cast_blame (CEnv.lookup_type cev) i b f t e) 
@@ -1216,7 +1180,9 @@ and compile_binding cev b0 = match b0 with
               ([],cev) binds in 
       (bcev,Safelist.rev xs_rev)
       
-let rec compile_decl cev ms d0 = match d0 with
+let rec compile_decl cev ms d0 = 
+(*   Util.format "COMPILE_DECL: %s@\n%!" (Bprint.string_of_decl d0); *)
+  match d0 with
   | DLet(i,b) ->
       let bcev,xs = compile_binding cev b in
       (bcev,xs)
@@ -1340,8 +1306,4 @@ let compile_module m0 = match m0 with
       let new_cev,_ = compile_mod_aux cev [m] ds in
       G.register_env (CEnv.get_ev new_cev) m
 
-let print_stats () = 
-  let s = !skipped in 
-  let c = !casted in 
-    Util.format "@[%d skipped, %d casted = %.1f%%@]@\n" s c (100.0 *. (float_of_int s /. float_of_int (s+c)));           
-    
+let print_stats () = ()

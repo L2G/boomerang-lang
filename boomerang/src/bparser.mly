@@ -23,7 +23,6 @@
 (* imports and abbreviations *)
 open Bsyntax
 open Bident
-module RS = Bstring
 module L = Blenses 
 let sprintf = Printf.sprintf
 let (@) = Safelist.append
@@ -58,13 +57,13 @@ let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (Qid.mk_core_t "set")) e1 e2
 let mk_match i x q =   
   mk_bin_op i 
     (mk_core_var "dmatch")
-    (EString(i,Bstring.t_of_string x)) 
+    (EString(i,x)) 
     (mk_qid_var q)
 let mk_sim_match i e t q = 
   mk_tern_op i 
     (mk_core_var "smatch")
-    (EString(i,Bstring.t_of_string (string_of_float e)))
-    (EString(i,Bstring.t_of_string t))
+    (EString(i,string_of_float e))
+    (EString(i,t))
     (mk_qid_var q)
 let mk_rx i e = mk_app i (mk_core_var "str") e
 
@@ -88,15 +87,15 @@ let parse_cset s =
     let do_get () = let r = s.[!i] in incr i; r in 
       if accept '\\' then 
         match do_get () with
-          | '^' -> (RS.sym_of_char '^')
-          | '-' -> (RS.sym_of_char '-')
-          | 'b' -> (RS.sym_of_char '\008')
-          | 'n' -> (RS.sym_of_char '\010')
-          | 'r' -> (RS.sym_of_char '\013')
-          | 't' -> (RS.sym_of_char '\009')
-          | '\\' -> (RS.sym_of_char '\\')
+          | '^' -> '^'
+          | '-' -> '-'
+          | 'b' -> '\008'
+          | 'n' -> '\010'
+          | 'r' -> '\013'
+          | 't' -> '\009'
+          | '\\' -> '\\'
           | _   -> err () 
-      else RS.sym_of_char (do_get ()) in 
+      else (do_get ()) in 
   let next () = if eos () then err () else get () in 
   let rec go acc = 
     if eos () then Safelist.rev acc
@@ -134,7 +133,7 @@ let build_fun i param_alts body sort =
       (fun pa (f,so,s) -> match pa with 
          | Misc.Left(p) -> 
              let f' = EFun(i,p,so,f) in 
-             let s' = SFunction(id_of_param p,sort_of_param p,s) in
+             let s' = SFunction(Id.wild,sort_of_param p,s) in
              (f',None,s')
          | Misc.Right(a) -> 
              let f' = ETyFun(i,a,f) in 
@@ -506,7 +505,7 @@ aexp:
 
   | CHARACTER
       { let i,c = $1 in 
-        EChar(i,Bstring.sym_of_char c) }
+        EChar(i,c) }
 
   | INTEGER
       { let i,n = $1 in 
@@ -526,11 +525,11 @@ aexp:
 
   | STR 
       { let i,s = $1 in 
-        EString(i,Bstring.t_of_string s) }
+        EString(i,s) }
 
   | RXSTR
       { let i,s = $1 in 
-        mk_rx i (EString(i,Bstring.t_of_string s)) }
+        mk_rx i (EString(i,s)) }
 
   | LPAREN RPAREN
       { EUnit(m $1 $2) }
@@ -650,9 +649,6 @@ arrsort:
   | psort ARROW arrsort 
       { SFunction(Id.wild,$1,$3) } 
 
-  | LPAREN id COLON psort ARROW arrsort RPAREN
-      { SFunction($2,$4,$6) }
-
   | psort
       { $1 }
 
@@ -678,30 +674,6 @@ dsort:
 bsort:
   | LPAREN sort RPAREN
       { $2 }
-
-  | LPAREN sort WHERE exp RPAREN
-      { SRefine(Id.wild,$2,$4) }
-
-  | LPAREN id COLON sort WHERE exp RPAREN
-      { SRefine($2,$4,$6) }
-
-  | LPAREN LENS IN appexp DARROW appexp RPAREN
-      { let i = m $1 $7 in 
-        let l = Id.mk i "_l" in 
-        let chk c a = mk_tern_op i (mk_core_var "in_lens_type") (mk_var l) c a in 
-        SRefine(l,SLens,chk $4 $6) }
-
-  | LPAREN LENS IN appexp DEQARROW appexp RPAREN
-      { let i = m $1 $7 in 
-        let l = Id.mk i "_l" in 
-        let chk c a = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var l) c a in 
-        SRefine(l,SLens,chk $4 $6) }
-
-  | LPAREN STRING IN exp RPAREN 
-      { let i = m $1 $5 in 
-        let s = Id.mk i "_s" in 
-        let p = mk_bin_op i (mk_core_var "matches") $4 (mk_var s) in 
-        SRefine(s,SString,p) }
 
   | asort 
       { $1 }
@@ -821,29 +793,6 @@ param:
   | LPAREN id COLON sort RPAREN
       { let i = m $1 $5 in 
         Misc.Left (Param(i,$2,$4)) }
-
-  | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_tern_op i (mk_core_var "in_lens_type") (mk_var $2) $6 $8 in 
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON LENS IN appexp DEQARROW appexp RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var $2) $6 $8 in 
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON STRING IN exp RPAREN
-      { let i = m $1 $7 in 
-        let p = mk_bin_op i (mk_core_var "matches") $6 (mk_var $2) in 
-        let s = SRefine($2,SString,p) in
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON sort WHERE exp RPAREN
-      { let i,_ = $2 in 
-        let s = SRefine($2,$4,$6) in 
-        Misc.Left (Param(i,$2,s)) }
 
   | LPAREN VIDENT RPAREN
       { Misc.Right ($2) }

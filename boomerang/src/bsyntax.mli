@@ -80,9 +80,9 @@ and exp =
     | EUnit    of Info.t  
     | EBoolean of Info.t * bool
     | EInteger of Info.t * int    
-    | EChar    of Info.t * Bstring.sym
-    | EString  of Info.t * Bstring.t 
-    | ECSet    of Info.t * bool * (Bstring.sym * Bstring.sym) list 
+    | EChar    of Info.t * char
+    | EString  of Info.t * string
+    | ECSet    of Info.t * bool * (char * char) list 
 (** The type of expression ASTs. *)
 
 and op = 

@@ -117,7 +117,6 @@ let qdel (E:regexp) (e:string) : lens =
 (* unit tests for qdel *)
 test (get (qdel [A-Z]+ "ZZZ") "ABC") = ""
 test (put (qdel [A-Z]+ "ZZZ") "" "ABC") = "ZZZ"
-test (Native.Prelude.unsafe_put (qdel [A-Z]+ "ZZZ") "1" "ABC") = "ZZZ"
 test (put (qdel [A-Z]+ "ZZZ") "1" "ABC") = error
 
 type 'a option = 

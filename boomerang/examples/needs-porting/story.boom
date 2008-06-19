@@ -1,24 +1,235 @@
-module Escaping = 
+module Story = 
 
-let ANYCHAR = [^]
+(* Overall story:
+      - illustrate lens combinators / types
+      - motivate / illustrate abstraction / reuse
+      - how do we design the type system of boomerang?
+           - morally, they are dependent polymorphic refinement types
+           - how do we implement it?
+               - work (really) hard
+               - or be less static  (but note that we still have a
+                 "type system"  in the sense that we completely and 
+                 "statically" prevent a certain class of errors)
+      - imprecision of blame  (bc of "dynamic typechecking" of lenses)
+          ==> contracts / casts  (be careful about terminology!)
+          interesting interlude on what blame means (and slogans)
+          (read papers on blame semantics!)
+      - need for some kind of contract inference
+          = implicit cast insertion
+          interesting/tricky interactions with inference of type instantiation!
+          (read flanagan paper on type reconstruction)
+      - ass covering / buck passing (= polymorphism?  = inlining?)
+          - note no need for sealing (core polymorphism = precise polymorphism)
+      - quotienting
 
-let ANY = ANYCHAR*
+THINGS TO DO:
+  - rename <-> as <=>
+*)
+
+(* -- *)
+let ANY_CHAR : regexp = [^]
+let ESC_SYMBOL : regexp = "\\\"" | "\\\\" | [^\\"]
+let escape_quotes_char : < ANY_CHAR <-> ESC_SYMBOL > = 
+    '"' <-> "\\\""
+  | '\\' <-> "\\\\"
+  | copy (ANY_CHAR - [\\"])
+
+(* -- *)
+let ANY : regexp = ANY_CHAR*
+let ESC_STRING : regexp = ESC_SYMBOL*
+
+let escape_quotes_string : < ANY <-> ESC_STRING > = 
+  escape_quotes_char*
+
+test escape_quotes_string get 
+    <<
+        <hello"world>
+    >>
+  = 
+    <<
+        <hello\"world>
+    >> 
+
+(* -- *)
+let XML_ESC_SYMBOL : regexp = "&lt;" | "&gt;" | "&amp;" | [^<>&]
+
+let escape_xml_char : < ANY_CHAR <-> XML_ESC_SYMBOL > = 
+    '<' <-> "&lt;"
+  | '>' <-> "&gt;"
+  | '&' <-> "&amp;"
+  | copy (ANYCHAR - [<>&])
+
+(* -- *)
+let XML_ESC_STRING : regexp = XML_ESC_SYMBOL*
+
+let escape_xml : < ANY <-> XML_ESC_STRING > = 
+  escape_xml_char*
+
+(* -- *)
+let quotes_to_xml : < ESC_STRING <-> XML_ESC_STRING > = 
+  (invert escape_quotes_string) ; escape_xml
+
+test quotes_to_xml get 
+    <<
+        <hello\"world>
+    >>
+  = 
+    <<
+        &lt;hello"world&gt;
+    >> 
+
+(*"*)
+
+(* Now let's build generic escaping functions... *)
+
+(* raw should be a char, actually *)
+
+(* Actually, we want to write first the dependently typed one.  Then
+   do the next example.  Then we say, "Whoa: what kind of type system
+   is this?  Can we typecheck it??"  And then we back off to just
+   "lens" (or even "pure macros"). *)
+
+let escape_char (raw:char) (esc:string) (R:regexp) 
+   : < ((R - esc) | raw) <-> ((R - raw) | esc) > 
+ = 
+   ( raw <-> esc
+   | copy (R - (raw | esc)))
+
+let escape_char2 (raw:char) (esc:string) 
+                 (R:regexp where (matches R raw) and (not (matches R esc))) 
+  : < R <-> ((R - raw) | esc) > 
+=    ( raw <-> esc
+   | copy (R - (raw | esc)))
+
+
+test (escape_char2 '&' "&amp;" ANY_CHAR)* get "hello&world" = ?
+
+test (escape_char '&' "&amp;" ANY_CHAR)* get 
+    <<
+        hello&world
+    >>
+  = 
+    <<
+        hello&amp;world
+    >> 
+
+let escape_xml : < ANY <-> XML_ESC_STRING > = 
+  (  escape_char '&' "&amp;" [^]
+   ; escape_char '<' "&lt;"  ([^&] | "&amp;")
+   ; escape_char '>' "&gt;"  ([^&<] | "&amp;" | "&lt;") )*
+
+test escape_xml get 
+    <<
+        <hello&world>
+    >>
+  = 
+    <<
+        &lt;hello&amp;world&gt;
+    >> 
+
+(* ... or better... *)
+let escape_xml : < ANY <-> XML_ESC_STRING > = 
+  let l1 = escape_char '&' "&amp;" [^] in
+  let l2 = escape_char '<' "&lt;"  (atype l1) in
+  let l3 = escape_char '>' "&gt;"  (atype l2) in
+  (l1;l2;l3)*
+
+(* Can even do it with lists, which motivates polymorphism... *)
+(* and now maybe write a generic one using List.fold_left ... *)
+
+(* do we need to rename atype for purposes of the talk??  -- yes:
+   domain_of and codomain_of (maybe do this throughout?) *)
+
+test escape_xml get 
+    <<
+        <hello&world>
+    >>
+  = 
+    <<
+        &lt;hello&amp;world&gt;
+    >> 
+
+
+
+(* and then use ctype *)
+
+(*
+
+(* Add patterns on lambda-binders and tidy the following *)
+
+(* TODO move this to lenses/list.boom at some point *)
+let list_reverse (l : 'a List.t) : 'a List.t =
+  List.fold_left (fun (l:'a List.t) (p:'a) -> (List.Cons(p,l))) List.Nil l
+
+(* do we want a (precise) contract on the result? *)
+let list_map (f : 'a -> 'b) (la : 'a List.t) : 'b List.t =
+  list_reverse (List.fold_left (fun (lb:'b List.t) (p:'a) -> (List.Cons(f p,lb))) List.Nil la)
+
+let fst (p : 'a * 'b) = (match p with (x,y) -> x) : 'a
+let snd (p : 'a * 'b) = (match p with (x,y) -> y) : 'b
+
+let union_of_fsts (pairs : (regexp*regexp) List.t) = 
+  List.fold_left {regexp} {regexp} regexp_union []
+                (list_map {regexp*regexp} {regexp} fst pairs)
+
+(* Switch cond and acond *)
+
+(* need type char in some form *)
+
+let escape (pairs : (string * string) List.t) : lens =
+  let escape_char =
+    List.fold_left {lens} {string*string} 
+      (fun (l:lens) (p:string*string) -> 
+         (match p with 
+           (from,to) -> ((from <-> to) | l)) : lens)
+      (copy (ANYCHAR - (unescaped pairs)))
+      pairs
+  in
+    escape_char*
+
+
+
+(* Rendering (do we really need this??) *)
+
+let render_quotes =
+    "" <-> "\""
+  . copy ( ("\\\"" | "\\\\" | [^\\"])* )
+  . "" <-> "\""
+
+let render_xml_tag =
+    "" <-> "<tag>"
+  . copy ( ("&lt;" | "&gt;" | "&amp;" | [^<>&])* )
+  . "" <-> "</tag>"
+
+(* generic versions *)
+
+let tagged R tag = [<] . (str tag) . [>] . R . (str ("</" . tag)) . [>]
+
+let render_tag (R : regexp) (tag : string) 
+  : (R <-> tagged R tag)
+  = render R ("<" . tag . ">") ("</" . tag . ">")
+
+let render_str (R : regexp) : (R <-> quoted R) = render R "\"" "\""
+
+
+
+(*
 
 (* FIRST TRY:
 
-let unrender_quotedstr =
+let unrender_quotes =
     "\"" <-> "" 
   . copy ANY
   . "\"" <-> "" 
 
-let unescape_quotedstr_char =
+let unescape_quotes_char =
     "\\\"" <-> "\""
   | "\\\\" <-> "\\"
   | copy (ANYCHAR - [\\"])
 
-let unescape_quotedstr = unescape_quotedstr_char*
+let unescape_quotes = unescape_quotes_char*
 
-test unescape_quotedstr get 
+test unescape_quotes get 
     <<<
         <hello\"world>
     >>> 
@@ -27,23 +238,23 @@ test unescape_quotedstr get
         <hello"world>
     >>> 
 
-let tester = unrender_quotedstr ; unescape_quotedstr
+let tester = unrender_quotes ; unescape_quotes
 (* DOESN'T WORK!! *)
 *)
 
-let unrender_quotedstr R =
+let unrender_quotes R =
     "\"" <-> "" 
   . copy R
   . "\"" <-> "" 
 
-let unescape_quotedstr_char =
+let unescape_quotes_char =
     "\\\"" <-> "\""
   | "\\\\" <-> "\\"
   | copy (ANYCHAR - [\\])
 
-let unescape_quotedstr = unescape_quotedstr_char*
+let unescape_quotes = unescape_quotes_char*
 
-test unescape_quotedstr get 
+test unescape_quotes get 
     <<<
         <hello\"world>
     >>> 
@@ -52,7 +263,7 @@ test unescape_quotedstr get
         <hello"world>
     >>> 
 
-let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
+let test1 = unrender_quotes (ctype unescape_quotes) ; unescape_quotes
 
 (* Does this transformation work in general? *)
 
@@ -180,7 +391,7 @@ let escape
   (pairs : (char * string) List.t where
              no_repeated_escape_codes pairs &&
              iterable (char_or_escaped pairs))
-  : (ANY <-> (char_or_escaped pairs)*)
+  : (ANY <-> (char_or_escaped pairs)* )
   =
   let escape_char =
     List.fold_left
@@ -249,14 +460,6 @@ test l2 get
         <tag> &lt;hello"world&gt; </tag>
     >>>
 
-(* TODO move this to lenses/list.boom at some point *)
-let list_reverse (l : 'a List.t) : 'a List.t =
-  List.fold_left (fun l p -> (List.Cons(p,l))) List.Nil l
-
-(* do we want a (precise) contract on the result? *)
-let list_map (f : 'a -> 'b) (la : 'a List.t) : 'b List.t =
-  list_reverse (List.fold_left (fun lb p -> (List.Cons(f p,lb))) List.Nil la)
-
 let concatable (lenses : lens List.t) (sep : lens) : bool =
   let concatted = List.fold_left 
     (fun l_acc l -> 
@@ -304,3 +507,5 @@ test l3 get
         <first>Michael "The Autominator"</first><last>Greenberg, Jr. &amp;c</last>
     >>>
 
+*)
+*)

@@ -21,10 +21,8 @@
 
 (* module imports and abbreviations *)
 open Bident
-module R = Bregexp
 module L = Blenses.DLens
 module C = Blenses.Canonizer
-module RS = Bstring
 
 (* function abbreviations *)
 let sprintf = Printf.sprintf 
@@ -35,9 +33,9 @@ type t =
   | Unt of Info.t 
   | Bol of Info.t * bool
   | Int of Info.t * int
-  | Chr of Info.t * RS.sym
-  | Str of Info.t * RS.t 
-  | Rx  of Info.t * R.t
+  | Chr of Info.t * char
+  | Str of Info.t * string
+  | Rx  of Info.t * Brx.t
   | Lns of Info.t * L.t
   | Can of Info.t * C.t
   | Fun of Info.t * (t -> t)
@@ -67,15 +65,15 @@ let rec equal v1 v2 = match v1,v2 with
   | Chr(_,c1), Chr(_,c2) -> 
       c1=c2
   | Chr(_,c), Str(_,s) | Str(_,s), Chr(_,c) -> 
-      RS.equal (RS.make 1 c) s
+      (String.make 1 c) = s
   | Chr(_,c), Rx(_,r) | Rx(_,r), Chr(_,c) -> 
-      R.equiv (R.str false (RS.make 1 c)) r
+      Brx.equiv (Brx.mk_string (String.make 1 c)) r
   | Str(_,s1), Str(_,s2) -> 
-      RS.equal s1 s2  
+      s1 = s2  
   | Str(_,s), Rx(_,r) | Rx(_,r), Str(_,s) -> 
-      R.equiv (R.str false s) r
+      Brx.equiv (Brx.mk_string s) r
   | Rx(_,r1), Rx(_,r2) -> 
-      R.equiv r1 r2
+      Brx.equiv r1 r2
   | Lns _, Lns _ -> 
       Error.simple_error (sprintf "Cannot test equality of lenses.")
   | Can _, Can _ -> 
@@ -98,9 +96,9 @@ and format = function
   | Unt(_)       -> Util.format "()"
   | Int(_,n)     -> Util.format "%d" n
   | Bol(_,b)     -> Util.format "%b" b
-  | Chr(_,c)     -> Util.format "'%s'" (RS.repr c)
-  | Str(_,rs)    -> Util.format "\"%s\"" (RS.string_of_t rs)
-  | Rx(_,r)      -> Util.format "%s" (R.string_of_t r)
+  | Chr(_,c)     -> Util.format "'%s'" (Char.escaped c)
+  | Str(_,rs)    -> Util.format "\"%s\"" rs
+  | Rx(_,r)      -> Util.format "%s" (Brx.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
   | Can(_,c)     -> Util.format "%s" (C.string c)
   | Fun(_,f)     -> Util.format "<function>"

@@ -37,7 +37,7 @@ let tag (s:string) : string = s . "  - "
 
 let ANY_TAG : regexp = [A-Z] . [A-Z0-9] . /  - /
 
-let NO_TAGS (r:regexp) : regexp = 
+let no_tags (r:regexp) : regexp = 
   r - (ANY . ANY_TAG . ANY)
 
 let ty_tag : string = tag "TY"
@@ -103,7 +103,7 @@ test authors.get
 (* HELPER FUNCTIONS *)
 let ws = [ \t]*
 
-let to_lower : (lens in [^@{}"] <-> ([a-z] | [^A-Z@{}"])) = 
+let to_lower : lens = 
   ( ([aA] <-> "a") 
   | ([bB] <-> "b")  
   | ([cC] <-> "c")  
@@ -137,24 +137,24 @@ let upper : regexp = [A-Z]
 let lower_no_ws = [^A-Z@{}" \n\t]   (* " *)
 let ws = [ \n\t]
 
-let braces : (lens in (/{/ . [^@{}"]+ . /}/) <-> (([{] . [A-Z] . [}]) | lower)+ ) = 
+let braces : lens = 
   del /{/ . 
     (ins "{" . copy upper . ins "}" | 
      copy lower)+ . 
   del /}/
 
-test braces get "{HeLlO}" = "{H}e{L}l{O}"
-test braces create "{F}oo" = "{Foo}"
-test braces create "ho{W}{D}{Y}" = "{hoWDY}"
+test braces.get "{HeLlO}" = "{H}e{L}l{O}"
+test braces.create "{F}oo" = "{Foo}"
+test braces.create "ho{W}{D}{Y}" = "{hoWDY}"
 
 (* how do we write precise types for canonizers? *)
 let empty_cn : canonizer = mk_cn (copy //)
 
 let first_cn : canonizer = mk_cn (ins "{" . copy upper . ins "}" | copy lower | braces)
 
-test cls first_cn "H" = "{H}"
-test cls first_cn "f" = "f"
-test cls first_cn "{HeLlO}" = "{H}e{L}l{O}"
+test canonize first_cn "H" = "{H}"
+test canonize first_cn "f" = "f"
+test canonize first_cn "{HeLlO}" = "{H}e{L}l{O}"
 
 (* NOTE: must be lazy star *)
 (* what is lazy star? JNF *)
@@ -164,13 +164,10 @@ let rest_cn  : canonizer = (mk_cn (to_lower | braces))*
 (* what is lazy dot? *)
 let title_can : canonizer = empty_cn | (first_cn . rest_cn)
 
-test rep title_can "{L}{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava" = 
-                   "L{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava"
+test choose title_can "{L}{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava" = 
+                      "L{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava"
 
-let canonize_title 
-  : (lens in ([^@{}"] | "{" . [^@{}"]+ . "}")* <->
-             ((" "? . [^@{}" \n\t])* . " "? ))
-  =
+let canonize_title : lens = 
   (* ??? should we bother? it will only be messier 
      than the outer type *)
   let l : lens = 
@@ -206,12 +203,7 @@ let quoted_value = no_tags ([^@"\\] | esc "\"")*            (* " *)
 let start_field (lb:string) : regexp = ws* . /=/ . ws* . str lb
 let end_field (rb:string) : regexp = str rb . [ ]* . /,/ . [ ]* . /\n/
 
-let mk_template 
-  (lb:string) 
-  (l:lens where splittable (del (start_field lb)) l) 
-  (rb:string where splittable (del (start_field lb) . l) (del (end_field rb)))
-  : (lens in ((start_field lb) . (ctype l) . (end_field rb)) <-> (atype l))
-  = 
+let mk_template (lb:string) (l:lens) (rb:string) : lens = 
   del (start_field lb) . l . del (end_field rb)
 
 (* I lifted this out to avoid re-calculating the NFAs for the
@@ -227,12 +219,7 @@ let std_field_bibtex (o:regexp) = ws_nl . o . (ctype any_preamble)
 let std_field_ris (r:string) (c:string) = (str r) . (atype any_preamble) . (str c)
 
 (* str concatenations in atype of return are fine; we only need the check on o *)
-let do_std_field
-  (r:string) 
-  (o:regexp where splittable (del o) any_preamble)
-  (c:string) 
-  : (lens in std_field_bibtex o <-> std_field_ris r c)
-  = 
+let do_std_field (r:string) (o:regexp) (c:string) : lens = 
   (ws_nl <-> r) . del o . any_preamble . ins c
       
 let mk_do_field 
@@ -241,59 +228,51 @@ let mk_do_field
   (o:regexp) 
   (lb:string) 
   (l:lens) 
-  (rb:string where splittable (lo o) (mk_template lb l rb))
+  (rb:string)
   (c:string) 
-  : (lens in 
-      (ws_nl . (ctype (lo o . mk_template lb l rb))) <-> 
-      ((str r) . (atype (lo o . mk_template lb l rb)) . (str c)))
-  = 
+  : lens = 
   (ws_nl <-> r) . lo o . mk_template lb l rb . ins c
 
-let field_bibtex (loo:lens) (l1:lens) (l2:lens) (l3:lens) =
+let field_bibtex (loo:lens) (l1:lens) (l2:lens) (l3:lens) : lens =
   let tmpl1 = mk_template "{" l1 "}" in
   let tmpl2 = mk_template "\"" l2 "\"" in
   let tmpl3 = mk_template "" l3 "" in
   let templates = tmpl1 | tmpl2 | tmpl3 in
   ws_nl . (ctype loo) . (ctype templates)
 
-let field_ris (r:string) (loo:lens) (l1:lens) (l2:lens) (l3:lens) (c:string) =
+let field_ris (r:string) (loo:lens) (l1:lens) (l2:lens) (l3:lens) (c:string) : lens =
   let tmpl1 = mk_template "{" l1 "}" in
   let tmpl2 = mk_template "\"" l2 "\"" in
   let tmpl3 = mk_template "" l3 "" in
   let templates = tmpl1 | tmpl2 | tmpl3 in
   (str r) . (atype loo) . (atype templates) . (str c)
 
-let uniform_field_bibtex (loo:lens) (l:lens) = field_bibtex loo l l l
-let uniform_field_ris (r:string) (loo:lens) (l:lens) (c:string) =
+let uniform_field_bibtex (loo:lens) (l:lens) : lens = field_bibtex loo l l l
+let uniform_field_ris (r:string) (loo:lens) (l:lens) (c:string) : lens =
   field_ris r loo l l l c
 
 let do_field 
   (r:string) 
   (lo:regexp -> lens) 
   (o:regexp) 
-  (l1:lens where splittable (lo o) (mk_template "{" l1 "}"))
-  (l2:lens where splittable (lo o) (mk_template "\"" l2 "\""))
-  (l3:lens where splittable (lo o) (mk_template "" l3 ""))
+  (l1:lens)
+  (l2:lens)
+  (l3:lens)
   (c:string) 
-  : (lens in 
-    field_bibtex (lo o) l1 l2 l3 <-> field_ris r (lo o) l1 l2 l3)
-  =
+  : lens =
     mk_do_field r lo o "{" l1 "}" c
   | mk_do_field r lo o "\"" l2 "\"" c
   | mk_do_field r lo o "" l3 "" c
 
 (* special processors for fields *)
-let digits = [0-9]+
+let digits : regexp = [0-9]+
 
-let page_value 
-  : (lens in (digits . [\-]+ . digits) <->
-             (/SP  - / . digits . /\n/ . /EP  - / . digits))
-  = 
+let page_value : lens =  
   ins (tag "SP") . copy [0-9]+ . ins "\n" . 
   del [\-]+ . 
   ins (tag "EP") . copy [0-9]+ 
 
-let month_data = 
+let month_data : lens = 
     (/January/ | /jan/) <-> "01"
   | (/February/ | /feb/) <-> "02"
   | (/March/ | /mar/) <-> "03"
@@ -307,41 +286,41 @@ let month_data =
   | (/November/ | /nov/) <-> "11"
   | (/December/ | /dec/) <-> "12"
 
-let month_str = ctype month_data
-let month_num = atype month_data
+let month_str : regexp = ctype month_data
+let month_num : regexp = atype month_data
 
-let dates_bibtex = 
+let dates_bibtex : lens = 
   (std_field_bibtex /year/) . (uniform_field_bibtex (del /month/) month_data)?
 
-let dates_ris = "PY  - " . (no_tags bare_value) . "/" . month_num? . (str "//\n")
+let dates_ris : regexp = "PY  - " . (no_tags bare_value) . "/" . month_num? . (str "//\n")
 
-let do_dates : (lens in dates_bibtex <-> dates_ris) = 
-  let do_year = do_std_field (tag "PY") /year/ "/" in
-  let do_month = do_field "" del /month/ month_data month_data month_data "" in 
+let do_dates : lens = 
+  let do_year : lens = do_std_field (tag "PY") /year/ "/" in
+  let do_month : lens = do_field "" del /month/ month_data month_data month_data "" in 
     (do_year . do_month?)
     . ins "//" 
     . ins "\n"
 
-let title_bibtex = 
+let title_bibtex : lens = 
   field_bibtex (del /title/) canonize_title canonize_title (copy bare_value)
 
-let title_ris =
+let title_ris : lens =
   field_ris (tag "T1") (del /title/) 
             canonize_title canonize_title (copy bare_value)
             "\n"
 
-let do_title : (lens in title_bibtex <-> title_ris) = 
+let do_title : lens = 
   do_field (tag "T1") del /title/ 
            canonize_title canonize_title (copy bare_value) "\n"
 
-let pages_bibtex =
-  field_bibtex (del /pages/) page_value page_value (copy none)
+let pages_bibtex : lens =
+  field_bibtex (del /pages/) page_value page_value (copy NONE)
 
-let pages_ris =
-  field_ris "" (del /pages/) page_value page_value (copy none) "\n"
+let pages_ris : lens =
+  field_ris "" (del /pages/) page_value page_value (copy NONE) "\n"
 
-let do_pages : (lens in pages_bibtex <-> pages_ris) = 
-  do_field "" del /pages/ page_value page_value (copy none) "\n"
+let do_pages : lens = 
+  do_field "" del /pages/ page_value page_value (copy NONE) "\n"
 
 
 let non_field = ([a-zA-Z]+ - 
@@ -349,44 +328,26 @@ let non_field = ([a-zA-Z]+ -
                    /number/ | /note/ | /pages/ | /year/ | /month/ | /address/ |
                    /url/ | /pdf/ | /issn/ | /publisher/ | /abstract/ |
                    /series/))
-let noteize (r:regexp) = (copy r) . ins ": "
+let noteize (r:regexp) : lens = (copy r) . ins ": "
 
-let field_to_note_bibtex = 
+let field_to_note_bibtex : lens = 
   field_bibtex (noteize non_field)
                (copy braced_value) (copy quoted_value) (copy bare_value)
 
-let field_to_note_ris =
+let field_to_note_ris : lens =
   field_ris (tag "M1") (noteize non_field)
             (copy braced_value) (copy quoted_value) (copy bare_value)
             "\n"
 
-let do_field_to_note : (lens in field_to_note_bibtex <-> field_to_note_ris) = 
+let do_field_to_note : lens = 
     do_field (tag "M1") noteize non_field 
              (copy braced_value) (copy quoted_value) (copy bare_value)
              "\n"
   
-let field_ris_tnl (r:string) = std_field_ris (tag r) "\n"
+let field_ris_tnl (r:string) : lens = std_field_ris (tag r) "\n"
 
 let non_author_fields 
-  : (lens in 
-      (title_bibtex | dates_bibtex | pages_bibtex |
-       std_field_bibtex /booktitle/ | std_field_bibtex /journal/ |
-       std_field_bibtex /volume/    | std_field_bibtex /number/ |
-       std_field_bibtex /note/      | std_field_bibtex /address/ |
-       std_field_bibtex /url/       | std_field_bibtex /pdf/ |
-       std_field_bibtex /issn/      | std_field_bibtex /publisher/ |
-       std_field_bibtex /abstract/  | std_field_bibtex /series/ |
-       field_to_note_bibtex)* 
-    <->
-      (title_ris | dates_ris | pages_ris |
-       field_ris_tnl "T2" | field_ris_tnl "JO" |
-       field_ris_tnl "VL" | field_ris_tnl "IS" |
-       field_ris_tnl "N1" | field_ris_tnl "AD" |
-       field_ris_tnl "UR" | field_ris_tnl "L1" |
-       field_ris_tnl "SN" | field_ris_tnl "PB" |
-       field_ris_tnl "N2" | field_ris_tnl "T3" |
-       field_to_note_ris)* ) 
-  = 
+  : lens = 
   ( do_title
   | do_dates
   | do_pages
@@ -404,52 +365,46 @@ let non_author_fields
   | do_std_field (tag "T3") /series/ "\n"
   | do_field_to_note)* (* star is on the whole union *) 
 
-let author_field 
-  : (lens in (field_bibtex (del /author/) authors authors (copy none)) 
-         <-> (field_ris "" (del /author/) authors authors (copy none) "\n"))
-  = 
-    do_field "" del /author/ authors authors (copy none) "\n"
+let author_field : lens = 
+  do_field "" del /author/ authors authors (copy NONE) "\n"
 
-let fields_bibtex = (ctype author_field) . (ctype non_author_fields)
-let fields_ris = (atype author_field) . (atype non_author_fields)
+let fields_bibtex : regexp = (ctype author_field) . (ctype non_author_fields)
+let fields_ris : regexp = (atype author_field) . (atype non_author_fields)
 
-let fields : (lens in fields_bibtex <-> fields_ris) 
-  = 
+let fields : lens = 
   author_field . non_author_fields
 
-let key_re = [^@{}",\n ]+
+let key_re : regexp = [^@{}"",\n ]+
 
-let key_bibtex = key_re . /,/ . [ ]* . /\n/
-let key_ris = (str (tag "ID")) . key_re
+let key_bibtex : regexp = key_re . /,/ . [ ]* . /\n/
+let key_ris : regexp = (str (tag "ID")) . key_re
 
-let do_key 
-  : (lens in key_bibtex <-> key_ris)
-  = ins (tag "ID") . key [^@{}",\n ]+ . ((/,/ . [ ]* . /\n/) <-> "")
+let do_key : lens 
+  = ins (tag "ID") . key [^@{}"",\n ]+ . ((/,/ . [ ]* . /\n/) <-> "")
 
-test do_key get "dtts,\n" = ?
+test do_key.get "dtts,\n" = "ID  - dtts"
 
-let type_bibtex (b:string) = /@/ . (str b) . ws_nl . /{/
-let type_ris (r:string) = /TY  - / . (str r)
+let type_bibtex (b:string) : regexp = /@/ . (str b) . ws_nl . /{/
+let type_ris (r:string) : regexp = /TY  - / . (str r)
 
 (* trivially splittable -- everything is constant strings*)
-let do_type (b:string) (r:string) 
-  : (lens in type_bibtex b <-> type_ris r)
-  = (/@/ . (str b) . ws_nl . /{/) <-> ("TY  - " . r)
+let do_type (b:string) (r:string) : lens = 
+  (/@/ . (str b) . ws_nl . /{/) <-> ("TY  - " . r)
 
 
-let chunk_bibtex =
+let chunk_bibtex : lens =
   (type_bibtex "article"       | type_bibtex "inproceedings" |
    type_bibtex "misc"          | type_bibtex "incollection" |
    type_bibtex "mastersthesis" | type_bibtex "manual" |
    type_bibtex "phdthesis") .  (* includes the open { *)
   key_bibtex . fields_bibtex . ws_nl . /}/
 
-let chunk_ris =
+let chunk_ris : lens =
   (type_ris "JOUR" | type_ris "CONF" | type_ris "UNPB" |
    type_ris "CHAP" | type_ris "THES" | type_ris "COMP") . "\n" .
   key_ris . "\n" . fields_ris . "ER  -\n\n"
 
-let chunk : (lens in chunk_bibtex <-> chunk_ris) = 
+let chunk : lens = 
   ( do_type "article" "JOUR" 
   | do_type "inproceedings" "CONF"
   | do_type "misc" "UNPB"
@@ -462,17 +417,17 @@ let chunk : (lens in chunk_bibtex <-> chunk_ris) =
   fields . 
   ((ws_nl . /}/) <-> "ER  -\n\n")
 
-let non_entry = 
-  any - (any . 
+let non_entry : regexp = 
+  ANY - (ANY . 
          (/@/ . (/article/       | /inproceedings/ | /misc/ | /incollection/ |
                  /mastersthesis/ | /manual/        | /phdthesis/)) .
-         any)
+         ANY)
 
-let del_non_entry : (lens in non_entry <-> //) 
-  = del non_entry
+let del_non_entry : lens = 
+  del non_entry
     
-let ris : (lens in ((non_entry . chunk_bibtex)* . non_entry) <-> chunk_ris* )
-  = del_non_entry 
+let ris : lens = 
+    del_non_entry 
   | del_non_entry . <chunk> . (del_non_entry . <chunk>)* . del_non_entry
 
 test ris.get 

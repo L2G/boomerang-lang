@@ -591,11 +591,10 @@ and syneq_exp e1 e2 = match e1,e2 with
   | EBoolean(_,b1),EBoolean(_,b2) -> b1 = b2
   | EInteger(_,n1),EInteger(_,n2) -> n1 = n2
   | EChar(_,c1),EChar(_,c2)       -> c1 = c2
-  | EString(_,s1),EString(_,s2)   -> Bstring.equal s1 s2
+  | EString(_,s1),EString(_,s2)   -> s1 = s2
   | ECSet(_,b1,cl1),ECSet(_,b2,cl2) -> 
-      rec_eq (fun (s11,s12) (s21,s22) -> 
-                Bstring.compare_sym s11 s12 = 0
-             && Bstring.compare_sym s21 s22 = 0)
+      rec_eq 
+        (fun (s11,s12) (s21,s22) -> s11 = s12 && s21 = s22)
         (b1=b2) cl1 cl2
   | _ -> false
 

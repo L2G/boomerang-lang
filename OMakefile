@@ -24,18 +24,19 @@ OCAMLFLAGS    = -dtypes -rectypes
 
 if $(or $(defined PROFILING_NATIVE_CODE), $(defined PNC))
 	OCAMLOPTFLAGS += -p
-	BYTE_CODE_ENABLED=false
+	BYTE_ENABLED=false
 	export
 
 if $(defined SATURN)
 	OCAMLOPTFLAGS += -ccopt -pg -ccopt -lSaturn
-	BYTE_CODE_ENABLED=false
+	BYTE_ENABLED=false
 	export
 
-if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
-	OCAMLCFLAGS += -p a
-	OCAMLC = ocamlcp
-	NATIVE_CODE_ENABLED=false
+if $(or $(defined BYTE_CODE), $(defined BC))
+        OCAMLCFLAGS += -g
+	OCAMLC = ocamlc
+	NATIVE_ENABLED=false
+	BYTE_ENABLED=true
 	export
 
 ##############################################################################

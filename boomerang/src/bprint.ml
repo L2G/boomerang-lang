@@ -186,11 +186,10 @@ and format_exp e0 = match e0 with
     | EBoolean (_,b) -> 
         msg "@[%b@]" b
 
-    | EChar(_,c) -> msg "'%s'" (Bstring.repr c)
+    | EChar(_,c) -> msg "'%s'" (Char.escaped c)
 
     | EString (_,s) ->
-	msg "@[\"%s\"@]" 
-          (Bstring.escaped (Bstring.string_of_t s))
+	msg "@[\"%s\"@]" (Misc.whack s)
 
     | EInteger (_,i) ->
 	msg "@[%d@]" i
@@ -200,11 +199,11 @@ and format_exp e0 = match e0 with
 	(if pos then () else msg "^");
 	Misc.format_list ""
 	  (fun (first, last) ->
-	     if Bstring.compare_sym first last = 0
-	     then msg "%s" (Bstring.escaped_repr first)
+	     if first = last
+	     then msg "%s" (Char.escaped first)
 	     else msg "%s-%s" 
-	       (Bstring.escaped_repr first)
-	       (Bstring.escaped_repr last))
+	       (Char.escaped first)
+	       (Char.escaped last))
 	  ranges;
 	  msg "]@]"
 

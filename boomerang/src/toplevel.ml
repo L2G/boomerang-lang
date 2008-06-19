@@ -21,7 +21,6 @@
 
 (* imports *)
 module L = Blenses.DLens
-module BS = Bstring
 open Error 
 
 let sprintf = Printf.sprintf
@@ -55,11 +54,11 @@ let lookup_lens qid_str =
 (* Filesystem helpers *)          
 let read_string fn = 
   debug (fun () -> Util.format "Reading %s@\n" fn);
-  BS.t_of_string (Misc.read fn)
+  Misc.read fn
 
 let write_string fn s = 
   debug (fun () -> Util.format "Writing back %s@\n" fn);
-  Misc.write fn (BS.string_of_t s)
+  Misc.write fn s
     
 (*********)
 (* CHECK *)
@@ -146,7 +145,7 @@ let sync l o_fn c_fn a_fn =
         let a = read_string a_fn in 
         let c = read_string c_fn in 
         let a' = get_str l c in 
-        if BS.equal a a' then 
+        if a = a' then 
           begin
             debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
             write_string o_fn c;
@@ -167,7 +166,7 @@ let sync l o_fn c_fn a_fn =
         let c = read_string c_fn in 
         let a = read_string a_fn in 
         let a' = get_str l c in 
-        if BS.equal a a' then 
+        if a = a' then 
           begin 
             debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
             write_string o_fn c;
@@ -175,14 +174,14 @@ let sync l o_fn c_fn a_fn =
           end
         else
           let a' = get_str l o in 
-            if BS.equal a a' then 
+            if a = a' then 
               begin 
                 debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
                 write_string a_fn (get_str l c);
                 write_string o_fn c;
                 0
               end
-            else if BS.equal c o then
+            else if c = o then
               begin 
                 debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
                 let c' = put_str l a o in 

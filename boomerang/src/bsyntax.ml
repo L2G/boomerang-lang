@@ -86,9 +86,9 @@ and exp =
     | EUnit    of Info.t  
     | EBoolean of Info.t * bool
     | EInteger of Info.t * int    
-    | EChar    of Info.t * Bstring.sym
-    | EString  of Info.t * Bstring.t 
-    | ECSet    of Info.t * bool * (Bstring.sym * Bstring.sym) list 
+    | EChar    of Info.t * char
+    | EString  of Info.t * string
+    | ECSet    of Info.t * bool * (char * char) list 
 
 (* overloaded operators *)
 and op = 
@@ -206,5 +206,5 @@ let exp_of_blame i b =
     | Blame(Info.M s) -> s,(-1,-1),(-1,-1) in     
   let p1 = EPair(i,EInteger(i,i1),EInteger(i,i2)) in 
   let p2 = EPair(i,EInteger(i,j1),EInteger(i,j2)) in 
-  EPair(i,EString(i,Bstring.t_of_string fn),EPair(i,p1,p2)) 
+  EPair(i,EString(i,fn),EPair(i,p1,p2)) 
 

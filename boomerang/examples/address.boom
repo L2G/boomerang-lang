@@ -116,25 +116,25 @@ let escchar (c:regexp) : lens =
 let unescchar (c:regexp) : lens = invert (escchar c)
 
 (* escstr: escape a string using [escchar] *)
-let escstr (c:regexp) : { ? <-> EscapedStr c } = (escchar c)*
+let escstr (c:regexp) : lens = (escchar c)*
 
 (* escNonEmptyStr: escape a non-empty string using [escchar] *)
-let escNonEmptyStr (c:regexp) : { ? <-> NonEmptyEscapedStr c } = (escchar c)+
+let escNonEmptyStr (c:regexp) : lens = (escchar c)+
 
 (* unescstr: unescape a string using [unescchar] *)
-let unescstr (c:regexp) : { EscapedStr c <-> ? } = (unescchar c)*
+let unescstr (c:regexp) : lens = (unescchar c)*
 
 (* unescNonEmptyStr: unescape a non-empty string using [unescchar] *)
-let unescNonEmptyStr (c:regexp) : { NonEmptyEscapedStr c <-> ? } = (unescchar c)+
+let unescNonEmptyStr (c:regexp) : lens = (unescchar c)+
 
 (* unit tests for escaping lenses *)
-test (escchar empty)* get "a\nb\\c" = "a\\nb\\\\c"
-test (unescchar empty)* get "\n" = error
-test (unescchar empty)* get "abc" = "abc"
-test (unescchar empty)* get "\\\\" = "\\"
-test (unescchar empty)* get "\\n" = "\n"
-test (escchar [,])* get "a,b" = "a\\,b"
-test (unescchar [,])* get "\\," = ","
+test (escchar empty)*.get "a\nb\\c" = "a\\nb\\\\c"
+test (unescchar empty)*.get "\n" = error
+test (unescchar empty)*.get "abc" = "abc"
+test (unescchar empty)*.get "\\\\" = "\\"
+test (unescchar empty)*.get "\\n" = "\n"
+test (escchar [,])*.get "a,b" = "a\\,b"
+test (unescchar [,])*.get "\\," = ","
 
 (* -------------------------------------------------------------------- *)
 (* TELEPHONE AND NAME FIELDS *)
@@ -211,7 +211,7 @@ let unformatspecial : lens =
   | /\\;/ <-> ";" ) 
 
 (* formatnotemptyname: escape string to Name *)
-let formatnotemptyname : { ? <-> Name } = 
+let formatnotemptyname : lens = 
   formatter escstr formatspecial  [,]
 
 (* unformatnotemptyname: unescape string from Name *)
@@ -221,15 +221,15 @@ let unformatnotemptyname : lens =
 (* name: handles escaping and formatting of a Name. We do this in two 
    passes. First, we unformat to put everything in a canonical "raw" form, 
    Then we format to escape characters and render the name *)
-let name : { ? <-> GlobalName } = 
+let name : lens = 
   let escNonEmptyName = 
     unformatnotemptyname ; formatnotemptyname in
   let familyname = 
     del "N:" . escNonEmptyName in
-  familyname . (del ";" | /;/ <-> ", " . escNonEmptyName ) . del ";;;"
+  familyname . (del ";" | (/;/ <-> ", ") . escNonEmptyName ) . del ";;;"
 
 (* unit test for name *)
-test name get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
+test name.get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
 
 (* formattel: lens for escaping tel data *)
 let formattel : lens = escstr [,]
@@ -240,7 +240,7 @@ let formattel : lens = escstr [,]
      o w2: tag in CSV view
 *)
 let field' (w0:string) (w1:string) (w2:string) =
-  str (w0 . ";") <-> ", " . 
+  ((w0 . ";") <-> ", ") . 
   del "type=" . del w1 . 
   del (/;type=/ . [A-Z]+)* . 
   (copy "" | del ";type=pref") .
@@ -264,14 +264,14 @@ let formatnote : lens = escstr [,]
 (* note: lens for handling note fields. Again, we use the two-pass 
    approach--unformatting / unescaping, and then reformatting / reescaping *)
 let note : lens =
-  /NOTE:/ <-> ", " .
+  (/NOTE:/ <-> ", ") .
   (unescstr [,:;]; formatnote) .
   ins " (note)" .
   del NL
 
 (* abemail: lens for Apple's special email field. Uses two-pass approach. *)
 let abemail : lens =
-  /item.EMAIL;type=INTERNET;type=pref:/ <-> ", " .
+  (/item.EMAIL;type=INTERNET;type=pref:/ <-> ", ") .
   (unescstr [,:;]; escstr [,]) .
   del NL .
   del "item.X-ABLabel:E-mail" . 
@@ -305,7 +305,7 @@ let Field_unnumbered : regexp =
   Field - (NumberedItem "1" | NumberedItem "2" | NumberedItem "3")
 
 (* remove_item_numbers: lens for deleting item numberings *)
-let remove_item_numbers : { ? <-> Field_unnumbered* } = 
+let remove_item_numbers : lens = 
   let delItemNumber (n:string) : lens = 
     copy "item" . 
     del n . 
@@ -325,7 +325,7 @@ let remove_item_numbers : { ? <-> Field_unnumbered* } =
   | ( copy Field_unnumbered* ) )
 
 (* chunk: lens for a vCard entry *)
-let chunk : { ? <-> AbsAddr } = 
+let chunk : lens =  
   (* delete preamble *)
   del "BEGIN:VCARD" . del NL . 
   del "VERSION:3.0" . del NL .  
@@ -347,7 +347,7 @@ let vcard = <chunk>
 
 (* unit tests for vcard *)
 let samplevcard = 
-  <<<
+  <<
     BEGIN:VCARD
     VERSION:3.0
     N:Andy Patroni;;;;
@@ -356,14 +356,14 @@ let samplevcard =
     X-ABUID:827704A0-38A3-4034-84BF-BADFB87EB1E2\:ABPerson
     END:VCARD
     
->>>
+  >>
 
-test vcard create 
-<<<
+test vcard.create 
+<<
   Foo, Jean-Paul, jean-paul.courbebaisse@education.gouv.fr (e), 1234567 (h), bar (e)
->>>
+>>
 = 
-<<<
+<<
   BEGIN:VCARD
   VERSION:3.0
   N:Foo;Jean-Paul;;;
@@ -374,11 +374,11 @@ test vcard create
   item2.X-ABLabel:E-mail
   END:VCARD
 
->>>
+>>
   
-test vcard put "Foo, Jean-Paul, bar (e)" 
+test vcard.put "Foo, Jean-Paul, bar (e)" 
   into
-<<<
+<<
   BEGIN:VCARD
   VERSION:3.0
   N:AAAAA TEST;Jean-Paul;;;
@@ -389,9 +389,9 @@ test vcard put "Foo, Jean-Paul, bar (e)"
   item2.X-ABLabel:E-mail
   END:VCARD
 
->>> 
+>> 
 = 
-<<<
+<<
   BEGIN:VCARD
   VERSION:3.0
   N:Foo;Jean-Paul;;;
@@ -399,11 +399,11 @@ test vcard put "Foo, Jean-Paul, bar (e)"
   item1.X-ABLabel:E-mail
   END:VCARD
 
->>>
+>>
 
-test vcard get samplevcard = "Andy Patroni, 6106236713 (w)"
+test vcard.get samplevcard = "Andy Patroni, 6106236713 (w)"
 
-test vcard put 
+test vcard.put 
   "Andy Patroni, 12345 (c), 67890 (h)"
   into samplevcard = 
   "BEGIN:VCARD
@@ -416,10 +416,10 @@ test vcard put
   |END:VCARD
   |"
 
-test vcard put 
+test vcard.put 
   "Andy Patroni, fubar (note)" 
   into samplevcard =
-<<<
+<<
   BEGIN:VCARD
   VERSION:3.0
   N:Andy Patroni;;;;
@@ -428,14 +428,14 @@ test vcard put
   X-ABUID:827704A0-38A3-4034-84BF-BADFB87EB1E2\:ABPerson
   END:VCARD
 
->>>
+>>
 
 (* vcards: lens for a whole file of vcards *)
 let vcards : lens = (<chunk> . ins "\n") * . ws
 
 (* unit test for vcards *)
 let samplevcards = 
-<<<
+<<
   BEGIN:VCARD
   VERSION:3.0
   N:Androuet;;;;
@@ -485,10 +485,10 @@ let samplevcards =
   X-ABUID:A9BA5924-5A64-4D46-A40F-A0BC86073232\:ABPerson
   END:VCARD
 
->>>
+>>
       
-test vcards get samplevcards = 
-<<<
+test vcards.get samplevcards = 
+<<
   Androuet, (01) 42 89 95 00  41 rue d'Amsterdam  M. Liege  (cheese restaurant near St. Lazare\, Paris)  rather expensive and fancy and pungent (300FF/person) (note)
   New York Restaurants, two best mexican in nyc (according to Scot\, IIRC)\n          rosa mexicana\n          zarela's (note)
   Pierce, Benjamin C., 215 732-4684 (h), 215 266-9001 (c), 215 898-6222 (w)
@@ -497,16 +497,16 @@ test vcards get samplevcards =
   Biswas, Goutam
   Black, Andrew
 
->>>
+>>
 
-test vcards put 
-<<<
+test vcards.put 
+<<
   Andy Patroni, 6106236713 (w), fubar (note)
   Pierce, Benjamin C., 215 898-6222 (w), 215 732-4684 (h), 215 266-9001 (c)
 
->>>
+>>
 into samplevcards = 
-<<<
+<<
   BEGIN:VCARD
   VERSION:3.0
   N:Andy Patroni;;;;
@@ -525,7 +525,7 @@ into samplevcards =
   X-ABUID:87B85E7E-AB0F-4819-8647-0BD532019144\:ABPerson
   END:VCARD
 
->>>
+>>
 
 (* BCP's own unit test *)
 (* test vcards get (read "/home/bcpierce/Desktop/vCards.vcf") = ? *)
@@ -641,7 +641,7 @@ let samplevcard =
    </vcard>"
 
 (* unit test for vcard *)
-test vcard get samplevcard = 
+test vcard.get samplevcard = 
   "foo, bar, 12345 (h), 12345 (c), hello world (note)"
 
 (* xcard: lens for handling a single XCard xcard elemnet *)
@@ -666,16 +666,16 @@ let samplexcards : string =
      | </vcard>
      |</xcard>"
 
-test xcard get samplexcards =
-<<<
+test xcard.get samplexcards =
+<<
   Charles Addams, goodbye world (note)
   Doe, John, hello world (note), 792-8134 (h), 732-4684 (h)
   Doe, Sally, 792-8134 (h), 732-4684 (h), hello\, world ! Question : nice weather ? (no ?) (note)
 
->>>             
+>>             
 
-test xcard create "Foster, Nate, 267.342.1099 (h)\n" = 
-<<<
+test xcard.create "Foster, Nate, 267.342.1099 (h)\n" = 
+<<
   <xcard>
     <vcard>
       <n>
@@ -685,7 +685,7 @@ test xcard create "Foster, Nate, 267.342.1099 (h)\n" =
       <tel-home>267.342.1099</tel-home>
     </vcard>
   </xcard>
->>>
+>>
 
 (* Some notes about the Apple Address Book application:
    - \ characters do NOT round-trip: It will read a vCard containing
@@ -713,4 +713,3 @@ test xcard create "Foster, Nate, 267.342.1099 (h)\n" =
         in situations where the whole note can be parsed as a real note plus some extra
         fields.  (I.e., basically the abstract and concrete note formats are the same.)
 *)   
-

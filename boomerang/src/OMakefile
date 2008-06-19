@@ -41,9 +41,9 @@ RESULTS = boomerang.cmxa $(RESULT)$(EXE)
 # Sources
 
 BOOMERANG_BASE_SOURCES[] = \
-   rint.ml bstring.ml \
-   crm.ml erx.ml \
-   berror.ml bregexp.ml blenses.ml \
+   berror.mli berror.ml \
+   brx.mli brx.ml \
+   blenses.mli blenses.ml \
    bident.mli bident.ml \
    bvalue.mli bvalue.ml \
    bsyntax.mli bsyntax.ml \
