@@ -30,12 +30,14 @@ let sprintf = Printf.sprintf
 let (^>) = S.(^>)
 
 let wrap_rep i r = 
-  try Brx.representative r 
-  with Not_found -> 
-    raise (Error.Harmony_error(fun () -> 
-      Util.format "%s: cannot calculate representative; %s is empty."
-        (Info.string_of_t i)
-        (Brx.string_of_t r)))
+  match Brx.representative r with
+    | None -> 
+        raise (Error.Harmony_error
+                 (fun () -> 
+                    Util.format "%s: cannot calculate representative; %s is empty."
+                      (Info.string_of_t i)
+                      (Brx.string_of_t r)))
+    | Some w -> w
 
 let poly_error i se1 v1 = 
   Error.simple_error 
@@ -178,7 +180,7 @@ let prelude_spec =
 (*   ; pmk_llll   "duplicate"              (fun i -> L.duplicate i true) *)
 (*   ; pmk_llll   "duplicate_snd"          (fun i -> L.duplicate i false) *)
   ; pmk_ll     "forgetkey"              (fun i -> L.forgetkey)
-  ; pmk_rrl    "filter"          L.filter
+  ; pmk_rrl    "filter"                 L.filter
                                         
   (* canonizer operations *)            
   ; pmk_qqq    "canonizer_union"        C.union
@@ -233,8 +235,8 @@ let prelude_spec =
   ; pmk_bb     "not"                    (fun _ -> not)
                                         
   (* run-time checking *)               
-  ; pmk_lr     "ctype"                  (fun _ -> L.ctype)
-  ; pmk_lr     "atype"                  (fun _ -> L.atype)
+  ; pmk_lr     "ctype"                  (fun _ l -> Erx.erase (L.ctype l))
+  ; pmk_lr     "atype"                  (fun _ l -> Erx.erase (L.atype l))
   ; pmk_lq     "canonizer_of_lens"      L.canonizer_of_t
   ; pmk_rs     "string_of_regexp"       (fun _ r1 -> Brx.string_of_t r1)
 

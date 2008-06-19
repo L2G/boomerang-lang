@@ -21,9 +21,9 @@ and t = u * Brx.t
 
 let rec format_t (u1,r1) = match u1 with 
   | Box(tg,t11) | BoxStar(tg,t11) -> 
-      Util.format "@[<<%s" (if tg = "" then "" else tg ^ ":");
+      Util.format "@[%s%s" "<<" (if tg = "" then "" else tg ^ ":");
       format_t t11;
-      Util.format ">>%s@]" (match u1 with BoxStar _ -> "*" | _ -> "")
+      Util.format "%s%s@]" ">>" (match u1 with BoxStar _ -> "*" | _ -> "")
   | Seq(t11,t12) | Alt(t11,t12) -> 
       Util.format "@[<1>";
       format_t t11;
