@@ -35,12 +35,12 @@ module Canonizer : sig
   type t 
   val info : t -> Info.t
   val string : t -> string
-  val rtype : t -> Erx.t
-  val ctype : t -> Erx.t
+  val rtype : t -> Brx.t
+  val ctype : t -> Brx.t
   val canonize : t -> (string -> string)
   val choose : t -> (string -> string)
 
-(*   val columnize : Info.t -> string -> Erx.t -> string -> string -> t *)
+(*   val columnize : Info.t -> string -> Brx.t -> string -> string -> t *)
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
@@ -55,8 +55,8 @@ module DLens : sig
 
   val info : t -> Info.t
   val string : t -> string
-  val ctype : t -> Erx.t
-  val atype : t -> Erx.t
+  val ctype : t -> Brx.t
+  val atype : t -> Brx.t
   val rget : t -> (string -> string)
   val rput : t -> string -> string -> string
   val rcreate : t -> string -> string

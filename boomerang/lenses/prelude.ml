@@ -235,8 +235,8 @@ let prelude_spec =
   ; pmk_bb     "not"                    (fun _ -> not)
                                         
   (* run-time checking *)               
-  ; pmk_lr     "ctype"                  (fun _ l -> Erx.erase (L.ctype l))
-  ; pmk_lr     "atype"                  (fun _ l -> Erx.erase (L.atype l))
+  ; pmk_lr     "ctype"                  (fun _ -> L.ctype)
+  ; pmk_lr     "atype"                  (fun _ -> L.atype)
   ; pmk_lq     "canonizer_of_lens"      L.canonizer_of_t
   ; pmk_rs     "string_of_regexp"       (fun _ r1 -> Brx.string_of_t r1)
 

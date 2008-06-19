@@ -58,19 +58,23 @@ let rec has_box (u,_) = match u with
   | Alt(t1,t2) -> 
       has_box t1 || has_box t2
 
+let rec has_immediate_box (u,_) = match u with
+  | Box(_) -> true
+  | _ -> false
+
 (* lifted operations ... *)
-let mk_star i t1 = 
+let mk_star t1 = 
   let (u1,r1) = t1 in     
   let u = match u1 with
     | Box(tg,t11) -> BoxStar(tg,t11)
     | _ -> 
         if has_box t1 then 
-          Berror.run_error i 
+          Berror.run_error (Info.M "mk_star") 
             (fun () -> Util.format "@[mk_star: %s contains a box@]" (string_of_t t1))
         else Leaf in
   (u,Brx.mk_star r1)
 
-let mk_seq i t1 t2 = 
+let mk_seq t1 t2 = 
   let (_,r1) = t1 in 
   let (_,r2) = t2 in 
   let u = 
@@ -78,7 +82,7 @@ let mk_seq i t1 t2 =
     else Leaf in 
   (u,Brx.mk_seq r1 r2)
 
-let mk_alt i t1 t2 = 
+let mk_alt t1 t2 = 
   let (_,r1) = t1 in 
   let (_,r2) = t2 in 
   let u = 
@@ -86,13 +90,13 @@ let mk_alt i t1 t2 =
     else Leaf in 
    (u,Brx.mk_alt r1 r2)
 
-let mk_key i r1 = 
+let mk_key r1 = 
   (Key,r1)
 
-let mk_leaf i r1 = 
+let mk_leaf r1 = 
   (Leaf,r1)
 
-let mk_box i tg t1 = 
+let mk_box tg t1 = 
   let (_,r1) = t1 in 
   (Box(tg,t1),r1)
 

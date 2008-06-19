@@ -157,6 +157,11 @@ let map_option f = function
     None -> None
   | Some x -> Some (f x)
 
+let map2_option f o1 o2 = 
+  match o1,o2 with
+    | Some x1,Some x2 -> Some (f x1 x2)
+    | _ -> None
+
 let map2opt f xs ys =
   let rec loop acc = function
       [],[] -> Safelist.rev acc

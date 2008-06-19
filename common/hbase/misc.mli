@@ -84,6 +84,9 @@ val composel : ('a -> 'a) list -> ('a -> 'a)
 val map_option : ('a -> 'b) -> 'a option -> 'b option
 (** [map_option f o] returns [Some(f v)] if [o] is [Some v], and [None] otherwise. *)
 
+val map2_option : ('a -> 'a -> 'b) -> 'a option -> 'a option -> 'b option
+(** [map2_option f o1 o2] returns [Some(f v1 v2)] if [oi] is [Some vi], and [None] otherwise. *)
+
 val map2opt : ('a option -> 'b option -> 'c) -> 'a list -> 'b list -> 'c list
 (** [map2opt] is similar to [List.map2] but the function expects options, so the two lists do not have to be of the same size. *)
 
