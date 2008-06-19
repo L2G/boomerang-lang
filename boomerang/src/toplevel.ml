@@ -103,6 +103,38 @@ let create l_n a_fn o_fn =
 (********)
 (* SYNC *)
 (********)
+let newsync l_n o_fn a_fn b_fn =   
+  Util.format "--- NEWSYNC(%s,%s,%s,%s) ---@\n" l_n o_fn a_fn b_fn;
+  let get_f f = if Sys.file_exists f then Some (read_string f) else None in
+  let get_w wo = match wo with None -> "NONE" | Some w -> w in
+  let oo = get_f o_fn in 
+  let ao = get_f a_fn in 
+  let bo = get_f b_fn in 
+  let l = lookup_lens l_n in 
+  let xt = match L.xtype l with
+    | None -> 
+        Error.simple_error (sprintf "Error: cannot synchronize with %s" (L.string l))
+    | Some xt -> xt in     
+  let nlify s = Misc.format_list "@\n" 
+    (Util.format "%s") 
+    (Misc.split_nonescape '\n' s) in
+  let oo',ao',bo' = Bsync.sync xt oo ao bo in 
+    Util.format "O  = [@[";
+    nlify (get_w oo);
+    Util.format "@]]@\nA  = [@[";
+    nlify (get_w ao);
+    Util.format "@]]@\nB  = [@[";
+    nlify (get_w bo);
+    Util.format "@]]@\n@\n<~ SYNC ~>@\n@\n";
+    Util.format "O' = [@[";
+    nlify (get_w oo');
+    Util.format "@]]@\nA' = [@[";
+    nlify (get_w ao');
+    Util.format "@]]@\nB' = [@[";
+    nlify (get_w bo');
+    Util.format "@]]@\n";
+    0
+
 let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
 let sync l o_fn c_fn a_fn = 
   let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in 
@@ -305,14 +337,12 @@ let toplevel' progName () =
          | ["get"; c_fn],[l],[],[],o   
          | ["get"; l],[],[c_fn],[],o   
          | ["get"; l; c_fn],[],[],[],o -> 
-             (* *)
              ["get"],[l],[c_fn],[],o             
          (* create *)
          | ["create"],[l],[],[a_fn],o
          | ["create"; l],[],[],[a_fn],o
          | ["create"; a_fn],[l],[],[],o 
-         | ["create"; l; a_fn],[],[],[],o ->
-             (* *)
+         | ["create"; l; a_fn],[],[],[],o ->             
              ["create"],[l],[],[a_fn],o
          (* put *)
          | [l; a_fn; c_fn],[],[],[],o 
@@ -321,13 +351,12 @@ let toplevel' progName () =
          | ["put"; a_fn; c_fn],[l],[],[],o 
          | ["put"; l],[],[c_fn],[a_fn],o
          | ["put"; l; a_fn; c_fn],[],[],[],o -> 
-             (* *)
              ["put"],[l],[c_fn],[a_fn],o
          (* sync *)
-         | [l; o_fn; c_fn; a_fn],[],[],[],"" 
+         | ["newsync"; l; o_fn; c_fn; a_fn],[],[],[],"" -> 
+             ["newsync"],[l],[c_fn],[a_fn],o_fn
          | ["sync"; l; o_fn; c_fn; a_fn],[],[],[],"" 
-         | ["sync"; o_fn; c_fn; a_fn],[l],[],[],"" -> 
-             (* *)
+         | ["sync"; o_fn; c_fn; a_fn],[l],[],[],"" ->              
              ["sync"],[l],[c_fn],[a_fn],o_fn
          | ["refresh"; p; l; o_fn; c_fn; a_fn],[],[],[],"" -> 
              ["refresh"],[p;l],[c_fn],[a_fn],o_fn 
@@ -340,6 +369,7 @@ let toplevel' progName () =
          | ["put"],[l],[c_fn],[a_fn]    -> put l a_fn c_fn o_fn
          | ["sync"],[l],[c_fn],[a_fn]   -> sync l o_fn c_fn a_fn
          | ["refresh"],[p_fn;l],[c_fn],[a_fn] -> refresh p_fn l o_fn c_fn a_fn
+         | ["newsync"],[l],[c_fn],[a_fn] -> newsync l o_fn c_fn a_fn
          | _ -> assert false
      end)
     (fun () -> Util.flush ())

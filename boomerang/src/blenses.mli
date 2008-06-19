@@ -57,6 +57,7 @@ module DLens : sig
   val string : t -> string
   val ctype : t -> Brx.t
   val atype : t -> Brx.t
+  val xtype : t -> Erx.t option
   val rget : t -> (string -> string)
   val rput : t -> string -> string -> string
   val rcreate : t -> string -> string

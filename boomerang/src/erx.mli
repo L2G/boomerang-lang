@@ -15,11 +15,17 @@ val string_of_t : t -> string
 
 type spine 
 
+val format_spine : spine -> unit
+
 type key = string
                
-type box_content 
+type box_content = (key * string) list
                  
 type skeleton = spine * box_content TagMap.t
+
+val format_skeleton : skeleton -> unit
+
+val format_box_content : box_content -> unit
 
 val mk_box : tag -> t -> t 
 val mk_star : t -> t 

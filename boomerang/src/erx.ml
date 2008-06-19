@@ -44,11 +44,41 @@ type spine_elt =
 
 type spine = spine_elt list
 
+let format_spine_elt = function
+  | SBox(tg) -> Util.format "@[%s%s%s@]" "<" tg ">"
+  | SBoxStar(tg) -> Util.format "@[%s%s%s*@]" "<" tg ">"
+  | SString(w) -> Util.format "@[%s@]" (Misc.whack w)
+
+let format_spine sp = 
+  Util.format "@[[";
+  Misc.format_list " " format_spine_elt sp;
+  Util.format "]@]"
+
 type key = string
                
 type box_content = (key * string) list
                  
+let format_box_content bc = 
+  Util.format "@[[";
+  Misc.format_list ", " 
+    (fun (k,w) -> Util.format "%s -> %s" k w)
+    bc;
+  Util.format "]@]"
+
 type skeleton = spine * box_content TM.t
+
+let format_skeleton (sp,tm) = 
+  Util.format "@[";
+  Util.format "<";
+  format_spine sp;
+  Util.format ",@,";
+  TM.iter 
+    (fun t bc -> 
+       Util.format "%s -> {@[" t;
+       format_box_content bc;
+       Util.format "@]}@,")
+    tm;
+  Util.format ">@]"
 
 let rec has_box (u,_) = match u with
   | Box(_) | BoxStar(_) -> true
@@ -146,8 +176,9 @@ let rec parse (u,_) w =
         let tm =
           Safelist.fold_left
             (fun tmacc wi ->
-               let _,tmi = parse t1 wi in
-               TM.combine tmacc tmi)
+               let k = key t1 w in 
+               let tm_tg = TM.safe_find tg tmacc [] in
+               TM.add tg (tm_tg@[k,wi]) tmacc)
             TM.empty wl in
         ([SBoxStar tg],tm)                
     | Key | Leaf -> 
