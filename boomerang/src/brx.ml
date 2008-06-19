@@ -479,7 +479,7 @@ end = struct
         | Diff(r1,r2) -> 
             mk_diff
               (derivative c r1)
-              (derivative c r2) 
+              (derivative c r2) in
       DCache.add dcache p res;
       res
 
@@ -560,15 +560,13 @@ module DFA : sig
   val mk_diff : s -> s -> s
   val mk_complement : s -> s 
   val mk_reverse : s -> s
-  val mk_box : string -> s -> s
-  val mk_key : s -> s
   val match_string : s -> string -> bool
   val match_string_positions : s -> string -> Int.Set.t
   val match_string_reverse_positions : s -> string -> Int.Set.t
   val is_empty : s -> bool
   val splittable_cex : s -> s -> string option
   val iterable_cex : s -> string option
-  val representative : s -> string (* raises Not_found *)
+  val representative : s -> string option
 end = struct          
   module rec M : sig 
     type s = 
@@ -854,8 +852,6 @@ end = struct
 
   let lift_1 f s1 = find_state (f s1.regexp)
   let mk_star = lift_1 Rx.mk_star
-  let mk_box t = lift_1 (Rx.mk_box t)
-  let mk_key = lift_1 Rx.mk_key
   
   let lift_2 f s1 s2 = find_state (f s1.regexp s2.regexp)
   let mk_seq = lift_2 Rx.mk_seq
@@ -869,9 +865,7 @@ end = struct
 
   let is_empty s = not (s.non_empty Q.empty)
 
-  let representative s = match s.representative Q.empty with
-    | Some w -> w
-    | None -> raise Not_found
+  let representative s = s.representative Q.empty
 
   let splittable_cex s1 s2 = 
 (*     Util.format "CHECKING SPLITTABLE@\n%s@\nAND@\n%s@\n%!" *)
@@ -964,33 +958,36 @@ let mk_diff = DFA.mk_diff
 let mk_complement = DFA.mk_complement
 let mk_reverse = DFA.mk_reverse
 
-let mk_box = DFA.mk_box
-let mk_key = DFA.mk_key
-
 let is_empty = DFA.is_empty
 
-let disjoint s1 s2 = is_empty (mk_inter s1 s2)  
-
 let representative = DFA.representative
+
+let disjoint_cex s1 s2 = 
+  representative (mk_inter s1 s2) 
+
+let disjoint s1 s2 = 
+  is_empty (mk_inter s1 s2) 
+
 let equiv s1 s2 = 
      DFA.is_empty (DFA.mk_diff s1 s2) 
   && DFA.is_empty (DFA.mk_diff s2 s1) 
 
 let splittable_cex = DFA.splittable_cex 
 
-let splittable s1 s2 = 
-  try let _ = DFA.splittable_cex s1 s2 in false 
-  with Not_found -> true
+let splittable s1 s2 = match splittable_cex s1 s2 with 
+  | None -> true
+  | Some _ -> false
 
 let iterable_cex = DFA.iterable_cex
 
-let iterable s0 = 
-  try let _ = DFA.iterable_cex s0 in false 
-  with Not_found -> true
+let iterable s0 = match iterable_cex s0 with 
+  | None -> true
+  | Some _ -> false
 
 let is_singleton s0 = 
-  try is_empty (mk_diff s0 (mk_string (representative s0)))
-  with Not_found -> false
+  match representative s0 with 
+    | None -> false
+    | Some w -> is_empty (mk_diff s0 (mk_string w))
 
 let match_string = DFA.match_string
 let match_string_positions = DFA.match_string_positions

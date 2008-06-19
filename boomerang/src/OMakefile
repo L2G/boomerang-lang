@@ -42,7 +42,7 @@ RESULTS = boomerang.cmxa $(RESULT)$(EXE)
 
 BOOMERANG_BASE_SOURCES[] = \
    berror.mli berror.ml \
-   brx.mli brx.ml \
+   brx.mli brx.ml erx.mli erx.ml \
    blenses.mli blenses.ml \
    bident.mli bident.ml \
    bvalue.mli bvalue.ml \

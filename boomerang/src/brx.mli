@@ -17,9 +17,6 @@ val mk_complement: t -> t
 val mk_inter : t -> t -> t
 val mk_reverse : t -> t
 
-val mk_box : string -> t -> t
-val mk_key : t -> t
-
 (* pretty printing *)
 val format_t : t -> unit
 val string_of_t : t -> string
@@ -27,9 +24,10 @@ val string_of_t : t -> string
 (* core operations *)
 val is_empty : t -> bool
 val is_singleton : t -> bool
+val disjoint_cex : t -> t -> string option
 val disjoint : t -> t -> bool
 val equiv : t -> t -> bool
-val representative : t -> string (* raises Not_found *)
+val representative : t -> string option
 
 (* string matching *)
 val match_string : t -> string -> bool
