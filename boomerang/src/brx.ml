@@ -917,7 +917,6 @@ let match_prefix_positions s w =
       if i=n then acc'
       else 
         begin 
-          Util.format "LOOP %d %s %b %s@\n" i (Char.escaped w.[i]) (is_empty s) (Rx.string_of_t s.regexp);
           let cm,_ = s.maps () in 
           let c = cm.(Char.code w.[i]) in
             loop acc' (succ i) (s.next ()).(c)
