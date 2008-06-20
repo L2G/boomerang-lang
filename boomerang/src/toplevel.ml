@@ -103,22 +103,35 @@ let create l_n a_fn o_fn =
 (********)
 (* SYNC *)
 (********)
-let newsync l_n o_fn a_fn b_fn =   
-  Util.format "--- NEWSYNC(%s,%s,%s,%s) ---@\n" l_n o_fn a_fn b_fn;
-  let get_f f = if Sys.file_exists f then Some (read_string f) else None in
-  let get_w wo = match wo with None -> "NONE" | Some w -> w in
+let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =   
+  let l = lookup_lens l_n in 
+  let get_f f =
+    if Sys.file_exists f then Some (L.rget l (read_string f)) else None in
+  let putback f ro' ro =
+    match ro' with
+      None -> Misc.remove_file_or_dir f
+    | Some r' ->
+        let newcontents =
+          match ro with
+            None -> L.rcreate l r'
+          | Some r -> L.rput l r' r in
+        write_string f newcontents  in
+
   let oo = get_f o_fn in 
   let ao = get_f a_fn in 
   let bo = get_f b_fn in 
-  let l = lookup_lens l_n in 
   let xt = match L.xtype l with
     | None -> 
-        Error.simple_error (sprintf "Error: cannot synchronize with %s" (L.string l))
+        Error.simple_error (sprintf
+          "Error: cannot synchronize with %s" (L.string l))
     | Some xt -> xt in     
-  let nlify s = Misc.format_list "@\n" 
-    (Util.format "%s") 
-    (Misc.split_nonescape '\n' s) in
   let oo',ao',bo' = Bsync.sync xt oo ao bo in 
+  putback o_fn' oo' oo;
+  putback a_fn' ao' ao;
+  putback b_fn' bo' bo;
+  0
+  
+(*
     Util.format "O  = [@[";
     nlify (get_w oo);
     Util.format "@]]@\nA  = [@[";
@@ -134,110 +147,7 @@ let newsync l_n o_fn a_fn b_fn =
     nlify (get_w bo');
     Util.format "@]]@\n";
     0
-
-let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
-let sync l o_fn c_fn a_fn = 
-  let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in 
-  match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with 
-    | _,false,false -> 
-        (* if neither c nor a exists, clear o and return *)
-        debug_sync (fun () -> Util.format "replicas %s and %s missing; removing archive %s@\n" c_fn a_fn o_fn);
-        Misc.remove_file_or_dir o_fn;
-        0
-
-    | _,true,false -> 
-        (* if c exists but a does not, set a to GET c *)
-        debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
-        let c = read_string c_fn in 
-          write_string o_fn c;
-          write_string a_fn (get_str l c);
-          0
-          
-    | true,false,true ->
-        (* if c does not exist but a and o do, set c and o to PUT a o *)        
-        debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-        let a = read_string a_fn in
-        let o = read_string o_fn in 
-        let c' = put_str l a o in 
-          write_string c_fn c';
-          write_string o_fn c';
-          0
-    
-    | false,false,true ->
-        (* if c and o do not exist but a does, set c and o to CREATE a *)        
-        debug_sync (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
-        let a = read_string a_fn in 
-        let c' = create_str l a in 
-          write_string c_fn c';
-          write_string o_fn c';
-          0
-
-    | false,true,true -> 
-        (* if c and a exist but o does not and a <> GET c then conflict; otherwise set o to c *)
-        let a = read_string a_fn in 
-        let c = read_string c_fn in 
-        let a' = get_str l c in 
-        if a = a' then 
-          begin
-            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
-            write_string o_fn c;
-            0
-          end
-        else
-          begin 
-            debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
-            1
-          end
-
-    | true,true,true -> 
-        (* otherwise, c, a, and o exist:
-           - if a=GET o set a to GET c and o to c;
-           - else if c=o, set c and o to PUT a o;
-           - otherwise conflict. *)
-        let o = read_string o_fn in
-        let c = read_string c_fn in 
-        let a = read_string a_fn in 
-        let a' = get_str l c in 
-        if a = a' then 
-          begin 
-            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
-            write_string o_fn c;
-            0
-          end
-        else
-          let a' = get_str l o in 
-            if a = a' then 
-              begin 
-                debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
-                write_string a_fn (get_str l c);
-                write_string o_fn c;
-                0
-              end
-            else if c = o then
-              begin 
-                debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-                let c' = put_str l a o in 
-                  write_string c_fn c';
-                  write_string o_fn c';
-                  0
-              end            
-            else 
-              begin 
-                debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
-                1
-              end
-              
-let refresh p_fn l o_fn c_fn a_fn = 
-  let go () = Util.format "%d\n%!" (sync l o_fn c_fn a_fn) in 
-  go ();
-  while true do 
-    let ch = open_in p_fn in 
-    let _ = input_line ch in 
-    let _ = close_in ch in 
-    try go ()
-    with Error.Harmony_error (err) -> err ()
-  done;
-    0
+*)
 
 let rest = Prefs.createStringList "rest" "*no docs needed" ""
 
@@ -256,12 +166,12 @@ let check_pref = Prefs.createStringList "check" "run unit tests for given module
 let toplevel' progName () = 
   let baseUsageMsg = 
     "Usage:\n"
-    ^ "    "^progName^" [get] l C          [options]     : get\n"
-    ^ " or "^progName^" [put] l A C        [options]     : put\n"
-    ^ " or "^progName^" create l A         [options]     : create\n"
-    ^ " or "^progName^" sync l O C A       [options]     : sync\n"
-    ^ " or "^progName^" [profilename]      [options]     : sync from profile\n"
-    ^ " or "^progName^" F.boom [F.boom...] [options]     : run unit tests\n"
+    ^ "    "^progName^" [get] l C             [options] : get\n"
+    ^ " or "^progName^" [put] l A C           [options] : put\n"
+    ^ " or "^progName^" create l A            [options] : create\n"
+    ^ " or "^progName^" sync l O A B          [options] : sync\n"
+    ^ " or "^progName^" sync l O A B O' A' B' [options] : sync\n"
+    ^ " or "^progName^" F.boom [F.boom...]    [options] : run unit tests\n"
     ^ "\n" in 
   let shortUsageMsg = 
     baseUsageMsg 
@@ -270,30 +180,6 @@ let toplevel' progName () =
 
   let bad_cmdline () = Util.format "%s" shortUsageMsg; exit 2 in 
 
-  let sync_profile profile_name = 
-    Prefs.profileName := Some profile_name;
-    let profile_fn = Prefs.profilePathname profile_name in       
-      if Sys.file_exists profile_fn then 
-        Prefs.loadTheFile ()
-      else if profile_name = "default" then bad_cmdline ()
-      else Error.simple_error (sprintf "Error: profile file %s does not exist" profile_fn);
-      let ll = Prefs.read l_pref in 
-      let cl = Prefs.read c_pref in 
-      let al = Prefs.read a_pref in 
-      let ll_len = Safelist.length ll in 
-      let cl_len = Safelist.length cl in
-      let al_len = Safelist.length al in
-        if cl_len <> al_len then 
-          Error.simple_error "Error: number of concrete and abstract replicas differs"
-        else if cl_len <> ll_len then 
-          Error.simple_error "Error: number of replicas and lenses differs";
-        let rec loop ll cl al exitcode = match ll,cl,al with 
-          | [],[],[] -> exitcode
-          | l::lrest,c::crest,a::arest ->         
-              loop lrest crest arest (sync l "" c a)
-          | _ -> assert false in 
-          loop ll cl al 0 in 
-  
   (* Parse command-line options *)
   Prefs.parseCmdLine usageMsg;
   
@@ -325,11 +211,6 @@ let toplevel' progName () =
      end
      else begin 
        let rest_pref,ll,cl,al,o = match rest_pref,ll,cl,al,o with 
-         (* sync profile *)
-         | [],[],[],[],""    -> ["default"],[],[],[],""
-         | [arg],[],[],[],"" -> 
-             if not (Util.endswith arg ".prf") then bad_cmdline ()
-             else [Misc.replace_suffix arg ".prf" ""],[],[],[],""
          (* get *)
          | [l;c_fn],[],[],[],o
          | [c_fn],[l],[],[],o 
@@ -353,23 +234,17 @@ let toplevel' progName () =
          | ["put"; l; a_fn; c_fn],[],[],[],o -> 
              ["put"],[l],[c_fn],[a_fn],o
          (* sync *)
-         | ["newsync"; l; o_fn; c_fn; a_fn],[],[],[],"" -> 
-             ["newsync"],[l],[c_fn],[a_fn],o_fn
-         | ["sync"; l; o_fn; c_fn; a_fn],[],[],[],"" 
-         | ["sync"; o_fn; c_fn; a_fn],[l],[],[],"" ->              
-             ["sync"],[l],[c_fn],[a_fn],o_fn
-         | ["refresh"; p; l; o_fn; c_fn; a_fn],[],[],[],"" -> 
-             ["refresh"],[p;l],[c_fn],[a_fn],o_fn 
+         | ["sync"; l; o_fn; a_fn; b_fn],[],[],[],"" -> 
+             ["sync"],[l],[o_fn; a_fn; b_fn; o_fn; a_fn; b_fn],[],""
+         | ["sync"; l; o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],[],[],"" -> 
+             ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],""
          | _ -> bad_cmdline () in 
        let o_fn = if o="" then "-" else o in 
        match rest_pref,ll,cl,al with
-         | [prf],[],[],[]               -> sync_profile prf
          | ["get"],[l],[c_fn],[]        -> get l c_fn o_fn
          | ["create"],[l],[],[a_fn]     -> create l a_fn o_fn
          | ["put"],[l],[c_fn],[a_fn]    -> put l a_fn c_fn o_fn
-         | ["sync"],[l],[c_fn],[a_fn]   -> sync l o_fn c_fn a_fn
-         | ["refresh"],[p_fn;l],[c_fn],[a_fn] -> refresh p_fn l o_fn c_fn a_fn
-         | ["newsync"],[l],[c_fn],[a_fn] -> newsync l o_fn c_fn a_fn
+         | ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[]   -> sync l o_fn a_fn b_fn o_fn' a_fn' b_fn'
          | _ -> assert false
      end)
     (fun () -> Util.flush ())
