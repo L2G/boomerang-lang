@@ -87,13 +87,12 @@ let format_skeleton (sp,tm) =
   Util.format "@[";
   Util.format "skel(";
   format_spine sp;
-  Util.format ",@, {";
+  Util.format ", {";
   ignore (TM.fold 
     (fun t bc is_fst -> 
        if not is_fst then Util.format ",";
-       Util.format "%s -> @[" (Misc.whack t);
+       Util.format "%s -> " (Misc.whack t);
        format_box_content bc;
-       Util.format "@]@,";
        false)
     tm true);
   Util.format "})@]"
