@@ -49,34 +49,28 @@ let key_str n = sprintf "%s key" n
 let paranoid = Prefs.createBool "paranoid" false
   "do paranoid sanity checks in lens primitives"
   "do paranoid sanity checks in lens primitives"
-
-let split_bad_prefix t1 s = 
-  let ps = Int.Set.add 0 (Brx.match_string_positions t1 s) in 
-  let n = String.length s in
-  let j = Int.Set.max_elt ps in
-  (String.sub s 0 j, String.sub s 0 (n-j))
   
 let plift_r b i n t1 f =  
   if not (b || Prefs.read paranoid) then f else
     (fun x ->     
        if not (Brx.match_string t1 x) then 
-         Berror.type_error i (Brx.string_of_t t1) n (split_bad_prefix t1 x)
+         Berror.type_error i (Brx.split_bad_prefix t1 x)
        else (f x))
 
 let plift_rr b i n t1 t2 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
      if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.string_of_t t1) n (split_bad_prefix t1 x)
+       Berror.type_error i (Brx.split_bad_prefix t1 x)
      else if not (Brx.match_string t2 y) then 
-       Berror.type_error i (Brx.string_of_t t2) n (split_bad_prefix t2 y)
+       Berror.type_error i (Brx.split_bad_prefix t2 y)
      else (f x y))
 
 let plift_rsd b i n t1 st2 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
      if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.string_of_t t1) n (split_bad_prefix t1 x)
+       Berror.type_error i (Brx.split_bad_prefix t1 x)
      else if not (st2 y) then 
        assert false
      else (f x y z))
@@ -85,32 +79,32 @@ let plift_rd b i n t1 f =
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
      if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.string_of_t t1) n (split_bad_prefix t1 x)
+       Berror.type_error i (Brx.split_bad_prefix t1 x)
      else (f x y))
 
 let plift_rrd b i n t1 t2 t3 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
      if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.string_of_t t1) n (split_bad_prefix t1 x)
+       Berror.type_error i (Brx.split_bad_prefix t1 x)
      else if not (Brx.match_string t2 y) then 
-       Berror.type_error i (Brx.string_of_t t2) n (split_bad_prefix t2 y)
+       Berror.type_error i (Brx.split_bad_prefix t2 y)
      else (f x y z))
 
 let plift_rx b i n t1 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
      if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.string_of_t t1) n (split_bad_prefix t1 x)
+       Berror.type_error i (Brx.split_bad_prefix t1 x)
      else (f x y))
 
 let plift_rrx b i n t1 t2 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
      if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.string_of_t t1) n (split_bad_prefix t1 x)
+       Berror.type_error i (Brx.split_bad_prefix t1 x)
      else if not (Brx.match_string t2 y) then 
-       Berror.type_error i (Brx.string_of_t t2) n (split_bad_prefix t1 y)
+       Berror.type_error i (Brx.split_bad_prefix t1 y)
      else (f x y z))
 
 let lift_r i n r = plift_r false i n r

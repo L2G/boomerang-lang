@@ -21,21 +21,25 @@ and t = u * Brx.t
 
 let rec format_t (u1,r1) = match u1 with 
   | Box(tg,t11) | BoxStar(tg,t11) -> 
-      Util.format "@[%s%s" "<<" (if tg = "" then "" else tg ^ ":");
+      let is_star = match u1 with BoxStar _ -> true | _ -> false in 
+     Util.format "@[%s%s" "<" (if tg = "" then "" else tg ^ ":");
       format_t t11;
-      Util.format "%s%s@]" ">>" (match u1 with BoxStar _ -> "*" | _ -> "")
+      Util.format "%s%s@]" ">" (if is_star then "*" else "")
   | Seq(t11,t12) | Alt(t11,t12) -> 
-      Util.format "@[<1>";
+      let is_alt = match u1 with Alt _ -> true | _ -> false in 
+      Util.format "@[";
       format_t t11;
-      Util.format "%s@," (match u1 with Seq _ -> "." | _ -> "|");
+      Util.format "%s@," (if is_alt then "|" else ".");
       format_t t12;
       Util.format "@]"
   | Key | Leaf -> 
-      Util.format "@[<1>%s" (if u1 = Key then "key " else "");
+      let is_key = u1 = Key in 
+      Util.format "@[%s" (if is_key then "key " else "");
       Brx.format_t r1;
       Util.format "@]"
 
-let string_of_t t = Util.format_to_string (fun () -> format_t t)
+let string_of_t t = 
+  Util.format_to_string (fun () -> format_t t)
 
 type spine_elt =
   | SBox of tag
@@ -53,7 +57,9 @@ let format_spine sp =
   Util.format "@[[";
   Misc.format_list " " format_spine_elt sp;
   Util.format "]@]"
-
+let string_of_spine sp = 
+  Util.format_to_string (fun () -> format_spine sp)
+   
 type key = string
                
 type box_content = (key * string) list
@@ -61,25 +67,31 @@ type box_content = (key * string) list
 let format_box_content bc = 
   Util.format "@[[";
   Misc.format_list ", " 
-    (fun (k,w) -> Util.format "%s -> %s" k w)
+    (fun (k,w) -> Util.format "%s = %s" (Misc.whack k) (Misc.whack w))
     bc;
   Util.format "]@]"
+let string_of_box_content bc = 
+  Util.format_to_string (fun () -> format_box_content bc)
 
 type skeleton = spine * box_content TM.t
 
 let format_skeleton (sp,tm) = 
   Util.format "@[";
-  Util.format "<";
+  Util.format "skel(";
   format_spine sp;
-  Util.format ",@,";
-  TM.iter 
-    (fun t bc -> 
-       Util.format "%s -> {@[" t;
+  Util.format ",@, {";
+  ignore (TM.fold 
+    (fun t bc is_fst -> 
+       if not is_fst then Util.format ",";
+       Util.format "%s -> @[" (Misc.whack t);
        format_box_content bc;
-       Util.format "@]}@,")
-    tm;
-  Util.format ">@]"
-
+       Util.format "@]@,";
+       false)
+    tm true);
+  Util.format "})@]"
+let string_of_skeleton sk = 
+  Util.format_to_string (fun () -> format_skeleton sk)
+    
 let rec has_box (u,_) = match u with
   | Box(_) | BoxStar(_) -> true
   | Key | Leaf -> false
@@ -136,10 +148,6 @@ let lift2 f (_,r1) (_,r2) = f r1 r2
 let erase (_,r) = r
 
 let match_string = lift1 Brx.match_string 
-let match_string_positions = lift1 Brx.match_string_positions
-let split_positions = lift2 Brx.split_positions
-let splittable_cex = lift2 Brx.splittable_cex 
-let iterable_cex = lift1 Brx.iterable_cex 
 let star_split = lift1 Brx.star_split
 let seq_split (_,r1) (_,r2) w = 
   match Brx.seq_split r1 r2 w with 
@@ -148,9 +156,6 @@ let seq_split (_,r1) (_,r2) w =
           (fun () -> Util.format "@[the concatenation of %s and %s is ambiguous@]" 
              (Brx.string_of_t r1) (Brx.string_of_t r2))
     | Some p -> p
-let representative = lift1 Brx.representative
-let disjoint_cex = lift2 Brx.disjoint_cex
-let erase_equiv = lift2 Brx.equiv
 
 (* operations *)
 let rec key (u,_) w = match u with

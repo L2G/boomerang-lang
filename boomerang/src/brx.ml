@@ -562,6 +562,7 @@ module DFA : sig
   val mk_reverse : s -> s
   val match_string : s -> string -> bool
   val match_string_positions : s -> string -> Int.Set.t
+  val match_prefix_positions : s -> string -> Int.Set.t
   val match_string_reverse_positions : s -> string -> Int.Set.t
   val is_empty : s -> bool
   val splittable_cex : s -> s -> string option
@@ -701,7 +702,7 @@ end = struct
       s.reverse <- (fun () -> rev); rev in 
       dbg (fun () -> Util.format "DONE REVERSE_IMPL #%d@]@\n" s.uid);            
     let non_empty_impl sn = 
-      dbg (fun () -> Util.format "@[NON_EMPTY_IMPL #%d@@\n  " s.uid);
+      dbg (fun () -> Util.format "@[NON_EMPTY_IMPL #%d %s@\n  " s.uid (Rx.string_of_t s.regexp));
       let sn' = Q.add s sn in 
       if Q.mem s sn then false
       else 
@@ -719,7 +720,7 @@ end = struct
             | Rx.CSet []     -> false
             | Rx.CSet _      -> true
             | Rx.Seq(r1,r2)  -> (find_state r1).non_empty sn' && (find_state r2).non_empty sn'
-            | Rx.Star _      -> false
+            | Rx.Star _      -> true
             | Rx.Alt(r1,rl)  -> Safelist.exists (fun ri -> (find_state ri).non_empty sn') (r1::rl)
             | Rx.Diff(r1,r2) -> 
                 let s2 = find_state r2 in 
@@ -735,7 +736,7 @@ end = struct
             | _              -> full_search () in
           s.has_non_empty <- true;
           s.non_empty <- (fun _ -> b);
-          dbg (fun () -> Util.format "DONE NON_EMPTY_IMPL #%d@]@\n" s.uid);
+          dbg (fun () -> Util.format "DONE NON_EMPTY_IMPL %b #%d@]@\n" b s.uid);
           b in 
     let representative_impl sn =
       dbg (fun () -> Util.format "@[REPRESENTATIVE_IMPL #%d@\n  " s.uid);
@@ -908,6 +909,21 @@ let match_string_positions s w =
         end in
     loop Int.Set.empty 0 s
 
+let match_prefix_positions s w = 
+  let n = String.length w in 
+  let rec loop acc i s = 
+    let acc' = 
+      if is_empty s then acc else Int.Set.add i acc in
+      if i=n then acc'
+      else 
+        begin 
+          Util.format "LOOP %d %s %b %s@\n" i (Char.escaped w.[i]) (is_empty s) (Rx.string_of_t s.regexp);
+          let cm,_ = s.maps () in 
+          let c = cm.(Char.code w.[i]) in
+            loop acc' (succ i) (s.next ()).(c)
+        end in
+    loop Int.Set.empty 0 s
+
 let match_string_reverse_positions s w = 
   let n = String.length w in 
   let rec loop acc i s = 
@@ -991,12 +1007,19 @@ let is_singleton s0 =
 
 let match_string = DFA.match_string
 let match_string_positions = DFA.match_string_positions
+let match_prefix_positions = DFA.match_prefix_positions
 let match_string_reverse_positions = DFA.match_string_reverse_positions
 
 let split_positions t1 t2 w = 
   let ps1 = match_string_positions t1 w in 
   let ps2 = match_string_reverse_positions (mk_reverse t2) w in 
   Int.Set.inter ps1 ps2
+
+let split_bad_prefix t1 s = 
+  let ps = Int.Set.add 0 (match_prefix_positions t1 s) in 
+  let n = String.length s in
+  let j = Int.Set.max_elt ps in
+  (String.sub s 0 j, String.sub s j (n-j))
 
 let seq_split s1 s2 w =
   let ps = split_positions s1 s2 w in 

@@ -8,25 +8,22 @@ module TagMap : Mapplus.SMap with type key_t = string
              
 type t
 
-val erase : t -> Brx.t
-
-val format_t : t -> unit
-val string_of_t : t -> string
-
 type spine 
-
-val format_spine : spine -> unit
-
 type key = string
-               
-type box_content = (key * string) list
-                 
+type box_content = (key * string) list                 
 type skeleton = spine * box_content TagMap.t
 
-val format_skeleton : skeleton -> unit
-
+(* pretty printers *)
+val format_t : t -> unit
+val format_spine : spine -> unit
 val format_box_content : box_content -> unit
+val format_skeleton : skeleton -> unit
+val string_of_t : t -> string
+val string_of_spine : spine -> string
+val string_of_box_content : box_content -> string
+val string_of_skeleton : skeleton -> string
 
+(* constructors *)
 val mk_box : tag -> t -> t 
 val mk_star : t -> t 
 val mk_seq : t -> t -> t 
@@ -34,20 +31,11 @@ val mk_alt : t -> t -> t
 val mk_key : Brx.t -> t 
 val mk_leaf : Brx.t -> t 
 
+
+(* operations *)
+val erase : t -> Brx.t
 val has_box : t -> bool
 val has_immediate_box : t -> bool
-
-val match_string : t -> string -> bool
-val match_string_positions : t -> string -> Int.Set.t
-val splittable_cex : t -> t -> string option
-val iterable_cex : t -> string option
-val split_positions : t -> t -> string -> Int.Set.t
-val seq_split : t -> t -> string -> string * string
-val star_split : t -> string -> string list
-val representative : t -> string option
-val disjoint_cex : t -> t -> string option
-val erase_equiv : t -> t -> bool
-
 val parse : t -> string -> skeleton
 val unparse : skeleton -> string
 val box_content : skeleton -> tag -> box_content

@@ -81,6 +81,9 @@ let rec isync ty o a b =
   let (spo,tmo) as sko = Erx.parse ty o in 
   let (spa,tma) as ska = Erx.parse ty a in
   let (spb,tmb) as skb = Erx.parse ty b in 
+  Util.format "SKEL_A: ";
+  Erx.format_skeleton ska;
+  Util.format "@\n";
   begin match atomic_sync spo spa spb with
   | None -> (o,a,b)
   | Some(s,dir) -> begin
@@ -148,15 +151,25 @@ let sync t oo ao bo = match oo,ao,bo with
         | Some (r,_) -> r,r,r
       end
   | Some o,Some a,Some b ->
-      let err s = Berror.run_error (Info.M "sync") (fun () -> Util.format "%s" s) in 
-      match Erx.match_string t o,
-        Erx.match_string t a,
-        Erx.match_string t b 
-      with
-        | true,true,true -> 
+      let erased_t = Erx.erase t in 
+      let err_o = 
+        if Brx.match_string erased_t o then None 
+        else Some ("Archive:\n" ^ Berror.type_error_string (Brx.split_bad_prefix erased_t o)) in 
+      let err_a = 
+        if Brx.match_string erased_t a then None
+        else Some ("Replica A:\n" ^ Berror.type_error_string (Brx.split_bad_prefix erased_t a)) in
+      let err_b = 
+        if Brx.match_string erased_t b then None
+        else Some ("Replica B:\n" ^ Berror.type_error_string (Brx.split_bad_prefix erased_t b)) in
+      match err_o,err_a,err_b with
+        | None,None,None -> 
             let o',a',b' = isync t o a b in
             (Some o',Some a',Some b')
-        | false,_,_ -> err ("o invalid " ^ (Erx.string_of_t t))
-        | _,false,_ -> err ("a invalid " ^ (Erx.string_of_t t))
-        | _,_,false -> err ("b invalid " ^ (Erx.string_of_t t))
-
+        | _ -> 
+            let get_l = function None -> [] | Some s -> [s] in 
+            Berror.run_error (Info.M "In sync") 
+              (fun () ->
+                 Util.format "@\n";
+                 Misc.format_list "@\n@\n" 
+                   Berror.nlify
+                   (get_l err_o @ get_l err_a @ get_l err_b))

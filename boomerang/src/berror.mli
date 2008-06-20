@@ -23,9 +23,9 @@ val nlify : string -> unit
 
 val static_error : Info.t -> string -> ?suppl:(unit->unit) -> string -> 'a
 
-val type_error : Info.t -> string -> string -> string * string -> 'a
+val type_error_string : string * string -> string
 
-val split_error : Info.t -> string -> int -> string -> 'a
+val type_error : Info.t -> string * string -> 'a
 
 val sort_error : Info.t -> (unit -> unit) -> 'a
 
