@@ -62,25 +62,33 @@ let rec isync ty o a b =
                      let at = Erx.box_content ska t in 
                      let bt = Erx.box_content skb t in 
                      let chunks = Diff3.parse ot at bt in
+                     Util.format "SPINE: %s@\n" (Erx.string_of_spine s);
                      let ot',at',bt' =
                        Safelist.fold_left
                          (fun (ot',at',bt') chunk ->
                             match chunk with
                               | Diff3.Stable((k,oi),(_,ai),(_,bi)) -> 
+                                  Util.format "Stable: %s@\n[%s] [%s] [%s]@\n" k oi ai bi;
                                   let ty_t = match Erx.box_type ty t with 
                                     | None -> assert false
                                     | Some ty' -> ty' in 
                                   let oi',ai',bi' = isync ty_t oi ai bi in
                                     (ot'@[k,oi'],at'@[k,ai'],bt'@[k,bi'])                 
                               | Diff3.AChange(oti,ati,bti) ->
+                                  Util.format "AChange:@\n%s %s %s@\n" 
+                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti);
                                   if oti = bti then
                                     (ot'@ati,at'@ati,bt'@ati)
                                   else (ot'@oti,at'@ati,bt'@bti)
                               | Diff3.BChange(oti,ati,bti) ->
+                                  Util.format "BChange:@\n%s %s %s@\n" 
+                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti);
                                   if oti = ati then
                                     (ot'@bti,at'@bti,bt'@bti)
                                   else (ot'@oti,at'@ati,bt'@bti)
                               | Diff3.Conflict(oti,ati,bti) ->
+                                  Util.format "Conflict:@\n%s %s %s@\n" 
+                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti);
                                   if ati=bti then (ot'@ati,at'@ati,bt'@ati)
                                   else (ot'@oti,at'@ati,bt'@bti))
                          ([],[],[]) chunks in
