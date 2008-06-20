@@ -131,7 +131,3 @@ let fst ('a) ('b) (p:'a * 'b) : 'a =
 
 let snd ('a) ('b) (p:'a * 'b) : 'b = 
   let _,y = p in y
-
-let box : lens = 
-  let l = copy (NUMBER . " ") in 
-  <tag:l>* . "\n"

@@ -51,7 +51,8 @@ BOOMERANG_BASE_SOURCES[] = \
    bsubst.mli bsubst.ml \
    bparser.mly blexer.mll \
    bakery.ml bregistry.ml bcompiler.ml bdriver.ml \
-   bsync.ml \
+   bdiff3.mli bdiff3.ml \
+   bsync.mli bsync.ml \
    toplevel.ml
 
 GENERATED_SOURCES = bparser.ml bparser.mli blexer.ml
