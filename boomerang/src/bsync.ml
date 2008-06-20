@@ -27,6 +27,8 @@ module Diff3 = Bdiff3.Make(
       Util.format "%s = %s" (Misc.whack k1) (Misc.whack v1)
   end)
   
+let debug = Trace.debug "sync"
+
 type dir = Left | Right | Both
 
 let atomic_sync o a b = 
@@ -39,9 +41,9 @@ let rec isync ty o a b =
   let (spo,tmo) as sko = Erx.parse ty o in 
   let (spa,tma) as ska = Erx.parse ty a in
   let (spb,tmb) as skb = Erx.parse ty b in 
-  Util.format "@\nOSKEL: %s@\n" (Erx.string_of_skeleton sko);
-  Util.format "ASKEL: %s@\n" (Erx.string_of_skeleton ska);
-  Util.format "BSKEL: %s@\n" (Erx.string_of_skeleton skb);
+  debug (fun () -> Util.format "@\nOSKEL: %s@\n" (Erx.string_of_skeleton sko));
+  debug (fun () -> Util.format "ASKEL: %s@\n" (Erx.string_of_skeleton ska));
+  debug (fun () -> Util.format "BSKEL: %s@\n" (Erx.string_of_skeleton skb));
   let o',a',b' = 
     begin match atomic_sync spo spa spb with
       | None -> (o,a,b)
@@ -62,33 +64,33 @@ let rec isync ty o a b =
                      let at = Erx.box_content ska t in 
                      let bt = Erx.box_content skb t in 
                      let chunks = Diff3.parse ot at bt in
-                     Util.format "SPINE: %s@\n" (Erx.string_of_spine s);
+                     debug (fun () -> Util.format "SPINE: %s@\n" (Erx.string_of_spine s));
                      let ot',at',bt' =
                        Safelist.fold_left
                          (fun (ot',at',bt') chunk ->
                             match chunk with
                               | Diff3.Stable((k,oi),(_,ai),(_,bi)) -> 
-                                  Util.format "Stable: %s@\n[%s] [%s] [%s]@\n" k oi ai bi;
+                                  debug (fun () -> Util.format "Stable: %s@\n[%s] [%s] [%s]@\n" k oi ai bi);
                                   let ty_t = match Erx.box_type ty t with 
                                     | None -> assert false
                                     | Some ty' -> ty' in 
                                   let oi',ai',bi' = isync ty_t oi ai bi in
                                     (ot'@[k,oi'],at'@[k,ai'],bt'@[k,bi'])                 
                               | Diff3.AChange(oti,ati,bti) ->
-                                  Util.format "AChange:@\n%s %s %s@\n" 
-                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti);
+                                  debug (fun () -> Util.format "AChange:@\n%s %s %s@\n" 
+                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti));
                                   if oti = bti then
                                     (ot'@ati,at'@ati,bt'@ati)
                                   else (ot'@oti,at'@ati,bt'@bti)
                               | Diff3.BChange(oti,ati,bti) ->
-                                  Util.format "BChange:@\n%s %s %s@\n" 
-                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti);
+                                  debug (fun () -> Util.format "BChange:@\n%s %s %s@\n" 
+                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti));
                                   if oti = ati then
                                     (ot'@bti,at'@bti,bt'@bti)
                                   else (ot'@oti,at'@ati,bt'@bti)
                               | Diff3.Conflict(oti,ati,bti) ->
-                                  Util.format "Conflict:@\n%s %s %s@\n" 
-                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti);
+                                  debug (fun () -> Util.format "Conflict:@\n%s %s %s@\n" 
+                                    (Erx.string_of_box_content oti) (Erx.string_of_box_content ati) (Erx.string_of_box_content bti));
                                   if ati=bti then (ot'@ati,at'@ati,bt'@ati)
                                   else (ot'@oti,at'@ati,bt'@bti))
                          ([],[],[]) chunks in
