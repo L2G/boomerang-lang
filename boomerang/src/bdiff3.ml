@@ -126,8 +126,10 @@ let parse o a b =
          let common =
            if (sb = -1) then []
            else
-             let li = arr_b.(sb) in
-             [Stable(li,li,li)] in
+             let oi = arr_o.(so) in
+             let ai = arr_a.(sa) in
+             let bi = arr_b.(sb) in
+             [Stable(oi,ai,bi)] in
 
          if is_same_oa && is_same_ob then
            (* a and b are equal to o, so just output a stable chunk. *)              
