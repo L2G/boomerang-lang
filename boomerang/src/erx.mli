@@ -33,8 +33,8 @@ val mk_leaf : Brx.t -> t
 
 
 (* operations *)
-val erase : t -> Brx.t
-val has_box : t -> bool
+val bare : t -> Brx.t
+val boxes : t -> int
 val iterable : t -> bool
 val parse : t -> string -> skeleton
 val unparse : skeleton -> string

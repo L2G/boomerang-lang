@@ -110,13 +110,13 @@ let rec isync ty o a b =
 
 let sync t oo ao bo = 
   (* validate archive / replicas *)
-  let erased_t = Erx.erase t in 
+  let bare_t = Erx.bare t in 
   let chk m = function
     | None -> None
     | Some w -> 
-        if Brx.match_string erased_t w then None
+        if Brx.match_string bare_t w then None
         else Some(m ^ ":\n" 
-                    ^ Berror.type_error_string (Brx.split_bad_prefix erased_t w)) in
+                    ^ Berror.type_error_string (Brx.split_bad_prefix bare_t w)) in
   let get_l = function None -> [] | Some s -> [s] in 
   let () = match chk "Archive" oo, chk "Replica A" ao, chk "Replica B" bo with
     | None,None,None -> ()

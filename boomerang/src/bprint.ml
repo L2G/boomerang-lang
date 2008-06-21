@@ -3,6 +3,13 @@ open Bident
 
 let msg = Util.format
 
+let maybe_wrap fmt b r = 
+  Util.format "@[";
+  if b then msg "(";
+  fmt r;
+  if b then msg ")";
+  msg "@]"  
+  
 let rec format_sort = function
   | SUnit -> msg "@[unit@]"      
   | SBool -> msg "@[bool@]"

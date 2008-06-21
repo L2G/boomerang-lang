@@ -7,10 +7,47 @@ let dbg thk = Trace.debug "brx+" thk
 let sdbg s = Trace.debug "brx+" (fun () -> Util.format "%s" s)
 
 let () = Format.set_margin 120
-
+      
 (* constants *)
 let min_code = 0
 let max_code = 255
+
+(* pretty printing ranks *)
+type r = 
+  | Urnk           (* union *)
+  | Drnk           (* diff *)
+  | Irnk           (* inter *)
+  | Crnk           (* concat *)
+  | Srnk           (* star *)
+  | Arnk           (* atomic *)
+  let lpar r1 r2 = match r1,r2 with
+    | Arnk, _ -> false
+    | _, Arnk -> false
+    | Srnk, _ -> false
+    | _, Srnk -> true
+    | Crnk, _ -> false
+    | _, Crnk -> true
+    | Irnk, _ -> false
+    | _, Irnk -> true
+    | Urnk, Drnk
+    | Drnk, Urnk -> true
+    | Drnk, Drnk -> false
+    | Urnk, Urnk -> false
+
+  let rpar r1 r2 = match r1,r2 with
+    | Arnk, _ -> false
+    | _, Arnk -> false
+    | _, Srnk -> true
+    | Srnk, _ -> false
+    | _, Crnk -> true
+    | Crnk, _ -> false
+    | _, Irnk -> true
+    | Irnk, _ -> false
+    | Urnk, Drnk
+    | Drnk, Urnk -> true
+    | Drnk, Drnk -> true
+    | Urnk, Urnk -> true
+
 
 module SMap = Map.Make(
   struct
@@ -91,6 +128,8 @@ module Rx : sig
     | Inter of t * t list (* intersections *)
     | Diff of t * t       (* difference *)
     | Star of t           (* kleene stars *)
+  val rank : t -> r
+
   val hash : t -> int 
   val nillable : t -> bool
   val desc : t -> u
@@ -116,43 +155,6 @@ module Rx : sig
   val reverse : t -> t
   val maps : t -> int array * int array
 end = struct
-
-  type r = 
-    | Urnk           (* union *)
-    | Drnk           (* diff *)
-    | Irnk           (* inter *)
-    | Crnk           (* concat *)
-    | Srnk           (* star *)
-    | Arnk           (* atomic *)
-        
-  let lpar r1 r2 = match r1,r2 with
-    | Arnk, _ -> false
-    | _, Arnk -> false
-    | Srnk, _ -> false
-    | _, Srnk -> true
-    | Crnk, _ -> false
-    | _, Crnk -> true
-    | Irnk, _ -> false
-    | _, Irnk -> true
-    | Urnk, Drnk
-    | Drnk, Urnk -> true
-    | Drnk, Drnk -> false
-    | Urnk, Urnk -> false
-
-  let rpar r1 r2 = match r1,r2 with
-    | Arnk, _ -> false
-    | _, Arnk -> false
-    | _, Srnk -> true
-    | Srnk, _ -> false
-    | _, Crnk -> true
-    | Crnk, _ -> false
-    | _, Irnk -> true
-    | Irnk, _ -> false
-    | Urnk, Drnk
-    | Drnk, Urnk -> true
-    | Drnk, Drnk -> true
-    | Urnk, Urnk -> true
-
   type u = 
     | Eps                 (* epsilon *)
     | CSet of CharSet.t   (* character sets *)
@@ -166,6 +168,15 @@ end = struct
       { desc : u;
         nillable : bool;
         hash : int }
+
+  let rank r = match r.desc with
+    | Eps     -> Arnk
+    | CSet _  -> Arnk
+    | Star _  -> Srnk
+    | Seq _   -> Crnk
+    | Alt _   -> Urnk 
+    | Inter _ -> Irnk
+    | Diff _  -> Drnk 
 
   let mk_hash = function
     | Eps          -> 1229
@@ -202,26 +213,13 @@ end = struct
 
   (* pretty printers *)
   let rec format_t r0 = 
-    let rank r = match r.desc with
-      | Eps     -> Arnk
-      | CSet _  -> Arnk
-      | Star _  -> Srnk
-      | Seq _   -> Crnk
-      | Alt _   -> Urnk 
-      | Inter _ -> Irnk
-      | Diff _  -> Drnk in
     let string_of_char_code n = Char.escaped (Char.chr n) in 
     let format_char_code n = Util.format "%s" (string_of_char_code n) in       
     let format_char_code_pair (n1,n2) = 
       if n1=n2 then format_char_code n1 
       else (format_char_code n1; Util.format "-"; format_char_code n2) in 
 
-    let maybe_wrap b r = 
-      Util.format "@[";
-      if b then Util.format "(";
-      format_t r;
-      if b then Util.format ")";
-      Util.format "@]" in 
+    let maybe_wrap = Bprint.maybe_wrap format_t in
 
     let rec format_list sep rnk ri resti = 
       Util.format sep;
@@ -550,6 +548,7 @@ end
 module DFA : sig 
   type s 
   val format_t : s -> unit
+  val rank : s -> r
   val find_state : Rx.t -> s
   val mk_seq : s -> s -> s
   val mk_seqs : s list -> s
@@ -607,6 +606,7 @@ end = struct
   open M
     
   let format_t s = Rx.format_t s.regexp 
+  let rank s = Rx.rank s.regexp
 
   (* maps of states *)
   module QM = Map.Make(
@@ -941,8 +941,8 @@ end
 
 (* MAIN EXPORTS *)
 type t = DFA.s
-
 let format_t = DFA.format_t
+let rank = DFA.rank
 let string_of_t s = 
   Util.format_to_string (fun () -> format_t s) 
 

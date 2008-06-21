@@ -901,7 +901,7 @@ module DLens = struct
     let xto = match dl1.xtype with 
       | None -> None 
       | Some xt -> 
-          if Erx.has_box xt && not (Erx.iterable xt) then None
+          if Erx.boxes xt <> 0 && not (Erx.iterable xt) then None
           else Some (Erx.mk_star xt) in
     let dt = dl1.dtype in
     let st = function

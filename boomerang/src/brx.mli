@@ -18,6 +18,16 @@ val mk_inter : t -> t -> t
 val mk_reverse : t -> t
 
 (* pretty printing *)
+type r = 
+  | Urnk           (* union *)
+  | Drnk           (* diff *)
+  | Irnk           (* inter *)
+  | Crnk           (* concat *)
+  | Srnk           (* star *)
+  | Arnk           (* atomic *)
+val lpar : r -> r -> bool
+val rpar : r -> r -> bool
+val rank : t -> r
 val format_t : t -> unit
 val string_of_t : t -> string
 
