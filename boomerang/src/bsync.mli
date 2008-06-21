@@ -14,26 +14,10 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/src/bdiff3.ml                                                    *)
-(* Boomerang Diff3 implementation                                              *)
+(* /boomerang/src/bsync.ml                                                     *)
+(* Boomerang synchronization                                                   *)
 (* $Id$ *)
 (*******************************************************************************)
 
-module type Diff3Arg = sig
-  type elt
-  val equal : elt -> elt -> bool
-end
-
-module type Diff3Res = sig
-  type elt
-  type seq = elt list
-  
-  type chunk = 
-    | Stable of elt * elt * elt
-    | AChange of seq * seq * seq
-    | BChange of seq * seq * seq
-    | Conflict of seq * seq * seq
-  val parse : seq -> seq -> seq -> chunk list
-end
-
-module Make(A:Diff3Arg) : Diff3Res with type elt = A.elt
+val sync : Erx.t -> string option -> string option -> string option ->
+           (string option * string option * string option)

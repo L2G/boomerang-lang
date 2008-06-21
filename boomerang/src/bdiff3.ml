@@ -23,8 +23,7 @@
 
 module type Diff3Arg = sig 
   type elt
-  val eqv : elt -> elt -> bool
-  val format : elt -> unit
+  val equal : elt -> elt -> bool
 end
 
 module type Diff3Res = sig
@@ -68,7 +67,7 @@ let parse o a b =
       Array.iteri 
         (fun i x -> 
            comp.(i) <- 
-             ( Array.map (fun elt_a -> A.eqv elt_a x ) arr_2 ))
+             ( Array.map (fun elt_a -> A.equal elt_a x ) arr_2 ))
         arr_1;
       comp in
   let comp_oa = make_comp arr_o arr_a in

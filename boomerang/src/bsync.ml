@@ -25,9 +25,7 @@ let msg = Util.format
 module Diff3 = Bdiff3.Make(
   struct
     type elt = string * string
-    let eqv (k1,_) (k2,_) = k1 = k2
-    let format (k1,v1) =
-      msg "%s = %s" (Misc.whack k1) (Misc.whack v1)
+    let equal (k1,_) (k2,_) = k1 = k2
   end)
   
 let debug thk = Trace.debug "sync+" thk  
