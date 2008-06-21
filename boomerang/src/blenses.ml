@@ -36,7 +36,6 @@ let whack =
      Safelist.fold_right 
        (fun (f,t) s -> Str.global_replace f t s)
        replacements s)
-
     
 let get_str n = sprintf "%s get" n
 let put_str n = sprintf "%s put" n

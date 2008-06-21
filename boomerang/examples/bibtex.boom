@@ -104,33 +104,33 @@ test authors.get
 let ws = [ \t]*
 
 let to_lower : lens = 
-  ( ([aA] <-> "a") 
-  | ([bB] <-> "b")  
-  | ([cC] <-> "c")  
-  | ([dD] <-> "d")  
-  | ([eE] <-> "e")  
-  | ([fF] <-> "f")  
-  | ([gG] <-> "g")  
-  | ([hH] <-> "h")  
-  | ([iI] <-> "i")  
-  | ([jJ] <-> "j")     
-  | ([kK] <-> "k")  
-  | ([lL] <-> "l")  
-  | ([mM] <-> "m")  
-  | ([nN] <-> "n")  
-  | ([oO] <-> "o")  
-  | ([pP] <-> "p")  
-  | ([qQ] <-> "q")  
-  | ([rR] <-> "r")  
-  | ([sS] <-> "s")  
-  | ([tT] <-> "t")  
-  | ([uU] <-> "u")  
-  | ([vV] <-> "v")  
-  | ([wW] <-> "w")  
-  | ([xX] <-> "x")  
-  | ([yY] <-> "y")  
-  | ([zZ] <-> "z")  
-  | copy [^a-zA-Z@{}"] ) (* " *)
+  ( default ([aA] <-> "a") "a"
+  | default ([bB] <-> "b") "b" 
+  | default ([cC] <-> "c") "c" 
+  | default ([dD] <-> "d") "d" 
+  | default ([eE] <-> "e") "e" 
+  | default ([fF] <-> "f") "f" 
+  | default ([gG] <-> "g") "g" 
+  | default ([hH] <-> "h") "h" 
+  | default ([iI] <-> "i") "i" 
+  | default ([jJ] <-> "j") "j"    
+  | default ([kK] <-> "k") "k" 
+  | default ([lL] <-> "l") "l" 
+  | default ([mM] <-> "m") "m" 
+  | default ([nN] <-> "n") "n" 
+  | default ([oO] <-> "o") "o" 
+  | default ([pP] <-> "p") "p" 
+  | default ([qQ] <-> "q") "q" 
+  | default ([rR] <-> "r") "r" 
+  | default ([sS] <-> "s") "s" 
+  | default ([tT] <-> "t") "t" 
+  | default ([uU] <-> "u") "u" 
+  | default ([vV] <-> "v") "v" 
+  | default ([wW] <-> "w") "w" 
+  | default ([xX] <-> "x") "x" 
+  | default ([yY] <-> "y") "y" 
+  | default ([zZ] <-> "z") "z" 
+  | copy [^a-zA-Z@{}""] ) 
 
 let lower : regexp = [^A-Z@{}"]     (* " *)
 let upper : regexp = [A-Z] 
@@ -156,20 +156,14 @@ test canonize first_cn "H" = "{H}"
 test canonize first_cn "f" = "f"
 test canonize first_cn "{HeLlO}" = "{H}e{L}l{O}"
 
-(* NOTE: must be lazy star *)
-(* what is lazy star? JNF *)
+(* NOTE: must be lazy star / dot *)
 let rest_cn  : canonizer = (mk_cn (to_lower | braces))*
-
-(* NOTE: must be lazy dot *)
-(* what is lazy dot? *)
 let title_can : canonizer = empty_cn | (first_cn . rest_cn)
 
 test choose title_can "{L}{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava" = 
                       "L{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava"
 
 let canonize_title : lens = 
-  (* ??? should we bother? it will only be messier 
-     than the outer type *)
   let l : lens = 
     ((copy lower_no_ws 
      | del /{/ . copy upper . del /}/
