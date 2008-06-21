@@ -57,7 +57,7 @@ let rec isync p ty o a b =
           report 
             (fun () -> 
                msg "@[Conflict at [%s]:" (string_of_path p);
-               msg "@ returning the archive and replicas unchanged.@]@\n");
+               msg " returning the archive and replicas unchanged.@]@\n");
           (o,a,b)
       | Some(s,dir) -> begin
           let s_tags = Erx.spine_tags s in
@@ -66,10 +66,10 @@ let rec isync p ty o a b =
           let r,r_tags,tmr,rb,rb_tags,tmrb = 
             if dir = Left then "A",a_tags,tma,"B",b_tags,tmb
             else "B",b_tags,tmb,"A",a_tags,tma in
-          let del_tags = Erx.TagSet.diff r_tags s_tags in 
+          let del_tags = Erx.TagSet.diff rb_tags s_tags in 
           let mod_tags = 
             Erx.TagSet.filter 
-              (fun ti -> Erx.TagMap.find ti tmrb <> Erx.TagMap.find ti tmo)
+              (fun ti -> Erx.TagMap.safe_find ti tmrb [] <> Erx.TagMap.safe_find ti tmo [])
               rb_tags in
           let del_mod_tags = Erx.TagSet.inter del_tags mod_tags in 
           (* check for delete / modify conflict *)
@@ -78,8 +78,9 @@ let rec isync p ty o a b =
                 let ti = Erx.TagSet.choose del_mod_tags in 
                 report 
                   (fun () -> 
-                     msg "@[Delete (%s) / modify (%s) conflict on chunks in %s at [%s]:" r rb ti (string_of_path p);
-                     msg "@ returning the archive and replicas unchanged.@]@\n");
+                     msg "@[Delete(%s) / modify(%s) conflict at [%s] on tag %s;"
+                       r rb (string_of_path p) (Misc.whack ti);
+                     msg " returning the archive and replicas unchanged.@]@\n");
                 (o,a,b)
               end
             else       
@@ -99,6 +100,7 @@ let rec isync p ty o a b =
                        let at = Erx.box_content ska t in 
                        let bt = Erx.box_content skb t in 
                        let chunks = Diff3.parse ot at bt in
+                       let key_string ri = Misc.concat_list "," (Safelist.map fst ri) in 
                        let ot',at',bt' =
                          Safelist.fold_left
                            (fun (ot',at',bt') chunk ->
@@ -115,15 +117,16 @@ let rec isync p ty o a b =
                                         report 
                                           (fun () -> 
                                              msg "@[At [%s] the archive and replica B are identical;" (string_of_path pt);
-                                             msg "@ propagating A.@]@\n");
+                                             msg " propagating A.@]@\n");
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end
                                     else 
                                       begin 
                                         report 
                                           (fun () -> 
-                                             msg "@[Conflict at [%s]: the archive and replica B are not identical;" (string_of_path pt);
-                                             msg "@ returning the archive and replicas unchanged.@]@\n");
+                                             msg "@[Delete(%s) / modify (%s) conflict at [%s] on keys [%s] [%s] [%s];"
+                                               r rb (string_of_path pt) (key_string oti) (key_string ati) (key_string bti);                                             
+                                             msg " returning the archive and replicas unchanged.@]@\n");
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.BChange(oti,ati,bti) ->
@@ -132,15 +135,16 @@ let rec isync p ty o a b =
                                         report 
                                           (fun () -> 
                                              msg "@[At [%s] the archive and replica B are identical;" (string_of_path pt);
-                                             msg "@ propagating A.@]@\n");
+                                             msg " propagating A.@]@\n");
                                         (ot'@bti,at'@bti,bt'@bti)
                                       end
                                     else 
                                       begin 
                                         report 
                                           (fun () -> 
-                                             msg "@[Conflict at [%s]: the archive and replica B are not identical;" (string_of_path pt);
-                                             msg "@ returning the archive and replicas unchanged.@]@\n");
+                                             msg "@[Delete(%s) / modify (%s) conflict at [%s] on keys [%s] [%s] [%s];"
+                                               r rb (string_of_path pt) (key_string oti) (key_string ati) (key_string bti);                                             
+                                             msg " returning the archive and replicas unchanged.@]@\n");
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.Conflict(oti,ati,bti) ->
@@ -149,19 +153,16 @@ let rec isync p ty o a b =
                                         report 
                                           (fun () -> 
                                              msg "@[At [%s] replicas A and B are identical;" (string_of_path pt);
-                                             msg "@ propagating both.@]@\n");
+                                             msg " propagating both.@]@\n");
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end
                                     else
                                       begin
                                         report 
                                           (fun () -> 
-                                             let koi = Misc.concat_list "," (Safelist.map fst oti) in 
-                                             let kai = Misc.concat_list "," (Safelist.map fst ati) in 
-                                             let kbi = Misc.concat_list "," (Safelist.map fst bti) in 
-                                               msg "@[Conflict at [%s] on keys [%s] [%s] [%s];" 
-                                                 (string_of_path pt) koi kai kbi;
-                                               msg "@ returning the archive and replicas unchanged.@]@\n");                                      
+                                             msg "@[Conflict at [%s] on keys [%s] [%s] [%s];" 
+                                               (string_of_path pt) (key_string oti) (key_string ati) (key_string bti);
+                                             msg " returning the archive and replicas unchanged.@]@\n");                                      
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end)
                            ([],[],[]) chunks in
@@ -204,11 +205,11 @@ let sync t oo ao bo =
     | _,_,None ->
         begin match atomic_sync oo ao bo with
           | None       -> 
-              report (fun () -> msg "Conflict at root; returning the archive and replicas unchanged.@\n");
+              report (fun () -> msg "Conflict at [.]; returning the archive and replicas unchanged.@\n");
               (oo,ao,bo)
           | Some (r,d) -> 
               let s1,s2 = strings_of_dir d in 
-              report (fun () -> msg "At root: %s are identical; propagating %s.@\n" s1 s2);
+              report (fun () -> msg "At [.]: %s are identical; propagating %s.@\n" s1 s2);
               (r,r,r)
         end
     | Some o,Some a,Some b ->
