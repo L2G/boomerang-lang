@@ -1,10 +1,33 @@
-module type DIFF3ARGS = sig 
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                  *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/src/bdiff3.ml                                                    *)
+(* Boomerang Diff3 implementation                                              *)
+(* $Id$ *)
+(*******************************************************************************)
+
+(* --- module type definitions --- *)
+
+module type Diff3Arg = sig 
   type elt
   val eqv : elt -> elt -> bool
   val format : elt -> unit
 end
 
-module type DIFF3RES = sig
+module type Diff3Res = sig
   type elt
   type seq = elt list
   
@@ -16,11 +39,8 @@ module type DIFF3RES = sig
   val parse : seq -> seq -> seq -> chunk list
 end
 
-(*******************************************************************)
-
-let debug = Trace.debug "bdiff3"
-
-module Make(A: DIFF3ARGS) = struct
+(* --- main module --- *)
+module Make(A: Diff3Arg) = struct
 
 type elt = A.elt
 
@@ -41,6 +61,7 @@ let parse o a b =
   let arr_a = Array.of_list a in
   let arr_b = Array.of_list b in
   let arr_o = Array.of_list o in 
+  (* comparison matrix *)
   let make_comp arr_1 arr_2 = 
     (* set comp_oa [i,j] to true iff arr_o[i]=arr_o[j]... *)
     let comp = Array.make_matrix (Array.length arr_1) (Array.length arr_2) true in 
@@ -52,6 +73,7 @@ let parse o a b =
       comp in
   let comp_oa = make_comp arr_o arr_a in
   let comp_ob = make_comp arr_o arr_b in
+  (* compute lcses between o and a and o and b *)
   let make_match_list comp l_o l_a =  
     let lcs_oa = Array.make_matrix (l_o+1) (l_a+1) 0 in 
     let lcs_aux = Array.make_matrix (l_o+1) (l_a+1) Diag in 
@@ -94,7 +116,7 @@ let parse o a b =
   let same_lines_oab =
     Safelist.append (common_lines same_lines_oa same_lines_ob []) [(-1,-1,-1)] in 
 
-  (************************************************ *)  
+  (* read off diff3 chunks *)
   let _,chunks = 
     Safelist.fold_left
       (fun ((eo,ea,eb),chunks) (so,sa,sb) ->         
@@ -109,20 +131,16 @@ let parse o a b =
          let is_same_ob = not (find_diff (so+1) (sb+1) eo eb comp_ob) in 
 
          let get_lines sl el arr =
-           let len = el - sl in 
-           if (len > 0) then 
-             (* BCP: Next line is hideous... *)
-             Array.to_list (Array.init len (fun i -> arr.(sl+i)))
-           else [] in
+           let rec aux i acc = 
+             if i<0 then acc
+             else aux (pred i) (arr.(sl+i)::acc) in
+           aux (pred (el-sl)) [] in
            
          let onew = get_lines (so+1) eo arr_o in 
          let anew = get_lines (sa+1) ea arr_a in 
          let bnew = get_lines (sb+1) eb arr_b in  
 
-         (* so and eo are the matching line numbers - so the differing lines are
-            so+1, so+2 ... eo-1.  When finally adding the lines to reconciled
-            version, we need to add the common line too *)
-
+         (* compute the matching chunk *)
          let common =
            if (sb = -1) then []
            else
@@ -130,7 +148,8 @@ let parse o a b =
              let ai = arr_a.(sa) in
              let bi = arr_b.(sb) in
              [Stable(oi,ai,bi)] in
-
+           
+         (* then, optionally, an unstable chunk *)
          if is_same_oa && is_same_ob then
            (* a and b are equal to o, so just output a stable chunk. *)              
            (assert(onew = [] && anew = [] && bnew = []);
@@ -147,6 +166,6 @@ let parse o a b =
       ((len_o,len_a,len_b),[]) same_lines_oab in
     chunks
 
-end (* functor Make *)
+end
 
 
