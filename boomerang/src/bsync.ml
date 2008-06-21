@@ -40,6 +40,17 @@ let strings_of_dir = function
   | Right -> "the archive and replica A", "B"
   | Both  -> "replicas A and B", "both"   
 
+
+type path_elt = Tag of Erx.tag | Key of Erx.key 
+
+let string_of_path_elt = function
+  | Tag t -> ":" ^ t
+  | Key k -> "/" ^ k
+let root = []
+let string_of_path p = 
+  if p = [] then "." 
+  else Safelist.fold_left (fun acc pi -> string_of_path_elt pi ^ acc) "" p
+
 let atomic_sync o a b = 
   if a=b then Some(a,Both)
   else if o=b then Some(a,Left)
@@ -47,7 +58,6 @@ let atomic_sync o a b =
   else None
 
 let rec isync p ty o a b = 
-  let string_of_path p = Misc.concat_list "" (Safelist.rev p) in
   let (spo,tmo) as sko = Erx.parse ty o in 
   let (spa,tma) as ska = Erx.parse ty a in
   let (spb,tmb) as skb = Erx.parse ty b in 
@@ -78,16 +88,15 @@ let rec isync p ty o a b =
                 let ti = Erx.TagSet.choose del_mod_tags in 
                 report 
                   (fun () -> 
-                     msg "@[Delete(%s) / modify(%s) conflict at [%s] on tag %s;"
-                       r rb (string_of_path p) (Misc.whack ti);
-                     msg " returning the archive and replicas unchanged.@]@\n");
+                     msg "@[Delete(%s) / modify(%s) conflict on tag %s @ [%s].@]@\n"
+                       r rb (Misc.whack ti) (string_of_path p));
                 (o,a,b)
               end
             else       
               if Erx.TagSet.is_empty s_tags then 
                 begin
                   let s1,s2 = strings_of_dir dir in 
-                  report (fun () -> msg "At [%s]: %s are identical; propagating %s.@\n" (string_of_path p) s1 s2);
+                  report (fun () -> msg "@[Propagating %s at [%s].@]@\n" s2 (string_of_path p));
                   let w = Erx.unparse (s,Erx.TagMap.empty) in
                   (w,w,w)
                 end
@@ -95,7 +104,7 @@ let rec isync p ty o a b =
                 let tmo,tma,tmb =
                   Erx.TagSet.fold
                     (fun t (tmo,tma,tmb) ->
-                       let pt = (":" ^ Misc.whack t)::p in 
+                       let pt = Tag t::p in 
                        let ot = Erx.box_content sko t in 
                        let at = Erx.box_content ska t in 
                        let bt = Erx.box_content skb t in 
@@ -109,60 +118,48 @@ let rec isync p ty o a b =
                                     let ty_t = match Erx.box_type ty t with 
                                       | None -> assert false
                                       | Some ty' -> ty' in 
-                                    let oi',ai',bi' = isync (("/" ^ Misc.whack k)::pt) ty_t oi ai bi in
+                                    let oi',ai',bi' = isync (Key k::pt) ty_t oi ai bi in
                                     (ot'@[k,oi'],at'@[k,ai'],bt'@[k,bi'])
                                 | Diff3.AChange(oti,ati,bti) ->
                                     if oti = bti then 
                                       begin
-                                        report 
-                                          (fun () -> 
-                                             msg "@[At [%s] the archive and replica B are identical;" (string_of_path pt);
-                                             msg " propagating A.@]@\n");
+                                        report (fun () -> msg "@[Propagating A at [%s].@]@\n" (string_of_path p));
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end
                                     else 
                                       begin 
                                         report 
                                           (fun () -> 
-                                             msg "@[Delete(%s) / modify (%s) conflict at [%s] on keys [%s] [%s] [%s];"
-                                               r rb (string_of_path pt) (key_string oti) (key_string ati) (key_string bti);                                             
-                                             msg " returning the archive and replicas unchanged.@]@\n");
+                                             msg "@[Delete(%s) / modify (%s) conflict on keys [%s] [%s] [%s] at [%s].@]@\n"
+                                               r rb (key_string oti) (key_string ati) (key_string bti) (string_of_path pt));
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.BChange(oti,ati,bti) ->
                                     if oti = ati then 
                                       begin
-                                        report 
-                                          (fun () -> 
-                                             msg "@[At [%s] the archive and replica B are identical;" (string_of_path pt);
-                                             msg " propagating A.@]@\n");
+                                        report (fun () -> msg "@[Propagating B at [%s].@]@\n" (string_of_path p));
                                         (ot'@bti,at'@bti,bt'@bti)
                                       end
                                     else 
                                       begin 
                                         report 
                                           (fun () -> 
-                                             msg "@[Delete(%s) / modify (%s) conflict at [%s] on keys [%s] [%s] [%s];"
-                                               r rb (string_of_path pt) (key_string oti) (key_string ati) (key_string bti);                                             
-                                             msg " returning the archive and replicas unchanged.@]@\n");
+                                             msg "@[Delete(%s) / modify (%s) conflict on keys [%s] [%s] [%s] at [%s].@]@\n"
+                                               r rb (key_string oti) (key_string ati) (key_string bti) (string_of_path pt));
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.Conflict(oti,ati,bti) ->
                                     if ati=bti then 
                                       begin 
-                                        report 
-                                          (fun () -> 
-                                             msg "@[At [%s] replicas A and B are identical;" (string_of_path pt);
-                                             msg " propagating both.@]@\n");
+                                        report (fun () -> msg "@[Propagating both at [%s].@]@\n" (string_of_path p));
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end
                                     else
                                       begin
                                         report 
                                           (fun () -> 
-                                             msg "@[Conflict at [%s] on keys [%s] [%s] [%s];" 
-                                               (string_of_path pt) (key_string oti) (key_string ati) (key_string bti);
-                                             msg " returning the archive and replicas unchanged.@]@\n");                                      
+                                             msg "@[Conflict on keys [%s] [%s] [%s] at [%s].@]@\n"
+                                               (key_string oti) (key_string ati) (key_string bti) (string_of_path pt));                       
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end)
                            ([],[],[]) chunks in
@@ -205,13 +202,15 @@ let sync t oo ao bo =
     | _,_,None ->
         begin match atomic_sync oo ao bo with
           | None       -> 
-              report (fun () -> msg "Conflict at [.]; returning the archive and replicas unchanged.@\n");
+              report 
+                (fun () -> 
+                   msg "@[Conflict at [%s].@]@\n"
+                     (string_of_path root));
               (oo,ao,bo)
           | Some (r,d) -> 
-              let s1,s2 = strings_of_dir d in 
-              report (fun () -> msg "At [.]: %s are identical; propagating %s.@\n" s1 s2);
+              report (fun () -> msg "@[Propagating both at [%s].@]@\n" (string_of_path root));
               (r,r,r)
         end
     | Some o,Some a,Some b ->
-        let o',a',b' = isync ["."] t o a b in
+        let o',a',b' = isync root t o a b in
         (Some o',Some a',Some b')
