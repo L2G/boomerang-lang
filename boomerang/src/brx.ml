@@ -20,34 +20,34 @@ type r =
   | Crnk           (* concat *)
   | Srnk           (* star *)
   | Arnk           (* atomic *)
-  let lpar r1 r2 = match r1,r2 with
-    | Arnk, _ -> false
-    | _, Arnk -> false
-    | Srnk, _ -> false
-    | _, Srnk -> true
-    | Crnk, _ -> false
-    | _, Crnk -> true
-    | Irnk, _ -> false
-    | _, Irnk -> true
-    | Urnk, Drnk
-    | Drnk, Urnk -> true
-    | Drnk, Drnk -> false
-    | Urnk, Urnk -> false
 
-  let rpar r1 r2 = match r1,r2 with
-    | Arnk, _ -> false
-    | _, Arnk -> false
-    | _, Srnk -> true
-    | Srnk, _ -> false
-    | _, Crnk -> true
-    | Crnk, _ -> false
-    | _, Irnk -> true
-    | Irnk, _ -> false
-    | Urnk, Drnk
-    | Drnk, Urnk -> true
-    | Drnk, Drnk -> true
-    | Urnk, Urnk -> true
-
+let lpar r1 r2 = match r1,r2 with
+  | Arnk, _ -> false
+  | _, Arnk -> false
+  | Srnk, _ -> false
+  | _, Srnk -> true
+  | Crnk, _ -> false
+  | _, Crnk -> true
+  | Irnk, _ -> false
+  | _, Irnk -> true
+  | Urnk, Drnk
+  | Drnk, Urnk -> true
+  | Drnk, Drnk -> false
+  | Urnk, Urnk -> false
+      
+let rpar r1 r2 = match r1,r2 with
+  | Arnk, _ -> false
+  | _, Arnk -> false
+  | _, Srnk -> true
+  | Srnk, _ -> false
+  | _, Crnk -> true
+  | Crnk, _ -> false
+  | _, Irnk -> true
+  | Irnk, _ -> false
+  | Urnk, Drnk
+  | Drnk, Urnk -> true
+  | Drnk, Drnk -> true
+  | Urnk, Urnk -> true
 
 module SMap = Map.Make(
   struct
@@ -311,13 +311,13 @@ end = struct
         Util.format ")@]"
         
   let tag_of_t r = match r.desc with
-    | Eps -> "Eps"
-    | CSet _ -> "CSet"
-    | Seq _ -> "Seq"
-    | Alt _ -> "Alt"
-    | Star _ -> "Star"
+    | Eps     -> "Eps"
+    | CSet _  -> "CSet"
+    | Seq _   -> "Seq"
+    | Alt _   -> "Alt"
+    | Star _  -> "Star"
     | Inter _ -> "Inter"
-    | Diff _ -> "Diff"
+    | Diff _  -> "Diff"
 
   let string_of_t r = 
     Util.format_to_string (fun () -> format_t r)
@@ -577,11 +577,10 @@ end = struct
           mutable maps : unit -> (int array * int array);
           mutable next : unit -> s array;
           mutable reverse : unit -> s;
-          mutable non_empty : Q.t -> bool;
+          mutable non_empty : (Q.t * (s * Q.t) list) -> bool;
           mutable has_non_empty : bool;
-          mutable representative : Q.t -> string option;
-          mutable suffs : unit -> s;
-        }
+          mutable representative : (string * Q.t * (string * Q.t * s) list) -> string option;
+          mutable suffs : unit -> s; }
   end = struct
     type s = 
         { uid : int;
@@ -591,11 +590,10 @@ end = struct
           mutable maps : unit -> (int array * int array);
           mutable next : unit -> s array;
           mutable reverse : unit -> s;
-          mutable non_empty : Q.t -> bool;
+          mutable non_empty : (Q.t * (s * Q.t) list) -> bool;
           mutable has_non_empty : bool;
-          mutable representative : Q.t -> string option;
-          mutable suffs : unit -> s;
-        }
+          mutable representative : (string * Q.t * (string * Q.t * s) list) -> string option;
+          mutable suffs : unit -> s; }
   end and Q : Set.S with type elt = M.s = Set.Make(
     struct
       type t = M.s
@@ -701,10 +699,15 @@ end = struct
       let rev = find_state (Rx.reverse r0) in 
       s.reverse <- (fun () -> rev); rev in 
       dbg (fun () -> Util.format "DONE REVERSE_IMPL #%d@]@\n" s.uid);            
-    let non_empty_impl sn = 
+    let non_empty_impl (sn,ss) = 
       dbg (fun () -> Util.format "@[NON_EMPTY_IMPL #%d %s@\n  " s.uid (Rx.string_of_t s.regexp));
       let sn' = Q.add s sn in 
-      if Q.mem s sn then false
+      let add si ss = if Q.mem si sn' then ss else (si,sn')::ss in 
+      let jump_next ss = match ss with 
+        | [] -> false
+        | (s1,sn1)::rest -> s1.non_empty (sn1,rest) in 
+      if Q.mem s sn then 
+        jump_next ss
       else 
         let full_search () = 
           if s.final then true
@@ -712,89 +715,94 @@ end = struct
             let tr = s.next () in 
             let len = Array.length tr in 
             let rec loop acc i = 
-              acc || (if i=len then false else loop (tr.(i).non_empty sn') (succ i)) in 
-             loop false 0 in
+              if i < 0 then acc 
+              else 
+                let si = tr.(i) in 
+                let acc' = add si acc in
+                loop acc' (pred i) in
+            jump_next (loop ss (pred len)) in 
         let b = 
           match Rx.desc r0 with 
             | Rx.Eps         -> true
-            | Rx.CSet []     -> false
+            | Rx.CSet []     -> jump_next ss
             | Rx.CSet _      -> true
-            | Rx.Seq(r1,r2)  -> (find_state r1).non_empty sn' && (find_state r2).non_empty sn'
+            | Rx.Seq(r1,r2)  -> 
+                (find_state r1).non_empty (sn',ss) && (find_state r2).non_empty (sn',ss)
             | Rx.Star _      -> true
-            | Rx.Alt(r1,rl)  -> Safelist.exists (fun ri -> (find_state ri).non_empty sn') (r1::rl)
+            | Rx.Alt(r1,rl)  -> 
+                let ss' = Safelist.fold_left (fun ss' ri -> add (find_state ri) ss') ss (r1::rl) in 
+                jump_next ss'
             | Rx.Diff(r1,r2) -> 
                 let s2 = find_state r2 in 
-                if s2.has_non_empty then s2.non_empty sn'
+                if s2.has_non_empty then 
+                  jump_next ((s2,sn')::ss)
                 else 
                   begin match Rx.desc r1,Rx.desc r2 with 
                     | Rx.Alt(r11,rl1),_ ->                 
-                        Safelist.exists 
-                          (fun ri -> (find_state (Rx.mk_diff ri r2)).non_empty sn')
-                          (r11::rl1)
+                        let ss' = Safelist.fold_left (fun ss' ri -> add (find_state (Rx.mk_diff ri r2)) ss') ss (r1::rl1) in 
+                        jump_next (ss' @ ss)
                     | _ -> full_search ()
                   end
-            | _              -> full_search () in
+            | _ -> full_search () in
           s.has_non_empty <- true;
           s.non_empty <- (fun _ -> b);
           dbg (fun () -> Util.format "DONE NON_EMPTY_IMPL %b #%d@]@\n" b s.uid);
           b in 
-    let representative_impl sn =
-      dbg (fun () -> Util.format "@[REPRESENTATIVE_IMPL #%d@\n  " s.uid);
-      let rec any_rep l = match l with
-           | [] ->  None
-           | ri::rest -> begin 
-               match (find_state ri).representative sn with 
-                 | None -> any_rep rest
-                 | wo   -> wo 
-             end in 
-      let full_search () =
-        if Q.mem s sn then None
-        else if s.final then Some ""
-        else
-          let tr = s.next () in
-          let len = Array.length tr in
-          let rec loop sn i =
-            if i = len then None
-            else
-              let si = tr.(i) in
-              match si.representative sn with 
-                | Some w -> 
-                    let ci = Char.chr (snd (s.maps ())).(i) in 
-                    let wi = String.make 1 ci in 
-                    Some (wi ^ w)
-                | None -> loop (Q.add si sn) (succ i) in 
-          loop (Q.add s sn) 0 in
-      let wo = match Rx.desc r0 with
-        | Rx.Eps -> Some ""
-        | Rx.CSet [] -> None
-        | Rx.CSet ((c1,_)::_) -> 
-            let w = String.make 1 (Char.chr c1) in 
-            Some w
-        | Rx.Seq(r1,r2) -> 
-            begin match (find_state r1).representative sn with 
-              | None -> None 
-              | Some w1 -> 
-                  Misc.map_option 
-                    (fun w2 -> w1 ^ w2)
-                    ((find_state r2).representative sn)
-            end
-        | Rx.Star _ -> Some ""
-        | Rx.Alt(r1,rl) -> any_rep (r1::rl)
-        | Rx.Diff(r1,r2) ->
-            begin match Rx.desc r1,Rx.desc r2 with
-              | Rx.Alt(r11,rl1),_ ->
-                  any_rep (Safelist.map (fun ri -> Rx.mk_diff ri r2) (r11::rl1))
-              | _,Rx.Alt(r21,r2l) ->
-                  let r' = Rx.mk_diff (Rx.mk_diff r1 r21) (Rx.mk_alts r2l) in
-                  (find_state r').representative sn
-              | _ -> full_search ()
-            end
-        | _ -> full_search () in
-      s.representative <- (fun _ -> wo);
-      s.has_non_empty <- true;
-      s.non_empty <- (fun _ -> wo <> None);
-      dbg (fun () -> Util.format "DONE REPRESENTATIVE_IMPL #%d@]@\n" s.uid);
-      wo in 
+
+    let representative_impl (w,sn,ss) = 
+      dbg (fun () -> Util.format "@[REPRESENTATIVE_IMPL #%d %s@\n  " s.uid (Rx.string_of_t s.regexp));
+      let sn' = Q.add s sn in 
+      let add ci si ss = if Q.mem si sn' then ss else (w ^ ci,sn',si)::ss in 
+      let jump_next ss = match ss with 
+        | [] -> None
+        | (w1,sn1,s1)::rest -> s1.representative (w1,sn1,rest) in 
+      if Q.mem s sn then jump_next ss
+      else 
+        let full_search () = 
+          if s.final then Some w
+          else 
+            let tr = s.next () in 
+            let len = Array.length tr in 
+            let rec loop acc i = 
+              if i < 0 then acc 
+              else 
+                let si = tr.(i) in 
+                let ci = Char.chr (snd (s.maps ())).(i) in 
+                let acc' = add (String.make 1 ci) si acc in
+                loop acc' (pred i) in
+            jump_next (loop ss (pred len)) in 
+        let wo = 
+          match Rx.desc r0 with 
+            | Rx.Eps         -> Some w
+            | Rx.CSet []     -> jump_next ss
+            | Rx.CSet ((c1,_)::_)  -> 
+                Some (w ^ (String.make 1 (Char.chr c1)))
+            | Rx.Seq(r1,r2)  -> 
+                begin match (find_state r1).representative (w,sn',ss) with 
+                  | None -> None
+                  | Some w1 -> 
+                      Misc.map_option 
+                        (fun w2 -> w1 ^ w2)
+                        ((find_state r2).representative (w,sn',ss))
+                end
+            | Rx.Star _      -> Some w
+            | Rx.Alt(r1,rl)  -> 
+                let ss' = Safelist.fold_left (fun ss' ri -> add "" (find_state ri) ss') ss (r1::rl) in 
+                jump_next (Safelist.rev ss')
+            | Rx.Diff(r1,r2) -> 
+                begin match Rx.desc r1,Rx.desc r2 with 
+                  | Rx.Alt(r11,rl1),_ ->                 
+                      let ss' = Safelist.fold_left (fun ss' ri -> add "" (find_state (Rx.mk_diff ri r2)) ss') ss (r1::rl1) in 
+                        jump_next ss'
+                  | _ -> full_search ()
+                end
+            | _ -> full_search () in
+          s.representative <- (fun _ -> wo);
+          s.has_non_empty <- true;
+          s.non_empty <- (fun _ -> wo <> None);
+          dbg (fun () -> Util.format "DONE REPRESENTATIVE_IMPL #%d@]@\n" s.uid);
+          wo in 
+
     let suffs_impl () = 
       dbg (fun () -> Util.format "@[SUFFS_IMPL #%d@\n  " s.uid);
       let full_search () = 
@@ -864,9 +872,9 @@ end = struct
 
   let mk_reverse s = s.reverse ()
 
-  let is_empty s = not (s.non_empty Q.empty)
+  let is_empty s = not (s.non_empty (Q.empty,[]))
 
-  let representative s = s.representative Q.empty
+  let representative s = s.representative ("",Q.empty,[])
 
   let splittable_cex s1 s2 = 
 (*     Util.format "CHECKING SPLITTABLE@\n%s@\nAND@\n%s@\n%!" *)
@@ -875,7 +883,7 @@ end = struct
     let overlap_or_epsilon = mk_inter (s1.suffs ()) ((s2_rev.suffs ()).reverse ()) in
     let overlap = mk_diff overlap_or_epsilon (find_state Rx.epsilon) in     
 (*     Util.format "DONE! GOING TO REPRESENTATIVE...@\n%!"; *)
-    overlap.representative Q.empty
+    representative overlap
 
 let iterable_cex s1 = 
   splittable_cex s1 (find_state (Rx.mk_star s1.regexp))

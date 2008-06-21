@@ -185,9 +185,6 @@ bar51
 </root>
 >>
 
-test atype ql = ?
-
-
 (* adding extra spaces at the end of lines, removing or addind newlines, etc*)
 test ql.put 
 <<
