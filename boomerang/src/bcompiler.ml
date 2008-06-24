@@ -1159,7 +1159,8 @@ let rec compile_exp cev e0 =
 
   | ECSet(i,pos,cs) -> 
       let csi = Safelist.map (fun (ci,cj) -> (Char.code ci, Char.code cj)) cs in
-      V.Rx(i,Brx.mk_cset pos csi)
+      let mk = if pos then Brx.mk_cset else Brx.mk_neg_cset in 
+      V.Rx(i,mk csi)
 
   | ECast(i,f,t,b,e) -> 
       compile_exp cev (mk_cast_blame (CEnv.lookup_type cev) i b f t e) 

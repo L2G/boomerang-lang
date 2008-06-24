@@ -2,12 +2,12 @@ type t
 
 (* constants *)
 val epsilon : t 
-val anychar : t
 val anything : t
 val empty : t
 
 (* constructors *)
-val mk_cset : bool -> (int * int) list -> t
+val mk_cset : (int * int) list -> t
+val mk_neg_cset : (int * int) list -> t
 val mk_string : string -> t
 val mk_alt : t -> t -> t
 val mk_seq : t -> t -> t
