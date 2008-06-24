@@ -338,9 +338,15 @@ barexp:
 equalexp:
   | appexp EQUAL appexp 
       { mk_over (me $1 $3) OEqual [$1; $3] }
-  | infixexp
+  | commaexp
       { $1 }
 
+commaexp:
+  | commaexp COMMA infixexp
+      { EPair(me $1 $3, $1, $3) }
+  | infixexp
+      { $1 }
+      
 infixexp:
   | dotexp 
       { $1 }
@@ -365,8 +371,6 @@ infixexp:
   | geqexp
       { $1 }
   | lcexp
-      { $1 }
-  | commaexp
       { $1 }
   | appexp
       { $1 }
@@ -410,9 +414,6 @@ gtexp:
 geqexp:
   | appexp GEQ appexp 
       { mk_over (me $1 $3) OGeq [$1; $3] }
-commaexp:
-  | appexp COMMA appexp
-      { EPair(me $1 $3, $1, $3) }
 lcexp: 
   | appexp GET appexp
       { let i = me $1 $3 in 
