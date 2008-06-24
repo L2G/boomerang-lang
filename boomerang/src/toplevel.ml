@@ -129,7 +129,8 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
   putback o_fn' oo' oo;
   putback a_fn' ao' ao;
   putback b_fn' bo' bo;
-  0
+  (* Return non-zero exit code if any conflicts were detected *)
+  if ao' = bo' then 0 else 1
   
 (*
     Util.format "O  = [@[";
