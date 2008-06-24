@@ -121,6 +121,8 @@ end
 module Rx : sig 
   type t 
   type u = 
+    | Anything            (* empty *)
+    | Empty               (* empty *)
     | Eps                 (* epsilon *)
     | CSet of CharSet.t   (* character sets *)
     | Alt of t * t list   (* unions *)
@@ -156,6 +158,8 @@ module Rx : sig
   val maps : t -> int array * int array
 end = struct
   type u = 
+    | Anything            (* empty *)
+    | Empty               (* empty *)
     | Eps                 (* epsilon *)
     | CSet of CharSet.t   (* character sets *)
     | Alt of t * t list   (* unions *)
@@ -170,15 +174,19 @@ end = struct
         hash : int }
 
   let rank r = match r.desc with
-    | Eps     -> Arnk
-    | CSet _  -> Arnk
-    | Star _  -> Srnk
-    | Seq _   -> Crnk
-    | Alt _   -> Urnk 
-    | Inter _ -> Irnk
-    | Diff _  -> Drnk 
+    | Anything -> Arnk
+    | Empty    -> Arnk
+    | Eps      -> Arnk
+    | CSet _   -> Arnk
+    | Star _   -> Srnk
+    | Seq _    -> Crnk
+    | Alt _    -> Urnk 
+    | Inter _  -> Irnk
+    | Diff _   -> Drnk 
 
   let mk_hash = function
+    | Anything     -> 181
+    | Empty        -> 443
     | Eps          -> 1229
     | CSet cs      -> 
         let rec aux = function
@@ -192,6 +200,8 @@ end = struct
     | Star r1      -> 197 * r1.hash
 
   let mk_nillable = function
+    | Anything     -> true
+    | Empty        -> false
     | Eps          -> true
     | CSet _       -> false
     | Star _       -> true
@@ -231,6 +241,8 @@ end = struct
             format_list sep rnk rj restj in 
     
     match r0.desc with
+    | Anything -> Util.format "@[ANY@]"
+    | Empty -> Util.format "@[[]@]"
     | CSet [p1] -> 
         let n1,n2 = p1 in 
           Util.format "@[";
@@ -311,33 +323,39 @@ end = struct
         Util.format "}@]"
         
   let tag_of_t r = match r.desc with
-    | Eps     -> "Eps"
-    | CSet _  -> "CSet"
-    | Seq _   -> "Seq"
-    | Alt _   -> "Alt"
-    | Star _  -> "Star"
-    | Inter _ -> "Inter"
-    | Diff _  -> "Diff"
+    | Anything -> "Anything"
+    | Empty    -> "Empty"
+    | Eps      -> "Eps"
+    | CSet _   -> "CSet"
+    | Seq _    -> "Seq"
+    | Alt _    -> "Alt"
+    | Star _   -> "Star"
+    | Inter _  -> "Inter"
+    | Diff _   -> "Diff"
 
   let string_of_t r = 
     Util.format_to_string (fun () -> format_t r)
 
   (* constructors *)
   let anychar = mk (CSet [min_code,max_code])
-  let anything = mk (Star anychar)
-  let empty  = mk (CSet [])
+  let anything = mk Anything
+  let empty  = mk Empty
   let epsilon  = mk Eps
 
   let delta r0 = 
     if nillable r0 then epsilon else empty
 
-  let mk_cset cs = 
-    let cs' = Safelist.fold_left (fun l p -> CharSet.add p l) [] cs in 
-    mk (CSet cs')
+  let mk_cset cs = match cs with
+    | [] -> empty
+    | _ -> 
+        let cs' = Safelist.fold_left (fun l p -> CharSet.add p l) [] cs in 
+        mk (CSet cs')
 
   let mk_neg_cset cs = 
     let cs' = Safelist.fold_left (fun l p -> CharSet.add p l) [] cs in 
-    mk (CSet (CharSet.negate min_code max_code cs')) 
+    match CharSet.negate min_code max_code cs' with 
+      | [] -> empty
+      | cs'' -> mk (CSet cs'')
 
   let mk_seq r1 r2 = 
     let rec aux ri rj = match ri.desc with
@@ -346,43 +364,12 @@ end = struct
     match r1.desc,r2.desc with
     | Eps,_           -> r2
     | _,Eps           -> r1
-    | CSet [],_       -> empty
-    | _,CSet []       -> empty
+    | Empty,_         -> empty
+    | _,Empty         -> empty
     | _               -> aux r1 r2
 
   let mk_seqs rl = 
     Safelist.fold_left mk_seq epsilon rl 
-
-  let old_mk_alt r1 r2 = 
-    let rec merge l1 l2 = match l1,l2 with 
-      | _,[] -> l1
-      | [],_ -> l2
-      | r1::l1',r2::l2' ->           
-          let c = compare r1 r2 in 
-          if c=0 then r1::merge l1' l2'
-          else if c < 0 then r1::merge l1' l2
-          else r2::merge l1 l2' in 
-    let rec prune acc l = match l with 
-      | []     -> Safelist.rev acc
-      | r1::rl -> 
-          if r1 = anything then [anything]
-          else if r1 = empty then prune acc rl
-          else prune (r1::acc) rl in 
-    let go l = match prune [] l with 
-      | [] -> empty
-      | [r1] -> r1
-      | r1::rl -> mk (Alt(r1,rl)) in 
-    let c = compare r1 r2 in 
-      if c=0 then r1 
-      else 
-        (match r1.desc,r2.desc with
-           | CSet [],_             -> r2
-           | _,CSet []             -> r1
-           | CSet s1,CSet s2       -> mk_cset (CharSet.union s1 s2)
-           | Alt(r1,l1),Alt(r2,l2) -> go (merge (r1::l1) (r2::l2)) 
-           | Alt(r1,l1),_          -> go (merge (r1::l1) [r2])
-           | _,Alt(r2,l2)          -> go (merge [r1] (r2::l2))
-           | _                     -> go (merge [r1] [r2]))
 
   let mk_alt r1 r2 = 
     let rec go acc l = match acc,l with
@@ -409,8 +396,10 @@ end = struct
           else if c < 0 then merge (r1::acc) l1' l2
           else merge (r2::acc) l1 l2' in 
     let res = match r1.desc,r2.desc with
-      | CSet [],_             -> r2
-      | _,CSet []             -> r1
+      | Empty,_               -> r2
+      | _,Empty               -> r1
+      | Anything,_            -> r1
+      | _,Anything            -> r2
       | CSet s1,CSet s2       -> mk_cset (CharSet.union s1 s2)
       | Alt(r1,l1),Alt(r2,l2) -> merge [] (r1::l1) (r2::l2)
       | Alt(r1,l1),_          -> merge [] (r1::l1) [r2]
@@ -429,43 +418,14 @@ end = struct
     Safelist.fold_right mk_alt rl empty
 
   let mk_star r0 = match r0.desc with 
-    | Eps     -> epsilon
-    | CSet [] -> epsilon
-    | Star _  -> r0
+    | Eps      -> epsilon
+    | Empty    -> epsilon
+    | Anything -> anything
+    | Star _   -> r0
+    | CSet _   -> 
+        if r0 = anychar then anything
+        else mk (Star r0)
     | _       -> mk (Star r0) 
-
-  let old_mk_inter r1 r2 = 
-    let rec merge l1 l2 = match l1,l2 with
-      | _,[] -> l1
-      | [],_ -> l2
-      | r1::l1',r2::l2' -> 
-          let c = compare r1 r2 in 
-            if c=0 then r1::merge l1' l2'
-            else if c < 0 then r1::merge l1' l2
-            else r2::merge l1 l2' in 
-    let rec prune acc l = match l with 
-      | []     -> Safelist.rev acc
-      | r1::rl -> 
-          if r1 = anything then prune acc rl
-          else if r1 = empty then [empty]
-          else prune (r1::acc) rl in 
-    let go l = match prune [] l with 
-      | [] -> anything
-      | [r1] -> r1
-      | r1::rl -> mk (Inter(r1,rl)) in 
-    let c = compare r1 r2 in 
-      if c=0 then r1 
-      else 
-        (match r1.desc,r2.desc with
-           | CSet [],_                 -> empty
-           | _,CSet []                 -> empty
-           | CSet s1,CSet s2           -> mk_cset (CharSet.inter s1 s2)
-           | Eps,_                     -> delta r2
-           | _,Eps                     -> delta r1
-           | Inter(r1,l1),Inter(r2,l2) -> go (merge (r1::l1) (r2::l2))
-           | Inter(r1,l1),_            -> go (merge (r1::l1) [r2])
-           | _,Inter(r2,l2)            -> go (merge [r1] (r2::l2))
-           | _                         -> go (merge [r1] [r2]))
         
   let mk_inter r1 r2 = 
     let rec go acc l = match acc,l with
@@ -493,8 +453,10 @@ end = struct
           else if c < 0 then merge (r1::acc) l1' l2
           else merge (r2::acc) l1 l2' in 
     let res = match r1.desc,r2.desc with
-      | CSet [],_                   -> empty
-      | _,CSet []                   -> empty
+      | Empty,_                   -> empty
+      | _,Empty                   -> empty
+      | Anything,_                -> r2
+      | _,Anything                -> r1
       | Eps,_                     -> if r2.nillable then r1 else empty
       | _,Eps                     -> if r1.nillable then r2 else empty
       | CSet s1,CSet s2           -> mk_cset (CharSet.inter s1 s2)
@@ -516,8 +478,9 @@ end = struct
     Safelist.fold_left mk_inter anything rl
 
   let rec mk_diff r1 r2 = match r1.desc,r2.desc with
-    | CSet [],_        -> empty
-    | _,CSet []        -> r1
+    | _,Anything       -> empty
+    | Empty,_          -> empty
+    | _,Empty          -> r1
     | CSet s1, CSet s2 -> mk_cset (CharSet.diff s1 s2)
     | Eps,Eps          -> empty
     | CSet _,Eps       -> r1
@@ -529,46 +492,38 @@ end = struct
         if r1.hash = r2.hash && r1 = r2 then empty
         else mk (Diff(r1,r2))
 
-  type this_t = t
-  module DCache = Hashtbl.Make
-    (struct
-       type t = int * this_t
-       let hash (c,x) = x.hash + 11 * c
-       let equal ((c:int),x) (d,y) = c=d && x.hash = y.hash && x = y
-     end)
-  let dcache = DCache.create 1069
-
-  let rec derivative c r0 = 
-(*     let p = (c,r0) in  *)
-(*     try DCache.find dcache p with Not_found ->  *)
-      let res = match r0.desc with 
-        | Eps -> 
-            empty
-        | CSet s  -> 
-            if CharSet.mem c s then epsilon 
-            else empty
-        | Seq(r1,r2) ->
-            mk_alt 
-              (mk_seq (derivative c r1) r2)
-              (mk_seq (delta r1) (derivative c r2))
-        | Alt(r1,[]) -> 
-            derivative c r1
-        | Alt (r1,rl) -> 
-            mk_alts (Safelist.map (derivative c) (r1::rl))
-        | Star r1 -> 
-            mk_seq (derivative c r1) r0
-        | Inter(r1,[]) -> 
-            derivative c r1
-        | Inter(r1,rl) ->         
-            mk_inters (Safelist.map (derivative c) (r1::rl)) 
-        | Diff(r1,r2) -> 
-            mk_diff
-              (derivative c r1)
-              (derivative c r2) in
-(*       DCache.add dcache p res; *)
-      res
+  let rec derivative c r0 = match r0.desc with 
+    | Anything -> 
+        anything
+    | Empty -> 
+        empty
+    | Eps -> 
+        empty
+    | CSet s  -> 
+        if CharSet.mem c s then epsilon 
+        else empty
+    | Seq(r1,r2) ->
+        mk_alt 
+          (mk_seq (derivative c r1) r2)
+          (mk_seq (delta r1) (derivative c r2))
+    | Alt(r1,[]) -> 
+        derivative c r1
+    | Alt (r1,rl) -> 
+        mk_alts (Safelist.map (derivative c) (r1::rl))
+    | Star r1 -> 
+        mk_seq (derivative c r1) r0
+    | Inter(r1,[]) -> 
+        derivative c r1
+    | Inter(r1,rl) ->         
+        mk_inters (Safelist.map (derivative c) (r1::rl)) 
+    | Diff(r1,r2) -> 
+        mk_diff
+          (derivative c r1)
+          (derivative c r2)
 
   let rec reverse r0 = match r0.desc with
+    | Anything     -> r0
+    | Empty        -> r0
     | Eps          -> r0
     | CSet _       -> r0
     | Seq(r1,r2)   -> mk_seq (reverse r2) (reverse r1)
@@ -593,6 +548,8 @@ end = struct
           m0.(succ c2) <- true;
           split m0 rest in
     let rec colorize m0 r0 = match r0.desc with
+      | Anything     -> ()
+      | Empty        -> ()
       | Eps          -> ()
       | CSet cs      -> split m0 cs
       | Star r1      -> colorize m0 r1
@@ -808,8 +765,9 @@ end = struct
           jump frontier' (loop poss (pred len)) in 
         let wo = 
           match Rx.desc r0 with 
-            | Rx.Eps         -> Misc.Left w
-            | Rx.CSet []     -> jump frontier' poss
+            | Rx.Anything  -> Misc.Left w
+            | Rx.Eps       -> Misc.Left w
+            | Rx.Empty     -> jump frontier' poss
             | Rx.CSet ((c1,_)::_)  -> 
                 let s1 = String.make 1 (Char.chr c1) in 
                 Misc.Left (w ^ s1)
@@ -861,6 +819,8 @@ end = struct
           (fun s -> if s.final then Q.add s Q.empty else Q.empty)
           s in
       let res = match Rx.desc r0 with 
+        | Rx.Anything -> s
+        | Rx.Empty  -> find_state Rx.empty
         | Rx.CSet _ -> find_state Rx.epsilon
         | Rx.Eps    -> s
         | Rx.Star _ -> s

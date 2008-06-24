@@ -1035,9 +1035,9 @@ module DLens = struct
       
       if not (Brx.equiv dl1.atype dl2.ctype) then
         begin
-	  let s =(sprintf "the composition of %s and %s is ill-typed:"
-		    dl1.string dl2.string)in
-	    Berror.static_error i n s
+	  let s = sprintf "the composition of %s and %s is ill-typed"
+	    dl1.string dl2.string in 
+	  Berror.static_error i n s
         end;
         { info = i; 
           string = n;
