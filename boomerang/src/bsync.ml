@@ -42,7 +42,7 @@ let strings_of_dir = function
 type path_elt = Tag of Erx.tag | Key of Erx.key 
 
 let string_of_path_elt = function
-  | Tag t -> ":" ^ t
+  | Tag t -> if t <> "" then ":" ^ t else t
   | Key k -> "/" ^ k
 let root = []
 let string_of_path p = 
@@ -94,7 +94,8 @@ let rec isync p ty o a b =
               if Erx.TagSet.is_empty s_tags then 
                 begin
                   let s1,s2 = strings_of_dir dir in 
-                  report (fun () -> msg "@[Propagating %s at [%s].@]@\n" s2 (string_of_path p));
+                  if dir <> Both || o <> a then 
+                    report (fun () -> msg "@[Propagating %s at [%s].@]@\n" s2 (string_of_path p));
                   let w = Erx.unparse (s,Erx.TagMap.empty) in
                   (w,w,w)
                 end
@@ -149,7 +150,7 @@ let rec isync p ty o a b =
                                 | Diff3.Conflict(oti,ati,bti) ->
                                     if ati=bti then 
                                       begin 
-                                        report (fun () -> msg "@[Propagating both at [%s].@]@\n" (string_of_path p));
+                                        if oti <> ati then report (fun () -> msg "@[Propagating both at [%s].@]@\n" (string_of_path p));
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end
                                     else
@@ -206,7 +207,9 @@ let sync t oo ao bo =
                      (string_of_path root));
               (oo,ao,bo)
           | Some (r,d) -> 
-              report (fun () -> msg "@[Propagating both at [%s].@]@\n" (string_of_path root));
+              (match oo,ao with 
+                 | Some o,Some a -> if o <> a then report (fun () -> msg "@[Propagating both at [%s].@]@\n" (string_of_path root))
+                 | _ -> ());
               (r,r,r)
         end
     | Some o,Some a,Some b ->
