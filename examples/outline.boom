@@ -49,3 +49,47 @@ test get doc
 
   >> = ?
 
+let o : string = 
+  "* ABSTRACT
+  |
+  |some stuff
+  |some more stuff
+  |
+  |* INTRODUCTION
+  |
+  |boomerang is pretty dang sweet.
+  |"
+
+let a : string = 
+  "* ABSTRACT
+  |
+  |this is the start of my paper
+  |some stuff
+  |boomerang is a lens language.
+  |
+  |* INTRODUCTION
+  |
+  |boomerang is pretty darn sweet.
+  |it works on strings.
+  |
+  |* CONCLUSION
+  |
+  |let's have some summary.
+  |"
+
+let b : string = 
+  "* ABSTRACT
+  |
+  |some stuff
+  |some more stuff
+  |
+  |* INTRODUCTION
+  |
+  |boomerang is pretty darn sweet.
+  |it works on strings.
+  |
+  |"
+    
+let acts,_,_,_ = sync doc o a b 
+
+test acts = ?

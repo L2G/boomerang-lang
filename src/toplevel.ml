@@ -125,7 +125,8 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
         Error.simple_error (sprintf
           "Error: cannot synchronize with %s" (L.string l))
     | Some xt -> xt in     
-  let oo',ao',bo' = Bsync.sync xt oo ao bo in 
+  let acts,oo',ao',bo' = Bsync.opt_sync xt oo ao bo in 
+  Bprint.nlify acts;
   putback o_fn' oo' oo;
   putback a_fn' ao' ao;
   putback b_fn' bo' bo;

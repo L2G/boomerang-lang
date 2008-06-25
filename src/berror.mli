@@ -19,8 +19,6 @@
 (* $Id$                                                                        *)
 (*******************************************************************************)
 
-val nlify : string -> unit
-
 val static_error : Info.t -> string -> ?suppl:(unit->unit) -> string -> 'a
 
 val type_error_string : string * string -> string

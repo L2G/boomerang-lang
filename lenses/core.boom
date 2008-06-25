@@ -74,6 +74,9 @@ let ctype : lens -> regexp =
   Native.Prelude.ctype
 let atype : lens -> regexp =
   Native.Prelude.atype
+let sync : lens -> string -> string -> string -> string * string * string * string = 
+  Native.Prelude.sync
+
 
 let get (l:lens) (c:string) : string = 
   Native.Prelude.get l c

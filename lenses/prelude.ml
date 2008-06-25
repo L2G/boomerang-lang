@@ -28,6 +28,7 @@ module C = Blenses.Canonizer
 let (^) = Pervasives.(^)
 let sprintf = Printf.sprintf 
 let (^>) = S.(^>)
+let (^*) = S.(^*)
 
 let wrap_rep i r = 
   match Brx.representative r with
@@ -153,6 +154,8 @@ let pmk_qss   = pmk2 S.SCanonizer mk_qfun S.SString mk_sfun S.SString mk_s
 let pmk_qll   = pmk2 S.SCanonizer mk_qfun S.SLens mk_lfun S.SLens mk_l
 let pmk_qiiq  = pmk3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun S.SCanonizer mk_q
 
+let pmk_sync  = pmk4 S.SLens mk_lfun S.SString mk_sfun S.SString mk_sfun S.SString mk_sfun 
+                (((S.SString ^* S.SString) ^* S.SString) ^* S.SString) (fun i x -> x)
 
 let prelude_spec =
   [ (* lens operations *)
@@ -177,8 +180,6 @@ let prelude_spec =
   ; pmk_lll    "compose"                L.compose
   ; pmk_lsl    "default"                (fun i l1 s2 -> L.default i s2 l1)
   ; pmk_rl     "key"                    L.key
-(*   ; pmk_llll   "duplicate"              (fun i -> L.duplicate i true) *)
-(*   ; pmk_llll   "duplicate_snd"          (fun i -> L.duplicate i false) *)
   ; pmk_ll     "forgetkey"              (fun i -> L.forgetkey)
   ; pmk_rrl    "filter"                 L.filter
                                         
@@ -239,6 +240,25 @@ let prelude_spec =
   ; pmk_lr     "atype"                  (fun _ -> L.atype)
   ; pmk_lq     "canonizer_of_lens"      L.canonizer_of_t
   ; pmk_rs     "string_of_regexp"       (fun _ r1 -> Brx.string_of_t r1)
+
+  (* sync *)
+  ; pmk_sync   "sync"                   (fun i l o a b -> 
+                                           let mk_s s = Bvalue.Str(i,s) in 
+                                           let mk_p v1 v2 = Bvalue.Par(i,v1,v2) in
+                                           let xt = match L.xtype l with 
+                                             | Some xt -> xt
+                                             | None -> 
+                                                 raise (Error.Harmony_error
+                                                          (fun () -> 
+                                                             Util.format "%s: cannot synchronize with %s."
+                                                               (Info.string_of_t i)
+                                                               (L.string l))) in 
+                                           let acts,o',a',b' = Bsync.sync xt (L.rget l o) (L.rget l a) (L.rget l b) in 
+                                           let s_acts = mk_s acts in
+                                           let s_o = mk_s (L.rput l o' o) in 
+                                           let s_a = mk_s (L.rput l a' a) in 
+                                           let s_b = mk_s (L.rput l b' b) in 
+                                           mk_p (mk_p (mk_p s_acts s_o) s_a) s_b)
 
   (* polymorphic functions *)
   ; begin 

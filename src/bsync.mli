@@ -19,5 +19,8 @@
 (* $Id$ *)
 (*******************************************************************************)
 
-val sync : Erx.t -> string option -> string option -> string option ->
-           (string option * string option * string option)
+val sync : Erx.t -> string -> string -> string -> (string * string * string * string)
+
+val opt_sync : Erx.t -> string option -> string option -> string option ->
+    (string * string option * string option * string option)
+

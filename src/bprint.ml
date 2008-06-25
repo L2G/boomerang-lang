@@ -3,6 +3,11 @@ open Bident
 
 let msg = Util.format
 
+(* format a string, converting newlines to @\n *)
+let nlify s = Misc.format_list "@\n" 
+  (Util.format "%s") 
+  (Misc.split_nonescape '\n' s)
+
 let maybe_wrap fmt b r = 
   Util.format "@[";
   if b then msg "(";

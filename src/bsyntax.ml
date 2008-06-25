@@ -151,6 +151,7 @@ type modl = Mod of Info.t * Id.t * Qid.t list * decl list
 
 (* infix constructor for non-dependent functions *)
 let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
+let (^*) s1 s2 = SProduct(s1,s2)
 
 (* accessors *)
 let rec info_of_exp e = match e with 

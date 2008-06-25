@@ -22,6 +22,9 @@ open Bsyntax
 
 (** {2 Pretty Printing using formatting functions} *)
 
+val nlify : string -> unit
+(** [nlify s] pretty prints [s] in a formatting box. *)
+
 val maybe_wrap : ('a -> unit) -> bool -> 'a -> unit
   (** [maybe_wrap fmt b x] pretty prints [x] using [fmt], and adds
       parens if [b]. *)

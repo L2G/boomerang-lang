@@ -136,6 +136,9 @@ type modl = Mod of Info.t * Bident.Id.t * Bident.Qid.t list * decl list
 val (^>) : sort -> sort -> sort
 (** [s1 ^> s2] is the function sort from [s1] to [s2]. *)
 
+val (^*) : sort -> sort -> sort
+(** [s1 ^* s2] is the product sort between [s1] and [s2]. *)
+
 val info_of_exp : exp -> Info.t
 (** [info_of_exp e] returns the parsing info associated to expression [e]. *)
       

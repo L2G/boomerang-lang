@@ -19,21 +19,16 @@
 (* $Id$                                                                        *)
 (*******************************************************************************)
 
-(* format a string, converting newlines to @\n *)
-let nlify s = Misc.format_list "@\n" 
-  (Util.format "%s") 
-  (Misc.split_nonescape '\n' s)
-
 let nop () = ()
 
 let static_error i n ?(suppl =  nop) msg = 
   raise (Error.Harmony_error(fun () -> 
     Util.format "@[%s: static error in@\n" (Info.string_of_t i);
     Util.format "  @["; 
-    nlify n;
+    Bprint.nlify n;
     Util.format "@]@\n@\n";
     Util.format "  [@["; 
-    nlify msg; 
+    Bprint.nlify msg; 
     suppl ();
     Util.format "@]]@\n"))
 
@@ -41,9 +36,9 @@ let type_error_string (s3l,s3r) =
   Util.format_to_string 
     (fun () -> 
        Util.format "  [@["; 
-       nlify s3l; 
+       Bprint.nlify s3l; 
        Util.format "@]]@\n<<HERE>>@\n  [@[";
-       nlify s3r; 
+       Bprint.nlify s3r; 
        Util.format "@]]@]")
 
 let type_error i (s3l,s3r) = 

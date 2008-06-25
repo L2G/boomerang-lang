@@ -21,6 +21,7 @@
 
 (* --- imports --- *)
 let msg = Util.format
+let sprintf = Printf.sprintf 
 
 module Diff3 = Bdiff3.Make(
   struct
@@ -64,44 +65,39 @@ let string_of_act = function
   | Deleted -> "deleted"
 
 (* reporting *)
-let report_spine_conflict spo spa spb p = 
-  report 
-    (fun () -> 
-       msg "@[Conflict on spines [%s] [%s] [%s] at [%s]@]@\n" 
-         (Erx.string_of_spine spo) (Erx.string_of_spine spa) (Erx.string_of_spine spb) (string_of_path p))
+let report_spine_conflict buf spo spa spb p = 
+  Buffer.add_string buf 
+    (sprintf "Conflict on spines [%s] [%s] [%s] at [%s]\n" 
+       (Erx.string_of_spine spo) (Erx.string_of_spine spa) (Erx.string_of_spine spb) (string_of_path p))
 
-let report_tags_action r a ts p = 
+let report_tags_action buf r a ts p = 
   Erx.TagSet.iter 
-    (fun ti -> 
-       report 
-         (fun () -> 
-            msg "@[%s %s tag at [%s]@]@\n" (string_of_dir r) (string_of_act a) (string_of_path (Tag ti::p))))
+    (fun ti -> Buffer.add_string buf 
+       (sprintf "%s %s tag at [%s]\n" 
+          (string_of_dir r) (string_of_act a) (string_of_path (Tag ti::p)))) 
     ts
 
-let report_tags_del_mod r rb tso tsr tsrb p = 
-  report 
-    (fun () -> 
-       msg "@[Delete(%s) / modify (%s) conflict on tags {%s} {%s} {%s} at [%s].@]@\n"
-         r rb (tags_string tso) (tags_string tsr) (tags_string tsrb) (string_of_path p))
+let report_tags_del_mod buf r rb tso tsr tsrb p = 
+  Buffer.add_string buf 
+    (sprintf "Delete(%s) / modify (%s) conflict on tags {%s} {%s} {%s} at [%s].\n"
+       r rb (tags_string tso) (tags_string tsr) (tags_string tsrb) (string_of_path p))
 
-let report_keys_action r a kl p = 
-  Safelist.iter 
+let report_keys_action buf r a kl p = 
+  Safelist.iter
     (fun (ki,_) -> 
-       report 
-         (fun () -> 
-            msg "@[%s %s key at [%s]@]@\n" (string_of_dir r) (string_of_act a) (string_of_path (Key ki::p))))
+       Buffer.add_string buf
+         (sprintf "%s %s key at [%s]\n" 
+            (string_of_dir r) (string_of_act a) (string_of_path (Key ki::p))))
     kl
 
-let report_keys_del_mod r rb okl rkl rbkl p = 
-  report 
-    (fun () -> 
-       msg "@[Delete(%s) / modify (%s) conflict on keys [%s] [%s] [%s] at [%s].@]@\n"
-         r rb (keys_string okl) (keys_string rkl) (keys_string rbkl) (string_of_path p))
+let report_keys_del_mod buf r rb okl rkl rbkl p = 
+  Buffer.add_string buf
+    (sprintf "Delete(%s) / modify (%s) conflict on keys [%s] [%s] [%s] at [%s].\n"
+       r rb (keys_string okl) (keys_string rkl) (keys_string rbkl) (string_of_path p))
 
-let report_keys_conflict okl akl bkl p = 
-  report 
-    (fun () -> 
-       msg "@[Conflict on keys [%s] [%s] [%s] at [%s].@]@\n"
+let report_keys_conflict buf okl akl bkl p = 
+  Buffer.add_string buf 
+    (sprintf "Conflict on keys [%s] [%s] [%s] at [%s].\n"
        (keys_string okl) (keys_string akl) (keys_string bkl) (string_of_path p))
 
 let atomic_sync o a b = 
@@ -110,42 +106,43 @@ let atomic_sync o a b =
   else if o=a then Some(b,B)
   else None
 
-let rec isync p ty o a b = 
-  let (spo,tmo) as sko = Erx.parse ty o in 
-  let (spa,tma) as ska = Erx.parse ty a in
-  let (spb,tmb) as skb = Erx.parse ty b in 
-  let o',a',b' = 
-    begin match atomic_sync spo spa spb with
-      | None -> 
-          report_spine_conflict spo spa spb p;
-          (o,a,b)
-      | Some(s,dir) -> begin
-          let s_tags = Erx.spine_tags s in
-          let o_tags = Erx.spine_tags spo in 
-          let a_tags = Erx.spine_tags spa in 
-          let b_tags = Erx.spine_tags spb in 
-          let r,r_tags,tmr,rb,rb_tags,tmrb = 
-            if dir = A then "A",a_tags,tma,"B",b_tags,tmb
-            else "B",b_tags,tmb,"A",a_tags,tma in
-          (* compute deletes / modified tags *)
-          let del_tags = Erx.TagSet.diff rb_tags s_tags in  
-          let add_tags = Erx.TagSet.diff r_tags s_tags in 
-          let mod_tags = 
-            Erx.TagSet.filter 
-              (fun ti -> Erx.TagMap.safe_find ti tmrb [] <> Erx.TagMap.safe_find ti tmo [])
-              rb_tags in
-          let del_mod_tags = Erx.TagSet.inter del_tags mod_tags in 
-          (* check for delete / modify conflict *)
-            if not (Erx.TagSet.is_empty del_mod_tags) then 
-              begin 
-                report_tags_del_mod r rb o_tags r_tags rb_tags p;
-                (o,a,b)
-              end
-            else
-              begin
-                report_tags_action dir Deleted del_tags p;
-                report_tags_action dir Added add_tags p;
-                let tmo,tma,tmb =
+let isync buf p ty o a b = 
+  let rec isync_aux p ty o a b = 
+    let (spo,tmo) as sko = Erx.parse ty o in 
+    let (spa,tma) as ska = Erx.parse ty a in
+    let (spb,tmb) as skb = Erx.parse ty b in 
+    let o',a',b' = 
+      begin match atomic_sync spo spa spb with
+        | None -> 
+            report_spine_conflict buf spo spa spb p;
+            (o,a,b)
+        | Some(s,dir) -> begin
+            let s_tags = Erx.spine_tags s in
+            let o_tags = Erx.spine_tags spo in 
+            let a_tags = Erx.spine_tags spa in 
+            let b_tags = Erx.spine_tags spb in 
+            let r,r_tags,tmr,rb,rb_tags,tmrb = 
+              if dir = A then "A",a_tags,tma,"B",b_tags,tmb
+              else "B",b_tags,tmb,"A",a_tags,tma in
+              (* compute deletes / modified tags *)
+            let del_tags = Erx.TagSet.diff rb_tags s_tags in  
+            let add_tags = Erx.TagSet.diff r_tags s_tags in 
+            let mod_tags = 
+              Erx.TagSet.filter 
+                (fun ti -> Erx.TagMap.safe_find ti tmrb [] <> Erx.TagMap.safe_find ti tmo [])
+                rb_tags in
+            let del_mod_tags = Erx.TagSet.inter del_tags mod_tags in 
+              (* check for delete / modify conflict *)
+              if not (Erx.TagSet.is_empty del_mod_tags) then 
+                begin 
+                  report_tags_del_mod buf r rb o_tags r_tags rb_tags p;
+                  (o,a,b)
+                end
+              else
+                begin                
+                  report_tags_action buf dir Deleted del_tags p;
+                  report_tags_action buf dir Added add_tags p;
+                  let tmo,tma,tmb =
                   Erx.TagSet.fold
                     (fun t (tmo,tma,tmb) ->
                        let pt = Tag t::p in 
@@ -161,42 +158,42 @@ let rec isync p ty o a b =
                                     let ty_t = match Erx.box_type ty t with 
                                       | None -> assert false
                                       | Some ty' -> ty' in 
-                                    let oi',ai',bi' = isync (Key k::pt) ty_t oi ai bi in
+                                    let oi',ai',bi' = isync_aux (Key k::pt) ty_t oi ai bi in
                                       (ot'@[k,oi'],at'@[k,ai'],bt'@[k,bi'])
                                 | Diff3.AChange(oti,ati,bti) ->
                                     if oti = bti then 
                                       begin
-                                        report_keys_action A Deleted oti pt;
-                                        report_keys_action A Added ati pt;
+                                        report_keys_action buf A Deleted oti pt;
+                                        report_keys_action buf A Added ati pt;
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end                            
                                     else 
                                       begin                                         
-                                        report_keys_del_mod r rb oti ati bti pt;
+                                        report_keys_del_mod buf r rb oti ati bti pt;
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.BChange(oti,ati,bti) ->
                                     if oti = ati then 
                                       begin
-                                        report_keys_action B Deleted oti pt;
-                                        report_keys_action B Added bti pt;
+                                        report_keys_action buf B Deleted oti pt;
+                                        report_keys_action buf B Added bti pt;
                                         (ot'@bti,at'@bti,bt'@bti)
                                       end                            
                                     else 
                                       begin                                         
-                                        report_keys_del_mod r rb oti ati bti pt;
+                                        report_keys_del_mod buf r rb oti ati bti pt;
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.Conflict(oti,ati,bti) ->
                                     if ati=bti then 
                                       begin 
-                                        report_keys_action Both Deleted oti pt;
-                                        report_keys_action Both Added   ati pt;
+                                        report_keys_action buf Both Deleted oti pt;
+                                        report_keys_action buf Both Added   ati pt;
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end
                                     else
                                       begin
-                                        report_keys_conflict oti ati bti pt;
+                                        report_keys_conflict buf oti ati bti pt;
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end)
                            ([],[],[]) chunks in
@@ -210,43 +207,48 @@ let rec isync p ty o a b =
                    Erx.unparse (s,tmb))
               end                   
         end 
-    end in 
-  (o',a',b')
-      
-let sync t oo ao bo = 
-  (* validate archive / replicas *)
+      end in 
+    (o',a',b') in
+  let o',a',b' = isync_aux p ty o a b in 
+  (Buffer.contents buf,o',a',b')
+
+let chk m t w : string option = 
   let bare_t = Erx.bare t in 
-  let chk m = function
-    | None -> None
-    | Some w -> 
-        if Brx.match_string bare_t w then None
-        else Some(m ^ ":\n" 
-                    ^ Berror.type_error_string (Brx.split_bad_prefix bare_t w)) in
-  let get_l = function None -> [] | Some s -> [s] in 
-  let () = match chk "Archive" oo, chk "Replica A" ao, chk "Replica B" bo with
+  if Brx.match_string bare_t w then None
+  else Some(m ^ ":\n" ^ Berror.type_error_string (Brx.split_bad_prefix bare_t w))
+
+let chko m t wo = match wo with 
+  | None -> None
+  | Some w -> chk m t w 
+
+let validate s erros : unit = 
+  let get_err = function None -> [] | Some s -> [s] in 
+  match erros with 
     | None,None,None -> ()
     | err_o,err_a,err_b -> 
         raise (Error.Harmony_error(
-          (fun () ->
-             msg "@[<2>cannot synchronize invalid structures:@\n";
-             Misc.format_list "@\n@\n" Berror.nlify
-               (get_l err_o @ get_l err_a @ get_l err_b);
-             msg "@]"))) in 
-  (* if valid, then sync *)
+                 (fun () ->
+                    msg "@[<2>%s called with invalid structures:@\n" s;
+                    Misc.format_list "@\n@\n" Bprint.nlify
+                      (get_err err_o @ get_err err_a @ get_err err_b);
+                    msg "@]")))
+
+let opt_sync t oo ao bo = 
+  validate "opt_sync" (chko "Archive" t oo, chko "Replica A" t ao, chko "Replica B" t bo);
   match oo,ao,bo with
     | None,_,_
     | _,None,_
     | _,_,None ->
         begin match atomic_sync oo ao bo with
           | None       -> 
-              report 
-                (fun () -> 
-                   msg "@[Conflict at [%s].@]@\n"
-                     (string_of_path root));
-              (oo,ao,bo)
+              (sprintf "Conflict at [%s].\n" (string_of_path root),oo,ao,bo)
           | Some (r,d) -> 
-              (r,r,r)
+              ("",r,r,r)
         end
     | Some o,Some a,Some b ->
-        let o',a',b' = isync root t o a b in
-        (Some o',Some a',Some b')
+        let acts,o',a',b' = isync (Buffer.create 101) root t o a b in
+        (acts,Some o',Some a',Some b')
+
+let sync t o a b = 
+  validate "sync" (chk "Archive" t o, chk "Replica A" t a, chk "Replica B" t b);
+  isync (Buffer.create 101) root t o a b
