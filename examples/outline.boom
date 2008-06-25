@@ -91,4 +91,13 @@ let b : string =
     
 let acts,_,_,_ = sync doc o a b 
 
-test acts = ?
+test acts = 
+<<
+  A & B deleted key at [:section/ABSTRACT:paragraph/"some more stuff"]
+  A & B deleted key at [:section/INTRODUCTION:paragraph/"boomerang is pretty dang sweet."]
+  A & B added   key at [:section/INTRODUCTION:paragraph/"boomerang is pretty darn sweet."]
+  A & B added   key at [:section/INTRODUCTION:paragraph/"it works on strings."]
+  A & B added   key at [:section/INTRODUCTION:paragraph/""]
+  A     added   key at [:section/CONCLUSION]
+
+>>

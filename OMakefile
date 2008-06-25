@@ -74,9 +74,18 @@ VERYCLEAN = $(CLEAN) $(BINDIR)
 # TESTING
 
 runtest(f) = 
-  echo Testing [$(f)]...
-  $(BOOMEXE) $(BOOMFLAGS) $(basename $(f))
-  echo Finished [$(f)]
+  W=Testing $(f)
+  print($(W))
+  #print spaces
+  i=$(sub 70, $(string-length $(W)))
+  while $(gt $(i), 0) 
+    print(\ )
+    i = $(sub $(i) 1)
+  # print result
+  if $(eq $(shell-code $(BOOMEXE) $(BOOMFLAGS) $(basename $(f)) > /dev/null), 0)
+    println([[92m[1m   OK   [0m])
+  else 
+    println([[91m[1m[5m FAILED [0m])
 
 test: $(BOOMEXE)
 	foreach(f,$(BOOMFILES))
