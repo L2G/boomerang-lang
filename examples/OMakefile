@@ -1,0 +1,4 @@
+
+test: $(BOOMEXE)
+	foreach(f,$(glob *.boom))
+	  runtest($f)

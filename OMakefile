@@ -42,8 +42,6 @@ if $(or $(defined BYTE_CODE), $(defined BC))
 ##############################################################################
 # Sub-directories
 
-SUBDIRS = common src lenses
-
 BINDIR = $(dir bin)
 
 COMMONDIR = $(dir common)
@@ -53,8 +51,18 @@ HBASEDIR = $(COMMONDIR)/hbase
 
 SRCDIR = $(dir src)
 LENSESDIR = $(dir lenses)
+EXAMPLESDIR = $(dir examples)
 
 BOOMERANGDIR = $(dir .)
+QUICKSTART = $(BOOMERANGDIR)/QuickStart.src 
+
+BOOMEXE = $(BINDIR)/boomerang$(EXE) 
+BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR)
+
+runtest(f) = 
+  echo Testing [$(f)]...
+  $(BOOMEXE) $(BOOMFLAGS) $(f)
+  echo Finished [$(f)]
 
 ##############################################################################
 # Cleanup
@@ -66,6 +74,9 @@ VERYCLEAN = $(CLEAN) $(BINDIR)
 
 # what about .omakedb and omakedb.lock?
 
+test:
+	runtest($(QUICKSTART))
+
 clean:
 	$(CLEAN) 
 
@@ -75,8 +86,7 @@ veryclean: clean
 ##############################################################################
 # Include sub-directories
 
+SUBDIRS = common src lenses examples
+
 .SUBDIRS: $(SUBDIRS)
 
-
-
-.SUBDIRS: src lenses
