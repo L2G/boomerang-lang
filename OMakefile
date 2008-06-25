@@ -75,7 +75,7 @@ VERYCLEAN = $(CLEAN) $(BINDIR)
 
 runtest(f) = 
   echo Testing [$(f)]...
-  $(BOOMEXE) $(BOOMFLAGS) $(f)
+  $(BOOMEXE) $(BOOMFLAGS) $(basename $(f))
   echo Finished [$(f)]
 
 test: $(BOOMEXE)
