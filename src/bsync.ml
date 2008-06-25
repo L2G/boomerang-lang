@@ -155,12 +155,16 @@ let isync buf p ty o a b =
                            (fun (ot',at',bt') chunk ->
                               match chunk with
                                 | Diff3.Stable((k,oi),(_,ai),(_,bi)) -> 
+                                    if false then Buffer.add_string buf (sprintf "STABLE %s at [%s]\n" (Misc.whack k) (string_of_path pt));                                    
                                     let ty_t = match Erx.box_type ty t with 
                                       | None -> assert false
                                       | Some ty' -> ty' in 
                                     let oi',ai',bi' = isync_aux (Key k::pt) ty_t oi ai bi in
                                       (ot'@[k,oi'],at'@[k,ai'],bt'@[k,bi'])
                                 | Diff3.AChange(oti,ati,bti) ->
+(*                                     if false then Buffer.add_string buf (sprintf "ACHANGE [%s] [%s] [%s] at [%s]\n"  *)
+(*                                                              (keys_string oti) (keys_string ati) (keys_string bti) *)
+(*                                                              (string_of_path pt)); *)
                                     if oti = bti then 
                                       begin
                                         report_keys_action buf A Deleted oti pt;
@@ -173,6 +177,9 @@ let isync buf p ty o a b =
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.BChange(oti,ati,bti) ->
+(*                                     if false then Buffer.add_string buf (sprintf "BCHANGE [%s] [%s] [%s] at [%s]\n"  *)
+(*                                                              (keys_string oti) (keys_string ati) (keys_string bti) *)
+(*                                                              (string_of_path pt)); *)
                                     if oti = ati then 
                                       begin
                                         report_keys_action buf B Deleted oti pt;
@@ -185,10 +192,13 @@ let isync buf p ty o a b =
                                         (ot'@oti,at'@ati,bt'@bti)
                                       end
                                 | Diff3.Conflict(oti,ati,bti) ->
+(*                                     if false then Buffer.add_string buf (sprintf "CONFLICT [%s] [%s] [%s] at [%s]\n"  *)
+(*                                                              (keys_string oti) (keys_string ati) (keys_string bti) *)
+(*                                                              (string_of_path pt)); *)
                                     if ati=bti then 
-                                      begin 
+                                      begin                                         
                                         report_keys_action buf Both Deleted oti pt;
-                                        report_keys_action buf Both Added   ati pt;
+                                        report_keys_action buf Both Added ati pt;
                                         (ot'@ati,at'@ati,bt'@ati)
                                       end
                                     else

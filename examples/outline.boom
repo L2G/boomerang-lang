@@ -40,14 +40,16 @@ let section : lens =
 let doc : lens = 
   <section:section>*
 
-test get doc
+let sample_doc : string = 
   <<
     * FOO
     bar
     * BAZ
     quux
 
-  >> = ?
+  >> 
+
+test doc.get sample_doc = sample_doc
 
 let o : string = 
   "* ABSTRACT
@@ -63,9 +65,7 @@ let o : string =
 let a : string = 
   "* ABSTRACT
   |
-  |this is the start of my paper
   |some stuff
-  |boomerang is a lens language.
   |
   |* INTRODUCTION
   |
@@ -81,7 +81,6 @@ let b : string =
   "* ABSTRACT
   |
   |some stuff
-  |some more stuff
   |
   |* INTRODUCTION
   |
