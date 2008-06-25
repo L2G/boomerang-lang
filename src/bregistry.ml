@@ -244,7 +244,7 @@ let find_filename basename exts =
 (* load modules dynamically *)
 (* backpatch hack *)
 let compile_file_impl = ref (fun _ _ -> Util.format "@[Boomerang compiler is not linked! Exiting...@]"; exit 2)  
-let compile_boom_str_impl = ref (fun _ _ -> Util.format "@[Boomerang compiler is not linked! Exiting...@]"; exit 2)  
+let compile_boom_str_impl = ref (fun _ _ _ -> Util.format "@[Boomerang compiler is not linked! Exiting...@]"; exit 2)  
 
 let load ns = 
   (* helper, when we know which compiler function to use *)  
@@ -262,9 +262,8 @@ let load ns =
               try 
                 (* check for baked in source *)
                 let str = Hashtbl.find Bakery.items m in 
-                  go (fun () -> 
-                        (!compile_boom_str_impl) str ns) 
-                    (sprintf "<baked source for %s>" ns);
+                let i = sprintf "<baked source for %s>" ns in  
+                  go (fun () -> (!compile_boom_str_impl) i str ns) i;
                   true
               with Not_found -> false
             end

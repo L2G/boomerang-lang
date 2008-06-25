@@ -59,8 +59,8 @@ let compile_boom fn n =
   let _ = compile_lexbuf lexbuf n in
     Blexer.finish ()
 
-let compile_boom_str s n = 
-  let _ = Blexer.setup "<string constant>" in    
+let compile_boom_str i s n = 
+  let _ = Blexer.setup i in    
   let lexbuf = Lexing.from_string (Src2fcl.fcl_of_src_str s) in
   let _ = compile_lexbuf lexbuf n in 
   Blexer.finish ()

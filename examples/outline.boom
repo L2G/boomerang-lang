@@ -50,54 +50,47 @@ let sample_doc : string =
   >> 
 
 test doc.get sample_doc = sample_doc
-
-let o : string = 
-  "* ABSTRACT
-  |
-  |some stuff
-  |some more stuff
-  |
-  |* INTRODUCTION
-  |
-  |boomerang is pretty dang sweet.
-  |"
-
-let a : string = 
-  "* ABSTRACT
-  |
-  |some stuff
-  |
-  |* INTRODUCTION
-  |
-  |boomerang is pretty darn sweet.
-  |it works on strings.
-  |
-  |* CONCLUSION
-  |
-  |let's have some summary.
-  |"
-
-let b : string = 
-  "* ABSTRACT
-  |
-  |some stuff
-  |
-  |* INTRODUCTION
-  |
-  |boomerang is pretty darn sweet.
-  |it works on strings.
-  |
-  |"
     
-let acts,_,_,_ = sync doc o a b 
-
-test acts = 
+test 
+begin 
+  let acts,_,_,_ = 
+    sync doc
+      <<
+        * ABSTRACT
+        some stuff
+        some more stuff
+        * INTRODUCTION
+        boomerang is pretty dang sweet.
+        
+      >>
+      
+      <<
+        * ABSTRACT
+        some stuff
+        * INTRODUCTION
+        boomerang is pretty darn sweet.
+        it works on strings.
+        * CONCLUSION
+        let's have a summary.  
+      
+      >>
+      
+      <<
+        * ABSTRACT
+        some stuff
+        * INTRODUCTION
+        boomerang is pretty darn sweet.
+        it works on strings.
+        
+      >> in 
+  acts 
+end 
+= 
 <<
   A & B deleted key at [:section/ABSTRACT:paragraph/"some more stuff"]
   A & B deleted key at [:section/INTRODUCTION:paragraph/"boomerang is pretty dang sweet."]
   A & B added   key at [:section/INTRODUCTION:paragraph/"boomerang is pretty darn sweet."]
   A & B added   key at [:section/INTRODUCTION:paragraph/"it works on strings."]
-  A & B added   key at [:section/INTRODUCTION:paragraph/""]
   A     added   key at [:section/CONCLUSION]
 
 >>

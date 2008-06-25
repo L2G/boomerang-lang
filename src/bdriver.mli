@@ -23,6 +23,6 @@ val init : unit -> unit
 
 val compile_file : string -> string -> unit
 
-val compile_src_str : string -> string -> unit
+val compile_src_str : string -> string -> string -> unit
 
-val compile_boom_str : string -> string -> unit
+val compile_boom_str : string -> string -> string -> unit
