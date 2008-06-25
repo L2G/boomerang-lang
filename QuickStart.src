@@ -19,11 +19,11 @@ Installation
    In Bash, type 'export PATH=$PATH:/path/to/trunk/bin'
    In Csh, type 'setenv PATH {$PATH}:/path/to/trunk/bin'
 
-3. Add the directory containing trunk/boomerang/lenses to your 
+3. Add the directory containing trunk/lenses to your 
    $BOOMPATH environment variable. 
 
-   In Bash, type 'export BOOMPATH=/path/to/trunk/boomerang/lenses'
-   In Csh, type 'setenv PATH /path/to/trunk/boomerang/lenses'
+   In Bash, type 'export BOOMPATH=/path/to/trunk/lenses'
+   In Csh, type 'setenv PATH /path/to/trunk/lenses'
 
 Simple Lens Programming
 -----------------------
@@ -329,25 +329,9 @@ useful are:
 
      ------------------------------------------------------------
 
-Boomerang also supports a special mode for synchronizing concrete and
-abstract files whose relationship is specified by a lens. To try it
-out without composers example, initialize comp-orig.txt to
-comp-orig.txt:
+[TODO: add description of sync.]
 
-  % cp comp-conc.txt comps-orig.txt
-
-and run
-
-  % boomerang sync \
-      QuickStart.comps_cmdline \
-      comps-orig.txt \
-      comps-conc.txt \
-      comps-abs.txt \
-      -debug sync
-
-Boomerang propagates the edit  
-
-  % [sync] (lens: QuickStart.comps_cmdline) comps-conc.txt <-- put -- comps-abs.txt comps-orig.txt
+     ------------------------------------------------------------
 
 Next Steps
 ----------
@@ -358,8 +342,10 @@ Boomerang programs we have written:
   demo.boom      : a simple demo, similar to composers lens
   addresses.boom : vCard and CSV address books
   bibtex.boom    : BiBTeX and RIS-formatted bibliographies
-  coqSrc.boom    : Coq teaching files with/without solutions [NOT WORKING CURRENTLY - NEEDS TO BE PORTED TO NEW SYNTAX]
-  uniprot.boom   : UniProtKB / SwissProt lens [NOT WORKING CURRENTLY - NEEDS TO BE PORTED TO NEW SYNTAX]
+  coqSrc.boom    : Coq teaching files with/without solutions 
+                   [NOT WORKING CURRENTLY - NEEDS TO BE PORTED TO NEW SYNTAX]
+  uniprot.boom   : UniProtKB / SwissProt lens 
+                   [NOT WORKING CURRENTLY - NEEDS TO BE PORTED TO NEW SYNTAX]
 
 We will continue adding to this set of examples as we tidy and package our
 code... and we hope you'll write and let us know about the lenses

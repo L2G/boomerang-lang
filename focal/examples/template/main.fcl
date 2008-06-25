@@ -1,3 +1,0 @@
-module Main =
-  let l : lens = id
-  test l / {a={1},b={2}} = ? 

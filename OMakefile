@@ -2,7 +2,7 @@
 # Harmony top-level OMakefile.
 
 # Phony targets that don't produce files
-.PHONY: clean veryclean test temp temp1 temp2
+.PHONY: clean veryclean test
 
 ##############################################################################
 # OMake configuration
@@ -42,34 +42,19 @@ if $(or $(defined BYTE_CODE), $(defined BC))
 ##############################################################################
 # Sub-directories
 
-SUBDIRS = common focal boomerang
+SUBDIRS = common src lenses
 
 BINDIR = $(dir bin)
-HTMLDIR = $(dir html)
+
 COMMONDIR = $(dir common)
 TOOLSDIR = $(COMMONDIR)/tools
 UBASEDIR = $(COMMONDIR)/ubase
 HBASEDIR = $(COMMONDIR)/hbase
 
-FOCALDIR = $(dir focal)
+SRCDIR = $(dir src)
+LENSESDIR = $(dir lenses)
 
-BOOMERANGDIR = $(dir boomerang)
-
-##############################################################################
-# Translation of .src files
-
-SRC2F = $(TOOLSDIR)/src2f$(EXE)
-SRC2TEX = $(TOOLSDIR)/src2tex$(EXE)
-
-%.mly: %.srcy $(SRC2F)
-	-rm -f $@
-	$(SRC2F) $< $@
-	chmod(-w, $@)
-
-%.mll: %.srcl $(SRC2F)
-	-rm -f $@
-	$(SRC2F) $< $@
-	chmod(-w, $@)
+BOOMERANGDIR = $(dir .)
 
 ##############################################################################
 # Cleanup
@@ -91,3 +76,7 @@ veryclean: clean
 # Include sub-directories
 
 .SUBDIRS: $(SUBDIRS)
+
+
+
+.SUBDIRS: src lenses

@@ -1,8 +1,0 @@
-csv.cmo: csv.cmi 
-csv.cmx: csv.cmi 
-csvtool.cmo: csv.cmi 
-csvtool.cmx: csv.cmx 
-example.cmo: csv.cmi 
-example.cmx: csv.cmx 
-test.cmo: csv.cmi 
-test.cmx: csv.cmx 
