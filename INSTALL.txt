@@ -6,9 +6,9 @@ To build Boomerang from source, you need OCaml and OMake.  These can
 either be installed using GODI (suggested method) or manually (only
 slightly more difficult).
 
- +-------------------+
- | GODI INSTALLATION |
- +-------------------+
+ +--------------------+
+ | BUILDING WITH GODI |
+ +--------------------+
 
 The simplest way to install the prerequisites needed by Boomerang is
 via the Godi package manager for OCaml. Download godi from
@@ -21,11 +21,11 @@ Follow installation instructions.  Then issue the commands:
   godi_console perform -build godi-omake
 
 Now go to the boomerang directory, type 'omake', and you should end up
-with a boomerang binary in the src directory.
+with a boomerang binary in the bin directory.
 
-  +----------------------------+
-  | BUILDING BOOMERANG BY HAND |
-  +----------------------------+
+ +------------------+
+ | BUILDING BY HAND |
+ +------------------+
 
 The required resources are specified here in the order in which they should
 be installed.
@@ -44,5 +44,4 @@ findlib     versions from 0.8.1 to 1.0.4 have been tested.
             http://www.ocaml-programming.de/packages/
 
 Now simply type 'omake' in the top-level boomerang directory and you should
-end up with a binary.
-
+end up with a boomerang binary in the bin directory.
