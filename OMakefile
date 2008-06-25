@@ -53,29 +53,34 @@ LENSESDIR = $(dir lenses)
 EXAMPLESDIR = $(dir examples)
 
 BOOMERANGDIR = $(dir .)
-QUICKSTART = $(BOOMERANGDIR)/QuickStart.src 
+BOOMFILES = $(BOOMERANGDIR)/QuickStart.src \
+            $(glob $(LENSESDIR)/*.boom) \
+            $(glob $(EXAMPLESDIR)/*.boom) \
 
 BOOMEXE = $(BINDIR)/boomerang$(EXE) 
 BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR)
 
-runtest(f) = 
-  echo Testing [$(f)]...
-  $(BOOMEXE) $(BOOMFLAGS) $(f)
-  echo Finished [$(f)]
-
 ##############################################################################
-# Cleanup
+# CLEANUP
+
+# what about .omakedb and omakedb.lock?
 
 CLEAN = rm -rf *~ *.tmp *.cmx *.cmi *.cmo *.o *.annot *.opt *.omc *.a *.cmxa \
                   *.output ._d ._ncdi TAGS 
 
 VERYCLEAN = $(CLEAN) $(BINDIR)
 
-# what about .omakedb and omakedb.lock?
+##############################################################################
+# TESTING
 
-test:
-	runtest($(QUICKSTART))
+runtest(f) = 
+  echo Testing [$(f)]...
+  $(BOOMEXE) $(BOOMFLAGS) $(f)
+  echo Finished [$(f)]
 
+test: $(BOOMEXE)
+	foreach(f,$(BOOMFILES))
+	  runtest($(f))
 clean:
 	$(CLEAN) 
 

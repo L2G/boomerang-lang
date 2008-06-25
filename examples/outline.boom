@@ -35,10 +35,10 @@ let nonheader : lens =
 
 let section : lens = 
     header . "\n"
-  . (<nonheader> . "\n")*
+  . (<paragraph:nonheader> . "\n")*
 
 let doc : lens = 
-  <section>*
+  <section:section>*
 
 test get doc
   <<

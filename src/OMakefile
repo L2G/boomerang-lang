@@ -89,6 +89,6 @@ clean:
 if $(defined NOBAKE)
   bakery.ml: $(TOOLSDIR)/baker$(EXE)
     ./$< ".boom" > $@
-else
-  bakery.ml: $(TOOLSDIR)/baker$(EXE)
+else 
+  bakery.ml: $(TOOLSDIR)/baker$(EXE) $(BOOMFILES)
     $< ".boom" $(LENSESDIR) $(EXAMPLESDIR) > $@
