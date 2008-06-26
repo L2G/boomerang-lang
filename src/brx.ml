@@ -1,25 +1,49 @@
-(* ACKs: 
-   - Jerome's Unison Rx module.
-   - Posting by Mark William Hopkins to comp.compilers usenet forum. 
-*)
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2007-2008                                                     *)
+(* J. Nathan Foster and Benjamin C. Pierce                                     *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/src/brx.ml                                                       *)
+(* Boomerang RegExp engine                                                     *)
+(* $Id$ *)
+(*******************************************************************************)
 
+(* This code is based on a similar module Jerome Vouillon wrote for
+   Unison. *)
+
+(* --------------------- CONSTANTS / HELPERS --------------------- *)
+
+(* debugging *)
 let dbg thk = Trace.debug "brx+" thk
 let sdbg s = Trace.debug "brx+" (fun () -> Util.format "%s" s)
 
-let () = Format.set_margin 120
+let string_of_char_code n = String.make 1 (Char.chr n) 
 	   
-(* constants *)
+(* ASCII alphabet *)
 let min_code = 0
 let max_code = 255
 
-(* pretty printing ranks *)
+(* --------------------- PRETTY PRINTING --------------------- *)
+(* ranks: used to determine when parentheses are needed. *)
 type r = 
-  | Urnk           (* union *)
-  | Drnk           (* diff *)
-  | Irnk           (* inter *)
-  | Crnk           (* concat *)
-  | Srnk           (* star *)
-  | Arnk           (* atomic *)
+  | Urnk (* union *)
+  | Drnk (* diff *)
+  | Irnk (* inter *)
+  | Crnk (* concat *)
+  | Srnk (* star *)
+  | Arnk (* atomic *)
 
 let lpar r1 r2 = match r1,r2 with
   | Arnk, _ -> false
@@ -49,28 +73,20 @@ let rpar r1 r2 = match r1,r2 with
   | Drnk, Drnk -> true
   | Urnk, Urnk -> true
 
-module SMap = Map.Make(
-  struct
-    type t = string
-    let compare (s1:string) s2 = Pervasives.compare s1 s2
-  end)
-type spine_elt = Bx of string | BxStar of string | St of string
-type spine = spine_elt list
-type kv = string * string list 
-type stump = spine * kv list SMap.t
-
-(* CHARACTER SETS *)
+(* --------------------- CHARACTER SETS --------------------- *)
 module CharSet : 
 sig
-  type t = (int * int) list
+  type p = int * int 
+  type t = p list
   val union : t -> t -> t
-  val add : int * int -> t -> t
+  val add : p -> t -> t
   val inter : t -> t -> t
   val negate : int -> int -> t -> t
   val diff : t -> t -> t
   val mem : int -> t -> bool
 end = struct
-  type t = (int * int) list
+  type p = int * int 
+  type t = p list
   let rec union l1 l2 = match l1,l2 with
     | _,[] -> l1
     | [],_ -> l2
@@ -117,8 +133,8 @@ end = struct
     Safelist.exists (fun (c1,c2) -> c1 <= c && c <= c2) l 
 end
 
-(* REGULAR EXPRESSIONS *)
-
+(* --------------------- REGULAR EXPRESSIONS --------------------- *)
+(* we use a recursive module because t uses Q.ts in representative *) 
 module rec M : sig 
   type d = 
     | Anything
@@ -127,9 +143,35 @@ module rec M : sig
     | CSet of CharSet.t
     | Alt of t * t list
     | Seq of t * t
+    | Star of t
     | Inter of t * t list
     | Diff of t * t
+  and t = {
+    uid                    : int;
+    desc                   : d;
+    hash                   : int;
+    final                  : bool;
+    (* operations *)
+    mutable derivative     : int -> t;
+    mutable maps           : unit -> (int array * int array);
+    mutable next           : unit -> t array;
+    mutable reverse        : unit -> t;
+    mutable representative : string * Q.t * (t * string * Q.t option) list -> 
+			     (string,Q.t) Misc.alternative;
+(*     mutable suffs          : unit -> t;   *)
+    mutable suffs          : (t * Q.t * t list) -> t;
+  } 
+end = struct
+  type d = 
+    | Anything
+    | Empty
+    | Epsilon
+    | CSet of CharSet.t
+    | Alt of t * t list
+    | Seq of t * t
     | Star of t
+    | Inter of t * t list
+    | Diff of t * t
   and t = {
     uid                    : int;
     desc                   : d;
@@ -139,129 +181,21 @@ module rec M : sig
     mutable maps           : unit -> (int array * int array);
     mutable next           : unit -> t array;
     mutable reverse        : unit -> t;
-    mutable representative : string * Q.t * (t * string * Q.t option) list -> 
-					(string,Q.t) Misc.alternative;
-    mutable suffs          : unit -> t; 
-  } end = struct
-    type d = 
-      | Anything
-      | Empty
-      | Epsilon
-      | CSet of CharSet.t
-      | Alt of t * t list
-      | Seq of t * t
-      | Inter of t * t list
-      | Diff of t * t
-      | Star of t
-    and t = {
-      uid                    : int;
-      desc                   : d;
-      hash                   : int;
-      final                  : bool;
-      mutable derivative     : int -> t;
-      mutable maps           : unit -> (int array * int array);
-      mutable next           : unit -> t array;
-      mutable reverse        : unit -> t;
-      mutable representative : string * Q.t * (t * string * Q.t option) list -> 
-					  (string,Q.t) Misc.alternative;
-      mutable suffs          : unit -> t; 
-    } end 
+    mutable representative : string * Q.t * (t * string * Q.t option) list ->
+                                        (string,Q.t) Misc.alternative;
+(*     mutable suffs          : unit -> t;   *)
+    mutable suffs          : (t * Q.t * t list) -> t;
+  } 
+end 
 and Q : Set.S with type elt = M.t = Set.Make(
   struct
     type t = M.t
-    let compare t1 t2 = compare (t1.M.uid) (t2.M.uid)
+    let compare t1 t2 = (t1.M.uid) - (t2.M.uid)
   end)
-
 type t = M.t
-
 open M
 
-let desc_hash = function
-  | Anything     -> 181
-  | Empty        -> 443
-  | Epsilon      -> 1229
-  | CSet(cs)     -> 
-      let rec aux = function
-        | [] -> 0
-        | (i,j)::r -> i + 13 * j + 257 * aux r in 
-        aux cs land 0x3FFFFFFF
-  | Alt(t1,tl)   -> 199 * Safelist.fold_left (fun h ti -> h + 883 * ti.hash) 0 (t1::tl)
-  | Seq(t1,t2)   -> 821 * t1.hash + 919 * t2.hash
-  | Inter(t1,tl) -> 71 * Safelist.fold_left (fun h ti -> h + 883 * ti.hash) 0 (t1::tl)
-  | Diff(t1,t2)  -> 379 * t1.hash + 563 * t2.hash
-  | Star(t1)     -> 197 * t1.hash
-
-(* NILLABLE *)
-let desc_final = function
-  | Anything     -> true
-  | Empty        -> false
-  | Epsilon      -> true
-  | CSet _       -> false
-  | Star _       -> true
-  | Seq(t1,t2)   -> t1.final && t2.final
-  | Alt(t1,tl)   -> t1.final || Safelist.exists (fun ti -> ti.final) tl
-  | Inter(t1,tl) -> t1.final && Safelist.for_all (fun ti -> ti.final) tl
-  | Diff(t1,t2)  -> t1.final && not t2.final
-
-(* MAPS *)
-module MapCache = Hashtbl.Make(
-  struct
-    type t = int list
-    let hash l1 = Hashtbl.hash l1
-    let equal l1 l2 = l1 = l2
-  end)
-let mcache : (int array * int array) MapCache.t = 
-  MapCache.create 101
-let desc_maps d0 = 
-  let rec split m cs = match cs with
-    | [] -> ()
-    | (c1,c2)::rest ->
-        m.(c1) <- true;
-        m.(succ c2) <- true;
-        split m rest in
-  let rec desc_colorize m d = match d with
-    | Anything     -> ()
-    | Empty        -> ()
-    | Epsilon          -> ()
-    | CSet cs      -> split m cs
-    | Star(t1)      -> colorize m t1
-    | Seq(t1,t2)   -> colorize m t1; if t1.final then colorize m t2
-    | Alt(t1,tl)   -> colorize m t1; Safelist.iter (colorize m) tl
-    | Inter(t1,tl) -> colorize m t1; Safelist.iter (colorize m) tl
-    | Diff(t1,t2)  -> colorize m t1; colorize m t2 
-  and colorize m t = desc_colorize m t.desc in
-  let int_list_of_map m = 
-    let ws = 31 in 
-    let rec loop i mask cont a1 al = 
-      if i > max_code then (a1::al)
-      else if cont && i mod ws = 0 then 
-        loop i 1 false 0 (a1::al)
-      else
-        let mask' = mask lsl 1 in 
-        let a1' = if m.(i) then mask lor a1 else a1 in 
-          loop (succ i) mask' true a1' al in 
-      loop 0 1 false 0 [] in 
-  let flatten m = 
-    let ml = int_list_of_map m in
-      try MapCache.find mcache ml 
-      with Not_found -> 
-        let cm = Array.make (succ max_code) 0 in 
-        let rec loop i nc rml = 
-          if i > max_code then Safelist.rev rml
-          else
-            let nc' = if m.(i) then succ nc else nc in 
-            let rml' = if m.(i) then i::rml else rml in 
-              (cm.(i) <- nc';
-               loop (succ i) nc' rml') in 
-        let rml = loop 1 0 [0] in
-        let ms = (cm,Array.of_list rml) in
-          MapCache.add mcache ml ms;
-          ms in 
-  let m = Array.make (succ (succ max_code)) false in 
-    desc_colorize m d0;
-    flatten m
-
-(* pretty printing *)
+(* --------------------- PRETTY PRINTING --------------------- *)
 let rank t0 = match t0.desc with
   | Anything -> Arnk
   | Empty    -> Arnk
@@ -274,7 +208,6 @@ let rank t0 = match t0.desc with
   | Diff _   -> Drnk 
 
 let rec format_t t0 = 
-  let string_of_char_code n = Char.escaped (Char.chr n) in 
   let format_char_code n = Util.format "%s" (string_of_char_code n) in       
   let format_char_code_pair (n1,n2) = 
     if n1=n2 then format_char_code n1 
@@ -354,16 +287,35 @@ let rec format_t t0 =
 let string_of_t t0 = 
   Util.format_to_string (fun () -> format_t t0)
 
-(* HASH CONS CACHES *)
+(* --------------------- HASH CONS CACHES --------------------- *)
+module MapCache = Map.Make(
+  struct
+    type t = (int * int list)
+    let rec compare (h1,l1) (h2,l2) = 
+      let rec aux l1 l2 = match l1,l2 with
+        | [],[] -> 0
+        | _,[]  -> 1
+        | [],_  -> -1
+        | h1::rest1,h2::rest2 -> 
+            let c1 = h1 - h2 in 
+            if c1 <> 0 then c1
+            else aux rest1 rest2 in 
+      aux (h1::l1) (h2::l2)
+  end)
+
+module ICache = Hashtbl.Make
+  (struct 
+     type t = int
+     let hash x = Hashtbl.hash x
+     let equal (x:int) (y:int) = x=y
+   end)
+
 module CSCache = Hashtbl.Make
   (struct
      type t = CharSet.t 
      let hash cs1 = Hashtbl.hash cs1
      let equal cs1 cs2 = cs1 = cs2
    end)
-
-let cset_cache : t CSCache.t = CSCache.create 131
-let neg_cset_cache : t CSCache.t = CSCache.create 131
 
 module TCache = Hashtbl.Make
   (struct
@@ -372,19 +324,12 @@ module TCache = Hashtbl.Make
      let equal t1 t2 = t1.uid = t2.uid
    end)
 
-let star_cache : t TCache.t = TCache.create 131
-
 module TTCache = Hashtbl.Make
   (struct 
      type t = M.t * M.t
      let hash (t1,t2) = (883 * t1.hash + 859 * t2.hash)
      let equal (t11,t12) (t21,t22) = t11.uid = t21.uid && t12.uid = t22.uid
    end)
-
-let seq_cache : t TTCache.t = TTCache.create 131
-let alt_cache : t TTCache.t = TTCache.create 131
-let inter_cache : t TTCache.t = TTCache.create 131
-let diff_cache : t TTCache.t = TTCache.create 131
 
 module TLCache = Hashtbl.Make
   (struct
@@ -396,15 +341,108 @@ module TLCache = Hashtbl.Make
        | [],[] -> true
        | _ -> false
    end)
+
+let mcache : (int array * int array) MapCache.t ref = ref MapCache.empty
+let cset_cache : t CSCache.t = CSCache.create 131
+let neg_cset_cache : t CSCache.t = CSCache.create 131
+let star_cache : t TCache.t = TCache.create 131
+let seq_cache : t TTCache.t = TTCache.create 131
+let alt_cache : t TTCache.t = TTCache.create 131
+let inter_cache : t TTCache.t = TTCache.create 131
+let diff_cache : t TTCache.t = TTCache.create 131
 let seqs_cache : t TLCache.t = TLCache.create 131
 let alts_cache : t TLCache.t = TLCache.create 131
 let inters_cache : t TLCache.t = TLCache.create 131
 
-(* CONSTRUCTORS *)      
+(* --------------------- DESC OPERATIONS --------------------- *)
+let desc_hash = function
+  | Anything     -> 181
+  | Empty        -> 443
+  | Epsilon      -> 1229
+  | CSet(cs)     -> 
+      let rec aux = function
+        | [] -> 0
+        | (i,j)::r -> i + 13 * j + 257 * aux r in 
+        aux cs land 0x3FFFFFFF
+  | Alt(t1,tl)   -> 199 * Safelist.fold_left (fun h ti -> h + 883 * ti.hash) 0 (t1::tl)
+  | Seq(t1,t2)   -> 821 * t1.hash + 919 * t2.hash
+  | Inter(t1,tl) -> 71 * Safelist.fold_left (fun h ti -> h + 883 * ti.hash) 0 (t1::tl)
+  | Diff(t1,t2)  -> 379 * t1.hash + 563 * t2.hash
+  | Star(t1)     -> 197 * t1.hash
+
+let desc_final = function
+  | Anything     -> true
+  | Empty        -> false
+  | Epsilon      -> true
+  | CSet _       -> false
+  | Star _       -> true
+  | Seq(t1,t2)   -> t1.final && t2.final
+  | Alt(t1,tl)   -> t1.final || Safelist.exists (fun ti -> ti.final) tl
+  | Inter(t1,tl) -> t1.final && Safelist.for_all (fun ti -> ti.final) tl
+  | Diff(t1,t2)  -> t1.final && not t2.final
+
+(* character maps (hash consed) *)
+let desc_maps d0 = 
+  let rec split m cs = match cs with
+    | [] -> ()
+    | (c1,c2)::rest ->
+        m.(c1) <- true;
+        m.(succ c2) <- true;
+        split m rest in
+  let rec desc_colorize m d = match d with
+    | Anything     -> ()
+    | Empty        -> ()
+    | Epsilon          -> ()
+    | CSet cs      -> split m cs
+    | Star(t1)     -> colorize m t1
+    | Seq(t1,t2)   -> colorize m t1; if t1.final then colorize m t2
+    | Alt(t1,tl)   -> colorize m t1; Safelist.iter (colorize m) tl
+    | Inter(t1,tl) -> colorize m t1; Safelist.iter (colorize m) tl
+    | Diff(t1,t2)  -> colorize m t1; colorize m t2 
+  and colorize m t = desc_colorize m t.desc in
+  let key_of_map m =
+    let ws = 31 in
+    let rec loop i mask cont a1 al =
+      if i > max_code then (a1::al)
+      else if cont && i mod ws = 0 then
+        loop i 1 false 0 (a1::al)
+      else
+        let mask' = mask lsl 1 in
+        let a1' = if m.(i) then mask lor a1 else a1 in
+          loop (succ i) mask' true a1' al in
+    let l = loop 0 1 false 0 [] in 
+    (Hashtbl.hash l,l) in 
+  let flatten m = 
+    let km = key_of_map m in
+    try MapCache.find km !mcache 
+    with Not_found ->
+      let cm = Array.make (succ max_code) 0 in 
+      let rec loop i nc rml = 
+        if i > max_code then Safelist.rev rml
+        else
+          let nc' = if m.(i) then succ nc else nc in 
+          let rml' = if m.(i) then i::rml else rml in 
+            (cm.(i) <- nc';
+             loop (succ i) nc' rml') in 
+      let rml = loop 1 0 [0] in
+      let ms = (cm,Array.of_list rml) in
+        mcache := MapCache.add km ms !mcache;
+        ms in 
+  let m = Array.make (succ (succ max_code)) false in 
+    desc_colorize m d0;
+    flatten m
+
+(* --------------------- CONSTRUCTORS --------------------- *)
 let uid_counter = ref 0 
 let next_uid () = 
   incr uid_counter;
   !uid_counter
+
+let install upd f = 
+  (fun args -> 
+     let v = f args in 
+     upd (fun _ -> v); 
+     v)
 
 let dummy_impl _ = assert false  
 
@@ -428,7 +466,7 @@ let mk_constant d is_final t_nexto t_repalt=
     t.next <- (fun () -> tr);
     t.reverse <- (fun () -> t);
     t.representative <- (fun _ -> t_repalt);
-    t.suffs <- (fun () -> t);
+    t.suffs <- (fun _ -> t);
     t 
 
 (* CONSTANTS *)
@@ -438,7 +476,6 @@ let epsilon = mk_constant Epsilon true (Some empty) (Misc.Left "")
 
 (* GENERIC CONSTRUCTOR *)
 let rec mk_t d0 = 
-  (* (1) contsruct a t using dummy_impl for operations *)
   let t0 = 
     { uid = next_uid ();
       desc = d0;
@@ -450,187 +487,201 @@ let rec mk_t d0 =
       reverse = dummy_impl;
       representative = dummy_impl;
       suffs = dummy_impl; } in 
-    (* (2) build the operations *)
-  let maps_impl () = 
-    let ms = desc_maps d0 in 
-      t0.maps <- (fun () -> ms);
-      ms in 
 
-  let derivative_impl = match d0 with 
-    | Anything -> 
-        (fun c -> t0)
-    | Empty -> 
-        (fun c -> t0)
-    | Epsilon -> 
-        (fun c -> empty)
-    | CSet s  -> 
-        (fun c -> if CharSet.mem c s then epsilon 
-         else empty)
+  let maps_impl  = 
+    install 
+      (fun g -> t0.maps <- g) 
+      (fun () -> desc_maps d0) in
+
+
+  let derivative_impl = 
+    let mk_memo f = 
+      let der_cache : t ICache.t = ICache.create 17 in
+      let fr = ref f in 
+      (fun c -> 
+         try ICache.find der_cache c
+         with Not_found -> 
+           let r = !fr c in 
+           ICache.add der_cache c r;
+           r) in 
+    match d0 with 
+    | Anything -> (fun c -> t0)
+    | Empty    -> (fun c -> t0)
+    | Epsilon  -> (fun c -> empty)
+    | CSet s   -> mk_memo (fun c -> if CharSet.mem c s then epsilon else empty)
     | Seq(t1,t2) ->
-	(fun c -> 
-	   let t12 = mk_seq (t1.derivative c) t2 in 
-	   if t1.final then mk_alt t12 (t2.derivative c)
-	   else t12)
+        mk_memo
+          (fun c -> 
+	     let t12 = mk_seq (t1.derivative c) t2 in 
+	       if t1.final then mk_alt t12 (t2.derivative c)
+	       else t12)
     | Alt (t1,tl) -> 
-        (fun c -> mk_alts (Safelist.map (fun ti -> ti.derivative c) (t1::tl)))
+        mk_memo
+          (fun c -> mk_alts (Safelist.map (fun ti -> ti.derivative c) (t1::tl)))
     | Star(t1) -> 
-        (fun c -> mk_seq (t1.derivative c) (mk_star t0))
+        mk_memo
+          (fun c -> mk_seq (t1.derivative c) (mk_star t0))
     | Inter(t1,tl) ->
-        (fun c -> mk_inters (Safelist.map (fun ti -> ti.derivative c) (t1::tl)))
+        mk_memo 
+          (fun c -> mk_inters (Safelist.map (fun ti -> ti.derivative c) (t1::tl)))
     | Diff(t1,t2) -> 
-        (fun c -> mk_diff (t1.derivative c) (t2.derivative c)) in 
+        mk_memo 
+          (fun c -> mk_diff (t1.derivative c) (t2.derivative c)) in 
 
-  let next_impl () = 
-    let (cm,rm) = t0.maps () in
-    let nc = Array.length rm in
-    let tr = Array.create nc t0 in 
-      for i = 0 to pred nc do
-        tr.(i) <- t0.derivative rm.(i)
-      done;
-      t0.next <- (fun () -> tr);
-      tr in 
+  let next_impl = 
+    install
+      (fun g -> t0.next <- g)
+      (fun () -> 
+         let (_,rm) = t0.maps () in
+         let nc = Array.length rm in
+         let tr = Array.create nc t0 in 
+         for i = 0 to pred nc do 
+           tr.(i) <- t0.derivative rm.(i) 
+         done;
+         tr) in
 
-  let reverse_impl () = 
-    let t_rev = match d0 with 
-      | Anything     -> t0
-      | Empty        -> t0
-      | Epsilon      -> t0
-      | CSet _       -> t0
-      | Seq(t1,t2)   -> mk_seq (t2.reverse ()) (t1.reverse ())
-      | Alt(t1,tl)   -> mk_alts (Safelist.map (fun ti -> ti.reverse ()) (t1::tl))
-      | Star(t1)     -> mk_star (t1.reverse ())
-      | Inter(t1,tl) -> mk_inters (Safelist.map (fun ti -> ti.reverse ()) (t1::tl))
-      | Diff(t1,t2)  -> mk_diff (t1.reverse ()) (t2.reverse ()) in 
-      t0.reverse <- (fun () -> t_rev);
-      t_rev in 
+  let reverse_impl = 
+    let install_rev thk = install (fun g -> t0.reverse <- g) thk in 
+    match d0 with 
+      | Anything     -> (fun () -> t0)
+      | Empty        -> (fun () -> t0)
+      | Epsilon      -> (fun () -> t0)
+      | CSet _       -> (fun () -> t0)
+      | Seq(t1,t2)   -> install_rev (fun () -> mk_seq (t2.reverse ()) (t1.reverse ()))
+      | Alt(t1,tl)   -> install_rev (fun () -> mk_alts (Safelist.map (fun ti -> ti.reverse ()) (t1::tl)))
+      | Star(t1)     -> install_rev (fun () -> mk_star (t1.reverse ()))
+      | Inter(t1,tl) -> install_rev (fun () -> mk_inters (Safelist.map (fun ti -> ti.reverse ()) (t1::tl)))
+      | Diff(t1,t2)  -> install_rev (fun () -> mk_diff (t1.reverse ()) (t2.reverse ())) in 
 
-  let representative_impl (w,frontier,poss) = 
-    let add b ci ti f p = 
-      if Q.mem ti f then p
-      else if b then (ti,w ^ ci,Some f)::p
-      else (ti,w ^ ci, None)::p in 
+  let representative_impl = 
+    let install_rep g = install (fun g -> t0.representative <- g) g in 
     let jump f p = match p with 
       | [] -> Misc.Right f
       | (ti,wi,None)::rest -> ti.representative (wi,f,rest) 
       | (ti,wi,Some f')::rest -> ti.representative (wi,f',rest) in
-    let frontier' = Q.add t0 frontier in 
-      if t0.final then 
-        Misc.Left w
-      else if Q.mem t0 frontier then 
-        jump frontier' poss 
+    let add w b ci ti f p = 
+      if Q.mem ti f then p
+      else if b then (ti,w ^ ci,Some f)::p
+      else (ti,w ^ ci, None)::p in 
+    let full_search (w,f,p) = 
+      let f' = Q.add t0 f in 
+      if t0.final then Misc.Left w
+      else if Q.mem t0 f then jump f' p 
       else 
-        let full_search () = 
-          let tr = t0.next () in 
-	  let _,rm = t0.maps () in 
-          let len = Array.length tr in 
-          let rec loop acc i = 
-            if i < 0 then acc 
-            else 
-              let ti = tr.(i) in 
-              let ci = String.make 1 (Char.chr rm.(i)) in 
-              let acc' = add (i = 0) ci ti frontier' acc in
-              loop acc' (pred i) in
-            jump frontier' (loop poss (pred len)) in 
-        let wo = 
-          match d0 with 
-            | Anything  -> Misc.Left w
-            | Epsilon   -> Misc.Left w
-            | Empty     -> jump frontier' poss
-            | CSet ((c1,_)::_)  -> 
-                let s1 = String.make 1 (Char.chr c1) in 
-                Misc.Left (w ^ s1)
-            | Seq(t1,t2)  -> 
-                begin match t1.representative (w,frontier',poss) with 
-                  | Misc.Right _ as res -> res
-                  | Misc.Left w1 -> 
-                      begin match t2.representative ("",frontier',poss) with
-                        | Misc.Right _ as res -> res
-                        | Misc.Left w2 -> Misc.Left (w1 ^ w2)
-                      end
-                end
-            | Star _      -> Misc.Left w
-            | Alt(t1,tl)  -> 
-                let rec loop acc l = match l with
-                  | [] -> acc
-                  | ti::rest -> 
-                      let acc' = add (rest = []) "" ti frontier' acc in 
-		      loop acc' rest in 
-                  jump frontier' (loop poss (Safelist.rev (t1::tl))) 
-            | Diff(t1,t2) -> 
-                begin match t1.desc with
-                  | Alt(t11,tl1) ->                 
+        let tr = t0.next () in 
+	let _,rm = t0.maps () in 
+        let len = Array.length tr in 
+        let rec loop acc i = 
+          if i < 0 then acc 
+          else 
+            let ti = tr.(i) in 
+            let ci = String.make 1 (Char.chr rm.(i)) in 
+            let acc' = add w (i = 0) ci ti f' acc in
+            loop acc' (pred i) in
+       jump f' (loop p (pred len)) in 
+
+    match d0 with
+      | Anything | Epsilon | Star _ -> 
+          (fun (w,_,_) -> Misc.Left w)
+      | Empty | CSet [] -> 
+          install_rep
+            (fun (_,f,p) -> 
+               let f' = Q.add t0 f in 
+               jump f' p)
+      | CSet((c1,_)::_) -> 
+          (fun (w,_,_) -> Misc.Left (w ^ string_of_char_code c1))
+      | Seq(t1,t2) -> 
+          install_rep 
+            (fun (w,f,p) -> 
+               let f' = Q.add t0 f in 
+               match t1.representative (w,f',p) with 
+                 | Misc.Right _ as res -> res
+                 | Misc.Left w1 -> match t2.representative ("",f',p) with
+                     | Misc.Right _ as res -> res
+                     | Misc.Left w2 -> Misc.Left (w1 ^ w2))
+      | Alt(t1,tl) -> 
+          install_rep 
+            (fun (w,f,p) -> 
+               let f' = Q.add t0 f in 
+               let rec loop acc l = match l with
+                 | [] -> acc
+                 | ti::rest -> 
+                     let acc' = add w (rest = []) "" ti f' acc in 
+		       loop acc' rest in 
+               (* rev preserves compatibility with old engine *)
+               let tl_rev = Safelist.rev (t1::tl) in 
+               jump f' (loop p tl_rev))
+
+      | Diff(t1,t2) -> 
+          install_rep
+            (match t1.desc with
+               | Alt(t11,tl1) ->                 
+                   (fun (w,f,p) -> 
+                      let f' = Q.add t0 f in 
                       let rec loop acc l = match l with
                         | [] -> acc
                         | ti::rest -> 
-                            let acc' = add (rest = []) "" (mk_diff ti t2) frontier' acc in 
-                            loop acc' rest in 
-			jump frontier' (loop poss (Safelist.rev (t11::tl1)))
-                  | _ -> full_search ()
-                end
-            | _ -> full_search () in
-          t0.representative <- (fun _ -> wo);
-          wo in 
+                            let ti_d_t2 = mk_diff ti t2 in
+                            let acc' = add w (rest = []) "" ti_d_t2 f' acc in 
+                              loop acc' rest in 
+		      let tl_rev = Safelist.rev (t11::tl1) in 
+                      jump f' (loop p tl_rev))
+               | _ -> full_search)
+      | _ -> install_rep full_search in
 
-  let suffs_impl () = 
-    let search go next last seen init s = 
-      let pending = Queue.create () in 
-      let rec loop seen acc = 
-	if Queue.is_empty pending then acc
-	else
-          begin 
-            let s = Queue.pop pending in 
-            let seen',_,acc' = 
-	      Array.fold_left 
-		(fun (sn,i,ac) si ->                
-		   if Q.mem si sn then 
-		     (sn,succ i,ac)
-		   else 
-		     let ci = Char.chr (snd (s.maps ())).(i) in                    
-		     let sn' = Q.add si sn in 
-		       Queue.push si pending;
-		       (sn',succ i,go sn' s ci si ac))
-		(seen,0,acc) (s.next ()) in
-	      next loop seen' acc' 
-          end in
-	Queue.push s pending;
-	last (loop (seen s) (init s)) in 
-      let full_search () = 
-        search
-          (fun _ _ _ si acc -> if si.final then Q.add si acc else acc)
-          (fun loop -> loop)
-          (fun rs -> 
-             let rl = Q.fold (fun ti l -> ti::l) rs [] in 
-             mk_alts rl)
-          (fun s -> Q.singleton s)
-          (fun s -> if s.final then Q.add s Q.empty else Q.empty)
-          t0 in
-      let res = match d0 with 
-        | Anything -> t0
-        | Empty  -> t0
-        | CSet _ -> epsilon
-        | Epsilon -> t0
-        | Star _ -> t0
-        | Alt(t1,tl) -> 
-            let tl' = Safelist.map (fun ti -> ti.suffs ()) (t1::tl) in 
-	    mk_alts tl'
-        | Inter(t1,tl) -> 
-            let tl' = Safelist.map (fun ti -> ti.suffs ()) (t1::tl) in 
-	    mk_inters tl'
-        | Seq(t1,t2) -> 
-            if not t2.final then t2.suffs ()
-            else mk_alt (t1.suffs ()) (t2.suffs ())
-        | _ -> full_search () in 
-	t0.suffs <- (fun () -> res);
-        res in 
+  let suffs_impl = 
+    let upd g = t0.suffs <- g in 
+    let install_suffs g = install upd g in
+    let add ti f p = if Q.mem ti f then p else (ti::p) in 
+    let jump tacc f p = match p with 
+      | [] -> tacc
+      | ti::rest -> ti.suffs (tacc,f,rest) in 
+    let full_search (tacc,f,p) = 
+      let f' = Q.add t0 f in 
+      if Q.mem t0 f then jump tacc f' p 
+      else if t0.final then jump (mk_alt tacc t0) f' p
+      else 
+        let tr = t0.next () in 
+	let len = Array.length tr in 
+        let rec loop acc i = 
+          if i < 0 then acc 
+          else 
+            let ti = tr.(i) in 
+            let acc' = add ti f p in
+            loop acc' (pred i) in
+        jump tacc f' (loop p (pred len)) in 
 
-    (* BACKPATCH *)  
-    t0.maps <- maps_impl;
-    t0.derivative <- derivative_impl;
-    t0.next <- next_impl;
-    t0.reverse <- reverse_impl;
-    t0.representative <- representative_impl;
-    t0.suffs <- suffs_impl;
-    t0
+    match d0 with 
+      | Anything | Empty | Epsilon | Star _ -> 
+          (fun _ -> t0)
+      | CSet _ -> 
+          (fun _ -> epsilon)
+      | Alt(t1,tl) -> 
+          install_suffs 
+            (fun (tacc,f,p) -> 
+               let f' = Q.add t0 f in 
+               let p' = 
+                 Safelist.fold_left 
+                   (fun acc ti -> add ti f' acc) 
+                   p 
+                   (Safelist.rev (t1::tl)) in 
+               jump tacc f' p')
+      | Seq(t1,t2) ->           
+          install_suffs 
+            (fun (tacc,f,p) -> 
+               if not t2.final then t2.suffs (tacc,f,p)
+               else mk_alt (t1.suffs (tacc,f,p)) (t2.suffs (tacc,f,p)))
+      | _ -> install_suffs full_search in
+      
+  (* backpatch t0 with implementations of the operations *)  
+  t0.maps <- maps_impl;
+  t0.derivative <- derivative_impl;
+  t0.next <- next_impl;
+  t0.reverse <- reverse_impl;
+  t0.representative <- representative_impl;
+  t0.suffs <- suffs_impl;
+  t0
+
 and mk_cset cs = match cs with
   | [] -> empty
   | _ -> 
@@ -821,9 +872,12 @@ let representative t0 = match t0.representative ("",Q.empty,[]) with
 
 let is_empty t0 = representative t0 = None
 
+let suffs t0 = t0.suffs (empty,Q.empty,[])
+(* let suffs t0 = t0.suffs () *)
+
 let splittable_cex t1 t2 = 
-  let t2_rev = t2.reverse () in 
-  let overlap_or_epsilon = mk_inter (t1.suffs ()) ((t2_rev.suffs ()).reverse ()) in
+  let t2_rev = mk_reverse t2 in 
+  let overlap_or_epsilon = mk_inter (suffs t1) (mk_reverse (suffs t2_rev)) in 
   let overlap = mk_diff overlap_or_epsilon epsilon in 
   representative overlap
 
@@ -834,12 +888,8 @@ let match_string t0 w =
   let n = String.length w in 
   let rec loop i ti =     
     if i = n then ti.final
-    else 
-      let cm,_ = ti.maps () in 
-      let c = cm.(Char.code w.[i]) in         
-      let t' = (ti.next ()).(c) in 
-      loop (succ i) t' in 
-    loop 0 t0
+    else loop (succ i) (ti.derivative (Char.code w.[i])) in 
+  loop 0 t0
       
 let match_string_positions t0 w = 
   let n = String.length w in 
@@ -847,28 +897,18 @@ let match_string_positions t0 w =
     let acc' = 
       if ti.final then Int.Set.add i acc 
       else acc in 
-      if i=n then acc'
-      else 
-        begin 
-          let cm,_ = ti.maps () in 
-          let c = cm.(Char.code w.[i]) in
-          loop acc' (succ i) ((ti.next ()).(c))
-        end in
-    loop Int.Set.empty 0 t0
+    if i=n then acc'
+    else loop acc' (succ i) (ti.derivative (Char.code w.[i])) in 
+  loop Int.Set.empty 0 t0
 
 let match_prefix_positions t0 w = 
   let n = String.length w in 
   let rec loop acc i ti = 
     let acc' = 
       if is_empty ti then acc else Int.Set.add i acc in
-      if i=n then acc'
-      else 
-        begin 
-          let cm,_ = ti.maps () in 
-          let c = cm.(Char.code w.[i]) in
-          loop acc' (succ i) ((ti.next ()).(c))
-        end in
-    loop Int.Set.empty 0 t0
+    if i=n then acc'
+    else loop acc' (succ i) (ti.derivative (Char.code w.[i])) in
+  loop Int.Set.empty 0 t0
 
 let match_string_reverse_positions t0 w = 
   let n = String.length w in 
@@ -876,14 +916,9 @@ let match_string_reverse_positions t0 w =
     let acc' = 
       if ti.final then Int.Set.add (succ i) acc 
       else acc in 
-      if i < 0 then acc'
-      else 
-        begin 
-          let cm,_ = ti.maps () in 
-          let c = cm.(Char.code w.[i]) in
-            loop acc' (pred i) ((ti.next ()).(c))
-        end in
-    loop Int.Set.empty (pred n) t0
+    if i < 0 then acc'
+    else loop acc' (pred i) (ti.derivative (Char.code w.[i])) in
+  loop Int.Set.empty (pred n) t0
 
 let mk_string s = 
   let n = String.length s in 
@@ -894,7 +929,6 @@ let mk_string s =
       let ti = mk_cset [(m,m)] in 
       loop (succ i) (ti::acc) in 
   mk_seqs (loop 0 [])
-
 
 let disjoint_cex s1 s2 = 
   representative (mk_inter s1 s2) 
@@ -948,6 +982,4 @@ let star_split s1 w =
       (fun j (i,acc) -> (j,(String.sub w i (j-i))::acc)) 
       ps (0,[]) in 
     Safelist.rev rev 
-
-let init () = ()
 
