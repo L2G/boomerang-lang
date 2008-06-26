@@ -56,6 +56,7 @@ BOOMERANGDIR = $(dir .)
 BOOMFILES = $(BOOMERANGDIR)/QuickStart.src \
             $(glob $(LENSESDIR)/*.boom) \
             $(glob $(EXAMPLESDIR)/*.boom) \
+            $(glob $(EXAMPLESDIR)/xsugar/*.boom) \
 
 BOOMEXE = $(BINDIR)/boomerang$(EXE) 
 BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR)

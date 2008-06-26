@@ -48,17 +48,17 @@ module Bcard =
       end
 
   let card_ascii : string = 
-<<<
+<<
   N John Doe
   T CEO & CTO, Widget Inc.
   E <"John Doe", john.doe@widget.com>
   P (202) 5551414
   L widget.gif
 
->>>
+>>
 
   let card_xml : string = 
-<<<
+<<
 <cards>
   <card>
     <name>John Doe</name>
@@ -68,7 +68,7 @@ module Bcard =
     <logo uri="widget.gif"></logo>
   </card>
 </cards>
->>>
+>>
 
-test cards get card_xml = card_ascii 
-test cards create card_ascii = newline . card_xml
+test cards.get card_xml = card_ascii 
+test cards.create card_ascii = (newline . card_xml)

@@ -8,8 +8,8 @@ let WSP : regexp = [ \n]+
 let sort2 (l1:lens) (l2:lens) : lens = 
   ( l1 . l2 | l2 ~ l1)
 
-test sort2 (copy "a") (copy "b") get "ab" = "ab"
-test sort2 (copy "a") (copy "b") get "ba" = "ab"
+test sort2 (copy "a") (copy "b").get "ab" = "ab"
+test sort2 (copy "a") (copy "b").get "ba" = "ab"
 
 let sort3 (l1:lens) (l2:lens) (l3:lens) : lens = 
   let s23 : lens = sort2 l2 l3 in 
@@ -19,12 +19,12 @@ let sort3 (l1:lens) (l2:lens) (l3:lens) : lens =
   | s23 ~ l1 )
 
 let l3 = sort3 (copy "a") (copy "b") (copy "c")
-test l3 get "abc" = "abc"
-test l3 get "acb" = "abc"
-test l3 get "bac" = "abc"
-test l3 get "bca" = "abc"
-test l3 get "cab" = "abc"
-test l3 get "cba" = "abc"
+test l3.get "abc" = "abc"
+test l3.get "acb" = "abc"
+test l3.get "bac" = "abc"
+test l3.get "bca" = "abc"
+test l3.get "cab" = "abc"
+test l3.get "cba" = "abc"
 
 (* sort4 requires that (l2,l4) and (l1,l3) be unambiguously
    concatenable, as an artifact of the way we implement it using a
@@ -53,30 +53,30 @@ let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =
   | ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
       
 let l4 = sort4 (copy "a") (copy "b") (copy "c") (copy "d")
-test l4 get "abcd" = "abcd"
-test l4 get "abdc" = "abcd"
-test l4 get "acbd" = "abcd"
-test l4 get "acdb" = "abcd"
-test l4 get "adbc" = "abcd"
-test l4 get "adcb" = "abcd"
-test l4 get "bacd" = "abcd"
-test l4 get "badc" = "abcd"
-test l4 get "bcad" = "abcd"
-test l4 get "bcda" = "abcd"
-test l4 get "bdac" = "abcd"
-test l4 get "bdca" = "abcd"
-test l4 get "cabd" = "abcd"
-test l4 get "cadb" = "abcd"
-test l4 get "cbad" = "abcd"
-test l4 get "cbda" = "abcd"
-test l4 get "cdab" = "abcd"
-test l4 get "cdba" = "abcd"
-test l4 get "dabc" = "abcd"
-test l4 get "dacb" = "abcd"
-test l4 get "dbac" = "abcd"
-test l4 get "dbca" = "abcd"
-test l4 get "dcab" = "abcd"
-test l4 get "dcba" = "abcd"
+test l4.get "abcd" = "abcd"
+test l4.get "abdc" = "abcd"
+test l4.get "acbd" = "abcd"
+test l4.get "acdb" = "abcd"
+test l4.get "adbc" = "abcd"
+test l4.get "adcb" = "abcd"
+test l4.get "bacd" = "abcd"
+test l4.get "badc" = "abcd"
+test l4.get "bcad" = "abcd"
+test l4.get "bcda" = "abcd"
+test l4.get "bdac" = "abcd"
+test l4.get "bdca" = "abcd"
+test l4.get "cabd" = "abcd"
+test l4.get "cadb" = "abcd"
+test l4.get "cbad" = "abcd"
+test l4.get "cbda" = "abcd"
+test l4.get "cdab" = "abcd"
+test l4.get "cdba" = "abcd"
+test l4.get "dabc" = "abcd"
+test l4.get "dacb" = "abcd"
+test l4.get "dbac" = "abcd"
+test l4.get "dbca" = "abcd"
+test l4.get "dcab" = "abcd"
+test l4.get "dcba" = "abcd"
 
 (* --------------------------------------------------------------------------- *)
 (* XML functions *)

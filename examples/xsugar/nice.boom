@@ -14,24 +14,24 @@ module Nice =
         ys ~ xs
       end
 
-test n get 
-<<<
+test n.get 
+<<
   <A>
     <Y></Y><Y></Y>
     <X></X><X></X><X></X><X></X>
   </A>
->>> 
+>> 
 =
-<<<
+<<
   xxxxyy
->>>
+>>
 
-test n create 
-<<<
+test n.create 
+<<
   xxxxyy
->>>
+>>
 =
-<<<
+<<
   
   <A>
     <Y></Y>
@@ -41,6 +41,6 @@ test n create
     <X></X>
     <X></X>
   </A>
->>> 
+>> 
 
  
