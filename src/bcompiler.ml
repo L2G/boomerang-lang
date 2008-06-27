@@ -1080,11 +1080,8 @@ let rec compile_exp cev e0 =
   match e0 with 
   | EVar(i,q) ->       
       begin match CEnv.lookup cev q with
-        | Some(_,v) -> 
-            v
-        | None -> 
-           run_error i 
-              (fun () -> msg "@[%s is not bound@]" (Qid.string_of_t q))
+        | Some(_,v) -> v
+        | None -> run_error i (fun () -> msg "@[%s is not bound@]" (Qid.string_of_t q))
       end
 
   | EOver(i,op,_) -> 

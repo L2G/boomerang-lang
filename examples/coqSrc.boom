@@ -46,6 +46,8 @@ module CoqSrc =
     | admitted_opt_from <-> admitted_opt_to ) . 
     del (any_but_qed_dot . "Qed.")
 
+  let r : regexp = but (any . nl) ( dnl | comments " HIDE " | comments " HIDE... " | comments " HIDE IN LECTURE... " | comments " ...TO HERE " | "End ")
+
   let exercise_from = comments " EXERCISE "
   let exercise_to =  "FILL IN HERE"
   let exercise_follows_from = comments " EXERCISE FOLLOWS "
