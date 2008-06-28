@@ -34,7 +34,6 @@ if $(or $(defined PROFILING_BYTE_CODE), $(defined PNC))
 
 if $(or $(defined BYTE_CODE), $(defined BC))
         OCAMLC=ocamlcp
-        NATIVE_ENABLED=false
         BYTE_ENABLED=true
         export
 
