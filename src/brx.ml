@@ -171,13 +171,41 @@ module Q = Set.Make(
     let compare t1 t2 = compare_t t1 t2
   end)
 
-module P = Set.Make(
-  struct 
-    type t = this_t * (string * this_t) list 
-    let compare (ti,_) (tj,_) = 
-      let c1 = ti.size - tj.size in 
-      if c1 = 0 then c1 else (ti.uid - tj.uid)
-  end)
+module PriorityQueue : 
+sig 
+  type 'a t 
+  exception Queue_is_empty
+  val empty : 'a t
+  val is_empty : 'a t -> bool
+  val insert : 'a t -> int -> 'a -> 'a t
+  val extract : 'a t -> 'a * 'a t
+end = struct
+  type 'a t = Empty | Node of int * 'a * 'a t * 'a t
+  exception Queue_is_empty
+  let empty = Empty
+  let is_empty = function Empty -> true | _ -> false
+  let rec insert queue prio elt =
+    match queue with
+      | Empty -> Node(prio, elt, Empty, Empty)
+      | Node(p, e, left, right) ->
+          if prio <= p
+          then Node(prio, elt, insert right p e, left)
+          else Node(p, e, insert right prio elt, left)
+  let rec remove_top = function
+    | Empty -> raise Queue_is_empty
+    | Node(prio, elt, left, Empty) -> left
+    | Node(prio, elt, Empty, right) -> right
+    | Node(prio, elt, (Node(lprio, lelt, _, _) as left),
+           (Node(rprio, relt, _, _) as right)) ->
+        if lprio <= rprio
+        then Node(lprio, lelt, remove_top left, right)
+        else Node(rprio, relt, left, remove_top right)
+  let extract = function
+    | Empty -> raise Queue_is_empty
+    | Node(_, elt, _, _) as queue -> (elt, remove_top queue)
+end
+
+module P = PriorityQueue
       
 (* --------------------- PRETTY PRINTING --------------------- *)
 let rank t0 = match t0.desc with
@@ -224,7 +252,8 @@ let rec format_t t0 =
     
     match t0.desc with
       | Anything -> Util.format "@[ANYTHING@]"
-      | Empty -> Util.format "@[NADA@]"
+      | Empty -> Util.format "@[EMPTY@]"
+      | Epsilon -> Util.format "@[EPSILON@]"
       | CSet [p1] -> 
           let n1,n2 = p1 in 
             Util.format "@[";
@@ -248,14 +277,31 @@ let rec format_t t0 =
             Util.format "@[[%s" p;
             Misc.format_list "" format_char_code_pair l;
             Util.format "]@]"
-      | Epsilon -> 
-          Util.format "@[EPSILON@]"
       | Seq (t1,t2) -> 
-	  Util.format "@[";
-	  maybe_wrap (lpar (rank t1) Crnk) t1;
-	  Util.format ".";
-	  maybe_wrap (rpar (rank t2) Crnk) t2;
-	  Util.format "@]"
+	  let rec get_string t = match t.desc with 
+            | CSet[c1,c2] -> 
+                if c1 <> c2 then None
+                else Some(String.make 1 (Char.chr c1),[])
+            | Seq(t1,t2) -> begin match get_string t1,get_string t2 with
+                | Some(w1,[]),Some(w2,t2l) -> Some(w1 ^ w2,t2l)
+                | Some(w1,t1l),_      -> Some(w1,t1l@[t2])
+                | _ -> None                
+              end
+            | _ -> None in 
+          begin match get_string t0 with 
+            | Some(w,[]) -> 
+                Util.format "@[%s@]" (Misc.whack w);
+            | Some(w,tl1::tlt) -> 
+                Util.format "@[%s" (Misc.whack w);
+                format_list "." Crnk tl1 tlt;
+                Util.format "@]"
+            | None ->                 
+                Util.format "@[";
+	        maybe_wrap (lpar (rank t1) Crnk) t1;
+	        Util.format ".";
+	        maybe_wrap (rpar (rank t2) Crnk) t2;
+	        Util.format "@]"
+          end
       | Alt (t1,[]) -> 
           format_t t1
       | Alt (t1,t2::rest) ->
@@ -378,8 +424,8 @@ let desc_size = function
   | CSet(cs)     -> 1
   | Alt(t1,tl)   -> Safelist.fold_left (fun s ti -> s + ti.size) 0 (t1::tl) + 1
   | Seq(t1,t2)   -> t1.size + t2.size + 1
-  | Inter(t1,tl) -> Safelist.fold_left (fun s ti -> s * ti.size) 1 (t1::tl) + 1
-  | Diff(t1,t2)  -> t1.size * t2.size + 1
+  | Inter(t1,tl) -> Safelist.fold_left (fun s ti -> s + ti.size) 0 (t1::tl) + 1
+  | Diff(t1,t2)  -> t1.size + t2.size + 1
   | Star(t1)     -> t1.size + 1
 
 let desc_final = function
@@ -572,13 +618,12 @@ and calc_reverse t = match t.desc with
   | Diff(t1,t2)  -> mk_diff (get_reverse t1) (get_reverse t2)
 and get_reverse t = force t.reverse (fun v -> t.reverse <- Some v) calc_reverse t 
 
-and calc_representative t0 = 
-(*   Util.format "CALC_REPRESENTATIVE %d (%s)@\n@\n" t0.uid (tag_of_t t0); *)
+and calc_representative t0 =  
+(*   Util.format "CALC_REPRESENTATIVE %d %d (%s)@\n@\n" t0.uid t0.size (tag_of_t t0); *)
   let rec rep_jump f p = 
     if P.is_empty p then Misc.Right f 
     else 
-      let (ti,ri) = P.choose p in
-      let rest = P.remove (ti,ri) p in 
+      let (ti,ri),rest = P.extract p in
       if Q.mem ti f then rep_jump f rest
       else calc_representative ti (ri,f,rest) in
   let add ti wi r f p = 
@@ -593,7 +638,7 @@ and calc_representative t0 =
     | None -> 
         let p' = 
           if Q.mem ti f then p
-          else P.add (ti,(wi,ti)::r) p in
+          else P.insert p ti.size (ti,(wi,ti)::r) in
         Misc.Right p' in 
     
   let full_search (r,f,p) =
@@ -709,63 +754,29 @@ and easy_empty t0 = match t0.representative with
   | _ -> false
 
 and calc_suffs t0 = 
-  let rec suff_jump acc f p = match p with 
-    | []        -> acc
-    | ti::rest  -> 
-        begin match ti.suffs with 
-          | Some ti' -> suff_jump (mk_alt acc ti') f rest
-          | None     -> calc_suffs ti (acc,f,rest) 
-        end in 
-  let add ti f p = if Q.mem ti f then p else ti::p in 
-  let full_search (ts,f,p) = 
-    let f' = Q.add t0 f in 
-      if t0.final then suff_jump (mk_alt ts t0) f' p 
-      else 
-        let _,rm,len = get_maps t0 in 
-        let rec loop sn pacc i = 
-          if i < 0 then pacc 
-          else 
-            let ci = rm.(i) in 
-            let ti = t0.derivative ci in 
-              if Q.mem ti sn then loop sn pacc (pred i)
-              else loop (Q.add ti sn) (add ti f' pacc) (pred i) in
-          suff_jump ts f' (loop Q.empty p (pred len)) in 
-    match t0.desc with
-      | Anything | Epsilon | Star _ | Empty | CSet [] -> 
-          (fun (ts,f,p) -> suff_jump (mk_alt ts t0) f p)
-      | CSet((c1,_)::_) -> 
-          (fun (ts,f,p) -> suff_jump (mk_alt ts epsilon) f p)
-      | Seq(t1,t2) -> 
-          (fun (ts,f,p) -> 
-             if not t2.final then 
-               let f' = Q.add t0 (Q.add t2 f) in 
-                 suff_jump ts f' (add t2 f p)
-             else 
-               let f' = Q.add t0 (Q.add t1 (Q.add t2 f)) in 
-                 suff_jump ts f' (add t1 f (add t2 f p)))
-      | Alt(t1,tl) -> 
-          (fun (ts,f,p) -> 
-             let f',p' = Safelist.fold_left (fun (f,p) ti -> (Q.add ti f,add ti f p)) (Q.add t0 f,p) (t1::tl) in
-               suff_jump ts f' p')
-      | Diff(t1,t2) -> 
-          (match t1.desc with
-             | Alt(t11,tl1) ->                 
-                 (fun (ts,f,p) -> 
-                    let f',p' = Safelist.fold_left (fun (f,p) ti -> (Q.add ti f,add (mk_diff ti t2) f p)) (Q.add t0 f,p) (t1::tl1) in
-                      suff_jump ts f' p')
-             | _ -> full_search)
-      | Inter(t1,t2) -> 
-          (match t1.desc with
-             | Alt(t11,tl1) -> 
-                 (fun (ts,f,p) -> 
-                    let f',p' = Safelist.fold_left (fun (f,p) ti -> (Q.add ti f,add (mk_inters (ti::t2)) f p)) (Q.add t0 f,p) (t1::tl1) in
-                      suff_jump ts f' p')                 
-             | _ -> full_search) 
+  let rec full_search ts f p = match p with
+    | [] -> ts
+    | t::rest -> 
+        let f' = Q.add t f in         
+        if Q.mem t f || easy_empty t then full_search ts f rest 
+        else 
+          let _,rm,len = get_maps t0 in 
+          let rec loop pacc i = 
+            if i < 0 then pacc 
+            else 
+              let ci = rm.(i) in 
+              let ti = t.derivative ci in 
+              if Q.mem ti f' then loop pacc (pred i)
+              else loop (ti::pacc) (pred i) in 
+          let p' = loop p (pred len) in 
+          let ts' = if t.final then mk_alt t ts else ts in 
+          full_search ts' f' p' in
+    full_search empty Q.empty [t0] 
 
-and get_suffs t0 = match t0.suffs with
+  and get_suffs t0 = match t0.suffs with
   | Some suffso -> suffso 
   | None -> 
-      let t0' = calc_suffs t0 (empty,Q.empty,[]) in
+      let t0' = calc_suffs t0 in
       t0.suffs <- Some t0';
       t0'
 
@@ -944,6 +955,9 @@ and mk_diff t1 t2 =
 	  | _,Empty          -> t1
 	  | CSet s1, CSet s2 -> mk_cset (CharSet.diff s1 s2)
 	  | CSet _,Epsilon   -> t1
+          | Seq(t11,t12),Epsilon -> 
+              if t1.final then mk_seq (mk_diff t11 t2) t12
+              else t1
 	  | Star t11,Epsilon -> mk_seq (mk_diff t11 t2) t1
 	  | Epsilon,_        -> if t2.final then empty else epsilon
 	  | Diff(t11,t12),_  -> mk_t(Diff(t11,mk_alt t12 t2))

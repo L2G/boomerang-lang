@@ -96,6 +96,11 @@ let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens =
     (const C a c)
     (canonizer_of_lens (const A a a))
 
+(* [qset C A]: is like [set c a], but accepts all of [C] and [A] in
+   the GET and PUT/CREATE directions respectively. *)
+let qset (C:regexp) (A:regexp) : lens = 
+  qconst C A (shortest A) (shortest C)
+
 (* [qins E e] is like [ins e], but accepts all of [E] in the
    PUT/CREATE direction *)
 let qins (E:regexp) (e:string) : lens = 

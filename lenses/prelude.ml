@@ -123,6 +123,7 @@ let pmk_ssll  = pmk3 S.SString mk_sfun S.SString mk_sfun S.SLens mk_lfun S.SLens
 let pmk_srssq = pmk4 S.SString mk_sfun S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SCanonizer mk_q
 
 let pmk_r     = pmk0 S.SRegexp mk_r 
+let pmk_rr    = pmk1 S.SRegexp mk_rfun S.SRegexp mk_r
 let pmk_rrr   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SRegexp mk_r
 let pmk_riir  = pmk3 S.SRegexp mk_rfun S.SInteger mk_ifun S.SInteger mk_ifun S.SRegexp mk_r
 let pmk_rb    = pmk1 S.SRegexp mk_rfun S.SBool mk_b
@@ -131,6 +132,7 @@ let pmk_rs    = pmk1 S.SRegexp mk_rfun S.SString mk_s
 let pmk_rl    = pmk1 S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrl   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
+let pmk_rrs   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SString mk_s
 let pmk_rsb   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_b
 let pmk_rsi   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SInteger mk_i
 let pmk_rssl  = pmk3 S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SLens mk_l
@@ -162,7 +164,7 @@ let prelude_spec =
     pmk_lss    "get"             (fun _ -> L.rget)
   ; pmk_lsss   "put"             (fun _ -> L.rput)
   ; pmk_lss    "create"          (fun _ -> L.rcreate)
-  ; pmk_ll     "invert"           L.invert
+  ; pmk_ll     "invert"          L.invert
                                         
   (* core lens combinators *)           
   ; pmk_rl     "copy"                 L.copy
@@ -227,6 +229,11 @@ let prelude_spec =
   ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (Brx.star_split r s))
   ; pmk_rsb    "matches"                (fun _ -> Brx.match_string)
   ; pmk_rrb    "splittable"             (fun _ -> Brx.splittable)
+  ; pmk_rrs    "splittable_cex"         (fun _ t1 t2 -> match Brx.splittable_cex t1 t2 with
+                                           | Some w -> w 
+                                           | None -> "NONE")
+  ; pmk_rr    "reverse"                 (fun _ -> Brx.mk_reverse)
+  ; pmk_rr    "suffs"                   (fun _ -> Brx.suffs)
   ; pmk_rb     "iterable"               (fun _ -> Brx.iterable)
   ; pmk_rrb    "disjoint"               (fun _ -> Brx.disjoint)
                                         

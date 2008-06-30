@@ -1,92 +1,121 @@
 module Wiki = 
 
-let esc : lens = Xml.esc_string [\r\n|[\]]
-let Escaped : regexp = [^<>&""|\r\n[\]]* 
-let Word : regexp = [^ \n\t[\]<>''|]+
-let Words : regexp = Word . (SP . Word)*
-let Url : regexp = /http:\/\// . [^ [\]\n\t\r]+
+  let R : regexp = [A-Z]*.[A-Z]
+  let S : regexp = Native.Prelude.suffs R 
 
-(* ---------- flat ---------- *)
-let mk_quot (tag:string) (q:string) : lens = 
-  Xml.raw_simple_elt tag (ins q . copy Words . ins q)
+  test matches R "0" = ?
+  test matches R "0A" = ?
+  test matches S "A" = ?
 
-let q5 : lens = Xml.raw_simple_elt "b" (mk_quot "i" "'''''")
-
-let q3 : lens = mk_quot "b" "'''" 
-
-let q2 : lens = mk_quot "i" "''" 
-
-let simple_flat (tag:string) = 
-  Xml.raw_simple_elt tag 
-    begin 
-      ins ("<" . tag . ">") . 
-      copy Escaped . 
-      ins ("</" . tag . ">")
-    end
-
-let tt : lens  = simple_flat "tt"
-let sup : lens = simple_flat "sup"
-let sub : lens = simple_flat "sub"
-let big : lens = simple_flat "big" 
-let br : lens = 
-  copy "<br>" . 
-  del "</br>"
-
-let sp : lens = copy SP 
-
-let url : lens = 
-  ins "[" . 
-  Xml.attr1_raw_simple_elt "a"
-    "href" (copy Url)
-    begin 
-      ins " " . 
-      copy Words 
-    end . 
-  ins "]"
-
-let link : lens = 
-  ins "[[" . 
-  Xml.attr1_raw_simple_elt "a"
-    "href" (copy (Word - Url))
-    begin
-      ins "|" . 
-      copy Words
-    end . 
-  ins "]]"
-    
-let img : lens = 
-  ins "[[Image:" . 
-  Xml.attr2_raw_simple_elt_no_kids "img" 
-    "src" (copy Word)
-    "alt" (ins "|" . copy Words) . 
-  ins "]]"
-
-let w : lens = copy Word 
+  test S = ?
  
-let flats : lens = 
-  let non_wsp = ( q5 | q3 | q2 | tt | sup | sub | big | br | url | link | img )+ in 
-  let wspes = w | sp | (w . sp)+ . w? | (sp . w)+ . sp? in
-  non_wsp? . (wspes . non_wsp)* . wspes?
 
-test flats.create 
-  "The [http://www.brics.dk/xsugar XSugar] project has developed a notation for specifying a ''dual syntax'' for an XML language." 
-  = 
- <<The <a href="http://www.brics.dk/xsugar">XSugar</a> project has developed a notation for specifying a <i>dual syntax</i> for an XML language.>>
+(* --------- constants ------- *)
+let NEWLINE : string = "\n"
+let DASH : string = "-"
+let SPACE : string = " " 
+let Q2 : string = "''"
+let Q3 : string = "'''"
+let Q5 : string = "'''''"
 
+let WORD : regexp = [^ \n\t[\]<>|'']+
+let SP : regexp = [ \t]+
+let URL : regexp = "http://" . [^ \n\t\r]+
+let WORDS : regexp = WORD . (SPACE . WORD)*
+let words : lens = copy WORDS
+
+
+let iter2 (l1:lens) (l2:lens) = 
+  l1 | l2 | (l1 . l2)+ . l1? | (l2 . l1)+ . l2?
+
+(* ---------- flats ---------- *)
+let mk_quot (tag:string) (q:string) (l:lens) = 
+  Xml.raw_simple_elt tag (ins q . l . ins q)
+let mk_cp (tag:string) (body:lens) = 
+  copy (ctype (Xml.raw_simple_elt tag body))
+let mk_brackets (l:lens) = 
+  ins "[" . l . ins "]"
+
+let q2 : lens = mk_quot "i" Q2 words
+let q3 : lens = mk_quot "b" Q3 words
+let q5 : lens = mk_quot "b" Q3 q2
+
+let tt : lens = mk_cp "tt" words
+let sup : lens = mk_cp "sup" words
+let sub : lens = mk_cp "sub" words
+let big : lens = mk_cp "big" words
+let br : lens = "<br>" <-> "<br></br>"
+let sp : lens = qset SP SP
+let url : lens = 
+  mk_brackets (Xml.attr1_raw_simple_elt "a" "href" (copy URL) (ins " " . words))
+let link : lens = 
+  mk_brackets 
+    (mk_brackets 
+       (Xml.attr1_raw_simple_elt "a" 
+          "href" (copy (WORD - URL)) 
+          (ins "|" . words)))
+let img : lens = 
+  mk_brackets
+    (mk_brackets 
+       (Xml.attr2_raw_simple_elt_no_kids "img" 
+          "src" (copy WORD)
+          "alt" (ins "|" . words)))
+let txt : lens = copy WORD
+
+test q2.get "<i>dual syntax</i>" = "''dual syntax''"
+test q3.get "<b>dual syntax</b>" = "'''dual syntax'''"
+test q5.get "<b><i>dual syntax</i></b>" = "'''''dual syntax'''''"
+test tt.get "<tt>dual syntax</tt>" = "<tt>dual syntax</tt>" 
+test sup.get "<sup>dual syntax</sup>" = "<sup>dual syntax</sup>" 
+test sub.get "<sub>dual syntax</sub>" = "<sub>dual syntax</sub>" 
+test big.get "<big>dual syntax</big>" = "<big>dual syntax</big>" 
+test br.get "<br>" = "<br></br>"
+test sp.get " " = " "
+
+let non_txt = q2 | q3 | q5 | tt | sup | sub | big | br | url | link | img 
+let txts = iter2 txt sp
+let flats = non_txt* . ( txts . non_txt+ )* . txts?
+
+test flats.get 
+  "The <a href=\"http://www.brics.dk/xsugar\">XSugar</a> language supports <i>dual syntax</i>." 
+=
+  "The [http://www.brics.dk/xsugar XSugar] language supports ''dual syntax''."
+
+(*
+
+(* ---------- lists ---------- *)
+
+let listelt (spaces:string) (stars:string) : lens = 
+  Xml.simple_elt spaces "li" 
+    (ins stars . ins " " . flats . ins NEWLINE)
+
+let mk_list (spaces:string) (body:lens) : lens = 
+  Xml.elt spaces "ul" body
+
+let le3 = listelt NL3 "***"
+let list3 = mk_list NL2 le3+
+
+let le2 = listelt NL2 "**"
+let list2 = mk_list NL1 (iter2 le2 list3)
+
+let le1 = listelt NL1 "*"
+let list1 = mk_list NL0 (iter2 le1 list2)
+
+test list1.create
+ "* Sharon Foster
+ |** Nate Foster
+ |*** Clare Foster
+ |* Mollie Foster
+ |" = ?
+
+
+let le1 = listelt NL1 "*" 
+let le2 = listelt NL2 "**"  
+let list2 = mk_list NL1 le2
 
 
 (* ---------- items ---------- *)
-let hr : lens = 
-  let Hr : regexp = /\n---/ . [\-]* in 
-  del "<hr></>" . 
-  qins Hr (shortest Hr)
 
-let heading (xml:string) (ascii:string) : lens = 
-  ins ascii . 
-  Xml.raw_simple_elt xml flats
-let h3 : lens = heading "h3" "===="
-let h2 : lens = heading "h2" "==="
-let h1 : lens = heading "h1" "=="
 
 let raw (xml:string) (body:lens) : lens = 
   Xml.raw_simple_elt xml 
@@ -103,11 +132,6 @@ let nowiki : lens = raw "nowiki" (copy Escaped)
 let p : lens = "<p></>" <-> "\n\n"
 
 (* lists *)
-let listelt (spaces:string) (stars:string) : lens = 
-  Xml.simple_elt spaces "li" (ins stars . ins " " . flats . ins "\n")
-
-let mk_list (spaces:string) (body:lens) : lens = 
-  Xml.elt spaces "ul" body
 
 let list3 : lens = 
   mk_list NL2 ( listelt NL3 "***" )+
@@ -124,18 +148,14 @@ let le2s_list3_le2p_p = le2s . list3_le2p+
 
 let le2s_list3_le2p_s_list3 = le2s . list3_le2p* . list3 
 
-let l = le2p | le2s_list3_le2p_p | le2s_list3_le2p_s_list3 
+let l = le2* . (le2 | list3_le2p* . (list3_le2p . list3))
 
 let list2 : lens = mk_list NL1 l
 
-let list1 : lens = 
-  let le1 = listelt NL1 "*" in 
-  let l = 
-    ( le1+ 
-    | le1* . (list2 . le1+)+ 
-    | le1* . (list2 . le1+)* . list2 ) in
-  mk_list NL0 l
+test "#1" = ?
 
+let le1 = listelt NL1 "*" 
+let list1 : lens = mk_list NL0 (le1 | list2)* 
 let list : lens = list1 
 
 test list.get 
@@ -155,10 +175,12 @@ test list.get
 
   >>
 
+test list* = ?
+
 let item : lens = 
   hr | h3 | h2 | h1 | pre | nowiki | list | p
 
-let items : lens = item
+let items : lens = item*
      
 let wiki : lens = 
   Xml.elt NL0 "html"
@@ -166,3 +188,22 @@ let wiki : lens =
       Xml.simple_elt NL1 "head" (Xml.simple_elt NL2 "title" (del [^""\n\r<>]* )) . 
       Xml.simple_elt NL1 "body" items
     end
+
+test wiki.get  
+  "<html>
+  |<head><title>Wiki</title></head>
+  |<body>
+  |  <h1>XSugar</h1> 
+  |  The <a href=\"http://www.brics.dk/xsugar\">XSugar</a> project has 
+  |  developed a notation for specifying a <i>dual syntax</i> for an 
+  |  <a href=\"XML\">XML</a> language.<p/>
+  |  An XSugar specification gives rise to the following tools:
+  |  <ul>
+  |    <li>a translation from XML to non-XML syntax</li>
+  |    <li>a translation from non-XML to XML syntax</li>
+  |    <li>a check that these translations are reversible</li>
+  |    <li>static validation of the generated XML documents</li>
+  |  </ul> 
+  | </body>
+  |</html>" = ?
+*)

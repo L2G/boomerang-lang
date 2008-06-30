@@ -220,8 +220,10 @@ let split_both t1 t2 s =
   let seq_split i t1 t2 w = match Brx.seq_split t1 t2 w with
     | None -> 
         Berror.run_error i 
-          (fun () -> Util.format "the concatenation of %s and %s was ambiguous" 
-             (Brx.string_of_t t1) (Brx.string_of_t t2)) 
+          (fun () -> Util.format "the concatenation of@\nT1=%s@\nand@\nT2=%s@\nwas ambiguous on@\nW=%s@\n" 
+             (Brx.string_of_t t1) (Brx.string_of_t t2) w;
+          Util.format "[%s]@\n" (Misc.concat_list "," 
+                                   (Safelist.map string_of_int (Int.Set.elements (Brx.split_positions t1 t2 w)))))
     | Some p -> p 
 
 let split2 t11 t12 t21 t22 (x1,x2) = 
