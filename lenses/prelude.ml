@@ -221,9 +221,7 @@ let prelude_spec =
   ; pmk_rrr    "regexp_union"           (fun _ -> Brx.mk_alt)
   ; pmk_rrr    "diff"                   (fun _ -> Brx.mk_diff)
   ; pmk_rrr    "inter"                  (fun _ -> Brx.mk_inter)
-  ; pmk_riir   "regexp_iter"            (fun i -> 
-                                           Blenses.generic_iter i
-                                             Brx.epsilon Brx.mk_alt Brx.mk_seq Brx.mk_star)
+  ; pmk_riir   "regexp_iter"            (fun i -> Brx.mk_iter)
   ; pmk_rrb    "equiv"                  (fun _ -> Brx.equiv)
   ; pmk_rs     "shortest"               wrap_rep
   ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (Brx.star_split r s))

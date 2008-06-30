@@ -33,6 +33,7 @@ val mk_string : string -> t
 val mk_alt : t -> t -> t
 val mk_seq : t -> t -> t
 val mk_star : t -> t
+val mk_iter : t -> int -> int -> t
 val mk_diff : t -> t -> t
 val mk_complement: t -> t
 val mk_inter : t -> t -> t

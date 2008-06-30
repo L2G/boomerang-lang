@@ -144,7 +144,7 @@ type d =
   | CSet of CharSet.t
   | Alt of t * t list
   | Seq of t * t
-  | Star of t
+  | Rep of t * int * int option
   | Inter of t * t list
   | Diff of t * t
 and t = 
@@ -158,6 +158,7 @@ and t =
       mutable reverse            : t option;
       mutable representative     : (string option) option;
       mutable suffs              : t option;
+      mutable finals             : t list;
       (* operations *)           
       mutable derivative         : int -> t }
 
@@ -213,7 +214,7 @@ let rank t0 = match t0.desc with
   | Empty    -> Arnk
   | Epsilon  -> Arnk
   | CSet _   -> Arnk
-  | Star _   -> Srnk
+  | Rep _   -> Srnk
   | Seq _    -> Crnk
   | Alt _    -> Urnk 
   | Inter _  -> Irnk
@@ -226,7 +227,7 @@ let tag_of_t t =
   | Empty    -> "Empty"
   | Epsilon  -> "Epsilon"
   | CSet _   -> "CSet"
-  | Star _   -> "Star"
+  | Rep _   -> "Rep"
   | Seq _    -> "Seq"
   | Alt _    -> "Alt" 
   | Inter(t1,tl)  -> if b then "Inter[" ^ Misc.concat_list "," (Safelist.map (aux false) (t1::tl)) ^ "]" else "Inter"
@@ -309,10 +310,15 @@ let rec format_t t0 =
           maybe_wrap (lpar (rank t1) Urnk) t1;
           format_list "@,|" Urnk t2 rest;
           Util.format "@]"
-      | Star(t1) -> 
+      | Rep(t1,0,None) -> 
           Util.format "@[";
           maybe_wrap (lpar (rank t1) Srnk) t1;
           Util.format "*@,";
+          Util.format "@]"
+      | Rep(t1,i,jo) -> 
+          Util.format "@[";
+          maybe_wrap (lpar (rank t1) Srnk) t1;
+          Util.format "{%d%s}@," i (match jo with None -> "," | Some j -> if i=j then "" else "," ^ string_of_int j);
           Util.format "@]"
       | Inter(t1,[]) -> 
           format_t t1
@@ -371,6 +377,13 @@ module TCache = Hashtbl.Make
      let equal t1 t2 = t1.uid = t2.uid
    end)
 
+module TIIOCache = Hashtbl.Make
+  (struct
+     type t = this_t * int * int option
+     let hash (t,i,jo) = 197 + 137 * i + (match jo with None -> 552556457 | Some j -> j)
+     let equal (t1,i1,jo1) (t2,i2,jo2) = t1.uid = t2.uid && i1 = i2 && jo1 = jo2
+   end)
+
 module TTCache = Hashtbl.Make
   (struct 
      type t = this_t * this_t
@@ -392,7 +405,7 @@ module TLCache = Hashtbl.Make
 let mcache : (int array * int array * int) MapCache.t ref = ref MapCache.empty
 let cset_cache : t CSCache.t = CSCache.create 131
 let neg_cset_cache : t CSCache.t = CSCache.create 131
-let star_cache : t TCache.t = TCache.create 131
+let iter_cache : t TIIOCache.t = TIIOCache.create 131
 let seq_cache : t TTCache.t = TTCache.create 131
 let alt_cache : t TTCache.t = TTCache.create 131
 let inter_cache : t TTCache.t = TTCache.create 131
@@ -415,7 +428,8 @@ let desc_hash = function
   | Seq(t1,t2)   -> 821 * t1.hash + 919 * t2.hash
   | Inter(t1,tl) -> 71 * Safelist.fold_left (fun h ti -> h + 883 * ti.hash) 0 (t1::tl)
   | Diff(t1,t2)  -> 379 * t1.hash + 563 * t2.hash
-  | Star(t1)     -> 197 * t1.hash
+  | Rep(t1,i,Some j) -> 197 * t1.hash + 137 * i + j
+  | Rep(t1,i,None) -> 197 * t1.hash + 137 * i + 552556457
 
 let desc_size = function
   | Anything     -> 1
@@ -426,14 +440,15 @@ let desc_size = function
   | Seq(t1,t2)   -> t1.size + t2.size + 1
   | Inter(t1,tl) -> Safelist.fold_left (fun s ti -> s + ti.size) 0 (t1::tl) + 1
   | Diff(t1,t2)  -> t1.size + t2.size + 1
-  | Star(t1)     -> t1.size + 1
+  | Rep(t1,i,_) -> i * t1.size + 1
 
 let desc_final = function
   | Anything     -> true
   | Empty        -> false
   | Epsilon      -> true
   | CSet _       -> false
-  | Star _       -> true
+  | Rep(t1,0,_) -> true
+  | Rep(t1,_,_) -> t1.final
   | Seq(t1,t2)   -> t1.final && t2.final
   | Alt(t1,tl)   -> t1.final || Safelist.exists (fun ti -> ti.final) tl
   | Inter(t1,tl) -> t1.final && Safelist.for_all (fun ti -> ti.final) tl
@@ -452,7 +467,7 @@ let desc_maps d0 =
     | Empty        -> ()
     | Epsilon          -> ()
     | CSet cs      -> split m cs
-    | Star(t1)     -> colorize m t1
+    | Rep(t1,_,_) -> colorize m t1
     | Seq(t1,t2)   -> colorize m t1; if t1.final then colorize m t2
     | Alt(t1,tl)   -> colorize m t1; Safelist.iter (colorize m) tl
     | Inter(t1,tl) -> colorize m t1; Safelist.iter (colorize m) tl
@@ -507,21 +522,24 @@ let install upd f =
 let dummy_impl _ = assert false  
 
 let mk_constant d t_nexto t_repo = 
+  let fin = desc_final d in 
   let t = 
     { uid = next_uid ();
       desc = d;
       hash = desc_hash d;
       size = 1;
-      final = desc_final d;
+      final = fin;
       maps = Some (desc_maps d);
       reverse = None;
       representative = Some t_repo;
       suffs = None;
+      finals = [];
       derivative = dummy_impl; } in 
   let t_next = match t_nexto with 
     | None -> t 
     | Some t' -> t' in 
   (* backpatch *)
+  t.finals <- if fin then [t] else [];
   t.reverse <- Some t;
   t.suffs <- Some t;
   t.derivative <- (fun c -> t_next);  
@@ -551,12 +569,13 @@ let rec mk_t d0 =
       reverse = None;
       representative = None;
       suffs = None;
+      finals = [];
       derivative = dummy_impl } in 
 
   (* derivative *)
   let derivative_impl = 
     let mk_table f = 
-      let fr = ref f in 
+      let fr = ref f in
       let diff_cache : t ICache.t = ICache.create 7 in
       (fun c ->
          try ICache.find diff_cache c with Not_found ->
@@ -590,9 +609,14 @@ let rec mk_t d0 =
       | Alt (t1,tl) -> 
           mk_table
             (fun c -> mk_alts (Safelist.map (fun ti -> ti.derivative c) (t1::tl)))
-      | Star(t1) -> 
-          mk_table
-            (fun c -> mk_seq (t1.derivative c) (mk_star t0))
+      | Rep(t1,0,None) -> 
+          mk_table (fun c -> mk_seq (t1.derivative c) t0)
+      | Rep(t1,i,None) -> 
+          mk_table (fun c -> mk_seq (t1.derivative c) (mk_iter t1 (pred i) None))
+      | Rep(t1,0,Some j) -> 
+          mk_table (fun c -> mk_seq (t1.derivative c) (mk_iter t1 0 (Some (pred j))))
+      | Rep(t1,i,Some j) -> 
+          mk_table (fun c -> mk_seq (t1.derivative c) (mk_iter t1 (pred i) (Some (pred j))))
       | Inter(t1,tl) ->
           mk_table 
             (fun c -> mk_inters (Safelist.map (fun ti -> ti.derivative c) (t1::tl)))
@@ -607,15 +631,15 @@ let rec mk_t d0 =
 and get_maps t = force t.maps (fun v -> t.maps <- Some v) desc_maps t.desc  
 
 and calc_reverse t = match t.desc with 
-  | Anything     -> t
-  | Empty        -> t
-  | Epsilon      -> t
-  | CSet _       -> t
-  | Seq(t1,t2)   -> mk_seq (get_reverse t2) (get_reverse t1)
-  | Alt(t1,tl)   -> mk_alts (Safelist.map get_reverse (t1::tl))
-  | Star(t1)     -> mk_star (get_reverse t1)
-  | Inter(t1,tl) -> mk_inters (Safelist.map get_reverse (t1::tl))
-  | Diff(t1,t2)  -> mk_diff (get_reverse t1) (get_reverse t2)
+  | Anything      -> t
+  | Empty         -> t
+  | Epsilon       -> t
+  | CSet _        -> t
+  | Seq(t1,t2)    -> mk_seq (get_reverse t2) (get_reverse t1)
+  | Alt(t1,tl)    -> mk_alts (Safelist.map get_reverse (t1::tl))
+  | Rep(t1,i,jo)  -> mk_iter (get_reverse t1) i jo
+  | Inter(t1,tl)  -> mk_inters (Safelist.map get_reverse (t1::tl))
+  | Diff(t1,t2)   -> mk_diff (get_reverse t1) (get_reverse t2)
 and get_reverse t = force t.reverse (fun v -> t.reverse <- Some v) calc_reverse t 
 
 and calc_representative t0 =  
@@ -681,20 +705,37 @@ and calc_representative t0 =
       match loop (Misc.Right p) l with
         | Misc.Left _ as res -> res
         | Misc.Right p'      -> rep_jump f p' in 
+
+  let go (r,f,p) ti = match ti.representative with
+    | Some(Some wi) -> Misc.Left [wi,ti]
+    | Some None     -> Misc.Right Q.empty
+    | None          -> calc_representative ti (r,f,p) in
     
     match t0.desc with
-      | Anything | Epsilon | Star _ -> 
+      | Anything ->          
           (fun (r,f,_) -> Misc.Left(("",t0)::r))
+      | Epsilon ->          
+          (fun (r,f,_) -> Misc.Left(("",t0)::r))
+      | Rep(_,0,_) -> 
+          (fun (r,f,_) -> Misc.Left (("",t0)::r))
+      | Rep(t1,i,_) -> 
+          (fun (r,f,p) -> 
+             match go([],f,P.empty) t1 with                 
+               | Misc.Left r1 -> 
+                   let w1 = rep_of_list r1 in 
+                   (if t1.representative = None then t1.representative <- Some (Some w1));
+                   let buf = Buffer.create 17 in 
+                   for j=1 to i do Buffer.add_string buf w1 done;
+                   Misc.Left [Buffer.contents buf,t0]
+               | Misc.Right f' -> 
+                   (if t1.representative = None then t1.representative <- Some None);
+                   rep_jump (Q.add t0 f) p)
       | Empty | CSet [] -> 
           (fun (r,f,_) -> Misc.Right f)
       | CSet((c1,_)::_) -> 
           (fun (r,f,_) -> Misc.Left ((string_of_char_code c1,t0)::r))
       | Seq(t1,t2) -> 
           (fun (r,f,p) -> 
-             let go (r,f,p) ti = match ti.representative with
-               | Some(Some wi) -> Misc.Left [wi,ti]
-               | Some None     -> Misc.Right Q.empty
-               | None          -> calc_representative ti (r,f,p) in
              match go (r,f,P.empty) t1 with 
                | Misc.Right f' -> 
                    (if t1.representative = None then t1.representative <- Some None);
@@ -713,10 +754,10 @@ and calc_representative t0 =
       | Alt(t1,tl) -> 
           (fun (r,f,p) -> alts_rep r (fun x -> x) (Q.add t0 f) p (t1::tl))
       | Diff(t1,t2) -> 
-            (match t1.desc with
-               | Alt(t11,tl1) ->                 
-                   (fun (r,f,p) -> alts_rep r (fun ti -> mk_diff ti t2) (Q.add t0 f) p (t11::tl1))
-               | _ -> full_search)
+          (match t1.desc with
+             | Alt(t11,tl1) ->                 
+                 (fun (r,f,p) -> alts_rep r (fun ti -> mk_diff ti t2) (Q.add t0 f) p (t11::tl1))
+             | _ -> full_search)
       | Inter(t1,[t2]) ->
           (match t1.desc with
              | Alt(t11,tl1) ->
@@ -760,18 +801,19 @@ and calc_suffs t0 =
         let f' = Q.add t f in         
         if Q.mem t f || easy_empty t then full_search ts f rest 
         else 
-          let _,rm,len = get_maps t0 in 
-          let rec loop pacc i = 
+          let _,rm,len = get_maps t in 
+          let rec loop f'' pacc i = 
             if i < 0 then pacc 
             else 
               let ci = rm.(i) in 
               let ti = t.derivative ci in 
-              if Q.mem ti f' then loop pacc (pred i)
-              else loop (ti::pacc) (pred i) in 
-          let p' = loop p (pred len) in 
-          let ts' = if t.final then mk_alt t ts else ts in 
+              if Q.mem ti f'' then loop f'' pacc (pred i)
+              else loop (Q.add ti f'') (ti::pacc) (pred i) in 
+          let p' = loop f' p (pred len) in 
+          let ts' = if t.final then Q.add t ts else ts in 
           full_search ts' f' p' in
-    full_search empty Q.empty [t0] 
+  let ts = full_search Q.empty Q.empty [t0] in
+  mk_alts (Q.elements ts)
 
   and get_suffs t0 = match t0.suffs with
   | Some suffso -> suffso 
@@ -807,6 +849,7 @@ and mk_seq t1 t2 =
   let p = (t1,t2) in 
   try TTCache.find seq_cache p
   with Not_found -> 
+(*     Util.format "MK_SEQ@\n%s@\n%s@\n@\n" (string_of_t t1) (string_of_t t2); *)
     let rec aux acc ti = match ti.desc with
       | Seq(ti1,ti2) -> aux (ti1::acc) ti2 
       | _            -> Safelist.fold_left (fun acc ti -> mk_t(Seq(ti,acc))) t2 (ti::acc) in 
@@ -814,9 +857,14 @@ and mk_seq t1 t2 =
       | Epsilon,_       -> t2
       | _,Epsilon       -> t1
       | _               -> 
-          if easy_empty t1 || easy_empty t2 then empty else aux [] t1 in 
+          if easy_empty t1 || easy_empty t2 then empty 
+          else if t1.uid = t2.uid then mk_iter t1 2 (Some 2)
+          else aux [] t1 
+    
+    in 
+
     TTCache.add seq_cache p res;
-    res   
+      res   
 
 and mk_seqs tl = 
   try TLCache.find seqs_cache tl
@@ -872,21 +920,25 @@ and mk_alts tl =
     TLCache.add alts_cache tl res;
     res
 
-and mk_star t0 = 
-  try TCache.find star_cache t0 
+and mk_iter t0 i jo = 
+  let p = (t0,i,jo) in
+  try TIIOCache.find iter_cache p 
   with Not_found -> 
     let res = 
-      match t0.desc with 
-	| Epsilon     -> epsilon
-	| Empty       -> epsilon
-	| Anything    -> anything
-	| Star _      -> t0
-	| CSet[mi,ma] -> 
+      match t0.desc,i,jo with 
+        | Empty,0,_   -> epsilon
+        | Empty,_,_   -> empty
+	| Epsilon,_,_    -> epsilon
+	| Anything,_,_   -> anything
+	| Rep(_,0,None),0,None -> t0
+	| CSet[mi,ma],0,None -> 
 	    if mi=min_code && ma=max_code then anything
-	    else mk_t(Star t0)
-	| _  -> mk_t(Star t0) in 
-    TCache.add star_cache t0 res;
-    res.representative <- Some (Some "");
+	    else mk_t(Rep(t0,0,None))
+	| _,_,Some 0 -> epsilon
+        | _,0,Some 1 -> mk_alt t0 epsilon
+        | _,1,Some 1 -> t0
+        | _          -> mk_t(Rep(t0,i,jo)) in 
+    TIIOCache.add iter_cache p res;
     res
         
 and mk_inter t1 t2 = 
@@ -958,7 +1010,7 @@ and mk_diff t1 t2 =
           | Seq(t11,t12),Epsilon -> 
               if t1.final then mk_seq (mk_diff t11 t2) t12
               else t1
-	  | Star t11,Epsilon -> mk_seq (mk_diff t11 t2) t1
+	  | Rep(t11,0,j),Epsilon -> mk_seq (mk_diff t11 t2) t1
 	  | Epsilon,_        -> if t2.final then empty else epsilon
 	  | Diff(t11,t12),_  -> mk_t(Diff(t11,mk_alt t12 t2))
 	  | Inter(t1,tl),_   -> mk_inters (Safelist.map (fun ti -> mk_diff ti t2) (t1::tl))
@@ -970,6 +1022,10 @@ and mk_diff t1 t2 =
 let mk_complement t0 = mk_diff anything t0
 
 let mk_reverse t0 = get_reverse t0
+
+let mk_star s1 = mk_iter s1 0 None
+
+let mk_iter s1 i j = mk_iter s1 i (if j > 0 then Some j else None)
 
 let representative t0 = get_representative t0 
 
