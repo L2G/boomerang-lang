@@ -1,21 +1,21 @@
 module Wiki = 
 
-
-  let R : regexp = ([$0-9]{0,1}.[A-Z]* )?
+  let R : regexp = [0-9].[A-Z]* 
   let S : regexp = Native.Prelude.suffs R 
 
-  test R = ?
+  test "\n---------\n" = ?
 
-  test shortest (R - "") = ?
-
-  test matches R "0" = ?
-  test matches R "0A" = ?
-  test matches S "A" = ?
+  test (matches S "0") = ?
 
   test S = ?
 
+  test shortest ([A-Z]* - S) = ?
+
 (*
  
+               (L1 \ L2) = { w | exists u in L1 . w u in L2 } )
+  derivative c (L1 \ L2) = { w | exists u in L1 . w u in (derivative c L2) }
+                         = L1 \ (derivative c L2)
 
 (* --------- constants ------- *)
 let NEWLINE : string = "\n"

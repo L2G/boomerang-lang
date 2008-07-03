@@ -205,17 +205,6 @@ let split_one choose t1 t2 s =
   let j = choose ps in 
   (String.sub s 0 j, String.sub s j (n-j))
 
-let split_both t1 t2 s = 
-  let get_representative t = match Brx.representative t with 
-    | None -> 
-        Berror.run_error 
-          (Info.M "split_both") 
-          (fun () -> Util.format "%s was empty" (Brx.string_of_t t)) 
-    | Some s -> s in 
-  let s1 = get_representative t1 in 
-  let s2 = get_representative t2 in 
-  (s1^s,s2), (s1,s^s2)
-
 (* helpers for concat-like operators *)
   let seq_split i t1 t2 w = match Brx.seq_split t1 t2 w with
     | None -> 
@@ -411,10 +400,9 @@ module Canonizer = struct
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
     let () = match Brx.splittable_cex cn1.rtype cn2.rtype with 
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both cn1.rtype cn2.rtype over in 
+      | Some(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            cn1.string cn2.string s1 s2 s3 s4 in 
+            cn1.string cn2.string (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
     let rt = Brx.mk_seq cn1.rtype cn2.rtype in 
     let ct = Brx.mk_seq cn1.ctype cn2.ctype in 
@@ -453,10 +441,9 @@ module Canonizer = struct
     let rt = Brx.mk_star cn1.rtype in
     let () = match Brx.iterable_cex cn1.rtype with
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both cn1.rtype rt over in 
+      | Some (s1,over,s2) -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t cn1.rtype) s1 s2 s3 s4 in 
+            (Brx.string_of_t cn1.rtype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
     let ct = Brx.mk_star cn1.ctype in
       { info = i;
@@ -776,17 +763,15 @@ module DLens = struct
     let n = sprintf "%s . %s" dl1.string dl2.string in 
     let () = match Brx.splittable_cex dl1.ctype dl2.ctype with
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both dl1.ctype dl2.ctype over in 
+      | Some(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.ctype) (Brx.string_of_t dl2.ctype) s1 s2 s3 s4 in 
+            (Brx.string_of_t dl1.ctype) (Brx.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
     let () = match Brx.splittable_cex dl1.atype dl2.atype with
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both dl1.atype dl2.atype over in 
+      | Some (s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.atype) (Brx.string_of_t dl2.atype) s1 s2 s3 s4 in 
+            (Brx.string_of_t dl1.atype) (Brx.string_of_t dl2.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
     let ct = Brx.mk_seq dl1.ctype dl2.ctype in 
     let at = Brx.mk_seq dl1.atype dl2.atype in 
@@ -886,18 +871,16 @@ module DLens = struct
     let ct = Brx.mk_star dl1.ctype in
     let () = match Brx.iterable_cex dl1.ctype with
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both dl1.ctype ct over in 
+      | Some (s1,over,s2) -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.ctype) s1 s2 s3 s4 in 
+            (Brx.string_of_t dl1.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
     let at = Brx.mk_star dl1.atype in 
     let () = match Brx.iterable_cex dl1.atype with
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both dl1.atype at over in 
+      | Some(s1,over,s2) -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-          (Brx.string_of_t dl1.atype) s1 s2 s3 s4 in 
+          (Brx.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in
           Berror.static_error i n s in 
     let xto = match dl1.xtype with 
       | None -> None 
@@ -966,17 +949,15 @@ module DLens = struct
     let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
     let () = match Brx.splittable_cex dl1.ctype dl2.ctype with
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both dl1.ctype dl2.ctype over in 
+      | Some(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.ctype) (Brx.string_of_t dl2.ctype) s1 s2 s3 s4 in 
+            (Brx.string_of_t dl1.ctype) (Brx.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
     let () = match Brx.splittable_cex dl2.atype dl1.atype with
       | None -> ()
-      | Some over -> 
-          let (s1,s2),(s3,s4) = split_both dl2.atype dl1.atype over in 
+      | Some(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl2.atype) (Brx.string_of_t dl1.atype) s1 s2 s3 s4 in 
+            (Brx.string_of_t dl2.atype) (Brx.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
     let ct = Brx.mk_seq dl1.ctype dl2.ctype in 
     let at = Brx.mk_seq dl2.atype dl1.atype in 
@@ -1146,21 +1127,19 @@ module DLens = struct
     let () = 
       match Brx.iterable_cex ru with
         | None -> ()
-        | Some over -> 
-            let (s1,s2),(s3,s4) = split_both ru ct over in 
+        | Some(s1,over,s2) -> 
             let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (Brx.string_of_t ru) s1 s2 s3 s4 in 
-          Berror.static_error i n s in 
+              (Brx.string_of_t ru) (s1 ^ over) s2 s1 (over ^ s2) in 
+            Berror.static_error i n s in 
     let at = Brx.mk_star rk in 
     let xto = Some (Erx.mk_leaf at) in 
     let () = 
       match Brx.iterable_cex rk with
         | None -> ()
-        | Some over -> 
-            let (s1,s2),(s3,s4) = split_both rk at over in 
+        | Some(s1,over,s2) -> 
             let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (Brx.string_of_t rk) s1 s2 s3 s4 in 
-          Berror.static_error i n s in 
+              (Brx.string_of_t rk) (s1 ^ over) s2 s1 (over ^ s2) in 
+            Berror.static_error i n s in 
     let dt = TMap.empty in
     let st = function
       | S_string s -> Brx.match_string ct s

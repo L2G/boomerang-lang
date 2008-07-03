@@ -57,6 +57,7 @@ val string_of_t : t -> string
 
 (* operations *)
 val is_empty : t -> bool
+val is_final : t -> bool
 val is_singleton : t -> bool
 val disjoint_cex : t -> t -> string option
 val disjoint : t -> t -> bool
@@ -70,10 +71,11 @@ val match_string_reverse_positions : t -> string -> Int.Set.t
 
 (* ambiguity *)
 val suffs : t -> t
+val derivative : t -> string -> t
 val mk_reverse : t -> t
-val splittable_cex : t -> t -> string option
+val splittable_cex : t -> t -> (string * string * string) option
 val splittable : t -> t -> bool
-val iterable_cex : t -> string option
+val iterable_cex : t -> (string * string * string) option
 val iterable : t -> bool
 
 (* splitting *)

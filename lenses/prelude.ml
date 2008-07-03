@@ -217,6 +217,7 @@ let prelude_spec =
   ; pmk_sr     "str"                    (fun _ -> Brx.mk_string)
   ; pmk_r      "empty"                  Brx.empty
   ; pmk_rb     "is_empty"               (fun _ -> Brx.is_empty)
+  ; pmk_rb     "is_final"               (fun _ -> Brx.is_final)
   ; pmk_rrr    "regexp_concat"          (fun _ -> Brx.mk_seq)
   ; pmk_rrr    "regexp_union"           (fun _ -> Brx.mk_alt)
   ; pmk_rrr    "diff"                   (fun _ -> Brx.mk_diff)
@@ -228,8 +229,8 @@ let prelude_spec =
   ; pmk_rsb    "matches"                (fun _ -> Brx.match_string)
   ; pmk_rrb    "splittable"             (fun _ -> Brx.splittable)
   ; pmk_rrs    "splittable_cex"         (fun _ t1 t2 -> match Brx.splittable_cex t1 t2 with
-                                           | Some w -> w 
-                                           | None -> "NONE")
+                                           | Some(w1,over,w2) -> w1 ^ " : " ^ over ^ " : " ^ w2
+                                           | None             -> "NONE")
   ; pmk_rr    "reverse"                 (fun _ -> Brx.mk_reverse)
   ; pmk_rr    "suffs"                   (fun _ -> Brx.suffs)
   ; pmk_rb     "iterable"               (fun _ -> Brx.iterable)

@@ -173,6 +173,7 @@ let AbsAddr = GlobalName . Tel*
      o l: lens for special characters 
      o c: set of special characters 
   *)
+
 let escaper (legal:regexp) (esc:regexp -> lens) (l:lens) (c:regexp) = 
   let mk_suffix (r:regexp) : lens = copy (legal - (r | c)) | l  in
   let suffix : lens = 
@@ -221,6 +222,7 @@ let unformatnotemptyname : lens =
 (* name: handles escaping and formatting of a Name. We do this in two 
    passes. First, we unformat to put everything in a canonical "raw" form, 
    Then we format to escape characters and render the name *)
+
 let name : lens = 
   let escNonEmptyName = 
     unformatnotemptyname ; formatnotemptyname in
