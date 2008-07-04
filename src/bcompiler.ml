@@ -1155,8 +1155,8 @@ let rec compile_exp cev e0 =
       V.Str(i,s)
 
   | ECSet(i,pos,cs) -> 
-      let csi = Safelist.map (fun (ci,cj) -> (Char.code ci, Char.code cj)) cs in
-      let mk = if pos then Brx.mk_cset else Brx.mk_neg_cset in 
+      let csi = Safelist.map (fun (ci,cj) -> (ci, cj)) cs in
+      let mk = if pos then Bregexp.mk_cset else Bregexp.mk_neg_cset in 
       V.Rx(i,mk csi)
 
   | ECast(i,f,t,b,e) -> 

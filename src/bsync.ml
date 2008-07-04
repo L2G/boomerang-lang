@@ -224,8 +224,8 @@ let isync buf p ty o a b =
 
 let chk m t w : string option = 
   let bare_t = Erx.bare t in 
-  if Brx.match_string bare_t w then None
-  else Some(m ^ ":\n" ^ Berror.type_error_string (Brx.split_bad_prefix bare_t w))
+  if Bregexp.match_string bare_t w then None
+  else Some(m ^ ":\n" ^ Berror.type_error_string (Bregexp.split_bad_prefix bare_t w))
 
 let chko m t wo = match wo with 
   | None -> None

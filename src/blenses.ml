@@ -19,6 +19,8 @@
 (* $Id$ *)
 (*******************************************************************************)
 
+module RxImpl = Bregexp
+
 (* imports and abbreviations *)
 let string_concat = (^)
 let sprintf = Printf.sprintf
@@ -52,24 +54,24 @@ let paranoid = Prefs.createBool "paranoid" false
 let plift_r b i n t1 f =  
   if not (b || Prefs.read paranoid) then f else
     (fun x ->     
-       if not (Brx.match_string t1 x) then 
-         Berror.type_error i (Brx.split_bad_prefix t1 x)
+       if not (RxImpl.match_string t1 x) then 
+         Berror.type_error i (RxImpl.split_bad_prefix t1 x)
        else (f x))
 
 let plift_rr b i n t1 t2 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
-     if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.split_bad_prefix t1 x)
-     else if not (Brx.match_string t2 y) then 
-       Berror.type_error i (Brx.split_bad_prefix t2 y)
+     if not (RxImpl.match_string t1 x) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t1 x)
+     else if not (RxImpl.match_string t2 y) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t2 y)
      else (f x y))
 
 let plift_rsd b i n t1 st2 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
-     if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.split_bad_prefix t1 x)
+     if not (RxImpl.match_string t1 x) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t1 x)
      else if not (st2 y) then 
        assert false
      else (f x y z))
@@ -77,33 +79,33 @@ let plift_rsd b i n t1 st2 f =
 let plift_rd b i n t1 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
-     if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.split_bad_prefix t1 x)
+     if not (RxImpl.match_string t1 x) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t1 x)
      else (f x y))
 
 let plift_rrd b i n t1 t2 t3 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
-     if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.split_bad_prefix t1 x)
-     else if not (Brx.match_string t2 y) then 
-       Berror.type_error i (Brx.split_bad_prefix t2 y)
+     if not (RxImpl.match_string t1 x) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t1 x)
+     else if not (RxImpl.match_string t2 y) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t2 y)
      else (f x y z))
 
 let plift_rx b i n t1 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
-     if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.split_bad_prefix t1 x)
+     if not (RxImpl.match_string t1 x) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t1 x)
      else (f x y))
 
 let plift_rrx b i n t1 t2 f = 
   if not (b || Prefs.read paranoid) then f else
   (fun x y z ->     
-     if not (Brx.match_string t1 x) then 
-       Berror.type_error i (Brx.split_bad_prefix t1 x)
-     else if not (Brx.match_string t2 y) then 
-       Berror.type_error i (Brx.split_bad_prefix t1 y)
+     if not (RxImpl.match_string t1 x) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t1 x)
+     else if not (RxImpl.match_string t2 y) then 
+       Berror.type_error i (RxImpl.split_bad_prefix t1 y)
      else (f x y z))
 
 let lift_r i n r = plift_r false i n r
@@ -200,19 +202,19 @@ let rec generic_iter i epsilon union concat star x min max =
 
 (* helpers for splitting *)    
 let split_one choose t1 t2 s = 
-  let ps = Brx.split_positions t1 t2 s in 
+  let ps = RxImpl.split_positions t1 t2 s in 
   let n = String.length s in 
   let j = choose ps in 
   (String.sub s 0 j, String.sub s j (n-j))
 
 (* helpers for concat-like operators *)
-  let seq_split i t1 t2 w = match Brx.seq_split t1 t2 w with
+  let seq_split i t1 t2 w = match RxImpl.seq_split t1 t2 w with
     | None -> 
         Berror.run_error i 
           (fun () -> Util.format "the concatenation of@\nT1=%s@\nand@\nT2=%s@\nwas ambiguous on@\nW=%s@\n" 
-             (Brx.string_of_t t1) (Brx.string_of_t t2) w;
+             (RxImpl.string_of_t t1) (RxImpl.string_of_t t2) w;
           Util.format "[%s]@\n" (Misc.concat_list "," 
-                                   (Safelist.map string_of_int (Int.Set.elements (Brx.split_positions t1 t2 w)))))
+                                   (Safelist.map string_of_int (Int.Set.elements (RxImpl.split_positions t1 t2 w)))))
     | Some p -> p 
 
 let split2 t11 t12 t21 t22 (x1,x2) = 
@@ -237,17 +239,17 @@ let do_split_thread split f1 f2 combine =
 let star_loop t f x = 
   Safelist.fold_left
     (fun acc xi -> acc ^ (f xi))
-    "" (Brx.star_split t x) 
+    "" (RxImpl.star_split t x) 
 
 (* helpers for conditional operators *)
 let branch t f1 f2 = 
   (fun x -> 
-     if Brx.match_string t x then f1 x 
+     if RxImpl.match_string t x then f1 x 
      else f2 x) 
 
 let branch2 t f1 f2 = 
   (fun x y ->
-     if Brx.match_string t x then f1 x y 
+     if RxImpl.match_string t x then f1 x y 
      else f2 x y)
     
 (* uid *)
@@ -265,8 +267,8 @@ module Canonizer = struct
         info: Info.t;
         string: string;
         (* --- types --- *)
-        rtype : Brx.t;
-        ctype : Brx.t;
+        rtype : RxImpl.t;
+        ctype : RxImpl.t;
         (* --- core functions --- *)
         canonize : string -> string;
         choose : string -> string;
@@ -289,7 +291,7 @@ module Canonizer = struct
     }
 
   let copy i r = 
-    let n = sprintf "copy (%s)" (Brx.string_of_t r) in 
+    let n = sprintf "copy (%s)" (RxImpl.string_of_t r) in 
     let rt = r in 
     let ct = r in
       { info = i;
@@ -308,7 +310,7 @@ module Canonizer = struct
 (*         Berror.static_error i n *)
 (*           (sprintf "%s must be an integer@\n" ks) in *)
 (*     let () =  *)
-(*       let contains_nl = R.seq Brx.anything (R.seq (R.str false nl) any) in  *)
+(*       let contains_nl = R.seq RxImpl.anything (R.seq (R.str false nl) any) in  *)
 (*       let r_contains_nl = not (R.is_empty (R.inter r contains_nl)) in       *)
 (*         if RS.length s != 1 then  *)
 (*           Berror.static_error i n  *)
@@ -317,7 +319,7 @@ module Canonizer = struct
 (*         if r_contains_nl then  *)
 (*           Berror.static_error i n  *)
 (*             (sprintf "%s contains %s" *)
-(*                (Brx.string_of_t r) *)
+(*                (RxImpl.string_of_t r) *)
 (*                (RS.string_of_t nl)) in        *)
 (*     let s_len = RS.length s in  *)
 (*     let nl_len = RS.length nl in  *)
@@ -398,14 +400,13 @@ module Canonizer = struct
         
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
-    let () = match Brx.splittable_cex cn1.rtype cn2.rtype with 
-      | None -> ()
-      | Some(s1,over,s2) -> 
+    let rt = match RxImpl.splittable_cex cn1.rtype cn2.rtype with 
+      | Misc.Right rt12 -> rt12 
+      | Misc.Left(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
             cn1.string cn2.string (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
-    let rt = Brx.mk_seq cn1.rtype cn2.rtype in 
-    let ct = Brx.mk_seq cn1.ctype cn2.ctype in 
+    let ct = RxImpl.mk_seq cn1.ctype cn2.ctype in 
       { info = i;
         string = n;
         rtype = rt;
@@ -420,14 +421,14 @@ module Canonizer = struct
 
   let union i cn1 cn2 = 
     let n = sprintf "union (%s) (%s)" cn1.string cn2.string in 
-    let () = match Brx.disjoint_cex cn1.rtype cn2.rtype with
+    let () = match RxImpl.disjoint_cex cn1.rtype cn2.rtype with
       | None -> ()
       | Some w -> 
           let s = sprintf "%s and %s are not disjoint: %s"
-            (Brx.string_of_t cn1.rtype) (Brx.string_of_t cn2.rtype) w in
+            (RxImpl.string_of_t cn1.rtype) (RxImpl.string_of_t cn2.rtype) w in
         Berror.static_error i n s in
-    let rt = Brx.mk_alt cn1.rtype cn2.rtype in 
-    let ct = Brx.mk_alt cn1.ctype cn2.ctype in 
+    let rt = RxImpl.mk_alt cn1.rtype cn2.rtype in 
+    let ct = RxImpl.mk_alt cn1.ctype cn2.ctype in 
       { info = i;
         string = n;
         rtype = rt;
@@ -438,14 +439,13 @@ module Canonizer = struct
 
   let star i cn1 =
     let n = sprintf "(%s)*" cn1.string in
-    let rt = Brx.mk_star cn1.rtype in
-    let () = match Brx.iterable_cex cn1.rtype with
-      | None -> ()
-      | Some (s1,over,s2) -> 
+    let rt = match RxImpl.iterable_cex cn1.rtype with
+      | Misc.Right r -> r
+      | Misc.Left (s1,over,s2) -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t cn1.rtype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t cn1.rtype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
-    let ct = Brx.mk_star cn1.ctype in
+    let ct = RxImpl.mk_star cn1.ctype in
       { info = i;
         string = n;
         rtype = rt;
@@ -463,7 +463,7 @@ module Canonizer = struct
         
   let iter i cn1 min maxo = 
     generic_iter i 
-      (copy i Brx.epsilon) (union i) (concat i) (star i) 
+      (copy i RxImpl.epsilon) (union i) (concat i) (star i) 
       cn1 min maxo
 end
 
@@ -490,8 +490,8 @@ module DLens = struct
         info: Info.t;                                       (* parsing info *)
         string: string;                                     (* pretty printer *)
         (* --- types --- *)                                 
-        ctype: Brx.t;                                       (* concrete type *)
-        atype: Brx.t;                                       (* abstract type *)
+        ctype: RxImpl.t;                                       (* concrete type *)
+        atype: RxImpl.t;                                       (* abstract type *)
         xtype: Erx.t option;                                (* synchronization type *)
         dtype: dict_type;                                   (* dictionary type *)
         stype: skeleton -> bool;                            (* given a skeleton, returns if it is part
@@ -696,13 +696,13 @@ module DLens = struct
         
   (* ---------- copy ---------- *)
   let copy i r = 
-    let n = sprintf "cp (%s)" (Brx.string_of_t r) in 
+    let n = sprintf "cp (%s)" (RxImpl.string_of_t r) in 
     let ct = r in 
     let at = r in
     let xto = Some (Erx.mk_leaf at) in 
     let dt = TMap.empty in
     let st = function
-      | S_string s -> Brx.match_string r s
+      | S_string s -> RxImpl.match_string r s
       | _ -> false in
       { info = i;
         string = n;
@@ -729,18 +729,18 @@ module DLens = struct
 
   (* ---------- const ---------- *)
   let const i r u def = 
-    let n = sprintf "const (%s) \"%s\" \"%s\"" (Brx.string_of_t r) (whack u) (whack def) in 
+    let n = sprintf "const (%s) \"%s\" \"%s\"" (RxImpl.string_of_t r) (whack u) (whack def) in 
     let ct = r in 
-    let at = (Brx.mk_string u) in 
+    let at = (RxImpl.mk_string u) in 
     let xto = Some (Erx.mk_leaf at) in 
     let dt = TMap.empty in
     let st = function
-      | S_string s -> Brx.match_string r s
+      | S_string s -> RxImpl.match_string r s
       | _ -> false in
     let () = 
-      if not (Brx.match_string r def) then 
+      if not (RxImpl.match_string r def) then 
         Berror.static_error i n 
-          (sprintf "%s does not belong to %s" def (Brx.string_of_t r)) in 
+          (sprintf "%s does not belong to %s" def (RxImpl.string_of_t r)) in 
       { info = i;
         string = n;
         ctype = ct;
@@ -761,20 +761,18 @@ module DLens = struct
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 
     let n = sprintf "%s . %s" dl1.string dl2.string in 
-    let () = match Brx.splittable_cex dl1.ctype dl2.ctype with
-      | None -> ()
-      | Some(s1,over,s2) -> 
+    let ct = match RxImpl.splittable_cex dl1.ctype dl2.ctype with
+      | Misc.Right r -> r
+      | Misc.Left(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.ctype) (Brx.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
-    let () = match Brx.splittable_cex dl1.atype dl2.atype with
-      | None -> ()
-      | Some (s1,over,s2) -> 
+    let at = match RxImpl.splittable_cex dl1.atype dl2.atype with
+      | Misc.Right r -> r
+      | Misc.Left (s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.atype) (Brx.string_of_t dl2.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl1.atype) (RxImpl.string_of_t dl2.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
-    let ct = Brx.mk_seq dl1.ctype dl2.ctype in 
-    let at = Brx.mk_seq dl1.atype dl2.atype in 
     let xto = Misc.map2_option (fun x1 x2 -> Erx.mk_seq x1 x2) dl1.xtype dl2.xtype in
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
     let st = function
@@ -822,14 +820,14 @@ module DLens = struct
     (* utilities *)
     let bare_get = branch dl1.ctype dl1.get dl2.get in
     let n = sprintf "(%s | %s)" dl1.string dl2.string in 
-    let at = Brx.mk_alt dl1.atype dl2.atype in 
-    let () = match Brx.disjoint_cex dl1.ctype dl2.ctype with 
+    let at = RxImpl.mk_alt dl1.atype dl2.atype in 
+    let () = match RxImpl.disjoint_cex dl1.ctype dl2.ctype with 
       | None -> ()
       | Some w -> 
           let s = sprintf "%s and %s are not disjoint: %s"
-            (Brx.string_of_t dl1.ctype) (Brx.string_of_t dl2.ctype) w in
+            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) w in
         Berror.static_error i n s in
-    let ct = Brx.mk_alt dl1.ctype dl2.ctype in 
+    let ct = RxImpl.mk_alt dl1.ctype dl2.ctype in 
     let xto = Misc.map2_option (fun x1 x2 -> Erx.mk_alt x1 x2) dl1.xtype dl2.xtype in
     (**** We still need to check equality of keys ***)
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
@@ -846,8 +844,8 @@ module DLens = struct
         get = lift_r i (get_str n) ct bare_get;
         put = lift_rsd i (put_str n) at st 
           (fun a s d -> 
-             match Brx.match_string dl1.atype a, 
-               Brx.match_string dl2.atype a,
+             match RxImpl.match_string dl1.atype a, 
+               RxImpl.match_string dl2.atype a,
                dl1.stype s with
                  | true,_,true  -> dl1.put a s d
                  | _,true,false -> dl2.put a s d
@@ -868,19 +866,17 @@ module DLens = struct
   let star i dl1 = 
     (* body *)
     let n = sprintf "(%s)*" dl1.string in
-    let ct = Brx.mk_star dl1.ctype in
-    let () = match Brx.iterable_cex dl1.ctype with
-      | None -> ()
-      | Some (s1,over,s2) -> 
+    let ct = match RxImpl.iterable_cex dl1.ctype with
+      | Misc.Right r -> r
+      | Misc.Left (s1,over,s2) -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl1.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
-    let at = Brx.mk_star dl1.atype in 
-    let () = match Brx.iterable_cex dl1.atype with
-      | None -> ()
-      | Some(s1,over,s2) -> 
+    let at = match RxImpl.iterable_cex dl1.atype with
+      | Misc.Right r -> r
+      | Misc.Left(s1,over,s2) -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-          (Brx.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in
+          (RxImpl.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in
           Berror.static_error i n s in 
     let xto = match dl1.xtype with 
       | None -> None 
@@ -912,7 +908,7 @@ module DLens = struct
 		   let c1, d1 = dl1.put a1 s1 d in 
 		     loop at st (buf ^ c1) d1 in 
                loop 
-                 (Brx.star_split dl1.atype a)
+                 (RxImpl.star_split dl1.atype a)
                  (lst_of_skel i s)
 	         ""
 	         d);
@@ -923,7 +919,7 @@ module DLens = struct
                   let c1,d' = dl1.create a1 d in 
                   let buf' = buf ^ c1 in
                   (buf', d'))
-               ("", d) (Brx.star_split dl1.atype a));
+               ("", d) (RxImpl.star_split dl1.atype a));
 	parse = lift_r i (parse_str n) ct 
           (fun c ->
              let (sl, d) = Safelist.fold_left 
@@ -933,7 +929,7 @@ module DLens = struct
 	          let d' = d ++ d1 in
 	            (buf', d'))
                ([], empty_dict)
-               (Brx.star_split dl1.ctype c) in
+               (RxImpl.star_split dl1.ctype c) in
 	       (S_star (Safelist.rev sl), d));
 	key = lift_r i (key_str n) at (star_loop dl1.atype dl1.key);
 	uid = next_uid ();
@@ -941,26 +937,24 @@ module DLens = struct
 
   let iter i l1 min maxo = 
     generic_iter i 
-      (copy i Brx.epsilon) (union i) (concat i) (star i) 
+      (copy i RxImpl.epsilon) (union i) (concat i) (star i) 
       l1 min maxo
 
   (* non-standard lenses *)
   let swap i dl1 dl2 = 
     let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
-    let () = match Brx.splittable_cex dl1.ctype dl2.ctype with
-      | None -> ()
-      | Some(s1,over,s2) -> 
+    let ct = match RxImpl.splittable_cex dl1.ctype dl2.ctype with
+      | Misc.Right r -> r
+      | Misc.Left(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl1.ctype) (Brx.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
-    let () = match Brx.splittable_cex dl2.atype dl1.atype with
-      | None -> ()
-      | Some(s1,over,s2) -> 
+    let at = match RxImpl.splittable_cex dl2.atype dl1.atype with
+      | Misc.Right r -> r
+      | Misc.Left(s1,over,s2) -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (Brx.string_of_t dl2.atype) (Brx.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl2.atype) (RxImpl.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
           Berror.static_error i n s in 
-    let ct = Brx.mk_seq dl1.ctype dl2.ctype in 
-    let at = Brx.mk_seq dl2.atype dl1.atype in 
     let xto = Misc.map2_option (fun x2 x1 -> Erx.mk_seq x2 x1) dl2.xtype dl1.xtype in
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
     let st = function
@@ -1016,7 +1010,7 @@ module DLens = struct
                Berror.static_error i n s
          | _ -> ());
       
-      if not (Brx.equiv dl1.atype dl2.ctype) then
+      if not (RxImpl.equiv dl1.atype dl2.ctype) then
         begin
 	  let s = sprintf "the composition of %s and %s is ill-typed"
 	    dl1.string dl2.string in 
@@ -1054,10 +1048,10 @@ module DLens = struct
     let n = sprintf "default %s %s" def dl1.string in 
     let at = dl1.atype in 
     let () = 
-      if not (Brx.match_string dl1.ctype def) then 
+      if not (RxImpl.match_string dl1.ctype def) then 
         Berror.static_error i n 
           (sprintf "%s does not belong to %s" def
-             (Brx.string_of_t dl1.ctype)) in 
+             (RxImpl.string_of_t dl1.ctype)) in 
     let s,d = dl1.parse def in
       { dl1 with
           create = lift_rd i (create_str n) at (fun a d' -> dl1.put a s (d' ++ d)); 
@@ -1115,45 +1109,43 @@ module DLens = struct
       }
 
   let filter i rd rk =
-    let n = sprintf "filter %s %s" (Brx.string_of_t rd) (Brx.string_of_t rk) in 
-    let () = match Brx.disjoint_cex rd rk with
+    let n = sprintf "filter %s %s" (RxImpl.string_of_t rd) (RxImpl.string_of_t rk) in 
+    let () = match RxImpl.disjoint_cex rd rk with
       | None -> ()
       | Some w -> 
           let s = sprintf "%s and %s are not disjoint: %s"
-            (Brx.string_of_t rd) (Brx.string_of_t rk) w in
+            (RxImpl.string_of_t rd) (RxImpl.string_of_t rk) w in
         Berror.static_error i n s in
-    let ru = Brx.mk_alt rd rk in
-    let ct = Brx.mk_star ru in 
-    let () = 
-      match Brx.iterable_cex ru with
-        | None -> ()
-        | Some(s1,over,s2) -> 
+    let ru = RxImpl.mk_alt rd rk in
+    let ct = 
+      match RxImpl.iterable_cex ru with
+        | Misc.Right r -> r
+        | Misc.Left(s1,over,s2) -> 
             let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (Brx.string_of_t ru) (s1 ^ over) s2 s1 (over ^ s2) in 
+              (RxImpl.string_of_t ru) (s1 ^ over) s2 s1 (over ^ s2) in 
             Berror.static_error i n s in 
-    let at = Brx.mk_star rk in 
+    let at = 
+      match RxImpl.iterable_cex rk with
+        | Misc.Right r -> r
+        | Misc.Left(s1,over,s2) -> 
+            let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
+              (RxImpl.string_of_t rk) (s1 ^ over) s2 s1 (over ^ s2) in 
+            Berror.static_error i n s in 
     let xto = Some (Erx.mk_leaf at) in 
-    let () = 
-      match Brx.iterable_cex rk with
-        | None -> ()
-        | Some(s1,over,s2) -> 
-            let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (Brx.string_of_t rk) (s1 ^ over) s2 s1 (over ^ s2) in 
-            Berror.static_error i n s in 
     let dt = TMap.empty in
     let st = function
-      | S_string s -> Brx.match_string ct s
+      | S_string s -> RxImpl.match_string ct s
       | _ -> false in
     let get = lift_r i (get_str n) ct 
       (fun c ->
          let rec loop acc = function 
            | [] -> acc
            | h :: t -> 
-               if Brx.match_string rd h then 
+               if RxImpl.match_string rd h then 
                  loop acc t
                else 
                  loop (acc ^ h) t in
-         let lc = Brx.star_split ct c in
+         let lc = RxImpl.star_split ct c in
            loop "" lc) in
     let put = lift_rsd i (put_str n) at st
       (fun a s d ->
@@ -1162,17 +1154,17 @@ module DLens = struct
            | [], [] -> acc
            | [], ha :: ta -> loop (acc ^ ha) [] ta
            | hc :: tc, [] -> 
-               if Brx.match_string rd hc then
+               if RxImpl.match_string rd hc then
                  loop (acc ^ hc) tc []
                else
                  loop acc tc []
            | hc :: tc, ha :: ta -> 
-               if Brx.match_string rd hc then
+               if RxImpl.match_string rd hc then
                  loop (acc ^ hc) tc la
                else
                  loop (acc ^ ha) tc ta in
-         let lc = Brx.star_split ct c in
-         let la = Brx.star_split at a in
+         let lc = RxImpl.star_split ct c in
+         let la = RxImpl.star_split at a in
            (loop "" lc la, d)) in
     let create = lift_rd i n at (fun a d -> (a,d)) in
     let parse = lift_r i n ct (fun c -> (S_string c, empty_dict))in
@@ -1201,7 +1193,7 @@ module DLens = struct
     let n = sprintf "left quotient of %s by %s" dl.string (Canonizer.string cn) in
       (* the "class type" of the canonizer has to be equal to the
 	 concrete type of the lens *)
-    if not (Brx.equiv (Canonizer.ctype cn) dl.ctype) then
+    if not (RxImpl.equiv (Canonizer.ctype cn) dl.ctype) then
       begin
 	let s = sprintf "%s is ill-typed" n in
 	  Berror.static_error i n s 
@@ -1242,7 +1234,7 @@ module DLens = struct
 
   let right_quot i dl cn = 
     let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
-    if not (Brx.equiv (Canonizer.ctype cn) dl.atype) then
+    if not (RxImpl.equiv (Canonizer.ctype cn) dl.atype) then
       begin
 	let s = sprintf "%s is ill-typed" n in
 	  Berror.static_error i n s 

@@ -28,12 +28,12 @@ val mk_box : tag -> t -> t
 val mk_star : t -> t 
 val mk_seq : t -> t -> t 
 val mk_alt : t -> t -> t 
-val mk_key : Brx.t -> t 
-val mk_leaf : Brx.t -> t 
+val mk_key : Bregexp.t -> t 
+val mk_leaf : Bregexp.t -> t 
 
 
 (* operations *)
-val bare : t -> Brx.t
+val bare : t -> Bregexp.t
 val boxes : t -> int
 val iterable : t -> bool
 val parse : t -> string -> skeleton

@@ -31,13 +31,13 @@ let (^>) = S.(^>)
 let (^*) = S.(^*)
 
 let wrap_rep i r = 
-  match Brx.representative r with
+  match Bregexp.representative r with
     | None -> 
         raise (Error.Harmony_error
                  (fun () -> 
                     Util.format "%s: cannot calculate representative; %s is empty."
                       (Info.string_of_t i)
-                      (Brx.string_of_t r)))
+                      (Bregexp.string_of_t r)))
     | Some w -> w
 
 let poly_error i se1 v1 = 
@@ -214,27 +214,24 @@ let prelude_spec =
   ; pmk_ss     "read"                   (fun _ fn -> Misc.read fn)
                                         
   (* regexp operations *)               
-  ; pmk_sr     "str"                    (fun _ -> Brx.mk_string)
-  ; pmk_r      "empty"                  Brx.empty
-  ; pmk_rb     "is_empty"               (fun _ -> Brx.is_empty)
-  ; pmk_rb     "is_final"               (fun _ -> Brx.is_final)
-  ; pmk_rrr    "regexp_concat"          (fun _ -> Brx.mk_seq)
-  ; pmk_rrr    "regexp_union"           (fun _ -> Brx.mk_alt)
-  ; pmk_rrr    "diff"                   (fun _ -> Brx.mk_diff)
-  ; pmk_rrr    "inter"                  (fun _ -> Brx.mk_inter)
-  ; pmk_riir   "regexp_iter"            (fun i -> Brx.mk_iter)
-  ; pmk_rrb    "equiv"                  (fun _ -> Brx.equiv)
+  ; pmk_sr     "str"                    (fun _ -> Bregexp.mk_string)
+  ; pmk_r      "empty"                  Bregexp.empty
+  ; pmk_rb     "is_empty"               (fun _ -> Bregexp.is_empty)
+  ; pmk_rrr    "regexp_concat"          (fun _ -> Bregexp.mk_seq)
+  ; pmk_rrr    "regexp_union"           (fun _ -> Bregexp.mk_alt)
+  ; pmk_rrr    "diff"                   (fun _ -> Bregexp.mk_diff)
+  ; pmk_rrr    "inter"                  (fun _ -> Bregexp.mk_inter)
+  ; pmk_riir   "regexp_iter"            (fun i -> Bregexp.mk_iter)
+  ; pmk_rrb    "equiv"                  (fun _ -> Bregexp.equiv)
   ; pmk_rs     "shortest"               wrap_rep
-  ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (Brx.star_split r s))
-  ; pmk_rsb    "matches"                (fun _ -> Brx.match_string)
-  ; pmk_rrb    "splittable"             (fun _ -> Brx.splittable)
-  ; pmk_rrs    "splittable_cex"         (fun _ t1 t2 -> match Brx.splittable_cex t1 t2 with
-                                           | Some(w1,over,w2) -> w1 ^ " : " ^ over ^ " : " ^ w2
-                                           | None             -> "NONE")
-  ; pmk_rr    "reverse"                 (fun _ -> Brx.mk_reverse)
-  ; pmk_rr    "suffs"                   (fun _ -> Brx.suffs)
-  ; pmk_rb     "iterable"               (fun _ -> Brx.iterable)
-  ; pmk_rrb    "disjoint"               (fun _ -> Brx.disjoint)
+  ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (Bregexp.star_split r s))
+  ; pmk_rsb    "matches"                (fun _ -> Bregexp.match_string)
+  ; pmk_rrb    "splittable"             (fun _ -> Bregexp.splittable)
+  ; pmk_rrs    "splittable_cex"         (fun _ t1 t2 -> match Bregexp.splittable_cex t1 t2 with
+                                           | Misc.Left(w1,over,w2) -> w1 ^ " : " ^ over ^ " : " ^ w2
+                                           | _ -> "NONE")
+  ; pmk_rb     "iterable"               (fun _ -> Bregexp.iterable)
+  ; pmk_rrb    "disjoint"               (fun _ -> Bregexp.disjoint)
                                         
   (* boolean operations *)              
   ; pmk_bbb    "land"                   (fun _ -> (&&))
@@ -245,7 +242,7 @@ let prelude_spec =
   ; pmk_lr     "ctype"                  (fun _ -> L.ctype)
   ; pmk_lr     "atype"                  (fun _ -> L.atype)
   ; pmk_lq     "canonizer_of_lens"      L.canonizer_of_t
-  ; pmk_rs     "string_of_regexp"       (fun _ r1 -> Brx.string_of_t r1)
+  ; pmk_rs     "string_of_regexp"       (fun _ r1 -> Bregexp.string_of_t r1)
 
   (* sync *)
   ; pmk_sync   "sync"                   (fun i l o a b -> 

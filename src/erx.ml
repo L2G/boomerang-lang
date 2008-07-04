@@ -1,3 +1,5 @@
+module RxImpl = Bregexp
+
 let msg = Util.format
 
 type tag = string 
@@ -22,19 +24,19 @@ type u =
   | Leaf
 and t = 
     { desc:u;
-      bare:Brx.t;
+      bare:RxImpl.t;
       boxes:int;
       has_key:bool }
 
 let mk u r bs hk = { desc=u; bare=r; boxes=bs; has_key=hk }
 
 let rank t = match t.desc with
-  | Leaf   -> Brx.rank t.bare
-  | Key    -> Brx.rank t.bare
-  | Star _ -> Brx.Srnk
-  | Seq _  -> Brx.Crnk
-  | Alt _  -> Brx.Urnk
-  | Box _ | BoxStar _ -> Brx.Arnk
+  | Leaf   -> RxImpl.rank t.bare
+  | Key    -> RxImpl.rank t.bare
+  | Star _ -> RxImpl.Srnk
+  | Seq _  -> RxImpl.Crnk
+  | Alt _  -> RxImpl.Urnk
+  | Box _ | BoxStar _ -> RxImpl.Arnk
 let rec format_t t1 = match t1.desc with 
   | Box(tg,t11) -> 
       msg "@[%s%s" "<" (if tg = "" then "" else (Misc.whack tg) ^ ":");
@@ -46,23 +48,23 @@ let rec format_t t1 = match t1.desc with
       msg "%s%s*@]" w2 ">" 
   | Seq(t11,t12) ->
       msg "@[";
-      Bprint.maybe_wrap format_t (Brx.lpar (rank t11) (rank t1)) t11;
+      Bprint.maybe_wrap format_t (RxImpl.lpar (rank t11) (rank t1)) t11;
       msg ".@,";
-      Bprint.maybe_wrap format_t (Brx.rpar (rank t12) (rank t1)) t12;
+      Bprint.maybe_wrap format_t (RxImpl.rpar (rank t12) (rank t1)) t12;
       msg "@]"
   | Alt(t11,t12) ->
       msg "@[";
-      Bprint.maybe_wrap format_t (Brx.lpar (rank t11) (rank t1)) t11;
+      Bprint.maybe_wrap format_t (RxImpl.lpar (rank t11) (rank t1)) t11;
       msg "@,|";
-      Bprint.maybe_wrap format_t (Brx.rpar (rank t12) (rank t1)) t12;
+      Bprint.maybe_wrap format_t (RxImpl.rpar (rank t12) (rank t1)) t12;
       msg "@]"
   | Star(t11) -> 
       msg "@[";
-      Bprint.maybe_wrap format_t (Brx.lpar (rank t11) (rank t1)) t11;
+      Bprint.maybe_wrap format_t (RxImpl.lpar (rank t11) (rank t1)) t11;
       msg "*@]"
   | Key | Leaf -> 
       msg "@[%s" (if t1.desc = Key then "key " else "");
-      Brx.format_t t1.bare;
+      RxImpl.format_t t1.bare;
       msg "@]"
 
 let string_of_t t = 
@@ -127,8 +129,8 @@ let rec flatten t = match t.desc with
       Some ("",Some(tg,t1,""))
   | Key | Leaf -> 
       let r = t.bare in 
-      if Brx.is_singleton r then         
-        let w = match Brx.representative r with 
+      if RxImpl.is_singleton r then         
+        let w = match RxImpl.representative r with 
           | None -> assert false 
           | Some w -> w in 
         Some (w,None)
@@ -162,21 +164,21 @@ let mk_star t1 =
              (string_of_t t1))
     | _ when t1.has_key -> (Star(t1),0,true)
     | _ -> (Leaf,0,false) in
-  let r = Brx.mk_star t1.bare in
+  let r = RxImpl.mk_star t1.bare in
   mk u r bs hk 
 
 let mk_seq t1 t2 = 
   let bs = t1.boxes + t2.boxes in 
   let hk = t1.has_key || t2.has_key in
   let u = if bs <> 0 || hk then Seq(t1,t2) else Leaf in 
-  let r = Brx.mk_seq t1.bare t2.bare in 
+  let r = RxImpl.mk_seq t1.bare t2.bare in 
   mk u r bs hk
 
 let mk_alt t1 t2 = 
   let bs = t1.boxes + t2.boxes in 
   let hk = t1.has_key || t2.has_key in
   let u = if bs <> 0 || hk then Alt(t1,t2) else Leaf in 
-  let r = Brx.mk_alt t1.bare t2.bare in 
+  let r = RxImpl.mk_alt t1.bare t2.bare in 
   mk u r bs hk
 
 let mk_key r1 = 
@@ -203,15 +205,15 @@ let mk_box tg t1 =
 let bare t = t.bare
 let lift1 f t = f (bare t)
 
-let match_string = lift1 Brx.match_string 
-let star_split = lift1 Brx.star_split
+let match_string = lift1 RxImpl.match_string 
+let star_split = lift1 RxImpl.star_split
 
 let seq_split t1 t2 w = 
-  match Brx.seq_split t1.bare t2.bare w with 
+  match RxImpl.seq_split t1.bare t2.bare w with 
     | None -> 
         Berror.run_error (Info.M "Erx.seq_split")
           (fun () -> msg "@[the concatenation of %s and %s is ambiguous@]" 
-             (Brx.string_of_t t1.bare) (Brx.string_of_t t2.bare))
+             (RxImpl.string_of_t t1.bare) (RxImpl.string_of_t t2.bare))
     | Some p -> p
 
 (* operations *)
@@ -239,8 +241,8 @@ let rec parse t w = match t.desc with
     | BoxStar(tg,w1,t1,w2) ->
         let n1 = String.length w1 in 
         let n2 = String.length w2 in 
-        let l1 = mk_leaf (Brx.mk_string w1) in 
-        let l2 = mk_leaf (Brx.mk_string w2) in 
+        let l1 = mk_leaf (RxImpl.mk_string w1) in 
+        let l2 = mk_leaf (RxImpl.mk_string w2) in 
         let pad_t1 = mk_seq l1 (mk_seq t1 l2) in 
         let wl = star_split pad_t1 w in 
         let tm =

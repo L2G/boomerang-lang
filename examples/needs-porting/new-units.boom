@@ -1,0 +1,88 @@
+module Units = 
+  open Native.Prelude
+
+(* ambiguity on "cabab" *)
+let C1 = (ANY - (containing ("ab" | "ca"))).("ab" | "ca")
+test suffs C1 = "b"?
+let C1s = C1*
+let P1 = reverse (suffs (reverse C1* )) 
+let P2 = ANY - (containing ("ab" | "ca")) 
+test shortest (P1 - P2) = ?
+test matches P1 "baa" = ?
+test matches P2 "baa" = ?
+test (matches C1 "aca") = true
+test (matches C1 "acab") = true
+test (matches C1s "ab") = true
+test (matches C1s "bab") = true
+
+test splittable_cex C1 C1s = "a : b : ca"
+
+let A : regexp = [A-Z]
+test suffs (A* . A ) = A*
+test suffs (A . A* ) = A*
+test suffs A+ = A*
+test suffs (reverse A+) = ([A-Z]? | [A-Z]{2,})
+test splittable A* A* = false
+
+
+let N : regexp = [0-9]
+  
+let L1 = A+ . N{4} . "-" . N{4} . ","
+let L2 = A+ . "\n"
+test splittable_cex L1 L2 = "NONE"
+
+test (const (str "ah"){2,4} "haha" "ahah" .
+      del [ ]* .
+      const epsilon " " "" .
+      const (str "test") "ok" "test").get
+     "ahahah     test"
+= "haha ok"
+
+(* bad repetitions *)
+test (const (str "ah"){1,2} "haha" "ahah").get "ahahah" = error
+   
+let everything = [^]*
+let r1 = everything - (everything.(str "ab"| str "ca").everything)
+let l1 = del r1
+let k1 = (str "ab" <-> "ABC") | (str "ca" <-> "CBA")
+
+test is_final (ANY - containing ("ab" | "ca")) = true
+
+test is_final [A-Z]+ = false
+
+test reverse C1s = ((("ba" | "ac") . (ANY - containing ("ba" | "ac"))))*
+
+test shortest ("b" - "") = "b"
+
+
+(* here is a unit test that illustrates a clever algorithm for deciding ambiguity due to Anders Moller. *)
+let X = 'X'
+let Y = 'Y'
+let D = [^]
+let mp = Y . X . (X . D)+
+let ms = Y . X . (X . D)*
+let sp = (X . D)+ . Y . X
+let ss = (X . D)* . Y . X
+
+let YXsX = (Y . X)* . X
+
+let XANY : regexp = (X . D)*
+let YXsXANY : regexp = (YXsX . D)*
+let xcontaining (R:regexp) = XANY . R . XANY
+let yxsxcontaining (R:regexp) = YXsXANY . R . YXsXANY 
+
+let C1f = (XANY - xcontaining (X . [a] . X . [b] | X . [c] . X .[a])) . (X . [a] . X . [b] | X . [c] . X . [a])
+let C1t = (YXsXANY - yxsxcontaining (YXsX . [a] . YXsX . [b] | YXsX . [c] . YXsX . [a])) . (YXsX . [a] . YXsX . [b] | YXsX . [c] . YXsX . [a])
+let C1sf = C1f*
+let C1st = C1t*
+
+let B1 = ((C1f . mp) & C1t) . ms
+let B2 = ss . ((sp . C1sf) & C1st)
+
+(* the counter example: YX is a marker between w1, over and w2 *)
+test shortest (B1 & B2) = "XaXcXaYXXbYXXaXb"
+
+test matches C1 "aca" = true
+test matches C1 "acab" = true
+test matches C1s "ab" = true
+test matches C1s "bab" = true
