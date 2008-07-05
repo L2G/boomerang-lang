@@ -1155,15 +1155,17 @@ let rec compile_exp cev e0 =
       V.Str(i,s)
 
   | ECSet(i,pos,cs) -> 
-      let csi = Safelist.map (fun (ci,cj) -> (ci, cj)) cs in
+      let csi = Safelist.map (fun (ci,cj) -> (Char.code ci, Char.code cj)) cs in
       let mk = if pos then Bregexp.mk_cset else Bregexp.mk_neg_cset in 
       V.Rx(i,mk csi)
 
   | ECast(i,f,t,b,e) -> 
       compile_exp cev (mk_cast_blame (CEnv.lookup_type cev) i b f t e) 
 
-and compile_binding cev b0 = match b0 with
+and compile_binding cev b0 = 
+  match b0 with
   | Bind(i,p,so,e) -> 
+      Trace.debug "binds+" (fun () -> Util.format "compiling binding %s@\n" (string_of_pat p));
       let v = compile_exp cev e in 
       let xs_rev,bcev = match dynamic_match i p v with
         | None -> run_error i 

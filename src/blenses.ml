@@ -302,109 +302,84 @@ module Canonizer = struct
         choose = (fun x -> x);
       }
 
-(*   (\* add primitives ... *\) *)
-(*   let columnize i ks r s nl =      *)
-(*     let n = sprintf "columnize %s (%s) (%s) (%s)" ks r s nl in *)
-(*     let k =  *)
-(*       try int_of_string ks with _ ->  *)
-(*         Berror.static_error i n *)
-(*           (sprintf "%s must be an integer@\n" ks) in *)
-(*     let () =  *)
-(*       let contains_nl = R.seq RxImpl.anything (R.seq (R.str false nl) any) in  *)
-(*       let r_contains_nl = not (R.is_empty (R.inter r contains_nl)) in       *)
-(*         if RS.length s != 1 then  *)
-(*           Berror.static_error i n  *)
-(*             (sprintf "%s must have length 1@\n" *)
-(*                (RS.string_of_t s)); *)
-(*         if r_contains_nl then  *)
-(*           Berror.static_error i n  *)
-(*             (sprintf "%s contains %s" *)
-(*                (RxImpl.string_of_t r) *)
-(*                (RS.string_of_t nl)) in        *)
-(*     let s_len = RS.length s in  *)
-(*     let nl_len = RS.length nl in  *)
-(*     let r_expanded = R.expand r (RS.get s 0) nl in  *)
-(*     let ct = r in  *)
-(*     let rt = r_expanded in  *)
-(*     let matches s c i =  *)
-(*       let s_len = RS.length s in  *)
-(*       let c_len = RS.length c in  *)
-(*       let rec aux j =  *)
-(*         if j=s_len then true *)
-(*         else *)
-(*           (i+j < c_len)  *)
-(*           && ((RS.get c (i+j)) = (RS.get s j)) *)
-(*           && (aux (succ j)) in  *)
-(*         aux 0 in  *)
-(*       { info = i; *)
-(*         string = n; *)
-(*         rtype = rt; *)
-(*         ctype = ct; *)
-(*         canonize =  *)
-(*           (fun c ->  *)
-(*              let c_len = RS.length c in  *)
-(*              let buf = Buffer.create c_len in  *)
-(*              let rec loop i =  *)
-(*                if i = c_len then () *)
-(*                else *)
-(*                  if matches nl c i then  *)
-(*                    (Buffer.add_string buf (RS.string_of_t s); *)
-(*                     loop (i + nl_len)) *)
-(*                  else  *)
-(*                    (Buffer.add_string buf (RS.repr (RS.get c i)); *)
-(*                     loop (succ i)) in  *)
-(*                loop 0; *)
-(*                RS.t_of_string (Buffer.contents buf)); *)
+  (* add primitives ... *)
+  let columnize i k r ch nl =
+    let n = sprintf "columnize %d (%s) (%c) (%s)" k (RxImpl.string_of_t r) ch nl in
+    let () =
+      let contains_nl = Bregexp.mk_seq Bregexp.anything (Bregexp.mk_seq (Bregexp.mk_string nl) Bregexp.anything) in
+      let r_contains_nl = not (Bregexp.is_empty (Bregexp.mk_inter r contains_nl)) in
+      if r_contains_nl then Berror.static_error i n (sprintf "%s contains %s" (Bregexp.string_of_t r) nl) in 
+    let nl_len = String.length nl in
+    let ct = r in
+    let rt = Bregexp.expand r (Char.code ch) nl in
+    let matches s c i =
+      let s_len = String.length s in
+      let c_len = String.length c in
+      let rec aux j =
+        if j=s_len then true
+        else
+          (i+j < c_len)
+          && ((String.get c (i+j)) = (String.get s j))
+          && (aux (succ j)) in
+        aux 0 in
+      { info = i;
+        string = n;
+        rtype = rt;
+        ctype = ct;
+        canonize =
+          (fun c ->
+             let c_len = String.length c in
+             let buf = Buffer.create c_len in
+             let rec loop i =
+               if i = c_len then ()
+               else
+                 if matches nl c i then
+                   (Buffer.add_char buf ch;
+                    loop (i + nl_len))
+                 else
+                   (Buffer.add_char buf (String.get c i);
+                    loop (succ i)) in
+               loop 0;
+               Buffer.contents buf);
 
-(*         choose =  *)
-(*           (fun c ->  *)
-(*              let c_len = RS.length c in  *)
-(*              let buf = Buffer.create c_len in  *)
-(*              let line_buf = Buffer.create k in  *)
-(*              let aux_buf = Buffer.create k in  *)
-(*              let do_line () =  *)
-(*                if Buffer.length buf <> 0 && Buffer.length line_buf <> 0 then  *)
-(*                  Buffer.add_string buf (RS.string_of_t nl); *)
-(*                Buffer.add_buffer buf line_buf; *)
-(*                Buffer.reset line_buf in  *)
-(*              let do_space () =   *)
-(*                if Buffer.length line_buf <> 0 then  *)
-(*                  Buffer.add_string line_buf (RS.string_of_t s);             *)
-(*                Buffer.add_buffer line_buf aux_buf; *)
-(*                Buffer.reset aux_buf in  *)
-(*              let rec loop i =                            *)
-(*                let sum =                 *)
-(*                  let nl_off = if Buffer.length buf=0 then 0 else pred nl_len in *)
-(*                  let aux_len = Buffer.length aux_buf in  *)
-(*                  let line_len = let n = Buffer.length line_buf in if n=0 then n else succ n in  *)
-(*                    nl_off + aux_len + line_len in  *)
-(*                  (\* Util.format "line_buf[%d] aux_buf[%d] Sum[%d] ~?~ k[%d] c[i]=%s@\n" *)
-(*                     (Buffer.length line_buf) (Buffer.length aux_buf) sum k  *)
-(*                     (if i=c_len then "NONE" else RS.chooser (RS.get c i)); *\) *)
-(*                  if sum > k then  *)
-(*                    do_line (); *)
-(*                  if i = c_len then  *)
-(*                    (do_space ();  *)
-(*                     do_line ()) *)
-(*                  else *)
-(*                    let i' =  *)
-(*                      if matches s c i then  *)
-(*                        (do_space ();  *)
-(*                         i + s_len) *)
-(*                      else  *)
-(*                        (Buffer.add_string aux_buf (RS.repr (RS.get c i)); *)
-(*                         succ i) in  *)
-(*                      loop i' in  *)
-(*                loop 0; *)
-(*                RS.t_of_string (Buffer.contents buf)) } *)
+        choose =
+          (fun c ->
+             let c_len = String.length c in
+             let buf = Buffer.create c_len in
+             let line_buf = Buffer.create k in
+             let aux_buf = Buffer.create k in
+             let do_line () =
+               if Buffer.length buf <> 0 && Buffer.length line_buf <> 0 then Buffer.add_string buf nl;
+               Buffer.add_buffer buf line_buf;
+               Buffer.reset line_buf in
+             let do_space () =
+               if Buffer.length line_buf <> 0 then Buffer.add_char line_buf ch;
+               Buffer.add_buffer line_buf aux_buf;
+               Buffer.reset aux_buf in
+             let rec loop i =
+               let sum =
+                 let nl_off = if Buffer.length buf=0 then 0 else pred nl_len in
+                 let aux_len = Buffer.length aux_buf in
+                 let line_len = let n = Buffer.length line_buf in if n=0 then n else succ n in
+                   nl_off + aux_len + line_len in
+                 if sum > k then do_line ();
+                 if i = c_len then (do_space (); do_line ())
+                 else
+                   let i' =
+                     if ch = c.[i] then
+                       (do_space (); i + 1)
+                     else (Buffer.add_char aux_buf (String.get c i); succ i) in
+                     loop i' in
+               loop 0;
+              Buffer.contents buf) }
         
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
     let rt = match RxImpl.splittable_cex cn1.rtype cn2.rtype with 
       | Misc.Right rt12 -> rt12 
-      | Misc.Left(s1,over,s2) -> 
+      | Misc.Left(s1,s2,s1',s2') -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            cn1.string cn2.string (s1 ^ over) s2 s1 (over ^ s2) in 
+            cn1.string cn2.string s1 s2 s1' s2' in 
           Berror.static_error i n s in 
     let ct = RxImpl.mk_seq cn1.ctype cn2.ctype in 
       { info = i;
@@ -441,9 +416,9 @@ module Canonizer = struct
     let n = sprintf "(%s)*" cn1.string in
     let rt = match RxImpl.iterable_cex cn1.rtype with
       | Misc.Right r -> r
-      | Misc.Left (s1,over,s2) -> 
+      | Misc.Left (s1,s2,s1',s2') -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t cn1.rtype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t cn1.rtype) s1 s2 s1' s2' in 
           Berror.static_error i n s in 
     let ct = RxImpl.mk_star cn1.ctype in
       { info = i;
@@ -490,8 +465,9 @@ module DLens = struct
         info: Info.t;                                       (* parsing info *)
         string: string;                                     (* pretty printer *)
         (* --- types --- *)                                 
-        ctype: RxImpl.t;                                       (* concrete type *)
-        atype: RxImpl.t;                                       (* abstract type *)
+        bij:bool;                                           (* bijective flag *)
+        ctype: RxImpl.t;                                    (* concrete type *)
+        atype: RxImpl.t;                                    (* abstract type *)
         xtype: Erx.t option;                                (* synchronization type *)
         dtype: dict_type;                                   (* dictionary type *)
         stype: skeleton -> bool;                            (* given a skeleton, returns if it is part
@@ -629,9 +605,10 @@ module DLens = struct
   let k dl = dl.key
   let uid dl = dl.uid
     
-  let mk_t i s ct at xto dt st cr ar g put parse c k uid = 
+  let mk_t i s bj ct at xto dt st cr ar g put parse c k uid = 
     { info = i;
       string = s;
+      bij = bj;
       ctype = ct;
       atype = at;
       xtype = xto;
@@ -706,6 +683,7 @@ module DLens = struct
       | _ -> false in
       { info = i;
         string = n;
+        bij = true;
         ctype = ct;
         atype = at;
         xtype = xto;
@@ -731,6 +709,7 @@ module DLens = struct
   let const i r u def = 
     let n = sprintf "const (%s) \"%s\" \"%s\"" (RxImpl.string_of_t r) (whack u) (whack def) in 
     let ct = r in 
+    let bij = RxImpl.is_singleton r in
     let at = (RxImpl.mk_string u) in 
     let xto = Some (Erx.mk_leaf at) in 
     let dt = TMap.empty in
@@ -743,6 +722,7 @@ module DLens = struct
           (sprintf "%s does not belong to %s" def (RxImpl.string_of_t r)) in 
       { info = i;
         string = n;
+        bij = bij;
         ctype = ct;
         atype = at;
         xtype = xto;
@@ -761,17 +741,18 @@ module DLens = struct
   (* ---------- concat ---------- *)
   let concat i dl1 dl2 = 
     let n = sprintf "%s . %s" dl1.string dl2.string in 
+    let bij = dl1.bij && dl2.bij in 
     let ct = match RxImpl.splittable_cex dl1.ctype dl2.ctype with
       | Misc.Right r -> r
-      | Misc.Left(s1,over,s2) -> 
+      | Misc.Left(s1,s2,s1',s2') -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) s1 s2 s1' s2' in 
           Berror.static_error i n s in 
     let at = match RxImpl.splittable_cex dl1.atype dl2.atype with
       | Misc.Right r -> r
-      | Misc.Left (s1,over,s2) -> 
+      | Misc.Left (s1,s2,s1',s2') -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t dl1.atype) (RxImpl.string_of_t dl2.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl1.atype) (RxImpl.string_of_t dl2.atype) s1 s2 s1' s2' in 
           Berror.static_error i n s in 
     let xto = Misc.map2_option (fun x1 x2 -> Erx.mk_seq x1 x2) dl1.xtype dl2.xtype in
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
@@ -781,6 +762,7 @@ module DLens = struct
       (* lens *) 
       { info = i; 
         string = n;
+        bij = bij;
         ctype = ct;
         atype = at;
         xtype = xto;
@@ -816,33 +798,32 @@ module DLens = struct
 	       (dl1.key a1) ^ (dl2.key a2));
 	uid = next_uid ();}          
 
-  let union i dl1 dl2 = 
-    (* utilities *)
-    let bare_get = branch dl1.ctype dl1.get dl2.get in
-    let n = sprintf "(%s | %s)" dl1.string dl2.string in 
-    let at = RxImpl.mk_alt dl1.atype dl2.atype in 
+  let common_union i dl1 dl2 n b = 
+    (* TODO: check equality of keys *)    
     let () = match RxImpl.disjoint_cex dl1.ctype dl2.ctype with 
       | None -> ()
       | Some w -> 
-          let s = sprintf "%s and %s are not disjoint: %s"
+          let s = sprintf "concrete types %s and %s are not disjoint: %s"
             (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) w in
         Berror.static_error i n s in
     let ct = RxImpl.mk_alt dl1.ctype dl2.ctype in 
+    let at = RxImpl.mk_alt dl1.atype dl2.atype in 
     let xto = Misc.map2_option (fun x1 x2 -> Erx.mk_alt x1 x2) dl1.xtype dl2.xtype in
-    (**** We still need to check equality of keys ***)
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
     let st s = dl1.stype s || dl2.stype s in
       { info = i;
         string = n;
-        ctype = ct; 
+        bij = b; 
+        ctype = ct;         
         atype = at;
         xtype = xto;
 	dtype = dt;
 	stype = st;
 	crel = combine_rel dl1.crel dl2.crel;
         arel = combine_rel dl1.arel dl2.arel;
-        get = lift_r i (get_str n) ct bare_get;
-        put = lift_rsd i (put_str n) at st 
+        get = 
+          (branch dl1.ctype dl1.get dl2.get);
+        put = 
           (fun a s d -> 
              match RxImpl.match_string dl1.atype a, 
                RxImpl.match_string dl2.atype a,
@@ -852,31 +833,54 @@ module DLens = struct
                  | true,false,false -> dl1.create a d 
                  | false,true,true  -> dl2.create a d
                  | false,false,_    -> assert false);
-	parse =  lift_r i (parse_str n) ct 
+	parse = 
 	  (branch dl1.ctype dl1.parse dl2.parse); 
-        create = lift_rd i (create_str n) at 
+        create =
           (branch2 dl1.atype dl1.create dl2.create);
-	key = lift_r i n at 
+	key =
 	  (branch dl1.atype dl1.key dl2.key);
 	uid = next_uid ();
       }
 
-  let disjoint_union i dl1 dl2 = union i dl1 dl2
+  let union i dl1 dl2 =     
+    let n = sprintf "(%s||%s)" dl1.string dl2.string in 
+    let bij = dl1.bij && dl2.bij && RxImpl.disjoint dl1.atype dl2.atype in
+    let () = match dl1.arel,dl2.arel with
+      | _,Unknown
+      | Unknown,_ -> 
+          let s = sprintf "the union of %s and %s is ill-typed: %s"            
+            dl1.string dl2.string 
+            "the relations must both be the identity" in 
+            Berror.static_error i n s
+      | _ -> () in 
+     common_union i dl1 dl2 n bij
+
+  let disjoint_union i dl1 dl2 = 
+    let n = sprintf "(%s|%s)" dl1.string dl2.string in 
+    let () = match RxImpl.disjoint_cex dl1.atype dl2.atype with 
+      | None -> ()
+      | Some w -> 
+          let s = sprintf "abtract types %s and %s are not disjoint: %s"
+            (RxImpl.string_of_t dl1.atype) (RxImpl.string_of_t dl2.atype) w in
+          Berror.static_error i n s in
+    let bij = dl1.bij && dl2.bij in 
+    common_union i dl1 dl2 n bij
 
   let star i dl1 = 
     (* body *)
     let n = sprintf "(%s)*" dl1.string in
+    let bij = dl1.bij in 
     let ct = match RxImpl.iterable_cex dl1.ctype with
       | Misc.Right r -> r
-      | Misc.Left (s1,over,s2) -> 
+      | Misc.Left (s1,s2,s1',s2') -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t dl1.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
-          Berror.static_error i n s in 
+            (RxImpl.string_of_t dl1.ctype) s1 s2 s1' s2' in 
+          Berror.static_error i n s in       
     let at = match RxImpl.iterable_cex dl1.atype with
       | Misc.Right r -> r
-      | Misc.Left(s1,over,s2) -> 
+      | Misc.Left(s1,s2,s1',s2') -> 
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-          (RxImpl.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in
+          (RxImpl.string_of_t dl1.atype) s1 s2 s1' s2' in
           Berror.static_error i n s in 
     let xto = match dl1.xtype with 
       | None -> None 
@@ -889,6 +893,7 @@ module DLens = struct
       | _ -> false in
       { info = i;
 	string = n;
+        bij = bij;
 	ctype = ct;
 	atype = at;
         xtype = xto;
@@ -943,17 +948,18 @@ module DLens = struct
   (* non-standard lenses *)
   let swap i dl1 dl2 = 
     let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
+    let bij = dl1.bij && dl2.bij in 
     let ct = match RxImpl.splittable_cex dl1.ctype dl2.ctype with
       | Misc.Right r -> r
-      | Misc.Left(s1,over,s2) -> 
+      | Misc.Left(s1,s2,s1',s2') -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) s1 s2 s1' s2' in 
           Berror.static_error i n s in 
     let at = match RxImpl.splittable_cex dl2.atype dl1.atype with
       | Misc.Right r -> r
-      | Misc.Left(s1,over,s2) -> 
+      | Misc.Left(s1,s2,s1',s2') -> 
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t dl2.atype) (RxImpl.string_of_t dl1.atype) (s1 ^ over) s2 s1 (over ^ s2) in 
+            (RxImpl.string_of_t dl2.atype) (RxImpl.string_of_t dl1.atype) s1 s2 s1' s2' in 
           Berror.static_error i n s in 
     let xto = Misc.map2_option (fun x2 x1 -> Erx.mk_seq x2 x1) dl2.xtype dl1.xtype in
     let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
@@ -962,6 +968,7 @@ module DLens = struct
       | _ -> false in
       { info = i;
         string = n;
+        bij = bij;
         ctype = ct; 
         atype = at;
         xtype = xto;
@@ -995,6 +1002,7 @@ module DLens = struct
         
   let compose i dl1 dl2 = 
     let n = sprintf "%s; %s" dl1.string dl2.string in 
+    let bij = dl1.bij && dl2.bij in 
     let ct = dl1.ctype in
     let at = dl2.atype in 
     let xto = dl2.xtype in 
@@ -1018,6 +1026,7 @@ module DLens = struct
         end;
         { info = i; 
           string = n;
+          bij = bij;
           ctype = ct;      
           atype = at;
           xtype = xto;
@@ -1061,6 +1070,7 @@ module DLens = struct
 
   let dmatch i lookup_fun tag dl1 = 
     let n = sprintf "<%s>" dl1.string in
+    let bij = dl1.bij in 
     let ct = dl1.ctype in 
     let at = dl1.atype in 
     let st = function
@@ -1082,6 +1092,7 @@ module DLens = struct
                 (c',d1++d2') in 
       { info = i;
         string = n;
+        bij = bij;
         ctype = ct;
         atype = at;
         xtype = xto;
@@ -1120,16 +1131,16 @@ module DLens = struct
     let ct = 
       match RxImpl.iterable_cex ru with
         | Misc.Right r -> r
-        | Misc.Left(s1,over,s2) -> 
+        | Misc.Left(s1,s2,s1',s2') -> 
             let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (RxImpl.string_of_t ru) (s1 ^ over) s2 s1 (over ^ s2) in 
+              (RxImpl.string_of_t ru) s1 s2 s1' s2' in 
             Berror.static_error i n s in 
     let at = 
       match RxImpl.iterable_cex rk with
         | Misc.Right r -> r
-        | Misc.Left(s1,over,s2) -> 
+        | Misc.Left(s1,s2,s1',s2') -> 
             let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (RxImpl.string_of_t rk) (s1 ^ over) s2 s1 (over ^ s2) in 
+              (RxImpl.string_of_t rk) s1 s2 s1' s2' in 
             Berror.static_error i n s in 
     let xto = Some (Erx.mk_leaf at) in 
     let dt = TMap.empty in
@@ -1170,6 +1181,7 @@ module DLens = struct
     let parse = lift_r i n ct (fun c -> (S_string c, empty_dict))in
       { info = i; 
         string = n;
+        bij = false;
         ctype = ct;
         atype = at;
         xtype = xto;
@@ -1198,49 +1210,9 @@ module DLens = struct
 	let s = sprintf "%s is ill-typed" n in
 	  Berror.static_error i n s 
       end;
-      let ct = Canonizer.rtype cn in
-      let at = dl.atype in
-      let xto = dl.xtype in 
-      let dt = dl.dtype in
-      let st = dl.stype in
-      let canonize = Canonizer.canonize cn in
-      let choose = Canonizer.choose cn in
-        { info = i; 
-          string = n;
-          ctype = ct;
-          atype = at;
-          xtype = xto;
-          dtype = dt;
-          stype = st;
-          crel = Unknown;
-          arel = dl.arel;
-          get = lift_r i (get_str n) ct 
-	    (fun c -> dl.get(canonize c));
-          put = lift_rsd i n at st 
-	    (fun a s d ->
-	       let cc, d = dl.put a s d in
-	         (choose cc, d));
-          create = lift_rd i n at
-	    (fun a d ->
-	       let cc, d = dl.create a d in
-	         (choose cc, d));
-          parse = lift_r i n ct
-	    (fun c ->
-	       let cc = canonize c in
-	         dl.parse cc);
-          key = dl.key;
-          uid = next_uid();
-        }
-
-  let right_quot i dl cn = 
-    let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
-    if not (RxImpl.equiv (Canonizer.ctype cn) dl.atype) then
-      begin
-	let s = sprintf "%s is ill-typed" n in
-	  Berror.static_error i n s 
-      end;
-    let ct = dl.ctype in
-    let at = Canonizer.rtype cn in
+    let bij = dl.bij in 
+    let ct = Canonizer.rtype cn in
+    let at = dl.atype in
     let xto = dl.xtype in 
     let dt = dl.dtype in
     let st = dl.stype in
@@ -1248,25 +1220,69 @@ module DLens = struct
     let choose = Canonizer.choose cn in
       { info = i; 
         string = n;
-        ctype = ct;      
+        bij = bij;
+        ctype = ct;
         atype = at;
         xtype = xto;
         dtype = dt;
         stype = st;
-        crel = dl.crel;
-        arel = Unknown;
+        crel = Unknown;
+        arel = dl.arel;
         get = lift_r i (get_str n) ct 
-	  (fun c -> choose (dl.get c));
+	  (fun c -> dl.get(canonize c));
         put = lift_rsd i n at st 
 	  (fun a s d ->
-	     let ac = canonize a in
-	       dl.put ac s d);
+	     let cc, d = dl.put a s d in
+	       (choose cc, d));
         create = lift_rd i n at
 	  (fun a d ->
-	     let ac = canonize a in
-	       dl.create ac d);
-        parse = dl.parse;
-        key = (fun a -> dl.key (canonize a));
-        uid = next_uid ();
+	     let cc, d = dl.create a d in
+	       (choose cc, d));
+        parse = lift_r i n ct
+	  (fun c ->
+	     let cc = canonize c in
+	       dl.parse cc);
+        key = dl.key;
+        uid = next_uid();
       }
+        
+  let right_quot i dl cn = 
+    let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
+    if not (RxImpl.equiv (Canonizer.ctype cn) dl.atype) then
+      begin
+	let s = sprintf "%s is ill-typed" n in
+	  Berror.static_error i n s 
+      end;
+  let bij = dl.bij in 
+  let ct = dl.ctype in
+  let at = Canonizer.rtype cn in
+  let xto = dl.xtype in 
+  let dt = dl.dtype in
+  let st = dl.stype in
+  let canonize = Canonizer.canonize cn in
+  let choose = Canonizer.choose cn in
+    { info = i; 
+      string = n;
+      bij = bij;
+      ctype = ct;      
+      atype = at;
+      xtype = xto;
+      dtype = dt;
+      stype = st;
+      crel = dl.crel;
+      arel = Unknown;
+      get = lift_r i (get_str n) ct 
+	(fun c -> choose (dl.get c));
+      put = lift_rsd i n at st 
+	(fun a s d ->
+	   let ac = canonize a in
+	     dl.put ac s d);
+      create = lift_rd i n at
+	(fun a d ->
+	   let ac = canonize a in
+	     dl.create ac d);
+      parse = dl.parse;
+      key = (fun a -> dl.key (canonize a));
+      uid = next_uid ();
+    }
 end

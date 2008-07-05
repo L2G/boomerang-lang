@@ -33,10 +33,10 @@ let mk u r bs hk = { desc=u; bare=r; boxes=bs; has_key=hk }
 let rank t = match t.desc with
   | Leaf   -> RxImpl.rank t.bare
   | Key    -> RxImpl.rank t.bare
-  | Star _ -> RxImpl.Srnk
-  | Seq _  -> RxImpl.Crnk
-  | Alt _  -> RxImpl.Urnk
-  | Box _ | BoxStar _ -> RxImpl.Arnk
+  | Star _ -> RxImpl.srnk
+  | Seq _  -> RxImpl.crnk
+  | Alt _  -> RxImpl.urnk
+  | Box _ | BoxStar _ -> RxImpl.arnk
 let rec format_t t1 = match t1.desc with 
   | Box(tg,t11) -> 
       msg "@[%s%s" "<" (if tg = "" then "" else (Misc.whack tg) ^ ":");

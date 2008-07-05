@@ -40,7 +40,7 @@ module Canonizer : sig
   val canonize : t -> (string -> string)
   val choose : t -> (string -> string)
 
-(*   val columnize : Info.t -> string -> Bregexp.t -> string -> string -> t *)
+  val columnize : Info.t -> int -> Bregexp.t -> char -> string -> t
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t

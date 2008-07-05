@@ -120,7 +120,7 @@ let pmk_sss   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
 let pmk_sr    = pmk1 S.SString mk_sfun S.SRegexp mk_r
 let pmk_sll   = pmk2 S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
 let pmk_ssll  = pmk3 S.SString mk_sfun S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
-let pmk_srssq = pmk4 S.SString mk_sfun S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SCanonizer mk_q
+let pmk_ircsq = pmk4 S.SInteger mk_ifun S.SRegexp mk_rfun S.SChar mk_cfun S.SString mk_sfun S.SCanonizer mk_q
 
 let pmk_r     = pmk0 S.SRegexp mk_r 
 let pmk_rr    = pmk1 S.SRegexp mk_rfun S.SRegexp mk_r
@@ -193,7 +193,7 @@ let prelude_spec =
   ; pmk_qss    "choose"                 (fun _ -> C.choose)
   ; pmk_qll    "left_quot"              L.left_quot
   ; pmk_lql    "right_quot"             L.right_quot
-(*   ; pmk_srssq  "columnize"              C.columnize *)
+  ; pmk_ircsq  "columnize"              C.columnize
                                             
   (* char operations *)                 
   ; pmk_cs     "string_of_char"         (fun _ -> String.make 1)
@@ -223,12 +223,14 @@ let prelude_spec =
   ; pmk_rrr    "inter"                  (fun _ -> Bregexp.mk_inter)
   ; pmk_riir   "regexp_iter"            (fun i -> Bregexp.mk_iter)
   ; pmk_rrb    "equiv"                  (fun _ -> Bregexp.equiv)
+(*   ; pmk_rr     "suffs1"                 (fun _ -> Bregexp.suffs1) *)
+(*   ; pmk_rr     "suffs2"                 (fun _ -> Bregexp.suffs2) *)
   ; pmk_rs     "shortest"               wrap_rep
   ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (Bregexp.star_split r s))
   ; pmk_rsb    "matches"                (fun _ -> Bregexp.match_string)
   ; pmk_rrb    "splittable"             (fun _ -> Bregexp.splittable)
   ; pmk_rrs    "splittable_cex"         (fun _ t1 t2 -> match Bregexp.splittable_cex t1 t2 with
-                                           | Misc.Left(w1,over,w2) -> w1 ^ " : " ^ over ^ " : " ^ w2
+                                           | Misc.Left(w1,w2,w1',w2') -> w1 ^ " : " ^ w2 ^ " & " ^ w1' ^ " : " ^ w2'
                                            | _ -> "NONE")
   ; pmk_rb     "iterable"               (fun _ -> Bregexp.iterable)
   ; pmk_rrb    "disjoint"               (fun _ -> Bregexp.disjoint)

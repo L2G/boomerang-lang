@@ -245,7 +245,7 @@ let field' (w0:string) (w1:string) (w2:string) =
   ((w0 . ";") <-> ", ") . 
   del "type=" . del w1 . 
   del (/;type=/ . [A-Z]+)* . 
-  (copy "" | del ";type=pref") .
+  del ";type=pref"? .
   del ":" . 
   (unescstr [;,:]; formattel) .
   ins " (" . ins w2 . ins ")" .
@@ -284,7 +284,7 @@ let abemail : lens =
 let email : lens = field' "EMAIL" "INTERNET" "e"
 
 (* entry : lens for an individual vCard field. *)
-let entry : lens =  abemail | email | tel | note
+let entry : lens =  (abemail || email) | tel | note
 
 (* ItemLine: regexp for lines that use Apple's itemN convention *)
 let ItemLine :regexp = /item/ . NonNL . NL
@@ -319,12 +319,12 @@ let remove_item_numbers : lens =
       Stuff* . delItemNumber "2" .
       Stuff* . delItemNumber "3" .
       copy Field_unnumbered* )
-  | ( Stuff* . delItemNumber "1" .
+  || ( Stuff* . delItemNumber "1" .
       Stuff* . delItemNumber "2" .
       copy Field_unnumbered* )
-  | ( Stuff* . delItemNumber "1" .
+  || ( Stuff* . delItemNumber "1" .
       copy Field_unnumbered* )
-  | ( copy Field_unnumbered* ) )
+  || ( copy Field_unnumbered* ) )
 
 (* chunk: lens for a vCard entry *)
 let chunk : lens =  
@@ -544,7 +544,7 @@ let nl3 = nl2 . "  "
 let nl4 = nl3 . "  "
 
 (* del_xml_nl_var: lens for deleting whitespace with a default *)
-let del_xml_nl_var (def:string) : lens = default ((del WS . del [\n]) | copy "") def
+let del_xml_nl_var (def:string) : lens = default (del (WS . [\n])? ) def
 
 (* del_xml_nl: lens for deleting whitespace with a default--adds a newline to passed default *)
 let del_xml_nl (def:string) : lens = del_xml_nl_var (def . "\n")
@@ -607,7 +607,7 @@ let format_pcdata : lens = escaper [^] (fun (c:regexp) -> unescpcdata) (copy [])
 let name : lens = 
   let n = format_pcdata; formatnotemptyname in 
     ( single_line_elt nl2 "n" n
-    | (multi_line_elt nl2 "n" 
+      || (multi_line_elt nl2 "n" 
          (single_line_elt nl3 "family" n . 
             (copy "" | ins ", " . single_line_elt nl3 "given" n))))
 

@@ -14,13 +14,15 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/src/bnfa.ml                                                       *)
+(* /boomerang/src/bnfa.ml                                                      *)
 (* Extended regexps                                                            *)
 (* $Id$ *)
 (*******************************************************************************)
 
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append
+module S = String
+let string_concat = (^)
 open Num
 
 (* --- Some debugging options --- *)
@@ -169,14 +171,14 @@ module NFA = struct
   module T = Crm.Make(struct 
     include QS 
   end)(struct
-         type sym = char
-         let char_code_min = min_char
-         let char_code_max = max_char
-         let leq c1 c2 = (Char.code c1) <= (Char.code c2)
-         let l c1 c2 = (Char.code c1) < (Char.code c2)
-         let compare_sym c1 c2 = compare (Char.code c1) (Char.code c2)
-         let pred c1 = Char.chr ((Char.code c1) - 1)
-         let succ c1 = Char.chr ((Char.code c1) + 1)
+         type sym = int
+         let char_code_min = char_code_min
+         let char_code_max = char_code_max
+         let leq c1 c2 = c1 <= c2
+         let l c1 c2 = c1 < c2
+         let compare_sym (c1:int) c2 = compare c1 c2
+         let pred c1 = pred c1
+         let succ c1 = succ c1
   end)
   (* --- type to keep track of the (un)ambiguity of automata --- *)
 
@@ -289,11 +291,12 @@ module NFA = struct
   let format_state s = Util.format "q%d" s
 
   let format_trans t = 
+    let c2s c = Char.escaped (Char.chr c) in 
     Array.iteri (fun qi crmi -> 
       format_state qi;
       Util.format " -> ";
       format_map T.fold 
-        (fun (a,b) -> if a=b then Util.format "'%c'" a else Util.format "['%c'-'%c']" a b)
+        (fun (a,b) -> if a=b then Util.format "'%s'" (c2s a) else Util.format "['%s'-'%s']" (c2s a) (c2s b))
         (format_set QS.fold format_state)
         crmi;
       Util.format "@\n")
@@ -339,58 +342,6 @@ module NFA = struct
 	reverse = More epsilon;
 	star = More epsilon; }
 
-  let mk_lowercase t = 
-    let trans = t.trans in 
-    let n = Array.length trans in 
-    let a = array_make n T.empty in 
-    let az_cr = ('A','Z') in 
-      for i=0 to pred n do
-        let ti = 
-          T.fold (fun cr qs acc -> 
-            match T.isect_range cr az_cr with
-                None -> T.add cr qs acc
-              | Some(ci,cj) -> 
-                  let acc1 = T.add cr qs acc in 
-                  let acc2 = T.rem (ci,cj) acc1 in                 
-                    T.add (Char.lowercase ci, Char.lowercase cj) qs acc2)
-            trans.(i) T.empty in 
-          a.(i) <- ti
-      done;
-      { init = t.init;
-        trans = a;
-        final = t.final;
-        ambiguity = Amb_unknown;
-	det = Heur 0;
-        trim = Heur 0;
-        reverse = Heur 0;
-        star = Heur 0 }
-      
-  let mk_uppercase t = 
-    let trans = t.trans in 
-    let n = Array.length trans in 
-    let a = array_make n T.empty in 
-    let az_cr = ('a','z') in 
-      for i=0 to pred n do
-        let ti = 
-          T.fold (fun cr qs acc -> 
-            match T.isect_range cr az_cr with
-                None -> T.add cr qs acc
-              | Some(ci,cj) -> 
-                  let acc1 = T.add cr qs acc in 
-                  let acc2 = T.rem (ci,cj) acc1 in                 
-                    T.add (Char.uppercase ci,Char.uppercase cj) qs acc2)
-            trans.(i) T.empty in 
-          a.(i) <- ti
-      done;
-      { init = t.init;
-        trans = a;
-        final = t.final;
-	ambiguity = Amb_unknown;
-        det = Heur 0;
-        trim = Heur 0;
-        reverse = Heur 0;
-        star = Heur 0 }
-
   (* [expand t old_sym new_str] expands the language accepted by t in
      the following way: wherever [old_sym] was accepted, [old_sym] or
      [new_str] is accepted. *)
@@ -410,7 +361,7 @@ module NFA = struct
     let mk_transitions in_state next_state acc qs =           
       (* loop over new_str, adding internal transitions on symbols. *)
       let rec aux i in_state next_state acc =
-        let ci_sym = String.get new_str i in 
+        let ci_sym = Char.code (String.get new_str i) in 
         let new_cr = (ci_sym,ci_sym) in         
           if i = pred new_str_len then             
             (* final transition goes to qs *)
@@ -723,7 +674,7 @@ module NFA = struct
           (fun m cr -> T.add cr sq1 m) 
           T.empty cl
       else
-        let all = (min_char,max_char) in 
+        let all = (char_code_min,char_code_max) in 
         Safelist.fold_left 
           (fun m cr -> T.rem cr m)
           (T.add all sq1 T.empty) cl in 
@@ -801,7 +752,7 @@ module NFA = struct
     let n = String.length s in 
     let a = array_make (succ n) T.empty in
     for i = 0 to (pred n) do
-      let ci = String.get s i in 
+      let ci = Char.code (String.get s i) in 
       let nexti = succ i in 
         a.(i) <- T.single_trans ci nexti
     done;
@@ -1101,7 +1052,7 @@ module NFA = struct
 	a.(i) <- T.fill_holes sn tr.(i)
       done;
       (* add a transition from sn to itself for every char *)
-      a.(n) <- T.add (min_char,max_char) sn T.empty;
+      a.(n) <- T.add (char_code_min,char_code_max) sn T.empty;
       
       (* compute complemenet of t's final states *)
       let rec loop qs i = 
@@ -1143,11 +1094,11 @@ module NFA = struct
    *)
   let representative t =     
     let n = num_states t in 
-    let a = array_make n (true,-1,Char.chr 0) in 
+    let a = array_make n (true,-1, 0) in 
     let queue = Queue.create () in 
     QS.iter (fun qi -> 
       Queue.push qi queue;
-      a.(qi) <- (false,-1,Char.chr 0))
+      a.(qi) <- (false,-1, 0))
       t.init;
     let qo = 
       QBFS.go_bare
@@ -1188,7 +1139,7 @@ module NFA = struct
               else 
                 begin 
                   let _,q',c = a.(q) in                     
-                    build_rep q' ((String.make 1 c) ^ acc) 
+                    build_rep q' ((String.make 1 (Char.chr c)) ^ acc) 
                 end in 
               build_rep q ""                
 
@@ -1244,7 +1195,7 @@ module NFA = struct
     let rec loop i = function
       | [] -> a
       | c::rest ->
-	  (String.set a i c;
+	  (String.set a i (Char.chr c);
 	   loop (succ i) rest) in
       loop 0 l
     
@@ -1465,7 +1416,7 @@ module NFA = struct
     sig 
       type frontier
       val init : t -> frontier
-      val next : t -> frontier -> char -> frontier
+      val next : t -> frontier -> int -> frontier
       val is_empty : frontier -> bool
       val is_final : t -> frontier -> bool
     end) = 
@@ -1481,7 +1432,7 @@ module NFA = struct
 	if i=n then is_final t frontier
 	else if is_empty frontier then false
 	else
-          let frontier' = next t frontier (String.get s i) in
+          let frontier' = next t frontier (Char.code (String.get s i)) in
             loop frontier' (succ i) in
 	loop (init t) 0
 
@@ -1496,7 +1447,7 @@ module NFA = struct
             if i = n then 
               (acc', true) 
             else
-              loop (next t frontier (String.get s i)) acc' (succ i) in
+              loop (next t frontier (Char.code (String.get s i))) acc' (succ i) in
 	fst (loop (init t) IS.empty 0)	     
 
     let match_reverse_prefix t s = 
@@ -1506,7 +1457,7 @@ module NFA = struct
           let acc' = if is_final t frontier then
             IS.add i acc else acc in
             if i = 0 then (acc', true) else
-              let frontier' = next t frontier (String.get s (i - 1)) in
+              let frontier' = next t frontier (Char.code (String.get s (i - 1))) in
 		loop frontier' acc' (i - 1) in
 	loop (init t) IS.empty n
 
@@ -1525,7 +1476,7 @@ module NFA = struct
             if i = n then 
               (acc', false) 
             else
-              loop (next t frontier (String.get s i)) acc' (succ i) in
+              loop (next t frontier (Char.code (String.get s i))) acc' (succ i) in
 	loop (init t) IS.empty 0
 
     let partial_unambig_star_split t s is init_acc add_acc =
@@ -1534,7 +1485,7 @@ module NFA = struct
 	(let rec loop i f acc = 
 	   let acc', f' = if (is_final t f) && (IS.mem i is)then (add_acc acc i, init t) else (acc, f) in
 	     if i = n then acc' else
-	       loop (i + 1) (next t f' (String.get s i)) acc' in
+	       loop (i + 1) (next t f' (Char.code (String.get s i))) acc' in
 	 loop 0 (init t) init_acc)
 	  
 
@@ -1615,9 +1566,9 @@ module NFA = struct
     trans'.(n) <- QS.fold (fun f acc -> T.union acc t1.trans.(f)) t1.final T.empty;
     let ps = QS.singleton p in
     (* p is looping on itself by reading any char *)
-    trans'.(p) <- T.add (min_char,max_char) ps T.empty;
+    trans'.(p) <- T.add (char_code_min,char_code_max) ps T.empty;
     (* from every final state, can go to p by reading any char *)
-    QS.iter (fun f -> trans'.(f) <- T.add (min_char,max_char) ps trans'.(f)) t1.final;
+    QS.iter (fun f -> trans'.(f) <- T.add (char_code_min,char_code_max) ps trans'.(f)) t1.final;
     let init' = QS.singleton n in
     let rec loop i acc = 
       if i < 0 then acc 
@@ -1639,36 +1590,32 @@ end
 
 
 module N = NFA
-type t = N.t
-let format = N.format
 
 let init = N.init
 let next = N.next
 let is_empty = N.is_empty
 let is_singleton = N.is_singleton
 
-let mk_elt = N.mk_elt
-let mk_str = N.mk_str
-let mk_alt = N.mk_alt
-let mk_seq = N.mk_seq
-let mk_cset = N.mk_cset
-let mk_star = N.mk_star
-let mk_inter = N.mk_inter
-let mk_complement = N.mk_complement
-let mk_diff = N.mk_diff
-let mk_reverse = N.mk_reverse
-let mk_lowercase = N.mk_lowercase
-let mk_uppercase = N.mk_uppercase
-let expand = N.expand
-let ambiguous_word = N.ambiguous_word
-let determinize = N.determinize
-let trim = N.trim ~loged:false
-let mk_unambig = N.mk_unambig
-let define_to_be_unambig = N.define_to_be_unambig
+(* let mk_elt = N.mk_elt *)
+(* let mk_str = N.mk_str *)
+(* let mk_alt = N.mk_alt *)
+(* let mk_seq = N.mk_seq *)
+(* let mk_cset = N.mk_cset *)
+(* let mk_star = N.mk_star *)
+(* let mk_inter = N.mk_inter *)
+(* let mk_complement = N.mk_complement *)
+(* let mk_diff = N.mk_diff *)
+(* let mk_reverse = N.mk_reverse *)
+(* let mk_lowercase = N.mk_lowercase *)
+(* let mk_uppercase = N.mk_uppercase *)
+(* let expand = N.expand *)
+(* let ambiguous_word = N.ambiguous_word *)
+(* let trim = N.trim ~loged:false *)
+(* let mk_unambig = N.mk_unambig *)
+(* let define_to_be_unambig = N.define_to_be_unambig *)
 
 (* operations *)
 
-let representative = N.representative
 let match_str t s = match N.optional_determinize_non_incr t with
   | None -> N.Matching_nfa.match_str t s
   | Some dt -> N.Matching_dfa.match_str dt s
@@ -1705,13 +1652,13 @@ let is_ambiguous t = match N.ambiguous_word t with
   | Some s -> (false,s)
 
 let unambig_seq t1 t2 = 
-  let t1' = mk_unambig t1 in
-  let t2' = mk_unambig t2 in
-  let t = mk_seq t1' t2' in
+  let t1' = N.mk_unambig t1 in
+  let t2' = N.mk_unambig t2 in
+  let t = N.mk_seq t1' t2' in
   let res, s = is_ambiguous t in
     if res then NA_true t else
       (let is1 = match_prefix t1' s in 
-       let t2r = mk_reverse t2' in
+       let t2r = N.mk_reverse t2' in
        let is2, _ = match_reverse_prefix t2r s in
        let is = IS.inter is1 is2 in
 	 assert (not (IS.is_empty is));
@@ -1727,35 +1674,8 @@ type dual_multi_split = { dms_example : String.t;
 			  dms_cut1 : int list;
 			  dms_cut2 : int list}
 
-type not_star_ambig = NSA_true of t| NSA_empty_word | NSA_false | NSA_false_ce of dual_multi_split
+type not_star_ambig = NSA_true of N.t | NSA_empty_word | NSA_false | NSA_false_ce of dual_multi_split
 
-
-let example_of_dms dms =
-  let s = dms.dms_example in 
-  let _,s1 = Safelist.fold_left 
-    (fun (i0,acc) i1 -> 
-      (i1, 
-      Safelist.fold_left (^) 
-        "" 
-        [acc; 
-          "[";
-         String.sub s i0 (i1-i0);
-          "]"]))    
-    (0,"") dms.dms_cut1 in 
-  let _,s2 = Safelist.fold_left 
-    (fun (i0,acc) i1 -> 
-      (i1, 
-       Safelist.fold_left (^) 
-         ""
-         [acc; 
-           "[";
-          String.sub s i0 (i1-i0);
-           "]"]))    
-    (0,"") dms.dms_cut2 in 
-    (^) ( "[") 
-      ((^) s ((^) ( "]\nSPLITS INTO\n") 
-                       ((^) s1 
-                           ((^) ( "\nAND\n") s2))))
 
 let rec unambig_star t = 
   match N.unambig_star t with
@@ -1764,7 +1684,7 @@ let rec unambig_star t =
     | Misc.Left (_, _, true) -> NSA_empty_word
     | Misc.Left (s, p, false) ->
 	(let n = String.length s in
-	 let rev = mk_reverse (mk_star t) in
+	 let rev = N.mk_reverse (N.mk_star t) in
 	 let is, _ = match_reverse_prefix rev s in
 	   assert (IS.mem 0 is);
 	   let rec loop i front can_split acc = 
@@ -1777,23 +1697,17 @@ let rec unambig_star t =
 	       else if (* i > p &&*)((not (N.QS.is_empty (N.QS.inter (N.final t) front)))) && (IS.mem i is ) then (i :: acc, init t, true)
 	       else (acc, front, true) in
 	       if i = n then  Safelist.rev acc' else
-		 loop (i + 1) (next t front' (String.get s i)) cs' acc' in
+		 loop (i + 1) (next t front' (Char.code (String.get s i))) cs' acc' in
 	   let cl1 = loop 0 (init t) true [] in
 	   let cl2 = loop 0 (init t) false [] in
 	     NSA_false_ce { dms_example = s;
 			    dms_cut1 = cl1;
 			    dms_cut2 = cl2;
 			  })
-
-
-let equiv = N.equiv
-  
-let empty = N.empty
-let epsilon = N.epsilon
     
 let split_positions t1 t2 s = 
   let is = match_prefix t1 s in
-  let is', _ = match_reverse_prefix (mk_reverse t2) s in
+  let is', _ = match_reverse_prefix (N.mk_reverse t2) s in
     IS.inter is is'
 
 let unambig_split t1 t2 s = 
@@ -1806,7 +1720,7 @@ let unambig_split t1 t2 s =
               String.sub s i ((String.length s) - i))
 
 let unambig_star_split_ints t s = 
-  let rev = mk_reverse (mk_star t) in
+  let rev = N.mk_reverse (N.mk_star t) in
   let is, _ = match_reverse_prefix rev s in
   let init_acc = [] in
   let add_acc acc i = i :: acc in
@@ -1815,7 +1729,7 @@ let unambig_star_split_ints t s =
       | Some dt -> Safelist.rev (N.Matching_dfa.partial_unambig_star_split dt s is init_acc add_acc)
 
 let count_unambig_star_split t s = 
-  let rev = mk_reverse (mk_star t) in
+  let rev = N.mk_reverse (N.mk_star t) in
   let is, _ = match_reverse_prefix rev s in
   let init_acc = 0 in
   let add_acc acc i = succ acc in
@@ -1830,27 +1744,360 @@ let unambig_star_split t s =
              (0,[])
              (unambig_star_split_ints t s)))
 
+module Rx = struct 
 
-let print_multi_split lst s = 
-  let n = String.length s in
-  let rec loop i fst = function 
-    | [] -> 
-	(if not fst then print_char '^';
-	 Printf.printf "\"%s\"" (String.sub s i (n - i)))
-    | j :: tl -> 
-	(if not fst then print_char '^';
-	 if j < n  then 
-	   (Printf.printf "\"%s\"" (String.sub s i (j - i));
-	    loop j false tl)
-	 else Printf.printf "\"%s\"" (String.sub s i (n - i))) in
-    loop 0 true lst
+  (* definitions of different ranks. *)
+  type r = 
+    | Urnk (* union *)
+    | Drnk (* diff *)
+    | Irnk (* inter *)
+    | Crnk (* concat *)
+    | Srnk (* star *)
+    | Arnk (* atomic *)
+        
+  (* need_par_left e1 e2 determines if you need to put parenthesis
+   * around exp of type e1 when you create an expression of type e2 with
+   * e1 on the left *)
+        
+  let need_par_left e1 e2 = match e1,e2 with
+    | Arnk, _ -> false
+    | _, Arnk -> assert false
+    | Crnk, _ -> false
+    | _, Crnk -> true
+    | Srnk, _ -> false
+    | _, Srnk -> true
+    | Irnk, _ -> false
+    | _, Irnk -> true
+    | Urnk, Drnk
+    | Drnk, Urnk -> true
+    | Drnk, Drnk -> false
+    | Urnk, Urnk -> false
 
-let print_split i s = print_multi_split [i] s
+  let lpar = need_par_left
 
-(***** Easy splitability *****)
+  (* need_par_right e1 e2 determines if you need to put parenthesis around rnk of type e1 when you
+   * create an rnkression of type e2 with e1 on the right
+   *)
+    
+  let need_par_right e1 e2 = match e1,e2 with
+    | Arnk, _ -> false
+    | _, Arnk -> assert false
+    | _, Crnk -> true
+    | Crnk, _ -> false
+    | _, Srnk -> true
+    | Srnk, _ -> false
+    | _, Irnk -> true
+    | Irnk, _ -> false
+    | Urnk, Drnk
+    | Drnk, Urnk -> true
+    | Drnk, Drnk -> true
+    | Urnk, Urnk -> true
 
-let easy_seq t1 t2 = 
-  N.easily_splitable t1 t2 
+  let rpar = need_par_right
 
-let easy_star t1 = 
-  (not (match_str t1 "") && N.easily_splitable t1 t1)
+
+  (* Bnfa.ts, extended with strings for printing, representatives *)
+  (* The "rank" field is for pretty printing purposes *)
+  type t = { str : string;
+             mutable rep: string option;
+             rx : N.t; 
+             rank : r }
+      
+  let string_of_t r = r.str
+  let format_t r = Util.format "%s" r.str
+
+  let rank r = r.rank
+
+  let equiv r1 r2 = N.equiv r1.rx r2.rx
+
+  let representative r = 
+    try 
+      match r.rep with 
+        | None -> 
+            let s = N.representative r.rx in 
+              r.rep <- Some s;
+              Some s
+        | Some s -> Some s           
+    with Not_found -> None
+
+  let determinize r = {r with rx = N.determinize r.rx}
+
+  let id = fun x -> x
+
+  let check_equiv r1 r2 =
+    if equiv r1 r2 then (true,id)
+    else (false,
+          fun() ->
+            let printrep s1 s2 n1 n2 =
+              try
+                let v = N.representative (N.mk_diff s1.rx s2.rx) in
+                  Util.format "value \"%s\"@\nis in the %s but not the %s@ "
+                    v n1 n2
+              with Not_found -> () in
+              Util.format "%s <> %s@\n" r1.str r2.str;
+              printrep r1 r2 "first" "second";
+              printrep r2 r1 "second" "first"
+         )
+      
+  let concat_repr r1 r2 concat_symb rc =
+    let s1' = if need_par_left r1.rank rc then sprintf "(%s)" r1.str else r1.str in
+    let s2' = if need_par_right r2.rank rc then sprintf "(%s)" r2.str else r2.str in
+      sprintf "%s %s %s" s1' concat_symb s2'    
+
+  let epsilon = 
+    { str = "epsilon"; 
+      rep = Some "";
+      rx = N.epsilon;
+      rank = Arnk}
+
+  let empty = 
+    { str = "empty";
+      rep = None;
+      rx = N.empty;
+      rank = Arnk}
+
+  let anything = 
+    { str = "anything";
+      rep = Some "";
+      rx = N.mk_star (N.mk_cset false []);
+      rank = Arnk }
+
+  (* two functions for a quick test of equality.
+   * to be used only for pretty printing *)
+  let is_epsilon r =
+    r.rx == N.epsilon
+
+  let is_empty r = 
+    r.rx == N.empty
+
+  let is_singleton r = 
+    N.is_singleton r.rx
+
+  let is_empty_or_singleton r = 
+    is_empty r || N.is_singleton r.rx
+
+  let str_of_cl cl = 
+    let buf = Buffer.create 17 in 
+    let to_str fs = Char.escaped (Char.chr fs) in
+      Safelist.iter 
+        (fun (c1,c2) -> 
+           if c1=c2 then 
+             Buffer.add_string buf (to_str c1)
+           else 
+             (Buffer.add_string buf (to_str c1);
+              Buffer.add_char buf '-';
+              Buffer.add_string buf (to_str c2)))
+        cl;
+      Buffer.contents buf
+
+  let mk_cset cl = 
+    { str = sprintf "[%s]" (str_of_cl cl);
+      rep = 
+        (match cl with 
+           | (h,_)::_ -> Some (S.make 1 (Char.chr h))
+           | _ -> None);
+      rx = N.mk_cset true cl;
+      rank = Arnk
+    }
+
+  let mk_neg_cset cl = 
+    { str = sprintf "[^%s]" (str_of_cl cl);
+      rep = None;
+      rx = N.mk_cset false cl;
+      rank = Arnk
+    }
+      
+  let mk_string s = 
+    let s_string = String.escaped s in
+      { str = sprintf "\"%s\"" s_string;
+        rep = Some s;
+        rx = N.mk_str s;
+        rank = Arnk}
+
+  let mk_seq r1 r2 = 
+    if is_empty r1 || is_empty r2 then empty
+    else if is_epsilon r1 then r2 
+    else if is_epsilon r2 then r1
+    else let str = concat_repr r1 r2 "." Crnk in
+      { str = str; 
+        rep = None;
+        rx = N.mk_seq r1.rx r2.rx;
+        rank = Crnk }
+
+  let mk_alt r1 r2 = 
+    if is_empty r1 then r2
+    else if is_empty r2 then r1
+    else 
+      let add_qmark s r = if need_par_left r Srnk then sprintf "(%s)?" s else sprintf "%s?" s in
+      let str = 
+        if is_epsilon r1 then add_qmark r2.str r2.rank 
+        else if is_epsilon r2 then add_qmark r1.str r1.rank
+        else concat_repr r1 r2 "|" Urnk in
+        { str = str; 
+          rep = r1.rep;
+          rx = N.mk_alt r1.rx r2.rx;
+          rank = Urnk
+        }
+
+  let set_str r1 s = 
+    { r1 with str = s; rank = Arnk; }
+      
+  (* XXX: if max < min, then N will raise an Invalid_argument exception *)
+  let mk_star r1 =
+    let s1 = if need_par_left r1.rank Srnk then sprintf "(%s)*" r1.str else string_concat r1.str "*" in
+      { str = s1;
+        rep = Some "";
+        rx = N.mk_star r1.rx;
+        rank = Srnk}
+
+  let rec generic_iter i epsilon union concat star x min max = 
+    let rec mk_cats x n = 
+      if n=0 then epsilon
+      else if n=1 then x
+      else if n=2 then concat x x
+      else 
+        let half_x = mk_cats x (n/2) in 
+        let twice_half_x = concat half_x half_x in 
+          if n mod 2 = 0 then twice_half_x
+          else concat x twice_half_x in 
+      match min,max with
+        | (0,-1) -> star x
+        | (n,-1) -> concat (mk_cats x n) (star x)
+        | (0,0)  -> epsilon
+        | (0,1)  -> union epsilon x
+        | (m,n)  -> 
+            if m > n then 
+              Berror.run_error i 
+                (fun () -> Util.format "error in iteration: %d > %d" m n)
+            else if m=n then mk_cats x n
+            else (* n > m *)
+              let rec aux (xi,us) j = 
+                if j=0 then us
+                else
+                  let xi1 = concat x xi in 
+                    aux (xi1, union us xi1) (pred j) in 
+              let x1 = if m=0 then epsilon else mk_cats x m in 
+                aux (x1,x1) (n-m) 
+
+  let mk_iter r1 min max = 
+    let i = Info.M ("Bregrnk.iter") in 
+      generic_iter i epsilon mk_alt mk_seq mk_star r1 min max
+
+  let mk_diff r1 r2 =
+    if is_empty r1 then empty 
+    else if is_empty r2 then r1
+    else let str = concat_repr r1 r2 "-" Drnk in
+    let r = N.mk_diff r1.rx r2.rx in 
+      { str = str;
+        rep = None;
+        rx = r; 
+        rank = Drnk}
+        
+  let mk_complement r1 = mk_diff (mk_star (mk_neg_cset [])) r1
+
+  let mk_expand r1 c s = 
+    let str = sprintf "expand(%c,%s,%s)" c s (r1.str) in 
+    let r = N.expand r1.rx (Char.code c) s in
+      { str = str;
+        rep = None;
+        rx = r;
+        rank = Arnk }
+
+  let mk_inter r1 r2 =
+    if is_empty r1 || is_empty r2 then empty
+    else let r = N.mk_inter r1.rx r2.rx in 
+    let str = concat_repr r1 r2 "&" Irnk in
+      { str = str;
+        rep = None;
+        rx = r; 
+        rank = Irnk} 
+        
+  let expand r1 s1 s2 = 
+    { str = sprintf "extend(%s,%s,%s)" r1.str (Char.escaped (Char.chr s1)) s2;
+      rep = r1.rep;
+      rx = N.expand r1.rx s1 s2;
+      rank = Arnk }
+
+  let match_string r s = match_str r.rx s
+
+  let match_string_positions r s = match_prefix r.rx s 
+
+  let string_of_t r = r.str
+
+  let split_bad_prefix t s = 
+    try 
+      let is, approx = find_exit_automaton t.rx s in
+      let i = Int.Set.max_elt is in 
+      let s1 = S.sub s 0 i in 
+      let s2 = S.sub s i ((S.length s) - i) in 
+        (s1,s2)
+    with
+      | Not_found -> ("", s)
+
+  let no_type_check = Prefs.createBool "no-type-check" false
+    "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
+    "don't type check concatenation, alternative and repetition of lenses. To be used with precaution !"
+
+  let splittable r1 r2 = 
+    match unambig_seq r1.rx r2.rx with
+      | NA_true _ -> true
+      | _ -> false
+
+  let splittable_cex r1 r2 = 
+    match unambig_seq r1.rx r2.rx with
+      | NA_false dss -> 
+          let w = dss.dss_example in
+          let n = String.length w in 
+          let i1 = dss.dss_cut1 in 
+          let i2 = dss.dss_cut2 in 
+            Misc.Left(String.sub w 0 i1, String.sub w i1 (n-i1), String.sub w 0 i2, String.sub w i2 (n-i2))
+      | NA_true r12 -> 
+          let str = concat_repr r1 r2 "." Crnk in
+	    Misc.Right 
+              { str = str; 
+	        rep = None;
+                rx = r12;
+	        rank = Crnk }
+
+  let iterable r1 = 
+    match unambig_star r1.rx with
+      | NSA_true _ -> true
+      | _ -> false
+
+  let iterable_cex r1 = 
+    let r1s = mk_star r1 in 
+      match splittable_cex r1 (mk_star r1) with
+        | Misc.Left _ as res -> res
+        | Misc.Right _ -> Misc.Right(r1s)
+
+  let split_positions t1 t2 = split_positions t1.rx t2.rx
+
+  let seq_split s1 s2 w =
+    let ps = split_positions s1 s2 w in 
+      if not (Int.Set.cardinal ps = 1) then 
+        None
+      else
+        let n = String.length w in 
+        let j = Int.Set.choose ps in 
+        let s1,s2 = (String.sub w 0 j, String.sub w j (n-j)) in 
+	  Some (s1,s2)
+
+  let star_split s1 w = 
+    let s1_star = mk_star s1 in 
+    let ps = Int.Set.remove 0 (split_positions s1_star s1_star w) in 
+    let _,rev = 
+      Int.Set.fold 
+        (fun j (i,acc) -> (j,(String.sub w i (j-i))::acc)) 
+        ps (0,[]) in 
+      Safelist.rev rev 
+
+  let disjoint_cex t1 t2 = 
+    let t1ut2 = N.mk_inter t1.rx t2.rx in 
+      if not (N.is_empty t1ut2) then
+        Some (N.representative t1ut2)
+      else None
+
+  let disjoint t1 t2 = match disjoint_cex t1 t2 with
+    | None -> true
+    | _ -> false
+end

@@ -6,7 +6,7 @@ let WSP : regexp = [ \n]+
   
 (* sorting lenses *)
 let sort2 (l1:lens) (l2:lens) : lens = 
-  ( l1 . l2 | l2 ~ l1)
+  ( l1 . l2 || l2 ~ l1)
 
 test sort2 (copy "a") (copy "b").get "ab" = "ab"
 test sort2 (copy "a") (copy "b").get "ba" = "ab"
@@ -14,9 +14,9 @@ test sort2 (copy "a") (copy "b").get "ba" = "ab"
 let sort3 (l1:lens) (l2:lens) (l3:lens) : lens = 
   let s23 : lens = sort2 l2 l3 in 
   ( l1 . s23
-  | (l2 ~ l1) . l3
-  | l3 ~ (l1 . l2)
-  | s23 ~ l1 )
+    || (l2 ~ l1) . l3
+    || l3 ~ (l1 . l2)
+    || s23 ~ l1 )
 
 let l3 = sort3 (copy "a") (copy "b") (copy "c")
 test l3.get "abc" = "abc"
@@ -41,16 +41,16 @@ let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =
     (copy (atype l3) ~ (copy (atype l2))) . 
     copy (atype l4) in 
   ( l1 . s234 
-  | s234 ~ l1
-  | ((l2 . l3) ~ l1) . l4
-  | (l2 ~ l1) . s34 
-  | (l3 ~ s12) . l4
-  | l4 ~ (l1 . s23)
-  | l4 ~ ((l2 ~ l1) . l3)
-  | l4 ~ (l3 ~ (l1 . l2))
-  | (l3 . l4) ~ (l1 . l2) 
-  | ( (l2 . l4) ~ (l1 . l3); f1324 )
-  | ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
+  || s234 ~ l1
+  || ((l2 . l3) ~ l1) . l4
+  || (l2 ~ l1) . s34 
+  || (l3 ~ s12) . l4
+  || l4 ~ (l1 . s23)
+  || l4 ~ ((l2 ~ l1) . l3)
+  || l4 ~ (l3 ~ (l1 . l2))
+  || (l3 . l4) ~ (l1 . l2) 
+  || ( (l2 . l4) ~ (l1 . l3); f1324 )
+  || ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
       
 let l4 = sort4 (copy "a") (copy "b") (copy "c") (copy "d")
 test l4.get "abcd" = "abcd"

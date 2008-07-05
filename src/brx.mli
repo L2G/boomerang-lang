@@ -70,12 +70,11 @@ val match_string_positions : t -> string -> Int.Set.t
 val match_string_reverse_positions : t -> string -> Int.Set.t
 
 (* ambiguity *)
-val suffs : t -> t
 val derivative : t -> string -> t
 val mk_reverse : t -> t
-val splittable_cex : t -> t -> (string * string * string) option
+val splittable_cex : t -> t -> ((string * string * string * string),t) Misc.alternative
 val splittable : t -> t -> bool
-val iterable_cex : t -> (string * string * string) option
+val iterable_cex : t -> ((string * string * string * string),t) Misc.alternative
 val iterable : t -> bool
 
 (* splitting *)

@@ -28,8 +28,8 @@ val anything : t
 val empty : t
 
 (* constructors *)
-val mk_cset : (char * char) list -> t
-val mk_neg_cset : (char * char) list -> t
+val mk_cset : (int * int) list -> t
+val mk_neg_cset : (int * int) list -> t
 val mk_string : string -> t
 val mk_alt : t -> t -> t
 val mk_seq : t -> t -> t
@@ -38,16 +38,16 @@ val mk_iter : t -> int -> int -> t
 val mk_diff : t -> t -> t
 val mk_complement: t -> t
 val mk_inter : t -> t -> t
+val expand : t -> int -> string -> t 
 
 (* pretty printing *)
-(* ranks *)
-type r = 
-  | Urnk (* union *)
-  | Drnk (* diff *)
-  | Irnk (* inter *)
-  | Crnk (* concat *)
-  | Srnk (* star *)
-  | Arnk (* atomic *)
+type r 
+val arnk : r
+val crnk : r
+val urnk : r
+val srnk : r
+val drnk : r
+
 val rank : t -> r
 val lpar : r -> r -> bool
 val rpar : r -> r -> bool
@@ -62,15 +62,17 @@ val disjoint_cex : t -> t -> string option
 val disjoint : t -> t -> bool
 val equiv : t -> t -> bool
 val representative : t -> string option
+(* val suffs1 : t -> t *)
+(* val suffs2 : t -> t *)
 
 (* string matching *)
 val match_string : t -> string -> bool
 val match_string_positions : t -> string -> Int.Set.t
 
 (* ambiguity *)
-val splittable_cex : t -> t -> ((string * string * string),t) Misc.alternative
+val splittable_cex : t -> t -> ((string * string * string * string),t) Misc.alternative
 val splittable : t -> t -> bool
-val iterable_cex : t -> ((string * string * string),t) Misc.alternative
+val iterable_cex : t -> ((string * string * string * string),t) Misc.alternative
 val iterable : t -> bool
 
 (* splitting *)

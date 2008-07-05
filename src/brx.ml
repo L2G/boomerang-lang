@@ -29,12 +29,15 @@ let () = Format.set_margin 300
 let dbg thk = Trace.debug "brx+" thk
 let sdbg s = Trace.debug "brx+" (fun () -> Util.format "%s" s)
 
-let string_of_char_code n = String.make 1 (Char.chr n) 
-	   
 (* ASCII alphabet *)
 let min_code = 0
 let max_code = 255
+let real_max_code = 256
 
+let string_of_char_code n = match n with
+  | 256 -> "#"
+  | _   -> String.make 1 (Char.chr n)
+	   
 (* --------------------- PRETTY PRINTING --------------------- *)
 (* ranks: used to determine when parentheses are needed. *)
 type r = 
@@ -127,7 +130,7 @@ end = struct
           negate (max mi (c2 + 1)) ma r 
 
   let diff l1 l2 = 
-    inter l1 (negate min_code max_code l2)
+    inter l1 (negate min_code real_max_code l2)
 
   let mem c l = 
     Safelist.exists (fun (c1,c2) -> c1 <= c && c <= c2) l 
@@ -155,7 +158,8 @@ and t =
       mutable maps               : (int array * int array * int) option;
       mutable reverse            : t option;
       mutable representative     : (string option) option;
-      mutable suffs              : t list option;
+      mutable left_marked             : t option;
+      mutable right_marked             : t option;
       (* operations *)           
       mutable derivative         : int -> t }
 
@@ -203,13 +207,14 @@ let rec format_t t0 =
 
   let wrap l r f = Util.format "%s" l; f (); Util.format "%s" r in 
   let maybe_wrap = Bprint.maybe_wrap format_t in
-  let rec format_list sep rnk l = match l with
+  let rec format_list sep brk rnk l = match l with
     | [] -> ()
     | [ti] -> maybe_wrap (rpar (rank ti) rnk) ti
     | ti::rest -> 
         maybe_wrap (lpar (rank ti) rnk || rpar (rank ti) rnk) ti;
         Util.format "%s" sep;
-        format_list sep rnk rest in 
+        if brk then Util.format "@ ";
+        format_list sep brk rnk rest in 
     
     Util.format "@[";
     begin match t0.desc with
@@ -235,12 +240,12 @@ let rec format_t t0 =
             | i,None -> Util.format "{%d,}" i
             | 0,Some 1 -> Util.format "?"
             | i,Some j -> Util.format "{%d,%d}" i j in 
-          maybe_wrap (lpar (rank t0) Srnk) ti;
+          maybe_wrap (lpar (rank ti) Srnk) ti;
           format_rep i jo;
-      | Seq(t1,t2)  -> format_list "." Crnk [t1;t2]
-      | Alt ts      -> format_list "|" Urnk ts;
-      | Inter ts    -> format_list "&" Urnk ts;
-      | Diff(t1,t2) -> format_list "-" Drnk [t1;t2]
+      | Seq(t1,t2)  -> format_list "." false Crnk [t1;t2]
+      | Alt ts      -> format_list " | " false Urnk ts;
+      | Inter ts    -> format_list " &" true Urnk ts;
+      | Diff(t1,t2) -> format_list " - " false Drnk [t1;t2]
     end;
     Util.format "@]"
 
@@ -391,7 +396,7 @@ let desc_maps d0 =
   let key_of_map m =
     let ws = 31 in
     let rec loop i mask cont a1 al =
-      if i > max_code then (a1::al)
+      if i > real_max_code then (a1::al)
       else if cont && i mod ws = 0 then
         loop i 1 false 0 (a1::al)
       else
@@ -404,9 +409,9 @@ let desc_maps d0 =
     let km = key_of_map m in
     try MapCache.find km !mcache 
     with Not_found ->
-      let cm = Array.make (succ max_code) 0 in 
+      let cm = Array.make (succ real_max_code) 0 in 
       let rec loop i nc rml = 
-        if i > max_code then Safelist.rev rml
+        if i > real_max_code then Safelist.rev rml
         else
           let nc' = if m.(i) then succ nc else nc in 
           let rml' = if m.(i) then i::rml else rml in 
@@ -418,7 +423,7 @@ let desc_maps d0 =
       let ms = (cm,rm,len) in
         mcache := MapCache.add km ms !mcache;
         ms in 
-  let m = Array.make (succ (succ max_code)) false in 
+  let m = Array.make (succ (succ real_max_code)) false in 
     desc_colorize m d0;
     flatten m
 
@@ -447,24 +452,40 @@ let mk_constant d t_nexto t_repo =
       maps = Some (desc_maps d);
       reverse = None;
       representative = Some t_repo;
-      suffs = None;
+      left_marked = None;
+      right_marked = None;
       derivative = dummy_impl; } in 
   let t_next = match t_nexto with 
     | None -> t 
     | Some t' -> t' in 
   (* backpatch *)
   t.reverse <- Some t;
-  t.suffs <- Some [t];
   t.derivative <- (fun c -> t_next);  
   t
 
 (* CONSTANTS *)
-let empty    = mk_constant Empty    None         None     
 let anything = mk_constant Anything None         (Some "")
+let empty    = mk_constant Empty    None         None     
 let epsilon  = mk_constant Epsilon  (Some empty) (Some "")
 
+let () = anything.derivative <- (fun c -> if CharSet.mem c [min_code,max_code] then anything else empty)
+
+let mk_cset_constant cs = 
+  let t = mk_constant (CSet cs) None (match cs with [] -> None | (c1,_)::_ -> Some (string_of_char_code c1)) in
+  t.derivative <- (fun c -> if CharSet.mem c cs then epsilon else empty);
+  t
+
+let anychar = mk_cset_constant [min_code,max_code]
+let real_anychar = mk_cset_constant [min_code,real_max_code]
+let marker = mk_cset_constant [real_max_code,real_max_code]
+let opt_marker = 
+  let t = mk_constant (Rep(marker,0,Some 1)) None (Some "") in 
+  t.derivative <- marker.derivative;
+  t
+
 let force vo set f x = match vo with 
-  | Some v -> v 
+  | Some v -> 
+      v 
   | None -> 
       let v = f x in
       set v; 
@@ -481,20 +502,21 @@ let rec mk_t d0 =
       maps = None;
       reverse = None;
       representative = None;
-      suffs = None;
+      left_marked = None;
+      right_marked = None;
       derivative = dummy_impl } in 
 
   (* derivative *)
   let derivative_impl = 
-    let mk_table f = 
-      let fr = ref f in
-      let diff_cache : t ICache.t = ICache.create 7 in
-      (fun c ->
-         try ICache.find diff_cache c with Not_found ->
-           let r = !fr c in
-           ICache.add diff_cache c r;
-           r) in
-    match d0 with 
+    let mk_table f = f in
+(*       let fr = ref f in *)
+(*       let diff_cache : t ICache.t = ICache.create 7 in *)
+(*       (fun c -> *)
+(*          try ICache.find diff_cache c with Not_found -> *)
+(*            let r = !fr c in *)
+(*            ICache.add diff_cache c r; *)
+(*            r) in *)
+let res =  match d0 with 
       | Anything -> (fun c -> t0)
       | Empty    -> (fun c -> t0)
       | Epsilon  -> (fun c -> empty)
@@ -524,6 +546,10 @@ let rec mk_t d0 =
       | Diff(t1,t2) -> 
           mk_table 
             (fun c -> mk_diff (t1.derivative c) (t2.derivative c)) in 
+  (fun c ->      
+     let r = res c in
+(*      Util.format "DERIVATIVE %d[%s] %s ===> %s@\n" c (string_of_char_code c) (string_of_t t0) (string_of_t r); *)
+     r) in
 
   (* backpatch t0 with implementation of derivative *)  
   t0.derivative <- derivative_impl;
@@ -543,8 +569,28 @@ and calc_reverse t = match t.desc with
   | Diff(t1,t2)   -> mk_diff (get_reverse t1) (get_reverse t2)
 and get_reverse t = force t.reverse (fun v -> t.reverse <- Some v) calc_reverse t 
 
+and calc_marked is_left t = match t.desc with
+     | Anything      -> 
+         mk_iter (if is_left then mk_seq opt_marker real_anychar
+                  else mk_seq real_anychar opt_marker) 0 None
+     | Empty         -> t
+     | Epsilon       -> t
+     | CSet _        -> 
+         if is_left then mk_seq opt_marker t 
+         else mk_seq t opt_marker 
+     | Seq(t1,t2)    -> mk_seq (get_marked is_left t1) (get_marked is_left t2)
+     | Alt tl        -> mk_alts (Safelist.map (get_marked is_left) tl)
+     | Inter tl      -> mk_alts (Safelist.map (get_marked is_left) tl)
+     | Rep(t1,i,jo)  -> mk_iter (get_marked is_left t1) i jo
+     | Diff(t1,t2)   -> mk_diff (get_marked is_left t1) (get_marked is_left t2)
+and get_marked is_left t = 
+  if is_left then 
+    force t.left_marked (fun v -> t.left_marked <- Some v) (calc_marked is_left) t
+  else 
+    force t.right_marked (fun v -> t.right_marked <- Some v) (calc_marked is_left) t
+
 and calc_representative t0 =  
-  Util.format "CALC_REPRESENTATIVE %d %d (%s)@\n@\n" t0.uid t0.size (string_of_t t0);
+  Util.format "CALC_REPRESENTATIVE %d %d (%s)@\n@\n" t0.uid t0.size (tag_of_t t0);
   let rec rep_jump f p = match p with 
     | [] -> Misc.Right f 
     | (ti,ri)::rest -> 
@@ -564,7 +610,7 @@ and calc_representative t0 =
         Misc.Right p' in 
     
   let full_search (r,f,p) =
-    Util.format "@\nFULL_SEARCH %d@\n" t0.uid;
+(*     Util.format "@\nFULL_SEARCH %d@\n" t0.uid; *)
     let f' = Q.add t0 f in
       if t0.final then Misc.Left (("",t0)::r)
       else if Q.mem t0 f || easy_empty t0 then 
@@ -574,16 +620,16 @@ and calc_representative t0 =
         end
       else
 	let _,rm,len = get_maps t0 in
-        Util.format "GOING TO LOOP %d@\n" t0.uid;
+(*         Util.format "GOING TO LOOP %d@\n" t0.uid; *)
         let rec loop sn acc i = match acc with
           | Misc.Left _ -> acc
           | Misc.Right pacc ->               
               if i < 0 then acc
               else 
                 let ci = rm.(i) in
-                let w_ci = String.make 1 (Char.chr ci) in 
+                let w_ci = string_of_char_code ci in 
                 let ti = t0.derivative ci in
-                Util.format "%d -%s-> %d@\n" t0.uid (Char.escaped (Char.chr ci)) ti.uid;
+(*                 Util.format "%s@\n-%d[%s]->@\n#%d %s@\n@\n" (string_of_t t0) ci w_ci ti.uid (string_of_t ti); *)
                   if Q.mem ti sn then loop sn acc (pred i)
                   else loop (Q.add ti sn) (add ti w_ci r f' pacc) (pred i) in 
           match loop Q.empty (Misc.Right p) (pred len) with
@@ -687,83 +733,6 @@ and easy_empty t0 = match t0.representative with
   | Some None -> true
   | _ -> false
 
-(* and calc_suffs t0 = *)
-(*   (\*   Util.format "CALC_SUFFS %d %d (%s)@\n@\n" t0.uid t0.size (string_of_t t0); *\) *)
-(*   let rec suffs_jump ts f p = match p with *)
-(*     | [] -> ts *)
-(*     | ti::rest -> *)
-(*         if Q.mem ti f then suffs_jump ts f rest *)
-(*         else calc_suffs ti (ts,f,rest) in *)
-(*   let add ti p = ti::p in *)
-(*   let full_search (ts,f,p) = *)
-(*     (\*     Util.format "@\nFULL_SEARCH %d@\n" t0.uid; *\) *)
-(*     let f' = Q.add t0 f in *)
-(*     let ts' = if t0.final then Q.add t0 ts else ts in *)
-(*       if Q.mem t0 f || easy_empty t0 then suffs_jump ts' f' p *)
-(*       else *)
-(*         let _,rm,len = get_maps t0 in *)
-(*         let rec loop sn acc i = *)
-(*         if i < 0 then acc *)
-(*         else *)
-(*           let ti = t0.derivative (rm.(i)) in *)
-(*             if Q.mem ti sn then loop sn acc (pred i) *)
-(*             else loop (Q.add ti sn) (add ti acc) (pred i) in *)
-(*         let p' = loop Q.empty p (pred len) in *)
-(*         suffs_jump ts' f' p' in *)
-
-(*   let go (ts,f,p) ti =  *)
-(*     match ti.suffs with *)
-(*       | Some tsi -> Safelist.fold_left (fun ts ti -> Q.add ti ts) ts tsi *)
-(*       | None -> suffs_jump ts (Q.add ti f) (add ti p) in *)
-    
-(*     match t0.desc with *)
-(*       | Anything        -> (fun (ts,f,p) -> Q.singleton anything) *)
-(*       | Epsilon         -> (fun (ts,f,p) -> suffs_jump (Q.add epsilon ts) f p) *)
-(*       | Empty           -> (fun (ts,f,p) -> suffs_jump ts f p) *)
-(*       | CSet((c1,_)::_) -> (fun (ts,f,p) -> suffs_jump (Q.add epsilon ts) f p) *)
-(*       | Seq(t1,t2) when not t1.final -> *)
-(*           (fun (ts,f,p) -> go (ts,Q.add t0 f,p) t2) *)
-(*       | Rep(t1,0,None)  ->  *)
-(*           (fun (ts,f,p) -> go (Q.add t0 ts,Q.add t0 f,p) t1) *)
-(*       | _               -> full_search *)
-
-(* and get_suffs t0 =  *)
-(*   let ts = match t0.suffs with *)
-(*     | Some ts -> ts *)
-(*     | None -> *)
-(*         let ts = Q.elements(calc_suffs t0 (Q.empty,Q.empty,[])) in  *)
-(*         t0.suffs <- Some ts; *)
-(*         ts in  *)
-(*   mk_alts ts *)
-
-and calc_suffs t0 =
-  let rec full_search ts f p = match p with
-    | [] -> ts
-    | t::rest ->
-        let f' = Q.add t f in
-        if Q.mem t f || easy_empty t then full_search ts f rest
-        else
-          let _,rm,len = get_maps t in
-          let rec loop f'' pacc i =
-            if i < 0 then pacc
-            else
-              let ci = rm.(i) in
-              let ti = t.derivative ci in
-              if Q.mem ti f'' then loop f'' pacc (pred i)
-              else loop (Q.add ti f'') (ti::pacc) (pred i) in
-          let p' = loop f' p (pred len) in
-          let ts' = if t.final then Q.add t ts else ts in
-          full_search ts' f' p' in
-  let ts = full_search Q.empty Q.empty [t0] in
-  mk_alts (Q.elements ts)
-
-and get_suffs t0 = match t0.suffs with
-  | Some [suffso] -> suffso
-  | _ ->
-      let t0' = calc_suffs t0 in
-      t0.suffs <- Some [t0'];
-      t0'
-
 and mk_cset cs = match cs with
   | [] -> empty
   | (c1,_)::_ -> 
@@ -777,7 +746,7 @@ and mk_cset cs = match cs with
 
 and mk_neg_cset cs = 
   let cs' = Safelist.fold_left (fun l p -> CharSet.add p l) [] cs in 
-    match CharSet.negate min_code max_code cs' with 
+    match CharSet.negate min_code real_max_code cs' with 
       | [] -> empty
       | (c1,_)::_ as cs'' -> 
 	  try CSCache.find neg_cset_cache cs''
@@ -810,9 +779,9 @@ and mk_seq t1 t2 =
 and mk_seqs tl = Safelist.fold_left mk_seq epsilon tl
 
 and mk_alt t1 t2 =
-  let rec go (x,acc) l = match acc,l with
-    | [],[]        -> empty
-    | [t1],[]      -> t1
+  let rec go eps (x,acc) l = match acc,l with
+    | [],[]        -> if eps then epsilon else empty
+    | [t1],[]      -> if eps && not t1.final then mk_iter t1 0 (Some 1) else t1
     | _,[]         ->
         let p = (x,acc) in
         begin
@@ -823,11 +792,11 @@ and mk_alt t1 t2 =
             r
         end
     | _,(t1::rest) ->
-        if easy_empty t1 then go (x,acc) rest
+        if easy_empty t1 then go eps (x,acc) rest
         else if t1.desc = Anything then anything
-        else go (883 * t1.hash,t1::acc) rest in
+        else go (eps || t1.final) (883 * t1.hash,t1::acc) rest in
   let rec merge acc l1 l2 = match l1,l2 with
-    | [],[]           -> go (0,[]) acc
+    | [],[]           -> go false (0,[]) acc
     | t1::l1',[]      -> merge (t1::acc) l1' []
     | [],t2::l2'      -> merge (t2::acc) [] l2'
     | t1::l1',t2::l2' ->
@@ -840,6 +809,8 @@ and mk_alt t1 t2 =
     | _,Empty         -> t1
     | Anything,_      -> anything
     | _,Anything      -> anything
+    | Epsilon,_       -> mk_iter t2 0 (Some 1)
+    | _,Epsilon       -> mk_iter t1 0 (Some 1)
     | CSet s1,CSet s2 -> mk_cset (CharSet.union s1 s2)
     | Alt l1,Alt l2   -> merge [] l1 l2
     | Alt l1,_        -> merge [] l1 [t2]
@@ -858,17 +829,17 @@ and mk_iter t0 i jo =
       TIIOCache.add iter_cache p r;
       r in
   let res = match t0.desc,i,jo with
-    | Empty,0,_               -> epsilon
-    | Empty,_,_               -> empty
-    | Epsilon,_,_             -> epsilon
-    | Anything,_,_            -> anything
-    | Rep(_,0,None),0,None    -> t0
-    | CSet[mi,ma],0,None      ->
+    | Empty,0,_                  -> epsilon
+    | Empty,_,_                  -> empty
+    | Epsilon,_,_                -> epsilon
+    | Anything,_,_               -> anything
+    | Rep(_,0,None),0,None       -> t0
+    | Rep(_,0,Some 1),0,(Some 1) -> t0
+    | CSet[mi,ma],0,None         ->
 	if mi=min_code && ma=max_code then anything
 	else go t0 0 None
-    | _,0,Some 0              -> epsilon
-    | _,1,Some 1              -> t0
-    | _,0,Some 1              -> mk_alt t0 epsilon
+    | _,0,Some 0                 -> epsilon
+    | _,1,Some 1                 -> t0
     | Rep(t1,i1,Some j1),i,Some j when i1=j1 && i=j ->
         go t1 (i1*i) (Some (j1*j))
     | _                    -> go t0 i jo in
@@ -901,10 +872,12 @@ and mk_inter t1 t2 =
         else if c < 0 then merge (t1::acc) l1' l2
         else merge (t2::acc) l1 l2' in
   let res = match t1.desc,t2.desc with
-    | Empty,_           -> empty
-    | _,Empty           -> empty
     | Anything,_        -> t2
     | _,Anything        -> t1
+    | Empty,_           -> empty
+    | _,Empty           -> empty
+    | Epsilon,_         -> if t2.final then epsilon else empty
+    | _,Epsilon         -> if t1.final then epsilon else empty
     | CSet s1,CSet s2   -> mk_cset (CharSet.inter s1 s2)
     | Inter l1,Inter l2 -> merge [] l1 l2
     | Inter l1,_        -> merge [] l1 [t2]
@@ -928,12 +901,13 @@ and mk_diff t1 t2 =
     else match t1.desc,t2.desc with
       | _,Anything           -> empty
       | CSet s1, CSet s2     -> mk_cset (CharSet.diff s1 s2)
+      | Epsilon,_            -> if t2.final then empty else epsilon
       | CSet _,Epsilon       -> t1
       | Seq(t11,t12),Epsilon ->
           if t1.final then mk_seq (mk_diff t11 t2) t1 else t1
       | Rep(t11,0,j),Epsilon -> mk_seq (mk_diff t11 t2) t1
-      | Epsilon,_            -> if t2.final then empty else epsilon
       | Diff(t11,t12),_      -> go t11 (mk_alt t12 t2)
+      | _,Epsilon            -> if t1.final then go t1 t2 else t1
       | _                    -> go t1 t2 in
   res
 
@@ -944,15 +918,11 @@ let mk_reverse t0 = get_reverse t0
 
 let mk_star s1 = mk_iter s1 0 None
 
-let mk_iter s1 i j = mk_iter s1 i (if j > 0 then Some j else None)
-
 let representative t0 = get_representative t0 
 
 let is_empty t0 = representative t0 = None
 
 let is_final t0 = t0.final
-
-let suffs t0 = get_suffs t0 
 
 let derivative t w = 
   let n = String.length w in 
@@ -969,34 +939,31 @@ let reverse_string w =
   done;
   Buffer.contents buf
 
-let splittable_cex t1 t2 = 
-  let t1_suffs = suffs t1 in
-  let t2_prefs = mk_reverse (suffs (mk_reverse t2)) in
-  let overlap_or_epsilon = mk_inter t1_suffs t2_prefs in
-  let overlap = mk_diff overlap_or_epsilon epsilon in 
-    Util.format "T1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n"  
-      (string_of_t t1) (string_of_t t1_suffs) 
-      (string_of_t t2) (string_of_t t2_prefs)
-      (string_of_t overlap_or_epsilon);
-  match representative overlap with
-    | Some over -> 
-        let t2_suff = derivative t2 over in 
-        let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in
-        begin match representative t1_pref,representative t2_suff with
-          | Some w1,Some w2 -> Some(w1,over,w2)
-          | _ -> 
-              Berror.run_error (Info.M "splittable_cex")
-                (fun () -> 
-                   Util.format "error computing representative from %s@\nT1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n" over 
-                   (string_of_t t1) (string_of_t t1_suffs) 
-                   (string_of_t t2) (string_of_t t2_prefs)
-                   (string_of_t overlap_or_epsilon))
-        end
-    | None -> None
+let left_marked t0 = get_marked true t0
+let right_marked t0 = get_marked false t0
+
+let splittable_cex = 
+  let lp = mk_seq marker (mk_iter anychar 1 None) in 
+  let ls = mk_seq marker (mk_iter anychar 0 None) in 
+  let rp = mk_seq (mk_iter anychar 1 None) marker in 
+  let rs = mk_seq (mk_iter anychar 0 None) marker in 
+  (fun t1 t2 -> 
+     let b1 = mk_seq (mk_inter (mk_seq t1 lp) (left_marked t1)) ls in 
+     let b2 = mk_seq rs (mk_inter (mk_seq rp t2) (right_marked t2)) in
+(*      Util.format "B1=%s@\nB2=%s@\n" (string_of_t b1) (string_of_t b2); *)
+     let ambig = mk_inter b1 b2 in 
+     match representative ambig with
+       | None -> Misc.Right (mk_seq t1 t2)
+       | Some w -> Misc.Left("[" ^ w ^ "]","","",""))
 
 let iterable_cex t1 = 
-  splittable_cex t1 (mk_star t1)
-
+  if t1.final then Misc.Left("","","","")
+  else
+    let t1s = mk_star t1 in 
+    match splittable_cex t1 t1s with
+      | Misc.Right _ -> Misc.Right t1s
+      | res -> res
+            
 let match_string t0 w = 
   let n = String.length w in 
   let rec loop i ti =     
@@ -1033,6 +1000,8 @@ let match_string_reverse_positions t0 w =
     else loop acc' (pred i) (ti.derivative (Char.code w.[i])) in
   loop Int.Set.empty (pred n) t0
 
+let mk_iter s1 i j = mk_iter s1 i (if j > 0 then Some j else None)
+
 let mk_string s = 
   let n = String.length s in 
   let rec loop i acc = 
@@ -1054,12 +1023,12 @@ let equiv s1 s2 =
   && is_empty (mk_diff s2 s1) 
 
 let splittable s1 s2 = match splittable_cex s1 s2 with 
-  | None -> true
-  | Some _ -> false
+  | Misc.Right _ -> true
+  | _ -> false
 
 let iterable s0 = match iterable_cex s0 with 
-  | None -> true
-  | Some _ -> false
+  | Misc.Right _ -> true
+  | _ -> false
 
 let is_singleton s0 = 
   match representative s0 with 
@@ -1096,3 +1065,111 @@ let star_split s1 w =
       ps (0,[]) in 
     Safelist.rev rev 
 
+(* and calc_suffs1 t0 = *)
+(*   let rec full_search ts f p = match p with *)
+(*     | [] -> ts *)
+(*     | t::rest -> *)
+(*         let f' = Q.add t f in *)
+(*         if Q.mem t f || easy_empty t then full_search ts f rest *)
+(*         else *)
+(*           let _,rm,len = get_maps t in *)
+(*           let rec loop f'' pacc i = *)
+(*             if i < 0 then pacc *)
+(*             else *)
+(*               let ci = rm.(i) in *)
+(*               let ti = t.derivative ci in *)
+(*               if Q.mem ti f'' then loop f'' pacc (pred i) *)
+(*               else loop (Q.add ti f'') (ti::pacc) (pred i) in *)
+(*           let p' = loop f' p (pred len) in *)
+(*           let ts' = if t.final then Q.add t ts else ts in *)
+(*           full_search ts' f' p' in *)
+(*   let ts = full_search Q.empty Q.empty [t0] in *)
+(*   mk_alts (Q.elements ts) *)
+
+(* and get_suffs1 t0 = match t0.suffs1 with *)
+(*   | Some suffs1 -> suffs1 *)
+(*   | _ -> *)
+(*       let t0' = calc_suffs1 t0 in *)
+(*       t0.suffs1 <- Some t0'; *)
+(*       t0' *)
+
+(* and calc_suffs2 t0 = *)
+(*   (\*   Util.format "CALC_SUFFS2 %d %d (%s)@\n@\n" t0.uid t0.size (string_of_t t0); *\) *)
+(*   let rec suffs2_jump ts f p = match p with *)
+(*     | [] -> ts *)
+(*     | ti::rest -> *)
+(*         if Q.mem ti f then suffs2_jump ts f rest *)
+(*         else calc_suffs2 ti (ts,f,rest) in *)
+(*   let add ti p = ti::p in *)
+(*   let full_search (ts,f,p) = *)
+(*     (\*     Util.format "@\nFULL_SEARCH %d@\n" t0.uid; *\) *)
+(*     let f' = Q.add t0 f in *)
+(*     let ts' = if t0.final then Q.add t0 ts else ts in *)
+(*       if Q.mem t0 f || easy_empty t0 then suffs2_jump ts' f' p *)
+(*       else *)
+(*         let _,rm,len = get_maps t0 in *)
+(*         let rec loop sn acc i = *)
+(*         if i < 0 then acc *)
+(*         else *)
+(*           let ti = t0.derivative (rm.(i)) in *)
+(*             if Q.mem ti sn then loop sn acc (pred i) *)
+(*             else loop (Q.add ti sn) (add ti acc) (pred i) in *)
+(*         let p' = loop Q.empty p (pred len) in *)
+(*         suffs2_jump ts' f' p' in *)
+
+(*   let go (ts,f,p) ti = *)
+(*     match ti.suffs2 with *)
+(*       | Some tsi -> Safelist.fold_left (fun ts ti -> Q.add ti ts) ts tsi *)
+(*       | None -> suffs2_jump ts (Q.add ti f) (add ti p) in *)
+    
+(*     match t0.desc with *)
+(*       | Anything        -> (fun (ts,f,p) -> Q.singleton anything) *)
+(*       | Epsilon         -> (fun (ts,f,p) -> suffs2_jump (Q.add epsilon ts) f p) *)
+(*       | Empty           -> (fun (ts,f,p) -> suffs2_jump ts f p) *)
+(*       | CSet((c1,_)::_) -> (fun (ts,f,p) -> suffs2_jump (Q.add epsilon ts) f p) *)
+(*       | Seq(t1,t2) -> *)
+(*           if not (t1.final || t2.final) then *)
+(*             (fun (ts,f,p) -> go (ts,Q.add t0 f,p) t2) *)
+(*           else *)
+(*             full_search *)
+(*       | Rep(t1,0,None) ->  *)
+(*           if not t1.final then *)
+(*             (fun (ts,f,p) -> go (Q.add t0 ts,Q.add t0 f,p) t1) *)
+(*           else *)
+(*             full_search *)
+(*       | _               -> full_search *)
+
+(* and get_suffs2 t0 = *)
+(*   let ts = match t0.suffs2 with *)
+(*     | Some ts -> ts *)
+(*     | None -> *)
+(*         let ts = Q.elements(calc_suffs2 t0 (Q.empty,Q.empty,[])) in *)
+(*         t0.suffs2 <- Some ts; *)
+(*         ts in *)
+(*   mk_alts ts *)
+
+
+(* splittable *)
+(*   let t1_suffs = suffs1 t1 in *)
+(*   let t2_prefs = mk_reverse (suffs1 (mk_reverse t2)) in *)
+(*   let overlap_or_epsilon = mk_inter t1_suffs t2_prefs in *)
+(*   let overlap = mk_diff overlap_or_epsilon epsilon in  *)
+(*     Util.format "T1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n" *)
+(*       (string_of_t t1) (string_of_t t1_suffs) *)
+(*       (string_of_t t2) (string_of_t t2_prefs) *)
+(*       (string_of_t overlap_or_epsilon); *)
+(*   match representative overlap with *)
+(*     | Some over ->  *)
+(*         let t2_suff = derivative t2 over in  *)
+(*         let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in *)
+(*         begin match representative (mk_inter t1 t1_pref),representative (mk_inter t2 t2_suff) with *)
+(*           | Some w1,Some w2 -> Misc.Left(w1 ^ over, w2, w1, over ^ w2) *)
+(*           | _ ->  *)
+(*               Berror.run_error (Info.M "splittable_cex") *)
+(*                 (fun () ->  *)
+(*                    Util.format "error computing representative from %s@\nT1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n" over  *)
+(*                    (string_of_t t1) (string_of_t t1_suffs)  *)
+(*                    (string_of_t t2) (string_of_t t2_prefs) *)
+(*                    (string_of_t overlap_or_epsilon)) *)
+(*         end *)
+(*     | None -> Misc.Right(mk_seq t1 t2) *)

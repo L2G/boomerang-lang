@@ -1,6 +1,6 @@
 module Demo = 
 (* Some useful regular expressions *)
-let N : regexp= [a-zA-Z ]*
+let N : regexp= [a-zA-Z ]+
 let E : regexp= [a-zA-Z@.]*
 
 (* ----------------------------------------------------------------- *)
@@ -160,49 +160,49 @@ into
 
 
 
-(*** Q-lenses ***)
-let xml_space (space:string) = qconst "" " "* space ""
-let xml_nl = qconst "" ((("\n" | " ")*."\n")?) "\n" ""
+(* (\*** Q-lenses ***\) *)
+(* let xml_space (space:string) = qconst "" " "* space "" *)
 
-let xml_tag (spaces:string) (name:string) (content:lens) = 
-  xml_space spaces .ins ("<" . name . ">") . content . ins ("</" .name.">"). xml_nl
+(* let xml_tag (spaces:string) (name:string) (content:lens) =  *)
+(*   xml_space spaces .ins ("<" . name . ">") . content . ins ("</" .name.">") . ins "\n" *)
 
-let chunk = xml_tag "  " "leaf" (key [a-z]+ . del [0-9]* )
-let ql = 
-  xml_space "" . ins "<root>". xml_nl .
-    (<chunk>. (del "\n" . <chunk>)* )? .
-  xml_space "" . ins "</root>"
+(* let chunk = xml_tag "  " "leaf" (key [a-z]+ . del [0-9]* ) *)
 
-test ql.get 
-<<
-foo42
-bar51
->> = 
-<<
-<root>
-  <leaf>foo</leaf>
-  <leaf>bar</leaf>
-</root>
->>
+(* let ql =  *)
+(*   xml_space "" . ins "<root>".  *)
+(*   <chunk>* .  *)
+(*   xml_space "" . ins "</root>" *)
 
-(* adding extra spaces at the end of lines, removing or addind newlines, etc*)
-test ql.put 
-<<
-<root>
-    <leaf>bar</leaf>  
-  <leaf>zoo</leaf>  <leaf>foo</leaf> 
-  <leaf>barfoo</leaf> 
+(* test ql.get  *)
+(* << *)
+(* foo42 *)
+(* bar51 *)
+(* >> =  *)
+(* << *)
+(* <root> *)
+(*   <leaf>foo</leaf> *)
+(*   <leaf>bar</leaf> *)
+(* </root> *)
+(* >> *)
+
+(* (\* adding extra spaces at the end of lines, removing or addind newlines, etc*\) *)
+(* test ql.put  *)
+(* << *)
+(* <root> *)
+(*     <leaf>bar</leaf>   *)
+(*   <leaf>zoo</leaf>  <leaf>foo</leaf>  *)
+(*   <leaf>barfoo</leaf>  *)
      
-</root>
->>
-into
-<<
-foo42
-bar51
->> = 
-<<
-bar51
-zoo
-foo42
-barfoo
->> 
+(* </root> *)
+(* >> *)
+(* into *)
+(* << *)
+(* foo42 *)
+(* bar51 *)
+(* >> =  *)
+(* << *)
+(* bar51 *)
+(* zoo *)
+(* foo42 *)
+(* barfoo *)
+(* >>  *)

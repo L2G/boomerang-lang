@@ -50,13 +50,13 @@ let author : lens =
   let string_ws : lens = copy ((ALPHA . CHAR* . ALPHA) - ANY_AND) in
   ins au_tag . 
   ( (string_no_ws . copy /, / . string_ws)
-  | (string_ws . del / /) ~ (string_no_ws . ins ", "))
+  || (string_ws . del / /) ~ (string_no_ws . ins ", "))
 
 (* process a list of authors *)
 let wsp_and : regexp = 
   WS+ . /and/ . WS+
 let authors : lens = 
-  author | author . ( default (wsp_and <-> "\n") " and " . author)+
+author . ( default (wsp_and <-> "\n") " and " . author)*
 
 (* unit tests *)
 test author.get "Pierce, Benjamin C." = "AU  - Pierce, Benjamin C."
@@ -150,14 +150,14 @@ test braces.create "ho{W}{D}{Y}" = "{hoWDY}"
 (* how do we write precise types for canonizers? *)
 let empty_cn : canonizer = mk_cn (copy //)
 
-let first_cn : canonizer = mk_cn (ins "{" . copy upper . ins "}" | copy lower | braces)
+let first_cn : canonizer = mk_cn ((ins "{" . copy upper . ins "}" || braces) || copy lower )
 
 test canonize first_cn "H" = "{H}"
 test canonize first_cn "f" = "f"
 test canonize first_cn "{HeLlO}" = "{H}e{L}l{O}"
 
 (* NOTE: must be lazy star / dot *)
-let rest_cn  : canonizer = (mk_cn (to_lower | braces))*
+let rest_cn  : canonizer = (mk_cn (to_lower || braces))*
 let title_can : canonizer = empty_cn | (first_cn . rest_cn)
 
 test choose title_can "{L}{O}{O}{J}: {W}eaving {L}{O}{O}{M} into {J}ava" = 
@@ -207,7 +207,7 @@ let mk_template (lb:string) (l:lens) (rb:string) : lens =
 let quoted_preamble = mk_template "\"" (copy quoted_value) "\""
 let braced_preamble = mk_template "{" (copy braced_value) "}"
 let bare_preamble = mk_template "" (copy bare_value) ""
-let any_preamble = quoted_preamble | braced_preamble | bare_preamble 
+let any_preamble = quoted_preamble || braced_preamble || bare_preamble 
 
 let std_field_bibtex (o:regexp) = ws_nl . o . (ctype any_preamble)
 let std_field_ris (r:string) (c:string) = (str r) . (atype any_preamble) . (str c)
@@ -231,14 +231,14 @@ let field_bibtex (loo:lens) (l1:lens) (l2:lens) (l3:lens) : lens =
   let tmpl1 = mk_template "{" l1 "}" in
   let tmpl2 = mk_template "\"" l2 "\"" in
   let tmpl3 = mk_template "" l3 "" in
-  let templates = tmpl1 | tmpl2 | tmpl3 in
+  let templates = tmpl1 || tmpl2 || tmpl3 in
   ws_nl . (ctype loo) . (ctype templates)
 
 let field_ris (r:string) (loo:lens) (l1:lens) (l2:lens) (l3:lens) (c:string) : lens =
   let tmpl1 = mk_template "{" l1 "}" in
   let tmpl2 = mk_template "\"" l2 "\"" in
   let tmpl3 = mk_template "" l3 "" in
-  let templates = tmpl1 | tmpl2 | tmpl3 in
+  let templates = tmpl1 || tmpl2 || tmpl3 in
   (str r) . (atype loo) . (atype templates) . (str c)
 
 let uniform_field_bibtex (loo:lens) (l:lens) : lens = field_bibtex loo l l l
@@ -255,8 +255,8 @@ let do_field
   (c:string) 
   : lens =
     mk_do_field r lo o "{" l1 "}" c
-  | mk_do_field r lo o "\"" l2 "\"" c
-  | mk_do_field r lo o "" l3 "" c
+  || mk_do_field r lo o "\"" l2 "\"" c
+  || mk_do_field r lo o "" l3 "" c
 
 (* special processors for fields *)
 let digits : regexp = [0-9]+
@@ -385,27 +385,13 @@ let type_ris (r:string) : regexp = /TY  - / . (str r)
 let do_type (b:string) (r:string) : lens = 
   (/@/ . (str b) . ws_nl . /{/) <-> ("TY  - " . r)
 
-
-let chunk_bibtex : lens =
-  (type_bibtex "article"       | type_bibtex "inproceedings" |
-   type_bibtex "misc"          | type_bibtex "incollection" |
-   type_bibtex "mastersthesis" | type_bibtex "manual" |
-   type_bibtex "phdthesis") .  (* includes the open { *)
-  key_bibtex . fields_bibtex . ws_nl . /}/
-
-let chunk_ris : lens =
-  (type_ris "JOUR" | type_ris "CONF" | type_ris "UNPB" |
-   type_ris "CHAP" | type_ris "THES" | type_ris "COMP") . "\n" .
-  key_ris . "\n" . fields_ris . "ER  -\n\n"
-
 let chunk : lens = 
   ( do_type "article" "JOUR" 
   | do_type "inproceedings" "CONF"
   | do_type "misc" "UNPB"
   | do_type "incollection" "CHAP"
-  | do_type "mastersthesis" "THES"
-  | do_type "manual" "COMP"
-  | do_type "phdthesis" "THES")
+  | (do_type "mastersthesis" "THES" || do_type "phdthesis" "THES")
+  | do_type "manual" "COMP" )
   . ins "\n" . 
   do_key . ins "\n" . 
   fields . 
