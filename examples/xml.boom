@@ -51,8 +51,9 @@ let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =
   || (l3 . l4) ~ (l1 . l2) 
   || ( (l2 . l4) ~ (l1 . l3); f1324 )
   || ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
-      
+
 let l4 = sort4 (copy "a") (copy "b") (copy "c") (copy "d")
+      
 test l4.get "abcd" = "abcd"
 test l4.get "abdc" = "abcd"
 test l4.get "acbd" = "abcd"

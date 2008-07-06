@@ -184,6 +184,7 @@ let prelude_spec =
   ; pmk_lll    "lens_union"           L.union
   ; pmk_lll    "lens_disjoint_union"  L.disjoint_union
   ; pmk_lll    "lens_concat"          L.concat
+  ; pmk_lll    "lens_swap"            (fun i l1 l2 -> L.permute i [1;0] [l1;l2])
   ; pmk_liil   "lens_iter"            L.iter
   ; pmk_ll     "lens_star"            (fun i l -> L.iter i l 0 (-1))
   ; pmk_izlzl  "permute"              (fun i is ls -> L.permute i (Safelist.map get_i is) (Safelist.map get_l ls))

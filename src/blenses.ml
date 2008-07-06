@@ -1125,7 +1125,8 @@ module DLens = struct
              else 
                begin 
                  let j = sigma_arr.(i) in 
-                 a_arr.(j) <- dl_arr.(i).get c_arr.(j);
+                 let ai = dl_arr.(i).get c_arr.(i) in 
+                 a_arr.(j) <- ai;
                  loop (succ i)
                end in
            loop 0;
@@ -1157,9 +1158,9 @@ module DLens = struct
              else 
                begin 
                  let i = sigma_inv_arr.(j) in 
-                 let ci,di = dl_arr.(j).create a_arr.(j) d in 
-                   c_arr.(i) <- ci;
-                   loop (succ j) di 
+                 let ci,di = dl_arr.(i).create a_arr.(j) d in 
+                 c_arr.(i) <- ci;
+                 loop (succ j) di 
                end in
            let d' = loop 0 d in
            let c' = concat_array c_arr in 
@@ -1167,17 +1168,20 @@ module DLens = struct
       parse = lift_r info (parse_str n) ct 
         (fun c -> 
            let c_arr = split_c c in 
+           let s_arr = Array.create k (S_string "") in 
            let d_arr = Array.create k TMap.empty in
-           let rec loop i s =
-             if i < 0 then s 
+           let rec loop i =
+             if i < 0 then () 
              else
                begin 
                  let j = sigma_arr.(i) in 
                  let si,di = dl_arr.(i).parse c_arr.(i) in 
                  d_arr.(j) <- di;
-                 loop (pred i) (S_concat(si,s))
+                 s_arr.(j) <- si;
+                 loop (pred i)
                end in
-           let s' = loop (pred k) (S_string "") in 
+           loop (pred k);
+           let s' = Array.fold_right (fun si sacc -> S_concat(si,sacc)) s_arr (S_string "") in 
            let d' = Array.fold_right (fun di dacc -> di++dacc) d_arr TMap.empty in 
            (s',d'));
       key = lift_r info n at 

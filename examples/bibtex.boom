@@ -48,9 +48,9 @@ let author : lens =
   let ANY_AND : regexp = ANY . /and/ . ANY in
   let string_no_ws : lens = copy (ALPHA+ - ANY_AND) in
   let string_ws : lens = copy ((ALPHA . CHAR* . ALPHA) - ANY_AND) in
-  ins au_tag . 
+  ins au_tag .
   ( (string_no_ws . copy /, / . string_ws)
-  || (string_ws . del / /) ~ (string_no_ws . ins ", "))
+  || ((string_ws . del / /) ~ (string_no_ws . ins ", ")) )
 
 (* process a list of authors *)
 let wsp_and : regexp = 

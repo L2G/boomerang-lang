@@ -100,6 +100,9 @@ let lens_disjoint_union (l1:lens) (l2:lens) : lens =
 let lens_concat (l1:lens) (l2:lens) : lens = 
   Native.Prelude.lens_concat l1 l2
 
+let lens_swap (l1:lens) (l2:lens) : lens = 
+  Native.Prelude.lens_swap l1 l2
+
 let lens_iter (l1:lens) (x:int) (y:int) : lens = 
   Native.Prelude.lens_iter l1 x y 
     
