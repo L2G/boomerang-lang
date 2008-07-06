@@ -6,17 +6,13 @@ let WSP : regexp = [ \n]+
   
 (* sorting lenses *)
 let sort2 (l1:lens) (l2:lens) : lens = 
-  ( l1 . l2 || l2 ~ l1)
+  left_quot (sort #{regexp}[ctype l1; ctype l2]) (l1 . l2)
 
 test sort2 (copy "a") (copy "b").get "ab" = "ab"
 test sort2 (copy "a") (copy "b").get "ba" = "ab"
 
 let sort3 (l1:lens) (l2:lens) (l3:lens) : lens = 
-  let s23 : lens = sort2 l2 l3 in 
-  ( l1 . s23
-    || (l2 ~ l1) . l3
-    || l3 ~ (l1 . l2)
-    || s23 ~ l1 )
+  left_quot (sort #{regexp}[ctype l1; ctype l2; ctype l3]) (l1 . l2 . l3)
 
 let l3 = sort3 (copy "a") (copy "b") (copy "c")
 test l3.get "abc" = "abc"
@@ -26,31 +22,45 @@ test l3.get "bca" = "abc"
 test l3.get "cab" = "abc"
 test l3.get "cba" = "abc"
 
+
 (* sort4 requires that (l2,l4) and (l1,l3) be unambiguously
    concatenable, as an artifact of the way we implement it using a
    binary swap operator and composition. we wouldn't need this if we
    had a more powerful permutation operator on lenses. *)
+(* let sort2 (l1:lens) (l2:lens) = (l2 ~ l1 || l1 . l2) *)
+
+(* let sort3 (l1:lens) (l2:lens) (l3:lens) : lens =  *)
+(*   let s23 : lens = sort2 l2 l3 in  *)
+(*   ( l1 . s23 *)
+(*     || (l2 ~ l1) . l3 *)
+(*     || l3 ~ (l1 . l2) *)
+(*     || s23 ~ l1 ) *)
+
+
+(* let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =  *)
+(*   let s12 : lens = sort2 l1 l2 in  *)
+(*   let s23 : lens = sort2 l2 l3 in  *)
+(*   let s34 : lens = sort2 l3 l4 in  *)
+(*   let s123 : lens = sort3 l1 l2 l3 in  *)
+(*   let s234 : lens = sort3 l2 l3 l4 in  *)
+(*   let f1324 : lens =  *)
+(*     copy (atype l1) .  *)
+(*     (copy (atype l3) ~ (copy (atype l2))) .  *)
+(*     copy (atype l4) in  *)
+(*   ( l1 . s234  *)
+(*   || s234 ~ l1 *)
+(*   || ((l2 . l3) ~ l1) . l4 *)
+(*   || (l2 ~ l1) . s34  *)
+(*   || (l3 ~ s12) . l4 *)
+(*   || l4 ~ (l1 . s23) *)
+(*   || l4 ~ ((l2 ~ l1) . l3) *)
+(*   || l4 ~ (l3 ~ (l1 . l2)) *)
+(*   || (l3 . l4) ~ (l1 . l2)  *)
+(*   || ( (l2 . l4) ~ (l1 . l3); f1324 ) *)
+(*   || ( (l3 ~ l1) . (l4 ~ l2); f1324 ) ) *)
+
 let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens = 
-  let s12 : lens = sort2 l1 l2 in 
-  let s23 : lens = sort2 l2 l3 in 
-  let s34 : lens = sort2 l3 l4 in 
-  let s123 : lens = sort3 l1 l2 l3 in 
-  let s234 : lens = sort3 l2 l3 l4 in 
-  let f1324 : lens = 
-    copy (atype l1) . 
-    (copy (atype l3) ~ (copy (atype l2))) . 
-    copy (atype l4) in 
-  ( l1 . s234 
-  || s234 ~ l1
-  || ((l2 . l3) ~ l1) . l4
-  || (l2 ~ l1) . s34 
-  || (l3 ~ s12) . l4
-  || l4 ~ (l1 . s23)
-  || l4 ~ ((l2 ~ l1) . l3)
-  || l4 ~ (l3 ~ (l1 . l2))
-  || (l3 . l4) ~ (l1 . l2) 
-  || ( (l2 . l4) ~ (l1 . l3); f1324 )
-  || ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
+  left_quot (sort #{regexp}[ctype l1; ctype l2; ctype l3; ctype l4]) (l1 . l2 . l3 . l4)
 
 let l4 = sort4 (copy "a") (copy "b") (copy "c") (copy "d")
       
