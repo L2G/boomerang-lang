@@ -155,9 +155,21 @@ let pmk_qqq   = pmk2 S.SCanonizer mk_qfun S.SCanonizer mk_qfun S.SCanonizer mk_q
 let pmk_qss   = pmk2 S.SCanonizer mk_qfun S.SString mk_sfun S.SString mk_s
 let pmk_qll   = pmk2 S.SCanonizer mk_qfun S.SLens mk_lfun S.SLens mk_l
 let pmk_qiiq  = pmk3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun S.SCanonizer mk_q
+let pmk_frrq  = pmk3 (S.SString ^> S.SString) mk_ffun S.SRegexp mk_rfun S.SRegexp mk_rfun S.SCanonizer mk_q
 
 let pmk_sync  = pmk4 S.SLens mk_lfun S.SString mk_sfun S.SString mk_sfun S.SString mk_sfun 
                 (((S.SString ^* S.SString) ^* S.SString) ^* S.SString) (fun i x -> x)
+
+let pmk_dup  = 
+  pmk3 S.SLens mk_lfun (S.SString ^> S.SString) mk_ffun S.SRegexp mk_rfun S.SLens mk_l
+
+let pmk_izlzl = 
+  pmk2 (S.SData([S.SInteger],list_qid)) mk_listfun (S.SData([S.SLens],list_qid)) mk_listfun S.SLens mk_l 
+
+let pmk_rzq = 
+  pmk1 (S.SData([S.SRegexp],list_qid)) mk_listfun S.SCanonizer mk_q
+
+
 
 let prelude_spec =
   [ (* lens operations *)
@@ -174,96 +186,98 @@ let prelude_spec =
   ; pmk_lll    "lens_concat"          L.concat
   ; pmk_liil   "lens_iter"            L.iter
   ; pmk_ll     "lens_star"            (fun i l -> L.iter i l 0 (-1))
-  ; pmk_lll    "lens_swap"            L.swap
-  ; pmk_sll    "dmatch"                 (fun i -> L.dmatch i L.std_lookup)
-  ; pmk_ssll   "smatch"                 (fun i s -> 
-                                            let f = float_of_string s in
-                                            L.dmatch i (L.sim_lookup f))
-  ; pmk_lll    "compose"                L.compose
-  ; pmk_lsl    "default"                (fun i l1 s2 -> L.default i s2 l1)
-  ; pmk_rl     "key"                    L.key
-  ; pmk_ll     "forgetkey"              (fun i -> L.forgetkey)
-  ; pmk_rrl    "filter"                 L.filter
-                                        
-  (* canonizer operations *)            
-  ; pmk_qqq    "canonizer_union"        C.union
-  ; pmk_qqq    "canonizer_concat"       C.concat
-  ; pmk_qiiq   "canonizer_iter"         C.iter
-  ; pmk_qss    "canonize"               (fun _ -> C.canonize)
-  ; pmk_qss    "choose"                 (fun _ -> C.choose)
-  ; pmk_qll    "left_quot"              L.left_quot
-  ; pmk_lql    "right_quot"             L.right_quot
-  ; pmk_ircsq  "columnize"              C.columnize
-                                            
-  (* char operations *)                 
-  ; pmk_cs     "string_of_char"         (fun _ -> String.make 1)
+  ; pmk_izlzl  "permute"              (fun i is ls -> L.permute i (Safelist.map get_i is) (Safelist.map get_l ls))
+  ; pmk_sll    "dmatch"               (fun i -> L.dmatch i L.std_lookup)
+  ; pmk_ssll   "smatch"               (fun i s -> 
+                                          let f = float_of_string s in
+                                          L.dmatch i (L.sim_lookup f))
+  ; pmk_lll    "compose"              L.compose
+  ; pmk_lsl    "default"              (fun i l1 s2 -> L.default i s2 l1)
+  ; pmk_rl     "key"                  L.key
+  ; pmk_ll     "forgetkey"            (fun i -> L.forgetkey)
+  ; pmk_rrl    "filter"               L.filter
+  ; pmk_dup    "dup1"                 (fun i l f fat -> L.dup i true l (fun s -> get_s (f (mk_s i s))) fat)
+  ; pmk_dup    "dup2"                 (fun i l f fat -> L.dup i false l (fun s -> get_s (f (mk_s i s))) fat)
+                                      
+  (* canonizer operations *)          
+  ; pmk_qqq    "canonizer_union"      C.union
+  ; pmk_qqq    "canonizer_concat"     C.concat
+  ; pmk_qiiq   "canonizer_iter"       C.iter
+  ; pmk_qss    "canonize"             (fun _ -> C.canonize)
+  ; pmk_qss    "choose"               (fun _ -> C.choose)
+  ; pmk_qll    "left_quot"            L.left_quot
+  ; pmk_lql    "right_quot"           L.right_quot
+  ; pmk_ircsq  "columnize"            C.columnize
+  ; pmk_frrq   "normalize"            (fun i f fc fc0 -> C.normalize i (fun s -> get_s (f (mk_s i s))) fc fc0)
+  ; pmk_rzq    "sort"                 (fun i rl -> C.sort i (Safelist.map get_r rl))          
+                                
+  (* char operations *)               
+  ; pmk_cs     "string_of_char"       (fun _ -> String.make 1)
 
-  (* char operations *)                 
-  ; pmk_iib     "gt"                    (fun _ -> (>))
-  ; pmk_iib     "lt"                    (fun _ -> (<))
-  ; pmk_iib     "geq"                   (fun _ -> (>=))
-  ; pmk_iib     "leq"                   (fun _ -> (<=))
-  ; pmk_iii    "plus"                   (fun _ -> (+))
-  ; pmk_iii    "minus"                  (fun _ -> (-))
-  ; pmk_iii    "times"                  (fun _ x y -> x * y)
-  ; pmk_iii    "div"                    (fun _ x y -> x / y)
-  ; pmk_iii    "mod"                    (fun _ x y -> x mod y)
+  (* char operations *)               
+  ; pmk_iib     "gt"                  (fun _ -> (>))
+  ; pmk_iib     "lt"                  (fun _ -> (<))
+  ; pmk_iib     "geq"                 (fun _ -> (>=))
+  ; pmk_iib     "leq"                 (fun _ -> (<=))
+  ; pmk_iii    "plus"                 (fun _ -> (+))
+  ; pmk_iii    "minus"                (fun _ -> (-))
+  ; pmk_iii    "times"                (fun _ x y -> x * y)
+  ; pmk_iii    "div"                  (fun _ x y -> x / y)
+  ; pmk_iii    "mod"                  (fun _ x y -> x mod y)
                                     
-  (* string operations *)               
-  ; pmk_sss    "string_concat"          (fun _ -> (^))    
-  ; pmk_ss     "read"                   (fun _ fn -> Misc.read fn)
-                                        
-  (* regexp operations *)               
-  ; pmk_sr     "str"                    (fun _ -> Bregexp.mk_string)
-  ; pmk_r      "empty"                  Bregexp.empty
-  ; pmk_rb     "is_empty"               (fun _ -> Bregexp.is_empty)
-  ; pmk_rrr    "regexp_concat"          (fun _ -> Bregexp.mk_seq)
-  ; pmk_rrr    "regexp_union"           (fun _ -> Bregexp.mk_alt)
-  ; pmk_rrr    "diff"                   (fun _ -> Bregexp.mk_diff)
-  ; pmk_rrr    "inter"                  (fun _ -> Bregexp.mk_inter)
-  ; pmk_riir   "regexp_iter"            (fun i -> Bregexp.mk_iter)
-  ; pmk_rrb    "equiv"                  (fun _ -> Bregexp.equiv)
-(*   ; pmk_rr     "suffs1"                 (fun _ -> Bregexp.suffs1) *)
-(*   ; pmk_rr     "suffs2"                 (fun _ -> Bregexp.suffs2) *)
-  ; pmk_rs     "shortest"               wrap_rep
-  ; pmk_rsi    "count"                  (fun i r s -> Safelist.length (Bregexp.star_split r s))
-  ; pmk_rsb    "matches"                (fun _ -> Bregexp.match_string)
-  ; pmk_rrb    "splittable"             (fun _ -> Bregexp.splittable)
-  ; pmk_rrs    "splittable_cex"         (fun _ t1 t2 -> match Bregexp.splittable_cex t1 t2 with
-                                           | Misc.Left(w1,w2,w1',w2') -> w1 ^ " : " ^ w2 ^ " & " ^ w1' ^ " : " ^ w2'
-                                           | _ -> "NONE")
-  ; pmk_rb     "iterable"               (fun _ -> Bregexp.iterable)
-  ; pmk_rrb    "disjoint"               (fun _ -> Bregexp.disjoint)
-                                        
-  (* boolean operations *)              
-  ; pmk_bbb    "land"                   (fun _ -> (&&))
-  ; pmk_bbb    "lor"                    (fun _ -> (||))
-  ; pmk_bb     "not"                    (fun _ -> not)
-                                        
-  (* run-time checking *)               
-  ; pmk_lr     "ctype"                  (fun _ -> L.ctype)
-  ; pmk_lr     "atype"                  (fun _ -> L.atype)
-  ; pmk_lq     "canonizer_of_lens"      L.canonizer_of_t
-  ; pmk_rs     "string_of_regexp"       (fun _ r1 -> Bregexp.string_of_t r1)
+  (* string operations *)             
+  ; pmk_sss    "string_concat"        (fun _ -> (^))    
+  ; pmk_ss     "read"                 (fun _ fn -> Misc.read fn)
+                                      
+  (* regexp operations *)             
+  ; pmk_sr     "str"                  (fun _ -> Bregexp.mk_string)
+  ; pmk_r      "empty"                Bregexp.empty
+  ; pmk_rb     "is_empty"             (fun _ -> Bregexp.is_empty)
+  ; pmk_rrr    "regexp_concat"        (fun _ -> Bregexp.mk_seq)
+  ; pmk_rrr    "regexp_union"         (fun _ -> Bregexp.mk_alt)
+  ; pmk_rrr    "diff"                 (fun _ -> Bregexp.mk_diff)
+  ; pmk_rrr    "inter"                (fun _ -> Bregexp.mk_inter)
+  ; pmk_riir   "regexp_iter"          (fun i -> Bregexp.mk_iter)
+  ; pmk_rrb    "equiv"                (fun _ -> Bregexp.equiv)
+  ; pmk_rs     "shortest"             wrap_rep
+  ; pmk_rsi    "count"                (fun i r s -> Safelist.length (Bregexp.star_split r s))
+  ; pmk_rsb    "matches"              (fun _ -> Bregexp.match_string)
+  ; pmk_rrb    "splittable"           (fun _ -> Bregexp.splittable)
+  ; pmk_rrs    "splittable_cex"       (fun _ t1 t2 -> match Bregexp.splittable_cex t1 t2 with
+                                         | Misc.Left(w1,w2,w1',w2') -> w1 ^ " : " ^ w2 ^ " & " ^ w1' ^ " : " ^ w2'
+                                         | _ -> "NONE")
+  ; pmk_rb     "iterable"             (fun _ -> Bregexp.iterable)
+  ; pmk_rrb    "disjoint"             (fun _ -> Bregexp.disjoint)
+                                      
+  (* boolean operations *)            
+  ; pmk_bbb    "land"                 (fun _ -> (&&))
+  ; pmk_bbb    "lor"                  (fun _ -> (||))
+  ; pmk_bb     "not"                  (fun _ -> not)
+                                      
+  (* run-time checking *)             
+  ; pmk_lr     "ctype"                (fun _ -> L.ctype)
+  ; pmk_lr     "atype"                (fun _ -> L.atype)
+  ; pmk_lq     "canonizer_of_lens"    L.canonizer_of_t
+  ; pmk_rs     "string_of_regexp"     (fun _ r1 -> Bregexp.string_of_t r1)
 
   (* sync *)
-  ; pmk_sync   "sync"                   (fun i l o a b -> 
-                                           let mk_s s = Bvalue.Str(i,s) in 
-                                           let mk_p v1 v2 = Bvalue.Par(i,v1,v2) in
-                                           let xt = match L.xtype l with 
-                                             | Some xt -> xt
-                                             | None -> 
-                                                 raise (Error.Harmony_error
-                                                          (fun () -> 
-                                                             Util.format "%s: cannot synchronize with %s."
-                                                               (Info.string_of_t i)
-                                                               (L.string l))) in 
-                                           let acts,o',a',b' = Bsync.sync xt (L.rget l o) (L.rget l a) (L.rget l b) in 
-                                           let s_acts = mk_s acts in
-                                           let s_o = mk_s (L.rput l o' o) in 
-                                           let s_a = mk_s (L.rput l a' a) in 
-                                           let s_b = mk_s (L.rput l b' b) in 
-                                           mk_p (mk_p (mk_p s_acts s_o) s_a) s_b)
+  ; pmk_sync   "sync"                 (fun i l o a b -> 
+                                         let mk_s s = Bvalue.Str(i,s) in 
+                                         let mk_p v1 v2 = Bvalue.Par(i,v1,v2) in
+                                         let xt = match L.xtype l with 
+                                           | Some xt -> xt
+                                           | None -> 
+                                               raise (Error.Harmony_error
+                                                        (fun () -> 
+                                                           Util.format "%s: cannot synchronize with %s."
+                                                             (Info.string_of_t i)
+                                                             (L.string l))) in 
+                                         let acts,o',a',b' = Bsync.sync xt (L.rget l o) (L.rget l a) (L.rget l b) in 
+                                         let s_acts = mk_s acts in
+                                         let s_o = mk_s (L.rput l o' o) in 
+                                         let s_a = mk_s (L.rput l a' a) in 
+                                         let s_b = mk_s (L.rput l b' b) in 
+                                         mk_p (mk_p (mk_p s_acts s_o) s_a) s_b)
 
   (* polymorphic functions *)
   ; begin 

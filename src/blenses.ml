@@ -38,6 +38,12 @@ let whack =
      Safelist.fold_right 
        (fun (f,t) s -> Str.global_replace f t s)
        replacements s)
+
+let concat_array a = 
+  let buf = Buffer.create 17 in
+    Array.iter (Buffer.add_string buf) a;
+    Buffer.contents buf 
+
     
 let get_str n = sprintf "%s get" n
 let put_str n = sprintf "%s put" n
@@ -136,7 +142,7 @@ module TMap = Map.Make(
 type skeleton = 
   | S_string of string
   | S_concat of (skeleton * skeleton)
-  | S_dup of (skeleton * skeleton)
+  | S_dup of skeleton
   | S_star of skeleton list
   | S_box of tag
   | S_comp of (skeleton * skeleton)
@@ -154,14 +160,10 @@ let snd_concat_of_skel i = function
   | S_concat (_, s) -> s
   | _ -> Berror.run_error i (fun () -> msg "@[expected@ concat@ skeleton@]") 
 
-let fst_dup_of_skel i = function
-  | S_dup (s,_) -> s
+let dup_of_skel i = function
+  | S_dup s -> s
   | _ -> Berror.run_error i (fun () -> msg "@[expected@ dup@ skeleton@]") 
 
-let snd_dup_of_skel i = function
-  | S_dup (_, s) -> s
-  | _ -> Berror.run_error i (fun () -> msg "@[expected@ dup@ skeleton@]") 
-      
 let lst_of_skel i = function
   | S_star sl -> sl
   | _ -> Berror.run_error i (fun () -> msg "@[expected@ lst@ skeleton@]") 
@@ -436,6 +438,67 @@ module Canonizer = struct
                loop cl "");
       }
         
+  let normalize i f fc fc0 = 
+    (* UNCHECKED: f's type, that f is the identity on fc0 :-/ *)
+    let n = sprintf "normalize(<function>: %s -> %s)" 
+      (RxImpl.string_of_t fc) (RxImpl.string_of_t fc0) in
+    let rt = fc in 
+    let ct = fc0 in 
+      { info = i;
+        string = n;
+        rtype = rt;
+        ctype = ct;
+        canonize = (fun c -> f c);
+        choose = (fun c -> c);
+      }
+
+  let sort i rl = 
+    let n = sprintf "sort(%s)" (Misc.concat_list "," (Safelist.map (fun ri -> RxImpl.string_of_t ri) rl)) in 
+    let k,rl_idx_rev = Safelist.fold_left (fun (i,acc) ri -> (succ i,(i,ri)::acc)) (0,[]) rl in
+    let rt_alts = 
+      Safelist.fold_left 
+        (fun acc ri -> 
+           match RxImpl.disjoint_cex acc ri with
+             | None -> RxImpl.mk_alt acc ri 
+             | Some w -> 
+                 Berror.static_error i n 
+                   (sprintf "types %s and %s are not disjoint: %s"
+                      (RxImpl.string_of_t acc) (RxImpl.string_of_t ri) w)) 
+        Bregexp.empty rl in      
+    let rt = match RxImpl.iterable_cex rt_alts with 
+      | Misc.Right r -> r
+      | Misc.Left(s1,s2,s1',s2') ->             
+          Berror.static_error i n 
+            (sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
+               (RxImpl.string_of_t rt_alts) s1 s2 s1' s2') in
+    let ct = Safelist.fold_left RxImpl.mk_seq RxImpl.epsilon rl in
+      { info = i;
+        string = n;
+        rtype = rt;
+        ctype = ct;
+        canonize = 
+          (fun c -> 
+             let cl = RxImpl.star_split rt_alts c in
+             let c_arr = Array.create k "" in 
+             if Safelist.length cl <> k then 
+               Berror.static_error i n 
+                 (sprintf "string %s did not split into exactly %d pieces" c k);
+             let _ = Safelist.fold_left 
+               (fun rs ci -> 
+                  (* INEFFICIENT! *)
+                  match Safelist.partition (fun (_,ri) -> RxImpl.match_string ri ci) rs with
+                    | [i,_],rs' -> 
+                        c_arr.(i) <- ci; 
+                        rs'
+                    | _,_ -> 
+                        Berror.static_error i n 
+                          (sprintf "%s did not match exactly one regexp" ci))
+               rl_idx_rev cl in 
+             concat_array c_arr);
+        choose = (fun c -> c);
+      }
+      
+
   let iter i cn1 min maxo = 
     generic_iter i 
       (copy i RxImpl.epsilon) (union i) (concat i) (star i) 
@@ -656,6 +719,9 @@ module DLens = struct
   (* invert -- only for bijective lenses! *)
   let invert i dl = 
     let n = sprintf "invert (%s)" dl.string in 
+    let () = if not dl.bij then 
+        Berror.static_error i n 
+          (sprintf "cannot invert non-bijective lens %s" dl.string) in 
     let ct = dl.atype in
     let at = dl.ctype in 
       { dl with 
@@ -755,7 +821,7 @@ module DLens = struct
             (RxImpl.string_of_t dl1.atype) (RxImpl.string_of_t dl2.atype) s1 s2 s1' s2' in 
           Berror.static_error i n s in 
     let xto = Misc.map2_option (fun x1 x2 -> Erx.mk_seq x1 x2) dl1.xtype dl2.xtype in
-    let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
+    let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in 
     let st = function
       | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
       | _ -> false in
@@ -946,60 +1012,191 @@ module DLens = struct
       l1 min maxo
 
   (* non-standard lenses *)
-  let swap i dl1 dl2 = 
-    let n = sprintf "swap (%s) (%s)" dl1.string dl2.string in 
-    let bij = dl1.bij && dl2.bij in 
-    let ct = match RxImpl.splittable_cex dl1.ctype dl2.ctype with
-      | Misc.Right r -> r
-      | Misc.Left(s1,s2,s1',s2') -> 
-          let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t dl1.ctype) (RxImpl.string_of_t dl2.ctype) s1 s2 s1' s2' in 
-          Berror.static_error i n s in 
-    let at = match RxImpl.splittable_cex dl2.atype dl1.atype with
-      | Misc.Right r -> r
-      | Misc.Left(s1,s2,s1',s2') -> 
-          let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-            (RxImpl.string_of_t dl2.atype) (RxImpl.string_of_t dl1.atype) s1 s2 s1' s2' in 
-          Berror.static_error i n s in 
-    let xto = Misc.map2_option (fun x2 x1 -> Erx.mk_seq x2 x1) dl2.xtype dl1.xtype in
-    let dt = safe_merge_dict_type i dl1.dtype dl2.dtype in
-    let st = function
-      | S_concat (s1, s2) -> dl1.stype s1 && dl2.stype s2
-      | _ -> false in
-      { info = i;
-        string = n;
-        bij = bij;
-        ctype = ct; 
-        atype = at;
-        xtype = xto;
-        dtype = dt;
-        stype = st;
-        crel = combine_rel dl1.crel dl2.crel;
-        arel = combine_rel dl1.arel dl2.arel;
-        get = lift_r i n ct (fun c -> 
-                               let c1,c2 = seq_split i dl1.ctype dl2.ctype c in 
-                                 (dl2.get c2) ^ (dl1.get c1));
-        put = lift_rsd i (put_str n) at st (fun a s d -> 
-                                              let a2,a1 = seq_split i dl2.atype dl1.atype a in 
-                                              let c2,d1 = dl2.put a2 (snd_concat_of_skel i s) d in 
-                                              let c1,d2 = dl1.put a1 (fst_concat_of_skel i s) d1 in 
-                                                (c1 ^ c2, d2));
-        create = lift_rd i (create_str n) at (fun a d -> 
-                                                let a2,a1 = seq_split i dl2.atype dl1.atype a in          
-                                                let c2,d1 = dl2.create a2 d in 
-                                                let c1,d2 = dl1.create a1 d1 in 
-                                                  (c1 ^ c2, d2));
-        parse = lift_r i (parse_str n) ct (fun c ->
-                                             let c1,c2 = seq_split i dl1.ctype dl2.ctype c in 
-                                             let s2,d2 = dl2.parse c2 in 
-                                             let s1,d1 = dl1.parse c1 in 
-                                               (S_concat (s1,s2), d2++d1)); 
-        key = lift_r i n at (fun a ->
-                               let a2, a1 = seq_split i dl2.atype dl1.atype a in
-	                         (dl2.key a2) ^ (dl1.key a1));
-        uid = next_uid ();
-      }
-        
+  let permute info sigma dll = 
+    let n = sprintf "permute([%s],[%s])" 
+      (Misc.concat_list "," (Safelist.map string_of_int sigma))
+      (Misc.concat_list "," (Safelist.map (fun dli -> dli.string) dll)) in  
+    let k = Safelist.length dll in 
+    (* check that sigma is a permutation on {1,..|dll|} *)
+    let sigma_arr = Array.create k 0 in 
+    let sigma_inv_arr = Array.create k 0 in       
+    let () = 
+      let perm_err () = 
+        Berror.static_error info n 
+          (sprintf "[%s] is not a permutation on {0,..,%d}@\n" 
+             (Misc.concat_list "," (Safelist.map string_of_int sigma)) (pred k)) in
+      let k' = Safelist.fold_left 
+        (fun i j -> 
+           sigma_arr.(i) <- j;
+           sigma_inv_arr.(j) <- i;
+           succ i) 
+        0 sigma in
+      if k' <> k then perm_err () in 
+    let dl_arr = Array.of_list dll in 
+    (* calculate some fields *)
+    let bij,ct,dt,crel,arel = 
+      Array.fold_left 
+        (fun (b,c,d,cr,ar) dli -> 
+           (b && dli.bij,
+            (match RxImpl.splittable_cex c dli.ctype with
+              | Misc.Right c' -> c'
+              | Misc.Left(s1,s2,s1',s2') ->
+                  Berror.static_error info n 
+                    (sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
+                       (RxImpl.string_of_t c) (RxImpl.string_of_t dli.ctype) s1 s2 s1' s2')),            
+            safe_merge_dict_type info d dli.dtype,            
+            combine_rel cr dli.crel,
+            combine_rel ar dli.arel))        
+        (true,RxImpl.epsilon,TMap.empty,Identity,Identity) dl_arr in
+    (* calculate concrete types to use in splitting *)
+    let ct_rest_array = Array.create k RxImpl.empty in
+    let _ =
+      Array.fold_right 
+        (fun dli (i,acc) -> 
+           ct_rest_array.(i) <- acc; 
+           (pred i,RxImpl.mk_seq dli.ctype acc)) 
+        dl_arr (pred k,RxImpl.epsilon) in
+    let split_c c =
+      let res = Array.create k "" in 
+      let _ = 
+        Array.fold_left 
+          (fun (j,c) dlj -> 
+             let cj,crest = seq_split info dlj.ctype ct_rest_array.(j) c in
+               res.(j) <- cj;
+               (succ j,crest))
+          (0,c) dl_arr in 
+      res in
+    let at =
+      Array.fold_left
+        (fun acc j ->
+           match RxImpl.splittable_cex acc dl_arr.(j).atype with
+             | Misc.Right acc' -> acc'
+             | Misc.Left(s1,s2,s1',s2') ->
+                 Berror.static_error info n
+                   (sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
+                      (RxImpl.string_of_t acc) (RxImpl.string_of_t dl_arr.(j).atype) s1 s2 s1' s2'))
+        RxImpl.epsilon sigma_inv_arr in 
+    let at_rest_array = Array.create k RxImpl.empty in 
+    let _ = 
+      Array.fold_right 
+        (fun j (i,acc) -> 
+           at_rest_array.(i) <- acc;
+           (pred i,RxImpl.mk_seq dl_arr.(j).atype acc))
+        sigma_inv_arr (pred k,RxImpl.epsilon) in
+    let split_a a =
+      let res = Array.create k "" in 
+      let _ = Array.fold_left
+        (fun (i,a) j -> 
+           let ai,arest = seq_split info dl_arr.(j).atype at_rest_array.(i) a in
+           res.(i) <- ai;
+           (succ i,arest))
+        (0,a) sigma_inv_arr in
+      res in
+    let xto =
+      Array.fold_left
+        (fun acco i ->
+           let dli = dl_arr.(i) in
+           Misc.map2_option (fun x1 x2 -> Erx.mk_seq x1 x2) acco dli.xtype)
+        (Some (Erx.mk_leaf Bregexp.epsilon)) sigma_arr in
+    let st s =
+      let rec loop dll s = match dll,s with
+        | [],S_string "" -> true
+        | [dli],_ -> dli.stype s
+        | dli::dlrest,S_concat(si,srest) -> dli.stype si && loop dlrest srest
+        | _ -> false in
+      loop dll s in
+    { info = info;
+      uid = next_uid ();
+      string = n;
+      bij = bij;
+      ctype = ct;
+      atype = at;
+      xtype = xto;
+      dtype = dt;
+      stype = st;
+      crel = crel;
+      arel = arel;
+      get = lift_r info n ct
+        (fun c ->
+           let c_arr = split_c c in 
+           let a_arr = Array.create k "" in
+           let rec loop i = 
+             if i >= k then ()
+             else 
+               begin 
+                 let j = sigma_arr.(i) in 
+                 a_arr.(j) <- dl_arr.(i).get c_arr.(j);
+                 loop (succ i)
+               end in
+           loop 0;
+           let a' = concat_array a_arr in 
+           a');
+      put = lift_rsd info (put_str n) at st 
+        (fun a s d -> 
+           let a_arr = split_a a in 
+           let c_arr = Array.create k "" in 
+           let rec loop j s d = 
+             if j >= k then d
+             else
+               begin 
+                 let sj = fst_concat_of_skel info s in 
+                 let i = sigma_inv_arr.(j) in 
+                 let ci,di = dl_arr.(i).put a_arr.(j) sj d in
+                 c_arr.(i) <- ci;
+                 loop (succ j) (snd_concat_of_skel info s) di 
+               end in
+           let d' = loop 0 s d in 
+           let c' = concat_array c_arr in
+           (c',d'));
+      create = lift_rd info (create_str n) at 
+        (fun a d -> 
+           let a_arr = split_a a in 
+           let c_arr = Array.create k "" in 
+           let rec loop j d = 
+             if j >= k then d
+             else 
+               begin 
+                 let i = sigma_inv_arr.(j) in 
+                 let ci,di = dl_arr.(j).create a_arr.(j) d in 
+                   c_arr.(i) <- ci;
+                   loop (succ j) di 
+               end in
+           let d' = loop 0 d in
+           let c' = concat_array c_arr in 
+           (c',d'));
+      parse = lift_r info (parse_str n) ct 
+        (fun c -> 
+           let c_arr = split_c c in 
+           let d_arr = Array.create k TMap.empty in
+           let rec loop i s =
+             if i < 0 then s 
+             else
+               begin 
+                 let j = sigma_arr.(i) in 
+                 let si,di = dl_arr.(i).parse c_arr.(i) in 
+                 d_arr.(j) <- di;
+                 loop (pred i) (S_concat(si,s))
+               end in
+           let s' = loop (pred k) (S_string "") in 
+           let d' = Array.fold_right (fun di dacc -> di++dacc) d_arr TMap.empty in 
+           (s',d'));
+      key = lift_r info n at 
+        (fun a -> 
+           let a_arr = split_a a in 
+           let k_buf = Buffer.create 17 in 
+           let rec loop j = 
+             if j >= k then ()
+             else 
+               begin 
+                 let kj = dl_arr.(j).key a_arr.(j) in 
+                 Buffer.add_string k_buf kj;
+                 loop (succ j) 
+               end in
+           loop 0;
+           let ky = Buffer.contents k_buf in 
+           ky);
+    }
+
   let compose i dl1 dl2 = 
     let n = sprintf "%s; %s" dl1.string dl2.string in 
     let bij = dl1.bij && dl2.bij in 
@@ -1050,7 +1247,7 @@ module DLens = struct
 	       let s2,d2 = dl2.parse (dl1.get c) in
 	         (S_comp (s1, s2), d2 ++ d1));
           key = dl2.key;
-          uid = next_uid();
+          uid = next_uid ();
         }
 
   let default i def dl1 = 
@@ -1285,4 +1482,55 @@ module DLens = struct
       key = (fun a -> dl.key (canonize a));
       uid = next_uid ();
     }
+
+  let dup i fst dl f fat = 
+    let n = sprintf "dup%d(%s,<function> : %s -> %s)" (if fst then 1 else 2) dl.string (RxImpl.string_of_t (dl.ctype)) (RxImpl.string_of_t fat) in
+    let bij = dl.bij in 
+    let ct = dl.ctype in 
+    let left_at = if fst then dl.atype else fat in 
+    let right_at = if fst then fat else dl.atype in 
+    let at = 
+        match RxImpl.splittable_cex left_at right_at with
+          | Misc.Right r -> r
+          | Misc.Left(s1,s2,s1',s2') -> 
+              let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
+                (RxImpl.string_of_t left_at) (RxImpl.string_of_t right_at) s1 s2 s1' s2' in 
+                Berror.static_error i n s in 
+    let xto = Misc.map_option (fun x1 -> Erx.mk_seq x1 (Erx.mk_leaf fat)) dl.xtype in 
+    let dt = dl.dtype in 
+    let st = function
+      | S_dup s -> dl.stype s 
+      | _ -> false in
+    let split_a a = 
+      let a1,a2 = seq_split i left_at right_at a in
+      if fst then a1 else a2 in 
+    (* lens *)
+    { info = i;
+      uid = next_uid (); 
+      string = n;
+      bij = bij;
+      ctype = ct;
+      atype = at;
+      xtype = xto;
+      dtype = dt;
+      stype = st;
+      crel = dl.crel;
+      arel = Unknown;
+      get = lift_r i (get_str n) ct (fun c -> if fst then (dl.get c) ^ (f c) else (f c) ^ (dl.get c));
+      put = lift_rsd i (put_str n) at st 
+        (fun a s d ->
+           let ai = split_a a in 
+	   dl.put ai (dup_of_skel i s) d);      
+      parse = lift_r i (parse_str n) ct 
+        (fun c ->
+	   let s,d = dl.parse c in
+	     (S_dup s,d));
+      create = lift_rd i n at 
+        (fun a d ->
+           let ai = split_a a in 
+	   dl.create ai d);	       
+      key = lift_r i n at 
+        (fun a ->
+           let ai = split_a a in 
+           dl.key ai); }
 end

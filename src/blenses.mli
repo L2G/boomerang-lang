@@ -44,6 +44,8 @@ module Canonizer : sig
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
+  val normalize : Info.t -> (string -> string) -> Bregexp.t -> Bregexp.t -> t
+  val sort : Info.t -> Bregexp.t list -> t
   val iter : Info.t -> t -> int -> int -> t
 end
 
@@ -72,7 +74,7 @@ module DLens : sig
   val disjoint_union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
   val iter : Info.t -> t -> int -> int -> t
-  val swap : Info.t -> t -> t -> t
+  val permute : Info.t -> int list -> t list -> t
   val compose : Info.t -> t -> t -> t
   val default : Info.t -> string -> t -> t
   val dmatch : Info.t -> 
@@ -81,4 +83,5 @@ module DLens : sig
   val filter : Info.t -> Bregexp.t -> Bregexp.t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t
   val right_quot : Info.t -> t -> Canonizer.t -> t
+  val dup : Info.t -> bool -> t -> (string -> string) -> Bregexp.t -> t
 end

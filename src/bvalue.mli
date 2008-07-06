@@ -86,5 +86,11 @@ val mk_sfun : Info.t -> (string -> t) -> t
 val mk_qfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
 val mk_pfun : Info.t -> (t * t -> t) -> t
 val mk_vfun : Info.t -> (Bident.Id.t * t option -> t) -> t
+val mk_ffun : Info.t -> ((t -> t) -> t) -> t
 
 val string_of_t : t -> string
+
+val list_qid : Bident.Qid.t
+val get_list : t -> t list
+val mk_list : Info.t -> t list -> t
+val mk_listfun : Info.t -> (t list -> t) -> t

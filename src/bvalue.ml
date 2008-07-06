@@ -206,3 +206,31 @@ let mk_vfun i f = Fun(i,(fun v -> f (get_v v)))
 let mk_ffun i f = Fun(i,(fun v -> f (get_f v)))
 
 let string_of_t v = Util.format_to_string (fun () -> format v)
+
+(* list utilities *)
+let nil = Id.mk (Info.M "Nil built-in") "Nil"
+let cons = Id.mk (Info.M "Cons built-in") "Cons"
+let list_qid =
+  let i = Info.M "List.t built-in" in
+  Qid.mk [Id.mk i "List"] (Id.mk i "t")
+ 
+let get_list v = 
+  let rec aux v acc = 
+    let li,vio = get_v v in 
+    if Id.equal li nil then Safelist.rev acc 
+    else if Id.equal li cons then 
+      let vh,vrest = match vio with 
+        | None -> conversion_error "list" v
+        | Some vi -> get_p vi in
+      aux vrest (vh::acc)
+    else conversion_error "list" v in 
+  aux v []
+
+let mk_list i l = 
+  let rec aux l v = match l with
+    | [] -> v 
+    | h::rest -> aux rest (Vnt(i,list_qid,cons,Some (mk_p i (h,v)))) in 
+  aux l (Vnt(i,list_qid,nil,None))
+        
+
+let mk_listfun i f = Fun(i,(fun v -> f (get_list v)))

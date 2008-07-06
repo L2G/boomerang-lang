@@ -122,14 +122,17 @@ let forgetkey : lens -> lens =
   Native.Prelude.forgetkey
 let filter (r1:regexp) (r2:regexp) : lens = 
   Native.Prelude.filter r1 r2
-let lens_swap (l1:lens) (l2:lens) : lens = 
-  Native.Prelude.lens_swap l1 l2
-
 (* canonizers *)
 let canonize : canonizer -> string -> string =
   Native.Prelude.canonize
 let choose : canonizer -> string -> string = 
   Native.Prelude.choose
+let columnize : int -> regexp -> char -> string -> canonizer =
+  Native.Prelude.columnize 
+let dup1 : lens -> (string -> string) -> regexp -> lens = 
+  Native.Prelude.dup1 
+let dup2 : lens -> (string -> string) -> regexp -> lens = 
+  Native.Prelude.dup2 
 let left_quot : canonizer -> lens -> lens = 
   Native.Prelude.left_quot
 let right_quot : lens -> canonizer -> lens =

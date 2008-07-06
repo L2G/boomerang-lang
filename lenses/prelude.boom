@@ -136,3 +136,9 @@ let fst ('a) ('b) (p:'a * 'b) : 'a =
 
 let snd ('a) ('b) (p:'a * 'b) : 'b = 
   let _,y = p in y
+
+let permute (sigma:int List.t) (ls:lens List.t) : lens = 
+  Native.Prelude.permute sigma ls
+
+let sort (rs:regexp List.t) : canonizer = 
+  Native.Prelude.sort rs
