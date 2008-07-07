@@ -27,37 +27,36 @@ test l3.get "cba" = "abc"
    concatenable, as an artifact of the way we implement it using a
    binary swap operator and composition. we wouldn't need this if we
    had a more powerful permutation operator on lenses. *)
-(* let sort2 (l1:lens) (l2:lens) = (l2 ~ l1 || l1 . l2) *)
+let perm_sort2 (l1:lens) (l2:lens) = (l1 . l2 || l2 ~ l1)
 
-(* let sort3 (l1:lens) (l2:lens) (l3:lens) : lens =  *)
-(*   let s23 : lens = sort2 l2 l3 in  *)
-(*   ( l1 . s23 *)
-(*     || (l2 ~ l1) . l3 *)
-(*     || l3 ~ (l1 . l2) *)
-(*     || s23 ~ l1 ) *)
+let perm_sort3 (l1:lens) (l2:lens) (l3:lens) : lens =
+  let s23 : lens = perm_sort2 l2 l3 in
+  ( l1 . s23
+    || (l2 ~ l1) . l3
+    || l3 ~ (l1 . l2)
+    || s23 ~ l1 )
 
-
-(* let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =  *)
-(*   let s12 : lens = sort2 l1 l2 in  *)
-(*   let s23 : lens = sort2 l2 l3 in  *)
-(*   let s34 : lens = sort2 l3 l4 in  *)
-(*   let s123 : lens = sort3 l1 l2 l3 in  *)
-(*   let s234 : lens = sort3 l2 l3 l4 in  *)
-(*   let f1324 : lens =  *)
-(*     copy (atype l1) .  *)
-(*     (copy (atype l3) ~ (copy (atype l2))) .  *)
-(*     copy (atype l4) in  *)
-(*   ( l1 . s234  *)
-(*   || s234 ~ l1 *)
-(*   || ((l2 . l3) ~ l1) . l4 *)
-(*   || (l2 ~ l1) . s34  *)
-(*   || (l3 ~ s12) . l4 *)
-(*   || l4 ~ (l1 . s23) *)
-(*   || l4 ~ ((l2 ~ l1) . l3) *)
-(*   || l4 ~ (l3 ~ (l1 . l2)) *)
-(*   || (l3 . l4) ~ (l1 . l2)  *)
-(*   || ( (l2 . l4) ~ (l1 . l3); f1324 ) *)
-(*   || ( (l3 ~ l1) . (l4 ~ l2); f1324 ) ) *)
+let perm_sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =
+  let s12 : lens = perm_sort2 l1 l2 in
+  let s23 : lens = perm_sort2 l2 l3 in
+  let s34 : lens = perm_sort2 l3 l4 in
+  let s123 : lens = perm_sort3 l1 l2 l3 in
+  let s234 : lens = perm_sort3 l2 l3 l4 in
+  let f1324 : lens =
+    copy (atype l1) .
+    (copy (atype l3) ~ (copy (atype l2))) .
+    copy (atype l4) in
+  ( l1 . s234
+  || s234 ~ l1
+  || ((l2 . l3) ~ l1) . l4
+  || (l2 ~ l1) . s34
+  || (l3 ~ s12) . l4
+  || l4 ~ (l1 . s23)
+  || l4 ~ ((l2 ~ l1) . l3)
+  || l4 ~ (l3 ~ (l1 . l2))
+  || (l3 . l4) ~ (l1 . l2)
+  || ( (l2 . l4) ~ (l1 . l3); f1324 )
+  || ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
 
 let sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens = 
   left_quot (sort #{regexp}[ctype l1; ctype l2; ctype l3; ctype l4]) (l1 . l2 . l3 . l4)
@@ -289,6 +288,18 @@ let attr2_elt (spaces:string) (tag:string)
   body . 
   close_tag spaces tag 
 
+let slow_attr2_elt (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (body:lens) : lens = 
+  raw_open spaces tag . 
+  perm_sort2 
+    (attr name1 value1) 
+    (attr name2 value2) . 
+  close . 
+  body . 
+  close_tag spaces tag 
+
 let attr2_raw_simple_elt_no_kids (tag:string)
     (name1:string) (value1:lens)
     (name2:string) (value2:lens) : lens = 
@@ -324,12 +335,30 @@ let attr2_elt_no_kids (spaces:string) (tag:string)
     (attr name1 value1) 
     (attr name2 value2))
 
+let slow_attr2_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) : lens = 
+  attrs_elt_no_kids spaces tag 
+  (perm_sort2
+    (attr name1 value1) 
+    (attr name2 value2))
+
 let attr3_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) : lens = 
   attrs_elt_no_kids spaces tag 
   (sort3 
+    (attr name1 value1) 
+    (attr name2 value2)  
+    (attr name3 value3))
+
+let slow_attr3_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) : lens = 
+  attrs_elt_no_kids spaces tag 
+  (perm_sort3 
     (attr name1 value1) 
     (attr name2 value2)  
     (attr name3 value3))
@@ -341,6 +370,18 @@ let attr4_elt_no_kids (spaces:string) (tag:string)
     (name4:string) (value4:lens) : lens = 
   attrs_elt_no_kids spaces tag 
   (sort4
+    (attr name1 value1) 
+    (attr name2 value2)  
+    (attr name3 value3)
+    (attr name4 value4))
+
+let slow_attr4_elt_no_kids (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens)
+    (name4:string) (value4:lens) : lens = 
+  attrs_elt_no_kids spaces tag 
+  (perm_sort4
     (attr name1 value1) 
     (attr name2 value2)  
     (attr name3 value3)
@@ -371,6 +412,14 @@ let attr2_elt_open (spaces:string) (tag:string)
        (attr name1 value1)
        (attr name2 value2))
 
+let slow_attr2_elt_open (spaces:string) (tag:string)
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) : lens = 
+  attrs_open spaces tag 
+    (perm_sort2
+       (attr name1 value1)
+       (attr name2 value2))
+
 let attr3_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
@@ -380,7 +429,29 @@ let attr3_elt_open (spaces:string) (tag:string)
         (attr name1 value1) 
         (attr name2 value2)  
         (attr name3 value3) )
+
+let slow_attr3_elt_open (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) : lens = 
+  attrs_open spaces tag 
+    ( perm_sort3
+        (attr name1 value1) 
+        (attr name2 value2)  
+        (attr name3 value3) )
     
+let slow_attr4_elt_open (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (name4:string) (value4:lens) : lens = 
+  attrs_open spaces tag 
+    ( perm_sort4
+        (attr name1 value1) 
+        (attr name2 value2)  
+        (attr name3 value3) 
+        (attr name4 value4) )
+
 let attr4_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
@@ -406,12 +477,38 @@ let attr2_elt_swap2 (spaces:string) (tag:string)
   ( copy (atype value1) . 
     ( copy (atype value2) ~ copy (atype body) ) )
 
+let slow_attr2_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (body:lens) : lens = 
+  (slow_attr2_elt_open spaces tag 
+     name1 value1 
+     name2 value2 .
+   body . 
+   close_tag spaces tag); 
+  ( copy (atype value1) . 
+    ( copy (atype value2) ~ copy (atype body) ) )
+
 let attr3_elt_swap2 (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
     (body:lens) : lens = 
   (attr3_elt_open spaces tag 
+     name1 value1 
+     name2 value2 
+     name3 value3 . 
+   body . 
+   close_tag spaces tag); 
+  ( copy (atype value1) . 
+    ( copy (atype value2 . atype value3) ~ copy (atype body) ) )
+
+let slow_attr3_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (body:lens) : lens = 
+  (slow_attr3_elt_open spaces tag 
      name1 value1 
      name2 value2 
      name3 value3 . 
@@ -427,6 +524,22 @@ let attr4_elt_swap2 (spaces:string) (tag:string)
     (name4:string) (value4:lens) 
     (body:lens) : lens = 
   (attr4_elt_open spaces tag 
+     name1 value1 
+     name2 value2 
+     name3 value3
+     name4 value4 . 
+   body . 
+   close_tag spaces tag); 
+  ( copy (atype value1) . 
+    ( copy (atype value2 . atype value3 . atype value4) ~ copy (atype body) ) )
+
+let slow_attr4_elt_swap2 (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (name4:string) (value4:lens) 
+    (body:lens) : lens = 
+  (slow_attr4_elt_open spaces tag 
      name1 value1 
      name2 value2 
      name3 value3

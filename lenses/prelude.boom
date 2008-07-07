@@ -64,7 +64,7 @@ let SP : regexp = [ ]+
 let DIGIT : regexp = [0-9]
 
 (* [NUMBER] number *)
-let NUMBER : regexp = DIGIT+
+let NUMBER : regexp = [1-9] . DIGIT*
 
 (* [FNUMBER] floating-point number *)
 let FNUMBER : regexp = DIGIT* . ([.] . DIGIT+)?

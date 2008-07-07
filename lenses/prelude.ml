@@ -112,6 +112,7 @@ let pmk_cs    = pmk1 S.SChar mk_cfun S.SString mk_s
 let pmk_bb    = pmk1 S.SBool mk_bfun S.SBool mk_b
 let pmk_bbb   = pmk2 S.SBool mk_bfun S.SBool mk_bfun S.SBool mk_b 
 
+let pmk_is    = pmk1 S.SInteger mk_ifun S.SString mk_s
 let pmk_iib   = pmk2 S.SInteger mk_ifun  S.SInteger mk_ifun S.SBool mk_b
 let pmk_iii   = pmk2 S.SInteger mk_ifun S.SInteger mk_ifun S.SInteger mk_i 
 
@@ -152,6 +153,7 @@ let pmk_lrrb  = pmk3 S.SLens mk_lfun S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool
 
 let pmk_qq    = pmk1 S.SCanonizer mk_qfun S.SCanonizer mk_q 
 let pmk_qqq   = pmk2 S.SCanonizer mk_qfun S.SCanonizer mk_qfun S.SCanonizer mk_q 
+let pmk_qr    = pmk1 S.SCanonizer mk_qfun S.SRegexp mk_r
 let pmk_qss   = pmk2 S.SCanonizer mk_qfun S.SString mk_sfun S.SString mk_s
 let pmk_qll   = pmk2 S.SCanonizer mk_qfun S.SLens mk_lfun S.SLens mk_l
 let pmk_qiiq  = pmk3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun S.SCanonizer mk_q
@@ -211,9 +213,14 @@ let prelude_spec =
   ; pmk_ircsq  "columnize"            C.columnize
   ; pmk_frrq   "normalize"            (fun i f fc fc0 -> C.normalize i (fun s -> get_s (f (mk_s i s))) fc fc0)
   ; pmk_rzq    "sort"                 (fun i rl -> C.sort i (Safelist.map get_r rl))          
+  ; pmk_qr     "rtype"                (fun _ -> C.rtype)
+  ; pmk_qr     "qtype"                (fun _ -> C.ctype)
                                 
   (* char operations *)               
   ; pmk_cs     "string_of_char"       (fun _ -> String.make 1)
+
+  (* int operations *)
+  ; pmk_is     "string_of_int"        (fun _ -> string_of_int)
 
   (* char operations *)               
   ; pmk_iib     "gt"                  (fun _ -> (>))

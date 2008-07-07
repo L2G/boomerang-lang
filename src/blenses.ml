@@ -1008,7 +1008,7 @@ module DLens = struct
 
   let iter i l1 min maxo = 
     generic_iter i 
-      (copy i RxImpl.epsilon) (union i) (concat i) (star i) 
+      (copy i RxImpl.epsilon) (disjoint_union i) (concat i) (star i) 
       l1 min maxo
 
   (* non-standard lenses *)
@@ -1520,7 +1520,10 @@ module DLens = struct
       stype = st;
       crel = dl.crel;
       arel = Unknown;
-      get = lift_r i (get_str n) ct (fun c -> if fst then (dl.get c) ^ (f c) else (f c) ^ (dl.get c));
+      get = lift_r i (get_str n) ct 
+        (fun c -> 
+           if fst then (dl.get c) ^ (f c) 
+           else (f c) ^ (dl.get c));
       put = lift_rsd i (put_str n) at st 
         (fun a s d ->
            let ai = split_a a in 

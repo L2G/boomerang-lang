@@ -50,6 +50,8 @@ let str : string -> regexp =
   Native.Prelude.str
 let shortest : regexp -> string = 
   Native.Prelude.shortest
+let count : regexp -> string -> int = 
+  Native.Prelude.count
 let empty : regexp = 
   Native.Prelude.empty
 let inter : regexp -> regexp -> regexp = 
@@ -126,6 +128,10 @@ let forgetkey : lens -> lens =
 let filter (r1:regexp) (r2:regexp) : lens = 
   Native.Prelude.filter r1 r2
 (* canonizers *)
+let rtype : canonizer -> regexp = 
+  Native.Prelude.rtype
+let qtype : canonizer -> regexp =
+  Native.Prelude.qtype
 let canonize : canonizer -> string -> string =
   Native.Prelude.canonize
 let choose : canonizer -> string -> string = 
@@ -148,10 +154,13 @@ let canonizer_union : canonizer -> canonizer -> canonizer =
 let canonizer_iter : canonizer -> int -> int -> canonizer = 
   Native.Prelude.canonizer_iter
 
-(* let columnize : string -> regexp -> string -> string -> canonizer =  *)
-(*   Native.Prelude.columnize *)
+(* chars *)
+let string_of_char : char -> string = 
+  Native.Prelude.string_of_char
 
 (* integers *)
+let string_of_int : int -> string =
+  Native.Prelude.string_of_int
 let bgt : int -> int -> bool = 
   Native.Prelude.gt
 let blt : int -> int -> bool = 
