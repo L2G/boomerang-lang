@@ -3565,10 +3565,6 @@ test ft_bounds.get
   |    </location>" 
 = "   243    243"
 
-let ft_description : lens = 
-  Xml.attr "description" esc_d . 
-  dot 
-
 let s7 : lens = ins "       "
 
 let ft_original_variation : lens = 
@@ -3631,17 +3627,18 @@ let ft_id : lens =
   [A-Z]{3} . "_" . [0-9]{6,10} . 
   dot
 
-let ft_description : lens =   
-  esc_dq
-
 let ft_status : lens = 
     qualifiers . dot
+
+let ft_description : lens =   
+  (* HACK !*)
+  [^<>"".&\n]+ - (containing (atype qualifiers))
 
 let ft_aux (l:lens) (ty:lens) (body:lens) :  lens = 
   ( Xml.slow_attr4_elt_swap2 NL1 "feature"
       "type" ty 
       "description" (l . ft_description)
-      "status" (ft_status . dot)
+      "status" ft_status
       "id" ft_id 
       body
   | Xml.slow_attr3_elt_swap2 NL1 "feature"
@@ -3652,7 +3649,7 @@ let ft_aux (l:lens) (ty:lens) (body:lens) :  lens =
   | Xml.slow_attr3_elt_swap2 NL1 "feature"
       "type" ty
       "description" (l . ft_description)
-      "status" ( ft_status . dot)
+      "status" ft_status
       body
   | Xml.slow_attr2_elt_swap2 NL1 "feature"
       "type" ty
@@ -3664,7 +3661,8 @@ let ft_aux (l:lens) (ty:lens) (body:lens) :  lens =
       body
   | Xml.attr1_elt NL1 "feature"
       "type" ty
-      body )
+      body
+  )
 
 let ft_xml : lens = 
   ins ft_tag . 
@@ -3728,7 +3726,7 @@ let P12544_ft_ascii : string =
   |FT   ACT_SITE     69     69       Charge relay system.
   |FT   ACT_SITE    114    114       Charge relay system.
   |FT   ACT_SITE    212    212       Charge relay system.
-  |FT   CARBOHYD    170    170       N-linked (GlcNAc,,,) (Potential)..
+  |FT   CARBOHYD    170    170       N-linked (GlcNAc,,,) (Potential).
   |FT   DISULFID     54     70
   |FT   DISULFID    148    218
   |FT   DISULFID    179    197
