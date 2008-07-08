@@ -261,6 +261,13 @@ let next_uid () =
   incr current_uid;
   !current_uid
 
+
+(* simple sort checking for relations *)
+type rel = Identity | Unknown
+let combine_rel r1 r2 = match r1,r2 with 
+  | Identity,Identity -> Identity 
+  | _                 -> Unknown
+
 (* -----------------------------------------------------------------------------*)
 (* CANONIZERS *)
 module Canonizer = struct
@@ -271,6 +278,7 @@ module Canonizer = struct
         (* --- types --- *)
         rtype : RxImpl.t;
         ctype : RxImpl.t;
+        crel  : rel;
         (* --- core functions --- *)
         canonize : string -> string;
         choose : string -> string;
@@ -283,11 +291,12 @@ module Canonizer = struct
   let ctype cn = cn.ctype
   let canonize cn = cn.canonize
   let choose cn = cn.choose
-  let mk_t i s rt ct cn ch = 
+  let mk_t i s rt ct r cn ch = 
     { info = i;
       string = s;
       rtype = rt;
       ctype = ct;
+      crel = r;
       canonize = cn;
       choose = ch; 
     }
@@ -300,6 +309,7 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
+        crel = Identity;
         canonize = (fun x -> x);
         choose = (fun x -> x);
       }
@@ -328,6 +338,7 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
+        crel = Identity;
         canonize =
           (fun c ->
              let c_len = String.length c in
@@ -388,6 +399,7 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
+        crel = combine_rel cn1.crel cn2.crel;
         canonize = 
           (do_split (seq_split i cn1.rtype cn2.rtype)
              cn1.canonize cn2.canonize (^));
@@ -410,6 +422,7 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
+        crel = combine_rel cn1.crel cn2.crel;
         canonize = (branch cn1.rtype cn1.canonize cn2.canonize);
         choose = (branch cn1.ctype cn1.choose cn2.choose);
       }
@@ -427,6 +440,7 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
+        crel = cn1.crel;
         canonize = (star_loop cn1.rtype cn1.canonize);      
         choose = 
           (fun cl -> 
@@ -447,6 +461,7 @@ module Canonizer = struct
       { info = i;
         string = n;
         rtype = rt;
+        crel = Identity;
         ctype = ct;
         canonize = (fun c -> f c);
         choose = (fun c -> c);
@@ -476,6 +491,7 @@ module Canonizer = struct
         string = n;
         rtype = rt;
         ctype = ct;
+        crel = Identity;
         canonize = 
           (fun c -> 
              let cl = RxImpl.star_split rt_alts c in
@@ -504,12 +520,6 @@ module Canonizer = struct
       (copy i RxImpl.epsilon) (union i) (concat i) (star i) 
       cn1 min maxo
 end
-
-(* simple sort checking for relations *)
-type rel = Identity | Unknown
-let combine_rel r1 r2 = match r1,r2 with 
-  | Identity,Identity -> Identity 
-  | _                 -> Unknown
 
 (* -----------------------------------------------------------------------------*)
 (* DICTIONARY LENSES *)
@@ -713,6 +723,7 @@ module DLens = struct
       (sprintf "canonizer_of_lens(%s)" dl.string)
       dl.ctype
       dl.atype
+      dl.arel
       dl.get
       (rcreate dl)
       
@@ -1406,11 +1417,15 @@ module DLens = struct
     let n = sprintf "left quotient of %s by %s" dl.string (Canonizer.string cn) in
       (* the "class type" of the canonizer has to be equal to the
 	 concrete type of the lens *)
-    if not (RxImpl.equiv (Canonizer.ctype cn) dl.ctype) then
+    let () = if not (RxImpl.equiv (Canonizer.ctype cn) dl.ctype) then
       begin
 	let s = sprintf "%s is ill-typed" n in
 	  Berror.static_error i n s 
-      end;
+      end in 
+    let () = match cn.Canonizer.crel,dl.crel with
+      | Unknown, Unknown | Unknown,Identity -> 
+          Berror.static_error i n (sprintf "%s is ill-typed" n)
+      | _ -> () in 
     let bij = dl.bij in 
     let ct = Canonizer.rtype cn in
     let at = dl.atype in
@@ -1449,11 +1464,17 @@ module DLens = struct
         
   let right_quot i dl cn = 
     let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
-    if not (RxImpl.equiv (Canonizer.ctype cn) dl.atype) then
+    let () = if not (RxImpl.equiv (Canonizer.ctype cn) dl.atype) then
       begin
-	let s = sprintf "%s is ill-typed" n in
+	let s = sprintf "%s is ill-typed TMM" n in
 	  Berror.static_error i n s 
-      end;
+      end in 
+    let () = match cn.Canonizer.crel,dl.crel with
+      | Unknown, Unknown -> 
+          Berror.static_error i n (sprintf "%s is ill-typed U U" n)
+      | Unknown,Identity -> 
+          Berror.static_error i n (sprintf "%s is ill-typed U I" n)          
+      | _ -> () in 
   let bij = dl.bij in 
   let ct = dl.ctype in
   let at = Canonizer.rtype cn in
