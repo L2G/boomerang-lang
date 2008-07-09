@@ -268,7 +268,6 @@ let prelude_spec =
   ; pmk_lr     "ctype"                (fun _ -> L.ctype)
   ; pmk_lr     "atype"                (fun _ -> L.atype)
   ; pmk_lq     "canonizer_of_lens"    L.canonizer_of_t
-  ; pmk_lq     "canonizer_of_lens_assertI"    L.canonizer_of_t_assertI
   ; pmk_rs     "string_of_regexp"     (fun _ r1 -> Bregexp.string_of_t r1)
 
   (* sync *)

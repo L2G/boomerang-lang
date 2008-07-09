@@ -418,14 +418,17 @@ module Canonizer = struct
         Berror.static_error i n s in
     let rt = RxImpl.mk_alt cn1.rtype cn2.rtype in 
     let ct = RxImpl.mk_alt cn1.ctype cn2.ctype in 
-      { info = i;
-        string = n;
-        rtype = rt;
-        ctype = ct;
-        crel = combine_rel cn1.crel cn2.crel;
-        canonize = (branch cn1.rtype cn1.canonize cn2.canonize);
-        choose = (branch cn1.ctype cn1.choose cn2.choose);
-      }
+    let cr = 
+      if RxImpl.is_empty (RxImpl.mk_inter cn2.ctype (RxImpl.mk_complement cn1.ctype)) then cn1.crel
+      else combine_rel cn1.crel cn2.crel in  
+    { info = i;
+      string = n;
+      rtype = rt;
+      ctype = ct;
+      crel = cr;
+      canonize = (branch cn1.rtype cn1.canonize cn2.canonize);
+      choose = (branch cn1.ctype cn1.choose cn2.choose);
+    }
 
   let star i cn1 =
     let n = sprintf "(%s)*" cn1.string in
@@ -726,17 +729,6 @@ module DLens = struct
       dl.arel
       dl.get
       (rcreate dl)
-
-  let canonizer_of_t_assertI i dl = 
-    Canonizer.mk_t 
-      i
-      (sprintf "canonizer_of_lens(%s)" dl.string)
-      dl.ctype
-      dl.atype
-      Identity
-      dl.get
-      (rcreate dl)
-
       
   (* invert -- only for bijective lenses! *)
   let invert i dl = 

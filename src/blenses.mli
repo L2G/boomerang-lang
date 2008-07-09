@@ -66,7 +66,6 @@ module DLens : sig
   val rcreate : t -> string -> string
   val forgetkey : t -> t
   val canonizer_of_t : Info.t -> t -> Canonizer.t
-  val canonizer_of_t_assertI : Info.t -> t -> Canonizer.t
   val invert : Info.t -> t -> t
   val copy : Info.t -> Bregexp.t -> t
   val key : Info.t -> Bregexp.t -> t
