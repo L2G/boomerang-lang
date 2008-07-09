@@ -1766,22 +1766,27 @@ let cc_alternative_products_xml : lens =
     ins cc_tag . ins cc_bang . 
       ins "ALTERNATIVE_PRODUCTS:" . nl in 
   let named_isos_regexp : regexp = " Named isoforms=" . NUMBER .  ";" in
-  let named_isos (s:string) : string = (" Named isoforms=" . string_of_int (count (ctype name) s) . ";") in 
   let names : lens = (nl . ins cc_long_tag . cc_fix70 name)* in 
   let comment : lens = (space . generic "comment" "Comment")? in 
+  let preprocess : lens = 
+     del (ctype comment) . 
+     copy (ctype name)* in 
+  let named_isos (s:string) = 
+     " Named isoforms=" . 
+     string_of_int (count (ctype name) ((get preprocess) s)) . 
+     ";" in 
   let entry : lens = 
     prelude . 
       Xml.attr1_elt NL1 "comment" "type" (del "alternative products") 
       begin 
         events . 
-        comment . 
-        dup2 names named_isos named_isos_regexp
+        dup2 (comment . names) named_isos named_isos_regexp
       end in 
   let cn : canonizer =
     begin
       canonizer_copy (atype prelude) . 
       (columnize 70 
-         (atype events . atype comment . atype named_isos_regexp)
+         (atype events . atype named_isos_regexp . atype comment)
          ' ' (NL . cc_long_tag . "  ")) .
       canonizer_copy (atype names)
      end in
@@ -1811,23 +1816,14 @@ let cc_alternative_products_xml : string =
   |    </isoform>
   |  </comment>" 
 
-let cc_alternative_products_ascii : string = 
+let cc_alternative_products_ascii : string =
   "CC   -!- ALTERNATIVE_PRODUCTS:
-  |CC       Event=Alternative splicing; Comment=This is a rather lengthy
-  |CC         comment.; Named isoforms=2;
+  |CC       Event=Alternative splicing; Named isoforms=2; Comment=This is
+  |CC         a rather lengthy comment.;
   |CC       Name=1; Synonyms=D, This is a really long synonym that should cause
   |CC         the line to break, E; IsoId=P48347-1; Sequence=Displayed;
-  |CC       Name=2; IsoId=P48347-2; Sequence=VSP_008972;" . 
+  |CC       Name=2; IsoId=P48347-2; Sequence=VSP_008972;" .
   NL
-
-(* let cc_alternative_products_ascii : string =  *)
-(*   "CC   -!- ALTERNATIVE_PRODUCTS: *)
-(*   |CC       Event=Alternative splicing; Named isoforms=2; Comment=This is *)
-(*   |CC         a rather lengthy comment.; *)
-(*   |CC       Name=1; Synonyms=D, This is a really long synonym that should cause *)
-(*   |CC         the line to break, E; IsoId=P48347-1; Sequence=Displayed; *)
-(*   |CC       Name=2; IsoId=P48347-2; Sequence=VSP_008972;" .  *)
-(*   NL *)
 
 test cc_alternative_products_line.get
  cc_alternative_products_xml = cc_alternative_products_ascii
@@ -2005,7 +2001,6 @@ test cc_web_resource_line.get
 
 test cc_web_resource_line.create 
   cc_web_resource_ascii = cc_web_resource_xml
-
 
 (* CC Block *)
 test "----- CC block -----" = ?
@@ -3510,9 +3505,9 @@ test kw_line.get
 test kw_line.create 
   P12544_kw_ascii = P12544_kw_xml
 
-(*** START I 
 (* --------------------------------------------------------------------------- *)
 (* FT line *)
+(*** START 
 
 test "----- FT line-----" = ?
 
@@ -4183,7 +4178,7 @@ test ft_block.get
 test ft_block.create
   P12544_ft_ascii = P12544_ft_xml_cn
 
-FINISH ***)
+***)
 
 (* --------------------------------------------------------------------------- *)
 (* SQ line *)
@@ -4260,7 +4255,6 @@ let sq_xml : string =
 
 test sq_block.get sq_xml = sq_ascii 
 
-
 (* (\* --------------------------------------------------------------------------- *\) *)
 (* (\* UniProtKB entry *\) *)
 
@@ -4294,4 +4288,3 @@ test sq_block.get sq_xml = sq_ascii
 (*     sq_mid_xml .  *)
 (*     sq_rest_xml in  *)
 (*   pass1 *)
-    
