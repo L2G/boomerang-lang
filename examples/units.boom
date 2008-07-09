@@ -1,11 +1,32 @@
 module Units = 
 
+  let single_cn : canonizer = 
+    canonizer_of_lens ((WS . "<a x=") <-> "<b x=") . 
+    canonizer_of_lens (dup1 DIGIT (fun (s:string) -> "><c y=" . s) ("><c y=" . DIGIT)) . 
+    canonizer_copy ">"
+
+  let double_cn : canonizer = 
+    canonizer_of_lens (WS <-> "") . 
+    canonizer_copy ("<b x=" . DIGIT . "><c y=" . DIGIT . ">")
+
+  let double_lns : lens = 
+    ("<b x=" <-> "") . 
+    DIGIT . 
+    ins "," . 
+    ("><c y=" <-> "") . 
+    DIGIT . 
+    (">" <-> "")
+
+  test qtype (single_cn | double_cn) = (ctype double_lns)
+
+  test (left_quot (single_cn | double_cn) double_lns) = error
+
   let qc (v:string) (E:regexp) (D:regexp) (u:string) = 
     left_quot (canonizer_of_lens (const E v v))
       (right_quot (v <-> u)
          (canonizer_of_lens (const D u u)))
 
-  test (qc "x" [a-z] [0-9] "1").create "9" = ?
+  test (qc "x" [a-z] [0-9] "1").create "9" = "x"
 
 
 (* ---- dup --- *)

@@ -726,6 +726,17 @@ module DLens = struct
       dl.arel
       dl.get
       (rcreate dl)
+
+  let canonizer_of_t_assertI i dl = 
+    Canonizer.mk_t 
+      i
+      (sprintf "canonizer_of_lens(%s)" dl.string)
+      dl.ctype
+      dl.atype
+      Identity
+      dl.get
+      (rcreate dl)
+
       
   (* invert -- only for bijective lenses! *)
   let invert i dl = 
