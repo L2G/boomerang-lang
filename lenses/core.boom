@@ -132,6 +132,8 @@ let rtype : canonizer -> regexp =
   Native.Prelude.rtype
 let qtype : canonizer -> regexp =
   Native.Prelude.qtype
+let canonizer_copy : regexp -> canonizer = 
+  Native.Prelude.canonizer_copy
 let canonize : canonizer -> string -> string =
   Native.Prelude.canonize
 let choose : canonizer -> string -> string = 

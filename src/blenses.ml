@@ -1223,13 +1223,12 @@ module DLens = struct
       | S_comp (s1, s2) -> dl1.stype s1 && dl2.stype s2
       | _ -> false in
       (match dl1.arel,dl2.crel with
-         | Unknown,Unknown -> 
+         | Identity,Identity -> ()
+         | _ -> 
              let s = sprintf "the composition of %s and %s is ill-typed: %s"            
                dl1.string dl2.string 
                "the middle relations must both be the identity" in 
-               Berror.static_error i n s
-         | _ -> ());
-      
+               Berror.static_error i n s);
       if not (RxImpl.equiv dl1.atype dl2.ctype) then
         begin
 	  let s = sprintf "the composition of %s and %s is ill-typed"
@@ -1471,6 +1470,7 @@ module DLens = struct
       end in 
     let () = match cn.Canonizer.crel,dl.crel with
       | Unknown, Unknown -> 
+          Util.format "CANONIZER IS %s" (cn.Canonizer.string);
           Berror.static_error i n (sprintf "%s is ill-typed U U" n)
       | Unknown,Identity -> 
           Berror.static_error i n (sprintf "%s is ill-typed U I" n)          

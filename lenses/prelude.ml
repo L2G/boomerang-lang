@@ -154,6 +154,7 @@ let pmk_lrrb  = pmk3 S.SLens mk_lfun S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool
 let pmk_qq    = pmk1 S.SCanonizer mk_qfun S.SCanonizer mk_q 
 let pmk_qqq   = pmk2 S.SCanonizer mk_qfun S.SCanonizer mk_qfun S.SCanonizer mk_q 
 let pmk_qr    = pmk1 S.SCanonizer mk_qfun S.SRegexp mk_r
+let pmk_rq    = pmk1 S.SRegexp mk_rfun S.SCanonizer mk_q
 let pmk_qss   = pmk2 S.SCanonizer mk_qfun S.SString mk_sfun S.SString mk_s
 let pmk_qll   = pmk2 S.SCanonizer mk_qfun S.SLens mk_lfun S.SLens mk_l
 let pmk_qiiq  = pmk3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun S.SCanonizer mk_q
@@ -203,6 +204,7 @@ let prelude_spec =
   ; pmk_dup    "dup2"                 (fun i l f fat -> L.dup i false l (fun s -> get_s (f (mk_s i s))) fat)
                                       
   (* canonizer operations *)          
+  ; pmk_rq     "canonizer_copy"       C.copy
   ; pmk_qqq    "canonizer_union"      C.union
   ; pmk_qqq    "canonizer_concat"     C.concat
   ; pmk_qiiq   "canonizer_iter"       C.iter

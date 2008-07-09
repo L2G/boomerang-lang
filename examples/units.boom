@@ -1,5 +1,13 @@
 module Units = 
 
+  let qc (v:string) (E:regexp) (D:regexp) (u:string) = 
+    left_quot (canonizer_of_lens (const E v v))
+      (right_quot (v <-> u)
+         (canonizer_of_lens (const D u u)))
+
+  test (qc "x" [a-z] [0-9] "1").create "9" = ?
+
+
 (* ---- dup --- *)
 test get (dup1 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "N" = "NN"
 test get (dup2 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "N" = "NN"
