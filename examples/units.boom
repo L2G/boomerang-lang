@@ -3,13 +3,13 @@ module Units =
   let single_cn : canonizer = 
     canonizer_of_lens ((WS . "<a x=") <-> "<b x=") . 
     canonizer_of_lens (dup1 DIGIT (fun (s:string) -> "><c y=" . s) ("><c y=" . DIGIT)) . 
-    canonizer_copy ">"
+    canonizer_of_lens ">"
 
   let double_cn : canonizer = 
     canonizer_of_lens (WS <-> "") . 
-    canonizer_copy ("<b x=" . DIGIT . ">") . 
+    canonizer_of_lens ("<b x=" . DIGIT . ">") . 
     canonizer_of_lens (WS <-> "") . 
-    canonizer_copy ("<c y=" . DIGIT . ">")
+    canonizer_of_lens ("<c y=" . DIGIT . ">")
 
   let double_lns : lens = 
     ("<b x=" <-> "") . 
@@ -19,9 +19,9 @@ module Units =
     DIGIT . 
     (">" <-> "")
 
-  test qtype (single_cn | double_cn) = (ctype double_lns)
 
   let final_lns = left_quot (double_cn | single_cn) double_lns 
+  test left_quot (single_cn | double_cn) double_lns = error
 
   test final_lns.get "  \n<a x=7>" = "7,7"
   test final_lns.get "\n  <b x=7>    <c y=7>" = "7,7"
