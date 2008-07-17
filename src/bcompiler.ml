@@ -1165,7 +1165,7 @@ let rec compile_exp cev e0 =
 and compile_binding cev b0 = 
   match b0 with
   | Bind(i,p,so,e) -> 
-      Trace.debug "binds+" (fun () -> Util.format "compiling binding %s@\n" (string_of_pat p));
+      Trace.debug "binds+" (fun () -> Util.format "compiling binding %s@\n%!" (string_of_pat p));
       let v = compile_exp cev e in 
       let xs_rev,bcev = match dynamic_match i p v with
         | None -> run_error i 

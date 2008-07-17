@@ -16,7 +16,7 @@
 (*******************************************************************************)
 (* /boomerang/src/bregexp.ml                                                   *)
 (* Boomerang regular expressions                                               *)
-(* $Id$                                                                        *)
+(* $Id: bregexp.ml 3937 2008-07-04 15:44:46Z jnfoster $                                                                        *)
 (*******************************************************************************)
 
 module R = Bnfa.Rx
@@ -63,8 +63,6 @@ let disjoint_cex = R.disjoint_cex
 let disjoint = R.disjoint
 let equiv = R.equiv
 let representative = R.representative
-(* let suffs1 = R.suffs1 *)
-(* let suffs2 = R.suffs2 *)
 
 (* string matching *)
 let match_string = R.match_string

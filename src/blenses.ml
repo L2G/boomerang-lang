@@ -394,7 +394,14 @@ module Canonizer = struct
           let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
             cn1.string cn2.string s1 s2 s1' s2' in 
           Berror.static_error i n s in 
-    let ct = RxImpl.mk_seq cn1.ctype cn2.ctype in 
+    let ct = match cn1.crel,cn2.crel with 
+      | Identity,Identity -> RxImpl.mk_seq cn1.ctype cn2.ctype 
+      | _ -> match RxImpl.splittable_cex cn1.ctype cn2.ctype with 
+          | Misc.Right ct12 -> ct12 
+          | Misc.Left(s1,s2,s1',s2') -> 
+              let s = sprintf "the concatenation of %s and %s is ambiguous (and so the relation may not be an equivalence):\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
+                cn1.string cn2.string s1 s2 s1' s2' in 
+                Berror.static_error i n s in   
       { info = i;
         string = n;
         rtype = rt;
@@ -416,6 +423,14 @@ module Canonizer = struct
           let s = sprintf "%s and %s are not disjoint: %s"
             (RxImpl.string_of_t cn1.rtype) (RxImpl.string_of_t cn2.rtype) w in
         Berror.static_error i n s in
+(*     let () = match cn1.crel,cn2.crel with  *)
+(*       | Identity,Identity -> () *)
+(*       | _ -> match RxImpl.disjoint_cex cn1.ctype cn2.ctype with *)
+(*       | None -> () *)
+(*       | Some w ->  *)
+(*           let s = sprintf "%s and %s are not disjoint (and so the relation may not be the identity): %s" *)
+(*             (RxImpl.string_of_t cn1.rtype) (RxImpl.string_of_t cn2.rtype) w in *)
+(*           Berror.static_error i n s in *)
     let rt = RxImpl.mk_alt cn1.rtype cn2.rtype in 
     let ct = RxImpl.mk_alt cn1.ctype cn2.ctype in 
     let cr = 
@@ -438,7 +453,14 @@ module Canonizer = struct
           let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
             (RxImpl.string_of_t cn1.rtype) s1 s2 s1' s2' in 
           Berror.static_error i n s in 
-    let ct = RxImpl.mk_star cn1.ctype in
+    let ct = match cn1.crel with 
+      | Identity -> RxImpl.mk_star cn1.ctype 
+      | _ -> match RxImpl.iterable_cex cn1.ctype with 
+          | Misc.Right cts -> cts 
+          | Misc.Left(s1,s2,s1',s2') -> 
+              let s = sprintf "the iteration of %s is ambiguous (and so the relation may not be an equivalence):\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
+                cn1.string s1 s2 s1' s2' in 
+                Berror.static_error i n s in   
       { info = i;
         string = n;
         rtype = rt;

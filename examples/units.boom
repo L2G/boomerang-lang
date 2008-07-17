@@ -1,26 +1,26 @@
 module Units = 
 
-  let single_cn : canonizer = 
-    canonizer_of_lens ((WS . "<a x=") <-> "<b x=") . 
-    canonizer_of_lens (dup1 DIGIT (fun (s:string) -> "><c y=" . s) ("><c y=" . DIGIT)) . 
+  let single_cn : canonizer =
+    canonizer_of_lens ((WS . "<a x=") <-> "<b x=") .
+    canonizer_of_lens (dup1 DIGIT (fun (s:string) -> "><c y=" . s) ("><c y=" . DIGIT)) .
     canonizer_of_lens ">"
 
-  let double_cn : canonizer = 
-    canonizer_of_lens (WS <-> "") . 
-    canonizer_of_lens ("<b x=" . DIGIT . ">") . 
-    canonizer_of_lens (WS <-> "") . 
+  let double_cn : canonizer =
+    canonizer_of_lens (WS <-> "") .
+    canonizer_of_lens ("<b x=" . DIGIT . ">") .
+    canonizer_of_lens (WS <-> "") .
     canonizer_of_lens ("<c y=" . DIGIT . ">")
 
-  let double_lns : lens = 
-    ("<b x=" <-> "") . 
-    DIGIT . 
-    ins "," . 
-    ("><c y=" <-> "") . 
-    DIGIT . 
+  let double_lns : lens =
+    ("<b x=" <-> "") .
+    DIGIT .
+    ins "," .
+    ("><c y=" <-> "") .
+    DIGIT .
     (">" <-> "")
 
 
-  let final_lns = left_quot (double_cn | single_cn) double_lns 
+  let final_lns = left_quot (double_cn | single_cn) double_lns
   test left_quot (single_cn | double_cn) double_lns = error
 
   test final_lns.get "  \n<a x=7>" = "7,7"
@@ -28,7 +28,7 @@ module Units =
   test final_lns.create "7,7" = "<b x=7><c y=7>"
   test final_lns.create "3,7" = "<b x=3><c y=7>"
 
-  let qc (v:string) (E:regexp) (D:regexp) (u:string) = 
+  let qc (v:string) (E:regexp) (D:regexp) (u:string) =
     left_quot (canonizer_of_lens (const E v v))
       (right_quot (v <-> u)
          (canonizer_of_lens (const D u u)))

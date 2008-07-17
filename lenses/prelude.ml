@@ -254,11 +254,11 @@ let prelude_spec =
   ; pmk_rsb    "matches"              (fun _ -> Bregexp.match_string)
   ; pmk_rrb    "splittable"           (fun _ -> Bregexp.splittable)
   ; pmk_rrs    "splittable_cex"       (fun _ t1 t2 -> match Bregexp.splittable_cex t1 t2 with
-                                         | Misc.Left(w1,w2,w1',w2') -> w1 ^ " : " ^ w2 ^ " & " ^ w1' ^ " : " ^ w2'
+                                         | Misc.Left(w1,w2,w1',w2') -> sprintf "[%s] [%s] and [%s] [%s]" w1 w2 w1' w2'
                                          | _ -> "NONE")
   ; pmk_rb     "iterable"             (fun _ -> Bregexp.iterable)
   ; pmk_rrb    "disjoint"             (fun _ -> Bregexp.disjoint)
-                                      
+    
   (* boolean operations *)            
   ; pmk_bbb    "land"                 (fun _ -> (&&))
   ; pmk_bbb    "lor"                  (fun _ -> (||))
