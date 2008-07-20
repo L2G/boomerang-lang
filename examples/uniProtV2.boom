@@ -1940,7 +1940,7 @@ let cc_sequence_caution_xml : string =
   NL . 
   "  <comment type=\"sequence caution\">
   |    <conflict type=\"erroneous termination\">
-  |      <sequence resource=\"EMBL-CDS\" id=\"AAN42076\" version=\"1\"/>
+  |      <sequence resource=\"EMBL\" id=\"AAN42076\" version=\"1\"/>
   |    </conflict>
   |    <location>
   |      <position position=\"273\"/>
@@ -2014,15 +2014,19 @@ let cc_copyright : string =
 let cc_block : lens = 
   let non_interaction : lens = 
       ( cc_unstructured_line 
-      | cc_biophysicochemical_properties_line     
-      | cc_alternative_products_line 
-      | cc_mass_spectrometry_line 
-      | cc_sequence_caution_line 
+      | cc_biophysicochemical_properties_line
+      | cc_alternative_products_line
+      | cc_mass_spectrometry_line
+      | cc_sequence_caution_line
       | cc_web_resource_line) in
-  ( non_interaction+
-  | cc_interaction_block 
-  | non_interaction* . cc_interaction_block . non_interaction+ ) . 
-  ins cc_copyright      
+  let non_interaction_s = non_interaction* in 
+  let non_interaction_p = non_interaction_s . non_interaction in 
+  let final_cc_block_fst = 
+    ( non_interaction_p
+    | cc_interaction_block 
+    | non_interaction_s . cc_interaction_block . non_interaction_p ) in
+  let res = final_cc_block_fst . ins cc_copyright in
+  res
 
 (* unit tests for CC block *)
 let cc_block_ascii : string =
@@ -2553,7 +2557,7 @@ test pe_line.create
 test "----- KW line-----" = ?
 
 let kw_trans : lens = 
-  let mid : lens = del "\">" in 
+  let mid = del "\">" in 
   ( del "KW-0001" . mid . "2Fe-2S"
   | del "KW-0002" . mid . "3D-structure"
   | del "KW-0003" . mid . "3Fe-4S"

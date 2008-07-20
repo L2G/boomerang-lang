@@ -22,14 +22,10 @@
 
 (* Based on Jerome Vouillon's code from Unison. *)
 
-(* --------------------- CONSTANTS / HELPERS --------------------- *)
-
-(* debugging *)
-let () = Format.set_margin 300
-let dbg thk = Trace.debug "brx+" thk
-let sdbg s = Trace.debug "brx+" (fun () -> Util.format "%s" s)
-
+(* --------------------- CONSTANTS --------------------- *)
 (* ASCII alphabet *)
+let () = Format.set_margin 500
+
 let min_code = 0
 let max_code = 255
 
@@ -134,7 +130,6 @@ end = struct
 end
 
 (* --------------------- REGULAR EXPRESSIONS --------------------- *)
-(* we use a recursive module because t uses Q.ts in representative *) 
 type d = 
   | CSet of CharSet.t
   | Seq of t * t
@@ -146,20 +141,18 @@ and t =
     { uid                        : int;
       desc                       : d;
       hash                       : int;
-      size                       : int;
       final                      : bool;
-      (* lazily computed *)     
+      mutable known_singleton    : bool;
       mutable maps               : (int array * int array * int) option;
-      mutable representative     : (int list option) option;
+      mutable derivative         : int -> t;
       mutable reverse            : t option;
+      mutable representative     : (int list option) option;
       mutable suffs              : t option;
-      (* operations *)           
-      mutable derivative         : int -> t }
+    }
 
 type this_t = t 
 
-let compare_t t1 t2 = 
-  compare (t1.uid,t1.size) (t2.uid,t2.size)
+let compare_t t1 t2 = compare t1.uid t2.uid 
 
 module Q = Set.Make(
   struct
@@ -201,8 +194,7 @@ let rec format_t t0 =
     | ti::rest -> 
         maybe_wrap (lpar (rank ti) rnk || rpar (rank ti) rnk) ti;
         Util.format "%s" sep;
-        format_list sep rnk rest in 
-    
+        format_list sep rnk rest in     
     Util.format "@[";
     begin match t0.desc with
       | CSet [p1] -> 
@@ -233,14 +225,10 @@ let rec format_t t0 =
     end;
     Util.format "@]"
 
-let string_of_t t0 = Util.format_to_string (fun () -> 
-                                              Util.format "@[";
-                                              format_t t0; 
-                                              Util.format "@]")
-
-let size_of_t t = t.size 
-let compare_size (t1,_) (t2,_) = t1.size - t2.size
-
+let string_of_t t0 = 
+  Util.format_to_string 
+    (fun () -> Util.format "@["; format_t t0; Util.format "@]")
+    
 (* --------------------- HASH CONS CACHES --------------------- *)
 module MapCache = Map.Make(
   struct
@@ -320,7 +308,6 @@ let seq_cache : t TTLTCache.t = TTLTCache.create 131
 let alt_cache : t TLCache.t = TLCache.create 131
 let inter_cache : t TLCache.t = TLCache.create 131
 let diff_cache : t TTCache.t = TTCache.create 131
-
 (* --------------------- DESC OPERATIONS --------------------- *)
 let desc_hash = function
   | CSet(cs)     -> 
@@ -334,14 +321,6 @@ let desc_hash = function
   | Diff(t1,t2)      -> 379 * t1.hash + 563 * t2.hash
   | Rep(t1,i,Some j) -> 197 * t1.hash + 137 * i + j
   | Rep(t1,i,None)   -> 197 * t1.hash + 137 * i + 552556457
-
-let desc_size = function
-  | CSet(cs)     -> 1
-  | Alt tl       -> Safelist.fold_left (fun s ti -> s + ti.size) 0 tl + 1
-  | Seq(t1,t2)   -> t1.size + t2.size + 1
-  | Inter tl     -> Safelist.fold_left (fun s ti -> s + ti.size) 0 tl + 1
-  | Diff(t1,t2)  -> t1.size + t2.size + 1
-  | Rep(t1,i,_) -> i * t1.size + 1
 
 let desc_final = function
   | CSet _      -> false
@@ -416,44 +395,50 @@ let install upd f =
 
 let dummy_impl _ = assert false  
 
-let mk_constant d t_nexto t_repo = 
-  let fin = desc_final d in 
+let mk_constant d t_nexto repo = 
   let t = 
     { uid = next_uid ();
       desc = d;
       hash = desc_hash d;
-      size = 1;
-      final = fin;
+      final = desc_final d;
+      known_singleton = false;
       maps = Some (desc_maps d);
-      representative = Some t_repo;
+      derivative = dummy_impl; 
       reverse = None;
+      representative = Some repo;
       suffs = None;
-      derivative = dummy_impl; } in 
+    } in 
   let t_next = match t_nexto with 
     | None -> t 
     | Some t' -> t' in 
   (* backpatch *)
-  t.reverse <- Some t;
   t.derivative <- (fun c -> t_next);  
+  t.reverse <- Some t;
   t
 
 (* CONSTANTS *)
-let empty    = mk_constant (CSet []) None None     
-let epsilon  = mk_constant (Rep(empty,0,None)) (Some empty) (Some [])
+let empty = mk_constant (CSet []) None None  
+    
+let epsilon = 
+  let t = mk_constant (Rep(empty,0,None)) (Some empty) (Some []) in 
+  t.known_singleton <- true;
+  t
 
 let is_empty t = t.uid = empty.uid
 let is_epsilon t = t.uid = epsilon.uid
 
-let get_seq t = match t.desc with
-  | Seq(t1,t2) -> Some(t1,t2)
-  | _ -> None
-
 let mk_cset_constant cs = 
-  let t = mk_constant (CSet cs) None (match cs with [] -> None | (c1,_)::_ -> Some [c1]) in 
+  let repo = match cs with [] -> None | (c1,_)::_ -> Some [c1] in 
+  let t = mk_constant (CSet cs) None repo in 
   t.derivative <- (fun c -> if CharSet.mem c cs then epsilon else empty);
+  t.known_singleton <- true;
   t
 
-let anychar  = mk_cset_constant [min_code,max_code]
+let anychar  = 
+  let t = mk_constant (CSet [min_code,max_code]) None (Some [min_code]) in
+  t.derivative <- (fun c -> epsilon);
+  t 
+
 let anything = 
   let t = mk_constant (Rep(anychar,0,None)) None (Some []) in
   t.derivative <- (fun c -> if c > max_code then empty else t);
@@ -462,8 +447,7 @@ let anything =
 let is_anything t = t.uid = anything.uid
 
 let force vo set f x = match vo with 
-  | Some v -> 
-      v 
+  | Some v -> v
   | None -> 
       let v = f x in
       set v; 
@@ -475,15 +459,14 @@ let rec mk_t d0 =
     { uid = next_uid ();
       desc = d0;
       hash = desc_hash d0;
-      size = desc_size d0;
       final = desc_final d0;      
+      known_singleton = false;
       maps = None;
       representative = None;
       suffs = None;
       reverse = None;
       derivative = dummy_impl } in 
 
-  (* derivative *)
   let derivative_impl = 
     let mk_table f = 
       let fr = ref f in
@@ -523,20 +506,16 @@ let rec mk_t d0 =
           mk_table 
             (fun c -> mk_diff (t1.derivative c) (t2.derivative c)) in 
     res in
-(*     (fun c ->  *)
-(*        let r = res c in  *)
-(*        Util.format "@[DERIVATIVE[%d]" c; *)
-(*        format_t t0; *)
-(*        Util.format " ==> "; *)
-(*        format_t r; *)
-(*        Util.format "@]@\n"; *)
-(*        r) in  *)
 
   (* backpatch t0 with implementation of derivative *)  
   t0.derivative <- derivative_impl;
   t0
 
-and get_maps t = force t.maps (fun v -> t.maps <- Some v) desc_maps t.desc  
+(* operations *)
+and get_maps t = 
+  force t.maps 
+    (fun v -> t.maps <- Some v) 
+    desc_maps t.desc  
 
 and calc_reverse t = match t.desc with 
   | CSet _        -> t
@@ -546,13 +525,15 @@ and calc_reverse t = match t.desc with
   | Inter tl      -> mk_inters (Safelist.fold_left (fun acc ti -> get_reverse ti::acc) [] tl)
   | Diff(t1,t2)   -> mk_diff (get_reverse t1) (get_reverse t2)
 
-and get_reverse t = force t.reverse (fun v -> t.reverse <- Some v) calc_reverse t 
+and get_reverse t = 
+  force t.reverse 
+    (fun v -> t.reverse <- Some v) 
+    calc_reverse t 
 
-and calc_suffs t0 =
+and calc_suffs t =
   let rec full_search ts f p = match p with
     | [] -> ts
     | t::rest ->
-(*         Util.format "@[FULL_SEARCH SEEN=%b EMPTY=%b FINAL=%b@\n%a@]@\n" (Q.mem t f) (easy_empty t) t.final (fun _ -> format_t) t; *)
         let f' = Q.add t f in
         if Q.mem t f || easy_empty t then full_search ts f rest
         else
@@ -569,20 +550,15 @@ and calc_suffs t0 =
           let p' = loop f' p (pred len) in
           let ts' = if t.final then Q.add t ts else ts in
           full_search ts' f' p' in
-  let ts = full_search Q.empty Q.empty [t0] in
+  let ts = full_search Q.empty Q.empty [t] in
   mk_alts (Q.elements ts)
 
-and get_suffs t0 = match t0.suffs with
-  | Some suffs1 -> suffs1
-  | _ ->
-      let t0' = calc_suffs t0 in
-      t0.suffs <- Some t0';
-      t0'
+and get_suffs t = 
+  force t.suffs
+    (fun v -> t.suffs <- Some v)
+    calc_suffs t 
 
-and calc_representative t0 =  
-(*   Util.format "@[CALC_REPRESENTATIVE #%d |%d| (%s)@\n" t0.uid t0.size (tag_of_t t0); *)
-(*   format_t t0; *)
-(*   Util.format "@]@\n@\n"; *)
+and calc_representative t = 
   let rec rep_jump f p = 
     if Queue.is_empty p then Misc.Right f
     else 
@@ -604,27 +580,22 @@ and calc_representative t0 =
         Misc.Right p in 
     
   let full_search (r,f,p) =
-(*     Util.format "@\nFULL_SEARCH %d@\n" t0.uid; *)
-    let f' = Q.add t0 f in
-      if t0.final then Misc.Left (([],t0)::r)
-      else if Q.mem t0 f || easy_empty t0 then 
+    let f' = Q.add t f in
+      if t.final then Misc.Left (([],t)::r)
+      else if Q.mem t f || easy_empty t then 
         begin 
-          if t0.representative = None then t0.representative <- Some None;
+          if t.representative = None then t.representative <- Some None;
           rep_jump f' p
         end
       else
-	let _,rm,len = get_maps t0 in
-(*         Util.format "GOING TO LOOP %d@\n" t0.uid; *)
+	let _,rm,len = get_maps t in
         let rec loop sn acc i = match acc with
           | Misc.Left _ -> acc
           | Misc.Right pacc ->               
               if i < 0 then acc
               else begin
                 let ci = rm.(i) in
-                let ti = t0.derivative ci in
-(*                 Util.format "@[LOOP: %d@\n-%d->@\n#%d" t0.uid ci ti.uid; *)
-(*                 format_t ti; *)
-(*                 Util.format "@]@\n@\n"; *)
+                let ti = t.derivative ci in
                 if Q.mem ti sn then loop sn acc (pred i)
                 else loop (Q.add ti sn) (add ti (Some ci) r f' pacc) (pred i) 
               end in 
@@ -651,13 +622,13 @@ and calc_representative t0 =
     | Some None     -> Misc.Right Q.empty
     | None          -> calc_representative ti (r,f,p) in
     
-    match t0.desc with
+    match t.desc with
       | CSet [] -> 
           (fun (r,f,_) -> Misc.Right f)
       | CSet((c1,_)::_) -> 
-          (fun (r,f,_) -> Misc.Left (([c1],t0)::r))
+          (fun (r,f,_) -> Misc.Left (([c1],t)::r))
       | Rep(_,0,_) -> 
-          (fun (r,f,_) -> Misc.Left (([],t0)::r))
+          (fun (r,f,_) -> Misc.Left (([],t)::r))
       | Rep(t1,i,_) -> 
           (fun (r,f,p) -> 
              match go([],f,Queue.create ()) t1 with                 
@@ -667,48 +638,52 @@ and calc_representative t0 =
                    let rec loop i acc = 
                      if i <= 0 then acc
                      else loop (pred i) (acc @ w1) in 
-                   Misc.Left [loop i [],t0]
+                   Misc.Left [loop i [],t]
                | Misc.Right f' -> 
                    (if t1.representative = None then t1.representative <- Some None);
-                   rep_jump (Q.add t0 f) p)
+                   rep_jump (Q.add t f) p)
       | Seq(t1,t2) -> 
           (fun (r,f,p) -> 
              match go (r,f,Queue.create ()) t1 with 
                | Misc.Right f' -> 
                    (if t1.representative = None then t1.representative <- Some None);
-                   rep_jump (Q.add t0 f) p
+                   rep_jump (Q.add t f) p
                | Misc.Left r1 -> 
                    let w1 = rep_of_list r1 in 
                    (if t1.representative = None then t1.representative <- Some (Some w1));
                    match go ([],f,Queue.create ()) t2 with
                    | Misc.Right f' -> 
                        (if t2.representative = None then t2.representative <- Some None);
-                       rep_jump (Q.add t0 f) p
+                       rep_jump (Q.add t f) p
                    | Misc.Left r2 ->
                        let w2 = rep_of_list r2 in 
                        (if t2.representative = None then t2.representative <- Some (Some w2));
-                       Misc.Left[w1 @ w2,t0])
+                       Misc.Left[w1 @ w2,t])
       | Alt tl ->
-          (fun (r,f,p) -> alts_rep r (fun x -> x) (Q.add t0 f) p tl)
+          (fun (r,f,p) -> alts_rep r (fun x -> x) (Q.add t f) p tl)
       | Diff(t1,t2) -> 
           (match t1.desc with
              | Alt(tl1) ->                 
-                 (fun (r,f,p) -> alts_rep r (fun ti -> mk_diff ti t2) (Q.add t0 f) p tl1)
+                 (fun (r,f,p) -> alts_rep r (fun ti -> mk_diff ti t2) (Q.add t f) p tl1)
              | _ -> full_search)
       | Inter (t1::tl2) -> 
           (match t1.desc with
              | Alt tl1 -> 
-                 (fun (r,f,p) -> alts_rep r (fun ti -> mk_inters (ti::tl2)) (Q.add t0 f) p tl1)
+                 (fun (r,f,p) -> alts_rep r (fun ti -> mk_inters (ti::tl2)) (Q.add t f) p tl1)
              | _ -> full_search)
       | _ -> full_search
 
-and get_representative t0 = match t0.representative with
+and easy_empty t = match t.representative with
+  | Some None -> true
+  | _ -> false
+
+and get_representative t = match t.representative with
   | Some res -> res 
   | None -> 
-      match calc_representative t0 ([],Q.empty,Queue.create ()) with
+      match calc_representative t ([],Q.empty,Queue.create ()) with
         | Misc.Right f' -> 
             Q.iter (fun ti -> ti.representative <- Some None) f';
-            t0.representative <- Some None;
+            t.representative <- Some None;
             None
         | Misc.Left r -> 
             let w0 = Safelist.fold_left 
@@ -717,21 +692,22 @@ and get_representative t0 = match t0.representative with
                  (if ti.representative = None then ti.representative <- Some (Some w'));
                  w') 
               [] r in
-            t0.representative <- Some (Some w0);
+            t.representative <- Some (Some w0);
             Some w0
 
-and easy_empty t0 = match t0.representative with
-  | Some None -> true
-  | _ -> false
-
-and mk_cset cs = match cs with
-  | [] -> empty
-  | (c1,_)::_ -> 
-      let cs' = Safelist.fold_left (fun l p -> CharSet.add p l) [] cs in 
-      try CSCache.find cset_cache cs' 
-      with Not_found -> 
+(* constructors *)
+and mk_cset cs = 
+  let cs' = Safelist.fold_left (fun l p -> CharSet.add p l) [] cs in 
+  match cs' with 
+    | [] -> empty
+    | (c1,_)::_ -> 
+        try CSCache.find cset_cache cs' 
+        with Not_found -> 
 	let res = mk_t (CSet cs') in 
         res.representative <- Some (Some [c1]);
+        (match cs' with 
+           | [c1,c2] -> res.known_singleton <- (c1 = c2)
+           | _ -> ());
 	CSCache.add cset_cache cs' res;
 	res
 
@@ -744,7 +720,6 @@ and mk_neg_cset cs =
 	  with Not_found -> 
 	    let res = mk_t (CSet cs'') in 
 	    CSCache.add neg_cset_cache cs'' res;
-            res.representative <- Some (Some [c1]);
 	    res
 
 and mk_seq t1 t2 = 
@@ -754,7 +729,14 @@ and mk_seq t1 t2 =
         let p = (ti,(x,acc),t2) in
         begin try TTLTCache.find seq_cache p 
         with Not_found -> 
-          let r = Safelist.fold_left (fun acc ti -> mk_t(Seq(ti,acc))) t2 (ti::acc) in 
+          let r = Safelist.fold_left 
+            (fun acc ti -> 
+               let ti' = mk_t (Seq(ti,acc)) in
+               ti'.known_singleton <- ti.known_singleton && acc.known_singleton;
+               (match ti.representative,acc.representative with
+                  | Some (Some l1), Some (Some l2) -> ti'.representative <- Some (Some (l1 @ l2))
+                  | _ -> ());
+               ti') t2 (ti::acc) in 
           TTLTCache.add seq_cache p r;
           r 
         end in
@@ -764,8 +746,8 @@ and mk_seq t1 t2 =
     else if easy_empty t1 || easy_empty t2 then empty 
     else if t1.uid = t2.uid then mk_rep t1 2 (Some 2)
     else match t1.desc,t2.desc with 
-      | Rep(t11,i,jo),_ when t11.uid = t2.uid -> mk_rep t11 (succ i) jo
-      | _,Rep(t21,i,jo) when t1.uid = t21.uid -> mk_rep t21 (succ i) jo
+      | Rep(t11,i,jo),_ when t11.uid = t2.uid -> mk_rep t11 (succ i) (match jo with None -> None | Some j -> Some (succ j))
+      | _,Rep(t21,i,jo) when t1.uid = t21.uid -> mk_rep t21 (succ i) (match jo with None -> None | Some j -> Some (succ j))
       | _ -> aux (0,[]) t1 in 
     res
 
@@ -808,12 +790,7 @@ and mk_alt t1 t2 =
           else if is_anything t1 || is_anything t2 then anything
           else if is_epsilon t1 then mk_rep t2 0 (Some 1)
           else if is_epsilon t2 then mk_rep t1 0 (Some 1)
-          else 
-            (match get_seq t1,get_seq t2 with
-               | Some(t11,t12),Some(t21,t22) when t11.uid = t21.uid -> 
-                   mk_seq t11 (mk_alt t12 t22)
-               | _ -> 
-                   merge [] [t1] [t2])
+          else merge [] [t1] [t2]
                   
 and mk_alts tl = Safelist.fold_right mk_alt tl empty
 
@@ -874,6 +851,8 @@ and mk_inter t1 t2 =
     | Inter l1,Inter l2 -> merge [] l1 l2
     | Inter l1,_        -> merge [] l1 [t2]
     | _,Inter l2        -> merge [] [t1] l2
+(*     | Alt l1,_          -> mk_alts (Safelist.map (fun ti -> mk_inter ti t2) l1) *)
+(*     | _,Alt l2          -> mk_alts (Safelist.map (fun ti -> mk_inter t1 ti) l2) *)
     | _                 -> 
         if t1.uid = t2.uid then t1
         else if is_anything t1 then t2 
@@ -897,6 +876,8 @@ and mk_diff t1 t2 =
   let res = match t1.desc,t2.desc with
     | CSet s1, CSet s2     -> mk_cset (CharSet.diff s1 s2)
     | Diff(t11,t12),_      -> go t11 (mk_alt t12 t2)
+    | _,Diff(t21,t22)      -> mk_alt (go t1 t21) (mk_inter t1 t22)
+    | Alt l1,_             -> mk_alts (Safelist.map (fun ti -> mk_diff ti t2) l1) 
     | CSet s1,_ when is_epsilon t2 -> t1 
     | _ -> 
         if t1.uid = t2.uid || easy_empty t1 || is_anything t2 then empty
@@ -915,6 +896,10 @@ and mk_diff t1 t2 =
              | Rep(t11,0,None) -> 
                  mk_seq (mk_diff t11 epsilon) t1
              | _ -> go t1 t2)
+        else if is_anything t1 then 
+          match t2.desc with 
+            | Diff(t21,t22) when is_anything t21 -> t22
+            | _ -> go t1 t2  
         else go t1 t2 in 
     res
       
@@ -922,7 +907,19 @@ and mk_diff t1 t2 =
 
 let mk_reverse t0 = get_reverse t0
 
-let expand _ _ _ = assert false
+let rec mk_expand t0 c t = match t0.desc with
+  | CSet cs       -> 
+      if CharSet.mem c cs then mk_alt t t0 else t0
+  | Seq(t1,t2) -> 
+      mk_seq (mk_expand t1 c t) (mk_expand t2 c t)
+  | Alt tl -> 
+      mk_alts (Safelist.map (fun ti -> mk_expand ti c t) tl)
+  | Rep(t1,i,jo) -> 
+      mk_rep (mk_expand t1 c t) i jo
+  | Inter tl -> 
+      mk_inters (Safelist.map (fun ti -> mk_expand ti c t) tl)
+  | Diff(t1,t2) -> 
+      mk_diff (mk_expand t1 c t) (mk_expand t2 c t)
 
 let mk_complement t0 = mk_diff anything t0
 
@@ -932,6 +929,10 @@ let representative t0 =
   Misc.map_option 
     (fun l -> Safelist.fold_left (fun acc ci -> acc ^ string_of_char_code ci) "" l) 
     (get_representative t0)
+
+let easy_representative t0 = match t0.representative with
+  | Some (Some l) -> Some (Safelist.fold_left (fun acc ci -> acc ^ string_of_char_code ci) "" l)
+  | _ -> None
 
 let is_empty t0 = representative t0 = None
 
@@ -955,29 +956,47 @@ let reverse_string w =
 let mk_suffs t0 = get_suffs t0
 
 let splittable_cex t1 t2 = 
-  let t1_suffs = mk_suffs t1 in
-  let t2_prefs = mk_reverse (mk_suffs (mk_reverse t2)) in
-  let overlap_or_epsilon = mk_inter t1_suffs t2_prefs in
-  let overlap = mk_diff overlap_or_epsilon epsilon in
-(*     Util.format "T1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n" *)
-(*       (string_of_t t1) (string_of_t t1_suffs) *)
-(*       (string_of_t t2) (string_of_t t2_prefs) *)
-(*       (string_of_t overlap_or_epsilon); *)
-  match representative overlap with
-    | Some over ->
-        let t2_suff = derivative t2 over in
-        let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in
-        begin match representative (mk_inter t1 t1_pref),representative (mk_inter t2 t2_suff) with
-          | Some w1,Some w2 -> Misc.Left(w1 ^ over, w2, w1, over ^ w2)
-          | _ ->
-              Berror.run_error (Info.M "splittable_cex")
-                (fun () ->
-                   Util.format "error computing representative from %s@\nT1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n" over
-                   (string_of_t t1) (string_of_t t1_suffs)
-                   (string_of_t t2) (string_of_t t2_prefs)
-                   (string_of_t overlap_or_epsilon))
-        end
-    | None -> Misc.Right(mk_seq t1 t2)
+  (* (1) try a fast path -- t1 ends in words whose final symbol is not the first symbol of a word in t2 *)
+  let t1_rev = mk_reverse t1 in
+  let t2_rev = mk_reverse t2 in 
+  let _,rm,_ = desc_maps (Alt [t1_rev;t2]) in
+  let has_sep = 
+    Array.fold_left 
+      (fun ok ci -> ok && (easy_empty (t1_rev.derivative ci) || easy_empty (t2.derivative ci)))
+      true rm in
+  if has_sep then Misc.Right(mk_seq t1 t2)
+  else 
+    (* (2) otherwise, compute full suffixes and prefixes and intersect *)
+    begin
+    let t1_suffs = mk_suffs t1 in
+      if is_epsilon t1_suffs then Misc.Right(mk_seq t1 t2) 
+      else 
+        begin
+          let t2_rev_suffs = mk_suffs t2_rev in 
+          let t2_prefs = mk_reverse t2_rev_suffs in 
+          if is_epsilon t2_prefs then Misc.Right(mk_seq t1 t2)
+          else
+            begin
+              let overlap_or_epsilon = mk_inter t1_suffs t2_prefs in
+              let overlap = mk_diff overlap_or_epsilon epsilon in              
+                match representative overlap with
+                  | Some over ->
+                      let t2_suff = derivative t2 over in
+                      let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in
+                      begin match representative (mk_inter t1 t1_pref),representative (mk_inter t2 t2_suff) with
+                        | Some w1,Some w2 -> Misc.Left(w1 ^ over, w2, w1, over ^ w2)
+                        | _ ->
+                            Berror.run_error (Info.M "splittable_cex")
+                              (fun () ->
+                                 Util.format "error computing representative from %s@\nT1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n" over
+                                   (string_of_t t1) (string_of_t t1_suffs)
+                                   (string_of_t t2) (string_of_t t2_prefs)
+                                   (string_of_t overlap_or_epsilon))
+                      end
+                  | None -> Misc.Right(mk_seq t1 t2)
+            end
+        end 
+  end
 
 let iterable_cex t1 = 
   if t1.final then Misc.Left("","","","")
@@ -1033,17 +1052,24 @@ let mk_string s =
       let m = Char.code s.[pred n-i] in 
       let ti = mk_cset [(m,m)] in 
       loop (succ i) (ti::acc) in 
-  mk_seqs (loop 0 [])
+  mk_seqs (loop 0 []) 
 
 let disjoint_cex s1 s2 = 
-  representative (mk_inter s1 s2) 
+(*   format_t s1; *)
+(*   Util.format "@\n"; *)
+(*   format_t s2; *)
+(*   Util.format "@\n"; *)
+  match s1.known_singleton,easy_representative s1,s2.known_singleton,easy_representative s2 with
+    | true,Some w1,true,Some w2 -> if w1 = w2 then Some w1 else None
+    | true,Some w1,_,_          -> if match_string s2 w1 then Some w1 else None
+    | _,_,true,Some w2          -> if match_string s1 w2 then Some w2 else None
+    | _                         -> representative (mk_inter s1 s2) 
 
 let disjoint s1 s2 = 
   is_empty (mk_inter s1 s2) 
 
 let equiv s1 s2 = 
-  is_empty (mk_diff s1 s2) 
-  && is_empty (mk_diff s2 s1) 
+  s1.uid = s2.uid || (is_empty (mk_diff s1 s2) && is_empty (mk_diff s2 s1))
 
 let splittable s1 s2 = match splittable_cex s1 s2 with 
   | Misc.Right _ -> true

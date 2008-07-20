@@ -153,6 +153,20 @@ let build_bare_fun i param_alts body =
              ETyFun(i,a,f))
     param_alts body
 
+let rec mk_tree op l = match l with
+  | [] -> syntax_error (Info.M "mk_tree") "empty tree"
+  | [e1] -> e1
+  | _ -> 
+      let n = Safelist.length l in 
+      let rec take i l acc = match i,l with
+        | 0,_ | _,[] -> (Safelist.rev acc,l)
+        | _,h::t -> take (pred i) t (h::acc) in
+      let l1,l2 = take (n/2) l [] in
+      let e1 = mk_tree op l1 in
+      let e2 = mk_tree op l2 in 
+      let res = mk_over (me e1 e2) op [e1;e2] in 
+      res
+
 let rec fixup_pat i p0 = match p0 with 
   | PVnt(_,x,Some _) -> syntax_error i "illegal pattern"
   | PVnt(i,x,None)   -> PVar(i,Qid.id_of_t x,None)
@@ -326,14 +340,26 @@ composeexp:
 
 /* bar expressions */
 barexp:
-  | barexp BAR equalexp
-      { mk_over (me $1 $3) OBar [$1; $3] } 
+  | obarexp 
+      { mk_tree OBar (Safelist.rev $1) }
 
-  | barexp BAR BAR equalexp
-      { mk_over (me $1 $4) OBarBar [$1; $4] } 
+  | dbarexp 
+      { mk_tree OBarBar (Safelist.rev $1) }
 
   | equalexp
       { $1 }
+
+obarexp: 
+  | obarexp BAR equalexp
+      { $3 :: $1 }
+  | equalexp BAR equalexp
+      { [$3; $1 ] }
+
+dbarexp:
+  | dbarexp BAR BAR equalexp
+      { $4 :: $1 }
+  | equalexp BAR BAR equalexp 
+      { [$4; $1] }
 
 equalexp:
   | appexp EQUAL appexp 

@@ -45,7 +45,7 @@ let type_error i (s3l,s3r) =
   raise 
     (Error.Harmony_error 
        (fun () -> 
-          Util.format "@[%s: type errors in@\n" (Info.string_of_t i);
+          Util.format "@[%s: type errors in@\n" (Info.string_of_t i);          
           Util.format "@[%s@]@\n" (type_error_string (s3l,s3r))))
 
 let split_error i t pos nf =

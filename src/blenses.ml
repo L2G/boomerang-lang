@@ -61,7 +61,12 @@ let plift_r b i n t1 f =
   if not (b || Prefs.read paranoid) then f else
     (fun x ->     
        if not (RxImpl.match_string t1 x) then 
-         Berror.type_error i (RxImpl.split_bad_prefix t1 x)
+         begin 
+           Util.format "T1=";
+           Bregexp.format_t t1;
+           Util.format"@\n";
+           Berror.type_error i (RxImpl.split_bad_prefix t1 x)
+         end
        else (f x))
 
 let plift_rr b i n t1 t2 f = 
@@ -86,7 +91,12 @@ let plift_rd b i n t1 f =
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
      if not (RxImpl.match_string t1 x) then 
-       Berror.type_error i (RxImpl.split_bad_prefix t1 x)
+       begin 
+         Util.format "T1=";
+         Bregexp.format_t t1;
+         Util.format"@\n";
+         Berror.type_error i (RxImpl.split_bad_prefix t1 x)
+       end
      else (f x y))
 
 let plift_rrd b i n t1 t2 t3 f = 
@@ -323,7 +333,7 @@ module Canonizer = struct
       if r_contains_nl then Berror.static_error i n (sprintf "%s contains %s" (Bregexp.string_of_t r) nl) in 
     let nl_len = String.length nl in
     let ct = r in
-    let rt = Bregexp.expand r (Char.code ch) nl in
+    let rt = Bregexp.mk_expand r (Char.code ch) (Bregexp.mk_string nl) in
     let matches s c i =
       let s_len = String.length s in
       let c_len = String.length c in

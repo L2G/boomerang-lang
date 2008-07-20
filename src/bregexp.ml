@@ -19,7 +19,7 @@
 (* $Id: bregexp.ml 3937 2008-07-04 15:44:46Z jnfoster $                                                                        *)
 (*******************************************************************************)
 
-module R = Bnfa.Rx
+module R = Brx
 
 type t = R.t
 
@@ -39,7 +39,7 @@ let mk_iter = R.mk_iter
 let mk_diff = R.mk_diff
 let mk_complement= R.mk_complement
 let mk_inter = R.mk_inter
-let expand = R.expand
+let mk_expand = R.mk_expand
 
 (* pretty printing *)
 type r = R.r

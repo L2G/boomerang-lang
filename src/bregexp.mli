@@ -38,7 +38,7 @@ val mk_iter : t -> int -> int -> t
 val mk_diff : t -> t -> t
 val mk_complement: t -> t
 val mk_inter : t -> t -> t
-val expand : t -> int -> string -> t 
+val mk_expand : t -> int -> t -> t 
 
 (* pretty printing *)
 type r 

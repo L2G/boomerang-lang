@@ -345,7 +345,7 @@ module NFA = struct
   (* [expand t old_sym new_str] expands the language accepted by t in
      the following way: wherever [old_sym] was accepted, [old_sym] or
      [new_str] is accepted. *)
-  let expand t old_sym new_str = 
+  let mk_expand t old_sym new_str = 
     let trans_len = Array.length t.trans in 
     let new_str_len = String.length new_str in 
     (* helper: add a transition from [q] on [cr] to [qs] to [acc] *)
@@ -1996,8 +1996,8 @@ module Rx = struct
   let mk_complement r1 = mk_diff (mk_star (mk_neg_cset [])) r1
 
   let mk_expand r1 c s = 
-    let str = sprintf "expand(%c,%s,%s)" c s (r1.str) in 
-    let r = N.expand r1.rx (Char.code c) s in
+    let str = sprintf "expand(%c,%s,%s)" (Char.chr c) (s.str) (r1.str) in 
+    let r = N.mk_expand r1.rx c (match representative s with Some w -> w | None -> assert false) in 
       { str = str;
         rep = None;
         rx = r;
@@ -2012,12 +2012,6 @@ module Rx = struct
         rx = r; 
         rank = Irnk} 
         
-  let expand r1 s1 s2 = 
-    { str = sprintf "extend(%s,%s,%s)" r1.str (Char.escaped (Char.chr s1)) s2;
-      rep = r1.rep;
-      rx = N.expand r1.rx s1 s2;
-      rank = Arnk }
-
   let match_string r s = match_str r.rx s
 
   let match_string_positions r s = match_prefix r.rx s 
