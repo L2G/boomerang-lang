@@ -62,9 +62,6 @@ let plift_r b i n t1 f =
     (fun x ->     
        if not (RxImpl.match_string t1 x) then 
          begin 
-           Util.format "T1=";
-           Bregexp.format_t t1;
-           Util.format"@\n";
            Berror.type_error i (RxImpl.split_bad_prefix t1 x)
          end
        else (f x))
