@@ -23,7 +23,7 @@ if $(not $(OCAMLFIND_EXISTS))
 OCAMLFLAGS    = -dtypes -rectypes 
 
 if $(or $(defined PROFILING_NATIVE_CODE), $(defined PNC))
-	OCAMLOPTFLAGS += -p
+	OCAMLOPTFLAGS += -p -g
 	BYTE_ENABLED=false
 	export
 

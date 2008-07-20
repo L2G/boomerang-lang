@@ -17,20 +17,15 @@
 (*******************************************************************************)
 (* /boomerang/src/brx.ml                                                       *)
 (* Boomerang RegExp engine                                                     *)
+(* Uses code from Jerome Vouillon's Rx module in Unison.                       *)
 (* $Id$ *)
 (*******************************************************************************)
 
-(* Based on Jerome Vouillon's code from Unison. *)
-
 (* --------------------- CONSTANTS --------------------- *)
-(* ASCII alphabet *)
-let () = Format.set_margin 500
-
+(* alphabet - just ASCII *)
 let min_code = 0
 let max_code = 255
 
-let string_of_char_code n = String.make 1 (Char.chr n)
-	   
 (* --------------------- PRETTY PRINTING --------------------- *)
 (* ranks: used to determine when parentheses are needed. *)
 type r = 
@@ -42,29 +37,29 @@ type r =
   | Arnk (* atomic *)
 
 let lpar r1 r2 = match r1,r2 with
-  | Arnk, _ -> false
-  | _, Arnk -> false
-  | Srnk, _ -> false
-  | _, Srnk -> true
-  | Crnk, _ -> false
-  | _, Crnk -> true
-  | Irnk, _ -> false
-  | _, Irnk -> true
-  | Urnk, Drnk
+  | Arnk, _    -> false
+  | _, Arnk    -> false
+  | Srnk, _    -> false
+  | _, Srnk    -> true
+  | Crnk, _    -> false
+  | _, Crnk    -> true
+  | Irnk, _    -> false
+  | _, Irnk    -> true
+  | Urnk, Drnk -> true
   | Drnk, Urnk -> true
   | Drnk, Drnk -> false
   | Urnk, Urnk -> false
       
 let rpar r1 r2 = match r1,r2 with
-  | Arnk, _ -> false
-  | _, Arnk -> false
-  | Srnk, _ -> false
-  | _, Srnk -> true
-  | Crnk, _ -> false
-  | _, Crnk -> true
-  | Irnk, _ -> false
-  | _, Irnk -> true
-  | Urnk, Drnk
+  | Arnk, _    -> false
+  | _, Arnk    -> false
+  | Srnk, _    -> false
+  | _, Srnk    -> true
+  | Crnk, _    -> false
+  | _, Crnk    -> true
+  | Irnk, _    -> false
+  | _, Irnk    -> true
+  | Urnk, Drnk -> true
   | Drnk, Urnk -> true
   | Drnk, Drnk -> true
   | Urnk, Urnk -> true
@@ -83,6 +78,7 @@ sig
 end = struct
   type p = int * int 
   type t = p list
+
   let rec union l1 l2 = match l1,l2 with
     | _,[] -> l1
     | [],_ -> l2
@@ -130,6 +126,7 @@ end = struct
 end
 
 (* --------------------- REGULAR EXPRESSIONS --------------------- *)
+(* descriptions *)
 type d = 
   | CSet of CharSet.t
   | Seq of t * t
@@ -137,6 +134,7 @@ type d =
   | Rep of t * int * int option
   | Inter of t list
   | Diff of t * t
+(* main type *)
 and t = 
     { uid                        : int;
       desc                       : d;
@@ -147,9 +145,9 @@ and t =
       mutable derivative         : int -> t;
       mutable reverse            : t option;
       mutable representative     : (int list option) option;
-      mutable suffs              : t option;
-    }
+      mutable suffs              : t option; }
 
+(* alias for use in module instantiations *)
 type this_t = t 
 
 let compare_t t1 t2 = compare t1.uid t2.uid 
@@ -180,6 +178,8 @@ let tag_of_t t =
   | Diff _   -> "Diff" in 
   aux true t
 
+let string_of_char_code n = String.make 1 (Char.chr n)
+	   
 let rec format_t t0 = 
   let format_char_code n = Util.format "%s" (Misc.whack (string_of_char_code n)) in 
   let format_char_code_pair (n1,n2) = 
@@ -769,7 +769,7 @@ and mk_alt t1 t2 =
     | _,(t1::rest) ->
         if easy_empty t1 then go eps (x,acc) rest
         else if is_anything t1 then anything
-        else go (eps || t1.final) (883 * t1.hash,t1::acc) rest in
+        else go (eps || t1.final) (x + 883 * t1.hash,t1::acc) rest in
   let rec merge acc l1 l2 = match l1,l2 with
     | [],[]           -> go false (0,[]) acc
     | t1::l1',[]      -> merge (t1::acc) l1' []
@@ -836,7 +836,7 @@ and mk_inter t1 t2 =
     | _,(t1::rest) ->
         if easy_empty t1 then empty
         else if is_anything t1 then go (x,acc) rest
-        else go (883 * t1.hash,t1::acc) rest in
+        else go (x + 883 * t1.hash,t1::acc) rest in
   let rec merge acc l1 l2 = match l1,l2 with
     | [],[]           -> go (0,[]) acc
     | t1::l1',[]      -> merge (t1::acc) l1' []
