@@ -7,7 +7,7 @@
 ##############################################################################
 # OMake configuration
 
-NATIVE_ENABLED = TRUE
+NATIVE_ENABLED = true
 
 if $(equal $(OSTYPE), Linux)
 	OCAMLOPTFLAGS += -ccopt static
@@ -24,18 +24,14 @@ OCAMLFLAGS    = -dtypes -rectypes
 
 if $(or $(defined PROFILING_NATIVE_CODE), $(defined PNC))
 	OCAMLOPTFLAGS += -p -g
-	BYTE_ENABLED=false
+	NATIVE_ENABLED = true
+	BYTE_ENABLED = false
 	export
 
-if $(or $(defined PROFILING_BYTE_CODE), $(defined PNC))
-	OCAMLOPTFLAGS += -p
-	BYTE_ENABLED=false
+if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
+	OCAMLCFLAGS += -g
+	BYTE_ENABLED = true
 	export
-
-if $(or $(defined BYTE_CODE), $(defined BC))
-        OCAMLC=ocamlcp
-        BYTE_ENABLED=true
-        export
 
 ##############################################################################
 # Sub-directories
@@ -46,6 +42,7 @@ COMMONDIR = $(dir common)
 TOOLSDIR = $(COMMONDIR)/tools
 UBASEDIR = $(COMMONDIR)/ubase
 HBASEDIR = $(COMMONDIR)/hbase
+EXTERNDIR = $(COMMONDIR)/extern
 
 SRCDIR = $(dir src)
 LENSESDIR = $(dir lenses)

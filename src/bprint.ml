@@ -9,11 +9,9 @@ let nlify s = Misc.format_list "@\n"
   (Misc.split_nonescape '\n' s)
 
 let maybe_wrap fmt b r = 
-  Util.format "@[";
   if b then msg "(";
   fmt r;
-  if b then msg ")";
-  msg "@]"  
+  if b then msg ")"
   
 let rec format_sort = function
   | SUnit -> msg "@[unit@]"      

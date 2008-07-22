@@ -84,3 +84,6 @@ val split_positions : t -> t -> string -> Int.Set.t
 val split_bad_prefix : t -> string -> string * string
 val seq_split : t -> t -> string -> (string * string) option
 val star_split : t -> string -> string list
+
+(* statistics *)
+val print_stats : unit -> unit

@@ -22,7 +22,7 @@
 ##############################################################################
 # Library configuration
 
-OCAMLPACKS += num str unix
+OCAMLPACKS += num str unix hweak
 
 OCAML_LIBS += $(UBASEDIR)/ubase $(HBASEDIR)/hbase
 OCAMLINCLUDES += $(UBASEDIR) $(HBASEDIR)

@@ -35,7 +35,9 @@ let () =
   (* hack to ensure that Boomerang compiler gets linked *)
   Bdriver.init()
     
-let exit x = exit x
+let exit x = 
+  Brx.print_stats ();
+  exit x
 
 (* Debugging *)
 let debug thk = Trace.debug "toplevel" (fun () -> thk (); Util.format "%!")
