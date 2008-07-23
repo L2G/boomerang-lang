@@ -10,8 +10,8 @@ module Id = struct
   let info_of_t (i,_) = i
   let string_of_t (_,s) = s
   (* comparisons *)
-  let compare (_,x1) (_,x2) = compare x1 x2
-  let equal i1 i2 = compare i1 i2 = 0
+  let compare ((_,x1):t) ((_,x2):t) = compare x1 x2
+  let equal ((_,x1):t) ((_,x2):t) = x1 = x2
   (* modifiers *)
   let prime (i,x) = (i,x ^ "'")
   (* constants *)

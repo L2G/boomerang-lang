@@ -480,6 +480,8 @@ let subst_sort subst s0 = subst_svars_sort subst s0
 
 let subst_exp_in_sort subst s0 = subst_evars_sort subst s0
 
+let subst_exp subst e0 = subst_evars_exp subst e0
+
 let free_sort_vars s0 = free_svars_sort Id.Set.empty s0
 
 let free_exp_vars_in_sort s0 = free_evars_sort Qid.Set.empty s0

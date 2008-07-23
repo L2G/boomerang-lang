@@ -308,7 +308,7 @@ let rec compatible f t = match f,t with
   | SRegexp,SLens -> 
       true
   | SFunction(_,s11,s12),SFunction(_,s21,s22) -> 
-           (compatible s11 s21)
+           (compatible s21 s11) (* contravariant in argument *)
         && (compatible s12 s22)
   | SProduct(s11,s12),SProduct(s21,s22) -> 
          compatible s11 s21
@@ -709,14 +709,18 @@ and check_exp sev e0 =
             | OIter(min,max),[e1_sort,new_e1] -> begin 
                 match find_rule iter_rules new_es with 
                   | Some x ->
-                      check_exp sev 
+		      let iter = Qid.mk_core_t x in
+		      let qe1 = fresh_qid (Id.mk i "e1") (Qid.Set.singleton iter) in
+		      let new_e = 
+			(mk_app i 
                         (mk_app i 
-                           (mk_app i 
-                              (mk_app i 
-                                 (mk_var i (Qid.mk_core_t x))
-                                 new_e1)
-                              (mk_int i min))
-                           (mk_int i max)) 
+                        (mk_app i (mk_var i iter)
+                                    (mk_var i qe1))
+			            (mk_int i min))
+                                    (mk_int i max)) in
+			let op_sev = SCEnv.update sev qe1 (G.Sort e1_sort) in
+			let (op_s,op_e) = check_exp op_sev new_e in
+			  (op_s,subst_exp [qe1,new_e1] op_e)
                   | None -> err () 
               end
             | OEqual,[e1_sort,new_e1;e2_sort,new_e2] -> 
@@ -728,8 +732,19 @@ and check_exp sev e0 =
                 let rules = try Safelist.assoc op bin_rules with _ -> err () in 
                   match find_rule rules new_es with 
                     | Some x -> 
-                        let new_e = mk_app3 i (mk_var i (Qid.mk_core_t x)) new_e1 new_e2 in
-                          check_exp sev new_e
+			let op = Qid.mk_core_t x in
+			let op_fvs = (Qid.Set.singleton op) in
+			let qe1 = fresh_qid (Id.mk i "e1") op_fvs in
+			let qe2 = fresh_qid (Id.mk i "e2") op_fvs in
+                        let new_e = 
+			  mk_app3 i 
+			    (mk_var i (Qid.mk_core_t x)) 
+			      (mk_var i qe1)
+			      (mk_var i qe2) in
+			let op_sev1 = SCEnv.update sev qe1 (G.Sort e1_sort) in
+			let op_sev2 = SCEnv.update op_sev1 qe2 (G.Sort e2_sort) in
+                        let (op_s,op_e) = check_exp op_sev2 new_e in
+			  (op_s,subst_exp [qe1,new_e1; qe2,new_e2] op_e)                       
                     | None -> err ()
               end
             | _ -> err () 
