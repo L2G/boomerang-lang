@@ -11,9 +11,9 @@
 \documentclass[12pt]{report}
 
 \ifhyperref
-  \usepackage[pdftex, pagebackref, bookmarksopen=true, pdfpagemode=None,
-              bookmarks=true, bookmarksnum bered=true,colorlinks=true,
-              linkcolor={blue}, citecolor={green}]{hyperref}
+  \usepackage[pdftex, bookmarksopen=true, pdfpagemode=None,
+              bookmarks=true, bookmarksnum bered=true, colorlinks=true,
+              linkcolor={blue}, citecolor={black}]{hyperref}
   \hypersetup{}
 \fi
 
@@ -32,9 +32,7 @@
 \begin{document}
 
 \title{%
-%BEGIN IMAGE
 \tikz[line width=1bp]\node[scale=.75]{\pgfimage{pdf/boomerang-logo}};\\[5ex]
-%END IMAGE
 }
 
 \author{\LARGE J. Nathan Foster and Benjamin C. Pierce\\[3ex]
@@ -453,37 +451,39 @@ several unit tests, using the notation explained in
 Section~\ref{sec:unittests}.
 
 More thorough descriptions of most of the primitive lenses can be
-found in our technical papers~\cite{Boomerang07,QuotientLenses}.  The
+found in our technical papers~\cite{Boomerang07,QuotientLenses08}.  The
 long versions of those papers include proofs that all of our
 primtitives are ``well behaved,''. However, for getting up to speed
 with Boomerang programming, the shorter (conference) versions should
 suffice.
 
-\section{Core Definitions}
+\section{The Core Definitions}
 
-The first module, @Core@, imports primitive values defined in OCaml to
-Boomerang. Within @Core@, we do not make use of overloaded and infix
-operators such as @.@, @|@, @~@, @-@, etc., because the Boomerang type
-checker resolves these symbols to values defined in @Core@! (One could
-desugar them directly to OCaml primitive values, but we fine it
-convenient to go via a module that is checked by Boomerang; in
-particular, this facilitates checking the preconditions on primtive
-values using Scheme-style contracts.)
+The first module, @Core@, imports primitive values (defined in the
+host language, OCaml) to Boomerang. In @Core@, we do not use any
+overloaded or infix operators (e.g., @.@, @|@, @~@, @-@, @*@) because
+the Boomerang type checker resolves these symbols to applications of
+functions defined in @Core@. The reason that we do this, rather than
+resolving them directly to the primitive values, is that it facilitates 
+checking the preconditions on primtive values using dependent refinement
+types. 
 
-The @Core@ module is opened by default in every Boomerang
-program.
+Every value defined in @Core@ is available by default in every
+Boomerang program.
 
 \input{core}
 
 \section{The Standard Prelude}
 
-The second module, @Prelude@, defines the most commonly-used derived
-forms. Like @Core@, its values are available by default in every
-Boomerang program.
+The second module, @Prelude@, defines some common derived forms. Like
+@Core@, its values are available by default in every Boomerang
+program.
 
 \input{prelude}
 
-\section{List}
+\section{Lists}
+
+The @List@ module defines a datatype for fpolymorphic list structures.
 
 \input{list}
 

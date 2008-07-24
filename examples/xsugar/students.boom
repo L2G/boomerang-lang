@@ -22,16 +22,16 @@ module Students =
 
   let file_xml : string = 
 <<
-  <students>
-    <student sid="19701234">
-      <name>John Doe</name>
-      <email>john_doe@notmail.org</email>
-    </student>
-    <student sid="19785678">
-      <name>Jane Dow</name>
-      <email>dow@bmail.org</email>
-    </student>
-  </students>
+ <students>
+  <student sid="19701234">
+   <name>John Doe</name>
+   <email>john_doe@notmail.org</email>
+  </student>
+  <student sid="19785678">
+   <name>Jane Dow</name>
+   <email>dow@bmail.org</email>
+  </student>
+ </students>
 >>
 
   let file_ascii : string = 

@@ -234,8 +234,8 @@ let ac_tag : string = tag "AC"
 
 let ac_xml : lens =  
   let AC_number : regexp = 
-    ( [A-NR-Z] . DIGIT . ULETTER . UALPHANUM{2} . DIGIT 
-    | [OPQ]    . DIGIT . UALPHANUM{3}           . DIGIT ) in       
+    ( [A-NR-Z] . DIGIT . UALPHACHAR . UALPHANUMCHAR{2} . DIGIT 
+    | [OPQ]    . DIGIT . UALPHANUMCHAR{3}           . DIGIT ) in       
   let ac_elt : lens = Xml.simple_elt NL1 "accession" AC_number in 
   ins ac_tag . 
   qspace . 
@@ -629,7 +629,7 @@ let P12544_ox_xml : string =
 
 let P12544_ox_xml_cn : string = 
   NL . 
-  "    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9606\"/>"
+  "    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9606\"/>"
 
 test ox_line.get 
   P12544_ox_xml = P12544_ox_ascii 
@@ -657,13 +657,13 @@ test oh_line.create
   |" 
 = 
   "
-  |  <organism key=\"1\">
+  |  <organism key=\"0\">
   |    <name type=\"scientific\">Callithrix</name>
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9481\"/>
+  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9481\"/>
   |  </organism>"
 
 test oh_line.get 
-  "<organism key=\"1\">
+  "<organism key=\"0\">
   |  <name type=\"scientific\">Callithrix</name>
   |  <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9481\"/>
   |</organism>" 
@@ -685,25 +685,25 @@ let organism_block =
 (* unit tests for Organism block *)
 let organism_block_xml : string = 
   NL . 
-  "  <organism key=\"1\">
+  "  <organism key=\"0\">
   |    <name type=\"scientific\">Solanum melongena</name>
   |    <name type=\"common\">Eggplant</name>
   |    <name type=\"synonym\">Aubergine</name>
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9606\"/>
+  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9606\"/>
   |    <lineage>
   |      <taxon>Mammalia</taxon>
   |      <taxon>Eutheria</taxon>
   |    </lineage>
   |  </organism>
-  |  <organism key=\"1\">
+  |  <organism key=\"0\">
   |    <name type=\"scientific\">Callithrix</name>
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9481\"/>
+  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9481\"/>
   |  </organism>
-  |  <organism key=\"1\">
+  |  <organism key=\"0\">
   |    <name type=\"scientific\">Cercopithecus hamlyni</name>
   |    <name type=\"common\">Owl-faced monkey</name>
   |    <name type=\"synonym\">Hamlyn's monkey</name>
-  |    <dbReference type=\"NCBI Taxonomy\" key=\"1\" id=\"9536\"/>
+  |    <dbReference type=\"NCBI Taxonomy\" key=\"0\" id=\"9536\"/>
   |  </organism>
   |  <geneLocation type=\"apicoplast\"/>"
 
@@ -859,8 +859,8 @@ let P12544_rx_xml : string =
 
 let P12544_rx_xml_cn : string = 
   NL . 
-  "      <dbReference type=\"MEDLINE\" key=\"1\" id=\"88125000\"/>
-  |      <dbReference type=\"PubMed\" key=\"1\" id=\"3257574\"/>"
+  "      <dbReference type=\"MEDLINE\" key=\"0\" id=\"88125000\"/>
+  |      <dbReference type=\"PubMed\" key=\"0\" id=\"3257574\"/>"
 
 test rx_line.get
   P12544_rx_xml = P12544_rx_ascii
@@ -1304,8 +1304,8 @@ let P12544_reference_xml_cn : string =
   |      <authorList>
   |        <consortium name=\"The MGC Project Team\"/>
   |      </authorList>
-  |      <dbReference type=\"DOI\" key=\"1\" id=\"10.1101/gr.2596504\"/>
-  |      <dbReference type=\"PubMed\" key=\"1\" id=\"15489334\"/>
+  |      <dbReference type=\"DOI\" key=\"0\" id=\"10.1101/gr.2596504\"/>
+  |      <dbReference type=\"PubMed\" key=\"0\" id=\"15489334\"/>
   |    </citation>
   |    <scope>NUCLEOTIDE SEQUENCE [LARGE SCALE MRNA]</scope>
   |    <source>
@@ -2295,24 +2295,24 @@ let dr_block : lens = (terminate dr_xml)*
 
 (* unit tests for DR block *)
 test dr_block.get 
-  "  <dbReference type=\"EMBL\" key=\"1\" id=\"X83468\">
+  "  <dbReference type=\"EMBL\" key=\"0\" id=\"X83468\">
   |    <property value=\"CAA58470.1\" type=\"protein sequence ID\"/>
   |    <property value=\"JOINED\" type=\"status\"/>
   |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
   |  </dbReference>
-  |  <dbReference type=\"PROSITE\" key=\"1\" id=\"PS00940\">
+  |  <dbReference type=\"PROSITE\" key=\"0\" id=\"PS00940\">
   |    <property value=\"GAMMA_THIONIN\" type=\"entry name\"/>
   |    <property value=\"1\" type=\"match status\"/>
   |  </dbReference>
-  |  <dbReference type=\"EMBL\" key=\"1\" id=\"CR940353\">
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"CR940353\">
   |    <property value=\"CAI76474.1\" type=\"protein sequence ID\"/>
   |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
   |  </dbReference>
-  |  <dbReference type=\"KEGG\" key=\"1\" id=\"tan:TA08425\"/>
-  |  <dbReference type=\"InterPro\" key=\"1\" id=\"IPR007480\">
+  |  <dbReference type=\"KEGG\" key=\"0\" id=\"tan:TA08425\"/>
+  |  <dbReference type=\"InterPro\" key=\"0\" id=\"IPR007480\">
   |    <property value=\"DUF529\" type=\"entry name\"/>
   |  </dbReference>
-  |  <dbReference type=\"Pfam\" key=\"1\" id=\"PF04385\">
+  |  <dbReference type=\"Pfam\" key=\"0\" id=\"PF04385\">
   |    <property value=\"FAINT\" type=\"entry name\"/>
   |    <property value=\"4\" type=\"match status\"/>
   |  </dbReference>" 
@@ -2330,7 +2330,7 @@ test dr_block.create
    NL)
 = 
   "
-  |  <dbReference type=\"EMBL\" key=\"1\" id=\"X83467\">
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"X83467\">
   |    <property value=\"CAA58470.1\" type=\"protein sequence ID\"/>
   |    <property value=\"-\" type=\"status\"/>
   |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
@@ -2383,119 +2383,119 @@ let P12544_dr_block_ascii : string =
    key attrs set to "0", whitepsace canonized. *)
 let P12544_dr_block_xml_cn : string = 
   NL . 
-  "  <dbReference type=\"EMBL\" key=\"1\" id=\"M18737\">
+  "  <dbReference type=\"EMBL\" key=\"0\" id=\"M18737\">
   |    <property value=\"AAA52647.1\" type=\"protein sequence ID\"/>
   |    <property value=\"-\" type=\"status\"/>
   |    <property value=\"mRNA\" type=\"molecule type\"/>
   |  </dbReference>
-  |  <dbReference type=\"EMBL\" key=\"1\" id=\"CR456968\">
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"CR456968\">
   |    <property value=\"CAG33249.1\" type=\"protein sequence ID\"/>
   |    <property value=\"-\" type=\"status\"/>
   |    <property value=\"mRNA\" type=\"molecule type\"/>
   |  </dbReference>
-  |  <dbReference type=\"EMBL\" key=\"1\" id=\"BC015739\">
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"BC015739\">
   |    <property value=\"AAH15739.1\" type=\"protein sequence ID\"/>
   |    <property value=\"-\" type=\"status\"/>
   |    <property value=\"mRNA\" type=\"molecule type\"/>
   |  </dbReference>
-  |  <dbReference type=\"EMBL\" key=\"1\" id=\"U40006\">
+  |  <dbReference type=\"EMBL\" key=\"0\" id=\"U40006\">
   |    <property value=\"AAD00009.1\" type=\"protein sequence ID\"/>
   |    <property value=\"-\" type=\"status\"/>
   |    <property value=\"Genomic_DNA\" type=\"molecule type\"/>
   |  </dbReference>
-  |  <dbReference type=\"PIR\" key=\"1\" id=\"A31372\">
+  |  <dbReference type=\"PIR\" key=\"0\" id=\"A31372\">
   |    <property value=\"A31372\" type=\"entry name\"/>
   |  </dbReference>
-  |  <dbReference type=\"RefSeq\" key=\"1\" id=\"NP_006135.1\"/>
-  |  <dbReference type=\"UniGene\" key=\"1\" id=\"Hs.90708\"/>
-  |  <dbReference type=\"PDB\" key=\"1\" id=\"1HF1\">
+  |  <dbReference type=\"RefSeq\" key=\"0\" id=\"NP_006135.1\"/>
+  |  <dbReference type=\"UniGene\" key=\"0\" id=\"Hs.90708\"/>
+  |  <dbReference type=\"PDB\" key=\"0\" id=\"1HF1\">
   |    <property value=\"Model\" type=\"method\"/>
   |    <property value=\"A=29-262\" type=\"chains\"/>
   |  </dbReference>
-  |  <dbReference type=\"PDB\" key=\"1\" id=\"1OP8\">
+  |  <dbReference type=\"PDB\" key=\"0\" id=\"1OP8\">
   |    <property value=\"X-ray\" type=\"method\"/>
   |    <property value=\"2.50\" type=\"resolution\"/>
   |    <property value=\"A/B/C/D/E/F=29-262\" type=\"chains\"/>
   |  </dbReference>
-  |  <dbReference type=\"PDB\" key=\"1\" id=\"1ORF\">
+  |  <dbReference type=\"PDB\" key=\"0\" id=\"1ORF\">
   |    <property value=\"X-ray\" type=\"method\"/>
   |    <property value=\"2.40\" type=\"resolution\"/>
   |    <property value=\"A=29-262\" type=\"chains\"/>
   |  </dbReference>
-  |  <dbReference type=\"PDBsum\" key=\"1\" id=\"1HF1\"/>
-  |  <dbReference type=\"PDBsum\" key=\"1\" id=\"1OP8\"/>
-  |  <dbReference type=\"PDBsum\" key=\"1\" id=\"1ORF\"/>
-  |  <dbReference type=\"IntAct\" key=\"1\" id=\"P12544\"/>
-  |  <dbReference type=\"MEROPS\" key=\"1\" id=\"S01.135\"/>
-  |  <dbReference type=\"Ensembl\" key=\"1\" id=\"ENSG00000145649\">
+  |  <dbReference type=\"PDBsum\" key=\"0\" id=\"1HF1\"/>
+  |  <dbReference type=\"PDBsum\" key=\"0\" id=\"1OP8\"/>
+  |  <dbReference type=\"PDBsum\" key=\"0\" id=\"1ORF\"/>
+  |  <dbReference type=\"IntAct\" key=\"0\" id=\"P12544\"/>
+  |  <dbReference type=\"MEROPS\" key=\"0\" id=\"S01.135\"/>
+  |  <dbReference type=\"Ensembl\" key=\"0\" id=\"ENSG00000145649\">
   |    <property value=\"Homo sapiens\" type=\"organism name\"/>
   |  </dbReference>
-  |  <dbReference type=\"GeneID\" key=\"1\" id=\"3001\"/>
-  |  <dbReference type=\"KEGG\" key=\"1\" id=\"hsa:3001\"/>
-  |  <dbReference type=\"H-InvDB\" key=\"1\" id=\"HIX0004862\"/>
-  |  <dbReference type=\"HGNC\" key=\"1\" id=\"HGNC:4708\">
+  |  <dbReference type=\"GeneID\" key=\"0\" id=\"3001\"/>
+  |  <dbReference type=\"KEGG\" key=\"0\" id=\"hsa:3001\"/>
+  |  <dbReference type=\"H-InvDB\" key=\"0\" id=\"HIX0004862\"/>
+  |  <dbReference type=\"HGNC\" key=\"0\" id=\"HGNC:4708\">
   |    <property value=\"GZMA\" type=\"entry name\"/>
   |  </dbReference>
-  |  <dbReference type=\"MIM\" key=\"1\" id=\"140050\">
+  |  <dbReference type=\"MIM\" key=\"0\" id=\"140050\">
   |    <property value=\"gene\" type=\"type\"/>
   |  </dbReference>
-  |  <dbReference type=\"PharmGKB\" key=\"1\" id=\"PA29086\"/>
-  |  <dbReference type=\"LinkHub\" key=\"1\" id=\"P12544\"/>
-  |  <dbReference type=\"ArrayExpress\" key=\"1\" id=\"P12544\"/>
-  |  <dbReference type=\"CleanEx\" key=\"1\" id=\"HS_GZMA\"/>
-  |  <dbReference type=\"GermOnline\" key=\"1\" id=\"ENSG00000145649\">
+  |  <dbReference type=\"PharmGKB\" key=\"0\" id=\"PA29086\"/>
+  |  <dbReference type=\"LinkHub\" key=\"0\" id=\"P12544\"/>
+  |  <dbReference type=\"ArrayExpress\" key=\"0\" id=\"P12544\"/>
+  |  <dbReference type=\"CleanEx\" key=\"0\" id=\"HS_GZMA\"/>
+  |  <dbReference type=\"GermOnline\" key=\"0\" id=\"ENSG00000145649\">
   |    <property value=\"Homo sapiens\" type=\"organism name\"/>
   |  </dbReference>
-  |  <dbReference type=\"GO\" key=\"1\" id=\"GO:0001772\">
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0001772\">
   |    <property value=\"C:immunological synapse\" type=\"term\"/>
   |    <property value=\"TAS:UniProtKB\" type=\"evidence\"/>
   |  </dbReference>
-  |  <dbReference type=\"GO\" key=\"1\" id=\"GO:0005634\">
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0005634\">
   |    <property value=\"C:nucleus\" type=\"term\"/>
   |    <property value=\"TAS:UniProtKB\" type=\"evidence\"/>
   |  </dbReference>
-  |  <dbReference type=\"GO\" key=\"1\" id=\"GO:0004277\">
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0004277\">
   |    <property value=\"F:granzyme A activity\" type=\"term\"/>
   |    <property value=\"IDA:UniProtKB\" type=\"evidence\"/>
   |  </dbReference>
-  |  <dbReference type=\"GO\" key=\"1\" id=\"GO:0042803\">
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0042803\">
   |    <property value=\"F:protein homodimerization activity\" type=\"term\"/>
   |    <property value=\"IDA:UniProtKB\" type=\"evidence\"/>
   |  </dbReference>
-  |  <dbReference type=\"GO\" key=\"1\" id=\"GO:0006922\">
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0006922\">
   |    <property value=\"P:cleavage of lamin\" type=\"term\"/>
   |    <property value=\"IDA:UniProtKB\" type=\"evidence\"/>
   |  </dbReference>
-  |  <dbReference type=\"GO\" key=\"1\" id=\"GO:0006955\">
+  |  <dbReference type=\"GO\" key=\"0\" id=\"GO:0006955\">
   |    <property value=\"P:immune response\" type=\"term\"/>
   |    <property value=\"TAS:UniProtKB\" type=\"evidence\"/>
   |  </dbReference>
-  |  <dbReference type=\"InterPro\" key=\"1\" id=\"IPR001254\">
+  |  <dbReference type=\"InterPro\" key=\"0\" id=\"IPR001254\">
   |    <property value=\"Peptidase_S1_S6\" type=\"entry name\"/>
   |  </dbReference>
-  |  <dbReference type=\"InterPro\" key=\"1\" id=\"IPR001314\">
+  |  <dbReference type=\"InterPro\" key=\"0\" id=\"IPR001314\">
   |    <property value=\"Peptidase_S1A\" type=\"entry name\"/>
   |  </dbReference>
-  |  <dbReference type=\"Pfam\" key=\"1\" id=\"PF00089\">
+  |  <dbReference type=\"Pfam\" key=\"0\" id=\"PF00089\">
   |    <property value=\"Trypsin\" type=\"entry name\"/>
   |    <property value=\"1\" type=\"match status\"/>
   |  </dbReference>
-  |  <dbReference type=\"PRINTS\" key=\"1\" id=\"PR00722\">
+  |  <dbReference type=\"PRINTS\" key=\"0\" id=\"PR00722\">
   |    <property value=\"CHYMOTRYPSIN\" type=\"entry name\"/>
   |  </dbReference>
-  |  <dbReference type=\"SMART\" key=\"1\" id=\"SM00020\">
+  |  <dbReference type=\"SMART\" key=\"0\" id=\"SM00020\">
   |    <property value=\"Tryp_SPc\" type=\"entry name\"/>
   |    <property value=\"1\" type=\"match status\"/>
   |  </dbReference>
-  |  <dbReference type=\"PROSITE\" key=\"1\" id=\"PS50240\">
+  |  <dbReference type=\"PROSITE\" key=\"0\" id=\"PS50240\">
   |    <property value=\"TRYPSIN_DOM\" type=\"entry name\"/>
   |    <property value=\"1\" type=\"match status\"/>
   |  </dbReference>
-  |  <dbReference type=\"PROSITE\" key=\"1\" id=\"PS00134\">
+  |  <dbReference type=\"PROSITE\" key=\"0\" id=\"PS00134\">
   |    <property value=\"TRYPSIN_HIS\" type=\"entry name\"/>
   |    <property value=\"1\" type=\"match status\"/>
   |  </dbReference>
-  |  <dbReference type=\"PROSITE\" key=\"1\" id=\"PS00135\">
+  |  <dbReference type=\"PROSITE\" key=\"0\" id=\"PS00135\">
   |    <property value=\"TRYPSIN_SER\" type=\"entry name\"/>
   |    <property value=\"1\" type=\"match status\"/>
   |  </dbReference>"
@@ -3578,9 +3578,9 @@ let s7 : lens = ins "       "
 
 let ft_original_variation : lens = 
   s7 . 
-  ( Xml.simple_elt NL2 "original" UALPHANUM . 
+  ( Xml.simple_elt NL2 "original" UALPHANUMCHAR . 
     ins " -> " . 
-    Xml.simple_elt NL2 "variation" UALPHANUM 
+    Xml.simple_elt NL2 "variation" UALPHANUMCHAR 
   | ins "Missing" ) . 
   space 
 
@@ -4198,7 +4198,7 @@ let sq_start_xml (flen:regexp -> lens) (fmass:regexp -> lens) (fcheck:regexp -> 
     Xml.sort3
      (Xml.attr "length" (flen NUMBER))
      (Xml.attr "mass" (fmass NUMBER))
-     (Xml.attr "checksum" (fcheck UALPHANUM+))
+     (Xml.attr "checksum" (fcheck UALPHANUMCHAR+))
 
 let dt_tag : string = tag "DT" 
 
@@ -4212,11 +4212,11 @@ let sq_mid_xml : lens =
   terminate l 
 
 let sq_rest_xml : lens = 
-  let block : lens = space . ULETTER{10} in 
+  let block : lens = space . UALPHACHAR{10} in 
   let full_line : lens = ins "    " . block{6} . ins "\n" in 
   let part_line : lens = 
     ins "    " . block{0,5} . 
-    (space . ULETTER{1,10}) . 
+    (space . UALPHACHAR{1,10}) . 
     nl in
   let l : lens = 
     full_line* . part_line . 

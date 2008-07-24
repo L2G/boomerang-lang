@@ -35,8 +35,8 @@ module Canonizer : sig
   type t 
   val info : t -> Info.t
   val string : t -> string
-  val rtype : t -> Bregexp.t
-  val ctype : t -> Bregexp.t
+  val uncanonized_type : t -> Bregexp.t
+  val canonized_type : t -> Bregexp.t
   val canonize : t -> (string -> string)
   val choose : t -> (string -> string)
 

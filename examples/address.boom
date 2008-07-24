@@ -100,7 +100,7 @@ let EscapedStr (R:regexp) : regexp =
    chracter class. *)
 let NonEmptyEscapedStr (R:regexp) : regexp = 
   let Normal = StringNotContaining (Special | R) in 
-  let NonEmptyNormal = Normal - epsilon in 
+  let NonEmptyNormal = Normal - EPSILON in 
   let Escaped = /\\/ . (EscapedSpecial | R) in 
   let EscapedNormal = Escaped . Normal in 
     NonEmptyNormal . EscapedNormal* | EscapedNormal+
@@ -128,11 +128,11 @@ let unescstr (c:regexp) : lens = (unescchar c)*
 let unescNonEmptyStr (c:regexp) : lens = (unescchar c)+
 
 (* unit tests for escaping lenses *)
-test (escchar empty)*.get "a\nb\\c" = "a\\nb\\\\c"
-test (unescchar empty)*.get "\n" = error
-test (unescchar empty)*.get "abc" = "abc"
-test (unescchar empty)*.get "\\\\" = "\\"
-test (unescchar empty)*.get "\\n" = "\n"
+test (escchar [])*.get "a\nb\\c" = "a\\nb\\\\c"
+test (unescchar [])*.get "\n" = error
+test (unescchar [])*.get "abc" = "abc"
+test (unescchar [])*.get "\\\\" = "\\"
+test (unescchar [])*.get "\\n" = "\n"
 test (escchar [,])*.get "a,b" = "a\\,b"
 test (unescchar [,])*.get "\\," = ","
 
@@ -152,7 +152,7 @@ let Tel : regexp = /, / . (EscapedStr [,]) . TelMarker
 let Name : regexp = (NonEmptyEscapedStr [,]) - ( Any . TelMarker )
 
 (* NonEmptyName: a single, non-empty name *)
-let NonEmptyName : regexp = Name - epsilon
+let NonEmptyName : regexp = Name - EPSILON
 
 (* Family and Given: just non-empty names *)
 let Family,Given : regexp * regexp = NonEmptyName,NonEmptyName

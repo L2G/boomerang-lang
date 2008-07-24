@@ -215,8 +215,8 @@ let prelude_spec =
   ; pmk_ircsq  "columnize"            C.columnize
   ; pmk_frrq   "normalize"            (fun i f fc fc0 -> C.normalize i (fun s -> get_s (f (mk_s i s))) fc fc0)
   ; pmk_rzq    "sort"                 (fun i rl -> C.sort i (Safelist.map get_r rl))          
-  ; pmk_qr     "rtype"                (fun _ -> C.rtype)
-  ; pmk_qr     "qtype"                (fun _ -> C.ctype)
+  ; pmk_qr     "uncanonized_type"     (fun _ -> C.uncanonized_type)
+  ; pmk_qr     "canonized_type"       (fun _ -> C.canonized_type)
                                 
   (* char operations *)               
   ; pmk_cs     "string_of_char"       (fun _ -> String.make 1)

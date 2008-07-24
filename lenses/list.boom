@@ -1,19 +1,70 @@
+(*******************************************************************************)
+(* The Harmony Project                                                         *)
+(* harmony@lists.seas.upenn.edu                                                *)
+(*******************************************************************************)
+(* Copyright (C) 2008                                                          *)
+(* J. Nathan Foster and Benjamin C. Pierce                                     *)
+(*                                                                             *)
+(* This library is free software; you can redistribute it and/or               *)
+(* modify it under the terms of the GNU Lesser General Public                  *)
+(* License as published by the Free Software Foundation; either                *)
+(* version 2.1 of the License, or (at your option) any later version.          *)
+(*                                                                             *)
+(* This library is distributed in the hope that it will be useful,             *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
+(* Lesser General Public License for more details.                             *)
+(*******************************************************************************)
+(* /boomerang/lenses/core.boom                                                 *)
+(* List module                                                                 *)
+(* $Id$ *)
+(*******************************************************************************)
+
 module List = 
 
-type 'a t = Nil | Cons of 'a * 'a t
+#{@}
 
-let fold_left ('a) ('b) (f:'b -> 'a -> 'b) (acc:'b) (l:'a t) : 'b = 
-  Native.Prelude.fold_left{'b}{'a} f acc l 
+\LENSSECTION{@'a t@} A list is either the @Nil@ list or a @Cons@ of a head and a tail.
 
-let reverse ('a) (l : 'a t) : 'a t =
-  fold_left{'a}{'a t} (fun (t:'a t) (h:'a) -> Cons{'a}(h,t)) Nil{'a} l
+#* type 'a t = Nil | Cons of 'a * 'a t
 
-let map ('a) ('b) (f:'a -> 'b) (l:'a t) : 'b t = 
-  let rev_fl : 'b t = fold_left{'a}{'b t} (fun (t:'b t) (h:'a) -> Cons{'b}(f h,t)) Nil{'b} l in 
-  reverse{'b} rev_fl
+\LENSSECTION{@fold_left@} Boomerang does not support recursion. However, we provide 
+the @fold_left@ function on lists via a built-in primitive.
 
-let exists ('a) (t:'a -> bool) (l:'a t) : bool = 
-  fold_left {'a}{bool} (fun (b:bool) (h:'a) -> b || t h) false l
+#* let fold_left ('a) ('b) (f:'b -> 'a -> 'b) (acc:'b) (l:'a t) : 'b 
+## = Native.Prelude.fold_left{'b}{'a} f acc l 
 
-let member ('a) (x:'a) (l:'a t) : bool = 
-  exists{'a} (fun (h:'a) -> x = h) l 
+\LENSSECTION{@reverse@} The function @reverse@ can be defined straightforwardly
+using @fold_left@.
+
+#* let reverse ('a) (l : 'a t) : 'a t =
+#*   fold_left{'a}{'a t} 
+#*     (fun (t:'a t) (h:'a) -> Cons{'a}(h,t)) 
+#*     Nil{'a} 
+#*     l
+
+\LENSSECTION{@map@} The function @map@ can be defined (inefficiently) 
+using @fold_left@ and @reverse@.
+
+#* let map ('a) ('b) (f:'a -> 'b) (l:'a t) : 'b t = 
+#*   let rev_fl : 'b t = 
+#*     fold_left{'a}{'b t}
+#*       (fun (t:'b t) (h:'a) -> Cons{'b}(f h,t)) 
+#*       Nil{'b}
+#*       l in 
+#*   reverse{'b} rev_fl
+
+\LENSSECTION{@exists@} The function @exists@ tests if a predicate holds of 
+some element of the list
+
+#* let exists ('a) (t:'a -> bool) (l:'a t) : bool = 
+#*   fold_left {'a}{bool} (fun (b:bool) (h:'a) -> b || t h) 
+#*   false 
+#*   l
+
+
+\LENSSECTION{@member@} The function @member@ tests if an element is a
+member of the list. It is defined using @exists@.
+
+#* let member ('a) (x:'a) (l:'a t) : bool = 
+#*  exists{'a} (fun (h:'a) -> x = h) l 

@@ -673,7 +673,7 @@ and check_exp sev e0 =
             [ SLens, "lens_swap";
               SCanonizer, "canonizer_swap" ] 
           ; OMinus,
-            [ SRegexp, "diff";
+             [ SRegexp, "diff";
               SInteger, "minus" ]
           ; OBar,
             [ SRegexp, "regexp_union";

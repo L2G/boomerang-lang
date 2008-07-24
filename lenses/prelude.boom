@@ -26,151 +26,228 @@ module Prelude =
 
 \subsection{Regular Expressions}
 
-\LENSSECTION{epsilon}
-The regular expression @epsilon@ denotes the singleton set containing the empty string.
+\LENSSECTION{@EMPTY@}
+The regular expression @empty@ denotes the empty set of strings.
 
-#* let epsilon : regexp = // 
+#* let EMPTY : regexp = []
 
-\LENSSECTION{ANYCHAR}
+\LENSSECTION{@EPSILON@}
+The regular expression @epsilon@ denotes the singleton set containing the 
+empty string.
 
-The regular expression @ANYCHAR@ denotes the set of ASCII characters.
+#* let EPSILON : regexp = // 
+
+\LENSSECTION{@ANYCHAR@, @ANY@, @ANYP@}
+
+The regular expression @ANYCHAR@ denotes the set of ASCII characters, 
+@ANY@ denotes the set of all ASCII strings, and @ANYP@ denotes the 
+set of all ASCII strings except for the empty string. By 
+convention, we append a ``P'' to the name of a regular expression 
+to denote its ``positive'' variant (i.e., not containing the empty
+string).
 
 #* let ANYCHAR : regexp = [^]
-
-\LENSSECTION{ANY}
-
-The regular expression @ANY@ denotes the set of all ASCII strings.
-
 #* let ANY : regexp = ANYCHAR*
-
-\LENSSECTION{ANYP}
-
-The regular expression @ANYP@ denotes the set of all non-epsilon ASCII strings.
-
 #* let ANYP : regexp = ANYCHAR+
 
-\LENSSECTION{NONE}
+\LENSSECTION{@containing@} The function @containing@ takes a regular
+expression @R@ as an argument and produces a regular expression 
+describing the set of all strings that contain a substring described by
+@R@.
 
-The regular expression @NONE@ denotes the empty set of strings.
+#* let containing (R:regexp) : regexp = ANY . R . ANY
 
-#* let NONE: regexp = []
+\LENSSECTION{@SCHAR@, @S@, @SP@}
 
-\LENSSECTION{SP}
+The regular expressions @SCHAR@, @S@, and @SP@ denote sets of 
+space characters.
 
-The regular expression @SP@ denotes non-epsilon strings of space characters.
+#* let SCHAR : regexp = [ ]
+#* let S : regexp = SCHAR*
+#* let SP : regexp = SCHAR+
 
-#* let SP : regexp = [ ]+
+\LENSSECTION{@WSCHAR@, @WS@, @WSP@}
 
-\LENSSECTIONnott{{\tt WS} and {\tt WSP}}
+The regular expressions @WSCHAR@, @WS@, and @WSP@ denote sets of 
+whitespace characters.
 
-The regular expression @WS@ denotes strings of space or newline characters; 
-@WSP@ is similar, but only denotes non-epsilon strings.
+#* let WSCHAR : regexp = [ \t\r\n]
+#* let WS : regexp = WSCHAR*
+#* let WSP : regexp = WSCHAR+
 
-#* let WS : regexp = [ \n]*
-#* let WSP : regexp = [ \n]+
+\LENSSECTION{@NWSCHAR@, @NWS@, @NWSP@}
 
-\LENSSECTION{NWS}
+The regular expressions @WSCHAR@, @WS@, and @WSP@ denote sets of 
+non-whitespace characters.
 
-The regular expression @NWS@ denotes strings of characters other than space or newline.
+#* let NWSCHAR : regexp = [^ \t\r\n]
+#* let NWS : regexp = NWSCHAR*
+#* let NWSP : regexp = NWSCHAR+
 
-#* let NWS : regexp = [^ \n]
+\LENSSECTION{@newline@, @NLn@} The string @newline@ contains 
+the newline character. The strings given by @NL@$n$ each 
+denote a newline followed by $n$ spaces. These are used for indentation, 
+for example, in the @Xml@ module.
 
-#{#}
+#* let newline : string = "\n"
+#* let NL0 : string= newline
+#* let NL1 : string= NL0 . " "
+#* let NL2 : string= NL1 . " "
+#* let NL3 : string= NL2 . " "
+#* let NL4 : string= NL3 . " "
+#* let NL5 : string= NL4 . " "
+#* let NL6 : string= NL5 . " "
+#* let NL7 : string= NL6 . " " 
+#* let NL8 : string= NL7 . " "
+#* let NL9 : string= NL8 . " "
+#* let NL10 : string = NL9 . " "
 
-let ins (s:string) : lens = const // s "" 
+\LENSSECTION{@DIGIT@, @NUMBER@, @FNUMBER@} The regular expressions 
+@DIGIT@, @NUMBER@, and @FNUMBER@ represent strings of decimal digits, 
+integers, and floating point numbers respectively.
 
-let del (r:regexp) : lens = const r "" (shortest r) 
+#* let DIGIT : regexp = [0-9]
+#* let NUMBER : regexp = /0/ | [1-9] . DIGIT* 
+#* let FNUMBER : regexp = NUMBER . (/./ . DIGIT+)?
 
+\LENSSECTION{@UALPHACHAR@, @UALPHANUMCHAR@} 
+The regular expression @UALPHACHAR@ and @UALPHANUMCHAR@ 
+denote the set of upper case alphabetic and alphanumeric 
+characters respectively.
 
+#* let UALPHACHAR : regexp = [A-Z]
+#* let UALPHANUMCHAR : regexp = [A-Z0-9]
 
+\subsection{Lenses}
 
+\LENSSECTION{@ins@} The lens @ins@ maps the empty concrete 
+string to a fixed abstract string. It is defined straightforwardly 
+using @<->@.
 
-(* [containing R] any string containing [R] *)
-let containing (R:regexp) : regexp = ANY . R . ANY
+#* let ins (s:string) : lens = "" <-> s
+#* test get (ins "ABC") "" = "ABC"
+#* test put (ins "ABC") "ABC" "" = ""
 
-let newline : string = "\n"
+\LENSSECTION{@del@} The lens @del@ deletes a regular expression. 
+It is also defined using @<->@.
 
-let space : string = " "
+#* let del (R:regexp) : lens = R <-> ""
 
-(* [DIGIT] digit *)
-let DIGIT : regexp = [0-9]
+#* test get (del ANY) "Boomerang" = ""
+#* test put (del ANY) "" "Boomerang" = "Boomerang"
+#* test create (del ANY) "" = ""
 
-(* [NUMBER] number *)
-let NUMBER : regexp = [1-9] . DIGIT*
+\subsection{Quotient Lenses}
 
-(* [FNUMBER] floating-point number *)
-let FNUMBER : regexp = DIGIT* . ([.] . DIGIT+)?
+\LENSSECTION{@qconst@} The lens @qconst@ is like @const@, but accepts an 
+entire regular expression on the abstract side. It is defined using quotienting 
+on the right, the lens @const@, and a canonizer built from @const@.
 
-(* [ULETTER] uppercase letter *)
-let ULETTER : regexp = [A-Z]
+#* let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
+#*   right_quot     
+#*     (const C a c)
+#*     (canonizer_of_lens (const A a a))
 
-(* [UALPHANUM] uppercase alphanumeric character *)
-let UALPHANUM : regexp = [A-Z0-9]
+#* test get (qconst [A-Z] [a-z] "a" "A") "A" = "a"
+#* test put (qconst [A-Z] [a-z] "a" "A") "b" "B" = "B"
 
-(* [nlX]: X^th amount of whitespace--used to canonize XML *)
-let NL0 = newline
-let NL1 = NL0 . "  "
-let NL2 = NL1 . "  "
-let NL3 = NL2 . "  "
-let NL4 = NL3 . "  "
-let NL5 = NL4 . "  "
-let NL6 = NL5 . "  "
-let NL7 = NL6 . "  " 
-let NL8 = NL7 . "  "
-let NL9 = NL8 . "  "
-let NL10 = NL9 . "  "
+\LENSSECTION{@qset@} The lens @qconst@ is like @set@ (i.e., @<->@), 
+but takes an entire regular expression on the abstract side. It is defined 
+using @qconst@.
 
-(* quotient lenses *)
-(* [qconst C A a c]: is like [const C a c], but accepts all of [A] in
-   the PUT/CREATE direction. *)
-let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
-  right_quot     
-    (const C a c)
-    (canonizer_of_lens (const A a a))
+#* let qset (C:regexp) (A:regexp) : lens = 
+#*  qconst C A (shortest A) (shortest C)
 
-(* [qset C A]: is like [set c a], but accepts all of [C] and [A] in
-   the GET and PUT/CREATE directions respectively. *)
-let qset (C:regexp) (A:regexp) : lens = 
-  qconst C A (shortest A) (shortest C)
+#* test get (qset [A-Z] [a-z]) "A" = "a" 
+#* test get (qset [A-Z] [a-z]) "Z" = "a" 
+#* test put (qset [A-Z] [a-z]) "z" "A" = "A" 
+#* test put (qset [A-Z] [a-z]) "z" "Z" = "Z" 
 
-(* [qins E e] is like [ins e], but accepts all of [E] in the
-   PUT/CREATE direction *)
-let qins (E:regexp) (e:string) : lens = 
-  right_quot
-    (ins e)
-    (canonizer_of_lens (const E e e))
+\LENSSECTION{@qins@} The lens @qins@ is like @ins@ 
+but accepts a regular expression in the $\PUT$ direction. It is defined 
+using right quotienting and @ins@.
 
-(* unit tests for qins *)
-test (get (qins [A-Z]+ "A") "") = "A"
-test (create (qins [A-Z]+ "A") "ABC") = ""
+#* let qins (E:regexp) (e:string) : lens = 
+#*   right_quot
+#*     (ins e)
+#*     (canonizer_of_lens (const E e e))
+
+#* test (get (qins [A-Z]+ "A") "") = "A"
+#* test (create (qins [A-Z]+ "A") "ABC") = ""
 
 (* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
    direction. *)
-let qdel (E:regexp) (e:string) : lens = 
-  left_quot 
-    (canonizer_of_lens (default (del E) e))
-    (copy //)
 
-(* unit tests for qdel *)
-test (get (qdel [A-Z]+ "ZZZ") "ABC") = ""
-test (put (qdel [A-Z]+ "ZZZ") "" "ABC") = "ZZZ"
-test (put (qdel [A-Z]+ "ZZZ") "1" "ABC") = error
+\LENSSECTION{@qdel@} The lens @qdel@ is like @del@ 
+but produces a canonical representative in the backwards direction. 
+It is defined using left quotienting.
 
-type 'a option = 
-    None | Some of 'a
+#* let qdel (E:regexp) (e:string) : lens = 
+#*   left_quot 
+#*     (canonizer_of_lens (default (del E) e))
+#*     (copy EPSILON)
 
-type ('a,'b) maybe = 
-    Left of 'a | Right of 'b 
+#* test (get (qdel [A-Z]+ "ZZZ") "ABC") = ""
+#* test (put (qdel [A-Z]+ "ZZZ") "" "ABC") = "ZZZ"
+#* test (put (qdel [A-Z]+ "ZZZ") "1" "ABC") = error
 
-(* data type stuff *)
-let fst ('a) ('b) (p:'a * 'b) : 'a = 
-  let x,_ = p in x
+\subsection{Standard Datatypes}
 
-let snd ('a) ('b) (p:'a * 'b) : 'b = 
-  let _,y = p in y
+\LENSSECTION{@'a option@, @('a,'b) maybe@} The polymorphic datatypes @option@ and @maybe@ 
+represents optional and alternative values respectively.
 
-let permute (sigma:int List.t) (ls:lens List.t) : lens = 
-  Native.Prelude.permute sigma ls
+#* type 'a option = 
+#*     None | Some of 'a
 
-let sort (rs:regexp List.t) : canonizer = 
-  Native.Prelude.sort rs
+#* type ('a,'b) maybe = 
+#*     Left of 'a | Right of 'b 
+
+\subsection{Pairs}
+
+\LENSSECTION{@fst@,@snd@} 
+The polymorphic functions @fst@ and @snd@ are the standard projections on pairs.
+
+#*let fst ('a) ('b) (p:'a * 'b) : 'a = 
+#*  let x,_ = p in x
+
+#*let snd ('a) ('b) (p:'a * 'b) : 'b = 
+#*  let _,y = p in y
+
+\subsection{Lenses with List Arguments}
+
+These final two combinators take lists as arguments (and so have to be defined
+here instead of @Core@.)
+
+\LENSSECTION{@permute@} The lens @permute@ is an $n$-ary, permuting concatenation 
+operator on lenses. Given a concrete string, it splits it into $n$ pieces, 
+applies the $\GET$ function of the corresponding lens to each piece, reorders the 
+abstract strings according to the fixed permutation specified by @sigma@, and concatenates
+the results.
+
+#* let permute : int List.t -> lens List.t -> lens
+## = Native.Prelude.permute
+
+#* test get (permute 
+#*             #{int}[2;1;0]
+#*             #{lens}[(copy UALPHACHAR);
+#*                     (copy UALPHACHAR);
+#*                     (copy UALPHACHAR)]) "ABC" = "CBA"
+
+\LENSSECTION{@sort@} The canonizer @sort@ puts substrings into 
+sorted order according to a list of regular expressions. An exception 
+is raised if the unsorted string does not have exactly one substring belonging
+to each regular expression. This allows us to assign sort a type that is
+compact (though imprecise); see~\cite{QuotientLens08} for an extended discussion.
+
+#* let sort : regexp List.t -> canonizer
+## = Native.Prelude.sort
+
+#* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "A1" = "A1"
+#* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "1A" = "A1"
+#* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "A" = error
+
+#* test uncanonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) =
+#*   (UALPHACHAR | DIGIT)*
+
+#* test canonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) = 
+#*   (UALPHACHAR . DIGIT)

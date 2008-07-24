@@ -287,8 +287,8 @@ module Canonizer = struct
         info: Info.t;
         string: string;
         (* --- types --- *)
-        rtype : RxImpl.t;
-        ctype : RxImpl.t;
+        uncanonized_type : RxImpl.t;
+        canonized_type : RxImpl.t;
         crel  : rel;
         (* --- core functions --- *)
         canonize : string -> string;
@@ -298,15 +298,15 @@ module Canonizer = struct
   (* accessors *)
   let info cn = cn.info
   let string cn = cn.string
-  let rtype cn = cn.rtype
-  let ctype cn = cn.ctype
+  let uncanonized_type cn = cn.uncanonized_type
+  let canonized_type cn = cn.canonized_type
   let canonize cn = cn.canonize
   let choose cn = cn.choose
   let mk_t i s rt ct r cn ch = 
     { info = i;
       string = s;
-      rtype = rt;
-      ctype = ct;
+      uncanonized_type = rt;
+      canonized_type = ct;
       crel = r;
       canonize = cn;
       choose = ch; 
@@ -318,8 +318,8 @@ module Canonizer = struct
     let ct = r in
       { info = i;
         string = n;
-        rtype = rt;
-        ctype = ct;
+        uncanonized_type = rt;
+        canonized_type = ct;
         crel = Identity;
         canonize = (fun x -> x);
         choose = (fun x -> x);
@@ -347,10 +347,11 @@ module Canonizer = struct
         aux 0 in
       { info = i;
         string = n;
-        rtype = rt;
-        ctype = ct;
+        uncanonized_type = rt;
+        canonized_type = ct;
         crel = Identity;
         canonize =
+          
           (fun c ->
              let c_len = String.length c in
              let buf = Buffer.create c_len in
@@ -401,17 +402,17 @@ module Canonizer = struct
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
     let rt = 
       if Prefs.read notypecheck then 
-        RxImpl.mk_seq cn1.rtype cn2.rtype 
+        RxImpl.mk_seq cn1.uncanonized_type cn2.uncanonized_type 
       else
-        match RxImpl.splittable_cex cn1.rtype cn2.rtype with 
+        match RxImpl.splittable_cex cn1.uncanonized_type cn2.uncanonized_type with 
           | Misc.Right rt12 -> rt12 
           | Misc.Left(s1,s2,s1',s2') -> 
               let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
                 cn1.string cn2.string s1 s2 s1' s2' in 
                 Berror.static_error i n s in 
     let ct = match cn1.crel,cn2.crel with 
-      | Identity,Identity -> RxImpl.mk_seq cn1.ctype cn2.ctype 
-      | _ -> match RxImpl.splittable_cex cn1.ctype cn2.ctype with 
+      | Identity,Identity -> RxImpl.mk_seq cn1.canonized_type cn2.canonized_type 
+      | _ -> match RxImpl.splittable_cex cn1.canonized_type cn2.canonized_type with 
           | Misc.Right ct12 -> ct12 
           | Misc.Left(s1,s2,s1',s2') -> 
               let s = sprintf "the concatenation of %s and %s is ambiguous (and so the relation may not be an equivalence):\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
@@ -419,14 +420,14 @@ module Canonizer = struct
                 Berror.static_error i n s in   
       { info = i;
         string = n;
-        rtype = rt;
-        ctype = ct;
+        uncanonized_type = rt;
+        canonized_type = ct;
         crel = combine_rel cn1.crel cn2.crel;
         canonize = 
-          (do_split (seq_split i cn1.rtype cn2.rtype)
+          (do_split (seq_split i cn1.uncanonized_type cn2.uncanonized_type)
              cn1.canonize cn2.canonize (^));
         choose = 
-          (do_split ((split_one Int.Set.min_elt) cn1.ctype cn2.ctype)
+          (do_split ((split_one Int.Set.min_elt) cn1.canonized_type cn2.canonized_type)
              cn1.choose cn2.choose (^));
       }
 
@@ -434,50 +435,50 @@ module Canonizer = struct
     let n = sprintf "union (%s) (%s)" cn1.string cn2.string in 
     let () = 
       if not (Prefs.read notypecheck) then  
-        match RxImpl.disjoint_cex cn1.rtype cn2.rtype with
+        match RxImpl.disjoint_cex cn1.uncanonized_type cn2.uncanonized_type with
           | None -> ()
           | Some w -> 
               let s = sprintf "%s and %s are not disjoint: %s"
-                (RxImpl.string_of_t cn1.rtype) (RxImpl.string_of_t cn2.rtype) w in
+                (RxImpl.string_of_t cn1.uncanonized_type) (RxImpl.string_of_t cn2.uncanonized_type) w in
                 Berror.static_error i n s in
       (*     let () = match cn1.crel,cn2.crel with  *)
       (*       | Identity,Identity -> () *)
-      (*       | _ -> match RxImpl.disjoint_cex cn1.ctype cn2.ctype with *)
+      (*       | _ -> match RxImpl.disjoint_cex cn1.canonized_type cn2.canonized_type with *)
       (*       | None -> () *)
       (*       | Some w ->  *)
       (*           let s = sprintf "%s and %s are not disjoint (and so the relation may not be the identity): %s" *)
-      (*             (RxImpl.string_of_t cn1.rtype) (RxImpl.string_of_t cn2.rtype) w in *)
+      (*             (RxImpl.string_of_t cn1.uncanonized_type) (RxImpl.string_of_t cn2.uncanonized_type) w in *)
       (*           Berror.static_error i n s in *)
-    let rt = RxImpl.mk_alt cn1.rtype cn2.rtype in 
-    let ct = RxImpl.mk_alt cn1.ctype cn2.ctype in 
+    let rt = RxImpl.mk_alt cn1.uncanonized_type cn2.uncanonized_type in 
+    let ct = RxImpl.mk_alt cn1.canonized_type cn2.canonized_type in 
     let cr = 
-      if RxImpl.is_empty (RxImpl.mk_inter cn2.ctype (RxImpl.mk_complement cn1.ctype)) then 
+      if RxImpl.is_empty (RxImpl.mk_inter cn2.canonized_type (RxImpl.mk_complement cn1.canonized_type)) then 
         cn1.crel
       else combine_rel cn1.crel cn2.crel in  
     { info = i;
       string = n;
-      rtype = rt;
-      ctype = ct;
+      uncanonized_type = rt;
+      canonized_type = ct;
       crel = cr;
-      canonize = (branch cn1.rtype cn1.canonize cn2.canonize);
-      choose = (branch cn1.ctype cn1.choose cn2.choose);
+      canonize = (branch cn1.uncanonized_type cn1.canonize cn2.canonize);
+      choose = (branch cn1.canonized_type cn1.choose cn2.choose);
     }
 
   let star i cn1 =
     let n = sprintf "(%s)*" cn1.string in
     let rt = 
       if Prefs.read notypecheck then 
-        RxImpl.mk_star cn1.rtype 
-      else match RxImpl.iterable_cex cn1.rtype with
+        RxImpl.mk_star cn1.uncanonized_type 
+      else match RxImpl.iterable_cex cn1.uncanonized_type with
         | Misc.Right r -> r
         | Misc.Left (s1,s2,s1',s2') -> 
             let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (RxImpl.string_of_t cn1.rtype) s1 s2 s1' s2' in 
+              (RxImpl.string_of_t cn1.uncanonized_type) s1 s2 s1' s2' in 
               Berror.static_error i n s in 
     let ct = match Prefs.read notypecheck, cn1.crel with 
-      | true,_ | _,Identity -> RxImpl.mk_star cn1.ctype 
+      | true,_ | _,Identity -> RxImpl.mk_star cn1.canonized_type 
       | _ -> 
-          match RxImpl.iterable_cex cn1.ctype with 
+          match RxImpl.iterable_cex cn1.canonized_type with 
             | Misc.Right cts -> cts 
             | Misc.Left(s1,s2,s1',s2') -> 
                 let s = sprintf "the iteration of %s is ambiguous (and so the relation may not be an equivalence):\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
@@ -485,16 +486,16 @@ module Canonizer = struct
                   Berror.static_error i n s in   
       { info = i;
         string = n;
-        rtype = rt;
-        ctype = ct;
+        uncanonized_type = rt;
+        canonized_type = ct;
         crel = cn1.crel;
-        canonize = (star_loop cn1.rtype cn1.canonize);      
+        canonize = (star_loop cn1.uncanonized_type cn1.canonize);      
         choose = 
           (fun cl -> 
              let rec loop cl acc = 
                if String.length cl = 0 then acc
                else
-                 let cl1,clrest = (split_one Int.Set.min_elt) cn1.ctype ct cl in 
+                 let cl1,clrest = (split_one Int.Set.min_elt) cn1.canonized_type ct cl in 
                    loop clrest (acc ^ (cn1.choose cl1)) in 
                loop cl "");
       }
@@ -507,9 +508,9 @@ module Canonizer = struct
     let ct = fc0 in 
       { info = i;
         string = n;
-        rtype = rt;
+        uncanonized_type = rt;
         crel = Identity;
-        ctype = ct;
+        canonized_type = ct;
         canonize = (fun c -> f c);
         choose = (fun c -> c);
       }
@@ -540,8 +541,8 @@ module Canonizer = struct
     let ct = Safelist.fold_left RxImpl.mk_seq RxImpl.epsilon rl in
       { info = i;
         string = n;
-        rtype = rt;
-        ctype = ct;
+        uncanonized_type = rt;
+        canonized_type = ct;
         crel = Identity;
         canonize = 
           (fun c -> 
@@ -1479,14 +1480,14 @@ module DLens = struct
       (* the "class type" of the canonizer has to be equal to the
 	 concrete type of the lens *)
     let () = 
-      if (not (Prefs.read notypecheck)) && (not (RxImpl.equiv (Canonizer.ctype cn) dl.ctype)) then 
+      if (not (Prefs.read notypecheck)) && (not (RxImpl.equiv (Canonizer.canonized_type cn) dl.ctype)) then 
         Berror.static_error i n (sprintf "%s is ill-typed" n) in 
     let () = match cn.Canonizer.crel,dl.crel with
       | Unknown, Unknown | Unknown,Identity -> 
           Berror.static_error i n (sprintf "%s is ill-typed" n)
       | _ -> () in 
     let bij = dl.bij in 
-    let ct = Canonizer.rtype cn in
+    let ct = Canonizer.uncanonized_type cn in
     let at = dl.atype in
     let xto = dl.xtype in 
     let dt = dl.dtype in
@@ -1524,7 +1525,7 @@ module DLens = struct
   let right_quot i dl cn = 
     let n = sprintf "right quotient of %s by %s" dl.string (Canonizer.string cn) in
     let () = 
-      if (not (Prefs.read notypecheck)) && (not (RxImpl.equiv (Canonizer.ctype cn) dl.atype)) then
+      if (not (Prefs.read notypecheck)) && (not (RxImpl.equiv (Canonizer.canonized_type cn) dl.atype)) then
         Berror.static_error i n (sprintf "%s is ill-typed" n) in 
     let () = match cn.Canonizer.crel,dl.crel with
       | Unknown, Unknown -> 
@@ -1534,7 +1535,7 @@ module DLens = struct
       | _ -> () in 
   let bij = dl.bij in 
   let ct = dl.ctype in
-  let at = Canonizer.rtype cn in
+  let at = Canonizer.uncanonized_type cn in
   let xto = dl.xtype in 
   let dt = dl.dtype in
   let st = dl.stype in

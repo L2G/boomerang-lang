@@ -21,7 +21,7 @@ module Bcard =
         copy Uri . 
         qins Nl "\n"
       end
-      (copy epsilon)
+      (copy EPSILON)
 
   let phone : lens = simple "phone" "P"
 
@@ -60,13 +60,13 @@ module Bcard =
   let card_xml : string = 
 <<
 <cards>
-  <card>
-    <name>John Doe</name>
-    <title>CEO &amp; CTO, Widget Inc.</title>
-    <email>&lt;&quot;John Doe&quot;, john.doe@widget.com&gt;</email>
-    <phone>(202) 5551414</phone>
-    <logo uri="widget.gif"></logo>
-  </card>
+ <card>
+  <name>John Doe</name>
+  <title>CEO &amp; CTO, Widget Inc.</title>
+  <email>&lt;&quot;John Doe&quot;, john.doe@widget.com&gt;</email>
+  <phone>(202) 5551414</phone>
+  <logo uri="widget.gif"></logo>
+ </card>
 </cards>
 >>
 
