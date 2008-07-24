@@ -31,9 +31,9 @@
        (archive (make-temp-name source))
        ;; setup boomerang command-line invocation
        (boomcmd (concat 
-                 "boomerang" " " "sync" " " lens " " 
+                 "boomerang" " " "oldsync" " " lens " " 
                  archive " " source " " view
-                 " " "-debug sync -no-assert -no-check -no-type-check -I ../lenses"))
+                 " " "-no-type-check" " " "-debug sync"))       
        ;; setup boomerang output buffer 
        (boombuf (get-buffer-create "*boomerang output*"))
        ;; run boomerang once, save exit code

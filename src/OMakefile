@@ -43,7 +43,7 @@ RESULTS = boomerang.cmxa $(RESULT)$(EXE)
 BOOMERANG_BASE_SOURCES[] = \
    berror.mli berror.ml \
    brx.mli brx.ml erx.mli erx.ml \
-   crm.mli crm.ml bnfa.mli bnfa.ml bregexp.mli bregexp.ml \
+   bregexp.mli bregexp.ml \
    blenses.mli blenses.ml \
    bident.mli bident.ml \
    bvalue.mli bvalue.ml \
@@ -56,7 +56,7 @@ BOOMERANG_BASE_SOURCES[] = \
    bsync.mli bsync.ml \
    toplevel.ml
 
-GENERATED_SOURCES = bparser.ml bparser.mli blexer.ml
+GENERATED_SOURCES = bparser.mly bparser.ml bparser.mli blexer.mll blexer.ml
 
 BOOMERANG_LENS_SOURCES[] = \
   prelude.ml

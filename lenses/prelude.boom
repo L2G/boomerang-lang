@@ -22,43 +22,75 @@
 
 module Prelude =
 
-let epsilon : regexp = // 
+#{@}
+
+\subsection{Regular Expressions}
+
+\LENSSECTION{epsilon}
+The regular expression @epsilon@ denotes the singleton set containing the empty string.
+
+#* let epsilon : regexp = // 
+
+\LENSSECTION{ANYCHAR}
+
+The regular expression @ANYCHAR@ denotes the set of ASCII characters.
+
+#* let ANYCHAR : regexp = [^]
+
+\LENSSECTION{ANY}
+
+The regular expression @ANY@ denotes the set of all ASCII strings.
+
+#* let ANY : regexp = ANYCHAR*
+
+\LENSSECTION{ANYP}
+
+The regular expression @ANYP@ denotes the set of all non-epsilon ASCII strings.
+
+#* let ANYP : regexp = ANYCHAR+
+
+\LENSSECTION{NONE}
+
+The regular expression @NONE@ denotes the empty set of strings.
+
+#* let NONE: regexp = []
+
+\LENSSECTION{SP}
+
+The regular expression @SP@ denotes non-epsilon strings of space characters.
+
+#* let SP : regexp = [ ]+
+
+\LENSSECTIONnott{{\tt WS} and {\tt WSP}}
+
+The regular expression @WS@ denotes strings of space or newline characters; 
+@WSP@ is similar, but only denotes non-epsilon strings.
+
+#* let WS : regexp = [ \n]*
+#* let WSP : regexp = [ \n]+
+
+\LENSSECTION{NWS}
+
+The regular expression @NWS@ denotes strings of characters other than space or newline.
+
+#* let NWS : regexp = [^ \n]
+
+#{#}
 
 let ins (s:string) : lens = const // s "" 
 
 let del (r:regexp) : lens = const r "" (shortest r) 
 
-(* [ANYCHAR] any character *)
-let ANYCHAR = [^]
 
-(* [ANY] any string *)
-let ANY : regexp = ANYCHAR*
 
-let NONE: regexp = []
 
-(* [ANYP] any non-empty string *)
-let ANYP : regexp = ANYCHAR+
 
 (* [containing R] any string containing [R] *)
 let containing (R:regexp) : regexp = ANY . R . ANY
 
-(* [nl] newline *)
 let newline : string = "\n"
 
-(* [s] space *)
 let space : string = " "
-
-(* [WS] whitespace *)
-let WS : regexp = [ \n]*
-
-(* [NWS] not white space *)
-let NWS : regexp = [^ \n]
-
-(* [WSP] positive whitespace *)
-let WSP : regexp = [ \n]+
-
-(* [SP] positive space *)
-let SP : regexp = [ ]+
 
 (* [DIGIT] digit *)
 let DIGIT : regexp = [0-9]

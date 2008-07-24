@@ -58,6 +58,22 @@ BOOMEXE = $(BINDIR)/boomerang$(EXE)
 BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR)
 
 ##############################################################################
+# Translation of .src files
+
+SRC2F = $(TOOLSDIR)/src2f$(EXE)
+SRC2TEX = $(TOOLSDIR)/src2tex$(EXE)
+
+%.mly: %.srcy $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@
+	chmod(-w, $@)
+
+%.mll: %.srcl $(SRC2F)
+	-rm -f $@
+	$(SRC2F) $< $@
+	chmod(-w, $@)
+
+##############################################################################
 # CLEANUP
 
 # what about .omakedb and omakedb.lock?
@@ -96,7 +112,7 @@ veryclean: clean
 ##############################################################################
 # Include sub-directories
 
-SUBDIRS = common src lenses examples
+SUBDIRS = common src lenses examples doc
 
 .SUBDIRS: $(SUBDIRS)
 

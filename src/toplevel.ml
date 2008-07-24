@@ -16,7 +16,7 @@
 (*******************************************************************************)
 (* /boomerang/src/toplevel.ml                                                  *)
 (* Boomerang front-end                                                         *)
-(* $Id$                                                                        *)
+(* $Id$ *)
 (*******************************************************************************)
 
 (* imports *)
@@ -153,6 +153,99 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
     0
 *)
 
+(* OLD SYNC *)
+let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
+let oldsync l o_fn c_fn a_fn = 
+  let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in 
+  match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with 
+    | _,false,false -> 
+        (* if neither c nor a exists, clear o and return *)
+        debug_sync (fun () -> Util.format "replicas %s and %s missing; removing archive %s@\n" c_fn a_fn o_fn);
+        Misc.remove_file_or_dir o_fn;
+        0
+
+    | _,true,false -> 
+        (* if c exists but a does not, set a to GET c *)
+        debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
+        let c = read_string c_fn in 
+          write_string o_fn c;
+          write_string a_fn (get_str l c);
+          0
+          
+    | true,false,true ->
+        (* if c does not exist but a and o do, set c and o to PUT a o *)        
+        debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
+        let a = read_string a_fn in
+        let o = read_string o_fn in 
+        let c' = put_str l a o in 
+          write_string c_fn c';
+          write_string o_fn c';
+          0
+    
+    | false,false,true ->
+        (* if c and o do not exist but a does, set c and o to CREATE a *)        
+        debug_sync (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
+        let a = read_string a_fn in 
+        let c' = create_str l a in 
+          write_string c_fn c';
+          write_string o_fn c';
+          0
+
+    | false,true,true -> 
+        (* if c and a exist but o does not and a <> GET c then conflict; otherwise set o to c *)
+        let a = read_string a_fn in 
+        let c = read_string c_fn in 
+        let a' = get_str l c in 
+        if a = a' then 
+          begin
+            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
+            write_string o_fn c;
+            0
+          end
+        else
+          begin 
+            debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
+            1
+          end
+
+    | true,true,true -> 
+        (* otherwise, c, a, and o exist:
+           - if a=GET o set a to GET c and o to c;
+           - else if c=o, set c and o to PUT a o;
+           - otherwise conflict. *)
+        let o = read_string o_fn in
+        let c = read_string c_fn in 
+        let a = read_string a_fn in 
+        let a' = get_str l c in 
+        if a = a' then 
+          begin 
+            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
+            write_string o_fn c;
+            0
+          end
+        else
+          let a' = get_str l o in 
+            if a = a' then 
+              begin 
+                debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
+                write_string a_fn (get_str l c);
+                write_string o_fn c;
+                0
+              end
+            else if c = o then
+              begin 
+                debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
+                let c' = put_str l a o in 
+                  write_string c_fn c';
+                  write_string o_fn c';
+                  0
+              end            
+            else 
+              begin 
+                debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
+                1
+              end
+
 let rest = Prefs.createStringList "rest" "*no docs needed" ""
 
 let o_pref = Prefs.createString     "output" "" "output" ""
@@ -242,6 +335,9 @@ let toplevel' progName () =
              ["sync"],[l],[o_fn; a_fn; b_fn; o_fn; a_fn; b_fn],[],""
          | ["sync"; l; o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],[],[],"" -> 
              ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],""
+         (* oldsync *)
+         | ["oldsync"; l; o_fn; a_fn; b_fn],[],[],[],"" -> 
+             ["oldsync"],[l],[o_fn; a_fn; b_fn],[],""
          | _ -> bad_cmdline () in 
        let o_fn = if o="" then "-" else o in 
        match rest_pref,ll,cl,al with
@@ -249,6 +345,7 @@ let toplevel' progName () =
          | ["create"],[l],[],[a_fn]     -> create l a_fn o_fn
          | ["put"],[l],[c_fn],[a_fn]    -> put l a_fn c_fn o_fn
          | ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[]   -> sync l o_fn a_fn b_fn o_fn' a_fn' b_fn'
+         | ["oldsync"],[l],[o_fn; a_fn; b_fn],[] -> oldsync l o_fn a_fn b_fn 
          | _ -> assert false
      end)
     (fun () -> Util.flush ())

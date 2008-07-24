@@ -1,0 +1,34 @@
+SOURCES = $(glob *.src) \
+          $(SRCDIR)/blexer.srcl $(SRCDIR)/bparser.srcy \
+          $(LENSESDIR)/prelude.boom \
+          $(LENSESDIR)/core.boom \
+          $(LENSESDIR)/list.boom 
+
+SRC2TEX=$(TOOLSDIR)/src2tex
+
+tmpname(x) =
+  return ($(basename $(rootname $(x))).tex)
+
+foreach (x, $(SOURCES))
+  $(tmpname $(x)): $(x) $(SRC2TEX)
+	rm -f  $@
+	$(SRC2TEX) $< > $@
+	chmod a-w $@
+
+GENERATEDTEXFILES = $(foreach $(tmpname), $(SOURCES))
+
+##############################################################################
+
+main.pdf: $(GENERATEDTEXFILES)
+	pdflatex main
+	-bibtex main
+	pdflatex main
+	pdflatex main
+
+.DEFAULT: main.pdf
+
+##############################################################################
+
+clean:
+  $(CLEAN) $(GENERATEDTEXFILES) *.log main.pdf *.aux temp.tex *.toc *.bbl *.blg  tmp
+

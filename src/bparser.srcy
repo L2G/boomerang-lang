@@ -1,3 +1,4 @@
+#{#}
 %{ 
 (*******************************************************************************)
 (* The Harmony Project                                                         *)
@@ -83,6 +84,18 @@ let parse_cset s =
   let eos () = !i = l in
   let test c = not (eos ()) && s.[!i] = c in
   let accept c = let r = test c in if r then incr i; r in
+  let num = function 
+  | '0' -> 0
+  | '1' -> 1
+  | '2' -> 2
+  | '3' -> 3
+  | '4' -> 4
+  | '5' -> 5
+  | '6' -> 6
+  | '7' -> 7
+  | '8' -> 8
+  | '9' -> 9 
+  | _ -> err () in
   let get () = 
     let do_get () = let r = s.[!i] in incr i; r in 
       if accept '\\' then 
@@ -94,7 +107,11 @@ let parse_cset s =
           | 'r' -> '\013'
           | 't' -> '\009'
           | '\\' -> '\\'
-          | _   -> err () 
+          | c   -> 
+          let n1 = num c in 
+          let n2 = num (do_get ()) in 
+          let n3 = num (do_get ()) in 
+          Char.chr (100 * n1 + 10 * n2 + n3) 
       else (do_get ()) in 
   let next () = if eos () then err () else get () in 
   let rec go acc = 
@@ -198,7 +215,45 @@ let rec fixup_pat i p0 = match p0 with
 %type <Bident.Qid.t> qid
 %%
 
+#{@}
+
+\renewcommand{\lit}[1]{\char96{}#1\char39{}}
+\def\ltsym{@<@}
+\def\gtsym{@>@}
+
+This section gives a formal definition of Boomerang syntax as an
+EBNF grammar. The productions for each syntactic category are followed
+by a brief explanation. In grammar rules we adopt the following
+conventions:
+\begin{itemize}
+    
+\item Literals are written in a typewriter font and enclosed in 
+  quotes: e.g., \lit{@module@};
+
+  \item Non-terminals are enclosed in angle brackets: e.g.,
+\synt{Exp};
+
+\item Optional elements are enclosed in square brackets:
+e.g., \syntax{[\lit{@:@} <Sort>]};
+
+\item Terms are grouped using parentheses;
+
+\item Optional and repeated terms are specified using \syntax{?} (optional), \syntax{*} (0 or
+  more), and \syntax{+} (1 or more).
+
+\end{itemize}
+#{#}
+
 /* --------- MODULES ---------- */
+
+#{@}
+\subsection{Modules and Declarations}
+
+\begin{grammar}
+<CompilationUnit> ::= \lit{@module@} <UIdent> \lit{@=@} (\lit{@open@} <Qid>)* <Decl>*
+
+#{#}
+
 modl: 
   | MODULE UIDENT EQUAL opens decls EOF
       { Mod(m $1 $6,$2,$4,$5) }
@@ -209,6 +264,66 @@ opens:
   | { [] }
 
 /* --------- DECLARATIONS ---------- */
+#{@}
+<Decl> ::= \lit{@module@} <LIdent> \lit{@=@} <Decl>* \lit{@end@}
+      \alt \lit{@type@} <SVarList> <LIdent> \lit{@=@} <DTSortList>
+      \alt \lit{@let@} <Id> <ParamList> (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
+      \alt \lit{@let@} <PairPat> <ParamList> (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
+      \alt \lit{@test@} <InfixExp> \lit{@=@} <TestResExp>
+      \alt \lit{@test@} <InfixExp> \lit{@:@} <TestResSort>
+\end{grammar}
+
+\noindent A Boomerang compilation unit contains a single module
+declaration, such as @module Foo@, which must appear in a file named
+@foo.src@ (for ``literate'' sources) or @foo.boom@ (for plain sources).
+Boomerang modules are only used to group declarations into a
+common namespace (in particular, Boomerang does not support module
+signatures or sealing. A module consists of a sequence of @open@ 
+declarations, which import all the declarations from another module into 
+the namespace, followed by a sequence of declarations. A declaration is 
+either a nested @module@, a @type@, a @let@, or a unit test. 
+
+\subsubsection{Unit Tests} \label{sec:unittests}
+
+Boomerang supports inline unit tests, which are executed when
+the system is run in testing mode (see Section~\ref{sec:cmdlineargs}). 
+
+#{@}
+\begin{grammar}
+<TestResExp> ::= \lit{@?@} 
+            \alt \lit{@error@}
+            \alt <AppExp>
+
+<TestRestSort> ::= \lit{@?@}
+             \alt <Sort>
+\end{grammar}
+
+\noindent Unit tests have one of the following forms:
+%
+\begin{progeg}
+test (copy [A-Z]*).get "ABC" = "ABC"
+test (copy [A-Z]*).get "ABC" = ?
+test (copy [A-Z]*).get "123" = error
+test (copy [A-Z]*).get "ABC" : string
+test (copy [A-Z]*).get "ABC" : ?
+\end{progeg}
+%
+The first form, @test@~$e_1$~@=@~$e_2$, checks that $e_1$ and $e_2$ 
+evaluate to identical values. The two expressions must have compatible 
+sorts with a defined equality operation. We often use this kind of test 
+to print and check the behavior of the $\GET$, $\PUT$, and $\CREATE$ 
+components of lenses. A unit test of the form @test@~$e$~@= ?@ evaluates 
+$e$ and prints the result. The third form of unit test, @test@~$e$~@= error@, 
+checks that an exception is raised during evaluation of $e$. This kind 
+of test is used to check that a lens correctly checks the side conditions 
+on its inputs. 
+%
+Finally, unit tests of the form @test@~$e$~@:@~$s$ and @test@~$e$~@: ?@ test 
+the sort of $e$ rather than its value.
+%
+\finish{Say what these do with full refinement sorts!}
+#{#}
+
 decls:      
   | TYPE svar_list LIDENT EQUAL dtsort_list decls
       { let i = m $1 $4 in 
@@ -228,12 +343,12 @@ decls:
         let b =  Bind(i,PVar(i2,$2,None),None,f) in 
         DLet(i,b)::$6 }
 
-  | LET ppat COLON sort EQUAL exp decls
+  | LET pairpat COLON sort EQUAL exp decls
       { let i = me2 $1 $6 in 
         let b = Bind(i,fixup_pat i $2,Some $4,$6) in 
         DLet(i,b)::$7 }
 
-  | LET ppat EQUAL exp decls
+  | LET pairpat EQUAL exp decls
       { let i = me2 $1 $4 in 
         let b =  Bind(i,fixup_pat i $2,None,$4) in 
         DLet(i,b)::$5 }
@@ -242,12 +357,12 @@ decls:
       { let i = m $1 $5 in 
         DMod(i,$2,$4)::$6 }
 
-  | TEST infixexp EQUAL test_res decls
+  | TEST infixexp EQUAL test_res_exp decls
       { let i4,tr = $4 in 
         let i = m $1 i4 in 
         DTest(i,$2,tr)::$5 }
 
-  | TEST infixexp COLON test_type decls
+  | TEST infixexp COLON test_res_sort decls
       { let i = m $1 $3 in 
         DTest(i,$2,$4)::$5 }
 
@@ -259,7 +374,7 @@ decls:
 
 
 /* --------- TEST RESULTS --------- */      
-test_res:
+test_res_exp:
   | QMARK
       { ($1,TestPrint) }
   | ERROR
@@ -267,7 +382,7 @@ test_res:
   | appexp 
       { (info_of_exp $1, TestEqual $1) }
 
-test_type:
+test_res_sort:
   | QMARK
       { TestSortPrint None}
 
@@ -275,6 +390,16 @@ test_type:
       { TestSortEqual $1 }
 
 /* --------- EXPRESSIONS ---------- */      
+#{@}
+\subsection{Expressions} \label{sec:parser:expressions}
+
+\begin{grammar}
+<Exp> ::= \lit{@let@} <Id> <Param>+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
+     \alt \lit{@let@} <PairPat> (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
+     \alt \lit{@fun@} <Param>+ (\lit{@:@} <Sort>)? \lit{@->@} <Exp>
+     \alt <CaseExp>
+
+#{#}
 exp:
   | LET id param_list COLON sort EQUAL exp IN exp 
       { let i = me2 $1 $9 in 
@@ -290,12 +415,12 @@ exp:
         let b = Bind(i,PVar(i2,$2,None),None,f) in 
         ELet(i,b,$7) }
 
-  | LET ppat COLON sort EQUAL exp IN exp 
+  | LET pairpat COLON sort EQUAL exp IN exp 
       { let i = me2 $1 $8 in 
         let b = Bind(i,fixup_pat i $2,Some $4,$6) in 
         ELet(i,b,$8) }
 
-  | LET ppat EQUAL exp IN exp 
+  | LET pairpat EQUAL exp IN exp 
       { let i = me2 $1 $6 in 
         let b = Bind(i,fixup_pat i $2,None,$4) in 
         ELet(i,b,$6) }
@@ -314,6 +439,15 @@ exp:
 
 
 /* case expressions */
+
+#{@}
+<CaseExp> ::= \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@:@} <Sort>
+         \alt \lit{@(@} \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@)@} \lit{@:@} <Sort>
+         \alt \lit{@begin@} \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@end@} \lit{@:@} <Sort>
+         \alt <ComposeExp>
+
+#{#}
+
 cexp:
   | MATCH composeexp WITH branch_list COLON sort
       { let i4,pl = $4 in 
@@ -331,6 +465,12 @@ cexp:
       { $1 }
 
 /* compose expressions */
+#{@}
+<ComposeExp> ::= <ComposeExp> \lit{@;@} <BarExp>
+            \alt <BarExp>
+
+#{#}
+
 composeexp:
   | composeexp SEMI barexp
       { mk_compose (me $1 $3) $1 $3 }
@@ -339,6 +479,12 @@ composeexp:
       { $1 }
 
 /* bar expressions */
+#{@}
+<BarExp> ::= <OBarExp> 
+        \alt <DBarExp> 
+        \alt <EqualExp>
+
+#{#}
 barexp:
   | obarexp 
       { mk_tree OBar (Safelist.rev $1) }
@@ -349,30 +495,66 @@ barexp:
   | equalexp
       { $1 }
 
+#{@}
+<OBarExp> ::= <OBarExp> \lit{@|@} <EqualExp>
+         \alt <EqualExp> \lit{@|@} <EqualExp>
+
+#{#}
 obarexp: 
   | obarexp BAR equalexp
       { $3 :: $1 }
   | equalexp BAR equalexp
       { [$3; $1 ] }
 
+#{@}
+<DBarExp> ::= <DBarExp> \lit{@||@} <EqualExp>
+         \alt <EqualExp> \lit{@||@} <EqualExp>
+
+#{#}
 dbarexp:
   | dbarexp BAR BAR equalexp
       { $4 :: $1 }
   | equalexp BAR BAR equalexp 
       { [$4; $1] }
 
+#{@}
+<EqualExp> ::= <AppExp> \lit{@=@} <AppExp>
+          \alt <CommaExp>
+
+#{#}
 equalexp:
   | appexp EQUAL appexp 
       { mk_over (me $1 $3) OEqual [$1; $3] }
   | commaexp
       { $1 }
 
+#{@}
+<CommaExp> ::= <CommaExp> \lit{@,@} <InfixExp>
+          \alt <InfixExp>
+
+#{#}
 commaexp:
   | commaexp COMMA infixexp
       { EPair(me $1 $3, $1, $3) }
   | infixexp
       { $1 }
-      
+
+#{@}
+<InfixExp> ::= <DotExp> 
+      \alt <TildeExp> 
+      \alt <AmpExp> 
+      \alt <LensComponentExp> 
+      \alt <AppExp> \lit{@-@} <AppExp> 
+      \alt <AppExp> \lit{@&&@} <AppExp> 
+      \alt <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> 
+      \alt <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> 
+      \alt <AppExp> \lit{\ltsym} <AppExp> 
+      \alt <AppExp> \lit{\ltsym@=@} <AppExp> 
+      \alt <AppExp> \lit{\gtsym} <AppExp> 
+      \alt <AppExp> \lit{\gtsym@=@} <AppExp>       
+      \alt <AppExp>
+
+#{#}      
 infixexp:
   | dotexp 
       { $1 }
@@ -396,51 +578,58 @@ infixexp:
       { $1 }
   | geqexp
       { $1 }
-  | lcexp
+  | lenscomponentexp
       { $1 }
   | appexp
       { $1 }
 
+#{@}
+<DotExp> ::= <DotExp> \lit{@.@} <AppExp> 
+      \alt <AppExp> \lit{@.@} <AppExp>
+
+#{#}      
 dotexp:
   | dotexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
   | appexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
+
+#{@}
+<TildeExp> ::= <TildeExp> \lit{@~@} <AppExp> 
+      \alt <AppExp> \lit{@~@} <AppExp>
+
+#{#}      
 tildeexp:
   | tildeexp TILDE appexp
       { mk_over (me $1 $3) OTilde [$1; $3] }
   | appexp TILDE appexp
       { mk_over (me $1 $3) OTilde [$1; $3] }
-minusexp:
-  | appexp MINUS appexp
-      { mk_over (me $1 $3) OMinus [$1; $3] }
+
+#{@}
+<AmpExp> ::= <AmpExp> \lit{@&@} <AppExp> 
+        \alt <AppExp> \lit{@&@} <AppExp> 
+
+#{#}      
 ampexp:
   | ampexp AMPERSAND appexp 
       { mk_over (me $1 $3) OAmp [$1; $3] }
   | appexp AMPERSAND appexp 
       { mk_over (me $1 $3) OAmp [$1; $3] }
-ampampexp:
-  | appexp AMPERSAND AMPERSAND appexp 
-      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
-darrowexp:
-  | appexp DARROW appexp 
-      { mk_over (me $1 $3) ODarrow [$1; $3] }
-deqarrowexp:
-  | appexp DEQARROW appexp
-      { mk_over (me $1 $3) ODeqarrow [$1; $3] }
-ltexp:
-  | appexp LT appexp 
-      { mk_over (me $1 $3) OLt [$1; $3] }
-leqexp:
-  | appexp LEQ appexp 
-      { mk_over (me $1 $3) OLeq [$1; $3] }
-gtexp:
-  | appexp GT appexp 
-      { mk_over (me $1 $3) OGt [$1; $3] }
-geqexp:
-  | appexp GEQ appexp 
-      { mk_over (me $1 $3) OGeq [$1; $3] }
-lcexp: 
+
+#{@}
+<LensComponentExp> ::= <AppExp> (\lit{@.get@} <AppExp>
+       \alt <AppExp> (\lit{@.put@} <AppExp> \lit{@into@} <AppExp>
+       \alt <AppExp> (\lit{@.create@} <AppExp>       
+       \alt <AppExp> (\lit{@.canonize@} <AppExp> 
+       \alt <AppExp> (\lit{@.choose@} <AppExp>
+       \alt <AppExp> (\lit{@.ctype@}
+       \alt <AppExp> (\lit{@.atype@}
+       \alt <AppExp> (\lit{@.domain_type@}
+       \alt <AppExp> (\lit{@.codomain_type@}
+       \alt <AppExp> (\lit{@.bij@}
+
+#{#}
+lenscomponentexp: 
   | appexp GET appexp
       { let i = me $1 $3 in 
         mk_bin_op i (mk_core_var "get") $1 $3 }
@@ -456,17 +645,68 @@ lcexp:
   | appexp CHOOSE appexp
       { let i = me $1 $3 in
         mk_bin_op i (mk_core_var "choose") $1 $3 }
+  | appexp CTYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var "ctype") $1 }
+  | appexp ATYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var "atype") $1 }
+  | appexp BIJ 
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var "bij") $1 }
+
+minusexp:
+  | appexp MINUS appexp
+      { mk_over (me $1 $3) OMinus [$1; $3] }
+
+ampampexp:
+  | appexp AMPERSAND AMPERSAND appexp 
+      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
+
+darrowexp:
+  | appexp DARROW appexp 
+      { mk_over (me $1 $3) ODarrow [$1; $3] }
+
+deqarrowexp:
+  | appexp DEQARROW appexp
+      { mk_over (me $1 $3) ODeqarrow [$1; $3] }
+
+ltexp:
+  | appexp LT appexp 
+      { mk_over (me $1 $3) OLt [$1; $3] }
+
+leqexp:
+  | appexp LEQ appexp 
+      { mk_over (me $1 $3) OLeq [$1; $3] }
+
+gtexp:
+  | appexp GT appexp 
+      { mk_over (me $1 $3) OGt [$1; $3] }
+
+geqexp:
+  | appexp GEQ appexp 
+      { mk_over (me $1 $3) OGeq [$1; $3] }
 
 /* application expressions */
+#{@}
+<AppExp> ::= <AppExp> <RepExp>
+       \alt <RepExp>
+
+#{#}
 appexp:
-  | appexp rexp                         
+  | appexp repexp                         
       { mk_app (me $1 $2) $1 $2 }
 
-  | rexp
+  | repexp
       { $1 }
       
 /* repeated expressions */
-rexp:
+#{@}
+<RepExp> ::= <TyExp> <Rep>
+       \alt <TyExp>
+
+#{#}
+repexp:
   | tyexp rep                            
       { let i2,(min,max) = $2 in 
         let i = me1 $1 i2 in 
@@ -475,6 +715,12 @@ rexp:
   | tyexp                                
       { $1 }
 
+
+#{@}
+<TyExp> ::= <TyExp> \lit{@{@} <Sort> \lit{@}@} 
+       \alt <TyExp>
+
+#{#}
 tyexp:
   | tyexp LBRACE sort RBRACE
       { let i = me1 $1 $4 in 
@@ -483,18 +729,26 @@ tyexp:
   | aexp 
       { $1 }
 
-/* atomic expressions */
-aexp:
-  | rexp CTYPE
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var "ctype") $1 }
-  | rexp ATYPE
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var "atype") $1 }
-  | rexp BIJ 
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var "bij") $1 }
 
+/* atomic expressions */
+#{@}
+<AExp> ::= \lit{@(@} <Exp> \lit{@)@}
+      \alt \lit{@begin@} <Exp> \lit{@end@}
+      \alt <Qid>
+      \alt <MatchExp>
+      \alt \lit{@#@} \lit{@{@} <SortList> \lit{@}@} <List>
+      \alt <Character>
+      \alt <Integer>
+      \alt <Boolean>
+      \alt <CharSet>
+      \alt <NegCharSet>
+      \alt <String>
+      \alt <RegExpString>
+      \alt \lit{@()@}
+
+#{#}
+
+aexp:
   | LPAREN exp RPAREN
       { $2 }
 
@@ -504,25 +758,8 @@ aexp:
   | qid
       { mk_qid_var $1 }
 
-  | LANGLE qid RANGLE
-      { mk_match (m $1 $3) "" $2 }
-
-  | LANGLE LIDENT COLON qid RANGLE
-      { mk_match (m $1 $5) (Id.string_of_t $2) $4 }
-
-  | LANGLE TILDE qid RANGLE 
-      { mk_sim_match (m $1 $4) 1.0 "" $3 }
-
-  | LANGLE TILDE LIDENT COLON qid RANGLE 
-      { mk_sim_match (m $1 $6) 1.0 (Id.string_of_t $3) $5 }
-
-  | LANGLE TILDE LBRACE FLOAT RBRACE qid RANGLE 
-      { let _,f = $4 in 
-        mk_sim_match (m $1 $7) f "" $6 }
-
-  | LANGLE TILDE LBRACE FLOAT RBRACE LIDENT COLON qid RANGLE 
-      { let _,f = $4 in 
-        mk_sim_match (m $1 $9) f (Id.string_of_t $6) $8 }
+  | matchexp
+      { $1 }
 
   | HASH LBRACE sort LLIST list 
       { let i6,mk = $5 in 
@@ -561,7 +798,75 @@ aexp:
   | LPAREN RPAREN
       { EUnit(m $1 $2) }
 
+matchexp:
+#{@}
+<MatchExp> ::= \ltsym <Qid> \gtsym
+      \alt \ltsym <LIdent> \lit{@:@} <Qid> \gtsym
+      \alt \ltsym \lit{@~@} <Qid> \gtsym
+      \alt \ltsym \lit{@~@} <LIdent> \lit{@:@} <Qid> \gtsym
+      \alt \ltsym \lit{@~@} \lit{@{@} <Float> \lit{@}@} <Qid> \gtsym
+      \alt \ltsym \lit{@~@} \lit{@{@} <Float> \lit{@}@}  <LIdent> \lit{@:@} <Qid> \gtsym
+\end{grammar}
+#{#}
+
+  | LANGLE qid RANGLE
+      { mk_match (m $1 $3) "" $2 }
+
+  | LANGLE LIDENT COLON qid RANGLE
+      { mk_match (m $1 $5) (Id.string_of_t $2) $4 }
+
+  | LANGLE TILDE qid RANGLE 
+      { mk_sim_match (m $1 $4) 1.0 "" $3 }
+
+  | LANGLE TILDE LIDENT COLON qid RANGLE 
+      { mk_sim_match (m $1 $6) 1.0 (Id.string_of_t $3) $5 }
+
+  | LANGLE TILDE LBRACE FLOAT RBRACE qid RANGLE 
+      { let _,f = $4 in 
+        mk_sim_match (m $1 $7) f "" $6 }
+
+  | LANGLE TILDE LBRACE FLOAT RBRACE LIDENT COLON qid RANGLE 
+      { let _,f = $4 in 
+        mk_sim_match (m $1 $9) f (Id.string_of_t $6) $8 }
+
+/* --------- REPETITIONS ---------- */
+#{@}
+\subsection{Repetitions}
+\begin{grammar}
+<Rep> ::= \lit{@*@}
+     \alt \lit{@+@}
+     \alt \lit{@?@}
+     \alt \lit{@{@} <Integer> \lit{@}@}
+     \alt \lit{@{@} <Integer> \lit{@,@} <Integer> \lit{@}@}
+\end{grammar}
+#{#}
+rep: 
+  | STAR                                
+      { ($1, (0,-1)) }
+
+  | PLUS                                
+      { ($1, (1,-1)) }
+
+  | QMARK                               
+      { ($1, (0,1)) }
+
+  | LBRACE INTEGER RBRACE
+      { let i = m $1 $3 in let _,n = $2 in (i, (n,n)) }
+
+  | LBRACE INTEGER COMMA RBRACE             
+      { let i = m $1 $3 in let _,n = $2 in (i, (n,-1)) }
+
+  | LBRACE INTEGER COMMA INTEGER RBRACE         
+      { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, n4)) }
+
 /* --------- LISTS ------------ */
+#{@}
+\subsection{Lists}
+\begin{grammar}
+<List> ::= \lit{@[]@}
+      \alt \lit{@[@} <BarExp> (\lit{@;@} <BarExp>)* \lit{@]@}
+\end{grammar}
+#{#}
 list:
   | RBRACK 
       { $1, (fun i s -> ETyApp(i,mk_list_var "Nil",s)) }
@@ -581,33 +886,88 @@ list:
             (ETyApp(i,mk_list_var "Cons",s))
             (EPair(i,$1, mk i s)))) }
 
-/* --------- PATTERNS ---------- */
+/* --------- BRANCHES ---------- */
+#{@}
+\subsection{Branches}
+
+\begin{grammar}
+<Branch> ::= <Pat> \lit{@-@\gtsym} <InfixExp>
+
+<BranchList> ::= (\lit{@|@})? <Branch> (\lit{@|@} <Branch>)*
+\end{grammar}
+#{#}
 branch: 
   | pat ARROW infixexp 
       { let i = m (info_of_pat $1) (info_of_exp $3) in 
         (i,$1,$3) }
 
+branch_list:
+  | branch branch_list2
+      { let (i1,p,e) = $1 in 
+        let (i2,l) = $2 i1 in 
+        (m i1 i2, (p,e)::l) }
+
+  | BAR branch branch_list2
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (m $1 i2, (p,e)::l) }
+
+branch_list2:
+  | 
+      { (fun i -> (i,[])) }
+        
+  | BAR branch branch_list2
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (fun _ -> (m $1 i2, (p,e)::l)) }
+
+/* --------- PATTERNS ---------- */
+#{@}
+\subsection{Patterns}
+\begin{grammar}
+<Pat> ::= <UIdent> <PairPat>
+     \alt <QIdent> <PairPat>
+     \alt <PairPat>
+
+#{#}
 pat:      
-  | UIDENT ppat
+  | UIDENT pairpat
       { let i1,_ = $1 in 
         let i = mp2 i1 $2 in 
          PVnt(i,Qid.t_of_id $1,Some $2) }
 
-  | QIDENT ppat
+  | QIDENT pairpat
       { let (i,qs) = $1 in 
         PVnt(i,parse_qid i qs,Some $2) }
 
-  | ppat
+  | pairpat
       { $1 }
 
-ppat:
-  | ppat COMMA apat
+#{@}
+<PairPat> ::= <PairPat> \lit{@,@} <APat>
+     \alt <APat>
+
+#{#}
+pairpat:
+  | pairpat COMMA apat
       { let i = mp $1 $3 in 
         PPar(i,$1,$3) }
 
   | apat
       { $1 }
 
+#{@}
+<APat> ::= \lit{@_@}
+     \alt <LIdent>
+     \alt \lit{@()@}
+     \alt <Integer>
+     \alt <Boolean>
+     \alt <String>
+     \alt <UIdent>
+     \alt <Qident>
+     \alt \lit{@(@} <Pat> \lit{@)@}
+\end{grammar}
+#{#}
 apat:
   | UNDERLINE 
     { PWld($1) }
@@ -641,54 +1001,56 @@ apat:
 
   | LPAREN pat RPAREN
       { $2 }
-      
-branch_list:
-  | branch branch_list2
-      { let (i1,p,e) = $1 in 
-        let (i2,l) = $2 i1 in 
-        (m i1 i2, (p,e)::l) }
-
-  | BAR branch branch_list2
-      { let (i1,p,e) = $2 in 
-        let (i2,l) = $3 i1 in 
-        (m $1 i2, (p,e)::l) }
-
-branch_list2:
-  | 
-      { (fun i -> (i,[])) }
-        
-  | BAR branch branch_list2
-      { let (i1,p,e) = $2 in 
-        let (i2,l) = $3 i1 in 
-        (fun _ -> (m $1 i2, (p,e)::l)) }
 
 /* --------- SORTS ---------- */
-/* universal sorts */
+#{@}
+\subsection{Sorts}
+
+\begin{grammar}
+<Sort> ::= \lit{@forall@} <VIdent> \lit{@=>@} <Sort>
+     \alt <ArrowSort>
+
+#{#}
 sort:
   | FORALL VIDENT EQARROW sort 
       { SForall($2,$4) }
 
-  | arrsort
+  | arrowsort
       { $1 }
 
-/* function sorts */
-arrsort: 
-  | psort ARROW arrsort 
+/* arrow sorts */
+#{@}
+<ArrowSort> ::= <ProductSort> \lit{@->@} <ArrowSort>
+     \alt <ProductSort>
+
+#{#}
+arrowsort: 
+  | productsort ARROW arrowsort 
       { SFunction(Id.wild,$1,$3) } 
 
-  | psort
+  | productsort
       { $1 }
 
 /* product sorts */
-psort:
-  | psort STAR dsort
+#{@}
+<ProductSort> ::= <ProductSort> \lit{@->@} <DataTypeSort>
+     \alt <DataTypeSort>
+
+#{#}
+productsort:
+  | productsort STAR datatypesort
       { SProduct($1,$3) }
 
-  | dsort
+  | datatypesort
       { $1 }
 
 /* data type sorts */
-dsort:
+#{@}
+<DataTypeSort> ::= <BSort> (<QVar>)?
+     \alt \lit{@(@} <Sort> \lit{@,@} <SortList> \lit{@)@} <QVar>
+
+#{#}
+datatypesort:
   | bsort qvar
       { SData([$1],$2) }
 
@@ -698,6 +1060,11 @@ dsort:
   | bsort 
       { $1 }
 
+#{@}
+<BSort> ::= \lit{@(@} <Sort> \lit{@)@}
+       \alt <ASort>
+
+#{#}
 bsort:
   | LPAREN sort RPAREN
       { $2 }
@@ -706,6 +1073,19 @@ bsort:
       { $1 }
 
 /* atomic sorts */
+#{@}
+<BSort> ::= <QVar>
+       \alt \lit{@char@}
+       \alt \lit{@string@}
+       \alt \lit{@regexp@}
+       \alt \lit{@lens@}
+       \alt \lit{@int@}
+       \alt \lit{@bool@}
+       \alt \lit{@canonizer@}
+       \alt \lit{@unit@}
+       \alt <SVar>
+
+#{#}
 asort:
   | qvar
       { SData([], $1) }
@@ -737,6 +1117,14 @@ asort:
   | svar
       { SVar $1 }  
 
+#{@}
+<SVar> ::= <VIdent>
+
+<SVarList> ::= <SVar> 
+          \alt \lit{@(@} <SVar> (\lit{@,@} <SVar>)* \lit{@)@}
+
+#{#}
+
 svar:
   | VIDENT
       { $1 }
@@ -766,6 +1154,14 @@ sort_list:
       { $1 :: $3 }
 
 /* data type sorts */
+#{@}
+<DTSort> ::= <UIdent>
+        \alt <UIdent> \lit{@of@} <Sort>
+
+<DTSortList> ::= <DTSort> (\lit{@|@} <DTSort>)*
+\end{grammar}
+#{#}
+
 dtsort:
   | UIDENT
       { ($1,None) }
@@ -785,6 +1181,23 @@ dtsort_list2:
       { $2 :: $3 }
 
 /* --------- QUALIFIED IDENTIFIERS ---------- */
+#{@}
+\subsection{Identifiers}
+
+\begin{grammar}
+<QId> ::= <LIdent>
+     \alt <UIdent>
+     \alt <QIdent> 
+
+<QVar> ::= <LIdent>
+      \alt <QIdent>
+
+
+<Id> ::= <LIdent>
+         <QIdent>
+\end{grammar}
+#{#}
+
 qid:
   | LIDENT
       { Qid.t_of_id $1 }
@@ -816,6 +1229,16 @@ param_list2:
   |
       { [] }
 
+#{@}
+\subsection{Parameters}
+
+\begin{grammar}
+<Param> ::= \lit{@(@} <Id> \lit{@:@} <Sort> \lit{@)@}
+       \alt \lit{@(@} <VIdent> \lit{@)@}
+       \alt <VIdent> 
+\end{grammar}
+#{#}
+
 param: 
   | LPAREN id COLON sort RPAREN
       { let i = m $1 $5 in 
@@ -826,26 +1249,6 @@ param:
 
   | VIDENT 
       { Misc.Right ($1) }
-
-/* --------- REPETITIONS ---------- */
-rep: 
-  | STAR                                
-      { ($1, (0,-1)) }
-
-  | PLUS                                
-      { ($1, (1,-1)) }
-
-  | QMARK                               
-      { ($1, (0,1)) }
-
-  | LBRACE INTEGER RBRACE
-      { let i = m $1 $3 in let _,n = $2 in (i, (n,n)) }
-
-  | LBRACE INTEGER COMMA RBRACE             
-      { let i = m $1 $3 in let _,n = $2 in (i, (n,-1)) }
-
-  | LBRACE INTEGER COMMA INTEGER RBRACE         
-      { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, n4)) }
 
 /* --------- MISC SYMBOLS ---------- */
 uid:

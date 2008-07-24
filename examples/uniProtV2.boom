@@ -1782,6 +1782,7 @@ let cc_alternative_products_xml : lens =
         events . 
         dup2 (comment . names) named_isos named_isos_regexp
       end in 
+  let canonizer_copy (R:regexp) = canonizer_of_lens (copy R) in 
   let cn : canonizer =
     begin
       canonizer_copy (atype prelude) . 

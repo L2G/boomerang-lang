@@ -18,6 +18,90 @@
 (* Boomerang lexer                                                             *)
 (* $Id$                                                                        *)
 (*******************************************************************************)
+
+#{@}
+Space, newline and tab characters are whitespace.  Comments equivalent
+to whitespace and are delimited by @(*@ and @*)@; comments may be nested.
+
+\subsection{String Literals}
+String literals can be any sequence of characters and escape sequences
+enclosed in double-quotes.  The escape sequences @\"@, @\\@, @\b@,
+@\n@, @\r@, and @\t@ stand for the characters double-quote, backslash,
+backspace, newline, vertical tab, and tab.  To facilitate lining up 
+columns in indented string literals, within a string, a newline followed 
+by whitespace and then @|@ is equivalent to a single newline. For example, 
+\begin{progeg}
+ "University
+||of 
+||Pennsylvania"
+\end{progeg}
+is equivalent to both
+\begin{verbatim}
+"University
+of
+Pennsylvania"
+\end{verbatim}
+(in the leftmost column) and 
+\begin{verbatim}
+"University\nof\nPennsylvania"
+\end{verbatim}
+(anywhere). String literals can also be specified using ``here
+document'' (heredoc) notation, delimited by @<<@ and @>>@. If the
+initial @<<@ is followed by a newline and sequence of space
+characters, that indentation is used for the rest of the block. For
+example, the following string
+\begin{verbatim}
+ << 
+   University 
+   of 
+   Pennsylvania
+ >>
+\end{verbatim}
+is equivalent to the previous ones.
+
+\subsection{Identifiers}
+Identifiers are non-empty strings drawn from the following set of characters
+\begin{center}
+\begin{tabular}{l}
+@a b c d e f g h i j k l m n o p q r s t u v w x y z@\\
+@A B C D E F G H I J K L M N O P Q R S T U V W X Y Z@\\
+@0 1 2 3 4 5 6 7 8 9@\\
+@' _ -@ @@\\
+\end{tabular}
+\end{center}
+\noindent whose first symbol is a non-numeric character. The following keywords 
+\begin{center}
+\begin{tabular}{lllll}
+  @module@ & @open@ & @let@ & @in@  & @fun@ \\ 
+  @begin@ & @end@ & @test@ & @match@ & @with@ \\ 
+  @type@ & @error@ & @char@ & @string@ & @regexp@ \\ 
+  @lens@ & @int@ & @bool@ & @canonizer@ & @unit@ \\ 
+  @of@ & @into@ & @where@ & @forall@ & @lt@ \\
+  @leq@ & @gt@ & @geq@ & @true@ & @false@ \\
+  @.get@ & @.put@ & @.create@ & @.canonize@ & @.choose@ \\
+  @.ctype@ & @.domain_type@ & @.atype@ & @.codomain_type@ & @.bij@ \\
+\end{tabular}
+\end{center}
+\noindent and symbols
+\begin{center}
+\begin{tabular}{lllllllllllllll}
+  @(@ & @)@ & @;@ & @.@ & @&@ & @*@ & @-@ & @_@ & @+@ & @!@ & @->@ & @=>@ & @<=>@ & @<->@ & @=@ \\
+  @{@ & @}@ & @#@ & @[@ & @]@ & @<@ & @>@ & @,@ & @:@ & @^@ & @~@ & @/@ & @?@ & @\@ \\
+\end{tabular}
+\end{center}
+are reserved. 
+
+\subsection{Regular Expressions}
+Character classes are specified within @[@ and @]@ using POSIX
+notation. The @^@ character indicates a negated character class. For
+example, @[A-Z]@ is the set of upper case characters, @[0-9]@ the set
+of decimal digits, @[^]@ the full set of ASCII characters, and 
+@[^\n\t ]@ the set of non-newline, non-tab, non-space characters. 
+
+String literals enclosed in @/@ and @/@ are lexed as singleton regular
+expressions.
+
+#{#}
 {
 open Bparser
 
@@ -92,14 +176,11 @@ let _ =
   Safelist.iter (fun (kw,tok) -> Hashtbl.add keywords kw tok)
     [ ("module", (fun i -> MODULE i))
     ; ("open", (fun i -> OPEN i)) 
-    ; ("end", (fun i -> END i)) 
     ; ("let", (fun i -> LET i)) 
     ; ("in", (fun i -> IN i))
     ; ("fun", (fun i -> FUN i))
     ; ("begin", (fun i -> BEGIN i))
     ; ("end", (fun i -> END i))
-    ; ("true", (fun i -> BOOLEAN(i,true)))
-    ; ("false", (fun i -> BOOLEAN(i,false)))
     ; ("test", (fun i -> TEST i))
     ; ("match", (fun i -> MATCH i))
     ; ("with", (fun i -> WITH i))
@@ -121,6 +202,8 @@ let _ =
     ; ("leq", (fun i -> LEQ i))
     ; ("gt", (fun i -> GT i))
     ; ("geq", (fun i -> GEQ i))
+    ; ("true", (fun i -> BOOLEAN(i,true)))
+    ; ("false", (fun i -> BOOLEAN(i,false)))
     ]
 }
 
@@ -138,16 +221,16 @@ rule main = parse
 | "("                { LPAREN(info lexbuf) }
 | ")"                { RPAREN(info lexbuf) }
 | ";"                { SEMI(info lexbuf) }
-| ".ctype"           { CTYPE(info lexbuf) }
-| ".domain_type"     { CTYPE(info lexbuf) }
-| ".atype"           { ATYPE(info lexbuf) }
-| ".codomain_type"   { ATYPE(info lexbuf) }
-| ".bij"             { BIJ(info lexbuf) }
 | ".get"             { GET(info lexbuf) }
 | ".put"             { PUT(info lexbuf) }
 | ".create"          { CREATE(info lexbuf) }
 | ".canonize"        { CANONIZE(info lexbuf) }
 | ".choose"          { CHOOSE(info lexbuf) }
+| ".ctype"           { CTYPE(info lexbuf) }
+| ".domain_type"     { CTYPE(info lexbuf) }
+| ".atype"           { ATYPE(info lexbuf) }
+| ".codomain_type"   { ATYPE(info lexbuf) }
+| ".bij"             { BIJ(info lexbuf) }
 | "."                { DOT(info lexbuf) }
 | "&"                { AMPERSAND(info lexbuf) }
 | "*"                { STAR(info lexbuf) }
@@ -183,7 +266,6 @@ rule main = parse
                        let i = Info.merge_inc i1 i2 in 
                        RXSTR(i,s) }
 | "\\"               { BACKSLASH(info lexbuf) }
-| ","                { COMMA(info lexbuf) }
 | "?"                { QMARK(info lexbuf) }
 | "\""               { let i1 = info lexbuf in 
                        let i2,s = string "" lexbuf in 

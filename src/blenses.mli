@@ -60,6 +60,7 @@ module DLens : sig
   val string : t -> string
   val ctype : t -> Bregexp.t
   val atype : t -> Bregexp.t
+  val bij : t -> bool
   val xtype : t -> Erx.t option
   val rget : t -> (string -> string)
   val rput : t -> string -> string -> string
