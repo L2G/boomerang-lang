@@ -14,15 +14,21 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/src/bdriver.mli                                                  *)
-(* Boomerang compiler and interpreter driver interface                         *)
-(* $Id$                                                                        *)
+(* /boomerang/src/bheap.mli                                                    *)
+(* Global Boomerang heap                                                       *)
+(* $Id$ *)
 (*******************************************************************************)
+
+open Bsyntax
+
+type cell = Term of exp | Value of Bvalue.t
 
 val init : unit -> unit
 
-val interp_file :  string -> string -> unit
+val alloc : (int * exp) list -> exp -> exp
+(** [alloc h ls e] generates a set of new locations fi for ls=[(li,ei)], 
+    adds {fi:=ei} to the heap, and substitutes fi for li in ei and e. *)    
 
-val interp_src_str : string -> string -> string -> unit
+val get : Info.t -> int -> cell
 
-val interp_boom_str :  string -> string -> string -> unit
+val update : int -> Bvalue.t -> unit

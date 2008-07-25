@@ -49,7 +49,7 @@ type sort =
     | SData of sort list * Qid.t      (* data types *)
 
     (* dependent and refinement sorts *)
-    | SFunction of Id.t * sort * sort (* dependent functions *)
+    | SFunction of Bident.Id.t * sort * (int * exp) list * sort (* dependent functions, with allocation *)
     | SRefine of Id.t * sort * exp    (* refinements *)
 
     (* variables and universals *)
@@ -79,8 +79,10 @@ and exp =
     | EPair of Info.t * exp * exp 
     | ECase of Info.t * exp * (pat * exp) list * sort
 
-    (* coercion and holes! *)
-    | ECast    of Info.t * sort * sort * blame * exp 
+    (* coercion, locations, and allocation *)
+    | ECast    of Info.t * sort * sort * blame * exp
+    | ELoc     of Info.t * int
+    | EAlloc   of Info.t * (int * exp) list * exp
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
@@ -150,7 +152,7 @@ type decl =
 type modl = Mod of Info.t * Id.t * Qid.t list * decl list
 
 (* infix constructor for non-dependent functions *)
-let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
+let (^>) s1 s2 = SFunction(Id.wild,s1,[],s2)
 let (^*) s1 s2 = SProduct(s1,s2)
 
 (* accessors *)
@@ -164,7 +166,9 @@ let rec info_of_exp e = match e with
   | ETyApp   (i,_,_)     -> i
   | EPair    (i,_,_)     -> i
   | ECase    (i,_,_,_)   -> i
-  | ECast    (i,_,_,_,_) -> i 
+  | ECast    (i,_,_,_,_) -> i
+  | ELoc     (i,_)       -> i
+  | EAlloc   (i,_,_)     -> i 
   | EUnit    (i)         -> i
   | EBoolean (i,_)       -> i
   | EInteger (i,_)       -> i    
@@ -209,3 +213,4 @@ let exp_of_blame i b =
   let p2 = EPair(i,EInteger(i,j1),EInteger(i,j2)) in 
   EPair(i,EString(i,fn),EPair(i,p1,p2)) 
 
+let sl_of_svl svl = Safelist.map (fun svi -> SVar svi) svl 

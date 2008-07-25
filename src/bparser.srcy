@@ -150,7 +150,7 @@ let build_fun i param_alts body sort =
       (fun pa (f,so,s) -> match pa with 
          | Misc.Left(p) -> 
              let f' = EFun(i,p,so,f) in 
-             let s' = SFunction(Id.wild,sort_of_param p,s) in
+             let s' = SFunction(Id.wild,sort_of_param p,[],s) in
              (f',None,s')
          | Misc.Right(a) -> 
              let f' = ETyFun(i,a,f) in 
@@ -1059,7 +1059,7 @@ sort:
 #{#}
 arrowsort: 
   | productsort ARROW arrowsort 
-      { SFunction(Id.wild,$1,$3) } 
+      { SFunction(Id.wild,$1,[],$3) } 
 
   | productsort
       { $1 }

@@ -23,12 +23,19 @@ let rec format_sort = function
   | SLens -> msg "@[lens@]"      
   | SCanonizer -> msg "@[canonizer@]"
       
-  | SFunction(x0, s1, s2) ->
+  | SFunction(x0, s1, ls, s2) ->
       msg "@[(";
       if not (Id.equal x0 Id.wild)
       then msg "%s:@," (Id.string_of_t x0);
       format_sort s1;
-      msg "@ ->@ ";
+      msg "@ -{";
+      Misc.format_list ",@ "
+	(fun (li,ei) ->
+	   msg "@[#%d@ :=@ " li;
+	   format_exp ei;
+	   msg "@]")
+	ls;
+      msg "}->@ ";
       format_sort s2;
       msg ")@]"
         
@@ -192,6 +199,21 @@ and format_exp e0 = match e0 with
         msg "|>@ ";
         format_exp e;
         msg "@]"
+
+    | ELoc(_,l) ->
+	msg "@[#%d@]" l
+
+    | EAlloc(_,ls,e) ->
+	msg "@[alloc {";
+	Misc.format_list ",@ "
+	  (fun (li,ei) ->
+	     msg "@[#%d@ :=@ " li;
+	     format_exp ei;
+	     msg "@]")
+	  ls;
+	msg "}@ in@ ";
+	format_exp e;
+	msg "@]"
 
     | EBoolean (_,b) -> 
         msg "@[%b@]" b

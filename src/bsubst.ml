@@ -24,10 +24,11 @@ let rec free_svars_pat acc = function
 and free_svars_sort acc = function
   | SVar a -> 
       Id.Set.add a acc 
-  | SFunction(x,s1,s2) -> 
+  | SFunction(x,s1,ls,s2) -> 
       let acc1 = free_svars_sort acc s1 in 
-      let acc2 = free_svars_sort acc1 s2 in 
-      acc2
+      let acc2 = Safelist.fold_left (fun acci (_,ei) -> free_svars_exp acci ei) acc1 ls in
+      let acc3 = free_svars_sort acc2 s2 in 
+      acc3
   | SProduct(s1,s2) -> 
       let acc1 = free_svars_sort acc s1 in 
       let acc2 = free_svars_sort acc1 s2 in 
@@ -87,7 +88,11 @@ and free_svars_exp acc = function
         acc1 cl2 in 
       let acc3 = free_svars_sort acc2 s3 in 
       acc3
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> 
+  | EAlloc(_,ls,e1) ->
+      let acc1 = Safelist.fold_left (fun acci (_,ei) -> free_svars_exp acci ei) acc ls in
+      let acc2 = free_svars_exp acc1 e1 in
+      acc2
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ | ELoc _ -> 
       acc
 
 (* SORT SUBSTITUTION *)
@@ -123,10 +128,11 @@ let rec subst_svars_pat subst p0 = match p0 with
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
 and subst_svars_sort subst s0 = match s0 with 
   | SVar a -> (try gen_assoc Id.equal a subst with Not_found -> s0)
-  | SFunction(x,s1,s2) -> 
+  | SFunction(x,s1,ls,s2) -> 
       let new_s1 = subst_svars_sort subst s1 in 
+      let new_ls = Safelist.map (fun (li,ei) -> (li,subst_svars_exp subst ei)) ls in
       let new_s2 = subst_svars_sort subst s2 in 
-      SFunction(x,new_s1,new_s2)
+      SFunction(x,new_s1,new_ls,new_s2)
   | SProduct(s1,s2) -> 
       let new_s1 = subst_svars_sort subst s1 in 
       let new_s2 = subst_svars_sort subst s2 in 
@@ -193,7 +199,11 @@ and subst_svars_exp subst e0 = match e0 with
           cl in 
       let new_s3 = subst_svars_sort subst s3 in 
       ECase(i,new_e1,new_cl,new_s3)
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> e0
+  | EAlloc(i,ls,e1) ->
+      let new_ls = Safelist.map (fun (li,ei) -> (li,subst_svars_exp subst ei)) ls in
+      let new_e1 = subst_svars_exp subst e1 in
+      EAlloc(i,new_ls,new_e1)
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ | ELoc _ -> e0
 
 (* FREE EXPRESSION VARIABLES *)
 let qvs_of_is s = Id.Set.fold (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) s Qid.Set.empty 
@@ -212,13 +222,13 @@ and bound_evars_pat acc = function
   | PPar(_,p1,p2)    -> bound_evars_pat (bound_evars_pat acc p1) p2
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
 and free_evars_sort acc = function
-  | SFunction(x,s1,s2) ->       
-      let acc2 = 
+  | SFunction(x,s1,ls,s2) ->       
+      let acc1 = 
         Qid.Set.remove (Qid.t_of_id x) 
           (free_evars_sort acc s2) in 
-      let acc1 = free_evars_sort acc2 s1 in
-      acc1
-      
+      let acc2 = Safelist.fold_left (fun acci (li,ei) -> free_evars_exp acci ei) acc1 ls in
+      let acc3 = free_evars_sort acc2 s1 in
+      acc3      
   | SProduct(s1,s2) -> 
       let acc1 = free_evars_sort acc s1 in 
       let acc2 = free_evars_sort acc1 s2 in 
@@ -280,7 +290,15 @@ and free_evars_exp acc = function
       let acc1 = free_evars_exp accl e1 in 
       let acc3 = free_evars_sort acc1 s3 in 
       acc3
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ -> 
+  | EAlloc(i,ls,e1) ->
+      let acc1 =
+	Safelist.fold_left
+	  (fun acci (li,ei) ->
+	     free_evars_exp acci ei)
+	  acc ls in
+      let acc2 = free_evars_exp acc1 e1 in
+      acc2
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | ELoc _ -> 
       acc
 
 (* EXPRESSION SUBSTITUTION *)
@@ -350,18 +368,20 @@ let rec subst_evars_pat subst p0 = match p0 with
 (* msg "} IN %s@]@\n@[X: %s < %b > FRESH_X: %s@]@\n" (string_of_sort s0) (Id.string_of_t x) (x = fresh_x) (Id.string_of_t fresh_x); *)
 
 and subst_evars_sort subst s0 = match s0 with 
-  | SFunction(x,s1,s2) ->      
+  | SFunction(x,s1,ls,s2) ->      
       let new_s1 = subst_evars_sort subst s1 in       
       let fresh_x = fresh_evar_id subst x in 
-      let safe_s2 = 
-        if x = fresh_x then s2 
+      let (safe_ls,safe_s2) = 
+        if x = fresh_x then (ls,s2)
         else 
           let qx = Qid.t_of_id x in
           let fresh_qx = Qid.t_of_id fresh_x in 
           let subst_x = [(qx,EVar(Id.info_of_t fresh_x,fresh_qx))] in 
-          subst_evars_sort subst_x s2 in       
+          (Safelist.map (fun (li,ei) -> (li,subst_evars_exp subst_x ei)) ls,
+	   subst_evars_sort subst_x s2) in
+      let new_ls = Safelist.map (fun (li,ei) -> (li,subst_evars_exp subst ei)) safe_ls in
       let new_s2 = subst_evars_sort subst safe_s2 in       
-      SFunction(fresh_x,new_s1,new_s2)
+      SFunction(fresh_x,new_s1,new_ls,new_s2)
   | SProduct(s1,s2) -> 
       let new_s1 = subst_evars_sort subst s1 in 
       let new_s2 = subst_evars_sort subst s2 in 
@@ -473,7 +493,12 @@ and subst_evars_exp subst e0 = match e0 with
           cl in 
       let new_s3 = subst_evars_sort subst s3 in 
       ECase(i,new_e1,new_cl,new_s3)
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  -> 
+  | EAlloc(i,ls,e1) ->
+      let new_ls =
+	Safelist.map (fun (li,ei) -> (li,subst_evars_exp subst ei)) ls in
+      let new_e1 = subst_evars_exp subst e1 in
+      EAlloc(i,new_ls,new_e1)
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  | ELoc _ -> 
       e0
 
 let subst_sort subst s0 = subst_svars_sort subst s0
@@ -487,8 +512,8 @@ let free_sort_vars s0 = free_svars_sort Id.Set.empty s0
 let free_exp_vars_in_sort s0 = free_evars_sort Qid.Set.empty s0
 
 let rec erase_sort = function
-  | SFunction(x,s1,s2) ->       
-      SFunction(x,erase_sort s1,erase_sort s2)
+  | SFunction(x,s1,ls,s2) ->       
+      SFunction(x,erase_sort s1,ls,erase_sort s2)
   | SProduct(s1,s2) -> 
       SProduct(erase_sort s1, erase_sort s2)
   | SData(sl,qx) ->
@@ -516,8 +541,14 @@ let rec_eq eq =
 
 let rec syneq_sort s1 s2 = match s1,s2 with
   | SVar a,SVar b -> Id.equal a b 
-  | SFunction(x,s11,s12),SFunction(y,s21,s22) -> 
-      Id.equal x y && syneq_sort s11 s21 && syneq_sort s21 s22 
+  | SFunction(x,s11,ls1,s12),SFunction(y,s21,ls2,s22) -> 
+      Id.equal x y && syneq_sort s11 s21 && 
+	let ls1 = Safelist.sort compare ls1 in
+	let ls2 = Safelist.sort compare ls2 in
+	  rec_eq 
+	    (fun (li1,ei1) (li2,ei2) -> li1 = li2 && syneq_exp ei1 ei2)
+	    (syneq_sort s21 s22)
+	    ls1 ls2	
   | SProduct(s11,s12),SProduct(s21,s22) -> 
       syneq_sort s11 s21 && syneq_sort s21 s22
   | SData(sl1,qx), SData(sl2,qy) -> 
@@ -598,6 +629,14 @@ and syneq_exp e1 e2 = match e1,e2 with
       rec_eq 
         (fun (s11,s12) (s21,s22) -> s11 = s12 && s21 = s22)
         (b1=b2) cl1 cl2
+  | ELoc(_,l1),ELoc(_,l2) -> l1 = l2
+  | EAlloc(_,ls1,e1),EAlloc(_,ls2,e2) ->
+      let ls1 = Safelist.sort compare ls1 in
+      let ls2 = Safelist.sort compare ls2 in
+	rec_eq 
+	  (fun (li1,ei1) (li2,ei2) -> li1 = li2 && syneq_exp ei1 ei2)
+	  (syneq_exp e1 e2)
+	  ls1 ls2
   | _ -> false
 
 let fresh_counter = ref 0

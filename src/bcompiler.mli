@@ -14,15 +14,18 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/src/compiler.mli                                                 *)
-(* Boomerang type checker and interpreter interface                            *)
-(* $Id$                                                                        *)
+(* /boomerang/src/bcompiler.mli                                                *)
+(* Boomerang type checker interface                                            *)
+(* $Id$ *)
 (*******************************************************************************)
 
-val test_all : bool Prefs.t
+open Bident
+open Bsyntax
 
-val check_module: Bsyntax.modl -> Bsyntax.modl
+val no_alias : bool Prefs.t
 
-val compile_module: Bsyntax.modl -> unit
+val trivial_cast : sort -> sort -> bool
+(** [trivial_cast f t] returns true if the cast is trivial, i.e., always satisfied *)
 
-val print_stats : unit -> unit
+val check_module: modl -> modl
+

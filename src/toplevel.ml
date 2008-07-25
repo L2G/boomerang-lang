@@ -287,6 +287,9 @@ let toplevel' progName () =
   let o = Prefs.read o_pref in
   let rest_pref = Safelist.rev (Prefs.read rest) in 
 
+  (* initialize heap *)
+  Bheap.init ();
+
   (* run unit tests if needed *)
   if Prefs.read check_pref <> [] then
     begin
@@ -301,9 +304,9 @@ let toplevel' progName () =
           rest_pref)
      then begin
        (* barf on spurious command line options?! *)
-       Prefs.set Bcompiler.test_all true;
+       Prefs.set Binterp.test_all true;
        Safelist.iter check rest_pref;
-       Trace.debug "casts" (fun () -> Bcompiler.print_stats ());
+       Trace.debug "casts" (fun () -> Binterp.print_stats ());
        0
      end
      else begin 

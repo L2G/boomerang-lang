@@ -22,6 +22,7 @@
 open Bsyntax
 open Bident
 open Bcompiler
+open Binterp
 
 (* parse an AST from a lexbuf *)
 let parse_lexbuf lexbuf = 
@@ -44,32 +45,32 @@ let m_check n m_str ast=
              m_str m_low m_low)
       
 (* end-to-end compilation of files *)
-let compile_lexbuf lexbuf n = 
+let interp_lexbuf lexbuf n = 
   let ast = parse_lexbuf lexbuf in
   let m_str = Id.string_of_t (id_of_module ast) in 
   let _ = m_check n m_str ast in
   let instrumented_ast = check_module ast in 
-  let _ = compile_module instrumented_ast in 
+  let _ = interp_module instrumented_ast in 
     ()
 
-let compile_boom fn n = 
+let interp_boom fn n = 
   let boom_buf = Src2fcl.fcl_of_src fn in
   let _ = Blexer.setup fn in
   let lexbuf = Lexing.from_string boom_buf in 
-  let _ = compile_lexbuf lexbuf n in
+  let _ = interp_lexbuf lexbuf n in
     Blexer.finish ()
 
-let compile_boom_str i s n = 
+let interp_boom_str i s n = 
   let _ = Blexer.setup i in    
   let lexbuf = Lexing.from_string (Src2fcl.fcl_of_src_str s) in
-  let _ = compile_lexbuf lexbuf n in 
+  let _ = interp_lexbuf lexbuf n in 
   Blexer.finish ()
 
-let compile_src_str s n = compile_boom_str (Src2fcl.fcl_of_src_str s) n
+let interp_src_str s n = interp_boom_str (Src2fcl.fcl_of_src_str s) n
 
-let compile_file fn n = compile_boom fn n 
+let interp_file fn n = interp_boom fn n 
 
 (* hack to force loading of this module in dynamically-linked binaries *)
 let init () = 
-  Bregistry.compile_file_impl := compile_file;
-  Bregistry.compile_boom_str_impl := compile_boom_str;
+  Bregistry.interp_file_impl := interp_file;
+  Bregistry.interp_boom_str_impl := interp_boom_str;

@@ -14,15 +14,13 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/src/bdriver.mli                                                  *)
-(* Boomerang compiler and interpreter driver interface                         *)
-(* $Id$                                                                        *)
+(* /boomerang/src/binterp.mli                                                  *)
+(* Boomerang compiler interface                                                *)
+(* $Id$ *)
 (*******************************************************************************)
 
-val init : unit -> unit
+val test_all : bool Prefs.t
 
-val interp_file :  string -> string -> unit
+val interp_module: Bsyntax.modl -> unit
 
-val interp_src_str : string -> string -> string -> unit
-
-val interp_boom_str :  string -> string -> string -> unit
+val print_stats : unit -> unit

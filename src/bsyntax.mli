@@ -44,8 +44,8 @@ type sort =
     | SData of sort list * Bident.Qid.t      (* data types *)
 
     (* dependent and refinement sorts *)
-    | SFunction of Bident.Id.t * sort * sort (* dependent functions *)
-    | SRefine of Bident.Id.t * sort * exp    (* refinements *)
+    | SFunction of Bident.Id.t * sort * (int * exp) list * sort (* dependent functions, with allocation *)
+    | SRefine of Bident.Id.t * sort * exp                       (* refinements *)
 
     (* variables and universals *)
     | SVar of Bident.Id.t                    (* variables *)
@@ -75,6 +75,8 @@ and exp =
 
     (* coercion and holes! *)
     | ECast    of Info.t * sort * sort * blame * exp 
+    | ELoc     of Info.t * int
+    | EAlloc   of Info.t * (int * exp) list * exp
 
     (* unit, strings, ints, characters, character sets *)
     | EUnit    of Info.t  
@@ -165,3 +167,6 @@ val exp_of_binding : binding -> exp
 
 val exp_of_blame : Info.t -> blame -> exp
 (** [exp_of_blame i b] builds an expression that compiles to a run-time representation of [b]. *)
+
+val sl_of_svl : Bident.Id.t list -> sort list
+(** [sl_of_svl l] turns a list of sort variables l into a list of sorts *)

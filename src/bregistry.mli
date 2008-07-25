@@ -103,5 +103,5 @@ val lookup_con_library : Bident.Qid.t -> (Bident.Qid.t * tspec) option
 (** [lookup_library q] looks up [q] from the library *)
 
 (**/**)
-val compile_file_impl : (string -> string -> unit) ref
-val compile_boom_str_impl : (string -> string -> string -> unit) ref
+val interp_file_impl : (string -> string -> unit) ref
+val interp_boom_str_impl : (string -> string -> string -> unit) ref
