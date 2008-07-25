@@ -53,7 +53,7 @@ BOOMERANG_BASE_SOURCES[] = \
    bsubst.mli bsubst.ml \
    bparser.mly blexer.mll \
    benv.mli benv.ml \
-   bakery.ml bregistry.ml bcompiler.ml binterp.ml bdriver.ml \
+   bakery.ml bregistry.ml bcheck.ml binterp.ml bdriver.ml \
    bdiff3.mli bdiff3.ml \
    bsync.mli bsync.ml \
    toplevel.ml

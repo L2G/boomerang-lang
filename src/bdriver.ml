@@ -21,7 +21,7 @@
 
 open Bsyntax
 open Bident
-open Bcompiler
+open Bcheck
 open Binterp
 
 (* parse an AST from a lexbuf *)

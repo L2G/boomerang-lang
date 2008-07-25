@@ -132,7 +132,7 @@ let rec mk_cast_blame lt i b f t e =
               (EString(i,(Info.string_of_t (info_of_exp e)))))
            erased_t) in
   let res = 
-    if Bcompiler.trivial_cast f t then e
+    if Bcheck.trivial_cast f t then e
     else
       match f,t with
       | SUnit,SUnit
