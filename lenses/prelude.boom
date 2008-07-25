@@ -24,6 +24,12 @@ module Prelude =
 
 #{@}
 
+\section{The Standard Prelude}
+
+The second module, @Prelude@, defines some common derived forms. Like
+@Core@, its values are available by default in every Boomerang
+program.
+
 \subsection{Regular Expressions}
 
 \LENSSECTION{@EMPTY@}
@@ -174,9 +180,6 @@ using right quotienting and @ins@.
 
 #* test (get (qins [A-Z]+ "A") "") = "A"
 #* test (create (qins [A-Z]+ "A") "ABC") = ""
-
-(* [qdel E e] is like [del E] but canonizes to [e] in the PUT/CREATE
-   direction. *)
 
 \LENSSECTION{@qdel@} The lens @qdel@ is like @del@ 
 but produces a canonical representative in the backwards direction. 

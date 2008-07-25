@@ -1,140 +1,154 @@
-#* module QuickStart = 
+module QuickStart = 
+
 #{@}
 
-Installation 
-------------
+\section{Installation}
 
-1. Download or build the Boomerang binary:
+\begin{enumerate}
+\item Download or build the Boomerang binary:
+\begin{itemize}
+\item Pre-compiled binaries for Linux (x86), Mac OS X (x86), and
+  Windows (Cygwin) are available on the Boomerang webpage.
+\item Alternatively, to build Boomerang from source, grab the most
+  recent tarball and follow the instructions in boomerang/INSTALL.txt
+\end{itemize}
 
-  * Tarballs containing pre-compiled Boomerang binaries are available
-    for Linux (x86), Mac OS X (x86), and Windows (Cygwin).
- 
-  * Alternatively, to build Boomerang from source, grab the most
-    recent tarball and follow the instructions in
-    boomerang/INSTALL.txt
+\item Add the directory containing trunk/bin to your @PATH@
+  environment variable.
+\begin{itemize}   
+\item In Bash:
+\begin{progeg}
+> export PATH=$PATH:/path/to/trunk/bin
+\end{progeg}
+\item In Csh
+\begin{progeg}
+> setenv PATH {$PATH}:/path/to/trunk/bin
+\end{progeg}
+\end{itemize}
+\end{enumerate}
 
-2. Add the directory containing trunk/bin to your $PATH environment 
-   variable.
-   
-   In Bash, type 'export PATH=$PATH:/path/to/trunk/bin'
-   In Csh, type 'setenv PATH {$PATH}:/path/to/trunk/bin'
-
-Simple Lens Programming
------------------------
+\section{Simple Lens Programming}
 
 Now let’s roll up our sleeves and write a few lenses. We will start
 with some very simple lenses that demonstrate how to interact with the
 Boomerang system. The source file we will work with is this very text
 file, which is literate Boomerang code. Every line in this file that
-begins with '#*' marks a piece of Boomerang code, and all other lines
+begins with @#*@ marks a piece of Boomerang code, and all other lines
 are ignored by the Boomerang interpreter.
 
 You can run the Boomerang interpreter from the command line like this:
-
-  % boomerang QuickStart.src
-
+\begin{progeg}
+> boomerang QuickStart.src
+\end{progeg}
 You should see several lines of output beginning like this
+\begin{progeg}
+Test result:
+"Hello World"
+Test result:
+"HELLO WORLD"
+...
+\end{progeg}
+\noindent Let's define the lens that was used to generate this text.
 
-  > Test result:
-  > Hello World
-  ...
- 
-Let's define the lens that was used to generate this text.
-
-#* let l : lens = copy [A-Za-z ]+ 
+#* let l : lens = copy [A-Za-z ]+
 
 This line declares a lens named 'l' using syntax based on
 explicitly-typed OCaml (for the functional parts, like the let
-declaration) and POSIX (for regular expressions). Its GET and PUT
+declaration) and POSIX (for regular expressions). Its $\GET$ and $\PUT$
 components both copy non-empty strings of alphabetic characters or
 spaces.
 
-     ------------------------------------------------------------
+\subsection{Unit Tests}
 
-The easiest way to interact with Boomerang is via unit tests (other
-modes of interaction are discussed below). For example, the following
-test:
+An easy way to interact with Boomerang is using its syntax for running
+unit tests (other modes of interaction, such as batch processing of
+files via the command line, are discussed below). For example, the
+following test:
 
 #* test l.get "Hello World" = ?
 
 instructs the Boomerant interpreter to calculate the result obtained
-by applying the GET component of l to the string literal '"Hello
-World"' and print the result to the terminal (as displayed above).
+by applying the $\GET$ component of @l@ to the string literal
+@Hello World@ and print the result to the terminal 
+(in fact, this unit test generated the output in the display above).
 
-[Exercise 1] Try changing the '?' above to '"Hello World"'. This
-changes the unit test from a calculation to an assertion, which
-silently succeeds.
+\begin{example}
+  Try changing the @?@ above to @Hello World@. This changes the unit
+  test from a calculation to an assertion, which silently succeeds.
+\end{example}
+\begin{example}
+  Try changing the @?@ above to @HelloWorld@ instead. Now the
+  assertion fails. You should see:
+\begin{progeg}
+File "./quickStart.src", line 68, characters 3-32: Unit test failed  
+Expected "HelloWorld" but found "Hello World"
+\end{progeg}
+\end{example}
+\noindent When you are done with this exercise, reinsert the space to
+make the unit test succeed again.
 
-[Exercise 2] Try changing the '?' above to '"HelloWorld"' instead. Now
-the assertion fails. You should see:
-
-  > File "./quickStart.src", line 50, characters 3-42: Unit test failed  
-  > Expected HelloWorld but found Hello World
-
-When you are done with this exercise, reinsert the space to make the
-unit test succeed again.
-
-     ------------------------------------------------------------
-
-Now let's examine the behavior of l's PUT component.
+Now let's examine the behavior of @l@'s $\PUT$ component.
 
 #* test (l.put "HELLO WORLD" into "Hello World") = ?
 
-You should see:
-
-  > Test Result:
-  > HELLO WORLD
-
+You should see the following output printed to the terminal:
+\begin{progeg}
+Test Result:
+HELLO WORLD
+\end{progeg}
 which reflects the change made to the abstract string.
 
-     ------------------------------------------------------------
+\subsection{Type Checking}
 
-The GET and PUT components of lenses check that their arguments have
+The $\GET$ and $\PUT$ components of lenses check that their arguments have
 the expected type. We can test this by passing an ill-typed string to
-l's GET component:
+@l@'s GET component:
 
-#* test (l.get "Hello World! W00t!!!") = error
+#* test (l.get "Hello World!!") = error
 
-[Exercise 3] To see the error message that is printed by Boomerang,
-change the 'error' above to '?'. You should see the following message:
+\begin{example}
+  To see the error message that is printed by Boomerang, change the
+  @error@ above to @?@ and re-run Boomerang. You should see the
+  following message printed to the terminal:
+\begin{progeg}
+File "./QuickStart.src", line 107, characters 3-35: Unit test failed 
+Test result: error
+copy built-in: type errors in
+  [Hello World]
+<<HERE>>
+  [!!]
+\end{progeg}
+Notice that Boomerang identifies a location in the
+string where matching failed (<<HERE>>). When you are
+done, change the @?@ back to @error@.
+\end{example}
 
-  > File "./quickStart.src", line 96, characters 3-40: Unit test failed 
-  > Test result: errorFile "./quickStart.src", line 44, characters 18-31: type error in
-  >                     T=[A-Za-z ] . [A-Za-z ]*
-  >                   
-  >                     copy ([A-Za-z ] . [A-Za-z ]*) get
-  >                   
-  >                     [Hello World!]
-  >                   <<AROUND HERE>>
-  >                     [ W00t!!!]
-  > 
-
-Note that Boomerang prints the type (T), the lens, and the string that
-triggered the error. It also identifies an approxmiate location in the
-string where type checking failed (<<AROUND HERE>>). When you are
-done, change the '?' back to 'error'.
-
-     ------------------------------------------------------------
+\section{The Composers Lens}
 
 Now let's build a larger example. We will write a lens whose GET
 function transforms newline-separated records of comma-separated data
 about classical music composers:
 
 #* let c : string = 
-#*   "Jean Sibelius, 1865-1957, Finnish
-#*   |Aaron Copland, 1910-1990, American
-#*   |Benjamin Britten, 1913-1976, English"
+## <<
+#* Jean Sibelius, 1865-1957, Finnish
+#* Aaron Copland, 1910-1990, American
+#* Benjamin Britten, 1913-1976, English
+## >>
 
-(in the string literal above, occurrences of '\n' followed by any
-number of spaces and '|' is equivalent to a single '\n', but looks
-nicer) into comma-separated lines where the year data is deleted:
+\noindent into comma-separated lines where the year data is deleted:
   
-#* let a = 
-#*   "Jean Sibelius, Finnish
-#*   |Aaron Copland, American
-#*   |Benjamin Britten, English"
+#* let a : string = 
+## <<
+#* Jean Sibelius, Finnish
+#* Aaron Copland, American
+#* Benjamin Britten, English
+## >>
 
-The lens that does this transformation is written as follows:
+\subsection{Basic Composers Lens}
+
+\noindent The lens that maps---bidirectionally---betweeen these
+strings is written as follows:
 
 #* let ALPHA : regexp = [A-Za-z ]+
 #* let YEARS : regexp = [0-9]{4} . "-" . [0-9]{4}
@@ -143,79 +157,75 @@ The lens that does this transformation is written as follows:
 #*          . del YEARS . del ", "
 #*          . ALPHA
 #* 
-#* let comps : lens = "" | comp . ("\n" . comp)* 
+#* let comps : lens = "" | comp . (newline . comp)* 
 
-as witnessed by the following unit test:
+We can check that @comp@ works as we expect using unit tests:
 
 #* test comps.get c = a
+#* test comps.put a into c = c
 
-There are several things to note about this program. First, we use
-let-bindings to abstract out repeated parts of programs, such as the
-'ALPHA' regular expression. This makes programs easier to read and
-maintain. Second, operators like concatenation (.) automatically
+There are several things to note about this program. First, we have
+use let-bindings to factor out repeated parts of programs, such as the
+regular expression named @ALPHA@. This makes programs easier to read
+and maintain. Second, operators like concatenation (@.@) automatically
 promote their arguments, according to the following subtyping
-relationships:
+relationships: $@string@ <: @regexp@ <: @lens@$. Thus, the string @", "@ 
+is automatically promoted to the (singleton) regular expression
+containing it, and the regular expression @ALPHA@ is automatically
+promoted to the lens @copy ALPHA@.
 
-  string <: regexp <: lens 
+\begin{example}
+  Edit the @comp@ lens to abstract away the separator between fields
+  and verify that your version has the same behavior on @c@ and @a@ by
+  re-running Boomerang. Your program should look roughly like the
+  following one:
+\begin{progeg}
+let comp (sep:string) : lens = ...
+let comps : lens = 
+  let comp_comma = comp ", " in
+  ...
+\end{progeg}
+or, equivalently, one that binds @comp@ to an explicit
+function:
+\begin{progeg}
+let comp : string -> lens = (fun (sep:string) -> ... )
+\end{progeg}
+\end{example}
 
-Thus, the string '", "' is automatically promoted to the (singleton)
-regular expression containing it, and the regular expression like
-'ALPHA' is automatically promoted to the lens 'copy ALPHA'.
+\subsection{Dictionary Composers Lenses}
 
-[Exercise 4] Refactor the 'comp' lens to abstract away the separator
-between fields as follows:
-
-#* let comp (sep:string) : lens = 
-#*            ALPHA . sep
-#*          . del YEARS . del sep
-#*          . ALPHA
-#* 
-#* let comps : lens = 
-#*   let comp_comma = comp ", " in  
-#*   "" | comp_comma . ("\n" . comp_comma)* 
-
-and verify that it has the same behavior on 'c' and 'a':
-
-#* test comps.get c = a
-
-Note the use of a let-expression in the body of 'comps'. Just like in
-OCaml, the let-declaration for 'comp' is equivalent to the following
-version, which binds 'comp' to an explicit function:
-
-#* let comp : string -> lens = 
-#*   (fun (sep:string) -> 
-#*            ALPHA . sep
-#*          . del YEARS . del sep
-#*          . ALPHA)
-
-     ------------------------------------------------------------
-
-The behavior of our 'comps' lens is not very satisfactory when the
-updated abstract view is obtained by changing the order of lines. For
-example if we swap the order of Britten and Copland, the year data
-from Britten gets associated to Copland, and vice versa.
+The behavior of @comps@ lens is not very satisfactory when the updated
+abstract view is obtained by changing the order of lines. For example
+if we swap the order of Britten and Copland, the year data from
+Britten gets associated to Copland, and vice versa (@<< ... >>@ is
+Boomerang syntax for a string literal in heredoc notation.)
 
 #* test comps.put 
-#*   "Jean Sibelius, Finnish
-#*   |Benjamin Britten, English
-#*   |Aaron Copland, American"
+#* <<
+#*   Jean Sibelius, Finnish
+#*   Benjamin Britten, English
+#*   Aaron Copland, American
+#* >>
 #* into
-#*   "Jean Sibelius, 1865-1957, Finnish
-#*   |Aaron Copland, 1910-1990, American
-#*   |Benjamin Britten, 1913-1976, English"
+#* <<
+#*   Jean Sibelius, 1865-1957, Finnish
+#*   Aaron Copland, 1910-1990, American
+#*   Benjamin Britten, 1913-1976, English
+#* >>
 #* = 
-#*   "Jean Sibelius, 1865-1957, Finnish
-#*   |Benjamin Britten, 1910-1990, English
-#*   |Aaron Copland, 1913-1976, American"
+#* <<
+#*   Jean Sibelius, 1865-1957, Finnish
+#*   Benjamin Britten, 1910-1990, English
+#*   Aaron Copland, 1913-1976, American
+#* >>
 
-The root of this problem is that the PUT function of the Kleene-*
-operator (used in 'comps') works by position--it divides the concrete
-and abstract strings into lines, and invokes the PUT of comp on each
-pair. 
+The root of this problem is that the PUT function of the Kleene star
+operator works positionally---it divides the concrete and abstract
+strings into lines, and invokes the PUT of comp on each pair.
 
 Our solution is to add new combinators for specifying reorderable
-'chunks' ('<comp>') and keys for each chunk ('key ALPHA'). The PUT
-function of the following lens
+``chunks'' (@<comp>@) and a key for each chunk (@key ALPHA@). The
+$\PUT$ function of the following lens:
 
 #* let ALPHA : regexp = [A-Za-z ]+
 #* let YEARS : regexp = [0-9]{4} . "-" . [0-9]{4}
@@ -224,132 +234,25 @@ function of the following lens
 #*          . del YEARS . del ", "
 #*          . ALPHA
 #* 
-#* let comps : lens = "" | <comp> . ("\n" . <comp>)* 
+#* let comps : lens = "" | <comp> . (newline . <comp>)* 
 
 restores lines using the name on each line as a key, rather than by
-position. For the details of how this all works, see our POPL'08
-paper. To verify it on this example, try out this unit test:
+position. For the details of how this all works, see~\citet{Boomerang07}. 
+To verify it on this example, try out this unit test:
 
 #* test comps.put 
-#*   "Jean Sibelius, Finnish
-#*   |Benjamin Britten, English
-#*   |Aaron Copland, American"
+#* <<
+#*   Jean Sibelius, Finnish
+#*   Benjamin Britten, English
+#*   Aaron Copland, American
+#* >>
 #* into
-#*   "Jean Sibelius, 1865-1957, Finnish
-#*   |Aaron Copland, 1910-1990, American
-#*   |Benjamin Britten, 1913-1976, English"
+#* <<
+#*   Jean Sibelius, 1865-1957, Finnish
+#*   Aaron Copland, 1910-1990, American
+#*   Benjamin Britten, 1913-1976, English
+#* >>
 #* = ?
 
 Note that the year data is correctly restored to each composer. 
 
-     ------------------------------------------------------------
-
-So far we have interacted with Boomerang using unit tests. This works
-well for interactive lens development, but is less useful for batch
-processing of files. Boomerang can also be involved from the command
-line:
-
-  > Usage:
-  >     boomerang [get] l C          [options]     : get
-  >  or boomerang [put] l A C        [options]     : put
-  >  or boomerang create l A         [options]     : create
-  >  or boomerang sync l O C A       [options]     : sync
-  >  or boomerang [profilename]      [options]     : sync from profile
-  >  or boomerang F.boom [F.boom...] [options]     : run unit tests
-  > 
-  > For a list of options, type "boomerang -help".
-
-To try this out, create a file comps-conc.txt containing the following
-lines (don't include the indentation, but do include a newline at the
-end of the third line):
-
-  Jean Sibelius, 1865-1957, Finnish
-  Aaron Copland, 1910-1990, American
-  Benjamin Britten, 1913-1976, English
-
-We'll use the lens 
-
-#* let comps_cmdline : lens = comps . "\n"
-
-which is like comps but copies the final newline (because some editors
-like Emacs add a newline at the end of files by default and our comps
-lens uses newline as a separators, not a terminator) via the commmand:
-
-  % boomerang get QuickStart.comps_cmdline comps-conc.txt
-
-You should see 
-
-  >Jean Sibelius, Finnish
-  >Aaron Copland, American
-  >Benjamin Britten, English
-  
-written to the terminal. 
-
-Now let's do the same thing, but save the results to a file:
-
-  % boomerang get QuickStart.comps_cmdline comps-conc.txt -o comps-abs.txt
-
-Next let's edit the abstract file to 
-
-  Jean Sibelius, Finnish
-  Benjamin Britten, English
-  Alexandre Tansman, Polish
-
-and PUT the results back:
-
-  % boomerang put QuickStart.comps_cmdline \
-       comps-abs.txt comps-conc.txt
-
-You should see
-
-  >Jean Sibelius, 1865-1957, Finnish
-  >Benjamin Britten, 1913-1976, English
-  >Alexandre Tansman, 0000-0000, Polish
-
-printed to the terminal. 
-
-     ------------------------------------------------------------
-
-Boomerang supports many different command-line options. The most
-useful are:
-
-  -lens     (-l) specifies the lens to use
-  -concrete (-c) specifies the concrete file
-  -abstract (-a) specifies the concrete file
-  -output   (-o) specifies the output file (default is stdout)
-  -include  (-I) specifies a directory to add to the BOOMPATH,
-                 which is used to search for .boom and .src files.
-  -debug xxx     turn on debugging for xxx (to print everything use 'all')
-
-     ------------------------------------------------------------
-
-[TODO: add description of sync.]
-
-     ------------------------------------------------------------
-
-Next Steps
-----------
-
-In the boomerang/examples directory, you can find some of the other
-Boomerang programs we have written:
-
-  demo.boom      : a simple demo, similar to composers lens
-  addresses.boom : vCard and CSV address books
-  bibtex.boom    : BiBTeX and RIS-formatted bibliographies
-  coqSrc.boom    : Coq teaching files with/without solutions 
-                   [NOT WORKING CURRENTLY - NEEDS TO BE PORTED TO NEW SYNTAX]
-  uniprot.boom   : UniProtKB / SwissProt lens 
-                   [NOT WORKING CURRENTLY - NEEDS TO BE PORTED TO NEW SYNTAX]
-
-We will continue adding to this set of examples as we tidy and package our
-code... and we hope you'll write and let us know about the lenses
-you write!
-
-Community
----------
-
-Please subscribe to the harmony-hackers mailing list!
-
-    http://lists.seas.upenn.edu/mailman/listinfo/harmony-hackers
-
-Feature requests, bug reports, and general discussion are all welcome.

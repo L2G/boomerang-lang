@@ -195,7 +195,7 @@ let rec fixup_pat i p0 = match p0 with
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
 %token <Info.t> UNIT BOOL INT CHAR STRING REGEXP LENS CANONIZER FORALL WHERE
-%token <Bident.Id.t> STR RXSTR UIDENT LIDENT QIDENT VIDENT CSET NSET
+%token <Bident.Id.t> STR RXSTR UIDENT LIDENT QUALIDENT TYVARIDENT CSET NSET
 %token <Info.t * char> CHARACTER
 %token <Info.t * int> INTEGER
 %token <Info.t * bool> BOOLEAN
@@ -217,6 +217,8 @@ let rec fixup_pat i p0 = match p0 with
 
 #{@}
 
+\section{Parsing}
+
 \renewcommand{\lit}[1]{\char96{}#1\char39{}}
 \def\ltsym{@<@}
 \def\gtsym{@>@}
@@ -230,8 +232,8 @@ conventions:
 \item Literals are written in a typewriter font and enclosed in 
   quotes: e.g., \lit{@module@};
 
-  \item Non-terminals are enclosed in angle brackets: e.g.,
-\synt{Exp};
+\item Non-terminals and tokens are enclosed in angle brackets: e.g.,
+  \synt{Exp};
 
 \item Optional elements are enclosed in square brackets:
 e.g., \syntax{[\lit{@:@} <Sort>]};
@@ -266,9 +268,9 @@ opens:
 /* --------- DECLARATIONS ---------- */
 #{@}
 <Decl> ::= \lit{@module@} <LIdent> \lit{@=@} <Decl>* \lit{@end@}
-      \alt \lit{@type@} <SVarList> <LIdent> \lit{@=@} <DTSortList>
-      \alt \lit{@let@} <Id> <ParamList> (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
-      \alt \lit{@let@} <PairPat> <ParamList> (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
+      \alt \lit{@type@} <TyVarList> <LIdent> \lit{@=@} <DTSortList>
+      \alt \lit{@let@} <Id> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
+      \alt \lit{@let@} <PairPat> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
       \alt \lit{@test@} <InfixExp> \lit{@=@} <TestResExp>
       \alt \lit{@test@} <InfixExp> \lit{@:@} <TestResSort>
 \end{grammar}
@@ -325,7 +327,7 @@ the sort of $e$ rather than its value.
 #{#}
 
 decls:      
-  | TYPE svar_list LIDENT EQUAL dtsort_list decls
+  | TYPE tyvar_list LIDENT EQUAL dtsort_list decls
       { let i = m $1 $4 in 
         DType(i,$2,Qid.t_of_id $3,$5)::$6 }
 
@@ -394,9 +396,9 @@ test_res_sort:
 \subsection{Expressions} \label{sec:parser:expressions}
 
 \begin{grammar}
-<Exp> ::= \lit{@let@} <Id> <Param>+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
+<Exp> ::= \lit{@let@} <Id> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
      \alt \lit{@let@} <PairPat> (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
-     \alt \lit{@fun@} <Param>+ (\lit{@:@} <Sort>)? \lit{@->@} <Exp>
+     \alt \lit{@fun@} (<Param>)+ (\lit{@:@} <Sort>)? \lit{@->@} <Exp>
      \alt <CaseExp>
 
 #{#}
@@ -445,7 +447,7 @@ exp:
          \alt \lit{@(@} \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@)@} \lit{@:@} <Sort>
          \alt \lit{@begin@} \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@end@} \lit{@:@} <Sort>
          \alt <ComposeExp>
-
+\end{grammar}
 #{#}
 
 cexp:
@@ -464,8 +466,74 @@ cexp:
   | composeexp
       { $1 }
 
+/* --------- PARAMETERS ---------- */
+#{@}
+\subsubsection{Parameters}
+\begin{grammar}
+<Param> ::= \lit{@(@} <Id> \lit{@:@} <Sort> \lit{@)@}
+       \alt \lit{@(@} <TyVarIdent> \lit{@)@}
+       \alt <TyVarIdent> 
+\end{grammar}
+#{#}
+
+param_list:
+  | param param_list2
+      { $1 :: $2 }
+param_list2:
+  | param param_list2
+      { $1 :: $2 }
+  |
+      { [] }
+
+param: 
+  | LPAREN id COLON sort RPAREN
+      { let i = m $1 $5 in 
+        Misc.Left (Param(i,$2,$4)) }
+
+  | LPAREN TYVARIDENT RPAREN
+      { Misc.Right ($2) }
+
+  | TYVARIDENT 
+      { Misc.Right ($1) }
+
+/* --------- BRANCHES ---------- */
+#{@}
+\subsubsection{Branches}
+
+\begin{grammar}
+<Branch> ::= <Pat> \lit{@-@\gtsym} <InfixExp>
+
+<BranchList> ::= (\lit{@|@})? <Branch> (\lit{@|@} <Branch>)*
+\end{grammar}
+#{#}
+branch: 
+  | pat ARROW infixexp 
+      { let i = m (info_of_pat $1) (info_of_exp $3) in 
+        (i,$1,$3) }
+
+branch_list:
+  | branch branch_list2
+      { let (i1,p,e) = $1 in 
+        let (i2,l) = $2 i1 in 
+        (m i1 i2, (p,e)::l) }
+
+  | BAR branch branch_list2
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (m $1 i2, (p,e)::l) }
+
+branch_list2:
+  | 
+      { (fun i -> (i,[])) }
+        
+  | BAR branch branch_list2
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (fun _ -> (m $1 i2, (p,e)::l)) }
+
 /* compose expressions */
 #{@}
+\begin{grammar}
 <ComposeExp> ::= <ComposeExp> \lit{@;@} <BarExp>
             \alt <BarExp>
 
@@ -886,47 +954,12 @@ list:
             (ETyApp(i,mk_list_var "Cons",s))
             (EPair(i,$1, mk i s)))) }
 
-/* --------- BRANCHES ---------- */
-#{@}
-\subsection{Branches}
-
-\begin{grammar}
-<Branch> ::= <Pat> \lit{@-@\gtsym} <InfixExp>
-
-<BranchList> ::= (\lit{@|@})? <Branch> (\lit{@|@} <Branch>)*
-\end{grammar}
-#{#}
-branch: 
-  | pat ARROW infixexp 
-      { let i = m (info_of_pat $1) (info_of_exp $3) in 
-        (i,$1,$3) }
-
-branch_list:
-  | branch branch_list2
-      { let (i1,p,e) = $1 in 
-        let (i2,l) = $2 i1 in 
-        (m i1 i2, (p,e)::l) }
-
-  | BAR branch branch_list2
-      { let (i1,p,e) = $2 in 
-        let (i2,l) = $3 i1 in 
-        (m $1 i2, (p,e)::l) }
-
-branch_list2:
-  | 
-      { (fun i -> (i,[])) }
-        
-  | BAR branch branch_list2
-      { let (i1,p,e) = $2 in 
-        let (i2,l) = $3 i1 in 
-        (fun _ -> (m $1 i2, (p,e)::l)) }
-
 /* --------- PATTERNS ---------- */
 #{@}
 \subsection{Patterns}
 \begin{grammar}
 <Pat> ::= <UIdent> <PairPat>
-     \alt <QIdent> <PairPat>
+     \alt <QualIdent> <PairPat>
      \alt <PairPat>
 
 #{#}
@@ -936,7 +969,7 @@ pat:
         let i = mp2 i1 $2 in 
          PVnt(i,Qid.t_of_id $1,Some $2) }
 
-  | QIDENT pairpat
+  | QUALIDENT pairpat
       { let (i,qs) = $1 in 
         PVnt(i,parse_qid i qs,Some $2) }
 
@@ -995,7 +1028,7 @@ apat:
       { let i,_ = $1 in 
         PVnt(i,Qid.t_of_id $1,None) }
       
-  | QIDENT
+  | QUALIDENT
       { let (i,qs) = $1 in 
         PVnt(i,parse_qid i qs,None) }
 
@@ -1007,12 +1040,12 @@ apat:
 \subsection{Sorts}
 
 \begin{grammar}
-<Sort> ::= \lit{@forall@} <VIdent> \lit{@=>@} <Sort>
+<Sort> ::= \lit{@forall@} <TyVarIdent> \lit{@=>@} <Sort>
      \alt <ArrowSort>
 
 #{#}
 sort:
-  | FORALL VIDENT EQARROW sort 
+  | FORALL TYVARIDENT EQARROW sort 
       { SForall($2,$4) }
 
   | arrowsort
@@ -1083,7 +1116,7 @@ bsort:
        \alt \lit{@bool@}
        \alt \lit{@canonizer@}
        \alt \lit{@unit@}
-       \alt <SVar>
+       \alt <TyVar>
 
 #{#}
 asort:
@@ -1114,36 +1147,36 @@ asort:
   | UNIT
       { SUnit }
 
-  | svar
+  | tyvar
       { SVar $1 }  
 
 #{@}
-<SVar> ::= <VIdent>
+<TyVar> ::= <TyVarIdent>
 
-<SVarList> ::= <SVar> 
-          \alt \lit{@(@} <SVar> (\lit{@,@} <SVar>)* \lit{@)@}
+<TyVarList> ::= <TyVar> 
+          \alt \lit{@(@} <TyVar> (\lit{@,@} <TyVar>)* \lit{@)@}
 
 #{#}
 
-svar:
-  | VIDENT
+tyvar:
+  | TYVARIDENT
       { $1 }
 
-svar_list:
+tyvar_list:
   | 
       { [] }
 
-  | svar 
+  | tyvar 
       { [$1] }
 
-  | LPAREN svar_list2 RPAREN
+  | LPAREN tyvar_list2 RPAREN
       { $2 }
 
-svar_list2:
-  | svar
+tyvar_list2:
+  | tyvar
       { [$1] }
 
-  | svar COMMA svar_list2
+  | tyvar COMMA tyvar_list2
       { $1::$3 }
 
 sort_list:
@@ -1185,33 +1218,17 @@ dtsort_list2:
 \subsection{Identifiers}
 
 \begin{grammar}
+<Id> ::= <LIdent>
+     \alt <UIdent>
+
 <QId> ::= <LIdent>
      \alt <UIdent>
-     \alt <QIdent> 
+     \alt <QualIdent> 
 
 <QVar> ::= <LIdent>
-      \alt <QIdent>
-
-
-<Id> ::= <LIdent>
-         <QIdent>
+       \alt <QualIdent>
 \end{grammar}
 #{#}
-
-qid:
-  | LIDENT
-      { Qid.t_of_id $1 }
-  | UIDENT
-      { Qid.t_of_id $1 }
-  | QIDENT
-      { let (i,qs) = $1 in parse_qid i qs }
-
-qvar:
-  | LIDENT
-      { Qid.t_of_id $1 }
-
-  | QIDENT
-      { let (i,qs) = $1 in parse_qid i qs }
 
 id:
   | LIDENT
@@ -1219,36 +1236,20 @@ id:
   | UIDENT 
       { $1 }
 
-/* --------- PARAMETERS ---------- */
-param_list:
-  | param param_list2
-      { $1 :: $2 }
-param_list2:
-  | param param_list2
-      { $1 :: $2 }
-  |
-      { [] }
+qid:
+  | LIDENT
+      { Qid.t_of_id $1 }
+  | UIDENT
+      { Qid.t_of_id $1 }
+  | QUALIDENT
+      { let (i,qs) = $1 in parse_qid i qs }
 
-#{@}
-\subsection{Parameters}
+qvar:
+  | LIDENT
+      { Qid.t_of_id $1 }
 
-\begin{grammar}
-<Param> ::= \lit{@(@} <Id> \lit{@:@} <Sort> \lit{@)@}
-       \alt \lit{@(@} <VIdent> \lit{@)@}
-       \alt <VIdent> 
-\end{grammar}
-#{#}
-
-param: 
-  | LPAREN id COLON sort RPAREN
-      { let i = m $1 $5 in 
-        Misc.Left (Param(i,$2,$4)) }
-
-  | LPAREN VIDENT RPAREN
-      { Misc.Right ($2) }
-
-  | VIDENT 
-      { Misc.Right ($1) }
+  | QUALIDENT
+      { let (i,qs) = $1 in parse_qid i qs }
 
 /* --------- MISC SYMBOLS ---------- */
 uid:

@@ -20,6 +20,9 @@
 (*******************************************************************************)
 
 #{@}
+
+\section{Lexing}
+
 Space, newline and tab characters are whitespace.  Comments equivalent
 to whitespace and are delimited by @(*@ and @*)@; comments may be nested.
 
@@ -60,7 +63,8 @@ example, the following string
 is equivalent to the previous ones.
 
 \subsection{Identifiers}
-Identifiers are non-empty strings drawn from the following set of characters
+Ordinary identifiers are non-empty strings drawn from the following
+set of characters
 \begin{center}
 \begin{tabular}{l}
 @a b c d e f g h i j k l m n o p q r s t u v w x y z@\\
@@ -69,7 +73,8 @@ Identifiers are non-empty strings drawn from the following set of characters
 @' _ -@ @@\\
 \end{tabular}
 \end{center}
-\noindent whose first symbol is a non-numeric character. The following keywords 
+\noindent The first symbol of an identifier must be a non-numeric
+character. The following keywords
 \begin{center}
 \begin{tabular}{lllll}
   @module@ & @open@ & @let@ & @in@  & @fun@ \\ 
@@ -90,6 +95,14 @@ Identifiers are non-empty strings drawn from the following set of characters
 \end{tabular}
 \end{center}
 are reserved. 
+
+Some of the parsing rules distinguish several different kinds of
+identifiers. The lexer produces different tokes for uppercase
+(\textit{UIdent}) and lowercase (\textit{LIdent})
+identifiers. Additionally, the lexer produces special tokens for
+qualified identifiers (\textit{QualIdent}), which have the form @M.N.x@,
+and type variable identifiers (\textit{TyVarIdent}), which have the form
+@'a@.
 
 \subsection{Regular Expressions}
 Character classes are specified within @[@ and @]@ using POSIX
@@ -280,7 +293,7 @@ rule main = parse
           character c lexbuf }
 
 | '\'' (id_char_first id_char_rest* as ident) { 
-    VIDENT(info lexbuf, ident)
+    TYVARIDENT(info lexbuf, ident)
   }
 | id_char_first id_char_rest* as ident { 
       try let kw = Hashtbl.find keywords ident in
@@ -291,7 +304,7 @@ rule main = parse
         else 
           LIDENT (info lexbuf, ident) }
 | (uid_char id_char_rest* ".")+ id_char_rest+ as qident {
-    QIDENT(info lexbuf,qident)
+    QUALIDENT(info lexbuf,qident)
   }
 | int_char+ as integ { INTEGER(info lexbuf, int_of_string integ) }
 | (int_char* "." int_char+) as flot 

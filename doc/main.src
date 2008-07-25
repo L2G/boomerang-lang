@@ -22,12 +22,16 @@
 \usepackage{palatino}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{amsthm}
 \usepackage{natbib}
 \usepackage{src2tex}
 \usepackage{fullpage}
 \usepackage{syntax}
 \usepackage{bcprules}
 \usepackage{local}
+
+\theoremstyle{definition}
+\newtheorem{example}{Example}
 
 \begin{document}
 
@@ -58,7 +62,6 @@ mailing list by visiting the following URL:
 
 \bigskip
 \bigskip
-\bigskip
 
 \section*{Caveats}
 
@@ -74,7 +77,6 @@ to industrial use.
 
 \bigskip
 \bigskip
-\bigskip
 
 \section*{Copying}
 
@@ -84,7 +86,6 @@ by the Free Software Foundation; either version 2.1 of the License, or
 (at your option) any later version.  See the file COPYING in the
 source distribution for more information.
 
-\bigskip
 \bigskip
 \bigskip
 
@@ -99,11 +100,13 @@ license described above.
 
 \chapter{Introduction}
 
-Most programs compute in a single direction, from input to output. But
-it is often useful to take a modified {\em output} and ``compute
-backwards'' to obtain a correspondingly modified {\em input}.  For
-example, if we have a transformation mapping from a simple XML
-database format describing classical composers...
+This manual describes Boomerang, a {\em bidirectional programming
+  language} for ad-hoc, textual data formats. Most programs compute in
+a single direction, from input to output. But sometimes it is useful
+to take a modified {\em output} and ``compute backwards'' to obtain a
+correspondingly modified {\em input}.  For example, if we have a
+transformation mapping a simple XML database format describing
+classical composers...
 \begin{progeg}
   <composers>
     <composer>
@@ -120,27 +123,28 @@ database format describing classical composers...
 % 
 ... we may want to be able to edit the ASCII output (e.g., to correct
 the erroneous death date above) and push the change back into the
-original XML. The need for such {\em bidirectional transformations}
-arises in many diverse areas of computing, including data
-synchronizers~\cite{Sync2007,Focal2005-shortcite}, parsers and pretty
-printers~\cite{pads,Eger05}, marshallers and
-unmarshallers~\cite{RamseyEmbedding03,KennedyPickler04}, structure
-editors~\cite{Hu04}, graphical user interfaces~\cite{Meertens98,
-Evers04, Greenberg2007}, software model transformations
-\cite{Stevens07,HuASE07}, 
-%   ~\jnf{Should
-%   find a few more model transformation citations; or maybe Perdita's
-%   can be taken as canonical?}\bcp{I think just these are
-%   OK}
-system configuration management~\cite{Augeas}, schema
-evolution~\cite{clio2001,Cunha06,Berdaguer07}, and
-databases~\cite[etc.]{DBLP:journals/tods/BancilhonS81,dayal82translation,BohannonPierceVaughan}.
+original XML. The need for {\em bidirectional transformations} like
+this one arises in many areas of computing, including in data
+converters and synchronizers, parsers and pretty printers, marshallers
+and unmarshallers, structure editors, graphical user interfaces,
+software model transformations, system configuration management tools,
+schema evolution, and databases.
 
-In previous work \cite{Focal2005-shortcite, BohannonPierceVaughan,
-  Boomerang07}, we have used the term \emph{lens} to describe a
-bidirectional program.  Formally, a lens $l$ mapping between a set $C$
-of ``concrete'' structures and a set $A$ of ``abstract'' ones
-comprises three functions:
+\begin{figure}
+  \begin{center}
+\tikz[line width=1bp]\node[scale=.5]{\pgfimage{pdf/viewupdateterminology}};
+\end{center}
+\caption{Lens Terminology}\label{fig:viewupdateterminology}
+\end{figure}
+
+\section{Lenses}
+Of course, we are not interested in just any transformations that map
+back and forth between data---we want the two directions of the
+transformation to work together in some reasonable way. Boomerang
+programs describe a certain class of well-behaved bidirectional
+transformations that we call \emph{lenses}. Mathematically, a lens $l$
+mapping between a set $C$ of ``concrete'' strings and a set $A$ of
+``abstract'' ones has three components:
 %
 \[
 #>\begin{array}{r@{\ \;}c@{\ \;}l}
@@ -150,15 +154,18 @@ l.\CREATE &\in& A \arrow C\\
 \end{array}
 \]
 %
-The \GET{} component is the forward transformation, a total function
-from $C$ to $A$.  The \PUT{} component takes an old $C$ and a modified
-$A$ and yields a correspondingly modified $C$.  The \CREATE{}
-component handles the special case where we want to compute a $C$ from
-an $A$ but we have no $C$ to use as the ``old value''; \CREATE{} uses
-defaults to fill in any information in $C$ that is thrown away by the
-\GET{} function (such as the nationality of each composer in the
-example above).  Every lens obeys the following ``round-tripping''
-laws for every $c \in C$ and $a \in A$:
+$\GET$ is the forward transformation and is a total function from $C$
+to $A$.  The backwards transformation comes in two flavors. The first,
+$\PUT$, takes two arguments, a modified $A$ and an old $C$, and
+produces an updated $C$.  The second, $\CREATE$, handles the special
+case where we need to compute a $C$ from an $A$ but have no $C$ to use
+as the ``old value''. It fills in any information in $C$ that was
+discarded by the $\GET$ function (such as the nationality of each
+composer in the example above) with defaults. The components of a lens
+are shown graphically in Figure~\ref{fig:viewupdateterminology}.
+
+We say that are ``well-behaved'' because they obey the following
+``round-tripping'' laws for every $c \in C$ and $a \in A$:
 %
 \label{basiclaws} 
 \infax[GetPut]{
@@ -171,252 +178,152 @@ laws for every $c \in C$ and $a \in A$:
   l.\GET\; (l.\CREATE \; a) = a  
 }
 %
-The first law states that the $\PUT$ function must restore all the
-information discarded by $\GET$ when its arguments are an abstract
-structure and a concrete structure that generates the very same
-abstract structure. The second and third laws state that $\PUT$ and
-$\CREATE$ must propagate all of the information contained in their
-abstract arguments to the concrete structure they produce. These laws
-express fundamental expectations about how the components of a lens
-should work together; they are closely related to classical conditions
-on correct \emph{view update translation} developed in the database
-community. The set of all lenses mapping between $C$ and $A$ is
-written $\classiclens{C}{A}$.
+The first law requires that if $\PUT$ is invoked with an abstract
+string that is identical to the string obtained by applying $\GET$ to
+the old concrete string---i.e., if the edit to the abstract string is
+a no-op---then it must produce the same concrete string.  The second
+and third laws state that $\PUT$ and $\CREATE$ must propagate all of
+the information in their $A$ arguments to the $C$ they produce. These
+laws capture fundamental expectations about how the components of a
+lens should work together.
 
-% \SMALLSECTIONHEADER{Bidirectional Languages} 
-The naive way to build a lens is simply to write three separate
-functions ($\GET$, $\PUT$, and $\CREATE$) in a general-purpose
-programming language, and check manually that they satisfy the lens
-laws.  But this is unsatisfactory for all but the simplest lenses: the
-three functions will be very redundant, since each of them will embody
-the structure of both $C$ and $A$---a maintenance nightmare.  A better
-alternative is to design a \emph{bidirectional programming language}
-in which every expression can be read both from left to right (as a
-\GET{} function) and from right to left (as \PUT{} or \CREATE{}).
-Besides avoiding redundancy, this approach permits us to carry out the
-proofs of the behavioral laws once and for all, by designing a type
-system in which---by construction---every well-typed expression
-denotes a well-behaved lens.
-%
-Many such programming languages have been
-proposed~\cite{Focal2005-shortcite, BohannonPierceVaughan, Boomerang07,
-  Meertens98, KennedyPickler04, BentonEmbedded05, RamseyEmbedding03, Hu04, matsuda2007btb,
-  xsugar, bixid, pads, biarrows}.
-
-The Harmony project aims to develop a generic framework that can be used to
-build high-quality synchronizers for a wide variety of application data
-formats with minimal effort.  The current Harmony system is the realization
-of our progress toward this goal, focusing on the important special cases of
-unordered and rigidly ordered data (including sets, relations, tuples,
-records, feature trees, etc.), with only limited support for list-structured
-data such as structured documents.
-
-The Harmony system has two main components:
-%
-(1) a domain-specific programming language, called Focal, for writing
-\emph{lenses}---bi-directional transformations on trees---which we use to
-convert low-level (and possibly heterogeneous) concrete data formats into a
-high-level {\em synchronization schema}, and
-%
-(2) a generic synchronization algorithm, whose behavior is controlled by the
-synchronization schema.
-
-This document describes both components in detail.
-
-\chapter{Quick Start}
-
-\emph{This chapter is intended for people who are installing Harmony on
-  their own machines.  If you are only using the web demo, you'll want to
-  skip on to later sections.} 
-
-\section*{Installation}
-
-\begin{enumerate}
-\item Grab and unpack the most recent tarball from here:
-#&http://www.cis.upenn.edu/~bcpierce/harmony/download
-
-\item Follow the instructions in the file @src/INSTALL@ to install the OCaml
-compiler (if necessary) and the libraries on which Harmony depends.
-
-\item Type @make test@ in the top-level directory to build the Harmony
-executable and run all the regression tests.
-\end{enumerate}
-
-\section*{Using Harmony with Unison}
-
-If you just want to run Harmony instances from Unison (rather than
-experimenting with writing your own), you should now skip to
-page~\pageref{unison}. 
-
-\section*{Playing with the Demos}
-
-The @examples@ directory contains a number of different Harmony instances.
-Most of them are also available for live experimentation via the web.  (Go
-to the main Harmony page and follow the ``demo'' link.)  Play with some of
-these to familiarize yourself with the basic concepts and capabilities of
-Harmony.
-
-You'll find the Focal source code for demo @XXX@ in a file called
-@examples/XXX/demos.php@, if you want to see how things work.
-
-%% To get a feel for what Harmony can do, let's begin by playing with a few
-%% pre-packaged demos.  The demos can be run in three different modes:
-%% \begin{enumerate}
-%% \item \textbf{Web browser:} Most of the demos are available on the web
-%%   via the main Harmony page.  The interface should be self-explanatory.
-%% \item \textbf{``Make'':}
-%% The demos can be found in subdirectories
-%%   of the @examples@ directory.  To see what demos are available, do @ls@ and
-%%   look for files beginning with @demoX@, where @X@ is an integer.
-  
-%%   To run a given demo, do @make demoX@.  This will create two files called
-%%   @r1.EXT1@ and @r2.EXT2@ (where the extensions @EXT1@ and @EXT2@ depend on
-%%   the specific demo) and run Harmony to initialize them to the same
-%%   contents.  It may also print out some instructions suggesting what might
-%%   be interesting to do with the files.  You can now edit either or both of
-%%   these files in any way you like and, when finished, type @make demo@ to
-%%   re-run Harmony and synchronize them.  Keep editing the files and re-doing
-%%   @make demo@ as many times as you like.
-
-%% \item \textbf{``Make'' + EDITOR:} For a more interactive experience, set
-%% your shell @EDITOR@ variable to the name of your favorite editor.  When
-%% you do @make demo1@ the files @r1.EXT1@ and @r2.EXT2@ will be created, as
-%% above; then your editor will be started on these files (and the
-%% instructions, if any).  
-
-%% Edit the files as you like, and then save them and quit the editor; the new
-%% files will be synchronized by Harmony and again redisplayed for further
-%% editing.  The demo will automatically repeat as long as you keep changing
-%% one of the files in the editor.  If you change neither file, the demo
-%% terminates.
-%% \end{enumerate}
-
-
-\section*{First Steps in Lens Programming}
-
-Now let's roll up our sleeves and write a few lenses.
-
-\begin{enumerate}
-\item Make a copy of the directory @examples/template@ in a place where you
-can play with it:
-
-#&cp -r examples/template experimental/play
-#&cd experimental/play
-
-\item Type @make test@.  You should see this:
-#&Test result: {a = {1}, b = {2}}
-
-\item Open the file @main.fcl@ in your favorite text editor.  Edit the
-tree in the last line to add a new child named @c@ with a subtree @{3}@
-(i.e., add @c={3}@ just before the closing curly brace) and re-run %
-@make test@.
-
-The three-line Focal program in @main.fcl@ can be read as follows:
+\section{Boomerang Overview}
+Boomerang is a language for writing lenses that work on strings. The
+key pieces of its design can be summarized as follows.
 \begin{itemize}
-\item The first line declares that this file contains a module named
-@Main@. 
-\item The second line defines a new lens named @l@, which behaves the same
-as the predefined identity lens, @id@.
-\item The third line asks the Focal system to evaluate the \GET{} direction
-of @l@ on the concrete argument (an expression of type @tree@) following the
-@/@.  The @?@ on the right of the @=@ asks that the result be printed out.
+\item The core of the language is a set of {\em string lens
+    combinators}---primitive lenses that copying and delete strings,
+  and ones that combine lenses using the familiar ``regular
+  operators'' of union, concatenation, and Kleene-star. This core set
+  of operators has a simple and intuitive semantics and is capable of
+  expressing many useful transformations.
+\item Of course, programming with low-level combinators alone would be
+  tedious and repetitive; we don't do this. The core combinators are
+  embedded in a full-blown functional language with all of the usual
+  features: let definitions, first-class functions, user-defined
+  datatypes, polymorphism, modules, etc. This infrastructure can be
+  used to abstract out common patterns and to build generic
+  bidirectional libraries. We have found that they make high-level
+  lens programming quite convenient.
+
+\item To correctly handle ordered data structures such as strings,
+  many applications require that lenses match up corresponding pieces
+  of the concrete and abstract strings.  Boomerang includes
+  combinators for describing how data should be aligned using natural
+  notions of ``chunk'' and ``keys''. We call lenses that use these
+  features \emph{dictionary lenses}.  
+
+\item Finally, in many applications, is often useful to be able to
+  break the lens laws. For example, when we process XML data in
+  Boomerang, we usually don't care whether the whitespace around
+  elements is preserved. Boomerang includes combinators for
+  ``quotienting'' lenses using ``canonizers'' that explicitly discard
+  such inessential features. We call lenses that use these features
+  \emph{quotient lenses}. 
 \end{itemize}
 
-\item Replace the @?@ by the same tree as on the left of the @=@ and re-run
-@make test@.  This time, nothing at all should be printed.  You've just
-written your first unit test.
+\section{An Example Lens}
 
-Edit the tree on the left-hand side of the @=@ and run @make test@.  You
-should now see an error message indicating that the test is failing.  
+To give a sense of what programming in Boomerang is like, we will
+define the lens implementing the transformations between XML and CSV
+composers shown above.
 
-Change the right-hand side of the @=@ back to @?@.
+First we define a lens @c@ that handles a single @<composer>@
+element. It uses a number of functions defined in our XML library, as
+well as primtives for copying (@copy@) and deleting (@del@) strings,
+and for concatenating lenses (@.@).
 
-\item Change the @id@ in the second line to @filter {a,c} {}@.  Re-run 
-%
-@make test@.  You should see this:
-#&Test result: {a = {1}, c = {3}}
-Note that the @b@ child has been filtered away.  
+## module Main = 
+#* let c : lens = 
+#*   Xml.elt NL2 "composer"
+#*     begin
+#*       Xml.simple_elt NL4 "name" 
+#*         (copy [A-Za-z ]+ . ins ", ") .  
+#*       Xml.attr2_elt_no_kids NL4 "years" 
+#*         "birth" (copy NUMBER . ins "-")
+#*         "death" (copy NUMBER) . 
+#*       Xml.simple_elt NL4 "nationality" (del [A-Za-z]+)
+#*    end 
 
-Edit the tree in the test to add a @d@ child, re-run the test, and note that
-this child is also filtered away.
+Using @c@, we then define a lens that handles a top-level
+@<composers>@ element, enclosing a list of @<composers>@. This lens is
+defined using the features already described, a primitive for
+inserting a string (@ins@), as well as union (@|@) and Kleene star
+(@*@).
 
-\item Now let's see what this lens does in the \PUT{} direction.  In the
-third line, change the @/@ to @\@ and add, just after the @\@, the tree
-@{a={5}}@.  Run @make test@.  You should see a new concrete tree with an
-updated value for @a@, with @c@ missing, and with the subtrees under @b@ and
-@d@ carried over from the second argument tree.
+#* let cs : lens = 
+#*   Xml.elt NL0 "composers" 
+#*     begin 
+#*       copy EPSILON | 
+#*       c . (ins newline . c)* 
+#*     end
 
-\item Now let's play with some XML.  Change the right-hand side of the
-definition of @l@ back to @id@ and replace the third line with this:
-#{&}
-let myxml : name = "<a><b>hello world</b></a>"
+We can check that this lens actually does the transformation we want
+by running its $\GET$ and $\PUT$ components on some sample data.
+First, let us bind the XML database to a variable (to avoid printing
+it many times). The @<< ... >>@ is heredoc notation for a multi-line
+string literal.
 
-let myxmltree : tree = (load "xml" myxml)
+#* let original_c : string = 
+#* <<
+#*   <composers>
+#*     <composer>
+#*       <name>Jean Sibelius</name>
+#*       <years birth="1865" death="1956"/> 
+#*       <nationality>Finnish</nationality>
+#*     </composer>
+#*   </composers>
+#* >> 
 
-test l / myxmltree = ?
-#{@}
-Run @make test@.  What's printed is the low-level internal representation of
-XML in Focal---the way an XML string is parsed as a tree.
+\noindent Now we test the $\GET$ function...
 
-\item Change the definition of @l@ to @Xml.squash@.  Run @make test@.  That
-looks a little better.
+#* test cs.get original_c = 
+#* <<
+#*   Jean Sibelius, 1865-1956
+#* >>
 
-\item Change the definition of @l@ again to 
-#&let l : lens = Xml.squash; hoist "a"; hoist "b"; hoist Xml.PCDATA
-and note that the result of running the test changes to just the string
-@hello world@ (encoded as the unique edge in a tree with an empty subtree). 
-\finish{Maybe @focus@ would be better than @hoist@, since we use it later?}
+\noindent ...and obtain the expected result. To check the $\PUT$
+function, let us fix the error in Sibelius's death date, and $\PUT$ it
+back into the original XML database...
 
-\item Change the final @test@ to 
-#&test l \ {"goodbye cruel world"} myxmltree = ?
-and note how the new string has been re-inserted into the original XML
-structure.  (The quote marks are needed here because we are defining a tree
-with an edge label containing the space character.)
+#* test cs.put
+#* <<
+#* Jean Sibelius, 1865-1957
+#* >>
+#* into original_c
+#* = 
+#* <<
+#*   
+#*   <composers>
+#*     <composer>
+#*       <name>Jean Sibelius</name>
+#*       <years birth="1865" death="1957"/>
+#*       <nationality>Finnish</nationality>
+#*     </composer>
+#*   </composers>
+#* >>
 
-\item Now let's play with transforming an external file.  Change the
-definition of @l@ to just @Xml.squash@ and type:
-#&make get
-So far, we've just
-been running Harmony in its testing mode, which causes unit tests embedded
-in the code to be evaluated and their results printed.  Doing 
-%
-@make get@
-runs Harmony in a different mode, asking it to run the lens @Main.l@ over
-the contents of the file @test.xml@ (which is parsed as XML because of
-its extension) and put the resulting tree (in Focal's tree
-notation) in the file @temp.meta@.  
+\noindent ... again, we obtain the expected result: the new XML
+database reflects the change to the death date we made in the CSV
+string.
 
-\item Change the definition of @l@ to
-#&let l : lens = Xml.squash; focus "a" {}; focus "b" {}
-and observe the results of @make get@.  
+\section{Getting Started}
 
-\item Now let's synchronize.  Make two copies of the file @test.xml@:
-#&cp test.xml r1.xml
-#&cp test.xml r2.xml
-Now synchronize them by doing
-#&make sync
-Observe that a new file @archive.xml@ has been created and that its
-contents are equal to those of @r1.xml@ and @r2.xml@.  
-
-\item Change the string @hello@ in the file @r1.xml@ to @goodbye@.  Change
-@world@ to @cruel world@ in @r2.xml@.  Do @make sync@ again and observe the
-results.  
-
-Hooray.
-
-\end{enumerate}
-
-This has been a lightning tour of some of the main features of the Harmony
-system.  If you want to go further, the first thing to do is to read over
-the two main technical papers on which the system is
-based~\cite{Focal2005,SYNCTR2005}, both of which are available from 
-the Harmony home page:
-#&http://www.cis.upenn.edu/~bcpierce/harmony
-After that, you should skim the rest of this document to get a sense of what
-is there.  Then you should have a look at the @examples@ directory and play
-with some of the larger demos that we've implemented.
+The best way to to get going with Boomerang, is by working through the
+next ``QuickStart'' chapter. It contains a lightning tour of some of
+the main features of Boomerang the language and the system.  After
+that, we suggest exploring the @examples@ directory, which contains
+some of the larger demos we've built, and consulting the rest of this
+manual as needed. Many more details can be found in our research
+papers on Boomerang (\cite{Boomerang07,QuotientLenses08}) and on
+lenses in general (\citet{Focal2005,BohannonPierceVaughanTR}). These
+papers are all available from the Boomerang web page.
 
 Good luck and have fun!
+
+\chapter{Quick Start}\label{chap:quickstart}
+
+\input{QuickStart}
 
 \chapter{The Boomerang Language}
 
@@ -427,17 +334,8 @@ OCaml. It includes user-defined datatypes and functions, modules, unit
 tests, and special syntax for constructing regular expressions and for
 accessing the components of lenses.
 
-\section{Lexing}
-
 \input{blexer}
-
-\section{Parsing}
-  
 \input{bparser}
-
-\section{Type Checking}
-
-{\em Under construction}
 
 \chapter{The Boomerang Libraries}
 
@@ -457,52 +355,105 @@ primtitives are ``well behaved,''. However, for getting up to speed
 with Boomerang programming, the shorter (conference) versions should
 suffice.
 
-\section{The Core Definitions}
-
-The first module, @Core@, imports primitive values (defined in the
-host language, OCaml) to Boomerang. In @Core@, we do not use any
-overloaded or infix operators (e.g., @.@, @|@, @~@, @-@, @*@) because
-the Boomerang type checker resolves these symbols to applications of
-functions defined in @Core@. The reason that we do this, rather than
-resolving them directly to the primitive values, is that it facilitates 
-checking the preconditions on primtive values using dependent refinement
-types. 
-
-Every value defined in @Core@ is available by default in every
-Boomerang program.
-
 \input{core}
-
-\section{The Standard Prelude}
-
-The second module, @Prelude@, defines some common derived forms. Like
-@Core@, its values are available by default in every Boomerang
-program.
-
 \input{prelude}
-
-\section{Lists}
-
-The @List@ module defines a datatype for fpolymorphic list structures.
-
 \input{list}
 
 \chapter{The Boomerang System}
 
-{\em Under construction.}
-
 \section{Running Boomerang}
 
-{\em Under construction.}
+All of the interactions with Boomerang we have seen so far have gone
+via unit tests. This works well for interactive lens development, but
+is less useful for batch processing of files. Boomerang can also be
+involved from the command line:
+
+\begin{progeg}
+Usage:
+    boomerang [get] l C          [options]     : get
+ or boomerang [put] l A C        [options]     : put
+ or boomerang create l A         [options]     : create
+ or boomerang sync l O C A       [options]     : sync
+ or boomerang M.boom [N.boom...] [options]     : run unit tests for M, N, ...
+\end{progeg}
+
+To try this out, create a file @comps-conc.txt@ containing the
+following lines:
+\begin{progeg}
+  Jean Sibelius, 1865-1957, Finnish
+  Aaron Copland, 1910-1990, American
+  Benjamin Britten, 1913-1976, English
+\end{progeg}
+\noindent and run the command
+\begin{progeg}
+boomerang get QuickStart.comps comps-conc.txt
+\end{progeg}
+\noindent You should see 
+\begin{progeg}
+Jean Sibelius, Finnish
+Aaron Copland, American
+Benjamin Britten, English
+\end{progeg} 
+\noindent written to the terminal. 
+
+Now let's do the same thing, but save the results to a file:
+\begin{progeg}
+boomerang get QuickStart.comps_cmdline comps-conc.txt -o comps-abs.txt
+\end{progeg}
+\noindent Next let's edit the abstract file to 
+\begin{progeg}
+Jean Sibelius, Finnish
+Benjamin Britten, English
+Alexandre Tansman, Polish
+\end{progeg}
+\noindent and $\PUT$ the results back:
+\begin{progeg}
+boomerang put QuickStart.comps_cmdline comps-abs.txt comps-conc.txt
+\end{progeg}
+\noindent You should see
+\begin{progeg}
+Jean Sibelius, 1865-1957, Finnish
+Benjamin Britten, 1913-1976, English
+Alexandre Tansman, 0000-0000, Polish
+\end{progeg}
+\noindent printed to the terminal. 
 
 \section{Navigating the Distribution}
 
-{\em Under construction }
+If you want to check out the code, here is one reasonable order to
+look at the files:
+
+\medskip
+
+\begin{tabular}{ll}
+@src/lenses/core.boom@              & core lenses\\
+@src/lenses/prelude.boom@           & important derived lenses\\
+@src/blenses.ml@                    & native definitions of lenses and canonizers \\
+@examples/*@                        & many real-world lenses\\
+@src/bcompiler.ml@                  & the Boomerang interpreter\\
+@src/sync.ml@                       & a synchronization algorithm\\
+@src/toplevel.ml@                   & the top-level program\\
+\end{tabular}
 
 \chapter{Case Studies}
 
 {\it Under construction.  For now, see the demos in the @examples@
   directory.}
+
+In the @boomerang/examples@ directory, you can find some of the other
+Boomerang programs we have written:
+
+\begin{itemize}
+\item @demo.boom@: A simple demo, similar to composers lens.
+\item @addresses.boom@ : VCard, CSV, and XML-formatted address books.
+\item @bibtex.boom@: BiBTeX and RIS-formatted bibliographies.
+\item @uniprot.boom@: UniProtKB / SwissProt lens.
+\item @xsugar/*@: example transformations from the XSugar project.
+\end{itemize}
+
+We will continue adding to this set of examples as we tidy and package
+our code... and we hope you'll write and let us know about the lenses
+you write!
 
 \bibliographystyle{plainnat}
 \bibliography{../../writing/papers/harmony,../../writing/papers/onlybcpshouldmodify/bcp}

@@ -23,6 +23,21 @@
 module Core = 
 
 #{@}
+
+\section{The Core Definitions}
+
+The first module, @Core@, imports primitive values (defined in the
+host language, OCaml) to Boomerang. In @Core@, we do not use any
+overloaded or infix operators (e.g., @.@, @|@, @~@, @-@, @*@) because
+the Boomerang type checker resolves these symbols to applications of
+functions defined in @Core@. The reason that we do this, rather than
+resolving them directly to the primitive values, is that it facilitates 
+checking the preconditions on primtive values using dependent refinement
+types. 
+
+Every value defined in @Core@ is available by default in every
+Boomerang program.
+
 \subsection{Equality}
 
 \LENSSECTION{equals} The polymorphic @equals@ operator is partial: 

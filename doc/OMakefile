@@ -1,8 +1,6 @@
 SOURCES = $(glob *.src) \
           $(SRCDIR)/blexer.srcl $(SRCDIR)/bparser.srcy \
-          $(LENSESDIR)/prelude.boom \
-          $(LENSESDIR)/core.boom \
-          $(LENSESDIR)/list.boom 
+          $(BOOMFILES)
 
 SRC2TEX=$(TOOLSDIR)/src2tex
 
