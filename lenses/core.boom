@@ -32,7 +32,7 @@ overloaded or infix operators (e.g., @.@, @|@, @~@, @-@, @*@) because
 the Boomerang type checker resolves these symbols to applications of
 functions defined in @Core@. The reason that we do this, rather than
 resolving them directly to the primitive values, is that it facilitates 
-checking the preconditions on primtive values using dependent refinement
+checking the preconditions on primitive values using dependent refinement
 types. 
 
 Every value defined in @Core@ is available by default in every
@@ -313,6 +313,21 @@ The record-style projection notation @l.bij@ desugars into @bij@.
 
 #* let bij : lens -> bool 
 ## = Native.Prelude.bij
+
+\LENSSECTION{@in_lens_type@} The @in_lens_type@ function tests whether a lens
+is in a given @ctype@ and @atype@.  The @lens in C <-> A@ notation desugars 
+into @in_lens_type@.
+
+#* let in_lens_type (l:lens) (C:regexp) (A:regexp) : bool =
+#*   (land (equiv (ctype l) C) (equiv (atype l) A))
+
+\LENSSECTION{@in_lens_type@} The @in_lens_type@ function tests whether a lens
+is bijective in a given @ctype@ and @atype@.  The @lens in C <-> A@ notation 
+desugars into @in_lens_type@.
+
+#* let in_bij_lens_type (l:lens) (C:regexp) (A:regexp) : bool =
+#*   (land (land (equiv (ctype l) C) (equiv (atype l) A))
+#*         (bij l))
 
 \subsection{Lenses}
 

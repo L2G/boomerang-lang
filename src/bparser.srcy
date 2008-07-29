@@ -471,6 +471,10 @@ cexp:
 \subsubsection{Parameters}
 \begin{grammar}
 <Param> ::= \lit{@(@} <Id> \lit{@:@} <Sort> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@:@} <Sort> \lit{@where@} \lit{@)@}
+       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(string in@} <Exp> \lit{@)@}
        \alt \lit{@(@} <TyVarIdent> \lit{@)@}
        \alt <TyVarIdent> 
 \end{grammar}
@@ -489,6 +493,29 @@ param:
   | LPAREN id COLON sort RPAREN
       { let i = m $1 $5 in 
         Misc.Left (Param(i,$2,$4)) }
+
+  | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_tern_op i (mk_core_var "in_lens_type") (mk_var $2) $6 $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DEQARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var $2) $6 $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON STRING IN exp RPAREN
+      { let i = m $1 $7 in 
+        let p = mk_bin_op i (mk_core_var "matches") $6 (mk_var $2) in 
+        let s = SRefine($2,SString,p) in
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON sort WHERE exp RPAREN
+      { let i,_ = $2 in 
+        let s = SRefine($2,$4,$6) in 
+        Misc.Left (Param(i,$2,s)) }
 
   | LPAREN TYVARIDENT RPAREN
       { Misc.Right ($2) }
@@ -685,16 +712,16 @@ ampexp:
       { mk_over (me $1 $3) OAmp [$1; $3] }
 
 #{@}
-<LensComponentExp> ::= <AppExp> (\lit{@.get@} <AppExp>
-       \alt <AppExp> (\lit{@.put@} <AppExp> \lit{@into@} <AppExp>
-       \alt <AppExp> (\lit{@.create@} <AppExp>       
-       \alt <AppExp> (\lit{@.canonize@} <AppExp> 
-       \alt <AppExp> (\lit{@.choose@} <AppExp>
-       \alt <AppExp> (\lit{@.ctype@}
-       \alt <AppExp> (\lit{@.atype@}
-       \alt <AppExp> (\lit{@.domain_type@}
-       \alt <AppExp> (\lit{@.codomain_type@}
-       \alt <AppExp> (\lit{@.bij@}
+<LensComponentExp> ::= <AppExp> \lit{@.get@} <AppExp>
+       \alt <AppExp> \lit{@.put@} <AppExp> \lit{@into@} <AppExp>
+       \alt <AppExp> \lit{@.create@} <AppExp>       
+       \alt <AppExp> \lit{@.canonize@} <AppExp> 
+       \alt <AppExp> \lit{@.choose@} <AppExp>
+       \alt <AppExp> \lit{@.ctype@}
+       \alt <AppExp> \lit{@.atype@}
+       \alt <AppExp> \lit{@.domain_type@}
+       \alt <AppExp> \lit{@.codomain_type@}
+       \alt <AppExp> \lit{@.bij@}
 
 #{#}
 lenscomponentexp: 
@@ -1101,6 +1128,9 @@ datatypesort:
 <BSort> ::= \lit{@(@} <Sort> \lit{@)@}
        \alt \lit{@(@} <Sort> \lit{@where@} <Exp> \lit{@)@}
        \alt \lit{@(@} <LIdent> \lit{@:@} <Sort> \lit{@where@} \lit{@)@}
+       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(string in@} <Exp> \lit{@)@}
        \alt <ASort>
 
 #{#}
@@ -1113,6 +1143,24 @@ bsort:
 
   | LPAREN id COLON sort WHERE exp RPAREN
       { SRefine($2,$4,$6) }
+
+  | LPAREN LENS IN appexp DARROW appexp RPAREN
+      { let i = m $1 $7 in 
+        let l = Id.mk i "_l" in 
+        let chk c a = mk_tern_op i (mk_core_var "in_lens_type") (mk_var l) c a in 
+        SRefine(l,SLens,chk $4 $6) }
+
+  | LPAREN LENS IN appexp DEQARROW appexp RPAREN
+      { let i = m $1 $7 in 
+        let l = Id.mk i "_l" in 
+        let chk c a = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var l) c a in 
+        SRefine(l,SLens,chk $4 $6) }
+
+  | LPAREN STRING IN exp RPAREN 
+      { let i = m $1 $5 in 
+        let s = Id.mk i "_s" in 
+        let p = mk_bin_op i (mk_core_var "matches") $4 (mk_var s) in 
+        SRefine(s,SString,p) }
 
   | asort 
       { $1 }
