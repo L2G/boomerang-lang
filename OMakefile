@@ -52,6 +52,7 @@ EXAMPLESDIR = $(dir examples)
 BOOMERANGDIR = $(dir .)
 BOOMFILES = $(BOOMERANGDIR)/QuickStart.src \
             $(glob $(LENSESDIR)/*.boom) \
+            $(glob $(EXAMPLESDIR)/units/*.boom) \
             $(glob $(EXAMPLESDIR)/*.boom) \
             $(glob $(EXAMPLESDIR)/xsugar/*.boom) \
 
