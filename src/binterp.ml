@@ -164,7 +164,9 @@ let rec interp_cast cev i b f t e =
 	       (fun _ -> format_exp) e
 	       (Info.string_of_t b_info)) in
   let res = 
-    if Bcheck.trivial_cast f t then interp_exp cev e
+    if Prefs.read Bcheck.ignore_refinements && (not (Bcheck.may_coerce f t))
+    then interp_exp cev e
+    else if Bcheck.trivial_cast f t then interp_exp cev e
     else
       match f,t with
       | SUnit,SUnit

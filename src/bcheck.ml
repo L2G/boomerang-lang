@@ -198,6 +198,25 @@ let rec compatible f t = match f,t with
   | s1,SRefine(_,s21,_) -> compatible s1 s21
   | _ -> false
 
+let rec may_coerce f t =
+  match f,t with
+    | SChar,SString
+    | SChar,SRegexp
+    | SChar,SLens
+    | SString,SRegexp
+    | SString,SLens
+    | SRegexp,SLens -> true
+    | SProduct(f1,f2), SProduct(t1,t2) -> may_coerce f1 t1 || may_coerce f2 t2
+    | SData(fl,x),SData(tl,y) when Qid.equal x y ->
+	let rec aux acc l1 l2 = acc && match l1,l2 with
+	  | [],[] -> false
+	  | f::fl',t::tl' -> aux (may_coerce f t) fl' tl'
+	  | _ -> false in
+	aux false fl tl
+    | SRefine(_,f1,_),_ -> may_coerce f1 t
+    | _,SRefine(_,t1,_) -> may_coerce f t1
+    | _,_ -> false
+
 let rec trivial_cast f t =
   f == t ||
   syneq_sort f t ||
@@ -232,9 +251,15 @@ let rec trivial_cast f t =
       | _ -> false
         
 let rec mk_cast s i f t e = 
-  if Prefs.read ignore_refinements || trivial_cast f t
-  then e
-  else ECast(i,f,t,mk_blame i,e)
+  if Prefs.read ignore_refinements
+  then 
+    if may_coerce f t
+    then ECast(i,f,t,mk_blame i,e)
+    else e
+  else
+    if trivial_cast f t
+    then e
+    else ECast(i,f,t,mk_blame i,e)
 
 (* static_match: determine if a value with a given sort *could* match
    a pattern; annotate PVars with their sorts, return the list of sort
