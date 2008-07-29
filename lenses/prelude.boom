@@ -32,17 +32,6 @@ program.
 
 \subsection{Regular Expressions}
 
-\LENSSECTION{@EMPTY@}
-The regular expression @empty@ denotes the empty set of strings.
-
-#* let EMPTY : regexp = []
-
-\LENSSECTION{@EPSILON@}
-The regular expression @epsilon@ denotes the singleton set containing the 
-empty string.
-
-#* let EPSILON : regexp = // 
-
 \LENSSECTION{@ANYCHAR@, @ANY@, @ANYP@}
 
 The regular expression @ANYCHAR@ denotes the set of ASCII characters, 

@@ -90,6 +90,13 @@ resolve to these operators. In this module, we bind them to names like
 #* let bleq : int -> int -> bool 
 ## = Native.Prelude.leq
 
+## test bgt 1 0 = true
+## test blt 1 0 = false
+## test bgeq 1 1 = true
+## test bgeq 1 0 = true
+## test bgeq 0 1 = false
+## test bleq 3 4 = true
+
 \LENSSECTION{@plus@, @minus@, @times@, @div@, @mod@} 
 These operators are the standard arithmetic functions on integers.
 
@@ -133,6 +140,17 @@ to explicitly promote strings to regexps, so we include it here.
 #* let str : string -> regexp
 ## = Native.Prelude.str
 
+\LENSSECTION{@EMPTY@}
+The regular expression @empty@ denotes the empty set of strings.
+
+#* let EMPTY : regexp = []
+
+\LENSSECTION{@EPSILON@}
+The regular expression @epsilon@ denotes the singleton set containing the 
+empty string.
+
+#* let EPSILON : regexp = (str "")
+
 \LENSSECTION{@string_of_regexp@} The @string_of_regexp@ function 
  a regular expression to a string.
 
@@ -165,7 +183,6 @@ The infix symbol @&@ desugars into @inter@.
 
 #* let inter : regexp -> regexp -> regexp 
 ## = Native.Prelude.inter
-
 
 \LENSSECTION{@diff@} The @diff@ operator forms the difference of two @regexp@ values.
 The infix symbol @-@ desugars into @diff@.
@@ -318,7 +335,8 @@ is the constant function that returns @u@, its $\PUT$ function
 restores its concrete argument, and its $\CREATE$ function returns 
 the default string @v@.
 
-#* let const : regexp -> string -> string -> lens 
+#* let const 
+#*   : (R:regexp -> string -> (v:string where matches R v) -> lens)
 ## = Native.Prelude.const
 
 #* test get (const [A-Z] "x" "A") "A" = "x"
@@ -343,7 +361,8 @@ two lenses. The concrete types of the two lenses must be disjoint. The
 overloaded infix operator @||@ desugars into @lens_union@ when applied 
 to lens values.
 
-#* let lens_union : lens -> lens -> lens
+#* let lens_union 
+#*   : (l1:lens -> (l2:lens where disjoint (ctype l1) (ctype l2)) -> lens)
 ## = Native.Prelude.lens_union 
 
 #* test get (lens_union (copy [A-Z]) (copy [0-9])) "A" = "A"
@@ -356,7 +375,10 @@ also forms the union of two lenses. However, it requires that the concrete
 and abstract types of the two lenses be disjoint. The overloaded infix 
 operator @|@ desugars into @lens_disjoint_union@ when applied to lens values.
 
-#* let lens_disjoint_union : lens -> lens -> lens
+#* let lens_disjoint_union 
+#*   : (l1:lens -> (l2:lens where land (disjoint (ctype l1) (ctype l2)) 
+#*                                     (disjoint (atype l1) (atype l2))) 
+#*              -> lens)
 ## = Native.Prelude.lens_disjoint_union
 
 #* test get (lens_disjoint_union (copy [A-Z]) (copy [0-9])) "A" = "A"
@@ -369,7 +391,10 @@ and abstract types of the two lenses must each be unambiguously concatenable.
 The overloaded infix operator @.@ desugars into @lens_concat@ when applied to 
 lens values.
 
-#* let lens_concat : lens -> lens -> lens
+#* let lens_concat
+#*   : (l1:lens -> (l2:lens where land (splittable (ctype l1) (ctype l2)) 
+#*                                     (splittable (atype l1) (atype l2))) 
+#*              -> lens)
 ## = Native.Prelude.lens_concat
 
 #* test get (lens_concat (copy [A-Z]) (copy [0-9])) "A1" = "A1"
@@ -381,7 +406,8 @@ lens values.
 in sequence. The abstract type of the lens on the left and the 
 concrete type of the lens on the right must be identical.
 
-#* let compose : lens -> lens -> lens 
+#* let compose 
+#*   : (l1:lens -> (l2:lens where equiv (atype l1) (ctype l2)) -> lens)
 ## = Native.Prelude.compose
 
 #* test get (compose (const [A-Z] "Z" "A") 
@@ -393,21 +419,76 @@ As with @lens_concat@, the concrete and abstract types of the two lenses must
 each be unambiguously concatenable. The overloaded infix operator @~@ desugars 
 into @lens_swap@ when applied to lens values.
 
-#* let lens_swap : lens -> lens -> lens
+#* let lens_swap 
+#*   : (l1:lens -> (l2:lens where land (splittable (ctype l1) (ctype l2)) 
+#*                                     (splittable (atype l2) (atype l1)))
+#*              -> lens)
 ## = Native.Prelude.lens_swap 
 
 #* test get (lens_swap (copy [A-Z]) (copy [0-9])) "A1" = "1A"
 #* test put (lens_swap (copy [A-Z]) (copy [0-9])) "2B" "A1" = "B2"
 #* test create (lens_swap (copy [A-Z]) (copy [0-9])) "2B" = "B2"
 
+\LENSSECTION{@lens_star@} The @lens_star@ operator iterates a lens zero 
+or more times. The iterations of the concrete and abstract types of the 
+lens must both be unambiguous.  The overloaded operator @*@ desugars into 
+@lens_star@ when applied to a lens. 
+
+#* let lens_star 
+#*   : ((l:lens where land (iterable (ctype l))
+#*                         (iterable (atype l))) -> lens)
+## = Native.Prelude.lens_star
+
+#* test get (lens_star (copy [A-Z])) "" = ""
+#* test get (lens_star (copy [A-Z])) "ABCD" = "ABCD"
+#* test put (lens_star (copy [A-Z])) "AB" "ABCD" = "AB"
+#* test create (lens_star (copy [A-Z])) "A" = "A"
+
+\LENSSECTION{@lens_plus@} The @lens_plus@ operator iterates a lens one
+or more times. The iterations of the concrete and abstract types of the 
+lens must both be unambiguous (when non-empty).  The overloaded operator @+@
+ desugars into @lens_plus@ when applied to a lens. 
+
+#* let lens_plus
+#*   : ((l:lens where land (iterable (ctype l))
+#*                         (iterable (atype l)))
+#*  -> lens)
+## = Native.Prelude.lens_plus
+
+#* test get (lens_plus (copy [A-Z])) "A" = "A"
+#* test get (lens_plus (copy [A-Z])) "ABCD" = "ABCD"
+#* test put (lens_plus (copy [A-Z])) "AB" "ABCD" = "AB"
+#* test create (lens_plus (copy [A-Z])) "A" = "A"
+
+\LENSSECTION{@lens_option@} The @lens_option@ operator runs a lens once or 
+not at all.  The concrete and abstract types of the lens must both be disjoint 
+from the empty lens.  The overloaded operator @?@ desugars into @lens_option@
+when applied to a lens.
+
+#* let lens_option
+#*   : ((l:lens where land (disjoint (ctype l) [])
+#*                         (disjoint (atype l) []))
+#*  -> lens)
+## = Native.Prelude.lens_option
+
+#* test get (lens_option (copy [A-Z])) "" = ""
+#* test get (lens_option (copy [A-Z])) "A" = "A"
+#* test put (lens_option (copy [A-Z])) "B" "" = "B"
+#* test create (lens_option (copy [A-Z])) "A" = "A"
+
 \LENSSECTION{@lens_iter@} The @lens_iter@ operator iterates a lens. The iterations of the concrete 
 and abstract types of the lens must both be unambiguous. 
 The overloaded operators @*@, @+@, @?@, @{m,n}@ and @{n,}@ all 
 desugar into instances of @lens_iter@ when applied to a lens. 
-If the second argument is negative, then the iteration is unbounded. 
-For example,  @l*@ desugars into @lens_iter l 0 (-1)@.
+If the second argument is $-1$, then the iteration is unbounded. 
+For example,  @l*@ desugars into @lens_iter l 0 (-1)@.  The contract 
+on the exposed @lens_iter@ is \textit{not} appropriate for all of its uses;
+it is only appropriate for positive @m@ and @n@.
 
-#* let lens_iter : lens -> int -> int -> lens 
+#* let lens_iter 
+#*   : ((l:lens where land (splittable (ctype l) (ctype l))
+#*                         (splittable (atype l) (atype l))) -> 
+#*      (min:int where bgeq min 0) -> int -> lens)
 ## = Native.Prelude.lens_iter 
 
 #* test get (lens_iter (copy [A-Z]) 0 4) "" = ""
@@ -418,7 +499,7 @@ For example,  @l*@ desugars into @lens_iter l 0 (-1)@.
 \LENSSECTION{@invert@} The @invert@ operator swaps the $\GET$ and $\CREATE$ components 
 of a lens, which must be bijective.
 
-#* let invert : lens -> lens 
+#* let invert : ((l:lens where bij l) -> lens)
 ## = Native.Prelude.invert 
 
 #* test get (invert (const [A] "B" "A")) "B" = "A"
@@ -427,7 +508,7 @@ of a lens, which must be bijective.
 \LENSSECTION{@default@} The @default@ operator takes a lens @l@ and a string @d@ 
 as arguments. It overrides @l@'s $\CREATE$ function to use $\PUT$ with @d@.
 
-#* let default : lens -> string -> lens
+#* let default : (l:lens -> (d:string where matches (ctype l) d) -> lens)
 ## = Native.Prelude.default
 
 #* test create (default (const [A-Z] "X" "A") "B") "X" = "B"
@@ -439,7 +520,10 @@ by discarding all of the substrings belonging to @R@. The regular expressions
 @R@ and @S@ must be disjoint and the iteration of their union must be 
 unambiguous.
 
-#* let filter : regexp -> regexp -> lens
+#* let filter 
+#*   : (R:regexp -> (S:regexp where land (disjoint R S) 
+#*                                       (iterable (regexp_union R S))) 
+#*               -> lens)
 ## = Native.Prelude.filter
 
 #* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
@@ -526,14 +610,20 @@ $\CANONIZE$ component and  $\CREATE$ as $\CHOOSE$.
 concatenates canonizers. Only the concatenation of types on the left 
 side needs to be unambiguous. 
 
-#* let canonizer_concat : canonizer -> canonizer -> canonizer 
+#* let canonizer_concat
+#*   : (cn1:canonizer -> (cn2:canonizer where splittable (uncanonized_type cn1) 
+#*                                                       (uncanonized_type cn2))
+#*                    -> canonizer)
 ## = Native.Prelude.canonizer_concat 
 
 \LENSSECTION{@canonizer_union@} The @canonizer_union@ operator
 forms the union of two canonizers. The types on the left 
 need to be disjoint. 
 
-#* let canonizer_union : canonizer -> canonizer -> canonizer 
+#* let canonizer_union 
+#*   : (cn1:canonizer -> (cn2:canonizer where disjoint (uncanonized_type cn1)
+#*                                                     (uncanonized_type cn2))
+#*                    -> canonizer)
 ## = Native.Prelude.canonizer_union 
 
 \LENSSECTION{@canonizer_iter@} The @canonizer_iter@ operator
@@ -544,8 +634,10 @@ applied to a canonizer. If the second argument is negative, then the
 iteration is unbounded. For example,  @q*@ desugars 
 into @canonizer_iter q 0 (-1)@.
 
-##let canonizer_iter : canonizer -> int -> int -> canonizer = 
-##  Native.Prelude.canonizer_iter
+#* let canonizer_iter
+#*   : ((cn:canonizer where iterable (uncanonized_type cn)) ->
+#*      (min:int where bgeq min 0) -> int -> canonizer)
+## = Native.Prelude.canonizer_iter
 
 \LENSSECTION{@columnize@} The @columnize@ primitive canonizer wraps 
 long lines of text. It takes as arguments an integer @n@, a regular
@@ -557,7 +649,13 @@ $\CHOOSE$ component wraps a string belonging to the iteration of
 @R@ by replacing @s@ with @nl@ to obtain a string in which 
 (if possible) the length of every line is less than or equal to @n@.
 
-#* let columnize : int -> regexp -> char -> string -> canonizer
+#* let columnize 
+#*   : int -> (R:regexp -> char -> 
+#*     (nl:string where 
+#*       is_empty (inter R (regexp_concat (regexp_iter [^] 0 (minus 0 1)) 
+#*                                        (regexp_concat (str nl) 
+#*                                        (regexp_iter [^] 0 (minus 0 1))))))
+#*                      -> canonizer)
 ## = Native.Prelude.columnize 
 
 \noindent The following unit test illustrates the $\CHOOSE$ component of
@@ -581,7 +679,9 @@ structures quotient lenses. For details, see \citet{QuotientLenses08}.
 \LENSSECTION{@left_quot@} The @left_quot@ operator quotients a lens @l@ by 
 a canonizer @q@ on the left by passing concrete strings through @q@.  
 
-#* let left_quot : canonizer -> lens -> lens 
+#* let left_quot 
+#*   : (cn:canonizer ->
+#*     (l:lens where equiv (canonized_type cn) (ctype l)) -> lens)
 ## = Native.Prelude.left_quot
 
 #* test get 
@@ -608,7 +708,9 @@ a canonizer @q@ on the left by passing concrete strings through @q@.
 \LENSSECTION{@right_quot@} The @right_quot@ operator quotients a lens @l@ by 
 a canonizer @q@ on the right by passing abstract strings through @q@.  
 
-#* let right_quot : lens -> canonizer -> lens
+#* let right_quot
+#*   : (l:lens ->
+#*     (cn:canonizer where equiv (canonized_type cn) (atype l)) -> lens)
 ## = Native.Prelude.right_quot
 
 \LENSSECTION{@dup1@} The @dup1@ operator takes as arguments a 
@@ -642,12 +744,6 @@ a file from the local filesystem.
 
 #* let read : string -> string 
 ## = Native.Prelude.read
-
-\LENSSECTION{@blame@} The @blame@ function (not shown) is used in the Boomerang 
-intepreter to report dynamic contract failures.
-
-## let blame 'a 'b (i:string * ((int * int) * (int * int))) (v:'a) (es:string) : 'b 
-## = Native.Prelude.blame{'a}{'b} i v es
 
 \subsection{Synchronization}
 

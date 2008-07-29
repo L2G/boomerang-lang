@@ -80,7 +80,7 @@ let rec fresh_qid x s =
 (* Helpers for resolving types. Both return returns the
    fully-qualified name of the type (e.g., [List.t]), its sort
    variables (e.g., ['a]), and its constructors (e.g., [(List.Nil,
-   None); (List.Cons, (a * List.t))].
+   None); (List.Cons, (a * List.t))]).
 
    o get_con lookups a type from a data type constructor (e.g.,
      [Nil]).
@@ -118,7 +118,7 @@ let ignore_refinements = Prefs.createBool "ignore-refinements" false
 
 (* determine whether a term is (i.e., immediately compiles to) a value *)
 let rec is_value e0 = match e0 with
-  | EVar _
+  (* | EVar _ *) (* !!! this should be true, but our substitution based overloading uses variables and demands aliasing ... *)
   | EFun _ 
   | ETyFun _
   | ELoc _ 
@@ -193,7 +193,7 @@ let rec compatible f t = match f,t with
         let z = fresh_id x (Id.Set.union f_fvs t_fvs) in
         let f_subst = [x,SVar z] in 
         let t_subst = [y,SVar z] in 
-        (compatible (subst_sort f_subst s1) (subst_sort t_subst s2))
+          compatible (subst_sort f_subst s1) (subst_sort t_subst s2)
   | SRefine(_,s11,_),s2 -> compatible s11 s2
   | s1,SRefine(_,s21,_) -> compatible s1 s21
   | _ -> false
@@ -373,8 +373,14 @@ and check_exp sev e0 =
           | Some (G.Sort s) -> 
 	      (* if it is bound, return the sort *)
 	      s
-          | _ -> 
-	      (* otherwise raise an exception *)
+
+	      (* otherwise raise an appropriate exception *)
+	  | Some (G.Unknown) ->
+	      sort_error i
+                (fun () -> msg "@[%s is bound but of unknown type; checking failed@]" 
+                   (Qid.string_of_t q))
+	      
+          | None -> 
 	      sort_error i
                 (fun () -> msg "@[%s is not bound@]" 
                    (Qid.string_of_t q)) in 
@@ -384,10 +390,6 @@ and check_exp sev e0 =
         let err () = sort_error i 
           (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
           (* rules for overloaded symbols *)
-        let iter_rules = 
-          [ SRegexp, "regexp_iter";
-            SLens, "lens_iter";
-            SCanonizer, "canonizer_iter" ] in 
         let bin_rules =
           [ ODot, 
             [ SString, "string_concat";
@@ -422,9 +424,17 @@ and check_exp sev e0 =
                 Some x
 	      else 
                 find_rule t es in 
-          (* type check es -- we just want types for overloading
-	     so we ignore the new_ei and the ls
-	     
+          (* type check es
+
+	     N.B.: we don't want to have to recheck the es, but we want the resolved 
+	     operation to be aliased.  to do this, we'll substitute in varaibles "e1" and 
+	     "e2" (depending on the arity of the operation), check the resolved operation 
+	     applied to those varaibles, and then substitute
+
+	     this relies on a few complicated invariants.  the trickist one is that 
+	     variables are _not_ values according to is_value, since we WANT aliasing
+	     as a negative side effect, if e1 and e2 _really are_ variables, we may end up 
+	     generating locations that reference variables.  a minor hit, but still sub par
 	  *)
         let new_es,new_ls = 
           Safelist.fold_right
@@ -432,29 +442,51 @@ and check_exp sev e0 =
 	       let (ei_sort,new_ei,ei_ls) = check_exp sev ei in 
                  (ei_sort,new_ei)::new_es,ei_ls@new_ls)
             es ([],[]) in
-          (* rewrite the overloaded symbol using the rules above *)
-          match op,new_es with
-            | OIter(min,max),[e1_sort,new_e1] -> begin 
-                match find_rule iter_rules new_es with 
-                  | Some x ->
-		      let iter = Qid.mk_core_t x in
-		      let qe1 = fresh_qid (Id.mk i "e1") (Qid.Set.singleton iter) in
-		      let new_e = 
-			(mk_app i 
-                           (mk_app i 
-		              (mk_app i (mk_var i iter)
-                                 (mk_var i qe1))
-			      (mk_int i min))
-                           (mk_int i max)) in
-		      let op_sev = SCEnv.update sev qe1 (G.Sort e1_sort) in
-		      let (op_s,op_e,op_ls) = check_exp op_sev new_e in
-		      let subst = subst_exp [qe1,new_e1] in
-			(op_s,
-			 subst op_e,
-			 new_ls@
-			   (Safelist.map (fun (li,ei) -> (li,subst ei)) op_ls))
-                  | None -> err () 
-	      end
+        (* rewrite the overloaded symbol using the rules above; iter is treated specially *)
+        let (op_s,op_e,op_ls) = match op,new_es with
+            | OIter(min,max),[e1_sort,new_e1] ->
+		let mk_iter iter_id =
+		  let iter = Qid.mk_core_t iter_id in
+		  let qe1 = fresh_qid (Id.mk i "e1") (Qid.Set.singleton iter) in
+		  let new_e = 
+		    (mk_app i 
+                       (mk_app i 
+			  (mk_app i (mk_var i iter)
+                             (mk_var i qe1))
+			  (mk_int i min))
+                       (mk_int i max)) in
+		  let op_sev = SCEnv.update sev qe1 (G.Sort e1_sort) in
+		  let (op_s,op_e,op_ls) = check_exp op_sev new_e in
+		  let subst = subst_exp [qe1,new_e1] in
+		    (op_s,
+		     subst op_e,
+		     new_ls@
+		       (Safelist.map (fun (li,ei) -> (li,subst ei)) op_ls)) in
+		  if compatible e1_sort SRegexp
+		  then mk_iter "regexp_iter"
+		  else if compatible e1_sort SLens
+		  then
+		    let checked_app f_name =
+			  let f_id = Qid.mk_core_t f_name in
+			  let qe1 = fresh_qid (Id.mk i "e1") (Qid.Set.singleton f_id) in
+			  let new_e = EApp(i,EVar(i,f_id),EVar(i,qe1)) in
+			  let op_sev = SCEnv.update sev qe1 (G.Sort e1_sort) in
+			  let (op_s,op_e,op_ls) = check_exp op_sev new_e in
+			  let subst = subst_exp [qe1,new_e1] in
+			    (op_s,
+			     subst op_e,
+			     new_ls@
+			       (Safelist.map (fun (li,ei) -> (li,subst ei)) op_ls)) in
+			match min,max with
+			    (* l{0,0} = copy [] *)
+			    (0,0) -> check_exp sev (EApp(i,mk_core_var i "copy",mk_core_var i "EPSILON"))
+			  | (0,1) -> checked_app "lens_option"
+			  | (0,-1) -> checked_app "lens_star"
+			  | (1,-1) -> checked_app "lens_plus"
+			  | _ -> mk_iter "lens_iter"
+		  else if compatible e1_sort SCanonizer
+		  then mk_iter "canonizer_iter"
+		  else err ()
             | OEqual,[e1_sort,e1;e2_sort,e2] ->
                 (SBool,
                  mk_app3 i 
@@ -465,26 +497,30 @@ and check_exp sev e0 =
                 let rules = try Safelist.assoc op bin_rules with _ -> err () in 
                   match find_rule rules new_es with 
                     | Some x ->
-			let op = Qid.mk_core_t x in
-			let op_fvs = (Qid.Set.singleton op) in
+			let op_id = Qid.mk_core_t x in
+			let op_fvs = (Qid.Set.singleton op_id) in
 			let qe1 = fresh_qid (Id.mk i "e1") op_fvs in
 			let qe2 = fresh_qid (Id.mk i "e2") op_fvs in
                         let new_e = 
 			  mk_app3 i 
-			    (mk_var i op) 
+			    (mk_var i op_id) 
 			    (mk_var i qe1)
 			    (mk_var i qe2) in
 			let op_sev1 = SCEnv.update sev qe1 (G.Sort e1_sort) in
 			let op_sev2 = SCEnv.update op_sev1 qe2 (G.Sort e2_sort) in
                         let (op_s,op_e,op_ls) = check_exp op_sev2 new_e in
 			let subst = subst_exp [qe1,new_e1; qe2,new_e2] in
+			let subst_e = subst op_e in
 			  (op_s,
-			   subst op_e,
+			   subst_e,
 			   new_ls@
 			     (Safelist.map (fun (li,ei) -> (li,subst ei)) op_ls))
 		    | None -> err ()
 	      end
             | _ -> err ()
+	in
+	  Trace.debug "over+" (fun () -> msg "@[@ %a@\n\t~~>@\n %a@]@\n" (fun _ -> format_exp) e0 (fun _ -> format_exp) (mk_alloc i op_ls op_e));
+	  (op_s,op_e,op_ls)
       end
 
     | EFun(i,Param(p_i,p_x,p_s),ret_sorto,body) ->
@@ -511,11 +547,29 @@ and check_exp sev e0 =
                            (string_of_sort body_sort));
                   let cast_body = mk_cast "function body" (info_of_exp body) body_sort new_ret_sort new_body in
                     (Some new_ret_sort,(new_ret_sort,cast_body,body_ls)) in 
+	  (* make the return type dependent if we need to *)
+        let dep_x = 
+          if Qid.Set.mem (Qid.t_of_id p_x) (free_exp_vars_in_sort body_sort) 
+	  then p_x
+          else Id.wild in
+        (* cull unnecessary locs before allocation -- note that we must take the transitive closure to be safe 
+
+	   TODO this should be converted to sets -- it'll be faster; we need to convert free_locs_*, too, though
+	*)
+	let rec close needed ls =
+	  if needed = []
+	  then []
+	  else
+	    let needed' = Safelist.concat (Safelist.map (fun (li,ei) -> free_locs_exp ei) ls) in
+	    let all = needed' @ needed in
+	    let novel = Safelist.filter (fun l -> Safelist.mem l all) needed in
+	    let closure = close novel ls in
+	      all @ closure
+	in
+	let needed_ls = close (free_locs_sort body_sort) body_ls in
+	let alloc_ls = Safelist.filter (fun (li,ei) -> Safelist.mem li needed_ls) body_ls in
         let e0_sort = 
-          let dep_x = 
-            if Qid.Set.mem (Qid.t_of_id p_x) (free_exp_vars_in_sort body_sort) then p_x
-            else Id.wild in
-            SFunction(dep_x,new_p_s,body_ls (* MK_ALLOC *),body_sort) in
+            SFunction(dep_x,new_p_s,alloc_ls (* MK_ALLOC *),body_sort) in
           (*       Trace.debug "dep" *)
           (*         (fun () -> *)
           (*            msg "FVS: {%s}@\n" (Misc.concat_list "," (Safelist.map Qid.string_of_t (Qid.Set.elements (free_exp_vars_in_sort body_sort)))); *)
@@ -581,9 +635,10 @@ and check_exp sev e0 =
         (* character sets have sort SRegexp *)
         (SRegexp,e0,[])
 
-    | EApp(i,e1,e2) ->  
+    | EApp(i,e1,e2) ->
         (* for function applications, check the left-hand expression *)
         let e1_sort,new_e1,e1_ls = check_exp sev e1 in 
+	(Trace.debug "alias+" (fun () -> msg "@[EApp arg1:@ %a : %a@]@\n" (fun _ -> format_exp) e1 (fun _ -> format_sort) e1_sort));
           (* and make sure it is a function sort *)
           begin match expose_sort e1_sort with 
             | SFunction(x,param_sort,ls,return_sort) -> 
@@ -600,20 +655,21 @@ and check_exp sev e0 =
                   (* construct cast *)
                   let cast_e2 = mk_cast "application argument" i2 e2_sort param_sort new_e2 in
                     (* two cases: simple arrows (represented by Id.wild) and dependent arrows *)
-                    if Id.equal x Id.wild then           
+                    if Id.equal x Id.wild then
 		      let new_e0 = EApp(i,new_e1,cast_e2) in 
 		      let e0_sort = return_sort in
+		      (Trace.debug "alias+" (fun () -> msg "@[UNALIASED:@ %a : %a@]@\n" (fun _ -> format_exp) new_e0 (fun _ -> format_sort) e0_sort));
 			(e0_sort,new_e0,e1_ls@e2_ls@ls)
                     else
 		      let e2_loc,aliased_e2 = mk_alias i2 cast_e2 in
 		      let new_e0 = EApp(i,new_e1,aliased_e2) in
 		      let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,aliased_e2)] return_sort in
-			(e0_sort,new_e0,e1_ls@e2_ls@e2_loc@ls)
-                          (* msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
-                          (* msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
-                          (* msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
-                          (* msg "@[RESULT: %s@\n@]" (string_of_sort e0_sort); *)
-                          (* if Id.equal x Id.wild then () else msg "@[SUBST_EXP_IN_SORT: %s := %s IN %s ~> %s@]@\n" (Id.string_of_t x) (string_of_exp cast_e2) (string_of_sort return_sort) (string_of_sort e0_sort); *)
+		      (Trace.debug "alias" (fun () -> msg "@[ALIASED:@ %a : %a@]@\n" (fun _ -> format_exp) new_e0 (fun _ -> format_sort) e0_sort));
+(*                           msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
+(*                           msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
+(*                           msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
+(*                           msg "@[RESULT: %s@\n@]" (string_of_sort e0_sort); *)
+		       (e0_sort,new_e0,e1_ls@e2_ls@e2_loc@ls)
             | _ -> 
                 sort_error (info_of_exp e1)
                   (fun () ->              

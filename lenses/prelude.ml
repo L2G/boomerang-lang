@@ -190,6 +190,8 @@ let prelude_spec =
   ; pmk_lll    "lens_swap"            (fun i l1 l2 -> L.permute i [1;0] [l1;l2])
   ; pmk_liil   "lens_iter"            L.iter
   ; pmk_ll     "lens_star"            (fun i l -> L.iter i l 0 (-1))
+  ; pmk_ll     "lens_plus"            (fun i l -> L.iter i l 1 (-1))
+  ; pmk_ll     "lens_option"          (fun i l -> L.iter i l 0 1)
   ; pmk_izlzl  "permute"              (fun i is ls -> L.permute i (Safelist.map get_i is) (Safelist.map get_l ls))
   ; pmk_sll    "dmatch"               (fun i -> L.dmatch i L.std_lookup)
   ; pmk_ssll   "smatch"               (fun i s -> 
@@ -304,35 +306,6 @@ let prelude_spec =
            Bol(i,equal v1 v2)))))
    end
  
-  ; begin 
-    let i = Info.M "blame built-in" in 
-    let a = Id.mk i "a" in 
-    let b = Id.mk i "b" in 
-    let a_sort = S.SVar a in 
-    let b_sort = S.SVar b in 
-    let pos_sort = S.SProduct(S.SInteger,S.SInteger) in 
-    let poses_sort = S.SProduct(pos_sort,pos_sort) in 
-    let i_sort = S.SProduct(S.SString,poses_sort) in 
-    (Qid.mk_native_prelude_t "blame",    
-    S.SForall(a,S.SForall(b,i_sort ^> a_sort ^> S.SString ^> b_sort)), 
-    mk_ufun i (fun () -> 
-      mk_ufun i (fun () -> 
-        mk_pfun i (fun (fn,ps) -> 
-          mk_f i (fun v ->
-            mk_sfun i (fun s -> 
-              let fn_s = get_s fn in 
-              let i_blame = 
-                let ps1,ps2 = get_p ps in 
-                let i1,i2 = get_p ps1 in 
-                let j1,j2 = get_p ps2 in 
-                  Info.I(fn_s,(get_i i1,get_i i2),(get_i j1,get_i j2)) in 
-                Berror.blame_error i_blame 
-                  (fun () -> 
-                     Util.format "@[%s@ did@ not@ satisfy@ refinement@ at@ %s@]"
-                       (Bvalue.string_of_t v) s)
-                   ))))))
-  end
-
   ; begin 
     let i = Info.M "fold_left built-in" in 
     let nil = Id.mk (Info.M "Nil built-in") "Nil" in 

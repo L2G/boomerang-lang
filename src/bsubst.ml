@@ -301,6 +301,43 @@ and free_evars_exp acc = function
   | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | ELoc _ -> 
       acc
 
+let map_concat f ls = Safelist.concat (Safelist.map f ls)
+let mem_assoc v als = 
+  try Safelist.assoc v als; true
+  with Not_found -> false
+
+let rec free_locs_sort = function 
+  | SFunction(x,s1,ls,s2) ->
+      (free_locs_sort s1)@(Safelist.filter (fun l -> not (mem_assoc l ls)) (free_locs_sort s2))
+  | SProduct(s1,s2) -> (free_locs_sort s1) @ (free_locs_sort s2)
+  | SData(sl,_) -> map_concat free_locs_sort sl
+  | SRefine(x,s1,e2) -> (free_locs_sort s1)@(free_locs_exp e2)
+  | SForall(_,s1) -> free_locs_sort s1
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> []
+and free_locs_exp = function
+  | EApp(_,e1,e2) -> (free_locs_exp e1)@(free_locs_exp e2)
+  | EOver(_,_,el) -> map_concat free_locs_exp el
+  | EFun(_,Param(_,_,s2),so3,e4) -> 
+      (free_locs_sort s2)@(match so3 with None -> [] | Some s3 -> free_locs_sort s3)@(free_locs_exp e4)
+  | ELet(_,Bind(_,p1,so2,e3),e4) ->
+      (free_locs_pat p1)@(match so2 with None -> [] | Some s2 -> free_locs_sort s2)@(free_locs_exp e3)@(free_locs_exp e4)
+  | ETyFun(_,_,e1) -> free_locs_exp e1
+  | ETyApp(_,e1,s2) -> (free_locs_exp e1)@(free_locs_sort s2)
+  | ECast(_,f1,t2,_,e3) -> (free_locs_sort f1)@(free_locs_sort t2)@(free_locs_exp e3)
+  | EPair(_,e1,e2) -> (free_locs_exp e1)@(free_locs_exp e2)
+  | ECase(_,e1,cl,s3) -> 
+      (free_locs_exp e1)@(free_locs_sort s3)@(map_concat (fun (pi,ei) -> (free_locs_pat pi)@(free_locs_exp ei)) cl)
+  | EAlloc(_,ls,e1) -> Safelist.filter (fun l -> not (mem_assoc l ls)) ((map_concat (fun (_,ei) -> free_locs_exp ei) ls)@(free_locs_exp e1))
+  | ELoc(_,l) -> [l]
+  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  | EVar _ -> []
+and free_locs_pat = function
+  | PVar(_,_,Some s) -> free_locs_sort s
+  | PVar(_,_,None)   -> []
+  | PVnt(_,_,Some p) -> free_locs_pat p
+  | PVnt(_,_,None)   -> []
+  | PPar(_,p1,p2)    -> (free_locs_pat p1)@(free_locs_pat p2)
+  | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> []
+
 (* EXPRESSION SUBSTITUTION *)
 let free_evars_in_subst subst = 
   Safelist.fold_left 

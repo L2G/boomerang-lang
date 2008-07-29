@@ -778,7 +778,7 @@ repexp:
   | tyexp rep                            
       { let i2,(min,max) = $2 in 
         let i = me1 $1 i2 in 
-        mk_iter i min max $1 }
+	  mk_iter i min max $1 }
 
   | tyexp                                
       { $1 }
@@ -1054,12 +1054,16 @@ sort:
 /* arrow sorts */
 #{@}
 <ArrowSort> ::= <ProductSort> \lit{@->@} <ArrowSort>
+     \alt \lit{@(@} <LIdent> \lit{@:@} <ProductSort> \lit{@->@} <ArrowSort> \lit{@)@}
      \alt <ProductSort>
 
 #{#}
 arrowsort: 
   | productsort ARROW arrowsort 
       { SFunction(Id.wild,$1,[],$3) } 
+
+  | LPAREN id COLON productsort ARROW arrowsort RPAREN
+      { SFunction($2,$4,[],$6) }
 
   | productsort
       { $1 }
@@ -1095,12 +1099,20 @@ datatypesort:
 
 #{@}
 <BSort> ::= \lit{@(@} <Sort> \lit{@)@}
+       \alt \lit{@(@} <Sort> \lit{@where@} <Exp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@:@} <Sort> \lit{@where@} \lit{@)@}
        \alt <ASort>
 
 #{#}
 bsort:
   | LPAREN sort RPAREN
       { $2 }
+
+  | LPAREN sort WHERE exp RPAREN
+      { SRefine(Id.wild,$2,$4) }
+
+  | LPAREN id COLON sort WHERE exp RPAREN
+      { SRefine($2,$4,$6) }
 
   | asort 
       { $1 }

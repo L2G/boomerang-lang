@@ -112,139 +112,6 @@ let mk_regexp_of_string i e =
 let mk_lens_of_regexp i e = 
   EApp(i,mk_native_prelude_var i "copy",e)
 
-(* precondition: f and t must be compatible. *)
-let rec mk_cast_blame lt i b f t e = 
-  (* generates cast of e0 into the refinement (x:t where e) *)
-  let cast_refinement f x t e e0 = 
-    let t0 = SRefine(x,t,e) in 
-    let qx = Qid.t_of_id x in 
-    let erased_t = erase_sort t in 
-    let erased_t0 = erase_sort t0 in 
-    let e_blame = ETyApp(i,ETyApp(i,EVar(i,Qid.mk_core_t "blame"),erased_t),erased_t0) in 
-    let e_info = exp_of_blame i b in                         
-      mk_let i x t
-        (mk_cast_blame lt i b f t e0) 
-        (mk_if i e 
-           (EVar(i,qx))
-           (mk_app3 i 
-              (EApp(i,e_blame,e_info))
-              (EVar(i,qx))
-              (EString(i,(Info.string_of_t (info_of_exp e)))))
-           erased_t) in
-  let res = 
-    if Bcheck.trivial_cast f t then e
-    else
-      match f,t with
-      | SUnit,SUnit
-      | SBool,SBool
-      | SInteger,SInteger
-      | SChar,SChar
-      | SString,SString
-      | SRegexp,SRegexp
-      | SLens,SLens 
-      | SCanonizer,SCanonizer 
-      | SVar(_),SVar(_) -> 
-          e
-      | SChar,SString ->           
-          mk_string_of_char i e 
-      | SChar,SRegexp -> 
-          mk_regexp_of_string i (mk_string_of_char i e)
-      | SChar,SLens -> 
-          mk_lens_of_regexp i (mk_regexp_of_string i (mk_string_of_char i e))
-      | SString,SRegexp ->  
-          mk_regexp_of_string i e
-      | SString,SLens -> 
-          mk_lens_of_regexp i (mk_regexp_of_string i e)
-      | SRegexp,SLens -> 
-          mk_lens_of_regexp i e
-      | SFunction(x,f1,ls1,f2), SFunction(y,t1,ls2,t2) -> 
-          let fn = Id.mk i "fn" in 
-          let qx = Qid.t_of_id x in 
-          let qfn = Qid.t_of_id fn in 
-          let e_x = EVar(i,qx) in
-          let e_fn = EVar(i,qfn) in
-          let e_fx = EApp(i,e_fn,e_x) in
-          let c1 = mk_cast_blame lt i (invert_blame b) t1 f1 e_x in 
-          let c2 = mk_cast_blame lt i b f2 t2 e_fx in
-          if c1 == e_x && c2 == e_fx then 
-            e
-          else
-	    let alloc_c2 = EAlloc(i,ls1@ls2,c2) in
-            EApp(i,mk_fun i fn f (mk_fun i y t1 (mk_let i x f1 c1 alloc_c2)),e)
-      | SProduct(f1,f2), SProduct(t1,t2) ->
-	  if syneq_sort f1 t1 && syneq_sort f2 t2
-	  then e
-	  else
-            let x = Id.mk i "x" in 
-            let y = Id.mk i "y" in 
-            let e_x = EVar(i,(Qid.t_of_id x)) in 
-            let e_y = EVar(i,(Qid.t_of_id y)) in 
-            let c1 = mk_cast_blame lt i b f1 t1 e_x in
-            let c2 = mk_cast_blame lt i b f2 t2 e_y in                 
-              if c1 == e_x && c2 == e_y then e
-              else
-		let px = PVar(i,x,Some f1) in
-		let py = PVar(i,y,Some f2) in
-		  ECase(i,e,[ (PPar(i,px,py), EPair(i,c1,c2)) ],t)
-      | SData(fl,x),SData(tl,y) when Qid.equal x y -> 
-          let rec aux acc l1 l2 = acc && match l1,l2 with
-            | [],[] -> true
-            | h1::t1,h2::t2 -> aux (syneq_sort h1 h2) t1 t2 
-            | _ -> false in 
-          if aux true fl tl then e
-          else 
-            let _,(svl,cl) = get_type lt i x in               
-            let fsubst = Safelist.combine svl fl in 
-            let tsubst = Safelist.combine svl tl in 
-            let cl_finst = inst_cases fsubst cl in 
-            let cl_tinst = inst_cases tsubst cl in
-            let x = Id.mk i "x" in 
-            let qx = Qid.t_of_id x in 
-            let y = Id.mk i "y" in 
-            let qy = Qid.t_of_id y in 
-            let pl = Safelist.map
-              (fun ((li,fio),(_,tio)) -> 
-                 match fio,tio with 
-                   | None,None -> 
-                       let pi = PVnt(i,li,None) in 
-                       let ei = EVar(i,qx) in 
-                         (pi,ei)
-                   | Some fi,Some ti -> 
-                       let li_f = 
-                         Safelist.fold_right 
-                           (fun tj acc -> ETyApp(i,acc,tj))
-                           tl (EVar(i,li)) in 
-                       let py = PVar(i,y,Some fi) in 
-                       let pi = PVnt(i,li,Some py) in 
-                         (* this cast cannot be expanded! (it would loop on recursive data types) *)
-                       let ei = EApp(i,li_f,ECast(i,fi,ti,b,EVar(i,qy))) in
-                         (pi,ei)
-                   | _ -> run_error i 
-                       (fun () -> msg "@[different@ datatypes@ in@ cast@ expression@]"))
-              (Safelist.combine cl_finst cl_tinst) in 
-              mk_let i x f e (ECase(i,EVar(i,qx),pl,t))
-      | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
-          if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 then 
-            e
-          else
-            cast_refinement f y t2 e2 e
-      | _,SRefine(x,t2,e2) -> 
-          cast_refinement f x t2 e2 e
-      | SRefine(x,f1,e1),t1 -> 
-          mk_cast_blame lt i b f1 t1 e
-      | SForall(x,f1),SForall(y,t1) ->
-          let e_ex = ETyApp(i,e,SVar x) in
-          let c1 = mk_cast_blame lt i b f1 t1 e_ex in 
-          if c1 == e_ex then e
-          else ETyFun(i,x,c1)
-      | _ -> 
-          run_error i 
-            (fun () -> 
-               msg "@[cannot@ cast@ incompatible@ %s@ to@ %s@]"
-                 (string_of_sort f)
-                 (string_of_sort t)) in 
-    res
-
 (* --------------------------------------------------------------------------- *)
 (* INTERPRETER *)
 
@@ -278,8 +145,126 @@ let rec dynamic_match i p0 v0 =
          | _ -> None)
   | _ -> None 
 
+(* precondition: f and t must be compatible. *)
+let rec interp_cast cev i b f t e = 
+  (* generates cast of e0 into the refinement (x:t where e) *)
+  let cast_refinement f x t e e0 = 
+    let v = interp_exp cev (ECast(i,f,t,b,e0)) in
+    let cev' = CEnv.update cev (Qid.t_of_id x) (G.Unknown,v) in
+    if V.get_b (interp_exp cev' e)
+    then v
+    else 
+      let Blame(b_info) = b in
+	Berror.blame_error b_info
+	  (fun () ->
+	     (* TODO show bindings of free vars in e *)
+	     Util.format "@[%s=%a@ did@ not@ satisfy@ %a@ at@ %s]"
+	       (Id.string_of_t x)
+	       (fun _ -> V.format) v
+	       (fun _ -> format_exp) e
+	       (Info.string_of_t b_info)) in
+  let res = 
+    if Bcheck.trivial_cast f t then interp_exp cev e
+    else
+      match f,t with
+      | SUnit,SUnit
+      | SBool,SBool
+      | SInteger,SInteger
+      | SChar,SChar
+      | SString,SString
+      | SRegexp,SRegexp
+      | SLens,SLens 
+      | SCanonizer,SCanonizer 
+      | SVar(_),SVar(_) -> interp_exp cev e
+      | SChar,SString -> interp_exp cev (mk_string_of_char i e)
+      | SChar,SRegexp -> interp_exp cev (mk_regexp_of_string i (mk_string_of_char i e))
+      | SChar,SLens -> interp_exp cev (mk_lens_of_regexp i (mk_regexp_of_string i (mk_string_of_char i e)))
+      | SString,SRegexp -> interp_exp cev (mk_regexp_of_string i e)
+      | SString,SLens -> interp_exp cev (mk_lens_of_regexp i (mk_regexp_of_string i e))
+      | SRegexp,SLens -> interp_exp cev (mk_lens_of_regexp i e)
+      | SFunction(x,f1,ls1,f2), SFunction(y,t1,ls2,t2) -> 
+          let fn = Id.mk i "fn" in 
+          let qx = Qid.t_of_id x in 
+          let qfn = Qid.t_of_id fn in 
+          let e_x = EVar(i,qx) in
+          let e_fn = EVar(i,qfn) in
+          let e_fx = EApp(i,e_fn,e_x) in
+          let c1 = ECast(i,t1,f1,invert_blame b,e_x) in 
+          let c2 = ECast(i,f2,t2,b,e_fx) in
+	  let alloc_c2 = EAlloc(i,ls1@ls2,c2) in
+          let apped_cast = EApp(i,mk_fun i fn f (mk_fun i y t1 (mk_let i x f1 c1 alloc_c2)),e) in
+	    interp_exp cev apped_cast
+      | SProduct(f1,f2), SProduct(t1,t2) ->
+	  if syneq_sort f1 t1 && syneq_sort f2 t2
+	  then interp_exp cev e
+	  else
+            let x = Id.mk i "x" in 
+            let y = Id.mk i "y" in 
+            let e_x = EVar(i,(Qid.t_of_id x)) in 
+            let e_y = EVar(i,(Qid.t_of_id y)) in 
+            let c1 = ECast(i,f1,t1,b,e_x) in
+            let c2 = ECast(i,f2,t2,b,e_y) in
+	    let px = PVar(i,x,Some f1) in
+	    let py = PVar(i,y,Some f2) in
+	    let casted_pair = ECase(i,e,[ (PPar(i,px,py), EPair(i,c1,c2)) ],t) in
+	      interp_exp cev casted_pair
+      | SData(fl,x),SData(tl,y) when Qid.equal x y -> 
+          let rec aux acc l1 l2 = acc && match l1,l2 with
+            | [],[] -> true
+            | h1::t1,h2::t2 -> aux (syneq_sort h1 h2) t1 t2 
+            | _ -> false in 
+          if aux true fl tl then interp_exp cev e
+          else 
+            let _,(svl,cl) = get_type (CEnv.lookup_type cev) i x in               
+            let fsubst = Safelist.combine svl fl in 
+            let tsubst = Safelist.combine svl tl in 
+            let cl_finst = inst_cases fsubst cl in 
+            let cl_tinst = inst_cases tsubst cl in
+            let x = Id.mk i "x" in 
+            let qx = Qid.t_of_id x in 
+            let y = Id.mk i "y" in 
+            let qy = Qid.t_of_id y in 
+            let pl = Safelist.map
+              (fun ((li,fio),(_,tio)) -> 
+                 match fio,tio with 
+                   | None,None -> 
+                       let pi = PVnt(i,li,None) in 
+                       let ei = EVar(i,qx) in 
+                         (pi,ei)
+                   | Some fi,Some ti -> 
+                       let li_f = 
+                         Safelist.fold_right 
+                           (fun tj acc -> ETyApp(i,acc,tj))
+                           tl (EVar(i,li)) in 
+                       let py = PVar(i,y,Some fi) in 
+                       let pi = PVnt(i,li,Some py) in 
+                         (* this cast cannot be expanded! (it would loop on recursive data types) *)
+                       let ei = EApp(i,li_f,ECast(i,fi,ti,b,EVar(i,qy))) in
+                         (pi,ei)
+                   | _ -> run_error i 
+                       (fun () -> msg "@[different@ datatypes@ in@ cast@ expression@]"))
+              (Safelist.combine cl_finst cl_tinst) in 
+              interp_exp cev (mk_let i x f e (ECase(i,EVar(i,qx),pl,t))) (* !!! OPT *)
+      | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
+          if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 
+	  then interp_exp cev e
+          else cast_refinement f y t2 e2 e
+      | _,SRefine(x,t2,e2) -> cast_refinement f x t2 e2 e
+      | SRefine(x,f1,e1),t1 -> interp_cast cev i b f1 t1 e
+      | SForall(x,f1),SForall(y,t1) ->
+	  (* no need to freshen if compatibility substitutes appropriately *)
+          let e_ex = ETyApp(i,e,SVar x) in
+	  interp_exp cev (ETyFun(i,x,ECast(i,f1,t1,b,e_ex)))
+      | _ -> 
+          run_error i 
+            (fun () -> 
+               msg "@[cannot@ cast@ incompatible@ %s@ to@ %s@]"
+                 (string_of_sort f)
+                 (string_of_sort t)) in 
+    res
+
 (* expressions *)
-let rec interp_exp cev e0 = 
+and interp_exp cev e0 = 
 (*   Util.format "INTERP_EXP: %s@\n%!" (Bprint.string_of_exp e0); *)
   match e0 with 
   | EVar(i,q) ->       
@@ -365,8 +350,7 @@ let rec interp_exp cev e0 =
       let mk = if pos then Bregexp.mk_cset else Bregexp.mk_neg_cset in 
       V.Rx(i,mk csi)
 
-  | ECast(i,f,t,b,e) -> 
-      interp_exp cev (mk_cast_blame (CEnv.lookup_type cev) i b f t e) 
+  | ECast(i,f,t,b,e) -> interp_cast cev i b f t e
 
   | ELoc(i,l) -> 
       begin match H.get i l with
