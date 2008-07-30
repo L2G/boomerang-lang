@@ -590,7 +590,7 @@ and check_exp sev e0 =
 	  else
 	    let needed' = Safelist.concat (Safelist.map (fun (li,ei) -> free_locs_exp ei) ls) in
 	    let all = needed' @ needed in
-	    let novel = Safelist.filter (fun l -> Safelist.mem l all) needed in
+	    let novel = Safelist.filter (fun l -> not (Safelist.mem l all)) needed in
 	    let closure = close novel ls in
 	      all @ closure
 	in

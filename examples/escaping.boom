@@ -1,0 +1,347 @@
+module Escaping = 
+
+(* FIRST TRY:
+
+let unrender_quotedstr =
+    "\"" <-> "" 
+  . copy ANY
+  . "\"" <-> "" 
+
+let unescape_quotedstr_char =
+    "\\\"" <-> "\""
+  || "\\\\" <-> "\\"
+  || copy (ANYCHAR - [\\"])
+
+let unescape_quotedstr = unescape_quotedstr_char*
+
+test get unescape_quotedstr
+    <<
+        <hello\"world>
+    >> 
+  = 
+    <<
+        <hello"world>
+    >> 
+
+let tester = unrender_quotedstr ; unescape_quotedstr
+(* DOESN'T WORK!! *)
+*)
+
+test "----- UNRENDER/UNESCAPE -----" = ?
+
+let unrender_quotedstr (R : regexp) =
+    ("\"" <-> "") . 
+    copy R . 
+    ("\"" <-> "")
+
+let unescape_quotedstr_char =
+     ("\\\"" <-> "\"")
+  || ("\\\\" <-> "\\")
+  || copy (ANYCHAR - [\\])
+
+let unescape_quotedstr = unescape_quotedstr_char*
+
+test get unescape_quotedstr
+    <<
+        <hello\"\"world>
+    >>
+  = 
+    <<
+        <hello""world>
+    >> 
+
+let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
+
+test "----- UNRENDER/UNESCAPE done -----" = ?
+
+(* Does this transformation work in general? *)
+
+(* Making the example harder: Make the ASCII into a CSV... *)
+
+test "----- ESCAPE/RENDER -----" = ?
+
+let escape_xml_char = 
+     ("<" <-> "&lt;")
+  || (">" <-> "&gt;")
+  || ("&" <-> "&amp;")
+  || copy (ANYCHAR - [<>&])
+
+let escape_xml = escape_xml_char*
+
+let render_tag (R : regexp) = 
+  ("" <-> "<tag>") .
+  copy R .
+  ("" <-> "</tag>")
+
+let test2 = escape_xml; render_tag (atype escape_xml) 
+
+test get test2
+    <<
+        <hello""world>
+    >> 
+  = 
+    <<
+        <tag>&lt;hello""world&gt;</tag>
+    >> 
+
+
+    
+let l = test1 ; test2
+
+test get l
+    <<
+        " <hello\"\"world> "
+    >> 
+  = <<
+        <tag> &lt;hello""world&gt; </tag>
+    >>
+
+test "----- ESCAPE/RENDER done -----" = ?
+
+(*************************************************)
+(* That works.  So let's make it more generic... *)
+
+test "----- ESCAPE/RENDER (generic) -----" = ?
+
+(* regex -> str -> str -> lens
+   no possibility of failure, can give complete return type
+*)
+let render (R : regexp) (before : string) (after : string)
+  : (lens in R <-> (before . R . after)) 
+  = ("" <-> before) .
+    copy R .
+    ("" <-> after)
+
+
+let render_xml (R : regexp) = render R "<tag>" "</tag>"
+
+(* safe, since render is safe; can we pass the buck without 
+   repeating the contract? 
+
+   in essence, can we instrument render_tag but not install blame on its 
+   arguments?
+*)
+let tagged (R : regexp) (tag : string) = 
+  [<] . (str tag) . [>] . R . (str ("</" . tag)) . [>]
+
+let render_tag (R : regexp) (tag : string) 
+  : (lens in R <-> tagged R tag)
+  = render R ("<" . tag . ">") ("</" . tag . ">")
+
+(* as above *)
+let quoted (R : regexp) = ["] . R . ["]
+
+let render_str (R : regexp) : (lens in R <-> quoted R) = render R "\"" "\""
+
+(* is bijectivity guaranteed?  yes, but we need buck-passing *)
+let unrender_str (R : regexp) : (lens in quoted R <-> R) = invert (render_str R)
+
+(* this function already existed inside escape, but we had to 
+   pull it out *)
+let unescaped (pairs : (char * string) List.t) =
+  List.fold_left{char * string}{regexp}
+    (fun (r : regexp) (p : char * string) ->
+       let from,to = p in
+       from | r)
+    []
+    pairs
+
+(* this function didn't exist before, but we need it to 
+   talk about the atype of the lens produced by escape *)
+let escaped (pairs : (char * string) List.t) =
+  List.fold_left{char * string}{regexp}
+    (fun (r : regexp) (p : char * string) ->
+       let from,to = p in
+       to | r)
+    []
+    pairs
+
+(* it's an interesting exercise to start with "naive" ass-covering and lead up to
+   this relatively concise and understandable contract
+
+   1) escaped chars are arbitrary strings, contract is "hell on wheels"
+   2) change to single characters
+   3) observe that the iterability constraint on the domain is satisfied by construction
+   4) rewrite the codomain, making it nice and concise
+*)
+
+let lens_iterable (l:lens) : bool = iterable (ctype l) && iterable (atype l)
+
+(* given a set of chars to be escaped and escape codes, valid escaped "bits" are:
+     (a) an escape code, or
+     (b) a character that didn't need to be escaped
+*)
+let char_or_escaped (pairs : (char * string) List.t) : regexp =
+  escaped pairs | (ANYCHAR - (unescaped pairs))
+
+let mutually_distinct (strs : string List.t) : bool =
+  let r,_ = 
+    List.fold_left{string}{bool * (string List.t)}
+      (fun (acc : bool * (string List.t)) (s : string) ->
+	 let md_sofar,l_sofar = acc in
+	   (md_sofar && not (List.member{string} s l_sofar),List.Cons{string} (s,l_sofar)))
+      (true,List.Nil{string})
+      strs in
+  r
+
+let no_repeated_escape_codes (pairs : (char * string) List.t) : bool =
+  mutually_distinct (List.map{char * string}{string} snd{char}{string} pairs)
+
+(*
+  any string goes to a sequence of char_or_escaped bits
+*)
+let escape 
+  (pairs : (char * string) List.t where
+             no_repeated_escape_codes pairs &&
+             lens_iterable (char_or_escaped pairs))
+  : (lens in ANY <-> (char_or_escaped pairs)* )
+  =
+  let escape_char =
+    List.fold_left{string * string}{lens}
+      (fun (l : lens) (p : string * string) -> 
+         let from,to = p in
+         (from <-> to) || l)
+      (copy (ANYCHAR - (unescaped pairs)))
+      pairs
+  in
+    escape_char*
+
+test "----- ESCAPE/RENDER (generic) done -----" = ?
+
+test "----- ESCAPE/RENDER (generic, v2) -----" = ?
+
+let char_or_escaped2 (esc : char) (pairs : (char * string) List.t) =
+  let esc_p (p : char * string) = 
+    let from,to = p in
+    (from,esc . to)
+  in
+  let escs = List.map{char * string}{char * string} esc_p pairs in
+  (escaped escs) | (ANYCHAR - (unescaped pairs))
+
+let escape2
+  (esc : char)
+  (pairs : (char * string) List.t where
+             List.exists{string * string} 
+	       (fun (p : string * string) -> (fst{string}{string} p) = esc)
+	       pairs &&
+             no_repeated_escape_codes pairs)
+  : (lens in ANY <-> (char_or_escaped2 esc pairs)* )
+  =
+  let escape_char =
+    List.fold_left{char * string}{lens}
+      (fun (l : lens) (p : char * string) -> 
+	 let from,to = p in
+        (from <-> (esc . to)) || l)
+      (copy (ANYCHAR - (unescaped pairs)))
+      pairs
+  in
+    escape_char*
+
+test "----- ESCAPE/RENDER (generic, v2) done -----" = ?
+
+test "----- XML -----" = ?
+
+let xml_escs : (char * string) List.t =
+  List.Cons{char * string}(('>',"gt;"),
+  List.Cons{char * string}(('<',"lt;"),
+  List.Cons{char * string}(('&',"amp;"), 
+  List.Nil{char * string})))
+
+(* again, do we want lens, or can/should we somehow 
+   say "specialize this"?  
+
+   : ANY <-> (/&gt;/ | /&lt;/ | /&amp;/ | [^<>&])*
+*)
+let escape_xml : lens = escape2 '&' xml_escs
+
+test "----- XML done -----" = ?
+
+test "----- STR -----" = ?
+
+let str_escs : (char * string) List.t =
+  List.Cons{char * string}(('"',"\""),
+  List.Cons{char * string}(('\\',"\\"),
+  List.Nil{char * string}))
+
+(* per above *)
+let escape_str : lens = escape2 '\\' str_escs
+
+(* ditto *)
+let unescape_str : lens = invert escape_str
+
+let l2 = 
+  unrender_str (ctype unescape_str) ; unescape_str ; 
+  escape_xml ; render_xml (atype escape_xml)
+
+test get l2
+    <<
+        " <hello\"\"world> "
+    >> 
+  = <<
+        <tag> &lt;hello""world&gt; </tag>
+    >>
+
+test "----- STR done -----" = ?
+
+test "----- CSV -----" = ?
+
+let splittable_lens (l1 : lens) (l2 : lens) : cex =
+  cand (splittable_cex (ctype l1) (ctype l2))
+       (splittable_cex (atype l1) (atype l2))
+
+let concatable (lenses : lens List.t) (sep : lens) : cex =
+  let (_,catable) = List.fold_left{lens}{lens option * cex}
+    (fun (acc : lens option * cex) (l : lens) -> 
+       match acc with
+         | (_,(Counter s)) -> (None{lens},(Counter s))
+	 | (None,Ok) -> (Some{lens}(l),Ok)
+         | ((Some l_acc),Ok) -> 
+	     begin
+	       match splittable_lens l sep with
+		 | (Counter s) -> (None{lens},((Counter s)))
+		 | Ok -> 
+		     begin
+		       let l_sep = l . sep in
+		       match splittable_lens l_acc l_sep with
+			 | (Counter s) -> (None{lens},(Counter s))
+			 | Ok -> (Some{lens}(l_acc . (l . sep)),Ok) : lens option * cex
+		     end : lens option * cex
+	     end : lens option * cex)
+    (None{lens},Ok) lenses in
+  catable
+
+(* to cover our asses, we need the concatable refinement
+
+   do we want the specific return type?
+*)
+let concat_lenses 
+      (lenses : lens List.t) 
+      (sep : lens where concatable lenses sep) : lens =
+  let concatted = List.fold_left{lens}{lens option}
+    (fun (l_acc : lens option) (l : lens) -> 
+       match l_acc with
+         | None -> Some{lens} l
+         | Some acc -> (Some{lens} (acc . sep . l)) : lens option)
+    None{lens} lenses in
+  match concatted with
+    | Some l -> l
+    | None -> copy EPSILON : lens
+
+
+let field_to_xml (field : string) : lens = 
+  unrender_str (ctype unescape_str) ; unescape_str ;
+  escape_xml ; render_tag (atype escape_xml) field
+
+(* as above -- do we want the strict return type?  do we want to pass the buck? *)
+let csv_to_xml (fields : string List.t where concatable fields (del ",")) = 
+  concat_lenses (List.map{string}{lens} field_to_xml fields) (del ",")
+
+let l3 = csv_to_xml (List.Cons{string}("first",List.Cons{string}("last",List.Nil{string})))
+
+test get l3
+    <<
+        "Michael \"The Autominator\"","Greenberg, Jr. &c"
+    >>
+  = <<
+        <first>Michael "The Autominator"</first><last>Greenberg, Jr. &amp;c</last>
+    >>
