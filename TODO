@@ -5,6 +5,11 @@
 
 == SYSTEM ==
 
+* Completely merge SBool and Core.cex by adding a string "reason" to false.
+
+* -check-only flag: don't compile and run, just check that base sorts
+  line up.
+
 == LIBRARIES == 
 
 * Detangle sorting from XML and put it in own module (Nate).
@@ -13,6 +18,10 @@
 
 * Expose permute in Core (probably adding a primitive helper to write
   its contract)
+
+* Fix contract on q-lenses, reflecting "rel" out of Blenses.t.
+
+* Add refinements to addressing.boom, bibtex.boom.
 
 == DOCUMENTATION ==
 
