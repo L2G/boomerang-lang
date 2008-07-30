@@ -1098,7 +1098,7 @@ let disjoint_cex s1 s2 =
     | true,Some w1,true,Some w2 -> if w1 = w2 then Some w1 else None
     | true,Some w1,_,_          -> if match_string s2 w1 then Some w1 else None
     | _,_,true,Some w2          -> if match_string s1 w2 then Some w2 else None
-    | _                         -> representative (mk_inter s1 s2) 
+    | _                         -> representative (mk_inter s1 s2)
 
 let disjoint s1 s2 = 
   is_empty (mk_inter s1 s2) 

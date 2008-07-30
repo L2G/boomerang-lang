@@ -149,6 +149,7 @@ let mk_alloc i ls e0 =
   else EAlloc(i,ls,e0)
 
 let rec compatible f t = match f,t with
+  (* identity at base types *)
   | SUnit,SUnit       
   | SInteger,SInteger 
   | SBool,SBool       
@@ -158,6 +159,9 @@ let rec compatible f t = match f,t with
   | SLens,SLens 
   | SCanonizer,SCanonizer ->
       true
+  (* bool/cex coercions *)
+  | SBool,SData([],q) when q = V.cex_qid -> true
+  (* char/string/regexp/lens coercions *)
   | SChar,SString 
   | SChar,SRegexp
   | SChar,SLens
@@ -200,6 +204,8 @@ let rec compatible f t = match f,t with
 
 let rec may_coerce f t =
   match f,t with
+    | SBool,SData([],q)
+    | SData([],q),SBool when q = V.cex_qid -> true
     | SChar,SString
     | SChar,SRegexp
     | SChar,SLens
@@ -346,6 +352,8 @@ let rec static_match i sev p0 s =
             | _ -> err p0 "product" s
           end
 
+let s_cex = SData([], V.cex_qid)
+
 (* ------ sort resolution and compilation ----- *)
 (* check_sort: resolves QIds in SData, compiles terms in SRefine *)
 let rec check_sort i sev s0 = 
@@ -380,12 +388,14 @@ let rec check_sort i sev s0 =
         let s1' = check_sort i sev1 s1 in 
         let sev2 = SCEnv.update sev (Qid.t_of_id x) (G.Sort s1') in 
         let e1_sort,new_e1,e1_ls = check_exp sev2 e1 in  
-          if not (compatible e1_sort SBool) then
-            sort_error i 
-	      (fun () -> msg "@[in@ refinement: expected@ %s@ but@ found@ %s@]"
-                 (string_of_sort SBool)
-                 (string_of_sort e1_sort));
-          SRefine(x,s1',mk_alloc (info_of_exp new_e1) e1_ls new_e1) in 
+        if not (compatible e1_sort s_cex) then
+          sort_error i 
+	    (fun () -> msg "@[in@ refinement: expected@ %s@ but@ found@ %s@]"
+               (string_of_sort s_cex)
+               (string_of_sort e1_sort));
+	let alloc_e1 = mk_alloc (info_of_exp new_e1) e1_ls new_e1 in
+	let cexed_e1 = mk_cast "refinement" i e1_sort s_cex alloc_e1 in
+          SRefine(x,s1',cexed_e1) in 
     go s0
 
 (* ------ sort checking and compiling expressions ----- *)
@@ -447,7 +457,7 @@ and check_exp sev e0 =
     | EOver(i,op,es) -> begin 
         let err () = sort_error i 
           (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
-        (* rules for overloaded symbols *) 
+        (* rules for overloaded symbols *)
 	let bin_rules =
 	  [ ODot, 
 	    [ SString, "string_concat";
@@ -466,8 +476,12 @@ and check_exp sev e0 =
 	      SCanonizer, "canonizer_union" ]
 	  ; OAmp,    [ SRegexp, "inter" ]
 	  ; OBarBar, [ SLens, "lens_union";
-		       SBool, "lor" ]
-	  ; OAmpAmp, [ SBool, "land" ]
+		       SBool, "lor";
+		       s_cex, "cor";
+		     ]
+	  ; OAmpAmp, [ SBool, "land";
+		       s_cex, "cand"
+		     ]
 	  ; ODarrow, [ SLens, "set" ]
 	  ; ODeqarrow, [ SLens, "rewrite" ]
 	  ; OLt, [ SInteger, "blt" ] 

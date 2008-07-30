@@ -193,6 +193,27 @@ let mk_q i q = Can(i,q)
 let mk_p i (p1,p2) = Par(i,p1,p2)
 let mk_f i f = Fun(i,f)
 
+let ok = Id.mk (Info.M "Ok built-in") "Ok"
+let counter = Id.mk (Info.M "Counter built-in") "Counter"
+let cex_qid =
+  let i = Info.M "Core.cex built-in" in
+  Qid.mk [Id.mk i "Core"] (Id.mk i "cex")
+
+let get_x v = 
+  let (l,vo) = get_v v in
+  if Id.equal l counter
+  then match vo with
+    | Some(v_s) -> Some (get_s v_s)
+    | None -> conversion_error "cex.Counter" v
+  else if Id.equal l ok
+  then None
+  else conversion_error "cex" v
+  
+let mk_x i x = 
+  match x with
+    | None -> Vnt(i,cex_qid,ok,None)
+    | Some s -> Vnt(i,cex_qid,counter,Some (mk_s i s))
+
 let mk_ufun i f = Fun(i,(fun v -> f (get_u v)))
 let mk_bfun i f = Fun(i,(fun v -> f (get_b v)))
 let mk_ifun i f = Fun(i,(fun v -> f (get_i v)))

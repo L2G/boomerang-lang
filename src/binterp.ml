@@ -105,6 +105,10 @@ let mk_if i e0 e1 e2 s =
 
 let mk_native_prelude_var i s = 
   EVar(i,Qid.mk_native_prelude_t s)
+let mk_bool_of_cex i e =
+  EApp(i,EVar(i,Qid.mk_core_t "bool_of_cex"),e)
+let mk_cex_of_bool i e =
+  EApp(i,EVar(i,Qid.mk_core_t "cex_of_bool"),e)
 let mk_string_of_char i e = 
   EApp(i,mk_native_prelude_var i "string_of_char",e)
 let mk_regexp_of_string i e = 
@@ -151,18 +155,20 @@ let rec interp_cast cev i b f t e =
   let cast_refinement f x t e e0 = 
     let v = interp_exp cev (ECast(i,f,t,b,e0)) in
     let cev' = CEnv.update cev (Qid.t_of_id x) (G.Unknown,v) in
-    if V.get_b (interp_exp cev' e)
-    then v
-    else 
-      let Blame(b_info) = b in
-	Berror.blame_error b_info
-	  (fun () ->
-	     (* TODO show bindings of free vars in e *)
-	     Util.format "@[%s=%a@ did@ not@ satisfy@ %a@ at@ %s]"
-	       (Id.string_of_t x)
-	       (fun _ -> V.format) v
-	       (fun _ -> format_exp) e
-	       (Info.string_of_t b_info)) in
+    match V.get_x (interp_exp cev' e) with
+      | None -> v
+      | Some(cex) ->
+	  let cex_s = if cex = "" then "" else "; counterexample: "^cex in
+	  let Blame(b_info) = b in
+	    Berror.blame_error b_info
+	      (fun () ->
+		 (* TODO show bindings of free vars in e *)
+		 Util.format "@[%s=%a@ did@ not@ satisfy@ %a@ at@ %s%s]"
+		   (Id.string_of_t x)
+		   (fun _ -> V.format) v
+		   (fun _ -> format_exp) e
+		   (Info.string_of_t b_info)
+	           cex_s) in
   let res = 
     if Prefs.read Bcheck.ignore_refinements && (not (Bcheck.may_coerce f t))
     then interp_exp cev e
@@ -178,6 +184,8 @@ let rec interp_cast cev i b f t e =
       | SLens,SLens 
       | SCanonizer,SCanonizer 
       | SVar(_),SVar(_) -> interp_exp cev e
+      | SBool,SData([],q) when q = V.cex_qid -> interp_exp cev (mk_cex_of_bool i e)
+      | SData([],q),SBool when q = V.cex_qid -> interp_exp cev (mk_bool_of_cex i e)
       | SChar,SString -> interp_exp cev (mk_string_of_char i e)
       | SChar,SRegexp -> interp_exp cev (mk_regexp_of_string i (mk_string_of_char i e))
       | SChar,SLens -> interp_exp cev (mk_lens_of_regexp i (mk_regexp_of_string i (mk_string_of_char i e)))

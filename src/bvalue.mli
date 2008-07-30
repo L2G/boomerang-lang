@@ -90,6 +90,10 @@ val mk_ffun : Info.t -> ((t -> t) -> t) -> t
 
 val string_of_t : t -> string
 
+val cex_qid : Bident.Qid.t
+val mk_x : Info.t -> string option -> t
+val get_x : t -> string option
+
 val list_qid : Bident.Qid.t
 val get_list : t -> t list
 val mk_list : Info.t -> t list -> t

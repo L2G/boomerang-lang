@@ -105,7 +105,10 @@ let pmk4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f =
      p : Par
      v : Vnt (unused)
      f : Fun (unused)
+     x : Core.cex
 *)
+
+let core_cex = S.SData([],Qid.mk_core_t "cex")
 
 let pmk_cs    = pmk1 S.SChar mk_cfun S.SString mk_s
 
@@ -130,10 +133,12 @@ let pmk_riir  = pmk3 S.SRegexp mk_rfun S.SInteger mk_ifun S.SInteger mk_ifun S.S
 let pmk_rb    = pmk1 S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rs    = pmk1 S.SRegexp mk_rfun S.SString mk_s
+let pmk_rx    = pmk1 S.SRegexp mk_rfun core_cex mk_x
 let pmk_rl    = pmk1 S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrl   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rrs   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SString mk_s
+let pmk_rrx   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun core_cex mk_x
 let pmk_rsb   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_b
 let pmk_rsi   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SInteger mk_i
 let pmk_rssl  = pmk3 S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SLens mk_l
@@ -255,11 +260,18 @@ let prelude_spec =
   ; pmk_rsi    "count"                (fun i r s -> Safelist.length (Bregexp.star_split r s))
   ; pmk_rsb    "matches"              (fun _ -> Bregexp.match_string)
   ; pmk_rrb    "splittable"           (fun _ -> Bregexp.splittable)
-  ; pmk_rrs    "splittable_cex"       (fun _ t1 t2 -> match Bregexp.splittable_cex t1 t2 with
-                                         | Misc.Left(w1,w2,w1',w2') -> sprintf "[%s] [%s] and [%s] [%s]" w1 w2 w1' w2'
-                                         | _ -> "NONE")
+  ; pmk_rrx    "splittable_cex"       (fun _ t1 t2 -> match Bregexp.splittable_cex t1 t2 with
+                                         | Misc.Left(w1,w2,w1',w2') -> Some (sprintf "%s is ambiguously splittable into [%s] [%s] and [%s] [%s]" (w1^w2) w1 w2 w1' w2')
+                                         | _ -> None)
   ; pmk_rb     "iterable"             (fun _ -> Bregexp.iterable)
+  ; pmk_rx     "iterable_cex"         (fun _ t -> match Bregexp.iterable_cex t with
+                                         | Misc.Left(w1,w2,w1',w2') -> Some (sprintf "%s is ambiguously iterable: splits into [%s] [%s] and [%s] [%s]" (w1^w2) w1 w2 w1' w2')
+                                         | _ -> None)
   ; pmk_rrb    "disjoint"             (fun _ -> Bregexp.disjoint)
+  ; pmk_rrx    "disjoint_cex"         (fun _ t1 t2 -> match Bregexp.disjoint_cex t1 t2 with
+					 | Some(cex) ->   
+					     Some (sprintf "%s and %s are not disjoint: %s is in the intersection" (Bregexp.string_of_t t1) (Bregexp.string_of_t t2) cex)
+					 | None -> None)
     
   (* boolean operations *)            
   ; pmk_bbb    "land"                 (fun _ -> (&&))
