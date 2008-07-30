@@ -43,7 +43,6 @@ let concat_array a =
   let buf = Buffer.create 17 in
     Array.iter (Buffer.add_string buf) a;
     Buffer.contents buf 
-
     
 let get_str n = sprintf "%s get" n
 let put_str n = sprintf "%s put" n
@@ -264,6 +263,26 @@ let branch2 t f1 f2 =
   (fun x y ->
      if RxImpl.match_string t x then f1 x y 
      else f2 x y)
+
+(* helper for permutations *)
+let permutation i n sigma k = 
+  let err () = 
+    Berror.static_error i n 
+      (sprintf "[%s] is not a permutation on {0,..,%d}@\n" 
+         (Misc.concat_list "," (Safelist.map string_of_int sigma)) 
+         (pred k)) in 
+  let sigma_arr = Array.create k (-1) in 
+  let sigma_inv_arr = Array.create k (-1) in       
+  let () = 
+    let k' = Safelist.fold_left 
+      (fun i j -> 
+         sigma_arr.(i) <- j;
+         if sigma_inv_arr.(j) <> (-1) then err ();
+         sigma_inv_arr.(j) <- i;
+         succ i)
+      0 sigma in
+    if k' <> k then err () in
+  (sigma_arr,sigma_inv_arr) 
     
 (* uid *)
 type uid = int
@@ -1091,24 +1110,10 @@ module DLens = struct
       (Misc.concat_list "," (Safelist.map string_of_int sigma))
       (Misc.concat_list "," (Safelist.map (fun dli -> dli.string) dll)) in  
     let k = Safelist.length dll in 
-    (* check that sigma is a permutation on {1,..|dll|} *)
-    let sigma_arr = Array.create k 0 in 
-    let sigma_inv_arr = Array.create k 0 in       
-    let () = 
-      let perm_err () = 
-        Berror.static_error info n 
-          (sprintf "[%s] is not a permutation on {0,..,%d}@\n" 
-             (Misc.concat_list "," (Safelist.map string_of_int sigma)) (pred k)) in
-      let k' = Safelist.fold_left 
-        (fun i j -> 
-           sigma_arr.(i) <- j;
-           sigma_inv_arr.(j) <- i;
-           succ i) 
-        0 sigma in
-      if k' <> k then perm_err () in 
+    let sigma_arr,sigma_inv_arr = permutation info n sigma k in 
     let dl_arr = Array.of_list dll in 
-    (* calculate some fields *)
     let bij,ct,dt,crel,arel = 
+      (* calculate lens type components *)
       Array.fold_left 
         (fun (b,c,d,cr,ar) dli -> 
            (b && dli.bij,
@@ -1125,12 +1130,11 @@ module DLens = struct
         (true,RxImpl.epsilon,TMap.empty,Identity,Identity) dl_arr in
     (* calculate concrete types to use in splitting *)
     let ct_rest_array = Array.create k RxImpl.empty in
-    let _ =
-      Array.fold_right 
-        (fun dli (i,acc) -> 
-           ct_rest_array.(i) <- acc; 
-           (pred i,RxImpl.mk_seq dli.ctype acc)) 
-        dl_arr (pred k,RxImpl.epsilon) in
+    let _ = Array.fold_right 
+      (fun dli (i,acc) -> 
+         ct_rest_array.(i) <- acc; 
+         (pred i,RxImpl.mk_seq dli.ctype acc)) 
+      dl_arr (pred k,RxImpl.epsilon) in
     let split_c c =
       let res = Array.create k "" in 
       let _ = 

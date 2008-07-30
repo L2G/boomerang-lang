@@ -1,0 +1,23 @@
+
+== BUILD == 
+
+* add target for bytecode compilation (Nate)
+
+== SYSTEM ==
+
+== LIBRARIES == 
+
+* Detangle sorting from XML and put it in own module (Nate).
+
+* Fix XML to use Escaping.
+
+* Expose permute in Core (probably adding a primitive helper to write
+  its contract)
+
+== DOCUMENTATION ==
+
+* Polish intro of manual.
+
+* Add examples using q-lenses to QuickStart.
+
+* Add description of sync.
