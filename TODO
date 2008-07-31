@@ -5,8 +5,6 @@
 
 == SYSTEM ==
 
-* Completely merge SBool and Core.cex by adding a string "reason" to false.
-
 * -check-only flag: don't compile and run, just check that base sorts
   line up.
 

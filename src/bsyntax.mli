@@ -80,7 +80,7 @@ and exp =
 
     (* unit, strings, ints, characters, character sets *)
     | EUnit    of Info.t  
-    | EBoolean of Info.t * bool
+    | EBoolean of Info.t * string option (* None = true ; Some s = false with cex s *)
     | EInteger of Info.t * int    
     | EChar    of Info.t * char
     | EString  of Info.t * string

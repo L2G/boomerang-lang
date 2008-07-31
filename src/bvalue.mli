@@ -23,7 +23,7 @@
 
 type t = 
     | Unt of Info.t
-    | Bol of Info.t * bool
+    | Bol of Info.t * string option (* None = true ; Some s = false with counterexample s *)
     | Int of Info.t * int
     | Chr of Info.t * char
     | Str of Info.t * string
@@ -55,6 +55,7 @@ val sort_string_of_t : t -> string
 
 val get_u : t -> unit
 val get_b : t -> bool
+val get_x : t -> string option
 val get_i : t -> int
 val get_c : t -> char
 val get_s : t -> string
@@ -67,6 +68,7 @@ val get_f : t -> (t -> t)
 
 val mk_u : Info.t -> unit -> t
 val mk_b : Info.t -> bool -> t
+val mk_x : Info.t -> string option -> t
 val mk_i : Info.t -> int -> t
 val mk_c : Info.t -> char -> t
 val mk_l : Info.t -> Blenses.DLens.t -> t
@@ -89,10 +91,6 @@ val mk_vfun : Info.t -> (Bident.Id.t * t option -> t) -> t
 val mk_ffun : Info.t -> ((t -> t) -> t) -> t
 
 val string_of_t : t -> string
-
-val cex_qid : Bident.Qid.t
-val mk_x : Info.t -> string option -> t
-val get_x : t -> string option
 
 val list_qid : Bident.Qid.t
 val get_list : t -> t list

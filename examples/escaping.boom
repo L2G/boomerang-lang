@@ -285,29 +285,31 @@ test "----- STR done -----" = ?
 
 test "----- CSV -----" = ?
 
-let splittable_lens (l1 : lens) (l2 : lens) : cex =
-  cand (splittable_cex (ctype l1) (ctype l2))
-       (splittable_cex (atype l1) (atype l2))
+let splittable_lens (l1 : lens) (l2 : lens) : bool =
+  (splittable_cex (ctype l1) (ctype l2)) &&
+  (splittable_cex (atype l1) (atype l2))
 
-let concatable (lenses : lens List.t) (sep : lens) : cex =
-  let (_,catable) = List.fold_left{lens}{lens option * cex}
-    (fun (acc : lens option * cex) (l : lens) -> 
+let concatable (lenses : lens List.t) (sep : lens) : bool =
+  let (_,catable) = List.fold_left{lens}{lens option * bool}
+    (fun (acc : lens option * bool) (l : lens) -> 
        match acc with
-         | (_,(Counter s)) -> (None{lens},(Counter s))
-	 | (None,Ok) -> (Some{lens}(l),Ok)
-         | ((Some l_acc),Ok) -> 
+         | (_,false) -> (None{lens},snd{lens option}{bool} acc)
+	 | (None,true) -> (Some{lens}(l),true)
+         | ((Some l_acc),true) -> 
 	     begin
-	       match splittable_lens l sep with
-		 | (Counter s) -> (None{lens},((Counter s)))
-		 | Ok -> 
+               let s = splittable_lens l sep in
+	       match s with
+		 | false -> (None{lens},s) (* keep s around, to preserve cex *)
+		 | true -> 
 		     begin
 		       let l_sep = l . sep in
-		       match splittable_lens l_acc l_sep with
-			 | (Counter s) -> (None{lens},(Counter s))
-			 | Ok -> (Some{lens}(l_acc . (l . sep)),Ok) : lens option * cex
-		     end : lens option * cex
-	     end : lens option * cex)
-    (None{lens},Ok) lenses in
+		       let s = splittable_lens l_acc l_sep in
+		       match s with
+			 | false -> (None{lens},s) (* preserve cex *)
+			 | true -> (Some{lens}(l_acc . (l . sep)),true) : lens option * bool
+		     end : lens option * bool
+	     end : lens option * bool)
+    (None{lens},true) lenses in
   catable
 
 (* to cover our asses, we need the concatable refinement

@@ -217,6 +217,7 @@ let _ =
     ; ("geq", (fun i -> GEQ i))
     ; ("true", (fun i -> BOOLEAN(i,true)))
     ; ("false", (fun i -> BOOLEAN(i,false)))
+    ; ("cex", (fun i -> CEX i))
     ]
 }
 

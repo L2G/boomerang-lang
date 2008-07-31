@@ -68,46 +68,6 @@ applied to lenses.)
 #* let not : bool -> bool
 ## = Native.Prelude.not
 
-\subsection{Counterexamples}
-
-\LENSSECTION{@cex@, @cand@, @cor@, @cnot@, @bool_of_cex@, @cex_of_bool@} The
-@cex@ datatype is like a boolean where @false@ carries a string.  @cand@ and
- other operators mimic the lifting of boolean operators to counterexamples.
-Note that @cnot@ generates an empty counterexample; @cnot_msg@ takes a string
-to be used as a counterexample.
-
-#* type cex = Ok | Counter of string
-#* let cand : cex -> cex -> cex
-##   = fun (c1:cex) -> (fun (c2:cex) ->
-##       (match c1 with
-##          | Ok -> c2
-##          | Counter(s) -> Counter(s) : cex))
-#* let cor : cex -> cex -> cex
-##   = fun (c1:cex) -> (fun (c2:cex) ->
-##       (match c1 with
-##          | Ok -> Ok
-##          | Counter(s) -> c2 : cex))
-#* let cnot : cex -> cex
-##   = fun (c:cex) ->
-##       (match c with
-##          | Ok -> Counter("")
-##          | Counter(s) -> Ok : cex)
-#* let cnot_msg : cex -> string -> cex
-##   = fun (c:cex) -> (fun (s:string) ->
-##       (match c with
-##          | Ok -> Counter(s) 
-##          | Counter(s) -> Ok : cex))
-#* let bool_of_cex : cex -> bool
-##   = (fun (c:cex) ->
-##        (match c with
-##           | Ok -> true
-##           | Counter(_) -> false : bool))
-#* let cex_of_bool : bool -> cex
-##   = (fun (b:bool) ->
-##        (match b with
-##           | true  -> Ok
-##           | false -> Counter("") : cex))
-
 \subsection{Integers}
 
 \LENSSECTION{@string_of_int@} The operator @string_of_int@ converts an 
@@ -277,7 +237,7 @@ two regular expressions denote disjoint languages.
 #* let disjoint : regexp -> regexp -> bool
 ##   = Native.Prelude.disjoint
 
-#* let disjoint_cex : regexp -> regexp -> cex
+#* let disjoint_cex : regexp -> regexp -> bool
 ##   = Native.Prelude.disjoint_cex
 
 #* test disjoint [A-Z] [0-9] = true
@@ -289,7 +249,7 @@ whether the concatenation of two regular expressions is ambiguous.
 #* let splittable : regexp -> regexp -> bool 
 ## = Native.Prelude.splittable
 
-#* let splittable_cex : regexp -> regexp -> cex
+#* let splittable_cex : regexp -> regexp -> bool
 ## = Native.Prelude.splittable_cex
 
 #* test splittable (regexp_iter [A] 0 1) (regexp_iter [A] 0 1) = false
@@ -301,7 +261,7 @@ iteration of a regular expression is ambiguous.
 #* let iterable : regexp -> bool 
 ## = Native.Prelude.iterable
 
-#* let iterable_cex : regexp -> cex
+#* let iterable_cex : regexp -> bool
 ## = Native.Prelude.iterable_cex
 
 #* test iterable (regexp_iter [A] 0 1) = false
@@ -401,7 +361,7 @@ the default string @v@.
 
 #* let const 
 #*   : (R:regexp -> string -> 
-#*                 (v:string where cex_of_bool (matches R v)) -> lens)
+#*                 (v:string where matches R v) -> lens)
 ##   = Native.Prelude.const
 
 #* test get (const [A-Z] "x" "A") "A" = "x"
@@ -443,7 +403,7 @@ and abstract types of the two lenses be disjoint. The overloaded infix
 operator @|@ desugars into @lens_disjoint_union@ when applied to lens values.
 
 #* let lens_disjoint_union 
-#*   : (l1:lens -> (l2:lens where cand (disjoint_cex (ctype l1) (ctype l2)) 
+#*   : (l1:lens -> (l2:lens where land (disjoint_cex (ctype l1) (ctype l2)) 
 #*                                     (disjoint_cex (atype l1) (atype l2))) 
 #*              -> lens)
 ## = Native.Prelude.lens_disjoint_union
@@ -459,7 +419,7 @@ The overloaded infix operator @.@ desugars into @lens_concat@ when applied to
 lens values.
 
 #* let lens_concat
-#*   : (l1:lens -> (l2:lens where cand (splittable_cex (ctype l1) (ctype l2)) 
+#*   : (l1:lens -> (l2:lens where land (splittable_cex (ctype l1) (ctype l2)) 
 #*                                     (splittable_cex (atype l1) (atype l2)))
 #*              -> lens)
 ## = Native.Prelude.lens_concat
@@ -474,8 +434,8 @@ in sequence. The abstract type of the lens on the left and the
 concrete type of the lens on the right must be identical.
 
 #* let compose 
-#*   : (l1:lens -> (l2:lens where cex_of_bool (equiv (atype l1) 
-#*                                                   (ctype l2)))
+#*   : (l1:lens -> (l2:lens where equiv (atype l1) 
+#*                                      (ctype l2))
 #*              -> lens)
 ## = Native.Prelude.compose
 
@@ -489,7 +449,7 @@ each be unambiguously concatenable. The overloaded infix operator @~@ desugars
 into @lens_swap@ when applied to lens values.
 
 #* let lens_swap 
-#*   : (l1:lens -> (l2:lens where cand (splittable_cex (ctype l1) (ctype l2)) 
+#*   : (l1:lens -> (l2:lens where land (splittable_cex (ctype l1) (ctype l2)) 
 #*                                     (splittable_cex (atype l2) (atype l1)))
 #*              -> lens)
 ## = Native.Prelude.lens_swap 
@@ -504,7 +464,7 @@ lens must both be unambiguous.  The overloaded operator @*@ desugars into
 @lens_star@ when applied to a lens. 
 
 #* let lens_star 
-#*   : ((l:lens where cand (iterable_cex (ctype l))
+#*   : ((l:lens where land (iterable_cex (ctype l))
 #*                         (iterable_cex (atype l))) -> lens)
 ## = Native.Prelude.lens_star
 
@@ -519,7 +479,7 @@ lens must both be unambiguous (when non-empty).  The overloaded operator @+@
  desugars into @lens_plus@ when applied to a lens. 
 
 #* let lens_plus
-#*   : ((l:lens where cand (iterable_cex (ctype l))
+#*   : ((l:lens where land (iterable_cex (ctype l))
 #*                         (iterable_cex (atype l)))
 #*  -> lens)
 ## = Native.Prelude.lens_plus
@@ -535,7 +495,7 @@ from the empty lens.  The overloaded operator @?@ desugars into @lens_option@
 when applied to a lens.
 
 #* let lens_option
-#*   : ((l:lens where cand (disjoint_cex (ctype l) [])
+#*   : ((l:lens where land (disjoint_cex (ctype l) [])
 #*                         (disjoint_cex (atype l) []))
 #*  -> lens)
 ## = Native.Prelude.lens_option
@@ -555,9 +515,9 @@ on the exposed @lens_iter@ is \textit{not} appropriate for all of its uses;
 it is only appropriate for positive @m@ and @n@.
 
 #* let lens_iter 
-#*   : ((l:lens where cand (splittable_cex (ctype l) (ctype l))
+#*   : ((l:lens where land (splittable_cex (ctype l) (ctype l))
 #*                         (splittable_cex (atype l) (atype l))) -> 
-#*      (min:int where cex_of_bool (bgeq min 0)) -> int -> lens)
+#*      (min:int where bgeq min 0) -> int -> lens)
 ## = Native.Prelude.lens_iter 
 
 #* test get (lens_iter (copy [A-Z]) 0 4) "" = ""
@@ -568,7 +528,7 @@ it is only appropriate for positive @m@ and @n@.
 \LENSSECTION{@invert@} The @invert@ operator swaps the $\GET$ and $\CREATE$ components 
 of a lens, which must be bijective.
 
-#* let invert : ((l:lens where cex_of_bool (bij l)) -> lens)
+#* let invert : ((l:lens where bij l) -> lens)
 ## = Native.Prelude.invert 
 
 #* test get (invert (const [A] "B" "A")) "B" = "A"
@@ -578,7 +538,7 @@ of a lens, which must be bijective.
 as arguments. It overrides @l@'s $\CREATE$ function to use $\PUT$ with @d@.
 
 #* let default : (l:lens -> 
-#*               (d:string where cex_of_bool (matches (ctype l) d)) -> lens)
+#*               (d:string where matches (ctype l) d) -> lens)
 ## = Native.Prelude.default
 
 #* test create (default (const [A-Z] "X" "A") "B") "X" = "B"
@@ -591,7 +551,7 @@ by discarding all of the substrings belonging to @R@. The regular expressions
 unambiguous.
 
 #* let filter 
-#*   : (R:regexp -> (S:regexp where cand (disjoint_cex R S) 
+#*   : (R:regexp -> (S:regexp where land (disjoint_cex R S) 
 #*                                       (iterable_cex (regexp_union R S))) 
 #*               -> lens)
 ## = Native.Prelude.filter
@@ -706,7 +666,7 @@ into @canonizer_iter q 0 (-1)@.
 
 #* let canonizer_iter
 #*   : ((cn:canonizer where iterable_cex (uncanonized_type cn)) ->
-#*      (min:int where cex_of_bool (bgeq min 0)) -> int -> canonizer)
+#*      (min:int where bgeq min 0) -> int -> canonizer)
 ## = Native.Prelude.canonizer_iter
 
 \LENSSECTION{@columnize@} The @columnize@ primitive canonizer wraps 
@@ -722,11 +682,10 @@ $\CHOOSE$ component wraps a string belonging to the iteration of
 #* let columnize 
 #*   : int -> (R:regexp -> char -> 
 #*     (nl:string where 
-#*       cex_of_bool
-#*       (is_empty (inter R (regexp_concat (regexp_iter [^] 0 (minus 0 1)) 
-#*                                         (regexp_concat (str nl) 
-#*                                         (regexp_iter [^] 0 (minus 0 1)))))))
-#*                      -> canonizer)
+#*       is_empty (inter R (regexp_concat (regexp_iter [^] 0 (minus 0 1)) 
+#*                                        (regexp_concat (str nl) 
+#*                                        (regexp_iter [^] 0 (minus 0 1))))))
+#*                     -> canonizer)
 ## = Native.Prelude.columnize 
 
 \noindent The following unit test illustrates the $\CHOOSE$ component of
@@ -752,7 +711,7 @@ a canonizer @q@ on the left by passing concrete strings through @q@.
 
 #* let left_quot 
 #*   : (cn:canonizer ->
-#*     (l:lens where cex_of_bool (equiv (canonized_type cn) (ctype l))) -> lens)
+#*     (l:lens where equiv (canonized_type cn) (ctype l)) -> lens)
 ## = Native.Prelude.left_quot
 
 #* test get 
@@ -781,8 +740,8 @@ a canonizer @q@ on the right by passing abstract strings through @q@.
 
 #* let right_quot
 #*   : (l:lens ->
-#*     (cn:canonizer where cex_of_bool (equiv (canonized_type cn) 
-#*                                            (atype l))) -> lens)
+#*     (cn:canonizer where equiv (canonized_type cn) 
+#*                               (atype l)) -> lens)
 ## = Native.Prelude.right_quot
 
 \LENSSECTION{@dup1@} The @dup1@ operator takes as arguments a 

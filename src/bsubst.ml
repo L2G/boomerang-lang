@@ -379,7 +379,7 @@ let rec rename_evars_pat subst p0 = match p0 with
   | PPar(i,p1,p2) -> 
       let new_p1 = rename_evars_pat subst p1 in  
       let new_p2 = rename_evars_pat subst p2 in  
-      PPar(i,new_p1,new_p2) 
+      PPar(i,new_p1,new_p2)
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
       p0
 

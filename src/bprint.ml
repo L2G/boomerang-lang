@@ -215,8 +215,14 @@ and format_exp e0 = match e0 with
 	format_exp e;
 	msg "@]"
 
-    | EBoolean (_,b) -> 
-        msg "@[%b@]" b
+    | EBoolean (_,None) -> 
+        msg "@[true@]"
+
+    | EBoolean (_,Some "") ->
+	msg "@[false@]"
+
+    | EBoolean (_,Some s) ->
+	msg "@[false (with counterexample: %s)@]" s
 
     | EChar(_,c) -> msg "'%s'" (Char.escaped c)
 

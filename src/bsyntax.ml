@@ -86,7 +86,7 @@ and exp =
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
-    | EBoolean of Info.t * bool
+    | EBoolean of Info.t * string option (* None = true; Some s = false with counterexample s *)
     | EInteger of Info.t * int    
     | EChar    of Info.t * char
     | EString  of Info.t * string
@@ -182,7 +182,7 @@ let info_of_pat = function
   | PBol (i,_)   -> i
   | PInt (i,_)   -> i
   | PStr (i,_)   -> i
-  | PVar (i,_,_)   -> i 
+  | PVar (i,_,_) -> i 
   | PVnt (i,_,_) -> i
   | PPar (i,_,_) -> i
 

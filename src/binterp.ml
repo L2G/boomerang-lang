@@ -105,10 +105,6 @@ let mk_if i e0 e1 e2 s =
 
 let mk_native_prelude_var i s = 
   EVar(i,Qid.mk_native_prelude_t s)
-let mk_bool_of_cex i e =
-  EApp(i,EVar(i,Qid.mk_core_t "bool_of_cex"),e)
-let mk_cex_of_bool i e =
-  EApp(i,EVar(i,Qid.mk_core_t "cex_of_bool"),e)
 let mk_string_of_char i e = 
   EApp(i,mk_native_prelude_var i "string_of_char",e)
 let mk_regexp_of_string i e = 
@@ -132,7 +128,7 @@ let rec dynamic_match i p0 v0 =
   | PVar(_,q,so),_ -> Some [(q,v0,so)]
   | PUnt _,V.Unt(_) -> Some []
   | PInt(_,n1),V.Int(_,n2) -> if n1=n2 then Some [] else None
-  | PBol(_,b1),V.Bol(_,b2) -> if b1=b2 then Some [] else None
+  | PBol(_,b1),V.Bol(_,b2) -> if (b1 && (b2 = None)) || (not b1 && (b2 <> None)) then Some [] else None
   | PStr(_,s1),V.Str(_,s2) -> if s1 = s2 then Some [] else None
   | PVnt(_,(_,li),pio),V.Vnt(_,_,lj,vjo) -> 
       if Id.equal li lj then 
@@ -184,8 +180,6 @@ let rec interp_cast cev i b f t e =
       | SLens,SLens 
       | SCanonizer,SCanonizer 
       | SVar(_),SVar(_) -> interp_exp cev e
-      | SBool,SData([],q) when q = V.cex_qid -> interp_exp cev (mk_cex_of_bool i e)
-      | SData([],q),SBool when q = V.cex_qid -> interp_exp cev (mk_bool_of_cex i e)
       | SChar,SString -> interp_exp cev (mk_string_of_char i e)
       | SChar,SRegexp -> interp_exp cev (mk_regexp_of_string i (mk_string_of_char i e))
       | SChar,SLens -> interp_exp cev (mk_lens_of_regexp i (mk_regexp_of_string i (mk_string_of_char i e)))

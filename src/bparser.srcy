@@ -199,6 +199,7 @@ let rec fixup_pat i p0 = match p0 with
 %token <Info.t * char> CHARACTER
 %token <Info.t * int> INTEGER
 %token <Info.t * bool> BOOLEAN
+%token <Info.t> CEX
 %token <Info.t * float> FLOAT
 %token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW DEQARROW EQARROW
@@ -872,7 +873,11 @@ aexp:
 
   | BOOLEAN
       { let i,b = $1 in 
-        EBoolean(i,b) }
+        EBoolean(i,if b then None else Some "") }
+
+  | CEX STR
+      { let si,s = $2 in 
+        EBoolean($1,Some s) }
 
   | CSET                                
       { let i1,s1 = $1 in         

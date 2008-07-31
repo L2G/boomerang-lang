@@ -95,7 +95,8 @@ let pmk4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f =
    between letters and boxed run-time values:
 
      u : Unt
-     b : Bol
+     b : Bol (using bools)
+     x : Bol (using string option)
      i : Int
      c : Chr
      s : Str
@@ -105,10 +106,7 @@ let pmk4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f =
      p : Par
      v : Vnt (unused)
      f : Fun (unused)
-     x : Core.cex
 *)
-
-let core_cex = S.SData([],Qid.mk_core_t "cex")
 
 let pmk_cs    = pmk1 S.SChar mk_cfun S.SString mk_s
 
@@ -133,12 +131,12 @@ let pmk_riir  = pmk3 S.SRegexp mk_rfun S.SInteger mk_ifun S.SInteger mk_ifun S.S
 let pmk_rb    = pmk1 S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rs    = pmk1 S.SRegexp mk_rfun S.SString mk_s
-let pmk_rx    = pmk1 S.SRegexp mk_rfun core_cex mk_x
+let pmk_rx    = pmk1 S.SRegexp mk_rfun S.SBool mk_x
 let pmk_rl    = pmk1 S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrl   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rrs   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SString mk_s
-let pmk_rrx   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun core_cex mk_x
+let pmk_rrx   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_x
 let pmk_rsb   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_b
 let pmk_rsi   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SInteger mk_i
 let pmk_rssl  = pmk3 S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SLens mk_l
@@ -315,7 +313,7 @@ let prelude_spec =
      mk_ufun i (fun () -> 
        mk_f i (fun v1 -> 
          mk_f i (fun v2 -> 
-           Bol(i,equal v1 v2)))))
+           mk_b i (equal v1 v2)))))
    end
  
   ; begin 

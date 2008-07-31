@@ -48,16 +48,18 @@ EXTERNDIR = $(COMMONDIR)/extern
 SRCDIR = $(dir src)
 LENSESDIR = $(dir lenses)
 EXAMPLESDIR = $(dir examples)
+UNITSDIR = $(dir examples/units)
+XSUGARDIR = $(dir examples/xsugar)
 
 BOOMERANGDIR = $(dir .)
 BOOMFILES = $(BOOMERANGDIR)/QuickStart.src \
             $(glob $(LENSESDIR)/*.boom) \
-            $(glob $(EXAMPLESDIR)/units/*.boom) \
+            $(glob $(UNITSDIR)/*.boom) \
             $(glob $(EXAMPLESDIR)/*.boom) \
-            $(glob $(EXAMPLESDIR)/xsugar/*.boom) \
+            $(glob $(XSUGARDIR)/*.boom) \
 
 BOOMEXE = $(BINDIR)/boomerang$(EXE) 
-BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR)
+BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR) -I $(UNITSDIR) -I $(XSUGARDIR)
 
 ##############################################################################
 # Translation of .src files

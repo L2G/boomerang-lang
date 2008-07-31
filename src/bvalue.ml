@@ -31,7 +31,7 @@ let (@) = Safelist.append
 (* run-time values; correspond to each sort *)
 type t = 
   | Unt of Info.t 
-  | Bol of Info.t * bool
+  | Bol of Info.t * string option (* None = true ; Some s = false, with s as a counter-example *)
   | Int of Info.t * int
   | Chr of Info.t * char
   | Str of Info.t * string
@@ -95,7 +95,11 @@ let rec equal v1 v2 = match v1,v2 with
 and format = function
   | Unt(_)       -> Util.format "()"
   | Int(_,n)     -> Util.format "%d" n
-  | Bol(_,b)     -> Util.format "%b" b
+  | Bol(_,None)  -> Util.format "true"
+  | Bol(_,Some "") ->
+      Util.format "false"
+  | Bol(_,Some s) -> 
+      Util.format "false (with counterexample: %s)" s
   | Chr(_,c)     -> Util.format "'%s'" (Char.escaped c)
   | Str(_,rs)    -> Util.format "\"%s\"" rs
   | Rx(_,r)      -> Util.format "%s" (Bregexp.string_of_t r)
@@ -142,7 +146,13 @@ let get_u v = match v with
   | _ -> conversion_error "unit" v
 
 let get_b v = match v with 
-  | Bol(_,b) -> b
+  | Bol(_,None) -> true
+  | Bol(_,Some _) -> false
+  | _ -> conversion_error "boolean" v
+
+let get_x v = match v with
+  | Bol(_,None) -> None
+  | Bol(_,Some s) -> Some s
   | _ -> conversion_error "boolean" v
 
 let get_i v = match v with
@@ -183,7 +193,8 @@ let get_f v = match v with
 
 (* --------- constructors for functions on run-time values ---------- *)
 let mk_u i u = Unt(i)
-let mk_b i b = Bol(i,b)
+let mk_b i b = if b then Bol(i,None) else Bol(i,Some "")
+let mk_x i x = Bol(i,x)
 let mk_i i n = Int(i,n)
 let mk_c i c = Chr(i,c)
 let mk_s i s = Str(i,s)
@@ -192,27 +203,6 @@ let mk_l i l = Lns(i,l)
 let mk_q i q = Can(i,q)
 let mk_p i (p1,p2) = Par(i,p1,p2)
 let mk_f i f = Fun(i,f)
-
-let ok = Id.mk (Info.M "Ok built-in") "Ok"
-let counter = Id.mk (Info.M "Counter built-in") "Counter"
-let cex_qid =
-  let i = Info.M "Core.cex built-in" in
-  Qid.mk [Id.mk i "Core"] (Id.mk i "cex")
-
-let get_x v = 
-  let (l,vo) = get_v v in
-  if Id.equal l counter
-  then match vo with
-    | Some(v_s) -> Some (get_s v_s)
-    | None -> conversion_error "cex.Counter" v
-  else if Id.equal l ok
-  then None
-  else conversion_error "cex" v
-  
-let mk_x i x = 
-  match x with
-    | None -> Vnt(i,cex_qid,ok,None)
-    | Some s -> Vnt(i,cex_qid,counter,Some (mk_s i s))
 
 let mk_ufun i f = Fun(i,(fun v -> f (get_u v)))
 let mk_bfun i f = Fun(i,(fun v -> f (get_b v)))
