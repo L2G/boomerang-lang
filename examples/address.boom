@@ -120,8 +120,8 @@ let escstr (C:regexp)
   : (lens in ANY <-> EscapedStr C)
   = (escchar C)*
 
-(* escNonEmptyStr: escape a non-empty string using [escchar] *)
-let escNonEmptyStr (C:regexp) 
+(* escstrP: escape a non-empty string using [escchar] *)
+let escstrP (C:regexp) 
   : (lens in ANYP <-> EscapedStrP C)
   = (escchar C)+
 
@@ -130,8 +130,8 @@ let unescstr (C:regexp)
   : (lens in EscapedStr C <-> ANY)
   = (unescchar C)*
 
-(* unescNonEmptyStr: unescape a non-empty string using [unescchar] *)
-let unescNonEmptyStr (C:regexp) 
+(* unescstrP: unescape a non-empty string using [unescchar] *)
+let unescstrP (C:regexp) 
   : (lens in EscapedStrP C <-> ANYP)
   = (unescchar C)+
 
@@ -315,7 +315,7 @@ let Field_unnumbered : regexp =
   Field - (NumberedItem "1" | NumberedItem "2" | NumberedItem "3")
 
 (* remove_item_numbers: lens for deleting item numberings *)
-let remove_item_numbers : lens = 
+let remove_item_numbers : (lens in ? <-> Field_unnumbered* ) = 
   let delItemNumber (n:string) : lens = 
     copy "item" . 
     del n . 
@@ -335,7 +335,7 @@ let remove_item_numbers : lens =
   || ( copy Field_unnumbered* ) )
 
 (* chunk: lens for a vCard entry *)
-let chunk : lens =  
+let chunk : (lens in ? <-> AbsAddr) =  
   (* delete preamble *)
   del "BEGIN:VCARD" . del NL . 
   del "VERSION:3.0" . del NL .  
