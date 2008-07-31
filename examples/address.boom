@@ -41,23 +41,14 @@ module Address =
 (* -------------------------------------------------------------------- *)
 (* GENERIC DEFINITIONS *)
 
-(* Any: any string *)
-let Any : regexp = [^]*
-
-(* AnyP: any non-empty string *)
-let AnyP : regexp = [^]+
-
 (* StringNotContaining: any string not containing a regular expression *)
-let StringNotContaining (r:regexp) : regexp = 
-  Any - (Any . r . Any)
+let StringNotContaining (R:regexp) : regexp = 
+  ANY - (containing R)
 
-(* NonEmptyStringNotContaining: any non-empty string not containing a
+(* StringNotContainingP: any non-empty string not containing a
    regular expression *)
-let NonEmptyStringNotContaining (r:regexp) : regexp = 
-  AnyP - (Any . r. Any)
-
-(* WS: strings of whitespace *)
-let WS : regexp = [ \n\t]*
+let StringNotContainingP (R:regexp) : regexp = 
+  ANYP - (containing R)
 
 (* ws: lens that deletes whitespace *)
 let ws : lens = del WS
@@ -68,10 +59,16 @@ let NL : regexp = /\r/? . /\n/
 (* NonNL: any string not containing a newline *)
 let NonNL : regexp = StringNotContaining [\n\r]
 
+let iterable_lens (l:lens) : bool =
+  iterable_cex (ctype l) && 
+  iterable_cex (atype l)
+
 (* filterwith: derived lens that removes characters in [both], then
    runs [l]*)
-let filterwith (both: regexp) (l: lens) : lens = 
-  filter (both - (ctype l)) (ctype l) ; l*
+let filterwith (BOTH: regexp) (l: lens where iterable_lens l && 
+                                             iterable_cex (ctype l | BOTH)) 
+  : lens 
+  = filter (BOTH - (ctype l)) (ctype l) ; l*
 
 (* -------------------------------------------------------------------- *)
 (* ESCAPING *)
@@ -86,7 +83,7 @@ let NonSpecial : regexp = [^\n\r\\]
 let EscapedSpecial : regexp = [\\nr]
 
 (* escspecial: lens escaping non-slash chars in Special *)
-let escspecial : lens = (/\n/ <-> "\\n" | /\r/ <-> "\\r")
+let escspecial : lens = (/\n/ <-> "\\n") | (/\r/ <-> "\\r")
 
 (* EscapedStr: strings where every character in [R] and [Special] are
    escaped using backslash. [R] should be a chracter class. *)
@@ -95,37 +92,48 @@ let EscapedStr (R:regexp) : regexp =
   let Escaped = /\\/ . (EscapedSpecial | R) in
   Normal . (Escaped . Normal)* 
 
-(* NonEmptyEscapedStr: non-empty strings where every character in [R]
+(* EscapedStrP: non-empty strings where every character in [R]
    and [Special] are escaped using backslash. [R] should be a
    chracter class. *)
-let NonEmptyEscapedStr (R:regexp) : regexp = 
+let EscapedStrP (R:regexp) : regexp = 
   let Normal = StringNotContaining (Special | R) in 
-  let NonEmptyNormal = Normal - EPSILON in 
+  let NormalP = Normal - EPSILON in 
   let Escaped = /\\/ . (EscapedSpecial | R) in 
   let EscapedNormal = Escaped . Normal in 
-    NonEmptyNormal . EscapedNormal* | EscapedNormal+
+    NormalP . EscapedNormal* | EscapedNormal+
 
 (* escchar: escape characters in [c], which should be a character
    class. *)
-let escchar (c:regexp) : lens = 
-  ( (ins "\\" . copy (c | /\\/))
-  | escspecial
-  | copy (NonSpecial - c))
+let escchar (C:regexp where disjoint C [\n\r]) 
+  : (lens in ANYCHAR <=> ((/\\/ . (EscapedSpecial|C)) | (NonSpecial - C)))
+   =   (ins "\\" . copy (C | /\\/))
+     | escspecial
+     | copy (NonSpecial - C)
 
 (* unescchar: inverse of (the bijective lens) escchar *)
-let unescchar (c:regexp) : lens = invert (escchar c)
+let unescchar (C:regexp) 
+  : (lens in ((/\\/ . (EscapedSpecial|C)) | (NonSpecial - C)) <=> ANYCHAR)
+  = invert (escchar C)
 
 (* escstr: escape a string using [escchar] *)
-let escstr (c:regexp) : lens = (escchar c)*
+let escstr (C:regexp) 
+  : (lens in ANY <-> EscapedStr C)
+  = (escchar C)*
 
 (* escNonEmptyStr: escape a non-empty string using [escchar] *)
-let escNonEmptyStr (c:regexp) : lens = (escchar c)+
+let escNonEmptyStr (C:regexp) 
+  : (lens in ANYP <-> EscapedStrP C)
+  = (escchar C)+
 
 (* unescstr: unescape a string using [unescchar] *)
-let unescstr (c:regexp) : lens = (unescchar c)*
+let unescstr (C:regexp) 
+  : (lens in EscapedStr C <-> ANY)
+  = (unescchar C)*
 
 (* unescNonEmptyStr: unescape a non-empty string using [unescchar] *)
-let unescNonEmptyStr (c:regexp) : lens = (unescchar c)+
+let unescNonEmptyStr (C:regexp) 
+  : (lens in EscapedStrP C <-> ANYP)
+  = (unescchar C)+
 
 (* unit tests for escaping lenses *)
 test (escchar [])*.get "a\nb\\c" = "a\\nb\\\\c"
@@ -149,13 +157,13 @@ let TelMarker : regexp = / (/ . TelTags . /)/
 let Tel : regexp = /, / . (EscapedStr [,]) . TelMarker
 
 (* Name: a single, escaped name field. Cannot end with a TelMarker *)
-let Name : regexp = (NonEmptyEscapedStr [,]) - ( Any . TelMarker )
+let Name : regexp = (EscapedStrP [,]) - ( ANY . TelMarker )
 
-(* NonEmptyName: a single, non-empty name *)
-let NonEmptyName : regexp = Name - EPSILON
+(* NameP: a single, non-empty name *)
+let NameP : regexp = Name - EPSILON
 
 (* Family and Given: just non-empty names *)
-let Family,Given : regexp * regexp = NonEmptyName,NonEmptyName
+let Family,Given : regexp * regexp = NameP,NameP
 
 (* GlobalName: a single name in CSV *)
 let GlobalName : regexp = Family . (/, / . Given)?
@@ -224,11 +232,11 @@ let unformatnotemptyname : lens =
    Then we format to escape characters and render the name *)
 
 let name : lens = 
-  let escNonEmptyName = 
+  let escNameP = 
     unformatnotemptyname ; formatnotemptyname in
   let familyname = 
-    del "N:" . escNonEmptyName in
-  familyname . (del ";" | (/;/ <-> ", ") . escNonEmptyName ) . del ";;;"
+    del "N:" . escNameP in
+  familyname . (del ";" | (/;/ <-> ", ") . escNameP ) . del ";;;"
 
 (* unit test for name *)
 test name.get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
