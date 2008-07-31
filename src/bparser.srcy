@@ -473,9 +473,13 @@ cexp:
 \begin{grammar}
 <Param> ::= \lit{@(@} <Id> \lit{@:@} <Sort> \lit{@)@}
        \alt \lit{@(@} <LIdent> \lit{@:@} <Sort> \lit{@where@} \lit{@)@}
-       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> \lit{@)@}
-       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
-       \alt \lit{@(string in@} <Exp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in ?@ \ltsym@-@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in ?@ \ltsym@=@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@-@\gtsym @?)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@=@\gtsym @?)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: string in@} <Exp> \lit{@)@}
        \alt \lit{@(@} <TyVarIdent> \lit{@)@}
        \alt <TyVarIdent> 
 \end{grammar}
@@ -494,6 +498,42 @@ param:
   | LPAREN id COLON sort RPAREN
       { let i = m $1 $5 in 
         Misc.Left (Param(i,$2,$4)) }
+
+  | LPAREN id COLON LENS IN QMARK DARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "equiv") 
+	                    (mk_app i (mk_core_var "atype") (mk_var $2))
+                            $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN QMARK DEQARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "land")
+	                    (mk_bin_op i (mk_core_var "equiv") 
+	                                 (mk_app i (mk_core_var "atype") (mk_var $2))
+                                         $8)
+			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DARROW QMARK RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "equiv") 
+	                    (mk_app i (mk_core_var "ctype") (mk_var $2))
+                            $6 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DEQARROW QMARK RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "land")
+	                    (mk_bin_op i (mk_core_var "equiv") 
+	                                 (mk_app i (mk_core_var "ctype") (mk_var $2))
+                                         $6)
+			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
       { let i = m $1 $9 in 
@@ -1133,6 +1173,10 @@ datatypesort:
 <BSort> ::= \lit{@(@} <Sort> \lit{@)@}
        \alt \lit{@(@} <Sort> \lit{@where@} <Exp> \lit{@)@}
        \alt \lit{@(@} <LIdent> \lit{@:@} <Sort> \lit{@where@} \lit{@)@}
+       \alt \lit{@(lens in ?@ \ltsym@-@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(lens in ?@ \ltsym@=@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@-@\gtsym @?)@}
+       \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@=@\gtsym @?)@}
        \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> \lit{@)@}
        \alt \lit{@(lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
        \alt \lit{@(string in@} <Exp> \lit{@)@}
@@ -1148,6 +1192,42 @@ bsort:
 
   | LPAREN id COLON sort WHERE exp RPAREN
       { SRefine($2,$4,$6) }
+
+  | LPAREN LENS IN QMARK DARROW appexp RPAREN
+      { let i = m $1 $7 in 
+        let l = Id.mk i "_l" in 
+        let p = mk_bin_op i (mk_core_var "equiv") 
+	                    (mk_app i (mk_core_var "atype") (mk_var l))
+                            $6 in 
+        SRefine(l,SLens,p) }
+
+  | LPAREN LENS IN QMARK DEQARROW appexp RPAREN
+      { let i = m $1 $7 in 
+        let l = Id.mk i "_l" in 
+        let p = mk_bin_op i (mk_core_var "land")
+	                    (mk_bin_op i (mk_core_var "equiv") 
+	                                 (mk_app i (mk_core_var "atype") (mk_var l))
+                                         $6)
+			    (mk_app i (mk_core_var "bij") (mk_var l)) in
+        SRefine(l,SLens,p) }
+
+  | LPAREN LENS IN appexp DARROW QMARK RPAREN
+      { let i = m $1 $7 in 
+	let l = Id.mk i "_l" in 
+        let p = mk_bin_op i (mk_core_var "equiv") 
+	                    (mk_app i (mk_core_var "ctype") (mk_var l))
+                            $4 in 
+        SRefine(l,SLens,p) }
+
+  | LPAREN LENS IN appexp DEQARROW QMARK RPAREN
+      { let i = m $1 $7 in 
+	let l = Id.mk i "_l" in 
+        let p = mk_bin_op i (mk_core_var "land")
+	                    (mk_bin_op i (mk_core_var "equiv") 
+	                                 (mk_app i (mk_core_var "ctype") (mk_var l))
+                                         $4)
+			    (mk_app i (mk_core_var "bij") (mk_var l)) in
+        SRefine(l,SLens,p) }
 
   | LPAREN LENS IN appexp DARROW appexp RPAREN
       { let i = m $1 $7 in 
