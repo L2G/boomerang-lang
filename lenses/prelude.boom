@@ -132,6 +132,21 @@ It is also defined using @<->@.
 #* test put (del ANY) "" "Boomerang" = "Boomerang"
 #* test create (del ANY) "" = ""
 
+\subsection{Lens Predicates}
+
+\LENSSECTION{@lens_iterable@} This predicate is true for lenses with
+iterable ctype and atype.
+
+#* let lens_iterable (l:lens) : bool = 
+#*   iterable_cex (ctype l) && iterable_cex (atype l)
+
+\LENSSECTION{@lens_splittable@} This predicate is true for a pair of lenses
+if the ctypes and atypes are splittable.
+
+#* let lens_splittable (l1:lens) (l2:lens) : bool =
+#*   splittable_cex (ctype l1) (ctype l2) &&
+#*   splittable_cex (atype l1) (atype l2)
+
 \subsection{Quotient Lenses}
 
 \LENSSECTION{@qconst@} The lens @qconst@ is like @const@, but accepts an 

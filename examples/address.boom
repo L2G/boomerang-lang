@@ -59,13 +59,9 @@ let NL : regexp = /\r/? . /\n/
 (* NonNL: any string not containing a newline *)
 let NonNL : regexp = StringNotContaining [\n\r]
 
-let iterable_lens (l:lens) : bool =
-  iterable_cex (ctype l) && 
-  iterable_cex (atype l)
-
 (* filterwith: derived lens that removes characters in [both], then
    runs [l]*)
-let filterwith (BOTH: regexp) (l: lens where iterable_lens l && 
+let filterwith (BOTH: regexp) (l: lens where lens_iterable l && 
                                              iterable_cex (ctype l | BOTH)) 
   : lens 
   = filter (BOTH - (ctype l)) (ctype l) ; l*

@@ -118,7 +118,7 @@ let ignore_refinements = Prefs.createBool "ignore-refinements" false
 
 (* determine whether a term is (i.e., immediately compiles to) a value *)
 let rec is_value e0 = match e0 with
-  (* | EVar _ *) (* !!! this should be true, but our substitution based overloading uses variables and demands aliasing ... *)
+  | EVar _
   | EFun _ 
   | ETyFun _
   | ELoc _ 
