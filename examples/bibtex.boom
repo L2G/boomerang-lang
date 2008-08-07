@@ -289,13 +289,11 @@ let month_str : regexp = ctype month_data
 let month_num : regexp = atype month_data
 
 let dates_bibtex : regexp = 
-  (std_field_bibtex /year/) . (uniform_field_bibtex (del /month/) month_data)?
+  std_field_bibtex /year/ . (uniform_field_bibtex (del /month/) month_data)?
+let dates_ris : regexp = 
+  std_field_ris (tag "PY") "/" . (uniform_field_ris "" (del /month/) month_data "")? . "//\n"
 
-(* TODO these are still wrong... *)
-let dates_ris : regexp = "PY  - " . (no_tags bare_value) . "/" . month_num? . (str "//\n")
-let dates_ris_new : regexp = "PY  - " . (no_tags bare_value) . "/" . ((uniform_field_ris "" (del /month/) month_data "")?) . "//\n"
-
-let do_dates : (lens in dates_bibtex <-> ?) = 
+let do_dates : (lens in dates_bibtex <-> dates_ris) = 
   let do_year : lens = do_std_field (tag "PY") /year/ "/" in
   let do_month : lens = do_field "" del /month/ month_data month_data month_data "" in 
     (do_year . do_month?)
@@ -345,26 +343,43 @@ let do_field_to_note : (lens in field_to_note_bibtex <-> field_to_note_ris) =
              (copy braced_value) (copy quoted_value) (copy bare_value)
              "\n"
   
-let field_ris_tnl (R:string) : lens = std_field_ris (tag R) "\n"
+let field_ris_tnl (R:string) : regexp = std_field_ris (tag R) "\n"
 
 let non_author_fields 
-  : lens = 
-  ( do_title
-  | do_dates
-  | do_pages
-  | do_std_field (tag "T2") /booktitle/ "\n" 
-  | do_std_field (tag "JO") /journal/ "\n"
-  | do_std_field (tag "VL") /volume/ "\n"
-  | do_std_field (tag "IS") /number/ "\n"
-  | do_std_field (tag "N1") /note/ "\n"
-  | do_std_field (tag "AD") /address/ "\n" 
-  | do_std_field (tag "UR") /url/ "\n"
-  | do_std_field (tag "L1") /pdf/ "\n"
-  | do_std_field (tag "SN") /issn/ "\n"
-  | do_std_field (tag "PB") /publisher/ "\n"
-  | do_std_field (tag "N2") /abstract/ "\n"
-  | do_std_field (tag "T3") /series/ "\n"
-  | do_field_to_note)* (* star is on the whole union *) 
+  : (lens in 
+      (title_bibtex | dates_bibtex | pages_bibtex |
+       std_field_bibtex /booktitle/ | std_field_bibtex /journal/ |
+       std_field_bibtex /volume/    | std_field_bibtex /number/ |
+       std_field_bibtex /note/      | std_field_bibtex /address/ |
+       std_field_bibtex /url/       | std_field_bibtex /pdf/ |
+       std_field_bibtex /issn/      | std_field_bibtex /publisher/ |
+       std_field_bibtex /abstract/  | std_field_bibtex /series/ |
+       field_to_note_bibtex)* 
+    <->
+      (title_ris | dates_ris | pages_ris |
+       field_ris_tnl "T2" | field_ris_tnl "JO" |
+       field_ris_tnl "VL" | field_ris_tnl "IS" |
+       field_ris_tnl "N1" | field_ris_tnl "AD" |
+       field_ris_tnl "UR" | field_ris_tnl "L1" |
+       field_ris_tnl "SN" | field_ris_tnl "PB" |
+       field_ris_tnl "N2" | field_ris_tnl "T3" |
+       field_to_note_ris)* ) 
+  = ( do_title
+    | do_dates
+    | do_pages
+    | do_std_field (tag "T2") /booktitle/ "\n" 
+    | do_std_field (tag "JO") /journal/ "\n"
+    | do_std_field (tag "VL") /volume/ "\n"
+    | do_std_field (tag "IS") /number/ "\n"
+    | do_std_field (tag "N1") /note/ "\n"
+    | do_std_field (tag "AD") /address/ "\n" 
+    | do_std_field (tag "UR") /url/ "\n"
+    | do_std_field (tag "L1") /pdf/ "\n"
+    | do_std_field (tag "SN") /issn/ "\n"
+    | do_std_field (tag "PB") /publisher/ "\n"
+    | do_std_field (tag "N2") /abstract/ "\n"
+    | do_std_field (tag "T3") /series/ "\n"
+    | do_field_to_note)* (* star is on the whole union *) 
 
 let author_field 
   : (lens in (field_bibtex (del /author/) authors authors (copy EMPTY))

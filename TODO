@@ -19,8 +19,6 @@
 
 * Fix contract on q-lenses, reflecting "rel" out of Blenses.t.
 
-* Add refinements to addressing.boom, bibtex.boom.
-
 == DOCUMENTATION ==
 
 * Polish intro of manual.
