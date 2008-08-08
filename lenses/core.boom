@@ -601,6 +601,35 @@ function returning the empty string.
 
 \subsection{Canonizers}
 
+\LENSSECTION{@rel@} The @rel@ datatype splits the equivalence relations on
+lens (concreate/abstract) domains into two types: identity equivalences, and 
+unknown equivalences.
+
+#* type rel = Identity | Unknown
+
+## let rel_of_is_id (b:bool) : rel =
+##   match b with
+##     | true -> Identity
+##     | false -> Unknown : rel
+
+\LENSSECTION{@crel@} The @crel@ function extracts the equivalence relation
+on the concrete domain (@ctype@) of a lens.
+
+#* let crel : lens -> rel
+## = fun (l:lens) -> rel_of_is_id (Native.Prelude.crel_identity l)
+
+\LENSSECTION{@arel@} The @arel@ function extracts the equivalence relation
+on the abstract domain (@atype@) of a lens.
+
+#* let arel : lens -> rel
+## = fun (l:lens) -> rel_of_is_id (Native.Prelude.arel_identity l)
+
+\LENSSECTION{@cnrel@} The @cnrel@ function extracts the equivalence relation
+on a canonizer's (uncanonized) type.
+
+#* let cnrel : canonizer -> rel
+## = fun (cn:canonizer) -> rel_of_is_id (Native.Prelude.cnrel_identity cn)
+
 \LENSSECTION{@canonize@} The @canonize@ function extracts the $\CANONIZE$
 component of a canonizer. The record-style projection notation 
 @q.canonize@ desguars into @canonize@.
@@ -634,7 +663,7 @@ builds a canonizer out of a lens with the lens's $\GET$ function as the
 $\CANONIZE$ component and  $\CREATE$ as $\CHOOSE$.
 
 #* let canonizer_of_lens : lens -> canonizer
-## =Native.Prelude.canonizer_of_lens
+## = Native.Prelude.canonizer_of_lens
 
 \LENSSECTION{@canonizer_concat@} The @canonizer_concat@ operator
 concatenates canonizers. Only the concatenation of types on the left 

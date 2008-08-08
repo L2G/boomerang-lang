@@ -319,6 +319,7 @@ module Canonizer = struct
   let string cn = cn.string
   let uncanonized_type cn = cn.uncanonized_type
   let canonized_type cn = cn.canonized_type
+  let cnrel_identity cn = cn.crel = Identity
   let canonize cn = cn.canonize
   let choose cn = cn.choose
   let mk_t i s rt ct r cn ch = 
@@ -737,6 +738,8 @@ module DLens = struct
   let string dl = dl.string
   let ctype dl = dl.ctype
   let atype dl = dl.atype
+  let crel_identity dl = dl.crel = Identity
+  let arel_identity dl = dl.arel = Identity
   let bij dl = dl.bij
   let xtype dl = dl.xtype
   let stype dl = dl.stype

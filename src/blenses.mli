@@ -37,6 +37,7 @@ module Canonizer : sig
   val string : t -> string
   val uncanonized_type : t -> Bregexp.t
   val canonized_type : t -> Bregexp.t
+  val cnrel_identity : t -> bool
   val canonize : t -> (string -> string)
   val choose : t -> (string -> string)
 
@@ -60,6 +61,8 @@ module DLens : sig
   val string : t -> string
   val ctype : t -> Bregexp.t
   val atype : t -> Bregexp.t
+  val crel_identity : t -> bool
+  val arel_identity : t -> bool
   val bij : t -> bool
   val xtype : t -> Erx.t option
   val rget : t -> (string -> string)

@@ -103,6 +103,7 @@ let pmk4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f =
      r : Rx
      l : Lns
      q : Can
+     e : Rel
      p : Par
      v : Vnt (unused)
      f : Fun (unused)
@@ -155,6 +156,7 @@ let pmk_lql   = pmk2 S.SLens mk_lfun S.SCanonizer mk_qfun S.SLens mk_l
 let pmk_lrrb  = pmk3 S.SLens mk_lfun S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 
 let pmk_qq    = pmk1 S.SCanonizer mk_qfun S.SCanonizer mk_q 
+let pmk_qb    = pmk1 S.SCanonizer mk_qfun S.SBool mk_b 
 let pmk_qqq   = pmk2 S.SCanonizer mk_qfun S.SCanonizer mk_qfun S.SCanonizer mk_q 
 let pmk_qr    = pmk1 S.SCanonizer mk_qfun S.SRegexp mk_r
 let pmk_rq    = pmk1 S.SRegexp mk_rfun S.SCanonizer mk_q
@@ -282,6 +284,10 @@ let prelude_spec =
   ; pmk_lb     "bij"                  (fun _ -> L.bij)
 
   ; pmk_lq     "canonizer_of_lens"    L.canonizer_of_t
+  ; pmk_lb     "crel_identity"        (fun _ -> L.crel_identity)
+  ; pmk_lb     "arel_identity"        (fun _ -> L.arel_identity)
+  ; pmk_qb     "cnrel_identity"       (fun _ -> C.cnrel_identity)
+
   ; pmk_rs     "string_of_regexp"     (fun _ r1 -> Bregexp.string_of_t r1)
 
   (* sync *)
