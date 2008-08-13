@@ -56,7 +56,7 @@ module Qid : sig
   (** [string_of_t q] formats prints [q] as a string. *)
 
   val prime : t -> t 
-  (** [primt x] returns [x']. *)
+  (** [prime x] returns [x']. *)
  
   val compare : t -> t -> int
   (** [compare q1 q2] comparse [q1] and [q2] using a dictionary

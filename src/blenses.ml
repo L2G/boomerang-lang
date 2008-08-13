@@ -264,7 +264,16 @@ let branch2 t f1 f2 =
      if RxImpl.match_string t x then f1 x y 
      else f2 x y)
 
-(* helper for permutations *)
+(* helpers for permutations *)
+let valid_permutation sigma ls =
+  let k = Safelist.length sigma in
+  let rec build_list first last = 
+    if first = last
+    then []
+    else first::(build_list (first + 1) last) in
+  Safelist.length ls = k &&
+  Safelist.sort compare sigma = build_list 0 k
+
 let permutation i n sigma k = 
   let err () = 
     Berror.static_error i n 
@@ -283,6 +292,16 @@ let permutation i n sigma k =
       0 sigma in
     if k' <> k then err () in
   (sigma_arr,sigma_inv_arr) 
+
+let permute_list i sigma ls =
+  let n = sprintf "permute_list [%s] [...]" 
+    (Misc.concat_list "," (Safelist.map string_of_int sigma)) in  
+  let ls_arr = Array.of_list ls in
+  let k = Array.length ls_arr in
+  let _,sigma_inv_arr = permutation i n sigma k in
+    Array.fold_right 
+      (fun j ls' -> ls_arr.(j)::ls')
+      sigma_inv_arr []
     
 (* uid *)
 type uid = int
@@ -621,7 +640,7 @@ module DLens = struct
         arel: rel;                                          (* abstract equiv rel type *)
         (* --- core --- *)
         get: string -> string;                              (* get function *)
-        put: string -> skeleton -> dict -> (string * dict); (* put function *)
+       put: string -> skeleton -> dict -> (string * dict); (* put function *)
         parse: string -> (skeleton * dict);                 (* parse function *)
         create: string -> dict -> (string * dict);          (* create function *)
         key: string -> string;                              (* key function *)

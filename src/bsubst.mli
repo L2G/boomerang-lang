@@ -18,6 +18,10 @@ val erase_sort : sort -> sort
 
 val expose_sort : sort -> sort
 
+val qualify_sort : (Qid.t -> bool) -> Qid.t list -> Id.t -> sort -> sort
+(** [qualify_sort registered bound m s0] qualifies unbound, unqualified ids in s0
+    with the module m.  For top-level calls, bound should be empty. *)
+
 val syneq_exp : exp -> exp -> bool
 
 val syneq_sort : sort -> sort -> bool

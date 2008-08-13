@@ -1,4 +1,3 @@
-
 == BUILD == 
 
 * add target for bytecode compilation (Nate)
@@ -14,8 +13,8 @@
 
 * Fix XML to use Escaping.
 
-* Expose permute in Core (probably adding a primitive helper to write
-  its contract)
+* Fix escaping.boom to use Prelude.concatable on regexps instead of
+  its own concatable on lenses.
 
 * Fix contract on q-lenses using crel/arel/cnrel.
 

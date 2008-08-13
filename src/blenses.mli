@@ -31,6 +31,9 @@ val generic_iter : Info.t
   -> int -> int       (* min / max *)
   -> 'a
 
+val valid_permutation : int list -> 'a list -> bool
+val permute_list : Info.t -> int list -> 'a list -> 'a list
+
 module Canonizer : sig
   type t 
   val info : t -> Info.t

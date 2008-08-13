@@ -197,7 +197,7 @@ let prelude_spec =
   ; pmk_ll     "lens_star"            (fun i l -> L.iter i l 0 (-1))
   ; pmk_ll     "lens_plus"            (fun i l -> L.iter i l 1 (-1))
   ; pmk_ll     "lens_option"          (fun i l -> L.iter i l 0 1)
-  ; pmk_izlzl  "permute"              (fun i is ls -> L.permute i (Safelist.map get_i is) (Safelist.map get_l ls))
+  ; pmk_izlzl  "lens_permute"         (fun i is ls -> L.permute i (Safelist.map get_i is) (Safelist.map get_l ls))
   ; pmk_sll    "dmatch"               (fun i -> L.dmatch i L.std_lookup)
   ; pmk_ssll   "smatch"               (fun i s -> 
                                           let f = float_of_string s in
@@ -352,7 +352,38 @@ let prelude_spec =
                else 
                  poly_error b b_list_sort l in 
                  aux l0 acc0))))))
-  end ]
+  end 
+
+  ; begin
+    let i = mk_prelude_info "valid_permutation" in 
+    let a = Id.mk i "a" in 
+    let a_sort = S.SVar a in 
+    let int_list_sort = S.SData([S.SInteger],Qid.mk_list_t "t") in
+    let a_list_sort = S.SData([a_sort],Qid.mk_list_t "t") in      
+    (Qid.mk_native_prelude_t "valid_permutation",
+     S.SForall(a,int_list_sort ^> a_list_sort ^> S.SBool),
+     mk_f i (fun achk -> 
+       mk_f i (fun sigma -> 
+           mk_f i (fun l0 -> 
+	     let sigma = Safelist.map get_i (get_list sigma) in
+	       mk_b i (Blenses.valid_permutation sigma (get_list l0))))))
+  end
+
+  ; begin
+    let i = mk_prelude_info "list_permute" in
+    let a = Id.mk i "a" in 
+    let a_sort = S.SVar a in 
+    let int_list_sort = S.SData([S.SInteger],Qid.mk_list_t "t") in
+    let a_list_sort = S.SData([a_sort],Qid.mk_list_t "t") in
+    (Qid.mk_native_prelude_t "list_permute",
+     S.SForall(a,int_list_sort ^> a_list_sort ^> a_list_sort),
+     mk_f i (fun achk -> 
+       mk_f i (fun sigma -> 
+           mk_f i (fun l0 -> 
+	     let sigma = Safelist.map get_i (get_list sigma) in
+	       mk_list i (Blenses.permute_list i sigma (get_list l0))))))
+  end
+  ]
     
 let () = 
   Safelist.iter 

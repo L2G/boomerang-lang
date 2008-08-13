@@ -174,30 +174,6 @@ let reset () =
         Some l -> l
       | None -> assert false
 
-(* --------------- Registration functions -------------- *)
-
-(* register a value *)
-let register q r = 
-  library := (REnv.update (!library) q r)
-
-let register_type q (svl,cl) = 
-  library := (REnv.update_type (!library) svl q cl)
-
-let register_native_qid q s v = 
-  register q (Sort s,v)
-
-(* register a native value *)
-let register_native qs s v = 
-  register_native_qid (parse_qid qs) s v
-
-(* register a whole (rv Env.t) in m *)
-let register_env ev m = 
-  REnv.iter (fun q r -> register (Bident.Qid.id_dot m q) r) ev;  
-  REnv.iter_type (fun q ts -> 
-                    let (svl,cl) = ts in 
-                    let cl' = Safelist.map (fun (x,so) -> (Bident.Qid.id_dot m x,so)) cl in 
-                    register_type q (svl,cl')) ev
-    
 (* --------------- Lookup functions -------------- *)
 
 let paths = Prefs.createStringList 
@@ -325,3 +301,36 @@ let lookup_type_library q =
 let lookup_con_library q = 
   verbose (fun () -> Util.format "lookup_con_library [%s]@\n" (Bident.Qid.string_of_t q));
   lookup_con_library_ctx [] q
+
+(* --------------- Registration functions -------------- *)
+
+(* register a value *)
+let register q r = 
+  library := (REnv.update (!library) q r)
+
+let register_type q (svl,cl) = 
+  library := (REnv.update_type (!library) svl q cl)
+
+let register_native_qid q s v = 
+  register q (Sort s,v)
+
+(* register a native value *)
+let register_native qs s v = 
+  register_native_qid (parse_qid qs) s v
+
+(* register a whole (rv Env.t) in m *)
+let register_env ev m = 
+  let qualify = not (Safelist.exists (Bident.Qid.equal (Bident.Qid.t_of_id m)) pre_ctx) in
+  let qualify_rv (rs,v) =
+    let registered qx = lookup_library qx <> None in
+    let new_rs = match rs with
+      | Sort s -> Sort (Bsubst.qualify_sort registered [] m s)
+      | Unknown -> Unknown in
+      (new_rs,v) in
+  REnv.iter (fun q r -> register (Bident.Qid.id_dot m q) (if qualify 
+							  then qualify_rv r
+							  else r)) ev;  
+  REnv.iter_type (fun q ts -> 
+                    let (svl,cl) = ts in 
+                    let cl' = Safelist.map (fun (x,so) -> (Bident.Qid.id_dot m x,so)) cl in 
+                    register_type q (svl,cl')) ev

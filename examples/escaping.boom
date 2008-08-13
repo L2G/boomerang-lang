@@ -285,10 +285,6 @@ test "----- STR done -----" = ?
 
 test "----- CSV -----" = ?
 
-let splittable_lens (l1 : lens) (l2 : lens) : bool =
-  (splittable_cex (ctype l1) (ctype l2)) &&
-  (splittable_cex (atype l1) (atype l2))
-
 let concatable (lenses : lens List.t) (sep : lens) : bool =
   let (_,catable) = List.fold_left{lens}{lens option * bool}
     (fun (acc : lens option * bool) (l : lens) -> 
@@ -297,13 +293,13 @@ let concatable (lenses : lens List.t) (sep : lens) : bool =
 	 | (None,true) -> (Some{lens}(l),true)
          | ((Some l_acc),true) -> 
 	     begin
-               let s = splittable_lens l sep in
+               let s = lens_splittable l sep in
 	       match s with
 		 | false -> (None{lens},s) (* keep s around, to preserve cex *)
 		 | true -> 
 		     begin
 		       let l_sep = l . sep in
-		       let s = splittable_lens l_acc l_sep in
+		       let s = lens_splittable l_acc l_sep in
 		       match s with
 			 | false -> (None{lens},s) (* preserve cex *)
 			 | true -> (Some{lens}(l_acc . (l . sep)),true) : lens option * bool

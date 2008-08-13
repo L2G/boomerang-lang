@@ -225,15 +225,67 @@ The polymorphic functions @fst@ and @snd@ are the standard projections on pairs.
 These final two combinators take lists as arguments (and so have to be defined
 here instead of @Core@.)
 
+First, we have @permute@.  Before introducing the lens operation, we need to define
+a predicate on lists of regular expressions.
+
+\LENSSECTION{@concatable@} The list of regexps @Rs = #{regexp}[R1;R2;...;Rn]@ are
+concatenable with regexp separator @S@ if the following are splittable:
+\begin{itemize}
+    \item @R1@ and @S@
+    \item @R1.S@ and @R2@
+    \item @R1.S.R2.S@ and @R3@
+    \item ...
+    \item @R1.S...SRn-1@ and @Rn@
+\end{itemize}
+
+#* let concatable (Rs : regexp List.t) (S : regexp) : bool 
+##  =
+##  let (_,catable) = List.fold_left{regexp}{regexp option * bool}
+##    (fun (acc : regexp option * bool) (Ri : regexp) -> 
+##       match acc with
+##         | (_,false) -> (None{regexp},snd{regexp option}{bool} acc)
+##	   | (None,true) -> (Some{regexp}(Ri),true)
+##         | ((Some (r_acc)),true) -> 
+##	     begin
+##             let s = splittable_cex Ri S in (* keep s around, to preserve cex *)
+##	       match s with
+##		 | false -> (None{regexp},s)
+##		 | true -> 
+##		     begin
+##		       let Ri_sep = Ri . S in
+##		       let s = splittable_cex r_acc Ri_sep in
+##		       match s with
+##			 | false -> (None{regexp},s) (* preserve cex *)
+##			 | true -> (Some{regexp}(r_acc . Ri_sep),true) : regexp option * bool
+##		     end : regexp option * bool
+##	     end : regexp option * bool)
+##    (None{regexp},true) Rs in
+##  catable
+
+#* test concatable #{regexp}[/abc/;/def/] // = true
+#* test concatable #{regexp}[/abc/;/def/] /,/ = true
+#* test concatable #{regexp}[/a/ | /aa/;/a/?] // = false
+
 \LENSSECTION{@permute@} The lens @permute@ is an $n$-ary, permuting concatenation 
 operator on lenses. Given a concrete string, it splits it into $n$ pieces, 
 applies the $\GET$ function of the corresponding lens to each piece, reorders the 
 abstract strings according to the fixed permutation specified by @sigma@, and concatenates
-the results.
+the results.  Given a permutation @sigma@ and a list of lenses @l = #{lens}[l1;l2;...;ln]@ with types @Ci <-> Ai@.  It 
+produces a lens with type @C1.C2...Cn <-> Asigma(1).Asigma(2)...Asigma(n)@.
 
-#* let permute : int List.t -> lens List.t -> lens
-## = Native.Prelude.permute
+#* let permute 
+#*   (sigma:int List.t)
+#*   (ls:lens List.t where 
+#*     (List.valid_permutation{lens} sigma ls) &&
+#*     ((concatable (List.map{lens}{regexp} ctype ls) //) &&
+#*      (concatable (List.permute{regexp} sigma 
+#*                                        (List.map{lens}{regexp} atype ls)) //)))
+#*           : lens
+##   = Native.Prelude.lens_permute sigma ls
 
+#* test ctype (permute #{int}[1;0] #{lens}[copy /abc/;copy /def/]) = /abcdef/
+#* test atype (permute #{int}[1;0] #{lens}[copy /abc/;copy /def/]) = /defabc/
+#* test get (permute #{int}[2;0;1] #{lens}[copy /abc/;copy /def/;copy /ghi/]) "abcdefghi" = "defghiabc"
 #* test get (permute 
 #*             #{int}[2;1;0]
 #*             #{lens}[(copy UALPHACHAR);

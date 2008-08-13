@@ -59,7 +59,11 @@ let rec equal v1 v2 = match v1,v2 with
   | Unt _, Unt _ -> 
       true
   | Bol(_,b1), Bol(_,b2) -> 
-      b1=b2
+      begin match b1,b2 with
+	| None,None -> true
+	| Some _, Some _ -> true
+	| _ -> false
+      end
   | Int(_,n1), Int(_,n2) -> 
       n1=n2
   | Chr(_,c1), Chr(_,c2) -> 
@@ -241,7 +245,7 @@ let mk_list i l =
   let rec aux l v = match l with
     | [] -> v 
     | h::rest -> aux rest (Vnt(i,list_qid,cons,Some (mk_p i (h,v)))) in 
-  aux l (Vnt(i,list_qid,nil,None))
+  aux (Safelist.rev l) (Vnt(i,list_qid,nil,None))
         
 
 let mk_listfun i f = Fun(i,(fun v -> f (get_list v)))
