@@ -267,8 +267,7 @@ let lookup_library_generic lookup_fun nctx q =
       (* try here first, to avoid looping on native values *)
       match try_lib () with
         | Some r -> Some r
-        | None -> 
-            begin match load_var q2; try_lib () with
+        | None -> begin match load_var q2; try_lib () with
               | Some r -> Some r
               | None -> match nctx with 
                   | []       -> None
@@ -304,6 +303,28 @@ let lookup_con_library q =
 
 (* --------------- Registration functions -------------- *)
 
+(* lookup in a naming context, with a lookup function *)
+let resolve_library lookup_fun nctx m q = 
+  verbose (fun () -> Util.format "resolve_library [%s] [%s] in [%s]@\n" 
+           (Bident.Qid.string_of_t q)
+           (Misc.concat_list "," (Safelist.map Bident.Qid.string_of_t nctx))
+	   (Bident.Id.string_of_t m));
+  let rec resolve_library_aux nctx q2 =       
+    verbose (fun () -> Util.format "resolve_library_aux [%s] [%s]@\n" 
+             (Bident.Qid.string_of_t q2)
+             (Misc.concat_list "," (Safelist.map Bident.Qid.string_of_t nctx)));
+    match lookup_fun !library q2 with
+      | Some r -> q2
+      | None -> begin match nctx with 
+          | []       -> Bident.Qid.id_dot m q
+          | o::orest -> 
+              resolve_library_aux orest (Bident.Qid.t_dot_t o q) 
+        end
+  in
+  resolve_library_aux nctx q
+
+(* --------------- Registration functions -------------- *)
+
 (* register a value *)
 let register q r = 
   library := (REnv.update (!library) q r)
@@ -319,17 +340,13 @@ let register_native qs s v =
   register_native_qid (parse_qid qs) s v
 
 (* register a whole (rv Env.t) in m *)
-let register_env ev m = 
-  let qualify = not (Safelist.exists (Bident.Qid.equal (Bident.Qid.t_of_id m)) pre_ctx) in
+let register_env ev nctx m = 
   let qualify_rv (rs,v) =
-    let registered qx = lookup_library qx <> None in
     let new_rs = match rs with
-      | Sort s -> Sort (Bsubst.qualify_sort registered [] m s)
+      | Sort s -> Sort (Bsubst.qualify_sort (resolve_library REnv.lookup nctx m) [] s)
       | Unknown -> Unknown in
-      (new_rs,v) in
-  REnv.iter (fun q r -> register (Bident.Qid.id_dot m q) (if qualify 
-							  then qualify_rv r
-							  else r)) ev;  
+    (new_rs,v) in
+  REnv.iter (fun q r -> register (Bident.Qid.id_dot m q) (qualify_rv r)) ev;  
   REnv.iter_type (fun q ts -> 
                     let (svl,cl) = ts in 
                     let cl' = Safelist.map (fun (x,so) -> (Bident.Qid.id_dot m x,so)) cl in 

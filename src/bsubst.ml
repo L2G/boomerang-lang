@@ -691,106 +691,111 @@ let gensym i e =
     else x in
   aux ()
 
-let qualify_id registered bound m q0 =
-  if Safelist.exists (Qid.equal q0) bound || registered q0
+let qualify_id resolve bound q0 =
+  if Safelist.exists (Qid.equal q0) bound
   then q0 
-  else Qid.id_dot m q0
+  else
+    let q1 = resolve q0 in
+    Trace.debug "qualify"  (fun () -> Util.format "%s ~> %s (%s bound)\n" 
+			      (Qid.string_of_t q0) (Qid.string_of_t q1)
+			      (Misc.concat_list "," (Safelist.map Bident.Qid.string_of_t bound)));
+    q1
 
-let rec qualify_sort registered bound m s0 = match s0 with
+let rec qualify_sort resolve bound s0 = match s0 with
   | SFunction(x,s1,ls,s2) ->      
-      let new_s1 = qualify_sort registered bound m s1 in
+      let new_s1 = qualify_sort resolve bound s1 in
       let bound' = (Qid.t_of_id x)::bound in
-      let new_ls = Safelist.map (fun (li,ei) -> (li,qualify_exp registered bound' m ei)) ls in
-      let new_s2 = qualify_sort registered bound' m s2 in
+      let new_ls = Safelist.map (fun (li,ei) -> (li,qualify_exp resolve bound' ei)) ls in
+      let new_s2 = qualify_sort resolve bound' s2 in
 	SFunction(x,new_s1,new_ls,new_s2)
   | SProduct(s1,s2) -> 
-      let new_s1 = qualify_sort registered bound m s1 in 
-      let new_s2 = qualify_sort registered bound m s2 in 
+      let new_s1 = qualify_sort resolve bound s1 in 
+      let new_s2 = qualify_sort resolve bound s2 in 
       SProduct(new_s1,new_s2)
   | SData(sl,qx) -> 
-      let new_sl = Safelist.map (qualify_sort registered bound m) sl in 
+      let new_sl = Safelist.map (qualify_sort resolve bound) sl in 
       SData(new_sl,qx)
   | SRefine(x,s1,e2) -> 
-      let new_s1 = qualify_sort registered bound m s1 in
-      let new_e2 = qualify_exp registered ((Qid.t_of_id x)::bound) m e2 in 
+      let new_s1 = qualify_sort resolve bound s1 in
+      let new_e2 = qualify_exp resolve ((Qid.t_of_id x)::bound) e2 in 
       SRefine(x,new_s1,new_e2)
   | SForall(a,s1) -> 
-      let new_s1 = qualify_sort registered bound m s1 in 
+      let new_s1 = qualify_sort resolve bound s1 in 
       SForall(a,new_s1)
   | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
       s0
 
-and qualify_pat registered bound m p0 = match p0 with
+and qualify_pat resolve bound p0 = match p0 with
  | PVar(i,x,Some s) ->       
-      let new_s = qualify_sort registered bound m s in 
+      let new_s = qualify_sort resolve bound s in 
       PVar(i,x,Some new_s)
   | PVar(i,x,None) -> 
       p0
   | PVnt(i,qx,Some p) -> 
-      let new_p = qualify_pat registered bound m p in       
-      PVnt(i,qualify_id registered bound m qx,Some new_p)
+      let new_p = qualify_pat resolve bound p in       
+      PVnt(i,qualify_id resolve bound qx,Some new_p)
   | PVnt(i,qx,None) -> p0
   | PPar(i,p1,p2) -> 
-      let new_p1 = qualify_pat registered bound m p1 in  
-      let new_p2 = qualify_pat registered bound m p2 in  
+      let new_p1 = qualify_pat resolve bound p1 in  
+      let new_p2 = qualify_pat resolve bound p2 in  
       PPar(i,new_p1,new_p2) 
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
       p0
  
-and qualify_exp registered bound m e0 = match e0 with
-  | EVar(i,x) -> EVar(i,qualify_id registered bound m x)
+and qualify_exp resolve bound e0 = match e0 with
+  | EVar(i,x) -> EVar(i,qualify_id resolve bound x)
   | EApp(i,e1,e2) -> 
-      let new_e1 = qualify_exp registered bound m e1 in 
-      let new_e2 = qualify_exp registered bound m e2 in 
+      let new_e1 = qualify_exp resolve bound e1 in 
+      let new_e2 = qualify_exp resolve bound e2 in 
       EApp(i,new_e1,new_e2) 
   | EOver(i,o,el) -> 
-      let new_el = Safelist.map (qualify_exp registered bound m) el in 
+      let new_el = Safelist.map (qualify_exp resolve bound) el in 
       EOver(i,o,new_el)
   | EFun(i,Param(ip,x1,s2),so3,e4) -> 
-      let new_s2 = qualify_sort registered bound m s2 in 
-      let new_so3 = Misc.map_option (qualify_sort registered bound m) so3 in 
-      let new_e4 = qualify_exp registered bound m e4 in 
+      let new_s2 = qualify_sort resolve bound s2 in 
+      let new_so3 = Misc.map_option (qualify_sort resolve bound) so3 in 
+      let new_e4 = qualify_exp resolve bound e4 in 
       EFun(i,Param(ip,x1,new_s2),new_so3,new_e4) 
   | ELet(i,Bind(ib,p1,so2,e3),e4) ->
-      let new_p1 = qualify_pat registered bound m p1 in 
-      let new_so2 = Misc.map_option (qualify_sort registered bound m) so2 in
+      let new_p1 = qualify_pat resolve bound p1 in 
+      let new_so2 = Misc.map_option (qualify_sort resolve bound) so2 in
       let p1_vars = Safelist.map Qid.t_of_id (Id.Set.elements (bound_evars_pat Id.Set.empty p1)) in 
       let bound' = p1_vars@bound in
-      let new_e3 = qualify_exp registered bound' m e3 in 
-      let new_e4 = qualify_exp registered bound' m e4 in 
+      let new_e3 = qualify_exp resolve bound' e3 in 
+      let new_e4 = qualify_exp resolve bound' e4 in 
       ELet(i,Bind(ib,new_p1,new_so2,new_e3),new_e4)
   | ETyFun(i,a,e1) -> 
-      let new_e1 = qualify_exp registered bound m e1 in 
+      let new_e1 = qualify_exp resolve bound e1 in 
       ETyFun(i,a,new_e1)
   | ETyApp(i,e1,s2) -> 
-      let new_e1 = qualify_exp registered bound m e1 in 
-      let new_s2 = qualify_sort registered bound m s2 in 
+      let new_e1 = qualify_exp resolve bound e1 in 
+      let new_s2 = qualify_sort resolve bound s2 in 
       ETyApp(i,new_e1,new_s2) 
   | ECast(i,f1,t2,b,e3) ->
-      let new_f1 = qualify_sort registered bound m f1 in 
-      let new_t2 = qualify_sort registered bound m t2 in 
-      let new_e3 = qualify_exp registered bound m e3 in 
+      let new_f1 = qualify_sort resolve bound f1 in 
+      let new_t2 = qualify_sort resolve bound t2 in 
+      let new_e3 = qualify_exp resolve bound e3 in 
       ECast(i,new_f1,new_t2,b,new_e3)
   | EPair(i,e1,e2) -> 
-      let new_e1 = qualify_exp registered bound m e1 in 
-      let new_e2 = qualify_exp registered bound m e2 in 
+      let new_e1 = qualify_exp resolve bound e1 in 
+      let new_e2 = qualify_exp resolve bound e2 in 
       EPair(i,new_e1,new_e2)
   | ECase(i,e1,cl,s3) -> 
-      let new_e1 = qualify_exp registered bound m e1 in 
+      let new_e1 = qualify_exp resolve bound e1 in 
       let new_cl = 
         Safelist.map 
           (fun (pi,ei) -> 
-             let new_pi = qualify_pat registered bound m pi in 
+             let new_pi = qualify_pat resolve bound pi in 
              let pi_vars = Safelist.map Qid.t_of_id (Id.Set.elements (bound_evars_pat Id.Set.empty pi)) in
-             let new_ei = qualify_exp registered (pi_vars@bound) m ei in 
+             let new_ei = qualify_exp resolve (pi_vars@bound) ei in 
              (new_pi,new_ei))
           cl in 
-      let new_s3 = qualify_sort registered bound m s3 in 
+      let new_s3 = qualify_sort resolve bound s3 in 
       ECase(i,new_e1,new_cl,new_s3)
   | EAlloc(i,ls,e1) ->
       let new_ls =
-	Safelist.map (fun (li,ei) -> (li,qualify_exp registered bound m ei)) ls in
-      let new_e1 = qualify_exp registered bound m e1 in
+	Safelist.map (fun (li,ei) -> (li,qualify_exp resolve bound ei)) ls in
+      let new_e1 = qualify_exp resolve bound e1 in
       EAlloc(i,new_ls,new_e1)
   | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  | ELoc _ -> 
       e0

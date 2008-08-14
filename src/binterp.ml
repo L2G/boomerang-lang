@@ -519,8 +519,9 @@ and interp_mod_aux cev ms ds =
 let interp_module m0 = match m0 with 
   | Mod(i,m,nctx,ds) -> 
       let qm = Qid.t_of_id m in 
-      let cev = CEnv.set_ctx (CEnv.empty qm) (qm::nctx@G.pre_ctx) in
+      let nctx' = nctx@G.pre_ctx in
+      let cev = CEnv.set_ctx (CEnv.empty qm) (qm::nctx') in
       let new_cev,_ = interp_mod_aux cev [m] ds in
-      G.register_env (CEnv.get_ev new_cev) m
+      G.register_env (CEnv.get_ev new_cev) nctx' m
 
 let print_stats () = ()

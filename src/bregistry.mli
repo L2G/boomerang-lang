@@ -69,8 +69,9 @@ val pre_ctx : Bident.Qid.t list
 val get_library : unit -> REnv.t
 (** Returns the library, as an environment. *)
 
-val register_env : REnv.t -> Bident.Id.t -> unit
-(** ?? *)
+val register_env : REnv.t -> Bident.Qid.t list -> Bident.Id.t -> unit
+(** [register_env ev nctx m] registers the environment [ev] under the module name [m], resolving
+    identifies in the naming context [nctx]*)
 
 val register_native_qid : Bident.Qid.t -> Bsyntax.sort -> Bvalue.t -> unit
 (** ?? *)

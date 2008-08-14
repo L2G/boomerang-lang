@@ -1,0 +1,91 @@
+module Sort =
+
+let concat_lenses (ls:lens List.t where (concatable (List.map{lens}{regexp} ctype ls) //)
+                                     && (concatable (List.map{lens}{regexp} atype ls) //))
+  : lens
+  = List.fold_left{lens}{lens} 
+      (fun (l_acc:lens) (l:lens) -> l_acc . l)
+      (copy EPSILON) ls
+
+test get (concat_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "abc" = "abc"
+
+let sort_concat (ls:lens List.t where (concatable (List.map{lens}{regexp} ctype ls) //)
+                                   && (concatable (List.map{lens}{regexp} atype ls) //))  
+  : lens 
+  = left_quot (sort (List.map{lens}{regexp} ctype ls)) (concat_lenses ls)  
+
+let ls = sort_concat #{lens}[copy /a/;copy /b/;copy /c/]
+test get ls "abc" = "abc"
+test get ls "cba" = "abc"
+test get ls "bca" = "abc"
+test get ls "bba" = error
+test get ls "dba" = error
+test put ls "abc" "cba" = "abc"
+test ctype ls = [a-c]* (* part of the laxness of canonizers!  
+                          it's actually permutations of /abc/ *)
+
+let perm_sort2 (l1:lens) (l2:lens) = (l1 . l2 || l2 ~ l1)
+
+let perm_sort3 (l1:lens) (l2:lens) (l3:lens) : lens =
+  let s23 : lens = perm_sort2 l2 l3 in
+  ( l1 . s23
+    || (l2 ~ l1) . l3
+    || l3 ~ (l1 . l2)
+    || s23 ~ l1 )
+
+(* note precise ctypes *)
+test ctype (perm_sort2 (copy /a/) (copy /b/)) = (/ab/ | /ba/)
+test ctype (perm_sort3 (copy /a/) (copy /b/) (copy /c/)) = (/abc/ | /acb/ | /bac/ | /bca/ | /cab/ | /cba/)
+
+(* perm_sort4 requires that (l2,l4) and (l1,l3) be unambiguously
+   concatenable, as an artifact of the way we implement it using a
+   binary swap operator and composition. we wouldn't need this if we
+   had a more powerful permutation operator on lenses. *)
+let perm_sort4 (l1:lens) (l2:lens) (l3:lens) (l4:lens) : lens =
+  let s12 : lens = perm_sort2 l1 l2 in
+  let s23 : lens = perm_sort2 l2 l3 in
+  let s34 : lens = perm_sort2 l3 l4 in
+  let s123 : lens = perm_sort3 l1 l2 l3 in
+  let s234 : lens = perm_sort3 l2 l3 l4 in
+  let f1324 : lens =
+    copy (atype l1) .
+    (copy (atype l3) ~ (copy (atype l2))) .
+    copy (atype l4) in
+  ( l1 . s234
+  || s234 ~ l1
+  || ((l2 . l3) ~ l1) . l4
+  || (l2 ~ l1) . s34
+  || (l3 ~ s12) . l4
+  || l4 ~ (l1 . s23)
+  || l4 ~ ((l2 ~ l1) . l3)
+  || l4 ~ (l3 ~ (l1 . l2))
+  || (l3 . l4) ~ (l1 . l2)
+  || ( (l2 . l4) ~ (l1 . l3); f1324 )
+  || ( (l3 ~ l1) . (l4 ~ l2); f1324 ) )
+
+let l4 = perm_sort4 (copy "a") (copy "b") (copy "c") (copy "d")
+      
+test l4.get "abcd" = "abcd"
+test l4.get "abdc" = "abcd"
+test l4.get "acbd" = "abcd"
+test l4.get "acdb" = "abcd"
+test l4.get "adbc" = "abcd"
+test l4.get "adcb" = "abcd"
+test l4.get "bacd" = "abcd"
+test l4.get "badc" = "abcd"
+test l4.get "bcad" = "abcd"
+test l4.get "bcda" = "abcd"
+test l4.get "bdac" = "abcd"
+test l4.get "bdca" = "abcd"
+test l4.get "cabd" = "abcd"
+test l4.get "cadb" = "abcd"
+test l4.get "cbad" = "abcd"
+test l4.get "cbda" = "abcd"
+test l4.get "cdab" = "abcd"
+test l4.get "cdba" = "abcd"
+test l4.get "dabc" = "abcd"
+test l4.get "dacb" = "abcd"
+test l4.get "dbac" = "abcd"
+test l4.get "dbca" = "abcd"
+test l4.get "dcab" = "abcd"
+test l4.get "dcba" = "abcd"

@@ -18,9 +18,9 @@ val erase_sort : sort -> sort
 
 val expose_sort : sort -> sort
 
-val qualify_sort : (Qid.t -> bool) -> Qid.t list -> Id.t -> sort -> sort
-(** [qualify_sort registered bound m s0] qualifies unbound, unqualified ids in s0
-    with the module m.  For top-level calls, bound should be empty. *)
+val qualify_sort : (Qid.t -> Qid.t) -> Qid.t list -> sort -> sort
+(** [qualify_sort resolve bound s0] qualifies unbound, unqualified ids in [s0]
+    with the resolution function [resolve].  For top-level calls, [bound] should be empty. *)
 
 val syneq_exp : exp -> exp -> bool
 
