@@ -91,7 +91,7 @@ NOBAKE=0
 # bakery.ml embedding all the .boom files we might need.  But if we're
 # only going to run things in place, we can skip this step and avoid
 # recompiling Boomerang whenever .boom files change in the examples.
-if $(defined NOBAKE)
+if $(equal $(NOBAKE), 1)
   bakery.ml: $(TOOLSDIR)/baker$(EXE)
     ./$< ".boom" > $@
 else 
