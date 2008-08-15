@@ -139,6 +139,7 @@ let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rrs   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SString mk_s
 let pmk_rrx   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_x
 let pmk_rsb   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_b
+let pmk_rsr   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SRegexp mk_r
 let pmk_rsi   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SInteger mk_i
 let pmk_rssl  = pmk3 S.SRegexp mk_rfun S.SString mk_sfun S.SString mk_sfun S.SLens mk_l
 
@@ -272,6 +273,7 @@ let prelude_spec =
 					 | Some(cex) ->   
 					     Some (sprintf "%s and %s are not disjoint: %s is in the intersection" (Bregexp.string_of_t t1) (Bregexp.string_of_t t2) cex)
 					 | None -> None)
+  ; pmk_rsr    "derivative"           (fun _ t1 s -> Bregexp.derivative t1 s)
     
   (* boolean operations *)            
   ; pmk_bbb    "land"                 (fun _ -> (&&))

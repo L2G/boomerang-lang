@@ -63,6 +63,7 @@ let disjoint_cex = R.disjoint_cex
 let disjoint = R.disjoint
 let equiv = R.equiv
 let representative = R.representative
+let derivative = R.derivative
 
 (* string matching *)
 let match_string = R.match_string

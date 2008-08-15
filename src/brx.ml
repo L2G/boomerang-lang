@@ -42,6 +42,7 @@ type r =
 let lpar r1 r2 = match r1,r2 with
   | Arnk, _    -> false
   | _, Arnk    -> false
+  | Srnk,Srnk  -> true
   | Srnk, _    -> false
   | _, Srnk    -> true
   | Crnk, _    -> false
@@ -57,6 +58,7 @@ let lpar r1 r2 = match r1,r2 with
 let rpar r1 r2 = match r1,r2 with
   | Arnk, _    -> false
   | _, Arnk    -> false
+  | Srnk,Srnk  -> true
   | Srnk, _    -> false
   | _, Srnk    -> true
   | Crnk, _    -> false
@@ -617,6 +619,9 @@ and calc_representative t =
         Misc.Right p in 
     
   let full_search (r,f,p) =
+(*     Util.format "FULL_SEARCH %b %b %a@\n"  *)
+(*       t.final (Q.mem t f || easy_empty t) *)
+(*       (fun _ -> format_t) t; *)
     let f' = Q.add t f in
       if t.final then Misc.Left (([],t)::r)
       else if Q.mem t f || easy_empty t then 
@@ -634,7 +639,8 @@ and calc_representative t =
                 let ci = rm.(i) in
                 let ti = t.derivative ci in
                 if Q.mem ti sn then loop sn acc (pred i)
-                else loop (Q.add ti sn) (add ti (Some ci) r f' pacc) (pred i) 
+                else 
+                  loop (Q.add ti sn) (add ti (Some ci) r f' pacc) (pred i)
               end in 
           match loop Q.empty (Misc.Right p) (pred len) with
             | Misc.Left _ as res -> res
@@ -675,7 +681,7 @@ and calc_representative t =
                    let rec loop i acc = 
                      if i <= 0 then acc
                      else loop (pred i) (acc @ w1) in 
-                   Misc.Left [loop i [],t]
+                   Misc.Left ((loop i [],t)::r)
                | Misc.Right f' -> 
                    (if t1.representative = None then t1.representative <- Some None);
                    rep_jump (Q.add t f) p)
@@ -695,7 +701,7 @@ and calc_representative t =
                    | Misc.Left r2 ->
                        let w2 = rep_of_list r2 in 
                        (if t2.representative = None then t2.representative <- Some (Some w2));
-                       Misc.Left[w1 @ w2,t])
+                       Misc.Left ((w1 @ w2,t)::r))
       | Alt tl ->
           (fun (r,f,p) -> alts_rep r (fun x -> x) (Q.add t f) p tl)
       | Diff(t1,t2) -> 
@@ -993,34 +999,43 @@ let mk_suffs t0 = get_suffs t0
 
 let splittable_cex t1 t2 = 
   (* (1) try a fast path -- t1 ends in words whose final symbol is not the first symbol of a word in t2 *)
-  let t1_rev = mk_reverse t1 in
+(*   let t1_rev = mk_reverse t1 in *)
   let t2_rev = mk_reverse t2 in 
-  let _,rm,_ = desc_maps (Alt [t1_rev;t2]) in
-  let has_sep = 
-    Array.fold_left 
-      (fun ok ci -> ok && (easy_empty (t1_rev.derivative ci) || easy_empty (t2.derivative ci)))
-      true rm in
-  if has_sep then Misc.Right(mk_seq t1 t2)
-  else 
+(*   let _,rm,_ = desc_maps (Alt [t1_rev;t2]) in *)
+(*   let has_sep =  *)
+(*     Array.fold_left  *)
+(*       (fun ok ci -> ok && (easy_empty (t1_rev.derivative ci) || easy_empty (t2.derivative ci))) *)
+(*       true rm in *)
+(*   Util.format "SPLITTABLE_CEX@\nT1=%a@\nT2=%a@\n" *)
+(*     (fun _ -> format_t) t1 *)
+(*     (fun _ -> format_t) t2; *)
+(*   Util.format "HAS_SEP: %b@\n" has_sep; *)
+(*   if has_sep then Misc.Right(mk_seq t1 t2) *)
+(*   else  *)
     (* (2) otherwise, compute full suffixes and prefixes and intersect *)
     begin
     let t1_suffs = mk_suffs t1 in
+(*     Util.format "T1_SUFFS: %a@\n" (fun _ -> format_t) t1_suffs; *)
       if is_epsilon t1_suffs then Misc.Right(mk_seq t1 t2) 
       else 
         begin
           let t2_rev_suffs = mk_suffs t2_rev in 
           let t2_prefs = mk_reverse t2_rev_suffs in 
+(*           Util.format "T2_REV: %a@\n" (fun _ -> format_t) t2_rev; *)
+(*           Util.format "T2_PREFS: %a@\n" (fun _ -> format_t) t2_prefs; *)
           if is_epsilon t2_prefs then Misc.Right(mk_seq t1 t2)
           else
             begin
               let overlap_or_epsilon = mk_inter t1_suffs t2_prefs in
-              let overlap = mk_diff overlap_or_epsilon epsilon in              
+              let overlap = mk_diff overlap_or_epsilon epsilon in
                 match representative overlap with
                   | Some over ->
+(*                       Util.format "OVER: %s@\n" over; *)
                       let t2_suff = derivative t2 over in
                       let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in
                       begin match representative (mk_inter t1 t1_pref),representative (mk_inter t2 t2_suff) with
-                        | Some w1,Some w2 -> Misc.Left(w1 ^ over, w2, w1, over ^ w2)
+                        | Some w1,Some w2 -> 
+                            Misc.Left(w1 ^ over, w2, w1, over ^ w2)
                         | _ ->
                             Berror.run_error (Info.M "splittable_cex")
                               (fun () ->
@@ -1038,6 +1053,9 @@ let iterable_cex t1 =
   if t1.final then Misc.Left("","","","")
   else
     let t1s = mk_star t1 in 
+(*     Util.format "ITERABLE_CEX@\nT1  = %a@\nT1s = %a@\n" *)
+(*       (fun _ -> format_t) t1 *)
+(*       (fun _ -> format_t) t1s; *)
     match splittable_cex t1 t1s with
       | Misc.Right _ -> Misc.Right t1s
       | res -> res

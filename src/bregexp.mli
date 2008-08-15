@@ -62,6 +62,7 @@ val disjoint_cex : t -> t -> string option
 val disjoint : t -> t -> bool
 val equiv : t -> t -> bool
 val representative : t -> string option
+val derivative : t -> string -> t
 
 (* string matching *)
 val match_string : t -> string -> bool
