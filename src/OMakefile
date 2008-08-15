@@ -85,7 +85,7 @@ $(BINDIR)/$(RESULT)$(EXE): $(RESULT)$(EXE)
 clean:
 	$(CLEAN) $(RESULTS) $(GENERATED_SOURCES) bakery.ml
 
-NOBAKE=1
+NOBAKE=0
 
 # If we are installing Boomerang somewhere, then we need to build a real
 # bakery.ml embedding all the .boom files we might need.  But if we're
