@@ -13,9 +13,6 @@
 
 * Fix XML to use Escaping.
 
-* Fix escaping.boom to use Prelude.concatable on regexps instead of
-  its own concatable on lenses.
-
 * Fix contract on q-lenses using crel/arel/cnrel.
 
 == DOCUMENTATION ==

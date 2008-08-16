@@ -27,8 +27,6 @@ let tester = unrender_quotedstr ; unescape_quotedstr
 (* DOESN'T WORK!! *)
 *)
 
-test "----- UNRENDER/UNESCAPE -----" = ?
-
 let unrender_quotedstr (R : regexp) =
     ("\"" <-> "") . 
     copy R . 
@@ -52,13 +50,9 @@ test get unescape_quotedstr
 
 let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
 
-test "----- UNRENDER/UNESCAPE done -----" = ?
-
 (* Does this transformation work in general? *)
 
 (* Making the example harder: Make the ASCII into a CSV... *)
-
-test "----- ESCAPE/RENDER -----" = ?
 
 let escape_xml_char = 
      ("<" <-> "&lt;")
@@ -96,12 +90,8 @@ test get l
         <tag> &lt;hello""world&gt; </tag>
     >>
 
-test "----- ESCAPE/RENDER done -----" = ?
-
 (*************************************************)
 (* That works.  So let's make it more generic... *)
-
-test "----- ESCAPE/RENDER (generic) -----" = ?
 
 (* regex -> str -> str -> lens
    no possibility of failure, can give complete return type
@@ -206,10 +196,6 @@ let escape
   in
     escape_char*
 
-test "----- ESCAPE/RENDER (generic) done -----" = ?
-
-test "----- ESCAPE/RENDER (generic, v2) -----" = ?
-
 let char_or_escaped2 (esc : char) (pairs : (char * string) List.t) =
   let esc_p (p : char * string) = 
     let from,to = p in
@@ -237,10 +223,6 @@ let escape2
   in
     escape_char*
 
-test "----- ESCAPE/RENDER (generic, v2) done -----" = ?
-
-test "----- XML -----" = ?
-
 let xml_escs : (char * string) List.t =
   List.Cons{char * string}(('>',"gt;"),
   List.Cons{char * string}(('<',"lt;"),
@@ -253,10 +235,6 @@ let xml_escs : (char * string) List.t =
    : ANY <-> (/&gt;/ | /&lt;/ | /&amp;/ | [^<>&])*
 *)
 let escape_xml : lens = escape2 '&' xml_escs
-
-test "----- XML done -----" = ?
-
-test "----- STR -----" = ?
 
 let str_escs : (char * string) List.t =
   List.Cons{char * string}(('"',"\""),
@@ -281,32 +259,9 @@ test get l2
         <tag> &lt;hello""world&gt; </tag>
     >>
 
-test "----- STR done -----" = ?
-
-test "----- CSV -----" = ?
-
-let concatable (lenses : lens List.t) (sep : lens) : bool =
-  let (_,catable) = List.fold_left{lens}{lens option * bool}
-    (fun (acc : lens option * bool) (l : lens) -> 
-       match acc with
-         | (_,false) -> (None{lens},snd{lens option}{bool} acc)
-	 | (None,true) -> (Some{lens}(l),true)
-         | ((Some l_acc),true) -> 
-	     begin
-               let s = lens_splittable l sep in
-	       match s with
-		 | false -> (None{lens},s) (* keep s around, to preserve cex *)
-		 | true -> 
-		     begin
-		       let l_sep = l . sep in
-		       let s = lens_splittable l_acc l_sep in
-		       match s with
-			 | false -> (None{lens},s) (* preserve cex *)
-			 | true -> (Some{lens}(l_acc . (l . sep)),true) : lens option * bool
-		     end : lens option * bool
-	     end : lens option * bool)
-    (None{lens},true) lenses in
-  catable
+let lens_concatable (lenses : lens List.t) (sep : lens) : bool
+  = (concatable (List.map{lens}{regexp} ctype lenses) (ctype sep)) &&
+    (concatable (List.map{lens}{regexp} atype lenses) (atype sep))
 
 (* to cover our asses, we need the concatable refinement
 
@@ -314,7 +269,8 @@ let concatable (lenses : lens List.t) (sep : lens) : bool =
 *)
 let concat_lenses 
       (lenses : lens List.t) 
-      (sep : lens where concatable lenses sep) : lens =
+      (sep : lens where lens_concatable lenses sep) 
+  : lens =
   let concatted = List.fold_left{lens}{lens option}
     (fun (l_acc : lens option) (l : lens) -> 
        match l_acc with
@@ -331,7 +287,7 @@ let field_to_xml (field : string) : lens =
   escape_xml ; render_tag (atype escape_xml) field
 
 (* as above -- do we want the strict return type?  do we want to pass the buck? *)
-let csv_to_xml (fields : string List.t where concatable fields (del ",")) = 
+let csv_to_xml (fields : string List.t where lens_concatable fields (del ",")) = 
   concat_lenses (List.map{string}{lens} field_to_xml fields) (del ",")
 
 let l3 = csv_to_xml (List.Cons{string}("first",List.Cons{string}("last",List.Nil{string})))
