@@ -129,6 +129,7 @@ let rec dynamic_match i p0 v0 =
   | PUnt _,V.Unt(_) -> Some []
   | PInt(_,n1),V.Int(_,n2) -> if n1=n2 then Some [] else None
   | PBol(_,b1),V.Bol(_,b2) -> if (b1 && (b2 = None)) || (not b1 && (b2 <> None)) then Some [] else None
+  | PCex(_,p),V.Bol(vi,Some s) -> dynamic_match i p (V.mk_s vi s)
   | PStr(_,s1),V.Str(_,s2) -> if s1 = s2 then Some [] else None
   | PVnt(_,(_,li),pio),V.Vnt(_,_,lj,vjo) -> 
       if Id.equal li lj then 
@@ -337,8 +338,12 @@ and interp_exp cev e0 =
   | EUnit(i) -> 
       V.Unt(i)
 
-  | EBoolean(i,b) -> 
-      V.Bol(i,b)
+  | EBoolean(i,None) ->
+      V.Bol(i,None)
+
+  | EBoolean(i,Some e1) ->
+      let v1 = interp_exp cev e1 in
+      V.Bol(i,Some (V.get_s v1))
 
   | EInteger(i,n) -> 
       V.Int(i,n)

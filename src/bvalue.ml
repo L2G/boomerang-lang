@@ -210,6 +210,7 @@ let mk_f i f = Fun(i,f)
 
 let mk_ufun i f = Fun(i,(fun v -> f (get_u v)))
 let mk_bfun i f = Fun(i,(fun v -> f (get_b v)))
+let mk_xfun i f = Fun(i,(fun v -> f (get_x v)))
 let mk_ifun i f = Fun(i,(fun v -> f (get_i v)))
 let mk_cfun i f = Fun(i,(fun v -> f (get_c v)))
 let mk_sfun i f = Fun(i,(fun v -> f (get_s v)))

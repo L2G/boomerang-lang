@@ -144,6 +144,9 @@ and freshen_pat lmap p0 = match p0 with
       let new_p1 = freshen_pat lmap p1 in
       let new_p2 = freshen_pat lmap p2 in
       PPar(i,new_p1,new_p2)
+  | PCex(i,p) ->
+      let new_p = freshen_pat lmap p in
+      PCex(i,new_p)
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
 
 let alloc ls e1 =

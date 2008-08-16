@@ -913,11 +913,10 @@ aexp:
 
   | BOOLEAN
       { let i,b = $1 in 
-        EBoolean(i,if b then None else Some "") }
+        EBoolean(i,if b then None else Some (EString(i,""))) }
 
-  | CEX STR
-      { let si,s = $2 in 
-        EBoolean($1,Some s) }
+  | CEX LPAREN exp RPAREN 
+      { EBoolean($1,Some $3) }
 
   | CSET                                
       { let i1,s1 = $1 in         
@@ -1091,6 +1090,9 @@ apat:
   | BOOLEAN
       { let i,b = $1 in 
         PBol(i,b) }
+
+  | CEX LPAREN pat RPAREN
+      { PCex($1,$3) }
 
   | STR
       { let i,s = $1 in 

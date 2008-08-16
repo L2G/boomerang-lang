@@ -20,6 +20,7 @@ let rec free_svars_pat acc = function
   | PVnt(_,_,Some p) -> free_svars_pat acc p
   | PVnt(_,_,None)   -> acc
   | PPar(_,p1,p2)    -> free_svars_pat (free_svars_pat acc p1) p2
+  | PCex(_,p1)       -> free_svars_pat acc p1
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
 and free_svars_sort acc = function
   | SVar a -> 
@@ -92,7 +93,10 @@ and free_svars_exp acc = function
       let acc1 = Safelist.fold_left (fun acci (_,ei) -> free_svars_exp acci ei) acc ls in
       let acc2 = free_svars_exp acc1 e1 in
       acc2
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ | ELoc _ -> 
+  | EBoolean(_,Some e1) ->
+      let acc1 = free_svars_exp acc e1 in
+      acc1
+  | EBoolean(_,None) | EUnit _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ | ELoc _ -> 
       acc
 
 (* SORT SUBSTITUTION *)
@@ -125,6 +129,9 @@ let rec subst_svars_pat subst p0 = match p0 with
       let new_p1 = subst_svars_pat subst p1 in  
       let new_p2 = subst_svars_pat subst p2 in  
       PPar(i,new_p1,new_p2) 
+  | PCex(i,p) ->
+      let new_p = subst_svars_pat subst p in
+      PCex(i,new_p)
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
 and subst_svars_sort subst s0 = match s0 with 
   | SVar a -> (try gen_assoc Id.equal a subst with Not_found -> s0)
@@ -203,7 +210,10 @@ and subst_svars_exp subst e0 = match e0 with
       let new_ls = Safelist.map (fun (li,ei) -> (li,subst_svars_exp subst ei)) ls in
       let new_e1 = subst_svars_exp subst e1 in
       EAlloc(i,new_ls,new_e1)
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ | ELoc _ -> e0
+  | EBoolean(i,Some e1) ->
+      let new_e1 = subst_svars_exp subst e1 in
+      EBoolean(i,Some new_e1)
+  | EBoolean(_,None) | EUnit _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ | ELoc _ -> e0
 
 (* FREE EXPRESSION VARIABLES *)
 let qvs_of_is s = Id.Set.fold (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) s Qid.Set.empty 
@@ -214,12 +224,14 @@ let rec free_evars_pat acc = function
   | PVnt(_,_,Some p) -> free_evars_pat acc p
   | PVnt(_,_,None)   -> acc
   | PPar(_,p1,p2)    -> free_evars_pat (free_evars_pat acc p1) p2
+  | PCex(_,p1)       -> free_evars_pat acc p1
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
 and bound_evars_pat acc = function
   | PVar(_,x,_)      -> Id.Set.add x acc
   | PVnt(_,_,Some p) -> bound_evars_pat acc p
   | PVnt(_,_,None)   -> acc
   | PPar(_,p1,p2)    -> bound_evars_pat (bound_evars_pat acc p1) p2
+  | PCex(_,p1)       -> bound_evars_pat acc p1
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
 and free_evars_sort acc = function
   | SFunction(x,s1,ls,s2) ->       
@@ -298,7 +310,10 @@ and free_evars_exp acc = function
 	  acc ls in
       let acc2 = free_evars_exp acc1 e1 in
       acc2
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _ | ELoc _ -> 
+  | EBoolean(i,Some e1) ->
+      let acc1 = free_evars_exp acc e1 in
+      acc1
+  | EUnit _ | EBoolean(_,None) | EInteger _ | EChar _ | EString _ | ECSet _ | ELoc _ -> 
       acc
 
 let map_concat f ls = Safelist.concat (Safelist.map f ls)
@@ -329,13 +344,15 @@ and free_locs_exp = function
       (free_locs_exp e1)@(free_locs_sort s3)@(map_concat (fun (pi,ei) -> (free_locs_pat pi)@(free_locs_exp ei)) cl)
   | EAlloc(_,ls,e1) -> Safelist.filter (fun l -> not (mem_assoc l ls)) ((map_concat (fun (_,ei) -> free_locs_exp ei) ls)@(free_locs_exp e1))
   | ELoc(_,l) -> [l]
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  | EVar _ -> []
+  | EBoolean(_,Some e1) -> free_locs_exp e1
+  | EUnit _ | EBoolean(_,None) | EInteger _ | EChar _ | EString _ | ECSet _  | EVar _ -> []
 and free_locs_pat = function
   | PVar(_,_,Some s) -> free_locs_sort s
   | PVar(_,_,None)   -> []
   | PVnt(_,_,Some p) -> free_locs_pat p
   | PVnt(_,_,None)   -> []
   | PPar(_,p1,p2)    -> (free_locs_pat p1)@(free_locs_pat p2)
+  | PCex(_,p1)       -> free_locs_pat p1
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> []
 
 (* EXPRESSION SUBSTITUTION *)
@@ -380,6 +397,9 @@ let rec rename_evars_pat subst p0 = match p0 with
       let new_p1 = rename_evars_pat subst p1 in  
       let new_p2 = rename_evars_pat subst p2 in  
       PPar(i,new_p1,new_p2)
+  | PCex(i,p) ->
+      let new_p = rename_evars_pat subst p in
+      PCex(i,new_p)
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
       p0
 
@@ -397,6 +417,9 @@ let rec subst_evars_pat subst p0 = match p0 with
       let new_p1 = subst_evars_pat subst p1 in  
       let new_p2 = subst_evars_pat subst p2 in  
       PPar(i,new_p1,new_p2) 
+  | PCex(i,p) ->
+      let new_p = subst_evars_pat subst p in
+      PCex(i,new_p)
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
       p0
  
@@ -535,7 +558,10 @@ and subst_evars_exp subst e0 = match e0 with
 	Safelist.map (fun (li,ei) -> (li,subst_evars_exp subst ei)) ls in
       let new_e1 = subst_evars_exp subst e1 in
       EAlloc(i,new_ls,new_e1)
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  | ELoc _ -> 
+  | EBoolean(i,Some e1) ->
+      let new_e1 = subst_evars_exp subst e1 in
+      EBoolean(i,Some new_e1)
+  | EUnit _ | EBoolean(_,None) | EInteger _ | EChar _ | EString _ | ECSet _  | ELoc _ -> 
       e0
 
 let subst_sort subst s0 = subst_svars_sort subst s0
@@ -658,7 +684,9 @@ and syneq_exp e1 e2 = match e1,e2 with
       rec_eq (fun (pi,ei) (pj,ej) -> syneq_pat pi pj && syneq_exp ei ej)
         (syneq_exp e1 e2 && syneq_sort s1 s2) cl1 cl1
   | EUnit _,EUnit _         -> true
-  | EBoolean(_,b1),EBoolean(_,b2) -> b1 = b2
+  | EBoolean(_,None),EBoolean(_,None) -> true (* both true *)
+  | EBoolean(_,Some _),EBoolean(_,Some _) -> true (* both false (with possibly different counterexamples *)
+  | EBoolean(_,_),EBoolean(_,_) -> false
   | EInteger(_,n1),EInteger(_,n2) -> n1 = n2
   | EChar(_,c1),EChar(_,c2)       -> c1 = c2
   | EString(_,s1),EString(_,s2)   -> s1 = s2
@@ -739,6 +767,9 @@ and qualify_pat resolve bound p0 = match p0 with
       let new_p1 = qualify_pat resolve bound p1 in  
       let new_p2 = qualify_pat resolve bound p2 in  
       PPar(i,new_p1,new_p2) 
+  | PCex(i,p) ->
+      let new_p = qualify_pat resolve bound p in
+      PCex(i,new_p)
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> 
       p0
  
@@ -797,5 +828,8 @@ and qualify_exp resolve bound e0 = match e0 with
 	Safelist.map (fun (li,ei) -> (li,qualify_exp resolve bound ei)) ls in
       let new_e1 = qualify_exp resolve bound e1 in
       EAlloc(i,new_ls,new_e1)
-  | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  | ELoc _ -> 
+  | EBoolean(i,Some e1) ->
+      let new_e1 = qualify_exp resolve bound e1 in
+      EBoolean(i,Some new_e1)
+  | EUnit _ | EBoolean(_,None) | EInteger _ | EChar _ | EString _ | ECSet _  | ELoc _ -> 
       e0

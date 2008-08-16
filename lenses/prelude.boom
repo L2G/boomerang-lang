@@ -243,19 +243,17 @@ concatenable with regexp separator @S@ if the following are splittable:
 ##  let (_,catable) = List.fold_left{regexp}{regexp option * bool}
 ##    (fun (acc : regexp option * bool) (Ri : regexp) -> 
 ##       match acc with
-##         | (_,false) -> (None{regexp},snd{regexp option}{bool} acc)
+##         | (_,cex(s)) -> (None{regexp},cex(s))
 ##	   | (None,true) -> (Some{regexp}(Ri),true)
 ##         | ((Some (r_acc)),true) -> 
 ##	     begin
-##             let s = splittable_cex Ri S in (* keep s around, to preserve cex *)
-##	       match s with
-##		 | false -> (None{regexp},s)
+##	       match splittable_cex Ri S with
+##		 | cex(s) -> (None{regexp},cex(s)) (* preserve cex *)
 ##		 | true -> 
 ##		     begin
 ##		       let Ri_sep = Ri . S in
-##		       let s = splittable_cex r_acc Ri_sep in
-##		       match s with
-##			 | false -> (None{regexp},s) (* preserve cex *)
+##		       match splittable_cex r_acc Ri_sep with
+##			 | cex(s) -> (None{regexp},cex(s)) (* preserve cex *)
 ##			 | true -> (Some{regexp}(r_acc . Ri_sep),true) : regexp option * bool
 ##		     end : regexp option * bool
 ##	     end : regexp option * bool)

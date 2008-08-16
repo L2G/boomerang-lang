@@ -285,9 +285,15 @@ let rec static_match i sev p0 s =
       | PInt _ -> 
           if not (compatible s SInteger) then err p0 "int" s;
           Some (p0,[])
-      | PBol _ -> 
+      | PBol _ ->
           if not (compatible s SBool) then err p0 "bool" s;
           Some (p0,[])
+      | PCex (pi,p1) -> 
+          if not (compatible s SBool) then err p0 "bool" s;
+	  begin match static_match i sev p1 SString with
+	    | None -> err p1 "string" SString
+	    | Some (new_p1,binds) -> Some (PCex(pi,new_p1),binds)
+	  end
       | PStr _ -> 
           if not (compatible s SString) then err p0 "string" s;
           Some (p0,[])
@@ -635,7 +641,16 @@ and check_exp sev e0 =
         (* units have sort SUnit *)
         (SUnit,e0,[])
 
-    | EBoolean(_) -> 
+    | EBoolean(i,Some e1) ->
+	let e1_sort,new_e1,e1_ls = check_exp sev e1 in
+	if not (compatible e1_sort SString) then
+          sort_error i 
+	    (fun () -> msg "@[in@ counterexample: expected@ %s@ but@ found@ %s@]"
+               (string_of_sort SString)
+               (string_of_sort e1_sort));
+	(SBool,EBoolean(i,Some new_e1),e1_ls)
+
+    | EBoolean(_,None) -> 
         (* boolean constants have sort SBool *)
         (SBool,e0,[])
 

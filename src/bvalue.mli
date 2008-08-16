@@ -80,6 +80,7 @@ val mk_f : Info.t -> (t -> t) -> t
 
 val mk_ufun : Info.t -> (unit -> t) -> t
 val mk_bfun : Info.t -> (bool -> t) -> t
+val mk_xfun : Info.t -> (string option -> t) -> t
 val mk_ifun : Info.t -> (int -> t) -> t
 val mk_cfun : Info.t -> (char -> t) -> t
 val mk_lfun : Info.t -> (Blenses.DLens.t -> t) -> t

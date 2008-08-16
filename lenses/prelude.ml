@@ -112,7 +112,7 @@ let pmk4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f =
 let pmk_cs    = pmk1 S.SChar mk_cfun S.SString mk_s
 
 let pmk_bb    = pmk1 S.SBool mk_bfun S.SBool mk_b
-let pmk_bbb   = pmk2 S.SBool mk_bfun S.SBool mk_bfun S.SBool mk_b 
+let pmk_xxx   = pmk2 S.SBool mk_xfun S.SBool mk_xfun S.SBool mk_x 
 
 let pmk_is    = pmk1 S.SInteger mk_ifun S.SString mk_s
 let pmk_iib   = pmk2 S.SInteger mk_ifun  S.SInteger mk_ifun S.SBool mk_b
@@ -282,8 +282,16 @@ let prelude_spec =
   ; pmk_rsr    "derivative"           (fun _ t1 s -> Bregexp.derivative t1 s)
     
   (* boolean operations *)            
-  ; pmk_bbb    "land"                 (fun _ -> (&&))
-  ; pmk_bbb    "lor"                  (fun _ -> (||))
+  ; pmk_xxx    "land"                 (fun _ x1 x2 -> 
+					 match x1,x2 with
+					     None,None -> None
+					   | None,Some cex
+					   | Some cex,None -> Some cex
+					   | Some cex1,Some cex2 -> Some ("["^cex1^"] and ["^cex2^"]"))
+  ; pmk_xxx    "lor"                  (fun _ x1 x2 ->
+				         match x1,x2 with
+					   | Some cex1,Some cex2 -> Some ("["^cex1^"] and ["^cex2^"]")
+					   | _ -> None)
   ; pmk_bb     "not"                  (fun _ -> not)
                                       
   (* run-time checking *)             

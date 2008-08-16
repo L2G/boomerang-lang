@@ -86,11 +86,13 @@ and exp =
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
-    | EBoolean of Info.t * string option (* None = true; Some s = false with counterexample s *)
     | EInteger of Info.t * int    
     | EChar    of Info.t * char
     | EString  of Info.t * string
     | ECSet    of Info.t * bool * (char * char) list 
+
+    (* booleans with counter examples *)
+    | EBoolean of Info.t * exp option (* None = true; Some s = false with counterexample s *)
 
 (* overloaded operators *)
 and op = 
@@ -115,6 +117,7 @@ and pat =
   | PWld of Info.t
   | PUnt of Info.t
   | PBol of Info.t * bool
+  | PCex of Info.t * pat
   | PInt of Info.t * int
   | PStr of Info.t * string
   | PVar of Info.t * Id.t * sort option
@@ -180,6 +183,7 @@ let info_of_pat = function
   | PWld (i)     -> i
   | PUnt (i)     -> i
   | PBol (i,_)   -> i
+  | PCex (i,_)   -> i
   | PInt (i,_)   -> i
   | PStr (i,_)   -> i
   | PVar (i,_,_) -> i 
@@ -199,6 +203,7 @@ let pat_vars =
   | PBol (_,_)   
   | PInt (_,_)   
   | PStr (_,_)    -> acc
+  | PCex (_,p)    -> aux acc p
   | PVar (_,x,so)  -> Id.Set.add x acc 
   | PVnt (_,_,None) -> acc
   | PVnt (_,_,Some p) -> aux acc p

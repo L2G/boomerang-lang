@@ -80,6 +80,7 @@ and format_pat p0 = match p0 with
   | PUnt _ -> msg "()"
   | PInt(_,n) -> msg "%d" n
   | PBol(_,b) -> msg "%b" b
+  | PCex(_,p) -> msg "@[cex@ "; format_pat p; msg "@]"
   | PStr(_,s) -> msg "%s" s
   | PVar(_,x,_) -> msg "%s" (Id.string_of_t x)
   | PPar(_,p1,p2) -> 
@@ -218,11 +219,13 @@ and format_exp e0 = match e0 with
     | EBoolean (_,None) -> 
         msg "@[true@]"
 
-    | EBoolean (_,Some "") ->
+    | EBoolean (_,Some (EString(_,""))) ->
 	msg "@[false@]"
 
-    | EBoolean (_,Some s) ->
-	msg "@[false (with counterexample: %s)@]" s
+    | EBoolean (_,Some e) ->
+	msg "@[false (with counterexample: ";
+	format_exp e;
+	msg "@]"
 
     | EChar(_,c) -> msg "'%s'" (Char.escaped c)
 

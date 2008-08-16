@@ -80,11 +80,13 @@ and exp =
 
     (* unit, strings, ints, characters, character sets *)
     | EUnit    of Info.t  
-    | EBoolean of Info.t * string option (* None = true ; Some s = false with cex s *)
     | EInteger of Info.t * int    
     | EChar    of Info.t * char
     | EString  of Info.t * string
     | ECSet    of Info.t * bool * (char * char) list 
+
+    (* booleans with counterexamples *)
+    | EBoolean of Info.t * exp option (* None = true ; Some s = false with cex s *)
 (** The type of expression ASTs. *)
 
 and op = 
@@ -109,6 +111,7 @@ and pat =
   | PWld of Info.t
   | PUnt of Info.t
   | PBol of Info.t * bool
+  | PCex of Info.t * pat
   | PInt of Info.t * int
   | PStr of Info.t * string
   | PVar of Info.t * Bident.Id.t * sort option 
