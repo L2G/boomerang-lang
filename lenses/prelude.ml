@@ -178,7 +178,11 @@ let pmk_izlzl =
 let pmk_rzq = 
   pmk1 (S.SData([S.SRegexp],list_qid)) mk_listfun S.SCanonizer mk_q
 
+let pmk_izzi =
+  pmk1 S.SInteger mk_ifun (S.SData([S.SData([S.SInteger],list_qid)],list_qid)) mk_list
 
+let pmk_zizi =
+  pmk1 (S.SData([S.SInteger],list_qid)) mk_listfun (S.SData([S.SInteger],list_qid)) mk_list
 
 let prelude_spec =
   [ (* lens operations *)
@@ -231,8 +235,10 @@ let prelude_spec =
 
   (* int operations *)
   ; pmk_is     "string_of_int"        (fun _ -> string_of_int)
+  ; pmk_izzi   "permutations"         (fun i k -> Safelist.map (fun l -> mk_list i (Safelist.map (mk_i i) l)) (Blenses.permutations k))
+  ; pmk_zizi   "invert_permutation"   (fun i sigma -> Safelist.map (mk_i i) (Blenses.invert_permutation i (Safelist.map get_i sigma)))
 
-  (* char operations *)               
+  (* arithmetic operations *)               
   ; pmk_iib     "gt"                  (fun _ -> (>))
   ; pmk_iib     "lt"                  (fun _ -> (<))
   ; pmk_iib     "geq"                 (fun _ -> (>=))

@@ -2140,10 +2140,10 @@ test "----- DR block -----" = ?
 let semi_space_dash : lens = semi . space . dash 
 
 let start_dr (db:regexp) : lens = 
-  Sort.perm_sort3
-    (Xml.attr "type" (db . semi . space))
-    (Xml.attr "key" (del NUMBER))
-    (Xml.attr "id" (esc_sq))
+  Sort.perm_sort
+    #{lens}[(Xml.attr "type" (db . semi . space));
+	    (Xml.attr "key" (del NUMBER));
+	    (Xml.attr "id" (esc_sq))]
 
 let property (ty:string) : lens = 
   semi . space . 
@@ -3526,15 +3526,15 @@ let num (sym:string) : lens =
 
 let ft_bound (name:string) : lens = 
   Xml.attrs_elt_no_kids NL3 name
-    ( Sort.perm_sort2
-        (Xml.attr "status" (del "less than"))
-        (Xml.attr "position" (num "<"))
-    || Sort.perm_sort2
-        (Xml.attr "status" (del "greater than"))
-        (Xml.attr "position" (num ">"))
-    || Sort.perm_sort2
-        (Xml.attr "status" (del "uncertain"))
-        (Xml.attr "position" (num "?"))
+    ( Sort.perm_sort
+        #{lens}[(Xml.attr "status" (del "less than"));
+                (Xml.attr "position" (num "<"))]
+    || Sort.perm_sort
+        #{lens}[(Xml.attr "status" (del "greater than"));
+                (Xml.attr "position" (num ">"))]
+    || Sort.perm_sort
+        #{lens}[(Xml.attr "status" (del "uncertain"));
+                (Xml.attr "position" (num "?"))]
     || Xml.attr "position" (num " ") )
 
 let single_pos_cn : canonizer = 

@@ -9,10 +9,7 @@
 
 == LIBRARIES == 
 
-* Detangle sorting from XML and put it in own module (Nate).
-  - Add perm_sorting for arbitrary arity.
-  - Add contracts for sorting.  Methodologically, these are not optional.
-    - Enumeration of permutations of a list...or is there a better way?
+* Investigate other options for the contract on sorting.
 
 * Fix XML to use Escaping.
 

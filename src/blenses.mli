@@ -32,7 +32,17 @@ val generic_iter : Info.t
   -> 'a
 
 val valid_permutation : int list -> 'a list -> bool
+(** [valid_permutation sigma ls] is true iff sigma is a valid permutation for ls, 
+    i.e. if they are both length k and sigma is a rearrangement of the list 
+    [0;1;...;k-1] *)
+val permutations : int -> int list list
+(** [permutations k] returns all valid permutations of lists of length k 
+    The identity permutation [0;1;...;k-1] will be first in this list. *)
+val invert_permutation : Info.t -> int list -> int list
+(** [invert_permutation i sigma] inverts sigma *)
 val permute_list : Info.t -> int list -> 'a list -> 'a list
+(** [permute_list i sigma ls] permutes [ls] according to [sigma]; an error will
+    be signalled if it is not the case that [valid_permutation sigma ls] *)
 
 module Canonizer : sig
   type t 

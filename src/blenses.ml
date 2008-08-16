@@ -265,14 +265,35 @@ let branch2 t f1 f2 =
      else f2 x y)
 
 (* helpers for permutations *)
+let rec build_list first last = 
+  if first = last
+  then []
+  else first::(build_list (first + 1) last)
+
 let valid_permutation sigma ls =
   let k = Safelist.length sigma in
-  let rec build_list first last = 
-    if first = last
-    then []
-    else first::(build_list (first + 1) last) in
   Safelist.length ls = k &&
   Safelist.sort compare sigma = build_list 0 k
+
+let rec permutations_aux k =
+  let rec insertions n ls =
+    let (is,_) = Safelist.fold_left 
+      (fun (ls_n_acc,ls_acc) i ->
+	 let ls_acc' = i::ls_acc in
+	 let ls_n_acc' = Safelist.map (fun ls_n -> i::ls_n) ls_n_acc in
+	 ((n::ls_acc')::ls_n_acc',ls_acc'))
+      ([[n]],[]) ls in
+    is in
+  if k = 0
+  then [[]]
+  else Safelist.concat (Safelist.map (insertions (k-1)) (permutations_aux (k-1)))
+
+let permutations k = 
+  (* N.B. we make sure the identity is first -- this will give us a nicer 
+     default for the create case of lenses that use permutations to build 
+     sorting *)
+  let identity = build_list 0 k in
+  identity::(Safelist.remove identity (permutations_aux k))
 
 let permutation i n sigma k = 
   let err () = 
@@ -292,6 +313,22 @@ let permutation i n sigma k =
       0 sigma in
     if k' <> k then err () in
   (sigma_arr,sigma_inv_arr) 
+
+let invert_permutation i sigma = 
+  let n = sprintf "invert_permutation [%s]" 
+    (Misc.concat_list "," (Safelist.map string_of_int sigma)) in  
+  let err () = 
+    Berror.static_error i n
+      (sprintf "[%s] is not a valid permutation\n" 
+         (Misc.concat_list "," (Safelist.map string_of_int sigma))) in
+  let sigma_arr = Array.of_list sigma in
+  let sigma_inv_arr = Array.create (Array.length sigma_arr) (-1) in
+  Array.iteri 
+    (fun i j -> 
+       if sigma_inv_arr.(j) <> -1 then err ();
+       sigma_inv_arr.(j) <- i)
+    sigma_arr;
+  Array.to_list sigma_inv_arr
 
 let permute_list i sigma ls =
   let n = sprintf "permute_list [%s] [...]" 

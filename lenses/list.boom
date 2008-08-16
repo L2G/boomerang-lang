@@ -38,6 +38,16 @@ the @fold_left@ function on lists via a built-in primitive.
 #* let fold_left ('a) ('b) (f:'b -> 'a -> 'b) (acc:'b) (l:'a t) : 'b 
 ## = Native.Prelude.fold_left{'b}{'a} f acc l 
 
+\LENSSECTION{@length@} Calculates the length of a list.
+
+#* let length ('a) (l : 'a t) : int =
+#*   fold_left{'a}{int}
+#*     (fun (n:int) (v:'a) -> plus n 1)
+#*     0 l
+
+#* test length{bool} Nil{bool} = 0
+#* test length{bool} (Cons{bool}(true,Cons{bool}(false,Nil{bool}))) = 2
+
 \LENSSECTION{@reverse@} The function @reverse@ can be defined straightforwardly
 using @fold_left@.
 
@@ -59,11 +69,19 @@ using @fold_left@ and @reverse@.
 #*   reverse{'b} rev_fl
 
 \LENSSECTION{@exists@} The function @exists@ tests if a predicate holds of 
-some element of the list
+some element of the list.
 
 #* let exists ('a) (t:'a -> bool) (l:'a t) : bool = 
 #*   fold_left {'a}{bool} (fun (b:bool) (h:'a) -> b || t h) 
 #*   false 
+#*   l
+
+\LENSSECTION{@for_all@} The function @for_all@ tests if a predicate holds of
+every element of the list.
+
+#* let for_all ('a) (t:'a -> bool) (l:'a t) : bool =
+#*   fold_left {'a}{bool} (fun (b:bool) (h:'a) -> b && t h) 
+#*   true
 #*   l
 
 \LENSSECTION{@member@} The function @member@ tests if an element is a
@@ -108,3 +126,23 @@ given the given permutation can be applied to the given list.
 #* test permute{bool} (Cons{int}(1,Cons{int}(0,Nil{int}))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = (Cons{bool}(true,Cons{bool}(false,Nil{bool})))
 #* test permute{string} (Cons{int}(0,Cons{int}(2,Cons{int}(1,Nil{int})))) (Cons{string}("a",Cons{string}("b",Cons{string}("c",Nil{string})))) = (Cons{string}("a",Cons{string}("c",Cons{string}("b",Nil{string}))))
 
+\LENSSECTION{@permutations@} The operator @permutations@ returns a list of
+all possible permutations for lists of a given length.
+
+#* let permutations : int -> (int t) t
+## = Native.Prelude.permutations
+
+#* test permutations 0 = (Cons{int t}(Nil{int},
+#*                        Nil{int t}))
+#* test permutations 1 = (Cons{int t}(Cons{int}(0,Nil{int}),
+#*                        Nil{int t}))
+#* test permutations 2 = (Cons{int t}(Cons{int}(0,Cons{int}(1,Nil{int})),
+#*                        Cons{int t}(Cons{int}(1,Cons{int}(0,Nil{int})),
+#*                        Nil{int t})))
+
+\LENSSECTION{@invert_permutation@} The operator @invert_permutation@ inverts a
+permutation @sigma@, calculating the permutation @sigma_inv@ such that
+@permute_list{'a} sigma_inv (permuate_list{'a} sigma l) = l@ for all @l@.
+
+#* let invert_permutation : int t -> int t
+## = Native.Prelude.invert_permutation
