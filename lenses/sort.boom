@@ -61,10 +61,18 @@ test put ls "abc" "cba" = "abc"
 test ctype ls = [a-c]* (* part of the laxness of canonizers!  
                           it's actually permutations of /abc/ *)
 
+let possible_sorts (Rs:regexp List.t) : regexp =
+  let k = List.length{lens} Rs in
+  let sigmas = List.permutations k in
+  let compute_sort (sigma:int List.t) =
+    concat_regexps (List.permute{regexp} sigma Rs) in
+  let sorts = List.map{int List.t}{regexp} compute_sort sigmas in
+  union_regexps sorts
+
 let perm_sort (ls:lens List.t where 
 		 (sortable (ctypes ls)) &&
 	         (concatable (atypes ls) //))
-  : (lens in ? 
+  : (lens in possible_sorts (ctypes ls)
          <-> concat_regexps (atypes ls))
   =
   let k = List.length{lens} ls in
