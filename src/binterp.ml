@@ -190,14 +190,22 @@ let rec interp_cast cev i b f t e =
       | SFunction(x,f1,ls1,f2), SFunction(y,t1,ls2,t2) -> 
           let fn = Id.mk i "fn" in 
           let qx = Qid.t_of_id x in 
+	  let qy = Qid.t_of_id y in
           let qfn = Qid.t_of_id fn in 
           let e_x = EVar(i,qx) in
+	  let e_y = EVar(i,qy) in
           let e_fn = EVar(i,qfn) in
           let e_fx = EApp(i,e_fn,e_x) in
-          let c1 = ECast(i,t1,f1,invert_blame b,e_x) in 
+          let c1 = ECast(i,t1,f1,invert_blame b,e_y) in 
           let c2 = ECast(i,f2,t2,b,e_fx) in
 	  let alloc_c2 = EAlloc(i,ls1@ls2,c2) in
           let apped_cast = EApp(i,mk_fun i fn f (mk_fun i y t1 (mk_let i x f1 c1 alloc_c2)),e) in
+	    Trace.debug "cast-fun" (fun () ->
+				   msg "@[";
+				   format_exp e;
+				   msg "@ ~~>@ ";
+				   format_exp apped_cast;
+				   msg "@]\n");
 	    interp_exp cev apped_cast
       | SProduct(f1,f2), SProduct(t1,t2) ->
 	  if syneq_sort f1 t1 && syneq_sort f2 t2
