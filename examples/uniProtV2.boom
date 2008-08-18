@@ -87,13 +87,12 @@ let tag (t:string) : string =
   t . "   "
 
 (* [split (t,l)] wraps [l] so that it also breaks long lines. *)
-let split_n (n:int) (p:string * lens) : lens = 
-  let (tag,l) : string * lens = p in 
+let split_n (n:int) (tag:string) (l:lens) : lens = 
   let cn : canonizer = columnize n (atype l) ' ' (NL . tag) in 
   right_quot l cn
 
-let split (p:string * lens) : lens = split_n 75 p
-let split70 (p:string * lens) : lens = split_n 70 p
+let split (tag:string) (l:lens) : lens = split_n 75 tag l
+let split70 (tag:string) (l:lens) : lens = split_n 70 tag l
 
 (* [terminate l] wraps [l] so that it also inserts [NL]. 
    o [l] lens
@@ -103,8 +102,8 @@ let terminate (l:lens) : lens = l . ins NL
 (* [split_terminate (t,l)] wraps [l] so that it also breaks long lines and inserts [NL]. 
    o [(t,l)] tag * lens
 *)
-let split_terminate (p:string * lens) : lens = 
-  terminate (split p)
+let split_terminate (tag:string) (l:lens) : lens = 
+  terminate (split tag l)
 
 (* insert strings into the view *)
 let space : lens = ins " " 
@@ -242,7 +241,7 @@ let ac_xml : lens =
   iter_with_sqsp ac_elt . 
   semi
 
-let ac_line : lens = split_terminate (ac_tag,ac_xml)
+let ac_line : lens = split_terminate ac_tag ac_xml
 
 (* unit tests for AC line *)
 let P12544_ac_ascii : string = 
@@ -324,7 +323,7 @@ let de_xml : lens =
       end . 
     dot
 
-let de_line : lens = split_terminate (de_tag,de_xml)
+let de_line : lens = split_terminate de_tag de_xml
 
 (* unit tests for DE line *)
 let P12544_de_ascii : string = 
@@ -403,7 +402,7 @@ let gn_xml : lens =
   let gn_elt : lens = 
     ins gn_tag . 
     Xml.elt NL1 "gene" gn_names in 
-  let gn_elt_line : lens = split (gn_tag,gn_elt) in
+  let gn_elt_line : lens = split gn_tag gn_elt in
     gn_elt_line . 
     (ins "\n" . ins gn_tag . ins "and\n" . gn_elt_line)*
 
@@ -460,7 +459,7 @@ let os_xml : lens =
     names_xml NL2 . 
     dot
 
-let os_line : lens = split_terminate (os_tag,os_xml)
+let os_line : lens = split_terminate os_tag os_xml
 
 (* unit tests for OS line *)
 let P12544_os_ascii : string = 
@@ -510,7 +509,7 @@ let og_xml : lens =
    | og_other) .       
    dot
 
-let og_line : lens = split_terminate (og_tag,og_xml)
+let og_line : lens = split_terminate og_tag og_xml
 
 (* unit tests for OG line *)
 test og_line.create 
@@ -545,7 +544,7 @@ let oc_xml : lens =
   ins oc_tag . 
   Xml.elt NL2 "lineage" (oc_aux . (semi . space . oc_aux)* ) . 
   dot
-let oc_line : lens = split_terminate (oc_tag,oc_xml)
+let oc_line : lens = split_terminate oc_tag oc_xml
 
 (* unit tests for OC line *)
 let P12544_oc_ascii : string = 
@@ -617,7 +616,7 @@ let ox_xml : lens =
   ins ox_tag . 
   ncbi_xml NL2
 
-let ox_line : lens = split_terminate (ox_tag,ox_xml)
+let ox_line : lens = split_terminate ox_tag ox_xml
 
 (* unit tests for OX line *)
 let P12544_ox_ascii : string = 
@@ -649,7 +648,7 @@ let oh_xml : lens =
   (names_xml NL2 ~ (ncbi_xml NL2 . qsp)) . 
   dot 
 
-let oh_line : lens = split_terminate (oh_tag,oh_xml)
+let oh_line : lens = split_terminate oh_tag oh_xml
 
 (* unit tests for OH line *)
 test oh_line.create
@@ -761,7 +760,7 @@ let rp_xml : lens =
   Xml.simple_elt NL2 "scope" esc . 
   dot
 
-let rp_line : lens =  split_terminate (rp_tag,rp_xml)
+let rp_line : lens =  split_terminate rp_tag rp_xml
 
 (* unit tests for RP line *)
 test rp_line.create 
@@ -802,7 +801,7 @@ let rc_xml : lens =
   ins rc_tag . 
   Xml.elt NL2 "source" all 
 
-let rc_line : lens = split_terminate (rc_tag,rc_xml)
+let rc_line : lens = split_terminate rc_tag rc_xml
 
 (* unit tests for RC line *)
 test rc_line.create 
@@ -847,7 +846,7 @@ let rx_xml : lens =
   ins rx_tag . 
   any_ref . (space . any_ref)*
 
-let rx_line : lens = split_terminate (rx_tag,rx_xml)
+let rx_line : lens = split_terminate rx_tag rx_xml
 
 (* unit tests for RX line *)
 let P12544_rx_ascii : string = 
@@ -879,7 +878,7 @@ let rg_xml : lens =
   Xml.attr1_elt_no_kids NL4 "consortium" "name" esc_s .
   semi
 
-let rg_line : lens = split_terminate (rg_tag,rg_xml)
+let rg_line : lens = split_terminate rg_tag rg_xml
 
 (* unit tests for RG line *)
 let P12544_rg_ascii : string =  
@@ -913,7 +912,7 @@ let ra_xml : lens =
   iter_with_sep (person NL4) (comma . space) . 
   semi
 
-let ra_line : lens = split_terminate (ra_tag,ra_xml)
+let ra_line : lens = split_terminate ra_tag ra_xml
 
 (* unit tests for RA line *)
 let P12544_ra_ascii : string = 
@@ -950,7 +949,7 @@ let rt_xml : lens =
   Xml.simple_elt NL3 "title" (quotes (esc . [.!?])) . 
   semi 
 
-let rt_line : lens = split_terminate (rt_tag,rt_xml)
+let rt_line : lens = split_terminate rt_tag rt_xml
 
 (* unit tests for RT line *)
 let P12544_rt_ascii : string = 
@@ -992,7 +991,7 @@ let journal_xml : lens =
     end . 
     dot 
 
-let journal_line : lens = split_terminate (rl_tag,journal_xml)
+let journal_line : lens = split_terminate rl_tag journal_xml
 
 (* unit tests for journal citations *)
 test journal_line.get 
@@ -1028,7 +1027,7 @@ let electronic_xml : lens =
     "name" esc_q . 
   dot
 
-let electronic_line : lens = split_terminate (rl_tag,electronic_xml)
+let electronic_line : lens = split_terminate rl_tag electronic_xml
 
 (* unit tests for electronic citations *)
 test electronic_line.get
@@ -1090,7 +1089,7 @@ let book_xml : lens =
     dot) ~
     (editors_xml . space) ) 
 
-let book_line : lens = split_terminate (rl_tag,book_xml)
+let book_line : lens = split_terminate rl_tag book_xml
 
 (* unit tests for book citation *)
 test book_line.get
@@ -1125,7 +1124,7 @@ let unpublished_xml : lens =
     "date" (parens partial_date) . 
   dot 
 
-let unpublished_line : lens = split_terminate (rl_tag,unpublished_xml)
+let unpublished_line : lens = split_terminate rl_tag unpublished_xml
 
 (* unit tests for unpublished citations *)
 test unpublished_line.create 
@@ -1150,7 +1149,7 @@ let thesis_xml : lens =
     "institute" (esc_cdq . comma . space)
     "country" (esc_cdq . dot) 
 
-let thesis_line : lens = split_terminate (rl_tag,thesis_xml)
+let thesis_line : lens = split_terminate rl_tag thesis_xml
 
 (* unit tests for thesis citations *)
 test thesis_line.get 
@@ -1175,7 +1174,7 @@ let patent_xml : lens =
     "date" date . 
   dot
 
-let patent_line : lens = split_terminate (rl_tag,patent_xml)
+let patent_line : lens = split_terminate rl_tag patent_xml
 
 (* unit tests for patent citations *)
 test patent_line.get
@@ -1203,7 +1202,7 @@ let submitted_xml : lens =
             | ins "the " . "PIR data bank" ) . 
   dot
 
-let submitted_line : lens = split_terminate (rl_tag,submitted_xml)
+let submitted_line : lens = split_terminate rl_tag submitted_xml
 
 (* unit tests for submitted citations *)
 let P12544_submitted_ascii : string = 
@@ -1326,10 +1325,10 @@ let cc_tag : string = tag "CC"
 let cc_bang : string = "-!- " 
 let cc_long_tag : string = cc_tag . "    "
 let cc_fix (l:lens) : lens = 
-  split (cc_long_tag . "  ", l)
+  split (cc_long_tag . "  ") l
 
 let cc_fix70 (l:lens) : lens = 
-  split70 (cc_long_tag . "  ", l)
+  split70 (cc_long_tag . "  ") l
 
 let cc_status : lens = Xml.attr "status" qualifiers
 
@@ -1372,7 +1371,7 @@ let cc_unstructured_xml : lens =
     | "toxic dose"           <-> "TOXIC DOSE" )
 
 let cc_unstructured_line : lens = 
-  split_terminate (cc_long_tag,cc_unstructured_xml)
+  split_terminate cc_long_tag cc_unstructured_xml
 
 (* unit tests for CC unstructured lines *)
 test cc_unstructured_line.create 
@@ -1448,7 +1447,7 @@ let cc_biophysicochemical_properties_xml : lens =
     end
 
 let cc_biophysicochemical_properties_line : lens = 
-  split_terminate (cc_long_tag,cc_biophysicochemical_properties_xml)
+  split_terminate cc_long_tag cc_biophysicochemical_properties_xml
 
 (* unit tests for biophysiochemical properties CC lines *)
 let cc_bp_ascii : string = 
@@ -1861,7 +1860,7 @@ let cc_mass_spectrometry_xml : lens =
   src
 
 let cc_mass_spectrometry_line : lens = 
-  split_terminate (cc_long_tag, cc_mass_spectrometry_xml)
+  split_terminate cc_long_tag cc_mass_spectrometry_xml
 
 (* CC mass spectrometry unit tests *)
 let cc_mass_spectrometry_ascii : string = 
@@ -3460,7 +3459,7 @@ let kw_xml : lens =
   iter_with_sqsp kw . 
   dot 
 
-let kw_line : lens = split_terminate (kw_tag,kw_xml)
+let kw_line : lens = split_terminate kw_tag kw_xml
 
 (* unit tests for KW line *)
 let kw_ascii : string = 

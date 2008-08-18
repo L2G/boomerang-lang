@@ -624,7 +624,13 @@ and check_exp sev e0 =
 	      let () = Safelist.iter 
                 (fun qi -> 
                    if Qid.Set.mem qi e_sort_fvs then 
-                     sort_error i (fun () -> msg "@[illegal@ dependent@ let-binding@]"))
+                     sort_error i 
+		       (fun () -> 
+			  msg "@[illegal@ dependent@ let-binding: cannot unpack pattern@ ";
+			  format_pat new_bp;
+			  msg "@ for expansion into sort@ ";
+			  format_sort e_sort;
+			  msg "@]"))			  
                 xs in 
 		e_sort in
           (e_sort_subst,new_e0,b_ls@b_loc)

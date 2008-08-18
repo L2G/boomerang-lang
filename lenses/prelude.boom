@@ -153,7 +153,9 @@ if the ctypes and atypes are splittable.
 entire regular expression on the abstract side. It is defined using quotienting 
 on the right, the lens @const@, and a canonizer built from @const@.
 
-#* let qconst (C:regexp) (A:regexp) (a:string) (c:string) : lens = 
+#* let qconst (C:regexp) (A:regexp) (a:string) (c:string) 
+#*   : (lens in C <-> A)
+#*   = 
 #*   right_quot     
 #*     (const C a c)
 #*     (canonizer_of_lens (const A a a))
@@ -165,7 +167,7 @@ on the right, the lens @const@, and a canonizer built from @const@.
 but takes an entire regular expression on the abstract side. It is defined 
 using @qconst@.
 
-#* let qset (C:regexp) (A:regexp) : lens = 
+#* let qset (C:regexp) (A:regexp) : (lens in C <-> A) = 
 #*  qconst C A (shortest A) (shortest C)
 
 #* test get (qset [A-Z] [a-z]) "A" = "a" 
@@ -177,7 +179,7 @@ using @qconst@.
 but accepts a regular expression in the $\PUT$ direction. It is defined 
 using right quotienting and @ins@.
 
-#* let qins (E:regexp) (e:string) : lens = 
+#* let qins (E:regexp) (e:string) : (lens in // <-> E) = 
 #*   right_quot
 #*     (ins e)
 #*     (canonizer_of_lens (const E e e))
@@ -189,7 +191,7 @@ using right quotienting and @ins@.
 but produces a canonical representative in the backwards direction. 
 It is defined using left quotienting.
 
-#* let qdel (E:regexp) (e:string) : lens = 
+#* let qdel (E:regexp) (e:string) : (lens in E <-> //) = 
 #*   left_quot 
 #*     (canonizer_of_lens (default (del E) e))
 #*     (copy EPSILON)
