@@ -119,14 +119,14 @@ characters respectively.
 string to a fixed abstract string. It is defined straightforwardly 
 using @<->@.
 
-#* let ins (s:string) : lens = "" <-> s
+#* let ins (s:string) : (lens in // <=> s) = "" <-> s
 #* test get (ins "ABC") "" = "ABC"
 #* test put (ins "ABC") "ABC" "" = ""
 
 \LENSSECTION{@del@} The lens @del@ deletes a regular expression. 
 It is also defined using @<->@.
 
-#* let del (R:regexp) : lens = R <-> ""
+#* let del (R:regexp) : (lens in R <-> //) = R <-> ""
 
 #* test get (del ANY) "Boomerang" = ""
 #* test put (del ANY) "" "Boomerang" = "Boomerang"
@@ -220,13 +220,13 @@ The polymorphic functions @fst@ and @snd@ are the standard projections on pairs.
 #*let snd ('a) ('b) (p:'a * 'b) : 'b = 
 #*  let _,y = p in y
 
-\subsection{Lenses with List Arguments}
+\subsection{Lists of Lenses and Regular Expressions}
 
-These final two combinators take lists as arguments (and so have to be defined
-here instead of @Core@.)
+\LENSSECTION{@ctypes@,@atypes@} Calculates the @ctype@s and @atype@s of lists of 
+lenses.
 
-First, we have @permute@.  Before introducing the lens operation, we need to define
-a predicate on lists of regular expressions.
+#* let ctypes (ls:lens List.t) = List.map{lens}{regexp} ctype ls
+#* let atypes (ls:lens List.t) = List.map{lens}{regexp} atype ls
 
 \LENSSECTION{@concatable@} The list of regexps @Rs = #{regexp}[R1;R2;...;Rn]@ are
 concatenable with regexp separator @S@ if the following are splittable:
@@ -264,6 +264,89 @@ concatenable with regexp separator @S@ if the following are splittable:
 #* test concatable #{regexp}[/abc/;/def/] /,/ = true
 #* test concatable #{regexp}[/a/ | /aa/;/a/?] // = false
 
+\LENSSECTION{@concat_regexps@,@concat_lenses@} Concatenates a list of regular expressions
+or lenses, respectively.
+
+#* let concat_regexps (Rs:regexp List.t) : regexp =
+#*  List.fold_left{regexp}{regexp} 
+#*    (fun (acc:regexp) (R:regexp) -> acc . R) 
+#*    EPSILON Rs
+
+#* test concat_regexps #{regexp}[/abc/;/def/] = /abcdef/
+#* test concat_regexps #{regexp}[/a/{5};/a/*] = /a/{5,}
+
+#* let concat_lenses (ls:lens List.t where (concatable (ctypes ls) //)
+#*                                      && (concatable (atypes ls) //))
+#*   : (lens in concat_regexps (ctypes ls)
+#*          <-> concat_regexps (atypes ls))
+#*   = List.fold_left{lens}{lens} 
+#*       (fun (l_acc:lens) (l:lens) -> l_acc . l)
+#*       (copy EPSILON) ls
+#* 
+#* test get (concat_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "abc" = "abc"
+
+\LENSSECTION{@disjoint_from_regexps@,@disjoint_regexps@} The function @disjoint_from_regexps@
+determines whether a given regexp is disjoint from a list of regular expressions.  The
+function @disjoint_regexps@ determines whether a list of regular expressions are pairwise
+disjoint.
+
+#* let disjoint_from_regexps (R:regexp) (Rs:regexp List.t) =
+#*   List.fold_left{regexp}{bool}
+#*     (fun (ok:bool) (R':regexp) ->
+#*	 ok && disjoint_cex R R')
+#*     true Rs
+
+#* let disjoint_regexps (Rs:regexp List.t) : bool =
+#*   let (ok,_) = List.fold_left{regexp}{bool * regexp List.t}
+#*     (fun (acc:bool * regexp List.t) (R:regexp) ->
+#*        let (ok,Rs) = acc in
+#*        (ok && disjoint_from_regexps R Rs,List.Cons{regexp}(R,Rs)))
+#*     (true,#{regexp}[]) Rs in
+#*   ok
+
+#* test disjoint_regexps #{regexp}[/a/;/b/;/c/] = true
+
+\LENSSECTION{@union_regexps@,@union_lenses@,@disj_union_lenses@} Takes the union
+of a list of regular expressions or lenses, respectively.  By default, the non-
+disjoint lens union @|@ is used; use @disj_union_lenses@ for disjoint union @||@.
+
+#* let union_regexps (Rs:regexp List.t) : regexp =
+#*  List.fold_left{regexp}{regexp} 
+#*    (fun (acc:regexp) (R:regexp) -> acc | R) 
+#*    EMPTY Rs
+
+#* test union_regexps #{regexp}[/abc/;/def/] = (/abc/ | /def/)
+#* test union_regexps #{regexp}[/a/{5};/a/*] = (/a/{5} | /a/* )
+
+#* let union_lenses (ls:lens List.t where disjoint_regexps (ctypes ls))
+#*   : (lens in union_regexps (ctypes ls)
+#*          <-> union_regexps (atypes ls))
+#*   = 
+#*   List.fold_left{lens}{lens} 
+#*   (fun (l_acc:lens) (l:lens) -> l_acc | l)
+#*   (copy EMPTY) ls
+
+#* test get (union_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "a" = "a"
+
+#* let disj_union_lenses (ls:lens List.t where 
+#*                          disjoint_regexps (ctypes ls) &&
+#*                          disjoint_regexps (atypes ls))
+#*   : (lens in union_regexps (ctypes ls)
+#*          <-> union_regexps (atypes ls))
+#*   = List.fold_left{lens}{lens} 
+#*     (fun (l_acc:lens) (l:lens) -> 
+#*        (l_acc || l))
+#*     (copy EMPTY) ls
+
+#* test get (union_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "a" = "a"
+
+\subsection{Lenses with List Arguments}
+
+These final two combinators take lists as arguments (and so have to be defined
+here instead of @Core@.)
+
+First, we have @permute@.
+
 \LENSSECTION{@permute@} The lens @permute@ is an $n$-ary, permuting concatenation 
 operator on lenses. Given a concrete string, it splits it into $n$ pieces, 
 applies the $\GET$ function of the corresponding lens to each piece, reorders the 
@@ -275,10 +358,9 @@ produces a lens with type @C1.C2...Cn <-> Asigma(1).Asigma(2)...Asigma(n)@.
 #*   (sigma:int List.t)
 #*   (ls:lens List.t where 
 #*     (List.valid_permutation{lens} sigma ls) &&
-#*     ((concatable (List.map{lens}{regexp} ctype ls) //) &&
-#*      (concatable (List.permute{regexp} sigma 
-#*                                        (List.map{lens}{regexp} atype ls)) //)))
-#*           : lens
+#*     ((concatable (ctypes ls) //) &&
+#*      (concatable (List.permute{regexp} sigma (atypes ls)) //)))
+#*   : (lens in concat_regexps (ctypes ls) <-> concat_regexps (List.permute{regexp} sigma (atypes ls)))
 ##   = Native.Prelude.lens_permute sigma ls
 
 #* test ctype (permute #{int}[1;0] #{lens}[copy /abc/;copy /def/]) = /abcdef/

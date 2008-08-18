@@ -1,31 +1,5 @@
 module Sort =
 
-let ctypes (ls:lens List.t) = List.map{lens}{regexp} ctype ls
-let atypes (ls:lens List.t) = List.map{lens}{regexp} atype ls
-
-let disjoint (Rs:regexp List.t) : bool =
-  let disj (R:regexp) (Rs:regexp List.t) =
-    List.fold_left{regexp}{bool}
-      (fun (ok:bool) (R':regexp) ->
-	 ok && not (equiv R R'))
-      true Rs in
-  let (ok,_) = List.fold_left{regexp}{bool * regexp List.t}
-    (fun (acc:bool * regexp List.t) (R:regexp) ->
-       let (ok,Rs) = acc in
-       (ok && disj R Rs,List.Cons{regexp}(R,Rs)))
-    (true,#{regexp}[]) Rs in
-  ok
-
-let concat_regexps (Rs:regexp List.t) : regexp =
-  List.fold_left{regexp}{regexp} 
-    (fun (acc:regexp) (R:regexp) -> acc . R) 
-    EPSILON Rs
-
-let union_regexps (Rs:regexp List.t) : regexp =
-  List.fold_left{regexp}{regexp}
-    (fun (acc:regexp) (R:regexp) -> acc | R)
-    EMPTY Rs
-
 let sortable (Rs:regexp List.t) : bool =
   let k = List.length{regexp} Rs in
   let sigmas = List.permutations k in
@@ -33,17 +7,7 @@ let sortable (Rs:regexp List.t) : bool =
   let pRs = List.map{int List.t}{regexp List.t} perm_Rs sigmas in
   (List.for_all{regexp List.t} 
      (fun (Rs_perm:regexp List.t) -> concatable Rs_perm //) pRs) &&
-  disjoint (List.map{regexp List.t}{regexp} concat_regexps pRs)
-
-let concat_lenses (ls:lens List.t where (concatable (ctypes ls) //)
-                                     && (concatable (atypes ls) //))
-  : (lens in concat_regexps (ctypes ls)
-         <-> concat_regexps (atypes ls))
-  = List.fold_left{lens}{lens} 
-      (fun (l_acc:lens) (l:lens) -> l_acc . l)
-      (copy EPSILON) ls
-
-test get (concat_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "abc" = "abc"
+  disjoint_regexps (List.map{regexp List.t}{regexp} concat_regexps pRs)
 
 let sort_concat (ls:lens List.t where (sortable (ctypes ls))
                                    && (concatable (atypes ls) //))  
@@ -77,9 +41,9 @@ let perm_sort (ls:lens List.t where
   =
   let k = List.length{lens} ls in
   let sigmas = List.permutations k in
-  let sort_lenses (sigma:int List.t) = 
-    permute sigma (List.permute{lens} (List.invert_permutation sigma) ls) in
-  let sorted = List.map{int List.t}{lens} sort_lenses sigmas in
+  let compute_sort (sigma:int List.t) =
+    permute (List.invert_permutation sigma) (List.permute{lens} sigma ls) in
+  let sorted = List.map{int List.t}{lens} compute_sort sigmas in
   List.fold_left{lens}{lens}
     (fun (l_acc:lens) (sort_l:lens) ->
        l_acc || sort_l)
