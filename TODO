@@ -7,6 +7,10 @@
 * -check-only flag: don't compile and run, just check that base sorts
   line up.
 
+* re-do lens printing entirely. 
+
+* contract violations should print counterexamples (and probably not the lens)
+
 == LIBRARIES == 
 
 * Investigate other options for the contract on sorting.

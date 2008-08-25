@@ -95,7 +95,7 @@ end = struct
           (c1,c2)::union r1 l2
         else if succ d2 < c1 then 
           (d1,d2)::union l1 r2
-        else if c1 < d2 then 
+        else if c2 < d2 then 
           union r1 ((min c1 d1,d2)::r2)
         else 
           union ((min c1 d1,c2)::r1) r2
