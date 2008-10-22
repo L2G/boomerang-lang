@@ -1,10 +1,10 @@
 (** {2 Plain Identifiers } *)
 module Id : sig
   type t = Info.t * string
-  (** the type of identifiers; parsing info and a string *)
+  (** the type of identifiers: parsing info and a string *)
   
   val mk : Info.t -> string -> t
-  (** [mk i s] returns the identifier representing [s] with parsing info [i]. *)
+  (** [mk i s] returns an identifier for [s] with parsing info [i]. *)
 
   val info_of_t : t -> Info.t
   (** [info_of_t x] returns the parsing info from [x]. *)
@@ -16,11 +16,11 @@ module Id : sig
   (** [primt x] returns [x']. *)
  
   val compare : t -> t -> int
-  (** [compare x y] compares [x] and [y] using the standard comparison operator. *)
+  (** [compare x y] compares [x] and [y], ignoring parsing info. *)
 
   val equal : t -> t -> bool
   (** [equal x y] returns [true] iff [x] and [y] represent the same
-      string (ignoring parsing information.) *)
+      string. *)
 
   val wild : t
   (** [wild] is a constant representing the "don't care" string "_" *)
@@ -64,7 +64,7 @@ module Qid : sig
 
   val equal : t -> t -> bool
   (** [equal q1 q2] returns [true] iff [q1] and [q2] represent the same
-      qualified identifier (ignoring parsing information). *)
+      qualified identifier. *)
 
   val id_dot : Id.t -> t -> t
   (** [id_dot x1 q1] returns the qualified identifier representing [x1.q1]. *)

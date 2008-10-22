@@ -1,24 +1,24 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2008                                                          *)
-(* J. Nathan Foster and Benjamin C. Pierce                                     *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/lenses/core.boom                                                 *)
-(* Imports natively-defined primitives                                         *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008                                                         *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/lenses/core.boom                                                *)
+(* Imports natively-defined primitives                                        *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 module Core = 
 
@@ -67,6 +67,8 @@ applied to lenses.)
 ## = Native.Prelude.lor
 #* let not : bool -> bool
 ## = Native.Prelude.not
+#* let implies : bool -> bool -> bool 
+## = (fun (b1:bool) -> (fun (b2:bool) -> lor b2 (not b1)))
 
 \subsection{Integers}
 
@@ -377,7 +379,8 @@ of @R@ as the default string. The infix operator @<->@ desugars to @set@.
 \LENSSECTION{@rewrite@} The @rewrite@ derived lens is like @set@ but only rewrites strings, and so 
 is bijective. The infix operator @<=>@ desugars to @rewrite@.
 
-#* let rewrite (s1:string) (s2:string) : (l:lens where in_bij_lens_type l (str s1) (str s2))
+#* let rewrite (s1:string) (s2:string) 
+#*   : (l:lens where in_bij_lens_type l (str s1) (str s2))
 #*   = const (str s1) s2 s1 
 
 \LENSSECTION{@lens_union@} The @lens_union@ operator forms the union of 
@@ -620,10 +623,12 @@ unknown equivalences.
 
 #* type rel = Identity | Unknown
 
-## let rel_of_is_id (b:bool) : rel =
-##   match b with
-##     | true -> Identity
-##     | false -> Unknown : rel
+## let rel_of_is_id (b:bool) : rel = match b with
+##   | true -> Identity
+##   | false -> Unknown : rel
+
+#* let rel_is_id (r:rel) : bool = 
+#*   equals{rel} r Identity
 
 \LENSSECTION{@crel@} The @crel@ function extracts the equivalence relation
 on the concrete domain (@ctype@) of a lens.
@@ -690,9 +695,12 @@ $\CANONIZE$ component and  $\CREATE$ as $\CHOOSE$.
 concatenates canonizers. Only the concatenation of types on the left 
 side needs to be unambiguous. 
 
-#* let canonizer_concat (cn1:canonizer)
-#*                      (cn2:canonizer where splittable_cex (uncanonized_type cn1) 
-#*                                                          (uncanonized_type cn2))
+#* let canonizer_concat 
+#*   (cn1:canonizer)
+#*   (cn2:canonizer where 
+#*        land (splittable_cex (uncanonized_type cn1) (uncanonized_type cn2))
+#*             (implies (not (land (rel_is_id (cnrel cn1)) (rel_is_id (cnrel cn2))))
+#*                      (splittable_cex (canonized_type cn1) (canonized_type cn2))))
 #*   : (cn:canonizer where in_canonizer_type cn 
 #*           (regexp_concat (uncanonized_type cn1) (uncanonized_type cn2))
 #*           (regexp_concat (canonized_type cn1) (canonized_type cn2)))
@@ -719,7 +727,10 @@ iteration is unbounded. For example,  @q*@ desugars
 into @canonizer_iter q 0 (-1)@.
 
 #* let canonizer_iter
-#*   (cn:canonizer where iterable_cex (uncanonized_type cn))
+#*   (cn:canonizer where 
+#*        land (iterable_cex (uncanonized_type cn))
+#*             (implies (not (rel_is_id (cnrel cn)))
+#*                      (iterable_cex (canonized_type cn))))
 #*   (min:int where bgeq min 0) (max:int)
 #*   : (cn':canonizer where in_canonizer_type cn' 
 #*            (regexp_iter (uncanonized_type cn) min max)
@@ -739,9 +750,9 @@ $\CHOOSE$ component wraps a string belonging to the iteration of
 #* let columnize 
 #*   : int -> (R:regexp -> char -> 
 #*     (nl:string where 
-#*       is_empty (inter R (regexp_concat (regexp_iter [^] 0 (minus 0 1)) 
-#*                                        (regexp_concat (str nl) 
-#*                                        (regexp_iter [^] 0 (minus 0 1))))))
+#*       disjoint_cex R (regexp_concat (regexp_iter [^] 0 (minus 0 1)) 
+#*                                     (regexp_concat (str nl) 
+#*                                     (regexp_iter [^] 0 (minus 0 1)))))
 #*                     -> canonizer)
 ## = Native.Prelude.columnize 
 

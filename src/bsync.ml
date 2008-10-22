@@ -1,23 +1,23 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/bsync.ml                                                     *)
-(* Boomerang synchronization                                                   *)
+(*****************************************************************************)
+(* The Harmony Project                                                       *)
+(* harmony@lists.seas.upenn.edu                                              *)
+(*****************************************************************************)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                *)
+(*                                                                           *)
+(* This library is free software; you can redistribute it and/or             *)
+(* modify it under the terms of the GNU Lesser General Public                *)
+(* License as published by the Free Software Foundation; either              *)
+(* version 2.1 of the License, or (at your option) any later version.        *)
+(*                                                                           *)
+(* This library is distributed in the hope that it will be useful,           *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of            *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU         *)
+(* Lesser General Public License for more details.                           *)
+(*****************************************************************************)
+(* /boomerang/src/bsync.ml                                                   *)
+(* Boomerang synchronization                                                 *)
 (* $Id$ *)
-(*******************************************************************************)
+(*****************************************************************************)
 
 (* --- imports --- *)
 let msg = Util.format
@@ -53,6 +53,7 @@ let string_of_path p =
   else Safelist.fold_left (fun acc pi -> string_of_path_elt pi ^ acc) "" p
 
 let keys_string kl = Misc.concat_list "," (Safelist.map (fun (ki,_) -> Misc.whack ki) kl)
+let skel_string sk = Erx.string_of_skeleton sk
 let tags_string ts = Misc.concat_list "," (Erx.TagSet.fold (fun ti acc -> Misc.whack ti::acc) ts [])
 
 let string_of_dir = function
@@ -99,6 +100,11 @@ let report_keys_conflict buf okl akl bkl p =
   Buffer.add_string buf 
     (sprintf "Conflict on keys [%s] [%s] [%s] at [%s].\n"
        (keys_string okl) (keys_string akl) (keys_string bkl) (string_of_path p))
+
+let report_schema_conflict buf okl akl bkl p = 
+  Buffer.add_string buf 
+    (sprintf "Schema conflict on skeletons [%s] [%s] [%s] at [%s].\n"
+       (skel_string okl) (skel_string akl) (skel_string bkl) (string_of_path p))
 
 let atomic_sync o a b = 
   if a=b then Some(a,Both)
@@ -211,10 +217,18 @@ let isync buf p ty o a b =
                           Erx.TagMap.add t at' tma,
                           Erx.TagMap.add t bt' tmb))
                     (s_tags) (Erx.TagMap.empty,Erx.TagMap.empty,Erx.TagMap.empty) in
-                  (* fill in spines with tag maps *)
-                  (Erx.unparse (s,tmo),
-                   Erx.unparse (s,tma),
-                   Erx.unparse (s,tmb))
+                  let sko' = (s,tmo) in 
+                  let ska' = (s,tma) in 
+                  let skb' = (s,tmb) in 
+                  if Erx.valid sko' && Erx.valid ska' && Erx.valid skb' then 
+                    (Erx.unparse (s,tmo),
+                     Erx.unparse (s,tma),
+                     Erx.unparse (s,tmb))
+                  else 
+                    begin 
+                      report_schema_conflict buf sko' ska' skb' p;
+                      (o,a,b)
+                    end
               end                   
         end 
       end in 

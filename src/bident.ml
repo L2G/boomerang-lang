@@ -16,7 +16,7 @@ module Id = struct
   let prime (i,x) = (i,x ^ "'")
   (* constants *)
   let wild = (Info.M "_", "_")
-  (* modules *)
+  (* sets of identifiers *)
   type this_t = t
   module Set = 
     Set.Make(
@@ -81,7 +81,7 @@ module Qid = struct
   let mk_prelude_t = mk_mod_t ["Prelude"]
   let mk_core_t = mk_mod_t ["Core"]
   let mk_list_t = mk_mod_t ["List"]    
-  (* modules *)
+  (* environments, sets of qualified identifiers *)
   type this_t = t
   module Env = Env.Make(
     struct

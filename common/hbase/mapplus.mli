@@ -28,7 +28,7 @@ module type SMap = sig
         in [m], its previous binding disappears. *)
 
   val combine : 'a t -> 'a t -> 'a t
-    (** [combine m1 m2] returns the right-biased combination of [m1] and [m2].
+    (** [combine m1 m2] returns the combination of [m1] and [m2] using [f].
         *)
 
   val find: key_t -> 'a t -> 'a

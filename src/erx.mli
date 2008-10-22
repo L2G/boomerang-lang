@@ -10,7 +10,7 @@ type t
 
 type spine 
 type key = string
-type box_content = (key * string) list                 
+type box_content = (key * string) list 
 type skeleton = spine * box_content TagMap.t
 
 (* pretty printers *)
@@ -38,6 +38,7 @@ val boxes : t -> int
 val iterable : t -> bool
 val parse : t -> string -> skeleton
 val unparse : skeleton -> string
+val valid : skeleton -> bool
 val box_content : skeleton -> tag -> box_content
 val box_type : t -> tag -> t option
 val spine_tags : spine -> TagSet.t

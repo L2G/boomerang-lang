@@ -235,8 +235,14 @@ let prelude_spec =
 
   (* int operations *)
   ; pmk_is     "string_of_int"        (fun _ -> string_of_int)
-  ; pmk_izzi   "permutations"         (fun i k -> Safelist.map (fun l -> mk_list i (Safelist.map (mk_i i) l)) (Blenses.permutations k))
-  ; pmk_zizi   "invert_permutation"   (fun i sigma -> Safelist.map (mk_i i) (Blenses.invert_permutation i (Safelist.map get_i sigma)))
+  ; pmk_izzi   "permutations"         (fun i k -> 
+                                         Safelist.map 
+                                           (fun l -> mk_list i (Safelist.map (mk_i i) l))
+                                           (Blenses.Permutations.permutations k))
+  ; pmk_zizi   "invert_permutation"   (fun i sigma -> 
+                                         Safelist.map 
+                                           (mk_i i) 
+                                           (Blenses.Permutations.invert_permutation i (Safelist.map get_i sigma)))
 
   (* arithmetic operations *)               
   ; pmk_iib     "gt"                  (fun _ -> (>))
@@ -382,7 +388,7 @@ let prelude_spec =
        mk_f i (fun sigma -> 
            mk_f i (fun l0 -> 
 	     let sigma = Safelist.map get_i (get_list sigma) in
-	       mk_b i (Blenses.valid_permutation sigma (get_list l0))))))
+	       mk_b i (Blenses.Permutations.valid_permutation sigma (get_list l0))))))
   end
 
   ; begin
@@ -397,7 +403,7 @@ let prelude_spec =
        mk_f i (fun sigma -> 
            mk_f i (fun l0 -> 
 	     let sigma = Safelist.map get_i (get_list sigma) in
-	       mk_list i (Blenses.permute_list i sigma (get_list l0))))))
+	       mk_list i (Blenses.Permutations.permute_list i sigma (get_list l0))))))
   end
   ]
     

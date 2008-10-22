@@ -1,26 +1,26 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007-2008                                                     *)
-(* J. Nathan Foster and Benjamin C. Pierce                                     *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/compiler.ml                                                  *)
-(* Boomerang type checker                                                      *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007-2008                                                    *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/compiler.ml                                                 *)
+(* Boomerang type checker                                                     *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
-(* --------------- Imports --------------- *)
+(* ------ imports and helper functions ----- *)
 open Bsyntax
 open Bident
 open Benv
@@ -39,7 +39,7 @@ let msg = Util.format
 let (@) = Safelist.append
 let v_of_rv = G.value_of_rv 
 
-(* helpers for constructing AST nodes *)
+(* helper functions for constructing abstract syntax trees. *)
 let mk_var i q = 
   EVar(i,q)
 
@@ -61,32 +61,27 @@ let mk_app3 i e1 e2 e3 =
 let mk_tyapp i e1 s2 = 
   ETyApp(i,e1,s2)
 
-(* --------------------------------------------------------------------------- *)
-(* SORT CHECKING *)
+(* ----- sort checking ----- *)
 
-(* Generate an [Id.t] from [x] that is fresh for [s] by adding primes. *)
+(* generate an ident for [x] that is fresh for [s] by adding primes. *)
 let rec fresh_id x s = 
   if Id.Set.mem x s then 
   fresh_id (Id.mk (Id.info_of_t x) (Id.string_of_t x ^ "'")) s
   else x
 
-(* Generate an [Qid.t] from [x] that is fresh for [s] by adding primes. *)
+(* generate a qid for [x] that is fresh for [s] by adding primes. *)
 let rec fresh_qid x s = 
   let q = Qid.t_of_id x in 
   if Qid.Set.mem q s then 
     fresh_qid (Id.mk (Id.info_of_t x) (Id.string_of_t x ^ "'")) s
   else q
 
-(* Helpers for resolving types. Both return returns the
-   fully-qualified name of the type (e.g., [List.t]), its sort
-   variables (e.g., ['a]), and its constructors (e.g., [(List.Nil,
-   None); (List.Cons, (a * List.t))]).
+(* helpers for resolving types. *)
 
-   o get_con lookups a type from a data type constructor (e.g.,
-     [Nil]).
-
-   o get_type is similar, but looks up the type from its name (e.g.,
-     [List.t]).
+(* get_con looks up a type from a data constructor like [Nil] and returns:
+   - the fully-qualified name of the type ([List.t]) 
+   - its sort variables (['a])
+   - and its constructors ([(List.Nil, None); List.Cons ('a * List.t)])
 *)
 let get_con i sev li = 
   match SCEnv.lookup_con sev li with
@@ -94,20 +89,21 @@ let get_con i sev li =
         (fun () -> msg "@[Unbound@ constructor@ %s@]" (Qid.string_of_t li))
     | Some r -> r
 
+(* get_type is like get_con, but looks up a type from its name ([List.t]) *)
 let get_type lookup_type i qx = 
   match lookup_type qx with
     | None -> sort_error i 
         (fun () -> msg "@[Unbound@ type@ %s@]" (Qid.string_of_t qx))
     | Some r -> r
 
-(* helper: substitute for variables in data type constructors *)
+(* inst_cases substitutes types for variables in a list of constructors *)
 let inst_cases subst cl = 
   Safelist.map 
-    (fun (li,so) -> (li,Misc.map_option (subst_sort subst) so)) cl
+    (fun (li,so) -> (li,Misc.map_option (subst_sort subst) so)) 
+    cl
 
-(* --------------------------------------------------------------------------- *)
-(* COMPATIBILITY / CASTING *)
-
+(* ------ compatibility / casting ----- *)
+(* command-line preferences for instrumentation and aliasing parameters *) 
 let no_alias = Prefs.createBool "no-alias" false
   "disable aliasing type checking/compilation (may degrade performance)"
   "disable aliasing type checking/compilation (may degrade performance)"
@@ -116,7 +112,7 @@ let ignore_refinements = Prefs.createBool "ignore-refinements" false
   "disable refinement type checking (dangerous if run with -no-type-check!)"
   "disable refinement type checking (dangerous if run with -no-type-check!)"
 
-(* determine whether a term is (i.e., immediately compiles to) a value *)
+(* determine whether a term is (immediately interpreted as) a value *)
 let rec is_value e0 = match e0 with
   | EVar _
   | EFun _ 
@@ -131,21 +127,19 @@ let rec is_value e0 = match e0 with
   | EPair(_,e1,e2) -> is_value e1 && is_value e2
   | _ -> false
 
-(* generate a new location, return a location binding and a reference to it *)
+(* mk_alias: generate a new location, return a binding and a ref to it *)
 let mk_alias =
   let loc_ctr = ref 0 in
-    fun i e0 ->
-      if is_value e0 || Prefs.read no_alias
-      then ([],e0)
-      else 
-	let l = !loc_ctr in
-	incr loc_ctr;
-	([(l,e0)],ELoc(i,l))
+    (fun i e0 ->
+       if is_value e0 || Prefs.read no_alias then ([],e0)
+       else 
+	 let l = !loc_ctr in
+	 incr loc_ctr;
+	 ([(l,e0)],ELoc(i,l)))
 
-(* generate an allocation node from a list of location bindings *)
+(* mk_alloc: generate an alloc node from a list of loc bindings *)
 let mk_alloc i ls e0 =
-  if ls = []
-  then e0
+  if ls = [] then e0
   else EAlloc(i,ls,e0)
 
 let rec compatible f t = match f,t with
@@ -159,31 +153,28 @@ let rec compatible f t = match f,t with
   | SLens,SLens 
   | SCanonizer,SCanonizer ->
       true
-  (* char/string/regexp/lens coercions *)
+  (* coercions between {char,string,regexp,lens} *)
   | SChar,SString 
   | SChar,SRegexp
   | SChar,SLens
   | SString,SRegexp 
   | SString,SLens 
-  | SRegexp,SLens -> 
-      true
+  | SRegexp,SLens -> true
   | SFunction(_,s11,_,s12),SFunction(_,s21,_,s22) -> 
-           (compatible s21 s11) (* contravariant in argument *)
-        && (compatible s12 s22)
+      (* note: contravariant in argument! *)
+      compatible s21 s11 && compatible s12 s22
   | SProduct(s11,s12),SProduct(s21,s22) -> 
-         compatible s11 s21
-      && compatible s12 s22
+      (compatible s11 s21) && compatible s12 s22
   | SData(sl1,qx),SData(sl2,qy) -> 
-      if Qid.equal qx qy then 
-        (* and check that the sl1 and sl2 pairwise compatible *)
+      (* check qx equals qy and sl1 and sl2 pairwise compatible *)
+      if not (Qid.equal qx qy) then false
+      else
         let ok,sl12 = 
           try true, Safelist.combine sl1 sl2 
           with Invalid_argument _ -> (false,[]) in 
-        Safelist.fold_left
-          (fun b (s1i,s2i) -> b && compatible s1i s2i)
-          ok sl12
-      else 
-        false
+          Safelist.fold_left
+            (fun b (s1i,s2i) -> b && compatible s1i s2i)
+            ok sl12
   | SVar x, SVar y -> 
       Id.equal x y
   | SForall(x,s1),SForall(y,s2) -> 
@@ -195,44 +186,53 @@ let rec compatible f t = match f,t with
         let z = fresh_id x (Id.Set.union f_fvs t_fvs) in
         let f_subst = [x,SVar z] in 
         let t_subst = [y,SVar z] in 
-          compatible (subst_sort f_subst s1) (subst_sort t_subst s2)
-  | SRefine(_,s11,_),s2 -> compatible s11 s2
-  | s1,SRefine(_,s21,_) -> compatible s1 s21
+        compatible (subst_sort f_subst s1) (subst_sort t_subst s2)
+  | SRefine(_,s11,_),s2 -> 
+      compatible s11 s2
+  | s1,SRefine(_,s21,_) -> 
+      compatible s1 s21
   | _ -> false
 
-let rec may_coerce f t =
-  match f,t with
-    | SChar,SString
-    | SChar,SRegexp
-    | SChar,SLens
-    | SString,SRegexp
-    | SString,SLens
-    | SRegexp,SLens -> true
-    | SProduct(f1,f2), SProduct(t1,t2) -> may_coerce f1 t1 || may_coerce f2 t2
-    | SData(fl,x),SData(tl,y) when Qid.equal x y ->
-	let rec aux acc l1 l2 = acc && match l1,l2 with
-	  | [],[] -> false
-	  | f::fl',t::tl' -> aux (may_coerce f t) fl' tl'
-	  | _ -> false in
-	aux false fl tl
-    | SRefine(_,f1,_),_ -> may_coerce f1 t
-    | _,SRefine(_,t1,_) -> may_coerce f t1
-    | _,_ -> false
+(* JNF: what is this doing? It seems to only ever called when
+   -ignore-refinements is set... and why no cases for functions,
+   foralls? I'm confused...*)
+let rec may_coerce f t = match f,t with
+  | SChar,SString
+  | SChar,SRegexp
+  | SChar,SLens
+  | SString,SRegexp
+  | SString,SLens
+  | SRegexp,SLens -> true
+  | SProduct(f1,f2), SProduct(t1,t2) -> 
+      may_coerce f1 t1 || may_coerce f2 t2
+  | SData(fl,x),SData(tl,y) when Qid.equal x y ->
+      let rec aux acc l1 l2 = acc && match l1,l2 with
+	| [],[] -> false
+	| f::fl',t::tl' -> aux (may_coerce f t) fl' tl'
+	| _ -> false in
+      aux false fl tl
+  | SRefine(_,f1,_),_ -> 
+      may_coerce f1 t
+  | _,SRefine(_,t1,_) -> 
+      may_coerce f t1
+  | _ -> false
 
 let rec trivial_cast f t =
-  f == t ||
-  syneq_sort f t ||
-    match f,t with
-      | SRefine(_,f',_),_ -> trivial_cast f' t (* out of a refinement *)
-      | SFunction(x,f1,[],f2), SFunction(y,t1,[],t2) ->
-	  trivial_cast t1 f1 &&
-	  let f_fvs = free_exp_vars_in_sort f2 in
-	  let t_fvs = free_exp_vars_in_sort t2 in
-	  let qz = fresh_qid x (Qid.Set.union f_fvs t_fvs) in
-	  let e_z = mk_var (Info.M "dummy info from trivial_cast") qz in
-	  let f_subst = [Qid.t_of_id x,e_z] in
-	  let t_subst = [Qid.t_of_id y,e_z] in
-          trivial_cast (subst_exp_in_sort f_subst f2) (subst_exp_in_sort t_subst t2)
+  f == t || syneq_sort f t ||
+  match f,t with
+    | SRefine(_,f',_),_ -> 
+        trivial_cast f' t (* out of a refinement *)
+    | SFunction(x,f1,[],f2), SFunction(y,t1,[],t2) ->
+	trivial_cast t1 f1 &&
+	let f_fvs = free_exp_vars_in_sort f2 in
+	let t_fvs = free_exp_vars_in_sort t2 in
+	let qz = fresh_qid x (Qid.Set.union f_fvs t_fvs) in
+	let e_z = mk_var (Info.M "dummy info from trivial_cast") qz in
+	let f_subst = [Qid.t_of_id x,e_z] in
+	let t_subst = [Qid.t_of_id y,e_z] in
+        trivial_cast 
+          (subst_exp_in_sort f_subst f2) 
+          (subst_exp_in_sort t_subst t2)
       | SProduct(f1,f2),SProduct(t1,t2) ->
 	  trivial_cast f1 t1 && trivial_cast f2 t2
       | SForall(a,f'),SForall(b,t') -> 
@@ -241,15 +241,16 @@ let rec trivial_cast f t =
           let z = fresh_id a (Id.Set.union f_fvs t_fvs) in
           let f_subst = [a,SVar z] in 
           let t_subst = [b,SVar z] in 
-	  trivial_cast (subst_sort f_subst f') (subst_sort t_subst t')
+	  trivial_cast 
+            (subst_sort f_subst f') 
+            (subst_sort t_subst t')
       | SData(fl,x),SData(tl,y) ->
 	  let rec all_trivial acc fl tl =
 	    acc && match fl,tl with
-		f::fl',t::tl' -> all_trivial (trivial_cast f t) fl' tl'
+	      | f::fl',t::tl' -> all_trivial (trivial_cast f t) fl' tl'
 	      | [],[] -> true
-	      | _,_ -> false
-	  in
-	    all_trivial (Qid.equal x y) fl tl
+	      | _ -> false in
+	  all_trivial (Qid.equal x y) fl tl
       | _ -> false
         
 let rec mk_cast s i f t e = 
@@ -263,17 +264,24 @@ let rec mk_cast s i f t e =
     then e
     else ECast(i,f,t,mk_blame i,e)
 
+(* resolve_label: helper for static_match. takes a base qid [li] a
+   target qid [lj] and a context [os]. it dots [li] with elements of
+   [os] until it finds a match for [lj]. *)
+let rec resolve_label li lj = function
+  | [] -> None
+  | o::os -> 
+      let qi = Qid.t_dot_t o li in 
+      if Qid.equal qi lj then Some qi
+      else resolve_label li lj os 
+
 (* static_match: determine if a value with a given sort *could* match
    a pattern; annotate PVars with their sorts, return the list of sort
    bindings for variables. *)
 let rec static_match i sev p0 s = 
-(*   msg "STATIC_MATCH: %s # %s@\n" (string_of_pat p0) (string_of_sort s); *)
-(*   msg "LOOKING UP %s@\n" (Qid.string_of_t li);         *)
-(*   msg "QX: %s SVL: %t@\n" (Qid.string_of_t qx) (fun _ -> Misc.format_list "," (format_svar false) svl); *)
-(*   msg "INSTANTIATED DATA: %s@\n" (string_of_sort s_expect); *)
   let err p str s = sort_error i 
-    (fun () -> msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
-       (string_of_pat p) str (string_of_sort s)) in 
+    (fun () -> 
+       msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
+         (string_of_pat p) str (string_of_sort s)) in 
     match p0 with 
       | PWld _ -> 
           Some (p0,[])
@@ -300,42 +308,36 @@ let rec static_match i sev p0 s =
       | PVnt(pi,li,ptio) -> 
           begin match expose_sort s with 
             | SData(sl1,qy) -> 
-                (* lookup the constructor from the environment *)
+                (* lookup the type from constructor [li]. *)
                 let qx,(svl,cl) = get_con i sev li in 
+                (* check qx equals qy and instantiate [cl] with [sl1]. *)
                 let cl_inst = 
                   if not (Qid.equal qx qy) then     
-                    let s_expect = SData(sl_of_svl svl,qx) in 
-                    err p0 (string_of_sort s_expect) s
+                    let s_expected = SData(sl_of_svl svl,qx) in 
+                    err p0 (string_of_sort s_expected) s
                   else 
                     let subst = Safelist.combine svl sl1 in 
                     inst_cases subst cl in 
-                let rec resolve_label li lj = function
-                  | [] -> None
-                  | o::os -> 
-                      let qi = Qid.t_dot_t o li in 
-                        if Qid.equal qi lj then Some qi
-                        else resolve_label li lj os in
+                (* loop over [cl_inst] to find the constructor *)
                 let rec find_label = function
                   | [] -> None
-                  | (lj,sjo)::rest ->                            
-                      let go qi = 
-                        match ptio,sjo with 
-                          | None,None -> 
-                              Some(PVnt(pi,qi,ptio),[])
-                          | Some pti,Some sj -> 
-                              begin 
-                                match static_match i sev pti sj with
-                                  | Some (new_pti,binds) -> 
-                                      Some (PVnt(pi,qi,Some new_pti),binds)
-                                  | None -> find_label rest
-                              end
-                          | _ -> sort_error i 
-                              (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ constructor@ %s@]" 
-                                 (Qid.string_of_t lj)) in 
-                        if Qid.equal li lj then go li
-                        else match resolve_label li lj (SCEnv.get_ctx sev) with
-                          | None -> find_label rest
-                          | Some qi -> go qi in 
+                  | (lj,sjo)::rest ->  
+                      let go qi = match ptio,sjo with 
+                        | None,None -> 
+                            Some(PVnt(pi,qi,ptio),[])
+                        | Some pti,Some sj -> 
+                            begin match static_match i sev pti sj with
+                              | Some (new_pti,binds) -> 
+                                  Some (PVnt(pi,qi,Some new_pti),binds)
+                              | None -> 
+                                  find_label rest
+                            end
+                        | _ -> 
+                            sort_error i (fun () -> msg "@[wrong@ number@ of@ arguments@ to@ %s@]" (Qid.string_of_t lj)) in 
+                     if Qid.equal li lj then go li
+                     else match resolve_label li lj (SCEnv.get_ctx sev) with
+                       | None -> find_label rest
+                       | Some qi -> go qi in 
                   find_label cl_inst                
             | _ -> err p0 "data type" s
           end
@@ -355,7 +357,7 @@ let rec static_match i sev p0 s =
           end
 
 (* ------ sort resolution and compilation ----- *)
-(* check_sort: resolves QIds in SData, compiles terms in SRefine *)
+(* check_sort: resolves qids in SDatas and checks expressions in SRefines *)
 let rec check_sort i sev s0 = 
   let rec go s0 = match s0 with 
     | SUnit | SBool | SInteger | SChar | SString 
@@ -365,7 +367,7 @@ let rec check_sort i sev s0 =
         let new_s1 = go s1 in 
         let sev1 = SCEnv.update sev (Qid.t_of_id x) (G.Sort new_s1) in 
         let new_s2 = check_sort i sev1 s2 in  
-          SFunction(x,new_s1,[],new_s2)
+        SFunction(x,new_s1,[],new_s2)
     | SFunction(_,_,ls,_) ->
 	sort_error i
 	  (fun () ->
@@ -378,10 +380,9 @@ let rec check_sort i sev s0 =
         let qx',_ = match SCEnv.lookup_type sev qx with 
           | None -> 
 	      sort_error i  
-                (fun () -> msg "@[cannot@ resolve@ sort@ %s@]" 
-                   (Qid.string_of_t qx))
+                (fun () -> msg "@[cannot@ resolve@ sort@ %s@]" (Qid.string_of_t qx))
           | Some q -> q in 
-          SData(Safelist.fold_left (fun acc si -> go si::acc) [] sl,qx')
+        SData(Safelist.map go sl,qx')
     | SForall(x,s1) -> SForall(x,go s1)
     | SRefine(x,s1,e1) -> 
         let sev1 = SCEnv.update sev (Qid.t_of_id x) (G.Sort (erase_sort s1)) in 
@@ -414,18 +415,14 @@ and check_exp_app i sev (e1_sort,new_e1,e1_ls) (e2_sort,new_e2,e2_ls) =
             if Id.equal x Id.wild then
 	      let new_e0 = EApp(i,new_e1,cast_e2) in 
 	      let e0_sort = return_sort in
-		(Trace.debug "alias+" (fun () -> msg "@[UNALIASED:@ %a : %a@]@\n" (fun _ -> format_exp) new_e0 (fun _ -> format_sort) e0_sort));
-		(e0_sort,new_e0,e1_ls@e2_ls@ls)
+              (Trace.debug "alias+" (fun () -> msg "@[UNALIASED:@ %a : %a@]@\n" (fun _ -> format_exp) new_e0 (fun _ -> format_sort) e0_sort));
+              (e0_sort,new_e0,e1_ls@e2_ls@ls)
             else
 	      let e2_loc,aliased_e2 = mk_alias i2 cast_e2 in
 	      let new_e0 = EApp(i,new_e1,aliased_e2) in
 	      let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,aliased_e2)] return_sort in
-		(Trace.debug "alias" (fun () -> msg "@[ALIASED:@ %a : %a@]@\n" (fun _ -> format_exp) new_e0 (fun _ -> format_sort) e0_sort));
-		(*                           msg "@[IN APP: "; format_exp e0; msg "@]@\n"; *)
-		(*                           msg "@[E1_SORT: %s@\n@]" (string_of_sort e1_sort); *)
-		(*                           msg "@[E2_SORT: %s@\n@]" (string_of_sort e2_sort); *)
-		(*                           msg "@[RESULT: %s@\n@]" (string_of_sort e0_sort); *)
-		(e0_sort,new_e0,e1_ls@e2_ls@e2_loc@ls)
+              (Trace.debug "alias" (fun () -> msg "@[ALIASED:@ %a : %a@]@\n" (fun _ -> format_exp) new_e0 (fun _ -> format_sort) e0_sort));
+              (e0_sort,new_e0,e1_ls@e2_ls@e2_loc@ls)
     | _ -> 
         sort_error (info_of_exp new_e1)
           (fun () ->              
@@ -435,18 +432,12 @@ and check_exp_app i sev (e1_sort,new_e1,e1_ls) (e2_sort,new_e2,e2_ls) =
 and check_exp sev e0 = 
   match e0 with
     | EVar(i,q) ->
-        (* lookup q in the environment *)
         let e0_sort = match SCEnv.lookup sev q with
-          | Some (G.Sort s) -> 
-	      (* if it is bound, return the sort *)
-	      s
-
-	      (* otherwise raise an appropriate exception *)
+          | Some (G.Sort s) -> s
 	  | Some (G.Unknown) ->
-	      sort_error i
+              run_error i
                 (fun () -> msg "@[%s is bound but of unknown type; checking failed@]" 
-                   (Qid.string_of_t q))
-	      
+                   (Qid.string_of_t q))	      
           | None -> 
 	      sort_error i
                 (fun () -> msg "@[%s is not bound@]" 

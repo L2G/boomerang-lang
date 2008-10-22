@@ -104,18 +104,22 @@ let string_of_box_content bc =
 
 type skeleton = spine * box_content TM.t
 
+let format_tag_map tm = 
+  ignore 
+    (TM.fold 
+       (fun t bc is_fst -> 
+          if not is_fst then msg ",";
+          msg "%s -> " (Misc.whack t);
+          format_box_content bc;
+          false)
+       tm true)
+
 let format_skeleton (sp,tm) = 
   msg "@[";
   msg "skel(";
   format_spine sp;
   msg ", {";
-  ignore (TM.fold 
-    (fun t bc is_fst -> 
-       if not is_fst then msg ",";
-       msg "%s -> " (Misc.whack t);
-       format_box_content bc;
-       false)
-    tm true);
+  format_tag_map tm;
   msg "})@]"
 let string_of_skeleton sk = 
   Util.format_to_string (fun () -> format_skeleton sk)
@@ -262,11 +266,12 @@ let rec parse t w = match t.desc with
         let sp2,tm2 = parse t2 w2 in
         let tm12 = 
           TM.fold 
-            (fun tgi bci acc -> 
-               let acc_tgi = TM.safe_find tgi tm1 [] in 
-                 TM.add tgi (acc_tgi @ bci) acc)
-            tm2 TM.empty in 
-        (sp1@sp2,tm12)
+            (fun tgi bci acc ->                
+               let tm1_tgi = TM.safe_find tgi acc [] in                  
+               TM.add tgi (tm1_tgi @ bci) acc)
+            tm2 tm1 in           
+          (sp1@sp2,tm12)
+
     | Alt(t1,t2) ->
         if match_string t1 w then parse t1 w
         else parse t2 w
@@ -275,18 +280,22 @@ let box_map_of_spine =
   let rec aux acc = function
   | [] -> acc 
   | SBox(tg)::rest -> 
-      let acc_tg = TM.safe_find tg acc 0 in 
-      let acc' = TM.add tg (succ acc_tg) acc in
+      let (i,jo) = TM.safe_find tg acc (0,Some 0) in 
+      let acc' = TM.add tg (succ i, Misc.map_option succ jo) acc in
       aux acc' rest      
+  | SBoxStar(_,tg,_)::rest -> 
+      let (i,jo) = TM.safe_find tg acc (0,Some 0) in 
+      let acc' = TM.add tg (i,None) acc in
+      aux acc' rest
   | _::rest -> aux acc rest in 
-  aux TM.empty 
-        
+  aux TM.empty         
+
 let unparse_spine_elt tm bm spi = 
   let err tg = 
     Berror.run_error (Info.M "unparse_spine_elt") 
-      (fun () -> msg "@[wrong number of chunks for %s@]" tg) in 
+      (fun () -> msg "@[wrong number of boxes for %s@]" tg) in 
   let get tm tg n = 
-    let rec aux acc i l =             
+    let rec aux acc i l =
       if i=0 then (Safelist.rev acc,l)
       else match l with 
         | [] -> err tg
@@ -295,33 +304,55 @@ let unparse_spine_elt tm bm spi =
     (l,TM.add tg tm_rest tm) in 
      
   match spi with
-
   | SBox(tg) ->
       begin match get tm tg 1 with
-        | [_,w],tm -> (w,tm,TM.add tg (pred (TM.safe_find tg bm 0)) bm)
+        | [_,w],tm -> 
+            let tg_save_min,tg_save_maxo = TM.safe_find tg bm (0,Some 0) in
+            (w,tm,TM.add tg (pred tg_save_min,Misc.map_option pred tg_save_maxo) bm)
         | _ -> err tg end
         
-  | SBoxStar(w1,tg,w2) ->
-      let tg_save = TM.safe_find tg bm 0 in 
+  | SBoxStar(w1,tg,w2) ->      
+      let (tg_save_min,tj_save_maxo) = TM.safe_find tg bm (0,Some 0) in 
       let tg_have = Safelist.length (TM.safe_find tg tm []) in
-      let () = if tg_save > tg_have then err tg in  
-      let wl,rest = get tm tg (tg_have-tg_save) in
+      let tg_get = tg_have-tg_save_min in 
+      let () = if tg_get < 0 then err tg in
+      let wl,rest = get tm tg tg_get in
       let w = Misc.concat_list "" 
         (Safelist.map (fun (_,wi) -> w1 ^ wi ^ w2) wl) in 
       (w,rest,bm)
-          
+
   | SString(w) -> (w,tm,bm)
     
 let unparse sk = 
   let sp,tm = sk in 
-  let w,_,_ = 
+  let w,tm',_ = 
     Safelist.fold_left 
       (fun (acc,tmi,bmi) spi -> 
          let wi,tmj,bmj = unparse_spine_elt tmi bmi spi in 
          (acc ^ wi,tmj,bmj)) 
       ("",tm,box_map_of_spine sp) sp in 
+  let () = 
+    TM.iter 
+      (fun tg kl ->
+         if kl <> [] then 
+           Berror.run_error (Info.M "unparse") 
+             (fun () -> msg "@[wrong number of chunks for %s: %s@]" tg
+                (Misc.concat_f_list "," (fun (k,w) -> k ^ "=" ^ w) kl)))
+      tm' in 
   w
-      
+ 
+let valid sk = 
+  let sp,tm = sk in 
+  let bm = box_map_of_spine sp in 
+  TM.fold 
+    (fun tg bc ok -> 
+       ok &&
+       let i,jo = TM.safe_find tg bm (0,Some 0) in
+       let n = Safelist.length bc in 
+       i <= n && 
+       (match jo with None -> true | Some j -> n <= j))
+    tm true
+     
 let box_content (_,tm) tg =
   TM.safe_find tg tm []
 

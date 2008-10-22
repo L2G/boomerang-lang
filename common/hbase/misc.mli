@@ -236,7 +236,7 @@ val percent : int -> int -> float
 (** {2 Formatting} *)
 
 val concat_list : string -> string list -> string
-  (** [concat_list sep l] concatenates a string list using [sep] to
+  (** [concat_list sep l] ncatenates a string list using [sep] to
       separate elements *)
 
 val concat_f_list : string -> ('a -> string) -> 'a list -> string

@@ -1,23 +1,23 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/blenses.ml                                                   *)
-(* Boomerang lens combinators                                                  *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/blenses.ml                                                  *)
+(* Boomerang lens combinators                                                 *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 module RxImpl = Bregexp
 
@@ -39,6 +39,7 @@ let whack =
        (fun (f,t) s -> Str.global_replace f t s)
        replacements s)
 
+(* [concat_array a]: string concat the elements of [a]. *)
 let concat_array a = 
   let buf = Buffer.create 17 in
     Array.iter (Buffer.add_string buf) a;
@@ -91,12 +92,7 @@ let plift_rd b i n t1 f =
   if not (b || Prefs.read paranoid) then f else
   (fun x y ->     
      if not (RxImpl.match_string t1 x) then 
-       begin 
-         Util.format "T1=";
-         Bregexp.format_t t1;
-         Util.format"@\n";
-         Berror.type_error i (RxImpl.split_bad_prefix t1 x)
-       end
+       Berror.type_error i (RxImpl.split_bad_prefix t1 x)       
      else (f x y))
 
 let plift_rrd b i n t1 t2 t3 f = 
@@ -220,14 +216,15 @@ let split_one choose t1 t2 s =
   (String.sub s 0 j, String.sub s j (n-j))
 
 (* helpers for concat-like operators *)
-  let seq_split i t1 t2 w = match RxImpl.seq_split t1 t2 w with
-    | None -> 
-        Berror.run_error i 
-          (fun () -> Util.format "the concatenation of@\nT1=%s@\nand@\nT2=%s@\nwas ambiguous on@\nW=%s@\n" 
-             (RxImpl.string_of_t t1) (RxImpl.string_of_t t2) w;
-          Util.format "[%s]@\n" (Misc.concat_list "," 
-                                   (Safelist.map string_of_int (Int.Set.elements (RxImpl.split_positions t1 t2 w)))))
-    | Some p -> p 
+let seq_split i t1 t2 w = match RxImpl.seq_split t1 t2 w with
+  | Some p -> p
+  | None -> 
+      Berror.run_error i 
+        (fun () -> 
+           msg "the concatenation of@\n@[%a@]@\nand@\n@[%a@]@\nwas ambiguous on@\n%s@\n" 
+             (fun _ -> RxImpl.format_t) t1
+             (fun _ -> RxImpl.format_t) t2
+             w)
 
 let split2 t11 t12 t21 t22 (x1,x2) = 
   let i = Info.M "split2" in 
@@ -245,48 +242,47 @@ let do_split_thread split f1 f2 combine =
      let x1,x2 = split x in 
      let x1,y1 = f1 x1 y in 
      let x2,y2 = f2 x2 y1 in 
-       (combine x1 x2, y2))
+     (combine x1 x2, y2))
     
 (* helpers for iteration operators *)
 let star_loop t f x = 
-  Safelist.fold_left
-    (fun acc xi -> acc ^ (f xi))
-    "" (RxImpl.star_split t x) 
+  let buf = Buffer.create 17 in 
+  Safelist.iter
+    (fun xi -> Buffer.add_string buf (f xi))
+    (RxImpl.star_split t x);
+  Buffer.contents buf
 
 (* helpers for conditional operators *)
-let branch t f1 f2 = 
-  (fun x -> 
-     if RxImpl.match_string t x then f1 x 
-     else f2 x) 
+let branch t f1 f2 x = 
+  if RxImpl.match_string t x then f1 x else f2 x
 
-let branch2 t f1 f2 = 
-  (fun x y ->
-     if RxImpl.match_string t x then f1 x y 
-     else f2 x y)
+let branch2 t f1 f2 x y = 
+  if RxImpl.match_string t x then f1 x y 
+  else f2 x y
 
-(* helpers for permutations *)
-let rec build_list first last = 
-  if first = last
-  then []
-  else first::(build_list (first + 1) last)
+module Permutations = struct
 
-let valid_permutation sigma ls =
-  let k = Safelist.length sigma in
-  Safelist.length ls = k &&
-  Safelist.sort compare sigma = build_list 0 k
-
-let rec permutations_aux k =
-  let rec insertions n ls =
-    let (is,_) = Safelist.fold_left 
-      (fun (ls_n_acc,ls_acc) i ->
-	 let ls_acc' = i::ls_acc in
-	 let ls_n_acc' = Safelist.map (fun ls_n -> i::ls_n) ls_n_acc in
-	 ((n::ls_acc')::ls_n_acc',ls_acc'))
-      ([[n]],[]) ls in
-    is in
-  if k = 0
-  then [[]]
-  else Safelist.concat (Safelist.map (insertions (k-1)) (permutations_aux (k-1)))
+  (* helpers for permutations *)
+  let rec build_list first last = 
+    if first = last then []
+    else first::(build_list (first + 1) last)
+      
+  let valid_permutation sigma ls =
+    let k = Safelist.length sigma in
+      Safelist.length ls = k &&
+        Safelist.sort compare sigma = build_list 0 k
+        
+  let rec permutations_aux k =
+    let rec insertions n ls =
+      let (is,_) = Safelist.fold_left 
+        (fun (ls_n_acc,ls_acc) i ->
+	   let ls_acc' = i::ls_acc in
+	   let ls_n_acc' = Safelist.map (fun ls_n -> i::ls_n) ls_n_acc in
+	     ((n::ls_acc')::ls_n_acc',ls_acc'))
+        ([[n]],[]) ls in
+        is in
+    if k = 0 then [[]]
+    else Safelist.concat (Safelist.map (insertions (k-1)) (permutations_aux (k-1)))
 
 let permutations k = 
   (* N.B. we make sure the identity is first -- this will give us a nicer 
@@ -339,7 +335,8 @@ let permute_list i sigma ls =
     Array.fold_right 
       (fun j ls' -> ls_arr.(j)::ls')
       sigma_inv_arr []
-    
+end
+  
 (* uid *)
 type uid = int
 let current_uid = ref 0
@@ -404,10 +401,6 @@ module Canonizer = struct
   (* add primitives ... *)
   let columnize i k r ch nl =
     let n = sprintf "columnize %d (%s) (%c) (%s)" k (RxImpl.string_of_t r) ch nl in
-    let () =
-      let contains_nl = Bregexp.mk_seq Bregexp.anything (Bregexp.mk_seq (Bregexp.mk_string nl) Bregexp.anything) in
-      let r_contains_nl = not (Bregexp.is_empty (Bregexp.mk_inter r contains_nl)) in
-      if r_contains_nl then Berror.static_error i n (sprintf "%s contains %s" (Bregexp.string_of_t r) nl) in 
     let nl_len = String.length nl in
     let ct = r in
     let rt = Bregexp.mk_expand r (Char.code ch) (Bregexp.mk_string nl) in
@@ -427,7 +420,6 @@ module Canonizer = struct
         canonized_type = ct;
         crel = Identity;
         canonize =
-          
           (fun c ->
              let c_len = String.length c in
              let buf = Buffer.create c_len in
@@ -442,7 +434,6 @@ module Canonizer = struct
                     loop (succ i)) in
                loop 0;
                Buffer.contents buf);
-
         choose =
           (fun c ->
              let c_len = String.length c in
@@ -476,105 +467,55 @@ module Canonizer = struct
         
   let concat i cn1 cn2 = 
     let n = sprintf "concat (%s) (%s)" cn1.string cn2.string in 
-    let rt = 
-      if Prefs.read notypecheck then 
-        RxImpl.mk_seq cn1.uncanonized_type cn2.uncanonized_type 
-      else
-        match RxImpl.splittable_cex cn1.uncanonized_type cn2.uncanonized_type with 
-          | Misc.Right rt12 -> rt12 
-          | Misc.Left(s1,s2,s1',s2') -> 
-              let s = sprintf "the concatenation of %s and %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-                cn1.string cn2.string s1 s2 s1' s2' in 
-                Berror.static_error i n s in 
-    let ct = match cn1.crel,cn2.crel with 
-      | Identity,Identity -> RxImpl.mk_seq cn1.canonized_type cn2.canonized_type 
-      | _ -> match RxImpl.splittable_cex cn1.canonized_type cn2.canonized_type with 
-          | Misc.Right ct12 -> ct12 
-          | Misc.Left(s1,s2,s1',s2') -> 
-              let s = sprintf "the concatenation of %s and %s is ambiguous (and so the relation may not be an equivalence):\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-                cn1.string cn2.string s1 s2 s1' s2' in 
-                Berror.static_error i n s in   
-      { info = i;
-        string = n;
-        uncanonized_type = rt;
-        canonized_type = ct;
-        crel = combine_rel cn1.crel cn2.crel;
-        canonize = 
-          (do_split (seq_split i cn1.uncanonized_type cn2.uncanonized_type)
-             cn1.canonize cn2.canonize (^));
-        choose = 
-          (do_split ((split_one Int.Set.min_elt) cn1.canonized_type cn2.canonized_type)
-             cn1.choose cn2.choose (^));
-      }
+    let rt = RxImpl.mk_seq cn1.uncanonized_type cn2.uncanonized_type in
+    let ct = RxImpl.mk_seq cn1.canonized_type cn2.canonized_type in 
+    { info = i;
+      string = n;
+      uncanonized_type = rt;
+      canonized_type = ct;
+      crel = combine_rel cn1.crel cn2.crel;
+      canonize = 
+        (do_split (seq_split i cn1.uncanonized_type cn2.uncanonized_type)
+           cn1.canonize cn2.canonize (^));
+      choose = 
+        (do_split ((split_one Int.Set.min_elt) cn1.canonized_type cn2.canonized_type)
+           cn1.choose cn2.choose (^))
+    }
 
   let union i cn1 cn2 = 
     let n = sprintf "union (%s) (%s)" cn1.string cn2.string in 
-    let () = 
-      if not (Prefs.read notypecheck) then  
-        match RxImpl.disjoint_cex cn1.uncanonized_type cn2.uncanonized_type with
-          | None -> ()
-          | Some w -> 
-              let s = sprintf "%s and %s are not disjoint: %s"
-                (RxImpl.string_of_t cn1.uncanonized_type) (RxImpl.string_of_t cn2.uncanonized_type) w in
-                Berror.static_error i n s in
-      (*     let () = match cn1.crel,cn2.crel with  *)
-      (*       | Identity,Identity -> () *)
-      (*       | _ -> match RxImpl.disjoint_cex cn1.canonized_type cn2.canonized_type with *)
-      (*       | None -> () *)
-      (*       | Some w ->  *)
-      (*           let s = sprintf "%s and %s are not disjoint (and so the relation may not be the identity): %s" *)
-      (*             (RxImpl.string_of_t cn1.uncanonized_type) (RxImpl.string_of_t cn2.uncanonized_type) w in *)
-      (*           Berror.static_error i n s in *)
     let rt = RxImpl.mk_alt cn1.uncanonized_type cn2.uncanonized_type in 
     let ct = RxImpl.mk_alt cn1.canonized_type cn2.canonized_type in 
-    let cr = 
-      if RxImpl.is_empty (RxImpl.mk_inter cn2.canonized_type (RxImpl.mk_complement cn1.canonized_type)) then 
-        cn1.crel
-      else combine_rel cn1.crel cn2.crel in  
+    let ct21_overlap = RxImpl.is_empty (RxImpl.mk_diff cn2.canonized_type cn1.canonized_type) in 
+    let cr = if ct21_overlap then cn1.crel else combine_rel cn1.crel cn2.crel in 
     { info = i;
       string = n;
       uncanonized_type = rt;
       canonized_type = ct;
       crel = cr;
       canonize = (branch cn1.uncanonized_type cn1.canonize cn2.canonize);
-      choose = (branch cn1.canonized_type cn1.choose cn2.choose);
+      choose = (branch cn1.canonized_type cn1.choose cn2.choose)
     }
 
   let star i cn1 =
     let n = sprintf "(%s)*" cn1.string in
-    let rt = 
-      if Prefs.read notypecheck then 
-        RxImpl.mk_star cn1.uncanonized_type 
-      else match RxImpl.iterable_cex cn1.uncanonized_type with
-        | Misc.Right r -> r
-        | Misc.Left (s1,s2,s1',s2') -> 
-            let s = sprintf "the iteration of %s is ambiguous:\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-              (RxImpl.string_of_t cn1.uncanonized_type) s1 s2 s1' s2' in 
-              Berror.static_error i n s in 
-    let ct = match Prefs.read notypecheck, cn1.crel with 
-      | true,_ | _,Identity -> RxImpl.mk_star cn1.canonized_type 
-      | _ -> 
-          match RxImpl.iterable_cex cn1.canonized_type with 
-            | Misc.Right cts -> cts 
-            | Misc.Left(s1,s2,s1',s2') -> 
-                let s = sprintf "the iteration of %s is ambiguous (and so the relation may not be an equivalence):\n\"%s\" and \"%s\"\nand also\n\"%s\" and \"%s\""
-                  cn1.string s1 s2 s1' s2' in 
-                  Berror.static_error i n s in   
-      { info = i;
-        string = n;
-        uncanonized_type = rt;
-        canonized_type = ct;
-        crel = cn1.crel;
-        canonize = (star_loop cn1.uncanonized_type cn1.canonize);      
-        choose = 
-          (fun cl -> 
-             let rec loop cl acc = 
-               if String.length cl = 0 then acc
-               else
-                 let cl1,clrest = (split_one Int.Set.min_elt) cn1.canonized_type ct cl in 
-                   loop clrest (acc ^ (cn1.choose cl1)) in 
-               loop cl "");
-      }
+    let rt = RxImpl.mk_star cn1.uncanonized_type in
+    let ct = RxImpl.mk_star cn1.canonized_type in
+    { info = i;
+      string = n;
+      uncanonized_type = rt;
+      canonized_type = ct;
+      crel = cn1.crel;
+      canonize = (star_loop cn1.uncanonized_type cn1.canonize);      
+      choose = 
+        (fun cl -> 
+           let rec loop cl acc = 
+             if String.length cl = 0 then acc
+             else
+               let cl1,clrest = (split_one Int.Set.min_elt) cn1.canonized_type ct cl in 
+               loop clrest (acc ^ (cn1.choose cl1)) in 
+             loop cl "")
+    }
         
   let normalize i f fc fc0 = 
     (* UNCHECKED: f's type, that f is the identity on fc0 :-/ *)
@@ -1169,7 +1110,7 @@ module DLens = struct
       (Misc.concat_list "," (Safelist.map string_of_int sigma))
       (Misc.concat_list "," (Safelist.map (fun dli -> dli.string) dll)) in  
     let k = Safelist.length dll in 
-    let sigma_arr,sigma_inv_arr = permutation info n sigma k in 
+    let sigma_arr,sigma_inv_arr = Permutations.permutation info n sigma k in 
     let dl_arr = Array.of_list dll in 
     let bij,ct,dt,crel,arel = 
       (* calculate lens type components *)
