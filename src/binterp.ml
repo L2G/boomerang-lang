@@ -76,7 +76,6 @@ let check_test ms =
 (* CAST COMPILATION *)
 
 (* !!! some of these helpers are duplicated work from bcompiler *)
-
 let get_type lookup_type i qx = 
   match lookup_type qx with
     | None -> run_error i 
@@ -167,9 +166,7 @@ let rec interp_cast cev i b f t e =
 		   (Info.string_of_t b_info)
 	           cex_s) in
   let res = 
-    if Prefs.read Bcheck.ignore_refinements && (not (Bcheck.may_coerce f t))
-    then interp_exp cev e
-    else if Bcheck.trivial_cast f t then interp_exp cev e
+    if Bcheck.trivial_cast f t then interp_exp cev e
     else
       match f,t with
       | SUnit,SUnit
@@ -279,6 +276,8 @@ let rec interp_cast cev i b f t e =
 (* expressions *)
 and interp_exp cev e0 = 
 (*   Util.format "INTERP_EXP: %s@\n%!" (Bprint.string_of_exp e0); *)
+      Trace.debug "exp+" (fun () -> Util.format "compiling expression [%s]@\n%!" 
+                            (Bprint.string_of_exp e0));
   match e0 with 
   | EVar(i,q) ->       
       begin match CEnv.lookup cev q with
@@ -392,8 +391,7 @@ and interp_cast cev i f t b v0 =
 
 *)
 
-and interp_binding cev b0 = 
-  match b0 with
+and interp_binding cev b0 = match b0 with
   | Bind(i,p,so,e) -> 
       Trace.debug "binds+" (fun () -> Util.format "compiling binding %s@\n%!" (string_of_pat p));
       let v = interp_exp cev e in 
@@ -411,7 +409,8 @@ and interp_binding cev b0 =
       (bcev,Safelist.rev xs_rev)
       
 let rec interp_decl cev ms d0 = 
-(*   Util.format "INTERP_DECL: %s@\n%!" (Bprint.string_of_decl d0); *)
+  Trace.debug "decl+" (fun () -> Util.format "compiling decl %a@\n%!" 
+                         (fun _ -> format_decl) d0);
   match d0 with
   | DLet(i,b) ->
       let bcev,xs = interp_binding cev b in

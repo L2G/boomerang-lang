@@ -1,23 +1,23 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/registry.ml                                                  *)
-(* Boomerang run-time registry                                                 *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/registry.ml                                                 *)
+(* Boomerang run-time registry                                                *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 let sprintf = Printf.sprintf
 let debug = Trace.debug "registry"
@@ -256,49 +256,58 @@ let load_var q = match get_module_prefix q with
 
 (* lookup in a naming context, with a lookup function *)
 let lookup_library_generic lookup_fun nctx q = 
-  verbose (fun () -> Util.format "lookup_library_generic [%s] [%s]@\n" 
+  verbose (fun () -> Util.format "lookup_library_generic [%s] [%s]@\n%!" 
            (Bident.Qid.string_of_t q)
            (Misc.concat_list "," (Safelist.map Bident.Qid.string_of_t nctx)));
   let rec lookup_library_aux nctx q2 =       
-    verbose (fun () -> Util.format "lookup_library_aux [%s] [%s]@\n" 
+    verbose (fun () -> Util.format "lookup_library_aux [%s] [%s]@\n%!" 
              (Bident.Qid.string_of_t q2)
              (Misc.concat_list "," (Safelist.map Bident.Qid.string_of_t nctx)));
     let try_lib () = lookup_fun !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
-        | Some r -> Some r
-        | None -> begin match load_var q2; try_lib () with
-              | Some r -> Some r
+        | Some r -> 
+            verbose (fun () -> Util.format "FOUND IN LIB@\n%!");
+            Some r
+        | None -> 
+            verbose (fun () -> Util.format "LOADING %s@\n%!" (Bident.Qid.string_of_t q2));
+            begin match load_var q2; try_lib () with
+              | Some r -> 
+                  verbose (fun () -> Util.format "FOUND AFTER LOADING@\n%!");
+                  Some r
               | None -> match nctx with 
-                  | []       -> None
+                  | []       -> 
+                      verbose (fun () -> Util.format "NOTHING LEFT TO TRY@\n%!");
+None
                   | o::orest -> 
+                      verbose (fun () -> Util.format "TRYING IN %s@\n%!" (Bident.Qid.string_of_t o));
                       lookup_library_aux orest (Bident.Qid.t_dot_t o q) 
             end
   in
   lookup_library_aux nctx q
 
 let lookup_library_ctx os q = 
-  verbose (fun () -> Util.format "lookup_library_ctx [%s]@\n" (Bident.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
   lookup_library_generic REnv.lookup os q
 
 let lookup_type_library_ctx os q = 
-  verbose (fun () -> Util.format "lookup_type_library_ctx [%s]@\n" (Bident.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_type_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
   lookup_library_generic REnv.lookup_type os q
 
 let lookup_con_library_ctx os q = 
-  verbose (fun () -> Util.format "lookup_con_library_ctx [%s]@\n" (Bident.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_con_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
   lookup_library_generic REnv.lookup_con os q
 
 let lookup_library q = 
-  verbose (fun () -> Util.format "lookup_library [%s]@\n" (Bident.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_library [%s]@\n%!" (Bident.Qid.string_of_t q));
   lookup_library_ctx [] q
 
 let lookup_type_library q = 
-  verbose (fun () -> Util.format "lookup_type_library [%s]@\n" (Bident.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_type_library [%s]@\n%!" (Bident.Qid.string_of_t q));
   lookup_type_library_ctx [] q
 
 let lookup_con_library q = 
-  verbose (fun () -> Util.format "lookup_con_library [%s]@\n" (Bident.Qid.string_of_t q));
+  verbose (fun () -> Util.format "lookup_con_library [%s]@\n%!" (Bident.Qid.string_of_t q));
   lookup_con_library_ctx [] q
 
 (* --------------- Registration functions -------------- *)

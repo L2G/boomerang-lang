@@ -57,35 +57,35 @@ let pmk0 s1 mk1 x v1 =
   let s = s1 in  
   let i = mk_prelude_info x in 
   let v = mk1 i v1 in 
-    (q,s,v)
+  (q,s,v)
 
 let pmk1 s1 mk1 s2 mk2 x f = 
   let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (f i v1)) in 
-    (q,s,f)
-
+  (q,s,f)
+      
 let pmk2 s1 mk1 s2 mk2 s3 mk3 x f = 
   let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 ^> s3 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (f i v1 v2))) in 
-    (q,s,f)
-
+  (q,s,f)
+      
 let pmk3 s1 mk1 s2 mk2 s3 mk3 s4 mk4 x f = 
   let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 ^> s3 ^> s4 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (fun v3 -> mk4 i (f i v1 v2 v3)))) in 
-    (q,s,f)
+  (q,s,f)
 
 let pmk4 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 x f = 
   let q = Qid.mk_native_prelude_t x in 
   let s = s1 ^> s2 ^> s3 ^> s4 ^> s5 in 
   let i = mk_prelude_info x in 
   let f = mk1 i (fun v1 -> mk2 i (fun v2 -> mk3 i (fun v3 -> mk4 i (fun v4 -> mk5 i (f i v1 v2 v3 v4))))) in 
-    (q,s,f)
+  (q,s,f)
 
 (* The helpers lift OCaml functions to work with run-time values. They
    perform unboxing of the arguments, and box the result up as a
@@ -147,6 +147,7 @@ let pmk_ll    = pmk1 S.SLens mk_lfun S.SLens mk_l
 let pmk_lll   = pmk2 S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_l
 let pmk_llll  = pmk3 S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_lfun S.SLens mk_l
 let pmk_liil  = pmk3 S.SLens mk_lfun S.SInteger mk_ifun S.SInteger mk_ifun S.SLens mk_l
+let pmk_lu    = pmk1 S.SLens mk_lfun S.SUnit mk_u
 let pmk_lb    = pmk1 S.SLens mk_lfun S.SBool mk_b
 let pmk_lr    = pmk1 S.SLens mk_lfun S.SRegexp mk_r
 let pmk_lss   = pmk2 S.SLens mk_lfun S.SString mk_sfun S.SString mk_s
@@ -164,13 +165,16 @@ let pmk_rq    = pmk1 S.SRegexp mk_rfun S.SCanonizer mk_q
 let pmk_qss   = pmk2 S.SCanonizer mk_qfun S.SString mk_sfun S.SString mk_s
 let pmk_qll   = pmk2 S.SCanonizer mk_qfun S.SLens mk_lfun S.SLens mk_l
 let pmk_qiiq  = pmk3 S.SCanonizer mk_qfun S.SInteger mk_ifun S.SInteger mk_ifun S.SCanonizer mk_q
-let pmk_frrq  = pmk3 (S.SString ^> S.SString) mk_ffun S.SRegexp mk_rfun S.SRegexp mk_rfun S.SCanonizer mk_q
+let pmk_rrfq  = pmk3 S.SRegexp mk_rfun S.SRegexp mk_rfun (S.SString ^> S.SString) mk_ffun S.SCanonizer mk_q
 
 let pmk_sync  = pmk4 S.SLens mk_lfun S.SString mk_sfun S.SString mk_sfun S.SString mk_sfun 
                 (((S.SString ^* S.SString) ^* S.SString) ^* S.SString) (fun i x -> x)
 
-let pmk_dup  = 
+let pmk_dup1  = 
   pmk3 S.SLens mk_lfun (S.SString ^> S.SString) mk_ffun S.SRegexp mk_rfun S.SLens mk_l
+
+let pmk_dup2  = 
+  pmk3 (S.SString ^> S.SString) mk_ffun S.SRegexp mk_rfun S.SLens mk_lfun S.SLens mk_l
 
 let pmk_izlzl = 
   pmk2 (S.SData([S.SInteger],list_qid)) mk_listfun (S.SData([S.SLens],list_qid)) mk_listfun S.SLens mk_l 
@@ -195,7 +199,6 @@ let prelude_spec =
   ; pmk_rl     "copy"                 L.copy
   ; pmk_rssl   "const"                L.const
   ; pmk_lll    "lens_union"           L.union
-  ; pmk_lll    "lens_disjoint_union"  L.disjoint_union
   ; pmk_lll    "lens_concat"          L.concat
   ; pmk_lll    "lens_swap"            (fun i l1 l2 -> L.permute i [1;0] [l1;l2])
   ; pmk_liil   "lens_iter"            L.iter
@@ -203,17 +206,15 @@ let prelude_spec =
   ; pmk_ll     "lens_plus"            (fun i l -> L.iter i l 1 (-1))
   ; pmk_ll     "lens_option"          (fun i l -> L.iter i l 0 1)
   ; pmk_izlzl  "lens_permute"         (fun i is ls -> L.permute i (Safelist.map get_i is) (Safelist.map get_l ls))
-  ; pmk_sll    "dmatch"               (fun i -> L.dmatch i L.std_lookup)
-  ; pmk_ssll   "smatch"               (fun i s -> 
-                                          let f = float_of_string s in
-                                          L.dmatch i (L.sim_lookup f))
+  ; pmk_sll    "dmatch"               (fun i t l -> L.dmatch i t l)
+  ; pmk_ssll   "smatch"               (fun i f t l -> L.smatch i (float_of_string f) t l)
   ; pmk_lll    "compose"              L.compose
-  ; pmk_lsl    "default"              (fun i l1 s2 -> L.default i s2 l1)
+  ; pmk_lsl    "default"              L.default
   ; pmk_rl     "key"                  L.key
-  ; pmk_ll     "forgetkey"            (fun i -> L.forgetkey)
+  ; pmk_ll     "forgetkey"            L.forgetkey
   ; pmk_rrl    "filter"               L.filter
-  ; pmk_dup    "dup1"                 (fun i l f fat -> L.dup i true l (fun s -> get_s (f (mk_s i s))) fat)
-  ; pmk_dup    "dup2"                 (fun i l f fat -> L.dup i false l (fun s -> get_s (f (mk_s i s))) fat)
+  ; pmk_dup1   "dup1"                 (fun i l f fat -> L.dup1 i l (fun s -> get_s (f (mk_s i s))) fat)
+  ; pmk_dup2   "dup2"                 (fun i f fat l -> L.dup2 i (fun s -> get_s (f (mk_s i s))) fat l)
                                       
   (* canonizer operations *)          
   ; pmk_rq     "canonizer_copy"       C.copy
@@ -225,7 +226,7 @@ let prelude_spec =
   ; pmk_qll    "left_quot"            L.left_quot
   ; pmk_lql    "right_quot"           L.right_quot
   ; pmk_ircsq  "columnize"            C.columnize
-  ; pmk_frrq   "normalize"            (fun i f fc fc0 -> C.normalize i (fun s -> get_s (f (mk_s i s))) fc fc0)
+  ; pmk_rrfq   "normalize"            (fun i ct ct0 f -> C.normalize i ct ct0 (fun s -> get_s (f (mk_s i s))))
   ; pmk_rzq    "sort"                 (fun i rl -> C.sort i (Safelist.map get_r rl))          
   ; pmk_qr     "uncanonized_type"     (fun _ -> C.uncanonized_type)
   ; pmk_qr     "canonized_type"       (fun _ -> C.canonized_type)
@@ -269,7 +270,7 @@ let prelude_spec =
   ; pmk_rrr    "inter"                (fun _ -> Bregexp.mk_inter)
   ; pmk_riir   "regexp_iter"          (fun i -> Bregexp.mk_iter)
   ; pmk_rrb    "equiv"                (fun _ -> Bregexp.equiv)
-  ; pmk_rs     "shortest"             wrap_rep
+  ; pmk_rs     "representative"             wrap_rep
   ; pmk_rsi    "count"                (fun i r s -> Safelist.length (Bregexp.star_split r s))
   ; pmk_rsb    "matches"              (fun _ -> Bregexp.match_string)
   ; pmk_rrb    "splittable"           (fun _ -> Bregexp.splittable)

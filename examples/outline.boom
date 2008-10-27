@@ -30,12 +30,13 @@ let MARKER : string = "* "
 let header : lens =
   MARKER . key CONTENT
 
+
 let nonheader : lens = 
   key (CONTENT - (MARKER . CONTENT))
 
 let section : lens = 
-    header . "\n"
-  . (<paragraph:nonheader> . "\n")*
+  header . "\n" . 
+  (<paragraph:nonheader> . "\n")*
 
 let doc : lens = 
   <section:section>*
@@ -50,7 +51,7 @@ let sample_doc : string =
   >> 
 
 test doc.get sample_doc = sample_doc
-    
+
 test 
 begin 
   let acts,_,_,_ = 

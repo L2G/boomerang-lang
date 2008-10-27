@@ -59,7 +59,7 @@ space characters.
 
 #* let SCHAR : regexp = [ ]
 #* let S : regexp = SCHAR*
-#* let SP : regexp = SCHAR+
+#* let SP : regexp = SCHAR
 
 \LENSSECTION{@WSCHAR@, @WS@, @WSP@}
 
@@ -168,7 +168,7 @@ but takes an entire regular expression on the abstract side. It is defined
 using @qconst@.
 
 #* let qset (C:regexp) (A:regexp) : (lens in C <-> A) = 
-#*  qconst C A (shortest A) (shortest C)
+#*  qconst C A (representative A) (representative C)
 
 #* test get (qset [A-Z] [a-z]) "A" = "a" 
 #* test get (qset [A-Z] [a-z]) "Z" = "a" 
@@ -281,10 +281,10 @@ or lenses, respectively.
 #*                                      && (concatable (atypes ls) //))
 #*   : (lens in concat_regexps (ctypes ls)
 #*          <-> concat_regexps (atypes ls))
-#*   = List.fold_left{lens}{lens} 
+#*   =  List.fold_left{lens}{lens} 
 #*       (fun (l_acc:lens) (l:lens) -> l_acc . l)
-#*       (copy EPSILON) ls
-#* 
+#*       (copy EPSILON) ls 
+
 #* test get (concat_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "abc" = "abc"
 
 \LENSSECTION{@disjoint_from_regexps@,@disjoint_regexps@} The function @disjoint_from_regexps@
@@ -393,3 +393,4 @@ compact (though imprecise); see~\cite{QuotientLens08} for an extended discussion
 
 #* test canonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) = 
 #*   (UALPHACHAR . DIGIT)
+

@@ -19,8 +19,9 @@ module Units =
     DIGIT .
     (">" <-> "")
 
-  let final_lns = left_quot (double_cn | single_cn) double_lns
   test left_quot (single_cn | double_cn) double_lns = error
+
+  let final_lns = left_quot (double_cn | single_cn) double_lns
 
   test final_lns.get "  \n<a x=7>" = "7,7"
   test final_lns.get "\n  <b x=7>    <c y=7>" = "7,7"
@@ -37,9 +38,9 @@ module Units =
 
 (* ---- dup --- *)
 test get (dup1 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "N" = "NN"
-test get (dup2 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "N" = "NN"
+test get (dup2 (get (copy [A-Z])) [A-Z] (copy [A-Z]) ) "N" = "NN"
 test create (dup1 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "NM" = "N"
-test create (dup2 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "NM" = "M"
+test create (dup2 (get (copy [A-Z])) [A-Z] (copy [A-Z])) "NM" = "M"
 
 (* permute *)
 let l : lens = 
@@ -57,7 +58,7 @@ test l.get "ab" = "ba"
 test l.create "ba" = "ab"
 
 let l : lens = (copy [a])* ~ (copy [b])*
-test l.create "bbaaaaa" = ?
+test l.create "bbaaaaa" = "aaaaabb"
 
 (* sort *)
 let q : canonizer = sort #{regexp}[[0-9];[A-Z];[a-z]]

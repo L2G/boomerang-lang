@@ -1778,7 +1778,7 @@ let cc_alternative_products_xml : lens =
       Xml.attr1_elt NL1 "comment" "type" (del "alternative products") 
       begin 
         events . 
-        dup2 (comment . names) named_isos named_isos_regexp
+        dup2 named_isos named_isos_regexp (comment . names) 
       end in 
   let canonizer_copy (R:regexp) = canonizer_of_lens (copy R) in 
   let cn : canonizer =

@@ -249,4 +249,5 @@ let mk_list i l =
   aux (Safelist.rev l) (Vnt(i,list_qid,nil,None))
         
 
-let mk_listfun i f = Fun(i,(fun v -> f (get_list v)))
+let mk_listfun i f = 
+  Fun(i,(fun v -> f (get_list v)))

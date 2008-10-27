@@ -61,7 +61,7 @@ module Canonizer : sig
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
-  val normalize : Info.t -> (string -> string) -> Bregexp.t -> Bregexp.t -> t
+  val normalize : Info.t -> Bregexp.t -> Bregexp.t -> (string -> string) ->  t
   val sort : Info.t -> Bregexp.t list -> t
   val iter : Info.t -> t -> int -> int -> t
 end
@@ -83,7 +83,7 @@ module DLens : sig
   val rget : t -> (string -> string)
   val rput : t -> string -> string -> string
   val rcreate : t -> string -> string
-  val forgetkey : t -> t
+  val forgetkey : Info.t -> t -> t
   val canonizer_of_t : Info.t -> t -> Canonizer.t
   val invert : Info.t -> t -> t
   val copy : Info.t -> Bregexp.t -> t
@@ -91,17 +91,16 @@ module DLens : sig
   val const : Info.t -> Bregexp.t -> string -> string -> t
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
-  val disjoint_union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
   val iter : Info.t -> t -> int -> int -> t
   val permute : Info.t -> int list -> t list -> t
   val compose : Info.t -> t -> t -> t
-  val default : Info.t -> string -> t -> t
-  val dmatch : Info.t -> 
-               (string -> string -> dict -> ((skeleton * dict) * dict) option) -> 
-               string -> t -> t
+  val default : Info.t -> t -> string -> t
+  val dmatch : Info.t -> string -> t -> t
+  val smatch : Info.t -> float -> string -> t -> t
   val filter : Info.t -> Bregexp.t -> Bregexp.t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t
   val right_quot : Info.t -> t -> Canonizer.t -> t
-  val dup : Info.t -> bool -> t -> (string -> string) -> Bregexp.t -> t
+  val dup1 : Info.t -> t -> (string -> string) -> Bregexp.t -> t
+  val dup2 : Info.t -> (string -> string) -> Bregexp.t -> t -> t
 end

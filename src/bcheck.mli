@@ -24,13 +24,6 @@ open Bsyntax
 
 val no_alias : bool Prefs.t
 
-val ignore_refinements : bool Prefs.t
-
-val may_coerce : sort -> sort -> bool
-(** [may_coerce f t] returns true if the cast from f to t will coerce
-    values from type to type, and must be run regardless of whether or not
-    refinements are checked *)
-
 val trivial_cast : sort -> sort -> bool
 (** [trivial_cast f t] returns true if the cast is trivial, i.e.,
     always satisfied *)
