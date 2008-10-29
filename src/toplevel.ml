@@ -24,6 +24,7 @@ module L = Blenses.DLens
 open Error 
 
 let sprintf = Printf.sprintf
+let msg = Util.format
 
 let () = 
   (* initialize unison state (sets directory name) *)
@@ -77,29 +78,46 @@ let check m =
              (fun () -> 
                 Util.format "Error: could not find module %s@\n" modname))
       
-let get_str l_n c = L.rget (lookup_lens l_n) c
-let put_str l_n a c = L.rput (lookup_lens l_n) a c
-let create_str l_n a = L.rcreate (lookup_lens l_n) a
+let check_str n r x = 
+  if not (Brx.match_string r x) then 
+    Berror.run_error (Info.M n)
+      (fun () -> 
+         msg "@[%s does not belong to %a@]" 
+           x (fun _ -> Brx.format_t) r)
+
+let get_str l c = 
+  check_str "get" (L.ctype l) c;
+  L.rget l c
+
+let put_str l a c = 
+  check_str "put" (L.atype l) a;
+  check_str "put" (L.ctype l) c;
+  L.rput l a c
+
+let create_str l a =
+  check_str "create" (L.atype l) a;
+  L.rcreate l a 
 
 (*******)
 (* GET *)
 (*******)
 let get l_n c_fn o_fn = 
-  write_string o_fn (get_str l_n (read_string c_fn));
+  write_string o_fn (get_str (lookup_lens l_n) (read_string c_fn));
   0
 
 (*******)
 (* PUT *)
 (*******)
 let put l_n a_fn c_fn o_fn = 
-  write_string o_fn (put_str l_n (read_string a_fn) (read_string c_fn));
+  write_string o_fn 
+    (put_str (lookup_lens l_n) (read_string a_fn) (read_string c_fn));
   0
 
 (**********)
 (* CREATE *)
 (**********)
 let create l_n a_fn o_fn = 
-  write_string o_fn (create_str l_n (read_string a_fn));
+  write_string o_fn (create_str (lookup_lens l_n) (read_string a_fn));
   0
 
 (********)
@@ -108,25 +126,25 @@ let create l_n a_fn o_fn =
 let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =   
   let l = lookup_lens l_n in 
   let get_f f =
-    if Sys.file_exists f then Some (L.rget l (read_string f)) else None in
+    if Sys.file_exists f then Some (get_str l (read_string f)) 
+    else None in
   let putback f ro' ro =
     match ro' with
       None -> Misc.remove_file_or_dir f
     | Some r' ->
         let newcontents =
           match ro with
-            None -> L.rcreate l r'
-          | Some r -> L.rput l r' r in
+            | None -> create_str l r'
+            | Some r -> put_str l r' r in 
         write_string f newcontents  in
-
   let oo = get_f o_fn in 
   let ao = get_f a_fn in 
   let bo = get_f b_fn in 
   let xt = match L.xtype l with
+    | Some xt -> xt     
     | None -> 
-        Error.simple_error (sprintf
-          "Error: cannot synchronize with %s" (L.string l))
-    | Some xt -> xt in     
+        Berror.run_error (Info.M "sync")
+          (fun () -> msg "cannot synchronize with %s" (L.string l)) in
   let acts,oo',ao',bo' = Bsync.sync_opt xt oo ao bo in 
   Bprint.nlify acts;
   putback o_fn' oo' oo;
@@ -135,24 +153,6 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
   (* Return non-zero exit code if any conflicts were detected *)
   if ao' = bo' then 0 else 1
   
-(*
-    Util.format "O  = [@[";
-    nlify (get_w oo);
-    Util.format "@]]@\nA  = [@[";
-    nlify (get_w ao);
-    Util.format "@]]@\nB  = [@[";
-    nlify (get_w bo);
-    Util.format "@]]@\n@\n<~ SYNC ~>@\n@\n";
-    Util.format "O' = [@[";
-    nlify (get_w oo');
-    Util.format "@]]@\nA' = [@[";
-    nlify (get_w ao');
-    Util.format "@]]@\nB' = [@[";
-    nlify (get_w bo');
-    Util.format "@]]@\n";
-    0
-*)
-
 (* OLD SYNC *)
 let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
 let oldsync l o_fn c_fn a_fn = 
@@ -169,7 +169,7 @@ let oldsync l o_fn c_fn a_fn =
         debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
         let c = read_string c_fn in 
           write_string o_fn c;
-          write_string a_fn (get_str l c);
+          write_string a_fn (get_str (lookup_lens l) c);
           0
           
     | true,false,true ->
@@ -177,7 +177,7 @@ let oldsync l o_fn c_fn a_fn =
         debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
         let a = read_string a_fn in
         let o = read_string o_fn in 
-        let c' = put_str l a o in 
+        let c' = put_str (lookup_lens l) a o in 
           write_string c_fn c';
           write_string o_fn c';
           0
@@ -186,7 +186,7 @@ let oldsync l o_fn c_fn a_fn =
         (* if c and o do not exist but a does, set c and o to CREATE a *)        
         debug_sync (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
         let a = read_string a_fn in 
-        let c' = create_str l a in 
+        let c' = create_str (lookup_lens l) a in 
           write_string c_fn c';
           write_string o_fn c';
           0
@@ -195,7 +195,7 @@ let oldsync l o_fn c_fn a_fn =
         (* if c and a exist but o does not and a <> GET c then conflict; otherwise set o to c *)
         let a = read_string a_fn in 
         let c = read_string c_fn in 
-        let a' = get_str l c in 
+        let a' = get_str (lookup_lens l) c in 
         if a = a' then 
           begin
             debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
@@ -216,7 +216,7 @@ let oldsync l o_fn c_fn a_fn =
         let o = read_string o_fn in
         let c = read_string c_fn in 
         let a = read_string a_fn in 
-        let a' = get_str l c in 
+        let a' = get_str (lookup_lens l) c in 
         if a = a' then 
           begin 
             debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
@@ -224,18 +224,18 @@ let oldsync l o_fn c_fn a_fn =
             0
           end
         else
-          let a' = get_str l o in 
+          let a' = get_str (lookup_lens l) o in 
             if a = a' then 
               begin 
                 debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
-                write_string a_fn (get_str l c);
+                write_string a_fn (get_str (lookup_lens l) c);
                 write_string o_fn c;
                 0
               end
             else if c = o then
               begin 
                 debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-                let c' = put_str l a o in 
+                let c' = put_str (lookup_lens l) a o in 
                   write_string c_fn c';
                   write_string o_fn c';
                   0
