@@ -1,34 +1,34 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/blenses.mli                                                   *)
-(* Boomerang lens combinators interface                                         *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/blenses.mli                                                  *)
+(* Boomerang lens combinators interface                                        *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 type key
 type skeleton 
 
-val generic_iter : Info.t 
-  -> 'a               (* epsilon *)
+val generic_iter :
+     'a               (* epsilon *)
   -> ('a -> 'a -> 'a) (* union *)
   -> ('a -> 'a -> 'a) (* concat *)
   -> ('a -> 'a)       (* star *)
-  -> 'a               (* x *)
   -> int -> int       (* min / max *)
+  -> 'a               (* x *)
   -> 'a
 
 module Permutations : sig 
@@ -39,43 +39,46 @@ module Permutations : sig
   val permutations : int -> int list list
     (** [permutations k] returns all valid permutations of lists of length k
         The identity permutation [0;1;...;k-1] will be first in this list. *)
-  val invert_permutation : Info.t -> int list -> int list
+  val invert_permutation : int list -> int list
     (** [invert_permutation i sigma] inverts sigma *)
-  val permute_list : Info.t -> int list -> 'a list -> 'a list
-    (** [permute_list i sigma ls] permutes [ls] according to [sigma]; an error will
+  val permute_list : int list -> 'a list -> 'a list
+    (** [permute_list sigma ls] permutes [ls] according to [sigma]; an error will
         be signalled if it is not the case that [valid_permutation sigma ls] *)
 end
 
 module Canonizer : sig
   type t 
+
+  (* meta data *)
   val info : t -> Info.t
   val string : t -> string
-  val uncanonized_type : t -> Bregexp.t
-  val canonized_type : t -> Bregexp.t
+  (* types *)
+  val uncanonized_type : t -> Brx.t
+  val canonized_type : t -> Brx.t
   val cnrel_identity : t -> bool
+  (* components *)
   val canonize : t -> (string -> string)
   val choose : t -> (string -> string)
 
-  val columnize : Info.t -> int -> Bregexp.t -> char -> string -> t
-  val copy : Info.t -> Bregexp.t -> t
+  (* constructors *)
+  val copy : Info.t -> Brx.t -> t
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
-  val normalize : Info.t -> Bregexp.t -> Bregexp.t -> (string -> string) ->  t
-  val sort : Info.t -> Bregexp.t list -> t
+  val normalize : Info.t -> Brx.t -> Brx.t -> (string -> string) ->  t
+  val sort : Info.t -> Brx.t list -> t
+  val columnize : Info.t -> int -> Brx.t -> char -> string -> t
   val iter : Info.t -> t -> int -> int -> t
 end
 
 module DLens : sig 
   type t
-  type dict
-  val std_lookup : string -> string -> dict -> ((skeleton * dict) * dict) option
-  val sim_lookup : float -> string -> string -> dict -> ((skeleton * dict) * dict) option
 
   val info : t -> Info.t
   val string : t -> string
-  val ctype : t -> Bregexp.t
-  val atype : t -> Bregexp.t
+
+  val ctype : t -> Brx.t
+  val atype : t -> Brx.t
   val crel_identity : t -> bool
   val arel_identity : t -> bool
   val bij : t -> bool
@@ -86,9 +89,9 @@ module DLens : sig
   val forgetkey : Info.t -> t -> t
   val canonizer_of_t : Info.t -> t -> Canonizer.t
   val invert : Info.t -> t -> t
-  val copy : Info.t -> Bregexp.t -> t
-  val key : Info.t -> Bregexp.t -> t
-  val const : Info.t -> Bregexp.t -> string -> string -> t
+  val copy : Info.t -> Brx.t -> t
+  val key : Info.t -> Brx.t -> t
+  val const : Info.t -> Brx.t -> string -> string -> t
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
@@ -98,9 +101,9 @@ module DLens : sig
   val default : Info.t -> t -> string -> t
   val dmatch : Info.t -> string -> t -> t
   val smatch : Info.t -> float -> string -> t -> t
-  val filter : Info.t -> Bregexp.t -> Bregexp.t -> t
+  val filter : Info.t -> Brx.t -> Brx.t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t
   val right_quot : Info.t -> t -> Canonizer.t -> t
-  val dup1 : Info.t -> t -> (string -> string) -> Bregexp.t -> t
-  val dup2 : Info.t -> (string -> string) -> Bregexp.t -> t -> t
+  val dup1 : Info.t -> t -> (string -> string) -> Brx.t -> t
+  val dup2 : Info.t -> (string -> string) -> Brx.t -> t -> t
 end

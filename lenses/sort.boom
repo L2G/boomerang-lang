@@ -51,13 +51,15 @@ let perm_sort (ls:lens List.t where
 
 (* note precise ctypes *)
 test ctype (perm_sort #{lens}[(copy /a/);(copy /b/)]) = (/ab/ | /ba/)
-test ctype (perm_sort #{lens}[(copy /a/);(copy /b/);(copy /c/)]) = (/abc/ | /acb/ | /bac/ | /bca/ | /cab/ | /cba/)
-test atype (perm_sort #{lens}[(copy /a/);(copy /b/);(copy /c/)]) = /abc/
+test ctype 
+    (perm_sort #{lens}[(copy /a/);(copy /b/);(copy /c/)]) 
+  = (/abc/ | /acb/ | /bac/ | /bca/ | /cab/ | /cba/)
+test atype 
+    (perm_sort #{lens}[(copy /a/);(copy /b/);(copy /c/)]) 
+  = /abc/
  
-let l4 = perm_sort #{lens}[(copy "a");
-			   (copy "b");
-			   (copy "c");
-			   (copy "d")]
+let l4 : lens = 
+  perm_sort #{lens}[(copy "a");(copy "b");(copy "c");(copy "d")]
       
 test l4.get "abcd" = "abcd"
 test l4.get "abdc" = "abcd"

@@ -1,33 +1,34 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/bvalue.mli                                                    *)
-(* Boomerang run-time value interface                                           *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/bvalue.mli                                                  *)
+(* Boomerang run-time value interface                                         *)
 (* $Id$ *)
-(*******************************************************************************)
+(*****************************************************************************)
 
 (** {2 Boomerang Run-time Values} *)
 
 type t = 
     | Unt of Info.t
-    | Bol of Info.t * string option (* None = true ; Some s = false with counterexample s *)
+    | Bol of Info.t * string option (* None = true ; 
+                                       Some s = false w/ counterexample s *)
     | Int of Info.t * int
     | Chr of Info.t * char
     | Str of Info.t * string
-    | Rx  of Info.t * Bregexp.t
+    | Rx  of Info.t * Brx.t
     | Lns of Info.t * Blenses.DLens.t
     | Can of Info.t * Blenses.Canonizer.t
     | Fun of Info.t * (t -> t)
@@ -59,7 +60,7 @@ val get_x : t -> string option
 val get_i : t -> int
 val get_c : t -> char
 val get_s : t -> string
-val get_r : t -> Bregexp.t
+val get_r : t -> Brx.t
 val get_l : t -> Blenses.DLens.t
 val get_q : t -> Blenses.Canonizer.t
 val get_p : t -> (t*t)
@@ -72,7 +73,7 @@ val mk_x : Info.t -> string option -> t
 val mk_i : Info.t -> int -> t
 val mk_c : Info.t -> char -> t
 val mk_l : Info.t -> Blenses.DLens.t -> t
-val mk_r : Info.t -> Bregexp.t -> t
+val mk_r : Info.t -> Brx.t -> t
 val mk_s : Info.t -> string -> t
 val mk_q : Info.t -> Blenses.Canonizer.t -> t
 val mk_p : Info.t -> t * t -> t
@@ -84,7 +85,7 @@ val mk_xfun : Info.t -> (string option -> t) -> t
 val mk_ifun : Info.t -> (int -> t) -> t
 val mk_cfun : Info.t -> (char -> t) -> t
 val mk_lfun : Info.t -> (Blenses.DLens.t -> t) -> t
-val mk_rfun : Info.t -> (Bregexp.t -> t) -> t
+val mk_rfun : Info.t -> (Brx.t -> t) -> t
 val mk_sfun : Info.t -> (string -> t) -> t
 val mk_qfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
 val mk_pfun : Info.t -> (t * t -> t) -> t

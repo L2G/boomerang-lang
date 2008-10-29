@@ -256,7 +256,8 @@ concatenable with regexp separator @S@ if the following are splittable:
 ##		       let Ri_sep = Ri . S in
 ##		       match splittable_cex r_acc Ri_sep with
 ##			 | cex(s) -> (None{regexp},cex(s)) (* preserve cex *)
-##			 | true -> (Some{regexp}(r_acc . Ri_sep),true) : regexp option * bool
+##			 | true -> (Some{regexp}(r_acc . Ri_sep),true) 
+##                     : regexp option * bool
 ##		     end : regexp option * bool
 ##	     end : regexp option * bool)
 ##    (None{regexp},true) Rs in
@@ -266,8 +267,8 @@ concatenable with regexp separator @S@ if the following are splittable:
 #* test concatable #{regexp}[/abc/;/def/] /,/ = true
 #* test concatable #{regexp}[/a/ | /aa/;/a/?] // = false
 
-\LENSSECTION{@concat_regexps@,@concat_lenses@} Concatenates a list of regular expressions
-or lenses, respectively.
+\LENSSECTION{@concat_regexps@,@concat_lenses@} Concatenates a list of regular 
+expressions or lenses, respectively.
 
 #* let concat_regexps (Rs:regexp List.t) : regexp =
 #*  List.fold_left{regexp}{regexp} 
@@ -287,10 +288,10 @@ or lenses, respectively.
 
 #* test get (concat_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "abc" = "abc"
 
-\LENSSECTION{@disjoint_from_regexps@,@disjoint_regexps@} The function @disjoint_from_regexps@
-determines whether a given regexp is disjoint from a list of regular expressions.  The
-function @disjoint_regexps@ determines whether a list of regular expressions are pairwise
-disjoint.
+\LENSSECTION{@disjoint_from_regexps@,@disjoint_regexps@} The function 
+@disjoint_from_regexps@ determines whether a given regexp is disjoint from a 
+list of regular expressions.  The function @disjoint_regexps@ determines 
+whether a list of regular expressions are pairwise disjoint.
 
 #* let disjoint_from_regexps (R:regexp) (Rs:regexp List.t) =
 #*   List.fold_left{regexp}{bool}
@@ -308,9 +309,10 @@ disjoint.
 
 #* test disjoint_regexps #{regexp}[/a/;/b/;/c/] = true
 
-\LENSSECTION{@union_regexps@,@union_lenses@,@disj_union_lenses@} Takes the union
-of a list of regular expressions or lenses, respectively.  By default, the non-
-disjoint lens union @|@ is used; use @disj_union_lenses@ for disjoint union @||@.
+\LENSSECTION{@union_regexps@,@union_lenses@,@disj_union_lenses@} Takes the 
+union of a list of regular expressions or lenses, respectively. By default, 
+the non-disjoint lens union @|@ is used; use @disj_union_lenses@ for disjoint 
+union @||@.
 
 #* let union_regexps (Rs:regexp List.t) : regexp =
 #*  List.fold_left{regexp}{regexp} 
@@ -350,12 +352,14 @@ here instead of @Core@.)
 
 First, we have @permute@.
 
-\LENSSECTION{@permute@} The lens @permute@ is an $n$-ary, permuting concatenation 
-operator on lenses. Given a concrete string, it splits it into $n$ pieces, 
-applies the $\GET$ function of the corresponding lens to each piece, reorders the 
-abstract strings according to the fixed permutation specified by @sigma@, and concatenates
-the results.  Given a permutation @sigma@ and a list of lenses @l = #{lens}[l1;l2;...;ln]@ with types @Ci <-> Ai@.  It 
-produces a lens with type @C1.C2...Cn <-> Asigma(1).Asigma(2)...Asigma(n)@.
+\LENSSECTION{@permute@} The lens @permute@ is an $n$-ary, permuting 
+concatenation operator on lenses. Given a concrete string, it splits it 
+into $n$ pieces, applies the $\GET$ function of the corresponding lens to each 
+piece, reorders the abstract strings according to the fixed permutation 
+specified by @sigma@, and concatenates the results.  Given a permutation 
+@sigma@ and a list of lenses @l = #{lens}[l1;l2;...;ln]@ with types 
+@Ci <-> Ai@.  It produces a lens with type 
+@C1.C2...Cn <-> Asigma(1).Asigma(2)...Asigma(n)@.
 
 #* let permute 
 #*   (sigma:int List.t)
@@ -363,12 +367,14 @@ produces a lens with type @C1.C2...Cn <-> Asigma(1).Asigma(2)...Asigma(n)@.
 #*     (List.valid_permutation{lens} sigma ls) &&
 #*     ((concatable (ctypes ls) //) &&
 #*      (concatable (List.permute{regexp} sigma (atypes ls)) //)))
-#*   : (lens in concat_regexps (ctypes ls) <-> concat_regexps (List.permute{regexp} sigma (atypes ls)))
+#*   : (lens in concat_regexps (ctypes ls) <-> 
+#*              concat_regexps (List.permute{regexp} sigma (atypes ls)))
 ##   = Native.Prelude.lens_permute sigma ls
 
-#* test ctype (permute #{int}[1;0] #{lens}[copy /abc/;copy /def/]) = /abcdef/
-#* test atype (permute #{int}[1;0] #{lens}[copy /abc/;copy /def/]) = /defabc/
-#* test get (permute #{int}[2;0;1] #{lens}[copy /abc/;copy /def/;copy /ghi/]) "abcdefghi" = "defghiabc"
+#* test ctype (permute #{int}[1;0] #{lens}[/abc/;/def/]) = /abcdef/
+#* test atype (permute #{int}[1;0] #{lens}[/abc/;/def/]) = /defabc/
+#* test get (permute #{int}[2;0;1] #{lens}[/abc/;/def/;/ghi/]) 
+#*   "abcdefghi" = "defghiabc"
 #* test get (permute 
 #*             #{int}[2;1;0]
 #*             #{lens}[(copy UALPHACHAR);
@@ -377,9 +383,9 @@ produces a lens with type @C1.C2...Cn <-> Asigma(1).Asigma(2)...Asigma(n)@.
 
 \LENSSECTION{@sort@} The canonizer @sort@ puts substrings into 
 sorted order according to a list of regular expressions. An exception 
-is raised if the unsorted string does not have exactly one substring belonging
-to each regular expression. This allows us to assign sort a type that is
-compact (though imprecise); see~\cite{QuotientLens08} for an extended discussion.
+is raised if the unsorted string does not have exactly one substring 
+belonging to each regular expression. This allows us to assign sort a type 
+that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 
 #* let sort : regexp List.t -> canonizer
 ## = Native.Prelude.sort

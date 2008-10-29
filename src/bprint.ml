@@ -1,7 +1,32 @@
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007-2008                                                    *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/bprint.ml                                                   *)
+(* Boomerang printing                                                         *)
+(* $Id$ *)
+(******************************************************************************)
+
+(* ----- imports and abbreviations ----- *)
 open Bsyntax
 open Bident
-
 let msg = Util.format
+let to_string = Util.format_to_string
+
+(* ----- generic helpers ----- *)
 
 (* format a string, converting newlines to @\n *)
 let nlify s = Misc.format_list "@\n" 
@@ -12,7 +37,8 @@ let maybe_wrap fmt b r =
   if b then msg "(";
   fmt r;
   if b then msg ")"
-  
+
+(* ----- formatters for abstract syntax trees ----- *)  
 let rec format_sort = function
   | SUnit -> msg "@[unit@]"      
   | SBool -> msg "@[bool@]"
@@ -28,14 +54,18 @@ let rec format_sort = function
       if not (Id.equal x0 Id.wild)
       then msg "%s:@," (Id.string_of_t x0);
       format_sort s1;
-      msg "@ -{";
-      Misc.format_list ",@ "
-	(fun (li,ei) ->
-	   msg "@[#%d@ :=@ " li;
-	   format_exp ei;
-	   msg "@]")
-	ls;
-      msg "}->@ ";
+      if ls = [] then msg "@ ->@ "
+      else
+        begin 
+          msg "@ -{";
+          Misc.format_list ",@ "
+	    (fun (li,ei) ->
+	       msg "@[#%d@ :=@ " li;
+	       format_exp ei;
+	       msg "@]")
+	    ls;
+          msg "}->@ "
+        end;
       format_sort s2;
       msg ")@]"
         
@@ -282,7 +312,7 @@ and format_test_result tr =
     | TestError -> msg "= @[<2>error@]"
     | TestPrint -> msg "= @[<2>?@]"
     | TestSortPrint _ -> msg ": @[<2>?@]"
-    | TestSortEqual s -> 
+    | TestSortEqual(_,s) -> 
         msg ": @[<2>";
         format_sort s;
         msg "@]"
@@ -333,12 +363,13 @@ and format_module = function
       Misc.format_list "@\n" format_decl ds;
       msg "@\n@]@\n@]"
 
-let string_of_exp e = Util.format_to_string (fun () -> format_exp e)
-let string_of_binding b = Util.format_to_string (fun () -> format_binding b)
-let string_of_decl d = Util.format_to_string (fun () -> format_decl d)
-let string_of_test_result tr = Util.format_to_string (fun () -> format_test_result tr)
-let string_of_op o = Util.format_to_string (fun () -> format_op o)
-let string_of_module m = Util.format_to_string (fun () -> format_module m)
-let string_of_sort s = Util.format_to_string (fun () -> format_sort s)
-let string_of_param p = Util.format_to_string (fun () -> format_param p)
-let string_of_pat p = Util.format_to_string (fun () -> format_pat p)
+(* ----- conversions to string ----- *)  
+let string_of_exp e = to_string (fun () -> format_exp e)
+let string_of_binding b = to_string (fun () -> format_binding b)
+let string_of_decl d = to_string (fun () -> format_decl d)
+let string_of_test_result tr = to_string (fun () -> format_test_result tr)
+let string_of_op o = to_string (fun () -> format_op o)
+let string_of_module m = to_string (fun () -> format_module m)
+let string_of_sort s = to_string (fun () -> format_sort s)
+let string_of_param p = to_string (fun () -> format_param p)
+let string_of_pat p = to_string (fun () -> format_pat p)

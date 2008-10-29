@@ -1,23 +1,23 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/bvalue.ml                                                    *)
-(* Boomerang run-time values                                                   *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/bvalue.ml                                                   *)
+(* Boomerang run-time values                                                  *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 (* module imports and abbreviations *)
 open Bident
@@ -31,11 +31,12 @@ let (@) = Safelist.append
 (* run-time values; correspond to each sort *)
 type t = 
   | Unt of Info.t 
-  | Bol of Info.t * string option (* None = true ; Some s = false, with s as a counter-example *)
+  | Bol of Info.t * string option (* None = true ; 
+                                     Some s = false, w/ counterexample s *)
   | Int of Info.t * int
   | Chr of Info.t * char
   | Str of Info.t * string
-  | Rx  of Info.t * Bregexp.t
+  | Rx  of Info.t * Brx.t
   | Lns of Info.t * L.t
   | Can of Info.t * C.t
   | Fun of Info.t * (t -> t)
@@ -71,13 +72,13 @@ let rec equal v1 v2 = match v1,v2 with
   | Chr(_,c), Str(_,s) | Str(_,s), Chr(_,c) -> 
       (String.make 1 c) = s
   | Chr(_,c), Rx(_,r) | Rx(_,r), Chr(_,c) -> 
-      Bregexp.equiv (Bregexp.mk_string (String.make 1 c)) r
+      Brx.equiv (Brx.mk_string (String.make 1 c)) r
   | Str(_,s1), Str(_,s2) -> 
       s1 = s2  
   | Str(_,s), Rx(_,r) | Rx(_,r), Str(_,s) -> 
-      Bregexp.equiv (Bregexp.mk_string s) r
+      Brx.equiv (Brx.mk_string s) r
   | Rx(_,r1), Rx(_,r2) -> 
-      Bregexp.equiv r1 r2
+      Brx.equiv r1 r2
   | Lns _, Lns _ -> 
       Error.simple_error (sprintf "Cannot test equality of lenses.")
   | Can _, Can _ -> 
@@ -106,7 +107,7 @@ and format = function
       Util.format "false (with counterexample: %s)" s
   | Chr(_,c)     -> Util.format "'%s'" (Char.escaped c)
   | Str(_,rs)    -> Util.format "\"%s\"" rs
-  | Rx(_,r)      -> Util.format "%s" (Bregexp.string_of_t r)
+  | Rx(_,r)      -> Util.format "%s" (Brx.string_of_t r)
   | Lns(_,l)     -> Util.format "%s" (L.string l)
   | Can(_,c)     -> Util.format "%s" (C.string c)
   | Fun(_,f)     -> Util.format "<function>"

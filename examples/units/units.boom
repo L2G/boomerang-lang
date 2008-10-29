@@ -2,7 +2,7 @@ module Units =
 
   let single_cn : canonizer =
     canonizer_of_lens ((WS . "<a x=") <-> "<b x=") .
-    canonizer_of_lens (dup1 DIGIT (fun (s:string) -> "><c y=" . s) ("><c y=" . DIGIT)) .
+    canonizer_of_lens (dup1 DIGIT ("><c y=" . DIGIT) (fun (s:string) -> "><c y=" . s)) .
     canonizer_of_lens ">"
 
   let double_cn : canonizer =
@@ -34,13 +34,6 @@ module Units =
          (canonizer_of_lens (const D u u)))
 
   test (qc "x" [a-z] [0-9] "1").create "9" = "x"
-
-
-(* ---- dup --- *)
-test get (dup1 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "N" = "NN"
-test get (dup2 (get (copy [A-Z])) [A-Z] (copy [A-Z]) ) "N" = "NN"
-test create (dup1 (copy [A-Z]) (get (copy [A-Z])) [A-Z]) "NM" = "N"
-test create (dup2 (get (copy [A-Z])) [A-Z] (copy [A-Z])) "NM" = "M"
 
 (* permute *)
 let l : lens = 

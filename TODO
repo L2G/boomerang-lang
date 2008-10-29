@@ -4,6 +4,8 @@
 
 == SYSTEM ==
 
+* add validation to get/put/create/sync front-ends in toplevel
+
 * -check-only flag: don't compile and run, just check that base sorts
   line up.
 

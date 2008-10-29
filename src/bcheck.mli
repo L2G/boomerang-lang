@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bcompiler.mli                                               *)
+(* /boomerang/src/bcheck.mli                                                  *)
 (* Boomerang type checker interface                                           *)
 (* $Id$ *)
 (******************************************************************************)
@@ -23,6 +23,16 @@ open Bident
 open Bsyntax
 
 val no_alias : bool Prefs.t
+
+val get_type : (Qid.t -> 'a option) -> Info.t -> Qid.t -> 'a 
+
+val inst_cases : 
+  (Id.t * sort) list ->  
+  ('a * sort option) list -> 
+  ('a * sort option) list
+
+val compatible : sort -> sort -> bool
+(** [compatible f t] returns true iff [f] and [t] are compatible *)
 
 val trivial_cast : sort -> sort -> bool
 (** [trivial_cast f t] returns true if the cast is trivial, i.e.,

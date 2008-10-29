@@ -15,7 +15,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/compiler.ml                                                 *)
+(* /boomerang/src/bcheck.ml                                                   *)
 (* Boomerang type checker                                                     *)
 (* $Id$ *)
 (******************************************************************************)
@@ -92,18 +92,14 @@ let rec fresh_qid x s =
      = ([List.t],['a],[(List.Nil, None);List.Cons ('a * List.t)])
 *)
 let get_con i sev li = match SCEnv.lookup_con sev li with
-  | None -> sort_error i 
-      (fun () -> 
-         msg "@[Unbound@ constructor@ %s@]" 
-           (Qid.string_of_t li))
+  | None -> static_error i 
+      (fun () -> msg "@[unbound@ constructor@ %s@]" (Qid.string_of_t li))
   | Some r -> r
 
 (* [get_type f i q] is like get_con, but looks up the type using [f]. *)
 let get_type f i q = match f q with
-  | None -> sort_error i 
-      (fun () -> 
-         msg "@[Unbound@ type@ %s@]" 
-           (Qid.string_of_t q))
+  | None -> static_error i 
+      (fun () -> msg "@[unbound@ type@ %s@]" (Qid.string_of_t q))
   | Some r -> r
 
 (* [inst_cases subst cl] instantiates a list of cases [cl] by applying
@@ -255,16 +251,15 @@ let rec resolve_label li lj = function
    a pattern; annotate PVars with their sorts, return the list of sort
    bindings for variables. *)
 let rec static_match i sev p0 s = 
-  let err p str s = sort_error i 
-    (fun () -> 
-       msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
-         (string_of_pat p) str (string_of_sort s)) in 
-    match p0 with 
-      | PWld _ -> 
-          Some (p0,[])
-      | PVar(i,x,_) -> 
-          Some (PVar(i,x,Some s),[(x,s)])
-      | PUnt _ ->
+  let err p str s = 
+    static_error i 
+      (fun () -> 
+         msg "@[in@ pattern@ %s:@ expected %s,@ but@ found@ %s@]"
+           (string_of_pat p) str (string_of_sort s)) in 
+  match p0 with 
+    | PWld _ -> Some (p0,[])
+    | PVar(i,x,_) -> Some (PVar(i,x,Some s),[(x,s)])
+    | PUnt _ ->
           if not (compatible s SUnit) then err p0 "unit" s;
           Some (p0,[])
       | PInt _ -> 
@@ -310,7 +305,7 @@ let rec static_match i sev p0 s =
                                   find_label rest
                             end
                         | _ -> 
-                            sort_error i 
+                            static_error i 
                               (fun () -> 
                                  msg "@[wrong@ number@ of@ arguments@ to@ %s@]" 
                                    (Qid.string_of_t lj)) in 
@@ -349,7 +344,7 @@ let rec check_sort i sev s0 =
         let new_s2 = check_sort i sev1 s2 in  
         SFunction(x,new_s1,[],new_s2)
     | SFunction(_,_,ls,_) ->
-	sort_error i
+	static_error i
 	  (fun () ->
 	     msg "@[unexpected@ non-empty@ locations@ in@ source@ sort@ ";
 	     format_sort s0;
@@ -359,7 +354,7 @@ let rec check_sort i sev s0 =
     | SData(sl,qx) ->        
         let qx',_ = match SCEnv.lookup_type sev qx with 
           | None -> 
-	      sort_error i  
+	      static_error i  
                 (fun () -> msg "@[cannot@ resolve@ sort@ %s@]" (Qid.string_of_t qx))
           | Some q -> q in 
         SData(Safelist.map go sl,qx')
@@ -370,7 +365,7 @@ let rec check_sort i sev s0 =
         let sev2 = SCEnv.update sev (Qid.t_of_id x) (G.Sort s1') in 
         let e1_sort,new_e1,e1_ls = check_exp sev2 e1 in  
         if not (compatible e1_sort SBool) then
-          sort_error i 
+          static_error i 
 	    (fun () -> msg "@[in@ refinement: expected@ %s@ but@ found@ %s@]"
                (string_of_sort SBool)
                (string_of_sort e1_sort));
@@ -384,7 +379,7 @@ and check_exp_app i sev (e1_sort,new_e1,e1_ls) (e2_sort,new_e2,e2_ls) =
     | SFunction(x,param_sort,ls,return_sort) -> 
         let i2 = info_of_exp new_e2 in 
           if not (compatible e2_sort param_sort) then 
-            sort_error i2
+            static_error i2
 	      (fun () ->                    
                  msg "@[in@ application:@ expected@ %s@ but@ found@ %s@]"
                    (string_of_sort param_sort)
@@ -405,7 +400,7 @@ and check_exp_app i sev (e1_sort,new_e1,e1_ls) (e2_sort,new_e2,e2_ls) =
 	      let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,aliased_e2)] return_sort in              
               (e0_sort,new_e0,e1_ls@e2_ls@e2_loc@ls)
     | _ -> 
-        sort_error (info_of_exp new_e1)
+        static_error (info_of_exp new_e1)
           (fun () ->              
              msg "@[in@ application:@ expected@ function@ sort@ but@ found@ %s.@]"
 	       (string_of_sort e1_sort))
@@ -420,13 +415,13 @@ and check_exp sev e0 =
                 (fun () -> msg "@[%s is bound to an unknown type@]" 
                    (Qid.string_of_t q))
           | None -> 
-	      sort_error i
+	      static_error i
                 (fun () -> msg "@[%s is not bound@]" 
                    (Qid.string_of_t q)) in 
         (e0_sort,e0,[])
 
     | EOver(i,op,es) -> begin 
-        let err () = sort_error i (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
+        let err () = static_error i (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
         (* rules for overloaded symbols *)
 	let bin_rules =
 	  [ ODot, 
@@ -476,7 +471,7 @@ and check_exp sev e0 =
         let (op_s,op_e,op_ls) = match op,rs with
             | OIter(min,max),[r1] ->
 		let (e1_sort,_,_) = r1 in
-		let mk_iter iter_id =
+		let mk_iter iter_id min max =
 		  let r_min  = check_exp sev (mk_int i min) in
 		  let r_max  = check_exp sev (mk_int i max) in
 		  let r_iter = check_exp sev (mk_core_var i iter_id) in
@@ -484,22 +479,34 @@ and check_exp sev e0 =
                       (check_exp_app i sev 
                          (check_exp_app i sev r_iter r1) r_min) r_max in
 		if compatible e1_sort SRegexp
-		then mk_iter "regexp_iter"
+		then mk_iter "regexp_iter" min max
 		else if compatible e1_sort SLens
 		then
 		  let checked_app f_name =
-		    let r_f = check_exp sev (EVar(i,Qid.mk_core_t f_name)) in
+		    let r_f = check_exp sev (mk_core_var i f_name) in
 		    check_exp_app i sev r_f r1 in 
 		  match min,max with
-		      (* l{0,0} = copy [] *)
-		      (0,0) -> check_exp sev 
-                        (EApp(i,mk_core_var i "copy",mk_core_var i "EPSILON"))
+		    | (0,0) -> 
+                        check_exp_app i sev 
+                          (check_exp sev (mk_core_var i "copy"))
+                          (check_exp sev (mk_core_var i "EPSILON"))
+                    | (1,1) -> r1
 		    | (0,1) -> checked_app "lens_option"
 		    | (0,-1) -> checked_app "lens_star"
-		    | (1,-1) -> checked_app "lens_plus"
-		    | _ -> mk_iter "lens_iter"
+		    | (0,max) -> 
+                        check_exp_app i sev
+                          (check_exp sev (mk_core_var i "lens_option"))
+                          (mk_iter "lens_iter" 1 max)
+                    | (1,-1) -> checked_app "lens_plus"
+                    | (min,-1) -> 
+                        check_exp_app i sev
+                          (check_exp_app i sev
+                             (check_exp sev (mk_core_var i "lens_concat"))
+                             (mk_iter "lens_iter" min min))
+                          (checked_app "lens_star")
+		    | _ -> mk_iter "lens_iter" min max
 		else if compatible e1_sort SCanonizer
-		then mk_iter "canonizer_iter"
+		then mk_iter "canonizer_iter" min max
 		else err ()
             | OEqual,[e1_sort,e1,e1_ls; _,e2,e2_ls] ->
                 (SBool,
@@ -537,7 +544,7 @@ and check_exp sev e0 =
                 (* and check that the declared return sort is a subsort 
                    of the actual body sort *)
                   if not (compatible body_sort new_ret_sort) then
-                    sort_error i
+                    static_error i
 		      (fun () ->
                          msg "@[in@ function:@ %s@ expected@ but@ %s@ found@]"
                            (string_of_sort new_ret_sort)
@@ -591,7 +598,7 @@ and check_exp sev e0 =
                 Safelist.iter 
                   (fun qi -> 
                      if Qid.Set.mem qi e_sort_fvs then 
-                       sort_error i 
+                       static_error i 
 		         (fun () -> 
 			    msg "@[illegal@ let-binding: cannot unpack pattern@ ";
 			    format_pat new_bp;
@@ -617,7 +624,7 @@ and check_exp sev e0 =
     | EBoolean(i,Some e1) ->
 	let e1_sort,new_e1,e1_ls = check_exp sev e1 in
 	if not (compatible e1_sort SString) then
-          sort_error i
+          static_error i
 	    (fun () -> msg "@[in@ counterexample: expected@ %s@ but@ found@ %s@]"
                (string_of_sort SString)
                (string_of_sort e1_sort));
@@ -650,7 +657,7 @@ and check_exp sev e0 =
 
     | ECase(i,e1,pl,ps) -> 
         (* helper function for printing error messages *)
-        let err2 i p s1 s2 = sort_error i (fun () -> msg p s1 s2) in 
+        let err2 i p s1 s2 = static_error i (fun () -> msg p s1 s2) in 
         (* resolve the sort *)
         let new_ps = check_sort i sev ps in 
         (* check the expression being matched *)
@@ -682,7 +689,7 @@ and check_exp sev e0 =
 		       ((new_pi,cast_ei)::new_pl_rev,ei_ls@new_p_ls))
           ([],[]) pl in 
           if Safelist.length new_pl_rev = 0 then 
-            sort_error i (fun () -> msg "@[empty@ match@ expression@]");
+            static_error i (fun () -> msg "@[empty@ match@ expression@]");
           let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev,new_ps) in 
           (new_ps,new_e0,e1_ls@new_p_ls)
 
@@ -697,20 +704,20 @@ and check_exp sev e0 =
         let new_s2 = check_sort i sev s2 in 
         let e0_sort = match e1_sort with 
           | SForall(x,s11) -> subst_sort [x,new_s2] s11
-          | _ -> sort_error i
+          | _ -> static_error i
 	      (fun () -> msg "@[in@ type@ application:@ expected@ universal@ type@ but@ %s@ found.@]"
                  (string_of_sort e1_sort)) in 
         let new_e0 = ETyApp(i,new_e1,new_s2) in 
         (e0_sort,new_e0,e1_ls)
 
     | ECast(i,f,t,b,e) -> 
-        sort_error i (fun () -> msg "@[unexpected@ cast@ expression@ in@ source@ term@]")
+        static_error i (fun () -> msg "@[unexpected@ cast@ expression@ in@ source@ term@]")
 
     | ELoc(i,l) -> 
-        sort_error i (fun () -> msg "@[unexpected@ location@ reference@ in@ source@ term@]")
+        static_error i (fun () -> msg "@[unexpected@ location@ reference@ in@ source@ term@]")
 
     | EAlloc(i,ls,e1) -> 
-        sort_error i (fun () -> msg "@[unexpected@ allocation@ in@ source@ term@]")
+        static_error i (fun () -> msg "@[unexpected@ allocation@ in@ source@ term@]")
 
 and check_binding sev b0 = match b0 with
   | Bind(i,p,so,e) ->
@@ -720,7 +727,7 @@ and check_binding sev b0 = match b0 with
         | Some s -> 
             let new_s = check_sort i sev s in
 	      if not (compatible e_sort new_s) then 
-                sort_error i
+                static_error i
                   (fun () ->
                      msg "@[in@ let-binding:@ %s@ expected@ but@ %s@ found@]"
 		       (string_of_sort new_s)
@@ -729,7 +736,7 @@ and check_binding sev b0 = match b0 with
                 (new_s,cast_e) in 
       let new_p,xs,bsev = match static_match i sev p new_s with 
         | None -> 
-            sort_error i 
+            static_error i 
 	      (fun () -> 
                  msg "@[in@ let-binding:@ %s@ does not match@ %s@]"
                    (string_of_pat p)
@@ -818,16 +825,16 @@ let rec check_decl sev ms d0 =
 	      let e2_sort,new_e2,e2_ls = check_exp sev e2 in 
 	      let e2_i = info_of_exp e2 in
 		if not (compatible e2_sort e1_sort) then
-		  sort_error e2_i
+		  static_error e2_i
                     (fun () -> 
 		       msg "@[in@ type test:@ %s@ expected@ but@ %s@ found@]"
 			 (string_of_sort e1_sort)
 			 (string_of_sort e2_sort));
 		TestEqual (mk_alloc e2_i e2_ls new_e2)
           | TestSortPrint _ -> TestSortPrint (Some e1_sort)
-          | TestSortEqual s -> 
-	      let s' = check_sort i sev s in 
-		TestSortEqual s' in            
+          | TestSortEqual(_,s2) ->
+	      let s2' = check_sort i sev s2 in 
+              TestSortEqual(Some e1_sort,s2') in
 	let new_d = DTest(i,alloc_e1,new_tr) in 
 	  (sev,[],new_d) in 
   let _,_,new_d0 = res in 

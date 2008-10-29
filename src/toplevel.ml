@@ -1,23 +1,23 @@
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/toplevel.ml                                                  *)
-(* Boomerang front-end                                                         *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/toplevel.ml                                                 *)
+(* Boomerang front-end                                                        *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 (* imports *)
 module L = Blenses.DLens
@@ -127,7 +127,7 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
         Error.simple_error (sprintf
           "Error: cannot synchronize with %s" (L.string l))
     | Some xt -> xt in     
-  let acts,oo',ao',bo' = Bsync.opt_sync xt oo ao bo in 
+  let acts,oo',ao',bo' = Bsync.sync_opt xt oo ao bo in 
   Bprint.nlify acts;
   putback o_fn' oo' oo;
   putback a_fn' ao' ao;
@@ -306,7 +306,6 @@ let toplevel' progName () =
        (* barf on spurious command line options?! *)
        Prefs.set Binterp.test_all true;
        Safelist.iter check rest_pref;
-       Trace.debug "casts" (fun () -> Binterp.print_stats ());
        0
      end
      else begin 

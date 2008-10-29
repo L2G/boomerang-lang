@@ -1,30 +1,59 @@
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007-2008                                                    *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/benv.ml                                                     *)
+(* Boomerang environments                                                     *)
+(* $Id$ *)
+(******************************************************************************)
+
+(* ---------------------------------------------------------------------------*)
+(* IMPORTS AND ABBREVIATIONS *)
+
 open Bident
 module G = Bregistry
 module V = Bvalue
 
-(* signature *)
+(* ---------------------------------------------------------------------------*)
+(* COMMON ENVIRONMENT SIGNATURE *)
+
 module type CEnvSig = 
 sig
   type t 
   type v
   val empty : Qid.t -> t
-  val get_ev : t -> G.REnv.t
-  val set_ev : t -> G.REnv.t -> t
+  val get_ev : t -> Bregistry.REnv.t
+  val set_ev : t -> Bregistry.REnv.t -> t
   val get_ctx : t -> Qid.t list
   val set_ctx : t -> Qid.t list -> t
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
   val lookup : t -> Qid.t -> v option
-  val lookup_type : t -> Qid.t -> (Qid.t * G.tspec) option
-  val lookup_con : t -> Qid.t -> (Qid.t * G.tspec) option
+  val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
+  val lookup_con : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
   val update : t -> Qid.t -> v -> t
   val update_list : t -> (Qid.t * v) list -> t
-  val update_type : t -> Id.t list -> Qid.t -> G.tcon list -> t
+  val update_type : t -> Id.t list -> Qid.t -> Bregistry.tcon list -> t
   val fold : (Qid.t -> v -> 'a -> 'a) -> t -> 'a -> 'a
 end
 
-(* compilation environment *)
-module CEnv : CEnvSig with type v = G.rv = 
+(* ---------------------------------------------------------------------------*)
+(* COMPILATION ENVIRONMENTS *)
+
+module CEnv = 
 struct
   type t = (Qid.t list * Qid.t) * G.REnv.t
   type v = G.rv
@@ -84,10 +113,11 @@ struct
 
   let fold f cev a = G.REnv.fold f (get_ev cev) a
 end
-type cenv = CEnv.t
 
-(* sort checking environment *)
-module SCEnv : CEnvSig with type v = G.rs = 
+(* ---------------------------------------------------------------------------*)
+(* SORT CHECKING ENVIRONMENTS *)
+
+module SCEnv = 
 struct
   type t = CEnv.t
   type v = G.rs

@@ -15,25 +15,25 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/lenses/core.boom                                                *)
+(* /boomerang/lenses/list.boom                                                *)
 (* List module                                                                *)
 (* $Id$ *)
 (*******************************************************************************)
 
 module List = 
-
 #{@}
 
 \section{Lists}
 
 The @List@ module defines a datatype for fpolymorphic list structures.
 
-\LENSSECTION{@'a t@} A list is either the @Nil@ list or a @Cons@ of a head and a tail.
+\LENSSECTION{@'a t@} A list is either the @Nil@ list or a @Cons@ of a head 
+and a tail.
 
 #* type 'a t = Nil | Cons of 'a * 'a t
 
-\LENSSECTION{@fold_left@} Boomerang does not support recursion. However, we provide 
-the @fold_left@ function on lists via a built-in primitive.
+\LENSSECTION{@fold_left@} Boomerang does not support recursion. However, we 
+provide the @fold_left@ function on lists via a built-in primitive.
 
 #* let fold_left ('a) ('b) (f:'b -> 'a -> 'b) (acc:'b) (l:'a t) : 'b 
 ## = Native.Prelude.fold_left{'b}{'a} f acc l 
@@ -92,25 +92,38 @@ member of the list. It is defined using @exists@.
 
 \subsection{Permutations}
 
-A permutation is an integer list, mapping positions to other positions: if the @i@th
-entry of a permutation is the number @j@, then the @i@th element in the original list
-will be the @j@th element in the permuted list..  A permutation for the list 
-@#{bool}[true;true;false;true;false]@ might be @#{int}[0;1;2;3;4]@ (the identity 
-permutation) or @#{int}[4;3;2;1;0]@ (reversal).
+A permutation is an integer list, mapping positions to other positions: if 
+the @i@th entry of a permutation is the number @j@, then the @i@th element 
+in the original list will be the @j@th element in the permuted list.  A 
+permutation for the list @#{bool}[true;true;false;true;false]@ might be 
+@#{int}[0;1;2;3;4]@ (the identity permutation) or @#{int}[4;3;2;1;0]@ 
+(reversal).
 
-\LENSSECTION{@valid_permutation@} The predicate @valid_permutation@ is true when
-given the given permutation can be applied to the given list.
+\LENSSECTION{@valid_permutation@} The predicate @valid_permutation@ is true 
+when given the given permutation can be applied to the given list.
 
 #* let valid_permutation ('a) (sigma:int t) (l:'a t) : bool
 ## = Native.Prelude.valid_permutation{'a} sigma l
 
 #* test valid_permutation{bool} Nil{int} Nil{bool} = true
-#* test valid_permutation{bool} (Cons{int}(1,Cons{int}(0,Nil{int}))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = true
-#* test valid_permutation{bool} (Cons{int}(1,Cons{int}(1,Nil{int}))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
-#* test valid_permutation{bool} (Cons{int}(0 - 1,Cons{int}(1,Nil{int}))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
-#* test valid_permutation{bool} (Cons{int}(0,Cons{int}(1,Cons{int}(2,Nil{int})))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
-#* test valid_permutation{bool} (Cons{int}(1,Nil{int})) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
-#* test valid_permutation{bool} (Cons{int}(1,Cons{int}(2,Nil{int}))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
+#* test valid_permutation{bool} 
+#*  (Cons{int}(1,Cons{int}(0,Nil{int}))) 
+#*  (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = true
+#* test valid_permutation{bool} 
+#*   (Cons{int}(1,Cons{int}(1,Nil{int}))) 
+#*   (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
+#* test valid_permutation{bool} 
+#*   (Cons{int}(0 - 1,Cons{int}(1,Nil{int}))) 
+#*   (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
+#* test valid_permutation{bool} 
+#*   (Cons{int}(0,Cons{int}(1,Cons{int}(2,Nil{int})))) 
+#*   (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
+#* test valid_permutation{bool} 
+#*   (Cons{int}(1,Nil{int})) 
+#*   (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
+#* test valid_permutation{bool} 
+#*   (Cons{int}(1,Cons{int}(2,Nil{int}))) 
+#*   (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = false
 
 \LENSSECTION{@permute@} The operator @permute@ permutes a list according
  to a given permutation.
@@ -122,9 +135,18 @@ given the given permutation can be applied to the given list.
 ##   = Native.Prelude.list_permute{'a} sigma l
 
 #* test permute{bool} Nil{int} Nil{bool} = Nil{bool}
-#* test permute{bool} (Cons{int}(0,Cons{int}(1,Nil{int}))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = (Cons{bool}(false,Cons{bool}(true,Nil{bool})))
-#* test permute{bool} (Cons{int}(1,Cons{int}(0,Nil{int}))) (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) = (Cons{bool}(true,Cons{bool}(false,Nil{bool})))
-#* test permute{string} (Cons{int}(0,Cons{int}(2,Cons{int}(1,Nil{int})))) (Cons{string}("a",Cons{string}("b",Cons{string}("c",Nil{string})))) = (Cons{string}("a",Cons{string}("c",Cons{string}("b",Nil{string}))))
+#* test permute{bool} 
+#*   (Cons{int}(0,Cons{int}(1,Nil{int}))) 
+#*   (Cons{bool}(false,Cons{bool}(true,Nil{bool})))
+#* = (Cons{bool}(false,Cons{bool}(true,Nil{bool})))
+#* test permute{bool} 
+#*   (Cons{int}(1,Cons{int}(0,Nil{int}))) 
+#*   (Cons{bool}(false,Cons{bool}(true,Nil{bool}))) 
+#* = (Cons{bool}(true,Cons{bool}(false,Nil{bool})))
+#* test permute{string} 
+#*   (Cons{int}(0,Cons{int}(2,Cons{int}(1,Nil{int})))) 
+#*   (Cons{string}("a",Cons{string}("b",Cons{string}("c",Nil{string})))) 
+#* = (Cons{string}("a",Cons{string}("c",Cons{string}("b",Nil{string}))))
 
 \LENSSECTION{@permutations@} The operator @permutations@ returns a list of
 all possible permutations for lists of a given length.

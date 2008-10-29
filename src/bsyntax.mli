@@ -2,7 +2,7 @@
 (* The Harmony Project                                                        *)
 (* harmony@lists.seas.upenn.edu                                               *)
 (******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                 *)
 (*                                                                            *)
 (* This library is free software; you can redistribute it and/or              *)
 (* modify it under the terms of the GNU Lesser General Public                 *)
@@ -28,7 +28,8 @@ val mk_blame : Info.t -> blame
 (** [mk_blame i] constructs blame associated with parsing info [i]. *)
 
 val invert_blame : blame -> blame
-(** ??? *)
+
+val info_of_blame : blame -> Info.t 
 
 type sort = 
     (* base sorts *)
@@ -126,7 +127,7 @@ type test_result =
     | TestPrint
     | TestEqual of exp
     | TestSortPrint of sort option
-    | TestSortEqual of sort
+    | TestSortEqual of sort option * sort
 (** Unit test abstract syntax. *)
 
 type decl = 
@@ -172,3 +173,34 @@ val exp_of_binding : binding -> exp
 
 val sl_of_svl : Bident.Id.t list -> sort list
 (** [sl_of_svl l] converts the sort variable list [l] to a sort list. *)
+
+(* ------ constructors ----- *)
+val mk_app : Info.t -> exp -> exp -> exp
+val mk_app3 : Info.t -> exp -> exp -> exp -> exp
+val mk_let : Info.t -> Id.t -> sort -> exp -> exp -> exp
+val mk_fun : Info.t -> Id.t -> sort -> exp -> exp
+val mk_if : Info.t -> exp -> exp -> exp -> sort -> exp 
+val mk_native_prelude_var : string -> exp
+val mk_string_of_char : Info.t -> exp -> exp
+val mk_regexp_of_string : Info.t -> exp -> exp 
+val mk_lens_of_regexp : Info.t -> exp -> exp
+
+val mk_qid_var : Qid.t -> exp
+val mk_var : Id.t -> exp
+val mk_core_var : string -> exp
+val mk_list_var : string -> exp
+val mk_over : Info.t -> op -> exp list -> exp
+val mk_bin_op : Info.t -> exp -> exp -> exp -> exp
+val mk_tern_op : Info.t -> exp -> exp -> exp -> exp -> exp
+val mk_cat : Info.t -> exp -> exp -> exp
+val mk_iter : Info.t -> int -> int -> exp -> exp
+val mk_acond : Info.t -> exp -> exp -> exp
+val mk_cond : Info.t -> exp -> exp -> exp
+val mk_swap : Info.t -> exp -> exp -> exp
+val mk_diff : Info.t -> exp -> exp -> exp
+val mk_inter : Info.t -> exp -> exp -> exp
+val mk_compose : Info.t -> exp -> exp -> exp
+val mk_set : Info.t -> exp -> exp -> exp
+val mk_match : Info.t -> string -> Qid.t -> exp
+val mk_sim_match : Info.t -> float -> string -> Qid.t -> exp
+val mk_rx : Info.t -> exp -> exp

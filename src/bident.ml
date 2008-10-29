@@ -1,3 +1,23 @@
+(******************************************************************************)
+(* Copyright (C) 2007-2008                                                    *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/bheap.ml                                                    *)
+(* Boomerang identifiers                                                      *)
+(* $Id$ *)
+(******************************************************************************)
+
+(* ------ imports and abbreviations ------ *)
 let sprintf = Printf.sprintf
 
 (* ------ identifiers ------ *)
@@ -16,8 +36,8 @@ module Id = struct
   let prime (i,x) = (i,x ^ "'")
   (* constants *)
   let wild = (Info.M "_", "_")
-  (* sets of identifiers *)
   type this_t = t
+  (* sets of identifiers *)
   module Set = 
     Set.Make(
       struct
@@ -81,7 +101,7 @@ module Qid = struct
   let mk_prelude_t = mk_mod_t ["Prelude"]
   let mk_core_t = mk_mod_t ["Core"]
   let mk_list_t = mk_mod_t ["List"]    
-  (* environments, sets of qualified identifiers *)
+  (* environments keyed by qualified identifiers *)
   type this_t = t
   module Env = Env.Make(
     struct
@@ -89,6 +109,7 @@ module Qid = struct
       let compare = compare
       let to_string = string_of_t
     end) 
+ (* sets of qualified identifiers *)
   module Set = 
     Set.Make(
       struct

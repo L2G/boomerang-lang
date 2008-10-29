@@ -236,43 +236,18 @@ let isync buf p ty o a b =
   let o',a',b' = isync_aux p ty o a b in 
   (Buffer.contents buf,o',a',b')
 
-let chk m t w : string option = 
-  let bare_t = Erx.bare t in 
-  if Bregexp.match_string bare_t w then None
-  else Some(m ^ ":\n" ^ Berror.type_error_string (Bregexp.split_bad_prefix bare_t w))
-
-let chko m t wo = match wo with 
-  | None -> None
-  | Some w -> chk m t w 
-
-let validate s erros : unit = 
-  let get_err = function None -> [] | Some s -> [s] in 
-  match erros with 
-    | None,None,None -> ()
-    | err_o,err_a,err_b -> 
-        raise (Error.Harmony_error(
-                 (fun () ->
-                    msg "@[<2>%s called with invalid structures:@\n" s;
-                    Misc.format_list "@\n@\n" Bprint.nlify
-                      (get_err err_o @ get_err err_a @ get_err err_b);
-                    msg "@]")))
-
-let opt_sync t oo ao bo = 
-  validate "opt_sync" (chko "Archive" t oo, chko "Replica A" t ao, chko "Replica B" t bo);
-  match oo,ao,bo with
-    | None,_,_
-    | _,None,_
-    | _,_,None ->
-        begin match atomic_sync oo ao bo with
-          | None       -> 
-              (sprintf "Conflict at [%s].\n" (string_of_path root),oo,ao,bo)
-          | Some (r,d) -> 
-              ("",r,r,r)
-        end
-    | Some o,Some a,Some b ->
-        let acts,o',a',b' = isync (Buffer.create 101) root t o a b in
-        (acts,Some o',Some a',Some b')
-
-let sync t o a b = 
-  validate "sync" (chk "Archive" t o, chk "Replica A" t a, chk "Replica B" t b);
-  isync (Buffer.create 101) root t o a b
+let sync_opt t oo ao bo = match oo,ao,bo with
+  | None,_,_
+  | _,None,_
+  | _,_,None ->
+      begin match atomic_sync oo ao bo with
+        | None       -> 
+            (sprintf "Conflict at [%s].\n" (string_of_path root),oo,ao,bo)
+        | Some (r,d) -> 
+            ("",r,r,r)
+      end
+  | Some o,Some a,Some b ->
+      let acts,o',a',b' = isync (Buffer.create 101) root t o a b in
+      (acts,Some o',Some a',Some b')
+          
+let sync t o a b = isync (Buffer.create 101) root t o a b

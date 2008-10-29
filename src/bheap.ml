@@ -1,52 +1,53 @@
-(*******************************************************************************)
-(* Copyright (C) 2007-2008                                                     *)
-(* J. Nathan Foster and Benjamin C. Pierce                                     *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/bheap.ml                                                     *)
-(* Global Boomerang heap                                                       *)
+(******************************************************************************)
+(* Copyright (C) 2007-2008                                                    *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/bheap.ml                                                    *)
+(* Global Boomerang heap                                                      *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
+(* ----- imports and abbreviations ----- *)
+module V = Bvalue
 open Berror
 open Bsyntax
 open Bident
 open Bprint
-module V = Bvalue
+let msg = Util.format 
 
+(* ----- types ----- *)
 type cell = Term of exp | Value of V.t
 
-module H = Hashtbl.Make(struct 
-			  type t = int
-			  let equal i1 i2 = (i1 = i2)
-			  let hash i = i
-			end)
+module H = Hashtbl.Make
+  (struct 
+     type t = int
+     let equal i1 i2 = (i1 = i2)
+     let hash i = i
+   end)
+
+(* ----- gensym ----- *)
 let next_loc = ref 0
 let fresh_loc () =
   let loc = !next_loc in
     incr next_loc;
     loc
 
-let default_size = 100
-let initial_size = Prefs.createInt "heap-size" default_size
-  "initial heap size (in number of locations)"
-  "initial heap size (in number of locations)"
+(* ------ THE global heap ----- *)
+let the_heap = ref (H.create 137)   
 
-let the_heap = ref (H.create default_size) (* to avoid problems with option types, start with  *)
-let init () = 
-  let size = Prefs.read initial_size in
-  if size > default_size (* only allocate if we're going to be bigger than the default size -- no sense in wasting! *)
-  then the_heap := H.create size
+let init () = ()
 
+(* ----- freshen expressions, sorts, patterns ------ *)
 let rec freshen_exp lmap e0 = match e0 with
   | EApp(i,e1,e2) ->
       let new_e1 = freshen_exp lmap e1 in
@@ -104,8 +105,9 @@ let rec freshen_exp lmap e0 = match e0 with
 	(lmap,[]) ls in
       let new_e1 = freshen_exp lmap' e1 in
       EAlloc(i,Safelist.rev new_ls_r,new_e1)
-  | EVar _ | EUnit _ | EBoolean _ | EInteger _ | EChar _ | EString _ | ECSet _  -> 
-      e0
+  | EVar _ | EUnit _ | EBoolean _ | EInteger _ 
+  | EChar _ | EString _ | ECSet _  -> e0
+
 and freshen_sort lmap s0 = match s0 with
   | SFunction(x,s1,ls,s2) ->
       let new_s1 = freshen_sort lmap s1 in
@@ -131,8 +133,9 @@ and freshen_sort lmap s0 = match s0 with
   | SForall(a,s1) ->
       let new_s1 = freshen_sort lmap s1 in
       SForall(a,new_s1)
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
-      s0
+  | SUnit | SBool | SInteger | SChar | SString 
+  | SRegexp | SLens | SCanonizer | SVar _ -> s0
+
 and freshen_pat lmap p0 = match p0 with
   | PVar(i,x,so1) ->
       let new_so1 = Misc.map_option (freshen_sort lmap) so1 in
@@ -149,18 +152,22 @@ and freshen_pat lmap p0 = match p0 with
       PCex(i,new_p)
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> p0
 
+(* ----- heap operations ----- *)
 let alloc ls e1 =
-  let lmap = Safelist.fold_left
-    (fun lmap (li,ei) ->
-       let fi = fresh_loc () in
-       let ci = Term (freshen_exp lmap ei) in
+  let lmap = 
+    Safelist.fold_left
+      (fun lmap (li,ei) ->
+         let fi = fresh_loc () in
+         let ci = Term (freshen_exp lmap ei) in
 	 H.add !the_heap fi ci;
 	 (li,fi)::lmap)
-    [] ls in
+      [] ls in
   freshen_exp lmap e1
 
 let get i l =
   try H.find !the_heap l
-  with Not_found -> run_error i (fun () -> Util.format "@[no@ such@ location@ %d@]" l)
+  with Not_found -> 
+    run_error i (fun () -> msg "@[no@ such@ location@ %d@]" l)
 
-let update l v = H.replace !the_heap l (Value v)
+let update l v = 
+  H.replace !the_heap l (Value v)

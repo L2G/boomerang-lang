@@ -1,25 +1,25 @@
 #{#}
 %{ 
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/src/parser.mly                                                   *)
-(* Boomerang parser                                                            *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/parser.mly                                                  *)
+(* Boomerang parser                                                           *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 (* imports and abbreviations *)
 open Bsyntax
@@ -35,38 +35,6 @@ let me2 i1 e2 = m i1 (info_of_exp e2)
 let me e1 e2 = m (info_of_exp e1) (info_of_exp e2) 
 let mp2 i1 p2 = m i1 (info_of_pat p2)
 let mp p1 p2 = m (info_of_pat p1) (info_of_pat p2)
-
-(* helpers for building ASTs *)
-let mk_qid_var x = EVar(Qid.info_of_t x,x)
-let mk_var x = mk_qid_var (Qid.t_of_id x)
-let mk_native_prelude_var x = mk_qid_var (Qid.mk_native_prelude_t x)
-let mk_core_var x = mk_qid_var (Qid.mk_core_t x)
-let mk_list_var x = mk_qid_var (Qid.mk_list_t x)
-let mk_over i op el = EOver(i,op,el)
-let mk_app i e1 e2 = EApp(i,e1,e2)
-let mk_bin_op i o e1 e2 = mk_app i (mk_app i o e1) e2
-let mk_tern_op i o e1 e2 e3 = mk_app i (mk_bin_op i o e1 e2) e3
-let mk_cat i e1 e2 = mk_over i ODot [e1;e2]
-let mk_iter i min max e1 = mk_over i (OIter(min,max)) [e1]
-let mk_acond i e1 e2 = mk_over i OBar [e1;e2]
-let mk_cond i e1 e2 = mk_over i OBar [e1;e2]
-let mk_swap i e1 e2 = mk_over i OTilde [e1;e2]
-let mk_diff i e1 e2 = mk_bin_op i (mk_core_var "diff") e1 e2
-let mk_inter i e1 e2 = mk_bin_op i (mk_core_var "inter") e1 e2
-let mk_compose i e1 e2 = mk_bin_op i (mk_core_var "compose") e1 e2
-let mk_set i e1 e2 = mk_bin_op i (mk_qid_var (Qid.mk_core_t "set")) e1 e2
-let mk_match i x q =   
-  mk_bin_op i 
-    (mk_core_var "dmatch")
-    (EString(i,x)) 
-    (mk_qid_var q)
-let mk_sim_match i e t q = 
-  mk_tern_op i 
-    (mk_core_var "smatch")
-    (EString(i,string_of_float e))
-    (EString(i,t))
-    (mk_qid_var q)
-let mk_rx i e = mk_app i (mk_core_var "str") e
 
 (* error *)
 let syntax_error i msg = 
@@ -387,10 +355,10 @@ test_res_exp:
 
 test_res_sort:
   | QMARK
-      { TestSortPrint None}
+      { TestSortPrint None }
 
   | sort      
-      { TestSortEqual $1 }
+      { TestSortEqual(None,$1) }
 
 /* --------- EXPRESSIONS ---------- */      
 #{@}

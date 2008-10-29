@@ -1,4 +1,26 @@
-module RxImpl = Bregexp
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008                                                         *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/src/erx.ml                                                      *)
+(* Boomerang extended regular expressions                                     *)
+(* $Id *)
+(******************************************************************************)
+
+module RxImpl = Brx
 
 let msg = Util.format
 
@@ -33,10 +55,10 @@ let mk u r bs hk = { desc=u; bare=r; boxes=bs; has_key=hk }
 let rank t = match t.desc with
   | Leaf   -> RxImpl.rank t.bare
   | Key    -> RxImpl.rank t.bare
-  | Star _ -> RxImpl.srnk
-  | Seq _  -> RxImpl.crnk
-  | Alt _  -> RxImpl.urnk
-  | Box _ | BoxStar _ -> RxImpl.arnk
+  | Star _ -> RxImpl.Srnk
+  | Seq _  -> RxImpl.Crnk
+  | Alt _  -> RxImpl.Urnk
+  | Box _ | BoxStar _ -> RxImpl.Arnk
 let rec format_t t1 = match t1.desc with 
   | Box(tg,t11) -> 
       msg "@[%s%s" "<" (if tg = "" then "" else (Misc.whack tg) ^ ":");

@@ -2,7 +2,7 @@
 (* The Harmony Project                                                        *)
 (* harmony@lists.seas.upenn.edu                                               *)
 (******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                 *)
 (*                                                                            *)
 (* This library is free software; you can redistribute it and/or              *)
 (* modify it under the terms of the GNU Lesser General Public                 *)
@@ -19,48 +19,26 @@
 (* $Id$ *)
 (******************************************************************************)
 
-module Rx = Bregexp
+(* ---------------------------------------------------------------------------*)
+(* IMPORTS AND ABBREVIATIONS *)
 
-(* imports and abbreviations *)
+module Rx = Brx
+module Err = Berror
+
 let string_concat = (^)
 let sprintf = Printf.sprintf
 let msg = Util.format
 let (@) = Safelist.append
 
-(* whack: inserts escape codes in rendered strings *)
-let whack = 
-  let replacements = 
-    [(Str.regexp "\n","\\n");
-     (Str.regexp "\t","\\t");
-     (Str.regexp "\"","\\\"");
-     (Str.regexp "\\", "\\\\")] in 
-  (fun s ->
-     Safelist.fold_right 
-       (fun (f,t) s -> Str.global_replace f t s)
-       replacements s)
+(* ---------------------------------------------------------------------------*)
+(* TYPES *)
 
-(* helper: combine maps with merge. 
-   Mapplus's combine is (combine fold find add (curry fst)) *)
-let combine fold find add merge m1 m2 = 
-  fold (fun k v -> 
-          add k (try merge v (find k m2) with Not_found -> v))
-    m1 m2      
+(* ----- unique identifiers ----- *)
+type uid = int
+let current_uid = ref 0
+let next_uid () = incr current_uid; !current_uid
 
-(* [concat_array a]: string concat the elements of [a]. *)
-let concat_array a = 
-  let buf = Buffer.create 17 in
-    Array.iter (Buffer.add_string buf) a;
-    Buffer.contents buf 
-    
-let get_str n = sprintf "%s get" n
-let put_str n = sprintf "%s put" n
-let create_str n = sprintf "%s create" n
-let parse_str n = sprintf "%s parse" n
-let canonize_str n = sprintf "%s canonize" n
-let choose_str n = sprintf "%s choose" n
-let key_str n = sprintf "%s key" n
-
-(* keys *)
+(* ----- keys ----- *)
 type key = string
 module KMap = Map.Make(
   struct 
@@ -68,7 +46,7 @@ module KMap = Map.Make(
     let compare = compare 
   end)
 
-(* tags *) 
+(* ----- tags ----- *) 
 type tag = string
 module TMap = Map.Make(
   struct 
@@ -76,109 +54,117 @@ module TMap = Map.Make(
     let compare = compare 
   end)
 
-(* skeletons *)
+(* ----- skeletons ----- *)
 type skeleton = 
   | S_string of string
   | S_concat of (skeleton * skeleton)
-  | S_dup of skeleton
   | S_star of skeleton list
   | S_box of tag
   | S_comp of (skeleton * skeleton)
 
-(* helpers for unpacking skeletons *)
+(* helpers for accessing skeletons *)
 let string_of_skel = function
   | S_string s -> s
-  | _ -> Berror.run_error (Info.M "string_of_skel") (fun () -> msg "@[expected@ string@ skeleton@]") 
+  | _ -> Err.run_error (Info.M "string_of_skel") 
+      (fun () -> msg "@[expected@ string@ skeleton@]") 
 
 let fst_of_skel = function
   | S_concat (s,_) -> s
-  | _ -> Berror.run_error (Info.M "fst_of_skel") (fun () -> msg "@[expected@ concat@ skeleton@]") 
+  | _ -> Err.run_error (Info.M "fst_of_skel") 
+      (fun () -> msg "@[expected@ concat@ skeleton@]") 
 
 let snd_of_skel = function
   | S_concat (_, s) -> s
-  | _ -> Berror.run_error (Info.M "snd_of_skel") (fun () -> msg "@[expected@ concat@ skeleton@]") 
-
-let dup_of_skel = function
-  | S_dup s -> s
-  | _ -> Berror.run_error (Info.M "dup_of_skel") (fun () -> msg "@[expected@ dup@ skeleton@]") 
+  | _ -> Err.run_error (Info.M "snd_of_skel") 
+      (fun () -> msg "@[expected@ concat@ skeleton@]") 
 
 let lst_of_skel = function
   | S_star sl -> sl
-  | _ -> Berror.run_error (Info.M "lst_of_skel") (fun () -> msg "@[expected@ lst@ skeleton@]") 
+  | _ -> Err.run_error (Info.M "lst_of_skel") 
+      (fun () -> msg "@[expected@ lst@ skeleton@]") 
 
 let comp_of_skel = function
   | S_comp sc -> sc
-  | _ -> Berror.run_error (Info.M "comp_of_skel") (fun () -> msg "@[expected@ comp@ skeleton@]") 
+  | _ -> Err.run_error (Info.M "comp_of_skel")
+      (fun () -> msg "@[expected@ comp@ skeleton@]") 
 
-(* helpers for iterating *)
-let rec generic_iter i epsilon union concat star x min max = 
-  let rec mk_cats x n = 
-    if n=0 then epsilon
-    else if n=1 then x
-    else if n=2 then concat x x
-    else 
-      let half_x = mk_cats x (n/2) in 
-      let twice_half_x = concat half_x half_x in 
-      if n mod 2 = 0 then twice_half_x
-      else concat x twice_half_x in 
+(* ----- dictionaries ----- *)
+type dict = ((skeleton * dict) list KMap.t) TMap.t
+
+(* ----- dictionary types ----- *)
+type dict_type = uid TMap.t
+
+(* ----- equivalence relation types ----- *)
+type equiv = Identity | Unknown
+
+(* helper for merging equivs *)
+let equiv_merge r1 r2 = match r1,r2 with 
+  | Identity,Identity -> Identity 
+  | _                 -> Unknown
+
+(* ---------------------------------------------------------------------------*)
+(* HELPERS *)
+
+(* generic helper for iterating a regexp / lens / canonizer *)
+let rec generic_iter epsilon union concat star min max x = 
+  let rec mk_cats n x = match n with 
+    | 0 -> epsilon
+    | 1 -> x
+    | 2 -> concat x x 
+    | _ -> 
+        let half_x = mk_cats (n/2) x in 
+        let twice_half_x = concat half_x half_x in 
+        if n mod 2 = 0 then twice_half_x
+        else concat x twice_half_x in 
+  let rec mk_alts acc xi j = match j with 
+    | 0 -> acc
+    | _ -> 
+        let xi1 = concat x xi in 
+        mk_alts (union acc xi1) xi1 (pred j) in 
    match min,max with
      | (0,-1) -> star x
-     | (n,-1) -> concat (mk_cats x n) (star x)
+     | (n,-1) -> concat (mk_cats n x) (star x)
      | (0,0)  -> epsilon
      | (0,1)  -> union epsilon x
      | (m,n)  -> 
-         if m > n then 
-           Berror.run_error i 
-             (fun () -> Util.format "error in iteration: %d > %d" m n)
-         else if m=n then mk_cats x n
-         else (* n > m *)
-           let rec aux (xi,us) j = 
-             if j=0 then us
-             else
-               let xi1 = concat x xi in 
-               aux (xi1, union us xi1) (pred j) in 
-           let x1 = if m=0 then epsilon else mk_cats x m in 
-           aux (x1,x1) (n-m) 
+         let m_x = mk_cats m x in 
+         if m=n then m_x 
+         else if m < n then mk_alts m_x m_x (n-m)
+         else (* m > n *) 
+           Err.run_error (Info.M "generic_iter") 
+             (fun () -> msg "@[%d greater than %d@]" m n)
 
-(* helpers for splitting *)    
+(* helper for concatenating an array *)
+let concat_array a = 
+  let buf = Buffer.create 17 in
+    Array.iter (Buffer.add_string buf) a;
+    Buffer.contents buf 
+
+(* helper for splitting *)
 let split_one choose t1 t2 s = 
   let ps = Rx.split_positions t1 t2 s in 
   let n = String.length s in 
   let j = choose ps in 
   (String.sub s 0 j, String.sub s j (n-j))
 
-(* helpers for concat-like operators *)
-let seq_split t1 t2 w = match Rx.seq_split t1 t2 w with
-  | Some p -> p
-  | None -> 
-      Berror.run_error (Info.M "seq_split")
-        (fun () -> 
-           msg "ambiguous concatenation@\n@[%a@]@\nand@\n@[%a@]@\n on@\n%s@\n" 
-             (fun _ -> Rx.format_t) t1
-             (fun _ -> Rx.format_t) t2
-             w)
+(* helper for splitting a string in an unambiguous concatenation *)
+let seq_split t1 t2 w = 
+  split_one 
+    (fun ps -> 
+       if Int.Set.cardinal ps = 1 then Int.Set.choose ps
+       else Err.run_error (Info.M "seq_split")
+         (fun () -> 
+            msg "@[concatenation of @[%a@]@ and @[%a@]@ ambiguous@ on@ %s@\n@]"
+              (fun _ -> Rx.format_t) t1 
+              (fun _ -> Rx.format_t) t2 
+              w))
+    t1 t2 w
 
-let split2 t11 t12 t21 t22 (x1,x2) = 
-  let x11,x12 = seq_split t11 t12 x1 in
-  let x21,x22 = seq_split t21 t22 x2 in 
-  ((x11,x21),(x12,x22)) 
-
-let do_split split f1 f2 combine = 
-  (fun x -> 
-     let x1,x2 = split x in 
-     combine (f1 x1) (f2 x2))
-    
-let do_seq t1 t2 f1 f2 = 
-  do_split (seq_split t1 t2) f1 f2 (^)
-
-let do_split_thread split f1 f2 combine = 
-  (fun x y ->
-     let x1,x2 = split x in 
-     let x1,y1 = f1 x1 y in 
-     let x2,y2 = f2 x2 y1 in 
-     (combine x1 x2, y2))
-    
-(* helpers for iteration operators *)
+(* helpers for regular operators *)
+let do_concat t1 t2 f1 f2 x = 
+  let x1,x2 = seq_split t1 t2 x in 
+  (f1 x1) ^ (f2 x2)
+      
 let do_star t f x = 
   let buf = Buffer.create 17 in 
   Safelist.iter
@@ -186,103 +172,87 @@ let do_star t f x =
     (Rx.star_split t x);
   Buffer.contents buf
 
-(* helpers for conditional operators *)
-let branch t f1 f2 x = 
+let do_union t f1 f2 x = 
   if Rx.match_string t x then f1 x else f2 x
 
-let branch2 t f1 f2 x y = 
-  if Rx.match_string t x then f1 x y 
-  else f2 x y
-
+(* ---------------------------------------------------------------------------*)
+(* PERMUTATIONS *)
 module Permutations = struct
-  (* helpers for permutations *)
-  let rec build_list first last = 
-    if first = last then []
-    else first::(build_list (first + 1) last)
-      
+  let string_of_sigma sigma =   
+    sprintf "[%s]" (Misc.concat_list "," (Safelist.map string_of_int sigma))
+
+  let rec identity k = 
+    let rec loop acc i = 
+      if i < 0 then acc
+      else loop (i::acc) (pred i) in 
+    loop [] (pred k) 
+        
   let valid_permutation sigma ls =
     let k = Safelist.length sigma in
-      Safelist.length ls = k &&
-        Safelist.sort compare sigma = build_list 0 k
+      Safelist.length ls = k
+      && Safelist.sort compare sigma = identity k
         
-  let rec permutations_aux k =
+  let permutations k = 
     let rec insertions n ls =
-      let (is,_) = Safelist.fold_left 
-        (fun (ls_n_acc,ls_acc) i ->
-	   let ls_acc' = i::ls_acc in
-	   let ls_n_acc' = Safelist.map (fun ls_n -> i::ls_n) ls_n_acc in
-	     ((n::ls_acc')::ls_n_acc',ls_acc'))
-        ([[n]],[]) ls in
+      let (is,_) = 
+        Safelist.fold_left 
+          (fun (ls_n_acc,ls_acc) i ->
+	     let ls_acc' = i::ls_acc in
+	     let ls_n_acc' = Safelist.map (fun ls_n -> i::ls_n) ls_n_acc in
+	       ((n::ls_acc')::ls_n_acc',ls_acc'))
+          ([[n]],[]) ls in
         is in
-    if k = 0 then [[]]
-    else Safelist.concat (Safelist.map (insertions (k-1)) (permutations_aux (k-1)))
+    let rec mk_perms k =
+      if k = 0 then [[]]
+      else Safelist.concat (Safelist.map (insertions (pred k)) (mk_perms (pred k))) in
+    let id = identity k in 
+    id::(Safelist.remove id (mk_perms k))
 
-let permutations k = 
-  (* N.B. we make sure the identity is first -- this will give us a nicer 
-     default for the create case of lenses that use permutations to build 
-     sorting *)
-  let identity = build_list 0 k in
-  identity::(Safelist.remove identity (permutations_aux k))
+  let permutation sigma k = 
+    let err () = 
+      Err.run_error (Info.M "permutation")
+        (fun () -> msg "@[%s@ is@ not@ a@ valid@ permutation@ on@ {0,..,%d}@]@\n" 
+           (string_of_sigma sigma) (pred k)) in 
+    let sigma_arr = Array.create k (-1) in 
+    let sigma_inv_arr = Array.create k (-1) in       
+    begin 
+      let k' = 
+        Safelist.fold_left 
+          (fun i j -> 
+             sigma_arr.(i) <- j;
+             if sigma_inv_arr.(j) <> (-1) then err ();
+             sigma_inv_arr.(j) <- i;
+             succ i)
+          0 sigma in
+      if k' <> k then err () 
+    end;
+    (sigma_arr,sigma_inv_arr) 
 
-let permutation i sigma k = 
-  let err () = 
-    Berror.static_error i "" 
-      (sprintf "[%s] is not a permutation on {0,..,%d}@\n" 
-         (Misc.concat_list "," (Safelist.map string_of_int sigma)) 
-         (pred k)) in 
-  let sigma_arr = Array.create k (-1) in 
-  let sigma_inv_arr = Array.create k (-1) in       
-  let () = 
-    let k' = Safelist.fold_left 
-      (fun i j -> 
-         sigma_arr.(i) <- j;
-         if sigma_inv_arr.(j) <> (-1) then err ();
-         sigma_inv_arr.(j) <- i;
-         succ i)
-      0 sigma in
-    if k' <> k then err () in
-  (sigma_arr,sigma_inv_arr) 
+  let invert_permutation sigma = 
+    let sigma_arr = Array.of_list sigma in
+    let sigma_inv_arr = Array.create (Array.length sigma_arr) (-1) in
+    begin
+      Array.iteri 
+        (fun i j -> 
+           if sigma_inv_arr.(j) = -1 then sigma_inv_arr.(j) <- i
+           else
+             Err.run_error (Info.M "invert_permutation") 
+               (fun () -> msg "@[%s@ is@ not@ a@ valid@ permutation@ on@ {0,..,%d}@]@\n"
+                  (string_of_sigma sigma) (pred (Safelist.length sigma))))
+        sigma_arr
+    end;
+    Array.to_list sigma_inv_arr
 
-let invert_permutation i sigma = 
-  let n = sprintf "invert_permutation [%s]" 
-    (Misc.concat_list "," (Safelist.map string_of_int sigma)) in  
-  let err () = 
-    Berror.static_error i n
-      (sprintf "[%s] is not a valid permutation\n" 
-         (Misc.concat_list "," (Safelist.map string_of_int sigma))) in
-  let sigma_arr = Array.of_list sigma in
-  let sigma_inv_arr = Array.create (Array.length sigma_arr) (-1) in
-  Array.iteri 
-    (fun i j -> 
-       if sigma_inv_arr.(j) <> -1 then err ();
-       sigma_inv_arr.(j) <- i)
-    sigma_arr;
-  Array.to_list sigma_inv_arr
-
-let permute_list i sigma ls =
-  let ls_arr = Array.of_list ls in
-  let k = Array.length ls_arr in
-  let _,sigma_inv_arr = permutation i sigma k in
+  let permute_list sigma ls =
+    let ls_arr = Array.of_list ls in
+    let k = Array.length ls_arr in
+    let _,sigma_inv_arr = permutation sigma k in
     Array.fold_right 
       (fun j ls' -> ls_arr.(j)::ls')
       sigma_inv_arr []
 end
   
-(* uid *)
-type uid = int
-let current_uid = ref 0
-let next_uid () = 
-  incr current_uid;
-  !current_uid
-
-
-(* simple sort checking for relations *)
-type equiv = Identity | Unknown
-let equiv_merge r1 r2 = match r1,r2 with 
-  | Identity,Identity -> Identity 
-  | _                 -> Unknown
-
-(* -----------------------------------------------------------------------------*)
+(* ---------------------------------------------------------------------------*)
 (* CANONIZERS *)
 module Canonizer = struct
   type d = 
@@ -290,9 +260,9 @@ module Canonizer = struct
     | Concat of t * t 
     | Union of t * t 
     | Star of t 
-    | Columnize of int * Rx.t * char * string 
     | Normalize of Rx.t * Rx.t * (string -> string) 
     | Sort of int * (int * Rx.t) list
+    | Columnize of int * Rx.t * char * string 
     | FromLens of Rx.t * Rx.t * equiv * (string -> string) * (string -> string) 
 
   and t = 
@@ -315,8 +285,7 @@ module Canonizer = struct
       cnrel = None;
     }
 
-  let info cn = cn.info
-
+  (* ----- accessors ----- *)
   let rec uncanonized_type cn = match cn.uncanonized_type with 
     | Some ut -> ut
     | None -> 
@@ -366,42 +335,34 @@ module Canonizer = struct
   and canonize cn = match cn.desc with
     | Copy(r1)              -> (fun c -> c)
     | Concat(cn1,cn2)       -> 
-        (fun c -> 
-           do_seq (uncanonized_type cn1) (uncanonized_type cn2) 
-             (canonize cn1) (canonize cn2) c)
+        (fun c -> do_concat (uncanonized_type cn1) (uncanonized_type cn2) 
+           (canonize cn1) (canonize cn2) c)
     | Union(cn1,cn2)        ->  
-        (fun c -> 
-           branch (uncanonized_type cn1) 
-             (canonize cn1) (canonize cn2) c)
+        (fun c -> do_union (uncanonized_type cn1) 
+           (canonize cn1) (canonize cn2) c)
     | Star(cn1)             -> 
-        (fun c -> 
-           do_star (uncanonized_type cn1)
-             (canonize cn1) c)
+        (fun c -> do_star (uncanonized_type cn1) (canonize cn1) c)
     | Normalize(ct,ct0,f)   -> (fun c -> f c)
     | FromLens(_,_,_,get,_) -> (fun c -> get c)
     | Sort(k,irl)           -> 
+        (* INEFFICIENT! *)
         (fun c -> 
            let cl = 
              Rx.star_split 
                (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_alt acc ri) Rx.empty irl) 
                c in
            let c_arr = Array.create k "" in 
-             if Safelist.length cl <> k then 
-               Berror.static_error (info cn) "sort" 
-                 (sprintf "string %s did not split into exactly %d pieces" c k);
-             let _ = Safelist.fold_left 
-               (fun rs ci -> 
-                  (* INEFFICIENT! *)
-                  match Safelist.partition (fun (_,ri) -> Rx.match_string ri ci) rs with
-                    | [i,_],rs' -> 
-                        c_arr.(i) <- ci; 
-                        rs'
-                    | _,_ -> 
-                        Berror.static_error (info cn) ""
-                          (sprintf "%s did not match exactly one regexp" ci))
+           if Safelist.length cl <> k then 
+             Err.run_error (Info.M "sort.canonize") 
+               (fun () -> msg "@[%s@ did@ not@ split@ into@ %d@ pieces@]" c k);
+           let _ = Safelist.fold_left 
+             (fun rs ci -> 
+                match Safelist.partition (fun (_,ri) -> Rx.match_string ri ci) rs with
+                  | [i,_],rs' -> c_arr.(i) <- ci; rs'
+                  | _ -> Err.run_error (Info.M "sort.canonize")
+                      (fun () -> msg "@[%s@ did@ not@ match@ exactly@ one@ regexp@]" ci))
              irl cl in 
            concat_array c_arr)
-
     | Columnize(k,r,ch,nl)  -> 
         (fun c ->
            let c_len = String.length c in
@@ -433,25 +394,25 @@ module Canonizer = struct
     | Copy(r1)              -> (fun b -> b)
     | Concat(cn1,cn2)       -> 
         (fun b -> 
-           do_split 
-             ((split_one Int.Set.min_elt) 
-                (canonized_type cn1) (canonized_type cn2))
-             (choose cn1) (choose cn2) (^) b)
+           let b1,b2 = 
+             (split_one Int.Set.min_elt)
+               (canonized_type cn1) (canonized_type cn2) b in 
+             (choose cn1 b1) ^ (choose cn2 b2))
     | Union(cn1,cn2)        ->  
-        (fun b -> 
-           branch (canonized_type cn1) 
-             (choose cn1) (choose cn2) b)
+        (fun b -> do_union (canonized_type cn1) (choose cn1) (choose cn2) b)
     | Star(cn1)             -> 
         (fun b -> 
-           let rec loop b acc = 
-             if String.length b = 0 then acc
+           let buf = Buffer.create 17 in 
+           let rec loop b = 
+             if String.length b = 0 then Buffer.contents buf
              else
                let b1,brest = 
                  (split_one Int.Set.min_elt) 
                    (canonized_type cn1) (canonized_type cn) 
                    b in 
-               loop brest (acc ^ (choose cn1 b1)) in 
-           loop b "")
+               Buffer.add_string buf (choose cn1 b1);
+               loop brest in 
+           loop b)
     | Normalize(ct,ct0,f)   -> (fun b -> b)
     | FromLens(_,_,_,_,crt) -> (fun b -> crt b)
     | Sort(_)               -> (fun b -> b)
@@ -486,35 +447,32 @@ module Canonizer = struct
            loop 0;
            Buffer.contents buf)
 
-       
+  let info cn = cn.info
+
+  let string cn = ""
+
+  let cnrel_identity cn = cnrel cn = Identity
+
+  (* ----- constructors ----- *)
   let copy i r1 = mk i (Copy(r1))
   let concat i cn1 cn2 = mk i (Concat(cn1,cn2))
   let union i cn1 cn2 = mk i (Union(cn1,cn2))
   let star i cn1 = mk i (Star(cn1))
-  let from_lens i ct at eq get crt = mk i (FromLens(ct,at,eq,get,crt))
   let normalize i ct ct0 f = mk i (Normalize(ct,ct0,f))
   let sort i rl = 
     let k,irl = Safelist.fold_left (fun (i,acc) ri -> (succ i,(i,ri)::acc)) (0,[]) rl in
     mk i (Sort(k,irl))
   let columnize i k r sp nl = mk i (Columnize(k,r,sp,nl))
-  let string cn = ""
+  let from_lens i ct at eq get crt = mk i (FromLens(ct,at,eq,get,crt))
   let iter i cn1 min maxo = 
-    generic_iter i 
-      (copy i Rx.epsilon) (union i) (concat i) (star i) 
-      cn1 min maxo
-
-  let cnrel_identity cn = cnrel cn = Identity
-
+    generic_iter (copy i Rx.epsilon) (union i) (concat i) (star i) 
+      min maxo cn1
 end
 
-(* -----------------------------------------------------------------------------*)
+(* ---------------------------------------------------------------------------*)
 (* DICTIONARY LENSES *)
 module DLens = struct    
   
-  type dict = ((skeleton * dict) list KMap.t) TMap.t
-  let empty_dict : dict = TMap.empty
-  type dict_type = uid TMap.t
-
   type d = 
     (* ----- string lenses ----- *)
     | Copy of Rx.t
@@ -570,8 +528,7 @@ module DLens = struct
       dtype = None
     }        
 
-  (* ----- helpers ----- *)
-  (* lookup functions *)
+  (* lookup helpers *)
   let rec std_lookup tag k d = 
     let km = try TMap.find tag d with Not_found -> KMap.empty in
     try match KMap.find k km with 
@@ -633,32 +590,36 @@ module DLens = struct
           end
       end  
 
+  (* helpers for dictionaries *)
   let dt_merge dt1 dt2 = 
     TMap.fold 
       (fun t u acc ->
-         if (not (TMap.mem t dt2)) || (TMap.find t dt2 = u) then TMap.add t u acc
-         else raise 
-           (Error.Harmony_error 
-              (fun () -> 
-                 Util.format "@[type error: \"%s\" is used with different lenses@]@\n" t)))
+         if (not (TMap.mem t dt2)) || (TMap.find t dt2 = u) then 
+           TMap.add t u acc
+         else 
+           Err.run_error (Info.M "dt_merge") 
+             (fun () -> msg "@[tag \"%s\" used with different lenses" t))
       dt1 dt2
 
   let dt_split d t = 
     try 
       let km = TMap.find t d in 
-      (TMap.add t km empty_dict, TMap.remove t d)      
+      (TMap.add t km TMap.empty, TMap.remove t d)      
     with Not_found -> 
-    (empty_dict,d)
+    (TMap.empty,d)
 
-  (* smash two classic dictionaries *)
   let (++) d1 d2 =
+    let combine fold find add merge m1 m2 = 
+      fold (fun k v -> add k (try merge v (find k m2) with Not_found -> v)) 
+        m1 m2 in 
     combine TMap.fold TMap.find TMap.add 
       (fun km1 km2 -> 
 	 (combine KMap.fold KMap.find KMap.add 
 	    (fun kl1 kl2 -> kl1 @ kl2)
 	    km1 km2))
       d1 d2
-          
+
+  (* ----- accessors ----- *)
   let rec bij dl = match dl.bij with 
     | Some b -> b
     | None   -> 
@@ -896,12 +857,11 @@ module DLens = struct
     | Const(r1,w1,w2)    -> (fun c -> w1)
     | Concat(dl1,dl2)    -> 
         (fun c -> 
-           do_seq (ctype dl1) (ctype dl2) (get dl1) (get dl2) c)
+           do_concat (ctype dl1) (ctype dl2) (get dl1) (get dl2) c)
     | Union(dl1,dl2)     -> 
-        (fun c -> branch (ctype dl1) (get dl1) (get dl2) c)
+        (fun c -> do_union (ctype dl1) (get dl1) (get dl2) c)
     | Star(dl1)          -> 
-        (fun c -> 
-           do_star (ctype dl1) (get dl1) c)
+        (fun c -> do_star (ctype dl1) (get dl1) c)
     | Key(r1)            -> (fun c -> c)
     | DMatch(t1,dl1)     -> (fun c -> get dl1 c)
     | Compose(dl1,dl2)   -> (fun c -> get dl2 (get dl1 c))
@@ -1045,7 +1005,7 @@ module DLens = struct
            let c2,d2 = create dl2 a2 d1 in 
            (c1 ^ c2,d2))
     | Union(dl1,dl2)     -> 
-        (fun a d -> branch2 (atype dl1) (create dl1) (create dl2) a d)
+        (fun a d -> do_union (atype dl1) (create dl1) (create dl2) a d)
     | Star(dl1)          -> 
         (fun a d -> 
            Safelist.fold_left 
@@ -1103,9 +1063,9 @@ module DLens = struct
     | Copy(r1)           -> (fun a -> "")
     | Const(r1,w1,w2)    -> (fun a -> "")
     | Concat(dl1,dl2)    -> 
-        (fun a -> do_seq (atype dl1) (atype dl2) (key dl1) (key dl2) a)
+        (fun a -> do_concat (atype dl1) (atype dl2) (key dl1) (key dl2) a)
     | Union(dl1,dl2)     -> 
-        (fun a -> branch (atype dl1) (key dl1) (key dl2) a)
+        (fun a -> do_union (atype dl1) (key dl1) (key dl2) a)
     | Star(dl1)          -> 
         (fun a -> do_star (atype dl1) (key dl1) a)
     | Key(r1)            -> (fun a -> a)
@@ -1144,8 +1104,8 @@ module DLens = struct
            ky)
 
   and parse dl = match dl.desc with
-    | Copy(r1)           -> (fun c -> (S_string c, empty_dict))
-    | Const(r1,w1,w2)    -> (fun c -> (S_string c, empty_dict))
+    | Copy(r1)           -> (fun c -> (S_string c, TMap.empty))
+    | Const(r1,w1,w2)    -> (fun c -> (S_string c, TMap.empty))
     | Concat(dl1,dl2)    -> 
         (fun c -> 
            let c1,c2 = seq_split (ctype dl1) (ctype dl2) c in 
@@ -1153,7 +1113,7 @@ module DLens = struct
            let s2,d2 = parse dl2 c2 in 
            (S_concat (s1,s2), d1++d2))
     | Union(dl1,dl2)     -> 
-        (fun c -> branch (ctype dl1) (parse dl1) (parse dl2) c)
+        (fun c -> do_union (ctype dl1) (parse dl1) (parse dl2) c)
     | Star(dl1)          -> 
         (fun c -> 
            let sl,d = 
@@ -1161,10 +1121,10 @@ module DLens = struct
                (fun (buf,d) ci -> 
                   let si,di = parse dl1 ci in
 	          (si::buf, d++di))
-               ([], empty_dict)
+               ([], TMap.empty)
                (Rx.star_split (ctype dl1) c) in
 	   (S_star (Safelist.rev sl),d))
-    | Key(r1)            -> (fun c -> (S_string c, empty_dict))
+    | Key(r1)            -> (fun c -> (S_string c, TMap.empty))
     | DMatch(t1,dl1)     -> 
         (fun c -> 
            let s,d = parse dl1 c in 
@@ -1178,7 +1138,7 @@ module DLens = struct
            let s2,d2 = parse dl2 (get dl1 c) in
            (S_comp (s1,s2), d2++d1))
     | Invert(dl1)        -> 
-        (fun c -> (S_string c, empty_dict))
+        (fun c -> (S_string c, TMap.empty))
     | Default(dl1,w1)    -> (fun c -> parse dl1 c)
     | LeftQuot(cn1,dl1)  -> (fun c -> parse dl1 (Canonizer.canonize cn1 c))
     | RightQuot(dl1,cn1) -> (fun c -> parse dl1 c)
@@ -1191,7 +1151,7 @@ module DLens = struct
            let k = key dl1 (get dl1 c) in 
            let km = KMap.add k [(s,d1)] KMap.empty in 
            (S_box t1,TMap.add t1 km d2))
-    | Filter(r1,r2)      -> (fun c -> (S_string c, empty_dict))
+    | Filter(r1,r2)      -> (fun c -> (S_string c, TMap.empty))
     | Forgetkey(dl1)     -> (fun c -> parse dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
@@ -1215,7 +1175,7 @@ module DLens = struct
            (s',d'))
 
   and rcreate dl = 
-    (fun a -> fst (create dl a empty_dict))
+    (fun a -> fst (create dl a TMap.empty))
 
   and rput dl = 
     (fun a c -> 
@@ -1225,7 +1185,7 @@ module DLens = struct
   and rget dl = 
     (fun c -> get dl c)
 
-  (* helpers for dmatch and smatch *)
+  (* helper for dmatch and smatch *)
   and do_match lookup key put create tag a d = 
     let d1,d2 = dt_split d tag in 
     match lookup tag (key a) d1 with
@@ -1238,77 +1198,78 @@ module DLens = struct
           let _,d2' = dt_split d' tag in 
           (c',d1++d2')
                 
-(* helpers for permute *)
-and arr_split_a k dls sigma_inv ats x = 
-  let res = Array.create k "" in 
-  let _ = 
-    Array.fold_left
-      (fun (i,a) j -> 
-         let ai,arest = seq_split (atype dls.(j)) ats.(i) a in
-         res.(i) <- ai;
-         (succ i,arest))
-    (0,x) sigma_inv in
-  res 
+  (* helpers for permute *)
+  and arr_split_a k dls sigma_inv ats x = 
+    let res = Array.create k "" in 
+    let _ = 
+      Array.fold_left
+        (fun (i,a) j -> 
+           let ai,arest = seq_split (atype dls.(j)) ats.(i) a in
+             res.(i) <- ai;
+             (succ i,arest))
+        (0,x) sigma_inv in
+    res 
+        
+  and arr_split_c k dls cts x = 
+    let res = Array.create k "" in 
+    let _ = 
+      Array.fold_left 
+        (fun (j,c) dlj -> 
+           let cj,crest = seq_split (ctype dlj) cts.(j) c in
+             res.(j) <- cj;
+             (succ j,crest))
+        (0,x) dls in 
+    res 
+  let info dl = dl.info
 
-and arr_split_c k dls cts x = 
-  let res = Array.create k "" in 
-  let _ = 
-    Array.fold_left 
-      (fun (j,c) dlj -> 
-         let cj,crest = seq_split (ctype dlj) cts.(j) c in
-         res.(j) <- cj;
-         (succ j,crest))
-      (0,x) dls in 
-  res 
-         
+  let uid dl = dl.uid
+
+  let string dl = ""    
+
+  let arel_identity dl = arel dl = Identity
+
+  let crel_identity dl = crel dl = Identity
+
+  (* ----- constructors ----- *)
+  let copy i r1 = mk i (Copy(r1))
+  let const i r1 w1 w2 = mk i (Const(r1,w1,w2))
+  let concat i dl1 dl2 = mk i (Concat(dl1,dl2))
+  let union i dl1 dl2 = mk i (Union(dl1,dl2))
+  let star i dl1 = mk i (Star(dl1))
+  let key i r1 = mk i (Key(r1))
+  let dmatch i t1 dl1 = mk i (DMatch(t1,dl1))
+  let compose i dl1 dl2 = mk i (Compose(dl1,dl2))
+  let invert i dl1 = mk i (Invert(dl1))
+  let default i dl1 w1 = mk i (Default(dl1,w1))
+  let left_quot i cn1 dl1 = mk i (LeftQuot(cn1,dl1))
+  let right_quot i dl1 cn1 = mk i (RightQuot(dl1,cn1))
+  let dup1 i dl1 f1 r1 = mk i (Dup1(dl1,f1,r1))
+  let dup2 i f1 r1 dl1 = mk i (Dup2(f1,r1,dl1))
+  let smatch i t1 f1 dl1 = mk i (SMatch(f1,t1,dl1))
+  let filter i r1 r2 = mk i (Filter(r1,r2))
+  let forgetkey i dl1 = mk i (Forgetkey(dl1))
+  let permute i is dls =
+    let dl_arr = Array.of_list dls in 
+    let k = Array.length dl_arr in 
+    let sigma,sigma_inv = Permutations.permutation is k in 
+    let ats = Array.create k Rx.empty in 
+    let cts = Array.create k Rx.empty in 
+    let _ = 
+      Array.fold_right 
+        (fun j (i,acc) -> 
+           ats.(i) <- acc;
+           (pred i,Rx.mk_seq (atype dl_arr.(j)) acc))
+        sigma_inv (pred k,Rx.epsilon) in
+    let _ = Array.fold_right 
+      (fun dli (i,acc) -> 
+         cts.(i) <- acc; 
+         (pred i,Rx.mk_seq (ctype dli) acc))
+      dl_arr (pred k,Rx.epsilon) in
+      mk i (Permute((k,sigma,sigma_inv,cts,ats),dl_arr))
+        
   let canonizer_of_t i dl = 
     Canonizer.from_lens i (ctype dl) (atype dl) (arel dl) (get dl) (rcreate dl)
-    
-(* exports *)
-let info dl = dl.info
-let uid dl = dl.uid
-let string dl = ""
-
-let arel_identity dl = arel dl = Identity
-let crel_identity dl = crel dl = Identity
-
-let copy i r1 = mk i (Copy(r1))
-let const i r1 w1 w2 = mk i (Const(r1,w1,w2))
-let concat i dl1 dl2 = mk i (Concat(dl1,dl2))
-let union i dl1 dl2 = mk i (Union(dl1,dl2))
-let star i dl1 = mk i (Star(dl1))
-let key i r1 = mk i (Key(r1))
-let dmatch i t1 dl1 = mk i (DMatch(t1,dl1))
-let compose i dl1 dl2 = mk i (Compose(dl1,dl2))
-let invert i dl1 = mk i (Invert(dl1))
-let default i dl1 w1 = mk i (Default(dl1,w1))
-let left_quot i cn1 dl1 = mk i (LeftQuot(cn1,dl1))
-let right_quot i dl1 cn1 = mk i (RightQuot(dl1,cn1))
-let dup1 i dl1 f1 r1 = mk i (Dup1(dl1,f1,r1))
-let dup2 i f1 r1 dl1 = mk i (Dup2(f1,r1,dl1))
-let smatch i t1 f1 dl1 = mk i (SMatch(f1,t1,dl1))
-let filter i r1 r2 = mk i (Filter(r1,r2))
-let forgetkey i dl1 = mk i (Forgetkey(dl1))
-let permute i is dls =
-  let dl_arr = Array.of_list dls in 
-  let k = Array.length dl_arr in 
-  let sigma,sigma_inv = Permutations.permutation i is k in 
-  let ats = Array.create k Rx.empty in 
-  let cts = Array.create k Rx.empty in 
-  let _ = 
-    Array.fold_right 
-      (fun j (i,acc) -> 
-         ats.(i) <- acc;
-         (pred i,Rx.mk_seq (atype dl_arr.(j)) acc))
-      sigma_inv (pred k,Rx.epsilon) in
-  let _ = Array.fold_right 
-    (fun dli (i,acc) -> 
-       cts.(i) <- acc; 
-       (pred i,Rx.mk_seq (ctype dli) acc))
-    dl_arr (pred k,Rx.epsilon) in
-  mk i (Permute((k,sigma,sigma_inv,cts,ats),dl_arr))
-
-let iter i l1 min maxo =
-  generic_iter i (copy i Rx.epsilon) (union i) (concat i) (star i)
-    l1 min maxo
+  let iter i dl1 min maxo =
+    generic_iter (copy i Rx.epsilon) (union i) (concat i) (star i)
+      min maxo dl1
 end

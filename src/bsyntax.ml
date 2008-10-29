@@ -2,7 +2,7 @@
 (* The Harmony Project                                                        *)
 (* harmony@lists.seas.upenn.edu                                               *)
 (******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(* Copyright (C) 2008 J. Nathan Foster and Benjamin C. Pierce                 *)
 (*                                                                            *)
 (* This library is free software; you can redistribute it and/or              *)
 (* modify it under the terms of the GNU Lesser General Public                 *)
@@ -30,6 +30,9 @@ open Bident
 type blame = Blame of Info.t 
 
 let mk_blame i = Blame i 
+
+let info_of_blame b = match b with
+  | Blame(i) -> i
 
 let invert_blame b = b
 
@@ -130,7 +133,7 @@ type test_result =
     | TestPrint
     | TestEqual of exp
     | TestSortPrint of sort option
-    | TestSortEqual of sort 
+    | TestSortEqual of sort option * sort 
 
 (* declarations *)
 type decl = 
@@ -199,3 +202,102 @@ let id_of_module = function
 let sl_of_svl svl = 
   Safelist.map (fun svi -> SVar svi) svl 
 
+let mk_app i e1 e2 = 
+  EApp(i,e1,e2)
+
+let mk_app3 i e1 e2 e3 = 
+  mk_app i (mk_app i e1 e2) e3
+
+let mk_let i x s1 e1 e2 =
+  let b = Bind(i,PVar(i,x,Some s1),None,e1) in 
+  ELet(i,b,e2)
+
+let mk_fun i x s e1 =
+  let p = Param(i,x,s) in  
+  EFun(i,p,None,e1)
+
+let mk_if i e0 e1 e2 s =
+  let bs = [(PBol(i,true),e1);(PBol(i,false),e2)] in 
+  ECase(i,e0,bs,s)
+
+let mk_native_prelude_var i s = 
+  EVar(i,Qid.mk_native_prelude_t s)
+
+let mk_string_of_char i e = 
+  EApp(i,mk_native_prelude_var i "string_of_char",e)
+
+let mk_regexp_of_string i e = 
+  EApp(i,mk_native_prelude_var i "str",e)
+
+let mk_lens_of_regexp i e = 
+  EApp(i,mk_native_prelude_var i "copy",e)
+
+let mk_qid_var x = 
+  EVar(Qid.info_of_t x,x)
+
+let mk_var x = 
+  mk_qid_var (Qid.t_of_id x)
+
+let mk_native_prelude_var x = 
+  mk_qid_var (Qid.mk_native_prelude_t x)
+
+let mk_core_var x = 
+  mk_qid_var (Qid.mk_core_t x)
+
+let mk_list_var x = 
+  mk_qid_var (Qid.mk_list_t x)
+
+let mk_over i op el = 
+  EOver(i,op,el)
+
+let mk_app i e1 e2 = 
+  EApp(i,e1,e2)
+
+let mk_bin_op i o e1 e2 = 
+  mk_app i (mk_app i o e1) e2
+
+let mk_tern_op i o e1 e2 e3 = 
+  mk_app i (mk_bin_op i o e1 e2) e3
+
+let mk_cat i e1 e2 = 
+  mk_over i ODot [e1;e2]
+
+let mk_iter i min max e1 = 
+  mk_over i (OIter(min,max)) [e1]
+
+let mk_acond i e1 e2 = 
+  mk_over i OBar [e1;e2]
+
+let mk_cond i e1 e2 = 
+  mk_over i OBar [e1;e2]
+
+let mk_swap i e1 e2 = 
+  mk_over i OTilde [e1;e2]
+
+let mk_diff i e1 e2 = 
+  mk_bin_op i (mk_core_var "diff") e1 e2
+
+let mk_inter i e1 e2 = 
+  mk_bin_op i (mk_core_var "inter") e1 e2
+
+let mk_compose i e1 e2 = 
+  mk_bin_op i (mk_core_var "compose") e1 e2
+
+let mk_set i e1 e2 = 
+  mk_bin_op i (mk_qid_var (Qid.mk_core_t "set")) e1 e2
+
+let mk_match i x q =   
+  mk_bin_op i 
+    (mk_core_var "dmatch")
+    (EString(i,x)) 
+    (mk_qid_var q)
+
+let mk_sim_match i e t q = 
+  mk_tern_op i 
+    (mk_core_var "smatch")
+    (EString(i,string_of_float e))
+    (EString(i,t))
+    (mk_qid_var q)
+
+let mk_rx i e = 
+  mk_app i (mk_core_var "str") e
