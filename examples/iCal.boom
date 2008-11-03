@@ -230,6 +230,25 @@ let time : regexp = time_hour . time_minute . time_second . time_utc?
 
 let date_time : regexp = date . "T" . time 
 
+let date_lens = 
+  let pre_mon : lens = 
+    ( "01" <-> "Jan"
+    | "02" <-> "Feb"
+    | "03" <-> "Mar"
+    | "04" <-> "Apr"
+    | "05" <-> "May"
+    | "06" <-> "Jun"
+    | "07" <-> "Jul"
+    | "08" <-> "Aug"
+    | "09" <-> "Sep"
+    | "10" <-> "Oct"
+    | "11" <-> "Nov"
+    | "12" <-> "Dec" ) in 
+  let mon : lens = pre_mon | del (date_month - ctype pre_mon) in
+  del date_fullyear . (mon ~ (date_mday . ins " "))
+
+let date_time_lens = date_lens . del ("T" . time)
+
 (* ------ TZ ------ *)
 let tzidprefix : regexp = "/"
 let tzidparam : regexp  = "TZID" . "=" . tzidprefix? . paramtext
@@ -274,6 +293,11 @@ let dtstparam : regexp  =
   | (";" . xparam)* )*
 let dtstart : regexp = "DTSTART" . dtstparam . ":" . dtstval . CRLF
 
+let dtstval_lens : lens = date_time_lens || date_lens
+let dtstart_lens : lens = 
+  del ("DTSTART" . dtstparam . ":") . 
+  dtstval_lens . 
+  del CRLF
 
 (* ----- PERIOD ----- *)
 let period_explicit : regexp = date_time . "/" . date_time
@@ -487,7 +511,7 @@ let class : regexp = "CLASS" . classparam . ":" . classvalue . CRLF
 
 let eventprop : lens = 
   let p : lens = 
-    del ( class | created | description | dtstart | geo
+    del ( class | created | description  | geo
         | last_mod | location | organizer | priority
         | dtstamp | seq | status | transp
         | uid | url | recurid
@@ -495,7 +519,11 @@ let eventprop : lens =
         | attach | attendee | categories | comment
         | contact | exdate | exrule | rstatus | related
         | resources | rdate | rrule | x_prop )* in 
-  p . summary . p
+  p . dtstart_lens . ins " - ". p . summary . p
+
+test splittable_cex 
+    (atype (dtstart_lens . ins " - ") )
+    (atype summary) = true
 
 let tzprop : regexp = 
   ( dtstart | tzoffsetto | tzoffsetfrom 
@@ -568,10 +596,16 @@ let icalobject : lens =
 
 test icalobject.get icaldata = 
 <<
-Boomerang meeting with Danny and Adam
-Contract pow-wow with Michael
-Dinner Party @ Thornton Manor
-Clare's Birthday
+23 Oct - Boomerang meeting with Danny and Adam
+10 Oct - Contract pow-wow with Michael
+05 Oct - Dinner Party @ Thornton Manor
+27 Aug - Clare's Birthday
 
 >>
 
+test icalobject.put 
+<<
+27 Aug - Clare's Birthday
+
+>>
+into icaldata = ?

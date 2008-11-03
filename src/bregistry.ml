@@ -28,7 +28,7 @@ let msg = Util.format
 module QM = Bident.Qid.Env
 
 (* --------------- Identifier parsing -------------- *)
-let parse_uid s = 
+let parse_uid s =  
   let lexbuf = Lexing.from_string s in
     Blexer.setup "identifier constant";
     let x = 
@@ -43,18 +43,18 @@ let parse_uid s =
       Blexer.finish ();                    
       x
 
-let parse_qid s = 
+let parse_qid s =
   let lexbuf = Lexing.from_string s in
     Blexer.setup "qualified identifier constant";
-    let q = 
+    let q =
       try Bparser.qid Blexer.main lexbuf
-      with _ -> raise 
+      with _ -> raise
         (Error.Harmony_error
-           (fun () -> 
-              msg "@[%s:@ syntax@ error@ in@ qualified@ identifier@ %s.@]" 
+           (fun () ->
+              msg "@[%s:@ syntax@ error@ in@ qualified@ identifier@ %s.@]"
                 (Info.string_of_t (Blexer.info lexbuf))
-                s)) in 
-      Blexer.finish ();                    
+                s)) in
+      Blexer.finish ();
       q
 
 (* --------------- Registry values -------------- *)

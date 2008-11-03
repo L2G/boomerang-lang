@@ -1006,18 +1006,18 @@ let fast_splittable_cex t1 t2 =
                let d2 = di.derivative cj in
                let i1 = mk_inter t1_rev d1 in 
                let i2 = mk_inter t2 d2 in 
-(*                              let () = *)
-(*                                let fmt _ = format_t in *)
-(*                                msg "CJ:[%s]\t" (string_of_char_code cj); *)
-(*                                msg "WJ:[%s]\t" (string_of_char_codes wj); *)
-(*                                msg "D1:%a\t" fmt d1; *)
-(*                                msg "D2:%a@\n" fmt d2 in *)
+(*                let () = *)
+(*                  let fmt _ = format_t in *)
+(*                    msg "WJ:[%s]\t" (string_of_char_codes wj); *)
+(*                    msg "D1:%a\t" fmt d1; *)
+(*                    msg "D2:%a@\n" fmt d2 in *)
                let facc' = QQ.add (d1,d2) facc in 
                let iacc' = 
                  if easy_empty i1 || easy_empty i2 then iacc 
                  else (wj,i1,i2)::iacc in 
                let pacc' = 
-                 if easy_empty d2 || is_epsilon d2 || QQ.mem (d1,d2) facc then pacc
+                 if easy_empty d2 || is_epsilon d2 || QQ.mem (d1,d2) facc then 
+                   pacc
                  else (wj,d2)::pacc in
                (facc', iacc', pacc'))
             (Int.Set.union (symbs t1_rev) (symbs t2))

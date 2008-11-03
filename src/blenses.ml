@@ -62,6 +62,17 @@ type skeleton =
   | S_box of tag
   | S_comp of (skeleton * skeleton)
 
+let rec format_skel sk = 
+  let fmt _ sk = format_skel sk in 
+  Util.format "@[";
+  (match sk with     
+    | S_string w -> msg "S_string(%s)" w
+    | S_concat(sk1,sk2) -> msg "S_concat(%a,%a)" fmt sk1 fmt sk2
+    | S_star(sl) -> msg "S_star(%a)" (fun _ -> Misc.format_list "," format_skel) sl
+    | S_box(t) -> msg "S_box(%s)" t
+    | S_comp(sk1,sk2) -> msg "S_comp(%a,%a)" fmt sk1 fmt sk2);
+  Util.format "@]"
+       
 (* helpers for accessing skeletons *)
 let string_of_skel = function
   | S_string s -> s
@@ -152,13 +163,19 @@ let seq_split t1 t2 w =
   split_one 
     (fun ps -> 
        if Int.Set.cardinal ps = 1 then Int.Set.choose ps
-       else Err.run_error (Info.M "seq_split")
-         (fun () -> 
-            msg "@[concatenation of @[%a@]@ and @[%a@]@ ambiguous@ on@ %s@\n@]"
-              (fun _ -> Rx.format_t) t1 
-              (fun _ -> Rx.format_t) t2 
-              w))
-    t1 t2 w
+       else 
+(*          let n = String.length w in  *)
+(*          let i1 = Int.Set.choose ps in  *)
+(*          let i2 = Int.Set.choose (Int.Set.remove i1 ps) in  *)
+         Err.run_error (Info.M "seq_split")
+           (fun () -> 
+              msg "@[concatenation of @[%a@]@ and @[%a@]"
+                (fun _ -> Rx.format_t) t1 
+                (fun _ -> Rx.format_t) t2;
+              msg "ambiguous@ on@ %s"
+                w))
+  t1 t2 w
+
 
 (* helpers for regular operators *)
 let do_concat t1 t2 f1 f2 x = 
@@ -788,13 +805,11 @@ module DLens = struct
     | S_box(b),SMatch(t1,f1,dl1)        -> b = t1
     | S_string(s),Filter(r1,r2)         -> Rx.match_string (ctype dl) s 
     | _,Forgetkey(dl1)                  -> stype dl1 sk
-    | _,Permute(_,dls)                  -> 
-        let rec loop i s = match i,s with
-          | 0,S_string "" -> true
-          | 1,_ -> stype dls.(i) s 
-          | _,S_concat(si,srest) -> stype dls.(i) si && loop (pred i) srest
-          | _ -> false in
-        loop (Array.length dls) sk
+    | S_star(sl),Permute(_,dls)         -> 
+        (Safelist.length sl = Array.length dls)
+        && (fst (Safelist.fold_left 
+                   (fun (ok,i) si -> (ok && stype dls.(i) si, succ i))
+                   (true,0) sl))
     | _                                 -> false  
 
   and crel dl = match dl.crel with
@@ -929,7 +944,7 @@ module DLens = struct
                  let ci,di = put dl1 ai si d in 
                  loop at st (acc ^ ci) di in
            loop (Rx.star_split (atype dl1) a)
-             (lst_of_skel s) "" d)
+           (lst_of_skel s) "" d)
     | Key(r1)            -> (fun a _ d -> (a,d))
     | DMatch(t1,dl1)     -> 
         (fun a _ d -> 
@@ -980,18 +995,18 @@ module DLens = struct
         (fun a s d -> 
            let k,sigma,sigma_inv,cts,ats = p1 in 
            let a_arr = arr_split_a k dls sigma_inv ats a in 
+           let s_arr = Array.of_list (lst_of_skel s) in
            let c_arr = Array.create k "" in 
-           let rec loop j s d = 
+           let rec loop j d = 
              if j >= k then d
              else
                begin 
-                 let sj = fst_of_skel s in 
                  let i = sigma_inv.(j) in 
-                 let ci,di = put dls.(i) a_arr.(j) sj d in
+                 let ci,di = put dls.(i) a_arr.(j) s_arr.(i) d in
                  c_arr.(i) <- ci;
-                 loop (succ j) (snd_of_skel s) di 
+                 loop (succ j) di 
                end in
-           let d' = loop 0 s d in 
+           let d' = loop 0 d in 
            let c' = concat_array c_arr in
            (c',d'))
 
@@ -1100,7 +1115,7 @@ module DLens = struct
                  loop (succ j) 
                end in
            loop 0;
-           let ky = Buffer.contents k_buf in 
+           let ky = Buffer.contents k_buf in            
            ky)
 
   and parse dl = match dl.desc with
@@ -1155,24 +1170,15 @@ module DLens = struct
     | Forgetkey(dl1)     -> (fun c -> parse dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
-           let k,sigma,sigma_inv,cts,ats = p1 in 
-           let c_arr = arr_split_c k dls cts c in 
-           let s_arr = Array.create k (S_string "") in 
-           let d_arr = Array.create k TMap.empty in
-           let rec loop i =
-             if i < 0 then () 
-             else
-               begin 
-                 let j = sigma.(i) in 
-                 let si,di = parse dls.(i) c_arr.(i) in 
-                 d_arr.(j) <- di;
-                 s_arr.(j) <- si;
-                 loop (pred i)
-               end in
-           loop (pred k);
-           let s' = Array.fold_right (fun si sacc -> S_concat(si,sacc)) s_arr (S_string "") in 
-           let d' = Array.fold_right (fun di dacc -> di++dacc) d_arr TMap.empty in 
-           (s',d'))
+           let k,_,_,cts,_ = p1 in
+           let sl,d,_ = 
+             Safelist.fold_left 
+               (fun (sl,d,i) ci -> 
+                  let si,di = parse dls.(i) ci in
+	          (si::sl, d++di, succ i))
+               ([], TMap.empty,0)
+               (Array.to_list (arr_split_c k dls cts c)) in 
+	   (S_star (Safelist.rev sl),d))
 
   and rcreate dl = 
     (fun a -> fst (create dl a TMap.empty))
@@ -1180,7 +1186,7 @@ module DLens = struct
   and rput dl = 
     (fun a c -> 
        let s,d = parse dl c in
-       fst (put dl a s d))
+       fst (put dl a s d))       
 
   and rget dl = 
     (fun c -> get dl c)

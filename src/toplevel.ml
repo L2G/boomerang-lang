@@ -359,6 +359,6 @@ let toplevel progName =
       (Unix.handle_unix_error 
          (fun () -> Error.exit_on_error (toplevel' progName))
          ())
-  with e -> 
-    Printf.printf "Uncaught exception %s" (Printexc.to_string e); 
-    exit 2
+    | e -> 
+        Printf.printf "Uncaught exception %s" (Printexc.to_string e); 
+        exit 2
