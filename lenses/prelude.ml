@@ -128,6 +128,7 @@ let pmk_iii   = pmk2 S.SInteger mk_ifun S.SInteger mk_ifun S.SInteger mk_i
 let pmk_ss    = pmk1 S.SString mk_sfun S.SString mk_s
 let pmk_si    = pmk1 S.SString mk_sfun S.SInteger mk_i
 let pmk_sss   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
+let pmk_ssu   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SUnit mk_u
 let pmk_sr    = pmk1 S.SString mk_sfun S.SRegexp mk_r
 let pmk_sll   = pmk2 S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
 let pmk_ssll  = 
@@ -150,6 +151,7 @@ let pmk_rrl   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SLens mk_l
 let pmk_rrb   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_b
 let pmk_rrs   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SString mk_s
 let pmk_rrx   = pmk2 S.SRegexp mk_rfun S.SRegexp mk_rfun S.SBool mk_x
+let pmk_rsx   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_x
 let pmk_rsb   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SBool mk_b
 let pmk_rsr   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SRegexp mk_r
 let pmk_rsi   = pmk2 S.SRegexp mk_rfun S.SString mk_sfun S.SInteger mk_i
@@ -302,6 +304,7 @@ let prelude_spec =
   ; pmk_si     "length"               (fun _ -> String.length)
   ; pmk_sic    "get_char"             (fun _ -> String.get)
   ; pmk_ss     "read"                 (fun _ fn -> Misc.read fn)
+  ; pmk_ssu    "write"                (fun _ fn s -> Misc.write fn s)
                                       
   (* regexp operations *)             
   ; pmk_sr     "str"                  (fun _ -> Brx.mk_string)
@@ -313,10 +316,31 @@ let prelude_spec =
   ; pmk_rrr    "inter"                (fun _ -> Brx.mk_inter)
   ; pmk_riir   "regexp_iter"          (fun i -> Brx.mk_iter)
   ; pmk_rrb    "equiv"                (fun _ -> Brx.equiv)
-  ; pmk_rs     "representative"             wrap_rep
+  ; pmk_rrx    "equiv_cex"            (fun _ t1 t2 -> 
+                                         if Brx.equiv t1 t2 then None
+                                         else match Brx.representative (Brx.mk_diff t1 t2) with 
+                                           | Some w1 -> Some(sprintf "%s and %s are not equivalent; [%s] is in the first but not the second" 
+                                                               (Brx.string_of_t t1) (Brx.string_of_t t2) w1)
+                                           | None -> match Brx.representative (Brx.mk_diff t2 t1) with 
+                                               | Some w2 -> Some(sprintf "%s and %s are not equivalent; [%s] is in the second but not the first" 
+                                                                   (Brx.string_of_t t1) (Brx.string_of_t t2) w2)
+                                               | None -> raise (Error.Harmony_error (fun () -> msg "equiv_cex: cannot calculate representative")))
+  ; pmk_rs     "representative"       wrap_rep
+  ; pmk_rrx    "fast_splittable"      (fun _ t1 t2 ->
+                                         match Brx.splittable_cex t1 t2 with
+                                           | Misc.Left(w1,w2,w1',w2') -> 
+                                               Some (sprintf "%s is ambiguously splittable into [%s] [%s] and [%s] [%s]" 
+                                                       (w1^w2) w1 w2 w1' w2')
+                                         | _ -> None)
+  ; pmk_rr     "reverse"              (fun _ -> Brx.mk_reverse)
   ; pmk_rsi    "count"                (fun i r s -> 
                                          Safelist.length (Brx.star_split r s))
-  ; pmk_rsb    "matches"              (fun _ -> Brx.match_string)
+  ; pmk_rsx    "matches_cex"          (fun _ r s -> 
+                                         if Brx.match_string r s then None
+                                         else 
+                                           let s1,s2 = Brx.split_bad_prefix r s in 
+                                           Some (sprintf "string does not match %s [%s] AROUND HERE [%s]" (Brx.string_of_t r) s1 s2))
+  ; pmk_rsb    "matches"              (fun _ r s -> Brx.match_string r s)
   ; pmk_rrb    "splittable"           (fun _ -> Brx.splittable)
   ; pmk_rrx    "splittable_cex"       (fun _ t1 t2 ->
                                          match Brx.splittable_cex t1 t2 with

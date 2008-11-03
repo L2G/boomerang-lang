@@ -166,6 +166,7 @@ test partial_date.create partial_ascii = partial_xml
 
 (* --------------------------------------------------------------------------- *)
 (* ID line *)
+
 test "----- ID line-----" = ?
 
 (* Notes: the ASCII representation of the ID line is dead simple, but
@@ -2139,7 +2140,7 @@ test "----- DR block -----" = ?
 let semi_space_dash : lens = semi . space . dash 
 
 let start_dr (db:regexp) : lens = 
-  Sort.perm_sort
+  Sort.perm_sort_concat
     #{lens}[(Xml.attr "type" (db . semi . space));
 	    (Xml.attr "key" (del NUMBER));
 	    (Xml.attr "id" (esc_sq))]
@@ -4206,6 +4207,12 @@ let sq_mid_xml : lens =
 			     (Xml.attr "version" (ins "sequence version" . space . NUMBER . dot)) . 
 			       Xml.close] in 
   terminate l 
+
+
+let R1 = (UALPHACHAR{10}){0,5}
+let R2 = (UALPHACHAR{1,10})
+
+test is_empty ((Native.Prelude.derivative R1 "AAAA") & R1) = ?
 
 let sq_rest_xml : lens = 
   let block : lens = space . UALPHACHAR{10} in 

@@ -259,12 +259,20 @@ test get l2
         <tag> &lt;hello""world&gt; </tag>
     >>
 
-let lens_concatable (lenses : lens List.t) (sep : lens) : bool
-  = (concatable (List.map{lens}{regexp} ctype lenses) (ctype sep)) &&
-    (concatable (List.map{lens}{regexp} atype lenses) (atype sep))
-
+let lens_concatable (ls : lens List.t) (sep : lens) : bool = 
+  let ls' : lens List.t = 
+    List.reverse{lens}
+      (List.fold_left{lens}{lens List.t}
+        (fun (acc:lens List.t) (li:lens) -> 
+           List.Cons{lens}
+             (match acc with 
+               | List.Nil     -> (li,acc)
+               | List.Cons(_) -> (li,List.Cons{lens}(sep,acc)) 
+              : (lens * lens List.t)))
+        #{lens}[] ls) in   
+  (concatable (ctypes ls')) && (concatable (atypes ls'))
+ 
 (* to cover our asses, we need the concatable refinement
-
    do we want the specific return type?
 *)
 let concat_lenses 

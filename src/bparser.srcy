@@ -53,17 +53,15 @@ let parse_cset s =
   let test c = not (eos ()) && s.[!i] = c in
   let accept c = let r = test c in if r then incr i; r in
   let num = function 
-  | '0' -> 0
-  | '1' -> 1
-  | '2' -> 2
-  | '3' -> 3
-  | '4' -> 4
-  | '5' -> 5
-  | '6' -> 6
-  | '7' -> 7
-  | '8' -> 8
-  | '9' -> 9 
-  | _ -> err () in
+    | '0' -> 0 | '1' -> 1 | '2' -> 2 | '3' -> 3 | '4' -> 4 
+    | '5' -> 5 | '6' -> 6 | '7' -> 7 | '8' -> 8 | '9' -> 9 
+    | _ -> err () in
+  let hex = function 
+    | '0' -> 0 | '1' -> 1 | '2' -> 2 | '3' -> 3 | '4' -> 4
+    | '5' -> 5 | '6' -> 6 | '7' -> 7 | '8' -> 8 | '9' -> 9
+    | 'A' | 'a' -> 10 | 'B' | 'b' -> 11 | 'C' | 'c' -> 12 
+    | 'D' | 'd' -> 13 | 'E' |'e' -> 14 | 'F' | 'f' -> 15 
+    | _ -> err () in
   let get () = 
     let do_get () = let r = s.[!i] in incr i; r in 
       if accept '\\' then 
@@ -76,10 +74,15 @@ let parse_cset s =
           | 't' -> '\009'
           | '\\' -> '\\'
           | c   -> 
-          let n1 = num c in 
-          let n2 = num (do_get ()) in 
-          let n3 = num (do_get ()) in 
-          Char.chr (100 * n1 + 10 * n2 + n3) 
+          if c = '0' && accept 'x' then 
+            let h1 = hex (do_get ()) in 
+            let h2 = hex (do_get ()) in 
+            Char.chr (16 * h1 + h2)
+          else
+            let n1 = num c in 
+            let n2 = num (do_get ()) in 
+            let n3 = num (do_get ()) in 
+            Char.chr (100 * n1 + 10 * n2 + n3) 
       else (do_get ()) in 
   let next () = if eos () then err () else get () in 
   let rec go acc = 

@@ -1,87 +1,159 @@
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008                                                         *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/lenses/sort.boom                                                *)
+(* Sorting functions                                                          *)
+(* $Id$ *)
+(******************************************************************************)
+
 module Sort =
 
-let sortable (Rs:regexp List.t) : bool =
-  let k = List.length{regexp} Rs in
-  let sigmas = List.permutations k in
-  let perm_Rs (sigma:int List.t) = List.permute{regexp} sigma Rs in
-  let pRs = List.map{int List.t}{regexp List.t} perm_Rs sigmas in
-  (List.for_all{regexp List.t} 
-     (fun (Rs_perm:regexp List.t) -> concatable Rs_perm //) pRs) &&
-  disjoint_regexps (List.map{regexp List.t}{regexp} concat_regexps pRs)
+#{@}
 
-let sort_concat (ls:lens List.t where (sortable (ctypes ls))
-                                   && (concatable (atypes ls) //))  
-  : (lens in (union_regexps (ctypes ls))*
-         <-> concat_regexps (atypes ls))
-  = left_quot (sort (ctypes ls)) (concat_lenses ls)  
+\section{Sorting}
 
-let ls = sort_concat #{lens}[copy /a/;copy /b/;copy /c/]
-test get ls "abc" = "abc"
-test get ls "cba" = "abc"
-test get ls "bca" = "abc"
-test get ls "bba" = error
-test get ls "dba" = error
-test put ls "abc" "cba" = "abc"
-test ctype ls = [a-c]* (* part of the laxness of canonizers!  
-                          it's actually permutations of /abc/ *)
+The @Sort@ module defines functions for building lenses that do sorting. 
 
-let possible_sorts (Rs:regexp List.t) : regexp =
-  let k = List.length{lens} Rs in
-  let sigmas = List.permutations k in
-  let compute_sort (sigma:int List.t) =
-    concat_regexps (List.permute{regexp} sigma Rs) in
-  let sorts = List.map{int List.t}{regexp} compute_sort sigmas in
-  union_regexps sorts
+\subsection{Permutation Sorting}
 
-let perm_sort (ls:lens List.t where 
-		 (sortable (ctypes ls)) &&
-	         (concatable (atypes ls) //))
-  : (lens in possible_sorts (ctypes ls)
-         <-> concat_regexps (atypes ls))
-  =
-  let k = List.length{lens} ls in
-  let sigmas = List.permutations k in
-  let compute_sort (sigma:int List.t) =
-    permute (List.invert_permutation sigma) (List.permute{lens} sigma ls) in
-  let sorted = List.map{int List.t}{lens} compute_sort sigmas in
-  List.fold_left{lens}{lens}
-    (fun (l_acc:lens) (sort_l:lens) ->
-       l_acc || sort_l)
-    (copy EMPTY) sorted
+Using the @lens_permute@ operator, and the functions for manipulating 
+integer lists representing permutations from the @List@ module it is 
+straightforward to define lenses that do sorting. 
 
-(* note precise ctypes *)
-test ctype (perm_sort #{lens}[(copy /a/);(copy /b/)]) = (/ab/ | /ba/)
-test ctype 
-    (perm_sort #{lens}[(copy /a/);(copy /b/);(copy /c/)]) 
-  = (/abc/ | /acb/ | /bac/ | /bca/ | /cab/ | /cba/)
-test atype 
-    (perm_sort #{lens}[(copy /a/);(copy /b/);(copy /c/)]) 
-  = /abc/
- 
-let l4 : lens = 
-  perm_sort #{lens}[(copy "a");(copy "b");(copy "c");(copy "d")]
-      
-test l4.get "abcd" = "abcd"
-test l4.get "abdc" = "abcd"
-test l4.get "acbd" = "abcd"
-test l4.get "acdb" = "abcd"
-test l4.get "adbc" = "abcd"
-test l4.get "adcb" = "abcd"
-test l4.get "bacd" = "abcd"
-test l4.get "badc" = "abcd"
-test l4.get "bcad" = "abcd"
-test l4.get "bcda" = "abcd"
-test l4.get "bdac" = "abcd"
-test l4.get "bdca" = "abcd"
-test l4.get "cabd" = "abcd"
-test l4.get "cadb" = "abcd"
-test l4.get "cbad" = "abcd"
-test l4.get "cbda" = "abcd"
-test l4.get "cdab" = "abcd"
-test l4.get "cdba" = "abcd"
-test l4.get "dabc" = "abcd"
-test l4.get "dacb" = "abcd"
-test l4.get "dbac" = "abcd"
-test l4.get "dbca" = "abcd"
-test l4.get "dcab" = "abcd"
-test l4.get "dcba" = "abcd"
+First, a few helper functions. The @perms_regexps@ function computes the 
+permutations of a list of regular expressions as a list of lists of 
+regular expressions.
+
+#* let perms_regexps (rl:regexp List.t) : (regexp List.t) List.t = 
+#*   List.map{int List.t}{regexp List.t}
+#*     (fun (sigmai:int List.t) -> List.permute{regexp} sigmai rl)
+#*     (List.permutations (List.length{regexp} rl))
+
+#* test perms_regexps #{regexp}[/a/;/b/] 
+#* = #{regexp List.t}[#{regexp}[/a/;/b/]; #{regexp}[/b/;/a/]]
+
+The @perm_regexps@ function is similar but flattens the inner lists using 
+@regexp_concat@.
+
+#* let perm_regexps (rl:regexp List.t) : regexp List.t = 
+#*   List.map{regexp List.t}{regexp} concat_regexps (perms_regexps rl)
+
+
+#* test perm_regexps #{regexp}[/a/;/b/] 
+#* = #{regexp}[/ab/;/ba/]
+
+The @perm_sortable@ predicate returns @true@ iff the concatenations of
+all permutations of a list of regular expressions are unambiguous and also 
+disjoint. 
+
+#* let perm_sortable (rl:regexp List.t) : bool =
+#*   let perms = perms_regexps rl in 
+#*   List.for_all{regexp List.t} (fun (pi:regexp List.t) -> concatable pi) perms
+#*   && disjoint_regexps (List.map{regexp List.t}{regexp} concat_regexps perms)
+
+The @perm_sort@ lens sorts a list of regular expressions using instances of
+the @lens_permute@ combinator.
+
+#* let perm_sort 
+#*   (rl:regexp List.t where perm_sortable rl)
+#* : (lens in union_regexps (perm_regexps rl) <-> concat_regexps rl) = 
+#*   let k : int = List.length{lens} rl in
+#*   let ls_perms : lens List.t = 
+#*     List.map{int List.t}{lens} 
+#*       (fun (sigma:int List.t) -> 
+#*          let sigma_inv = List.invert_permutation sigma in 
+#*          lens_permute sigma (List.permute{lens} sigma_inv rl))
+#*       (List.permutations (List.length{lens} rl)) in
+#*   List.fold_left{lens}{lens}
+#*     (fun (acc:lens) (permi:lens) -> acc || permi)
+#*     (copy EMPTY) ls_perms
+
+#* let l2 : (lens in (/ab/ | /ba/) <-> /ab/) = 
+#*   perm_sort #{regexp}[/a/;/b/]
+#* test l2.get "ab" = "ab"
+#* test l2.get "ba" = "ab"
+
+#* let l3 : (lens in (/abc/ | /acb/ | /bac/ | /bca/ | /cab/ | /cba/) <-> /abc/) = 
+#*   perm_sort #{regexp}[/a/;/b/;/c/]
+#* test l3.get "abc" = "abc"
+#* test l3.get "acb" = "abc"
+#* test l3.get "bac" = "abc"
+#* test l3.get "bca" = "abc"
+#* test l3.get "cab" = "abc"
+#* test l3.get "cba" = "abc"
+
+#* let l4 
+#* : (lens in
+#*      ( /abcd/ | /abdc/ | /acbd/ | /acdb/ | /adbc/ | /adcb/  
+#*      | /bacd/ | /badc/ | /bcad/ | /bcda/ | /bdac/ | /bdca/  
+#*      | /cabd/ | /cadb/ | /cbad/ | /cbda/ | /cdab/ | /cdba/ 
+#*      | /dabc/ | /dacb/ | /dbac/ | /dbca/ | /dcab/ | /dcba/ ) <-> /abcd/ ) = 
+#*  perm_sort #{regexp}[/a/;/b/;/c/;/d/]
+
+#* test l4.get "abcd" = "abcd"
+#* test l4.get "abdc" = "abcd"
+#* test l4.get "acbd" = "abcd"
+#* test l4.get "acdb" = "abcd"
+#* test l4.get "adbc" = "abcd"
+#* test l4.get "adcb" = "abcd"
+#* test l4.get "bacd" = "abcd"
+#* test l4.get "badc" = "abcd"
+#* test l4.get "bcad" = "abcd"
+#* test l4.get "bcda" = "abcd"
+#* test l4.get "bdac" = "abcd"
+#* test l4.get "bdca" = "abcd"
+#* test l4.get "cabd" = "abcd"
+#* test l4.get "cadb" = "abcd"
+#* test l4.get "cbad" = "abcd"
+#* test l4.get "cbda" = "abcd"
+#* test l4.get "cdab" = "abcd"
+#* test l4.get "cdba" = "abcd"
+#* test l4.get "dabc" = "abcd"
+#* test l4.get "dacb" = "abcd"
+#* test l4.get "dbac" = "abcd"
+#* test l4.get "dbca" = "abcd"
+#* test l4.get "dcab" = "abcd"
+#* test l4.get "dcba" = "abcd"
+
+The @perm_sort_concat@ quotient lens uses a canonizer built using 
+@perm_sort@ to sort the source string before it is processed by (the concatenation 
+of) a list of lenses.
+
+#* let perm_sort_concat 
+#*    (ls:lens List.t where perm_sortable (ctypes ls) && concatable (atypes ls))
+#*  : (lens in union_regexps (perm_regexps (ctypes ls)) <-> concat_regexps (atypes ls))
+#*  = left_quot (canonizer_of_lens (perm_sort (ctypes ls))) (concat_lenses ls)
+
+The @perm_sort_concat@ lens does sorting, but its type on the source side grows as 
+the {\em factorial} of the regular expressions being sorted. The final @sort_concat@ 
+lens uses the @sort@ canonizer, which has a much more compact (although imprecise) 
+type.
+
+#* let sort_concat 
+#*    (ls:lens List.t where sortable (ctypes ls) && concatable (atypes ls))
+#*  : (lens in (union_regexps (ctypes ls))* <-> concat_regexps (atypes ls))
+#*  = left_quot (sort (ctypes ls)) (concat_lenses ls)  
+
+#* let ls : (lens in [abc]* <-> /abc/) = 
+#*   sort_concat #{lens}[/a/; /b/; /c/]
+
+#* test get ls "abc" = "abc"
+#* test get ls "cba" = "abc"
+#* test get ls "bca" = "abc"
+#* test get ls "bba" = error
+#* test get ls "dba" = error
+#* test put ls "abc" "cba" = "abc"

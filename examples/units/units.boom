@@ -1,4 +1,4 @@
-module Units = 
+module Units =   
 
   let single_cn : canonizer =
     canonizer_of_lens ((WS . "<a x=") <-> "<b x=") .
@@ -37,7 +37,7 @@ module Units =
 
 (* permute *)
 let l : lens = 
-  permute
+  lens_permute
     #{int}[1;0;2] 
     #{lens}[copy [A-Z];key [0-9]; copy [a-z]]
 
@@ -87,4 +87,3 @@ test l3.get "bac" = "abc"
 test l3.get "bca" = "abc"
 test l3.get "cab" = "abc"
 test l3.get "cba" = "abc"
-

@@ -265,6 +265,8 @@ expressions denote the same language.
 
 #* let equiv : regexp -> regexp -> bool
 ## = Native.Prelude.equiv
+#* let equiv_cex : regexp -> regexp -> bool
+## = Native.Prelude.equiv_cex
 
 #* test equiv [A-Z] [\065-\090] = true
 
@@ -273,6 +275,8 @@ to the language denoted by a regular expression.
 
 #* let matches : regexp -> string -> bool 
 ## = Native.Prelude.matches
+#* let matches_cex : regexp -> string -> bool 
+## = Native.Prelude.matches_cex
 
 #* test matches [A-Z] "A" = true
 #* test matches [A-Z] "0" = false
@@ -386,27 +390,27 @@ is in a given @ctype@ and @atype@.  The @lens in C <-> A@ notation desugars
 into @in_lens_type@.
 
 #* let in_lens_type (l:lens) (C:regexp) (A:regexp) : bool =
-#*   (land (equiv (ctype l) C) (equiv (atype l) A))
+#*   (land (equiv_cex (ctype l) C) (equiv_cex (atype l) A))
 
 \LENSSECTION{@in_bij_lens_type@} The @in_lens_type@ function tests whether a 
 lens is bijective in a given @ctype@ and @atype@. The @lens in C <=> A@ 
 notation desugars into @in_bij_lens_type@.
 
 #* let in_bij_lens_type (l:lens) (C:regexp) (A:regexp) : bool =
-#*   (land (land (equiv (ctype l) C) (equiv (atype l) A)) (bij l))
+#*   (land (land (equiv_cex (ctype l) C) (equiv_cex (atype l) A)) (bij l))
 
 \LENSSECTION{@get@} The @get@ function extracts the $\GET$ component of a lens. The record-style 
 projection notation @l.get@ desguars into @get@.
 
-#* let get : (l:lens -> (c:string where matches (ctype l) c) -> string)
+#* let get : (l:lens -> (c:string where matches_cex (ctype l) c) -> string)
 ## = Native.Prelude.get
 
 \LENSSECTION{@put@} The @put@ function extracts the $\PUT$ component of a lens. 
 The record-style projection notation @l.put@ desguars into @put@.
 
 #* let put : (l:lens ->
-#*           (a:string where matches (atype l) a) -> 
-#*           (c:string where matches (ctype l) c) -> 
+#*           (a:string where matches_cex (atype l) a) -> 
+#*           (c:string where matches_cex (ctype l) c) -> 
 #*           string)
 ## = Native.Prelude.put 
 
@@ -415,7 +419,7 @@ component of a lens. The record-style projection notation @l.create@
 desguars into @create@.
 
 #* let create : (l:lens -> 
-#*              (a:string where matches (atype l) a) -> 
+#*              (a:string where matches_cex (atype l) a) -> 
 #*              string)
 ## = Native.Prelude.create 
 
@@ -523,7 +527,7 @@ concrete type of the lens on the right must be identical.
 
 #* let compose 
 #*     (l1:lens where rel_is_id (arel l1))
-#*     (l2:lens where land (equiv (atype l1) (ctype l2))
+#*     (l2:lens where land (equiv_cex (atype l1) (ctype l2))
 #*                         (rel_is_id (crel l2)))
 #*   : (l:lens where in_lens_type l (ctype l1) (atype l2))
 ## = Native.Prelude.compose l1 l2
@@ -731,8 +735,8 @@ $\CANONIZE$ function) of a  canonizer.
 whether a canonizer has the given uncanonized and canonized types.
 
 #* let in_canonizer_type (cn:canonizer) (U:regexp) (C:regexp)
-##   = (land (equiv (uncanonized_type cn) U)
-##           (equiv (canonized_type cn) C))
+##   = (land (equiv_cex (uncanonized_type cn) U)
+##           (equiv_cex (canonized_type cn) C))
 
 \subsection{Canonizers}
 
@@ -862,7 +866,7 @@ a canonizer @q@ on the left by passing concrete strings through @q@.
 
 #* let left_quot 
 #*   (cn:canonizer)
-#*   (l:lens where land (equiv (canonized_type cn) (ctype l))
+#*   (l:lens where land (equiv_cex (canonized_type cn) (ctype l))
 #*                      (rel_is_id (cnrel cn)))
 #* : (l':lens where in_lens_type l' (uncanonized_type cn) (atype l))
 ## = Native.Prelude.left_quot cn l
@@ -893,7 +897,7 @@ a canonizer @q@ on the right by passing abstract strings through @q@.
 
 #* let right_quot
 #*   (l:lens)
-#*   (cn:canonizer where land (equiv (canonized_type cn) (atype l))
+#*   (cn:canonizer where land (equiv_cex (canonized_type cn) (atype l))
 #*                            (rel_is_id (cnrel cn)))
 #* : (l':lens where in_lens_type l' (ctype l) (uncanonized_type cn))
 ## = Native.Prelude.right_quot l cn
@@ -939,6 +943,12 @@ a file from the local filesystem.
 
 #* let read : string -> string 
 ## = Native.Prelude.read
+
+\LENSSECTION{@write@} The @write@ function writes a string to a file on 
+the local filesystem.
+
+#* let write : string -> string -> unit
+## = Native.Prelude.write
 
 \subsection{Synchronization}
 

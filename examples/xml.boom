@@ -206,7 +206,7 @@ let slow_attr2_elt (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (body:lens) : lens = 
   raw_open spaces tag . 
-  Sort.perm_sort
+  Sort.perm_sort_concat
     #{lens}[(attr name1 value1);
 	    (attr name2 value2)] . 
   close . 
@@ -248,7 +248,7 @@ let slow_attr2_elt_no_kids (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) : lens = 
   attrs_elt_no_kids spaces tag 
-  (Sort.perm_sort
+  (Sort.perm_sort_concat
     #{lens}[(attr name1 value1);
 	    (attr name2 value2)])
 
@@ -266,7 +266,7 @@ let slow_attr3_elt_no_kids (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) : lens = 
   attrs_elt_no_kids spaces tag 
-  (Sort.perm_sort
+  (Sort.perm_sort_concat
     #{lens}[(attr name1 value1);
 	    (attr name2 value2);
 	    (attr name3 value3)])
@@ -288,7 +288,7 @@ let slow_attr4_elt_no_kids (spaces:string) (tag:string)
     (name3:string) (value3:lens)
     (name4:string) (value4:lens) : lens = 
   attrs_elt_no_kids spaces tag 
-  (Sort.perm_sort
+  (Sort.perm_sort_concat
     #{lens}[(attr name1 value1);
 	    (attr name2 value2);
 	    (attr name3 value3);
@@ -322,7 +322,7 @@ let slow_attr2_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) : lens = 
   attrs_open spaces tag 
-    (Sort.perm_sort
+    (Sort.perm_sort_concat
        #{lens}[(attr name1 value1);
 	       (attr name2 value2)])
 
@@ -340,7 +340,7 @@ let slow_attr3_elt_open (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) : lens = 
   attrs_open spaces tag 
-    (Sort.perm_sort
+    (Sort.perm_sort_concat
        #{lens}[(attr name1 value1);
                (attr name2 value2);
                (attr name3 value3)])
@@ -351,7 +351,7 @@ let slow_attr4_elt_open (spaces:string) (tag:string)
     (name3:string) (value3:lens) 
     (name4:string) (value4:lens) : lens = 
   attrs_open spaces tag 
-    (Sort.perm_sort
+    (Sort.perm_sort_concat
        #{lens}[(attr name1 value1);
                (attr name2 value2);
                (attr name3 value3);

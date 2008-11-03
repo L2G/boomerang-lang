@@ -25,7 +25,7 @@ module List =
 
 \section{Lists}
 
-The @List@ module defines a datatype for fpolymorphic list structures.
+The @List@ module defines a datatype for polymorphic list structures.
 
 \LENSSECTION{@'a t@} A list is either the @Nil@ list or a @Cons@ of a head 
 and a tail.

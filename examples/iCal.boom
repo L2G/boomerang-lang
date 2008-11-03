@@ -1,0 +1,564 @@
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2008                                                         *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/examples/ical.boom                                              *)
+(* iCal                                                                       *)
+(* $Id$ *)
+(******************************************************************************)
+
+module ICal =
+
+let icaldata : string = 
+<<
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Nate Foster
+X-WR-TIMEZONE:Europe/Paris
+BEGIN:VTIMEZONE
+TZID:Europe/Paris
+X-LIC-LOCATION:Europe/Paris
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTART:20081031T190000Z
+DTEND:20081031T200000Z
+DTSTAMP:20081030T043548Z
+UID:gq46qpd4auim56i59j4hm3j7ik@google.com
+CLASS:PRIVATE
+CREATED:20081023T153404Z
+LAST-MODIFIED:20081023T153413Z
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Boomerang meeting with Danny and Adam
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20081022T190000Z
+DTEND:20081022T200000Z
+DTSTAMP:20081030T043548Z
+UID:ogrornvlgqun3314a6e3d1s8p8@google.com
+CLASS:PRIVATE
+CREATED:20081022T134424Z
+LAST-MODIFIED:20081022T134424Z
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Contract pow-wow with Michael
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20081006T000000Z
+DTEND:20081006T010000Z
+DTSTAMP:20081030T043548Z
+UID:6od3g5h9dmegj47c4elj3jtfvs@google.com
+CLASS:PRIVATE
+CREATED:20081002T112900Z
+LAST-MODIFIED:20081002T112900Z
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Dinner Party @ Thornton Manor
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20080827
+DTEND;VALUE=DATE:20080828
+DTSTAMP:20081030T043548Z
+UID:lbeos1ifasoepvunt0i72o3pdg@google.com
+CLASS:PRIVATE
+CREATED:20080922T160310Z
+LAST-MODIFIED:20080922T160310Z
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Clare's Birthday
+TRANSP:TRANSPARENT
+END:VEVENT
+END:VCALENDAR
+
+>>
+
+let CR : regexp = [\0x0D]
+let LF : regexp = [\0x0A]
+let CRLF : regexp = CR? . LF
+let SPACE : regexp = [\0x20]
+let HTAB : regexp = [\0x09]
+let WSP : regexp = SPACE | HTAB
+let ALPHA : regexp = [\0x41-\0x5A] | [\0x61-\0x7A]
+let DIGIT : regexp = [\0x30-\0x39]
+let DQUOTE : regexp = [\0x22]
+let CTL : regexp = [\0x00-\0x08] | [\0x0A-\0x1F] | [\0x7F]
+let NON_US_ASCII : regexp = [\0x80-0xF8]
+let QSAFE_CHAR : regexp = WSP |[\0x21] | [\0x23-\0x7E] | NON_US_ASCII
+let SAFE_CHAR : regexp = WSP | [\0x21] | [\0x23-\0x2B] | [\0x2D-\0x39] | [\0x3C-\0x7E] | NON_US_ASCII
+let VALUE_CHAR : regexp = WSP | [\0x21-\0x7E] | NON_US_ASCII
+let TSAFE_CHAR : regexp = [\0x20-\0x21] | [\0x23-\0x2B] | [\0x2D-\0x39] | [\0x3C-\0x5B] | [\0x5D-\0x7E] | NON_US_ASCII
+let ESCAPED_CHAR : regexp = "\\\\" | "\\;" | "\\," | "\\N" | "\\n" 
+let text : regexp = (TSAFE_CHAR | DQUOTE | ":" | ESCAPED_CHAR)*
+let integer : regexp = ("+" | "-")? . DIGIT+
+let float : regexp = ("+" | "-")? . DIGIT+ . ("." . DIGIT+)?
+
+let b_char = ALPHA | DIGIT | "+" | "/"
+let b_end : regexp = (b_char{2} . "==") | (b_char{3} . "=")
+let binary : regexp = (b_char{4})* . b_end?
+
+let iana_token : regexp = (ALPHA | DIGIT | "-")+
+
+let vendorid : regexp = (ALPHA | DIGIT){3,}
+let paramtext : regexp = SAFE_CHAR*
+let quoted_string = DQUOTE . QSAFE_CHAR* . DQUOTE 
+let param_value : regexp = paramtext | quoted_string
+let x_name : regexp =  "X-" . vendorid? . (ALPHA | DIGIT | "-")+
+let xparam : regexp = x_name . "=" . param_value . ("," . param_value)*
+
+(* ----- PRODID ----- *)
+let pidparam : regexp = (";" . xparam)*
+let pidvalue : regexp = text
+let prodid : regexp = "PRODID" . pidparam . ":" . pidvalue . CRLF
+
+(* ----- VERSION ----- *)
+let verparam : regexp = (";" . xparam)*
+let minver : regexp = iana_token
+let maxver : regexp = iana_token
+let vervalue : regexp = "2.0" | maxver | (minver . ";" . maxver)
+let version : regexp = "VERSION" . verparam . ":" . vervalue . CRLF
+
+(* ----- CALSCALE ----- *)
+let calparam : regexp = (";" . xparam)*
+let calvalue : regexp =  "GREGORIAN" | iana_token
+let calscale : regexp =  "CALSCALE" . calparam . ":" . calvalue . CRLF
+
+(* ----- METHOD ----- *)
+let metparam : regexp = (";" . xparam)*
+let metvalue : regexp = iana_token
+let method : regexp = "METHOD" . metparam . ":" . metvalue . CRLF
+
+(* ----- URI ----- *)
+let safe : regexp = "$" | "-" | "_" | "." | "+"
+let extra : regexp = "!" | "*" | "'" | "(" | ")" | ","
+let hex : regexp = DIGIT | [A-Fa-f]
+let escape : regexp = "%" . hex{2}
+let unreserved : regexp = ALPHA | DIGIT | safe | extra
+let uchar : regexp = unreserved | escape
+let hsegment : regexp  = ( uchar | ";" | ":" | "@" | "&" | "=" )*
+let search : regexp = ( uchar | ";" | ":" | "@" | "&" | "=" )*
+let hpath : regexp = hsegment . ( "/" . hsegment )*
+let digits : regexp = DIGIT+
+let alphadigit : regexp = ALPHA | DIGIT
+let toplabel : regexp = ALPHA | ALPHA . (alphadigit | "-" ) . alphadigit
+let domainlabel : regexp = alphadigit | alphadigit . ( alphadigit | "-" )* . alphadigit
+let hostname = (domainlabel . "." )* . toplabel
+let hostnumber : regexp = digits . ("." . digits){3}
+let host : regexp = hostname | hostnumber
+let hostport : regexp = host . ( ":" . digits )?
+let httpurl : regexp = "http://" . hostport . ( "/" . hpath . ( "?" . search )? )
+let mailtourl : regexp = "mailto:" . uchar+ . "@" . host 
+let uri : regexp = httpurl | mailtourl
+let cal_address : regexp = uri
+
+(* ----- X-PROP ----- *)
+let x_name : regexp = "X-" . (vendorid . "-")? . (ALPHA | DIGIT | "-")+
+
+let vendorid : regexp = (ALPHA | DIGIT){3,}
+let language = ALPHA{1,8} . ("-" . ALPHA{1,8})*
+let languageparam : regexp = "LANGUAGE" . "=" . language
+
+let dirparam : regexp = "DIR" . "=" . DQUOTE . uri . DQUOTE
+
+let cnparam : regexp = "CN" . "=" . param_value
+let sentbyparam : regexp = "SENT-BY" . "=" . DQUOTE . cal_address . DQUOTE
+
+let x_prop : regexp = 
+  x_name . (";" . xparam)* . (";" . languageparam)? . ":" . text . CRLF
+
+let calprops : regexp = 
+  ( prodid 
+  | version
+  | calscale
+  | method  
+  | x_prop )*
+
+(* ----- DATE TIME ------ *)
+let date_mday : regexp = DIGIT{2}
+let date_month : regexp = DIGIT{2}
+let date_fullyear : regexp = DIGIT{4}
+let date_value : regexp = date_fullyear . date_month . date_mday
+let date : regexp = date_value
+
+let time_second : regexp = DIGIT{2}
+let time_minute : regexp = DIGIT{2}
+let time_hour : regexp = DIGIT{2}
+let time_utc : regexp = "Z"
+let time : regexp = time_hour . time_minute . time_second . time_utc?
+
+let date_time : regexp = date . "T" . time 
+
+(* ------ TZ ------ *)
+let tzidprefix : regexp = "/"
+let tzidparam : regexp  = "TZID" . "=" . tzidprefix? . paramtext
+let tzidpropparam : regexp = (";" . xparam)*
+let tzid : regexp = "TZID" . tzidpropparam . ":" . tzidprefix? . text . CRLF
+let tznparam :regexp = ((";" . languageparam) | (";" . xparam))*
+let tzname : regexp = "TZNAME" . tznparam . ":" . text . CRLF
+
+let time_numzone : regexp = ("+" | "-") . time_hour . time_minute . time_second?
+let utc_offset : regexp = time_numzone 
+let toparam : regexp = (";" . xparam)*
+let tzoffsetto : regexp = "TZOFFSETTO" . toparam . ":" . utc_offset . CRLF
+let frmparam : regexp = (";" . xparam)*
+let tzoffsetfrom : regexp = "TZOFFSETFROM" . frmparam . ":" . utc_offset . CRLF
+
+(* ----- DURATION ----- *)
+let dur_second : regexp= DIGIT+ . "S"
+let dur_minute : regexp= DIGIT+ . "M" . dur_second?
+let dur_hour : regexp= DIGIT+ . "H" . dur_minute?
+let dur_week : regexp= DIGIT+ . "W"
+let dur_day  : regexp= DIGIT+ . "D"
+let dur_time : regexp= "T" . (dur_hour | dur_minute | dur_second)
+let dur_date : regexp= dur_day . dur_time?
+let dur_value = ("+"? | "-") . "P" . (dur_date | dur_time | dur_week)
+let durparam : regexp = (";" . xparam)*
+let duration : regexp = "DURATION" . durparam . ":" . dur_value . CRLF
+
+let dtendparam : regexp = 
+  ( (";" . "VALUE" . "=" . ("DATE-TIME" | "DATE"))
+  | (";" . tzidparam) 
+  | (";" . xparam) )*
+let dtendval : regexp = date_time | date
+let dtend : regexp = "DTEND" . dtendparam .":" . dtendval . CRLF
+
+let stmparam : regexp = (";" . xparam)*
+let dtstamp : regexp = "DTSTAMP" . stmparam . ":" . date_time . CRLF
+
+let dtstval : regexp = date_time | date
+let dtstparam : regexp  = 
+  ( (";" . "VALUE" . "=" . ("DATE-TIME" | "DATE")) 
+  | (";" . tzidparam) 
+  | (";" . xparam)* )*
+let dtstart : regexp = "DTSTART" . dtstparam . ":" . dtstval . CRLF
+
+
+(* ----- PERIOD ----- *)
+let period_explicit : regexp = date_time . "/" . date_time
+let period_start : regexp = date_time . "/" . dur_value
+let period : regexp = period_explicit | period_start
+
+(* ----- RRULE ----- *)
+let freq : regexp = 
+  ( "SECONDLY" | "MINUTELY" | "HOURLY" | "DAILY"
+  | "WEEKLY" | "MONTHLY" | "YEARLY" )
+
+let enddate : regexp = date | date_time
+
+let seconds : regexp = DIGIT | DIGIT{2}
+let byseclist : regexp = seconds | ( seconds . ("," . seconds)* )
+
+let minutes : regexp = DIGIT | DIGIT{2}
+let byminlist : regexp = minutes | ( minutes . ("," . minutes)* )
+
+let hour : regexp = DIGIT | DIGIT{2}
+let byhrlist : regexp = hour | hour . ("," . hour)*
+
+
+let ordwk : regexp = DIGIT | DIGIT{2}
+let plus : regexp = "+"
+let minus : regexp = "-"
+let weekday : regexp = "SU" | "MO" | "TU" | "WE" | "TH" | "FR" | "SA"
+let weekdaynum : regexp = (plus? . ordwk | minus . ordwk)? . weekday
+let bywdaylist : regexp = weekdaynum | ( weekdaynum . ("," . weekdaynum)* )
+
+let ordmoday : regexp = DIGIT | DIGIT{2}
+let monthdaynum : regexp = (plus? . ordmoday) | (minus . ordmoday)
+let bymodaylist : regexp = monthdaynum | ( monthdaynum . ("," . monthdaynum)* )
+
+let ordyrday : regexp = DIGIT | DIGIT{2} | DIGIT{3}
+let yeardaynum : regexp = (plus? . ordyrday) | (minus . ordyrday)
+let byyrdaylist : regexp = yeardaynum | ( yeardaynum . ("," . yeardaynum)* )
+
+let weeknum : regexp = (plus? . ordwk) | (minus . ordwk)
+let bywknolist : regexp = weeknum | ( weeknum . ("," . weeknum)* )
+
+let monthnum : regexp = DIGIT | DIGIT{2}
+let bymolist : regexp = monthnum | ( monthnum . ("," . monthnum)* )
+
+let setposday : regexp = yeardaynum
+let bysplist : regexp = setposday | ( setposday . ("," . setposday)* )
+
+let recur : regexp = 
+  "FREQ" . "=" . freq . 
+  ( ( ";" . "UNTIL" . "=" . enddate )
+  |  ( ";" . "COUNT" . "=" . DIGIT+ )
+  |  ( ";" . "INTERVAL" . "=" . DIGIT+ )
+  |  ( ";" . "BYSECOND" . "=" . byseclist )
+  |  ( ";" . "BYMINUTE" . "=" . byminlist )
+  |  ( ";" . "BYHOUR" . "=" . byhrlist )
+  |  ( ";" . "BYDAY" . "=" . bywdaylist )
+  |  ( ";" . "BYMONTHDAY" . "=" . bymodaylist )
+  |  ( ";" . "BYYEARDAY" . "=" . byyrdaylist )
+  |  ( ";" . "BYWEEKNO" . "=" . bywknolist )
+  |  ( ";" . "BYMONTH" . "=" . bymolist )
+  |  ( ";" . "BYSETPOS" . "=" . bysplist )
+  |  ( ";" . "WKST" . "=" . weekday )
+  |  ( ";" . x_name . "=" . text ) )*
+
+let rrulparam : regexp = (";" . xparam)*
+let rrule : regexp = "RRULE" . rrulparam . ":" . recur . CRLF
+
+let rdtval : regexp = date_time | date | period
+let rdtparam : regexp =
+  ( (";" . "VALUE" . "=" . ("DATE-TIME" | "DATE" | "PERIOD"))
+  | (";" . tzidparam) 
+  | (";" . xparam) )*
+
+let rdate : regexp = "RDATE" . rdtparam . ":" . rdtval . ("," . rdtval)* . CRLF
+
+let rangeparam : regexp = "RANGE" . "=" . ("THISANDPRIOR" | "THISANDFUTURE")
+
+let ridparam : regexp =   
+  ( (";" . "VALUE" . "=" . ("DATE-TIME" | "DATE")) 
+  | (";" . tzidparam) 
+  | (";" . rangeparam) 
+  | (";" . xparam) )*
+let ridval : regexp = date_time | date
+let recurid : regexp = "RECURRENCE-ID" . ridparam . ":" . ridval . CRLF
+
+(* ----- COMMENT ----- *)
+let altrepparam : regexp = "ALTREP" . "=" . DQUOTE . uri . DQUOTE
+
+let commparam :regexp = 
+  ( (";" . altrepparam) | (";" . languageparam) 
+  | (";" . xparam) )*
+let comment : regexp = "COMMENT" . commparam . ":" . text . CRLF
+
+
+(* ------ EVENTPROP ------ *)
+
+let resrcparam : regexp = ((";" . altrepparam) | (";" . languageparam) | (";" . xparam))*
+let resources : regexp  = "RESOURCES" . resrcparam . ":" . text . ("," . text) . CRLF
+
+let reltypeparam : regexp = "RELTYPE" . "=" . ("PARENT" | "CHILD" | "SIBLING" | iana_token | x_name) 
+let relparam : regexp = ((";" . reltypeparam) | (";" . xparam))*
+let related : regexp = "RELATED-TO" . relparam? . ":" . text . CRLF
+
+
+let rstatparam : regexp = ((";" . languageparam) | (";" . xparam))*
+let statcode : regexp = DIGIT+ . ("." . DIGIT+)*
+let statdesc : regexp = text
+let extdata : regexp = text
+let rstatus : regexp = "REQUEST-STATUS" . rstatparam . ":" . statcode . ";" . statdesc . (";" . extdata)?
+
+let exrparam : regexp = (";" . xparam)*
+let exrule : regexp = "EXRULE" . exrparam . ":" . recur . CRLF
+
+let exdtparam : regexp = 
+  ( (";" . "VALUE" . "=" . ("DATE-TIME" | "DATE"))
+  | (";" . tzidparam)
+  | (";" . xparam)) *
+let exdtval : regexp = date_time | date
+let exdate : regexp = "EXDATE" . exdtparam . ":" . exdtval . ("," . exdtval) . CRLF
+
+let contparam : regexp = ( (";" . altrepparam) | (";" . languageparam) | (";" . xparam) )*
+let contact : regexp = "CONTACT" . contparam . ":" . text . CRLF
+
+let catparam : regexp = ((";" . languageparam ) |  (";" . xparam))*
+let categories : regexp = "CATEGORIES" . catparam . ":" . text . ("," . text)* . CRLF
+
+let delfromparam : regexp = "DELEGATED-FROM" . "=" . DQUOTE . cal_address . DQUOTE . ("," . DQUOTE . cal_address . DQUOTE)*
+let deltoparam : regexp = "DELEGATED-TO" . "=" . DQUOTE . cal_address . DQUOTE . ("," . DQUOTE . cal_address . DQUOTE)*
+
+let roleparam : regexp  = "ROLE" . "=" . ("CHAIR" | "REQ-PARTICIPANT" | "OPT-PARTICIPANT" | "NON-PARTICIPANT" | x_name | iana_token)
+
+let rsvpparam : regexp = "RSVP" . "=" . ("TRUE" | "FALSE")
+
+let partstatparam : regexp = "PARTSTAT" . "=" . ("NEEDS-ACTION" | "ACCEPTED" | "DECLINED" | "TENTATIVE" | "DELEGATED" | "COMPLETED" | "IN-PROCESS" | x_name | iana_token )   
+
+let memberparam : regexp = "MEMBER" . "=" . DQUOTE . cal_address . DQUOTE . ("," . DQUOTE . cal_address . DQUOTE)*
+
+let cutypeparam : regexp = "CUTYPE" . "=" . ("INDIVIDUAL" | "GROUP" | "RESOURCE" | "ROOM" | "UNKNOWN" | x_name | iana_token )
+
+let fmttypeparam : regexp = "FMTTYPE" . "=" . (iana_token | x_name)
+
+let attparam : regexp = 
+  ( (";" . cutypeparam) | (";" . memberparam)
+  | (";" . roleparam) | (";" . partstatparam)
+  | (";" . rsvpparam) | (";" . deltoparam)
+  | (";" . delfromparam) | (";" . sentbyparam)
+  | (";" . cnparam) | (";" . dirparam)
+  | (";" . languageparam)
+  | (";" . xparam) )*
+let attendee : regexp = "ATTENDEE" . attparam . ":" . cal_address . CRLF
+
+let attparam : regexp = 
+  ( (";" . fmttypeparam) | (";" . xparam) )*
+
+let attach : regexp = 
+    ("ATTACH" . attparam . ":" . uri . CRLF)
+  | ("ATTACH" . attparam . ";" . "ENCODING" . "=" . "BASE64" . ";" . "VALUE" . "=" . "BINARY" . ":" . binary)
+
+let urlparam : regexp = (";" . xparam)*
+let url : regexp = "URL" . urlparam . "=" . uri . CRLF 
+
+let uidparam : regexp = (";" . xparam)*
+let uid : regexp = "UID" . uidparam . ":" . text . CRLF 
+
+let tranparam : regexp = (";" . xparam)*
+let transvalue : regexp = ("OPAQUE" | "TRANSPARENT")
+let transp : regexp = "TRANSP" . tranparam . ":" . transvalue . CRLF
+
+let summparam : regexp  = ( (";" . altrepparam) | (";" . languageparam) | (";" . xparam) )*
+let summary : lens = del ("SUMMARY" . summparam . ":") . text . CRLF
+
+let statparam : regexp = (";" . xparam)*
+let statvalue : regexp = ("TENTATIVE" | "CONFIRMED" | "CANCELLED" | "NEEDS-ACTION" | "COMPLETED" | "IN-PROCESS" | "CANCELLED" | "DRAFT" | "FINAL" | "CANCELLED")
+let status : regexp =  "STATUS" . statparam . ":" . statvalue . CRLF
+
+let seqparam : regexp = (";" . xparam)*
+let seq : regexp = "SEQUENCE" . seqparam . ":" . integer . CRLF
+
+let prioparam : regexp = (";" . xparam)*
+let privalue : regexp = integer 
+let priority : regexp = "PRIORITY" . prioparam . ":" . privalue . CRLF
+
+let orgparam : regexp = 
+  ( (";" . cnparam) | (";" . dirparam) | (";" . sentbyparam)
+  | (";" . languageparam)
+  | (";" . xparam) )*
+let organizer : regexp  = "ORGANIZER" . orgparam . ":" . cal_address . CRLF
+
+let locparam : regexp = ( (";" . altrepparam) | (";" . languageparam) | (";" . xparam) )*
+let location : regexp = "LOCATION" . locparam . ":" . text . CRLF
+
+let lstparam : regexp = (";" . xparam)*
+let last_mod : regexp = "LAST-MODIFIED" . lstparam . ":" . date_time . CRLF
+
+let geoparam : regexp = (";" .  xparam)*
+let geovalue : regexp = float . ";" . float
+let geo : regexp = "GEO" . geoparam . ":" . geovalue . CRLF
+
+let descparam : regexp  = ( (";" . altrepparam) | (";" . languageparam) | (";" . xparam) )*
+let description : regexp = "DESCRIPTION" . descparam . ":" . text . CRLF
+
+let creaparam : regexp  = (";" . xparam)*
+let created : regexp = "CREATED" . creaparam . ":" . date_time . CRLF
+
+let classparam : regexp = (";" . xparam)*
+let classvalue : regexp = ("PUBLIC" | "PRIVATE" | "CONFIDENTIAL" | iana_token | x_name)
+let class : regexp = "CLASS" . classparam . ":" . classvalue . CRLF
+
+let eventprop : lens = 
+  let p : lens = 
+    del ( class | created | description | dtstart | geo
+        | last_mod | location | organizer | priority
+        | dtstamp | seq | status | transp
+        | uid | url | recurid
+        | dtend | duration
+        | attach | attendee | categories | comment
+        | contact | exdate | exrule | rstatus | related
+        | resources | rdate | rrule | x_prop )* in 
+  p . summary . p
+
+let tzprop : regexp = 
+  ( dtstart | tzoffsetto | tzoffsetfrom 
+  | comment | rdate | rrule | tzname | x_prop){3,}
+
+let lstparam : regexp = (";" . xparam)*
+let last_mod : regexp = "LAST-MODIFIED" . lstparam  . ":" . date_time . CRLF
+
+(* ------ ALARM ----- *)
+let repparam : regexp = (";" . xparam)*
+let repeat : regexp = "REPEAT" . repparam . ":" . integer .  CRLF
+
+
+let trigrelparam : regexp = "RELATED" . "=" . ("START" | "END")
+let trigrel : regexp = 
+  ( (";" . "VALUE" . "=" . "DURATION") | (";" . trigrelparam) | (";" . xparam) )* . 
+  ":" . dur_value
+let trigabs : regexp = 
+  ( (";" . "VALUE" . "=" . "DATE-TIME") | (";" . xparam))* . 
+  ":" . date_time
+let trigger : regexp = "TRIGGER" . (trigrel | trigabs)
+
+let actionparam : regexp = (";" . xparam)*
+let actionvalue : regexp = ( "AUDIO" | "DISPLAY" | "EMAIL" | "PROCEDURE" | iana_token | x_name)
+let action : regexp = "ACTION" . actionparam . ":" . actionvalue . CRLF
+
+let audioprop : regexp = ( action | trigger | duration | repeat | attach | x_prop )*
+let dispprop : regexp = ( action | description | trigger | duration | repeat | x_prop )*
+let emailprop : regexp = ( action | description | trigger | ctype summary | attendee | duration | repeat | attach | x_prop )*
+let procprop : regexp = ( action | attach | trigger | duration | repeat | description | x_prop )*
+
+let alarmc : regexp = 
+  "BEGIN" . ":" . "VALARM" . CRLF .
+  (audioprop | dispprop | emailprop | procprop) . 
+  "END" . ":" . "VALARM" . CRLF
+
+let standardc : regexp = 
+  "BEGIN" . ":" . "STANDARD" . CRLF . 
+  tzprop .
+  "END" . ":" . "STANDARD" . CRLF
+
+let daylightc : regexp = 
+  "BEGIN" . ":" . "DAYLIGHT" . CRLF . 
+  tzprop . 
+  "END" . ":" . "DAYLIGHT" . CRLF
+
+let timezonec : regexp = 
+  "BEGIN" . ":" . "VTIMEZONE" . CRLF . 
+  (tzid | last_mod | standardc | daylightc | x_prop)* . 
+  "END" . ":" . "VTIMEZONE" . CRLF
+
+let eventc : lens = 
+  del ("BEGIN" . ":" . "VEVENT" . CRLF) . 
+  eventprop . 
+  del (alarmc* ) . 
+  del ("END" . ":" . "VEVENT" . CRLF)
+
+let component : lens = 
+  del timezonec . 
+  eventc+
+
+let icalbody : lens = 
+  del calprops . 
+  component 
+
+let icalobject : lens = 
+  del ("BEGIN:VCALENDAR" . CRLF) . 
+  icalbody . 
+  del ("END:VCALENDAR" . CRLF)
+
+test icalobject.get icaldata = 
+<<
+Boomerang meeting with Danny and Adam
+Contract pow-wow with Michael
+Dinner Party @ Thornton Manor
+Clare's Birthday
+
+>>
+

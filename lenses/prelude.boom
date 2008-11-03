@@ -230,8 +230,8 @@ lenses.
 #* let ctypes (ls:lens List.t) = List.map{lens}{regexp} ctype ls
 #* let atypes (ls:lens List.t) = List.map{lens}{regexp} atype ls
 
-\LENSSECTION{@concatable@} The list of regexps @Rs = #{regexp}[R1;R2;...;Rn]@ are
-concatenable with regexp separator @S@ if the following are splittable:
+\LENSSECTION{@concatable@} The list of regexps @Rs = #{regexp}[R1;R2;...;Rn]@ 
+are concatenable with regexp separator @S@ if the following are splittable:
 \begin{itemize}
     \item @R1@ and @S@
     \item @R1.S@ and @R2@
@@ -240,32 +240,23 @@ concatenable with regexp separator @S@ if the following are splittable:
     \item @R1.S...SRn-1@ and @Rn@
 \end{itemize}
 
-#* let concatable (Rs : regexp List.t) (S : regexp) : bool 
-##  =
-##  let (_,catable) = List.fold_left{regexp}{regexp option * bool}
-##    (fun (acc : regexp option * bool) (Ri : regexp) -> 
-##       match acc with
-##         | (_,cex(s)) -> (None{regexp},cex(s))
-##	   | (None,true) -> (Some{regexp}(Ri),true)
-##         | ((Some (r_acc)),true) -> 
-##	     begin
-##	       match splittable_cex Ri S with
-##		 | cex(s) -> (None{regexp},cex(s)) (* preserve cex *)
-##		 | true -> 
-##		     begin
-##		       let Ri_sep = Ri . S in
-##		       match splittable_cex r_acc Ri_sep with
-##			 | cex(s) -> (None{regexp},cex(s)) (* preserve cex *)
-##			 | true -> (Some{regexp}(r_acc . Ri_sep),true) 
-##                     : regexp option * bool
-##		     end : regexp option * bool
-##	     end : regexp option * bool)
-##    (None{regexp},true) Rs in
-##  catable
+#* let concatable (rl : regexp List.t) : bool =
+##  let (res,_) = 
+##    List.fold_left{regexp}{bool * regexp option}
+##      (fun (acc:bool * regexp option) (ri:regexp) -> match acc with
+##         | (true,None) -> (true,Some{regexp}(ri))
+##         | (true,(Some(racc))) -> 
+##            begin match splittable_cex racc ri with
+##              | true -> (true,Some{regexp}(racc . ri))
+##              | cx   -> (cx,None{regexp}) : (bool * regexp option)
+##            end 
+##         | (cx,_) -> (cx,None{regexp}) : (bool * regexp option))
+##      (true,None{regexp}) rl in
+##  res
 
-#* test concatable #{regexp}[/abc/;/def/] // = true
-#* test concatable #{regexp}[/abc/;/def/] /,/ = true
-#* test concatable #{regexp}[/a/ | /aa/;/a/?] // = false
+#* test concatable #{regexp}[/abc/;/def/] = true
+#* test concatable #{regexp}[/abc/;/def/] = true
+#* test concatable #{regexp}[/a/ | /aa/;/a/?] = false
 
 \LENSSECTION{@concat_regexps@,@concat_lenses@} Concatenates a list of regular 
 expressions or lenses, respectively.
@@ -278,8 +269,8 @@ expressions or lenses, respectively.
 #* test concat_regexps #{regexp}[/abc/;/def/] = /abcdef/
 #* test concat_regexps #{regexp}[/a/{5};/a/*] = /a/{5,}
 
-#* let concat_lenses (ls:lens List.t where (concatable (ctypes ls) //)
-#*                                      && (concatable (atypes ls) //))
+#* let concat_lenses (ls:lens List.t where (concatable (ctypes ls))
+#*                                      && (concatable (atypes ls)))
 #*   : (lens in concat_regexps (ctypes ls)
 #*          <-> concat_regexps (atypes ls))
 #*   =  List.fold_left{lens}{lens} 
@@ -361,42 +352,49 @@ specified by @sigma@, and concatenates the results.  Given a permutation
 @Ci <-> Ai@.  It produces a lens with type 
 @C1.C2...Cn <-> Asigma(1).Asigma(2)...Asigma(n)@.
 
-#* let permute 
+#* let lens_permute 
 #*   (sigma:int List.t)
 #*   (ls:lens List.t where 
 #*     (List.valid_permutation{lens} sigma ls) &&
-#*     ((concatable (ctypes ls) //) &&
-#*      (concatable (List.permute{regexp} sigma (atypes ls)) //)))
+#*     ((concatable (ctypes ls)) &&
+#*      (concatable (List.permute{regexp} sigma (atypes ls)))))
 #*   : (lens in concat_regexps (ctypes ls) <-> 
 #*              concat_regexps (List.permute{regexp} sigma (atypes ls)))
 ##   = Native.Prelude.lens_permute sigma ls
 
-#* test ctype (permute #{int}[1;0] #{lens}[/abc/;/def/]) = /abcdef/
-#* test atype (permute #{int}[1;0] #{lens}[/abc/;/def/]) = /defabc/
-#* test get (permute #{int}[2;0;1] #{lens}[/abc/;/def/;/ghi/]) 
+#* test ctype (lens_permute #{int}[1;0] #{lens}[/abc/;/def/]) = /abcdef/
+#* test atype (lens_permute #{int}[1;0] #{lens}[/abc/;/def/]) = /defabc/
+#* test get (lens_permute #{int}[2;0;1] #{lens}[/abc/;/def/;/ghi/]) 
 #*   "abcdefghi" = "defghiabc"
-#* test get (permute 
+#* test get (lens_permute 
 #*             #{int}[2;1;0]
 #*             #{lens}[(copy UALPHACHAR);
 #*                     (copy UALPHACHAR);
 #*                     (copy UALPHACHAR)]) "ABC" = "CBA"
 
-\LENSSECTION{@sort@} The canonizer @sort@ puts substrings into 
+\LENSSECTION{@sortable@, @sort@} The canonizer @sort@ puts substrings into 
 sorted order according to a list of regular expressions. An exception 
 is raised if the unsorted string does not have exactly one substring 
 belonging to each regular expression. This allows us to assign sort a type 
 that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 
-#* let sort : regexp List.t -> canonizer
-## = Native.Prelude.sort
+#* let sortable (rl:regexp List.t) : bool = 
+#*   disjoint_regexps rl && iterable_cex (union_regexps rl)
+
+#* let sort 
+#*   (rl:regexp List.t where sortable rl) 
+#* : (cn:canonizer where (uncanonized_type cn = (union_regexps rl)* )
+#*                    && (canonized_type cn = concat_regexps rl))
+## = Native.Prelude.sort rl
 
 #* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "A1" = "A1"
 #* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "1A" = "A1"
 #* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "A" = error
+#* test sort #{regexp}[/a/?] = error
+#* test sort #{regexp}[/a/;/a/] = error
 
 #* test uncanonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) =
 #*   (UALPHACHAR | DIGIT)*
 
 #* test canonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) = 
 #*   (UALPHACHAR . DIGIT)
-

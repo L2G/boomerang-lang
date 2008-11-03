@@ -306,6 +306,7 @@ let toplevel' progName () =
        (* barf on spurious command line options?! *)
        Prefs.set Binterp.test_all true;
        Safelist.iter check rest_pref;
+       Brx.print_stats ();
        0
      end
      else begin 

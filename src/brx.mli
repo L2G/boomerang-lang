@@ -73,7 +73,6 @@ val match_string_reverse_positions : t -> string -> Int.Set.t
 (* ambiguity *)
 val derivative : t -> string -> t
 val mk_reverse : t -> t
-val mk_suffs : t -> t 
 val splittable_cex : t -> t -> ((string * string * string * string),t) Misc.alternative
 val splittable : t -> t -> bool
 val iterable_cex : t -> ((string * string * string * string),t) Misc.alternative

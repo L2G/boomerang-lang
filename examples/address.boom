@@ -227,12 +227,10 @@ let unformatnotemptyname : lens =
    passes. First, we unformat to put everything in a canonical "raw" form, 
    Then we format to escape characters and render the name *)
 
-let name : lens = 
-  let escNameP = 
-    unformatnotemptyname ; formatnotemptyname in
-  let familyname = 
-    del "N:" . escNameP in
-  familyname . (del ";" | (/;/ <-> ", ") . escNameP ) . del ";;;"
+let name : lens =  
+  let escNameP = unformatnotemptyname ; formatnotemptyname in 
+  let familyname = del "N:" . escNameP in
+  familyname . (del ";" | (/;/ <-> ", ") . escNameP) . del ";;;"
 
 (* unit test for name *)
 test name.get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
