@@ -50,43 +50,48 @@ RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-DTSTART:20081031T190000Z
-DTEND:20081031T200000Z
+DTSTART:20081023T143000Z
+DTEND:20081023T160000Z
 DTSTAMP:20081030T043548Z
-UID:gq46qpd4auim56i59j4hm3j7ik@google.com
+UID:cb69k85u9in24m80lel9mgaulg@google.com
 CLASS:PRIVATE
-CREATED:20081023T153404Z
-LAST-MODIFIED:20081023T153413Z
-SEQUENCE:1
+CREATED:20081016T210346Z
+LAST-MODIFIED:20081021T151750Z
+SEQUENCE:2
 STATUS:CONFIRMED
-SUMMARY:Boomerang meeting with Danny and Adam
+SUMMARY:Boomerang meeting with
+ Danny and Adam
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
-DTSTART:20081022T190000Z
-DTEND:20081022T200000Z
+DTSTART:20081010T190000Z
+DTEND:20081010T200000Z
 DTSTAMP:20081030T043548Z
-UID:ogrornvlgqun3314a6e3d1s8p8@google.com
+UID:tpl8plmuk9t72cddfg0qgbqo7k@google.com
 CLASS:PRIVATE
-CREATED:20081022T134424Z
-LAST-MODIFIED:20081022T134424Z
-SEQUENCE:0
+CREATED:20081006T161102Z
+LAST-MODIFIED:20081010T145935Z
+SEQUENCE:1
 STATUS:CONFIRMED
 SUMMARY:Contract pow-wow with Michael
 TRANSP:OPAQUE
 END:VEVENT
 BEGIN:VEVENT
-DTSTART:20081006T000000Z
-DTEND:20081006T010000Z
+DTSTART;VALUE=DATE:20081005
+DTEND;VALUE=DATE:20081006
 DTSTAMP:20081030T043548Z
-UID:6od3g5h9dmegj47c4elj3jtfvs@google.com
+UID:o2onelg446pu2ict3k407gptgk@google.com
 CLASS:PRIVATE
-CREATED:20081002T112900Z
-LAST-MODIFIED:20081002T112900Z
+CREATED:20081002T015050Z
+DESCRIPTION:
+LAST-MODIFIED:20081002T015050Z
+LOCATION:a time TBA here at Thornton Manor. Now that the (Slum)Lord of the 
+ Manor has returned from his ancestral homeland\, arms laden with biscuits 
+  'tis time to party.
 SEQUENCE:0
 STATUS:CONFIRMED
 SUMMARY:Dinner Party @ Thornton Manor
-TRANSP:OPAQUE
+TRANSP:TRANSPARENT
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;VALUE=DATE:20080827
@@ -122,6 +127,11 @@ let VALUE_CHAR : regexp = WSP | [\0x21-\0x7E] | NON_US_ASCII
 let TSAFE_CHAR : regexp = [\0x20-\0x21] | [\0x23-\0x2B] | [\0x2D-\0x39] | [\0x3C-\0x5B] | [\0x5D-\0x7E] | NON_US_ASCII
 let ESCAPED_CHAR : regexp = "\\\\" | "\\;" | "\\," | "\\N" | "\\n" 
 let text : regexp = (TSAFE_CHAR | DQUOTE | ":" | ESCAPED_CHAR)*
+let wrap_text : lens = 
+  left_quot
+    (columnize 75 text ' ' "\n ")
+    (copy text)
+let text = (TSAFE_CHAR | DQUOTE | ":" | ESCAPED_CHAR | "\n ")*
 let integer : regexp = ("+" | "-")? . DIGIT+
 let float : regexp = ("+" | "-")? . DIGIT+ . ("." . DIGIT+)?
 
@@ -433,7 +443,10 @@ let transvalue : regexp = ("OPAQUE" | "TRANSPARENT")
 let transp : regexp = "TRANSP" . tranparam . ":" . transvalue . CRLF
 
 let summparam : regexp  = ( (";" . altrepparam) | (";" . languageparam) | (";" . xparam) )*
-let summary : lens = del ("SUMMARY" . summparam . ":") . text . CRLF
+let summary : lens = 
+  del ("SUMMARY" . summparam . ":") . 
+  wrap_text . 
+  CRLF
 
 let statparam : regexp = (";" . xparam)*
 let statvalue : regexp = ("TENTATIVE" | "CONFIRMED" | "CANCELLED" | "NEEDS-ACTION" | "COMPLETED" | "IN-PROCESS" | "CANCELLED" | "DRAFT" | "FINAL" | "CANCELLED")
