@@ -87,6 +87,7 @@ module DLens : sig
   val rput : t -> string -> string -> string
   val rcreate : t -> string -> string
   val forgetkey : Info.t -> t -> t
+  val probe : Info.t -> string -> t -> t
   val canonizer_of_t : Info.t -> t -> Canonizer.t
   val invert : Info.t -> t -> t
   val copy : Info.t -> Brx.t -> t

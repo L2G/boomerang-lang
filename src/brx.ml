@@ -1161,11 +1161,7 @@ let suffs_splittable_cex t1 t2 =
                         Misc.Left(w1 ^ over, w2, w1, over ^ w2)
                     | _ ->
                         Berror.run_error (Info.M "splittable_cex")
-                          (fun () ->
-                             Util.format "error computing representative from %s@\nT1=%s@\nT1_SUFFS=%s@\nT2=%s@\nT2_PEFS=%s@\nOVERLAP_OR_EPSILON=%s@\n" over
-                               (string_of_t t1) (string_of_t t1_suffs)
-                               (string_of_t t2) (string_of_t t2_prefs)
-                               (string_of_t overlap_or_epsilon))
+                          (fun () -> msg "error computing representative")
                   end
               | None -> Misc.Right(mk_seq t1 t2)
           end

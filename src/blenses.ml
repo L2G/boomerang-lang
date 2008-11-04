@@ -169,10 +169,10 @@ let seq_split t1 t2 w =
 (*          let i2 = Int.Set.choose (Int.Set.remove i1 ps) in  *)
          Err.run_error (Info.M "seq_split")
            (fun () -> 
-              msg "@[concatenation of @[%a@]@ and @[%a@]"
+              msg "@[concatenation of @[%a@]@ and @[%a@]@ "
                 (fun _ -> Rx.format_t) t1 
                 (fun _ -> Rx.format_t) t2;
-              msg "ambiguous@ on@ %s"
+              msg "ambiguous@ on@ [%s]"
                 w))
   t1 t2 w
 
@@ -516,6 +516,7 @@ module DLens = struct
     | Filter of Rx.t * Rx.t 
     | Forgetkey of t
     | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array 
+    | Probe of string * t
 
   and t = 
       { (* ----- meta data ----- *)
@@ -658,7 +659,8 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> bij dl1
           | Filter(r1,r2)      -> Rx.is_empty r1 
           | Forgetkey(dl1)     -> bij dl1 
-          | Permute(_,dls)     -> Array.fold_left (fun b dli -> b && bij dli) true dls in
+          | Permute(_,dls)     -> Array.fold_left (fun b dli -> b && bij dli) true dls 
+          | Probe(_,dl1)         -> bij dl1 in
         dl.bij <- Some b;
         b
 
@@ -685,7 +687,8 @@ module DLens = struct
           | Forgetkey(dl1)     -> ctype dl1 
           | Permute(_,dls)     -> 
               Array.fold_left (fun acc dli -> Rx.mk_seq acc (ctype dli)) 
-                Rx.epsilon dls in
+                Rx.epsilon dls 
+          | Probe(_,dl1)       -> ctype dl1 in          
         dl.ctype <- Some ct;
         ct
           
@@ -714,7 +717,8 @@ module DLens = struct
               let _,_,s2,_,_ = p1 in 
               Array.fold_left 
                 (fun acc i -> Rx.mk_seq acc (atype dls.(i)))
-                Rx.epsilon s2 in
+                Rx.epsilon s2 
+          | Probe(_,dl1)       -> atype dl1 in
         dl.atype <- Some at;
         at
 
@@ -755,7 +759,8 @@ module DLens = struct
               let _,s1,_,_,_ = p1 in 
               Array.fold_left 
                 (fun acco i -> Misc.map2_option Erx.mk_seq acco (xtype dls.(i)))
-                (Some (Erx.mk_leaf (Rx.epsilon))) s1 in 
+                (Some (Erx.mk_leaf (Rx.epsilon))) s1 
+          | Probe(_,dl1)       -> xtype dl1 in 
         dl.xtype <- Some xto;
         xto
 
@@ -783,7 +788,8 @@ module DLens = struct
           | Permute(_,dls)     -> 
               Array.fold_left 
                 (fun acc dli -> dt_merge acc (dtype dli))
-                TMap.empty dls in
+                TMap.empty dls 
+          | Probe(_,dl1)       -> dtype dl1 in
         dl.dtype <- Some dt;
         dt
             
@@ -810,6 +816,7 @@ module DLens = struct
         && (fst (Safelist.fold_left 
                    (fun (ok,i) si -> (ok && stype dls.(i) si, succ i))
                    (true,0) sl))
+    | _,Probe(_,dl1)                    -> stype dl1 sk 
     | _                                 -> false  
 
   and crel dl = match dl.crel with
@@ -836,7 +843,8 @@ module DLens = struct
           | Permute(p1,dls)    -> 
               Array.fold_left 
                 (fun acc dli -> equiv_merge acc (crel dli)) 
-                Identity dls in
+                Identity dls 
+          | Probe(_,dl1)       -> crel dl1 in
         dl.crel <- Some cr;
         cr
 
@@ -863,7 +871,8 @@ module DLens = struct
           | Forgetkey(dl1)     -> arel dl1
           | Permute(p1,dls)    -> 
               Array.fold_left (fun acc dli -> equiv_merge acc (arel dli)) 
-                Identity dls in
+                Identity dls 
+          | Probe(_,dl1)       -> arel dl1 in
         dl.arel <- Some ar;
         ar
 
@@ -898,7 +907,7 @@ module DLens = struct
                  loop acc' t in 
            loop "" (Rx.star_split (ctype dl) c))
     | Forgetkey(dl1)     -> (fun c -> get dl1 c)
-    | Permute(p1,dls) -> 
+    | Permute(p1,dls)    -> 
         (fun c -> 
            let k,sigma,sigma_inv,cts,ats = p1 in 
            let c_arr = arr_split_c k dls cts c in 
@@ -913,6 +922,10 @@ module DLens = struct
                    loop (succ i)
                end in
            loop 0)
+    | Probe(t,dl1)       -> 
+        (fun c -> 
+           msg "@[[[PROBE-GET{%s}@\n%s@\n]]@\n@]" t c;
+           get dl1 c)
                  
   and put dl = match dl.desc with
     | Copy(r1)           -> (fun a _ d -> (a,d))
@@ -991,7 +1004,7 @@ module DLens = struct
              (Rx.star_split (ctype dl) a) in 
            (c',d))
     | Forgetkey(dl1)     -> (fun a s d -> put dl1 a s d)
-    | Permute(p1,dls) -> 
+    | Permute(p1,dls)    -> 
         (fun a s d -> 
            let k,sigma,sigma_inv,cts,ats = p1 in 
            let a_arr = arr_split_a k dls sigma_inv ats a in 
@@ -1009,6 +1022,10 @@ module DLens = struct
            let d' = loop 0 d in 
            let c' = concat_array c_arr in
            (c',d'))
+    | Probe(t,dl1)       -> 
+        (fun a s d -> 
+           msg "@[[[PROBE-PUT{%s}@\n%s@\n]]@\n@]" t a;
+           put dl1 a s d)
 
   and create dl = match dl.desc with
     | Copy(r1)           -> (fun a d -> (a,d))
@@ -1073,6 +1090,10 @@ module DLens = struct
            let d' = loop 0 d in
            let c' = concat_array c_arr in 
            (c',d'))
+    | Probe(t,dl1)       -> 
+        (fun a d -> 
+           msg "@[[[PROBE-CREATE{%s}@\n%s@\n]]@\n@]" t a;
+           create dl1 a d)
 
   and key dl = match dl.desc with
     | Copy(r1)           -> (fun a -> "")
@@ -1110,13 +1131,17 @@ module DLens = struct
              if j >= k then ()
              else 
                begin 
-                 let kj = key dls.(j) a_arr.(j) in 
+                 let kj = key dls.(sigma_inv.(j)) a_arr.(j) in 
                  Buffer.add_string k_buf kj;
                  loop (succ j) 
                end in
            loop 0;
            let ky = Buffer.contents k_buf in            
            ky)
+    | Probe(t,dl1)          -> 
+        (fun a -> 
+           msg "@[[[PROBE-KEY{%s}@\n%s@\n]]@\n@]" t a;
+           key dl1 a)
 
   and parse dl = match dl.desc with
     | Copy(r1)           -> (fun c -> (S_string c, TMap.empty))
@@ -1179,6 +1204,7 @@ module DLens = struct
                ([], TMap.empty,0)
                (Array.to_list (arr_split_c k dls cts c)) in 
 	   (S_star (Safelist.rev sl),d))
+    | Probe(_,dl1)       -> (fun c -> parse dl1 c)
 
   and rcreate dl = 
     (fun a -> fst (create dl a TMap.empty))
@@ -1254,6 +1280,7 @@ module DLens = struct
   let smatch i t1 f1 dl1 = mk i (SMatch(f1,t1,dl1))
   let filter i r1 r2 = mk i (Filter(r1,r2))
   let forgetkey i dl1 = mk i (Forgetkey(dl1))
+  let probe i t1 dl1 = mk i (Probe(t1,dl1))
   let permute i is dls =
     let dl_arr = Array.of_list dls in 
     let k = Array.length dl_arr in 

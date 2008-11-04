@@ -244,6 +244,7 @@ let prelude_spec =
   ; pmk_lsl    "default"              L.default
   ; pmk_rl     "key"                  L.key
   ; pmk_ll     "forgetkey"            L.forgetkey
+  ; pmk_sll    "probe"                L.probe
   ; pmk_rrl    "filter"               L.filter
   ; pmk_dup1   "dup1"                 (fun i l f fat -> 
                                          L.dup1 i l 
@@ -405,16 +406,10 @@ let prelude_spec =
                                                     (fun () -> 
                                                        msg "%s: cannot synchronize with %s."
                                                          (Info.string_of_t i)
-                                                         (L.string l))) in 
-                                         let acts,o',a',b' = 
-                                           Bsync.sync xt 
-                                             (L.rget l o) 
-                                             (L.rget l a) 
-                                             (L.rget l b) in 
+                                                         (L.string l))) in                                            
+                                         let acts,o',a',b' = Bsync.sync xt o a b in 
                                          let s_acts = mk_s acts in
-                                         let s_o = mk_s (L.rput l o' o) in 
-                                         let s_a = mk_s (L.rput l a' a) in 
-                                         let s_b = mk_s (L.rput l b' b) in 
+                                         let s_o,s_a,s_b = mk_s o',mk_s a',mk_s b' in 
                                          mk_p (mk_p (mk_p s_acts s_o) s_a) s_b)
 
   (* polymorphic functions *)
