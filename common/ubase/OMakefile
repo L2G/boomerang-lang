@@ -11,4 +11,7 @@ OCamlLibrary($(RESULT), $(rootname $(UBASE_LIBRARY_SOURCES)))
 .DEFAULT: $(RESULTS)
 
 clean: 
-	$(CLEAN) $(RESULT) $(RESULTS)
+	$(CLEAN).cma $(RESULT) $(RESULTS)
+
+veryclean: 
+	$(CLEAN).cma $(RESULT) $(RESULTS)
