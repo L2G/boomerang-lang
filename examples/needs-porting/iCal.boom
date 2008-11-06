@@ -406,7 +406,7 @@ let rstatparam : regexp = ((";" . languageparam) | (";" . xparam))*
 let statcode : regexp = DIGIT+ . ("." . DIGIT+)*
 let statdesc : regexp = text
 let extdata : regexp = text
-let rstatus : regexp = "REQUEST-STATUS" . rstatparam . ":" . statcode . ";" . statdesc . (";" . extdata)?
+let rstatus : regexp = "REQUEST-STATUS" . rstatparam . ":" . statcode . ";" . statdesc . (";" . extdata)? . CRLF
 
 let exrparam : regexp = (";" . xparam)*
 let exrule : regexp = "EXRULE" . exrparam . ":" . recur . CRLF
@@ -509,6 +509,21 @@ let classparam : regexp = (";" . xparam)*
 let classvalue : regexp = ("PUBLIC" | "PRIVATE" | "CONFIDENTIAL" | iana_token | x_name)
 let class : regexp = "CLASS" . classparam . ":" . classvalue . CRLF
 
+let p : lens = 
+  del ( class | created | description  | geo
+      | last_mod | location | organizer | priority
+      | dtstamp | seq | status | transp
+      | uid | url | recurid
+      | dtend | duration
+      | attach | attendee | categories | comment
+      | contact | exdate | exrule | rstatus | related
+      | resources | rdate | rrule | x_prop )* 
+
+
+
+
+
+
 let eventprop : lens = 
   let p : lens = 
     del ( class | created | description  | geo
@@ -521,9 +536,11 @@ let eventprop : lens =
         | resources | rdate | rrule | x_prop )* in 
   p . dtstart_lens . ins " - ". p . summary . p
 
-test splittable_cex 
-    (atype (dtstart_lens . ins " - ") )
-    (atype summary) = true
+test "---------- START ----------" = ?
+let R1 = (atype (dtstart_lens . ins " - ")? )
+let R2 = atype summary 
+test splittable_cex R1 R2 = false
+test "---------- END ----------" = ?
 
 let tzprop : regexp = 
   ( dtstart | tzoffsetto | tzoffsetfrom 

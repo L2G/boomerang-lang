@@ -154,7 +154,8 @@ and t =
       desc                       : d;
       hash                       : int;
       final                      : bool;
-      mutable maps               : (int array * int array * int) option;
+      size                       : int; 
+      mutable maps               : (int array * int) option;
       mutable known_singleton    : bool;
       mutable derivative         : int -> t;
       mutable reverse            : t option;
@@ -311,21 +312,6 @@ let match_code_list t0 l =
   t'.final
     
 (* --------------------- HASH CONS CACHES --------------------- *)
-module MapCache = Map.Make(
-  struct
-    type t = (int * int list)
-    let rec compare (h1,l1) (h2,l2) = 
-      let rec aux l1 l2 = match l1,l2 with
-        | [],[] -> 0
-        | _,[]  -> 1
-        | [],_  -> -1
-        | h1::rest1,h2::rest2 -> 
-            let c1 = h1 - h2 in 
-            if c1 <> 0 then c1
-            else aux rest1 rest2 in 
-      aux (h1::l1) (h2::l2)
-  end)
-
 module ICache = H.Make
   (struct 
      type t = int
@@ -369,7 +355,6 @@ module TLCache = H.Make
      let equal (_,l1) (_,l2) = equal_ts l1 l2
    end)
 
-let mcache = ref (MapCache.empty)
 let cset_cache : t CSCache.t = CSCache.create 1031
 let neg_cset_cache : t CSCache.t = CSCache.create 1031
 let seq_cache : t TTLTCache.t = TTLTCache.create 1031
@@ -377,6 +362,7 @@ let alt_cache : t TLCache.t = TLCache.create 1031
 let rep_cache : t TIIOCache.t = TIIOCache.create 1031
 let inter_cache : t TLCache.t = TLCache.create 1031
 let diff_cache : t TTCache.t = TTCache.create 1031
+let over_cache : t TTCache.t = TTCache.create 1031
 
 (* --------------------- DESC OPERATIONS --------------------- *)
 let desc_hash d = 
@@ -406,15 +392,14 @@ let desc_final = function
   | Inter tl    -> Safelist.for_all (fun ti -> ti.final) tl
   | Diff(t1,t2) -> t1.final && not t2.final
 
-(* the naive construction of a DFA from a regexp computes the
-   derivative wrt every character in the alphabet. however, many of
-   these characters behave identically. to reduce the size of
-   constructed DFAs, we partition the alphabet. the following
-   functions compute a triple (cm,rm,n) where cm is an int array
-   mapping characters in [min_code,max-code] to their "symbol", rm is
-   an int array giving hte reverse mapping from symbols to
-   representative characters, and n is the number of distinct symbols
-   (also the length of rm). *)
+let desc_size = function
+  | CSet _      -> 1
+  | Rep(t1,_,_) -> 1 + t1.size
+  | Seq(t1,t2)  -> 1 + t1.size + t2.size 
+  | Alt tl      -> 1 + Safelist.fold_left (fun acc ti -> acc + ti.size) 0 tl
+  | Inter tl    -> 1 + Safelist.fold_left (fun acc ti -> acc + ti.size) 0 tl
+  | Diff(t1,t2) -> 1 + t1.size + t2.size 
+
 let desc_maps d0 = 
   let rec split m cs = match cs with
     | [] -> ()
@@ -430,39 +415,20 @@ let desc_maps d0 =
     | Inter tl     -> Safelist.iter (fun ti -> colorize m ti) tl
     | Diff(t1,t2)  -> colorize m t1; colorize m t2 
   and colorize m t = desc_colorize m t.desc in
-  let key_of_map m =
-    let ws = 31 in
-    let rec loop i mask cont a1 al =
-      if i > max_code then (a1::al)
-      else if cont && i mod ws = 0 then
-        loop i 1 false 0 (a1::al)
-      else
-        let mask' = mask lsl 1 in
-        let a1' = if m.(i) then mask lor a1 else a1 in
-          loop (succ i) mask' true a1' al in
-    let l = loop 0 1 false 0 [] in 
-      (Hashtbl.hash l,l) in 
   let flatten m = 
-    let km = key_of_map m in
-    try MapCache.find km !mcache 
-    with Not_found ->
-      let cm = Array.make (succ max_code) 0 in 
-      let rec loop i nc rml = 
-        if i > max_code then Safelist.rev rml
-        else
-          let nc' = if m.(i) then succ nc else nc in 
-          let rml' = if m.(i) then i::rml else rml in 
-            (cm.(i) <- nc';
-             loop (succ i) nc' rml') in 
-      let rml = loop 1 0 [0] in
-      let rm = Array.of_list rml in 
-      let len = Array.length rm in 
-      let ms = (cm,rm,len) in
-        mcache := MapCache.add km ms !mcache;
-        ms in 
+    let rec loop i nc rml = 
+      if i > max_code then Safelist.rev rml
+      else
+        let nc' = if m.(i) then succ nc else nc in 
+        let rml' = if m.(i) then i::rml else rml in 
+        loop (succ i) nc' rml' in 
+    let rml = loop 1 0 [0] in
+    let rm = Array.of_list rml in 
+    let len = Array.length rm in 
+    (rm,len) in
   let m = Array.make (succ (succ max_code)) false in 
-    desc_colorize m d0;
-    flatten m
+  desc_colorize m d0;
+  flatten m
 
 (* --------------------- CONSTRUCTORS --------------------- *)
 (* gensym for uids *)
@@ -482,6 +448,7 @@ let mk_constant d t_nexto repo =
       desc = d;
       hash = desc_hash d;
       final = desc_final d;
+      size = desc_size d;
       known_singleton = false;
       maps = None;
       derivative = dummy_impl; 
@@ -546,6 +513,7 @@ let rec mk_t d0 =
       desc = d0;
       hash = desc_hash d0;
       final = desc_final d0;      
+      size = desc_size d0;
       known_singleton = false;
       maps = None;
       representative = None;
@@ -556,7 +524,7 @@ let rec mk_t d0 =
   let derivative_impl = 
     let mk_table f = 
       let fr = ref f in
-      let der_cache : t ICache.t = ICache.create 17 in
+      let der_cache : t ICache.t = ICache.create 7 in
         (fun c ->
            try ICache.find der_cache c with Not_found ->
              let r = !fr c in
@@ -565,7 +533,9 @@ let rec mk_t d0 =
     let res = match d0 with 
       | CSet []  -> 
           (fun c -> empty)
-      | CSet s   -> 
+      | CSet [c1,c2]  -> 
+          (fun c -> if c1 <= c && c <= c2 then epsilon else empty)
+      | CSet s   ->           
           (fun c -> if CharSet.mem c s then epsilon else empty)
       | Seq(t1,t2) -> 
           mk_table
@@ -617,28 +587,27 @@ and get_reverse t =
     (fun v -> t.reverse <- Some v) 
     calc_reverse t 
 
-and calc_suffs t =
-  let rec full_search ts f p = match p with
-    | [] -> ts
+and calc_suffs t =  
+  let rec full_search (ts,f,p) = match p with
+    | [] -> Q.fold mk_alt ts empty
     | t::rest ->
-        let f' = Q.add t f in
-        if Q.mem t f || easy_empty t then full_search ts f rest
-        else
-          let _,rm,len = get_maps t in 
-          let rec loop f'' pacc i =
-            if i < 0 then pacc
-            else
-              begin 
-                let ci = rm.(i) in                 
-                let ti = t.derivative ci in
-                if easy_empty ti || Q.mem ti f'' then loop f'' pacc (pred i)
-                else loop (Q.add ti f'') (ti::pacc) (pred i) 
-              end in 
-          let p' = loop f' p (pred len) in
-          let ts' = if t.final then Q.add t ts else ts in
-          full_search ts' f' p' in
-  let ts = full_search Q.empty Q.empty [t] in
-  mk_alts (Q.elements ts)
+        let rm,len = get_maps t in 
+        let rec loop ((ts',f',p') as acc) i =
+          if i < 0 then acc
+          else
+            let ti = t.derivative rm.(i) in
+            if easy_empty ti || Q.mem ti f' then loop acc (pred i)
+            else loop ((if ti.final then Q.add ti ts' else ts'),Q.add ti f',ti::p') (pred i) in 
+          full_search (loop (ts,f,rest) (pred len)) in
+  let go t = 
+    let ts0 = if t.final then Q.singleton t else Q.empty in 
+    let f0 = Q.singleton t in 
+    full_search (ts0,f0,[t]) in
+  match t.desc with
+    | CSet _ -> epsilon
+    | Seq(t1,t2) -> if not t1.final then calc_suffs t2 else go t
+    | Rep(t1,0,None) -> if not t1.final then mk_alt t (calc_suffs t1) else go t
+    |_ -> go t
 
 and get_suffs t = 
   force t.suffs
@@ -674,7 +643,7 @@ and calc_representative t =
     if t.final then Misc.Left (([],t)::r)
     else if easy_empty t || Q.mem t f then jump (Misc.Right(f',q))
     else
-      let _,rm,len = get_maps t in 
+      let rm,len = get_maps t in 
       let rec loop i sn acc = match i,acc with
         | -1,_                   -> acc
         | _,Misc.Left _          -> acc
@@ -682,7 +651,7 @@ and calc_representative t =
             let ci = rm.(i) in 
             let ti = t.derivative ci in 
             let acc' = 
-              if Q.mem ti sn then acc 
+              if easy_empty ti || Q.mem ti sn then acc 
               else add ti (Some ci) (r,f',qi) in
             loop (pred i) (Q.add ti sn) acc' in 
       let st' = loop (pred len) Q.empty (Misc.Right(f',q)) in 
@@ -703,81 +672,81 @@ and calc_representative t =
   let go f ti = match ti.representative with
     | Some(Some wi) -> Some [wi,ti]
     | Some None     -> None
-    | None          -> 
+    | None          ->
         begin match calc_representative ti ([],f,Queue.create ()) with
-          | Misc.Left(r) -> Some r 
+          | Misc.Left(r) -> Some r
           | _ -> None
         end in
   match t.desc with
-    | CSet [] -> 
+    | CSet [] ->
         (fun (r,f,_) -> Misc.Right f)
-    | CSet((c1,_)::_) -> 
+    | CSet((c1,_)::_) ->
         (fun (r,f,_) -> Misc.Left (([c1],t)::r))
-    | Rep(_,0,_) -> 
+    | Rep(_,0,_) ->
         (fun (r,f,_) -> Misc.Left (([],t)::r))
-    | Rep(t1,i,_) -> 
-        (fun (r,f,q) -> 
+    | Rep(t1,i,_) ->
+        (fun (r,f,q) ->
            match go f t1 with
-             | Some r1 -> 
-                 let w1 = rep_of_list r1 in 
+             | Some r1 ->
+                 let w1 = rep_of_list r1 in
                  set_representative t1 w1;
-                 let rec loop i acc = if i <= 0 then acc else loop (pred i) (acc @ w1) in 
+                 let rec loop i acc = if i <= 0 then acc else loop (pred i) (acc @ w1) in
                  Misc.Left ((loop i [],t)::r)
-             | _ -> 
+             | _ ->
                  jump(Misc.Right(Q.add t f,q)))
-    | Seq(t1,t2) -> 
-        (fun (r,f,q) -> 
+    | Seq(t1,t2) ->
+        (fun (r,f,q) ->
            match go f t1 with
-             | Some r1 -> 
-                 let w1 = rep_of_list r1 in 
+             | Some r1 ->
+                 let w1 = rep_of_list r1 in
                  set_representative t1 w1;
                  begin
                    match go f t2 with
                      | Some r2 ->
-                         let w2 = rep_of_list r2 in 
+                         let w2 = rep_of_list r2 in
                          set_representative t2 w2;
                          Misc.Left ((w1 @ w2,t)::r)
-                     | _ -> 
+                     | _ ->
                          jump(Misc.Right(Q.add t f,q))
                  end
              | _ -> jump(Misc.Right(Q.add t f,q)))
 
     | Alt tl ->
-        (fun (r,f,q) -> 
-           let f' = Q.add t f in 
+        (fun (r,f,q) ->
+           let f' = Q.add t f in
            alts_rep (fun x -> x) r f' tl (f',q))
-    | Diff(t1,t2) -> 
+    | Diff(t1,t2) ->
         begin match t1.representative with
-          | Some (Some w1) when not (match_code_list t2 w1) -> 
+          | Some (Some w1) when not (match_code_list t2 w1) ->
               (fun (r,_,_) -> Misc.Left((w1,t)::r))
           | _ -> match t1.desc with
-              | Alt(tl1) -> 
-                  (fun (r,f,q) -> 
-                     let f' = Q.add t f in                          
+              | Alt(tl1) ->
+                  (fun (r,f,q) ->
+                     let f' = Q.add t f in
                      alts_rep (fun ti -> mk_diff ti t2) r f' tl1 (f',q))
-              | _ -> full_search 
+              | _ -> full_search
         end
-    | Inter [t1;t2] -> 
+    | Inter [t1;t2] ->
         begin match t1.representative,t2.representative with
-          | Some (Some w1),_ when match_code_list t2 w1 -> 
+          | Some (Some w1),_ when match_code_list t2 w1 ->
               (fun (r,_,_) -> Misc.Left((w1,t)::r))
-          | _,Some (Some w2) when match_code_list t1 w2 -> 
+          | _,Some (Some w2) when match_code_list t1 w2 ->
               (fun (r,_,_) -> Misc.Left((w2,t)::r))
           | _ -> match t1.desc with
-              | Alt tl1 -> 
-                  (fun (r,f,q) -> 
-                     let f' = Q.add t f in 
+              | Alt tl1 ->
+                  (fun (r,f,q) ->
+                     let f' = Q.add t f in
                      alts_rep (fun ti -> mk_inter ti t2) r f' tl1 (f',q))
               | _ -> full_search
         end
-    | Inter(t1::tl2) -> 
+    | Inter(t1::tl2) ->
         begin match t1.desc with
-          | Alt tl1 -> 
-              (fun (r,f,q) -> 
-                 let f' = Q.add t f in                                             
+          | Alt tl1 ->
+              (fun (r,f,q) ->
+                 let f' = Q.add t f in
                  alts_rep (fun ti -> mk_inters (ti::tl2)) r f' tl1 (f',q))
           | _ -> full_search
-        end                
+        end
     | _ -> full_search
 
 and get_representative t = match t.representative with
@@ -930,7 +899,7 @@ and mk_rep t0 i jo =
         TIIOCache.add rep_cache p res_t;
         res_t in
     let res = match t0.desc,i,jo with
-      | Rep(_,0,None),0,None       -> t0
+      | Rep(_,0,None),_,None       -> t0
       | Rep(_,0,Some 1),0,(Some 1) -> t0
       | CSet[mi,ma],0,None         ->
 	  if mi=min_code && ma=max_code then anything
@@ -1045,125 +1014,6 @@ let string_of_char_codes l =
 let representative t0 = 
   Misc.map_option string_of_char_codes (get_representative t0)
 
-let fast_derivative t w = 
-  Safelist.fold_left (fun ti ci -> ti.derivative ci) t w
-
-(* this algorithm tries to disprove that two types are splittable by
-   finding a counterexample. the search space is huge, but we prune
-   empty types and use the maps to only consider a (canonical) subset
-   of all strings. 
-
-   t1 and t2 are not splittable iff there exist strings:
-     - w <> ""
-     - w1 in t1 
-     - w2 in t2 
-  such that:
-     - (rev (w1 ^ w)) matches (rev t1)
-     - (w ^ w2) matches t2
-  we search for such strings by considering possible w of increasing
-  length and calculating the derivatives 
-     - d1 = t1_rev by (rev w)
-     - d2 = derivative of t2 by w
-  and intersections
-     - i1 = t1_rev & d1
-     - i2 = t2 & d2 
-  and checking if i1 & i2 have representatives. if they do, then 
-  t1 and t2 are not splittable. if not, then continue looking 
-  for a longer w.
-*)
-(*         msg "PCASE: [%s]@\n" (string_of_char_codes wi); *)
-(*         msg "T1_REV: %a@\n" (fun _ -> format_t) t1_rev; *)
-(*         msg "DI: %a@\n" (fun _ -> format_t) di; *)
-(*                let () = *)
-(*                  let fmt _ = format_t in *)
-(*                    msg "WJ:[%s]\t" (string_of_char_codes wj); *)
-(*                    msg "D1:%a\t" fmt d1; *)
-(*                    msg "D2:%a@\n" fmt d2 in *)
-let fast_splittable_cex t1 t2 = 
-(*   msg "T1=%a@\nT2=%a@\n" (fun _ -> format_t) t1 (fun _ -> format_t) t2; *)
-  let t1_rev = mk_reverse t1 in 
-  let q = Queue.create () in 
-  let () = 
-    Queue.push (Misc.Right([],t2)) q;
-    Queue.push (Misc.Left([],t1_rev)) q in 
-  let rec full_search (f,is) = match is with 
-    | (i1,i2,over)::irest -> 
-(*         msg "  I: [%s] %a %a@\n" (string_of_char_codes over) (fun _ -> format_t) i1 (fun _ -> format_t) i2; *)
-        begin 
-          match representative i1 with 
-            | Some w1 -> 
-                begin match representative i2 with
-                    Some w2 -> 
-(*                       msg "  YES! [%s] [%s] [%s]@\n" *)
-(*                         w1 (string_of_char_codes over) w2; *)
-                      Some (w1, string_of_char_codes over, w2)
-                  | _ -> full_search (f,irest)
-                end
-            | _ -> full_search(f,irest)
-        end
-    | [] ->  
-        if Queue.is_empty q then 
-          ((* msg "NO!@\n"; *)
-           None)
-        else match Queue.pop q with 
-          | Misc.Left(wi,d1i) -> 
-(*               msg "L: [%s] %a@\n" (string_of_char_codes wi) (fun _ -> format_t) d1i; *)
-              let _,rm,len = desc_maps (Alt[d1i;t2]) in 
-              let rec loop j (facc,iacc) =
-                if j < 0 then (facc,iacc)
-                else
-                  let cj = rm.(j) in                  
-                  let wj = cj::wi in 
-                  let d1 = d1i.derivative cj in 
-                  let d2 = fast_derivative t2 wj in
-                  let iacc' = 
-                    if easy_empty d1 || easy_empty d2 then iacc
-                    else
-                      let i1 = mk_inter t1_rev d1 in 
-                      let i2 = mk_inter t2 d2 in 
-                        if easy_empty i1 || easy_empty i2 then iacc 
-                        else (i1,i2,wj)::iacc in 
-                  let facc' = QQ.add (d1,d2) facc in 
-                  if not (easy_empty d1 || QQ.mem (d1,d2) facc) then 
-                    ((* msg "PUSHING D1: [%s] %a %a@\n"  *)
-(*                        (string_of_char_codes wj)  *)
-(*                        (fun _ -> format_t) d1 *)
-(*                        (fun _ -> format_t) d2; *)
-                      Queue.push (Misc.Left(wj,d1)) q);
-                  loop (pred j) (facc',iacc') in 
-             full_search (loop (pred len) (f,[])) 
-        | Misc.Right(wi,d2i) -> 
-(*             msg "R: [%s] %a@\n" (string_of_char_codes wi) (fun _ -> format_t) d2i; *)
-            let _,rm,len = desc_maps (Alt[t1_rev;d2i]) in 
-            let rec loop j (facc,iacc) =
-              if j < 0 then (facc,iacc) 
-              else
-                let cj = rm.(j) in                  
-                let wj = cj::wi in 
-                let d1 = fast_derivative t1_rev wj in 
-                let d2 = d2i.derivative cj in 
-                let iacc' = 
-                  if easy_empty d1 || easy_empty d2 then iacc
-                  else
-                    let i1 = mk_inter t1_rev d1 in 
-                    let i2 = mk_inter t2 d2 in 
-                    if easy_empty i1 || easy_empty i2 then iacc 
-                    else (i2,i1,Safelist.rev wj)::iacc in 
-                let facc' = QQ.add (d1,d2) facc in 
-                if not (easy_empty d2 || QQ.mem (d1,d2) facc) then 
-                  ((* msg "PUSHING D2: [%s] %a %a@\n"  *)
-(*                      (string_of_char_codes wj) *)
-(*                      (fun _ -> format_t) d1 *)
-(*                      (fun _ -> format_t) d2; *)
-                  Queue.push (Misc.Right(wj,d2)) q);
-                loop (pred j) (facc',iacc') in 
-            full_search (loop (pred len) (f,[])) in
-    match full_search (QQ.singleton (t1_rev,t2),[]) with 
-      | Some(w1_rev,over,w2) -> 
-          let w1 = reverse_string w1_rev in 
-          Misc.Left(w1 ^ over, w2, w1, over ^ w2)
-      | None -> Misc.Right(mk_seq t1 t2)
-
 let rec mk_expand t0 c t = match t0.desc with
   | CSet cs       -> 
       if CharSet.mem c cs then mk_alt t t0 else t0
@@ -1204,37 +1054,42 @@ let derivative t w =
 
 let mk_suffs t0 = get_suffs t0
 
-let suffs_splittable_cex t1 t2 = 
-  let t2_rev = mk_reverse t2 in 
-    begin
-    let t1_suffs = mk_suffs t1 in
-    if is_epsilon t1_suffs then Misc.Right(mk_seq t1 t2) 
-    else 
-      begin
-        let t2_rev_suffs = mk_suffs t2_rev in 
-        let t2_prefs = mk_reverse t2_rev_suffs in 
-        if is_epsilon t2_prefs then Misc.Right(mk_seq t1 t2)
+let splittable_cex t1 t2 = 
+  let overo =
+    if t1.size > t2.size then
+      let t2_rev_suffs = mk_suffs (mk_reverse t2) in
+      if is_epsilon t2_rev_suffs then None
+      else
+        let t1_suffs = mk_suffs t1 in
+          if is_epsilon t1_suffs then None
+          else
+            representative
+              (mk_diff
+                 (mk_inter t1_suffs (mk_reverse t2_rev_suffs))
+                 epsilon)
+    else
+      let t1_suffs = mk_suffs t1 in
+      if is_epsilon t1_suffs then None
+      else
+        let t2_rev_suffs = mk_suffs (mk_reverse t2) in
+        if is_epsilon t2_rev_suffs then None
         else
-          begin
-            let overlap_or_epsilon = mk_inter t1_suffs t2_prefs in
-            let overlap = mk_diff overlap_or_epsilon epsilon in
-            match representative overlap with
-              | Some over ->
-                  let t2_suff = derivative t2 over in
-                  let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in
-                  begin match representative (mk_inter t1 t1_pref),representative (mk_inter t2 t2_suff) with
-                    | Some w1,Some w2 -> 
-                        Misc.Left(w1 ^ over, w2, w1, over ^ w2)
-                    | _ ->
-                        Berror.run_error (Info.M "splittable_cex")
-                          (fun () -> msg "error computing representative")
-                  end
-              | None -> Misc.Right(mk_seq t1 t2)
-          end
-      end 
-    end
-
-let splittable_cex = suffs_splittable_cex
+          representative
+            (mk_diff
+               (mk_inter t1_suffs (mk_reverse t2_rev_suffs))
+               epsilon) in
+  match overo with 
+    | Some over ->
+        let t2_suff = derivative t2 over in
+        let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in
+        begin match representative (mk_inter t1 t1_pref),representative (mk_inter t2 t2_suff) with
+          | Some w1,Some w2 -> 
+              Misc.Left(w1 ^ over, w2, w1, over ^ w2)
+          | _ ->
+              Berror.run_error (Info.M "splittable_cex")
+                (fun () -> msg "error computing representative")
+        end
+    | None -> Misc.Right(mk_seq t1 t2)
 
 let iterable_cex t1 = 
   if t1.final then Misc.Left("","","","")
@@ -1367,4 +1222,3 @@ let print_stats () = ()
 (*        f "rep_cache" (fun () -> TIIOCache.stats rep_cache); *)
 (*        f "diff_cache" (fun () -> TTCache.stats diff_cache); *)
 (*        Util.format "@]") *)
-    

@@ -327,18 +327,6 @@ let prelude_spec =
                                                                    (Brx.string_of_t t1) (Brx.string_of_t t2) w2)
                                                | None -> raise (Error.Harmony_error (fun () -> msg "equiv_cex: cannot calculate representative")))
   ; pmk_rs     "representative"       wrap_rep
-  ; pmk_rrx    "fast_splittable_cex"  (fun _ t1 t2 ->
-                                         match Brx.fast_splittable_cex t1 t2 with
-                                           | Misc.Left(w1,w2,w1',w2') -> 
-                                               Some (sprintf "%s is ambiguously splittable into [%s] [%s] and [%s] [%s]" 
-                                                       (w1^w2) w1 w2 w1' w2')
-                                         | _ -> None)
-  ; pmk_rrx    "suffs_splittable_cex" (fun _ t1 t2 ->
-                                         match Brx.suffs_splittable_cex t1 t2 with
-                                           | Misc.Left(w1,w2,w1',w2') -> 
-                                               Some (sprintf "%s is ambiguously splittable into [%s] [%s] and [%s] [%s]" 
-                                                       (w1^w2) w1 w2 w1' w2')
-                                         | _ -> None)
   ; pmk_rr     "reverse"              (fun _ -> Brx.mk_reverse)
   ; pmk_rsi    "count"                (fun i r s -> 
                                          Safelist.length (Brx.star_split r s))
