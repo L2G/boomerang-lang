@@ -599,15 +599,9 @@ and calc_suffs t =
             if easy_empty ti || Q.mem ti f' then loop acc (pred i)
             else loop ((if ti.final then Q.add ti ts' else ts'),Q.add ti f',ti::p') (pred i) in 
           full_search (loop (ts,f,rest) (pred len)) in
-  let go t = 
-    let ts0 = if t.final then Q.singleton t else Q.empty in 
-    let f0 = Q.singleton t in 
-    full_search (ts0,f0,[t]) in
-  match t.desc with
-    | CSet _ -> epsilon
-    | Seq(t1,t2) -> if not t1.final then calc_suffs t2 else go t
-    | Rep(t1,0,None) -> if not t1.final then mk_alt t (calc_suffs t1) else go t
-    |_ -> go t
+  let ts0 = if t.final then Q.singleton t else Q.empty in 
+  let f0 = Q.singleton t in 
+  full_search (ts0,f0,[t]) f
 
 and get_suffs t = 
   force t.suffs
