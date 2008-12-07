@@ -598,10 +598,10 @@ and calc_suffs t =
             let ti = t.derivative rm.(i) in
             if easy_empty ti || Q.mem ti f' then loop acc (pred i)
             else loop ((if ti.final then Q.add ti ts' else ts'),Q.add ti f',ti::p') (pred i) in 
-          full_search (loop (ts,f,rest) (pred len)) in
+        full_search (loop (ts,f,rest) (pred len)) in
   let ts0 = if t.final then Q.singleton t else Q.empty in 
   let f0 = Q.singleton t in 
-  full_search (ts0,f0,[t]) f
+  full_search (ts0,f0,[t]) 
 
 and get_suffs t = 
   force t.suffs
