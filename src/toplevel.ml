@@ -287,9 +287,6 @@ let toplevel' progName () =
   let o = Prefs.read o_pref in
   let rest_pref = Safelist.rev (Prefs.read rest) in 
 
-  (* initialize heap *)
-  Bheap.init ();
-
   (* run unit tests if needed *)
   if Prefs.read check_pref <> [] then
     begin

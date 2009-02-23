@@ -29,7 +29,6 @@ open Bprint
 open Bsubst
 module V = Bvalue
 module G = Bregistry
-module H = Bheap
 
 (* -------------------------------------------------------------------------- *)
 (* ERRORS / DEBUGGING *)
@@ -145,7 +144,7 @@ let rec interp_cast cev i b f t e =
           interp_exp cev (mk_lens_of_regexp i (mk_regexp_of_string i e))
       | SRegexp,SLens -> 
           interp_exp cev (mk_lens_of_regexp i e)
-      | SFunction(x,f1,ls1,f2), SFunction(y,t1,ls2,t2) -> 
+      | SFunction(x,f1,f2), SFunction(y,t1,t2) -> 
           let fn = Id.mk i "fn" in 
           let qx = Qid.t_of_id x in 
 	  let qy = Qid.t_of_id y in
@@ -156,10 +155,9 @@ let rec interp_cast cev i b f t e =
           let e_fx = EApp(i,e_fn,e_x) in
           let c1 = ECast(i,t1,f1,invert_blame b,e_y) in 
           let c2 = ECast(i,f2,t2,b,e_fx) in
-	  let alloc_c2 = EAlloc(i,ls1@ls2,c2) in
           let apped_cast = EApp(i,mk_fun i fn f 
                                   (mk_fun i y t1 
-                                     (mk_let i x f1 c1 alloc_c2)),e) in
+                                     (mk_let i x f1 c1 c2)),e) in
 	  interp_exp cev apped_cast
       | SProduct(f1,f2), SProduct(t1,t2) ->
 	  if syneq_sort f1 t1 && syneq_sort f2 t2
@@ -318,19 +316,6 @@ and interp_exp cev e0 = match e0 with
   | ECast(i,f,t,b,e) -> 
       interp_cast cev i b f t e
 
-  | ELoc(i,l) -> 
-      begin match H.get i l with
-	| H.Term(e1) ->
-	    let v = interp_exp cev e1 in
-	      H.update l v;
-	      v
-	| H.Value(v1) -> v1
-      end
-
-  | EAlloc(i,ls,e1) ->
-      let fresh_e1 = H.alloc ls e1 in
-      interp_exp cev fresh_e1
-
 and interp_binding cev b0 = match b0 with
   | Bind(i,p,so,e) -> 
       let v = interp_exp cev e in 
@@ -372,7 +357,7 @@ let rec interp_decl cev ms d0 = match d0 with
                    let v = mk_impl (V.Vnt(i,qx,l,None)) in 
                    (G.Sort s,v) 
                | Some s -> 
-                   let s = mk_univ (SFunction(Id.wild,s,[],sx)) in 
+                   let s = mk_univ (SFunction(Id.wild,s,sx)) in 
                    let f v = V.Vnt(V.info_of_t v,qx,l,Some v) in 
                    let v = mk_impl (V.Fun(i,f)) in 
                    (G.Sort s,v) in 

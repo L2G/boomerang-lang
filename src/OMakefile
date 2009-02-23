@@ -48,7 +48,6 @@ BOOMERANG_BASE_SOURCES[] = \
    bvalue.mli bvalue.ml \
    bsyntax.mli bsyntax.ml \
    bprint.mli bprint.ml \
-   bheap.mli bheap.ml \
    bsubst.mli bsubst.ml \
    bparser.mly blexer.mll \
    benv.mli benv.ml \

@@ -46,8 +46,8 @@ type sort =
     | SProduct of sort * sort         (* products *)
     | SData of sort list * Qid.t (* data types *)
 
-    (* dependent function types, with allocation *)
-    | SFunction of Id.t * sort * (int * exp) list * sort 
+    (* dependent function types *)
+    | SFunction of Id.t * sort * sort 
     | SRefine of Id.t * sort * exp    (* refinement types *)
     | SVar of Id.t                    (* variables *)
     | SForall of Id.t * sort          (* universals *)
@@ -75,10 +75,8 @@ and exp =
     | EPair of Info.t * exp * exp 
     | ECase of Info.t * exp * (pat * exp) list * sort
 
-    (* casts, locations, and allocations *)
+    (* casts *)
     | ECast    of Info.t * sort * sort * blame * exp
-    | ELoc     of Info.t * int
-    | EAlloc   of Info.t * (int * exp) list * exp
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  

@@ -52,8 +52,8 @@ type sort =
     | SProduct of sort * sort         (* products *)
     | SData of sort list * Qid.t      (* data types *)
 
-    (* dependent function types, with allocation *)
-    | SFunction of Bident.Id.t * sort * (int * exp) list * sort 
+    (* dependent function types *)
+    | SFunction of Bident.Id.t * sort *  sort 
     | SRefine of Id.t * sort * exp    (* refinement types *)
     | SVar of Id.t                    (* variables *)
     | SForall of Id.t * sort          (* universals *)
@@ -83,8 +83,6 @@ and exp =
 
     (* casts, locations, and allocations *)
     | ECast    of Info.t * sort * sort * blame * exp
-    | ELoc     of Info.t * int
-    | EAlloc   of Info.t * (int * exp) list * exp
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
@@ -146,7 +144,7 @@ type decl =
 type modl = Mod of Info.t * Id.t * Qid.t list * decl list
 
 (* infix constructor for non-dependent functions and products*)
-let (^>) s1 s2 = SFunction(Id.wild,s1,[],s2)
+let (^>) s1 s2 = SFunction(Id.wild,s1,s2)
 let (^*) s1 s2 = SProduct(s1,s2)
 
 (* ----- accessor functions ----- *)
@@ -173,8 +171,6 @@ let rec info_of_exp e = match e with
   | EPair    (i,_,_)     -> i
   | ECase    (i,_,_,_)   -> i
   | ECast    (i,_,_,_,_) -> i
-  | ELoc     (i,_)       -> i
-  | EAlloc   (i,_,_)     -> i 
   | EUnit    (i)         -> i
   | EBoolean (i,_)       -> i
   | EInteger (i,_)       -> i    
