@@ -128,6 +128,41 @@ let rec is_value e0 = match e0 with
   | EPair(_,e1,e2) -> is_value e1 && is_value e2
   | _ -> false
 
+let rec coercible f t = match f,t with
+  | SChar,SString 
+  | SChar,SRegexp
+  | SChar,SLens
+  | SString,SRegexp 
+  | SString,SLens 
+  | SRegexp,SLens -> true
+  | SProduct(s11,s12),SProduct(s21,s22) -> 
+      coercible s11 s21 || coercible s12 s22
+  | SData(sl1,qx),SData(sl2,qy) -> 
+      (* check qx equals qy and sl1 and sl2 pairwise compatible *)
+      if not (Qid.equal qx qy) then false
+      else
+        let ok,sl12 = 
+          try false, Safelist.combine sl1 sl2 
+          with Invalid_argument _ -> (false,[]) in 
+        Safelist.fold_left
+          (fun b (s1i,s2i) -> b || coercible s1i s2i)
+          ok sl12
+  | _ -> false
+
+let mk_coercion s i f t e =
+  let f_base = erase_sort f in
+  let t_base = erase_sort t in
+  if coercible f_base t_base
+  then
+    let cast = ECast (i,f_base,t_base,mk_blame i,e) in
+    Trace.debug "coerce"
+      (fun () -> 
+	 msg "@[%s: " s;
+	 format_exp cast;
+	 msg "@]@\n");
+    cast
+  else e
+
 let rec compatible f t = match f,t with
   (* identity at base types *)
   | SUnit,SUnit       
@@ -214,11 +249,27 @@ let rec trivial_cast f t =
 	      | _ -> false in
 	  all_trivial (Qid.equal x y) fl tl
       | _ -> false
-        
+
 let rec mk_cast s i f t e = 
   if trivial_cast f t
   then e
-  else ECast(i,f,t,mk_blame i,e)
+  else 
+    let cast = ECast(i,f,t,mk_blame i,e) in
+    Trace.debug "cast"
+      (fun () -> 
+	 msg "@[%s: " s;
+	 format_exp cast;
+	 msg "@]@\n");
+    cast
+
+(* generate the "negative" cast: <S => base(S)> *)
+let mk_neg_cast m i s e = mk_cast m i s (erase_sort s) e
+
+(* generate the "positive" cast: <base(S) => S> *)
+let mk_pos_cast m i s e = mk_cast m i (erase_sort s) s e
+
+let mk_bulletproof_cast m i s e =
+  mk_neg_cast m i s (mk_pos_cast m i s e)
 
 (* resolve_label: helper for static_match. takes a base qid [li] a
    target qid [lj] and a context [os]. it dots [li] with elements of
@@ -360,29 +411,33 @@ and check_exp_app i sev (e1_sort,new_e1) (e2_sort,new_e2) =
                  msg "@[in@ application:@ expected@ %s@ but@ found@ %s@]"
                    (string_of_sort param_sort)
                    (string_of_sort e2_sort));
+	  (* coerce the argument *)
+	  let coerce_e2 = mk_coercion "application argument"
+	    i2 e2_sort param_sort new_e2 in
+	  let e2_sort' = erase_sort param_sort in
           (* construct cast *)
-          let cast_e2 = 
+(*          let cast_e2 = 
             mk_cast "application argument" 
-              i2 e2_sort param_sort new_e2 in
-            (* simple arrows *)
-            if Id.equal x Id.wild then
-	      let new_e0 = EApp(i,new_e1,cast_e2) in 
-	      let e0_sort = return_sort in
-              (e0_sort,new_e0)
-            (* dependent arrows *)
-            else
-	      let new_e0 = EApp(i,new_e1,cast_e2) in
-	      let e0_sort = subst_exp_in_sort [(Qid.t_of_id x,cast_e2)] return_sort in              
-              (e0_sort,new_e0)
+              i2 e2_sort' param_sort coerce_e2 in *)
+	  let new_e0 = EApp(i,new_e1,coerce_e2) in 
+	  (* compute return sort *)
+	  let e0_sort =
+            if Id.equal x Id.wild 
+	    then return_sort (* simple arrows *)
+	    else subst_exp_in_sort (* dependent arrows *)
+	      [(Qid.t_of_id x,coerce_e2)] 
+	      return_sort in
+          (e0_sort,new_e0)
     | _ -> 
         static_error (info_of_exp new_e1)
           (fun () ->              
              msg "@[in@ application:@ expected@ function@ sort@ but@ found@ %s.@]"
 	       (string_of_sort e1_sort))
 
-and check_exp sev e0 = 
+and check_exp ?in_let:(in_let=false) sev e0 = 
   match e0 with
     | EVar(i,q) ->
+	(* lookup the sort in the context *)
         let e0_sort = match SCEnv.lookup sev q with
           | Some (G.Sort s) -> s
 	  | Some (G.Unknown) ->
@@ -393,7 +448,9 @@ and check_exp sev e0 =
 	      static_error i
                 (fun () -> msg "@[%s is not bound@]" 
                    (Qid.string_of_t q)) in 
-        (e0_sort,e0)
+        (* apply a negative cast, if we need one *)
+	let e0_cast = mk_neg_cast "var" i e0_sort e0 in
+        (e0_sort,e0_cast)
 
     | EOver(i,op,es) -> begin 
         let err () = static_error i (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
@@ -536,15 +593,27 @@ and check_exp sev e0 =
           SFunction(dep_x,new_p_s,body_sort) in
         let new_p = Param(p_i,p_x,new_p_s) in
         let new_e0 = EFun(i,new_p,new_ret_sorto,new_body) in
-        (e0_sort,new_e0)
+	(* apply positive and negative casts (if we're not immediately in a let) *)
+	let cast_e0 = 
+	  if not (in_let)
+	  then mk_bulletproof_cast "fun" i e0_sort new_e0
+	  else new_e0 in
+        (e0_sort,cast_e0)
 
     | ELet(i,b,e) ->
         (* for let-expressions, check the bindings *)
-        let bevs,xs,Bind(new_bi,new_bp,new_bso,new_be) = check_binding sev b in
+        let bevs,xs,Bind(new_bi,new_bp,new_bso,new_be) = check_binding ~in_let:true sev b in
         (* use the resulting environment to check the exp *)
         let e_sort,new_e = check_exp bevs e in
+	(* put a positive cast on the bound term *)
+	let be_sort = match new_bso with 
+	  | Some new_bs -> new_bs
+	  | None -> run_error i 
+	      (fun () -> 
+		 msg "@[couldn't@ unpack@ sort@ in@ let-binding@]") in
+	let cast_be = mk_pos_cast "let" new_bi be_sort new_be in 
         (* put in the bound-term and inner term *)
-        let new_e0 = ELet(i,Bind(new_bi,new_bp,new_bso,new_be),new_e) in 
+        let new_e0 = ELet(i,Bind(new_bi,new_bp,new_bso,cast_be),new_e) in 
         (* substitute in the sort *)
         let e_sort_subst = match new_bp with 
           | PVar(_,x,_) -> subst_exp_in_sort [(Qid.t_of_id x,new_be)] e_sort 
@@ -670,9 +739,9 @@ and check_exp sev e0 =
         static_error i (fun () -> msg "@[unexpected@ cast@ expression@ in@ source@ term@]")
 
 
-and check_binding sev b0 = match b0 with
+and check_binding ?in_let:(in_let=false) sev b0 = match b0 with
   | Bind(i,p,so,e) ->
-      let e_sort,new_e = check_exp sev e in        
+      let e_sort,new_e = check_exp ~in_let:in_let sev e in        
       let new_s,cast_e = match so with 
         | None -> (e_sort,new_e)
         | Some s -> 
@@ -706,9 +775,16 @@ and check_binding sev b0 = match b0 with
 let rec check_decl sev ms d0 = 
   let res = match d0 with
     | DLet(i,b) ->
-	let bsev,xs,Bind(b_i,b_p,b_so,b_e) = check_binding sev b in
-	let new_b = Bind(b_i,b_p,b_so,b_e) in
-	let new_d = DLet(i,new_b) in
+	let bsev,xs,Bind(b_i,b_p,b_so,b_e) = check_binding ~in_let:true sev b in
+	(* put a positive cast on the bound term *)
+	let b_s = match b_so with 
+	  | Some b_s -> b_s
+	  | None -> run_error i 
+	      (fun () -> 
+		 msg "@[couldn't@ unpack@ sort@ in@ let-binding@]") in
+	let cast_be = mk_pos_cast "dlet" b_i b_s b_e in 
+	let cast_b = Bind(b_i,b_p,b_so,cast_be) in
+	let new_d = DLet(i,cast_b) in
 	  (bsev,xs,new_d)
     | DMod(i,n,ds) ->
 	let qmn = Qid.t_dot_id (SCEnv.get_mod sev) n in 

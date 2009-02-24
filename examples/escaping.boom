@@ -189,7 +189,8 @@ let escape
   let escape_char =
     List.fold_left{string * string}{lens}
       (fun (l : lens) (p : string * string) -> 
-         let from,to = p in
+	 let from = fst{string}{string} p in
+	 let to = snd{string}{string} p in
          (from <-> to) || l)
       (copy (ANYCHAR - (unescaped pairs)))
       pairs
@@ -198,7 +199,8 @@ let escape
 
 let char_or_escaped2 (esc : char) (pairs : (char * string) List.t) =
   let esc_p (p : char * string) = 
-    let from,to = p in
+    let from = fst{char}{string} p in
+    let to = snd{char}{string} p in
     (from,esc . to)
   in
   let escs = List.map{char * string}{char * string} esc_p pairs in
@@ -216,7 +218,8 @@ let escape2
   let escape_char =
     List.fold_left{char * string}{lens}
       (fun (l : lens) (p : char * string) -> 
-	 let from,to = p in
+	 let from = fst{char}{string} p in
+	 let to = snd{char}{string} p in
         (from <-> (esc . to)) || l)
       (copy (ANYCHAR - (unescaped pairs)))
       pairs

@@ -320,10 +320,10 @@ let prelude_spec =
   ; pmk_rrx    "equiv_cex"            (fun _ t1 t2 -> 
                                          if Brx.equiv t1 t2 then None
                                          else match Brx.representative (Brx.mk_diff t1 t2) with 
-                                           | Some w1 -> Some(sprintf "%s and %s are not equivalent; [%s] is in the first but not the second" 
+                                           | Some w1 -> Some(sprintf "'%s' and '%s' are not equivalent; [%s] is in the first but not the second" 
                                                                (Brx.string_of_t t1) (Brx.string_of_t t2) w1)
                                            | None -> match Brx.representative (Brx.mk_diff t2 t1) with 
-                                               | Some w2 -> Some(sprintf "%s and %s are not equivalent; [%s] is in the second but not the first" 
+                                               | Some w2 -> Some(sprintf "'%s' and '%s' are not equivalent; [%s] is in the second but not the first" 
                                                                    (Brx.string_of_t t1) (Brx.string_of_t t2) w2)
                                                | None -> raise (Error.Harmony_error (fun () -> msg "equiv_cex: cannot calculate representative")))
   ; pmk_rs     "representative"       wrap_rep
@@ -340,20 +340,20 @@ let prelude_spec =
   ; pmk_rrx    "splittable_cex"       (fun _ t1 t2 ->
                                          match Brx.splittable_cex t1 t2 with
                                            | Misc.Left(w1,w2,w1',w2') -> 
-                                               Some (sprintf "%s is ambiguously splittable into [%s] [%s] and [%s] [%s]" 
+                                               Some (sprintf "'%s' is ambiguously splittable into [%s] [%s] and [%s] [%s]" 
                                                        (w1^w2) w1 w2 w1' w2')
                                          | _ -> None)
   ; pmk_rb     "iterable"             (fun _ -> Brx.iterable)
   ; pmk_rx     "iterable_cex"         (fun _ t -> match Brx.iterable_cex t with
                                          | Misc.Left(w1,w2,w1',w2') -> 
-                                             Some (sprintf "%s is ambiguously iterable: splits into [%s] [%s] and [%s] [%s]" 
+                                             Some (sprintf "'%s' is ambiguously iterable: splits into [%s] [%s] and [%s] [%s]" 
                                                      (w1^w2) w1 w2 w1' w2')
                                          | _ -> None)
   ; pmk_rrb    "disjoint"             (fun _ -> Brx.disjoint)
   ; pmk_rrx    "disjoint_cex"         (fun _ t1 t2 -> 
                                          match Brx.disjoint_cex t1 t2 with
 					   | Some(cex) ->   
-					       Some (sprintf "%s and %s are not disjoint: %s is in the intersection" 
+					       Some (sprintf "'%s' and '%s' are not disjoint: '%s' is in the intersection" 
                                                        (Brx.string_of_t t1) 
                                                        (Brx.string_of_t t2) cex)
 					   | None -> None)
