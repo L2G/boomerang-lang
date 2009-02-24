@@ -279,13 +279,13 @@ and free_evars_exp acc = function
       let acc2 = free_evars_sort acc3 s2 in 
       Qid.Set.union e4_vars acc2
   | ELet(_,Bind(_,p1,so2,e3),e4) ->
-      (* XXX is this the right behavior? *)
       let acc2 = match so2 with None -> acc | Some s2 -> free_evars_sort acc s2 in 
       let acc3 = free_evars_exp acc2 e3 in 
-      let acc3_minus_bvars = Qid.Set.diff acc3 (qvs_of_is (bound_evars_pat Id.Set.empty p1)) in
-      let acc1 = free_evars_pat acc3_minus_bvars p1 in
-      let acc4 = free_evars_exp acc1 e4 in
-      acc4
+      let acc1 = free_evars_pat acc3 p1 in
+      (* calculate bvars --- we don't want to count occurences in the let body as free vars *)
+      let bvars = qvs_of_is (bound_evars_pat Id.Set.empty p1) in
+      let acc4 = Qid.Set.diff (free_evars_exp Qid.Set.empty e4) bvars in
+      Qid.Set.union acc1 acc4
   | ETyFun(_,_,e1) -> 
       free_evars_exp acc e1
   | ETyApp(i,e1,s2) -> 
@@ -305,8 +305,9 @@ and free_evars_exp acc = function
       let accl = 
       Safelist.fold_left 
         (fun accj (pi,ei) -> 
-           let acci = free_evars_exp accj ei in            
-           let acci_minus_bvars = Qid.Set.diff acci (qvs_of_is (bound_evars_pat Id.Set.empty pi)) in
+           let acci = free_evars_exp Qid.Set.empty ei in
+	   let bvars = qvs_of_is (bound_evars_pat Id.Set.empty pi) in
+           let acci_minus_bvars = Qid.Set.diff acci bvars in
            free_evars_pat acci_minus_bvars pi)
         acc cl in 
       let acc1 = free_evars_exp accl e1 in 
