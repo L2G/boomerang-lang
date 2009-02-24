@@ -62,8 +62,8 @@ and free_svars_sort acc = function
       let acc2 = free_svars_exp acc1 e2 in 
       acc2
   | SForall(a,s1) -> 
-      let acc1 = free_svars_sort acc s1 in 
-      Id.Set.remove a acc1
+      let s1_vars = Id.Set.remove a (free_svars_sort Id.Set.empty s1) in 
+      Id.Set.union s1_vars acc
   | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer ->
       acc
 and free_svars_exp acc = function
@@ -85,8 +85,8 @@ and free_svars_exp acc = function
       let acc4 = free_svars_exp acc3 e4 in 
       acc4
   | ETyFun(_,a,e1) -> 
-      let acc1 = free_svars_exp acc e1 in 
-      Id.Set.remove a acc1
+      let e1_vars = Id.Set.remove a (free_svars_exp Id.Set.empty e1) in 
+      Id.Set.union e1_vars acc
   | ETyApp(_,e1,s2) -> 
       let acc1 = free_svars_exp acc e1 in 
       let acc2 = free_svars_sort acc1 s2 in 
@@ -247,11 +247,9 @@ and bound_evars_pat acc = function
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
 and free_evars_sort acc = function
   | SFunction(x,s1,s2) ->       
-      let acc1 = 
-        Qid.Set.remove (Qid.t_of_id x) 
-          (free_evars_sort acc s2) in 
-      let acc2 = free_evars_sort acc1 s1 in
-      acc2
+      let s2_vars = Qid.Set.remove (Qid.t_of_id x) (free_evars_sort Qid.Set.empty s2) in
+      let acc2 = free_evars_sort acc s1 in
+      Qid.Set.union s2_vars acc2
   | SProduct(s1,s2) -> 
       let acc1 = free_evars_sort acc s1 in 
       let acc2 = free_evars_sort acc1 s2 in 
@@ -259,9 +257,9 @@ and free_evars_sort acc = function
   | SData(sl,_) -> 
       Safelist.fold_left free_evars_sort acc sl
   | SRefine(x,s1,e2) ->
-      let acc2 = Qid.Set.remove (Qid.t_of_id x) (free_evars_exp acc e2) in 
-      let acc1 = free_evars_sort acc2 s1 in 
-      acc1 
+      let e2_vars = Qid.Set.remove (Qid.t_of_id x) (free_evars_exp Qid.Set.empty e2) in
+      let acc1 = free_evars_sort acc s1 in 
+      Qid.Set.union e2_vars acc1 
   | SForall(_,s1) -> 
       free_evars_sort acc s1
   | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
@@ -277,10 +275,11 @@ and free_evars_exp acc = function
       Safelist.fold_left free_evars_exp acc el
   | EFun(_,Param(_,x1,s2),so3,e4) -> 
       let acc3 = match so3 with None -> acc | Some s3 -> free_evars_sort acc s3 in 
-      let acc4 = Qid.Set.remove (Qid.t_of_id x1) (free_evars_exp acc3 e4) in 
-      let acc2 = free_evars_sort acc4 s2 in 
-      acc2
+      let e4_vars = Qid.Set.remove (Qid.t_of_id x1) (free_evars_exp Qid.Set.empty e4) in
+      let acc2 = free_evars_sort acc3 s2 in 
+      Qid.Set.union e4_vars acc2
   | ELet(_,Bind(_,p1,so2,e3),e4) ->
+      (* XXX is this the right behavior? *)
       let acc2 = match so2 with None -> acc | Some s2 -> free_evars_sort acc s2 in 
       let acc3 = free_evars_exp acc2 e3 in 
       let acc3_minus_bvars = Qid.Set.diff acc3 (qvs_of_is (bound_evars_pat Id.Set.empty p1)) in

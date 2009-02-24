@@ -588,7 +588,15 @@ and check_exp ?in_let:(in_let=false) sev e0 =
         let dep_x = 
           if Qid.Set.mem (Qid.t_of_id p_x) (free_exp_vars_in_sort body_sort) 
 	  then p_x
-          else Id.wild in
+          else 
+	    (Trace.debug "dep"
+	      (fun () -> 
+		 msg "@[free vars in@ ";
+		 format_sort body_sort;
+		 msg "@ {@ ";
+		 Qid.Set.iter (fun q -> msg "%s@ " (Qid.string_of_t q)) (free_exp_vars_in_sort body_sort);
+		 msg "}@]\n");
+	    Id.wild) in
         let e0_sort = 
           SFunction(dep_x,new_p_s,body_sort) in
         let new_p = Param(p_i,p_x,new_p_s) in
