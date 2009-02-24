@@ -60,7 +60,10 @@ test canonize q "f7N" = "7Nf"
 
 let sort3 (r1:regexp) (r2:regexp) (r3:regexp) = sort #{regexp}[r1;r2;r3] 
 let l3 = 
-  let r1,r2,r3 = "a","b","c" in 
+(*  let r1,r2,r3 = "a","b","c" in *)
+  let r1 = "a" in
+  let r2 = "b" in
+  let r3 = "c" in
   left_quot (sort3 r1 r2 r3) (copy (r1 . r2 . r3))
 
 test l3.get "abc" = "abc"
