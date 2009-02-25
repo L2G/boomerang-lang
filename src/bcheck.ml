@@ -294,76 +294,103 @@ let rec static_match i sev p0 s =
     | PWld _ -> Some (p0,[])
     | PVar(i,x,_) -> Some (PVar(i,x,Some s),[(x,s)])
     | PUnt _ ->
-          if not (compatible s SUnit) then err p0 "unit" s;
-          Some (p0,[])
-      | PInt _ -> 
-          if not (compatible s SInteger) then err p0 "int" s;
-          Some (p0,[])
-      | PBol _ ->
-          if not (compatible s SBool) then err p0 "bool" s;
-          Some (p0,[])
-      | PCex (pi,p1) -> 
-          if not (compatible s SBool) then err p0 "bool" s;
-	  begin match static_match i sev p1 SString with
-	    | None -> err p1 "string" SString
-	    | Some (new_p1,binds) -> Some (PCex(pi,new_p1),binds)
-	  end
-      | PStr _ -> 
-          if not (compatible s SString) then err p0 "string" s;
-          Some (p0,[])
-      | PVnt(pi,li,ptio) -> 
-          begin match expose_sort s with 
-            | SData(sl1,qy) -> 
-                (* lookup the type from constructor [li]. *)
-                let qx,(svl,cl) = get_con i sev li in 
-                (* check qx equals qy and instantiate [cl] with [sl1]. *)
-                let cl_inst = 
-                  if not (Qid.equal qx qy) then     
-                    let s_expected = SData(sl_of_svl svl,qx) in 
-                    err p0 (string_of_sort s_expected) s
-                  else 
-                    let subst = Safelist.combine svl sl1 in 
-                    inst_cases subst cl in 
-                (* loop over [cl_inst] to find the constructor *)
-                let rec find_label = function
-                  | [] -> None
-                  | (lj,sjo)::rest ->  
-                      let go qi = match ptio,sjo with 
-                        | None,None -> 
-                            Some(PVnt(pi,qi,ptio),[])
-                        | Some pti,Some sj -> 
-                            begin match static_match i sev pti sj with
-                              | Some (new_pti,binds) -> 
-                                  Some (PVnt(pi,qi,Some new_pti),binds)
-                              | None -> 
-                                  find_label rest
-                            end
-                        | _ -> 
-                            static_error i 
-                              (fun () -> 
-                                 msg "@[wrong@ number@ of@ arguments@ to@ %s@]" 
-                                   (Qid.string_of_t lj)) in 
-                     if Qid.equal li lj then go li
-                     else match resolve_label li lj (SCEnv.get_ctx sev) with
-                       | None -> find_label rest
-                       | Some qi -> go qi in 
-                  find_label cl_inst                
-            | _ -> err p0 "data type" s
-          end
+        if not (compatible s SUnit) then err p0 "unit" s;
+        Some (p0,[])
+    | PInt _ -> 
+        if not (compatible s SInteger) then err p0 "int" s;
+        Some (p0,[])
+    | PBol _ ->
+        if not (compatible s SBool) then err p0 "bool" s;
+        Some (p0,[])
+    | PCex (pi,p1) -> 
+        if not (compatible s SBool) then err p0 "bool" s;
+	begin match static_match i sev p1 SString with
+	  | None -> err p1 "string" SString
+	  | Some (new_p1,binds) -> Some (PCex(pi,new_p1),binds)
+	end
+    | PStr _ -> 
+        if not (compatible s SString) then err p0 "string" s;
+        Some (p0,[])
+    | PVnt(pi,li,ptio) -> 
+        begin match expose_sort s with 
+          | SData(sl1,qy) -> 
+              (* lookup the type from constructor [li]. *)
+              let qx,(svl,cl) = get_con i sev li in 
+              (* check qx equals qy and instantiate [cl] with [sl1]. *)
+              let cl_inst = 
+              if not (Qid.equal qx qy) 
+	      then let s_expected = SData(sl_of_svl svl,qx) in 
+                   err p0 (string_of_sort s_expected) s
+              else let subst = Safelist.combine svl sl1 in 
+                   inst_cases subst cl in 
+                   (* loop over [cl_inst] to find the constructor *)
+                   let rec find_label = function
+                     | [] -> None
+                     | (lj,sjo)::rest ->  
+			 let go qi = match ptio,sjo with 
+                           | None,None -> 
+                               Some(PVnt(pi,qi,ptio),[])
+                           | Some pti,Some sj -> 
+                               begin match static_match i sev pti sj with
+				 | Some (new_pti,binds) -> 
+                                     Some (PVnt(pi,qi,Some new_pti),binds)
+				 | None -> 
+                                     find_label rest
+                               end
+                           | _ -> 
+                               static_error i 
+				 (fun () -> 
+                                    msg "@[wrong@ number@ of@ arguments@ to@ %s@]" 
+                                      (Qid.string_of_t lj)) in 
+			   if Qid.equal li lj then go li
+			   else match resolve_label li lj (SCEnv.get_ctx sev) with
+			     | None -> find_label rest
+			     | Some qi -> go qi in 
+                     find_label cl_inst
+          | _ -> err p0 "data type" s
+        end
             
+    | PPar(pi,p1,p2) -> 
+        begin match s with 
+          | SProduct(s1,s2) -> 
+              begin match
+                static_match i sev p1 s1, 
+                static_match i sev p2 s2 
+              with 
+                | Some (new_p1,l1),Some(new_p2,l2) -> 
+                    Some (PPar(pi,new_p1,new_p2),l1 @ l2)
+                | _ -> None 
+              end
+          | _ -> err p0 "product" s
+        end
+
+(* pat_subst builds an exp-substitution for a binding pattern *)
+let rec pat_subst i p0 e1 s2 =
+  let err p str e s = 
+    static_error i 
+      (fun () -> 
+         msg "@[in@ binding@ pattern@ %s@ for %s@ of sort@ %s:@ %s@]"
+           (string_of_pat p) (string_of_exp e) (string_of_sort s) str) in 
+  let rec go i p0 e1 s2 k =
+    match p0 with 
+      | PWld _ -> []
+      | PVar(i,x,_) -> [(Qid.t_of_id x,k e1)]
       | PPar(pi,p1,p2) -> 
-          begin match s with 
-            | SProduct(s1,s2) -> 
-                begin match
-                  static_match i sev p1 s1, 
-                  static_match i sev p2 s2 
-                with 
-                  | Some (new_p1,l1),Some(new_p2,l2) -> 
-                      Some (PPar(pi,new_p1,new_p2),l1 @ l2)
-                  | _ -> None 
-                end
-            | _ -> err p0 "product" s
+          begin match s2 with 
+            | SProduct(s21,s22) -> 
+		let select f e = EApp(pi,ETyApp(pi,ETyApp(pi,EVar(pi,Qid.mk_prelude_t f),s21),s22),e) in
+		let subst1 = go pi p1 e1 s21 (fun e -> select "fst" (k e)) in
+		let subst2 = go pi p2 e1 s22 (fun e -> select "snd" (k e)) in
+		  subst1 @ subst2
+            | _ -> err p0 "product" e1 s2
           end
+      | PUnt _
+      | PInt _
+      | PBol _
+      | PCex _
+      | PStr _
+      | PVnt _ -> err p0 "unsupported binding pattern" e1 s2 in
+  go i p0 e1 s2 (fun e -> e)
 
 (* ------ sort resolution and compilation ----- *)
 (* check_sort: resolves qids in SDatas and checks expressions in SRefines *)
@@ -414,9 +441,9 @@ and check_exp_app i sev (e1_sort,new_e1) (e2_sort,new_e2) =
 	  (* coerce the argument *)
 	  let coerce_e2 = mk_coercion "application argument"
 	    i2 e2_sort param_sort new_e2 in
-	  let e2_sort' = erase_sort param_sort in
+(*	  let e2_sort' = erase_sort param_sort in
           (* construct cast *)
-(*          let cast_e2 = 
+          let cast_e2 = 
             mk_cast "application argument" 
               i2 e2_sort' param_sort coerce_e2 in *)
 	  let new_e0 = EApp(i,new_e1,coerce_e2) in 
@@ -623,23 +650,8 @@ and check_exp ?in_let:(in_let=false) sev e0 =
         (* put in the bound-term and inner term *)
         let new_e0 = ELet(i,Bind(new_bi,new_bp,new_bso,cast_be),new_e) in 
         (* substitute in the sort *)
-        let e_sort_subst = match new_bp with 
-          | PVar(_,x,_) -> subst_exp_in_sort [(Qid.t_of_id x,new_be)] e_sort 
-          | _ -> 
-	      let e_sort_fvs = free_exp_vars_in_sort e_sort in 
-	      let () = 
-                Safelist.iter 
-                  (fun qi -> 
-                     if Qid.Set.mem qi e_sort_fvs then 
-                       static_error i 
-		         (fun () -> 
-			    msg "@[illegal@ let-binding: cannot unpack pattern@ ";
-			    format_pat new_bp;
-			    msg "@ for expansion into sort@ ";
-			    format_sort e_sort;
-			    msg "@]"))
-                  xs in 
-              e_sort in
+	let sigma = pat_subst i new_bp cast_be be_sort in
+        let e_sort_subst = subst_exp_in_sort sigma e_sort in
         (e_sort_subst,new_e0)
 
     | EPair(i,e1,e2) -> 
