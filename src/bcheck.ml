@@ -528,7 +528,7 @@ and check_exp_app i sev (e1_sort,new_e1) (e2_sort,new_e2) =
              msg "@[in@ application:@ expected@ function@ sort@ but@ found@ %s.@]"
 	       (string_of_sort e1_sort))
 
-and check_exp ?in_let:(in_let=false) sev e0 = 
+and check_exp ?(in_let=false) sev e0 = 
   match e0 with
     | EVar(i,q) ->
 	(* lookup the sort in the context *)
@@ -823,7 +823,7 @@ and check_exp ?in_let:(in_let=false) sev e0 =
         static_error i (fun () -> msg "@[unexpected@ cast@ expression@ in@ source@ term@]")
 
 
-and check_binding ?in_let:(in_let=false) sev b0 = match b0 with
+and check_binding ?(in_let=false) sev b0 = match b0 with
   | Bind(i,p,so,e) ->
       let e_sort,new_e = check_exp ~in_let:in_let sev e in        
       let new_s,cast_e = match so with 
