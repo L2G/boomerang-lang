@@ -33,6 +33,10 @@ val free_sort_vars : sort -> Id.Set.t
 
 val free_exp_vars_in_sort : sort -> Qid.Set.t
 
+val free_exp_vars : exp -> Qid.Set.t
+
+val free_exp_vars_pat : pat -> Qid.Set.t
+
 val erase_sort : sort -> sort 
 
 val expose_sort : sort -> sort

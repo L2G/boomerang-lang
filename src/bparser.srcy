@@ -156,7 +156,7 @@ let rec mk_tree op l = match l with
       res
 
 let rec fixup_pat i p0 = match p0 with 
-  | PVnt(_,x,Some _) -> syntax_error i "illegal pattern"
+  | PVnt(i,x,Some pti) -> PVnt(i,x,Some (fixup_pat i pti)) (*syntax_error i "illegal pattern"*)
   | PVnt(i,x,None)   -> PVar(i,Qid.id_of_t x,None)
   | PPar(i,p1,p2)    -> PPar(i,fixup_pat i p1,fixup_pat i p2)
   | _ -> p0

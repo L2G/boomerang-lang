@@ -1,0 +1,12 @@
+module Test_patsubst =
+
+  let id (a : string) : (b : string where a = b) = a
+
+  let test_pair (p : string * string) =
+    let (x,y) = p in
+    id x
+
+  let test_list (l : string List.t) =
+    let (List.Cons(s,l)) = l in
+    id s
+

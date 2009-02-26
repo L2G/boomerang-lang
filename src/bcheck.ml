@@ -318,35 +318,35 @@ let rec static_match i sev p0 s =
               let qx,(svl,cl) = get_con i sev li in 
               (* check qx equals qy and instantiate [cl] with [sl1]. *)
               let cl_inst = 
-              if not (Qid.equal qx qy) 
-	      then let s_expected = SData(sl_of_svl svl,qx) in 
-                   err p0 (string_of_sort s_expected) s
-              else let subst = Safelist.combine svl sl1 in 
-                   inst_cases subst cl in 
-                   (* loop over [cl_inst] to find the constructor *)
-                   let rec find_label = function
-                     | [] -> None
-                     | (lj,sjo)::rest ->  
-			 let go qi = match ptio,sjo with 
-                           | None,None -> 
-                               Some(PVnt(pi,qi,ptio),[])
-                           | Some pti,Some sj -> 
-                               begin match static_match i sev pti sj with
-				 | Some (new_pti,binds) -> 
-                                     Some (PVnt(pi,qi,Some new_pti),binds)
-				 | None -> 
-                                     find_label rest
-                               end
-                           | _ -> 
-                               static_error i 
-				 (fun () -> 
-                                    msg "@[wrong@ number@ of@ arguments@ to@ %s@]" 
-                                      (Qid.string_of_t lj)) in 
-			   if Qid.equal li lj then go li
-			   else match resolve_label li lj (SCEnv.get_ctx sev) with
-			     | None -> find_label rest
-			     | Some qi -> go qi in 
-                     find_label cl_inst
+		if not (Qid.equal qx qy) 
+		then let s_expected = SData(sl_of_svl svl,qx) in 
+                  err p0 (string_of_sort s_expected) s
+		else let subst = Safelist.combine svl sl1 in 
+                  inst_cases subst cl in 
+              (* loop over [cl_inst] to find the constructor *)
+              let rec find_label = function
+                | [] -> None
+                | (lj,sjo)::rest ->  
+		    let go qi = match ptio,sjo with 
+                      | None,None -> 
+                          Some(PVnt(pi,qi,ptio),[])
+                      | Some pti,Some sj -> 
+                          begin match static_match i sev pti sj with
+			    | Some (new_pti,binds) -> 
+                                Some (PVnt(pi,qi,Some new_pti),binds)
+			    | None -> 
+                                find_label rest
+                          end
+                      | _ -> 
+                          static_error i 
+			    (fun () -> 
+                               msg "@[wrong@ number@ of@ arguments@ to@ %s@]" 
+                                 (Qid.string_of_t lj)) in 
+		    if Qid.equal li lj then go li
+		    else match resolve_label li lj (SCEnv.get_ctx sev) with
+		      | None -> find_label rest
+		      | Some qi -> go qi in 
+              find_label cl_inst
           | _ -> err p0 "data type" s
         end
             
@@ -365,32 +365,104 @@ let rec static_match i sev p0 s =
         end
 
 (* pat_subst builds an exp-substitution for a binding pattern *)
-let rec pat_subst i p0 e1 s2 =
+let rec pat_subst i sev p0 e1 s2 =
   let err p str e s = 
     static_error i 
       (fun () -> 
-         msg "@[in@ binding@ pattern@ %s@ for %s@ of sort@ %s:@ %s@]"
+         msg "@[in@ binding@ pattern@ %s@ for %s@ of sort@ %s:@ error due to %s@]"
            (string_of_pat p) (string_of_exp e) (string_of_sort s) str) in 
-  let rec go i p0 e1 s2 k =
-    match p0 with 
-      | PWld _ -> []
-      | PVar(i,x,_) -> [(Qid.t_of_id x,k e1)]
-      | PPar(pi,p1,p2) -> 
-          begin match s2 with 
-            | SProduct(s21,s22) -> 
-		let select f e = EApp(pi,ETyApp(pi,ETyApp(pi,EVar(pi,Qid.mk_prelude_t f),s21),s22),e) in
-		let subst1 = go pi p1 e1 s21 (fun e -> select "fst" (k e)) in
-		let subst2 = go pi p2 e1 s22 (fun e -> select "snd" (k e)) in
-		  subst1 @ subst2
-            | _ -> err p0 "product" e1 s2
-          end
-      | PUnt _
-      | PInt _
-      | PBol _
-      | PCex _
-      | PStr _
-      | PVnt _ -> err p0 "unsupported binding pattern" e1 s2 in
-  go i p0 e1 s2 (fun e -> e)
+  match p0 with 
+    | PWld _ -> []
+    | PVar(i,x,_) -> [(Qid.t_of_id x,e1)]
+    | PPar(pi,p1,p2) -> 
+        begin match s2 with 
+          | SProduct(s21,s22) -> 
+	      let select f e = 
+		EApp(pi,
+		     ETyApp(pi,
+			    ETyApp(pi,
+				   EVar(pi,Qid.mk_prelude_t f),
+				   s21),
+			    s22),
+		     e) in
+	      let subst1 = pat_subst pi sev p1 (select "fst" e1) s21 in
+	      let subst2 = pat_subst pi sev p2 (select "snd" e1) s22 in
+		subst1 @ subst2
+          | _ -> err p0 "product" e1 s2
+        end
+      | PVnt(pi,li,ptio) -> 
+          begin match ptio,expose_sort s2 with 
+	    | None,_ -> []
+            | Some pti,SData(sl1,qy) -> 
+		(* lookup the type from constructor [li]. *)
+		let qx,(svl,cl) = get_con i sev li in 
+		(* check qx equals qy and instantiate [cl] with [sl1]. *)
+		let cl_inst = 
+		  if not (Qid.equal qx qy) 
+		  then err p0 "data type (type mismatch)" e1 s2
+		  else let subst = Safelist.combine svl sl1 in 
+                  inst_cases subst cl in 
+		  
+                (* loop over [cl_inst] to find the constructor 
+
+		   cl_inst will contain an alist mapping Id.ts to sorts
+		*)
+                let rec find_label = function
+                  | [] -> None
+                  | (lj,sjo)::rest ->  
+		      let go qi = match ptio,sjo with 
+                        | Some pti,Some sj -> 
+                            begin match static_match i sev pti sj with
+			      | Some (new_pti,binds) -> 
+                                  Some (sj,binds)
+			      | None -> 
+                                  find_label rest
+                            end
+                        | _ -> 
+                            static_error i 
+			      (fun () -> 
+                                 msg "@[wrong@ number@ of@ arguments@ to@ %s@]" 
+                                   (Qid.string_of_t lj)) in 
+		      if Qid.equal li lj 
+		      then go li
+		      else match resolve_label li lj (SCEnv.get_ctx sev) with
+			  | None -> find_label rest
+			  | Some qi -> go qi in
+		begin match find_label cl_inst with
+		  | Some (sj,binds) ->
+		      (* we'll make the recursive call using a dummy
+			 variable, v, on the inner pattern
+
+			 this gives us a set of bindings (x,e) which
+			 work on that variable v.
+
+			 for each of these bindings, we make the new
+			 pattern:
+
+			 case e1 of
+			 | li(v) -> e
+		      *)
+		      begin
+			let vi = Info.M "dummy var for datatype pattern substitution" in
+			let free_vars = Qid.Set.union (free_exp_vars_pat pti) (free_exp_vars e1) in
+			let v = fresh_qid (Id.mk vi "v") free_vars in
+			let subst = pat_subst pi sev pti (EVar(vi,v)) sj in
+			let select e (x,s) = 
+			  let qx = Qid.t_of_id x in
+			    (qx,ECase(pi,e,[PVnt(pi,li,Some (PVar(vi,Qid.id_of_t v,None))),
+					    Safelist.assoc qx subst],s)) in
+			try Safelist.map (select e1) binds
+			with Not_found -> err p0 "data type (bad cases)" e1 s2
+		      end
+		  | _ -> err p0 "data type (bad constructor)" e1 s2
+		end
+	    | _,_ -> err p0 "data type" e1 s2
+	  end
+    | PUnt _
+    | PInt _
+    | PBol _
+    | PCex _
+    | PStr _ -> err p0 "unsupported binding pattern" e1 s2
 
 (* ------ sort resolution and compilation ----- *)
 (* check_sort: resolves qids in SDatas and checks expressions in SRefines *)
@@ -650,7 +722,7 @@ and check_exp ?in_let:(in_let=false) sev e0 =
         (* put in the bound-term and inner term *)
         let new_e0 = ELet(i,Bind(new_bi,new_bp,new_bso,cast_be),new_e) in 
         (* substitute in the sort *)
-	let sigma = pat_subst i new_bp cast_be be_sort in
+	let sigma = pat_subst i sev new_bp cast_be be_sort in
         let e_sort_subst = subst_exp_in_sort sigma e_sort in
         (e_sort_subst,new_e0)
 
@@ -787,7 +859,7 @@ and check_binding ?in_let:(in_let=false) sev b0 = match b0 with
                  let qj = Qid.t_of_id xj in 
                    (qj::xsi,SCEnv.update sevi qj (G.Sort sj)))
 	      ([],sev) binds in
-	      (new_p,Safelist.rev xs_rev,bsev) in 
+            (new_p,Safelist.rev xs_rev,bsev) in 
       let new_b = Bind(i,new_p,Some new_s,cast_e) in 
         (bsev,xs,new_b)
 

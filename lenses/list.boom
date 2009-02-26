@@ -32,6 +32,17 @@ and a tail.
 
 #* type 'a t = Nil | Cons of 'a * 'a t
 
+\LENSSECTION{@hd@,@tl@} The selectors @hd@ and @tl@ pull out the first and last
+parts of a @Cons@-cell, respectively.
+
+#* let hd ('a) (xs:'a t) : 'a =
+#*   let (Cons(x,_)) = xs in
+#*   x
+
+#* let tl ('a) (xs:'a t) : 'a t =
+#*   let (Cons(_,xs)) = xs in
+#*   xs
+
 \LENSSECTION{@fold_left@} Boomerang does not support recursion. However, we 
 provide the @fold_left@ function on lists via a built-in primitive.
 

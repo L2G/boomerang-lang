@@ -532,6 +532,10 @@ let free_sort_vars s0 = free_svars_sort Id.Set.empty s0
 
 let free_exp_vars_in_sort s0 = free_evars_sort Qid.Set.empty s0
 
+let free_exp_vars e0 = free_evars_exp Qid.Set.empty e0
+
+let free_exp_vars_pat p0 = free_evars_pat Qid.Set.empty p0
+
 let rec erase_sort = function
   | SFunction(x,s1,s2) ->       
       SFunction(x,erase_sort s1,erase_sort s2)
