@@ -22,8 +22,6 @@
 open Bident
 open Bsyntax
 
-val no_alias : bool Prefs.t
-
 val get_type : (Qid.t -> 'a option) -> Info.t -> Qid.t -> 'a 
 
 val inst_cases : 
