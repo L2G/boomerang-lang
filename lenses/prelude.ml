@@ -201,6 +201,10 @@ let pmk_dup2  =
   pmk3 (S.SString ^> S.SString) mk_ffun S.SRegexp mk_rfun S.SLens mk_lfun 
     S.SLens mk_l
 
+let pmk_rsf = 
+  pmk3 S.SRegexp mk_rfun S.SString mk_sfun (S.SString ^> S.SString) mk_ffun 
+    S.SLens mk_l
+
 let pmk_izlzl = 
   pmk2 (S.SData([S.SInteger],list_qid)) mk_listfun 
     (S.SData([S.SLens],list_qid)) mk_listfun S.SLens mk_l 
@@ -246,6 +250,7 @@ let prelude_spec =
   ; pmk_ll     "forgetkey"            L.forgetkey
   ; pmk_sll    "probe"                L.probe
   ; pmk_rrl    "filter"               L.filter
+  ; pmk_rsf    "clobber"              (fun i r s f -> L.clobber i r s (fun s -> get_s (f (mk_s i s))))
   ; pmk_rl     "merge"                L.merge
   ; pmk_dup1   "dup1"                 (fun i l f fat -> 
                                          L.dup1 i l 

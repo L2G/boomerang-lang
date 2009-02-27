@@ -514,6 +514,7 @@ module DLens = struct
     (* ----- extensions ----- *)
     | SMatch of string * float * t 
     | Filter of Rx.t * Rx.t 
+    | Clobber of Rx.t * string * (string -> string)
     | Merge of Rx.t 
     | Forgetkey of t
     | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array 
@@ -659,6 +660,7 @@ module DLens = struct
           | Dup2(f1,r1,dl1)    -> bij dl1
           | SMatch(t1,f1,dl1)  -> bij dl1
           | Filter(r1,r2)      -> Rx.is_empty r1 
+          | Clobber(r1,_,_)    -> Rx.is_singleton r1
           | Merge(r1)          -> Rx.is_singleton r1 
           | Forgetkey(dl1)     -> bij dl1 
           | Permute(_,dls)     -> Array.fold_left (fun b dli -> b && bij dli) true dls 
@@ -686,6 +688,7 @@ module DLens = struct
           | Dup2(f1,r1,dl1)    -> ctype dl1
           | SMatch(t1,f1,dl1)  -> ctype dl1
           | Filter(r1,r2)      -> Rx.mk_star (Rx.mk_alt r1 r2) 
+          | Clobber(r1,_,_)    -> r1
           | Merge(r1)          -> Rx.mk_seq r1 r1 
           | Forgetkey(dl1)     -> ctype dl1 
           | Permute(_,dls)     -> 
@@ -715,6 +718,7 @@ module DLens = struct
           | Dup2(f1,r1,dl1)    -> Rx.mk_seq r1 (atype dl1)
           | SMatch(t1,f1,dl1)  -> atype dl1
           | Filter(r1,r2)      -> Rx.mk_star r2
+          | Clobber(_,w1,_)    -> Rx.mk_string w1
           | Merge(r1)          -> r1
           | Forgetkey(dl1)     -> atype dl1 
           | Permute(p1,dls)    -> 
@@ -759,6 +763,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> Misc.map_option (Erx.mk_box t1) (xtype dl1)
           | Filter(r1,r2)      -> Some (Erx.mk_leaf (atype dl)) 
           | Merge(r1)          -> Some (Erx.mk_leaf (atype dl))
+          | Clobber(_,_,_)     -> Some (Erx.mk_leaf (atype dl))
           | Forgetkey(dl1)     -> xtype dl1 
           | Permute(p1,dls)    -> 
               let _,s1,_,_,_ = p1 in 
@@ -790,6 +795,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> TMap.add t1 dl1.uid TMap.empty
           | Filter(r1,r2)      -> TMap.empty 
           | Merge(r1)          -> TMap.empty
+          | Clobber(r1,_,_)    -> TMap.empty
           | Forgetkey(dl1)     -> dtype dl1 
           | Permute(_,dls)     -> 
               Array.fold_left 
@@ -817,6 +823,7 @@ module DLens = struct
     | S_box(b),SMatch(t1,f1,dl1)        -> b = t1
     | S_string(s),Filter(r1,r2)         -> Rx.match_string (ctype dl) s 
     | S_string(s),Merge(r1)             -> Rx.match_string (ctype dl) s
+    | S_string(s),Clobber(r1,w1,f)      -> Rx.match_string (ctype dl) s
     | _,Forgetkey(dl1)                  -> stype dl1 sk
     | S_star(sl),Permute(_,dls)         -> 
         (Safelist.length sl = Array.length dls)
@@ -847,6 +854,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> crel dl1
           | Filter(r1,r2)      -> Identity 
           | Merge(r1)          -> Identity
+          | Clobber(r1,_,_)    -> if (bij dl) then Identity else Unknown
           | Forgetkey(dl1)     -> crel dl1 
           | Permute(p1,dls)    -> 
               Array.fold_left 
@@ -877,6 +885,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> arel dl1
           | Filter(r1,r2)      -> Identity 
           | Merge(r1)          -> Identity 
+          | Clobber(r1,_,_)    -> Identity
           | Forgetkey(dl1)     -> arel dl1
           | Permute(p1,dls)    -> 
               Array.fold_left (fun acc dli -> equiv_merge acc (arel dli)) 
@@ -919,6 +928,7 @@ module DLens = struct
         (fun c -> 
            let c1,_ = seq_split r1 r1 c in 
            c1)
+    | Clobber(r1,d,f)    -> (fun c -> d)
     | Forgetkey(dl1)     -> (fun c -> get dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
@@ -1016,6 +1026,7 @@ module DLens = struct
            let c' = loop "" (Rx.star_split (ctype dl) c) 
              (Rx.star_split (ctype dl) a) in 
            (c',d))
+    | Clobber(r1,d,f)    -> (fun a s d -> f a,d)
     | Merge(r1)          -> 
         (fun a s d ->            
            let s1,s2 = seq_split r1 r1 (string_of_skel s) in 
@@ -1090,6 +1101,7 @@ module DLens = struct
     | SMatch(t1,f1,dl1)  ->
         (fun a d -> do_match std_lookup (key dl1) (put dl1) (create dl1) t1 a d)
     | Filter(r1,r2)      -> (fun a d -> (a,d))
+    | Clobber(r1,d,f)    -> (fun a d -> f a,d)
     | Merge(r1)          -> (fun a d -> (a ^ a,d))
     | Forgetkey(dl1)     -> (fun a d -> create dl1 a d)
     | Permute(p1,dls)    -> 
@@ -1141,6 +1153,7 @@ module DLens = struct
     | SMatch(t1,f1,dl1)  -> (fun a -> key dl1 a)
     | Filter(r1,r2)      -> (fun a -> "")
     | Merge(r1)          -> (fun a -> "")
+    | Clobber(r1,_,_)    -> (fun a -> "")
     | Forgetkey(dl1)     -> (fun a -> "")
     | Permute(p1,dls)    -> 
         (fun a -> 
@@ -1213,6 +1226,7 @@ module DLens = struct
            (S_box t1,TMap.add t1 km d2))
     | Filter(r1,r2)      -> (fun c -> (S_string c, TMap.empty))
     | Merge(r1)          -> (fun c -> (S_string c, TMap.empty))
+    | Clobber(r1,w1,f)   -> (fun c -> (S_string c, TMap.empty))
     | Forgetkey(dl1)     -> (fun c -> parse dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
@@ -1300,6 +1314,7 @@ module DLens = struct
   let dup2 i f1 r1 dl1 = mk i (Dup2(f1,r1,dl1))
   let smatch i t1 f1 dl1 = mk i (SMatch(f1,t1,dl1))
   let filter i r1 r2 = mk i (Filter(r1,r2))
+  let clobber i r1 w1 f1 = mk i (Clobber(r1,w1,f1))
   let merge i r1 = mk i (Merge(r1))
   let forgetkey i dl1 = mk i (Forgetkey(dl1))
   let probe i t1 dl1 = mk i (Probe(t1,dl1))

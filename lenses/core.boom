@@ -672,7 +672,21 @@ unambiguous.
 #* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
 #* test put (filter [A-Z] [0-9]) "123456" "A1B2C3" = "A1B2C3456"
 
-\LENSSECTION{@merge@} The @merge@ operator takes a regular expressions @R@ 
+\LENSSECTION{@clobber@} The @clobber@ operator takes a regular expression @R@, a string 
+@d@, and a function mapping strings to strings @f@ as arguments and yields a lens whose  
+$\GET$ function maps strings in @R@ to @d@ and whose $\PUT$ and $\CREATE$ functions
+map @d@ to @f d@. 
+
+#* let clobber 
+#*     (R:regexp) (d:string) (f:string -> (x:string where matches R x))
+#*   : (l:lens where in_lens_type l R (str d))
+##   = Native.Prelude.clobber R d f 
+
+#* test get (clobber [A-Z] "" (fun (s:string) -> "X")) "A" = ""
+#* test put (clobber [A-Z] "" (fun (s:string) -> "X")) "" "A" = "X"
+#* test create (clobber [A-Z] "" (fun (s:string) -> "X")) "" = "X"
+
+\LENSSECTION{@merge@} The @merge@ operator takes a regular expression @R@ 
 and produces a lens whose $\GET$ function transforms a string belonging to the 
 concatenation of @R@ with itself by discarding the second substring belonging 
 to @R@. The regular expression @R@ must be unambiguously concatenable with itself.
