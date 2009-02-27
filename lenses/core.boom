@@ -958,8 +958,8 @@ synchronization algorithm based on diff3. The synchronization type is
 extracted from the lens
 
 #* let sync : (l:lens -> 
-#*            (o:string where matches (atype l) o) -> 
-#*            (a:string where matches (atype l) a) -> 
-#*            (b:string where matches (atype l) b) ->               
+#*            (o:string where matches_cex (atype l) o) -> 
+#*            (a:string where matches_cex (atype l) a) -> 
+#*            (b:string where matches_cex (atype l) b) ->
 #*            (string * string * string * string))
 ## = Native.Prelude.sync

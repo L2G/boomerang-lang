@@ -650,11 +650,10 @@ commaexp:
 <InfixExp> ::= <DotExp> 
       \alt <TildeExp> 
       \alt <AmpExp> 
+      \alt <RewriteExp>
       \alt <LensComponentExp> 
       \alt <AppExp> \lit{@-@} <AppExp> 
       \alt <AppExp> \lit{@&&@} <AppExp> 
-      \alt <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> 
-      \alt <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> 
       \alt <AppExp> \lit{\ltsym} <AppExp> 
       \alt <AppExp> \lit{\ltsym@=@} <AppExp> 
       \alt <AppExp> \lit{\gtsym} <AppExp> 
@@ -667,15 +666,13 @@ infixexp:
       { $1 }
   | tildeexp
       { $1 }
+  | rewriteexp
+      { $1 }
   | minusexp
       { $1 }
   | ampexp 
       { $1 }
   | ampampexp 
-      { $1 }
-  | darrowexp
-      { $1 }
-  | deqarrowexp
       { $1 }
   | ltexp 
       { $1 }
@@ -700,6 +697,10 @@ dotexp:
       { mk_over (me $1 $3) ODot [$1; $3] }
   | appexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
+  | dotexp DOT rewriteexp
+      { mk_over (me $1 $3) ODot [$1; $3] }
+  | appexp DOT rewriteexp
+      { mk_over (me $1 $3) ODot [$1; $3] }
 
 #{@}
 <TildeExp> ::= <TildeExp> \lit{@~@} <AppExp> 
@@ -722,6 +723,15 @@ ampexp:
       { mk_over (me $1 $3) OAmp [$1; $3] }
   | appexp AMPERSAND appexp 
       { mk_over (me $1 $3) OAmp [$1; $3] }
+
+#{#}      
+rewriteexp:
+  | appexp DARROW appexp 
+      { mk_over (me $1 $3) ODarrow [$1; $3] }
+
+  | appexp DEQARROW appexp
+      { mk_over (me $1 $3) ODeqarrow [$1; $3] }
+
 
 #{@}
 <LensComponentExp> ::= <AppExp> \lit{@.get@} <AppExp>
@@ -769,14 +779,6 @@ minusexp:
 ampampexp:
   | appexp AMPERSAND AMPERSAND appexp 
       { mk_over (me $1 $4) OAmpAmp [$1; $4] }
-
-darrowexp:
-  | appexp DARROW appexp 
-      { mk_over (me $1 $3) ODarrow [$1; $3] }
-
-deqarrowexp:
-  | appexp DEQARROW appexp
-      { mk_over (me $1 $3) ODeqarrow [$1; $3] }
 
 ltexp:
   | appexp LT appexp 
