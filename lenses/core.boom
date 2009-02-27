@@ -672,6 +672,21 @@ unambiguous.
 #* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
 #* test put (filter [A-Z] [0-9]) "123456" "A1B2C3" = "A1B2C3456"
 
+\LENSSECTION{@merge@} The @merge@ operator takes a regular expressions @R@ 
+and produces a lens whose $\GET$ function transforms a string belonging to the 
+concatenation of @R@ with itself by discarding the second substring belonging 
+to @R@. The regular expression @R@ must be unambiguously concatenable with itself.
+
+#* let merge 
+#*     (R:regexp where splittable_cex R R) 
+#*   : (l:lens where in_lens_type l (regexp_concat R R) R)
+##   = Native.Prelude.merge R
+
+#* test get (merge [A-Z]) "AA" = "A"
+#* test get (merge [A-Z]) "AB" = "A"
+#* test put (merge [A-Z]) "C" "AA" = "CC"
+#* test put (merge [A-Z]) "C" "AB" = "CB"
+
 \subsection{Dictionary Lenses}
 
 The next few primitives construct lenses for handling ordered data 

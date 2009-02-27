@@ -103,6 +103,7 @@ module DLens : sig
   val dmatch : Info.t -> string -> t -> t
   val smatch : Info.t -> float -> string -> t -> t
   val filter : Info.t -> Brx.t -> Brx.t -> t
+  val merge : Info.t -> Brx.t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t
   val right_quot : Info.t -> t -> Canonizer.t -> t
   val dup1 : Info.t -> t -> (string -> string) -> Brx.t -> t

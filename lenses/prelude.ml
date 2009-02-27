@@ -246,6 +246,7 @@ let prelude_spec =
   ; pmk_ll     "forgetkey"            L.forgetkey
   ; pmk_sll    "probe"                L.probe
   ; pmk_rrl    "filter"               L.filter
+  ; pmk_rl     "merge"                L.merge
   ; pmk_dup1   "dup1"                 (fun i l f fat -> 
                                          L.dup1 i l 
                                            (fun s -> get_s (f (mk_s i s))) fat)
