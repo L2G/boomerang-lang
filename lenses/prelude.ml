@@ -306,6 +306,7 @@ let prelude_spec =
   ; pmk_sic    "get_char"             (fun _ -> String.get)
   ; pmk_ss     "read"                 (fun _ fn -> Misc.read fn)
   ; pmk_ssu    "write"                (fun _ fn s -> Misc.write fn s)
+  ; pmk_ss     "exec"                 (fun _ c -> Misc.exec c)
                                       
   (* regexp operations *)             
   ; pmk_sr     "str"                  (fun _ -> Brx.mk_string)

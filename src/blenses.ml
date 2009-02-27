@@ -660,7 +660,7 @@ module DLens = struct
           | Filter(r1,r2)      -> Rx.is_empty r1 
           | Forgetkey(dl1)     -> bij dl1 
           | Permute(_,dls)     -> Array.fold_left (fun b dli -> b && bij dli) true dls 
-          | Probe(_,dl1)         -> bij dl1 in
+          | Probe(_,dl1)       -> bij dl1 in
         dl.bij <- Some b;
         b
 
@@ -688,7 +688,7 @@ module DLens = struct
           | Permute(_,dls)     -> 
               Array.fold_left (fun acc dli -> Rx.mk_seq acc (ctype dli)) 
                 Rx.epsilon dls 
-          | Probe(_,dl1)       -> ctype dl1 in          
+          | Probe(_,dl1)       -> ctype dl1 in
         dl.ctype <- Some ct;
         ct
           

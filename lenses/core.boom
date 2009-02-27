@@ -950,6 +950,11 @@ the local filesystem.
 #* let write : string -> string -> unit
 ## = Native.Prelude.write
 
+\LENSSECTION{@exec@} The @exec@ function executes a shell command. 
+
+#* let exec : string -> string 
+## = Native.Prelude.exec
+
 \subsection{Synchronization}
 
 \LENSSECTION{@sync@} The @sync@ function takes a lens an three strings as

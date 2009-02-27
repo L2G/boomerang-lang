@@ -206,8 +206,10 @@ val backup : string -> unit
 val tempFileName : string -> string
 (** Returns a fresh temporary filename tagged with the string passed as argument. *)
 
-
 (** {2 I/O}*)
+
+val exec : string -> string
+(** Executes a shell command.*)
 
 val read_char : unit -> char
 (** Reads a char from the shell.*)

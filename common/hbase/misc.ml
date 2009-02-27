@@ -577,6 +577,22 @@ let backup path =
   let newpath = backup_file_name path in
   if is_dir path or Sys.file_exists path then cp_dash_r path newpath
 
+(* exec : string -> string *)
+let exec s = 
+  let buf = Buffer.create 17 in 
+  let p = Unix.open_process_in s in
+  let _ = 
+    try 
+      while true do
+        Buffer.add_char buf (input_char p)
+      done
+    with End_of_file -> () in 
+  let _ = 
+    match Unix.close_process_in p with
+      | Unix.WEXITED 0 -> ()
+      | _ -> invalid_arg ("Misc.exec: " ^ s) in 
+  Buffer.contents buf
+
 (* read_char : unit -> char *)
 let read_char () =
   let term = Unix.tcgetattr Unix.stdin in
