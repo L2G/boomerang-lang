@@ -201,7 +201,7 @@ let pmk_dup2  =
   pmk3 (S.SString ^> S.SString) mk_ffun S.SRegexp mk_rfun S.SLens mk_lfun 
     S.SLens mk_l
 
-let pmk_rsf = 
+let pmk_rsfl = 
   pmk3 S.SRegexp mk_rfun S.SString mk_sfun (S.SString ^> S.SString) mk_ffun 
     S.SLens mk_l
 
@@ -229,7 +229,7 @@ let prelude_spec =
                                         
   (* core lens combinators *)           
   ; pmk_rl     "copy"                 L.copy
-  ; pmk_rssl   "const"                L.const
+  ; pmk_rsfl   "clobber"              (fun i r s f -> L.clobber i r s (fun s -> get_s (f (mk_s i s))))
   ; pmk_lll    "lens_union"           L.union
   ; pmk_lll    "lens_concat"          L.concat
   ; pmk_lll    "lens_swap"            (fun i l1 l2 -> L.permute i [1;0] [l1;l2])
@@ -250,7 +250,6 @@ let prelude_spec =
   ; pmk_ll     "forgetkey"            L.forgetkey
   ; pmk_sll    "probe"                L.probe
   ; pmk_rrl    "filter"               L.filter
-  ; pmk_rsf    "clobber"              (fun i r s f -> L.clobber i r s (fun s -> get_s (f (mk_s i s))))
   ; pmk_rl     "merge"                L.merge
   ; pmk_dup1   "dup1"                 (fun i l f fat -> 
                                          L.dup1 i l 

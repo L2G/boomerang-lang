@@ -92,7 +92,7 @@ module DLens : sig
   val invert : Info.t -> t -> t
   val copy : Info.t -> Brx.t -> t
   val key : Info.t -> Brx.t -> t
-  val const : Info.t -> Brx.t -> string -> string -> t
+  val clobber : Info.t -> Brx.t -> string -> (string -> string) -> t
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t

@@ -438,19 +438,32 @@ as an argument and copies strings belonging to @R@ in both directions.
 #* test ctype (copy [A-Z]) = [A-Z]
 #* test atype (copy [A-Z]) = ctype (copy [A-Z])
 
-\LENSSECTION{@const@} The @const@ lens takes as arguments a regular 
-expression @R@, a string @u@, and a string @v@. Its $\GET$ function 
-is the constant function that returns @u@, its $\PUT$ function 
+
+\LENSSECTION{@clobber@} The @clobber@ lens takes as arguments a regular 
+expression @R@, a string @u@, and a function from strings to strings @f@. 
+Its $\GET$ function is the constant function that returns @u@, its $\PUT$ function 
 restores its concrete argument, and its $\CREATE$ function returns 
-the default string @v@.
+the string @f u@.
+
+#* let clobber 
+#*     (R:regexp) (d:string) (f:string -> (x:string where matches R x))
+#*   : (l:lens where in_lens_type l R (str d))
+##   = Native.Prelude.clobber R d f 
+
+#* test get (clobber [A-Z] "" (fun (s:string) -> "B")) "A" = ""
+#* test put (clobber [A-Z] "" (fun (s:string) -> "B")) "" "A" = "A"
+#* test create (clobber [A-Z] "" (fun (s:string) -> "B")) "" = "B"
+
+\LENSSECTION{@const@} The @const@ lens behaves like @clobber@ but 
+has a $\CREATE$ function that always returns a default string @v@.
 
 #* let const (R:regexp) (u:string) (v:string where matches R v)
 #*   : (l:lens where in_lens_type l R (str u))
-##   = Native.Prelude.const R u v
+##   = clobber R u (fun (s:string) -> v)
 
-#* test get (const [A-Z] "x" "A") "A" = "x"
-#* test put (const [A-Z] "x" "A") "x" "B" = "B"
-#* test create (const [A-Z] "x" "A") "x" = "A"
+#* test get (const [A-Z] "x" "B") "A" = "x"
+#* test put (const [A-Z] "x" "B") "x" "A" = "A"
+#* test create (const [A-Z] "x" "B") "x" = "B"
 
 
 \LENSSECTION{@set@} The @set@ derived lens is like @const@ but uses an arbitrary representative 
@@ -671,20 +684,6 @@ unambiguous.
 
 #* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
 #* test put (filter [A-Z] [0-9]) "123456" "A1B2C3" = "A1B2C3456"
-
-\LENSSECTION{@clobber@} The @clobber@ operator takes a regular expression @R@, a string 
-@d@, and a function mapping strings to strings @f@ as arguments and yields a lens whose  
-$\GET$ function maps strings in @R@ to @d@ and whose $\PUT$ and $\CREATE$ functions
-map @d@ to @f d@. 
-
-#* let clobber 
-#*     (R:regexp) (d:string) (f:string -> (x:string where matches R x))
-#*   : (l:lens where in_lens_type l R (str d))
-##   = Native.Prelude.clobber R d f 
-
-#* test get (clobber [A-Z] "" (fun (s:string) -> "X")) "A" = ""
-#* test put (clobber [A-Z] "" (fun (s:string) -> "X")) "" "A" = "X"
-#* test create (clobber [A-Z] "" (fun (s:string) -> "X")) "" = "X"
 
 \LENSSECTION{@merge@} The @merge@ operator takes a regular expression @R@ 
 and produces a lens whose $\GET$ function transforms a string belonging to the 

@@ -493,7 +493,7 @@ module DLens = struct
   type d = 
     (* ----- string lenses ----- *)
     | Copy of Rx.t
-    | Const of Rx.t * string * string
+    | Clobber of Rx.t * string * (string -> string)
     | Concat of t * t
     | Union of t * t
     | Star of t
@@ -514,7 +514,6 @@ module DLens = struct
     (* ----- extensions ----- *)
     | SMatch of string * float * t 
     | Filter of Rx.t * Rx.t 
-    | Clobber of Rx.t * string * (string -> string)
     | Merge of Rx.t 
     | Forgetkey of t
     | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array 
@@ -645,7 +644,7 @@ module DLens = struct
     | None   -> 
         let b = match dl.desc with          
           | Copy(r1)           -> true
-          | Const(r1,w1,w2)    -> Rx.is_singleton r1
+          | Clobber(r1,w1,f1)   -> Rx.is_singleton r1
           | Concat(dl1,dl2)    -> bij dl1 && bij dl2
           | Union(dl1,dl2)     -> bij dl1 && bij dl2 && Rx.disjoint (atype dl1) (atype dl2)
           | Star(dl1)          -> bij dl1
@@ -660,7 +659,6 @@ module DLens = struct
           | Dup2(f1,r1,dl1)    -> bij dl1
           | SMatch(t1,f1,dl1)  -> bij dl1
           | Filter(r1,r2)      -> Rx.is_empty r1 
-          | Clobber(r1,_,_)    -> Rx.is_singleton r1
           | Merge(r1)          -> Rx.is_singleton r1 
           | Forgetkey(dl1)     -> bij dl1 
           | Permute(_,dls)     -> Array.fold_left (fun b dli -> b && bij dli) true dls 
@@ -673,7 +671,7 @@ module DLens = struct
     | None -> 
         let ct = match dl.desc with
           | Copy(r1)           -> r1
-          | Const(r1,w1,w2)    -> r1
+          | Clobber(r1,w1,f1)    -> r1
           | Concat(dl1,dl2)    -> Rx.mk_seq (ctype dl1) (ctype dl2)
           | Union(dl1,dl2)     -> Rx.mk_alt (ctype dl1) (ctype dl2)
           | Star(dl1)          -> Rx.mk_star (ctype dl1)
@@ -688,7 +686,6 @@ module DLens = struct
           | Dup2(f1,r1,dl1)    -> ctype dl1
           | SMatch(t1,f1,dl1)  -> ctype dl1
           | Filter(r1,r2)      -> Rx.mk_star (Rx.mk_alt r1 r2) 
-          | Clobber(r1,_,_)    -> r1
           | Merge(r1)          -> Rx.mk_seq r1 r1 
           | Forgetkey(dl1)     -> ctype dl1 
           | Permute(_,dls)     -> 
@@ -703,7 +700,7 @@ module DLens = struct
     | None -> 
         let at = match dl.desc with 
           | Copy(r1)           -> r1
-          | Const(r1,w1,w2)    -> Rx.mk_string w1 
+          | Clobber(r1,w1,f1)    -> Rx.mk_string w1 
           | Concat(dl1,dl2)    -> Rx.mk_seq (atype dl1) (atype dl2)
           | Union(dl1,dl2)     -> Rx.mk_alt (atype dl1) (atype dl2)
           | Star(dl1)          -> Rx.mk_star (atype dl1)
@@ -718,7 +715,6 @@ module DLens = struct
           | Dup2(f1,r1,dl1)    -> Rx.mk_seq r1 (atype dl1)
           | SMatch(t1,f1,dl1)  -> atype dl1
           | Filter(r1,r2)      -> Rx.mk_star r2
-          | Clobber(_,w1,_)    -> Rx.mk_string w1
           | Merge(r1)          -> r1
           | Forgetkey(dl1)     -> atype dl1 
           | Permute(p1,dls)    -> 
@@ -735,7 +731,7 @@ module DLens = struct
     | None -> 
         let xto = match dl.desc with
           | Copy(r1)           -> Some (Erx.mk_leaf (atype dl))
-          | Const(r1,w1,w2)    -> Some (Erx.mk_leaf (atype dl))
+          | Clobber(r1,w1,f1)    -> Some (Erx.mk_leaf (atype dl))
           | Concat(dl1,dl2)    -> Misc.map2_option Erx.mk_seq (xtype dl1) (xtype dl2)
           | Union(dl1,dl2)     -> Misc.map2_option Erx.mk_alt (xtype dl1) (xtype dl2)
           | Star(dl1)          -> 
@@ -763,7 +759,6 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> Misc.map_option (Erx.mk_box t1) (xtype dl1)
           | Filter(r1,r2)      -> Some (Erx.mk_leaf (atype dl)) 
           | Merge(r1)          -> Some (Erx.mk_leaf (atype dl))
-          | Clobber(_,_,_)     -> Some (Erx.mk_leaf (atype dl))
           | Forgetkey(dl1)     -> xtype dl1 
           | Permute(p1,dls)    -> 
               let _,s1,_,_,_ = p1 in 
@@ -779,7 +774,7 @@ module DLens = struct
     | None -> 
         let dt = match dl.desc with
           | Copy(r1)           -> TMap.empty
-          | Const(r1,w1,w2)    -> TMap.empty
+          | Clobber(r1,w1,f1)    -> TMap.empty
           | Concat(dl1,dl2)    -> dt_merge (dtype dl1) (dtype dl2)
           | Union(dl1,dl2)     -> dt_merge (dtype dl1) (dtype dl2)
           | Star(dl1)          -> dtype dl1
@@ -795,7 +790,6 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> TMap.add t1 dl1.uid TMap.empty
           | Filter(r1,r2)      -> TMap.empty 
           | Merge(r1)          -> TMap.empty
-          | Clobber(r1,_,_)    -> TMap.empty
           | Forgetkey(dl1)     -> dtype dl1 
           | Permute(_,dls)     -> 
               Array.fold_left 
@@ -807,7 +801,7 @@ module DLens = struct
             
   and stype dl sk = match sk,dl.desc with
     | S_string(s),Copy(r1)              -> Rx.match_string (ctype dl) s
-    | S_string(s),Const(r1,w1,w2)       -> Rx.match_string (ctype dl) s
+    | S_string(s),Clobber(r1,w1,f1)       -> Rx.match_string (ctype dl) s
     | S_concat(sk1,sk2),Concat(dl1,dl2) -> stype dl1 sk1 && stype dl2 sk2
     | _,Union(dl1,dl2)                  -> stype dl1 sk || stype dl2 sk
     | S_star(sl),Star(dl1)              -> Safelist.for_all (stype dl1) sl
@@ -823,7 +817,6 @@ module DLens = struct
     | S_box(b),SMatch(t1,f1,dl1)        -> b = t1
     | S_string(s),Filter(r1,r2)         -> Rx.match_string (ctype dl) s 
     | S_string(s),Merge(r1)             -> Rx.match_string (ctype dl) s
-    | S_string(s),Clobber(r1,w1,f)      -> Rx.match_string (ctype dl) s
     | _,Forgetkey(dl1)                  -> stype dl1 sk
     | S_star(sl),Permute(_,dls)         -> 
         (Safelist.length sl = Array.length dls)
@@ -838,7 +831,7 @@ module DLens = struct
     | None -> 
         let cr = match dl.desc with
           | Copy(r1)           -> Identity
-          | Const(r1,w1,w2)    -> Identity
+          | Clobber(r1,w1,f1)    -> Identity
           | Concat(dl1,dl2)    -> equiv_merge (crel dl1) (crel dl2)
           | Union(dl1,dl2)     -> equiv_merge (crel dl1) (crel dl2)
           | Star(dl1)          -> crel dl1
@@ -854,7 +847,6 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> crel dl1
           | Filter(r1,r2)      -> Identity 
           | Merge(r1)          -> Identity
-          | Clobber(r1,_,_)    -> if (bij dl) then Identity else Unknown
           | Forgetkey(dl1)     -> crel dl1 
           | Permute(p1,dls)    -> 
               Array.fold_left 
@@ -869,7 +861,7 @@ module DLens = struct
     | None -> 
         let ar = match dl.desc with
           | Copy(r1)           -> Identity
-          | Const(r1,w1,w2)    -> Identity
+          | Clobber(r1,w1,f1)    -> Identity
           | Concat(dl1,dl2)    -> equiv_merge (arel dl1) (arel dl2)
           | Union(dl1,dl2)     -> equiv_merge (arel dl1) (arel dl2)
           | Star(dl1)          -> arel dl1
@@ -885,7 +877,6 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> arel dl1
           | Filter(r1,r2)      -> Identity 
           | Merge(r1)          -> Identity 
-          | Clobber(r1,_,_)    -> Identity
           | Forgetkey(dl1)     -> arel dl1
           | Permute(p1,dls)    -> 
               Array.fold_left (fun acc dli -> equiv_merge acc (arel dli)) 
@@ -896,7 +887,7 @@ module DLens = struct
 
   and get dl = match dl.desc with
     | Copy(r1)           -> (fun c -> c)
-    | Const(r1,w1,w2)    -> (fun c -> w1)
+    | Clobber(r1,w1,t1)    -> (fun c -> w1)
     | Concat(dl1,dl2)    -> 
         (fun c -> 
            do_concat (ctype dl1) (ctype dl2) (get dl1) (get dl2) c)
@@ -928,7 +919,6 @@ module DLens = struct
         (fun c -> 
            let c1,_ = seq_split r1 r1 c in 
            c1)
-    | Clobber(r1,d,f)    -> (fun c -> d)
     | Forgetkey(dl1)     -> (fun c -> get dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
@@ -952,7 +942,7 @@ module DLens = struct
                  
   and put dl = match dl.desc with
     | Copy(r1)           -> (fun a _ d -> (a,d))
-    | Const(r1,w1,w2)    -> (fun _ s d -> (string_of_skel s,d))
+    | Clobber(r1,w1,f1)    -> (fun _ s d -> (string_of_skel s,d))
     | Concat(dl1,dl2)    -> 
         (fun a s d -> 
            let a1,a2 = seq_split (atype dl1) (atype dl2) a in
@@ -1026,7 +1016,6 @@ module DLens = struct
            let c' = loop "" (Rx.star_split (ctype dl) c) 
              (Rx.star_split (ctype dl) a) in 
            (c',d))
-    | Clobber(r1,d,f)    -> (fun a s d -> f a,d)
     | Merge(r1)          -> 
         (fun a s d ->            
            let s1,s2 = seq_split r1 r1 (string_of_skel s) in 
@@ -1058,7 +1047,7 @@ module DLens = struct
 
   and create dl = match dl.desc with
     | Copy(r1)           -> (fun a d -> (a,d))
-    | Const(r1,w1,w2)    -> (fun _ d -> (w2,d))
+    | Clobber(r1,w1,f1)    -> (fun a d -> (f1 a,d))
     | Concat(dl1,dl2)    -> 
         (fun a d -> 
            let a1,a2 = seq_split (atype dl1) (atype dl2) a in
@@ -1101,7 +1090,6 @@ module DLens = struct
     | SMatch(t1,f1,dl1)  ->
         (fun a d -> do_match std_lookup (key dl1) (put dl1) (create dl1) t1 a d)
     | Filter(r1,r2)      -> (fun a d -> (a,d))
-    | Clobber(r1,d,f)    -> (fun a d -> f a,d)
     | Merge(r1)          -> (fun a d -> (a ^ a,d))
     | Forgetkey(dl1)     -> (fun a d -> create dl1 a d)
     | Permute(p1,dls)    -> 
@@ -1128,7 +1116,7 @@ module DLens = struct
 
   and key dl = match dl.desc with
     | Copy(r1)           -> (fun a -> "")
-    | Const(r1,w1,w2)    -> (fun a -> "")
+    | Clobber(r1,w1,f1)    -> (fun a -> "")
     | Concat(dl1,dl2)    -> 
         (fun a -> do_concat (atype dl1) (atype dl2) (key dl1) (key dl2) a)
     | Union(dl1,dl2)     -> 
@@ -1153,7 +1141,6 @@ module DLens = struct
     | SMatch(t1,f1,dl1)  -> (fun a -> key dl1 a)
     | Filter(r1,r2)      -> (fun a -> "")
     | Merge(r1)          -> (fun a -> "")
-    | Clobber(r1,_,_)    -> (fun a -> "")
     | Forgetkey(dl1)     -> (fun a -> "")
     | Permute(p1,dls)    -> 
         (fun a -> 
@@ -1178,7 +1165,7 @@ module DLens = struct
 
   and parse dl = match dl.desc with
     | Copy(r1)           -> (fun c -> (S_string c, TMap.empty))
-    | Const(r1,w1,w2)    -> (fun c -> (S_string c, TMap.empty))
+    | Clobber(r1,w1,f1)    -> (fun c -> (S_string c, TMap.empty))
     | Concat(dl1,dl2)    -> 
         (fun c -> 
            let c1,c2 = seq_split (ctype dl1) (ctype dl2) c in 
@@ -1226,7 +1213,6 @@ module DLens = struct
            (S_box t1,TMap.add t1 km d2))
     | Filter(r1,r2)      -> (fun c -> (S_string c, TMap.empty))
     | Merge(r1)          -> (fun c -> (S_string c, TMap.empty))
-    | Clobber(r1,w1,f)   -> (fun c -> (S_string c, TMap.empty))
     | Forgetkey(dl1)     -> (fun c -> parse dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
@@ -1299,7 +1285,7 @@ module DLens = struct
 
   (* ----- constructors ----- *)
   let copy i r1 = mk i (Copy(r1))
-  let const i r1 w1 w2 = mk i (Const(r1,w1,w2))
+  let clobber i r1 w1 f1 = mk i (Clobber(r1,w1,f1))
   let concat i dl1 dl2 = mk i (Concat(dl1,dl2))
   let union i dl1 dl2 = mk i (Union(dl1,dl2))
   let star i dl1 = mk i (Star(dl1))
@@ -1314,7 +1300,6 @@ module DLens = struct
   let dup2 i f1 r1 dl1 = mk i (Dup2(f1,r1,dl1))
   let smatch i t1 f1 dl1 = mk i (SMatch(f1,t1,dl1))
   let filter i r1 r2 = mk i (Filter(r1,r2))
-  let clobber i r1 w1 f1 = mk i (Clobber(r1,w1,f1))
   let merge i r1 = mk i (Merge(r1))
   let forgetkey i dl1 = mk i (Forgetkey(dl1))
   let probe i t1 dl1 = mk i (Probe(t1,dl1))
