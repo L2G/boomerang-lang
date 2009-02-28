@@ -531,10 +531,10 @@ module DLens = struct
         mutable crel : equiv option;
         mutable arel : equiv option;
         mutable xtype : (Erx.t option) option;
-        mutable dtype : dict_type option;
+        mutable dtype : dict_type;
       }
 
-  let mk i d = 
+  let mk i d dt = 
     { info = i;
       uid = next_uid ();
       desc = d;
@@ -544,7 +544,7 @@ module DLens = struct
       crel = None;
       arel = None;
       xtype = None;
-      dtype = None
+      dtype = dt;
     }        
 
   (* lookup helpers *)
@@ -769,36 +769,31 @@ module DLens = struct
         dl.xtype <- Some xto;
         xto
 
-  and dtype dl = match dl.dtype with
-    | Some dt -> dt
-    | None -> 
-        let dt = match dl.desc with
-          | Copy(r1)           -> TMap.empty
-          | Clobber(r1,w1,f1)    -> TMap.empty
-          | Concat(dl1,dl2)    -> dt_merge (dtype dl1) (dtype dl2)
-          | Union(dl1,dl2)     -> dt_merge (dtype dl1) (dtype dl2)
-          | Star(dl1)          -> dtype dl1
-          | Key(r1)            -> TMap.empty
-          | DMatch(t1,dl1)     -> TMap.add t1 dl1.uid TMap.empty
-          | Compose(dl1,dl2)   -> dt_merge (dtype dl1) (dtype dl2)
-          | Invert(dl1)        -> dtype dl1
-          | Default(dl1,w1)    -> dtype dl1
-          | LeftQuot(cn1,dl1)  -> dtype dl1
-          | RightQuot(dl1,cn1) -> dtype dl1
-          | Dup1(dl1,f1,r1)    -> dtype dl1
-          | Dup2(f1,r1,dl1)    -> dtype dl1
-          | SMatch(t1,f1,dl1)  -> TMap.add t1 dl1.uid TMap.empty
-          | Filter(r1,r2)      -> TMap.empty 
-          | Merge(r1)          -> TMap.empty
-          | Forgetkey(dl1)     -> dtype dl1 
-          | Permute(_,dls)     -> 
-              Array.fold_left 
-                (fun acc dli -> dt_merge acc (dtype dli))
-                TMap.empty dls 
-          | Probe(_,dl1)       -> dtype dl1 in
-        dl.dtype <- Some dt;
-        dt
-            
+  and calc_dtype d = match d with
+    | Copy(r1)           -> TMap.empty
+    | Clobber(r1,w1,f1)  -> TMap.empty
+    | Concat(dl1,dl2)    -> dt_merge dl1.dtype dl2.dtype
+    | Union(dl1,dl2)     -> dt_merge dl1.dtype dl2.dtype
+    | Star(dl1)          -> dl1.dtype
+    | Key(r1)            -> TMap.empty
+    | DMatch(t1,dl1)     -> TMap.add t1 dl1.uid TMap.empty
+    | Compose(dl1,dl2)   -> dt_merge dl1.dtype dl2.dtype
+    | Invert(dl1)        -> dl1.dtype
+    | Default(dl1,w1)    -> dl1.dtype
+    | LeftQuot(cn1,dl1)  -> dl1.dtype
+    | RightQuot(dl1,cn1) -> dl1.dtype
+    | Dup1(dl1,f1,r1)    -> dl1.dtype
+    | Dup2(f1,r1,dl1)    -> dl1.dtype
+    | SMatch(t1,f1,dl1)  -> TMap.add t1 dl1.uid TMap.empty
+    | Filter(r1,r2)      -> TMap.empty 
+    | Merge(r1)          -> TMap.empty
+    | Forgetkey(dl1)     -> dl1.dtype 
+    | Permute(_,dls)     -> 
+        Array.fold_left 
+          (fun acc dli -> dt_merge acc dli.dtype)
+          TMap.empty dls 
+    | Probe(_,dl1)       -> dl1.dtype 
+                
   and stype dl sk = match sk,dl.desc with
     | S_string(s),Copy(r1)              -> Rx.match_string (ctype dl) s
     | S_string(s),Clobber(r1,w1,f1)       -> Rx.match_string (ctype dl) s
@@ -867,7 +862,7 @@ module DLens = struct
           | Star(dl1)          -> arel dl1
           | Key(r1)            -> Identity
           | DMatch(t1,dl1)     -> arel dl1
-          | Compose(dl1,dl2)   -> arel dl1
+          | Compose(dl1,dl2)   -> arel dl2
           | Invert(dl1)        -> crel dl1
           | Default(dl1,w1)    -> arel dl1
           | LeftQuot(cn1,dl1)  -> arel dl1
@@ -1284,25 +1279,26 @@ module DLens = struct
   let crel_identity dl = crel dl = Identity
 
   (* ----- constructors ----- *)
-  let copy i r1 = mk i (Copy(r1))
-  let clobber i r1 w1 f1 = mk i (Clobber(r1,w1,f1))
-  let concat i dl1 dl2 = mk i (Concat(dl1,dl2))
-  let union i dl1 dl2 = mk i (Union(dl1,dl2))
-  let star i dl1 = mk i (Star(dl1))
-  let key i r1 = mk i (Key(r1))
-  let dmatch i t1 dl1 = mk i (DMatch(t1,dl1))
-  let compose i dl1 dl2 = mk i (Compose(dl1,dl2))
-  let invert i dl1 = mk i (Invert(dl1))
-  let default i dl1 w1 = mk i (Default(dl1,w1))
-  let left_quot i cn1 dl1 = mk i (LeftQuot(cn1,dl1))
-  let right_quot i dl1 cn1 = mk i (RightQuot(dl1,cn1))
-  let dup1 i dl1 f1 r1 = mk i (Dup1(dl1,f1,r1))
-  let dup2 i f1 r1 dl1 = mk i (Dup2(f1,r1,dl1))
-  let smatch i t1 f1 dl1 = mk i (SMatch(f1,t1,dl1))
-  let filter i r1 r2 = mk i (Filter(r1,r2))
-  let merge i r1 = mk i (Merge(r1))
-  let forgetkey i dl1 = mk i (Forgetkey(dl1))
-  let probe i t1 dl1 = mk i (Probe(t1,dl1))
+  let mk' i d = mk i d (calc_dtype d)
+  let copy i r1 = mk' i (Copy(r1))
+  let clobber i r1 w1 f1 = mk' i (Clobber(r1,w1,f1))
+  let concat i dl1 dl2 = mk' i (Concat(dl1,dl2))
+  let union i dl1 dl2 = mk' i (Union(dl1,dl2))
+  let star i dl1 = mk' i (Star(dl1))
+  let key i r1 = mk' i (Key(r1))
+  let dmatch i t1 dl1 = mk' i (DMatch(t1,dl1))
+  let compose i dl1 dl2 = mk' i (Compose(dl1,dl2))
+  let invert i dl1 = mk' i (Invert(dl1))
+  let default i dl1 w1 = mk' i (Default(dl1,w1))
+  let left_quot i cn1 dl1 = mk' i (LeftQuot(cn1,dl1))
+  let right_quot i dl1 cn1 = mk' i (RightQuot(dl1,cn1))
+  let dup1 i dl1 f1 r1 = mk' i (Dup1(dl1,f1,r1))
+  let dup2 i f1 r1 dl1 = mk' i (Dup2(f1,r1,dl1))
+  let smatch i t1 f1 dl1 = mk' i (SMatch(f1,t1,dl1))
+  let filter i r1 r2 = mk' i (Filter(r1,r2))
+  let merge i r1 = mk' i (Merge(r1))
+  let forgetkey i dl1 = mk' i (Forgetkey(dl1))
+  let probe i t1 dl1 = mk' i (Probe(t1,dl1))
   let permute i is dls =
     let dl_arr = Array.of_list dls in 
     let k = Array.length dl_arr in 
@@ -1320,7 +1316,7 @@ module DLens = struct
          cts.(i) <- acc; 
          (pred i,Rx.mk_seq (ctype dli) acc))
       dl_arr (pred k,Rx.epsilon) in
-      mk i (Permute((k,sigma,sigma_inv,cts,ats),dl_arr))
+      mk' i (Permute((k,sigma,sigma_inv,cts,ats),dl_arr))
         
   let canonizer_of_t i dl = 
     Canonizer.from_lens i (ctype dl) (atype dl) (arel dl) (get dl) (rcreate dl)

@@ -119,18 +119,30 @@ characters respectively.
 string to a fixed abstract string. It is defined straightforwardly 
 using @<->@.
 
-#* let ins (s:string) : (lens in // <=> s) = "" <-> s
+#* let ins (s:string) : (lens in EPSILON <=> s) = "" <-> s
 #* test get (ins "ABC") "" = "ABC"
 #* test put (ins "ABC") "ABC" "" = ""
 
 \LENSSECTION{@del@} The lens @del@ deletes a regular expression. 
 It is also defined using @<->@.
 
-#* let del (R:regexp) : (lens in R <-> //) = R <-> ""
+#* let del (R:regexp) : (lens in R <-> EPSILON) = R <-> ""
 
 #* test get (del ANY) "Boomerang" = ""
 #* test put (del ANY) "" "Boomerang" = "Boomerang"
 #* test create (del ANY) "" = ""
+
+\LENSSECTION{@merge_with_sep@} The lens @merge_with_sep@ behaves like @merge@, 
+but allows a separator between the copied string. 
+
+#* let merge_with_sep (R:regexp) (s:string) : (lens in (R . s . R) <-> R) = 
+#*   copy (R . s . R) . ins s; 
+#*   merge (R . s); 
+#*   copy R . del s
+
+#* test (merge_with_sep [A-Z] ",").get "A,B" = "A"
+#* test (merge_with_sep [A-Z] ",").put "C" into "A,B" = "C,B"
+#* test (merge_with_sep [A-Z] ",").create "B" = "B,B"
 
 \subsection{Lens Predicates}
 
@@ -179,7 +191,7 @@ using @qconst@.
 but accepts a regular expression in the $\PUT$ direction. It is defined 
 using right quotienting and @ins@.
 
-#* let qins (E:regexp) (e:string) : (lens in // <-> E) = 
+#* let qins (E:regexp) (e:string) : (lens in EPSILON <-> E) = 
 #*   right_quot
 #*     (ins e)
 #*     (canonizer_of_lens (const E e e))
@@ -191,7 +203,7 @@ using right quotienting and @ins@.
 but produces a canonical representative in the backwards direction. 
 It is defined using left quotienting.
 
-#* let qdel (E:regexp) (e:string) : (lens in E <-> //) = 
+#* let qdel (E:regexp) (e:string) : (lens in E <-> EPSILON) = 
 #*   left_quot 
 #*     (canonizer_of_lens (default (del E) e))
 #*     (copy EPSILON)
