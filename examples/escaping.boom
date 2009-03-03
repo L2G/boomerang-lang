@@ -27,17 +27,19 @@ let tester = unrender_quotedstr ; unescape_quotedstr
 (* DOESN'T WORK!! *)
 *)
 
-let unrender_quotedstr (R : regexp) =
-    ("\"" <-> "") . 
+let unrender_quotedstr (R : regexp where (splittable_cex '"' R) && (splittable_cex R '"')) =
+    ('"' <-> "") . 
     copy R . 
-    ("\"" <-> "")
+    ('"' <-> "")
 
 let unescape_quotedstr_char =
-     ("\\\"" <-> "\"")
-  || ("\\\\" <-> "\\")
-  || copy (ANYCHAR - [\\])
+     ("\\\"" <-> '"')
+  || ("\\\\" <-> '\')
+  || copy (ANYCHAR - '\')
 
-let unescape_quotedstr = unescape_quotedstr_char*
+let unescape_quotedstr 
+  : (lens in (('\' . ('"' | '\')) | [^\\])* <-> ANY) 
+  = unescape_quotedstr_char*
 
 test get unescape_quotedstr
     <<
@@ -55,17 +57,21 @@ let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
 (* Making the example harder: Make the ASCII into a CSV... *)
 
 let escape_xml_char = 
-     ("<" <-> "&lt;")
-  || (">" <-> "&gt;")
-  || ("&" <-> "&amp;")
+     ('<' <-> "&lt;")
+  || ('>' <-> "&gt;")
+  || ('&' <-> "&amp;")
   || copy (ANYCHAR - [<>&])
 
-let escape_xml = escape_xml_char*
+let escape_xml 
+  : (lens in ANY <-> (('&' . ("lt"|"gt"|"amp") . ';') | [^&<>])* )
+  = escape_xml_char*
 
-let render_tag (R : regexp) = 
-  ("" <-> "<tag>") .
-  copy R .
-  ("" <-> "</tag>")
+let render_tag (R : regexp where splittable_cex "<tag>" R &&
+		                 splittable_cex R "</tag>") 
+  : (lens in R <-> ("<tag>" . R . "</tag>"))
+  = ("" <-> "<tag>") .
+    copy R .
+    ("" <-> "</tag>")
 
 let test2 = escape_xml; render_tag (atype escape_xml) 
 
@@ -96,14 +102,18 @@ test get l
 (* regex -> str -> str -> lens
    no possibility of failure, can give complete return type
 *)
-let render (R : regexp) (before : string) (after : string)
-  : (lens in R <-> (before . R . after)) 
+let render (R : regexp)
+           (before : string where splittable_cex before R) 
+	   (after : string where splittable_cex after R)
+  : (lens in R <-> (before . R . after))
   = ("" <-> before) .
     copy R .
     ("" <-> after)
 
-
-let render_xml (R : regexp) = render R "<tag>" "</tag>"
+let render_xml (R : regexp where splittable_cex "<tag>" R &&
+                                 splittable_cex R "</tag>") 
+  : (lens in R <-> ("<tag>" . R . "</tag>"))
+  = render R "<tag>" "</tag>"
 
 (* safe, since render is safe; can we pass the buck without 
    repeating the contract? 
@@ -112,11 +122,13 @@ let render_xml (R : regexp) = render R "<tag>" "</tag>"
    arguments?
 *)
 let tagged (R : regexp) (tag : string) = 
-  [<] . (str tag) . [>] . R . (str ("</" . tag)) . [>]
+  '<' . tag . '>' . R . ("</" . tag) . '>'
 
 let render_tag (R : regexp) (tag : string) 
   : (lens in R <-> tagged R tag)
   = render R ("<" . tag . ">") ("</" . tag . ">")
+
+test (render_tag ANY "foo").atype = ("<foo>" . ANY . "</foo>")
 
 (* as above *)
 let quoted (R : regexp) = ["] . R . ["]
@@ -128,7 +140,7 @@ let unrender_str (R : regexp) : (lens in quoted R <-> R) = invert (render_str R)
 
 (* this function already existed inside escape, but we had to 
    pull it out *)
-let unescaped (pairs : (char * string) List.t) =
+let unescaped (pairs : (char * string) List.t) : regexp =
   List.fold_left{char * string}{regexp}
     (fun (r : regexp) (p : char * string) ->
        let from,to = p in
@@ -138,7 +150,7 @@ let unescaped (pairs : (char * string) List.t) =
 
 (* this function didn't exist before, but we need it to 
    talk about the atype of the lens produced by escape *)
-let escaped (pairs : (char * string) List.t) =
+let escaped (pairs : (char * string) List.t) : regexp =
   List.fold_left{char * string}{regexp}
     (fun (r : regexp) (p : char * string) ->
        let from,to = p in
@@ -155,7 +167,7 @@ let escaped (pairs : (char * string) List.t) =
    4) rewrite the codomain, making it nice and concise
 *)
 
-let lens_iterable (l:lens) : bool = iterable (ctype l) && iterable (atype l)
+let lens_iterable (l:lens) : bool = iterable_cex (ctype l) && iterable_cex (atype l)
 
 (* given a set of chars to be escaped and escape codes, valid escaped "bits" are:
      (a) an escape code, or
@@ -206,6 +218,8 @@ let char_or_escaped2 (esc : char) (pairs : (char * string) List.t) =
   let escs = List.map{char * string}{char * string} esc_p pairs in
   (escaped escs) | (ANYCHAR - (unescaped pairs))
 
+(* How can this be equivalent to escape?  We seem to be missing some sort of 
+   iterability requirement... --MMG *)
 let escape2
   (esc : char)
   (pairs : (char * string) List.t where
@@ -234,10 +248,10 @@ let xml_escs : (char * string) List.t =
 
 (* again, do we want lens, or can/should we somehow 
    say "specialize this"?  
-
-   : ANY <-> (/&gt;/ | /&lt;/ | /&amp;/ | [^<>&])*
 *)
-let escape_xml : lens = escape2 '&' xml_escs
+let escape_xml 
+  : (lens in ANY <-> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
+  = escape2 '&' xml_escs
 
 let str_escs : (char * string) List.t =
   List.Cons{char * string}(('"',"\""),
@@ -245,10 +259,15 @@ let str_escs : (char * string) List.t =
   List.Nil{char * string}))
 
 (* per above *)
-let escape_str : lens = escape2 '\\' str_escs
+(* yeesh, this is way over-parenthesized... --MMG *)
+let escape_str 
+  : (lens in ANY <-> ((('\' . ('"'|'\')) | [^"\\])* ))
+   = escape2 '\\' str_escs
 
 (* ditto *)
-let unescape_str : lens = invert escape_str
+let unescape_str 
+  : (lens in ((('\' . ('"'|'\')) | [^"\\])* ) <-> ANY)
+  = invert escape_str
 
 let l2 = 
   unrender_str (ctype unescape_str) ; unescape_str ; 
@@ -262,44 +281,41 @@ test get l2
         <tag> &lt;hello""world&gt; </tag>
     >>
 
-let lens_concatable (ls : lens List.t) (sep : lens) : bool = 
-  let ls' : lens List.t = 
-    List.reverse{lens}
-      (List.fold_left{lens}{lens List.t}
-        (fun (acc:lens List.t) (li:lens) -> 
-           List.Cons{lens}
+
+let intersperse ('a) (ls : 'a List.t) (sep : 'a) : 'a List.t =
+  List.reverse{'a}
+      (List.fold_left{'a}{'a List.t}
+        (fun (acc:'a List.t) (vi:'a) -> 
+           List.Cons{'a}
              (match acc with 
-               | List.Nil     -> (li,acc)
-               | List.Cons(_) -> (li,List.Cons{lens}(sep,acc)) 
-              : (lens * lens List.t)))
-        #{lens}[] ls) in   
+               | List.Nil     -> (vi,acc)
+               | List.Cons(_) -> (vi,List.Cons{'a}(sep,acc)) 
+              : ('a * 'a List.t)))
+        #{'a}[] ls)
+
+let lens_concatable (ls : lens List.t) (sep : lens) : bool = 
+  let ls' : lens List.t = intersperse{lens} ls sep in
   (concatable (ctypes ls')) && (concatable (atypes ls'))
  
 (* to cover our asses, we need the concatable refinement
    do we want the specific return type?
 *)
-let concat_lenses 
+let intersperse_lenses 
       (lenses : lens List.t) 
       (sep : lens where lens_concatable lenses sep) 
-  : lens =
-  let concatted = List.fold_left{lens}{lens option}
-    (fun (l_acc : lens option) (l : lens) -> 
-       match l_acc with
-         | None -> Some{lens} l
-         | Some acc -> (Some{lens} (acc . sep . l)) : lens option)
-    None{lens} lenses in
-  match concatted with
-    | Some l -> l
-    | None -> copy EPSILON : lens
+  : (lens in (concat_regexps (ctypes (intersperse{lens} lenses sep)))
+         <-> (concat_regexps (atypes (intersperse{lens} lenses sep))))
+  = concat_lenses (intersperse{lens} lenses sep)
 
-
-let field_to_xml (field : string) : lens = 
-  unrender_str (ctype unescape_str) ; unescape_str ;
-  escape_xml ; render_tag (atype escape_xml) field
+let field_to_xml (field : string) 
+  : (lens in (quoted (('\' . ('"'|'\')) | [^"\\])* )
+         <-> (tagged (('&' . ("lt"|"gt"|"amp") . ';') | [^&<>])* ) field)
+  = unrender_str (ctype unescape_str) ; unescape_str ;
+    escape_xml ; render_tag (atype escape_xml) field
 
 (* as above -- do we want the strict return type?  do we want to pass the buck? *)
 let csv_to_xml (fields : string List.t where lens_concatable fields (del ",")) = 
-  concat_lenses (List.map{string}{lens} field_to_xml fields) (del ",")
+  intersperse_lenses (List.map{string}{lens} field_to_xml fields) (del ",")
 
 let l3 = csv_to_xml (List.Cons{string}("first",List.Cons{string}("last",List.Nil{string})))
 
