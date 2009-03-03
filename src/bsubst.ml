@@ -538,7 +538,7 @@ let free_exp_vars_pat p0 = free_evars_pat Qid.Set.empty p0
 
 let rec erase_sort = function
   | SFunction(x,s1,s2) ->       
-      SFunction(x,erase_sort s1,erase_sort s2)
+      SFunction(Id.wild,erase_sort s1,erase_sort s2)
   | SProduct(s1,s2) -> 
       SProduct(erase_sort s1, erase_sort s2)
   | SData(sl,qx) ->
