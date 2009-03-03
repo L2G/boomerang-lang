@@ -105,6 +105,7 @@ module DLens : sig
   val filter : Info.t -> Brx.t -> Brx.t -> t
   val clobber : Info.t -> Brx.t -> string -> (string -> string) -> t
   val merge : Info.t -> Brx.t -> t
+  val fiat : Info.t -> t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t
   val right_quot : Info.t -> t -> Canonizer.t -> t
   val dup1 : Info.t -> t -> (string -> string) -> Brx.t -> t

@@ -743,6 +743,15 @@ constant function returning the empty string.
 #*   : (l':lens where in_lens_type l' (ctype l) (atype l))
 ## = Native.Prelude.forgetkey l
 
+\LENSSECTION{@fiat@} The @fiat@ operator takes a lens @l@ as an 
+argument. It behaves like @l@, but overrides its $\PUT$ component with a 
+function that returns the original source exactly whenever the update to the 
+view is a no-op.
+
+#* let fiat (l:lens) 
+#*   : (l':lens where in_lens_type l' (ctype l) (atype l))
+## = Native.Prelude.fiat l
+
 \subsection{Canonizer Components}
 
 \LENSSECTION{@uncanonized_type@} The @uncanonized_type@ function extracts the 

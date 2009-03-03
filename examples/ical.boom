@@ -1,0 +1,157 @@
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2009 J. Nathan Foster                                        *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/examples/ical.boom                                              *)
+(* iCal lens                                                                  *)
+(* $Id$ *)
+
+(* TODO: add proper escaping *)
+
+module Ical = 
+
+let BEGIN_CALENDAR : regexp = "BEGIN:VCALENDAR"
+let END_CALENDAR : regexp = "END:VCALENDAR"
+let BEGIN_EVENT : regexp = "BEGIN:VEVENT"
+let END_EVENT : regexp = "END:VEVENT"
+let PREAMBLE : regexp = BEGIN_CALENDAR . "\n" . ( ANY - containing BEGIN_EVENT)
+let POSTAMBLE : regexp = END_CALENDAR . "\n"
+let TEXT = [^\n()*<>]* 
+let LOC : regexp = " (" . TEXT . ")"
+let TIME : regexp = DIGIT{2} . ":" . DIGIT{2}
+
+(* helpers *)
+let line (tag:string) (l:lens) : lens = del (tag . ":") . l . del "\n"
+let parens (l:lens) : lens = ins "(" . l . ins ")"
+let wrapl (l:lens) = left_quot (columnize 75 (ctype l) ' ' ("\n  ")) l
+let wrapr (l:lens) = right_quot l (columnize 75 (atype l) ' ' ("\n  "))
+let now (s:string) : string = exec "date +%H%M%S | tr -d '\n'"
+let today (s:string) : string = exec "date +%Y%m%d | tr -d '\n'"
+let uid (s:string) : string = 
+  exec "cat /dev/urandom|uuencode -m -|tail +2|tr -dc 'a-zA-Z0-9'|head -c25"
+let date (tag:string) (time:regexp -> regexp -> regexp -> lens) : lens = 
+  line tag (clobber DIGIT{8} "" today . del "T" . time DIGIT{2} DIGIT{2} DIGIT{2} . del "Z")
+let copy_time (H:regexp) (M:regexp) (S:regexp) : lens = copy H . ins ":" . copy M . del S 
+let clobber_time (H:regexp) (M:regexp) (S:regexp) : lens = clobber (H . M . S) "" now
+
+let event1 : lens = 
+  del (BEGIN_EVENT . "\n") . 
+  fiat (Sort.sort_concat 
+    #{lens}[
+      line "CLASS" ("PRIVATE" <-> "*" | "PUBLIC" <-> " ")
+    ; date "DTSTART" copy_time . ins "-" 
+    ; date "DTEND" copy_time . ins " " 
+    ; date "DTSTAMP" clobber_time 
+    ; date "CREATED" clobber_time 
+    ; date "LAST-MODIFIED" clobber_time 
+    ; line "UID" (clobber TEXT "" uid)
+    ; line "TRANSP" (const TEXT "" "OPAQUE") 
+    ; line "DESCRIPTION" (del TEXT)
+    ; line "STATUS" (const TEXT "" "TENTATIVE") 
+    ; line "SEQUENCE" (const NUMBER "" "0") 
+    ; line "SUMMARY" (wrapl (key TEXT)) . ins " "
+    ; line "LOCATION" (parens (wrapl (key TEXT))) ]) . 
+  del (END_EVENT) . copy "\n"
+let event2 : lens =  
+  copy (" " | "*") . merge_with_sep TIME "-" . copy " " . wrapr (key TEXT . copy LOC) . copy "\n"
+let ical1 : lens = del PREAMBLE . <~ e1:event1 >* . del POSTAMBLE
+let ical : lens = ical1; <~ e2:event2 >*
+
+(* security stuff *)
+let pub : lens = del " " . copy ( TIME . " " . TEXT . LOC . "\n")
+let pvt : lens = del "*" . copy (TIME . " ") . ( TEXT . LOC ) <-> "BUSY" . copy "\n"
+let redact : lens = pub* . (pvt . pub* )*
+let erase : lens = filter (ctype pvt) (ctype pub); pub*
+
+(* html stuff *)
+let html_entry (f : lens -> lens) : lens =
+  f ( MkXml.simple_attr2 NL2 "time" "start" (copy TIME) "stop" (del "-" . copy TIME) . 
+      MkXml.simple_elt NL2 "description" (del " " . copy TEXT) .
+      MkXml.simple_elt NL2 "location" (del " (" . copy TEXT . del ")") .
+      del "\n" )
+let html_pub : lens = del " " . html_entry (MkXml.elt NL1 "entry")
+let html_pvt : lens = del "*" . html_entry (MkXml.attr1_elt NL1 "entry" "class" (ins "private"))
+let html : lens = MkXml.outer_elt NL0 "calendar" (html_pub | html_pvt)*
+
+test (ical1;html).get 
+<<
+BEGIN:VCALENDAR
+BEGIN:VEVENT
+CLASS:PRIVATE
+DTSTART:20090215T081500Z
+DTEND:20090215T140000Z
+DTSTAMP:20090224T222716Z
+SUMMARY:Coffee with Sara
+LOCATION:La Columbe Coffee
+UID:856dv2lb8aiknrad10qq171jmg@google.com
+TRANSP:OPAQUE
+CREATED:20090224T222529Z
+DESCRIPTION:
+LAST-MODIFIED:20090227T233055Z
+STATUS:CONFIRMED
+SEQUENCE:0
+END:VEVENT
+BEGIN:VEVENT
+CLASS:PRIVATE
+DTSTART:20090215T200000Z
+DTEND:20090215T210000Z
+DTSTAMP:20090224T222716Z
+SUMMARY:Worko
+LOCATION:Gym
+UID:usqehvnsot5gplg7qkvig6ljvc@google.com
+TRANSP:OPAQUE
+CREATED:20090224T222610Z
+DESCRIPTION:
+LAST-MODIFIED:20090227T233055Z
+STATUS:CONFIRMED
+SEQUENCE:0
+END:VEVENT
+BEGIN:VEVENT
+CLASS:PRIVATE
+DTSTART:20090227T210000Z
+DTEND:20090227T210000Z
+DTSTAMP:20090227T231702Z
+SUMMARY:Meeting with Michael
+LOCATION:My office
+UID:jH0z0t7RKbx0BYGp5OkZ9zcLN@google.com
+TRANSP:OPAQUE
+CREATED:20090227T231702Z
+DESCRIPTION:
+LAST-MODIFIED:20090227T233055Z
+STATUS:TENTATIVE
+SEQUENCE:0
+END:VEVENT
+END:VCALENDAR
+
+>> = 
+<<
+<calendar>
+ <entry class="private">
+  <time start="08:15" stop="14:00"/>
+  <description>Coffee with Sara</description>
+  <location>La Columbe Coffee</location>
+ </entry>
+ <entry class="private">
+  <time start="20:00" stop="21:00"/>
+  <description>Worko</description>
+  <location>Gym</location>
+ </entry>
+ <entry class="private">
+  <time start="21:00" stop="21:00"/>
+  <description>Meeting with Michael</description>
+  <location>My office</location>
+ </entry>
+</calendar>
+>>

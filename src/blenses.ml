@@ -57,10 +57,11 @@ module TMap = Map.Make(
 (* ----- skeletons ----- *)
 type skeleton = 
   | S_string of string
-  | S_concat of (skeleton * skeleton)
+  | S_concat of skeleton * skeleton
   | S_star of skeleton list
   | S_box of tag
-  | S_comp of (skeleton * skeleton)
+  | S_comp of skeleton * skeleton
+  | S_quot of string * skeleton 
 
 let rec format_skel sk = 
   let fmt _ sk = format_skel sk in 
@@ -70,7 +71,8 @@ let rec format_skel sk =
     | S_concat(sk1,sk2) -> msg "S_concat(%a,%a)" fmt sk1 fmt sk2
     | S_star(sl) -> msg "S_star(%a)" (fun _ -> Misc.format_list "," format_skel) sl
     | S_box(t) -> msg "S_box(%s)" t
-    | S_comp(sk1,sk2) -> msg "S_comp(%a,%a)" fmt sk1 fmt sk2);
+    | S_comp(sk1,sk2) -> msg "S_comp(%a,%a)" fmt sk1 fmt sk2
+    | S_quot(w,sk1) -> msg "S_quot(%s,%a)" w fmt sk1);
   Util.format "@]"
        
 (* helpers for accessing skeletons *)
@@ -95,9 +97,14 @@ let lst_of_skel = function
       (fun () -> msg "@[expected@ lst@ skeleton@]") 
 
 let comp_of_skel = function
-  | S_comp sc -> sc
+  | S_comp(s1,s2) -> (s1,s2)
   | _ -> Err.run_error (Info.M "comp_of_skel")
       (fun () -> msg "@[expected@ comp@ skeleton@]") 
+
+let quot_of_skel = function
+  | S_quot(c,s) -> (c,s)
+  | _ -> Err.run_error (Info.M "quot_of_skel") 
+      (fun () -> msg "@[expected@ quot@ skeleton@]") 
 
 (* ----- dictionaries ----- *)
 type dict = ((skeleton * dict) list KMap.t) TMap.t
@@ -515,6 +522,7 @@ module DLens = struct
     | SMatch of string * float * t 
     | Filter of Rx.t * Rx.t 
     | Merge of Rx.t 
+    | Fiat of t 
     | Forgetkey of t
     | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array 
     | Probe of string * t
@@ -660,6 +668,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> bij dl1
           | Filter(r1,r2)      -> Rx.is_empty r1 
           | Merge(r1)          -> Rx.is_singleton r1 
+          | Fiat(dl1)          -> bij dl1 
           | Forgetkey(dl1)     -> bij dl1 
           | Permute(_,dls)     -> Array.fold_left (fun b dli -> b && bij dli) true dls 
           | Probe(_,dl1)       -> bij dl1 in
@@ -687,6 +696,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> ctype dl1
           | Filter(r1,r2)      -> Rx.mk_star (Rx.mk_alt r1 r2) 
           | Merge(r1)          -> Rx.mk_seq r1 r1 
+          | Fiat(dl1)          -> ctype dl1 
           | Forgetkey(dl1)     -> ctype dl1 
           | Permute(_,dls)     -> 
               Array.fold_left (fun acc dli -> Rx.mk_seq acc (ctype dli)) 
@@ -716,6 +726,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> atype dl1
           | Filter(r1,r2)      -> Rx.mk_star r2
           | Merge(r1)          -> r1
+          | Fiat(dl1)           -> atype dl1
           | Forgetkey(dl1)     -> atype dl1 
           | Permute(p1,dls)    -> 
               let _,_,s2,_,_ = p1 in 
@@ -759,6 +770,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> Misc.map_option (Erx.mk_box t1) (xtype dl1)
           | Filter(r1,r2)      -> Some (Erx.mk_leaf (atype dl)) 
           | Merge(r1)          -> Some (Erx.mk_leaf (atype dl))
+          | Fiat(dl1)          -> xtype dl1 
           | Forgetkey(dl1)     -> xtype dl1 
           | Permute(p1,dls)    -> 
               let _,s1,_,_,_ = p1 in 
@@ -787,6 +799,7 @@ module DLens = struct
     | SMatch(t1,f1,dl1)  -> TMap.add t1 dl1.uid TMap.empty
     | Filter(r1,r2)      -> TMap.empty 
     | Merge(r1)          -> TMap.empty
+    | Fiat(dl1)          -> dl1.dtype
     | Forgetkey(dl1)     -> dl1.dtype 
     | Permute(_,dls)     -> 
         Array.fold_left 
@@ -812,6 +825,7 @@ module DLens = struct
     | S_box(b),SMatch(t1,f1,dl1)        -> b = t1
     | S_string(s),Filter(r1,r2)         -> Rx.match_string (ctype dl) s 
     | S_string(s),Merge(r1)             -> Rx.match_string (ctype dl) s
+    | _,Fiat(dl1)                       -> stype dl1 sk
     | _,Forgetkey(dl1)                  -> stype dl1 sk
     | S_star(sl),Permute(_,dls)         -> 
         (Safelist.length sl = Array.length dls)
@@ -842,6 +856,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> crel dl1
           | Filter(r1,r2)      -> Identity 
           | Merge(r1)          -> Identity
+          | Fiat(dl1)          -> crel dl1 
           | Forgetkey(dl1)     -> crel dl1 
           | Permute(p1,dls)    -> 
               Array.fold_left 
@@ -872,6 +887,7 @@ module DLens = struct
           | SMatch(t1,f1,dl1)  -> arel dl1
           | Filter(r1,r2)      -> Identity 
           | Merge(r1)          -> Identity 
+          | Fiat(dl1)          -> arel dl1
           | Forgetkey(dl1)     -> arel dl1
           | Permute(p1,dls)    -> 
               Array.fold_left (fun acc dli -> equiv_merge acc (arel dli)) 
@@ -914,6 +930,7 @@ module DLens = struct
         (fun c -> 
            let c1,_ = seq_split r1 r1 c in 
            c1)
+    | Fiat(dl1) -> (fun c -> get dl1 c)
     | Forgetkey(dl1)     -> (fun c -> get dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
@@ -979,7 +996,8 @@ module DLens = struct
     | Default(dl1,w1)    -> (fun a s d -> put dl1 a s d)
     | LeftQuot(cn1,dl1)  -> 
         (fun a s d -> 
-           let c',d' = put dl1 a s d in 
+           let _,s' = quot_of_skel s in 
+           let c',d' = put dl1 a s' d in 
            (Canonizer.choose cn1 c',d'))
     | RightQuot(dl1,cn1) -> (fun a s d -> put dl1 (Canonizer.canonize cn1 a) s d)
     | Dup1(dl1,f1,r1)    -> 
@@ -991,7 +1009,7 @@ module DLens = struct
            let _,a2 = seq_split r1 (atype dl1) a in 
            put dl1 a2 s d)
     | SMatch(t1,f1,dl1)  ->
-        (fun a _ d -> do_match std_lookup (key dl1) (put dl1) (create dl1) t1 a d)
+        (fun a _ d -> do_match (sim_lookup f1) (key dl1) (put dl1) (create dl1) t1 a d)
     | Filter(r1,r2)      -> 
         (fun a s d -> 
            let c = string_of_skel s in 
@@ -1016,6 +1034,11 @@ module DLens = struct
            let s1,s2 = seq_split r1 r1 (string_of_skel s) in 
            if s1 = s2 then (a ^ a,d)
            else (a ^ s2,d))
+    | Fiat(dl1) -> 
+        (fun a s d -> 
+           match unparse dl1 a s d with
+             | Some(c,d) -> (c,d)
+             | None -> put dl1 a s d)
     | Forgetkey(dl1)     -> (fun a s d -> put dl1 a s d)
     | Permute(p1,dls)    -> 
         (fun a s d -> 
@@ -1039,6 +1062,132 @@ module DLens = struct
         (fun a s d -> 
            msg "@[[[PROBE-PUT{%s}@\n%s@\n]]@\n@]" t a;
            put dl1 a s d)
+
+  and unparse dl = match dl.desc with 
+    | Copy(r1)           -> 
+        (fun a s d -> 
+           let c = string_of_skel s in 
+           if a=get dl c then Some (c,d) else None)
+    | Clobber(r1,w1,f1)  -> 
+        (fun a s d -> Some (string_of_skel s,d))
+    | Concat(dl1,dl2)    -> 
+        (fun a s d -> 
+           let a1,a2 = seq_split (atype dl1) (atype dl2) a in
+           (match unparse dl1 a1 (fst_of_skel s) d with
+              | Some (c1,d1) -> 
+                  Misc.map_option
+                    (fun (c2,d2) -> (c1 ^ c2, d2))
+                    (unparse dl2 a2 (snd_of_skel s) d1)
+              | None -> None))
+    | Union(dl1,dl2)     -> 
+        (fun a s d -> 
+           match Rx.match_string (atype dl1) a,
+                 Rx.match_string (atype dl2) a,
+                 stype dl1 s with
+             | true,_,true      -> unparse dl1 a s d
+             | _,true,false     -> unparse dl2 a s d
+             | true,false,false -> None
+             | false,true,true  -> None
+             | _                -> assert false)
+    | Star(dl1) -> 
+        (fun a s d -> 
+           let rec loop al sl acc = match acc,al,sl with
+             | None,_,_ -> None
+             | _,ai::at,[] -> None
+             | _,[],si::st -> None
+             | _,[],[] -> acc
+             | Some(acci,di),ai::at,si::st -> 
+                 (match unparse dl1 ai si d with
+                    | Some (ci,di) -> loop at st (Some (acci ^ ci,di))
+                    | _ -> None) in 
+           loop (Rx.star_split (atype dl1) a)
+             (lst_of_skel s) (Some ("",d)))
+    | Key(r1) -> 
+        (fun a s d -> 
+           let c = string_of_skel s in 
+           if a=get dl c then Some (c,d) else None)
+    | DMatch(t1,dl1) -> 
+        (fun a s d -> 
+           let d1,d2 = dt_split d t1 in 
+           match std_lookup t1 (key dl1 a) d1 with
+             | Some ((s',d1'),d1'') -> 
+                 (match unparse dl1 a s' (d1' ++ d2) with
+                    | Some(c',d') -> 
+                        let _,d2' = dt_split d' t1 in 
+                        Some(c',d1'' ++ d2')
+                    | None -> None)
+             | None -> None)
+    | Compose(dl1,dl2)   -> 
+        (fun a s d -> 
+           let s1,s2 = comp_of_skel s in 
+           (match unparse dl2 a s2 d with
+              | Some (b,d') -> unparse dl1 b s1 d'
+              | None -> None))
+    | Invert(dl1)        -> 
+        (fun a s d -> 
+           let c = string_of_skel s in 
+           if a = get dl c then Some(c,d) else None)
+    | Default(dl1,w1)    -> unparse dl1 
+    | LeftQuot(cn1,dl1)  -> 
+        (fun a s d -> 
+           let c,s' = quot_of_skel s in 
+           match unparse dl1 a s' d with
+             | Some (_,d') -> Some(c,d')
+             | None         -> None)
+    | RightQuot(dl1,cn1) -> 
+        (fun a s d -> 
+           unparse dl1 (Canonizer.canonize cn1 a) s d)
+    | Dup1(dl1,f1,r1)    -> 
+        (fun a s d -> 
+           let a1,_ = seq_split (atype dl1) r1 a in
+           unparse dl1 a1 s d)
+    | Dup2(f1,r1,dl1)    -> 
+        (fun a s d -> 
+           let _,a2 = seq_split r1 (atype dl1) a in
+           unparse dl1 a2 s d)
+    | SMatch(t1,f1,dl1)  ->
+        (fun a s d -> 
+           let d1,d2 = dt_split d t1 in 
+           match sim_lookup f1 t1 (key dl1 a) d1 with
+             | Some ((s',d1'),d1'') -> 
+                 (match unparse dl1 a s' (d1' ++ d2) with
+                    | Some(c',d') -> 
+                        let _,d2' = dt_split d' t1 in 
+                        Some(c',d1'' ++ d2')
+                    | None -> None)
+             | None -> None)
+    | Filter(r1,r2)      -> 
+        (fun a s d -> 
+           let c = string_of_skel s in
+           if a=get dl c then Some (c,d) else None)
+    | Merge(r1)          -> 
+        (fun a s d -> 
+           let c = string_of_skel s in
+           if a=get dl c then Some (c,d) else None)
+    | Fiat(dl1) -> 
+        (fun a s d -> unparse dl1 a s d)
+    | Forgetkey(dl1) -> (fun a s d -> unparse dl1 a s d)
+    | Permute(p1,dls) -> 
+        (fun a s d -> 
+           let k,sigma,sigma_inv,cts,ats = p1 in 
+           let a_arr = arr_split_a k dls sigma_inv ats a in 
+           let s_arr = Array.of_list (lst_of_skel s) in
+           let c_arr = Array.create k "" in 
+           let rec loop j d = 
+             if j >= k then Some d
+             else
+               begin 
+                 let i = sigma_inv.(j) in 
+                 match unparse dls.(i) a_arr.(j) s_arr.(i) d with
+                   | Some(ci,di) -> 
+                       (c_arr.(i) <- ci;
+                       loop (succ j) di)
+                   | None -> None 
+               end in
+           Misc.map_option
+             (fun d' -> (concat_array c_arr,d'))
+             (loop 0 d))
+    | Probe(t,dl1)       -> unparse dl1
 
   and create dl = match dl.desc with
     | Copy(r1)           -> (fun a d -> (a,d))
@@ -1083,9 +1232,10 @@ module DLens = struct
            let _,a2 = seq_split r1 (atype dl1) a in
            create dl1 a2 d)
     | SMatch(t1,f1,dl1)  ->
-        (fun a d -> do_match std_lookup (key dl1) (put dl1) (create dl1) t1 a d)
+        (fun a d -> do_match (sim_lookup f1) (key dl1) (put dl1) (create dl1) t1 a d)
     | Filter(r1,r2)      -> (fun a d -> (a,d))
     | Merge(r1)          -> (fun a d -> (a ^ a,d))
+    | Fiat(dl1)          -> (fun a d -> create dl1 a d)
     | Forgetkey(dl1)     -> (fun a d -> create dl1 a d)
     | Permute(p1,dls)    -> 
         (fun a d -> 
@@ -1136,6 +1286,7 @@ module DLens = struct
     | SMatch(t1,f1,dl1)  -> (fun a -> key dl1 a)
     | Filter(r1,r2)      -> (fun a -> "")
     | Merge(r1)          -> (fun a -> "")
+    | Fiat(dl1)          -> (fun a -> key dl1 a)
     | Forgetkey(dl1)     -> (fun a -> "")
     | Permute(p1,dls)    -> 
         (fun a -> 
@@ -1195,7 +1346,10 @@ module DLens = struct
     | Invert(dl1)        -> 
         (fun c -> (S_string c, TMap.empty))
     | Default(dl1,w1)    -> (fun c -> parse dl1 c)
-    | LeftQuot(cn1,dl1)  -> (fun c -> parse dl1 (Canonizer.canonize cn1 c))
+    | LeftQuot(cn1,dl1)  -> 
+        (fun c -> 
+           let s1,d1 = parse dl1 (Canonizer.canonize cn1 c) in 
+           (S_quot (c,s1),d1))
     | RightQuot(dl1,cn1) -> (fun c -> parse dl1 c)
     | Dup1(dl1,f1,r1)    -> (fun c -> parse dl1 c)
     | Dup2(f1,r1,dl1)    -> (fun c -> parse dl1 c)
@@ -1208,6 +1362,7 @@ module DLens = struct
            (S_box t1,TMap.add t1 km d2))
     | Filter(r1,r2)      -> (fun c -> (S_string c, TMap.empty))
     | Merge(r1)          -> (fun c -> (S_string c, TMap.empty))
+    | Fiat(dl1)          -> (fun c -> parse dl1 c)
     | Forgetkey(dl1)     -> (fun c -> parse dl1 c)
     | Permute(p1,dls)    -> 
         (fun c -> 
@@ -1234,15 +1389,15 @@ module DLens = struct
     (fun c -> get dl c)
 
   (* helper for dmatch and smatch *)
-  and do_match lookup key put create tag a d = 
+  and do_match lookup key hit miss tag a d = 
     let d1,d2 = dt_split d tag in 
     match lookup tag (key a) d1 with
       | Some ((s',d1'),d1'') -> 
-          let c',d' = put a s' (d1' ++ d2) in
+          let c',d' = hit a s' (d1' ++ d2) in
           let _,d2' = dt_split d' tag in 
             (c',d1''++ d2') 
       | None -> 
-          let c',d' = create a d2 in 
+          let c',d' = miss a d2 in 
           let _,d2' = dt_split d' tag in 
           (c',d1++d2')
                 
@@ -1297,6 +1452,7 @@ module DLens = struct
   let smatch i t1 f1 dl1 = mk' i (SMatch(f1,t1,dl1))
   let filter i r1 r2 = mk' i (Filter(r1,r2))
   let merge i r1 = mk' i (Merge(r1))
+  let fiat i dl1 = mk' i (Fiat(dl1))
   let forgetkey i dl1 = mk' i (Forgetkey(dl1))
   let probe i t1 dl1 = mk' i (Probe(t1,dl1))
   let permute i is dls =
