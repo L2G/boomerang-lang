@@ -4,6 +4,8 @@ module Units =
   let l2 : lens = copy [^0-9]
   test (<x:l1> . <x:l2>) = error
 
+  test "a"? . ("aa" <-> "b" | "a" <-> "c") = error
+
   let single_cn : canonizer =
     canonizer_of_lens ((WS . "<a x=") <-> "<b x=") .
     canonizer_of_lens (dup1 DIGIT ("><c y=" . DIGIT) (fun (s:string) -> "><c y=" . s)) .

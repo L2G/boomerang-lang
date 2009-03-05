@@ -247,29 +247,29 @@ let rec trivial_cast f t =
       | _ -> false
 
 let rec mk_cast s i f t e = 
-  if trivial_cast f t
+  let cast = ECast(i,f,t,mk_blame i,e) in
+  let trivial = trivial_cast f t in
+  Trace.debug (if trivial then "trivial" else "cast")
+    (fun () -> 
+       msg "@[%s: " s;
+       format_exp cast;
+       msg "@]@\n");
+  if trivial
   then e
-  else 
-    let cast = ECast(i,f,t,mk_blame i,e) in
-    Trace.debug "cast"
-      (fun () -> 
-	 msg "@[%s: " s;
-	 format_exp cast;
-	 msg "@]@\n");
-    cast
+  else cast
 
 (* generate the "negative" cast: <S => base(S)> *)
-let mk_neg_cast m i s e = 
-  let s_base = erase_sort s in
-    (s_base, mk_cast m i s s_base e)
+let mk_neg_cast m i s0 e1 = 
+  let s0_base = erase_sort s0 in
+    (s0_base, mk_cast m i s0 s0_base e1)
 
 (* generate the "positive" cast: <base(S) => S> *)
-let mk_pos_cast m i s e = 
-  (s, mk_cast m i (erase_sort s) s e)
+let mk_pos_cast m i s0 e1 = 
+  (s0, mk_cast m i (erase_sort s0) s0 e1)
 
-let mk_bulletproof_cast m i s e =
-  let (_,e') = mk_pos_cast m i s e in
-  mk_neg_cast m i s e'
+let mk_bulletproof_cast m i s0 e1 =
+  let (_,e1') = mk_pos_cast m i s0 e1 in
+  mk_neg_cast m i s0 e1'
 
 (* resolve_label: helper for static_match. takes a base qid [li] a
    target qid [lj] and a context [os]. it dots [li] with elements of
@@ -431,22 +431,25 @@ and check_exp_app i sev (e1_sort,new_e1) (e2_sort,new_e2) =
              msg "@[in@ application:@ expected@ function@ sort@ but@ found@ %s.@]"
 	       (string_of_sort e1_sort))
 
+and mk_checked_var sev i q =
+  (* lookup the sort in the context *)
+  let e0_sort = match SCEnv.lookup sev q with
+    | Some (G.Sort s) -> s
+    | Some (G.Unknown) ->
+        run_error i
+          (fun () -> msg "@[%s is bound to an unknown type@]" 
+             (Qid.string_of_t q))
+    | None -> 
+	static_error i
+          (fun () -> msg "@[%s is not bound@]" 
+             (Qid.string_of_t q)) in 
+  (* apply a negative cast, if we need one *)
+  mk_neg_cast "var" i e0_sort (EVar(i,q))
+
 and check_exp ?(in_let=false) sev e0 = 
   match e0 with
     | EVar(i,q) ->
-	(* lookup the sort in the context *)
-        let e0_sort = match SCEnv.lookup sev q with
-          | Some (G.Sort s) -> s
-	  | Some (G.Unknown) ->
-              run_error i
-                (fun () -> msg "@[%s is bound to an unknown type@]" 
-                   (Qid.string_of_t q))
-          | None -> 
-	      static_error i
-                (fun () -> msg "@[%s is not bound@]" 
-                   (Qid.string_of_t q)) in 
-        (* apply a negative cast, if we need one *)
-	mk_neg_cast "var" i e0_sort e0
+	mk_checked_var sev i q
 
     | EOver(i,op,es) -> begin 
         let err () = static_error i (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
@@ -561,13 +564,17 @@ and check_exp ?(in_let=false) sev e0 =
         let new_ret_sorto,(body_sort,new_body) = 
           match ret_sorto with 
             | None -> 
-                (* if no return sort declared, just check the body *)
-                None,(check_exp body_sev body)
+                (* if no return sort declared, just check the body 
+
+		   to handle nested function definitions, we pass on
+		   the value of in_let *)
+                None,(check_exp ~in_let:in_let body_sev body)
             | Some ret_sort ->
                 (* otherwise, resolve the declared return sort *)
                 let new_ret_sort = check_sort i body_sev ret_sort in 
-                (* then check the body *)
-                let body_sort,new_body = check_exp body_sev body in
+                (* then check the body -- if we were in a let, then so
+                   is the body (needed for nested functions) *)
+                let body_sort,new_body = check_exp ~in_let:in_let body_sev body in
                 (* and check that the declared return sort is a subsort 
                    of the actual body sort *)
                   if not (compatible body_sort new_ret_sort) then
@@ -598,7 +605,7 @@ and check_exp ?(in_let=false) sev e0 =
         let new_p = Param(p_i,p_x,new_p_s) in
         let new_e0 = EFun(i,new_p,new_ret_sorto,new_body) in
 	(* apply positive and negative casts (if we're not immediately in a let) *)
-	if not (in_let)
+	if not in_let
 	then mk_bulletproof_cast "fun" i e0_sort new_e0
 	else (e0_sort,new_e0)
 
