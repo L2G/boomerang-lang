@@ -13,7 +13,9 @@
 
 * Investigate other options for the contract on sorting.
 
-* Fix XML to use Escaping.
+* Fix XML and Escaping to work together more.
+  - Should XML be using its custom WS/WSP regexps?  uniProtV2.boom
+    depends on them
 
 * Fix contract on q-lenses using crel/arel/cnrel.
 

@@ -1,0 +1,15 @@
+module Apply_contract =
+
+  let refine ('a) (p:'a -> bool) (v:'a) : (vc:'a where p vc) = v (* let the compiler insert the check! *)
+
+  let pos (n:int) = bgt n 0
+  
+  test refine{int} pos 1 = 1
+  test refine{int} pos 0 = error
+
+  let naive_refine ('a) (p:'a -> bool) (v:'a) : 'a =
+    let refined : (vc:'a where p vc) = v in (* cast into r *)
+    refined
+
+  test naive_refine{int} pos 1 = 1
+  test naive_refine{int} pos 0 = error

@@ -9,13 +9,33 @@ module Xml =
 (* [xml_esc_char ex] maps an XML symbol -- either a character or an
    escaped characeter -- to its equivalent representation in ASCII.
    o [ex] is the set of excluded characters
- *)
+
+  By default, newlines and quotes are excluded (they are dealt with
+  elsewhere).
+*)
+
 let esc_char (excl_chars:regexp) : lens = 
   ( copy ([^&<>\n""] - excl_chars)
   | "&gt;" <-> ">"
   | "&lt;" <-> "<"
   | "&amp;" <-> "&" 
   | "&quot;" <-> "\"" )
+
+(* problematic for uniProtV2.boom and xsugar/bcard.boom" *)
+(*
+let xml_escs : (char * string) List.t= 
+  #{char * string}[('>',"&gt;");
+		   ('<',"&lt;");
+		   ('&',"&amp;");
+		   ('"',"&quot;")]
+
+let esc_char (excl_chars:regexp) : lens =
+  Escaping.unescape_char ([^\n] - excl_chars) xml_escs
+
+test ctype (esc_char [,]) = ?
+test Escaping.char_or_escaped [^\n,] xml_escs = ?
+test atype (esc_char [,]) = ?
+*)
 
 (* [esc_string_ends ex ends_ex] maps an XML-escaped string
    beginning and ending with characters not in [ex] or [ends_ex], to
