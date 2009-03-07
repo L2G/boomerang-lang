@@ -777,7 +777,9 @@ minusexp:
       { mk_over (me $1 $3) OMinus [$1; $3] }
 
 ampampexp:
-  | appexp AMPERSAND AMPERSAND appexp 
+  | appexp AMPERSAND AMPERSAND ampampexp
+      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
+  | appexp AMPERSAND AMPERSAND appexp   
       { mk_over (me $1 $4) OAmpAmp [$1; $4] }
 
 ltexp:

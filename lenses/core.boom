@@ -523,8 +523,9 @@ operator @.@ desugars into @lens_concat@ when applied to lens values.
 
 #* let lens_concat
 #*     (l1:lens) 
-#*     (l2:lens where land (splittable_cex (ctype l1) (ctype l2)) 
-#*                         (splittable_cex (atype l1) (atype l2)))
+#*     (l2:lens where land 
+#*                (splittable_cex (ctype l1) (ctype l2)) 
+#*                (splittable_cex (atype l1) (atype l2)))
 #*   : (l:lens where in_lens_type l (regexp_concat (ctype l1) (ctype l2))
 #*                                  (regexp_concat (atype l1) (atype l2)))
 ## = Native.Prelude.lens_concat l1 l2

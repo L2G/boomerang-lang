@@ -22,15 +22,26 @@
 
 module Ical = 
 
+let text : lens = 
+  Escaping.escape [^\n] 
+    #{char*string}[('\',"\\\\");('(',"\\(");(')',"\\)")]
+
 let BEGIN_CALENDAR : regexp = "BEGIN:VCALENDAR"
 let END_CALENDAR : regexp = "END:VCALENDAR"
 let BEGIN_EVENT : regexp = "BEGIN:VEVENT"
 let END_EVENT : regexp = "END:VEVENT"
 let PREAMBLE : regexp = BEGIN_CALENDAR . "\n" . ( ANY - containing BEGIN_EVENT)
 let POSTAMBLE : regexp = END_CALENDAR . "\n"
-let TEXT = [^\n()*<>]* 
-let LOC : regexp = " (" . TEXT . ")"
 let TIME : regexp = DIGIT{2} . ":" . DIGIT{2}
+let TEXT : regexp = ctype text
+let ESCTEXT : regexp = atype text
+let LOC : regexp = " (" . ESCTEXT . ")"
+let SPACE : string = " "
+let ASTERISK : string = "*"
+let COLON : string = ":"
+let LPAREN : string = "("
+let RPAREN : string = ")"
+let NL : string = "\n"
 
 (* helpers *)
 let line (tag:string) (l:lens) : lens = del (tag . ":") . l . del "\n"
@@ -61,28 +72,63 @@ let event1 : lens =
     ; line "DESCRIPTION" (del TEXT)
     ; line "STATUS" (const TEXT "" "TENTATIVE") 
     ; line "SEQUENCE" (const NUMBER "" "0") 
-    ; line "SUMMARY" (wrapl (key TEXT)) . ins " "
-    ; line "LOCATION" (parens (wrapl (key TEXT))) ]) . 
+    ; line "SUMMARY" (wrapl (text; key ESCTEXT)) . ins " "
+    ; line "LOCATION" (parens (wrapl (text; key ESCTEXT))) ]) . 
   del (END_EVENT) . copy "\n"
-let event2 : lens =  
-  copy (" " | "*") . merge_with_sep TIME "-" . copy " " . wrapr (key TEXT . copy LOC) . copy "\n"
-let ical1 : lens = del PREAMBLE . <~ e1:event1 >* . del POSTAMBLE
-let ical : lens = ical1; <~ e2:event2 >*
 
-(* security stuff *)
-let pub : lens = del " " . copy ( TIME . " " . TEXT . LOC . "\n")
-let pvt : lens = del "*" . copy (TIME . " ") . ( TEXT . LOC ) <-> "BUSY" . copy "\n"
-let redact : lens = pub* . (pvt . pub* )*
-let erase : lens = filter (ctype pvt) (ctype pub); pub*
+let event2 : lens =  
+  copy (SPACE | ASTERISK) . 
+  merge_with_sep TIME "-" . 
+  copy " " . 
+  wrapr (key ESCTEXT . copy LOC) . 
+  copy NL
+
+let ical1 : lens = 
+  del PREAMBLE . 
+  <~ e1:event1 >* . 
+  del POSTAMBLE
+
+let ical : lens = 
+  ical1; 
+  <~ e2:event2 >*
+
+let ical2 : lens = 
+  ical1; 
+  (copy (SPACE | ASTERISK) . 
+  merge_with_sep TIME "-" . 
+  copy (SPACE . ESCTEXT. LOC . NL))*
+
+let public : lens = 
+  del SPACE . 
+  copy TIME . 
+  copy (ESCTEXT . LOC) . 
+  copy NL
+
+let private : lens = 
+  del ASTERISK . 
+  copy TIME . 
+  (ESCTEXT . LOC) <-> "BUSY" . 
+  copy NL
+
+let redact : lens = 
+  (public | private)*
+
+let erase : lens = 
+  filter (ctype private) (ctype public); 
+  public*
 
 (* html stuff *)
-let html_entry (f : lens -> lens) : lens =
-  f ( MkXml.simple_attr2 NL2 "time" "start" (copy TIME) "stop" (del "-" . copy TIME) . 
-      MkXml.simple_elt NL2 "description" (del " " . copy TEXT) .
-      MkXml.simple_elt NL2 "location" (del " (" . copy TEXT . del ")") .
-      del "\n" )
-let html_pub : lens = del " " . html_entry (MkXml.elt NL1 "entry")
-let html_pvt : lens = del "*" . html_entry (MkXml.attr1_elt NL1 "entry" "class" (ins "private"))
+let pcdata : lens = 
+  invert text; 
+  Escaping.escape2 [^\n] '&' Escaping.xml_escs
+let PCDATA : regexp = atype pcdata 
+let html_entry : lens = 
+  MkXml.simple_attr2 NL2 "time" "start" (copy TIME) "stop" (del "-" . copy TIME) . 
+  MkXml.simple_elt NL2 "description" (del " " . pcdata) .
+  MkXml.simple_elt NL2 "location" (del " (" . pcdata . del ")") .
+  del "\n"
+let html_pub : lens = del " " . MkXml.elt NL1 "entry" html_entry
+let html_pvt : lens = del "*" . MkXml.attr1_elt NL1 "entry" "class" (ins "private") html_entry
 let html : lens = MkXml.outer_elt NL0 "calendar" (html_pub | html_pvt)*
 
 test (ical1;html).get 

@@ -173,8 +173,8 @@ let lens_iterable (l:lens) : bool = iterable_cex (ctype l) && iterable_cex (atyp
      (a) an escape code, or
      (b) a character that didn't need to be escaped
 *)
-let char_or_escaped (pairs : (char * string) List.t) : regexp =
-  escaped pairs | (ANYCHAR - (unescaped pairs))
+let char_or_escaped (R:regexp) (pairs : (char * string) List.t) : regexp =
+  escaped pairs | (R - (unescaped pairs))
 
 let mutually_distinct (strs : string List.t) : bool =
   let r,_ = 
@@ -192,11 +192,14 @@ let no_repeated_escape_codes (pairs : (char * string) List.t) : bool =
 (*
   any string goes to a sequence of char_or_escaped bits
 *)
+let is_cset (R:regexp) : bool = equiv R (R & [^])
+
 let escape 
+  (R:regexp where is_cset R) 
   (pairs : (char * string) List.t where
              no_repeated_escape_codes pairs &&
-             lens_iterable (char_or_escaped pairs))
-  : (lens in ANY <-> (char_or_escaped pairs)* )
+             lens_iterable (char_or_escaped R pairs))
+  : (lens in R* <-> (char_or_escaped R pairs)* )
   =
   let escape_char =
     List.fold_left{string * string}{lens}
@@ -204,54 +207,55 @@ let escape
 	 let from = fst{string}{string} p in
 	 let to = snd{string}{string} p in
          (from <-> to) || l)
-      (copy (ANYCHAR - (unescaped pairs)))
+      (copy (R - (unescaped pairs)))
       pairs
   in
     escape_char*
 
-let char_or_escaped2 (esc : char) (pairs : (char * string) List.t) =
+let char_or_escaped2 
+    (R:regexp where is_cset R) 
+    (esc : char) 
+    (pairs : (char * string) List.t) : regexp =
   let esc_p (p : char * string) = 
     let from = fst{char}{string} p in
     let to = snd{char}{string} p in
     (from,esc . to)
   in
   let escs = List.map{char * string}{char * string} esc_p pairs in
-  (escaped escs) | (ANYCHAR - (unescaped pairs))
+  (escaped escs) | (R - (unescaped pairs))
 
 (* How can this be equivalent to escape?  We seem to be missing some sort of 
    iterability requirement... --MMG *)
 let escape2
+  (R : regexp where is_cset R) 
   (esc : char)
-  (pairs : (char * string) List.t where
-             List.exists{string * string} 
-	       (fun (p : string * string) -> (fst{string}{string} p) = esc)
-	       pairs &&
-             no_repeated_escape_codes pairs)
-  : (lens in ANY <-> (char_or_escaped2 esc pairs)* )
+  (pairs : (char * string) List.t
+    where List.exists{string * string} 
+            (fun (p : string * string) -> (fst{string}{string} p) = esc)
+            pairs &&
+          no_repeated_escape_codes pairs &&
+          lens_iterable (char_or_escaped2 R esc pairs))
+  : (lens in R* <-> (char_or_escaped2 R esc pairs)* )
   =
   let escape_char =
     List.fold_left{char * string}{lens}
       (fun (l : lens) (p : char * string) -> 
-	 let from = fst{char}{string} p in
-	 let to = snd{char}{string} p in
+	 let from : char = fst{char}{string} p in
+	 let to : string = snd{char}{string} p in
         (from <-> (esc . to)) || l)
-      (copy (ANYCHAR - (unescaped pairs)))
-      pairs
-  in
-    escape_char*
+      (copy (R - unescaped pairs))
+      pairs in
+  escape_char*
 
 let xml_escs : (char * string) List.t =
-  List.Cons{char * string}(('>',"gt;"),
-  List.Cons{char * string}(('<',"lt;"),
-  List.Cons{char * string}(('&',"amp;"), 
-  List.Nil{char * string})))
+  #{char * string}[ ('>',"gt;"); ('<',"lt;"); ('&',"amp;") ] 
 
 (* again, do we want lens, or can/should we somehow 
    say "specialize this"?  
 *)
 let escape_xml 
   : (lens in ANY <-> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
-  = escape2 '&' xml_escs
+  = escape2 ANYCHAR '&' xml_escs
 
 let str_escs : (char * string) List.t =
   List.Cons{char * string}(('"',"\""),
@@ -262,7 +266,7 @@ let str_escs : (char * string) List.t =
 (* yeesh, this is way over-parenthesized... --MMG *)
 let escape_str 
   : (lens in ANY <-> ((('\' . ('"'|'\')) | [^"\\])* ))
-   = escape2 '\\' str_escs
+   = escape2 ANYCHAR '\\' str_escs
 
 (* ditto *)
 let unescape_str 
