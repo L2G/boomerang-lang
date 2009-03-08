@@ -131,32 +131,22 @@ let render_tag (R : regexp) (tag : string)
 test (render_tag ANY "foo").atype = ("<foo>" . ANY . "</foo>")
 
 (* as above *)
-let quoted (R : regexp) = ["] . R . ["]
+let quoted (R : regexp) = '"' . R . '"'
 
-let render_str (R : regexp) : (lens in R <-> quoted R) = render R "\"" "\""
+let render_str (R : regexp) : (lens in R <-> quoted R) = render R '"' '"'
 
 (* is bijectivity guaranteed?  yes, but we need buck-passing *)
 let unrender_str (R : regexp) : (lens in quoted R <-> R) = invert (render_str R)
 
 (* this function already existed inside escape, but we had to 
    pull it out *)
-let unescaped (pairs : (char * string) List.t) : regexp =
-  List.fold_left{char * string}{regexp}
-    (fun (r : regexp) (p : char * string) ->
-       let from,to = p in
-       from | r)
-    []
-    pairs
+let unescaped (escs : (char * string) List.t) : regexp =
+  union_regexps (List.map{char * string}{char} fst{char}{string} escs)
 
 (* this function didn't exist before, but we need it to 
    talk about the atype of the lens produced by escape *)
-let escaped (pairs : (char * string) List.t) : regexp =
-  List.fold_left{char * string}{regexp}
-    (fun (r : regexp) (p : char * string) ->
-       let from,to = p in
-       to | r)
-    []
-    pairs
+let escaped (escs : (char * string) List.t) : regexp =
+  union_regexps (List.map{char * string}{string} snd{char}{string} escs)
 
 (* it's an interesting exercise to start with "naive" ass-covering and lead up to
    this relatively concise and understandable contract
@@ -167,14 +157,43 @@ let escaped (pairs : (char * string) List.t) : regexp =
    4) rewrite the codomain, making it nice and concise
 *)
 
-let lens_iterable (l:lens) : bool = iterable_cex (ctype l) && iterable_cex (atype l)
+(* an escaping is a list of (char * string)
+
+   the character is what is escaped
+
+   the string is the suffix of the escape code (where some character
+   precedes all escape codes)
+*)
+
+(* string escaping; we take \ to be the escape, so " is escaped by \"
+   and \ is escaped by \\ .  (" to fix tuareg quote parsing) *)
+ 
+let str_escs : (char * string) List.t =
+  #{char * string}[ ('"','"') ; ('\\', '\\') ]
+
+let xml_escs : (char * string) List.t =
+  #{char * string}[ ('>',"gt;"); ('<',"lt;"); ('&',"amp;") ] 
+
+let restrict (ex:regexp) (escs : (char * string) List.t) : (char * string) List.t =
+  let escs = 
+    List.fold_left{char * string}{(char * string) List.t}
+      (fun (escs : (char * string) List.t) (esc : (char * string)) ->
+	 match matches ex (fst{char}{string} esc) with
+	   | true  -> escs
+	   | false -> List.Cons{char * string}(esc,escs)
+               : (char * string) List.t)
+      #{char * string}[] escs in
+  List.reverse{char * string} escs
+
+test restrict [&.] xml_escs =   #{char * string}[('>',"gt;");
+						 ('<',"lt;")]
 
 (* given a set of chars to be escaped and escape codes, valid escaped "bits" are:
-     (a) an escape code, or
-     (b) a character that didn't need to be escaped
+   (a) an escape code, or
+   (b) a character that didn't need to be escaped
 *)
-let char_or_escaped (R:regexp) (pairs : (char * string) List.t) : regexp =
-  escaped pairs | (R - (unescaped pairs))
+let char_or_escaped (R:regexp) (escs : (char * string) List.t) : regexp =
+  escaped escs | (R - (unescaped escs))
 
 let mutually_distinct (strs : string List.t) : bool =
   let r,_ = 
@@ -247,20 +266,12 @@ let escape2
       pairs in
   escape_char*
 
-let xml_escs : (char * string) List.t =
-  #{char * string}[ ('>',"gt;"); ('<',"lt;"); ('&',"amp;") ] 
-
 (* again, do we want lens, or can/should we somehow 
    say "specialize this"?  
 *)
 let escape_xml 
   : (lens in ANY <-> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
   = escape2 ANYCHAR '&' xml_escs
-
-let str_escs : (char * string) List.t =
-  List.Cons{char * string}(('"',"\""),
-  List.Cons{char * string}(('\\',"\\"),
-  List.Nil{char * string}))
 
 (* per above *)
 (* yeesh, this is way over-parenthesized... --MMG *)
