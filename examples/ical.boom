@@ -120,7 +120,7 @@ let erase : lens =
 (* html stuff *)
 let pcdata : lens = 
   invert text; 
-  Escaping.escape2 [^\n] '&' Escaping.xml_escs
+  Escaping.escape_with '&' [^\n] Escaping.xml_escs
 let PCDATA : regexp = atype pcdata 
 let html_entry : lens = 
   MkXml.simple_attr2 NL2 "time" "start" (copy TIME) "stop" (del "-" . copy TIME) . 

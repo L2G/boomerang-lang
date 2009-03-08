@@ -138,24 +138,8 @@ let render_str (R : regexp) : (lens in R <-> quoted R) = render R '"' '"'
 (* is bijectivity guaranteed?  yes, but we need buck-passing *)
 let unrender_str (R : regexp) : (lens in quoted R <-> R) = invert (render_str R)
 
-(* this function already existed inside escape, but we had to 
-   pull it out *)
-let unescaped (escs : (char * string) List.t) : regexp =
-  union_regexps (List.map{char * string}{char} fst{char}{string} escs)
-
-(* this function didn't exist before, but we need it to 
-   talk about the atype of the lens produced by escape *)
-let escaped (escs : (char * string) List.t) : regexp =
-  union_regexps (List.map{char * string}{string} snd{char}{string} escs)
-
-(* it's an interesting exercise to start with "naive" ass-covering and lead up to
-   this relatively concise and understandable contract
-
-   1) escaped chars are arbitrary strings, contract is "hell on wheels"
-   2) change to single characters
-   3) observe that the iterability constraint on the domain is satisfied by construction
-   4) rewrite the codomain, making it nice and concise
-*)
+(**************************************************************)
+(* escaping of strings, generically *)
 
 (* an escaping is a list of (char * string)
 
@@ -187,6 +171,30 @@ let restrict (ex:regexp) (escs : (char * string) List.t) : (char * string) List.
 
 test restrict [&.] xml_escs =   #{char * string}[('>',"gt;");
 						 ('<',"lt;")]
+
+(* this function already existed inside escape, but we had to 
+   pull it out *)
+let unescaped (escs : (char * string) List.t) : regexp =
+  union_regexps (List.map{char * string}{char} fst{char}{string} escs)
+
+test unescaped xml_escs = [<>&]
+
+(* this function didn't exist before, but we need it to 
+   talk about the atype of the lens produced by escape *)
+let escaped (escs : (char * string) List.t) : regexp =
+  union_regexps (List.map{char * string}{string} snd{char}{string} escs)
+
+(* note the lack of the '&' at the beginning -- we'll add it later *)
+test escaped xml_escs = (("gt"|"lt"|"amp") . ';')
+
+(* it's an interesting exercise to start with "naive" ass-covering and lead up to
+   this relatively concise and understandable contract
+
+   1) escaped chars are arbitrary strings, contract is "hell on wheels"
+   2) change to single characters
+   3) observe that the iterability constraint on the domain is satisfied by construction
+   4) rewrite the codomain, making it nice and concise
+*)
 
 (* given a set of chars to be escaped and escape codes, valid escaped "bits" are:
    (a) an escape code, or
@@ -223,65 +231,80 @@ let escape
   let escape_char =
     List.fold_left{string * string}{lens}
       (fun (l : lens) (p : string * string) -> 
-	 let from = fst{string}{string} p in
-	 let to = snd{string}{string} p in
+	 let (from,to) = p in
          (from <-> to) || l)
       (copy (R - (unescaped pairs)))
       pairs
   in
     escape_char*
 
-let char_or_escaped2 
-    (R:regexp where is_cset R) 
+(**************************************************************)
+(* alternative version of escaping, with a single distinguished
+   character beginning all escape sequences *)
+
+let char_or_escaped_with
     (esc : char) 
+    (R:regexp where is_cset R) 
     (pairs : (char * string) List.t) : regexp =
   let esc_p (p : char * string) = 
-    let from = fst{char}{string} p in
-    let to = snd{char}{string} p in
+    let (from,to) = p in
     (from,esc . to)
   in
   let escs = List.map{char * string}{char * string} esc_p pairs in
   (escaped escs) | (R - (unescaped pairs))
 
-(* How can this be equivalent to escape?  We seem to be missing some sort of 
-   iterability requirement... --MMG *)
-let escape2
-  (R : regexp where is_cset R) 
+let escape_with
   (esc : char)
+  (R : regexp where is_cset R) 
   (pairs : (char * string) List.t
     where List.exists{string * string} 
             (fun (p : string * string) -> (fst{string}{string} p) = esc)
             pairs &&
           no_repeated_escape_codes pairs &&
-          lens_iterable (char_or_escaped2 R esc pairs))
-  : (lens in R* <-> (char_or_escaped2 R esc pairs)* )
+          lens_iterable (char_or_escaped_with esc R pairs))
+  : (lens in R* <-> (char_or_escaped_with esc R pairs)* )
   =
   let escape_char =
     List.fold_left{char * string}{lens}
       (fun (l : lens) (p : char * string) -> 
-	 let from : char = fst{char}{string} p in
-	 let to : string = snd{char}{string} p in
+	 let (from,to) = p in
         (from <-> (esc . to)) || l)
       (copy (R - unescaped pairs))
       pairs in
   escape_char*
 
-(* again, do we want lens, or can/should we somehow 
-   say "specialize this"?  
-*)
+let escape_with2
+  (esc : char)
+  (R : regexp where is_cset R)
+  (escs : (char * string) List.t
+    where List.exists{string * string} 
+            (fun (p : string * string) -> (fst{string}{string} p) = esc)
+          escs &&
+          no_repeated_escape_codes escs &&
+          lens_iterable (char_or_escaped_with esc R escs))
+  : (lens in R* <-> (char_or_escaped_with esc R escs)* )
+  =
+  let new_escs =
+    List.map{char * string}{char * string}
+      (fun (p : char * string) ->
+	 let (from,to) = p in
+	 (from, esc . to))
+      escs in
+  escape R escs
+
+(* do we want lens, or can/should we somehow say "specialize"? *)
 let escape_xml 
   : (lens in ANY <-> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
-  = escape2 ANYCHAR '&' xml_escs
+  = escape_with '&' ANYCHAR xml_escs
 
-(* per above *)
-(* yeesh, this is way over-parenthesized... --MMG *)
+(* ditto *)
 let escape_str 
-  : (lens in ANY <-> ((('\' . ('"'|'\')) | [^"\\])* ))
-   = escape2 ANYCHAR '\\' str_escs
+  : (lens in ANY <-> (('\\' . ('"'|'\\')) | [^""\\])* )
+   = escape_with '\\' ANYCHAR str_escs
 
 (* ditto *)
 let unescape_str 
-  : (lens in ((('\' . ('"'|'\')) | [^"\\])* ) <-> ANY)
+  : (lens in ((('\' . ('"'|'\')) | [^""\\])* ) <-> ANY)
   = invert escape_str
 
 let l2 = 
@@ -296,7 +319,8 @@ test get l2
         <tag> &lt;hello""world&gt; </tag>
     >>
 
-
+(**************************************************************)
+(* example: CSV <-> XML *)
 let intersperse ('a) (ls : 'a List.t) (sep : 'a) : 'a List.t =
   List.reverse{'a}
       (List.fold_left{'a}{'a List.t}
@@ -323,7 +347,7 @@ let intersperse_lenses
   = concat_lenses (intersperse{lens} lenses sep)
 
 let field_to_xml (field : string) 
-  : (lens in (quoted (('\' . ('"'|'\')) | [^"\\])* )
+  : (lens in (quoted (('\' . ('"'|'\')) | [^""\\])* )
          <-> (tagged (('&' . ("lt"|"gt"|"amp") . ';') | [^&<>])* ) field)
   = unrender_str (ctype unescape_str) ; unescape_str ;
     escape_xml ; render_tag (atype escape_xml) field
