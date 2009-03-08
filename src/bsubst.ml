@@ -732,7 +732,8 @@ and qualify_exp resolve bound e0 = match e0 with
   | EFun(i,Param(ip,x1,s2),so3,e4) -> 
       let new_s2 = qualify_sort resolve bound s2 in 
       let new_so3 = Misc.map_option (qualify_sort resolve bound) so3 in 
-      let new_e4 = qualify_exp resolve bound e4 in 
+      let bound' = (Qid.t_of_id x1)::bound in
+      let new_e4 = qualify_exp resolve bound' e4 in 
       EFun(i,Param(ip,x1,new_s2),new_so3,new_e4) 
   | ELet(i,Bind(ib,p1,so2,e3),e4) ->
       let new_p1 = qualify_pat resolve bound p1 in 
