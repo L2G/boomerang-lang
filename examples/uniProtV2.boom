@@ -306,7 +306,7 @@ test "----- DE line-----" = ?
 let de_tag : string = tag "DE" 
 
 let de_xml : lens = 
-  let Description : lens = Xml.esc_string [;()[\]] in 
+  let Description : lens = Xml.unesc_string [;()[\]] in 
   let name (space:string) : lens =
     Xml.raw_open space "name" . 
     ( (Xml.attr "ref" (qsp . brackets NUMBER))? ~ 
@@ -1335,7 +1335,7 @@ let cc_status : lens = Xml.attr "status" qualifiers
 
 let cc_generic_xml (ty:lens) : lens = 
   let typ : lens = Xml.attr "type" ty in 
-  let data_no_dot : lens = Xml.esc_string_ends [""] [.] in 
+  let data_no_dot : lens = Xml.unesc_string_ends [""] [.] in 
   let data_dot : lens = esc_q . "." in 
   let txt (d:lens) : lens = colon . space . Xml.simple_elt NL2 "text" d in 
   ins cc_tag . ins cc_bang . 
