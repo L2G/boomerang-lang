@@ -113,7 +113,22 @@ characters respectively.
 #* let UALPHACHAR : regexp = [A-Z]
 #* let UALPHANUMCHAR : regexp = [A-Z0-9]
 
+\LENSSECTION{@is_cset@}
+The predicate @is_cset@ on regular expressions determines whether a
+regular expression identifies a set of characters.
+
+#* let is_cset (R:regexp) : bool = equiv R (R & [^])
+
 \subsection{Lenses}
+
+\LENSECTION{@lens_equiv@}
+The binary operator on lenses, @lens_equiv@, tests whether the
+@ctype@s and @atype@s of two lenses are equivalent regular expressions
+(according to @equiv@).
+
+#* let lens_equiv (l1:lens) (l2:lens) : bool =
+#*  (equiv_cex (ctype l1) (ctype l2)) &&
+#*  (equiv_cex (atype l1) (atype l2))
 
 \LENSSECTION{@ins@} The lens @ins@ maps the empty concrete 
 string to a fixed abstract string. It is defined straightforwardly 

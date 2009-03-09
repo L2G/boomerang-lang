@@ -223,27 +223,35 @@ let mutually_distinct (strs : string List.t) : bool =
 let no_repeated_escape_codes (pairs : (char * string) List.t) : bool =
   mutually_distinct (List.map{char * string}{string} snd{char}{string} pairs)
 
-(*
-  any string goes to a sequence of char_or_escaped bits
-*)
-let is_cset (R:regexp) : bool = equiv R (R & [^])
+let escape_char 
+  (R:regexp where is_cset R) 
+  (escs : (char * string) List.t where
+            no_repeated_escape_codes escs &&
+            lens_iterable (char_or_escaped R escs))
+  : (lens in R <-> char_or_escaped R escs)
+  =
+  List.fold_left{string * string}{lens}
+    (fun (l : lens) (p : string * string) -> 
+       let (from,to) = p in
+       (from <-> to) || l)
+    (copy (R - (unescaped escs)))
+    escs
+
+let unescape_char
+  (R:regexp where is_cset R) 
+  (escs : (char * string) List.t where
+            no_repeated_escape_codes escs &&
+            lens_iterable (char_or_escaped R escs))
+  : (lens in char_or_escaped R escs <-> R)
+  = invert (escape_char R escs)
 
 let escape 
   (R:regexp where is_cset R) 
-  (pairs : (char * string) List.t where
-             no_repeated_escape_codes pairs &&
-             lens_iterable (char_or_escaped R pairs))
-  : (lens in R* <-> (char_or_escaped R pairs)* )
-  =
-  let escape_char =
-    List.fold_left{string * string}{lens}
-      (fun (l : lens) (p : string * string) -> 
-	 let (from,to) = p in
-         (from <-> to) || l)
-      (copy (R - (unescaped pairs)))
-      pairs
-  in
-    escape_char*
+  (escs : (char * string) List.t where
+            no_repeated_escape_codes escs &&
+            lens_iterable (char_or_escaped R escs))
+  : (lens in R* <-> (char_or_escaped R escs)* )
+  = (escape_char R escs)*
 
 (**************************************************************)
 (* alternative version of escaping, with a single distinguished
