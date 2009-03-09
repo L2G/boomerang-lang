@@ -24,9 +24,9 @@
 
 * Investigate other options for the contract on sorting.
 
-* Fix XML and Escaping to work together more.
-  - Should XML be using its custom WS/WSP regexps?  uniProtV2.boom
-    depends on them
+* Work out standardized WS/WSP/NL* regexps
+
+* Use escaping/xml in address.boom, wiki.boom (in needs-porting)
 
 * Fix contract on q-lenses using crel/arel/cnrel.
 
