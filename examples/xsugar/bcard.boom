@@ -9,7 +9,7 @@ module Bcard =
       begin 
         ins ascii . 
         ins Sp . 
-        Xml.esc_string [\r\n] . 
+        Xml.unesc_string [\r\n] . 
         qins Nl "\n"
       end
 
