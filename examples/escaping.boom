@@ -158,6 +158,13 @@ let str_escs : (char * string) List.t =
 let xml_escs : (char * string) List.t =
   #{char * string}[ ('>',"gt;"); ('<',"lt;"); ('&',"amp;") ] 
 
+let prefix (pfx : string) (escs : (char * string) List.t) : (char * string) List.t =
+  List.map{char * string}{char * string}
+    (fun (esc : char * string) ->
+       let from,to = esc in
+       (from,pfx . to))
+    escs
+
 let restrict (ex:regexp) (escs : (char * string) List.t) : (char * string) List.t =
   let escs = 
     List.fold_left{char * string}{(char * string) List.t}
@@ -245,13 +252,9 @@ let escape
 let char_or_escaped_with
     (esc : char) 
     (R:regexp where is_cset R) 
-    (pairs : (char * string) List.t) : regexp =
-  let esc_p (p : char * string) = 
-    let (from,to) = p in
-    (from,esc . to)
-  in
-  let escs = List.map{char * string}{char * string} esc_p pairs in
-  (escaped escs) | (R - (unescaped pairs))
+    (escs : (char * string) List.t) : regexp =
+  let escs = prefix esc escs in
+  (escaped escs) | (R - (unescaped escs))
 
 let escape_with
   (esc : char)
@@ -283,14 +286,7 @@ let escape_with2
           no_repeated_escape_codes escs &&
           lens_iterable (char_or_escaped_with esc R escs))
   : (lens in R* <-> (char_or_escaped_with esc R escs)* )
-  =
-  let new_escs =
-    List.map{char * string}{char * string}
-      (fun (p : char * string) ->
-	 let (from,to) = p in
-	 (from, esc . to))
-      escs in
-  escape R escs
+  = escape R (prefix esc escs)
 
 (* do we want lens, or can/should we somehow say "specialize"? *)
 let escape_xml 
