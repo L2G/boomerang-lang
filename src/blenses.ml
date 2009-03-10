@@ -78,33 +78,51 @@ let rec format_skel sk =
 (* helpers for accessing skeletons *)
 let string_of_skel = function
   | S_string s -> s
-  | _ -> Err.run_error (Info.M "string_of_skel") 
-      (fun () -> msg "@[expected@ string@ skeleton@]") 
+  | sk -> Err.run_error (Info.M "string_of_skel") 
+      (fun () -> 
+	 msg "@[expected@ string@ skeleton, got:";
+	 format_skel sk;
+	 msg "@]") 
 
 let fst_of_skel = function
   | S_concat (s,_) -> s
-  | _ -> Err.run_error (Info.M "fst_of_skel") 
-      (fun () -> msg "@[expected@ concat@ skeleton@]") 
+  | sk -> Err.run_error (Info.M "fst_of_skel") 
+      (fun () -> 
+	 msg "@[expected@ pair@ skeleton, got:";
+	 format_skel sk;
+	 msg "@]") 
 
 let snd_of_skel = function
   | S_concat (_, s) -> s
-  | _ -> Err.run_error (Info.M "snd_of_skel") 
-      (fun () -> msg "@[expected@ concat@ skeleton@]") 
+  | sk -> Err.run_error (Info.M "snd_of_skel") 
+      (fun () -> 
+	 msg "@[expected@ pair@ skeleton, got:";
+	 format_skel sk;
+	 msg "@]")
 
 let lst_of_skel = function
   | S_star sl -> sl
-  | _ -> Err.run_error (Info.M "lst_of_skel") 
-      (fun () -> msg "@[expected@ lst@ skeleton@]") 
+  | sk -> Err.run_error (Info.M "lst_of_skel") 
+      (fun () -> 
+	 msg "@[expected@ list@ skeleton, got:";
+	 format_skel sk;
+	 msg "@]") 
 
 let comp_of_skel = function
   | S_comp(s1,s2) -> (s1,s2)
-  | _ -> Err.run_error (Info.M "comp_of_skel")
-      (fun () -> msg "@[expected@ comp@ skeleton@]") 
+  | sk -> Err.run_error (Info.M "comp_of_skel")
+      (fun () -> 
+	 msg "@[expected@ comp@ skeleton, got:";
+	 format_skel sk;
+	 msg "@]") 
 
 let quot_of_skel = function
   | S_quot(c,s) -> (c,s)
-  | _ -> Err.run_error (Info.M "quot_of_skel") 
-      (fun () -> msg "@[expected@ quot@ skeleton@]") 
+  | sk -> Err.run_error (Info.M "quot_of_skel") 
+      (fun () -> 
+	 msg "@[expected@ quot@ skeleton, got:";
+	 format_skel sk;
+	 msg "@]") 
 
 (* ----- dictionaries ----- *)
 type dict = ((skeleton * dict) list KMap.t) TMap.t
