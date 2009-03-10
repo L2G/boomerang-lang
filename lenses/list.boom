@@ -68,6 +68,15 @@ using @fold_left@.
 #*     Nil{'a} 
 #*     l
 
+\LENSSECTION{@append@} The function @append@ can be defined using
+@fold_left@ and @reverse@.
+
+#* let append ('a) (l1 : 'a t) (l2 : 'a t) : 'a t =
+#*   fold_left{'a}{'a t}
+#*     (fun (l:'a t) (x:'a) -> Cons{'a}(x,l))
+#*     l2
+#*     (reverse{'a} l1)
+
 \LENSSECTION{@map@} The function @map@ can be defined (inefficiently) 
 using @fold_left@ and @reverse@.
 

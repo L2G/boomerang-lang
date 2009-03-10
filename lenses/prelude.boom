@@ -121,7 +121,7 @@ regular expression identifies a set of characters.
 
 \subsection{Lenses}
 
-\LENSECTION{@lens_equiv@}
+\LENSSECTION{@lens_equiv@}
 The binary operator on lenses, @lens_equiv@, tests whether the
 @ctype@s and @atype@s of two lenses are equivalent regular expressions
 (according to @equiv@).
