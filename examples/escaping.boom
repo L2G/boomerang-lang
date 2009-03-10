@@ -139,7 +139,7 @@ let render_str (R : regexp) : (lens in R <-> quoted R) = render R '"' '"'
 let unrender_str (R : regexp) : (lens in quoted R <-> R) = invert (render_str R)
 
 (**************************************************************)
-(* escaping of strings, generically *)
+(* escaping of strings, generically, with lists of escapes *)
 
 (* an escaping is a list of (char * string)
 
@@ -153,10 +153,16 @@ let unrender_str (R : regexp) : (lens in quoted R <-> R) = invert (render_str R)
    and \ is escaped by \\ .  (" to fix tuareg quote parsing) *)
  
 let str_escs : (char * string) List.t =
-  #{char * string}[ ('"','"') ; ('\\', '\\') ]
+  #{char * string}[ ('"',"\\\"") ; ('\\', "\\\\") ]
 
 let xml_escs : (char * string) List.t =
-  #{char * string}[ ('>',"gt;"); ('<',"lt;"); ('&',"amp;") ] 
+  #{char * string}[ ('>',"&gt;"); ('<',"&lt;"); ('&',"&amp;") ] 
+
+let escaped_chars (escs : (char * string) List.t)
+  = List.map{char * string}{char} fst{char}{string} escs
+
+let escape_codes (escs : (char * string) List.t)
+  = List.map{char * string}{string} snd{char}{string} escs
 
 let prefix (pfx : string) (escs : (char * string) List.t) : (char * string) List.t =
   List.map{char * string}{char * string}
@@ -176,23 +182,22 @@ let restrict (ex:regexp) (escs : (char * string) List.t) : (char * string) List.
       #{char * string}[] escs in
   List.reverse{char * string} escs
 
-test restrict [&.] xml_escs =   #{char * string}[('>',"gt;");
-						 ('<',"lt;")]
+test restrict [&.] xml_escs =   #{char * string}[('>',"&gt;");
+						 ('<',"&lt;")]
 
 (* this function already existed inside escape, but we had to 
    pull it out *)
 let unescaped (escs : (char * string) List.t) : regexp =
-  union_regexps (List.map{char * string}{char} fst{char}{string} escs)
+  union_regexps (escaped_chars escs)
 
 test unescaped xml_escs = [<>&]
 
 (* this function didn't exist before, but we need it to 
    talk about the atype of the lens produced by escape *)
 let escaped (escs : (char * string) List.t) : regexp =
-  union_regexps (List.map{char * string}{string} snd{char}{string} escs)
+  union_regexps (escape_codes escs)
 
-(* note the lack of the '&' at the beginning -- we'll add it later *)
-test escaped xml_escs = (("gt"|"lt"|"amp") . ';')
+test escaped xml_escs = ('&' . ("gt"|"lt"|"amp") . ';')
 
 (* it's an interesting exercise to start with "naive" ass-covering and lead up to
    this relatively concise and understandable contract
@@ -220,15 +225,15 @@ let mutually_distinct (strs : string List.t) : bool =
       strs in
   r
 
-let no_repeated_escape_codes (pairs : (char * string) List.t) : bool =
-  mutually_distinct (List.map{char * string}{string} snd{char}{string} pairs)
+let no_repeated_escape_codes (escs : (char * string) List.t) : bool =
+  mutually_distinct (escape_codes escs)
 
 let escape_char 
   (R:regexp where is_cset R) 
   (escs : (char * string) List.t where
             no_repeated_escape_codes escs &&
             lens_iterable (char_or_escaped R escs))
-  : (lens in R <-> char_or_escaped R escs)
+  : (lens in R <=> char_or_escaped R escs)
   =
   List.fold_left{string * string}{lens}
     (fun (l : lens) (p : string * string) -> 
@@ -242,7 +247,7 @@ let unescape_char
   (escs : (char * string) List.t where
             no_repeated_escape_codes escs &&
             lens_iterable (char_or_escaped R escs))
-  : (lens in char_or_escaped R escs <-> R)
+  : (lens in char_or_escaped R escs <=> R)
   = invert (escape_char R escs)
 
 let escape 
@@ -250,12 +255,47 @@ let escape
   (escs : (char * string) List.t where
             no_repeated_escape_codes escs &&
             lens_iterable (char_or_escaped R escs))
-  : (lens in R* <-> (char_or_escaped R escs)* )
+  : (lens in R* <=> (char_or_escaped R escs)* )
   = (escape_char R escs)*
+
+(* do we want lens, or can/should we somehow say "specialize"? *)
+let escape_xml 
+  : (lens in ANY <=> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
+  = escape ANYCHAR xml_escs
+
+(* ditto *)
+let escape_str 
+  : (lens in ANY <=> (('\\' . ('"'|'\\')) | [^""\\])* )
+  = escape ANYCHAR str_escs
+
+(* ditto *)
+let unescape_str 
+  : (lens in ((('\' . ('"'|'\')) | [^""\\])* ) <-> ANY)
+  = invert escape_str
+
+let l1 = 
+  unrender_str (ctype unescape_str) ; unescape_str ; 
+  escape_xml ; render_xml (atype escape_xml)
+
+test get l1
+    <<
+        " <hello\"\"world> "
+    >> 
+  = <<
+        <tag> &lt;hello""world&gt; </tag>
+    >>
 
 (**************************************************************)
 (* alternative version of escaping, with a single distinguished
    character beginning all escape sequences *)
+
+let str_esc_code = '\\'
+let str_escs2 : (char * string) List.t =
+  #{char * string}[ ('"','"') ; ('\\', '\\') ]
+
+let xml_esc_code = '&'
+let xml_escs2 : (char * string) List.t =
+  #{char * string}[ ('>',"gt;"); ('<',"lt;"); ('&',"amp;") ] 
 
 let char_or_escaped_with
     (esc : char) 
@@ -273,7 +313,7 @@ let escape_with
             pairs &&
           no_repeated_escape_codes pairs &&
           lens_iterable (char_or_escaped_with esc R pairs))
-  : (lens in R* <-> (char_or_escaped_with esc R pairs)* )
+  : (lens in R* <=> (char_or_escaped_with esc R pairs)* )
   =
   let escape_char =
     List.fold_left{char * string}{lens}
@@ -293,18 +333,18 @@ let escape_with2
           escs &&
           no_repeated_escape_codes escs &&
           lens_iterable (char_or_escaped_with esc R escs))
-  : (lens in R* <-> (char_or_escaped_with esc R escs)* )
+  : (lens in R* <=> (char_or_escaped_with esc R escs)* )
   = escape R (prefix esc escs)
 
 (* do we want lens, or can/should we somehow say "specialize"? *)
 let escape_xml 
-  : (lens in ANY <-> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
-  = escape_with '&' ANYCHAR xml_escs
+  : (lens in ANY <=> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
+  = escape_with xml_esc_code ANYCHAR xml_escs2
 
 (* ditto *)
 let escape_str 
-  : (lens in ANY <-> (('\\' . ('"'|'\\')) | [^""\\])* )
-   = escape_with '\\' ANYCHAR str_escs
+  : (lens in ANY <=> (('\\' . ('"'|'\\')) | [^""\\])* )
+  = escape_with str_esc_code ANYCHAR str_escs2
 
 (* ditto *)
 let unescape_str 

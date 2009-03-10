@@ -98,47 +98,57 @@ let EscapedStrP (R:regexp) : regexp =
   let EscapedNormal = Escaped . Normal in 
     NormalP . EscapedNormal* | EscapedNormal+
 
+let base_escs = #{char * string}['\n',"\\n";
+				   '\r',"\\r";
+				   '\\',"\\\\"]
+
+let escaped_char (escs:(char * string) List.t) = Escaping.char_or_escaped ANYCHAR escs
+
+let escs_of_chars (chars:char List.t where disjoint (union_regexps chars) [\n\r]) =
+  let ext_escs = List.map{char}{char * string} 
+    (fun (c:char) -> (c,'\\' . c)) 
+    chars in
+  List.append{char * string} base_escs ext_escs
+
 (* escchar: escape characters in [c], which should be a character
-   class. *)
-let escchar (C:regexp where disjoint C [\n\r]) 
-  : (lens in ANYCHAR <=> ((/\\/ . (EscapedSpecial|C)) | (NonSpecial - C)))
-   =   (ins "\\" . copy (C | /\\/))
-     | escspecial
-     | copy (NonSpecial - C)
+ class. *)
+let escchar (chars:char List.t where disjoint (union_regexps chars) [\n\r])
+  : (lens in ANYCHAR <=> escaped_char (escs_of_chars chars))
+  = Escaping.escape_char ANYCHAR (escs_of_chars chars)
 
 (* unescchar: inverse of (the bijective lens) escchar *)
-let unescchar (C:regexp) 
-  : (lens in ((/\\/ . (EscapedSpecial|C)) | (NonSpecial - C)) <=> ANYCHAR)
-  = invert (escchar C)
+let unescchar (chars:char List.t where disjoint (union_regexps chars) [\n\r])
+  : (lens in escaped_char (escs_of_chars chars) <=> ANYCHAR)
+  = Escaping.unescape_char ANYCHAR (escs_of_chars chars)
 
 (* escstr: escape a string using [escchar] *)
-let escstr (C:regexp) 
-  : (lens in ANY <-> EscapedStr C)
-  = (escchar C)*
+let escstr (chars:char List.t where disjoint (union_regexps chars) [\n\r])
+  : (lens in ANY <=> (escaped_char (escs_of_chars chars))* )
+  = (escchar chars)*
 
 (* escstrP: escape a non-empty string using [escchar] *)
-let escstrP (C:regexp) 
-  : (lens in ANYP <-> EscapedStrP C)
-  = (escchar C)+
+let escstrP (chars:char List.t where disjoint (union_regexps chars) [\n\r])
+  : (lens in ANYP <=> (escaped_char (escs_of_chars chars))+ )
+  = (escchar chars)+
 
 (* unescstr: unescape a string using [unescchar] *)
-let unescstr (C:regexp) 
-  : (lens in EscapedStr C <-> ANY)
-  = (unescchar C)*
+let unescstr (chars:char List.t where disjoint (union_regexps chars) [\n\r])
+  : (lens in (escaped_char (escs_of_chars chars))* <=> ANY)
+  = (unescchar chars)*
 
 (* unescstrP: unescape a non-empty string using [unescchar] *)
-let unescstrP (C:regexp) 
-  : (lens in EscapedStrP C <-> ANYP)
-  = (unescchar C)+
+let unescstrP (chars:char List.t where disjoint (union_regexps chars) [\n\r])
+  : (lens in (escaped_char (escs_of_chars chars))* <=> ANYP)
+  = (unescchar chars)+
 
 (* unit tests for escaping lenses *)
-test (escchar [])*.get "a\nb\\c" = "a\\nb\\\\c"
-test (unescchar [])*.get "\n" = error
-test (unescchar [])*.get "abc" = "abc"
-test (unescchar [])*.get "\\\\" = "\\"
-test (unescchar [])*.get "\\n" = "\n"
-test (escchar [,])*.get "a,b" = "a\\,b"
-test (unescchar [,])*.get "\\," = ","
+test (escchar #{char}[])*.get "a\nb\\c" = "a\\nb\\\\c"
+test (unescchar #{char}[])*.get "\n" = error
+test (unescchar #{char}[])*.get "abc" = "abc"
+test (unescchar #{char}[])*.get "\\\\" = "\\"
+test (unescchar #{char}[])*.get "\\n" = "\n"
+test (escchar #{char}[','])*.get "a,b" = "a\\,b"
+test (unescchar #{char}[','])*.get "\\," = ","
 
 (* -------------------------------------------------------------------- *)
 (* TELEPHONE AND NAME FIELDS *)
@@ -167,61 +177,45 @@ let GlobalName : regexp = Family . (/, / . Given)?
 (* AbsAddr: type for CSV address book entry *) 
 let AbsAddr = GlobalName . Tel* 
 
-(* escaper: a lens that handles escaping of non-empty fields.
-   Describing this type is rather tricky, because we want the abstract
-   view to exclude strings that include TelMarkers, but allow strings
-   that are *almost* TelMarkers.  The arguments are as follows:
-     o legal: the set of legal characters
-     o esc: function that takes  a set of characters to escape 
-       and yields a lens that does the escaping
-     o l: lens for special characters 
-     o c: set of special characters 
-  *)
 
-let escaper (legal:regexp) (esc:regexp -> lens) (l:lens) (c:regexp) = 
-  let mk_suffix (r:regexp) : lens = copy (legal - (r | c)) | l  in
-  let suffix : lens = 
-    ( (mk_suffix [)])
-    | (mk_suffix [hwce]) . copy ")"
-    | (mk_suffix [t(])   . copy "e)"
-    | (mk_suffix [(])    . copy ( [hwc] . [)] | /note)/ )
-    | (mk_suffix [ ])    . copy ([(] . TelTags . [)])
-    | (mk_suffix [o])    . copy "te)"
-    | (mk_suffix [n])    . copy "ote)" ) in 
-  ( esc c . suffix
-  | copy ")" 
+let suffix (mk_suffix : regexp -> lens) : lens =
+    (mk_suffix [)])
+  | (mk_suffix [hwce]) . copy ")"
+  | (mk_suffix [t(])   . copy "e)"
+  | (mk_suffix [(])    . copy ( [hwc] . [)] | /note)/ )
+  | (mk_suffix [ ])    . copy ([(] . TelTags . [)])
+  | (mk_suffix [o])    . copy "te)"
+  | (mk_suffix [n])    . copy "ote)"
+
+let escape_ignore =
+  ( copy ")" 
   | copy ([hwce] . /)/)
   | copy "te)" 
   | copy "ote)"
   | copy "note)"
   | copy "(note)" 
   | copy ( /(/ . [hwce] . /)/ ) )
+
+let escaper (chars:char List.t) = 
+  let mk_suffix (R:regexp) : lens = 
+    Escaping.escape_char (ANYCHAR - R) (escs_of_chars chars) in
+  ( escstr chars . suffix mk_suffix
+  | escape_ignore )
+
+let unescaper (chars:char List.t) =
+  let mk_suffix (R:regexp) : lens = 
+    Escaping.unescape_char (ANYCHAR - R) (escs_of_chars chars) in
+  ( unescstr chars . suffix mk_suffix
+  | escape_ignore )
+
             
-(* formatter: specialization of escaper with the standard special characters *)
-let formatter : (regexp -> lens) -> lens -> regexp -> lens = 
-  escaper [^\n\r\\] 
-
-(* formatspecial: lens for formatting the special characters *)
-let formatspecial : lens = 
-  ( [\\] <-> "\\\\" 
-  | [,] <-> "\\," 
-  | [\n] <-> "\\n" 
-  | [\r] <-> "\\r")
-
-(* unformatspecial: lens for unformatting special characters; also 
-   handles colons and semicolons *)
-let unformatspecial : lens = 
-  ( invert formatspecial
-  | /\\:/ <-> ":" 
-  | /\\;/ <-> ";" ) 
-
 (* formatnotemptyname: escape string to Name *)
 let formatnotemptyname : lens = 
-  formatter escstr formatspecial  [,]
+  escaper #{char}[',']
 
 (* unformatnotemptyname: unescape string from Name *)
 let unformatnotemptyname : lens = 
-  formatter unescstr unformatspecial [,;:]
+  unescaper #{char}[',';';';':']
   
 (* name: handles escaping and formatting of a Name. We do this in two 
    passes. First, we unformat to put everything in a canonical "raw" form, 
@@ -236,7 +230,7 @@ let name : lens =
 test name.get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
 
 (* formattel: lens for escaping tel data *)
-let formattel : lens = escstr [,]
+let formattel : lens = escstr #{char}[',']
 
 (* field': helper for handling a field. The arguments are as follows:
      o w0: first tag in vCard source
@@ -249,7 +243,7 @@ let field' (w0:string) (w1:string) (w2:string) =
   del (/;type=/ . [A-Z]+)* . 
   del ";type=pref"? .
   del ":" . 
-  (unescstr [;,:]; formattel) .
+  (unescstr #{char}[';';',';':']; formattel) .
   ins " (" . ins w2 . ins ")" .
   del NL
 
@@ -263,20 +257,20 @@ let tel : lens =
   | tel' "CELL" "c"
 
 (* formatnote: lens for escaping note data *)
-let formatnote : lens = escstr [,]
+let formatnote : lens = escstr #{char}[',']
 
 (* note: lens for handling note fields. Again, we use the two-pass 
    approach--unformatting / unescaping, and then reformatting / reescaping *)
 let note : lens =
   (/NOTE:/ <-> ", ") .
-  (unescstr [,:;]; formatnote) .
+  (unescstr #{char}[',';':';';']; formatnote) .
   ins " (note)" .
   del NL
 
 (* abemail: lens for Apple's special email field. Uses two-pass approach. *)
 let abemail : lens =
   (/item.EMAIL;type=INTERNET;type=pref:/ <-> ", ") .
-  (unescstr [,:;]; escstr [,]) .
+  (unescstr #{char}[',';':';';']; escstr #{char}[',']) .
   del NL .
   del "item.X-ABLabel:E-mail" . 
   del NL .
@@ -597,7 +591,10 @@ let Normal : regexp = StringNotContaining R
 let unescpcdata : lens = copy Normal . (special . copy Normal)*  
   
 (* formatpcdata: lens for escaping PCDATA; excludes TelTags using escaper helper from above. *)
-let format_pcdata : lens = escaper [^] (fun (c:regexp) -> unescpcdata) (copy []) []
+let format_pcdata : lens = 
+  let mk_suffix (r:regexp) : lens = copy (ANYCHAR - r)  in
+  ( unescpcdata . suffix mk_suffix
+  | escape_ignore )
 
 
 (* -------------------------------------------------------------------- *)
