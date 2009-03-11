@@ -23,12 +23,14 @@ if $(not $(OCAMLFIND_EXISTS))
 OCAMLFLAGS    = -dtypes -rectypes 
 
 if $(or $(defined PROFILING_NATIVE_CODE), $(defined PNC))
+	println(Profiling native code enabled.)
 	OCAMLOPTFLAGS += -p
 	NATIVE_ENABLED = true
 	BYTE_ENABLED = false
 	export
 
 if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
+	println(Profiling byte code enabled.)
 	OCAMLC = ocamlcp
 	OCAMLCFLAGS += -g
 	BYTE_ENABLED = true
