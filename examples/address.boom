@@ -69,46 +69,21 @@ let filterwith (BOTH: regexp) (l: lens where lens_iterable l &&
 (* -------------------------------------------------------------------- *)
 (* ESCAPING *)
 
-(* Special: characters that are always escaped *)
-let Special : regexp = [\n\r\\]
-
-(* NonSpecial: negation of Special *)
-let NonSpecial : regexp = [^\n\r\\]
-
-(* EscapedSpecial: escape characters for Special *)
-let EscapedSpecial : regexp = [\\nr]
-
-(* escspecial: lens escaping non-slash chars in Special *)
-let escspecial : lens = (/\n/ <-> "\\n") | (/\r/ <-> "\\r")
-
-(* EscapedStr: strings where every character in [R] and [Special] are
-   escaped using backslash. [R] should be a chracter class. *)
-let EscapedStr (R:regexp) : regexp =
-  let Normal = StringNotContaining (Special | R) in
-  let Escaped = /\\/ . (EscapedSpecial | R) in
-  Normal . (Escaped . Normal)* 
-
-(* EscapedStrP: non-empty strings where every character in [R]
-   and [Special] are escaped using backslash. [R] should be a
-   chracter class. *)
-let EscapedStrP (R:regexp) : regexp = 
-  let Normal = StringNotContaining (Special | R) in 
-  let NormalP = Normal - EPSILON in 
-  let Escaped = /\\/ . (EscapedSpecial | R) in 
-  let EscapedNormal = Escaped . Normal in 
-    NormalP . EscapedNormal* | EscapedNormal+
-
 let base_escs = #{char * string}['\n',"\\n";
-				   '\r',"\\r";
-				   '\\',"\\\\"]
-
-let escaped_char (escs:(char * string) List.t) = Escaping.char_or_escaped ANYCHAR escs
+				 '\r',"\\r";
+				 '\\',"\\\\"]
 
 let escs_of_chars (chars:char List.t where disjoint (union_regexps chars) [\n\r]) =
   let ext_escs = List.map{char}{char * string} 
     (fun (c:char) -> (c,'\\' . c)) 
     chars in
   List.append{char * string} base_escs ext_escs
+
+let escaped_char (escs:(char * string) List.t) = Escaping.char_or_escaped ANYCHAR escs
+
+let escaped (chars : char List.t) = (escaped_char (escs_of_chars chars))*
+
+let escapedP (chars : char List.t) = (escaped_char (escs_of_chars chars))+
 
 (* escchar: escape characters in [c], which should be a character
  class. *)
@@ -123,12 +98,12 @@ let unescchar (chars:char List.t where disjoint (union_regexps chars) [\n\r])
 
 (* escstr: escape a string using [escchar] *)
 let escstr (chars:char List.t where disjoint (union_regexps chars) [\n\r])
-  : (lens in ANY <=> (escaped_char (escs_of_chars chars))* )
+  : (lens in ANY <=> escaped chars)
   = (escchar chars)*
 
 (* escstrP: escape a non-empty string using [escchar] *)
 let escstrP (chars:char List.t where disjoint (union_regexps chars) [\n\r])
-  : (lens in ANYP <=> (escaped_char (escs_of_chars chars))+ )
+  : (lens in ANYP <=> escapedP chars)
   = (escchar chars)+
 
 (* unescstr: unescape a string using [unescchar] *)
@@ -160,10 +135,10 @@ let TelTags : regexp = [hwce] | /note/
 let TelMarker : regexp = / (/ . TelTags . /)/
 
 (* Tel: a single, escaped tel field *)
-let Tel : regexp = /, / . (EscapedStr [,]) . TelMarker
+let Tel : regexp = /, / . (escaped #{char}[',']) . TelMarker
 
 (* Name: a single, escaped name field. Cannot end with a TelMarker *)
-let Name : regexp = (EscapedStrP [,]) - ( ANY . TelMarker )
+let Name : regexp = (escapedP #{char}[',']) - ( ANY . TelMarker )
 
 (* NameP: a single, non-empty name *)
 let NameP : regexp = Name - EPSILON
@@ -575,24 +550,12 @@ let multi_line_elt (spaces:string) (tag:string) (body:lens) : lens =
   default (del WS) spaces .
   (multi_line_elt_no_nl spaces tag body) 
 
-(* special: lens for escaping special characters in PCDATA *)
-let special : lens = 
-  ( "&lt;" <-> "<" 
-  | "&gt;" <-> ">" 
-  | "&amp;" <-> "&")    
-
-(* R: character set for special characters *)
-let R = [&<>]
-
-(* Normal: regexp for non-special strings *)
-let Normal : regexp = StringNotContaining R
-
 (* unescpcdata: regexp for unescaping raw PCDATA *)
-let unescpcdata : lens = copy Normal . (special . copy Normal)*  
+let unescpcdata : lens = Escaping.unescape ANYCHAR Escaping.xml_escs
   
 (* formatpcdata: lens for escaping PCDATA; excludes TelTags using escaper helper from above. *)
 let format_pcdata : lens = 
-  let mk_suffix (r:regexp) : lens = copy (ANYCHAR - r)  in
+  let mk_suffix (R:regexp) : lens = copy (ANYCHAR - R)  in
   ( unescpcdata . suffix mk_suffix
   | escape_ignore )
 

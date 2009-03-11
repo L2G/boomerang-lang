@@ -258,6 +258,15 @@ let escape
   : (lens in R* <=> (char_or_escaped R escs)* )
   = (escape_char R escs)*
 
+let unescape 
+  (R:regexp where is_cset R) 
+  (escs : (char * string) List.t where
+            no_repeated_escape_codes escs &&
+            lens_iterable (char_or_escaped R escs))
+  : (lens in (char_or_escaped R escs)* <=> R* )
+  = (unescape_char R escs)*
+
+
 (* do we want lens, or can/should we somehow say "specialize"? *)
 let escape_xml 
   : (lens in ANY <=> (('&' . ("gt"|"lt"|"amp") . ';') | [^<>&])* )
