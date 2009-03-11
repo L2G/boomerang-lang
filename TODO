@@ -26,8 +26,6 @@
 
 * Work out standardized WS/WSP/NL* regexps
 
-* Use escaping/xml in wiki.boom (in needs-porting)
-
 * Fix contract on q-lenses using crel/arel/cnrel.
 
 == DOCUMENTATION ==
