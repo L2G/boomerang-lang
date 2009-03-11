@@ -45,12 +45,21 @@ string).
 #* let ANY : regexp = ANYCHAR*
 #* let ANYP : regexp = ANYCHAR+
 
-\LENSSECTION{@containing@} The function @containing@ takes a regular
-expression @R@ as an argument and produces a regular expression 
-describing the set of all strings that contain a substring described by
-@R@.
+\LENSSECTION{@containing@,@containingP@,@not_containing@,@not_containingP@}
+The function @containing@ takes a regular expression @R@ as an
+argument and produces a regular expression describing the set of all
+strings that contain a substring described by @R@.  The @-P@ variants
+require non-empty strings.
 
-#* let containing (R:regexp) : regexp = ANY . R . ANY
+#* let containing  (R:regexp) : regexp = ANY . R . ANY
+#* let containingP (R:regexp) : regexp = (ANY . R . ANY) - []
+
+The function @not_containing@ takes a regular expression @R@ and
+produces a regular expression describing the set of all strings not
+containing @R@.
+
+#* let not_containing  (R:regexp) : regexp = ANY - (containing R)
+#* let not_containingP (R:regexp) : regexp = ANYP - (containing R)
 
 \LENSSECTION{@SCHAR@, @S@, @SP@}
 

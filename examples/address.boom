@@ -41,23 +41,11 @@ module Address =
 (* -------------------------------------------------------------------- *)
 (* GENERIC DEFINITIONS *)
 
-(* StringNotContaining: any string not containing a regular expression *)
-let StringNotContaining (R:regexp) : regexp = 
-  ANY - (containing R)
-
-(* StringNotContainingP: any non-empty string not containing a
-   regular expression *)
-let StringNotContainingP (R:regexp) : regexp = 
-  ANYP - (containing R)
-
-(* ws: lens that deletes whitespace *)
-let ws : lens = del WS
-
 (* NL: portable newline *)
 let NL : regexp = /\r/? . /\n/
 
 (* NonNL: any string not containing a newline *)
-let NonNL : regexp = StringNotContaining [\n\r]
+let NonNL : regexp = not_containing [\n\r]
 
 (* filterwith: derived lens that removes characters in [both], then
    runs [l]*)
@@ -404,7 +392,7 @@ test vcard.put
 >>
 
 (* vcards: lens for a whole file of vcards *)
-let vcards : lens = (<chunk> . ins "\n") * . ws
+let vcards : lens = (<chunk> . ins "\n") * . del WS
 
 (* unit test for vcards *)
 let samplevcards = 
