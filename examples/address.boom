@@ -505,60 +505,19 @@ into samplevcards =
 
 
 (* -------------------------------------------------------------------- *)
-(* GENERIC XML STUFF *)
+(* XML STUFF *)
 
-(* nlX: X^th amount of whitespace; used as defaults when creating XML *)
-let nl0 = "\n"
-let nl1 = nl0 . "  "
-let nl2 = nl1 . "  "
-let nl3 = nl2 . "  "
-let nl4 = nl3 . "  "
-
-(* del_xml_nl_var: lens for deleting whitespace with a default *)
-let del_xml_nl_var (def:string) : lens = default (del (WS . [\n])? ) def
-
-(* del_xml_nl: lens for deleting whitespace with a default--adds a newline to passed default *)
-let del_xml_nl (def:string) : lens = del_xml_nl_var (def . "\n")
-
-(* single_line_elt: helper for processing a single-line XML element
-     o spaces: default whitespace before the element
-     o tag: the element's tag
-     o body: lens for handling the children
-*)
-let single_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
-  default (del WS) spaces .
-  del ("<" . tag . ">") . body . 
-  del ("</" . tag . ">") 
-
-(* multi_line_elt_nl_nl: helper for processing a multi-line XML element 
-   o spaces: default whitespace after the element
-   o tag: the element's tag
-   o body: lens for handling the children 
-*)
-let multi_line_elt_no_nl (spaces:string) (tag:string) (body:lens) : lens = 
-  del ("<" . tag . ">") .
-  body . 
-  default (del WS) spaces . 
-  del ("</" . tag .">") 
-
-(* multi_line_elt: helper for processing a multi-line XML element
-   o spaces: default whitespace before the element
-   o tag: the element's tag
-   o body: lens for handling the children 
-*)
-let multi_line_elt (spaces:string) (tag:string) (body:lens) : lens = 
-  default (del WS) spaces .
-  (multi_line_elt_no_nl spaces tag body) 
+let xml_escs : (char * string) List.t =
+  #{char * string}[ ('>',"&gt;"); ('<',"&lt;"); ('&',"&amp;") ] 
 
 (* unescpcdata: regexp for unescaping raw PCDATA *)
-let unescpcdata : lens = Escaping.unescape ANYCHAR Escaping.xml_escs
+let unescpcdata : lens = Escaping.unescape ANYCHAR xml_escs
   
 (* formatpcdata: lens for escaping PCDATA; excludes TelTags using escaper helper from above. *)
 let format_pcdata : lens = 
   let mk_suffix (R:regexp) : lens = copy (ANYCHAR - R)  in
   ( unescpcdata . suffix mk_suffix
   | escape_ignore )
-
 
 (* -------------------------------------------------------------------- *)
 (* BCP's personal variant of XCard *)
@@ -568,10 +527,10 @@ let format_pcdata : lens =
    handles escaping. *)
 let name : lens = 
   let n = format_pcdata; formatnotemptyname in 
-    ( single_line_elt nl2 "n" n
-      || (multi_line_elt nl2 "n" 
-         (single_line_elt nl3 "family" n . 
-            (copy "" | ins ", " . single_line_elt nl3 "given" n))))
+    ( Xml.simple_elt NL4 "n" n
+      || (Xml.elt NL4 "n" 
+         (Xml.simple_elt NL6 "family" n . 
+            (copy "" | ins ", " . Xml.simple_elt NL6 "given" n))))
 
 (* tel': helper for escaping and formatting telephone data. 
      o full: XCard tag
@@ -579,7 +538,7 @@ let name : lens =
 *)
 let tel' (full:string) (short:string) : lens = 
   ins ", " . 
-  single_line_elt nl2 full (unescpcdata ; formattel . ins (" (" . short . ")"))
+  Xml.simple_elt NL4 full (unescpcdata ; formattel . ins (" (" . short . ")"))
 
 (* tel: lens for handling all tags *)
 let tel : lens = 
@@ -591,7 +550,7 @@ let tel : lens =
       
 (* chunk: lens for handling a single XCard entry *)
 let chunk :lens = 
-  multi_line_elt nl1 "vcard" ((name; key (atype name)) . tel* )
+  Xml.elt NL2 "vcard" ((name; key (atype name)) . tel* )
 
 (* vcard: lens for handling a single XCard vcard element *)
 let vcard : lens = <chunk>
@@ -609,7 +568,7 @@ test vcard.get samplevcard =
   "foo, bar, 12345 (h), 12345 (c), hello world (note)"
 
 (* xcard: lens for handling a single XCard xcard elemnet *)
-let xcard : lens = multi_line_elt_no_nl nl0 "xcard" ((vcard . ins "\n") * )
+let xcard : lens = Xml.top "xcard" ((vcard . ins "\n") * )
 
 (* unit tests for xcard *)
 let samplexcards : string = 

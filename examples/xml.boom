@@ -122,6 +122,18 @@ let elt (spaces:string) (tag:string) (body:lens) : lens =
   body . 
   close_tag spaces tag
 
+(* [top t l] processes a top-level multi-line XML element.
+   o [t] element tag.
+   o [l] lens for processing children.
+
+  there is no spacing before the open tag, and there is a newline
+  before the close tag
+*)
+let top (tag:string) (body:lens) : lens =
+  open_tag "" tag .
+  body .
+  close_tag NL0 tag
+
 let raw_simple_elt (tag:string) (body:lens) : lens = 
   simple_open_tag tag . 
   body . 
