@@ -124,7 +124,7 @@ let rec is_value e0 = match e0 with
   | EPair(_,e1,e2) -> is_value e1 && is_value e2
   | _ -> false
 
-let rec coercible f t = match f,t with
+let rec needs_coercion f t = match f,t with
   | SChar,SString 
   | SChar,SRegexp
   | SChar,SLens
@@ -132,7 +132,7 @@ let rec coercible f t = match f,t with
   | SString,SLens 
   | SRegexp,SLens -> true
   | SProduct(s11,s12),SProduct(s21,s22) -> 
-      coercible s11 s21 || coercible s12 s22
+      needs_coercion s11 s21 || needs_coercion s12 s22
   | SData(sl1,qx),SData(sl2,qy) -> 
       (* check qx equals qy and sl1 and sl2 pairwise compatible *)
       if not (Qid.equal qx qy) then false
@@ -141,14 +141,16 @@ let rec coercible f t = match f,t with
           try false, Safelist.combine sl1 sl2 
           with Invalid_argument _ -> (false,[]) in 
         Safelist.fold_left
-          (fun b (s1i,s2i) -> b || coercible s1i s2i)
+          (fun b (s1i,s2i) -> b || needs_coercion s1i s2i)
           ok sl12
+  | SFunction(_,s11,s12),SFunction(_,s21,s22) ->
+      needs_coercion s21 s11 || needs_coercion s12 s22
   | _ -> false
 
 let mk_coercion s i f t e =
   let f_base = erase_sort f in
   let t_base = erase_sort t in
-  if coercible f_base t_base
+  if needs_coercion f_base t_base
   then
     let cast = ECast (i,f_base,t_base,mk_blame i,e) in
     Trace.debug "coerce"

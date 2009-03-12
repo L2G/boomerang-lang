@@ -7,18 +7,7 @@
 * -check-only flag: don't compile and run, just check that base sorts
   line up.
 
-* re-do lens printing entirely. 
-
-* correctness wrt polymorphism and coercions:
-
-  the following doesn't work if we change the return type of map to
-  string or regexp -- should it?
-
-    (* this function already existed inside escape, but we had to 
-       pull it out *)
-    let unescaped (escs : (char * string) List.t) : regexp =
-      union_regexps (List.map{char * string}{char} fst{char}{string} escs)
-    
+* re-do lens printing entirely.    
 
 == LIBRARIES == 
 

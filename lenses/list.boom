@@ -32,6 +32,16 @@ and a tail.
 
 #* type 'a t = Nil | Cons of 'a * 'a t
 
+\LENSSECTION{@empty@,@nonempty@} Predicates for detecting (non)empty lists.
+
+#* let empty ('a) (l:'a t) : bool =
+#*   match l with
+#*     | Nil     -> true
+#*     | Cons(_) -> false
+#*   : bool
+
+#* let nonempty ('a) (l:'a t) : bool = not (empty{'a} l)
+
 \LENSSECTION{@hd@,@tl@} The selectors @hd@ and @tl@ pull out the first and last
 parts of a @Cons@-cell, respectively.
 
@@ -77,16 +87,18 @@ using @fold_left@.
 #*     l2
 #*     (reverse{'a} l1)
 
-\LENSSECTION{@map@} The function @map@ can be defined (inefficiently) 
-using @fold_left@ and @reverse@.
+\LENSSECTION{@map@,@rev_map@} The function @map@ can be defined
+(inefficiently) using @fold_left@ and @reverse@.  The @rev_map@ is
+more efficient, but leaves the list reversed.
+
+#* let rev_map ('a) ('b) (f:'a -> 'b) (l:'a t) : 'b t = 
+#*   fold_left{'a}{'b t}
+#*     (fun (t:'b t) (h:'a) -> Cons{'b}(f h,t)) 
+#*     Nil{'b}
+#*     l
 
 #* let map ('a) ('b) (f:'a -> 'b) (l:'a t) : 'b t = 
-#*   let rev_fl : 'b t = 
-#*     fold_left{'a}{'b t}
-#*       (fun (t:'b t) (h:'a) -> Cons{'b}(f h,t)) 
-#*       Nil{'b}
-#*       l in 
-#*   reverse{'b} rev_fl
+#*   reverse{'b} (rev_map{'a}{'b} f l)
 
 \LENSSECTION{@exists@} The function @exists@ tests if a predicate holds of 
 some element of the list.
