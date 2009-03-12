@@ -245,3 +245,5 @@ test command.get "(* OPEN COMMENT IN LECTURE *)\n" = "(** <<\n"
 test command.get "(* CLOSE COMMENT IN LECTURE *)\n" = ">> **)\n"
 
 test command.get "(* this is just a comment *)" = "(* this is just a comment *)"
+
+test lens_iterable command = ?
