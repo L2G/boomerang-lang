@@ -1,0 +1,247 @@
+module Coqsplit =
+
+let ident = [a-zA-Z] . [a-zA-Z0-9_']*
+
+let ending_in (R:regexp) = ANY . R
+
+let def_kw = "Definition" | "Fixpoint" | "Inductive"
+let pf_kw = "Theorem" | "Lemma" | "Example"
+let kw = pf_kw | def_kw | "Notation" | "Require"
+
+let until (R:regexp) (ex:regexp) = not_containing (R|ex) . R
+let untilP (R:regexp) (ex:regexp) = not_containingP (R|ex) . R
+
+let dotdnl = ".\n\n"
+let until_eq = until ":=" (kw|dotdnl)
+let until_proof = until "Proof." (kw|dotdnl)
+let until_dotdnl = until dotdnl kw
+let until_tohere = until "...TO HERE *)\n" EMPTY
+let until_close_comment = until "*)\n" EMPTY
+let until_nl = until "\n" EMPTY
+let until_dnl = until "\n\n" EMPTY
+
+let nowsp (R:regexp) = R - (WSP . ANY)
+
+let hide_kw = "HIDE" . " IN LECTURE"?
+
+let def_markers = "EXERCISE" | "EXERCISEOPT"
+let def_marker : lens =
+  (  ("(* EXERCISE *)" . until_dotdnl) <-> "(* FILL IN HERE *)\n\n"
+  || ("(* EXERCISEOPT *)" . until_dotdnl) <-> "(* FILL IN HERE (OPTIONALLY) *)\n\n")
+
+let pf_markers = def_markers|"ELIDEPROOFINLECTURE"|"ADMITTED"|"ADMITTEDOPT"
+let pf_marker : lens =
+  (  ("(* ELIDEPROOFINLECTURE *)\n" . until_dotdnl) <-> "(* Proof elided. *) Admitted.\n"
+  || ("(* ADMITTED *)" . until_dotdnl) <-> "(* FILL IN HERE (and delete \"Admitted\") *) Admitted.\n\n"
+  || ("(* ADMITTEDOPT *)" . until_dotdnl) <-> "(* OPTIONAL EXERCISE *) Admitted.\n\n")
+
+let markers = def_markers | pf_markers | "EXERCISE" | "HIDE" | "LATER" | "COMMENT IN LECTURE"
+
+let command =
+  (  "Notation" . until_dotdnl
+  || "Require" . (WSP . ("Export"|"Import"))? . WSP . 
+      (ident - (ending_in "sol")) . ("(* SOL *)" <-> "sol" | "") . WS . dotdnl
+  || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_marker || nowsp (until dotdnl (kw|def_markers)))
+  || pf_kw . WSP . key ident . WS . /:/ . WS . nowsp until_proof . WSP . (pf_marker || nowsp (until dotdnl (kw|pf_markers)))
+  || ("(* EXERCISE..." . until_tohere) <-> "(* FILL IN HERE *)\n\n"
+  || ("(* EXERCISEOPT..." . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n\n"
+  || ("(* HIDE *)\n" . until_dnl) <-> ""
+  || ("(* HIDE *)" . until_nl) <-> ""
+  || ("(* HIDE..." . until_tohere) <-> ""
+  || ("(* LATER: " . until_close_comment) <-> ""
+  || "(* OPEN COMMENT IN LECTURE *)\n" <-> "(** <<\n"
+  || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n"
+  || "(*" . until "*)" markers
+  )
+
+test command.get "Require Export While(* SOL *).\n\n" = "Require Export Whilesol.\n\n"
+test command.put "Require Export Whilefsol.\n\n" 
+            into "Require Export While(* SOL *).\n\n" 
+               = "Require Export Whilef(* SOL *).\n\n"
+test command.create "Require Export Whilesol.\n\n" 
+  = "Require Export While(* SOL *).\n\n"
+
+test command.get 
+  <<
+    Inductive day : Set :=
+      | monday : day
+      | tuesday : day
+      | wednesday : day
+      | thursday : day
+      | friday : day
+      | saturday : day
+      | sunday : day.
+
+
+  >> =    
+  <<
+    Inductive day : Set :=
+      | monday : day
+      | tuesday : day
+      | wednesday : day
+      | thursday : day
+      | friday : day
+      | saturday : day
+      | sunday : day.
+
+
+  >>
+
+test command.get "Notation \"x + y\" := (plus x y)  (at level 50, left associativity).\n\n"
+  = "Notation \"x + y\" := (plus x y)  (at level 50, left associativity).\n\n"
+
+test command.get
+  <<
+    Fixpoint minus (n m : nat) {struct m} : nat :=
+      match m with
+        | O => n
+        | S m' => minus (pred n) m'
+      end.
+
+
+  >> =
+  <<
+    Fixpoint minus (n m : nat) {struct m} : nat :=
+      match m with
+        | O => n
+        | S m' => minus (pred n) m'
+      end.
+
+
+  >>
+
+test command.get
+  <<
+    Fixpoint minus (n m : nat) {struct m} : nat :=
+      (* EXERCISE *)
+      match m with
+        | O => n
+        | S m' => minus (pred n) m'
+      end.
+
+
+  >> =
+  <<
+    Fixpoint minus (n m : nat) {struct m} : nat :=
+      (* FILL IN HERE *)
+
+
+  >>
+
+test command.get
+  <<
+    Example test_andb31:                 (andb3 true true true) = true.
+    Proof. simpl. reflexivity.  Qed.
+
+
+  >> =
+  <<
+    Example test_andb31:                 (andb3 true true true) = true.
+    Proof. simpl. reflexivity.  Qed.
+
+
+  >>
+
+
+test command.get
+  <<
+    Theorem plus_id_exercise : forall n m o : nat,
+      n = m -> m = o -> plus n m = plus m o.
+    Proof.
+      (* ADMITTED *)
+      intros m n o.
+       intros EQmn.
+       intros EQno.
+       rewrite -> EQmn.
+       rewrite -> EQno.
+       reflexivity.  Qed.
+
+
+  >> =
+  <<
+    Theorem plus_id_exercise : forall n m o : nat,
+      n = m -> m = o -> plus n m = plus m o.
+    Proof.
+      (* FILL IN HERE (and delete "Admitted") *) Admitted.
+
+
+  >>
+
+test command.get 
+  <<
+    (* EXERCISE... *)
+    
+    Fixpoint forallb (X : Set) (test : X -> bool) (l : list X) {struct l} : bool :=
+      match l with
+        | [] => true
+        | x :: l' => andb (test x) (forallb _ test l')
+      end.
+    
+    Implicit Arguments forallb [X].
+        
+    Fixpoint existsb (X : Set) (test : X -> bool) (l : list X) {struct l} : bool :=
+      match l with
+        | [] => false
+        | x :: l' => orb (test x) (existsb _ test l')
+      end.
+    
+    Implicit Arguments existsb [X].
+        
+    Definition existsb' (X : Set) (test : X -> bool) (l : list X) : bool :=
+      negb (forallb (fun x => negb (test x)) l).
+    
+    Implicit Arguments existsb' [X].
+    
+    Theorem existsb_existsb' : forall (X : Set) (test : X -> bool) (l : list X),
+      existsb test l = existsb' test l.
+    Proof.
+      intros. induction l as [| x l'].
+      Case "l = []".
+        unfold existsb'. simpl. reflexivity.
+      Case "l = x :: l'".
+        unfold existsb'. simpl.
+        destruct (test x).
+        SCase "test x = true".
+          simpl. reflexivity.
+        SCase "test x = false".
+          simpl.
+          rewrite -> IHl'.
+          unfold existsb'. reflexivity.
+    Qed.
+    
+    (* ...TO HERE *)
+
+  >> = 
+  <<
+    (* FILL IN HERE *)
+
+
+  >>
+
+test command.get "(* LATER: fix this! *)\n" = ""
+test command.get "(* HIDE *) Don't tell anyone!\n" = ""
+test command.get 
+  <<
+    (* HIDE *)
+    Don't tell anyone!
+    It's a secret!
+
+
+  >> = ""
+test command.get 
+  <<
+    (* HIDE... *)
+    Don't tell anyone!
+    It's a secret!
+
+
+    Top secret!
+    (* ...TO HERE *)
+
+  >> = ""
+
+
+test command.get "(* OPEN COMMENT IN LECTURE *)\n" = "(** <<\n"
+test command.get "(* CLOSE COMMENT IN LECTURE *)\n" = ">> **)\n"
+
+test command.get "(* this is just a comment *)" = "(* this is just a comment *)"

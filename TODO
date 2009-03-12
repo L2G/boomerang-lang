@@ -7,7 +7,9 @@
 * -check-only flag: don't compile and run, just check that base sorts
   line up.
 
-* re-do lens printing entirely.    
+* re-do lens printing entirely
+
+* better error messages on bad overloading resolution (usually caused by a type issue elsewhere)
 
 == LIBRARIES == 
 
