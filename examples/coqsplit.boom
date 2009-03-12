@@ -51,7 +51,7 @@ let command =
   || ("(* LATER: " . until_close_comment) <-> ""
   || "(* OPEN COMMENT IN LECTURE *)\n" <-> "(** <<\n"
   || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n"
-  || "(*" . until "*)" markers
+  || "(*" . until "*)" markers (* TODO support some markers inside comments, e.g. EXERCISE *)
   )
 
 test command.get "Require Export While(* SOL *).\n\n" = "Require Export Whilesol.\n\n"
@@ -246,4 +246,19 @@ test command.get "(* CLOSE COMMENT IN LECTURE *)\n" = ">> **)\n"
 
 test command.get "(* this is just a comment *)" = "(* this is just a comment *)"
 
+(* 
 test lens_iterable command = ?
+
+
+Test result:
+false (with counterexample: ['(* HIDE *)
+(*
+
+(*MM*)' is ambiguously iterable: splits into [(* HIDE *)
+(*
+
+] [(*MM*)] and [(* HIDE *)
+] [(*
+
+(*MM*)]] and ['' is ambiguously iterable: splits into [] [] and [] []])
+*)
