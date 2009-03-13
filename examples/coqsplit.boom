@@ -242,7 +242,34 @@ test command.get "(* CLOSE COMMENT IN LECTURE *)\n" = ">> **)\n"
 
 test command.get "(* this is just a comment *)" = "(* this is just a comment *)"
 
-let file = <command>+
+let today = exec "date +%-m/%-d/%Y | tr -d '\\n'"
+
+let timestamp = 
+  let m = [1-9] | '1' . [1-2] in
+  let d = [1-9] | [12] . [0-9] | "30" | "31" in
+  let y = [1-9] . [0-9]{3} in
+  let marker = "TIMESTAMP" in
+  "Version of " . qconst marker (m.'/'.d.'/'.y) today marker
+
+let header = "(*" . (not_containing (ctype timestamp | "*)")) . timestamp . "\n*)\n"
+
+test header.get
+  <<
+    (* Basic programming and reasoning about programs in Coq
+       Version of TIMESTAMP
+    *)
+
+  >> = 
+  (<<
+     (* Basic programming and reasoning about programs in Coq
+        Version of 
+   >> . today . "\n" .
+   <<
+     *)
+
+   >>)
+
+let file = header . <command>+
 
 test file.get
   <<
@@ -354,100 +381,102 @@ test file.get
 
 
   >> = 
-  <<
-    (* Basic programming and reasoning about programs in Coq
-       Version of TIMESTAMP
-    *)
-    
-    (* HOMEWORK INSTRUCTIONS:
-    
-       Submit homeworks using Blackboard:
-         <https://courseweb.library.upenn.edu/>
-       
-       Solution files that Coq rejects will NOT be graded.
-       You should be able to run CoqIDE/ProofGeneral to the
-       end of the file, or run coqc without any errors.  If
-       you can't solve one of the problems, leave an
-       [Admitted] in the file.  Style, readability, and
-       elegance count.
-    
-       If you have any questions about the homework, please
-       e-mail the TAs.
-    
-       Have fun!
-    *)
-    
+  (<<
+     (* Basic programming and reasoning about programs in Coq
+        Version of 
+   >> . today . "\n" .
+   <<
+     *)
      
-    (* ------------------------------------------------------- *)
-    (* Days of the week *)
-    
-    Inductive day : Set :=
-      | monday : day
-      | tuesday : day
-      | wednesday : day
-      | thursday : day
-      | friday : day
-      | saturday : day
-      | sunday : day.
-    
-    Definition next_weekday (d:day) : day :=
-      match d with
-      | monday => tuesday
-      | tuesday => wednesday
-      | wednesday => thursday
-      | thursday => friday
-      | friday => monday
-      | saturday => monday
-      | sunday => monday
-      end.
-    
-    Eval simpl in (next_weekday friday).
-    Eval simpl in (next_weekday (next_weekday saturday)).
-    
-    Example test_next_weekday:
-      (next_weekday (next_weekday saturday)) = tuesday.
-    Proof. simpl. reflexivity.  Qed.
-    
-    (* -------------------------------------------------------------- *)
-    (* Booleans *)
-    
-    Inductive bool : Set :=
-      | true : bool
-      | false : bool.
-    
-    Definition negb (b:bool) := 
-      match b with
-      | true => false
-      | false => true
-      end.
-    
-    Definition ifb (b1 b2 b3:bool) : bool :=
-      match b1 with
-        | true => b2
-        | false => b3
-      end.
-    
-    Definition andb (b1:bool) (b2:bool) : bool := ifb b1 b2 false.
-    
-    Definition orb (b1:bool) (b2:bool) : bool := ifb b1 true b2.
-    
-    Example test_orb1:  (orb true  false) = true. 
-    Proof. simpl. reflexivity.  Qed.
-    Example test_orb2:  (orb false false) = false.
-    Proof. simpl. reflexivity.  Qed.
-    Example test_orb3:  (orb false true ) = true.
-    Proof. simpl. reflexivity.  Qed.
-    Example test_orb4:  (orb true  true ) = true.
-    Proof. simpl. reflexivity.  Qed.
-    
-    (* EX1 (nandb_andb3) *)
-    (* Uncomment and then complete the definitions of the
-       following functions, making sure that the assertions
-       below each can be verified by Coq. *)
-    (* This function should return [true] if either or both of
-       its inputs are [false]. *)
-    Definition nandb (b1:bool) (b2:bool) : bool :=
-      (* FILL IN HERE *)
-
-
-  >>
+     (* HOMEWORK INSTRUCTIONS:
+     
+        Submit homeworks using Blackboard:
+          <https://courseweb.library.upenn.edu/>
+        
+        Solution files that Coq rejects will NOT be graded.
+        You should be able to run CoqIDE/ProofGeneral to the
+        end of the file, or run coqc without any errors.  If
+        you can't solve one of the problems, leave an
+        [Admitted] in the file.  Style, readability, and
+        elegance count.
+     
+        If you have any questions about the homework, please
+        e-mail the TAs.
+     
+        Have fun!
+     *)
+     
+      
+     (* ------------------------------------------------------- *)
+     (* Days of the week *)
+     
+     Inductive day : Set :=
+       | monday : day
+       | tuesday : day
+       | wednesday : day
+       | thursday : day
+       | friday : day
+       | saturday : day
+       | sunday : day.
+     
+     Definition next_weekday (d:day) : day :=
+       match d with
+       | monday => tuesday
+       | tuesday => wednesday
+       | wednesday => thursday
+       | thursday => friday
+       | friday => monday
+       | saturday => monday
+       | sunday => monday
+       end.
+     
+     Eval simpl in (next_weekday friday).
+     Eval simpl in (next_weekday (next_weekday saturday)).
+     
+     Example test_next_weekday:
+       (next_weekday (next_weekday saturday)) = tuesday.
+     Proof. simpl. reflexivity.  Qed.
+     
+     (* -------------------------------------------------------------- *)
+     (* Booleans *)
+     
+     Inductive bool : Set :=
+       | true : bool
+       | false : bool.
+     
+     Definition negb (b:bool) := 
+       match b with
+       | true => false
+       | false => true
+       end.
+     
+     Definition ifb (b1 b2 b3:bool) : bool :=
+       match b1 with
+         | true => b2
+         | false => b3
+       end.
+     
+     Definition andb (b1:bool) (b2:bool) : bool := ifb b1 b2 false.
+     
+     Definition orb (b1:bool) (b2:bool) : bool := ifb b1 true b2.
+     
+     Example test_orb1:  (orb true  false) = true. 
+     Proof. simpl. reflexivity.  Qed.
+     Example test_orb2:  (orb false false) = false.
+     Proof. simpl. reflexivity.  Qed.
+     Example test_orb3:  (orb false true ) = true.
+     Proof. simpl. reflexivity.  Qed.
+     Example test_orb4:  (orb true  true ) = true.
+     Proof. simpl. reflexivity.  Qed.
+     
+     (* EX1 (nandb_andb3) *)
+     (* Uncomment and then complete the definitions of the
+        following functions, making sure that the assertions
+        below each can be verified by Coq. *)
+     (* This function should return [true] if either or both of
+        its inputs are [false]. *)
+     Definition nandb (b1:bool) (b2:bool) : bool :=
+       (* FILL IN HERE *)
+   
+   
+   >>)
