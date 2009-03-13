@@ -5,20 +5,15 @@ let ident = [a-zA-Z] . [a-zA-Z0-9_']*
 let ending_in (R:regexp) = ANY . R
 
 let def_kw = "Definition" | "Fixpoint" | "Inductive"
-let pf_kw = "Theorem" | "Lemma" | "Example"
-let kw = pf_kw | def_kw | "Notation" | "Require"
+let pf_kw = "Theorem" | "Lemma"
+let kw = pf_kw | "Example" | def_kw | "Notation" | "Require" | "Eval"
 
 let until (R:regexp) (ex:regexp) = not_containing (R|ex) . R
 let untilP (R:regexp) (ex:regexp) = not_containingP (R|ex) . R
 
 let dotdnl = ".\n\n"
-let until_eq = until ":=" (kw|dotdnl)
-let until_proof = until "Proof." (kw|dotdnl)
 let until_dotdnl = until dotdnl kw
 let until_tohere = until "...TO HERE *)\n" EMPTY
-let until_close_comment = until "*)\n" EMPTY
-let until_nl = until "\n" EMPTY
-let until_dnl = until "\n\n" EMPTY
 
 let nowsp (R:regexp) = R - (WSP . ANY)
 
@@ -31,28 +26,41 @@ let def_marker : lens =
 
 let pf_markers = def_markers|"ELIDEPROOFINLECTURE"|"ADMITTED"|"ADMITTEDOPT"
 let pf_marker : lens =
-  (  ("(* ELIDEPROOFINLECTURE *)\n" . until_dotdnl) <-> "(* Proof elided. *) Admitted.\n"
+  (  ("(* ELIDEPROOFINLECTURE *)\n" . until_dotdnl) <-> "(* Proof elided. *) Admitted.\n\n"
   || ("(* ADMITTED *)" . until_dotdnl) <-> "(* FILL IN HERE (and delete \"Admitted\") *) Admitted.\n\n"
   || ("(* ADMITTEDOPT *)" . until_dotdnl) <-> "(* OPTIONAL EXERCISE *) Admitted.\n\n")
 
-let markers = def_markers | pf_markers | "EXERCISE" | "HIDE" | "LATER" | "COMMENT IN LECTURE"
+let markers = def_markers | pf_markers | "EXERCISE" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
+
+let marked_comment =
+  (  ("(* EXERCISE..." . until_tohere) <-> "(* FILL IN HERE *)\n\n"
+  || ("(* EXERCISEOPT..." . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n\n"
+  || "(* OPEN COMMENT IN LECTURE *)\n" <-> "(** <<\n"
+  || ("(* HIDE..." . until_tohere) <-> " " (* we would del, but then we're no longer iterable... *)
+  || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n")
+
+let comment =
+  (  marked_comment
+  || "(*" . until "*)" (markers))
+  (* TODO support some markers inside comments, e.g. EXERCISE *)
+
+test lens_iterable comment = true
+
+let until_eq = until ":=" (kw|dotdnl|markers)
+let until_proof = until "Proof." (kw|dotdnl|markers)
 
 let command =
   (  "Notation" . until_dotdnl
+  || "Eval" . until ".\n" (kw|markers)
   || "Require" . (WSP . ("Export"|"Import"))? . WSP . 
       (ident - (ending_in "sol")) . ("(* SOL *)" <-> "sol" | "") . WS . dotdnl
-  || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_marker || nowsp (until dotdnl (kw|def_markers)))
-  || pf_kw . WSP . key ident . WS . /:/ . WS . nowsp until_proof . WSP . (pf_marker || nowsp (until dotdnl (kw|pf_markers)))
-  || ("(* EXERCISE..." . until_tohere) <-> "(* FILL IN HERE *)\n\n"
-  || ("(* EXERCISEOPT..." . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n\n"
-  || ("(* HIDE *)\n" . until_dnl) <-> ""
-  || ("(* HIDE *)" . until_nl) <-> ""
-  || ("(* HIDE..." . until_tohere) <-> ""
-  || ("(* LATER: " . until_close_comment) <-> ""
-  || "(* OPEN COMMENT IN LECTURE *)\n" <-> "(** <<\n"
-  || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n"
-  || "(*" . until "*)" markers (* TODO support some markers inside comments, e.g. EXERCISE *)
-  )
+  || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_marker || nowsp (until dotdnl (kw|markers)))
+  || pf_kw . WSP . key ident . WS . /:/ . WS . nowsp until_proof . WSP . (pf_marker || nowsp (until dotdnl (kw|markers)))
+  || "Example" . WSP . key ident . WS . /:/ . WS . nowsp until_proof . [ ]+ . nowsp (until "Qed.\n" ("\n"|kw|markers))
+  || comment
+  || "\n")
+
+test lens_iterable command = true
 
 test command.get "Require Export While(* SOL *).\n\n" = "Require Export Whilesol.\n\n"
 test command.put "Require Export Whilefsol.\n\n" 
@@ -133,12 +141,10 @@ test command.get
     Example test_andb31:                 (andb3 true true true) = true.
     Proof. simpl. reflexivity.  Qed.
 
-
   >> =
   <<
     Example test_andb31:                 (andb3 true true true) = true.
     Proof. simpl. reflexivity.  Qed.
-
 
   >>
 
@@ -218,16 +224,6 @@ test command.get
 
   >>
 
-test command.get "(* LATER: fix this! *)\n" = ""
-test command.get "(* HIDE *) Don't tell anyone!\n" = ""
-test command.get 
-  <<
-    (* HIDE *)
-    Don't tell anyone!
-    It's a secret!
-
-
-  >> = ""
 test command.get 
   <<
     (* HIDE... *)
@@ -238,7 +234,7 @@ test command.get
     Top secret!
     (* ...TO HERE *)
 
-  >> = ""
+  >> = " "
 
 
 test command.get "(* OPEN COMMENT IN LECTURE *)\n" = "(** <<\n"
@@ -246,19 +242,212 @@ test command.get "(* CLOSE COMMENT IN LECTURE *)\n" = ">> **)\n"
 
 test command.get "(* this is just a comment *)" = "(* this is just a comment *)"
 
-(* 
-test lens_iterable command = ?
+let file = <command>+
+
+test file.get
+  <<
+    (* Basic programming and reasoning about programs in Coq
+       Version of TIMESTAMP
+    *)
+    
+    (* HOMEWORK INSTRUCTIONS:
+    
+       Submit homeworks using Blackboard:
+         <https://courseweb.library.upenn.edu/>
+       
+       Solution files that Coq rejects will NOT be graded.
+       You should be able to run CoqIDE/ProofGeneral to the
+       end of the file, or run coqc without any errors.  If
+       you can't solve one of the problems, leave an
+       [Admitted] in the file.  Style, readability, and
+       elegance count.
+    
+       If you have any questions about the homework, please
+       e-mail the TAs.
+    
+       Have fun!
+    *)
+    
+    (* HIDE... It might be better to introduce +, -, and * as
+       notations.  This will make some expressions look a
+       little cleaner, but more importantly it will give an
+       opportunity for discussing the Notation mechanism,
+       especially precedence, which was a persistent confusion
+       among some people.  Really doing the
+       discussion (drawing ASTs, discussing parsing,
+       parentheses, etc.) would help this, I think. ...TO HERE *)
+    
+    (* ------------------------------------------------------- *)
+    (* Days of the week *)
+    
+    Inductive day : Set :=
+      | monday : day
+      | tuesday : day
+      | wednesday : day
+      | thursday : day
+      | friday : day
+      | saturday : day
+      | sunday : day.
+    
+    Definition next_weekday (d:day) : day :=
+      match d with
+      | monday => tuesday
+      | tuesday => wednesday
+      | wednesday => thursday
+      | thursday => friday
+      | friday => monday
+      | saturday => monday
+      | sunday => monday
+      end.
+    
+    Eval simpl in (next_weekday friday).
+    Eval simpl in (next_weekday (next_weekday saturday)).
+    
+    Example test_next_weekday:
+      (next_weekday (next_weekday saturday)) = tuesday.
+    Proof. simpl. reflexivity.  Qed.
+    
+    (* -------------------------------------------------------------- *)
+    (* Booleans *)
+    
+    Inductive bool : Set :=
+      | true : bool
+      | false : bool.
+    
+    Definition negb (b:bool) := 
+      match b with
+      | true => false
+      | false => true
+      end.
+    
+    Definition ifb (b1 b2 b3:bool) : bool :=
+      match b1 with
+        | true => b2
+        | false => b3
+      end.
+    
+    Definition andb (b1:bool) (b2:bool) : bool := ifb b1 b2 false.
+    
+    Definition orb (b1:bool) (b2:bool) : bool := ifb b1 true b2.
+    
+    Example test_orb1:  (orb true  false) = true. 
+    Proof. simpl. reflexivity.  Qed.
+    Example test_orb2:  (orb false false) = false.
+    Proof. simpl. reflexivity.  Qed.
+    Example test_orb3:  (orb false true ) = true.
+    Proof. simpl. reflexivity.  Qed.
+    Example test_orb4:  (orb true  true ) = true.
+    Proof. simpl. reflexivity.  Qed.
+    
+    (* EX1 (nandb_andb3) *)
+    (* Uncomment and then complete the definitions of the
+       following functions, making sure that the assertions
+       below each can be verified by Coq. *)
+    (* This function should return [true] if either or both of
+       its inputs are [false]. *)
+    Definition nandb (b1:bool) (b2:bool) : bool :=
+      (* EXERCISE *)
+      match b1 with
+      | true => negb b2
+      | false => true
+      end.
 
 
-Test result:
-false (with counterexample: ['(* HIDE *)
-(*
+  >> = 
+  <<
+    (* Basic programming and reasoning about programs in Coq
+       Version of TIMESTAMP
+    *)
+    
+    (* HOMEWORK INSTRUCTIONS:
+    
+       Submit homeworks using Blackboard:
+         <https://courseweb.library.upenn.edu/>
+       
+       Solution files that Coq rejects will NOT be graded.
+       You should be able to run CoqIDE/ProofGeneral to the
+       end of the file, or run coqc without any errors.  If
+       you can't solve one of the problems, leave an
+       [Admitted] in the file.  Style, readability, and
+       elegance count.
+    
+       If you have any questions about the homework, please
+       e-mail the TAs.
+    
+       Have fun!
+    *)
+    
+     
+    (* ------------------------------------------------------- *)
+    (* Days of the week *)
+    
+    Inductive day : Set :=
+      | monday : day
+      | tuesday : day
+      | wednesday : day
+      | thursday : day
+      | friday : day
+      | saturday : day
+      | sunday : day.
+    
+    Definition next_weekday (d:day) : day :=
+      match d with
+      | monday => tuesday
+      | tuesday => wednesday
+      | wednesday => thursday
+      | thursday => friday
+      | friday => monday
+      | saturday => monday
+      | sunday => monday
+      end.
+    
+    Eval simpl in (next_weekday friday).
+    Eval simpl in (next_weekday (next_weekday saturday)).
+    
+    Example test_next_weekday:
+      (next_weekday (next_weekday saturday)) = tuesday.
+    Proof. simpl. reflexivity.  Qed.
+    
+    (* -------------------------------------------------------------- *)
+    (* Booleans *)
+    
+    Inductive bool : Set :=
+      | true : bool
+      | false : bool.
+    
+    Definition negb (b:bool) := 
+      match b with
+      | true => false
+      | false => true
+      end.
+    
+    Definition ifb (b1 b2 b3:bool) : bool :=
+      match b1 with
+        | true => b2
+        | false => b3
+      end.
+    
+    Definition andb (b1:bool) (b2:bool) : bool := ifb b1 b2 false.
+    
+    Definition orb (b1:bool) (b2:bool) : bool := ifb b1 true b2.
+    
+    Example test_orb1:  (orb true  false) = true. 
+    Proof. simpl. reflexivity.  Qed.
+    Example test_orb2:  (orb false false) = false.
+    Proof. simpl. reflexivity.  Qed.
+    Example test_orb3:  (orb false true ) = true.
+    Proof. simpl. reflexivity.  Qed.
+    Example test_orb4:  (orb true  true ) = true.
+    Proof. simpl. reflexivity.  Qed.
+    
+    (* EX1 (nandb_andb3) *)
+    (* Uncomment and then complete the definitions of the
+       following functions, making sure that the assertions
+       below each can be verified by Coq. *)
+    (* This function should return [true] if either or both of
+       its inputs are [false]. *)
+    Definition nandb (b1:bool) (b2:bool) : bool :=
+      (* FILL IN HERE *)
 
-(*MM*)' is ambiguously iterable: splits into [(* HIDE *)
-(*
 
-] [(*MM*)] and [(* HIDE *)
-] [(*
-
-(*MM*)]] and ['' is ambiguously iterable: splits into [] [] and [] []])
-*)
+  >>
