@@ -28,7 +28,7 @@ let pf_marker : lens =
   || ("(* ADMITTED *)" . until_dotdnl) <-> "(* FILL IN HERE (and delete \"Admitted\") *) Admitted.\n\n"
   || ("(* ADMITTEDOPT *)" . until_dotdnl) <-> "(* OPTIONAL EXERCISE *) Admitted.\n\n")
 
-let markers = def_markers | pf_markers | "EXERCISE" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
+let markers = def_markers | pf_markers | "EX" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
 
 let marked_comment =
   (  ("(* EXERCISE..." . until_tohere) <-> "(* FILL IN HERE *)\n\n"
@@ -37,8 +37,8 @@ let marked_comment =
   || ("(* HIDE..." . until_tohere) <-> " " (* we would del, but then we're no longer iterable... *)
   || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n")
 
-let comment_markers = "EXERCISE" | "EXERCISEOPT" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>"
-let final_line : lens = until "*)" (comment_markers|"\n")
+let comment_markers = "EX" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>" | "Exercise:"
+
 let comment_line : lens =
   (  until "\n" (comment_markers|"*)")
   || [ ]* . (("(* EXERCISE... *)" . until_tohere) <-> "(* FILL IN HERE *)\n")
@@ -46,10 +46,21 @@ let comment_line : lens =
 
 test lens_iterable comment_line = true
 
+let difficulty =
+  let modifier = 
+    (  "?" <-> ", optional"
+    || "!" <-> ", challenge problem"
+    || "+" <-> ", recommended") in
+  let stars =
+    (  "1" <-> "1 star"
+    || [2-5] . ins " stars") in
+  let name = " (" . key ident . ")" in
+  "(* " . ("EX" <-> "Exercise: ") . stars . modifier{0,3} . name? . " *)"
+
 let comment =
   (  marked_comment
-  || "(*" . comment_line* . final_line)
-  (* TODO support some markers inside comments, e.g. EXERCISE *)
+  || difficulty
+  || "(*" . comment_line* . until "*)" (comment_markers|"\n"))
 
 test lens_iterable comment = true
 
@@ -497,7 +508,7 @@ test file.get
      Example test_orb4:  (orb true  true ) = true.
      Proof. simpl. reflexivity.  Qed.
      
-     (* EX1 (nandb_andb3) *)
+     (* Exercise: 1 star (nandb_andb3) *)
      (* Uncomment and then complete the definitions of the
         following functions, making sure that the assertions
         below each can be verified by Coq. *)
@@ -506,7 +517,7 @@ test file.get
      Definition nandb (b1:bool) (b2:bool) : bool :=
        (* FILL IN HERE *)
      
-     (* EX2 (plus_comm_informal) *)
+     (* Exercise: 2 stars (plus_comm_informal) *)
      (* As an exercise, try translating your solution for
      plus_comm into an informal proof. *)
      (* Informal proof:
