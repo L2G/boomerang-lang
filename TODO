@@ -11,6 +11,8 @@
 
 * better error messages on bad overloading resolution (usually caused by a type issue elsewhere)
 
+* optimization and speedups (profiling indicates lots of GC activity)
+
 == LIBRARIES == 
 
 * Investigate other options for the contract on sorting.

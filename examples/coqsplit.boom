@@ -39,11 +39,12 @@ let marked_comment =
 
 let comment_markers = "EXERCISE" | "EXERCISEOPT" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>"
 let final_line : lens = until "*)" (comment_markers|"\n")
-let unmarked_line : lens = until "\n" (comment_markers|"*)")
 let comment_line : lens =
-  (  unmarked_line 
+  (  until "\n" (comment_markers|"*)")
   || [ ]* . (("(* EXERCISE... *)" . until_tohere) <-> "(* FILL IN HERE *)\n")
   || [ ]* . (("(* EXERCISEOPT... *)" . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n"))
+
+test lens_iterable comment_line = true
 
 let comment =
   (  marked_comment
