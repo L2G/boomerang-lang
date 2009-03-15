@@ -17,8 +17,6 @@ let until_tohere = until "...TO HERE *)\n" EMPTY
 
 let nowsp (R:regexp) = R - (WSP . ANY)
 
-let hide_kw = "HIDE" . " IN LECTURE"?
-
 let def_markers = "EXERCISE" | "EXERCISEOPT"
 let def_marker : lens =
   (  ("(* EXERCISE *)" . until_dotdnl) <-> "(* FILL IN HERE *)\n\n"
@@ -39,9 +37,17 @@ let marked_comment =
   || ("(* HIDE..." . until_tohere) <-> " " (* we would del, but then we're no longer iterable... *)
   || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n")
 
+let comment_markers = "EXERCISE" | "EXERCISEOPT" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>"
+let final_line : lens = until "*)" (comment_markers|"\n")
+let unmarked_line : lens = until "\n" (comment_markers|"*)")
+let comment_line : lens =
+  (  unmarked_line 
+  || [ ]* . (("(* EXERCISE... *)" . until_tohere) <-> "(* FILL IN HERE *)\n")
+  || [ ]* . (("(* EXERCISEOPT... *)" . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n"))
+
 let comment =
   (  marked_comment
-  || "(*" . until "*)" (markers))
+  || "(*" . comment_line* . final_line)
   (* TODO support some markers inside comments, e.g. EXERCISE *)
 
 test lens_iterable comment = true
@@ -379,6 +385,27 @@ test file.get
       | false => true
       end.
 
+    (* EX2 (plus_comm_informal) *)
+    (* As an exercise, try translating your solution for
+    plus_comm into an informal proof. *)
+    (* Informal proof:
+    Theorem: plus is commutative.
+    Proof:
+       (* EXERCISE... *)
+       Let natural numbers n and m be given.  We show plus n m = plus m n
+       by induction on m.
+         - First, suppose m = 0.  By the definition of plus, plus 0 n = 0.
+           More, we have already shown (lemma plus_n_0) that plus n 0 = 0.
+           Thus, plus n 0 = plus 0 n.
+    
+         - Next, suppose m = S m' for some m' such that plus n m' = plus m' n.
+           By the definition of plus and the inductive hypothesis, 
+           plus (S m') n = S (plus m' n) = S (plus n m').  It
+           remains to show plus n (S m') = S (plus n m') as well, but
+           this is precisely lemma plus_n_Sm.
+       (* ...TO HERE *)
+    *)
+
 
   >> = 
   (<<
@@ -477,6 +504,15 @@ test file.get
         its inputs are [false]. *)
      Definition nandb (b1:bool) (b2:bool) : bool :=
        (* FILL IN HERE *)
-   
-   
+     
+     (* EX2 (plus_comm_informal) *)
+     (* As an exercise, try translating your solution for
+     plus_comm into an informal proof. *)
+     (* Informal proof:
+     Theorem: plus is commutative.
+     Proof:
+        (* FILL IN HERE *)
+     *)
+    
+    
    >>)
