@@ -8,39 +8,77 @@ let def_kw = "Definition" | "Fixpoint" | "Inductive"
 let pf_kw = "Theorem" | "Lemma"
 let kw = pf_kw | "Example" | def_kw | "Notation" | "Require" | "Eval"
 
-let until (R:regexp) (ex:regexp) = not_containing (R|ex) . R
-let untilP (R:regexp) (ex:regexp) = not_containingP (R|ex) . R
+let until_excl (R:regexp) (ex:regexp) : regexp = not_containing (R|ex) . R
+let until (R:regexp) : regexp = until_excl R EMPTY
 
-let dotdnl = ".\n\n"
-let until_dotdnl = until dotdnl kw
-let until_tohere = until "...TO HERE *)\n" EMPTY
+let dnl = "\n\n"
+let dotdnl = '.' . dnl
+let until_tohere : regexp = until "...TO HERE *)\n"
 
-let nowsp (R:regexp) = R - (WSP . ANY)
+let nowsp (R:regexp) : regexp = R - (WSP . ANY)
 
-let def_markers = "EXERCISE" | "EXERCISEOPT"
-let def_marker : lens =
-  (  ("(* EXERCISE *)" . until_dotdnl) <-> "(* FILL IN HERE *)\n\n"
-  || ("(* EXERCISEOPT *)" . until_dotdnl) <-> "(* FILL IN HERE (OPTIONALLY) *)\n\n")
+(* ugh...bounded polymorphism would be really nice here *)
+let COM (R:regexp) : regexp = "(* " . R . " *)"
+let com (s:string) : string = "(* " . s . " *)"
 
-let pf_markers = def_markers|"ELIDEPROOFINLECTURE"|"ADMITTED"|"ADMITTEDOPT"
-let pf_marker : lens =
-  (  ("(* ELIDEPROOFINLECTURE *)\n" . until_dotdnl) <-> "(* Proof elided. *) Admitted.\n\n"
-  || ("(* ADMITTED *)" . until_dotdnl) <-> "(* FILL IN HERE (and delete \"Admitted\") *) Admitted.\n\n"
-  || ("(* ADMITTEDOPT *)" . until_dotdnl) <-> "(* OPTIONAL EXERCISE *) Admitted.\n\n")
+let MARKERS (spec:(string*string) List.t) : regexp List.t =
+  List.map{string*string}{string} fst{string}{string} spec
 
-let markers = def_markers | pf_markers | "EX" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
+let markers (spec:(string*string) List.t) : regexp =
+  union_regexps (MARKERS spec)
+
+let msgs  (spec:(string*string) List.t) : regexp =
+  union_regexps (List.map{string*string}{string} snd{string}{string} spec)
+
+let mk_markers (spec:(string*string) List.t 
+		  where List.nonempty{string*string} spec 
+		     && disjoint_regexps (MARKERS spec))
+               (ending : regexp)
+               (suffix:string)
+    : (lens in (COM (markers spec) . ending)
+	   <-> (COM (msgs spec) . suffix . dnl)) =
+  let (Some(l)) = List.fold_left{string*string}{lens option}
+    (fun (lo : lens option) (p:string*string) ->
+       let marker,msg = p in
+       let l = (com marker . ending) <-> (com msg . suffix . dnl) in
+       match lo with
+	 | None     -> Some{lens}(l)
+	 | Some(l') -> Some{lens}(l||l')
+       : lens option)
+    None{lens} spec in
+  l
+
+let def_spec = #{string*string}["EXERCISE","FILL IN HERE";
+				"EXERCISEOPT","FILL IN HERE (OPTIONALLY)"]
+
+let pf_spec = #{string*string}["ELIDEPROOFINLECTURE","Proof elided.";
+			       "ADMITTED","FILL IN HERE (and delete \"Admitted\")";
+			       "ADMITTEDOPT","OPTIONAL EXERCISE"]
+
+(* Recapitulate? *)
+let def_marker 
+  : (lens in (COM (markers def_spec) . until dotdnl)
+         <-> (COM (msgs def_spec) . dnl))
+  = mk_markers def_spec (until dotdnl) ""
+
+let pf_marker 
+  : (lens in (COM (markers pf_spec) . until ("Qed." . dnl))
+         <-> (COM (msgs pf_spec) . " Admitted." . dnl))
+  = mk_markers pf_spec (until ("Qed." . dnl)) " Admitted."
+
+let markers = (markers def_spec) | (markers pf_spec) | "EX" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
 
 let marked_comment =
   (  ("(* EXERCISE..." . until_tohere) <-> "(* FILL IN HERE *)\n\n"
   || ("(* EXERCISEOPT..." . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n\n"
-  || "(* OPEN COMMENT IN LECTURE *)\n" <-> "(** <<\n"
   || ("(* HIDE..." . until_tohere) <-> " " (* we would del, but then we're no longer iterable... *)
+  || "(* OPEN COMMENT IN LECTURE *)\n" <-> "(** <<\n"
   || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n")
 
 let comment_markers = "EX" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>" | "Exercise:"
 
 let comment_line : lens =
-  (  until "\n" (comment_markers|"*)")
+  (  until_excl "\n" (comment_markers|"*)")
   || [ ]* . (("(* EXERCISE... *)" . until_tohere) <-> "(* FILL IN HERE *)\n")
   || [ ]* . (("(* EXERCISEOPT... *)" . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n"))
 
@@ -60,21 +98,21 @@ let difficulty =
 let comment =
   (  marked_comment
   || difficulty
-  || "(*" . comment_line* . until "*)" (comment_markers|"\n"))
+  || "(*" . comment_line* . until_excl "*)" (comment_markers|"\n"))
 
 test lens_iterable comment = true
 
-let until_eq = until ":=" (kw|dotdnl|markers)
-let until_proof = until "Proof." (kw|dotdnl|markers)
+let until_eq = until_excl ":=" (kw|dotdnl|markers)
+let until_proof = until_excl "Proof." (kw|dotdnl|markers)
 
 let command =
-  (  "Notation" . until_dotdnl
-  || "Eval" . until ".\n" (kw|markers)
+  (  "Notation" . (until dotdnl)
+  || "Eval" . until_excl ".\n" (kw|markers)
   || "Require" . (WSP . ("Export"|"Import"))? . WSP . 
       (ident - (ending_in "sol")) . ("(* SOL *)" <-> "sol" | "") . WS . dotdnl
-  || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_marker || nowsp (until dotdnl (kw|markers)))
-  || pf_kw . WSP . key ident . WS . /:/ . WS . nowsp until_proof . WSP . (pf_marker || nowsp (until dotdnl (kw|markers)))
-  || "Example" . WSP . key ident . WS . /:/ . WS . nowsp until_proof . [ ]+ . nowsp (until "Qed.\n" ("\n"|kw|markers))
+  || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_marker || nowsp (until_excl dotdnl (kw|markers)))
+  || pf_kw . WSP . key ident . WS . /:/ . WS . nowsp until_proof . WSP . (pf_marker || nowsp (until_excl dotdnl (kw|markers)))
+  || "Example" . WSP . key ident . WS . /:/ . WS . nowsp until_proof . [ ]+ . nowsp (until_excl "Qed.\n" ("\n"|kw|markers))
   || comment
   || "\n")
 
