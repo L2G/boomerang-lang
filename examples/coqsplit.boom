@@ -56,12 +56,12 @@ let pf_spec = #{string*string}["ELIDEPROOFINLECTURE","Proof elided.";
 			       "ADMITTEDOPT","OPTIONAL EXERCISE"]
 
 (* Recapitulate? *)
-let def_marker 
+let def_splitter 
   : (lens in (COM (markers def_spec) . until dotdnl)
          <-> (COM (msgs def_spec) . dnl))
   = mk_splitter def_spec (until dotdnl) dnl
 
-let pf_marker 
+let pf_splitter
   : (lens in (COM (markers pf_spec) . until ("Qed." . dnl))
          <-> (COM (msgs pf_spec) . " Admitted." . dnl))
   = mk_splitter pf_spec (until ("Qed." . dnl)) (" Admitted." . dnl)
@@ -77,12 +77,18 @@ let marked_comment =
 
 let comment_markers = "EX" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>" | "Exercise:"
 
-let comment_line : lens =
-  (  until_excl "\n" (comment_markers|"*)")
-  || [ ]* . (mk_splitter
-	       #{string*string}["EXERCISE...","FILL IN HERE";
-				"EXERCISEOPT...","FILL IN HERE (OPTIONALLY)"]
-	       until_tohere "\n"))
+let comex_spec = #{string*string}["EXERCISE...","FILL IN HERE";
+				  "EXERCISEOPT...","FILL IN HERE (OPTIONALLY)"]
+
+let comex_splitter 
+  : (lens in (COM (markers comex_spec) . until_tohere)
+	 <-> (COM (msgs comex_spec) . "\n"))
+  = mk_splitter until_tohere "\n")
+
+let comment_line 
+  : lens 
+  = (  until_excl "\n" (comment_markers|"*)")
+    || [ ]* . comex_splitter)
 
 test lens_iterable comment_line = true
 
@@ -112,8 +118,8 @@ let command =
   || "Eval" . until_excl ".\n" (kw|markers)
   || "Require" . (WSP . ("Export"|"Import"))? . WSP . 
       (ident - (ending_in "sol")) . ("(* SOL *)" <-> "sol" | "") . WS . dotdnl
-  || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_marker || nowsp (until_excl dotdnl (kw|markers)))
-  || pf_kw . WSP . key ident . WS . /:/ . WS . nowsp until_proof . WSP . (pf_marker || nowsp (until_excl dotdnl (kw|markers)))
+  || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_splitter || nowsp (until_excl dotdnl (kw|markers)))
+  || pf_kw . WSP . key ident . WS . /:/ . WS . nowsp until_proof . WSP . (pf_splitter || nowsp (until_excl dotdnl (kw|markers)))
   || "Example" . WSP . key ident . WS . /:/ . WS . nowsp until_proof . [ ]+ . nowsp (until_excl "Qed.\n" ("\n"|kw|markers))
   || comment
   || "\n")
