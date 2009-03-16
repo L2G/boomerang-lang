@@ -17,6 +17,9 @@ let until_tohere : regexp = until "...TO HERE *)\n"
 
 let nowsp (R:regexp) : regexp = R - (WSP . ANY)
 
+(* ------------------------------------------------------------ *)
+(* Generic splitters *)
+
 (* ugh...bounded polymorphism would be really nice here *)
 let COM (R:regexp) : regexp = "(* " . R . " *)"
 let com (s:string) : string = "(* " . s . " *)"
@@ -48,6 +51,9 @@ let mk_splitter (spec:(string*string) List.t
     None{lens} spec in
   l
 
+(* ------------------------------------------------------------ *)
+(* Splitters for definitions and proofs *)
+
 let def_spec = #{string*string}["EXERCISE","FILL IN HERE";
 				"EXERCISEOPT","FILL IN HERE (OPTIONALLY)"]
 
@@ -55,7 +61,6 @@ let pf_spec = #{string*string}["ELIDEPROOFINLECTURE","Proof elided.";
 			       "ADMITTED","FILL IN HERE (and delete \"Admitted\")";
 			       "ADMITTEDOPT","OPTIONAL EXERCISE"]
 
-(* Recapitulate? *)
 let def_splitter 
   : (lens in (COM (markers def_spec) . until dotdnl)
          <-> (COM (msgs def_spec) . dnl))
@@ -66,56 +71,80 @@ let pf_splitter
          <-> (COM (msgs pf_spec) . " Admitted." . dnl))
   = mk_splitter pf_spec (until ("Qed." . dnl)) (" Admitted." . dnl)
 
-let markers = (markers def_spec) | (markers pf_spec) | "EX" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
+(* ------------------------------------------------------------ *)
+(* Splitters for exercises inside of comments *)
 
-let marked_comment =
+let comex_spec = #{string*string}["EXERCISE...","FILL IN HERE";
+				  "EXERCISEOPT...","FILL IN HERE (OPTIONALLY)"]
+let comex_splitter 
+  : (lens in (COM (markers comex_spec) . until_tohere)
+	 <-> (COM (msgs comex_spec) . "\n"))
+  = mk_splitter comex_spec until_tohere "\n"
+
+(* ------------------------------------------------------------ *)
+(* Comment handling *)
+
+(* splitting_comments occur only at the top level *)
+let splitting_comment =
   (  ("(* EXERCISE..." . until_tohere) <-> "(* FILL IN HERE *)\n\n"
   || ("(* EXERCISEOPT..." . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n\n"
   || ("(* HIDE..." . until_tohere) <-> " " (* we would del, but then we're no longer iterable... *)
   || "(* OPEN COMMENT IN LECTURE *)\n" <-> "(** <<\n"
   || "(* CLOSE COMMENT IN LECTURE *)\n" <-> ">> **)\n")
 
-let comment_markers = "EX" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>" | "Exercise:"
+(* splitting_markers describes reserved tokens *)
+let splitting_markers = "EX" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<<" | ">>" | "Exercise:"
 
-let comex_spec = #{string*string}["EXERCISE...","FILL IN HERE";
-				  "EXERCISEOPT...","FILL IN HERE (OPTIONALLY)"]
+(* [nosplits_until ending] is the set of strings ending in ending that
+   don't include any splitting markers, newlines, or close-comments *)
+let nosplits_until (ending:string) : regexp
+  = until_excl ending (splitting_markers|"\n"|"*)")
 
-let comex_splitter 
-  : (lens in (COM (markers comex_spec) . until_tohere)
-	 <-> (COM (msgs comex_spec) . "\n"))
-  = mk_splitter until_tohere "\n")
-
+(* each "line" in a comment either has no splits at all, or is a
+   splitter (which may erase multiple lines) *)
 let comment_line 
-  : lens 
-  = (  until_excl "\n" (comment_markers|"*)")
+  : (lens in (nosplits_until "\n" | [ ]* . COM (markers comex_spec) . until_tohere) 
+         <-> (nosplits_until "\n" | [ ]* . COM (msgs comex_spec) . "\n"))
+  = (  nosplits_until "\n" 
     || [ ]* . comex_splitter)
 
 test lens_iterable comment_line = true
 
-let difficulty =
-  let modifier = 
-    (  "?" <-> ", optional"
+(* difficulty markers *)
+let stars 
+  : (lens in [1-5] <-> ("1 star" | [2-5] . " stars"))
+  = (  "1" <-> "1 star"
+    || [2-5] . ins " stars")
+
+let modifier 
+  : (lens in [?!+] 
+         <-> (", " . ("optional"|"challenge problem"|"recommended")))
+  = (  "?" <-> ", optional"
     || "!" <-> ", challenge problem"
-    || "+" <-> ", recommended") in
-  let stars =
-    (  "1" <-> "1 star"
-    || [2-5] . ins " stars") in
-  let name = " (" . key ident . ")" in
-  "(* " . ("EX" <-> "Exercise: ") . stars . modifier{0,3} . name? . " *)"
+    || "+" <-> ", recommended")
+
+let difficulty 
+  : (lens in ("(* EX" . [1-5] . (ctype modifier){0,3} . (" (" . ident . ")")? . " *)")
+         <-> ("(* Exercise: " . (atype stars) .
+       		                (atype modifier){0,3} .
+				(" (" . ident . ")")? . " *)"))
+  = let name = " (" . key ident . ")" in
+    "(* " . ("EX" <-> "Exercise: ") . stars . modifier{0,3} . name? . " *)"
 
 let comment =
-  (  marked_comment
+  (  splitting_comment
   || difficulty
-  || "(*" . comment_line* . until_excl "*)" (comment_markers|"\n"))
+  || "(*" . comment_line* . nosplits_until "*)")
 
 test lens_iterable comment = true
 
-let until_eq = until_excl ":=" (kw|dotdnl|markers)
-let until_proof = until_excl "Proof." (kw|dotdnl|markers)
+let markers = (markers def_spec) | (markers pf_spec) | "EX" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
+let until_eq = until ":="
+let until_proof = until "Proof."
 
 let command =
-  (  "Notation" . (until dotdnl)
-  || "Eval" . until_excl ".\n" (kw|markers)
+  (  "Notation" . until dotdnl
+  || "Eval" . until ".\n"
   || "Require" . (WSP . ("Export"|"Import"))? . WSP . 
       (ident - (ending_in "sol")) . ("(* SOL *)" <-> "sol" | "") . WS . dotdnl
   || def_kw . WSP . key ident . WSP . nowsp until_eq . WSP . (def_splitter || nowsp (until_excl dotdnl (kw|markers)))
