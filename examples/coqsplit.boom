@@ -35,12 +35,12 @@ let mk_splitter (spec:(string*string) List.t
 	 	      && disjoint_regexps (MARKERS spec))
                 (ending : regexp)
                 (suffix:string)
-    : (lens in ("(*" . (markers spec) . ending)
-	   <-> (COM (msgs spec) . suffix . dnl)) =
+    : (lens in (COM (markers spec) . ending)
+	   <-> (COM (msgs spec) . suffix)) =
   let (Some(l)) = List.fold_left{string*string}{lens option}
     (fun (lo : lens option) (p:string*string) ->
        let marker,msg = p in
-       let l = (com marker . ending) <-> (com msg . suffix . dnl) in
+       let l = (com marker . ending) <-> (com msg . suffix) in
        match lo with
 	 | None     -> Some{lens}(l)
 	 | Some(l') -> Some{lens}(l||l')
@@ -59,12 +59,12 @@ let pf_spec = #{string*string}["ELIDEPROOFINLECTURE","Proof elided.";
 let def_marker 
   : (lens in (COM (markers def_spec) . until dotdnl)
          <-> (COM (msgs def_spec) . dnl))
-  = mk_splitter def_spec (until dotdnl) ""
+  = mk_splitter def_spec (until dotdnl) dnl
 
 let pf_marker 
   : (lens in (COM (markers pf_spec) . until ("Qed." . dnl))
          <-> (COM (msgs pf_spec) . " Admitted." . dnl))
-  = mk_splitter pf_spec (until ("Qed." . dnl)) " Admitted."
+  = mk_splitter pf_spec (until ("Qed." . dnl)) (" Admitted." . dnl)
 
 let markers = (markers def_spec) | (markers pf_spec) | "EX" | "HIDE" | "COMMENT IN LECTURE" | "* <<" | "FILL IN HERE"
 
@@ -79,8 +79,10 @@ let comment_markers = "EX" | "FILL IN HERE" | "COMMENT IN LECTURE" | "HIDE" | "<
 
 let comment_line : lens =
   (  until_excl "\n" (comment_markers|"*)")
-  || [ ]* . ("(* EXERCISE... *)" . until_tohere) <-> "(* FILL IN HERE *)\n")
-  || [ ]* . (("(* EXERCISEOPT... *)" . until_tohere) <-> "(* FILL IN HERE (OPTIONALLY) *)\n"))
+  || [ ]* . (mk_splitter
+	       #{string*string}["EXERCISE...","FILL IN HERE";
+				"EXERCISEOPT...","FILL IN HERE (OPTIONALLY)"]
+	       until_tohere "\n"))
 
 test lens_iterable comment_line = true
 
