@@ -363,16 +363,23 @@ test command.get "(* CLOSE COMMENT IN LECTURE *)\n" = ">> **)\n"
 
 test command.get "(* this is just a comment *)" = "(* this is just a comment *)"
 
-let today = exec "date +%-m/%-d/%Y | tr -d '\\n'"
+let M = [1-9] | '1' . [1-2]
+let D = [1-9] | [12] . [0-9] | "30" | "31"
+let Y = [1-9] . [0-9]{3}
+let DATE = M . '/' . D . '/' . Y
 
-let timestamp = 
-  let m = [1-9] | '1' . [1-2] in
-  let d = [1-9] | [12] . [0-9] | "30" | "31" in
-  let y = [1-9] . [0-9]{3} in
-  let marker = "TIMESTAMP" in
-  "Version of " . qconst marker (m.'/'.d.'/'.y) today marker
+let today : (string in DATE)= exec "date +%-m/%-d/%Y | tr -d '\\n'"
 
-let header = "(*" . (not_containing (ctype timestamp | "*)")) . timestamp . "\n*)\n"
+let timestamp 
+  : (lens in  "Version of TIMESTAMP" 
+         <-> ("Version of " . DATE))
+  = let marker = "TIMESTAMP" in
+    "Version of " . qconst marker DATE today marker
+
+let header 
+  : (lens in ("(*" . until_excl "Version of " "*)" . "TIMESTAMP\n*)\n")
+         <-> ("(*" . until_excl "Version of " "*)" . DATE . "\n*)\n"))
+  = "(*" . (not_containing ("Version of "|"*)")) . timestamp . "\n*)\n"
 
 test header.get
   <<
@@ -390,7 +397,11 @@ test header.get
 
    >>)
 
-let file = header . <command>+
+(* another pointless contract...this follows from the definition *)
+let file 
+ : (lens in (ctype header . (ctype command)+)
+        <-> (atype header . (atype command)+))
+ = header . <command>+
 
 test file.get
   <<
