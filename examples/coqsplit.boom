@@ -153,42 +153,68 @@ let comment
 
 test lens_iterable comment = true
 
+let DECL (KW : regexp) : regexp = KW . WSP . ident
+let decl (KW : regexp) : (lens in DECL KW <=> DECL KW) = (KW . WSP . key ident)
+
+let directive_kw = "Notation" | "Eval"
+let require_prefix = "Require" . (WSP . ("Export"|"Import"))? . WSP . (ident - (ending_in "sol"))
+let directive
+  : (lens in (  directive_kw . until ".\n" | require_prefix . "(* SOL *)"? . WS . ".\n")
+	 <-> (  directive_kw . until ".\n" | require_prefix . "sol"? . WS . ".\n"))
+  = (  directive_kw . until ".\n"
+    || require_prefix . ("(* SOL *)" <-> "sol" | "") . WS . ".\n")
+
+let decl_spec = 
+  #{regexp*lens}[
+    def_kw,    WSP . nowsp (until ":=")  . (WSP . def_splitter | until_excl dotdnl (reserved def_spec));
+    pf_kw,     WS . ':' . until "Proof." . (WSP . pf_splitter | until_excl dotdnl (reserved pf_spec));
+    "Example", WS . ':' . until "Proof." . until "Qed.\n"
+  ]
+
+let decl_kws (spec:(regexp*lens) List.t) : regexp List.t =
+  List.map{regexp*lens}{regexp} fst{regexp}{lens} spec
+
+let DECLS (spec:(regexp*lens) List.t) (BODY:lens -> regexp) : regexp =
+  List.fold_left{regexp*lens}{regexp}
+    (fun (SRC:regexp) (p:regexp*lens) ->
+       let kw,body = p in
+       SRC | (DECL kw . (BODY body)))
+    EMPTY spec
+
+let decls (spec:(regexp*lens) List.t 
+	     where List.nonempty{regexp*lens} spec
+	        && disjoint_regexps (decl_kws spec))
+  : (lens in (DECLS spec ctype) <-> (DECLS spec atype))
+  = let (Some(l)) = 
+      List.fold_left{regexp*lens}{lens option}
+	(fun (lo:lens option) (p:regexp*lens) ->
+	   let kw,body = p in
+	   let l = decl kw . body in
+	   match lo with
+	     | None -> Some{lens}(l)
+	     | Some(l2) -> Some{lens}(l2 || l)
+           : lens option)
+	None{lens} spec in
+    l
+
+let declaration : (lens in (DECLS decl_spec ctype) <-> (DECLS decl_spec atype)) = decls decl_spec
+
+let commands = #{lens}[directive;declaration;comment]
+
 (* this seems pointless... *)
 let command
-  : (lens in (  "Notation" . until dotdnl
-              | "Eval" . until ".\n" 
-	      | "Require" . (WSP . ("Export"|"Import"))? . WSP . (ident - (ending_in "sol")) . "(* SOL *)"? . WS . dotdnl 
-	      | def_kw . WSP . ident . WSP . nowsp (until ":=") . (WSP . ctype def_splitter | until_excl dotdnl (reserved def_spec))
-	      | pf_kw . WSP . ident . WS . ':' . until "Proof." . (WSP . ctype pf_splitter | until_excl dotdnl (reserved pf_spec))
-	      | "Example" . WSP . ident . WS . ':' . until "Proof." . until "Qed.\n"
-	      | ctype comment
-	      | "\n")
-         <-> (  "Notation" . until dotdnl
-              | "Eval" . until ".\n" 
-	      | "Require" . (WSP . ("Export"|"Import"))? . WSP . (ident - (ending_in "sol")) . "sol"? . WS . dotdnl 
-	      | def_kw . WSP . ident . WSP . nowsp (until ":=") . (WSP . atype def_splitter | until_excl dotdnl (reserved def_spec))
-	      | pf_kw . WSP . ident . WS . ':' . until "Proof." . (WSP . atype pf_splitter | until_excl dotdnl (reserved pf_spec))
-	      | "Example" . WSP . ident . WS . ':' . until "Proof." . until "Qed.\n"
-	      | atype comment
-	      | "\n"))
-  = (  "Notation" . until dotdnl
-    || "Eval" . until ".\n"
-    || "Require" . (WSP . ("Export"|"Import"))? . WSP . 
-        (ident - (ending_in "sol")) . ("(* SOL *)" <-> "sol" | "") . WS . dotdnl
-    || def_kw . WSP . key ident . WSP . nowsp (until ":=") . (WSP . def_splitter || until_excl dotdnl (reserved def_spec))
-    || pf_kw . WSP . key ident . WS . ':' . until "Proof." . (WSP . pf_splitter || until_excl dotdnl (reserved pf_spec))
-    || "Example" . WSP . key ident . WS . ':' . until "Proof." . until "Qed.\n"
-    || comment
-    || "\n")
+  : (lens in (union_regexps (ctypes commands) | "\n")
+         <-> (union_regexps (atypes commands) | "\n"))
+  = union_lenses commands || "\n"
 
 test lens_iterable command = true
 
-test command.get "Require Export While(* SOL *).\n\n" = "Require Export Whilesol.\n\n"
-test command.put "Require Export Whilefsol.\n\n" 
-            into "Require Export While(* SOL *).\n\n" 
-               = "Require Export Whilef(* SOL *).\n\n"
-test command.create "Require Export Whilesol.\n\n" 
-  = "Require Export While(* SOL *).\n\n"
+test command.get "Require Export While(* SOL *).\n" = "Require Export Whilesol.\n"
+test command.put "Require Export Whilefsol.\n" 
+            into "Require Export While(* SOL *).\n" 
+               = "Require Export Whilef(* SOL *).\n"
+test command.create "Require Export Whilesol.\n" 
+  = "Require Export While(* SOL *).\n"
 
 test command.get 
   <<
@@ -216,8 +242,8 @@ test command.get
 
   >>
 
-test command.get "Notation \"x + y\" := (plus x y)  (at level 50, left associativity).\n\n"
-  = "Notation \"x + y\" := (plus x y)  (at level 50, left associativity).\n\n"
+test command.get "Notation \"x + y\" := (plus x y)  (at level 50, left associativity).\n"
+  = "Notation \"x + y\" := (plus x y)  (at level 50, left associativity).\n"
 
 test command.get
   <<
