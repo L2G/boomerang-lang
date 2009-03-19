@@ -173,38 +173,65 @@ let attr (name:string) (value:lens)
 From W3C XML 1.1 Recommendation, 2nd Ed.
 http://www.w3.org/TR/2006/REC-xml11-20060816/#NT-prolog
 
-prolog	     ::= XMLDecl  Misc* (doctypedecl  Misc* )?
-XMLDecl	     ::=	'<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
-VersionInfo  ::=	S 'version' Eq ("'" VersionNum "'" | '"' VersionNum '"')
-Eq	     ::=	S? '=' S?
-VersionNum   ::=	'1.1'
-Misc	     ::=	Comment | PI | S 
+prolog       ::= XMLDecl  Misc* (doctypedecl  Misc* )?
+
+XMLDecl      ::= '<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
+VersionInfo  ::= S 'version' Eq ("'" VersionNum "'" | '"' VersionNum '"')
+Eq           ::= S? '=' S?
+VersionNum   ::= '1.1'
 EncodingDecl ::= S 'encoding' Eq ('"' EncName '"' | "'" EncName "'" )
 EncName      ::= [A-Za-z] ([A-Za-z0-9._] | '-')*
+
+Misc         ::= Comment | PI | S 
+
+Comment	     ::= '<!--' ((Char - '-') | ('-' (Char - '-')))* '-->'
+
+PI           ::= '<?' PITarget (S (Char* - (Char* '?>' Char* )))? '?>'
+PITarget     ::= Name - (('X' | 'x') ('M' | 'm') ('L' | 'l'))
+
+S            ::= whitespace
 *)
 
-let optional (l : lens where rel_is_id (arel l)
-		          && disjoint_cex "" (ctype l))
-  : (lens in (ctype l)? <-> (atype l)?)
-  = "" || l
+let VERSION : regexp = "1." . [01]
 
-let version : regexp = "1." . [01]
-let enc_name : regexp = [A-Za-z] . ([A-Za-z0-9._]|'-')*
+(* this is really EncName, and not name...but this is a conservative
+   approximation *)
+let NAME : regexp = [A-Za-z] . ([A-Za-z0-9._]|'-')*
 
-let xmldecl : (lens in ("<?xml" . (ATTR "version" version)
-			        . (ATTR "encoding" enc_name)?
-				. (ATTR "standalone" ("yes"|"no"))?
-				. WS . "?>")
-                   <-> "")
-  = del "<?xml" . 
-    (attr "version" (del version)) .
-    optional (attr "encoding" (del enc_name)) .
-    optional (attr "standalone" (del ("yes" | "no"))) .
-    qdel WS "" .
-    del "?>"
+let XMLDECL : regexp =
+  "<?xml" . (ATTR "version" VERSION)
+          . (ATTR "encoding" NAME)?
+          . (ATTR "standalone" ("yes"|"no"))?
+          . WS . "?>"
 
-test xmldecl.get "<?xml version=\"1.0\" ?>" = ""
-    
+let COMMENT : regexp = "<!--" . (not_containing "--") . "-->"
+let PI : regexp = "<?" . (NAME - ([Xx] . [Mm] . [Ll])) . WSP . 
+	                 (not_containing "?>") . "?>"
+let MISC = COMMENT | PI | [ \n\t]
+
+let PUBIDCHAR : regexp  = [ \n\ta-zA-Z0-9'()+,./:=?;!*#@$_%] | '-'
+let PUBID : regexp      = '"' . PUBIDCHAR* . '"' | /'/ . (PUBIDCHAR - /'/) . /'/
+let SYSTEMID : regexp   = '"' . [^""]* . '"' | /'/ . [^'']* . /'/
+let EXTERNALID : regexp = "SYSTEM" . WSP . SYSTEMID | "PUBLIC" . WSP . PUBID . WSP . SYSTEMID
+
+(* FIXME unsupported!  you can put a subset of a DTD in your
+   doctype...these can get long. *)
+let INTERNAL : regexp = EPSILON
+
+let DOCTYPE : regexp =
+  "<!DOCTYPE" . WSP . NAME . (WSP . EXTERNALID)? . WS . (INTERNAL . WS)? . '>'
+
+let doctypedecl : (lens in DOCTYPE <-> "") = del DOCTYPE
+
+let prolog 
+  : (lens in (XMLDECL . MISC* . (DOCTYPE . MISC* )?) <-> "")
+  = const (XMLDECL . MISC* . (DOCTYPE . MISC* )?) "" "<?xml version=\"1.0\" ?>"
+
+test prolog.get "<?xml version=\"1.0\" ?>" = ""
+test prolog.create "" = "<?xml version=\"1.0\" ?>"
+test prolog.put "" into "<?xml version=\"1.0\" standalone=\"yes\" ?>"
+     = "<?xml version=\"1.0\" standalone=\"yes\" ?>"
+
 (* [attr1_elt sp t n v l] processes a multi-line XML element with
    one attribute.
    o [sp] canonical leading whitespace.
