@@ -4,10 +4,6 @@ let ident = [a-zA-Z] . [a-zA-Z0-9_']*
 
 let ending_in (R:regexp) = ANY . R
 
-let def_kw = "Definition" | "Fixpoint" | "Inductive"
-let pf_kw = "Theorem" | "Lemma"
-let kw = pf_kw | "Example" | def_kw | "Notation" | "Require" | "Eval"
-
 let until_excl (R:regexp) (ex:regexp) : regexp = not_containing (R|ex) . R
 let until (R:regexp) : regexp = until_excl R EMPTY
 
@@ -162,6 +158,9 @@ let directive
   = (  directive_kw . until ".\n"
     || require_prefix . ("(* SOL *)" <-> "sol" | "") . WS . ".\n")
 
+let def_kw = "Definition" | "Fixpoint" | "Inductive"
+let pf_kw = "Theorem" | "Lemma"
+
 let decl_spec = 
   #{regexp*lens}[
     def_kw,    WSP . nowsp (until ":=")  . (WSP . def_splitter | until_excl ".\n\n" (reserved def_spec));
@@ -198,6 +197,20 @@ let decls (spec:(regexp*lens) List.t
 let declaration : (lens in (DECLS decl_spec ctype) <-> (DECLS decl_spec atype)) = decls decl_spec
 
 let commands = #{lens}[directive;declaration;comment]
+
+(*
+let hide = del ("\n(* HIDE" . ("..." . until_tohere | " *)\n" . until "\n\n"))
+let hide_opt = "" || hide
+
+let command
+  : lens (* in (union_regexps (ctypes commands) . (ctype hide)? | "\n")
+            <-> (union_regexps (atypes commands) | "\n")) *)
+  = let cs = union_lenses commands in
+    (cs . hide_opt)
+
+test iterable (ctype command) = ? (* hangs :( *)
+test iterable (atype command) = ?
+*)
 
 let command
   : (lens in (union_regexps (ctypes commands) | "\n")

@@ -183,6 +183,18 @@ if the ctypes and atypes are splittable.
 #*   splittable_cex (ctype l1) (ctype l2) &&
 #*   splittable_cex (atype l1) (atype l2)
 
+\LENSSECTION{@lens_unionable@,@lens_disjoint@} This predicate is true
+for a pair of lenses if the ctypes are disjoint and the equivalence
+relation abstract domain of the second lens is the identity relation.
+
+#* let lens_unionable (l1:lens) (l2:lens) : bool =
+#*   disjoint_cex (ctype l1) (ctype l2) &&
+#*   rel_is_id (arel l2)
+
+#* let lens_disjoint (l1:lens) (l2:lens) : bool =
+#*   disjoint_cex (ctype l1) (ctype l2) &&
+#*   disjoint_cex (atype l1) (atype l2)
+
 \subsection{Quotient Lenses}
 
 \LENSSECTION{@qconst@} The lens @qconst@ is like @const@, but accepts an 
