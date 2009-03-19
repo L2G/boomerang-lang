@@ -41,30 +41,33 @@ let unesc_string_ends
    representation in ASCII.
    o [ex] the set of excluded characters.  
 *)
-let unesc_string (excl:regexp where is_cset excl) =
+let unesc_string (excl:regexp where is_cset excl) : lens =
   unesc_string_ends excl [ ]
+
+let OPEN (tag:string) : regexp = "<" . tag . ">"
 
 (* [open sp t] recognizes and deletes a string consisting of
    whitespace and the start of an XML open tag.
    o [sp] is used to canonize the leading whitespace.
    o [t] is the tag.
 *)
-let raw_open (spaces:string) (tag:string) : lens = 
+let raw_open (spaces:string) (tag:string) : (lens in (WS . "<" . tag) <=> "") = 
   qdel WS spaces . 
   del ("<" . tag) 
 
-let simple_open_tag (tag:string) : lens = 
+let simple_open_tag (tag:string) : (lens in OPEN tag <=> "") = 
   del ("<" . tag . ">")
 
 (* [close] recognizes and deletes the string ">" *)
-let close : lens = 
+let close : (lens in ">" <-> "") = 
   del ">"
 
 (* [slash_close] recognizes and deletes strings consisting of
    whitespace followed by "/>", which is used to terminate XML
    elements whose children are all attributes.
 *)
-let slash_close : lens = 
+(* Why is this bijective?  It's bijective "up to" canonization... *)
+let slash_close : (lens in (WS . "/>") <=> "") = 
   qdel (WS . /\/>/) "/>"
 
 (* [open_tag sp t] recognizes and deletes a string consisting of
@@ -72,15 +75,18 @@ let slash_close : lens =
    o [sp] canonical leading whitespace.
    o [t] element tag.
 *)
-let open_tag (spaces:string) (tag:string) : lens = 
-  raw_open spaces tag . 
-  close
+let open_tag (spaces:string) (tag:string) 
+  : (lens in (WS . OPEN tag) <=> "") 
+  = raw_open spaces tag . 
+    close
+
+let CLOSE (tag:string) : regexp = "</" . tag . ">"
 
 (* [simple_close_tag t] recognizes and deletes a string consisting
    of an XML close tag.
    o [t] element tag.   
 *)
-let simple_close_tag (tag:string) : lens = 
+let simple_close_tag (tag:string) : (lens in CLOSE tag <=> "") = 
   del ("</" . tag . ">")
 
 (* [close_tag sp t] recognizes and deletes a string consisting of
@@ -88,39 +94,42 @@ let simple_close_tag (tag:string) : lens =
    o [sp] canonical leading whitespace.
    o [t] element tag.
 *)
-let close_tag (spaces:string) (tag:string) : lens = 
-  qdel WS spaces . 
-  simple_close_tag tag
+let close_tag (spaces:string) (tag:string) 
+  : (lens in (WS . CLOSE tag) <=> "") 
+  = qdel WS spaces . 
+    simple_close_tag tag
 
 (* [simple_elt sp t l] proecesses a single-line XML element.
    o [sp] canonical leading whitespace.
    o [t] element tag.
    o [l] lens for processing the children.
 *)
-let simple_elt (spaces:string) (tag:string) (body:lens) : lens = 
-  open_tag spaces tag . 
-  body . 
-  simple_close_tag tag
+let simple_elt (spaces:string) (tag:string) (body:lens) 
+  : (lens in (WS . OPEN tag . ctype body . CLOSE tag) <-> atype body)
+  = open_tag spaces tag . 
+    body . 
+    simple_close_tag tag
 
 (* [simple_elt_no_kids sp t] proecesses a single-line XML element 
    with no children.
    o [sp] canonical leading whitespace.
    o [t] element tag.
 *)
-let simple_elt_no_kids (spaces:string) (tag:string) : lens = 
-  open_tag spaces tag . 
-  simple_close_tag tag
-
+let simple_elt_no_kids (spaces:string) (tag:string) 
+  : (lens in (WS . OPEN tag . CLOSE tag) <-> "")
+  = open_tag spaces tag . 
+    simple_close_tag tag
 
 (* [elt sp t l] processes a multi-line XML element.
    o [sp] canonical leading whitespace.
    o [t] element tag.
    o [l] lens for processing children.
 *)
-let elt (spaces:string) (tag:string) (body:lens) : lens = 
-  open_tag spaces tag . 
-  body . 
-  close_tag spaces tag
+let elt (spaces:string) (tag:string) (body:lens) 
+  : (lens in (WS . OPEN tag . ctype body . WS . CLOSE tag) <-> atype body)
+  = open_tag spaces tag . 
+    body . 
+    close_tag spaces tag
 
 (* [top t l] processes a top-level multi-line XML element.
    o [t] element tag.
@@ -129,28 +138,72 @@ let elt (spaces:string) (tag:string) (body:lens) : lens =
   there is no spacing before the open tag, and there is a newline
   before the close tag
 *)
-let top (tag:string) (body:lens) : lens =
-  open_tag "" tag .
-  body .
-  close_tag NL0 tag
+let top (tag:string) (body:lens) 
+  : (lens in (WS . OPEN tag . ctype body . WS . CLOSE tag) <-> atype body)
+  = open_tag "" tag .
+    body .
+    close_tag NL0 tag
 
-let raw_simple_elt (tag:string) (body:lens) : lens = 
-  simple_open_tag tag . 
-  body . 
-  simple_close_tag tag 
+let raw_simple_elt (tag:string) (body:lens) 
+  : (lens in (OPEN tag . ctype body . CLOSE tag) <-> atype body)
+  = simple_open_tag tag . 
+    body . 
+    simple_close_tag tag 
   
+let ATTR (name:string) (value:regexp) : regexp 
+    = WSP . name . "=\"" . value . '"'
+
 (* [attr n l] proceses a string consiting of whitespace and a
    single XML attribute. Leading whitespace is canonized to a single
    space.
    o [n] attribute name.
    o [l] lens for processing value.
+
+   N.B. we should allow single quotes, too
 *)
-let attr (name:string) (value:lens) : lens = 
-  qdel WSP " " . 
-  del name . 
-  del "=\"" . 
-  value . 
-  del "\""
+let attr (name:string) (value:lens) 
+  : (lens in ATTR name (ctype value) <-> atype value)
+  = qdel WSP " " . 
+    del name . 
+    del "=\"" . 
+    value . 
+    del "\""
+
+(*
+From W3C XML 1.1 Recommendation, 2nd Ed.
+http://www.w3.org/TR/2006/REC-xml11-20060816/#NT-prolog
+
+prolog	     ::= XMLDecl  Misc* (doctypedecl  Misc* )?
+XMLDecl	     ::=	'<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
+VersionInfo  ::=	S 'version' Eq ("'" VersionNum "'" | '"' VersionNum '"')
+Eq	     ::=	S? '=' S?
+VersionNum   ::=	'1.1'
+Misc	     ::=	Comment | PI | S 
+EncodingDecl ::= S 'encoding' Eq ('"' EncName '"' | "'" EncName "'" )
+EncName      ::= [A-Za-z] ([A-Za-z0-9._] | '-')*
+*)
+
+let optional (l : lens where rel_is_id (arel l)
+		          && disjoint_cex "" (ctype l))
+  : (lens in (ctype l)? <-> (atype l)?)
+  = "" || l
+
+let version : regexp = "1." . [01]
+let enc_name : regexp = [A-Za-z] . ([A-Za-z0-9._]|'-')*
+
+let xmldecl : (lens in ("<?xml" . (ATTR "version" version)
+			        . (ATTR "encoding" enc_name)?
+				. (ATTR "standalone" ("yes"|"no"))?
+				. WS . "?>")
+                   <-> "")
+  = del "<?xml" . 
+    (attr "version" (del version)) .
+    optional (attr "encoding" (del enc_name)) .
+    optional (attr "standalone" (del ("yes" | "no"))) .
+    qdel WS "" .
+    del "?>"
+
+test xmldecl.get "<?xml version=\"1.0\" ?>" = ""
     
 (* [attr1_elt sp t n v l] processes a multi-line XML element with
    one attribute.
