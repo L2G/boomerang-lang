@@ -487,156 +487,221 @@ let slow_attr4_elt_no_kids (spaces:string) (tag:string)
    o [ni] ith attribute name.
    o [vi] lens for processing ith attribute value.
 *)
-let attrs_open (spaces:string) (tag:string) 
-    (attrs:lens) : lens = 
-  raw_open spaces tag . 
-  attrs . 
-  close  
+let attrs_open (spaces:string) (tag:string) (attrs:lens) 
+  : (lens in (WS . OPEN (tag . ctype attrs))
+	 <-> atype attrs)
+  = raw_open spaces tag . 
+    attrs . 
+    close  
 
 let attr1_elt_open (spaces:string) (tag:string)
-    (name1:string) (value1:lens) : lens = 
+    (name1:string) (value1:lens) 
+  : (lens in (WS . OPEN (tag . ATTR name1 (ctype value1)))
+	 <-> atype value1)
+  = 
   attrs_open spaces tag 
     (attr name1 value1)
 
 let attr2_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) : lens = 
-  attrs_open spaces tag 
-    (Sort.sort_concat #{lens}[(attr name1 value1);
-			      (attr name2 value2)])
+    (name2:string) (value2:lens) 
+  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2]))
+         <-> (atype value1 . atype value2))
+  = attrs_open spaces tag 
+      (Sort.sort_concat #{lens}[(attr name1 value1);
+	  			(attr name2 value2)])
 
 let slow_attr2_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) : lens = 
-  attrs_open spaces tag 
-    (Sort.perm_sort_concat
-       #{lens}[(attr name1 value1);
-	       (attr name2 value2)])
+    (name2:string) (value2:lens)
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2]))
+         <-> (atype value1 . atype value2))
+  = attrs_open spaces tag 
+      (Sort.perm_sort_concat
+	 #{lens}[(attr name1 value1);
+		 (attr name2 value2)])
 
 let attr3_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) : lens = 
-  attrs_open spaces tag 
-    (Sort.sort_concat #{lens}[(attr name1 value1);
-			      (attr name2 value2);
-			      (attr name3 value3)])
+    (name3:string) (value3:lens)
+  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3]))
+         <-> (atype value1 . atype value2 . atype value3))
+  = attrs_open spaces tag 
+      (Sort.sort_concat
+	 #{lens}[(attr name1 value1);
+		 (attr name2 value2);
+		 (attr name3 value3)])
 
 let slow_attr3_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) : lens = 
-  attrs_open spaces tag 
-    (Sort.perm_sort_concat
-       #{lens}[(attr name1 value1);
-               (attr name2 value2);
-               (attr name3 value3)])
-    
-let slow_attr4_elt_open (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) 
-    (name4:string) (value4:lens) : lens = 
-  attrs_open spaces tag 
-    (Sort.perm_sort_concat
-       #{lens}[(attr name1 value1);
-               (attr name2 value2);
-               (attr name3 value3);
-               (attr name4 value4)])
+    (name3:string) (value3:lens)
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3]))
+         <-> (atype value1 . atype value2 . atype value3))
+  = attrs_open spaces tag 
+      (Sort.perm_sort_concat
+	 #{lens}[(attr name1 value1);
+		 (attr name2 value2);
+		 (attr name3 value3)])
 
 let attr4_elt_open (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
-    (name4:string) (value4:lens) : lens = 
-  attrs_open spaces tag 
-    (Sort.sort_concat #{lens}[(attr name1 value1);
-			      (attr name2 value2);
-			      (attr name3 value3);
-			      (attr name4 value4)])
+    (name4:string) (value4:lens)
+  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3;
+							  name4,ctype value4]))
+         <-> (atype value1 . atype value2 . atype value3 . atype value4))
+  = attrs_open spaces tag 
+      (Sort.sort_concat
+	 #{lens}[(attr name1 value1);
+		 (attr name2 value2);
+		 (attr name3 value3);
+		 (attr name4 value4)])
+
+let slow_attr4_elt_open (spaces:string) (tag:string) 
+    (name1:string) (value1:lens) 
+    (name2:string) (value2:lens) 
+    (name3:string) (value3:lens) 
+    (name4:string) (value4:lens)
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3;
+							  name4,ctype value4]))
+         <-> (atype value1 . atype value2 . atype value3 . atype value4))
+  = attrs_open spaces tag 
+      (Sort.perm_sort_concat
+       #{lens}[(attr name1 value1);
+               (attr name2 value2);
+               (attr name3 value3);
+               (attr name4 value4)])
 
 (* attrN_elt_swap2 *)
 let attr2_elt_swap2 (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-    (body:lens) : lens = 
-  (attr2_elt_open spaces tag 
-     name1 value1 
-     name2 value2 .
-   body . 
-   close_tag spaces tag); 
-  ( copy (atype value1) . 
-    ( copy (atype value2) ~ copy (atype body) ) )
+    (body:lens where splittable_cex (atype value1) (atype body)
+                  && splittable_cex (atype body) (atype value2))
+  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2]) .
+		   ctype body . WS . CLOSE tag)
+         <-> (atype value1 . atype body . atype value2))
+  = (attr2_elt_open spaces tag 
+       name1 value1 
+       name2 value2 .
+       body . 
+       close_tag spaces tag); 
+    ( copy (atype value1) . ( copy (atype value2) ~ copy (atype body) ) )
 
 let slow_attr2_elt_swap2 (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-    (body:lens) : lens = 
-  (slow_attr2_elt_open spaces tag 
-     name1 value1 
-     name2 value2 .
-   body . 
-   close_tag spaces tag); 
-  ( copy (atype value1) . 
-    ( copy (atype value2) ~ copy (atype body) ) )
+    (body:lens where splittable_cex (atype value1) (atype body)
+                  && splittable_cex (atype body) (atype value2))
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2]) .
+                   ctype body . WS . CLOSE tag)
+         <-> (atype value1 . atype body . atype value2))
+  = (slow_attr2_elt_open spaces tag 
+       name1 value1 
+       name2 value2 .
+       body . 
+       close_tag spaces tag); 
+    ( copy (atype value1) . 
+	( copy (atype value2) ~ copy (atype body) ) )
 
 let attr3_elt_swap2 (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
-    (body:lens) : lens = 
-  (attr3_elt_open spaces tag 
-     name1 value1 
-     name2 value2 
-     name3 value3 . 
-   body . 
-   close_tag spaces tag); 
-  ( copy (atype value1) . 
-    ( copy (atype value2 . atype value3) ~ copy (atype body) ) )
+    (body:lens where splittable_cex (atype value1) (atype body)
+                  && splittable_cex (atype body) (atype value2 . atype value3))
+  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3]) .
+		   ctype body . WS . CLOSE tag)
+         <-> (atype value1 . atype body . atype value2 . atype value3))
+  = (attr3_elt_open spaces tag 
+       name1 value1 
+       name2 value2 
+       name3 value3 . 
+     body . 
+     close_tag spaces tag); 
+    ( copy (atype value1) . 
+      ( copy (atype value2 . atype value3) ~ copy (atype body) ) )
 
 let slow_attr3_elt_swap2 (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
-    (body:lens) : lens = 
-  (slow_attr3_elt_open spaces tag 
-     name1 value1 
-     name2 value2 
-     name3 value3 . 
-   body . 
-   close_tag spaces tag); 
-  ( copy (atype value1) . 
-    ( copy (atype value2 . atype value3) ~ copy (atype body) ) )
+    (body:lens where splittable_cex (atype value1) (atype body)
+                  && splittable_cex (atype body) (atype value2 . atype value3))
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3]) .
+		   ctype body . WS . CLOSE tag)
+         <-> (atype value1 . atype body . atype value2 . atype value3))
+  = (slow_attr3_elt_open spaces tag 
+       name1 value1 
+       name2 value2 
+       name3 value3 . 
+     body . 
+     close_tag spaces tag); 
+    ( copy (atype value1) . 
+      ( copy (atype value2 . atype value3) ~ copy (atype body) ) )
 
 let attr4_elt_swap2 (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
     (name4:string) (value4:lens) 
-    (body:lens) : lens = 
-  (attr4_elt_open spaces tag 
-     name1 value1 
-     name2 value2 
-     name3 value3
-     name4 value4 . 
-   body . 
-   close_tag spaces tag); 
-  ( copy (atype value1) . 
-    ( copy (atype value2 . atype value3 . atype value4) ~ copy (atype body) ) )
+    (body:lens where splittable_cex (atype value1) (atype body)
+                  && splittable_cex (atype body) (atype value2 . atype value3 . atype value4))
+  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3;
+							  name4,ctype value4]) .
+		   ctype body . WS . CLOSE tag)
+         <-> (atype value1 . atype body . atype value2 . atype value3 . atype value4))
+  = (attr4_elt_open spaces tag 
+       name1 value1 
+       name2 value2 
+       name3 value3
+       name4 value4 . 
+     body . 
+     close_tag spaces tag); 
+    ( copy (atype value1) . 
+      ( copy (atype value2 . atype value3 . atype value4) ~ copy (atype body) ) )
 
 let slow_attr4_elt_swap2 (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
     (name4:string) (value4:lens) 
-    (body:lens) : lens = 
-  (slow_attr4_elt_open spaces tag 
-     name1 value1 
-     name2 value2 
-     name3 value3
-     name4 value4 . 
-   body . 
-   close_tag spaces tag); 
-  ( copy (atype value1) . 
-    ( copy (atype value2 . atype value3 . atype value4) ~ copy (atype body) ) )
+    (body:lens where splittable_cex (atype value1) (atype body)
+                  && splittable_cex (atype body) (atype value2 . atype value3 . atype value4))
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							  name2,ctype value2;
+							  name3,ctype value3;
+							  name4,ctype value4]) .
+		   ctype body . WS . CLOSE tag)
+         <-> (atype value1 . atype body . atype value2 . atype value3 . atype value4))
+  = (slow_attr4_elt_open spaces tag 
+       name1 value1 
+       name2 value2 
+       name3 value3
+       name4 value4 . 
+     body . 
+     close_tag spaces tag); 
+    ( copy (atype value1) . 
+      ( copy (atype value2 . atype value3 . atype value4) ~ copy (atype body) ) )
 
