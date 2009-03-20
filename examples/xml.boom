@@ -19,8 +19,14 @@ let xml_escs = #{char * string}['>',"&gt;";
 				'&',"&amp;";
 				'"',"&quot;"]
 
-let unesc_char (excl:regexp where is_cset excl) : lens 
-  = Escaping.unescape_char ([^\n] - excl) (Escaping.restrict excl xml_escs)
+let EXCL (C:regexp where is_cset C) : regexp = [^\n] - C
+
+let ESCAPED (C:regexp where is_cset C) : regexp
+  = Escaping.char_or_escaped (EXCL C) (Escaping.restrict C xml_escs)
+
+let unesc_char (C:regexp where is_cset C) 
+  : (lens in ESCAPED C <-> EXCL C)
+  = Escaping.unescape_char (EXCL C) (Escaping.restrict C xml_escs)
 
 (* [unesc_string_ends ex ends_ex] maps an XML-escaped string
    beginning and ending with characters not in [ex] or [ends_ex], to
@@ -29,11 +35,12 @@ let unesc_char (excl:regexp where is_cset excl) : lens
    o [ends_ex] the set of excluded characters at the end points.
 *)
 let unesc_string_ends
-    (excl:regexp where is_cset excl)
-    (ends_excl:regexp where is_cset ends_excl) 
-  : lens 
-  = let middle = unesc_char excl in
-    let ends = unesc_char (excl | ends_excl) in
+    (C:regexp where is_cset C)
+    (C_ENDS:regexp where is_cset C_ENDS) 
+  : (lens in (ESCAPED (C|C_ENDS) . ((ESCAPED C)* . ESCAPED (C|C_ENDS))?)
+	 <-> (EXCL (C|C_ENDS) . ((EXCL C)* . EXCL (C|C_ENDS))?))
+  = let middle = unesc_char C in
+    let ends = unesc_char (C | C_ENDS) in
     ends . (middle* . ends)?
 
 (* [unesc_string ex] maps an XML-escaped string starting and
@@ -41,8 +48,10 @@ let unesc_string_ends
    representation in ASCII.
    o [ex] the set of excluded characters.  
 *)
-let unesc_string (excl:regexp where is_cset excl) : lens =
-  unesc_string_ends excl [ ]
+let unesc_string (C:regexp where is_cset C) 
+  : (lens in (ESCAPED (C|' ') . ((ESCAPED C)* . ESCAPED (C|' '))?)
+	 <-> (EXCL (C|' ') . ((EXCL C)* . EXCL (C|' '))?))
+  = unesc_string_ends C [ ]
 
 let OPEN (tag:regexp) : regexp = "<" . tag . ">"
 let OPEN_NOKIDS (tag:regexp) : regexp = "<" . tag . "/>"
