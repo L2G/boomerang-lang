@@ -44,7 +44,8 @@ let unesc_string_ends
 let unesc_string (excl:regexp where is_cset excl) : lens =
   unesc_string_ends excl [ ]
 
-let OPEN (tag:string) : regexp = "<" . tag . ">"
+let OPEN (tag:regexp) : regexp = "<" . tag . ">"
+let OPEN_NOKIDS (tag:regexp) : regexp = "<" . tag . "/>"
 
 (* [open sp t] recognizes and deletes a string consisting of
    whitespace and the start of an XML open tag.
@@ -56,7 +57,7 @@ let raw_open (spaces:string) (tag:string) : (lens in (WS . "<" . tag) <=> "") =
   del ("<" . tag) 
 
 let simple_open_tag (tag:string) : (lens in OPEN tag <=> "") = 
-  del ("<" . tag . ">")
+  del (OPEN tag)
 
 (* [close] recognizes and deletes the string ">" *)
 let close : (lens in ">" <-> "") = 
@@ -80,14 +81,14 @@ let open_tag (spaces:string) (tag:string)
   = raw_open spaces tag . 
     close
 
-let CLOSE (tag:string) : regexp = "</" . tag . ">"
+let CLOSE (tag:regexp) : regexp = "</" . tag . ">"
 
 (* [simple_close_tag t] recognizes and deletes a string consisting
    of an XML close tag.
    o [t] element tag.   
 *)
 let simple_close_tag (tag:string) : (lens in CLOSE tag <=> "") = 
-  del ("</" . tag . ">")
+  del (CLOSE tag)
 
 (* [close_tag sp t] recognizes and deletes a string consisting of
    whitespace followed by an XML close tag. 
@@ -265,20 +266,24 @@ test (prolog ANYDOCTYPE).put "" into "<?xml version=\"1.0\" standalone=\"yes\" ?
 *)
 let attr1_elt (spaces:string) (tag:string) 
     (name:string) (value:lens) 
-    (body:lens) : lens = 
-  raw_open spaces tag . 
-  attr name value . 
-  close . 
-  body . 
-  close_tag spaces tag 
+    (body:lens where splittable_cex (atype value) (atype body)) 
+  : (lens in (WS . OPEN (tag . ATTR name (ctype value)) . ctype body . WS . CLOSE tag)
+	 <-> (atype value . atype body))
+  = raw_open spaces tag . 
+    attr name value . 
+    close . 
+    body . 
+    close_tag spaces tag 
 
 let attr1_elt_swap (spaces:string) (tag:string) 
     (name:string) (value:lens) 
-    (body:lens) : lens = 
-  raw_open spaces tag . 
-  ( (attr name value) ~
-    ( close . body ) ) . 
-  close_tag spaces tag 
+    (body:lens where splittable_cex (atype body) (atype value)) 
+  : (lens in (WS . OPEN (tag . ATTR name (ctype value)) . ctype body . WS . CLOSE tag)
+	 <-> (atype body . atype value))
+  = raw_open spaces tag . 
+    ( (attr name value) ~
+      ( close . body ) ) . 
+    close_tag spaces tag 
     
 (* [attr1_simple_elt sp t n v l] processes a single-line XML element with
    one attribute.
@@ -290,21 +295,38 @@ let attr1_elt_swap (spaces:string) (tag:string)
 *)
 let attr1_simple_elt (spaces:string) (tag:string) 
     (name:string) (value:lens) 
-    (body:lens) : lens = 
-  raw_open spaces tag . 
-  attr name value . 
-  close . 
-  body . 
-  simple_close_tag tag 
+    (body:lens where splittable_cex (atype value) (atype body))
+  : (lens in (WS . OPEN (tag . ATTR name (ctype value)) . (ctype body) . CLOSE tag)
+	 <-> (atype value . atype body))
+  = raw_open spaces tag . 
+    attr name value . 
+    close . 
+    body . 
+    simple_close_tag tag 
 
 let attr1_raw_simple_elt (tag:string)
     (name:string) (value:lens)
-    (body:lens) = 
-  del ("<" . tag) . 
-  attr name value . 
-  close . 
-  body . 
-  simple_close_tag tag 
+    (body:lens where splittable_cex (atype value) (atype body)) 
+  : (lens in (OPEN (tag . ATTR name (ctype value)) . (ctype body) . CLOSE tag)
+	 <-> (atype value . atype body))
+  = del ("<" . tag) . 
+    attr name value . 
+    close . 
+    body . 
+    simple_close_tag tag 
+
+let ATTRS (spec:(string*regexp) List.t) : regexp List.t = 
+  List.map{string*regexp}{regexp} 
+    (fun (p:string*regexp) ->
+       let name,VALUE = p in
+	 ATTR name VALUE)
+    spec
+
+let ALL_ATTRS (spec:(string*regexp) List.t) : regexp =
+  union_regexps (Sort.perm_regexps (ATTRS spec))
+
+let ANY_ATTRS (spec:(string*regexp) List.t) : regexp =
+  (union_regexps (ATTRS spec))*  
 
 (* [attr2_elt sp t n1 v1 n2 v2 l] processes a multi-line XML
    element with two attributes.
@@ -316,32 +338,41 @@ let attr1_raw_simple_elt (tag:string)
 *)
 let attr2_elt (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (body:lens) : lens = 
-  raw_open spaces tag . 
-  Sort.sort_concat #{lens}[(attr name1 value1);(attr name2 value2)] . 
-  close . 
-  body . 
-  close_tag spaces tag 
+    (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
+    (body:lens where splittable_cex (atype value1 . atype value2) (atype body)) 
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;name2,ctype value2]) . 
+	      ctype body . CLOSE tag)
+         <-> (atype value1 . atype value2 . atype body))
+  = raw_open spaces tag . 
+    Sort.sort_concat #{lens}[attr name1 value1; attr name2 value2] . 
+    close . 
+    body . 
+    close_tag spaces tag 
 
 let slow_attr2_elt (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) 
-    (body:lens) : lens = 
-  raw_open spaces tag . 
-  Sort.perm_sort_concat
-    #{lens}[(attr name1 value1);
-	    (attr name2 value2)] . 
-  close . 
-  body . 
-  close_tag spaces tag 
+    (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
+    (body:lens where splittable_cex (atype value1 . atype value2) (atype body)) 
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;name2,ctype value2]) . 
+	      ctype body . WS . CLOSE tag)
+         <-> (atype value1 . atype value2 . atype body))
+  = raw_open spaces tag . 
+    Sort.perm_sort_concat #{lens}[attr name1 value1; attr name2 value2] . 
+    close . 
+    body . 
+    close_tag spaces tag 
 
 let attr2_raw_simple_elt_no_kids (tag:string)
     (name1:string) (value1:lens)
-    (name2:string) (value2:lens) : lens = 
-  del ("<" . tag) . 
-  Sort.sort_concat #{lens}[(attr name1 value1);(attr name2 value2)] . 
-  slash_close 
+    (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
+  : (lens in OPEN_NOKIDS (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;name2,ctype value2] . WS)
+	 <-> (atype value1 . atype value2))
+  = del ("<" . tag) . 
+    Sort.sort_concat #{lens}[attr name1 value1; attr name2 value2] . 
+    slash_close 
+
+test (attr2_raw_simple_elt_no_kids "foo" "a1" "5" "a2" "6").get "<foo a1='5' a2='6' />" = "56"
+test (attr2_raw_simple_elt_no_kids "foo" "a1" "5" "a2" "6").get "<foo a1='5'   />" = error
 
 (* [attrk_elt_no_kids sp t n1 v1 .. nk vk] processes a single-line XML element with
    no children (other than its attributes.)
@@ -350,11 +381,11 @@ let attr2_raw_simple_elt_no_kids (tag:string)
    o [ni] ith attribute name.
    o [vi] lens for processing ith attribute value.
 *)
-let attrs_elt_no_kids (spaces:string) (tag:string) 
-    (attrs:lens) : lens = 
-  raw_open spaces tag . 
-  attrs . 
-  slash_close
+let attrs_elt_no_kids (spaces:string) (tag:string) (attrs:lens) 
+  : (lens in (WS . OPEN_NOKIDS (tag . ctype attrs . WS)) <-> atype attrs)
+  = raw_open spaces tag . 
+    attrs . 
+    slash_close
 
 let attr1_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) : lens = 
