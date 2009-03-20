@@ -230,16 +230,29 @@ let EXTERNALID : regexp = "SYSTEM" . WSP . SYSTEMID | "PUBLIC" . WSP . PUBID . W
    doctype...these can get long. *)
 let INTERNAL : regexp = EPSILON
 
-let DOCTYPE : regexp =
-  "<!DOCTYPE" . WSP . NAME . (WSP . EXTERNALID)? . WS . (INTERNAL . WS)? . '>'
+let DOCTYPE_full 
+    (name : regexp where subset name NAME) 
+    (id : regexp where subset id EXTERNALID)
+    (internal : regexp)
+    : regexp
+    = "<!DOCTYPE" . WSP . name . (WSP . id)? . WS . (internal . WS)? . '>'
 
-let prolog 
-  : (lens in (XMLDECL . MISC* . (DOCTYPE . MISC* )?) <-> "")
-  = const (XMLDECL . MISC* . (DOCTYPE . MISC* )?) "" "<?xml version=\"1.0\" ?>"
+let DOCTYPE
+    (name : regexp where subset name NAME) 
+    (id : regexp where subset id EXTERNALID)
+    : regexp
+    = DOCTYPE_full name id INTERNAL
 
-test prolog.get "<?xml version=\"1.0\" ?>" = ""
-test prolog.create "" = "<?xml version=\"1.0\" ?>"
-test prolog.put "" into "<?xml version=\"1.0\" standalone=\"yes\" ?>"
+let ANYDOCTYPE : regexp =
+  DOCTYPE NAME EXTERNALID
+
+let prolog (DT : regexp where subset DT ANYDOCTYPE)
+  : (lens in (XMLDECL . MISC* . (DT . MISC* )?) <-> "")
+  = const (XMLDECL . MISC* . (DT . MISC* )?) "" "<?xml version=\"1.0\" ?>"
+
+test (prolog ANYDOCTYPE).get "<?xml version=\"1.0\" ?>" = ""
+test (prolog ANYDOCTYPE).create "" = "<?xml version=\"1.0\" ?>"
+test (prolog ANYDOCTYPE).put "" into "<?xml version=\"1.0\" standalone=\"yes\" ?>"
      = "<?xml version=\"1.0\" standalone=\"yes\" ?>"
 
 (* [attr1_elt sp t n v l] processes a multi-line XML element with

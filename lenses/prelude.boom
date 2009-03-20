@@ -126,7 +126,14 @@ characters respectively.
 The predicate @is_cset@ on regular expressions determines whether a
 regular expression identifies a set of characters.
 
-#* let is_cset (R:regexp) : bool = equiv R (R & [^])
+#* let is_cset (R:regexp) : bool = equiv_cex R (R & ANYCHAR)
+
+\LENSSECTION{@subset@}
+The binary predicate @subset@ decides whether the first regular
+expression is a subset of the second.
+
+#* let subset (R1:regexp) (R2:regexp) : bool 
+#*   = equiv_cex (R1 - R2) EMPTY
 
 \subsection{Lenses}
 
