@@ -130,13 +130,16 @@ let simple_elt_no_kids (spaces:string) (tag:string)
   = open_tag spaces tag . 
     simple_close_tag tag
 
+let ELT (tag:string) (BODY:regexp) : regexp
+  = WS . OPEN tag . BODY . WS . CLOSE tag
+
 (* [elt sp t l] processes a multi-line XML element.
    o [sp] canonical leading whitespace.
    o [t] element tag.
    o [l] lens for processing children.
 *)
 let elt (spaces:string) (tag:string) (body:lens) 
-  : (lens in (WS . OPEN tag . ctype body . WS . CLOSE tag) <-> atype body)
+  : (lens in ELT tag (ctype body) <-> atype body)
   = open_tag spaces tag . 
     body . 
     close_tag spaces tag
@@ -149,7 +152,7 @@ let elt (spaces:string) (tag:string) (body:lens)
   before the close tag
 *)
 let top (tag:string) (body:lens) 
-  : (lens in (WS . OPEN tag . ctype body . WS . CLOSE tag) <-> atype body)
+  : (lens in ELT tag (ctype body) <-> atype body)
   = open_tag "" tag .
     body .
     close_tag NL0 tag
@@ -234,7 +237,7 @@ let MISC = COMMENT | PI | [ \n\t]
 let PUBIDCHAR : regexp  = [ \n\ta-zA-Z0-9'()+,./:=?;!*#@$_%] | '-'
 let PUBID : regexp      = '"' . PUBIDCHAR* . '"' | /'/ . (PUBIDCHAR - /'/) . /'/
 let SYSTEMID : regexp   = '"' . [^""]* . '"' | /'/ . [^'']* . /'/
-let EXTERNALID : regexp = "SYSTEM" . WSP . SYSTEMID | "PUBLIC" . WSP . PUBID . WSP . SYSTEMID
+let EXTERNALID : regexp = ("SYSTEM" . WSP . SYSTEMID) | ("PUBLIC" . WSP . PUBID . WSP . SYSTEMID)
 
 (* FIXME unsupported!  you can put a subset of a DTD in your
    doctype...these can get long. *)
@@ -256,9 +259,12 @@ let DOCTYPE
 let ANYDOCTYPE : regexp =
   DOCTYPE NAME EXTERNALID
 
+let PROLOG (DT : regexp where subset DT ANYDOCTYPE) : regexp
+    = XMLDECL . MISC* . ( DT . MISC* )?
+
 let prolog (DT : regexp where subset DT ANYDOCTYPE)
-  : (lens in (XMLDECL . MISC* . (DT . MISC* )?) <-> "")
-  = const (XMLDECL . MISC* . (DT . MISC* )?) "" "<?xml version=\"1.0\" ?>"
+  : (lens in PROLOG DT <-> "")
+  = const (PROLOG DT) "" "<?xml version=\"1.0\" ?>"
 
 test (prolog ANYDOCTYPE).get "<?xml version=\"1.0\" ?>" = ""
 test (prolog ANYDOCTYPE).create "" = "<?xml version=\"1.0\" ?>"

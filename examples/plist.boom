@@ -1,0 +1,57 @@
+module Plist =
+
+let DTD_ID : regexp =
+  Xml.DOCTYPE "plist" 
+    ("PUBLIC" . Xml.WSP . 
+     "\"-//Apple Computer//DTD PLIST 1.0//EN\"" . Xml.WSP .
+     "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"")
+
+let prolog : (lens in (Xml.PROLOG DTD_ID) <-> "") =
+  Xml.prolog DTD_ID
+
+(* Contents of http://www.apple.com/DTDs/PropertyList-1.0.dtd:
+
+<!ENTITY % plistObject "(array | data | date | dict | real | integer | string | true | false )" >
+<!ELEMENT plist %plistObject;>
+<!ATTLIST plist version CDATA "1.0" >
+
+<!-- Collections -->
+<!ELEMENT array (%plistObject;)*>
+<!ELEMENT dict (key, %plistObject;)*>
+<!ELEMENT key (#PCDATA)>
+
+<!--- Primitive types -->
+<!ELEMENT string (#PCDATA)>
+<!ELEMENT data (#PCDATA)> <!-- Contents interpreted as Base-64 encoded -->
+<!ELEMENT date (#PCDATA)> <!-- Contents should conform to a subset of ISO 8601 (in particular, YYYY '-' MM '-' DD 'T' HH ':' MM ':' SS 'Z'.  Smaller units may be omitted with a loss of precision) -->
+
+<!-- Numerical primitives -->
+<!ELEMENT true EMPTY>  <!-- Boolean constant true -->
+<!ELEMENT false EMPTY> <!-- Boolean constant false -->
+<!ELEMENT real (#PCDATA)> <!-- Contents should represent a floating point number matching ("+" | "-")? d+ ("."d* )? ("E" ("+" | "-") d+)? where d is a digit 0-9.  -->
+<!ELEMENT integer (#PCDATA)> <!-- Contents should represent a (possibly signed) integer number in base 10 -->
+
+*)
+
+let pstring (spaces:string) (l:lens)
+  : (lens in Xml.ELT "string" (ctype l) <-> atype l)
+  = Xml.elt spaces "string" l
+
+let BASE64 : regexp = [A-Za-z0-9+/]
+
+let pdata (spaces:string) (l:lens where subset (ctype l) BASE64)
+  : (lens in Xml.ELT "string" (ctype l) <-> atype l)
+  = Xml.elt spaces "data" l
+
+(* TODO ISO 8601 calls 19 valid way to refer to the 20th century, etc. *)
+let NUM2 = [0-9]{2}
+let ISO8601_DATE = NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
+
+let pdate (spaces:string) (l:lens where subset (ctype l) ISO8601_DATE)
+  : (lens in Xml.ELT "date" (ctype l) <-> atype l)
+  = Xml.elt spaces "date" l
+
+(* TODO support <true /> *)
+let ptrue (spaces:string)
+  : (lens in (Xml.WS . Xml.OPEN "true" . Xml.CLOSE "true") <-> "")
+  = Xml.simple_elt_no_kids spaces "true"
