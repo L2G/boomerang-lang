@@ -61,14 +61,14 @@ let esc_c : lens = Xml.unesc_string [,]
 let esc_cs : lens = Xml.unesc_string [,;]
 let esc_csp : lens = Xml.unesc_string [,;()]
 let esc_p : lens = Xml.unesc_string [()]
-let esc_q : lens = Xml.unesc_string [""] 
-let esc_qnl : lens = Xml.unesc_string [""\n] 
-let esc_dq : lens = Xml.unesc_string ["".] 
-let esc_dsq : lens = Xml.unesc_string [\-;""] 
-let esc_sq : lens = Xml.unesc_string [;""] 
-let esc_qp : lens = Xml.unesc_string [""()] 
-let esc_cq : lens = Xml.unesc_string [,""] 
-let esc_cdq : lens = Xml.unesc_string [.,""] 
+let esc_q : lens = Xml.unesc_string [""''] 
+let esc_qnl : lens = Xml.unesc_string [""''\n] 
+let esc_dq : lens = Xml.unesc_string [""''.] 
+let esc_dsq : lens = Xml.unesc_string [\-;''""] 
+let esc_sq : lens = Xml.unesc_string [;""''] 
+let esc_qp : lens = Xml.unesc_string [""''()] 
+let esc_cq : lens = Xml.unesc_string [,""''] 
+let esc_cdq : lens = Xml.unesc_string [.,""''] 
 let esc_d : lens = Xml.unesc_string [.] 
 let esc_n : lens = Xml.unesc_string [:]
 let esc_p : lens = Xml.unesc_string [ ]
@@ -1913,7 +1913,7 @@ let cc_sequence_caution_xml : lens =
         (ins "Sequence=" . 
          Xml.attr3_elt_no_kids NL3 "sequence"
            "resource" (del ("EMBL-CDS" | "EMBL"))
-           "id" esc_d
+           "id" esc_dq
            "version" (dot . NUMBER) . 
          semi) ) . 
      Xml.close_tag NL2 "conflict" . 

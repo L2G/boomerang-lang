@@ -150,8 +150,21 @@ let raw_simple_elt (tag:string) (body:lens)
     body . 
     simple_close_tag tag 
   
-let ATTR (name:string) (value:regexp) : regexp 
-    = WSP . name . "=\"" . value . '"'
+(* this is a little to relaxed, as it calls "this' and 'this" well
+   formed
+
+   but ("'" . E . "'") | ('"' . E . '"') won't work as a lens (since
+   the atypes are the same).  it won't work to use ||, either, since
+   E's equivalence class may not be the identity relation
+*)
+let QUOTED (E:regexp) : regexp =
+  [''""] . E . [''""]
+
+let quoted (l:lens) : (lens in QUOTED (ctype l) <-> atype l)
+  = del [''""] . l . del [''""]
+
+let ATTR (name:string) (VALUE:regexp) : regexp 
+    = WSP . name . "=" . QUOTED VALUE
 
 (* [attr n l] proceses a string consiting of whitespace and a
    single XML attribute. Leading whitespace is canonized to a single
@@ -165,9 +178,8 @@ let attr (name:string) (value:lens)
   : (lens in ATTR name (ctype value) <-> atype value)
   = qdel WSP " " . 
     del name . 
-    del "=\"" . 
-    value . 
-    del "\""
+    del "=" . 
+    quoted value
 
 (*
 From W3C XML 1.1 Recommendation, 2nd Ed.
@@ -220,8 +232,6 @@ let INTERNAL : regexp = EPSILON
 
 let DOCTYPE : regexp =
   "<!DOCTYPE" . WSP . NAME . (WSP . EXTERNALID)? . WS . (INTERNAL . WS)? . '>'
-
-let doctypedecl : (lens in DOCTYPE <-> "") = del DOCTYPE
 
 let prolog 
   : (lens in (XMLDECL . MISC* . (DOCTYPE . MISC* )?) <-> "")
