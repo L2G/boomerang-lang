@@ -353,7 +353,7 @@ let slow_attr2_elt (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
     (body:lens where splittable_cex (atype value1 . atype value2) (atype body)) 
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;name2,ctype value2]) . 
+  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1; name2,ctype value2]) . 
 	      ctype body . WS . CLOSE tag)
          <-> (atype value1 . atype value2 . atype body))
   = raw_open spaces tag . 
@@ -365,7 +365,7 @@ let slow_attr2_elt (spaces:string) (tag:string)
 let attr2_raw_simple_elt_no_kids (tag:string)
     (name1:string) (value1:lens)
     (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
-  : (lens in OPEN_NOKIDS (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;name2,ctype value2] . WS)
+  : (lens in OPEN_NOKIDS (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1; name2,ctype value2] . WS)
 	 <-> (atype value1 . atype value2))
   = del ("<" . tag) . 
     Sort.sort_concat #{lens}[attr name1 value1; attr name2 value2] . 
@@ -388,65 +388,98 @@ let attrs_elt_no_kids (spaces:string) (tag:string) (attrs:lens)
     slash_close
 
 let attr1_elt_no_kids (spaces:string) (tag:string) 
-    (name1:string) (value1:lens) : lens = 
-  attrs_elt_no_kids spaces tag 
-    (attr name1 value1)
+    (name1:string) (value1:lens) 
+  : (lens in (WS . OPEN_NOKIDS (tag . ATTR name1 (ctype value1) . WS)) <-> atype value1)
+  = attrs_elt_no_kids spaces tag (attr name1 value1)
     
 let attr2_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) : lens = 
-  attrs_elt_no_kids spaces tag 
-  (Sort.sort_concat #{lens}[(attr name1 value1);(attr name2 value2)])
+    (name2:string) (value2:lens) 
+  : (lens in (WS . OPEN_NOKIDS (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1; name2,ctype value2] . WS))
+         <-> (atype value1 . atype value2))
+  = attrs_elt_no_kids spaces tag 
+      (Sort.sort_concat #{lens}[attr name1 value1; attr name2 value2])
+
+test (attr2_elt_no_kids "" "foo" "a1" "5" "a2" "6").get "<foo a1='5' a2='6' />" = "56"
+test (attr2_elt_no_kids "" "foo" "a1" "5" "a2" "6").get "<foo a1='5'   />" = error
 
 let slow_attr2_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
-    (name2:string) (value2:lens) : lens = 
-  attrs_elt_no_kids spaces tag 
-  (Sort.perm_sort_concat
-    #{lens}[(attr name1 value1);
-	    (attr name2 value2)])
+    (name2:string) (value2:lens)
+  : (lens in (WS . OPEN_NOKIDS (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1; name2,ctype value2] . WS))
+         <-> (atype value1 . atype value2))
+  = attrs_elt_no_kids spaces tag 
+    (Sort.perm_sort_concat
+       #{lens}[(attr name1 value1);
+	       (attr name2 value2)])
 
 let attr3_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) : lens = 
-  attrs_elt_no_kids spaces tag 
-  (Sort.sort_concat #{lens}[(attr name1 value1);
-			    (attr name2 value2);
-			    (attr name3 value3)])
+    (name3:string) (value3:lens)
+  : (lens in (WS . OPEN_NOKIDS (tag . 
+                                ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							   name2,ctype value2;
+							   name3,ctype value3] . 
+                                WS))
+         <-> (atype value1 . atype value2 . atype value3))
+  = attrs_elt_no_kids spaces tag 
+    (Sort.sort_concat #{lens}[(attr name1 value1);
+			      (attr name2 value2);
+			      (attr name3 value3)])
 
 let slow_attr3_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-    (name3:string) (value3:lens) : lens = 
-  attrs_elt_no_kids spaces tag 
-  (Sort.perm_sort_concat
-    #{lens}[(attr name1 value1);
-	    (attr name2 value2);
-	    (attr name3 value3)])
+    (name3:string) (value3:lens)
+  : (lens in (WS . OPEN_NOKIDS (tag . 
+                                ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							   name2,ctype value2;
+							   name3,ctype value3] . 
+                                WS))
+         <-> (atype value1 . atype value2 . atype value3))
+  = attrs_elt_no_kids spaces tag 
+    (Sort.perm_sort_concat
+       #{lens}[(attr name1 value1);
+	       (attr name2 value2);
+	       (attr name3 value3)])
 
 let attr4_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
-    (name4:string) (value4:lens) : lens = 
-  attrs_elt_no_kids spaces tag 
-  (Sort.sort_concat #{lens}[(attr name1 value1);
-			    (attr name2 value2);  
-			    (attr name3 value3);
-			    (attr name4 value4)])
+    (name4:string) (value4:lens)
+  : (lens in (WS . OPEN_NOKIDS (tag . 
+                                ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							   name2,ctype value2;
+							   name3,ctype value3;
+							   name4,ctype value4] . 
+                                WS))
+         <-> (atype value1 . atype value2 . atype value3 . atype value4))
+  = attrs_elt_no_kids spaces tag 
+    (Sort.sort_concat #{lens}[(attr name1 value1);
+			      (attr name2 value2);  
+			      (attr name3 value3);
+			      (attr name4 value4)])
 
 let slow_attr4_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
-    (name4:string) (value4:lens) : lens = 
-  attrs_elt_no_kids spaces tag 
-  (Sort.perm_sort_concat
-    #{lens}[(attr name1 value1);
-	    (attr name2 value2);
-	    (attr name3 value3);
-	    (attr name4 value4)])
+    (name4:string) (value4:lens)
+  : (lens in (WS . OPEN_NOKIDS (tag . 
+                                ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							   name2,ctype value2;
+							   name3,ctype value3;
+							   name4,ctype value4] . 
+                                WS))
+         <-> (atype value1 . atype value2 . atype value3 . atype value4))
+  = attrs_elt_no_kids spaces tag 
+    (Sort.perm_sort_concat
+       #{lens}[(attr name1 value1);
+	       (attr name2 value2);
+	       (attr name3 value3);
+	       (attr name4 value4)])
 
 (* [attrk_open sp t n1 v1 .. nk vk] opens a single-line XML element with k attributes.
    o [sp] canonical leading whitespace.
