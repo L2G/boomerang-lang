@@ -82,8 +82,11 @@ let check_str n r x =
   if not (Brx.match_string r x) then 
     Berror.run_error (Info.M n)
       (fun () -> 
-         msg "@[%s does not belong to %a@]" 
-           x (fun _ -> Brx.format_t) r)
+         let s1,s2 = Brx.split_bad_prefix r x in 
+           msg "@[string does not match %s [%s] AROUND HERE [%s]@]" 
+             (Brx.string_of_t r) 
+             s1 
+             s2)
 
 let get_str l c = 
   check_str "get" (L.ctype l) c;
@@ -178,7 +181,9 @@ let oldsync l o_fn c_fn a_fn =
         let a = read_string a_fn in
         let o = read_string o_fn in 
         let c' = put_str (lookup_lens l) a o in 
+        let a' = get_str (lookup_lens l) c' in 
           write_string c_fn c';
+          write_string a_fn a';
           write_string o_fn c';
           0
     
@@ -187,8 +192,10 @@ let oldsync l o_fn c_fn a_fn =
         debug_sync (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
         let a = read_string a_fn in 
         let c' = create_str (lookup_lens l) a in 
-          write_string c_fn c';
+        let a' = get_str (lookup_lens l) c' in 
           write_string o_fn c';
+          write_string a_fn a';
+          write_string c_fn c';
           0
 
     | false,true,true -> 
@@ -236,8 +243,10 @@ let oldsync l o_fn c_fn a_fn =
               begin 
                 debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
                 let c' = put_str (lookup_lens l) a o in 
-                  write_string c_fn c';
+                let a' = get_str (lookup_lens l) c' in 
                   write_string o_fn c';
+                  write_string a_fn a';
+                  write_string c_fn c';
                   0
               end            
             else 

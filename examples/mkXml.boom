@@ -35,4 +35,5 @@ let outer_elt (ws:string) (tag:string) (body:lens) : lens =
   ins ("<" . tag . ">") .
   body .
   qins WS ws .
-  ins ("</" . tag . ">")
+  ins ("</" . tag . ">") . 
+  qins WS ""

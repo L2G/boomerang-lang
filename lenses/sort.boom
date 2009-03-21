@@ -157,3 +157,17 @@ type.
 #* test get ls "bba" = error
 #* test get ls "dba" = error
 #* test put ls "abc" "cba" = "abc"
+
+#* let partition_sort_concat 
+#*   (ls:lens List.t where concatable (atypes ls))
+#*   (l:lens where sortable (List.Cons{regexp} (ctype l,ctypes ls)) && splittable_cex (concat_regexps (atypes ls)) (atype l)* )
+#*  : (lens in (union_regexps (ctypes ls) | (ctype l))* <-> (concat_regexps (atypes ls) . (atype l)* ))
+#*  = 
+#*   let cn_partition = canonizer_of_lens (partition (union_regexps (ctypes ls)) (ctype l)) in
+#*   let cn_sort = sort (ctypes ls) in
+#*   left_quot 
+#*     (canonizer_of_lens (partition (union_regexps (ctypes ls)) (ctype l)))
+#*     (left_quot (sort (ctypes ls)) (concat_lenses ls) . l* )
+
+#* test (partition_sort_concat #{lens}[copy [A-Z]; copy [0-9]] (copy [a-z])).get "aBc3d" = "B3acd"
+#* test (partition_sort_concat #{lens}[copy [A-Z]; copy [0-9]] (copy [a-z])).put "Z9xyz" into "A1" = "Z9xyz"

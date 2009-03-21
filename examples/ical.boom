@@ -22,48 +22,33 @@
 
 module Ical = 
 
-let text : lens = 
-  Escaping.escape [^\n] 
-    #{char*string}[('\',"\\\\");('(',"\\(");(')',"\\)")]
+let SPACE,ASTERISK,COLON,DASH,LPAREN,RPAREN,NL = " ","*",":","-","(",")","\n"
+let BEGIN_CALENDAR,END_CALENDAR : (regexp * regexp) = "BEGIN:VCALENDAR","END:VCALENDAR"
+let BEGIN_EVENT,END_EVENT : (regexp * regexp) = "BEGIN:VEVENT","END:VEVENT"
+let PREAMBLE,POSTAMBLE : (regexp * regexp) = (BEGIN_CALENDAR . NL . ( ANY - containing BEGIN_EVENT)),(END_CALENDAR . NL)
+let text : lens = Escaping.escape [^\n] #{char*string}[('\',"\\\\");('(',"\\(");(')',"\\)")]
+let TEXT,ESCTEXT : regexp * regexp = ctype text,atype text
+let TIME,LOC : regexp * regexp = (DIGIT{2} . ":" . DIGIT{2}), (SPACE . LPAREN . ESCTEXT . RPAREN)
 
-let BEGIN_CALENDAR : regexp = "BEGIN:VCALENDAR"
-let END_CALENDAR : regexp = "END:VCALENDAR"
-let BEGIN_EVENT : regexp = "BEGIN:VEVENT"
-let END_EVENT : regexp = "END:VEVENT"
-let PREAMBLE : regexp = BEGIN_CALENDAR . "\n" . ( ANY - containing BEGIN_EVENT)
-let POSTAMBLE : regexp = END_CALENDAR . "\n"
-let TIME : regexp = DIGIT{2} . ":" . DIGIT{2}
-let TEXT : regexp = ctype text
-let ESCTEXT : regexp = atype text
-let LOC : regexp = " (" . ESCTEXT . ")"
-let SPACE : string = " "
-let ASTERISK : string = "*"
-let COLON : string = ":"
-let LPAREN : string = "("
-let RPAREN : string = ")"
-let NL : string = "\n"
-
-(* helpers *)
 let line (tag:string) (l:lens) : lens = del (tag . ":") . l . del "\n"
 let parens (l:lens) : lens = ins "(" . l . ins ")"
 let wrapl (l:lens) = left_quot (columnize 75 (ctype l) ' ' ("\n  ")) l
 let wrapr (l:lens) = right_quot l (columnize 75 (atype l) ' ' ("\n  "))
 let now (s:string) : string = exec "date +%H%M%S | tr -d '\n'"
 let today (s:string) : string = exec "date +%Y%m%d | tr -d '\n'"
-let uid (s:string) : string = 
-  exec "cat /dev/urandom|uuencode -m -|tail +2|tr -dc 'a-zA-Z0-9'|head -c25"
+let uid (s:string) : string = exec "cat /dev/urandom|uuencode -m -|tail +2|tr -dc 'a-zA-Z0-9'|head -c25"
 let date (tag:string) (time:regexp -> regexp -> regexp -> lens) : lens = 
   line tag (clobber DIGIT{8} "" today . del "T" . time DIGIT{2} DIGIT{2} DIGIT{2} . del "Z")
 let copy_time (H:regexp) (M:regexp) (S:regexp) : lens = copy H . ins ":" . copy M . del S 
 let clobber_time (H:regexp) (M:regexp) (S:regexp) : lens = clobber (H . M . S) "" now
 
 let event1 : lens = 
-  del (BEGIN_EVENT . "\n") . 
+  del (BEGIN_EVENT . NL) . 
   fiat (Sort.sort_concat 
     #{lens}[
-      line "CLASS" ("PRIVATE" <-> "*" | "PUBLIC" <-> " ")
-    ; date "DTSTART" copy_time . ins "-" 
-    ; date "DTEND" copy_time . ins " " 
+      line "CLASS" ("PRIVATE" <-> ASTERISK | "PUBLIC" <-> SPACE)
+    ; date "DTSTART" copy_time . ins DASH 
+    ; date "DTEND" copy_time . ins SPACE 
     ; date "DTSTAMP" clobber_time 
     ; date "CREATED" clobber_time 
     ; date "LAST-MODIFIED" clobber_time 
@@ -72,25 +57,14 @@ let event1 : lens =
     ; line "DESCRIPTION" (del TEXT)
     ; line "STATUS" (const TEXT "" "TENTATIVE") 
     ; line "SEQUENCE" (const NUMBER "" "0") 
-    ; line "SUMMARY" (wrapl (text; key ESCTEXT)) . ins " "
+    ; line "SUMMARY" (wrapl (text; key ESCTEXT)) . ins SPACE
     ; line "LOCATION" (parens (wrapl (text; key ESCTEXT))) ]) . 
-  del (END_EVENT) . copy "\n"
-
+  del (END_EVENT) . copy NL
 let event2 : lens =  
-  copy (SPACE | ASTERISK) . 
-  merge_with_sep TIME "-" . 
-  copy " " . 
-  wrapr (key ESCTEXT . copy LOC) . 
-  copy NL
-
-let ical1 : lens = 
-  del PREAMBLE . 
-  <~ e1:event1 >* . 
-  del POSTAMBLE
-
-let ical : lens = 
-  ical1; 
-  <~ e2:event2 >*
+  copy (SPACE | ASTERISK) . merge_with_sep TIME DASH . 
+  copy SPACE . wrapr (key ESCTEXT . copy LOC) . copy NL
+let ical1 : lens = del PREAMBLE . <~ e1:event1 >* . del POSTAMBLE
+let ical : lens = ical1; <~ e2:event2 >*
 
 let ical2 : lens = 
   ical1; 
@@ -123,7 +97,7 @@ let pcdata : lens =
   Escaping.escape_with '&' [^\n] Escaping.xml_escs
 let PCDATA : regexp = atype pcdata 
 let html_entry : lens = 
-  MkXml.simple_attr2 NL2 "time" "start" (copy TIME) "stop" (del "-" . copy TIME) . 
+  MkXml.simple_elt NL2 "time" (merge_with_sep TIME "-") . 
   MkXml.simple_elt NL2 "description" (del " " . pcdata) .
   MkXml.simple_elt NL2 "location" (del " (" . pcdata . del ")") .
   del "\n"
@@ -131,7 +105,9 @@ let html_pub : lens = del " " . MkXml.elt NL1 "entry" html_entry
 let html_pvt : lens = del "*" . MkXml.attr1_elt NL1 "entry" "class" (ins "private") html_entry
 let html : lens = MkXml.outer_elt NL0 "calendar" (html_pub | html_pvt)*
 
-test (ical1;html).get 
+let xml : lens = ical1 ; html
+
+test xml.get
 <<
 BEGIN:VCALENDAR
 BEGIN:VEVENT
@@ -185,17 +161,17 @@ END:VCALENDAR
 <<
 <calendar>
  <entry class="private">
-  <time start="08:15" stop="14:00"/>
+  <time>08:15</time>
   <description>Coffee with Sara</description>
   <location>La Columbe Coffee</location>
  </entry>
  <entry class="private">
-  <time start="20:00" stop="21:00"/>
+  <time>20:00</time>
   <description>Worko</description>
   <location>Gym</location>
  </entry>
  <entry class="private">
-  <time start="21:00" stop="21:00"/>
+  <time>21:00</time>
   <description>Meeting with Michael</description>
   <location>My office</location>
  </entry>

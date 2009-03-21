@@ -538,7 +538,7 @@ module DLens = struct
 
     (* ----- extensions ----- *)
     | SMatch of string * float * t 
-    | Filter of Rx.t * Rx.t 
+    | Partition of Rx.t * Rx.t 
     | Merge of Rx.t 
     | Fiat of t 
     | Forgetkey of t
@@ -684,7 +684,7 @@ module DLens = struct
           | Dup1(dl1,f1,r1)    -> bij dl1
           | Dup2(f1,r1,dl1)    -> bij dl1
           | SMatch(t1,f1,dl1)  -> bij dl1
-          | Filter(r1,r2)      -> Rx.is_empty r1 
+          | Partition(r1,r2)   -> Rx.is_empty r1 || Rx.is_empty r2 
           | Merge(r1)          -> Rx.is_singleton r1 
           | Fiat(dl1)          -> bij dl1 
           | Forgetkey(dl1)     -> bij dl1 
@@ -712,7 +712,7 @@ module DLens = struct
           | Dup1(dl1,f1,r1)    -> ctype dl1
           | Dup2(f1,r1,dl1)    -> ctype dl1
           | SMatch(t1,f1,dl1)  -> ctype dl1
-          | Filter(r1,r2)      -> Rx.mk_star (Rx.mk_alt r1 r2) 
+          | Partition(r1,r2)   -> Rx.mk_star (Rx.mk_alt r1 r2) 
           | Merge(r1)          -> Rx.mk_seq r1 r1 
           | Fiat(dl1)          -> ctype dl1 
           | Forgetkey(dl1)     -> ctype dl1 
@@ -742,7 +742,7 @@ module DLens = struct
           | Dup1(dl1,f1,r1)    -> Rx.mk_seq (atype dl1) r1
           | Dup2(f1,r1,dl1)    -> Rx.mk_seq r1 (atype dl1)
           | SMatch(t1,f1,dl1)  -> atype dl1
-          | Filter(r1,r2)      -> Rx.mk_star r2
+          | Partition(r1,r2)   -> Rx.mk_seq (Rx.mk_star r1) (Rx.mk_star r2)
           | Merge(r1)          -> r1
           | Fiat(dl1)           -> atype dl1
           | Forgetkey(dl1)     -> atype dl1 
@@ -786,7 +786,7 @@ module DLens = struct
                 (fun xt1 -> Erx.mk_seq (Erx.mk_leaf r1) xt1) 
                 (xtype dl1)
           | SMatch(t1,f1,dl1)  -> Misc.map_option (Erx.mk_box t1) (xtype dl1)
-          | Filter(r1,r2)      -> Some (Erx.mk_leaf (atype dl)) 
+          | Partition(r1,r2)      -> Some (Erx.mk_leaf (atype dl)) 
           | Merge(r1)          -> Some (Erx.mk_leaf (atype dl))
           | Fiat(dl1)          -> xtype dl1 
           | Forgetkey(dl1)     -> xtype dl1 
@@ -815,7 +815,7 @@ module DLens = struct
     | Dup1(dl1,f1,r1)    -> dl1.dtype
     | Dup2(f1,r1,dl1)    -> dl1.dtype
     | SMatch(t1,f1,dl1)  -> TMap.add t1 dl1.uid TMap.empty
-    | Filter(r1,r2)      -> TMap.empty 
+    | Partition(r1,r2)      -> TMap.empty 
     | Merge(r1)          -> TMap.empty
     | Fiat(dl1)          -> dl1.dtype
     | Forgetkey(dl1)     -> dl1.dtype 
@@ -841,7 +841,7 @@ module DLens = struct
     | _,Dup1(dl1,f1,r1)                 -> stype dl1 sk
     | _,Dup2(f1,r1,dl1)                 -> stype dl1 sk
     | S_box(b),SMatch(t1,f1,dl1)        -> b = t1
-    | S_string(s),Filter(r1,r2)         -> Rx.match_string (ctype dl) s 
+    | S_string(s),Partition(r1,r2)      -> Rx.match_string (ctype dl) s 
     | S_string(s),Merge(r1)             -> Rx.match_string (ctype dl) s
     | _,Fiat(dl1)                       -> stype dl1 sk
     | _,Forgetkey(dl1)                  -> stype dl1 sk
@@ -872,7 +872,7 @@ module DLens = struct
           | Dup1(dl1,f1,r1)    -> crel dl1
           | Dup2(f1,r1,dl1)    -> crel dl1
           | SMatch(t1,f1,dl1)  -> crel dl1
-          | Filter(r1,r2)      -> Identity 
+          | Partition(r1,r2)   -> Identity 
           | Merge(r1)          -> Identity
           | Fiat(dl1)          -> crel dl1 
           | Forgetkey(dl1)     -> crel dl1 
@@ -903,7 +903,7 @@ module DLens = struct
           | Dup1(dl1,f1,r1)    -> Unknown
           | Dup2(f1,r1,dl1)    -> Unknown
           | SMatch(t1,f1,dl1)  -> arel dl1
-          | Filter(r1,r2)      -> Identity 
+          | Partition(r1,r2)   -> Identity 
           | Merge(r1)          -> Identity 
           | Fiat(dl1)          -> arel dl1
           | Forgetkey(dl1)     -> arel dl1
@@ -934,16 +934,17 @@ module DLens = struct
     | Dup1(dl1,f1,r1)    -> (fun c -> get dl1 c ^ f1 c)
     | Dup2(f1,r1,dl1)    -> (fun c -> f1 c ^ get dl1 c)
     | SMatch(t1,f1,dl1)  -> (fun c -> get dl1 c)
-    | Filter(r1,r2)      -> 
+    | Partition(r1,r2)      -> 
         (fun c -> 
-           let rec loop acc = function
-             | [] -> acc
+           let rec loop (acc1,acc2) = function
+             | [] -> acc1 ^ acc2 
              | h::t -> 
-                 let acc' = 
-                   if Rx.match_string r1 h then acc
-                   else (acc ^ h) in
-                 loop acc' t in 
-           loop "" (Rx.star_split (ctype dl) c))
+                 begin match Rx.match_string r1 h, Rx.match_string r2 h with 
+                   | true, false -> loop (acc1 ^ h, acc2) t 
+                   | false,true  -> loop (acc1, acc2 ^ h) t
+                   | _           -> assert false
+                 end in 
+           loop ("","") (Rx.star_split (ctype dl) c))
     | Merge(r1) -> 
         (fun c -> 
            let c1,_ = seq_split r1 r1 c in 
@@ -1028,24 +1029,21 @@ module DLens = struct
            put dl1 a2 s d)
     | SMatch(t1,f1,dl1)  ->
         (fun a _ d -> do_match (sim_lookup f1) (key dl1) (put dl1) (create dl1) t1 a d)
-    | Filter(r1,r2)      -> 
+    | Partition(r1,r2)      -> 
         (fun a s d -> 
-           let c = string_of_skel s in 
-           let rec loop acc lc la = match lc,la with
-             | [],[] -> acc
-             | [], ha :: ta -> loop (acc ^ ha) [] ta
-             | hc :: tc, [] -> 
-                 if Rx.match_string r1 hc then
-                   loop (acc ^ hc) tc []
-                 else
-                   loop acc tc []
-             | hc :: tc, ha :: ta -> 
-                 if Rx.match_string r1 hc then
-                   loop (acc ^ hc) tc la
-                 else
-                   loop (acc ^ ha) tc ta in
-           let c' = loop "" (Rx.star_split (ctype dl) c) 
-             (Rx.star_split (ctype dl) a) in 
+           let c = string_of_skel s in
+           let r1s = Rx.mk_star r1 in 
+           let r2s = Rx.mk_star r2 in 
+           let a1,a2 = seq_split r1s r2s a in
+           let rec loop acc l l1 l2 = 
+             match l,l1,l2 with
+             | [],[],h2::t2 -> loop (acc ^ h2) [] [] t2 
+             | [], h1::t1,_ -> loop (acc ^ h1) [] t1 l2
+             | _,[],[] -> acc
+             | h::t,h1::t1,_ when Rx.match_string r1 h -> loop (acc ^ h1) t t1 l2
+             | h::t,_,h2::t2 when Rx.match_string r2 h -> loop (acc ^ h2) t l1 t2
+             | h::t,_,_ -> loop acc t l1 l2 in 
+           let c' = loop "" (Rx.star_split (ctype dl) c) (Rx.star_split r1s a1) (Rx.star_split r2s a2) in 
            (c',d))
     | Merge(r1)          -> 
         (fun a s d ->            
@@ -1174,11 +1172,11 @@ module DLens = struct
                         Some(c',d1'' ++ d2')
                     | None -> None)
              | None -> None)
-    | Filter(r1,r2)      -> 
+    | Partition(r1,r2) -> 
         (fun a s d -> 
            let c = string_of_skel s in
            if a=get dl c then Some (c,d) else None)
-    | Merge(r1)          -> 
+    | Merge(r1) -> 
         (fun a s d -> 
            let c = string_of_skel s in
            if a=get dl c then Some (c,d) else None)
@@ -1251,7 +1249,7 @@ module DLens = struct
            create dl1 a2 d)
     | SMatch(t1,f1,dl1)  ->
         (fun a d -> do_match (sim_lookup f1) (key dl1) (put dl1) (create dl1) t1 a d)
-    | Filter(r1,r2)      -> (fun a d -> (a,d))
+    | Partition(r1,r2)   -> (fun a d -> (a,d))
     | Merge(r1)          -> (fun a d -> (a ^ a,d))
     | Fiat(dl1)          -> (fun a d -> create dl1 a d)
     | Forgetkey(dl1)     -> (fun a d -> create dl1 a d)
@@ -1302,7 +1300,7 @@ module DLens = struct
            let _,a2 = seq_split r1 (atype dl1) a in
            key dl1 a2)
     | SMatch(t1,f1,dl1)  -> (fun a -> key dl1 a)
-    | Filter(r1,r2)      -> (fun a -> "")
+    | Partition(r1,r2)   -> (fun a -> "")
     | Merge(r1)          -> (fun a -> "")
     | Fiat(dl1)          -> (fun a -> key dl1 a)
     | Forgetkey(dl1)     -> (fun a -> "")
@@ -1378,7 +1376,7 @@ module DLens = struct
            let k = key dl1 (get dl1 c) in 
            let km = KMap.add k [(s,d1)] KMap.empty in 
            (S_box t1,TMap.add t1 km d2))
-    | Filter(r1,r2)      -> (fun c -> (S_string c, TMap.empty))
+    | Partition(r1,r2)   -> (fun c -> (S_string c, TMap.empty))
     | Merge(r1)          -> (fun c -> (S_string c, TMap.empty))
     | Fiat(dl1)          -> (fun c -> parse dl1 c)
     | Forgetkey(dl1)     -> (fun c -> parse dl1 c)
@@ -1468,7 +1466,7 @@ module DLens = struct
   let dup1 i dl1 f1 r1 = mk' i (Dup1(dl1,f1,r1))
   let dup2 i f1 r1 dl1 = mk' i (Dup2(f1,r1,dl1))
   let smatch i t1 f1 dl1 = mk' i (SMatch(f1,t1,dl1))
-  let filter i r1 r2 = mk' i (Filter(r1,r2))
+  let partition i r1 r2 = mk' i (Partition(r1,r2))
   let merge i r1 = mk' i (Merge(r1))
   let fiat i dl1 = mk' i (Fiat(dl1))
   let forgetkey i dl1 = mk' i (Forgetkey(dl1))

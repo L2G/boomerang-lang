@@ -624,3 +624,10 @@ test xcard.create "Foster, Nate, 267.342.1099 (h)\n" =
         in situations where the whole note can be parsed as a real note plus some extra
         fields.  (I.e., basically the abstract and concrete note formats are the same.)
 *)   
+
+test (xcard).create 
+<<
+Foster, Clare, jscef@uas.alaska.edu (e), (907) 738-0553 (c), (907) 747-5499 (h)
+Foster, Nate, jnfoster@cis.upenn.edu (e), 267 342-1099 (c)
+
+>> = ?
