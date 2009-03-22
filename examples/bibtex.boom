@@ -1,24 +1,24 @@
 #{*}
-(*******************************************************************************)
-(* The Harmony Project                                                         *)
-(* harmony@lists.seas.upenn.edu                                                *)
-(*******************************************************************************)
-(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                  *)
-(*                                                                             *)
-(* This library is free software; you can redistribute it and/or               *)
-(* modify it under the terms of the GNU Lesser General Public                  *)
-(* License as published by the Free Software Foundation; either                *)
-(* version 2.1 of the License, or (at your option) any later version.          *)
-(*                                                                             *)
-(* This library is distributed in the hope that it will be useful,             *)
-(* but WITHOUT ANY WARRANTY; without even the implied warranty of              *)
-(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
-(* Lesser General Public License for more details.                             *)
-(*******************************************************************************)
-(* /boomerang/examples/bibtex.boom                                             *)
-(* BiBTeX <-> RIS lens                                                         *)
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /boomerang/examples/bibtex.boom                                            *)
+(* BiBTeX <-> RIS lens                                                        *)
 (* $Id$ *)
-(*******************************************************************************)
+(******************************************************************************)
 
 module Bibtex = 
 
@@ -26,9 +26,10 @@ module Bibtex =
 let mk_cn : lens -> canonizer = canonizer_of_lens 
 
 (* GLOBALS *)
-
 let CHAR : regexp = [a-zA-Z. ]
 let ALPHA : regexp = [a-zA-Z.]
+let NL : string = "\n"
+let EPSILON : string = ""
 let tag (s:string) : string = s . "  - "
 let special : regexp = [@{}""]
 let not_special : regexp = ANYCHAR - special
@@ -307,6 +308,14 @@ let title_ris : regexp =
   field_ris (tag "T1") (del /title/) 
             canonize_title canonize_title (copy bare_value)
             "\n"
+    
+let author_bibtex : regexp = 
+  field_bibtex (del "author") authors authors (copy EMPTY)  
+let author_ris : regexp = 
+  field_ris "" (del "author") authors authors (copy EMPTY) NL
+
+let do_author : (lens in author_bibtex <-> author_ris) = 
+  do_field EPSILON del "author" authors authors (copy EMPTY) NL
 
 let do_title : (lens in title_bibtex <-> title_ris) = 
   do_field (tag "T1") del /title/ 
@@ -345,53 +354,61 @@ let do_field_to_note : (lens in field_to_note_bibtex <-> field_to_note_ris) =
   
 let field_ris_tnl (R:string) : regexp = std_field_ris (tag R) "\n"
 
-let non_author_fields 
-  : (lens in 
-      (title_bibtex | dates_bibtex | pages_bibtex |
-       std_field_bibtex /booktitle/ | std_field_bibtex /journal/ |
-       std_field_bibtex /volume/    | std_field_bibtex /number/ |
-       std_field_bibtex /note/      | std_field_bibtex /address/ |
-       std_field_bibtex /url/       | std_field_bibtex /pdf/ |
-       std_field_bibtex /issn/      | std_field_bibtex /publisher/ |
-       std_field_bibtex /abstract/  | std_field_bibtex /series/ |
-       field_to_note_bibtex)* 
-    <->
-      (title_ris | dates_ris | pages_ris |
-       field_ris_tnl "T2" | field_ris_tnl "JO" |
-       field_ris_tnl "VL" | field_ris_tnl "IS" |
-       field_ris_tnl "N1" | field_ris_tnl "AD" |
-       field_ris_tnl "UR" | field_ris_tnl "L1" |
-       field_ris_tnl "SN" | field_ris_tnl "PB" |
-       field_ris_tnl "N2" | field_ris_tnl "T3" |
-       field_to_note_ris)* ) 
-  = ( do_title
-    | do_dates
-    | do_pages
-    | do_std_field (tag "T2") /booktitle/ "\n" 
-    | do_std_field (tag "JO") /journal/ "\n"
-    | do_std_field (tag "VL") /volume/ "\n"
-    | do_std_field (tag "IS") /number/ "\n"
-    | do_std_field (tag "N1") /note/ "\n"
-    | do_std_field (tag "AD") /address/ "\n" 
-    | do_std_field (tag "UR") /url/ "\n"
-    | do_std_field (tag "L1") /pdf/ "\n"
-    | do_std_field (tag "SN") /issn/ "\n"
-    | do_std_field (tag "PB") /publisher/ "\n"
-    | do_std_field (tag "N2") /abstract/ "\n"
-    | do_std_field (tag "T3") /series/ "\n"
-    | do_field_to_note)* (* star is on the whole union *) 
+let std_fields_bibtex : regexp = 
+  ( author_bibtex 
+  | title_bibtex 
+  | dates_bibtex 
+  | pages_bibtex
+  | std_field_bibtex "booktitle" | std_field_bibtex "journal"
+  | std_field_bibtex "volume"    | std_field_bibtex "number"
+  | std_field_bibtex "note"      | std_field_bibtex "address"
+  | std_field_bibtex "url"       | std_field_bibtex "pdf"
+  | std_field_bibtex "issn"      | std_field_bibtex "publisher"
+  | std_field_bibtex "abstract"  | std_field_bibtex "series") 
 
-let author_field 
-  : (lens in (field_bibtex (del /author/) authors authors (copy EMPTY))
-         <-> (field_ris "" (del /author/) authors authors (copy EMPTY) "\n"))
-  = do_field "" del /author/ authors authors (copy EMPTY) "\n"
+let std_fields_ris : regexp = 
+  ( author_ris
+  . title_ris       
+  . (field_ris_tnl "T2")?  
+  . (field_ris_tnl "JO")?  
+  . (field_ris_tnl "VL")?  
+  . (field_ris_tnl "IS")?
+  . (field_ris_tnl "N1")?  
+  . pages_ris?
+  . dates_ris?
+  . (field_ris_tnl "AD")?  
+  . (field_ris_tnl "UR")?  
+  . (field_ris_tnl "L1")?  
+  . (field_ris_tnl "SN")?   
+  . (field_ris_tnl "PB")?  
+  . (field_ris_tnl "N2")?  
+  . (field_ris_tnl "T3")? )
 
-let fields_bibtex : regexp = (ctype author_field) . (ctype non_author_fields)
-let fields_ris : regexp = (atype author_field) . (atype non_author_fields)
+
+let fields_bibtex : regexp = (std_fields_bibtex | field_to_note_bibtex)*
+let fields_ris : regexp = std_fields_ris . field_to_note_ris*
 
 let fields : (lens in fields_bibtex <-> fields_ris) = 
-  author_field . non_author_fields
-
+  Sort.partition_sort_concat 
+  #{lens}[
+      do_author
+    ; do_title
+    ; (do_std_field (tag "T2") /booktitle/ NL)?
+    ; (do_std_field (tag "JO") /journal/ NL)?
+    ; (do_std_field (tag "VL") /volume/ NL)?
+    ; (do_std_field (tag "IS") /number/ NL)?
+    ; (do_std_field (tag "N1") /note/ NL)?
+    ; do_pages?
+    ; do_dates?
+    ; (do_std_field (tag "AD") /address/ NL)?
+    ; (do_std_field (tag "UR") /url/ NL)?
+    ; (do_std_field (tag "L1") /pdf/ NL)?
+    ; (do_std_field (tag "SN") /issn/ NL)?
+    ; (do_std_field (tag "PB") /publisher/ NL)?
+    ; (do_std_field (tag "N2") /abstract/ NL)?
+    ; (do_std_field (tag "T3") /series/ NL)? ]
+  do_field_to_note 
+     
 let key_re : regexp = (not_special - [, \n])+
 
 let key_bibtex : regexp = key_re . /,/ . [ ]* . /\n/
@@ -418,8 +435,8 @@ let chunk_bibtex =
 
 let chunk_ris =
   (type_ris "JOUR" | type_ris "CONF" | type_ris "UNPB" |
-   type_ris "CHAP" | type_ris "THES" | type_ris "COMP") . "\n" .
-   key_ris . "\n" . fields_ris . "ER  -\n\n"
+   type_ris "CHAP" | type_ris "THES" | type_ris "COMP") . NL .
+   key_ris . NL . fields_ris . "ER  -\n\n"
 
 let chunk : (lens in chunk_bibtex <-> chunk_ris) = 
   ( do_type "article" "JOUR" 
@@ -428,8 +445,8 @@ let chunk : (lens in chunk_bibtex <-> chunk_ris) =
   | do_type "incollection" "CHAP"
   | (do_type "mastersthesis" "THES" || do_type "phdthesis" "THES")
   | do_type "manual" "COMP" )
-  . ins "\n" . 
-  do_key . ins "\n" . 
+  . ins NL . 
+  do_key . ins NL . 
   fields . 
   ((WS . /}/) <-> "ER  -\n\n")
 
@@ -472,9 +489,9 @@ AU  - Pierce, Benjamin C.
 AU  - Schmitt, Alan
 T1  - A Logic Your Typechecker Can Count On: Unordered Tree Types in Practice
 T2  - planx07
-PY  - 2007/01//
 SP  - 80
 EP  - 90
+PY  - 2007/01//
 M1  - conf: http://www.cis.upenn.edu/~jnfoster/papers/dtts.pdf
 M1  - slides: http://www.cis.upenn.edu/~jnfoster/papers/dtts-slides.pdf
 M1  - jnf: yes
@@ -514,9 +531,9 @@ AU  - Pierce, Benjamin C.
 AU  - Schmitt, Alan
 T1  - Combinators for bidirectional tree transformations: A linguistic approach to the view update problem
 JO  - Transactions on Programming Languages and Systems (TOPLAS)
-PY  - 2007/05//
 SP  - 233
 EP  - 246
+PY  - 2007/05//
 AD  - New York, NY, USA
 ER  -
 
@@ -529,11 +546,55 @@ AU  - Pierce, Benjamin C.
 AU  - Schmitt, Alan
 T1  - Exploiting schemas in data synchronization
 T2  - Database Programming Languages (DBPL), Trondheim, Norway
-PY  - 2005/08//
 SP  - 42
 EP  - 57
+PY  - 2005/08//
 ER  -
 
 
 >>
  
+test ris.get
+<<
+@article{schema-sync-jcss,
+  author = {J. Nathan Foster 
+            and Michael B. Greenwald 
+            and Christian Kirkegaard 
+            and Benjamin C. Pierce 
+            and Alan Schmitt},
+  title =  {Exploiting {S}chemas in {D}ata {S}ynchronization},
+  journal = {Journal of Computer and System Sciences},
+  publisher= {Elsevier},
+  volume = 73,
+  number = 4,
+  year = 2007,
+  month = {June},
+  note = {Short version in DBPL '05.},
+  full = { http://dx.doi.org/10.1016/j.jcss.2006.10.024 },
+  jnf = "yes",
+  plclub = "yes",
+}
+
+>> = 
+<<
+TY  - JOUR
+ID  - schema-sync-jcss
+AU  - Foster, J. Nathan
+AU  - Greenwald, Michael B.
+AU  - Kirkegaard, Christian
+AU  - Pierce, Benjamin C.
+AU  - Schmitt, Alan
+T1  - Exploiting Schemas in Data Synchronization
+JO  - Journal of Computer and System Sciences
+VL  - 73
+IS  - 4
+N1  - Short version in DBPL '05.
+PY  - 2007/06//
+PB  - Elsevier
+M1  - full:  http://dx.doi.org/10.1016/j.jcss.2006.10.024 
+M1  - jnf: yes
+M1  - plclub: yes
+ER  -
+
+
+>>

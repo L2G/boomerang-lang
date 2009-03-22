@@ -394,16 +394,23 @@ module Canonizer = struct
                (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_alt acc ri) Rx.empty irl) 
                c in
            let c_arr = Array.create k "" in 
-           if Safelist.length cl <> k then 
+           if Safelist.length cl > k then 
              Err.run_error (Info.M "sort.canonize") 
-               (fun () -> msg "@[%s@ did@ not@ split@ into@ %d@ pieces@]" c k);
-           let _ = Safelist.fold_left 
+               (fun () -> msg "@[%s@ split@ into@ more@ than@ %d@ pieces@]" c k);
+           let rs' = Safelist.fold_left 
              (fun rs ci -> 
                 match Safelist.partition (fun (_,ri) -> Rx.match_string ri ci) rs with
+                  | [],rs' -> rs'
                   | [i,_],rs' -> c_arr.(i) <- ci; rs'
                   | _ -> Err.run_error (Info.M "sort.canonize")
-                      (fun () -> msg "@[%s@ did@ not@ match@ exactly@ one@ regexp@]" ci))
+                      (fun () -> msg "@[%s@ matched@ more@ than@ one@ regexp@]" ci))
              irl cl in 
+           let () = Safelist.iter 
+             (fun (_,ri) -> 
+                if not (Rx.is_final ri) then 
+                  Err.run_error (Info.M "sort.canonize")
+                    (fun () -> msg "@[no@ string@ matched@ %s@]" (Rx.string_of_t ri))) 
+             rs' in 
            concat_array c_arr)
     | Columnize(k,r,ch,nl)  -> 
         (fun c ->

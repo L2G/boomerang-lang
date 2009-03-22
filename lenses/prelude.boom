@@ -451,7 +451,8 @@ belonging to each regular expression. This allows us to assign sort a type
 that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 
 #* let sortable (rl:regexp List.t) : bool = 
-#*   disjoint_regexps rl && iterable_cex ((union_regexps rl) - EMPTY)
+#*      disjoint_regexps (List.map{regexp}{regexp} (fun (r:regexp) -> r - EPSILON) rl) 
+#*   && iterable_cex ((union_regexps rl) - EPSILON)
 
 #* let sort 
 #*   (rl:regexp List.t where sortable rl) 
@@ -462,7 +463,6 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 #* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "A1" = "A1"
 #* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "1A" = "A1"
 #* test canonize (sort #{regexp}[UALPHACHAR; DIGIT]) "A" = error
-#* test sort #{regexp}[/a/?] = error
 #* test sort #{regexp}[/a/;/a/] = error
 
 #* test uncanonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) =
