@@ -13,6 +13,8 @@
 
 * optimization and speedups (profiling indicates lots of GC activity)
 
+* functions to process command-line arguments from boomerang (e.g., set solutions mode for coqsplit)
+
 == LIBRARIES == 
 
 * Investigate other options for the contract on sorting.
