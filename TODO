@@ -23,6 +23,12 @@
 
 * Fix contract on q-lenses using crel/arel/cnrel.
 
+* Various ISO formats, e.g. ISO8601 dates 
+** http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=40874
+
+* Encodings and numbes: Base64, hex, scientific notation
+** can we write a lens in hex <-> decimal?  which primitives must we add, if any?
+
 == DOCUMENTATION ==
 
 * Polish intro of manual.
