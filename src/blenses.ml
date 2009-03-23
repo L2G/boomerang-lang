@@ -67,12 +67,12 @@ let rec format_skel sk =
   let fmt _ sk = format_skel sk in 
   Util.format "@[";
   (match sk with     
-    | S_string w -> msg "S_string(%s)" w
+    | S_string w -> msg "S_string(\"%s\")" w
     | S_concat(sk1,sk2) -> msg "S_concat(%a,%a)" fmt sk1 fmt sk2
     | S_star(sl) -> msg "S_star(%a)" (fun _ -> Misc.format_list "," format_skel) sl
     | S_box(t) -> msg "S_box(%s)" t
     | S_comp(sk1,sk2) -> msg "S_comp(%a,%a)" fmt sk1 fmt sk2
-    | S_quot(w,sk1) -> msg "S_quot(%s,%a)" w fmt sk1);
+    | S_quot(w,sk1) -> msg "S_quot(\"%s\",%a)" w fmt sk1);
   Util.format "@]"
        
 (* helpers for accessing skeletons *)
@@ -843,7 +843,7 @@ module DLens = struct
     | S_comp(sk1,sk2),Compose(dl1,dl2)  -> stype dl1 sk1 && stype dl2 sk2
     | _,Invert(dl1)                     -> stype dl1 sk
     | _,Default(dl1,w1)                 -> stype dl1 sk
-    | _,LeftQuot(cn1,dl1)               -> stype dl1 sk
+    | S_quot(_,sk1),LeftQuot(cn1,dl1)   -> stype dl1 sk1
     | _,RightQuot(dl1,cn1)              -> stype dl1 sk
     | _,Dup1(dl1,f1,r1)                 -> stype dl1 sk
     | _,Dup2(f1,r1,dl1)                 -> stype dl1 sk
@@ -980,7 +980,7 @@ module DLens = struct
                  
   and put dl = match dl.desc with
     | Copy(r1)           -> (fun a _ d -> (a,d))
-    | Clobber(r1,w1,f1)    -> (fun _ s d -> (string_of_skel s,d))
+    | Clobber(r1,w1,f1)  -> (fun _ s d -> (string_of_skel s,d))
     | Concat(dl1,dl2)    -> 
         (fun a s d -> 
            let a1,a2 = seq_split (atype dl1) (atype dl2) a in
@@ -1025,7 +1025,8 @@ module DLens = struct
            let _,s' = quot_of_skel s in 
            let c',d' = put dl1 a s' d in 
            (Canonizer.choose cn1 c',d'))
-    | RightQuot(dl1,cn1) -> (fun a s d -> put dl1 (Canonizer.canonize cn1 a) s d)
+    | RightQuot(dl1,cn1) -> 
+        (fun a s d -> put dl1 (Canonizer.canonize cn1 a) s d)
     | Dup1(dl1,f1,r1)    -> 
         (fun a s d -> 
            let a1,_ = seq_split (atype dl1) r1 a in
@@ -1083,7 +1084,7 @@ module DLens = struct
            (c',d'))
     | Probe(t,dl1)       -> 
         (fun a s d -> 
-           msg "@[[[PROBE-PUT{%s}@\n%s@\n]]@\n@]" t a;
+           msg "@[[[PROBE-PUT{%s}@\n%s@\n%a@\n]]@\n@]%!" t a (fun _ -> format_skel) s;           
            put dl1 a s d)
 
   and unparse dl = match dl.desc with 
