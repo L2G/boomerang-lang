@@ -130,7 +130,7 @@ let simple_elt_openclose (spaces:string) (tag:string)
   = raw_open spaces tag . slash_close
 
 let EMPTYELT (tag:string) : regexp =
-  WS . ("<" . tag . WS . "/>" | OPEN tag . CLOSE tag)
+  ("<" . tag . WS . "/>" | OPEN tag . CLOSE tag)
 
 (* [simple_elt_no_kids sp t] proecesses a single-line XML element 
    with no children.
@@ -138,8 +138,8 @@ let EMPTYELT (tag:string) : regexp =
    o [t] element tag.
 *)
 let simple_elt_no_kids (spaces:string) (tag:string)
-  : (lens in EMPTYELT tag <-> "")
-  = simple_elt_openclose spaces tag || simple_elt_twotags spaces tag
+  : (lens in (WS . EMPTYELT tag) <-> "")
+  = qdel WS spaces . del (EMPTYELT tag)
 
 test (simple_elt_no_kids "" "foo").get "<foo/>" = ""
 test (simple_elt_no_kids "" "foo").create "" = "<foo/>"

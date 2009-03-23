@@ -53,11 +53,23 @@ let pdate (spaces:string) (l:lens where subset (ctype l) ISO8601_DATE)
   = Xml.elt spaces "date" l
 
 let ptrue (spaces:string)
-  : (lens in Xml.EMPTYELT "true" <-> "")
+  : (lens in (Xml.WS . Xml.EMPTYELT "true") <-> "")
   = Xml.simple_elt_no_kids spaces "true"
 
 let pfalse (spaces:string)
-  : (lens in Xml.EMPTYELT "false" <-> "")
+  : (lens in (Xml.WS . Xml.EMPTYELT "false") <-> "")
   = Xml.simple_elt_no_kids spaces "false"
 
+(* is there another way to do this, e.g., using ptrue and pfalse?
+
+   it seems like we keep having to lift conditionals all the way to the top...
+*)
+let pbool (spaces:string) (strue:string) (sfalse:string where not (strue = sfalse))
+  : (lens in (Xml.WS . (Xml.EMPTYELT "true" | Xml.EMPTYELT "false")) <-> (strue | sfalse))
+  = qdel Xml.WS spaces . (Xml.EMPTYELT "true" <-> strue || Xml.EMPTYELT "false" <-> sfalse)
+
+test (pbool "" "yes" "no").get "<true/>" = "yes"
+test (pbool "" "yes" "no").put "no" into "<true/>" = "<false/>"
+
 let REAL = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?
+
