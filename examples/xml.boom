@@ -120,15 +120,30 @@ let simple_elt (spaces:string) (tag:string) (body:lens)
     body . 
     simple_close_tag tag
 
+let simple_elt_twotags (spaces:string) (tag:string) 
+  : (lens in (WS . OPEN tag . CLOSE tag) <-> "")
+  = open_tag spaces tag . 
+    simple_close_tag tag
+
+let simple_elt_openclose (spaces:string) (tag:string)
+  : (lens in (WS . "<" . tag . WS . "/>") <-> "")
+  = raw_open spaces tag . slash_close
+
+let EMPTYELT (tag:string) : regexp =
+  WS . ("<" . tag . WS . "/>" | OPEN tag . CLOSE tag)
+
 (* [simple_elt_no_kids sp t] proecesses a single-line XML element 
    with no children.
    o [sp] canonical leading whitespace.
    o [t] element tag.
 *)
-let simple_elt_no_kids (spaces:string) (tag:string) 
-  : (lens in (WS . OPEN tag . CLOSE tag) <-> "")
-  = open_tag spaces tag . 
-    simple_close_tag tag
+let simple_elt_no_kids (spaces:string) (tag:string)
+  : (lens in EMPTYELT tag <-> "")
+  = simple_elt_openclose spaces tag || simple_elt_twotags spaces tag
+
+test (simple_elt_no_kids "" "foo").get "<foo/>" = ""
+test (simple_elt_no_kids "" "foo").create "" = "<foo/>"
+test (simple_elt_no_kids "" "foo").put "" into "<foo></foo>" = "<foo></foo>"
 
 let ELT (tag:string) (BODY:regexp) : regexp
   = WS . OPEN tag . BODY . WS . CLOSE tag

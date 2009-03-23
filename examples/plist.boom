@@ -53,5 +53,5 @@ let pdate (spaces:string) (l:lens where subset (ctype l) ISO8601_DATE)
 
 (* TODO support <true /> *)
 let ptrue (spaces:string)
-  : (lens in (Xml.WS . Xml.OPEN "true" . Xml.CLOSE "true") <-> "")
+  : (lens in Xml.EMPTYELT "true" <-> "")
   = Xml.simple_elt_no_kids spaces "true"
