@@ -44,14 +44,20 @@ let pdata (spaces:string) (l:lens where subset (ctype l) BASE64)
   = Xml.elt spaces "data" l
 
 (* TODO ISO 8601 calls 19 valid way to refer to the 20th century, etc. *)
-let NUM2 = [0-9]{2}
-let ISO8601_DATE = NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
+let PLUSMINUS : regexp = '+' | '-'
+let NUM2 = DIGIT{2}
+let ISO8601_DATE = PLUSMINUS? . DIGIT? . NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
 
 let pdate (spaces:string) (l:lens where subset (ctype l) ISO8601_DATE)
   : (lens in Xml.ELT "date" (ctype l) <-> atype l)
   = Xml.elt spaces "date" l
 
-(* TODO support <true /> *)
 let ptrue (spaces:string)
   : (lens in Xml.EMPTYELT "true" <-> "")
   = Xml.simple_elt_no_kids spaces "true"
+
+let pfalse (spaces:string)
+  : (lens in Xml.EMPTYELT "false" <-> "")
+  = Xml.simple_elt_no_kids spaces "false"
+
+let REAL = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?

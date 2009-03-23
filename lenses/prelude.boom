@@ -133,7 +133,12 @@ The binary predicate @subset@ decides whether the first regular
 expression is a subset of the second.
 
 #* let subset (R1:regexp) (R2:regexp) : bool 
-#*   = equiv_cex (R1 - R2) EMPTY
+#*   = equiv_cex (R1 & R2) R1
+
+## test subset EMPTY [a-z] = true
+## test subset [a-z] [a-z] = true
+## test subset [abc] [a-z] = true
+## test subset [ab1] [a-z] = false
 
 \subsection{Lenses}
 
