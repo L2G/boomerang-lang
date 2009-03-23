@@ -9,48 +9,48 @@ let DTD_ID : regexp =
 let prolog : (lens in (Xml.PROLOG DTD_ID) <-> "") =
   Xml.prolog DTD_ID
 
-(* Contents of http://www.apple.com/DTDs/PropertyList-1.0.dtd:
+(* DTD taken from http://www.apple.com/DTDs/PropertyList-1.0.dtd *)
 
-<!ENTITY % plistObject "(array | data | date | dict | real | integer | string | true | false )" >
-<!ELEMENT plist %plistObject;>
-<!ATTLIST plist version CDATA "1.0" >
+(* Primitive types
 
-<!-- Collections -->
-<!ELEMENT array (%plistObject;)*>
-<!ELEMENT dict (key, %plistObject;)*>
-<!ELEMENT key (#PCDATA)>
+  <!ELEMENT string (#PCDATA)>
+  <!ELEMENT data (#PCDATA)> <!-- Contents interpreted as Base-64 encoded -->
 
-<!--- Primitive types -->
-<!ELEMENT string (#PCDATA)>
-<!ELEMENT data (#PCDATA)> <!-- Contents interpreted as Base-64 encoded -->
-<!ELEMENT date (#PCDATA)> <!-- Contents should conform to a subset of ISO 8601 (in particular, YYYY '-' MM '-' DD 'T' HH ':' MM ':' SS 'Z'.  Smaller units may be omitted with a loss of precision) -->
-
-<!-- Numerical primitives -->
-<!ELEMENT true EMPTY>  <!-- Boolean constant true -->
-<!ELEMENT false EMPTY> <!-- Boolean constant false -->
-<!ELEMENT real (#PCDATA)> <!-- Contents should represent a floating point number matching ("+" | "-")? d+ ("."d* )? ("E" ("+" | "-") d+)? where d is a digit 0-9.  -->
-<!ELEMENT integer (#PCDATA)> <!-- Contents should represent a (possibly signed) integer number in base 10 -->
-
+  <!ELEMENT date (#PCDATA)> 
+  <!-- Contents should conform to a subset of ISO 8601 (in particular,
+  YYYY '-' MM '-' DD 'T' HH ':' MM ':' SS 'Z'.  Smaller units may be
+  omitted with a loss of precision) -->
 *)
 
 let pstring (spaces:string) (l:lens)
-  : (lens in Xml.ELT "string" (ctype l) <-> atype l)
-  = Xml.elt spaces "string" l
+    : (lens in Xml.ELT "string" (ctype l) <-> atype l)
+    = Xml.elt spaces "string" l
 
 let BASE64 : regexp = [A-Za-z0-9+/]
 
 let pdata (spaces:string) (l:lens where subset (ctype l) BASE64)
-  : (lens in Xml.ELT "string" (ctype l) <-> atype l)
-  = Xml.elt spaces "data" l
+    : (lens in Xml.ELT "string" (ctype l) <-> atype l)
+    = Xml.elt spaces "data" l
 
 (* TODO ISO 8601 calls 19 valid way to refer to the 20th century, etc. *)
 let PLUSMINUS : regexp = '+' | '-'
-let NUM2 = DIGIT{2}
-let ISO8601_DATE = PLUSMINUS? . DIGIT? . NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
+let NUM2 : regexp = DIGIT{2}
+let ISO8601_DATE : regexp = PLUSMINUS? . DIGIT? . NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
 
 let pdate (spaces:string) (l:lens where subset (ctype l) ISO8601_DATE)
   : (lens in Xml.ELT "date" (ctype l) <-> atype l)
   = Xml.elt spaces "date" l
+
+(* Numerical primitives
+
+  <!ELEMENT true EMPTY>  <!-- Boolean constant true -->
+  <!ELEMENT false EMPTY> <!-- Boolean constant false -->
+  <!ELEMENT real (#PCDATA)> 
+  <!-- Contents should represent a floating point number matching ("+" | "-")? 
+  d+ ("."d* )? ("E" ("+" | "-") d+)? where d is a digit 0-9.  -->
+  <!ELEMENT integer (#PCDATA)> 
+  <!-- Contents should represent a (possibly signed) integer number in base 10 -->
+*)
 
 let ptrue (spaces:string)
   : (lens in (Xml.WS . Xml.EMPTYELT "true") <-> "")
@@ -71,5 +71,48 @@ let pbool (spaces:string) (strue:string) (sfalse:string where not (strue = sfals
 test (pbool "" "yes" "no").get "<true/>" = "yes"
 test (pbool "" "yes" "no").put "no" into "<true/>" = "<false/>"
 
-let REAL = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?
+let REAL : regexp = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?
+let preal (spaces:string) (l:lens where subset (ctype l) REAL)
+  : (lens in Xml.ELT "real" (ctype l) <-> atype l)
+  = Xml.elt spaces "real" l
 
+test (preal "  " REAL).get "<real>+3.01E-10</real>" = "+3.01E-10"
+test (preal "  " REAL).create "-1" = "  <real>-1  </real>"
+
+let INTEGER : regexp = PLUSMINUS? . DIGIT+
+let pinteger (spaces:string) (l:lens where subset (ctype l) INTEGER)
+  : (lens in Xml.ELT "integer" (ctype l) <-> atype l)
+  = Xml.elt spaces "integer" l
+
+(* Collections
+
+  <!ELEMENT array (%plistObject;)*>
+  <!ELEMENT dict (key, %plistObject;)*>
+  <!ELEMENT key (#PCDATA)>
+*)
+
+let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R*
+
+let nonempty_array (spaces:string) (l:lens where lens_iterable l)
+  : (lens in NONEMPTY_ARRAY (ctype l) <-> (atype l)* )
+  = Xml.elt spaces "array" <l>*
+
+let EMPTY_ARRAY : regexp = Xml.WS . "<array" . Xml.WS . "/>"
+
+let empty_array (spaces:string)
+  : (lens in EMPTY_ARRAY <-> "")
+  = Xml.simple_elt_openclose spaces "array"
+
+let parray (spaces:string) (l:lens where lens_iterable l)
+  : (lens in (EMPTY_ARRAY | NONEMPTY_ARRAY (ctype l)) <-> (atype l)* )
+  = empty_array spaces || nonempty_array spaces l
+
+test (parray "" (pinteger " " (copy INTEGER . ins ";"))).get "<array>\n <integer>1</integer></array>" = "1;"
+test (parray "" (pinteger " " (copy INTEGER . ins ";"))).create "" = "<array/>"
+test (parray "" (pinteger " " (copy INTEGER . ins ";"))).put "5;4;3;" into "<array/>" = error
+
+(* Top level element
+
+  <!ELEMENT plist %plistObject;>
+  <!ATTLIST plist version CDATA "1.0" >
+*)
