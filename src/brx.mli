@@ -23,7 +23,6 @@ type t
 
 (* constants *)
 val epsilon : t 
-val anything : t
 val empty : t
 
 (* constructors *)

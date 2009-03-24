@@ -182,7 +182,6 @@ test canonize_title.get
   "A Logic Your Typechecker Can Count On: Unordered Tree Types in Practice"
 
 (* VALUES *)
-
 let esc (s:string) = str ("\\" . s)
 let bare_value = [A-Za-z0-9]+
 let braced_value = no_tags ([^@{}\\] | esc "{" | esc "}")*
@@ -256,8 +255,7 @@ let do_field
   (l2:lens where lens_splittable (lo O) (mk_template "\"" l2 "\""))
   (l3:lens where lens_splittable (lo O) (mk_template "" l3 ""))
   (c:string) 
-  : (lens in field_bibtex (lo O) l1 l2 l3 <-> 
-             field_ris r (lo O) l1 l2 l3 c) =
+  : (lens in field_bibtex (lo O) l1 l2 l3 <-> field_ris r (lo O) l1 l2 l3 c) =
      mk_do_field r lo O "{" l1 "}" c
   || mk_do_field r lo O "\"" l2 "\"" c
   || mk_do_field r lo O "" l3 "" c
@@ -266,8 +264,7 @@ let do_field
 let digits : regexp = DIGIT+
 
 let page_value 
-  : (lens in (digits . "-"+ . digits) <->
-             ("SP  - " . digits . "\nEP  - " . digits))
+  : (lens in (digits . "-"+ . digits) <-> ("SP  - " . digits . "\nEP  - " . digits))
   = ins (tag "SP") . copy digits . ins "\n" .
     del [\-]+ . 
     ins (tag "EP") . copy digits 
@@ -336,11 +333,13 @@ let non_field = ([a-zA-Z]+ -
                    /number/ | /note/ | /pages/ | /year/ | /month/ | /address/ |
                    /url/ | /pdf/ | /issn/ | /publisher/ | /abstract/ |
                    /series/))
-let noteize (R:regexp) : (lens in R <-> (R . ": ")) = (copy R) . ins ": "
+
+let noteize (R:regexp) : (lens in R <-> (R . ": ")) = 
+  copy R . ins ": "
 
 let field_to_note_bibtex : regexp = 
   field_bibtex (noteize non_field)
-               (copy braced_value) (copy quoted_value) (copy bare_value)
+    (copy braced_value) (copy quoted_value) (copy bare_value)
 
 let field_to_note_ris : regexp =
   field_ris (tag "M1") (noteize non_field)
@@ -384,7 +383,6 @@ let std_fields_ris : regexp =
   . (field_ris_tnl "N2")?  
   . (field_ris_tnl "T3")? )
 
-
 let fields_bibtex : regexp = (std_fields_bibtex | field_to_note_bibtex)*
 let fields_ris : regexp = std_fields_ris . field_to_note_ris*
 
@@ -408,7 +406,7 @@ let fields : (lens in fields_bibtex <-> fields_ris) =
     ; (do_std_field (tag "N2") /abstract/ NL)?
     ; (do_std_field (tag "T3") /series/ NL)? ]
   do_field_to_note 
-     
+
 let key_re : regexp = (not_special - [, \n])+
 
 let key_bibtex : regexp = key_re . /,/ . [ ]* . /\n/
@@ -452,17 +450,16 @@ let chunk : (lens in chunk_bibtex <-> chunk_ris) =
 
 let non_entry : regexp = 
   ANY - (containing
-         (/@/ . (/article/       | /inproceedings/ | /misc/ | /incollection/ |
+          (/@/ . (/article/       | /inproceedings/ | /misc/ | /incollection/ |
                  /mastersthesis/ | /manual/        | /phdthesis/)))
 
 let del_non_entry : lens = 
   del non_entry
-    
-let ris 
-  : (lens in ((non_entry . chunk_bibtex)* . non_entry)
-         <-> chunk_ris* )
-  = del_non_entry 
-  | del_non_entry . <chunk> . (del_non_entry . <chunk>)* . del_non_entry
+
+let full_chunk = del_non_entry . <chunk>    
+
+let ris : (lens in ((non_entry . chunk_bibtex)* . non_entry) <-> chunk_ris* ) = 
+  (full_chunk . full_chunk* )? . del_non_entry
 
 test ris.get 
 <<

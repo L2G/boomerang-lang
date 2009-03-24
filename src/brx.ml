@@ -138,33 +138,58 @@ end
 
 (* --------------------- REGULAR EXPRESSIONS --------------------- *)
 (* regexp descriptions *)
-type d = 
-  | CSet of CharSet.t
-  | Seq of t * t
-  | Alt of t list
-  | Rep of t * int * int option
-  | Inter of t list
-  | Diff of t * t
+module rec M : sig 
+  type d = 
+    | CSet of CharSet.t
+    | Seq of t * t
+    | Alt of t list
+    | Rep of t * int * int option
+    | Inter of t list
+    | Diff of t * t
+  and t = 
+      { uid                        : int;
+        desc                       : d;
+        hash                       : int;
+        final                      : bool;
+        size                       : int; 
+        mutable maps               : (int array * int) option;
+        mutable known_singleton    : bool;
+        mutable derivative         : int -> t;
+        mutable reverse            : t option;
+        mutable representative     : (int list option) option;
+        mutable splittable         : Q.t }
+end = struct
+  type d = 
+    | CSet of CharSet.t
+    | Seq of t * t
+    | Alt of t list
+    | Rep of t * int * int option
+    | Inter of t list
+    | Diff of t * t
+  and t = 
+      { uid                        : int;
+        desc                       : d;
+        hash                       : int;
+        final                      : bool;
+        size                       : int; 
+        mutable maps               : (int array * int) option;
+        mutable known_singleton    : bool;
+        mutable derivative         : int -> t;
+        mutable reverse            : t option;
+        mutable representative     : (int list option) option;
+        mutable splittable         : Q.t }
+end and Q : Set.S with type elt = M.t = 
+  Set.Make(
+    struct
+      type t = M.t
+      let compare t1 t2 = compare t1.M.uid t2.M.uid 
+    end)
 
-(* full regexps: includes metadata (uid, hash) and several
-   cached/memoized fields/operations (final, derivative, reverse,
-   representative,etc.) *)
-and t = 
-    { uid                        : int;
-      desc                       : d;
-      hash                       : int;
-      final                      : bool;
-      size                       : int; 
-      mutable maps               : (int array * int) option;
-      mutable known_singleton    : bool;
-      mutable derivative         : int -> t;
-      mutable reverse            : t option;
-      mutable representative     : (int list option) option;
-      mutable suffs              : t option; }
-
-(* alias for t; useful when instantiating a module type also named t *)
-type this_t = t 
-
+(* aliases for M.t *)
+type t = M.t
+type this_t = t
+open M
+    
 (* comparison on ts *)
 let compare_t t1 t2 = compare t1.uid t2.uid 
 
@@ -174,13 +199,6 @@ let rec equal_ts tl1 tl2 = match tl1,tl2 with
   | [],[]               -> true
   | t1::rest1,t2::rest2 -> t1.uid = t2.uid && equal_ts rest1 rest2 
   | _                   -> false
-
-(* sets of ts *)
-module Q = Set.Make(
-  struct
-    type t = this_t
-    let compare t1 t2 = compare_t t1 t2
-  end)
 
 module QQ = Set.Make(
   struct
@@ -454,7 +472,7 @@ let mk_constant d t_nexto repo =
       derivative = dummy_impl; 
       reverse = None;
       representative = Some repo;
-      suffs = None;
+      splittable = Q.empty;
     } in 
   let t_next = match t_nexto with 
     | None -> t 
@@ -517,9 +535,9 @@ let rec mk_t d0 =
       known_singleton = false;
       maps = None;
       representative = None;
-      suffs = None;
       reverse = None;
-      derivative = dummy_impl } in 
+      derivative = dummy_impl;
+      splittable = Q.empty } in 
 
   let derivative_impl = 
     let mk_table f = 
@@ -587,26 +605,26 @@ and get_reverse t =
     (fun v -> t.reverse <- Some v) 
     calc_reverse t 
 
-and calc_suffs t =  
-  let rec full_search (ts,f,p) = match p with
-    | [] -> Q.fold mk_alt ts empty
-    | t::rest ->
-        let rm,len = get_maps t in 
-        let rec loop ((ts',f',p') as acc) i =
-          if i < 0 then acc
-          else
-            let ti = t.derivative rm.(i) in
-            if easy_empty ti || Q.mem ti f' then loop acc (pred i)
-            else loop ((if ti.final then Q.add ti ts' else ts'),Q.add ti f',ti::p') (pred i) in 
-        full_search (loop (ts,f,rest) (pred len)) in
-  let ts0 = if t.final then Q.singleton t else Q.empty in 
-  let f0 = Q.singleton t in 
-  full_search (ts0,f0,[t]) 
+(* and calc_suffs t =   *)
+(*   let rec full_search (ts,f,p) = match p with *)
+(*     | [] -> Q.fold mk_alt ts empty *)
+(*     | t::rest -> *)
+(*         let rm,len = get_maps t in  *)
+(*         let rec loop ((ts',f',p') as acc) i = *)
+(*           if i < 0 then acc *)
+(*           else *)
+(*             let ti = t.derivative rm.(i) in *)
+(*             if easy_empty ti || Q.mem ti f' then loop acc (pred i) *)
+(*             else loop ((if ti.final then Q.add ti ts' else ts'),Q.add ti f',ti::p') (pred i) in  *)
+(*         full_search (loop (ts,f,rest) (pred len)) in *)
+(*   let ts0 = if t.final then Q.singleton t else Q.empty in  *)
+(*   let f0 = Q.singleton t in  *)
+(*   full_search (ts0,f0,[t])  *)
 
-and get_suffs t = 
-  force t.suffs
-    (fun v -> t.suffs <- Some v)
-    calc_suffs t 
+(* and get_suffs t =  *)
+(*   force t.suffs *)
+(*     (fun v -> t.suffs <- Some v) *)
+(*     calc_suffs t  *)
 
 and calc_representative t = 
   let rec jump st = match st with
@@ -1046,45 +1064,100 @@ let derivative t w =
     else loop (succ i) (acc.derivative (Char.code w.[i])) in 
     loop 0 t
 
-let mk_suffs t0 = get_suffs t0
+let fast_splittable_cex t1 t2 = 
+  let t1_rev = mk_reverse t1 in 
+  let rm,len = desc_maps (Diff(t1_rev,t2)) in 
+  let rec loop i = 
+    if i < 0 then true
+    else 
+      let ci = rm.(i) in 
+      let d1 = t1_rev.derivative ci in 
+      if easy_empty d1 then loop (pred i)
+      else 
+        let d2 = t2.derivative ci in 
+        if easy_empty d2 then loop (pred i)
+        else false in 
+  loop (pred len)
+
+type ('a,'b,'c) tri = A of 'a | B of 'b | C of 'c  
 
 let splittable_cex t1 t2 = 
-  let overo =
-    if t1.size > t2.size then
-      let t2_rev_suffs = mk_suffs (mk_reverse t2) in
-      if is_epsilon t2_rev_suffs then None
-      else
-        let t1_suffs = mk_suffs t1 in
-          if is_epsilon t1_suffs then None
-          else
-            representative
-              (mk_diff
-                 (mk_inter t1_suffs (mk_reverse t2_rev_suffs))
-                 epsilon)
-    else
-      let t1_suffs = mk_suffs t1 in
-      if is_epsilon t1_suffs then None
-      else
-        let t2_rev_suffs = mk_suffs (mk_reverse t2) in
-        if is_epsilon t2_rev_suffs then None
-        else
-          representative
-            (mk_diff
-               (mk_inter t1_suffs (mk_reverse t2_rev_suffs))
-               epsilon) in
-  match overo with 
-    | Some over ->
-        let t2_suff = derivative t2 over in
-        let t1_pref = mk_reverse (derivative (mk_reverse t1) (reverse_string over)) in
-        begin match representative (mk_inter t1 t1_pref),representative (mk_inter t2 t2_suff) with
-          | Some w1,Some w2 -> 
-              Misc.Left(w1 ^ over, w2, w1, over ^ w2)
-          | _ ->
-              Berror.run_error (Info.M "splittable_cex")
-                (fun () -> msg "error computing representative")
-        end
-    | None -> Misc.Right(mk_seq t1 t2)
-
+  if Q.mem t2 t1.splittable || fast_splittable_cex t1 t2 then Misc.Right(mk_seq t1 t2)
+  else
+    let res = 
+      let rec full_search q (fa,fb,fc) = 
+        if Queue.is_empty q then Misc.Right(mk_seq t1 t2)
+        else match Queue.pop q with 
+          | A(l1,t1i) -> 
+              let rm,len = get_maps t1i in 
+                if t1i.final then Queue.push (B(l1,[],t1i,t2)) q;
+                let rec loop j fa = 
+                  if j < 0 then fa
+                  else
+                    let cj = rm.(j) in 
+                    let t1j = t1i.derivative cj in 
+                    let fa' = 
+                      if not (easy_empty t1j) && not (Q.mem t1j fa) then 
+                        begin
+                          Queue.push (A(cj::l1,t1j)) q;
+                          Q.add t1j fa
+                        end
+                      else fa in 
+                      loop (pred j) fa' in
+                let fa' = loop (pred len) fa in 
+                  full_search q (fa',fb,fc)
+          | B(l1,l2,t1i,t2i) -> 
+              let rm,len = desc_maps (Diff(t1i,t2i)) in 
+                if t1i.final && l2 <> [] then Queue.push (C(l1,l2,[],t2i,t2)) q;
+                let rec loop j fb = 
+                  if j < 0 then fb 
+                  else 
+                    let cj = rm.(j) in
+                    let t1j = t1i.derivative cj in 
+                    let t2j = t2i.derivative cj in 
+                    let fb' = 
+                      if not (easy_empty t1j || easy_empty t2j || QQ.mem (t1j,t2j) fb) then 
+                        begin
+                          Queue.push (B(l1,cj::l2,t1j,t2j)) q;
+                          QQ.add (t1j,t2j) fb
+                        end
+                      else fb in 
+                      loop (pred j) fb' in 
+                let fb' = loop (pred len) fb in 
+                  full_search q (fa,fb',fc)
+          | C(l1,l2,l3,t2i,t2j) -> 
+              if t2i.final && t2j.final then 
+                let w1 = string_of_char_codes (Safelist.rev l1) in 
+                let w2 = string_of_char_codes (Safelist.rev l2) in 
+                let w3 = string_of_char_codes (Safelist.rev l3) in  
+                  Misc.Left(w1,w2 ^ w3,w1 ^ w2, w3)
+              else
+                let rm,len = desc_maps (Diff(t2i,t2j)) in 
+                let rec loop k fc = 
+                  if k < 0 then fc 
+                  else 
+                    let ck = rm.(k) in
+                    let t2ik = t2i.derivative ck in 
+                    let t2jk = t2j.derivative ck in 
+                    let fc' = 
+                      if not (easy_empty t2ik || easy_empty t2jk || QQ.mem (t2ik,t2jk) fc) then 
+                        begin
+                          Queue.push (C(l1,l2,ck::l3,t2ik,t2jk)) q;
+                          QQ.add (t2ik,t2jk) fc
+                        end
+                      else fc in 
+                      loop (pred k) fc' in 
+                let fc' = loop (pred len) fc in 
+                  full_search q (fa,fb,fc') in
+      let q = Queue.create () in 
+      Queue.push (A([],t1)) q;
+      full_search q (Q.empty,QQ.empty,QQ.empty) in
+    (match res with 
+      | Misc.Right _ -> 
+          t1.splittable <- Q.add t2 t1.splittable;
+      | _ -> ());
+    res
+            
 let iterable_cex t1 = 
   if t1.final then Misc.Left("","","","")
   else
