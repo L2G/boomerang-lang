@@ -25,10 +25,45 @@ let pstring (spaces:string in Xml.WS) (l:lens)
     : (lens in Xml.ELT "string" (ctype l) <-> atype l)
     = pvalue spaces "string" l
 
-let BASE64 : regexp = [A-Za-z0-9+/]
+let PADDED (R:regexp) : regexp = Xml.WS . R . Xml.WS
 
-let pdata (spaces:string in Xml.WS) (l:lens where subset (ctype l) BASE64)
-    : (lens in Xml.ELT "string" (ctype l) <-> atype l)
+(* http://tools.ietf.org/html/rfc1421 pages 12-3
+
+   The encoding process represents 24-bit groups of input bits as output
+   strings of 4 encoded characters. Proceeding from left to right across
+   a 24-bit input group extracted from the output of step 3, each 6-bit
+   group is used as an index into an array of 64 printable characters.
+   The character referenced by the index is placed in the output string.
+   These characters, identified in Table 1, are selected so as to be
+   universally representable, and the set excludes characters with
+   particular significance to SMTP (e.g., ".", "<CR>", "<LF>").
+
+   Special processing is performed if fewer than 24 bits are available
+   in an input group at the end of a message.  A full encoding quantum
+   is always completed at the end of a message.  When fewer than 24
+   input bits are available in an input group, zero bits are added (on
+   the right) to form an integral number of 6-bit groups.  Output
+   character positions which are not required to represent actual input
+   data are set to the character "=".  Since all canonically encoded
+   output is an integral number of octets, only the following cases can
+   arise: (1) the final quantum of encoding input is an integral
+   multiple of 24 bits; here, the final unit of encoded output will be
+   an integral multiple of 4 characters with no "=" padding, (2) the
+   final quantum of encoding input is exactly 8 bits; here, the final
+   unit of encoded output will be two characters followed by two "="
+   padding characters, or (3) the final quantum of encoding input is
+   exactly 16 bits; here, the final unit of encoded output will be three
+   characters followed by one "=" padding character.
+*)
+
+let BASE64CHAR : regexp = [A-Za-z0-9+/]
+let BASE64QUANTUM : regexp = BASE64CHAR{4}
+let BASE64ENDING : regexp = 
+  BASE64QUANTUM | BASE64CHAR{3} . "=" | BASE64CHAR{2} . "=="
+let BASE64 : regexp = BASE64QUANTUM+ . BASE64ENDING?
+
+let pdata (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED BASE64))
+    : (lens in Xml.ELT "data" (ctype l) <-> atype l)
     = Xml.elt spaces "data" l
 
 (* TODO ISO 8601 calls 19 valid way to refer to the 20th century, etc. *)
@@ -36,7 +71,7 @@ let PLUSMINUS : regexp = '+' | '-'
 let NUM2 : regexp = DIGIT{2}
 let ISO8601_DATE : regexp = PLUSMINUS? . DIGIT? . NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
 
-let pdate (spaces:string in Xml.WS) (l:lens where subset (ctype l) ISO8601_DATE)
+let pdate (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED ISO8601_DATE))
   : (lens in Xml.ELT "date" (ctype l) <-> atype l)
   = pvalue spaces "date" l
 
@@ -71,7 +106,7 @@ test (pbool "" "yes" "no").get "<true/>" = "yes"
 test (pbool "" "yes" "no").put "no" into "<true/>" = "<false/>"
 
 let REAL : regexp = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?
-let preal (spaces:string in Xml.WS) (l:lens where subset (ctype l) REAL)
+let preal (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED REAL))
   : (lens in Xml.ELT "real" (ctype l) <-> atype l)
   = pvalue spaces "real" l
 
@@ -79,7 +114,7 @@ test (preal "  " REAL).get "<real>+3.01E-10</real>" = "+3.01E-10"
 test (preal "  " REAL).create "-1" = "  <real>-1</real>"
 
 let INTEGER : regexp = PLUSMINUS? . DIGIT+
-let pinteger (spaces:string in Xml.WS) (l:lens where subset (ctype l) INTEGER)
+let pinteger (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED INTEGER))
   : (lens in Xml.ELT "integer" (ctype l) <-> atype l)
   = pvalue spaces "integer" l
 
@@ -110,7 +145,7 @@ let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R+
 
 let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
   : (lens in NONEMPTY_ARRAY (ctype l) <-> (atype l)+ )
-  = Xml.elt spaces "array" <l>+
+  = Xml.elt spaces "array" <parray:l>+
 
 let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
 
@@ -158,7 +193,7 @@ let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp)
     (v:lens where VALID_KV (indent spaces) KEYS v)
   : (lens in NONEMPTY_HDICT KEYS (ctype v) <-> (KV KEYS (atype v))+)
   = let kv = kvpair (indent spaces) KEYS v in
-    Xml.elt spaces "dict" <kv>+
+    Xml.elt spaces "dict" <hdict:kv>+
 
 let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
 
@@ -170,7 +205,7 @@ let phdict (spaces:string in Xml.WS) (KEYS:regexp)
 (* precomputed indentation *)
 let field (l:lens) = ins "=" . l . ins ";"
 let lhdict = 
-  phdict "\n" ("foo"|"bar"|"baz") (pinteger (indent "\n") (field INTEGER))
+  phdict "\n" ("foo"|"bar"|"baz") (field (pinteger "\n  " INTEGER))
 test lhdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
 test lhdict.get "<dict/>" = ""
 test lhdict.put "bar=5;foo=4;" into "<dict/>" =
@@ -194,7 +229,7 @@ let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
   : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KV KEYS (atype (mk_v (indent spaces))))+)
   = let inner_spaces = indent spaces in
     let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
-    Xml.elt spaces "dict" <kv>+
+    Xml.elt spaces "dict" <hsdict:kv>+
 
 let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> 
@@ -283,12 +318,12 @@ let LINE = (LINECHAR . ((LINECHAR | " ")* . LINECHAR)?)?
 
 let lodict =
   podict "\n" 
-    #{regexp*lens}["Author",pstring "\n  " (field LINE) . ins '\n';
-		   "Lines",ins "=" . 
-                           parray "\n  " 
-			     (pstring "\n    " (LINE . ins " / ")) .
-			   ins '\n';
-		   "Birthdate",pinteger "\n  " (field INTEGER)]
+    #{regexp*lens}["Author",field (pstring "\n  " LINE) . ins '\n';
+		   "Lines",
+		   field (parray "\n  " 
+			    (pstring "\n    " (LINE . ins " / "))) .
+		   ins '\n';
+		   "Birthdate",field (pinteger "\n  " INTEGER)]
 
 let sample = 
   <<
@@ -309,14 +344,14 @@ let sample =
 test lodict.get sample = 
   <<
     Author=William Shakespeare;
-    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / 
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / ;
     Birthdate=1564;
   >>
 
 test lodict.create 
   <<
     Author=William Carlos Williams;
-    Lines=so much depends / upon /  / a red wheel / barrow /  / glazed with rain / water /  / beside the white / chickens. / 
+    Lines=so much depends / upon /  / a red wheel / barrow /  / glazed with rain / water /  / beside the white / chickens. / ;
     Birthdate=1883;
   >> =
   <<
@@ -346,7 +381,7 @@ test lodict.create
 test lodict.put
   <<
     Author=Michael Greenberg;
-    Lines=so much depends / upon /  / a red sail / boat /  / glazed with delaware / water /  / beside the white / chickens. / 
+    Lines=so much depends / upon /  / a red sail / boat /  / glazed with delaware / water /  / beside the white / chickens. / ;
     Birthdate=1984;
   >> into
   <<
@@ -493,7 +528,7 @@ test llist2.get
   >> = 
   <<
     Author=William Shakespeare;
-    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / 
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / ;
     Birthdate=1564;
   >>
 
@@ -530,3 +565,51 @@ test llist3.get
   >>
   =
   "booleanKey=#t;dateKey=2007-08-07T22:09:04Z;listKey;numberKey=5;recordKey;stringKey=string value;"
+
+let llist4 =
+  let tab = "\n    " in
+  plist 
+    (podict "\n"
+       #{regexp*lens}["Year Of Birth",field (pinteger tab INTEGER);
+		      "Pets Names",
+		      field (empty_array tab);
+		      "Picture", field (pdata tab (kill_ws . BASE64)) . ins '\n';
+		      "City of Birth",field (pstring tab LINE);
+		      "Name",field (pstring tab LINE);
+		      "Kids Names",
+		      field (parray tab
+			       (pstring (tab . "    ") LINE . ins ";"))])
+
+(* from http://developer.apple.com/documentation/Darwin/Reference/ManPages/man5/plist.5.html *)
+test llist4.get
+  <<
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Year Of Birth</key>
+        <integer>1965</integer>
+        <key>Pets Names</key>
+        <array/>
+        <key>Picture</key>
+        <data>
+            PEKBpYGlmYFCPA==
+        </data>
+        <key>City of Birth</key>
+        <string>Springfield</string>
+        <key>Name</key>
+        <string>John Doe</string>
+        <key>Kids Names</key>
+        <array>
+            <string>John</string>
+            <string>Kyra</string>
+        </array>
+    </dict>
+    </plist>
+  >> = 
+  <<
+    Year Of Birth=1965;Pets Names=;Picture=PEKBpYGlmYFCPA==;
+    City of Birth=Springfield;Name=John Doe;Kids Names=John;Kyra;;
+  >>
+

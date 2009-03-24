@@ -15,6 +15,20 @@
 
 * functions to process command-line arguments from boomerang (e.g., set solutions mode for coqsplit)
 
+* match tags are currently static: <LIDENT:qid> is the parsing rule.
+  we should relax this to <aexp:qid> and allow for dynamically
+  generated match tags.  this is necessary, e.g., for pdict.
+
+** expose dictionary typing rules and add to contracts?  right now
+   dictionary typing errors are runtime errors about static tagging.
+   if we make the tags dynamic, it will be harder to debug, e.g.
+
+   let l1,l2 = copy "a",copy "b"
+   let l (tag:string) = <"x":l1> . <tag:l2>
+
+   will produce an error message saying that the tag "x" is used with
+   two different lenses if it ever gets "x" in the tag...
+
 == LIBRARIES == 
 
 * Investigate other options for the contract on sorting.
