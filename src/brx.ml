@@ -947,11 +947,35 @@ let derivative t w =
     else loop (succ i) (acc.derivative (Char.code w.[i])) in 
     loop 0 t
 
-let fast_splittable_cex t1 t2 = 
-  if t1.known_singleton 
-  || t2.known_singleton
-  || Q.mem t2 t1.splittable then true
-  else
+let twochar_splittable t1 t2 = 
+  let t1_rev = mk_reverse t1 in 
+  let rm,len = get_maps t2 in 
+  let rec loop i = 
+    if i < 0 then true
+    else 
+      let ci = rm.(i) in 
+      let d2 = t2.derivative ci in 
+      if easy_empty d2 then loop (pred i)
+      else if d2.final && (t1.derivative ci).final then false 
+      else 
+        let rm',len' = desc_maps (Diff(t1_rev,d2)) in 
+        let rec loop2 j = 
+          if j < 0 then loop (pred i) 
+          else 
+            let cj = rm'.(j) in 
+            let d1 = t1_rev.derivative cj in 
+            if easy_empty d1 then loop2 (pred j)
+            else 
+              let d2' = d2.derivative cj in 
+              if easy_empty d2' then loop2 (pred j)
+              else 
+                let d1' = d1.derivative ci in 
+                if easy_empty d1' then loop2 (pred j)
+                else false in
+        loop2 (pred len') in
+  loop (pred len) 
+
+let onechar_splittable t1 t2 = 
   let t1_rev = mk_reverse t1 in 
   let rm,len = desc_maps (Diff(t1_rev,t2)) in 
   let rec loop i = 
@@ -963,14 +987,18 @@ let fast_splittable_cex t1 t2 =
       else 
         let d2 = t2.derivative ci in 
         if easy_empty d2 then loop (pred i)
-        else false in 
+        else false in
   loop (pred len)
 
 type ('a,'b,'c) tri = A of 'a | B of 'b | C of 'c  
 
 let splittable_cex t1 t2 = 
   let aux t1 t2 = 
-    if fast_splittable_cex t1 t2 then None
+    if t1.known_singleton 
+    || t2.known_singleton 
+    || Q.mem t2 t1.splittable 
+    || onechar_splittable t1 t2 
+    || twochar_splittable t1 t2 then None
     else
       let res = 
         let go1 mem add f t push = 
@@ -981,7 +1009,7 @@ let splittable_cex t1 t2 =
               let cj = rm.(j) in 
               let tj = t.derivative cj in 
               let f' = 
-                if not (mem tj f || easy_empty tj) then 
+                if not (easy_empty tj || is_epsilon tj || mem tj f) then 
                   (push tj cj; add tj f)
                 else f in
                 loop (pred j) f' in 
@@ -996,7 +1024,7 @@ let splittable_cex t1 t2 =
               let f' = 
                 if not (easy_empty t1j) then 
                   let t2j = t2.derivative cj in 
-                    if not (mem (t1j,t2j) f || is_empty t2j) then 
+                    if not (easy_empty t2j || mem (t1j,t2j) f) then 
                       (push t1j t2j cj; add (t1j,t2j) f) 
                     else f 
                 else f in 
@@ -1010,31 +1038,31 @@ let splittable_cex t1 t2 =
                 if t1i.final then Queue.push (B(l1,[],t1i,t2)) q;
                 let fa' = go1 Q.mem Q.add fa t1i 
                   (fun t1j cj -> Queue.push (A(cj::l1,t1j)) q) in
-                full_search (fa',fb,fc)
+                  full_search (fa',fb,fc)
             | B(l1,l2,t1i,t2i) -> 
                 if t1i.final && l2 <> [] then Queue.push (C(l1,l2,[],t2i,t2)) q;
                 let fb' = go2 QQ.mem QQ.add fb t1i t2i
                   (fun t1j t2j cj -> Queue.push (B(l1,cj::l2,t1j,t2j)) q) in 
                   full_search (fa,fb',fc)
-            | C(l1,l2,l3,t2i,t2j) -> 
-                if t2i.final && t2j.final then 
-                  let w1 = string_of_char_codes (Safelist.rev l1) in 
-                  let w2 = string_of_char_codes (Safelist.rev l2) in 
-                  let w3 = string_of_char_codes (Safelist.rev l3) in  
-                  Some(w1,w2 ^ w3,w1 ^ w2, w3)
+            | C(l1,l2,l3,t2i,t2j) ->
+                if t2i.final && t2j.final then
+                  let w1 = string_of_char_codes (Safelist.rev l1) in
+                  let w2 = string_of_char_codes (Safelist.rev l2) in
+                  let w3 = string_of_char_codes (Safelist.rev l3) in
+                    Some(w1,w2 ^ w3,w1 ^ w2, w3)
                 else
                   let fc' = go2 QQ.mem QQ.add fc t2i t2j
-                  (fun t2k t2l ck -> Queue.push (C(l1,l2,ck::l3,t2k,t2l)) q) in 
-                full_search (fa,fb,fc') in 
+                    (fun t2k t2l ck -> Queue.push (C(l1,l2,ck::l3,t2k,t2l)) q) in
+                    full_search (fa,fb,fc') in
           Queue.push (A([],t1)) q;
           full_search (Q.singleton t1,QQ.empty,QQ.empty) in
-      if res = None then (t1.splittable <- Q.add t2 t1.splittable);
-      res in 
-  match aux t1 t2 with
-    | Some(w1,w2,w3,w4) -> 
-        Misc.Left(w1,w2,w3,w4)
-    | None -> 
-        Misc.Right(mk_seq t1 t2)
+        if res = None then (t1.splittable <- Q.add t2 t1.splittable);
+        res in 
+    match aux t1 t2 with
+      | Some(w1,w2,w3,w4) -> 
+          Misc.Left(w1,w2,w3,w4)
+      | None -> 
+          Misc.Right(mk_seq t1 t2)
           
 let iterable_cex t1 = 
   if t1.final then Misc.Left("","","","")
