@@ -3,10 +3,31 @@ module Plist =
 (* nesting *)
 let indent (spaces:string in Xml.WS) : (string in Xml.WS) = spaces . "  "
 
+(* simple values in plist/xml
+   
+   we let the inner lens, l, handle whitespace at the front; pvalue
+   will eliminate whitespace at the end
+*)
 let kill_ws : (lens in Xml.WS <-> "") = qdel Xml.WS ""
 let pvalue (spaces:string in Xml.WS) (tag:string) (l:lens where lens_splittable l kill_ws)
-  : (lens in Xml.ELT tag (ctype l) <-> atype l)
-  = Xml.simple_elt spaces tag (l . kill_ws)
+    : (lens in Xml.ELT tag (ctype l) <-> atype l)
+    = Xml.simple_elt spaces tag (l . kill_ws)
+
+(* used to remove whitespace at the front of pvalues
+
+   we use pvalues/padded instead of Xml.elt so we can get a nicer
+   canonized form: we'd rather see 
+
+     <integer>5</integer> 
+
+   than 
+
+     <integer>5
+     </integer>
+*)
+let PADDED (R:regexp) : regexp = Xml.WS . R
+let padded (l:lens) : (lens in PADDED (ctype l) <-> atype l)
+    = del Xml.WS . l
 
 (* DTD taken from http://www.apple.com/DTDs/PropertyList-1.0.dtd *)
 
@@ -25,7 +46,6 @@ let pstring (spaces:string in Xml.WS) (l:lens)
     : (lens in Xml.ELT "string" (ctype l) <-> atype l)
     = pvalue spaces "string" l
 
-let PADDED (R:regexp) : regexp = Xml.WS . R . Xml.WS
 
 (* http://tools.ietf.org/html/rfc1421 pages 12-3
 
@@ -63,8 +83,8 @@ let BASE64ENDING : regexp =
 let BASE64 : regexp = BASE64QUANTUM+ . BASE64ENDING?
 
 let pdata (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED BASE64))
-    : (lens in Xml.ELT "data" (ctype l) <-> atype l)
-    = Xml.elt spaces "data" l
+  : (lens in Xml.ELT "data" (ctype l) <-> atype l)
+  = pvalue spaces "data" l
 
 (* TODO ISO 8601 calls 19 valid way to refer to the 20th century, etc. *)
 let PLUSMINUS : regexp = '+' | '-'
@@ -436,8 +456,6 @@ test lodict.put
 
    nonhomogenous dictionaries
 
-   -- ordered finite mappings
-
    -- sorted, finite mappings
 
    even better dictionaries
@@ -573,7 +591,7 @@ let llist4 =
        #{regexp*lens}["Year Of Birth",field (pinteger tab INTEGER);
 		      "Pets Names",
 		      field (empty_array tab);
-		      "Picture", field (pdata tab (kill_ws . BASE64)) . ins '\n';
+		      "Picture", field (pdata tab (padded BASE64)) . ins '\n';
 		      "City of Birth",field (pstring tab LINE);
 		      "Name",field (pstring tab LINE);
 		      "Kids Names",
