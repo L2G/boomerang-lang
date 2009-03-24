@@ -497,11 +497,36 @@ test llist2.get
     Birthdate=1564;
   >>
 
+(* from http://www.apple.com/applescript/features/propertylists.html *)
 let llist3 =
   plist (podict "\n  "
 	   #{regexp*lens}["booleanKey",field (pbool "\n    " "#t" "#f");
-			  "dateKey",field (pdate "\n    " DATE);
-			  "listKey",empty_array "\n    " . ";";
-			  "recordKey",empty_dict "\n    " . ";";
+			  "dateKey",field (pdate "\n    " ISO8601_DATE);
+			  "listKey",empty_array "\n    " . ins ";";
+			  "numberKey",field (pinteger "\n    " INTEGER);
+			  "recordKey",empty_dict "\n    " . ins ";";
 			  "stringKey",field (pstring "\n    " LINE)])
 			  
+test llist3.get
+  <<
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+      <dict>
+        <key>booleanKey</key>
+        <true/>
+        <key>dateKey</key>
+        <date>2007-08-07T22:09:04Z</date>
+        <key>listKey</key>
+        <array/>
+        <key>numberKey</key>
+        <integer>5</integer>
+        <key>recordKey</key>
+        <dict/>
+        <key>stringKey</key>
+        <string>string value</string>
+      </dict>
+    </plist>
+  >>
+  =
+  "booleanKey=#t;dateKey=2007-08-07T22:09:04Z;listKey;numberKey=5;recordKey;stringKey=string value;"
