@@ -129,7 +129,7 @@ let simple_elt_openclose (spaces:string) (tag:string)
   : (lens in (WS . "<" . tag . WS . "/>") <-> "")
   = raw_open spaces tag . slash_close
 
-let EMPTYELT (tag:string) : regexp =
+let EMPTYELT (tag:regexp) : regexp =
   ("<" . tag . WS . "/>" | OPEN tag . CLOSE tag)
 
 (* [simple_elt_no_kids sp t] proecesses a single-line XML element 
@@ -145,7 +145,7 @@ test (simple_elt_no_kids "" "foo").get "<foo/>" = ""
 test (simple_elt_no_kids "" "foo").create "" = "<foo/>"
 test (simple_elt_no_kids "" "foo").put "" into "<foo></foo>" = "<foo></foo>"
 
-let ELT (tag:string) (BODY:regexp) : regexp
+let ELT (tag:regexp) (BODY:regexp) : regexp
   = WS . OPEN tag . BODY . WS . CLOSE tag
 
 (* [elt sp t l] processes a multi-line XML element.
@@ -191,7 +191,7 @@ let QUOTED (E:regexp) : regexp =
 let quoted (l:lens) : (lens in QUOTED (ctype l) <-> atype l)
   = del [''""] . l . del [''""]
 
-let ATTR (name:string) (VALUE:regexp) : regexp 
+let ATTR (name:regexp) (VALUE:regexp) : regexp 
     = WSP . name . "=" . QUOTED VALUE
 
 (* [attr n l] proceses a string consiting of whitespace and a

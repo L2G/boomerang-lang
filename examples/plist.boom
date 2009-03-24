@@ -1,5 +1,13 @@
 module Plist =
 
+(* nesting *)
+let indent (spaces:string in Xml.WS) : (string in Xml.WS) = spaces . "  "
+
+let kill_ws : (lens in Xml.WS <-> "") = qdel Xml.WS ""
+let pvalue (spaces:string in Xml.WS) (tag:string) (l:lens where lens_splittable l kill_ws)
+  : (lens in Xml.ELT tag (ctype l) <-> atype l)
+  = Xml.simple_elt spaces tag (l . kill_ws)
+
 let DTD_ID : regexp =
   Xml.DOCTYPE "plist" 
     ("PUBLIC" . Xml.WSP . 
@@ -13,22 +21,22 @@ let prolog : (lens in (Xml.PROLOG DTD_ID) <-> "") =
 
 (* Primitive types
 
-  <!ELEMENT string (#PCDATA)>
-  <!ELEMENT data (#PCDATA)> <!-- Contents interpreted as Base-64 encoded -->
-
-  <!ELEMENT date (#PCDATA)> 
-  <!-- Contents should conform to a subset of ISO 8601 (in particular,
-  YYYY '-' MM '-' DD 'T' HH ':' MM ':' SS 'Z'.  Smaller units may be
-  omitted with a loss of precision) -->
+   <!ELEMENT string (#PCDATA)>
+   <!ELEMENT data (#PCDATA)> <!-- Contents interpreted as Base-64 encoded -->
+ 
+   <!ELEMENT date (#PCDATA)> 
+   <!-- Contents should conform to a subset of ISO 8601 (in particular,
+   YYYY '-' MM '-' DD 'T' HH ':' MM ':' SS 'Z'.  Smaller units may be
+   omitted with a loss of precision) -->
 *)
 
-let pstring (spaces:string) (l:lens)
+let pstring (spaces:string in Xml.WS) (l:lens)
     : (lens in Xml.ELT "string" (ctype l) <-> atype l)
     = Xml.elt spaces "string" l
 
 let BASE64 : regexp = [A-Za-z0-9+/]
 
-let pdata (spaces:string) (l:lens where subset (ctype l) BASE64)
+let pdata (spaces:string in Xml.WS) (l:lens where subset (ctype l) BASE64)
     : (lens in Xml.ELT "string" (ctype l) <-> atype l)
     = Xml.elt spaces "data" l
 
@@ -37,26 +45,26 @@ let PLUSMINUS : regexp = '+' | '-'
 let NUM2 : regexp = DIGIT{2}
 let ISO8601_DATE : regexp = PLUSMINUS? . DIGIT? . NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
 
-let pdate (spaces:string) (l:lens where subset (ctype l) ISO8601_DATE)
+let pdate (spaces:string in Xml.WS) (l:lens where subset (ctype l) ISO8601_DATE)
   : (lens in Xml.ELT "date" (ctype l) <-> atype l)
-  = Xml.elt spaces "date" l
+  = pvalue spaces "date" l
 
 (* Numerical primitives
 
-  <!ELEMENT true EMPTY>  <!-- Boolean constant true -->
-  <!ELEMENT false EMPTY> <!-- Boolean constant false -->
-  <!ELEMENT real (#PCDATA)> 
-  <!-- Contents should represent a floating point number matching ("+" | "-")? 
-  d+ ("."d* )? ("E" ("+" | "-") d+)? where d is a digit 0-9.  -->
-  <!ELEMENT integer (#PCDATA)> 
-  <!-- Contents should represent a (possibly signed) integer number in base 10 -->
+   <!ELEMENT true EMPTY>  <!-- Boolean constant true -->
+   <!ELEMENT false EMPTY> <!-- Boolean constant false -->
+   <!ELEMENT real (#PCDATA)> 
+   <!-- Contents should represent a floating point number matching ("+" | "-")? 
+   d+ ("."d* )? ("E" ("+" | "-") d+)? where d is a digit 0-9.  -->
+   <!ELEMENT integer (#PCDATA)> 
+   <!-- Contents should represent a (possibly signed) integer number in base 10 -->
 *)
 
-let ptrue (spaces:string)
+let ptrue (spaces:string in Xml.WS)
   : (lens in (Xml.WS . Xml.EMPTYELT "true") <-> "")
   = Xml.simple_elt_no_kids spaces "true"
 
-let pfalse (spaces:string)
+let pfalse (spaces:string in Xml.WS)
   : (lens in (Xml.WS . Xml.EMPTYELT "false") <-> "")
   = Xml.simple_elt_no_kids spaces "false"
 
@@ -64,7 +72,7 @@ let pfalse (spaces:string)
 
    it seems like we keep having to lift conditionals all the way to the top...
 *)
-let pbool (spaces:string) (strue:string) (sfalse:string where not (strue = sfalse))
+let pbool (spaces:string in Xml.WS) (strue:string) (sfalse:string where not (strue = sfalse))
   : (lens in (Xml.WS . (Xml.EMPTYELT "true" | Xml.EMPTYELT "false")) <-> (strue | sfalse))
   = qdel Xml.WS spaces . (Xml.EMPTYELT "true" <-> strue || Xml.EMPTYELT "false" <-> sfalse)
 
@@ -72,47 +80,151 @@ test (pbool "" "yes" "no").get "<true/>" = "yes"
 test (pbool "" "yes" "no").put "no" into "<true/>" = "<false/>"
 
 let REAL : regexp = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?
-let preal (spaces:string) (l:lens where subset (ctype l) REAL)
+let preal (spaces:string in Xml.WS) (l:lens where subset (ctype l) REAL)
   : (lens in Xml.ELT "real" (ctype l) <-> atype l)
-  = Xml.elt spaces "real" l
+  = pvalue spaces "real" l
 
 test (preal "  " REAL).get "<real>+3.01E-10</real>" = "+3.01E-10"
-test (preal "  " REAL).create "-1" = "  <real>-1  </real>"
+test (preal "  " REAL).create "-1" = "  <real>-1</real>"
 
 let INTEGER : regexp = PLUSMINUS? . DIGIT+
-let pinteger (spaces:string) (l:lens where subset (ctype l) INTEGER)
+let pinteger (spaces:string in Xml.WS) (l:lens where subset (ctype l) INTEGER)
   : (lens in Xml.ELT "integer" (ctype l) <-> atype l)
-  = Xml.elt spaces "integer" l
+  = pvalue spaces "integer" l
+
+test (pinteger "  " INTEGER).get "<integer>120</integer>" = "120"
+test (pinteger "  " INTEGER).put "5" into "<integer>0 </integer>" = "  <integer>5</integer>"
+test (pinteger "  " INTEGER).create "120" = "  <integer>120</integer>"
 
 (* Collections
 
-  <!ELEMENT array (%plistObject;)*>
-  <!ELEMENT dict (key, %plistObject;)*>
-  <!ELEMENT key (#PCDATA)>
+   <!ELEMENT array (%plistObject;)*>
+   <!ELEMENT dict (key, %plistObject;)*>
+   <!ELEMENT key (#PCDATA)>
+
+   "When encoding the contents of a CFDictionary object, each member is
+   encoded by placing the dictionary key in a <key> tag and immediately
+   following it with the corresponding value"
+
+   http://developer.apple.com/documentation/CoreFoundation/Conceptual/CFPropertyLists/Articles/XMLTags.html
 *)
 
-let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R*
+let EMPTY_ARRAY : regexp = Xml.WS . Xml.EMPTYELT "array"
 
-let nonempty_array (spaces:string) (l:lens where lens_iterable l)
-  : (lens in NONEMPTY_ARRAY (ctype l) <-> (atype l)* )
-  = Xml.elt spaces "array" <l>*
+let empty_array (spaces:string in Xml.WS)
+    : (lens in EMPTY_ARRAY <-> "")
+    = Xml.simple_elt_no_kids spaces "array"
 
-let EMPTY_ARRAY : regexp = Xml.WS . "<array" . Xml.WS . "/>"
+let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R+
 
-let empty_array (spaces:string)
-  : (lens in EMPTY_ARRAY <-> "")
-  = Xml.simple_elt_openclose spaces "array"
+  let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
+      : (lens in NONEMPTY_ARRAY (ctype l) <-> (atype l)+ )
+      = Xml.elt spaces "array" <l>+
 
-let parray (spaces:string) (l:lens where lens_iterable l)
-  : (lens in (EMPTY_ARRAY | NONEMPTY_ARRAY (ctype l)) <-> (atype l)* )
-  = empty_array spaces || nonempty_array spaces l
+    let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
 
-test (parray "" (pinteger " " (copy INTEGER . ins ";"))).get "<array>\n <integer>1</integer></array>" = "1;"
-test (parray "" (pinteger " " (copy INTEGER . ins ";"))).create "" = "<array/>"
-test (parray "" (pinteger " " (copy INTEGER . ins ";"))).put "5;4;3;" into "<array/>" = error
+let parray (spaces:string in Xml.WS) (l:lens where lens_iterable l)
+    : (lens in ARRAY (ctype l) <-> (atype l)* )
+    = empty_array spaces | nonempty_array spaces l
+
+let larray = parray "" (pinteger "" (copy INTEGER . ins ";"))
+test larray.get "<array>\n <integer>1</integer></array>" = "1;"
+test larray.create "" = "<array/>"
+test larray.put "5;4;3;" into "<array/>" =
+  "<array><integer>5</integer><integer>4</integer><integer>3</integer></array>"
+
+let EMPTY_DICT = Xml.WS . Xml.EMPTYELT "dict"
+
+let empty_dict (spaces:string in Xml.WS)
+    : (lens in EMPTY_DICT <-> "")
+    = Xml.simple_elt_no_kids spaces "dict"
+
+(* first, homogenous dictionaries *)
+let KEY (K:regexp) : regexp = Xml.ELT "key" K
+
+let pkey (spaces:string in Xml.WS) (K:regexp)
+  : (lens in KEY K <-> K)
+  = pvalue spaces "key" (key K)
+
+let KVPAIR (K:regexp) (V:regexp) : regexp =
+  KEY K . V
+
+let VALID_KV (spaces:string in Xml.WS) (K:regexp) (v:lens) : bool =
+  lens_splittable (pkey spaces K) v &&
+  lens_iterable (pkey spaces K . v)
+
+let kvpair (spaces:string in Xml.WS) (K:regexp) (v:lens where lens_splittable (KEY K) v)
+  : (lens in KVPAIR K (ctype v) <-> (K . atype v))
+  = pkey spaces K . v
+
+let NONEMPTY_HDICT (K:regexp) (V:regexp) : regexp =
+  Xml.ELT "dict" (KVPAIR K V)+
+
+let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp) 
+    (v:lens where VALID_KV (indent spaces) KEYS v)
+  : (lens in NONEMPTY_HDICT KEYS (ctype v) <-> (KEYS . atype v)+)
+  = let kv = kvpair (indent spaces) KEYS v in
+    Xml.elt spaces "dict" <kv>+
+
+(* anaphora would fix this *)
+let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
+    (mk_v:(spaces2:(string in Xml.WS) -> (v:lens where VALID_KV spaces2 KEYS v)))
+  : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))+)
+  = let inner_spaces = indent spaces in
+    let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
+    Xml.elt spaces "dict" <kv>+
+
+let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
+
+let phdict (spaces:string in Xml.WS) (KEYS:regexp) 
+    (v:lens where VALID_KV (indent spaces) KEYS v)
+  : (lens in HDICT KEYS (ctype v) <-> (KEYS . atype v)* )
+  = empty_dict spaces | nonempty_hdict spaces KEYS v
+
+let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
+    (mk_v:(spaces2:(string in Xml.WS) -> 
+	  (v:lens where VALID_KV spaces2 KEYS v)))
+  : (lens in HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))* )
+  = empty_dict spaces | nonempty_hsdict spaces KEYS mk_v
+
+(* precomputed indentation... *)
+let lhdict = 
+  phdict "\n" ("foo"|"bar"|"baz") (pinteger (indent "\n") (ins "=" . copy INTEGER . ins ";"))
+test lhdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
+test lhdict.get "<dict/>" = ""
+test lhdict.put "bar=5;foo=4;" into "<dict/>" =
+  <<
+    
+    <dict>
+      <key>bar</key>
+      <integer>5</integer>
+      <key>foo</key>
+      <integer>4</integer>
+    </dict>
+  >>
+
+(* automatically managed indentation *)
+let lhsdict = 
+  phsdict "\n" ("foo"|"bar"|"baz") 
+    (fun (spaces:string in Xml.WS) -> 
+       pinteger spaces (ins "=" . copy INTEGER . ins ";"))
+test lhsdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
+test lhsdict.get "<dict/>" = ""
+test lhsdict.put "bar=5;foo=4;" into "<dict/>" =
+  <<
+    
+    <dict>
+      <key>bar</key>
+      <integer>5</integer>
+      <key>foo</key>
+      <integer>4</integer>
+    </dict>
+  >>
+
+
 
 (* Top level element
 
-  <!ELEMENT plist %plistObject;>
-  <!ATTLIST plist version CDATA "1.0" >
+   <!ELEMENT plist %plistObject;>
+   <!ATTLIST plist version CDATA "1.0" >
 *)
