@@ -34,6 +34,7 @@ let padded (l:lens) : (lens in PADDED (ctype l) <-> atype l)
 (* Primitive types
 
    <!ELEMENT string (#PCDATA)>
+
    <!ELEMENT data (#PCDATA)> <!-- Contents interpreted as Base-64 encoded -->
  
    <!ELEMENT date (#PCDATA)> 
@@ -45,7 +46,6 @@ let padded (l:lens) : (lens in PADDED (ctype l) <-> atype l)
 let pstring (spaces:string in Xml.WS) (l:lens)
     : (lens in Xml.ELT "string" (ctype l) <-> atype l)
     = pvalue spaces "string" l
-
 
 (* http://tools.ietf.org/html/rfc1421 pages 12-3
 
@@ -98,10 +98,13 @@ let pdate (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED ISO86
 (* Numerical primitives
 
    <!ELEMENT true EMPTY>  <!-- Boolean constant true -->
+
    <!ELEMENT false EMPTY> <!-- Boolean constant false -->
+
    <!ELEMENT real (#PCDATA)> 
    <!-- Contents should represent a floating point number matching ("+" | "-")? 
    d+ ("."d* )? ("E" ("+" | "-") d+)? where d is a digit 0-9.  -->
+
    <!ELEMENT integer (#PCDATA)> 
    <!-- Contents should represent a (possibly signed) integer number in base 10 -->
 *)
@@ -145,7 +148,9 @@ test (pinteger "  " INTEGER).create "120" = "  <integer>120</integer>"
 (* Collections
 
    <!ELEMENT array (%plistObject;)*>
+
    <!ELEMENT dict (key, %plistObject;)*>
+
    <!ELEMENT key (#PCDATA)>
 
    "When encoding the contents of a CFDictionary object, each member is
@@ -170,8 +175,8 @@ let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
 let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
 
 let parray (spaces:string in Xml.WS) (l:lens where lens_iterable l)
-    : (lens in ARRAY (ctype l) <-> (atype l)* )
-    = empty_array spaces | nonempty_array spaces l
+  : (lens in ARRAY (ctype l) <-> (atype l)* )
+  = empty_array spaces | nonempty_array spaces l
 
 let larray = parray "" (pinteger "" (copy INTEGER . ins ";"))
 test larray.get "<array>\n <integer>1</integer></array>" = "1;"
@@ -179,11 +184,15 @@ test larray.create "" = "<array/>"
 test larray.put "5;4;3;" into "<array/>" =
   "<array><integer>5</integer><integer>4</integer><integer>3</integer></array>"
 
+let pdict (spaces:string in Xml.WS) (l:lens)
+  : (lens in Xml.ELT "dict" (ctype l) <-> atype l)
+  = Xml.elt spaces "dict" l
+
 let EMPTY_DICT = Xml.WS . Xml.EMPTYELT "dict"
 
 let empty_dict (spaces:string in Xml.WS)
-    : (lens in EMPTY_DICT <-> "")
-    = Xml.simple_elt_no_kids spaces "dict"
+  : (lens in EMPTY_DICT <-> "")
+  = Xml.simple_elt_no_kids spaces "dict"
 
 (* first, homogenous dictionaries *)
 let KEY (K:regexp) : regexp = Xml.ELT "key" K
@@ -213,7 +222,7 @@ let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp)
     (v:lens where VALID_KV (indent spaces) KEYS v)
   : (lens in NONEMPTY_HDICT KEYS (ctype v) <-> (KV KEYS (atype v))+)
   = let kv = kvpair (indent spaces) KEYS v in
-    Xml.elt spaces "dict" <hdict:kv>+
+    pdict spaces <hdict:kv>+
 
 let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
 
@@ -249,7 +258,7 @@ let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
   : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KV KEYS (atype (mk_v (indent spaces))))+)
   = let inner_spaces = indent spaces in
     let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
-    Xml.elt spaces "dict" <hsdict:kv>+
+    pdict spaces <hsdict:kv>+
 
 let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> 
@@ -272,6 +281,8 @@ test lhsdict.put "bar=5;foo=4;" into "<dict/>" =
       <integer>4</integer>
     </dict>
   >>
+
+(* fixed-length fixed-order heterogenous *)
 
 let KVELTS (spec:(regexp*lens) List.t) : regexp List.t = 
   List.map{regexp*lens}{regexp}
@@ -317,7 +328,7 @@ let nonempty_odict (spaces:string in Xml.WS)
                                   && VALID_KVS spec)
   : (lens in NONEMPTY_ODICT spec <-> concat_regexps (KVS spec))
   = let kv = kvpairs (indent spaces) spec in
-    Xml.elt spaces "dict" kv
+    pdict spaces kv
 
 let ODICT (spec:(regexp*lens) List.t) : regexp 
   =  match List.empty{regexp*lens} spec with
@@ -452,15 +463,178 @@ test lodict.put
    </dict>
   >>
 
+(* fast-sorted heterogenous *)
+
+let VALID_SKVS (spec:(regexp*lens) List.t) =
+  sortable (KVELTS spec) &&
+  concatable (KVS spec)
+
+(* TODO this pattern keeps coming up...we should have
+   concat_lenses_ne, etc. for nonempty lists *)
+let skvpairs (spaces:string in Xml.WS)
+    (spec:(regexp*lens) List.t where List.nonempty{regexp*lens} spec
+                                  && VALID_SKVS spec)
+  : (lens in (union_regexps (KVELTS spec))* <-> concat_regexps (KVS spec))
+  = let kvs = 
+      List.map{regexp*lens}{lens}
+	(fun (p:regexp*lens) ->
+	   let k,v = p in
+	   kvpair spaces k v)
+	spec in
+    Sort.sort_concat kvs
+
+let NONEMPTY_SDICT (spec:(regexp*lens) List.t) : regexp =
+  Xml.ELT "dict" (union_regexps (KVELTS spec))*
+
+let nonempty_sdict (spaces:string in Xml.WS) 
+    (spec:(regexp*lens) List.t where List.nonempty{regexp*lens} spec
+                                  && VALID_SKVS spec)
+  : (lens in NONEMPTY_SDICT spec <-> concat_regexps (KVS spec))
+  = pdict spaces (skvpairs (indent spaces) spec)
+
+let SDICT (spec:(regexp*lens) List.t) : regexp 
+  =  match List.empty{regexp*lens} spec with
+      | true -> EMPTY_DICT
+      | false -> NONEMPTY_SDICT spec
+    : regexp
+
+let psdict (spaces:string in Xml.WS) 
+    (spec:(regexp*lens) List.t where VALID_KVS spec)
+  : (lens in SDICT spec <-> concat_regexps (KVS spec))
+  = match List.empty{regexp*lens} spec with
+      | true -> empty_dict spaces
+      | false -> nonempty_sdict spaces spec
+    : lens
+
+let lsdict =
+  psdict "\n" 
+    #{regexp*lens}["Author",field (pstring "\n  " LINE) . ins '\n';
+		   "Lines",
+		   field (parray "\n  " 
+			    (pstring "\n    " (LINE . ins " / "))) .
+		   ins '\n';
+		   "Birthdate",field (pinteger "\n  " INTEGER)]
+
+test lsdict.get sample = 
+  <<
+    Author=William Shakespeare;
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / ;
+    Birthdate=1564;
+  >>
+
+test lsdict.get
+  <<
+   
+    <dict>
+      <key>Lines</key>
+      <array>
+        <string>It is a tale told by an idiot,</string>
+        <string>Full of sound and fury, signifying nothing.</string>
+      </array>
+      <key>Author</key>
+      <string>William Shakespeare</string>
+      <key>Birthdate</key>
+      <integer>1564</integer>
+    </dict>
+  >>
+  =
+  <<
+    Author=William Shakespeare;
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / ;
+    Birthdate=1564;
+  >>
+
+
+test lsdict.create 
+  <<
+    Author=William Carlos Williams;
+    Lines=so much depends / upon /  / a red wheel / barrow /  / glazed with rain / water /  / beside the white / chickens. / ;
+    Birthdate=1883;
+  >> =
+  <<
+   
+   <dict>
+     <key>Author</key>
+     <string>William Carlos Williams</string>
+     <key>Lines</key>
+     <array>
+       <string>so much depends</string>
+       <string>upon</string>
+       <string></string>
+       <string>a red wheel</string>
+       <string>barrow</string>
+       <string></string>
+       <string>glazed with rain</string>
+       <string>water</string>
+       <string></string>
+       <string>beside the white</string>
+       <string>chickens.</string>
+     </array>
+     <key>Birthdate</key>
+     <integer>1883</integer>
+   </dict>
+  >>
+
+test lsdict.put
+  <<
+    Author=Michael Greenberg;
+    Lines=so much depends / upon /  / a red sail / boat /  / glazed with delaware / water /  / beside the white / chickens. / ;
+    Birthdate=1984;
+  >> into
+  <<
+   <dict>
+     <key>Author</key>
+     <string>Michael Greenberg</string>
+     <key>Birthdate</key>
+     <integer>1984</integer>
+     <key>Lines</key>
+     <array>
+       <string>so much depends</string>
+       <string>upon</string>
+       <string></string>
+       <string>a red wheel</string>
+       <string>barrow</string>
+       <string></string>
+       <string>glazed with rain</string>
+       <string>water</string>
+       <string></string>
+       <string>beside the white</string>
+       <string>chickens.</string>
+     </array>
+   </dict>
+  >>
+  =
+  <<
+   
+   <dict>
+     <key>Author</key>
+     <string>Michael Greenberg</string>
+     <key>Lines</key>
+     <array>
+       <string>so much depends</string>
+       <string>upon</string>
+       <string></string>
+       <string>a red sail</string>
+       <string>boat</string>
+       <string></string>
+       <string>glazed with delaware</string>
+       <string>water</string>
+       <string></string>
+       <string>beside the white</string>
+       <string>chickens.</string>
+     </array>
+     <key>Birthdate</key>
+     <integer>1984</integer>
+   </dict>
+  >>
+
 (* TODO
-
-   nonhomogenous dictionaries
-
-   -- sorted, finite mappings
 
    even better dictionaries
 
-   -- sorted finite mappings, optional elements, homogenous (or simply regular?) tails
+   -- sorted finite mappings
+   -- optional elements
+   -- homogenous (or simply regular?) tails
 *)
 
 (* Top level element
@@ -470,7 +644,13 @@ test lodict.put
 *)
 
 (* we allow any local DTD, but if you use a public DTD, it has to be
-   the right one. *)
+   the right one.
+
+   TODO
+
+   this DTD is simple enough that we could specify the scope of the
+   internal subset, if we wanted
+*)
 let DTD_ID : regexp =
   Xml.DOCTYPE "plist"
     (("SYSTEM" . Xml.WSP . Xml.SYSTEMID) |
