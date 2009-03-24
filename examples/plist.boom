@@ -23,7 +23,7 @@ let pvalue (spaces:string in Xml.WS) (tag:string) (l:lens where lens_splittable 
 
 let pstring (spaces:string in Xml.WS) (l:lens)
     : (lens in Xml.ELT "string" (ctype l) <-> atype l)
-    = Xml.elt spaces "string" l
+    = pvalue spaces "string" l
 
 let BASE64 : regexp = [A-Za-z0-9+/]
 
@@ -137,23 +137,26 @@ let pkey (spaces:string in Xml.WS) (K:regexp)
   : (lens in KEY K <-> K)
   = pvalue spaces "key" (key K)
 
-let KVPAIR (K:regexp) (V:regexp) : regexp =
+let KVELT (K:regexp) (V:regexp) : regexp =
   KEY K . V
+
+let KV (K:regexp) (V:regexp) : regexp =
+  K . V
 
 let VALID_KV (spaces:string in Xml.WS) (K:regexp) (v:lens) : bool =
   lens_splittable (pkey spaces K) v &&
   lens_iterable (pkey spaces K . v)
 
 let kvpair (spaces:string in Xml.WS) (K:regexp) (v:lens where lens_splittable (KEY K) v)
-  : (lens in KVPAIR K (ctype v) <-> (K . atype v))
+  : (lens in KVELT K (ctype v) <-> KV K (atype v))
   = pkey spaces K . v
 
 let NONEMPTY_HDICT (K:regexp) (V:regexp) : regexp =
-  Xml.ELT "dict" (KVPAIR K V)+
+  Xml.ELT "dict" (KVELT K V)+
 
 let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp) 
     (v:lens where VALID_KV (indent spaces) KEYS v)
-  : (lens in NONEMPTY_HDICT KEYS (ctype v) <-> (KEYS . atype v)+)
+  : (lens in NONEMPTY_HDICT KEYS (ctype v) <-> (KV KEYS (atype v))+)
   = let kv = kvpair (indent spaces) KEYS v in
     Xml.elt spaces "dict" <kv>+
 
@@ -161,12 +164,13 @@ let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
 
 let phdict (spaces:string in Xml.WS) (KEYS:regexp) 
     (v:lens where VALID_KV (indent spaces) KEYS v)
-  : (lens in HDICT KEYS (ctype v) <-> (KEYS . atype v)* )
+  : (lens in HDICT KEYS (ctype v) <-> (KV KEYS (atype v))* )
   = empty_dict spaces | nonempty_hdict spaces KEYS v
 
 (* precomputed indentation *)
+let field (l:lens) = ins "=" . l . ins ";"
 let lhdict = 
-  phdict "\n" ("foo"|"bar"|"baz") (pinteger (indent "\n") (ins "=" . copy INTEGER . ins ";"))
+  phdict "\n" ("foo"|"bar"|"baz") (pinteger (indent "\n") (field INTEGER))
 test lhdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
 test lhdict.get "<dict/>" = ""
 test lhdict.put "bar=5;foo=4;" into "<dict/>" =
@@ -180,10 +184,14 @@ test lhdict.put "bar=5;foo=4;" into "<dict/>" =
     </dict>
   >>
 
-(* automatically managed indentation -- would be much less ugly with anaphora *)
+(* automatically managed indentation -- would be much less ugly with anaphora 
+
+   also, this would be more elegant if spaces were always the _last_
+   argument.  then we could pass around partially applied elements, etc.
+*)
 let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> (v:lens where VALID_KV spaces2 KEYS v)))
-  : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))+)
+  : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KV KEYS (atype (mk_v (indent spaces))))+)
   = let inner_spaces = indent spaces in
     let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
     Xml.elt spaces "dict" <kv>+
@@ -191,13 +199,12 @@ let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
 let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> 
 	  (v:lens where VALID_KV spaces2 KEYS v)))
-  : (lens in HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))* )
+  : (lens in HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KV KEYS (atype (mk_v (indent spaces))))* )
   = empty_dict spaces | nonempty_hsdict spaces KEYS mk_v
 
 let lhsdict = 
   phsdict "\n" ("foo"|"bar"|"baz") 
-    (fun (spaces:string in Xml.WS) -> 
-       pinteger spaces (ins "=" . copy INTEGER . ins ";"))
+    (fun (spaces:string in Xml.WS) -> pinteger spaces (field INTEGER))
 test lhsdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
 test lhsdict.get "<dict/>" = ""
 test lhsdict.put "bar=5;foo=4;" into "<dict/>" =
@@ -211,15 +218,196 @@ test lhsdict.put "bar=5;foo=4;" into "<dict/>" =
     </dict>
   >>
 
+let KVELTS (spec:(regexp*lens) List.t) : regexp List.t = 
+  List.map{regexp*lens}{regexp}
+    (fun (p:regexp*lens) ->
+       let k,v = p in
+       KVELT k (ctype v))
+    spec
+
+let KVS (spec:(regexp*lens) List.t) : regexp List.t =
+  List.map{regexp*lens}{regexp}
+    (fun (p:regexp*lens) ->
+       let k,v = p in
+       KV k (atype v))
+    spec       
+
+let VALID_KVS (spec:(regexp*lens) List.t) =
+  concatable (KVELTS spec) &&
+  concatable (KVS spec)
+
+(* TODO this pattern keeps coming up...we should have
+   concat_lenses_ne, etc. for nonempty lists *)
+let kvpairs (spaces:string in Xml.WS)
+    (spec:(regexp*lens) List.t where List.nonempty{regexp*lens} spec
+                                  && VALID_KVS spec)
+  : (lens in concat_regexps (KVELTS spec) <-> concat_regexps (KVS spec))
+  = let (Some(l)) = 
+      List.fold_left{regexp*lens}{lens option}
+	(fun (lo:lens option) (p:regexp*lens) ->
+	   let k,v = p in
+	   let l = kvpair spaces k v in
+	   match lo with
+	     | None -> Some{lens}(l)
+	     | Some(l2) -> Some{lens}(l2 . l)
+		 : lens option)
+	None{lens} spec in
+    l
+
+let NONEMPTY_ODICT (spec:(regexp*lens) List.t) : regexp =
+  Xml.ELT "dict" (concat_regexps (KVELTS spec))
+
+let nonempty_odict (spaces:string in Xml.WS) 
+    (spec:(regexp*lens) List.t where List.nonempty{regexp*lens} spec
+                                  && VALID_KVS spec)
+  : (lens in NONEMPTY_ODICT spec <-> concat_regexps (KVS spec))
+  = let kv = kvpairs (indent spaces) spec in
+    Xml.elt spaces "dict" kv
+
+let ODICT (spec:(regexp*lens) List.t) : regexp 
+  =  match List.empty{regexp*lens} spec with
+      | true -> EMPTY_DICT
+      | false -> NONEMPTY_ODICT spec
+    : regexp
+
+let podict (spaces:string in Xml.WS) 
+    (spec:(regexp*lens) List.t where VALID_KVS spec)
+  : (lens in ODICT spec <-> concat_regexps (KVS spec))
+  = match List.empty{regexp*lens} spec with
+      | true -> empty_dict spaces
+      | false -> nonempty_odict spaces spec
+    : lens
+
+let LINECHAR = [a-zA-Z,.]
+let LINE = (LINECHAR . ((LINECHAR | " ")* . LINECHAR)?)?
+
+let lodict =
+  podict "\n" 
+    #{regexp*lens}["Author",pstring "\n  " (field LINE) . ins '\n';
+		   "Lines",ins "=" . 
+                           parray "\n  " 
+			     (pstring "\n    " (LINE . ins " / ")) .
+			   ins '\n';
+		   "Birthdate",pinteger "\n  " (field INTEGER)]
+
+let sample = 
+  <<
+   
+    <dict>
+      <key>Author</key>
+      <string>William Shakespeare</string>
+      <key>Lines</key>
+      <array>
+        <string>It is a tale told by an idiot,</string>
+        <string>Full of sound and fury, signifying nothing.</string>
+      </array>
+      <key>Birthdate</key>
+      <integer>1564</integer>
+    </dict>
+  >>
+
+test lodict.get sample = 
+  <<
+    Author=William Shakespeare;
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / 
+    Birthdate=1564;
+  >>
+
+test lodict.create 
+  <<
+    Author=William Carlos Williams;
+    Lines=so much depends / upon /  / a red wheel / barrow /  / glazed with rain / water /  / beside the white / chickens. / 
+    Birthdate=1883;
+  >> =
+  <<
+   
+   <dict>
+     <key>Author</key>
+     <string>William Carlos Williams</string>
+     <key>Lines</key>
+     <array>
+       <string>so much depends</string>
+       <string>upon</string>
+       <string></string>
+       <string>a red wheel</string>
+       <string>barrow</string>
+       <string></string>
+       <string>glazed with rain</string>
+       <string>water</string>
+       <string></string>
+       <string>beside the white</string>
+       <string>chickens.</string>
+     </array>
+     <key>Birthdate</key>
+     <integer>1883</integer>
+   </dict>
+  >>
+
+test lodict.put
+  <<
+    Author=Michael Greenberg;
+    Lines=so much depends / upon /  / a red sail / boat /  / glazed with delaware / water /  / beside the white / chickens. / 
+    Birthdate=1984;
+  >> into
+  <<
+
+   <dict>
+     <key>Author</key>
+     <string>Michael Greenberg</string>
+     <key>Lines</key>
+     <array>
+       <string>so much depends</string>
+       <string>upon</string>
+       <string></string>
+       <string>a red wheel</string>
+       <string>barrow</string>
+       <string></string>
+       <string>glazed with rain</string>
+       <string>water</string>
+       <string></string>
+       <string>beside the white</string>
+       <string>chickens.</string>
+     </array>
+     <key>Birthdate</key>
+     <integer>1984</integer>
+   </dict>
+  >>
+  =
+  <<
+   
+   <dict>
+     <key>Author</key>
+     <string>Michael Greenberg</string>
+     <key>Lines</key>
+     <array>
+       <string>so much depends</string>
+       <string>upon</string>
+       <string></string>
+       <string>a red sail</string>
+       <string>boat</string>
+       <string></string>
+       <string>glazed with delaware</string>
+       <string>water</string>
+       <string></string>
+       <string>beside the white</string>
+       <string>chickens.</string>
+     </array>
+     <key>Birthdate</key>
+     <integer>1984</integer>
+   </dict>
+  >>
+
 (* TODO
 
    nonhomogenous dictionaries
 
-     -- sorted, finite mappings which must be present
+   -- ordered finite mappings
+
+   -- sorted, finite mappings
 
    even better dictionaries
 
-     -- sorted finite mappings, optional elements, homogenous (or simply regular?) tails
+   -- sorted finite mappings, optional elements, homogenous (or simply regular?) tails
 *)
 
 (* Top level element
@@ -228,11 +416,14 @@ test lhsdict.put "bar=5;foo=4;" into "<dict/>" =
    <!ATTLIST plist version CDATA "1.0" >
 *)
 
+(* we allow any local DTD, but if you use a public DTD, it has to be
+   the right one. *)
 let DTD_ID : regexp =
-  Xml.DOCTYPE "plist" 
-    ("PUBLIC" . Xml.WSP . 
-     "\"-//Apple Computer//DTD PLIST 1.0//EN\"" . Xml.WSP .
-     "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"")
+  Xml.DOCTYPE "plist"
+    (("SYSTEM" . Xml.WSP . Xml.SYSTEMID) |
+     ("PUBLIC" . Xml.WSP . 
+	"\"-//Apple Computer//DTD PLIST 1.0//EN\"" . Xml.WSP .
+	"\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\""))
 
 let PLIST (BODY:regexp) : regexp = 
   Xml.ATTR_ELT "plist" (Xml.ATTR "version" "1.0") BODY
@@ -264,4 +455,44 @@ test llist.put "bar=5;foo=4;" into "<plist version='1.0'><dict/></plist>" =
       <integer>4</integer>
     </dict>
     </plist>
+  >>
+
+(* from http://developer.apple.com/documentation/Cocoa/Conceptual/PropertyLists/UnderstandXMLPlist/UnderstandXMLPlist.html *)
+let llist2 = plist lodict
+test llist2.get
+  <<
+    <?xml version="1.0" encoding="UTF-8"?>
+    
+    <!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+    
+    <plist version="1.0">
+    
+    <dict>
+    
+        <key>Author</key>
+    
+        <string>William Shakespeare</string>
+    
+        <key>Lines</key>
+    
+        <array>
+    
+            <string>It is a tale told by an idiot,</string>
+    
+            <string>Full of sound and fury, signifying nothing.</string>
+    
+        </array>
+    
+        <key>Birthdate</key>
+    
+        <integer>1564</integer>
+    
+    </dict>
+    
+    </plist>
+  >> = 
+  <<
+    Author=William Shakespeare;
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / 
+    Birthdate=1564;
   >>

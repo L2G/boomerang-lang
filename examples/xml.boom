@@ -278,7 +278,8 @@ let ANYDOCTYPE : regexp =
   DOCTYPE NAME EXTERNALID
 
 let PROLOG (DT : regexp where subset DT ANYDOCTYPE) : regexp
-    = (follow_with_MISC XMLDECL) . (follow_with_MISC DT)?
+    = (follow_with_MISC XMLDECL) . 
+      (follow_with_MISC ([ \n\t]* . DT))?
 
 let prolog (DT : regexp where subset DT ANYDOCTYPE)
   : (lens in PROLOG DT <-> "")
