@@ -39,3 +39,7 @@ test ctype l2' = ctype l2''
 test atype l2' = atype l2''
 
 let u' = perm_sort3 l1 l2 l3
+
+test splittable "a"? "a"? = false
+test splittable "ab"? "ab"? = false
+test splittable "abc"? "abc"? = false

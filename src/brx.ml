@@ -947,58 +947,13 @@ let derivative t w =
     else loop (succ i) (acc.derivative (Char.code w.[i])) in 
     loop 0 t
 
-let twochar_splittable t1 t2 = 
-  let t1_rev = mk_reverse t1 in 
-  let rm,len = get_maps t2 in 
-  let rec loop i = 
-    if i < 0 then true
-    else 
-      let ci = rm.(i) in 
-      let d2 = t2.derivative ci in 
-      if easy_empty d2 then loop (pred i)
-      else if d2.final && (t1.derivative ci).final then false 
-      else 
-        let rm',len' = desc_maps (Diff(t1_rev,d2)) in 
-        let rec loop2 j = 
-          if j < 0 then loop (pred i) 
-          else 
-            let cj = rm'.(j) in 
-            let d1 = t1_rev.derivative cj in 
-            if easy_empty d1 then loop2 (pred j)
-            else 
-              let d2' = d2.derivative cj in 
-              if easy_empty d2' then loop2 (pred j)
-              else 
-                let d1' = d1.derivative ci in 
-                if easy_empty d1' then loop2 (pred j)
-                else false in
-        loop2 (pred len') in
-  loop (pred len) 
-
-let onechar_splittable t1 t2 = 
-  let t1_rev = mk_reverse t1 in 
-  let rm,len = desc_maps (Diff(t1_rev,t2)) in 
-  let rec loop i = 
-    if i < 0 then true
-    else 
-      let ci = rm.(i) in 
-      let d1 = t1_rev.derivative ci in 
-      if easy_empty d1 then loop (pred i)
-      else 
-        let d2 = t2.derivative ci in 
-        if easy_empty d2 then loop (pred i)
-        else false in
-  loop (pred len)
-
 type ('a,'b,'c) tri = A of 'a | B of 'b | C of 'c  
 
 let splittable_cex t1 t2 = 
   let aux t1 t2 = 
     if t1.known_singleton 
     || t2.known_singleton 
-    || Q.mem t2 t1.splittable 
-    || onechar_splittable t1 t2 
-    || twochar_splittable t1 t2 then None
+    || Q.mem t2 t1.splittable then None
     else
       let res = 
         let go1 mem add f t push = 

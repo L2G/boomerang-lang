@@ -32,7 +32,7 @@ if $(or $(defined PROFILING_NATIVE_CODE), $(defined PNC))
 if $(or $(defined PROFILING_BYTE_CODE), $(defined PBC))
 	println(Profiling byte code enabled.)
 	OCAMLC = ocamlcp
-	OCAMLCFLAGS += -g
+	OCAMLCFLAGS += -g -p a
 	BYTE_ENABLED = true
 	export
 
