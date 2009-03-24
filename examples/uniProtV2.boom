@@ -4212,8 +4212,6 @@ let sq_mid_xml : lens =
 let R1 = (UALPHACHAR{10}){0,5}
 let R2 = (UALPHACHAR{1,10})
 
-test is_empty ((Native.Prelude.derivative R1 "AAAA") & R1) = ?
-
 let sq_rest_xml : lens = 
   let block : lens = space . UALPHACHAR{10} in 
   let full_line : lens = ins "    " . block{6} . ins "\n" in 

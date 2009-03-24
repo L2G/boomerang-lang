@@ -625,157 +625,41 @@ and get_reverse t =
 (*     calc_suffs t *)
  
 and calc_representative t = 
-  let rec jump st = match st with
-    | Misc.Left _ as res -> res
-    | Misc.Right (f,q)  ->
-        if Queue.is_empty q then Misc.Right f
-        else 
-          let (ti,ri,fi) = Queue.pop q in
-          if Q.mem ti f then jump (Misc.Right(f,q))
-          else calc_representative ti (ri,f,q) in
-  let add ti co (r,f,q) = match ti.representative with
-    | Some (Some wi) -> 
-        let r' = match co with
-          | None -> (wi,ti)::r  
-          | Some c -> (wi,epsilon)::([c],ti)::r in 
-        Misc.Left(r')
-    | Some None -> 
-        Misc.Right(f,q)
-    | None -> 
-        let r' = match co with 
-          | None -> r 
-          | Some c -> ([c],ti)::r in
-        if not (Q.mem ti f) then Queue.push (ti,r',f) q;
-        Misc.Right(f,q) in
-   
-  let full_search (r,f,q) =
-    let f' = Q.add t f in
-    if t.final then Misc.Left (([],t)::r)
-    else if easy_empty t || Q.mem t f then jump (Misc.Right(f',q))
-    else
-      let rm,len = get_maps t in 
-      let rec loop i sn acc = match i,acc with
-        | -1,_                   -> acc
-        | _,Misc.Left _          -> acc
-        | _,Misc.Right(fi,qi) -> 
-            let ci = rm.(i) in 
-            let ti = t.derivative ci in 
-            let acc' = 
-              if easy_empty ti || Q.mem ti sn then acc 
-              else add ti (Some ci) (r,f',qi) in
-            loop (pred i) (Q.add ti sn) acc' in 
-      let st' = loop (pred len) Q.empty (Misc.Right(f',q)) in 
-      jump st' in 
-
-  let rep_of_list l = 
-    Safelist.fold_left (fun acc (wi,_) -> acc @ wi) [] l in
-    
-  let rec alts_rep g r f l st = 
-    let rec loop acc l = match acc,l with
-      | _,[]                          -> acc
-      | Misc.Left _,_                 -> acc
-      | Misc.Right(fi,qi),ti::rest -> 
-        loop (add (g ti) None (r,f,qi)) rest in 
-    let st' = loop (Misc.Right st) l in 
-    jump st' in 
-
-  let go f ti = match ti.representative with
-    | Some(Some wi) -> Some [wi,ti]
-    | Some None     -> None
-    | None          ->
-        begin match calc_representative ti ([],f,Queue.create ()) with
-          | Misc.Left(r) -> Some r
-          | _ -> None
-        end in
-  match t.desc with
-    | CSet [] ->
-        (fun (r,f,_) -> Misc.Right f)
-    | CSet((c1,_)::_) ->
-        (fun (r,f,_) -> Misc.Left (([c1],t)::r))
-    | Rep(_,0,_) ->
-        (fun (r,f,_) -> Misc.Left (([],t)::r))
-    | Rep(t1,i,_) ->
-        (fun (r,f,q) ->
-           match go f t1 with
-             | Some r1 ->
-                 let w1 = rep_of_list r1 in
-                 set_representative t1 w1;
-                 let rec loop i acc = if i <= 0 then acc else loop (pred i) (acc @ w1) in
-                 Misc.Left ((loop i [],t)::r)
-             | _ ->
-                 jump(Misc.Right(Q.add t f,q)))
-    | Seq(t1,t2) ->
-        (fun (r,f,q) ->
-           match go f t1 with
-             | Some r1 ->
-                 let w1 = rep_of_list r1 in
-                 set_representative t1 w1;
-                 begin
-                   match go f t2 with
-                     | Some r2 ->
-                         let w2 = rep_of_list r2 in
-                         set_representative t2 w2;
-                         Misc.Left ((w1 @ w2,t)::r)
-                     | _ ->
-                         jump(Misc.Right(Q.add t f,q))
-                 end
-             | _ -> jump(Misc.Right(Q.add t f,q)))
-
-    | Alt tl ->
-        (fun (r,f,q) ->
-           let f' = Q.add t f in
-           alts_rep (fun x -> x) r f' tl (f',q))
-    | Diff(t1,t2) ->
-        begin match t1.representative with
-          | Some (Some w1) when not (match_code_list t2 w1) ->
-              (fun (r,_,_) -> Misc.Left((w1,t)::r))
-          | _ -> match t1.desc with
-              | Alt(tl1) ->
-                  (fun (r,f,q) ->
-                     let f' = Q.add t f in
-                     alts_rep (fun ti -> mk_diff ti t2) r f' tl1 (f',q))
-              | _ -> full_search
-        end
-    | Inter [t1;t2] ->
-        begin match t1.representative,t2.representative with
-          | Some (Some w1),_ when match_code_list t2 w1 ->
-              (fun (r,_,_) -> Misc.Left((w1,t)::r))
-          | _,Some (Some w2) when match_code_list t1 w2 ->
-              (fun (r,_,_) -> Misc.Left((w2,t)::r))
-          | _ -> match t1.desc with
-              | Alt tl1 ->
-                  (fun (r,f,q) ->
-                     let f' = Q.add t f in
-                     alts_rep (fun ti -> mk_inter ti t2) r f' tl1 (f',q))
-              | _ -> full_search
-        end
-    | Inter(t1::tl2) ->
-        begin match t1.desc with
-          | Alt tl1 ->
-              (fun (r,f,q) ->
-                 let f' = Q.add t f in
-                 alts_rep (fun ti -> mk_inters (ti::tl2)) r f' tl1 (f',q))
-          | _ -> full_search
-        end
-    | _ -> full_search
+  let q = Queue.create () in 
+  let rec full_search f =
+    if Queue.is_empty q then None
+    else 
+      let (wi,ti) = Queue.pop q in
+      if ti.final then Some wi 
+      else 
+        let rm,len = get_maps ti in
+        let rec loop f j =
+          if j >= len then f 
+          else
+            let cj = rm.(j) in 
+            let tj = ti.derivative cj in
+            let f' = 
+              if easy_empty tj || Q.mem tj f then f 
+              else (Queue.push (cj::wi,tj) q; Q.add tj f) in 
+              loop f' (succ j) in
+          full_search (loop f 0) in 
+    if t.final then Some [] 
+    else 
+      (Queue.push ([],t) q;
+       full_search (Q.singleton t))
 
 and get_representative t = match t.representative with
   | Some res -> res 
   | None -> 
-      match calc_representative t ([],Q.empty,Queue.create ()) with
-        | Misc.Right f' -> 
-            Q.iter set_empty (Q.add t f');
+      begin match calc_representative t with
+        | None -> 
+            set_empty t;
             None
-        | Misc.Left r -> 
-            let w0 = 
-              Safelist.fold_left 
-                (fun w (wi,ti) -> 
-                   let w' = wi @ w in 
-                   set_representative ti w';
-                   w') 
-                [] r in
-            set_representative t w0;
-            Some w0
+        | Some w -> 
+            let wr = Safelist.rev w in 
+            set_representative t wr;
+            Some wr 
+      end
 
 and set_representative t w = 
   if t.representative = None then t.representative <- Some (Some w)
@@ -1051,7 +935,8 @@ let easy_representative t0 = match t0.representative with
         Some w
   | _ -> None
 
-let is_empty t0 = representative t0 = None
+let is_empty t0 = 
+  representative t0 = None
 
 let is_final t0 = t0.final
 
@@ -1077,7 +962,7 @@ let fast_splittable_cex t1 t2 =
       if easy_empty d1 then loop (pred i)
       else 
         let d2 = t2.derivative ci in 
-        if is_empty d2 then loop (pred i)
+        if easy_empty d2 then loop (pred i)
         else false in 
   loop (pred len)
 
@@ -1096,7 +981,7 @@ let splittable_cex t1 t2 =
               let cj = rm.(j) in 
               let tj = t.derivative cj in 
               let f' = 
-                if not (is_epsilon tj || easy_empty tj || mem tj f) then 
+                if not (mem tj f || easy_empty tj) then 
                   (push tj cj; add tj f)
                 else f in
                 loop (pred j) f' in 
@@ -1111,7 +996,7 @@ let splittable_cex t1 t2 =
               let f' = 
                 if not (easy_empty t1j) then 
                   let t2j = t2.derivative cj in 
-                    if not (is_empty t2j || mem (t1j,t2j) f) then 
+                    if not (mem (t1j,t2j) f || is_empty t2j) then 
                       (push t1j t2j cj; add (t1j,t2j) f) 
                     else f 
                 else f in 
@@ -1214,7 +1099,8 @@ let disjoint s1 s2 =
   is_empty (mk_inter s1 s2) 
 
 let equiv s1 s2 = 
-  s1.uid = s2.uid || (is_empty (mk_diff s1 s2) && is_empty (mk_diff s2 s1))
+     s1.uid = s2.uid 
+  || (is_empty (mk_diff s1 s2) && is_empty (mk_diff s2 s1))
 
 let splittable s1 s2 = match splittable_cex s1 s2 with 
   | Misc.Right _ -> true
