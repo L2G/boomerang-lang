@@ -8,15 +8,6 @@ let pvalue (spaces:string in Xml.WS) (tag:string) (l:lens where lens_splittable 
   : (lens in Xml.ELT tag (ctype l) <-> atype l)
   = Xml.simple_elt spaces tag (l . kill_ws)
 
-let DTD_ID : regexp =
-  Xml.DOCTYPE "plist" 
-    ("PUBLIC" . Xml.WSP . 
-     "\"-//Apple Computer//DTD PLIST 1.0//EN\"" . Xml.WSP .
-     "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"")
-
-let prolog : (lens in (Xml.PROLOG DTD_ID) <-> "") =
-  Xml.prolog DTD_ID
-
 (* DTD taken from http://www.apple.com/DTDs/PropertyList-1.0.dtd *)
 
 (* Primitive types
@@ -166,14 +157,6 @@ let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp)
   = let kv = kvpair (indent spaces) KEYS v in
     Xml.elt spaces "dict" <kv>+
 
-(* anaphora would fix this *)
-let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
-    (mk_v:(spaces2:(string in Xml.WS) -> (v:lens where VALID_KV spaces2 KEYS v)))
-  : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))+)
-  = let inner_spaces = indent spaces in
-    let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
-    Xml.elt spaces "dict" <kv>+
-
 let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
 
 let phdict (spaces:string in Xml.WS) (KEYS:regexp) 
@@ -181,13 +164,7 @@ let phdict (spaces:string in Xml.WS) (KEYS:regexp)
   : (lens in HDICT KEYS (ctype v) <-> (KEYS . atype v)* )
   = empty_dict spaces | nonempty_hdict spaces KEYS v
 
-let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
-    (mk_v:(spaces2:(string in Xml.WS) -> 
-	  (v:lens where VALID_KV spaces2 KEYS v)))
-  : (lens in HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))* )
-  = empty_dict spaces | nonempty_hsdict spaces KEYS mk_v
-
-(* precomputed indentation... *)
+(* precomputed indentation *)
 let lhdict = 
   phdict "\n" ("foo"|"bar"|"baz") (pinteger (indent "\n") (ins "=" . copy INTEGER . ins ";"))
 test lhdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
@@ -203,7 +180,20 @@ test lhdict.put "bar=5;foo=4;" into "<dict/>" =
     </dict>
   >>
 
-(* automatically managed indentation *)
+(* automatically managed indentation -- would be much less ugly with anaphora *)
+let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
+    (mk_v:(spaces2:(string in Xml.WS) -> (v:lens where VALID_KV spaces2 KEYS v)))
+  : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))+)
+  = let inner_spaces = indent spaces in
+    let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
+    Xml.elt spaces "dict" <kv>+
+
+let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
+    (mk_v:(spaces2:(string in Xml.WS) -> 
+	  (v:lens where VALID_KV spaces2 KEYS v)))
+  : (lens in HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KEYS . atype (mk_v (indent spaces)))* )
+  = empty_dict spaces | nonempty_hsdict spaces KEYS mk_v
+
 let lhsdict = 
   phsdict "\n" ("foo"|"bar"|"baz") 
     (fun (spaces:string in Xml.WS) -> 
@@ -221,10 +211,57 @@ test lhsdict.put "bar=5;foo=4;" into "<dict/>" =
     </dict>
   >>
 
+(* TODO
 
+   nonhomogenous dictionaries
+
+     -- sorted, finite mappings which must be present
+
+   even better dictionaries
+
+     -- sorted finite mappings, optional elements, homogenous (or simply regular?) tails
+*)
 
 (* Top level element
 
    <!ELEMENT plist %plistObject;>
    <!ATTLIST plist version CDATA "1.0" >
 *)
+
+let DTD_ID : regexp =
+  Xml.DOCTYPE "plist" 
+    ("PUBLIC" . Xml.WSP . 
+     "\"-//Apple Computer//DTD PLIST 1.0//EN\"" . Xml.WSP .
+     "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"")
+
+let PLIST (BODY:regexp) : regexp = 
+  Xml.ATTR_ELT "plist" (Xml.ATTR "version" "1.0") BODY
+    
+let plist (l:lens)
+  : (lens in ((Xml.PROLOG DTD_ID)? . PLIST (ctype l)) <-> atype l)
+  = del (Xml.PROLOG DTD_ID)? .
+    Xml.attr1_elt_open "" "plist" "version" (del "1.0") . 
+    l . 
+    Xml.close_tag "\n" "plist"
+
+let llist = plist lhsdict
+test llist.get 
+  <<
+    <plist version="1.0">
+      <dict>
+        <key>foo</key><integer>5</integer>
+      </dict>
+    </plist>
+  >> = "foo=5;"
+test llist.get "<plist version='1.0'><dict/></plist>" = ""
+test llist.put "bar=5;foo=4;" into "<plist version='1.0'><dict/></plist>" =
+  <<
+    <plist version='1.0'>
+    <dict>
+      <key>bar</key>
+      <integer>5</integer>
+      <key>foo</key>
+      <integer>4</integer>
+    </dict>
+    </plist>
+  >>

@@ -248,6 +248,9 @@ let COMMENT : regexp = "<!--" . (not_containing "--") . "-->"
 let PI : regexp = "<?" . (NAME - ([Xx] . [Mm] . [Ll])) . WSP . 
 	                 (not_containing "?>") . "?>"
 let MISC = COMMENT | PI | [ \n\t]
+let MISC_NOWS = COMMENT | PI
+let MISC_STAR = MISC* . MISC_NOWS
+let follow_with_MISC (PRE:regexp) = (PRE | PRE . MISC_STAR)
 
 let PUBIDCHAR : regexp  = [ \n\ta-zA-Z0-9'()+,./:=?;!*#@$_%] | '-'
 let PUBID : regexp      = '"' . PUBIDCHAR* . '"' | /'/ . (PUBIDCHAR - /'/) . /'/
@@ -275,7 +278,7 @@ let ANYDOCTYPE : regexp =
   DOCTYPE NAME EXTERNALID
 
 let PROLOG (DT : regexp where subset DT ANYDOCTYPE) : regexp
-    = XMLDECL . MISC* . ( DT . MISC* )?
+    = (follow_with_MISC XMLDECL) . (follow_with_MISC DT)?
 
 let prolog (DT : regexp where subset DT ANYDOCTYPE)
   : (lens in PROLOG DT <-> "")
@@ -285,6 +288,12 @@ test (prolog ANYDOCTYPE).get "<?xml version=\"1.0\" ?>" = ""
 test (prolog ANYDOCTYPE).create "" = "<?xml version=\"1.0\" ?>"
 test (prolog ANYDOCTYPE).put "" into "<?xml version=\"1.0\" standalone=\"yes\" ?>"
      = "<?xml version=\"1.0\" standalone=\"yes\" ?>"
+
+let ATTR_OPEN (tag:string) (AS:regexp) : regexp =
+  OPEN (tag . AS)
+
+let ATTR_ELT (tag:string) (AS:regexp) (BODY:regexp) : regexp =
+  WS . ATTR_OPEN tag AS . BODY . WS . CLOSE tag
 
 (* [attr1_elt sp t n v l] processes a multi-line XML element with
    one attribute.
@@ -297,7 +306,7 @@ test (prolog ANYDOCTYPE).put "" into "<?xml version=\"1.0\" standalone=\"yes\" ?
 let attr1_elt (spaces:string) (tag:string) 
     (name:string) (value:lens) 
     (body:lens where splittable_cex (atype value) (atype body)) 
-  : (lens in (WS . OPEN (tag . ATTR name (ctype value)) . ctype body . WS . CLOSE tag)
+  : (lens in ATTR_ELT tag (ATTR name (ctype value)) (ctype body)
 	 <-> (atype value . atype body))
   = raw_open spaces tag . 
     attr name value . 
@@ -308,7 +317,7 @@ let attr1_elt (spaces:string) (tag:string)
 let attr1_elt_swap (spaces:string) (tag:string) 
     (name:string) (value:lens) 
     (body:lens where splittable_cex (atype body) (atype value)) 
-  : (lens in (WS . OPEN (tag . ATTR name (ctype value)) . ctype body . WS . CLOSE tag)
+  : (lens in ATTR_ELT tag (ATTR name (ctype value)) (ctype body)
 	 <-> (atype body . atype value))
   = raw_open spaces tag . 
     ( (attr name value) ~
@@ -326,7 +335,7 @@ let attr1_elt_swap (spaces:string) (tag:string)
 let attr1_simple_elt (spaces:string) (tag:string) 
     (name:string) (value:lens) 
     (body:lens where splittable_cex (atype value) (atype body))
-  : (lens in (WS . OPEN (tag . ATTR name (ctype value)) . (ctype body) . CLOSE tag)
+  : (lens in (WS . ATTR_OPEN tag (ATTR name (ctype value)) . (ctype body) . CLOSE tag)
 	 <-> (atype value . atype body))
   = raw_open spaces tag . 
     attr name value . 
@@ -334,14 +343,20 @@ let attr1_simple_elt (spaces:string) (tag:string)
     body . 
     simple_close_tag tag 
 
+let attr1_raw_simple_elt_open (tag:string)
+    (name:string) (value:lens)
+  : (lens in ATTR_OPEN tag (ATTR name (ctype value))
+	 <-> atype value)
+  = del ("<" . tag) . 
+    attr name value . 
+    close
+
 let attr1_raw_simple_elt (tag:string)
     (name:string) (value:lens)
     (body:lens where splittable_cex (atype value) (atype body)) 
-  : (lens in (OPEN (tag . ATTR name (ctype value)) . (ctype body) . CLOSE tag)
+  : (lens in (ATTR_OPEN tag (ATTR name (ctype value)) . (ctype body) . CLOSE tag)
 	 <-> (atype value . atype body))
-  = del ("<" . tag) . 
-    attr name value . 
-    close . 
+  = attr1_raw_simple_elt_open tag name value . 
     body . 
     simple_close_tag tag 
 
@@ -358,6 +373,12 @@ let ALL_ATTRS (spec:(string*regexp) List.t) : regexp =
 let ANY_ATTRS (spec:(string*regexp) List.t) : regexp =
   (union_regexps (ATTRS spec))*  
 
+let ALL_ATTR_ELT (tag:string) (spec:(string*regexp) List.t) (BODY:regexp) : regexp
+    = ATTR_ELT tag (ALL_ATTRS spec) BODY
+
+let ANY_ATTR_ELT (tag:string) (spec:(string*regexp) List.t) (BODY:regexp) : regexp
+    = ATTR_ELT tag (ANY_ATTRS spec) BODY
+
 (* [attr2_elt sp t n1 v1 n2 v2 l] processes a multi-line XML
    element with two attributes.
    o [sp] canonical leading whitespace.
@@ -370,8 +391,9 @@ let attr2_elt (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
     (body:lens where splittable_cex (atype value1 . atype value2) (atype body)) 
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;name2,ctype value2]) . 
-	      ctype body . CLOSE tag)
+  : (lens in ANY_ATTR_ELT tag #{string*regexp}[name1,ctype value1;
+					       name2,ctype value2]
+  	                  (ctype body)
          <-> (atype value1 . atype value2 . atype body))
   = raw_open spaces tag . 
     Sort.sort_concat #{lens}[attr name1 value1; attr name2 value2] . 
@@ -383,8 +405,9 @@ let slow_attr2_elt (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
     (body:lens where splittable_cex (atype value1 . atype value2) (atype body)) 
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1; name2,ctype value2]) . 
-	      ctype body . WS . CLOSE tag)
+  : (lens in ALL_ATTR_ELT tag #{string*regexp}[name1,ctype value1; 
+					       name2,ctype value2]
+	                  (ctype body)
          <-> (atype value1 . atype value2 . atype body))
   = raw_open spaces tag . 
     Sort.perm_sort_concat #{lens}[attr name1 value1; attr name2 value2] . 
@@ -404,6 +427,9 @@ let attr2_raw_simple_elt_no_kids (tag:string)
 test (attr2_raw_simple_elt_no_kids "foo" "a1" "5" "a2" "6").get "<foo a1='5' a2='6' />" = "56"
 test (attr2_raw_simple_elt_no_kids "foo" "a1" "5" "a2" "6").get "<foo a1='5'   />" = error
 
+let ATTR_NOKIDS (tag:string) (AS:regexp) = WS . OPEN_NOKIDS (tag . AS . WS)
+
+
 (* [attrk_elt_no_kids sp t n1 v1 .. nk vk] processes a single-line XML element with
    no children (other than its attributes.)
    o [sp] canonical leading whitespace.
@@ -412,20 +438,21 @@ test (attr2_raw_simple_elt_no_kids "foo" "a1" "5" "a2" "6").get "<foo a1='5'   /
    o [vi] lens for processing ith attribute value.
 *)
 let attrs_elt_no_kids (spaces:string) (tag:string) (attrs:lens) 
-  : (lens in (WS . OPEN_NOKIDS (tag . ctype attrs . WS)) <-> atype attrs)
+  : (lens in ATTR_NOKIDS tag (ctype attrs) <-> atype attrs)
   = raw_open spaces tag . 
     attrs . 
     slash_close
 
 let attr1_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
-  : (lens in (WS . OPEN_NOKIDS (tag . ATTR name1 (ctype value1) . WS)) <-> atype value1)
+  : (lens in ATTR_NOKIDS tag (ATTR name1 (ctype value1)) <-> atype value1)
   = attrs_elt_no_kids spaces tag (attr name1 value1)
     
 let attr2_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-  : (lens in (WS . OPEN_NOKIDS (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1; name2,ctype value2] . WS))
+  : (lens in ATTR_NOKIDS tag (ANY_ATTRS #{string*regexp}[name1,ctype value1; 
+							 name2,ctype value2])
          <-> (atype value1 . atype value2))
   = attrs_elt_no_kids spaces tag 
       (Sort.sort_concat #{lens}[attr name1 value1; attr name2 value2])
@@ -436,7 +463,8 @@ test (attr2_elt_no_kids "" "foo" "a1" "5" "a2" "6").get "<foo a1='5'   />" = err
 let slow_attr2_elt_no_kids (spaces:string) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens)
-  : (lens in (WS . OPEN_NOKIDS (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1; name2,ctype value2] . WS))
+  : (lens in ATTR_NOKIDS tag (ALL_ATTRS #{string*regexp}[name1,ctype value1; 
+							 name2,ctype value2])
          <-> (atype value1 . atype value2))
   = attrs_elt_no_kids spaces tag 
     (Sort.perm_sort_concat
@@ -447,11 +475,9 @@ let attr3_elt_no_kids (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
-  : (lens in (WS . OPEN_NOKIDS (tag . 
-                                ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							   name2,ctype value2;
-							   name3,ctype value3] . 
-                                WS))
+  : (lens in ATTR_NOKIDS tag (ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							 name2,ctype value2;
+							 name3,ctype value3])
          <-> (atype value1 . atype value2 . atype value3))
   = attrs_elt_no_kids spaces tag 
     (Sort.sort_concat #{lens}[(attr name1 value1);
@@ -462,11 +488,9 @@ let slow_attr3_elt_no_kids (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
-  : (lens in (WS . OPEN_NOKIDS (tag . 
-                                ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							   name2,ctype value2;
-							   name3,ctype value3] . 
-                                WS))
+  : (lens in ATTR_NOKIDS tag (ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							name2,ctype value2;
+							name3,ctype value3])
          <-> (atype value1 . atype value2 . atype value3))
   = attrs_elt_no_kids spaces tag 
     (Sort.perm_sort_concat
@@ -479,12 +503,10 @@ let attr4_elt_no_kids (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
     (name4:string) (value4:lens)
-  : (lens in (WS . OPEN_NOKIDS (tag . 
-                                ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							   name2,ctype value2;
-							   name3,ctype value3;
-							   name4,ctype value4] . 
-                                WS))
+  : (lens in ATTR_NOKIDS tag (ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							 name2,ctype value2;
+							 name3,ctype value3;
+							 name4,ctype value4])
          <-> (atype value1 . atype value2 . atype value3 . atype value4))
   = attrs_elt_no_kids spaces tag 
     (Sort.sort_concat #{lens}[(attr name1 value1);
@@ -497,12 +519,10 @@ let slow_attr4_elt_no_kids (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
     (name4:string) (value4:lens)
-  : (lens in (WS . OPEN_NOKIDS (tag . 
-                                ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							   name2,ctype value2;
-							   name3,ctype value3;
-							   name4,ctype value4] . 
-                                WS))
+  : (lens in ATTR_NOKIDS tag (ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							 name2,ctype value2;
+							 name3,ctype value3;
+							 name4,ctype value4])
          <-> (atype value1 . atype value2 . atype value3 . atype value4))
   = attrs_elt_no_kids spaces tag 
     (Sort.perm_sort_concat
@@ -511,6 +531,9 @@ let slow_attr4_elt_no_kids (spaces:string) (tag:string)
 	       (attr name3 value3);
 	       (attr name4 value4)])
 
+let ATTR_EOPEN (tag:string) (AS:regexp) : regexp =
+  WS . ATTR_OPEN tag AS
+
 (* [attrk_open sp t n1 v1 .. nk vk] opens a single-line XML element with k attributes.
    o [sp] canonical leading whitespace.
    o [t] element tag.
@@ -518,15 +541,14 @@ let slow_attr4_elt_no_kids (spaces:string) (tag:string)
    o [vi] lens for processing ith attribute value.
 *)
 let attrs_open (spaces:string) (tag:string) (attrs:lens) 
-  : (lens in (WS . OPEN (tag . ctype attrs))
-	 <-> atype attrs)
+  : (lens in ATTR_EOPEN tag (ctype attrs) <-> atype attrs)
   = raw_open spaces tag . 
     attrs . 
     close  
 
 let attr1_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
-  : (lens in (WS . OPEN (tag . ATTR name1 (ctype value1)))
+  : (lens in ATTR_EOPEN tag (ATTR name1 (ctype value1))
 	 <-> atype value1)
   = 
   attrs_open spaces tag 
@@ -535,8 +557,8 @@ let attr1_elt_open (spaces:string) (tag:string)
 let attr2_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
-  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2]))
+  : (lens in ATTR_EOPEN tag (ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							name2,ctype value2])
          <-> (atype value1 . atype value2))
   = attrs_open spaces tag 
       (Sort.sort_concat #{lens}[(attr name1 value1);
@@ -545,8 +567,8 @@ let attr2_elt_open (spaces:string) (tag:string)
 let slow_attr2_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens)
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2]))
+  : (lens in ATTR_EOPEN tag (ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							name2,ctype value2])
          <-> (atype value1 . atype value2))
   = attrs_open spaces tag 
       (Sort.perm_sort_concat
@@ -557,9 +579,9 @@ let attr3_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
-  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3]))
+  : (lens in ATTR_EOPEN tag (ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							name2,ctype value2;
+							name3,ctype value3])
          <-> (atype value1 . atype value2 . atype value3))
   = attrs_open spaces tag 
       (Sort.sort_concat
@@ -571,9 +593,9 @@ let slow_attr3_elt_open (spaces:string) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3]))
+  : (lens in ATTR_EOPEN tag (ALL_ATTRS #{string*regexp}[name1,ctype value1;
+							name2,ctype value2;
+							name3,ctype value3])
          <-> (atype value1 . atype value2 . atype value3))
   = attrs_open spaces tag 
       (Sort.perm_sort_concat
@@ -586,10 +608,10 @@ let attr4_elt_open (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
     (name4:string) (value4:lens)
-  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3;
-							  name4,ctype value4]))
+  : (lens in ATTR_EOPEN tag (ANY_ATTRS #{string*regexp}[name1,ctype value1;
+							name2,ctype value2;
+							name3,ctype value3;
+							name4,ctype value4])
          <-> (atype value1 . atype value2 . atype value3 . atype value4))
   = attrs_open spaces tag 
       (Sort.sort_concat
@@ -603,10 +625,10 @@ let slow_attr4_elt_open (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
     (name4:string) (value4:lens)
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3;
-							  name4,ctype value4]))
+  : (lens in ATTR_EOPEN tag (ALL_ATTRS #{string*regexp}[name1,ctype value1;
+						       name2,ctype value2;
+						       name3,ctype value3;
+						       name4,ctype value4])
          <-> (atype value1 . atype value2 . atype value3 . atype value4))
   = attrs_open spaces tag 
       (Sort.perm_sort_concat
@@ -621,9 +643,9 @@ let attr2_elt_swap2 (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
                   && splittable_cex (atype body) (atype value2))
-  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2]) .
-		   ctype body . WS . CLOSE tag)
+  : (lens in ANY_ATTR_ELT tag #{string*regexp}[name1,ctype value1;
+					       name2,ctype value2]
+	                  (ctype body)
          <-> (atype value1 . atype body . atype value2))
   = (attr2_elt_open spaces tag 
        name1 value1 
@@ -637,9 +659,9 @@ let slow_attr2_elt_swap2 (spaces:string) (tag:string)
     (name2:string) (value2:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
                   && splittable_cex (atype body) (atype value2))
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2]) .
-                   ctype body . WS . CLOSE tag)
+  : (lens in ALL_ATTR_ELT tag #{string*regexp}[name1,ctype value1;
+					       name2,ctype value2]
+                          (ctype body)
          <-> (atype value1 . atype body . atype value2))
   = (slow_attr2_elt_open spaces tag 
        name1 value1 
@@ -655,10 +677,10 @@ let attr3_elt_swap2 (spaces:string) (tag:string)
     (name3:string) (value3:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
                   && splittable_cex (atype body) (atype value2 . atype value3))
-  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3]) .
-		   ctype body . WS . CLOSE tag)
+  : (lens in ANY_ATTR_ELT tag #{string*regexp}[name1,ctype value1;
+					       name2,ctype value2;
+					       name3,ctype value3]
+                          (ctype body)
          <-> (atype value1 . atype body . atype value2 . atype value3))
   = (attr3_elt_open spaces tag 
        name1 value1 
@@ -675,10 +697,10 @@ let slow_attr3_elt_swap2 (spaces:string) (tag:string)
     (name3:string) (value3:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
                   && splittable_cex (atype body) (atype value2 . atype value3))
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3]) .
-		   ctype body . WS . CLOSE tag)
+  : (lens in ALL_ATTR_ELT tag #{string*regexp}[name1,ctype value1;
+					       name2,ctype value2;
+					       name3,ctype value3]
+		          (ctype body)
          <-> (atype value1 . atype body . atype value2 . atype value3))
   = (slow_attr3_elt_open spaces tag 
        name1 value1 
@@ -696,11 +718,11 @@ let attr4_elt_swap2 (spaces:string) (tag:string)
     (name4:string) (value4:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
                   && splittable_cex (atype body) (atype value2 . atype value3 . atype value4))
-  : (lens in (WS . OPEN (tag . ANY_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3;
-							  name4,ctype value4]) .
-		   ctype body . WS . CLOSE tag)
+  : (lens in ANY_ATTR_ELT tag #{string*regexp}[name1,ctype value1;
+					       name2,ctype value2;
+					       name3,ctype value3;
+					       name4,ctype value4]
+		          (ctype body)
          <-> (atype value1 . atype body . atype value2 . atype value3 . atype value4))
   = (attr4_elt_open spaces tag 
        name1 value1 
@@ -719,11 +741,11 @@ let slow_attr4_elt_swap2 (spaces:string) (tag:string)
     (name4:string) (value4:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
                   && splittable_cex (atype body) (atype value2 . atype value3 . atype value4))
-  : (lens in (WS . OPEN (tag . ALL_ATTRS #{string*regexp}[name1,ctype value1;
-							  name2,ctype value2;
-							  name3,ctype value3;
-							  name4,ctype value4]) .
-		   ctype body . WS . CLOSE tag)
+  : (lens in ALL_ATTR_ELT tag #{string*regexp}[name1,ctype value1;
+					       name2,ctype value2;
+					       name3,ctype value3;
+					       name4,ctype value4]
+                          (ctype body)
          <-> (atype value1 . atype body . atype value2 . atype value3 . atype value4))
   = (slow_attr4_elt_open spaces tag 
        name1 value1 
