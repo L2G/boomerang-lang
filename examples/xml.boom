@@ -61,7 +61,7 @@ let OPEN_NOKIDS (tag:regexp) : regexp = "<" . tag . "/>"
    o [sp] is used to canonize the leading whitespace.
    o [t] is the tag.
 *)
-let raw_open (spaces:string) (tag:string) : (lens in (WS . "<" . tag) <=> "") = 
+let raw_open (spaces:string in WS) (tag:string) : (lens in (WS . "<" . tag) <=> "") = 
   qdel WS spaces . 
   del ("<" . tag) 
 
@@ -85,7 +85,7 @@ let slash_close : (lens in (WS . "/>") <=> "") =
    o [sp] canonical leading whitespace.
    o [t] element tag.
 *)
-let open_tag (spaces:string) (tag:string) 
+let open_tag (spaces:string in WS) (tag:string) 
   : (lens in (WS . OPEN tag) <=> "") 
   = raw_open spaces tag . 
     close
@@ -104,7 +104,7 @@ let simple_close_tag (tag:string) : (lens in CLOSE tag <=> "") =
    o [sp] canonical leading whitespace.
    o [t] element tag.
 *)
-let close_tag (spaces:string) (tag:string) 
+let close_tag (spaces:string in WS) (tag:string) 
   : (lens in (WS . CLOSE tag) <=> "") 
   = qdel WS spaces . 
     simple_close_tag tag
@@ -114,18 +114,18 @@ let close_tag (spaces:string) (tag:string)
    o [t] element tag.
    o [l] lens for processing the children.
 *)
-let simple_elt (spaces:string) (tag:string) (body:lens) 
+let simple_elt (spaces:string in WS) (tag:string) (body:lens) 
   : (lens in (WS . OPEN tag . ctype body . CLOSE tag) <-> atype body)
   = open_tag spaces tag . 
     body . 
     simple_close_tag tag
 
-let simple_elt_twotags (spaces:string) (tag:string) 
+let simple_elt_twotags (spaces:string in WS) (tag:string) 
   : (lens in (WS . OPEN tag . CLOSE tag) <-> "")
   = open_tag spaces tag . 
     simple_close_tag tag
 
-let simple_elt_openclose (spaces:string) (tag:string)
+let simple_elt_openclose (spaces:string in WS) (tag:string)
   : (lens in (WS . "<" . tag . WS . "/>") <-> "")
   = raw_open spaces tag . slash_close
 
@@ -137,7 +137,7 @@ let EMPTYELT (tag:regexp) : regexp =
    o [sp] canonical leading whitespace.
    o [t] element tag.
 *)
-let simple_elt_no_kids (spaces:string) (tag:string)
+let simple_elt_no_kids (spaces:string in WS) (tag:string)
   : (lens in (WS . EMPTYELT tag) <-> "")
   = qdel WS spaces . del (EMPTYELT tag)
 
@@ -153,7 +153,7 @@ let ELT (tag:regexp) (BODY:regexp) : regexp
    o [t] element tag.
    o [l] lens for processing children.
 *)
-let elt (spaces:string) (tag:string) (body:lens) 
+let elt (spaces:string in WS) (tag:string) (body:lens) 
   : (lens in ELT tag (ctype body) <-> atype body)
   = open_tag spaces tag . 
     body . 
@@ -303,7 +303,7 @@ let ATTR_ELT (tag:string) (AS:regexp) (BODY:regexp) : regexp =
    o [v] lens for processing attribute value.
    o [l] lens for processing element children.
 *)
-let attr1_elt (spaces:string) (tag:string) 
+let attr1_elt (spaces:string in WS) (tag:string) 
     (name:string) (value:lens) 
     (body:lens where splittable_cex (atype value) (atype body)) 
   : (lens in ATTR_ELT tag (ATTR name (ctype value)) (ctype body)
@@ -314,7 +314,7 @@ let attr1_elt (spaces:string) (tag:string)
     body . 
     close_tag spaces tag 
 
-let attr1_elt_swap (spaces:string) (tag:string) 
+let attr1_elt_swap (spaces:string in WS) (tag:string) 
     (name:string) (value:lens) 
     (body:lens where splittable_cex (atype body) (atype value)) 
   : (lens in ATTR_ELT tag (ATTR name (ctype value)) (ctype body)
@@ -332,7 +332,7 @@ let attr1_elt_swap (spaces:string) (tag:string)
    o [v] lens for processing attribute value.
    o [l] lens for processing element children.
 *)
-let attr1_simple_elt (spaces:string) (tag:string) 
+let attr1_simple_elt (spaces:string in WS) (tag:string) 
     (name:string) (value:lens) 
     (body:lens where splittable_cex (atype value) (atype body))
   : (lens in (WS . ATTR_OPEN tag (ATTR name (ctype value)) . (ctype body) . CLOSE tag)
@@ -387,7 +387,7 @@ let ANY_ATTR_ELT (tag:string) (spec:(string*regexp) List.t) (BODY:regexp) : rege
    o [vi] lens for processing ith attribute value.
    o [l] lens for processing element children.
 *)
-let attr2_elt (spaces:string) (tag:string) 
+let attr2_elt (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
     (body:lens where splittable_cex (atype value1 . atype value2) (atype body)) 
@@ -401,7 +401,7 @@ let attr2_elt (spaces:string) (tag:string)
     body . 
     close_tag spaces tag 
 
-let slow_attr2_elt (spaces:string) (tag:string) 
+let slow_attr2_elt (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens where splittable_cex (atype value1) (atype value2)) 
     (body:lens where splittable_cex (atype value1 . atype value2) (atype body)) 
@@ -437,18 +437,18 @@ let ATTR_NOKIDS (tag:string) (AS:regexp) = WS . OPEN_NOKIDS (tag . AS . WS)
    o [ni] ith attribute name.
    o [vi] lens for processing ith attribute value.
 *)
-let attrs_elt_no_kids (spaces:string) (tag:string) (attrs:lens) 
+let attrs_elt_no_kids (spaces:string in WS) (tag:string) (attrs:lens) 
   : (lens in ATTR_NOKIDS tag (ctype attrs) <-> atype attrs)
   = raw_open spaces tag . 
     attrs . 
     slash_close
 
-let attr1_elt_no_kids (spaces:string) (tag:string) 
+let attr1_elt_no_kids (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
   : (lens in ATTR_NOKIDS tag (ATTR name1 (ctype value1)) <-> atype value1)
   = attrs_elt_no_kids spaces tag (attr name1 value1)
     
-let attr2_elt_no_kids (spaces:string) (tag:string) 
+let attr2_elt_no_kids (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
   : (lens in ATTR_NOKIDS tag (ANY_ATTRS #{string*regexp}[name1,ctype value1; 
@@ -460,7 +460,7 @@ let attr2_elt_no_kids (spaces:string) (tag:string)
 test (attr2_elt_no_kids "" "foo" "a1" "5" "a2" "6").get "<foo a1='5' a2='6' />" = "56"
 test (attr2_elt_no_kids "" "foo" "a1" "5" "a2" "6").get "<foo a1='5'   />" = error
 
-let slow_attr2_elt_no_kids (spaces:string) (tag:string) 
+let slow_attr2_elt_no_kids (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens)
   : (lens in ATTR_NOKIDS tag (ALL_ATTRS #{string*regexp}[name1,ctype value1; 
@@ -471,7 +471,7 @@ let slow_attr2_elt_no_kids (spaces:string) (tag:string)
        #{lens}[(attr name1 value1);
 	       (attr name2 value2)])
 
-let attr3_elt_no_kids (spaces:string) (tag:string) 
+let attr3_elt_no_kids (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
@@ -484,7 +484,7 @@ let attr3_elt_no_kids (spaces:string) (tag:string)
 			      (attr name2 value2);
 			      (attr name3 value3)])
 
-let slow_attr3_elt_no_kids (spaces:string) (tag:string) 
+let slow_attr3_elt_no_kids (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
@@ -498,7 +498,7 @@ let slow_attr3_elt_no_kids (spaces:string) (tag:string)
 	       (attr name2 value2);
 	       (attr name3 value3)])
 
-let attr4_elt_no_kids (spaces:string) (tag:string) 
+let attr4_elt_no_kids (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
@@ -514,7 +514,7 @@ let attr4_elt_no_kids (spaces:string) (tag:string)
 			      (attr name3 value3);
 			      (attr name4 value4)])
 
-let slow_attr4_elt_no_kids (spaces:string) (tag:string) 
+let slow_attr4_elt_no_kids (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
@@ -540,13 +540,13 @@ let ATTR_EOPEN (tag:string) (AS:regexp) : regexp =
    o [ni] ith attribute name.
    o [vi] lens for processing ith attribute value.
 *)
-let attrs_open (spaces:string) (tag:string) (attrs:lens) 
+let attrs_open (spaces:string in WS) (tag:string) (attrs:lens) 
   : (lens in ATTR_EOPEN tag (ctype attrs) <-> atype attrs)
   = raw_open spaces tag . 
     attrs . 
     close  
 
-let attr1_elt_open (spaces:string) (tag:string)
+let attr1_elt_open (spaces:string in WS) (tag:string)
     (name1:string) (value1:lens) 
   : (lens in ATTR_EOPEN tag (ATTR name1 (ctype value1))
 	 <-> atype value1)
@@ -554,7 +554,7 @@ let attr1_elt_open (spaces:string) (tag:string)
   attrs_open spaces tag 
     (attr name1 value1)
 
-let attr2_elt_open (spaces:string) (tag:string)
+let attr2_elt_open (spaces:string in WS) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
   : (lens in ATTR_EOPEN tag (ANY_ATTRS #{string*regexp}[name1,ctype value1;
@@ -564,7 +564,7 @@ let attr2_elt_open (spaces:string) (tag:string)
       (Sort.sort_concat #{lens}[(attr name1 value1);
 	  			(attr name2 value2)])
 
-let slow_attr2_elt_open (spaces:string) (tag:string)
+let slow_attr2_elt_open (spaces:string in WS) (tag:string)
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens)
   : (lens in ATTR_EOPEN tag (ALL_ATTRS #{string*regexp}[name1,ctype value1;
@@ -575,7 +575,7 @@ let slow_attr2_elt_open (spaces:string) (tag:string)
 	 #{lens}[(attr name1 value1);
 		 (attr name2 value2)])
 
-let attr3_elt_open (spaces:string) (tag:string) 
+let attr3_elt_open (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
@@ -589,7 +589,7 @@ let attr3_elt_open (spaces:string) (tag:string)
 		 (attr name2 value2);
 		 (attr name3 value3)])
 
-let slow_attr3_elt_open (spaces:string) (tag:string) 
+let slow_attr3_elt_open (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens)
@@ -603,7 +603,7 @@ let slow_attr3_elt_open (spaces:string) (tag:string)
 		 (attr name2 value2);
 		 (attr name3 value3)])
 
-let attr4_elt_open (spaces:string) (tag:string) 
+let attr4_elt_open (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
@@ -620,7 +620,7 @@ let attr4_elt_open (spaces:string) (tag:string)
 		 (attr name3 value3);
 		 (attr name4 value4)])
 
-let slow_attr4_elt_open (spaces:string) (tag:string) 
+let slow_attr4_elt_open (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
@@ -638,7 +638,7 @@ let slow_attr4_elt_open (spaces:string) (tag:string)
                (attr name4 value4)])
 
 (* attrN_elt_swap2 *)
-let attr2_elt_swap2 (spaces:string) (tag:string) 
+let attr2_elt_swap2 (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
@@ -654,7 +654,7 @@ let attr2_elt_swap2 (spaces:string) (tag:string)
        close_tag spaces tag); 
     ( copy (atype value1) . ( copy (atype value2) ~ copy (atype body) ) )
 
-let slow_attr2_elt_swap2 (spaces:string) (tag:string) 
+let slow_attr2_elt_swap2 (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (body:lens where splittable_cex (atype value1) (atype body)
@@ -671,7 +671,7 @@ let slow_attr2_elt_swap2 (spaces:string) (tag:string)
     ( copy (atype value1) . 
 	( copy (atype value2) ~ copy (atype body) ) )
 
-let attr3_elt_swap2 (spaces:string) (tag:string) 
+let attr3_elt_swap2 (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
@@ -691,7 +691,7 @@ let attr3_elt_swap2 (spaces:string) (tag:string)
     ( copy (atype value1) . 
       ( copy (atype value2 . atype value3) ~ copy (atype body) ) )
 
-let slow_attr3_elt_swap2 (spaces:string) (tag:string) 
+let slow_attr3_elt_swap2 (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
@@ -711,7 +711,7 @@ let slow_attr3_elt_swap2 (spaces:string) (tag:string)
     ( copy (atype value1) . 
       ( copy (atype value2 . atype value3) ~ copy (atype body) ) )
 
-let attr4_elt_swap2 (spaces:string) (tag:string) 
+let attr4_elt_swap2 (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
@@ -734,7 +734,7 @@ let attr4_elt_swap2 (spaces:string) (tag:string)
     ( copy (atype value1) . 
       ( copy (atype value2 . atype value3 . atype value4) ~ copy (atype body) ) )
 
-let slow_attr4_elt_swap2 (spaces:string) (tag:string) 
+let slow_attr4_elt_swap2 (spaces:string in WS) (tag:string) 
     (name1:string) (value1:lens) 
     (name2:string) (value2:lens) 
     (name3:string) (value3:lens) 
