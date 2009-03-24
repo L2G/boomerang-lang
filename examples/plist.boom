@@ -108,11 +108,11 @@ let empty_array (spaces:string in Xml.WS)
 
 let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R+
 
-  let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
-      : (lens in NONEMPTY_ARRAY (ctype l) <-> (atype l)+ )
-      = Xml.elt spaces "array" <l>+
+let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
+  : (lens in NONEMPTY_ARRAY (ctype l) <-> (atype l)+ )
+  = Xml.elt spaces "array" <l>+
 
-    let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
+let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
 
 let parray (spaces:string in Xml.WS) (l:lens where lens_iterable l)
     : (lens in ARRAY (ctype l) <-> (atype l)* )
@@ -496,3 +496,12 @@ test llist2.get
     Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / 
     Birthdate=1564;
   >>
+
+let llist3 =
+  plist (podict "\n  "
+	   #{regexp*lens}["booleanKey",field (pbool "\n    " "#t" "#f");
+			  "dateKey",field (pdate "\n    " DATE);
+			  "listKey",empty_array "\n    " . ";";
+			  "recordKey",empty_dict "\n    " . ";";
+			  "stringKey",field (pstring "\n    " LINE)])
+			  
