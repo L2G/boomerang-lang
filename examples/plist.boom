@@ -87,9 +87,8 @@ let pdata (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED BASE6
   = pvalue spaces "data" l
 
 (* TODO ISO 8601 calls 19 valid way to refer to the 20th century, etc. *)
-let PLUSMINUS : regexp = '+' | '-'
 let NUM2 : regexp = DIGIT{2}
-let ISO8601_DATE : regexp = PLUSMINUS? . DIGIT? . NUM2{2}."-".NUM2."-".NUM2."T".NUM2.":".NUM2.":".NUM2."Z"
+let ISO8601_DATE : regexp = ISO8601.Date.COMPLETE . "T".NUM2.":".NUM2.":".NUM2."Z"
 
 let pdate (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED ISO8601_DATE))
   : (lens in Xml.ELT "date" (ctype l) <-> atype l)
@@ -127,6 +126,8 @@ let pbool (spaces:string in Xml.WS) (strue:string) (sfalse:string where not (str
 
 test (pbool "" "yes" "no").get "<true/>" = "yes"
 test (pbool "" "yes" "no").put "no" into "<true/>" = "<false/>"
+
+let PLUSMINUS : regexp = '+' | '-'
 
 let REAL : regexp = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?
 let preal (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED REAL))
