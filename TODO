@@ -1,3 +1,43 @@
+== SUMMER AGENDA ==
+
+* Configuration management
+
+** Boomerang only
+
+** Whole document with Unison
+
+*** Bsync
+
+*** unison interface
+
+* coqsplit
+
+* unit testing
+
+** programmatic blame
+
+*** more specific "this code raises blame" tests
+
+** desugar test syntax into DLet, eliminate DTest
+
+*** print function
+
+**** lens printing
+
+* MediaWiki
+
+** annotated regexps
+
+** safe bijections
+
+* diffy matching
+
+* nested words and recursion
+
+** string <-> tree
+
+* grammars
+
 == BUILD == 
 
 * add target for bytecode compilation (Nate)
