@@ -184,7 +184,7 @@ struct
   let compare t1 t2 = compare t1.M.uid t2.M.uid
 end)
 
-(* aliases for M.t *)
+(* type aliases *)
 type t = M.t
 type this_t = t
 open M
@@ -327,7 +327,7 @@ let match_string t0 w =
 let match_code_list t0 l = 
   let t' = Safelist.fold_left (fun ti ci -> ti.derivative ci) t0 l in 
   t'.final
-    
+
 (* --------------------- HASH CONS CACHES --------------------- *)
 module ICache = H.Make
   (struct 
@@ -964,7 +964,7 @@ let splittable_cex t1 t2 =
               let cj = rm.(j) in 
               let tj = t.derivative cj in 
               let f' = 
-                if not (easy_empty tj || is_epsilon tj || mem tj f) then 
+                if not (is_epsilon tj || easy_empty tj || mem tj f) then 
                   (push tj cj; add tj f)
                 else f in
                 loop (pred j) f' in 

@@ -475,3 +475,4 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 
 #* test canonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) = 
 #*   (UALPHACHAR . DIGIT)
+

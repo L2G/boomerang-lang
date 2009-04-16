@@ -128,21 +128,15 @@ let create l_n a_fn o_fn =
 (********)
 let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =   
   let l = lookup_lens l_n in 
-  let get_f f =
-    if Sys.file_exists f then Some (get_str l (read_string f)) 
+  let read f =
+    if Sys.file_exists f then Some (read_string f)
     else None in
-  let putback f ro' ro =
-    match ro' with
-      None -> Misc.remove_file_or_dir f
-    | Some r' ->
-        let newcontents =
-          match ro with
-            | None -> create_str l r'
-            | Some r -> put_str l r' r in 
-        write_string f newcontents  in
-  let oo = get_f o_fn in 
-  let ao = get_f a_fn in 
-  let bo = get_f b_fn in 
+  let write f ro' = match ro' with
+    | None -> Misc.remove_file_or_dir f
+    | Some r' -> write_string f r' in
+  let oo = read o_fn in 
+  let ao = read a_fn in 
+  let bo = read b_fn in 
   let xt = match L.xtype l with
     | Some xt -> xt     
     | None -> 
@@ -150,9 +144,9 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
           (fun () -> msg "cannot synchronize with %s" (L.string l)) in
   let acts,oo',ao',bo' = Bsync.sync_opt xt oo ao bo in 
   Bprint.nlify acts;
-  putback o_fn' oo' oo;
-  putback a_fn' ao' ao;
-  putback b_fn' bo' bo;
+  write o_fn' oo';
+  write a_fn' ao';
+  write b_fn' bo';
   (* Return non-zero exit code if any conflicts were detected *)
   if ao' = bo' then 0 else 1
   
