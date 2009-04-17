@@ -40,13 +40,13 @@ let maybe_wrap fmt b r =
 
 (* ----- formatters for abstract syntax trees ----- *)  
 let rec format_sort = function
-  | SUnit -> msg "@[unit@]"      
+  | SUnit -> msg "@[unit@]"
   | SBool -> msg "@[bool@]"
-  | SInteger -> msg "@[int@]"      
-  | SChar    -> msg "@[char@]" 
+  | SInteger -> msg "@[int@]"
+  | SChar    -> msg "@[char@]"
   | SString -> msg "@[string@]"
   | SRegexp -> msg "@[regexp@]"
-  | SLens -> msg "@[lens@]"      
+  | SLens -> msg "@[lens@]"
   | SCanonizer -> msg "@[canonizer@]"
       
   | SFunction(x0, s1, s2) ->
@@ -131,126 +131,126 @@ and format_binding b0 = match b0 with
         
 and format_exp e0 = match e0 with 
   | EApp (_,e1,e2) ->
-	msg "@[<2>(";
-	format_exp e1;
-	msg "@ ";
-	format_exp e2;
-	msg ")@]"
+      msg "@[<2>(";
+      format_exp e1;
+      msg "@ ";
+      format_exp e2;
+      msg ")@]"
 
-    | EVar(_,q) -> 
-	msg "@[%s@]" (Qid.string_of_t q)
+  | EVar(_,q) -> 
+      msg "@[%s@]" (Qid.string_of_t q)
+	
+  | EOver(_,op,e1::rest) -> 
+      msg "@[<2>(";
+      format_exp e1;
+      (match rest with 
+         | [] -> 
+             msg ")";
+             format_op op;
+             msg "@]"
+         | _ -> 
+             msg " ";
+             format_op op;
+             msg " ";
+             Misc.format_list "" format_exp rest; (* HACK! *)
+             msg ")@]")
 
-    | EOver(_,op,e1::rest) -> 
-        msg "@[<2>(";
-        format_exp e1;
-        (match rest with 
-           | [] -> 
-               msg ")";
-               format_op op;
-               msg "@]"
-           | _ -> 
-               msg " ";
-               format_op op;
-               msg " ";
-               Misc.format_list "" format_exp rest; (* HACK! *)
-               msg ")@]")
+  | EOver _ -> assert false
+      
+  | EFun (_,p,s,e) ->
+      msg "@[<2>(fun@ ";
+      format_param p;
+      (match s with
+	 | None -> ()
+         | Some s -> msg "@ :@ "; format_sort s);
+      msg "@ ->@ ";
+      format_exp e;
+      msg ")@]";
+      
+  | ELet (_,b,e) ->
+      msg "@[<2>let ";
+      format_binding b;
+      msg "@ in@ ";
+      format_exp e;
+      msg "@]";
 
-    | EOver _ -> assert false
-        
-    | EFun (_,p,s,e) ->
-	msg "@[<2>(fun@ ";
-	format_param p;
-	(match s with
-	   | None -> ()
-           | Some s -> msg "@ :@ "; format_sort s);
-	msg "@ ->@ ";
-	format_exp e;
-	msg ")@]";
+  | ETyFun(_,x,e) -> 
+      msg "@[<2>(tyfun@ %s@ ->@ '" (Id.string_of_t x);
+      format_exp e;
+      msg ")@]"
+	
+  | ETyApp(_,e,s) -> 
+      msg "@[<2>";
+      format_exp e;
+      msg "@,{@["; 
+      format_sort s; 
+      msg "@]}@]"
+	
+  | EUnit _ -> msg "()"
+      
+  | EPair(_,e1,e2) -> 
+      msg "@[<2>(@[";
+      format_exp e1;
+      msg ",@,";
+      format_exp e2;
+      msg "@])@]"
+	
+  | ECase(_,e1,pl,s) -> 
+      msg "@[<2>(match@ ";
+      format_exp e1;
+      msg "@ with@ ";
+      Misc.format_list "@ | "
+        (fun (p,e) -> 
+           msg "@[<2>";
+           format_pat p;
+           msg "@ ->@ ";
+           format_exp e;
+           msg "@]")
+        pl;
+      msg ")@ :@ ";
+      format_sort s;
+      msg "@]"
 
-    | ELet (_,b,e) ->
-	msg "@[<2>let ";
-	format_binding b;
-	msg "@ in@ ";
-	format_exp e;
-	msg "@]";
+  | ECast(_,f,t,_,e) -> 
+      msg "@[<2><|"; 
+      format_sort t;
+      msg "@ <=@ ";
+      format_sort f;
+      msg "|>@ ";
+      format_exp e;
+      msg "@]"
 
-    | ETyFun(_,x,e) -> 
-        msg "@[<2>(tyfun@ %s@ ->@ '" (Id.string_of_t x);
-        format_exp e;
-        msg ")@]"
-    
-    | ETyApp(_,e,s) -> 
-        msg "@[<2>";
-        format_exp e;
-        msg "@,{@["; 
-        format_sort s; 
-        msg "@]}@]"
+  | EBoolean (_,None) -> 
+      msg "@[true@]"
 
-    | EUnit _ -> msg "()"
+  | EBoolean (_,Some (EString(_,""))) ->
+      msg "@[false@]"
 
-    | EPair(_,e1,e2) -> 
-        msg "@[<2>(@[";
-        format_exp e1;
-        msg ",@,";
-        format_exp e2;
-        msg "@])@]"
+  | EBoolean (_,Some e) ->
+      msg "@[false (with counterexample: ";
+      format_exp e;
+      msg "@]"
 
-    | ECase(_,e1,pl,s) -> 
-        msg "@[<2>(match@ ";
-        format_exp e1;
-        msg "@ with@ ";
-        Misc.format_list "@ | "
-          (fun (p,e) -> 
-             msg "@[<2>";
-             format_pat p;
-             msg "@ ->@ ";
-             format_exp e;
-             msg "@]")
-          pl;
-        msg ")@ :@ ";
-        format_sort s;
-        msg "@]"
+  | EChar(_,c) -> msg "'%s'" (Char.escaped c)
 
-    | ECast(_,f,t,_,e) -> 
-        msg "@[<2><|"; 
-        format_sort t;
-        msg "@ <=@ ";
-        format_sort f;
-        msg "|>@ ";
-        format_exp e;
-        msg "@]"
+  | EString (_,s) ->
+      msg "@[\"%s\"@]" (Misc.whack s)
 
-    | EBoolean (_,None) -> 
-        msg "@[true@]"
+  | EInteger (_,i) ->
+      msg "@[%d@]" i
 
-    | EBoolean (_,Some (EString(_,""))) ->
-	msg "@[false@]"
-
-    | EBoolean (_,Some e) ->
-	msg "@[false (with counterexample: ";
-	format_exp e;
-	msg "@]"
-
-    | EChar(_,c) -> msg "'%s'" (Char.escaped c)
-
-    | EString (_,s) ->
-	msg "@[\"%s\"@]" (Misc.whack s)
-
-    | EInteger (_,i) ->
-	msg "@[%d@]" i
-
-    | ECSet (_,pos, ranges) ->
-	msg "@[[";
-	(if pos then () else msg "^");
-	Misc.format_list ""
-	  (fun (first, last) ->
-	     if first = last
-	     then msg "%s" (Char.escaped first)
-	     else msg "%s-%s" 
-	       (Char.escaped first)
-	       (Char.escaped last))
-	  ranges;
-	  msg "]@]"
+  | ECSet (_,pos, ranges) ->
+      msg "@[[";
+      (if pos then () else msg "^");
+      Misc.format_list ""
+	(fun (first, last) ->
+	   if first = last
+	   then msg "%s" (Char.escaped first)
+	   else msg "%s-%s" 
+	     (Char.escaped first)
+	     (Char.escaped last))
+	ranges;
+      msg "]@]"
 
 and format_op = function
   | OIter(0,-1) -> msg "*"
@@ -292,40 +292,40 @@ and format_test_result tr =
         msg "@]"
 
 and format_decl = function
-      DLet (_,b) ->
-	msg "@[<2>let ";
-	format_binding b;
-	msg "@]"
+    DLet (_,b) ->
+      msg "@[<2>let ";
+      format_binding b;
+      msg "@]"
 
-    | DType(_,xl,x,cl) ->  
-        msg "@[<2>type@ ";
-        (match xl with 
-          | [] -> ()
-          | [x] -> msg "%s" (Id.string_of_t x)
-          | _ -> 
-              msg "(";
-              Misc.format_list ",@ " (fun xi -> msg "%s" (Id.string_of_t xi)) xl;
-              msg ")");
-        msg "@ %s@ =@ " (Qid.string_of_t x);
-        Misc.format_list " | "
-          (fun (l,s) -> match s with
-             | None -> msg "%s" (Id.string_of_t l)
-             | Some s -> 
-                 msg "(%s@ " (Id.string_of_t l);
-                 format_sort s;
-                 msg ")")
-          cl;
-        msg "@]"        
+  | DType(_,xl,x,cl) ->  
+      msg "@[<2>type@ ";
+      (match xl with 
+         | [] -> ()
+         | [x] -> msg "%s" (Id.string_of_t x)
+         | _ -> 
+             msg "(";
+             Misc.format_list ",@ " (fun xi -> msg "%s" (Id.string_of_t xi)) xl;
+             msg ")");
+      msg "@ %s@ =@ " (Qid.string_of_t x);
+      Misc.format_list " | "
+        (fun (l,s) -> match s with
+           | None -> msg "%s" (Id.string_of_t l)
+           | Some s -> 
+               msg "(%s@ " (Id.string_of_t l);
+               format_sort s;
+               msg ")")
+        cl;
+      msg "@]"        
 
-    | DMod (i,m,ds) ->
-	format_module (Mod (i,m,[], ds))
+  | DMod (i,m,ds) ->
+      format_module (Mod (i,m,[], ds))
 
-    | DTest (_,e,tr) ->
-	msg"@[<2>test@ @[";
-	format_exp e;
-	msg "@ ";
-	format_test_result tr;
-	msg "@]@]"
+  | DTest (_,e,tr) ->
+      msg"@[<2>test@ @[";
+      format_exp e;
+      msg "@ ";
+      format_test_result tr;
+      msg "@]@]"
 
 and format_module = function
   | Mod (_,m,qs,ds) ->

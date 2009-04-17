@@ -498,7 +498,14 @@ module Canonizer = struct
 
   let info cn = cn.info
 
-  let string cn = ""
+  let format cn = msg ""
+
+  let string cn = 
+    Util.format_to_string 
+      (fun () -> 
+	 Util.format "@["; 
+	 format cn; 
+	 Util.format "@]")
 
   let cnrel_identity cn = cnrel cn = Identity
 
@@ -1451,7 +1458,14 @@ module DLens = struct
 
   let uid dl = dl.uid
 
-  let string dl = ""    
+  let format dl = msg ""
+
+  let string dl = 
+    Util.format_to_string 
+      (fun () -> 
+	 Util.format "@["; 
+	 format dl; 
+	 Util.format "@]")
 
   let arel_identity dl = arel dl = Identity
 

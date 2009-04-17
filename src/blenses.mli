@@ -51,6 +51,7 @@ module Canonizer : sig
 
   (* meta data *)
   val info : t -> Info.t
+  val format : t -> unit
   val string : t -> string
   (* types *)
   val uncanonized_type : t -> Brx.t
@@ -75,6 +76,7 @@ module DLens : sig
   type t
 
   val info : t -> Info.t
+  val format : t -> unit
   val string : t -> string
 
   val ctype : t -> Brx.t
