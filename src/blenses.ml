@@ -498,7 +498,29 @@ module Canonizer = struct
 
   let info cn = cn.info
 
-  let format_t cn = msg ""
+  let rec format_t cn = 
+    msg "@[";
+    begin match cn.desc with
+      | Copy(r1)              -> msg "(copy@ "; Rx.format_t r1; msg ")"
+      | Concat(cn1,cn2)       -> msg "("; format_t cn1; msg "@ .@ "; format_t cn2; msg ")"
+      | Union(cn1,cn2)        -> msg "("; format_t cn1; msg "@ |@ "; format_t cn2; msg ")"
+      | Star(cn1)             -> format_t cn1; msg "* " (* space to avoid spurious close-comments *)
+      | Normalize(r1,r2,f)    -> 
+	  msg "(normalize@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg "@ <function>)"
+      | FromLens(r1,r2,e1,f1,f2) ->
+	  msg "(canonizer_of_lens@ <lens>)" (* ??? *)
+      | Sort(i1,irs)          ->
+	  let rec format_irs irs = match irs with
+	    | []       -> ()
+	    | [(_,ri)]     -> Rx.format_t ri
+	    | (_,ri)::rest -> (Rx.format_t ri; msg "@, "; format_irs rest) in
+	  msg "(sort@ #{regexp}[@[";
+	  format_irs irs;
+	  msg "@]])"
+      | Columnize(k,r,ch,nl)  ->
+	  msg "(columnize@ %d@ " k; Rx.format_t r; msg "@ '%c'@ \"%s\")" ch nl
+    end;
+    msg "@]"
 
   let string_of_t cn = 
     Util.format_to_string 
