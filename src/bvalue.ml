@@ -107,9 +107,9 @@ and format = function
       Util.format "false (with counterexample: %s)" s
   | Chr(_,c)     -> Util.format "'%s'" (Char.escaped c)
   | Str(_,rs)    -> Util.format "\"%s\"" rs
-  | Rx(_,r)      -> Util.format "%s" (Brx.string_of_t r)
-  | Lns(_,l)     -> Util.format "%s (lens)" (L.string l)
-  | Can(_,c)     -> Util.format "%s (canonizer)" (C.string c)
+  | Rx(_,r)      -> Brx.format_t r
+  | Lns(_,l)     -> L.format_t l
+  | Can(_,c)     -> C.format_t c
   | Fun(_,f)     -> Util.format "<function>"
   | Par(_,v1,v2) -> 
       Util.format "@[(";

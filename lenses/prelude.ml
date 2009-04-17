@@ -407,7 +407,7 @@ let prelude_spec =
                                                     (fun () -> 
                                                        msg "%s: cannot synchronize with %s."
                                                          (Info.string_of_t i)
-                                                         (L.string l))) in                                            
+                                                         (L.string_of_t l))) in                                            
                                          let acts,o',a',b' = Bsync.sync xt o a b in 
                                          let s_acts = mk_s acts in
                                          let s_o,s_a,s_b = mk_s o',mk_s a',mk_s b' in 

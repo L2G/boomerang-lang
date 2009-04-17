@@ -498,13 +498,13 @@ module Canonizer = struct
 
   let info cn = cn.info
 
-  let format cn = msg ""
+  let format_t cn = msg ""
 
-  let string cn = 
+  let string_of_t cn = 
     Util.format_to_string 
       (fun () -> 
 	 Util.format "@["; 
-	 format cn; 
+	 format_t cn; 
 	 Util.format "@]")
 
   let cnrel_identity cn = cnrel cn = Identity
@@ -1458,13 +1458,58 @@ module DLens = struct
 
   let uid dl = dl.uid
 
-  let format dl = msg ""
+  let rec format_t dl = 
+    let fmt_s s = msg "\"%s\"" s in
+    msg "@[";
+    begin match dl.desc with
+      | Copy(r1)           -> msg "(copy@ "; Rx.format_t r1; msg ")"
+      | Clobber(r1,w1,f1)  -> msg "(clobber@ "; fmt_s w1; msg "@ <function>"; msg ")"
+      | Concat(dl1,dl2)    -> msg "("; format_t dl1; msg "@ .@ "; format_t dl2; msg ")"
+      | Union(dl1,dl2)     -> msg "("; format_t dl1; msg "@ |@ "; format_t dl2; msg ")"
+      | Star(dl1)          -> format_t dl1; msg "* " (* space to prevent spurious close-comments *)
+      | Key(r1)            -> msg "(key@ "; Rx.format_t r1; msg ")"
+      | DMatch(t1,dl1)     -> 
+	  msg "<"; (if t1 <> "" then msg "%s:" t1); 
+	  format_t dl1; msg ">"
+      | Compose(dl1,dl2)   -> msg "("; format_t dl1; msg "@ ;@ "; format_t dl2; msg ")"
+      | Invert(dl1)        -> msg "(invert@ "; format_t dl1; msg ")"
+      | Default(dl1,w1)    -> msg "(default@ "; format_t dl1; msg "@ "; fmt_s w1; msg ")"
+      | LeftQuot(cn1,dl1)  -> msg "(left_quot@ "; Canonizer.format_t cn1; msg "@ "; format_t dl1; msg ")"
+      | RightQuot(dl1,cn1) -> msg "(right_quot@ "; format_t dl1; msg "@ "; Canonizer.format_t cn1; msg ")"
+      | Dup1(dl1,f1,r1)    -> msg "(dup1@ "; format_t dl1; msg "@ <function>@ "; Rx.format_t r1; msg ")"
+      | Dup2(f1,r1,dl1)    -> msg "(dup2@ <function>@ "; Rx.format_t r1; msg "@ "; format_t dl1; msg ")"
+      | SMatch(t1,f1,dl1)  ->
+	  msg "<~"; 
+	  (if f1 <> 1.0 then msg "{%f}" f1);
+	  (if t1 <> "" then msg "%s:" t1); 
+	  format_t dl1; msg ">"
+      | Partition(r1,r2)   -> msg "(partition@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg ")"
+      | Merge(r1)          -> msg "(merge@ "; Rx.format_t r1; msg ")"
+      | Fiat(dl1)          -> msg "(fiat@ "; format_t dl1; msg ")"
+      | Forgetkey(dl1)     -> msg "(forgetkey@ "; format_t dl1; msg ")"
+      | Permute((_,is1,is2,rs1,rs2),dls) -> 
+	  let format_array fmt sep a = 
+	    let rec loop i n =
+	      if i <> n
+	      then begin
+		fmt a.(i);
+		if i + 1 <> n then msg sep
+	      end in
+	    loop 0 (Array.length a) in
+	  msg "(permute@ #{int}[@[";
+	  format_array (fun i -> msg "%d" i) ",@ " is2;
+	  msg "@]]@ #{lens}[@[";
+	  format_array format_t ",@ " dls;
+	  msg "@]])"
+      | Probe(s1,dl1)      -> msg "(probe@ "; fmt_s s1; msg "@ "; format_t dl1; msg ")"
+    end;
+    msg "@]"
 
-  let string dl = 
+  let string_of_t dl = 
     Util.format_to_string 
       (fun () -> 
 	 Util.format "@["; 
-	 format dl; 
+	 format_t dl; 
 	 Util.format "@]")
 
   let arel_identity dl = arel dl = Identity

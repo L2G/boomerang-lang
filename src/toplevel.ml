@@ -141,7 +141,7 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
     | Some xt -> xt     
     | None -> 
         Berror.run_error (Info.M "sync")
-          (fun () -> msg "cannot synchronize with %s" (L.string l)) in
+          (fun () -> msg "cannot synchronize with %s" (L.string_of_t l)) in
   let acts,oo',ao',bo' = Bsync.sync_opt xt oo ao bo in 
   Bprint.nlify acts;
   write o_fn' oo';
