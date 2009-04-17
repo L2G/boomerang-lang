@@ -1,5 +1,11 @@
 == FIX AS SOON AS POSSIBLE ==
-* Lens printing is currently unimplemented
+* Lens printing is currently deficient
+
+** using clobber as our implementation primitive means that we can't
+   print useful lens representations for const, ins, etc.
+
+** we _have_ enough information to print canonizer_of_lens well, but
+   the two types are currently defined separately in different modules...
 
 == SUMMER AGENDA ==
 
@@ -22,10 +28,6 @@
 *** more specific "this code raises blame" tests
 
 ** desugar test syntax into DLet, eliminate DTest
-
-*** print function
-
-**** lens printing
 
 * MediaWiki
 

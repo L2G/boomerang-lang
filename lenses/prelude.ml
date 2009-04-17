@@ -424,7 +424,18 @@ let prelude_spec =
        mk_f i (fun v1 -> 
          mk_f i (fun v2 -> 
            mk_b i (equal v1 v2)))))
-   end
+  end
+
+  ; begin
+    let i = Info.M "poly_print built-in" in
+    let a = Id.mk i "a" in
+    let a_sort = S.SVar a in 
+    (Qid.mk_native_prelude_t "poly_print",
+     S.SForall(a,a_sort ^> S.SUnit),
+     mk_ufun i (fun () ->
+       mk_f i (fun v ->
+         mk_u i (format v))))
+  end
  
   ; begin 
     let i = Info.M "fold_left built-in" in 
