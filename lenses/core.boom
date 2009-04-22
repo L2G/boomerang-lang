@@ -114,12 +114,6 @@ These operators are the standard arithmetic functions on integers.
 
 \subsection{Characters}
 
-\LENSSECTION{@string_of_char@} The @string_of_char@ function converts 
-a character to a string.
-
-#* let string_of_char : char -> string 
-## = Native.Prelude.string_of_char
-
 \LENSSECTION{@code@} The @code@ function converts a @char@ to its
 ASCII code.
 
@@ -1002,7 +996,7 @@ the local filesystem.
 
 \subsection{Synchronization}
 
-\LENSSECTION{@sync@} The @sync@ function takes a lens an three strings as
+\LENSSECTION{@sync@} The @sync@ function takes a lens and three strings as
 arguments. It synchronizes three strings using a type-respecting 
 synchronization algorithm based on diff3. The synchronization type is 
 extracted from the lens

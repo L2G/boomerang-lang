@@ -1229,7 +1229,7 @@ bsort:
 
 /* atomic sorts */
 #{@}
-<BSort> ::= <QVar>
+<ASort> ::= <QVar>
        \alt \lit{@char@}
        \alt \lit{@string@}
        \alt \lit{@regexp@}

@@ -147,7 +147,7 @@ about classical music composers:
 
 \subsection{Basic Composers Lens}
 
-\noindent The lens that maps---bidirectionally---betweeen these
+\noindent The lens that maps---bidirectionally---between these
 strings is written as follows:
 
 #* let ALPHA : regexp = [A-Za-z ]+
