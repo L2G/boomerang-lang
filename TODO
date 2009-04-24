@@ -7,7 +7,17 @@
 ** we _have_ enough information to print canonizer_of_lens well, but
    the two types are currently defined separately in different modules...
 
+* have toplevel sync command use a lens
+
 == SUMMER AGENDA ==
+
+* toplevel
+
+** -e argument
+
+** Arg module containing non-Boomerang flags
+
+** default to "main" lens if only a module is given
 
 * Configuration management
 
