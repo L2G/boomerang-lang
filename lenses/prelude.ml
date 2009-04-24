@@ -128,6 +128,7 @@ let pmk_iii   = pmk2 S.SInteger mk_ifun S.SInteger mk_ifun S.SInteger mk_i
 let pmk_ss    = pmk1 S.SString mk_sfun S.SString mk_s
 let pmk_si    = pmk1 S.SString mk_sfun S.SInteger mk_i
 let pmk_sss   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
+let pmk_siis  = pmk3 S.SString mk_sfun S.SInteger mk_ifun S.SInteger mk_ifun S.SString mk_s
 let pmk_ssu   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SUnit mk_u
 let pmk_sr    = pmk1 S.SString mk_sfun S.SRegexp mk_r
 let pmk_sll   = pmk2 S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
@@ -220,6 +221,9 @@ let pmk_zizi =
   pmk1 (S.SData([S.SInteger],list_qid)) mk_listfun 
     (S.SData([S.SInteger],list_qid)) mk_list
 
+let pmk_rszs =
+  pmk2 S.SRegexp mk_rfun S.SString mk_sfun (S.SData([S.SString],list_qid)) mk_list
+
 let prelude_spec =
   [ (* lens operations *)
     pmk_lss    "get"                  (fun _ -> L.rget)
@@ -310,6 +314,7 @@ let prelude_spec =
   ; pmk_sss    "string_concat"        (fun _ -> (^))    
   ; pmk_si     "length"               (fun _ -> String.length)
   ; pmk_sic    "get_char"             (fun _ -> String.get)
+  ; pmk_siis   "sub_string"           (fun _ -> String.sub)
   ; pmk_ss     "read"                 (fun _ fn -> Misc.read fn)
   ; pmk_ssu    "write"                (fun _ fn s -> Misc.write fn s)
   ; pmk_ss     "exec"                 (fun _ c -> Misc.exec c)
@@ -356,6 +361,7 @@ let prelude_spec =
                                              Some (sprintf "'%s' is ambiguously iterable: splits into [%s] [%s] and [%s] [%s]" 
                                                      (w1^w2) w1 w2 w1' w2')
                                          | _ -> None)
+  ; pmk_rszs   "star_split"           (fun i r s -> Safelist.map (mk_s i) (Brx.star_split r s))
   ; pmk_rrb    "disjoint"             (fun _ -> Brx.disjoint)
   ; pmk_rrx    "disjoint_cex"         (fun _ t1 t2 -> 
                                          match Brx.disjoint_cex t1 t2 with
@@ -427,7 +433,7 @@ let prelude_spec =
   end
 
   ; begin
-    let i = Info.M "poly_print built-in" in
+    let i = mk_prelude_info "poly_print" in
     let a = Id.mk i "a" in
     let a_sort = S.SVar a in 
     (Qid.mk_native_prelude_t "poly_print",
@@ -438,9 +444,9 @@ let prelude_spec =
   end
  
   ; begin 
-    let i = Info.M "fold_left built-in" in 
-    let nil = Id.mk (Info.M "Nil built-in") "Nil" in 
-    let cons = Id.mk (Info.M "Cons built-in!") "Cons" in 
+    let i = mk_prelude_info "fold_left" in 
+    let nil = Id.mk (mk_prelude_info "Nil") "Nil" in 
+    let cons = Id.mk (mk_prelude_info "Cons") "Cons" in 
     let a = Id.mk i "a" in 
     let a_sort = S.SVar a in 
     let b = Id.mk i "b" in 
