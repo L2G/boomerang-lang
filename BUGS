@@ -29,3 +29,10 @@ begin
   in acts
 end
 = error (* does not sync *)
+
+(* and also: *)
+let list : lens = "" | <something> . ([ ]+ . <something>)*
+test (sync list num num num) = error
+(* but this works: *)
+let list : lens = "" | <something> . ([ ] . <something>)*
+test (sync list num num num) = ("",num,num,num)

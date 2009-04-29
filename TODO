@@ -7,8 +7,6 @@
 ** we _have_ enough information to print canonizer_of_lens well, but
    the two types are currently defined separately in different modules...
 
-* have toplevel sync command use a lens
-
 == SUMMER AGENDA ==
 
 * toplevel

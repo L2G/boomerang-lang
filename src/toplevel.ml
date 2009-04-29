@@ -131,24 +131,26 @@ let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =
   let read f =
     if Sys.file_exists f then Some (read_string f)
     else None in
-  let write f ro' = match ro' with
-    | None -> Misc.remove_file_or_dir f
-    | Some r' -> write_string f r' in
-  let oo = read o_fn in 
-  let ao = read a_fn in 
-  let bo = read b_fn in 
+  let oc, ac, bc = read o_fn, read a_fn, read b_fn in 
+  let oa = Misc.map_option (get_str l) oc in 
+  let aa = Misc.map_option (get_str l) ac in 
+  let ba = Misc.map_option (get_str l) bc in 
   let xt = match L.xtype l with
     | Some xt -> xt     
     | None -> 
         Berror.run_error (Info.M "sync")
           (fun () -> msg "cannot synchronize with %s" (L.string_of_t l)) in
-  let acts,oo',ao',bo' = Bsync.sync_opt xt oo ao bo in 
+  let acts,oa',aa',ba' = Bsync.sync_opt xt oa aa ba in 
+  let write_str fn vo so = match vo,so with 
+    | None,_ -> Misc.remove_file_or_dir fn;
+    | Some v, None -> write_string fn (create_str l v) 
+    | Some v, Some s -> write_string fn (put_str l v s) in 
   Bprint.nlify acts;
-  write o_fn' oo';
-  write a_fn' ao';
-  write b_fn' bo';
+  write_str o_fn' oa' oc;
+  write_str a_fn' aa' ac;
+  write_str b_fn' ba' bc;
   (* Return non-zero exit code if any conflicts were detected *)
-  if ao' = bo' then 0 else 1
+  if aa' = ba' then 0 else 1
   
 (* OLD SYNC *)
 let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)

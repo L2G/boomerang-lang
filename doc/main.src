@@ -361,7 +361,7 @@ suffice.
 
 \chapter{The Boomerang System}
 
-\section{Running Boomerang}
+\section{Running Boomerang}\label{sec:cmdlineargs}
 
 All of the interactions with Boomerang we have seen so far have gone
 via unit tests. This works well for interactive lens development, but
@@ -454,6 +454,8 @@ Boomerang programs we have written:
 We will continue adding to this set of examples as we tidy and package
 our code... and we hope you'll write and let us know about the lenses
 you write!
+
+\input{bibtex-simple}
 
 \bibliographystyle{plainnat}
 \bibliography{../../writing/papers/harmony,../../writing/papers/onlybcpshouldmodify/bcp}
