@@ -1,0 +1,9 @@
+module Fail =
+module Bar =
+  type t = Unit of unit (* or anything else *)
+(*  let f (x:t) = true (* BUG: cannot resolve sort t *) *)
+  let f (x:Bar.t) = true
+  let g (x:Bar.t where f x) = ()
+end
+
+test Bar.g (Bar.Unit ()) = ? (* BUG: f unbound *)
