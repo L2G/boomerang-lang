@@ -7,3 +7,25 @@ module Bar =
 end
 
 test Bar.g (Bar.Unit ()) = ? (* BUG: f unbound *)
+
+
+
+(* sync bug *)
+
+let something  : lens = key DIGIT+
+let list : lens = "" | <something> . ([ \n] . <something>)*
+
+let num : string = "1 2 3"
+
+test list.get num = num
+test list.create num = num
+test list.put num into num = num
+test matches_cex (atype list) num = true
+test (sync list num num num) = error
+test
+begin
+  let acts,_,_,_ =
+    sync list num num num
+  in acts
+end
+= error (* does not sync *)
