@@ -812,7 +812,8 @@ module DLens = struct
           | Invert(dl1)        -> Some (Erx.mk_leaf (ctype dl1))
           | Default(dl1,w1)    -> xtype dl1
           | LeftQuot(cn1,dl1)  -> xtype dl1
-          | RightQuot(dl1,cn1) -> None (* FIX? *)
+          | RightQuot(dl1,cn1) -> 
+              Some (Erx.mk_leaf (Canonizer.uncanonized_type cn1))
           | Dup1(dl1,f1,r1)    -> 
               Misc.map_option 
                 (fun xt1 -> Erx.mk_seq xt1 (Erx.mk_leaf r1)) 
@@ -863,7 +864,7 @@ module DLens = struct
                 
   and stype dl sk = match sk,dl.desc with
     | S_string(s),Copy(r1)              -> Rx.match_string (ctype dl) s
-    | S_string(s),Clobber(r1,w1,f1)       -> Rx.match_string (ctype dl) s
+    | S_string(s),Clobber(r1,w1,f1)     -> Rx.match_string (ctype dl) s
     | S_concat(sk1,sk2),Concat(dl1,dl2) -> stype dl1 sk1 && stype dl2 sk2
     | _,Union(dl1,dl2)                  -> stype dl1 sk || stype dl2 sk
     | S_star(sl),Star(dl1)              -> Safelist.for_all (stype dl1) sl
