@@ -102,6 +102,8 @@
 
 * Add examples using q-lenses to QuickStart.
 
+* Add a table with all symbols (. | || <->) and what they mean.
+
 * Add description of sync.
 
 * Fiat description is not very clear (need a simple example; why is it useful?)
