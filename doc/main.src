@@ -455,8 +455,6 @@ We will continue adding to this set of examples as we tidy and package
 our code... and we hope you'll write and let us know about the lenses
 you write!
 
-\input{bibtex-simple}
-
 \bibliographystyle{plainnat}
 \bibliography{../../writing/papers/harmony,../../writing/papers/onlybcpshouldmodify/bcp}
 

@@ -38,7 +38,5 @@ let list : lens = "" | <something> . ([ ] . <something>)*
 test (sync list num num num) = ("",num,num,num)
 
 
-(* Type checking *)
-
-let x : lens = qconst [] [] "a" "b" (* missing type checking, the dropped error is in the prelude *)
-
+(* Error message does not have line number: *)
+let x : lens = copy [a] ; copy [b]

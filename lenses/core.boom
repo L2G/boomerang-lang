@@ -451,9 +451,9 @@ restores its concrete argument, and its $\CREATE$ function returns
 the string @f u@.
 
 #* let clobber 
-#*     (R:regexp) (d:string) (f:string -> (x:string where matches R x))
-#*   : (l:lens where in_lens_type l R (str d))
-##   = Native.Prelude.clobber R d f 
+#*     (R:regexp) (u:string) (f:string -> (s:string where matches R s))
+#*   : (l:lens where in_lens_type l R (str u))
+##   = Native.Prelude.clobber R u f 
 
 #* test get (clobber [A-Z] "" (fun (s:string) -> "B")) "A" = ""
 #* test put (clobber [A-Z] "" (fun (s:string) -> "B")) "" "A" = "A"

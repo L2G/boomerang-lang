@@ -230,7 +230,7 @@ relation abstract domain of the second lens is the identity relation.
 entire regular expression on the abstract side. It is defined using quotienting 
 on the right, the lens @const@, and a canonizer built from @const@.
 
-#* let qconst (C:regexp) (A:regexp) (a:string) (c:string) 
+#* let qconst (C:regexp) (A:regexp) (a:string where matches A a) (c:string where matches C c) 
 #*   : (lens in C <-> A)
 #*   = 
 #*   right_quot     
