@@ -696,8 +696,7 @@ be disjoint and the iteration of their union must be unambiguous.
 and @S@ as arguments and produces a lens whose $\GET$ function
 transforms a string belonging to the iteration of the union of @R@ and @S@
 by discarding all of the substrings belonging to @R@. The regular expressions
-@R@ and @S@ must be disjoint and the iteration of their union must be 
-unambiguous.
+@R@ and @S@ must be disjoint and the iteration of $S$ must be unambiguous.
 
 #* let filter 
 #*     (R:regexp) 
