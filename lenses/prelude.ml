@@ -254,6 +254,7 @@ let prelude_spec =
   ; pmk_ll     "forgetkey"            L.forgetkey
   ; pmk_sll    "probe"                L.probe
   ; pmk_rrl    "partition"            L.partition
+  ; pmk_rrl    "filter"               L.filter
   ; pmk_rl     "merge"                L.merge
   ; pmk_ll     "fiat"                 L.fiat 
   ; pmk_dup1   "dup1"                 (fun i l f fat -> 

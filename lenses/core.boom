@@ -692,6 +692,28 @@ be disjoint and the iteration of their union must be unambiguous.
 #* test get (partition [A-Z] [0-9]) "A1B2C3" = "ABC123"
 #* test put (partition [A-Z] [0-9]) "ABC123456" "A1B2C3" = "A1B2C3456"
 
+\LENSSECTION{@filter@} The @filter@ operator takes two regular expressions @R@ 
+and @S@ as arguments and produces a lens whose $\GET$ function
+transforms a string belonging to the iteration of the union of @R@ and @S@
+by discarding all of the substrings belonging to @R@. The regular expressions
+@R@ and @S@ must be disjoint and the iteration of their union must be 
+unambiguous.
+
+#* let filter 
+#*     (R:regexp) 
+#*     (S:regexp where land (disjoint_cex R S) (iterable_cex S))
+#*   : (l:lens where in_lens_type l
+#*        (regexp_concat 
+#*          (regexp_iter R 0 (minus 0 1))
+#*          (regexp_iter
+#*            (regexp_concat S (regexp_iter R 0 (minus 0 1))) 0 (minus 0 1)))
+#*        (regexp_iter S 0 (minus 0 1)))
+##   = Native.Prelude.filter R S
+
+#* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
+#* test put (filter [A-Z] [0-9]) "123456" "A1B2C3" = "A1B2C3456"
+
+
 \LENSSECTION{@merge@} The @merge@ operator takes a regular expression @R@ 
 and produces a lens whose $\GET$ function transforms a string belonging to the 
 concatenation of @R@ with itself by discarding the second substring belonging 

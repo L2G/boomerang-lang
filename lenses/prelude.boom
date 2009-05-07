@@ -168,23 +168,6 @@ It is also defined using @<->@.
 #* test put (del ANY) "" "Boomerang" = "Boomerang"
 #* test create (del ANY) "" = ""
 
-\LENSSECTION{@filter@} The @filter@ operator takes two regular expressions @R@ 
-and @S@ as arguments and produces a lens whose $\GET$ function
-transforms a string belonging to the iteration of the union of @R@ and @S@
-by discarding all of the substrings belonging to @R@. The regular expressions
-@R@ and @S@ must be disjoint and the iteration of their union must be 
-unambiguous.
-
-#* let filter 
-#*     (R:regexp) 
-#*     (S:regexp where (disjoint_cex R S) && (iterable_cex (R | S)))
-#*   : (lens in (R | S)* <-> S* )
-#*   = partition R S; ( del R* . copy S* )
-
-#* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
-#* test put (filter [A-Z] [0-9]) "123456" "A1B2C3" = "A1B2C3456"
-
-
 \LENSSECTION{@merge_with_sep@} The lens @merge_with_sep@ behaves like @merge@, 
 but allows a separator between the copied string. 
 
