@@ -395,8 +395,8 @@ test command.get "(* CLOSE COMMENT IN LECTURE *)\n" = ">> **)\n"
 
 test command.get "(* this is just a comment *)" = "(* this is just a comment *)"
 
-let M = '0' . [0-9] | '1' . [1-2]
-let D = [1-9] | [12] . [0-9] | "30" | "31"
+let M = '0'? . [1-9] | '1' . [1-2]
+let D = '0'? . [1-9] | [12] . [0-9] | "30" | "31"
 let Y = [1-9] . [0-9]{3}
 let DATE = M . '/' . D . '/' . Y
 

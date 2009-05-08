@@ -44,8 +44,8 @@ let au_tag : string = tag "AU"
 
 (* AUTHORS *)
 let author : lens = 
-  let ANY_AND : regexp = containing /and/ in
-  let string_no_ws : lens = copy (ALPHA+ - ANY_AND) in
+  let ANY_AND : regexp = containing (WS . /and/ . WSP) in
+  let string_no_ws : lens = copy (ALPHA+) in
   let string_ws : lens = copy ((ALPHA . CHAR* . ALPHA) - ANY_AND) in
   ins au_tag .
   ( (string_no_ws . copy /, / . string_ws)
