@@ -227,9 +227,20 @@ expression. The overloaded symbols @*@, @+@, and @?@, as well as iterations
 @{n,m}@ and @{n,}@ all desugar into @regexp_iter@ when used with values of 
 type @regexp@. If the second argument is negative, then the iteration is 
 unbounded. For example,  @R*@ desugars into @regexp_iter R 0 (-1)@.
+For the sake of the clarity of core definitions, we also define @regexp_star@,
+@regexp_plus@ and @regexp_option@ using @regexp_iter@.
 
 #* let regexp_iter : regexp -> int -> int -> regexp 
 ## = Native.Prelude.regexp_iter
+
+#* let regexp_star (r : regexp) : regexp =
+#*   regexp_iter r 0 (minus 0 1)
+
+#* let regexp_plus (r : regexp) : regexp =
+#*   regexp_iter r 1 (minus 0 1)
+
+#* let regexp_option (r : regexp) : regexp =
+#*   regexp_iter r 0 3
 
 \LENSSECTION{@inter@} The @inter@ operator forms the intersection of two 
 regular expressions. The infix symbol @&@ desugars into @inter@.
@@ -330,14 +341,14 @@ that @w@ can be split into substrings, such that each substring belongs
 to @R@.
 
 #* let count : (r:regexp -> 
-#*             (s:string where matches (regexp_iter r 0 (minus 0 1)) s) ->
+#*             (s:string where matches (regexp_star r) s) ->
 #*             int)
 ## = Native.Prelude.count
 
 #* test count [A-Z] "" = 0
 #* test count [A-Z] "ABC" = 3
-#* test count (regexp_iter [A-Z] 0 1) "ABC" = 3
-#* test count (regexp_iter [A-Z] 0 1) "123" = error
+#* test count (regexp_option [A-Z]) "ABC" = 3
+#* test count (regexp_option [A-Z]) "123" = error
 
 \subsection{Equivalence Relations}
 
@@ -581,8 +592,8 @@ lens must both be unambiguous.  The overloaded operator @*@ desugars into
 #*     (l:lens where land (iterable_cex (ctype l))
 #*                        (iterable_cex (atype l)))
 #*   : (l':lens where in_lens_type l'
-#*                (regexp_iter (ctype l) 0 (minus 0 1))
-#*                (regexp_iter (atype l) 0 (minus 0 1)))
+#*                (regexp_star (ctype l))
+#*                (regexp_star (atype l)))
 ## = Native.Prelude.lens_star l
 
 #* test get (lens_star (copy [A-Z])) "" = ""
@@ -600,8 +611,8 @@ resolves to @lens_plus@ when applied to a lens.  (Recall @R+@ desugars into
 #*     (l:lens where land (iterable_cex (ctype l))
 #*                        (iterable_cex (atype l)))
 #*   : (l':lens where in_lens_type l' 
-#*                (regexp_iter (ctype l) 1 (minus 0 1))
-#*                (regexp_iter (atype l) 1 (minus 0 1)))
+#*                (regexp_plus (ctype l))
+#*                (regexp_plus (atype l)))
 ## = Native.Prelude.lens_plus l
 
 #* test get (lens_plus (copy [A-Z])) "A" = "A"
@@ -683,10 +694,10 @@ be disjoint and the iteration of their union must be unambiguous.
 #*     (S:regexp where land (disjoint_cex R S) 
 #*                          (iterable_cex (regexp_union R S)))
 #*   : (l:lens where in_lens_type l 
-#*                     (regexp_iter (regexp_union R S) 0 (minus 0 1))
+#*                     (regexp_star (regexp_union R S))
 #*                     (regexp_concat 
-#*                       (regexp_iter R 0 (minus 0 1))
-#*                       (regexp_iter S 0 (minus 0 1))))
+#*                       (regexp_star R)
+#*                       (regexp_star S)))
 ##   = Native.Prelude.partition R S
 
 #* test get (partition [A-Z] [0-9]) "A1B2C3" = "ABC123"
@@ -704,14 +715,14 @@ with the iteration of @R@.
 #* let filter 
 #*     (R:regexp) 
 #*     (S:regexp where land (land
-#*       (splittable_cex (regexp_iter R 0 (minus 0 1)) S)
-#*       (iterable_cex (regexp_concat (regexp_iter R 0 (minus 0 1)) S)))
+#*       (splittable_cex (regexp_star R) S)
+#*       (iterable_cex (regexp_concat (regexp_star R) S)))
 #*       (splittable_cex
-#*          (regexp_iter (regexp_concat (regexp_iter R 0 (minus 0 1)) S) 0 (minus 0 1))
-#*          (regexp_iter R 0 (minus 0 1))))
+#*          (regexp_star (regexp_concat (regexp_star R) S))
+#*          (regexp_star R)))
 #*   : (l:lens where in_lens_type l
-#*        (regexp_iter (regexp_union R S) 0 (minus 0 1))
-#*        (regexp_iter S 0 (minus 0 1)))
+#*        (regexp_star (regexp_union R S))
+#*        (regexp_star S))
 ##   = Native.Prelude.filter R S
 
 #* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
@@ -908,16 +919,16 @@ $\CHOOSE$ component wraps a string belonging to the iteration of
 #*   (R:regexp)
 #*   (sp:char)
 #*   (nl:string where
-#*         disjoint_cex R (regexp_concat (regexp_iter [^] 0 (minus 0 1)) 
+#*         disjoint_cex R (regexp_concat (regexp_star [^])
 #*                                       (regexp_concat (str nl) 
-#*                                       (regexp_iter [^] 0 (minus 0 1)))))
+#*                                       (regexp_star [^]))))
 #*   : canonizer
 ## = Native.Prelude.columnize k R sp nl
 
 \noindent The following unit test illustrates the $\CHOOSE$ component of
 @columnize@.
 
-#* test choose (columnize 5 (regexp_iter [a-z ] 0 (minus 0 1)) ' ' "\n")
+#* test choose (columnize 5 (regexp_star [a-z ]) ' ' "\n")
 #*        "a b c d e f g" =
 #* <<
 #*   a b c
@@ -942,8 +953,8 @@ a canonizer @q@ on the left by passing concrete strings through @q@.
 ## = Native.Prelude.left_quot cn l
 
 #* test get 
-#*   (left_quot (columnize 5 (regexp_iter [a-z ] 0 (minus 0 1)) ' ' "\n")
-#*              (copy (regexp_iter [a-z ] 0 (minus 0 1))))
+#*   (left_quot (columnize 5 (regexp_star [a-z ]) ' ' "\n")
+#*              (copy (regexp_star [a-z ])))
 #* <<
 #*   a b c
 #*   d e f
@@ -952,8 +963,8 @@ a canonizer @q@ on the left by passing concrete strings through @q@.
 #* = "a b c d e f g"
 
 #* test create 
-#*   (left_quot (columnize 5 (regexp_iter [a-z ] 0 (minus 0 1)) ' ' "\n")
-#*              (copy (regexp_iter [a-z ] 0 (minus 0 1))))
+#*   (left_quot (columnize 5 (regexp_star [a-z ]) ' ' "\n")
+#*              (copy (regexp_star [a-z ])))
 #* "a b c d e"
 #* = 
 #* <<
