@@ -252,6 +252,11 @@ and format_exp e0 = match e0 with
 	ranges;
       msg "]@]"
 
+  | EGrammar(_,ps) -> 
+      msg "@[grammar";
+      Misc.format_list "@\nand@ " format_prod ps; 
+      msg "end@]"
+
 and format_op = function
   | OIter(0,-1) -> msg "*"
   | OIter(1,-1) -> msg "+"
@@ -277,6 +282,21 @@ and format_op = function
   | OGt     -> msg ">"
   | OGeq    -> msg ">="
 
+and format_prod (Prod(_,x,rs)) = 
+  msg "@[%s@ ::= @[" (Id.string_of_t x);
+  Misc.format_list "@\n|@ " format_rule rs;
+  msg "@]@]" 
+
+and format_rule (Rule(_,xs,ys,bs)) = 
+  msg "@[";
+  Misc.format_list "" format_exp xs;
+  msg "@ <-> @ ";
+  Misc.format_list "" format_exp ys;
+  msg "@\nwhere@ ";
+  Misc.format_list "@\nand@ " 
+    (fun (li,ei) -> msg "@[%s:" (Id.string_of_t li); format_exp ei; msg "@]") bs;    
+  msg "@]"
+      
 and format_test_result tr =
   match tr with
     | TestEqual e -> 

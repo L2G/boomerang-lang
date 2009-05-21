@@ -235,9 +235,10 @@ using @qconst@.
 #* test put (qset [A-Z] [a-z]) "z" "A" = "A" 
 #* test put (qset [A-Z] [a-z]) "z" "Z" = "Z" 
 
-\LENSSECTION{@qins@} The lens @qins@ is like @ins@ 
+\LENSSECTION{@qins@,@qins_representative@} The lens @qins@ is like @ins@ 
 but accepts a regular expression in the $\PUT$ direction. It is defined 
-using right quotienting and @ins@.
+using right quotienting and @ins@. The lens @qins_representative@ is 
+similar, but uses an arbitrary representative of @E@ in the $\GET$ direction.
 
 #* let qins (E:regexp) (e:string) : (lens in EPSILON <-> E) = 
 #*   right_quot
@@ -246,6 +247,12 @@ using right quotienting and @ins@.
 
 #* test (get (qins [A-Z]+ "A") "") = "A"
 #* test (create (qins [A-Z]+ "A") "ABC") = ""
+
+#* let qins_representative (E:regexp) : (lens in EPSILON <-> E) = 
+#*   qins E (representative E)
+
+#* test (get (qins_representative [A-Z]+) "") = "A"
+#* test (create (qins_representative [A-Z]+) "ABC") = ""
 
 \LENSSECTION{@qdel@} The lens @qdel@ is like @del@ 
 but produces a canonical representative in the backwards direction. 

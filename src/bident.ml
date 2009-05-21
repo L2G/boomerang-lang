@@ -37,13 +37,15 @@ module Id = struct
   (* constants *)
   let wild = (Info.M "_", "_")
   type this_t = t
-  (* sets of identifiers *)
-  module Set = 
-    Set.Make(
-      struct
-        type t = this_t 
-        let compare = compare 
-      end)
+ (* ordered type *)
+  module OQ = struct
+    type t = this_t 
+    let compare = compare 
+  end
+ (* sets of identifiers *)
+  module Set = Set.Make(OQ)
+  (* maps with identifiers as keys *)
+  module Map = Map.Make(OQ)
 end
 
 (* ------ qualified identifiers ------ *)
@@ -109,11 +111,13 @@ module Qid = struct
       let compare = compare
       let to_string = string_of_t
     end) 
+ (* ordered type *)
+  module OQ = struct
+    type t = this_t 
+    let compare = compare 
+  end
  (* sets of qualified identifiers *)
-  module Set = 
-    Set.Make(
-      struct
-        type t = this_t 
-        let compare = compare 
-      end)
+  module Set = Set.Make(OQ)
+  (* maps with qualified identifiers as keys *)
+  module Map = Map.Make(OQ)
 end

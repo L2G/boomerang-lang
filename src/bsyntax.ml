@@ -64,6 +64,11 @@ and param = Param of Info.t * Id.t * sort
 (* variable bindings *)
 and binding = Bind of Info.t * pat * sort option * exp 
 
+(* grammars *)
+and rule = Rule of Info.t * exp list * exp list * (Id.t * exp) list
+
+and prod = Prod of Info.t * Id.t * rule list
+
 (* expressions *)
 and exp = 
     (* lambda calculus *)
@@ -94,6 +99,8 @@ and exp =
     (* booleans with counter examples *)
     (* None ~ true; Some s ~ false with counterexample s *)
     | EBoolean of Info.t * exp option 
+    
+    | EGrammar of Info.t * prod list
 
 (* overloaded operators *)
 and op = 
@@ -177,7 +184,26 @@ let rec info_of_exp e = match e with
   | EChar    (i,_)       -> i 
   | EString  (i,_)       -> i
   | ECSet    (i,_,_)     -> i
-      
+  | EGrammar (i,_)       -> i
+     
+let info_of_rule = function
+  | Rule(i,_,_,_) -> i
+
+let qlabels_of_rule = function
+  | Rule(_,_,_,bs) ->
+      Safelist.fold_left 
+        (fun acc (li,_) -> Qid.Set.add (Qid.t_of_id li) acc)
+        Qid.Set.empty bs 
+
+let labels_of_rule = function
+  | Rule(_,_,_,bs) ->
+      Safelist.fold_left 
+        (fun acc (li,_) -> Id.Set.add li acc)
+        Id.Set.empty bs 
+
+let info_of_prod = function
+  | Prod(i,_,_) -> i
+
 let info_of_pat = function
   | PWld (i)     -> i
   | PUnt (i)     -> i
@@ -203,6 +229,9 @@ let mk_app i e1 e2 =
 
 let mk_app3 i e1 e2 e3 = 
   mk_app i (mk_app i e1 e2) e3
+  
+let mk_app4 i e1 e2 e3 e4 = 
+  mk_app i (mk_app i e1 e2) (mk_app i e3 e4)
 
 let mk_let i x s1 e1 e2 =
   let b = Bind(i,PVar(i,x,Some s1),None,e1) in 
@@ -236,6 +265,9 @@ let mk_var x =
 
 let mk_native_prelude_var x = 
   mk_qid_var (Qid.mk_native_prelude_t x)
+
+let mk_prelude_var x = 
+  mk_qid_var (Qid.mk_prelude_t x)
 
 let mk_core_var x = 
   mk_qid_var (Qid.mk_core_t x)

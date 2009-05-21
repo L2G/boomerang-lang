@@ -58,6 +58,11 @@ and param = Param of Info.t * Id.t * sort
 (* variable bindings *)
 and binding = Bind of Info.t * pat * sort option * exp 
 
+(* grammars *)
+and rule = Rule of Info.t * exp list * exp list * (Id.t * exp) list
+
+and prod = Prod of Info.t * Id.t * rule list
+
 (* expressions *)
 and exp = 
     (* lambda calculus *)
@@ -88,6 +93,9 @@ and exp =
     (* booleans with counter examples *)
     (* None ~ true; Some s ~ false with counterexample s *)
     | EBoolean of Info.t * exp option 
+
+    | EGrammar of Info.t * prod list
+    
 (** Expression abstract syntax. *)
 
 and op = 
@@ -147,7 +155,19 @@ val (^*) : sort -> sort -> sort
 
 val info_of_exp : exp -> Info.t
 (** [info_of_exp e] returns the parsing info associated to expression [e]. *)
-      
+
+val info_of_prod : prod -> Info.t
+(** [info_of_prod p] returns the parsing info associated to production [p]. *)
+
+val info_of_rule : rule -> Info.t
+(** [info_of_rule r] returns the parsing info associated to rule [r]. *)
+
+val labels_of_rule : rule -> Id.Set.t
+(** [labels_of_rule r] returns the set of labels associated to rule [r]. *)
+
+val qlabels_of_rule : rule -> Qid.Set.t
+(** [labels_of_rule r] returns the set of qualified labels associated to rule [r]. *)
+
 val info_of_pat : pat -> Info.t
 (** [info_of_pat p] returns the parsing info associated to pattern [p]. *)
 
@@ -175,10 +195,12 @@ val sl_of_svl : Bident.Id.t list -> sort list
 (* ------ constructors ----- *)
 val mk_app : Info.t -> exp -> exp -> exp
 val mk_app3 : Info.t -> exp -> exp -> exp -> exp
+val mk_app4 : Info.t -> exp -> exp -> exp -> exp -> exp
 val mk_let : Info.t -> Id.t -> sort -> exp -> exp -> exp
 val mk_fun : Info.t -> Id.t -> sort -> exp -> exp
 val mk_if : Info.t -> exp -> exp -> exp -> sort -> exp 
 val mk_native_prelude_var : string -> exp
+val mk_prelude_var : string -> exp
 val mk_string_of_char : Info.t -> exp -> exp
 val mk_regexp_of_string : Info.t -> exp -> exp 
 val mk_lens_of_regexp : Info.t -> exp -> exp

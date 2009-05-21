@@ -59,7 +59,7 @@ let interp_lexbuf lexbuf n =
   let m_str = Id.string_of_t (id_of_module ast) in 
   let _ = m_check n m_str ast in
   let instrumented_ast = check_module ast in 
-  let _ = interp_module instrumented_ast in 
+  let _ = interp_module instrumented_ast in
     ()
 
 (* end-to-end interpretation of a string *)

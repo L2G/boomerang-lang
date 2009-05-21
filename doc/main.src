@@ -42,10 +42,8 @@
 \author{\LARGE J. Nathan Foster and Benjamin C. Pierce\\[3ex]
 \Large with \\[3ex]
 %
-\Large Aaron Bohannon,
-Michael Greenberg,\\[1ex]
-\Large Alan Schmitt,
-and Alexandre Pilkiewicz\\[5ex]}
+\Large Aaron Bohannon, Michael Greenberg, Alan Schmitt\\[1ex]
+\Large Adam Magee, Alexandre Pilkiewicz, and Daniel Puller\\[5ex]}
 \date{\LARGE \ifdraft {\bf Draft of} \fi  \today}
 
 \maketitle

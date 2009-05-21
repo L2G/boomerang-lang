@@ -256,3 +256,201 @@ To verify it on this example, try out this unit test:
 
 Note that the year data is correctly restored to each composer. 
 
+\section{Grammars}
+
+Sometimes writing lenses using the core set of combinators is rather tedious,
+and we'd like a more succinct way to encode simple transformations.  For example,
+rearranging data requires counting up individual lenses and using their positions
+on both sides of a transformation to form a permutation ordering list.  Also, lenses
+don't always \textit{look} like the transformations they encode, and one cannot easily infer what
+a lens is doing without running it on an example.  Finally, we lack the ability to
+describe transformations rooted in recursive patterns using a single lens.
+
+Our solution to these problems is to express lenses using right-recursive grammars. 
+Each grammar is a set of named productions, each of which Boomerang compiles into a lens
+of the same name.  Each production in turn is a set of rules, possible transformations
+whose union forms the definition of its corresponding lens.
+
+A rule describes a transformation between a pair of sequenced expressions. 
+An expression can be a lens defined in a previous grammar, a regular expression, or a
+string literal.  Each expression present on both sides of the transformation
+is labeled as a variable.  For example, suppose we want to write a lens @swap@
+that inverts a person's first and last name.  Suppose we'd like it to rewrite
+the name ``John Smith" as ``Smith, John".
+
+Without grammars, we would have to write @swap@ using a permutation:
+
+#* let FIRST : regexp = [A-Za-z]+
+#* let LAST : regexp = [A-Za-z]+
+
+#* let swap : lens =
+#*   lens_permute #{int}[2;1;0]
+#*                #{lens}[FIRST; ins ", " . del " "; LAST]
+
+This isn't too bad, but as you can imagine, the bookkeeping gets rather difficult as
+the number of terms increases.  Using grammars, we can more easily write the lens as:
+
+#* let swap : lens =
+#*   grammar
+#*     name :: = fn:FIRST " " ln:LAST <-> ln ", " fn
+#*   end
+
+Observe that labeled terms can be reordered, and unlabeled terms are present on only
+one side of the transformation.  To verify this lens works properly, we use the unit test:
+
+#* test swap.get "John Smith" = "Smith, John"
+
+Each production also can contain multiple rules, and each rule can be right-recursive on
+the entire production.  We can modify the @swap@ lens to write a new lens @swap_many@ that 
+operates on a semi-colon separated nonempty list of names as follows:
+
+#* let swap_many : lens =
+#*   grammar
+#*     swap_many :: = fn:FIRST " " ln:LAST <-> ln ", " fn
+#*                  | fn:FIRST " " ln:LAST "; " ns:swap_many
+#*                      <-> ln ", " fn "; " ns
+#*   end
+
+Here, the first rule for @swap_many@ is precisely the same as the rule for @swap@ and
+behaves the same way: it inverts the order of a single name.  The second rule is a bit
+more interesting.  It inverts the order of a single name and concatenates the result with
+another application of the production.  The production will ultimately have to use the
+first rule to terminate, since the second rule always insists on an additional application
+of the production.  We can test it on a list of two names:
+
+#* test swap_many.get "John Smith; Jane Doe" = "Smith, John; Doe, Jane"
+
+Finally, we can rely on the previously defined lens @swap@ in order to write @swap_many@ more
+cleanly as follows:
+
+#* let swap_many' =
+#*   grammar
+#*     swap_many ::= n:swap <-> n
+#*                 | n:swap "; " ns:swap_many
+#*                     <-> n "; " ns
+#*   end
+
+and test that it behaves just as before:
+
+#* test swap_many'.get "John Smith; Jane Doe" = "Smith, John; Doe, Jane"
+
+Grammars are fully-integrated within the Boomerang system, and as such the resulting lenses
+produced behave just as an other well-formed lenses.  The @swap@ lens can be used as part
+of the definition of a subsequent lens @condense@ that removes extraneous personal
+information:
+
+#* let AGE : regexp = [0-9]+
+#* let GENDER : regexp = "M" | "F"
+#*
+#* let condense : lens =
+#*   swap . del ", " . del AGE . del ", " . del GENDER
+
+and verify the correct behavior with a couple of unit tests:
+
+#* test condense.get "John Smith, 24, M" = "Smith, John"
+#* test condense.put "Hancock, John" into "John Smith, 24, M"
+#*   = "John Hancock, 24, M"
+
+Taking this one step further, the lens @condense@ also can be used in a subsequent grammar
+@pair@ that takes a list of two newline-separated individuals and pairs them up:
+
+#* let pair : lens =
+#*   grammar
+#*     pair ::= c1:condense newline c2:condense
+#*                <-> "(" c1 " & " c2 ")"
+#*   end
+
+which in turn can be used to define the lens @pair_many@, which operates on a list
+with an even number of names and pairs them up:
+
+#* let pair_many : lens =
+#*   grammar
+#*     pair_many ::= p:pair <-> p
+#*                 | p:pair newline ps:pair_many
+#*                     <-> p newline ps 
+#*   end
+
+and verify correct behavior:
+
+#* let two_names : string =
+#* <<
+#* John Smith, 24, M
+#* Jane Doe, 23, F
+#* >>
+#*
+#* test pair.get two_names = "(Smith, John & Doe, Jane)"
+#*
+#* let many_names : string =
+#* <<
+#* John Smith, 24, M
+#* Jane Doe, 23, F
+#* Brad Pitt, 45, M
+#* Angelina Jolie, 33, F
+#* >>
+#*
+#* test pair_many.get many_names =
+#* <<
+#* (Smith, John & Doe, Jane)
+#* (Pitt, Brad & Jolie, Angelina)
+#* >>
+
+Finally, we can take the names from the output and easily rearrange them to present
+how their names would be displayed as a married couple (assuming the last name that
+appears first is used as their married name):
+
+#* let marry : lens =
+#*   grammar
+#*     marry ::= "(" ln1:LAST ", " fn1:FIRST " & " LAST ", " fn2:FIRST ")"
+#*                 <-> fn1 " and " fn2 " " ln1
+#*   end
+#* 
+
+and test it by composing the get function of @marry@ and @pair@:
+
+#* test marry.get (pair.get two_names) = "John and Jane Smith"
+
+Notice that the last name of the second person in the pair isn't labeled in the
+grammar, since it isn't copied over to the output.
+
+\subsection{Rewriting the Composers Lens with Grammars}
+
+Using right-recursive grammars, we can rewrite the basic composers lenses as follows:
+
+#* let comp : lens = 
+#*   grammar
+#*      comp ::= nm:ALPHA ", " YEARS ", " cntry:ALPHA
+#*                 <-> nm ", " cntry
+#* end
+#* let comps : lens =
+#*    grammar
+#*          comps ::= c:comp <-> c
+#*                 |  c:comp newline cs:comps <-> c newline cs
+#* end
+
+and verify it with the same unit tests as earlier:
+
+#* test comps.get c = a
+#* test comps.put a into c = c
+
+\subsection{Mutually-Recursive Grammars}
+
+Boomerang also supports grammars with mutually-recursive productions,
+as in the following example:
+
+#* let (pos,neg) : lens * lens =
+#*   grammar
+#*     pos ::= "positive" <-> "+" 
+#*           | "positive " n:neg <-> "+ " n
+#*     and neg ::= "negative" <-> "-"
+#*               | "negative " p:pos <-> "- " p
+#*   end
+#*
+#* test pos.get "positive" = "+"
+#* test pos.get "positive negative positive negative" = "+ - + -"
+#* test neg.create "- + -" = "negative positive negative"
+
+The behavior of these lenses is as follows:
+
+#* test pos.get "positive" = "+"
+#* test	pos.get	"positive negative positive negative" =	"+ - + -"
+#* test	neg.create "- + -" = "negative positive negative"

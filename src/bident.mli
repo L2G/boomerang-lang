@@ -46,6 +46,9 @@ module Id : sig
 
   module Set : Set.S with type elt = t
   (** Sets with Id.ts as elements *)
+
+  module Map : Map.S with type key = t
+  (** Maps with Id.ts as keys *)
 end
 
 (** {2 Qualified Identifiers } *)
@@ -128,4 +131,7 @@ module Qid : sig
 
   module Set : Set.S with type elt = t
   (** Sets with Qid.ts as elements *)
+
+  module Map : Map.S with type key = t
+  (** Maps with Qid.ts as keys *)
 end

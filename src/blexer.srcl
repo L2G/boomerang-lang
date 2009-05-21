@@ -83,6 +83,7 @@ character. The following keywords
   @lens@ & @int@ & @bool@ & @canonizer@ & @unit@ \\ 
   @of@ & @into@ & @where@ & @forall@ & @lt@ \\
   @leq@ & @gt@ & @geq@ & @true@ & @false@ \\
+  @cex@ & @grammar@ & @and@ \\
   @.get@ & @.put@ & @.create@ & @.canonize@ & @.choose@ \\
   @.ctype@ & @.domain_type@ & @.atype@ & @.codomain_type@ & @.bij@ \\
 \end{tabular}
@@ -194,6 +195,8 @@ let _ =
     ; ("fun", (fun i -> FUN i))
     ; ("begin", (fun i -> BEGIN i))
     ; ("end", (fun i -> END i))
+    ; ("grammar", (fun i -> GRAMMAR i))
+    ; ("and", (fun i -> AND i))
     ; ("test", (fun i -> TEST i))
     ; ("match", (fun i -> MATCH i))
     ; ("with", (fun i -> WITH i))

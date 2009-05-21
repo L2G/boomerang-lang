@@ -161,6 +161,23 @@ let rec fixup_pat i p0 = match p0 with
   | PPar(i,p1,p2)    -> PPar(i,fixup_pat i p1,fixup_pat i p2)
   | _ -> p0
 
+(* helpers for building grammars *)
+let rec info_of_nonempty_list f l = match l with
+  | [] -> syntax_error (Info.M "info_of_nonempty_list") "list was empty"
+  | [h] -> f h
+  | h::t -> m (f h) (info_of_nonempty_list f t)
+
+let info_of_rules = 
+  info_of_nonempty_list info_of_rule
+
+let add_aexp ei (i,ys) = (me1 ei i,ei::ys)
+
+let add_atom ai (i,xs,bs) = match ai with                    
+  | Misc.Left e1 -> (me1 e1 i,e1::xs,bs)
+  | Misc.Right (l1,e1) -> 
+      let i1 = Id.info_of_t l1 in 
+      (m i1 i, EVar(i,Qid.t_of_id l1)::xs,(l1,e1)::bs)
+
 %}
 
 %token <Info.t> EOF
@@ -174,7 +191,7 @@ let rec fixup_pat i p0 = match p0 with
 %token <Info.t * float> FLOAT
 %token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW DEQARROW EQARROW
-%token <Info.t> BEGIN END FUN LET IN TEST MATCH WITH
+%token <Info.t> BEGIN END GRAMMAR AND FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
 %token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
 %token <Info.t> LT GT LEQ GEQ  
@@ -438,138 +455,6 @@ cexp:
   | composeexp
       { $1 }
 
-/* --------- PARAMETERS ---------- */
-#{@}
-\subsubsection{Parameters}
-\begin{grammar}
-<Param> ::= \lit{@(@} <Id> \lit{@:@} <Sort> \lit{@)@}
-       \alt \lit{@(@} <LIdent> \lit{@:@} <Sort> \lit{@where@} \lit{@)@}
-       \alt \lit{@(@} <LIdent> \lit{@: lens in ?@ \ltsym@-@\gtsym} <AppExp> \lit{@)@}
-       \alt \lit{@(@} <LIdent> \lit{@: lens in ?@ \ltsym@=@\gtsym} <AppExp> \lit{@)@}
-       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@-@\gtsym @?)@}
-       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@=@\gtsym @?)@}
-       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> \lit{@)@}
-       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
-       \alt \lit{@(@} <LIdent> \lit{@: string in@} <Exp> \lit{@)@}
-       \alt \lit{@(@} <TyVarIdent> \lit{@)@}
-       \alt <TyVarIdent> 
-\end{grammar}
-#{#}
-
-param_list:
-  | param param_list2
-      { $1 :: $2 }
-param_list2:
-  | param param_list2
-      { $1 :: $2 }
-  |
-      { [] }
-
-param: 
-  | LPAREN id COLON sort RPAREN
-      { let i = m $1 $5 in 
-        Misc.Left (Param(i,$2,$4)) }
-
-  | LPAREN id COLON LENS IN QMARK DARROW appexp RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "equiv") 
-	                    (mk_app i (mk_core_var "atype") (mk_var $2))
-                            $8 in 
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON LENS IN QMARK DEQARROW appexp RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "land")
-	                    (mk_bin_op i (mk_core_var "equiv") 
-	                                 (mk_app i (mk_core_var "atype") (mk_var $2))
-                                         $8)
-			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON LENS IN appexp DARROW QMARK RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "equiv") 
-	                    (mk_app i (mk_core_var "ctype") (mk_var $2))
-                            $6 in 
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON LENS IN appexp DEQARROW QMARK RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "land")
-	                    (mk_bin_op i (mk_core_var "equiv") 
-	                                 (mk_app i (mk_core_var "ctype") (mk_var $2))
-                                         $6)
-			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_tern_op i (mk_core_var "in_lens_type") (mk_var $2) $6 $8 in 
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON LENS IN appexp DEQARROW appexp RPAREN
-      { let i = m $1 $9 in 
-        let p = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var $2) $6 $8 in 
-        let s = SRefine($2,SLens,p) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON STRING IN exp RPAREN
-      { let i = m $1 $7 in 
-        let p = mk_bin_op i (mk_core_var "matches") $6 (mk_var $2) in 
-        let s = SRefine($2,SString,p) in
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN id COLON sort WHERE exp RPAREN
-      { let i,_ = $2 in 
-        let s = SRefine($2,$4,$6) in 
-        Misc.Left (Param(i,$2,s)) }
-
-  | LPAREN TYVARIDENT RPAREN
-      { Misc.Right ($2) }
-
-  | TYVARIDENT 
-      { Misc.Right ($1) }
-
-/* --------- BRANCHES ---------- */
-#{@}
-\subsubsection{Branches}
-
-\begin{grammar}
-<Branch> ::= <Pat> \lit{@-@\gtsym} <InfixExp>
-
-<BranchList> ::= (\lit{@|@})? <Branch> (\lit{@|@} <Branch>)*
-\end{grammar}
-#{#}
-branch: 
-  | pat ARROW infixexp 
-      { let i = m (info_of_pat $1) (info_of_exp $3) in 
-        (i,$1,$3) }
-
-branch_list:
-  | branch branch_list2
-      { let (i1,p,e) = $1 in 
-        let (i2,l) = $2 i1 in 
-        (m i1 i2, (p,e)::l) }
-
-  | BAR branch branch_list2
-      { let (i1,p,e) = $2 in 
-        let (i2,l) = $3 i1 in 
-        (m $1 i2, (p,e)::l) }
-
-branch_list2:
-  | 
-      { (fun i -> (i,[])) }
-        
-  | BAR branch branch_list2
-      { let (i1,p,e) = $2 in 
-        let (i2,l) = $3 i1 in 
-        (fun _ -> (m $1 i2, (p,e)::l)) }
-
 /* compose expressions */
 #{@}
 \begin{grammar}
@@ -829,7 +714,7 @@ repexp:
 
 #{@}
 <TyExp> ::= <TyExp> \lit{@{@} <Sort> \lit{@}@} 
-       \alt <TyExp>
+       \alt <AExp>
 
 #{#}
 tyexp:
@@ -839,7 +724,6 @@ tyexp:
 
   | aexp 
       { $1 }
-
 
 /* atomic expressions */
 #{@}
@@ -856,6 +740,7 @@ tyexp:
       \alt <String>
       \alt <RegExpString>
       \alt \lit{@()@}
+      \alt \lit{@grammar@} <Productions> \lit{@end@} 
 
 #{#}
 
@@ -911,6 +796,9 @@ aexp:
 
   | LPAREN RPAREN
       { EUnit(m $1 $2) }
+  
+  | GRAMMAR productions END
+      { EGrammar(m $1 $3, $2) }
 
 matchexp:
 #{@}
@@ -943,9 +831,44 @@ matchexp:
       { let _,f = $4 in 
         mk_sim_match (m $1 $9) f (Id.string_of_t $6) $8 }
 
+/* --------- BRANCHES ---------- */
+#{@}
+\subsubsection{Branches}
+
+\begin{grammar}
+<Branch> ::= <Pat> \lit{@-@\gtsym} <InfixExp>
+
+<BranchList> ::= (\lit{@|@})? <Branch> (\lit{@|@} <Branch>)*
+\end{grammar}
+#{#}
+branch: 
+  | pat ARROW infixexp 
+      { let i = m (info_of_pat $1) (info_of_exp $3) in 
+        (i,$1,$3) }
+
+branch_list:
+  | branch branch_list2
+      { let (i1,p,e) = $1 in 
+        let (i2,l) = $2 i1 in 
+        (m i1 i2, (p,e)::l) }
+
+  | BAR branch branch_list2
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (m $1 i2, (p,e)::l) }
+
+branch_list2:
+  | 
+      { (fun i -> (i,[])) }
+        
+  | BAR branch branch_list2
+      { let (i1,p,e) = $2 in 
+        let (i2,l) = $3 i1 in 
+        (fun _ -> (m $1 i2, (p,e)::l)) }
+  
 /* --------- REPETITIONS ---------- */
 #{@}
-\subsection{Repetitions}
+\subsubsection{Repetitions}
 \begin{grammar}
 <Rep> ::= \lit{@*@}
      \alt \lit{@+@}
@@ -975,7 +898,7 @@ rep:
 
 /* --------- LISTS ------------ */
 #{@}
-\subsection{Lists}
+\subsubsection{Lists}
 \begin{grammar}
 <List> ::= \lit{@[]@}
       \alt \lit{@[@} <BarExp> (\lit{@;@} <BarExp>)* \lit{@]@}
@@ -1000,89 +923,222 @@ list:
             (ETyApp(i,mk_list_var "Cons",s))
             (EPair(i,$1, mk i s)))) }
 
-/* --------- PATTERNS ---------- */
+
+/* --------- GRAMMARS ----------- */ 
 #{@}
-\subsection{Patterns}
+\subsubsection{Grammars}
 \begin{grammar}
-<Pat> ::= <UIdent> <PairPat>
-     \alt <QualIdent> <PairPat>
-     \alt <PairPat>
+<Atom> ::= <AExp> 
+      \alt <LIdent> \lit{@:@} <Qid>
 
-#{#}
-pat:      
-  | UIDENT pairpat
-      { let i1,_ = $1 in 
-        let i = mp2 i1 $2 in 
-         PVnt(i,Qid.t_of_id $1,Some $2) }
+<Atoms> ::= <Atom>+
 
-  | QUALIDENT pairpat
-      { let (i,qs) = $1 in 
-        PVnt(i,parse_qid i qs,Some $2) }
+<Aexps> ::= <Aexp>+
 
-  | pairpat
-      { $1 }
+<Rule> ::= <Atoms> \ltsym@-@\gtsym <Aexp>
 
-#{@}
-<PairPat> ::= <PairPat> \lit{@,@} <APat>
-     \alt <APat>
+<Rules> ::= (\lit{@|@})? <Rule> (\lit{@|@} <Rule>)*
 
-#{#}
-pairpat:
-  | pairpat COMMA apat
-      { let i = mp $1 $3 in 
-        PPar(i,$1,$3) }
+<Production> ::= <LIdent> \lit{@::=@} <Rules>
 
-  | apat
-      { $1 }
-
-#{@}
-<APat> ::= \lit{@_@}
-     \alt <LIdent>
-     \alt \lit{@()@}
-     \alt <Integer>
-     \alt <Boolean>
-     \alt <String>
-     \alt <UIdent>
-     \alt <Qident>
-     \alt \lit{@(@} <Pat> \lit{@)@}
+<Productions> ::= <Production> (\lit{@and@} <Production>)*
 \end{grammar}
 #{#}
-apat:
-  | UNDERLINE 
-    { PWld($1) }
 
+atom:
+  | aexp
+      { Misc.Left $1 }
+  | LIDENT COLON aexp 
+      { Misc.Right ($1,$3) }
+
+atoms: 
+  | atom atoms2
+      { add_atom $1 $2 }
+
+atoms2: 
+  | 
+     { (Info.M "atoms",[],[]) }
+  | atom atoms2
+     { add_atom $1 $2 }
+
+aexps:
+  | aexp aexps2
+      { add_aexp $1 $2 }
+
+aexps2:
+  | 
+      { (Info.M "aexps", []) }
+  | aexp aexps2 
+      { add_aexp $1 $2 }
+
+rule:
+  | atoms DARROW aexps
+     { let i1,xs,bs = $1 in        
+       let i3,ys = $3 in        
+       Rule(m i1 i3,xs,ys,bs) }
+       
+rules:
+  | rule rules2
+    { $1 :: $2 }
+  | BAR rule rules2
+    { $2 :: $3 }
+
+rules2:
+  |
+    { [] }
+  | BAR rule rules2 
+    { $2 :: $3 }
+
+production:
+  | LIDENT COLON COLON EQUAL rules
+    { let i1,_ = $1 in 
+      let i5 = info_of_rules $5 in 
+      Prod(m i1 i5,$1,$5) }
+
+productions:
+  | production productions2
+    { $1 :: $2 }
+
+productions2:
+  |
+    { [] }
+  | AND production productions2 
+    { $2 :: $3 }
+
+/* --------- IDENTIFIERS ---------- */
+#{@}
+\subsection{Identifiers}
+
+\begin{grammar}
+<Id> ::= <LIdent>
+     \alt <UIdent>
+
+<QId> ::= <LIdent>
+     \alt <UIdent>
+     \alt <QualIdent> 
+
+<QVar> ::= <LIdent>
+       \alt <QualIdent>
+\end{grammar}
+#{#}
+
+id:
   | LIDENT
-      { let i,_ = $1 in 
-        PVar(i,$1,None) }
+      { $1 }
+  | UIDENT 
+      { $1 }
 
-  | LPAREN RPAREN
-      { PUnt(m $1 $2) }
-
-  | INTEGER
-    { let i,n = $1 in 
-       PInt(i,n) }
-
-  | BOOLEAN
-      { let i,b = $1 in 
-        PBol(i,b) }
-
-  | CEX LPAREN pat RPAREN
-      { PCex($1,$3) }
-
-  | STR
-      { let i,s = $1 in 
-        PStr(i,s) }
-
+qid:
+  | LIDENT
+      { Qid.t_of_id $1 }
   | UIDENT
-      { let i,_ = $1 in 
-        PVnt(i,Qid.t_of_id $1,None) }
-      
+      { Qid.t_of_id $1 }
   | QUALIDENT
-      { let (i,qs) = $1 in 
-        PVnt(i,parse_qid i qs,None) }
+      { let (i,qs) = $1 in parse_qid i qs }
 
-  | LPAREN pat RPAREN
-      { $2 }
+qvar:
+  | LIDENT
+      { Qid.t_of_id $1 }
+
+  | QUALIDENT
+      { let (i,qs) = $1 in parse_qid i qs }
+
+/* --------- PARAMETERS ---------- */
+#{@}
+\subsection{Parameters}
+\begin{grammar}
+<Param> ::= \lit{@(@} <Id> \lit{@:@} <Sort> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@:@} <Sort> \lit{@where@} \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in ?@ \ltsym@-@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in ?@ \ltsym@=@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@-@\gtsym @?)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@=@\gtsym @?)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@-@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
+       \alt \lit{@(@} <LIdent> \lit{@: string in@} <Exp> \lit{@)@}
+       \alt \lit{@(@} <TyVarIdent> \lit{@)@}
+       \alt <TyVarIdent> 
+\end{grammar}
+#{#}
+
+param_list:
+  | param param_list2
+      { $1 :: $2 }
+param_list2:
+  | param param_list2
+      { $1 :: $2 }
+  |
+      { [] }
+
+param: 
+  | LPAREN id COLON sort RPAREN
+      { let i = m $1 $5 in 
+        Misc.Left (Param(i,$2,$4)) }
+
+  | LPAREN id COLON LENS IN QMARK DARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "equiv") 
+	                    (mk_app i (mk_core_var "atype") (mk_var $2))
+                            $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN QMARK DEQARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "land")
+	                    (mk_bin_op i (mk_core_var "equiv") 
+	                                 (mk_app i (mk_core_var "atype") (mk_var $2))
+                                         $8)
+			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DARROW QMARK RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "equiv") 
+	                    (mk_app i (mk_core_var "ctype") (mk_var $2))
+                            $6 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DEQARROW QMARK RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_bin_op i (mk_core_var "land")
+	                    (mk_bin_op i (mk_core_var "equiv") 
+	                                 (mk_app i (mk_core_var "ctype") (mk_var $2))
+                                         $6)
+			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_tern_op i (mk_core_var "in_lens_type") (mk_var $2) $6 $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON LENS IN appexp DEQARROW appexp RPAREN
+      { let i = m $1 $9 in 
+        let p = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var $2) $6 $8 in 
+        let s = SRefine($2,SLens,p) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON STRING IN exp RPAREN
+      { let i = m $1 $7 in 
+        let p = mk_bin_op i (mk_core_var "matches") $6 (mk_var $2) in 
+        let s = SRefine($2,SString,p) in
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON sort WHERE exp RPAREN
+      { let i,_ = $2 in 
+        let s = SRefine($2,$4,$6) in 
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN TYVARIDENT RPAREN
+      { Misc.Right ($2) }
+
+  | TYVARIDENT 
+      { Misc.Right ($1) }
 
 /* --------- SORTS ---------- */
 #{@}
@@ -1335,45 +1391,93 @@ dtsort_list2:
   | BAR dtsort dtsort_list2
       { $2 :: $3 }
 
-/* --------- QUALIFIED IDENTIFIERS ---------- */
+
+/* --------- PATTERNS ---------- */
 #{@}
-\subsection{Identifiers}
-
+\subsection{Patterns}
 \begin{grammar}
-<Id> ::= <LIdent>
-     \alt <UIdent>
+<Pat> ::= <UIdent> <PairPat>
+     \alt <QualIdent> <PairPat>
+     \alt <PairPat>
 
-<QId> ::= <LIdent>
-     \alt <UIdent>
-     \alt <QualIdent> 
+#{#}
+pat:      
+  | UIDENT pairpat
+      { let i1,_ = $1 in 
+        let i = mp2 i1 $2 in 
+         PVnt(i,Qid.t_of_id $1,Some $2) }
 
-<QVar> ::= <LIdent>
-       \alt <QualIdent>
+  | QUALIDENT pairpat
+      { let (i,qs) = $1 in 
+        PVnt(i,parse_qid i qs,Some $2) }
+
+  | pairpat
+      { $1 }
+
+#{@}
+<PairPat> ::= <PairPat> \lit{@,@} <APat>
+     \alt <APat>
+
+#{#}
+pairpat:
+  | pairpat COMMA apat
+      { let i = mp $1 $3 in 
+        PPar(i,$1,$3) }
+
+  | apat
+      { $1 }
+
+#{@}
+<APat> ::= \lit{@_@}
+     \alt <LIdent>
+     \alt \lit{@()@}
+     \alt <Integer>
+     \alt <Boolean>
+     \alt <String>
+     \alt <UIdent>
+     \alt <Qident>
+     \alt \lit{@(@} <Pat> \lit{@)@}
 \end{grammar}
 #{#}
+apat:
+  | UNDERLINE 
+    { PWld($1) }
 
-id:
   | LIDENT
-      { $1 }
-  | UIDENT 
-      { $1 }
+      { let i,_ = $1 in 
+        PVar(i,$1,None) }
 
-qid:
-  | LIDENT
-      { Qid.t_of_id $1 }
+  | LPAREN RPAREN
+      { PUnt(m $1 $2) }
+
+  | INTEGER
+    { let i,n = $1 in 
+       PInt(i,n) }
+
+  | BOOLEAN
+      { let i,b = $1 in 
+        PBol(i,b) }
+
+  | CEX LPAREN pat RPAREN
+      { PCex($1,$3) }
+
+  | STR
+      { let i,s = $1 in 
+        PStr(i,s) }
+
   | UIDENT
-      { Qid.t_of_id $1 }
+      { let i,_ = $1 in 
+        PVnt(i,Qid.t_of_id $1,None) }
+      
   | QUALIDENT
-      { let (i,qs) = $1 in parse_qid i qs }
+      { let (i,qs) = $1 in 
+        PVnt(i,parse_qid i qs,None) }
 
-qvar:
-  | LIDENT
-      { Qid.t_of_id $1 }
+  | LPAREN pat RPAREN
+      { $2 }
 
-  | QUALIDENT
-      { let (i,qs) = $1 in parse_qid i qs }
-
-/* --------- MISC SYMBOLS ---------- */
+/* --------- MISC RULES ---------- */
 uid:
   | UIDENT
       { Qid.t_of_id $1 }
+

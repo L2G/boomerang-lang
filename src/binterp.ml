@@ -235,6 +235,7 @@ let rec interp_cast cev i b f t e =
   res
 
 (* ----- interpret expressions ----- *)
+
 and interp_exp cev e0 = match e0 with 
   | EVar(i,q) ->       
       begin 
@@ -300,6 +301,9 @@ and interp_exp cev e0 = match e0 with
 
   | ETyApp(i,e1,s2) -> 
       interp_exp cev (EApp(i,e1,EUnit(i)))
+      
+  | EGrammar(i,ps) ->
+     Berror.run_error i (fun () -> msg "@[unexpected@ grammar@ expression@ at@ interpreter@]")
 
   (* constants *)
   | EUnit(i)            -> V.Unt(i)
