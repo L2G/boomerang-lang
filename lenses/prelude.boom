@@ -367,10 +367,10 @@ whether a list of regular expressions are pairwise disjoint.
 
 #* test disjoint_regexps #{regexp}[/a/;/b/;/c/] = true
 
-\LENSSECTION{@union_regexps@,@union_lenses@,@disj_union_lenses@} Takes the 
-union of a list of regular expressions or lenses, respectively. By default, 
-the non-disjoint lens union @|@ is used; use @disj_union_lenses@ for disjoint 
-union @||@.
+\LENSSECTION{@union_regexps@,@union_lenses@,@disj_union_lenses@} Takes
+the union of a list of regular expressions or lenses, respectively. By
+default, the non-disjoint lens union @||@ is used; use
+@disj_union_lenses@ for disjoint union @|@.
 
 #* let union_regexps (Rs:regexp List.t) : regexp =
 #*  List.fold_left{regexp}{regexp} 
@@ -385,10 +385,10 @@ union @||@.
 #*          <-> union_regexps (atypes ls))
 #*   = 
 #*   List.fold_left{lens}{lens} 
-#*   (fun (l_acc:lens) (l:lens) -> l_acc | l)
+#*   (fun (l_acc:lens) (l:lens) -> l_acc || l)
 #*   (copy EMPTY) ls
 
-#* test union_lenses #{lens}[copy [a]; "a" <-> "b"] = error
+#* test create (union_lenses #{lens}["z" <-> "a"; (copy [a-c])]) "a" = "z"
 #* test get (union_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "a" = "a"
 
 #* let disj_union_lenses (ls:lens List.t where 
@@ -398,10 +398,11 @@ union @||@.
 #*          <-> union_regexps (atypes ls))
 #*   = List.fold_left{lens}{lens} 
 #*     (fun (l_acc:lens) (l:lens) -> 
-#*        (l_acc || l))
+#*        (l_acc | l))
 #*     (copy EMPTY) ls
 
-#* test get (union_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "a" = "a"
+#* test disj_union_lenses #{lens}[copy [a]; "a" <-> "b"] = error
+#* test get (disj_union_lenses #{lens}[copy /a/;copy /b/;copy /c/]) "a" = "a"
 
 \subsection{Lenses with List Arguments}
 
@@ -466,3 +467,17 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 #* test canonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) = 
 #*   (UALPHACHAR . DIGIT)
 
+\subsection{Miscellaneous}
+
+\LENSSECTION{@iterate@} The operator @iterate@ compose @f@ with itself
+ @i@ times using @b@ for the first argument, i.e., @f(f(...(f b)...))@
+ where @f@ appears @i@ times.
+
+#* let iterate ('a) (i:int where (bgeq i 0)) (f:'a -> 'a) (b:'a) : 'a =
+#*   List.fold_left{int}{'a}
+#*     (fun (acc:'a) (i:int) -> f acc)
+#*     b
+#*     (List.hd{int List.t} (List.permutations i))
+
+#* test (iterate{regexp} 3 (fun (x:regexp) -> x | "(".x.")") [a-z]).get "((b))" = "((b))"
+#* test (iterate{regexp} 3 (fun (x:regexp) -> x | "(".x.")") [a-z]).get "((((b))))" = error

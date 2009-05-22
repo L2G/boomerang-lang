@@ -192,8 +192,8 @@ when given the given permutation can be applied to the given list.
 \LENSSECTION{@permutations@} The operator @permutations@ returns a list of
 all possible permutations for lists of a given length.
 
-#* let permutations : int -> (int t) t
-## = Native.Prelude.permutations
+#* let permutations (n:int where (bgeq n 0)) : (int t) t
+## = Native.Prelude.permutations n
 
 #* test permutations 0 = (Cons{int t}(Nil{int},
 #*                        Nil{int t}))
