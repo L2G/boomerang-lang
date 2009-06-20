@@ -7,6 +7,10 @@
 ** we _have_ enough information to print canonizer_of_lens well, but
    the two types are currently defined separately in different modules...
 
+* the implementation of the function cast rule is sound, but actually
+  checks too much.  we should implement the function check rule that
+  has been proven sound. (Mike)
+
 == SUMMER AGENDA ==
 
 * toplevel
