@@ -15,7 +15,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/benv.mli                                                    *)
+(* /src/benv.mli                                                              *)
 (* Boomerang environments interface                                           *)
 (* $Id$ *)
 (******************************************************************************)
@@ -34,9 +34,12 @@ sig
   val set_ev : t -> REnv.t -> t
   val get_ctx : t -> Qid.t list
   val set_ctx : t -> Qid.t list -> t
+  val push_ctx : t -> Qid.t -> t
+  val pop_ctx : t -> t
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
   val lookup : t -> Qid.t -> v option
+  val lookup_o : t -> Qid.t -> (Qid.t * v) option
   val lookup_type : t -> Qid.t -> (Qid.t * tspec) option
   val lookup_con : t -> Qid.t -> (Qid.t * tspec) option
   val update : t -> Qid.t -> v -> t

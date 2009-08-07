@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/blexer.mll                                                  *)
+(* /src/blexer.mll                                                            *)
 (* Boomerang lexer                                                            *)
 (* $Id$ *)
 (******************************************************************************)
@@ -23,7 +23,7 @@
 
 \section{Lexing}
 
-Space, newline and tab characters are whitespace.  Comments equivalent
+Space, newline and tab characters are whitespace. Comments are equivalent
 to whitespace and are delimited by @(*@ and @*)@; comments may be nested.
 
 \subsection{String Literals}
@@ -83,9 +83,10 @@ character. The following keywords
   @lens@ & @int@ & @bool@ & @canonizer@ & @unit@ \\ 
   @of@ & @into@ & @where@ & @forall@ & @lt@ \\
   @leq@ & @gt@ & @geq@ & @true@ & @false@ \\
-  @cex@ & @grammar@ & @and@ \\
+  @cex@ & @grammar@ & @and@ & & \\
   @.get@ & @.put@ & @.create@ & @.canonize@ & @.choose@ \\
-  @.ctype@ & @.domain_type@ & @.atype@ & @.codomain_type@ & @.bij@ \\
+  @.stype@ & @.astype@ & @.domain_type@ & @.vtype@ & @.avtype@ \\
+  @.codomain_type@ & @.bij@ & @aregexp@ & @skeleton_set@ & @resource_set@ \\
 \end{tabular}
 \end{center}
 \noindent and symbols
@@ -204,6 +205,9 @@ let _ =
     ; ("char", (fun i -> CHAR i))
     ; ("string", (fun i -> STRING i))
     ; ("regexp", (fun i -> REGEXP i))
+    ; ("aregexp", (fun i -> AREGEXP i))
+    ; ("skeleton_set", (fun i -> SKELETONS i))
+    ; ("resource_set", (fun i -> RESOURCES i))
     ; ("lens", (fun i -> LENS i))
     ; ("int", (fun i -> INT i))
     ; ("bool", (fun i -> BOOL i))
@@ -244,10 +248,12 @@ rule main = parse
 | ".create"          { CREATE(info lexbuf) }
 | ".canonize"        { CANONIZE(info lexbuf) }
 | ".choose"          { CHOOSE(info lexbuf) }
-| ".ctype"           { CTYPE(info lexbuf) }
-| ".domain_type"     { CTYPE(info lexbuf) }
-| ".atype"           { ATYPE(info lexbuf) }
-| ".codomain_type"   { ATYPE(info lexbuf) }
+| ".stype"           { STYPE(info lexbuf) }
+| ".domain_type"     { STYPE(info lexbuf) }
+| ".astype"          { ASTYPE(info lexbuf) }
+| ".vtype"           { VTYPE(info lexbuf) }
+| ".codomain_type"   { VTYPE(info lexbuf) }
+| ".avtype"          { AVTYPE(info lexbuf) }
 | ".bij"             { BIJ(info lexbuf) }
 | "."                { DOT(info lexbuf) }
 | "&"                { AMPERSAND(info lexbuf) }
@@ -267,6 +273,7 @@ rule main = parse
 | "#"                { HASH(info lexbuf) }
 | "}["               { LLIST(info lexbuf) }
 | "]"                { RBRACK(info lexbuf) }
+| "{:"               { LBRACECOLON(info lexbuf) }
 | "["                { CSET(info lexbuf, cset lexbuf) }
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }
@@ -276,13 +283,10 @@ rule main = parse
                        STR(i,s) }
 | ">"                { RANGLE(info lexbuf) }
 | ","                { COMMA(info lexbuf) }
+| "::"               { COLONCOLON(info lexbuf) }
 | ":"                { COLON(info lexbuf) }
 | "^"                { HAT(info lexbuf) }
 | "~"                { TILDE(info lexbuf) }
-| "/"                { let i1 = info lexbuf in 
-                       let i2,s = rx_string "" lexbuf in 
-                       let i = Info.merge_inc i1 i2 in 
-                       RXSTR(i,s) }
 | "\\"               { BACKSLASH(info lexbuf) }
 | "?"                { QMARK(info lexbuf) }
 | "\""               { let i1 = info lexbuf in 
@@ -419,3 +423,4 @@ and comment = parse
 | newline          { newline lexbuf; comment lexbuf }
 | eof              { error lexbuf "unmatched '(*'" }
 | _                { comment lexbuf }
+

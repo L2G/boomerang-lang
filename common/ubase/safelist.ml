@@ -149,6 +149,7 @@ let length = List.length
 let mem = List.mem
 let assoc = List.assoc
 let for_all = List.for_all
+let for_all2 = List.for_all2
 let exists = List.exists
 let find = List.find
 let filter = List.filter

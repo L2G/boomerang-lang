@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bsyntax.mli                                                 *)
+(* /src/bsyntax.mli                                                           *)
 (* Boomerang abstract syntax interface                                        *)
 (* $Id$ *)
 (******************************************************************************)
@@ -39,6 +39,9 @@ type sort =
     | SChar                           (* chars *)
     | SString                         (* strings *)
     | SRegexp                         (* regular expressions *)
+    | SAregexp                        (* annotated regular expressions *)
+    | SSkeletons                      (* skeleton set type *)
+    | SResources                      (* resource set type *)
     | SLens                           (* lenses *)
     | SCanonizer                      (* canonizers *)
 
@@ -94,8 +97,8 @@ and exp =
     (* None ~ true; Some s ~ false with counterexample s *)
     | EBoolean of Info.t * exp option 
 
+    (* grammar *)
     | EGrammar of Info.t * prod list
-    
 (** Expression abstract syntax. *)
 
 and op = 
@@ -114,6 +117,8 @@ and op =
   | OLeq
   | OGt
   | OGeq
+  | OMatch
+  | OWeight
 (** Overloaded operator abstract syntax. *)
 
 and pat = 
@@ -199,16 +204,17 @@ val mk_app4 : Info.t -> exp -> exp -> exp -> exp -> exp
 val mk_let : Info.t -> Id.t -> sort -> exp -> exp -> exp
 val mk_fun : Info.t -> Id.t -> sort -> exp -> exp
 val mk_if : Info.t -> exp -> exp -> exp -> sort -> exp 
-val mk_native_prelude_var : string -> exp
-val mk_prelude_var : string -> exp
+val mk_native_prelude_var : Info.t -> string -> exp
+val mk_prelude_var : Info.t -> string -> exp
 val mk_string_of_char : Info.t -> exp -> exp
 val mk_regexp_of_string : Info.t -> exp -> exp 
+val mk_aregexp_of_regexp : Info.t -> exp -> exp
 val mk_lens_of_regexp : Info.t -> exp -> exp
 
 val mk_qid_var : Qid.t -> exp
 val mk_var : Id.t -> exp
-val mk_core_var : string -> exp
-val mk_list_var : string -> exp
+val mk_core_var : Info.t -> string -> exp
+val mk_list_var : Info.t -> string -> exp
 val mk_over : Info.t -> op -> exp list -> exp
 val mk_bin_op : Info.t -> exp -> exp -> exp -> exp
 val mk_tern_op : Info.t -> exp -> exp -> exp -> exp -> exp
@@ -221,6 +227,4 @@ val mk_diff : Info.t -> exp -> exp -> exp
 val mk_inter : Info.t -> exp -> exp -> exp
 val mk_compose : Info.t -> exp -> exp -> exp
 val mk_set : Info.t -> exp -> exp -> exp
-val mk_match : Info.t -> string -> Qid.t -> exp
-val mk_sim_match : Info.t -> float -> string -> Qid.t -> exp
 val mk_rx : Info.t -> exp -> exp

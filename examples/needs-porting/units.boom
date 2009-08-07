@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/examples/units.boom                                              *)
+(* /examples/needs-porting/units.boom                                          *)
 (* Boomerang unit tests                                                        *)
 (* $Id$ *)
 (*******************************************************************************)
@@ -260,7 +260,7 @@ let k1 = (str "ab" <-> "ABC") | (str "ca" <-> "CBA")
 (* ambiguity on "cabab" *)
 test (l1.k1)*.l1 get "test" = error
 
-(* need to check if the removed string finishs by 'c' *)
+(* need to check if the removed string finishes by 'c' *)
 let r2 = r1 - (everything . [c])
 let l2 = del r2
 let r3 = r1. [c]

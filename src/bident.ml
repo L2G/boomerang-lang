@@ -12,7 +12,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bheap.ml                                                    *)
+(* /src/bheap.ml                                                              *)
 (* Boomerang identifiers                                                      *)
 (* $Id$ *)
 (******************************************************************************)
@@ -39,8 +39,8 @@ module Id = struct
   type this_t = t
  (* ordered type *)
   module OQ = struct
-    type t = this_t 
-    let compare = compare 
+    type t = this_t
+    let compare = compare
   end
  (* sets of identifiers *)
   module Set = Set.Make(OQ)
@@ -95,14 +95,13 @@ module Qid = struct
             (fun (i1,i2) -> Id.equal i1 i2)
             (Safelist.combine il1 (Misc.take (Safelist.length il1) il2)))
   (* constants *)
-  let mk_mod_t ml x = 
-    let i = Info.M (sprintf "%s built-in" x) in 
+  let mk_mod_t i ml x = 
     let qs = Safelist.map (Id.mk i) ml in 
     (qs, Id.mk i x)
-  let mk_native_prelude_t = mk_mod_t ["Native"; "Prelude"] 
-  let mk_prelude_t = mk_mod_t ["Prelude"]
-  let mk_core_t = mk_mod_t ["Core"]
-  let mk_list_t = mk_mod_t ["List"]    
+  let mk_native_prelude_t i = mk_mod_t i ["Native"; "Prelude"] 
+  let mk_prelude_t i = mk_mod_t i ["Prelude"]
+  let mk_core_t i = mk_mod_t i ["Core"]
+  let mk_list_t i = mk_mod_t i ["List"]    
   (* environments keyed by qualified identifiers *)
   type this_t = t
   module Env = Env.Make(
@@ -113,10 +112,10 @@ module Qid = struct
     end) 
  (* ordered type *)
   module OQ = struct
-    type t = this_t 
-    let compare = compare 
+    type t = this_t
+    let compare = compare
   end
- (* sets of qualified identifiers *)
+  (* sets of qualified identifiers *)
   module Set = Set.Make(OQ)
   (* maps with qualified identifiers as keys *)
   module Map = Map.Make(OQ)

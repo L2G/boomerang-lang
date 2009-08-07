@@ -10,7 +10,7 @@ module QuickStart =
 \item Pre-compiled binaries for Linux (x86), Mac OS X (x86), and
   Windows (Cygwin) are available on the Boomerang webpage.
 \item Alternatively, to build Boomerang from source, grab the most
-  recent tarball and follow the instructions in boomerang/INSTALL.txt
+  recent tarball and follow the instructions in INSTALL.txt
 \end{itemize}
 
 \item Add the directory containing trunk/bin to your @PATH@
@@ -67,7 +67,7 @@ following test:
 
 #* test l.get "Hello World" = ?
 
-instructs the Boomerant interpreter to calculate the result obtained
+instructs the Boomerang interpreter to calculate the result obtained
 by applying the $\GET$ component of @l@ to the string literal
 @Hello World@ and print the result to the terminal 
 (in fact, this unit test generated the output in the display above).
@@ -80,7 +80,7 @@ by applying the $\GET$ component of @l@ to the string literal
   Try changing the @?@ above to @HelloWorld@ instead. Now the
   assertion fails. You should see:
 \begin{progeg}
-File "./quickStart.src", line 68, characters 3-32: Unit test failed  
+File "./quickStart.src", line 68, characters 3-42: Unit test failed  
 Expected "HelloWorld" but found "Hello World"
 \end{progeg}
 \end{example}
@@ -93,7 +93,7 @@ Now let's examine the behavior of @l@'s $\PUT$ component.
 
 You should see the following output printed to the terminal:
 \begin{progeg}
-Test Result:
+Test result:
 HELLO WORLD
 \end{progeg}
 which reflects the change made to the abstract string.
@@ -111,15 +111,15 @@ the expected type. We can test this by passing an ill-typed string to
   @error@ above to @?@ and re-run Boomerang. You should see the
   following message printed to the terminal:
 \begin{progeg}
-File "./QuickStart.src", line 107, characters 3-35: Unit test failed 
+File "./QuickStart.src", line 107, characters 3-35: Unit test failed
 Test result: error
-copy built-in: type errors in
-  [Hello World]
-<<HERE>>
-  [!!]
+get built-in: run-time checking
+error
+c="Hello World!!" did not satisfy
+((Core.matches_cex (Core.stype l)) c); counterexample: string does not match [ A-Za-z]+ [Hello World] AROUND HERE [!!]
 \end{progeg}
 Notice that Boomerang identifies a location in the
-string where matching failed (<<HERE>>). When you are
+string where matching failed (@HERE@). When you are
 done, change the @?@ back to @error@.
 \end{example}
 

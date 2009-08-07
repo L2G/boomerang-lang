@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/blenses.ml                                                  *)
+(* /src/blenses.ml                                                            *)
 (* Boomerang lens combinators                                                 *)
 (* $Id$ *)
 (******************************************************************************)
@@ -23,9 +23,17 @@
 (* IMPORTS AND ABBREVIATIONS *)
 
 module Rx = Brx
+module Arx = Barx
 module Err = Berror
+module W = Bannot.Weight
+module G = Balign.Alignment
+module P = Balign.Permutation
+module T = Btag
+module Ts = T.Set
+module TmA = T.MapA
+module TmI = T.MapInt
+module TmImA = T.MapIntMapA
 
-let string_concat = (^)
 let sprintf = Printf.sprintf
 let msg = Util.format
 let (@) = Safelist.append
@@ -33,252 +41,229 @@ let (@) = Safelist.append
 (* ---------------------------------------------------------------------------*)
 (* TYPES *)
 
-(* ----- unique identifiers ----- *)
-type uid = int
-let current_uid = ref 0
-let next_uid () = incr current_uid; !current_uid
+type tag = T.t
 
-(* ----- keys ----- *)
-type key = string
-module KMap = Map.Make(
-  struct 
-    type t = string 
-    let compare = compare 
-  end)
+(* ----- K complements ----- *)
+type union_side = Union_left | Union_right
+type complement =
+  | C_box
+  | C_string of Bstring.t
+  | C_concat of complement * int * complement
+  | C_compose of complement * complement
+  | C_list of complement list
+  | C_star of complement list * int list
+  | C_union of union_side * complement
 
-(* ----- tags ----- *) 
-type tag = string
-module TMap = Map.Make(
-  struct 
-    type t = string 
-    let compare = compare 
-  end)
+let rec print_complement c =
+  match c with
+  | C_box -> print_string "[_]"
+  | C_string s -> print_string (Bstring.to_string s)
+  | C_concat (c1, _, c2) ->
+      print_complement c1;
+      print_string ".";
+      print_complement c2
+  | C_compose (c1, c2) ->
+      print_complement c1;
+      print_string ";";
+      print_complement c2
+  | C_list cs ->
+      print_string "[";
+      ignore (Safelist.fold_left (
+        fun b c ->
+          if b then print_string ",";
+          print_complement c;
+          true
+      ) false cs);
+      print_string "]"
+  | C_star (cs, _) -> print_complement (C_list cs)
+  | C_union (Union_left, c) ->
+      print_string "|L";
+      print_complement c
+  | C_union (Union_right, c) ->
+      print_string "|R";
+      print_complement c
 
-(* ----- skeletons ----- *)
-type skeleton = 
-  | S_string of string
-  | S_concat of skeleton * skeleton
-  | S_star of skeleton list
-  | S_box of tag
-  | S_comp of skeleton * skeleton
-  | S_quot of string * skeleton 
+let rec format_complement c =
+  let fmt _ c = format_complement c in
+  msg "@[";
+  (match c with
+   | C_box -> msg "C_box"
+   | C_string s -> msg "C_string(\"%s\")" (Bstring.to_string s)
+   | C_concat (a, _, b) -> msg "C_concat(%a,%a)" fmt a fmt b
+   | C_compose (a, b) -> msg "C_compose(%a,%a)" fmt a fmt b
+   | C_list l -> msg "C_list(%a)" (fun _ -> Misc.format_list "," format_complement) l
+   | C_star (l, _) -> msg "C_star(%a)" (fun _ -> Misc.format_list "," format_complement) l
+   | C_union (s, c) -> msg ("C_union(%s,%a)") (
+       match s with Union_left -> "Left" | Union_right -> "Right"
+     ) fmt c
+  );
+  msg "@]"
 
-let rec format_skel sk = 
-  let fmt _ sk = format_skel sk in 
-  Util.format "@[";
-  (match sk with     
-    | S_string w -> msg "S_string(\"%s\")" w
-    | S_concat(sk1,sk2) -> msg "S_concat(%a,%a)" fmt sk1 fmt sk2
-    | S_star(sl) -> msg "S_star(%a)" (fun _ -> Misc.format_list "," format_skel) sl
-    | S_box(t) -> msg "S_box(%s)" t
-    | S_comp(sk1,sk2) -> msg "S_comp(%a,%a)" fmt sk1 fmt sk2
-    | S_quot(w,sk1) -> msg "S_quot(\"%s\",%a)" w fmt sk1);
-  Util.format "@]"
-       
-(* helpers for accessing skeletons *)
-let string_of_skel = function
-  | S_string s -> s
-  | sk -> Err.run_error (Info.M "string_of_skel") 
-      (fun () -> 
-	 msg "@[expected@ string@ skeleton, got:";
-	 format_skel sk;
-	 msg "@]") 
+type ktype =
+  | K_box of T.t
+  | K_regexp of Rx.t
+  | K_concat of ktype * ktype
+  | K_union of ktype * ktype
+  | K_star of ktype
+  | K_permute of ktype list
+  | K_compose of ktype * ktype
 
-let fst_of_skel = function
-  | S_concat (s,_) -> s
-  | sk -> Err.run_error (Info.M "fst_of_skel") 
-      (fun () -> 
-	 msg "@[expected@ pair@ skeleton, got:";
-	 format_skel sk;
-	 msg "@]") 
+let rec ktype_equiv a b =
+  match a, b with
+  | K_box a, K_box b -> T.equiv a b
+  | K_regexp a, K_regexp b -> Rx.equiv a b
+  | K_concat (a, c), K_concat (b, d)
+  | K_union (a, c), K_union (b, d)
+  | K_compose (a, c), K_compose (b, d)
+      -> ktype_equiv a b && ktype_equiv c d
+  | K_star a, K_star b -> ktype_equiv a b
+  | K_permute a, K_permute b -> (
+      try Safelist.for_all2 ktype_equiv a b
+      with Invalid_argument _ -> false
+    )
+  | _ -> false
 
-let snd_of_skel = function
-  | S_concat (_, s) -> s
-  | sk -> Err.run_error (Info.M "snd_of_skel") 
-      (fun () -> 
-	 msg "@[expected@ pair@ skeleton, got:";
-	 format_skel sk;
-	 msg "@]")
+let rec format_ktype t =
+  let fmt _ t = format_ktype t in
+  msg "@[";
+  (match t with
+   | K_box t -> msg (* "K_box(%s)" *) "[%s]" (T.to_string t)
+   | K_regexp r -> msg (* "K_regexp(%a)" *) "/%a/" (fun _ -> Rx.format_t) r
+   | K_concat (a, b) -> msg (* "K_concat(%a,%a)" *) "(%a@,@ .@ %a)" fmt a fmt b
+   | K_union (a, b) -> msg (* "K_union(%a,%a)" *) "(%a@;@ |@,@ %a)" fmt a fmt b
+   | K_compose (a, b) -> msg (* "K_compose(%a,%a)" *) "(%a@;@ ;@,@ %a)" fmt a fmt b
+   | K_star t -> msg (* "K_star(%a)" *) "(%a* )" fmt t
+   | K_permute l -> msg (* "K_permute(%a)" *) "[%a]" (fun _ -> Misc.format_list ",@,@ " format_ktype) l
+  );
+  msg "@]"
 
-let lst_of_skel = function
-  | S_star sl -> sl
-  | sk -> Err.run_error (Info.M "lst_of_skel") 
-      (fun () -> 
-	 msg "@[expected@ list@ skeleton, got:";
-	 format_skel sk;
-	 msg "@]") 
+(* ----- M match type ----- *)
+type mtype = ktype TmA.t
 
-let comp_of_skel = function
-  | S_comp(s1,s2) -> (s1,s2)
-  | sk -> Err.run_error (Info.M "comp_of_skel")
-      (fun () -> 
-	 msg "@[expected@ comp@ skeleton, got:";
-	 format_skel sk;
-	 msg "@]") 
+let format_mtype mt =
+  msg "@[";
+  TmA.iter (fun t k -> msg "@[%s@ ->@ %a@]@;" (T.to_string t) (fun _ -> format_ktype) k) mt;
+  msg "@]"
 
-let quot_of_skel = function
-  | S_quot(c,s) -> (c,s)
-  | sk -> Err.run_error (Info.M "quot_of_skel") 
-      (fun () -> 
-	 msg "@[expected@ quot@ skeleton, got:";
-	 format_skel sk;
-	 msg "@]") 
+let mtype_equiv = TmA.equal ktype_equiv
 
-(* ----- dictionaries ----- *)
-type dict = ((skeleton * dict) list KMap.t) TMap.t
+let mt_add t k mt =
+  match () with
+  | _ when not (TmA.mem t mt) -> TmA.add t k mt
+  | _ when ktype_equiv (TmA.find t mt) k -> mt
+  | _ -> assert false
 
-(* ----- dictionary types ----- *)
-type dict_type = uid TMap.t
+let mtype_match_compatible_cex t k mt =
+  if not (TmA.mem t mt)
+  then None
+  else
+    if not (TmA.compatible t mt)
+    then Some (sprintf "tagname '%s' used with non compatible taginfo (species and predicate)" (T.get_name t))
+    else 
+      if not (ktype_equiv k (TmA.find t mt))
+      then Some (sprintf "tag '%s' used with different ktypes" (T.to_string t))
+      else None
+
+let mt_merge mt1 mt2 =
+  TmA.fold mt_add mt1 mt2
+
+let mtype_compatible_cex mt1 mt2 =
+  TmA.fold (
+    fun t k so ->
+      match so with
+      | Some _ -> so
+      | None -> mtype_match_compatible_cex t k mt2
+  ) mt1 None
+
+let mt_compose mt1 mt2 =
+  TmA.mapi (
+    fun t k1 ->
+      let k2 = TmA.find t mt2 in
+      K_compose (k1, k2)
+  ) mt1
+
+let mtype_domain_equal = TmA.equal (fun _ _ -> true)
 
 (* ----- equivalence relation types ----- *)
 type equiv = Identity | Unknown
 
 (* helper for merging equivs *)
-let equiv_merge r1 r2 = match r1,r2 with 
-  | Identity,Identity -> Identity 
-  | _                 -> Unknown
+let equiv_merge r1 r2 =
+  match r1, r2 with
+  | Identity, Identity -> Identity
+  | _ -> Unknown
 
 (* ---------------------------------------------------------------------------*)
 (* HELPERS *)
 
-(* generic helper for iterating a regexp / lens / canonizer *)
-let rec generic_iter epsilon union concat star min max x = 
-  let rec mk_cats n x = match n with 
-    | 0 -> epsilon
-    | 1 -> x
-    | 2 -> concat x x 
-    | _ -> 
-        let half_x = mk_cats (n/2) x in 
-        let twice_half_x = concat half_x half_x in 
-        if n mod 2 = 0 then twice_half_x
-        else concat x twice_half_x in 
-  let rec mk_alts acc xi j = match j with 
-    | 0 -> acc
-    | _ -> 
-        let xi1 = concat x xi in 
-        mk_alts (union acc xi1) xi1 (pred j) in 
-   match min,max with
-     | (0,-1) -> star x
-     | (n,-1) -> concat (mk_cats n x) (star x)
-     | (0,0)  -> epsilon
-     | (0,1)  -> union epsilon x
-     | (m,n)  -> 
-         let m_x = mk_cats m x in 
-         if m=n then m_x 
-         else if m < n then mk_alts m_x m_x (n-m)
-         else (* m > n *) 
-           Err.run_error (Info.M "generic_iter") 
-             (fun () -> msg "@[%d greater than %d@]" m n)
-
 (* helper for concatenating an array *)
-let concat_array a = 
+let concat_array a =
   let buf = Buffer.create 17 in
     Array.iter (Buffer.add_string buf) a;
-    Buffer.contents buf 
-
-(* helper for splitting *)
-let split_one choose t1 t2 s = 
-  let ps = Rx.split_positions t1 t2 s in 
-  let n = String.length s in 
-  let j = choose ps in 
-  (String.sub s 0 j, String.sub s j (n-j))
-
-(* helper for splitting a string in an unambiguous concatenation *)
-let seq_split t1 t2 w = 
-  split_one 
-    (fun ps -> 
-       if Int.Set.cardinal ps = 1 then Int.Set.choose ps
-       else 
-(*          let n = String.length w in  *)
-(*          let i1 = Int.Set.choose ps in  *)
-(*          let i2 = Int.Set.choose (Int.Set.remove i1 ps) in  *)
-         Err.run_error (Info.M "seq_split")
-           (fun () -> 
-              msg "@[concatenation of @[%a@]@ and @[%a@]@ "
-                (fun _ -> Rx.format_t) t1 
-                (fun _ -> Rx.format_t) t2;
-              msg "ambiguous@ on@ [%s]"
-                w))
-  t1 t2 w
-
-
-(* helpers for regular operators *)
-let do_concat t1 t2 f1 f2 x = 
-  let x1,x2 = seq_split t1 t2 x in 
-  (f1 x1) ^ (f2 x2)
-      
-let do_star t f x = 
-  let buf = Buffer.create 17 in 
-  Safelist.iter
-    (fun xi -> Buffer.add_string buf (f xi))
-    (Rx.star_split t x);
-  Buffer.contents buf
-
-let do_union t f1 f2 x = 
-  if Rx.match_string t x then f1 x else f2 x
+    Buffer.contents buf
 
 (* ---------------------------------------------------------------------------*)
 (* PERMUTATIONS *)
 module Permutations = struct
-  let string_of_sigma sigma =   
+  let string_of_sigma sigma =
     sprintf "[%s]" (Misc.concat_list "," (Safelist.map string_of_int sigma))
 
-  let rec identity k = 
-    let rec loop acc i = 
+  let rec identity k =
+    let rec loop acc i =
       if i < 0 then acc
-      else loop (i::acc) (pred i) in 
-    loop [] (pred k) 
-        
+      else loop (i::acc) (pred i) in
+    loop [] (pred k)
+
   let valid_permutation sigma ls =
     let k = Safelist.length sigma in
       Safelist.length ls = k
       && Safelist.sort compare sigma = identity k
-        
-  let permutations k = 
+
+  let permutations k =
     let rec insertions n ls =
-      let (is,_) = 
-        Safelist.fold_left 
+      let (is,_) =
+        Safelist.fold_left
           (fun (ls_n_acc,ls_acc) i ->
-	     let ls_acc' = i::ls_acc in
-	     let ls_n_acc' = Safelist.map (fun ls_n -> i::ls_n) ls_n_acc in
-	       ((n::ls_acc')::ls_n_acc',ls_acc'))
+             let ls_acc' = i::ls_acc in
+             let ls_n_acc' = Safelist.map (fun ls_n -> i::ls_n) ls_n_acc in
+               ((n::ls_acc')::ls_n_acc',ls_acc'))
           ([[n]],[]) ls in
         is in
     let rec mk_perms k =
       if k = 0 then [[]]
       else Safelist.concat (Safelist.map (insertions (pred k)) (mk_perms (pred k))) in
-    let id = identity k in 
+    let id = identity k in
     id::(Safelist.remove id (mk_perms k))
 
-  let permutation sigma k = 
-    let err () = 
+  let permutation sigma k =
+    let err () =
       Err.run_error (Info.M "permutation")
-        (fun () -> msg "@[%s@ is@ not@ a@ valid@ permutation@ on@ {0,..,%d}@]@\n" 
-           (string_of_sigma sigma) (pred k)) in 
-    let sigma_arr = Array.create k (-1) in 
-    let sigma_inv_arr = Array.create k (-1) in       
-    begin 
-      let k' = 
-        Safelist.fold_left 
-          (fun i j -> 
+        (fun () -> msg "@[%s@ is@ not@ a@ valid@ permutation@ on@ {0,..,%d}@]@\n"
+           (string_of_sigma sigma) (pred k)) in
+    let sigma_arr = Array.create k (-1) in
+    let sigma_inv_arr = Array.create k (-1) in
+    begin
+      let k' =
+        Safelist.fold_left
+          (fun i j ->
              sigma_arr.(i) <- j;
              if sigma_inv_arr.(j) <> (-1) then err ();
              sigma_inv_arr.(j) <- i;
              succ i)
           0 sigma in
-      if k' <> k then err () 
+      if k' <> k then err ()
     end;
-    (sigma_arr,sigma_inv_arr) 
+    (sigma_arr,sigma_inv_arr)
 
-  let invert_permutation sigma = 
+  let invert_permutation sigma =
     let sigma_arr = Array.of_list sigma in
     let sigma_inv_arr = Array.create (Array.length sigma_arr) (-1) in
     begin
-      Array.iteri 
-        (fun i j -> 
+      Array.iteri
+        (fun i j ->
            if sigma_inv_arr.(j) = -1 then sigma_inv_arr.(j) <- i
            else
-             Err.run_error (Info.M "invert_permutation") 
+             Err.run_error (Info.M "invert_permutation")
                (fun () -> msg "@[%s@ is@ not@ a@ valid@ permutation@ on@ {0,..,%d}@]@\n"
                   (string_of_sigma sigma) (pred (Safelist.length sigma))))
         sigma_arr
@@ -289,245 +274,329 @@ module Permutations = struct
     let ls_arr = Array.of_list ls in
     let k = Array.length ls_arr in
     let _,sigma_inv_arr = permutation sigma k in
-    Array.fold_right 
+    Array.fold_right
       (fun j ls' -> ls_arr.(j)::ls')
       sigma_inv_arr []
 end
-  
+
 (* ---------------------------------------------------------------------------*)
 (* CANONIZERS *)
 module Canonizer = struct
-  type d = 
-    | Copy of Rx.t 
-    | Concat of t * t 
-    | Union of t * t 
-    | Star of t 
-    | Normalize of Rx.t * Rx.t * (string -> string) 
-    | Sort of int * (int * Rx.t) list
-    | Columnize of int * Rx.t * char * string 
-    | FromLens of Rx.t * Rx.t * equiv * (string -> string) * (string -> string) 
+  type d =
+    | Copy of Rx.t
+    | Concat of t * t
+    | Union of t * t
+    | Star of t
+    | Normalize of Rx.t * Rx.t * (string -> string)
+    | Sort of int * (int * Arx.t * Rx.t) list
+    | Columnize of int * Rx.t * char * string
+    | FromLens of Arx.t * Arx.t * equiv * mtype
+        * (Bstring.t -> (P.t * TmI.t) -> (P.t * TmI.t))
+        * (Bstring.t -> string) * (Bstring.t -> string)
 
-  and t = 
+  and t =
       { (* ----- meta data ----- *)
         info : Info.t;
-        uid : int;
         desc : d;
         (* ----- types ----- *)
-        mutable uncanonized_type : Rx.t option;
-        mutable canonized_type : Rx.t option;
+        mutable uncanonized_atype : Arx.t option;
+        mutable canonized_atype : Arx.t option;
         mutable cnrel : equiv option;
       }
 
-  let mk i d = 
+  let mk i d =
     { info = i;
-      uid = next_uid ();
       desc = d;
-      uncanonized_type = None;
-      canonized_type = None;
+      uncanonized_atype = None;
+      canonized_atype = None;
       cnrel = None;
     }
 
   (* ----- accessors ----- *)
-  let rec uncanonized_type cn = match cn.uncanonized_type with 
+  let rec uncanonized_type cn = Arx.rxtype (uncanonized_atype cn)
+  and uncanonized_atype cn =
+    match cn.uncanonized_atype with
     | Some ut -> ut
-    | None -> 
+    | None ->
         let ut = match cn.desc with
-          | Copy(r1)             -> r1
-          | Concat(cn1,cn2)      -> Rx.mk_seq (uncanonized_type cn1) (uncanonized_type cn2)
-          | Union(cn1,cn2)       -> Rx.mk_alt (uncanonized_type cn1) (uncanonized_type cn2)
-          | Star(cn1)            -> Rx.mk_star (uncanonized_type cn1)
-          | Columnize(k,r,ch,nl) -> Rx.mk_expand r (Char.code ch) (Rx.mk_string nl) 
-          | Normalize(ct,ct0,f)  -> ct
-          | Sort(_,irl)          -> Rx.mk_star (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_alt acc ri) Rx.empty irl)
-          | FromLens(ct,_,_,_,_) -> ct in
-        cn.uncanonized_type <- Some ut;
+          | Copy r               -> Arx.mk_rx r
+          | Concat (cn1, cn2)    -> Arx.mk_seq (uncanonized_atype cn1) (uncanonized_atype cn2)
+          | Union (cn1, cn2)     -> Arx.mk_alt (uncanonized_atype cn1) (uncanonized_atype cn2)
+          | Star cn              -> Arx.mk_star (uncanonized_atype cn)
+          | Columnize (k, r, ch, nl) -> Arx.mk_rx (Rx.mk_expand r (Char.code ch) (Rx.mk_string nl))
+          | Normalize (ct, ct0, f) -> Arx.mk_rx ct
+          | Sort (_, irl) ->
+              Arx.mk_star (Safelist.fold_left (fun acc (_, ari, _) -> Arx.mk_alt acc ari) Arx.empty irl)
+          | FromLens (ct, _, _, _, _, _, _) -> ct in
+        cn.uncanonized_atype <- Some ut;
         ut
-  and canonized_type cn = match cn.canonized_type with 
+
+  and canonized_type cn = Arx.rxtype (canonized_atype cn)
+  and canonized_atype cn =
+    match cn.canonized_atype with
     | Some ct -> ct
-    | None -> 
+    | None ->
         let ct = match cn.desc with
-          | Copy(r1)             -> r1
-          | Concat(cn1,cn2)      -> Rx.mk_seq (canonized_type cn1) (canonized_type cn2)
-          | Union(cn1,cn2)       -> Rx.mk_alt (canonized_type cn1) (canonized_type cn2)
-          | Star(cn1)            -> Rx.mk_star (canonized_type cn1)
-          | Columnize(k,r,ch,nl) -> r
-          | Normalize(ct,ct0,f)  -> ct0
-          | Sort(_,irl)          -> Safelist.fold_left (fun acc (_,ri) -> Rx.mk_seq ri acc) Rx.epsilon irl (* NB order! *)
-          | FromLens(_,at,_,_,_) -> at in
-        cn.canonized_type <- Some ct;
+          | Copy r               -> Arx.mk_rx r
+          | Concat (cn1, cn2)    -> Arx.mk_seq (canonized_atype cn1) (canonized_atype cn2)
+          | Union (cn1, cn2)     -> Arx.mk_alt (canonized_atype cn1) (canonized_atype cn2)
+          | Star cn              -> Arx.mk_star (canonized_atype cn)
+          | Columnize (k, r, ch, nl) -> Arx.mk_rx r
+          | Normalize (ct, ct0, f) -> Arx.mk_rx ct0
+          | Sort (_, irl) ->
+              Safelist.fold_left (fun acc (_, ari, _) -> Arx.mk_seq ari acc) Arx.epsilon irl (* NB order! *)
+          | FromLens (_, at, _, _, _, _, _) -> at in
+        cn.canonized_atype <- Some ct;
         ct
 
-  and cnrel cn = match cn.cnrel with 
+  and cnrel cn = match cn.cnrel with
     | Some cr -> cr
-    | None -> 
+    | None ->
         let cr = match cn.desc with
-          | Copy(r1)             -> Identity
-          | Concat(cn1,cn2)      -> equiv_merge (cnrel cn1) (cnrel cn2)
-          | Union(cn1,cn2)       -> 
-              if Rx.is_empty (Rx.mk_diff (canonized_type cn1) (canonized_type cn2)) then (cnrel cn1) 
+          | Copy _
+          | Columnize _
+          | Normalize _
+          | Sort _
+            -> Identity
+          | Concat (cn1, cn2) -> equiv_merge (cnrel cn1) (cnrel cn2)
+          | Union (cn1, cn2) ->
+              if Rx.is_empty (Rx.mk_diff (canonized_type cn2) (canonized_type cn1)) then (cnrel cn1)
               else equiv_merge (cnrel cn1) (cnrel cn2)
-          | Star(cn1)            -> cnrel cn1
-          | Columnize(k,r,ch,nl) -> Identity
-          | Normalize(ct,ct0,f)  -> Identity
-          | Sort(_)              -> Identity
-          | FromLens(_,_,eq,_,_) -> eq in
+          | Star cn -> cnrel cn
+          | FromLens (_, _, eq, _, _, _, _) -> eq in
         cn.cnrel <- Some cr;
         cr
 
-  and canonize cn = match cn.desc with
-    | Copy(r1)              -> (fun c -> c)
-    | Concat(cn1,cn2)       -> 
-        (fun c -> do_concat (uncanonized_type cn1) (uncanonized_type cn2) 
-           (canonize cn1) (canonize cn2) c)
-    | Union(cn1,cn2)        ->  
-        (fun c -> do_union (uncanonized_type cn1) 
-           (canonize cn1) (canonize cn2) c)
-    | Star(cn1)             -> 
-        (fun c -> do_star (uncanonized_type cn1) (canonize cn1) c)
-    | Normalize(ct,ct0,f)   -> (fun c -> f c)
-    | FromLens(_,_,_,get,_) -> (fun c -> get c)
-    | Sort(k,irl)           -> 
-        (* INEFFICIENT! *)
-        (fun c -> 
-           let cl = 
-             Rx.star_split 
-               (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_alt acc ri) Rx.empty irl) 
-               c in
-           let c_arr = Array.create k "" in 
-           if Safelist.length cl > k then 
-             Err.run_error (Info.M "sort.canonize") 
-               (fun () -> msg "@[%s@ split@ into@ more@ than@ %d@ pieces@]" c k);
-           let rs' = Safelist.fold_left 
-             (fun rs ci -> 
-                match Safelist.partition (fun (_,ri) -> Rx.match_string ri ci) rs with
-                  | [],rs' -> rs'
-                  | [i,_],rs' -> c_arr.(i) <- ci; rs'
-                  | _ -> Err.run_error (Info.M "sort.canonize")
-                      (fun () -> msg "@[%s@ matched@ more@ than@ one@ regexp@]" ci))
-             irl cl in 
-           let () = Safelist.iter 
-             (fun (_,ri) -> 
-                if not (Rx.is_final ri) then 
-                  Err.run_error (Info.M "sort.canonize")
-                    (fun () -> msg "@[no@ string@ matched@ %s@]" (Rx.string_of_t ri))) 
-             rs' in 
-           concat_array c_arr)
-    | Columnize(k,r,ch,nl)  -> 
-        (fun c ->
-           let c_len = String.length c in
-           let nl_len = String.length nl in 
-           let buf = Buffer.create c_len in
-           let matches s c i =             
-             let s_len = String.length s in
-             let c_len = String.length c in
-             let rec aux j =
-               if j=s_len then true
-               else
-                 (i+j < c_len)
-                 && ((String.get c (i+j)) = (String.get s j))
-                 && (aux (succ j)) in
-               aux 0 in
-           let rec loop i =
-             if i = c_len then ()
-             else
-               if matches nl c i then
-                 (Buffer.add_char buf ch;
-                  loop (i + nl_len))
-               else
-                 (Buffer.add_char buf (String.get c i);
-                  loop (succ i)) in
-             loop 0;
-             Buffer.contents buf)
+  and gperm cn u pi = (* returns pi *)
+    let basic = pi in
+    match cn.desc with
+    | Copy _
+    | Columnize _
+    | Normalize _
+      -> basic
+    | Concat (cn1, cn2) ->
+        let u1, u2 = Bstring.concat_split (uncanonized_type cn1) (uncanonized_type cn2) u in
+        gperm cn2 u2 (gperm cn1 u1 pi)
+    | Union (cn1, cn2) ->
+        if Bstring.match_rx (uncanonized_type cn1) u
+        then gperm cn1 u pi
+        else gperm cn2 u pi
+    | Star cn ->
+        let us = Bstring.star_split (uncanonized_type cn) u in
+        Safelist.fold_left (
+          fun pi u -> gperm cn u pi
+        ) pi us
+    | Sort (k, irl) ->
+        let p, i = pi in
+        let ul = Bstring.star_split (uncanonized_type cn) u in
+        if Safelist.length ul > k
+        then Err.run_error (Info.M "sort.canonize") (
+          fun () -> msg "@[%s@ split@ into@ more@ than@ %d@ pieces@]" (Bstring.to_string u) k
+        );
+        let c_shift = Array.create k i in
+        let jzl, rs' =
+          Safelist.fold_left (
+            fun (jzl, rs) ui ->
+              match Safelist.partition (fun (_, _, ri) -> Bstring.match_rx ri ui) rs with
+              | [], rs' -> jzl, rs'
+              | [i, arx, _], rs' ->
+                  let shift = Bstring.at_to_locs (Arx.parse arx ui) in
+                  for j = i + 1 to k - 1 do
+                    c_shift.(j) <- TmI.plus c_shift.(j) shift
+                  done;
+                  (i, shift)::jzl, rs'
+              | _ -> Err.run_error (Info.M "sort.canonize")
+                  (fun () -> msg "@[%s@ matched@ more@ than@ one@ regexp@]" (Bstring.to_string ui))
+          ) ([], irl) ul
+        in
+        Safelist.iter (
+          fun (_, _, ri) ->
+            if not (Rx.is_final ri)
+            then Err.run_error (Info.M "sort.canonize")
+              (fun () -> msg "@[no@ string@ matched@ %s@]" (Rx.string_of_t ri))
+        ) rs';
+        Safelist.fold_left (
+          fun (p, i) (j, shift) ->
+            let c_shift = c_shift.(j) in
+            TmI.fold (
+              fun t s p ->
+                let ui = TmI.find t i in
+                let cj = TmI.find t c_shift in
+                let rec add s p =
+                  if s = 0 then p
+                  else
+                    let s = pred s in
+                    add s (P.add t (ui + s, cj + s) p)
+                in
+                add s p
+            ) shift p,
+            TmI.plus i shift
+        ) pi (Safelist.rev jzl)
+    | FromLens (_, _, _, _, p, _, _) -> p u pi
 
-  and choose cn = match cn.desc with
-    | Copy(r1)              -> (fun b -> b)
-    | Concat(cn1,cn2)       -> 
-        (fun b -> 
-           let b1,b2 = 
-             (split_one Int.Set.min_elt)
-               (canonized_type cn1) (canonized_type cn2) b in 
-             (choose cn1 b1) ^ (choose cn2 b2))
-    | Union(cn1,cn2)        ->  
-        (fun b -> do_union (canonized_type cn1) (choose cn1) (choose cn2) b)
-    | Star(cn1)             -> 
-        (fun b -> 
-           let buf = Buffer.create 17 in 
-           let rec loop b = 
-             if String.length b = 0 then Buffer.contents buf
-             else
-               let b1,brest = 
-                 (split_one Int.Set.min_elt) 
-                   (canonized_type cn1) (canonized_type cn) 
-                   b in 
-               Buffer.add_string buf (choose cn1 b1);
-               loop brest in 
-           loop b)
-    | Normalize(ct,ct0,f)   -> (fun b -> b)
-    | FromLens(_,_,_,_,crt) -> (fun b -> crt b)
-    | Sort(_)               -> (fun b -> b)
-    | Columnize(k,r,ch,nl)  -> 
-        (fun b ->
-           let b_len = String.length b in
-           let nl_len = String.length nl in 
-           let buf = Buffer.create b_len in
-           let line_buf = Buffer.create k in
-           let aux_buf = Buffer.create k in
-           let do_line () =
-             if Buffer.length buf <> 0 && Buffer.length line_buf <> 0 then Buffer.add_string buf nl;
-             Buffer.add_buffer buf line_buf;
-             Buffer.reset line_buf in
-           let do_space () =
-             if Buffer.length line_buf <> 0 then Buffer.add_char line_buf ch;
-             Buffer.add_buffer line_buf aux_buf;
-             Buffer.reset aux_buf in
-           let rec loop i =
-             let sum =
-               let nl_off = if Buffer.length buf=0 then 0 else pred nl_len in
-               let aux_len = Buffer.length aux_buf in
-               let line_len = let n = Buffer.length line_buf in if n=0 then n else succ n in
-                 nl_off + aux_len + line_len in
-               if sum > k then do_line ();
-               if i = b_len then (do_space (); do_line ())
-               else
-                 let i' =
-                   if ch = b.[i] then (do_space (); i + 1)
-                   else (Buffer.add_char aux_buf b.[i]; succ i) in
-                   loop i' in
-           loop 0;
-           Buffer.contents buf)
+  and canonize cn u =
+    let basic f = f (Bstring.to_string u) in
+    match cn.desc with
+    | Copy _ -> basic (fun u -> u)
+    | Concat (cn1, cn2) ->
+        let u1, u2 = Bstring.concat_split (uncanonized_type cn1) (uncanonized_type cn2) u in
+        let c1 = canonize cn1 u1 in
+        let c2 = canonize cn2 u2 in
+        c1 ^ c2
+    | Union (cn1, cn2) ->
+        if Bstring.match_rx (uncanonized_type cn1) u
+        then canonize cn1 u
+        else canonize cn2 u
+    | Star cn ->
+        let buf = Buffer.create 17 in
+        let us = Bstring.star_split (uncanonized_type cn) u in
+        Safelist.iter (
+          fun u -> Buffer.add_string buf (canonize cn u)
+        ) us;
+        Buffer.contents buf
+    | Normalize (_, _, f) -> basic f
+    | FromLens (_, _, _, _, _, get, _) -> get u
+    | Sort (k, irl) ->
+        (* INEFFICIENT! *)
+        let ul = Bstring.star_split (uncanonized_type cn) u in
+        let u_arr = Array.create k "" in
+        if Safelist.length ul > k
+        then Err.run_error (Info.M "sort.canonize") (
+          fun () -> msg "@[%s@ split@ into@ more@ than@ %d@ pieces@]" (Bstring.to_string u) k
+        );
+        let rs' =
+          Safelist.fold_left (
+            fun rs ui ->
+              match Safelist.partition (fun (_, _, ri) -> Bstring.match_rx ri ui) rs with
+              | [], rs' -> rs'
+              | [i, _, _], rs' -> u_arr.(i) <- Bstring.to_string ui; rs'
+              | _ -> Err.run_error (Info.M "sort.canonize")
+                  (fun () -> msg "@[%s@ matched@ more@ than@ one@ regexp@]" (Bstring.to_string ui))
+          ) irl ul
+        in
+        let () =
+          Safelist.iter (
+            fun (_, _, ri) ->
+              if not (Rx.is_final ri)
+              then Err.run_error (Info.M "sort.canonize")
+                (fun () -> msg "@[no@ string@ matched@ %s@]" (Rx.string_of_t ri))
+          ) rs'
+        in
+        concat_array u_arr
+    | Columnize (k, r, ch, nl) -> basic (
+        fun c ->
+        let c_len = String.length c in
+        let nl_len = String.length nl in
+        let buf = Buffer.create c_len in
+        let matches s c i =
+          let s_len = String.length s in
+          let c_len = String.length c in
+          let rec aux j =
+            if j=s_len then true
+            else
+              (i+j < c_len)
+              && ((String.get c (i+j)) = (String.get s j))
+              && (aux (succ j)) in
+          aux 0 in
+        let rec loop i =
+          if i = c_len then ()
+          else
+            if matches nl c i then
+              (Buffer.add_char buf ch;
+               loop (i + nl_len))
+            else
+              (Buffer.add_char buf (String.get c i);
+               loop (succ i)) in
+        loop 0;
+        Buffer.contents buf)
+
+  and choose cn c =
+    let basic f = f (Bstring.to_string c) in
+    match cn.desc with
+    | Copy _ -> basic (fun c -> c)
+    | Concat (cn1, cn2) ->
+        let c1, c2 = Bstring.concat_ambiguous_split 0 (canonized_type cn1) (canonized_type cn2) c in
+        let u1 = choose cn1 c1 in
+        let u2 = choose cn2 c2 in
+        u1 ^ u2
+    | Union (cn1, cn2) ->
+        if Bstring.match_rx (canonized_type cn1) c
+        then choose cn1 c
+        else choose cn2 c
+    | Star cn ->
+        let buf = Buffer.create 17 in
+        let cs = Bstring.star_ambiguous_split [] (canonized_type cn) c in
+        Safelist.iter (
+          fun c -> Buffer.add_string buf (choose cn c)
+        ) cs;
+        Buffer.contents buf
+    | Normalize _ -> basic (fun c -> c)
+    | FromLens (_, _, _, _, _, _, create) -> create c
+    | Sort _ -> Bstring.to_string c
+    | Columnize (k, r, ch, nl) -> basic (
+        fun b ->
+        let b_len = String.length b in
+        let nl_len = String.length nl in
+        let buf = Buffer.create b_len in
+        let line_buf = Buffer.create k in
+        let aux_buf = Buffer.create k in
+        let do_line () =
+          if Buffer.length buf <> 0 && Buffer.length line_buf <> 0 then Buffer.add_string buf nl;
+          Buffer.add_buffer buf line_buf;
+          Buffer.reset line_buf in
+        let do_space () =
+          if Buffer.length line_buf <> 0 then Buffer.add_char line_buf ch;
+          Buffer.add_buffer line_buf aux_buf;
+          Buffer.reset aux_buf in
+        let rec loop i =
+          let sum =
+            let nl_off = if Buffer.length buf=0 then 0 else pred nl_len in
+            let aux_len = Buffer.length aux_buf in
+            let line_len = let n = Buffer.length line_buf in if n=0 then n else succ n in
+            nl_off + aux_len + line_len in
+          if sum > k then do_line ();
+          if i = b_len then (do_space (); do_line ())
+          else
+            let i' =
+              if ch = b.[i] then (do_space (); i + 1)
+              else (Buffer.add_char aux_buf b.[i]; succ i) in
+            loop i' in
+        loop 0;
+        Buffer.contents buf)
 
   let info cn = cn.info
 
-  let rec format_t cn = 
+  let rec format_t cn =
     msg "@[";
     begin match cn.desc with
       | Copy(r1)              -> msg "(copy@ "; Rx.format_t r1; msg ")"
       | Concat(cn1,cn2)       -> msg "("; format_t cn1; msg "@ .@ "; format_t cn2; msg ")"
       | Union(cn1,cn2)        -> msg "("; format_t cn1; msg "@ |@ "; format_t cn2; msg ")"
       | Star(cn1)             -> format_t cn1; msg "* " (* space to avoid spurious close-comments *)
-      | Normalize(r1,r2,f)    -> 
-	  msg "(normalize@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg "@ <function>)"
-      | FromLens(r1,r2,e1,f1,f2) ->
-	  msg "(canonizer_of_lens@ <lens>)" (* ??? *)
+      | Normalize(r1,r2,f)    ->
+          msg "(normalize@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg "@ <function>)"
+      | FromLens(r1,r2,e1,_,_,f1,f2) ->
+          msg "(canonizer_of_lens@ <lens>)" (* ??? *)
       | Sort(i1,irs)          ->
-	  let rec format_irs irs = match irs with
-	    | []           -> ()
-	    | [(_,ri)]     -> Rx.format_t ri
-	    | (_,ri)::rest -> (Rx.format_t ri; msg "@, "; format_irs rest) in
-	  msg "(sort@ #{regexp}[@[";
-	  format_irs irs;
-	  msg "@]])"
+          let rec format_irs irs = match irs with
+            | []       -> ()
+            | [(_,ari,_)]     -> Arx.format_t ari
+            | (_,ari,_)::rest -> (Arx.format_t ari; msg "@, "; format_irs rest)
+          in
+          msg "(asort@ #{aregexp}[@[";
+          format_irs irs;
+          msg "@]])"
       | Columnize(k,r,ch,nl)  ->
-	  msg "(columnize@ %d@ " k; Rx.format_t r; msg "@ '%c'@ \"%s\")" ch nl
+          msg "(columnize@ %d@ " k; Rx.format_t r; msg "@ '%c'@ \"%s\")" ch nl
     end;
     msg "@]"
 
-  let string_of_t cn = 
-    Util.format_to_string 
-      (fun () -> 
-	 Util.format "@["; 
-	 format_t cn; 
-	 Util.format "@]")
+  let string_of_t cn =
+    Util.format_to_string
+      (fun () ->
+         Util.format "@[";
+         format_t cn;
+         Util.format "@]")
 
   let cnrel_identity cn = cnrel cn = Identity
 
@@ -537,1093 +606,1034 @@ module Canonizer = struct
   let union i cn1 cn2 = mk i (Union(cn1,cn2))
   let star i cn1 = mk i (Star(cn1))
   let normalize i ct ct0 f = mk i (Normalize(ct,ct0,f))
-  let sort i rl = 
-    let k,irl = Safelist.fold_left (fun (i,acc) ri -> (succ i,(i,ri)::acc)) (0,[]) rl in
+  let sort i rl =
+    let k, irl = Safelist.fold_left (fun (i,acc) ari -> (succ i,(i, ari, Arx.rxtype ari)::acc)) (0,[]) rl in
     mk i (Sort(k,irl))
   let columnize i k r sp nl = mk i (Columnize(k,r,sp,nl))
-  let from_lens i ct at eq get crt = mk i (FromLens(ct,at,eq,get,crt))
-  let iter i cn1 min maxo = 
-    generic_iter (copy i Rx.epsilon) (union i) (concat i) (star i) 
+  let from_lens i ct at eq mt perm get crt = mk i (FromLens(ct,at,eq,mt,perm,get,crt))
+  let iter i cn1 min maxo =
+    Arx.generic_iter (copy i Rx.epsilon) (union i) (concat i) (star i)
       min maxo cn1
 end
 
 (* ---------------------------------------------------------------------------*)
-(* DICTIONARY LENSES *)
-module DLens = struct    
-  
-  type d = 
+(* MATCHING LENSES *)
+module MLens = struct
+
+  type d = (* description *)
     (* ----- string lenses ----- *)
     | Copy of Rx.t
     | Clobber of Rx.t * string * (string -> string)
     | Concat of t * t
     | Union of t * t
     | Star of t
-    | Key of Rx.t
-    | DMatch of string * t
+    | Match of Btag.t * t
 
     (* ----- generic lenses ------ *)
+    | Weight of (bool * W.t) * t
     | Compose of t * t
+    | Align of t
     | Invert of t
-    | Default of  t * string
+    | Default of  t * Bstring.t
 
     (* ----- quotient lenses ----- *)
     | LeftQuot of  Canonizer.t * t
-    | RightQuot of t * Canonizer.t 
-    | Dup1 of t * (string -> string) * Rx.t 
+    | RightQuot of t * Canonizer.t
+    | Dup1 of t * (string -> string) * Rx.t
     | Dup2 of (string -> string) * Rx.t * t
 
     (* ----- extensions ----- *)
-    | SMatch of string * float * t 
-    | Partition of Rx.t * Rx.t 
-    | Filter of Rx.t * Rx.t
-    | Merge of Rx.t 
-    | Fiat of t 
-    | Forgetkey of t
-    | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array 
-    | Probe of string * t
+    | Partition of Rx.t * Rx.t
+    | Merge of Rx.t
+    | Fiat of t
+    | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array
 
-  and t = 
+  and t =
       { (* ----- meta data ----- *)
         info : Info.t;
-        uid : int;
         desc : d;
         (* ----- types ----- *)
         mutable bij: bool option;
-        mutable ctype : Rx.t option;
-        mutable atype : Rx.t option;
-        mutable crel : equiv option;
-        mutable arel : equiv option;
-        mutable xtype : (Erx.t option) option;
-        mutable dtype : dict_type;
+        mutable astype : Arx.t option;
+        mutable avtype : Arx.t option;
+        mutable sequiv : equiv option;
+        mutable vequiv : equiv option;
+        mutable ktype : ktype option;
+        mutable mtype : mtype option;
       }
 
-  let mk i d dt = 
+  let mk i d =
     { info = i;
-      uid = next_uid ();
       desc = d;
       bij = None;
-      ctype = None;
-      atype = None;
-      crel = None;
-      arel = None;
-      xtype = None;
-      dtype = dt;
-    }        
-
-  (* lookup helpers *)
-  let rec std_lookup tag k d = 
-    let km = try TMap.find tag d with Not_found -> KMap.empty in
-    try match KMap.find k km with 
-      | sd::l -> Some (sd, TMap.add tag (KMap.add k l km) d)
-      | []    -> None
-    with Not_found -> None
-
-  let rec sim_lookup delta tag k d = 
-    let distance s1 s2 = 
-      let m = String.length s1 in 
-      let n = String.length s2 in 
-      let aodd = Array.make (succ n) 0 in 
-      let aeven = Array.make (succ n) 0 in 
-        for j=0 to n do aeven.(j) <- j done;
-        for i=1 to m do
-          let apredi = if i mod 2 = 0 then aodd else aeven in 
-          let ai = if i mod 2 = 0 then aeven else aodd in 
-            ai.(0) <- i;
-            for j = 1 to n do      
-              ai.(j) <-
-                (min (apredi.(j) + 1)
-                   (min (ai.(j-1) + 1)
-                      (apredi.(j-1) + 
-                       if String.get s1 (pred i) = String.get s2 (pred j) 
-                       then 0 else 1)));
-            done
-        done;
-        if m mod 2 = 0 then aeven.(n) else aodd.(n) in 
-    let aux k1 k2 = 
-      let di = distance k1 k2 in 
-      let len = max (String.length k1) (String.length k2) in 
-      let delta = float_of_int di /. float_of_int len in 
-        (delta,di) in  
-    let km = try TMap.find tag d with Not_found -> KMap.empty in
-    let reso = try match KMap.find k km with 
-      | sd::l -> Some (sd, TMap.add tag (KMap.add k l km) d)
-      | []    -> None
-    with Not_found -> None in 
-      begin match reso with 
-        | Some _ -> reso
-        | None -> begin 
-            let reso = KMap.fold
-              (fun ki li acco -> 
-                 match li,acco with 
-                   | [],_ | _,Some(0,_,_,_) -> acco
-                   | sdi::li,Some(d',_,_,_) ->
-                       let _,di = aux k ki in 
-                       if di < d' then Some(di,ki,sdi,li)
-                       else acco
-                   | sdi::li,None -> 
-                       let deltai,di = aux k ki in 
-                       if deltai < delta then Some(di,ki,sdi,li) 
-                       else None)
-              km None in 
-              Misc.map_option       
-                (fun (di,ki,sdi,li) -> 
-                   (sdi,TMap.add tag (KMap.add ki li km) d))
-                reso
-          end
-      end  
-
-  (* helpers for dictionaries *)
-  let dt_merge dt1 dt2 = 
-    TMap.fold 
-      (fun t u acc ->
-         if (not (TMap.mem t dt2)) || (TMap.find t dt2 = u) then 
-           TMap.add t u acc
-         else 
-           Err.run_error (Info.M "dt_merge") 
-             (fun () -> msg "@[tag \"%s\" used with different lenses" t))
-      dt1 dt2
-
-  let dt_split d t = 
-    try 
-      let km = TMap.find t d in 
-      (TMap.add t km TMap.empty, TMap.remove t d)      
-    with Not_found -> 
-    (TMap.empty,d)
-
-  let (++) d1 d2 =
-    let combine fold find add merge m1 m2 = 
-      fold (fun k v -> add k (try merge v (find k m2) with Not_found -> v)) 
-        m1 m2 in 
-    combine TMap.fold TMap.find TMap.add 
-      (fun km1 km2 -> 
-	 (combine KMap.fold KMap.find KMap.add 
-	    (fun kl1 kl2 -> kl1 @ kl2)
-	    km1 km2))
-      d1 d2
+      astype = None;
+      avtype = None;
+      sequiv = None;
+      vequiv = None;
+      ktype = None;
+      mtype = None;
+    }
 
   (* ----- accessors ----- *)
-  let rec bij dl = match dl.bij with (* is a bijection? *)
+(*   let rec is_symmetric ml = *)
+(*     Ts.equal (Barx.to_tags (avtype ml)) (Barx.to_tags (astype ml)) *)
+(*   and bij ml = ... *)
+
+  let rec bij ml = match ml.bij with
     | Some b -> b
-    | None   -> 
-        let b = match dl.desc with          
+    | None   ->
+        let b = match ml.desc with
           | Copy(r1)           -> true
-          | Clobber(r1,w1,f1)  -> Rx.is_singleton r1
-          | Concat(dl1,dl2)    -> bij dl1 && bij dl2
-          | Union(dl1,dl2)     -> bij dl1 && bij dl2 && Rx.disjoint (atype dl1) (atype dl2)
-          | Star(dl1)          -> bij dl1
-          | Key(r1)            -> true
-          | DMatch(t1,dl1)     -> bij dl1
-          | Compose(dl1,dl2)   -> bij dl1 && bij dl2
-          | Invert(dl1)        -> true
-          | Default(dl1,w1)    -> bij dl1
-          | LeftQuot(cn1,dl1)  -> bij dl1
-          | RightQuot(dl1,cn1) -> bij dl1
-          | Dup1(dl1,f1,r1)    -> bij dl1
-          | Dup2(f1,r1,dl1)    -> bij dl1
-          | SMatch(t1,f1,dl1)  -> bij dl1
-          | Partition(r1,r2)   -> false
-          | Filter(r1,r2)      -> false
-          | Merge(r1)          -> Rx.is_singleton r1 
-          | Fiat(dl1)          -> bij dl1 
-          | Forgetkey(dl1)     -> bij dl1 
-          | Permute(_,dls)     -> Array.fold_left (fun b dli -> b && bij dli) true dls 
-          | Probe(_,dl1)       -> bij dl1 in
-        dl.bij <- Some b;
+          | Clobber(r1,w1,f1)   -> Rx.is_singleton r1
+          | Concat(ml1,ml2)    -> bij ml1 && bij ml2
+          | Union(ml1,ml2)     -> bij ml1 && bij ml2 && Rx.disjoint (vtype ml1) (vtype ml2)
+          | Star(ml1)          -> bij ml1
+          | Weight (_, ml)     -> bij ml
+          | Match (t, ml)      -> bij ml
+          | Compose (ml1, ml2) -> bij ml1 && bij ml2
+          | Align ml           -> bij ml
+          | Invert (ml)        -> true
+          | Default (ml, w)    -> bij ml
+          | LeftQuot (cn, ml)  -> bij ml
+          | RightQuot (ml, cn) -> bij ml
+          | Dup1 (ml, f, r)    -> bij ml
+          | Dup2 (f, r, ml)    -> bij ml
+          | Partition(r1,r2)   -> Rx.is_empty r1 || Rx.is_empty r2
+          | Merge (r)          -> Rx.is_singleton r
+          | Fiat ml            -> bij ml
+          | Permute (_, mls)   -> Array.fold_left (fun b mli -> b && bij mli) true mls
+        in
+        ml.bij <- Some b;
         b
 
-  and ctype dl = match dl.ctype with (* concrete type (domain) *)
+  and stype ml = Arx.rxtype (astype ml)
+  and astype ml = match ml.astype with
     | Some ct -> ct
-    | None -> 
-        let ct = match dl.desc with
-          | Copy(r1)           -> r1
-          | Clobber(r1,w1,f1)  -> r1
-          | Concat(dl1,dl2)    -> Rx.mk_seq (ctype dl1) (ctype dl2)
-          | Union(dl1,dl2)     -> Rx.mk_alt (ctype dl1) (ctype dl2)
-          | Star(dl1)          -> Rx.mk_star (ctype dl1)
-          | Key(r1)            -> r1
-          | DMatch(t1,dl1)     -> ctype dl1
-          | Compose(dl1,dl2)   -> ctype dl1
-          | Invert(dl1)        -> atype dl1
-          | Default(dl1,w1)    -> ctype dl1
-          | LeftQuot(cn1,dl1)  -> Canonizer.uncanonized_type cn1
-          | RightQuot(dl1,cn1) -> ctype dl1
-          | Dup1(dl1,f1,r1)    -> ctype dl1
-          | Dup2(f1,r1,dl1)    -> ctype dl1
-          | SMatch(t1,f1,dl1)  -> ctype dl1
-          | Partition(r1,r2)   -> Rx.mk_star (Rx.mk_alt r1 r2) 
-          | Filter(r1,r2)      -> Rx.mk_star (Rx.mk_alt r1 r2)
-          | Merge(r1)          -> Rx.mk_seq r1 r1 
-          | Fiat(dl1)          -> ctype dl1 
-          | Forgetkey(dl1)     -> ctype dl1 
-          | Permute(_,dls)     -> 
-              Array.fold_left (fun acc dli -> Rx.mk_seq acc (ctype dli)) 
-                Rx.epsilon dls 
-          | Probe(_,dl1)       -> ctype dl1 in
-        dl.ctype <- Some ct;
+    | None ->
+        let ct = match ml.desc with
+          | Copy r             -> Arx.mk_rx r
+          | Clobber (r, _, _)  -> Arx.mk_rx r
+          | Concat (ml1, ml2)  -> Arx.mk_seq (astype ml1) (astype ml2)
+          | Union (ml1, ml2)   -> Arx.mk_alt (astype ml1) (astype ml2)
+          | Star ml            -> Arx.mk_star (astype ml)
+          | Weight (w, ml)     -> Arx.annot_weight w (astype ml)
+          | Match (t, ml)      -> Arx.mk_box t (astype ml)
+          | Compose (ml, _)    -> astype ml
+          | Align ml           -> Arx.mk_rx (stype ml)
+          | Invert ml          -> avtype ml
+          | Default (ml, _)    -> astype ml
+          | LeftQuot (cn, _)   -> Canonizer.uncanonized_atype cn
+          | RightQuot (ml, _)  -> astype ml
+          | Dup1 (ml, _, _)    -> astype ml
+          | Dup2 (_, _, ml)    -> astype ml
+          | Partition (r1, r2) -> Arx.mk_rx (Rx.mk_star (Rx.mk_alt r1 r2))
+          | Merge r            -> Arx.mk_rx (Rx.mk_seq r r)
+          | Fiat ml            -> astype ml
+          | Permute (_, mls)   ->
+              Array.fold_left (fun acc mli -> Arx.mk_seq acc (astype mli))
+                (Arx.mk_rx Rx.epsilon) mls
+        in
+        ml.astype <- Some ct;
         ct
-          
-  and atype dl = match dl.atype with (* abstract type (codomain) *)
+
+  and vtype ml = Arx.rxtype (avtype ml)
+  and avtype ml = match ml.avtype with
     | Some at -> at
-    | None -> 
-        let at = match dl.desc with 
-          | Copy(r1)           -> r1
-          | Clobber(r1,w1,f1)  -> Rx.mk_string w1 
-          | Concat(dl1,dl2)    -> Rx.mk_seq (atype dl1) (atype dl2)
-          | Union(dl1,dl2)     -> Rx.mk_alt (atype dl1) (atype dl2)
-          | Star(dl1)          -> Rx.mk_star (atype dl1)
-          | Key(r1)            -> r1
-          | DMatch(t1,dl1)     -> atype dl1
-          | Compose(dl1,dl2)   -> atype dl2
-          | Invert(dl1)        -> ctype dl1
-          | Default(dl1,w1)    -> atype dl1
-          | LeftQuot(cn1,dl1)  -> atype dl1
-          | RightQuot(dl1,cn1) -> Canonizer.uncanonized_type cn1
-          | Dup1(dl1,f1,r1)    -> Rx.mk_seq (atype dl1) r1
-          | Dup2(f1,r1,dl1)    -> Rx.mk_seq r1 (atype dl1)
-          | SMatch(t1,f1,dl1)  -> atype dl1
-          | Partition(r1,r2)   -> Rx.mk_seq (Rx.mk_star r1) (Rx.mk_star r2)
-          | Filter(r1,r2)      -> Rx.mk_star r2
-          | Merge(r1)          -> r1
-          | Fiat(dl1)          -> atype dl1
-          | Forgetkey(dl1)     -> atype dl1 
-          | Permute(p1,dls)    -> 
-              let _,_,s2,_,_ = p1 in 
-              Array.fold_left 
-                (fun acc i -> Rx.mk_seq acc (atype dls.(i)))
-                Rx.epsilon s2 
-          | Probe(_,dl1)       -> atype dl1 in
-        dl.atype <- Some at;
+    | None ->
+        let at = match ml.desc with
+          | Copy r             -> Arx.mk_rx r
+          | Clobber (_, w, _)  -> Arx.mk_rx (Rx.mk_string w)
+          | Concat (ml1, ml2)  -> Arx.mk_seq (avtype ml1) (avtype ml2)
+          | Union (ml1, ml2)   -> Arx.mk_alt (avtype ml1) (avtype ml2)
+          | Star ml            -> Arx.mk_star (avtype ml)
+          | Weight (w, ml)     -> Arx.annot_weight w (avtype ml)
+          | Match (t, ml)      -> Arx.mk_box t (avtype ml)
+          | Compose (_, ml)    -> avtype ml
+          | Align ml           -> Arx.mk_rx (vtype ml)
+          | Invert ml          -> astype ml
+          | Default (ml, _)    -> avtype ml
+          | LeftQuot (_, ml)   -> avtype ml
+          | RightQuot (_, cn)  -> Canonizer.uncanonized_atype cn
+          | Dup1 (ml, _, r)    -> Arx.mk_seq (avtype ml) (Arx.mk_rx r)
+          | Dup2 (_, r, ml)    -> Arx.mk_seq (Arx.mk_rx r) (avtype ml)
+          | Partition (r1, r2) -> Arx.mk_rx (Rx.mk_seq (Rx.mk_star r1) (Rx.mk_star r2))
+          | Merge r            -> Arx.mk_rx r
+          | Fiat ml            -> avtype ml
+          | Permute (p, mls)   ->
+              let _, _, s2, _, _ = p in
+              Array.fold_left
+                (fun acc i -> Arx.mk_seq acc (avtype mls.(i)))
+                (Arx.mk_rx Rx.epsilon) s2
+        in
+        ml.avtype <- Some at;
         at
 
-  and xtype dl = match dl.xtype with
-    | Some xto -> xto
-    | None -> 
-        let xto = match dl.desc with
-          | Copy(r1)           -> Some (Erx.mk_leaf (atype dl))
-          | Clobber(r1,w1,f1)  -> Some (Erx.mk_leaf (atype dl))
-          | Concat(dl1,dl2)    -> Misc.map2_option Erx.mk_seq (xtype dl1) (xtype dl2)
-          | Union(dl1,dl2)     -> Misc.map2_option Erx.mk_alt (xtype dl1) (xtype dl2)
-          | Star(dl1)          -> 
-              begin match xtype dl1 with
-                | None -> None
-                | Some xt1 -> 
-                    if Erx.boxes xt1 <> 0 && not (Erx.iterable xt1) then None 
-                    else Some (Erx.mk_star xt1) 
-              end
-          | Key(r1)            -> Some (Erx.mk_key (atype dl))
-          | DMatch(t1,dl1)     -> Misc.map_option (Erx.mk_box t1) (xtype dl1)
-          | Compose(dl1,dl2)   -> xtype dl2
-          | Invert(dl1)        -> Some (Erx.mk_leaf (ctype dl1))
-          | Default(dl1,w1)    -> xtype dl1
-          | LeftQuot(cn1,dl1)  -> xtype dl1
-          | RightQuot(dl1,cn1) -> 
-              Some (Erx.mk_leaf (Canonizer.uncanonized_type cn1))
-          | Dup1(dl1,f1,r1)    -> 
-              Misc.map_option 
-                (fun xt1 -> Erx.mk_seq xt1 (Erx.mk_leaf r1)) 
-                (xtype dl1)
-          | Dup2(f1,r1,dl1)    -> 
-              Misc.map_option 
-                (fun xt1 -> Erx.mk_seq (Erx.mk_leaf r1) xt1) 
-                (xtype dl1)
-          | SMatch(t1,f1,dl1)  -> Misc.map_option (Erx.mk_box t1) (xtype dl1)
-          | Partition(r1,r2)   -> Some (Erx.mk_leaf (atype dl))
-          | Filter(r1,r2)      -> Some (Erx.mk_leaf (atype dl))
-          | Merge(r1)          -> Some (Erx.mk_leaf (atype dl))
-          | Fiat(dl1)          -> xtype dl1 
-          | Forgetkey(dl1)     -> xtype dl1 
-          | Permute(p1,dls)    -> 
-              let _,s1,_,_,_ = p1 in 
-              Array.fold_left 
-                (fun acco i -> Misc.map2_option Erx.mk_seq acco (xtype dls.(i)))
-                (Some (Erx.mk_leaf (Rx.epsilon))) s1 
-          | Probe(_,dl1)       -> xtype dl1 in 
-        dl.xtype <- Some xto;
-        xto
+  and ktype ml =
+    match ml.ktype with
+    | Some kt -> kt
+    | None ->
+        let kt =
+          let basic () = K_regexp (stype ml) in
+          match ml.desc with
+          | Copy _
+          | Clobber _
+          | Align _
+          | Invert _
+          | Default _
+          | Dup1 _
+          | Dup2 _
+          | Partition _
+          | Merge _
+          | Fiat _
+            -> basic ()
+          | Weight (_, ml)
+          | LeftQuot (_, ml)
+          | RightQuot (ml, _)
+            -> ktype ml
+          | Concat (ml1, ml2) -> K_concat (ktype ml1, ktype ml2)
+          | Union (ml1, ml2) -> K_union (ktype ml1, ktype ml2)
+          | Compose (ml1, ml2) -> K_compose (ktype ml1, ktype ml2)
+          | Star ml -> K_star (ktype ml)
+          | Match (t, _) -> K_box t
+          | Permute (_, mls) ->
+              K_permute (Array.to_list (Array.map ktype mls))
+        in
+        ml.ktype <- Some kt;
+        kt
 
-  and calc_dtype d = match d with
-    | Copy(r1)           -> TMap.empty
-    | Clobber(r1,w1,f1)  -> TMap.empty
-    | Concat(dl1,dl2)    -> dt_merge dl1.dtype dl2.dtype
-    | Union(dl1,dl2)     -> dt_merge dl1.dtype dl2.dtype
-    | Star(dl1)          -> dl1.dtype
-    | Key(r1)            -> TMap.empty
-    | DMatch(t1,dl1)     -> TMap.add t1 dl1.uid TMap.empty
-    | Compose(dl1,dl2)   -> dt_merge dl1.dtype dl2.dtype
-    | Invert(dl1)        -> dl1.dtype
-    | Default(dl1,w1)    -> dl1.dtype
-    | LeftQuot(cn1,dl1)  -> dl1.dtype
-    | RightQuot(dl1,cn1) -> dl1.dtype
-    | Dup1(dl1,f1,r1)    -> dl1.dtype
-    | Dup2(f1,r1,dl1)    -> dl1.dtype
-    | SMatch(t1,f1,dl1)  -> TMap.add t1 dl1.uid TMap.empty
-    | Partition(r1,r2)   -> TMap.empty 
-    | Filter(r1,r2)      -> TMap.empty 
-    | Merge(r1)          -> TMap.empty
-    | Fiat(dl1)          -> dl1.dtype
-    | Forgetkey(dl1)     -> dl1.dtype 
-    | Permute(_,dls)     -> 
-        Array.fold_left 
-          (fun acc dli -> dt_merge acc dli.dtype)
-          TMap.empty dls 
-    | Probe(_,dl1)       -> dl1.dtype 
+  and mtype ml =
+    match ml.mtype with
+    | Some mt -> mt
+    | None ->
+        let mt =
+          let basic = TmA.empty in
+          match ml.desc with
+          | Copy _
+          | Clobber _
+          | Partition _
+          | Merge _
+          | Align _
+          | Fiat _
+          | Invert _
+          | Default _
+          | Dup1 _
+          | Dup2 _
+            -> basic
+          | Concat (ml1, ml2)
+          | Union (ml1, ml2)
+            -> mt_merge (mtype ml1) (mtype ml2)
+          | Star ml
+          | Weight (_, ml)
+            -> (mtype ml)
+          | Match (t, ml)
+            -> TmA.add t (ktype ml) (mtype ml)
+          | Compose (ml1, ml2)
+            -> mt_compose (mtype ml1) (mtype ml2)
+          | LeftQuot (_, ml)
+          | RightQuot (ml, _)
+            -> (mtype ml)
+          | Permute (_, mls) ->
+              Array.fold_left (
+                fun acc mli -> mt_merge acc (mtype mli)
+              ) TmA.empty mls
+        in
+        ml.mtype <- Some mt;
+        mt
                 
-  and stype dl sk = match sk,dl.desc with
-    | S_string(s),Copy(r1)              -> Rx.match_string (ctype dl) s
-    | S_string(s),Clobber(r1,w1,f1)     -> Rx.match_string (ctype dl) s
-    | S_concat(sk1,sk2),Concat(dl1,dl2) -> stype dl1 sk1 && stype dl2 sk2
-    | _,Union(dl1,dl2)                  -> stype dl1 sk || stype dl2 sk
-    | S_star(sl),Star(dl1)              -> Safelist.for_all (stype dl1) sl
-    | S_string s,Key(r1)                -> Rx.match_string (ctype dl) s
-    | S_box(b),DMatch(t1,dl1)           -> b = t1
-    | S_comp(sk1,sk2),Compose(dl1,dl2)  -> stype dl1 sk1 && stype dl2 sk2
-    | _,Invert(dl1)                     -> stype dl1 sk
-    | _,Default(dl1,w1)                 -> stype dl1 sk
-    | S_quot(_,sk1),LeftQuot(cn1,dl1)   -> stype dl1 sk1
-    | _,RightQuot(dl1,cn1)              -> stype dl1 sk
-    | _,Dup1(dl1,f1,r1)                 -> stype dl1 sk
-    | _,Dup2(f1,r1,dl1)                 -> stype dl1 sk
-    | S_box(b),SMatch(t1,f1,dl1)        -> b = t1
-    | S_string(s),Partition(r1,r2)      -> Rx.match_string (ctype dl) s 
-    | S_string(s),Filter(r1,r2)         -> Rx.match_string (ctype dl) s
-    | S_string(s),Merge(r1)             -> Rx.match_string (ctype dl) s
-    | _,Fiat(dl1)                       -> stype dl1 sk
-    | _,Forgetkey(dl1)                  -> stype dl1 sk
-    | S_star(sl),Permute(_,dls)         -> 
-        (Safelist.length sl = Array.length dls)
-        && (fst (Safelist.fold_left 
-                   (fun (ok,i) si -> (ok && stype dls.(i) si, succ i))
-                   (true,0) sl))
-    | _,Probe(_,dl1)                    -> stype dl1 sk 
-    | _                                 -> false  
-
-  and crel dl = match dl.crel with (* equivalence relation in concrete domain *)
+  and sequiv ml = match ml.sequiv with
     | Some cr -> cr
-    | None -> 
-        let cr = match dl.desc with
-          | Copy(r1)           -> Identity
-          | Clobber(r1,w1,f1)  -> Identity
-          | Concat(dl1,dl2)    -> equiv_merge (crel dl1) (crel dl2)
-          | Union(dl1,dl2)     -> equiv_merge (crel dl1) (crel dl2)
-          | Star(dl1)          -> crel dl1
-          | Key(r1)            -> Identity
-          | DMatch(t1,dl1)     -> crel dl1
-          | Compose(dl1,dl2)   -> crel dl1
-          | Invert(dl1)        -> arel dl1
-          | Default(dl1,w1)    -> crel dl1
-          | LeftQuot(cn1,dl1)  -> Unknown
-          | RightQuot(dl1,cn1) -> crel dl1
-          | Dup1(dl1,f1,r1)    -> crel dl1
-          | Dup2(f1,r1,dl1)    -> crel dl1
-          | SMatch(t1,f1,dl1)  -> crel dl1
-          | Partition(r1,r2)   -> Identity 
-          | Filter(r1,r2)      -> Identity
-          | Merge(r1)          -> Identity
-          | Fiat(dl1)          -> crel dl1 
-          | Forgetkey(dl1)     -> crel dl1 
-          | Permute(p1,dls)    -> 
-              Array.fold_left 
-                (fun acc dli -> equiv_merge acc (crel dli)) 
-                Identity dls 
-          | Probe(_,dl1)       -> crel dl1 in
-        dl.crel <- Some cr;
+    | None ->
+        let cr = match ml.desc with
+          | Copy (r)           -> Identity
+          | Clobber (r, w, f)  -> Identity
+          | Concat (ml1, ml2)  -> equiv_merge (sequiv ml1) (sequiv ml2)
+          | Union (ml1, ml2)   -> equiv_merge (sequiv ml1) (sequiv ml2)
+          | Star (ml)          -> sequiv ml
+          | Weight (_, ml)     -> sequiv ml
+          | Match (t, ml)      -> sequiv ml
+          | Compose (ml, _)    -> sequiv ml
+          | Align ml           -> sequiv ml
+          | Invert (ml)        -> vequiv ml
+          | Default (ml, w)    -> sequiv ml
+          | LeftQuot (cn, ml)  -> Unknown
+          | RightQuot (ml, cn) -> sequiv ml
+          | Dup1 (ml, f, r)    -> sequiv ml
+          | Dup2 (f, r, ml)    -> sequiv ml
+          | Partition (r1, r2) -> Identity
+          | Merge (r)          -> Identity
+          | Fiat ml            -> sequiv ml
+          | Permute (p, mls)   ->
+              Array.fold_left
+                (fun acc mli -> equiv_merge acc (sequiv mli))
+                Identity mls
+        in ml.sequiv <- Some cr;
         cr
 
-  and arel dl = match dl.arel with (* equivalence relation in abstract domain *)
+  and vequiv ml = match ml.vequiv with
     | Some ar -> ar
-    | None -> 
-        let ar = match dl.desc with
+    | None ->
+        let ar = match ml.desc with
           | Copy(r1)           -> Identity
           | Clobber(r1,w1,f1)  -> Identity
-          | Concat(dl1,dl2)    -> equiv_merge (arel dl1) (arel dl2)
-          | Union(dl1,dl2)     -> equiv_merge (arel dl1) (arel dl2)
-          | Star(dl1)          -> arel dl1
-          | Key(r1)            -> Identity
-          | DMatch(t1,dl1)     -> arel dl1
-          | Compose(dl1,dl2)   -> arel dl2
-          | Invert(dl1)        -> crel dl1
-          | Default(dl1,w1)    -> arel dl1
-          | LeftQuot(cn1,dl1)  -> arel dl1
-          | RightQuot(dl1,cn1) -> Unknown
-          | Dup1(dl1,f1,r1)    -> Unknown
-          | Dup2(f1,r1,dl1)    -> Unknown
-          | SMatch(t1,f1,dl1)  -> arel dl1
-          | Partition(r1,r2)   -> Identity 
-          | Filter(r1,r2)      -> Identity
-          | Merge(r1)          -> Identity 
-          | Fiat(dl1)          -> arel dl1
-          | Forgetkey(dl1)     -> arel dl1
-          | Permute(p1,dls)    -> 
-              Array.fold_left (fun acc dli -> equiv_merge acc (arel dli)) 
-                Identity dls 
-          | Probe(_,dl1)       -> arel dl1 in
-        dl.arel <- Some ar;
+          | Concat(ml1,ml2)    -> equiv_merge (vequiv ml1) (vequiv ml2)
+          | Union(ml1,ml2)     -> equiv_merge (vequiv ml1) (vequiv ml2)
+          | Star(ml1)          -> vequiv ml1
+          | Weight (_, ml)     -> vequiv ml
+          | Match (t, ml)      -> vequiv ml
+          | Compose(ml1,ml2)   -> vequiv ml2
+          | Align ml           -> vequiv ml
+          | Invert(ml1)        -> sequiv ml1
+          | Default(ml1,w1)    -> vequiv ml1
+          | LeftQuot(cn1,ml1)  -> vequiv ml1
+          | RightQuot(ml1,cn1) -> Unknown
+          | Dup1 (ml, f, r)    -> Unknown
+          | Dup2 (f, r, ml)    -> Unknown
+          | Partition (r1, r2) -> Identity
+          | Merge (r)          -> Identity
+          | Fiat ml            -> vequiv ml
+          | Permute (p, mls)   ->
+              Array.fold_left (fun acc mli -> equiv_merge acc (vequiv mli))
+                Identity mls
+        in ml.vequiv <- Some ar;
         ar
 
-  and get dl = match dl.desc with
-    | Copy(r1)           -> (fun c -> c)
-    | Clobber(r1,w1,t1)  -> (fun c -> w1)
-    | Concat(dl1,dl2)    -> 
-        (fun c -> 
-           do_concat (ctype dl1) (ctype dl2) (get dl1) (get dl2) c)
-    | Union(dl1,dl2)     -> 
-        (fun c -> do_union (ctype dl1) (get dl1) (get dl2) c)
-    | Star(dl1)          -> 
-        (fun c -> do_star (ctype dl1) (get dl1) c)
-    | Key(r1)            -> (fun c -> c)
-    | DMatch(t1,dl1)     -> (fun c -> get dl1 c)
-    | Compose(dl1,dl2)   -> (fun c -> get dl2 (get dl1 c))
-    | Invert(dl1)        -> (fun c -> rcreate dl1 c)
-    | Default(dl1,w1)    -> (fun c -> get dl1 c)
-    | LeftQuot(cn1,dl1)  -> (fun c -> get dl1 (Canonizer.canonize cn1 c))
-    | RightQuot(dl1,cn1) -> (fun c -> Canonizer.choose cn1 (get dl1 c))
-    | Dup1(dl1,f1,r1)    -> (fun c -> get dl1 c ^ f1 c)
-    | Dup2(f1,r1,dl1)    -> (fun c -> f1 c ^ get dl1 c)
-    | SMatch(t1,f1,dl1)  -> (fun c -> get dl1 c)
-    | Partition(r1,r2)   -> 
-        (fun c -> 
-           let rec loop (acc1,acc2) = function
-             | [] -> acc1 ^ acc2 
-             | h::t -> 
-                 begin match Rx.match_string r1 h, Rx.match_string r2 h with 
-                   | true, false -> loop (acc1 ^ h, acc2) t 
-                   | false,true  -> loop (acc1, acc2 ^ h) t
-                   | _           -> assert false
-                 end in 
-           loop ("","") (Rx.star_split (ctype dl) c))
-    | Filter(r1,r2)      ->
-        (fun c -> 
-           let rec loop (acc) = function
-             | [] -> acc 
-             | h::t -> 
-                 begin match Rx.match_string r1 h, Rx.match_string r2 h with 
-                   | true, false -> loop (acc) t 
-                   | false,true  -> loop (acc ^ h) t
-                   | _           -> assert false
-                 end in 
-           loop ("") (Rx.star_split (ctype dl) c))
-    | Merge(r1)          -> 
-        (fun c -> 
-           let c1,_ = seq_split r1 r1 c in 
-           c1)
-    | Fiat(dl1)          -> (fun c -> get dl1 c)
-    | Forgetkey(dl1)     -> (fun c -> get dl1 c)
-    | Permute(p1,dls)    -> 
-        (fun c -> 
-           let k,sigma,sigma_inv,cts,ats = p1 in 
-           let c_arr = arr_split_c k dls cts c in 
-           let a_arr = Array.create k "" in
-           let rec loop i = 
-             if i >= k then concat_array a_arr 
-             else 
-               begin 
-                 let j = sigma.(i) in 
-                 let ai = get dls.(i) c_arr.(i) in 
-                   a_arr.(j) <- ai;
-                   loop (succ i)
-               end in
-           loop 0)
-    | Probe(t,dl1)       -> 
-        (fun c -> 
-           msg "@[[[PROBE-GET{%s}@\n%s@\n]]@\n@]" t c;
-           get dl1 c)
-                 
-  and put dl = match dl.desc with
-    | Copy(r1)           -> (fun a _ d -> (a,d))
-    | Clobber(r1,w1,f1)  -> (fun _ s d -> (string_of_skel s,d))
-    | Concat(dl1,dl2)    -> 
-        (fun a s d -> 
-           let a1,a2 = seq_split (atype dl1) (atype dl2) a in
-           let c1,d1 = put dl1 a1 (fst_of_skel s) d in
-           let c2,d2 = put dl2 a2 (snd_of_skel s) d1 in 
-           (c1 ^ c2,d2))
-    | Union(dl1,dl2)     -> 
-        (fun a s d -> 
-           match Rx.match_string (atype dl1) a,
-                 Rx.match_string (atype dl2) a,
-                 stype dl1 s with
-             | true,_,true      -> put dl1 a s d
-             | _,true,false     -> put dl2 a s d
-             | true,false,false -> create dl1 a d 
-             | false,true,true  -> create dl2 a d 
-             | _                -> assert false)
-    | Star(dl1)          -> 
-        (fun a s d -> 
-           let rec loop al sl acc d = match al,sl with
-             | [],_ -> (acc,d)
-             | ai::at,[] -> 
-                 let ci,di = create dl1 ai d in
-                 loop at [] (acc ^ ci) di 
-             | ai::at,si::st -> 
-                 let ci,di = put dl1 ai si d in 
-                 loop at st (acc ^ ci) di in
-           loop (Rx.star_split (atype dl1) a)
-           (lst_of_skel s) "" d)
-    | Key(r1)            -> (fun a _ d -> (a,d))
-    | DMatch(t1,dl1)     -> 
-        (fun a _ d -> 
-           do_match std_lookup (key dl1) (put dl1) (create dl1) t1 a d) 
-    | Compose(dl1,dl2)   -> 
-        (fun a s d -> 
-           let s1,s2 = comp_of_skel s in 
-           let b,d1 = put dl2 a s2 d in 
-           put dl1 b s1 d1)
-    | Invert(dl1)        -> (fun a _ d -> (get dl1 a,d))
-    | Default(dl1,w1)    -> (fun a s d -> put dl1 a s d)
-    | LeftQuot(cn1,dl1)  -> 
-        (fun a s d -> 
-           let _,s' = quot_of_skel s in 
-           let c',d' = put dl1 a s' d in 
-           (Canonizer.choose cn1 c',d'))
-    | RightQuot(dl1,cn1) -> 
-        (fun a s d -> put dl1 (Canonizer.canonize cn1 a) s d)
-    | Dup1(dl1,f1,r1)    -> 
-        (fun a s d -> 
-           let a1,_ = seq_split (atype dl1) r1 a in
-           put dl1 a1 s d)
-    | Dup2(f1,r1,dl1)    -> 
-        (fun a s d -> 
-           let _,a2 = seq_split r1 (atype dl1) a in 
-           put dl1 a2 s d)
-    | SMatch(t1,f1,dl1)  ->
-        (fun a _ d -> do_match (sim_lookup f1) (key dl1) (put dl1) (create dl1) t1 a d)
-    | Partition(r1,r2)   -> 
-        (fun a s d -> 
-           let c = string_of_skel s in
-           let r1s = Rx.mk_star r1 in 
-           let r2s = Rx.mk_star r2 in 
-           let a1,a2 = seq_split r1s r2s a in
-           let rec loop acc l l1 l2 = 
-             match l,l1,l2 with
-             | [],[],h2::t2 -> loop (acc ^ h2) [] [] t2 
-             | [], h1::t1,_ -> loop (acc ^ h1) [] t1 l2
-             | _,[],[] -> acc
-             | h::t,h1::t1,_ when Rx.match_string r1 h -> loop (acc ^ h1) t t1 l2
-             | h::t,_,h2::t2 when Rx.match_string r2 h -> loop (acc ^ h2) t l1 t2
-             | h::t,_,_ -> loop acc t l1 l2 in 
-           let c' = loop "" (Rx.star_split (ctype dl) c) (Rx.star_split r1s a1) (Rx.star_split r2s a2) in 
-           (c',d))
-    | Filter(r1,r2)      ->
-	(fun a s d ->
-           let c = string_of_skel s in
-           let rec loop acc l al = 
-             match l,al with
-             | [],h2::t2 -> loop (acc ^ h2) [] t2
-             | h::t,h2::t2 when Rx.match_string r2 h -> loop (acc ^ h2) t t2
-	     | h::t,_      when Rx.match_string r1 h -> loop (acc ^ h)  t al
-             | h::t,_ -> loop acc t al
-             | [], [] -> acc in 
-	   let c' = loop "" (Rx.star_split (ctype dl) c) (Rx.star_split (Rx.mk_star r2) a) in
-           (c',d))
-    | Merge(r1)          -> 
-        (fun a s d ->            
-           let s1,s2 = seq_split r1 r1 (string_of_skel s) in 
-           if s1 = s2 then (a ^ a,d)
-           else (a ^ s2,d))
-    | Fiat(dl1) -> 
-        (fun a s d -> 
-           match unparse dl1 a s d with
-             | Some(c,d) -> (c,d)
-             | None -> put dl1 a s d)
-    | Forgetkey(dl1)     -> (fun a s d -> put dl1 a s d)
-    | Permute(p1,dls)    -> 
-        (fun a s d -> 
-           let k,sigma,sigma_inv,cts,ats = p1 in 
-           let a_arr = arr_split_a k dls sigma_inv ats a in 
-           let s_arr = Array.of_list (lst_of_skel s) in
-           let c_arr = Array.create k "" in 
-           let rec loop j d = 
-             if j >= k then d
-             else
-               begin 
-                 let i = sigma_inv.(j) in 
-                 let ci,di = put dls.(i) a_arr.(j) s_arr.(i) d in
-                 c_arr.(i) <- ci;
-                 loop (succ j) di 
-               end in
-           let d' = loop 0 d in 
-           let c' = concat_array c_arr in
-           (c',d'))
-    | Probe(t,dl1)       -> 
-        (fun a s d -> 
-           msg "@[[[PROBE-PUT{%s}@\n%s@\n%a@\n]]@\n@]%!" t a (fun _ -> format_skel) s;           
-           put dl1 a s d)
+  (* we need to prove that:
+     srep s = srep s'  <=>  s ~S s'
+     vrep v = vrep v'  <=>  v ~V v'
+  *)
+  and srep ml s =
+    match ml.desc with
+    | Copy _
+    | Clobber _
+    | Partition _
+    | Merge _
+      -> Bstring.to_string s
+    | Concat (ml1, ml2) ->
+        let s1, s2 = Bstring.concat_split (stype ml1) (stype ml2) s in
+        let r1 = srep ml1 s1 in
+        let r2 = srep ml2 s2 in
+        r1 ^ r2
+    | Union (left, right) ->
+        if Bstring.match_rx (stype left) s
+        then srep left s
+        else srep right s
+    | Star ml ->
+        let ss = Bstring.star_split (stype ml) s in
+        let buf = Buffer.create 17 in
+        let add = Buffer.add_string buf in
+        Safelist.iter (
+          fun s -> add (srep ml s)
+        ) ss;
+        Buffer.contents buf
+    | Match (_, ml)
+    | Compose (ml, _)
+    | Align ml
+    | RightQuot (ml, _)
+    | Default (ml, _)
+    | Dup1 (ml, _, _)
+    | Dup2 (_, _, ml)
+    | Weight (_, ml)
+    | Fiat ml
+      -> srep ml s
+    | Invert ml -> vrep ml s
+    | LeftQuot (cn, _)
+      -> Canonizer.choose cn (Bstring.of_string (Canonizer.canonize cn s))
+    | Permute (p, mls) ->
+        let k, sigma, sigma_inv, cts, ats = p in
+        let s_arr_s = arr_split_s k mls cts s in
+        let r_arr_s =
+          Array.mapi (fun i s -> srep mls.(i) s) s_arr_s
+        in concat_array r_arr_s
 
-  and unparse dl = match dl.desc with 
-    | Copy(r1)           -> 
-        (fun a s d -> 
-           let c = string_of_skel s in 
-           if a=get dl c then Some (c,d) else None)
-    | Clobber(r1,w1,f1)  -> 
-        (fun a s d -> Some (string_of_skel s,d))
-    | Concat(dl1,dl2)    -> 
-        (fun a s d -> 
-           let a1,a2 = seq_split (atype dl1) (atype dl2) a in
-           (match unparse dl1 a1 (fst_of_skel s) d with
-              | Some (c1,d1) -> 
-                  Misc.map_option
-                    (fun (c2,d2) -> (c1 ^ c2, d2))
-                    (unparse dl2 a2 (snd_of_skel s) d1)
-              | None -> None))
-    | Union(dl1,dl2)     -> 
-        (fun a s d -> 
-           match Rx.match_string (atype dl1) a,
-                 Rx.match_string (atype dl2) a,
-                 stype dl1 s with
-             | true,_,true      -> unparse dl1 a s d
-             | _,true,false     -> unparse dl2 a s d
-             | true,false,false -> None
-             | false,true,true  -> None
-             | _                -> assert false)
-    | Star(dl1) -> 
-        (fun a s d -> 
-           let rec loop al sl acc = match acc,al,sl with
-             | None,_,_ -> None
-             | _,ai::at,[] -> None
-             | _,[],si::st -> None
-             | _,[],[] -> acc
-             | Some(acci,di),ai::at,si::st -> 
-                 (match unparse dl1 ai si d with
-                    | Some (ci,di) -> loop at st (Some (acci ^ ci,di))
-                    | _ -> None) in 
-           loop (Rx.star_split (atype dl1) a)
-             (lst_of_skel s) (Some ("",d)))
-    | Key(r1) -> 
-        (fun a s d -> 
-           let c = string_of_skel s in 
-           if a=get dl c then Some (c,d) else None)
-    | DMatch(t1,dl1) -> 
-        (fun a s d -> 
-           let d1,d2 = dt_split d t1 in 
-           match std_lookup t1 (key dl1 a) d1 with
-             | Some ((s',d1'),d1'') -> 
-                 (match unparse dl1 a s' (d1' ++ d2) with
-                    | Some(c',d') -> 
-                        let _,d2' = dt_split d' t1 in 
-                        Some(c',d1'' ++ d2')
-                    | None -> None)
-             | None -> None)
-    | Compose(dl1,dl2)   -> 
-        (fun a s d -> 
-           let s1,s2 = comp_of_skel s in 
-           (match unparse dl2 a s2 d with
-              | Some (b,d') -> unparse dl1 b s1 d'
-              | None -> None))
-    | Invert(dl1)        -> 
-        (fun a s d -> 
-           let c = string_of_skel s in 
-           if a = get dl c then Some(c,d) else None)
-    | Default(dl1,w1)    -> unparse dl1 
-    | LeftQuot(cn1,dl1)  -> 
-        (fun a s d -> 
-           let c,s' = quot_of_skel s in 
-           match unparse dl1 a s' d with
-             | Some (_,d') -> Some(c,d')
-             | None        -> None)
-    | RightQuot(dl1,cn1) -> 
-        (fun a s d -> 
-           unparse dl1 (Canonizer.canonize cn1 a) s d)
-    | Dup1(dl1,f1,r1)    -> 
-        (fun a s d -> 
-           let a1,_ = seq_split (atype dl1) r1 a in
-           unparse dl1 a1 s d)
-    | Dup2(f1,r1,dl1)    -> 
-        (fun a s d -> 
-           let _,a2 = seq_split r1 (atype dl1) a in
-           unparse dl1 a2 s d)
-    | SMatch(t1,f1,dl1)  ->
-        (fun a s d -> 
-           let d1,d2 = dt_split d t1 in 
-           match sim_lookup f1 t1 (key dl1 a) d1 with
-             | Some ((s',d1'),d1'') -> 
-                 (match unparse dl1 a s' (d1' ++ d2) with
-                    | Some(c',d') -> 
-                        let _,d2' = dt_split d' t1 in 
-                        Some(c',d1'' ++ d2')
-                    | None -> None)
-             | None -> None)
-    | Partition(r1,r2) -> 
-        (fun a s d -> 
-           let c = string_of_skel s in
-           if a=get dl c then Some (c,d) else None)
-    | Filter(r1,r2) ->
-	(fun a s d ->
-	   let c = string_of_skel s in
-           if a=get dl c then Some (c,d) else None)
-    | Merge(r1) -> 
-        (fun a s d -> 
-           let c = string_of_skel s in
-           if a=get dl c then Some (c,d) else None)
-    | Fiat(dl1) -> 
-        (fun a s d -> unparse dl1 a s d)
-    | Forgetkey(dl1) -> (fun a s d -> unparse dl1 a s d)
-    | Permute(p1,dls) -> 
-        (fun a s d -> 
-           let k,sigma,sigma_inv,cts,ats = p1 in 
-           let a_arr = arr_split_a k dls sigma_inv ats a in 
-           let s_arr = Array.of_list (lst_of_skel s) in
-           let c_arr = Array.create k "" in 
-           let rec loop j d = 
-             if j >= k then Some d
-             else
-               begin 
-                 let i = sigma_inv.(j) in 
-                 match unparse dls.(i) a_arr.(j) s_arr.(i) d with
-                   | Some(ci,di) -> 
-                       (c_arr.(i) <- ci;
-                       loop (succ j) di)
-                   | None -> None 
-               end in
-           Misc.map_option
-             (fun d' -> (concat_array c_arr,d'))
-             (loop 0 d))
-    | Probe(t,dl1)       -> unparse dl1
+  and vrep ml v =
+    match ml.desc with
+    | Copy _
+    | Clobber _
+    | Partition _
+    | Merge _
+      -> Bstring.to_string v
+    | Concat (ml1, ml2) ->
+        let v1, v2 = Bstring.concat_ambiguous_split 0 (vtype ml1) (vtype ml2) v in
+        let r1 = vrep ml1 v1 in
+        let r2 = vrep ml2 v2 in
+        r1 ^ r2
+    | Union (left, right) ->
+        (* this should be true, because in the intersection, the
+        relations match and we always take the left representative *)
+        if Bstring.match_rx (vtype left) v
+        then vrep left v
+        else vrep right v
+    | Star ml ->
+        let vs = Bstring.star_ambiguous_split [] (vtype ml) v in
+        let buf = Buffer.create 17 in
+        let add = Buffer.add_string buf in
+        Safelist.iter (
+          fun v -> add (vrep ml v)
+        ) vs;
+        Buffer.contents buf
+    | Match (_, ml)
+    | Compose (_, ml)
+    | Align ml
+    | Default (ml, _)
+    | LeftQuot (_, ml)
+    | Weight (_, ml)
+    | Fiat ml
+      -> vrep ml v
+    | Invert ml -> srep ml v
+    | RightQuot (_, cn)
+      -> Canonizer.choose cn (Bstring.of_string (Canonizer.canonize cn v))
+    | Dup1 (ml, _, r)
+      -> (
+        let v, _ = Bstring.concat_split (vtype ml) r v in
+        match Rx.representative r with
+        | Some r -> vrep ml v ^ r
+        | None -> assert false
+      )
+    | Dup2 (_, r, ml)
+      -> (
+        let _, v = Bstring.concat_split r (vtype ml) v in
+        match Rx.representative r with
+        | Some r -> r ^ vrep ml v
+        | None -> assert false
+      )
+    | Permute (p, mls) ->
+        let k, sigma, sigma_inv, cts, ats = p in
+        let v_arr_v = arr_split_v k mls sigma_inv ats v in
+        let r_arr_v = Array.create k "" in
+        Array.iteri (
+          fun i j ->
+            r_arr_v.(j) <- vrep mls.(i) v_arr_v.(j)
+        ) sigma;
+        concat_array r_arr_v
 
-  and create dl = match dl.desc with
-    | Copy(r1)           -> (fun a d -> (a,d))
-    | Clobber(r1,w1,f1)    -> (fun a d -> (f1 a,d))
-    | Concat(dl1,dl2)    -> 
-        (fun a d -> 
-           let a1,a2 = seq_split (atype dl1) (atype dl2) a in
-           let c1,d1 = create dl1 a1 d in
-           let c2,d2 = create dl2 a2 d1 in 
-           (c1 ^ c2,d2))
-    | Union(dl1,dl2)     -> 
-        (fun a d -> do_union (atype dl1) (create dl1) (create dl2) a d)
-    | Star(dl1)          -> 
-        (fun a d -> 
-           Safelist.fold_left 
-             (fun (buf,d) ai -> 
-                let ci,d' = create dl1 ai d in                 
-                (buf ^ ci, d'))
-             ("",d) (Rx.star_split (atype dl1) a));
-    | Key(r1)            -> (fun a d -> (a,d))
-    | DMatch(t1,dl1)     -> 
-        (fun a d -> do_match std_lookup (key dl1) (put dl1) (create dl1) t1 a d)
-    | Compose(dl1,dl2)   -> 
-        (fun a d -> 
-           let b,d1 = create dl2 a d in 
-           create dl1 b d1)
-    | Invert(dl1)        -> (fun a d -> (get dl1 a),d)
-    | Default(dl1,w1)    -> 
-        let s1,d1 = parse dl1 w1 in 
-        (fun a d -> put dl1 a s1 (d++d1))
-    | LeftQuot(cn1,dl1)  -> 
-        (fun a d -> 
-           let c',d' = create dl1 a d in 
-             (Canonizer.choose cn1 c',d'))
-    | RightQuot(dl1,cn1) -> (fun a d -> create dl1 (Canonizer.canonize cn1 a) d)
-    | Dup1(dl1,f1,r1)    -> 
-        (fun a d -> 
-           let a1,_ = seq_split (atype dl1) r1 a in
-           create dl1 a1 d)
-    | Dup2(f1,r1,dl1)    -> 
-        (fun a d -> 
-           let _,a2 = seq_split r1 (atype dl1) a in
-           create dl1 a2 d)
-    | SMatch(t1,f1,dl1)  ->
-        (fun a d -> do_match (sim_lookup f1) (key dl1) (put dl1) (create dl1) t1 a d)
-    | Partition(r1,r2)   -> (fun a d -> (a,d))
-    | Filter(r1,r2)      -> (fun a d -> (a,d))
-    | Merge(r1)          -> (fun a d -> (a ^ a,d))
-    | Fiat(dl1)          -> (fun a d -> create dl1 a d)
-    | Forgetkey(dl1)     -> (fun a d -> create dl1 a d)
-    | Permute(p1,dls)    -> 
-        (fun a d -> 
-           let k,sigma,sigma_inv,cts,ats = p1 in 
-           let a_arr = arr_split_a k dls sigma_inv ats a in 
-           let c_arr = Array.create k "" in 
-           let rec loop j d = 
-             if j >= k then d
-             else 
-               begin 
-                 let i = sigma_inv.(j) in 
-                 let ci,di = create dls.(i) a_arr.(j) d in 
-                 c_arr.(i) <- ci;
-                 loop (succ j) di 
-               end in
-           let d' = loop 0 d in
-           let c' = concat_array c_arr in 
-           (c',d'))
-    | Probe(t,dl1)       -> 
-        (fun a d -> 
-           msg "@[[[PROBE-CREATE{%s}@\n%s@\n]]@\n@]" t a;
-           create dl1 a d)
+  and gperm ml s pi = (* returns pi *)
+    let basic = pi in
+    match ml.desc with
+    | Copy _
+    | Clobber _
+    | Invert _
+    | Default _
+    | Dup1 _
+    | Dup2 _
+    | Partition _
+    | Merge _
+    | Align _
+    | Fiat _
+      -> basic
+    | Concat (ml1, ml2) ->
+        let s1, s2 = Bstring.concat_split (stype ml1) (stype ml2) s in
+        gperm ml2 s2 (gperm ml1 s1 pi)
+    | Union (left, right) ->
+        if Bstring.match_rx (stype left) s
+        then gperm left s pi
+        else gperm right s pi
+    | Star ml ->
+        let ss = Bstring.star_split (stype ml) s in
+        Safelist.fold_left (
+          fun pi s -> gperm ml s pi
+        ) pi ss
+    | Match (tag, ml) ->
+        let p, i = pi in
+        let pos = TmI.find tag i in
+        let pi = P.add tag (pos, pos) p, TmI.incr tag i in
+        gperm ml s pi
+    | Compose (ml1, ml2) ->
+        let p, i = pi in
+        let p1, i1 = gperm ml1 s (P.empty, i) in
+        let u = rget ml1 s in
+        let u = Bstring.of_string u in
+        let p2, i2 = gperm ml2 u (P.empty, i) in
+        assert (TmI.equal i1 i2);
+        P.compose p p2 p1, i2
+    | LeftQuot (cn, ml) ->
+        let p, i = pi in
+        let p1, i1 = Canonizer.gperm cn s (P.empty, i) in
+        let u = Canonizer.canonize cn s in
+        let u = Bstring.of_string u in
+        let p2, i2 = gperm ml u (P.empty, i) in
+        assert (TmI.equal i1 i2);
+        P.compose p p2 p1, i2
+    | RightQuot (ml, cn) ->
+        let p, i = pi in
+        let p1, i1 = gperm ml s (P.empty, i) in
+        let u = rget ml s in
+        let u = Bstring.of_string u in
+        let p2, i2 = Canonizer.gperm cn u (P.empty, i) in
+        let p2 = P.inv p2 in
+        assert (TmI.equal i1 i2);
+        P.compose p p2 p1, i2
+    | Weight (_, ml)
+      -> gperm ml s pi
+    | Permute (p, mls) ->
+        let k, sigma, sigma_inv, cts, ats = p in
+        let s_arr_s = arr_split_s k mls cts s in
+        let pi_arr_s =
+          Array.mapi (
+            fun i si -> gperm mls.(i) si (P.empty, TmI.empty)
+          ) s_arr_s
+        in
+        let _, i = pi in
+        let s_shift = Array.create k i in
+        let v_shift = Array.create k i in
+        for i = 0 to k - 1 do
+          let (_, shift) = pi_arr_s.(i) in
+          for j = i + 1 to k - 1 do
+            s_shift.(j) <- TmI.plus s_shift.(j) shift
+          done;
+          for j = sigma.(i) + 1 to k - 1 do
+            v_shift.(j) <- TmI.plus v_shift.(j) shift
+          done
+        done;
+        let _, pi =
+          Array.fold_left (
+            fun (j, (p, i)) (pj, ij) ->
+              succ j, (
+                P.shift pj s_shift.(j) v_shift.(sigma.(j)) p,
+                TmI.plus i ij)
+          ) (0, pi) pi_arr_s
+        in pi
 
-  and key dl = match dl.desc with
-    | Copy(r1)           -> (fun a -> "")
-    | Clobber(r1,w1,f1)  -> (fun a -> "")
-    | Concat(dl1,dl2)    -> 
-        (fun a -> do_concat (atype dl1) (atype dl2) (key dl1) (key dl2) a)
-    | Union(dl1,dl2)     -> 
-        (fun a -> do_union (atype dl1) (key dl1) (key dl2) a)
-    | Star(dl1)          -> 
-        (fun a -> do_star (atype dl1) (key dl1) a)
-    | Key(r1)            -> (fun a -> a)
-    | DMatch(t1,dl1)     -> (fun a -> key dl1 a)
-    | Compose(dl1,dl2)   -> (fun a -> key dl2 a)
-    | Invert(dl1)        -> (fun a -> key dl1 (get dl1 a))
-    | Default(dl1,w1)    -> (fun a -> key dl1 a)
-    | LeftQuot(cn1,dl1)  -> (fun a -> key dl1 a)
-    | RightQuot(dl1,cn1) -> (fun a -> key dl1 (Canonizer.canonize cn1 a))
-    | Dup1(dl1,f1,r1)    -> 
-        (fun a -> 
-           let a1,_ = seq_split (atype dl1) r1 a in
-           key dl1 a1)
-    | Dup2(f1,r1,dl1)    -> 
-        (fun a -> 
-           let _,a2 = seq_split r1 (atype dl1) a in
-           key dl1 a2)
-    | SMatch(t1,f1,dl1)  -> (fun a -> key dl1 a)
-    | Partition(r1,r2)   -> (fun a -> "")
-    | Filter(r1,r2)      -> (fun a -> "")
-    | Merge(r1)          -> (fun a -> "")
-    | Fiat(dl1)          -> (fun a -> key dl1 a)
-    | Forgetkey(dl1)     -> (fun a -> "")
-    | Permute(p1,dls)    -> 
-        (fun a -> 
-           let k,sigma,sigma_inv,cts,ats = p1 in 
-           let a_arr = arr_split_a k dls sigma_inv ats a in 
-           let k_buf = Buffer.create 17 in 
-           let rec loop j = 
-             if j >= k then ()
-             else 
-               begin 
-                 let kj = key dls.(sigma_inv.(j)) a_arr.(j) in 
-                 Buffer.add_string k_buf kj;
-                 loop (succ j) 
-               end in
-           loop 0;
-           let ky = Buffer.contents k_buf in            
-           ky)
-    | Probe(t,dl1)       -> 
-        (fun a -> 
-           msg "@[[[PROBE-KEY{%s}@\n%s@\n]]@\n@]" t a;
-           key dl1 a)
+  and gget ml s ci = (* returns ((v, k), ci) *)
+    let basic f = (f s, C_string s), ci in
+    let basic_no_op ml = basic (rget ml) in
+    let no_op ml = gget ml s ci in
+    match ml.desc with
+    | Copy _
+      -> basic (fun s -> Bstring.to_string s)
+    | Clobber (_, w, _) -> basic (fun _ -> w)
+    | Concat (ml1, ml2) ->
+        let s1, s2 = Bstring.concat_split (stype ml1) (stype ml2) s in
+        let (v1, k1), ci = gget ml1 s1 ci in
+        let (v2, k2), ci = gget ml2 s2 ci in
+        let v = v1 ^ v2 in
+        let n = Bstring.find_concat_split (vtype ml1) (vtype ml2) (String.length v1) v in
+        (v, C_concat (k1, n, k2)), ci
+    | Union (left, right) ->
+        if Bstring.match_rx (stype left) s
+        then
+          let (v, k), ci = gget left s ci in
+          (v, C_union (Union_left, k)), ci
+        else
+          let (v, k), ci = gget right s ci in
+          (v, C_union (Union_right, k)), ci
+    | Star ml ->
+        let buf = Buffer.create 17 in
+        let ss = Bstring.star_split (stype ml) s in
+        let ns, ks, ci =
+          Safelist.fold_left (
+            fun (ns, ks, ci) s ->
+              let (v, k), ci = gget ml s ci in
+              Buffer.add_string buf v;
+              (String.length v::ns, k::ks, ci)
+          ) ([], [], ci) ss
+        in
+        let v = Buffer.contents buf in
+        let ns = Bstring.find_star_split (vtype ml) (Safelist.rev ns) v in
+        (v, C_star (Safelist.rev ks, ns)), ci
+    | Match (tag, ml) ->
+        let c, i = ci in
+        let pos = TmI.find tag i in
+        let ci = c, TmI.incr tag i in
+        let (v, k), (c, i) = gget ml s ci in
+        let ci = TmImA.add tag pos k c, i in
+        (v, C_box), ci
+    | Compose (ml1, ml2) ->
+(*         print_endline "+++gget for Compose"; *)
+        let c, i = ci in
+        let (u, uk), (uc, iu) = gget ml1 s (TmImA.empty, i) in
+        let u = Bstring.of_string u in
+        let (v, vk), (vc, iv) = gget ml2 u (TmImA.empty, i) in
+        let p, ip = gperm ml2 u (P.empty, i) in
+        assert (TmI.equal ip iv);
+(*         Balign.print_res print_complement c; *)
+(*         Balign.print_res print_complement uc; *)
+(*         Balign.print_res print_complement vc; *)
+        let uc = Balign.res_compose_perm uc (P.inv p) in
+(*         Balign.print_res print_complement uc; *)
+        assert (TmI.equal iu iv);
+        let c = Balign.res_zip (fun (x, y) -> C_compose (x, y)) c uc vc in
+(*         Balign.print_res print_complement c; *)
+(*         print_endline "---gget for Compose"; *)
+        (v, C_compose (uk, vk)), (c, iv)
+    | Weight (_, ml) -> no_op ml
+    | Align ml -> basic_no_op ml
+    | Invert ml -> basic (fun s -> rcreate ml s)
+    | Default (ml, _) -> basic_no_op ml
+    | LeftQuot (cn, ml) ->
+        let u = Canonizer.canonize cn s in
+        let u = Bstring.of_string u in
+        gget ml u ci
+    | RightQuot (ml, cn) ->
+(*         print_endline "+++gget for RightQuot"; *)
+        let c, i = ci in
+(*         Balign.print_res print_complement c; *)
+        let (u, k), (c, i1) = gget ml s ci in
+(*         Balign.print_res print_complement c; *)
+        let u = Bstring.of_string u in
+        let v = Canonizer.choose cn u in
+        let p, i2 = Canonizer.gperm cn (Bstring.of_string v) (P.empty, i) in
+(*         Balign.print_perm p; *)
+        assert (TmI.equal i1 i2);
+        let c = Balign.res_compose_perm c p in
+(*         Balign.print_res print_complement c; *)
+(*         print_endline "---gget for RightQuot"; *)
+        (v, k), (c, i2)
+    | Dup1 (ml, f, _) -> basic (fun s -> rget ml s ^ f (Bstring.to_string s))
+    | Dup2 (f, _, ml) -> basic (fun s -> f (Bstring.to_string s) ^ rget ml s)
+    | Partition (r1, r2) -> basic (
+        fun s ->
+          let buf1 = Buffer.create 17 in
+          let buf2 = Buffer.create 17 in
+          let add1 s = Buffer.add_string buf1 (Bstring.to_string s) in
+          let add2 s = Buffer.add_string buf2 (Bstring.to_string s) in
+          let rec loop = function
+            | [] -> ()
+            | h::t ->
+                begin match Bstring.match_rx r1 h, Bstring.match_rx r2 h with
+                | true , false -> add1 h; loop t
+                | false, true  -> add2 h; loop t
+                | _            -> Err.run_error (Info.M "gget") (fun () -> msg "'%s'" (Bstring.to_string h))
+                end in
+          loop (Bstring.star_split (stype ml) s);
+        Buffer.add_buffer buf1 buf2;
+        Buffer.contents buf1)
+    | Merge r -> basic (fun s -> Bstring.to_string (fst (Bstring.concat_split r r s)))
+    | Fiat ml -> basic_no_op ml
+    | Permute (p, mls) ->
+        let k, sigma, sigma_inv, cts, ats = p in
+        let s_arr_s = arr_split_s k mls cts s in
+        let vkci_arr_s =
+          Array.mapi (
+            fun i si -> gget mls.(i) si (TmImA.empty, TmI.empty)
+          ) s_arr_s
+        in
+        let vkci_arr_v = arr_permute vkci_arr_s sigma in
+        let ci_arr_v = Array.map snd vkci_arr_v in
+        let vk_arr_v = Array.map fst vkci_arr_v in
+        let _, i = ci in
+        let v_shift = Array.create k i in
+        for i = 0 to k - 1 do
+          let (_, shift) = ci_arr_v.(i) in
+          for j = i + 1 to k - 1 do
+            v_shift.(j) <- TmI.plus v_shift.(j) shift
+          done
+        done;
+        let _, ci =
+          Array.fold_left (
+            fun (j, (c, i)) (cj, ij) ->
+              succ j, (
+                TmImA.append cj v_shift.(j) c,
+                TmI.plus i ij)
+          ) (0, ci) ci_arr_v
+        in
+        let v_arr_v = Array.map fst vk_arr_v in
+        let k_list_v = Array.fold_right (
+          fun (_, k) l -> k::l
+        ) vk_arr_v [] in
+        (concat_array v_arr_v, C_list k_list_v), ci
 
-  and parse dl = match dl.desc with
-    | Copy(r1)           -> (fun c -> (S_string c, TMap.empty))
-    | Clobber(r1,w1,f1)  -> (fun c -> (S_string c, TMap.empty))
-    | Concat(dl1,dl2)    -> 
-        (fun c -> 
-           let c1,c2 = seq_split (ctype dl1) (ctype dl2) c in 
-           let s1,d1 = parse dl1 c1 in
-           let s2,d2 = parse dl2 c2 in 
-           (S_concat (s1,s2), d1++d2))
-    | Union(dl1,dl2)     -> 
-        (fun c -> do_union (ctype dl1) (parse dl1) (parse dl2) c)
-    | Star(dl1)          -> 
-        (fun c -> 
-           let sl,d = 
-             Safelist.fold_left 
-               (fun (buf,d) ci -> 
-                  let si,di = parse dl1 ci in
-	          (si::buf, d++di))
-               ([], TMap.empty)
-               (Rx.star_split (ctype dl1) c) in
-	   (S_star (Safelist.rev sl),d))
-    | Key(r1)            -> (fun c -> (S_string c, TMap.empty))
-    | DMatch(t1,dl1)     -> 
-        (fun c -> 
-           let s,d = parse dl1 c in 
-           let d1,d2 = dt_split d t1 in 
-           let k = key dl1 (get dl1 c) in 
-           let km = KMap.add k [(s,d1)] KMap.empty in 
-           (S_box t1,TMap.add t1 km d2))
-    | Compose(dl1,dl2)   -> 
-        (fun c -> 
-           let s1,d1 = parse dl1 c in 
-           let s2,d2 = parse dl2 (get dl1 c) in
-           (S_comp (s1,s2), d2++d1))
-    | Invert(dl1)        -> 
-        (fun c -> (S_string c, TMap.empty))
-    | Default(dl1,w1)    -> (fun c -> parse dl1 c)
-    | LeftQuot(cn1,dl1)  -> 
-        (fun c -> 
-           let s1,d1 = parse dl1 (Canonizer.canonize cn1 c) in 
-           (S_quot (c,s1),d1))
-    | RightQuot(dl1,cn1) -> (fun c -> parse dl1 c)
-    | Dup1(dl1,f1,r1)    -> (fun c -> parse dl1 c)
-    | Dup2(f1,r1,dl1)    -> (fun c -> parse dl1 c)
-    | SMatch(t1,f1,dl1)  -> 
-        (fun c ->
-           let s,d = parse dl1 c in 
-           let d1,d2 = dt_split d t1 in 
-           let k = key dl1 (get dl1 c) in 
-           let km = KMap.add k [(s,d1)] KMap.empty in 
-           (S_box t1,TMap.add t1 km d2))
-    | Partition(r1,r2)   -> (fun c -> (S_string c, TMap.empty))
-    | Filter(r1,r2)      -> (fun c -> (S_string c, TMap.empty))
-    | Merge(r1)          -> (fun c -> (S_string c, TMap.empty))
-    | Fiat(dl1)          -> (fun c -> parse dl1 c)
-    | Forgetkey(dl1)     -> (fun c -> parse dl1 c)
-    | Permute(p1,dls)    -> 
-        (fun c -> 
-           let k,_,_,cts,_ = p1 in
-           let sl,d,_ = 
-             Safelist.fold_left 
-               (fun (sl,d,i) ci -> 
-                  let si,di = parse dls.(i) ci in
-	          (si::sl, d++di, succ i))
-               ([], TMap.empty,0)
-               (Array.to_list (arr_split_c k dls cts c)) in 
-	   (S_star (Safelist.rev sl),d))
-    | Probe(_,dl1)       -> (fun c -> parse dl1 c)
+  and gput ml (v, k) = gput' ml (v, Some k)
+  and gcreate ml v = gput' ml (v, None)
+  and gput' ml (v, ko) ci = (* returns (s, ci) *)
+    let basic f =
+      let so =
+        match ko with
+        | Some (C_string k) -> Some k
+        | None -> None
+        | _ -> assert false
+      in
+      f v so, ci
+    in
+    let basic_no_op ml = basic (rput' ml) in
+    let no_op ml = gput' ml (v, ko) ci in
+    match ml.desc with
+    | Copy _
+      -> basic (fun v _ -> Bstring.to_string v)
+    | Clobber (_, _, f) -> basic
+        (fun v so ->
+           match so with
+           | Some s -> Bstring.to_string s
+           | None -> f (Bstring.to_string v))
+    | Concat (ml1, ml2) ->
+        let ko1, n, ko2 =
+          match ko with
+          | Some (C_concat (k1, n, k2)) -> Some k1, n, Some k2
+          | None -> None, 0, None
+          | _ -> assert false
+        in
+        let v1, v2 = Bstring.concat_ambiguous_split n (vtype ml1) (vtype ml2) v in
+        let s1, ci = gput' ml1 (v1, ko1) ci in
+        let s2, ci = gput' ml2 (v2, ko2) ci in
+        s1 ^ s2, ci
+    | Union (left, right) ->
+        let side, ko =
+          match ko with
+          | Some (C_union (s, k)) -> s, Some k
+          | None -> Union_left, None
+          | _ -> assert false
+        in
+        let ml, ko =
+          match
+            Bstring.match_rx (vtype left) v,
+            Bstring.match_rx (vtype right) v,
+            side with
+              (* the cases when we can use the complement *)
+            | true , _    , Union_left  -> left, ko
+            | _    , true , Union_right -> right, ko
+              (* the cases when we can NOT use the complement *)
+            | true , false, Union_right -> left, None
+            | false, true , Union_left  -> right, None
+            | _ -> assert false
+        in
+        gput' ml (v, ko) ci
+    | Star ml ->
+        let ks, ns =
+          match ko with
+          | Some (C_star (ks, ns)) -> ks, ns
+          | None -> [], []
+          | _ -> assert false
+        in
+        let buf = Buffer.create 17 in
+        let rec loop vs ks ci =
+          match vs with
+          | [] -> ci
+          | v::vs ->
+              let ko, ks =
+                match ks with
+                | [] -> None, []
+                | k::ks -> Some k, ks
+              in
+              let s, ci = gput' ml (v, ko) ci in
+              Buffer.add_string buf s;
+              loop vs ks ci
+        in
+        let ci = loop (Bstring.star_ambiguous_split ns (vtype ml) v) ks ci in
+        Buffer.contents buf, ci
+    | Match (tag, ml) ->
+        let c, i = ci in
+        let pos = TmI.find tag i in
+        let ko, c = TmImA.next tag pos c in
+        let ci = c, TmI.incr tag i in
+        gput' ml (v, ko) ci
+    | Compose (ml1, ml2) ->
+(*         print_endline "+++gput' for Compose"; *)
+        let ko1, ko2 =
+          match ko with
+          | Some (C_compose (k1, k2)) -> Some k1, Some k2
+          | None -> None, None
+          | _ -> assert false
+        in
+        let c, i = ci in
+        let len = Bstring.at_to_locs (Arx.parse (avtype ml2) v) in
+        let c1, c2, c = Balign.res_unzip (
+          fun x ->
+            match x with
+            | C_compose (a, b) -> a, b
+            | _ -> assert false
+        ) c i len in
+(*         Balign.print_res print_complement c1; *)
+(*         Balign.print_res print_complement c2; *)
+(*         Balign.print_res print_complement c; *)
+        let u, (c2, i2) = gput' ml2 (v, ko2) (c2, i) in
+        let u = Bstring.of_string u in
+        let p2, i3 = gperm ml2 u (P.empty, i) in
+(*         Balign.print_perm p2; *)
+        assert (TmI.equal i2 i3);
+        let c1 = Balign.res_compose_perm c1 p2 in
+(*         Balign.print_res print_complement c1; *)
+        let s, (c1, i1) = gput' ml1 (u, ko1) (c1, i) in
+        assert (TmI.equal i1 i2);
+        assert (TmImA.is_empty c1);
+        assert (TmImA.is_empty c2);
+(*         print_endline "---gput' for Compose"; *)
+        s, (c, i1)
+    | Weight (_, ml) -> no_op ml
+    | Align ml -> basic_no_op ml
+    | Invert ml -> basic (fun v _ -> rget ml v)
+    | Default (ml, w) -> basic (
+        fun v so ->
+          match so with
+          | Some s -> rput ml v s
+          | None -> rput ml v w)
+    | LeftQuot (cn, ml) ->
+        let u, ci = gput' ml (v, ko) ci in
+        let u = Bstring.of_string u in
+        let s = Canonizer.choose cn u in
+        s, ci
+    | RightQuot (ml, cn) ->
+(*         print_endline "+++gput' for RightQuot"; *)
+        let u = Canonizer.canonize cn v in
+        let u = Bstring.of_string u in
+        let c, i = ci in
+(*         Balign.print_res print_complement c; *)
+        let p, iu = Canonizer.gperm cn v (P.empty, i) in
+(*         Balign.print_perm p; *)
+        let c = Balign.res_compose_perm c (P.inv p) in
+        let s, ci = gput' ml (u, ko) (c, i) in
+(*         print_endline "---gput' for RightQuot"; *)
+        s, ci
+    | Dup1 (ml, f, r) -> basic
+        (fun v so ->
+           let v, _ = Bstring.concat_split (vtype ml) r v in
+           rput' ml v so)
+    | Dup2 (f, r, ml) -> basic
+        (fun v so ->
+           let _, v = Bstring.concat_split r (vtype ml) v in
+           rput' ml v so)
+    | Partition (r1, r2) -> basic (
+        fun v so ->
+          let ss =
+            match so with
+            | Some s -> Bstring.star_split (stype ml) s
+            | None -> []
+          in
+          let r1s = Rx.mk_star r1 in
+          let r2s = Rx.mk_star r2 in
+          let v1, v2 = Bstring.concat_split r1s r2s v in
+          let buf = Buffer.create 17 in
+          let add v = Buffer.add_string buf (Bstring.to_string v) in
+          let rec loop ss v1s v2s =
+            match ss, v1s, v2s with
+              (* the cases where the source can tell us which view to take *)
+            | s::ss, v::v1s, v2s when Bstring.match_rx r1 s ->
+                add v; loop ss v1s v2s
+            | s::ss, v1s, v::v2s when Bstring.match_rx r2 s ->
+                add v; loop ss v1s v2s
+                  (* the cases where the source cannot, because the needed view is empty *)
+            | _::ss, v1s, v2s -> loop ss v1s v2s (* skip this source *)
+                (* create mode ie. no source *)
+            | [], v::v1s, v2s
+            | [], v1s, v::v2s
+                -> add v; loop [] v1s v2s
+                  (* when the views are empty *)
+            | _, [], [] -> () (* end *)
+          in
+          loop ss (Bstring.star_split r1s v1) (Bstring.star_split r2s v2);
+          Buffer.contents buf)
+    | Merge r -> basic
+        (fun v so ->
+           let v = Bstring.to_string v in
+           v ^
+           match so with
+           | Some s ->
+               let s1, s2 = Bstring.concat_split r r s in
+               let s1, s2 = Bstring.to_string s1, Bstring.to_string s2 in
+               if s1 = s2 then v else s2
+           | None -> v)
+    | Fiat ml -> basic (
+        fun v so ->
+          match so with
+          | None -> rcreate ml v
+          | Some s ->
+              if rget ml s = Bstring.to_string v
+              then Bstring.to_string s
+              else rput ml v s
+      )
+    | Permute (p, mls) ->
+        let k, sigma, sigma_inv, cts, ats = p in
+        let v_arr_v = arr_split_v k mls sigma_inv ats v in
+        let ko_arr_v =
+          match ko with
+          | Some (C_list k) -> Array.map (fun x -> Some x) (Array.of_list k)
+          | None -> Array.create k None
+          | _ -> assert false
+        in
+        let s_arr_s = Array.create k "" in
+        let rec loop j ci =
+          if j >= k then ci
+          else (
+            let i = sigma_inv.(j) in
+            (* we do the put's in view order *)
+            let si, ci = gput' mls.(i) (v_arr_v.(j), ko_arr_v.(j)) ci in
+            s_arr_s.(i) <- si;
+            loop (succ j) ci
+          )
+        in
+        let ci = loop 0 ci in
+        let s = concat_array s_arr_s in
+        s, ci
 
-  and rcreate dl = 
-    (fun a -> fst (create dl a TMap.empty))
+  (* these are the definitions for lower *)
+          
+  and rcreate ml (v:Bstring.t) =
+    let ko = None in
+    let ci = (TmImA.empty, TmI.empty) in
+    fst (gput' ml (v, ko) ci)
 
-  and rput dl = 
-    (fun a c -> 
-       let s,d = parse dl c in
-       fst (put dl a s d))       
+  and rput ml v' (s:Bstring.t) =
+(*     print_endline "+++rput"; *)
+    let vparse v b = Bstring.at_to_chunktree b (Arx.parse (avtype ml) (Bstring.of_string (vrep ml v))) in
+    let align v' v = Balign.align (v' true) (v false) in
+    let (v, k), (r, _) = gget ml s (TmImA.empty, TmI.empty) in
+(*     print_endline ("v = \"" ^ vrep ml (Bstring.of_string v) ^ "\" from \"" ^ v ^ "\""); *)
+(*     print_endline ("v' = \"" ^ vrep ml v'  ^ "\" from \"" ^ Bstring.to_string v' ^ "\""); *)
+(*     Balign.print_res print_complement r; *)
+    let g = align (vparse v') (vparse (Bstring.of_string v)) G.empty in
+(*     G.print g; *)
+    (match G.to_error_option g with
+     | Some e -> Err.run_error (Info.M "Blenses.MLens.rput") e
+     | None -> ()
+    );
+    let r = Balign.align_compose_res r g in
+(*     Balign.print_res print_complement r; *)
+    let s = fst (gput ml (v', k) (r, TmI.empty)) in
+(*     print_endline "---rput"; *)
+    s
 
-  and rget dl = 
-    (fun c -> get dl c)
+  and rput' ml v' so =
+    match so with
+    | Some s -> rput ml v' s
+    | None -> rcreate ml v'
 
-  (* helper for dmatch and smatch *)
-  and do_match lookup key hit miss tag a d = 
-    let d1,d2 = dt_split d tag in 
-    match lookup tag (key a) d1 with
-      | Some ((s',d1'),d1'') -> 
-          let c',d' = hit a s' (d1' ++ d2) in
-          let _,d2' = dt_split d' tag in 
-            (c',d1''++ d2') 
-      | None -> 
-          let c',d' = miss a d2 in 
-          let _,d2' = dt_split d' tag in 
-          (c',d1++d2')
-                
+  and rget ml (s:Bstring.t) =
+    let cbi = (TmImA.empty, TmI.empty) in
+    fst (fst (gget ml s cbi))
+
   (* helpers for permute *)
-  and arr_split_a k dls sigma_inv ats x = 
-    let res = Array.create k "" in 
-    let _ = 
-      Array.fold_left
-        (fun (i,a) j -> 
-           let ai,arest = seq_split (atype dls.(j)) ats.(i) a in
-             res.(i) <- ai;
-             (succ i,arest))
-        (0,x) sigma_inv in
-    res 
-        
-  and arr_split_c k dls cts x = 
-    let res = Array.create k "" in 
-    let _ = 
-      Array.fold_left 
-        (fun (j,c) dlj -> 
-           let cj,crest = seq_split (ctype dlj) cts.(j) c in
-             res.(j) <- cj;
-             (succ j,crest))
-        (0,x) dls in 
-    res 
-  let info dl = dl.info
+  and arr_split_v k mls sigma_inv ats v =
+    let res = Array.create k Bstring.empty in
+    let _ =
+      Array.fold_left (
+        fun (i, v) j ->
+          let vi, vrest =
+            Bstring.concat_split (vtype mls.(j)) ats.(i) v
+          in
+          res.(i) <- vi;
+          (succ i, vrest)
+      ) (0, v) sigma_inv
+    in res (* in view order *)
 
-  let uid dl = dl.uid
+  and arr_split_s k mls cts s =
+    let res = Array.create k Bstring.empty in
+    let _ =
+      Array.fold_left (
+        fun (j, s) mlj ->
+          let sj, srest =
+            Bstring.concat_split (stype mlj) cts.(j) s
+          in
+          res.(j) <- sj;
+          (succ j, srest)
+      ) (0, s) mls
+    in res (* in source order *)
 
-  let rec format_t dl = 
+  and arr_permute arr sigma =
+    let res = Array.copy arr in
+    let _ =
+      Array.iteri (
+        fun i j -> res.(j) <- arr.(i)
+      ) sigma
+    in res
+
+  let info ml = ml.info
+
+  let rec format_t ml =
     let fmt_s s = msg "\"%s\"" s in
     msg "@[";
-    begin match dl.desc with
-      | Copy(r1)           -> msg "(copy@ "; Rx.format_t r1; msg ")"
-      | Clobber(r1,w1,f1)  -> msg "(clobber@ "; fmt_s w1; msg "@ <function>"; msg ")"
-      | Concat(dl1,dl2)    -> msg "("; format_t dl1; msg "@ .@ "; format_t dl2; msg ")"
-      | Union(dl1,dl2)     -> msg "("; format_t dl1; msg "@ |@ "; format_t dl2; msg ")"
-      | Star(dl1)          -> format_t dl1; msg "* " (* space to prevent spurious close-comments *)
-      | Key(r1)            -> msg "(key@ "; Rx.format_t r1; msg ")"
-      | DMatch(t1,dl1)     -> 
-	  msg "<"; (if t1 <> "" then msg "%s:" t1); 
-	  format_t dl1; msg ">"
-      | Compose(dl1,dl2)   -> msg "("; format_t dl1; msg "@ ;@ "; format_t dl2; msg ")"
-      | Invert(dl1)        -> msg "(invert@ "; format_t dl1; msg ")"
-      | Default(dl1,w1)    -> msg "(default@ "; format_t dl1; msg "@ "; fmt_s w1; msg ")"
-      | LeftQuot(cn1,dl1)  -> msg "(left_quot@ "; Canonizer.format_t cn1; msg "@ "; format_t dl1; msg ")"
-      | RightQuot(dl1,cn1) -> msg "(right_quot@ "; format_t dl1; msg "@ "; Canonizer.format_t cn1; msg ")"
-      | Dup1(dl1,f1,r1)    -> msg "(dup1@ "; format_t dl1; msg "@ <function>@ "; Rx.format_t r1; msg ")"
-      | Dup2(f1,r1,dl1)    -> msg "(dup2@ <function>@ "; Rx.format_t r1; msg "@ "; format_t dl1; msg ")"
-      | SMatch(t1,f1,dl1)  ->
-	  msg "<~"; 
-	  (if f1 <> 1.0 then msg "{%f}" f1);
-	  (if t1 <> "" then msg "%s:" t1); 
-	  format_t dl1; msg ">"
-      | Partition(r1,r2)   -> msg "(partition@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg ")"
-      | Filter(r1,r2)      -> msg "(filter@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg ")"
-      | Merge(r1)          -> msg "(merge@ "; Rx.format_t r1; msg ")"
-      | Fiat(dl1)          -> msg "(fiat@ "; format_t dl1; msg ")"
-      | Forgetkey(dl1)     -> msg "(forgetkey@ "; format_t dl1; msg ")"
-      | Permute((_,is1,is2,rs1,rs2),dls) -> 
-	  let format_array fmt sep a = 
-	    let rec loop i n =
-	      if i <> n
-	      then begin
-		fmt a.(i);
-		if i + 1 <> n then msg sep
-	      end in
-	    loop 0 (Array.length a) in
-	  msg "(permute@ #{int}[@[";
-	  format_array (fun i -> msg "%d" i) ",@ " is2;
-	  msg "@]]@ #{lens}[@[";
-	  format_array format_t ",@ " dls;
-	  msg "@]])"
-      | Probe(s1,dl1)      -> msg "(probe@ "; fmt_s s1; msg "@ "; format_t dl1; msg ")"
+    begin match ml.desc with
+    | Copy(r1)           -> msg "(copy@ "; Rx.format_t r1; msg ")"
+    | Clobber(r1,w1,f1)  -> msg "(clobber@ "; fmt_s w1; msg "@ <function>"; msg ")"
+    | Concat(dl1,dl2)    -> msg "("; format_t dl1; msg "@ .@ "; format_t dl2; msg ")"
+    | Union(dl1,dl2)     -> msg "("; format_t dl1; msg "@ |@ "; format_t dl2; msg ")"
+    | Star(dl1)          -> format_t dl1; msg "* " (* space to prevent spurious close-comments *)
+    | Weight (bw, ml) ->
+        msg "{:%s:" (W.to_forcestring bw);
+        format_t ml; msg "}"
+    | Match (tag, ml) -> msg "<%s:" (T.to_string tag); format_t ml; msg ">"
+    | Compose(dl1,dl2)   -> msg "("; format_t dl1; msg "@ ;@ "; format_t dl2; msg ")"
+    | Align ml           -> msg "(align@ "; format_t ml; msg ")"
+    | Invert (ml)        -> msg "(invert@ "; format_t ml; msg ")"
+    | Default (ml, w)    -> msg "(default@ "; format_t ml; msg "@ "; fmt_s (Bstring.to_string w); msg ")"
+    | LeftQuot(cn1,dl1)  -> msg "(left_quot@ "; Canonizer.format_t cn1; msg "@ "; format_t dl1; msg ")"
+    | RightQuot(dl1,cn1) -> msg "(right_quot@ "; format_t dl1; msg "@ "; Canonizer.format_t cn1; msg ")"
+    | Dup1(dl1,f1,r1)    -> msg "(dup1@ "; format_t dl1; msg "@ <function>@ "; Rx.format_t r1; msg ")"
+    | Dup2(f1,r1,dl1)    -> msg "(dup2@ <function>@ "; Rx.format_t r1; msg "@ "; format_t dl1; msg ")"
+    | Partition (r1, r2) -> msg "(partition@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg ")"
+    | Merge(r1)          -> msg "(merge@ "; Rx.format_t r1; msg ")"
+    | Fiat(dl1)          -> msg "(fiat@ "; format_t dl1; msg ")"
+    | Permute((_,is1,is2,rs1,rs2),dls) ->
+        let format_array fmt sep a =
+          let rec loop i n =
+            if i <> n
+            then begin
+              fmt a.(i);
+              if i + 1 <> n then msg sep
+            end in
+          loop 0 (Array.length a) in
+        msg "(permute@ #{int}[@[";
+        format_array (fun i -> msg "%d" i) ",@ " is2;
+        msg "@]]@ #{lens}[@[";
+        format_array format_t ",@ " dls;
+        msg "@]])"
     end;
     msg "@]"
 
-  let string_of_t dl = 
-    Util.format_to_string 
-      (fun () -> 
-	 Util.format "@["; 
-	 format_t dl; 
-	 Util.format "@]")
+  let string_of_t ml =
+    Util.format_to_string
+      (fun () ->
+         Util.format "@[";
+         format_t ml;
+         Util.format "@]")
 
-  let arel_identity dl = arel dl = Identity
+  let vequiv_identity dl = vequiv dl = Identity
 
-  let crel_identity dl = crel dl = Identity
+  let sequiv_identity dl = sequiv dl = Identity
 
   (* ----- constructors ----- *)
-  let mk' i d = mk i d (calc_dtype d)
-  let copy i r1 = mk' i (Copy(r1))
-  let clobber i r1 w1 f1 = mk' i (Clobber(r1,w1,f1))
-  let concat i dl1 dl2 = mk' i (Concat(dl1,dl2))
-  let union i dl1 dl2 = mk' i (Union(dl1,dl2))
-  let star i dl1 = mk' i (Star(dl1))
-  let key i r1 = mk' i (Key(r1))
-  let dmatch i t1 dl1 = mk' i (DMatch(t1,dl1))
-  let compose i dl1 dl2 = mk' i (Compose(dl1,dl2))
-  let invert i dl1 = mk' i (Invert(dl1))
-  let default i dl1 w1 = mk' i (Default(dl1,w1))
-  let left_quot i cn1 dl1 = mk' i (LeftQuot(cn1,dl1))
-  let right_quot i dl1 cn1 = mk' i (RightQuot(dl1,cn1))
-  let dup1 i dl1 f1 r1 = mk' i (Dup1(dl1,f1,r1))
-  let dup2 i f1 r1 dl1 = mk' i (Dup2(f1,r1,dl1))
-  let smatch i t1 f1 dl1 = mk' i (SMatch(f1,t1,dl1))
-  let partition i r1 r2 = mk' i (Partition(r1,r2))
-  let filter i r1 r2 = mk' i (Filter(r1,r2))
-  let merge i r1 = mk' i (Merge(r1))
-  let fiat i dl1 = mk' i (Fiat(dl1))
-  let forgetkey i dl1 = mk' i (Forgetkey(dl1))
-  let probe i t1 dl1 = mk' i (Probe(t1,dl1))
-  let permute i is dls =
-    let dl_arr = Array.of_list dls in 
-    let k = Array.length dl_arr in 
-    let sigma,sigma_inv = Permutations.permutation is k in 
-    let ats = Array.create k Rx.empty in 
-    let cts = Array.create k Rx.empty in 
-    let _ = 
-      Array.fold_right 
-        (fun j (i,acc) -> 
+  let clobber i r1 w1 f1 = mk i (Clobber(r1,w1,f1))
+  let concat i ml1 ml2 = mk i (Concat (ml1, ml2))
+  let union i ml1 ml2 = mk i (Union (ml1, ml2))
+  let star i ml = mk i (Star ml)
+  let copy i r = mk i (Copy r)
+  let weight i b w ml = mk i (Weight ((b, w), ml))
+  let mmatch i tag ml = mk i (Match (tag, ml))
+(*   let copy_arx i a = *)
+(*     let leaf l (wc, we, wd) r = *)
+(*       let c = copy i r in *)
+(*       let k = Bannot.LeafSet.fold (fun Bannot.Leaf.Key _ -> key i r) l c in *)
+(*       let wo w = Bannot.Weight.option_to_string w in *)
+(*       weight i (wo wc) (wo we) (wo wd) k *)
+(*     in *)
+(*     let node n ml = *)
+(*       match n with *)
+(*       | Bannot.Node.Chunk tag -> mmatch i (Btag.to_string tag) ml *)
+(*       | Bannot.Node.Forgetkey -> forgetkey i ml *)
+(*     in *)
+(*     let concat = concat i in *)
+(*     let union = union i in *)
+(*     let star = star i in *)
+(*     Barx.fold leaf node concat union star a *)
+  let compose i dl1 dl2 = mk i (Compose(dl1,dl2))
+  let align i ml = mk i (Align ml)
+  let invert i ml = mk i (Invert (ml))
+  let default i ml w = mk i (Default (ml, w))
+  let left_quot i cn1 dl1 = mk i (LeftQuot(cn1,dl1))
+  let right_quot i dl1 cn1 = mk i (RightQuot(dl1,cn1))
+  let dup1 i dl1 f1 r1 = mk i (Dup1(dl1,f1,r1))
+  let dup2 i f1 r1 dl1 = mk i (Dup2(f1,r1,dl1))
+  let partition i r1 r2 = mk i (Partition(r1,r2))
+  let merge i r1 = mk i (Merge(r1))
+  let fiat i dl1 = mk i (Fiat(dl1))
+  let permute i is mls =
+    let ml_arr = Array.of_list mls in
+    let k = Array.length ml_arr in
+    let sigma, sigma_inv = Permutations.permutation is k in
+    let ats = Array.create k Rx.empty in
+    let cts = Array.create k Rx.empty in
+    let _ =
+      Array.fold_right
+        (fun j (i, acc) ->
            ats.(i) <- acc;
-           (pred i,Rx.mk_seq (atype dl_arr.(j)) acc))
-        sigma_inv (pred k,Rx.epsilon) in
-    let _ = Array.fold_right 
-      (fun dli (i,acc) -> 
-         cts.(i) <- acc; 
-         (pred i,Rx.mk_seq (ctype dli) acc))
-      dl_arr (pred k,Rx.epsilon) in
-      mk' i (Permute((k,sigma,sigma_inv,cts,ats),dl_arr))
-        
-  let canonizer_of_t i dl = 
-    Canonizer.from_lens i (ctype dl) (atype dl) (arel dl) (get dl) (rcreate dl)
+           (pred i, Rx.mk_seq (vtype ml_arr.(j)) acc))
+        sigma_inv (pred k, Rx.epsilon) in
+    let _ = Array.fold_right
+      (fun mli (i, acc) ->
+         cts.(i) <- acc;
+         (pred i, Rx.mk_seq (stype mli) acc))
+      ml_arr (pred k, Rx.epsilon) in
+      mk i (Permute ((k, sigma, sigma_inv, cts, ats), ml_arr))
+  let canonizer_of_t i ml =
+    Canonizer.from_lens i (astype ml) (avtype ml) (vequiv ml) (mtype ml) (gperm ml) (rget ml) (rcreate ml)
   let iter i dl1 min maxo =
-    generic_iter (copy i Rx.epsilon) (union i) (concat i) (star i)
+    Arx.generic_iter (copy i Rx.epsilon) (union i) (concat i) (star i)
       min maxo dl1
 end

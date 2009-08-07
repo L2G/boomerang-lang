@@ -14,9 +14,9 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/examples/ical.boom                                              *)
+(* /examples/ical.boom                                                        *)
 (* iCal lens                                                                  *)
-(* $Id$ *)
+(* $Id: ical.boom 4607 2009-08-03 16:53:28Z ddavi $ *)
 
 (* TODO: add proper escaping *)
 
@@ -27,13 +27,13 @@ let BEGIN_CALENDAR,END_CALENDAR : (regexp * regexp) = "BEGIN:VCALENDAR","END:VCA
 let BEGIN_EVENT,END_EVENT : (regexp * regexp) = "BEGIN:VEVENT","END:VEVENT"
 let PREAMBLE,POSTAMBLE : (regexp * regexp) = (BEGIN_CALENDAR . NL . ( ANY - containing BEGIN_EVENT)),(END_CALENDAR . NL)
 let text : lens = Escaping.escape [^\n] #{char*string}[('\',"\\\\");('(',"\\(");(')',"\\)")]
-let TEXT,ESCTEXT : regexp * regexp = ctype text,atype text
+let TEXT,ESCTEXT : regexp * regexp = stype text,vtype text
 let TIME,LOC : regexp * regexp = (DIGIT{2} . ":" . DIGIT{2}), (SPACE . LPAREN . ESCTEXT . RPAREN)
 
 let line (tag:string) (l:lens) : lens = del (tag . ":") . l . del "\n"
 let parens (l:lens) : lens = ins "(" . l . ins ")"
-let wrapl (l:lens) = left_quot (columnize 75 (ctype l) ' ' ("\n  ")) l
-let wrapr (l:lens) = right_quot l (columnize 75 (atype l) ' ' ("\n  "))
+let wrapl (l:lens) = left_quot (columnize 75 (stype l) ' ' ("\n  ")) l
+let wrapr (l:lens) = right_quot l (columnize 75 (vtype l) ' ' ("\n  "))
 let now (s:string) : string = exec "date +%H%M%S | tr -d '\n'"
 let today (s:string) : string = exec "date +%Y%m%d | tr -d '\n'"
 let uid (s:string) : string = exec "cat /dev/urandom|uuencode -m -|tail +2|tr -dc 'a-zA-Z0-9'|head -c25"
@@ -63,14 +63,25 @@ let event1 : lens =
 let event2 : lens =  
   copy (SPACE | ASTERISK) . merge_with_sep TIME DASH . 
   copy SPACE . wrapr (key ESCTEXT . copy LOC) . copy NL
-let ical1 : lens = del PREAMBLE . <~ e1:event1 >* . del POSTAMBLE
-let ical : lens = ical1; <~ e2:event2 >*
+let ical1 : lens = del PREAMBLE . <greedy 0 "":event1 >* . del POSTAMBLE
+let ical : lens = ical1; <greedy 0 "":event2 >*
+
+let l  =  (copy (SPACE | ASTERISK) . 
+merge_with_sep TIME "-" . 
+copy (SPACE . ESCTEXT. LOC . NL))*
+
+(* test "before ical" = ?  *)
+(* test avtype ical1 = ? *)
+(* test astype (<g_:event2 >* ) = ? *)
+(* test aequiv (avtype ical1) (astype (<g_:event2 >* )) = ? *)
+(* test sequiv (<g_:event2 >* ) = ? *)
 
 let ical2 : lens = 
-  ical1; 
+  align ical1; 
   (copy (SPACE | ASTERISK) . 
   merge_with_sep TIME "-" . 
   copy (SPACE . ESCTEXT. LOC . NL))*
+
 
 let public : lens = 
   del SPACE . 
@@ -88,14 +99,16 @@ let redact : lens =
   (public | private)*
 
 let erase : lens = 
-  filter (ctype private) (ctype public); 
+  filter (stype private) (stype public); 
   public*
+
+
 
 (* html stuff *)
 let pcdata : lens = 
   invert text; 
   Escaping.escape_with '&' [^\n] Escaping.xml_escs
-let PCDATA : regexp = atype pcdata 
+let PCDATA : regexp = vtype pcdata 
 let html_entry : lens = 
   MkXml.simple_elt NL2 "time" (merge_with_sep TIME "-") . 
   MkXml.simple_elt NL2 "description" (del " " . pcdata) .
@@ -105,7 +118,7 @@ let html_pub : lens = del " " . MkXml.elt NL1 "entry" html_entry
 let html_pvt : lens = del "*" . MkXml.attr1_elt NL1 "entry" "class" (ins "private") html_entry
 let html : lens = MkXml.outer_elt NL0 "calendar" (html_pub | html_pvt)*
 
-let xml : lens = ical1 ; html
+let xml : lens = align ical1 ; html
 
 test xml.get
 <<

@@ -15,8 +15,8 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/erx.ml                                                      *)
-(* Boomerang extended regular expressions                                     *)
+(* /src/erx.ml                                                                *)
+(* Boomerang extended regular expressions (for sync)                          *)
 (* $Id *)
 (******************************************************************************)
 

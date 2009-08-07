@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bvalue.mli                                                  *)
+(* /src/bvalue.mli                                                            *)
 (* Boomerang run-time value interface                                         *)
 (* $Id$ *)
 (*****************************************************************************)
@@ -29,7 +29,10 @@ type t =
     | Chr of Info.t * char
     | Str of Info.t * string
     | Rx  of Info.t * Brx.t
-    | Lns of Info.t * Blenses.DLens.t
+    | Arx of Info.t * Barx.t
+    | Kty of Info.t * Blenses.ktype
+    | Mty of Info.t * Blenses.mtype
+    | Lns of Info.t * Blenses.MLens.t
     | Can of Info.t * Blenses.Canonizer.t
     | Fun of Info.t * (t -> t)
     | Par of Info.t * t * t
@@ -61,7 +64,10 @@ val get_i : t -> int
 val get_c : t -> char
 val get_s : t -> string
 val get_r : t -> Brx.t
-val get_l : t -> Blenses.DLens.t
+val get_a : t -> Barx.t
+val get_k : t -> Blenses.ktype
+val get_m : t -> Blenses.mtype
+val get_l : t -> Blenses.MLens.t
 val get_q : t -> Blenses.Canonizer.t
 val get_p : t -> (t*t)
 val get_v : t -> (Bident.Id.t * t option)
@@ -72,8 +78,11 @@ val mk_b : Info.t -> bool -> t
 val mk_x : Info.t -> string option -> t
 val mk_i : Info.t -> int -> t
 val mk_c : Info.t -> char -> t
-val mk_l : Info.t -> Blenses.DLens.t -> t
+val mk_l : Info.t -> Blenses.MLens.t -> t
 val mk_r : Info.t -> Brx.t -> t
+val mk_a : Info.t -> Barx.t -> t
+val mk_k : Info.t -> Blenses.ktype -> t
+val mk_m : Info.t -> Blenses.mtype -> t
 val mk_s : Info.t -> string -> t
 val mk_q : Info.t -> Blenses.Canonizer.t -> t
 val mk_p : Info.t -> t * t -> t
@@ -84,8 +93,11 @@ val mk_bfun : Info.t -> (bool -> t) -> t
 val mk_xfun : Info.t -> (string option -> t) -> t
 val mk_ifun : Info.t -> (int -> t) -> t
 val mk_cfun : Info.t -> (char -> t) -> t
-val mk_lfun : Info.t -> (Blenses.DLens.t -> t) -> t
+val mk_lfun : Info.t -> (Blenses.MLens.t -> t) -> t
 val mk_rfun : Info.t -> (Brx.t -> t) -> t
+val mk_afun : Info.t -> (Barx.t -> t) -> t
+val mk_kfun : Info.t -> (Blenses.ktype -> t) -> t
+val mk_mfun : Info.t -> (Blenses.mtype -> t) -> t
 val mk_sfun : Info.t -> (string -> t) -> t
 val mk_qfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
 val mk_pfun : Info.t -> (t * t -> t) -> t
@@ -98,3 +110,23 @@ val list_qid : Bident.Qid.t
 val get_list : t -> t list
 val mk_list : Info.t -> t list -> t
 val mk_listfun : Info.t -> (t list -> t) -> t
+
+val option_qid : Bident.Qid.t
+val get_option : t -> t option
+val mk_option : Info.t -> t option -> t
+val mk_optionfun : Info.t -> (t option -> t) -> t
+
+val species_qid : Bident.Qid.t
+val get_species : t -> Btag.species
+val mk_species : Info.t -> Btag.species -> t
+val mk_speciesfun : Info.t -> (Btag.species -> t) -> t
+
+val predicate_qid : Bident.Qid.t
+val get_predicate : t -> Btag.predicate
+val mk_predicate : Info.t -> Btag.predicate -> t
+val mk_predicatefun : Info.t -> (Btag.predicate -> t) -> t
+
+val tag_qid : Bident.Qid.t
+val get_tag : t -> Btag.t
+val mk_tag : Info.t -> Btag.t -> t
+val mk_tagfun : Info.t -> (Btag.t -> t) -> t

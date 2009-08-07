@@ -1,8 +1,8 @@
 module Students = 
-  let Name : regexp = [a-zA-Z]+ . (/ / . [a-zA-Z]+)*
-  let Email :regexp = [a-zA-Z._]+ . /@/ . [a-zA-Z._]+
+  let Name : regexp = [a-zA-Z]+ . ([ ] . [a-zA-Z]+)*
+  let Email :regexp = [a-zA-Z._]+ . [@] . [a-zA-Z._]+
   let Id : regexp  = [0-9]{8}
-  let Nl : regexp = /\r\n/ | [\r\n]
+  let Nl : regexp = "\r\n" | [\r\n]
 
   let person : lens = 
     Xml.attr1_elt_swap NL1 "student" "sid" (copy Id)
@@ -14,7 +14,7 @@ module Students =
       end
 
   let persons : lens =
-      copy //
+      copy ""
     | person . ( qins Nl "\n" . person )*
 
   let file : lens =

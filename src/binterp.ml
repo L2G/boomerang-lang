@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/binterp.ml                                                  *)
+(* /src/binterp.ml                                                            *)
 (* Boomerang interpreter *)
 (* $Id$ *)
 (******************************************************************************)
@@ -118,13 +118,15 @@ let rec interp_cast cev i b f t e =
 	         cex_s) in
   let res = 
     if Bcheck.trivial_cast f t then interp_exp cev e
-    else match f,t with
+    else
+      match f,t with
       | SUnit,SUnit
       | SBool,SBool
       | SInteger,SInteger
       | SChar,SChar
       | SString,SString
       | SRegexp,SRegexp
+      | SAregexp,SAregexp
       | SLens,SLens 
       | SCanonizer,SCanonizer 
       | SVar(_),SVar(_) -> 
@@ -133,15 +135,21 @@ let rec interp_cast cev i b f t e =
           interp_exp cev (mk_string_of_char i e)
       | SChar,SRegexp -> 
           interp_exp cev (mk_regexp_of_string i (mk_string_of_char i e))
+      | SChar,SAregexp -> 
+          interp_exp cev (mk_aregexp_of_regexp i (mk_regexp_of_string i (mk_string_of_char i e)))
       | SChar,SLens -> 
-          interp_exp cev 
-            (mk_lens_of_regexp i 
+          interp_exp cev
+            (mk_lens_of_regexp i
                (mk_regexp_of_string i 
                   (mk_string_of_char i e)))
       | SString,SRegexp -> 
           interp_exp cev (mk_regexp_of_string i e)
+      | SString,SAregexp -> 
+          interp_exp cev (mk_aregexp_of_regexp i (mk_regexp_of_string i e))
       | SString,SLens -> 
           interp_exp cev (mk_lens_of_regexp i (mk_regexp_of_string i e))
+      | SRegexp,SAregexp -> 
+          interp_exp cev (mk_aregexp_of_regexp i e)
       | SRegexp,SLens -> 
           interp_exp cev (mk_lens_of_regexp i e)
       | SFunction(x,f1,f2), SFunction(y,t1,t2) -> 
@@ -295,13 +303,13 @@ and interp_exp cev e0 = match e0 with
       let ei_cev = CEnv.update_list cev qid_binds in
       interp_exp ei_cev ei
 
-  (* tyfuns are interpeted as functions; tyapps apply to unit *)
+  (* tyfuns are interpreted as functions; tyapps apply to unit *)
   | ETyFun(i,_,e) -> 
       interp_exp cev (EFun(i,Param(i,Id.wild,SUnit),None,e))
 
   | ETyApp(i,e1,s2) -> 
       interp_exp cev (EApp(i,e1,EUnit(i)))
-      
+
   | EGrammar(i,ps) ->
      Berror.run_error i (fun () -> msg "@[unexpected@ grammar@ expression@ at@ interpreter@]")
 
@@ -314,7 +322,7 @@ and interp_exp cev e0 = match e0 with
   | EString(i,s)        -> V.Str(i,s)
   | ECSet(i,pos,cs) -> 
       let csi = Safelist.map (fun (ci,cj) -> (Char.code ci, Char.code cj)) cs in
-      let mk = if pos then Brx.mk_cset else Brx.mk_neg_cset in 
+      let mk = if pos then Brx.mk_cset else Brx.mk_neg_ascii_cset in
       V.Rx(i,mk csi)
 
   | ECast(i,f,t,b,e) -> 
@@ -474,7 +482,7 @@ and interp_mod_aux cev ms ds =
 let interp_module m0 = match m0 with 
   | Mod(i,m,nctx,ds) -> 
       let qm = Qid.t_of_id m in 
-      let nctx' = nctx@G.pre_ctx in
+      let nctx' = nctx in
       let cev = CEnv.set_ctx (CEnv.empty qm) (qm::nctx') in
       let new_cev,_ = interp_mod_aux cev [m] ds in
       G.register_env (CEnv.get_ev new_cev) nctx' m

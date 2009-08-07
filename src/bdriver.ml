@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bdriver.ml                                                  *)
+(* /src/bdriver.ml                                                            *)
 (* Boomerang compiler driver                                                  *)
 (* $Id$ *)
 (******************************************************************************)

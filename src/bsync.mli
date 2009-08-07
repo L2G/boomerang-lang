@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bsync.ml                                                    *)
+(* /src/bsync.ml                                                              *)
 (* Boomerang synchronization interface                                        *)
 (* $Id$ *)
 (******************************************************************************)

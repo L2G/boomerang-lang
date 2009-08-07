@@ -15,7 +15,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/brx.ml                                                      *)
+(* /src/brx.ml                                                                *)
 (* Boomerang RegExp engine                                                    *)
 (* $Id$ *)
 (******************************************************************************)
@@ -24,10 +24,12 @@ type t
 (* constants *)
 val epsilon : t 
 val empty : t
+val ascii_set : t
 
 (* constructors *)
 val mk_cset : (int * int) list -> t
 val mk_neg_cset : (int * int) list -> t
+val mk_neg_ascii_cset : (int * int) list -> t
 val mk_string : string -> t
 val mk_alt : t -> t -> t
 val mk_seq : t -> t -> t
@@ -53,6 +55,7 @@ val lpar : r -> r -> bool
 val rpar : r -> r -> bool
 
 val format_t : t -> unit
+val string_of_char_code : int -> string
 val string_of_t : t -> string
 
 (* operations *)
@@ -65,6 +68,7 @@ val equiv : t -> t -> bool
 val representative : t -> string option
 
 (* string matching *)
+val match_sub_string : t -> string -> int -> int -> bool
 val match_string : t -> string -> bool
 val match_string_positions : t -> string -> Int.Set.t
 val match_string_reverse_positions : t -> string -> Int.Set.t
@@ -85,3 +89,9 @@ val star_split : t -> string -> string list
 
 (* statistics *)
 val print_stats : unit -> unit
+
+(* extended charset *)
+val langle_code : int
+val rangle_code : int
+val colon_code : int
+

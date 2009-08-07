@@ -1,0 +1,9 @@
+module Alignment = 
+
+#{@}
+
+\section{Alignment}
+
+Add here a presentation of the alignments that we have, give an
+intution of what to expect from each alignment, explain costs,
+thresholds, etc. Everything with small examples.

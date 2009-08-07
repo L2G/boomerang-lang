@@ -12,7 +12,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bheap.ml                                                    *)
+(* /src/bheap.ml                                                              *)
 (* Boomerang identifiers interface                                            *)
 (* $Id$ *)
 (******************************************************************************)
@@ -92,7 +92,7 @@ module Qid : sig
   (** [id_dot x1 q1] returns the qualified identifier representing [x1.q1]. *)
 
   val splice_id_dot : Id.t -> t -> t
-  (** [splice_id_dot x1 q1], where [q1] represents [q11.x12],
+  (** [spliceg_id_dot x1 q1], where [q1] represents [q11.x12],
       returns the qualified identifier representing [q11.x1.x12] *)
 
   val t_dot_id : t -> Id.t -> t
@@ -106,23 +106,23 @@ module Qid : sig
   val id_prefix : t -> Id.t list -> bool
   (** [id_prefix q xl] returns [true] iff [q] is a prefix of [xl]. *)
 
-  val mk_mod_t : string list -> string -> t
+  val mk_mod_t : Info.t -> string list -> string -> t
   (** [mk_mod_t ss s] constructs the qualified identifier representing
       [ss] with dummy parsing info. *)
 
-  val mk_native_prelude_t : string -> t
+  val mk_native_prelude_t : Info.t -> string -> t
   (** [mk_native_prelude_t s] constructs the qualified identifier representing
       [Native.Prelude.s] with dummy parsing info. *)
 
-  val mk_prelude_t : string -> t
+  val mk_prelude_t : Info.t -> string -> t
   (** [mk_prelude_t s] constructs the qualified identifier representing
       [Prelude.s] with dummy parsing info. *)
 
-  val mk_core_t : string -> t
+  val mk_core_t : Info.t -> string -> t
   (** [mk_prelude_core_t s] constructs the qualified identifier representing
       [Prelude.Core.s] with dummy parsing info. *)
 
-  val mk_list_t : string -> t
+  val mk_list_t : Info.t -> string -> t
   (** [mk_list_t s] constructs the qualified identifier representing
       [List.s] with dummy parsing info. *) 
 

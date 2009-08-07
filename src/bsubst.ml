@@ -15,7 +15,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bsubst.ml                                                   *)
+(* /src/bsubst.ml                                                             *)
 (* Boomerang substitutions                                                    *)
 (* $Id *)
 (******************************************************************************)
@@ -64,9 +64,8 @@ and free_svars_sort acc = function
   | SForall(a,s1) -> 
       let s1_vars = Id.Set.remove a (free_svars_sort Id.Set.empty s1) in 
       Id.Set.union s1_vars acc
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer ->
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer ->
       acc
-
 and free_svars_exp acc = function
   | EApp(_,e1,e2) -> 
       let acc1 = free_svars_exp acc e1 in 
@@ -114,15 +113,15 @@ and free_svars_exp acc = function
   | EBoolean(_,Some e1) ->
       let acc1 = free_svars_exp acc e1 in
       acc1
-  | EBoolean(_,None) | EUnit _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> 
+  | EBoolean(_,None) | EUnit _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ ->
       acc
-  | EGrammar(_,ps) -> 
+  | EGrammar(_,ps) ->
       Safelist.fold_left free_svars_prod acc ps
 
-and free_svars_prod acc (Prod(_,_,rs)) = 
+and free_svars_prod acc (Prod(_,_,rs)) =
   Safelist.fold_left free_svars_rule acc rs
 
-and free_svars_rule acc (Rule(_,xs,ys,bs)) =  
+and free_svars_rule acc (Rule(_,xs,ys,bs)) =
   Safelist.fold_left
     (fun acc (_,ei) -> free_svars_exp acc ei)
     (Safelist.fold_left free_svars_exp
@@ -186,7 +185,7 @@ and subst_svars_sort subst s0 = match s0 with
       let safe_s1 = if fresh_a = a then s1 else subst_svars_sort [(a,SVar fresh_a)] s1 in 
       let new_s1 = subst_svars_sort subst safe_s1 in
       SForall(fresh_a,new_s1)
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer -> 
       s0
 and subst_svars_exp subst e0 = match e0 with 
   | EApp(i,e1,e2) -> 
@@ -239,18 +238,21 @@ and subst_svars_exp subst e0 = match e0 with
   | EBoolean(i,Some e1) ->
       let new_e1 = subst_svars_exp subst e1 in
       EBoolean(i,Some new_e1)
-  | EGrammar(i,ps) -> 
-      let new_ps = Safelist.map (subst_svars_prod subst) ps in 
+  | EGrammar(i,ps) ->
+      let new_ps = Safelist.map (subst_svars_prod subst) ps in
       EGrammar(i,new_ps)
   | EBoolean(_,None) | EUnit _ | EInteger _ | EChar _ | EString _ | ECSet _ | EVar _ -> e0
-and subst_svars_prod subst (Prod(i,x,rs)) = 
-  let new_rs = Safelist.map (subst_svars_rule subst) rs in 
+
+and subst_svars_prod subst (Prod(i,x,rs)) =
+  let new_rs = Safelist.map (subst_svars_rule subst) rs in
   Prod(i,x,new_rs)
-and subst_svars_rule subst (Rule(i,xs,ys,bs)) = 
-  let new_xs = Safelist.map (subst_svars_exp subst) xs in 
-  let new_ys = Safelist.map (subst_svars_exp subst) ys in 
-  let new_bs = Safelist.map (fun (li,ei) -> (li,subst_svars_exp subst ei)) bs in 
+
+and subst_svars_rule subst (Rule(i,xs,ys,bs)) =
+  let new_xs = Safelist.map (subst_svars_exp subst) xs in
+  let new_ys = Safelist.map (subst_svars_exp subst) ys in
+  let new_bs = Safelist.map (fun (li,ei) -> (li,subst_svars_exp subst ei)) bs in
   Rule(i,new_xs,new_ys,new_bs)
+
 
 (* FREE EXPRESSION VARIABLES *)
 let qvs_of_is s = Id.Set.fold (fun xi acc -> Qid.Set.add (Qid.t_of_id xi) acc) s Qid.Set.empty 
@@ -263,7 +265,6 @@ let rec free_evars_pat acc = function
   | PPar(_,p1,p2)    -> free_evars_pat (free_evars_pat acc p1) p2
   | PCex(_,p1)       -> free_evars_pat acc p1
   | PWld _ | PUnt _ | PBol _ | PInt _ | PStr _ -> acc
-
 and bound_evars_pat acc = function
   | PVar(_,x,_)      -> Id.Set.add x acc
   | PVnt(_,_,Some p) -> bound_evars_pat acc p
@@ -288,7 +289,7 @@ and free_evars_sort acc = function
       Qid.Set.union e2_vars acc1 
   | SForall(_,s1) -> 
       free_evars_sort acc s1
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ -> 
       acc
 and free_evars_exp acc = function
   | EVar(_,q) -> 
@@ -308,7 +309,7 @@ and free_evars_exp acc = function
       let acc2 = match so2 with None -> acc | Some s2 -> free_evars_sort acc s2 in 
       let acc3 = free_evars_exp acc2 e3 in 
       let acc1 = free_evars_pat acc3 p1 in
-      (* calculate bvars --- we don't want to count occurences in the let body as free vars *)
+      (* calculate bvars --- we don't want to count occurrences in the let body as free vars *)
       let bvars = qvs_of_is (bound_evars_pat Id.Set.empty p1) in
       let acc4 = Qid.Set.diff (free_evars_exp Qid.Set.empty e4) bvars in
       Qid.Set.union acc1 acc4
@@ -342,22 +343,24 @@ and free_evars_exp acc = function
   | EBoolean(i,Some e1) ->
       let acc1 = free_evars_exp acc e1 in
       acc1
-  | EGrammar(_,ps) -> 
-      Safelist.fold_left free_evars_prod acc ps        
+  | EGrammar(_,ps) ->
+      Safelist.fold_left free_evars_prod acc ps
   | EUnit _ | EBoolean(_,None) | EInteger _ | EChar _ | EString _ | ECSet _ -> 
       acc
-and free_evars_prod acc (Prod(i,x,rs)) = 
-  let acc' = Safelist.fold_left free_evars_rule acc rs in 
-  Qid.Set.remove (Qid.t_of_id x) acc' 
-and free_evars_rule acc (Rule(_,xs,ys,bs) as r) = 
-  let ls = qlabels_of_rule r in 
-  let fvs = 
+
+and free_evars_prod acc (Prod(i,x,rs)) =
+  let acc' = Safelist.fold_left free_evars_rule acc rs in
+  Qid.Set.remove (Qid.t_of_id x) acc'
+
+and free_evars_rule acc (Rule(_,xs,ys,bs) as r) =
+  let ls = qlabels_of_rule r in
+  let fvs =
     Safelist.fold_left (fun acc (li,ei) -> free_evars_exp acc ei)
       (Safelist.fold_left free_evars_exp
          (Safelist.fold_left free_evars_exp acc xs)
          ys)
-      bs in 
-  Qid.Set.diff fvs ls 
+      bs in
+  Qid.Set.diff fvs ls
 
 (* EXPRESSION SUBSTITUTION *)
 let free_evars_in_subst subst = 
@@ -468,7 +471,7 @@ and subst_evars_sort subst s0 = match s0 with
   | SForall(a,s1) -> 
       let new_s1 = subst_evars_sort subst s1 in 
       SForall(a,new_s1)
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ -> 
       s0
 and subst_evars_exp subst e0 = match e0 with 
   | EVar(_,x) -> 
@@ -559,44 +562,46 @@ and subst_evars_exp subst e0 = match e0 with
   | EBoolean(i,Some e1) ->
       let new_e1 = subst_evars_exp subst e1 in
       EBoolean(i,Some new_e1)
-  | EGrammar(i,ps) -> 
-      let new_ps = Safelist.map (subst_evars_prod subst) ps in 
+  | EGrammar(i,ps) ->
+      let new_ps = Safelist.map (subst_evars_prod subst) ps in
       EGrammar(i,new_ps)
   | EUnit _ | EBoolean(_,None) | EInteger _ | EChar _ | EString _ | ECSet _  -> 
       e0
-and subst_evars_prod subst (Prod(i,x,rs)) =  
-  let fresh_x = fresh_evar_id subst x in 
-  let safe_rs = 
+
+and subst_evars_prod subst (Prod(i,x,rs)) =
+  let fresh_x = fresh_evar_id subst x in
+  let safe_rs =
     if fresh_x = x then rs
     else
-      let i = Id.info_of_t x in 
-      let qx = Qid.t_of_id x in 
-      let fresh_qx = Qid.t_of_id fresh_x in 
-      let subst_x = [(qx,EVar(i,fresh_qx))] in 
-      Safelist.map (subst_evars_rule subst_x) rs in 
-  let new_rs = Safelist.map (subst_evars_rule subst) safe_rs in 
+      let i = Id.info_of_t x in
+      let qx = Qid.t_of_id x in
+      let fresh_qx = Qid.t_of_id fresh_x in
+      let subst_x = [(qx,EVar(i,fresh_qx))] in
+      Safelist.map (subst_evars_rule subst_x) rs in
+  let new_rs = Safelist.map (subst_evars_rule subst) safe_rs in
   Prod(i,x,new_rs)
-and subst_evars_rule subst (Rule(i,xs,ys,bs) as r) = 
+
+and subst_evars_rule subst (Rule(i,xs,ys,bs) as r) =
   let ls = labels_of_rule r in
   let fresh_ls = fresh_evar_ids subst ls in
-  let safe_xs,safe_ys,safe_bs = 
-    if Safelist.for_all (fun (li,fresh_li) -> li = fresh_li) fresh_ls then 
+  let safe_xs,safe_ys,safe_bs =
+    if Safelist.for_all (fun (li,fresh_li) -> li = fresh_li) fresh_ls then
       (xs,ys,bs)
-    else 
-      let subst_ls = 
-        Safelist.map 
+    else
+      let subst_ls =
+        Safelist.map
           (fun (li,fresh_li) -> (Qid.t_of_id li,EVar(i,Qid.t_of_id fresh_li)))
           fresh_ls in
       (Safelist.map (subst_evars_exp subst_ls) xs,
        Safelist.map (subst_evars_exp subst_ls) ys,
-       Safelist.map 
-         (fun (li,ei) -> 
-            let li' = try gen_assoc Id.equal li fresh_ls with Not_found -> li in 
+       Safelist.map
+         (fun (li,ei) ->
+            let li' = try gen_assoc Id.equal li fresh_ls with Not_found -> li in
             (li', subst_evars_exp subst_ls ei))
-         bs) in 
-  let new_xs = Safelist.map (subst_evars_exp subst) safe_xs in 
-  let new_ys = Safelist.map (subst_evars_exp subst) safe_ys in 
-  let new_bs = Safelist.map (fun (li,ei) -> (li,subst_evars_exp subst ei)) safe_bs in     
+         bs) in
+  let new_xs = Safelist.map (subst_evars_exp subst) safe_xs in
+  let new_ys = Safelist.map (subst_evars_exp subst) safe_ys in
+  let new_bs = Safelist.map (fun (li,ei) -> (li,subst_evars_exp subst ei)) safe_bs in
   (Rule(i,new_xs,new_ys,new_bs))
 
 let subst_sort subst s0 = subst_svars_sort subst s0
@@ -625,7 +630,7 @@ let rec erase_sort = function
   | SForall(x,s1) -> 
       SForall(x,erase_sort s1)
   | SUnit | SBool | SInteger | SChar | SString 
-  | SRegexp | SLens | SCanonizer | SVar _ as s0 -> 
+  | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ as s0 -> 
       s0
 
 let rec expose_sort = function
@@ -659,6 +664,7 @@ let rec syneq_sort s1 s2 = match s1,s2 with
   | SChar,SChar 
   | SString,SString 
   | SRegexp,SRegexp 
+  | SAregexp,SAregexp 
   | SLens,SLens 
   | SCanonizer,SCanonizer -> true
   | _ -> false
@@ -774,7 +780,7 @@ let rec qualify_sort resolve bound s0 = match s0 with
   | SForall(a,s1) -> 
       let new_s1 = qualify_sort resolve bound s1 in 
       SForall(a,new_s1)
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SLens | SCanonizer | SVar _ -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ -> 
       s0
 
 and qualify_pat resolve bound p0 = match p0 with
@@ -851,16 +857,18 @@ and qualify_exp resolve bound e0 = match e0 with
   | EBoolean(i,Some e1) ->
       let new_e1 = qualify_exp resolve bound e1 in
       EBoolean(i,Some new_e1)
-  | EGrammar(i,ps) -> 
-      let new_ps = Safelist.map (qualify_prod resolve bound) ps in 
+  | EGrammar(i,ps) ->
+      let new_ps = Safelist.map (qualify_prod resolve bound) ps in
       EGrammar(i,new_ps)
   | EUnit _ | EBoolean(_,None) | EInteger _ | EChar _ | EString _ | ECSet _  -> 
       e0
-and qualify_prod resolve bound (Prod(i,x,rs)) = 
-  let new_rs = Safelist.map (qualify_rule resolve bound) rs in 
+
+and qualify_prod resolve bound (Prod(i,x,rs)) =
+  let new_rs = Safelist.map (qualify_rule resolve bound) rs in
   (Prod(i,x,new_rs))
-and qualify_rule resolve bound (Rule(i,xs,ys,bs)) = 
-  let new_xs = Safelist.map (qualify_exp resolve bound) xs in 
-  let new_ys = Safelist.map (qualify_exp resolve bound) ys in 
-  let new_bs = Safelist.map (fun (li,ei) -> (li,qualify_exp resolve bound ei)) bs in 
-  (Rule(i,new_xs,new_ys,new_bs)) 
+
+and qualify_rule resolve bound (Rule(i,xs,ys,bs)) =
+  let new_xs = Safelist.map (qualify_exp resolve bound) xs in
+  let new_ys = Safelist.map (qualify_exp resolve bound) ys in
+  let new_bs = Safelist.map (fun (li,ei) -> (li,qualify_exp resolve bound ei)) bs in
+  (Rule(i,new_xs,new_ys,new_bs))

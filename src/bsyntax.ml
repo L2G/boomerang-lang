@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bsyntax.ml                                                  *)
+(* /src/bsyntax.ml                                                            *)
 (* Boomerang abstract syntax                                                  *)
 (* $Id$ *)
 (******************************************************************************)
@@ -45,6 +45,9 @@ type sort =
     | SChar                           (* chars *)
     | SString                         (* strings *)
     | SRegexp                         (* regular expressions *)
+    | SAregexp                        (* annotated regular expressions *)
+    | SSkeletons                      (* skeleton set type *)
+    | SResources                      (* resource set type *)
     | SLens                           (* lenses *)
     | SCanonizer                      (* canonizers *)
 
@@ -83,24 +86,25 @@ and exp =
     | ETyApp of Info.t * exp * sort
 
     (* with products, case *)
-    | EPair of Info.t * exp * exp 
-    | ECase of Info.t * exp * (pat * exp) list * sort
+     | EPair of Info.t * exp * exp 
+     | ECase of Info.t * exp * (pat * exp) list * sort
 
-    (* casts, locations, and allocations *)
-    | ECast    of Info.t * sort * sort * blame * exp
-        
-    (* unit, strings, ints, character sets *)
-    | EUnit    of Info.t  
-    | EInteger of Info.t * int    
-    | EChar    of Info.t * char
-    | EString  of Info.t * string
-    | ECSet    of Info.t * bool * (char * char) list 
+     (* casts, locations, and allocations *)
+     | ECast    of Info.t * sort * sort * blame * exp
 
-    (* booleans with counter examples *)
-    (* None ~ true; Some s ~ false with counterexample s *)
-    | EBoolean of Info.t * exp option 
-    
-    | EGrammar of Info.t * prod list
+     (* unit, strings, ints, character sets *)
+     | EUnit    of Info.t  
+     | EInteger of Info.t * int    
+     | EChar    of Info.t * char
+     | EString  of Info.t * string
+     | ECSet    of Info.t * bool * (char * char) list 
+
+     (* booleans with counter examples *)
+     (* None ~ true; Some s ~ false with counterexample s *)
+     | EBoolean of Info.t * exp option 
+
+     (* grammar *)
+     | EGrammar of Info.t * prod list
 
 (* overloaded operators *)
 and op = 
@@ -119,6 +123,8 @@ and op =
   | OLeq
   | OGt
   | OGeq
+  | OMatch
+  | OWeight
 
 (* patterns *)
 and pat = 
@@ -185,21 +191,21 @@ let rec info_of_exp e = match e with
   | EString  (i,_)       -> i
   | ECSet    (i,_,_)     -> i
   | EGrammar (i,_)       -> i
-     
+
 let info_of_rule = function
   | Rule(i,_,_,_) -> i
 
 let qlabels_of_rule = function
   | Rule(_,_,_,bs) ->
-      Safelist.fold_left 
+      Safelist.fold_left
         (fun acc (li,_) -> Qid.Set.add (Qid.t_of_id li) acc)
-        Qid.Set.empty bs 
+        Qid.Set.empty bs
 
 let labels_of_rule = function
   | Rule(_,_,_,bs) ->
-      Safelist.fold_left 
+      Safelist.fold_left
         (fun acc (li,_) -> Id.Set.add li acc)
-        Id.Set.empty bs 
+        Id.Set.empty bs
 
 let info_of_prod = function
   | Prod(i,_,_) -> i
@@ -229,8 +235,8 @@ let mk_app i e1 e2 =
 
 let mk_app3 i e1 e2 e3 = 
   mk_app i (mk_app i e1 e2) e3
-  
-let mk_app4 i e1 e2 e3 e4 = 
+
+let mk_app4 i e1 e2 e3 e4 =
   mk_app i (mk_app i e1 e2) (mk_app i e3 e4)
 
 let mk_let i x s1 e1 e2 =
@@ -246,13 +252,16 @@ let mk_if i e0 e1 e2 s =
   ECase(i,e0,bs,s)
 
 let mk_native_prelude_var i s = 
-  EVar(i,Qid.mk_native_prelude_t s)
+  EVar(i,Qid.mk_native_prelude_t i s)
 
 let mk_string_of_char i e = 
   EApp(i,mk_native_prelude_var i "string_of_char",e)
 
 let mk_regexp_of_string i e = 
   EApp(i,mk_native_prelude_var i "str",e)
+
+let mk_aregexp_of_regexp i e = 
+  EApp(i,mk_native_prelude_var i "rxlift",e)
 
 let mk_lens_of_regexp i e = 
   EApp(i,mk_native_prelude_var i "copy",e)
@@ -263,17 +272,17 @@ let mk_qid_var x =
 let mk_var x = 
   mk_qid_var (Qid.t_of_id x)
 
-let mk_native_prelude_var x = 
-  mk_qid_var (Qid.mk_native_prelude_t x)
+let mk_native_prelude_var i x = 
+  mk_qid_var (Qid.mk_native_prelude_t i x)
 
-let mk_prelude_var x = 
-  mk_qid_var (Qid.mk_prelude_t x)
+let mk_prelude_var i x =
+  mk_qid_var (Qid.mk_prelude_t i x)
 
-let mk_core_var x = 
-  mk_qid_var (Qid.mk_core_t x)
+let mk_core_var i x = 
+  mk_qid_var (Qid.mk_core_t i x)
 
-let mk_list_var x = 
-  mk_qid_var (Qid.mk_list_t x)
+let mk_list_var i x =
+  mk_qid_var (Qid.mk_list_t i x)
 
 let mk_over i op el = 
   EOver(i,op,el)
@@ -303,29 +312,16 @@ let mk_swap i e1 e2 =
   mk_over i OTilde [e1;e2]
 
 let mk_diff i e1 e2 = 
-  mk_bin_op i (mk_core_var "diff") e1 e2
+  mk_bin_op i (mk_core_var i "diff") e1 e2
 
 let mk_inter i e1 e2 = 
-  mk_bin_op i (mk_core_var "inter") e1 e2
+  mk_bin_op i (mk_core_var i "inter") e1 e2
 
 let mk_compose i e1 e2 = 
-  mk_bin_op i (mk_core_var "compose") e1 e2
+  mk_bin_op i (mk_core_var i "compose") e1 e2
 
 let mk_set i e1 e2 = 
-  mk_bin_op i (mk_qid_var (Qid.mk_core_t "set")) e1 e2
-
-let mk_match i x q =   
-  mk_bin_op i 
-    (mk_core_var "dmatch")
-    (EString(i,x)) 
-    (mk_qid_var q)
-
-let mk_sim_match i e t q = 
-  mk_tern_op i 
-    (mk_core_var "smatch")
-    (EString(i,string_of_float e))
-    (EString(i,t))
-    (mk_qid_var q)
+  mk_bin_op i (mk_qid_var (Qid.mk_core_t i "set")) e1 e2
 
 let mk_rx i e = 
-  mk_app i (mk_core_var "str") e
+  mk_app i (mk_core_var i "str") e

@@ -1,6 +1,6 @@
 module Bcard = 
 
-  let Nl : regexp = [\n] | [\r] | /\r\n/
+  let Nl : regexp = [\n] | [\r] | "\r\n"
   let Sp : string = " "
   let Uri: regexp = [^""\n\r<>]*
 

@@ -10,7 +10,7 @@ let indent (spaces:string in Xml.WS) : (string in Xml.WS) = spaces . "  "
 *)
 let kill_ws : (lens in Xml.WS <-> "") = qdel Xml.WS ""
 let pvalue (spaces:string in Xml.WS) (tag:string) (l:lens where lens_splittable l kill_ws)
-    : (lens in Xml.ELT tag (ctype l) <-> atype l)
+    : (lens in Xml.ELT tag (stype l) <-> vtype l)
     = Xml.simple_elt spaces tag (l . kill_ws)
 
 (* used to remove whitespace at the front of pvalues
@@ -26,7 +26,7 @@ let pvalue (spaces:string in Xml.WS) (tag:string) (l:lens where lens_splittable 
      </integer>
 *)
 let PADDED (R:regexp) : regexp = Xml.WS . R
-let padded (l:lens) : (lens in PADDED (ctype l) <-> atype l)
+let padded (l:lens) : (lens in PADDED (stype l) <-> vtype l)
     = del Xml.WS . l
 
 (* DTD taken from http://www.apple.com/DTDs/PropertyList-1.0.dtd *)
@@ -44,7 +44,7 @@ let padded (l:lens) : (lens in PADDED (ctype l) <-> atype l)
 *)
 
 let pstring (spaces:string in Xml.WS) (l:lens)
-    : (lens in Xml.ELT "string" (ctype l) <-> atype l)
+    : (lens in Xml.ELT "string" (stype l) <-> vtype l)
     = pvalue spaces "string" l
 
 (* http://tools.ietf.org/html/rfc1421 pages 12-3
@@ -56,7 +56,7 @@ let pstring (spaces:string in Xml.WS) (l:lens)
    The character referenced by the index is placed in the output string.
    These characters, identified in Table 1, are selected so as to be
    universally representable, and the set excludes characters with
-   particular significance to SMTP (e.g., ".", "<CR>", "<LF>").
+   particular significance to SMTP (e.g., ".", "<k:CR>", "<k:LF>").
 
    Special processing is performed if fewer than 24 bits are available
    in an input group at the end of a message.  A full encoding quantum
@@ -82,16 +82,16 @@ let BASE64ENDING : regexp =
   BASE64QUANTUM | BASE64CHAR{3} . "=" | BASE64CHAR{2} . "=="
 let BASE64 : regexp = BASE64QUANTUM+ . BASE64ENDING?
 
-let pdata (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED BASE64))
-  : (lens in Xml.ELT "data" (ctype l) <-> atype l)
+let pdata (spaces:string in Xml.WS) (l:lens where subset (stype l) (PADDED BASE64))
+  : (lens in Xml.ELT "data" (stype l) <-> vtype l)
   = pvalue spaces "data" l
 
 (* TODO ISO 8601 calls 19 valid way to refer to the 20th century, etc. *)
 let NUM2 : regexp = DIGIT{2}
 let ISO8601_DATE : regexp = ISO8601.Date.COMPLETE . "T".NUM2.":".NUM2.":".NUM2."Z"
 
-let pdate (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED ISO8601_DATE))
-  : (lens in Xml.ELT "date" (ctype l) <-> atype l)
+let pdate (spaces:string in Xml.WS) (l:lens where subset (stype l) (PADDED ISO8601_DATE))
+  : (lens in Xml.ELT "date" (stype l) <-> vtype l)
   = pvalue spaces "date" l
 
 (* Numerical primitives
@@ -130,16 +130,16 @@ test (pbool "" "yes" "no").put "no" into "<true/>" = "<false/>"
 let PLUSMINUS : regexp = '+' | '-'
 
 let REAL : regexp = PLUSMINUS? . DIGIT+ . ( '.' . DIGIT* )? . ("E" . PLUSMINUS . DIGIT+)?
-let preal (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED REAL))
-  : (lens in Xml.ELT "real" (ctype l) <-> atype l)
+let preal (spaces:string in Xml.WS) (l:lens where subset (stype l) (PADDED REAL))
+  : (lens in Xml.ELT "real" (stype l) <-> vtype l)
   = pvalue spaces "real" l
 
 test (preal "  " REAL).get "<real>+3.01E-10</real>" = "+3.01E-10"
 test (preal "  " REAL).create "-1" = "  <real>-1</real>"
 
 let INTEGER : regexp = PLUSMINUS? . DIGIT+
-let pinteger (spaces:string in Xml.WS) (l:lens where subset (ctype l) (PADDED INTEGER))
-  : (lens in Xml.ELT "integer" (ctype l) <-> atype l)
+let pinteger (spaces:string in Xml.WS) (l:lens where subset (stype l) (PADDED INTEGER))
+  : (lens in Xml.ELT "integer" (stype l) <-> vtype l)
   = pvalue spaces "integer" l
 
 test (pinteger "  " INTEGER).get "<integer>120</integer>" = "120"
@@ -170,13 +170,13 @@ let empty_array (spaces:string in Xml.WS)
 let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R+
 
 let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
-  : (lens in NONEMPTY_ARRAY (ctype l) <-> (atype l)+ )
-  = Xml.elt spaces "array" <parray:l>+
+  : (lens in NONEMPTY_ARRAY (stype l) <-> (vtype l)+ )
+  = Xml.elt spaces "array" (dictionary_match "parray" l)+
 
 let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
 
 let parray (spaces:string in Xml.WS) (l:lens where lens_iterable l)
-  : (lens in ARRAY (ctype l) <-> (atype l)* )
+  : (lens in ARRAY (stype l) <-> (vtype l)* )
   = empty_array spaces | nonempty_array spaces l
 
 let larray = parray "" (pinteger "" (copy INTEGER . ins ";"))
@@ -186,7 +186,7 @@ test larray.put "5;4;3;" into "<array/>" =
   "<array><integer>5</integer><integer>4</integer><integer>3</integer></array>"
 
 let pdict (spaces:string in Xml.WS) (l:lens)
-  : (lens in Xml.ELT "dict" (ctype l) <-> atype l)
+  : (lens in Xml.ELT "dict" (stype l) <-> vtype l)
   = Xml.elt spaces "dict" l
 
 let EMPTY_DICT = Xml.WS . Xml.EMPTYELT "dict"
@@ -213,7 +213,7 @@ let VALID_KV (spaces:string in Xml.WS) (K:regexp) (v:lens) : bool =
   lens_iterable (pkey spaces K . v)
 
 let kvpair (spaces:string in Xml.WS) (K:regexp) (v:lens where lens_splittable (KEY K) v)
-  : (lens in KVELT K (ctype v) <-> KV K (atype v))
+  : (lens in KVELT K (stype v) <-> KV K (vtype v))
   = pkey spaces K . v
 
 let NONEMPTY_HDICT (K:regexp) (V:regexp) : regexp =
@@ -221,15 +221,15 @@ let NONEMPTY_HDICT (K:regexp) (V:regexp) : regexp =
 
 let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp) 
     (v:lens where VALID_KV (indent spaces) KEYS v)
-  : (lens in NONEMPTY_HDICT KEYS (ctype v) <-> (KV KEYS (atype v))+)
+  : (lens in NONEMPTY_HDICT KEYS (stype v) <-> (KV KEYS (vtype v))+)
   = let kv = kvpair (indent spaces) KEYS v in
-    pdict spaces <hdict:kv>+
+    pdict spaces (dictionary_match "hdict" kv)+
 
 let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
 
 let phdict (spaces:string in Xml.WS) (KEYS:regexp) 
     (v:lens where VALID_KV (indent spaces) KEYS v)
-  : (lens in HDICT KEYS (ctype v) <-> (KV KEYS (atype v))* )
+  : (lens in HDICT KEYS (stype v) <-> (KV KEYS (vtype v))* )
   = empty_dict spaces | nonempty_hdict spaces KEYS v
 
 (* precomputed indentation *)
@@ -256,15 +256,15 @@ test lhdict.put "bar=5;foo=4;" into "<dict/>" =
 *)
 let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> (v:lens where VALID_KV spaces2 KEYS v)))
-  : (lens in NONEMPTY_HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KV KEYS (atype (mk_v (indent spaces))))+)
+  : (lens in NONEMPTY_HDICT KEYS (stype (mk_v (indent spaces))) <-> (KV KEYS (vtype (mk_v (indent spaces))))+)
   = let inner_spaces = indent spaces in
     let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
-    pdict spaces <hsdict:kv>+
+    pdict spaces (dictionary_match "hsdict" kv)+
 
 let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> 
 	  (v:lens where VALID_KV spaces2 KEYS v)))
-  : (lens in HDICT KEYS (ctype (mk_v (indent spaces))) <-> (KV KEYS (atype (mk_v (indent spaces))))* )
+  : (lens in HDICT KEYS (stype (mk_v (indent spaces))) <-> (KV KEYS (vtype (mk_v (indent spaces))))* )
   = empty_dict spaces | nonempty_hsdict spaces KEYS mk_v
 
 let lhsdict = 
@@ -289,14 +289,14 @@ let KVELTS (spec:(regexp*lens) List.t) : regexp List.t =
   List.map{regexp*lens}{regexp}
     (fun (p:regexp*lens) ->
        let k,v = p in
-       KVELT k (ctype v))
+       KVELT k (stype v))
     spec
 
 let KVS (spec:(regexp*lens) List.t) : regexp List.t =
   List.map{regexp*lens}{regexp}
     (fun (p:regexp*lens) ->
        let k,v = p in
-       KV k (atype v))
+       KV k (vtype v))
     spec       
 
 let VALID_KVS (spec:(regexp*lens) List.t) =
@@ -663,7 +663,7 @@ let PLIST (BODY:regexp) : regexp =
   Xml.ATTR_ELT "plist" (Xml.ATTR "version" "1.0") BODY
     
 let plist (l:lens)
-  : (lens in ((Xml.PROLOG DTD_ID)? . PLIST (ctype l)) <-> atype l)
+  : (lens in ((Xml.PROLOG DTD_ID)? . PLIST (stype l)) <-> vtype l)
   = del (Xml.PROLOG DTD_ID)? .
     Xml.attr1_elt_open "" "plist" "version" (del "1.0") . 
     l . 

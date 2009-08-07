@@ -15,7 +15,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/lenses/list.boom                                                *)
+(* /lenses/list.boom                                                          *)
 (* List module                                                                *)
 (* $Id$ *)
 (*******************************************************************************)
@@ -192,8 +192,8 @@ when given the given permutation can be applied to the given list.
 \LENSSECTION{@permutations@} The operator @permutations@ returns a list of
 all possible permutations for lists of a given length.
 
-#* let permutations (n:int where (bgeq n 0)) : (int t) t
-## = Native.Prelude.permutations n
+#* let permutations : (n:int where (n geq 0)) -> (int t) t
+## = Native.Prelude.permutations
 
 #* test permutations 0 = (Cons{int t}(Nil{int},
 #*                        Nil{int t}))

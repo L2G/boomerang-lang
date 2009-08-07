@@ -228,7 +228,7 @@ composers shown above.
 
 First we define a lens @c@ that handles a single @<composer>@
 element. It uses a number of functions defined in our XML library, as
-well as primtives for copying (@copy@) and deleting (@del@) strings,
+well as primitives for copying (@copy@) and deleting (@del@) strings,
 and for concatenating lenses (@.@).
 
 ## module Main = 
@@ -307,7 +307,7 @@ string.
 
 \section{Getting Started}
 
-The best way to to get going with Boomerang, is by working through the
+The best way to get going with Boomerang, is by working through the
 next ``QuickStart'' chapter. It contains a lightning tour of some of
 the main features of Boomerang the language and the system.  After
 that, we suggest exploring the @examples@ directory, which contains
@@ -325,7 +325,7 @@ Good luck and have fun!
 
 \chapter{The Boomerang Language}
 
-The Boomerang language provides convienent concrete syntax for writing
+The Boomerang language provides convenient concrete syntax for writing
 lenses (and strings, regular expressions, canonizers, etc.). The
 concrete syntax is based on an explicitly-typed core fragment of
 OCaml. It includes user-defined datatypes and functions, modules, unit
@@ -334,6 +334,104 @@ accessing the components of lenses.
 
 \input{blexer}
 \input{bparser}
+
+\section{Coercions}
+
+Some coercions are automatically inserted by the type checker on
+programs that use subtyping. These coercions are
+
+\begin{itemize}
+\item @string@ to @regexp@ (can be made manually using @str@)
+\item @regexp@ to @aregexp@ (can be made manually using @rxlift@)
+\item @regexp@ to @lens@ (can be made manually using @copy@)
+\end{itemize}
+
+\section{Operators}
+
+To make it simple to write lenses and understand them, Boomerang has
+some operators that desugars into functions defined in Boomerang
+libraries.
+
+In the table~\ref{tab:postfix}, the notation @[type]@
+should be replaced by the type of @expr@, for example, @[a-z]?@
+desugars to @regexp_iter [a-z] 0 1@.
+
+\begin{table}[hb]
+\centering
+\begin{tabular}{cll}
+operator & applied to & resolves to \\\hline
+ @=@    & anything (polymorphic) & @equals{type}@ \\
+ @gt@    & @int@ & @bgt@ \\
+ @lt@    & @int@ & @blt@ \\
+ @geq@   & @int@ & @bgeq@\\
+ @leq@   & @int@ & @bleq@\\
+ @&&@   & @bool@ & @land@\\
+ @||@   & @bool@ & @lor@ \\
+ @||@   & @lens@ & @union@\\
+ @|@    & @regexp@ & @union@\\
+ @|@    & @lens@ & @disjoint_union@\\
+ @&@    & @regexp@ & @inter@\\
+ @-@    & @regexp@ & @diff@\\
+ @.@    & @string@ & @string_concat@\\
+ @.@    & @regexp@ & @regexp_concat@\\
+ @.@    & @aregexp@ & @aregexp_concat@\\
+ @.@    & @lens@ & @lens_concat@\\
+ @.@    & @canonizer@ & @canonizer_concat@\\
+ @~@    & @lens@ & @lens_swap@\\
+\end{tabular}
+\caption{Infix operators}
+\end{table}
+
+\begin{table}[hb]
+\centering
+\begin{tabular}{lll}
+operator & applied to & resolves to \\\hline
+@expr+@        & @regexp@, @aregexp@, @canonizer@ & @[type]_iter expr 1 (-1)@\\
+@expr+@        & @lens@      & @lens_plus@\\
+@expr*@        & @regexp@, @aregexp@, @canonizer@ & @[type]_iter expr 0 (-1)@\\
+@expr*@        & @lens@      & @lens_star@\\
+@expr?@        & @regexp@, @aregexp@, @canonizer@ & @[type]_iter expr 0 1@\\
+@expr?@        & @lens@      & @lens_option@\\
+@expr{n,m}@    & @regexp@, @aregexp@, @lens@, @canonizer@ & @[type]_iter expr n m@\\
+@expr{n,}@     & @regexp@, @aregexp@, @lens@, @canonizer@ & @[type]_iter expr n (-1)@\\
+\end{tabular}
+\caption{Postfix operators}
+\label{tab:postfix}
+\end{table}
+
+\begin{table}[hb]
+\centering
+\begin{tabular}{lll}
+notation     & resolves to \\\hline
+@lens.bij@           & @bij@\\
+@lens.get@           & @get@\\
+@lens.put@           & @put@\\
+@lens.create@        & @create@\\
+@lens.stype@         & @stype@\\
+@lens.domain_type@   & @stype@\\
+@lens.astype@        & @astype@\\
+@lens.vtype@         & @vtype@\\
+@lens.codomain_type@ & @vtype@\\
+@lens.avtype@        & @avtype@\\
+\end{tabular}
+\caption{Lens record-style projection notation}
+\end{table}
+
+\begin{table}[hb]
+\centering
+\begin{tabular}{lll}
+notation & desugars to \\\hline
+@<aregexp>@           & @aregexp_match (greedy 0 "")@ \SHOWCOMMENT{Check this!}\\
+@<lens>@              & @lens_match (greedy 0 "")@\\
+@<tag:aregexp>@       & @aregexp_match@\\
+@<tag:lens>@          & @lens_match@\\
+@{:wc:we:wd:aregexp}@ & @aregexp_weight@\\
+@{:wc:we:wd:lens}@    & @lens_weight@\\
+@lens in S <-> V@     & @in_lens_type@\\
+@lens in S <=> V@     & @in_bij_lens_type@\\
+\end{tabular}
+\caption{Other notations}
+\end{table}
 
 \chapter{The Boomerang Libraries}
 
@@ -349,13 +447,15 @@ Section~\ref{sec:unittests}.
 More thorough descriptions of most of the primitive lenses can be
 found in our technical papers~\cite{Boomerang07,QuotientLenses08}.  The
 long versions of those papers include proofs that all of our
-primtitives are ``well behaved,''. However, for getting up to speed
+primititives are ``well behaved,''. However, for getting up to speed
 with Boomerang programming, the shorter (conference) versions should
 suffice.
 
 \input{core}
 \input{prelude}
 \input{list}
+\input{sort}
+
 
 \chapter{The Boomerang System}
 
@@ -429,7 +529,7 @@ look at the files:
 @src/blenses.ml@                    & native definitions of lenses and canonizers \\
 @examples/*@                        & many real-world lenses\\
 @src/bcompiler.ml@                  & the Boomerang interpreter\\
-@src/sync.ml@                       & a synchronization algorithm\\
+%@src/sync.ml@                       & a synchronization algorithm\\
 @src/toplevel.ml@                   & the top-level program\\
 \end{tabular}
 
@@ -438,7 +538,7 @@ look at the files:
 {\it Under construction.  For now, see the demos in the @examples@
   directory.}
 
-In the @boomerang/examples@ directory, you can find some of the other
+In the @examples@ directory, you can find some of the other
 Boomerang programs we have written:
 
 \begin{itemize}
@@ -452,9 +552,6 @@ Boomerang programs we have written:
 We will continue adding to this set of examples as we tidy and package
 our code... and we hope you'll write and let us know about the lenses
 you write!
-
-\section{BiBTeX file synchronization}
-\input{Bibtex-sync}
 
 \bibliographystyle{plainnat}
 \bibliography{../../writing/papers/harmony,../../writing/papers/onlybcpshouldmodify/bcp}

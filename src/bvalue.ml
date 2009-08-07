@@ -14,14 +14,14 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bvalue.ml                                                   *)
+(* /src/bvalue.ml                                                             *)
 (* Boomerang run-time values                                                  *)
 (* $Id$ *)
 (******************************************************************************)
 
 (* module imports and abbreviations *)
 open Bident
-module L = Blenses.DLens
+module L = Blenses.MLens
 module C = Blenses.Canonizer
 
 (* function abbreviations *)
@@ -37,6 +37,9 @@ type t =
   | Chr of Info.t * char
   | Str of Info.t * string
   | Rx  of Info.t * Brx.t
+  | Arx of Info.t * Barx.t
+  | Kty of Info.t * Blenses.ktype
+  | Mty of Info.t * Blenses.mtype
   | Lns of Info.t * L.t
   | Can of Info.t * C.t
   | Fun of Info.t * (t -> t)
@@ -50,6 +53,9 @@ let info_of_t = function
   | Chr(i,_)     -> i
   | Str(i,_)     -> i
   |  Rx(i,_)     -> i
+  | Arx(i,_)     -> i
+  | Kty(i,_)     -> i
+  | Mty(i,_)     -> i
   | Lns(i,_)     -> i
   | Can(i,_)     -> i
   | Fun(i,_)     -> i
@@ -79,9 +85,15 @@ let rec equal v1 v2 = match v1,v2 with
       Brx.equiv (Brx.mk_string s) r
   | Rx(_,r1), Rx(_,r2) -> 
       Brx.equiv r1 r2
+  | Arx(_,r1), Arx(_,r2) -> 
+      Barx.equiv r1 r2
+  | Kty(_,k1), Kty(_,k2) ->
+      Blenses.ktype_equiv k1 k2
+  | Mty(_,m1), Mty(_,m2) ->
+      Blenses.mtype_equiv m1 m2
   | Lns _, Lns _ -> 
       Error.simple_error (sprintf "Cannot test equality of lenses.")
-  | Can _, Can _ -> 
+  | Can _, Can _ ->
       Error.simple_error (sprintf "Cannot test equality of canonizers.")
   | Fun _, Fun _ -> 
       Error.simple_error (sprintf "Cannot test equality of functions.")
@@ -108,6 +120,9 @@ and format = function
   | Chr(_,c)     -> Util.format "'%s'" (Char.escaped c)
   | Str(_,rs)    -> Util.format "\"%s\"" rs
   | Rx(_,r)      -> Brx.format_t r
+  | Arx(_,a)     -> Barx.format_t a
+  | Kty(_,k)     -> Blenses.format_ktype k
+  | Mty(_,m)     -> Blenses.format_mtype m
   | Lns(_,l)     -> L.format_t l
   | Can(_,c)     -> C.format_t c
   | Fun(_,f)     -> Util.format "<function>"
@@ -132,6 +147,9 @@ let rec sort_string_of_t = function
   | Chr _ -> "char"
   | Str _ -> "string"
   | Rx _  -> "regexp"
+  | Arx _ -> "aregexp"
+  | Kty _ -> "skeleton_set"
+  | Mty _ -> "resource_set"
   | Lns _ -> "lens"
   | Can _ -> "canonizer"
   | Fun _ -> "<function>"
@@ -176,11 +194,23 @@ let get_r v = match v with
     Rx(_,r)  -> r
   | _ -> conversion_error "regexp" v
       
+let get_a v = match v with
+    Arx(_,a)  -> a
+  | _ -> conversion_error "aregexp" v
+      
+let get_k v = match v with
+    Kty(_,k)  -> k
+  | _ -> conversion_error "skeleton_set" v
+      
+let get_m v = match v with
+    Mty(_,m)  -> m
+  | _ -> conversion_error "resource_set" v
+      
 let get_l v = match v with 
   | Lns(_,l) -> l
   | _ -> conversion_error "lens" v
 
-let get_q v = match v with 
+let get_q v = match v with
   | Can(_,q) -> q
   | _ -> conversion_error "canonizer" v
 
@@ -204,6 +234,9 @@ let mk_i i n = Int(i,n)
 let mk_c i c = Chr(i,c)
 let mk_s i s = Str(i,s)
 let mk_r i r = Rx(i,r)
+let mk_a i a = Arx(i,a)
+let mk_k i k = Kty(i,k)
+let mk_m i m = Mty(i,m)
 let mk_l i l = Lns(i,l)
 let mk_q i q = Can(i,q)
 let mk_p i (p1,p2) = Par(i,p1,p2)
@@ -216,6 +249,9 @@ let mk_ifun i f = Fun(i,(fun v -> f (get_i v)))
 let mk_cfun i f = Fun(i,(fun v -> f (get_c v)))
 let mk_sfun i f = Fun(i,(fun v -> f (get_s v)))
 let mk_rfun i f = Fun(i,(fun v -> f (get_r v)))
+let mk_afun i f = Fun(i,(fun v -> f (get_a v)))
+let mk_kfun i f = Fun(i,(fun v -> f (get_k v)))
+let mk_mfun i f = Fun(i,(fun v -> f (get_m v)))
 let mk_lfun i f = Fun(i,(fun v -> f (get_l v)))
 let mk_qfun i f = Fun(i,(fun v -> f (get_q v)))
 let mk_pfun i f = Fun(i,(fun v -> f (get_p v)))
@@ -252,3 +288,117 @@ let mk_list i l =
 
 let mk_listfun i f = 
   Fun(i,(fun v -> f (get_list v)))
+
+(* option utilities *)
+let none = Id.mk (Info.M "None built-in") "None"
+let some = Id.mk (Info.M "Some built-in") "Some"
+let option_qid =
+  let i = Info.M "option built-in" in
+  Qid.mk [Id.mk i "Prelude"] (Id.mk i "option")
+ 
+let get_option v =
+  let i, xo = get_v v in
+  match i with
+  | _ when Id.equal i none -> None
+  | _ when Id.equal i some ->
+      (match xo with
+       | None -> conversion_error "option" v
+       | Some x -> Some x
+      )
+  | _ -> conversion_error "option" v
+
+let mk_option i xo =
+  match xo with
+  | None -> Vnt (i, option_qid, none, None)
+  | Some x -> Vnt (i, option_qid, some, Some x)
+
+let mk_optionfun i f = 
+  Fun (i, (fun v -> f (get_option v)))
+
+(* species utilities *)
+let positional = Id.mk (Info.M "Positional built-in") "Positional"
+let diffy = Id.mk (Info.M "Diffy built-in") "Diffy"
+let greedy = Id.mk (Info.M "Greedy built-in") "Greedy"
+let setlike = Id.mk (Info.M "Setlike built-in") "Setlike"
+let species_qid =
+  let i = Info.M "species built-in" in
+  Qid.mk [Id.mk i "Core"] (Id.mk i "species")
+ 
+let get_species v =
+  let i, xo = get_v v in
+  match i with
+  | _ when Id.equal i positional -> Btag.Positional
+  | _ when Id.equal i diffy ->
+      (match xo with
+       | None -> conversion_error "species" v
+       | Some x -> Btag.Diffy (get_b x)
+      )
+  | _ when Id.equal i greedy -> Btag.Greedy
+  | _ when Id.equal i setlike -> Btag.Setlike
+  | _ -> conversion_error "species" v
+
+let mk_species i sp =
+  match sp with
+  | Btag.Positional -> Vnt (i, species_qid, positional, None)
+  | Btag.Diffy b -> Vnt (i, species_qid, diffy, Some (mk_b i b))
+  | Btag.Greedy -> Vnt (i, species_qid, greedy, None)
+  | Btag.Setlike -> Vnt (i, species_qid, setlike, None)
+
+let mk_speciesfun i f =
+  Fun (i, (fun v -> f (get_species v)))
+
+(* predicate utilities *)
+let threshold = Id.mk (Info.M "Threshold built-in") "Threshold"
+let predicate_qid =
+  let i = Info.M "predicate built-in" in
+  Qid.mk [Id.mk i "Core"] (Id.mk i "predicate")
+ 
+let get_predicate v =
+  let i, xo = get_v v in
+  match i with
+  | _ when Id.equal i threshold ->
+      (match xo with
+       | None -> conversion_error "predicate" v
+       | Some x -> Btag.Threshold (get_i x)
+      )
+  | _ -> conversion_error "predicate" v
+
+let mk_predicate i p =
+  match p with
+  | Btag.Threshold t -> Vnt (i, predicate_qid, threshold, Some (mk_i i t))
+
+let mk_predicatefun i f =
+  Fun (i, (fun v -> f (get_predicate v)))
+
+(* tag utilities *)
+let tag = Id.mk (Info.M "Tag built-in") "Tag"
+let tag_qid =
+  let i = Info.M "tag built-in" in
+  Qid.mk [Id.mk i "Core"] (Id.mk i "tag")
+ 
+let get_tag v =
+  let i, xo = get_v v in
+  match i with
+  | _ when Id.equal i tag ->
+      (match xo with
+       | None -> conversion_error "tag" v
+       | Some x ->
+           let x, name = get_p x in
+           let species, predicate = get_p x in
+           Btag.of_elements (get_species species) [get_predicate predicate] (get_s name)
+      )
+  | _ -> conversion_error "tag" v
+
+let mk_tag i t =
+  let species, predicates, name = Btag.to_elements t in
+  let predicate =
+    match predicates with
+    | [] -> Btag.Threshold 0
+    | [p] -> p
+    | _ -> assert false
+  in
+  Vnt (i, tag_qid, tag, Some (mk_p i (mk_p i (mk_species i species, mk_predicate i  predicate), mk_s i name)))
+
+let mk_tagfun i f =
+  Fun (i, (fun v -> f (get_tag v)))
+

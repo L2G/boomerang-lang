@@ -16,7 +16,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/parser.mly                                                  *)
+(* /src/parser.mly                                                            *)
 (* Boomerang parser                                                           *)
 (* $Id$ *)
 (******************************************************************************)
@@ -167,35 +167,35 @@ let rec info_of_nonempty_list f l = match l with
   | [h] -> f h
   | h::t -> m (f h) (info_of_nonempty_list f t)
 
-let info_of_rules = 
+let info_of_rules =
   info_of_nonempty_list info_of_rule
 
 let add_aexp ei (i,ys) = (me1 ei i,ei::ys)
 
-let add_atom ai (i,xs,bs) = match ai with                    
+let add_atom ai (i,xs,bs) = match ai with
   | Misc.Left e1 -> (me1 e1 i,e1::xs,bs)
-  | Misc.Right (l1,e1) -> 
-      let i1 = Id.info_of_t l1 in 
+  | Misc.Right (l1,e1) ->
+      let i1 = Id.info_of_t l1 in
       (m i1 i, EVar(i,Qid.t_of_id l1)::xs,(l1,e1)::bs)
 
 %}
 
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
-%token <Info.t> UNIT BOOL INT CHAR STRING REGEXP LENS CANONIZER FORALL WHERE
-%token <Bident.Id.t> STR RXSTR UIDENT LIDENT QUALIDENT TYVARIDENT CSET NSET
+%token <Info.t> UNIT BOOL INT CHAR STRING REGEXP AREGEXP SKELETONS RESOURCES LENS CANONIZER FORALL WHERE
+%token <Bident.Id.t> STR UIDENT LIDENT QUALIDENT TYVARIDENT CSET NSET
 %token <Info.t * char> CHARACTER
 %token <Info.t * int> INTEGER
 %token <Info.t * bool> BOOLEAN
 %token <Info.t> CEX
 %token <Info.t * float> FLOAT
-%token <Info.t> HASH LBRACE RBRACE LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
+%token <Info.t> HASH LBRACE RBRACE LBRACECOLON LLIST LBRACK RBRACK LPAREN RPAREN LANGLE RANGLE   
 %token <Info.t> ARROW DARROW DEQARROW EQARROW
 %token <Info.t> BEGIN END GRAMMAR AND FUN LET IN TEST MATCH WITH
-%token <Info.t> SEMI COMMA DOT EQUAL COLON BACKSLASH SLASH
-%token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK 
+%token <Info.t> SEMI COMMA DOT EQUAL COLON COLONCOLON BACKSLASH SLASH
+%token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK
 %token <Info.t> LT GT LEQ GEQ  
-%token <Info.t> CTYPE ATYPE BIJ GET PUT CREATE CANONIZE CHOOSE INTO
+%token <Info.t> STYPE VTYPE ASTYPE AVTYPE BIJ GET PUT CREATE CANONIZE CHOOSE INTO
 %token <Info.t> ERROR
 
 %start modl uid qid
@@ -624,8 +624,10 @@ rewriteexp:
        \alt <AppExp> \lit{@.create@} <AppExp>       
        \alt <AppExp> \lit{@.canonize@} <AppExp> 
        \alt <AppExp> \lit{@.choose@} <AppExp>
-       \alt <AppExp> \lit{@.ctype@}
-       \alt <AppExp> \lit{@.atype@}
+       \alt <AppExp> \lit{@.stype@}
+       \alt <AppExp> \lit{@.vtype@}
+       \alt <AppExp> \lit{@.astype@}
+       \alt <AppExp> \lit{@.avtype@}
        \alt <AppExp> \lit{@.domain_type@}
        \alt <AppExp> \lit{@.codomain_type@}
        \alt <AppExp> \lit{@.bij@}
@@ -634,28 +636,34 @@ rewriteexp:
 lenscomponentexp: 
   | appexp GET appexp
       { let i = me $1 $3 in 
-        mk_bin_op i (mk_core_var "get") $1 $3 }
+        mk_bin_op i (mk_core_var i "get") $1 $3 }
   | appexp PUT appexp INTO appexp
       { let i = me $1 $3 in
-        mk_tern_op i (mk_core_var "put") $1 $3 $5 }
+        mk_tern_op i (mk_core_var i "put") $1 $3 $5 }
   | appexp CREATE appexp
       { let i = me $1 $3 in
-        mk_bin_op i (mk_core_var "create") $1 $3 }
+        mk_bin_op i (mk_core_var i "create") $1 $3 }
   | appexp CANONIZE appexp
       { let i = me $1 $3 in
-        mk_bin_op i (mk_core_var "canonize") $1 $3 }
+        mk_bin_op i (mk_core_var i "canonize") $1 $3 }
   | appexp CHOOSE appexp
       { let i = me $1 $3 in
-        mk_bin_op i (mk_core_var "choose") $1 $3 }
-  | appexp CTYPE
+        mk_bin_op i (mk_core_var i "choose") $1 $3 }
+  | appexp STYPE
       { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var "ctype") $1 }
-  | appexp ATYPE
+        mk_app i (mk_core_var i "stype") $1 }
+  | appexp VTYPE
       { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var "atype") $1 }
+        mk_app i (mk_core_var i "vtype") $1 }
+  | appexp ASTYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var i "astype") $1 }
+  | appexp AVTYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var i "avtype") $1 }
   | appexp BIJ 
       { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var "bij") $1 }
+        mk_app i (mk_core_var i "bij") $1 }
 
 minusexp:
   | appexp MINUS appexp
@@ -725,12 +733,14 @@ tyexp:
   | aexp 
       { $1 }
 
+
 /* atomic expressions */
 #{@}
 <AExp> ::= \lit{@(@} <Exp> \lit{@)@}
       \alt \lit{@begin@} <Exp> \lit{@end@}
       \alt <Qid>
       \alt <MatchExp>
+      \alt <WeightExp>
       \alt \lit{@#@} \lit{@{@} <SortList> \lit{@}@} <List>
       \alt <Character>
       \alt <Integer>
@@ -740,7 +750,7 @@ tyexp:
       \alt <String>
       \alt <RegExpString>
       \alt \lit{@()@}
-      \alt \lit{@grammar@} <Productions> \lit{@end@} 
+      \alt \lit{@grammar@} <Productions> \lit{@end@}
 
 #{#}
 
@@ -755,6 +765,9 @@ aexp:
       { mk_qid_var $1 }
 
   | matchexp
+      { $1 }
+
+  | weightexp
       { $1 }
 
   | HASH LBRACE sort LLIST list 
@@ -790,46 +803,54 @@ aexp:
       { let i,s = $1 in 
         EString(i,s) }
 
-  | RXSTR
-      { let i,s = $1 in 
-        mk_rx i (EString(i,s)) }
-
   | LPAREN RPAREN
       { EUnit(m $1 $2) }
-  
+
   | GRAMMAR productions END
       { EGrammar(m $1 $3, $2) }
 
-matchexp:
 #{@}
-<MatchExp> ::= \ltsym <Qid> \gtsym
-      \alt \ltsym <LIdent> \lit{@:@} <Qid> \gtsym
-      \alt \ltsym \lit{@~@} <Qid> \gtsym
-      \alt \ltsym \lit{@~@} <LIdent> \lit{@:@} <Qid> \gtsym
-      \alt \ltsym \lit{@~@} \lit{@{@} <Float> \lit{@}@} <Qid> \gtsym
-      \alt \ltsym \lit{@~@} \lit{@{@} <Float> \lit{@}@}  <LIdent> \lit{@:@} <Qid> \gtsym
+<MatchExp> ::= \ltsym <Exp> \gtsym
+      \alt \ltsym <Exp> \lit{@:@} <Exp> \gtsym
+
+#{#}
+
+matchexp:
+  | LANGLE exp RANGLE
+      { let i = $1 in
+        let pair a b = EPair (i, a, b) in
+        let name = EString (i, "") in
+        let predicate = mk_app i (mk_core_var i "Threshold") (EInteger (i, 0)) in
+        let species = mk_core_var i "Greedy" in
+        let tag = mk_app i (mk_core_var i "Tag") (pair (pair species predicate) name) in
+        mk_over (m $1 $3) OMatch [tag; $2] }
+  | LANGLE exp COLON exp RANGLE
+      { mk_over (m $1 $5) OMatch [$2; $4] }
+
+#{@}
+<WeightExp> ::= \lit{@{:@} \lit{@!@}? <Integer> \lit{@:@} <Exp> \lit{@}@}
 \end{grammar}
 #{#}
 
-  | LANGLE qid RANGLE
-      { mk_match (m $1 $3) "" $2 }
+weightexp:
+  | LBRACECOLON weight COLON exp RBRACE
+      { let b =
+          let x =
+            if fst $2
+            then None
+            else Some (EString (m $1 $3, ""))
+          in
+          EBoolean (m $1 $3, x)
+        in
+        let w = EInteger (m $1 $3, snd $2) in
+        mk_over (m $1 $5) OWeight [b;w;$4] }
 
-  | LANGLE LIDENT COLON qid RANGLE
-      { mk_match (m $1 $5) (Id.string_of_t $2) $4 }
+weight:
+  | weightforce INTEGER { $1, snd $2 }
 
-  | LANGLE TILDE qid RANGLE 
-      { mk_sim_match (m $1 $4) 1.0 "" $3 }
-
-  | LANGLE TILDE LIDENT COLON qid RANGLE 
-      { mk_sim_match (m $1 $6) 1.0 (Id.string_of_t $3) $5 }
-
-  | LANGLE TILDE LBRACE FLOAT RBRACE qid RANGLE 
-      { let _,f = $4 in 
-        mk_sim_match (m $1 $7) f "" $6 }
-
-  | LANGLE TILDE LBRACE FLOAT RBRACE LIDENT COLON qid RANGLE 
-      { let _,f = $4 in 
-        mk_sim_match (m $1 $9) f (Id.string_of_t $6) $8 }
+weightforce:
+  | BANG { true }
+  |  { false }
 
 /* --------- BRANCHES ---------- */
 #{@}
@@ -865,7 +886,7 @@ branch_list2:
       { let (i1,p,e) = $2 in 
         let (i2,l) = $3 i1 in 
         (fun _ -> (m $1 i2, (p,e)::l)) }
-  
+
 /* --------- REPETITIONS ---------- */
 #{@}
 \subsubsection{Repetitions}
@@ -906,29 +927,29 @@ rep:
 #{#}
 list:
   | RBRACK 
-      { $1, (fun i s -> ETyApp(i,mk_list_var "Nil",s)) }
+      { $1, (fun i s -> ETyApp(i,mk_list_var i "Nil",s)) }
 
   | barexp RBRACK 
       { ($2, 
          (fun i s -> 
             mk_app i 
-              (ETyApp(i,mk_list_var "Cons",s))
-              (EPair(i,$1,ETyApp(i,mk_list_var "Nil",s))))) }
+              (ETyApp(i,mk_list_var i "Cons",s))
+              (EPair(i,$1,ETyApp(i,mk_list_var i "Nil",s))))) }
 
   | barexp SEMI list
     { let i3,mk = $3 in 
       (i3, 
        (fun i s -> 
           mk_app i
-            (ETyApp(i,mk_list_var "Cons",s))
+            (ETyApp(i,mk_list_var i "Cons",s))
             (EPair(i,$1, mk i s)))) }
 
 
-/* --------- GRAMMARS ----------- */ 
+/* --------- GRAMMARS ----------- */
 #{@}
 \subsubsection{Grammars}
 \begin{grammar}
-<Atom> ::= <AExp> 
+<Atom> ::= <AExp>
       \alt <LIdent> \lit{@:@} <Qid>
 
 <Atoms> ::= <Atom>+
@@ -948,15 +969,15 @@ list:
 atom:
   | aexp
       { Misc.Left $1 }
-  | LIDENT COLON aexp 
+  | LIDENT COLON aexp
       { Misc.Right ($1,$3) }
 
-atoms: 
+atoms:
   | atom atoms2
       { add_atom $1 $2 }
 
-atoms2: 
-  | 
+atoms2:
+  |
      { (Info.M "atoms",[],[]) }
   | atom atoms2
      { add_atom $1 $2 }
@@ -966,17 +987,17 @@ aexps:
       { add_aexp $1 $2 }
 
 aexps2:
-  | 
+  |
       { (Info.M "aexps", []) }
-  | aexp aexps2 
+  | aexp aexps2
       { add_aexp $1 $2 }
 
 rule:
   | atoms DARROW aexps
-     { let i1,xs,bs = $1 in        
-       let i3,ys = $3 in        
+     { let i1,xs,bs = $1 in
+       let i3,ys = $3 in
        Rule(m i1 i3,xs,ys,bs) }
-       
+
 rules:
   | rule rules2
     { $1 :: $2 }
@@ -986,14 +1007,14 @@ rules:
 rules2:
   |
     { [] }
-  | BAR rule rules2 
+  | BAR rule rules2
     { $2 :: $3 }
 
 production:
-  | LIDENT COLON COLON EQUAL rules
-    { let i1,_ = $1 in 
-      let i5 = info_of_rules $5 in 
-      Prod(m i1 i5,$1,$5) }
+  | LIDENT COLONCOLON EQUAL rules
+    { let i1,_ = $1 in
+      let i5 = info_of_rules $4 in
+      Prod(m i1 i5,$1,$4) }
 
 productions:
   | production productions2
@@ -1002,7 +1023,7 @@ productions:
 productions2:
   |
     { [] }
-  | AND production productions2 
+  | AND production productions2
     { $2 :: $3 }
 
 /* --------- IDENTIFIERS ---------- */
@@ -1077,55 +1098,55 @@ param:
 
   | LPAREN id COLON LENS IN QMARK DARROW appexp RPAREN
       { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "equiv") 
-	                    (mk_app i (mk_core_var "atype") (mk_var $2))
+        let p = mk_bin_op i (mk_core_var i "equiv") 
+	                    (mk_app i (mk_core_var i "vtype") (mk_var $2))
                             $8 in 
         let s = SRefine($2,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN QMARK DEQARROW appexp RPAREN
       { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "land")
-	                    (mk_bin_op i (mk_core_var "equiv") 
-	                                 (mk_app i (mk_core_var "atype") (mk_var $2))
+        let p = mk_bin_op i (mk_core_var i "land")
+	                    (mk_bin_op i (mk_core_var i "equiv") 
+	                                 (mk_app i (mk_core_var i "vtype") (mk_var $2))
                                          $8)
-			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
+			    (mk_app i (mk_core_var i "bij") (mk_var $2)) in
         let s = SRefine($2,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DARROW QMARK RPAREN
       { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "equiv") 
-	                    (mk_app i (mk_core_var "ctype") (mk_var $2))
+        let p = mk_bin_op i (mk_core_var i "equiv") 
+	                    (mk_app i (mk_core_var i "stype") (mk_var $2))
                             $6 in 
         let s = SRefine($2,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DEQARROW QMARK RPAREN
       { let i = m $1 $9 in 
-        let p = mk_bin_op i (mk_core_var "land")
-	                    (mk_bin_op i (mk_core_var "equiv") 
-	                                 (mk_app i (mk_core_var "ctype") (mk_var $2))
+        let p = mk_bin_op i (mk_core_var i "land")
+	                    (mk_bin_op i (mk_core_var i "equiv") 
+	                                 (mk_app i (mk_core_var i "stype") (mk_var $2))
                                          $6)
-			    (mk_app i (mk_core_var "bij") (mk_var $2)) in
+			    (mk_app i (mk_core_var i "bij") (mk_var $2)) in
         let s = SRefine($2,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
       { let i = m $1 $9 in 
-        let p = mk_tern_op i (mk_core_var "in_lens_type") (mk_var $2) $6 $8 in 
+        let p = mk_tern_op i (mk_core_var i "in_lens_type") (mk_var $2) $6 $8 in 
         let s = SRefine($2,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DEQARROW appexp RPAREN
       { let i = m $1 $9 in 
-        let p = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var $2) $6 $8 in 
+        let p = mk_tern_op i (mk_core_var i "in_bij_lens_type") (mk_var $2) $6 $8 in 
         let s = SRefine($2,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON STRING IN exp RPAREN
       { let i = m $1 $7 in 
-        let p = mk_bin_op i (mk_core_var "matches") $6 (mk_var $2) in 
+        let p = mk_bin_op i (mk_core_var i "matches") $6 (mk_var $2) in 
         let s = SRefine($2,SString,p) in
         Misc.Left (Param(i,$2,s)) }
 
@@ -1229,55 +1250,55 @@ bsort:
   | LPAREN LENS IN QMARK DARROW appexp RPAREN
       { let i = m $1 $7 in 
         let l = Id.mk i "_l" in 
-        let p = mk_bin_op i (mk_core_var "equiv") 
-	                    (mk_app i (mk_core_var "atype") (mk_var l))
+        let p = mk_bin_op i (mk_core_var i "equiv") 
+	                    (mk_app i (mk_core_var i "vtype") (mk_var l))
                             $6 in 
         SRefine(l,SLens,p) }
 
   | LPAREN LENS IN QMARK DEQARROW appexp RPAREN
       { let i = m $1 $7 in 
         let l = Id.mk i "_l" in 
-        let p = mk_bin_op i (mk_core_var "land")
-	                    (mk_bin_op i (mk_core_var "equiv") 
-	                                 (mk_app i (mk_core_var "atype") (mk_var l))
+        let p = mk_bin_op i (mk_core_var i "land")
+	                    (mk_bin_op i (mk_core_var i "equiv") 
+	                                 (mk_app i (mk_core_var i "vtype") (mk_var l))
                                          $6)
-			    (mk_app i (mk_core_var "bij") (mk_var l)) in
+			    (mk_app i (mk_core_var i "bij") (mk_var l)) in
         SRefine(l,SLens,p) }
 
   | LPAREN LENS IN appexp DARROW QMARK RPAREN
       { let i = m $1 $7 in 
 	let l = Id.mk i "_l" in 
-        let p = mk_bin_op i (mk_core_var "equiv") 
-	                    (mk_app i (mk_core_var "ctype") (mk_var l))
+        let p = mk_bin_op i (mk_core_var i "equiv") 
+	                    (mk_app i (mk_core_var i "stype") (mk_var l))
                             $4 in 
         SRefine(l,SLens,p) }
 
   | LPAREN LENS IN appexp DEQARROW QMARK RPAREN
       { let i = m $1 $7 in 
 	let l = Id.mk i "_l" in 
-        let p = mk_bin_op i (mk_core_var "land")
-	                    (mk_bin_op i (mk_core_var "equiv") 
-	                                 (mk_app i (mk_core_var "ctype") (mk_var l))
+        let p = mk_bin_op i (mk_core_var i "land")
+	                    (mk_bin_op i (mk_core_var i "equiv") 
+	                                 (mk_app i (mk_core_var i "stype") (mk_var l))
                                          $4)
-			    (mk_app i (mk_core_var "bij") (mk_var l)) in
+			    (mk_app i (mk_core_var i "bij") (mk_var l)) in
         SRefine(l,SLens,p) }
 
   | LPAREN LENS IN appexp DARROW appexp RPAREN
       { let i = m $1 $7 in 
         let l = Id.mk i "_l" in 
-        let chk c a = mk_tern_op i (mk_core_var "in_lens_type") (mk_var l) c a in 
+        let chk c a = mk_tern_op i (mk_core_var i "in_lens_type") (mk_var l) c a in 
         SRefine(l,SLens,chk $4 $6) }
 
   | LPAREN LENS IN appexp DEQARROW appexp RPAREN
       { let i = m $1 $7 in 
         let l = Id.mk i "_l" in 
-        let chk c a = mk_tern_op i (mk_core_var "in_bij_lens_type") (mk_var l) c a in 
+        let chk c a = mk_tern_op i (mk_core_var i "in_bij_lens_type") (mk_var l) c a in 
         SRefine(l,SLens,chk $4 $6) }
 
   | LPAREN STRING IN exp RPAREN 
       { let i = m $1 $5 in 
         let s = Id.mk i "_s" in 
-        let p = mk_bin_op i (mk_core_var "matches") $4 (mk_var s) in 
+        let p = mk_bin_op i (mk_core_var i "matches") $4 (mk_var s) in 
         SRefine(s,SString,p) }
 
   | asort 
@@ -1289,6 +1310,9 @@ bsort:
        \alt \lit{@char@}
        \alt \lit{@string@}
        \alt \lit{@regexp@}
+       \alt \lit{@aregexp@}
+       \alt \lit{@skeleton_set@}
+       \alt \lit{@resource_set@}
        \alt \lit{@lens@}
        \alt \lit{@int@}
        \alt \lit{@bool@}
@@ -1309,6 +1333,15 @@ asort:
 
   | REGEXP 
       { SRegexp }
+
+  | AREGEXP 
+      { SAregexp }
+
+  | SKELETONS
+      { SSkeletons }
+
+  | RESOURCES
+      { SResources }
 
   | LENS  
       { SLens }
@@ -1391,7 +1424,6 @@ dtsort_list2:
   | BAR dtsort dtsort_list2
       { $2 :: $3 }
 
-
 /* --------- PATTERNS ---------- */
 #{@}
 \subsection{Patterns}
@@ -1401,7 +1433,7 @@ dtsort_list2:
      \alt <PairPat>
 
 #{#}
-pat:      
+pat:
   | UIDENT pairpat
       { let i1,_ = $1 in 
         let i = mp2 i1 $2 in 
@@ -1410,6 +1442,9 @@ pat:
   | QUALIDENT pairpat
       { let (i,qs) = $1 in 
         PVnt(i,parse_qid i qs,Some $2) }
+
+  | listpat
+      { $1 }
 
   | pairpat
       { $1 }
@@ -1476,8 +1511,17 @@ apat:
   | LPAREN pat RPAREN
       { $2 }
 
-/* --------- MISC RULES ---------- */
+listpat:
+  | CSET
+      { let i, _ = $1 in
+        PVnt (i, Qid.mk_list_t i "Nil", None) }
+
+  | pairpat COLONCOLON pat
+      { let i = $2 in
+        let p = PPar (i, $1, $3) in
+        PVnt ($2, Qid.mk_list_t i "Cons", Some p) }
+
+/* --------- MISC SYMBOLS ---------- */
 uid:
   | UIDENT
       { Qid.t_of_id $1 }
-

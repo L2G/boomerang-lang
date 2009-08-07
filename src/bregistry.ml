@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/registry.ml                                                 *)
+(* /src/registry.ml                                                           *)
 (* Boomerang run-time registry                                                *)
 (* $Id$ *)
 (******************************************************************************)
@@ -106,7 +106,7 @@ struct
   (* "reverse type map" from constructor names (Prelude.Nil) to types (Prelude.list) *)
   type rmap = Bident.Qid.t QM.t 
 
-  (* enviroments are have two components: for types and values *)
+  (* environments are have two components: for types and values *)
   type t = (tmap * rmap) * (rv ref) QM.t
 
   let empty () = ((QM.empty (), QM.empty ()), QM.empty ())
@@ -216,7 +216,12 @@ let find_filename basename exts =
           | ext::erest -> try_fn ext (fun () -> inner_loop erest) in
           inner_loop exts              
   in
-    loop ((Safelist.rev (Prefs.read paths) @ boompath))
+  if String.contains basename '/'
+  then
+    if String.length basename > 0 && basename.[0] = '/'
+    then loop ["/"]
+    else loop ["."]
+  else loop ((Safelist.rev (Prefs.read paths) @ boompath))
 
 (* backpatch hack *)
 let interp_file_impl = 
@@ -262,7 +267,7 @@ let load_var q = match get_module_prefix q with
   | Some n -> ignore (load (Bident.Id.string_of_t n))
 
 (* lookup in a naming context, with a lookup function *)
-let lookup_library_generic lookup_fun nctx q = 
+let lookup_library_generic select lookup_fun nctx q = 
   verbose (fun () -> msg "lookup_library_generic [%s] [%s]@\n%!" 
            (Bident.Qid.string_of_t q)
            (Misc.concat_list "," (Safelist.map Bident.Qid.string_of_t nctx)));
@@ -273,10 +278,10 @@ let lookup_library_generic lookup_fun nctx q =
     let try_lib () = lookup_fun !library q2 in
       (* try here first, to avoid looping on native values *)
       match try_lib () with
-        | Some r -> Some r
+        | Some r -> Some (select (q2, r))
         | None -> 
             begin match load_var q2; try_lib () with
-              | Some r -> Some r
+              | Some r -> Some (select (q2, r))
               | None -> match nctx with 
                   | []       -> None
                   | o::orest -> 
@@ -287,15 +292,19 @@ let lookup_library_generic lookup_fun nctx q =
 
 let lookup_library_ctx os q = 
   verbose (fun () -> msg "lookup_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
-  lookup_library_generic REnv.lookup os q
+  lookup_library_generic snd REnv.lookup os q
+
+let lookup_library_ctx_o os q = 
+  verbose (fun () -> msg "lookup_library_ctx_o [%s]@\n%!" (Bident.Qid.string_of_t q));
+  lookup_library_generic (fun x -> x) REnv.lookup os q
 
 let lookup_type_library_ctx os q = 
   verbose (fun () -> msg "lookup_type_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
-  lookup_library_generic REnv.lookup_type os q
+  lookup_library_generic snd REnv.lookup_type os q
 
 let lookup_con_library_ctx os q = 
   verbose (fun () -> msg "lookup_con_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
-  lookup_library_generic REnv.lookup_con os q
+  lookup_library_generic snd REnv.lookup_con os q
 
 let lookup_library q = 
   verbose (fun () -> msg "lookup_library [%s]@\n%!" (Bident.Qid.string_of_t q));

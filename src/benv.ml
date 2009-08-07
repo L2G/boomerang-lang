@@ -15,7 +15,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/benv.ml                                                     *)
+(* /src/benv.ml                                                               *)
 (* Boomerang environments                                                     *)
 (* $Id$ *)
 (******************************************************************************)
@@ -39,9 +39,12 @@ sig
   val set_ev : t -> Bregistry.REnv.t -> t
   val get_ctx : t -> Qid.t list
   val set_ctx : t -> Qid.t list -> t
+  val push_ctx : t -> Qid.t -> t
+  val pop_ctx : t -> t
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
   val lookup : t -> Qid.t -> v option
+  val lookup_o : t -> Qid.t -> (Qid.t * v) option
   val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
   val lookup_con : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
   val update : t -> Qid.t -> v -> t
@@ -67,40 +70,48 @@ struct
   let set_mod cev m = let ((os,_),ev) = cev in ((os,m),ev)
   let get_ctx cev = let ((os,_),_) = cev in os
   let set_ctx cev os = let ((_,m),ev) = cev in ((os,m),ev)
+  let push_ctx ((os,m),ev) x = (x::os,m),ev
+  let pop_ctx ((os,m),ev) = (List.tl os,m),ev
 
   (* lookup from cev, then from library *)
-  let lookup_generic lookup_fun lookup_library_fun cev q = 
+  let lookup_generic select lookup_fun lookup_library_fun cev q = 
     let ev = get_ev cev in 
     let ctx = get_ctx cev in 
     let rec aux nctx q2 = match lookup_fun ev q2 with
-      | Some r -> Some r
+      | Some r -> Some (select (q2, r))
       | None -> begin  match nctx with
           | [] -> None
           | o::orest -> aux orest (Qid.t_dot_t o q)
         end in 
     match aux ctx q with
-      | Some r -> Some r
+      | Some x -> Some x
       | None -> lookup_library_fun ctx q
           
   let lookup cev q = 
-    lookup_generic 
-      G.REnv.lookup 
-      G.lookup_library_ctx 
-      cev q 
+    lookup_generic snd
+      G.REnv.lookup
+      G.lookup_library_ctx
+      cev q
+
+  let lookup_o cev q = 
+    lookup_generic (fun x -> x)
+      G.REnv.lookup
+      G.lookup_library_ctx_o
+      cev q
 
   let lookup_type cev q = 
-    lookup_generic 
+    lookup_generic snd
       G.REnv.lookup_type
       G.lookup_type_library_ctx 
       cev q 
 
   let lookup_con cev q = 
-    lookup_generic 
+    lookup_generic snd
       G.REnv.lookup_con
       G.lookup_con_library_ctx 
       cev q 
 
-  let update cev q rv = 
+  let update cev q rv =
     set_ev cev (G.REnv.update (get_ev cev) q rv)
 
   let update_list cev qs = 
@@ -130,11 +141,17 @@ struct
   let set_mod = CEnv.set_mod
   let get_ctx = CEnv.get_ctx
   let set_ctx = CEnv.set_ctx
+  let push_ctx = CEnv.push_ctx
+  let pop_ctx = CEnv.pop_ctx
 
   let lookup sev q = 
     match CEnv.lookup sev q with 
     | None -> None
     | Some (s,_) -> Some s
+  let lookup_o sev q = 
+    match CEnv.lookup_o sev q with 
+    | None -> None
+    | Some (q,(s,_)) -> Some (q,s)
   let lookup_type = CEnv.lookup_type
   let lookup_con = CEnv.lookup_con 
   let update sev q s = CEnv.update sev q (s,dummy_value)

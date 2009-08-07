@@ -50,7 +50,7 @@ test get unescape_quotedstr
         <hello""world>
     >> 
 
-let test1 = unrender_quotedstr (ctype unescape_quotedstr) ; unescape_quotedstr
+let test1 = unrender_quotedstr (stype unescape_quotedstr) ; unescape_quotedstr
 
 (* Does this transformation work in general? *)
 
@@ -73,7 +73,7 @@ let render_tag (R : regexp where splittable_cex "<tag>" R &&
     copy R .
     ("" <-> "</tag>")
 
-let test2 = escape_xml; render_tag (atype escape_xml) 
+let test2 = escape_xml; render_tag (vtype escape_xml) 
 
 test get test2
     <<
@@ -128,7 +128,7 @@ let render_tag (R : regexp) (tag : string)
   : (lens in R <-> tagged R tag)
   = render R ("<" . tag . ">") ("</" . tag . ">")
 
-test (render_tag ANY "foo").atype = ("<foo>" . ANY . "</foo>")
+test (render_tag ANY "foo").vtype = ("<foo>" . ANY . "</foo>")
 
 (* as above *)
 let quoted (R : regexp) = '"' . R . '"'
@@ -193,7 +193,7 @@ let unescaped (escs : (char * string) List.t) : regexp =
 test unescaped xml_escs = [<>&]
 
 (* this function didn't exist before, but we need it to 
-   talk about the atype of the lens produced by escape *)
+   talk about the vtype of the lens produced by escape *)
 let escaped (escs : (char * string) List.t) : regexp =
   union_regexps (escape_codes escs)
 
@@ -283,8 +283,8 @@ let unescape_str
   = invert escape_str
 
 let l1 = 
-  unrender_str (ctype unescape_str) ; unescape_str ; 
-  escape_xml ; render_xml (atype escape_xml)
+  unrender_str (stype unescape_str) ; unescape_str ; 
+  escape_xml ; render_xml (vtype escape_xml)
 
 test get l1
     <<
@@ -361,8 +361,8 @@ let unescape_str
   = invert escape_str
 
 let l2 = 
-  unrender_str (ctype unescape_str) ; unescape_str ; 
-  escape_xml ; render_xml (atype escape_xml)
+  unrender_str (stype unescape_str) ; unescape_str ; 
+  escape_xml ; render_xml (vtype escape_xml)
 
 test get l2
     <<
@@ -387,7 +387,7 @@ let intersperse ('a) (ls : 'a List.t) (sep : 'a) : 'a List.t =
 
 let lens_concatable (ls : lens List.t) (sep : lens) : bool = 
   let ls' : lens List.t = intersperse{lens} ls sep in
-  (concatable (ctypes ls')) && (concatable (atypes ls'))
+  (concatable (stypes ls')) && (concatable (vtypes ls'))
  
 (* to cover our asses, we need the concatable refinement
    do we want the specific return type?
@@ -395,15 +395,15 @@ let lens_concatable (ls : lens List.t) (sep : lens) : bool =
 let intersperse_lenses 
       (lenses : lens List.t) 
       (sep : lens where lens_concatable lenses sep) 
-  : (lens in (concat_regexps (ctypes (intersperse{lens} lenses sep)))
-         <-> (concat_regexps (atypes (intersperse{lens} lenses sep))))
+  : (lens in (concat_regexps (stypes (intersperse{lens} lenses sep)))
+         <-> (concat_regexps (vtypes (intersperse{lens} lenses sep))))
   = concat_lenses (intersperse{lens} lenses sep)
 
 let field_to_xml (field : string) 
   : (lens in (quoted (('\' . ('"'|'\')) | [^""\\])* )
          <-> (tagged (('&' . ("lt"|"gt"|"amp") . ';') | [^&<>])* ) field)
-  = unrender_str (ctype unescape_str) ; unescape_str ;
-    escape_xml ; render_tag (atype escape_xml) field
+  = unrender_str (stype unescape_str) ; unescape_str ;
+    escape_xml ; render_tag (vtype escape_xml) field
 
 (* as above -- do we want the strict return type?  do we want to pass the buck? *)
 let csv_to_xml (fields : string List.t where lens_concatable fields (del ",")) = 

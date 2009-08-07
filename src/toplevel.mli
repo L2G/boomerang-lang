@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/toplevel.mli                                                *)
+(* /src/toplevel.mli                                                          *)
 (* Boomerang front-end interface                                              *)
 (* $Id$ *)
 (******************************************************************************)

@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/registry.mli                                                *)
+(* /src/registry.mli                                                          *)
 (* Boomerang run-time registry interface                                      *)
 (* $Id$ *)
 (******************************************************************************)
@@ -87,6 +87,9 @@ val find_filename : string -> string list -> string option
 
 val lookup_library_ctx : Bident.Qid.t list -> Bident.Qid.t -> rv option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
+
+val lookup_library_ctx_o : Bident.Qid.t list -> Bident.Qid.t -> (Bident.Qid.t * rv) option
+(** [lookup_library_ctx_o nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_library : Bident.Qid.t -> rv option
 (** [lookup_library q] looks up [q] from the library *)

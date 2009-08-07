@@ -15,9 +15,9 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/examples/uniProtV2.boom                                         *)
+(* /examples/uniProtV2.boom                                                   *)
 (* UniProtKB XML <-> UniProtKB ASCII lens                                     *)
-(* $Id$ *)
+(* $Id: uniProtV2.boom 4607 2009-08-03 16:53:28Z ddavi $ *)
 (******************************************************************************)
 
 module UniProtV2 = 
@@ -88,7 +88,7 @@ let tag (t:string) : string =
 
 (* [split (t,l)] wraps [l] so that it also breaks long lines. *)
 let split_n (n:int) (tag:string) (l:lens) : lens = 
-  let cn : canonizer = columnize n (atype l) ' ' (NL . tag) in 
+  let cn : canonizer = columnize n (vtype l) ' ' (NL . tag) in 
   right_quot l cn
 
 let split (tag:string) (l:lens) : lens = split_n 75 tag l
@@ -1768,11 +1768,11 @@ let cc_alternative_products_xml : lens =
   let names : lens = (nl . ins cc_long_tag . cc_fix70 name)* in 
   let comment : lens = (space . generic "comment" "Comment")? in 
   let preprocess : lens = 
-     del (ctype comment) . 
-     copy (ctype name)* in 
+     del (stype comment) . 
+     copy (stype name)* in 
   let named_isos (s:string) = 
      " Named isoforms=" . 
-     string_of_int (count (ctype name) ((get preprocess) s)) . 
+     string_of_int (count (stype name) ((get preprocess) s)) . 
      ";" in 
   let entry : lens = 
     prelude . 
@@ -1784,18 +1784,18 @@ let cc_alternative_products_xml : lens =
   let canonizer_copy (R:regexp) = canonizer_of_lens (copy R) in 
   let cn : canonizer =
     begin
-      canonizer_copy (atype prelude) . 
+      canonizer_copy (vtype prelude) . 
       (columnize 70 
-         (atype events . atype named_isos_regexp . atype comment)
+         (vtype events . vtype named_isos_regexp . vtype comment)
          ' ' (NL . cc_long_tag . "  ")) .
-      canonizer_copy (atype names)
+      canonizer_copy (vtype names)
      end in
     terminate (right_quot entry cn) 
 
 let cc_alternative_products_line : lens =   
   cc_alternative_products_xml 
 
-(* unit tests for CC alternative prodocuts *)
+(* unit tests for CC alternative products *)
 let cc_alternative_products_xml : string = 
   NL . 
   "  <comment type=\"alternative products\">
@@ -3538,7 +3538,7 @@ let ft_bound (name:string) : lens =
     || Xml.attr "position" (num " ") )
 
 let single_pos_cn : canonizer = 
-  let NUM : regexp = ctype (num " ") in
+  let NUM : regexp = stype (num " ") in
   canonizer_of_lens
     begin
       WS . 
@@ -3554,7 +3554,7 @@ let single_pos_cn : canonizer =
 (* clever position canonizer :-) *)
 let double_pos : lens = ( ft_bound "begin" . space . ft_bound "end" )  
 
-let pos_cn : canonizer = (canonizer_of_lens (ctype double_pos)) | (single_pos_cn)
+let pos_cn : canonizer = (canonizer_of_lens (stype double_pos)) | (single_pos_cn)
 
 let ft_bounds : lens = 
   Xml.elt NL2 "location" 
@@ -3640,7 +3640,7 @@ let ft_status : lens =
 
 let ft_description : lens =   
   (* HACK !*)
-  [^<>"".&\n]+ - (containing (atype qualifiers))
+  [^<>"".&\n]+ - (containing (vtype qualifiers))
 
 let ft_aux (l:lens) (ty:lens) (body:lens) :  lens = 
   ( Xml.slow_attr4_elt_swap2 NL1 "feature"

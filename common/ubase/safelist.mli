@@ -24,6 +24,7 @@ val mem : 'a -> 'a list -> bool
 val flatten : 'a list list -> 'a list
 val assoc : 'a -> ('a * 'b) list -> 'b
 val for_all : ('a -> bool) -> 'a list -> bool
+val for_all2 : ('a -> 'b -> bool) -> 'a list -> 'b list -> bool
 val exists : ('a -> bool) -> 'a list -> bool
 val split : ('a * 'b) list -> 'a list * 'b list
 val find : ('a -> bool) -> 'a list -> 'a

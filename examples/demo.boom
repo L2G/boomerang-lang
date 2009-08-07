@@ -70,7 +70,7 @@ let keyed_del_email =
   del (", Email:" . E) 
 
 let keyed_del_emails = ""
-    | <keyed_del_email> . ("\n" . <keyed_del_email>)*
+    | dictionary_match "" keyed_del_email . ("\n" . dictionary_match "" keyed_del_email)*
 
 (* Getting behaves the same as above. *)
 test keyed_del_emails.get
@@ -109,8 +109,8 @@ let chunk =
 
 let author_coauthor =
        copy ""
-     | copy "Author:" . <chunk>
-     | copy "CoAuthor:" . <chunk> . (copy "\nCoAuthor:" . <chunk>)*
+     | copy "Author:" . dictionary_match "" chunk
+     | copy "CoAuthor:" . dictionary_match "" chunk . (copy "\nCoAuthor:" . dictionary_match "" chunk)*
 
 (* GET simply projects emails *)
 test author_coauthor.get

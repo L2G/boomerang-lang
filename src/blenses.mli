@@ -14,27 +14,15 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/blenses.mli                                                  *)
-(* Boomerang lens combinators interface                                        *)
+(* /src/blenses.mli                                                           *)
+(* Boomerang lens combinators interface                                       *)
 (* $Id$ *)
 (******************************************************************************)
 
-type key
-type skeleton 
-
-val generic_iter :
-     'a               (* epsilon *)
-  -> ('a -> 'a -> 'a) (* union *)
-  -> ('a -> 'a -> 'a) (* concat *)
-  -> ('a -> 'a)       (* star *)
-  -> int -> int       (* min / max *)
-  -> 'a               (* x *)
-  -> 'a
-
-module Permutations : sig 
+module Permutations : sig
   val valid_permutation : int list -> 'a list -> bool
-    (** [valid_permutation sigma ls] is true iff sigma is a valid permutation for ls, 
-        i.e. if they are both length k and sigma is a rearrangement of the list 
+    (** [valid_permutation sigma ls] is true iff sigma is a valid permutation for ls,
+        i.e. if they are both length k and sigma is a rearrangement of the list
         [0;1;...;k-1] *)
   val permutations : int -> int list list
     (** [permutations k] returns all valid permutations of lists of length k
@@ -47,7 +35,7 @@ module Permutations : sig
 end
 
 module Canonizer : sig
-  type t 
+  type t
 
   (* meta data *)
   val info : t -> Info.t
@@ -56,10 +44,12 @@ module Canonizer : sig
   (* types *)
   val uncanonized_type : t -> Brx.t
   val canonized_type : t -> Brx.t
+  val uncanonized_atype : t -> Barx.t
+  val canonized_atype : t -> Barx.t
   val cnrel_identity : t -> bool
   (* components *)
-  val canonize : t -> (string -> string)
-  val choose : t -> (string -> string)
+  val canonize : t -> Bstring.t -> string
+  val choose : t -> Bstring.t -> string
 
   (* constructors *)
   val copy : Info.t -> Brx.t -> t
@@ -67,33 +57,47 @@ module Canonizer : sig
   val union : Info.t -> t -> t -> t
   val star : Info.t -> t -> t
   val normalize : Info.t -> Brx.t -> Brx.t -> (string -> string) ->  t
-  val sort : Info.t -> Brx.t list -> t
+  val sort : Info.t -> Barx.t list -> t
   val columnize : Info.t -> int -> Brx.t -> char -> string -> t
   val iter : Info.t -> t -> int -> int -> t
 end
 
-module DLens : sig 
+type ktype
+val ktype_equiv : ktype -> ktype -> bool
+val format_ktype : ktype -> unit
+
+type mtype
+val mtype_equiv : mtype -> mtype -> bool
+val format_mtype : mtype -> unit
+val mtype_match_compatible_cex : Btag.t -> ktype -> mtype -> string option
+val mtype_compatible_cex : mtype -> mtype -> string option
+val mtype_domain_equal : mtype -> mtype -> bool
+
+module MLens : sig 
   type t
 
   val info : t -> Info.t
   val format_t : t -> unit
   val string_of_t : t -> string
 
-  val ctype : t -> Brx.t
-  val atype : t -> Brx.t
-  val crel_identity : t -> bool
-  val arel_identity : t -> bool
+  val astype : t -> Barx.t
+  val avtype : t -> Barx.t
+  val stype : t -> Brx.t
+  val vtype : t -> Brx.t
+  val ktype : t -> ktype
+  val mtype : t -> mtype
+  val srep : t -> Bstring.t -> string
+  val vrep : t -> Bstring.t -> string
+  val sequiv_identity : t -> bool
+  val vequiv_identity : t -> bool
   val bij : t -> bool
-  val xtype : t -> Erx.t option
-  val rget : t -> (string -> string)
-  val rput : t -> string -> string -> string
-  val rcreate : t -> string -> string
-  val forgetkey : Info.t -> t -> t
-  val probe : Info.t -> string -> t -> t
+  val rget : t -> Bstring.t -> string
+  val rput : t -> Bstring.t -> Bstring.t -> string
+  val rcreate : t -> Bstring.t -> string
   val canonizer_of_t : Info.t -> t -> Canonizer.t
   val invert : Info.t -> t -> t
   val copy : Info.t -> Brx.t -> t
-  val key : Info.t -> Brx.t -> t
+  val weight : Info.t -> bool -> Bannot.Weight.t -> t -> t
   val clobber : Info.t -> Brx.t -> string -> (string -> string) -> t
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t
@@ -101,12 +105,10 @@ module DLens : sig
   val iter : Info.t -> t -> int -> int -> t
   val permute : Info.t -> int list -> t list -> t
   val compose : Info.t -> t -> t -> t
-  val default : Info.t -> t -> string -> t
-  val dmatch : Info.t -> string -> t -> t
-  val smatch : Info.t -> float -> string -> t -> t
+  val align : Info.t -> t -> t
+  val default : Info.t -> t -> Bstring.t -> t
+  val mmatch : Info.t -> Btag.t -> t -> t
   val partition : Info.t -> Brx.t -> Brx.t -> t
-  val filter : Info.t -> Brx.t -> Brx.t -> t
-  val clobber : Info.t -> Brx.t -> string -> (string -> string) -> t
   val merge : Info.t -> Brx.t -> t
   val fiat : Info.t -> t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t

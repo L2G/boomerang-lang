@@ -105,9 +105,9 @@ let modifier
     || "+" <-> ", recommended")
 
 let difficulty 
-  : (lens in ("(* EX" . [1-5] . (ctype modifier){0,3} . (" (" . ident . ")")? . " *)")
-         <-> ("(* Exercise: " . (atype stars) .
-       		                (atype modifier){0,3} .
+  : (lens in ("(* EX" . [1-5] . (stype modifier){0,3} . (" (" . ident . ")")? . " *)")
+         <-> ("(* Exercise: " . (vtype stars) .
+       		                (vtype modifier){0,3} .
 				(" (" . ident . ")")? . " *)"))
   = let name = " (" . key ident . ")" in
     "(* " . ("EX" <-> "Exercise: ") . stars . modifier{0,3} . name? . " *)"
@@ -139,8 +139,8 @@ let comment_line
 test lens_iterable comment_line = true
 
 let comment 
-  : (lens in (ctype splitting_comment | ctype difficulty | "(*" . (ctype comment_line)* . nosplits_until "*)")
-	 <-> (atype splitting_comment | atype difficulty | "(*" . (atype comment_line)* . nosplits_until "*)"))
+  : (lens in (stype splitting_comment | stype difficulty | "(*" . (stype comment_line)* . nosplits_until "*)")
+	 <-> (vtype splitting_comment | vtype difficulty | "(*" . (vtype comment_line)* . nosplits_until "*)"))
   = (  splitting_comment
     || difficulty
     || "(*" . comment_line* . nosplits_until "*)")
@@ -181,7 +181,7 @@ let DECLS (spec:(regexp*lens) List.t) (BODY:lens -> regexp) : regexp =
 let decls (spec:(regexp*lens) List.t 
 	     where List.nonempty{regexp*lens} spec
 	        && disjoint_regexps (decl_kws spec))
-  : (lens in (DECLS spec ctype) <-> (DECLS spec atype))
+  : (lens in (DECLS spec stype) <-> (DECLS spec vtype))
   = let (Some(l)) = 
       List.fold_left{regexp*lens}{lens option}
 	(fun (lo:lens option) (p:regexp*lens) ->
@@ -194,7 +194,7 @@ let decls (spec:(regexp*lens) List.t
 	None{lens} spec in
     l
 
-let declaration : (lens in (DECLS decl_spec ctype) <-> (DECLS decl_spec atype)) = decls decl_spec
+let declaration : (lens in (DECLS decl_spec stype) <-> (DECLS decl_spec vtype)) = decls decl_spec
 
 let commands = #{lens}[directive;declaration;comment]
 
@@ -203,18 +203,18 @@ let hide = del ("\n(* HIDE" . ("..." . until_tohere | " *)\n" . until "\n\n"))
 let hide_opt = "" || hide
 
 let command
-  : lens (* in (union_regexps (ctypes commands) . (ctype hide)? | "\n")
-            <-> (union_regexps (atypes commands) | "\n")) *)
+  : lens (* in (union_regexps (stypes commands) . (stype hide)? | "\n")
+            <-> (union_regexps (vtypes commands) | "\n")) *)
   = let cs = union_lenses commands in
     (cs . hide_opt)
 
-test iterable (ctype command) = ? (* hangs :( *)
-test iterable (atype command) = ?
+test iterable (stype command) = ? (* hangs :( *)
+test iterable (vtype command) = ?
 *)
 
 let command
-  : (lens in (union_regexps (ctypes commands) | "\n")
-         <-> (union_regexps (atypes commands) | "\n"))
+  : (lens in (union_regexps (stypes commands) | "\n")
+         <-> (union_regexps (vtypes commands) | "\n"))
   = union_lenses commands || "\n"
 
 test lens_iterable command = true
@@ -431,9 +431,9 @@ test header.get
 
 (* a somewhat pointless contract...this follows from the definition *)
 let file 
- : (lens in (ctype header . (ctype command)+)
-        <-> (atype header . (atype command)+))
- = header . <command>+
+ : (lens in (stype header . (stype command)+)
+        <-> (vtype header . (vtype command)+))
+ = header . <greedy 0 "k":command>+
 
 test file.get
   <<

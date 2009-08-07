@@ -16,7 +16,7 @@ MAKE = make
 
 USE_OCAMLFIND = true
 if $(not $(OCAMLFIND_EXISTS))
-   eprintln(This project requires ocamlfind, but it was not found.)
+   eprintln(This project requires ocamlfind\, but it was not found.)
    eprintln(You need to install ocamlfind and run "omake --configure".)
    exit 1
 
@@ -52,6 +52,7 @@ LENSESDIR = $(dir lenses)
 EXAMPLESDIR = $(dir examples)
 UNITSDIR = $(dir examples/units)
 XSUGARDIR = $(dir examples/xsugar)
+DOCDIR = $(dir doc)
 
 BOOMERANGDIR = $(dir .)
 BOOMFILES = $(BOOMERANGDIR)/QuickStart.src \
@@ -60,9 +61,10 @@ BOOMFILES = $(BOOMERANGDIR)/QuickStart.src \
             $(glob $(EXAMPLESDIR)/*.boom) \
             $(glob $(EXAMPLESDIR)/*.src) \
             $(glob $(XSUGARDIR)/*.boom) \
+	    $(glob $(DOCDIR)/*.src) \
 
 BOOMEXE = $(BINDIR)/boomerang$(EXE) 
-BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR) -I $(UNITSDIR) -I $(XSUGARDIR)
+BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR) -I $(UNITSDIR) -I $(XSUGARDIR) -I $(DOCDIR)
 
 ##############################################################################
 # Translation of .src files

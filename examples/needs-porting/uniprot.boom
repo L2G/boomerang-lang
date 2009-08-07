@@ -1607,7 +1607,7 @@ test PE create
 
 (**** KW line ****)
 
-(* correspondance betweed keywords and ids. *)
+(* correspondance between keywords and ids. *)
 
 let corres_kw_id = 
   ( "2Fe-2S" <-> "KW-0001\">2Fe-2S"

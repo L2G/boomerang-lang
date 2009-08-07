@@ -35,8 +35,8 @@ let l2' = const ('t') "" "t" .
 
 let l2'' = l1 . (((l2 . l3) || (l3 . l2)) ~ l1)
 
-test ctype l2' = ctype l2''
-test atype l2' = atype l2''
+test stype l2' = stype l2''
+test vtype l2' = vtype l2''
 
 let u' = perm_sort3 l1 l2 l3
 

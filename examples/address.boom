@@ -15,9 +15,9 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU           *)
 (* Lesser General Public License for more details.                             *)
 (*******************************************************************************)
-(* /boomerang/examples/address.boom                                            *)
+(* /examples/address.boom                                                      *)
 (* VCard, XCard, CSV address books lens                                        *)
-(* $Id$ *)
+(* $Id: address.boom 4607 2009-08-03 16:53:28Z ddavi $ *)
 (*******************************************************************************)
 
 module Address = 
@@ -42,7 +42,7 @@ module Address =
 (* GENERIC DEFINITIONS *)
 
 (* NL: portable newline *)
-let NL : regexp = /\r/? . /\n/
+let NL : regexp = "\r"? . "\n"
 
 (* NonNL: any string not containing a newline *)
 let NonNL : regexp = not_containing [\n\r]
@@ -50,9 +50,9 @@ let NonNL : regexp = not_containing [\n\r]
 (* filterwith: derived lens that removes characters in [both], then
    runs [l]*)
 let filterwith (BOTH: regexp) (l: lens where lens_iterable l && 
-                                             iterable_cex (ctype l | BOTH)) 
+                                             iterable_cex (stype l | BOTH)) 
   : lens 
-  = filter (BOTH - (ctype l)) (ctype l) ; l*
+  = filter (BOTH - (stype l)) (stype l) ; l*
 
 (* -------------------------------------------------------------------- *)
 (* ESCAPING *)
@@ -117,13 +117,13 @@ test (unescchar #{char}[','])*.get "\\," = ","
 (* TELEPHONE AND NAME FIELDS *)
 
 (* TelTags: strings used in markers for tel fields in CSV *)
-let TelTags : regexp = [hwce] | /note/
+let TelTags : regexp = [hwce] | "note"
 
 (* TelMarker: strings used to mark tel fields in CSV *)
-let TelMarker : regexp = / (/ . TelTags . /)/
+let TelMarker : regexp = " (" . TelTags . ")"
 
 (* Tel: a single, escaped tel field *)
-let Tel : regexp = /, / . (escaped #{char}[',']) . TelMarker
+let Tel : regexp = ", " . (escaped #{char}[',']) . TelMarker
 
 (* Name: a single, escaped name field. Cannot end with a TelMarker *)
 let Name : regexp = (escapedP #{char}[',']) - ( ANY . TelMarker )
@@ -135,7 +135,7 @@ let NameP : regexp = Name - EPSILON
 let Family,Given : regexp * regexp = NameP,NameP
 
 (* GlobalName: a single name in CSV *)
-let GlobalName : regexp = Family . (/, / . Given)?
+let GlobalName : regexp = Family . (", " . Given)?
   
 (* AbsAddr: type for CSV address book entry *) 
 let AbsAddr = GlobalName . Tel* 
@@ -145,19 +145,19 @@ let suffix (mk_suffix : regexp -> lens) : lens =
     (mk_suffix [)])
   | (mk_suffix [hwce]) . copy ")"
   | (mk_suffix [t(])   . copy "e)"
-  | (mk_suffix [(])    . copy ( [hwc] . [)] | /note)/ )
+  | (mk_suffix [(])    . copy ( [hwc] . [)] | "note)" )
   | (mk_suffix [ ])    . copy ([(] . TelTags . [)])
   | (mk_suffix [o])    . copy "te)"
   | (mk_suffix [n])    . copy "ote)"
 
 let escape_ignore =
   ( copy ")" 
-  | copy ([hwce] . /)/)
+  | copy ([hwce] . ")")
   | copy "te)" 
   | copy "ote)"
   | copy "note)"
   | copy "(note)" 
-  | copy ( /(/ . [hwce] . /)/ ) )
+  | copy ( "(" . [hwce] . ")" ) )
 
 let escaper (chars:char List.t) = 
   let mk_suffix (R:regexp) : lens = 
@@ -187,7 +187,7 @@ let unformatnotemptyname : lens =
 let name : lens =  
   let escNameP = unformatnotemptyname ; formatnotemptyname in 
   let familyname = del "N:" . escNameP in
-  familyname . (del ";" | (/;/ <-> ", ") . escNameP) . del ";;;"
+  familyname . (del ";" | (";" <-> ", ") . escNameP) . del ";;;"
 
 (* unit test for name *)
 test name.get "N:Pierce;Benjamin C.;;;" = "Pierce, Benjamin C."
@@ -203,7 +203,7 @@ let formattel : lens = escstr #{char}[',']
 let field' (w0:string) (w1:string) (w2:string) =
   ((w0 . ";") <-> ", ") . 
   del "type=" . del w1 . 
-  del (/;type=/ . [A-Z]+)* . 
+  del (";type=" . [A-Z]+)* . 
   del ";type=pref"? .
   del ":" . 
   (unescstr #{char}[';';',';':']; formattel) .
@@ -225,14 +225,14 @@ let formatnote : lens = escstr #{char}[',']
 (* note: lens for handling note fields. Again, we use the two-pass 
    approach--unformatting / unescaping, and then reformatting / reescaping *)
 let note : lens =
-  (/NOTE:/ <-> ", ") .
+  ("NOTE:" <-> ", ") .
   (unescstr #{char}[',';':';';']; formatnote) .
   ins " (note)" .
   del NL
 
 (* abemail: lens for Apple's special email field. Uses two-pass approach. *)
 let abemail : lens =
-  (/item.EMAIL;type=INTERNET;type=pref:/ <-> ", ") .
+  ("item.EMAIL;type=INTERNET;type=pref:" <-> ", ") .
   (unescstr #{char}[',';':';';']; escstr #{char}[',']) .
   del NL .
   del "item.X-ABLabel:E-mail" . 
@@ -246,20 +246,20 @@ let email : lens = field' "EMAIL" "INTERNET" "e"
 let entry : lens =  (abemail || email) | tel | note
 
 (* ItemLine: regexp for lines that use Apple's itemN convention *)
-let ItemLine :regexp = /item/ . NonNL . NL
+let ItemLine :regexp = "item" . NonNL . NL
 
 (* Line: regexp for any line *)
-let Line : regexp = [^ ] . NonNL . NL . (/ / . NonNL . NL)*
+let Line : regexp = [^ ] . NonNL . NL . (" " . NonNL . NL)*
 
 (* Field: regexp for ItemLine fields: either an ordinary line or two
    item lines *)
 let Field : regexp = 
   ((Line - ItemLine) | (ItemLine . ItemLine))
-  - (/END:VCARD/ . NL)
+  - ("END:VCARD" . NL)
 
 (* numberedItem: regexp for lines with numbered items *)
 let NumberedItem (n:string) : regexp =
-  /item/ . str n . /./ . NonNL . NL . /item/ . str n . /./ . NonNL . NL
+  "item" . str n . "." . NonNL . NL . "item" . str n . "." . NonNL . NL
 
 (* Field_unnumbered: regexp for fields without numbered item lines *)
 let Field_unnumbered : regexp =
@@ -270,10 +270,10 @@ let remove_item_numbers : (lens in ? <-> Field_unnumbered* ) =
   let delItemNumber (n:string) : lens = 
     copy "item" . 
     del n . 
-    copy ([.] . NonNL . NL . /item/) . 
+    copy ([.] . NonNL . NL . "item") . 
     del n . 
     copy ([.] . NonNL . NL) in
-  let Stuff = copy (Field - (/item/ . NonNL . NL . /item/ . NonNL . NL) ) in 
+  let Stuff = copy (Field - ("item" . NonNL . NL . "item" . NonNL . NL) ) in 
   ( ( Stuff* . delItemNumber "1" .
       Stuff* . delItemNumber "2" .
       Stuff* . delItemNumber "3" .
@@ -291,7 +291,7 @@ let chunk : (lens in ? <-> AbsAddr) =
   del "BEGIN:VCARD" . del NL . 
   del "VERSION:3.0" . del NL .  
   (* format name, tag it as key *)
-  (name; key (atype name)) . del NL .
+  (name; key (vtype name)) . del NL .
   (* handle fields by: 
        removing item numbers, 
        removing unnumbered fields, 
@@ -304,7 +304,7 @@ let chunk : (lens in ? <-> AbsAddr) =
   del "END:VCARD" . del NL
 
 (* vcard lens: match a chunk *)
-let vcard = <chunk>
+let vcard = dictionary_match "" chunk
 
 (* unit tests for vcard *)
 let samplevcard = 
@@ -538,7 +538,7 @@ let tel : lens =
       
 (* chunk: lens for handling a single XCard entry *)
 let chunk :lens = 
-  Xml.elt NL2 "vcard" ((name; key (atype name)) . tel* )
+  Xml.elt NL2 "vcard" ((name; key (vtype name)) . tel* )
 
 (* vcard: lens for handling a single XCard vcard element *)
 let vcard : lens = <chunk>
@@ -631,3 +631,74 @@ Foster, Clare, jscef@uas.alaska.edu (e), (907) 738-0553 (c), (907) 747-5499 (h)
 Foster, Nate, jnfoster@cis.upenn.edu (e), 267 342-1099 (c)
 
 >> = ?
+
+
+type format = VCF | XML | CSV | OTHER
+
+let main (prog:string) (args:string List.t) =
+  let xmltovcard = right_quot xcard (canonizer_of_lens vcards) in
+  let vcardtoxml = right_quot vcards (canonizer_of_lens xcard) in
+  let file_ext (str:string) =
+    let l = minus (length str) 1 in
+    match string_rindex_from str l '.' with
+      | Some n -> sub_string (plus n 1) (minus l n) str
+      | None -> ""
+    : string
+  in
+  let get_type (str:string) : format =
+    match str with
+      | "vcf" -> VCF
+      | "xml" -> XML
+      | "csv" -> CSV
+      | _ -> OTHER
+    : format
+  in
+  let usage (code:int) =
+    let _ = write '-' ( "Usage: " . prog . " {get|put} args\n  get <source> <format of the view>\n  put <view> <old source>\n" ) in code
+  in
+  let cget (source:string) (fmt:string) =
+    let view' = get_type fmt in
+    let source' = get_type (file_ext source) in
+    match view', source' with
+      | VCF, VCF -> (let _ = write '-' (read source) in 0)
+      | XML, XML -> (let _ = write '-' (read source) in 0)
+      | CSV, CSV -> (let _ = write '-' (read source) in 0)
+
+      | CSV, VCF -> (let _ = write '-' (get vcards     (read source)) in 0)
+      | VCF, CSV -> (let _ = write '-' (create vcards  (read source)) in 0)
+
+      | CSV, XML -> (let _ = write '-' (get xcard      (read source)) in 0)
+      | XML, CSV -> (let _ = write '-' (create xcard   (read source)) in 0)
+
+      | XML, VCF -> (let _ = write '-' (get vcardtoxml (read source)) in 0)
+      | VCF, XML -> (let _ = write '-' (get xmltovcard (read source)) in 0)
+
+      | _ -> usage 1
+    : int
+  in
+  let cput (view:string) (source:string) =
+    let view'   = get_type (file_ext view) in
+    let source' = get_type (file_ext source) in
+    match view', source' with
+      | VCF, VCF -> (let _ = write '-' (read source) in 0)
+      | XML, XML -> (let _ = write '-' (read source) in 0)
+      | CSV, CSV -> (let _ = write '-' (read source) in 0)
+
+      | CSV, VCF -> (let _ = write '-' (put vcards (read view) (read source)) in 0)
+      | VCF, CSV -> (let _ = write '-' (get vcards (read view)) in 0)
+
+      | CSV, XML -> (let _ = write '-' (put xcard  (read view) (read source)) in 0)
+      | XML, CSV -> (let _ = write '-' (get xcard  (read view)) in 0)
+
+      | XML, VCF -> (let _ = write '-' (put vcardtoxml (read view) (read source)) in 0)
+      | VCF, XML -> (let _ = write '-' (put xmltovcard (read view) (read source)) in 0)
+
+      | _ -> usage 1
+    : int
+  in
+  match args with
+    | List.Cons ( "get", ( List.Cons ( source, ( List.Cons ( format, List.Nil ) ) ) ) ) -> cget source format
+    | List.Cons ( "put", ( List.Cons (   view, ( List.Cons ( source, List.Nil ) ) ) ) ) -> cput view source
+    | _ -> usage 1
+  : int
+

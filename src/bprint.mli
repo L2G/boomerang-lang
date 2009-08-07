@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bprint.mli                                                  *)
+(* /src/bprint.mli                                                            *)
 (* Boomerang pretty printing interface                                        *)
 (* $Id$ *)
 (******************************************************************************)

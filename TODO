@@ -1,25 +1,57 @@
-== FIX AS SOON AS POSSIBLE ==
-* Lens printing is currently deficient
 
-** using clobber as our implementation primitive means that we can't
-   print useful lens representations for const, ins, etc.
+== EXAMPLES & UNIT TESTS ==
 
-** we _have_ enough information to print canonizer_of_lens well, but
-   the two types are currently defined separately in different modules...
+* Review all examples to choose what is the best alignment for each
+  one (i.e., are they using dictionary only because at the time it was
+  the only option?)
+
+* MediaWiki
+
+** annotated regexps
+
+** safe bijections
+
+* Choose a way to organize unit tests (and do it)
+
+* Tests with weight and predicates for each kind of alignment
+
+* Add text with all alignments nested one within the other and
+  make some easy tests (just to check that the alignments are
+  interacting well)
+
+* Test alignments when the string does not have any chunk (in
+  both sides and only in one side at a time). like put "" into ""
+
+== SYSTEM ==
 
 * the implementation of the function cast rule is sound, but actually
   checks too much.  we should implement the function check rule that
   has been proven sound. (Mike)
 
-== SUMMER AGENDA ==
+* being able to match a list "[a;b;c]" in a match branch 
+  instead of match l with
+     | List.Cons (a, (List.Cons (b, (List.Cons (c, List.Nil)))))
+
+* name resolution in a submodule (see BUGS)
+
+* -check-only flag: don't compile and run, just check that base sorts
+  line up.
+
+* better error messages on bad overloading resolution (usually caused by a type issue elsewhere)
+
+* optimization and speedups (profiling indicates lots of GC activity)
+
+== TOP LEVEL SYSTEM ==
 
 * toplevel
 
-** -e argument
-
 ** Arg module containing non-Boomerang flags
+   2 issues:
+   - one in the toplevel, so we do not fail with a non-recognized argument
+   - one on the interfacce of the helper boomerang module to parse args
 
-** default to "main" lens if only a module is given
+*** functions to process command-line arguments from boomerang
+    (set solutions mode for coqsplit): done, coqsplit to do
 
 * Configuration management
 
@@ -31,7 +63,56 @@
 
 *** unison interface
 
-* coqsplit
+== DOCUMENTATION ==
+
+* Polish intro of manual.
+
+* QuickStart:
+
+** rewrite/review very careful  QuickStart
+
+** Add examples using q-lenses to QuickStart.
+
+* Regexp: if someone does not know what is a regular expression?
+  Indicate a reference in regular expressions somewhere.
+
+* examples/alignement.src: Write a demo explaining and showing how to
+  use the different alignments/weights/thresholds/predicates
+
+* Lists
+
+* Documentation for XML library?
+
+* Unit tests for types
+
+* Command line
+
+* Fiat description is not very clear (need a simple example; why is it useful?)
+
+* Write some techniques to write lenses:
+
+** Warn the user to use regexp as long as possible and only write lenses
+   when he can not continue using regexp.  Example:
+   (del R)*  and  del (R*)   where R:regexp
+
+* Review core.boom, prelude.boom, etc to check if the documentation is
+  matching with the functions. Also, write some more examples.
+
+== PRINTING ==
+
+* Lens printing is currently deficient
+
+** re-do lens printing entirely
+
+** using clobber as our implementation primitive means that we can't
+   print useful lens representations for const, ins, etc.
+
+** we _have_ enough information to print canonizer_of_lens well, but
+   the two types are currently defined separately in different modules...
+
+* Printing for lists (instead of printing the structure)
+
+== UNIT TESTING ==
 
 * unit testing
 
@@ -41,52 +122,30 @@
 
 ** desugar test syntax into DLet, eliminate DTest
 
-* MediaWiki
+== CODE ==
 
-** annotated regexps
+* core.boom vs. prelude.boom
 
-** safe bijections
+* Split some .ml files (balign.ml for example)
 
-* diffy matching
+* Use heap in greedy alignment
 
-* nested words and recursion
+* Change the name of the hungarian algorithm
 
-** string <-> tree
+* Fix names "Permutations" in blenses (permutations writen by users
+  in boomerang) and "Permutation" in balign
 
-* grammars
+== OTHER ==
 
-== BUILD == 
+* Done: "dynamic tags (this is necessary, e.g., for pdict)", but what is pdict?
+
+* coqsplit (was in the summer agenda of the trunk's todo)
+
+== BUILD ==
 
 * add target for bytecode compilation (Nate)
 
-== SYSTEM ==
-
-* -check-only flag: don't compile and run, just check that base sorts
-  line up.
-
-* re-do lens printing entirely
-
-* better error messages on bad overloading resolution (usually caused by a type issue elsewhere)
-
-* optimization and speedups (profiling indicates lots of GC activity)
-
-* functions to process command-line arguments from boomerang (e.g., set solutions mode for coqsplit)
-
-* match tags are currently static: <LIDENT:qid> is the parsing rule.
-  we should relax this to <aexp:qid> and allow for dynamically
-  generated match tags.  this is necessary, e.g., for pdict.
-
-** expose dictionary typing rules and add to contracts?  right now
-   dictionary typing errors are runtime errors about static tagging.
-   if we make the tags dynamic, it will be harder to debug, e.g.
-
-   let l1,l2 = copy "a",copy "b"
-   let l (tag:string) = <"x":l1> . <tag:l2>
-
-   will produce an error message saying that the tag "x" is used with
-   two different lenses if it ever gets "x" in the tag...
-
-== LIBRARIES == 
+== LIBRARIES ==
 
 * Investigate other options for the contract on sorting.
 
@@ -100,18 +159,22 @@
 * Encodings and numbes: Base64, hex, scientific notation
 ** can we write a lens in hex <-> decimal?  which primitives must we add, if any?
 
-== DOCUMENTATION ==
+== EXTENSIONS ==
 
-* Polish intro of manual.
+* find a solution to read from stdin (for the main function) ;
+  [read '-'] fails ; give a readLine/readChar?
 
-* Add examples using q-lenses to QuickStart.
+* add ambiguous concat on left and right:
+  a* -. a* with "aa" gives ["aa", ""]
+  a* .- a* with "aa" gives ["", "aa"]
 
-* Add a table with all symbols (. | || <->) and what they mean.
+* coercion from aregexp to lens
 
-* Add description of sync.
+* asymmetric lens
 
-* Fiat description is not very clear (need a simple example; why is it useful?)
+* unicode
 
-* Maybe warn the user to use regexp as long as possible and only write lenses
-  when he can not continue using regexp.  Example:
-  (del R)*  and  del (R*)   where R:regexp
+* nested words and recursion
+
+** string <-> tree
+

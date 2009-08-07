@@ -1,6 +1,6 @@
 module Test_alias = 
 
-let l = ((copy /ABC/ . copy /DEF/) . copy /GHI/) . copy /JKL/
+let l = ((copy "ABC" . copy "DEF") . copy "GHI") . copy "JKL"
 
 test get l "ABCDEFGHIJKL" = "ABCDEFGHIJKL"
 test put l "ABCDEFGHIJKL" "ABCDEFGHIJKL" = "ABCDEFGHIJKL"

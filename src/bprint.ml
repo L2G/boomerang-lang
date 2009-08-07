@@ -15,7 +15,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bprint.ml                                                   *)
+(* /src/bprint.ml                                                             *)
 (* Boomerang printing                                                         *)
 (* $Id$ *)
 (******************************************************************************)
@@ -46,6 +46,9 @@ let rec format_sort = function
   | SChar    -> msg "@[char@]"
   | SString -> msg "@[string@]"
   | SRegexp -> msg "@[regexp@]"
+  | SAregexp -> msg "@[aregexp@]"
+  | SSkeletons -> msg "@[skeleton_set@]"
+  | SResources -> msg "@[resource_set@]"
   | SLens -> msg "@[lens@]"
   | SCanonizer -> msg "@[canonizer@]"
       
@@ -140,6 +143,12 @@ and format_exp e0 = match e0 with
   | EVar(_,q) -> 
       msg "@[%s@]" (Qid.string_of_t q)
 	
+  | EOver(_,OWeight,[b;w;e]) ->
+      msg "@[{:%a%a:%a}@]" (fun _ -> format_exp) b (fun _ -> format_exp) w (fun _ -> format_exp) e
+
+  | EOver(_,OMatch,[t;e]) ->
+      msg "@["; msg "<%a:%a>@]" (fun _ -> format_exp) t (fun _ -> format_exp) e
+
   | EOver(_,op,e1::rest) -> 
       msg "@[<2>(";
       format_exp e1;
@@ -234,7 +243,7 @@ and format_exp e0 = match e0 with
   | EChar(_,c) -> msg "'%s'" (Char.escaped c)
 
   | EString (_,s) ->
-      msg "@[\"%s\"@]" (Misc.whack s)
+      msg "@[\"%s\"@]" (String.escaped s)
 
   | EInteger (_,i) ->
       msg "@[%d@]" i
@@ -252,9 +261,9 @@ and format_exp e0 = match e0 with
 	ranges;
       msg "]@]"
 
-  | EGrammar(_,ps) -> 
+  | EGrammar(_,ps) ->
       msg "@[grammar";
-      Misc.format_list "@\nand@ " format_prod ps; 
+      Misc.format_list "@\nand@ " format_prod ps;
       msg "end@]"
 
 and format_op = function
@@ -281,22 +290,24 @@ and format_op = function
   | OLeq     -> msg "<="
   | OGt     -> msg ">"
   | OGeq    -> msg ">="
+  | OMatch -> msg "< : >"
+  | OWeight -> msg "{: : }"
 
-and format_prod (Prod(_,x,rs)) = 
+and format_prod (Prod(_,x,rs)) =
   msg "@[%s@ ::= @[" (Id.string_of_t x);
   Misc.format_list "@\n|@ " format_rule rs;
-  msg "@]@]" 
+  msg "@]@]"
 
-and format_rule (Rule(_,xs,ys,bs)) = 
+and format_rule (Rule(_,xs,ys,bs)) =
   msg "@[";
   Misc.format_list "" format_exp xs;
   msg "@ <-> @ ";
   Misc.format_list "" format_exp ys;
   msg "@\nwhere@ ";
-  Misc.format_list "@\nand@ " 
-    (fun (li,ei) -> msg "@[%s:" (Id.string_of_t li); format_exp ei; msg "@]") bs;    
+  Misc.format_list "@\nand@ "
+    (fun (li,ei) -> msg "@[%s:" (Id.string_of_t li); format_exp ei; msg "@]") bs;
   msg "@]"
-      
+
 and format_test_result tr =
   match tr with
     | TestEqual e -> 

@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bdiff3.ml                                                   *)
+(* /src/bdiff3.ml                                                             *)
 (* Boomerang Diff3 implementation                                             *)
 (* $Id$ *)
 (******************************************************************************)

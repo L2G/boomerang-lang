@@ -14,13 +14,13 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/toplevel.ml                                                 *)
+(* /src/toplevel.ml                                                           *)
 (* Boomerang front-end                                                        *)
 (* $Id$ *)
 (******************************************************************************)
 
 (* imports *)
-module L = Blenses.DLens
+module L = Blenses.MLens
 open Error 
 
 let sprintf = Printf.sprintf
@@ -88,18 +88,35 @@ let check_str n r x =
              s1 
              s2)
 
-let get_str l c = 
-  check_str "get" (L.ctype l) c;
-  L.rget l c
+let get_str l s = 
+  check_str "get" (L.stype l) s;
+  L.rget l (Bstring.of_string s)  (* TODO: push this up to read_string *)
 
-let put_str l a c = 
-  check_str "put" (L.atype l) a;
-  check_str "put" (L.ctype l) c;
-  L.rput l a c
+let put_str l v s = 
+  check_str "put" (L.vtype l) v;
+  check_str "put" (L.stype l) s;
+  L.rput l (Bstring.of_string v) (Bstring.of_string s)
 
-let create_str l a =
-  check_str "create" (L.atype l) a;
-  L.rcreate l a 
+let create_str l v =
+  check_str "create" (L.vtype l) v;
+  L.rcreate l (Bstring.of_string v)
+
+(************)
+(* RUN MAIN *)
+(************)
+let run_main modl rest =  (* Note: the contracts of main are not checked *)
+  let fmap f o =
+    match o with
+    | None -> None
+    | Some x -> Some (f x)
+  in
+  let run main =
+    let i = Info.M "argv in main built-in" in
+    Bvalue.get_i (
+      Bvalue.get_f (Bregistry.value_of_rv main) (Bvalue.mk_list i (Safelist.map (Bvalue.mk_s i) rest))
+    )
+  in
+  fmap run (lookup (modl ^ ".main"))
 
 (*******)
 (* GET *)
@@ -126,130 +143,130 @@ let create l_n a_fn o_fn =
 (********)
 (* SYNC *)
 (********)
-let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =   
-  let l = lookup_lens l_n in 
-  let read f =
-    if Sys.file_exists f then Some (read_string f)
-    else None in
-  let oc, ac, bc = read o_fn, read a_fn, read b_fn in 
-  let oa = Misc.map_option (get_str l) oc in 
-  let aa = Misc.map_option (get_str l) ac in 
-  let ba = Misc.map_option (get_str l) bc in 
-  let xt = match L.xtype l with
-    | Some xt -> xt     
-    | None -> 
-        Berror.run_error (Info.M "sync")
-          (fun () -> msg "cannot synchronize with %s" (L.string_of_t l)) in
-  let acts,oa',aa',ba' = Bsync.sync_opt xt oa aa ba in 
-  let write_str fn vo so = match vo,so with 
-    | None,_ -> Misc.remove_file_or_dir fn;
-    | Some v, None -> write_string fn (create_str l v) 
-    | Some v, Some s -> write_string fn (put_str l v s) in 
-  Bprint.nlify acts;
-  write_str o_fn' oa' oc;
-  write_str a_fn' aa' ac;
-  write_str b_fn' ba' bc;
-  (* Return non-zero exit code if any conflicts were detected *)
-  if aa' = ba' then 0 else 1
+(* let sync l_n o_fn a_fn b_fn o_fn' a_fn' b_fn' =    *)
+(*   let l = lookup_lens l_n in  *)
+(*   let read f = *)
+(*     if Sys.file_exists f then Some (read_string f) *)
+(*     else None in *)
+(*   let oc, ac, bc = read o_fn, read a_fn, read b_fn in  *)
+(*   let oa = Misc.map_option (get_str l) oc in  *)
+(*   let aa = Misc.map_option (get_str l) ac in  *)
+(*   let ba = Misc.map_option (get_str l) bc in  *)
+(*   let xt = match L.xtype l with *)
+(*     | Some xt -> xt      *)
+(*     | None ->  *)
+(*         Berror.run_error (Info.M "sync") *)
+(*           (fun () -> msg "cannot synchronize with %s" (L.string_of_t l)) in *)
+(*   let acts,oa',aa',ba' = Bsync.sync_opt xt oa aa ba in  *)
+(*   let write_str fn vo so = match vo,so with  *)
+(*     | None,_ -> Misc.remove_file_or_dir fn; *)
+(*     | Some v, None -> write_string fn (create_str l v)  *)
+(*     | Some v, Some s -> write_string fn (put_str l v s) in  *)
+(*   Bprint.nlify acts; *)
+(*   write_str o_fn' oa' oc; *)
+(*   write_str a_fn' aa' ac; *)
+(*   write_str b_fn' ba' bc; *)
+(*   (\* Return non-zero exit code if any conflicts were detected *\) *)
+(*   if aa' = ba' then 0 else 1 *)
   
-(* OLD SYNC *)
-let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n)
-let oldsync l o_fn c_fn a_fn = 
-  let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in 
-  match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with 
-    | _,false,false -> 
-        (* if neither c nor a exists, clear o and return *)
-        debug_sync (fun () -> Util.format "replicas %s and %s missing; removing archive %s@\n" c_fn a_fn o_fn);
-        Misc.remove_file_or_dir o_fn;
-        0
+(* (\* OLD SYNC *\) *)
+(* let archive_fn n = Util.fileInUnisonDir (sprintf ".#%s" n) *)
+(* let oldsync l o_fn c_fn a_fn =  *)
+(*   let o_fn = if o_fn = "" then archive_fn c_fn else o_fn in  *)
+(*   match Sys.file_exists o_fn, Sys.file_exists c_fn, Sys.file_exists a_fn with  *)
+(*     | _,false,false ->  *)
+(*         (\* if neither c nor a exists, clear o and return *\) *)
+(*         debug_sync (fun () -> Util.format "replicas %s and %s missing; removing archive %s@\n" c_fn a_fn o_fn); *)
+(*         Misc.remove_file_or_dir o_fn; *)
+(*         0 *)
 
-    | _,true,false -> 
-        (* if c exists but a does not, set a to GET c *)
-        debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);
-        let c = read_string c_fn in 
-          write_string o_fn c;
-          write_string a_fn (get_str (lookup_lens l) c);
-          0
+(*     | _,true,false ->  *)
+(*         (\* if c exists but a does not, set a to GET c *\) *)
+(*         debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn); *)
+(*         let c = read_string c_fn in  *)
+(*           write_string o_fn c; *)
+(*           write_string a_fn (get_str (lookup_lens l) c); *)
+(*           0 *)
           
-    | true,false,true ->
-        (* if c does not exist but a and o do, set c and o to PUT a o *)        
-        debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-        let a = read_string a_fn in
-        let o = read_string o_fn in 
-        let c' = put_str (lookup_lens l) a o in 
-        let a' = get_str (lookup_lens l) c' in 
-          write_string c_fn c';
-          write_string a_fn a';
-          write_string o_fn c';
-          0
+(*     | true,false,true -> *)
+(*         (\* if c does not exist but a and o do, set c and o to PUT a o *\)         *)
+(*         debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn); *)
+(*         let a = read_string a_fn in *)
+(*         let o = read_string o_fn in  *)
+(*         let c' = put_str (lookup_lens l) a o in  *)
+(*         let a' = get_str (lookup_lens l) c' in  *)
+(*           write_string c_fn c'; *)
+(*           write_string a_fn a'; *)
+(*           write_string o_fn c'; *)
+(*           0 *)
     
-    | false,false,true ->
-        (* if c and o do not exist but a does, set c and o to CREATE a *)        
-        debug_sync (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn);
-        let a = read_string a_fn in 
-        let c' = create_str (lookup_lens l) a in 
-        let a' = get_str (lookup_lens l) c' in 
-          write_string o_fn c';
-          write_string a_fn a';
-          write_string c_fn c';
-          0
+(*     | false,false,true -> *)
+(*         (\* if c and o do not exist but a does, set c and o to CREATE a *\)         *)
+(*         debug_sync (fun () -> Util.format "(lens: %s) %s <-- create -- %s\n" l c_fn a_fn); *)
+(*         let a = read_string a_fn in  *)
+(*         let c' = create_str (lookup_lens l) a in  *)
+(*         let a' = get_str (lookup_lens l) c' in  *)
+(*           write_string o_fn c'; *)
+(*           write_string a_fn a'; *)
+(*           write_string c_fn c'; *)
+(*           0 *)
 
-    | false,true,true -> 
-        (* if c and a exist but o does not and a <> GET c then conflict; otherwise set o to c *)
-        let a = read_string a_fn in 
-        let c = read_string c_fn in 
-        let a' = get_str (lookup_lens l) c in 
-        if a = a' then 
-          begin
-            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
-            write_string o_fn c;
-            0
-          end
-        else
-          begin 
-            debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);          
-            1
-          end
+(*     | false,true,true ->  *)
+(*         (\* if c and a exist but o does not and a <> GET c then conflict; otherwise set o to c *\) *)
+(*         let a = read_string a_fn in  *)
+(*         let c = read_string c_fn in  *)
+(*         let a' = get_str (lookup_lens l) c in  *)
+(*         if a = a' then  *)
+(*           begin *)
+(*             debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn); *)
+(*             write_string o_fn c; *)
+(*             0 *)
+(*           end *)
+(*         else *)
+(*           begin  *)
+(*             debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);           *)
+(*             1 *)
+(*           end *)
 
-    | true,true,true -> 
-        (* otherwise, c, a, and o exist:
-           - if a=GET o set a to GET c and o to c;
-           - else if c=o, set c and o to PUT a o;
-           - otherwise conflict. *)
-        let o = read_string o_fn in
-        let c = read_string c_fn in 
-        let a = read_string a_fn in 
-        let a' = get_str (lookup_lens l) c in 
-        if a = a' then 
-          begin 
-            debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn);
-            write_string o_fn c;
-            0
-          end
-        else
-          let a' = get_str (lookup_lens l) o in 
-            if a = a' then 
-              begin 
-                debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);            
-                write_string a_fn (get_str (lookup_lens l) c);
-                write_string o_fn c;
-                0
-              end
-            else if c = o then
-              begin 
-                debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn);
-                let c' = put_str (lookup_lens l) a o in 
-                let a' = get_str (lookup_lens l) c' in 
-                  write_string o_fn c';
-                  write_string a_fn a';
-                  write_string c_fn c';
-                  0
-              end            
-            else 
-              begin 
-                debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn);
-                1
-              end
+(*     | true,true,true ->  *)
+(*         (\* otherwise, c, a, and o exist: *)
+(*            - if a=GET o set a to GET c and o to c; *)
+(*            - else if c=o, set c and o to PUT a o; *)
+(*            - otherwise conflict. *\) *)
+(*         let o = read_string o_fn in *)
+(*         let c = read_string c_fn in  *)
+(*         let a = read_string a_fn in  *)
+(*         let a' = get_str (lookup_lens l) c in  *)
+(*         if a = a' then  *)
+(*           begin  *)
+(*             debug_sync (fun () -> Util.format "(lens: %s) setting archive %s to concrete replica %s\n" l o_fn c_fn); *)
+(*             write_string o_fn c; *)
+(*             0 *)
+(*           end *)
+(*         else *)
+(*           let a' = get_str (lookup_lens l) o in  *)
+(*             if a = a' then  *)
+(*               begin  *)
+(*                 debug_sync (fun () -> Util.format "(lens: %s) %s -- get --> %s\n" l c_fn a_fn);             *)
+(*                 write_string a_fn (get_str (lookup_lens l) c); *)
+(*                 write_string o_fn c; *)
+(*                 0 *)
+(*               end *)
+(*             else if c = o then *)
+(*               begin  *)
+(*                 debug_sync (fun () -> Util.format "(lens: %s) %s <-- put -- %s %s\n" l c_fn a_fn o_fn); *)
+(*                 let c' = put_str (lookup_lens l) a o in  *)
+(*                 let a' = get_str (lookup_lens l) c' in  *)
+(*                   write_string o_fn c'; *)
+(*                   write_string a_fn a'; *)
+(*                   write_string c_fn c'; *)
+(*                   0 *)
+(*               end             *)
+(*             else  *)
+(*               begin  *)
+(*                 debug_sync (fun () -> Util.format "(lens: %s) %s --> conflict <-- %s\n" l c_fn a_fn); *)
+(*                 1 *)
+(*               end *)
 
 let rest = Prefs.createStringList "rest" "*no docs needed" ""
 
@@ -257,11 +274,13 @@ let o_pref = Prefs.createString     "output" "" "output" ""
 let l_pref = Prefs.createStringList "lens"      "lens"          "" 
 let c_pref = Prefs.createStringList "concrete"  "concrete file" ""
 let a_pref = Prefs.createStringList "abstract"  "abstract file" ""
+let e_pref = Prefs.createStringList "expression"  "on-time module contents" ""
 
 let _ = Prefs.alias o_pref "o" 
 let _ = Prefs.alias l_pref "l" 
 let _ = Prefs.alias c_pref "c" 
 let _ = Prefs.alias a_pref "a" 
+let _ = Prefs.alias e_pref "e" 
 
 let check_pref = Prefs.createStringList "check" "run unit tests for given module(s)" ""
 
@@ -282,6 +301,35 @@ let toplevel' progName () =
 
   let bad_cmdline () = Util.format "%s" shortUsageMsg; exit 2 in 
 
+  (* run a special module if asked to *)
+  begin
+    let basename prog =
+      let basename = Filename.basename prog in
+      try Filename.chop_extension basename
+      with Invalid_argument _ -> basename
+    in
+    let modl basename =
+      let prefix = "boomerang" in
+      let prefix_len = String.length prefix in
+      let basename_len = String.length basename in
+      if basename_len >= prefix_len && String.sub basename 0 prefix_len = prefix
+      then None
+      else Some (String.capitalize (basename))
+    in
+    let prog = Sys.argv.(0) in
+    match modl (basename prog) with
+    | None -> ()
+    | Some modname ->
+        if not (Bregistry.load modname)
+        then raise (
+          Error.Harmony_error (fun () -> Util.format "Error: could not find module %s@\n" modname)
+        );
+        Prefs.parseCmdLine usageMsg; (* TODO: read the usage message from the module *)
+        match run_main modname (Safelist.rev (Prefs.read rest)) with
+        | None -> Error.simple_error (Printf.sprintf "%s does not contain a main function.\n" modname)
+        | Some code -> exit code
+  end;
+
   (* Parse command-line options *)
   Prefs.parseCmdLine usageMsg;
   
@@ -289,6 +337,7 @@ let toplevel' progName () =
   let ll = Safelist.rev (Prefs.read l_pref) in 
   let cl = Safelist.rev (Prefs.read c_pref) in 
   let al = Safelist.rev (Prefs.read a_pref) in 
+  let el = Safelist.rev (Prefs.read e_pref) in
   let o = Prefs.read o_pref in
   let rest_pref = Safelist.rev (Prefs.read rest) in 
 
@@ -308,10 +357,14 @@ let toplevel' progName () =
        (* barf on spurious command line options?! *)
        Prefs.set Binterp.test_all true;
        Safelist.iter check rest_pref;
-       Brx.print_stats ();
        0
-     end
-     else begin 
+     end else if el <> []
+     then begin (* dash e *)
+       match el with
+       | [exp] -> !Bregistry.interp_string_impl "<OnTime module ('-e' argument)>" ("module OnTime =\n" ^ exp) "OnTime"; 0
+       | [] -> assert false
+       | _ -> bad_cmdline ()
+     end else begin 
        let rest_pref,ll,cl,al,o = match rest_pref,ll,cl,al,o with 
          (* get *)
          | [l;c_fn],[],[],[],o
@@ -335,22 +388,22 @@ let toplevel' progName () =
          | ["put"; l],[],[c_fn],[a_fn],o
          | ["put"; l; a_fn; c_fn],[],[],[],o -> 
              ["put"],[l],[c_fn],[a_fn],o
-         (* sync *)
-         | ["sync"; l; o_fn; a_fn; b_fn],[],[],[],"" -> 
-             ["sync"],[l],[o_fn; a_fn; b_fn; o_fn; a_fn; b_fn],[],""
-         | ["sync"; l; o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],[],[],"" -> 
-             ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],""
-         (* oldsync *)
-         | ["oldsync"; l; o_fn; a_fn; b_fn],[],[],[],"" -> 
-             ["oldsync"],[l],[o_fn; a_fn; b_fn],[],""
+(*          (\* sync *\) *)
+(*          | ["sync"; l; o_fn; a_fn; b_fn],[],[],[],"" ->  *)
+(*              ["sync"],[l],[o_fn; a_fn; b_fn; o_fn; a_fn; b_fn],[],"" *)
+(*          | ["sync"; l; o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],[],[],"" ->  *)
+(*              ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],"" *)
+(*          (\* oldsync *\) *)
+(*          | ["oldsync"; l; o_fn; a_fn; b_fn],[],[],[],"" ->  *)
+(*              ["oldsync"],[l],[o_fn; a_fn; b_fn],[],"" *)
          | _ -> bad_cmdline () in 
        let o_fn = if o="" then "-" else o in 
        match rest_pref,ll,cl,al with
          | ["get"],[l],[c_fn],[]        -> get l c_fn o_fn
          | ["create"],[l],[],[a_fn]     -> create l a_fn o_fn
          | ["put"],[l],[c_fn],[a_fn]    -> put l a_fn c_fn o_fn
-         | ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[]   -> sync l o_fn a_fn b_fn o_fn' a_fn' b_fn'
-         | ["oldsync"],[l],[o_fn; a_fn; b_fn],[] -> oldsync l o_fn a_fn b_fn 
+(*          | ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[]   -> sync l o_fn a_fn b_fn o_fn' a_fn' b_fn' *)
+(*          | ["oldsync"],[l],[o_fn; a_fn; b_fn],[] -> oldsync l o_fn a_fn b_fn  *)
          | _ -> assert false
      end)
     (fun () -> Util.flush ())

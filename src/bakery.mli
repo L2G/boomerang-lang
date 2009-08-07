@@ -14,7 +14,7 @@
 (* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
 (* Lesser General Public License for more details.                            *)
 (******************************************************************************)
-(* /boomerang/src/bakery.mli                                                  *)
+(* /src/bakery.mli                                                            *)
 (* Boomerang bakery interface                                                 *)
 (* $Id$ *)
 (******************************************************************************)
