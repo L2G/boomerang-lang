@@ -259,7 +259,7 @@ opens:
 <Decl> ::= \lit{@module@} <LIdent> \lit{@=@} <Decl>* \lit{@end@}
       \alt \lit{@type@} <TyVarList> <LIdent> \lit{@=@} <DTSortList>
       \alt \lit{@let@} <Id> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
-      \alt \lit{@let@} <PairPat> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
+      \alt \lit{@let@} <LetPat> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
       \alt \lit{@test@} <InfixExp> \lit{@=@} <TestResExp>
       \alt \lit{@test@} <InfixExp> \lit{@:@} <TestResSort>
 \end{grammar}
@@ -334,12 +334,12 @@ decls:
         let b =  Bind(i,PVar(i2,$2,None),None,f) in 
         DLet(i,b)::$6 }
 
-  | LET pairpat COLON sort EQUAL exp decls
+  | LET letpat COLON sort EQUAL exp decls
       { let i = me2 $1 $6 in 
         let b = Bind(i,fixup_pat i $2,Some $4,$6) in 
         DLet(i,b)::$7 }
 
-  | LET pairpat EQUAL exp decls
+  | LET letpat EQUAL exp decls
       { let i = me2 $1 $4 in 
         let b =  Bind(i,fixup_pat i $2,None,$4) in 
         DLet(i,b)::$5 }
@@ -386,7 +386,7 @@ test_res_sort:
 
 \begin{grammar}
 <Exp> ::= \lit{@let@} <Id> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
-     \alt \lit{@let@} <PairPat> (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
+     \alt \lit{@let@} <LetPat> (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
      \alt \lit{@fun@} (<Param>)+ (\lit{@:@} <Sort>)? \lit{@->@} <Exp>
      \alt <CaseExp>
 
@@ -406,12 +406,12 @@ exp:
         let b = Bind(i,PVar(i2,$2,None),None,f) in 
         ELet(i,b,$7) }
 
-  | LET pairpat COLON sort EQUAL exp IN exp 
+  | LET letpat COLON sort EQUAL exp IN exp 
       { let i = me2 $1 $8 in 
         let b = Bind(i,fixup_pat i $2,Some $4,$6) in 
         ELet(i,b,$8) }
 
-  | LET pairpat EQUAL exp IN exp 
+  | LET letpat EQUAL exp IN exp 
       { let i = me2 $1 $6 in 
         let b = Bind(i,fixup_pat i $2,None,$4) in 
         ELet(i,b,$6) }
@@ -1434,33 +1434,46 @@ dtsort_list2:
 
 #{#}
 pat:
-  | UIDENT pairpat
-      { let i1,_ = $1 in 
-        let i = mp2 i1 $2 in 
-         PVnt(i,Qid.t_of_id $1,Some $2) }
+  | pat COMMA lcpat
+      { let i = mp $1 $3 in 
+        PPar(i,$1,$3) }
 
-  | QUALIDENT pairpat
-      { let (i,qs) = $1 in 
-        PVnt(i,parse_qid i qs,Some $2) }
+  | lcpat { $1 }
 
-  | listpat
-      { $1 }
+lcpat:
+  | listpat { $1 }
 
-  | pairpat
-      { $1 }
+  | conpat { $1 }
 
 #{@}
 <PairPat> ::= <PairPat> \lit{@,@} <APat>
      \alt <APat>
 
 #{#}
-pairpat:
-  | pairpat COMMA apat
+
+letpat:
+  | letpat COMMA conpat
       { let i = mp $1 $3 in 
         PPar(i,$1,$3) }
 
-  | apat
-      { $1 }
+  | QUALIDENT apat COMMA conpat
+      { let i1, qs = $1 in
+        let i = mp $2 $4 in
+        PPar(i, PVnt(i1, parse_qid i1 qs, Some $2) ,$4) }
+
+  | apat { $1 }
+
+conpat:
+  | UIDENT apat
+      { let i1,_ = $1 in 
+        let i = mp2 i1 $2 in 
+         PVnt(i,Qid.t_of_id $1,Some $2) }
+
+  | QUALIDENT apat
+      { let (i,qs) = $1 in 
+        PVnt(i,parse_qid i qs,Some $2) }
+
+  | apat { $1 }
 
 #{@}
 <APat> ::= \lit{@_@}
@@ -1475,12 +1488,8 @@ pairpat:
 \end{grammar}
 #{#}
 apat:
-  | UNDERLINE 
-    { PWld($1) }
-
-  | LIDENT
-      { let i,_ = $1 in 
-        PVar(i,$1,None) }
+  | aapat
+      { $1 }
 
   | LPAREN RPAREN
       { PUnt(m $1 $2) }
@@ -1511,12 +1520,27 @@ apat:
   | LPAREN pat RPAREN
       { $2 }
 
+aapat:
+  | UNDERLINE
+    { PWld $1 }
+
+  | LIDENT
+      { let i, _ = $1 in
+        PVar (i, $1, None) }
+
 listpat:
   | CSET
-      { let i, _ = $1 in
-        PVnt (i, Qid.mk_list_t i "Nil", None) }
+      { let i, cset = $1 in
+        if cset = ""
+        then PVnt (i, Qid.mk_list_t i "Nil", None)
+        else syntax_error i (Printf.sprintf "[%s] is not the empty list" cset) }
 
-  | pairpat COLONCOLON pat
+  | conpat COLONCOLON listpat
+      { let i = $2 in
+        let p = PPar (i, $1, $3) in
+        PVnt ($2, Qid.mk_list_t i "Cons", Some p) }
+
+  | conpat COLONCOLON aapat
       { let i = $2 in
         let p = PPar (i, $1, $3) in
         PVnt ($2, Qid.mk_list_t i "Cons", Some p) }
