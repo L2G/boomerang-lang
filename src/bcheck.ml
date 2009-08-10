@@ -484,7 +484,19 @@ and check_exp ?(in_let=false) sev e0 =
 	mk_checked_var sev i q
 
     | EOver(i,op,es) -> begin 
-        let err () = static_error i (fun () -> msg "@[could@ not@ resolve@ %s@]" (string_of_op op)) in 
+        (* type check and instrument es *)
+        let rs = 
+          Safelist.fold_right
+            (fun ei rs -> 
+	       let ri = check_exp sev ei in 
+                 ri::rs)
+            es [] in
+        let err () =
+          static_error i (
+            fun () -> msg "@[could@ not@ resolve@ %s@ for@ %a@]"
+              (string_of_op op)
+              (fun _ -> Misc.format_list "@ and@ " format_sort) (Safelist.map fst rs))
+        in 
         (* rules for overloaded symbols *)
 	let bin_rules =
 	  [ ODot, 
@@ -524,13 +536,6 @@ and check_exp ?(in_let=false) sev e0 =
                 Some op_name
 	      else 
                 find_rule t rs in 
-        (* type check and instrument es *)
-        let rs = 
-          Safelist.fold_right
-            (fun ei rs -> 
-	       let ri = check_exp sev ei in 
-                 ri::rs)
-            es [] in
         (* rewrite the overloaded symbol using the rules above; 
            the treatment of [OIter] is special *)
         let (op_s,op_e) = match op,rs with

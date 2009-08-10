@@ -1551,18 +1551,21 @@ module MLens = struct
     | Merge(r1)          -> msg "(merge@ "; Rx.format_t r1; msg ")"
     | Fiat(dl1)          -> msg "(fiat@ "; format_t dl1; msg ")"
     | Permute((_,is1,is2,rs1,rs2),dls) ->
-        let format_array fmt sep a =
+        let format_array sep fmt a =
           let rec loop i n =
             if i <> n
-            then begin
+            then (
               fmt a.(i);
-              if i + 1 <> n then msg sep
-            end in
-          loop 0 (Array.length a) in
+              if succ i <> n then msg sep;
+              loop (succ i) n
+            )
+          in
+          loop 0 (Array.length a)
+        in
         msg "(permute@ #{int}[@[";
-        format_array (fun i -> msg "%d" i) ",@ " is2;
+        format_array ",@ " (fun i -> msg "%d" i) is2;
         msg "@]]@ #{lens}[@[";
-        format_array format_t ",@ " dls;
+        format_array ",@ " format_t dls;
         msg "@]])"
     end;
     msg "@]"

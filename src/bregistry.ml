@@ -167,7 +167,7 @@ let get_library () = !library
 
 (* hack to reset library to native stuff in visualizer *)
 let old_library = ref None
-let reset () = 
+let reset () =
   if !old_library = None then old_library := Some !library;
   loaded := [];
   library := 
@@ -205,7 +205,7 @@ let find_file modl path =
     false
   )
 
-let find_filename modl = 
+let find_modl modl = 
   let rec loop dirs =
     match dirs with
     | [] -> None
@@ -249,6 +249,13 @@ let interp_string_impl =
          msg "@[Boomerang compiler is not linked! Exiting...@]"; 
          exit 2)  
 
+let modl_of_path path =
+  let chop_ext path =
+    try Filename.chop_extension path
+    with Invalid_argument _ -> path
+  in
+  String.capitalize (chop_ext (Filename.basename path))
+  
 let go_load comp modl source =
   debug (fun () -> msg "[@[loading %s ...@]]@\n%!" source);
   loaded := modl::(!loaded);
@@ -256,7 +263,7 @@ let go_load comp modl source =
   debug (fun () -> msg "[@[loaded %s@]]@\n%!" source)
 
 let load_file path =
-  let modl = path in
+  let modl = modl_of_path path in
   let exist = find_file modl path in
   if exist
   then go_load (fun () -> !interp_file_impl path modl) modl path;
@@ -266,7 +273,7 @@ let load modl =
   if Safelist.mem modl !loaded
   then true
   else (
-    match find_filename modl with 
+    match find_modl modl with 
     | None -> (
         (* check for baked in source *)
         let safe_find m =

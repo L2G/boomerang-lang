@@ -43,14 +43,7 @@ let parse_lexbuf lexbuf =
 
 (* helper to check the name of a module *)
 let m_check n m_str ast =
-  let chop_ext file =
-    try Filename.chop_extension file
-    with Invalid_argument _ -> file
-  in
-  let n_base =
-    String.uncapitalize
-      (chop_ext (Filename.basename n))
-  in
+  let n_base = String.uncapitalize (Bregistry.modl_of_path n) in
   let m_low = String.uncapitalize m_str in
   if n_base = m_low then ()
   else

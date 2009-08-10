@@ -82,6 +82,9 @@ val register_native : string -> Bsyntax.sort -> Bvalue.t -> unit
 val extensions : string list
 (** ?? *)
 
+val modl_of_path : string -> string
+(** ?? *)
+
 val load : string -> bool
 (** ?? *)
 
