@@ -344,6 +344,17 @@ an list of char into a string.
 #* test string_implode #{char}['a';'b';'c'] = "abc"
 #* test string_implode (string_explode "testing") = "testing"
 
+\LENSSECTION{@file_ext@} The @file_ext@ returns the extension of a
+filename. More precisely, it returns the substring after the last @.@
+in the string. If there is no @.@ in the string, it returns @None@.
+
+#* let file_ext (file:string) : string option =
+#*   let l = minus (length file) 1 in
+#*   match string_rindex_from file l '.' with
+#*     | Some n -> Some{string} (sub_string (plus n 1) (minus l n) file)
+#*     | None -> None{string}
+#*   : string option
+
 \subsection{Lists of Lenses and Regular Expressions}
 
 \LENSSECTION{@astypes@,@avtypes@} Calculates the @astype@s and @avtype@s of lists of 

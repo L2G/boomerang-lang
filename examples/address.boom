@@ -635,43 +635,42 @@ Foster, Nate, jnfoster@cis.upenn.edu (e), 267 342-1099 (c)
 
 type format = VCF | XML | CSV | OTHER
 
-let main (prog:string) (args:string List.t) =
-  let xmltovcard = right_quot xcard (canonizer_of_lens vcards) in
-  let vcardtoxml = right_quot vcards (canonizer_of_lens xcard) in
-  let file_ext (str:string) =
-    let l = minus (length str) 1 in
-    match string_rindex_from str l '.' with
-      | Some n -> sub_string (plus n 1) (minus l n) str
-      | None -> ""
-    : string
-  in
-  let get_type (str:string) : format =
+let main (args:string List.t) =
+  let vcf2csv = vcards in
+  let xml2csv = xcard . del WS in (* trailing whitespace *)
+  let xml2vcf = right_quot xml2csv (canonizer_of_lens vcf2csv) in
+  let vcf2xml = right_quot vcf2csv (canonizer_of_lens xml2csv) in
+  let get_type (str:string option) : format =
     match str with
-      | "vcf" -> VCF
-      | "xml" -> XML
-      | "csv" -> CSV
+      | Some "vcf" -> VCF
+      | Some "xml" -> XML
+      | Some "csv" -> CSV
       | _ -> OTHER
     : format
   in
   let usage (code:int) =
-    let _ = write '-' ( "Usage: " . prog . " {get|put} args\n  get <source> <format of the view>\n  put <view> <old source>\n" ) in code
+    let prog = Prefs.getProgName () in
+    let _ = put_str (
+      "Usage: " . prog . " {get|put} args\n" .
+	"  ".prog." get <source> <format of the view>\n" .
+	"  ".prog." put <view> <old source>\n" ) in code
   in
   let cget (source:string) (fmt:string) =
-    let view' = get_type fmt in
+    let view' = get_type (Some{string} fmt) in
     let source' = get_type (file_ext source) in
     match view', source' with
-      | VCF, VCF -> (let _ = write '-' (read source) in 0)
-      | XML, XML -> (let _ = write '-' (read source) in 0)
-      | CSV, CSV -> (let _ = write '-' (read source) in 0)
+      | VCF, VCF -> (let _ = put_str (read source) in 0)
+      | XML, XML -> (let _ = put_str (read source) in 0)
+      | CSV, CSV -> (let _ = put_str (read source) in 0)
 
-      | CSV, VCF -> (let _ = write '-' (get vcards     (read source)) in 0)
-      | VCF, CSV -> (let _ = write '-' (create vcards  (read source)) in 0)
+      | CSV, VCF -> (let _ = put_str (get vcf2csv    (read source)) in 0)
+      | VCF, CSV -> (let _ = put_str (create vcf2csv (read source)) in 0)
 
-      | CSV, XML -> (let _ = write '-' (get xcard      (read source)) in 0)
-      | XML, CSV -> (let _ = write '-' (create xcard   (read source)) in 0)
+      | CSV, XML -> (let _ = put_str (get xml2csv    (read source)) in 0)
+      | XML, CSV -> (let _ = put_str (create xml2csv (read source)) in 0)
 
-      | XML, VCF -> (let _ = write '-' (get vcardtoxml (read source)) in 0)
-      | VCF, XML -> (let _ = write '-' (get xmltovcard (read source)) in 0)
+      | XML, VCF -> (let _ = put_str (get vcf2xml    (read source)) in 0)
+      | VCF, XML -> (let _ = put_str (get xml2vcf    (read source)) in 0)
 
       | _ -> usage 1
     : int
@@ -680,25 +679,26 @@ let main (prog:string) (args:string List.t) =
     let view'   = get_type (file_ext view) in
     let source' = get_type (file_ext source) in
     match view', source' with
-      | VCF, VCF -> (let _ = write '-' (read source) in 0)
-      | XML, XML -> (let _ = write '-' (read source) in 0)
-      | CSV, CSV -> (let _ = write '-' (read source) in 0)
+      | VCF, VCF -> (let _ = put_str (read source) in 0)
+      | XML, XML -> (let _ = put_str (read source) in 0)
+      | CSV, CSV -> (let _ = put_str (read source) in 0)
 
-      | CSV, VCF -> (let _ = write '-' (put vcards (read view) (read source)) in 0)
-      | VCF, CSV -> (let _ = write '-' (get vcards (read view)) in 0)
+      | CSV, VCF -> (let _ = put_str (put vcf2csv (read view) (read source)) in 0)
+      | VCF, CSV -> (let _ = put_str (get vcf2csv (read view)) in 0)
 
-      | CSV, XML -> (let _ = write '-' (put xcard  (read view) (read source)) in 0)
-      | XML, CSV -> (let _ = write '-' (get xcard  (read view)) in 0)
+      | CSV, XML -> (let _ = put_str (put xml2csv (read view) (read source)) in 0)
+      | XML, CSV -> (let _ = put_str (get xml2csv (read view)) in 0)
 
-      | XML, VCF -> (let _ = write '-' (put vcardtoxml (read view) (read source)) in 0)
-      | VCF, XML -> (let _ = write '-' (put xmltovcard (read view) (read source)) in 0)
+      | XML, VCF -> (let _ = put_str (put vcf2xml (read view) (read source)) in 0)
+      | VCF, XML -> (let _ = put_str (put xml2vcf (read view) (read source)) in 0)
 
       | _ -> usage 1
     : int
   in
   match args with
-    | List.Cons ( "get", ( List.Cons ( source, ( List.Cons ( format, List.Nil ) ) ) ) ) -> cget source format
-    | List.Cons ( "put", ( List.Cons (   view, ( List.Cons ( source, List.Nil ) ) ) ) ) -> cput view source
+    | "get"::source::format::[] -> cget source format
+    | "put"::  view::source::[] -> cput view source
     | _ -> usage 1
   : int
 
+test main : string List.t -> int

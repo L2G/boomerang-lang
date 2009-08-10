@@ -47,7 +47,7 @@ type sort =
 
     (* products and sums *)
     | SProduct of sort * sort         (* products *)
-    | SData of sort list * Qid.t (* data types *)
+    | SData of sort list * Qid.t      (* data types *)
 
     (* dependent function types *)
     | SFunction of Id.t * sort * sort 

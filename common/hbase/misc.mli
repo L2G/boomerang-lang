@@ -198,7 +198,8 @@ val read : string -> string
 
 val write : string -> string -> unit
 (** [write file s] opens [file] and overwrites its previous contents with [s].
-    If the file did not exist, it is created. *)
+    If the file did not exist, it is created.
+    If the file is "-" the output is stdout *)
 
 val backup : string -> unit
 (** Writes a backup of the filename passed as argument. *)

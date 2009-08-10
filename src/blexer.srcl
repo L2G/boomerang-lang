@@ -113,9 +113,6 @@ example, @[A-Z]@ is the set of upper case characters, @[0-9]@ the set
 of decimal digits, @[^]@ the full set of ASCII characters, and 
 @[^\n\t ]@ the set of non-newline, non-tab, non-space characters. 
 
-String literals enclosed in @/@ and @/@ are lexed as singleton regular
-expressions.
-
 #{#}
 {
 open Bparser

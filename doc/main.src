@@ -128,7 +128,7 @@ and unmarshallers, structure editors, graphical user interfaces,
 software model transformations, system configuration management tools,
 schema evolution, and databases.
 
-\begin{figure}
+\begin{figure}\SHOWCOMMENT{change the notation of the image (concrete and abstract to source and view)}
   \begin{center}
 \tikz[line width=1bp]\node[scale=.5]{\pgfimage{pdf/viewupdateterminology}};
 \end{center}
@@ -141,47 +141,47 @@ back and forth between data---we want the two directions of the
 transformation to work together in some reasonable way. Boomerang
 programs describe a certain class of well-behaved bidirectional
 transformations that we call \emph{lenses}. Mathematically, a lens $l$
-mapping between a set $C$ of ``concrete'' strings and a set $A$ of
-``abstract'' ones has three components:
+mapping between a set $S$ of ``source'' strings and a set $V$ of
+``view'' ones has three components:
 %
 \[
 #>\begin{array}{r@{\ \;}c@{\ \;}l}
-l.\GET &\in& C \arrow A\\
-l.\PUT &\in& A \arrow C \arrow C\\
-l.\CREATE &\in& A \arrow C\\
+l.\GET &\in& S \arrow V\\
+l.\PUT &\in& V \arrow S \arrow S\\
+l.\CREATE &\in& V \arrow S\\
 \end{array}
 \]
 %
-$\GET$ is the forward transformation and is a total function from $C$
-to $A$.  The backwards transformation comes in two flavors. The first,
-$\PUT$, takes two arguments, a modified $A$ and an old $C$, and
-produces an updated $C$.  The second, $\CREATE$, handles the special
-case where we need to compute a $C$ from an $A$ but have no $C$ to use
-as the ``old value''. It fills in any information in $C$ that was
+$\GET$ is the forward transformation and is a total function from $S$
+to $V$.  The backwards transformation comes in two flavors. The first,
+$\PUT$, takes two arguments, a modified $V$ and an old $S$, and
+produces an updated $S$.  The second, $\CREATE$, handles the special
+case where we need to compute a $S$ from an $V$ but have no $S$ to use
+as the ``old value''. It fills in any information in $S$ that was
 discarded by the $\GET$ function (such as the nationality of each
 composer in the example above) with defaults. The components of a lens
 are shown graphically in Figure~\ref{fig:viewupdateterminology}.
 
 We say that are ``well-behaved'' because they obey the following
-``round-tripping'' laws for every $c \in C$ and $a \in A$:
+``round-tripping'' laws for every $s \in S$ and $v \in V$:
 %
-\label{basiclaws} 
+\label{basiclaws}
 \infax[GetPut]{
-  l.\PUT\; (l.\GET \; c)\; c = c 
+  l.\PUT\; (l.\GET \; s)\; s = s
 }
 \infax[PutGet]{
-  l.\GET\; (l.\PUT \; a \; c) = a  
+  l.\GET\; (l.\PUT \; v \; s) = v
 }
 \infax[CreateGet]{
-  l.\GET\; (l.\CREATE \; a) = a  
+  l.\GET\; (l.\CREATE \; v) = v
 }
 %
-The first law requires that if $\PUT$ is invoked with an abstract
+The first law requires that if $\PUT$ is invoked with an view
 string that is identical to the string obtained by applying $\GET$ to
-the old concrete string---i.e., if the edit to the abstract string is
-a no-op---then it must produce the same concrete string.  The second
+the old source string---i.e., if the edit to the view string is
+a no-op---then it must produce the same source string.  The second
 and third laws state that $\PUT$ and $\CREATE$ must propagate all of
-the information in their $A$ arguments to the $C$ they produce. These
+the information in their $V$ arguments to the $S$ they produce. These
 laws capture fundamental expectations about how the components of a
 lens should work together.
 
@@ -195,6 +195,7 @@ key pieces of its design can be summarized as follows.
   operators'' of union, concatenation, and Kleene-star. This core set
   of operators has a simple and intuitive semantics and is capable of
   expressing many useful transformations.
+
 \item Of course, programming with low-level combinators alone would be
   tedious and repetitive; we don't do this. The core combinators are
   embedded in a full-blown functional language with all of the usual
@@ -204,12 +205,14 @@ key pieces of its design can be summarized as follows.
   bidirectional libraries. We have found that they make high-level
   lens programming quite convenient.
 
-\item To correctly handle ordered data structures such as strings,
-  many applications require that lenses match up corresponding pieces
-  of the concrete and abstract strings.  Boomerang includes
-  combinators for describing how data should be aligned using natural
-  notions of ``chunk'' and ``keys''. We call lenses that use these
-  features \emph{dictionary lenses}.  
+\SHOWCOMMENT {review this}
+\item To correctly handle ordered data structures, many applications
+  require that lenses match up corresponding pieces of the source and
+  the view. Boomerang allows the programmer to describe these pieces
+  (called ``chunks'') and how the they are aligned, choosing a method
+  and defining the parameters for this method (such as ``weights'' and
+  ``threshold''). \SHOWCOMMENT{We call lenses that use these features
+  \emph{resourceful lenses}.}
 
 \item Finally, in many applications, is often useful to be able to
   break the lens laws. For example, when we process XML data in
@@ -244,7 +247,7 @@ and for concatenating lenses (@.@).
 #*    end 
 
 Using @c@, we then define a lens that handles a top-level
-@<composers>@ element, enclosing a list of @<composers>@. This lens is
+@<composers>@ element, enclosing a list of @<composer>@. This lens is
 defined using the features already described, a primitive for
 inserting a string (@ins@), as well as union (@|@) and Kleene star
 (@*@).
@@ -307,15 +310,18 @@ string.
 
 \section{Getting Started}
 
-The best way to get going with Boomerang, is by working through the
-next ``QuickStart'' chapter. It contains a lightning tour of some of
-the main features of Boomerang the language and the system.  After
-that, we suggest exploring the @examples@ directory, which contains
-some of the larger demos we've built, and consulting the rest of this
-manual as needed. Many more details can be found in our research
-papers on Boomerang (\cite{Boomerang07,QuotientLenses08}) and on
-lenses in general (\citet{Focal2005,BohannonPierceVaughanTR}). These
-papers are all available from the Boomerang web page.
+The best way to get going with Boomerang, is by working through the next
+``Quick Start'' chapter. It contains a lightning tour of some of the
+main features of Boomerang the language and the system.  After that, we
+suggest exploring examples (see chapter~\ref{chap:examples}), and
+consulting the rest of this manual as needed. The
+chapter~\ref{chap:system} shows how to run Boomerang, how to create your
+own Boomerang program and how to run a Boomerang program. Many more
+details can be found in our research papers on Boomerang
+(\cite{Boomerang07,QuotientLenses08}) and on lenses in general
+(\citet{Focal2005,BohannonPierceVaughanTR}), but take into account that
+some theorical changes have been made since these papers were
+published. These papers are all available from the Boomerang web page.
 
 Good luck and have fun!
 
@@ -361,10 +367,10 @@ desugars to @regexp_iter [a-z] 0 1@.
 \begin{tabular}{cll}
 operator & applied to & resolves to \\\hline
  @=@    & anything (polymorphic) & @equals{type}@ \\
- @gt@    & @int@ & @bgt@ \\
- @lt@    & @int@ & @blt@ \\
- @geq@   & @int@ & @bgeq@\\
- @leq@   & @int@ & @bleq@\\
+ @gt@   & @int@ & @bgt@ \\
+ @lt@   & @int@ & @blt@ \\
+ @geq@  & @int@ & @bgeq@\\
+ @leq@  & @int@ & @bleq@\\
  @&&@   & @bool@ & @land@\\
  @||@   & @bool@ & @lor@ \\
  @||@   & @lens@ & @union@\\
@@ -458,6 +464,7 @@ suffice.
 
 
 \chapter{The Boomerang System}
+\label{chap:system}
 
 \section{Running Boomerang}\label{sec:cmdlineargs}
 
@@ -468,10 +475,9 @@ involved from the command line:
 
 \begin{progeg}
 Usage:
-    boomerang [get] l C          [options]     : get
- or boomerang [put] l A C        [options]     : put
- or boomerang create l A         [options]     : create
- or boomerang sync l O C A       [options]     : sync
+    boomerang [get] l S          [options]     : get
+ or boomerang [put] l V S        [options]     : put
+ or boomerang create l V         [options]     : create
  or boomerang M.boom [N.boom...] [options]     : run unit tests for M, N, ...
 \end{progeg}
 
@@ -516,6 +522,98 @@ Alexandre Tansman, 0000-0000, Polish
 \end{progeg}
 \noindent printed to the terminal. 
 
+\section{Running a Boomerang program}
+
+When Boomerang is called with another name, Boomerang run the module
+with this name passing all command line arguments to the
+module. Boomerang still interpret all arguments that are not
+interpreted by the module.
+
+The @examples/address.boom@ is a complete Boomerang program. It does
+transformations between VCard, XCard and CSV files. To run it, you
+need to create a link to Boomerang with the name @address@:
+\begin{progeg}
+> ln -s /path/to/trunk/bin/boomerang address
+\end{progeg}
+
+If you run @address@ now Boomerang will call the Address module. To
+try this out, create a file @contacts.csv@ containing the following
+lines:
+\begin{progeg}
+Doe, John, hello world (note), 792-8134 (h), 732-4684 (h)
+\end{progeg}
+\noindent and run the command
+\begin{progeg}
+./address get contacts.csv xml
+\end{progeg}
+\noindent You should see 
+\begin{progeg}
+<xcard>
+  <vcard>
+    <n>
+      <family>Doe</family>
+      <given>John</given>
+    </n>
+    <note>hello world</note>
+    <tel-home>792-8134</tel-home>
+    <tel-home>732-4684</tel-home>
+  </vcard>
+</xcard>
+\end{progeg} 
+\noindent written to the terminal. As address is not only one lens between
+two types, we need to specify to which format we are converting (the
+\emph{xml} in our previous example). For example, to transform the csv
+into a vcard you should run
+\begin{progeg}
+./address get contacts.csv vcf
+\end{progeg}
+
+The put is similar, but both arguments are a file and first
+is as the updated view and the second is the old source. To try
+this out, create a file @updated.xml@ containing the following lines:
+\begin{progeg}
+<xcard>
+  <vcard>
+    <n><family>Doe</family><given>Sally</given></n>
+    <tel-home>792-8134</tel-home>
+    <tel-home>732-4684</tel-home>
+  </vcard>
+  <vcard>
+    <n>
+      <family>Doe</family>
+      <given>John</given>
+    </n>
+    <note>updated</note>
+    <tel-home>792-8134</tel-home>
+  </vcard>
+</xcard>
+\end{progeg}
+\noindent and run the command
+\begin{progeg}
+./address put updated.xml contacts.csv
+\end{progeg}
+\noindent You should see 
+\begin{progeg}
+Doe, Sally, 792-8134 (h), 732-4684 (h)
+Doe, John, updated (note), 792-8134 (h)
+\end{progeg} 
+
+\section{Creating a Boomerang program}
+
+All you need to create a Boomerang program, in addition to write a
+lens, is to write a main function with type @string List.t -> int@.
+The argument @string List.t@ is the list of command line arguments not
+starting with dash. The return of main is the return code of the
+program.
+
+Boomerang programs can also receive arguments starting with dash using
+the @Prefs@ library (under development). The remaining arguments are
+passed to Boomerang.
+
+The @bibtex.boom@ example can be a good start to see how to write a
+Boomerang program, just look at the main function at the end of the
+file.
+
 \section{Navigating the Distribution}
 
 If you want to check out the code, here is one reasonable order to
@@ -534,6 +632,7 @@ look at the files:
 \end{tabular}
 
 \chapter{Case Studies}
+\label{chap:examples}
 
 {\it Under construction.  For now, see the demos in the @examples@
   directory.}
@@ -545,7 +644,7 @@ Boomerang programs we have written:
 \item @demo.boom@: A simple demo, similar to composers lens.
 \item @addresses.boom@ : VCard, CSV, and XML-formatted address books.
 \item @bibtex.boom@: BiBTeX and RIS-formatted bibliographies.
-\item @uniprot.boom@: UniProtKB / SwissProt lens.
+\item @uniProtV2.boom@: UniProtKB / SwissProt lens.
 \item @xsugar/*@: example transformations from the XSugar project.
 \end{itemize}
 

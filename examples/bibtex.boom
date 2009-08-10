@@ -595,3 +595,111 @@ ER  -
 
 
 >>
+
+test ris.put <<
+TY  - JOUR
+ID  - schema-sync-jcss
+AU  - Foster, J. Nathan
+AU  - Greenwald, Michael B.
+AU  - Kirkegaard, Christian
+AU  - Pierce, Benjamin C.
+AU  - Schmitt, Alan
+T1  - Exploiting Schemas in Data Synchronization
+JO  - Journal of Computer and System Sciences
+VL  - 73
+IS  - 4
+N1  - Short version in DBPL '05.
+PY  - 2007/06//
+PB  - Elsevier
+M1  - full:  http://dx.doi.org/10.1016/j.jcss.2006.10.024 
+M1  - jnf: yes
+M1  - plclub: yes
+ER  -
+
+TY  - CONF
+ID  - SchemaSync-DBPL05
+AU  - Foster, J. Nathan
+AU  - Greenwald, Michael B.
+AU  - Kirkegaard, Christian
+AU  - Pierce, Benjamin C.
+AU  - Schmitt, Alan
+T1  - Exploiting schemas in data synchronization
+T2  - Database Programming Languages (DBPL), Trondheim, Norway
+M1  - plclub: yes
+ER  -
+
+
+>> into <<
+@article{Lenses-TOPLAS05,
+ author = {J. Nathan Foster and Michael B. Greenwald and Jonathan T. Moore and Benjamin C. Pierce and Alan Schmitt},
+ title = {Combinators for Bidirectional Tree Transformations: 
+          {A} Linguistic Approach to the View Update Problem},
+ journal = {Transactions on Programming Languages and Systems (TOPLAS)},
+ year = {2007},
+ month = may,
+ pages = {233--246},
+ address = {New York, NY, USA},
+} 
+
+@inproceedings{SchemaSync-DBPL05,
+  author    = {Foster, J. Nathan and Greenwald, Michael B. and Kirkegaard, Christian and Pierce, Benjamin C. and Schmitt, Alan},
+  title     = {Exploiting Schemas in Data Synchronization},
+  booktitle = {Database Programming Languages (DBPL), Trondheim, Norway},
+  year      = {2005},
+  month     = {August}, 
+  pages     = {42--57},
+}
+>> = <<
+@article{schema-sync-jcss,
+ author = {J. Nathan Foster and Michael B. Greenwald and Christian Kirkegaard and Benjamin C. Pierce and Alan Schmitt},
+ title = {Exploiting {S}chemas in {D}ata {S}ynchronization},
+ journal = {Journal of Computer and System Sciences},
+volume="73",
+number="4",
+note="Short version in DBPL '05.",
+ year = {2007},
+ month = jun,
+publisher="Elsevier",
+full={ http://dx.doi.org/10.1016/j.jcss.2006.10.024 },
+jnf={yes},
+plclub={yes},
+} 
+
+@inproceedings{SchemaSync-DBPL05,
+  author    = {Foster, J. Nathan and Greenwald, Michael B. and Kirkegaard, Christian and Pierce, Benjamin C. and Schmitt, Alan},
+  title     = {Exploiting schemas in data synchronization},
+  booktitle = {Database Programming Languages (DBPL), Trondheim, Norway},
+plclub={yes},
+}
+>>
+
+
+
+let main (args:string List.t) =
+  let usage (code:int) =
+    let prog = Prefs.getProgName () in
+    let _ = put_str (
+      "Usage: " . prog . " {get|put} args\n" .
+	"  ".prog." get <source>\n" .
+	"  ".prog." put <view> <old source>\n" )
+    in
+    code
+  in
+  let cget (source:string) =
+    match file_ext source with
+      | Some "bib" -> (let _ = put_str (get ris (read source)) in 0)
+      | _ -> usage 1
+    : int
+  in
+  let cput (view:string) (source:string) =
+    match file_ext view, file_ext source with
+      | Some "ris", Some "bib" -> (let _ = put_str (put ris (read view) (read source)) in 0)
+      | _ -> usage 1
+    : int
+  in
+  match args with
+    | "get"::source::[] -> cget source
+    | "put"::view::source::[] -> cput view source
+    | _ -> usage 1
+  : int
+

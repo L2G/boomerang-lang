@@ -77,7 +77,7 @@ integer to the corresponding (decimal) string.
 ## = Native.Prelude.string_of_int
 
 \LENSSECTION{@bgt@, @blt@, @bgeq@, @bleq@} These operators are 
-the standard comparisons on integers. Infix operators @>@, @<@, @>=@, @<=@ 
+the standard comparisons on integers. Infix operators @bg@, @lt@, @bgeq@, @lteq@ 
 resolve to these operators. In this module, we use names like 
 @bgt@ here because @gt@ is a reserved keyword.
 
@@ -581,8 +581,8 @@ is a basic lens (i.e. does not contain any chunk).
 is in a given @stype@ and @vtype@.  The @lens in S <-> V@ notation desugars 
 into @in_lens_type@.
 
-#* let in_lens_type (l:lens) (S:regexp) (V:regexp) : bool =
-#*   (land (equiv_cex (stype l) S) (equiv_cex (vtype l) V))
+#* let in_lens_type (l:lens) (s:regexp) (v:regexp) : bool =
+#*   (land (equiv_cex (stype l) s) (equiv_cex (vtype l) v))
 
 \LENSSECTION{@in_bij_lens_type@} The @in_lens_type@ function tests whether a 
 lens is bijective in a given @stype@ and @vtype@. The @lens in S <=> V@ 
@@ -1223,11 +1223,14 @@ a file from the local filesystem.
 #* let read : string -> string 
 ## = Native.Prelude.read
 
-\LENSSECTION{@write@} The @write@ function writes a string to a file on 
-the local filesystem.
+\LENSSECTION{@write@} The @write@ function writes a string to a file
+on the local filesystem. If the name of the file is @-@, the output is
+the standard output.
 
 #* let write : string -> string -> unit
 ## = Native.Prelude.write
+#* let put_str : string -> unit
+#* = write "-"
 
 \LENSSECTION{@print@} The @print@ function prints a value.  Some
 values cannot be printed in full, e.g., functions.

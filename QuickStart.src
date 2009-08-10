@@ -418,14 +418,14 @@ Using right-recursive grammars, we can rewrite the basic composers lenses as fol
 
 #* let comp : lens = 
 #*   grammar
-#*      comp ::= nm:ALPHA ", " YEARS ", " cntry:ALPHA
-#*                 <-> nm ", " cntry
-#* end
+#*     comp ::= nm:ALPHA ", " YEARS ", " cntry:ALPHA
+#*                <-> nm ", " cntry
+#*   end
 #* let comps : lens =
-#*    grammar
-#*          comps ::= c:comp <-> c
-#*                 |  c:comp newline cs:comps <-> c newline cs
-#* end
+#*   grammar
+#*     comps ::= c:comp <-> c
+#*            |  c:comp newline cs:comps <-> c newline cs
+#*   end
 
 and verify it with the same unit tests as earlier:
 

@@ -26,6 +26,9 @@ module List =
 \section{Lists}
 
 The @List@ module defines a datatype for polymorphic list structures.
+In this module we cannot use the Boomerang notation for lists because
+it is resolved using List.Nil and List.Cons, which are not valid names
+while the List module is being defined.
 
 \LENSSECTION{@'a t@} A list is either the @Nil@ list or a @Cons@ of a head 
 and a tail.
@@ -209,3 +212,4 @@ permutation @sigma@, calculating the permutation @sigma_inv@ such that
 
 #* let invert_permutation : int t -> int t
 ## = Native.Prelude.invert_permutation
+
