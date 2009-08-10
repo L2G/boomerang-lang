@@ -1217,12 +1217,6 @@ corresponding from @l@ on the rest of the string. The concatenation of
 
 \subsection{Miscellaneous}
 
-\LENSSECTION{@print@} The @print@ function prints a value.  Some
-values cannot be printed in full, e.g., functions.
-
-#* let print : forall 'a => 'a -> unit
-## = Native.Prelude.poly_print
-
 \LENSSECTION{@read@} The @read@ function reads the contents of 
 a file from the local filesystem.
 
@@ -1235,23 +1229,17 @@ the local filesystem.
 #* let write : string -> string -> unit
 ## = Native.Prelude.write
 
+\LENSSECTION{@print@} The @print@ function prints a value.  Some
+values cannot be printed in full, e.g., functions.
+
+#* let show : forall 'a => 'a -> string
+## = Native.Prelude.poly_show
+
+#* let print 'a (x:'a) : unit
+#* = write '-' (show {'a} x)
+
 \LENSSECTION{@exec@} The @exec@ function executes a shell command. 
 
 #* let exec : string -> string 
 ## = Native.Prelude.exec
 
-% \subsection{Synchronization}
-% 
-% \LENSSECTION{@sync@} The @sync@ function takes a lens and three strings as
-% arguments. It synchronizes three strings using a type-respecting 
-% synchronization algorithm based on diff3. The synchronization type is 
-% extracted from the lens
-
-% #* (*
-% #* let sync : (l:lens -> 
-% #*            (o:string where matches_cex (avtype l) o) -> 
-% #*            (a:string where matches_cex (avtype l) a) -> 
-% #*            (b:string where matches_cex (avtype l) b) ->
-% #*            (string * string * string * string))
-% ## = Native.Prelude.sync
-% #* *)

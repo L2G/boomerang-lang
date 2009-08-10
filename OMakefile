@@ -2,7 +2,7 @@
 # Harmony top-level OMakefile.
 
 # Phony targets that don't produce files
-.PHONY: clean veryclean test
+.PHONY: clean veryclean unittest test
 
 ##############################################################################
 # OMake configuration
@@ -55,16 +55,18 @@ XSUGARDIR = $(dir examples/xsugar)
 DOCDIR = $(dir doc)
 
 BOOMERANGDIR = $(dir .)
-BOOMFILES = $(BOOMERANGDIR)/QuickStart.src \
+BOOMUNITS = $(glob $(UNITSDIR)/*.boom)
+BOOMFILES = \
             $(glob $(LENSESDIR)/*.boom) \
             $(glob $(UNITSDIR)/*.boom) \
+            $(BOOMERANGDIR)/QuickStart.src \
             $(glob $(EXAMPLESDIR)/*.boom) \
             $(glob $(EXAMPLESDIR)/*.src) \
             $(glob $(XSUGARDIR)/*.boom) \
 	    $(glob $(DOCDIR)/*.src) \
 
 BOOMEXE = $(BINDIR)/boomerang$(EXE) 
-BOOMFLAGS = -I $(LENSESDIR) -I $(EXAMPLESDIR) -I $(UNITSDIR) -I $(XSUGARDIR) -I $(DOCDIR)
+BOOMFLAGS = 
 
 ##############################################################################
 # Translation of .src files
@@ -104,14 +106,19 @@ runtest(f) =
     print(\ )
     i = $(sub $(i) 1)
   # print result
-  if $(eq $(shell-code $(BOOMEXE) $(BOOMFLAGS) $(basename $(f)) > /dev/null), 0)
+  if $(eq $(shell-code $(BOOMEXE) $(BOOMFLAGS) $(f) > /dev/null), 0)
     println([[92m[1m   OK   [0m])
   else 
     println([[91m[1m[5m FAILED [0m])
 
+unittest: $(BOOMEXE)
+	foreach(f,$(BOOMUNITS))
+	  runtest($(f))
+
 test: $(BOOMEXE)
 	foreach(f,$(BOOMFILES))
 	  runtest($(f))
+
 clean:
 	$(CLEAN) 
 

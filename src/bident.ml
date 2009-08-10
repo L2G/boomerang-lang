@@ -84,7 +84,6 @@ module Qid = struct
   let prime (qs,x) = (qs,Id.prime x)
   (* operations *)      
   let id_dot x1 (qs2,x2) = (x1::qs2,x2)
-  let splice_id_dot x1 (qs2,x2) = (qs2@[x1],x2)
   let t_dot_id (qs1,x1) x2 = (qs1@[x1],x2)
   let t_dot_t (qs1,x1) (qs2,x2) = (qs1@x1::qs2,x2)
   let id_prefix q1 il2 = 

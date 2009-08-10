@@ -91,10 +91,6 @@ module Qid : sig
   val id_dot : Id.t -> t -> t
   (** [id_dot x1 q1] returns the qualified identifier representing [x1.q1]. *)
 
-  val splice_id_dot : Id.t -> t -> t
-  (** [spliceg_id_dot x1 q1], where [q1] represents [q11.x12],
-      returns the qualified identifier representing [q11.x1.x12] *)
-
   val t_dot_id : t -> Id.t -> t
   (** [t_dot_id q x] returns the qualified identifier representing
       [q.x]. *)

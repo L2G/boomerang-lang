@@ -42,16 +42,23 @@ let parse_lexbuf lexbuf =
                 (Info.string_of_t (Blexer.info lexbuf))))
 
 (* helper to check the name of a module *)
-let m_check n m_str ast= 
-  let n_base = String.uncapitalize (Filename.basename n) in 
-  let m_low = String.uncapitalize m_str in 
+let m_check n m_str ast =
+  let chop_ext file =
+    try Filename.chop_extension file
+    with Invalid_argument _ -> file
+  in
+  let n_base =
+    String.uncapitalize
+      (chop_ext (Filename.basename n))
+  in
+  let m_low = String.uncapitalize m_str in
   if n_base = m_low then ()
   else
     Berror.static_error
       (info_of_module ast)
       (fun () -> 
          msg "@[module@ %s@ must@ appear@ in@ a@ file@ named %s.boom.@]"
-         m_str m_low)
+           m_str m_low)
       
 (* end-to-end interpretation of a lexbuf *)
 let interp_lexbuf lexbuf n = 

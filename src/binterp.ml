@@ -386,7 +386,7 @@ let rec interp_decl cev ms d0 = match d0 with
           (fun (n_cev, names) q ->
              match CEnv.lookup m_cev q with
                | Some rv ->
-                   let nq = Qid.splice_id_dot n q in
+                   let nq = Qid.id_dot n q in
                    (CEnv.update n_cev nq rv, nq::names)
                | None -> 
                    Berror.run_error i 

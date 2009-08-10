@@ -1076,7 +1076,7 @@ let rec check_decl sev ms d0 =
 		      (Qid.string_of_t q))
 	       | Some s ->
                    (* prefix the qualifiers in each name with n *)
-                   let nq = Qid.splice_id_dot n q in
+                   let nq = Qid.id_dot n q in
                      (SCEnv.update nsev nq s, nq::names))
           (msev,[]) names in 
 	let new_d = DMod(i,n,new_ds) in 

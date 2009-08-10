@@ -79,10 +79,13 @@ val register_native_qid : Bident.Qid.t -> Bsyntax.sort -> Bvalue.t -> unit
 val register_native : string -> Bsyntax.sort -> Bvalue.t -> unit
 (** ?? *)
 
+val extensions : string list
+(** ?? *)
+
 val load : string -> bool
 (** ?? *)
 
-val find_filename : string -> string list -> string option
+val load_file : string -> bool
 (** ?? *)
 
 val lookup_library_ctx : Bident.Qid.t list -> Bident.Qid.t -> rv option

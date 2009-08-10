@@ -564,51 +564,51 @@ let greedy align tag (ln:int list) (lo:int list) tln tlo g =
 
 (* This is only to check if the hungarian is giving the right answer *)
 (* does not change any matrix or array *)
-let bruteforce tag cost gput gcrt gdel an ao anlen aolen len tln tlo g =
-  let covern = Array.make len false in (* rows *)
-  let rec diag d =
-    if (d < len) then
-      let c, l = diag (succ d) in
-        (C.plus c cost.(d).(d), (d,d)::l)
-    else
-      (C.zero, [])
-  in
-  let rec minrec j l c (min,lmin) : C.t * ((int * int) list) =
-    match j < len, C.lt c min with
-      | true, true ->
-          let min, lmin,_ = 
-            Array.fold_left (
-              fun (min,lmin,i) cover ->
-                if not cover then
-                  begin
-                    covern.(i) <- true;
-                    let rmin,rlmin = minrec (succ j) ((i,j)::l) (C.plus c cost.(i).(j)) (min,lmin) in
-                      covern.(i) <- false;
-                      if C.lt rmin min then
-                        (rmin, rlmin, succ i)
-                      else
-                        (min, lmin, succ i)
-                  end
-                else
-                  (min,lmin,succ i)
-            ) (min,lmin,0) covern
-          in (min, lmin)
-      | false, true -> (c,l)
-      | _,    false -> (min, lmin)
-  in
-  let min,lmin = minrec 0 [] C.zero (diag 0) in
-  let rec mk_alignment g = function
-    | [] -> g
-    | (i,j)::l ->
-        let g = mk_alignment g l in
-          match i < anlen, j < aolen with
-            | true, true -> G.merge g gput.(i).(j)
-            | true,false -> G.merge g gcrt.(i)
-            | false,true -> G.merge g gdel.(j)
-            | false,false-> g
-  in
-  let g = mk_alignment g lmin in
-    (g, G.to_cost g, min, lmin)
+(* let bruteforce tag cost gput gcrt gdel an ao anlen aolen len tln tlo g = *)
+(*   let covern = Array.make len false in (\* rows *\) *)
+(*   let rec diag d = *)
+(*     if (d < len) then *)
+(*       let c, l = diag (succ d) in *)
+(*         (C.plus c cost.(d).(d), (d,d)::l) *)
+(*     else *)
+(*       (C.zero, []) *)
+(*   in *)
+(*   let rec minrec j l c (min,lmin) : C.t * ((int * int) list) = *)
+(*     match j < len, C.lt c min with *)
+(*       | true, true -> *)
+(*           let min, lmin,_ =  *)
+(*             Array.fold_left ( *)
+(*               fun (min,lmin,i) cover -> *)
+(*                 if not cover then *)
+(*                   begin *)
+(*                     covern.(i) <- true; *)
+(*                     let rmin,rlmin = minrec (succ j) ((i,j)::l) (C.plus c cost.(i).(j)) (min,lmin) in *)
+(*                       covern.(i) <- false; *)
+(*                       if C.lt rmin min then *)
+(*                         (rmin, rlmin, succ i) *)
+(*                       else *)
+(*                         (min, lmin, succ i) *)
+(*                   end *)
+(*                 else *)
+(*                   (min,lmin,succ i) *)
+(*             ) (min,lmin,0) covern *)
+(*           in (min, lmin) *)
+(*       | false, true -> (c,l) *)
+(*       | _,    false -> (min, lmin) *)
+(*   in *)
+(*   let min,lmin = minrec 0 [] C.zero (diag 0) in *)
+(*   let rec mk_alignment g = function *)
+(*     | [] -> g *)
+(*     | (i,j)::l -> *)
+(*         let g = mk_alignment g l in *)
+(*           match i < anlen, j < aolen with *)
+(*             | true, true -> G.merge g gput.(i).(j) *)
+(*             | true,false -> G.merge g gcrt.(i) *)
+(*             | false,true -> G.merge g gdel.(j) *)
+(*             | false,false-> g *)
+(*   in *)
+(*   let g = mk_alignment g lmin in *)
+(*     (g, G.to_cost g, min, lmin) *)
     
 (* based on:
    http://csclab.murraystate.edu/bob.pilgrim/445/munkres.html
@@ -703,16 +703,16 @@ let hungarian align tag (ln:int list) (lo:int list) tln tlo g =
   in
 
   (* debug *)
-  let debugcheck g_hung =
-    (* this calls calc_costs again, which call recursively align *)
-    (* (so debug printing lines will be printed multiple times for nested alignment) *)
-    calc_costs ();
-    let g, c, min, _ = bruteforce tag cost gput gcrt gdel an ao anlen aolen len tln tlo g in
-(*       printf "Debug solution with cost %s (matrix) %s (alignment)\n" (C.to_string min) (C.to_string c); *)
-(*       G.print_space g "  "; *)
-      assert (C.equal (G.to_cost g_hung) c);
-(*       print_endline "--> Ok!" *)
-  in
+(*   let debugcheck g_hung = *)
+(*     (\* this calls calc_costs again, which call recursively align *\) *)
+(*     (\* (so debug printing lines will be printed multiple times for nested alignment) *\) *)
+(*     calc_costs (); *)
+(*     let g, c, min, _ = bruteforce tag cost gput gcrt gdel an ao anlen aolen len tln tlo g in *)
+(* (\*       printf "Debug solution with cost %s (matrix) %s (alignment)\n" (C.to_string min) (C.to_string c); *\) *)
+(* (\*       G.print_space g "  "; *\) *)
+(*       assert (C.equal (G.to_cost g_hung) c); *)
+(* (\*       print_endline "--> Ok!" *\) *)
+(*   in *)
   (* let str tl i = Bstring.to_string (Bstring.of_cat (snd (TmImA.find tag i tl))) in *)
   (* let print_array f a = *)
   (*   Array.iter (fun v -> printf " %3s" (f v)) a; *)
@@ -833,7 +833,7 @@ let hungarian align tag (ln:int list) (lo:int list) tln tlo g =
     run ();
     let g = read_result g in
 (*       G.print_space g " "; print_endline "\n"; *)
-      debugcheck g;
+(*       debugcheck g; *)
       g
 
 

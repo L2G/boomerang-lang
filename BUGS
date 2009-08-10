@@ -7,19 +7,6 @@ end
 
 test Bar.g (Bar.Unit ()) = ? (* BUG: f unbound *)
 
-
-(* name problems *)
-module Bar =
-  type t = Unit of unit
-  module Foo =
-    type t = Truc of int
-    let h = Truc 23
-  end
-end
-
-test Foo.Bar.h = ?  (* (Truc 23) *)
-test Bar.Foo.h = ?  (* Bar.Foo.h is not bound *)
-
 (* Not really a bug: *)
 test 2-1 = error (* "-1 is not bound" *)
 test 2 - 1 = 1 (* ok *)

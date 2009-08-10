@@ -66,17 +66,47 @@ let write_string fn s =
 (*********)
 (* CHECK *)
 (*********)
-let check m = 
-  let modname =
-    if Util.endswith m ".boom" then
-      String.capitalize (Misc.replace_suffix m ".boom" "")
-    else if Util.endswith m ".src" then 
-      String.capitalize (Misc.replace_suffix m ".src" "")
-    else m in
-  if not (Bregistry.load modname) then
-    raise (Error.Harmony_error 
-             (fun () -> 
-                Util.format "Error: could not find module %s@\n" modname))
+let modl_p x =
+  let mk_cset (azs, cs) =
+    let azscs =
+      Safelist.fold_left
+        (fun l (a, z) -> (Char.code a, Char.code z)::l)
+        (Safelist.rev_map
+           (fun c -> let cc = Char.code c in cc, cc)
+           cs)
+        azs
+    in
+    Brx.mk_cset azscs
+  in
+  let first = [('A','Z')], ['\'';'_';'-';'@'] in
+  let rest = ('a','z')::('0','9')::(fst first), snd first in
+  let modlrx =
+    Brx.mk_seq (mk_cset first) (Brx.mk_star (mk_cset rest))
+  in
+  Brx.match_string modlrx x
+
+let file_p x =
+  Safelist.exists
+    (Filename.check_suffix x)
+    Bregistry.extensions
+
+let check x =
+  let xtype, load =
+    if file_p x then "file", Bregistry.load_file
+    else if modl_p x then "module", Bregistry.load
+    else raise
+      (Error.Harmony_error 
+         (fun () -> 
+            Util.format "Error: %s is neither a file or a module@\n" x))
+  in
+  if not (load x)
+  then raise
+    (Error.Harmony_error 
+       (fun () -> 
+          Util.format
+            "Error: could not find %s %s@\n"
+            xtype
+            x))
       
 let check_str n r x = 
   if not (Brx.match_string r x) then 
@@ -314,19 +344,16 @@ let toplevel' progName () =
       let basename_len = String.length basename in
       if basename_len >= prefix_len && String.sub basename 0 prefix_len = prefix
       then None
-      else Some (String.capitalize (basename))
+      else Some (String.capitalize basename)
     in
     let prog = Sys.argv.(0) in
     match modl (basename prog) with
     | None -> ()
-    | Some modname ->
-        if not (Bregistry.load modname)
-        then raise (
-          Error.Harmony_error (fun () -> Util.format "Error: could not find module %s@\n" modname)
-        );
+    | Some modl ->
+        check modl;
         Prefs.parseCmdLine usageMsg; (* TODO: read the usage message from the module *)
-        match run_main modname (Safelist.rev (Prefs.read rest)) with
-        | None -> Error.simple_error (Printf.sprintf "%s does not contain a main function.\n" modname)
+        match run_main modl (Safelist.rev (Prefs.read rest)) with
+        | None -> Error.simple_error (Printf.sprintf "%s does not contain a main function.\n" modl)
         | Some code -> exit code
   end;
 
@@ -351,7 +378,7 @@ let toplevel' progName () =
   (fun () -> 
      if rest_pref <> [] && 
        (Safelist.for_all 
-          (fun s -> (Util.endswith s ".boom" || Util.endswith s ".src"))
+          (fun x -> file_p x || modl_p x)
           rest_pref)
      then begin
        (* barf on spurious command line options?! *)

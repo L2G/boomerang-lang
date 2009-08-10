@@ -193,35 +193,50 @@ let get_module_prefix q =
     | [] -> None
     | n::_ -> Some n
 
-let find_filename basename exts = 
-  let rec loop dirs = match dirs with
-    | []    -> None
+let extensions = ["boom";"src"]
+
+let find_file modl path =
+  if Sys.file_exists path && Misc.is_file path
+  then (
+    verbose (fun () -> msg "%s found for %s@\n" path modl);
+    true
+  ) else (
+    verbose (fun () -> msg "%s not found@\n" path);
+    false
+  )
+
+let find_filename modl = 
+  let rec loop dirs =
+    match dirs with
+    | [] -> None
     | dir::drest ->
-        let try_fn ext k = 
-          let fn = sprintf "%s%s%s%s%s"
-            dir
-            (if dir.[String.length dir - 1] = '/' then "" else "/")
-            basename 
-            (if String.length ext = 0 then "" else ".")
-            ext in 
-            if Sys.file_exists fn && Misc.is_file fn then begin
-              verbose (fun () -> msg "%s found for %s@\n" fn basename);
-              Some fn
-            end else begin
-              verbose (fun () -> msg "%s not found@\n" fn);
-              k ()
-            end in
-        let rec inner_loop = function
-            [] -> try_fn "" (fun () -> loop drest)                
-          | ext::erest -> try_fn ext (fun () -> inner_loop erest) in
-          inner_loop exts              
+        let try_path ext k =
+          let to_path basename =
+            sprintf "%s%s%s%s%s"
+              dir
+              (if dir.[String.length dir - 1] = '/' then "" else "/")
+              basename
+              (if String.length ext = 0 then "" else ".")
+              ext
+          in
+          let try_name name k =
+            let path = to_path name in
+            if find_file modl path
+            then Some path
+            else k ()
+          in
+          try_name (String.uncapitalize modl)
+            (fun () -> try_name modl k)
+        in
+        let rec inner_loop exts =
+          match exts with
+          | [] -> loop drest
+          | ext::erest ->
+              try_path ext (fun () -> inner_loop erest)
+        in
+        inner_loop extensions
   in
-  if String.contains basename '/'
-  then
-    if String.length basename > 0 && basename.[0] = '/'
-    then loop ["/"]
-    else loop ["."]
-  else loop ((Safelist.rev (Prefs.read paths) @ boompath))
+  loop (Safelist.rev (Prefs.read paths) @ boompath)
 
 (* backpatch hack *)
 let interp_file_impl = 
@@ -234,33 +249,45 @@ let interp_string_impl =
          msg "@[Boomerang compiler is not linked! Exiting...@]"; 
          exit 2)  
 
-let load ns = 
-  (* helper, when we know which compiler function to use *)  
-  let go comp source = 
-    debug (fun () -> msg "[@[loading %s ...@]]@\n%!" source);
-    loaded := ns::(!loaded);
-    comp ();
-    debug (fun () -> msg "[@[loaded %s@]]@\n%!" source) in      
-  let go_wrap m = 
-    if (Safelist.mem ns (!loaded)) then true
-    else begin
-      match find_filename m ["boom"; "src"] with 
-        | None -> 
-            begin
-              try 
-                (* check for baked in source *)
-                let str = Hashtbl.find Bakery.items m in 
-                let i = sprintf "<baked source for %s>" ns in  
-                  go (fun () -> (!interp_string_impl) i str ns) i;
-                  true
-              with Not_found -> false
-            end
-        | Some fn ->
-            go (fun () -> (!interp_file_impl) fn ns) fn; 
-            true 
-    end in 
-    if go_wrap ns then true
-    else go_wrap (String.uncapitalize ns)
+let go_load comp modl source =
+  debug (fun () -> msg "[@[loading %s ...@]]@\n%!" source);
+  loaded := modl::(!loaded);
+  comp ();
+  debug (fun () -> msg "[@[loaded %s@]]@\n%!" source)
+
+let load_file path =
+  let modl = path in
+  let exist = find_file modl path in
+  if exist
+  then go_load (fun () -> !interp_file_impl path modl) modl path;
+  exist
+
+let load modl =
+  if Safelist.mem modl !loaded
+  then true
+  else (
+    match find_filename modl with 
+    | None -> (
+        (* check for baked in source *)
+        let safe_find m =
+          try Some (Hashtbl.find Bakery.items m)
+          with Not_found -> None
+        in
+        let i = sprintf "<baked source for %s>" modl in  
+        match (
+          match safe_find modl with
+          | None -> safe_find (String.uncapitalize modl)
+          | x -> x
+        ) with
+        | None -> false
+        | Some str ->
+            go_load (fun () -> !interp_string_impl i str modl) modl i;
+            true
+      )
+    | Some fn ->
+        go_load (fun () -> !interp_file_impl fn modl) modl fn;
+        true
+  )
       
 let load_var q = match get_module_prefix q with 
   | None -> ()

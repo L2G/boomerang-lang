@@ -543,16 +543,16 @@ let prelude_spec =
          mk_f i (fun v2 -> 
            mk_b i (equal v1 v2)))))
   end
-
+ 
   ; begin
-    let i = mk_prelude_info "poly_print" in
+    let i = mk_prelude_info "poly_show" in
     let a = Id.mk i "a" in
     let a_sort = S.SVar a in 
-    (Qid.mk_native_prelude_t i "poly_print",
-     S.SForall(a,a_sort ^> S.SUnit),
+    (Qid.mk_native_prelude_t i "poly_show",
+     S.SForall(a,a_sort ^> S.SString),
      mk_ufun i (fun () ->
        mk_f i (fun v ->
-         mk_u i (format v))))
+         mk_s i (string_of_t v))))
   end
  
   ; begin 
