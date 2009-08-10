@@ -1,0 +1,215 @@
+module Conflin =
+
+(* definitions *)
+let if 'a (b:bool) (t:'a) (f:'a) =
+  match b with
+  | true -> t
+  | false -> f
+  :'a
+let id 'a (x:'a) = x
+let drop_string (n:int) (s:string where n lt (length s)) =
+  sub_string n (length s - n) s
+let ambiguous_lens_concat_contract (a:lens) (b:lens) =
+  is_basic a && is_basic b && splittable_cex (stype a) (stype b)
+let ambiguous_lens_concat (a:lens) (b:lens where ambiguous_lens_concat_contract a b) =
+  Native.Prelude.lens_concat a b
+let ambiguous_lens_partition_one_contract (a:lens) (b:lens) =
+  lens_star_contract b && lens_swap_contract b* a
+  && ambiguous_lens_concat_contract (lens_swap b* a) b*
+let ambiguous_lens_partition_one (a:lens) (b:lens where ambiguous_lens_partition_one_contract a b) =
+  ambiguous_lens_concat (lens_swap b* a) b*
+let positional (name:string) = Tag (Positional, Threshold 0, name)
+let diffy (first:bool) (name:string) = Tag (Diffy first, Threshold 0, name)
+let show_list 'a (l:'a List.t) =
+  "[" . fst {string} {bool} (
+    List.fold_left {'a} {string * bool} (
+      fun (sb:string * bool) (x:'a) ->
+        match sb with
+        | s, b -> (s . if {string} b ";" "" . show {'a} x, true)
+            :string * bool
+    ) ("", false) l
+  ) . "]"
+let mk_error (message:string) = "Error: " . message
+let identifier = [a-zA-Z] . [ a-zA-Z0-9_\-@]*
+let printLn 'a (x:'a) = write '-' (show {'a} x . newline)
+
+(* Preference module *)
+module Preference =
+  type t = T of regexp * (string * string) * (string * string) * string
+  let make (values:regexp)
+      (comment_prefix:string) (comment_suffix:string)
+      (command_prefix:string) (command_suffix:string)
+      (view_prefix:string) =
+    T (values,
+       (comment_prefix, comment_suffix),
+       (command_prefix, command_suffix),
+       view_prefix)
+  let shell_like = T (identifier, ("#", "\n"), ("@", ""), "view: ")
+  let c_like = T (identifier, ("//", "\n"), ("@", ""), "view: ")
+  let cpp_like = T (identifier, ("/*", "*/"), ("@", ""), "view: ")
+  let ocaml_like = T (identifier, ("(*", "*)"), ("@", ""), "view: ")
+  let debug_like = T ([a-z], ("(", ")"), ("", ""), "")
+  let values (t:t) =
+    match t with
+    | T (values, _, _, _) -> values
+    :regexp
+  let comments (t:t) =
+    match t with
+    | T (_, comments, _, _) -> comments
+    :string * string
+  let commands (t:t) =
+    match t with
+    | T (_, _, commands, _) -> commands
+    :string * string
+  let view_prefix (t:t) =
+    match t with
+    | T (_, _, _, view_prefix) -> view_prefix
+    :string
+end
+
+(* main lens *)
+let main_lens (preference:Preference.t) (value:string) =
+  (* read preference *)
+  let values = Preference.values preference in
+  let comment_prefix, comment_suffix = Preference.comments preference in
+  let command_prefix, command_suffix = Preference.commands preference in
+  let view_prefix = Preference.view_prefix preference in
+  (* shortcuts *)
+  let comment_signs = comment_prefix | comment_suffix in
+  let c_prefix = comment_prefix . command_prefix in
+  let c_suffix = command_suffix . comment_suffix in
+  let no_comments = not_containing comment_signs in
+  let real_commands = c_prefix . values? . c_suffix in
+  let commands = c_prefix . no_comments . c_suffix in
+  let data = not_containing commands in
+  (* we check that the informations are useable *)
+  let _:(string where
+           is_empty (diff (view_prefix? . values?) no_comments)) =
+    mk_error "Your values and/or view_prefix contain comments."
+  in
+  let _:(string where
+           not (matches values "")) =
+    mk_error "Your values should NOT contain the empty string."
+  in
+  let _:(string where
+           matches values? value) =
+    mk_error ("The value " . show {string} value . " does not match " . show {regexp} values? . ".")
+  in
+  (* tools *)
+  let c_exact (value:string) = c_prefix . value . c_suffix in
+  let c_other (value:string) = c_prefix . diff values value . c_suffix in
+  let c_all = c_prefix . values . c_suffix in
+  let c_stop = c_exact "" in
+  let factor (format:bool) (value:string) =
+    match format with
+    | true ->
+        c_stop . data
+        . (
+          match value = "" with
+          | true -> (c_all . data)*
+          | false ->
+              ( (c_other value . data)*
+              | ambiguous_lens_partition_one (c_exact value . data) (c_other value . data)
+              )
+          :lens)
+    | false -> (
+        let data_tag = positional "data" in
+        let siblings_tag = positional "siblings" in
+        let csd = c_stop . data in
+        let cevd = c_exact value . data in
+        let covd = c_other value . data in
+        let siblings = <siblings_tag: del (c_other value . data)* > in
+        match value = "" with
+        | true -> csd . del covd*
+        | false ->
+            ( <data_tag: copy csd >            
+            | <data_tag: del  csd > . copy cevd
+            ) . siblings
+        :lens
+      )
+    :lens
+  in
+  (* to check the value for put *)
+  let value_check (value:string) = ins (c_exact (view_prefix . value)) in
+  let main (format:bool) =
+    data
+    . (match format with
+       | true -> (factor true value)*
+       | false -> value_check value . <diffy true "factor": factor false value >*
+       :lens
+      )
+  in
+  main true ; align ( main false )
+
+let usage_body =
+<<
+
+    pref
+        is a value in 'shell', 'c', 'cpp', 'ocaml'
+    value
+        is the value to develop
+    source
+        is a file for get
+
+>>
+
+(* main function *)
+let main (rest:string List.t) =
+(*   let _ = write '-' (show_list {string} args . newline) in *)
+  let usage (code:int) =
+    let prog = Prefs.getProgName () in
+    let _ = put_str ("Usage: " . prog . " pref value source" . usage_body) in
+    code
+  in
+  match rest with
+  | pref::value::source::[] -> (
+      let preference 'a (ok:Preference.t -> 'a) (fail:unit -> 'a) =
+        match pref with
+        | "shell" -> ok Preference.shell_like
+        | "c" -> ok Preference.c_like
+        | "cpp" -> ok Preference.cpp_like
+        | "ocaml" -> ok Preference.ocaml_like
+        | _ -> fail ()
+        :'a
+      in
+      let run (preference:Preference.t) =
+        let _ = write '-' (get (main_lens preference value) (read source)) in
+        0
+      in
+      let err (x:unit) = usage 2 in
+      preference {int} run err
+    )
+  | _ -> usage 1
+  :int
+
+(* ---------------------------------------------------------------- *)
+(*                            unit tests                            *)
+
+let mld = main_lens Preference.debug_like
+
+let mldv = mld ""
+test get mldv (  "()d0(a)a0(b)b0()d1(b)b1()d2")
+            = ("()()d0"       ."()d1"  ."()d2")
+test create mldv ("()()d0()d1()d2")
+               = (  "()d0()d1()d2")
+test put mldv ("()" ."()d1()d2()d3")
+              (  "()d0()d1()d2"    )
+            = (      "()d1()d2()d3")
+
+let mldv = mld "a"
+test get mldv (   "()d0(a)a0(b)b0()d1(b)b1()d2")
+            = ("(a)" ."(a)a0"  ."()d1"  ."()d2")
+test create mldv ("(a)"."(a)a0()d1()d2"  ."(a)a3")
+               = (    "()(a)a0()d1()d2"."()(a)a3")
+test put mldv ("(a)"  ."(a)a0()d1()d2")
+              (    "()d0"  ."()d1()d2")
+            = (    "()d0(a)a0()d1()d2")
+test put mldv ("(a)"  ."(a)a0" ."()d2")
+              (    "()d0"  ."()d1()d2")
+            = (    "()d0(a)a0" ."()d2")
+test put mldv ("(a)"."(a)a0()d0()d1()d2")
+              (           "()d0()d1()d2")
+            = (    "()(a)a0()d0()d1()d2")
+test put mldv ("(a)"."(a)a0()d0" ."()d2")
+              (           "()d0()d1()d2")
+            = (    "()(a)a0()d0" ."()d2")

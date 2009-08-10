@@ -21,8 +21,16 @@
 
 open Bident
 
+type prefs =
+  | PrBool
+  | PrInt
+  | PrString
+  | PrStringList
+
+val string_of_prefs : prefs -> string
+
 (** {2 Boomerang Abstract Syntax} *)
-type blame = Blame of Info.t  
+type blame = Blame of Info.t
 
 val mk_blame : Info.t -> blame 
 (** [mk_blame i] constructs blame associated with parsing info [i]. *)
@@ -44,6 +52,7 @@ type sort =
     | SResources                      (* resource set type *)
     | SLens                           (* lenses *)
     | SCanonizer                      (* canonizers *)
+    | SPrefs of prefs                 (* prefs *)
 
     (* products and sums *)
     | SProduct of sort * sort         (* products *)

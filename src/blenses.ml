@@ -1531,7 +1531,7 @@ module MLens = struct
     msg "@[";
     begin match ml.desc with
     | Copy(r1)           -> msg "(copy@ "; Rx.format_t r1; msg ")"
-    | Clobber(r1,w1,f1)  -> msg "(clobber@ "; fmt_s w1; msg "@ <function>"; msg ")"
+    | Clobber(r1,w1,f1)  -> msg "(clobber@ "; Rx.format_t r1; msg "@ "; fmt_s w1; msg "@ <function>"; msg ")"
     | Concat(dl1,dl2)    -> msg "("; format_t dl1; msg "@ .@ "; format_t dl2; msg ")"
     | Union(dl1,dl2)     -> msg "("; format_t dl1; msg "@ |@ "; format_t dl2; msg ")"
     | Star(dl1)          -> format_t dl1; msg "* " (* space to prevent spurious close-comments *)

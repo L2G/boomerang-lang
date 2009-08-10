@@ -121,6 +121,7 @@ let pmk5 s1 mk1 s2 mk2 s3 mk3 s4 mk4 s5 mk5 s6 mk6 x f =
      a : Arx
      l : Lns
      q : Can
+     P : Prf
      e : Rel
      p : Par
      v : Vnt (unused)
@@ -299,6 +300,28 @@ let pmk_sososoll =
   let so = S.SData ([S.SString], option_qid) in
   let mkof = mk_optionfun in
   pmk4 so mkof so mkof so mkof S.SLens mk_lfun S.SLens mk_l
+
+let pmk_sXssXP _X mk_Xfun _PrX mk_XP =
+  let s = S.SString in
+  let sf = mk_sfun in
+  pmk4 s sf _X mk_Xfun s sf s sf (S.SPrefs _PrX) mk_XP
+
+let pmk_XPX _PrX mk_XPfun _X mk_X =
+  pmk1 (S.SPrefs _PrX) mk_XPfun _X mk_X
+
+let pmk_sbssbP = pmk_sXssXP S.SBool mk_bfun S.PrBool mk_bP
+let pmk_sissiP = pmk_sXssXP S.SInteger mk_ifun S.PrInt mk_iP
+let pmk_sssssP = pmk_sXssXP S.SString mk_sfun S.PrString mk_sP
+let pmk_sssszP =
+  let s = S.SString in
+  let sf = mk_sfun in
+  pmk3 s sf s sf s sf (S.SPrefs S.PrStringList) mk_szP
+
+let pmk_bPb = pmk_XPX S.PrBool mk_bPfun S.SBool mk_b
+let pmk_iPi = pmk_XPX S.PrInt mk_iPfun S.SInteger mk_i
+let pmk_sPs = pmk_XPX S.PrString mk_sPfun S.SString mk_s
+let pmk_szPsz =
+  pmk1 (S.SPrefs S.PrStringList) mk_szPfun (S.SData ([S.SString], list_qid)) mk_list
 
 let prelude_spec =
   [ (* lens operations *)
@@ -512,6 +535,14 @@ let prelude_spec =
 
   (* prefs *)
   ; pmk_us     "prefsGetProgName"     (fun _ () -> Sys.argv.(0))
+  ; pmk_sbssbP "prefsCreateBool"      (fun _ -> Prefs.createBool)
+  ; pmk_bPb    "prefsReadBool"        (fun _ -> Prefs.read)
+  ; pmk_sissiP "prefsCreateInt"       (fun _ -> Prefs.createInt)
+  ; pmk_iPi    "prefsReadInt"         (fun _ -> Prefs.read)
+  ; pmk_sssssP "prefsCreateString"    (fun _ -> Prefs.createString)
+  ; pmk_sPs    "prefsReadString"      (fun _ -> Prefs.read)
+  ; pmk_sssszP "prefsCreateStringList"(fun _ -> Prefs.createStringList)
+  ; pmk_szPsz  "prefsReadStringList"  (fun i p -> Safelist.map (mk_s i) (Prefs.read p))
 
   (* sync *)
 (*   ; pmk_sync   "sync"                 (fun i l o a b ->  *)

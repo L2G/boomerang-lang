@@ -24,6 +24,21 @@ open Bident
 module L = Blenses.MLens
 module C = Blenses.Canonizer
 
+type prefs =
+  | PrBol of bool Prefs.t
+  | PrInt of int Prefs.t
+  | PrStr of string Prefs.t
+  | PrSLi of string list Prefs.t
+
+let string_of_prefs p =
+  match p with
+  | PrBol _ -> "bool"
+  | PrInt _ -> "int"
+  | PrStr _ -> "string"
+  | PrSLi _ -> "stringList" 
+
+let format_prefs p = Util.format "<%sPrefs>" (string_of_prefs p)
+
 (* function abbreviations *)
 let sprintf = Printf.sprintf 
 let (@) = Safelist.append 
@@ -42,6 +57,7 @@ type t =
   | Mty of Info.t * Blenses.mtype
   | Lns of Info.t * L.t
   | Can of Info.t * C.t
+  | Prf of Info.t * prefs
   | Fun of Info.t * (t -> t)
   | Par of Info.t * t * t
   | Vnt of Info.t * Qid.t * Id.t * t option
@@ -58,6 +74,7 @@ let info_of_t = function
   | Mty(i,_)     -> i
   | Lns(i,_)     -> i
   | Can(i,_)     -> i
+  | Prf(i,_)     -> i
   | Fun(i,_)     -> i
   | Par(i,_,_)   -> i
   | Vnt(i,_,_,_) -> i         
@@ -125,6 +142,7 @@ and format = function
   | Mty(_,m)     -> Blenses.format_mtype m
   | Lns(_,l)     -> L.format_t l
   | Can(_,c)     -> C.format_t c
+  | Prf(_,p)     -> format_prefs p
   | Fun(_,f)     -> Util.format "<function>"
   | Par(_,v1,v2) -> 
       Util.format "@[(";
@@ -152,6 +170,7 @@ let rec sort_string_of_t = function
   | Mty _ -> "resource_set"
   | Lns _ -> "lens"
   | Can _ -> "canonizer"
+  | Prf (_, p) -> string_of_prefs p ^ "Prefs"
   | Fun _ -> "<function>"
   | Par(_,v1,v2) -> sprintf "(%s,%s)" (sort_string_of_t v1) (sort_string_of_t v2)
   | Vnt(_,qx,_,_) -> sprintf "%s" (Qid.string_of_t qx)
@@ -214,6 +233,22 @@ let get_q v = match v with
   | Can(_,q) -> q
   | _ -> conversion_error "canonizer" v
 
+let get_bP v = match v with
+  | Prf(_, PrBol bp) -> bp
+  | _ -> conversion_error "boolPrefs" v
+
+let get_iP v = match v with
+  | Prf(_, PrInt ip) -> ip
+  | _ -> conversion_error "intPrefs" v
+
+let get_sP v = match v with
+  | Prf(_, PrStr sp) -> sp
+  | _ -> conversion_error "stringPrefs" v
+
+let get_szP v = match v with
+  | Prf(_, PrSLi szp) -> szp
+  | _ -> conversion_error "stringListPrefs" v
+
 let get_p v = match v with
   | Par(_,v1,v2) -> (v1,v2)
   | _ -> conversion_error "pair" v
@@ -239,6 +274,10 @@ let mk_k i k = Kty(i,k)
 let mk_m i m = Mty(i,m)
 let mk_l i l = Lns(i,l)
 let mk_q i q = Can(i,q)
+let mk_bP i bp = Prf(i,PrBol bp)
+let mk_iP i ip = Prf(i,PrInt ip)
+let mk_sP i sp = Prf(i,PrStr sp)
+let mk_szP i szp = Prf(i,PrSLi szp)
 let mk_p i (p1,p2) = Par(i,p1,p2)
 let mk_f i f = Fun(i,f)
 
@@ -254,6 +293,10 @@ let mk_kfun i f = Fun(i,(fun v -> f (get_k v)))
 let mk_mfun i f = Fun(i,(fun v -> f (get_m v)))
 let mk_lfun i f = Fun(i,(fun v -> f (get_l v)))
 let mk_qfun i f = Fun(i,(fun v -> f (get_q v)))
+let mk_bPfun i f = Fun(i,(fun v -> f (get_bP v)))
+let mk_iPfun i f = Fun(i,(fun v -> f (get_iP v)))
+let mk_sPfun i f = Fun(i,(fun v -> f (get_sP v)))
+let mk_szPfun i f = Fun(i,(fun v -> f (get_szP v)))
 let mk_pfun i f = Fun(i,(fun v -> f (get_p v)))
 let mk_vfun i f = Fun(i,(fun v -> f (get_v v)))
 let mk_ffun i f = Fun(i,(fun v -> f (get_f v)))

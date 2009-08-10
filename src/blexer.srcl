@@ -209,6 +209,10 @@ let _ =
     ; ("int", (fun i -> INT i))
     ; ("bool", (fun i -> BOOL i))
     ; ("canonizer", (fun i -> CANONIZER i))
+    ; ("boolPrefs", (fun i -> BOOLPREFS i))
+    ; ("intPrefs", (fun i -> INTPREFS i))
+    ; ("stringPrefs", (fun i -> STRINGPREFS i))
+    ; ("stringListPrefs", (fun i -> STRINGLISTPREFS i))
     ; ("unit", (fun i -> UNIT i))
     ; ("type", (fun i -> TYPE i))
     ; ("of", (fun i -> OF i))
@@ -263,6 +267,7 @@ rule main = parse
 | "=>"               { EQARROW(info lexbuf) }
 | "<=>"              { DEQARROW(info lexbuf) }
 | "<->"              { DARROW(info lexbuf) }
+| "||"               { BARBAR(info lexbuf) }
 | "|"                { BAR(info lexbuf) }
 | "="                { EQUAL(info lexbuf) }
 | "{"                { LBRACE(info lexbuf) }

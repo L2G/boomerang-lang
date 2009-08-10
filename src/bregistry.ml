@@ -264,10 +264,14 @@ let go_load comp modl source =
 
 let load_file path =
   let modl = modl_of_path path in
-  let exist = find_file modl path in
-  if exist
-  then go_load (fun () -> !interp_file_impl path modl) modl path;
-  exist
+  if Safelist.mem modl !loaded
+  then true
+  else (
+    let exist = find_file modl path in
+    if exist
+    then go_load (fun () -> !interp_file_impl path modl) modl path;
+    exist
+  )
 
 let load modl =
   if Safelist.mem modl !loaded

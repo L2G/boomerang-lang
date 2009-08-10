@@ -22,6 +22,38 @@
 
 module Prefs =
 
-#* let getProgName : unit -> string
-#* = Native.Prelude.prefsGetProgName
+#{@}
 
+\section{Command line parsing}
+
+#* let getProgName : unit -> string
+## = Native.Prelude.prefsGetProgName
+
+\LENSSECTION{@createBool@} @createBool name default doc fulldoc@
+creates a preference such that if @-name@ is present in the command
+line, then the value will be @true@.  If @-name=false@ is present in
+the command line then the value will be @false@.
+
+#* let createBool : string -> bool -> string -> string -> boolPrefs
+## = Native.Prelude.prefsCreateBool
+
+#* let readBool : boolPrefs -> bool
+## = Native.Prelude.prefsReadBool
+
+#* let createInt : string -> int -> string -> string -> intPrefs
+## = Native.Prelude.prefsCreateInt
+
+#* let readInt : intPrefs -> int
+## = Native.Prelude.prefsReadInt
+
+#* let createString : string -> string -> string -> string -> stringPrefs
+## = Native.Prelude.prefsCreateString
+
+#* let readString : stringPrefs -> string
+## = Native.Prelude.prefsReadString
+
+#* let createStringList : string -> string -> string -> stringListPrefs
+## = Native.Prelude.prefsCreateStringList
+
+#* let readStringList : stringListPrefs -> string List.t
+## = Native.Prelude.prefsReadStringList

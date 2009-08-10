@@ -51,6 +51,7 @@ let rec format_sort = function
   | SResources -> msg "@[resource_set@]"
   | SLens -> msg "@[lens@]"
   | SCanonizer -> msg "@[canonizer@]"
+  | SPrefs p -> msg "@[%sPrefs@]" (string_of_prefs p)
       
   | SFunction(x0, s1, s2) ->
       msg "@[(";

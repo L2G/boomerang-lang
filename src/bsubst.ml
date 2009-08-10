@@ -64,7 +64,7 @@ and free_svars_sort acc = function
   | SForall(a,s1) -> 
       let s1_vars = Id.Set.remove a (free_svars_sort Id.Set.empty s1) in 
       Id.Set.union s1_vars acc
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer ->
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SPrefs _ ->
       acc
 and free_svars_exp acc = function
   | EApp(_,e1,e2) -> 
@@ -185,7 +185,7 @@ and subst_svars_sort subst s0 = match s0 with
       let safe_s1 = if fresh_a = a then s1 else subst_svars_sort [(a,SVar fresh_a)] s1 in 
       let new_s1 = subst_svars_sort subst safe_s1 in
       SForall(fresh_a,new_s1)
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SPrefs _ -> 
       s0
 and subst_svars_exp subst e0 = match e0 with 
   | EApp(i,e1,e2) -> 
@@ -289,7 +289,7 @@ and free_evars_sort acc = function
       Qid.Set.union e2_vars acc1 
   | SForall(_,s1) -> 
       free_evars_sort acc s1
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ | SPrefs _ -> 
       acc
 and free_evars_exp acc = function
   | EVar(_,q) -> 
@@ -471,7 +471,7 @@ and subst_evars_sort subst s0 = match s0 with
   | SForall(a,s1) -> 
       let new_s1 = subst_evars_sort subst s1 in 
       SForall(a,new_s1)
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ | SPrefs _ -> 
       s0
 and subst_evars_exp subst e0 = match e0 with 
   | EVar(_,x) -> 
@@ -630,7 +630,7 @@ let rec erase_sort = function
   | SForall(x,s1) -> 
       SForall(x,erase_sort s1)
   | SUnit | SBool | SInteger | SChar | SString 
-  | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ as s0 -> 
+  | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ | SPrefs _ as s0 -> 
       s0
 
 let rec expose_sort = function
@@ -780,7 +780,7 @@ let rec qualify_sort resolve bound s0 = match s0 with
   | SForall(a,s1) -> 
       let new_s1 = qualify_sort resolve bound s1 in 
       SForall(a,new_s1)
-  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ -> 
+  | SUnit | SBool | SInteger | SChar | SString | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ | SPrefs _ -> 
       s0
 
 and qualify_pat resolve bound p0 = match p0 with

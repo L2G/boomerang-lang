@@ -180,9 +180,10 @@ let rec compatible f t = match f,t with
   | SSkeletons,SSkeletons
   | SResources,SResources
   | SLens,SLens 
-  | SCanonizer,SCanonizer ->
-      true
-  (* coercions between {char,string,regexp,lens} *)
+  | SCanonizer,SCanonizer
+      -> true
+  | SPrefs f, SPrefs t when f = t -> true
+  (* coercions between {char,string,regexp,aregexp,lens} *)
   | SChar,SString 
   | SChar,SRegexp
   | SChar,SAregexp
@@ -398,7 +399,7 @@ type nprod = NProd of Info.t * Qid.t * nrule list
 let rec check_sort i sev s0 = 
   let rec go s0 = match s0 with 
     | SUnit | SBool | SInteger | SChar | SString 
-    | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ -> 
+    | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ | SPrefs _ -> 
         s0
     | SFunction(x,s1,s2) -> 
         let new_s1 = go s1 in 

@@ -131,6 +131,8 @@ let rec interp_cast cev i b f t e =
       | SCanonizer,SCanonizer 
       | SVar(_),SVar(_) -> 
           interp_exp cev e
+      | SPrefs f, SPrefs t when f = t ->
+          interp_exp cev e
       | SChar,SString -> 
           interp_exp cev (mk_string_of_char i e)
       | SChar,SRegexp -> 

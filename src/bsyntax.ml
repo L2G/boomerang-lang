@@ -26,6 +26,19 @@ let msg = Util.format
 
 open Bident
 
+type prefs =
+  | PrBool
+  | PrInt
+  | PrString
+  | PrStringList
+
+let string_of_prefs p =
+  match p with
+  | PrBool -> "bool"
+  | PrInt -> "int"
+  | PrString -> "string"
+  | PrStringList -> "stringList"
+
 (* ----- blame ----- *)
 type blame = Blame of Info.t 
 
@@ -50,6 +63,7 @@ type sort =
     | SResources                      (* resource set type *)
     | SLens                           (* lenses *)
     | SCanonizer                      (* canonizers *)
+    | SPrefs of prefs                 (* prefs *)
 
     (* products and sums *)
     | SProduct of sort * sort         (* products *)

@@ -183,6 +183,7 @@ let add_atom ai (i,xs,bs) = match ai with
 %token <Info.t> EOF
 %token <Info.t> MODULE OPEN OF TYPE 
 %token <Info.t> UNIT BOOL INT CHAR STRING REGEXP AREGEXP SKELETONS RESOURCES LENS CANONIZER FORALL WHERE
+%token <Info.t> BOOLPREFS INTPREFS STRINGPREFS STRINGLISTPREFS
 %token <Bident.Id.t> STR UIDENT LIDENT QUALIDENT TYVARIDENT CSET NSET
 %token <Info.t * char> CHARACTER
 %token <Info.t * int> INTEGER
@@ -193,7 +194,7 @@ let add_atom ai (i,xs,bs) = match ai with
 %token <Info.t> ARROW DARROW DEQARROW EQARROW
 %token <Info.t> BEGIN END GRAMMAR AND FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON COLONCOLON BACKSLASH SLASH
-%token <Info.t> STAR RLUS BANG BAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK
+%token <Info.t> STAR RLUS BANG BAR BARBAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK
 %token <Info.t> LT GT LEQ GEQ  
 %token <Info.t> STYPE VTYPE ASTYPE AVTYPE BIJ GET PUT CREATE CANONIZE CHOOSE INTO
 %token <Info.t> ERROR
@@ -504,10 +505,10 @@ obarexp:
 
 #{#}
 dbarexp:
-  | dbarexp BAR BAR equalexp
-      { $4 :: $1 }
-  | equalexp BAR BAR equalexp 
-      { [$4; $1] }
+  | dbarexp BARBAR equalexp
+      { $3 :: $1 }
+  | equalexp BARBAR equalexp 
+      { [$3; $1] }
 
 #{@}
 <EqualExp> ::= <AppExp> \lit{@=@} <AppExp>
@@ -1354,6 +1355,18 @@ asort:
 
   | CANONIZER
       { SCanonizer }
+
+  | BOOLPREFS
+      { SPrefs PrBool }
+
+  | INTPREFS
+      { SPrefs PrInt }
+
+  | STRINGPREFS
+      { SPrefs PrString }
+
+  | STRINGLISTPREFS
+      { SPrefs PrStringList }
 
   | UNIT
       { SUnit }

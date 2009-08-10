@@ -19,6 +19,12 @@
 (* $Id$ *)
 (*****************************************************************************)
 
+type prefs =
+  | PrBol of bool Prefs.t
+  | PrInt of int Prefs.t
+  | PrStr of string Prefs.t
+  | PrSLi of string list Prefs.t
+
 (** {2 Boomerang Run-time Values} *)
 
 type t = 
@@ -34,6 +40,7 @@ type t =
     | Mty of Info.t * Blenses.mtype
     | Lns of Info.t * Blenses.MLens.t
     | Can of Info.t * Blenses.Canonizer.t
+    | Prf of Info.t * prefs
     | Fun of Info.t * (t -> t)
     | Par of Info.t * t * t
     | Vnt of Info.t * Bident.Qid.t * Bident.Id.t * t option
@@ -69,6 +76,10 @@ val get_k : t -> Blenses.ktype
 val get_m : t -> Blenses.mtype
 val get_l : t -> Blenses.MLens.t
 val get_q : t -> Blenses.Canonizer.t
+val get_bP : t -> bool Prefs.t
+val get_iP : t -> int Prefs.t
+val get_sP : t -> string Prefs.t
+val get_szP : t -> string list Prefs.t
 val get_p : t -> (t*t)
 val get_v : t -> (Bident.Id.t * t option)
 val get_f : t -> (t -> t)
@@ -85,6 +96,10 @@ val mk_k : Info.t -> Blenses.ktype -> t
 val mk_m : Info.t -> Blenses.mtype -> t
 val mk_s : Info.t -> string -> t
 val mk_q : Info.t -> Blenses.Canonizer.t -> t
+val mk_bP : Info.t -> bool Prefs.t -> t
+val mk_iP : Info.t -> int Prefs.t -> t
+val mk_sP : Info.t -> string Prefs.t -> t
+val mk_szP : Info.t -> string list Prefs.t -> t
 val mk_p : Info.t -> t * t -> t
 val mk_f : Info.t -> (t -> t) -> t
 
@@ -100,6 +115,10 @@ val mk_kfun : Info.t -> (Blenses.ktype -> t) -> t
 val mk_mfun : Info.t -> (Blenses.mtype -> t) -> t
 val mk_sfun : Info.t -> (string -> t) -> t
 val mk_qfun : Info.t -> (Blenses.Canonizer.t -> t) -> t
+val mk_bPfun : Info.t -> (bool Prefs.t -> t) -> t
+val mk_iPfun : Info.t -> (int Prefs.t -> t) -> t
+val mk_sPfun : Info.t -> (string Prefs.t -> t) -> t
+val mk_szPfun : Info.t -> (string list Prefs.t -> t) -> t
 val mk_pfun : Info.t -> (t * t -> t) -> t
 val mk_vfun : Info.t -> (Bident.Id.t * t option -> t) -> t
 val mk_ffun : Info.t -> ((t -> t) -> t) -> t
