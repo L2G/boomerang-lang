@@ -134,7 +134,7 @@ let create_str l v =
 (************)
 (* RUN MAIN *)
 (************)
-let run_main modl rest =  (* Note: the contracts of main are not checked *)
+let run_main modl =  (* Note: the contracts of main are not checked *)
   let fmap f o =
     match o with
     | None -> None
@@ -142,9 +142,11 @@ let run_main modl rest =  (* Note: the contracts of main are not checked *)
   in
   let run main =
     let i = Info.M "argv in main built-in" in
-    Bvalue.get_i (
-      Bvalue.get_f (Bregistry.value_of_rv main) (Bvalue.mk_list i (Safelist.map (Bvalue.mk_s i) rest))
-    )
+    (match fst main with
+     | Bregistry.Sort (Bsyntax.SFunction (_, Bsyntax.SUnit, Bsyntax.SInteger)) -> Bvalue.get_i
+     | Bregistry.Sort (Bsyntax.SFunction (_, Bsyntax.SUnit, Bsyntax.SUnit)) -> (fun v -> Bvalue.get_u v; 0)
+     | _ -> Error.simple_error (Printf.sprintf "%s.main does not have type unit -> int or unit -> unit.\n" modl)
+    ) (Bvalue.get_f (Bregistry.value_of_rv main) (Bvalue.mk_u i ()))
   in
   fmap run (lookup (modl ^ ".main"))
 
@@ -298,28 +300,12 @@ let create l_n a_fn o_fn =
 (*                 1 *)
 (*               end *)
 
-let rest = Prefs.createStringList "rest" "*no docs needed" ""
-
-let o_pref = Prefs.createString     "output" "" "output" ""
-let l_pref = Prefs.createStringList "lens"      "lens"          "" 
-let c_pref = Prefs.createStringList "concrete"  "concrete file" ""
-let a_pref = Prefs.createStringList "abstract"  "abstract file" ""
-let e_pref = Prefs.createStringList "expression"  "on-time module contents" ""
-
-let _ = Prefs.alias o_pref "o" 
-let _ = Prefs.alias l_pref "l" 
-let _ = Prefs.alias c_pref "c" 
-let _ = Prefs.alias a_pref "a" 
-let _ = Prefs.alias e_pref "e" 
-
-let check_pref = Prefs.createStringList "check" "run unit tests for given module(s)" ""
-
 let toplevel' progName () = 
   let baseUsageMsg = 
     "Usage:\n"
-    ^ "    "^progName^" [get] l C             [options] : get\n"
-    ^ " or "^progName^" [put] l A C           [options] : put\n"
-    ^ " or "^progName^" create l A            [options] : create\n"
+    ^ "    "^progName^" [get] l S             [options] : get\n"
+    ^ " or "^progName^" [put] l V S           [options] : put\n"
+    ^ " or "^progName^" create l V            [options] : create\n"
     ^ " or "^progName^" sync l O A B          [options] : sync\n"
     ^ " or "^progName^" sync l O A B O' A' B' [options] : sync\n"
     ^ " or "^progName^" F.boom [F.boom...]    [options] : run unit tests\n"
@@ -351,19 +337,32 @@ let toplevel' progName () =
     | None -> ()
     | Some modl ->
         check modl;
-        Prefs.parseCmdLine usageMsg; (* TODO: read the usage message from the module *)
-        match run_main modl (Safelist.rev (Prefs.read rest)) with
+        let usage =
+          match lookup (modl ^ ".usage") with
+          | Some (_, Bvalue.Str (_, s)) -> s
+          | _ -> usageMsg
+        in
+        Prefs.parseCmdLine usage;
+        match run_main modl with
         | None -> Error.simple_error (Printf.sprintf "%s does not contain a main function.\n" modl)
         | Some code -> exit code
   end;
 
   (* Parse command-line options *)
+  let o_pref = Prefs.outputPref in
+  let l_pref = Prefs.lensPref in
+  let s_pref = Prefs.sourcePref in
+  let v_pref = Prefs.viewPref in
+  let e_pref = Prefs.expressionPref in
+  let rest = Prefs.restPref in
+  let check_pref = Prefs.checkPref in
+
   Prefs.parseCmdLine usageMsg;
   
   (* Read preferences *)
   let ll = Safelist.rev (Prefs.read l_pref) in 
-  let cl = Safelist.rev (Prefs.read c_pref) in 
-  let al = Safelist.rev (Prefs.read a_pref) in 
+  let sl = Safelist.rev (Prefs.read s_pref) in 
+  let vl = Safelist.rev (Prefs.read v_pref) in 
   let el = Safelist.rev (Prefs.read e_pref) in
   let o = Prefs.read o_pref in
   let rest_pref = Safelist.rev (Prefs.read rest) in 
@@ -392,45 +391,35 @@ let toplevel' progName () =
        | [] -> assert false
        | _ -> bad_cmdline ()
      end else begin 
-       let rest_pref,ll,cl,al,o = match rest_pref,ll,cl,al,o with 
+       let rest_pref,ll,sl,vl,o = match rest_pref,ll,sl,vl,o with 
          (* get *)
-         | [l;c_fn],[],[],[],o
-         | [c_fn],[l],[],[],o 
-         | ["get"],[l],[c_fn],[],o
-         | ["get"; c_fn],[l],[],[],o   
-         | ["get"; l],[],[c_fn],[],o   
-         | ["get"; l; c_fn],[],[],[],o -> 
-             ["get"],[l],[c_fn],[],o             
+         | [l;s_fn],[],[],[],o
+         | [s_fn],[l],[],[],o 
+         | ["get"],[l],[s_fn],[],o
+         | ["get"; s_fn],[l],[],[],o   
+         | ["get"; l],[],[s_fn],[],o   
+         | ["get"; l; s_fn],[],[],[],o -> 
+             ["get"],[l],[s_fn],[],o             
          (* create *)
-         | ["create"],[l],[],[a_fn],o
-         | ["create"; l],[],[],[a_fn],o
-         | ["create"; a_fn],[l],[],[],o 
-         | ["create"; l; a_fn],[],[],[],o ->             
-             ["create"],[l],[],[a_fn],o
+         | ["create"],[l],[],[v_fn],o
+         | ["create"; l],[],[],[v_fn],o
+         | ["create"; v_fn],[l],[],[],o 
+         | ["create"; l; v_fn],[],[],[],o ->             
+             ["create"],[l],[],[v_fn],o
          (* put *)
-         | [l; a_fn; c_fn],[],[],[],o 
-         | [a_fn; c_fn],[l],[],[],o 
-         | ["put"],[l],[c_fn],[a_fn],o
-         | ["put"; a_fn; c_fn],[l],[],[],o 
-         | ["put"; l],[],[c_fn],[a_fn],o
-         | ["put"; l; a_fn; c_fn],[],[],[],o -> 
-             ["put"],[l],[c_fn],[a_fn],o
-(*          (\* sync *\) *)
-(*          | ["sync"; l; o_fn; a_fn; b_fn],[],[],[],"" ->  *)
-(*              ["sync"],[l],[o_fn; a_fn; b_fn; o_fn; a_fn; b_fn],[],"" *)
-(*          | ["sync"; l; o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],[],[],"" ->  *)
-(*              ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[],"" *)
-(*          (\* oldsync *\) *)
-(*          | ["oldsync"; l; o_fn; a_fn; b_fn],[],[],[],"" ->  *)
-(*              ["oldsync"],[l],[o_fn; a_fn; b_fn],[],"" *)
+         | [l; v_fn; s_fn],[],[],[],o 
+         | [v_fn; s_fn],[l],[],[],o 
+         | ["put"],[l],[s_fn],[v_fn],o
+         | ["put"; v_fn; s_fn],[l],[],[],o 
+         | ["put"; l],[],[s_fn],[v_fn],o
+         | ["put"; l; v_fn; s_fn],[],[],[],o -> 
+             ["put"],[l],[s_fn],[v_fn],o
          | _ -> bad_cmdline () in 
        let o_fn = if o="" then "-" else o in 
-       match rest_pref,ll,cl,al with
-         | ["get"],[l],[c_fn],[]        -> get l c_fn o_fn
-         | ["create"],[l],[],[a_fn]     -> create l a_fn o_fn
-         | ["put"],[l],[c_fn],[a_fn]    -> put l a_fn c_fn o_fn
-(*          | ["sync"],[l],[o_fn; a_fn; b_fn; o_fn'; a_fn'; b_fn'],[]   -> sync l o_fn a_fn b_fn o_fn' a_fn' b_fn' *)
-(*          | ["oldsync"],[l],[o_fn; a_fn; b_fn],[] -> oldsync l o_fn a_fn b_fn  *)
+       match rest_pref,ll,sl,vl with
+         | ["get"],[l],[s_fn],[]        -> get l s_fn o_fn
+         | ["create"],[l],[],[v_fn]     -> create l v_fn o_fn
+         | ["put"],[l],[s_fn],[v_fn]    -> put l v_fn s_fn o_fn
          | _ -> assert false
      end)
     (fun () -> Util.flush ())

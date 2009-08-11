@@ -47,15 +47,8 @@ let test_error i msg_thk =
 (* test results: success with a value, or failure with an error message *)
 type testresult = OK of Bvalue.t | Error of (unit -> unit)
 
-let tests = Prefs.createStringList
-  "test"
-  "run unit test for the specified module"
-  "run unit tests for the specified module"
-let _ = Prefs.alias tests "t"
-
-let test_all = Prefs.createBool "test-all" false
-  "run unit tests for all modules"
-  "run unit tests for all modules"
+let tests = Prefs.testPref
+let test_all = Prefs.testallPref
 
 (* [check_test m] returns [true] iff the command line arguments
    '-test-all' or '-test m' are set *)

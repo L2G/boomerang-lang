@@ -48,15 +48,6 @@
 
 * toplevel
 
-** check the type of the main function after loading the module ; it
-   looks like we cannot find the type of a qid after the module is
-   loaded.
-   We could even know what arguments to give to main depending on its
-   type.  For exemple:
-   main : string List.t -> int  (* we give the rest *)
-   main : unit -> int  (* we give nothing *)
-   main : unit -> unit  (* we use 0 as an exit code *)
-
 ** functions to process command-line arguments from boomerang (set
    solutions mode for coqsplit): done, coqsplit to do
 

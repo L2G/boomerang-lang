@@ -7,6 +7,31 @@ val read : 'a t -> 'a
 val set : 'a t -> 'a -> unit
 val name : 'a t -> string list
 
+val outputPref : string t
+val lensPref : string list t
+val sourcePref : string list t
+val viewPref : string list t
+val expressionPref : string list t
+val restPref : string list t
+val checkPref : string list t
+
+val includePref : string list t
+
+val testPref : string list t
+val testallPref : bool t
+
+val debugPref : string list t
+val debugtimesPref : bool t
+
+val logPref : bool t
+val logfilePref : string t
+
+val tersePref : bool t
+
+val timersPref : bool t
+
+val colorizePref : bool t
+
 (* Convenient functions for registering simple kinds of preferences.  Note   *)
 (* that createStringPref creates a preference that can only be set once,     *)
 (* while createStringListPref creates a reference to a list of strings that  *)

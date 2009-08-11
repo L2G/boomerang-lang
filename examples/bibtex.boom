@@ -675,9 +675,9 @@ plclub={yes},
 
 
 
-let main (args:string List.t) =
+let main (x:unit) =
   let usage (code:int) =
-    let prog = Prefs.getProgName () in
+    let prog = Prefs.get_prog_name () in
     let _ = put_str (
       "Usage: " . prog . " {get|put} args\n" .
 	"  ".prog." get <source>\n" .
@@ -697,7 +697,7 @@ let main (args:string List.t) =
       | _ -> usage 1
     : int
   in
-  match args with
+  match Prefs.read_extern_rest () with
     | "get"::source::[] -> cget source
     | "put"::view::source::[] -> cput view source
     | _ -> usage 1

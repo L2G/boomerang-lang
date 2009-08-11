@@ -150,6 +150,71 @@ let createStringList name doc fulldoc =
     (fun cell -> Uarg.String (fun s -> set cell (s::(fst !cell))))
 
 (*****************************************************************************)
+(*                   Definition of the preferences                           *)
+(*****************************************************************************)
+
+let outputPref = createString "output" "" "output" ""
+let _ = alias outputPref "o"
+
+let lensPref = createStringList "lens"      "lens"          ""
+let _ = alias lensPref "l"
+
+let sourcePref = createStringList "source"  "source file" ""
+let _ = alias sourcePref "s"
+
+let viewPref = createStringList "view"  "view file" ""
+let _ = alias viewPref "v"
+
+let expressionPref = createStringList "expression"  "on-time module contents" ""
+let _ = alias expressionPref "e"
+
+let restPref = createStringList "rest" "*no docs needed" ""
+
+let checkPref = createStringList "check" "run unit tests for given module(s)" ""
+
+let includePref = createStringList "include" "search path for .boom sources" "Boomerang modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources (the current directory and the paths specified in the BOOMPATH environment variable are also searched)."
+let _ = alias includePref "I"
+
+let testPref = createStringList "test" "run unit test for the specified module" "run unit tests for the specified module"
+let _ = alias testPref "t"
+
+let testallPref = createBool "test-all" false "run unit tests for all modules" "run unit tests for all modules"
+
+let debugPref = createStringList "debug" "debug module xxx ('all' -> everything, 'verbose' -> more)" 
+    ("This preference is used to make Unison print various sorts of "
+     ^ "information about what it is doing internally on the standard "
+     ^ "error stream.  It can be used many times, each time with the name "
+     ^ "of a module for which debugging information should be printed.  "
+     ^ "Possible arguments for \\verb|debug| can be found "
+     ^ "by looking for calls to \\verb|Util.debug| in the "
+     ^ "sources (using, e.g., \\verb|grep|).  "
+     ^ "Setting \\verb|-debug all| causes information from {\\em all} "
+     ^ "modules to be printed (this mode of usage is the first one to try, "
+     ^ "if you are trying to understand something that Unison seems to be "
+     ^ "doing wrong); \\verb|-debug verbose| turns on some additional "
+     ^ "debugging output from some modules (e.g., it will show exactly "
+     ^ "what bytes are being sent across the network).")
+
+let debugtimesPref = createBool "debugtimes" false "*annotate debugging messages with timestamps" ""
+
+let logPref = createBool "log" true "record actions in file specified by logfile preference"
+    "When this flag is set, Unison will log all changes to the filesystems
+     on a file."
+
+let logfilePref = createString "logfile" (Util.fileInHomeDir "unison.log") "Log file name"
+    "By default, logging messages will be appended to the file
+     \\verb|unison.log| in your HOME directory.  Set this preference if
+     you prefer another file."
+
+let tersePref = createBool "terse" false "suppress status messages"
+    ("When this preference is set to {\\tt true}, the user "
+     ^ "interface will not print status messages.")
+
+let timersPref = createBool "timers" false "*print timing information" ""
+
+let colorizePref = createBool "colorize" false "*Use colored text to make output more readable" ""
+
+(*****************************************************************************)
 (*                      Command-line parsing                                 *)
 (*****************************************************************************)
 

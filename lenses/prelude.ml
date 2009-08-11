@@ -151,6 +151,9 @@ let pmk_sss   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
 let pmk_siis  = pmk3 S.SString mk_sfun S.SInteger mk_ifun S.SInteger mk_ifun S.SString mk_s
 let pmk_ssu   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SUnit mk_u
 let pmk_us    = pmk1 S.SUnit mk_ufun S.SString mk_s
+let pmk_ub    = pmk1 S.SUnit mk_ufun S.SBool mk_b
+let pmk_uszR  = pmk1 S.SUnit mk_ufun (S.SData ([S.SString], list_qid)) (fun i l -> mk_list i (Safelist.rev_map (mk_s i) l))
+let pmk_su    = pmk1 S.SString mk_sfun S.SUnit mk_u
 let pmk_sr    = pmk1 S.SString mk_sfun S.SRegexp mk_r
 let pmk_sll   = pmk2 S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
 let pmk_ssll  = 
@@ -309,6 +312,9 @@ let pmk_sXssXP _X mk_Xfun _PrX mk_XP =
 let pmk_XPX _PrX mk_XPfun _X mk_X =
   pmk1 (S.SPrefs _PrX) mk_XPfun _X mk_X
 
+let pmk_XPsu _PrX mk_XPfun =
+  pmk2 (S.SPrefs _PrX) mk_XPfun S.SString mk_sfun S.SUnit mk_u
+
 let pmk_sbssbP = pmk_sXssXP S.SBool mk_bfun S.PrBool mk_bP
 let pmk_sissiP = pmk_sXssXP S.SInteger mk_ifun S.PrInt mk_iP
 let pmk_sssssP = pmk_sXssXP S.SString mk_sfun S.PrString mk_sP
@@ -320,8 +326,12 @@ let pmk_sssszP =
 let pmk_bPb = pmk_XPX S.PrBool mk_bPfun S.SBool mk_b
 let pmk_iPi = pmk_XPX S.PrInt mk_iPfun S.SInteger mk_i
 let pmk_sPs = pmk_XPX S.PrString mk_sPfun S.SString mk_s
-let pmk_szPsz =
-  pmk1 (S.SPrefs S.PrStringList) mk_szPfun (S.SData ([S.SString], list_qid)) mk_list
+let pmk_szPsz = pmk_XPX S.PrStringList mk_szPfun (S.SData ([S.SString], list_qid)) mk_list
+
+let pmk_bPsu = pmk_XPsu S.PrBool mk_bPfun
+let pmk_iPsu = pmk_XPsu S.PrInt mk_iPfun
+let pmk_sPsu = pmk_XPsu S.PrString mk_sPfun
+let pmk_szPsu = pmk_XPsu S.PrStringList mk_szPfun
 
 let prelude_spec =
   [ (* lens operations *)
@@ -534,15 +544,43 @@ let prelude_spec =
   ; pmk_rs     "string_of_regexp"     (fun _ r1 -> Brx.string_of_t r1)
 
   (* prefs *)
-  ; pmk_us     "prefsGetProgName"     (fun _ () -> Sys.argv.(0))
-  ; pmk_sbssbP "prefsCreateBool"      (fun _ -> Prefs.createBool)
-  ; pmk_bPb    "prefsReadBool"        (fun _ -> Prefs.read)
-  ; pmk_sissiP "prefsCreateInt"       (fun _ -> Prefs.createInt)
-  ; pmk_iPi    "prefsReadInt"         (fun _ -> Prefs.read)
-  ; pmk_sssssP "prefsCreateString"    (fun _ -> Prefs.createString)
-  ; pmk_sPs    "prefsReadString"      (fun _ -> Prefs.read)
-  ; pmk_sssszP "prefsCreateStringList"(fun _ -> Prefs.createStringList)
-  ; pmk_szPsz  "prefsReadStringList"  (fun i p -> Safelist.map (mk_s i) (Prefs.read p))
+  ; pmk_us     "prefs_get_prog_name"     (fun _ () -> Sys.argv.(0))
+
+  ; pmk_sbssbP "prefs_create_bool"       (fun _ -> Prefs.createBool)
+  ; pmk_bPsu   "prefs_alias_bool"        (fun _ -> Prefs.alias)
+  ; pmk_bPb    "prefs_read_bool"         (fun _ -> Prefs.read)
+
+  ; pmk_sissiP "prefs_create_int"        (fun _ -> Prefs.createInt)
+  ; pmk_iPsu   "prefs_alias_int"         (fun _ -> Prefs.alias)
+  ; pmk_iPi    "prefs_read_int"          (fun _ -> Prefs.read)
+
+  ; pmk_sssssP "prefs_create_string"     (fun _ -> Prefs.createString)
+  ; pmk_sPsu   "prefs_alias_string"      (fun _ -> Prefs.alias)
+  ; pmk_sPs    "prefs_read_string"       (fun _ -> Prefs.read)
+
+  ; pmk_sssszP "prefs_create_string_list"(fun _ -> Prefs.createStringList)
+  ; pmk_szPsu  "prefs_alias_string_list" (fun _ -> Prefs.alias)
+  ; pmk_szPsz  "prefs_read_string_list"  (fun i p -> Safelist.rev_map (mk_s i) (Prefs.read p))
+
+  ; pmk_su     "prefs_print_usage"       (fun i -> Prefs.printUsage)
+
+  ; pmk_us   "prefs_read_extern_output"     (fun i () -> Prefs.read Prefs.outputPref)
+  ; pmk_uszR "prefs_read_extern_lens"       (fun i () -> Prefs.read Prefs.lensPref)
+  ; pmk_uszR "prefs_read_extern_source"     (fun i () -> Prefs.read Prefs.sourcePref)
+  ; pmk_uszR "prefs_read_extern_view"       (fun i () -> Prefs.read Prefs.viewPref)
+  ; pmk_uszR "prefs_read_extern_expression" (fun i () -> Prefs.read Prefs.expressionPref)
+  ; pmk_uszR "prefs_read_extern_rest"       (fun i () -> Prefs.read Prefs.restPref)
+  ; pmk_uszR "prefs_read_extern_check"      (fun i () -> Prefs.read Prefs.checkPref)
+  ; pmk_uszR "prefs_read_extern_include"    (fun i () -> Prefs.read Prefs.includePref)
+  ; pmk_uszR "prefs_read_extern_test"       (fun i () -> Prefs.read Prefs.testPref)
+  ; pmk_ub   "prefs_read_extern_testall"    (fun i () -> Prefs.read Prefs.testallPref)
+  ; pmk_uszR "prefs_read_extern_debug"      (fun i () -> Prefs.read Prefs.debugPref)
+  ; pmk_ub   "prefs_read_extern_debugtimes" (fun i () -> Prefs.read Prefs.debugtimesPref)
+  ; pmk_ub   "prefs_read_extern_log"        (fun i () -> Prefs.read Prefs.logPref)
+  ; pmk_us   "prefs_read_extern_logfile"    (fun i () -> Prefs.read Prefs.logfilePref)
+  ; pmk_ub   "prefs_read_extern_terse"      (fun i () -> Prefs.read Prefs.tersePref)
+  ; pmk_ub   "prefs_read_extern_timers"     (fun i () -> Prefs.read Prefs.timersPref)
+  ; pmk_ub   "prefs_read_extern_colorize"   (fun i () -> Prefs.read Prefs.colorizePref)
 
   (* sync *)
 (*   ; pmk_sync   "sync"                 (fun i l o a b ->  *)

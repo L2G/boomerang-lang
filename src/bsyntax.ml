@@ -70,7 +70,7 @@ type sort =
     | SData of sort list * Qid.t      (* data types *)
 
     (* dependent function types *)
-    | SFunction of Bident.Id.t * sort *  sort 
+    | SFunction of Id.t * sort *  sort 
     | SRefine of Id.t * sort * exp    (* refinement types *)
     | SVar of Id.t                    (* variables *)
     | SForall of Id.t * sort          (* universals *)

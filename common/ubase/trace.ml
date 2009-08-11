@@ -13,26 +13,8 @@ let redirect x = (traceprinter := x)
 (* ---------------------------------------------------------------------- *)
 (* Debugging messages *)
 
-let debugmods =
-  Prefs.createStringList "debug"
-    "debug module xxx ('all' -> everything, 'verbose' -> more)" 
-    ("This preference is used to make Unison print various sorts of "
-     ^ "information about what it is doing internally on the standard "
-     ^ "error stream.  It can be used many times, each time with the name "
-     ^ "of a module for which debugging information should be printed.  "
-     ^ "Possible arguments for \\verb|debug| can be found "
-     ^ "by looking for calls to \\verb|Util.debug| in the "
-     ^ "sources (using, e.g., \\verb|grep|).  "
-     ^ "Setting \\verb|-debug all| causes information from {\\em all} "
-     ^ "modules to be printed (this mode of usage is the first one to try, "
-     ^ "if you are trying to understand something that Unison seems to be "
-     ^ "doing wrong); \\verb|-debug verbose| turns on some additional "
-     ^ "debugging output from some modules (e.g., it will show exactly "
-     ^ "what bytes are being sent across the network).")
-
-let debugtimes =
-  Prefs.createBool "debugtimes"
-    false "*annotate debugging messages with timestamps" ""
+let debugmods = Prefs.debugPref
+let debugtimes = Prefs.debugtimesPref
 
 let runningasserver = ref false
 
@@ -90,19 +72,8 @@ let _ = Util.debugPrinter := Some(debug)
 (* ---------------------------------------------------------------------- *)
 (* Logging *)
 
-let logging =
-  Prefs.createBool "log" true
-    "record actions in file specified by logfile preference"
-    "When this flag is set, Unison will log all changes to the filesystems
-     on a file."
-
-let logfile =
-  Prefs.createString "logfile"
-    (Util.fileInHomeDir "unison.log")
-    "Log file name"
-    "By default, logging messages will be appended to the file
-     \\verb|unison.log| in your HOME directory.  Set this preference if
-     you prefer another file."
+let logging = Prefs.logPref
+let logfile = Prefs.logfilePref
 
 let logch = ref None
 
@@ -143,10 +114,7 @@ let writeLog s =
 (* ---------------------------------------------------------------------- *)
 (* Formatting and displaying messages *)
 
-let terse =
-  Prefs.createBool "terse" false "suppress status messages"
-    ("When this preference is set to {\\tt true}, the user "
-     ^ "interface will not print status messages.")
+let terse = Prefs.tersePref
 
 type msgtype = Msg | StatusMajor | StatusMinor | Log
 type msg = msgtype * string
@@ -209,9 +177,7 @@ let logverbose s =
 (* ---------------------------------------------------------------------- *)
 (* Timing *)
     
-let printTimers =
-  Prefs.createBool "timers" false
-    "*print timing information" ""
+let printTimers = Prefs.timersPref
     
 type timer = string * float
 

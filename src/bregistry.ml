@@ -177,11 +177,7 @@ let reset () =
 
 (* --------------- Lookup functions -------------- *)
 
-let paths = Prefs.createStringList 
-  "include" 
-  "search path for .boom sources"
-  "Boomerang modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources (the current directory and the paths specified in the BOOMPATH environment variable are also searched)."
-let _ = Prefs.alias paths "I"
+let paths = Prefs.includePref
 
 let boompath =
   try Util.splitIntoWords (Unix.getenv "BOOMPATH") ':'

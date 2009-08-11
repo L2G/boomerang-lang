@@ -635,7 +635,13 @@ Foster, Nate, jnfoster@cis.upenn.edu (e), 267 342-1099 (c)
 
 type format = VCF | XML | CSV | OTHER
 
-let main (args:string List.t) =
+let usage = 
+  let prog = Prefs.get_prog_name () in
+  "Usage: " . prog . " {get|put} args\n"
+  . "  " . prog ." get <source> <format of the view>\n"
+  . "  " . prog . " put <view> <old source>\n"
+
+let main (x:unit) =
   let vcf2csv = vcards in
   let xml2csv = xcard . del WS in (* trailing whitespace *)
   let xml2vcf = right_quot xml2csv (canonizer_of_lens vcf2csv) in
@@ -648,12 +654,9 @@ let main (args:string List.t) =
       | _ -> OTHER
     : format
   in
-  let usage (code:int) =
-    let prog = Prefs.getProgName () in
-    let _ = put_str (
-      "Usage: " . prog . " {get|put} args\n" .
-	"  ".prog." get <source> <format of the view>\n" .
-	"  ".prog." put <view> <old source>\n" ) in code
+  let usage_code (code:int) =
+    let _ = Prefs.print_usage usage in
+    code
   in
   let cget (source:string) (fmt:string) =
     let view' = get_type (Some{string} fmt) in
@@ -672,7 +675,7 @@ let main (args:string List.t) =
       | XML, VCF -> (let _ = put_str (get vcf2xml    (read source)) in 0)
       | VCF, XML -> (let _ = put_str (get xml2vcf    (read source)) in 0)
 
-      | _ -> usage 1
+      | _ -> usage_code 1
     : int
   in
   let cput (view:string) (source:string) =
@@ -692,13 +695,12 @@ let main (args:string List.t) =
       | XML, VCF -> (let _ = put_str (put vcf2xml (read view) (read source)) in 0)
       | VCF, XML -> (let _ = put_str (put xml2vcf (read view) (read source)) in 0)
 
-      | _ -> usage 1
+      | _ -> usage_code 1
     : int
   in
-  match args with
+  match Prefs.read_extern_rest () with
     | "get"::source::format::[] -> cget source format
+    | "get"::format::[] -> cget (List.hd {string} (Prefs.read_extern_source ())) format
     | "put"::  view::source::[] -> cput view source
-    | _ -> usage 1
+    | _ -> usage_code 1
   : int
-
-test main : string List.t -> int

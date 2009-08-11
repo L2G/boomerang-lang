@@ -32,6 +32,7 @@ let show_list 'a (l:'a List.t) =
 let mk_error (message:string) = "Error: " . message
 let identifier = [a-zA-Z] . [ a-zA-Z0-9_\-@]*
 let printLn 'a (x:'a) = write '-' (show {'a} x . newline)
+let is_lens (l:lens) = rel_is_id (sequiv l) && rel_is_id (vequiv l)
 
 (* Preference module *)
 module Preference =
@@ -68,7 +69,7 @@ module Preference =
 end
 
 (* main lens *)
-let main_lens (preference:Preference.t) (value:string) =
+let main_lens (preference:Preference.t) (value:string) :(l:lens where is_lens l) =
   (* read preference *)
   let values = Preference.values preference in
   let comment_prefix, comment_suffix = Preference.comments preference in
@@ -154,10 +155,11 @@ let usage_body =
 >>
 
 (* main function *)
-let main (rest:string List.t) =
-(*   let _ = write '-' (show_list {string} args . newline) in *)
+let main (x:unit) =
+  let rest = Prefs.read_extern_rest () in
+(*   let _ = write '-' (show_list {string} rest . newline) in *)
   let usage (code:int) =
-    let prog = Prefs.getProgName () in
+    let prog = Prefs.get_prog_name () in
     let _ = put_str ("Usage: " . prog . " pref value source" . usage_body) in
     code
   in

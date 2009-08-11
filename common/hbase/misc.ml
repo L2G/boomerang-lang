@@ -421,9 +421,7 @@ let splitIntoWords (s:string) (c:char) =
 let filename_extension (s:string) =
   Safelist.nth (Safelist.rev (splitIntoWords s '.')) 0
 
-let colorize =
-  Prefs.createBool "colorize" false
-    "*Use colored text to make output more readable" ""
+let colorize = Prefs.colorizePref
 
 type color = Black | Red | Green | Yellow | Blue | Pink | Cyan | White
 let colorcode = function
