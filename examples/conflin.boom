@@ -9,13 +9,20 @@ let if 'a (b:bool) (t:'a) (f:'a) =
   | false -> f
   :'a
 let id 'a (x:'a) = x
-let drop_string (n:int) (s:string where n lt (length s)) =
+let put_str_ln (x:string) = put_str (x . newline)
+let drop_string (n:int) (s:string where n leq (length s)) =
   sub_string n (length s - n) s
+let rdrop_string (n:int) (s:string where n leq (length s)) =
+  sub_string 0 (length s - n) s
+let take_string (n:int) (s:string where n leq (length s)) =
+  sub_string 0 n s
+let rtake_string (n:int) (s:string where n leq (length s)) =
+  sub_string (length s - n) n s
 let end_with (s:string) (e:string) =
   let ns = length s in
   let ne = length e in
   match ns geq ne with
-  | true -> (drop_string (ns - ne) s = e)
+  | true -> (rtake_string ne s = e)
   | false -> false
   :bool
 let ambiguous_lens_concat_contract (a:lens) (b:lens) =
@@ -40,7 +47,7 @@ let show_list 'a (l:'a List.t) =
   ) . "]"
 let mk_error (message:string) = "Error: " . message
 let identifier = [a-zA-Z] . [ a-zA-Z0-9_\-@]*
-let printLn 'a (x:'a) = write '-' (show {'a} x . newline)
+let print_ln 'a (x:'a) = write '-' (show {'a} x . newline)
 let is_lens (l:lens) = rel_is_id (sequiv l) && rel_is_id (vequiv l)
 
 (* ---------------------------------------------------------------- *)
@@ -56,10 +63,12 @@ module File_pref =
        (comment_prefix, comment_suffix),
        (command_prefix, command_suffix),
        view_prefix)
-  let shell_like = T (identifier, ("#", "\n"), ("@", ""), "view: ")
-  let c_like = T (identifier, ("//", "\n"), ("@", ""), "view: ")
-  let cpp_like = T (identifier, ("/*", "*/"), ("@", ""), "view: ")
-  let ocaml_like = T (identifier, ("(*", "*)"), ("@", ""), "view: ")
+  let default_view_prefix = "view: "
+  let default_commands = "@", ""
+  let shell_like = T (identifier, ("#", "\n"), default_commands, default_view_prefix)
+  let c_like = T (identifier, ("//", "\n"), default_commands, default_view_prefix)
+  let cpp_like = T (identifier, ("/*", "*/"), default_commands, default_view_prefix)
+  let ocaml_like = T (identifier, ("(*", "*)"), default_commands, default_view_prefix)
   let debug_like = T ([a-z], ("(", ")"), ("", ""), "")
   let set_command_prefix (x:string) (t:t) =
     match t with
@@ -88,11 +97,6 @@ module File_pref =
     | T (_, _, _, view_prefix) -> view_prefix
     :string
 end
-
-(* ---------------------------------------------------------------- *)
-(*                         exception type                           *)
-
-type exception = Exit | Failure of string
 
 (* ---------------------------------------------------------------- *)
 (*                            main lens                             *)
@@ -173,13 +177,73 @@ let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
 (* ---------------------------------------------------------------- *)
 (*                          main function                           *)
 
+type 'a w = Value of 'a | Error of unit -> int
+type 'a io = IO of unit -> 'a
+
+let fmap_w 'a 'b (f:'a -> 'b) (x:'a w) =
+  match x with
+  | Value v -> Value {'b} (f v)
+  | Error e -> Error {'b} e
+  :'b w
+let fmap_io 'a 'b (f:'a -> 'b) (x:'a io) =
+  match x with
+  | IO x -> IO {'b} (fun (u:unit) -> f (x ()))
+  :'b io
+
+let join_w 'a (x:('a w) w) =
+  match x with
+  | Value (Value v) -> Value {'a} v
+  | Value (Error e) -> Error {'a} e
+  | Error e -> Error {'a} e
+  :'a w
+let join_io 'a (x:('a io) io) =
+  match x with
+  | IO x -> IO {'a} (
+      fun (u:unit) ->
+        match x () with
+        | IO y -> y ()
+        :'a)
+  :'a io
+
+let bind_w 'a 'b (x:'a w) (f:'a -> 'b w) =
+  join_w {'b} (fmap_w {'a} {'b w} f x)
+let bind_io 'a 'b (x:'a io) (f:'a -> 'b io) =
+  join_io {'b} (fmap_io {'a} {'b io} f x)
+
+let rbind_w 'a 'b (f:'a -> 'b w) (x:'a w) =
+  bind_w {'a} {'b} x f
+let rbind_io 'a 'b (f:'a -> 'b io) (x:'a io) =
+  bind_io {'a} {'b} x f
+
+let seq_w 'a (x:unit w) (y:'a w) =
+  bind_w {unit} {'a} x (fun (u:unit) -> y)
+let seq_io 'a (x:unit io) (y:'a io) =
+  bind_io {unit} {'a} x (fun (u:unit) -> y)
+
+let return_w 'a (x:'a) = Value {'a} x
+let return_io 'a (x:'a) = IO {'a} (fun (u:unit) -> x)
+
+let ok 'a (x:'a) = Value {'a} x
+let fail 'a (f:unit -> int) = Error {'a} f
+let failwith 'a (message:string) = fail {'a} (fun (u:unit) -> let _ = put_str ("Failure: " . message . newline) in 1)
+
+let okfailwith 'a = ok {'a}, fail {'a}, failwith {'a}
+
+let bind_w_pp = bind_w {File_pref.t} {File_pref.t}
+let bind_w_piI = bind_w {File_pref.t} {int io}
+let bind_w_siI = bind_w {string} {int io}
+let bind_w_sOiI = bind_w {string option} {int io}
+let seq_w_iI = seq_w {int io}
+
 (* command line arguments *)
 let help_pref = Prefs.create_bool "-help" false "print this help"
 let _ = Prefs.alias_bool help_pref "h"
-let extension_pref = Prefs.create_string "-extension" "factor" "extension of source (default: factor)"
+let extension_pref = Prefs.create_string "-extension" "conflin" "extension of source (default: 'conflin')"
 let _ = Prefs.alias_string extension_pref "e"
 let value_pref = Prefs.create_string "-value" "" "value of the view"
 let _ = Prefs.alias_string value_pref "v"
+let output_pref = Prefs.create_string_list "-output" "output file (default: <file> with or without <extension>)"
+let _ = Prefs.alias_string_list output_pref "o"
 let default_pref = Prefs.create_string_list "-default" "mandatory: shell, c, cpp or ocaml"
 let _ = Prefs.alias_string_list default_pref "d"
 let command_prefix_pref = Prefs.create_string_list "-command-prefix" "identify a command from a comment"
@@ -188,92 +252,136 @@ let command_suffix_pref = Prefs.create_string_list "-command-suffix" "identify a
 let _ = Prefs.alias_string_list command_suffix_pref "as"
 let rest_pref = Prefs.extern_rest ()
 
+(* TODO: write a --documentation *)
+
 (* usage message *)
-let usage:string = ""
+let usage:string = "Usage: " . Prefs.get_prog_name () . " --default <file_type> <file>"
 
 (* main code *)
 let main (x:unit) =
   (* shortcuts *)
-  let print_usage (code:int) =
+  let print_usage (code:int) (u:unit) =
     let _ = Prefs.print_usage usage in
     code
   in
-  let fail (exn:exception) =
-    match exn with
-    | Exit -> 0
-    | Failure message -> (
-        let _ = put_str (message . newline) in 1)
-    :int
-  in
-  let seq 'i 'j 'k
-      (f:forall 'a => (exception -> 'a) -> ('j -> 'a) -> 'i -> 'a)
-      (g:forall 'a => (exception -> 'a) -> ('k -> 'a) -> 'j -> 'a)
-      'a (fail:exception -> 'a) (ok:'k -> 'a) (x:'i)
-      = f {'a} fail (g {'a} fail ok) x
-  in
   (* parsing the commandline *)
-  let read_help 'a (fail:exception -> 'a) (ok:unit -> 'a) (u:unit) =
+  let help =
+    let ok, fail, failwith = okfailwith {unit} in
     match Prefs.read_bool help_pref with
-    | true -> (let _ = Prefs.print_usage usage in fail Exit)
+    | true -> fail (print_usage 0)
     | false -> ok ()
-    :'a
+    :unit w
   in
-  let extension = Prefs.read_string extension_pref in
+  let extension = "." . Prefs.read_string extension_pref in
   let value = Prefs.read_string value_pref in
-  let read_default 'a (fail:exception -> 'a) (ok:File_pref.t -> 'a) (u:unit) =
-    match Prefs.read_string_list default_pref with
-    | pref::[] -> (
-        match pref with
-        | "shell" -> ok File_pref.shell_like
-        | "c" -> ok File_pref.c_like
-        | "cpp" -> ok File_pref.cpp_like
-        | "ocaml" -> ok File_pref.ocaml_like
-        | _ -> fail (Failure (show {string} pref . " is not a valid file preference."))
-        :'a)
-    | _ -> fail (Failure "You need to define exactly one file preference.")
-    :'a
+  let output =
+    let ok, fail, failwith = okfailwith {string option} in
+    match Prefs.read_string_list output_pref with
+    | [] -> ok None {string}
+    | output::[] -> ok (Some {string} output)
+    | _ -> failwith "You can define at most one output file."
+    :(string option) w
   in
-  let read_command_prefix 'a (fail:exception -> 'a) (ok:File_pref.t -> 'a) (default:File_pref.t) =
+  let default =
+    let ok, fail, failwith = okfailwith {File_pref.t} in
+    match Prefs.read_string_list default_pref with
+    | "shell"::[] -> ok File_pref.shell_like
+    | "c"::[] -> ok File_pref.c_like
+    | "cpp"::[] -> ok File_pref.cpp_like
+    | "ocaml"::[] -> ok File_pref.ocaml_like
+    | pref::[] -> failwith (show {string} pref . " is not a valid file preference.")
+    | _ -> failwith "You need to define exactly one file preference."
+    :File_pref.t w
+  in
+  let command_prefix (default:File_pref.t) =
+    let ok, fail, failwith = okfailwith {File_pref.t} in
     match Prefs.read_string_list command_prefix_pref with
     | [] -> ok default
     | pref::[] -> ok (File_pref.set_command_prefix pref default)
-    | _ -> fail (Failure "You can define at most one command-prefix preference.")
-    :'a
+    | _ -> failwith "You can define at most one command-prefix preference."
+    :File_pref.t w
   in
-  let read_command_suffix 'a (fail:exception -> 'a) (ok:File_pref.t -> 'a) (default:File_pref.t) =
+  let command_suffix (default:File_pref.t) =
+    let ok, fail, failwith = okfailwith {File_pref.t} in
     match Prefs.read_string_list command_suffix_pref with
     | [] -> ok default
     | pref::[] -> ok (File_pref.set_command_suffix pref default)
-    | _ -> fail (Failure "You can define at most one command-suffix preference.")
-    :'a
+    | _ -> failwith "You can define at most one command-suffix preference."
+    :File_pref.t w
   in
-  let do_action 'a (fail:exception -> 'a) (ok:int -> 'a) (prefs:File_pref.t) =
+  let main (prefs:File_pref.t) =
+    let ok, fail, failwith = okfailwith {int io} in
+    let io = IO {int} in
     match Prefs.read_string_list rest_pref with
-    | [] -> ok 0
+    | [] -> fail (print_usage 1)
     | file::[] -> (
         let mlpv = main_lens prefs value in
         match end_with file extension with
-        | true -> (
-            let _ = put_str (get mlpv (read file)) in
-            ok 0)
-        | false -> (
-            let _ = put_str (put mlpv (read file) (read (file . "." . extension))) in
-            ok 0)
-        :'a
+        | true -> (  (* TODO: check file *)
+            bind_w_sOiI output (fun (output:string option) ->
+            ok (io (fun (u:unit) ->
+            let output =
+              match output with
+              | None -> rdrop_string (length extension) file
+              | Some output -> output
+              :string
+            in
+            let _ = write output (get mlpv (read file)) in
+            0))))
+        | false -> (  (* Warning: only outputs are in IO *)
+            let view =
+              let ok, fail, failwith = okfailwith {string} in
+              let view = read file in
+              match matches (vtype mlpv) view with
+              | true -> ok view
+              | false -> failwith (
+                  "File " . show {string} file . " is not a valid view.\n\n"
+                  . "You might want to check these:\n"
+                  . "* The expanding value " . show {string} value . " is the one in prefix view\n"
+                  . "* The file_type is the right one")
+              :string w
+            in
+            let source =
+              let ok, fail, failwith = okfailwith {string} in
+              let file = file . extension in
+              let source = read file in
+              match matches (stype mlpv) source with
+              | true -> ok source
+              | false -> failwith (
+                  "File " . show {string} file . " is not a valid source.\n\n"
+                  . "You might want to check these:\n"
+                  . "* The file_type is the right one"
+                  . "* The extension " . show {string} (drop_string 1 extension) . " is the right one\n")
+              :string w
+            in
+            bind_w_siI view (fun (view:string) ->
+            bind_w_siI source (fun (source:string) ->
+            bind_w_sOiI output (fun (output:string option) ->
+            ok (io (fun (u:unit) ->
+            let output =
+              match output with
+              | None -> file . extension
+              | Some output -> output
+              :string
+            in
+            let _ = write output (put mlpv view source) in
+            0))))))
+        :(int io) w
       )
-    | _ -> fail (Failure "Too much files.")
-    :'a
+    | _ -> failwith "You can factorize/expand at most one file."
+    :(int io) w
   in
-  let seq_uui = seq {unit} {unit} {int} in
-  let seq_upi = seq {unit} {File_pref.t} {int} in
-  let seq_upp = seq {unit} {File_pref.t} {File_pref.t} in
-  let seq_ppp = seq {File_pref.t} {File_pref.t} {File_pref.t} in
-  let read_prefs = seq_upp read_default (seq_ppp read_command_prefix read_command_suffix) in
-  let run = seq_uui read_help (seq_upi read_prefs do_action) in
-  run {int} fail id {int} ()
+  let prefs = bind_w_pp (bind_w_pp default command_prefix) command_suffix in
+  let result = seq_w_iI help (bind_w_piI prefs main) in
+  match result with
+  | Value (IO io) -> io ()
+  | Error fail -> fail ()
+  :int
 
 (* ---------------------------------------------------------------- *)
 (*                            unit tests                            *)
+
+(* --- Debug --- *)
 
 let mld = main_lens File_pref.debug_like
 
@@ -303,3 +411,126 @@ test put mldv ("(a)"."(a)a0()d0()d1()d2")
 test put mldv ("(a)"."(a)a0()d0" ."()d2")
               (           "()d0()d1()d2")
             = (    "()(a)a0()d0" ."()d2")
+
+(* --- Exemples --- *)
+
+let mls = main_lens File_pref.shell_like
+
+let source =
+<<
+  #@
+  # Define the specific parts of PATH for each machine
+  #@
+  # This is the default
+  SPATH=""
+  #@upenn
+  # If we are in UPenn
+  SPATH="/home/harmony/bin:/home/harmony/boomerang/bin"
+  #@
+  
+  # This is the common part of PATH
+  PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+  # We concatenate both parts
+  PATH="$PATH:$SPATH"
+  
+  # We finally export the PATH
+  export PATH
+>>
+
+test get (mls "") source =
+<<
+  #@view: 
+  #@
+  # Define the specific parts of PATH for each machine
+  #@
+  # This is the default
+  SPATH=""
+  #@
+  
+  # This is the common part of PATH
+  PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+  # We concatenate both parts
+  PATH="$PATH:$SPATH"
+  
+  # We finally export the PATH
+  export PATH
+>>
+
+test get (mls "upenn") source =
+<<
+  #@view: upenn
+  #@
+  # Define the specific parts of PATH for each machine
+  #@upenn
+  # If we are in UPenn
+  SPATH="/home/harmony/bin:/home/harmony/boomerang/bin"
+  #@
+  
+  # This is the common part of PATH
+  PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+  # We concatenate both parts
+  PATH="$PATH:$SPATH"
+  
+  # We finally export the PATH
+  export PATH
+>>
+
+test get (mls "X") source =
+<<
+  #@view: X
+  #@
+  # Define the specific parts of PATH for each machine
+  #@
+  # This is the default
+  SPATH=""
+  #@
+  
+  # This is the common part of PATH
+  PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+  # We concatenate both parts
+  PATH="$PATH:$SPATH"
+  
+  # We finally export the PATH
+  export PATH
+>>
+
+test put (mls "X")
+<<
+  #@view: X
+  #@
+  # Define the specific parts of PATH for each machine
+  #@X
+  # For Polytechnique
+  SPATH="$HOME/bin"
+  #@
+  
+  # This is the common part of PATH
+  PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+  # We concatenate both parts
+  PATH="$PATH:$SPATH"
+  
+  # We finally export the PATH
+  export PATH
+>> source =
+<<
+  #@
+  # Define the specific parts of PATH for each machine
+  #@
+  # This is the default
+  SPATH=""
+  #@X
+  # For Polytechnique
+  SPATH="$HOME/bin"
+  #@upenn
+  # If we are in UPenn
+  SPATH="/home/harmony/bin:/home/harmony/boomerang/bin"
+  #@
+  
+  # This is the common part of PATH
+  PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+  # We concatenate both parts
+  PATH="$PATH:$SPATH"
+  
+  # We finally export the PATH
+  export PATH
+>>
