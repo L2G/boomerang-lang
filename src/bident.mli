@@ -95,6 +95,9 @@ module Qid : sig
   (** [t_dot_id q x] returns the qualified identifier representing
       [q.x]. *)
 
+  val parent_t : t -> t
+  (** [parent_t q.x] returns the [q] *)
+
   val t_dot_t : t -> t -> t
   (** [t_dot_t q1 q2] returns the qualified identifier representing
       [q1.q2]. *)

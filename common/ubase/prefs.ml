@@ -154,30 +154,16 @@ let createStringList name doc fulldoc =
 (*****************************************************************************)
 
 let outputPref = createString "output" "" "output" ""
-let _ = alias outputPref "o"
-
-let lensPref = createStringList "lens"      "lens"          ""
-let _ = alias lensPref "l"
-
-let sourcePref = createStringList "source"  "source file" ""
-let _ = alias sourcePref "s"
-
-let viewPref = createStringList "view"  "view file" ""
-let _ = alias viewPref "v"
-
-let expressionPref = createStringList "expression"  "on-time module contents" ""
-let _ = alias expressionPref "e"
-
+let lensPref = createStringList "lens" "lens" ""
+let sourcePref = createStringList "source" "source file" ""
+let viewPref = createStringList "view" "view file" ""
+let expressionPref = createStringList "expression" "on-time module contents" ""
 let restPref = createStringList "rest" "*no docs needed" ""
-
 let checkPref = createStringList "check" "run unit tests for given module(s)" ""
 
 let includePref = createStringList "include" "search path for .boom sources" "Boomerang modules are loaded, compiled, and registered on-demand. The search path specifies where the run-time system should search for module sources (the current directory and the paths specified in the BOOMPATH environment variable are also searched)."
-let _ = alias includePref "I"
 
 let testPref = createStringList "test" "run unit test for the specified module" "run unit tests for the specified module"
-let _ = alias testPref "t"
-
 let testallPref = createBool "test-all" false "run unit tests for all modules" "run unit tests for all modules"
 
 let debugPref = createStringList "debug" "debug module xxx ('all' -> everything, 'verbose' -> more)" 

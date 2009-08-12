@@ -1086,7 +1086,8 @@ let rec check_decl sev ms d0 =
                      (SCEnv.update nsev nq s, nq::names))
           (msev,[]) names in 
 	let new_d = DMod(i,n,new_ds) in 
-	  (SCEnv.pop_ctx nsev,Safelist.rev names_rev,new_d)
+        let nsev = SCEnv.set_mod (SCEnv.pop_ctx nsev) (Qid.parent_t qmn) in
+        (nsev, Safelist.rev names_rev, new_d)
 
     | DType(i,svl,qx,cl) -> 
 	(* get module prefix *)

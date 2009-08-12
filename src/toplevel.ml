@@ -340,7 +340,7 @@ let toplevel' progName () =
         let usage =
           match lookup (modl ^ ".usage") with
           | Some (_, Bvalue.Str (_, s)) -> s
-          | _ -> usageMsg
+          | _ -> ""
         in
         Prefs.parseCmdLine usage;
         match run_main modl with

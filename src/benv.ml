@@ -43,6 +43,7 @@ sig
   val pop_ctx : t -> t
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
+  val format : t -> unit
   val lookup : t -> Qid.t -> v option
   val lookup_o : t -> Qid.t -> (Qid.t * v) option
   val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
@@ -72,6 +73,17 @@ struct
   let set_ctx cev os = let ((_,m),ev) = cev in ((os,m),ev)
   let push_ctx ((os,m),ev) x = (x::os,m),ev
   let pop_ctx ((os,m),ev) = (List.tl os,m),ev
+
+  let format ((os, m), _) =
+    Printf.printf "[%s] %s\n"
+      (snd
+         (Safelist.fold_left
+            (fun (b, s) o ->
+               true, s ^ (if b then ";" else "") ^ (Qid.string_of_t o)
+            )
+            (false, "")
+            os))
+      (Qid.string_of_t m)
 
   (* lookup from cev, then from library *)
   let lookup_generic select lookup_fun lookup_library_fun cev q = 
@@ -143,6 +155,8 @@ struct
   let set_ctx = CEnv.set_ctx
   let push_ctx = CEnv.push_ctx
   let pop_ctx = CEnv.pop_ctx
+
+  let format = CEnv.format
 
   let lookup sev q = 
     match CEnv.lookup sev q with 

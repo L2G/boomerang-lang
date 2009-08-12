@@ -38,6 +38,7 @@ sig
   val pop_ctx : t -> t
   val get_mod : t -> Qid.t 
   val set_mod : t -> Qid.t -> t
+  val format : t -> unit
   val lookup : t -> Qid.t -> v option
   val lookup_o : t -> Qid.t -> (Qid.t * v) option
   val lookup_type : t -> Qid.t -> (Qid.t * tspec) option

@@ -697,7 +697,7 @@ let main (x:unit) =
       | _ -> usage 1
     : int
   in
-  match Prefs.read_extern_rest () with
+  match Prefs.read_string_list (Prefs.extern_rest ()) with
     | "get"::source::[] -> cget source
     | "put"::view::source::[] -> cput view source
     | _ -> usage 1

@@ -1546,7 +1546,7 @@ listpat:
       { let i, cset = $1 in
         if cset = ""
         then PVnt (i, Qid.mk_list_t i "Nil", None)
-        else syntax_error i (Printf.sprintf "[%s] is not the empty list" cset) }
+        else syntax_error i (Printf.sprintf "\nDid you meant %s::[] instead of [%s]?" cset cset) }
 
   | conpat COLONCOLON listpat
       { let i = $2 in

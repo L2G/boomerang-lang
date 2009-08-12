@@ -85,6 +85,16 @@ module Qid = struct
   (* operations *)      
   let id_dot x1 (qs2,x2) = (x1::qs2,x2)
   let t_dot_id (qs1,x1) x2 = (qs1@[x1],x2)
+  let parent_t (qs, _) =
+    let rec f qs =
+      match qs with
+      | [] -> assert false
+      | [q] -> [], q
+      | h::t ->
+          let qs, x = f t in
+          h::qs, x
+    in
+    f qs
   let t_dot_t (qs1,x1) (qs2,x2) = (qs1@x1::qs2,x2)
   let id_prefix q1 il2 = 
     let (is1,i1) = q1 in 
