@@ -171,7 +171,7 @@ let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R+
 
 let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
   : (lens in NONEMPTY_ARRAY (stype l) <-> (vtype l)+ )
-  = Xml.elt spaces "array" (dictionary_match "parray" l)+
+  = Xml.elt spaces "array" <dictionary "parray":l>+
 
 let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
 
@@ -223,7 +223,7 @@ let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp)
     (v:lens where VALID_KV (indent spaces) KEYS v)
   : (lens in NONEMPTY_HDICT KEYS (stype v) <-> (KV KEYS (vtype v))+)
   = let kv = kvpair (indent spaces) KEYS v in
-    pdict spaces (dictionary_match "hdict" kv)+
+    pdict spaces <dictionary "hdict":kv>+
 
 let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
 
@@ -259,7 +259,7 @@ let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
   : (lens in NONEMPTY_HDICT KEYS (stype (mk_v (indent spaces))) <-> (KV KEYS (vtype (mk_v (indent spaces))))+)
   = let inner_spaces = indent spaces in
     let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
-    pdict spaces (dictionary_match "hsdict" kv)+
+    pdict spaces <dictionary "hsdict":kv>+
 
 let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> 

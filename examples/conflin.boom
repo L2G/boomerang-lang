@@ -1,4 +1,27 @@
+#{*}
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2007 J. Nathan Foster and Benjamin C. Pierce                 *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /examples/conflin.boom                                                     *)
+(* write a description here (and put the same in main.src)                    *)
+(* $Id$ *)
+(******************************************************************************)
+
 module Conflin =
+open Sys
 
 (* ---------------------------------------------------------------- *)
 (*                           definitions                            *)
@@ -34,8 +57,8 @@ let ambiguous_lens_partition_one_contract (a:lens) (b:lens) =
   && ambiguous_lens_concat_contract (lens_swap b* a) b*
 let ambiguous_lens_partition_one (a:lens) (b:lens where ambiguous_lens_partition_one_contract a b) =
   ambiguous_lens_concat (lens_swap b* a) b*
-let positional (name:string) = Tag (Positional, Threshold 0, name)
-let diffy (first:bool) (name:string) = Tag (Diffy first, Threshold 0, name)
+let positional (name:string) = Tag (Positional, Threshold 0, Weight 1, name)
+let diffy (first:bool) (name:string) = Tag (Diffy first, Threshold 0, Weight 1, name)
 let show_list 'a (l:'a List.t) =
   "[" . fst {string} {bool} (
     List.fold_left {'a} {string * bool} (
@@ -47,7 +70,7 @@ let show_list 'a (l:'a List.t) =
   ) . "]"
 let mk_error (message:string) = "Error: " . message
 let identifier = [a-zA-Z] . [ a-zA-Z0-9_\-@]*
-let print_ln 'a (x:'a) = write '-' (show {'a} x . newline)
+let print_ln 'a (x:'a) = put_str_ln (show {'a} x)
 let is_lens (l:lens) = rel_is_id (sequiv l) && rel_is_id (vequiv l)
 
 (* ---------------------------------------------------------------- *)

@@ -189,29 +189,26 @@ let rec parse t s =
 (*     ) *)
 (*   ); *)
   assert (Bstring.match_rx (rxtype t) s);
-  let rec p t s =
+  let rec p t wd s = (* wd = default weight *)
     match t with
-    | Leaf (wo, _) ->
-        let w =
-          match wo with
-          | None -> W.one
-          | Some w -> w
-        in
+    | Leaf (None, _) ->	
+	Bstring.annot_leaf wd s
+    | Leaf (Some w, _) ->
         Bstring.annot_leaf w s
     | Chunk (tag, t) ->
-        Bstring.annot_node tag (p t (Bstring.before_node s))
+        Bstring.annot_node tag (p t (Btag.get_weight tag) (Bstring.before_node s))
     | Seq (t1, t2) ->
-        Bstring.do_concat (rxtype t1) (rxtype t2) (p t1) (p t2) s
+        Bstring.do_concat (rxtype t1) (rxtype t2) (p t1 wd) (p t2 wd) s
     | Alt (t1, t2) -> p (
         if Bstring.match_rx (rxtype t1) (Bstring.of_attmp s)
           (* 1 <-> 2 is the same because unambiguous parsing *)
         then t1
         else t2
-      ) s
+      ) wd s
     | Star t ->
-        Bstring.do_star (rxtype t) (p t) s
+        Bstring.do_star (rxtype t) (p t wd) s
   in
-  Bstring.at_of_attmp (p t (Bstring.to_attmp s))
+  Bstring.at_of_attmp (p t W.zero (Bstring.to_attmp s))
 
 let drop = rxtype
 

@@ -2,10 +2,10 @@ module Diffy =
 
 let sep_list (a:lens) (b:lens) = (a . (b . a)* )
 
-let df (name:string) = Tag (Diffy true, Threshold 0, name)
-let dl (name:string) = Tag (Diffy false, Threshold 0, name)
-let g (t:int) (name:string) = Tag (Greedy, Threshold t, name)
-let p (name:string) = Tag (Positional, Threshold 0, name)
+let df (name:string) = Tag (Diffy true, Threshold 0, Weight 1, name)
+let dl (name:string) = Tag (Diffy false, Threshold 0, Weight 1, name)
+let g (t:int) (name:string) = Tag (Greedy, Threshold t, Weight 1, name)
+let p (name:string) = Tag (Positional, Threshold 0, Weight 1, name)
 
 let main = (* df *)
   let word = (copy [a-z] . del [A-Z]* )+ in
@@ -793,8 +793,8 @@ test main.<p "a":copy '1'.'2'> = error
 
 let main =
   let word = (copy [a-z] . del [A-Z]* )+ in
-  let line = sep_list <g 100 "w":word> " " in
-  let file = sep_list <g 100 "l":line> "\n" in
+  let line = sep_list <g 100 "w":word> (nokey " ") in
+  let file = sep_list <g 100 "l":line> (nokey "\n") in
   file
 
 test put main "a b c" "aA bB cC" = "aA bB cC"

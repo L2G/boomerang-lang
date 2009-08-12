@@ -34,4 +34,5 @@ module Weight = struct
     string_of_int t
   let to_forcestring (b, t) =
     (if b then "!" else "") ^ (to_string t)
+  let compare = compare
 end

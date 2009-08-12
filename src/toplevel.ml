@@ -301,13 +301,13 @@ let create l_n a_fn o_fn =
 (*               end *)
 
 let toplevel' progName () = 
-  let baseUsageMsg = 
+  let baseUsageMsg = (* update the documentation (main.src) after changing this *)
     "Usage:\n"
     ^ "    "^progName^" [get] l S             [options] : get\n"
     ^ " or "^progName^" [put] l V S           [options] : put\n"
     ^ " or "^progName^" create l V            [options] : create\n"
-    ^ " or "^progName^" sync l O A B          [options] : sync\n"
-    ^ " or "^progName^" sync l O A B O' A' B' [options] : sync\n"
+    (* ^ " or "^progName^" sync l O A B          [options] : sync\n" *)
+    (* ^ " or "^progName^" sync l O A B O' A' B' [options] : sync\n" *)
     ^ " or "^progName^" F.boom [F.boom...]    [options] : run unit tests\n"
     ^ "\n" in 
   let shortUsageMsg = 

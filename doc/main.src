@@ -310,24 +310,28 @@ string.
 
 \section{Getting Started}
 
-The best way to get going with Boomerang, is by working through the next
-``Quick Start'' chapter. It contains a lightning tour of some of the
-main features of Boomerang the language and the system.  After that, we
-suggest exploring examples (see chapter~\ref{chap:examples}), and
-consulting the rest of this manual as needed. The
-chapter~\ref{chap:system} shows how to run Boomerang, how to create your
-own Boomerang program and how to run a Boomerang program. Many more
-details can be found in our research papers on Boomerang
-(\cite{Boomerang07,QuotientLenses08}) and on lenses in general
-(\citet{Focal2005,BohannonPierceVaughanTR}), but take into account that
-some theorical changes have been made since these papers were
-published. These papers are all available from the Boomerang web page.
+The best way to get going with Boomerang, is by working through the
+next ``Quick Start'' chapter. It contains a lightning tour of some of
+the main features of Boomerang the language and the system.  A second
+step could be the section~\ref{sec:alignment}, which explains in
+details the alignment in Boomerang. After that, we suggest exploring
+examples (see chapter~\ref{chap:examples}), and consulting the rest of
+this manual as needed. The chapter~\ref{chap:system} shows how to run
+Boomerang, how to create your own Boomerang program and how to run a
+Boomerang program. Many more details can be found in our research
+papers on Boomerang (\cite{Boomerang07,QuotientLenses08}) and on
+lenses in general (\citet{Focal2005,BohannonPierceVaughanTR}), but
+take into account that some theorical changes have been made since
+these papers were published. These papers are all available from the
+Boomerang web page.
 
 Good luck and have fun!
 
 \chapter{Quick Start}\label{chap:quickstart}
 
 \input{QuickStart}
+
+\input{alignment}
 
 \chapter{The Boomerang Language}
 
@@ -431,8 +435,8 @@ notation & desugars to \\\hline
 @<lens>@              & @lens_match (greedy 0 "")@\\
 @<tag:aregexp>@       & @aregexp_match@\\
 @<tag:lens>@          & @lens_match@\\
-@{:wc:we:wd:aregexp}@ & @aregexp_weight@\\
-@{:wc:we:wd:lens}@    & @lens_weight@\\
+@{:w:aregexp}@        & @aregexp_weight@\\
+@{:w:lens}@           & @lens_weight@\\
 @lens in S <-> V@     & @in_lens_type@\\
 @lens in S <=> V@     & @in_bij_lens_type@\\
 \end{tabular}
@@ -461,6 +465,8 @@ suffice.
 \input{prelude}
 \input{list}
 \input{sort}
+\input{prefs}
+\input{sys}
 
 
 \chapter{The Boomerang System}
@@ -601,18 +607,17 @@ Doe, John, updated (note), 792-8134 (h)
 \section{Creating a Boomerang program}
 
 All you need to create a Boomerang program, in addition to write a
-lens, is to write a main function with type @string List.t -> int@.
-The argument @string List.t@ is the list of command line arguments not
-starting with dash. The return of main is the return code of the
-program.
+lens, is to write a @main@ function that takes @unit@ and returns @unit@
+or @int@. In the second case, the return of @main@ is the return code of
+the program.
 
-Boomerang programs can also receive arguments starting with dash using
-the @Prefs@ library (under development). The remaining arguments are
-passed to Boomerang.
+Boomerang programas receive command line arguments using the @Prefs@
+library. The @bibtex.boom@ example can be a good start to see how to
+write a Boomerang program, just look at the main function at the end of
+the file.
 
-The @bibtex.boom@ example can be a good start to see how to write a
-Boomerang program, just look at the main function at the end of the
-file.
+If you need to do more than just use anonymous arguments, see the
+@Prefs@ library and the @conflin.boom@ example.
 
 \section{Navigating the Distribution}
 
@@ -625,8 +630,8 @@ look at the files:
 @src/lenses/core.boom@              & core lenses\\
 @src/lenses/prelude.boom@           & important derived lenses\\
 @src/blenses.ml@                    & native definitions of lenses and canonizers \\
-@examples/*@                        & many real-world lenses\\
 @src/bcompiler.ml@                  & the Boomerang interpreter\\
+@src/balign.ml@                     & the alignment functions\\
 %@src/sync.ml@                       & a synchronization algorithm\\
 @src/toplevel.ml@                   & the top-level program\\
 \end{tabular}
@@ -645,6 +650,7 @@ Boomerang programs we have written:
 \item @addresses.boom@ : VCard, CSV, and XML-formatted address books.
 \item @bibtex.boom@: BiBTeX and RIS-formatted bibliographies.
 \item @uniProtV2.boom@: UniProtKB / SwissProt lens.
+% \item @conflin.boom@: ?
 \item @xsugar/*@: example transformations from the XSugar project.
 \end{itemize}
 
@@ -653,6 +659,7 @@ our code... and we hope you'll write and let us know about the lenses
 you write!
 
 \bibliographystyle{plainnat}
+% Is the bibliography accessible if someone (external to upenn) gets the code from the svn?
 \bibliography{../../writing/papers/harmony,../../writing/papers/onlybcpshouldmodify/bcp}
 
 \end{document}

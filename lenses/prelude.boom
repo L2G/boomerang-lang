@@ -546,7 +546,17 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 #*   List.fold_left{int}{'a}
 #*     (fun (acc:'a) (i:int) -> f acc)
 #*     b
-#*     (List.hd{int List.t} (List.permutations i))
+#*     (List.mk_seq i)
 
 #* test (iterate{regexp} 3 (fun (x:regexp) -> x | "(".x.")") [a-z]).get "((b))" = "((b))"
 #* test (iterate{regexp} 3 (fun (x:regexp) -> x | "(".x.")") [a-z]).get "((((b))))" = error
+
+\LENSSECTION{@print@} The @print@ function prints a value.  Some
+values cannot be printed in full, e.g., functions.
+
+#* let show : forall 'a => 'a -> string
+## = Native.Prelude.poly_show
+
+#* let print 'a (x:'a) : unit
+#* = Sys.put_str_ln (show {'a} x)
+

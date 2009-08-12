@@ -1,8 +1,11 @@
 module Setlike =
 
+let set (name:string) = Tag (Setlike, Threshold 0, Weight 1, name)
+
+
 let main =
   let word = copy [a-z]+ . " " in
-  let line = <setlike "w":word>* in
+  let line = <set "w":word>* in
     line
 
 test put main "" "" = ""
@@ -14,7 +17,7 @@ let sep_list (a:lens) (b:lens) = (a . (b . a)* )
 
 let main = (* b *)
   let word = copy [a-z]+ . del [A-Z]* in
-  let line = sep_list <setlike "w":word> " " in
+  let line = sep_list <set "w":word> " " in
   line
 
 test put main "a b c d e" "aA bB cC dD eE" = "aA bB cC dD eE"
@@ -25,7 +28,7 @@ test put main "bbb aaa ccg dh xyz" "aaaA bbbB cccC dddD eeeE" = "bbbB aaaA ccgC 
 
 let gmain = (* greedy *)
   let word = copy [a-z]+ . del [A-Z]* in
-  let line = sep_list <greedy 0 "w":word> " " in
+  let line = sep_list <greedy 0 "w":key word> " " in
   line
 
 test put  main "abd acdefg" "xyzabdXX acdYY" = "abdXX acdefgYY"
@@ -37,8 +40,8 @@ test put gmain "abcd a" "abcgXX abcdghYY" = "abcdXX aYY"
 
 let main =
   let word = (copy [a-z] . del [A-Z]* )+ in
-  let line = sep_list <setlike "w":word> " " in
-  let file = sep_list <setlike "l":line> "\n" in
+  let line = sep_list <set "w":word> " " in
+  let file = sep_list <set "l":line> "\n" in
   file
 
 test get main "aRobASe" = "aobe"
@@ -163,7 +166,7 @@ lorem ipsum integerI pirusJ nibhK
 
 let main =
   let word = ([a-m] . del [A-Z]* | [n-z] . del [A-Z]* )+ in
-  sep_list ("+" . <setlike "w":word> | "-" . <setlike "w":word>) " "
+  sep_list ("+" . <set "w":word> | "-" . <set "w":word>) " "
 
 test get main "+aA -bB" = "+a -b"
 test put main "+a -b +c -d" "+aA -bB +cC -dD" = "+aA -bB +cC -dD"
@@ -179,11 +182,11 @@ test put main "-a +n +d -e" "+aA -bB +cC -dD" = "-aA +n +dD -e"
 
 let main =
   let word1 = ([a-z] . [A-Z]* . del [0-9]* )+ in
-  let line1 = sep_list <setlike "w":word1> " " in
-  let file1 = sep_list <setlike "l":line1> "\n" in
+  let line1 = sep_list <set "w":word1> " " in
+  let file1 = sep_list <set "l":line1> "\n" in
   let word2 = ([a-z] . del [A-Z]* )+ in
-  let line2 = sep_list <setlike "w":word2> " " in
-  let file2 = sep_list <setlike "l":line2> "\n" in
+  let line2 = sep_list <set "w":word2> " " in
+  let file2 = sep_list <set "l":line2> "\n" in
   file1 ; file2
 
 test get main "aA0 bB1 cC2" = "a b c"
@@ -195,11 +198,11 @@ test put main "a c d" "aA0 bB1 cC2" = "aA0 cC2 d"
 let main =
   let sep_iter (a:lens) (b:lens) (n:int) = a . lens_iter (b . a) n n in
   let cn = [a-z] . [A-Z]* in
-  let wn = <setlike "c":cn>+ in
-  let wnc = <setlike "w":wn> in
+  let wn = <set "c":cn>+ in
+  let wnc = <set "w":wn> in
   let c = [a-z] . del [A-Z]* in
-  let w = <setlike "c":c>+ in
-  let wc = <setlike "w":w> in
+  let w = <set "c":c>+ in
+  let wc = <set "w":w> in
   ( sep_iter   wnc " " 3 . '1' <-> '2'
   ; sep_iter   wnc " " 3 . '2' <-> '3')
   ; ( sep_iter wnc " " 3 . '3' <-> '4'
@@ -213,14 +216,14 @@ test put main "b de ge h5" "aAbB cC dDeE fFgG1" = "bB dDeE gGe h1"
 
 let main =
   let l = invert (copy [a-z] . del "B") . del [ 0-9]
-  in <setlike "":l>*
+  in <set "":l>*
 
 test get main "a1b2" = "aBbB"
 test create main "aBbB" = "a b "
 test put main "aBbBcBeB" "a1c3d4e5" = "a1b4c3e5"
 
 
-let setlikedict (l:lens) = <Tag (Setlike, Threshold 100, ""):{:0:l}>
+let setlikedict (l:lens) = <Tag (Setlike, Threshold 100, Weight 0, ""):l>
 
 let main =
   let word = key [a-z]+ . [A-Z]* . del [0-9]* . " " in

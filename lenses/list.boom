@@ -62,15 +62,6 @@ provide the @fold_left@ function on lists via a built-in primitive.
 #* let fold_left ('a) ('b) (f:'b -> 'a -> 'b) (acc:'b) (l:'a t) : 'b 
 ## = Native.Prelude.fold_left{'b}{'a} f acc l 
 
-\LENSSECTION{@star_split@} The @star_split@ function splits the string
-@s@ according to the iteration of the regular expression @r@. It
-returns the list of the substrings.
-
-#* let star_split : (r:regexp -> 
-#*                  (s:string where land (iterable_cex r) (matches_cex (regexp_iter r 0 (minus 0 1)) s)) -> 
-#*                  string t)
-## = Native.Prelude.star_split
-
 \LENSSECTION{@length@} Calculates the length of a list.
 
 #* let length ('a) (l : 'a t) : int =
@@ -80,6 +71,21 @@ returns the list of the substrings.
 
 #* test length{bool} Nil{bool} = 0
 #* test length{bool} (Cons{bool}(true,Cons{bool}(false,Nil{bool}))) = 2
+
+\LENSSECTION{@mk_seq@} The function @mk_seq@ returns a list of
+integers from @0@ to @n-1@.
+
+#* let mk_seq (n:int where n geq 0) : (l:int t where length{int} l = n)
+## = Native.Prelude.mk_seq n
+
+\LENSSECTION{@star_split@} The @star_split@ function splits the string
+@s@ according to the iteration of the regular expression @r@. It
+returns the list of the substrings.
+
+#* let star_split : (r:regexp -> 
+#*                  (s:string where land (iterable_cex r) (matches_cex (regexp_iter r 0 (minus 0 1)) s)) -> 
+#*                  string t)
+## = Native.Prelude.star_split
 
 \LENSSECTION{@reverse@} The function @reverse@ can be defined straightforwardly
 using @fold_left@.

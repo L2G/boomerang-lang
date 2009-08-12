@@ -148,8 +148,11 @@ let pmk_iib   = pmk2 S.SInteger mk_ifun  S.SInteger mk_ifun S.SBool mk_b
 let pmk_iii   = pmk2 S.SInteger mk_ifun S.SInteger mk_ifun S.SInteger mk_i 
 let pmk_bill  = pmk3 S.SBool mk_bfun S.SInteger mk_ifun S.SLens mk_lfun S.SLens mk_l
 
+let pmk_s     = pmk0 S.SString mk_s
 let pmk_ss    = pmk1 S.SString mk_sfun S.SString mk_s
 let pmk_si    = pmk1 S.SString mk_sfun S.SInteger mk_i
+let pmk_sb    = pmk1 S.SString mk_sfun S.SBool mk_b
+let pmk_ssb   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SBool mk_b
 let pmk_sss   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
 let pmk_siis  = pmk3 S.SString mk_sfun S.SInteger mk_ifun S.SInteger mk_ifun S.SString mk_s
 let pmk_ssu   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SUnit mk_u
@@ -265,6 +268,10 @@ let pmk_rzq =
 
 let pmk_azq =
   pmk1 (S.SData([S.SAregexp],list_qid)) mk_listfun S.SCanonizer mk_q
+
+let pmk_iiz =
+  pmk1 S.SInteger mk_ifun 
+    (S.SData([S.SInteger],list_qid)) mk_list
 
 let pmk_iizz =
   pmk1 S.SInteger mk_ifun 
@@ -406,6 +413,13 @@ let prelude_spec =
 
   (* int operations *)
   ; pmk_is     "string_of_int"        (fun _ -> string_of_int)
+  ; pmk_iiz    "mk_seq"               (fun i k ->
+					 let rec f l = function
+					   | 0 -> l
+					   | n -> f (mk_i i (n-1)::l) (n-1)
+					 in
+                                         assert (k >= 0);
+                                         f [] k)
   ; pmk_iizz   "permutations"         (fun i k ->
                                          Safelist.map
                                            (fun l -> mk_list i
@@ -444,9 +458,17 @@ let prelude_spec =
                                            | [] -> res
                                            | c :: l -> res.[j] <- get_c c; implode (j + 1) l in
                                            implode 0 l)
+
+  (* input/output/sys operations *)
   ; pmk_ss     "read"                 (fun _ fn -> Misc.read fn)
   ; pmk_ssu    "write"                (fun _ fn s -> Misc.write fn s)
   ; pmk_ss     "exec"                 (fun _ c -> Misc.exec c)
+  ; pmk_sb     "file_exists"          (fun _ -> Sys.file_exists)
+  ; pmk_sb     "is_directory"         (fun _ s -> try Sys.is_directory s with Sys_error _ -> false)
+  ; pmk_su     "remove"               (fun _ -> Sys.remove)
+  ; pmk_ssb    "rename"               (fun _ s1 s2 -> try Sys.rename s1 s2; true with Sys_error _ -> false)
+  ; pmk_us     "getcwd"               (fun _ -> Sys.getcwd)
+  ; pmk_s      "os_type"              Sys.os_type
                                       
   (* regexp operations *)             
   ; pmk_sr     "str"                  (fun _ -> Brx.mk_string)

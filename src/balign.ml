@@ -47,7 +47,8 @@ let check_put tag del put crt =
         let eo =
           match p with
           | T.Threshold t ->
-              if crt + del - put < t * min del crt / 50
+              (* if crt + del - put < t * min del crt / 50 *)
+              if crt + del - put < t * (del + crt) / 100
               then Some (fun () -> print_endline "Threshold predicate not satisfied.")
               else None
         in
@@ -521,19 +522,19 @@ let greedy align tag (ln:int list) (lo:int list) tln tlo g =
           calc_costs g (succ i) 0
       | None ->
           calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen)
-      | _ -> (* use a threshold in this case *)
+      | _ ->
           let g, edges = calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen) in
           g, (cost, i, j, sg) :: edges
   in
   let g, links = if aolen > 0 then calc_costs g 0 0 else (g, []) in
 
-(*   (\* debug *\) *)
-(*   let str tl i = Bstring.to_string (Bstring.of_cat (TmImA.find tag i tl)) in *)
-(*     (printf "Greedy list with %d for alignment with %d and %d chunks\n" (Safelist.length links) anlen aolen; *)
-(*      Safelist.iter (fun (c,i,j,sg) -> *)
-(*                       printf " (%2d,%2d) = (\"%s\",\"%s\") -> cost %s:\n" i j (C.to_string c) (str tln i) (str tlo j); *)
-(*                       G.print_space sg "    ") links; *)
-(*      print_endline "------"); *)
+  (* (\* debug *\) *)
+  (*    let str tl i = Bstring.to_string (Bstring.of_cat (snd (TmImA.find tag i tl))) in *)
+  (*   (printf "Greedy list with %d edges for alignment with %d and %d chunks\n" (Safelist.length links) anlen aolen; *)
+  (*    Safelist.iter (fun (c,i,j,sg) -> *)
+  (*                     printf " (%2d,%2d) = (\"%s\",\"%s\") -> cost %s:\n" i j (C.to_string c) (str tln i) (str tlo j); *)
+  (*                     G.print_space sg "    ") links; *)
+  (*    print_endline "------"); *)
   let costlnk = Array.of_list links in
   Array.stable_sort (fun (c1,_,_,_) (c2,_,_,_) -> C.compare c1 c2) costlnk;
   let g =

@@ -400,7 +400,7 @@ let D = '0'? . [1-9] | [12] . [0-9] | "30" | "31"
 let Y = [1-9] . [0-9]{3}
 let DATE = M . '/' . D . '/' . Y
 
-let today : (string in DATE)= exec "date +%m/%d/%Y | tr -d '\\n'"
+let today : (string in DATE)= Sys.exec "date +%m/%d/%Y | tr -d '\\n'"
 
 let timestamp 
   : (lens in  "Version of TIMESTAMP" 

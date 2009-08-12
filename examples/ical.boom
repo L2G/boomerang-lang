@@ -34,9 +34,9 @@ let line (tag:string) (l:lens) : lens = del (tag . ":") . l . del "\n"
 let parens (l:lens) : lens = ins "(" . l . ins ")"
 let wrapl (l:lens) = left_quot (columnize 75 (stype l) ' ' ("\n  ")) l
 let wrapr (l:lens) = right_quot l (columnize 75 (vtype l) ' ' ("\n  "))
-let now (s:string) : string = exec "date +%H%M%S | tr -d '\n'"
-let today (s:string) : string = exec "date +%Y%m%d | tr -d '\n'"
-let uid (s:string) : string = exec "cat /dev/urandom|uuencode -m -|tail +2|tr -dc 'a-zA-Z0-9'|head -c25"
+let now (s:string) : string = Sys.exec "date +%H%M%S | tr -d '\n'"
+let today (s:string) : string = Sys.exec "date +%Y%m%d | tr -d '\n'"
+let uid (s:string) : string = Sys.exec "cat /dev/urandom|uuencode -m -|tail +2|tr -dc 'a-zA-Z0-9'|head -c25"
 let date (tag:string) (time:regexp -> regexp -> regexp -> lens) : lens = 
   line tag (clobber DIGIT{8} "" today . del "T" . time DIGIT{2} DIGIT{2} DIGIT{2} . del "Z")
 let copy_time (H:regexp) (M:regexp) (S:regexp) : lens = copy H . ins ":" . copy M . del S 

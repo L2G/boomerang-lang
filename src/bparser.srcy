@@ -820,10 +820,11 @@ matchexp:
   | LANGLE exp RANGLE
       { let i = $1 in
         let pair a b = EPair (i, a, b) in
-        let name = EString (i, "") in
-        let predicate = mk_app i (mk_core_var i "Threshold") (EInteger (i, 0)) in
         let species = mk_core_var i "Greedy" in
-        let tag = mk_app i (mk_core_var i "Tag") (pair (pair species predicate) name) in
+        let predicate = mk_app i (mk_core_var i "Threshold") (EInteger (i, 0)) in
+	let weight = mk_app i (mk_core_var i "Weight") (EInteger (i, 0)) in
+        let name = EString (i, "") in
+        let tag = mk_app i (mk_core_var i "Tag") (pair (pair (pair species predicate) weight) name) in
         mk_over (m $1 $3) OMatch [tag; $2] }
   | LANGLE exp COLON exp RANGLE
       { mk_over (m $1 $5) OMatch [$2; $4] }
@@ -1018,14 +1019,10 @@ production:
       Prod(m i1 i5,$1,$4) }
 
 productions:
-  | production productions2
-    { $1 :: $2 }
-
-productions2:
-  |
-    { [] }
-  | AND production productions2
-    { $2 :: $3 }
+  | production
+    { [$1] }
+  | production AND productions
+    { $1 :: $3 }
 
 /* --------- IDENTIFIERS ---------- */
 #{@}

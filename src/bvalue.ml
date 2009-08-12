@@ -413,6 +413,28 @@ let mk_predicate i p =
 let mk_predicatefun i f =
   Fun (i, (fun v -> f (get_predicate v)))
 
+(* default weight utilities *)
+let weight = Id.mk (Info.M "Default weight built-in") "Weight"
+let weight_qid =
+  let i = Info.M "Default weight built-in" in
+  Qid.mk [Id.mk i "Core"] (Id.mk i "default weight")
+ 
+let get_weight v =
+  let i, xo = get_v v in
+  match i with
+  | _ when Id.equal i weight ->
+      (match xo with
+       | None -> conversion_error "weight" v
+       | Some x -> Bannot.Weight.of_int (get_i x)
+      )
+  | _ -> conversion_error "weight" v
+
+let mk_weight i w =
+  Vnt (i, weight_qid, weight, Some (mk_i i (Bannot.Weight.to_int w)))
+
+let mk_weightfun i f =
+  Fun (i, (fun v -> f (get_weight v)))
+
 (* tag utilities *)
 let tag = Id.mk (Info.M "Tag built-in") "Tag"
 let tag_qid =
@@ -427,20 +449,21 @@ let get_tag v =
        | None -> conversion_error "tag" v
        | Some x ->
            let x, name = get_p x in
+           let x, weight = get_p x in
            let species, predicate = get_p x in
-           Btag.of_elements (get_species species) [get_predicate predicate] (get_s name)
+           Btag.of_elements (get_species species) [get_predicate predicate] (get_weight weight) (get_s name)
       )
   | _ -> conversion_error "tag" v
 
 let mk_tag i t =
-  let species, predicates, name = Btag.to_elements t in
+  let species, predicates, weight, name = Btag.to_elements t in
   let predicate =
     match predicates with
     | [] -> Btag.Threshold 0
     | [p] -> p
     | _ -> assert false
   in
-  Vnt (i, tag_qid, tag, Some (mk_p i (mk_p i (mk_species i species, mk_predicate i  predicate), mk_s i name)))
+  Vnt (i, tag_qid, tag, Some (mk_p i (mk_p i (mk_p i (mk_species i species, mk_predicate i  predicate), mk_weight i weight), mk_s i name)))
 
 let mk_tagfun i f =
   Fun (i, (fun v -> f (get_tag v)))

@@ -129,7 +129,7 @@ Now let's build a larger example. We will write a lens whose GET
 function transforms newline-separated records of comma-separated data
 about classical music composers:
 
-#* let c : string = 
+#* let s : string = 
 ## <<
 #* Jean Sibelius, 1865-1957, Finnish
 #* Aaron Copland, 1910-1990, American
@@ -138,7 +138,7 @@ about classical music composers:
 
 \noindent into comma-separated lines where the year data is deleted:
   
-#* let a : string = 
+#* let v : string = 
 ## <<
 #* Jean Sibelius, Finnish
 #* Aaron Copland, American
@@ -161,8 +161,8 @@ strings is written as follows:
 
 We can check that @comp@ works as we expect using unit tests:
 
-#* test comps.get c = a
-#* test comps.put a into c = c
+#* test comps.get s = v
+#* test comps.put v into s = s
 
 There are several things to note about this program. First, we have
 use let-bindings to factor out repeated parts of programs, such as the
@@ -192,7 +192,7 @@ let comp : string -> lens = (fun (sep:string) -> ... )
 \end{progeg}
 \end{example}
 
-\subsection{Dictionary Composers Lenses}
+\subsection{Resourceful Composers Lenses}
 
 The behavior of @comps@ lens is not very satisfactory when the updated
 abstract view is obtained by changing the order of lines. For example
@@ -224,8 +224,13 @@ operator works positionally---it divides the concrete and abstract
 strings into lines, and invokes the PUT of comp on each pair.
 
 Our solution is to add new combinators for specifying reorderable
-``chunks'' (@<comp>@) and a key for each chunk (@key ALPHA@). The
-$\PUT$ function of the following lens:
+``chunks'', assign to them an method to match up these pieces (a
+specie) and tune it defining weights and predicates. This is explained
+in details in section~\ref{sec:alignment}.
+
+In our example we only need one useful case. We define a chunk using
+the function @dictionary@ and we define a key for each chunk
+(@key ALPHA@). The $\PUT$ function of the following lens:
 
 #* let ALPHA : regexp = [A-Za-z ]+
 #* let YEARS : regexp = [0-9]{4} . "-" . [0-9]{4}
@@ -234,11 +239,10 @@ $\PUT$ function of the following lens:
 #*          . del YEARS . del ", "
 #*          . ALPHA
 #* 
-#* let comps : lens = "" | <comp> . (newline . <comp>)* 
+#* let comps : lens = "" | <dictionary "":comp> . (newline . <dictionary "":comp>)* 
 
 restores lines using the name on each line as a key, rather than by
-position. For the details of how this all works, see~\citet{Boomerang07}. 
-To verify it on this example, try out this unit test:
+position. To verify it on this example, try out this unit test:
 
 #* test comps.put 
 #* <<
@@ -416,21 +420,28 @@ grammar, since it isn't copied over to the output.
 
 Using right-recursive grammars, we can rewrite the basic composers lenses as follows:
 
-#* let comp : lens = 
+#* let comp : lens =
 #*   grammar
-#*     comp ::= nm:ALPHA ", " YEARS ", " cntry:ALPHA
+#*     comp ::= nm:(key ALPHA) ", " YEARS ", " cntry:ALPHA
 #*                <-> nm ", " cntry
 #*   end
 #* let comps : lens =
 #*   grammar
-#*     comps ::= c:comp <-> c
-#*            |  c:comp newline cs:comps <-> c newline cs
+#*     comps ::= c:<dictionary "":comp> <-> c
+#*            |  c:<dictionary "":comp> newline cs:comps <-> c newline cs
 #*   end
 
 and verify it with the same unit tests as earlier:
 
-#* test comps.get c = a
-#* test comps.put a into c = c
+#* test comps.get s = v
+#* test comps.put v into s = s
+#* test comps.put <<
+#* Jean Sibelius, Finnish
+#* Aaron Copland, Yankee
+#* >> into s = <<
+#* Jean Sibelius, 1865-1957, Finnish
+#* Aaron Copland, 1910-1990, Yankee
+#* >>
 
 \subsection{Mutually-Recursive Grammars}
 

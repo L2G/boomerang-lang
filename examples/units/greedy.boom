@@ -2,10 +2,12 @@ module Greedy =
 
 let sep_list (a:lens) (b:lens) = (a . (b . a)* )
 
+let g (name:string) = Tag (Greedy, Threshold 0, Weight 1, name)
+
 let main =
   let word = (copy [a-z] . del [A-Z]* )+ in
-  let line = sep_list <greedy 0 "w":word> " " in
-  let file = sep_list <greedy 0 "l":line> "\n" in
+  let line = sep_list <g "w":word> " " in
+  let file = sep_list <g "l":line> "\n" in
   file
 
 test get main "aRobASe" = "aobe"
@@ -110,7 +112,7 @@ test put main "aa a" "aUUUUUaaUUU aaUU" = "aaUU aUUUUU"
 
 let main =
   let word = ([a-m] . del [A-Z]* | [n-z] . del [A-Z]* )+ in
-  sep_list ("+" . <greedy 0 "w":word> | "-" . <greedy 0 "w":word>) " "
+  sep_list ("+" . <g "w":word> | "-" . <g "w":word>) " "
 
 test get main "+aA -bB" = "+a -b"
 test put main "+a -b +c -d" "+aA -bB +cC -dD" = "+aA -bB +cC -dD"
@@ -126,11 +128,11 @@ test put main "-a +n +d -e" "+aA -bB +cC -dD" = "-aA +n +dD -eC"
 
 let main =
   let word1 = ([a-z] . [A-Z]* . del [0-9]* )+ in
-  let line1 = sep_list <greedy 0 "w":word1> " " in
-  let file1 = sep_list <greedy 0 "l":line1> "\n" in
+  let line1 = sep_list <g "w":word1> " " in
+  let file1 = sep_list <g "l":line1> "\n" in
   let word2 = ([a-z] . del [A-Z]* )+ in
-  let line2 = sep_list <greedy 0 "w":word2> " " in
-  let file2 = sep_list <greedy 0 "l":line2> "\n" in
+  let line2 = sep_list <g "w":word2> " " in
+  let file2 = sep_list <g "l":line2> "\n" in
   file1 ; file2
 
 test get main "aA0 bB1 cC2" = "a b c"
@@ -140,8 +142,8 @@ test put main "a c d" "aA0 bB1 cC2" = "aA0 cC2 dB1"
 
 let main =
   let word = ([a-z] . [A-Z]* . del [0-9]* )+ ; ([a-z] . del [A-Z]* )+ in
-  let line = sep_list <greedy 0 "w":word> " " in
-  let file = sep_list <greedy 0 "l":line> "\n" in
+  let line = sep_list <g "w":word> " " in
+  let file = sep_list <g "l":line> "\n" in
   file
 
 test get main "aA0 bB1 cC2" = "a b c"
@@ -156,11 +158,11 @@ let b = copy "a" . del "b"*
 let main =
   let sep_iter (a:lens) (b:lens) (n:int) = a . lens_iter (b . a) n n in
   let cn = [a-z] . [A-Z]* in
-  let wn = <greedy 0 "c":cn>+ in
-  let wnc = <greedy 0 "w":wn> in
+  let wn = <g "c":cn>+ in
+  let wnc = <g "w":wn> in
   let c = [a-z] . del [A-Z]* in
-  let w = <greedy 0 "c":c>+ in
-  let wc = <greedy 0 "w":w> in
+  let w = <g "c":c>+ in
+  let wc = <g "w":w> in
   ( sep_iter   wnc " " 3 . '1' <-> '2'
   ; sep_iter   wnc " " 3 . '2' <-> '3')
   ; ( sep_iter wnc " " 3 . '3' <-> '4'
@@ -174,7 +176,7 @@ test put main "b de ge h5" "aAbB cC dDeE fFgG1" = "bB dDeE gGeF hC1"
 
 let main =
   let l = invert (copy [a-z] . del "B") . del [ 0-9]
-  in <greedy 0 "g":l>*
+  in <g "g":l>*
 
 test get main "a1b2" = "aBbB"
 test create main "aBbB" = "a b "

@@ -30,5 +30,6 @@ sig
   val weight_int : t -> int -> int
   val to_string : t -> string
   val to_forcestring : bool * t -> string
+  val compare : t -> t -> int
 end
 

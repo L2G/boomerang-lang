@@ -20,6 +20,7 @@
 (******************************************************************************)
 
 module ImA = Intmapa
+module W = Bannot.Weight
 
 type species =
   | Positional
@@ -30,7 +31,7 @@ type species =
 type predicate =
   | Threshold of int
 
-type taginfo = species * predicate list
+type taginfo = species * predicate list * W.t
 type tagname = string
 type tag = taginfo * tagname
 type t = tag
@@ -79,15 +80,17 @@ let predicate_to_string p =
   match p with
   | Threshold t -> string_of_int t ^ "%"
 
-let get_predicates ((_, ps), _) = ps
+let get_species ((s, _, _), _) = s
 
-let get_species ((s, _), _) = s
+let get_predicates ((_, ps, _), _) = ps
+
+let get_weight ((_, _, w), _) = w
 
 let get_name (_, n) = n
 
-let of_elements s pl n = (s, pl), n
+let of_elements s pl w n = (s, pl, w), n
 
-let to_elements ((s, p), n) = s, p, n
+let to_elements ((s, p, w), n) = s, p, w, n
 
 let predicate_list_to_string l =
   Safelist.fold_left (
@@ -95,8 +98,8 @@ let predicate_list_to_string l =
       s ^ predicate_to_string p
   ) "" l
 
-let to_string ((s, p), i) =
-  "Tag(" ^ species_to_string s ^ ",[" ^ predicate_list_to_string p ^ "],\"" ^ String.escaped i ^ "\")"
+let to_string ((s, p, w), i) =
+  "Tag(" ^ species_to_string s ^ ",[" ^ predicate_list_to_string p ^ "],\"" ^ W.to_string w ^ "\",\"" ^ String.escaped i ^ "\")"
 
 let format_t t = Util.format "@[%s@]" (to_string t)
 
@@ -113,8 +116,8 @@ let predicates_equiv a b =
   in
   canonize a = canonize b
 
-let info_equiv (sa, pa) (sb, pb) =
-  sa = sb && predicates_equiv pa pb
+let info_equiv (sa, pa, wa) (sb, pb, wb) =
+  sa = sb && predicates_equiv pa pb && (W.compare wa wb = 0)
 
 module N =
 struct

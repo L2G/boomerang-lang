@@ -194,7 +194,8 @@ val read_chan : in_channel -> string
 (** Reads from channel and returns its whole contents as a string. *)
 
 val read : string -> string
-(** Reads a file and returns its contents as a string. *)
+(** Reads a file and returns its contents as a string.
+    If the string is "-", reads from the standard input *)
 
 val write : string -> string -> unit
 (** [write file s] opens [file] and overwrites its previous contents with [s].

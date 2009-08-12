@@ -32,8 +32,9 @@ type tag
 type t = tag
 
 val to_string : t -> string
-val of_elements : species -> predicate list -> string -> t
-val to_elements : t -> species * predicate list * string
+val of_elements : species -> predicate list -> Bannot.Weight.t -> string -> t
+val to_elements : t -> species * predicate list * Bannot.Weight.t * string
+val get_weight : t -> Bannot.Weight.t (* default weight *)
 val get_predicates : t -> predicate list
 val get_species : t -> species
 val get_name : t -> string

@@ -21,6 +21,7 @@
 (*******************************************************************************)
 
 module Address = 
+open Sys
 
 (* This module contains lenses for mapping between vCard, CSV, and a
    simple XML format (based on XCard). Most of the complexity is
@@ -304,7 +305,7 @@ let chunk : (lens in ? <-> AbsAddr) =
   del "END:VCARD" . del NL
 
 (* vcard lens: match a chunk *)
-let vcard = dictionary_match "" chunk
+let vcard = <dictionary "":chunk>
 
 (* unit tests for vcard *)
 let samplevcard = 
@@ -646,6 +647,9 @@ let main (x:unit) =
   let xml2csv = xcard . del WS in (* trailing whitespace *)
   let xml2vcf = right_quot xml2csv (canonizer_of_lens vcf2csv) in
   let vcf2xml = right_quot vcf2csv (canonizer_of_lens xml2csv) in
+  let puts (s:string) : int =
+    let _ = put_str s in 0
+  in
   let get_type (str:string option) : format =
     match str with
       | Some "vcf" -> VCF
@@ -662,18 +666,18 @@ let main (x:unit) =
     let view' = get_type (Some{string} fmt) in
     let source' = get_type (file_ext source) in
     match view', source' with
-      | VCF, VCF -> (let _ = put_str (read source) in 0)
-      | XML, XML -> (let _ = put_str (read source) in 0)
-      | CSV, CSV -> (let _ = put_str (read source) in 0)
+      | VCF, VCF -> puts (read source)
+      | XML, XML -> puts (read source)
+      | CSV, CSV -> puts (read source)
 
-      | CSV, VCF -> (let _ = put_str (get vcf2csv    (read source)) in 0)
-      | VCF, CSV -> (let _ = put_str (create vcf2csv (read source)) in 0)
+      | CSV, VCF -> puts (get vcf2csv    (read source))
+      | VCF, CSV -> puts (create vcf2csv (read source))
 
-      | CSV, XML -> (let _ = put_str (get xml2csv    (read source)) in 0)
-      | XML, CSV -> (let _ = put_str (create xml2csv (read source)) in 0)
+      | CSV, XML -> puts (get xml2csv    (read source))
+      | XML, CSV -> puts (create xml2csv (read source))
 
-      | XML, VCF -> (let _ = put_str (get vcf2xml    (read source)) in 0)
-      | VCF, XML -> (let _ = put_str (get xml2vcf    (read source)) in 0)
+      | XML, VCF -> puts (get vcf2xml    (read source))
+      | VCF, XML -> puts (get xml2vcf    (read source))
 
       | _ -> usage_code 1
     : int
@@ -682,18 +686,18 @@ let main (x:unit) =
     let view'   = get_type (file_ext view) in
     let source' = get_type (file_ext source) in
     match view', source' with
-      | VCF, VCF -> (let _ = put_str (read source) in 0)
-      | XML, XML -> (let _ = put_str (read source) in 0)
-      | CSV, CSV -> (let _ = put_str (read source) in 0)
+      | VCF, VCF -> puts (read source)
+      | XML, XML -> puts (read source)
+      | CSV, CSV -> puts (read source)
 
-      | CSV, VCF -> (let _ = put_str (put vcf2csv (read view) (read source)) in 0)
-      | VCF, CSV -> (let _ = put_str (get vcf2csv (read view)) in 0)
+      | CSV, VCF -> puts (put vcf2csv (read view) (read source))
+      | VCF, CSV -> puts (get vcf2csv (read view))
 
-      | CSV, XML -> (let _ = put_str (put xml2csv (read view) (read source)) in 0)
-      | XML, CSV -> (let _ = put_str (get xml2csv (read view)) in 0)
+      | CSV, XML -> puts (put xml2csv (read view) (read source))
+      | XML, CSV -> puts (get xml2csv (read view))
 
-      | XML, VCF -> (let _ = put_str (put vcf2xml (read view) (read source)) in 0)
-      | VCF, XML -> (let _ = put_str (put xml2vcf (read view) (read source)) in 0)
+      | XML, VCF -> puts (put vcf2xml (read view) (read source))
+      | VCF, XML -> puts (put xml2vcf (read view) (read source))
 
       | _ -> usage_code 1
     : int

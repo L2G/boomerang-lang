@@ -353,16 +353,19 @@ the Core module and used by the match functions (@aregexp_match@ and
 
 #* type species = Positional | Diffy of bool | Greedy | Setlike
 #* type predicate = Threshold of (t:int where land (bgeq t 0) (bleq t 100))
-#* type tag = Tag of species * predicate * string
+#* type weight = Weight of (w:int where lor (equals{int} w 0) (equals{int} w 1))
+#* type tag = Tag of species * predicate * weight * string
 
 #* let diffy (name:string) : tag
-#* = Tag (Diffy true, Threshold 0, name)
+#* = Tag (Diffy true, Threshold 0, Weight 1, name)
 #* let positional (name:string) : tag
-#* = Tag (Positional, Threshold 0, name)
+#* = Tag (Positional, Threshold 0, Weight 0, name)
 #* let greedy (t:int where land (bgeq t 0) (bleq t 100)) (name:string) : tag
-#* = Tag (Greedy, Threshold t, name)
-#* let setlike (name:string) : tag
-#* = Tag (Setlike, Threshold 0, name)
+#* = Tag (Greedy, Threshold t, Weight 0, name)
+#* let dictionary (name:string) : tag
+#* = Tag (Greedy, Threshold 100, Weight 0, name)
+#* let setlike (t:int where land (bgeq t 0) (bleq t 100)) (name:string) : tag
+#* = Tag (Setlike, Threshold t, Weight 0, name)
 
 \subsection{Annotated Regular Expressions}
 
@@ -914,11 +917,9 @@ to @R@. The regular expression @R@ must be unambiguously concatenable with itsel
 %The next few primitives construct lenses for handling ordered data 
 %called dictionary lenses. For details, see \citet{Boomerang07}.
 
-\LENSSECTION{@lens_weight@} These functions define
-the weight of the characters under them.  @wc@ is the weight of a
-create the character, @we@ the cost of editing, @wd@ the cost of
-deleting. The operator @{:wc:we:wd:lens_expression}@ desugars into
-@weight@.
+\LENSSECTION{@lens_weight@} These functions define the weight of the
+characters under them.  The operator @{:w:lens_expression}@ desugars
+into @lens_weight@.
 
 #* let lens_weight (force:bool) (w:int where land (bgeq w 0) (bleq w 1)) (l:lens)
 #*   : (l':lens where in_lens_type l' (stype l) (vtype l))
@@ -931,11 +932,11 @@ argument.
 #*   : (l':lens where in_lens_type l' (stype l) (vtype l))
 #* = lens_weight true 1 l
 
-\LENSSECTION{@forgetkey@} The @forgetkey@ operator takes a lens @l@ as an 
+\LENSSECTION{@nokey@} The @nokey@ operator takes a lens @l@ as an 
 argument. It behaves like @l@, but overrides its $\KEY$ component with the 
 constant function returning the empty string.
 
-#* let forgetkey (l:lens) 
+#* let nokey (l:lens) 
 #*   : (l':lens where in_lens_type l' (stype l) (vtype l))
 #* = lens_weight true 0 l
 
@@ -952,12 +953,6 @@ require that for each tag @t@, the lenses in each occurrence of
 #*            (l:lens where mtype_match_compatible_cex t (ktype l) (mtype l)) 
 #*   : (l':lens where in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_match t l
-
-#* let dictionary_match
-#*     (name:string)
-#*     (l:lens where mtype_match_compatible_cex (greedy 100 name) (ktype l) (mtype l))
-#*   : (l':lens where in_lens_type l' (stype l) (vtype l))
-#* = lens_match (greedy 100 name) (lens_weight false 0 l)
 
 \LENSSECTION{@align@} The @align@ operator converts a resourcefull
 lens @l@ into a basic lens.
@@ -1214,35 +1209,4 @@ corresponding from @l@ on the rest of the string. The concatenation of
 
 #* test get (dup2 [A-Z] (get (copy [A-Z])) (copy [A-Z])) "A" = "AA"
 #* test put (dup2 [A-Z] (get (copy [A-Z])) (copy [A-Z])) "BC" "A" = "C"
-
-\subsection{Miscellaneous}
-
-\LENSSECTION{@read@} The @read@ function reads the contents of 
-a file from the local filesystem.
-
-#* let read : string -> string 
-## = Native.Prelude.read
-
-\LENSSECTION{@write@} The @write@ function writes a string to a file
-on the local filesystem. If the name of the file is @-@, the output is
-the standard output.
-
-#* let write : string -> string -> unit
-## = Native.Prelude.write
-#* let put_str : string -> unit
-#* = write "-"
-
-\LENSSECTION{@print@} The @print@ function prints a value.  Some
-values cannot be printed in full, e.g., functions.
-
-#* let show : forall 'a => 'a -> string
-## = Native.Prelude.poly_show
-
-#* let print 'a (x:'a) : unit
-#* = write '-' (show {'a} x)
-
-\LENSSECTION{@exec@} The @exec@ function executes a shell command. 
-
-#* let exec : string -> string 
-## = Native.Prelude.exec
 
