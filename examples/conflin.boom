@@ -1,4 +1,3 @@
-#{*}
 (******************************************************************************)
 (* The Harmony Project                                                        *)
 (* harmony@lists.seas.upenn.edu                                               *)
@@ -19,7 +18,7 @@
 (* write a description here (and put the same in main.src)                    *)
 (* $Id$ *)
 (******************************************************************************)
-
+(*@view: *)(*@*)
 module Conflin =
 open Sys
 
@@ -60,34 +59,34 @@ let ambiguous_lens_partition_one (a:lens) (b:lens where ambiguous_lens_partition
 let positional (name:string) = Tag (Positional, Threshold 0, Weight 1, name)
 let diffy (first:bool) (name:string) = Tag (Diffy first, Threshold 0, Weight 1, name)
 let show_list 'a (l:'a List.t) =
-  "[" . fst {string} {bool} (
-    List.fold_left {'a} {string * bool} (
+  "[" . fst{string}{bool} (
+    List.fold_left{'a}{string * bool} (
       fun (sb:string * bool) (x:'a) ->
         match sb with
-        | s, b -> (s . if {string} b ";" "" . show {'a} x, true)
+        | s, b -> (s . if{string} b ";" "" . show{'a} x, true)
             :string * bool
     ) ("", false) l
   ) . "]"
 let mk_error (message:string) = "Error: " . message
 let identifier = [a-zA-Z] . [ a-zA-Z0-9_\-@]*
-let print_ln 'a (x:'a) = put_str_ln (show {'a} x)
+let print_ln 'a (x:'a) = put_str_ln (show{'a} x)
 let is_lens (l:lens) = rel_is_id (sequiv l) && rel_is_id (vequiv l)
 
 (* ---------------------------------------------------------------- *)
 (*                        File_pref module                         *)
 
 module File_pref =
-  type t = T of regexp * (string * string) * (string * string) * string
-  let make (values:regexp)
+  type t = T of regexp(*@*)(*@*) * (string * string) * (string * string) * string
+  let make (values:regexp)(*@*)(*@*)
       (comment_prefix:string) (comment_suffix:string)
       (command_prefix:string) (command_suffix:string)
       (view_prefix:string) =
-    T (values,
+    T (values,(*@*)(*@*)
        (comment_prefix, comment_suffix),
        (command_prefix, command_suffix),
        view_prefix)
   let default_view_prefix = "view: "
-  let default_commands = "@", ""
+  let default_commands = "@", ""(*@*)(*@*)
   let shell_like = T (identifier, ("#", "\n"), default_commands, default_view_prefix)
   let c_like = T (identifier, ("//", "\n"), default_commands, default_view_prefix)
   let cpp_like = T (identifier, ("/*", "*/"), default_commands, default_view_prefix)
@@ -149,7 +148,7 @@ let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
   in
   let _:(string where
            matches values? value) =
-    mk_error ("The value " . show {string} value . " does not match " . show {regexp} values? . ".")
+    mk_error ("The value " . show{string} value . " does not match " . show{regexp} values? . ".")
   in
   (* tools *)
   let c_exact (value:string) = c_prefix . value . c_suffix in
@@ -205,23 +204,23 @@ type 'a io = IO of unit -> 'a
 
 let fmap_w 'a 'b (f:'a -> 'b) (x:'a w) =
   match x with
-  | Value v -> Value {'b} (f v)
-  | Error e -> Error {'b} e
+  | Value v -> Value{'b} (f v)
+  | Error e -> Error{'b} e
   :'b w
 let fmap_io 'a 'b (f:'a -> 'b) (x:'a io) =
   match x with
-  | IO x -> IO {'b} (fun (u:unit) -> f (x ()))
+  | IO x -> IO{'b} (fun (u:unit) -> f (x ()))
   :'b io
 
 let join_w 'a (x:('a w) w) =
   match x with
-  | Value (Value v) -> Value {'a} v
-  | Value (Error e) -> Error {'a} e
-  | Error e -> Error {'a} e
+  | Value (Value v) -> Value{'a} v
+  | Value (Error e) -> Error{'a} e
+  | Error e -> Error{'a} e
   :'a w
 let join_io 'a (x:('a io) io) =
   match x with
-  | IO x -> IO {'a} (
+  | IO x -> IO{'a} (
       fun (u:unit) ->
         match x () with
         | IO y -> y ()
@@ -229,34 +228,35 @@ let join_io 'a (x:('a io) io) =
   :'a io
 
 let bind_w 'a 'b (x:'a w) (f:'a -> 'b w) =
-  join_w {'b} (fmap_w {'a} {'b w} f x)
+  join_w{'b} (fmap_w{'a}{'b w} f x)
 let bind_io 'a 'b (x:'a io) (f:'a -> 'b io) =
-  join_io {'b} (fmap_io {'a} {'b io} f x)
+  join_io{'b} (fmap_io{'a}{'b io} f x)
 
 let rbind_w 'a 'b (f:'a -> 'b w) (x:'a w) =
-  bind_w {'a} {'b} x f
+  bind_w{'a}{'b} x f
 let rbind_io 'a 'b (f:'a -> 'b io) (x:'a io) =
-  bind_io {'a} {'b} x f
+  bind_io{'a}{'b} x f
 
 let seq_w 'a (x:unit w) (y:'a w) =
-  bind_w {unit} {'a} x (fun (u:unit) -> y)
+  bind_w{unit}{'a} x (fun (u:unit) -> y)
 let seq_io 'a (x:unit io) (y:'a io) =
-  bind_io {unit} {'a} x (fun (u:unit) -> y)
+  bind_io{unit}{'a} x (fun (u:unit) -> y)
 
-let return_w 'a (x:'a) = Value {'a} x
-let return_io 'a (x:'a) = IO {'a} (fun (u:unit) -> x)
+let return_w 'a (x:'a) = Value{'a} x
+let return_io 'a (x:'a) = IO{'a} (fun (u:unit) -> x)
 
-let ok 'a (x:'a) = Value {'a} x
-let fail 'a (f:unit -> int) = Error {'a} f
-let failwith 'a (message:string) = fail {'a} (fun (u:unit) -> let _ = put_str ("Failure: " . message . newline) in 1)
+let ok 'a (x:'a) = Value{'a} x
+let fail 'a (f:unit -> int) = Error{'a} f
+let failwith 'a (message:string) = fail{'a} (fun (u:unit) -> let _ = put_str ("Failure: " . message . newline) in 1)
 
-let okfailwith 'a = ok {'a}, fail {'a}, failwith {'a}
+let okfailwith 'a = ok{'a}, fail{'a}, failwith{'a}
 
-let bind_w_pp = bind_w {File_pref.t} {File_pref.t}
-let bind_w_piI = bind_w {File_pref.t} {int io}
-let bind_w_siI = bind_w {string} {int io}
-let bind_w_sOiI = bind_w {string option} {int io}
-let seq_w_iI = seq_w {int io}
+let bind_w_piI = bind_w{File_pref.t}{int io}
+let bind_w_pp = bind_w{File_pref.t}{File_pref.t}
+let bind_w_siI = bind_w{string}{int io}
+let bind_w_sOiI = bind_w{string option}{int io}
+let bind_w_ss = bind_w{string}{string}
+let seq_w_iI = seq_w{int io}
 
 (* command line arguments *)
 let help_pref = Prefs.create_bool "-help" false "print this help"
@@ -289,7 +289,7 @@ let main (x:unit) =
   in
   (* parsing the commandline *)
   let help =
-    let ok, fail, failwith = okfailwith {unit} in
+    let ok, fail, failwith = okfailwith{unit} in
     match Prefs.read_bool help_pref with
     | true -> fail (print_usage 0)
     | false -> ok ()
@@ -298,26 +298,26 @@ let main (x:unit) =
   let extension = "." . Prefs.read_string extension_pref in
   let value = Prefs.read_string value_pref in
   let output =
-    let ok, fail, failwith = okfailwith {string option} in
+    let ok, fail, failwith = okfailwith{string option} in
     match Prefs.read_string_list output_pref with
-    | [] -> ok None {string}
-    | output::[] -> ok (Some {string} output)
+    | [] -> ok None{string}
+    | output::[] -> ok (Some{string} output)
     | _ -> failwith "You can define at most one output file."
     :(string option) w
   in
   let default =
-    let ok, fail, failwith = okfailwith {File_pref.t} in
+    let ok, fail, failwith = okfailwith{File_pref.t} in
     match Prefs.read_string_list default_pref with
     | "shell"::[] -> ok File_pref.shell_like
     | "c"::[] -> ok File_pref.c_like
     | "cpp"::[] -> ok File_pref.cpp_like
     | "ocaml"::[] -> ok File_pref.ocaml_like
-    | pref::[] -> failwith (show {string} pref . " is not a valid file preference.")
+    | pref::[] -> failwith (show{string} pref . " is not a valid file preference.")
     | _ -> failwith "You need to define exactly one file preference."
     :File_pref.t w
   in
   let command_prefix (default:File_pref.t) =
-    let ok, fail, failwith = okfailwith {File_pref.t} in
+    let ok, fail, failwith = okfailwith{File_pref.t} in
     match Prefs.read_string_list command_prefix_pref with
     | [] -> ok default
     | pref::[] -> ok (File_pref.set_command_prefix pref default)
@@ -325,7 +325,7 @@ let main (x:unit) =
     :File_pref.t w
   in
   let command_suffix (default:File_pref.t) =
-    let ok, fail, failwith = okfailwith {File_pref.t} in
+    let ok, fail, failwith = okfailwith{File_pref.t} in
     match Prefs.read_string_list command_suffix_pref with
     | [] -> ok default
     | pref::[] -> ok (File_pref.set_command_suffix pref default)
@@ -333,8 +333,8 @@ let main (x:unit) =
     :File_pref.t w
   in
   let main (prefs:File_pref.t) =
-    let ok, fail, failwith = okfailwith {int io} in
-    let io = IO {int} in
+    let ok, fail, failwith = okfailwith{int io} in
+    let io = IO{int} in
     match Prefs.read_string_list rest_pref with
     | [] -> fail (print_usage 1)
     | file::[] -> (
@@ -353,28 +353,35 @@ let main (x:unit) =
             0))))
         | false -> (  (* Warning: only outputs are in IO *)
             let view =
-              let ok, fail, failwith = okfailwith {string} in
-              let view = read file in
+              let ok, fail, failwith = okfailwith{string} in
+              let view =
+                let ok, fail, failwith = okfailwith{string} in
+                match file_exists file with
+                | true -> ok (read file)
+                | false -> failwith ("File " . show{string} file . " does not exist.")
+                :string w
+              in
+              bind_w_ss view (fun (view:string) ->
               match matches (vtype mlpv) view with
               | true -> ok view
               | false -> failwith (
-                  "File " . show {string} file . " is not a valid view.\n\n"
+                  "File " . show{string} file . " is not a valid view.\n\n"
                   . "You might want to check these:\n"
-                  . "* The expanding value " . show {string} value . " is the one in prefix view\n"
+                  . "* The expanding value " . show{string} value . " is the one after the view prefix\n"
                   . "* The file_type is the right one")
-              :string w
+              :string w)
             in
             let source =
-              let ok, fail, failwith = okfailwith {string} in
+              let ok, fail, failwith = okfailwith{string} in
               let file = file . extension in
               let source = read file in
               match matches (stype mlpv) source with
               | true -> ok source
               | false -> failwith (
-                  "File " . show {string} file . " is not a valid source.\n\n"
+                  "File " . show{string} file . " is not a valid source.\n\n"
                   . "You might want to check these:\n"
                   . "* The file_type is the right one"
-                  . "* The extension " . show {string} (drop_string 1 extension) . " is the right one\n")
+                  . "* The extension " . show{string} (drop_string 1 extension) . " is the right one\n")
               :string w
             in
             bind_w_siI view (fun (view:string) ->
@@ -557,3 +564,9 @@ test put (mls "X")
   # We finally export the PATH
   export PATH
 >>
+
+(*
+ * Local Variables:
+ * mode: tuareg
+ * End:
+ *)

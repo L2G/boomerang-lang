@@ -417,7 +417,7 @@ let mk_predicatefun i f =
 let weight = Id.mk (Info.M "Default weight built-in") "Weight"
 let weight_qid =
   let i = Info.M "Default weight built-in" in
-  Qid.mk [Id.mk i "Core"] (Id.mk i "default weight")
+  Qid.mk [Id.mk i "Core"] (Id.mk i "weight")
  
 let get_weight v =
   let i, xo = get_v v in

@@ -73,7 +73,7 @@ let of_cat (Chunk at) = of_at at
   
 let length (s, i, j) = j - i
 
-let dist s1 s2 =
+let old_dist s1 s2 =
   let m = String.length s1 in
   let n = String.length s2 in
   let aodd = Array.make (succ n) 0 in
@@ -93,6 +93,204 @@ let dist s1 s2 =
     done
   done;
   if m mod 2 = 0 then aeven.(n) else aodd.(n)
+
+(* returns [Some dist] if dist < limit
+           [None] else *)
+let dist_limit_aux limit s t =
+  let n = String.length s in
+  let m = String.length t in
+  assert (m <= n);
+  let ai0 = Array.make (succ n) 0 in
+  let ai1 = Array.make (succ n) 0 in
+  let aj0 = Array.make (succ m) 0 in
+  let aj1 = Array.make (succ m) 0 in
+  let addloop i n a = (* do [succ (a.(pred))] on [a] from [i] until [limit] and returns [end] *)
+    let rec f i =
+      if i > n then succ n
+      else (
+        a.(i) <- succ a.(pred i);
+        if a.(i) >= limit then i
+        else f (succ i)
+      )
+    in
+    f i
+  in
+  let findloop i n a = (* returns [j] such that all [k] >= [j], [a.(k)] >= [limit] *)
+    let rec f i =
+      if i < 0 then 0
+      else
+        if a.(i) < limit then succ i
+        else f (pred i)
+    in
+    if i > n then succ n
+    else f i
+  in
+  let addfindloop i n a = findloop (addloop i n a) n a in
+  let minloop c s i n cur a apred = (* do [min ...] on [a] from [i] until [cur] *)
+    let rec f i =
+      if i > n then () else (
+        if i = cur
+        then (
+          if s.[pred i] = c
+          then a.(i) <- min (succ a.(pred i)) apred.(pred i)
+          else a.(i) <- succ a.(pred i);
+        ) else (
+          if s.[pred i] = c
+          then a.(i) <- min (succ (min apred.(i) a.(pred i))) apred.(pred i)
+          else a.(i) <- succ (min apred.(i) a.(pred i));
+          f (succ i)
+        )
+      )
+    in
+    f i
+  in
+  let rec loop x curi curj apredi ai apredj aj =
+(*     Printf.printf "x: %d  curi: %d  curj: %d\n" x curi curj; *)
+    if x > m
+    then
+      if curj <= n
+      then None
+      else Some apredi.(n)
+    else (
+      if x >= curi
+      then (  (* x >= curi *)
+        if x <> curi
+        then (  (* x > curi *)
+          if x >= curj then None
+          else (  (* x < curj *)
+            ai.(x) <- succ apredi.(x);
+            aj.(x) <- ai.(x);
+            let newcuri = addfindloop (succ x) m aj in
+            minloop t.[pred x] s (succ x) n curj ai apredi;
+            let newcurj = addfindloop (succ curj) n ai in
+            loop (succ x) newcuri newcurj ai apredi aj apredj
+          )
+        ) else (  (* x = curi *)
+          if x = curj
+          then (  (* x = curj *)
+            assert (apredi.(pred x) = apredj.(pred x));
+            if s.[pred x] = t.[pred x]
+            then (
+              ai.(x) <- apredi.(pred x);
+              aj.(x) <- ai.(x);
+              let newcurj = addfindloop (succ x) n ai in
+              let newcuri = addfindloop (succ x) m aj in
+              loop (succ x) newcuri newcurj ai apredi aj apredj            
+            ) else None
+          ) else (  (* x < curj  because  x = curi *)
+            assert (x < curj);
+            if s.[pred x] = t.[pred x]
+            then ai.(x) <- min (succ apredi.(x)) apredi.(pred x)
+            else ai.(x) <- succ apredi.(x);
+            aj.(x) <- ai.(x);
+            let newcuri = addfindloop (succ x) m aj in
+            minloop t.[pred x] s (succ x) n curj ai apredi;
+            let newcurj = addfindloop (succ curj) n ai in
+            loop (succ x) newcuri newcurj ai apredi aj apredj
+          )
+        )
+      ) else (  (* x < curi *)
+        if x >= curj
+        then (  (* x >= curj *)
+          if x <> curj
+          then (  (* x > curj *)
+            aj.(x) <- succ apredj.(x);
+            ai.(x) <- aj.(x);
+            let newcurj = addfindloop (succ x) n ai in
+            minloop s.[pred x] t (succ x) m curi aj apredj;
+            let newcuri = addfindloop (succ curi) m aj in
+            loop (succ x) newcuri newcurj ai apredi aj apredj            
+          ) else (  (* x = curj *)
+            if s.[pred x] = t.[pred x]
+            then aj.(x) <- min (succ apredj.(x)) apredj.(pred x)
+            else aj.(x) <- succ apredj.(x);
+            ai.(x) <- aj.(x);
+            let newcurj = addfindloop (succ x) n ai in
+            minloop s.[pred x] t (succ x) m curi aj apredj;
+            let newcuri = addfindloop (succ curi) m aj in
+            loop (succ x) newcuri newcurj ai apredi aj apredj
+          )
+        ) else (  (* x < curj *)
+            if s.[pred x] = t.[pred x]
+            then aj.(x) <- min (succ (min apredj.(x) apredi.(x))) apredj.(pred x)
+            else aj.(x) <- succ (min apredj.(x) apredi.(x));
+            ai.(x) <- aj.(x);
+            minloop t.[pred x] s (succ x) n curj ai apredi;
+            let newcurj = addfindloop (succ curj) n ai in
+            minloop s.[pred x] t (succ x) m curi aj apredj;
+            let newcuri = addfindloop (succ curi) m aj in
+            loop (succ x) newcuri newcurj ai apredi aj apredj          
+        )
+      )
+    )
+  in
+  let curi = addloop 1 m aj0 in
+  let curj = addloop 1 n ai0 in
+  let result =
+    if m <> 0 && n <> 0
+    then loop 1 curi curj ai0 ai1 aj0 aj1
+    else Some (max m n)
+  in
+  result
+
+(* returns [m] such that dist s t <= m *)
+let dist_heurist s t =
+  let n = String.length s in
+  let m = String.length t in
+  assert (m <= n);
+  let pm = pred m in
+  let pn = pred n in
+  let rec loop i j acc =
+    if i >= pm
+    then acc + 2 + (n - j)
+    else
+      if j >= pn
+      then acc + 2 + (m - i)
+      else
+        if t.[i] = s.[j]
+        then loop (succ i) (succ j) acc
+        else
+          if n - j > m - i
+          then
+            if t.[i] = s.[succ j]
+            then loop (succ i) (j + 2) (succ acc)
+            else
+              if t.[succ i] = s.[j]
+              then loop (i + 2) (succ j) (succ acc)
+              else loop i (succ j) (succ acc)
+          else
+            if t.[succ i] = s.[j]
+            then loop (i + 2) (succ j) (succ acc)
+            else
+              if t.[i] = s.[succ j]
+              then loop (succ i) (j + 2) (succ acc)
+              else loop (succ i) j (succ acc)
+  in
+  loop 0 0 0
+
+let dist_aux limito s1 s2 =
+  let limit =
+    match limito with
+    | None -> dist_heurist s1 s2
+    | Some limit -> min (max limit 0) (dist_heurist s1 s2)
+  in
+  let limit = succ limit in
+  let result = dist_limit_aux limit s1 s2 in
+  match limito with
+  | Some _ -> result
+  | None ->
+      match result with
+      | None -> assert false
+      | Some dist -> Some dist
+
+let dist limit s1 s2 =
+  let s1, s2 =
+    if String.length s1 >= String.length s2
+    then s1, s2
+    else s2, s1
+  in
+  let result = dist_aux limit s1 s2 in
+  result
 
 let generic_at_print p (a, (s, i, j)) =
   let buf = Buffer.create 16 in
@@ -228,6 +426,26 @@ let at_to_weight_flat (a, (s, i, j)) =
     ) ("", 0) l
   in
   aw, r
+
+let at_to_key (a, (s, i, j)) =
+  let rec f a i l =
+    match a with
+    | [] -> i, l
+    | (Leaf w, j)::a ->
+        let l =
+          if W.to_int w = 0 then l else (i, j)::l
+        in
+        f a j l
+    | (TagNode (_, _, _), j)::a ->
+        f a j l
+  in
+  let i, l = f a i [] in
+  assert (i = j);
+  Safelist.fold_left (
+    fun r (i, j) -> to_string (s, i, j) ^ r
+  ) "" l
+
+let cat_to_key (Chunk at) = at_to_key at
 
 let at_dist at1 at2 =
   let w1, s1 = at_to_weight_flat at1 in

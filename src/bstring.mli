@@ -33,18 +33,19 @@ val of_at : at -> t
 val of_attmp : attmp -> t
 val of_cat : cat -> t
 val length : t -> int
-val dist : string -> string -> int
+val dist : int option -> string -> string -> int option
 val at_print_flat : at -> string
 val cat_print_flat : cat -> string
 val at_print_all : at -> string
 val toplevel_chunks : cat -> int Btag.MapAList.t
 val at_to_chunktree : bool -> at -> cat * ((int * int) * cat) Btag.MapIntMapA.t
+val cat_to_key : cat -> string
 val cat_fold_on_locs : (Btag.t -> int -> 'a -> 'a) -> cat -> 'a -> 'a
 val at_to_locs : at -> Btag.MapInt.t
 val match_rx : Brx.t -> t -> bool
 val at_to_weight_flat : at -> Bannot.Weight.t array * string
-val at_dist : at -> at -> int
-val cat_dist : cat -> cat -> int
+(* val at_dist : at -> at -> int *)
+(* val cat_dist : cat -> cat -> int *)
 val cat_create_cost : cat -> int * int
 val cat_delete_cost : cat -> int * int
 val concat_ambiguous_split : int -> Brx.t -> Brx.t -> t -> t * t

@@ -115,16 +115,21 @@ module Alignment = struct
     match t with
     | Infinite _ -> assert false
     | Finite (g, _) -> search (TmAl.find_list tag g)
-  let add_put tag cn co rn ro t =
+  let add_put limit tag cn co rn ro t =
     let ((ccrt, _), sn), i = cn in
     let ((cdel, _), so), j = co in
-    let cput = Bstring.cat_dist sn so in
-    let pe = check_put tag cdel cput ccrt in
-    match t, pe with
-    | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
-    | Infinite e, _
-    | _, Some e -> Infinite e
-    | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
+    let kn = Bstring.cat_to_key sn in
+    let ko = Bstring.cat_to_key so in
+    let cput = Bstring.dist limit kn ko in
+    match cput with
+    | None -> Infinite (fun () -> assert false)
+    | Some cput ->
+        let pe = check_put tag cdel cput ccrt in
+        match t, pe with
+        | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
+        | Infinite e, _
+        | _, Some e -> Infinite e
+        | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
   let add_crtdel_deep tag (((_, ccd), cat), x) t con =
     match t with
     | Infinite e -> Infinite e
@@ -305,10 +310,18 @@ let print_res p r =
 
 (* alignment *)
 
-let nest_align align tag cn co tln tlo =
+let nest_align align limit tag cn co tln tlo =
   let (_, sn), _ = cn in
   let (_, so), _ = co in
-  G.add_put tag cn co tln tlo (align (sn, tln) (so, tlo) G.empty)
+  let g = align (sn, tln) (so, tlo) G.empty in
+  let c = G.to_cost g in
+  let limit =
+    match limit, C.to_option c with
+    | None, _ -> None
+    | Some i, Some k -> Some (i - k)
+    | Some i, None -> Some 0
+  in
+  G.add_put limit tag cn co tln tlo g
 
 let crt_align tag cn =
   G.add_crt_deep tag cn G.empty
@@ -395,7 +408,7 @@ let positional align tag (ln:int list) (lo:int list) tln tlo g =
         let (_, sn), _ = cn in
         let (_, so), _ = co in
         let g = align (sn, tln) (so, tlo) g in
-        f ln lo (G.add_put tag cn co tln tlo g)
+        f ln lo (G.add_put None tag cn co tln tlo g)
   in
   f ln lo g
 
@@ -413,20 +426,65 @@ let diffy first align tag (ln:int list) (lo:int list) tln tlo g =
   let anlen = Array.length an in
   let aolen = Array.length ao in
   let extract_cost g = G.to_cost g, g in
-  let costput = Array.make_matrix anlen aolen (C.zero, G.empty) in
-  matrix_iter (
-    fun i j _ ->
-      costput.(i).(j) <- extract_cost (nest_align align tag an.(i) ao.(j) tln tlo)
-  ) costput;
+  let costput = Array.make_matrix anlen aolen None in
   let costcrt = Array.map (fun cn -> extract_cost (crt_align tag cn)) an in
   let costdel = Array.map (fun co -> extract_cost (del_align tag co)) ao in
+  let limit = (* put from the beginining then delete or create *)
+    let m = min anlen aolen in
+    let rec loop x acc =
+      if x >= m
+      then (
+        let subloop x size cost acc =
+          let rec subloop_aux x acc =
+            if x >= size then acc
+            else subloop_aux (succ x) (C.plus acc (fst cost.(x)))
+          in
+          subloop_aux x acc
+        in
+        if x = anlen
+        then (  (* do deletes *)
+          subloop x aolen costdel acc
+        ) else (  (* do creates *)
+          subloop x anlen costcrt acc
+        )
+      ) else (  (* do put *)
+        let c, g = extract_cost (nest_align align None tag an.(x) ao.(x) tln tlo) in
+        costput.(x).(x) <- Some (c, g);
+        loop (succ x) (C.plus acc c)
+      )
+    in
+    loop 0 C.one
+  in
   let path = Array.make_matrix (succ anlen) (succ aolen) ((C.zero, 0), `Diag) in
+  let get_pathcost i j = fst (fst (path.(i).(j))) in
+  let get_costput i j =
+    let cg =
+      match costput.(i).(j) with
+      | Some cg -> cg
+      | None ->
+          let limit =
+            let p = fst (fst path.(i).(j)) in
+            if C.is_infinite p then Some 0
+            else
+              let k =
+                C.min limit
+                  (C.min
+                     (C.plus (get_pathcost (succ i) j) (fst costdel.(j)))
+                     (C.plus (get_pathcost i (succ j)) (fst costcrt.(i))))
+              in
+              C.to_option (C.minus k p)
+          in
+          extract_cost (nest_align align limit tag an.(i) ao.(j) tln tlo)
+    in
+    costput.(i).(j) <- Some cg;
+    cg
+  in
   let lessthan (ca, a) (cb, b) = C.lt ca cb || (C.equal ca cb && a < b) in
   let newpath i j d =
     let a, b = fst path.(i).(j) in
     let c, _ =
       match d with
-      | `Diag -> costput.(i).(j)
+      | `Diag -> get_costput i j
       | `Top -> costcrt.(i)
       | `Left -> costdel.(j)
     in
@@ -438,57 +496,61 @@ let diffy first align tag (ln:int list) (lo:int list) tln tlo g =
     | h::t ->
         Safelist.fold_left (fun m v -> if lessthan (fst v) (fst m) then v else m) h t
   in
-  matrix_iter (
-    fun i j _ ->
-      if i = 0 && j = 0 then ()
-      else if i = 0 then
-        path.(0).(j) <- newpath 0 (j-1) `Left
-      else if j = 0 then
-        path.(i).(0) <- newpath (i-1) 0 `Top
+  let rec loop i j =
+    if i > anlen then ()
+    else (
+      if j > aolen then loop (succ i) 1
       else (
         path.(i).(j) <-
           argmin (iffirst [
                     (newpath (i-1) (j-1) `Diag);
                     (newpath (i-1) j `Top);
                     (newpath i (j-1) `Left)
-                  ])
+                  ]);
+        loop i (succ j)
       )
-  ) path;
+    )
+  in
+  for i = 1 to anlen do
+    path.(i).(0) <- newpath (i-1) 0 `Top
+  done;
+  for j = 1 to aolen do
+    path.(0).(j) <- newpath 0 (j-1) `Left
+  done;
+  if anlen <> 0 && aolen <> 0 then loop 1 1;
 (*   let print_matrix f a bt bl = *)
+(*     let w = 7 in *)
 (*     (match bt with *)
 (*      | Some t -> *)
-(*          print_string " "; *)
-(*          Array.iteri *)
-(*            (fun i (x, _) -> *)
-(*               print_string " "; *)
-(*               print_string (C.to_string x) *)
-(*            ) t; *)
-(*          print_endline "" *)
+(*          Printf.printf "%*s" w ""; *)
+(*          Array.iteri (fun i (x, _) -> Printf.printf "%*s" w (C.to_string x)) t; *)
+(*          Printf.printf "\n" *)
 (*      | None -> () *)
 (*     ); *)
 (*     Array.iteri *)
 (*       (fun i l -> *)
 (*          (match bl with *)
-(*           | Some t -> *)
-(*               print_string (C.to_string (fst t.(i))) *)
+(*           | Some t -> Printf.printf "%*s" w (C.to_string (fst t.(i))) *)
 (*           | None -> () *)
 (*          ); *)
 (*          Array.iteri *)
 (*            (fun j x -> *)
-(*               print_string " "; *)
-(*               print_string (C.to_string (fst (f x))) *)
+(*               Printf.printf "%*s" w (f x) *)
 (*            ) l; *)
-(*          print_endline "" *)
+(*          Printf.printf "\n" *)
 (*       ) a *)
 (*   in *)
-(*   print_matrix (fun x -> x) costput (Some costdel) (Some costcrt); *)
-(*   print_matrix fst path None None; *)
+(*   print_matrix (fun x -> *)
+(*                   match x with *)
+(*                   | None -> "XXX" *)
+(*                   | Some (c, _) -> C.to_string c) costput (Some costdel) (Some costcrt); *)
+(*   print_matrix (fun ((x, _), _) -> C.to_string x) path None None; *)
   let rec find_path i j g =
     if i = 0 && j = 0 then g
     else (
       let i, j, cg =
         match snd path.(i).(j) with
-        | `Diag -> (pred i), (pred j), costput.(pred i).(pred j)
+        | `Diag -> (pred i), (pred j), get_costput (pred i) (pred j)
         | `Top  -> (pred i), j, costcrt.(pred i)
         | `Left -> i, (pred j), costdel.(pred j)
       in
@@ -513,8 +575,8 @@ let greedy align tag (ln:int list) (lo:int list) tln tlo g =
     if i >= anlen then (g, [])
     else if not freeo.(j) then (* j is already aligned *)
       calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen)
-    else
-      let sg = nest_align align tag an.(i) ao.(j) tln tlo in
+    else (
+      let sg = nest_align align None tag an.(i) ao.(j) tln tlo in
       let cost = G.to_cost sg in
       match C.to_option cost with
       | Some 0 -> (* add the link to alignment because there is no cost *)
@@ -525,6 +587,7 @@ let greedy align tag (ln:int list) (lo:int list) tln tlo g =
       | _ ->
           let g, edges = calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen) in
           g, (cost, i, j, sg) :: edges
+    )
   in
   let g, links = if aolen > 0 then calc_costs g 0 0 else (g, []) in
 
@@ -683,7 +746,7 @@ let hungarian align tag (ln:int list) (lo:int list) tln tlo g =
   let calc_costs () =
     matrix_iter (
       fun i j _ ->
-        let g' = nest_align align tag an.(i) ao.(j) tln tlo in
+        let g' = nest_align align None tag an.(i) ao.(j) tln tlo in
         gput.(i).(j) <- g';
         cost.(i).(j) <- G.to_cost g'
     ) gput;

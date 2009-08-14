@@ -23,7 +23,9 @@ type t
 val to_option : t -> int option
 val to_string : t -> string
 val zero : t
+val one : t
 val infinite : t
+val is_infinite : t -> bool
 val plus : t -> t -> t
 val minus : t -> t -> t
 val of_weighted_int : Bannot.Weight.t -> int -> t

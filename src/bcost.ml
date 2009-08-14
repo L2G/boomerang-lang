@@ -36,8 +36,10 @@ let to_string t =
   | Finite i -> string_of_int i
 
 let zero = Finite 0
+let one = Finite 1
 
 let infinite = Infinite
+let is_infinite t = t = Infinite
 
 let plus a b =
   match a, b with
