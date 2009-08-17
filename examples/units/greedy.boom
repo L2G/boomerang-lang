@@ -2,7 +2,7 @@ module Greedy =
 
 let sep_list (a:lens) (b:lens) = (a . (b . a)* )
 
-let g (name:string) = Tag (Greedy, Threshold 0, Weight 1, name)
+let g (name:string) = Tag (Greedy, Threshold 0, Key, name)
 
 let main =
   let word = (copy [a-z] . del [A-Z]* )+ in

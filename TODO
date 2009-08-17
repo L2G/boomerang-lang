@@ -21,6 +21,8 @@
 * Test alignments when the string does not have any chunk (in
   both sides and only in one side at a time). like put "" into ""
 
+* unit tests for weight (with flag force = false and true)
+
 == SYSTEM ==
 
 * the implementation of the function cast rule is sound, but actually
@@ -42,7 +44,7 @@
 
 * warning if something is being redefined (and a command line argument to activate this)
 
-* alignment with grammars (chunks, weights and thresholds)
+* Extend Boomerang grammar to accept pairs like ocaml: "let f (x,y:int*int)"
 
 == TOP LEVEL SYSTEM ==
 
@@ -70,15 +72,10 @@
 
 * QuickStart:
 
-** rewrite/review very careful  QuickStart
-
 ** Add examples using q-lenses to QuickStart.
 
 * Regexp: if someone does not know what is a regular expression?
   Indicate a reference in regular expressions somewhere.
-
-* examples/alignement.src: Write a demo explaining and showing how to
-  use the different alignments/weights/thresholds/predicates
 
 * Lists
 
@@ -98,6 +95,8 @@
 
 * Review core.boom, prelude.boom, etc to check if the documentation is
   matching with the functions. Also, write some more examples.
+
+* Review grammar/syntax part (documentation is not matching with what is implemented now)
 
 * Syntax / OCaml syntax for those who don't know ocaml:
 
@@ -143,8 +142,6 @@
 
 * Use heap in greedy alignment
 
-* Change the name of the hungarian algorithm
-
 * Fix names "Permutations" in blenses (permutations writen by users
   in boomerang) and "Permutation" in balign
 
@@ -179,7 +176,7 @@
   it's aim and use, in order to improve the manual browsing")
 
 * find a solution to read from stdin (for the main function) ;
-  [read '-'] fails ; give a readLine/readChar?
+  [read '-'] fails now ; give a readLine/readChar?
 
 * add ambiguous concat on left and right:
   a* -. a* with "aa" gives ["aa", ""]

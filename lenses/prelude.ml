@@ -450,16 +450,6 @@ let prelude_spec =
   ; pmk_siis   "sub_string"           (fun _ -> String.sub)
   ; pmk_sicio  "index_from"           (fun i s n c -> try Some (mk_i i  (String.index_from s n c)) with | Not_found -> None)
   ; pmk_sicio  "rindex_from"          (fun i s n c -> try Some (mk_i i (String.rindex_from s n c)) with | Not_found -> None)
-  ; pmk_scz    "string_explode"       (fun i s ->
-                                         let rec explode j l =
-                                           if j < 0 then l else explode (j - 1) (mk_c i s.[j] :: l) in
-                                         explode (String.length s - 1) [])
-  ; pmk_czs    "string_implode"       (fun i l ->
-                                         let res = String.create (List.length l) in
-                                         let rec implode j = function
-                                           | [] -> res
-                                           | c :: l -> res.[j] <- get_c c; implode (j + 1) l in
-                                           implode 0 l)
 
   (* input/output/sys operations *)
   ; pmk_ss     "read"                 (fun _ fn -> Misc.read fn)

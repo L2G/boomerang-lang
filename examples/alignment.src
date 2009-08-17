@@ -18,7 +18,7 @@ In this section we explain in more details how this works.
 \section{Tags}
 
 Tag is a type defined in @Core.boom@. It is a quadruple with a
-\emph{specie}, a \emph{predicate}, a default \emph{weight} and a
+\emph{specie}, a \emph{predicate}, a default \emph{key annotation} and a
 string. The first one define which method Boomerang will use to align
 the chunks. The second is a way for the programmer to forbid a match
 between two chunks, and for the moment, it comes in only one flavor: a
@@ -51,25 +51,23 @@ the real computation using string distance?}. For example, a threshold
 of 0 allows all alignments and a threshold of 100 allows only chunks
 with exactly the same key to be matched.
 
-\section{Keys and weights}
+\section{Keys}
 
-The weight is used to indicate which part of the chunk is relevant and
-should be used for the alignment. The weight can be $0$, which says to
-Boomerang to not use it for the alignment, or $1$, which is used for the
-alignment\footnote{Boomerang is prepared to accept any value for weight,
-but we decide to not expose this. If have any example where you need
-this, please let us know.}. In the first case, we say that it is
-\emph{not a key} and in the second we say that it is a \emph{key}. The
-boolean argument of the @weight@ function says if it should override
-internal @weight@ definitions or not.
+Key annotations are used to indicate which part of the chunk is relevant
+and should be used for the alignment. The parts of the chunk annotated
+with key are used for the alignment and the parts annotated with nokey
+are not used. These annotations can be placed using the functions @key@
+and @nokey@, and these functions does not override previous definitions
+(a @key@ inside a @nokey@ will be used for the alignment). We give two
+more functions, @force_key@ and @force_nokey@ to override previous
+definitions.
 
 When we have nested chunks, the keys in a nested chunk are not used for
-the alignment of an enclosing chunk. The function @weight@ does not go
-inside other chunks.
+the alignment of an enclosing chunk. The functions to set key
+annotations does not go inside other chunks.
 
-If a part of a chunk does not have a weight defined using a @weight@
-function, the weight will be the default weight of the chunk (defined
-with the tag).
+If a part of a chunk does not have a key annotation, it will use the
+default value given by the chunk (defined with the tag).
 
 \section{Learning with examples}
 

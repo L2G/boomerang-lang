@@ -586,34 +586,33 @@ let greedy limit align tag (ln:int list) (lo:int list) tln tlo g =
     freeo.(j) <- false;
     G.merge g sg
   in
-  let rec calc_costs g (i:int) j = (* (cost, i, j, and subalignment between i and j) list *)
-    if i >= anlen then (g, [])
+  let rec calc_costs g (i:int) j edges = (* (cost, i, j, and subalignment between i and j) list *)
+    if i >= anlen then (g, edges)
     else if not freeo.(j) then (* j is already aligned *)
-      calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen)
+      calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen) edges
     else (
       let sg = nest_align C.infinite align tag an.(i) ao.(j) tln tlo in
       let cost = G.to_cost sg in
       match C.to_option cost with
       | Some 0 -> (* add the link to alignment because there is no cost *)
           let g = merge g i j sg in
-          calc_costs g (succ i) 0
+          calc_costs g (succ i) 0 edges
       | None ->
-          calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen)
+          calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen) edges
       | _ ->
-          let g, edges = calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen) in
-          g, (cost, i, j, sg) :: edges
+	  calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen) ((cost, i, j, sg) :: edges)
     )
   in
-  let g, links = if aolen > 0 then calc_costs g 0 0 else (g, []) in
-
+  let g, edges = if aolen > 0 then calc_costs g 0 0 [] else (g, []) in
+  let edges = Safelist.rev edges in
   (* (\* debug *\) *)
   (*    let str tl i = Bstring.to_string (Bstring.of_cat (snd (TmImA.find tag i tl))) in *)
-  (*   (printf "Greedy list with %d edges for alignment with %d and %d chunks\n" (Safelist.length links) anlen aolen; *)
+  (*   (printf "Greedy list with %d edges for alignment with %d and %d chunks\n" (Safelist.length edges) anlen aolen; *)
   (*    Safelist.iter (fun (c,i,j,sg) -> *)
   (*                     printf " (%2d,%2d) = (\"%s\",\"%s\") -> cost %s:\n" i j (C.to_string c) (str tln i) (str tlo j); *)
-  (*                     G.print_space sg "    ") links; *)
+  (*                     G.print_space sg "    ") edges; *)
   (*    print_endline "------"); *)
-  let costlnk = Array.of_list links in
+  let costlnk = Array.of_list edges in
   Array.stable_sort (fun (c1,_,_,_) (c2,_,_,_) -> C.compare c1 c2) costlnk;
   let g =
     Array.fold_left

@@ -76,9 +76,9 @@ integer to the corresponding (decimal) string.
 #* let string_of_int : int -> string 
 ## = Native.Prelude.string_of_int
 
-\LENSSECTION{@bgt@, @blt@, @bgeq@, @bleq@} These operators are 
-the standard comparisons on integers. Infix operators @bg@, @lt@, @bgeq@, @lteq@ 
-resolve to these operators. In this module, we use names like 
+\LENSSECTION{@bgt@, @blt@, @bgeq@, @bleq@} These operators are the
+standard comparisons on integers. Infix operators @gt@, @lt@, @geq@,
+@leq@ resolve to these operators. In this module, we use names like
 @bgt@ here because @gt@ is a reserved keyword.
 
 #* let bgt : int -> int -> bool
@@ -106,9 +106,9 @@ These operators are the standard arithmetic functions on integers.
 ## = Native.Prelude.minus
 #* let times : int -> int -> int 
 ## = Native.Prelude.times
-#* let bdiv : int -> int -> int 
+#* let div : int -> int -> int 
 ## = Native.Prelude.div
-#* let bmod : int -> int -> int 
+#* let mod : int -> int -> int 
 ## = Native.Prelude.mod
 
 \subsection{Characters}
@@ -347,25 +347,27 @@ to @R@.
 
 \subsection{Tags}
 
-\LENSSECTION{@species@,@predicate@,@tag@} A tag is a type defined by
-the Core module and used by the match functions (@aregexp_match@ and
-@lens_match@).
+\LENSSECTION{@species@,@predicate@,@key@,@tag@} A tag is a type defined
+by the Core module and used by the match functions (@aregexp_match@ and
+@lens_match@). The @key_annotation@ is used to set the default
+annotation for the chunk: with @Key@ everything without annotations are
+key, while with @NoKey@ they are not.
 
 #* type species = Positional | Diffy of bool | Greedy | Setlike
 #* type predicate = Threshold of (t:int where land (bgeq t 0) (bleq t 100))
-#* type weight = Weight of (w:int where lor (equals{int} w 0) (equals{int} w 1))
-#* type tag = Tag of species * predicate * weight * string
+#* type key_annotation = Key | NoKey
+#* type tag = Tag of species * predicate * key_annotation * string
 
 #* let diffy (name:string) : tag
-#* = Tag (Diffy true, Threshold 0, Weight 1, name)
+#* = Tag (Diffy true, Threshold 0, Key, name)
 #* let positional (name:string) : tag
-#* = Tag (Positional, Threshold 0, Weight 0, name)
+#* = Tag (Positional, Threshold 0, NoKey, name)
 #* let greedy (t:int where land (bgeq t 0) (bleq t 100)) (name:string) : tag
-#* = Tag (Greedy, Threshold t, Weight 0, name)
+#* = Tag (Greedy, Threshold t, NoKey, name)
 #* let dictionary (name:string) : tag
-#* = Tag (Greedy, Threshold 100, Weight 0, name)
+#* = Tag (Greedy, Threshold 100, NoKey, name)
 #* let setlike (t:int where land (bgeq t 0) (bleq t 100)) (name:string) : tag
-#* = Tag (Setlike, Threshold t, Weight 0, name)
+#* = Tag (Setlike, Threshold t, NoKey, name)
 
 \subsection{Annotated Regular Expressions}
 
@@ -385,7 +387,8 @@ an annotated regular expressions.
 #* test equiv (rxdrop (rxlift [a-z])) [a-z] = true
 
 \LENSSECTION{@aequiv@,@aequiv_cex@} The @aequiv@ function tests if two annotated
-regular expressions denote the same language.  It's conservative.
+regular expressions denote the same chunk structured language.  It's conservative.
+\SHOWCOMMENT{writting something better...}
 
 #* let aequiv : aregexp -> aregexp -> bool
 ## = Native.Prelude.aequiv
@@ -461,13 +464,6 @@ annotated regular expressions contains chunk annotations.
 
 #* test no_chunks (rxlift [a-z]) = true
 #* test no_chunks (aregexp_match (positional "") (rxlift [a-z])) = false
-
-\LENSSECTION{@aregexp_weight@} These functions define the weight of
-the characters under them. The operator @{:w:aregexp}@ desugars into
-@aregexp_weight@.
-
-#* let aregexp_weight : bool -> int -> aregexp -> aregexp
-## = Native.Prelude.aregexp_weight
 
 \subsection{Equivalence Relations}
 
@@ -597,11 +593,13 @@ notation desugars into @in_bij_lens_type@.
 \LENSSECTION{@get@} The @get@ function extracts the $\GET$ component of a lens. The record-style 
 projection notation @l.get@ desugars into @get@.
 
-#* let get : (l:lens -> (s:string where matches_cex (stype l) s) -> string)
+#* let get : (l:lens -> 
+#*           (s:string where matches_cex (stype l) s) ->
+#*           string)
 ## = Native.Prelude.get
 
 \LENSSECTION{@put@} The @put@ function extracts the $\PUT$ component of a lens. 
-The record-style projection notation @l.put@ desugars into @put@.
+The record-style projection notation @l.put v into s@ desugars into @put@.
 
 #* let put : (l:lens ->
 #*           (v:string where matches_cex (vtype l) v) -> 
@@ -765,8 +763,9 @@ into @lens_swap@ when applied to lens values.
 #*        (land (splittable_cex (stype l1) (stype l2)) 
 #*              (splittable_cex (vtype l2) (vtype l1)))
 
-#* let lens_swap (l1:lens) 
-#*               (l2:lens where lens_swap_contract l1 l2)
+#* let lens_swap
+#*     (l1:lens) 
+#*     (l2:lens where lens_swap_contract l1 l2)
 #*   : (l:lens where in_lens_type l (regexp_concat (stype l1) (stype l2))
 #*                                  (regexp_concat (vtype l2) (vtype l1)))
 ## = Native.Prelude.lens_swap l1 l2
@@ -859,7 +858,8 @@ resolves into instances of @lens_iter@ when applied to a lens argument.
 \LENSSECTION{@invert@} The @invert@ operator swaps the $\GET$ and $\CREATE$ 
 components of a lens, which must be bijective.
 
-#* let invert (l:lens where land (bij l) (is_basic l)) 
+#* let invert 
+#*     (l:lens where land (bij l) (is_basic l)) 
 #*   : (l':lens where in_bij_lens_type l' (vtype l) (stype l))
 ##   = Native.Prelude.invert l
 
@@ -917,47 +917,44 @@ to @R@. The regular expression @R@ must be unambiguously concatenable with itsel
 %The next few primitives construct lenses for handling ordered data 
 %called dictionary lenses. For details, see \citet{Boomerang07}.
 
-\LENSSECTION{@lens_weight@} These functions define the weight of the
-characters under them.  The operator @{:w:lens_expression}@ desugars
-into @lens_weight@.
-
-#* let lens_weight (force:bool) (w:int where land (bgeq w 0) (bleq w 1)) (l:lens)
-#*   : (l':lens where in_lens_type l' (stype l) (vtype l))
-## = Native.Prelude.lens_weight force w l
-
-\LENSSECTION{@key@} The @key@ operator takes a regular expression as an 
-argument.
+\LENSSECTION{@key@,@nokey@,@force_key@,@force_nokey@} These functions
+defines the key annotation of the characters under it. The @force_key@
+and @force_nokey@ overrides previous definitions while @key@ and @nokey@
+only set the annotation for characters that does not have yet an
+annotation.
 
 #* let key (l:lens)
-#*   : (l':lens where in_lens_type l' (stype l) (vtype l))
-#* = lens_weight true 1 l
-
-\LENSSECTION{@nokey@} The @nokey@ operator takes a lens @l@ as an 
-argument. It behaves like @l@, but overrides its $\KEY$ component with the 
-constant function returning the empty string.
+#*       : (l':lens where in_lens_type l' (stype l) (vtype l))
+## = Native.Prelude.lens_weight false 1 l
 
 #* let nokey (l:lens) 
-#*   : (l':lens where in_lens_type l' (stype l) (vtype l))
-#* = lens_weight true 0 l
+#*         : (l':lens where in_lens_type l' (stype l) (vtype l))
+## = Native.Prelude.lens_weight false 0 l
 
-\LENSSECTION{@lens_match@} The @lens_match@ operator takes as arguments a 
-string @t@ and a lens @l@. It builds a dictionary lens that applies 
-@l@ in the @t@ ``chunk''. The type checker requires that the same lens 
-be used for every instance of @lens_match@ with the same tag. In Boomerang, 
-we check this condition using a conservative approximation: we assign 
-every lens an integer unique identifier when it is constructed and 
-require that for each tag @t@, the lenses in each occurrence of 
-@lens_match@ with @t@ have the same unique identifier. 
+#* let force_key (l:lens)
+#*             : (l':lens where in_lens_type l' (stype l) (vtype l))
+## = Native.Prelude.lens_weight true 1 l
 
-#* let lens_match (t:tag)
-#*            (l:lens where mtype_match_compatible_cex t (ktype l) (mtype l)) 
+#* let force_nokey (l:lens) 
+#*               : (l':lens where in_lens_type l' (stype l) (vtype l))
+## = Native.Prelude.lens_weight true 0 l
+
+\LENSSECTION{@lens_match@} The @lens_match@ operator takes as arguments
+a string @t@ and a lens @l@ and creates a ``chunk'' with tag @t@. The
+type checker requires that there is not a tag inside @l@ with the same
+identifier as the tag @t@.
+
+#* let lens_match
+#*     (t:tag)
+#*     (l:lens where mtype_match_compatible_cex t (ktype l) (mtype l)) 
 #*   : (l':lens where in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_match t l
 
 \LENSSECTION{@align@} The @align@ operator converts a resourcefull
-lens @l@ into a basic lens.
+lens @l@ into a basic lens, making an alignment phase internal to it.
 
-#* let align (l:lens) 
+#* let align
+#*     (l:lens) 
 #*   : (l':lens where land (in_lens_type l' (stype l) (vtype l))
 #*                         (is_basic l'))
 ## = Native.Prelude.align l
@@ -967,7 +964,8 @@ argument. It behaves like @l@, but overrides its $\PUT$ component with a
 function that returns the original source exactly whenever the update to the 
 view is a no-op.
 
-#* let fiat (l:lens where is_basic l) 
+#* let fiat
+#*     (l:lens where is_basic l) 
 #*   : (l':lens where in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.fiat l
 
@@ -1115,7 +1113,7 @@ $\CHOOSE$ component wraps a string belonging to the iteration of
 #*         disjoint_cex R (regexp_concat (regexp_star [^]) 
 #*                                       (regexp_concat (str nl) 
 #*                                       (regexp_star [^]))))
-#*   : canonizer
+#* : canonizer
 ## = Native.Prelude.columnize k R sp nl
 
 \noindent The following unit test illustrates the $\CHOOSE$ component of

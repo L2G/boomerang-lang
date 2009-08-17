@@ -26,8 +26,9 @@ module Sys =
 
 \section{System functions}
 
-\LENSSECTION{@read@} The @read@ function reads the contents of 
-a file from the local filesystem.
+\LENSSECTION{@read@} The @read@ function reads the contents of a file
+from the local filesystem. If the argument is @-@, it reads the
+contents of the standard input.
 
 #* let read : string -> string 
 ## = Native.Prelude.read
@@ -40,8 +41,6 @@ the standard output.
 ## = Native.Prelude.write
 #* let put_str : string -> unit
 #* = write "-"
-#* let put_str_ln (s:string) : unit
-#* = write "-" (s . "\n")
 
 \LENSSECTION{@exec@} The @exec@ function executes a shell command. 
 

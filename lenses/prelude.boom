@@ -326,22 +326,23 @@ character number of the first occurrence of character @c@ in string
 ## = Native.Prelude.rindex_from s i c
 
 \LENSSECTION{@string_explode@} The @string_explode@ function explodes
-a string into an list of char.
+a string into characters, returning a list of string.
 
-#* let string_explode : (s:string -> (l:char List.t where List.length{char} l = length s))
-## = Native.Prelude.string_explode
+#* let string_explode (s:string) : (l:string List.t where List.length{string} l = length s)
+#* = List.star_split ANYCHAR s
 
-#* test string_explode "" = #{char}[]
-#* test string_explode "lorem" = #{char}['l';'o';'r';'e';'m']
+#* test string_explode "" = #{string}[]
+#* test string_explode "lorem" = #{string}["l";"o";"r";"e";"m"]
 
 \LENSSECTION{@string_implode@} The @string_implode@ function implodes
 an list of char into a string.
 
-#* let string_implode : (l:char List.t -> (s:string where List.length{char} l = length s))
-## = Native.Prelude.string_implode
+#* let string_implode (l:string List.t) : string
+#* = List.fold_left{string}{string} (fun (s:string) (s':string) -> s . s') "" l
 
-#* test string_implode #{char}[] = ""
-#* test string_implode #{char}['a';'b';'c'] = "abc"
+#* test string_implode #{string}[] = ""
+#* test string_implode #{string}["a";"b";"c"] = "abc"
+#* test string_implode #{string}["abc";"def";"ghi"] = "abcdefghi"
 #* test string_implode (string_explode "testing") = "testing"
 
 \LENSSECTION{@file_ext@} The @file_ext@ returns the extension of a
@@ -551,12 +552,10 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 #* test (iterate{regexp} 3 (fun (x:regexp) -> x | "(".x.")") [a-z]).get "((b))" = "((b))"
 #* test (iterate{regexp} 3 (fun (x:regexp) -> x | "(".x.")") [a-z]).get "((((b))))" = error
 
-\LENSSECTION{@print@} The @print@ function prints a value.  Some
-values cannot be printed in full, e.g., functions.
+\LENSSECTION{@show@} Gives a string representation of the value. Some
+values cannot be translated in full, e.g., functions.
 
 #* let show : forall 'a => 'a -> string
 ## = Native.Prelude.poly_show
 
-#* let print 'a (x:'a) : unit
-#* = Sys.put_str_ln (show {'a} x)
 

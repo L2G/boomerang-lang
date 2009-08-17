@@ -368,16 +368,11 @@ let species_qid =
   Qid.mk [Id.mk i "Core"] (Id.mk i "species")
  
 let get_species v =
-  let i, xo = get_v v in
-  match i with
-  | _ when Id.equal i positional -> Btag.Positional
-  | _ when Id.equal i diffy ->
-      (match xo with
-       | None -> conversion_error "species" v
-       | Some x -> Btag.Diffy (get_b x)
-      )
-  | _ when Id.equal i greedy -> Btag.Greedy
-  | _ when Id.equal i setlike -> Btag.Setlike
+  match get_v v with
+  | i,None   when Id.equal i positional -> Btag.Positional
+  | i,Some x when Id.equal i diffy      -> Btag.Diffy (get_b x)
+  | i,None   when Id.equal i greedy     -> Btag.Greedy
+  | i,None   when Id.equal i setlike    -> Btag.Setlike
   | _ -> conversion_error "species" v
 
 let mk_species i sp =
@@ -413,27 +408,27 @@ let mk_predicate i p =
 let mk_predicatefun i f =
   Fun (i, (fun v -> f (get_predicate v)))
 
-(* default weight utilities *)
-let weight = Id.mk (Info.M "Default weight built-in") "Weight"
-let weight_qid =
-  let i = Info.M "Default weight built-in" in
-  Qid.mk [Id.mk i "Core"] (Id.mk i "weight")
+(* default key utilities (default weight value for the chunk) *)
+let key = Id.mk (Info.M "Key built-in") "Key"
+let nokey = Id.mk (Info.M "NoKey built-in") "NoKey"
+let keyannot_qid =
+  let i = Info.M "key_annotation built-in" in
+  Qid.mk [Id.mk i "Core"] (Id.mk i "key_annotation")
  
-let get_weight v =
-  let i, xo = get_v v in
-  match i with
-  | _ when Id.equal i weight ->
-      (match xo with
-       | None -> conversion_error "weight" v
-       | Some x -> Bannot.Weight.of_int (get_i x)
-      )
-  | _ -> conversion_error "weight" v
+let get_key v =
+  match get_v v with
+  | i, None when Id.equal i nokey -> Bannot.Weight.zero
+  | i, None when Id.equal i key   -> Bannot.Weight.one
+  | _ -> conversion_error "key_annotation" v
 
-let mk_weight i w =
-  Vnt (i, weight_qid, weight, Some (mk_i i (Bannot.Weight.to_int w)))
+let mk_key i w =
+  match Bannot.Weight.to_int w with
+    | 0 -> Vnt (i, keyannot_qid, nokey, None)
+    | 1 -> Vnt (i, keyannot_qid, key, None)
+    | _ -> assert false
 
-let mk_weightfun i f =
-  Fun (i, (fun v -> f (get_weight v)))
+let mk_keyfun i f =
+  Fun (i, (fun v -> f (get_key v)))
 
 (* tag utilities *)
 let tag = Id.mk (Info.M "Tag built-in") "Tag"
@@ -449,9 +444,9 @@ let get_tag v =
        | None -> conversion_error "tag" v
        | Some x ->
            let x, name = get_p x in
-           let x, weight = get_p x in
+           let x, keyannot = get_p x in
            let species, predicate = get_p x in
-           Btag.of_elements (get_species species) [get_predicate predicate] (get_weight weight) (get_s name)
+           Btag.of_elements (get_species species) [get_predicate predicate] (get_key keyannot) (get_s name)
       )
   | _ -> conversion_error "tag" v
 
@@ -463,7 +458,7 @@ let mk_tag i t =
     | [p] -> p
     | _ -> assert false
   in
-  Vnt (i, tag_qid, tag, Some (mk_p i (mk_p i (mk_p i (mk_species i species, mk_predicate i  predicate), mk_weight i weight), mk_s i name)))
+  Vnt (i, tag_qid, tag, Some (mk_p i (mk_p i (mk_p i (mk_species i species, mk_predicate i  predicate), mk_key i weight), mk_s i name)))
 
 let mk_tagfun i f =
   Fun (i, (fun v -> f (get_tag v)))

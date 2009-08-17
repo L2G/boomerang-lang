@@ -382,12 +382,15 @@ operator & applied to & resolves to \\\hline
  @|@    & @lens@ & @disjoint_union@\\
  @&@    & @regexp@ & @inter@\\
  @-@    & @regexp@ & @diff@\\
+ @-@    & @int@ & @minus@\\
  @.@    & @string@ & @string_concat@\\
  @.@    & @regexp@ & @regexp_concat@\\
  @.@    & @aregexp@ & @aregexp_concat@\\
  @.@    & @lens@ & @lens_concat@\\
  @.@    & @canonizer@ & @canonizer_concat@\\
  @~@    & @lens@ & @lens_swap@\\
+ @<->@  & @lens@ & @set@\\
+ @<=>@  & @lens@ & @rewrite@\\
 \end{tabular}
 \caption{Infix operators}
 \end{table}
@@ -415,7 +418,7 @@ operator & applied to & resolves to \\\hline
 notation     & resolves to \\\hline
 @lens.bij@           & @bij@\\
 @lens.get@           & @get@\\
-@lens.put@           & @put@\\
+@lens.put@           & @put@\\ % actually this is "lens.put v into s" -> "put l v s"
 @lens.create@        & @create@\\
 @lens.stype@         & @stype@\\
 @lens.domain_type@   & @stype@\\
@@ -435,8 +438,6 @@ notation & desugars to \\\hline
 @<lens>@              & @lens_match (greedy 0 "")@\\
 @<tag:aregexp>@       & @aregexp_match@\\
 @<tag:lens>@          & @lens_match@\\
-@{:w:aregexp}@        & @aregexp_weight@\\
-@{:w:lens}@           & @lens_weight@\\
 @lens in S <-> V@     & @in_lens_type@\\
 @lens in S <=> V@     & @in_bij_lens_type@\\
 \end{tabular}
@@ -574,7 +575,7 @@ into a vcard you should run
 ./address get contacts.csv vcf
 \end{progeg}
 
-The put is similar, but both arguments are a file and first
+The $\PUT$ is similar, but both arguments are a file and first
 is as the updated view and the second is the old source. To try
 this out, create a file @updated.xml@ containing the following lines:
 \begin{progeg}

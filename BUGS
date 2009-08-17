@@ -7,6 +7,14 @@ end
 
 test Bar.g (Bar.Unit ()) = ? (* BUG: f unbound *)
 
+#* test <<
+There is no difference between .boom files and .src files.
+For example:
+#* <-- this is not part of this string.
+#@ and also all this is not part of the boomerang string.
+>> = ?
+
 (* Not really a bug: *)
 test 2-1 = error (* "-1 is not bound" *)
 test 2 - 1 = 1 (* ok *)
+test 2 - 1 = 2 - 1 (* error, the right of the "=" does not accepts infix *)

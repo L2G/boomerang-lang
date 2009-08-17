@@ -71,8 +71,8 @@ let ambiguous_lens_partition_one_contract (a:lens) (b:lens) =
   && ambiguous_lens_concat_contract (lens_swap b* a) b*
 let ambiguous_lens_partition_one (a:lens) (b:lens where ambiguous_lens_partition_one_contract a b) =
   ambiguous_lens_concat (lens_swap b* a) b*
-let positional (name:string) = Tag (Positional, Threshold 0, Weight 1, name)
-let diffy (first:bool) (name:string) = Tag (Diffy first, Threshold 0, Weight 1, name)
+let positional (name:string) = Tag (Positional, Threshold 0, Key, name)
+let diffy (first:bool) (name:string) = Tag (Diffy first, Threshold 0, Key, name)
 let pre_lock (lock:string) = Native.Prelude.lens_pre_lock lock ""
 let post_lock (lock:string) = Native.Prelude.lens_post_lock lock ""
 let show_list 'a (l:'a List.t) =

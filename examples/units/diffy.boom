@@ -2,10 +2,10 @@ module Diffy =
 
 let sep_list (a:lens) (b:lens) = (a . (b . a)* )
 
-let df (name:string) = Tag (Diffy true, Threshold 0, Weight 1, name)
-let dl (name:string) = Tag (Diffy false, Threshold 0, Weight 1, name)
-let g (t:int) (name:string) = Tag (Greedy, Threshold t, Weight 1, name)
-let p (name:string) = Tag (Positional, Threshold 0, Weight 1, name)
+let df (name:string) = Tag (Diffy true, Threshold 0, Key, name)
+let dl (name:string) = Tag (Diffy false, Threshold 0, Key, name)
+let g (t:int) (name:string) = Tag (Greedy, Threshold t, Key, name)
+let p (name:string) = Tag (Positional, Threshold 0, Key, name)
 
 let main = (* df *)
   let word = (copy [a-z] . del [A-Z]* )+ in
@@ -509,7 +509,7 @@ test put main <<
 (* weight test *)
 
 let main =
-  sep_list <df "l":sep_list <df "w":{:!0: (copy [a-z] . del [A-Z]* )+ }> " "> "\n"
+  sep_list <df "l":sep_list <df "w":force_nokey (copy [a-z] . del [A-Z]* )+> " "> "\n"
 
 test get main "aRobASe" = "aobe"
 test get main <<

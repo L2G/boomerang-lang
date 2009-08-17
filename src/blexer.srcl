@@ -275,7 +275,6 @@ rule main = parse
 | "#"                { HASH(info lexbuf) }
 | "}["               { LLIST(info lexbuf) }
 | "]"                { RBRACK(info lexbuf) }
-| "{:"               { LBRACECOLON(info lexbuf) }
 | "["                { CSET(info lexbuf, cset lexbuf) }
 | "[^"               { NSET(info lexbuf, cset lexbuf) }
 | "<"                { LANGLE(info lexbuf) }

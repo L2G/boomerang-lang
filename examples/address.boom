@@ -633,78 +633,137 @@ Foster, Nate, jnfoster@cis.upenn.edu (e), 267 342-1099 (c)
 
 >> = ?
 
+type 'a w = Value of 'a | Error of unit -> int
 
-type format = VCF | XML | CSV | OTHER
+let fmap_w 'a 'b (f:'a -> 'b) (x:'a w) =
+  match x with
+  | Value v -> Value {'b} (f v)
+  | Error e -> Error {'b} e
+  :'b w
+
+let join_w 'a (x:('a w) w) =
+  match x with
+  | Value (Value v) -> Value {'a} v
+  | Value (Error e) -> Error {'a} e
+  | Error e -> Error {'a} e
+  :'a w
+
+let bind_w 'a 'b (x:'a w) (f:'a -> 'b w) =
+  join_w {'b} (fmap_w {'a} {'b w} f x)
+
+let bind_wl 'a 'b (x:'a w) (f:'a -> 'b w) =
+  join_w {'b} (fmap_w {'a} {'b w} f x)
+
+let rbind_w 'a 'b (f:'a -> 'b w) (x:'a w) =
+  bind_w {'a} {'b} x f
+
+let seq_w 'a (x:unit w) (y:'a w) =
+  bind_w {unit} {'a} x (fun (u:unit) -> y)
+
+let return_w 'a (x:'a) = Value {'a} x
+
+let ok 'a (x:'a) = Value {'a} x
+let fail 'a (f:unit -> int) = Error{'a} f
+let failwith 'a (message:string) = fail {'a} (fun (u:unit) -> let _ = put_str ("Error: " . message . newline) in 1)
+
+let okfailwith 'a = ok{'a}, fail{'a}, failwith{'a}
 
 let usage = 
   let prog = Prefs.get_prog_name () in
   "Usage: " . prog . " {get|put} args\n"
-  . "  " . prog ." get <source> <format of the view>\n"
-  . "  " . prog . " put <view> <old source>\n"
+     . "  " . prog . " get <source> <format of the view>\n"
+     . "  " . prog . " put <view> <old source>\n"
+
+type format = VCF | XML | CSV
 
 let main (x:unit) =
   let vcf2csv = vcards in
   let xml2csv = xcard . del WS in (* trailing whitespace *)
   let xml2vcf = right_quot xml2csv (canonizer_of_lens vcf2csv) in
   let vcf2xml = right_quot vcf2csv (canonizer_of_lens xml2csv) in
-  let puts (s:string) : int =
-    let _ = put_str s in 0
-  in
-  let get_type (str:string option) : format =
+  let get_type (str:string option) =
     match str with
-      | Some "vcf" -> VCF
-      | Some "xml" -> XML
-      | Some "csv" -> CSV
-      | _ -> OTHER
-    : format
+      | Some "vcf" -> Some{format} VCF
+      | Some "xml" -> Some{format} XML
+      | Some "csv" -> Some{format} CSV
+      | _ -> None{format}
+    : format option
   in
-  let usage_code (code:int) =
-    let _ = Prefs.print_usage usage in
-    code
+  let read_file (f:string) =
+    let ok, fail, failwith = okfailwith{format * string} in
+    match get_type (file_ext f), file_exists f with
+      | None, _  -> failwith ("File ".f." does not have a valid extension")
+      | _, false -> failwith ("File ".f." does not exists")
+      | Some fmt, _ -> ok (fmt, read f)
+    : (format * string) w
   in
-  let cget (source:string) (fmt:string) =
-    let view' = get_type (Some{string} fmt) in
-    let source' = get_type (file_ext source) in
+  let read_format (fmt:string) =
+    let ok, fail, failwith = okfailwith{format} in
+    match get_type (Some{string} fmt) with
+      | None -> failwith (fmt." is not a valid format")
+      | Some fmt -> ok fmt
+    : format w
+  in
+  let cget (view':format) (source:(format*string)) =
+    let source', source = source in
     match view', source' with
-      | VCF, VCF -> puts (read source)
-      | XML, XML -> puts (read source)
-      | CSV, CSV -> puts (read source)
+      | VCF, VCF -> source
+      | XML, XML -> source
+      | CSV, CSV -> source
 
-      | CSV, VCF -> puts (get vcf2csv    (read source))
-      | VCF, CSV -> puts (create vcf2csv (read source))
+      | CSV, VCF -> get vcf2csv    source
+      | VCF, CSV -> create vcf2csv source
 
-      | CSV, XML -> puts (get xml2csv    (read source))
-      | XML, CSV -> puts (create xml2csv (read source))
+      | CSV, XML -> get xml2csv    source
+      | XML, CSV -> create xml2csv source
 
-      | XML, VCF -> puts (get vcf2xml    (read source))
-      | VCF, XML -> puts (get xml2vcf    (read source))
-
-      | _ -> usage_code 1
-    : int
+      | XML, VCF -> get vcf2xml    source
+      | VCF, XML -> get xml2vcf    source
+    : string
   in
-  let cput (view:string) (source:string) =
-    let view'   = get_type (file_ext view) in
-    let source' = get_type (file_ext source) in
+  let cput (view:format*string) (source:format*string) =
+    let source', source = source in
+    let view', view = view in
     match view', source' with
-      | VCF, VCF -> puts (read source)
-      | XML, XML -> puts (read source)
-      | CSV, CSV -> puts (read source)
+      | VCF, VCF -> source
+      | XML, XML -> source
+      | CSV, CSV -> source
 
-      | CSV, VCF -> puts (put vcf2csv (read view) (read source))
-      | VCF, CSV -> puts (get vcf2csv (read view))
+      | CSV, VCF -> put vcf2csv view source
+      | VCF, CSV -> get vcf2csv view
 
-      | CSV, XML -> puts (put xml2csv (read view) (read source))
-      | XML, CSV -> puts (get xml2csv (read view))
+      | CSV, XML -> put xml2csv view source
+      | XML, CSV -> get xml2csv view
 
-      | XML, VCF -> puts (put vcf2xml (read view) (read source))
-      | VCF, XML -> puts (put xml2vcf (read view) (read source))
-
-      | _ -> usage_code 1
-    : int
+      | XML, VCF -> put vcf2xml view source
+      | VCF, XML -> put xml2vcf view source
+    : string
   in
-  match Prefs.read_string_list (Prefs.extern_rest ()) with
-    | "get"::source::format::[] -> cget source format
-    | "get"::format::[] -> cget (List.hd {string} (Prefs.read_string_list (Prefs.extern_source ()))) format
-    | "put"::  view::source::[] -> cput view source
-    | _ -> usage_code 1
+  let run (args : string List.t) =
+    let ok, fail, failwith = okfailwith{unit -> int} in
+    let print_usage (code:int) (u:unit) =
+      let _ = put_str usage in code
+    in
+    match args with
+      | "get"::source::format::[] -> 
+          (let source = read_file source in
+           let format = read_format format in
+           bind_w{format}{unit -> int} format (fun (view':format) ->
+           bind_w{format*string}{unit -> int} source (fun (source:format*string) ->
+           let _ = put_str (cget view' source) in
+           ok (fun (u:unit) -> 0))))
+      | "put"::  view::source::[] ->
+          (let source = read_file source in
+           let view   = read_file view in
+           bind_w{format*string}{unit -> int} view   (fun (view:format*string) ->
+           bind_w{format*string}{unit -> int} source (fun (source:format*string) ->
+           let _ = put_str (cput view source) in
+           ok (fun (u:unit) -> 0))))
+      | [] -> ok (print_usage 0)
+      | _ -> fail (print_usage 1)
+    : (unit -> int) w
+  in
+  match run (Prefs.read_string_list (Prefs.extern_rest ())) with
+    | Value v -> v ()
+    | Error fail -> fail ()
   : int

@@ -20,18 +20,24 @@
 (******************************************************************************)
 
 module Weight = struct
-  type t = int
-  let zero = 0
-  let one = 1
-  let of_int i = i
-  let to_int t = t
-  let succ_int t i = i + t
-  let weight_int t i = i * t
+  type t = NoKey | Key
+  let zero = NoKey
+  let one = Key
+  let of_int = function
+    | 0 -> zero
+    | 1 -> one
+    | _ -> assert false
+  let to_int = function
+    | NoKey -> 0
+    | Key -> 1
+  let succ_int t i = i + (to_int t)
+  let weight_int t i = i * (to_int t)
   let of_string s =
-    try int_of_string s
+    try of_int (int_of_string s)
     with Failure _ -> assert false
-  let to_string t =
-    string_of_int t
+  let to_string = function
+    | NoKey -> "NoKey"
+    | Key -> "Key"
   let to_forcestring (b, t) =
     (if b then "!" else "") ^ (to_string t)
   let equiv a b = a = b
