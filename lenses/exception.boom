@@ -1,0 +1,89 @@
+(******************************************************************************)
+(* The Harmony Project                                                        *)
+(* harmony@lists.seas.upenn.edu                                               *)
+(******************************************************************************)
+(* Copyright (C) 2009                                                         *)
+(* J. Nathan Foster and Benjamin C. Pierce                                    *)
+(*                                                                            *)
+(* This library is free software; you can redistribute it and/or              *)
+(* modify it under the terms of the GNU Lesser General Public                 *)
+(* License as published by the Free Software Foundation; either               *)
+(* version 2.1 of the License, or (at your option) any later version.         *)
+(*                                                                            *)
+(* This library is distributed in the hope that it will be useful,            *)
+(* but WITHOUT ANY WARRANTY; without even the implied warranty of             *)
+(* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *)
+(* Lesser General Public License for more details.                            *)
+(******************************************************************************)
+(* /lenses/exception.boom                                                     *)
+(* Use monad ideas to implement exception                                     *)
+(* $Id$ *)
+(******************************************************************************)
+
+module Exception =
+
+#{@}
+
+#* type ('error,'a) t = Value of 'a | Error of 'error
+
+#* let fmap_generic 'error 'a 'b (f:'a -> 'b) (x:('error,'a) t) =
+#*   match x with
+#*   | Value v -> Value{'error}{'b} (f v)
+#*   | Error e -> Error{'error}{'b} e
+#*   :('error,'b) t
+
+#* let fmap = fmap_generic{unit -> int}
+
+#* let join_generic 'error 'a (x:('error,('error,'a) t) t) =
+#*   match x with
+#*   | Value (Value v) -> Value{'error}{'a} v
+#*   | Value (Error e) -> Error{'error}{'a} e
+#*   | Error e -> Error{'error}{'a} e
+#*   :('error,'a) t
+
+#* let join = join_generic{unit -> int}
+
+#* let bind_generic 'error 'a 'b (x:('error,'a) t) (f:'a -> ('error,'b) t) =
+#*   join_generic{'error}{'b} (fmap_generic{'error}{'a}{('error,'b) t} f x)
+
+#* let bind = bind_generic{unit -> int}
+
+#* let rbind_generic 'error 'a 'b (f:'a -> ('error,'b) t) (x:('error,'a) t) =
+#*   bind_generic{'error}{'a}{'b} x f
+
+#* let rbind = rbind_generic{unit -> int}
+
+#* let return_generic 'error 'a (x:'a) = Value{'error}{'a} x
+#* let ok_generic = return_generic
+
+#* let return = return_generic{unit -> int}
+#* let ok = ok_generic{unit -> int}
+
+
+#* let fail_generic 'error 'a (y:'error) = Error{'error}{'a} y
+
+#* let fail = fail_generic{unit -> int}
+#* let failwith 'a (message:string) =
+#*   fail{'a} (fun (u:unit) ->
+#*               let _ = Sys.put_str ("Failure: " . message . "\n") in 1)
+
+#* let try_generic 'error 'a (x:('error,'a) t) (catch:'error -> ('error,'a) t) =
+#*   match x with
+#*   | Value v -> Value{'error}{'a} v
+#*   | Error e -> catch e
+#*   :('error,'a) t
+
+#* let try = try_generic{unit -> int}
+
+#* let convert_generic 'error 'a (x:('error,'a) t) (convert:'error -> 'a) =
+#*   match x with
+#*   | Value v -> v
+#*   | Error e -> convert e
+#*   :'a
+
+#* let convert = convert_generic{unit -> int}
+#* let convert_main (code:((unit -> int), int) t) =
+#*   match code with
+#*   | Value c -> c
+#*   | Error e -> e ()
+#*   :int
