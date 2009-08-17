@@ -26,6 +26,7 @@ module Rx = Brx
 module Arx = Barx
 module Err = Berror
 module W = Bannot.Weight
+module L = Bannot.Lock
 module G = Balign.Alignment
 module P = Balign.Permutation
 module T = Btag
@@ -631,6 +632,7 @@ module MLens = struct
 
     (* ----- generic lenses ------ *)
     | Weight of (bool * W.t) * t
+    | Lock of L.t * t
     | Compose of t * t
     | Align of t
     | Invert of t
@@ -689,6 +691,7 @@ module MLens = struct
           | Union(ml1,ml2)     -> bij ml1 && bij ml2 && Rx.disjoint (vtype ml1) (vtype ml2)
           | Star(ml1)          -> bij ml1
           | Weight (_, ml)     -> bij ml
+          | Lock (_, ml)       -> bij ml
           | Match (t, ml)      -> bij ml
           | Compose (ml1, ml2) -> bij ml1 && bij ml2
           | Align ml           -> bij ml
@@ -717,6 +720,7 @@ module MLens = struct
           | Union (ml1, ml2)   -> Arx.mk_alt (astype ml1) (astype ml2)
           | Star ml            -> Arx.mk_star (astype ml)
           | Weight (w, ml)     -> Arx.annot_weight w (astype ml)
+          | Lock (lk, ml)      -> Arx.annot_lock lk (astype ml)
           | Match (t, ml)      -> Arx.mk_box t (astype ml)
           | Compose (ml, _)    -> astype ml
           | Align ml           -> Arx.mk_rx (stype ml)
@@ -747,6 +751,7 @@ module MLens = struct
           | Union (ml1, ml2)   -> Arx.mk_alt (avtype ml1) (avtype ml2)
           | Star ml            -> Arx.mk_star (avtype ml)
           | Weight (w, ml)     -> Arx.annot_weight w (avtype ml)
+          | Lock (lk, ml)      -> Arx.annot_lock lk (avtype ml)
           | Match (t, ml)      -> Arx.mk_box t (avtype ml)
           | Compose (_, ml)    -> avtype ml
           | Align ml           -> Arx.mk_rx (vtype ml)
@@ -787,6 +792,7 @@ module MLens = struct
           | Fiat _
             -> basic ()
           | Weight (_, ml)
+          | Lock (_, ml)
           | LeftQuot (_, ml)
           | RightQuot (ml, _)
             -> ktype ml
@@ -824,6 +830,7 @@ module MLens = struct
             -> mt_merge (mtype ml1) (mtype ml2)
           | Star ml
           | Weight (_, ml)
+          | Lock (_, ml)
             -> (mtype ml)
           | Match (t, ml)
             -> TmA.add t (ktype ml) (mtype ml)
@@ -850,6 +857,7 @@ module MLens = struct
           | Union (ml1, ml2)   -> equiv_merge (sequiv ml1) (sequiv ml2)
           | Star (ml)          -> sequiv ml
           | Weight (_, ml)     -> sequiv ml
+          | Lock (_, ml)       -> sequiv ml
           | Match (t, ml)      -> sequiv ml
           | Compose (ml, _)    -> sequiv ml
           | Align ml           -> sequiv ml
@@ -879,6 +887,7 @@ module MLens = struct
           | Union(ml1,ml2)     -> equiv_merge (vequiv ml1) (vequiv ml2)
           | Star(ml1)          -> vequiv ml1
           | Weight (_, ml)     -> vequiv ml
+          | Lock (_, ml)       -> vequiv ml
           | Match (t, ml)      -> vequiv ml
           | Compose(ml1,ml2)   -> vequiv ml2
           | Align ml           -> vequiv ml
@@ -933,6 +942,7 @@ module MLens = struct
     | Dup1 (ml, _, _)
     | Dup2 (_, _, ml)
     | Weight (_, ml)
+    | Lock (_, ml)
     | Fiat ml
       -> srep ml s
     | Invert ml -> vrep ml s
@@ -977,6 +987,7 @@ module MLens = struct
     | Default (ml, _)
     | LeftQuot (_, ml)
     | Weight (_, ml)
+    | Lock (_, ml)
     | Fiat ml
       -> vrep ml v
     | Invert ml -> srep ml v
@@ -1063,6 +1074,7 @@ module MLens = struct
         assert (TmI.equal i1 i2);
         P.compose p p2 p1, i2
     | Weight (_, ml)
+    | Lock (_, ml)
       -> gperm ml s pi
     | Permute (p, mls) ->
         let k, sigma, sigma_inv, cts, ats = p in
@@ -1156,6 +1168,7 @@ module MLens = struct
 (*         print_endline "---gget for Compose"; *)
         (v, C_compose (uk, vk)), (c, iv)
     | Weight (_, ml) -> no_op ml
+    | Lock (_, ml) -> no_op ml
     | Align ml -> basic_no_op ml
     | Invert ml -> basic (fun s -> rcreate ml s)
     | Default (ml, _) -> basic_no_op ml
@@ -1348,6 +1361,7 @@ module MLens = struct
 (*         print_endline "---gput' for Compose"; *)
         s, (c, i1)
     | Weight (_, ml) -> no_op ml
+    | Lock (_, ml) -> no_op ml
     | Align ml -> basic_no_op ml
     | Invert ml -> basic (fun v _ -> rget ml v)
     | Default (ml, w) -> basic (
@@ -1463,13 +1477,13 @@ module MLens = struct
   and rput ml v' (s:Bstring.t) =
 (*     print_endline "+++rput"; *)
     let vparse v b = Bstring.at_to_chunktree b (Arx.parse (avtype ml) (Bstring.of_string (vrep ml v))) in
-    let align v' v = Balign.align (v' true) (v false) in
+    let align v' v = Balign.align Bcost.infinite (v' true) (v false) in
     let (v, k), (r, _) = gget ml s (TmImA.empty, TmI.empty) in
 (*     print_endline ("v = \"" ^ vrep ml (Bstring.of_string v) ^ "\" from \"" ^ v ^ "\""); *)
 (*     print_endline ("v' = \"" ^ vrep ml v'  ^ "\" from \"" ^ Bstring.to_string v' ^ "\""); *)
 (*     Balign.print_res print_complement r; *)
     let g = align (vparse v') (vparse (Bstring.of_string v)) G.empty in
-(*     G.print g; *)
+    (* G.print g; *)
     (match G.to_error_option g with
      | Some e -> Err.run_error (Info.M "Blenses.MLens.rput") e
      | None -> ()
@@ -1535,9 +1549,8 @@ module MLens = struct
     | Concat(dl1,dl2)    -> msg "("; format_t dl1; msg "@ .@ "; format_t dl2; msg ")"
     | Union(dl1,dl2)     -> msg "("; format_t dl1; msg "@ |@ "; format_t dl2; msg ")"
     | Star(dl1)          -> format_t dl1; msg "* " (* space to prevent spurious close-comments *)
-    | Weight (bw, ml) ->
-        msg "{:%s:" (W.to_forcestring bw);
-        format_t ml; msg "}"
+    | Weight (bw, ml) -> msg "{:%s:" (W.to_forcestring bw); format_t ml; msg "}"
+    | Lock (lk, ml) -> msg "{:lock %s:" (L.to_string lk); format_t ml; msg "}"
     | Match (tag, ml) -> msg "<%s:" (T.to_string tag); format_t ml; msg ">"
     | Compose(dl1,dl2)   -> msg "("; format_t dl1; msg "@ ;@ "; format_t dl2; msg ")"
     | Align ml           -> msg "(align@ "; format_t ml; msg ")"
@@ -1588,6 +1601,7 @@ module MLens = struct
   let star i ml = mk i (Star ml)
   let copy i r = mk i (Copy r)
   let weight i b w ml = mk i (Weight ((b, w), ml))
+  let lock i lk ml = mk i (Lock (lk, ml))
   let mmatch i tag ml = mk i (Match (tag, ml))
 (*   let copy_arx i a = *)
 (*     let leaf l (wc, we, wd) r = *)

@@ -2,6 +2,8 @@
 
 (** {2 List utility functions} *)
 
+val show_list : ('a -> string) -> 'a list -> string
+
 val enum : 'a list -> (int * 'a) list
 (** [enum l] returns a list of pairs [(K,lK)] where the elements [lK] of the list [l]
     are associated with their position in [l] (starting at O). *)

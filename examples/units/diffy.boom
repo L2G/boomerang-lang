@@ -589,10 +589,9 @@ let main =
   let second = sep_list <df "df":search> sep in
   first ; align second
 
-let source = "aoze !  ce!tz totz! nth !nt "
-let view = "n. y n y. y. n. y. n"
-
-let edited_view = "n. n n n. y. n n. n."
+let source =        "aoze !  ce!tz totz! nth !nt "
+let view =             "n. y n y. y. n. y. n"
+let edited_view =      "n. n n n. y. n n. n."
 let edited_source = "aoze   cetz totz!  nt a"
 
 test get main source = view

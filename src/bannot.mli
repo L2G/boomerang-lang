@@ -30,6 +30,23 @@ sig
   val weight_int : t -> int -> int
   val to_string : t -> string
   val to_forcestring : bool * t -> string
-  val compare : t -> t -> int
+  val equiv : t -> t -> bool
 end
 
+module Lock :
+sig
+  type t
+  type lock
+  val empty : t
+  val pre_lock : lock -> t
+  val post_lock : lock -> t
+  val is_empty : t -> bool
+  val union : t -> t -> t
+  val equiv : t -> t -> bool
+  val is_valid : t -> t -> lock option
+  val is_valid_create : t -> lock option
+  val is_valid_delete : t -> lock option
+  val to_string : t -> string
+  val lock_to_string : lock -> string
+  val lock_of_string : string -> lock
+end

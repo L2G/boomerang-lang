@@ -37,6 +37,7 @@ val generic_iter :
 type t
 val rxtype : t -> Brx.t
 val annot_weight : bool * Bannot.Weight.t -> t -> t
+val annot_lock : Bannot.Lock.t -> t -> t
 val mk_rx : Brx.t -> t
 val mk_box : Btag.t -> t -> t
 val mk_seq : t -> t -> t

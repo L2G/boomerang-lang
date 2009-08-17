@@ -98,6 +98,7 @@ module MLens : sig
   val invert : Info.t -> t -> t
   val copy : Info.t -> Brx.t -> t
   val weight : Info.t -> bool -> Bannot.Weight.t -> t -> t
+  val lock : Info.t -> Bannot.Lock.t -> t -> t
   val clobber : Info.t -> Brx.t -> string -> (string -> string) -> t
   val concat : Info.t -> t -> t -> t
   val union : Info.t -> t -> t -> t

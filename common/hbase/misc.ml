@@ -17,6 +17,17 @@ let safe_hash_add tbl x y =
 
 (* ------------- Safelist utilities --------------- *)
 
+let show_list f l =
+  let _, s =
+    Safelist.fold_left
+      (fun (b, s) a ->
+         true,
+         s ^ (if b then ";" else "") ^ f a)
+      (false, "[")
+      l
+  in
+  s ^ "]"
+
 let enum l =
   Safelist.rev
     (snd (Safelist.fold_left

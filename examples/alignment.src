@@ -302,21 +302,3 @@ information across an union:
 #*   "L" . <positional "":del [a-z]*> | "R" . <positional "":copy [a-z]*>
 #* test across_union.put "L" into "Rfromr" = "Lfromr"
 
-Using predicates it is also possible to refuse some put, for example:
-
-#* let comps : lens =
-#*   create_comps <Tag (Positional, Threshold 100, Weight 1, ""):comp>
-
-#* test comps.put 
-#*   "Jean Sibelius, Finnish"
-#*   into
-#*   "Jean Sibelius, 1865-1957, Unknown"
-#* =
-#*   "Jean Sibelius, 1865-1957, Finnish"
-
-#* test comps.put 
-#*   "Jean Sibeliu, Finnish"
-#*   into
-#*   "Jean Sibelius, 1865-1957, Unknown"
-#* = error
-

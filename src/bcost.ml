@@ -55,6 +55,12 @@ let minus a b =
     | Infinite, _ -> Infinite
     | Finite a, Finite b -> Finite (a - b)
 
+let limit_minus a b =
+  match a, b with
+    | _, Infinite -> Finite 0
+    | Infinite, _ -> Infinite
+    | Finite a, Finite b -> Finite (max (a - b) 0)
+
 let of_weighted_int w i = Finite (W.to_int w * i)
 
 let of_int i = of_weighted_int W.one i

@@ -38,16 +38,16 @@ val at_print_flat : at -> string
 val cat_print_flat : cat -> string
 val at_print_all : at -> string
 val toplevel_chunks : cat -> int Btag.MapAList.t
-val at_to_chunktree : bool -> at -> cat * ((int * int) * cat) Btag.MapIntMapA.t
+val at_to_chunktree : bool -> at -> cat * (((int * Bannot.Lock.t) * int) * cat) Btag.MapIntMapA.t
 val cat_to_key : cat -> string
 val cat_fold_on_locs : (Btag.t -> int -> 'a -> 'a) -> cat -> 'a -> 'a
 val at_to_locs : at -> Btag.MapInt.t
 val match_rx : Brx.t -> t -> bool
-val at_to_weight_flat : at -> Bannot.Weight.t array * string
+(* val at_to_weight_flat : at -> Bannot.Weight.t array * string *)
 (* val at_dist : at -> at -> int *)
 (* val cat_dist : cat -> cat -> int *)
-val cat_create_cost : cat -> int * int
-val cat_delete_cost : cat -> int * int
+val cat_create_cost : cat -> (int * Bannot.Lock.t) * int
+val cat_delete_cost : cat -> (int * Bannot.Lock.t) * int
 val concat_ambiguous_split : int -> Brx.t -> Brx.t -> t -> t * t
 val find_concat_split : Brx.t -> Brx.t -> int -> string -> int
 val concat_split : Brx.t -> Brx.t -> t -> t * t
@@ -56,7 +56,7 @@ val find_star_split : Brx.t -> int list -> string -> int list
 val star_split : Brx.t -> t -> t list
 val do_concat : Brx.t -> Brx.t -> (attmp -> attmp) -> (attmp -> attmp) -> attmp -> attmp
 val do_star : Brx.t -> (attmp -> attmp) -> attmp -> attmp
-val annot_leaf : Bannot.Weight.t -> attmp -> attmp
+val annot_leaf : Bannot.Weight.t -> Bannot.Lock.t -> attmp -> attmp
 val before_node : attmp -> attmp
 val annot_node : Btag.t -> attmp -> attmp
 val at_of_attmp : attmp -> at

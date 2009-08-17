@@ -650,7 +650,7 @@ Boomerang programs we have written:
 \item @addresses.boom@ : VCard, CSV, and XML-formatted address books.
 \item @bibtex.boom@: BiBTeX and RIS-formatted bibliographies.
 \item @uniProtV2.boom@: UniProtKB / SwissProt lens.
-% \item @conflin.boom@: ?
+\item @conflin.boom@: Management tool for multiple versions of a file.
 \item @xsugar/*@: example transformations from the XSugar project.
 \end{itemize}
 

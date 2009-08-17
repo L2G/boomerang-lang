@@ -22,6 +22,7 @@
 module Rx = Brx
 module C = Bcost
 module W = Bannot.Weight
+module L = Bannot.Lock
 module T = Btag
 module TmAl = Btag.MapAList
 module TmA = Btag.MapA
@@ -42,7 +43,7 @@ type child =
   | TagNode of T.t * a * int option
       (* the [int option] is always [None] in [at] and [Some] in [cat]
       only for chunk annotations *)
-  | Leaf of W.t
+  | Leaf of W.t * L.t
 and a = (child * int) list
     (* [n1, j1; ...; nk, jk] with s, i, j
        where  i <= j1 <= ... <= jk = j
@@ -233,6 +234,19 @@ let dist_limit_aux limit s t =
   in
   result
 
+let rev_s s =
+  let n = String.length s in
+  let t = String.make n '\000' in
+  let rec loop x y =
+    if x >= n
+    then t
+    else (
+      String.set t x s.[y];
+      loop (succ x) (pred y)
+    )
+  in
+  loop 0 (pred n)
+
 (* returns [m] such that dist s t <= m *)
 let dist_heurist s t =
   let n = String.length s in
@@ -270,12 +284,21 @@ let dist_heurist s t =
 
 let dist_aux limito s1 s2 =
   let limit =
+    let heurist =
+      min
+        (dist_heurist s1 s2)
+        (dist_heurist (rev_s s1) (rev_s s2))
+    in
     match limito with
-    | None -> dist_heurist s1 s2
-    | Some limit -> min (max limit 0) (dist_heurist s1 s2)
+    | None -> heurist
+    | Some limit -> min (max limit 0) heurist
   in
   let limit = succ limit in
   let result = dist_limit_aux limit s1 s2 in
+(*   (let real = old_dist s1 s2 in *)
+(*    match result with *)
+(*    | None -> assert (real >= limit) (\* Printf.printf "'%s' '%s' %d > %d\n" s1 s2 real limit *\) *)
+(*    | Some dist -> assert (real = dist) (\* Printf.printf "'%s' '%s' %d = %d\n" s1 s2 real dist *\)); *)
   match limito with
   | Some _ -> result
   | None ->
@@ -314,9 +337,7 @@ let at_print_flat s =
     in
     r add a i
   in
-  let r = generic_at_print p s in
-(*   print_endline ("at_print_flat: \"" ^ r ^ "\""); *)
-  r
+  generic_at_print p s
 
 let cat_print_flat (Chunk at) = at_print_flat at
 
@@ -325,8 +346,8 @@ let at_print_all =
     let rec p a i =
       match a with
       | [] -> i
-      | (Leaf w, j)::a ->
-          add_str (Printf.sprintf "{:%s:" (W.to_string w));
+      | (Leaf (w, lk), j)::a ->
+          add_str (Printf.sprintf "{:%s%s:" (W.to_string w) (L.to_string lk));
           add_sub i j;
           add_str "}";
           p a j
@@ -345,7 +366,7 @@ let at_print_all =
     p
   in
   generic_at_print p
-    
+
 let toplevel_chunks (Chunk at) : int TmAl.t =
   let rec f a i (acc:int TmAl.t) =
     match a with
@@ -404,37 +425,41 @@ let at_to_locs (a, _) =
 let match_rx t (s, i, j) =
   Rx.match_sub_string t s i j
 
-let at_to_weight_flat (a, (s, i, j)) =
-  let rec f a i l z =
-    match a with
-    | [] -> i, l, z
-    | (Leaf w, j)::a ->
-        f a j (((i, j), w)::l) (z + j - i)
-    | (TagNode (_, _, _), j)::a ->
-        f a j l z
-  in
-  let i, l, z = f a i [] 0 in
-  assert (i = j);
-  let aw = Array.make z W.zero in
-  let r, _ =
-    Safelist.fold_left (
-      fun (r, k) ((i, j), w) ->
-        for p = z - k - j + i to z - k - 1 do
-          aw.(p) <- w
-        done;
-        to_string (s, i, j) ^ r, (k + j - i)
-    ) ("", 0) l
-  in
-  aw, r
+(* let at_to_weight_flat (a, (s, i, j)) = *)
+(*   let rec f a i l z = *)
+(*     match a with *)
+(*     | [] -> i, l, z *)
+(*     | (Leaf w, j)::a -> *)
+(*         f a j (((i, j), w)::l) (z + j - i) *)
+(*     | (TagNode (_, _, _), j)::a -> *)
+(*         f a j l z *)
+(*   in *)
+(*   let i, l, z = f a i [] 0 in *)
+(*   assert (i = j); *)
+(*   let aw = Array.make z W.zero in *)
+(*   let r, _ = *)
+(*     Safelist.fold_left ( *)
+(*       fun (r, k) ((i, j), w) -> *)
+(*         for p = z - k - j + i to z - k - 1 do *)
+(*           aw.(p) <- w *)
+(*         done; *)
+(*         to_string (s, i, j) ^ r, (k + j - i) *)
+(*     ) ("", 0) l *)
+(*   in *)
+(*   aw, r *)
 
 let at_to_key (a, (s, i, j)) =
   let rec f a i l =
     match a with
     | [] -> i, l
-    | (Leaf w, j)::a ->
+    | (Leaf (w, _), j)::a ->
         let l =
           if W.to_int w = 0 then l else (i, j)::l
         in
+        f a j l
+    | (TagNode (tag, an, _), j)::a when T.get_species tag = T.Positional ->
+        let i, l = f an i l in
+        assert (i = j);
         f a j l
     | (TagNode (_, _, _), j)::a ->
         f a j l
@@ -447,47 +472,52 @@ let at_to_key (a, (s, i, j)) =
 
 let cat_to_key (Chunk at) = at_to_key at
 
-let at_dist at1 at2 =
-  let w1, s1 = at_to_weight_flat at1 in
-  let w2, s2 = at_to_weight_flat at2 in
-  let m = String.length s1 in
-  let n = String.length s2 in
-  let aodd = Array.make (succ n) 0 in
-  let aeven = Array.make (succ n) 0 in
-  for j = 1 to n do
-    aeven.(j) <- W.succ_int w2.(pred j) aeven.(pred j)
-  done;
-  for i = 1 to m do
-    let apredi = if i mod 2 = 0 then aodd else aeven in
-    let ai = if i mod 2 = 0 then aeven else aodd in
-    ai.(0) <- W.succ_int w1.(pred i) apredi.(0);
-    for j = 1 to n do
-      ai.(j) <-
-        (if (String.get s1 (pred i) = String.get s2 (pred j))
-           && (w1.(pred i) = w2.(pred j))
-         then min apredi.(pred j)
-         else (fun x -> x)
-        ) (min (W.succ_int w1.(pred i) apredi.(j)) (W.succ_int w2.(pred j) ai.(pred j)))
-    done
-  done;
-  if m mod 2 = 0 then aeven.(n) else aodd.(n)
+(* let at_dist at1 at2 = *)
+(*   let w1, s1 = at_to_weight_flat at1 in *)
+(*   let w2, s2 = at_to_weight_flat at2 in *)
+(*   let m = String.length s1 in *)
+(*   let n = String.length s2 in *)
+(*   let aodd = Array.make (succ n) 0 in *)
+(*   let aeven = Array.make (succ n) 0 in *)
+(*   for j = 1 to n do *)
+(*     aeven.(j) <- W.succ_int w2.(pred j) aeven.(pred j) *)
+(*   done; *)
+(*   for i = 1 to m do *)
+(*     let apredi = if i mod 2 = 0 then aodd else aeven in *)
+(*     let ai = if i mod 2 = 0 then aeven else aodd in *)
+(*     ai.(0) <- W.succ_int w1.(pred i) apredi.(0); *)
+(*     for j = 1 to n do *)
+(*       ai.(j) <- *)
+(*         (if (String.get s1 (pred i) = String.get s2 (pred j)) *)
+(*            && (w1.(pred i) = w2.(pred j)) *)
+(*          then min apredi.(pred j) *)
+(*          else (fun x -> x) *)
+(*         ) (min (W.succ_int w1.(pred i) apredi.(j)) (W.succ_int w2.(pred j) ai.(pred j))) *)
+(*     done *)
+(*   done; *)
+(*   if m mod 2 = 0 then aeven.(n) else aodd.(n) *)
 
-let cat_dist (Chunk at1) (Chunk at2) =
-  at_dist at1 at2
+(* let cat_dist (Chunk at1) (Chunk at2) = *)
+(*   at_dist at1 at2 *)
 
 let at_crtdel_cost (a, (s, i, j)) =
-  let rec f a i (cs, ct) =
+  let rec f a i ((cs, lka), ct) =
     match a with
-    | [] -> i, (cs, ct)
-    | (Leaf w, j)::a ->
+    | [] -> i, ((cs, lka), ct)
+    | (Leaf (w, lk), j)::a ->
         let c = (+) (W.weight_int w (j - i)) in
-        f a j (c cs, c ct)
-    | (TagNode (_, n, _), j)::a ->
-        let i, (_, ct) = f n i (cs, ct) in
+        f a j ((c cs, L.union lk lka), c ct)
+    | (TagNode (tag, n, _), j)::a ->
+        let i, (cslkan, ct) = f n i ((cs, lka), ct) in
         assert (i = j);
-        f a j (cs, ct)
+        let cslka =
+          if T.get_species tag = T.Positional
+          then cslkan
+          else (cs, lka)
+        in
+        f a j (cslka, ct)
   in
-  let i, c = f a i (0, 0) in
+  let i, c = f a i ((0, L.empty), 0) in
   assert (i = j);
   c
 
@@ -495,7 +525,7 @@ let cat_create_cost (Chunk at) = at_crtdel_cost at
 
 let cat_delete_cost (Chunk at) = at_crtdel_cost at
 
-let rec at_to_chunktree create (a, (s, si, sj)) =
+let at_to_chunktree create (a, (s, si, sj)) =
   let rec f a i (acc:a) (cur:TmI.t) (g:cat TmImA.t) =
     match a with
     | [] -> Safelist.rev acc, cur, g
@@ -651,10 +681,10 @@ let do_star r p ((a, s):attmp) :attmp =
   assert (j1 = j2);
   a, (s, i, j1)
 
-let annot_leaf w ((a, (s, i, j)):attmp) :attmp =
+let annot_leaf w lk ((a, (s, i, j)):attmp) :attmp =
   (* only touch leaf annotation *)
   (match a with
-   | h::t -> ((Leaf w, j)::h)::t
+   | h::t -> ((Leaf (w, lk), j)::h)::t
    | _ -> error "annot_leaf"),
   (s, i, j)
 
@@ -675,7 +705,7 @@ let at_of_attmp ((a, s):attmp) :at =
   let rec r a =
     Safelist.rev_map (
       function
-      | Leaf w, j -> Leaf w, j
+      | Leaf (w, lk), j -> Leaf (w, lk), j
       | TagNode (n, a, None), j -> TagNode (n, r a, None), j
       | TagNode (_, _, Some _), _ -> assert false
     ) a

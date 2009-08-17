@@ -99,7 +99,7 @@ let predicate_list_to_string l =
   ) "" l
 
 let to_string ((s, p, w), i) =
-  "Tag(" ^ species_to_string s ^ ",[" ^ predicate_list_to_string p ^ "],\"" ^ W.to_string w ^ "\",\"" ^ String.escaped i ^ "\")"
+  "Tag(" ^ species_to_string s ^ ",[" ^ predicate_list_to_string p ^ "]," ^ W.to_string w ^ ",\"" ^ String.escaped i ^ "\")"
 
 let format_t t = Util.format "@[%s@]" (to_string t)
 
@@ -117,7 +117,7 @@ let predicates_equiv a b =
   canonize a = canonize b
 
 let info_equiv (sa, pa, wa) (sb, pb, wb) =
-  sa = sb && predicates_equiv pa pb && (W.compare wa wb = 0)
+  sa = sb && predicates_equiv pa pb && W.equiv wa wb
 
 module N =
 struct

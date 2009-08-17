@@ -53,9 +53,10 @@ type 'a resource = 'a Btag.MapIntMapA.t
 (* auxiliary functions *)
 
 val print_res : ('a -> unit) -> 'a resource -> unit
-val align : Bstring.cat * (((int * int) * Bstring.cat) Btag.MapIntMapA.t)
-         -> Bstring.cat * (((int * int) * Bstring.cat) Btag.MapIntMapA.t)
-         -> Alignment.t -> Alignment.t
+val align : Bcost.t
+  -> Bstring.cat * ((((int * Bannot.Lock.t) * int) * Bstring.cat) Btag.MapIntMapA.t)
+  -> Bstring.cat * ((((int * Bannot.Lock.t) * int) * Bstring.cat) Btag.MapIntMapA.t)
+  -> Alignment.t -> Alignment.t
 val align_compose_res : 'a resource -> Alignment.t -> 'a resource
 val res_compose_perm : 'a resource -> Permutation.t -> 'a resource
 val res_zip : (('a * 'a) -> 'a) -> 'a resource -> 'a resource -> 'a resource -> 'a resource

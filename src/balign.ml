@@ -21,6 +21,7 @@
 
 module Arx = Barx
 module C = Bcost
+module L = Bannot.Lock
 module T = Btag
 module TmAl = T.MapAList
 module KmAl = Amapblist.Make (String)
@@ -115,36 +116,59 @@ module Alignment = struct
     match t with
     | Infinite _ -> assert false
     | Finite (g, _) -> search (TmAl.find_list tag g)
-  let add_put limit tag cn co rn ro t =
-    let ((ccrt, _), sn), i = cn in
-    let ((cdel, _), so), j = co in
-    let kn = Bstring.cat_to_key sn in
-    let ko = Bstring.cat_to_key so in
-    let cput = Bstring.dist limit kn ko in
-    match cput with
-    | None -> Infinite (fun () -> assert false)
-    | Some cput ->
-        let pe = check_put tag cdel cput ccrt in
-        match t, pe with
-        | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
-        | Infinite e, _
-        | _, Some e -> Infinite e
-        | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
-  let add_crtdel_deep tag (((_, ccd), cat), x) t con =
+  let nocost_put tag i j t =
     match t with
     | Infinite e -> Infinite e
-    | Finite (g, c) ->
-        Finite (
-          Bstring.cat_fold_on_locs (
-            fun t p -> TmAl.add t (con p)
-          ) cat (TmAl.add tag (con x) g),
-          c + ccd
-        )
+    | Finite (g, c) -> Finite (TmAl.add tag (Put (i, j)) g, c)
+  let add_put limit tag cn co rn ro t =
+    let (((ccrt, lkn), _), sn), i = cn in
+    let (((cdel, lko), _), so), j = co in
+    let kn = Bstring.cat_to_key sn in
+    let ko = Bstring.cat_to_key so in
+(*     Printf.printf "add_put %s %d %d '%s' '%s'\n" (T.to_string tag) i j kn ko; *)
+    match L.is_valid lko lkn with
+    | Some lock -> Infinite (fun () -> printf "Lock \"%s\" forbid the put\n" (String.escaped (L.lock_to_string lock)))
+    | None ->
+        let cput = Bstring.dist (C.to_option limit) kn ko in
+        match cput with
+        | None -> Infinite (fun () -> assert false)
+        | Some cput ->
+            let pe = check_put tag cdel cput ccrt in
+            match t, pe with
+            | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
+            | Infinite e, _
+            | _, Some e -> Infinite e
+            | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
+  let add_crtdel_deep tag f ((ccd, cat), x) t create =
+    let con, lkck, crtdel_string =
+      if create
+      then (fun x -> Create x), L.is_valid_create, "create"
+      else (fun x -> Delete x), L.is_valid_delete, "delete"
+    in
+    let (_, lk), _ = ccd in
+    match lkck lk with
+    | Some lock -> Infinite
+        (fun () ->
+           printf "Lock \"%s\" forbid the %s\n" (String.escaped (L.lock_to_string lock)) crtdel_string)
+    | None ->
+        match t with
+        | Infinite e -> Infinite e
+        | Finite (g, c) ->
+            Finite (
+              Bstring.cat_fold_on_locs (
+                fun t p -> TmAl.add t (con p)
+              ) cat (TmAl.add tag (con x) g),
+              c + f ccd
+            )
   (* TODO: add potential predicates *)
   let add_crt_deep tag cn t =
-    add_crtdel_deep tag cn t (fun x -> Create x)
+    add_crtdel_deep tag snd cn t true
   let add_del_deep tag co t =
-    add_crtdel_deep tag co t (fun x -> Delete x)
+    add_crtdel_deep tag snd co t false
+  let nocost_crt_deep tag cn t =
+    add_crtdel_deep tag (fun ((a, _), b) -> b - a) cn t true
+  let nocost_del_deep tag co t =
+    add_crtdel_deep tag (fun ((a, _), b) -> b - a) co t false
 end
 
 module G = Alignment
@@ -310,17 +334,11 @@ let print_res p r =
 
 (* alignment *)
 
-let nest_align align limit tag cn co tln tlo =
-  let (_, sn), _ = cn in
-  let (_, so), _ = co in
-  let g = align (sn, tln) (so, tlo) G.empty in
-  let c = G.to_cost g in
-  let limit =
-    match limit, C.to_option c with
-    | None, _ -> None
-    | Some i, Some k -> Some (i - k)
-    | Some i, None -> Some 0
-  in
+let nest_align limit align tag cn co tln tlo =
+  let (_, sn), i = cn in
+  let (_, so), j = co in
+  let g = align limit (sn, tln) (so, tlo) G.empty in
+  let limit = C.limit_minus limit (G.to_cost g) in
   G.add_put limit tag cn co tln tlo g
 
 let crt_align tag cn =
@@ -394,25 +412,27 @@ let find_in_col j v m =
 
 (* alignments *)
 
-let positional align tag (ln:int list) (lo:int list) tln tlo g =
+let positional limit align tag (ln:int list) (lo:int list) tln tlo g =
   let get_new i = TmImA.find tag i tln, i in
   let get_old j = TmImA.find tag j tlo, j in
   let rec f ln lo g =
     match ln, lo with
     | [], [] -> g
-    | i::ln, [] -> f ln [] (G.add_crt_deep tag (get_new i) g)
-    | [], j::lo -> f [] lo (G.add_del_deep tag (get_old j) g)
+    | i::ln, [] -> f ln [] (G.nocost_crt_deep tag (get_new i) g)
+    | [], j::lo -> f [] lo (G.nocost_del_deep tag (get_old j) g)
     | i::ln, j::lo ->
         let cn = get_new i in
         let co = get_old j in
         let (_, sn), _ = cn in
         let (_, so), _ = co in
-        let g = align (sn, tln) (so, tlo) g in
-        f ln lo (G.add_put None tag cn co tln tlo g)
+        let g = align limit (sn, tln) (so, tlo) g in
+(*         let limit = C.limit_minus limit (G.to_cost g) in *)
+(*         f ln lo (G.add_put limit tag cn co tln tlo g) *)
+        f ln lo (G.nocost_put tag i j g)
   in
   f ln lo g
 
-let diffy first align tag (ln:int list) (lo:int list) tln tlo g =
+let diffy first limit align tag (ln:int list) (lo:int list) tln tlo g =
   let iffirst =
     if first then
       (function
@@ -448,12 +468,12 @@ let diffy first align tag (ln:int list) (lo:int list) tln tlo g =
           subloop x anlen costcrt acc
         )
       ) else (  (* do put *)
-        let c, g = extract_cost (nest_align align None tag an.(x) ao.(x) tln tlo) in
+        let c, g = extract_cost (nest_align limit align tag an.(x) ao.(x) tln tlo) in
         costput.(x).(x) <- Some (c, g);
         loop (succ x) (C.plus acc c)
       )
     in
-    loop 0 C.one
+    C.min limit (loop 0 C.one)
   in
   let path = Array.make_matrix (succ anlen) (succ aolen) ((C.zero, 0), `Diag) in
   let get_pathcost i j = fst (fst (path.(i).(j))) in
@@ -464,17 +484,15 @@ let diffy first align tag (ln:int list) (lo:int list) tln tlo g =
       | None ->
           let limit =
             let p = fst (fst path.(i).(j)) in
-            if C.is_infinite p then Some 0
-            else
-              let k =
-                C.min limit
-                  (C.min
-                     (C.plus (get_pathcost (succ i) j) (fst costdel.(j)))
-                     (C.plus (get_pathcost i (succ j)) (fst costcrt.(i))))
-              in
-              C.to_option (C.minus k p)
+            let k =
+              C.min limit
+                (C.min
+                   (C.plus (get_pathcost (succ i) j) (fst costdel.(j)))
+                   (C.plus (get_pathcost i (succ j)) (fst costcrt.(i))))
+            in
+            C.limit_minus k p
           in
-          extract_cost (nest_align align limit tag an.(i) ao.(j) tln tlo)
+          extract_cost (nest_align limit align tag an.(i) ao.(j) tln tlo)
     in
     costput.(i).(j) <- Some cg;
     cg
@@ -518,33 +536,30 @@ let diffy first align tag (ln:int list) (lo:int list) tln tlo g =
     path.(0).(j) <- newpath 0 (j-1) `Left
   done;
   if anlen <> 0 && aolen <> 0 then loop 1 1;
-(*   let print_matrix f a bt bl = *)
-(*     let w = 7 in *)
-(*     (match bt with *)
-(*      | Some t -> *)
-(*          Printf.printf "%*s" w ""; *)
-(*          Array.iteri (fun i (x, _) -> Printf.printf "%*s" w (C.to_string x)) t; *)
-(*          Printf.printf "\n" *)
-(*      | None -> () *)
-(*     ); *)
-(*     Array.iteri *)
-(*       (fun i l -> *)
-(*          (match bl with *)
-(*           | Some t -> Printf.printf "%*s" w (C.to_string (fst t.(i))) *)
-(*           | None -> () *)
-(*          ); *)
-(*          Array.iteri *)
-(*            (fun j x -> *)
-(*               Printf.printf "%*s" w (f x) *)
-(*            ) l; *)
-(*          Printf.printf "\n" *)
-(*       ) a *)
+(*   Printf.printf "cost and path: \n"; *)
+(*   let _ = *)
+(*     let w = 8 in *)
+(*     let h = w / 2 in *)
+(*     let line s t f = *)
+(*       Printf.printf "%*s" w s; *)
+(*       Array.iter (fun x -> Printf.printf "%*s" w (f x)) t; *)
+(*       Printf.printf "\n" *)
+(*     in *)
+(*     for i = 0 to anlen do *)
+(*       if i = 0 *)
+(*       then line "" costdel (fun (x, _) -> C.to_string x) *)
+(*       else line (C.to_string (fst costcrt.(pred i))) costput.(pred i) *)
+(*         (fun x -> *)
+(*            match x with *)
+(*            | None -> "XXX" *)
+(*            | Some (c, _) -> C.to_string c); *)
+(*       Printf.printf "%*s" h ""; *)
+(*       for j = 0 to aolen do *)
+(*         Printf.printf "%*s" w (C.to_string (fst (fst path.(i).(j)))) *)
+(*       done; *)
+(*       Printf.printf "\n"; *)
+(*     done; *)
 (*   in *)
-(*   print_matrix (fun x -> *)
-(*                   match x with *)
-(*                   | None -> "XXX" *)
-(*                   | Some (c, _) -> C.to_string c) costput (Some costdel) (Some costcrt); *)
-(*   print_matrix (fun ((x, _), _) -> C.to_string x) path None None; *)
   let rec find_path i j g =
     if i = 0 && j = 0 then g
     else (
@@ -559,7 +574,7 @@ let diffy first align tag (ln:int list) (lo:int list) tln tlo g =
   in
   find_path anlen aolen g
 
-let greedy align tag (ln:int list) (lo:int list) tln tlo g =
+let greedy limit align tag (ln:int list) (lo:int list) tln tlo g =
   let an = Array.map (fun i -> TmImA.find tag i tln, i) (Array.of_list ln) in
   let ao = Array.map (fun j -> TmImA.find tag j tlo, j) (Array.of_list lo) in
   let anlen = Array.length an in
@@ -576,7 +591,7 @@ let greedy align tag (ln:int list) (lo:int list) tln tlo g =
     else if not freeo.(j) then (* j is already aligned *)
       calc_costs g (i + (succ j)/aolen) ((succ j) mod aolen)
     else (
-      let sg = nest_align align None tag an.(i) ao.(j) tln tlo in
+      let sg = nest_align C.infinite align tag an.(i) ao.(j) tln tlo in
       let cost = G.to_cost sg in
       match C.to_option cost with
       | Some 0 -> (* add the link to alignment because there is no cost *)
@@ -678,7 +693,7 @@ let greedy align tag (ln:int list) (lo:int list) tln tlo g =
    http://csclab.murraystate.edu/bob.pilgrim/445/munkres.html
    http://github.com/evansenter/gene/blob/f515fd73cb9d6a22b4d4b146d70b6c2ec6a5125b/objects/extensions/hungarian.rb
  *)
-let hungarian align tag (ln:int list) (lo:int list) tln tlo g =
+let hungarian limit align tag (ln:int list) (lo:int list) tln tlo g =
   let an = Array.map (fun i -> TmImA.find tag i tln, i) (Array.of_list ln) in
   let ao = Array.map (fun j -> TmImA.find tag j tlo, j) (Array.of_list lo) in
   let anlen = Array.length an in
@@ -746,7 +761,7 @@ let hungarian align tag (ln:int list) (lo:int list) tln tlo g =
   let calc_costs () =
     matrix_iter (
       fun i j _ ->
-        let g' = nest_align align None tag an.(i) ao.(j) tln tlo in
+        let g' = nest_align C.infinite align tag an.(i) ao.(j) tln tlo in
         gput.(i).(j) <- g';
         cost.(i).(j) <- G.to_cost g'
     ) gput;
@@ -901,22 +916,28 @@ let hungarian align tag (ln:int list) (lo:int list) tln tlo g =
       g
 
 
-let align_aux tag align =
+let align_aux tag limit align =
   (match T.get_species tag with
    | T.Positional -> positional
    | T.Diffy b -> diffy b
    | T.Greedy -> greedy
    | T.Setlike -> hungarian
-  ) align tag
+  ) limit align tag
 
-let rec align ((sn,tln):(Bstring.cat * (((int * int) * Bstring.cat) TmImA.t))) (so,tlo) (g:G.t) =
+let rec align limit ((sn,tln):(Bstring.cat * ((((int * Bannot.Lock.t) * int) * Bstring.cat) TmImA.t))) (so,tlo) (g:G.t) =
   let hn = Bstring.toplevel_chunks sn in
   let ho = Bstring.toplevel_chunks so in
   let domain h = TmAl.fold_list (fun t _ acc -> Ts.add t acc) h Ts.empty in
-  Ts.fold (
-    fun tag g ->
-      align_aux tag align (TmAl.find_list tag hn) (TmAl.find_list tag ho) tln tlo g
-  ) (Ts.union (domain hn) (domain ho)) g
+  let _, g =
+    Ts.fold (
+      fun tag (limit, g) ->
+        let g =
+          align_aux tag limit align (TmAl.find_list tag hn) (TmAl.find_list tag ho) tln tlo g
+        in
+        C.limit_minus limit (G.to_cost g), g
+    ) (Ts.union (domain hn) (domain ho)) (limit, g)
+  in
+  g
     
 (* Compositions / Resources / Permutations *)
 

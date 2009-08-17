@@ -28,6 +28,7 @@ val infinite : t
 val is_infinite : t -> bool
 val plus : t -> t -> t
 val minus : t -> t -> t
+val limit_minus : t -> t -> t
 val of_weighted_int : Bannot.Weight.t -> int -> t
 val of_int : int -> t
 val succ : Bannot.Weight.t -> t -> t
