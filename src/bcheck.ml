@@ -399,7 +399,7 @@ type nprod = NProd of Info.t * Qid.t * nrule list
 let rec check_sort i sev s0 = 
   let rec go s0 = match s0 with 
     | SUnit | SBool | SInteger | SChar | SString 
-    | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SVar _ | SPrefs _ -> 
+    | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SPrefs _ | SVar _ -> 
         s0
     | SFunction(x,s1,s2) -> 
         let new_s1 = go s1 in 
@@ -761,16 +761,14 @@ and check_exp ?(in_let=false) sev e0 =
         let (e2_sort,new_e2) as r2 = check_exp sev e2 in 
 	check_exp_app i sev r1 r2
 
-    | ECase(i,e1,pl,ps) -> 
+    | ECase(i,e1,pl,ps) ->
+        assert (pl != []);
         (* helper function for printing error messages *)
         let err2 i p s1 s2 = static_error i (fun () -> msg p s1 s2) in 
-        (* resolve the sort *)
-        let new_ps = check_sort i sev ps in 
         (* check the expression being matched *)
-        let e1_sort,new_e1 = check_exp sev e1 in 
-        (* fold over the list of patterns and expressions *)
-        let new_pl_rev = Safelist.fold_left 
-          (fun (new_pl_rev) (pi,ei) -> 
+        let e1_sort,new_e1 = check_exp sev e1 in
+        let new_pl_rev = Safelist.fold_left
+          (fun new_pl_rev (pi,ei) ->
              match static_match i sev pi e1_sort with 
 	       | None -> 
                    (* if the branch is useless, raise an exception *)
@@ -784,20 +782,38 @@ and check_exp ?(in_let=false) sev e0 =
                      sev binds in 
                    (* sort check the expression *) 
                    let ei_sort,new_ei = check_exp ei_sev ei in
-                   (* and check that it is compatible with the sorts of the other branches *)
-                   let ii = info_of_exp ei in 
-                     if not (compatible ei_sort new_ps) then 
-		       err2 ii                     
-                         "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
-                         (string_of_sort new_ps)
-                         (string_of_sort ei_sort);
-                     let cast_ei = mk_cast "match branch" ii ei_sort new_ps new_ei in
-		       (new_pi,cast_ei)::new_pl_rev)
-          ([]) pl in 
-          if Safelist.length new_pl_rev = 0 then 
-            static_error i (fun () -> msg "@[empty@ match@ expression@]");
-          let new_e0 = ECase(i,new_e1,Safelist.rev new_pl_rev,new_ps) in 
-          (new_ps,new_e0)
+                   (ei,ei_sort,new_ei,new_pi)::new_pl_rev)
+          [] pl
+        in
+        let new_ps, refinement_check =
+          begin match ps with
+            | Some ps -> (* resolve the sort *)
+                check_sort i sev ps, false
+            | None -> (* use the first expression for the type *)
+                let _,e0_sort,_,_ = Safelist.hd new_pl_rev in
+                e0_sort, true (* should check if all types are not refined *)
+          end
+        in
+        let new_pl = Safelist.fold_left
+          (fun new_pl (ei,ei_sort,new_ei,new_pi) ->
+             let ii = info_of_exp ei in
+               (* check that the type is not refined when omitting the type of the match *)
+               if refinement_check && is_refined ei_sort then
+                 static_error ii
+                   (fun () -> msg "@[refined@ type@ %s@ used@ in@ match@ without@ explicit@ type@ declaration@]"
+                      (string_of_sort ei_sort));
+               (* and check that it is compatible with the sorts of the other branches *)
+               if not (compatible ei_sort new_ps) then 
+		 err2 ii
+                   "@[in@ match:@ %s@ expected@ but@ %s@ found@]"
+                   (string_of_sort new_ps)
+                   (string_of_sort ei_sort);
+               let cast_ei = mk_cast "match branch" ii ei_sort new_ps new_ei in
+               (new_pi,cast_ei)::new_pl)
+          [] new_pl_rev
+        in
+        let new_e0 = ECase(i, new_e1, new_pl, Some new_ps) in
+        (new_ps, new_e0)
 
     | ETyFun(i,x,e1) -> 
         let e1_sort,new_e1 = check_exp sev e1 in 

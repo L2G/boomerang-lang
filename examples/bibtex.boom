@@ -675,7 +675,7 @@ plclub={yes},
 
 
 
-let main (x:unit) =
+let main () =
   let usage (code:int) =
     let prog = Prefs.get_prog_name () in
     let _ = Sys.put_str (
@@ -689,17 +689,14 @@ let main (x:unit) =
     match file_ext source with
       | Some "bib" -> (let _ = Sys.put_str (get ris (Sys.read source)) in 0)
       | _ -> usage 1
-    : int
   in
   let cput (view:string) (source:string) =
     match file_ext view, file_ext source with
       | Some "ris", Some "bib" -> (let _ = Sys.put_str (put ris (Sys.read view) (Sys.read source)) in 0)
       | _ -> usage 1
-    : int
   in
   match Prefs.read_string_list (Prefs.extern_rest ()) with
     | "get"::source::[] -> cget source
     | "put"::view::source::[] -> cput view source
     | _ -> usage 1
-  : int
 

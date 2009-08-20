@@ -77,13 +77,11 @@
 * Regexp: if someone does not know what is a regular expression?
   Indicate a reference in regular expressions somewhere.
 
-* Lists
-
 * Documentation for XML library?
 
-* Unit tests for types
+* Prefs module missing documentation
 
-* Command line
+* Polish exception.boom and write a documentation
 
 * Fiat description is not very clear (need a simple example; why is it useful?)
 
@@ -96,13 +94,7 @@
 * Review core.boom, prelude.boom, etc to check if the documentation is
   matching with the functions. Also, write some more examples.
 
-* Review grammar/syntax part (documentation is not matching with what is implemented now)
-
-* Syntax / OCaml syntax for those who don't know ocaml:
-
-** Explain identifiers: module, open, type, etc
-
-** Explain let types/contracts
+* Explain let types/contracts
    - let f (x:t1) (y:t2) =
    - let f (x:t1) (y:t2) : t3 =
    - let f (x:t1) : (t2 -> t3) =

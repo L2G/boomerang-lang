@@ -196,7 +196,7 @@ let id_xml_start (ty:entry) : lens =
   let Status : lens = 
     ( match ty with 
     | SwissProt -> ins "Reviewed"
-    | TrEMBL    -> ins "Unreviewed" : lens ) . 
+    | TrEMBL    -> ins "Unreviewed") . 
     semi in 
   let SequenceLength : lens = 
     qins DIGIT+ "000" . qsp . 
@@ -268,7 +268,7 @@ let dt_tag : string = tag "DT"
 let dt_lines (ty:entry) : lens =   
   let dataset : lens = match ty with 
     | SwissProt -> "Swiss-Prot" 
-    | TrEMBL -> "TrEMBL" : lens in 
+    | TrEMBL -> "TrEMBL" in 
   ins dt_tag . 
   Xml.attr4_elt_open NL1 "entry" 
     "created" (date . comma . qsp . ins "integrated into UniProtKB/")

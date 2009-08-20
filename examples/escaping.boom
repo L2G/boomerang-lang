@@ -177,8 +177,7 @@ let restrict (ex:regexp) (escs : (char * string) List.t) : (char * string) List.
       (fun (escs : (char * string) List.t) (esc : (char * string)) ->
 	 match matches ex (fst{char}{string} esc) with
 	   | true  -> escs
-	   | false -> List.Cons{char * string}(esc,escs)
-               : (char * string) List.t)
+	   | false -> List.Cons{char * string}(esc,escs))
       #{char * string}[] escs in
   List.reverse{char * string} escs
 
@@ -381,8 +380,7 @@ let intersperse ('a) (ls : 'a List.t) (sep : 'a) : 'a List.t =
            List.Cons{'a}
              (match acc with 
                | List.Nil     -> (vi,acc)
-               | List.Cons(_) -> (vi,List.Cons{'a}(sep,acc)) 
-              : ('a * 'a List.t)))
+               | List.Cons(_) -> (vi,List.Cons{'a}(sep,acc))))
         #{'a}[] ls)
 
 let lens_concatable (ls : lens List.t) (sep : lens) : bool = 

@@ -174,7 +174,7 @@ let rec interp_cast cev i b f t e =
             let c2 = ECast(i,f2,t2,b,e_y) in
 	    let px = PVar(i,x,Some f1) in
 	    let py = PVar(i,y,Some f2) in
-	    let cast_pair = ECase(i,e,[(PPar(i,px,py),EPair(i,c1,c2))],t) in
+	    let cast_pair = ECase(i,e,[(PPar(i,px,py),EPair(i,c1,c2))],Some t) in
 	    interp_exp cev cast_pair
       | SData(fl,x),SData(tl,y) when Qid.equal x y -> 
           let rec aux acc l1 l2 = acc && match l1,l2 with
@@ -217,7 +217,7 @@ let rec interp_cast cev i b f t e =
               (Safelist.combine cl_finst cl_tinst) in 
             interp_exp cev 
               (* !!! OPT *)
-              (mk_let i x f e (ECase(i,EVar(i,qx),pl,t))) 
+              (mk_let i x f e (ECase(i,EVar(i,qx),pl,Some t))) 
       | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
           if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 
           then interp_exp cev e

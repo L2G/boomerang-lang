@@ -108,7 +108,11 @@ and free_svars_exp acc = function
            let acci2 = free_svars_exp acci1 ei in 
            acci2)
         acc1 cl2 in 
-      let acc3 = free_svars_sort acc2 s3 in 
+      let acc3 = 
+	(match s3 with
+	   | Some s3 -> free_svars_sort acc2 s3
+	   | None -> acc2)
+      in
       acc3
   | EBoolean(_,Some e1) ->
       let acc1 = free_svars_exp acc e1 in
@@ -233,7 +237,7 @@ and subst_svars_exp subst e0 = match e0 with
              let new_ei = subst_svars_exp subst ei in 
              (new_pi,new_ei))
           cl in 
-      let new_s3 = subst_svars_sort subst s3 in 
+      let new_s3 = Misc.map_option (subst_svars_sort subst) s3 in
       ECase(i,new_e1,new_cl,new_s3)
   | EBoolean(i,Some e1) ->
       let new_e1 = subst_svars_exp subst e1 in
@@ -338,7 +342,11 @@ and free_evars_exp acc = function
            free_evars_pat acci_minus_bvars pi)
         acc cl in 
       let acc1 = free_evars_exp accl e1 in 
-      let acc3 = free_evars_sort acc1 s3 in 
+      let acc3 =
+	(match s3 with
+	   | Some s3 -> free_evars_sort acc1 s3
+	   | None -> acc1)
+      in 
       acc3
   | EBoolean(i,Some e1) ->
       let acc1 = free_evars_exp acc e1 in
@@ -557,7 +565,7 @@ and subst_evars_exp subst e0 = match e0 with
              let new_ei = subst_evars_exp subst safe_ei in 
              (new_pi,new_ei))
           cl in 
-      let new_s3 = subst_evars_sort subst s3 in 
+      let new_s3 = Misc.map_option (subst_evars_sort subst) s3 in 
       ECase(i,new_e1,new_cl,new_s3)
   | EBoolean(i,Some e1) ->
       let new_e1 = subst_evars_exp subst e1 in
@@ -719,7 +727,7 @@ and syneq_exp e1 e2 = match e1,e2 with
   | EPair(_,e11,e12),EPair(_,e21,e22) -> 
          syneq_exp e11 e21
       && syneq_exp e12 e22
-  | ECase(_,e1,cl1,s1),ECase(_,e2,cl2,s2) -> 
+  | ECase(_,e1,cl1,Some s1),ECase(_,e2,cl2,Some s2) -> 
       rec_eq (fun (pi,ei) (pj,ej) -> syneq_pat pi pj && syneq_exp ei ej)
         (syneq_exp e1 e2 && syneq_sort s1 s2) cl1 cl1
   | EUnit _,EUnit _         -> true
@@ -852,7 +860,7 @@ and qualify_exp resolve bound e0 = match e0 with
              let new_ei = qualify_exp resolve (pi_vars@bound) ei in 
              (new_pi,new_ei))
           cl in 
-      let new_s3 = qualify_sort resolve bound s3 in 
+      let new_s3 = Misc.map_option (qualify_sort resolve bound) s3 in 
       ECase(i,new_e1,new_cl,new_s3)
   | EBoolean(i,Some e1) ->
       let new_e1 = qualify_exp resolve bound e1 in

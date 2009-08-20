@@ -44,6 +44,16 @@ let syntax_error i msg =
           (Info.string_of_t i)
           msg))
 
+(* default chunk tag *)
+let mk_default_tag i =
+  let p a b = EPair (i, a, b) in
+  let species = mk_core_var i "Greedy" in
+  let predicate = mk_app i (mk_core_var i "Threshold") (EInteger (i, 0)) in
+  let weight = mk_core_var i "NoKey" in
+  let name = EString (i, "") in
+  let tag = mk_app i (mk_core_var i "Tag") (p (p (p species predicate) weight) name) in
+  tag
+
 (* helper for parsing csets *)
 let parse_cset s = 
   let err () = raise (Parsing.Parse_error) in 
@@ -194,7 +204,7 @@ let add_atom ai (i,xs,bs) = match ai with
 %token <Info.t> ARROW DARROW DEQARROW EQARROW
 %token <Info.t> BEGIN END GRAMMAR AND FUN LET IN TEST MATCH WITH
 %token <Info.t> SEMI COMMA DOT EQUAL COLON COLONCOLON BACKSLASH SLASH
-%token <Info.t> STAR RLUS BANG BAR BARBAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK
+%token <Info.t> STAR RLUS BANG BAR BARBAR DOLLAR PLUS MINUS UNDERLINE HAT TILDE AMPERSAND QMARK
 %token <Info.t> LT GT LEQ GEQ  
 %token <Info.t> STYPE VTYPE ASTYPE AVTYPE BIJ GET PUT CREATE CANONIZE CHOOSE INTO
 %token <Info.t> ERROR
@@ -203,6 +213,7 @@ let add_atom ai (i,xs,bs) = match ai with
 %type <Bsyntax.modl> modl
 %type <Bident.Qid.t> uid
 %type <Bident.Qid.t> qid
+
 %%
 
 #{@}
@@ -259,8 +270,8 @@ opens:
 #{@}
 <Decl> ::= \lit{@module@} <LIdent> \lit{@=@} <Decl>* \lit{@end@}
       \alt \lit{@type@} <TyVarList> <LIdent> \lit{@=@} <DTSortList>
-      \alt \lit{@let@} <Id> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
-      \alt \lit{@let@} <LetPat> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp>
+      \alt \lit{@let@} <Id> (<Param>)+ [\lit{@:@} <Sort>] \lit{@=@} <Exp>
+      \alt \lit{@let@} <LetPat> (<Param>)+ [\lit{@:@} <Sort>] \lit{@=@} <Exp>
       \alt \lit{@test@} <InfixExp> \lit{@=@} <TestResExp>
       \alt \lit{@test@} <InfixExp> \lit{@:@} <TestResSort>
 \end{grammar}
@@ -270,7 +281,7 @@ declaration, such as @module Foo@, which must appear in a file named
 @foo.src@ (for ``literate'' sources) or @foo.boom@ (for plain sources).
 Boomerang modules are only used to group declarations into a
 common namespace (in particular, Boomerang does not support module
-signatures or sealing. A module consists of a sequence of @open@ 
+signatures or sealing). A module consists of a sequence of @open@ 
 declarations, which import all the declarations from another module into 
 the namespace, followed by a sequence of declarations. A declaration is 
 either a nested @module@, a @type@, a @let@, or a unit test. 
@@ -308,7 +319,9 @@ components of lenses. A unit test of the form @test@~$e$~@= ?@ evaluates
 $e$ and prints the result. The third form of unit test, @test@~$e$~@= error@, 
 checks that an exception is raised during evaluation of $e$. This kind 
 of test is used to check that a lens correctly checks the side conditions 
-on its inputs. 
+on its inputs.
+% AQUI AQUI AQUI Notice that some errors cannot be tested (e.g., a syntax error).
+% ou: Notice that only evaluation errors are tested.
 %
 Finally, unit tests of the form @test@~$e$~@:@~$s$ and @test@~$e$~@: ?@ test 
 the sort of $e$ rather than its value.
@@ -317,6 +330,10 @@ the sort of $e$ rather than its value.
 #{#}
 
 decls:      
+  | MODULE UIDENT EQUAL decls END decls 
+      { let i = m $1 $5 in 
+        DMod(i,$2,$4)::$6 }
+
   | TYPE tyvar_list LIDENT EQUAL dtsort_list decls
       { let i = m $1 $4 in 
         DType(i,$2,Qid.t_of_id $3,$5)::$6 }
@@ -345,12 +362,8 @@ decls:
         let b =  Bind(i,fixup_pat i $2,None,$4) in 
         DLet(i,b)::$5 }
 
-  | MODULE UIDENT EQUAL decls END decls 
-      { let i = m $1 $5 in 
-        DMod(i,$2,$4)::$6 }
-
   | TEST infixexp EQUAL test_res_exp decls
-      { let i4,tr = $4 in 
+      { let i4,tr = $4 in
         let i = m $1 i4 in 
         DTest(i,$2,tr)::$5 }
 
@@ -381,15 +394,15 @@ test_res_sort:
   | sort      
       { TestSortEqual(None,$1) }
 
+
 /* --------- EXPRESSIONS ---------- */      
 #{@}
 \subsection{Expressions} \label{sec:parser:expressions}
 
 \begin{grammar}
-<Exp> ::= \lit{@let@} <Id> (<Param>)+ (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
-     \alt \lit{@let@} <LetPat> (\lit{@:@} <Sort>)? \lit{@=@} <Exp> \lit{@in@} <Exp>
-     \alt \lit{@fun@} (<Param>)+ (\lit{@:@} <Sort>)? \lit{@->@} <Exp>
-     \alt <CaseExp>
+<Exp> ::= \lit{@let@} <Id> (<Param>)+ [\lit{@:@} <Sort>] \lit{@=@} <Exp> \lit{@in@} <Exp>
+     \alt \lit{@let@} <LetPat> [\lit{@:@} <Sort>] \lit{@=@} <Exp> \lit{@in@} <Exp>
+     \alt <FunExp>
 
 #{#}
 exp:
@@ -417,57 +430,78 @@ exp:
         let b = Bind(i,fixup_pat i $2,None,$4) in 
         ELet(i,b,$6) }
 
+  | funexp
+      { $1 }
+
+#{@}
+
+<FunExp> ::= \lit{@fun@} (<Param>)+ [\lit{@:@} <Sort>] \lit{@->@} <Exp>
+        \alt <CExp> [\lit{@$@} <FunExp>]
+#{#}
+
+/* anonymous functions and application operator */
+funexp:
   | FUN param_list ARROW exp
-      { let i = me2 $1 $4 in 
+      { let i = me2 $1 $4 in
         build_bare_fun i $2 $4 }
 
   | FUN param_list COLON asort ARROW exp
-      { let i = me2 $1 $6 in 
-        let f,_ = build_fun i $2 $6 $4 in 
+      { let i = me2 $1 $6 in
+        let f,_ = build_fun i $2 $6 $4 in
         f }
-      
-  | cexp                               
-      { $1 }
 
+  | cexp DOLLAR funexp
+      { mk_app (me $1 $3) $1 $3 }
+
+  | cexp
+      { $1 }
 
 /* case expressions */
 
 #{@}
-<CaseExp> ::= \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@:@} <Sort>
-         \alt \lit{@(@} \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@)@} \lit{@:@} <Sort>
-         \alt \lit{@begin@} \lit{@match@} <Exp> \lit{@with@} <BranchList> \lit{@end@} \lit{@:@} <Sort>
+<CaseExp> ::= \lit{@match@} <ComposeExp> \lit{@with@} <BranchList> [\lit{@:@} <Sort>]
          \alt <ComposeExp>
 \end{grammar}
+
 #{#}
 
 cexp:
+  | MATCH composeexp WITH branch_list
+       { let i4,pl = $4 in 
+         ECase(m $1 i4,$2,pl,None) }
+
   | MATCH composeexp WITH branch_list COLON sort
       { let i4,pl = $4 in 
-        ECase(m $1 i4,$2,pl,$6) }
-
-  | LPAREN MATCH composeexp WITH branch_list RPAREN COLON sort
-      { let _,pl = $5 in 
-        ECase(m $1 $6,$3,pl,$8) }
-
-  | BEGIN MATCH composeexp WITH branch_list END COLON sort
-      { let _,pl = $5 in 
-        ECase(m $1 $6,$3,pl,$8) }
+        ECase(m $1 i4,$2,pl,Some $6) }
 
   | composeexp
       { $1 }
 
+
 /* compose expressions */
 #{@}
 \begin{grammar}
-<ComposeExp> ::= <ComposeExp> \lit{@;@} <BarExp>
-            \alt <BarExp>
+<ComposeExp> ::= <ComposeExp> \lit{@;@} <CommaExp>
+            \alt <CommaExp>
 
 #{#}
 
 composeexp:
-  | composeexp SEMI barexp
+  | composeexp SEMI commaexp
       { mk_compose (me $1 $3) $1 $3 }
       
+  | commaexp
+      { $1 }
+
+/* comma expression */
+#{@}
+<CommaExp> ::= <CommaExp> \lit{@,@} <BarExp>
+          \alt <BarExp>
+
+#{#}
+commaexp:
+  | commaexp COMMA barexp
+      { EPair(me $1 $3, $1, $3) }
   | barexp
       { $1 }
 
@@ -512,23 +546,12 @@ dbarexp:
 
 #{@}
 <EqualExp> ::= <AppExp> \lit{@=@} <AppExp>
-          \alt <CommaExp>
-
-#{#}
-equalexp:
-  | appexp EQUAL appexp 
-      { mk_over (me $1 $3) OEqual [$1; $3] }
-  | commaexp
-      { $1 }
-
-#{@}
-<CommaExp> ::= <CommaExp> \lit{@,@} <InfixExp>
           \alt <InfixExp>
 
 #{#}
-commaexp:
-  | commaexp COMMA infixexp
-      { EPair(me $1 $3, $1, $3) }
+equalexp:
+  | appexp EQUAL appexp
+      { mk_over (me $1 $3) OEqual [$1; $3] }
   | infixexp
       { $1 }
 
@@ -536,48 +559,48 @@ commaexp:
 <InfixExp> ::= <DotExp> 
       \alt <TildeExp> 
       \alt <AmpExp> 
+      \alt <AmpAmpExp>
       \alt <RewriteExp>
       \alt <LensComponentExp> 
-      \alt <AppExp> \lit{@-@} <AppExp> 
-      \alt <AppExp> \lit{@&&@} <AppExp> 
-      \alt <AppExp> \lit{\ltsym} <AppExp> 
-      \alt <AppExp> \lit{\ltsym@=@} <AppExp> 
-      \alt <AppExp> \lit{\gtsym} <AppExp> 
-      \alt <AppExp> \lit{\gtsym@=@} <AppExp>       
+      \alt [<InfixExp>] \lit{@-@} <AppExp> 
+      \alt <AppExp> \lit{@lt@} <AppExp> 
+      \alt <AppExp> \lit{@leq@} <AppExp> 
+      \alt <AppExp> \lit{@gt@} <AppExp> 
+      \alt <AppExp> \lit{@geq@} <AppExp>       
       \alt <AppExp>
 
 #{#}      
 infixexp:
-  | dotexp 
+  | dotexp
       { $1 }
   | tildeexp
       { $1 }
   | rewriteexp
       { $1 }
-  | minusexp
+  | ampexp
       { $1 }
-  | ampexp 
-      { $1 }
-  | ampampexp 
-      { $1 }
-  | ltexp 
-      { $1 }
-  | leqexp 
-      { $1 }
-  | gtexp 
-      { $1 }
-  | geqexp
+  | ampampexp
       { $1 }
   | lenscomponentexp
+      { $1 }
+  | minusexp
+      { $1 }
+  | ltexp
+      { $1 }
+  | leqexp
+      { $1 }
+  | gtexp
+      { $1 }
+  | geqexp
       { $1 }
   | appexp
       { $1 }
 
 #{@}
 <DotExp> ::= <DotExp> \lit{@.@} <AppExp> 
-      \alt <AppExp> \lit{@.@} <AppExp>
+        \alt <AppExp> \lit{@.@} <AppExp>
 
-#{#}      
+#{#}
 dotexp:
   | dotexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
@@ -590,7 +613,7 @@ dotexp:
 
 #{@}
 <TildeExp> ::= <TildeExp> \lit{@~@} <AppExp> 
-      \alt <AppExp> \lit{@~@} <AppExp>
+          \alt <AppExp>   \lit{@~@} <AppExp>
 
 #{#}      
 tildeexp:
@@ -603,21 +626,35 @@ tildeexp:
 <AmpExp> ::= <AmpExp> \lit{@&@} <AppExp> 
         \alt <AppExp> \lit{@&@} <AppExp> 
 
-#{#}      
+#{#}
 ampexp:
   | ampexp AMPERSAND appexp 
       { mk_over (me $1 $3) OAmp [$1; $3] }
   | appexp AMPERSAND appexp 
       { mk_over (me $1 $3) OAmp [$1; $3] }
 
-#{#}      
+#{@}
+<AmpAmpExp> ::= <AppExp> \lit{@&@} <AmpAmpExp>
+           \alt <AppExp> \lit{@&@} <AppExp>
+
+#{#}
+ampampexp:
+  | appexp AMPERSAND AMPERSAND ampampexp
+      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
+  | appexp AMPERSAND AMPERSAND appexp
+      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
+
+#{@}
+<RewriteExp> ::= <AppExp> \lit{@\ltsym-\btsym@} <AppExp>
+            \alt <AppExp> \lit{@\ltsym=\btsym@} <AppExp>
+
+#{#}
 rewriteexp:
   | appexp DARROW appexp 
       { mk_over (me $1 $3) ODarrow [$1; $3] }
 
   | appexp DEQARROW appexp
       { mk_over (me $1 $3) ODeqarrow [$1; $3] }
-
 
 #{@}
 <LensComponentExp> ::= <AppExp> \lit{@.get@} <AppExp>
@@ -667,14 +704,10 @@ lenscomponentexp:
         mk_app i (mk_core_var i "bij") $1 }
 
 minusexp:
-  | appexp MINUS appexp
+  | infixexp MINUS appexp
       { mk_over (me $1 $3) OMinus [$1; $3] }
-
-ampampexp:
-  | appexp AMPERSAND AMPERSAND ampampexp
-      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
-  | appexp AMPERSAND AMPERSAND appexp   
-      { mk_over (me $1 $4) OAmpAmp [$1; $4] }
+  | MINUS appexp
+      { mk_over (me2 $1 $2) OMinus [EInteger($1,0); $2] }
 
 ltexp:
   | appexp LT appexp 
@@ -695,7 +728,7 @@ geqexp:
 /* application expressions */
 #{@}
 <AppExp> ::= <AppExp> <RepExp>
-       \alt <RepExp>
+        \alt <RepExp>
 
 #{#}
 appexp:
@@ -708,7 +741,7 @@ appexp:
 /* repeated expressions */
 #{@}
 <RepExp> ::= <TyExp> <Rep>
-       \alt <TyExp>
+        \alt <TyExp>
 
 #{#}
 repexp:
@@ -808,7 +841,7 @@ aexp:
 
 #{@}
 <MatchExp> ::= \ltsym <Exp> \gtsym
-      \alt \ltsym <Exp> \lit{@:@} <Exp> \gtsym
+          \alt \ltsym <AppExp> \lit{@:@} <Exp> \gtsym
 
 \end{grammar}
 #{#}
@@ -816,14 +849,9 @@ aexp:
 matchexp:
   | LANGLE exp RANGLE
       { let i = $1 in
-        let pair a b = EPair (i, a, b) in
-        let species = mk_core_var i "Greedy" in
-        let predicate = mk_app i (mk_core_var i "Threshold") (EInteger (i, 0)) in
-	let weight = mk_core_var i "NoKey" in
-        let name = EString (i, "") in
-        let tag = mk_app i (mk_core_var i "Tag") (pair (pair (pair species predicate) weight) name) in
+        let tag = mk_default_tag i in
         mk_over (m $1 $3) OMatch [tag; $2] }
-  | LANGLE exp COLON exp RANGLE
+  | LANGLE appexp COLON exp RANGLE
       { mk_over (m $1 $5) OMatch [$2; $4] }
 
 /* --------- BRANCHES ---------- */
@@ -831,13 +859,13 @@ matchexp:
 \subsubsection{Branches}
 
 \begin{grammar}
-<Branch> ::= <Pat> \lit{@-@\gtsym} <InfixExp>
+<Branch> ::= <Pat> \lit{@-@\gtsym} <EqualExp>
 
-<BranchList> ::= (\lit{@|@})? <Branch> (\lit{@|@} <Branch>)*
+<BranchList> ::= [\lit{@|@}] <Branch> (\lit{@|@} <Branch>)*
 \end{grammar}
 #{#}
 branch: 
-  | pat ARROW infixexp 
+  | pat ARROW equalexp 
       { let i = m (info_of_pat $1) (info_of_exp $3) in 
         (i,$1,$3) }
 
@@ -873,22 +901,22 @@ branch_list2:
 \end{grammar}
 #{#}
 rep: 
-  | STAR                                
+  | STAR
       { ($1, (0,-1)) }
 
-  | PLUS                                
+  | PLUS
       { ($1, (1,-1)) }
 
-  | QMARK                               
+  | QMARK
       { ($1, (0,1)) }
 
   | LBRACE INTEGER RBRACE
       { let i = m $1 $3 in let _,n = $2 in (i, (n,n)) }
 
-  | LBRACE INTEGER COMMA RBRACE             
+  | LBRACE INTEGER COMMA RBRACE
       { let i = m $1 $3 in let _,n = $2 in (i, (n,-1)) }
 
-  | LBRACE INTEGER COMMA INTEGER RBRACE         
+  | LBRACE INTEGER COMMA INTEGER RBRACE
       { let i = m $1 $5 in let _,n2 = $2 in let _,n4 = $4 in (i, (n2, n4)) }
 
 /* --------- LISTS ------------ */
@@ -896,21 +924,21 @@ rep:
 \subsubsection{Lists}
 \begin{grammar}
 <List> ::= \lit{@[]@}
-      \alt \lit{@[@} <BarExp> (\lit{@;@} <BarExp>)* \lit{@]@}
+      \alt \lit{@[@} <CommaExp> (\lit{@;@} <CommaExp>)* \lit{@]@}
 \end{grammar}
 #{#}
 list:
   | RBRACK 
       { $1, (fun i s -> ETyApp(i,mk_list_var i "Nil",s)) }
 
-  | barexp RBRACK 
+  | commaexp RBRACK 
       { ($2, 
          (fun i s -> 
             mk_app i 
               (ETyApp(i,mk_list_var i "Cons",s))
               (EPair(i,$1,ETyApp(i,mk_list_var i "Nil",s))))) }
 
-  | barexp SEMI list
+  | commaexp SEMI list
     { let i3,mk = $3 in 
       (i3, 
        (fun i s -> 
@@ -932,7 +960,7 @@ list:
 
 <Rule> ::= <Atoms> \ltsym@-@\gtsym <Aexp>
 
-<Rules> ::= (\lit{@|@})? <Rule> (\lit{@|@} <Rule>)*
+<Rules> ::= [\lit{@|@}] <Rule> (\lit{@|@} <Rule>)*
 
 <Production> ::= <LIdent> \lit{@::=@} <Rules>
 
@@ -1002,14 +1030,14 @@ productions:
 
 \begin{grammar}
 <Id> ::= <LIdent>
-     \alt <UIdent>
+    \alt <UIdent>
 
 <QId> ::= <LIdent>
      \alt <UIdent>
      \alt <QualIdent> 
 
 <QVar> ::= <LIdent>
-       \alt <QualIdent>
+      \alt <QualIdent>
 \end{grammar}
 #{#}
 
@@ -1048,7 +1076,8 @@ qvar:
        \alt \lit{@(@} <LIdent> \lit{@: lens in@} <AppExp> \lit{\ltsym@=@\gtsym} <AppExp> \lit{@)@}
        \alt \lit{@(@} <LIdent> \lit{@: string in@} <Exp> \lit{@)@}
        \alt \lit{@(@} <TyVarIdent> \lit{@)@}
-       \alt <TyVarIdent> 
+       \alt <TyVarIdent>
+       \alt \lit{@()@}
 \end{grammar}
 #{#}
 
@@ -1131,6 +1160,10 @@ param:
   | TYVARIDENT 
       { Misc.Right ($1) }
 
+  | LPAREN RPAREN
+      { let i = m $1 $2 in
+        Misc.Left (Param(i,(i,"(unit)"),SUnit)) } /* hack: "(unit)" cannot be an identifier */
+
 /* --------- SORTS ---------- */
 #{@}
 \subsection{Sorts}
@@ -1179,7 +1212,7 @@ productsort:
 
 /* data type sorts */
 #{@}
-<DataTypeSort> ::= <BSort> (<QVar>)?
+<DataTypeSort> ::= <BSort> [<QVar>]
      \alt \lit{@(@} <Sort> \lit{@,@} <SortList> \lit{@)@} <QVar>
 
 #{#}
@@ -1410,38 +1443,44 @@ dtsort_list2:
 #{@}
 \subsection{Patterns}
 \begin{grammar}
-<Pat> ::= <UIdent> <PairPat>
-     \alt <QualIdent> <PairPat>
-     \alt <PairPat>
+<Pat> ::= <Pat> \lit{@,@} <ListPat>
+     \alt <Pat> \lit{@,@} <ConPat>
+     \alt <ListPat>
+     \alt <ConPat>
+
+<LetPat> ::= <LetPat> \lit{@,@} <ListPat>
+        \alt <LetPat> \lit{@,@} <ConPat>
+        \alt <QualIdent> <APat>
+        \alt <APat>
+
+<ConPat> ::= <UIdent> <APat>
+        \alt <QualIdent> <APat>
+        \alt <APat>
 
 #{#}
+lcpat:
+  | listpat { $1 }
+  | conpat { $1 }
+
 pat:
   | pat COMMA lcpat
-      { let i = mp $1 $3 in 
+      { let i = mp $1 $3 in
         PPar(i,$1,$3) }
 
   | lcpat { $1 }
 
-lcpat:
-  | listpat { $1 }
-
-  | conpat { $1 }
-
-#{@}
-<PairPat> ::= <PairPat> \lit{@,@} <APat>
-     \alt <APat>
-
-#{#}
-
 letpat:
-  | letpat COMMA conpat
-      { let i = mp $1 $3 in 
+  | letpat COMMA lcpat
+      { let i = mp $1 $3 in
         PPar(i,$1,$3) }
 
-  | QUALIDENT apat COMMA conpat
+  | QUALIDENT apat
+      { let i,qs = $1 in
+        PVnt(i,parse_qid i qs, Some $2) }
+      /* COMMA lcapat
       { let i1, qs = $1 in
         let i = mp $2 $4 in
-        PPar(i, PVnt(i1, parse_qid i1 qs, Some $2) ,$4) }
+        PPar(i, PVnt(i1, parse_qid i1 qs, Some $2) ,$4) }*/
 
   | apat { $1 }
 
@@ -1463,11 +1502,11 @@ conpat:
      \alt \lit{@()@}
      \alt <Integer>
      \alt <Boolean>
+     \alt \lit{@cex@} <Pat>
      \alt <String>
      \alt <UIdent>
-     \alt <Qident>
+     \alt <Qualident>
      \alt \lit{@(@} <Pat> \lit{@)@}
-\end{grammar}
 #{#}
 apat:
   | aapat
@@ -1494,7 +1533,7 @@ apat:
   | UIDENT
       { let i,_ = $1 in 
         PVnt(i,Qid.t_of_id $1,None) }
-      
+
   | QUALIDENT
       { let (i,qs) = $1 in 
         PVnt(i,parse_qid i qs,None) }
@@ -1504,12 +1543,20 @@ apat:
 
 aapat:
   | UNDERLINE
-    { PWld $1 }
+      { PWld $1 }
 
   | LIDENT
       { let i, _ = $1 in
         PVar (i, $1, None) }
 
+#{@}
+<ListPat> ::= \lit{@[]@}
+         \alt <ConPat> \lit{@::@} \lit{@\_@}
+         \alt <ConPat> \lit{@::@} <LIdent>
+         \alt <ConPat> \lit{@::@} <ListPat>
+
+\end{grammar}
+#{#}
 listpat:
   | CSET
       { let i, cset = $1 in
@@ -1517,12 +1564,12 @@ listpat:
         then PVnt (i, Qid.mk_list_t i "Nil", None)
         else syntax_error i (Printf.sprintf "\nDid you meant %s::[] instead of [%s]?" cset cset) }
 
-  | conpat COLONCOLON listpat
+  | conpat COLONCOLON aapat
       { let i = $2 in
         let p = PPar (i, $1, $3) in
         PVnt ($2, Qid.mk_list_t i "Cons", Some p) }
 
-  | conpat COLONCOLON aapat
+  | conpat COLONCOLON listpat
       { let i = $2 in
         let p = PPar (i, $1, $3) in
         PVnt ($2, Qid.mk_list_t i "Cons", Some p) }

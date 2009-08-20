@@ -354,7 +354,6 @@ in the string. If there is no @.@ in the string, it returns @None@.
 #*   match string_rindex_from file l '.' with
 #*     | Some n -> Some{string} (sub_string (plus n 1) (minus l n) file)
 #*     | None -> None{string}
-#*   : string option
 
 \subsection{Lists of Lenses and Regular Expressions}
 
@@ -384,9 +383,9 @@ are concatenable with regexp separator @S@ if the following are splittable:
 ##         | (true,(Some(racc))) -> 
 ##            begin match splittable_cex racc ri with
 ##              | true -> (true,Some{regexp}(racc . ri))
-##              | cx   -> (cx,None{regexp}) : (bool * regexp option)
+##              | cx   -> (cx,None{regexp})
 ##            end 
-##         | (cx,_) -> (cx,None{regexp}) : (bool * regexp option))
+##         | (cx,_) -> (cx,None{regexp}))
 ##      (true,None{regexp}) rl in
 ##  res
 

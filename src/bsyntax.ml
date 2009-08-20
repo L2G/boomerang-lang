@@ -100,25 +100,25 @@ and exp =
     | ETyApp of Info.t * exp * sort
 
     (* with products, case *)
-     | EPair of Info.t * exp * exp 
-     | ECase of Info.t * exp * (pat * exp) list * sort
+    | EPair of Info.t * exp * exp 
+    | ECase of Info.t * exp * (pat * exp) list * sort option
 
-     (* casts, locations, and allocations *)
-     | ECast    of Info.t * sort * sort * blame * exp
+    (* casts, locations, and allocations *)
+    | ECast    of Info.t * sort * sort * blame * exp
 
-     (* unit, strings, ints, character sets *)
-     | EUnit    of Info.t  
-     | EInteger of Info.t * int    
-     | EChar    of Info.t * char
-     | EString  of Info.t * string
-     | ECSet    of Info.t * bool * (char * char) list 
+    (* unit, strings, ints, character sets *)
+    | EUnit    of Info.t  
+    | EInteger of Info.t * int    
+    | EChar    of Info.t * char
+    | EString  of Info.t * string
+    | ECSet    of Info.t * bool * (char * char) list 
 
-     (* booleans with counter examples *)
-     (* None ~ true; Some s ~ false with counterexample s *)
-     | EBoolean of Info.t * exp option 
+    (* booleans with counter examples *)
+    (* None ~ true; Some s ~ false with counterexample s *)
+    | EBoolean of Info.t * exp option 
 
-     (* grammar *)
-     | EGrammar of Info.t * prod list
+    (* grammar *)
+    | EGrammar of Info.t * prod list
 
 (* overloaded operators *)
 and op = 
@@ -244,6 +244,15 @@ let id_of_module = function
 let sl_of_svl svl = 
   Safelist.map (fun svi -> SVar svi) svl 
 
+let rec is_refined = function
+  | SUnit | SBool | SInteger | SChar | SString 
+  | SRegexp | SAregexp | SSkeletons | SResources | SLens | SCanonizer | SPrefs _ | SVar _ ->  false
+  | SProduct (s1, s2) -> is_refined s1 || is_refined s2
+  | SData (sl, _) -> Safelist.exists is_refined sl
+  | SFunction(_, s1, s2) -> is_refined s1 || is_refined s2
+  | SForall(_, s) -> is_refined s
+  | SRefine _ -> true
+
 let mk_app i e1 e2 = 
   EApp(i,e1,e2)
 
@@ -263,7 +272,7 @@ let mk_fun i x s e1 =
 
 let mk_if i e0 e1 e2 s =
   let bs = [(PBol(i,true),e1);(PBol(i,false),e2)] in 
-  ECase(i,e0,bs,s)
+  ECase(i,e0,bs,Some s)
 
 let mk_native_prelude_var i s = 
   EVar(i,Qid.mk_native_prelude_t i s)

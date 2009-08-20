@@ -42,8 +42,7 @@ let mk_splitter (spec:(string*string) List.t
        let l = (com marker . ending) <-> (com msg . suffix) in
        match lo with
 	 | None     -> Some{lens}(l)
-	 | Some(l') -> Some{lens}(l||l')
-       : lens option)
+	 | Some(l') -> Some{lens}(l||l'))
     None{lens} spec in
   l
 
@@ -189,8 +188,7 @@ let decls (spec:(regexp*lens) List.t
 	   let l = decl kw . body in
 	   match lo with
 	     | None -> Some{lens}(l)
-	     | Some(l2) -> Some{lens}(l2 || l)
-           : lens option)
+	     | Some(l2) -> Some{lens}(l2 || l))
 	None{lens} spec in
     l
 

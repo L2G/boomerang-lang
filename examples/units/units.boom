@@ -4,7 +4,9 @@ module Units =
   let l2 : lens = copy [^0-9]
   test (<l1> . <l2>) = error
   test (<diffy "x":l1> . <diffy "x":l2>) = error
-  (* TODO: tests with <tag:l> . <tag':l> *)
+  test (<diffy "x":l1> . <greedy 0 "x":l1>) = error
+  test (<Tag(Positional, Threshold 0, NoKey, "x"):l1> . <Tag(Positional, Threshold 1, NoKey, "x"):l1>) = error
+  test (<Tag(Positional, Threshold 0, NoKey, "x"):l1> . <Tag(Positional, Threshold 0, Key, "x"):l1>) = error
 
   test "a"? . ("aa" <-> "b" | "a" <-> "c") = error
 
@@ -111,3 +113,16 @@ test lfiat.get   "b2a1c3" = "abc"
 test lnormal.get "b2a1c3" = "abc"
 test lfiat.put   "abc" into "b2a1c3" = "b2a1c3"
 test lnormal.put "abc" into "b2a1c3" = "a1b2c3"
+
+(* application operator *)
+
+let f (x:string) = "f(".x.")"
+let g (x:string) = "g(".x.")"
+test (f $ g $ f $ f "x") = "f(g(f(f(x))))"
+
+let f (x:string) (g:string -> string) = g x
+test (f "x" $ fun (x:string) -> f "y" $ fun (y:string) -> x.y) = "xy"
+
+(* default chunk tag *)
+
+let _ = <[a-z]> . <greedy 0 "":[a-z]> (* if this fails, the documentation of lens_match in core.boom needs to be changed *)

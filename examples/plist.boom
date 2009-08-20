@@ -316,8 +316,7 @@ let kvpairs (spaces:string in Xml.WS)
 	   let l = kvpair spaces k v in
 	   match lo with
 	     | None -> Some{lens}(l)
-	     | Some(l2) -> Some{lens}(l2 . l)
-		 : lens option)
+	     | Some(l2) -> Some{lens}(l2 . l))
 	None{lens} spec in
     l
 
@@ -335,7 +334,6 @@ let ODICT (spec:(regexp*lens) List.t) : regexp
   =  match List.empty{regexp*lens} spec with
       | true -> EMPTY_DICT
       | false -> NONEMPTY_ODICT spec
-    : regexp
 
 let podict (spaces:string in Xml.WS) 
     (spec:(regexp*lens) List.t where VALID_KVS spec)
@@ -343,7 +341,6 @@ let podict (spaces:string in Xml.WS)
   = match List.empty{regexp*lens} spec with
       | true -> empty_dict spaces
       | false -> nonempty_odict spaces spec
-    : lens
 
 let LINECHAR = [a-zA-Z,.]
 let LINE = (LINECHAR . ((LINECHAR | " ")* . LINECHAR)?)?
@@ -497,7 +494,6 @@ let SDICT (spec:(regexp*lens) List.t) : regexp
   =  match List.empty{regexp*lens} spec with
       | true -> EMPTY_DICT
       | false -> NONEMPTY_SDICT spec
-    : regexp
 
 let psdict (spaces:string in Xml.WS) 
     (spec:(regexp*lens) List.t where VALID_KVS spec)
@@ -505,7 +501,6 @@ let psdict (spaces:string in Xml.WS)
   = match List.empty{regexp*lens} spec with
       | true -> empty_dict spaces
       | false -> nonempty_sdict spaces spec
-    : lens
 
 let lsdict =
   psdict "\n" 

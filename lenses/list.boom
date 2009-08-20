@@ -41,7 +41,6 @@ and a tail.
 #*   match l with
 #*     | Nil     -> true
 #*     | Cons(_) -> false
-#*   : bool
 
 #* let nonempty ('a) (l:'a t) : bool = not (empty{'a} l)
 

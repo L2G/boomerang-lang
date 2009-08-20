@@ -261,6 +261,7 @@ rule main = parse
 | "*"                { STAR(info lexbuf) }
 | "-"                { MINUS(info lexbuf) }
 | "_"                { UNDERLINE(info lexbuf) }
+| "$"                { DOLLAR(info lexbuf) }
 | "+"                { PLUS(info lexbuf) }
 | "!"                { BANG(info lexbuf) }
 | "->"               { ARROW(info lexbuf) }

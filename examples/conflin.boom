@@ -265,58 +265,23 @@ let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
 (* ---------------------------------------------------------------- *)
 (*                          main function                           *)
 
-type 'a w = Value of 'a | Error of unit -> int
-
-let fmap 'a 'b (f:'a -> 'b) (x:'a w) =
-  match x with
-  | Value v -> Value{'b} (f v)
-  | Error e -> Error{'b} e
-  :'b w
-
-let join 'a (x:('a w) w) =
-  match x with
-  | Value (Value v) -> Value{'a} v
-  | Value (Error e) -> Error{'a} e
-  | Error e -> Error{'a} e
-  :'a w
-
-let bind 'a 'b (x:'a w) (f:'a -> 'b w) =
-  join{'b} (fmap{'a}{'b w} f x)
-
-let rbind 'a 'b (f:'a -> 'b w) (x:'a w) =
-  bind{'a}{'b} x f
-
-let return 'a (x:'a) = Value{'a} x
-
-let ok 'a (x:'a) = Value{'a} x
-let fail 'a (f:unit -> int) = Error{'a} f
-let failwith 'a (message:string) = fail{'a} (fun (u:unit) -> let _ = put_str_ln ("Failure: " . message) in 1)
-let try 'a (x:'a w) (catch:unit -> 'a w) =
-  match x with
-  | Value v -> Value{'a} v
-  | Error _ -> catch ()
-  :'a w
-let safe_try 'a (x:'a w) (catch:unit -> 'a) =
-  match x with
-  | Value v -> v
-  | Error _ -> catch ()
-  :'a
+let bind = Exception.bind
 let okfailwith 'a =
-  (), safe_try{'a}, fail{'a}, try{'a}, failwith{'a}, ok{'a}
+  (), Exception.fail{'a}, Exception.try{'a}, Exception.failwith{'a}, Exception.ok{'a}
 
-let bind_pi = bind{File_pref.t}{int}
-let bind_pp = bind{File_pref.t}{File_pref.t}
-let bind_si = bind{string}{int}
+let bind_pi  = bind{File_pref.t}{int}
+let bind_pp  = bind{File_pref.t}{File_pref.t}
+let bind_si  = bind{string}{int}
 let bind_sOi = bind{string option}{int}
 let bind_sOs = bind{string option}{string}
-let bind_ss = bind{string}{string}
-let bind_ui = bind{unit}{int}
+let bind_ss  = bind{string}{string}
+let bind_ui  = bind{unit}{int}
 
-let okfailwith_i = okfailwith{int}
-let okfailwith_p = okfailwith{File_pref.t}
-let okfailwith_s = okfailwith{string}
+let okfailwith_i  = okfailwith{int}
+let okfailwith_p  = okfailwith{File_pref.t}
+let okfailwith_s  = okfailwith{string}
 let okfailwith_sO = okfailwith{string option}
-let okfailwith_u = okfailwith{unit}
+let okfailwith_u  = okfailwith{unit}
 
 (* definitions *)
 let list_to_option 'a (xs:'a List.t) =
@@ -325,7 +290,6 @@ let list_to_option 'a (xs:'a List.t) =
   | [] -> ok None{'a}
   | x::[] -> ok (Some{'a} x)
   | _ -> failwith "list_to_option"
-  :('a option) w
 
 let list_to_option_s = list_to_option{string}
 
@@ -339,12 +303,12 @@ let _ = Prefs.alias_bool init_pref "i"
 (* TODO: might consider writing an Arg module *)
 let create_string_pref (name:string) (default:string) (doc:string) =
   let pref = Prefs.create_string_list ("-" . name) (doc . "(default: " . show_s default . ")") in
-  let read (u:unit) =
+  let read () =
     let value = Prefs.read_string_list pref in
     bind_sOs
       (let _, try, failwith, _ = okfailwith_sO in
        try (list_to_option_s value)
-         (fun (u:unit) ->
+         (fun (u:unit -> int) ->
             failwith ("You can't define more than one " . name . ".")))
       (fun (value:string option) ->
          let _, ok = okfailwith_s in
@@ -378,9 +342,9 @@ let usage:string = "Usage: " . Prefs.get_prog_name () . " --default <file_type> 
 
 (*@*)
 (* main code *)
-let main (x:unit) =
+let main () =
   (* shortcuts *)
-  let print_usage (code:int) (u:unit) =
+  let print_usage (code:int) () =
     let _ = Prefs.print_usage usage in
     code
   in
@@ -389,14 +353,12 @@ let main (x:unit) =
     match file_exists file with
     | true -> ok (read file)
     | false -> failwith ("File " . show_s file . " does not exist.")
-    :string w
   in
   let check_string_with (r:regexp) (s:string) (m:string) =
     let _, failwith, ok = okfailwith_s in
     match matches r s with
     | true -> ok s
     | false -> failwith m
-    :string w
   in
   let file_error (filename:string) (head:string) (advices:string List.t) =
     let tail =
@@ -408,7 +370,6 @@ let main (x:unit) =
                acc . "\n* " . line)
             "\n\nYou might want to check these:"
             advices
-      :string
     in
     "File " . show_s filename . " " . head . "." . tail
   in
@@ -416,16 +377,15 @@ let main (x:unit) =
   let init = Prefs.read_bool init_pref in
   let value = Prefs.read_string_list value_pref in
   let extension =
-    bind_ss (extension_read ()) (fun (extension:string) ->
+    bind_ss (extension_read ()) $ fun (extension:string) ->
     let _, ok = okfailwith_s in
-    ok ("." . extension))
+    ok ("." . extension)
   in
   let help =
     let _, fail, _, _, ok = okfailwith_u in
     match Prefs.read_bool help_pref with
     | true -> fail (print_usage 0)
     | false -> ok ()
-    :unit w
   in
   let output =
     let _, failwith, ok = okfailwith_sO in
@@ -433,18 +393,16 @@ let main (x:unit) =
     | [] -> ok None{string}
     | output::[] -> ok (Some{string} output)
     | _ -> failwith "You can define at most one output file."
-    :(string option) w
   in
   let default =
     let _, failwith, ok = okfailwith_p in
     match Prefs.read_string_list default_pref with
     | "shell"::[] -> ok File_pref.shell_like
-    | "c"::[] -> ok File_pref.c_like
-    | "cpp"::[] -> ok File_pref.cpp_like
+    | "c"::[]     -> ok File_pref.c_like
+    | "cpp"::[]   -> ok File_pref.cpp_like
     | "ocaml"::[] -> ok File_pref.ocaml_like
     | pref::[] -> failwith (show_s pref . " is not a valid file preference.")
     | _ -> failwith "You need to define exactly one file preference."
-    :File_pref.t w
   in
   let command_prefix (default:File_pref.t) =
     let _, failwith, ok = okfailwith_p in
@@ -452,7 +410,6 @@ let main (x:unit) =
     | [] -> ok default
     | pref::[] -> ok (File_pref.set_command_prefix pref default)
     | _ -> failwith "You can define at most one command-prefix preference."
-    :File_pref.t w
   in
   let command_suffix (default:File_pref.t) =
     let _, failwith, ok = okfailwith_p in
@@ -460,7 +417,6 @@ let main (x:unit) =
     | [] -> ok default
     | pref::[] -> ok (File_pref.set_command_suffix pref default)
     | _ -> failwith "You can define at most one command-suffix preference."
-    :File_pref.t w
   in
   let action (prefs:File_pref.t) =
     let _, fail, _, failwith, ok = okfailwith_i in
@@ -474,82 +430,75 @@ let main (x:unit) =
               (let _, failwith, ok = okfailwith_u in
                match value with
                | [] -> ok ()
-               | _ -> failwith "You can't give a value with init."
-               :unit w)
-              (fun (u:unit) ->
+               | _ -> failwith "You can't give a value with init.")
+              (fun () ->
             let c_stop = File_pref.c_stop in
             let data = File_pref.data prefs in
             let file =  (* read and check file *)
-              bind_ss (safe_read filename) (fun (file:string) ->
+              bind_ss (safe_read filename) $ fun (file:string) ->
               check_string_with data file
                 (file_error filename "contains commands-like comments"
-                   #{string}[]))
+                   #{string}[])
             in
-            bind_si extension (fun (extension:string) ->
-            bind_si file (fun (file:string) ->
-            bind_sOi output (fun (output:string option) ->
+            bind_si extension $ fun (extension:string) ->
+            bind_si file $ fun (file:string) ->
+            bind_sOi output $ fun (output:string option) ->
             ok (
               let output = if_none_s (filename . extension) output in
-              write output (c_stop prefs . file)))))))
+              write output (c_stop prefs . file))))
         | false -> (  (* get or put *)
-            bind_si extension (fun (extension:string) ->
-            bind_si (value_read ()) (fun (value:string) ->
+            bind_si extension $ fun (extension:string) ->
+            bind_si (value_read ()) $ fun (value:string) ->
             let mlpv = main_lens prefs value in
             match end_with filename extension with
             | true -> (  (* get *)
                 let sfile = filename in
                 let vfile = rdrop_string (length extension) filename in
                 let source =
-                  bind_ss (safe_read sfile) (fun (source:string) ->
+                  bind_ss (safe_read sfile) $ fun (source:string) ->
                   check_string_with (stype mlpv) source
                     (file_error sfile "is not a valid source"
                        #{string}[
                          "The file_type is the right one";
-                         "The file does not contain mispelled commands"]))
+                         "The file does not contain mispelled commands"])
                 in
-                bind_si source (fun (source:string) ->
-                bind_sOi output (fun (output:string option) ->
+                bind_si source $ fun (source:string) ->
+                bind_sOi output $ fun (output:string option) ->
                 ok (
                   let output = if_none_s vfile output in
-                  write output (get mlpv source)))))
+                  write output (get mlpv source)))
             | false -> (  (* put *)
                 let vfile = filename in
                 let sfile = filename . extension in
                 let view =
-                  bind_ss (safe_read vfile) (fun (view:string) ->
+                  bind_ss (safe_read vfile) $ fun (view:string) ->
                   check_string_with (vtype mlpv) view
                     (file_error vfile "is not a valid view"
                        #{string}[
                          "The expanding value " . show_s value . " is the one after the view prefix";
-                         "The file_type is the right one"]))
+                         "The file_type is the right one"])
                 in
                 let source =
-                  bind_ss (safe_read sfile) (fun (source:string) ->
+                  bind_ss (safe_read sfile) $ fun (source:string) ->
                   check_string_with (stype mlpv) source
                     (file_error sfile "is not a valid source"
                        #{string}[
                          "The file_type is the right one";
-                         "The extension " . show_s (drop_string 1 extension) . " is the right one"]))
+                         "The extension " . show_s (drop_string 1 extension) . " is the right one"])
                 in
-                bind_si view (fun (view:string) ->
-                bind_si source (fun (source:string) ->
-                bind_sOi output (fun (output:string option) ->
+                bind_si view $ fun (view:string) ->
+                bind_si source $ fun (source:string) ->
+                bind_sOi output $ fun (output:string option) ->
                 ok (
                   let output = if_none_s sfile output in
-                  write output (put mlpv view source))))))
-            :int w
-          )))
-        :int w
+                  write output (put mlpv view source)))
+          )
       )
     | _ -> failwith "You can do an action on at most one file."
-    :int w
   in
   let prefs = bind_pp (bind_pp default command_prefix) command_suffix in
-  let result = bind_ui help (fun (u:unit) -> bind_pi prefs action) in
-  match result with
-  | Value code -> code
-  | Error fail -> fail ()
-  :int
+  let result = bind_ui help (fun () -> bind_pi prefs action) in
+  Exception.convert_main result
 
 (*@*)
 (* ---------------------------------------------------------------- *)

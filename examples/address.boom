@@ -22,6 +22,7 @@
 
 module Address = 
 open Sys
+open Exception
 
 (* This module contains lenses for mapping between vCard, CSV, and a
    simple XML format (based on XCard). Most of the complexity is
@@ -633,39 +634,6 @@ Foster, Nate, jnfoster@cis.upenn.edu (e), 267 342-1099 (c)
 
 >> = ?
 
-type 'a w = Value of 'a | Error of unit -> int
-
-let fmap_w 'a 'b (f:'a -> 'b) (x:'a w) =
-  match x with
-  | Value v -> Value {'b} (f v)
-  | Error e -> Error {'b} e
-  :'b w
-
-let join_w 'a (x:('a w) w) =
-  match x with
-  | Value (Value v) -> Value {'a} v
-  | Value (Error e) -> Error {'a} e
-  | Error e -> Error {'a} e
-  :'a w
-
-let bind_w 'a 'b (x:'a w) (f:'a -> 'b w) =
-  join_w {'b} (fmap_w {'a} {'b w} f x)
-
-let bind_wl 'a 'b (x:'a w) (f:'a -> 'b w) =
-  join_w {'b} (fmap_w {'a} {'b w} f x)
-
-let rbind_w 'a 'b (f:'a -> 'b w) (x:'a w) =
-  bind_w {'a} {'b} x f
-
-let seq_w 'a (x:unit w) (y:'a w) =
-  bind_w {unit} {'a} x (fun (u:unit) -> y)
-
-let return_w 'a (x:'a) = Value {'a} x
-
-let ok 'a (x:'a) = Value {'a} x
-let fail 'a (f:unit -> int) = Error{'a} f
-let failwith 'a (message:string) = fail {'a} (fun (u:unit) -> let _ = put_str ("Error: " . message . newline) in 1)
-
 let okfailwith 'a = ok{'a}, fail{'a}, failwith{'a}
 
 let usage = 
@@ -676,7 +644,7 @@ let usage =
 
 type format = VCF | XML | CSV
 
-let main (x:unit) =
+let main () =
   let vcf2csv = vcards in
   let xml2csv = xcard . del WS in (* trailing whitespace *)
   let xml2vcf = right_quot xml2csv (canonizer_of_lens vcf2csv) in
@@ -687,7 +655,6 @@ let main (x:unit) =
       | Some "xml" -> Some{format} XML
       | Some "csv" -> Some{format} CSV
       | _ -> None{format}
-    : format option
   in
   let read_file (f:string) =
     let ok, fail, failwith = okfailwith{format * string} in
@@ -695,14 +662,12 @@ let main (x:unit) =
       | None, _  -> failwith ("File ".f." does not have a valid extension")
       | _, false -> failwith ("File ".f." does not exists")
       | Some fmt, _ -> ok (fmt, read f)
-    : (format * string) w
   in
   let read_format (fmt:string) =
     let ok, fail, failwith = okfailwith{format} in
     match get_type (Some{string} fmt) with
       | None -> failwith (fmt." is not a valid format")
       | Some fmt -> ok fmt
-    : format w
   in
   let cget (view':format) (source:(format*string)) =
     let source', source = source in
@@ -719,7 +684,6 @@ let main (x:unit) =
 
       | XML, VCF -> get vcf2xml    source
       | VCF, XML -> get xml2vcf    source
-    : string
   in
   let cput (view:format*string) (source:format*string) =
     let source', source = source in
@@ -737,33 +701,30 @@ let main (x:unit) =
 
       | XML, VCF -> put vcf2xml view source
       | VCF, XML -> put xml2vcf view source
-    : string
   in
   let run (args : string List.t) =
-    let ok, fail, failwith = okfailwith{unit -> int} in
-    let print_usage (code:int) (u:unit) =
+    let ok, fail, failwith = okfailwith{int} in
+    let bind_fmt  = bind{format}{int} in
+    let bind_file = bind{format*string}{int} in
+    let print_usage (code:int) () =
       let _ = put_str usage in code
     in
     match args with
       | "get"::source::format::[] -> 
           (let source = read_file source in
            let format = read_format format in
-           bind_w{format}{unit -> int} format (fun (view':format) ->
-           bind_w{format*string}{unit -> int} source (fun (source:format*string) ->
+           bind_fmt  format $ fun (view':format) ->
+           bind_file source $ fun (source:format*string) ->
            let _ = put_str (cget view' source) in
-           ok (fun (u:unit) -> 0))))
+           ok 0)
       | "put"::  view::source::[] ->
           (let source = read_file source in
            let view   = read_file view in
-           bind_w{format*string}{unit -> int} view   (fun (view:format*string) ->
-           bind_w{format*string}{unit -> int} source (fun (source:format*string) ->
+           bind_file view   $ fun (view:format*string) ->
+           bind_file source $ fun (source:format*string) ->
            let _ = put_str (cput view source) in
-           ok (fun (u:unit) -> 0))))
-      | [] -> ok (print_usage 0)
-      | _ -> fail (print_usage 1)
-    : (unit -> int) w
+           ok 0)
+      | [] -> fail (print_usage 0)
+      | _ ->  fail (print_usage 1)
   in
-  match run (Prefs.read_string_list (Prefs.extern_rest ())) with
-    | Value v -> v ()
-    | Error fail -> fail ()
-  : int
+  convert_main $ run $ Prefs.read_string_list $ Prefs.extern_rest ()

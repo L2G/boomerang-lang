@@ -475,7 +475,7 @@ unknown equivalences.
 
 ## let rel_of_is_id (b:bool) : rel = match b with
 ##   | true -> Identity
-##   | false -> Unknown : rel
+##   | false -> Unknown
 
 #* let rel_is_id (r:rel) : bool = 
 #*   equals{rel} r Identity
@@ -942,7 +942,9 @@ annotation.
 \LENSSECTION{@lens_match@} The @lens_match@ operator takes as arguments
 a string @t@ and a lens @l@ and creates a ``chunk'' with tag @t@. The
 type checker requires that there is not a tag inside @l@ with the same
-identifier as the tag @t@.
+identifier as the tag @t@. The operator @<tag:aregexp>@ desugars into
+@lens_match@ and the operator @<aregexp>@ desugars to @lens_match@ with
+tag @greedy 0 ""@.
 
 #* let lens_match
 #*     (t:tag)

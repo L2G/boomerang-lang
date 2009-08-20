@@ -90,7 +90,7 @@ and exp =
 
     (* with products, case *)
     | EPair of Info.t * exp * exp 
-    | ECase of Info.t * exp * (pat * exp) list * sort
+    | ECase of Info.t * exp * (pat * exp) list * sort option
 
     (* casts *)
     | ECast    of Info.t * sort * sort * blame * exp
@@ -205,6 +205,9 @@ val exp_of_binding : binding -> exp
 
 val sl_of_svl : Bident.Id.t list -> sort list
 (** [sl_of_svl l] converts the sort variable list [l] to a sort list. *)
+
+val is_refined : sort -> bool
+(**[is_refined s] returns true iff s is a refined type *)
 
 (* ------ constructors ----- *)
 val mk_app : Info.t -> exp -> exp -> exp
