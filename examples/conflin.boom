@@ -29,6 +29,8 @@ module Conflin =
 
  x add a lock when doing a put, to avoid potentials simultaneous puts
 
+ - try to make it multi-parameter but linear
+
  - give a better error message when doing a put with the wrong value
    in view prefix
 
@@ -179,14 +181,14 @@ end
 
 let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
   (* read prefs *)
-(*   let values = File_pref.get_values prefs in *)
   let view_prefix = File_pref.get_view_prefix prefs in
-(*   let comment_signs = File_pref.comment_signs prefs in *)
-(*   let c_prefix = File_pref.c_prefix prefs in *)
-(*   let c_suffix = File_pref.c_suffix prefs in *)
-(*   let no_comments = File_pref.no_comments prefs in *)
-(*   let commands = File_pref.commands prefs in *)
   let data = File_pref.data prefs in
+  let c_exact = File_pref.c_exact prefs in
+  let c_exact_uncuttable = File_pref.c_exact_uncuttable prefs in
+  let c_other = File_pref.c_other prefs in
+  let c_all = File_pref.c_all prefs in
+  let c_stop = File_pref.c_stop prefs in
+  let c_stop_uncuttable = File_pref.c_stop_uncuttable prefs in
   (* we check that the informations are useable *)
 (*   let _:(string where *)
 (*            is_empty (diff *)
@@ -202,20 +204,13 @@ let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
 (*            matches values? value) = *)
 (*     mk_error ("The value " . show_s value . " does not match " . show{regexp} values? . ".") *)
 (*   in *)
-  (* tools *)
-  let c_exact = File_pref.c_exact prefs in
-  let c_exact_uncuttable = File_pref.c_exact_uncuttable prefs in
-  let c_other = File_pref.c_other prefs in
-  let c_all = File_pref.c_all prefs in
-  let c_stop = File_pref.c_stop prefs in
-  let c_stop_uncuttable = File_pref.c_stop_uncuttable prefs in
   let factor (format:bool) (value:string) =
     match format with
     | true ->
         c_stop . data
         . (
           match value = "" with
-          | true -> (c_all . data)*
+          | true -> copy (c_all . data)*
           | false ->
               ( (c_other value . data)*
               | ambiguous_lens_partition_one (c_exact value . data) (c_other value . data)
@@ -233,17 +228,15 @@ let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
         match value = "" with
         | true ->
             ( ccsd . post_lock "CD"
-            | ccsud . siblings . post_lock "XX"
+            | ccsud . siblings . post_lock "XX" . pre_lock "CD"
             )
         | false ->
-            ( post_lock "CDnosib" . pre_lock "XXsibli"
-            . ( <data_tag: ccsd > . post_lock "CDnosib_stop"
+            ( ( <data_tag: ccsd > . post_lock "CDnosib_stop"
               | <data_tag: dcsd > . ccevd . post_lock "XXnosib_exact" . pre_lock "CDnosib_stop"
-              )
-            | post_lock "XXsibli" . pre_lock "CDnosib"
-            . ( <data_tag: ccsud > . post_lock "XXsibli_stop"
+              ) . post_lock "CDnosib" . pre_lock "XXsibli"
+            | ( <data_tag: ccsud > . post_lock "XXsibli_stop"
               | <data_tag: dcsd > . ccevud . post_lock "XXsibli_exact" . pre_lock "XXsibli_stop"
-              ) . siblings
+              ) . siblings . post_lock "XXsibli" . pre_lock "CDnosib"
             )
         :lens
       )
@@ -265,17 +258,16 @@ let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
 (* ---------------------------------------------------------------- *)
 (*                          main function                           *)
 
-let bind = Exception.bind
 let okfailwith 'a =
   (), Exception.fail{'a}, Exception.try{'a}, Exception.failwith{'a}, Exception.ok{'a}
 
-let bind_pi  = bind{File_pref.t}{int}
-let bind_pp  = bind{File_pref.t}{File_pref.t}
-let bind_si  = bind{string}{int}
-let bind_sOi = bind{string option}{int}
-let bind_sOs = bind{string option}{string}
-let bind_ss  = bind{string}{string}
-let bind_ui  = bind{unit}{int}
+let bind_pi = Exception.bind{File_pref.t}{int}
+let bind_pp = Exception.bind{File_pref.t}{File_pref.t}
+let bind_si = Exception.bind{string}{int}
+let bind_sOi = Exception.bind{string option}{int}
+let bind_sOs = Exception.bind{string option}{string}
+let bind_ss = Exception.bind{string}{string}
+let bind_ui = Exception.bind{unit}{int}
 
 let okfailwith_i  = okfailwith{int}
 let okfailwith_p  = okfailwith{File_pref.t}
@@ -308,7 +300,7 @@ let create_string_pref (name:string) (default:string) (doc:string) =
     bind_sOs
       (let _, try, failwith, _ = okfailwith_sO in
        try (list_to_option_s value)
-         (fun (u:unit -> int) ->
+         (fun () ->
             failwith ("You can't define more than one " . name . ".")))
       (fun (value:string option) ->
          let _, ok = okfailwith_s in
@@ -588,6 +580,12 @@ test put mldv ("(a)" ."(a)A0" ."(a"."!)A1"          ."(a)A3") (* (a)a0     (a!)A
 test put mldv ("(a)"      ."(a)A1()D2") (*         (a)A1()d2 *)
               (    "()d0()d1"  ."()d2") (* ()d0()d1     ()d2 *)
             = (        "()d1(a)A1()D2")
+test put mldv ("(a)()D0"     ."(a)A2()D3") (* ()D0        (a)A2()D3 *)
+              (   "()d0()d1()d2"  ."()d3") (* ()d0()d1()d2     ()d3 *)
+            = (   "()D0" ."()d2(a)A2()D3")
+test put mldv ("(a)()D0" ."(a)A1" ."()D3") (* ()D0    (a)A1    ()D3 *)
+              (   "()d0()d1"  ."()d2()d3") (* ()d0()d1     ()d2()d3 *)
+            = (   "()D0()d1(a)A1" ."()D3")
 
 (*@*)
 (* ---------------------------------------------------------------- *)

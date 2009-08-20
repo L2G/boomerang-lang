@@ -319,9 +319,7 @@ components of lenses. A unit test of the form @test@~$e$~@= ?@ evaluates
 $e$ and prints the result. The third form of unit test, @test@~$e$~@= error@, 
 checks that an exception is raised during evaluation of $e$. This kind 
 of test is used to check that a lens correctly checks the side conditions 
-on its inputs.
-% AQUI AQUI AQUI Notice that some errors cannot be tested (e.g., a syntax error).
-% ou: Notice that only evaluation errors are tested.
+on its inputs. Notice that only evaluation errors are tested.
 %
 Finally, unit tests of the form @test@~$e$~@:@~$s$ and @test@~$e$~@: ?@ test 
 the sort of $e$ rather than its value.

@@ -1483,7 +1483,7 @@ module MLens = struct
 (*     print_endline ("v' = \"" ^ vrep ml v'  ^ "\" from \"" ^ Bstring.to_string v' ^ "\""); *)
 (*     Balign.print_res print_complement r; *)
     let g = align (vparse v') (vparse (Bstring.of_string v)) G.empty in
-    (* G.print g; *)
+(*     G.print g; *)
     (match G.to_error_option g with
      | Some e -> Err.run_error (Info.M "Blenses.MLens.rput") e
      | None -> ()

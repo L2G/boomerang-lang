@@ -47,8 +47,8 @@ let species_string = [
 ]
 
 let string_species =
-  let a, b = List.split species_string in
-  List.combine b a
+  let a, b = Safelist.split species_string in
+  Safelist.combine b a
 
 let species_of_string s =
   try Safelist.assoc s string_species

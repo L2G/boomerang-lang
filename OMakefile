@@ -20,7 +20,12 @@ if $(not $(OCAMLFIND_EXISTS))
    eprintln(You need to install ocamlfind and run "omake --configure".)
    exit 1
 
-OCAMLFLAGS    = -dtypes -rectypes 
+OCAMLFLAGS    = -dtypes -rectypes
+
+if $(defined DEBUG)
+	OCAMLCFLAGS += -g
+	BYTE_ENABLED = true
+	export
 
 if $(or $(defined PROFILING_NATIVE_CODE), $(defined PNC))
 	println(Profiling native code enabled.)
@@ -97,19 +102,12 @@ VERYCLEAN = $(CLEAN) $(BINDIR)
 ##############################################################################
 # TESTING
 
-runtest(f) = 
-  W=Testing $(f)
-  print($(W))
-  #print spaces
-  i=$(sub 70, $(string-length $(W)))
-  while $(gt $(i), 0) 
-    print(\ )
-    i = $(sub $(i) 1)
-  # print result
+runtest(f) =
+  print([[5m  Test  [0m] $(f)[G)
   if $(eq $(shell-code $(BOOMEXE) $(BOOMFLAGS) $(f) > /dev/null), 0)
-    println([[92m[1m   OK   [0m])
-  else 
-    println([[91m[1m[5m FAILED [0m])
+    println([[32m   OK   [m] $(f))
+  else
+    println([[41;30m FAILED [m][91m $(f) [m)
 
 unittest: $(BOOMEXE)
 	foreach(f,$(BOOMUNITS))

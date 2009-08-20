@@ -1,6 +1,6 @@
 module Diffy =
 
-let sep_list (a:lens) (b:lens) = (a . (b . a)* )
+let sep_list (a:lens) (b:lens) = a . (b . a)*
 
 let df (name:string) = Tag (Diffy true, Threshold 0, Key, name)
 let dl (name:string) = Tag (Diffy false, Threshold 0, Key, name)

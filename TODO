@@ -137,6 +137,16 @@
 * Fix names "Permutations" in blenses (permutations writen by users
   in boomerang) and "Permutation" in balign
 
+* Fix the way strings are printed in unit tests.  They are not
+  escaped.  Eventually try to print them in boomerang format if the
+  need escaping.  For example:
+  "foo" -> "foo"
+  "blah\nfoo\"blah\"" ->
+  <<
+    blah
+    foo"blah"
+  >>
+
 == OTHER ==
 
 * Done: "dynamic tags (this is necessary, e.g., for pdict)", but what is pdict?

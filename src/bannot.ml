@@ -56,8 +56,8 @@ module Lock = struct
     Ss.union a c, Ss.union b d
   let equiv (a, b) (c, d) =
     Ss.equal a c && Ss.equal b d
-  let is_valid (pre1, _) (pre2, post) =
-    let pre = Ss.diff pre1 pre2 in
+  let is_valid (pre1, post1) (_, post) =
+    let pre = Ss.diff pre1 post1 in
     Ss.fold
       (fun lock lko ->
          match lko with
@@ -99,6 +99,6 @@ module Lock = struct
       in
       s
     in
-    let show s = "[" ^ show_set ";" (fun x -> x) s ^ "]" in
+    let show s = "{" ^ show_set "," (fun x -> x) s ^ "}" in
     show pre ^ show post
 end

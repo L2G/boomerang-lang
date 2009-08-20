@@ -158,7 +158,7 @@ let rec extended t = (* the regular expression w/ extended alphabet *)
           Rx.mk_seq (
             Rx.mk_seq
               langle
-              (Rx.mk_string (Btag.to_string tag))
+              (Rx.mk_string (Btag.get_name tag))
           ) colon
         ) (extended t)
       ) rangle

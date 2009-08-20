@@ -126,6 +126,7 @@ module Alignment = struct
     let kn = Bstring.cat_to_key sn in
     let ko = Bstring.cat_to_key so in
 (*     Printf.printf "add_put %s %d %d '%s' '%s'\n" (T.to_string tag) i j kn ko; *)
+(*     printf "'%s' %s '%s' %s\n" ko (L.to_string lko) kn (L.to_string lkn); *)
     match L.is_valid lko lkn with
     | Some lock -> Infinite (fun () -> printf "Lock \"%s\" forbid the put\n" (String.escaped (L.lock_to_string lock)))
     | None ->

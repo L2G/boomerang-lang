@@ -30,7 +30,6 @@ module Exception =
 #*   match x with
 #*   | Value v -> Value{'error}{'b} (f v)
 #*   | Error e -> Error{'error}{'b} e
-#*   :('error,'b) t
 
 #* let fmap = fmap_generic{unit -> int}
 
@@ -39,7 +38,6 @@ module Exception =
 #*   | Value (Value v) -> Value{'error}{'a} v
 #*   | Value (Error e) -> Error{'error}{'a} e
 #*   | Error e -> Error{'error}{'a} e
-#*   :('error,'a) t
 
 #* let join = join_generic{unit -> int}
 
@@ -71,19 +69,19 @@ module Exception =
 #*   match x with
 #*   | Value v -> Value{'error}{'a} v
 #*   | Error e -> catch e
-#*   :('error,'a) t
 
-#* let try = try_generic{unit -> int}
+#* let try 'a (x:(unit -> int,'a) t) (catch:unit -> (unit -> int,'a) t) =
+#*   match x with
+#*   | Value v -> Value{unit -> int}{'a} v
+#*   | Error e -> catch ()
 
 #* let convert_generic 'error 'a (x:('error,'a) t) (convert:'error -> 'a) =
 #*   match x with
 #*   | Value v -> v
 #*   | Error e -> convert e
-#*   :'a
 
 #* let convert = convert_generic{unit -> int}
 #* let convert_main (code:((unit -> int), int) t) =
 #*   match code with
 #*   | Value c -> c
 #*   | Error e -> e ()
-#*   :int

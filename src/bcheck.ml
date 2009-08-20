@@ -332,14 +332,16 @@ let rec static_match i sev p0 s =
         begin match expose_sort s with 
           | SData(sl1,qy) -> 
               (* lookup the type from constructor [li]. *)
-              let qx,(svl,cl) = get_con i sev li in 
+              let qx,(svl,cl) = get_con i sev li in
               (* check qx equals qy and instantiate [cl] with [sl1]. *)
-              let cl_inst = 
-		if not (Qid.equal qx qy) 
-		then let s_expected = SData(sl_of_svl svl,qx) in 
+              let cl_inst =
+		if not (Qid.equal qx qy)
+		then let s_expected = SData(sl_of_svl svl,qx) in
                   err p0 (string_of_sort s_expected) s
-		else let subst = Safelist.combine svl sl1 in 
-                  inst_cases subst cl in 
+		else
+                  let subst = Safelist.combine svl sl1 in
+                  inst_cases subst cl
+              in
               (* loop over [cl_inst] to find the constructor *)
               let rec find_label = function
                 | [] -> None
@@ -408,13 +410,18 @@ let rec check_sort i sev s0 =
         SFunction(x,new_s1,new_s2)
     | SProduct(s1,s2)  -> 
         SProduct(go s1,go s2)
-    | SData(sl,qx) ->        
-        let qx',_ = match SCEnv.lookup_type sev qx with 
-          | None -> 
-	      static_error i  
+    | SData(sl,qx) ->
+        let qx', (slx, _) =
+          match SCEnv.lookup_type sev qx with
+          | None ->
+	      static_error i
                 (fun () -> msg "@[cannot@ resolve@ sort@ %s@]" (Qid.string_of_t qx))
-          | Some q -> q in 
-        SData(Safelist.map go sl,qx')
+          | Some q -> q
+        in
+        if not (Safelist.length slx = Safelist.length sl)
+        then static_error i
+          (fun () -> msg "@[wrong@ number@ of@ argument@ for@ %s@]" (Qid.string_of_t qx))
+        else SData (Safelist.map go sl ,qx')
     | SForall(x,s1) -> SForall(x,go s1)
     | SRefine(x,s1,e1) -> 
         let sev1 = SCEnv.update sev (Qid.t_of_id x) (G.Sort (erase_sort s1)) in 
