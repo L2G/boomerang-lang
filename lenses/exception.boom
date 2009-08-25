@@ -24,64 +24,64 @@ module Exception =
 
 #{@}
 
-#* type ('error,'a) t = Value of 'a | Error of 'error
+#* type ('exn,'a) t = Value of 'a | Exn of 'exn
 
-#* let fmap_generic 'error 'a 'b (f:'a -> 'b) (x:('error,'a) t) =
+#* let generic_fmap 'exn 'a 'b (f:'a -> 'b) (x:('exn,'a) t) =
 #*   match x with
-#*   | Value v -> Value{'error}{'b} (f v)
-#*   | Error e -> Error{'error}{'b} e
+#*   | Value v -> Value{'exn}{'b} (f v)
+#*   | Exn e -> Exn{'exn}{'b} e
 
-#* let fmap = fmap_generic{unit -> int}
+#* let fmap = generic_fmap{unit -> int}
 
-#* let join_generic 'error 'a (x:('error,('error,'a) t) t) =
+#* let generic_join 'exn 'a (x:('exn,('exn,'a) t) t) =
 #*   match x with
-#*   | Value (Value v) -> Value{'error}{'a} v
-#*   | Value (Error e) -> Error{'error}{'a} e
-#*   | Error e -> Error{'error}{'a} e
+#*   | Value (Value v) -> Value{'exn}{'a} v
+#*   | Value (Exn e) -> Exn{'exn}{'a} e
+#*   | Exn e -> Exn{'exn}{'a} e
 
-#* let join = join_generic{unit -> int}
+#* let join = generic_join{unit -> int}
 
-#* let bind_generic 'error 'a 'b (x:('error,'a) t) (f:'a -> ('error,'b) t) =
-#*   join_generic{'error}{'b} (fmap_generic{'error}{'a}{('error,'b) t} f x)
+#* let generic_bind 'exn 'a 'b (x:('exn,'a) t) (f:'a -> ('exn,'b) t) =
+#*   generic_join{'exn}{'b} (generic_fmap{'exn}{'a}{('exn,'b) t} f x)
 
-#* let bind = bind_generic{unit -> int}
+#* let bind = generic_bind{unit -> int}
 
-#* let rbind_generic 'error 'a 'b (f:'a -> ('error,'b) t) (x:('error,'a) t) =
-#*   bind_generic{'error}{'a}{'b} x f
+#* let generic_rbind 'exn 'a 'b (f:'a -> ('exn,'b) t) (x:('exn,'a) t) =
+#*   generic_bind{'exn}{'a}{'b} x f
 
-#* let rbind = rbind_generic{unit -> int}
+#* let rbind = generic_rbind{unit -> int}
 
-#* let return_generic 'error 'a (x:'a) = Value{'error}{'a} x
-#* let ok_generic = return_generic
+#* let generic_return 'exn 'a (x:'a) = Value{'exn}{'a} x
+#* let generic_ok = generic_return
 
-#* let return = return_generic{unit -> int}
-#* let ok = ok_generic{unit -> int}
+#* let return = generic_return{unit -> int}
+#* let ok = generic_ok{unit -> int}
 
 
-#* let fail_generic 'error 'a (y:'error) = Error{'error}{'a} y
+#* let generic_raise 'exn 'a (y:'exn) = Exn{'exn}{'a} y
 
-#* let fail = fail_generic{unit -> int}
+#* let raise = generic_raise{unit -> int}
 #* let failwith 'a (message:string) =
-#*   fail{'a} (fun (u:unit) ->
+#*   raise{'a} (fun (u:unit) ->
 #*               let _ = Sys.put_str ("Failure: " . message . "\n") in 1)
 
-#* let try_generic 'error 'a (x:('error,'a) t) (catch:'error -> ('error,'a) t) =
+#* let generic_try 'exn 'a (x:('exn,'a) t) (catch:'exn -> ('exn,'a) t) =
 #*   match x with
-#*   | Value v -> Value{'error}{'a} v
-#*   | Error e -> catch e
+#*   | Value v -> Value{'exn}{'a} v
+#*   | Exn e -> catch e
 
 #* let try 'a (x:(unit -> int,'a) t) (catch:unit -> (unit -> int,'a) t) =
 #*   match x with
 #*   | Value v -> Value{unit -> int}{'a} v
-#*   | Error e -> catch ()
+#*   | Exn e -> catch ()
 
-#* let convert_generic 'error 'a (x:('error,'a) t) (convert:'error -> 'a) =
+#* let generic_convert 'exn 'a (x:('exn,'a) t) (convert:'exn -> 'a) =
 #*   match x with
 #*   | Value v -> v
-#*   | Error e -> convert e
+#*   | Exn e -> convert e
 
-#* let convert = convert_generic{unit -> int}
+#* let convert = generic_convert{unit -> int}
 #* let convert_main (code:((unit -> int), int) t) =
 #*   match code with
 #*   | Value c -> c
-#*   | Error e -> e ()
+#*   | Exn e -> e ()

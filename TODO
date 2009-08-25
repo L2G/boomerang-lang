@@ -137,6 +137,11 @@
 * Fix names "Permutations" in blenses (permutations writen by users
   in boomerang) and "Permutation" in balign
 
+* Bstring.toplevel (or the caller) should check that for each tag at
+  the toplevel, there is no apparence of location for this tag outside
+  the toplevel.  This would be a mistake.  Or do we this in the in the
+  type checking.
+
 * Fix the way strings are printed in unit tests.  They are not
   escaped.  Eventually try to print them in boomerang format if the
   need escaping.  For example:

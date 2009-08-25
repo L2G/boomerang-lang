@@ -686,12 +686,12 @@ let main () =
     code
   in
   let cget (source:string) =
-    match file_ext source with
+    match String.file_ext source with
       | Some "bib" -> (let _ = Sys.put_str (get ris (Sys.read source)) in 0)
       | _ -> usage 1
   in
   let cput (view:string) (source:string) =
-    match file_ext view, file_ext source with
+    match String.file_ext view, String.file_ext source with
       | Some "ris", Some "bib" -> (let _ = Sys.put_str (put ris (Sys.read view) (Sys.read source)) in 0)
       | _ -> usage 1
   in

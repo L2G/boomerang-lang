@@ -77,15 +77,6 @@ integers from @0@ to @n-1@.
 #* let mk_seq (n:int where n geq 0) : (l:int t where length{int} l = n)
 ## = Native.Prelude.mk_seq n
 
-\LENSSECTION{@star_split@} The @star_split@ function splits the string
-@s@ according to the iteration of the regular expression @r@. It
-returns the list of the substrings.
-
-#* let star_split : (r:regexp -> 
-#*                  (s:string where land (iterable_cex r) (matches_cex (regexp_iter r 0 (minus 0 1)) s)) -> 
-#*                  string t)
-## = Native.Prelude.star_split
-
 \LENSSECTION{@reverse@} The function @reverse@ can be defined straightforwardly
 using @fold_left@.
 
@@ -218,3 +209,9 @@ permutation @sigma@, calculating the permutation @sigma_inv@ such that
 #* let invert_permutation : int t -> int t
 ## = Native.Prelude.invert_permutation
 
+#* let sort : forall 'a => ('a -> 'a -> int) -> 'a t -> 'a t
+## = Native.Prelude.list_sort
+
+#* test sort{int} minus (Cons{int}(3, Cons{int}(4, Cons{int}(1, Cons{int}(0,
+#*      Nil{int}))))) = (Cons{int}(0, Cons{int}(1, Cons{int}(3, Cons{int}(4,
+#*      Nil{int})))))

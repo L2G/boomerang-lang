@@ -634,7 +634,7 @@ Foster, Nate, jnfoster@cis.upenn.edu (e), 267 342-1099 (c)
 
 >> = ?
 
-let okfailwith 'a = ok{'a}, fail{'a}, failwith{'a}
+let okfailwith 'a = ok{'a}, raise{'a}, failwith{'a}
 
 let usage = 
   let prog = Prefs.get_prog_name () in
@@ -658,7 +658,7 @@ let main () =
   in
   let read_file (f:string) =
     let ok, fail, failwith = okfailwith{format * string} in
-    match get_type (file_ext f), file_exists f with
+    match get_type (String.file_ext f), file_exists f with
       | None, _  -> failwith ("File ".f." does not have a valid extension")
       | _, false -> failwith ("File ".f." does not exists")
       | Some fmt, _ -> ok (fmt, read f)

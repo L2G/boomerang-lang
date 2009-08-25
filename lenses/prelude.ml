@@ -153,6 +153,7 @@ let pmk_ss    = pmk1 S.SString mk_sfun S.SString mk_s
 let pmk_si    = pmk1 S.SString mk_sfun S.SInteger mk_i
 let pmk_sb    = pmk1 S.SString mk_sfun S.SBool mk_b
 let pmk_ssb   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SBool mk_b
+let pmk_ssi   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SInteger mk_i
 let pmk_sss   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SString mk_s
 let pmk_siis  = pmk3 S.SString mk_sfun S.SInteger mk_ifun S.SInteger mk_ifun S.SString mk_s
 let pmk_ssu   = pmk2 S.SString mk_sfun S.SString mk_sfun S.SUnit mk_u
@@ -447,9 +448,10 @@ let prelude_spec =
   ; pmk_sss    "string_concat"        (fun _ -> (^))    
   ; pmk_si     "length"               (fun _ -> String.length)
   ; pmk_sic    "get_char"             (fun _ -> String.get)
-  ; pmk_siis   "sub_string"           (fun _ -> String.sub)
-  ; pmk_sicio  "index_from"           (fun i s n c -> try Some (mk_i i  (String.index_from s n c)) with | Not_found -> None)
-  ; pmk_sicio  "rindex_from"          (fun i s n c -> try Some (mk_i i (String.rindex_from s n c)) with | Not_found -> None)
+  ; pmk_siis   "string_sub"           (fun _ -> String.sub)
+  ; pmk_sicio  "string_index_from"    (fun i s n c -> try Some (mk_i i  (String.index_from s n c)) with | Not_found -> None)
+  ; pmk_sicio  "string_rindex_from"   (fun i s n c -> try Some (mk_i i (String.rindex_from s n c)) with | Not_found -> None)
+  ; pmk_ssi    "string_compare"       (fun _ -> String.compare)
 
   (* input/output/sys operations *)
   ; pmk_ss     "read"                 (fun _ fn -> Misc.read fn)
@@ -711,9 +713,23 @@ let prelude_spec =
 	       mk_list i (P.permute_list sigma
                             (get_list l0))))))
   end
+
+  ; begin
+    let i = mk_prelude_info "list_sort" in
+    let a = Id.mk i "a" in
+    let a_sort = S.SVar a in
+    let a_list_sort = S.SData ([a_sort], Qid.mk_list_t (Qid.info_of_t Bvalue.list_qid) "t") in
+    let a_compare_sort = a_sort ^> a_sort ^> S.SInteger in
+    Qid.mk_native_prelude_t i "list_sort",
+    S.SForall (a, a_compare_sort ^> a_list_sort ^> a_list_sort),
+    mk_f i (fun achk -> mk_f i (fun cmp0 -> mk_f i (fun l0 ->
+    let cmp a1 a2 = get_i (get_f (get_f cmp0 a1) a2) in
+    let l = get_list l0 in
+    mk_list i (List.sort cmp l))))
+ end
   ]
-    
-let () = 
-  Safelist.iter 
+
+let () =
+  Safelist.iter
     (fun (x,s,v) -> Bregistry.register_native_qid x s v)
     prelude_spec

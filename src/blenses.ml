@@ -160,7 +160,7 @@ let mtype_match_compatible_cex t k mt =
   else
     if not (TmA.compatible t mt)
     then Some (sprintf "tagname '%s' used with non compatible taginfo (species and predicate)" (T.get_name t))
-    else 
+    else
       if not (ktype_equiv k (TmA.find t mt))
       then Some (sprintf "tag '%s' used with different ktypes" (T.to_string t))
       else None
@@ -846,7 +846,7 @@ module MLens = struct
         in
         ml.mtype <- Some mt;
         mt
-                
+
   and sequiv ml = match ml.sequiv with
     | Some cr -> cr
     | None ->
@@ -1468,7 +1468,7 @@ module MLens = struct
         s, ci
 
   (* these are the definitions for lower *)
-          
+
   and rcreate ml (v:Bstring.t) =
     let ko = None in
     let ci = (TmImA.empty, TmI.empty) in

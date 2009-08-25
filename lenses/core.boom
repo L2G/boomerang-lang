@@ -167,17 +167,6 @@ resolves to @string_concat@ when it is applied to strings.
 #* test string_concat "Boom" "erang" = "Boomerang"
 #* test string_concat "" "Boomerang" = "Boomerang"
 
-\LENSSECTION{@sub_string@} The @sub_string@ function behaves like the
-OCaml String.sub function.  It returns a string of length @len@,
-containing the substring of @s@ that starts at position @start@ and
-has length @len@.
-
-#* let sub_string (start:int where bgeq start 0)
-#*                (len:int)
-#*                (s:string where (bleq (plus len start) (length s)))
-#*   : string
-## = Native.Prelude.sub_string s start len
-
 \subsection{Regular Expressions}
 
 \LENSSECTION{@str@} The @str@ function converts a @string@ to the singleton 

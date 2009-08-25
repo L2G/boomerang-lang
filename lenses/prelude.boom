@@ -306,55 +306,6 @@ The polymorphic functions @fst@ and @snd@ are the standard projections on pairs.
 #*let snd ('a) ('b) (p:'a * 'b) : 'b = 
 #*  let _,y = p in y
 
-\subsection{Strings}
-
-\LENSSECTION{@string_index_from@} The @string_index_from@ and @string_rindex_from@ functions
-behave like the OCaml @String.index_from@ and @String.rindex_from@ functions. It returns the
-character number of the first occurrence of character @c@ in string
-@s@ after position @i@. If the character was not found, they return @None@.
-
-#* let string_index_from (s:string)
-#*                       (i:int where land (bgeq i 0) (bgeq (length s) i))
-#*                       (c:char)
-#*   : int option
-## = Native.Prelude.index_from s i c
-
-#* let string_rindex_from (s:string)
-#*                        (i:int where land (bgeq (plus i 1) 0) (bgeq (length s) (plus i 1)))
-#*                        (c:char)
-#*   : int option
-## = Native.Prelude.rindex_from s i c
-
-\LENSSECTION{@string_explode@} The @string_explode@ function explodes
-a string into characters, returning a list of string.
-
-#* let string_explode (s:string) : (l:string List.t where List.length{string} l = length s)
-#* = List.star_split ANYCHAR s
-
-#* test string_explode "" = #{string}[]
-#* test string_explode "lorem" = #{string}["l";"o";"r";"e";"m"]
-
-\LENSSECTION{@string_implode@} The @string_implode@ function implodes
-an list of char into a string.
-
-#* let string_implode (l:string List.t) : string
-#* = List.fold_left{string}{string} (fun (s:string) (s':string) -> s . s') "" l
-
-#* test string_implode #{string}[] = ""
-#* test string_implode #{string}["a";"b";"c"] = "abc"
-#* test string_implode #{string}["abc";"def";"ghi"] = "abcdefghi"
-#* test string_implode (string_explode "testing") = "testing"
-
-\LENSSECTION{@file_ext@} The @file_ext@ returns the extension of a
-filename. More precisely, it returns the substring after the last @.@
-in the string. If there is no @.@ in the string, it returns @None@.
-
-#* let file_ext (file:string) : string option =
-#*   let l = minus (length file) 1 in
-#*   match string_rindex_from file l '.' with
-#*     | Some n -> Some{string} (sub_string (plus n 1) (minus l n) file)
-#*     | None -> None{string}
-
 \subsection{Lists of Lenses and Regular Expressions}
 
 \LENSSECTION{@astypes@,@avtypes@} Calculates the @astype@s and @avtype@s of lists of 
