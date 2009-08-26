@@ -123,24 +123,33 @@ module Alignment = struct
   let add_put limit tag cn co rn ro t =
     let (((ccrt, lkn), _), sn), i = cn in
     let (((cdel, lko), _), so), j = co in
-    let kn = Bstring.cat_to_key sn in
-    let ko = Bstring.cat_to_key so in
-(*     Printf.printf "add_put %s %d %d '%s' '%s'\n" (T.to_string tag) i j kn ko; *)
-(*     printf "'%s' %s '%s' %s\n" ko (L.to_string lko) kn (L.to_string lkn); *)
-    match L.is_valid lko lkn with
-    | Some lock -> Infinite (fun () -> printf "Lock \"%s\" forbid the put\n" (String.escaped (L.lock_to_string lock)))
-    | None ->
-        let cput = Bstring.dist (C.to_option limit) kn ko in
-        match cput with
-        | None -> Infinite (fun () -> assert false)
-        | Some cput ->
-            let pe = check_put tag cdel cput ccrt in
-            match t, pe with
-            | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
-            | Infinite e, _
-            | _, Some e -> Infinite e
-            | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
-  let add_crtdel_deep tag f ((ccd, cat), x) t create =
+    if T.key_through tag
+    then nocost_put tag i j t
+    else begin
+      let kn = Bstring.cat_to_key sn in
+      let ko = Bstring.cat_to_key so in
+      (*     Printf.printf "add_put %s %d %d '%s' '%s'\n" (T.to_string tag) i j kn ko; *)
+      (*     printf "'%s' %s '%s' %s\n" ko (L.to_string lko) kn (L.to_string lkn); *)
+      match L.is_valid lko lkn with
+      | Some lock -> Infinite (fun () -> printf "Lock \"%s\" forbid the put\n" (String.escaped (L.lock_to_string lock)))
+      | None ->
+          let cput = Bstring.dist (C.to_option limit) kn ko in
+          match cput with
+          | None -> Infinite (fun () -> assert false)
+          | Some cput ->
+              let pe = check_put tag cdel cput ccrt in
+              match t, pe with
+              | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
+              | Infinite e, _
+              | _, Some e -> Infinite e
+              | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
+    end
+  let add_crtdel_deep tag ((ccd, cat), x) t create =
+    let cost =
+      if T.key_through tag
+      then (fun ((a, _), b) -> b - a)
+      else snd
+    in
     let con, lkck, crtdel_string =
       if create
       then (fun x -> Create x), L.is_valid_create, "create"
@@ -159,17 +168,13 @@ module Alignment = struct
               Bstring.cat_fold_on_locs (
                 fun t p -> TmAl.add t (con p)
               ) cat (TmAl.add tag (con x) g),
-              c + f ccd
+              c + cost ccd
             )
   (* TODO: add potential predicates *)
   let add_crt_deep tag cn t =
-    add_crtdel_deep tag snd cn t true
+    add_crtdel_deep tag cn t true
   let add_del_deep tag co t =
-    add_crtdel_deep tag snd co t false
-  let nocost_crt_deep tag cn t =
-    add_crtdel_deep tag (fun ((a, _), b) -> b - a) cn t true
-  let nocost_del_deep tag co t =
-    add_crtdel_deep tag (fun ((a, _), b) -> b - a) co t false
+    add_crtdel_deep tag co t false
 end
 
 module G = Alignment
@@ -419,17 +424,16 @@ let positional limit align tag (ln:int list) (lo:int list) tln tlo g =
   let rec f ln lo g =
     match ln, lo with
     | [], [] -> g
-    | i::ln, [] -> f ln [] (G.nocost_crt_deep tag (get_new i) g)
-    | [], j::lo -> f [] lo (G.nocost_del_deep tag (get_old j) g)
+    | i::ln, [] -> f ln [] (G.add_crt_deep tag (get_new i) g)
+    | [], j::lo -> f [] lo (G.add_del_deep tag (get_old j) g)
     | i::ln, j::lo ->
         let cn = get_new i in
         let co = get_old j in
         let (_, sn), _ = cn in
         let (_, so), _ = co in
         let g = align limit (sn, tln) (so, tlo) g in
-(*         let limit = C.limit_minus limit (G.to_cost g) in *)
-(*         f ln lo (G.add_put limit tag cn co tln tlo g) *)
-        f ln lo (G.nocost_put tag i j g)
+        let limit = C.limit_minus limit (G.to_cost g) in
+        f ln lo (G.add_put limit tag cn co tln tlo g)
   in
   f ln lo g
 

@@ -457,7 +457,7 @@ let at_to_key (a, (s, i, j)) =
           if W.to_int w = 0 then l else (i, j)::l
         in
         f a j l
-    | (TagNode (tag, an, _), j)::a when T.get_species tag = T.Positional ->
+    | (TagNode (tag, an, _), j)::a when T.key_through tag ->
         let i, l = f an i l in
         assert (i = j);
         f a j l
@@ -511,7 +511,7 @@ let at_crtdel_cost (a, (s, i, j)) =
         let i, (cslkan, ct) = f n i ((cs, lka), ct) in
         assert (i = j);
         let cslka =
-          if T.get_species tag = T.Positional
+          if T.key_through tag
           then cslkan
           else (cs, lka)
         in

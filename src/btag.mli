@@ -38,6 +38,7 @@ val get_weight : t -> Bannot.Weight.t (* default weight *)
 val get_predicates : t -> predicate list
 val get_species : t -> species
 val get_name : t -> string
+val key_through : t -> bool
 val format_t : t -> unit
 val equiv : t -> t -> bool
 
