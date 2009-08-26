@@ -27,6 +27,7 @@ svn export $repos/$bcp $bcp
 svn export $repos/$harmony $harmony
 mv trunk $DIR
 
+tar cvf ../$DIR-source.tar $DIR
 cd $DIR
   omake
 cd ..
@@ -42,12 +43,7 @@ tar czvf "../$DIR-$arch-binary.tar.gz" \
   $DIR/QuickStart.src
 
 echo "Building source tar..."
-tar cvf ../$DIR-source.tar $DIR/doc/main.pdf
-cd $DIR
-  omake clean
-  rm -rf bin examples/OMakefile.omc
-cd ..
-tar rvf ../$DIR-source.tar $DIR
+tar rvf ../$DIR-source.tar $DIR/doc/main.pdf
 gzip ../$DIR-source.tar
 
 #chmod 755 "$DIR-$arch-binary.tar.gz"
