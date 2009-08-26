@@ -257,7 +257,7 @@ defined using right quotienting and @ins@. The lens
 @qins_representative@ is +similar, but uses an arbitrary
 representative of @E@ in the $\GET$ direction.
 
-#* let qins (E:regexp) (e:string) : (lens in EPSILON <-> E) = 
+#* let qins (E:regexp) (e:string in E) : (lens in EPSILON <-> E) = 
 #*   right_quot
 #*     (ins e)
 #*     (canonizer_of_lens (const E e e))

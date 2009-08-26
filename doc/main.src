@@ -39,11 +39,12 @@
 \tikz[line width=1bp]\node[scale=.75]{\pgfimage{pdf/boomerang-logo}};\\[5ex]
 }
 
-\author{\LARGE J. Nathan Foster and Benjamin C. Pierce\\[3ex]
-\Large with \\[3ex]
+\author{\Large J. Nathan Foster and Benjamin C. Pierce\\[3ex]
+\large with \\[3ex]
 %
-\Large Aaron Bohannon, Michael Greenberg, Alan Schmitt\\[1ex]
-\Large Adam Magee, Alexandre Pilkiewicz, and Daniel Puller\\[5ex]}
+\large Davi Barbosa, Aaron Bohannon, Julien Cretin, Michael Greenberg,\\[1ex]
+\large Alan Schmitt, Adam Magee, Alexandre Pilkiewicz, and Daniel Puller\\[5ex]
+}
 \date{\LARGE \ifdraft {\bf Draft of} \fi  \today}
 
 \maketitle
@@ -130,7 +131,7 @@ schema evolution, and databases.
 
 \begin{figure}\SHOWCOMMENT{change the notation of the image (concrete and abstract to source and view)}
   \begin{center}
-\tikz[line width=1bp]\node[scale=.5]{\pgfimage{pdf/viewupdateterminology}};
+\tikz[line width=1bp]\node[scale=.5]{\pgfimage{pdf/arch-basic}};
 \end{center}
 \caption{Lens Terminology}\label{fig:viewupdateterminology}
 \end{figure}
