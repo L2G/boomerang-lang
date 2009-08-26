@@ -1,22 +1,59 @@
 #!/bin/sh -x
 
-if [ -z $1 ] 
-then
-  echo "usage: export arch";
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 arch seas-account"
+  echo "FYI: $(uname -mo)"
   exit 1
 fi
 
-DIR="boomerang-"`date "+20%y%m%d"`"-$1-binary"
+arch="$1"
+user="$2"
 
-svn export svn+ssh://harmony@eniac-l.seas.upenn.edu/mnt/eclipse/plclub1/svnroot/harmony/trunk/
-cp trunk/common/tools/harmony-export .
+DIR="boomerang-$(date +%Y%m%d)"
+SUFFIXDIR="-$arch-binary"
+TARNAME="$DIR$SUFFIXDIR.tar.gz"
+
+build="build"
+
+rm -rf $build
+mkdir $build
+cd $build
+mkdir -p writing/papers/onlybcpshouldmodify
+repos="svn+ssh://$user@eniac.seas.upenn.edu/mnt/eclipse/plclub1/svnroot/harmony"
+bcp="writing/papers/onlybcpshouldmodify/bcp.bib"
+harmony="writing/papers/harmony.bib"
+svn export $repos/trunk
+svn export $repos/$bcp $bcp
+svn export $repos/$harmony $harmony
 mv trunk $DIR
+
 cd $DIR
-omake
-omake clean
-cd ../
-tar zcvf $DIR.tar.gz $DIR
-chmod 755 $DIR.tar.gz
-scp $DIR.tar.gz harmony@eniac-l.seas.upenn.edu:html/download/
-rm -fr $DIR
-rm $DIR.tar.gz
+  omake
+cd ..
+
+echo "Building binary tar..."
+tar czvf "../$DIR-$arch-binary.tar.gz" \
+  $DIR/bin \
+  $DIR/COPYING \
+  $DIR/doc/main.pdf \
+  $DIR/examples/*.boom \
+  $DIR/examples/alignment.src \
+  $DIR/examples/xsugar \
+  $DIR/QuickStart.src
+
+echo "Building source tar..."
+tar cvf ../$DIR-source.tar $DIR/doc/main.pdf
+cd $DIR
+  omake clean
+  rm -rf bin examples/OMakefile.omc
+cd ..
+tar rvf ../$DIR-source.tar $DIR
+gzip ../$DIR-source.tar
+
+#chmod 755 "$DIR-$arch-binary.tar.gz"
+#chmod 755 "$DIR-source.tar.gz"
+#scp "$DIR-$arch-binary.tar.gz" harmony@eniac-l.seas.upenn.edu:html/download/
+#scp "$DIR-source.tar.gz" harmony@eniac-l.seas.upenn.edu:html/download/
+rm -fr $build
+#rm "$DIR-$arch-binary.tar.gz"
+#rm "$DIR-source.tar.gz"
