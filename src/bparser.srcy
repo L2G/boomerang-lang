@@ -660,13 +660,6 @@ rewriteexp:
        \alt <AppExp> \lit{@.create@} <AppExp>       
        \alt <AppExp> \lit{@.canonize@} <AppExp> 
        \alt <AppExp> \lit{@.choose@} <AppExp>
-       \alt <AppExp> \lit{@.stype@}
-       \alt <AppExp> \lit{@.vtype@}
-       \alt <AppExp> \lit{@.astype@}
-       \alt <AppExp> \lit{@.avtype@}
-       \alt <AppExp> \lit{@.domain_type@}
-       \alt <AppExp> \lit{@.codomain_type@}
-       \alt <AppExp> \lit{@.bij@}
 
 #{#}
 lenscomponentexp: 
@@ -685,21 +678,6 @@ lenscomponentexp:
   | appexp CHOOSE appexp
       { let i = me $1 $3 in
         mk_bin_op i (mk_core_var i "choose") $1 $3 }
-  | appexp STYPE
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var i "stype") $1 }
-  | appexp VTYPE
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var i "vtype") $1 }
-  | appexp ASTYPE
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var i "astype") $1 }
-  | appexp AVTYPE
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var i "avtype") $1 }
-  | appexp BIJ 
-      { let i = me1 $1 $2 in 
-        mk_app i (mk_core_var i "bij") $1 }
 
 minusexp:
   | infixexp MINUS appexp
@@ -782,6 +760,13 @@ tyexp:
       \alt <RegExpString>
       \alt \lit{@()@}
       \alt \lit{@grammar@} <Productions> \lit{@end@}
+      \alt <AExp> \lit{@.stype@}
+      \alt <AExp> \lit{@.vtype@}
+      \alt <AExp> \lit{@.astype@}
+      \alt <AExp> \lit{@.avtype@}
+      \alt <AExp> \lit{@.domain_type@}
+      \alt <AExp> \lit{@.codomain_type@}
+      \alt <AExp> \lit{@.bij@}
 
 #{#}
 
@@ -836,6 +821,23 @@ aexp:
 
   | GRAMMAR productions END
       { EGrammar(m $1 $3, $2) }
+
+  | aexp STYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var i "stype") $1 }
+  | aexp VTYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var i "vtype") $1 }
+  | aexp ASTYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var i "astype") $1 }
+  | aexp AVTYPE
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var i "avtype") $1 }
+  | aexp BIJ 
+      { let i = me1 $1 $2 in 
+        mk_app i (mk_core_var i "bij") $1 }
+
 
 #{@}
 <MatchExp> ::= \ltsym <Exp> \gtsym
