@@ -49,11 +49,15 @@ the character was not found, they return @None@.
 #*   : int option
 ## = Native.Prelude.string_index_from s i c
 
+#* let index (s:string) (c:char) = index_from s 0 c
+
 #* let rindex_from (s:string)
 #*                 (i:int where land (bgeq (plus i 1) 0) (bgeq (length s) (plus i 1)))
 #*                 (c:char)
 #*   : int option
 ## = Native.Prelude.string_rindex_from s i c
+
+#* let rindex (s:string) (c:char) = rindex_from s (length s - 1) c
 
 \LENSSECTION{@star_split@} The @star_split@ function splits the string
 @s@ according to the iteration of the regular expression @r@. It
@@ -64,6 +68,13 @@ returns the list of the substrings.
 #*                                       (matches_cex (regexp_iter r 0 (minus 0 1)) s)) ->
 #*                  string List.t)
 ## = Native.Prelude.star_split
+
+\LENSSECTION{@bad_index@} The @bad_index@ function returns the index
+of the character in @s@ making it not match the regular expression
+@r@.
+
+#* let bad_index : regexp -> string -> int
+## = Native.Prelude.bad_prefix_position
 
 \LENSSECTION{@explode@} The @explode@ function explodes a string into
 characters, returning a list of string.

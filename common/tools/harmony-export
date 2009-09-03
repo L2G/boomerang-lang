@@ -50,6 +50,7 @@ gzip ../$DIR-source.tar
 #chmod 755 "$DIR-source.tar.gz"
 #scp "$DIR-$arch-binary.tar.gz" harmony@eniac-l.seas.upenn.edu:html/download/
 #scp "$DIR-source.tar.gz" harmony@eniac-l.seas.upenn.edu:html/download/
+cd ..
 rm -fr $build
 #rm "$DIR-$arch-binary.tar.gz"
 #rm "$DIR-source.tar.gz"

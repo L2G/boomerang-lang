@@ -217,7 +217,7 @@ and format_exp e0 = match e0 with
            format_exp e;
            msg "@]")
         pl;
-      msg ")@";
+      msg ")@]";
       begin match s with
 	| Some s ->
 	    msg ")@ :@ ";

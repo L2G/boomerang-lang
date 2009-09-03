@@ -1177,15 +1177,6 @@ let match_string_positions t0 w =
       else loop acc' (succ i) (ti.derivative (Char.code w.[i])) in 
     loop Int.Set.empty 0 t0
 
-let match_prefix_positions t0 w = 
-  let n = String.length w in 
-  let rec loop acc i ti = 
-    let acc' = 
-      if is_empty ti then acc else Int.Set.add i acc in
-      if i=n then acc'
-      else loop acc' (succ i) (ti.derivative (Char.code w.[i])) in
-    loop Int.Set.empty 0 t0
-
 let match_string_reverse_positions t0 w = 
   let n = String.length w in 
   let rec loop acc i ti = 
@@ -1244,10 +1235,21 @@ let split_positions t1 t2 w =
   let ps2 = match_string_reverse_positions (mk_reverse t2) w in 
   Int.Set.inter ps1 ps2
 
-let split_bad_prefix t1 s = 
-  let ps = Int.Set.add 0 (match_prefix_positions t1 s) in 
+let bad_prefix_position t0 w =
+  let n = String.length w in
+  let rec loop i ti =
+    if is_empty ti
+    then i
+    else
+      if i = n
+      then succ n
+      else loop (succ i) (ti.derivative (Char.code w.[i]))
+  in
+  loop 0 t0
+
+let split_bad_prefix t s =
   let n = String.length s in
-  let j = Int.Set.max_elt ps in
+  let j = max 0 (pred (bad_prefix_position t s)) in
   (String.sub s 0 j, String.sub s j (n-j))
 
 let seq_split s1 s2 w =

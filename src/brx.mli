@@ -83,6 +83,7 @@ val iterable : t -> bool
 
 (* splitting *)
 val split_positions : t -> t -> string -> Int.Set.t
+val bad_prefix_position : t -> string -> int
 val split_bad_prefix : t -> string -> string * string
 val seq_split : t -> t -> string -> (string * string) option
 val star_split : t -> string -> string list

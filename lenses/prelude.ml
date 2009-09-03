@@ -515,6 +515,7 @@ let prelude_spec =
                                                        (Brx.string_of_t t2) cex)
 					   | None -> None)
   ; pmk_rsr    "derivative"           (fun _ t1 s -> Brx.derivative t1 s)
+  ; pmk_rsi    "bad_prefix_position"  (fun _ -> Brx.bad_prefix_position)
 
   (* annotated regexp operations *)             
   ; pmk_aab    "aequiv"               (fun _ -> Barx.equiv)
