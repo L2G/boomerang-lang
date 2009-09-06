@@ -36,5 +36,7 @@ val trivial_cast : sort -> sort -> bool
 (** [trivial_cast f t] returns true if the cast is trivial, i.e.,
     always satisfied *)
 
+val mk_cast : string -> Info.t -> sort -> sort -> exp -> exp
+
 val check_module: modl -> modl
 

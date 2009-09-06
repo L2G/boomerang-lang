@@ -10,18 +10,24 @@ slightly more difficult).
  | BUILDING WITH GODI |
  +--------------------+
 
-The simplest way to install the prerequisites needed by Boomerang is
-via the Godi package manager for OCaml. Download godi from
+The easiest way to install the prerequisites needed by Boomerang is
+via the GODI package manager for OCaml. There are four steps:
+
+1. Download GODI (Rocket Boost) from 
 
   http://godi.ocaml-programming.de/
 
-Follow installation instructions.  Then issue the commands:
+2. Next, follow the GODI installation instructions in the included
+   README file.
+
+3. Next, issue the following two commands:
  
   godi_console perform -build godi-ocaml-all
   godi_console perform -build godi-omake
 
-Now go to the boomerang directory, type 'omake', and you should end up
-with a boomerang binary in the bin directory.
+4. Finally, go to the trunk directory of the Boomerang distribution
+   and type 'omake'. After the build completes, you should end up with
+   a working binary in the bin directory.
 
  +------------------+
  | BUILDING BY HAND |
@@ -29,10 +35,6 @@ with a boomerang binary in the bin directory.
 
 The required resources are specified here in the order in which they should
 be installed.
-
-[Note: If you get tangled up and need to start this process again, make sure
-that, at each step, you first do 'make uninstall' or whatever to remove the
-previous version.]
 
 ocaml       http://caml.inria.fr/ocaml/distrib.html.  
             OCaml 3.09 or later is needed.
@@ -43,5 +45,6 @@ findlib     versions from 0.8.1 to 1.0.4 have been tested.
 	    findlib can be downloaded from
             http://www.ocaml-programming.de/packages/
 
-Now simply type 'omake' in the top-level boomerang directory and you should
-end up with a boomerang binary in the bin directory.
+Go to the trunk directory of the Boomerang distribution and type
+'omake'. After the build completes, you should end up with a working
+binary in the bin directory.

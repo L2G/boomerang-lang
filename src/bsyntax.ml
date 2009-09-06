@@ -39,16 +39,6 @@ let string_of_prefs p =
   | PrString -> "string"
   | PrStringList -> "stringList"
 
-(* ----- blame ----- *)
-type blame = Blame of Info.t 
-
-let mk_blame i = Blame i 
-
-let info_of_blame b = match b with
-  | Blame(i) -> i
-
-let invert_blame b = b
-
 (* ----- sorts, parameters, expressions ----- *)
 type sort = 
     (* base sorts *)
@@ -104,7 +94,7 @@ and exp =
     | ECase of Info.t * exp * (pat * exp) list * sort option
 
     (* casts, locations, and allocations *)
-    | ECast    of Info.t * sort * sort * blame * exp
+    | ECast    of Info.t * sort * sort * Info.t * exp
 
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
@@ -253,6 +243,15 @@ let rec is_refined = function
   | SForall(_, s) -> is_refined s
   | SRefine _ -> true
 
+let mk_unit i = 
+  EUnit(i)
+
+let mk_int i n = 
+  EInteger(i,n)
+
+let mk_string i s = 
+  EString(i,s)
+
 let mk_app i e1 e2 = 
   EApp(i,e1,e2)
 
@@ -261,6 +260,9 @@ let mk_app3 i e1 e2 e3 =
 
 let mk_app4 i e1 e2 e3 e4 =
   mk_app i (mk_app i e1 e2) (mk_app i e3 e4)
+
+let mk_tyapp i e1 s2 = 
+  ETyApp(i,e1,s2)
 
 let mk_let i x s1 e1 e2 =
   let b = Bind(i,PVar(i,x,Some s1),None,e1) in 
@@ -292,9 +294,6 @@ let mk_lens_of_regexp i e =
 let mk_qid_var x = 
   EVar(Qid.info_of_t x,x)
 
-let mk_var x = 
-  mk_qid_var (Qid.t_of_id x)
-
 let mk_native_prelude_var i x = 
   mk_qid_var (Qid.mk_native_prelude_t i x)
 
@@ -306,6 +305,9 @@ let mk_core_var i x =
 
 let mk_list_var i x =
   mk_qid_var (Qid.mk_list_t i x)
+
+let mk_var x = 
+  mk_qid_var (Qid.t_of_id x)
 
 let mk_over i op el = 
   EOver(i,op,el)

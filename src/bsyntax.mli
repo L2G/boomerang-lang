@@ -30,15 +30,6 @@ type prefs =
 val string_of_prefs : prefs -> string
 
 (** {2 Boomerang Abstract Syntax} *)
-type blame = Blame of Info.t
-
-val mk_blame : Info.t -> blame 
-(** [mk_blame i] constructs blame associated with parsing info [i]. *)
-
-val invert_blame : blame -> blame
-
-val info_of_blame : blame -> Info.t 
-
 type sort = 
     (* base sorts *)
     | SUnit                           (* unit *)
@@ -93,7 +84,7 @@ and exp =
     | ECase of Info.t * exp * (pat * exp) list * sort option
 
     (* casts *)
-    | ECast    of Info.t * sort * sort * blame * exp
+    | ECast    of Info.t * sort * sort * Info.t * exp
         
     (* unit, strings, ints, character sets *)
     | EUnit    of Info.t  
@@ -210,9 +201,13 @@ val is_refined : sort -> bool
 (**[is_refined s] returns true iff s is a refined type *)
 
 (* ------ constructors ----- *)
+val mk_unit : Info.t -> exp 
+val mk_int : Info.t -> int -> exp 
+val mk_string : Info.t -> string -> exp 
 val mk_app : Info.t -> exp -> exp -> exp
 val mk_app3 : Info.t -> exp -> exp -> exp -> exp
 val mk_app4 : Info.t -> exp -> exp -> exp -> exp -> exp
+val mk_tyapp : Info.t -> exp -> sort -> exp
 val mk_let : Info.t -> Id.t -> sort -> exp -> exp -> exp
 val mk_fun : Info.t -> Id.t -> sort -> exp -> exp
 val mk_if : Info.t -> exp -> exp -> exp -> sort -> exp 

@@ -101,7 +101,7 @@ let rec interp_cast cev i b f t e =
       | None -> v
       | Some(cex) ->
 	  let cex_s = if cex = "" then "" else "; counterexample: " ^ cex in
-	  Berror.blame_error (info_of_blame b)
+	  Berror.blame_error b
 	    (fun () ->
 	       (* TODO show bindings of free vars in e *)
 	       Util.format "@[%s=%a@ did@ not@ satisfy@ %a%s@]"
@@ -156,11 +156,21 @@ let rec interp_cast cev i b f t e =
 	  let e_y = EVar(i,qy) in
           let e_fn = EVar(i,qfn) in
           let e_fx = EApp(i,e_fn,e_x) in
-          let c1 = ECast(i,t1,f1,invert_blame b,e_y) in 
-          let c2 = ECast(i,f2,t2,b,e_fx) in
+          let c1 = Bcheck.mk_cast "function argument" i t1 f1 e_y in 
+          let c2 = Bcheck.mk_cast "function result" b f2 t2 e_fx in 
           let apped_cast = EApp(i,mk_fun i fn f 
                                   (mk_fun i y t1 
                                      (mk_let i x f1 c1 c2)),e) in
+(*             Trace.debug "interp" (fun _ ->                                      *)
+(*                                     msg "@[I    : %s" (Info.string_of_t i); *)
+(*                                     msg "@\nB   : %s" (Info.string_of_t b); *)
+(*                                     msg "@\nFROM:"; *)
+(*                                     format_sort f; *)
+(*                                     msg "@\nTO  :"; *)
+(*                                     format_sort t; *)
+(*                                     msg "@\n~~> :"; *)
+(*                                     format_exp apped_cast; *)
+(*                                     msg "@]@\n"); *)
 	  interp_exp cev apped_cast
       | SProduct(f1,f2), SProduct(t1,t2) ->
 	  if syneq_sort f1 t1 && syneq_sort f2 t2
@@ -321,7 +331,7 @@ and interp_exp cev e0 = match e0 with
       V.Rx(i,mk csi)
 
   | ECast(i,f,t,b,e) -> 
-      interp_cast cev i b f t e
+      interp_cast cev i b f t e 
 
 and interp_binding cev b0 = match b0 with
   | Bind(i,p,so,e) -> 
@@ -438,7 +448,7 @@ let rec interp_decl cev ms d0 = match d0 with
                   if not (Bcheck.compatible s1 s2) then err ()
                   else 
                     begin
-                      try ignore (interp_cast cev i (mk_blame i) s1 s2 e)
+                      try ignore (interp_cast cev i i s1 s2 e)
                       with Error.Harmony_error(e) -> err ()
                     end                      
             | Error err, TestEqual e2 -> 

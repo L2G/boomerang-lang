@@ -227,8 +227,8 @@ and format_exp e0 = match e0 with
 	    msg ")@]"
       end
 
-  | ECast(_,f,t,_,e) -> 
-      msg "@[<2><|"; 
+  | ECast(_,f,t,b,e) -> 
+      msg "@[<2><|";
       format_sort t;
       msg "@ <=@ ";
       format_sort f;

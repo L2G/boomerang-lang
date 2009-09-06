@@ -38,31 +38,6 @@ let msg = Util.format
 let (@) = Safelist.append
 let v_of_rv = G.value_of_rv 
 
-(* ----- helpers for constructing ASTs ----- *)
-let mk_var i q = 
-  EVar(i,q)
-
-let mk_core_var i s = 
-  mk_var i (Qid.mk_core_t i s)
-
-let mk_unit i = 
-  EUnit(i)
-
-let mk_int i n = 
-  EInteger(i,n)
-
-let mk_str i s = 
-  EString(i,s)
-
-let mk_app i e1 e2 = 
-  EApp(i,e1,e2)
-
-let mk_app3 i e1 e2 e3 = 
-  mk_app i (mk_app i e1 e2) e3
-
-let mk_tyapp i e1 s2 = 
-  ETyApp(i,e1,s2)
-
 (* ----- helpers for sort checking ----- *)
 
 (* [fresh_id x s] generates a identifier from [x] that is fresh for
@@ -159,7 +134,7 @@ let mk_coercion s i f t e =
   let t_base = erase_sort t in
   if needs_coercion f_base t_base
   then
-    let cast = ECast (i,f_base,t_base,mk_blame i,e) in
+    let cast = ECast (i,f_base,t_base,i,e) in
     Trace.debug "coerce"
       (fun () -> 
 	 msg "@[%s: " s;
@@ -237,7 +212,7 @@ let rec trivial_cast f t =
 	let f_fvs = free_exp_vars_in_sort f2 in
 	let t_fvs = free_exp_vars_in_sort t2 in
 	let qz = fresh_qid x (Qid.Set.union f_fvs t_fvs) in
-	let e_z = mk_var (Info.M "dummy info from trivial_cast") qz in
+	let e_z = mk_qid_var qz in 
 	let f_subst = [Qid.t_of_id x,e_z] in
 	let t_subst = [Qid.t_of_id y,e_z] in
         trivial_cast 
@@ -264,7 +239,7 @@ let rec trivial_cast f t =
       | _ -> false
 
 let rec mk_cast s i f t e = 
-  let cast = ECast(i,f,t,mk_blame i,e) in
+  let cast = ECast(i,f,t,i,e) in
   let trivial = trivial_cast f t in
   Trace.debug (if trivial then "trivial" else "cast")
     (fun () -> 
@@ -278,7 +253,7 @@ let rec mk_cast s i f t e =
 (* generate the "negative" cast: <S => base(S)> *)
 let mk_neg_cast m i s0 e1 = 
   let s0_base = erase_sort s0 in
-    (s0_base, mk_cast m i s0 s0_base e1)
+  (s0_base, mk_cast m i s0 s0_base e1)
 
 (* generate the "positive" cast: <base(S) => S> *)
 let mk_pos_cast m i s0 e1 = 
@@ -591,7 +566,7 @@ and check_exp ?(in_let=false) sev e0 =
             | OEqual,[e1_sort,e1; _,e2] ->
                 (SBool,
                  mk_app3 i 
-                   (mk_tyapp i (mk_var i (Qid.mk_core_t i "equals")) e1_sort) 
+                   (mk_tyapp i (mk_qid_var (Qid.mk_core_t i "equals")) e1_sort) 
                    e1 e2)
             | OMatch, [tag; exp] ->
                 let tag_sort = SData ([], V.tag_qid) in
@@ -656,7 +631,6 @@ and check_exp ?(in_let=false) sev e0 =
           match ret_sorto with 
             | None -> 
                 (* if no return sort declared, just check the body 
-
 		   to handle nested function definitions, we pass on
 		   the value of in_let *)
                 None,(check_exp ~in_let:in_let body_sev body)
@@ -696,7 +670,7 @@ and check_exp ?(in_let=false) sev e0 =
         let new_p = Param(p_i,p_x,new_p_s) in
         let new_e0 = EFun(i,new_p,new_ret_sorto,new_body) in
 	(* apply positive and negative casts (if we're not immediately in a let) *)
-	if not in_let
+	if true (* not in_let *)
 	then mk_bulletproof_cast "fun" i e0_sort new_e0
 	else (e0_sort,new_e0)
 
