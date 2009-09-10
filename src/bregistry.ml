@@ -101,8 +101,8 @@ module REnv = struct
     | Some (r,_) -> Some r
     | None -> None
 
-  let lookup_env (tm,rm,ve) q : t option = match QM.lookup ve q with
-    | Some (_,ve) -> Some (tm,rm,ve)
+  let lookup_both (tm,rm,ve) q = match QM.lookup ve q with
+    | Some (r,ve) -> Some (r,(tm,rm,ve))
     | None -> None
 
   let lookup_type (tm,_,_) q = match QM.lookup tm q with
@@ -314,6 +314,10 @@ let lookup_library_generic select lookup_fun nctx q =
 let lookup_library_ctx os q = 
   verbose (fun () -> msg "lookup_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
   lookup_library_generic snd REnv.lookup os q
+
+let lookup_both_library_ctx os q = 
+  verbose (fun () -> msg "lookup_both_library_ctx [%s]@\n%!" (Bident.Qid.string_of_t q));
+  lookup_library_generic snd REnv.lookup_both os q
 
 let lookup_library_ctx_o os q = 
   verbose (fun () -> msg "lookup_library_ctx_o [%s]@\n%!" (Bident.Qid.string_of_t q));

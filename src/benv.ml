@@ -45,7 +45,7 @@ sig
   val set_mod : t -> Qid.t -> t
   val format : t -> unit
   val lookup : t -> Qid.t -> v option
-  val lookup_env : t -> Qid.t -> t option
+  val lookup_both : t -> Qid.t -> (v * t) option
   val lookup_o : t -> Qid.t -> (Qid.t * v) option
   val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option 
   val lookup_con : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
@@ -87,7 +87,12 @@ struct
       (Qid.string_of_t m)
 
   (* lookup from cev, then from library *)
-  let lookup_generic select lookup_fun lookup_library_fun cev q = 
+  let lookup_generic 
+      (select : (Qid.t * 'v) -> 'r)
+      (lookup_fun : G.REnv.t -> Qid.t -> 'v option)
+      (lookup_library_fun : Qid.t list -> Qid.t -> 'r option)
+      (cev : t)
+      (q : Qid.t) : 'r option = 
     let ev = get_ev cev in 
     let ctx = get_ctx cev in 
     let rec aux nctx q2 = match lookup_fun ev q2 with
@@ -106,9 +111,15 @@ struct
       G.lookup_library_ctx
       cev q
 
-  let lookup_env (ev1,ev2) q = match G.REnv.lookup_env ev2 q with
-    | None -> None
-    | Some ev2' -> Some (ev1,ev2')
+  let lookup_both cev q : (G.rv * t) option =    
+    let aux (v,ev) = (v,set_ev cev ev) in 
+    lookup_generic 
+      (fun (_,p) -> aux p)
+      G.REnv.lookup_both
+      (fun ctx q -> match G.lookup_both_library_ctx ctx q with
+         | Some p -> Some (aux p)
+         | None -> None)
+      cev q
 
   let lookup_o cev q = 
     lookup_generic (fun x -> x)
@@ -163,12 +174,13 @@ struct
 
   let format = CEnv.format
 
-  let lookup sev q = 
-    match CEnv.lookup sev q with 
+  let lookup sev q = match CEnv.lookup sev q with 
     | None -> None
     | Some (s,_) -> Some s
-
-  let lookup_env = CEnv.lookup_env
+        
+  let lookup_both sev q = match CEnv.lookup_both sev q with
+      | None -> None
+      | Some ((s,_),sev) -> Some (s,sev)
     
   let lookup_o sev q = 
     match CEnv.lookup_o sev q with 

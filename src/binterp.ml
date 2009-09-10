@@ -253,13 +253,10 @@ let rec interp_cast cev b f t =
 
 and interp_exp cev e0 = match e0 with 
   | EVar(i,q) -> begin 
-      match CEnv.lookup cev q with
-        | Some(G.Unknown,v) -> v
-        | Some(G.Sort s,v) -> 
+      match CEnv.lookup_both cev q with
+        | Some((G.Unknown,v),_) -> v
+        | Some((G.Sort s,v),s_env) -> 
             let s_base = Bsubst.erase_sort s in 
-            let s_env = match CEnv.lookup_env cev q with
-              | Some e -> e 
-              | None -> cev in
             (interp_cast s_env i s s_base) v 
         | None -> 
             Berror.run_error i 

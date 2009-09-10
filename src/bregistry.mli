@@ -50,7 +50,7 @@ module REnv : sig
   type t
   val empty : unit -> t
   val lookup : t -> Bident.Qid.t -> rv option
-  val lookup_env : t -> Bident.Qid.t -> t option
+  val lookup_both : t -> Bident.Qid.t -> (rv * t) option
   val lookup_type: t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
   val lookup_con : t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
   val update : t -> Bident.Qid.t -> rv -> t
@@ -93,6 +93,9 @@ val load_file : string -> bool
 
 val lookup_library_ctx : Bident.Qid.t list -> Bident.Qid.t -> rv option
 (** [lookup_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
+
+val lookup_both_library_ctx : Bident.Qid.t list -> Bident.Qid.t -> (rv * REnv.t) option
+(** [lookup_both_library_ctx nctx q] looks up [q] from the library, using naming context [nctx] *)
 
 val lookup_library_ctx_o : Bident.Qid.t list -> Bident.Qid.t -> (Bident.Qid.t * rv) option
 (** [lookup_library_ctx_o nctx q] looks up [q] from the library, using naming context [nctx] *)
