@@ -45,8 +45,9 @@ sig
   val set_mod : t -> Qid.t -> t
   val format : t -> unit
   val lookup : t -> Qid.t -> v option
+  val lookup_env : t -> Qid.t -> t option
   val lookup_o : t -> Qid.t -> (Qid.t * v) option
-  val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
+  val lookup_type : t -> Qid.t -> (Qid.t * Bregistry.tspec) option 
   val lookup_con : t -> Qid.t -> (Qid.t * Bregistry.tspec) option
   val update : t -> Qid.t -> v -> t
   val update_list : t -> (Qid.t * v) list -> t
@@ -105,6 +106,10 @@ struct
       G.lookup_library_ctx
       cev q
 
+  let lookup_env (ev1,ev2) q = match G.REnv.lookup_env ev2 q with
+    | None -> None
+    | Some ev2' -> Some (ev1,ev2')
+
   let lookup_o cev q = 
     lookup_generic (fun x -> x)
       G.REnv.lookup
@@ -162,6 +167,9 @@ struct
     match CEnv.lookup sev q with 
     | None -> None
     | Some (s,_) -> Some s
+
+  let lookup_env = CEnv.lookup_env
+    
   let lookup_o sev q = 
     match CEnv.lookup_o sev q with 
     | None -> None

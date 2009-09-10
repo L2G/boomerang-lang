@@ -40,6 +40,7 @@ sig
   val set_mod : t -> Qid.t -> t
   val format : t -> unit
   val lookup : t -> Qid.t -> v option
+  val lookup_env : t -> Qid.t -> t option
   val lookup_o : t -> Qid.t -> (Qid.t * v) option
   val lookup_type : t -> Qid.t -> (Qid.t * tspec) option
   val lookup_con : t -> Qid.t -> (Qid.t * tspec) option

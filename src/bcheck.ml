@@ -203,6 +203,7 @@ let rec compatible f t = match f,t with
   | _ -> false
 
 let rec trivial_cast f t =  
+  let res = 
   f == t || syneq_sort f t ||
   match f,t with
     | SRefine(_,f',_),_ -> 
@@ -236,8 +237,8 @@ let rec trivial_cast f t =
 	      | [],[] -> true
 	      | _ -> false in
 	  all_trivial (Qid.equal x y) fl tl
-      | _ -> false
-
+      | _ -> false in 
+    res
 let rec mk_cast s i f t e = 
   let cast = ECast(i,f,t,i,e) in
   let trivial = trivial_cast f t in
@@ -448,23 +449,20 @@ and lookup_var sev i q =
   | Some (full_q, G.Sort s) -> full_q, s
   | Some (full_q, G.Unknown) ->
       run_error i
-        (fun () -> msg "@[%s is bound to an unknown type@]" 
+        (fun () -> msg "@[%s is bound to an unknown type@]"
            (Qid.string_of_t full_q))
-  | None -> 
+  | None ->
       static_error i
-        (fun () -> msg "@[%s is not bound@]" 
+        (fun () -> msg "@[%s is not bound@]"
            (Qid.string_of_t q))
-
-and mk_checked_var sev i q =
-  (* lookup the sort in the context *)
-  let full_q, e0_sort = lookup_var sev i q in
-  (* apply a negative cast, if we need one *)
-  mk_neg_cast "var" i e0_sort (EVar(i,full_q))
 
 and check_exp ?(in_let=false) sev e0 = 
   match e0 with
     | EVar(i,q) ->
-	mk_checked_var sev i q
+        (* lookup the sort in the context *)
+        let full_q, e0_sort = lookup_var sev i q in
+        let e0_sort_base = erase_sort e0_sort in
+        (e0_sort_base, (EVar(i,full_q)))
 
     | EOver(i,op,es) -> begin 
         (* type check and instrument es *)
@@ -670,7 +668,7 @@ and check_exp ?(in_let=false) sev e0 =
         let new_p = Param(p_i,p_x,new_p_s) in
         let new_e0 = EFun(i,new_p,new_ret_sorto,new_body) in
 	(* apply positive and negative casts (if we're not immediately in a let) *)
-	if true (* not in_let *)
+	if not in_let 
 	then mk_bulletproof_cast "fun" i e0_sort new_e0
 	else (e0_sort,new_e0)
 

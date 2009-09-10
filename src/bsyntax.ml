@@ -279,18 +279,6 @@ let mk_if i e0 e1 e2 s =
 let mk_native_prelude_var i s = 
   EVar(i,Qid.mk_native_prelude_t i s)
 
-let mk_string_of_char i e = 
-  EApp(i,mk_native_prelude_var i "string_of_char",e)
-
-let mk_regexp_of_string i e = 
-  EApp(i,mk_native_prelude_var i "str",e)
-
-let mk_aregexp_of_regexp i e = 
-  EApp(i,mk_native_prelude_var i "rxlift",e)
-
-let mk_lens_of_regexp i e = 
-  EApp(i,mk_native_prelude_var i "copy",e)
-
 let mk_qid_var x = 
   EVar(Qid.info_of_t x,x)
 

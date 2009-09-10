@@ -92,25 +92,36 @@ let rec dynamic_match i p0 v0 = match p0,v0 with
 
 (* ----- interpret casts ----- *)
 (* precondition: f and t must be compatible. *)
-let rec interp_cast cev i b f t e = 
-  (* generates cast of e0 into the refinement (x:t where e) *)
-  let cast_refinement f x t e e0 = 
-    let v = interp_exp cev (ECast(i,f,t,b,e0)) in
-    let cev' = CEnv.update cev (Qid.t_of_id x) (G.Unknown,v) in
-    match V.get_x (interp_exp cev' e) with
-      | None -> v
-      | Some(cex) ->
-	  let cex_s = if cex = "" then "" else "; counterexample: " ^ cex in
-	  Berror.blame_error b
-	    (fun () ->
-	       (* TODO show bindings of free vars in e *)
-	       Util.format "@[%s=%a@ did@ not@ satisfy@ %a%s@]"
-		 (Id.string_of_t x)
-		 (fun _ -> V.format) v
-		 (fun _ -> format_exp) e
-	         cex_s) in
+let rec interp_cast cev b f t = 
+  (* generates cast into the refinement (x:t where e) *)
+  let cast_refinement f x t e = 
+    let fn v = 
+      let cev' = CEnv.update cev (Qid.t_of_id x) (G.Unknown,v) in
+      match V.get_x (interp_exp cev' e) with
+        | None -> v
+        | Some cex -> 
+            let cex_s = 
+              if cex = "" then "" 
+              else "; counterexample: " ^ cex in
+              Berror.blame_error b
+	        (fun () ->
+	           (* TODO show bindings of free vars in e *)
+	           Util.format "@[%s=%a@ did@ not@ satisfy@ %a%s@]"
+		     (Id.string_of_t x)
+		     (fun _ -> V.format) v
+		     (fun _ -> format_exp) e
+	             cex_s) in
+    (fun v -> fn (interp_cast cev b f t v)) in 
+  let native_coercion x = 
+    let q = Qid.mk_native_prelude_t b x in
+    match CEnv.lookup cev q with
+      | Some(_,v) -> V.get_f v
+      | None ->             
+          Berror.run_error b 
+            (fun () -> msg "@[%s unbound@]" 
+               (Qid.string_of_t q)) in 
   let res = 
-    if Bcheck.trivial_cast f t then interp_exp cev e
+    if Bcheck.trivial_cast f t then (fun v -> v)
     else
       match f,t with
       | SUnit,SUnit
@@ -123,125 +134,116 @@ let rec interp_cast cev i b f t e =
       | SLens,SLens 
       | SCanonizer,SCanonizer 
       | SVar(_),SVar(_) -> 
-          interp_exp cev e
+          (fun v -> v)
       | SPrefs f, SPrefs t when f = t ->
-          interp_exp cev e
+          (fun v -> v)
       | SChar,SString -> 
-          interp_exp cev (mk_string_of_char i e)
+          native_coercion "string_of_char"
       | SChar,SRegexp -> 
-          interp_exp cev (mk_regexp_of_string i (mk_string_of_char i e))
+          (fun v -> 
+             native_coercion "str"
+               (native_coercion "string_of_char" v))
       | SChar,SAregexp -> 
-          interp_exp cev (mk_aregexp_of_regexp i (mk_regexp_of_string i (mk_string_of_char i e)))
+          (fun v -> 
+             native_coercion "rxlift"
+               (native_coercion "str"
+                  (native_coercion "string_of_char" v)))
       | SChar,SLens -> 
-          interp_exp cev
-            (mk_lens_of_regexp i
-               (mk_regexp_of_string i 
-                  (mk_string_of_char i e)))
+          (fun v -> 
+             native_coercion "copy"
+               (native_coercion "str"
+                  (native_coercion "string_of_char" v)))
       | SString,SRegexp -> 
-          interp_exp cev (mk_regexp_of_string i e)
+          native_coercion "str"
       | SString,SAregexp -> 
-          interp_exp cev (mk_aregexp_of_regexp i (mk_regexp_of_string i e))
+          (fun v -> 
+             native_coercion "rxlift"
+               (native_coercion "regexp_of_string" v))
       | SString,SLens -> 
-          interp_exp cev (mk_lens_of_regexp i (mk_regexp_of_string i e))
+          (fun v -> 
+             native_coercion "copy"
+               (native_coercion "str" v))
       | SRegexp,SAregexp -> 
-          interp_exp cev (mk_aregexp_of_regexp i e)
+          native_coercion "rxlift"
       | SRegexp,SLens -> 
-          interp_exp cev (mk_lens_of_regexp i e)
+          native_coercion "copy"
       | SFunction(x,f1,f2), SFunction(y,t1,t2) -> 
-          let fn = Id.mk i "fn" in 
-          let qx = Qid.t_of_id x in 
-	  let qy = Qid.t_of_id y in
-          let qfn = Qid.t_of_id fn in 
-          let e_x = EVar(i,qx) in
-	  let e_y = EVar(i,qy) in
-          let e_fn = EVar(i,qfn) in
-          let e_fx = EApp(i,e_fn,e_x) in
-          let c1 = Bcheck.mk_cast "function argument" i t1 f1 e_y in 
-          let c2 = Bcheck.mk_cast "function result" b f2 t2 e_fx in 
-          let apped_cast = EApp(i,mk_fun i fn f 
-                                  (mk_fun i y t1 
-                                     (mk_let i x f1 c1 c2)),e) in
-(*             Trace.debug "interp" (fun _ ->                                      *)
-(*                                     msg "@[I    : %s" (Info.string_of_t i); *)
-(*                                     msg "@\nB   : %s" (Info.string_of_t b); *)
-(*                                     msg "@\nFROM:"; *)
-(*                                     format_sort f; *)
-(*                                     msg "@\nTO  :"; *)
-(*                                     format_sort t; *)
-(*                                     msg "@\n~~> :"; *)
-(*                                     format_exp apped_cast; *)
-(*                                     msg "@]@\n"); *)
-	  interp_exp cev apped_cast
+          let fn = Id.mk b "fn" in 
+          let c1 = Bcheck.mk_cast "function argument" b t1 f1 (mk_var y) in 
+          let c2 = Bcheck.mk_cast "function result" b f2 t2 (mk_app b (mk_var fn) (mk_var x)) in 
+          (fun v -> 
+             let cev' = CEnv.update cev (Qid.t_of_id fn) (G.Unknown,v) in 
+             interp_exp cev' (mk_fun b y t1 (mk_let b x f1 c1 c2)))
       | SProduct(f1,f2), SProduct(t1,t2) ->
-	  if syneq_sort f1 t1 && syneq_sort f2 t2
-	  then interp_exp cev e
-	  else
-            let x = Id.mk i "x" in 
-            let y = Id.mk i "y" in 
-            let e_x = EVar(i,(Qid.t_of_id x)) in 
-            let e_y = EVar(i,(Qid.t_of_id y)) in 
-            let c1 = ECast(i,f1,t1,b,e_x) in
-            let c2 = ECast(i,f2,t2,b,e_y) in
-	    let px = PVar(i,x,Some f1) in
-	    let py = PVar(i,y,Some f2) in
-	    let cast_pair = ECase(i,e,[(PPar(i,px,py),EPair(i,c1,c2))],Some t) in
-	    interp_exp cev cast_pair
+          (* JNF: can this first case happen? why isn't this a trivial cast? *)
+(* 	  if syneq_sort f1 t1 && syneq_sort f2 t2 *)
+(* 	  then (fun v -> v) *)
+(* 	  else *)
+            (fun v -> 
+               let x = Id.mk b "x" in 
+               let y = Id.mk b "y" in 
+               let v1,v2 = V.get_p v in 
+               let cev' = 
+                 CEnv.update (CEnv.update cev (Qid.t_of_id x) (G.Unknown,v1)) 
+                   (Qid.t_of_id y) (G.Unknown,v2) in
+               let c1 = Bcheck.mk_cast "pair fst" b f1 t1 (mk_var x) in 
+               let c2 = Bcheck.mk_cast "pair snd" b f2 t2 (mk_var y) in 
+               interp_exp cev' (EPair(b,c1,c2)))
       | SData(fl,x),SData(tl,y) when Qid.equal x y -> 
           let rec aux acc l1 l2 = acc && match l1,l2 with
             | [],[] -> true
             | h1::t1,h2::t2 -> aux (syneq_sort h1 h2) t1 t2 
             | _ -> false in 
-          if aux true fl tl then interp_exp cev e
+          if aux true fl tl then (fun v -> v)
           else 
-            let _,(svl,cl) = Bcheck.get_type (CEnv.lookup_type cev) i x in
+            let _,(svl,cl) = Bcheck.get_type (CEnv.lookup_type cev) b x in
             let fsubst = Safelist.combine svl fl in 
             let tsubst = Safelist.combine svl tl in 
             let cl_finst = Bcheck.inst_cases fsubst cl in 
             let cl_tinst = Bcheck.inst_cases tsubst cl in
-            let x = Id.mk i "x" in 
+            let x = Id.mk b "x" in 
             let qx = Qid.t_of_id x in 
-            let y = Id.mk i "y" in 
+            let y = Id.mk b "y" in 
             let qy = Qid.t_of_id y in 
             let pl = Safelist.map
               (fun ((li,fio),(_,tio)) -> 
                  match fio,tio with 
                    | None,None -> 
-                       let pi = PVnt(i,li,None) in 
-                       let ei = EVar(i,qx) in 
-                         (pi,ei)
+                       let pi = PVnt(b,li,None) in 
+                       let ei = EVar(b,qx) in 
+                       (pi,ei)
                    | Some fi,Some ti -> 
                        let li_f = 
                          Safelist.fold_right 
-                           (fun tj acc -> ETyApp(i,acc,tj))
-                           tl (EVar(i,li)) in 
-                       let py = PVar(i,y,Some fi) in 
-                       let pi = PVnt(i,li,Some py) in 
+                           (fun tj acc -> ETyApp(b,acc,tj))
+                           tl (EVar(b,li)) in 
+                       let py = PVar(b,y,Some fi) in 
+                       let pi = PVnt(b,li,Some py) in 
                          (* this cast must not be expanded! 
                             (it would loop on recursive data types) *)
-                       let ei = EApp(i,li_f,ECast(i,fi,ti,b,EVar(i,qy))) in
+                       let ei = EApp(b,li_f,ECast(b,fi,ti,b,EVar(b,qy))) in
                        (pi,ei)
                    | _ -> 
-                       Berror.run_error i 
+                       Berror.run_error b 
                          (fun () -> 
                             msg "@[cannot@ cast@ different@ datatypes@]"))
               (Safelist.combine cl_finst cl_tinst) in 
-            interp_exp cev 
-              (* !!! OPT *)
-              (mk_let i x f e (ECase(i,EVar(i,qx),pl,Some t))) 
+            (fun v -> 
+               let cev' = CEnv.update cev (Qid.t_of_id x) (G.Unknown,v) in 
+               interp_exp cev' (ECase(b,EVar(b,qx),pl,Some t)))
       | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
           if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 
-          then interp_exp cev e
-          else cast_refinement f y t2 e2 e
+          then (fun v -> v)
+          else cast_refinement f y t2 e2
       | _,SRefine(x,t2,e2) -> 
-          cast_refinement f x t2 e2 e
+          cast_refinement f x t2 e2
       | SRefine(x,f1,e1),t1 -> 
-          interp_cast cev i b f1 t1 e
+          interp_cast cev b f1 t1
       | SForall(x,f1),SForall(y,t1) ->
 	  (* no need to freshen since compatibility substitutes *)
-          let e_ex = ETyApp(i,e,SVar x) in
-	  interp_exp cev (ETyFun(i,x,ECast(i,f1,t1,b,e_ex)))
+          (interp_cast cev b f1 t1)
       | _ -> 
-          Berror.run_error i 
+          Berror.run_error b 
             (fun () -> 
                msg "@[cannot@ cast@ incompatible@ %s@ to@ %s@]"
                  (string_of_sort f) (string_of_sort t)) in 
@@ -250,15 +252,20 @@ let rec interp_cast cev i b f t e =
 (* ----- interpret expressions ----- *)
 
 and interp_exp cev e0 = match e0 with 
-  | EVar(i,q) ->       
-      begin 
-        match CEnv.lookup cev q with
-          | Some(_,v) -> v
-          | None -> 
-              Berror.run_error i 
-                (fun () -> msg "@[%s unbound@]" 
-                   (Qid.string_of_t q))
-      end
+  | EVar(i,q) -> begin 
+      match CEnv.lookup cev q with
+        | Some(G.Unknown,v) -> v
+        | Some(G.Sort s,v) -> 
+            let s_base = Bsubst.erase_sort s in 
+            let s_env = match CEnv.lookup_env cev q with
+              | Some e -> e 
+              | None -> cev in
+            (interp_cast s_env i s s_base) v 
+        | None -> 
+            Berror.run_error i 
+              (fun () -> msg "@[%s unbound@]" 
+                 (Qid.string_of_t q))
+    end
 
   | EOver(i,op,_) -> 
       Berror.run_error i
@@ -331,7 +338,8 @@ and interp_exp cev e0 = match e0 with
       V.Rx(i,mk csi)
 
   | ECast(i,f,t,b,e) -> 
-      interp_cast cev i b f t e 
+      (interp_cast cev b f t)
+        (interp_exp cev e)
 
 and interp_binding cev b0 = match b0 with
   | Bind(i,p,so,e) -> 
@@ -448,7 +456,10 @@ let rec interp_decl cev ms d0 = match d0 with
                   if not (Bcheck.compatible s1 s2) then err ()
                   else 
                     begin
-                      try ignore (interp_cast cev i i s1 s2 e)
+                      try 
+                        ignore 
+                          ((interp_cast cev i s1 s2)
+                             (interp_exp cev e))
                       with Error.Harmony_error(e) -> err ()
                     end                      
             | Error err, TestEqual e2 -> 

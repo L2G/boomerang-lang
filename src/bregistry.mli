@@ -50,11 +50,11 @@ module REnv : sig
   type t
   val empty : unit -> t
   val lookup : t -> Bident.Qid.t -> rv option
+  val lookup_env : t -> Bident.Qid.t -> t option
   val lookup_type: t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
   val lookup_con : t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
   val update : t -> Bident.Qid.t -> rv -> t
   val update_type : t -> Bident.Id.t list -> Bident.Qid.t -> tcon list -> t
-  val overwrite : t -> Bident.Qid.t -> rv -> unit
   val iter : (Bident.Qid.t -> rv -> unit) -> t -> unit
   val iter_type : (Bident.Qid.t -> tspec -> unit) -> t -> unit
   val fold : (Bident.Qid.t -> rv -> 'a -> 'a) -> t -> 'a -> 'a

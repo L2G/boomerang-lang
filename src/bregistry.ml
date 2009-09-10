@@ -80,25 +80,9 @@ let format_rv (rs,v) =
 type tcon = Bident.Qid.t * Bsyntax.sort option
 type tspec = Bident.Id.t list * tcon list
 
-(* --------------- Focal library -------------- *)
+(* --------------- Boomerang library -------------- *)
 (* state *)
-module type REnvSig = 
-sig
-  type t
-  val empty : unit -> t
-  val lookup : t -> Bident.Qid.t -> rv option
-  val lookup_type: t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
-  val lookup_con : t -> Bident.Qid.t -> (Bident.Qid.t * tspec) option
-  val update : t -> Bident.Qid.t -> rv -> t
-  val update_type : t -> Bident.Id.t list -> Bident.Qid.t -> tcon list -> t
-  val overwrite : t -> Bident.Qid.t -> rv -> unit
-  val iter : (Bident.Qid.t -> rv -> unit) -> t -> unit
-  val iter_type : (Bident.Qid.t -> tspec -> unit) -> t -> unit
-  val fold : (Bident.Qid.t -> rv -> 'a -> 'a) -> t -> 'a -> 'a
-end
-
-module REnv : REnvSig = 
-struct  
+module REnv = struct  
   (* "type map" from names (Prelude.list) to type variables (['a]) and
      constructors / optional sorts (["Nil", None; "Cons", 'a * 'a list]) *)
   type tmap = (Bident.Id.t list * tcon list) QM.t
@@ -106,53 +90,56 @@ struct
   (* "reverse type map" from constructor names (Prelude.Nil) to types (Prelude.list) *)
   type rmap = Bident.Qid.t QM.t 
 
-  (* environments are have two components: for types and values *)
-  type t = (tmap * rmap) * (rv ref) QM.t
+  type vmap = (rv * vmap) QM.t
 
-  let empty () = ((QM.empty (), QM.empty ()), QM.empty ())
+  (* environments have two components: for types and values *)
+  and t = (tmap * rmap * vmap)
 
-  let lookup (_,ve) q = match QM.lookup ve q with 
-      Some r -> Some (!r)
+  let empty () = (QM.empty (), QM.empty (), QM.empty ())
+
+  let lookup (_,_,ve) q = match QM.lookup ve q with
+    | Some (r,_) -> Some r
     | None -> None
 
-  let lookup_type ((tm,_),_) q = 
-    match QM.lookup tm q with
-      | None -> None
-      | Some r -> Some (q,r)
-      
-  let lookup_con ((tm,rm),_) q = match QM.lookup rm q with 
+  let lookup_env (tm,rm,ve) q : t option = match QM.lookup ve q with
+    | Some (_,ve) -> Some (tm,rm,ve)
     | None -> None
-    | Some q' -> begin match QM.lookup tm q' with 
-        | None -> Berror.run_error (Info.M "Bregistry.lookup_con") 
-            (fun () -> msg "datatype %s missing" 
-               (Bident.Qid.string_of_t q'))
-        | Some (sl,cl) -> Some (q',(sl,cl))
+
+  let lookup_type (tm,_,_) q = match QM.lookup tm q with
+    | Some r -> Some (q,r)
+    | None -> None
+        
+  let lookup_con (tm,rm,_) q = match QM.lookup rm q with 
+    | Some q' -> begin 
+        match QM.lookup tm q' with 
+          | None -> 
+              Berror.run_error (Info.M "Bregistry.lookup_con") 
+                (fun () -> msg "datatype %s missing" 
+                   (Bident.Qid.string_of_t q'))
+          | Some (sl,cl) -> 
+              Some (q',(sl,cl))
       end
+    | None -> None
   
-  let update (te,ve) q v = 
-    (te, QM.update ve q (ref v))
+  let update (tm,rm,ve) q v = 
+    (tm, rm, QM.update ve q (v,ve))
 
-  let update_type (((tm,rm),ve)) svl q cl = 
+  let update_type (tm,rm,ve) svl q cl = 
     let tm' = QM.update tm q (svl,cl) in 
     let rm' = 
       Safelist.fold_left 
         (fun rmi (qi,so) -> QM.update rmi qi q)
         rm cl in 
-    ((tm',rm'),ve)
+    (tm',rm',ve)
 
-  let overwrite (te,ve) q v = 
-    match QM.lookup ve q with 
-        Some r -> r:=v
-      | None -> 
-          raise (Error.Harmony_error
-                   (fun () -> msg "Registry.overwrite: %s not found" 
-                      (Bident.Qid.string_of_t q)))
-  let iter f (_,ve) = 
-    QM.iter (fun q rvr -> f q (!rvr)) ve
-  let iter_type f ((tm,_),_) = 
-    QM.iter f tm 
-  let fold f (_,ve) init = 
-    QM.fold (fun q rvr a -> f q (!rvr) a) ve init
+  let iter f (_,_,ve) = 
+    QM.iter (fun q rvve -> f q (fst rvve)) ve 
+
+  let iter_type f (tm,_,_) = QM.iter f tm 
+
+  let fold f (_,_,ve) init = 
+    QM.fold (fun q rvve a -> f q (fst rvve) a) ve init 
+
 end
 
 let loaded = ref ["Native"]
@@ -375,7 +362,6 @@ let resolve_library lookup_fun nctx m q =
   resolve_library_aux nctx q
 
 (* --------------- Registration functions -------------- *)
-
 (* register a value *)
 let register q r = 
   library := (REnv.update (!library) q r)

@@ -213,10 +213,6 @@ val mk_fun : Info.t -> Id.t -> sort -> exp -> exp
 val mk_if : Info.t -> exp -> exp -> exp -> sort -> exp 
 val mk_native_prelude_var : Info.t -> string -> exp
 val mk_prelude_var : Info.t -> string -> exp
-val mk_string_of_char : Info.t -> exp -> exp
-val mk_regexp_of_string : Info.t -> exp -> exp 
-val mk_aregexp_of_regexp : Info.t -> exp -> exp
-val mk_lens_of_regexp : Info.t -> exp -> exp
 
 val mk_qid_var : Qid.t -> exp
 val mk_var : Id.t -> exp
