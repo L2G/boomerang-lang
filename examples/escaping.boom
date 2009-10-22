@@ -121,7 +121,7 @@ let render_xml (R : regexp where splittable_cex "<tag>" R &&
    in essence, can we instrument render_tag but not install blame on its 
    arguments?
 *)
-let tagged (R : regexp) (tag : string) = 
+let tagged (R : regexp) (tag : string) : regexp = 
   '<' . tag . '>' . R . ("</" . tag) . '>'
 
 let render_tag (R : regexp) (tag : string) 
@@ -407,7 +407,7 @@ let field_to_xml (field : string)
 let csv_to_xml (fields : string List.t where lens_concatable fields (del ",")) = 
   intersperse_lenses (List.map{string}{lens} field_to_xml fields) (del ",")
 
-let l3 = csv_to_xml (List.Cons{string}("first",List.Cons{string}("last",List.Nil{string})))
+let l3 = csv_to_xml #{string}["first";"last"]
 
 test get l3
     <<
