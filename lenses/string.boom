@@ -77,7 +77,7 @@ of the character in @s@ making it not match the regular expression
 ## = Native.Prelude.bad_prefix_position
 
 \LENSSECTION{@explode@} The @explode@ function explodes a string into
-characters, returning a list of string.
+characters, returning a list of strings.
 
 #* let explode (s:string) : (l:string List.t where List.length{string} l = length s)
 #* = star_split ANYCHAR s
@@ -85,7 +85,7 @@ characters, returning a list of string.
 #* test explode "" = #{string}[]
 #* test explode "lorem" = #{string}["l";"o";"r";"e";"m"]
 
-\LENSSECTION{@implode@} The @implode@ function implodes an list of
+\LENSSECTION{@implode@} The @implode@ function implodes a list of
 char into a string.
 
 #* let implode (l:string List.t) : string

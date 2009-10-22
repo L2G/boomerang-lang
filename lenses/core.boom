@@ -238,10 +238,23 @@ expressions. The infix symbol @-@ desugars into @diff@.
 #* let diff : regexp -> regexp -> regexp 
 ## = Native.Prelude.diff
 
+\LENSSECTION{@matches@,@matches_cex@} The @matches@ function tests if a string
+belongs to the language denoted by a regular expression.
+
+#* let matches : regexp -> string -> bool 
+## = Native.Prelude.matches
+#* let matches_cex : regexp -> string -> bool 
+## = Native.Prelude.matches_cex
+
+#* test matches [A-Z] "A" = true
+#* test matches [A-Z] "0" = false
+#* test matches (diff [^] [A-Z]) "X" = false
+#* test matches (diff [^] [A-Z]) "0" = true
+
 \LENSSECTION{@representative@} The function @representative@ computes a 
 (typically shortest) representative of a regular expression.
 
-#* let representative : regexp -> string 
+#* let representative : (r:regexp -> (s:string where matches r s))
 ## = Native.Prelude.representative
 
 If the regular expression denotes the empty language, an exception is raised, 
@@ -269,19 +282,6 @@ expressions denote the same language.
 ## = Native.Prelude.equiv_cex
 
 #* test equiv [A-Z] [\065-\090] = true
-
-\LENSSECTION{@matches@,@matches_cex@} The @matches@ function tests if a string
-belongs to the language denoted by a regular expression.
-
-#* let matches : regexp -> string -> bool 
-## = Native.Prelude.matches
-#* let matches_cex : regexp -> string -> bool 
-## = Native.Prelude.matches_cex
-
-#* test matches [A-Z] "A" = true
-#* test matches [A-Z] "0" = false
-#* test matches (diff [^] [A-Z]) "X" = false
-#* test matches (diff [^] [A-Z]) "0" = true
 
 \LENSSECTION{@disjoint@,@disjoint_cex@} The @disjoint@ function tests whether
 two regular expressions denote disjoint languages.
@@ -400,9 +400,9 @@ desugars into @aregexp_concat@ when used with values of type @aregexp@.
 
 ## test aequiv (rxlift (regexp_concat [a-z] [a-z])) (aregexp_concat (rxlift [a-z]) (rxlift [a-z])) = true
 
-\LENSSECTION{@regexp_union@} The @regexp_union@ operator forms the union 
+\LENSSECTION{@aregexp_union@} The @aregexp_union@ operator forms the union 
 of two regular expressions. The overloaded infix symbol @|@ desugars into 
-@regexp_union@ when used with values of type @regexp@.
+@aregexp_union@ when used with values of type @aregexp@.
 
 #* let aregexp_union (a1:aregexp)
 #*                   (a2:aregexp where land (disjoint_cex (rxdrop a1) (rxdrop a2))
@@ -577,14 +577,14 @@ lens is bijective in a given @stype@ and @vtype@. The @lens in S <=> V@
 notation desugars into @in_bij_lens_type@.
 
 #* let in_bij_lens_type (l:lens) (S:regexp) (V:regexp) : bool =
-#*   (land (land (equiv_cex (stype l) S) (equiv_cex (vtype l) V)) (bij l))
+#*   (land (in_lens_type l S V) (bij l))
 
 \LENSSECTION{@get@} The @get@ function extracts the $\GET$ component of a lens. The record-style 
 projection notation @l.get@ desugars into @get@.
 
 #* let get : (l:lens -> 
 #*           (s:string where matches_cex (stype l) s) ->
-#*           string)
+#*           (s':string where matches_cex (vtype l) s'))
 ## = Native.Prelude.get
 
 \LENSSECTION{@put@} The @put@ function extracts the $\PUT$ component of a lens. 
@@ -593,7 +593,7 @@ The record-style projection notation @l.put v into s@ desugars into @put@.
 #* let put : (l:lens ->
 #*           (v:string where matches_cex (vtype l) v) -> 
 #*           (s:string where matches_cex (stype l) s) -> 
-#*           string)
+#*           (s':string where matches_cex (stype l) s'))
 ## = Native.Prelude.put 
 
 \LENSSECTION{@create@} The @create@ function extracts the $\CREATE$ 
@@ -602,7 +602,7 @@ desugars into @create@.
 
 #* let create : (l:lens -> 
 #*              (v:string where matches_cex (vtype l) v) -> 
-#*              string)
+#*              (s:string where matches_cex (stype l) s))
 ## = Native.Prelude.create 
 
 \subsection{Lenses}
@@ -671,7 +671,7 @@ to lens values.
 #*                         (is_basic l1))
 #*     (l2:lens where land (rel_is_id (vequiv l2))
 #*                   (land (is_basic l2)
-%                   (land (mtype_compatible_cex (mtype l1) (mtype l2))
+%                    (land (mtype_compatible_cex (mtype l1) (mtype l2))
 #*                         (disjoint_cex (stype l1) (stype l2))))
 #*   : (l:lens where in_lens_type l 
 #*          (regexp_union (stype l1) (stype l2))
@@ -941,7 +941,7 @@ tag @greedy 0 ""@.
 #*   : (l':lens where in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_match t l
 
-\LENSSECTION{@align@} The @align@ operator converts a resourcefull
+\LENSSECTION{@align@} The @align@ operator converts a resourceful
 lens @l@ into a basic lens, making an alignment phase internal to it.
 
 #* let align
