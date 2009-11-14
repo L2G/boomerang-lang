@@ -182,14 +182,14 @@ test canonize_title.get
   "A Logic Your Typechecker Can Count On: Unordered Tree Types in Practice"
 
 (* VALUES *)
-let esc (s:string) = str ("\\" . s)
+let esc (s:string) = regexp_of_string ("\\" . s)
 let bare_value = [A-Za-z0-9]+
 let braced_value = no_tags ([^@{}\\] | esc "{" | esc "}")*
 let quoted_value = no_tags ([^@""\\] | esc "\"")*
 
 (* FIELDS *)
-let start_field (lb:string) : regexp = WS . "=" . WS . str lb
-let end_field (rb:string) : regexp = str rb . [ ]* . "," . [ ]* . "\n"
+let start_field (lb:string) : regexp = WS . "=" . WS . lb
+let end_field (rb:string) : regexp = rb . [ ]* . "," . [ ]* . "\n"
 
 let mk_template 
   (lb:string) 
@@ -208,7 +208,7 @@ let bare_preamble = mk_template "" (copy bare_value) ""
 let any_preamble = quoted_preamble || braced_preamble || bare_preamble 
 
 let std_field_bibtex (o:regexp) = WS . o . (stype any_preamble)
-let std_field_ris (r:string) (c:string) = (str r) . (vtype any_preamble) . (str c)
+let std_field_ris (r:string) (c:string) = r . (vtype any_preamble) . c
 
 (* str concatenations in vtype of return are fine; we only need the check on o *)
 let do_std_field (r:string) (O:regexp where lens_splittable (del O) any_preamble) (c:string) 
@@ -241,7 +241,7 @@ let field_ris (r:string) (loo:lens) (l1:lens) (l2:lens) (l3:lens) (c:string) : r
   let tmpl2 = mk_template "\"" l2 "\"" in
   let tmpl3 = mk_template "" l3 "" in
   let templates = tmpl1 || tmpl2 || tmpl3 in
-  (str r) . (vtype loo) . (vtype templates) . (str c)
+  r . (vtype loo) . (vtype templates) . c
 
 let uniform_field_bibtex (loo:lens) (l:lens) : regexp = field_bibtex loo l l l
 let uniform_field_ris (r:string) (loo:lens) (l:lens) (c:string) : regexp =
@@ -410,19 +410,19 @@ let fields : (lens in fields_bibtex <-> fields_ris) =
 let key_re : regexp = (not_special - [, \n])+
 
 let key_bibtex : regexp = key_re . "," . [ ]* . "\n"
-let key_ris : regexp = (str (tag "ID")) . key_re
+let key_ris : regexp = tag "ID" . key_re
 
 let do_key : (lens in key_bibtex <-> key_ris)
   = ins (tag "ID") . key [^@{}"",\n ]+ . (("," . [ ]* . "\n") <-> "")
 
 test do_key.get "dtts,\n" = "ID  - dtts"
 
-let type_bibtex (b:string) : regexp = "@" . (str b) . WS . "{"
-let type_ris (r:string) : regexp = "TY  - " . (str r)
+let type_bibtex (b:string) : regexp = "@" . b . WS . "{"
+let type_ris (r:string) : regexp = "TY  - " . r
 
 (* trivially splittable -- everything is constant strings*)
 let do_type (b:string) (r:string) : (lens in type_bibtex b <-> type_ris r) = 
-  ("@" . (str b) . WS . "{") <-> ("TY  - " . r)
+  ("@" . b . WS . "{") <-> ("TY  - " . r)
 
 let chunk_bibtex =
   (type_bibtex "article"       | type_bibtex "inproceedings" |

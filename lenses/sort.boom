@@ -167,7 +167,7 @@ type.
 #*            (concat_regexps (vtypes ls) . (vtype l)* ))
 #*  = 
 #*  let cn_partition =
-#*    canonizer_of_lens (partition ((union_regexps (stypes ls)) - EPSILON) (stype l))
+#*    canonizer_of_lens (partition #{regexp}[((union_regexps (stypes ls)) - EPSILON);(stype l)])
 #*  in 
 #*  let cn_sort = sort (stypes ls) in
 #*  left_quot cn_partition (left_quot cn_sort (concat_lenses ls) . l* )

@@ -645,7 +645,8 @@ module MLens = struct
     | Dup2 of (string -> string) * Rx.t * t
 
     (* ----- extensions ----- *)
-    | Partition of Rx.t * Rx.t
+    | Partition of int * (int * Rx.t) list
+    | Group of Rx.t * Rx.t
     | Merge of Rx.t
     | Fiat of t
     | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array
@@ -701,7 +702,16 @@ module MLens = struct
           | RightQuot (ml, cn) -> bij ml
           | Dup1 (ml, f, r)    -> bij ml
           | Dup2 (f, r, ml)    -> bij ml
-          | Partition(r1,r2)   -> Rx.is_empty r1 || Rx.is_empty r2
+          | Partition(_,rs1)     -> 
+              let rec loop flag l = match flag,l with 
+                | _,[] -> true
+                | true,(_,h)::t -> 
+                    Rx.is_empty h && loop flag t
+                | false,(_,h)::t -> 
+                    if Rx.is_empty h then loop flag t 
+                    else loop true t in 
+              loop false rs1 
+          | Group(r1,r2)       -> Rx.is_singleton r1
           | Merge (r)          -> Rx.is_singleton r
           | Fiat ml            -> bij ml
           | Permute (_, mls)   -> Array.fold_left (fun b mli -> b && bij mli) true mls
@@ -730,7 +740,8 @@ module MLens = struct
           | RightQuot (ml, _)  -> astype ml
           | Dup1 (ml, _, _)    -> astype ml
           | Dup2 (_, _, ml)    -> astype ml
-          | Partition (r1, r2) -> Arx.mk_rx (Rx.mk_star (Rx.mk_alt r1 r2))
+          | Partition (_,rs1)  -> Arx.mk_rx (Rx.mk_star (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_alt acc ri) Rx.empty rs1))
+          | Group (r1, r2)     -> Arx.mk_rx (Rx.mk_star (Rx.mk_seq r1 r2))
           | Merge r            -> Arx.mk_rx (Rx.mk_seq r r)
           | Fiat ml            -> astype ml
           | Permute (_, mls)   ->
@@ -761,7 +772,8 @@ module MLens = struct
           | RightQuot (_, cn)  -> Canonizer.uncanonized_atype cn
           | Dup1 (ml, _, r)    -> Arx.mk_seq (avtype ml) (Arx.mk_rx r)
           | Dup2 (_, r, ml)    -> Arx.mk_seq (Arx.mk_rx r) (avtype ml)
-          | Partition (r1, r2) -> Arx.mk_rx (Rx.mk_seq (Rx.mk_star r1) (Rx.mk_star r2))
+          | Partition (_,rs1)  -> Arx.mk_rx (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_seq acc (Rx.mk_star ri)) Rx.epsilon rs1)
+          | Group (r1, r2)     -> Arx.mk_rx (Rx.mk_star (Rx.mk_seq r1 (Rx.mk_star r2)))
           | Merge r            -> Arx.mk_rx r
           | Fiat ml            -> avtype ml
           | Permute (p, mls)   ->
@@ -788,6 +800,7 @@ module MLens = struct
           | Dup1 _
           | Dup2 _
           | Partition _
+          | Group _
           | Merge _
           | Fiat _
             -> basic ()
@@ -817,6 +830,7 @@ module MLens = struct
           | Copy _
           | Clobber _
           | Partition _
+          | Group _
           | Merge _
           | Align _
           | Fiat _
@@ -867,7 +881,8 @@ module MLens = struct
           | RightQuot (ml, cn) -> sequiv ml
           | Dup1 (ml, f, r)    -> sequiv ml
           | Dup2 (f, r, ml)    -> sequiv ml
-          | Partition (r1, r2) -> Identity
+          | Partition (_,rs1)  -> Identity
+          | Group (r1, r2)     -> Identity
           | Merge (r)          -> Identity
           | Fiat ml            -> sequiv ml
           | Permute (p, mls)   ->
@@ -897,7 +912,8 @@ module MLens = struct
           | RightQuot(ml1,cn1) -> Unknown
           | Dup1 (ml, f, r)    -> Unknown
           | Dup2 (f, r, ml)    -> Unknown
-          | Partition (r1, r2) -> Identity
+          | Partition (_,rs1)  -> Identity
+          | Group (r1, r2)     -> Identity
           | Merge (r)          -> Identity
           | Fiat ml            -> vequiv ml
           | Permute (p, mls)   ->
@@ -915,6 +931,7 @@ module MLens = struct
     | Copy _
     | Clobber _
     | Partition _
+    | Group _
     | Merge _
       -> Bstring.to_string s
     | Concat (ml1, ml2) ->
@@ -960,6 +977,7 @@ module MLens = struct
     | Copy _
     | Clobber _
     | Partition _
+    | Group _
     | Merge _
       -> Bstring.to_string v
     | Concat (ml1, ml2) ->
@@ -1027,6 +1045,7 @@ module MLens = struct
     | Dup1 _
     | Dup2 _
     | Partition _
+    | Group _
     | Merge _
     | Align _
     | Fiat _
@@ -1193,23 +1212,40 @@ module MLens = struct
         (v, k), (c, i2)
     | Dup1 (ml, f, _) -> basic (fun s -> rget ml s ^ f (Bstring.to_string s))
     | Dup2 (f, _, ml) -> basic (fun s -> f (Bstring.to_string s) ^ rget ml s)
-    | Partition (r1, r2) -> basic (
+    | Partition (k,rs1) -> basic (
         fun s ->
-          let buf1 = Buffer.create 17 in
-          let buf2 = Buffer.create 17 in
-          let add1 s = Buffer.add_string buf1 (Bstring.to_string s) in
-          let add2 s = Buffer.add_string buf2 (Bstring.to_string s) in
-          let rec loop = function
+          let a = Array.init k (fun _ -> Buffer.create 17) in 
+          let find_match s = 
+            try fst (Safelist.find (fun (i,ri) -> Bstring.match_rx ri s) rs1)
+            with Not_found -> 
+              Err.run_error (Info.M "partition.gget") 
+                (fun () -> msg "@[%s@ did not match@ any@ regexp@]" (Bstring.to_string s)) in 
+          let add i s = Buffer.add_string a.(i) (Bstring.to_string s) in 
+          let concat_buf_array a =
+            let buf = Buffer.create 17 in
+              Array.iter (fun b -> Buffer.add_buffer buf b) a;
+              Buffer.contents buf in 
+          Safelist.iter 
+            (fun s -> add (find_match s) s) 
+            (Bstring.star_split (stype ml) s);
+          concat_buf_array a)
+    | Group (r1, r2) -> basic (
+        fun s -> 
+          let buf = Buffer.create 17 in 
+          let rec loop ko = function
             | [] -> ()
-            | h::t ->
-                begin match Bstring.match_rx r1 h, Bstring.match_rx r2 h with
-                | true , false -> add1 h; loop t
-                | false, true  -> add2 h; loop t
-                | _            -> Err.run_error (Info.M "gget") (fun () -> msg "'%s'" (Bstring.to_string h))
-                end in
-          loop (Bstring.star_split (stype ml) s);
-        Buffer.add_buffer buf1 buf2;
-        Buffer.contents buf1)
+            | bsi::rest -> 
+                let bki,bvi = Bstring.concat_split r1 r2 bsi in 
+                let ki = Bstring.to_string bki in 
+                let ko' = match ko with 
+                  | Some k when k = ki -> ko
+                  | _ -> 
+                      Buffer.add_string buf ki;
+                      Some ki in 
+                Buffer.add_string buf (Bstring.to_string bvi);
+                loop ko' rest in
+          loop None (Bstring.star_split (stype ml) s);
+          Buffer.contents buf)
     | Merge r -> basic (fun s -> Bstring.to_string (fst (Bstring.concat_split r r s)))
     | Fiat ml -> basic_no_op ml
     | Permute (p, mls) ->
@@ -1394,36 +1430,58 @@ module MLens = struct
         (fun v so ->
            let _, v = Bstring.concat_split r (vtype ml) v in
            rput' ml v so)
-    | Partition (r1, r2) -> basic (
+    | Partition (k,rs1) -> basic (
         fun v so ->
-          let ss =
-            match so with
+          let ss = match so with
             | Some s -> Bstring.star_split (stype ml) s
-            | None -> []
-          in
-          let r1s = Rx.mk_star r1 in
-          let r2s = Rx.mk_star r2 in
-          let v1, v2 = Bstring.concat_split r1s r2s v in
+            | None -> [] in 
+          let a = Array.create k [] in 
+          let rec vloop i rs vs = match rs,vs with 
+            | _,[] -> ()
+            | (_,rh)::rt,vh::vt -> 
+                if Bstring.match_rx rh vh then 
+                  (a.(i) <- vh::a.(i);
+                   vloop i rs vt)
+                else vloop (succ i) rt vs 
+            | [],_ -> 
+                Err.run_error (Info.M "partition.gput") 
+                  (fun () -> msg "@[[%s]@ did not match@ any@ regexps@]" 
+                     (Misc.concat_list "," (Safelist.map Bstring.to_string vs))) in 
+          vloop 0 rs1 (Bstring.star_split (stype ml) v);
+          Array.iteri (fun i l -> a.(i) <- Safelist.rev a.(i)) a;
           let buf = Buffer.create 17 in
+          let find_match s = 
+            try Safelist.find (fun (i,ri) -> Bstring.match_rx ri s) rs1
+            with Not_found -> 
+              Err.run_error (Info.M "partition.gput") 
+                (fun () -> msg "@[%s@ did not match@ any@ regexp@]" (Bstring.to_string s)) in 
           let add v = Buffer.add_string buf (Bstring.to_string v) in
-          let rec loop ss v1s v2s =
-            match ss, v1s, v2s with
-              (* the cases where the source can tell us which view to take *)
-            | s::ss, v::v1s, v2s when Bstring.match_rx r1 s ->
-                add v; loop ss v1s v2s
-            | s::ss, v1s, v::v2s when Bstring.match_rx r2 s ->
-                add v; loop ss v1s v2s
-                  (* the cases where the source cannot, because the needed view is empty *)
-            | _::ss, v1s, v2s -> loop ss v1s v2s (* skip this source *)
-                (* create mode ie. no source *)
-            | [], v::v1s, v2s
-            | [], v1s, v::v2s
-                -> add v; loop [] v1s v2s
-                  (* when the views are empty *)
-            | _, [], [] -> () (* end *)
-          in
-          loop ss (Bstring.star_split r1s v1) (Bstring.star_split r2s v2);
+          let rec sloop ss = match ss with 
+            | sh::st -> 
+                let i,_ = find_match sh in 
+                  (match a.(i) with 
+                     | vi::vt -> a.(i) <- vt; add vi
+                     | _ -> ());
+                  sloop st
+            | _ -> Array.iter (fun l -> Safelist.iter add l) a in 
+          sloop ss;
           Buffer.contents buf)
+    | Group (r1,r2) -> basic
+        (fun v _ -> 
+           let r2s = Brx.mk_star r2 in 
+           let buf = Buffer.create 17 in 
+           let go bki bli = 
+             Safelist.iter
+               (fun bvi -> 
+                  Buffer.add_string buf (Bstring.to_string bki);
+                  Buffer.add_string buf (Bstring.to_string bvi))
+               (Bstring.star_split r2s bli) in 
+           Safelist.iter 
+             (fun vi -> 
+                let bki,bli = Bstring.concat_split r1 r2s vi in 
+                go bki bli)
+             (Bstring.star_split (vtype ml) v);
+           Buffer.contents buf)
     | Merge r -> basic
         (fun v so ->
            let v = Bstring.to_string v in
@@ -1560,7 +1618,8 @@ module MLens = struct
     | RightQuot(dl1,cn1) -> msg "(right_quot@ "; format_t dl1; msg "@ "; Canonizer.format_t cn1; msg ")"
     | Dup1(dl1,f1,r1)    -> msg "(dup1@ "; format_t dl1; msg "@ <function>@ "; Rx.format_t r1; msg ")"
     | Dup2(f1,r1,dl1)    -> msg "(dup2@ <function>@ "; Rx.format_t r1; msg "@ "; format_t dl1; msg ")"
-    | Partition (r1, r2) -> msg "(partition@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg ")"
+    | Partition (_,rs1)  -> msg "(partition@ "; Misc.format_list ",@ " (fun (_,ri) -> Rx.format_t ri) rs1; msg ")"
+    | Group (r1, r2)     -> msg "(groupby@ "; Rx.format_t r1; msg "@ "; Rx.format_t r2; msg ")"
     | Merge(r1)          -> msg "(merge@ "; Rx.format_t r1; msg ")"
     | Fiat(dl1)          -> msg "(fiat@ "; format_t dl1; msg ")"
     | Permute((_,is1,is2,rs1,rs2),dls) ->
@@ -1627,7 +1686,10 @@ module MLens = struct
   let right_quot i dl1 cn1 = mk i (RightQuot(dl1,cn1))
   let dup1 i dl1 f1 r1 = mk i (Dup1(dl1,f1,r1))
   let dup2 i f1 r1 dl1 = mk i (Dup2(f1,r1,dl1))
-  let partition i r1 r2 = mk i (Partition(r1,r2))
+  let partition i rs1 = 
+    let k, irs1 = Safelist.fold_left (fun (i,acc) ri -> (succ i,(i,ri)::acc)) (0,[]) rs1 in 
+    mk i (Partition(k,Safelist.rev irs1))
+  let group i r1 r2 = mk i (Group(r1,r2))
   let merge i r1 = mk i (Merge(r1))
   let fiat i dl1 = mk i (Fiat(dl1))
   let permute i is mls =

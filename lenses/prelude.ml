@@ -260,6 +260,9 @@ let pmk_rsfl =
   pmk3 S.SRegexp mk_rfun S.SString mk_sfun (S.SString ^> S.SString) mk_ffun 
     S.SLens mk_l
 
+let pmk_rzl =
+  pmk1 (S.SData([S.SRegexp],list_qid)) mk_listfun S.SLens mk_l
+
 let pmk_izlzl = 
   pmk2 (S.SData([S.SInteger],list_qid)) mk_listfun 
     (S.SData([S.SLens],list_qid)) mk_listfun S.SLens mk_l 
@@ -378,7 +381,8 @@ let prelude_spec =
   ; pmk_bill   "lens_weight"          (fun i b w -> L.weight i b (Bannot.Weight.of_int w))
   ; pmk_sll    "lens_pre_lock"        (fun i lk -> L.lock i (Bannot.Lock.pre_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_sll    "lens_post_lock"       (fun i lk -> L.lock i (Bannot.Lock.post_lock (Bannot.Lock.lock_of_string lk)))
-  ; pmk_rrl    "partition"            L.partition
+  ; pmk_rzl    "partition"            (fun i rl -> L.partition i (Safelist.map get_r rl))
+  ; pmk_rrl    "group"                L.group
   ; pmk_rl     "merge"                L.merge
   ; pmk_ll     "fiat"                 L.fiat
   ; pmk_dup1   "dup1"                 (fun i l f fat ->
@@ -465,7 +469,7 @@ let prelude_spec =
   ; pmk_s      "os_type"              Sys.os_type
                                       
   (* regexp operations *)             
-  ; pmk_sr     "str"                  (fun _ -> Brx.mk_string)
+  ; pmk_sr     "regexp_of_string"     (fun _ -> Brx.mk_string)
   ; pmk_r      "empty"                Brx.empty
   ; pmk_rb     "is_empty"             (fun _ -> Brx.is_empty)
   ; pmk_rrr    "regexp_concat"        (fun _ -> Brx.mk_seq)

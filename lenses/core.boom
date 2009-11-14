@@ -174,8 +174,8 @@ resolves to @string_concat@ when it is applied to strings.
 checker on programs that use subtyping. However, it is occasionally useful 
 to explicitly promote strings to regexps, so we include it here. 
 
-#* let str : string -> regexp
-## = Native.Prelude.str
+#* let regexp_of_string : string -> regexp
+## = Native.Prelude.regexp_of_string
 
 \LENSSECTION{@EMPTY@}
 The regular expression @empty@ denotes the empty set of strings.
@@ -186,7 +186,7 @@ The regular expression @empty@ denotes the empty set of strings.
 The regular expression @epsilon@ denotes the singleton set containing the 
 empty string.
 
-#* let EPSILON : regexp = (str "")
+#* let EPSILON : regexp = (regexp_of_string "")
 
 \LENSSECTION{@string_of_regexp@} The @string_of_regexp@ function 
 represents a regular expression as a string.
@@ -254,7 +254,7 @@ belongs to the language denoted by a regular expression.
 \LENSSECTION{@representative@} The function @representative@ computes a 
 (typically shortest) representative of a regular expression.
 
-#* let representative : (r:regexp -> (s:string where matches r s))
+#* let representative : (r:regexp -> (s:string where matches_cex r s))
 ## = Native.Prelude.representative
 
 If the regular expression denotes the empty language, an exception is raised, 
@@ -325,7 +325,7 @@ that @w@ can be split into substrings, such that each substring belongs
 to @R@.
 
 #* let count : (r:regexp -> 
-#*             (s:string where matches (regexp_star r) s) ->
+#*             (s:string where matches_cex (regexp_star r) s) ->
 #*             int)
 ## = Native.Prelude.count
 
@@ -628,8 +628,8 @@ returns @u@, its $\PUT$ function restores its concrete argument, and
 its $\CREATE$ function returns the string @f u@.
 
 #* let clobber 
-#*     (R:regexp) (u:string) (f:string -> (s:string where matches R s))
-#*   : (l:lens where in_lens_type l R (str u))
+#*     (R:regexp) (u:string) (f:string -> (s:string where matches_cex R s))
+#*   : (l:lens where in_lens_type l R (regexp_of_string u))
 ##   = Native.Prelude.clobber R u f 
 
 #* test get (clobber [A-Z] "" (fun (s:string) -> "B")) "A" = ""
@@ -639,8 +639,8 @@ its $\CREATE$ function returns the string @f u@.
 \LENSSECTION{@const@} The @const@ lens behaves like @clobber@ but 
 has a $\CREATE$ function that always returns a default string @v@.
 
-#* let const (R:regexp) (u:string) (v:string where matches R v)
-#*   : (l:lens where in_lens_type l R (str u))
+#* let const (R:regexp) (u:string) (v:string where matches_cex R v)
+#*   : (l:lens where in_lens_type l R (regexp_of_string u))
 ##   = clobber R u (fun (s:string) -> v)
 
 #* test get (const [A-Z] "x" "B") "A" = "x"
@@ -651,15 +651,15 @@ has a $\CREATE$ function that always returns a default string @v@.
 \LENSSECTION{@set@} The @set@ derived lens is like @const@ but uses an arbitrary representative 
 of @R@ as the default string. The infix operator @<->@ desugars to @set@.
 
-#* let set (R:regexp) (s:string) : (l:lens where in_lens_type l R (str s))
+#* let set (R:regexp) (s:string) : (l:lens where in_lens_type l R (regexp_of_string s))
 #*   = const R s (representative R)
 
 \LENSSECTION{@rewrite@} The @rewrite@ derived lens is like @set@ but only rewrites strings, and so 
 is bijective. The infix operator @<=>@ desugars to @rewrite@.
 
 #* let rewrite (s1:string) (s2:string) 
-#*   : (l:lens where in_bij_lens_type l (str s1) (str s2))
-#*   = const (str s1) s2 s1 
+#*   : (l:lens where in_bij_lens_type l (regexp_of_string s1) (regexp_of_string s2))
+#*   = const (regexp_of_string s1) s2 s1 
 
 \LENSSECTION{@lens_union@} The @lens_union@ operator forms the union of 
 two lenses. The concrete types of the two lenses must be disjoint. The 
@@ -860,31 +860,11 @@ components of a lens, which must be bijective.
 @d@.
 
 #* let default (l:lens where is_basic l)
-#*             (d:string where matches (stype l) d)
+#*             (d:string where matches_cex (stype l) d)
 #*           : (l':lens where in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.default l d
 
 #* test create (default (const [A-Z] "X" "A") "B") "X" = "B"
-
-\LENSSECTION{@partition@} The @partition@ operator takes two regular expressions @R@ 
-and @S@ as arguments and produces a lens whose $\GET$ function transforms a string 
-belonging to the iteration of the union of @R@ and @S@ by sorting the substrings 
-into substrings that belong to @R@ and @S@. The regular expressions @R@ and @S@ must 
-be disjoint and the iteration of their union must be unambiguous.
-
-#* let partition 
-#*     (R:regexp) 
-#*     (S:regexp where land (disjoint_cex R S) 
-#*                          (iterable_cex (regexp_union R S)))
-#*   : (l:lens where in_lens_type l 
-#*                     (regexp_star (regexp_union R S))
-#*                     (regexp_concat 
-#*                       (regexp_star R)
-#*                       (regexp_star S)))
-##   = Native.Prelude.partition R S
-
-#* test get (partition [A-Z] [0-9]) "A1B2C3" = "ABC123"
-#* test put (partition [A-Z] [0-9]) "ABC123456" "A1B2C3" = "A1B2C3456"
 
 \LENSSECTION{@merge@} The @merge@ operator takes a regular expression @R@ 
 and produces a lens whose $\GET$ function transforms a string belonging to the 
@@ -1012,7 +992,7 @@ component of a canonizer. The record-style projection notation
 
 #* let canonize 
 #*     (cn:canonizer) 
-#*     (c:string where matches (uncanonized_type cn) c) 
+#*     (c:string where matches_cex (uncanonized_type cn) c) 
 #*   : string
 ## = Native.Prelude.canonize cn c
 
@@ -1022,7 +1002,7 @@ component of a canonizer. The record-style projection notation
 
 #* let choose
 #*     (cn:canonizer)
-#*     (b:string where matches (canonized_type cn) b)
+#*     (b:string where matches_cex (canonized_type cn) b)
 #*   : string
 ## = Native.Prelude.choose cn b
 
@@ -1102,7 +1082,7 @@ $\CHOOSE$ component wraps a string belonging to the iteration of
 #*   (sp:char)
 #*   (nl:string where
 #*         disjoint_cex R (regexp_concat (regexp_star [^]) 
-#*                                       (regexp_concat (str nl) 
+#*                                       (regexp_concat (regexp_of_string nl) 
 #*                                       (regexp_star [^]))))
 #* : canonizer
 ## = Native.Prelude.columnize k R sp nl
@@ -1129,7 +1109,7 @@ a canonizer @q@ on the left by passing concrete strings through @q@.
 
 #* let left_quot 
 #*   (cn:canonizer)
-#*   (l:lens where land (aequiv (canonized_atype cn) (astype l))
+#*   (l:lens where land (aequiv_cex (canonized_atype cn) (astype l))
 #*                      (rel_is_id (cnrel cn)))
 #* : (l':lens where in_lens_type l' (uncanonized_type cn) (vtype l))
 ## = Native.Prelude.left_quot cn l
@@ -1177,7 +1157,7 @@ corresponding from @l@ on the rest of the string. The concatenation of
 #* let dup1 
 #*     (l:lens where is_basic l)
 #*     (R:regexp)
-#*     (f:string -> (x:string where matches R x))
+#*     (f:string -> (x:string where matches_cex R x))
 #*  :  (l':lens where in_lens_type l' 
 #*           (stype l) (regexp_concat (vtype l) R))
 ## = Native.Prelude.dup1 l f R 
@@ -1190,7 +1170,7 @@ corresponding from @l@ on the rest of the string. The concatenation of
 
 #* let dup2
 #*     (R:regexp)
-#*     (f:string -> (x:string where matches R x)) 
+#*     (f:string -> (x:string where matches_cex R x)) 
 #*     (l:lens where is_basic l)
 #*   : (l':lens where in_lens_type l' 
 #*         (stype l) (regexp_concat R (vtype l)))

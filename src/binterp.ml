@@ -141,20 +141,20 @@ let rec interp_cast cev b f t =
           native_coercion "string_of_char"
       | SChar,SRegexp -> 
           (fun v -> 
-             native_coercion "str"
+             native_coercion "regexp_of_string"
                (native_coercion "string_of_char" v))
       | SChar,SAregexp -> 
           (fun v -> 
              native_coercion "rxlift"
-               (native_coercion "str"
+               (native_coercion "regexp_of_string"
                   (native_coercion "string_of_char" v)))
       | SChar,SLens -> 
           (fun v -> 
              native_coercion "copy"
-               (native_coercion "str"
+               (native_coercion "regexp_of_string"
                   (native_coercion "string_of_char" v)))
       | SString,SRegexp -> 
-          native_coercion "str"
+          native_coercion "regexp_of_string"
       | SString,SAregexp -> 
           (fun v -> 
              native_coercion "rxlift"
@@ -162,7 +162,7 @@ let rec interp_cast cev b f t =
       | SString,SLens -> 
           (fun v -> 
              native_coercion "copy"
-               (native_coercion "str" v))
+               (native_coercion "regexp_of_string" v))
       | SRegexp,SAregexp -> 
           native_coercion "rxlift"
       | SRegexp,SLens -> 

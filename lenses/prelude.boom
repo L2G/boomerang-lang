@@ -168,22 +168,6 @@ It is also defined using @<->@.
 #* test put (del ANY) "" "Boomerang" = "Boomerang"
 #* test create (del ANY) "" = ""
 
-\LENSSECTION{@filter@} The @filter@ operator takes two regular expressions @R@ 
-and @S@ as arguments and produces a lens whose $\GET$ function
-transforms a string belonging to the iteration of the union of @R@ and @S@
-by discarding all of the substrings belonging to @R@. The regular expressions
-@R@ and @S@ must be disjoint and the iteration of their union must be 
-unambiguous.
-
-#* let filter 
-#*     (R:regexp) 
-#*     (S:regexp where (disjoint_cex R S) && (iterable_cex (R | S)))
-#*   : (lens in (R | S)* <-> S* )
-#*   = partition R S; ( del R* . copy S* )
-
-#* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
-#* test put (filter [A-Z] [0-9]) "123456" "A1B2C3" = "A1B2C3456"
-
 \LENSSECTION{@merge_with_sep@} The lens @merge_with_sep@ behaves like @merge@, 
 but allows a separator between the copied string. 
 
@@ -460,6 +444,39 @@ specified by @sigma@, and concatenates the results.  Given a permutation
 #*                     (copy UALPHACHAR);
 #*                     (copy UALPHACHAR)]) "ABC" = "CBA"
 
+\LENSSECTION{@partition@} The @partition@ operator takes a list of regular expressions 
+@Rs@ as arguments and produces a lens whose $\GET$ function transforms a string 
+belonging to the iteration of the union of the @Rs@ by sorting the substrings 
+into substrings that belong to the elements of @Rs@. The regular expressions @Rs@ 
+must
+be disjoint and the iteration of their union must be unambiguous.
+
+#* let partition 
+#*     (Rs:regexp List.t where (disjoint_regexps Rs)
+#*            && (iterable_cex (union_regexps Rs)))
+#*   : (lens in (union_regexps Rs)* <-> concat_regexps (List.map{regexp}{regexp} regexp_star Rs))
+##   = Native.Prelude.partition Rs
+
+#* test get (partition #{regexp}[[A-Z];[0-9]]) "A1B2C3" = "ABC123"
+#* test put (partition #{regexp}[[A-Z];[0-9]]) "ABC123456" "A1B2C3" = "A1B2C3456"
+
+\LENSSECTION{@filter@} The @filter@ operator takes two regular expressions @R@ 
+and @S@ as arguments and produces a lens whose $\GET$ function
+transforms a string belonging to the iteration of the union of @R@ and @S@
+by discarding all of the substrings belonging to @R@. The regular expressions
+@R@ and @S@ must be disjoint and the iteration of their union must be 
+unambiguous.
+
+#* let filter 
+#*     (R:regexp) 
+#*     (S:regexp where (disjoint_cex R S) && (iterable_cex (R | S)))
+#*   : (lens in (R | S)* <-> S* )
+#*   = partition #{regexp}[R; S]; 
+#*     ( del R* . copy S* )
+
+#* test get (filter [A-Z] [0-9]) "A1B2C3" = "123"
+#* test put (filter [A-Z] [0-9]) "123456" "A1B2C3" = "A1B2C3456"
+
 \LENSSECTION{@sortable@, @sort@} The canonizer @sort@ puts substrings into 
 sorted order according to a list of regular expressions. An exception 
 is raised if the unsorted string does not have exactly one substring 
@@ -486,6 +503,29 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 
 #* test canonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) = 
 #*   (UALPHACHAR . DIGIT)
+
+\subsection{Relational}
+
+\LENSSECTION{@group@} The @group@ operator takes two regular expressions @R@ 
+and @S@ as arguments and produces a bijective lens that transforms between
+string belonging to the iteration of the concatenation of @R@ and @S@ into a 
+string belonging to the iteration of the concatenation of @R@ and 
+$@S@\kleenestar$. It works by merging adjacent elements having the same @R@ value 
+in the \(\GET\) direction, and splitting them in the \(\PUT\) direction.  
+
+#* let group 
+#*     (K:regexp)
+#*     (V:regexp where
+#*             (splittable_cex K V) 
+#*          && (iterable (K . V)) 
+#*          && (iterable V))
+#*   : (lens in (K . V)* <-> (K . V* )* )
+#*   = Native.Prelude.group K V
+
+#* test get (group [A-Z] [0-9]) "A1A2A3B4" = "A123B4"
+#* test get (group [A-Z] [0-9]) "A1B2A3B4" = "A1B2A3B4"
+#* test put (group [A-Z] [0-9]) "A1234" "" = "A1A2A3A4"
+#* test put (group [A-Z] [0-9]) "A1234B567" "" = "A1A2A3A4B5B6B7"
 
 \subsection{Miscellaneous}
 

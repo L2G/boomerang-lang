@@ -261,7 +261,7 @@ let Field : regexp =
 
 (* numberedItem: regexp for lines with numbered items *)
 let NumberedItem (n:string) : regexp =
-  "item" . str n . "." . NonNL . NL . "item" . str n . "." . NonNL . NL
+  "item" . regexp_of_string n . "." . NonNL . NL . "item" . regexp_of_string n . "." . NonNL . NL
 
 (* Field_unnumbered: regexp for fields without numbered item lines *)
 let Field_unnumbered : regexp =
@@ -649,8 +649,8 @@ let main () =
   let xml2csv = xcard . del WS in (* trailing whitespace *)
   let xml2vcf = right_quot xml2csv (canonizer_of_lens vcf2csv) in
   let vcf2xml = right_quot vcf2csv (canonizer_of_lens xml2csv) in
-  let get_type (str:string option) =
-    match str with
+  let get_type (so:string option) =
+    match so with
       | Some "vcf" -> Some{format} VCF
       | Some "xml" -> Some{format} XML
       | Some "csv" -> Some{format} CSV
