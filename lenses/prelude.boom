@@ -515,11 +515,11 @@ in the \(\GET\) direction, and splitting them in the \(\PUT\) direction.
 
 #* let group 
 #*     (K:regexp)
-#*     (V:regexp where
-#*             (splittable_cex K V) 
-#*          && (iterable (K . V)) 
-#*          && (iterable V))
-#*   : (lens in (K . V)* <-> (K . V* )* )
+#*     (V:aregexp where
+#*             (splittable_cex K (rxdrop V))
+#*          && (iterable (K . rxdrop V)) 
+#*          && (iterable (rxdrop V)))
+#*   : (lens in (K . rxdrop V)* <-> (K . rxdrop V+ )* )
 #*   = Native.Prelude.group K V
 
 #* test get (group [A-Z] [0-9]) "A1A2A3B4" = "A123B4"

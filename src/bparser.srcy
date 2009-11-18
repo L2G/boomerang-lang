@@ -596,15 +596,17 @@ infixexp:
 
 #{@}
 <DotExp> ::= <DotExp> \lit{@.@} <AppExp> 
+        \alt <DotExp> \lit{@.@} <RewriteExp>
         \alt <AppExp> \lit{@.@} <AppExp>
+        \alt <AppExp> \lit{@.@} <RewriteExp>
 
 #{#}
 dotexp:
   | dotexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
-  | appexp DOT appexp
-      { mk_over (me $1 $3) ODot [$1; $3] }
   | dotexp DOT rewriteexp
+      { mk_over (me $1 $3) ODot [$1; $3] }
+  | appexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
   | appexp DOT rewriteexp
       { mk_over (me $1 $3) ODot [$1; $3] }

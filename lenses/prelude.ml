@@ -195,6 +195,7 @@ let pmk_aa    = pmk1 S.SAregexp mk_afun S.SAregexp mk_a
 let pmk_biaa  = pmk3 S.SBool mk_bfun S.SInteger mk_ifun S.SAregexp mk_afun S.SAregexp mk_a
 let pmk_aab   = pmk2 S.SAregexp mk_afun S.SAregexp mk_afun S.SBool mk_b
 let pmk_aax   = pmk2 S.SAregexp mk_afun S.SAregexp mk_afun S.SBool mk_x
+let pmk_ral   = pmk2 S.SRegexp mk_rfun S.SAregexp mk_afun S.SLens mk_l
 let pmk_sssaa = pmk4 S.SString  mk_sfun S.SString  mk_sfun S.SString mk_sfun S.SAregexp mk_afun S.SAregexp mk_a
 
 let pmk_ab    = pmk1 S.SAregexp mk_afun S.SBool mk_b
@@ -382,7 +383,7 @@ let prelude_spec =
   ; pmk_sll    "lens_pre_lock"        (fun i lk -> L.lock i (Bannot.Lock.pre_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_sll    "lens_post_lock"       (fun i lk -> L.lock i (Bannot.Lock.post_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_rzl    "partition"            (fun i rl -> L.partition i (Safelist.map get_r rl))
-  ; pmk_rrl    "group"                L.group
+  ; pmk_ral    "group"                L.group
   ; pmk_rl     "merge"                L.merge
   ; pmk_ll     "fiat"                 L.fiat
   ; pmk_dup1   "dup1"                 (fun i l f fat ->
