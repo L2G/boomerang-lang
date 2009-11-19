@@ -103,6 +103,26 @@ rule lex = parse
     if !newLine then (newLine := false; lineMode := SRC; pr "  ")
     else (pr "#*"); lex lexbuf
   }
+| "[|" [^'|''\n']* "|]" {
+    let s = Lexing.lexeme lexbuf in
+    pr (String.sub s 2 ((String.length s) - 4));
+    lex lexbuf
+  }
+| "{|" [^'|''\n']* "|}" {
+    let s = Lexing.lexeme lexbuf in
+    pr (String.sub s 2 ((String.length s) - 4)); 
+    lex lexbuf
+  }
+| "[v|" [^'|''\n']* "|]" {
+    let s = Lexing.lexeme lexbuf in
+    pr (String.sub s 3 ((String.length s) - 5)); 
+    lex lexbuf
+  }
+| "{v|" [^'|''\n']* "|}" {
+    let s = Lexing.lexeme lexbuf in
+    pr (String.sub s 3 ((String.length s) - 5)); 
+    lex lexbuf
+  }
 | _ {
     newLine := false; pr (Lexing.lexeme lexbuf); lex lexbuf
   }
@@ -111,12 +131,12 @@ rule lex = parse
   let fcl_of_src_str s = 
     reset ();
     let _ = lex (Lexing.from_string s) in 
-      Buffer.contents current
+    Buffer.contents current
 
   let fcl_of_src fn = 
     reset ();
     let fchan = open_in_bin fn in
     let _ = lex (Lexing.from_channel fchan) in 
     let _ = close_in fchan in 
-      Buffer.contents current
+    Buffer.contents current
 }

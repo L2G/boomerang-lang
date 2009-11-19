@@ -506,21 +506,21 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 
 \subsection{Relational}
 
-\LENSSECTION{@group@} The @group@ operator takes two regular expressions @R@ 
-and @S@ as arguments and produces a bijective lens that transforms between
-string belonging to the iteration of the concatenation of @R@ and @S@ into a 
-string belonging to the iteration of the concatenation of @R@ and 
-$@S@\kleenestar$. It works by merging adjacent elements having the same @R@ value 
-in the \(\GET\) direction, and splitting them in the \(\PUT\) direction.  
+\LENSSECTION{@group@} The @group@ operator takes a regular expression @R@ 
+and a lens @l@ as arguments and produces a bijective lens that transforms 
+between string belonging to the iteration of the concatenation of @R@ 
+and @(stype l)@ into a string belonging to the iteration of the 
+concatenation of @R@ and $@(vtype l)@\kleenestar$. It groups adjacent 
+elements having the same @R@ value.
 
 #* let group 
-#*     (K:regexp)
-#*     (V:regexp where
-#*             (splittable_cex K V)
-#*          && (iterable (K . V)) 
-#*          && (iterable V))
-#*   : (lens in (K . V)* <-> (K . V+ )* )
-#*   = Native.Prelude.group K V
+#*     (R:regexp)
+#*     (l:lens where
+#*             (splittable_cex R (vtype l))
+#*          && (iterable (R . vtype l)) 
+#*          && (iterable (vtype l)))
+#*   : (lens in (R . stype l)* <-> (R . (vtype l)+ )* )
+#*   = Native.Prelude.group R l
 
 #* test get (group [A-Z] [0-9]) "A1A2A3B4" = "A123B4"
 #* test get (group [A-Z] [0-9]) "A1B2A3B4" = "A1B2A3B4"

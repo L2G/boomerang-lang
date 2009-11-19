@@ -161,6 +161,7 @@ let pmk_su    = pmk1 S.SString mk_sfun S.SUnit mk_u
 let pmk_us    = pmk1 S.SUnit mk_ufun S.SString mk_s
 let pmk_sr    = pmk1 S.SString mk_sfun S.SRegexp mk_r
 let pmk_sll   = pmk2 S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
+let pmk_rll   = pmk2 S.SRegexp mk_rfun S.SLens mk_lfun S.SLens mk_l
 let pmk_ssll  = 
   pmk3 S.SString mk_sfun S.SString mk_sfun S.SLens mk_lfun S.SLens mk_l
 let pmk_sicio = pmk3 S.SString mk_sfun S.SInteger mk_ifun S.SChar mk_cfun (S.SData([S.SInteger],option_qid)) mk_option
@@ -382,7 +383,7 @@ let prelude_spec =
   ; pmk_sll    "lens_pre_lock"        (fun i lk -> L.lock i (Bannot.Lock.pre_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_sll    "lens_post_lock"       (fun i lk -> L.lock i (Bannot.Lock.post_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_rzl    "partition"            (fun i rl -> L.partition i (Safelist.map get_r rl))
-  ; pmk_rrl    "group"                L.group
+  ; pmk_rll    "group"                L.group
   ; pmk_rl     "merge"                L.merge
   ; pmk_ll     "fiat"                 L.fiat
   ; pmk_dup1   "dup1"                 (fun i l f fat ->

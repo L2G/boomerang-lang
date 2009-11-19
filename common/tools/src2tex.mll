@@ -104,6 +104,12 @@
         pr (Lexing.lexeme lexbuf)
        else 
          pr s)
+
+  let mark lexbuf s = 
+    let oldMode = !lineMode in
+    lineMode := CHARS;
+    String.iter (fun c -> pc lexbuf c) s;
+    lineMode := oldMode
 }
 
 rule lex = parse
@@ -154,7 +160,34 @@ rule lex = parse
     if !newLine then (newLine := false; lineMode := BOTH; inVerb())
     else (pc lexbuf '#'; pc lexbuf '*'); lex lexbuf
   }
-
+| "[|" [^'|']* "|]" {
+    let s = Lexing.lexeme lexbuf in
+    pr "\\shade{\\ensuremath{\\itbox{";
+    mark lexbuf (String.sub s 2 ((String.length s) - 4));
+    pr "}}}"; 
+    lex lexbuf
+    }
+| "{|" [^'|']* "|}" {
+    let s = Lexing.lexeme lexbuf in     
+    pr "\\highlight{\\ensuremath{\\itbox{";
+    mark lexbuf (String.sub s 2 ((String.length s) - 4));
+    pr "}}}"; 
+    lex lexbuf
+  }
+| "[v|" [^'|']* "|]" {
+    let s = Lexing.lexeme lexbuf in     
+    pr "\\lowershade{\\ensuremath{\\itbox{";
+    mark lexbuf (String.sub s 3 ((String.length s) - 5));
+    pr "}}}"; 
+    lex lexbuf
+  }
+| "{v|" [^'|']* "|}" {
+    let s = Lexing.lexeme lexbuf in     
+    pr "\\lowerhighlight{\\ensuremath{\\itbox{";
+    mark lexbuf (String.sub s 3 ((String.length s) - 5));
+    pr "}}}"; 
+    lex lexbuf
+  }
 (*
   | "<->" {
       checkVerb(); if shouldPrint() then pr "\\(\\Def\\)"; lex lexbuf
@@ -205,12 +238,6 @@ rule lex = parse
   | "Pi" [' ' '\t']* {
       translateIfInCharmode lexbuf "\\PI{}";
       lex lexbuf
-    }
-  | "<|" {
-      checkVerb(); if shouldPrint() then pr "\\(\\LAngleBar\\)"; lex lexbuf
-    }
-  | "|>" {
-      checkVerb(); if shouldPrint() then pr "\\(\\BarRAngle\\)"; lex lexbuf
     }
   | "{|" {
       checkVerb(); if shouldPrint() then pr "\\(\\LCurlyBar\\)"; lex lexbuf

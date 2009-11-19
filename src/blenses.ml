@@ -54,6 +54,7 @@ type complement =
   | C_list of complement list
   | C_star of complement list * int list
   | C_union of union_side * complement
+  | C_group of complement list  
 
 let rec print_complement c =
   match c with
@@ -76,7 +77,9 @@ let rec print_complement c =
           true
       ) false cs);
       print_string "]"
-  | C_star (cs, _) -> print_complement (C_list cs)
+  | C_star (cs, _) 
+  | C_group(cs) -> 
+      print_complement (C_list cs)
   | C_union (Union_left, c) ->
       print_string "|L";
       print_complement c
@@ -97,6 +100,7 @@ let rec format_complement c =
    | C_union (s, c) -> msg ("C_union(%s,%a)") (
        match s with Union_left -> "Left" | Union_right -> "Right"
      ) fmt c
+   | C_group (l) -> msg "C_group(%a)" (fun _ -> Misc.format_list "," format_complement) l
   );
   msg "@]"
 
@@ -107,6 +111,7 @@ type ktype =
   | K_union of ktype * ktype
   | K_star of ktype
   | K_permute of ktype list
+  | K_group of ktype 
   | K_compose of ktype * ktype
 
 let rec ktype_equiv a b =
@@ -122,6 +127,7 @@ let rec ktype_equiv a b =
       try Safelist.for_all2 ktype_equiv a b
       with Invalid_argument _ -> false
     )
+  | K_group a, K_group b -> ktype_equiv a b 
   | _ -> false
 
 let rec format_ktype t =
@@ -135,6 +141,7 @@ let rec format_ktype t =
    | K_compose (a, b) -> msg (* "K_compose(%a,%a)" *) "(%a@;@ ;@,@ %a)" fmt a fmt b
    | K_star t -> msg (* "K_star(%a)" *) "(%a* )" fmt t
    | K_permute l -> msg (* "K_permute(%a)" *) "[%a]" (fun _ -> Misc.format_list ",@,@ " format_ktype) l
+   | K_group t -> msg "group(%a)" fmt t
   );
   msg "@]"
 
@@ -646,7 +653,7 @@ module MLens = struct
 
     (* ----- extensions ----- *)
     | Partition of int * (int * Rx.t) list
-    | Group of Rx.t * Rx.t
+    | Group of Rx.t * t
     | Merge of Rx.t
     | Fiat of t
     | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array
@@ -711,7 +718,7 @@ module MLens = struct
                     if Rx.is_empty h then loop flag t 
                     else loop true t in 
               loop false rs1 
-          | Group(r1,r2)       -> Rx.is_singleton r1
+          | Group(r,ml)        -> bij ml
           | Merge (r)          -> Rx.is_singleton r
           | Fiat ml            -> bij ml
           | Permute (_, mls)   -> Array.fold_left (fun b mli -> b && bij mli) true mls
@@ -741,7 +748,7 @@ module MLens = struct
           | Dup1 (ml, _, _)    -> astype ml
           | Dup2 (_, _, ml)    -> astype ml
           | Partition (_,rs1)  -> Arx.mk_rx (Rx.mk_star (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_alt acc ri) Rx.empty rs1))
-          | Group (r1,r2)      -> Arx.mk_star (Arx.mk_seq (Arx.mk_rx r1) (Arx.mk_rx r2))
+          | Group (r,ml)       -> Arx.mk_star (Arx.mk_seq (Arx.mk_rx r) (astype ml))
           | Merge r            -> Arx.mk_rx (Rx.mk_seq r r)
           | Fiat ml            -> astype ml
           | Permute (_, mls)   ->
@@ -773,7 +780,7 @@ module MLens = struct
           | Dup1 (ml, _, r)    -> Arx.mk_seq (avtype ml) (Arx.mk_rx r)
           | Dup2 (_, r, ml)    -> Arx.mk_seq (Arx.mk_rx r) (avtype ml)
           | Partition (_,rs1)  -> Arx.mk_rx (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_seq acc (Rx.mk_star ri)) Rx.epsilon rs1)
-          | Group (r1,r2)      -> Arx.mk_rx (Rx.mk_star (Rx.mk_seq r1 (Rx.mk_iter r2 1 (-1))))
+          | Group (r,ml)       -> Arx.mk_star (Arx.mk_seq (Arx.mk_rx r) (Arx.mk_iter (avtype ml) 1 (-1)))
           | Merge r            -> Arx.mk_rx r
           | Fiat ml            -> avtype ml
           | Permute (p, mls)   ->
@@ -800,7 +807,6 @@ module MLens = struct
           | Dup1 _
           | Dup2 _
           | Partition _
-          | Group _
           | Merge _
           | Fiat _
             -> basic ()
@@ -816,6 +822,7 @@ module MLens = struct
           | Match (t, _) -> K_box t
           | Permute (_, mls) ->
               K_permute (Array.to_list (Array.map ktype mls))
+          | Group (_,ml) -> K_group (ktype ml)
         in
         ml.ktype <- Some kt;
         kt
@@ -830,7 +837,6 @@ module MLens = struct
           | Copy _
           | Clobber _
           | Partition _
-          | Group _
           | Merge _
           | Align _
           | Fiat _
@@ -845,6 +851,7 @@ module MLens = struct
           | Star ml
           | Weight (_, ml)
           | Lock (_, ml)
+          | Group (_,ml) 
             -> (mtype ml)
           | Match (t, ml)
             -> TmA.add t (ktype ml) (mtype ml)
@@ -882,7 +889,7 @@ module MLens = struct
           | Dup1 (ml, f, r)    -> sequiv ml
           | Dup2 (f, r, ml)    -> sequiv ml
           | Partition (_,rs1)  -> Identity
-          | Group (r1,r2)      -> Identity
+          | Group (r,ml)       -> sequiv ml
           | Merge (r)          -> Identity
           | Fiat ml            -> sequiv ml
           | Permute (p, mls)   ->
@@ -913,7 +920,7 @@ module MLens = struct
           | Dup1 (ml, f, r)    -> Unknown
           | Dup2 (f, r, ml)    -> Unknown
           | Partition (_,rs1)  -> Identity
-          | Group (r1,r2)      -> Identity
+          | Group (r,ml)       -> vequiv ml
           | Merge (r)          -> Identity
           | Fiat ml            -> vequiv ml
           | Permute (p, mls)   ->
@@ -931,7 +938,6 @@ module MLens = struct
     | Copy _
     | Clobber _
     | Partition _
-    | Group _
     | Merge _
       -> Bstring.to_string s
     | Concat (ml1, ml2) ->
@@ -971,13 +977,24 @@ module MLens = struct
         let r_arr_s =
           Array.mapi (fun i s -> srep mls.(i) s) s_arr_s
         in concat_array r_arr_s
+    | Group(r,ml2) -> 
+        let r2 = stype ml2 in 
+        let ss = Bstring.star_split (stype ml) s in 
+        let buf = Buffer.create 17 in
+        let add = Buffer.add_string buf in
+        Safelist.iter (
+          fun si -> 
+            let si1,si2 = Bstring.concat_split r r2 si in 
+            add (Bstring.to_string si1); 
+            add (srep ml2 si2)
+        ) ss;
+        Buffer.contents buf
 
   and vrep ml v =
     match ml.desc with
     | Copy _
     | Clobber _
     | Partition _
-    | Group _
     | Merge _
       -> Bstring.to_string v
     | Concat (ml1, ml2) ->
@@ -1034,6 +1051,22 @@ module MLens = struct
             r_arr_v.(j) <- vrep mls.(i) v_arr_v.(j)
         ) sigma;
         concat_array r_arr_v
+    | Group(r, ml2) -> 
+        let r2s = Rx.mk_star (vtype ml2) in 
+        let vs = Bstring.star_split (vtype ml) v in 
+        let buf = Buffer.create 17 in
+        let add = Buffer.add_string buf in
+        Safelist.iter (
+          fun vi -> 
+            let vi1,vi2 = Bstring.concat_split r r2s vi in 
+            let vi2s = Bstring.star_split r2s vi2 in 
+            add (Bstring.to_string vi1);
+            Safelist.iter (
+              fun vi2j -> 
+                add (vrep ml2 vi2j)
+            ) vi2s
+        ) vs;
+        Buffer.contents buf
 
   and gperm ml s pi = (* returns pi *)
     let basic = pi in
@@ -1045,7 +1078,6 @@ module MLens = struct
     | Dup1 _
     | Dup2 _
     | Partition _
-    | Group _
     | Merge _
     | Align _
     | Fiat _
@@ -1123,6 +1155,14 @@ module MLens = struct
                 TmI.plus i ij)
           ) (0, pi) pi_arr_s
         in pi
+    | Group(r,ml2) -> 
+        let r2 = stype ml2 in 
+        let ss = Bstring.star_split (stype ml) s in
+        Safelist.fold_left (
+          fun pi si -> 
+            let si1,si2 = Bstring.concat_split r r2 si in 
+            gperm ml2 si2 pi
+        ) pi ss
 
   and gget ml s ci = (* returns ((v, k), ci) *)
     let basic f = (f s, C_string s), ci in
@@ -1229,24 +1269,29 @@ module MLens = struct
             (fun s -> add (find_match s) s) 
             (Bstring.star_split (stype ml) s);
           concat_buf_array a)
-    | Group (r1,r2) -> basic (
-        fun s -> 
-          let buf = Buffer.create 17 in 
-          let rec loop ko = function
-            | [] -> ()
-            | bsi::rest -> 
-                let bki,bvi = Bstring.concat_split r1 r2 bsi in 
-                let ki = Bstring.to_string bki in 
-                let ko' = match ko with 
-                  | Some k when k = ki -> ko
-                  | _ -> 
-                      Buffer.add_string buf ki;
-                      Some ki in 
-                Buffer.add_string buf (Bstring.to_string bvi);
-                loop ko' rest in
-          loop None (Bstring.star_split (stype ml) s);
-          Buffer.contents buf)
-    | Merge r -> basic (fun s -> Bstring.to_string (fst (Bstring.concat_split r r s)))
+    | Group (r,ml2) -> 
+        let r2s = Rx.mk_star (stype ml2) in 
+        let buf = Buffer.create 17 in 
+        let ss = Bstring.star_split (stype ml) s in 
+        let rec loop (ks,ci) s1o = function
+          | [] -> ks,ci
+          | si::rest -> 
+              let si1,si2 = Bstring.concat_split r r2s si in 
+              let si1 = Bstring.to_string si1 in
+              let s1o' = match s1o with 
+                | Some s1 when s1 = si1 -> s1o
+                | _ -> (Buffer.add_string buf si1; Some si1) in 
+              let (vi,ki),ci = gget ml2 si2 ci in 
+              Buffer.add_string buf vi; 
+              loop (ki::ks,ci) s1o' rest in
+        let ks,ci = loop ([],ci) None ss in 
+        let v = Buffer.contents buf in 
+        (v, C_group (Safelist.rev ks)), ci
+    | Merge r -> 
+        basic (
+          fun s -> 
+            let s1,s2 = Bstring.concat_split r r s in 
+            Bstring.to_string s1)
     | Fiat ml -> basic_no_op ml
     | Permute (p, mls) ->
         let k, sigma, sigma_inv, cts, ats = p in
@@ -1466,22 +1511,30 @@ module MLens = struct
             | _ -> Array.iter (fun l -> Safelist.iter add l) a in 
           sloop ss;
           Buffer.contents buf)
-    | Group (r1,r2) -> basic
-        (fun v _ -> 
-           let r2s = Rx.mk_star r2 in 
-           let buf = Buffer.create 17 in 
-           let go bki bli = 
-             Safelist.iter
-               (fun bvi -> 
-                  Buffer.add_string buf (Bstring.to_string bki);
-                  Buffer.add_string buf (Bstring.to_string bvi))
-               (Bstring.star_split r2s bli) in 
-           Safelist.iter 
-             (fun vi -> 
-                let bki,bli = Bstring.concat_split r1 r2s vi in 
-                go bki bli)
-             (Bstring.star_split (vtype ml) v);
-           Buffer.contents buf)
+    | Group (r,ml2) -> 
+        let ks = match ko with 
+          | Some (C_group ks) -> ks
+          | None -> []
+          | _ -> assert false in 
+        let r2s = Rx.mk_star (vtype ml2) in 
+        let buf = Buffer.create 17 in 
+        let _,ci = 
+          Safelist.fold_left (
+            fun (ks,ci) vi -> 
+              let vi1,vi2 = Bstring.concat_split r r2s vi in 
+              let rec loop vs ks ci = match vs with 
+                | [] -> ks,ci
+                | v::vs -> 
+                    let ko,ks = match ks with 
+                      | [] -> None, []
+                      | k::ks -> Some k, ks in 
+                    let si,ci = gput' ml2 (v,ko) ci in 
+                    Buffer.add_string buf (Bstring.to_string vi1);
+                    Buffer.add_string buf si;
+                    loop vs ks ci in 
+              loop (Bstring.star_split r2s vi2) ks ci
+          ) (ks,ci) (Bstring.star_split (vtype ml) v) in 
+        Buffer.contents buf, ci
     | Merge r -> basic
         (fun v so ->
            let v = Bstring.to_string v in
@@ -1619,7 +1672,7 @@ module MLens = struct
     | Dup1(dl1,f1,r1)    -> msg "(dup1@ "; format_t dl1; msg "@ <function>@ "; Rx.format_t r1; msg ")"
     | Dup2(f1,r1,dl1)    -> msg "(dup2@ <function>@ "; Rx.format_t r1; msg "@ "; format_t dl1; msg ")"
     | Partition (_,rs1)  -> msg "(partition@ "; Misc.format_list ",@ " (fun (_,ri) -> Rx.format_t ri) rs1; msg ")"
-    | Group (r1,r2)      -> msg "(group@ "; Brx.format_t r1; msg "@ "; Brx.format_t r2; msg ")"
+    | Group (r,ml)       -> msg "(group@ "; Brx.format_t r; msg "@ "; format_t ml; msg ")"
     | Merge(r1)          -> msg "(merge@ "; Rx.format_t r1; msg ")"
     | Fiat(dl1)          -> msg "(fiat@ "; format_t dl1; msg ")"
     | Permute((_,is1,is2,rs1,rs2),dls) ->
@@ -1689,7 +1742,7 @@ module MLens = struct
   let partition i rs1 = 
     let k, irs1 = Safelist.fold_left (fun (i,acc) ri -> (succ i,(i,ri)::acc)) (0,[]) rs1 in 
     mk i (Partition(k,Safelist.rev irs1))
-  let group i r1 r2 = mk i (Group(r1,r2))
+  let group i r ml = mk i (Group(r,ml))
   let merge i r1 = mk i (Merge(r1))
   let fiat i dl1 = mk i (Fiat(dl1))
   let permute i is mls =
