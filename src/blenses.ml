@@ -646,7 +646,7 @@ module MLens = struct
 
     (* ----- extensions ----- *)
     | Partition of int * (int * Rx.t) list
-    | Group of Rx.t * Arx.t
+    | Group of Rx.t * Rx.t
     | Merge of Rx.t
     | Fiat of t
     | Permute of (int * int array * int array * Rx.t array * Rx.t array) * t array
@@ -711,7 +711,7 @@ module MLens = struct
                     if Rx.is_empty h then loop flag t 
                     else loop true t in 
               loop false rs1 
-          | Group(r1,a2)       -> Rx.is_singleton r1
+          | Group(r1,r2)       -> Rx.is_singleton r1
           | Merge (r)          -> Rx.is_singleton r
           | Fiat ml            -> bij ml
           | Permute (_, mls)   -> Array.fold_left (fun b mli -> b && bij mli) true mls
@@ -741,7 +741,7 @@ module MLens = struct
           | Dup1 (ml, _, _)    -> astype ml
           | Dup2 (_, _, ml)    -> astype ml
           | Partition (_,rs1)  -> Arx.mk_rx (Rx.mk_star (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_alt acc ri) Rx.empty rs1))
-          | Group (r1, a2)     -> Arx.mk_star (Arx.mk_seq (Arx.mk_rx r1) a2)
+          | Group (r1,r2)      -> Arx.mk_star (Arx.mk_seq (Arx.mk_rx r1) (Arx.mk_rx r2))
           | Merge r            -> Arx.mk_rx (Rx.mk_seq r r)
           | Fiat ml            -> astype ml
           | Permute (_, mls)   ->
@@ -773,7 +773,7 @@ module MLens = struct
           | Dup1 (ml, _, r)    -> Arx.mk_seq (avtype ml) (Arx.mk_rx r)
           | Dup2 (_, r, ml)    -> Arx.mk_seq (Arx.mk_rx r) (avtype ml)
           | Partition (_,rs1)  -> Arx.mk_rx (Safelist.fold_left (fun acc (_,ri) -> Rx.mk_seq acc (Rx.mk_star ri)) Rx.epsilon rs1)
-          | Group (r1,a2)      -> Arx.mk_star (Arx.mk_seq (Arx.mk_rx r1) (Arx.mk_iter a2 1 (-1)))
+          | Group (r1,r2)      -> Arx.mk_rx (Rx.mk_star (Rx.mk_seq r1 (Rx.mk_iter r2 1 (-1))))
           | Merge r            -> Arx.mk_rx r
           | Fiat ml            -> avtype ml
           | Permute (p, mls)   ->
@@ -882,7 +882,7 @@ module MLens = struct
           | Dup1 (ml, f, r)    -> sequiv ml
           | Dup2 (f, r, ml)    -> sequiv ml
           | Partition (_,rs1)  -> Identity
-          | Group (r1,a2)      -> Identity
+          | Group (r1,r2)      -> Identity
           | Merge (r)          -> Identity
           | Fiat ml            -> sequiv ml
           | Permute (p, mls)   ->
@@ -913,7 +913,7 @@ module MLens = struct
           | Dup1 (ml, f, r)    -> Unknown
           | Dup2 (f, r, ml)    -> Unknown
           | Partition (_,rs1)  -> Identity
-          | Group (r1,a2)      -> Identity
+          | Group (r1,r2)      -> Identity
           | Merge (r)          -> Identity
           | Fiat ml            -> vequiv ml
           | Permute (p, mls)   ->
@@ -1229,13 +1229,13 @@ module MLens = struct
             (fun s -> add (find_match s) s) 
             (Bstring.star_split (stype ml) s);
           concat_buf_array a)
-    | Group (r1,a2) -> basic (
+    | Group (r1,r2) -> basic (
         fun s -> 
           let buf = Buffer.create 17 in 
           let rec loop ko = function
             | [] -> ()
             | bsi::rest -> 
-                let bki,bvi = Bstring.concat_split r1 (Arx.rxtype a2) bsi in 
+                let bki,bvi = Bstring.concat_split r1 r2 bsi in 
                 let ki = Bstring.to_string bki in 
                 let ko' = match ko with 
                   | Some k when k = ki -> ko
@@ -1466,9 +1466,9 @@ module MLens = struct
             | _ -> Array.iter (fun l -> Safelist.iter add l) a in 
           sloop ss;
           Buffer.contents buf)
-    | Group (r1,a2) -> basic
+    | Group (r1,r2) -> basic
         (fun v _ -> 
-           let r2s = Arx.rxtype (Arx.mk_star a2) in 
+           let r2s = Rx.mk_star r2 in 
            let buf = Buffer.create 17 in 
            let go bki bli = 
              Safelist.iter
@@ -1619,7 +1619,7 @@ module MLens = struct
     | Dup1(dl1,f1,r1)    -> msg "(dup1@ "; format_t dl1; msg "@ <function>@ "; Rx.format_t r1; msg ")"
     | Dup2(f1,r1,dl1)    -> msg "(dup2@ <function>@ "; Rx.format_t r1; msg "@ "; format_t dl1; msg ")"
     | Partition (_,rs1)  -> msg "(partition@ "; Misc.format_list ",@ " (fun (_,ri) -> Rx.format_t ri) rs1; msg ")"
-    | Group (r1,a2)      -> msg "(group@ "; Brx.format_t r1; msg "@ "; Arx.format_t a2; msg ")"
+    | Group (r1,r2)      -> msg "(group@ "; Brx.format_t r1; msg "@ "; Brx.format_t r2; msg ")"
     | Merge(r1)          -> msg "(merge@ "; Rx.format_t r1; msg ")"
     | Fiat(dl1)          -> msg "(fiat@ "; format_t dl1; msg ")"
     | Permute((_,is1,is2,rs1,rs2),dls) ->
