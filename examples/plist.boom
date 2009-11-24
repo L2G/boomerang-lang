@@ -43,7 +43,7 @@ let padded (l:lens) : (lens in PADDED (stype l) <-> vtype l)
    omitted with a loss of precision) -->
 *)
 
-let pstring (spaces:string in Xml.WS) (l:lens)
+let pstring (spaces:string in Xml.WS) (l:lens where lens_splittable l kill_ws)
     : (lens in Xml.ELT "string" (stype l) <-> vtype l)
     = pvalue spaces "string" l
 

@@ -21,6 +21,8 @@ let xml_escs = #{char * string}['>',"&gt;";
 
 let EXCL (C:regexp where is_cset C) : regexp = [^\n] - C
 
+let SAFE : regexp = ANY - (containing (Escaping.unescaped xml_escs))
+
 let ESCAPED (C:regexp where is_cset C) : regexp
   = Escaping.char_or_escaped (EXCL C) (Escaping.restrict C xml_escs)
 
