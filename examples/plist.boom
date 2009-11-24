@@ -169,17 +169,17 @@ let empty_array (spaces:string in Xml.WS)
 
 let NONEMPTY_ARRAY (R:regexp) : regexp = Xml.ELT "array" R+
 
-let nonempty_array (spaces:string in Xml.WS) (l:lens where lens_iterable l)
+let nonempty_array (spaces:string in Xml.WS) (tag:string) (l:lens where lens_iterable l)
   : (lens in NONEMPTY_ARRAY (stype l) <-> (vtype l)+ )
-  = Xml.elt spaces "array" <dictionary "parray":l>+
+  = Xml.elt spaces "array" <dictionary tag:l>+
 
 let ARRAY (R:regexp) : regexp = EMPTY_ARRAY | NONEMPTY_ARRAY R
 
-let parray (spaces:string in Xml.WS) (l:lens where lens_iterable l)
+let parray (spaces:string in Xml.WS) (tag:string) (l:lens where lens_iterable l)
   : (lens in ARRAY (stype l) <-> (vtype l)* )
-  = empty_array spaces | nonempty_array spaces l
+  = empty_array spaces | nonempty_array spaces tag l
 
-let larray = parray "" (pinteger "" (copy INTEGER . ins ";"))
+let larray = parray "" "nums" (pinteger "" (copy INTEGER . ins ";"))
 test larray.get "<array>\n <integer>1</integer></array>" = "1;"
 test larray.create "" = "<array/>"
 test larray.put "5;4;3;" into "<array/>" =
@@ -219,23 +219,23 @@ let kvpair (spaces:string in Xml.WS) (K:regexp) (v:lens where lens_splittable (K
 let NONEMPTY_HDICT (K:regexp) (V:regexp) : regexp =
   Xml.ELT "dict" (KVELT K V)+
 
-let nonempty_hdict (spaces:string in Xml.WS) (KEYS:regexp) 
+let nonempty_hdict (spaces:string in Xml.WS) (tag:string) (KEYS:regexp) 
     (v:lens where VALID_KV (indent spaces) KEYS v)
   : (lens in NONEMPTY_HDICT KEYS (stype v) <-> (KV KEYS (vtype v))+)
   = let kv = kvpair (indent spaces) KEYS v in
-    pdict spaces <dictionary "hdict":kv>+
+    pdict spaces <dictionary tag:kv>+
 
 let HDICT (K:regexp) (V:regexp) : regexp = EMPTY_DICT | NONEMPTY_HDICT K V
 
-let phdict (spaces:string in Xml.WS) (KEYS:regexp) 
+let phdict (spaces:string in Xml.WS) (tag:string) (KEYS:regexp) 
     (v:lens where VALID_KV (indent spaces) KEYS v)
   : (lens in HDICT KEYS (stype v) <-> (KV KEYS (vtype v))* )
-  = empty_dict spaces | nonempty_hdict spaces KEYS v
+  = empty_dict spaces | nonempty_hdict spaces tag KEYS v
 
 (* precomputed indentation *)
 let field (l:lens) = ins "=" . l . ins ";"
 let lhdict = 
-  phdict "\n" ("foo"|"bar"|"baz") (field (pinteger "\n  " INTEGER))
+  phdict "\n" "hdict" ("foo"|"bar"|"baz") (field (pinteger "\n  " INTEGER))
 test lhdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
 test lhdict.get "<dict/>" = ""
 test lhdict.put "bar=5;foo=4;" into "<dict/>" =
@@ -254,21 +254,21 @@ test lhdict.put "bar=5;foo=4;" into "<dict/>" =
    also, this would be more elegant if spaces were always the _last_
    argument.  then we could pass around partially applied elements, etc.
 *)
-let nonempty_hsdict (spaces:string in Xml.WS) (KEYS:regexp)
+let nonempty_hsdict (spaces:string in Xml.WS) (tag:string) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> (v:lens where VALID_KV spaces2 KEYS v)))
   : (lens in NONEMPTY_HDICT KEYS (stype (mk_v (indent spaces))) <-> (KV KEYS (vtype (mk_v (indent spaces))))+)
   = let inner_spaces = indent spaces in
     let kv = kvpair inner_spaces KEYS (mk_v inner_spaces) in
-    pdict spaces <dictionary "hsdict":kv>+
+    pdict spaces <dictionary tag:kv>+
 
-let phsdict (spaces:string in Xml.WS) (KEYS:regexp)
+let phsdict (spaces:string in Xml.WS) (tag:string) (KEYS:regexp)
     (mk_v:(spaces2:(string in Xml.WS) -> 
 	  (v:lens where VALID_KV spaces2 KEYS v)))
   : (lens in HDICT KEYS (stype (mk_v (indent spaces))) <-> (KV KEYS (vtype (mk_v (indent spaces))))* )
-  = empty_dict spaces | nonempty_hsdict spaces KEYS mk_v
+  = empty_dict spaces | nonempty_hsdict spaces tag KEYS mk_v
 
 let lhsdict = 
-  phsdict "\n" ("foo"|"bar"|"baz") 
+  phsdict "\n" "hsdict" ("foo"|"bar"|"baz") 
     (fun (spaces:string in Xml.WS) -> pinteger spaces (field INTEGER))
 test lhsdict.get "<dict>\n<key>foo</key><integer>5</integer>\n</dict>" = "foo=5;"
 test lhsdict.get "<dict/>" = ""
@@ -349,7 +349,7 @@ let lodict =
   podict "\n" 
     #{regexp*lens}["Author",field (pstring "\n  " LINE) . ins '\n';
 		   "Lines",
-		   field (parray "\n  " 
+		   field (parray "\n  " "lines"
 			    (pstring "\n    " (LINE . ins " / "))) .
 		   ins '\n';
 		   "Birthdate",field (pinteger "\n  " INTEGER)]
@@ -506,7 +506,7 @@ let lsdict =
   psdict "\n" 
     #{regexp*lens}["Author",field (pstring "\n  " LINE) . ins '\n';
 		   "Lines",
-		   field (parray "\n  " 
+		   field (parray "\n  " "lines"
 			    (pstring "\n    " (LINE . ins " / "))) .
 		   ins '\n';
 		   "Birthdate",field (pinteger "\n  " INTEGER)]
@@ -771,7 +771,7 @@ let llist4 =
 		      "City of Birth",field (pstring tab LINE);
 		      "Name",field (pstring tab LINE);
 		      "Kids Names",
-		      field (parray tab
+		      field (parray tab "kids"
 			       (pstring (tab . "    ") LINE . ins ";"))])
 
 (* from http://developer.apple.com/documentation/Darwin/Reference/ManPages/man5/plist.5.html *)
