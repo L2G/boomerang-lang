@@ -461,6 +461,78 @@ test lodict.put
    </dict>
   >>
 
+(* ---- *)
+
+let OPT (o:bool) (E:regexp) : regexp =
+  match o with
+    | true -> E?
+    | false -> E
+
+let opt (o:bool) (l:lens) : (lens in OPT o (stype l) <-> OPT o (vtype l)) =
+  match o with
+    | true -> l?
+    | false -> l
+
+let KVELTSOPT (spec:(bool*regexp*lens) List.t) : regexp List.t = 
+  List.map{bool*regexp*lens}{regexp}
+    (fun (p:bool*regexp*lens) ->
+       let o,k,v = p in
+       OPT o (KVELT k (stype v)))
+    spec
+
+let KVSOPT (spec:(bool*regexp*lens) List.t) : regexp List.t =
+  List.map{bool*regexp*lens}{regexp}
+    (fun (p:bool*regexp*lens) ->
+       let o,k,v = p in
+       OPT o (KV k (vtype v)))
+    spec
+
+let full_spec (spec:(bool*regexp*lens) List.t) : (regexp*lens) List.t =
+  List.map{bool*regexp*lens}{regexp*lens}
+    (fun (p:bool*regexp*lens) -> let (_,k,v) = p in (k,v))
+    spec
+
+(* TODO this pattern keeps coming up...we should have
+   concat_lenses_ne, etc. for nonempty lists *)
+let kvpairsopt (spaces:string in Xml.WS)
+    (spec:(bool*regexp*lens) List.t where List.nonempty{bool*regexp*lens} spec
+                                  && VALID_KVS (full_spec spec))
+  : (lens in concat_regexps (KVELTSOPT spec) <-> concat_regexps (KVSOPT spec))
+  = let (Some(l)) = 
+      List.fold_left{bool*regexp*lens}{lens option}
+	(fun (lo:lens option) (p:bool*regexp*lens) ->
+	   let o,k,v = p in
+	   let l = opt o (kvpair spaces k v) in
+	   match lo with
+	     | None -> Some{lens}(l)
+	     | Some(l2) -> Some{lens}(l2 . l))
+	None{lens} spec in
+    l
+
+let NONEMPTY_ODICTOPT (spec:(bool*regexp*lens) List.t) : regexp =
+  Xml.ELT "dict" (concat_regexps (KVELTSOPT spec))
+
+let nonempty_odictopt (spaces:string in Xml.WS) 
+    (spec:(bool*regexp*lens) List.t where List.nonempty{bool*regexp*lens} spec
+                                  && VALID_KVS (full_spec spec))
+  : (lens in NONEMPTY_ODICTOPT spec <-> concat_regexps (KVSOPT spec))
+  = let kv = kvpairsopt (indent spaces) spec in
+    pdict spaces kv
+
+let ODICTOPT (spec:(bool*regexp*lens) List.t) : regexp 
+  =  match List.empty{bool*regexp*lens} spec with
+      | true -> EMPTY_DICT
+      | false -> NONEMPTY_ODICTOPT spec
+
+let podictopt (spaces:string in Xml.WS) 
+    (spec:(bool*regexp*lens) List.t where VALID_KVS (full_spec spec))
+  : (lens in ODICTOPT spec <-> concat_regexps (KVSOPT spec))
+  = match List.empty{bool*regexp*lens} spec with
+      | true -> empty_dict spaces
+      | false -> nonempty_odictopt spaces spec
+
+(* ----- *)
+
 (* fast-sorted heterogenous *)
 
 let VALID_SKVS (spec:(regexp*lens) List.t) =
