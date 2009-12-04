@@ -383,7 +383,6 @@ let prelude_spec =
   ; pmk_sll    "lens_pre_lock"        (fun i lk -> L.lock i (Bannot.Lock.pre_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_sll    "lens_post_lock"       (fun i lk -> L.lock i (Bannot.Lock.post_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_rzl    "partition"            (fun i rl -> L.partition i (Safelist.map get_r rl))
-  ; pmk_rll    "group"                L.group
   ; pmk_rl     "merge"                L.merge
   ; pmk_ll     "fiat"                 L.fiat
   ; pmk_dup1   "dup1"                 (fun i l f fat ->

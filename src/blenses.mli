@@ -110,7 +110,6 @@ module MLens : sig
   val default : Info.t -> t -> Bstring.t -> t
   val mmatch : Info.t -> Btag.t -> t -> t
   val partition : Info.t -> Brx.t list -> t
-  val group : Info.t -> Brx.t -> t -> t
   val merge : Info.t -> Brx.t -> t
   val fiat : Info.t -> t -> t
   val left_quot : Info.t -> Canonizer.t -> t -> t

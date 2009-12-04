@@ -504,29 +504,6 @@ that is compact (though imprecise); see~\cite{QuotientLens08} for a discussion.
 #* test canonized_type (sort #{regexp}[UALPHACHAR; DIGIT]) = 
 #*   (UALPHACHAR . DIGIT)
 
-\subsection{Relational}
-
-\LENSSECTION{@group@} The @group@ operator takes a regular expression @R@ 
-and a lens @l@ as arguments and produces a bijective lens that transforms 
-between string belonging to the iteration of the concatenation of @R@ 
-and @(stype l)@ into a string belonging to the iteration of the 
-concatenation of @R@ and $@(vtype l)@\kleenestar$. It groups adjacent 
-elements having the same @R@ value.
-
-#* let group 
-#*     (R:regexp)
-#*     (l:lens where
-#*             (splittable_cex R (vtype l))
-#*          && (iterable (R . vtype l)) 
-#*          && (iterable (vtype l)))
-#*   : (lens in (R . stype l)* <-> (R . (vtype l)+ )* )
-#*   = Native.Prelude.group R l
-
-#* test get (group [A-Z] [0-9]) "A1A2A3B4" = "A123B4"
-#* test get (group [A-Z] [0-9]) "A1B2A3B4" = "A1B2A3B4"
-#* test put (group [A-Z] [0-9]) "A1234" "" = "A1A2A3A4"
-#* test put (group [A-Z] [0-9]) "A1234B567" "" = "A1A2A3A4B5B6B7"
-
 \subsection{Miscellaneous}
 
 \LENSSECTION{@iterate@} The operator @iterate@ compose @f@ with itself
