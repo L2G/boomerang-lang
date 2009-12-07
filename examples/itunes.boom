@@ -2,39 +2,82 @@ module Itunes =
 
 open Plist
 
-let SAFE = Xml.SAFE - (containing ";") - (ANY . Xml.WSP)
+let SAFE = ANY - (containing ("<" | ">" | ";;;" | "===")) - (ANY . Xml.WSP)
 
 let track (spaces:string in Xml.WS) = 
   let spaces' = "\n" . indent spaces in
-  let field (l:lens) = ins "=" . l . ins ";\n" in
-  let pint  (name:string) = name,field (pinteger spaces' INTEGER) in
-  let pstr  (name:string) = name,field (pstring spaces' SAFE) in
-  let pdate (name:string) = name,field (pdate spaces' ISO8601_DATE) in
-  psdict spaces
-    #{regexp*lens}[
-      pint "Track ID";
-      pstr "Name";
-      pstr "Artist";
-      pstr "Composer";
-      pstr "Album";
-      pstr "Genre";
-      pstr "Kind";
-      pint "Size";
-      pint "Total Time";
-      pint "Track Number";
-      pint "Year";
-      pdate "Date Modified";
-      pdate "Date Added";
-      pint "Bit Rate";
-      pint "Sample Rate";
-      pstr "Comments";
-      pint "Play Count";
-      pint "Play Date";
-      pdate "Play Date UTC";
-      pstr "Track Type";
-      pstr "Location"; (* this has per-OS structure... *)
-      pint "File Folder Count";
-      pint "Library Folder Count"
+  let field (l:lens) = ins "===" . l . ins ";;;\n" in
+  let required (l:lens) (name:string) = false,name,field l in
+  let optional (l:lens) (name:string) = true,name,field l in
+  let pint  = pinteger spaces' INTEGER in
+  let pstr  = pstring spaces' SAFE in
+  let pdate = pdate spaces' ISO8601_DATE in
+  let pbool = pbool spaces' "1" "0" in
+  podictopt spaces
+    #{bool*regexp*lens}[
+      required pint  "Track ID";
+      required pstr  "Name";
+      optional pstr  "Artist";
+      optional pstr  "Album Artist";
+      optional pstr  "Composer";
+      optional pstr  "Album";
+      optional pstr  "Grouping";
+      optional pstr  "Genre";
+      required pstr  "Kind";
+      optional pint  "Size";
+      optional pint  "Total Time";
+      optional pint  "Disc Number";
+      optional pint  "Disc Count";
+      optional pint  "Track Number";
+      optional pint  "Track Count";
+      optional pint  "Year";
+      optional pint  "BPM";
+      optional pdate "Date Modified";
+      required pdate "Date Added";
+      optional pint  "Bit Rate";
+      optional pint  "Sample Rate";
+      optional pbool "Part Of Gapless Album";
+      optional pstr  "Comments";
+      optional pint  "Play Count";
+      optional pint  "Play Date";
+      optional pdate "Play Date UTC";
+      optional pint  "Skip Count";
+      optional pdate "Skip Date";
+      optional pdate "Release Date";
+      optional pint  "Rating";
+      optional pbool "Rating Computed";        (* ?? *)
+      optional pint  "Album Rating";
+      optional pbool "Album Rating Computed";  (* ?? *)
+      optional pbool "Compilation";
+      optional pint  "Artwork Count";
+      optional pstr  "Series";
+      optional pint  "Season";
+      optional pstr  "Episode";
+      optional pint  "Episode Order";
+      optional pstr  "Sort Album";        (* may not be in the EXACT right order... *)
+      optional pstr  "Sort Album Artist";
+      optional pstr  "Sort Composer";
+      optional pstr  "Sort Artist";
+      optional pstr  "Sort Name";
+      optional pstr  "Sort Series";
+      required pstr  "Persistent ID";
+      optional pbool "Clean";
+      optional pbool "Disabled";
+      required pstr  "Track Type";
+      optional pbool "Protected";
+      optional pbool "Purchased";
+      optional pbool "Has Video";
+      optional pbool "HD";
+      optional pint  "Video Width";
+      optional pint  "Video Height";
+      optional pbool "Movie";
+      optional pbool "TV Show";
+      optional pbool "Podcast";
+      optional pbool "Unplayed";
+      optional pint  "File Type";
+      required pstr  "Location"; (* this has per-OS structure... *)
+      optional pint  "File Folder Count";
+      optional pint  "Library Folder Count"
     ]
 
 let input =
@@ -59,6 +102,7 @@ let input =
     <key>Play Count</key><integer>6</integer>
     <key>Play Date</key><integer>-1088231274</integer>
     <key>Play Date UTC</key><date>2005-08-13T05:00:22Z</date>
+    <key>Persistent ID</key><string>FAKE</string>
     <key>Track Type</key><string>File</string>
     <key>Location</key><string>file://localhost/C:/
     Documents%20and%20Settings/Test%20Name/My%20Documents/
@@ -71,32 +115,39 @@ let input =
 
 let output =
   <<
-  Track ID=37;
-  Name=Thinking Of You;
-  Artist=Lenny Kravitz;
-  Composer=Lenny Kravitz/Lysa Trenier;
-  Album=5;
-  Genre=Pop/Funk;
-  Kind=MPEG audio file;
-  Size=6141310;
-  Total Time=383764;
-  Track Number=32;
-  Year=1998;
-  Date Modified=2005-06-08T20:04:06Z;
-  Date Added=2004-05-06T04:29:57Z;
-  Bit Rate=128;
-  Sample Rate=44100;
-  Comments=By ScazzI;
-  Play Count=6;
-  Play Date=-1088231274;
-  Play Date UTC=2005-08-13T05:00:22Z;
-  Track Type=File;
-  Location=file://localhost/C:/
+  Track ID===37;;;
+  Name===Thinking Of You;;;
+  Artist===Lenny Kravitz;;;
+  Composer===Lenny Kravitz/Lysa Trenier;;;
+  Album===5;;;
+  Genre===Pop/Funk;;;
+  Kind===MPEG audio file;;;
+  Size===6141310;;;
+  Total Time===383764;;;
+  Track Number===32;;;
+  Year===1998;;;
+  Date Modified===2005-06-08T20:04:06Z;;;
+  Date Added===2004-05-06T04:29:57Z;;;
+  Bit Rate===128;;;
+  Sample Rate===44100;;;
+  Comments===By ScazzI;;;
+  Play Count===6;;;
+  Play Date===-1088231274;;;
+  Play Date UTC===2005-08-13T05:00:22Z;;;
+  Persistent ID===FAKE;;;
+  Track Type===File;;;
+  Location===file://localhost/C:/
     Documents%20and%20Settings/Test%20Name/My%20Documents/
-    My%20Music/Masheed/Lenny%20Kravitz%20-%20Thinking%20Of%20You.mp3/;
-  File Folder Count=-1;
-  Library Folder Count=-1;
+    My%20Music/Masheed/Lenny%20Kravitz%20-%20Thinking%20Of%20You.mp3/;;;
+  File Folder Count===-1;;;
+  Library Folder Count===-1;;;
   
   >>
 
 test (track "  ").get input = output
+
+let tracks = ((pkey "" INTEGER ; del INTEGER) . track "")* . del Xml.WS
+
+let all_tracks = Sys.read "tracks.xml"
+
+test matches_cex (stype tracks) all_tracks = ?
