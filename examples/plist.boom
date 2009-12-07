@@ -531,6 +531,62 @@ let podictopt (spaces:string in Xml.WS)
       | true -> empty_dict spaces
       | false -> nonempty_odictopt spaces spec
 
+let lodictopt =
+  podictopt "\n" 
+    #{bool*regexp*lens}[false,"Author",field (pstring "\n  " LINE) . ins '\n';
+		        false,"Lines",field (parray "\n  " "lines"
+			                 (pstring "\n    " (LINE . ins " / "))) . ins '\n';
+		        true, "Birthdate",field (pinteger "\n  " INTEGER)]
+
+let sample1 = 
+  <<
+   
+   <dict>
+     <key>Author</key>
+     <string>William Shakespeare</string>
+     <key>Lines</key>
+     <array>
+       <string>It is a tale told by an idiot,</string>
+       <string>Full of sound and fury, signifying nothing.</string>
+     </array>
+     <key>Birthdate</key>
+     <integer>1564</integer>
+   </dict>
+  >>
+
+test lodictopt.get sample1 = 
+  <<
+    Author=William Shakespeare;
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / ;
+    Birthdate=1564;
+  >>
+
+let sample2 = 
+  <<
+   
+   <dict>
+     <key>Author</key>
+     <string>William Shakespeare</string>
+     <key>Lines</key>
+     <array>
+       <string>It is a tale told by an idiot,</string>
+       <string>Full of sound and fury, signifying nothing.</string>
+     </array>
+   </dict>
+  >>
+
+let sample3 =
+  <<
+    Author=William Shakespeare;
+    Lines=It is a tale told by an idiot, / Full of sound and fury, signifying nothing. / ;
+
+  >>
+
+test lodictopt.get sample2 = sample3
+
+test lodictopt.put sample3 into sample1 = sample2
+
+
 (* ----- *)
 
 (* fast-sorted heterogenous *)
