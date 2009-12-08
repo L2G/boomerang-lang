@@ -80,6 +80,9 @@ let track (spaces:string in Xml.WS) =
       optional pint  "Library Folder Count"
     ]
 
+let tracks (spaces:string in Xml.WS) = 
+  phdict spaces "tracks" INTEGER (track (indent spaces))
+
 let input =
   <<
   <dict>
@@ -144,10 +147,162 @@ let output =
   
   >>
 
-test (track "  ").get input = output
+test (track (indent "")).get input = output
 
-let tracks = ((pkey "" INTEGER ; del INTEGER) . track "")* . del Xml.WS
+let items (spaces:string in Xml.WS) =
+  parray spaces "playlist_items" 
+    (podict (indent spaces)
+       #{regexp*lens}["Track ID",ins "===" . pinteger "" INTEGER . ins ";;;\n"])
 
-let all_tracks = Sys.read "tracks.xml"
+let playlist (spaces:string in Xml.WS) =
+  let spaces' = "\n" . indent spaces in
+  let field (l:lens) = ins "===" . l . ins ";;;\n" in
+  let required (l:lens) (name:regexp) = false,name,field l in
+  let optional (l:lens) (name:regexp) = true,name,field l in
+  let pint  = pinteger spaces' INTEGER in
+  let pstr  = pstring spaces' SAFE in
+  let pdate = pdate spaces' ISO8601_DATE in
+  let pbool = pbool spaces' "1" "0" in
+  let pdata = pdata spaces' (padded BASE64) in
+  podictopt spaces
+    #{bool*regexp*lens}[
+      required pstr  "Name";
+      optional pbool "Master";
+      required pint  "Playlist ID";
+      required pstr  "Playlist Persistent ID";
+      optional pstr  "Parent Persistent ID";
+      optional pint  "Distinguished Kind";
+      optional pbool ("Music"|
+                      "Movies"|
+                      "TV Shows"|
+                      "Podcasts"|
+                      "Audiobooks"|
+                      "Purchased Music"|
+                      "Party Shuffle");      
+      optional pbool "Visible";
+      optional pbool "All Items";
+      optional pbool "Folder";
+      optional pdata "Smart Info";
+      optional pdata "Smart Criteria";
+      optional (items (indent spaces)) "Playlist Items"]
 
-test matches_cex (stype tracks) all_tracks = ?
+let input =
+  <<
+   <dict>
+     <key>Name</key><string>iTunes DJ</string>
+     <key>Playlist ID</key><integer>10630</integer>
+     <key>Playlist Persistent ID</key><string>2B9E87A28E9A7788</string>
+     <key>Distinguished Kind</key><integer>22</integer>
+     <key>Party Shuffle</key><true/>
+     <key>All Items</key><true/>
+     <key>Playlist Items</key>
+     <array>
+       <dict>
+         <key>Track ID</key><integer>1871</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>3203</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>3301</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>2075</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>1189</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>1425</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>1321</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>2713</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>1717</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>2603</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>1661</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>3001</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>3177</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>1943</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>2939</integer>
+       </dict>
+       <dict>
+         <key>Track ID</key><integer>2053</integer>
+       </dict>
+     </array>
+   </dict>
+  >>
+
+let output =
+  <<
+   Name===iTunes DJ;;;
+   Playlist ID===10630;;;
+   Playlist Persistent ID===2B9E87A28E9A7788;;;
+   Distinguished Kind===22;;;
+   Party Shuffle===1;;;
+   All Items===1;;;
+   Playlist Items===Track ID===1871;;;
+   Track ID===3203;;;
+   Track ID===3301;;;
+   Track ID===2075;;;
+   Track ID===1189;;;
+   Track ID===1425;;;
+   Track ID===1321;;;
+   Track ID===2713;;;
+   Track ID===1717;;;
+   Track ID===2603;;;
+   Track ID===1661;;;
+   Track ID===3001;;;
+   Track ID===3177;;;
+   Track ID===1943;;;
+   Track ID===2939;;;
+   Track ID===2053;;;
+   ;;;
+
+  >>
+
+test (playlist "\n").get input = output
+
+let playlists (spaces:string in Xml.WS) = 
+  parray spaces "playlists" (playlist (indent spaces))
+
+let iTML =
+  let spaces = indent (indent "\n") in
+  let pint  = pinteger spaces INTEGER in
+  let pstr  = pstring spaces SAFE in
+  let pdate = pdate spaces ISO8601_DATE in
+  let pbool = pbool spaces "1" "0" in
+  let field (l:lens) (name:string) = name, ins "===" . l . ins ";;;\n" in
+  (plist (podict (indent "\n")
+            #{regexp*lens}[
+              field pint  "Major Version";
+              field pint  "Minor Version";
+              field pstr  "Application Version";
+              field pint  "Features";
+              field pbool "Show Content Ratings";
+              field pstr  "Music Folder";
+              field pstr  "Library Persistent ID";
+              "Tracks", tracks (indent spaces);
+              "Playlists",playlists (indent spaces)])) . qdel Xml.WS ""
+
+(*
+let lib = Sys.read "iTML.xml"
+
+test matches_cex (stype iTML) lib = ?
+*)
