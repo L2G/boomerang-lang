@@ -77,10 +77,11 @@ let pstring (spaces:string in Xml.WS) (l:lens where lens_splittable l kill_ws)
 *)
 
 let BASE64CHAR : regexp = [A-Za-z0-9+/]
-let BASE64QUANTUM : regexp = BASE64CHAR{4}
+let BASE64QUANTUM : regexp = (BASE64CHAR . Xml.WS){4}
 let BASE64ENDING : regexp = 
-  BASE64QUANTUM | BASE64CHAR{3} . "=" | BASE64CHAR{2} . "=="
-let BASE64 : regexp = BASE64QUANTUM+ . BASE64ENDING?
+  ((BASE64CHAR . Xml.WS){3} . (BASE64CHAR | "=")) | 
+  ((BASE64CHAR . Xml.WS){2} . "=" . Xml.WS . "=")
+let BASE64 : regexp = BASE64QUANTUM* . BASE64ENDING
 
 let pdata (spaces:string in Xml.WS) (l:lens where subset (stype l) (PADDED BASE64))
   : (lens in Xml.ELT "data" (stype l) <-> vtype l)
