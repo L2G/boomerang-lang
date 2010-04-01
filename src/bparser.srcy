@@ -608,6 +608,10 @@ dotexp:
       { mk_over (me $1 $3) ODot [$1; $3] }
   | appexp DOT appexp
       { mk_over (me $1 $3) ODot [$1; $3] }
+  | rewriteexp DOT rewriteexp
+      { mk_over (me $1 $3) ODot [$1; $3] }
+  | rewriteexp DOT appexp
+      { mk_over (me $1 $3) ODot [$1; $3] }
   | appexp DOT rewriteexp
       { mk_over (me $1 $3) ODot [$1; $3] }
 
@@ -1162,9 +1166,10 @@ param:
   | TYVARIDENT 
       { Misc.Right ($1) }
 
+  /* hack: "(unit)" cannot be an identifier */
   | LPAREN RPAREN
       { let i = m $1 $2 in
-        Misc.Left (Param(i,(i,"(unit)"),SUnit)) } /* hack: "(unit)" cannot be an identifier */
+        Misc.Left (Param(i,(i,"(unit)"),SUnit)) } 
 
 /* --------- SORTS ---------- */
 #{@}
