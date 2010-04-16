@@ -566,6 +566,7 @@ and check_exp ?(in_let=false) sev e0 =
                  mk_app3 i 
                    (mk_tyapp i (mk_qid_var (Qid.mk_core_t i "equals")) e1_sort) 
                    e1 e2)
+            (* !!! why is this logic duplicated?  can these not fit in the table above? --MMG *)
             | OMatch, [tag; exp] ->
                 let tag_sort = SData ([], V.tag_qid) in
                 if not (compatible (fst tag) tag_sort) then err ();

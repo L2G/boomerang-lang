@@ -416,6 +416,7 @@ expression. The overloaded symbols @*@, @+@, and @?@, as well as iterations
 type @aregexp@. If the second argument is negative, then the iteration is 
 unbounded. For example,  @R*@ desugars into @aregexp_iter R 0 (-1)@.
 
+## (* this needs a contract! --MMG *)
 #* let aregexp_iter : aregexp -> int -> int -> aregexp 
 ## = Native.Prelude.aregexp_iter
 
