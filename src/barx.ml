@@ -21,7 +21,6 @@
 
 module Rx = Brx
 module W = Bannot.Weight
-module L = Bannot.Lock
 module T = Btag
 module Ts = T.Set
 module Err = Berror
@@ -53,7 +52,7 @@ let rec generic_iter epsilon union concat star min max x =
      | (n,-1) -> concat (mk_cats n x) (star x)
      | (0,0)  -> epsilon
      | (m,n)  ->
-         let f m n = 
+         let f m n =
            let m_x = mk_cats m x in
              if m=n then m_x
              else if m < n then mk_alts m_x m_x (n-m)
@@ -68,7 +67,7 @@ let rec generic_iter epsilon union concat star min max x =
 (* ANNOTATED REGEXP *)
 
 type t =
-  | Leaf of (W.t option * L.t) * Rx.t
+  | Leaf of (W.t option) * Rx.t
   | Chunk of T.t * t
   | Seq of t * t
   | Alt of t * t
@@ -95,7 +94,7 @@ let annot_weight nw t =
   in
   let rec f t =
     match t with
-    | Leaf ((ow, lk), x) -> Leaf ((setw nw ow, lk), x)
+    | Leaf (ow, x) -> Leaf (setw nw ow, x)
     | Chunk _ -> t
     | Seq (t1, t2) -> Seq (f t1, f t2)
     | Alt (t1, t2) -> Alt (f t1, f t2)
@@ -103,27 +102,16 @@ let annot_weight nw t =
   in
   f t
 
-let annot_lock lkn t =
-  let rec f t =
-    match t with
-    | Leaf ((w, lko), x) -> Leaf ((w, L.union lko lkn), x)
-    | Chunk _ -> t (* TODO: go through tags allowing (like Positional) *)
-    | Seq (t1, t2) -> Seq (f t1, f t2)
-    | Alt (t1, t2) -> Alt (f t1, f t2)
-    | Star t -> Star (f t)
-  in
-  f t
-
-let mk_rx r = Leaf ((None, L.empty), r)
+let mk_rx r = Leaf (None, r)
 let is_rx = function
-    | Leaf ((None, lk), r) when L.is_empty lk -> Some r
+    | Leaf (None, r) -> Some r
     | _ -> None
 let mk_box tag t = Chunk (tag, t)
-let mk_seq c1 c2 = 
+let mk_seq c1 c2 =
   match is_rx c1, is_rx c2 with
     | Some r1, Some r2 -> mk_rx (Rx.mk_seq r1 r2)
     | _ -> Seq (c1, c2)
-let mk_alt c1 c2 = 
+let mk_alt c1 c2 =
   match is_rx c1, is_rx c2 with
     | Some r1, Some r2 ->mk_rx (Rx.mk_alt r1 r2)
     | _ -> Alt (c1, c2)
@@ -134,7 +122,7 @@ let mk_star c =
 let mk_iter c i j =
   match is_rx c with
     | Some r -> mk_rx (Rx.mk_iter r i j)
-    | _ -> 
+    | _ ->
         generic_iter (mk_rx Rx.epsilon) mk_alt mk_seq mk_star i j c
 
 let empty = mk_rx Rx.empty
@@ -203,13 +191,13 @@ let rec parse t s =
   assert (Bstring.match_rx (rxtype t) s);
   let rec p t wd s = (* wd = default weight *)
     match t with
-    | Leaf ((wo, lk), _) ->
+    | Leaf (wo, _) ->
         let w =
           match wo with
           | None -> wd
           | Some w -> w
         in
-        Bstring.annot_leaf w lk s
+        Bstring.annot_leaf w s
     | Chunk (tag, t) ->
         Bstring.annot_node tag (p t (Btag.get_weight tag) (Bstring.before_node s))
     | Seq (t1, t2) ->

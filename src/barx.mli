@@ -37,7 +37,6 @@ val generic_iter :
 type t
 val rxtype : t -> Brx.t
 val annot_weight : bool * Bannot.Weight.t -> t -> t
-val annot_lock : Bannot.Lock.t -> t -> t
 val mk_rx : Brx.t -> t
 val mk_box : Btag.t -> t -> t
 val mk_seq : t -> t -> t
@@ -55,5 +54,5 @@ val match_compatible_cex : Btag.t -> t -> string option
 val compatible_cex : t -> t -> string option
 val parse : t -> Bstring.t -> Bstring.at
 val drop : t -> Brx.t
-val to_tags : t -> Btag.Set.t 
+val to_tags : t -> Btag.Set.t
 val no_chunks : t -> bool

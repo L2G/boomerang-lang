@@ -26,7 +26,6 @@ module Rx = Brx
 module Arx = Barx
 module Err = Berror
 module W = Bannot.Weight
-module L = Bannot.Lock
 module G = Balign.Alignment
 module P = Balign.Permutation
 module T = Btag
@@ -44,7 +43,7 @@ let (@) = Safelist.append
 
 type tag = T.t
 
-(* ----- K complements ----- *)
+(* ----- C complements ----- *)
 type union_side = Union_left | Union_right
 type complement =
   | C_box
@@ -54,7 +53,7 @@ type complement =
   | C_list of complement list
   | C_star of complement list * int list
   | C_union of union_side * complement
-  | C_group of complement list  
+  | C_group of complement list
 
 let rec print_complement c =
   match c with
@@ -77,8 +76,8 @@ let rec print_complement c =
           true
       ) false cs);
       print_string "]"
-  | C_star (cs, _) 
-  | C_group(cs) -> 
+  | C_star (cs, _)
+  | C_group(cs) ->
       print_complement (C_list cs)
   | C_union (Union_left, c) ->
       print_string "|L";
@@ -111,7 +110,7 @@ type ktype =
   | K_union of ktype * ktype
   | K_star of ktype
   | K_permute of ktype list
-  | K_group of ktype 
+  | K_group of ktype
   | K_compose of ktype * ktype
 
 let rec ktype_equiv a b =
@@ -127,7 +126,7 @@ let rec ktype_equiv a b =
       try Safelist.for_all2 ktype_equiv a b
       with Invalid_argument _ -> false
     )
-  | K_group a, K_group b -> ktype_equiv a b 
+  | K_group a, K_group b -> ktype_equiv a b
   | _ -> false
 
 let rec format_ktype t =
@@ -639,7 +638,6 @@ module MLens = struct
 
     (* ----- generic lenses ------ *)
     | Weight of (bool * W.t) * t
-    | Lock of L.t * t
     | Compose of t * t
     | Align of t
     | Invert of t
@@ -698,7 +696,6 @@ module MLens = struct
           | Union(ml1,ml2)     -> bij ml1 && bij ml2 && Rx.disjoint (vtype ml1) (vtype ml2)
           | Star(ml1)          -> bij ml1
           | Weight (_, ml)     -> bij ml
-          | Lock (_, ml)       -> bij ml
           | Match (t, ml)      -> bij ml
           | Compose (ml1, ml2) -> bij ml1 && bij ml2
           | Align ml           -> bij ml
@@ -708,15 +705,15 @@ module MLens = struct
           | RightQuot (ml, cn) -> bij ml
           | Dup1 (ml, f, r)    -> bij ml
           | Dup2 (f, r, ml)    -> bij ml
-          | Partition(_,rs1)     -> 
-              let rec loop flag l = match flag,l with 
+          | Partition(_,rs1)     ->
+              let rec loop flag l = match flag,l with
                 | _,[] -> true
-                | true,(_,h)::t -> 
+                | true,(_,h)::t ->
                     Rx.is_empty h && loop flag t
-                | false,(_,h)::t -> 
-                    if Rx.is_empty h then loop flag t 
-                    else loop true t in 
-              loop false rs1 
+                | false,(_,h)::t ->
+                    if Rx.is_empty h then loop flag t
+                    else loop true t in
+              loop false rs1
           | Merge (r)          -> Rx.is_singleton r
           | Fiat ml            -> bij ml
           | Permute (_, mls)   -> Array.fold_left (fun b mli -> b && bij mli) true mls
@@ -735,7 +732,6 @@ module MLens = struct
           | Union (ml1, ml2)   -> Arx.mk_alt (astype ml1) (astype ml2)
           | Star ml            -> Arx.mk_star (astype ml)
           | Weight (w, ml)     -> Arx.annot_weight w (astype ml)
-          | Lock (lk, ml)      -> Arx.annot_lock lk (astype ml)
           | Match (t, ml)      -> Arx.mk_box t (astype ml)
           | Compose (ml, _)    -> astype ml
           | Align ml           -> Arx.mk_rx (stype ml)
@@ -766,7 +762,6 @@ module MLens = struct
           | Union (ml1, ml2)   -> Arx.mk_alt (avtype ml1) (avtype ml2)
           | Star ml            -> Arx.mk_star (avtype ml)
           | Weight (w, ml)     -> Arx.annot_weight w (avtype ml)
-          | Lock (lk, ml)      -> Arx.annot_lock lk (avtype ml)
           | Match (t, ml)      -> Arx.mk_box t (avtype ml)
           | Compose (_, ml)    -> avtype ml
           | Align ml           -> Arx.mk_rx (vtype ml)
@@ -807,7 +802,6 @@ module MLens = struct
           | Fiat _
             -> basic ()
           | Weight (_, ml)
-          | Lock (_, ml)
           | LeftQuot (_, ml)
           | RightQuot (ml, _)
             -> ktype ml
@@ -845,7 +839,6 @@ module MLens = struct
             -> mt_merge (mtype ml1) (mtype ml2)
           | Star ml
           | Weight (_, ml)
-          | Lock (_, ml)
             -> (mtype ml)
           | Match (t, ml)
             -> TmA.add t (ktype ml) (mtype ml)
@@ -872,7 +865,6 @@ module MLens = struct
           | Union (ml1, ml2)   -> equiv_merge (sequiv ml1) (sequiv ml2)
           | Star (ml)          -> sequiv ml
           | Weight (_, ml)     -> sequiv ml
-          | Lock (_, ml)       -> sequiv ml
           | Match (t, ml)      -> sequiv ml
           | Compose (ml, _)    -> sequiv ml
           | Align ml           -> sequiv ml
@@ -902,7 +894,6 @@ module MLens = struct
           | Union(ml1,ml2)     -> equiv_merge (vequiv ml1) (vequiv ml2)
           | Star(ml1)          -> vequiv ml1
           | Weight (_, ml)     -> vequiv ml
-          | Lock (_, ml)       -> vequiv ml
           | Match (t, ml)      -> vequiv ml
           | Compose(ml1,ml2)   -> vequiv ml2
           | Align ml           -> vequiv ml
@@ -957,7 +948,6 @@ module MLens = struct
     | Dup1 (ml, _, _)
     | Dup2 (_, _, ml)
     | Weight (_, ml)
-    | Lock (_, ml)
     | Fiat ml
       -> srep ml s
     | Invert ml -> vrep ml s
@@ -1002,7 +992,6 @@ module MLens = struct
     | Default (ml, _)
     | LeftQuot (_, ml)
     | Weight (_, ml)
-    | Lock (_, ml)
     | Fiat ml
       -> vrep ml v
     | Invert ml -> srep ml v
@@ -1089,7 +1078,6 @@ module MLens = struct
         assert (TmI.equal i1 i2);
         P.compose p p2 p1, i2
     | Weight (_, ml)
-    | Lock (_, ml)
       -> gperm ml s pi
     | Permute (p, mls) ->
         let k, sigma, sigma_inv, cts, ats = p in
@@ -1120,164 +1108,187 @@ module MLens = struct
           ) (0, pi) pi_arr_s
         in pi
 
-  and gget ml s ci = (* returns ((v, k), ci) *)
-    let basic f = (f s, C_string s), ci in
+  (* ((v, c), ri) = gget ml s (r, i)
+     . [s] is in the stype of [ml].
+     . [i] is used to determine the position of the chunks.  It counts
+     how many chunk we read until now for each tag.
+     . [r] contains the resources of the previous chunks.
+     . [(r, i)] is chained through the calls to [gget], and is only
+     directly modified in [Match], [Compose] and canonizer related
+     lenses.
+     . [v] = ml.get [s]
+     . [(c, _)] = ml.res [s] (it does not hold for [r] because it's
+     chained and there is an offset of [i])
+  *)
+  and gget ml s ri = (* returns ((v, c), ri) *)
+    let basic f = (f s, C_string s), ri in
     let basic_no_op ml = basic (rget ml) in
-    let no_op ml = gget ml s ci in
+    let no_op ml = gget ml s ri in
     match ml.desc with
-    | Copy _ -> 
+    | Copy _ ->
         basic (fun s -> Bstring.to_string s)
     | Clobber (_, w, _) -> basic (fun _ -> w)
     | Concat (ml1, ml2) ->
         let s1, s2 = Bstring.concat_split (stype ml1) (stype ml2) s in
-        let (v1, k1), ci = gget ml1 s1 ci in
-        let (v2, k2), ci = gget ml2 s2 ci in
+        let (v1, c1), ri = gget ml1 s1 ri in
+        let (v2, c2), ri = gget ml2 s2 ri in
         let v = v1 ^ v2 in
         let n = Bstring.find_concat_split (vtype ml1) (vtype ml2) (String.length v1) v in
-        (v, C_concat (k1, n, k2)), ci
+        (v, C_concat (c1, n, c2)), ri
     | Union (left, right) ->
         if Bstring.match_rx (stype left) s
         then
-          let (v, k), ci = gget left s ci in
-          (v, C_union (Union_left, k)), ci
+          let (v, c), ri = gget left s ri in
+          (v, C_union (Union_left, c)), ri
         else
-          let (v, k), ci = gget right s ci in
-          (v, C_union (Union_right, k)), ci
+          let (v, c), ri = gget right s ri in
+          (v, C_union (Union_right, c)), ri
     | Star ml ->
         let buf = Buffer.create 17 in
         let ss = Bstring.star_split (stype ml) s in
-        let ns, ks, ci =
+        let ns, cs, ri =
           Safelist.fold_left (
-            fun (ns, ks, ci) s ->
-              let (v, k), ci = gget ml s ci in
+            fun (ns, cs, ri) s ->
+              let (v, c), ri = gget ml s ri in
               Buffer.add_string buf v;
-              (String.length v::ns, k::ks, ci)
-          ) ([], [], ci) ss
+              (String.length v::ns, c::cs, ri)
+          ) ([], [], ri) ss
         in
         let v = Buffer.contents buf in
         let ns = Bstring.find_star_split (vtype ml) (Safelist.rev ns) v in
-        (v, C_star (Safelist.rev ks, ns)), ci
+        (v, C_star (Safelist.rev cs, ns)), ri
     | Match (tag, ml) ->
-        let c, i = ci in
+        let r, i = ri in
         let pos = TmI.find tag i in
-        let ci = c, TmI.incr tag i in
-        let (v, k), (c, i) = gget ml s ci in
-        let ci = TmImA.add tag pos k c, i in
-        (v, C_box), ci
+        let ri = r, TmI.incr tag i in
+        let (v, c), (r, i) = gget ml s ri in
+        let ri = TmImA.add tag pos c r, i in
+        (v, C_box), ri
     | Compose (ml1, ml2) ->
 (*         print_endline "+++gget for Compose"; *)
-        let c, i = ci in
-        let (u, uk), (uc, iu) = gget ml1 s (TmImA.empty, i) in
+        let r, i = ri in
+        let (u, uc), (ur, iu) = gget ml1 s (TmImA.empty, i) in
         let u = Bstring.of_string u in
-        let (v, vk), (vc, iv) = gget ml2 u (TmImA.empty, i) in
+        let (v, vc), (vr, iv) = gget ml2 u (TmImA.empty, i) in
         let p, ip = gperm ml2 u (P.empty, i) in
         assert (TmI.equal ip iv);
 (*         Balign.print_res print_complement c; *)
-(*         Balign.print_res print_complement uc; *)
-(*         Balign.print_res print_complement vc; *)
-        let uc = Balign.res_compose_perm uc (P.inv p) in
-(*         Balign.print_res print_complement uc; *)
+(*         Balign.print_res print_complement ur; *)
+(*         Balign.print_res print_complement vr; *)
+        let ur = Balign.res_compose_perm ur (P.inv p) in
+(*         Balign.print_res print_complement ur; *)
         assert (TmI.equal iu iv);
-        let c = Balign.res_zip (fun (x, y) -> C_compose (x, y)) c uc vc in
-(*         Balign.print_res print_complement c; *)
+        let r = Balign.res_zip (fun (x, y) -> C_compose (x, y)) r ur vr in
+(*         Balign.print_res print_complement r; *)
 (*         print_endline "---gget for Compose"; *)
-        (v, C_compose (uk, vk)), (c, iv)
+        (v, C_compose (uc, vc)), (r, iv)
     | Weight (_, ml) -> no_op ml
-    | Lock (_, ml) -> no_op ml
     | Align ml -> basic_no_op ml
     | Invert ml -> basic (fun s -> rcreate ml s)
     | Default (ml, _) -> basic_no_op ml
     | LeftQuot (cn, ml) ->
         let u = Canonizer.canonize cn s in
         let u = Bstring.of_string u in
-        gget ml u ci
+        gget ml u ri
     | RightQuot (ml, cn) ->
 (*         print_endline "+++gget for RightQuot"; *)
-        let c, i = ci in
-(*         Balign.print_res print_complement c; *)
-        let (u, k), (c, i1) = gget ml s ci in
-(*         Balign.print_res print_complement c; *)
+        let r, i = ri in
+(*         Balign.print_res print_complement r; *)
+        let (u, c), (r, i1) = gget ml s ri in
+(*         Balign.print_res print_complement r; *)
         let u = Bstring.of_string u in
         let v = Canonizer.choose cn u in
         let p, i2 = Canonizer.gperm cn (Bstring.of_string v) (P.empty, i) in
 (*         Balign.print_perm p; *)
         assert (TmI.equal i1 i2);
-        let c = Balign.res_compose_perm c p in
-(*         Balign.print_res print_complement c; *)
+        let r = Balign.res_compose_perm r p in
+(*         Balign.print_res print_complement r; *)
 (*         print_endline "---gget for RightQuot"; *)
-        (v, k), (c, i2)
+        (v, c), (r, i2)
     | Dup1 (ml, f, _) -> basic (fun s -> rget ml s ^ f (Bstring.to_string s))
     | Dup2 (f, _, ml) -> basic (fun s -> f (Bstring.to_string s) ^ rget ml s)
     | Partition (k,rs1) -> basic (
         fun s ->
-          let a = Array.init k (fun _ -> Buffer.create 17) in 
-          let find_match s = 
+          let a = Array.init k (fun _ -> Buffer.create 17) in
+          let find_match s =
             try fst (Safelist.find (fun (i,ri) -> Bstring.match_rx ri s) rs1)
-            with Not_found -> 
-              Err.run_error (Info.M "partition.gget") 
-                (fun () -> msg "@[%s@ did not match@ any@ regexp@]" (Bstring.to_string s)) in 
-          let add i s = Buffer.add_string a.(i) (Bstring.to_string s) in 
+            with Not_found ->
+              Err.run_error (Info.M "partition.gget")
+                (fun () -> msg "@[%s@ did not match@ any@ regexp@]" (Bstring.to_string s)) in
+          let add i s = Buffer.add_string a.(i) (Bstring.to_string s) in
           let concat_buf_array a =
             let buf = Buffer.create 17 in
               Array.iter (fun b -> Buffer.add_buffer buf b) a;
-              Buffer.contents buf in 
-          Safelist.iter 
-            (fun s -> add (find_match s) s) 
+              Buffer.contents buf in
+          Safelist.iter
+            (fun s -> add (find_match s) s)
             (Bstring.star_split (stype ml) s);
           concat_buf_array a)
-    | Merge r -> 
+    | Merge r ->
         basic (
-          fun s -> 
-            let s1,s2 = Bstring.concat_split r r s in 
+          fun s ->
+            let s1,s2 = Bstring.concat_split r r s in
             Bstring.to_string s1)
     | Fiat ml -> basic_no_op ml
     | Permute (p, mls) ->
         let k, sigma, sigma_inv, cts, ats = p in
         let s_arr_s = arr_split_s k mls cts s in
-        let vkci_arr_s =
+        let vcri_arr_s =
           Array.mapi (
             fun i si -> gget mls.(i) si (TmImA.empty, TmI.empty)
           ) s_arr_s
         in
-        let vkci_arr_v = arr_permute vkci_arr_s sigma in
-        let ci_arr_v = Array.map snd vkci_arr_v in
-        let vk_arr_v = Array.map fst vkci_arr_v in
-        let _, i = ci in
+        let vcri_arr_v = arr_permute vcri_arr_s sigma in
+        let ri_arr_v = Array.map snd vcri_arr_v in
+        let vc_arr_v = Array.map fst vcri_arr_v in
+        let _, i = ri in
         let v_shift = Array.create k i in
         for i = 0 to k - 1 do
-          let (_, shift) = ci_arr_v.(i) in
+          let (_, shift) = ri_arr_v.(i) in
           for j = i + 1 to k - 1 do
             v_shift.(j) <- TmI.plus v_shift.(j) shift
           done
         done;
-        let _, ci =
+        let _, ri =
           Array.fold_left (
-            fun (j, (c, i)) (cj, ij) ->
+            fun (j, (r, i)) (rj, ij) ->
               succ j, (
-                TmImA.append cj v_shift.(j) c,
+                TmImA.append rj v_shift.(j) r,
                 TmI.plus i ij)
-          ) (0, ci) ci_arr_v
+          ) (0, ri) ri_arr_v
         in
-        let v_arr_v = Array.map fst vk_arr_v in
-        let k_list_v = Array.fold_right (
-          fun (_, k) l -> k::l
-        ) vk_arr_v [] in
-        (concat_array v_arr_v, C_list k_list_v), ci
+        let v_arr_v = Array.map fst vc_arr_v in
+        let c_list_v = Array.fold_right (
+          fun (_, c) l -> c::l
+        ) vc_arr_v [] in
+        (concat_array v_arr_v, C_list c_list_v), ri
 
-  and gput ml (v, k) = gput' ml (v, Some k)
+  (* (s, ri) = gput' ml (v, co) (r, i)
+     . [v] is in the vtype of [ml].
+     . [i] is used to determine the position of the chunks.  It counts
+     how many chunk we read until now for each tag.
+     . [r] is global, in the sense that we never modify it, it's
+     read-only, and passed through all calls.  We read it only in
+     [Match], [Compose] and canonizer related lenses.
+     . [i] is chained through the calls to [gput'], and is only
+     directly modified in [Match], [Compose] and canonizer related
+     lenses.
+     . [s] = ml.put' [v] ([co], [r - i]) (it's [r] shifted by [i])
+  *)
+  and gput ml (v, c) = gput' ml (v, Some c)
   and gcreate ml v = gput' ml (v, None)
-  and gput' ml (v, ko) ci = (* returns (s, ci) *)
+  and gput' ml (v, co) ri = (* returns (s, ri) *)
     let basic f =
       let so =
-        match ko with
-        | Some (C_string k) -> Some k
+        match co with
+        | Some (C_string c) -> Some c
         | None -> None
         | _ -> assert false
       in
-      f v so, ci
+      f v so, ri
     in
     let basic_no_op ml = basic (rput' ml) in
-    let no_op ml = gput' ml (v, ko) ci in
+    let no_op ml = gput' ml (v, co) ri in
     match ml.desc with
     | Copy _
       -> basic (fun v _ -> Bstring.to_string v)
@@ -1287,100 +1298,99 @@ module MLens = struct
            | Some s -> Bstring.to_string s
            | None -> f (Bstring.to_string v))
     | Concat (ml1, ml2) ->
-        let ko1, n, ko2 =
-          match ko with
-          | Some (C_concat (k1, n, k2)) -> Some k1, n, Some k2
+        let co1, n, co2 =
+          match co with
+          | Some (C_concat (c1, n, c2)) -> Some c1, n, Some c2
           | None -> None, 0, None
           | _ -> assert false
         in
         let v1, v2 = Bstring.concat_ambiguous_split n (vtype ml1) (vtype ml2) v in
-        let s1, ci = gput' ml1 (v1, ko1) ci in
-        let s2, ci = gput' ml2 (v2, ko2) ci in
-        s1 ^ s2, ci
+        let s1, ri = gput' ml1 (v1, co1) ri in
+        let s2, ri = gput' ml2 (v2, co2) ri in
+        s1 ^ s2, ri
     | Union (left, right) ->
-        let side, ko =
-          match ko with
+        let side, co =
+          match co with
           | Some (C_union (s, k)) -> s, Some k
           | None -> Union_left, None
           | _ -> assert false
         in
-        let ml, ko =
+        let ml, co =
           match
             Bstring.match_rx (vtype left) v,
             Bstring.match_rx (vtype right) v,
             side with
               (* the cases when we can use the complement *)
-            | true , _    , Union_left  -> left, ko
-            | _    , true , Union_right -> right, ko
+            | true , _    , Union_left  -> left, co
+            | _    , true , Union_right -> right, co
               (* the cases when we can NOT use the complement *)
             | true , false, Union_right -> left, None
             | false, true , Union_left  -> right, None
             | _ -> assert false
         in
-        gput' ml (v, ko) ci
+        gput' ml (v, co) ri
     | Star ml ->
-        let ks, ns =
-          match ko with
-          | Some (C_star (ks, ns)) -> ks, ns
+        let cs, ns =
+          match co with
+          | Some (C_star (cs, ns)) -> cs, ns
           | None -> [], []
           | _ -> assert false
         in
         let buf = Buffer.create 17 in
-        let rec loop vs ks ci =
+        let rec loop vs cs ri =
           match vs with
-          | [] -> ci
+          | [] -> ri
           | v::vs ->
-              let ko, ks =
-                match ks with
+              let co, cs =
+                match cs with
                 | [] -> None, []
-                | k::ks -> Some k, ks
+                | c::cs -> Some c, cs
               in
-              let s, ci = gput' ml (v, ko) ci in
+              let s, ri = gput' ml (v, co) ri in
               Buffer.add_string buf s;
-              loop vs ks ci
+              loop vs cs ri
         in
-        let ci = loop (Bstring.star_ambiguous_split ns (vtype ml) v) ks ci in
-        Buffer.contents buf, ci
+        let ri = loop (Bstring.star_ambiguous_split ns (vtype ml) v) cs ri in
+        Buffer.contents buf, ri
     | Match (tag, ml) ->
-        let c, i = ci in
+        let r, i = ri in
         let pos = TmI.find tag i in
-        let ko, c = TmImA.next tag pos c in
-        let ci = c, TmI.incr tag i in
-        gput' ml (v, ko) ci
+        let co, r = TmImA.next tag pos r in
+        let ri = r, TmI.incr tag i in
+        gput' ml (v, co) ri
     | Compose (ml1, ml2) ->
 (*         print_endline "+++gput' for Compose"; *)
-        let ko1, ko2 =
-          match ko with
-          | Some (C_compose (k1, k2)) -> Some k1, Some k2
+        let co1, co2 =
+          match co with
+          | Some (C_compose (c1, c2)) -> Some c1, Some c2
           | None -> None, None
           | _ -> assert false
         in
-        let c, i = ci in
+        let r, i = ri in
         let len = Bstring.at_to_locs (Arx.parse (avtype ml2) v) in
-        let c1, c2, c = Balign.res_unzip (
+        let r1, r2, r = Balign.res_unzip (
           fun x ->
             match x with
             | C_compose (a, b) -> a, b
             | _ -> assert false
-        ) c i len in
-(*         Balign.print_res print_complement c1; *)
-(*         Balign.print_res print_complement c2; *)
-(*         Balign.print_res print_complement c; *)
-        let u, (c2, i2) = gput' ml2 (v, ko2) (c2, i) in
+        ) r i len in
+(*         Balign.print_res print_complement r1; *)
+(*         Balign.print_res print_complement r2; *)
+(*         Balign.print_res print_complement r; *)
+        let u, (r2, i2) = gput' ml2 (v, co2) (r2, i) in
         let u = Bstring.of_string u in
         let p2, i3 = gperm ml2 u (P.empty, i) in
 (*         Balign.print_perm p2; *)
         assert (TmI.equal i2 i3);
-        let c1 = Balign.res_compose_perm c1 p2 in
-(*         Balign.print_res print_complement c1; *)
-        let s, (c1, i1) = gput' ml1 (u, ko1) (c1, i) in
+        let r1 = Balign.res_compose_perm r1 p2 in
+(*         Balign.print_res print_complement r1; *)
+        let s, (r1, i1) = gput' ml1 (u, co1) (r1, i) in
         assert (TmI.equal i1 i2);
-        assert (TmImA.is_empty c1);
-        assert (TmImA.is_empty c2);
+        assert (TmImA.is_empty r1);
+        assert (TmImA.is_empty r2);
 (*         print_endline "---gput' for Compose"; *)
-        s, (c, i1)
+        s, (r, i1)
     | Weight (_, ml) -> no_op ml
-    | Lock (_, ml) -> no_op ml
     | Align ml -> basic_no_op ml
     | Invert ml -> basic (fun v _ -> rget ml v)
     | Default (ml, w) -> basic (
@@ -1389,22 +1399,22 @@ module MLens = struct
           | Some s -> rput ml v s
           | None -> rput ml v w)
     | LeftQuot (cn, ml) ->
-        let u, ci = gput' ml (v, ko) ci in
+        let u, ri = gput' ml (v, co) ri in
         let u = Bstring.of_string u in
         let s = Canonizer.choose cn u in
-        s, ci
+        s, ri
     | RightQuot (ml, cn) ->
 (*         print_endline "+++gput' for RightQuot"; *)
         let u = Canonizer.canonize cn v in
         let u = Bstring.of_string u in
-        let c, i = ci in
-(*         Balign.print_res print_complement c; *)
+        let r, i = ri in
+(*         Balign.print_res print_complement r; *)
         let p, iu = Canonizer.gperm cn v (P.empty, i) in
 (*         Balign.print_perm p; *)
-        let c = Balign.res_compose_perm c (P.inv p) in
-        let s, ci = gput' ml (u, ko) (c, i) in
+        let r = Balign.res_compose_perm r (P.inv p) in
+        let s, ri = gput' ml (u, co) (r, i) in
 (*         print_endline "---gput' for RightQuot"; *)
-        s, ci
+        s, ri
     | Dup1 (ml, f, r) -> basic
         (fun v so ->
            let v, _ = Bstring.concat_split (vtype ml) r v in
@@ -1417,36 +1427,36 @@ module MLens = struct
         fun v so ->
           let ss = match so with
             | Some s -> Bstring.star_split (stype ml) s
-            | None -> [] in 
-          let a = Array.create k [] in 
-          let rec vloop i rs vs = match rs,vs with 
+            | None -> [] in
+          let a = Array.create k [] in
+          let rec vloop i rs vs = match rs,vs with
             | _,[] -> ()
-            | (_,rh)::rt,vh::vt -> 
-                if Bstring.match_rx rh vh then 
+            | (_,rh)::rt,vh::vt ->
+                if Bstring.match_rx rh vh then
                   (a.(i) <- vh::a.(i);
                    vloop i rs vt)
-                else vloop (succ i) rt vs 
-            | [],_ -> 
-                Err.run_error (Info.M "partition.gput") 
-                  (fun () -> msg "@[[%s]@ did not match@ any@ regexps@]" 
-                     (Misc.concat_list "," (Safelist.map Bstring.to_string vs))) in 
+                else vloop (succ i) rt vs
+            | [],_ ->
+                Err.run_error (Info.M "partition.gput")
+                  (fun () -> msg "@[[%s]@ did not match@ any@ regexps@]"
+                     (Misc.concat_list "," (Safelist.map Bstring.to_string vs))) in
           vloop 0 rs1 (Bstring.star_split (stype ml) v);
           Array.iteri (fun i l -> a.(i) <- Safelist.rev a.(i)) a;
           let buf = Buffer.create 17 in
-          let find_match s = 
+          let find_match s =
             try Safelist.find (fun (i,ri) -> Bstring.match_rx ri s) rs1
-            with Not_found -> 
-              Err.run_error (Info.M "partition.gput") 
-                (fun () -> msg "@[%s@ did not match@ any@ regexp@]" (Bstring.to_string s)) in 
+            with Not_found ->
+              Err.run_error (Info.M "partition.gput")
+                (fun () -> msg "@[%s@ did not match@ any@ regexp@]" (Bstring.to_string s)) in
           let add v = Buffer.add_string buf (Bstring.to_string v) in
-          let rec sloop ss = match ss with 
-            | sh::st -> 
-                let i,_ = find_match sh in 
-                  (match a.(i) with 
+          let rec sloop ss = match ss with
+            | sh::st ->
+                let i,_ = find_match sh in
+                  (match a.(i) with
                      | vi::vt -> a.(i) <- vt; add vi
                      | _ -> ());
                   sloop st
-            | _ -> Array.iter (fun l -> Safelist.iter add l) a in 
+            | _ -> Array.iter (fun l -> Safelist.iter add l) a in
           sloop ss;
           Buffer.contents buf)
     | Merge r -> basic
@@ -1471,26 +1481,26 @@ module MLens = struct
     | Permute (p, mls) ->
         let k, sigma, sigma_inv, cts, ats = p in
         let v_arr_v = arr_split_v k mls sigma_inv ats v in
-        let ko_arr_v =
-          match ko with
-          | Some (C_list k) -> Array.map (fun x -> Some x) (Array.of_list k)
+        let co_arr_v =
+          match co with
+          | Some (C_list c) -> Array.map (fun x -> Some x) (Array.of_list c)
           | None -> Array.create k None
           | _ -> assert false
         in
         let s_arr_s = Array.create k "" in
-        let rec loop j ci =
-          if j >= k then ci
+        let rec loop j ri =
+          if j >= k then ri
           else (
             let i = sigma_inv.(j) in
             (* we do the put's in view order *)
-            let si, ci = gput' mls.(i) (v_arr_v.(j), ko_arr_v.(j)) ci in
+            let si, ri = gput' mls.(i) (v_arr_v.(j), co_arr_v.(j)) ri in
             s_arr_s.(i) <- si;
-            loop (succ j) ci
+            loop (succ j) ri
           )
         in
-        let ci = loop 0 ci in
+        let ri = loop 0 ri in
         let s = concat_array s_arr_s in
-        s, ci
+        s, ri
 
   (* these are the definitions for lower *)
 
@@ -1501,8 +1511,8 @@ module MLens = struct
 
   and rput ml v' (s:Bstring.t) =
 (*     print_endline "+++rput"; *)
-    let vparse v b = Bstring.at_to_chunktree b (Arx.parse (avtype ml) (Bstring.of_string (vrep ml v))) in
-    let align v' v = Balign.align Bcost.infinite (v' true) (v false) in
+    let vparse v = Bstring.at_to_chunktree (Arx.parse (avtype ml) (Bstring.of_string (vrep ml v))) in
+    let align = Balign.align Bcost.infinite in
     let (v, k), (r, _) = gget ml s (TmImA.empty, TmI.empty) in
 (*     print_endline ("v = \"" ^ vrep ml (Bstring.of_string v) ^ "\" from \"" ^ v ^ "\""); *)
 (*     print_endline ("v' = \"" ^ vrep ml v'  ^ "\" from \"" ^ Bstring.to_string v' ^ "\""); *)
@@ -1575,7 +1585,6 @@ module MLens = struct
     | Union(dl1,dl2)     -> msg "("; format_t dl1; msg "@ |@ "; format_t dl2; msg ")"
     | Star(dl1)          -> format_t dl1; msg "* " (* space to prevent spurious close-comments *)
     | Weight (bw, ml) -> msg "{:%s:" (W.to_forcestring bw); format_t ml; msg "}"
-    | Lock (lk, ml) -> msg "{:lock %s:" (L.to_string lk); format_t ml; msg "}"
     | Match (tag, ml) -> msg "<%s:" (T.to_string tag); format_t ml; msg ">"
     | Compose(dl1,dl2)   -> msg "("; format_t dl1; msg "@ ;@ "; format_t dl2; msg ")"
     | Align ml           -> msg "(align@ "; format_t ml; msg ")"
@@ -1626,7 +1635,6 @@ module MLens = struct
   let star i ml = mk i (Star ml)
   let copy i r = mk i (Copy r)
   let weight i b w ml = mk i (Weight ((b, w), ml))
-  let lock i lk ml = mk i (Lock (lk, ml))
   let mmatch i tag ml = mk i (Match (tag, ml))
 (*   let copy_arx i a = *)
 (*     let leaf l (wc, we, wd) r = *)

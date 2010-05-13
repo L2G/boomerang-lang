@@ -50,13 +50,20 @@ end
 
 type 'a resource = 'a Btag.MapIntMapA.t
 
+val align :
+     Bcost.t (* this is a cost limit to avoid too much computing ; if
+     [align] realizes that the alignment it's computing will have a
+     cost higher than the limit, it will return an infinite cost
+     alignment ; should be initiated with Bcost.infinite *)
+  -> (Bstring.cat * Bstring.chunkmap) (* the new view *)
+  -> (Bstring.cat * Bstring.chunkmap) (* the old view *)
+  -> Alignment.t (* an accumulator ; should be initiated with
+     Aligment.empty *)
+  -> Alignment.t
+
 (* auxiliary functions *)
 
 val print_res : ('a -> unit) -> 'a resource -> unit
-val align : Bcost.t
-  -> Bstring.cat * ((((int * Bannot.Lock.t) * int) * Bstring.cat) Btag.MapIntMapA.t)
-  -> Bstring.cat * ((((int * Bannot.Lock.t) * int) * Bstring.cat) Btag.MapIntMapA.t)
-  -> Alignment.t -> Alignment.t
 val align_compose_res : 'a resource -> Alignment.t -> 'a resource
 val res_compose_perm : 'a resource -> Permutation.t -> 'a resource
 val res_zip : (('a * 'a) -> 'a) -> 'a resource -> 'a resource -> 'a resource -> 'a resource

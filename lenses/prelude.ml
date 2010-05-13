@@ -380,8 +380,6 @@ let prelude_spec =
   ; pmk_ll     "align"                L.align
   ; pmk_lsl    "default"              (fun i l w -> L.default i l (Bstring.of_string w))
   ; pmk_bill   "lens_weight"          (fun i b w -> L.weight i b (Bannot.Weight.of_int w))
-  ; pmk_sll    "lens_pre_lock"        (fun i lk -> L.lock i (Bannot.Lock.pre_lock (Bannot.Lock.lock_of_string lk)))
-  ; pmk_sll    "lens_post_lock"       (fun i lk -> L.lock i (Bannot.Lock.post_lock (Bannot.Lock.lock_of_string lk)))
   ; pmk_rzl    "partition"            (fun i rl -> L.partition i (Safelist.map get_r rl))
   ; pmk_rl     "merge"                L.merge
   ; pmk_ll     "fiat"                 L.fiat

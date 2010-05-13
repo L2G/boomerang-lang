@@ -21,7 +21,6 @@
 
 module Arx = Barx
 module C = Bcost
-module L = Bannot.Lock
 module T = Btag
 module TmAl = T.MapAList
 module KmAl = Amapblist.Make (String)
@@ -121,55 +120,45 @@ module Alignment = struct
     | Infinite e -> Infinite e
     | Finite (g, c) -> Finite (TmAl.add tag (Put (i, j)) g, c)
   let add_put limit tag cn co rn ro t =
-    let (((ccrt, lkn), _), sn), i = cn in
-    let (((cdel, lko), _), so), j = co in
+    let ((ccrt, _), sn), i = cn in
+    let ((cdel, _), so), j = co in
     if T.key_through tag
     then nocost_put tag i j t
     else begin
       let kn = Bstring.cat_to_key sn in
       let ko = Bstring.cat_to_key so in
       (*     Printf.printf "add_put %s %d %d '%s' '%s'\n" (T.to_string tag) i j kn ko; *)
-      (*     printf "'%s' %s '%s' %s\n" ko (L.to_string lko) kn (L.to_string lkn); *)
-      match L.is_valid lko lkn with
-      | Some lock -> Infinite (fun () -> printf "Lock \"%s\" forbid the put\n" (String.escaped (L.lock_to_string lock)))
-      | None ->
-          let cput = Bstring.dist (C.to_option limit) kn ko in
-          match cput with
-          | None -> Infinite (fun () -> assert false)
-          | Some cput ->
-              let pe = check_put tag cdel cput ccrt in
-              match t, pe with
-              | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
-              | Infinite e, _
-              | _, Some e -> Infinite e
-              | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
+      let cput = Bstring.dist (C.to_option limit) kn ko in
+      match cput with
+      | None -> Infinite (fun () -> assert false)
+      | Some cput ->
+          let pe = check_put tag cdel cput ccrt in
+          match t, pe with
+          | Infinite e1, Some e2 -> Infinite (fun () -> e1 (); e2 ())
+          | Infinite e, _
+          | _, Some e -> Infinite e
+          | Finite (g, c), None -> Finite (TmAl.add tag (Put (i, j)) g, c + cput)
     end
   let add_crtdel_deep tag ((ccd, cat), x) t create =
     let cost =
       if T.key_through tag
-      then (fun ((a, _), b) -> b - a)
+      then (fun (a, b) -> b - a)
       else snd
     in
-    let con, lkck, crtdel_string =
+    let con, crtdel_string =
       if create
-      then (fun x -> Create x), L.is_valid_create, "create"
-      else (fun x -> Delete x), L.is_valid_delete, "delete"
+      then (fun x -> Create x), "create"
+      else (fun x -> Delete x), "delete"
     in
-    let (_, lk), _ = ccd in
-    match lkck lk with
-    | Some lock -> Infinite
-        (fun () ->
-           printf "Lock \"%s\" forbid the %s\n" (String.escaped (L.lock_to_string lock)) crtdel_string)
-    | None ->
-        match t with
-        | Infinite e -> Infinite e
-        | Finite (g, c) ->
-            Finite (
-              Bstring.cat_fold_on_locs (
-                fun t p -> TmAl.add t (con p)
-              ) cat (TmAl.add tag (con x) g),
-              c + cost ccd
-            )
+    match t with
+    | Infinite e -> Infinite e
+    | Finite (g, c) ->
+        Finite (
+          Bstring.cat_fold_on_locs (
+            fun t p -> TmAl.add t (con p)
+          ) cat (TmAl.add tag (con x) g),
+          c + cost ccd
+        )
   (* TODO: add potential predicates *)
   let add_crt_deep tag cn t =
     add_crtdel_deep tag cn t true
@@ -225,7 +214,7 @@ end = struct
       else      printf " %2d -> %2d\n" j i
     in
     print_endline "permutation:";
-    TmAl.print_list 
+    TmAl.print_list
       (fun t -> print_endline (T.to_string t))
       (fun l -> Safelist.iter prt l)
       p
@@ -692,7 +681,7 @@ let greedy limit align tag (ln:int list) (lo:int list) tln tlo g =
 (*   in *)
 (*   let g = mk_alignment g lmin in *)
 (*     (g, G.to_cost g, min, lmin) *)
-    
+
 (* based on:
    http://csclab.murraystate.edu/bob.pilgrim/445/munkres.html
    http://github.com/evansenter/gene/blob/f515fd73cb9d6a22b4d4b146d70b6c2ec6a5125b/objects/extensions/hungarian.rb
@@ -829,7 +818,7 @@ let hungarian limit align tag (ln:int list) (lo:int list) tln tlo g =
   (*   print_matrix "  "; *)
   (*   printf "\n" *)
   (* in *)
-    
+
   (* algorithm.. *)
   let rec run () =
     minimize_rows ()
@@ -919,7 +908,6 @@ let hungarian limit align tag (ln:int list) (lo:int list) tln tlo g =
 (*       debugcheck g; *)
       g
 
-
 let align_aux tag limit align =
   (match T.get_species tag with
    | T.Positional -> positional
@@ -928,7 +916,10 @@ let align_aux tag limit align =
    | T.Setlike -> hungarian
   ) limit align tag
 
-let rec align limit ((sn,tln):(Bstring.cat * ((((int * Bannot.Lock.t) * int) * Bstring.cat) TmImA.t))) (so,tlo) (g:G.t) =
+(* [g] is chained
+   [tln] and [tlo] (the chunkmaps) are global to all calls to [align]
+*)
+let rec align limit ((sn,tln):(Bstring.cat * Bstring.chunkmap)) (so,tlo) (g:G.t) =
   let hn = Bstring.toplevel_chunks sn in
   let ho = Bstring.toplevel_chunks so in
   let domain h = TmAl.fold_list (fun t _ acc -> Ts.add t acc) h Ts.empty in
@@ -942,7 +933,7 @@ let rec align limit ((sn,tln):(Bstring.cat * ((((int * Bannot.Lock.t) * int) * B
     ) (Ts.union (domain hn) (domain ho)) (limit, g)
   in
   g
-    
+
 (* Compositions / Resources / Permutations *)
 
 (* The following functions (align_compose_res, res_compose_perm, etc) *)
@@ -1017,7 +1008,7 @@ let res_zip f r ra rb =
     (fun tag i v acc ->
        TmImA.add tag i (f (v, (TmImA.find tag i rb))) acc)
     ra r
-  
+
 (* * Balign.res_unzip : ('a -> ('a * 'a)) -> res -> mark -> mark -> (res * res * res) *)
 (* A mark is a TmI.t. *)
 let res_unzip f r start len =

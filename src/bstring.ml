@@ -22,7 +22,6 @@
 module Rx = Brx
 module C = Bcost
 module W = Bannot.Weight
-module L = Bannot.Lock
 module T = Btag
 module TmAl = Btag.MapAList
 module TmA = Btag.MapA
@@ -43,7 +42,7 @@ type child =
   | TagNode of T.t * a * int option
       (* the [int option] is always [None] in [at] and [Some] in [cat]
       only for chunk annotations *)
-  | Leaf of W.t * L.t
+  | Leaf of W.t
 and a = (child * int) list
     (* [n1, j1; ...; nk, jk] with s, i, j
        where  i <= j1 <= ... <= jk = j
@@ -55,6 +54,7 @@ and a = (child * int) list
 type at = a * t  (* every component is abstract *)
 type attmp = a list * t (* temporary at *)
 type cat = Chunk of at
+type chunkmap = ((int * int) * cat) TmImA.t
 
 let empty = ("", 0, 0)
 
@@ -63,15 +63,15 @@ let of_string s =
 
 let to_attmp s :attmp =
   [[]], s
-    
+
 let to_string (s, i, j) = String.sub s i (j - i)
-  
+
 let of_at (_, s) = s
-  
+
 let of_attmp (_, s) = s
-  
+
 let of_cat (Chunk at) = of_at at
-  
+
 let length (s, i, j) = j - i
 
 let old_dist s1 s2 =
@@ -176,7 +176,7 @@ let dist_limit_aux limit s t =
               aj.(x) <- ai.(x);
               let newcurj = addfindloop (succ x) n ai in
               let newcuri = addfindloop (succ x) m aj in
-              loop (succ x) newcuri newcurj ai apredi aj apredj            
+              loop (succ x) newcuri newcurj ai apredi aj apredj
             ) else None
           ) else (  (* x < curj  because  x = curi *)
             assert (x < curj);
@@ -200,7 +200,7 @@ let dist_limit_aux limit s t =
             let newcurj = addfindloop (succ x) n ai in
             minloop s.[pred x] t (succ x) m curi aj apredj;
             let newcuri = addfindloop (succ curi) m aj in
-            loop (succ x) newcuri newcurj ai apredi aj apredj            
+            loop (succ x) newcuri newcurj ai apredi aj apredj
           ) else (  (* x = curj *)
             if s.[pred x] = t.[pred x]
             then aj.(x) <- min (succ apredj.(x)) apredj.(pred x)
@@ -220,7 +220,7 @@ let dist_limit_aux limit s t =
             let newcurj = addfindloop (succ curj) n ai in
             minloop s.[pred x] t (succ x) m curi aj apredj;
             let newcuri = addfindloop (succ curi) m aj in
-            loop (succ x) newcuri newcurj ai apredi aj apredj          
+            loop (succ x) newcuri newcurj ai apredi aj apredj
         )
       )
     )
@@ -323,7 +323,7 @@ let generic_at_print p (a, (s, i, j)) =
   let add_str = Buffer.add_string buf in
   add_sub (p add_sub add_str a i) j;
   Buffer.contents buf
-    
+
 let at_print_flat s =
   let p add _ a i =
     let rec r add a i =
@@ -346,8 +346,8 @@ let at_print_all =
     let rec p a i =
       match a with
       | [] -> i
-      | (Leaf (w, lk), j)::a ->
-          add_str (Printf.sprintf "{:%s%s:" (W.to_string w) (L.to_string lk));
+      | (Leaf w, j)::a ->
+          add_str (Printf.sprintf "{:%s:" (W.to_string w));
           add_sub i j;
           add_str "}";
           p a j
@@ -401,7 +401,7 @@ let cat_fold_on_locs step (Chunk (a, _)) acc =
         match h with
         | TagNode (tag, r, Some p), _ ->
             f r (step tag p acc)
-        | TagNode (_, _, None), _ 
+        | TagNode (_, _, None), _
             -> assert false
         | Leaf _, _ -> acc
     ) acc a
@@ -452,7 +452,7 @@ let at_to_key (a, (s, i, j)) =
   let rec f a i l =
     match a with
     | [] -> i, l
-    | (Leaf (w, _), j)::a ->
+    | (Leaf w, j)::a ->
         let l =
           if W.to_int w = 0 then l else (i, j)::l
         in
@@ -501,31 +501,27 @@ let cat_to_key (Chunk at) = at_to_key at
 (*   at_dist at1 at2 *)
 
 let at_crtdel_cost (a, (s, i, j)) =
-  let rec f a i ((cs, lka), ct) =
+  let rec f a i (cs, ct) =
     match a with
-    | [] -> i, ((cs, lka), ct)
-    | (Leaf (w, lk), j)::a ->
+    | [] -> i, (cs, ct)
+    | (Leaf w, j)::a ->
         let c = (+) (W.weight_int w (j - i)) in
-        f a j ((c cs, L.union lk lka), c ct)
+        f a j (c cs, c ct)
     | (TagNode (tag, n, _), j)::a ->
-        let i, (cslkan, ct) = f n i ((cs, lka), ct) in
+        let i, (csn, ct) = f n i (cs, ct) in
         assert (i = j);
-        let cslka =
+        let cs =
           if T.key_through tag
-          then cslkan
-          else (cs, lka)
+          then csn
+          else cs
         in
-        f a j (cslka, ct)
+        f a j (cs, ct)
   in
-  let i, c = f a i ((0, L.empty), 0) in
+  let i, c = f a i (0, 0) in
   assert (i = j);
   c
 
-let cat_create_cost (Chunk at) = at_crtdel_cost at
-
-let cat_delete_cost (Chunk at) = at_crtdel_cost at
-
-let at_to_chunktree create (a, (s, si, sj)) =
+let at_to_chunktree (a, (s, si, sj)) =
   let rec f a i (acc:a) (cur:TmI.t) (g:cat TmImA.t) =
     match a with
     | [] -> Safelist.rev acc, cur, g
@@ -544,12 +540,7 @@ let at_to_chunktree create (a, (s, si, sj)) =
         f a j ((h, j)::acc) cur g
   in
   let a, _, g = f a si [] TmI.empty TmImA.empty in
-  let crtdel cat =
-    (if create
-    then cat_create_cost cat
-    else cat_delete_cost cat),
-    cat
-  in
+  let crtdel (Chunk at) = (at_crtdel_cost at), Chunk at in
   Chunk (a, (s, si, sj)), TmImA.map crtdel g
 
 let pick_pos n l =
@@ -571,25 +562,25 @@ let find_pos n l =
   p l 0
 
 let concat_ambiguous_split n r1 r2 s =
-  let p = Rx.split_positions r1 r2 (to_string s) in 
+  let p = Rx.split_positions r1 r2 (to_string s) in
   let l = Int.Set.elements p in
   let s, i, j = s in
   let k = i + pick_pos n l in
   (s, i, k), (s, k, j)
 
 let find_concat_split r1 r2 n s =
-  let p = Rx.split_positions r1 r2 s in 
+  let p = Rx.split_positions r1 r2 s in
   let l = Int.Set.elements p in
   find_pos n l
 
 let concat_split r1 r2 s =
-  let p = Rx.split_positions r1 r2 (to_string s) in 
+  let p = Rx.split_positions r1 r2 (to_string s) in
   if Int.Set.cardinal p <> 1
   then error "concat_split: bad split";
   let s, i, j = s in
   let k = i + Int.Set.choose p in
   (s, i, k), (s, k, j)
-    
+
 let star_ambiguous_split ns r s =
   let rs = Rx.mk_star r in
   let r_not_empty = not (Rx.match_string r "") in
@@ -632,7 +623,7 @@ let find_star_split r ns s =
 (*   ) false is; *)
 (*   print_endline "]"; *)
   is
-       
+
 let star_split r s =
   let rs = Rx.mk_star r in
   let pos = Is.remove 0 (Rx.split_positions rs rs (to_string s)) in
@@ -646,11 +637,11 @@ let star_split r s =
   in
   assert (j1 = j2);
   Safelist.rev l
-    
+
 (* pre: p1 and p2 only touch annotations *)
 let do_concat r1 r2 p1 p2 ((a, s):attmp) :attmp =
   (* post: only annotations are touched *)
-  let p = Rx.split_positions r1 r2 (to_string s) in 
+  let p = Rx.split_positions r1 r2 (to_string s) in
 (*   if Int.Set.cardinal p <> 1 *)
 (*   then ( *)
 (*     Berror.run_error (Info.M "bstring.ml: do_concat") ( *)
@@ -681,10 +672,10 @@ let do_star r p ((a, s):attmp) :attmp =
   assert (j1 = j2);
   a, (s, i, j1)
 
-let annot_leaf w lk ((a, (s, i, j)):attmp) :attmp =
+let annot_leaf w ((a, (s, i, j)):attmp) :attmp =
   (* only touch leaf annotation *)
   (match a with
-   | h::t -> ((Leaf (w, lk), j)::h)::t
+   | h::t -> ((Leaf w, j)::h)::t
    | _ -> error "annot_leaf"),
   (s, i, j)
 
@@ -705,7 +696,7 @@ let at_of_attmp ((a, s):attmp) :at =
   let rec r a =
     Safelist.rev_map (
       function
-      | Leaf (w, lk), j -> Leaf (w, lk), j
+      | Leaf w, j -> Leaf w, j
       | TagNode (n, a, None), j -> TagNode (n, r a, None), j
       | TagNode (_, _, Some _), _ -> assert false
     ) a

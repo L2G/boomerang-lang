@@ -68,8 +68,6 @@ let ambiguous_lens_partition_one (a:lens) (b:lens where ambiguous_lens_partition
   ambiguous_lens_concat (lens_swap b* a) b*
 let positional (name:string) = Tag (Positional, Threshold 0, Key, name)
 let diffy (first:bool) (name:string) = Tag (Diffy first, Threshold 0, Key, name)
-let pre_lock (lock:string) = Native.Prelude.lens_pre_lock lock ""
-let post_lock (lock:string) = Native.Prelude.lens_post_lock lock ""
 let show_list 'a (l:'a List.t) =
   "[" . fst{string}{bool} (
     List.fold_left{'a}{string * bool} (
@@ -219,17 +217,10 @@ let main_lens (prefs:File_pref.t) (value:string) :(l:lens where is_lens l) =
         let ccevud = nokey (c_exact value <=> c_exact_uncuttable value) . key data in
         let siblings = del (c_other value . data)+ in
         match value = "" with
-        | true ->
-            ( ccsd . post_lock "CD"
-            | ccsud . siblings . post_lock "XX" . pre_lock "CD"
-            )
+        | true -> ( ccsd | ccsud . siblings )
         | false ->
-            ( ( <data_tag: ccsd > . post_lock "CDnosib_stop"
-              | <data_tag: dcsd > . ccevd . post_lock "XXnosib_exact" . pre_lock "CDnosib_stop"
-              ) . post_lock "CDnosib" . pre_lock "XXsibli"
-            | ( <data_tag: ccsud > . post_lock "XXsibli_stop"
-              | <data_tag: dcsd > . ccevud . post_lock "XXsibli_exact" . pre_lock "XXsibli_stop"
-              ) . siblings . post_lock "XXsibli" . pre_lock "CDnosib"
+            ( ( <data_tag: ccsd > | <data_tag: dcsd > . ccevd )
+            | ( <data_tag: ccsud > | <data_tag: dcsd > . ccevud) . siblings
             )
         :lens
       )
@@ -513,12 +504,12 @@ test put mldv ("()("."!)D0"      ."("."!)D2"     ) (* ()(!)D0    (!)D2 *)
 test put mldv ("()("."!)D0"      ."("."!)D2"  ."()D3()D4") (* ()(!)D0    (!)D2()D3()D4 *)
               (  "(" .")d0(a)a0()d1(" .")d2(a)a2" ."()d4") (* ()(!)d0()d1(!)d2    ()d4 *)
             = (  "(" .")D0(a)a0" ."(" .")D2(a)a2()D3()D4")
-test put mldv ("()("."!)"      ."("."!)"     ) (* ()(!)    (!) *)
-              (  "(" .")(a)a0()d1(" .")(a)a2") (* ()(!)()d1(!) *)
-            = (  "(" .")(a)a0" ."(" .")(a)a2")
-test put mldv ("()("."!)"  ."()D1("."!)"     ) (* ()(!)()D1(!) *)
-              (  "(" .")(a)a0" ."(" .")(a)a2") (* ()(!)    (!) *)
-            = (  "(" .")(a)a0()D1(" .")(a)a2")
+(* test put mldv ("()("."!)"      ."("."!)"     ) (\* ()(!)    (!) *\) *)
+(*               (  "(" .")(a)a0()d1(" .")(a)a2") (\* ()(!)()d1(!) *\) *)
+(*             = (  "(" .")(a)a0" ."(" .")(a)a2") *)
+(* test put mldv ("()("."!)"  ."()D1("."!)"     ) (\* ()(!)()D1(!) *\) *)
+(*               (  "(" .")(a)a0" ."(" .")(a)a2") (\* ()(!)    (!) *\) *)
+(*             = (  "(" .")(a)a0()D1(" .")(a)a2") *)
 test put mldv ("()" ."("."!)D1"  ."("."!)D2"  ."()D3") (* ()    (!)D1(!)D2()D3 *)
               (  "()d0(" .")d1(a)a1(" .")d2(a)a2"    ) (* ()()d0(!)d1(!)d2     *)
             = (      "(" .")D1(a)a1(" .")D2(a)a2()D3")

@@ -76,9 +76,6 @@ let ambiguous_lens_partition_one
     (a:lens)
     (b:lens where ambiguous_lens_partition_one_contract a b) =
   ambiguous_lens_concat (lens_swap b* a) b*
-let pre_lock (lock:string) = Native.Prelude.lens_pre_lock lock ""
-let post_lock (lock:string) = Native.Prelude.lens_post_lock lock ""
-let post_pre_lock (lock:string) = post_lock lock, pre_lock lock
 let is_lens (l:lens) = rel_is_id (sequiv l) && rel_is_id (vequiv l)
 
 (* exceptions *)
@@ -377,10 +374,9 @@ let main_lens (prefs:File_pref.t)
   in
   let _:(unit where bij ((c_stop | c_regexp values) . data)) = () in
   let section =
-    let A, _ = post_pre_lock "XXA" in
     let hidden = Tag (Positional, Threshold 100, Key, "hidden") in
       (c_stop | c_regexp values) . data
-    |  <hidden:A . ch_other values . del data>
+    |  <hidden:ch_other values . del data>
   in
   let value_check = ins $ cv_string value_list in
   data . value_check . align section*
@@ -561,9 +557,9 @@ test put mldv ("(ab)()D0(a)A1()D2") (* (a)()D0(a)A1()D2 *)
 test put mldv ("(ab)()D0(!d)()D2" ) (* (a)()D0(!d)()D2 *)
               (    "()d0(c)c1()d2") (* (a)()d0(!c)()d2 *)
             = error
-test put mldv ("(ab)()D0"  ."()D2") (* (a)()D0    ()D2 *)
-              (    "()d0(c)c1()d2") (* (a)()d0(!c)()d2 *)
-            = error
+(* test put mldv ("(ab)()D0"  ."()D2") (\* (a)()D0    ()D2 *\) *)
+(*               (    "()d0(c)c1()d2") (\* (a)()d0(!c)()d2 *\) *)
+(*             = error *)
 
 (*
  * Local Variables:
