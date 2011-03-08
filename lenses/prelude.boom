@@ -525,4 +525,8 @@ values cannot be translated in full, e.g., functions.
 #* let show : forall 'a => 'a -> string
 ## = Native.Prelude.poly_show
 
+\LENSSECTION{@int_of_string@} The operator @int_of_string@ converts a string 
+to the corresponding integer. 
 
+#* let int_of_string : (string in [0-9]+) -> int 
+## = Native.Prelude.int_of_string

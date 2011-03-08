@@ -418,6 +418,7 @@ let prelude_spec =
 
   (* int operations *)
   ; pmk_is     "string_of_int"        (fun _ -> string_of_int)
+  ; pmk_si     "int_of_string"        (fun _ -> int_of_string)
   ; pmk_iiz    "mk_seq"               (fun i k ->
 					 let rec f l = function
 					   | 0 -> l
