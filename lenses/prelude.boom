@@ -528,5 +528,5 @@ values cannot be translated in full, e.g., functions.
 \LENSSECTION{@int_of_string@} The operator @int_of_string@ converts a string 
 to the corresponding integer. 
 
-#* let int_of_string : (string in [0-9]+) -> int 
+#* let int_of_string : ( string in ("-"? . [0-9]+ ) ) -> int 
 ## = Native.Prelude.int_of_string
