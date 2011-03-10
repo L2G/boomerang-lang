@@ -372,6 +372,25 @@ type nrule =
 
 type nprod = NProd of Info.t * Qid.t * nrule list
 
+(* NOTE FROM MMG TO FUTURE SELF (or anyone else, I suppose)
+ * 
+ * All of the real casting action is in the EFun case, where a
+ * "bulletproofing" cast (a pair of postive and negative checks) is
+ * wrapped around the function.  Putting it on the function (and
+ * treating external function types as their erasure) avoids the nasty
+ * dependent application blowup from terms like:
+ * 
+ * op (op (op e1 e2) e3) e4
+ * 
+ * Do not be confused by the erasure in the EVar case!  It's not
+ * breaking anything.
+ * 
+ * There is still room for optimization: this checking strategy hides
+ * type information as it goes, so we're losing the opportunity to
+ * eliminate some casts by, e.g., reflexivity.
+ *
+ *)
+
 (* ------ sort resolution and compilation ----- *)
 (* check_sort: resolves qids in SDatas and checks expressions in SRefines *)
 let rec check_sort i sev s0 = 
