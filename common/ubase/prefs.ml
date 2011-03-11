@@ -166,6 +166,8 @@ let includePref = createStringList "include" "search path for .boom sources" "Bo
 let testPref = createStringList "test" "run unit test for the specified module" "run unit tests for the specified module"
 let testallPref = createBool "test-all" false "run unit tests for all modules" "run unit tests for all modules"
 
+let unsafePref = createBool "unsafe" false "disable all runtime checking" "disable all runtime checking (lenses may not be well behaved)"
+
 let debugPref = createStringList "debug" "debug module xxx ('all' -> everything, 'verbose' -> more)" 
     ("This preference is used to make Unison print various sorts of "
      ^ "information about what it is doing internally on the standard "

@@ -111,7 +111,9 @@ let rec interp_cast cev b f t =
 		     (fun _ -> V.format) v
 		     (fun _ -> format_exp) e
 	             cex_s) in
-    (fun v -> fn (interp_cast cev b f t v)) in 
+    if Prefs.read Prefs.unsafePref 
+    then (fun v -> v) 
+    else (fun v -> fn (interp_cast cev b f t v)) in 
   let native_coercion x = 
     let q = Qid.mk_native_prelude_t b x in
     match CEnv.lookup cev q with
@@ -411,7 +413,16 @@ let rec interp_decl cev ms d0 = match d0 with
         if check_test ms then 
           let vo = 
             try OK(interp_exp cev e)
-            with (Error.Harmony_error(err)) -> Error err in 
+            with 
+              | (Error.Harmony_error(err)) -> Error err 
+              | exn -> 
+                  if Prefs.read Prefs.unsafePref 
+                  then 
+                    Error (fun () -> 
+                             msg 
+                               "Test result: native exception@\n%s@\n%!" 
+                               (Printexc.to_string exn))
+                  else raise exn in
           match vo,tr with 
             | OK (v),TestPrint ->
                 msg "Test result:@ "; 
@@ -475,12 +486,15 @@ let rec interp_decl cev ms d0 = match d0 with
                      err (); 
                      msg "@\n%!")
             | OK v, TestError -> 
-                test_error i 
+                let msgFun = 
                   (fun () ->
                      msg "@\nExpected an error@ "; 
                      msg "@ but found:@ "; 
                      V.format v; 
-                     msg "@\n%!") 
+                     msg "@\n%!")  in
+                if Prefs.read Prefs.unsafePref
+                then (msgFun (); msg "@\nMISSING ERROR IGNORED, RUNNING UNSAFELY@\n%!")
+                else test_error i msgFun
       end;
     (cev, [])
         
