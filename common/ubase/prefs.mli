@@ -33,6 +33,7 @@ val timersPref : bool t
 val colorizePref : bool t
 
 val unsafePref : bool t
+val parallelPref : bool t
 
 (* Convenient functions for registering simple kinds of preferences.  Note   *)
 (* that createStringPref creates a preference that can only be set once,     *)

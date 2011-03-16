@@ -20,7 +20,7 @@ if $(not $(OCAMLFIND_EXISTS))
    eprintln(You need to install ocamlfind and run "omake --configure".)
    exit 1
 
-OCAMLFLAGS    = -dtypes -rectypes
+OCAMLFLAGS    = -dtypes -rectypes -thread
 
 if $(defined DEBUG)
 	OCAMLCFLAGS += -g

@@ -21,4 +21,4 @@
 
 val test_all : bool Prefs.t
 
-val interp_module: Bsyntax.modl -> unit
+val interp_module : Bsyntax.modl -> unit

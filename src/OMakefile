@@ -41,6 +41,7 @@ RESULTS = boomerang.cmxa $(RESULT)$(EXE)
 # Sources
 
 BOOMERANG_BASE_SOURCES[] = \
+   workqueue.mli workqueue.ml \
    amapblist.mli amapblist.ml \
    intmapa.mli intmapa.ml \
    btag.mli btag.ml \

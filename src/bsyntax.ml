@@ -61,7 +61,7 @@ type sort =
 
     (* dependent function types *)
     | SFunction of Id.t * sort *  sort 
-    | SRefine of Id.t * sort * exp    (* refinement types *)
+    | SRefine of Id.t * bool * sort * exp (* refinement types [bool=true -> mandatory, not to be checked in parallel] *)
     | SVar of Id.t                    (* variables *)
     | SForall of Id.t * sort          (* universals *)
  

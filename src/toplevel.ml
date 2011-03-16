@@ -146,7 +146,7 @@ let run_main modl =  (* Note: the contracts of main are not checked *)
      | Bregistry.Sort (Bsyntax.SFunction (_, Bsyntax.SUnit, Bsyntax.SInteger)) -> Bvalue.get_i
      | Bregistry.Sort (Bsyntax.SFunction (_, Bsyntax.SUnit, Bsyntax.SUnit)) -> (fun v -> Bvalue.get_u v; 0)
      | _ -> Error.simple_error (Printf.sprintf "%s.main does not have type unit -> int or unit -> unit.\n" modl)
-    ) (Bvalue.get_f (Bregistry.value_of_rv main) (Bvalue.mk_u i ()))
+    ) (Bvalue.get_f (Bregistry.value_of_rv main) None (Bvalue.mk_u i ()))
   in
   fmap run (lookup (modl ^ ".main"))
 

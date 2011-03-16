@@ -196,9 +196,9 @@ let rec compatible f t = match f,t with
         let f_subst = [x,SVar z] in 
         let t_subst = [y,SVar z] in 
         compatible (subst_sort f_subst s1) (subst_sort t_subst s2)
-  | SRefine(_,s11,_),s2 -> 
+  | SRefine(_,_,s11,_),s2 -> 
       compatible s11 s2
-  | s1,SRefine(_,s21,_) -> 
+  | s1,SRefine(_,_,s21,_) -> 
       compatible s1 s21
   | _ -> false
 
@@ -206,7 +206,7 @@ let rec trivial_cast f t =
   let res = 
   f == t || syneq_sort f t ||
   match f,t with
-    | SRefine(_,f',_),_ -> 
+    | SRefine(_,_,f',_),_ -> 
         trivial_cast f' t (* out of a refinement *)
     | SFunction(x,f1,f2), SFunction(y,t1,t2) ->
 	trivial_cast t1 f1 &&
@@ -418,7 +418,7 @@ let rec check_sort i sev s0 =
           (fun () -> msg "@[wrong@ number@ of@ argument@ for@ %s@]" (Qid.string_of_t qx))
         else SData (Safelist.map go sl ,qx')
     | SForall(x,s1) -> SForall(x,go s1)
-    | SRefine(x,s1,e1) -> 
+    | SRefine(x,b1,s1,e1) -> 
         let sev1 = SCEnv.update sev (Qid.t_of_id x) (G.Sort (erase_sort s1)) in 
         let s1' = check_sort i sev1 s1 in 
         let sev2 = SCEnv.update sev (Qid.t_of_id x) (G.Sort s1') in 
@@ -428,7 +428,7 @@ let rec check_sort i sev s0 =
 	    (fun () -> msg "@[in@ refinement: expected@ %s@ but@ found@ %s@]"
                (string_of_sort SBool)
                (string_of_sort e1_sort));
-          SRefine(x,s1',new_e1) in 
+          SRefine(x,b1,s1',new_e1) in 
     go s0
 
 (* ------ sort checking expressions ----- *)

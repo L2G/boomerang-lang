@@ -1106,7 +1106,7 @@ param:
         let p = mk_bin_op i (mk_core_var i "equiv") 
 	                    (mk_app i (mk_core_var i "vtype") (mk_var $2))
                             $8 in 
-        let s = SRefine($2,SLens,p) in 
+        let s = SRefine($2,false,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN QMARK DEQARROW appexp RPAREN
@@ -1116,7 +1116,7 @@ param:
 	                                 (mk_app i (mk_core_var i "vtype") (mk_var $2))
                                          $8)
 			    (mk_app i (mk_core_var i "bij") (mk_var $2)) in
-        let s = SRefine($2,SLens,p) in 
+        let s = SRefine($2,false,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DARROW QMARK RPAREN
@@ -1124,7 +1124,7 @@ param:
         let p = mk_bin_op i (mk_core_var i "equiv") 
 	                    (mk_app i (mk_core_var i "stype") (mk_var $2))
                             $6 in 
-        let s = SRefine($2,SLens,p) in 
+        let s = SRefine($2,false,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DEQARROW QMARK RPAREN
@@ -1134,30 +1134,35 @@ param:
 	                                 (mk_app i (mk_core_var i "stype") (mk_var $2))
                                          $6)
 			    (mk_app i (mk_core_var i "bij") (mk_var $2)) in
-        let s = SRefine($2,SLens,p) in 
+        let s = SRefine($2,false,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DARROW appexp RPAREN
       { let i = m $1 $9 in 
         let p = mk_tern_op i (mk_core_var i "in_lens_type") (mk_var $2) $6 $8 in 
-        let s = SRefine($2,SLens,p) in 
+        let s = SRefine($2,false,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON LENS IN appexp DEQARROW appexp RPAREN
       { let i = m $1 $9 in 
         let p = mk_tern_op i (mk_core_var i "in_bij_lens_type") (mk_var $2) $6 $8 in 
-        let s = SRefine($2,SLens,p) in 
+        let s = SRefine($2,false,SLens,p) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON STRING IN exp RPAREN
       { let i = m $1 $7 in 
         let p = mk_bin_op i (mk_core_var i "matches") $6 (mk_var $2) in 
-        let s = SRefine($2,SString,p) in
+        let s = SRefine($2,false,SString,p) in
+        Misc.Left (Param(i,$2,s)) }
+
+  | LPAREN id COLON sort WHERE BANG exp RPAREN
+      { let i,_ = $2 in 
+        let s = SRefine($2,true,$4,$7) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN id COLON sort WHERE exp RPAREN
       { let i,_ = $2 in 
-        let s = SRefine($2,$4,$6) in 
+        let s = SRefine($2,false,$4,$6) in 
         Misc.Left (Param(i,$2,s)) }
 
   | LPAREN TYVARIDENT RPAREN
@@ -1251,11 +1256,17 @@ bsort:
   | LPAREN sort RPAREN
       { $2 }
 
+  | LPAREN sort WHERE BANG exp RPAREN
+      { SRefine(Id.wild,false,$2,$5) }
+
   | LPAREN sort WHERE exp RPAREN
-      { SRefine(Id.wild,$2,$4) }
+      { SRefine(Id.wild,true,$2,$4) }
+
+  | LPAREN id COLON sort WHERE BANG exp RPAREN
+      { SRefine($2,true,$4,$7) }
 
   | LPAREN id COLON sort WHERE exp RPAREN
-      { SRefine($2,$4,$6) }
+      { SRefine($2,false,$4,$6) }
 
   | LPAREN LENS IN QMARK DARROW appexp RPAREN
       { let i = m $1 $7 in 
@@ -1263,7 +1274,7 @@ bsort:
         let p = mk_bin_op i (mk_core_var i "equiv") 
 	                    (mk_app i (mk_core_var i "vtype") (mk_var l))
                             $6 in 
-        SRefine(l,SLens,p) }
+        SRefine(l,false,SLens,p) }
 
   | LPAREN LENS IN QMARK DEQARROW appexp RPAREN
       { let i = m $1 $7 in 
@@ -1273,7 +1284,7 @@ bsort:
 	                                 (mk_app i (mk_core_var i "vtype") (mk_var l))
                                          $6)
 			    (mk_app i (mk_core_var i "bij") (mk_var l)) in
-        SRefine(l,SLens,p) }
+        SRefine(l,false,SLens,p) }
 
   | LPAREN LENS IN appexp DARROW QMARK RPAREN
       { let i = m $1 $7 in 
@@ -1281,7 +1292,7 @@ bsort:
         let p = mk_bin_op i (mk_core_var i "equiv") 
 	                    (mk_app i (mk_core_var i "stype") (mk_var l))
                             $4 in 
-        SRefine(l,SLens,p) }
+        SRefine(l,false,SLens,p) }
 
   | LPAREN LENS IN appexp DEQARROW QMARK RPAREN
       { let i = m $1 $7 in 
@@ -1291,25 +1302,25 @@ bsort:
 	                                 (mk_app i (mk_core_var i "stype") (mk_var l))
                                          $4)
 			    (mk_app i (mk_core_var i "bij") (mk_var l)) in
-        SRefine(l,SLens,p) }
+        SRefine(l,false,SLens,p) }
 
   | LPAREN LENS IN appexp DARROW appexp RPAREN
       { let i = m $1 $7 in 
         let l = Id.mk i "_l" in 
         let chk c a = mk_tern_op i (mk_core_var i "in_lens_type") (mk_var l) c a in 
-        SRefine(l,SLens,chk $4 $6) }
+        SRefine(l,false,SLens,chk $4 $6) }
 
   | LPAREN LENS IN appexp DEQARROW appexp RPAREN
       { let i = m $1 $7 in 
         let l = Id.mk i "_l" in 
         let chk c a = mk_tern_op i (mk_core_var i "in_bij_lens_type") (mk_var l) c a in 
-        SRefine(l,SLens,chk $4 $6) }
+        SRefine(l,false,SLens,chk $4 $6) }
 
   | LPAREN STRING IN exp RPAREN 
       { let i = m $1 $5 in 
         let s = Id.mk i "_s" in 
         let p = mk_bin_op i (mk_core_var i "matches") $4 (mk_var s) in 
-        SRefine(s,SString,p) }
+        SRefine(s,false,SString,p) }
 
   | asort 
       { $1 }

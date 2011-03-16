@@ -58,7 +58,7 @@ type t =
   | Lns of Info.t * L.t
   | Can of Info.t * C.t
   | Prf of Info.t * prefs
-  | Fun of Info.t * (t -> t)
+  | Fun of Info.t * (((unit -> t) -> unit) option -> t -> t) (* NB closure takes (optional) workqueue enqueue function *)
   | Par of Info.t * t * t
   | Vnt of Info.t * Qid.t * Id.t * t option
 
@@ -279,27 +279,27 @@ let mk_iP i ip = Prf(i,PrInt ip)
 let mk_sP i sp = Prf(i,PrStr sp)
 let mk_szP i szp = Prf(i,PrSLi szp)
 let mk_p i (p1,p2) = Par(i,p1,p2)
-let mk_f i f = Fun(i,f)
+let mk_f i f = Fun(i,fun wq v -> f v)
 
-let mk_ufun i f = Fun(i,(fun v -> f (get_u v)))
-let mk_bfun i f = Fun(i,(fun v -> f (get_b v)))
-let mk_xfun i f = Fun(i,(fun v -> f (get_x v)))
-let mk_ifun i f = Fun(i,(fun v -> f (get_i v)))
-let mk_cfun i f = Fun(i,(fun v -> f (get_c v)))
-let mk_sfun i f = Fun(i,(fun v -> f (get_s v)))
-let mk_rfun i f = Fun(i,(fun v -> f (get_r v)))
-let mk_afun i f = Fun(i,(fun v -> f (get_a v)))
-let mk_kfun i f = Fun(i,(fun v -> f (get_k v)))
-let mk_mfun i f = Fun(i,(fun v -> f (get_m v)))
-let mk_lfun i f = Fun(i,(fun v -> f (get_l v)))
-let mk_qfun i f = Fun(i,(fun v -> f (get_q v)))
-let mk_bPfun i f = Fun(i,(fun v -> f (get_bP v)))
-let mk_iPfun i f = Fun(i,(fun v -> f (get_iP v)))
-let mk_sPfun i f = Fun(i,(fun v -> f (get_sP v)))
-let mk_szPfun i f = Fun(i,(fun v -> f (get_szP v)))
-let mk_pfun i f = Fun(i,(fun v -> f (get_p v)))
-let mk_vfun i f = Fun(i,(fun v -> f (get_v v)))
-let mk_ffun i f = Fun(i,(fun v -> f (get_f v)))
+let mk_ufun i f = Fun(i,(fun wq v -> f (get_u v)))
+let mk_bfun i f = Fun(i,(fun wq v -> f (get_b v)))
+let mk_xfun i f = Fun(i,(fun wq v -> f (get_x v)))
+let mk_ifun i f = Fun(i,(fun wq v -> f (get_i v)))
+let mk_cfun i f = Fun(i,(fun wq v -> f (get_c v)))
+let mk_sfun i f = Fun(i,(fun wq v -> f (get_s v)))
+let mk_rfun i f = Fun(i,(fun wq v -> f (get_r v)))
+let mk_afun i f = Fun(i,(fun wq v -> f (get_a v)))
+let mk_kfun i f = Fun(i,(fun wq v -> f (get_k v)))
+let mk_mfun i f = Fun(i,(fun wq v -> f (get_m v)))
+let mk_lfun i f = Fun(i,(fun wq v -> f (get_l v)))
+let mk_qfun i f = Fun(i,(fun wq v -> f (get_q v)))
+let mk_bPfun i f = Fun(i,(fun wq v -> f (get_bP v)))
+let mk_iPfun i f = Fun(i,(fun wq v -> f (get_iP v)))
+let mk_sPfun i f = Fun(i,(fun wq v -> f (get_sP v)))
+let mk_szPfun i f = Fun(i,(fun wq v -> f (get_szP v)))
+let mk_pfun i f = Fun(i,(fun wq v -> f (get_p v)))
+let mk_vfun i f = Fun(i,(fun wq v -> f (get_v v)))
+let mk_ffun i f = Fun(i,(fun wq v -> f (get_f v wq)))
 
 let string_of_t v = Util.format_to_string (fun () -> format v)
 
@@ -330,7 +330,7 @@ let mk_list i l =
         
 
 let mk_listfun i f = 
-  Fun(i,(fun v -> f (get_list v)))
+  Fun(i,(fun wq v -> f (get_list v)))
 
 (* option utilities *)
 let none = Id.mk (Info.M "None built-in") "None"
@@ -356,7 +356,7 @@ let mk_option i xo =
   | Some x -> Vnt (i, option_qid, some, Some x)
 
 let mk_optionfun i f = 
-  Fun (i, (fun v -> f (get_option v)))
+  Fun (i, (fun wq v -> f (get_option v)))
 
 (* species utilities *)
 let positional = Id.mk (Info.M "Positional built-in") "Positional"
@@ -383,7 +383,7 @@ let mk_species i sp =
   | Btag.Setlike -> Vnt (i, species_qid, setlike, None)
 
 let mk_speciesfun i f =
-  Fun (i, (fun v -> f (get_species v)))
+  Fun (i, (fun wq v -> f (get_species v)))
 
 (* predicate utilities *)
 let threshold = Id.mk (Info.M "Threshold built-in") "Threshold"
@@ -406,7 +406,7 @@ let mk_predicate i p =
   | Btag.Threshold t -> Vnt (i, predicate_qid, threshold, Some (mk_i i t))
 
 let mk_predicatefun i f =
-  Fun (i, (fun v -> f (get_predicate v)))
+  Fun (i, (fun wq v -> f (get_predicate v)))
 
 (* default key utilities (default weight value for the chunk) *)
 let key = Id.mk (Info.M "Key built-in") "Key"
@@ -428,7 +428,7 @@ let mk_key i w =
     | _ -> assert false
 
 let mk_keyfun i f =
-  Fun (i, (fun v -> f (get_key v)))
+  Fun (i, (fun wq v -> f (get_key v)))
 
 (* tag utilities *)
 let tag = Id.mk (Info.M "Tag built-in") "Tag"
@@ -461,5 +461,5 @@ let mk_tag i t =
   Vnt (i, tag_qid, tag, Some (mk_p i (mk_p i (mk_p i (mk_species i species, mk_predicate i  predicate), mk_key i weight), mk_s i name)))
 
 let mk_tagfun i f =
-  Fun (i, (fun v -> f (get_tag v)))
+  Fun (i, (fun wq v -> f (get_tag v)))
 

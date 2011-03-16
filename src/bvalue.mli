@@ -41,7 +41,7 @@ type t =
     | Lns of Info.t * Blenses.MLens.t
     | Can of Info.t * Blenses.Canonizer.t
     | Prf of Info.t * prefs
-    | Fun of Info.t * (t -> t)
+    | Fun of Info.t * (((unit -> t) -> unit) option -> t -> t) (* NB closure takes (optional) workqueue enqueue function *)
     | Par of Info.t * t * t
     | Vnt of Info.t * Bident.Qid.t * Bident.Id.t * t option
 (** The type of boxed run-time values. *)
@@ -82,7 +82,7 @@ val get_sP : t -> string Prefs.t
 val get_szP : t -> string list Prefs.t
 val get_p : t -> (t*t)
 val get_v : t -> (Bident.Id.t * t option)
-val get_f : t -> (t -> t)
+val get_f : t -> (((unit -> t) -> unit) option -> t -> t)
 
 val mk_u : Info.t -> unit -> t
 val mk_b : Info.t -> bool -> t

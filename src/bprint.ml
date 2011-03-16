@@ -89,12 +89,12 @@ let rec format_sort = function
       format_sort s;
       msg ")@]";
 
-  | SRefine(x0,s0,e0) ->
+  | SRefine(x0,b0,s0,e0) ->
       msg "@[(";
       if not (Id.equal x0 Id.wild)
       then msg "%s:@," (Id.string_of_t x0);
       format_sort s0;
-      msg "@ where@ ";
+      msg "@ where%s@ " (if b0 then "!" else "");
       format_exp e0;
       msg ")@]"
 

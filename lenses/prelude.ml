@@ -679,7 +679,7 @@ let prelude_spec =
                  let hd,tl = match vo with 
                    | None -> poly_error b b_list_sort l
                    | Some v -> get_p v in                
-                 let acc' = (get_f (f acc)) hd in 
+                 let acc' = (get_f (f None acc)) None hd in 
                    aux tl acc'
                else 
                  poly_error b b_list_sort l in 
@@ -727,7 +727,7 @@ let prelude_spec =
     Qid.mk_native_prelude_t i "list_sort",
     S.SForall (a, a_compare_sort ^> a_list_sort ^> a_list_sort),
     mk_f i (fun achk -> mk_f i (fun cmp0 -> mk_f i (fun l0 ->
-    let cmp a1 a2 = get_i (get_f (get_f cmp0 a1) a2) in
+    let cmp a1 a2 = get_i (get_f (get_f cmp0 None a1) None a2) in
     let l = get_list l0 in
     mk_list i (List.sort cmp l))))
  end

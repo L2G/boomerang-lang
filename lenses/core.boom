@@ -122,7 +122,7 @@ ASCII code.
 \LENSSECTION{@chr@} The @chr@ function converts an integer in the range 
 @0@ to @255@ to the corresponding @char@.
 
-#* let chr : (n:int where land (bleq 0 n) (bgeq 255 n)) -> char
+#* let chr : (n:int where! land (bleq 0 n) (bgeq 255 n)) -> char
 ## = Native.Prelude.chr
 
 \LENSSECTION{@string_of_char@} The @string_of_char@ function converts 
@@ -145,7 +145,7 @@ a character to a string.
 a character from a string.
 
 #* let get_char : (s:string -> 
-#*                (n:int where land (bleq 0 n) (bgt (length s) n)) -> 
+#*                (n:int where! land (bleq 0 n) (bgt (length s) n)) -> 
 #*                char)
 ## = Native.Prelude.get_char
 
@@ -254,7 +254,7 @@ belongs to the language denoted by a regular expression.
 \LENSSECTION{@representative@} The function @representative@ computes a 
 (typically shortest) representative of a regular expression.
 
-#* let representative : (r:regexp -> (s:string where matches_cex r s))
+#* let representative : (r:regexp -> (s:string where! matches_cex r s))
 ## = Native.Prelude.representative
 
 If the regular expression denotes the empty language, an exception is raised, 
@@ -325,7 +325,7 @@ that @w@ can be split into substrings, such that each substring belongs
 to @R@.
 
 #* let count : (r:regexp -> 
-#*             (s:string where matches_cex (regexp_star r) s) ->
+#*             (s:string where! matches_cex (regexp_star r) s) ->
 #*             int)
 ## = Native.Prelude.count
 
@@ -343,7 +343,7 @@ annotation for the chunk: with @Key@ everything without annotations are
 key, while with @NoKey@ they are not.
 
 #* type species = Positional | Diffy of bool | Greedy | Setlike
-#* type predicate = Threshold of (t:int where land (bgeq t 0) (bleq t 100))
+#* type predicate = Threshold of (t:int where! land (bgeq t 0) (bleq t 100))
 #* type key_annotation = Key | NoKey
 #* type tag = Tag of species * predicate * key_annotation * string
 
@@ -394,7 +394,7 @@ concatenation of two annotated regular expressions. The overloaded infix symbol 
 desugars into @aregexp_concat@ when used with values of type @aregexp@.
 
 #* let aregexp_concat (a1:aregexp)
-#*                    (a2:aregexp where aregexp_compatible_cex a1 a2)
+#*                    (a2:aregexp where! aregexp_compatible_cex a1 a2)
 #*   : aregexp
 ## = Native.Prelude.aregexp_concat a1 a2
 
@@ -405,7 +405,7 @@ of two regular expressions. The overloaded infix symbol @|@ desugars into
 @aregexp_union@ when used with values of type @aregexp@.
 
 #* let aregexp_union (a1:aregexp)
-#*                   (a2:aregexp where land (disjoint_cex (rxdrop a1) (rxdrop a2))
+#*                   (a2:aregexp where! land (disjoint_cex (rxdrop a1) (rxdrop a2))
 #*                                          (aregexp_compatible_cex a1 a2))
 #*   : aregexp
 ## = Native.Prelude.aregexp_union a1 a2
@@ -437,7 +437,7 @@ annotation with tag defined by the string to the annotated regular
 expression. The operator @<aregexp>@ and @<tag:aregexp>@ desugars into
 @aregexp_match@.
 
-#* let aregexp_match (t:tag) (a:aregexp where aregexp_match_compatible_cex t a)
+#* let aregexp_match (t:tag) (a:aregexp where! aregexp_match_compatible_cex t a)
 #* : aregexp
 ## = Native.Prelude.aregexp_match t a
 
@@ -584,17 +584,17 @@ notation desugars into @in_bij_lens_type@.
 projection notation @l.get@ desugars into @get@.
 
 #* let get : (l:lens -> 
-#*           (s:string where matches_cex (stype l) s) ->
-#*           (s':string where matches_cex (vtype l) s'))
+#*           (s:string where! matches_cex (stype l) s) ->
+#*           (s':string where! matches_cex (vtype l) s'))
 ## = Native.Prelude.get
 
 \LENSSECTION{@put@} The @put@ function extracts the $\PUT$ component of a lens. 
 The record-style projection notation @l.put v into s@ desugars into @put@.
 
 #* let put : (l:lens ->
-#*           (v:string where matches_cex (vtype l) v) -> 
-#*           (s:string where matches_cex (stype l) s) -> 
-#*           (s':string where matches_cex (stype l) s'))
+#*           (v:string where! matches_cex (vtype l) v) -> 
+#*           (s:string where! matches_cex (stype l) s) -> 
+#*           (s':string where! matches_cex (stype l) s'))
 ## = Native.Prelude.put 
 
 \LENSSECTION{@create@} The @create@ function extracts the $\CREATE$ 
@@ -602,8 +602,8 @@ component of a lens. The record-style projection notation @l.create@
 desugars into @create@.
 
 #* let create : (l:lens -> 
-#*              (v:string where matches_cex (vtype l) v) -> 
-#*              (s:string where matches_cex (stype l) s))
+#*              (v:string where! matches_cex (vtype l) v) -> 
+#*              (s:string where! matches_cex (stype l) s))
 ## = Native.Prelude.create 
 
 \subsection{Lenses}
@@ -611,7 +611,7 @@ desugars into @create@.
 \LENSSECTION{@copy@} The @copy@ lens takes a regular expression @R@ as
 an argument and copies strings belonging to @R@ in both directions.
 
-#* let copy (R:regexp) : (l:lens where in_bij_lens_type l R R)
+#* let copy (R:regexp) : (l:lens where! in_bij_lens_type l R R)
 ## = Native.Prelude.copy R
 
 #* test get (copy [A-Z]) "A" = "A"
@@ -629,8 +629,8 @@ returns @u@, its $\PUT$ function restores its concrete argument, and
 its $\CREATE$ function returns the string @f u@.
 
 #* let clobber 
-#*     (R:regexp) (u:string) (f:string -> (s:string where matches_cex R s))
-#*   : (l:lens where in_lens_type l R (regexp_of_string u))
+#*     (R:regexp) (u:string) (f:string -> (s:string where! matches_cex R s))
+#*   : (l:lens where! in_lens_type l R (regexp_of_string u))
 ##   = Native.Prelude.clobber R u f 
 
 #* test get (clobber [A-Z] "" (fun (s:string) -> "B")) "A" = ""
@@ -668,13 +668,13 @@ overloaded infix operator @||@ desugars into @lens_union@ when applied
 to lens values.
 
 #* let lens_union 
-#*     (l1:lens where land (rel_is_id (vequiv l1))
+#*     (l1:lens where! land (rel_is_id (vequiv l1))
 #*                         (is_basic l1))
-#*     (l2:lens where land (rel_is_id (vequiv l2))
+#*     (l2:lens where! land (rel_is_id (vequiv l2))
 #*                   (land (is_basic l2)
 %                    (land (mtype_compatible_cex (mtype l1) (mtype l2))
 #*                         (disjoint_cex (stype l1) (stype l2))))
-#*   : (l:lens where in_lens_type l 
+#*   : (l:lens where! in_lens_type l 
 #*          (regexp_union (stype l1) (stype l2))
 #*          (regexp_union (vtype l1) (vtype l2)))
 ## = Native.Prelude.lens_union l1 l2
@@ -696,8 +696,8 @@ operator @|@ desugars into @lens_disjoint_union@ when applied to lens values.
 
 #* let lens_disjoint_union 
 #*     (l1:lens) 
-#*     (l2:lens where lens_disjoint_union_contract l1 l2)
-#*   : (l:lens where in_lens_type l
+#*     (l2:lens where! lens_disjoint_union_contract l1 l2)
+#*   : (l:lens where! in_lens_type l
 #*          (regexp_union (stype l1) (stype l2))
 #*          (regexp_union (vtype l1) (vtype l2)))
 ## = Native.Prelude.lens_union l1 l2
@@ -718,8 +718,8 @@ operator @.@ desugars into @lens_concat@ when applied to lens values.
 
 #* let lens_concat
 #*     (l1:lens) 
-#*     (l2:lens where lens_concat_contract l1 l2)
-#*   : (l:lens where in_lens_type l (regexp_concat (stype l1) (stype l2))
+#*     (l2:lens where! lens_concat_contract l1 l2)
+#*   : (l:lens where! in_lens_type l (regexp_concat (stype l1) (stype l2))
 #*                                  (regexp_concat (vtype l1) (vtype l2)))
 ## = Native.Prelude.lens_concat l1 l2
 
@@ -733,10 +733,10 @@ in sequence. The abstract type of the lens on the left and the
 concrete type of the lens on the right must be identical.
 
 #* let compose 
-#*     (l1:lens where rel_is_id (vequiv l1))
-#*     (l2:lens where land (aequiv (avtype l1) (astype l2))
+#*     (l1:lens where! rel_is_id (vequiv l1))
+#*     (l2:lens where! land (aequiv (avtype l1) (astype l2))
 #*                         (rel_is_id (sequiv l2)))
-#*   : (l:lens where in_lens_type l (stype l1) (vtype l2))
+#*   : (l:lens where! in_lens_type l (stype l1) (vtype l2))
 ## = Native.Prelude.compose l1 l2
 
 #* test get (compose (const [A-Z] "Z" "A") 
@@ -755,8 +755,8 @@ into @lens_swap@ when applied to lens values.
 
 #* let lens_swap
 #*     (l1:lens) 
-#*     (l2:lens where lens_swap_contract l1 l2)
-#*   : (l:lens where in_lens_type l (regexp_concat (stype l1) (stype l2))
+#*     (l2:lens where! lens_swap_contract l1 l2)
+#*   : (l:lens where! in_lens_type l (regexp_concat (stype l1) (stype l2))
 #*                                  (regexp_concat (vtype l2) (vtype l1)))
 ## = Native.Prelude.lens_swap l1 l2
 
@@ -774,8 +774,8 @@ lens must both be unambiguous.  The overloaded operator @*@ desugars into
 #* = land (iterable_cex (stype l)) (iterable_cex (vtype l))
 
 #* let lens_star 
-#*     (l:lens where lens_star_contract l)
-#*   : (l':lens where in_lens_type l'
+#*     (l:lens where! lens_star_contract l)
+#*   : (l':lens where! in_lens_type l'
 #*                (regexp_star (stype l))
 #*                (regexp_star (vtype l)))
 ## = Native.Prelude.lens_star l
@@ -791,9 +791,9 @@ lens must both be unambiguous (when non-empty). The overloaded operator @+@
 resolves to @lens_plus@ when applied to a lens. 
 
 #* let lens_plus
-#*     (l:lens where land (iterable_cex (stype l))
+#*     (l:lens where! land (iterable_cex (stype l))
 #*                        (iterable_cex (vtype l)))
-#*   : (l':lens where in_lens_type l' 
+#*   : (l':lens where! in_lens_type l' 
 #*                (regexp_plus (stype l))
 #*                (regexp_plus (vtype l)))
 ## = Native.Prelude.lens_plus l
@@ -809,9 +809,9 @@ from the empty lens.  The overloaded operator @?@ resolves to @lens_option@
 when applied to a lens.
 
 #* let lens_option
-#*     (l:lens where land (disjoint_cex (stype l) EPSILON)
+#*     (l:lens where! land (disjoint_cex (stype l) EPSILON)
 #*                        (disjoint_cex (vtype l) EPSILON))
-#*   : (l':lens where in_lens_type l' 
+#*   : (l':lens where! in_lens_type l' 
 #*                (regexp_union (stype l) EPSILON) 
 #*                (regexp_union (vtype l) EPSILON))
 ## = Native.Prelude.lens_option l
@@ -827,16 +827,16 @@ the lens must both be unambiguous. The overloaded operator @{m,n}@
 resolves into instances of @lens_iter@ when applied to a lens argument. 
 
 #* let lens_iter 
-#*    (l:lens where land (splittable_cex (stype l) (stype l))
+#*    (l:lens where! land (splittable_cex (stype l) (stype l))
 #*                       (splittable_cex (vtype l) (vtype l)))
-#*    (min:int where bgeq min 1) 
-#*    (max:int where 
+#*    (min:int where! bgeq min 1) 
+#*    (max:int where! 
 #*       land (bgeq max min)
 #*            (implies (bgt max min)
 #*              (land (disjoint_cex (stype l) (regexp_iter (stype l) 2 2))
 #*              (lor (land (rel_is_id (vequiv l)) (is_basic l)) 
 #*                   (disjoint_cex (vtype l) (regexp_iter (vtype l) 2 2))))))
-#*  : (l':lens where in_lens_type l' 
+#*  : (l':lens where! in_lens_type l' 
 #*               (regexp_iter (stype l) min max)
 #*               (regexp_iter (vtype l) min max))
 ## = Native.Prelude.lens_iter l min max
@@ -849,8 +849,8 @@ resolves into instances of @lens_iter@ when applied to a lens argument.
 components of a lens, which must be bijective.
 
 #* let invert 
-#*     (l:lens where land (bij l) (is_basic l)) 
-#*   : (l':lens where in_bij_lens_type l' (vtype l) (stype l))
+#*     (l:lens where! land (bij l) (is_basic l)) 
+#*   : (l':lens where! in_bij_lens_type l' (vtype l) (stype l))
 ##   = Native.Prelude.invert l
 
 #* test get (invert (const [A] "B" "A")) "B" = "A"
@@ -860,9 +860,9 @@ components of a lens, which must be bijective.
 @d@ as arguments. It overrides @l@'s $\CREATE$ function to use $\PUT$ with 
 @d@.
 
-#* let default (l:lens where is_basic l)
-#*             (d:string where matches_cex (stype l) d)
-#*           : (l':lens where in_lens_type l' (stype l) (vtype l))
+#* let default (l:lens where! is_basic l)
+#*             (d:string where! matches_cex (stype l) d)
+#*           : (l':lens where! in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.default l d
 
 #* test create (default (const [A-Z] "X" "A") "B") "X" = "B"
@@ -873,8 +873,8 @@ concatenation of @R@ with itself by discarding the second substring belonging
 to @R@. The regular expression @R@ must be unambiguously concatenable with itself.
 
 #* let merge 
-#*     (R:regexp where splittable_cex R R) 
-#*   : (l:lens where in_lens_type l (regexp_concat R R) R)
+#*     (R:regexp where! splittable_cex R R) 
+#*   : (l:lens where! in_lens_type l (regexp_concat R R) R)
 ##   = Native.Prelude.merge R
 
 #* test get (merge [A-Z]) "AA" = "A"
@@ -894,19 +894,19 @@ only set the annotation for characters that does not have yet an
 annotation.
 
 #* let key (l:lens)
-#*       : (l':lens where in_lens_type l' (stype l) (vtype l))
+#*       : (l':lens where! in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_weight false 1 l
 
 #* let nokey (l:lens) 
-#*         : (l':lens where in_lens_type l' (stype l) (vtype l))
+#*         : (l':lens where! in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_weight false 0 l
 
 #* let force_key (l:lens)
-#*             : (l':lens where in_lens_type l' (stype l) (vtype l))
+#*             : (l':lens where! in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_weight true 1 l
 
 #* let force_nokey (l:lens) 
-#*               : (l':lens where in_lens_type l' (stype l) (vtype l))
+#*               : (l':lens where! in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_weight true 0 l
 
 \LENSSECTION{@lens_match@} The @lens_match@ operator takes as arguments
@@ -918,8 +918,8 @@ tag @greedy 0 ""@.
 
 #* let lens_match
 #*     (t:tag)
-#*     (l:lens where mtype_match_compatible_cex t (ktype l) (mtype l)) 
-#*   : (l':lens where in_lens_type l' (stype l) (vtype l))
+#*     (l:lens where! mtype_match_compatible_cex t (ktype l) (mtype l)) 
+#*   : (l':lens where! in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.lens_match t l
 
 \LENSSECTION{@align@} The @align@ operator converts a resourceful
@@ -927,7 +927,7 @@ lens @l@ into a basic lens, making an alignment phase internal to it.
 
 #* let align
 #*     (l:lens) 
-#*   : (l':lens where land (in_lens_type l' (stype l) (vtype l))
+#*   : (l':lens where! land (in_lens_type l' (stype l) (vtype l))
 #*                         (is_basic l'))
 ## = Native.Prelude.align l
 
@@ -937,8 +937,8 @@ function that returns the original source exactly whenever the update to the
 view is a no-op.
 
 #* let fiat
-#*     (l:lens where is_basic l) 
-#*   : (l':lens where in_lens_type l' (stype l) (vtype l))
+#*     (l:lens where! is_basic l) 
+#*   : (l':lens where! in_lens_type l' (stype l) (vtype l))
 ## = Native.Prelude.fiat l
 
 \subsection{Canonizer Components}
@@ -993,7 +993,7 @@ component of a canonizer. The record-style projection notation
 
 #* let canonize 
 #*     (cn:canonizer) 
-#*     (c:string where matches_cex (uncanonized_type cn) c) 
+#*     (c:string where! matches_cex (uncanonized_type cn) c) 
 #*   : string
 ## = Native.Prelude.canonize cn c
 
@@ -1003,7 +1003,7 @@ component of a canonizer. The record-style projection notation
 
 #* let choose
 #*     (cn:canonizer)
-#*     (b:string where matches_cex (canonized_type cn) b)
+#*     (b:string where! matches_cex (canonized_type cn) b)
 #*   : string
 ## = Native.Prelude.choose cn b
 
@@ -1012,7 +1012,7 @@ builds a canonizer out of a lens with the lens's $\GET$ function as the
 $\CANONIZE$ component and  $\CREATE$ as $\CHOOSE$.
 
 #* let canonizer_of_lens (l:lens)
-#*   : (cn:canonizer where in_canonizer_type cn (stype l) (vtype l))
+#*   : (cn:canonizer where! in_canonizer_type cn (stype l) (vtype l))
 ##   = Native.Prelude.canonizer_of_lens l
 
 \LENSSECTION{@canonizer_concat@} The @canonizer_concat@ operator
@@ -1021,12 +1021,12 @@ side needs to be unambiguous.
 
 #* let canonizer_concat 
 #*   (cn1:canonizer)
-#*   (cn2:canonizer where 
+#*   (cn2:canonizer where! 
 #*     land (splittable_cex (uncanonized_type cn1) (uncanonized_type cn2))
 #*          (implies 
 #*             (not (land (rel_is_id (cnrel cn1)) (rel_is_id (cnrel cn2))))
 #*             (splittable_cex (canonized_type cn1) (canonized_type cn2))))
-#*   : (cn:canonizer where in_canonizer_type cn 
+#*   : (cn:canonizer where! in_canonizer_type cn 
 #*           (regexp_concat (uncanonized_type cn1) (uncanonized_type cn2))
 #*           (regexp_concat (canonized_type cn1) (canonized_type cn2)))
 ## = Native.Prelude.canonizer_concat cn1 cn2
@@ -1037,13 +1037,13 @@ disjoint.
 
 #* let canonizer_union 
 #*     (cn1:canonizer) 
-#*     (cn2:canonizer where land (disjoint_cex (uncanonized_type cn1)
+#*     (cn2:canonizer where! land (disjoint_cex (uncanonized_type cn1)
 #*                                             (uncanonized_type cn2))
 #*                               (lor (land (canonizer_is_basic cn1)
 #*                                          (canonizer_is_basic cn2))
 #*                                    (disjoint_cex (canonized_type cn1)
 #*                                                  (canonized_type cn2))))
-#*   : (cn:canonizer where in_canonizer_type cn
+#*   : (cn:canonizer where! in_canonizer_type cn
 #*         (regexp_union (uncanonized_type cn1) (uncanonized_type cn2))
 #*         (regexp_union (canonized_type cn1) (canonized_type cn2)))
 ##   = Native.Prelude.canonizer_union cn1 cn2
@@ -1057,12 +1057,12 @@ iteration is unbounded. For example,  @q*@ desugars
 into @canonizer_iter q 0 (-1)@.
 
 #* let canonizer_iter
-#*   (cn:canonizer where
+#*   (cn:canonizer where!
 #*        land (iterable_cex (uncanonized_type cn))
 #*             (implies (not (rel_is_id (cnrel cn)))
 #*                      (iterable_cex (canonized_type cn))))
-#*   (min:int where bgeq min 0) (max:int)
-#* : (cn':canonizer where in_canonizer_type cn' 
+#*   (min:int where! bgeq min 0) (max:int)
+#* : (cn':canonizer where! in_canonizer_type cn' 
 #*          (regexp_iter (uncanonized_type cn) min max)
 #*          (regexp_iter (canonized_type cn) min max))
 ## = Native.Prelude.canonizer_iter cn min max
@@ -1081,7 +1081,7 @@ $\CHOOSE$ component wraps a string belonging to the iteration of
 #*   (k:int)
 #*   (R:regexp)
 #*   (sp:char)
-#*   (nl:string where
+#*   (nl:string where!
 #*         disjoint_cex R (regexp_concat (regexp_star [^]) 
 #*                                       (regexp_concat (regexp_of_string nl) 
 #*                                       (regexp_star [^]))))
@@ -1110,9 +1110,9 @@ a canonizer @q@ on the left by passing concrete strings through @q@.
 
 #* let left_quot 
 #*   (cn:canonizer)
-#*   (l:lens where land (aequiv_cex (canonized_atype cn) (astype l))
+#*   (l:lens where! land (aequiv_cex (canonized_atype cn) (astype l))
 #*                      (rel_is_id (cnrel cn)))
-#* : (l':lens where in_lens_type l' (uncanonized_type cn) (vtype l))
+#* : (l':lens where! in_lens_type l' (uncanonized_type cn) (vtype l))
 ## = Native.Prelude.left_quot cn l
 
 #* test get 
@@ -1141,9 +1141,9 @@ a canonizer @q@ on the right by passing abstract strings through @q@.
 
 #* let right_quot
 #*   (l:lens)
-#*   (cn:canonizer where land (aequiv (canonized_atype cn) (avtype l))
+#*   (cn:canonizer where! land (aequiv (canonized_atype cn) (avtype l))
 #*                            (rel_is_id (cnrel cn)))
-#* : (l':lens where in_lens_type l' (stype l) (uncanonized_type cn))
+#* : (l':lens where! in_lens_type l' (stype l) (uncanonized_type cn))
 ## = Native.Prelude.right_quot l cn
 
 \LENSSECTION{@dup1@} The @dup1@ operator takes as arguments a 
@@ -1156,10 +1156,10 @@ corresponding from @l@ on the rest of the string. The concatenation of
 @l@'s abstract type and the codomain of @f@ must be unambiguous.
 
 #* let dup1 
-#*     (l:lens where is_basic l)
+#*     (l:lens where! is_basic l)
 #*     (R:regexp)
-#*     (f:string -> (x:string where matches_cex R x))
-#*  :  (l':lens where in_lens_type l' 
+#*     (f:string -> (x:string where! matches_cex R x))
+#*  :  (l':lens where! in_lens_type l' 
 #*           (stype l) (regexp_concat (vtype l) R))
 ## = Native.Prelude.dup1 l f R 
 
@@ -1171,9 +1171,9 @@ corresponding from @l@ on the rest of the string. The concatenation of
 
 #* let dup2
 #*     (R:regexp)
-#*     (f:string -> (x:string where matches_cex R x)) 
-#*     (l:lens where is_basic l)
-#*   : (l':lens where in_lens_type l' 
+#*     (f:string -> (x:string where! matches_cex R x)) 
+#*     (l:lens where! is_basic l)
+#*   : (l':lens where! in_lens_type l' 
 #*         (stype l) (regexp_concat R (vtype l)))
 ## = Native.Prelude.dup2 f R l 
 

@@ -91,33 +91,48 @@ let rec dynamic_match i p0 v0 = match p0,v0 with
   | _ -> None 
 
 (* ----- interpret casts ----- *)
+let pc = ref 0
+let ic = ref 0
+
 (* precondition: f and t must be compatible. *)
-let rec interp_cast cev b f t = 
+let rec interp_cast (wq:((unit -> V.t) -> unit) option) cev b f t = 
   (* generates cast into the refinement (x:t where e) *)
-  let cast_refinement f x t e = 
-    let fn v = 
+  let cast_refinement mandatory f x t e = 
+    let rec run_check wq v =
+      let v = interp_cast wq cev b f t v in
       let cev' = CEnv.update cev (Qid.t_of_id x) (G.Unknown,v) in
-      match V.get_x (interp_exp cev' e) with
+      match V.get_x (interp_exp wq cev' e) with
         | None -> v
         | Some cex -> 
             let cex_s = 
               if cex = "" then "" 
               else "; counterexample: " ^ cex in
-              Berror.blame_error b
-	        (fun () ->
-	           (* TODO show bindings of free vars in e *)
-	           Util.format "@[%s=%a@ did@ not@ satisfy@ %a%s@]"
-		     (Id.string_of_t x)
-		     (fun _ -> V.format) v
-		     (fun _ -> format_exp) e
-	             cex_s) in
-    if Prefs.read Prefs.unsafePref 
-    then (fun v -> v) 
-    else (fun v -> fn (interp_cast cev b f t v)) in 
+            Berror.blame_error b
+              (fun () ->
+	         (* TODO show bindings of free vars in e *)
+	         Util.format "@[%s=%a@ did@ not@ satisfy@ %a%s@]"
+	           (Id.string_of_t x)
+	           (fun _ -> V.format) v
+	           (fun _ -> format_exp) e
+	           cex_s) in
+    if Prefs.read Prefs.unsafePref
+    then (* no checking at all *)
+      (fun v -> v) 
+    else if ((not mandatory) && wq <> None)
+    then (* parallel checking *)
+      (fun v -> 
+         incr pc;
+         let wq = Util.extractValueFromOption wq in
+         wq (fun () -> run_check None v);
+         v)
+    else (* in-line mandatory checking *)
+      (fun v -> 
+         incr ic; 
+         run_check wq v) in 
   let native_coercion x = 
     let q = Qid.mk_native_prelude_t b x in
     match CEnv.lookup cev q with
-      | Some(_,v) -> V.get_f v
+      | Some(_,v) -> V.get_f v wq
       | None ->             
           Berror.run_error b 
             (fun () -> msg "@[%s unbound@]" 
@@ -175,7 +190,7 @@ let rec interp_cast cev b f t =
           let c2 = Bcheck.mk_cast "function result" b f2 t2 (mk_app b (mk_var fn) (mk_var x)) in 
           (fun v -> 
              let cev' = CEnv.update cev (Qid.t_of_id fn) (G.Unknown,v) in 
-             interp_exp cev' (mk_fun b y t1 (mk_let b x f1 c1 c2)))
+             interp_exp wq cev' (mk_fun b y t1 (mk_let b x f1 c1 c2)))
       | SProduct(f1,f2), SProduct(t1,t2) ->
           (* JNF: can this first case happen? why isn't this a trivial cast? *)
 (* 	  if syneq_sort f1 t1 && syneq_sort f2 t2 *)
@@ -190,7 +205,7 @@ let rec interp_cast cev b f t =
                    (Qid.t_of_id y) (G.Unknown,v2) in
                let c1 = Bcheck.mk_cast "pair fst" b f1 t1 (mk_var x) in 
                let c2 = Bcheck.mk_cast "pair snd" b f2 t2 (mk_var y) in 
-               interp_exp cev' (EPair(b,c1,c2)))
+               interp_exp wq cev' (EPair(b,c1,c2)))
       | SData(fl,x),SData(tl,y) when Qid.equal x y -> 
           let rec aux acc l1 l2 = acc && match l1,l2 with
             | [],[] -> true
@@ -232,18 +247,18 @@ let rec interp_cast cev b f t =
               (Safelist.combine cl_finst cl_tinst) in 
             (fun v -> 
                let cev' = CEnv.update cev (Qid.t_of_id x) (G.Unknown,v) in 
-               interp_exp cev' (ECase(b,EVar(b,qx),pl,Some t)))
-      | SRefine(x,t1,e1),SRefine(y,t2,e2) -> 
+               interp_exp wq cev' (ECase(b,EVar(b,qx),pl,Some t)))
+      | SRefine(x,_,t1,e1),SRefine(y,mandatory,t2,e2) -> 
           if Id.equal x y && syneq_sort t1 t2 && syneq_exp e1 e2 
           then (fun v -> v)
-          else cast_refinement f y t2 e2
-      | _,SRefine(x,t2,e2) -> 
-          cast_refinement f x t2 e2
-      | SRefine(x,f1,e1),t1 -> 
-          interp_cast cev b f1 t1
+          else cast_refinement mandatory f y t2 e2
+      | _,SRefine(x,mandatory,t2,e2) ->
+          cast_refinement mandatory f x t2 e2
+      | SRefine(x,_,f1,e1),t1 -> 
+          interp_cast wq cev b f1 t1
       | SForall(x,f1),SForall(y,t1) ->
 	  (* no need to freshen since compatibility substitutes *)
-          (interp_cast cev b f1 t1)
+          (interp_cast wq cev b f1 t1)
       | _ -> 
           Berror.run_error b 
             (fun () -> 
@@ -253,13 +268,15 @@ let rec interp_cast cev b f t =
 
 (* ----- interpret expressions ----- *)
 
-and interp_exp cev e0 = match e0 with 
+and interp_exp wq cev e0 = 
+(*   if wq = None then msg "Mainline: %a\n%!" (fun _ -> format_exp) e0; *)
+  match e0 with 
   | EVar(i,q) -> begin 
       match CEnv.lookup_both cev q with
         | Some((G.Unknown,v),_) -> v
         | Some((G.Sort s,v),s_env) -> 
             let s_base = Bsubst.erase_sort s in 
-            (interp_cast s_env i s s_base) v 
+            (interp_cast wq s_env i s s_base) v 
         | None -> 
             Berror.run_error i 
               (fun () -> msg "@[%s unbound@]" 
@@ -273,28 +290,28 @@ and interp_exp cev e0 = match e0 with
              (string_of_op op))
 
   | EApp(_,e1,e2) ->
-      let v1 = interp_exp cev e1 in 
-      let v2 = interp_exp cev e2 in 
-      (V.get_f v1) v2
+      let v1 = interp_exp wq cev e1 in 
+      let v2 = interp_exp wq cev e2 in 
+      (V.get_f v1) wq v2
 
   | ELet(_,b,e) -> 
-      let bcev,_ = interp_binding cev b in
-      interp_exp bcev e
+      let bcev,_ = interp_binding wq cev b in
+      interp_exp wq bcev e
           
   | EFun(i,p,_,e) ->
-      let f v =        
+      let f wq v = (* !!! param'd on wq, to determine parallel/mainline eval *)
         let qp = Qid.t_of_id (id_of_param p) in 
         let body_cev = CEnv.update cev qp (G.Unknown,v) in 
-        interp_exp body_cev e in 
+        interp_exp wq body_cev e in 
       V.Fun(i,f)
 
   | EPair(i,e1,e2) -> 
-      let v1 = interp_exp cev e1 in 
-      let v2 = interp_exp cev e2 in 
+      let v1 = interp_exp wq cev e1 in 
+      let v2 = interp_exp wq cev e2 in 
       V.Par(i,v1,v2)
 
   | ECase(i,e1,pl,_) -> 
-      let v1 = interp_exp cev e1 in 
+      let v1 = interp_exp wq cev e1 in 
       let rec find_match = function
         | [] -> 
             Berror.run_error i
@@ -312,14 +329,14 @@ and interp_exp cev e0 = match e0 with
              | Some s -> G.Sort s in 
            (Qid.t_of_id x,(rs,v))) binds in         
       let ei_cev = CEnv.update_list cev qid_binds in
-      interp_exp ei_cev ei
+      interp_exp wq ei_cev ei
 
   (* tyfuns are interpreted as functions; tyapps apply to unit *)
   | ETyFun(i,_,e) -> 
-      interp_exp cev (EFun(i,Param(i,Id.wild,SUnit),None,e))
+      interp_exp wq cev (EFun(i,Param(i,Id.wild,SUnit),None,e))
 
   | ETyApp(i,e1,s2) -> 
-      interp_exp cev (EApp(i,e1,EUnit(i)))
+      interp_exp wq cev (EApp(i,e1,EUnit(i)))
 
   | EGrammar(i,ps) ->
      Berror.run_error i (fun () -> msg "@[unexpected@ grammar@ expression@ at@ interpreter@]")
@@ -327,7 +344,7 @@ and interp_exp cev e0 = match e0 with
   (* constants *)
   | EUnit(i)            -> V.Unt(i)
   | EBoolean(i,None)    -> V.Bol(i,None)
-  | EBoolean(i,Some e1) -> V.Bol(i,Some (V.get_s (interp_exp cev e1)))
+  | EBoolean(i,Some e1) -> V.Bol(i,Some (V.get_s (interp_exp wq cev e1)))
   | EInteger(i,n)       -> V.Int(i,n)
   | EChar(i,c)          -> V.Chr(i,c)
   | EString(i,s)        -> V.Str(i,s)
@@ -337,12 +354,12 @@ and interp_exp cev e0 = match e0 with
       V.Rx(i,mk csi)
 
   | ECast(i,f,t,b,e) -> 
-      (interp_cast cev b f t)
-        (interp_exp cev e)
+      (interp_cast wq cev b f t)
+        (interp_exp wq cev e)
 
-and interp_binding cev b0 = match b0 with
+and interp_binding wq cev b0 = match b0 with
   | Bind(i,p,so,e) -> 
-      let v = interp_exp cev e in 
+      let v = interp_exp wq cev e in 
       let xs_rev,bcev = match dynamic_match i p v with
         | None -> Berror.run_error i 
             (fun () -> msg "@[in let-binding: %s does not match %s@]"
@@ -358,9 +375,9 @@ and interp_binding cev b0 = match b0 with
               ([],cev) binds in 
       (bcev,Safelist.rev xs_rev)
       
-let rec interp_decl cev ms d0 = match d0 with
+let rec interp_decl wq cev ms d0 = match d0 with
   | DLet(i,b) ->
-      interp_binding cev b
+      interp_binding wq cev b
   | DType(i,svl,qx,cl) -> 
       let sx = SData(sl_of_svl svl,qx) in 
       let mk_univ s = 
@@ -369,7 +386,7 @@ let rec interp_decl cev ms d0 = match d0 with
           svl s in 
       let mk_impl v = 
         Safelist.fold_right 
-          (fun _ f -> V.Fun(i,(fun v -> f))) 
+          (fun _ f -> V.Fun(i,(fun _ v -> f))) 
           svl v in 
       let new_cev,xs = 
         Safelist.fold_left 
@@ -382,7 +399,7 @@ let rec interp_decl cev ms d0 = match d0 with
                    (G.Sort s,v) 
                | Some s -> 
                    let s = mk_univ (SFunction(Id.wild,s,sx)) in 
-                   let f v = V.Vnt(V.info_of_t v,qx,l,Some v) in 
+                   let f _ v = V.Vnt(V.info_of_t v,qx,l,Some v) in 
                    let v = mk_impl (V.Fun(i,f)) in 
                    (G.Sort s,v) in 
              (CEnv.update cev ql rv,Qid.t_of_id l::xs))
@@ -392,7 +409,7 @@ let rec interp_decl cev ms d0 = match d0 with
       (new_cev',xs)
 
   | DMod(i,n,ds) ->
-      let m_cev, names = interp_mod_aux cev ms ds in
+      let m_cev, names = interp_mod_aux wq cev ms ds in
       let n_cev,names_rev = 
         Safelist.fold_left
           (fun (n_cev, names) q ->
@@ -410,9 +427,11 @@ let rec interp_decl cev ms d0 = match d0 with
 
   | DTest(i,e,tr) ->
       begin 
+        let wq = if tr = TestError then None else wq in
+        if tr = TestError then msg "TestError: %a\n%!" (fun _ -> format_exp) e;
         if check_test ms then 
           let vo = 
-            try OK(interp_exp cev e)
+            try OK(interp_exp wq cev e)
             with 
               | (Error.Harmony_error(err)) -> Error err 
               | exn -> 
@@ -445,7 +464,7 @@ let rec interp_decl cev ms d0 = match d0 with
                      msg "@\n%!")
             | Error _, TestError -> ()
             | OK v1, TestEqual e2 -> 
-                let v2 = interp_exp cev e2 in
+                let v2 = interp_exp wq cev e2 in
                   if not (V.equal v1 v2) then
                     test_error i 
                       (fun () ->
@@ -466,12 +485,12 @@ let rec interp_decl cev ms d0 = match d0 with
                     begin
                       try 
                         ignore 
-                          ((interp_cast cev i s1 s2)
-                             (interp_exp cev e))
+                          ((interp_cast wq cev i s1 s2)
+                             (interp_exp wq cev e))
                       with Error.Harmony_error(e) -> err ()
                     end                      
             | Error err, TestEqual e2 -> 
-                let v2 = interp_exp cev e2 in 
+                let v2 = interp_exp wq cev e2 in 
                   test_error i 
                     (fun () ->
                        msg "@\nExpected@ "; V.format v2; 
@@ -498,18 +517,27 @@ let rec interp_decl cev ms d0 = match d0 with
       end;
     (cev, [])
         
-and interp_mod_aux cev ms ds = 
+and interp_mod_aux wq cev ms ds = 
   Safelist.fold_left
     (fun (cev, names) di ->
-      let m_cev, new_names = interp_decl cev ms di in
+      let m_cev, new_names = interp_decl wq cev ms di in
         (m_cev, names@new_names))
     (cev,[])
     ds
 
 let interp_module m0 = match m0 with 
   | Mod(i,m,nctx,ds) -> 
+      pc := 0;
+      ic := 0;
       let qm = Qid.t_of_id m in 
       let nctx' = nctx in
       let cev = CEnv.set_ctx (CEnv.empty qm) (qm::nctx') in
-      let new_cev,_ = interp_mod_aux cev [m] ds in
-      G.register_env (CEnv.get_ev new_cev) nctx' m
+      let wqo : ((unit -> V.t) -> unit) option = 
+        if Prefs.read Prefs.parallelPref
+        then 
+          let wq = Workqueue.create () in 
+          Some (fun (f:unit -> V.t) -> Workqueue.enq f wq)
+        else None in
+      let new_cev,_ = interp_mod_aux wqo cev [m] ds in
+      G.register_env (CEnv.get_ev new_cev) nctx' m;
+      msg "Checks:@ %d parallel, %d inline@\n%!" !pc !ic
