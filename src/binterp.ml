@@ -91,8 +91,10 @@ let rec dynamic_match i p0 v0 = match p0,v0 with
   | _ -> None 
 
 (* ----- interpret casts ----- *)
+(* counters for parallel and in-line checks *)
 let pc = ref 0
 let ic = ref 0
+let mc = ref 0
 
 (* precondition: f and t must be compatible. *)
 let rec interp_cast (wq:((unit -> V.t) -> unit) option) cev b f t = 
@@ -127,6 +129,7 @@ let rec interp_cast (wq:((unit -> V.t) -> unit) option) cev b f t =
          v)
     else (* in-line mandatory checking *)
       (fun v -> 
+         if mandatory then incr mc;
          incr ic; 
          run_check wq v) in 
   let native_coercion x = 
@@ -269,7 +272,6 @@ let rec interp_cast (wq:((unit -> V.t) -> unit) option) cev b f t =
 (* ----- interpret expressions ----- *)
 
 and interp_exp wq cev e0 = 
-(*   if wq = None then msg "Mainline: %a\n%!" (fun _ -> format_exp) e0; *)
   match e0 with 
   | EVar(i,q) -> begin 
       match CEnv.lookup_both cev q with
@@ -427,8 +429,8 @@ let rec interp_decl wq cev ms d0 = match d0 with
 
   | DTest(i,e,tr) ->
       begin 
+        (* disable parallel checking for [test ... = error] *)
         let wq = if tr = TestError then None else wq in
-        if tr = TestError then msg "TestError: %a\n%!" (fun _ -> format_exp) e;
         if check_test ms then 
           let vo = 
             try OK(interp_exp wq cev e)
@@ -529,6 +531,7 @@ let interp_module m0 = match m0 with
   | Mod(i,m,nctx,ds) -> 
       pc := 0;
       ic := 0;
+      mc := 0;
       let qm = Qid.t_of_id m in 
       let nctx' = nctx in
       let cev = CEnv.set_ctx (CEnv.empty qm) (qm::nctx') in
@@ -540,4 +543,7 @@ let interp_module m0 = match m0 with
         else None in
       let new_cev,_ = interp_mod_aux wqo cev [m] ds in
       G.register_env (CEnv.get_ev new_cev) nctx' m;
-      msg "Checks:@ %d parallel, %d inline@\n%!" !pc !ic
+      Trace.debug "parallel"
+        (fun () ->
+           msg "@[Checks:@ %d parallel, %d inline, %d mandatory@]@\n" 
+             !pc !ic !mc)
