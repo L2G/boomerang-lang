@@ -13,9 +13,9 @@ slightly more difficult).
 The easiest way to install the prerequisites needed by Boomerang is
 via the GODI package manager for OCaml. There are four steps:
 
-1. Download GODI (Rocket Boost) from 
+1. Download GODI from:
 
-  http://godi.ocaml-programming.de/
+  http://godi.camlcity.org/godi/get_godi.html
 
 2. Next, follow the GODI installation instructions in the included
    README file.
