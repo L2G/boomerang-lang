@@ -28,5 +28,4 @@ main.pdf: $(GENERATEDTEXFILES)
 ##############################################################################
 
 clean:
-  $(CLEAN) $(GENERATEDTEXFILES) *.log main.pdf *.aux temp.tex *.toc *.bbl *.blg *.out *.brf tmp 
-
+	$(CLEAN) $(GENERATEDTEXFILES) *.log main.pdf *.aux temp.tex *.toc *.bbl *.blg *.out *.brf tmp
