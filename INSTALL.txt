@@ -36,14 +36,13 @@ via the GODI package manager for OCaml. There are four steps:
 The required resources are specified here in the order in which they should
 be installed.
 
-ocaml       http://caml.inria.fr/ocaml/distrib.html.  
+ocaml       http://caml.inria.fr/download.en.html
             OCaml 3.09 or later is needed.
 
 OMake       http://omake.metaprl.org/
 
-findlib     versions from 0.8.1 to 1.0.4 have been tested.
-	    findlib can be downloaded from
-            http://www.ocaml-programming.de/packages/
+findlib     http://projects.camlcity.org/projects/findlib.html
+            versions from 0.8.1 to 1.0.4 have been tested.
 
 Go to the trunk directory of the Boomerang distribution and type
 'omake'. After the build completes, you should end up with a working
