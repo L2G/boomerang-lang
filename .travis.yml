@@ -1,5 +1,5 @@
 before_install: |
-  pushd /tmp
+  pushd $HOME
   curl -Lo - http://download.camlcity.org/download/godi-skylift-20121022.tar.gz | tar xz
   cd godi-skylift-20121022
   cp $TRAVIS_BUILD_DIR/tools/log_to.rb .
