@@ -5,6 +5,9 @@ before_install: |
   cp $TRAVIS_BUILD_DIR/tools/log_to.rb .
   sed -i.bak -e 's/>>bootstrap.log 2\>\&1//' bootstrap_stage2
   sudo ./bootstrap --batch --no-stage2
+  PATH="/opt/godi/bin:/opt/godi/sbin:$PATH"
+  export PATH
+  sudo echo "PATH is $PATH"
   sudo run/godi_console1 update
   sudo run/godi_console1 perform -build godi-tools -newer
   ls -R /opt/godi
