@@ -1,0 +1,13 @@
+before_install: |
+  pushd /tmp
+  curl -Lo - http://download.camlcity.org/download/godi-skylift-20121022.tar.gz | tar xz
+  cd godi-skylift-20121022
+  sudo ./bootstrap --batch --dev
+  ls -R /opt/godi
+  popd
+
+install: |
+  godi_console perform -build godi-ocaml-all
+  godi_console perform -build godi-omake
+
+build: true
